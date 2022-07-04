@@ -26,7 +26,7 @@
 using namespace llvm;
 
 static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
-  return RM.getValueOr(Reloc::Static);
+  return RM.value_or(Reloc::Static);
 }
 
 static CodeModel::Model
@@ -108,6 +108,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeXCoreTarget() {
 }
 
 TargetTransformInfo
-XCoreTargetMachine::getTargetTransformInfo(const Function &F) {
+XCoreTargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(XCoreTTIImpl(this, F));
 }

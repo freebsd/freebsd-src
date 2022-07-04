@@ -19,6 +19,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/Error.h"
@@ -174,7 +175,8 @@ Error RawCoverageFilenamesReader::readUncompressed(CovMapVersion Version,
         else
           P.assign(CWD);
         llvm::sys::path::append(P, Filename);
-        Filenames.push_back(static_cast<std::string>(P));
+        sys::path::remove_dots(P, /*remove_dot_dot=*/true);
+        Filenames.push_back(static_cast<std::string>(P.str()));
       }
     }
   }

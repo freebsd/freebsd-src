@@ -336,7 +336,7 @@ raw_ostream &operator<<(raw_ostream &OS, const SymbolLookupFlags &LF) {
 
 void JITLinkAsyncLookupContinuation::anchor() {}
 
-JITLinkContext::~JITLinkContext() {}
+JITLinkContext::~JITLinkContext() = default;
 
 bool JITLinkContext::shouldAddDefaultTargetPasses(const Triple &TT) const {
   return true;
@@ -391,6 +391,15 @@ Error makeTargetOutOfRangeError(const LinkGraph &G, const Block &B,
               << formatv("{0:x}", E.getOffset()) << ")";
   }
   return make_error<JITLinkError>(std::move(ErrMsg));
+}
+
+Error makeAlignmentError(llvm::orc::ExecutorAddr Loc, uint64_t Value, int N,
+                         const Edge &E) {
+  return make_error<JITLinkError>("0x" + llvm::utohexstr(Loc.getValue()) +
+                                  " improper alignment for relocation " +
+                                  formatv("{0:d}", E.getKind()) + ": 0x" +
+                                  llvm::utohexstr(Value) +
+                                  " is not aligned to " + Twine(N) + " bytes");
 }
 
 Expected<std::unique_ptr<LinkGraph>>

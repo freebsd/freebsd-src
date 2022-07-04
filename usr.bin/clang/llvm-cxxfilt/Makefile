@@ -7,6 +7,8 @@ PROG_CXX=	llvm-cxxfilt
 SRCDIR=		llvm/tools/llvm-cxxfilt
 SRCS+=		llvm-cxxfilt.cpp
 
+CFLAGS.llvm-cxxfilt.cpp+=	-Dllvm_cxxfilt_main=main
+
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 
 CFLAGS+=	-I${.OBJDIR}

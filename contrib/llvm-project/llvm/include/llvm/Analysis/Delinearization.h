@@ -16,11 +16,11 @@
 #ifndef LLVM_ANALYSIS_DELINEARIZATION_H
 #define LLVM_ANALYSIS_DELINEARIZATION_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
+class raw_ostream;
+template <typename T> class SmallVectorImpl;
 class GetElementPtrInst;
 class ScalarEvolution;
 class SCEV;
@@ -124,6 +124,17 @@ bool getIndexExpressionsFromGEP(ScalarEvolution &SE,
                                 const GetElementPtrInst *GEP,
                                 SmallVectorImpl<const SCEV *> &Subscripts,
                                 SmallVectorImpl<int> &Sizes);
+
+/// Implementation of fixed size array delinearization. Try to delinearize
+/// access function for a fixed size multi-dimensional array, by deriving
+/// subscripts from GEP instructions. Returns true upon success and false
+/// otherwise. \p Inst is the load/store instruction whose pointer operand is
+/// the one we want to delinearize. \p AccessFn is its corresponding SCEV
+/// expression w.r.t. the surrounding loop.
+bool tryDelinearizeFixedSizeImpl(ScalarEvolution *SE, Instruction *Inst,
+                                 const SCEV *AccessFn,
+                                 SmallVectorImpl<const SCEV *> &Subscripts,
+                                 SmallVectorImpl<int> &Sizes);
 
 struct DelinearizationPrinterPass
     : public PassInfoMixin<DelinearizationPrinterPass> {

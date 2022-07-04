@@ -55,6 +55,7 @@ private:
   void writeStringTable(raw_ostream &OS);
   void writeExportTrie(raw_ostream &OS);
   void writeDynamicSymbolTable(raw_ostream &OS);
+  void writeFunctionStarts(raw_ostream &OS);
 
   void dumpExportEntry(raw_ostream &OS, MachOYAML::ExportEntry &Entry);
   void ZeroToOffset(raw_ostream &OS, size_t offset);
@@ -484,6 +485,7 @@ void MachOWriter::writeLinkEditData(raw_ostream &OS) {
   MachO::dyld_info_command *DyldInfoOnlyCmd = nullptr;
   MachO::symtab_command *SymtabCmd = nullptr;
   MachO::dysymtab_command *DSymtabCmd = nullptr;
+  MachO::linkedit_data_command *FunctionStartsCmd = nullptr;
   for (auto &LC : Obj.LoadCommands) {
     switch (LC.Data.load_command_data.cmd) {
     case MachO::LC_SYMTAB:
@@ -511,12 +513,15 @@ void MachOWriter::writeLinkEditData(raw_ostream &OS) {
       WriteQueue.push_back(std::make_pair(
           DSymtabCmd->indirectsymoff, &MachOWriter::writeDynamicSymbolTable));
       break;
+    case MachO::LC_FUNCTION_STARTS:
+      FunctionStartsCmd = &LC.Data.linkedit_data_command_data;
+      WriteQueue.push_back(std::make_pair(FunctionStartsCmd->dataoff,
+                                          &MachOWriter::writeFunctionStarts));
+      break;
     }
   }
 
-  llvm::sort(WriteQueue, [](const writeOperation &a, const writeOperation &b) {
-    return a.first < b.first;
-  });
+  llvm::sort(WriteQueue, llvm::less_first());
 
   for (auto writeOp : WriteQueue) {
     ZeroToOffset(OS, writeOp.first);
@@ -567,6 +572,17 @@ void MachOWriter::writeDynamicSymbolTable(raw_ostream &OS) {
   for (auto Data : Obj.LinkEdit.IndirectSymbols)
     OS.write(reinterpret_cast<const char *>(&Data),
              sizeof(yaml::Hex32::BaseType));
+}
+
+void MachOWriter::writeFunctionStarts(raw_ostream &OS) {
+  uint64_t Addr = 0;
+  for (uint64_t NextAddr : Obj.LinkEdit.FunctionStarts) {
+    uint64_t Delta = NextAddr - Addr;
+    encodeULEB128(Delta, OS);
+    Addr = NextAddr;
+  }
+
+  OS.write('\0');
 }
 
 class UniversalWriter {

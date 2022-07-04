@@ -10,6 +10,7 @@
 #define _LIBCPP___ALGORITHM_SHUFFLE_H
 
 #include <__config>
+#include <__debug>
 #include <__iterator/iterator_traits.h>
 #include <__random/uniform_int_distribution.h>
 #include <__utility/swap.h>
@@ -17,7 +18,7 @@
 #include <cstdint>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
 _LIBCPP_PUSH_MACROS

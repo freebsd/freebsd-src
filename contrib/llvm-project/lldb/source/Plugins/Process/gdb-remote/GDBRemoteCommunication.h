@@ -183,6 +183,9 @@ protected:
   CompressionType m_compression_type;
 
   PacketResult SendPacketNoLock(llvm::StringRef payload);
+  PacketResult SendNotificationPacketNoLock(llvm::StringRef notify_type,
+                                            std::deque<std::string>& queue,
+                                            llvm::StringRef payload);
   PacketResult SendRawPacketNoLock(llvm::StringRef payload,
                                    bool skip_ack = false);
 
@@ -218,7 +221,7 @@ protected:
 
   bool JoinListenThread();
 
-  static lldb::thread_result_t ListenThread(lldb::thread_arg_t arg);
+  lldb::thread_result_t ListenThread();
 
 private:
   // Promise used to grab the port number from listening thread

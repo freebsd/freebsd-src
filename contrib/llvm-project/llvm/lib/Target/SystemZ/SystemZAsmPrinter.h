@@ -26,6 +26,8 @@ class raw_ostream;
 class LLVM_LIBRARY_VISIBILITY SystemZAsmPrinter : public AsmPrinter {
 private:
   StackMaps SM;
+  MCSymbol *CurrentFnPPA1Sym;     // PPA1 Symbol.
+  MCSymbol *CurrentFnEPMarkerSym; // Entry Point Marker.
 
   SystemZTargetStreamer *getTargetStreamer() {
     MCTargetStreamer *TS = OutStreamer->getTargetStreamer();
@@ -33,9 +35,24 @@ private:
     return static_cast<SystemZTargetStreamer *>(TS);
   }
 
+  /// Call type information for XPLINK.
+  enum class CallType {
+    BASR76 = 0,   // b'x000' == BASR  r7,r6
+    BRAS7 = 1,    // b'x001' == BRAS  r7,ep
+    RESVD_2 = 2,  // b'x010'
+    BRASL7 = 3,   // b'x011' == BRASL r7,ep
+    RESVD_4 = 4,  // b'x100'
+    RESVD_5 = 5,  // b'x101'
+    BALR1415 = 6, // b'x110' == BALR  r14,r15
+    BASR33 = 7,   // b'x111' == BASR  r3,r3
+  };
+
+  void emitPPA1(MCSymbol *FnEndSym);
+
 public:
   SystemZAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
-      : AsmPrinter(TM, std::move(Streamer)), SM(*this) {}
+      : AsmPrinter(TM, std::move(Streamer)), SM(*this),
+        CurrentFnPPA1Sym(nullptr), CurrentFnEPMarkerSym(nullptr) {}
 
   // Override AsmPrinter.
   StringRef getPassName() const override { return "SystemZ Assembly Printer"; }
@@ -52,8 +69,10 @@ public:
     return AsmPrinter::doInitialization(M);
   }
   void emitFunctionEntryLabel() override;
+  void emitFunctionBodyEnd() override;
 
 private:
+  void emitCallInformation(CallType CT);
   void LowerFENTRY_CALL(const MachineInstr &MI, SystemZMCInstLower &MCIL);
   void LowerSTACKMAP(const MachineInstr &MI);
   void LowerPATCHPOINT(const MachineInstr &MI, SystemZMCInstLower &Lower);

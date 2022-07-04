@@ -42,7 +42,7 @@ public:
 private:
   template <class P> void failOn(const P *loc, const Twine &msg) {
     fatal("corrupted .eh_frame: " + msg + "\n>>> defined in " +
-          isec->getObjMsg((const uint8_t *)loc - isec->data().data()));
+          isec->getObjMsg((const uint8_t *)loc - isec->rawData.data()));
   }
 
   uint8_t readByte();
@@ -171,7 +171,7 @@ uint8_t EhReader::getFdeEncoding() {
       readByte();
     else if (c == 'P')
       skipAugP();
-    else if (c != 'B' && c != 'S')
+    else if (c != 'B' && c != 'S' && c != 'G')
       failOn(aug.data(), "unknown .eh_frame augmentation string: " + aug);
   }
   return DW_EH_PE_absptr;
@@ -188,7 +188,7 @@ bool EhReader::hasLSDA() {
       skipAugP();
     else if (c == 'R')
       readByte();
-    else if (c != 'B' && c != 'S')
+    else if (c != 'B' && c != 'S' && c != 'G')
       failOn(aug.data(), "unknown .eh_frame augmentation string: " + aug);
   }
   return false;

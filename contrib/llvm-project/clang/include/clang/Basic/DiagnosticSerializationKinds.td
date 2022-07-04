@@ -154,16 +154,15 @@ def err_module_odr_violation_template_parameter : Error <
   "%select{definition in module '%2'|defined here}1 found "
   "%select{"
   "unnamed template parameter|"
-  "template parameter %4|"
+  "template parameter %5|"
   "template parameter with %select{no |}4default argument|"
   "template parameter with default argument}3">;
-
 
 def note_module_odr_violation_template_parameter : Note <
   "but in '%0' found "
   "%select{"
   "unnamed template parameter %2|"
-  "template parameter %2|"
+  "template parameter %3|"
   "template parameter with %select{no |}2default argument|"
   "template parameter with different default argument}1">;
 
@@ -178,20 +177,13 @@ def note_module_odr_violation_mismatch_decl : Note<"but in '%0' found "
   "protected access specifier|static assert|field|method|type alias|typedef|"
   "data member|friend declaration|function template}1">;
 
-def err_module_odr_violation_mismatch_decl_diff : Error<
+def err_module_odr_violation_record : Error<
   "%q0 has different definitions in different modules; first difference is "
   "%select{definition in module '%2'|defined here}1 found "
   "%select{"
   "static assert with condition|"
   "static assert with message|"
   "static assert with %select{|no }4message|"
-  "field %4|"
-  "field %4 with type %5|"
-  "%select{non-|}5bitfield %4|"
-  "bitfield %4 with one width expression|"
-  "%select{non-|}5mutable field %4|"
-  "field %4 with %select{no|an}5 initalizer|"
-  "field %4 with an initializer|"
   "%select{method %5|constructor|destructor}4|"
   "%select{method %5|constructor|destructor}4 "
     "is %select{not deleted|deleted}6|"
@@ -227,13 +219,6 @@ def err_module_odr_violation_mismatch_decl_diff : Error<
     "with %select{no body|body}6|"
   "%select{method %5|constructor|destructor}4 "
     "with body|"
-  "%select{typedef|type alias}4 name %5|"
-  "%select{typedef|type alias}4 %5 with underlying type %6|"
-  "data member with name %4|"
-  "data member %4 with type %5|"
-  "data member %4 with%select{out|}5 an initializer|"
-  "data member %4 with an initializer|"
-  "data member %4 %select{is constexpr|is not constexpr}5|"
   "friend %select{class|function}4|"
   "friend %4|"
   "friend function %4|"
@@ -251,18 +236,11 @@ def err_module_odr_violation_mismatch_decl_diff : Error<
     "being a template parameter pack|"
   "}3">;
 
-def note_module_odr_violation_mismatch_decl_diff : Note<"but in '%0' found "
+def note_module_odr_violation_record : Note<"but in '%0' found "
   "%select{"
   "static assert with different condition|"
   "static assert with different message|"
   "static assert with %select{|no }2message|"
-  "field %2|"
-  "field %2 with type %3|"
-  "%select{non-|}3bitfield %2|"
-  "bitfield %2 with different width expression|"
-  "%select{non-|}3mutable field %2|"
-  "field %2 with %select{no|an}3 initializer|"
-  "field %2 with a different initializer|"
   "%select{method %3|constructor|destructor}2|"
   "%select{method %3|constructor|destructor}2 "
     "is %select{not deleted|deleted}4|"
@@ -298,13 +276,6 @@ def note_module_odr_violation_mismatch_decl_diff : Note<"but in '%0' found "
     "with %select{no body|body}4|"
   "%select{method %3|constructor|destructor}2 "
     "with different body|"
-  "%select{typedef|type alias}2 name %3|"
-  "%select{typedef|type alias}2 %3 with different underlying type %4|"
-  "data member with name %2|"
-  "data member %2 with different type %3|"
-  "data member %2 with%select{out|}3 an initializer|"
-  "data member %2 with a different initializer|"
-  "data member %2 %select{is constexpr|is not constexpr}3|"
   "friend %select{class|function}2|"
   "friend %2|"
   "friend function %2|"
@@ -320,6 +291,61 @@ def note_module_odr_violation_mismatch_decl_diff : Note<"but in '%0' found "
   "function template %2 with %ordinal3 template parameter with different type|"
   "function template %2 with %ordinal3 template parameter %select{not |}4"
     "being a template parameter pack|"
+  "}1">;
+
+def err_module_odr_violation_field : Error<
+  "%q0 has different definitions in different modules; first difference is "
+  "%select{definition in module '%2'|defined here}1 found "
+  "%select{"
+  "field %4|"
+  "field %4 with type %5|"
+  "%select{non-|}5bitfield %4|"
+  "bitfield %4 with one width expression|"
+  "%select{non-|}5mutable field %4|"
+  "field %4 with %select{no|an}5 initalizer|"
+  "field %4 with an initializer"
+  "}3">;
+def note_module_odr_violation_field : Note<"but in '%0' found "
+  "%select{"
+  "field %2|"
+  "field %2 with type %3|"
+  "%select{non-|}3bitfield %2|"
+  "bitfield %2 with different width expression|"
+  "%select{non-|}3mutable field %2|"
+  "field %2 with %select{no|an}3 initializer|"
+  "field %2 with a different initializer"
+  "}1">;
+
+def err_module_odr_violation_typedef : Error<
+  "%q0 has different definitions in different modules; first difference is "
+  "%select{definition in module '%2'|defined here}1 found "
+  "%select{"
+  "%select{typedef|type alias}4 name %5|"
+  "%select{typedef|type alias}4 %5 with underlying type %6"
+  "}3">;
+def note_module_odr_violation_typedef : Note<"but in '%0' found "
+  "%select{"
+  "%select{typedef|type alias}2 name %3|"
+  "%select{typedef|type alias}2 %3 with different underlying type %4"
+  "}1">;
+
+def err_module_odr_violation_variable : Error<
+  "%q0 has different definitions in different modules; first difference is "
+  "%select{definition in module '%2'|defined here}1 found "
+  "%select{"
+  "data member with name %4|"
+  "data member %4 with type %5|"
+  "data member %4 with%select{out|}5 an initializer|"
+  "data member %4 with an initializer|"
+  "data member %4 %select{is constexpr|is not constexpr}5"
+  "}3">;
+def note_module_odr_violation_variable : Note<"but in '%0' found "
+  "%select{"
+  "data member with name %2|"
+  "data member %2 with different type %3|"
+  "data member %2 with%select{out|}3 an initializer|"
+  "data member %2 with a different initializer|"
+  "data member %2 %select{is constexpr|is not constexpr}3"
   "}1">;
 
 def err_module_odr_violation_function : Error<
@@ -356,7 +382,7 @@ def err_module_odr_violation_enum : Error<
   "enum with specified type %4|"
   "enum with %4 element%s4|"
   "%ordinal4 element has name %5|"
-  "%ordinal4 element %5 %select{has|does not have}6 an initilizer|"
+  "%ordinal4 element %5 %select{has|does not have}6 an initializer|"
   "%ordinal4 element %5 has an initializer|"
   "}3">;
 
@@ -376,12 +402,14 @@ def err_module_odr_violation_mismatch_decl_unknown : Error<
   "%q0 %select{with definition in module '%2'|defined here}1 has different "
   "definitions in different modules; first difference is this "
   "%select{||||static assert|field|method|type alias|typedef|data member|"
-  "friend declaration|unexpected decl}3">;
+  "friend declaration|function template|"
+  "unexpected decl}3">;
 def note_module_odr_violation_mismatch_decl_unknown : Note<
   "but in '%0' found "
   "%select{||||different static assert|different field|different method|"
   "different type alias|different typedef|different data member|"
-  "different friend declaration|another unexpected decl}1">;
+  "different friend declaration|different function template|"
+  "another unexpected decl}1">;
 
 def warn_duplicate_module_file_extension : Warning<
   "duplicate module file extension block name '%0'">,

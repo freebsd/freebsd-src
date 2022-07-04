@@ -23,7 +23,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/LiveInterval.h"
-#include "llvm/CodeGen/LiveIntervalCalc.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveStacks.h"
@@ -686,7 +685,7 @@ void InlineSpiller::reMaterializeAll() {
   // Remove any values that were completely rematted.
   for (Register Reg : RegsToSpill) {
     LiveInterval &LI = LIS.getInterval(Reg);
-    for (VNInfo *VNI : llvm::make_range(LI.vni_begin(), LI.vni_end())) {
+    for (VNInfo *VNI : LI.vnis()) {
       if (VNI->isUnused() || VNI->isPHIDef() || UsedValues.count(VNI))
         continue;
       MachineInstr *MI = LIS.getInstructionFromIndex(VNI->def);
@@ -839,6 +838,13 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr *, unsigned>> Ops,
     unsigned Idx = OpPair.second;
     assert(MI == OpPair.first && "Instruction conflict during operand folding");
     MachineOperand &MO = MI->getOperand(Idx);
+
+    // No point restoring an undef read, and we'll produce an invalid live
+    // interval.
+    // TODO: Is this really the correct way to handle undef tied uses?
+    if (MO.isUse() && !MO.readsReg() && !MO.isTied())
+      continue;
+
     if (MO.isImplicit()) {
       ImpReg = MO.getReg();
       continue;
@@ -964,7 +970,7 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr *, unsigned>> Ops,
       if (!MO.isReg() || !MO.isImplicit())
         break;
       if (MO.getReg() == ImpReg)
-        FoldMI->RemoveOperand(i - 1);
+        FoldMI->removeOperand(i - 1);
     }
 
   LLVM_DEBUG(dumpMachineInstrRangeWithSlotIndex(MIS.begin(), MIS.end(), LIS,
@@ -1608,7 +1614,7 @@ void HoistSpillHelper::hoistAllSpills() {
       for (unsigned i = RMEnt->getNumOperands(); i; --i) {
         MachineOperand &MO = RMEnt->getOperand(i - 1);
         if (MO.isReg() && MO.isImplicit() && MO.isDef() && !MO.isDead())
-          RMEnt->RemoveOperand(i - 1);
+          RMEnt->removeOperand(i - 1);
       }
     }
     Edit.eliminateDeadDefs(SpillsToRm, None, AA);

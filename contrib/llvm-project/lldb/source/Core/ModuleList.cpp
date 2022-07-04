@@ -22,8 +22,8 @@
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/Logging.h"
 #include "lldb/Utility/UUID.h"
 #include "lldb/lldb-defines.h"
 
@@ -180,10 +180,15 @@ PathMappingList ModuleListProperties::GetSymlinkMappings() const {
   return m_symlink_paths;
 }
 
+bool ModuleListProperties::GetLoadSymbolOnDemand() {
+  const uint32_t idx = ePropertyLoadSymbolOnDemand;
+  return m_collection_sp->GetPropertyAtIndexAsBoolean(
+      nullptr, idx, g_modulelist_properties[idx].default_uint_value != 0);
+}
+
 ModuleList::ModuleList() : m_modules(), m_modules_mutex() {}
 
-ModuleList::ModuleList(const ModuleList &rhs)
-    : m_modules(), m_modules_mutex(), m_notifier(nullptr) {
+ModuleList::ModuleList(const ModuleList &rhs) : m_modules(), m_modules_mutex() {
   std::lock_guard<std::recursive_mutex> lhs_guard(m_modules_mutex);
   std::lock_guard<std::recursive_mutex> rhs_guard(rhs.m_modules_mutex);
   m_modules = rhs.m_modules;
@@ -807,7 +812,7 @@ ModuleList::GetSharedModule(const ModuleSpec &module_spec, ModuleSP &module_sp,
           if (old_modules)
             old_modules->push_back(module_sp);
 
-          Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_MODULES));
+          Log *log = GetLog(LLDBLog::Modules);
           if (log != nullptr)
             LLDB_LOGF(
                 log, "%p '%s' module changed: removing from global module list",

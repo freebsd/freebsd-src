@@ -19,13 +19,14 @@
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/SearchFilter.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadSpec.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
@@ -487,7 +488,7 @@ void Breakpoint::ClearAllBreakpointSites() {
 
 void Breakpoint::ModulesChanged(ModuleList &module_list, bool load,
                                 bool delete_locations) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
+  Log *log = GetLog(LLDBLog::Breakpoints);
   LLDB_LOGF(log,
             "Breakpoint::ModulesChanged: num_modules: %zu load: %i "
             "delete_locations: %i\n",
@@ -646,7 +647,7 @@ static bool SymbolContextsMightBeEquivalent(SymbolContext &old_sc,
 
 void Breakpoint::ModuleReplaced(ModuleSP old_module_sp,
                                 ModuleSP new_module_sp) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
+  Log *log = GetLog(LLDBLog::Breakpoints);
   LLDB_LOGF(log, "Breakpoint::ModulesReplaced for %s\n",
             old_module_sp->GetSpecificationDescription().c_str());
   // First find all the locations that are in the old module
@@ -1009,10 +1010,32 @@ void Breakpoint::SendBreakpointChangedEvent(BreakpointEventData *data) {
     delete data;
 }
 
+const char *Breakpoint::BreakpointEventTypeAsCString(BreakpointEventType type) {
+  switch (type) {
+    case eBreakpointEventTypeInvalidType: return "invalid";
+    case eBreakpointEventTypeAdded: return "breakpoint added";
+    case eBreakpointEventTypeRemoved: return "breakpoint removed";
+    case eBreakpointEventTypeLocationsAdded: return "locations added";
+    case eBreakpointEventTypeLocationsRemoved: return "locations removed";
+    case eBreakpointEventTypeLocationsResolved: return "locations resolved";
+    case eBreakpointEventTypeEnabled: return "breakpoint enabled";
+    case eBreakpointEventTypeDisabled: return "breakpoint disabled";
+    case eBreakpointEventTypeCommandChanged: return "command changed";
+    case eBreakpointEventTypeConditionChanged: return "condition changed";
+    case eBreakpointEventTypeIgnoreChanged: return "ignore count changed";
+    case eBreakpointEventTypeThreadChanged: return "thread changed";
+    case eBreakpointEventTypeAutoContinueChanged: return "autocontinue changed";
+  };
+  llvm_unreachable("Fully covered switch above!");
+}
+
+Log *Breakpoint::BreakpointEventData::GetLogChannel() {
+  return GetLog(LLDBLog::Breakpoints);
+}
+
 Breakpoint::BreakpointEventData::BreakpointEventData(
     BreakpointEventType sub_type, const BreakpointSP &new_breakpoint_sp)
-    : EventData(), m_breakpoint_event(sub_type),
-      m_new_breakpoint_sp(new_breakpoint_sp) {}
+    : m_breakpoint_event(sub_type), m_new_breakpoint_sp(new_breakpoint_sp) {}
 
 Breakpoint::BreakpointEventData::~BreakpointEventData() = default;
 
@@ -1025,7 +1048,7 @@ ConstString Breakpoint::BreakpointEventData::GetFlavor() const {
   return BreakpointEventData::GetFlavorString();
 }
 
-BreakpointSP &Breakpoint::BreakpointEventData::GetBreakpoint() {
+BreakpointSP Breakpoint::BreakpointEventData::GetBreakpoint() const {
   return m_new_breakpoint_sp;
 }
 
@@ -1034,7 +1057,14 @@ Breakpoint::BreakpointEventData::GetBreakpointEventType() const {
   return m_breakpoint_event;
 }
 
-void Breakpoint::BreakpointEventData::Dump(Stream *s) const {}
+void Breakpoint::BreakpointEventData::Dump(Stream *s) const {
+  if (!s)
+    return;
+  BreakpointEventType event_type = GetBreakpointEventType();
+  break_id_t bkpt_id = GetBreakpoint()->GetID();
+  s->Format("bkpt: {0} type: {1}", bkpt_id,
+      BreakpointEventTypeAsCString(event_type));
+}
 
 const Breakpoint::BreakpointEventData *
 Breakpoint::BreakpointEventData::GetEventDataFromEvent(const Event *event) {

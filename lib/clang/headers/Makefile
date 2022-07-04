@@ -4,9 +4,10 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSGROUPS=	INCS CUDA OMP PPC
-INCSDIR=	${LIBDIR}/clang/14.0.5/include
+INCSGROUPS=	INCS CUDA HLSL OMP PPC
+INCSDIR=	${LIBDIR}/clang/15.0.0/include
 CUDADIR=	${INCSDIR}/cuda_wrappers
+HLSLDIR=	${INCSDIR}/hlsl
 OMPDIR=		${INCSDIR}/openmp_wrappers
 PPCDIR=		${INCSDIR}/ppc_wrappers
 
@@ -88,6 +89,7 @@ INCS+=		gfniintrin.h
 INCS+=		hexagon_circ_brev_intrinsics.h
 INCS+=		hexagon_protos.h
 INCS+=		hexagon_types.h
+INCS+=		hlsl.h
 INCS+=		hresetintrin.h
 INCS+=		htmintrin.h
 INCS+=		htmxlintrin.h
@@ -128,6 +130,9 @@ INCS+=		uintrintrin.h
 INCS+=		vadefs.h
 INCS+=		vaesintrin.h
 INCS+=		vecintrin.h
+INCS+=		velintrin.h
+INCS+=		velintrin_approx.h
+INCS+=		velintrin_gen.h
 INCS+=		vpclmulqdqintrin.h
 INCS+=		waitpkgintrin.h
 INCS+=		wasm_simd128.h
@@ -167,6 +172,9 @@ CUDA+=		cuda_wrappers/algorithm
 CUDA+=		cuda_wrappers/complex
 CUDA+=		cuda_wrappers/new
 
+HLSL+=		hlsl/hlsl_basic_types.h
+HLSL+=		hlsl/hlsl_intrinsics.h
+
 OMP+=		openmp_wrappers/__clang_openmp_device_functions.h
 OMP+=		openmp_wrappers/cmath
 OMP+=		openmp_wrappers/complex
@@ -175,12 +183,17 @@ OMP+=		openmp_wrappers/complex_cmath.h
 OMP+=		openmp_wrappers/math.h
 OMP+=		openmp_wrappers/new
 
+PPC+=		ppc_wrappers/bmi2intrin.h
+PPC+=		ppc_wrappers/bmiintrin.h
 PPC+=		ppc_wrappers/emmintrin.h
+PPC+=		ppc_wrappers/immintrin.h
 PPC+=		ppc_wrappers/mm_malloc.h
 PPC+=		ppc_wrappers/mmintrin.h
 PPC+=		ppc_wrappers/pmmintrin.h
 PPC+=		ppc_wrappers/smmintrin.h
 PPC+=		ppc_wrappers/tmmintrin.h
+PPC+=		ppc_wrappers/x86gprintrin.h
+PPC+=		ppc_wrappers/x86intrin.h
 PPC+=		ppc_wrappers/xmmintrin.h
 
 .for hdr in bf16/bf16 cde/cde-header fp16/fp16 mve/mve-header neon/neon \

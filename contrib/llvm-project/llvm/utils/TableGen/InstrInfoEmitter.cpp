@@ -36,6 +36,12 @@
 
 using namespace llvm;
 
+cl::OptionCategory InstrInfoEmitterCat("Options for -gen-instr-info");
+static cl::opt<bool> ExpandMIOperandInfo(
+    "instr-info-expand-mi-operand-info",
+    cl::desc("Expand operand's MIOperandInfo DAG into suboperands"),
+    cl::cat(InstrInfoEmitterCat), cl::init(true));
+
 namespace {
 
 class InstrInfoEmitter {
@@ -379,6 +385,9 @@ void InstrInfoEmitter::emitOperandTypeMappings(
   OS << "namespace " << Namespace << " {\n";
   OS << "LLVM_READONLY\n";
   OS << "static int getOperandType(uint16_t Opcode, uint16_t OpIdx) {\n";
+  auto getInstrName = [&](int I) -> StringRef {
+    return NumberedInstructions[I]->TheDef->getName();
+  };
   // TODO: Factor out duplicate operand lists to compress the tables.
   if (!NumberedInstructions.empty()) {
     std::vector<int> OperandOffsets;
@@ -388,7 +397,7 @@ void InstrInfoEmitter::emitOperandTypeMappings(
       OperandOffsets.push_back(CurrentOffset);
       for (const auto &Op : Inst->Operands) {
         const DagInit *MIOI = Op.MIOperandInfo;
-        if (!MIOI || MIOI->getNumArgs() == 0) {
+        if (!ExpandMIOperandInfo || !MIOI || MIOI->getNumArgs() == 0) {
           // Single, anonymous, operand.
           OperandRecords.push_back(Op.Rec);
           ++CurrentOffset;
@@ -408,8 +417,10 @@ void InstrInfoEmitter::emitOperandTypeMappings(
     OS << ((OperandRecords.size() <= UINT16_MAX) ? "  const uint16_t"
                                                  : "  const uint32_t");
     OS << " Offsets[] = {\n";
-    for (int I = 0, E = OperandOffsets.size(); I != E; ++I)
+    for (int I = 0, E = OperandOffsets.size(); I != E; ++I) {
+      OS << "    /* " << getInstrName(I) << " */\n";
       OS << "    " << OperandOffsets[I] << ",\n";
+    }
     OS << "  };\n";
 
     // Add an entry for the end so that we don't need to special case it below.
@@ -419,22 +430,22 @@ void InstrInfoEmitter::emitOperandTypeMappings(
     // Size the signed integer operand type to save space.
     assert(EnumVal <= INT16_MAX &&
            "Too many operand types for operand types table");
+    OS << "\n  using namespace OpTypes;\n";
     OS << ((EnumVal <= INT8_MAX) ? "  const int8_t" : "  const int16_t");
     OS << " OpcodeOperandTypes[] = {\n    ";
-    for (int I = 0, E = OperandRecords.size(), CurOffset = 1; I != E; ++I) {
+    for (int I = 0, E = OperandRecords.size(), CurOffset = 0; I != E; ++I) {
       // We print each Opcode's operands in its own row.
       if (I == OperandOffsets[CurOffset]) {
-        OS << "\n    ";
-        // If there are empty rows, mark them with an empty comment.
+        OS << "\n    /* " << getInstrName(CurOffset) << " */\n    ";
         while (OperandOffsets[++CurOffset] == I)
-          OS << "/**/\n    ";
+          OS << "/* " << getInstrName(CurOffset) << " */\n    ";
       }
       Record *OpR = OperandRecords[I];
       if ((OpR->isSubClassOf("Operand") ||
            OpR->isSubClassOf("RegisterOperand") ||
            OpR->isSubClassOf("RegisterClass")) &&
           !OpR->isAnonymous())
-        OS << "OpTypes::" << OpR->getName();
+        OS << OpR->getName();
       else
         OS << -1;
       OS << ", ";
@@ -449,6 +460,31 @@ void InstrInfoEmitter::emitOperandTypeMappings(
   OS << "} // end namespace " << Namespace << "\n";
   OS << "} // end namespace llvm\n";
   OS << "#endif // GET_INSTRINFO_OPERAND_TYPE\n\n";
+
+  OS << "#ifdef GET_INSTRINFO_MEM_OPERAND_SIZE\n";
+  OS << "#undef GET_INSTRINFO_MEM_OPERAND_SIZE\n";
+  OS << "namespace llvm {\n";
+  OS << "namespace " << Namespace << " {\n";
+  OS << "LLVM_READONLY\n";
+  OS << "static int getMemOperandSize(int OpType) {\n";
+  OS << "  switch (OpType) {\n";
+  std::map<int, std::vector<StringRef>> SizeToOperandName;
+  for (const Record *Op : Operands) {
+    if (!Op->isSubClassOf("X86MemOperand"))
+      continue;
+    if (int Size = Op->getValueAsInt("Size"))
+      SizeToOperandName[Size].push_back(Op->getName());
+  }
+  OS << "  default: return 0;\n";
+  for (auto KV : SizeToOperandName) {
+    for (const StringRef &OperandName : KV.second)
+      OS << "  case OpTypes::" << OperandName << ":\n";
+    OS << "    return " << KV.first << ";\n\n";
+  }
+  OS << "  }\n}\n";
+  OS << "} // end namespace " << Namespace << "\n";
+  OS << "} // end namespace llvm\n";
+  OS << "#endif // GET_INSTRINFO_MEM_OPERAND_SIZE\n\n";
 }
 
 void InstrInfoEmitter::emitLogicalOperandSizeMappings(
@@ -943,6 +979,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   // Emit all of the target independent flags...
   if (Inst.isPreISelOpcode)    OS << "|(1ULL<<MCID::PreISelOpcode)";
   if (Inst.isPseudo)           OS << "|(1ULL<<MCID::Pseudo)";
+  if (Inst.isMeta)             OS << "|(1ULL<<MCID::Meta)";
   if (Inst.isReturn)           OS << "|(1ULL<<MCID::Return)";
   if (Inst.isEHScopeReturn)    OS << "|(1ULL<<MCID::EHScopeReturn)";
   if (Inst.isBranch)           OS << "|(1ULL<<MCID::Branch)";

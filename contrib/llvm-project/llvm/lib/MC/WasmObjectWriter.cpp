@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/BinaryFormat/Wasm.h"
 #include "llvm/BinaryFormat/WasmTraits.h"
 #include "llvm/Config/llvm-config.h"
@@ -31,7 +30,6 @@
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LEB128.h"
-#include "llvm/Support/StringSaver.h"
 #include <vector>
 
 using namespace llvm;
@@ -125,12 +123,11 @@ struct WasmCustomSection {
   StringRef Name;
   MCSectionWasm *Section;
 
-  uint32_t OutputContentsOffset;
-  uint32_t OutputIndex;
+  uint32_t OutputContentsOffset = 0;
+  uint32_t OutputIndex = InvalidIndex;
 
   WasmCustomSection(StringRef Name, MCSectionWasm *Section)
-      : Name(Name), Section(Section), OutputContentsOffset(0),
-        OutputIndex(InvalidIndex) {}
+      : Name(Name), Section(Section) {}
 };
 
 #if !defined(NDEBUG)
@@ -934,25 +931,29 @@ void WasmObjectWriter::writeGlobalSection(ArrayRef<wasm::WasmGlobal> Globals) {
   for (const wasm::WasmGlobal &Global : Globals) {
     encodeULEB128(Global.Type.Type, W->OS);
     W->OS << char(Global.Type.Mutable);
-    W->OS << char(Global.InitExpr.Opcode);
-    switch (Global.Type.Type) {
-    case wasm::WASM_TYPE_I32:
-      encodeSLEB128(0, W->OS);
-      break;
-    case wasm::WASM_TYPE_I64:
-      encodeSLEB128(0, W->OS);
-      break;
-    case wasm::WASM_TYPE_F32:
-      writeI32(0);
-      break;
-    case wasm::WASM_TYPE_F64:
-      writeI64(0);
-      break;
-    case wasm::WASM_TYPE_EXTERNREF:
-      writeValueType(wasm::ValType::EXTERNREF);
-      break;
-    default:
-      llvm_unreachable("unexpected type");
+    if (Global.InitExpr.Extended) {
+      llvm_unreachable("extected init expressions not supported");
+    } else {
+      W->OS << char(Global.InitExpr.Inst.Opcode);
+      switch (Global.Type.Type) {
+      case wasm::WASM_TYPE_I32:
+        encodeSLEB128(0, W->OS);
+        break;
+      case wasm::WASM_TYPE_I64:
+        encodeSLEB128(0, W->OS);
+        break;
+      case wasm::WASM_TYPE_F32:
+        writeI32(0);
+        break;
+      case wasm::WASM_TYPE_F64:
+        writeI64(0);
+        break;
+      case wasm::WASM_TYPE_EXTERNREF:
+        writeValueType(wasm::ValType::EXTERNREF);
+        break;
+      default:
+        llvm_unreachable("unexpected type");
+      }
     }
     W->OS << char(wasm::WASM_OPCODE_END);
   }
@@ -1569,9 +1570,9 @@ uint64_t WasmObjectWriter::writeOneObject(MCAssembler &Asm,
         continue;
 
       const auto &WS = static_cast<const MCSymbolWasm &>(S);
-      LLVM_DEBUG(dbgs()
-                 << "MCSymbol: "
-                 << toString(WS.getType().getValueOr(wasm::WASM_SYMBOL_TYPE_DATA))
+      LLVM_DEBUG(
+          dbgs() << "MCSymbol: "
+                 << toString(WS.getType().value_or(wasm::WASM_SYMBOL_TYPE_DATA))
                  << " '" << S << "'"
                  << " isDefined=" << S.isDefined() << " isExternal="
                  << S.isExternal() << " isTemporary=" << S.isTemporary()
@@ -1661,21 +1662,22 @@ uint64_t WasmObjectWriter::writeOneObject(MCAssembler &Asm,
           wasm::WasmGlobal Global;
           Global.Type = WS.getGlobalType();
           Global.Index = NumGlobalImports + Globals.size();
+          Global.InitExpr.Extended = false;
           switch (Global.Type.Type) {
           case wasm::WASM_TYPE_I32:
-            Global.InitExpr.Opcode = wasm::WASM_OPCODE_I32_CONST;
+            Global.InitExpr.Inst.Opcode = wasm::WASM_OPCODE_I32_CONST;
             break;
           case wasm::WASM_TYPE_I64:
-            Global.InitExpr.Opcode = wasm::WASM_OPCODE_I64_CONST;
+            Global.InitExpr.Inst.Opcode = wasm::WASM_OPCODE_I64_CONST;
             break;
           case wasm::WASM_TYPE_F32:
-            Global.InitExpr.Opcode = wasm::WASM_OPCODE_F32_CONST;
+            Global.InitExpr.Inst.Opcode = wasm::WASM_OPCODE_F32_CONST;
             break;
           case wasm::WASM_TYPE_F64:
-            Global.InitExpr.Opcode = wasm::WASM_OPCODE_F64_CONST;
+            Global.InitExpr.Inst.Opcode = wasm::WASM_OPCODE_F64_CONST;
             break;
           case wasm::WASM_TYPE_EXTERNREF:
-            Global.InitExpr.Opcode = wasm::WASM_OPCODE_REF_NULL;
+            Global.InitExpr.Inst.Opcode = wasm::WASM_OPCODE_REF_NULL;
             break;
           default:
             llvm_unreachable("unexpected type");
@@ -1807,7 +1809,7 @@ uint64_t WasmObjectWriter::writeOneObject(MCAssembler &Asm,
 
     wasm::WasmSymbolInfo Info;
     Info.Name = WS.getName();
-    Info.Kind = WS.getType().getValueOr(wasm::WASM_SYMBOL_TYPE_DATA);
+    Info.Kind = WS.getType().value_or(wasm::WASM_SYMBOL_TYPE_DATA);
     Info.Flags = Flags;
     if (!WS.isData()) {
       assert(WasmIndices.count(&WS) > 0);
@@ -1874,7 +1876,8 @@ uint64_t WasmObjectWriter::writeOneObject(MCAssembler &Asm,
     const MCFragment &AlignFrag = *IT;
     if (AlignFrag.getKind() != MCFragment::FT_Align)
       report_fatal_error(".init_array section should be aligned");
-    if (cast<MCAlignFragment>(AlignFrag).getAlignment() != (is64Bit() ? 8 : 4))
+    if (cast<MCAlignFragment>(AlignFrag).getAlignment() !=
+        Align(is64Bit() ? 8 : 4))
       report_fatal_error(".init_array section should be aligned for pointers");
 
     const MCFragment &Frag = *std::next(IT);

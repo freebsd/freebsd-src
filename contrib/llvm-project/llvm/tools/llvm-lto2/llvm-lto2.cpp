@@ -37,9 +37,10 @@ using namespace lto;
 static codegen::RegisterCodeGenFlags CGF;
 
 static cl::opt<char>
-    OptLevel("O", cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
-                           "(default = '-O2')"),
-             cl::Prefix, cl::ZeroOrMore, cl::init('2'));
+    OptLevel("O",
+             cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
+                      "(default = '-O2')"),
+             cl::Prefix, cl::init('2'));
 
 static cl::opt<char> CGOptLevel(
     "cg-opt-level",
@@ -67,10 +68,22 @@ static cl::opt<std::string> AAPipeline("aa-pipeline",
 static cl::opt<bool> SaveTemps("save-temps", cl::desc("Save temporary files"));
 
 static cl::opt<bool>
-    ThinLTODistributedIndexes("thinlto-distributed-indexes", cl::init(false),
+    ThinLTODistributedIndexes("thinlto-distributed-indexes",
                               cl::desc("Write out individual index and "
                                        "import files for the "
                                        "distributed backend case"));
+
+static cl::opt<bool>
+    ThinLTOEmitIndexes("thinlto-emit-indexes",
+                       cl::desc("Write out individual index files via "
+                                "InProcessThinLTO"));
+
+static cl::opt<bool>
+    ThinLTOEmitImports("thinlto-emit-imports",
+                       cl::desc("Write out individual imports files via "
+                                "InProcessThinLTO. Has no effect unless "
+                                "specified with -thinlto-emit-indexes or "
+                                "-thinlto-distributed-indexes"));
 
 // Default to using all available threads in the system, but using only one
 // thread per core (no SMT).
@@ -89,8 +102,7 @@ static cl::list<std::string> SymbolResolutions(
              "     runtime and is known to be in this linkage unit\n"
              " x - externally visible: the definition of this symbol is\n"
              "     visible outside of the LTO unit\n"
-             "A resolution for each symbol must be specified."),
-    cl::ZeroOrMore);
+             "A resolution for each symbol must be specified"));
 
 static cl::opt<std::string> OverrideTriple(
     "override-triple",
@@ -141,15 +153,14 @@ static cl::opt<std::string>
 static cl::opt<bool>
     RunCSIRInstr("lto-cspgo-gen",
                  cl::desc("Run PGO context sensitive IR instrumentation"),
-                 cl::init(false), cl::Hidden);
+                 cl::Hidden);
+
+static cl::opt<bool> LtoOpaquePointers("lto-opaque-pointers",
+                                       cl::desc("Enable opaque pointer types"),
+                                       cl::init(true), cl::Hidden);
 
 static cl::opt<bool>
-    UseNewPM("use-new-pm",
-             cl::desc("Run LTO passes using the new pass manager"),
-             cl::init(LLVM_ENABLE_NEW_PASS_MANAGER), cl::Hidden);
-
-static cl::opt<bool>
-    DebugPassManager("debug-pass-manager", cl::init(false), cl::Hidden,
+    DebugPassManager("debug-pass-manager", cl::Hidden,
                      cl::desc("Print pass management debugging information"));
 
 static cl::opt<std::string>
@@ -162,7 +173,7 @@ static cl::list<std::string>
 static cl::opt<bool> EnableFreestanding(
     "lto-freestanding",
     cl::desc("Enable Freestanding (disable builtins / TLI) during LTO"),
-    cl::init(false), cl::Hidden);
+    cl::Hidden);
 
 static void check(Error E, std::string Msg) {
   if (!E)
@@ -242,7 +253,7 @@ static int run(int argc, char **argv) {
   Conf.Options = codegen::InitTargetOptionsFromCodeGenFlags(Triple());
   Conf.MAttrs = codegen::getMAttrs();
   if (auto RM = codegen::getExplicitRelocModel())
-    Conf.RelocModel = RM.getValue();
+    Conf.RelocModel = *RM;
   Conf.CodeModel = codegen::getExplicitCodeModel();
 
   Conf.DebugPassManager = DebugPassManager;
@@ -267,7 +278,6 @@ static int run(int argc, char **argv) {
   Conf.AAPipeline = AAPipeline;
 
   Conf.OptLevel = OptLevel - '0';
-  Conf.UseNewPM = UseNewPM;
   Conf.Freestanding = EnableFreestanding;
   for (auto &PluginFN : PassPlugins)
     Conf.PassPlugins.push_back(PluginFN);
@@ -290,24 +300,27 @@ static int run(int argc, char **argv) {
   }
 
   if (auto FT = codegen::getExplicitFileType())
-    Conf.CGFileType = FT.getValue();
+    Conf.CGFileType = *FT;
 
   Conf.OverrideTriple = OverrideTriple;
   Conf.DefaultTriple = DefaultTriple;
   Conf.StatsFile = StatsFile;
   Conf.PTO.LoopVectorization = Conf.OptLevel > 1;
   Conf.PTO.SLPVectorization = Conf.OptLevel > 1;
+  Conf.OpaquePointers = LtoOpaquePointers;
 
   ThinBackend Backend;
   if (ThinLTODistributedIndexes)
-    Backend = createWriteIndexesThinBackend(/* OldPrefix */ "",
-                                            /* NewPrefix */ "",
-                                            /* ShouldEmitImportsFiles */ true,
-                                            /* LinkedObjectsFile */ nullptr,
-                                            /* OnWrite */ {});
+    Backend =
+        createWriteIndexesThinBackend(/* OldPrefix */ "",
+                                      /* NewPrefix */ "", ThinLTOEmitImports,
+                                      /* LinkedObjectsFile */ nullptr,
+                                      /* OnWrite */ {});
   else
     Backend = createInProcessThinBackend(
-        llvm::heavyweight_hardware_concurrency(Threads));
+        llvm::heavyweight_hardware_concurrency(Threads),
+        /* OnWrite */ {}, ThinLTOEmitIndexes, ThinLTOEmitImports);
+
   // Track whether we hit an error; in particular, in the multi-threaded case,
   // we can't exit() early because the rest of the threads wouldn't have had a
   // change to be join-ed, and that would result in a "terminate called without

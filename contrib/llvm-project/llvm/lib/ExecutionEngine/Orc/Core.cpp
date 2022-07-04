@@ -62,7 +62,7 @@ void ResourceTracker::makeDefunct() {
   JDAndFlag.store(Val);
 }
 
-ResourceManager::~ResourceManager() {}
+ResourceManager::~ResourceManager() = default;
 
 ResourceTrackerDefunct::ResourceTrackerDefunct(ResourceTrackerSP RT)
     : RT(std::move(RT)) {}
@@ -76,9 +76,21 @@ void ResourceTrackerDefunct::log(raw_ostream &OS) const {
 }
 
 FailedToMaterialize::FailedToMaterialize(
+    std::shared_ptr<SymbolStringPool> SSP,
     std::shared_ptr<SymbolDependenceMap> Symbols)
-    : Symbols(std::move(Symbols)) {
+    : SSP(std::move(SSP)), Symbols(std::move(Symbols)) {
+  assert(this->SSP && "String pool cannot be null");
   assert(!this->Symbols->empty() && "Can not fail to resolve an empty set");
+
+  // FIXME: Use a new dep-map type for FailedToMaterialize errors so that we
+  // don't have to manually retain/release.
+  for (auto &KV : *this->Symbols)
+    KV.first->Retain();
+}
+
+FailedToMaterialize::~FailedToMaterialize() {
+  for (auto &KV : *Symbols)
+    KV.first->Release();
 }
 
 std::error_code FailedToMaterialize::convertToErrorCode() const {
@@ -251,9 +263,21 @@ StringRef AbsoluteSymbolsMaterializationUnit::getName() const {
 
 void AbsoluteSymbolsMaterializationUnit::materialize(
     std::unique_ptr<MaterializationResponsibility> R) {
-  // No dependencies, so these calls can't fail.
-  cantFail(R->notifyResolved(Symbols));
-  cantFail(R->notifyEmitted());
+  // Even though these are just absolute symbols we need to check for failure
+  // to resolve/emit: the tracker for these symbols may have been removed while
+  // the materialization was in flight (e.g. due to a failure in some action
+  // triggered by the queries attached to the resolution/emission of these
+  // symbols).
+  if (auto Err = R->notifyResolved(Symbols)) {
+    R->getExecutionSession().reportError(std::move(Err));
+    R->failMaterialization();
+    return;
+  }
+  if (auto Err = R->notifyEmitted()) {
+    R->getExecutionSession().reportError(std::move(Err));
+    R->failMaterialization();
+    return;
+  }
 }
 
 void AbsoluteSymbolsMaterializationUnit::discard(const JITDylib &JD,
@@ -485,13 +509,16 @@ Expected<SymbolAliasMap> buildSimpleReexportsAliasMap(JITDylib &SourceJD,
 
 class InProgressLookupState {
 public:
+  // FIXME: Reduce the number of SymbolStringPtrs here. See
+  //        https://github.com/llvm/llvm-project/issues/55576.
+
   InProgressLookupState(LookupKind K, JITDylibSearchOrder SearchOrder,
                         SymbolLookupSet LookupSet, SymbolState RequiredState)
       : K(K), SearchOrder(std::move(SearchOrder)),
         LookupSet(std::move(LookupSet)), RequiredState(RequiredState) {
     DefGeneratorCandidates = this->LookupSet;
   }
-  virtual ~InProgressLookupState() {}
+  virtual ~InProgressLookupState() = default;
   virtual void complete(std::unique_ptr<InProgressLookupState> IPLS) = 0;
   virtual void fail(Error Err) = 0;
 
@@ -609,7 +636,7 @@ void LookupState::continueLookup(Error Err) {
   ES.OL_applyQueryPhase1(std::move(IPLS), std::move(Err));
 }
 
-DefinitionGenerator::~DefinitionGenerator() {}
+DefinitionGenerator::~DefinitionGenerator() = default;
 
 JITDylib::~JITDylib() {
   LLVM_DEBUG(dbgs() << "Destroying JITDylib " << getName() << "\n");
@@ -959,6 +986,7 @@ Error JITDylib::resolve(MaterializationResponsibility &MR,
           auto FailedSymbolsDepMap = std::make_shared<SymbolDependenceMap>();
           (*FailedSymbolsDepMap)[this] = std::move(SymbolsInErrorState);
           return make_error<FailedToMaterialize>(
+              getExecutionSession().getSymbolStringPool(),
               std::move(FailedSymbolsDepMap));
         }
 
@@ -1036,6 +1064,7 @@ Error JITDylib::emit(MaterializationResponsibility &MR,
           auto FailedSymbolsDepMap = std::make_shared<SymbolDependenceMap>();
           (*FailedSymbolsDepMap)[this] = std::move(SymbolsInErrorState);
           return make_error<FailedToMaterialize>(
+              getExecutionSession().getSymbolStringPool(),
               std::move(FailedSymbolsDepMap));
         }
 
@@ -1411,12 +1440,11 @@ void JITDylib::dump(raw_ostream &OS) {
     for (auto &KV : Symbols) {
       OS << "    \"" << *KV.first << "\": ";
       if (auto Addr = KV.second.getAddress())
-        OS << format("0x%016" PRIx64, Addr) << ", " << KV.second.getFlags()
-           << " ";
+        OS << format("0x%016" PRIx64, Addr);
       else
         OS << "<not resolved> ";
 
-      OS << KV.second.getFlags() << " " << KV.second.getState();
+      OS << " " << KV.second.getFlags() << " " << KV.second.getState();
 
       if (KV.second.hasMaterializerAttached()) {
         OS << " (Materializer ";
@@ -1751,7 +1779,7 @@ void JITDylib::transferEmittedNodeDependencies(
   }
 }
 
-Platform::~Platform() {}
+Platform::~Platform() = default;
 
 Expected<DenseMap<JITDylib *, SymbolMap>> Platform::lookupInitSymbols(
     ExecutionSession &ES,
@@ -1858,6 +1886,12 @@ ExecutionSession::ExecutionSession(std::unique_ptr<ExecutorProcessControl> EPC)
   this->EPC->ES = this;
 }
 
+ExecutionSession::~ExecutionSession() {
+  // You must call endSession prior to destroying the session.
+  assert(!SessionOpen &&
+         "Session still open. Did you forget to call endSession?");
+}
+
 Error ExecutionSession::endSession() {
   LLVM_DEBUG(dbgs() << "Ending ExecutionSession " << this << "\n");
 
@@ -1869,7 +1903,7 @@ Error ExecutionSession::endSession() {
   // TODO: notifiy platform? run static deinits?
 
   Error Err = Error::success();
-  for (auto &JD : JITDylibsToClose)
+  for (auto &JD : reverse(JITDylibsToClose))
     Err = joinErrors(std::move(Err), JD->clear());
 
   Err = joinErrors(std::move(Err), EPC->disconnect());
@@ -1987,9 +2021,8 @@ JITDylib::getDFSLinkOrder(ArrayRef<JITDylibSP> JDs) {
 
         for (auto &KV : llvm::reverse(Result.back()->LinkOrder)) {
           auto &JD = *KV.first;
-          if (Visited.count(&JD))
+          if (!Visited.insert(&JD).second)
             continue;
-          Visited.insert(&JD);
           WorkStack.push_back(&JD);
         }
       }
@@ -2071,7 +2104,7 @@ void ExecutionSession::lookup(
 
 Expected<SymbolMap>
 ExecutionSession::lookup(const JITDylibSearchOrder &SearchOrder,
-                         const SymbolLookupSet &Symbols, LookupKind K,
+                         SymbolLookupSet Symbols, LookupKind K,
                          SymbolState RequiredState,
                          RegisterDependenciesFunction RegisterDependencies) {
 #if LLVM_ENABLE_THREADS
@@ -2103,7 +2136,7 @@ ExecutionSession::lookup(const JITDylibSearchOrder &SearchOrder,
 #endif
 
   // Perform the asynchronous lookup.
-  lookup(K, SearchOrder, Symbols, RequiredState, NotifyComplete,
+  lookup(K, SearchOrder, std::move(Symbols), RequiredState, NotifyComplete,
          RegisterDependencies);
 
 #if LLVM_ENABLE_THREADS
@@ -2257,7 +2290,8 @@ Error ExecutionSession::removeResourceTracker(ResourceTracker &RT) {
         joinErrors(std::move(Err), L->handleRemoveResources(RT.getKeyUnsafe()));
 
   for (auto &Q : QueriesToFail)
-    Q->handleFailed(make_error<FailedToMaterialize>(FailedSymbols));
+    Q->handleFailed(
+        make_error<FailedToMaterialize>(getSymbolStringPool(), FailedSymbols));
 
   return Err;
 }
@@ -2337,7 +2371,8 @@ Error ExecutionSession::IL_updateCandidatesFor(
         if (SymI->second.getFlags().hasError()) {
           auto FailedSymbolsMap = std::make_shared<SymbolDependenceMap>();
           (*FailedSymbolsMap)[&JD] = {Name};
-          return make_error<FailedToMaterialize>(std::move(FailedSymbolsMap));
+          return make_error<FailedToMaterialize>(getSymbolStringPool(),
+                                                 std::move(FailedSymbolsMap));
         }
 
         // Otherwise this is a match. Remove it from the candidate set.
@@ -2611,7 +2646,7 @@ void ExecutionSession::OL_completeLookup(
               auto FailedSymbolsMap = std::make_shared<SymbolDependenceMap>();
               (*FailedSymbolsMap)[&JD] = {Name};
               return make_error<FailedToMaterialize>(
-                  std::move(FailedSymbolsMap));
+                  getSymbolStringPool(), std::move(FailedSymbolsMap));
             }
 
             // Otherwise this is a match.
@@ -2947,7 +2982,8 @@ void ExecutionSession::OL_notifyFailed(MaterializationResponsibility &MR) {
   });
 
   for (auto &Q : FailedQueries)
-    Q->handleFailed(make_error<FailedToMaterialize>(FailedSymbols));
+    Q->handleFailed(
+        make_error<FailedToMaterialize>(getSymbolStringPool(), FailedSymbols));
 }
 
 Error ExecutionSession::OL_replace(MaterializationResponsibility &MR,
