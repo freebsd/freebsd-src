@@ -2591,8 +2591,7 @@ out:
 
 /*
  * Choose the highest priority thread to run.  The thread is removed from
- * the run-queue while running however the load remains.  For SMP we set
- * the tdq in the global idle bitmask if it idles here.
+ * the run-queue while running however the load remains.
  */
 struct thread *
 sched_choose(void)
