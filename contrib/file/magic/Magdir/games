@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.24 2021/04/26 15:56:00 christos Exp $
+# $File: games,v 1.25 2022/05/31 18:40:20 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -496,25 +496,17 @@
 >4	ulelong	x        	version %d, used in GTA IV,
 >>8	ulelong	x        	%d items
 
-0	uleshort	0x5250	RAGE Package Format (RPF),
->2	uleshort	0x4630	version 0, used in Rockstar Table Tennis,
->>4	ulelong 	x	%d bytes,
->>>8	ulelong 	x	%d entries
->2	uleshort	0x4632	version 2, used in GTA IV,
->>4	ulelong 	x	%d bytes,
->>>8	ulelong 	x	%d entries
->2	uleshort	0x4633	version 3, used in GTA IV Audio & Midnight Club: LA,
->>4	ulelong 	x	%d bytes,
->>>8	ulelong 	x	%d entries
->2	uleshort	0x4634	version 4, used in Max Payne 3,
->>4	ulelong 	x	%d bytes,
->>>8	ulelong 	x	%d entries
->2	uleshort	0x4636	version 6, used in RDR,
->>4	ulelong 	x	%d bytes,
->>>8	ulelong 	x	%d entries
->2	uleshort	0x4637	version 7, used in GTA V,
->>4	ulelong 	x	%d bytes,
->>>8	ulelong 	x	%d entries
->2	uleshort	0x4638	version 8, used in RDR 2,
+# RPF[0-8]
+0	ulelong&0xfffffff0 =0x52504630
+>0	ulelong&0xf	<9	RAGE Package Format (RPF), version %d, used in
+>>0	ulelong&0xf	=0	Rockstar Table Tennis,
+>>0	ulelong&0xf	=1	*unknown*
+>>0	ulelong&0xf	=2	GTA IV,
+>>0	ulelong&0xf	=3	GTA IV Audio & Midnight Club: LA,
+>>0	ulelong&0xf	=4	Max Payne 3,
+>>0	ulelong&0xf	=5	*unknown*
+>>0	ulelong&0xf	=6	RDR,
+>>0	ulelong&0xf	=7	GTA V,
+>>0	ulelong&0xf	=8	RDR 2,
 >>4	ulelong 	x	%d bytes,
 >>>8	ulelong 	x	%d entries

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: mathematica,v 1.13 2021/07/14 09:06:24 christos Exp $
+# $File: mathematica,v 1.14 2021/11/07 16:27:36 christos Exp $
 # mathematica:  file(1) magic for mathematica files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Mathematica a multi-purpose math program
@@ -117,16 +117,29 @@
 13	ushort	0
 # check for valid ASCII matrix name
 >20	ubyte	>0x1F
+# skip PreviousEntries.dat with "invalid high" name \304P\344@\001
+>>20	ubyte	<0304
+# skip some Netwfw*.dat and $I3KREPH.dat by checking for non zero number of rows
+>>>4	ulong		!0
 # skip some CD-ROM filesystem like test-hfs.iso by looking for valid big endian type flag
->>0	ubelong&0xFFffFF00	0x00000300
->>>0	use	matlab4
+>>>>0	ubelong&0xFFffFF00	0x00000300
+>>>>>0	use	matlab4
 # no example for 8-bit and 16-bit integers matrix
->>0	ubelong&0xFFffFF00	0x00000400
->>>0	use	matlab4
->>0	ulelong		x
+>>>>0	ubelong&0xFFffFF00	0x00000400
+>>>>>0	use	matlab4
+#	branch for Little-Endian variant of Matlab MATrix version 4
 # skip big endian variant by looking for valid low lttle endian type flag
->>0	ulelong		<53
->>>0	use	\^matlab4
+>>>>0	ulelong		<53
+# skip tokens.dat and some Netwfw*.dat by check for valid imaginary flag value of MAT version 4
+>>>>>12	ulelong		<2
+# no misidentfied little endian MATrix example with "short" matrix name
+>>>>>>16	ulelong		<3
+>>>>>>>0	use	\^matlab4
+# little endian MATrix with "long" matrix name or some misidentified samples
+>>>>>>16	ulelong		>2
+# skip TileCacheLogo-*.dat with invalid 2nd character \001 of matrix name with length 96
+>>>>>>>21 ubyte	>0x1F
+>>>>>>>>0 use	\^matlab4
 #	display information of Matlab v4 mat-file
 0	name	matlab4		Matlab v4 mat-file
 #!:mime	application/octet-stream
@@ -145,8 +158,10 @@
 >0	ubelong/1000	4	(Cray)
 # namlen; the length of the matrix name
 #>16	ubelong		x	\b, name length %u
+#>(16.L+19)	ubyte	x	\b, TERMINATING NAME CHARACTER=%#x
 # nul terminated matrix name like: fit_params testmatrix testsparsecomplex teststringarray
 #>20	string		x	\b, MATRIX NAME="%s"
+#>21		ubyte	x	\b, MAYBE 2ND CHAR=%c
 >16	pstring/L	x	%s
 # T indicates the matrix type: 0~numeric 1~text 2~sparse
 #>0	ubelong%10	x	\b, T=%u
@@ -158,5 +173,5 @@
 # ncols; number of columns in the matrix like: 1 3 4 5 9 43
 >8	ubelong		x	\b, columns %u
 # imagf; imaginary flag; 1~matrix has an imaginary part 0~only real data
->12	ubelong		!0	\b, imaginary
+>12	ubelong		!0	\b, imaginary (%u)
 # real; Real part of the matrix consists of mrows * ncols numbers

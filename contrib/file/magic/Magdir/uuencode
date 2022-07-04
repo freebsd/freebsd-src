@@ -1,16 +1,18 @@
 
 #------------------------------------------------------------------------------
-# $File: uuencode,v 1.8 2019/12/14 20:40:26 christos Exp $
+# $File: uuencode,v 1.9 2021/11/13 17:48:10 christos Exp $
 # uuencode:  file(1) magic for ASCII-encoded files
 #
 
-# GRR:  the first line of xxencoded files is identical to that in uuencoded
-# files, but the first character in most subsequent lines is 'h' instead of
-# 'M'.  (xxencoding uses lowercase letters in place of most of uuencode's
-# punctuation and survives BITNET gateways better.)  If regular expressions
-# were supported, this entry could possibly be split into two with
-# "begin\040\.\*\012M" or "begin\040\.\*\012h" (where \. and \* are REs).
-0	search/1	begin\ 		uuencoded or xxencoded text
+# The first line of xxencoded files is identical to that in uuencoded files,
+# but the first character in most subsequent lines is 'h' instead of 'M'.
+# (xxencoding uses lowercase letters in place of most of uuencode's
+# punctuation and survives BITNET gateways better.)
+0		regex/1024	\^begin\040[0-7]{3}\040
+>&0		regex/256	[\012\015]+M[\040-\140]{60}[\012\015]+				uuencoded text
+>&0		regex/256	[\012\015]+h[0-9A-Za-z\053\055]{60}[\012\015]+		xxencoded text
+>&0		default		x													uuencoded or xxencoded text
+>&0		string		>\0													\b, file name "%s"
 
 # btoa(1) is an alternative to uuencode that requires less space.
 0	search/1	xbtoa\ Begin	btoa'd text

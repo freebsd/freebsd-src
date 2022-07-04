@@ -32,19 +32,25 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: is_json.c,v 1.15 2020/06/07 19:05:47 christos Exp $")
+FILE_RCSID("@(#)$File: is_json.c,v 1.20 2022/05/28 00:44:22 christos Exp $")
 #endif
 
-#include <string.h>
 #include "magic.h"
+#else
+#include <stdio.h>
+#include <stddef.h>
 #endif
+#include <string.h>
 
 #ifdef DEBUG
 #include <stdio.h>
 #define DPRINTF(a, b, c)	\
-    printf("%s [%.2x/%c] %.20s\n", (a), *(b), *(b), (const char *)(c))
+    printf("%*s%s [%.2x/%c] %.*s\n", (int)lvl, "", (a), *(b), *(b), \
+	(int)(b - c), (const char *)(c))
+#define __file_debugused
 #else
 #define DPRINTF(a, b, c)	do { } while (/*CONSTCOND*/0)
+#define __file_debugused __attribute__((__unused__))
 #endif
 
 #define JSON_ARRAY	0
@@ -117,7 +123,8 @@ json_skip_space(const unsigned char *uc, const unsigned char *ue)
 }
 
 static int
-json_parse_string(const unsigned char **ucp, const unsigned char *ue)
+json_parse_string(const unsigned char **ucp, const unsigned char *ue,
+    size_t lvl __file_debugused)
 {
 	const unsigned char *uc = *ucp;
 	size_t i;
@@ -155,8 +162,8 @@ json_parse_string(const unsigned char **ucp, const unsigned char *ue)
 				goto out;
 			}
 		case '"':
-			*ucp = uc;
 			DPRINTF("Good string: ", uc, *ucp);
+			*ucp = uc;
 			return 1;
 		default:
 			continue;
@@ -189,8 +196,8 @@ json_parse_array(const unsigned char **ucp, const unsigned char *ue,
 		case ']':
 		done:
 			st[JSON_ARRAYN]++;
-			*ucp = uc + 1;
 			DPRINTF("Good array: ", uc, *ucp);
+			*ucp = uc + 1;
 			return 1;
 		default:
 			goto out;
@@ -221,7 +228,7 @@ json_parse_object(const unsigned char **ucp, const unsigned char *ue,
 			goto out;
 		}
 		DPRINTF("next field", uc, *ucp);
-		if (!json_parse_string(&uc, ue)) {
+		if (!json_parse_string(&uc, ue, lvl)) {
 			DPRINTF("not string", uc, *ucp);
 			goto out;
 		}
@@ -243,12 +250,12 @@ json_parse_object(const unsigned char **ucp, const unsigned char *ue,
 			continue;
 		case '}': /* { */
 		done:
-			*ucp = uc;
 			DPRINTF("Good object: ", uc, *ucp);
+			*ucp = uc;
 			return 1;
 		default:
-			*ucp = uc - 1;
 			DPRINTF("not more", uc, *ucp);
+			*ucp = uc - 1;
 			goto out;
 		}
 	}
@@ -259,7 +266,8 @@ out:
 }
 
 static int
-json_parse_number(const unsigned char **ucp, const unsigned char *ue)
+json_parse_number(const unsigned char **ucp, const unsigned char *ue, 
+    size_t lvl __file_debugused)
 {
 	const unsigned char *uc = *ucp;
 	int got = 0;
@@ -310,7 +318,7 @@ out:
 
 static int
 json_parse_const(const unsigned char **ucp, const unsigned char *ue,
-    const char *str, size_t len)
+    const char *str, size_t len, size_t lvl __file_debugused)
 {
 	const unsigned char *uc = *ucp;
 
@@ -338,8 +346,10 @@ json_parse(const unsigned char **ucp, const unsigned char *ue,
 		goto out;
 
 	// Avoid recursion
-	if (lvl > 20)
+	if (lvl > 500) {
+		DPRINTF("Too many levels", uc, *ucp);
 		return 0;
+	}
 #if JSON_COUNT
 	/* bail quickly if not counting */
 	if (lvl > 1 && (st[JSON_OBJECT] || st[JSON_ARRAYN]))
@@ -349,7 +359,7 @@ json_parse(const unsigned char **ucp, const unsigned char *ue,
 	DPRINTF("Parse general: ", uc, *ucp);
 	switch (*uc++) {
 	case '"':
-		rv = json_parse_string(&uc, ue);
+		rv = json_parse_string(&uc, ue, lvl + 1);
 		t = JSON_STRING;
 		break;
 	case '[':
@@ -361,20 +371,21 @@ json_parse(const unsigned char **ucp, const unsigned char *ue,
 		t = JSON_OBJECT;
 		break;
 	case 't':
-		rv = json_parse_const(&uc, ue, "true", sizeof("true"));
+		rv = json_parse_const(&uc, ue, "true", sizeof("true"), lvl + 1);
 		t = JSON_CONSTANT;
 		break;
 	case 'f':
-		rv = json_parse_const(&uc, ue, "false", sizeof("false"));
+		rv = json_parse_const(&uc, ue, "false", sizeof("false"),
+		    lvl + 1);
 		t = JSON_CONSTANT;
 		break;
 	case 'n':
-		rv = json_parse_const(&uc, ue, "null", sizeof("null"));
+		rv = json_parse_const(&uc, ue, "null", sizeof("null"), lvl + 1);
 		t = JSON_CONSTANT;
 		break;
 	default:
 		--uc;
-		rv = json_parse_number(&uc, ue);
+		rv = json_parse_number(&uc, ue, lvl + 1);
 		t = JSON_NUMBER;
 		break;
 	}
@@ -382,10 +393,10 @@ json_parse(const unsigned char **ucp, const unsigned char *ue,
 		st[t]++;
 	uc = json_skip_space(uc, ue);
 out:
-	*ucp = uc;
 	DPRINTF("End general: ", uc, *ucp);
+	*ucp = uc;
 	if (lvl == 0)
-		return rv && (st[JSON_ARRAYN] || st[JSON_OBJECT]);
+		return rv && uc == ue && (st[JSON_ARRAYN] || st[JSON_OBJECT]);
 	return rv;
 }
 
@@ -414,7 +425,7 @@ file_is_json(struct magic_set *ms, const struct buffer *b)
 			return -1;
 		return 1;
 	}
-	if (file_printf(ms, "JSON data") == -1)
+	if (file_printf(ms, "JSON text data") == -1)
 		return -1;
 #if JSON_COUNT
 #define P(n) st[n], st[n] > 1 ? "s" : ""
@@ -455,7 +466,7 @@ main(int argc, char *argv[])
 	if (fstat(fd, &st) == -1)
 		err(EXIT_FAILURE, "Can't stat `%s'", argv[1]);
 
-	if ((p = malloc(st.st_size)) == NULL)
+	if ((p = CAST(char *, malloc(st.st_size))) == NULL)
 		err(EXIT_FAILURE, "Can't allocate %jd bytes",
 		    (intmax_t)st.st_size);
 	if (read(fd, p, st.st_size) != st.st_size)

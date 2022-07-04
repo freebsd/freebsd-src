@@ -1,3 +1,40 @@
+2022-06-10   9:40  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.42
+
+2022-05-31  14:50   Christos Zoulas <christos@zoulas.com>
+
+	* PR/348: add missing cases to prevent file from aborting on
+	  random magic files.
+
+2022-05-27  21:05   Christos Zoulas <christos@zoulas.com>
+
+	* PR/351: octalify filenames when not raw before printing.
+
+2022-04-18  17:51   Christos Zoulas <christos@zoulas.com>
+
+	* fix regex cacheing bug (Dirk Mueller)
+	* merge file_regcomp and file_regerror() to simplify the code
+	  and reduce memory requirements for storing regexes (Dirk Mueller)
+
+2022-03-19  12:56   Christos Zoulas <christos@zoulas.com>
+
+	* cache regex (Dirk Mueller)
+	* detect filesystem full by flushing output (Dirk Mueller)
+
+2021-11-19  12:36   Christos Zoulas <christos@zoulas.com>
+
+	* implement running decompressor programs using
+	  posix_spawnp(2) instead of vfork(2)
+
+2021-10-24  11:51   Christos Zoulas <christos@zoulas.com>
+
+	* Add support for msdos dates and times
+
+2021-10-20   9:55   Christos Zoulas <christos@zoulas.com>
+
+	* use the system byte swapping functions if available (Werner Fink)
+
 2021-10-18  11:57  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.41

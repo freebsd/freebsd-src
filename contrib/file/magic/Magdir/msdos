@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.152 2021/10/12 18:26:10 christos Exp $
+# $File: msdos,v 1.154 2022/03/21 21:25:50 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -1367,6 +1367,8 @@
 
 # HtmlHelp files (.chm)
 0	string/b	ITSF\003\000\000\000\x60\000\000\000	MS Windows HtmlHelp Data
+!:mime	application/vnd.ms-htmlhelp
+!:ext	chm
 
 # GFA-BASIC (Wolfram Kleff)
 2	string/b	GFA-BASIC3	GFA-BASIC 3 data
@@ -1765,3 +1767,37 @@
 
 # NB: The BACKUP.nnn files consist of the files backed up,
 # concatenated.
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/MS-DOS_date/time
+# Reference:	https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
+# Note:		DOS date+time format is different from formats such as Unix epoch
+#		bit encoded; uses year values relative to 1980 and 2 second precision
+0	name		dos-date
+# HHHHHMMMMMMSSSSS bit encoded Hour (0-23) Minute (0-59) SecondPart (*2)
+#>0	uleshort	x	RAW TIME [%#4.4x]
+# hour part
+#>0	uleshort/2048	x	hour [%u]
+# YYYYYMMMMDDDDD bit encoded YearPart (+1980) Month (1-12) Day (1-31)
+#>2	uleshort	x	RAW DATE [%#4.4x]
+# day part
+>2	uleshort&0x001F	x	%u
+#>2	uleshort/16	x	MONTH PART [%#x]
+# GRR: not working
+#>2	uleshort/16	&0x000F	MONTH [%u]
+#>2	uleshort&0x01E0	x	MONTH PART [%#4.4x]
+>2	uleshort&0x01E0	=0x0020	jan
+>2	uleshort&0x01E0	=0x0040	feb
+>2	uleshort&0x01E0	=0x0060	mar
+>2	uleshort&0x01E0	=0x0080	apr
+>2	uleshort&0x01E0	=0x00A0	may
+>2	uleshort&0x01E0	=0x00C0	jun
+>2	uleshort&0x01E0	=0x00E0	jul
+>2	uleshort&0x01E0	=0x0100	aug
+>2	uleshort&0x01E0	=0x0120	sep
+>2	uleshort&0x01E0	=0x0140	oct
+>2	uleshort&0x01E0	=0x0160	nov
+>2	uleshort&0x01E0	=0x0180	dec
+# year part
+>2	uleshort/512	x	1980+%u
+#
