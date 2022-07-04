@@ -309,9 +309,12 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 			return (error);
 
 		if (addr.addr_type == IPMI_SYSTEM_INTERFACE_ADDR_TYPE) {
+			struct ipmi_system_interface_addr *saddr =
+			    (struct ipmi_system_interface_addr *)&addr;
+
 			kreq = ipmi_alloc_request(dev, req->msgid,
-			    IPMI_ADDR(req->msg.netfn, 0), req->msg.cmd,
-			    req->msg.data_len, IPMI_MAX_RX);
+			    IPMI_ADDR(req->msg.netfn, saddr->lun & 0x3),
+			    req->msg.cmd, req->msg.data_len, IPMI_MAX_RX);
 			error = copyin(req->msg.data, kreq->ir_request,
 			    req->msg.data_len);
 			if (error) {
