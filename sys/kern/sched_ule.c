@@ -963,15 +963,13 @@ static struct thread *
 tdq_move(struct tdq *from, struct tdq *to)
 {
 	struct thread *td;
-	struct tdq *tdq;
 	int cpu;
 
 	TDQ_LOCK_ASSERT(from, MA_OWNED);
 	TDQ_LOCK_ASSERT(to, MA_OWNED);
 
-	tdq = from;
 	cpu = TDQ_ID(to);
-	td = tdq_steal(tdq, cpu);
+	td = tdq_steal(from, cpu);
 	if (td == NULL)
 		return (NULL);
 
