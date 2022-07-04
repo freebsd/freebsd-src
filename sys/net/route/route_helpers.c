@@ -258,6 +258,7 @@ rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	return (nh);
 }
 
+#ifdef ROUTE_MPATH
 static void
 notify_add(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
     route_notification_t *cb, void *cbdata) {
@@ -284,7 +285,6 @@ notify_del(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
 	cb(rc, cbdata);
 }
 
-#ifdef ROUTE_MPATH
 static void
 decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
     void *cbdata)
