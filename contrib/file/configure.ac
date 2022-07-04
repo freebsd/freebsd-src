@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([file],[5.41],[christos@astron.com])
+AC_INIT([file],[5.42],[christos@astron.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -99,10 +99,10 @@ gl_VISIBILITY
 dnl Checks for headers
 AC_HEADER_MAJOR
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(stdint.h fcntl.h inttypes.h unistd.h)
-AC_CHECK_HEADERS(utime.h wchar.h wctype.h)
+AC_CHECK_HEADERS(stdint.h fcntl.h inttypes.h unistd.h byteswap.h)
+AC_CHECK_HEADERS(spawn.h utime.h wchar.h wctype.h)
 AC_CHECK_HEADERS(getopt.h err.h xlocale.h)
-AC_CHECK_HEADERS(sys/mman.h sys/stat.h sys/types.h sys/utime.h sys/time.h sys/sysmacros.h)
+AC_CHECK_HEADERS(sys/bswap.h sys/mman.h sys/stat.h sys/types.h sys/utime.h sys/time.h sys/sysmacros.h sys/ioctl.h)
 if test "$enable_zlib" != "no"; then
   AC_CHECK_HEADERS(zlib.h)
 fi
@@ -165,7 +165,7 @@ else
 fi])
 
 dnl Checks for functions
-AC_CHECK_FUNCS(strndup mkstemp mkostemp utimes utime wcwidth strtof newlocale uselocale freelocale memmem pipe2)
+AC_CHECK_FUNCS(strndup mkstemp mkostemp utimes utime wcwidth strtof newlocale uselocale freelocale memmem pipe2 posix_spawnp)
 
 dnl Provide implementation of some required functions if necessary
 AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat getline ctime_r asctime_r localtime_r gmtime_r pread strcasestr fmtcheck dprintf)

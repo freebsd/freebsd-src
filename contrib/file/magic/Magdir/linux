@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.79 2021/04/26 15:56:00 christos Exp $
+# $File: linux,v 1.80 2022/03/24 15:48:58 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -532,6 +532,6 @@
 
 # ansible vault (does not really belong here)
 0		string		$ANSIBLE_VAULT;	Ansible Vault
->&0		regex		[0-9]*\.[0-9]*	\b, version %s
+>&0		regex		[0-9]+\\.[0-9]+	\b, version %s
 >>&0		string		;
->>>&0		regex		[A-Z0-9]*	\b, encryption %s
+>>>&0		regex		[A-Z0-9]+	\b, encryption %s

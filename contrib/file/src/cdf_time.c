@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: cdf_time.c,v 1.19 2019/03/12 20:43:05 christos Exp $")
+FILE_RCSID("@(#)$File: cdf_time.c,v 1.20 2021/12/06 15:33:00 christos Exp $")
 #endif
 
 #include <time.h>
@@ -171,8 +171,13 @@ cdf_ctime(const time_t *sec, char *buf)
 	char *ptr = ctime_r(sec, buf);
 	if (ptr != NULL)
 		return buf;
+#ifdef WIN32
+	(void)snprintf(buf, 26, "*Bad* 0x%16.16I64x\n",
+	    CAST(long long, *sec));
+#else
 	(void)snprintf(buf, 26, "*Bad* %#16.16" INT64_T_FORMAT "x\n",
 	    CAST(long long, *sec));
+#endif
 	return buf;
 }
 

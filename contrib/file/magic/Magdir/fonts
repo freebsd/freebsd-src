@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.46 2021/04/26 15:56:00 christos Exp $
+# $File: fonts,v 1.50 2022/03/21 21:28:13 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -8,13 +8,56 @@
 0	short		017001		byte-swapped Berkeley vfont data
 
 # PostScript fonts (must precede "printer" entries), quinlan@yggdrasil.com
+# Modified by:	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/PostScript_fonts
+#		http://fileformats.archiveteam.org/wiki/Adobe_Type_1
+# Reference:	http://mark0.net/download/triddefs_xml.7z
+#		defs/p/pfb.trid.xml
+# Note:		PFB stands for Printer Font Binary
 0	string		%!PS-AdobeFont-1.	PostScript Type 1 font text
+#!:mime	font/x-postscript-pfb
+#!:ext	pfb
 >20	string		>\0			(%s)
-6	string		%!PS-AdobeFont-1.	PostScript Type 1 font program data
->26	string		>\0			(%s)
+# http://www.nationalarchives.gov.uk/pronom/fmt/525
+6	string		%!PS-AdobeFont-1.
+# skip DROID fmt-525-signature-id-816.pfb by checking for content after header
+>24	ubyte		x			PostScript Type 1 font program data
+#!:mime	application/octet-stream
+!:mime	font/x-postscript-pfb
+!:ext	pfb
+# often followed by colon (3Ah) and space (20h) and font name like: DarkGardenMK LetterGothic
+>>24	ubyte		=0x3A
+>>>26	string		>\0			(%s)
+# some times instead of colon %%CreationDate: and "font name" later
+>>24	ubyte		!0x3A
+# font name directive followed by def like: c0633bt_.pfb
+>>>25	search/1247	/FontName\040/
+# show font name in parentheses like: Frankfurt Lithos CharterBT-BoldItalic Courier10PitchBT-Bold
+>>>>&0	regex		[A-Za-z0-9-]+		(%s)
+# http://cd.textfiles.com/maxfonts/ATM/M/MIRROR__.PFB
+6	string		%PS-AdobeFont-1.	PostScript Type 1 font program data
+!:mime	font/x-postscript-pfb
+!:ext	pfb
+# font name like:  Times-Mirror
+>25	string		>\0			(%s)
 0	string		%!FontType1	PostScript Type 1 font program data
+#!:mime	font/x-postscript-pfb
+#!:ext	pfb
 6	string		%!FontType1	PostScript Type 1 font program data
+#!:mime	application/octet-stream
+!:mime	font/x-postscript-pfb
+!:ext	pfb
+# font name like: CaslonOpenFace FetteFraktur Kaufmann Linotext MesozoicGothic Old-Town
+>23	string		>\0			(%s)
+# http://cd.textfiles.com/maxfonts/ATM/P/PLAYBI.PFB
+230	string		%!FontType1	PostScript Type 1 font program data
+!:mime	font/x-postscript-pfb
+!:ext	pfb
+# font name like: Playbill
+>247	string		>\0			(%s)
 0	string		%!PS-Adobe-3.0\ Resource-Font	PostScript Type 1 font text
+#!:mime	font/x-postscript-pfb
+#!:ext	pfb
 
 # Summary:	PostScript Type 1 Printer Font Metrics
 # URL:		https://en.wikipedia.org/wiki/PostScript_fonts
@@ -67,15 +110,23 @@
 >>>90		ubyte		65		script proportional
 
 # X11 font files in SNF (Server Natural Format) format
-# updated by Joerg Jenderek at Feb 2013
+# updated by Joerg Jenderek at Feb 2013 and Nov 2021
 # http://computer-programming-forum.com/51-perl/8f22fb96d2e34bab.htm
-0	belong		00000004		X11 SNF font data, MSB first
-#>104	belong		00000004		X11 SNF font data, MSB first
+# URL:		http://fileformats.archiveteam.org/wiki/SNF
+# Reference:	https://cgit.freedesktop.org/xorg/lib/libXfont/tree/src/bitmap/snfstr.h
+0	belong		00000004
+# version2 same as version1 in struct _snfFontInfo
+>104	belong		00000004		X11 SNF font data, MSB first
+# GRR: line above is too general as it catches also DEGAS low-res bitmap like:
+# http://cd.textfiles.com/geminiatari/FILES/GRAPHICS/ANIMAT/SPID_PAT/BIGSPID.PI1
 !:mime	application/x-font-sfn
-# GRR: line below too general as it catches also Xbase index file t3-CHAR.NDX
+!:ext	snf
+# GRR: line below is too general as it catches also Xbase index file t3-CHAR.NDX
 0	lelong		00000004
 >104	lelong		00000004		X11 SNF font data, LSB first
 !:mime	application/x-font-sfn
+# Reference:    http://mark0.net/download/triddefs_xml.7z/defs/s/snf-x11-lsb.trid.xml
+!:ext	snf
 
 # X11 Bitmap Distribution Format, from Daniel Quinlan (quinlan@yggdrasil.com)
 0	search/1	STARTFONT\ 		X11 BDF font text
@@ -384,11 +435,13 @@
 
 # https://www.w3.org/TR/WOFF/
 0	string		wOFF	Web Open Font Format
+!:mime font/woff
 >0	use		woff
 >20	beshort		x	\b, version %d
 >22	beshort		x	\b.%d
 # https://www.w3.org/TR/WOFF2/
 0	string		wOF2	Web Open Font Format (Version 2)
+!:mime font/woff2
 >0	use		woff
 #>20	belong		x	\b, totalCompressedSize %d
 >24	beshort		x	\b, version %d

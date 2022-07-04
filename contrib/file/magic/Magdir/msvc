@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msvc,v 1.10 2018/10/01 19:14:03 christos Exp $
+# $File: msvc,v 1.11 2022/01/17 17:17:30 christos Exp $
 # msvc:  file(1) magic for msvc
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Microsoft visual C
@@ -20,9 +20,162 @@
 0	string	\377\003\000\377\001\000\060\020\350	MSVC .res
 
 #.lib
-0	string	\360\015\000\000	Microsoft Visual C library
-0	string	\360\075\000\000	Microsoft Visual C library
-0	string	\360\175\000\000	Microsoft Visual C library
+# URL: 		https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B
+#		http://fileformats.archiveteam.org/wiki/Microsoft_Library
+#		http://fileformats.archiveteam.org/wiki/OMF
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lib-msvc.trid.xml
+#		https://pierrelib.pagesperso-orange.fr/exec_formats/OMF_v1.1.pdf
+# Update:	Joerg Jenderek
+#0	string	\360\015\000\000	Microsoft Visual C library
+#0	string	\360\075\000\000	Microsoft Visual C library
+#0	string	\360\175\000\000	Microsoft Visual C library
+# test for RecordType~LibraryHeaderRecord=0xF0 + RecordLength=???Dh + dictionary offset is multiple of 0x200
+0	ubelong&0xFF0f80ff	=0xF00d0000
+# Microsoft Visual C library (strength=70) before MIDI SysEx messages (strength=50) handled by ./sysex
+#!:strength +0
+# test for valid 2nd RecordType~Translator Header Record=THEADR=80h or LHEADR=82h
+>(1.s+3)	ubyte&0xFD	=0x80
+>>0		use		omf-lib
+#	display information about Microsoft Visual C/OMF library
+0	name			omf-lib
+# RecordType~LibraryHeaderRecord=0xF0
+#>0	byte			0xF0		Microsoft Visual C library
+# the above description was used in file version 5.41
+>0	byte			0xF0		Microsoft Visual C/OMF library
+#>0	byte			0xF0		relocatable Object Module Format (OMF) libray
+#!:mime	application/octet-stream
+!:mime	application/x-omf-lib
+!:ext	lib
+# 1st record data length like 13=0Dh 29=1Dh 61=3Dh 125=7Dh 509=01FDh ... 32765=7FFDh
+#>1	uleshort		x		\b, 1st record data length %u
+#>1	uleshort		x		\b, 1st record data length %#x
+# 2**4=16 <= RecordLength+3 = PageSize = 2**n {16 32 512 no examples 64 128 256 1024 2048 ...32768} <= 2**15=32768
+>1	uleshort+3		x		\b, page size %u
+# dictionary offset like: 400h 600h a00h c00h 1200h 1800h 2400h 5600h 12800h 19200h 28a00h
+>3		ulelong		x		\b, at %#x dictionary
+# dictionary block a 512 bytes; the first 37 bytes correspond to the 37 buckets
+#>(3.l)	ubequad			x		(%#16.16llx...)
+# dictionary size; length in 512-byte blocks; a prime number? like:
+# 1 2 3 4 5 6 7 9 11 13 15 16 18 21 22 23 24 25 31 50 53 89 101 117 277
+>7		uleshort	x		with %u block
+# plurals s
+>7		uleshort	>1		\bs
+# If dictionary byte 38 (FFLAG) has the value 255, there is no space left
+>(3.l+37)	ubyte		<0xFF		(FFLAG=%#x)
+>(3.l+37)	ubyte		=0xFF		(FFLAG=full)
+# dictionary entry; length byte of following symbol, the following text bytes of symbol, two bytes specifies the page number
+# like: dbfntx1! DBFNTX.LIB zlibCompileFlags_ ZLIB.LIB atoi! mwlibc.lib
+>(3.l+38)	pstring		x		1st entry %s
+# like: 1 33 41 47 458 8783
+>>&0		uleshort	x		in page %u
+# library flags; 0 or 1, but WHAT IS 0x4d in MOUSE.LIB ?
+>9	ubyte			>1		\b, flags %#x
+>9	ubyte			=1		case sensitive
+# In the library after header comes first object module with a Library Module Header Record (LHEADR=82h)
+# but in examples Translator Header Record (THEADR=80h) which is handled identically
+>(1.s+3)	ubyte		x		\b, 2nd record
+>(1.s+3)	ubyte		!0x80		(type %#x)
+#>(1.s+4)	uleshort	x		\b, 2nd record data length %u
+# Module name often source name like "dos\crt0.asm" in mlibce.lib or "QB4UTIL.ASM" in QB4UTIL.LIB
+# or "C:\Documents and Settings\Allan Campbell\My Documents\FDOSBoot\zlib\zutil.c" in ZLIB.LIB
+# or title like "87INIT" in FP87.LIB or "ACOSASIN" in MATHC.LIB or "Copyright" in calc-bcc.lib
+>(1.s+6)	pstring		x		"%s"
+# 2nd record checksum
+#>>&0		ubyte		x		checksum %#x
+# 3rd RecordType: 96h~LNAMES 88h~COMENT
+>>&1		ubyte		x		\b, 3rd record
+>>&1		ubyte		!0x88
+>>>&-1		ubyte		!0x96
+# 3rd unusual record type
+>>>>&-1		ubyte		x		(type %#x)
+# 3rd record is a List of Names Record (LNAMES=96h)
+>>&1		ubyte		=0x96		LNAMES
+# LNAMES record length like: 2 15 19
+#>>>&0			uleshort	x	\b, LNAMES record length %u
+>>>&0			uleshort	>2
+# 1st LNAME string length; null is valid; maximal 255
+#>>>>&0			ubyte		x	1st LNAME length %u
+>>>>&0			ubyte		=0
+# 2nd LNAME length like: 4 7 8 17 31
+#>>>>>&0			ubyte		x	2nd LNAME length %u
+# name used for segment, class, group, overlay, etc like:
+# CODE (mwlibc.lib) _TEXT32 (JMPPM32.LIB) _OVLCODE (WOVL.LIB)
+>>>>>&0			pstring		x	%s
+# 3rd LNAME length like: 4 5
+#>>>>>>&0		ubyte		x	3rd LNAME length %u
+# like: DATA (mwlibc.lib) CODE (JMPPM32.LIB) _TEXT (EMU87.LIB)
+>>>>>>&0		pstring		x	%s
+# maybe 4th LNAME length like: 4 6
+>>>>>>>&0		ubyte		<44
+# like: DATA (DEBUG.LIB) DGROUP (mwlibc.lib MOUSE.LIB)
+>>>>>>>>&-1		pstring		x	%s
+# 3rd record is a COMMENT (Including all comment class extensions)
+>>&1		ubyte		=0x88		COMMENT
+# comment record length like: 3 FLIB7M.LIB 1Bh 1Eh 23h 27h 2Bh 30h freetype-bcc.lib
+#>>>&0		uleshort	x		\b, record length %#x
+# real comment length = record length - 1 (comment type) - 1 (comment Class) - 1 (checksum) -1 (char count)
+# like: 2 LIBFL.LIB 4 "UUID" 5 "dscap" 6 "int386" 7 "qb4util" 8 "AMSGEXIT" 16 REXX.LIB 20 27 35 44 freetype-bcc.lib
+#>>>>&-2		uleshort-4	>0		\b, comment length %u
+# check that record contain at least comment type (1 byte), comment class (1 byte), checksum (1 byte)
+# probably always true
+>>>&0		uleshort	>2
+# comment type: 80h~NP~no purge bit 40h~NL~no list bit
+#>>>>&0		ubyte		!0		Type %#x
+>>>>&0		ubyte		&0x80		Preserved
+# no example
+>>>>&0		ubyte		&0x40		NoList
+# comment class like: 0~Translator A0~OMF extensions A3~LIBMOD A1~New OMF extensions AA~UNKNOWN
+>>>>&1		ubyte		x		class=%#x
+# check that comment record contains at least real content
+>>>>&-2		uleshort	>3
+# Translator comment record (0); it may name the source language or translator
+>>>>>&1		ubyte		=0		Translator
+#>>>>>>&0		ubyte	x		Translator length %u
+# like: "TC86 Borland Turbo C 2.01 " (GEMS.LIB) "TC86 Borland Turbo C++ 3.00" (CATDB.LIB)
+>>>>>>&0		pstring	x		"%s"
+# OMF extensions comment record (A0); first byte of commentary string identifies subtype
+>>>>>&1		ubyte		=0xA0		OMF extensions
+# A0 subtype like: 1~IMPDEF
+>>>>>>&0		ubyte	!1		subtype %#x
+# Import Definition Record (Comment Class A0, Subtype 01~IMPDEF)
+>>>>>>&0		ubyte	1		IMPDEF
+# ordinal flag; determines form of Entry Ident field. If nonzero (seems to be 1) Entry is ordinal
+>>>>>>>&0		ubyte	!0		ordinal
+# like: IMPORT.LIB DOSCALLS.LIB mlibw.lib mwinlibc.lib REXX.LIB
+>>>>>>>>&-1		ubyte	>1		%u
+# Internal Name in count, char string format; module name for the imported symbol
+# like: 7 "REXXSAA" 9 11 13 14 15 16 20 21 26 "_Z10_clip_linePdS_S_S_dddd"
+#>>>>>>>&1		ubyte	x		internal name length %u
+# internal module name like: _DllGetVersion DllGetVersion BezierTerminationTest Copyright
+>>>>>>>&1		pstring	x		%s
+# module name in count, char string format; DLL name that supplies a matching export symbol
+# like: jpeg62.dll (jpeg-bcc.lib) unrar3.dll (unrar-bcc.lib) REXX (REXX.LIB)
+>>>>>>>>&0		pstring	x		exported by %s
+# Entry Ident; 16-bit if ordinal flag != 0 or imported name in count, char string format if ordinal flag = 0 
+# like: \0 (calc-bcc.lib) DllGetVersion (libtiff-bcc.lib) UTF8ToHtml (libxml2-bcc.lib) xslAddCall (libxslt-bcc.lib)
+#>>>>>>>>>&0		pstring	>\0		entry ident %s
+# "New OMF" extensions comment (A1); indicate version of symbolic debug information
+# like: LIBFL.LIB
+>>>>>&1		ubyte		=0xA1		New OMF extensions
+# symbolic debug information version n
+>>>>>>&0		ubyte	x		n=%u
+# symbolic debug information style like: HL~IBM PM Debugger style (LIBFL.LIB) DX~AIX style CV~Microsoft symbol and type style
+>>>>>>>&0		string	HL		IBM style
+>>>>>>>&0		string	DX		AIX style
+>>>>>>>&0		string	CV		Microsoft style
+# LIBMOD comment record (A3) used only by the librarian
+# Microsoft extension added for LIB version 3.07 in macro assembler (MASM 5.0)
+>>>>>&1		ubyte		=0xA3		LIBMOD
+# The A3 LIBMOD record contains only the ASCII string of the module name in count char format
+#>>>>>>&0		ubyte	x		LIBMOD length %u
+# LIBMOD comment record module name without path and extension like:
+# qb4util (QB4UTIL.LIB) affaldiv (libh.lib) crt0 (slibc.lib) clipper (DDDRAWS.LIB) dinpdev (DINPUTS.LIB) UUID (UUID.LIB)
+>>>>>>&0		pstring	x		%s
+# GRR: WHAT iS THAT? AA foo comment record
+#>>>>>&1		ubyte		=0xAA		AA-comment
+# like: OS220
+#>>>>>>&0		string	x		what=%-5.5s
+#
 
 #.pch
 0	string	DTJPCH0\000\022\103\006\200	Microsoft Visual C .pch

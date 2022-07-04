@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: xwindows,v 1.12 2021/08/24 08:31:10 christos Exp $
+# $File: xwindows,v 1.13 2022/03/24 15:48:58 christos Exp $
 # xwindows:  file(1) magic for various X/Window system file formats.
 
 # Compiled X Keymap
@@ -37,7 +37,7 @@
 # X bitmap https://en.wikipedia.org/wiki/X_BitMap
 0	search/2048	#define\040
 >&0	regex		[a-zA-Z0-9]+_width\040	xbm image
->>&0	regex		[0-9]*			(%sx
+>>&0	regex		[0-9]+			(%sx
 >>>&0	string		\n#define\040
 >>>>&0	regex		[a-zA-Z0-9]+_height\040
->>>>>&0	regex		[0-9]*			\b%s)
+>>>>>&0	regex		[0-9]+			\b%s)
