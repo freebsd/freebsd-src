@@ -2080,11 +2080,14 @@ ovpn_peer_from_mbuf(struct ovpn_softc *sc, struct mbuf *m, int off)
 {
 	struct ovpn_wire_header ohdr;
 	uint32_t peerid;
+	const size_t hdrlen = sizeof(ohdr) - sizeof(ohdr.auth_tag);
 
 	OVPN_RASSERT(sc);
 
-	m_copydata(m, off + sizeof(struct udphdr),
-	    sizeof(ohdr) - sizeof(ohdr.auth_tag), (caddr_t)&ohdr);
+	if (m_length(m, NULL) < (off + sizeof(struct udphdr) + hdrlen))
+		return (NULL);
+
+	m_copydata(m, off + sizeof(struct udphdr), hdrlen, (caddr_t)&ohdr);
 
 	peerid = ntohl(ohdr.opcode) & 0x00ffffff;
 

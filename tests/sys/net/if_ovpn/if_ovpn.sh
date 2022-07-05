@@ -91,6 +91,7 @@ atf_test_case "4in4" "cleanup"
 	# Give the tunnel time to come up
 	sleep 10
 
+	echo 'foo' | jexec b nc -u -w 2 192.0.2.1 1194
 	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
 }
 
