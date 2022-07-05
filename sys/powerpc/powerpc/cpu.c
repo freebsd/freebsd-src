@@ -715,8 +715,7 @@ cpu_idle(int busy)
 	}
 #endif
 
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
+	CTR1(KTR_SPARE2, "cpu_idle(%d)", busy);
 
 	if (cpu_idle_hook != NULL) {
 		if (!busy) {
@@ -730,8 +729,7 @@ cpu_idle(int busy)
 		}
 	}
 
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
+	CTR1(KTR_SPARE2, "cpu_idle(%d) done", busy);
 }
 
 static void

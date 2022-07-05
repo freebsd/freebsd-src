@@ -144,8 +144,8 @@ hardclockintr(void)
 		return (FILTER_HANDLED);
 	state = DPCPU_PTR(timerstate);
 	now = state->now;
-	CTR3(KTR_SPARE2, "ipi  at %d:    now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR2(KTR_SPARE2, "ipi:    now  %d.%08x",
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	done = handleevents(now, 0);
 	return (done ? FILTER_HANDLED : FILTER_STRAY);
 }
@@ -162,8 +162,8 @@ handleevents(sbintime_t now, int fake)
 	int usermode;
 	int done, runs;
 
-	CTR3(KTR_SPARE2, "handle at %d:  now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR2(KTR_SPARE2, "handle:  now  %d.%08x",
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	done = 0;
 	if (fake) {
 		frame = NULL;
@@ -290,8 +290,8 @@ getnextevent(struct pcpu_state *state)
 		}
 	}
 #endif
-	CTR4(KTR_SPARE2, "next at %d:    next %d.%08x by %d",
-	    curcpu, (int)(event >> 32), (u_int)(event & 0xffffffff), c);
+	CTR3(KTR_SPARE2, "next:    next %d.%08x by %d",
+	    (int)(event >> 32), (u_int)(event & 0xffffffff), c);
 	return (event);
 }
 
@@ -321,8 +321,8 @@ timercb(struct eventtimer *et, void *arg)
 	else
 		*next = -1;	/* Next tick is not scheduled yet. */
 	state->now = now;
-	CTR3(KTR_SPARE2, "intr at %d:    now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR2(KTR_SPARE2, "intr:    now  %d.%08x",
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 
 #ifdef SMP
 #ifdef EARLY_AP_STARTUP
@@ -397,8 +397,8 @@ loadtimer(sbintime_t now, int start)
 			new = timerperiod - tmp;
 			if (new < tmp)		/* Left less then passed. */
 				new += timerperiod;
-			CTR5(KTR_SPARE2, "load p at %d:   now %d.%08x first in %d.%08x",
-			    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff),
+			CTR4(KTR_SPARE2, "load p:   now %d.%08x first in %d.%08x",
+			    (int)(now >> 32), (u_int)(now & 0xffffffff),
 			    (int)(new >> 32), (u_int)(new & 0xffffffff));
 			*next = new + now;
 			et_start(timer, new, timerperiod);
@@ -406,8 +406,8 @@ loadtimer(sbintime_t now, int start)
 	} else {
 		new = getnextevent(state);
 		eq = (new == *next);
-		CTR4(KTR_SPARE2, "load at %d:    next %d.%08x eq %d",
-		    curcpu, (int)(new >> 32), (u_int)(new & 0xffffffff), eq);
+		CTR3(KTR_SPARE2, "load:    next %d.%08x eq %d",
+		    (int)(new >> 32), (u_int)(new & 0xffffffff), eq);
 		if (!eq) {
 			*next = new;
 			et_start(timer, new - now, 0);
@@ -772,8 +772,8 @@ cpu_idleclock(void)
 		now = state->now;
 	else
 		now = sbinuptime();
-	CTR3(KTR_SPARE2, "idle at %d:    now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR2(KTR_SPARE2, "idle:    now  %d.%08x",
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	t = getnextcpuevent(state, 1);
 	state->idle = 1;
 	state->nextevent = t;
@@ -801,8 +801,8 @@ cpu_activeclock(void)
 		now = state->now;
 	else
 		now = sbinuptime();
-	CTR3(KTR_SPARE2, "active at %d:  now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR2(KTR_SPARE2, "active:  now  %d.%08x",
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	td = curthread;
 	td->td_intr_nesting_level++;
 	handleevents(now, 1);
@@ -837,8 +837,9 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	/* Do not touch anything if somebody reconfiguring timers. */
 	if (busy)
 		return;
-	CTR6(KTR_SPARE2, "new co at %d:    on %d at %d.%08x - %d.%08x",
-	    curcpu, cpu, (int)(bt_opt >> 32), (u_int)(bt_opt & 0xffffffff),
+
+	CTR5(KTR_SPARE2, "new co:  on %d at %d.%08x - %d.%08x",
+	    cpu, (int)(bt_opt >> 32), (u_int)(bt_opt & 0xffffffff),
 	    (int)(bt >> 32), (u_int)(bt & 0xffffffff));
 
 	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
