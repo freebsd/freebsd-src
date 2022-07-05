@@ -37,19 +37,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/eventhandler.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
-#include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
-#include <sys/cons.h>
-#include <sys/conf.h>
 #include <sys/watchdog.h>
-#include <sys/kernel.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
@@ -172,9 +172,10 @@ static bool	db_ed_style = true;
 void
 db_skip_to_eol(void)
 {
-	int	t;
+	int t;
+
 	do {
-	    t = db_read_token();
+		t = db_read_token();
 	} while (t != tEOL);
 }
 
@@ -193,7 +194,7 @@ static void	db_cmd_list(struct db_command_table *table);
 static int	db_cmd_search(char *name, struct db_command_table *table,
 		    struct db_command **cmdp);
 static void	db_command(struct db_command **last_cmdp,
-		    struct db_command_table *cmd_table, int dopager);
+		    struct db_command_table *cmd_table, bool dopager);
 
 /*
  * Initialize the command lists from the static tables.
@@ -201,19 +202,17 @@ static void	db_command(struct db_command **last_cmdp,
 void
 db_command_init(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(db_cmds); i++)
+	for (i = 0; i < nitems(db_cmds); i++)
 		db_command_register(&db_cmd_table, &db_cmds[i]);
-	for (i = 0; i < N(db_show_cmds); i++)
+	for (i = 0; i < nitems(db_show_cmds); i++)
 		db_command_register(&db_show_table, &db_show_cmds[i]);
-	for (i = 0; i < N(db_show_active_cmds); i++)
+	for (i = 0; i < nitems(db_show_active_cmds); i++)
 		db_command_register(&db_show_active_table,
 		    &db_show_active_cmds[i]);
-	for (i = 0; i < N(db_show_all_cmds); i++)
+	for (i = 0; i < nitems(db_show_all_cmds); i++)
 		db_command_register(&db_show_all_table, &db_show_all_cmds[i]);
-#undef N
 }
 
 /*
@@ -353,156 +352,145 @@ db_cmd_list(struct db_command_table *table)
 
 static void
 db_command(struct db_command **last_cmdp, struct db_command_table *cmd_table,
-    int dopager)
+    bool dopager)
 {
+	char modif[TOK_STRING_SIZE];
 	struct db_command *cmd = NULL;
-	int		t;
-	char		modif[TOK_STRING_SIZE];
-	db_expr_t	addr, count;
-	bool		have_addr = false;
-	int		result;
+	db_expr_t addr, count;
+	int t, result;
+	bool have_addr = false;
 
 	t = db_read_token();
 	if (t == tEOL) {
-	    /* empty line repeats last command, at 'next' */
-	    cmd = *last_cmdp;
-	    addr = (db_expr_t)db_next;
-	    have_addr = false;
-	    count = 1;
-	    modif[0] = '\0';
-	}
-	else if (t == tEXCL) {
-	    db_fncall((db_expr_t)0, (bool)false, (db_expr_t)0, (char *)0);
-	    return;
-	}
-	else if (t != tIDENT) {
-	    db_printf("Unrecognized input; use \"help\" "
-	        "to list available commands\n");
-	    db_flush_lex();
-	    return;
-	}
-	else {
-	    /*
-	     * Search for command
-	     */
-	    while (cmd_table) {
-		result = db_cmd_search(db_tok_string,
-				       cmd_table,
-				       &cmd);
-		switch (result) {
-		    case CMD_NONE:
-			db_printf("No such command; use \"help\" "
-			    "to list available commands\n");
-			db_flush_lex();
-			return;
-		    case CMD_AMBIGUOUS:
-			db_printf("Ambiguous\n");
-			db_flush_lex();
-			return;
-		    case CMD_HELP:
-			if (cmd_table == &db_cmd_table) {
-			    db_printf("This is ddb(4), the kernel debugger; "
-			        "see https://man.FreeBSD.org/ddb/4 for help.\n");
-			    db_printf("Use \"bt\" for backtrace, \"dump\" for "
-			        "kernel core dump, \"reset\" to reboot.\n");
-			    db_printf("Available commands:\n");
-			}
-			db_cmd_list(cmd_table);
-			db_flush_lex();
-			return;
-		    default:
-			break;
-		}
-		if ((cmd_table = cmd->more) != NULL) {
-		    t = db_read_token();
-		    if (t != tIDENT) {
-			db_printf("Subcommand required; "
-			    "available subcommands:\n");
-			db_cmd_list(cmd_table);
-			db_flush_lex();
-			return;
-		    }
-		}
-	    }
-
-	    if ((cmd->flag & CS_OWN) == 0) {
+		/* empty line repeats last command, at 'next' */
+		cmd = *last_cmdp;
+		addr = (db_expr_t)db_next;
+		have_addr = false;
+		count = 1;
+		modif[0] = '\0';
+	} else if (t == tEXCL) {
+		db_fncall((db_expr_t)0, false, (db_expr_t)0, NULL);
+		return;
+	} else if (t != tIDENT) {
+		db_printf("Unrecognized input; use \"help\" "
+	            "to list available commands\n");
+		db_flush_lex();
+		return;
+	} else {
 		/*
-		 * Standard syntax:
-		 * command [/modifier] [addr] [,count]
+		 * Search for command
 		 */
-		t = db_read_token();
-		if (t == tSLASH) {
-		    t = db_read_token();
-		    if (t != tIDENT) {
-			db_printf("Bad modifier\n");
-			db_flush_lex();
-			return;
-		    }
-		    db_strcpy(modif, db_tok_string);
-		}
-		else {
-		    db_unread_token(t);
-		    modif[0] = '\0';
+		while (cmd_table != NULL) {
+			result = db_cmd_search(db_tok_string, cmd_table, &cmd);
+			switch (result) {
+			case CMD_NONE:
+				db_printf("No such command; use \"help\" "
+				    "to list available commands\n");
+				db_flush_lex();
+				return;
+			case CMD_AMBIGUOUS:
+				db_printf("Ambiguous\n");
+				db_flush_lex();
+				return;
+			case CMD_HELP:
+				if (cmd_table == &db_cmd_table) {
+					db_printf("This is ddb(4), the kernel debugger; "
+					    "see https://man.FreeBSD.org/ddb/4 for help.\n");
+					db_printf("Use \"bt\" for backtrace, \"dump\" for "
+					    "kernel core dump, \"reset\" to reboot.\n");
+					db_printf("Available commands:\n");
+				}
+				db_cmd_list(cmd_table);
+				db_flush_lex();
+				return;
+			case CMD_UNIQUE:
+			case CMD_FOUND:
+				break;
+			}
+			if ((cmd_table = cmd->more) != NULL) {
+				t = db_read_token();
+				if (t != tIDENT) {
+					db_printf("Subcommand required; "
+					    "available subcommands:\n");
+					db_cmd_list(cmd_table);
+					db_flush_lex();
+					return;
+				}
+			}
 		}
 
-		if (db_expression(&addr)) {
-		    db_dot = (db_addr_t) addr;
-		    db_last_addr = db_dot;
-		    have_addr = true;
+		if ((cmd->flag & CS_OWN) == 0) {
+			/*
+			 * Standard syntax:
+			 * command [/modifier] [addr] [,count]
+			 */
+			t = db_read_token();
+			if (t == tSLASH) {
+				t = db_read_token();
+				if (t != tIDENT) {
+					db_printf("Bad modifier\n");
+					db_flush_lex();
+					return;
+				}
+				db_strcpy(modif, db_tok_string);
+			} else {
+				db_unread_token(t);
+				modif[0] = '\0';
+			}
+
+			if (db_expression(&addr)) {
+				db_dot = (db_addr_t) addr;
+				db_last_addr = db_dot;
+				have_addr = true;
+			} else {
+				addr = (db_expr_t) db_dot;
+				have_addr = false;
+			}
+
+			t = db_read_token();
+			if (t == tCOMMA) {
+				if (!db_expression(&count)) {
+					db_printf("Count missing\n");
+					db_flush_lex();
+					return;
+				}
+			} else {
+				db_unread_token(t);
+				count = -1;
+			}
+
+			if ((cmd->flag & CS_MORE) == 0) {
+				db_skip_to_eol();
+			}
 		}
-		else {
-		    addr = (db_expr_t) db_dot;
-		    have_addr = false;
-		}
-		t = db_read_token();
-		if (t == tCOMMA) {
-		    if (!db_expression(&count)) {
-			db_printf("Count missing\n");
-			db_flush_lex();
-			return;
-		    }
-		}
-		else {
-		    db_unread_token(t);
-		    count = -1;
-		}
-		if ((cmd->flag & CS_MORE) == 0) {
-		    db_skip_to_eol();
-		}
-	    }
 	}
+
 	*last_cmdp = cmd;
 	if (cmd != NULL) {
-	    /*
-	     * Execute the command.
-	     */
-	    if (dopager)
-		db_enable_pager();
-	    else
-		db_disable_pager();
-	    (*cmd->fcn)(addr, have_addr, count, modif);
-	    if (dopager)
-		db_disable_pager();
+		/*
+		 * Execute the command.
+		 */
+		if (dopager)
+			db_enable_pager();
+		else
+			db_disable_pager();
+		(*cmd->fcn)(addr, have_addr, count, modif);
+		if (dopager)
+			db_disable_pager();
 
-	    if (cmd->flag & CS_SET_DOT) {
-		/*
-		 * If command changes dot, set dot to
-		 * previous address displayed (if 'ed' style).
-		 */
-		if (db_ed_style) {
-		    db_dot = db_prev;
+		if (cmd->flag & CS_SET_DOT) {
+			/*
+			 * If command changes dot, set dot to previous address
+			 * displayed (if 'ed' style).
+			 */
+			db_dot = db_ed_style ? db_prev : db_next;
+		} else {
+			/*
+			 * If command does not change dot, set 'next' location
+			 * to be the same.
+			 */
+			db_next = db_dot;
 		}
-		else {
-		    db_dot = db_next;
-		}
-	    }
-	    else {
-		/*
-		 * If command does not change dot,
-		 * set 'next' location to be the same.
-		 */
-		db_next = db_dot;
-	    }
 	}
 }
 
@@ -527,13 +515,13 @@ db_command_loop(void)
 
 	db_cmd_loop_done = 0;
 	while (!db_cmd_loop_done) {
-	    if (db_print_position() != 0)
-		db_printf("\n");
+		if (db_print_position() != 0)
+			db_printf("\n");
 
-	    db_printf("db> ");
-	    (void) db_read_line();
+		db_printf("db> ");
+		(void)db_read_line();
 
-	    db_command(&db_last_command, &db_cmd_table, /* dopager */ 1);
+		db_command(&db_last_command, &db_cmd_table, /* dopager */ true);
 	}
 }
 
@@ -551,7 +539,7 @@ db_command_script(const char *command)
 {
 	db_prev = db_next = db_dot;
 	db_inject_line(command);
-	db_command(&db_last_command, &db_cmd_table, /* dopager */ 0);
+	db_command(&db_last_command, &db_cmd_table, /* dopager */ false);
 }
 
 void
