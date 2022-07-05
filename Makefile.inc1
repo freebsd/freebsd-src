@@ -135,7 +135,7 @@ _TARGET_CPUTYPE=${TARGET_CPUTYPE}
 _TARGET_CPUTYPE=dummy
 .endif
 .if ${TARGET} == "arm"
-.if ${TARGET_ARCH:Marmv[67]*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
+.if ${TARGET_CPUTYPE:M*soft*} == ""
 TARGET_TRIPLE_ABI=	gnueabihf
 .else
 TARGET_TRIPLE_ABI=	gnueabi
