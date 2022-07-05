@@ -79,83 +79,96 @@ static db_cmdfcn_t	db_stack_trace_active;
 static db_cmdfcn_t	db_stack_trace_all;
 static db_cmdfcn_t	db_watchdog;
 
-/*
- * 'show' commands
- */
+#define	DB_CMD(_name, _func, _flags)	\
+{					\
+	.name =	(_name),		\
+	.fcn =	(_func),		\
+	.flag =	(_flags),		\
+	.more = NULL,			\
+}
+#define	DB_TABLE(_name, _more)		\
+{					\
+	.name =	(_name),		\
+	.fcn =	NULL,			\
+	.more =	(_more),		\
+}
 
 static struct db_command db_show_active_cmds[] = {
-	{ "trace",	db_stack_trace_active,	0,	NULL },
+	DB_CMD("trace",		db_stack_trace_active,	0),
 };
 struct db_command_table db_show_active_table =
     LIST_HEAD_INITIALIZER(db_show_active_table);
 
 static struct db_command db_show_all_cmds[] = {
-	{ "trace",	db_stack_trace_all,	0,	NULL },
+	DB_CMD("trace",		db_stack_trace_all,	0),
 };
 struct db_command_table db_show_all_table =
     LIST_HEAD_INITIALIZER(db_show_all_table);
 
 static struct db_command db_show_cmds[] = {
-	{ "active",	0,			0,	&db_show_active_table },
-	{ "all",	0,			0,	&db_show_all_table },
-	{ "registers",	db_show_regs,		0,	NULL },
-	{ "breaks",	db_listbreak_cmd, 	0,	NULL },
-	{ "threads",	db_show_threads,	0,	NULL },
+	DB_TABLE("active",	&db_show_active_table),
+	DB_TABLE("all",		&db_show_all_table),
+	DB_CMD("registers",	db_show_regs,		0),
+	DB_CMD("breaks",	db_listbreak_cmd,	0),
+	DB_CMD("threads",	db_show_threads,	0),
 };
 struct db_command_table db_show_table = LIST_HEAD_INITIALIZER(db_show_table);
 
 static struct db_command db_cmds[] = {
-	{ "print",	db_print_cmd,		0,	NULL },
-	{ "p",		db_print_cmd,		0,	NULL },
-	{ "examine",	db_examine_cmd,		CS_SET_DOT, NULL },
-	{ "x",		db_examine_cmd,		CS_SET_DOT, NULL },
-	{ "search",	db_search_cmd,		CS_OWN|CS_SET_DOT, NULL },
-	{ "set",	db_set_cmd,		CS_OWN,	NULL },
-	{ "write",	db_write_cmd,		CS_MORE|CS_SET_DOT, NULL },
-	{ "w",		db_write_cmd,		CS_MORE|CS_SET_DOT, NULL },
-	{ "delete",	db_delete_cmd,		0,	NULL },
-	{ "d",		db_delete_cmd,		0,	NULL },
-	{ "dump",	db_dump,		0,	NULL },
-	{ "break",	db_breakpoint_cmd,	0,	NULL },
-	{ "b",		db_breakpoint_cmd,	0,	NULL },
-	{ "dwatch",	db_deletewatch_cmd,	0,	NULL },
-	{ "watch",	db_watchpoint_cmd,	CS_MORE,NULL },
-	{ "dhwatch",	db_deletehwatch_cmd,	0,      NULL },
-	{ "hwatch",	db_hwatchpoint_cmd,	0,      NULL },
-	{ "step",	db_single_step_cmd,	0,	NULL },
-	{ "s",		db_single_step_cmd,	0,	NULL },
-	{ "continue",	db_continue_cmd,	0,	NULL },
-	{ "c",		db_continue_cmd,	0,	NULL },
-	{ "until",	db_trace_until_call_cmd,0,	NULL },
-	{ "next",	db_trace_until_matching_cmd,0,	NULL },
-	{ "match",	db_trace_until_matching_cmd,0,	NULL },
-	{ "trace",	db_stack_trace,		CS_OWN,	NULL },
-	{ "t",		db_stack_trace,		CS_OWN,	NULL },
+	DB_TABLE("show",	&db_show_table),
+	DB_CMD("print",		db_print_cmd,		0),
+	DB_CMD("p",		db_print_cmd,		0),
+	DB_CMD("examine",	db_examine_cmd,		CS_SET_DOT),
+	DB_CMD("x",		db_examine_cmd,		CS_SET_DOT),
+	DB_CMD("search",	db_search_cmd,		CS_OWN|CS_SET_DOT),
+	DB_CMD("set",		db_set_cmd,		CS_OWN),
+	DB_CMD("write",		db_write_cmd,		CS_MORE|CS_SET_DOT),
+	DB_CMD("w",		db_write_cmd,		CS_MORE|CS_SET_DOT),
+	DB_CMD("delete",	db_delete_cmd,		0),
+	DB_CMD("d",		db_delete_cmd,		0),
+	DB_CMD("dump",		db_dump,		0),
+	DB_CMD("break",		db_breakpoint_cmd,	0),
+	DB_CMD("b",		db_breakpoint_cmd,	0),
+	DB_CMD("dwatch",	db_deletewatch_cmd,	0),
+	DB_CMD("watch",		db_watchpoint_cmd,	CS_MORE),
+	DB_CMD("dhwatch",	db_deletehwatch_cmd,	0),
+	DB_CMD("hwatch",	db_hwatchpoint_cmd,	0),
+	DB_CMD("step",		db_single_step_cmd,	0),
+	DB_CMD("s",		db_single_step_cmd,	0),
+	DB_CMD("continue",	db_continue_cmd,	0),
+	DB_CMD("c",		db_continue_cmd,	0),
+	DB_CMD("until",		db_trace_until_call_cmd, 0),
+	DB_CMD("next",		db_trace_until_matching_cmd, 0),
+	DB_CMD("match",		db_trace_until_matching_cmd, 0),
+	DB_CMD("trace",		db_stack_trace,		CS_OWN),
+	DB_CMD("t",		db_stack_trace,		CS_OWN),
 	/* XXX alias for active trace */
-	{ "acttrace",	db_stack_trace_active,	0,	NULL },
+	DB_CMD("acttrace",	db_stack_trace_active,	0),
 	/* XXX alias for all trace */
-	{ "alltrace",	db_stack_trace_all,	0,	NULL },
-	{ "where",	db_stack_trace,		CS_OWN,	NULL },
-	{ "bt",		db_stack_trace,		CS_OWN,	NULL },
-	{ "call",	db_fncall,		CS_OWN,	NULL },
-	{ "show",	0,			0,	&db_show_table },
-	{ "ps",		db_ps,			0,	NULL },
-	{ "gdb",	db_gdb,			0,	NULL },
-	{ "halt",	db_halt,		0,	NULL },
-	{ "reboot",	db_reset,		0,	NULL },
-	{ "reset",	db_reset,		0,	NULL },
-	{ "kill",	db_kill,		CS_OWN,	NULL },
-	{ "watchdog",	db_watchdog,		CS_OWN,	NULL },
-	{ "thread",	db_set_thread,		0,	NULL },
-	{ "run",	db_run_cmd,		CS_OWN,	NULL },
-	{ "script",	db_script_cmd,		CS_OWN,	NULL },
-	{ "scripts",	db_scripts_cmd,		0,	NULL },
-	{ "unscript",	db_unscript_cmd,	CS_OWN,	NULL },
-	{ "capture",	db_capture_cmd,		CS_OWN,	NULL },
-	{ "textdump",	db_textdump_cmd,	CS_OWN, NULL },
-	{ "findstack",	db_findstack_cmd,	0,	NULL },
+	DB_CMD("alltrace",	db_stack_trace_all,	0),
+	DB_CMD("where",		db_stack_trace,		CS_OWN),
+	DB_CMD("bt",		db_stack_trace,		CS_OWN),
+	DB_CMD("call",		db_fncall,		CS_OWN),
+	DB_CMD("ps",		db_ps,			0),
+	DB_CMD("gdb",		db_gdb,			0),
+	DB_CMD("halt",		db_halt,		0),
+	DB_CMD("reboot",	db_reset,		0),
+	DB_CMD("reset",		db_reset,		0),
+	DB_CMD("kill",		db_kill,		CS_OWN),
+	DB_CMD("watchdog",	db_watchdog,		CS_OWN),
+	DB_CMD("thread",	db_set_thread,		0),
+	DB_CMD("run",		db_run_cmd,		CS_OWN),
+	DB_CMD("script",	db_script_cmd,		CS_OWN),
+	DB_CMD("scripts",	db_scripts_cmd,		0),
+	DB_CMD("unscript",	db_unscript_cmd,	CS_OWN),
+	DB_CMD("capture",	db_capture_cmd,		CS_OWN),
+	DB_CMD("textdump",	db_textdump_cmd,	CS_OWN),
+	DB_CMD("findstack",	db_findstack_cmd,	0),
 };
 struct db_command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
+
+#undef DB_CMD
+#undef DB_TABLE
 
 static struct db_command *db_last_command = NULL;
 
