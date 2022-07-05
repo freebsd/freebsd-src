@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 #include <libxo/xo.h>
 
 typedef void (action_fn)(struct sockaddr_dl *sdl, struct sockaddr_in *s_in,
@@ -794,90 +795,70 @@ doit:
  * get_ether_addr - get the hardware address of an interface on the
  * the same subnet as ipaddr.
  */
-#define MAX_IFS		32
-
 static int
 get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 {
-	struct ifreq *ifr, *ifend, *ifp;
+	struct ifaddrs *ifa, *ifd, *ifas = NULL;
 	in_addr_t ina, mask;
 	struct sockaddr_dl *dla;
-	struct ifreq ifreq;
-	struct ifconf ifc;
-	struct ifreq ifs[MAX_IFS];
-	int sock;
 	int retval = 0;
-
-	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock < 0)
-		xo_err(1, "socket");
-
-	ifc.ifc_len = sizeof(ifs);
-	ifc.ifc_req = ifs;
-	if (ioctl(sock, SIOCGIFCONF, &ifc) < 0) {
-		xo_warnx("ioctl(SIOCGIFCONF)");
-		goto done;
-	}
-
-#define NEXTIFR(i)						\
-	((struct ifreq *)((char *)&(i)->ifr_addr		\
-	+ MAX((i)->ifr_addr.sa_len, sizeof((i)->ifr_addr))) )
 
 	/*
 	 * Scan through looking for an interface with an Internet
 	 * address on the same subnet as `ipaddr'.
 	 */
-	ifend = (struct ifreq *)(ifc.ifc_buf + ifc.ifc_len);
-	for (ifr = ifc.ifc_req; ifr < ifend; ifr = NEXTIFR(ifr) ) {
-		if (ifr->ifr_addr.sa_family != AF_INET)
+	if (getifaddrs(&ifas) < 0) {
+		xo_warnx("getifaddrs");
+		goto done;
+	}
+
+	for (ifa = ifas; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL || ifa->ifa_netmask == NULL)
 			continue;
-		strncpy(ifreq.ifr_name, ifr->ifr_name,
-			sizeof(ifreq.ifr_name));
-		ifreq.ifr_addr = ifr->ifr_addr;
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
 		/*
 		 * Check that the interface is up,
 		 * and not point-to-point or loopback.
 		 */
-		if (ioctl(sock, SIOCGIFFLAGS, &ifreq) < 0)
-			continue;
-		if ((ifreq.ifr_flags &
+		if ((ifa->ifa_flags &
 		    (IFF_UP|IFF_BROADCAST|IFF_POINTOPOINT|
 		    IFF_LOOPBACK|IFF_NOARP)) != (IFF_UP|IFF_BROADCAST))
 			continue;
 		/* Get its netmask and check that it's on the right subnet. */
-		if (ioctl(sock, SIOCGIFNETMASK, &ifreq) < 0)
-			continue;
 		mask = ((struct sockaddr_in *)
-			&ifreq.ifr_addr)->sin_addr.s_addr;
+			ifa->ifa_netmask)->sin_addr.s_addr;
 		ina = ((struct sockaddr_in *)
-			&ifr->ifr_addr)->sin_addr.s_addr;
+			ifa->ifa_addr)->sin_addr.s_addr;
 		if ((ipaddr & mask) == (ina & mask))
 			break; /* ok, we got it! */
 	}
-
-	if (ifr >= ifend)
+	if (ifa == NULL)
 		goto done;
 
 	/*
 	 * Now scan through again looking for a link-level address
 	 * for this interface.
 	 */
-	ifp = ifr;
-	for (ifr = ifc.ifc_req; ifr < ifend; ifr = NEXTIFR(ifr))
-		if (strcmp(ifp->ifr_name, ifr->ifr_name) == 0 &&
-		    ifr->ifr_addr.sa_family == AF_LINK)
+	for (ifd = ifas; ifd != NULL; ifd = ifd->ifa_next) {
+		if (ifd->ifa_addr == NULL)
+			continue;
+		if (strcmp(ifa->ifa_name, ifd->ifa_name) == 0 &&
+		    ifd->ifa_addr->sa_family == AF_LINK)
 			break;
-	if (ifr >= ifend)
+	}
+	if (ifd == NULL)
 		goto done;
 	/*
 	 * Found the link-level address - copy it out
 	 */
-	dla = (struct sockaddr_dl *) &ifr->ifr_addr;
+	dla = (struct sockaddr_dl *)ifd->ifa_addr;
 	memcpy(hwaddr,  LLADDR(dla), dla->sdl_alen);
-	printf("using interface %s for proxy with address %s\n", ifp->ifr_name,
+	printf("using interface %s for proxy with address %s\n", ifa->ifa_name,
 	    ether_ntoa(hwaddr));
 	retval = dla->sdl_alen;
 done:
-	close(sock);
+	if (ifas != NULL)
+		freeifaddrs(ifas);
 	return (retval);
 }
