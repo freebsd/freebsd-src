@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2019 Emmanuel Vadot <manu@FreeBSD.Org>
+ * Copyright (c) 2021-2022 Bjoern A. Zeeb <bz@FreeBSD.ORG>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,11 +26,13 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include "opt_platform.h"
+#include "opt_acpi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,15 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#ifdef FDT
 #include <sys/gpio.h>
+#endif
+
 #include <machine/bus.h>
-
-#include <dev/fdt/simplebus.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_subr.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -60,15 +59,25 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/dwc3.h>
 
+#ifdef FDT
+#include <dev/fdt/simplebus.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_subr.h>
+
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/phy/phy_usb.h>
+#endif
+
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 #include "generic_xhci.h"
-
-static struct ofw_compat_data compat_data[] = {
-	{ "snps,dwc3",	1 },
-	{ NULL,		0 }
-};
 
 struct snps_dwc3_softc {
 	struct xhci_softc	sc;
@@ -76,9 +85,6 @@ struct snps_dwc3_softc {
 	struct resource *	mem_res;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
-	phandle_t		node;
-	phy_t			usb2_phy;
-	phy_t			usb3_phy;
 	uint32_t		snpsid;
 };
 
@@ -86,6 +92,8 @@ struct snps_dwc3_softc {
     bus_space_write_4(_sc->bst, _sc->bsh, _off, _val)
 #define	DWC3_READ(_sc, _off)		\
     bus_space_read_4(_sc->bst, _sc->bsh, _off)
+
+#define	IS_DMA_32B	1
 
 static int
 snps_dwc3_attach_xhci(device_t dev)
@@ -125,7 +133,7 @@ snps_dwc3_attach_xhci(device_t dev)
 		return (err);
 	}
 
-	err = xhci_init(sc, dev, 1);
+	err = xhci_init(sc, dev, IS_DMA_32B);
 	if (err != 0) {
 		device_printf(dev, "Failed to init XHCI, with error %d\n", err);
 		return (ENXIO);
@@ -175,9 +183,7 @@ snsp_dwc3_dump_regs(struct snps_dwc3_softc *sc, const char *msg)
 	xsc = &sc->sc;
 	device_printf(sc->dev, "xhci quirks: %#012x\n", xsc->sc_quirks);
 }
-#endif
 
-#ifdef DWC3_DEBUG
 static void
 snps_dwc3_dump_ctrlparams(struct snps_dwc3_softc *sc)
 {
@@ -201,11 +207,6 @@ static void
 snps_dwc3_reset(struct snps_dwc3_softc *sc)
 {
 	uint32_t gctl, ghwp0, phy2, phy3;
-
-	if (sc->usb2_phy)
-		phy_enable(sc->usb2_phy);
-	if (sc->usb3_phy)
-		phy_enable(sc->usb3_phy);
 
 	ghwp0 = DWC3_READ(sc, DWC3_GHWPARAMS0);
 
@@ -260,15 +261,16 @@ snps_dwc3_configure_host(struct snps_dwc3_softc *sc)
 	DWC3_WRITE(sc, DWC3_GUCTL, reg);
 }
 
+#ifdef FDT
 static void
-snps_dwc3_configure_phy(struct snps_dwc3_softc *sc)
+snps_dwc3_configure_phy(struct snps_dwc3_softc *sc, phandle_t node)
 {
 	char *phy_type;
 	uint32_t reg;
 	int nphy_types;
 
 	phy_type = NULL;
-	nphy_types = OF_getprop_alloc(sc->node, "phy_type", (void **)&phy_type);
+	nphy_types = OF_getprop_alloc(node, "phy_type", (void **)&phy_type);
 	if (nphy_types <= 0)
 		return;
 
@@ -285,6 +287,7 @@ snps_dwc3_configure_phy(struct snps_dwc3_softc *sc)
 	DWC3_WRITE(sc, DWC3_GUSB2PHYCFG0, reg);
 	OF_prop_free(phy_type);
 }
+#endif
 
 static void
 snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
@@ -334,16 +337,10 @@ snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
 }
 
 static int
-snps_dwc3_probe(device_t dev)
+snps_dwc3_probe_common(device_t dev)
 {
-	char dr_mode[16];
+	char dr_mode[16] = { 0 };
 	ssize_t s;
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
 
 	s = device_get_property(dev, "dr_mode", dr_mode, sizeof(dr_mode),
 	    DEVICE_PROP_BUFFER);
@@ -363,14 +360,19 @@ snps_dwc3_probe(device_t dev)
 }
 
 static int
-snps_dwc3_attach(device_t dev)
+snps_dwc3_common_attach(device_t dev, bool is_fdt)
 {
 	struct snps_dwc3_softc *sc;
-	int rid = 0;
+#ifdef FDT
+	phandle_t node;
+	phy_t usb2_phy, usb3_phy;
+#endif
+	int error, rid;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL) {
@@ -387,41 +389,135 @@ snps_dwc3_attach(device_t dev)
 	snps_dwc3_dump_ctrlparams(sc);
 #endif
 
+#ifdef FDT
+	if (!is_fdt)
+		goto skip_phys;
+
 	/* Get the phys */
-	sc->node = ofw_bus_get_node(dev);
-	phy_get_by_ofw_name(dev, sc->node, "usb2-phy", &sc->usb2_phy);
-	phy_get_by_ofw_name(dev, sc->node, "usb3-phy", &sc->usb3_phy);
+	node = ofw_bus_get_node(dev);
+
+	usb2_phy = usb3_phy = NULL;
+	error = phy_get_by_ofw_name(dev, node, "usb2-phy", &usb2_phy);
+	if (error == 0 && usb2_phy != NULL)
+		phy_enable(usb2_phy);
+	error = phy_get_by_ofw_name(dev, node, "usb3-phy", &usb3_phy);
+	if (error == 0 && usb3_phy != NULL)
+		phy_enable(usb3_phy);
+
+	snps_dwc3_configure_phy(sc, node);
+skip_phys:
+#endif
 
 	snps_dwc3_reset(sc);
 	snps_dwc3_configure_host(sc);
-	snps_dwc3_configure_phy(sc);
 	snps_dwc3_do_quirks(sc);
 
 #ifdef DWC3_DEBUG
 	snsp_dwc3_dump_regs(sc, "Pre XHCI init");
 #endif
-	snps_dwc3_attach_xhci(dev);
+	error = snps_dwc3_attach_xhci(dev);
 #ifdef DWC3_DEBUG
 	snsp_dwc3_dump_regs(sc, "Post XHCI init");
 #endif
 
-	return (0);
+	return (error);
 }
 
-static device_method_t snps_dwc3_methods[] = {
+#ifdef FDT
+static struct ofw_compat_data compat_data[] = {
+	{ "snps,dwc3",	1 },
+	{ NULL,		0 }
+};
+
+static int
+snps_dwc3_fdt_probe(device_t dev)
+{
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	return (snps_dwc3_probe_common(dev));
+}
+
+static int
+snps_dwc3_fdt_attach(device_t dev)
+{
+
+	return (snps_dwc3_common_attach(dev, true));
+}
+
+static device_method_t snps_dwc3_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		snps_dwc3_probe),
-	DEVMETHOD(device_attach,	snps_dwc3_attach),
+	DEVMETHOD(device_probe,		snps_dwc3_fdt_probe),
+	DEVMETHOD(device_attach,	snps_dwc3_fdt_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t snps_dwc3_driver = {
-	"xhci",
-	snps_dwc3_methods,
-	sizeof(struct snps_dwc3_softc)
+DEFINE_CLASS_1(snps_dwc3_fdt, snps_dwc3_fdt_driver, snps_dwc3_fdt_methods,
+    sizeof(struct snps_dwc3_softc), generic_xhci_driver);
+
+DRIVER_MODULE(snps_dwc3_fdt, simplebus, snps_dwc3_fdt_driver, 0, 0);
+MODULE_DEPEND(snps_dwc3_fdt, xhci, 1, 1, 1);
+#endif
+
+#ifdef DEV_ACPI
+static char *dwc3_acpi_ids[] = {
+	"808622B7",	/* This was an Intel PCI Vendor/Device ID used. */
+	"PNP0D10",	/* The generic XHCI PNP ID needing extra probe checks. */
+	NULL
 };
 
-static devclass_t snps_dwc3_devclass;
-DRIVER_MODULE(snps_dwc3, simplebus, snps_dwc3_driver, snps_dwc3_devclass, 0, 0);
-MODULE_DEPEND(snps_dwc3, xhci, 1, 1, 1);
+static int
+snps_dwc3_acpi_probe(device_t dev)
+{
+	char *match;
+	int error;
+
+	if (acpi_disabled("snps_dwc3"))
+		return (ENXIO);
+
+	error = ACPI_ID_PROBE(device_get_parent(dev), dev, dwc3_acpi_ids, &match);
+	if (error > 0)
+		return (ENXIO);
+
+	/*
+	 * If we found the Generic XHCI PNP ID we can only attach if we have
+	 * some other means to identify the device as dwc3.
+	 */
+	if (strcmp(match, "PNP0D10") == 0) {
+		/* This is needed in SolidRun's HoneyComb. */
+		if (device_has_property(dev, "snps,dis_rxdet_inp3_quirk"))
+			goto is_dwc3;
+
+		return (ENXIO);
+	}
+
+is_dwc3:
+	return (snps_dwc3_probe_common(dev));
+}
+
+static int
+snps_dwc3_acpi_attach(device_t dev)
+{
+
+	return (snps_dwc3_common_attach(dev, false));
+}
+
+static device_method_t snps_dwc3_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		snps_dwc3_acpi_probe),
+	DEVMETHOD(device_attach,	snps_dwc3_acpi_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_1(snps_dwc3_acpi, snps_dwc3_acpi_driver, snps_dwc3_acpi_methods,
+    sizeof(struct snps_dwc3_softc), generic_xhci_driver);
+
+DRIVER_MODULE(snps_dwc3_acpi, acpi, snps_dwc3_acpi_driver, 0, 0);
+MODULE_DEPEND(snps_dwc3_acpi, usb, 1, 1, 1);
+#endif
