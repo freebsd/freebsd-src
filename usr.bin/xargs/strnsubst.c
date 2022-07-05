@@ -28,7 +28,7 @@ bool	strnsubst(char **, const char *, const char *, size_t);
  * If replstr is NULL, then that internally is changed to a nil-string, so
  * that we can still pretend to do somewhat meaningful substitution.
  *
- * Returns true if truncation was needed to do the replacement, true if
+ * Returns true if truncation was needed to do the replacement, false if
  * truncation was not required.
  */
 bool
