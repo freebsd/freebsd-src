@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <paths.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,7 @@ static void	prerun(int, char *[]);
 static int	prompt(void);
 static void	run(char **);
 static void	usage(void);
-void		strnsubst(char **, const char *, const char *, size_t);
+bool		strnsubst(char **, const char *, const char *, size_t);
 static pid_t	xwait(int block, int *status);
 static void	xexit(const char *, const int);
 static void	waitchildren(const char *, int);
@@ -90,6 +91,7 @@ static char echo[] = _PATH_ECHO;
 static char **av, **bxp, **ep, **endxp, **xp;
 static char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 static const char *eofstr;
+static long eoflen;
 static int count, insingle, indouble, oflag, pflag, tflag, Rflag, rval, zflag;
 static int cnt, Iflag, jfound, Lflag, Sflag, wasquoted, xflag;
 static int curprocs, maxprocs;
@@ -122,12 +124,12 @@ main(int argc, char *argv[])
 	int ch, Jflag, nargs, nflag, nline;
 	size_t linelen;
 	struct rlimit rl;
-	char *endptr;
 	const char *errstr;
 
 	inpline = replstr = NULL;
 	ep = environ;
 	eofstr = "";
+	eoflen = 0;
 	Jflag = nflag = 0;
 
 	(void)setlocale(LC_ALL, "");
@@ -158,6 +160,7 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'E':
 			eofstr = optarg;
+			eoflen = strlen(eofstr);
 			break;
 		case 'I':
 			Jflag = 0;
@@ -171,23 +174,23 @@ main(int argc, char *argv[])
 			replstr = optarg;
 			break;
 		case 'L':
-			Lflag = strtonum(optarg, 0, INT_MAX, &errstr);
+			Lflag = (int)strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr)
-				errx(1, "-L %s: %s", optarg, errstr);
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 'n':
 			nflag = 1;
-			nargs = strtonum(optarg, 1, INT_MAX, &errstr);
+			nargs = (int)strtonum(optarg, 1, INT_MAX, &errstr);
 			if (errstr)
-				errx(1, "-n %s: %s", optarg, errstr);
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 'o':
 			oflag = 1;
 			break;
 		case 'P':
-			maxprocs = strtonum(optarg, 0, INT_MAX, &errstr);
+			maxprocs = (int)strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr)
-				errx(1, "-P %s: %s", optarg, errstr);
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			if (getrlimit(RLIMIT_NPROC, &rl) != 0)
 				errx(1, "getrlimit failed");
 			if (maxprocs == 0 || maxprocs > rl.rlim_cur)
@@ -197,22 +200,22 @@ main(int argc, char *argv[])
 			pflag = 1;
 			break;
 		case 'R':
-			Rflag = strtol(optarg, &endptr, 10);
-			if (*endptr != '\0')
-				errx(1, "replacements must be a number");
+			Rflag = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 'r':
 			/* GNU compatibility */
 			break;
 		case 'S':
-			Sflag = strtoul(optarg, &endptr, 10);
-			if (*endptr != '\0')
-				errx(1, "replsize must be a number");
+			Sflag = (int)strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 's':
-			nline = strtonum(optarg, 0, INT_MAX, &errstr);
+			nline = (int)strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr)
-				errx(1, "-s %s: %s", optarg, errstr);
+				errx(1, "-%c %s: %s", ch, optarg, errstr);
 			break;
 		case 't':
 			tflag = 1;
@@ -347,8 +350,8 @@ arg1:		if (insingle || indouble) {
 			xexit(*av, 1);
 		}
 arg2:
-		foundeof = *eofstr != '\0' &&
-		    strncmp(argp, eofstr, p - argp) == 0;
+		foundeof = eoflen != 0 && p - argp == eoflen &&
+		    strncmp(argp, eofstr, eoflen) == 0;
 
 		/* Do not make empty args unless they are quoted */
 		if ((argp != p || wasquoted) && !foundeof) {
@@ -521,7 +524,10 @@ prerun(int argc, char *argv[])
 	while (--argc) {
 		*tmp = *avj++;
 		if (repls && strstr(*tmp, replstr) != NULL) {
-			strnsubst(tmp++, replstr, inpline, (size_t)Sflag);
+			if (strnsubst(tmp++, replstr, inpline, (size_t)Sflag)) {
+				warnx("command line cannot be assembled, too long");
+				xexit(*argv, 1);
+			}
 			if (repls > 0)
 				repls--;
 		} else {

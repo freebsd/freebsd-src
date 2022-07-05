@@ -12,11 +12,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-void	strnsubst(char **, const char *, const char *, size_t);
+bool	strnsubst(char **, const char *, const char *, size_t);
 
 /*
  * Replaces str with a string consisting of str with match replaced with
@@ -26,16 +27,19 @@ void	strnsubst(char **, const char *, const char *, size_t);
  * str as well as the new contents are handled in an appropriate manner.
  * If replstr is NULL, then that internally is changed to a nil-string, so
  * that we can still pretend to do somewhat meaningful substitution.
- * No value is returned.
+ *
+ * Returns true if truncation was needed to do the replacement, false if
+ * truncation was not required.
  */
-void
+bool
 strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 {
 	char *s1, *s2, *this;
+	bool error = false;
 
 	s1 = *str;
 	if (s1 == NULL)
-		return;
+		return false;
 	/*
 	 * If maxsize is 0 then set it to the length of s1, because we have
 	 * to duplicate s1.  XXX we maybe should double-check whether the match
@@ -67,6 +71,7 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 		if ((strlen(s2) + strlen(s1) + strlen(replstr) -
 		    strlen(match) + 1) > maxsize) {
 			strlcat(s2, s1, maxsize);
+			error = true;
 			goto done;
 		}
 		strncat(s2, s1, (uintptr_t)this - (uintptr_t)s1);
@@ -76,7 +81,7 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 	strcat(s2, s1);
 done:
 	*str = s2;
-	return;
+	return error;
 }
 
 #ifdef TEST
