@@ -333,7 +333,7 @@ netgdb_fini(void)
  * Currently, this command does not support configuring encryption or
  * compression.
  */
-DB_FUNC(netgdb, db_netgdb_cmd, db_cmd_table, CS_OWN, NULL)
+DB_COMMAND_FLAGS(netgdb, db_netgdb_cmd, CS_OWN)
 {
 	struct debugnet_ddb_config params;
 	struct debugnet_conn_params dcp;

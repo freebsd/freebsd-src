@@ -689,7 +689,7 @@ DECLARE_MODULE(netdump, netdump_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
  * Currently, this command does not support configuring encryption or
  * compression.
  */
-DB_FUNC(netdump, db_netdump_cmd, db_cmd_table, CS_OWN, NULL)
+DB_COMMAND_FLAGS(netdump, db_netdump_cmd, CS_OWN)
 {
 	static struct diocskerneldump_arg conf;
 	static char blockbuf[NETDUMP_DATASIZE];

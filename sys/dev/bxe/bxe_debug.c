@@ -292,13 +292,7 @@ static void bxe_ddb_usage()
     db_printf("Usage: bxe[/hpv] <instance> [<address>]\n");
 }
 
-static db_cmdfcn_t bxe_ddb;
-_DB_SET(_cmd, bxe, bxe_ddb, db_cmd_table, CS_OWN, NULL);
-
-static void bxe_ddb(db_expr_t blah1,
-                    boolean_t blah2,
-                    db_expr_t blah3,
-                    char      *blah4)
+DB_COMMAND_FLAGS(bxe, bxe_ddb, CS_OWN)
 {
     char if_xname[IFNAMSIZ];
     if_t ifp = NULL;
