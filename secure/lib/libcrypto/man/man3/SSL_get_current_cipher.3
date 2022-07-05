@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_CURRENT_CIPHER 3"
-.TH SSL_GET_CURRENT_CIPHER 3 "2022-06-21" "1.1.1p" "OpenSSL"
+.TH SSL_GET_CURRENT_CIPHER 3 "2022-07-05" "1.1.1q" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,8 +145,8 @@ SSL_get_current_cipher, SSL_get_cipher_name, SSL_get_cipher, SSL_get_cipher_bits
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
-\& SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl);
+\& const SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl);
+\& const SSL_CIPHER *SSL_get_pending_cipher(const SSL *ssl);
 \&
 \& const char *SSL_get_cipher_name(const SSL *s);
 \& const char *SSL_get_cipher(const SSL *s);
@@ -192,7 +192,7 @@ SSL_get_cipher_name are implemented as macros.
 \&\fBssl\fR\|(7), \fBSSL_CIPHER_get_name\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
