@@ -207,11 +207,12 @@ snps_dwc3_reset(struct snps_dwc3_softc *sc)
 	if (sc->usb3_phy)
 		phy_enable(sc->usb3_phy);
 
+	ghwp0 = DWC3_READ(sc, DWC3_GHWPARAMS0);
+
 	gctl = DWC3_READ(sc, DWC3_GCTL);
 	gctl |= DWC3_GCTL_CORESOFTRESET;
 	DWC3_WRITE(sc, DWC3_GCTL, gctl);
 
-	ghwp0 = DWC3_READ(sc, DWC3_GHWPARAMS0);
 	phy2 = DWC3_READ(sc, DWC3_GUSB2PHYCFG0);
 	phy2 |= DWC3_GUSB2PHYCFG0_PHYSOFTRST;
 	if ((ghwp0 & DWC3_GHWPARAMS0_MODE_MASK) ==
