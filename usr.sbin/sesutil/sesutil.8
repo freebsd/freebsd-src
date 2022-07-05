@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2019
+.Dd July 5, 2022
 .Dt SESUTIL 8
 .Os
 .Sh NAME
@@ -34,13 +34,25 @@
 .Nm
 .Cm fault
 .Op Fl u Ar /dev/sesN
-.Aq Ar disk | Ar sesid | Li all
-.Op on | off
+.Ar disk Ns | Ns Cm all
+.Cm on Ns | Ns Cm off
+.Nm
+.Cm fault
+.Fl u Ar /dev/sesN
+.Sm off
+.Ar sesid
+.Sm on
+.Cm on Ns | Ns Cm off
 .Nm
 .Cm locate
 .Op Fl u Ar /dev/sesN
-.Aq Ar disk | Ar sesid | Li all
-.Op on | off
+.Ar disk Ns | Ns Cm all
+.Cm on Ns | Ns Cm off
+.Nm
+.Cm locate
+.Fl u Ar /dev/sesN
+.Ar sesid
+.Cm on Ns | Ns Cm off
 .Nm
 .Cm map
 .Op Fl -libxo Ar options
@@ -61,22 +73,16 @@ Services (SES) devices.
 .Pp
 List of supported commands:
 .Bl -tag -width indent
-.It Fl -libxo
-Generate output via
-.Xr libxo 3
-in a selection of different human and machine readable formats.
-See
-.Xr xo_parse_args 3
-.It Cm fault Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
+.It Cm fault Oo Fl u Ar /dev/sesN Oc Ar disk Ns | Ns Cm all Cm on Ns | Ns Cm off
 Change the state of the external fault LED associated with
 .Ar disk .
 .Ar disk
 can be the device name of the disk, like
-.Cm da12 ,
+.Ql da12 ,
 or
-.Ql all .
+.Cm all
 to indicate all disks attached to SES controllers.
-.It Cm fault Fl u Ar /dev/sesN Ar sesid Op on | off
+.It Cm fault Fl u Ar /dev/sesN Ar sesid Cm on Ns | Ns Cm off
 Change the state of the external fault LED associated with an element
 connected to the SES controller.
 .Ar sesid
@@ -84,16 +90,16 @@ must be the element ID of a valid item attached to the controller.
 Use the
 .Cm map
 command to list the elements attached to a controller.
-.It Cm locate Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
+.It Cm locate Oo Fl u Ar /dev/sesN Oc Ar disk Ns | Ns Cm all Cm on Ns | Ns Cm off
 Change the state of the external locate LED associated with
 .Ar disk .
 .Ar disk
 can be the device name of the disk, like
-.Cm da12 ,
+.Ql da12 ,
 or
-.Ql all .
+.Cm all
 to indicate all disks attached to SES controllers.
-.It Cm locate Fl u Ar /dev/sesN Ar sesid Op on | off
+.It Cm locate Fl u Ar /dev/sesN Ar sesid Cm on Ns | Ns Cm off
 Change the state of the external locate LED associated with an element
 connected to the SES controller.
 .Ar sesid
@@ -101,21 +107,31 @@ must be the element ID of a valid item attached to the controller.
 Use the
 .Cm map
 command to list the elements attached to a controller.
-.It Cm show Op Fl u Ar /dev/sesN
-Display user-friendly summary of specified
-.Xr ses 4
-controller.
-If no controller is specified, all controllers are mapped.
-.It Cm map Op Fl u Ar /dev/sesN
+.It Cm map Oo Fl -libxo Ar options Oc Op Fl u Ar /dev/sesN
 Display a map of all elements connected to the specified
 .Xr ses 4
 controller.
 If no controller is specified, all controllers are mapped.
-.It Cm status Op Fl u Ar /dev/sesN
+.It Cm show Oo Fl -libxo Ar options Oc Op Fl u Ar /dev/sesN
+Display user-friendly summary of specified
+.Xr ses 4
+controller.
+If no controller is specified, all controllers are mapped.
+.It Cm status Oo Fl -libxo Ar options Oc Op Fl u Ar /dev/sesN
 Display the status of the specified
 .Xr ses 4
 controller.
 If no controller is specified, the status of each controller is returned.
+.El
+.Pp
+Common options:
+.Bl -tag -width indent
+.It Fl -libxo Ar options
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
 .El
 .Sh EXAMPLES
 Turn off all locate LEDs:
