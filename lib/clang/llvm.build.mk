@@ -38,12 +38,13 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
 # Armv6 and armv7 uses hard float abi, unless the CPUTYPE has soft in it.
-# arm (for armv4 and armv5 CPUs) always uses the soft float ABI.
 # For all other targets, we stick with 'unknown'.
-.if ${TARGET_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
-TARGET_TRIPLE_ABI=	-gnueabihf
-.elif ${TARGET_ARCH:Marm*}
-TARGET_TRIPLE_ABI=	-gnueabi
+.if ${TARGET_ARCH:Marm*}
+.if !defined(CPUTYPE) || ${CPUTYPE:M*soft*} == ""
+TARGET_ABI=	-gnueabihf
+.else
+TARGET_ABI=	-gnueabi
+.endif
 .else
 TARGET_TRIPLE_ABI=
 .endif
