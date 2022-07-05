@@ -1248,7 +1248,7 @@ DEFINE_CLASS_0(gic, arm_gic_driver, arm_gic_methods,
     sizeof(struct arm_gic_softc));
 
 #ifdef DDB
-DB_FUNC(gic, db_show_gic, db_show_table, CS_OWN, NULL)
+DB_SHOW_COMMAND_FLAGS(gic, db_show_gic, CS_OWN)
 {
 	device_t dev;
 	int t;

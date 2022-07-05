@@ -2970,7 +2970,7 @@ db_sysctl_cmd_usage(void)
 /*
  * Show a specific sysctl similar to sysctl (8).
  */
-DB_FUNC(sysctl, db_sysctl_cmd, db_cmd_table, CS_OWN, NULL)
+DB_COMMAND_FLAGS(sysctl, db_sysctl_cmd, CS_OWN)
 {
 	char name[TOK_STRING_SIZE];
 	int error, i, t, flags;
