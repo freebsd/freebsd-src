@@ -422,9 +422,16 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
 	CHK(fs->fs_cssize, !=,
 		fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
+	/*
+	 * This test is valid, however older versions of growfs failed
+	 * to correctly update fs_dsize so will fail this test. Thus we
+	 * exclude it from the requirements.
+	 */
+#ifdef notdef
 	CHK(fs->fs_dsize, !=, fs->fs_size - fs->fs_sblkno -
 		fs->fs_ncg * (fs->fs_dblkno - fs->fs_sblkno) -
 		howmany(fs->fs_cssize, fs->fs_fsize), %jd);
+#endif
 	CHK(fs->fs_metaspace, <, 0, %jd);
 	CHK(fs->fs_metaspace, >, fs->fs_fpg / 2, %jd);
 	CHK(fs->fs_minfree, >, 99, %jd%%);
