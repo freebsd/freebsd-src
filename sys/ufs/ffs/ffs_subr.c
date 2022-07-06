@@ -330,8 +330,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 static int
 validate_sblock(struct fs *fs, int isaltsblk)
 {
-	int i, sectorsize;
-	u_int64_t maxfilesize, minfpg, sizepb;
+	u_long i, sectorsize, cgnum;
+	u_int64_t maxfilesize, sizepb;
 
 	sectorsize = dbtob(1);
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
@@ -409,7 +409,6 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_iblkno, !=, fs->fs_cblkno + fs->fs_frag, %jd);
 	CHK(fs->fs_dblkno, !=, fs->fs_iblkno + fs->fs_ipg / INOPF(fs), %jd);
 	CHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
-	CHK(fs->fs_csaddr, !=, cgdmin(fs, 0), %jd);
 	CHK(fs->fs_cssize, !=,
 		fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
 	CHK(fs->fs_dsize, !=, fs->fs_size - fs->fs_sblkno -
@@ -429,24 +428,24 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	 * makes it hard to tightly bound them. So we can only check
 	 * that they are within a broader possible range.
 	 *
-	 * Calculate minfpg, the minimum number of fragments that can be
-	 * in a cylinder group. The value 12289 is calculated in newfs(8)
-	 * when creating the smallest block size UFS version 1 filesystem
-	 * (4096 block size) with no fragments (4096 fragment size). That
-	 * number may be depressed even further for very small filesystems
-	 * since newfs(8) strives to have at least four cylinder groups.
+	 * The size cannot always be accurately determined, but ensure
+	 * that it is consistent with the number of cylinder groups (fs_ncg)
+	 * and the number of fragments per cylinder group (fs_fpg). Ensure
+	 * that the summary information size is correct and that it starts
+	 * and ends in the data area of the same cylinder group.
 	 */
-	minfpg = MIN(12289, fs->fs_size / 4);
 	CHK(fs->fs_ncg, <, 1, %jd);
-	CHK(fs->fs_ncg, >, (fs->fs_size / minfpg) + 1, %jd);
-	CHK(fs->fs_fpg, <, minfpg, %jd);
-	CHK(fs->fs_fpg, >, fs->fs_size, %jd);
-	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
-	    %jd);
-	CHK(fs->fs_ipg, >, fs->fs_fpg, %jd);
 	CHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
 	CHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
 	CHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	CHK(fs->fs_cssize, !=,
+	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
+	cgnum = dtog(fs, fs->fs_csaddr);
+	CHK(fs->fs_csaddr, <, cgdmin(fs, cgnum), %jd);
+	CHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
+	    cgnum, %jd);
+	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
+	    %jd);
 	/*
 	 * With file system clustering it is possible to allocate
 	 * many contiguous blocks. The kernel variable maxphys defines
@@ -466,9 +465,8 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	 * those (mostly 32-bit machines) can (very slowly) handle I/O
 	 * requests that exceed maxphys.
 	 */
-	CHK(fs->fs_maxcontig, <, 1, %jd);
-	CHK(fs->fs_maxcontig, >, MAX(256, maxphys / fs->fs_bsize), %jd);
 	CHK(fs->fs_maxcontig, <, 0, %jd);
+	CHK(fs->fs_maxcontig, >, MAX(256, maxphys / fs->fs_bsize), %jd);
 	CHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
 	CHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
 	    MIN(fs->fs_maxcontig, FS_MAXCONTIG), %jd);
