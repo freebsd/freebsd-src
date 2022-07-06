@@ -112,6 +112,8 @@ static int e6000sw_read_xmdio(device_t, int, int, int);
 static int e6000sw_write_xmdio(device_t, int, int, int, int);
 static int e6000sw_readphy(device_t, int, int);
 static int e6000sw_writephy(device_t, int, int, int);
+static int e6000sw_readphy_locked(device_t, int, int);
+static int e6000sw_writephy_locked(device_t, int, int, int);
 static etherswitch_info_t* e6000sw_getinfo(device_t);
 static int e6000sw_getconf(device_t, etherswitch_conf_t *);
 static int e6000sw_setconf(device_t, etherswitch_conf_t *);
@@ -159,8 +161,8 @@ static device_method_t e6000sw_methods[] = {
 	DEVMETHOD(bus_add_child,		device_add_child_ordered),
 
 	/* mii interface */
-	DEVMETHOD(miibus_readreg,		e6000sw_readphy),
-	DEVMETHOD(miibus_writereg,		e6000sw_writephy),
+	DEVMETHOD(miibus_readreg,		e6000sw_readphy_locked),
+	DEVMETHOD(miibus_writereg,		e6000sw_writephy_locked),
 
 	/* etherswitch interface */
 	DEVMETHOD(etherswitch_getinfo,		e6000sw_getinfo),
@@ -654,29 +656,41 @@ e6000sw_write_xmdio(device_t dev, int phy, int devaddr, int devreg, int val)
 	return (0);
 }
 
+static int e6000sw_readphy(device_t dev, int phy, int reg)
+{
+	e6000sw_softc_t *sc;
+	int ret;
+
+	sc = device_get_softc(dev);
+	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
+
+	E6000SW_LOCK(sc);
+	ret = e6000sw_readphy_locked(dev, phy, reg);
+	E6000SW_UNLOCK(sc);
+
+	return (ret);
+}
+
 /*
  * PHY registers are paged. Put page index in reg 22 (accessible from every
  * page), then access specific register.
  */
 static int
-e6000sw_readphy(device_t dev, int phy, int reg)
+e6000sw_readphy_locked(device_t dev, int phy, int reg)
 {
 	e6000sw_softc_t *sc;
 	uint32_t val;
 
 	sc = device_get_softc(dev);
-	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
+	E6000SW_LOCK_ASSERT(sc, SA_XLOCKED);
 
 	if (!e6000sw_is_phyport(sc, phy) || reg >= E6000SW_NUM_PHY_REGS) {
 		device_printf(dev, "Wrong register address.\n");
 		return (EINVAL);
 	}
 
-	E6000SW_LOCK(sc);
-
 	if (E6000SW_WAITREADY2(sc, SMI_PHY_CMD_REG, SMI_CMD_BUSY)) {
 		device_printf(dev, "Timeout while waiting for switch\n");
-		E6000SW_UNLOCK(sc);
 		return (ETIMEDOUT);
 	}
 
@@ -685,35 +699,44 @@ e6000sw_readphy(device_t dev, int phy, int reg)
 	    ((phy << SMI_CMD_DEV_ADDR) & SMI_CMD_DEV_ADDR_MASK));
 	if (E6000SW_WAITREADY2(sc, SMI_PHY_CMD_REG, SMI_CMD_BUSY)) {
 		device_printf(dev, "Timeout while waiting for switch\n");
-		E6000SW_UNLOCK(sc);
 		return (ETIMEDOUT);
 	}
 
 	val = e6000sw_readreg(sc, REG_GLOBAL2, SMI_PHY_DATA_REG);
 
-	E6000SW_UNLOCK(sc);
-
 	return (val & PHY_DATA_MASK);
 }
 
+static int e6000sw_writephy(device_t dev, int phy, int reg, int data)
+{
+	e6000sw_softc_t *sc;
+	int ret;
+
+	sc = device_get_softc(dev);
+	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
+
+	E6000SW_LOCK(sc);
+	ret = e6000sw_writephy_locked(dev, phy, reg, data);
+	E6000SW_UNLOCK(sc);
+
+	return (ret);
+}
+
 static int
-e6000sw_writephy(device_t dev, int phy, int reg, int data)
+e6000sw_writephy_locked(device_t dev, int phy, int reg, int data)
 {
 	e6000sw_softc_t *sc;
 
 	sc = device_get_softc(dev);
-	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
+	E6000SW_LOCK_ASSERT(sc, SA_XLOCKED);
 
 	if (!e6000sw_is_phyport(sc, phy) || reg >= E6000SW_NUM_PHY_REGS) {
 		device_printf(dev, "Wrong register address.\n");
 		return (EINVAL);
 	}
 
-	E6000SW_LOCK(sc);
-
 	if (E6000SW_WAITREADY2(sc, SMI_PHY_CMD_REG, SMI_CMD_BUSY)) {
 		device_printf(dev, "Timeout while waiting for switch\n");
-		E6000SW_UNLOCK(sc);
 		return (ETIMEDOUT);
 	}
 
@@ -722,8 +745,6 @@ e6000sw_writephy(device_t dev, int phy, int reg, int data)
 	e6000sw_writereg(sc, REG_GLOBAL2, SMI_PHY_CMD_REG,
 	    SMI_CMD_OP_C22_WRITE | (reg & SMI_CMD_REG_ADDR_MASK) |
 	    ((phy << SMI_CMD_DEV_ADDR) & SMI_CMD_DEV_ADDR_MASK));
-
-	E6000SW_UNLOCK(sc);
 
 	return (0);
 }
