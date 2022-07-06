@@ -2,39 +2,32 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	drti \
-	libavl \
+.if ${MK_DTRACE} == yes || ${MK_ZFS} == yes
+SUBDIR=	libspl
+.endif
+
+SUBDIR.${MK_DTRACE}+= \
+	drti \
 	libctf \
-	libdtrace \
-	${_libicp} \
-	${_libicp_rescue} \
-	libnvpair \
-	libspl \
-	${_libtpool} \
-	libumem \
-	libuutil \
-	${_libzfs_core} \
-	${_libzfs} \
-	${_libzfsbootenv} \
-	${_libzpool} \
-	${_libzutil} \
-	${_pam_zfs_key}
+	libdtrace
 
 SUBDIR.${MK_TESTS}+= tests
 
-.if ${MK_ZFS} != "no"
-_libzfs_core=	libzfs_core
-_libicp=	libicp
-_libicp_rescue=	libicp_rescue
-_libzfs=	libzfs
-_libzutil=	libzutil
-_libzfsbootenv=	libzfsbootenv
-_libzpool=	libzpool
-_libtpool=	libtpool
-.if ${MK_OPENSSL} != "no"
-_pam_zfs_key=	pam_zfs_key
-.endif
-.endif
+SUBDIR.${MK_ZFS}+= \
+	libavl \
+	libicp \
+	libicp_rescue \
+	libnvpair \
+	libtpool \
+	libumem \
+	libuutil \
+	libzfs \
+	libzfs_core \
+	libzfsbootenv \
+	libzpool \
+	libzutil
+
+SUBDIR.${MK_ZFS}.${MK_OPENSSL} = pam_zfs_key
 
 SUBDIR_DEPEND_libavl=		libspl
 SUBDIR_DEPEND_libctf=		libspl
