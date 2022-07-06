@@ -411,7 +411,7 @@ SUBDIR=	\
 _autofs=	autofs
 .endif
 
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+.if ${MK_DTRACE} != "no" || defined(ALL_MODULES)
 .if ${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv[67]*} != ""
 .if ${KERN_OPTS:MKDTRACE_HOOKS}
 SUBDIR+=	dtrace

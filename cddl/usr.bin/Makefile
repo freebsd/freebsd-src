@@ -2,21 +2,17 @@
 
 .include <src.opts.mk>
 
-SUBDIR= \
+SUBDIR.${MK_DTRACE}+= \
 	ctfconvert \
 	ctfdump \
-	ctfmerge \
-	${_zinject} \
-	${_zstream} \
-	${_ztest}
+	ctfmerge
 
 SUBDIR.${MK_TESTS}+= tests
 
-.if ${MK_ZFS} != "no"
-_zinject= zinject
-_ztest=	ztest
-_zstream = zstream
-.endif
+SUBDIR.${MK_ZFS}+= \
+	zinject \
+	ztest \
+	zstream
 
 SUBDIR_PARALLEL=
 

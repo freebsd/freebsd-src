@@ -2,23 +2,19 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	${_dtrace} \
+SUBDIR.${MK_DTRACE}+= \
+	${_dtrace} \
 	${_dwatch} \
 	${_lockstat} \
-	${_plockstat} \
-	${_zdb} \
-	${_zfsd} \
-	${_zhack}
+	${_plockstat}
 
 SUBDIR.${MK_TESTS}+= tests
 
-.if ${MK_ZFS} != "no"
-_zdb=	zdb
-_zhack=	zhack
-. if ${MK_CXX} != "no"
-_zfsd=	zfsd
-. endif
-.endif
+SUBDIR.${MK_ZFS}+= \
+	zdb \
+	zhack
+SUBDIR.${MK_ZFS}.${MK_CXX}+= \
+	zfsd
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _dtrace=	dtrace

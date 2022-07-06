@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Do not build DTrace framework kernel modules, libraries, and user commands.
