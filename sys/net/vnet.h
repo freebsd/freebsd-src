@@ -414,7 +414,7 @@ do {									\
 #define	VNET_LIST_RUNLOCK()
 #define	VNET_LIST_RUNLOCK_NOSLEEP()
 #define	VNET_ITERATOR_DECL(arg)
-#define	VNET_FOREACH(arg)
+#define	VNET_FOREACH(arg)	for (int _vn = 0; _vn == 0; _vn++)
 
 #define	IS_DEFAULT_VNET(arg)	1
 #define	CRED_TO_VNET(cr)	NULL
