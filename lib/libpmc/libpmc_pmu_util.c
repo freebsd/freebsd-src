@@ -158,6 +158,21 @@ pmu_alias_get(const char *name)
 #elif defined(__aarch64__)
 
 static struct pmu_alias pmu_armv8_alias_table[] = {
+	{"UNHALTED_CORE_CYCLES", "CPU_CYCLES"},
+	{"UNHALTED-CORE-CYCLES", "CPU_CYCLES"},
+	{"LLC_MISSES", "LL_CACHE_MISS_RD"},
+	{"LLC-MISSES", "LL_CACHE_MISS_RD"},
+	{"LLC_REFERENCE", "LL_CACHE_RD"},
+	{"LLC-REFERENCE", "LL_CACHE_RD"},
+	{"BRANCH_INSTRUCTION_RETIRED", "BR_RETIRED"},
+	{"BRANCH-INSTRUCTION-RETIRED", "BR_RETIRED"},
+	{"BRANCH_MISSES_RETIRED", "BR_MIS_PRED_RETIRED"},
+	{"BRANCH-MISSES-RETIRED", "BR_MIS_PRED_RETIRED"},
+	{"unhalted-cycles", "CPU_CYCLES"},
+	{"instructions", "INST_RETIRED",},
+	{"branch-mispredicts", "BR_MIS_PRED_RETIRED"},
+	{"branches", "BR_RETIRED"},
+	{"interrupts", "EXC_IRQ"},
 	{NULL, NULL},
 };
 
