@@ -1,3 +1,5 @@
+// vim: ts=2 sw=2 et
+
 #include <format>
 #include <iostream>
 #include <map>
@@ -181,7 +183,7 @@ class Handler {
       }
     }
 
-    int Run(std::string binary, std::vector<std::string> args) {
+    bool Run(std::string binary, std::vector<std::string> args) {
       if (flag_debug) {
         PrintVector("OUT", args);
       }
@@ -191,12 +193,27 @@ class Handler {
 	// work around 'char *const *'
         arr[i] = strdup(args[i].c_str());
       }
-      return (execvp(binary.c_str(), arr) != 0);
+      return execvp(binary.c_str(), arr) == 0;
+    }
+
+    void ReportError() {
+      if (flag_list) {
+        std::cout << "Content-Type: application/X-atf-tp; version=\"1\"";
+        std::cout << std::endl << std::endl;
+        std::cout << "ident: __test_cases_list_"<< kPytestName << "_binary_" <<
+          "not_found__" << std::endl;
+      } else {
+        std::cout << "execvp(" << kPytestName << ") failed: " <<
+            std::strerror(errno) << std::endl;
+      }
     }
 
     int Process() {
       SetEnv();
-      return Run(kPytestName, BuildArgs());
+      if (!Run(kPytestName, BuildArgs())) {
+        ReportError();
+      }
+      return 0;
     }
 };
 
