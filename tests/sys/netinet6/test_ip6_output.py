@@ -296,6 +296,112 @@ class TestIP6OutputNhopLL(BaseTestIP6Ouput):
         assert rx_obj["dst_iface_alias"] == "if1"
 
 
+class TestIP6OutputScope(BaseTestIP6Ouput):
+    def vnet2_handler(self, vnet, obj_map, pipe):
+        """Generic listener that sends first received packet with metadata
+        back to the sender via pipw
+        """
+        bind_ip, bind_ifp = self.wait_object(pipe)
+        if bind_ip is None:
+            os_ifname = vnet.iface_alias_map[bind_ifp].name
+            ll_data = ToolsHelper.get_linklocals()
+            bind_ip, _ = ll_data[os_ifname][0]
+        if bind_ifp is not None:
+            bind_ifp = vnet.iface_alias_map[bind_ifp].name
+        print("## BIND {}%{}".format(bind_ip, bind_ifp))
+        self._vnet2_handler(vnet, obj_map, pipe, bind_ip, bind_ifp)
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            # sif/dif: source/destination interface (for link-local addr)
+            # sip/dip: source/destination ip (for non-LL addr)
+            # ex: OSError errno that sendto() must raise
+            pytest.param({"sif": "if2", "dif": "if2"}, id="same"),
+            pytest.param(
+                {
+                    "sif": "if1",
+                    "dif": "if2",
+                    "ex": errno.EHOSTUNREACH,
+                },
+                id="ll_differentif1",
+            ),
+            pytest.param(
+                {
+                    "sif": "if1",
+                    "dip": "2001:db8:b::2",
+                    "ex": errno.EHOSTUNREACH,
+                },
+                id="ll_differentif2",
+            ),
+            pytest.param(
+                {
+                    "sip": "2001:db8:a::1",
+                    "dif": "if2",
+                },
+                id="gu_to_ll",
+            ),
+        ],
+    )
+    @pytest.mark.require_user("root")
+    def test_output6_linklocal_scope(self, params):
+        """Tests simple UDP output"""
+        second_vnet = self.vnet_map["vnet2"]
+
+        src_ifp = params.get("sif")
+        src_ip = params.get("sip")
+        dst_ifp = params.get("dif")
+        dst_ip = params.get("dip")
+        errno = params.get("ex", 0)
+
+        # Sent ifp/IP to bind on
+        second_vnet = self.vnet_map["vnet2"]
+        second_vnet.pipe.send((dst_ip, dst_ifp))
+
+        # Wait for the child to become ready
+        ll_data = self.wait_object(second_vnet.pipe)
+
+        if dst_ip is None:
+            # Pick LL address on dst_ifp vnet2's end
+            dst_ip, _ = ll_data[second_vnet.iface_alias_map[dst_ifp].name][0]
+            # Get local interface scope
+            os_ifname = self.vnet.iface_alias_map[dst_ifp].name
+            scopeid = socket.if_nametoindex(os_ifname)
+            target = (dst_ip, self.DEFAULT_PORT, 0, scopeid)
+        else:
+            target = (dst_ip, self.DEFAULT_PORT, 0, 0)
+
+        # Bind
+        if src_ip is None:
+            ll_data = ToolsHelper.get_linklocals()
+            os_ifname = self.vnet.iface_alias_map[src_ifp].name
+            src_ip, _ = ll_data[os_ifname][0]
+            scopeid = socket.if_nametoindex(os_ifname)
+            src = (src_ip, self.DEFAULT_PORT, 0, scopeid)
+        else:
+            src = (src_ip, self.DEFAULT_PORT, 0, 0)
+
+        s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        s.bind(src)
+        data = bytes("AAAA", "utf-8")
+        print("## TX packet {} -> {}".format(src, target))
+
+        try:
+            s.sendto(data, target)
+        except OSError as e:
+            if not errno:
+                raise
+            assert e.errno == errno
+            print("Correctly raised {}".format(e))
+            return
+
+        # Wait for the received object
+        rx_obj = self.wait_object(second_vnet.pipe)
+        assert rx_obj["dst_ip"] == dst_ip
+        assert rx_obj["src_ip"] == src_ip
+        # assert rx_obj["dst_iface_alias"] == "if2"
+
+
 class TestIP6OutputMulticast(BaseTestIP6Ouput):
     def vnet2_handler(self, vnet, obj_map, pipe):
         group = self.wait_object(pipe)
