@@ -342,20 +342,11 @@ dnode_byteswap(dnode_phys_t *dnp)
 	 * dnode dnode is smaller than a regular dnode.
 	 */
 	if (dnp->dn_bonuslen != 0) {
-		/*
-		 * Note that the bonus length calculated here may be
-		 * longer than the actual bonus buffer.  This is because
-		 * we always put the bonus buffer after the last block
-		 * pointer (instead of packing it against the end of the
-		 * dnode buffer).
-		 */
-		int off = (dnp->dn_nblkptr-1) * sizeof (blkptr_t);
-		int slots = dnp->dn_extra_slots + 1;
-		size_t len = DN_SLOTS_TO_BONUSLEN(slots) - off;
 		dmu_object_byteswap_t byteswap;
 		ASSERT(DMU_OT_IS_VALID(dnp->dn_bonustype));
 		byteswap = DMU_OT_BYTESWAP(dnp->dn_bonustype);
-		dmu_ot_byteswap[byteswap].ob_func(dnp->dn_bonus + off, len);
+		dmu_ot_byteswap[byteswap].ob_func(DN_BONUS(dnp),
+		    DN_MAX_BONUS_LEN(dnp));
 	}
 
 	/* Swap SPILL block if we have one */
@@ -1268,7 +1259,7 @@ dnode_buf_evict_async(void *dbu)
  */
 int
 dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
-    void *tag, dnode_t **dnp)
+    const void *tag, dnode_t **dnp)
 {
 	int epb, idx, err;
 	int drop_struct_lock = FALSE;
@@ -1562,7 +1553,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
  * Return held dnode if the object is allocated, NULL if not.
  */
 int
-dnode_hold(objset_t *os, uint64_t object, void *tag, dnode_t **dnp)
+dnode_hold(objset_t *os, uint64_t object, const void *tag, dnode_t **dnp)
 {
 	return (dnode_hold_impl(os, object, DNODE_MUST_BE_ALLOCATED, 0, tag,
 	    dnp));
@@ -1574,7 +1565,7 @@ dnode_hold(objset_t *os, uint64_t object, void *tag, dnode_t **dnp)
  * new reference.
  */
 boolean_t
-dnode_add_ref(dnode_t *dn, void *tag)
+dnode_add_ref(dnode_t *dn, const void *tag)
 {
 	mutex_enter(&dn->dn_mtx);
 	if (zfs_refcount_is_zero(&dn->dn_holds)) {
@@ -1587,14 +1578,14 @@ dnode_add_ref(dnode_t *dn, void *tag)
 }
 
 void
-dnode_rele(dnode_t *dn, void *tag)
+dnode_rele(dnode_t *dn, const void *tag)
 {
 	mutex_enter(&dn->dn_mtx);
 	dnode_rele_and_unlock(dn, tag, B_FALSE);
 }
 
 void
-dnode_rele_and_unlock(dnode_t *dn, void *tag, boolean_t evicting)
+dnode_rele_and_unlock(dnode_t *dn, const void *tag, boolean_t evicting)
 {
 	uint64_t refs;
 	/* Get while the hold prevents the dnode from moving. */
@@ -2029,7 +2020,7 @@ dnode_dirty_l1range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 }
 
 void
-dnode_set_dirtyctx(dnode_t *dn, dmu_tx_t *tx, void *tag)
+dnode_set_dirtyctx(dnode_t *dn, dmu_tx_t *tx, const void *tag)
 {
 	/*
 	 * Don't set dirtyctx to SYNC if we're just modifying this as we
