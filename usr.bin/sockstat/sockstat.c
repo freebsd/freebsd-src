@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <sys/un.h>
-#define	_WANT_UNPCB
 #include <sys/unpcb.h>
 
 #include <net/route.h>
