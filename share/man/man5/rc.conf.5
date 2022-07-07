@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2022
+.Dd July 7, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -221,6 +221,7 @@ The
 .Xr nice 1
 value to run the service under.
 .It Ao Ar name Ac Ns Va _oomprotect
+.Pq Vt str
 Use
 .Xr protect 1
 to prevent the service from being killed when swap space
@@ -229,13 +230,15 @@ Use
 .Dq Li YES
 to protect only the service itself, and
 .Dq Li ALL
-to protect the service and all child processes.
+to protect the service and all its child processes.
 .Pp
-Please note rc scripts that redefine
-.Bd
-${name}_cmd
-.Ed
-such as PostgreSQL will not a inherit the OOM killer protection.
+Please note that rc scripts which redefine
+.Dl ${argument}_cmd
+.Pq see Xr rc.subr 8
+such as PostgreSQL will not inherit the OOM killer protection.
+.Pp
+This variable has no effect on services running within a
+.Xr jail 8 .
 .It Ao Ar name Ac Ns Va _user
 .Pq Vt str
 Run the service under this user account.
