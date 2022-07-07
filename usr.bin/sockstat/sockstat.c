@@ -1071,7 +1071,7 @@ displaysock(struct sock *s, int pos)
 	struct addr *laddr, *faddr;
 	struct sock *s_tmp;
 
-	while (pos < 29)
+	while (pos < 30)
 		pos += xprintf(" ");
 	pos += xprintf("%s", s->protoname);
 	if (s->vflag & INP_IPV4)
@@ -1084,7 +1084,7 @@ displaysock(struct sock *s, int pos)
 	faddr = s->faddr;
 	first = 1;
 	while (laddr != NULL || faddr != NULL) {
-		offset = 36;
+		offset = 37;
 		while (pos < offset)
 			pos += xprintf(" ");
 		switch (s->family) {
@@ -1233,7 +1233,7 @@ display(void)
 	int n, pos;
 
 	if (opt_q != 1) {
-		printf("%-8s %-10s %-5s %-2s %-6s %-*s %-*s",
+		printf("%-8s %-10s %-5s %-3s %-6s %-*s %-*s",
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
@@ -1276,7 +1276,7 @@ display(void)
 			pos += xprintf("%lu ", (u_long)xf->xf_pid);
 			while (pos < 26)
 				pos += xprintf(" ");
-			pos += xprintf("%d ", xf->xf_fd);
+			pos += xprintf("%-3d ", xf->xf_fd);
 			displaysock(s, pos);
 		}
 	}
