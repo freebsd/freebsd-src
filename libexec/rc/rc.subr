@@ -1275,7 +1275,7 @@ $command $rc_flags $command_args"
 				[ -z "${rc_pid}" ] && eval $_pidcmd
 				case $_oomprotect in
 				[Aa][Ll][Ll])
-					${PROTECT} -i -p ${rc_pid}
+					${PROTECT} -d -i -p ${rc_pid}
 					;;
 				[Yy][Ee][Ss])
 					${PROTECT} -p ${rc_pid}
