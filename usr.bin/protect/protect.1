@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2022
+.Dd July 7, 2022
 .Dt PROTECT 1
 .Os
 .Sh NAME
@@ -37,7 +37,10 @@
 .Ar command
 .Nm
 .Op Fl cdi
-.Fl g Ar pgrp | Fl p Ar pid
+.Fl g Ar pgrp
+.Nm
+.Op Fl cdi
+.Fl p Ar pid
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,7 +49,7 @@ The kernel does not kill protected processes when swap space is exhausted.
 Note that this protected state is not inherited by child processes by default.
 .Pp
 The options are:
-.Bl -tag -width XXXXXXXXXX
+.Bl -tag -width command
 .It Fl c
 Remove protection from the specified processes.
 .It Fl d
