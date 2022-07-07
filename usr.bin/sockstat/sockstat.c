@@ -1340,7 +1340,7 @@ display(void)
 			pos += xprintf("%.10s", getprocname(xf->xf_pid));
 			while (pos < 20)
 				pos += xprintf(" ");
-			pos += xprintf("%lu ", (u_long)xf->xf_pid);
+			pos += xprintf("%5lu ", (u_long)xf->xf_pid);
 			while (pos < 26)
 				pos += xprintf(" ");
 			pos += xprintf("%-3d ", xf->xf_fd);
