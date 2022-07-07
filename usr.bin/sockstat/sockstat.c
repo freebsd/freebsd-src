@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/jail.h>
 #include <sys/user.h>
+#include <sys/queue.h>
+#include <sys/tree.h>
 
 #include <sys/un.h>
 #include <sys/unpcb.h>
@@ -119,6 +121,11 @@ struct addr {
 };
 
 struct sock {
+	union {
+		RB_ENTRY(sock) socket_tree;	/* tree of pcbs with socket */
+		SLIST_ENTRY(sock) socket_list;	/* list of pcbs w/o socket */
+	};
+	RB_ENTRY(sock) pcb_tree;
 	kvaddr_t socket;
 	kvaddr_t pcb;
 	uint64_t inp_gencnt;
@@ -132,11 +139,25 @@ struct sock {
 	char cc[TCP_CA_NAME_MAX];
 	struct addr *laddr;
 	struct addr *faddr;
-	struct sock *next;
 };
 
-#define	HASHSIZE 1009
-static struct sock *sockhash[HASHSIZE];
+static RB_HEAD(socks_t, sock) socks = RB_INITIALIZER(&socks);
+static int64_t
+socket_compare(const struct sock *a, const struct sock *b)
+{
+	return ((int64_t)(a->socket/2 - b->socket/2));
+}
+RB_GENERATE_STATIC(socks_t, sock, socket_tree, socket_compare);
+
+static RB_HEAD(pcbs_t, sock) pcbs = RB_INITIALIZER(&pcbs);
+static int64_t
+pcb_compare(const struct sock *a, const struct sock *b)
+{
+        return ((int64_t)(a->pcb/2 - b->pcb/2));
+}
+RB_GENERATE_STATIC(pcbs_t, sock, pcb_tree, pcb_compare);
+
+static SLIST_HEAD(, sock) nosocks = SLIST_HEAD_INITIALIZER(&nosocks);
 
 static struct xfile *xfiles;
 static int nxfiles;
@@ -350,7 +371,7 @@ gather_sctp(void)
 	const char *varname;
 	size_t len, offset;
 	char *buf;
-	int hash, vflag;
+	int vflag;
 	int no_stcb, local_all_loopback, foreign_all_loopback;
 
 	vflag = 0;
@@ -469,10 +490,7 @@ gather_sctp(void)
 				    (!opt_L || !local_all_loopback) &&
 				    ((xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE) ||
 				     (xstcb->last == 1))) {
-					hash = (int)((uintptr_t)sock->socket %
-					    HASHSIZE);
-					sock->next = sockhash[hash];
-					sockhash[hash] = sock;
+					RB_INSERT(socks_t, &socks, sock);
 				} else {
 					free_socket(sock);
 				}
@@ -597,10 +615,7 @@ gather_sctp(void)
 				    (!opt_L ||
 				     !(local_all_loopback ||
 				     foreign_all_loopback))) {
-					hash = (int)((uintptr_t)sock->socket %
-					    HASHSIZE);
-					sock->next = sockhash[hash];
-					sockhash[hash] = sock;
+					RB_INSERT(socks_t, &socks, sock);
 				} else {
 					free_socket(sock);
 				}
@@ -624,7 +639,7 @@ gather_inet(int proto)
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
-	int hash, retry, vflag;
+	int retry, vflag;
 
 	vflag = 0;
 	if (opt_4)
@@ -760,9 +775,10 @@ gather_inet(int proto)
 			memcpy(sock->cc, xtp->xt_cc, TCP_CA_NAME_MAX);
 		}
 		sock->protoname = protoname;
-		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
-		sock->next = sockhash[hash];
-		sockhash[hash] = sock;
+		if (sock->socket != 0)
+			RB_INSERT(socks_t, &socks, sock);
+		else
+			SLIST_INSERT_HEAD(&nosocks, sock, socket_list);
 	}
 out:
 	free(buf);
@@ -778,7 +794,7 @@ gather_unix(int proto)
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
-	int hash, retry;
+	int retry;
 
 	switch (proto) {
 	case SOCK_STREAM:
@@ -852,9 +868,8 @@ gather_unix(int proto)
 		faddr->next = NULL;
 		sock->laddr = laddr;
 		sock->faddr = faddr;
-		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
-		sock->next = sockhash[hash];
-		sockhash[hash] = sock;
+		RB_INSERT(socks_t, &socks, sock);
+		RB_INSERT(pcbs_t, &pcbs, sock);
 	}
 out:
 	free(buf);
@@ -1052,7 +1067,7 @@ static void
 displaysock(struct sock *s, int pos)
 {
 	kvaddr_t p;
-	int hash, first, offset;
+	int first, offset;
 	struct addr *laddr, *faddr;
 	struct sock *s_tmp;
 
@@ -1104,15 +1119,8 @@ displaysock(struct sock *s, int pos)
 				break;
 			}
 			pos += xprintf("-> ");
-			for (hash = 0; hash < HASHSIZE; ++hash) {
-				for (s_tmp = sockhash[hash];
-				    s_tmp != NULL;
-				    s_tmp = s_tmp->next)
-					if (s_tmp->pcb == p)
-						break;
-				if (s_tmp != NULL)
-					break;
-			}
+			s_tmp = RB_FIND(pcbs_t, &pcbs,
+			    &(struct sock){ .pcb = p });
 			if (s_tmp == NULL || s_tmp->laddr == NULL ||
 			    s_tmp->laddr->address.ss_len == 0)
 				pos += xprintf("??");
@@ -1222,7 +1230,7 @@ display(void)
 	struct passwd *pwd;
 	struct xfile *xf;
 	struct sock *s;
-	int hash, n, pos;
+	int n, pos;
 
 	if (opt_q != 1) {
 		printf("%-8s %-10s %-5s %-2s %-6s %-*s %-*s",
@@ -1250,12 +1258,9 @@ display(void)
 			continue;
 		if (opt_j >= 0 && opt_j != getprocjid(xf->xf_pid))
 			continue;
-		hash = (int)((uintptr_t)xf->xf_data % HASHSIZE);
-		for (s = sockhash[hash]; s != NULL; s = s->next) {
-			if (s->socket != xf->xf_data)
-				continue;
-			if (!check_ports(s))
-				continue;
+		s = RB_FIND(socks_t, &socks,
+		    &(struct sock){ .socket = xf->xf_data});
+		if (s != NULL && check_ports(s)) {
 			s->shown = 1;
 			pos = 0;
 			if (opt_n ||
@@ -1277,17 +1282,21 @@ display(void)
 	}
 	if (opt_j >= 0)
 		return;
-	for (hash = 0; hash < HASHSIZE; hash++) {
-		for (s = sockhash[hash]; s != NULL; s = s->next) {
-			if (s->shown)
-				continue;
-			if (!check_ports(s))
-				continue;
-			pos = 0;
-			pos += xprintf("%-8s %-10s %-5s %-2s ",
-			    "?", "?", "?", "?");
-			displaysock(s, pos);
-		}
+	SLIST_FOREACH(s, &nosocks, socket_list) {
+		if (!check_ports(s))
+			continue;
+		pos = xprintf("%-8s %-10s %-5s %-2s ",
+		    "?", "?", "?", "?");
+		displaysock(s, pos);
+	}
+	RB_FOREACH(s, socks_t, &socks) {
+		if (s->shown)
+			continue;
+		if (!check_ports(s))
+			continue;
+		pos = xprintf("%-8s %-10s %-5s %-2s ",
+		    "?", "?", "?", "?");
+		displaysock(s, pos);
 	}
 }
 
