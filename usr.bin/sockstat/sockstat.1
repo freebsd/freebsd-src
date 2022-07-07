@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2022
+.Dd June 6, 2022
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -151,18 +151,27 @@ sockets.
 For Internet sockets, this is the address the local end of the socket
 is bound to (see
 .Xr getsockname 2 ) .
+.Pp
 For bound
 .Ux
-sockets, it is the socket's filename.
-For other
+sockets, socket's filename is printed.
+For not bound
 .Ux
-sockets, it is a right arrow followed by the endpoint's filename, or
-.Dq Li ??
-if the endpoint could not be determined.
+sockets, the field is empty.
 .It Li FOREIGN ADDRESS
-(Internet sockets only)
-The address the foreign end of the socket is bound to (see
+For Internet sockets, this is the address the foreign end of the socket
+is bound to (see
 .Xr getpeername 2 ) .
+.Pp
+For bound
+.Ux
+sockets a left arrow followed by the peer list is printed.
+For
+.Ux
+sockets that went through
+.Xr connect 2
+system call a right arrow followed by the peer is printed.
+Peers are printed in square brackets as [PID FD].
 .It Li ID
 The inp_gencnt if
 .Fl i

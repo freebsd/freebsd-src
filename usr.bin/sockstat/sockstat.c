@@ -114,7 +114,14 @@ static int	*ports;
 #define	CHK_PORT(p) (ports[p / INT_BIT] & (1 << (p % INT_BIT)))
 
 struct addr {
-	struct sockaddr_storage address;
+	union {
+		struct sockaddr_storage address;
+		struct {	/* unix(4) faddr */
+			kvaddr_t conn;
+			kvaddr_t firstref;
+			kvaddr_t nextref;
+		};
+	};
 	unsigned int encaps_port;
 	int state;
 	struct addr *next;
@@ -159,8 +166,24 @@ RB_GENERATE_STATIC(pcbs_t, sock, pcb_tree, pcb_compare);
 
 static SLIST_HEAD(, sock) nosocks = SLIST_HEAD_INITIALIZER(&nosocks);
 
-static struct xfile *xfiles;
-static int nxfiles;
+struct file {
+	RB_ENTRY(file)	file_tree;
+	kvaddr_t	xf_data;
+	pid_t	xf_pid;
+	uid_t	xf_uid;
+	int	xf_fd;
+};
+
+static RB_HEAD(files_t, file) ftree = RB_INITIALIZER(&ftree);
+static int64_t
+file_compare(const struct file *a, const struct file *b)
+{
+	return ((int64_t)(a->xf_data/2 - b->xf_data/2));
+}
+RB_GENERATE_STATIC(files_t, file, file_tree, file_compare);
+
+static struct file *files;
+static int nfiles;
 
 static cap_channel_t *capnet;
 static cap_channel_t *capnetdb;
@@ -862,8 +885,9 @@ gather_unix(int proto)
 		if (xup->xu_addr.sun_family == AF_UNIX)
 			laddr->address =
 			    *(struct sockaddr_storage *)(void *)&xup->xu_addr;
-		else if (xup->unp_conn != 0)
-			*(kvaddr_t*)&(faddr->address) = xup->unp_conn;
+		faddr->conn = xup->unp_conn;
+		faddr->firstref = xup->xu_firstref;
+		faddr->nextref = xup->xu_nextref;
 		laddr->next = NULL;
 		faddr->next = NULL;
 		sock->laddr = laddr;
@@ -878,6 +902,7 @@ out:
 static void
 getfiles(void)
 {
+	struct xfile *xfiles;
 	size_t len, olen;
 
 	olen = len = sizeof(*xfiles);
@@ -893,7 +918,20 @@ getfiles(void)
 	}
 	if (len > 0)
 		enforce_ksize(xfiles->xf_size, struct xfile);
-	nxfiles = len / sizeof(*xfiles);
+	nfiles = len / sizeof(*xfiles);
+
+	if ((files = malloc(nfiles * sizeof(struct file))) == NULL)
+		err(1, "malloc()");
+
+	for (int i = 0; i < nfiles; i++) {
+		files[i].xf_data = xfiles[i].xf_data;
+		files[i].xf_pid = xfiles[i].xf_pid;
+		files[i].xf_uid = xfiles[i].xf_uid;
+		files[i].xf_fd = xfiles[i].xf_fd;
+		RB_INSERT(files_t, &ftree, &files[i]);
+	}
+
+	free(xfiles);
 }
 
 static int
@@ -1066,10 +1104,8 @@ sctp_path_state(int state)
 static void
 displaysock(struct sock *s, int pos)
 {
-	kvaddr_t p;
 	int first, offset;
 	struct addr *laddr, *faddr;
-	struct sock *s_tmp;
 
 	while (pos < 30)
 		pos += xprintf(" ");
@@ -1106,26 +1142,57 @@ displaysock(struct sock *s, int pos)
 			if ((laddr == NULL) || (faddr == NULL))
 				errx(1, "laddr = %p or faddr = %p is NULL",
 				    (void *)laddr, (void *)faddr);
-			/* server */
-			if (laddr->address.ss_len > 0) {
-				pos += printaddr(&laddr->address);
-				break;
-			}
-			/* client */
-			p = *(kvaddr_t*)&(faddr->address);
-			if (p == 0) {
+			if (laddr->address.ss_len == 0 && faddr->conn == 0) {
 				pos += xprintf("(not connected)");
 				offset += opt_w ? 92 : 44;
 				break;
 			}
-			pos += xprintf("-> ");
-			s_tmp = RB_FIND(pcbs_t, &pcbs,
-			    &(struct sock){ .pcb = p });
-			if (s_tmp == NULL || s_tmp->laddr == NULL ||
-			    s_tmp->laddr->address.ss_len == 0)
-				pos += xprintf("??");
-			else
-				pos += printaddr(&s_tmp->laddr->address);
+			/* Local bind(2) address, if any. */
+			if (laddr->address.ss_len > 0)
+				pos += printaddr(&laddr->address);
+			/* Remote peer we connect(2) to, if any. */
+			if (faddr->conn != 0) {
+				struct sock *p;
+
+				pos += xprintf("%s-> ",
+				    laddr->address.ss_len > 0 ? " " : "");
+				p = RB_FIND(pcbs_t, &pcbs,
+				    &(struct sock){ .pcb = faddr->conn });
+				if (__predict_false(p == NULL)) {
+					/* XXGL: can this happen at all? */
+					pos += xprintf("??");
+				}  else if (p->laddr->address.ss_len == 0) {
+					struct file *f;
+
+					f = RB_FIND(files_t, &ftree,
+					    &(struct file){ .xf_data =
+					    p->socket });
+					pos += xprintf("[%lu %d]",
+					    (u_long)f->xf_pid, f->xf_fd);
+				} else
+					pos += printaddr(&p->laddr->address);
+			}
+			/* Remote peer(s) connect(2)ed to us, if any. */
+			if (faddr->firstref != 0) {
+				struct sock *p;
+				struct file *f;
+				kvaddr_t ref = faddr->firstref;
+				bool fref = true;
+
+				pos += xprintf(" <- ");
+
+				while ((p = RB_FIND(pcbs_t, &pcbs,
+				    &(struct sock){ .pcb = ref })) != 0) {
+					f = RB_FIND(files_t, &ftree,
+					    &(struct file){ .xf_data =
+					    p->socket });
+					pos += xprintf("%s[%lu %d]",
+					    fref ? "" : ",",
+					    (u_long)f->xf_pid, f->xf_fd);
+					ref = p->faddr->nextref;
+					fref = false;
+				}
+			}
 			offset += opt_w ? 92 : 44;
 			break;
 		default:
@@ -1228,7 +1295,7 @@ static void
 display(void)
 {
 	struct passwd *pwd;
-	struct xfile *xf;
+	struct file *xf;
 	struct sock *s;
 	int n, pos;
 
@@ -1253,7 +1320,7 @@ display(void)
 		printf("\n");
 	}
 	cap_setpassent(cappwd, 1);
-	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
+	for (xf = files, n = 0; n < nfiles; ++n, ++xf) {
 		if (xf->xf_data == 0)
 			continue;
 		if (opt_j >= 0 && opt_j != getprocjid(xf->xf_pid))
