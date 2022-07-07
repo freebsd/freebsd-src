@@ -11,6 +11,7 @@ MLINKS=	zstream.8 zstreamdump.8
 INCS=	zstream.h
 SRCS= \
 	zstream.c \
+	zstream_decompress.c \
 	zstream_dump.c \
 	zstream_redup.c \
 	zstream_token.c

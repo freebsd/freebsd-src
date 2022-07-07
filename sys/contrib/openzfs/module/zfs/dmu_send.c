@@ -493,6 +493,7 @@ dmu_dump_write(dmu_send_cookie_t *dscp, dmu_object_type_t type, uint64_t object,
 	    (bp != NULL ? BP_GET_COMPRESS(bp) != ZIO_COMPRESS_OFF &&
 	    io_compressed : lsize != psize);
 	if (raw || compressed) {
+		ASSERT(bp != NULL);
 		ASSERT(raw || dscp->dsc_featureflags &
 		    DMU_BACKUP_FEATURE_COMPRESSED);
 		ASSERT(!BP_IS_EMBEDDED(bp));
@@ -1017,6 +1018,9 @@ do_dump(dmu_send_cookie_t *dscp, struct send_range *range)
 		if (srdp->datablksz > SPA_OLD_MAXBLOCKSIZE &&
 		    !(dscp->dsc_featureflags &
 		    DMU_BACKUP_FEATURE_LARGE_BLOCKS)) {
+			if (dscp->dsc_featureflags & DMU_BACKUP_FEATURE_RAW)
+				return (SET_ERROR(ENOTSUP));
+
 			while (srdp->datablksz > 0 && err == 0) {
 				int n = MIN(srdp->datablksz,
 				    SPA_OLD_MAXBLOCKSIZE);
@@ -1913,7 +1917,7 @@ send_reader_thread(void *arg)
 
 struct dmu_send_params {
 	/* Pool args */
-	void *tag; // Tag that dp was held with, will be used to release dp.
+	const void *tag; // Tag dp was held with, will be used to release dp.
 	dsl_pool_t *dp;
 	/* To snapshot args */
 	const char *tosnap;
@@ -2362,7 +2366,7 @@ dmu_send_impl(struct dmu_send_params *dspp)
 	dsl_dataset_t *to_ds = dspp->to_ds;
 	zfs_bookmark_phys_t *ancestor_zb = &dspp->ancestor_zb;
 	dsl_pool_t *dp = dspp->dp;
-	void *tag = dspp->tag;
+	const void *tag = dspp->tag;
 
 	err = dmu_objset_from_ds(to_ds, &os);
 	if (err != 0) {

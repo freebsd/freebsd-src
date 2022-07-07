@@ -264,12 +264,12 @@ int arc_untransform(arc_buf_t *buf, spa_t *spa, const zbookmark_phys_t *zb,
 void arc_convert_to_raw(arc_buf_t *buf, uint64_t dsobj, boolean_t byteorder,
     dmu_object_type_t ot, const uint8_t *salt, const uint8_t *iv,
     const uint8_t *mac);
-arc_buf_t *arc_alloc_buf(spa_t *spa, void *tag, arc_buf_contents_t type,
+arc_buf_t *arc_alloc_buf(spa_t *spa, const void *tag, arc_buf_contents_t type,
     int32_t size);
-arc_buf_t *arc_alloc_compressed_buf(spa_t *spa, void *tag,
+arc_buf_t *arc_alloc_compressed_buf(spa_t *spa, const void *tag,
     uint64_t psize, uint64_t lsize, enum zio_compress compression_type,
     uint8_t complevel);
-arc_buf_t *arc_alloc_raw_buf(spa_t *spa, void *tag, uint64_t dsobj,
+arc_buf_t *arc_alloc_raw_buf(spa_t *spa, const void *tag, uint64_t dsobj,
     boolean_t byteorder, const uint8_t *salt, const uint8_t *iv,
     const uint8_t *mac, dmu_object_type_t ot, uint64_t psize, uint64_t lsize,
     enum zio_compress compression_type, uint8_t complevel);
@@ -281,14 +281,14 @@ arc_buf_t *arc_loan_raw_buf(spa_t *spa, uint64_t dsobj, boolean_t byteorder,
     const uint8_t *salt, const uint8_t *iv, const uint8_t *mac,
     dmu_object_type_t ot, uint64_t psize, uint64_t lsize,
     enum zio_compress compression_type, uint8_t complevel);
-void arc_return_buf(arc_buf_t *buf, void *tag);
-void arc_loan_inuse_buf(arc_buf_t *buf, void *tag);
-void arc_buf_destroy(arc_buf_t *buf, void *tag);
+void arc_return_buf(arc_buf_t *buf, const void *tag);
+void arc_loan_inuse_buf(arc_buf_t *buf, const void *tag);
+void arc_buf_destroy(arc_buf_t *buf, const void *tag);
 void arc_buf_info(arc_buf_t *buf, arc_buf_info_t *abi, int state_index);
 uint64_t arc_buf_size(arc_buf_t *buf);
 uint64_t arc_buf_lsize(arc_buf_t *buf);
 void arc_buf_access(arc_buf_t *buf);
-void arc_release(arc_buf_t *buf, void *tag);
+void arc_release(arc_buf_t *buf, const void *tag);
 int arc_released(arc_buf_t *buf);
 void arc_buf_sigsegv(int sig, siginfo_t *si, void *unused);
 void arc_buf_freeze(arc_buf_t *buf);

@@ -347,6 +347,9 @@
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
 
+/* Define if compiler supports -Winfinite-recursion */
+/* #undef HAVE_INFINITE_RECURSION */
+
 /* yes */
 /* #undef HAVE_INODE_LOCK_SHARED */
 
@@ -926,7 +929,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gdeb121309"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gcb01da680"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -956,7 +959,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gdeb121309"
+#define ZFS_META_RELEASE "FreeBSD_gcb01da680"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
