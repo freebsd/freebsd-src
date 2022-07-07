@@ -426,6 +426,8 @@
             atf-sh
             ..
         ..
+        rc
+        ..
         rtld-elf
         ..
         tftpd
