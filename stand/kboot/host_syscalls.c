@@ -54,7 +54,7 @@ host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
 int
 host_open(const char *path, int flags, int mode)
 {
-	return host_syscall(SYS_open, (uintptr_t)path, flags, mode);
+	return host_syscall(SYS_openat, HOST_AT_FDCWD, (uintptr_t)path, flags, mode);
 	/* XXX original overrode errors */
 }
 
@@ -75,7 +75,15 @@ int
 host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
     struct host_timeval *timeout)
 {
-	return host_syscall(SYS_select, nfds, (uintptr_t)readfds, (uintptr_t)writefds, (uintptr_t)exceptfds, (uintptr_t)timeout, 0);
+	struct timespec ts = { .tv_sec = timeout->tv_sec, .tv_nsec = timeout->tv_usec * 1000 };
+
+	/*
+	 * Note, final arg is a sigset_argpack since most arch can only have 6
+	 * syscall args. Since we're not masking signals, though, we can just
+	 * pass a NULL.
+	 */
+	return host_syscall(SYS_pselect6, nfds, (uintptr_t)readfds, (uintptr_t)writefds,
+	    (uintptr_t)exceptfds, (uintptr_t)&ts, (uintptr_t)NULL);
 }
 
 int
