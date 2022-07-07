@@ -1882,6 +1882,7 @@ pps_event(struct pps_state *pps, int event)
 #ifdef PPS_SYNC
 	if (fhard) {
 		uint64_t delta_nsec;
+		uint64_t freq;
 
 		/*
 		 * Feed the NTP PLL/FLL.
@@ -1893,7 +1894,8 @@ pps_event(struct pps_state *pps, int event)
 		tcount &= captc->tc_counter_mask;
 		delta_nsec = 1000000000;
 		delta_nsec *= tcount;
-		delta_nsec /= captc->tc_frequency;
+		freq = captc->tc_frequency;
+		delta_nsec = (delta_nsec + freq / 2) / freq;
 		hardpps(tsp, (long)delta_nsec);
 	}
 #endif
