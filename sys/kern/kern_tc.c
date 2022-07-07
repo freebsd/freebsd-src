@@ -1772,14 +1772,14 @@ pps_capture(struct pps_state *pps)
 #endif
 	tc = th->th_counter;
 	pps->capcount = tc->tc_get_timecount(tc);
-	atomic_thread_fence_acq();
-	if (pps->capgen != th->th_generation)
-		pps->capgen = 0;
 }
 
 void
 pps_event(struct pps_state *pps, int event)
 {
+	struct timehands *capth;
+	struct timecounter *captc;
+	uint64_t capth_scale;
 	struct bintime bt;
 	struct timespec ts, *tsp, *osp;
 	u_int tcount, *pcount;
@@ -1798,9 +1798,17 @@ pps_event(struct pps_state *pps, int event)
 	/* Nothing to do if not currently set to capture this event type. */
 	if ((event & pps->ppsparam.mode) == 0)
 		return;
+
+	/* Make a snapshot of the captured timehand */
+	capth = pps->capth;
+	captc = capth->th_counter;
+	capth_scale = capth->th_scale;
+	tcount = capth->th_offset_count;
+	bt = capth->th_bintime;
+
 	/* If the timecounter was wound up underneath us, bail out. */
-	if (pps->capgen == 0 || pps->capgen !=
-	    atomic_load_acq_int(&pps->capth->th_generation))
+	atomic_thread_fence_acq();
+	if (pps->capgen == 0 || pps->capgen != capth->th_generation)
 		return;
 
 	/* Things would be easier with arrays. */
@@ -1838,24 +1846,18 @@ pps_event(struct pps_state *pps, int event)
 	 * If the timecounter changed, we cannot compare the count values, so
 	 * we have to drop the rest of the PPS-stuff until the next event.
 	 */
-	if (pps->ppstc != pps->capth->th_counter) {
-		pps->ppstc = pps->capth->th_counter;
+	if (__predict_false(pps->ppstc != captc)) {
+		pps->ppstc = captc;
 		*pcount = pps->capcount;
 		pps->ppscount[2] = pps->capcount;
 		return;
 	}
 
 	/* Convert the count to a timespec. */
-	tcount = pps->capcount - pps->capth->th_offset_count;
-	tcount &= pps->capth->th_counter->tc_counter_mask;
-	bt = pps->capth->th_bintime;
-	bintime_addx(&bt, pps->capth->th_scale * tcount);
+	tcount = pps->capcount - tcount;
+	tcount &= captc->tc_counter_mask;
+	bintime_addx(&bt, capth_scale * tcount);
 	bintime2timespec(&bt, &ts);
-
-	/* If the timecounter was wound up underneath us, bail out. */
-	atomic_thread_fence_acq();
-	if (pps->capgen != pps->capth->th_generation)
-		return;
 
 	*pcount = pps->capcount;
 	(*pseq)++;
@@ -1890,9 +1892,9 @@ pps_event(struct pps_state *pps, int event)
 		 */
 		tcount = pps->capcount - pps->ppscount[2];
 		pps->ppscount[2] = pps->capcount;
-		tcount &= pps->capth->th_counter->tc_counter_mask;
+		tcount &= captc->tc_counter_mask;
 		scale = (uint64_t)1 << 63;
-		scale /= pps->capth->th_counter->tc_frequency;
+		scale /= captc->tc_frequency;
 		scale *= 2;
 		bt.sec = 0;
 		bt.frac = 0;
