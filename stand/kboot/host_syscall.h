@@ -48,6 +48,8 @@ struct host_timeval {
 	long tv_usec;
 };
 
+#define HOST_AT_FDCWD		-100		/* Relative to current directory */
+
 /*
  * System Calls
  */
