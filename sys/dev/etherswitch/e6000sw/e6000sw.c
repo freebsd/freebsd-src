@@ -1535,9 +1535,8 @@ e6000sw_setup(device_t dev, e6000sw_softc_t *sc)
 static void
 e6000sw_set_atustat(device_t dev, e6000sw_softc_t *sc, int bin, int flag)
 {
-	uint16_t ret;
 
-	ret = e6000sw_readreg(sc, REG_GLOBAL2, ATU_STATS);
+	e6000sw_readreg(sc, REG_GLOBAL2, ATU_STATS);
 	e6000sw_writereg(sc, REG_GLOBAL2, ATU_STATS, (bin << ATU_STATS_BIN ) |
 	    (flag << ATU_STATS_FLAG));
 }
