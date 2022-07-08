@@ -89,9 +89,10 @@ SRCS+=	_setjmp.S
 # NOTE: to actually test this functionality after libbz2 upgrade compile
 # loader(8) with LOADER_BZIP2_SUPPORT defined
 .PATH: ${SRCTOP}/contrib/bzip2
-CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
-
-SRCS+=bzlib.c crctable.c decompress.c huffman.c randtable.c
+.for i in bzlib.c crctable.c decompress.c huffman.c randtable.c
+CFLAGS.${i}+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+SRCS+=${i}
+.endfor
 
 # decompression functionality from zlib
 .PATH: ${SRCTOP}/sys/contrib/zlib
@@ -181,7 +182,7 @@ CFLAGS.ffs_subr.c+= -DSTANDALONE_SMALL
 CFLAGS.dosfs.c+= -I${LDRSRC}
 CFLAGS.tftp.c+= -I${LDRSRC}
 CFLAGS.ufs.c+= -I${LDRSRC}
-CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2
+CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 
 # explicit_bzero and calculate_crc32c
 .PATH: ${SYSDIR}/libkern
