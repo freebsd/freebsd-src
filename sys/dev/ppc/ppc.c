@@ -164,7 +164,7 @@ static int
 ppc_detect_fifo(struct ppc_data *ppc)
 {
 	char ecr_sav;
-	char ctr_sav, ctr, cc;
+	char ctr_sav, ctr;
 	short i;
 
 	/* save registers */
@@ -194,7 +194,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 	for (i=0; i<1024; i++) {
 		if (r_ecr(ppc) & PPC_FIFO_EMPTY)
 			break;
-		cc = r_fifo(ppc);
+		r_fifo(ppc);
 	}
 
 	if (i >= 1024) {
