@@ -77,6 +77,17 @@ device		bpf
 options 	DEVICE_POLLING
 device		vlan
 
+# pseudo devices
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
+# Minimal GPIO support
+device		gpio
+
 #PCI/PCIE
 device		pci
 
