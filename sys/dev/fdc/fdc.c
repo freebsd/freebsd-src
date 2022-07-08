@@ -1897,7 +1897,9 @@ fdc_print_child(device_t me, device_t child)
 static int
 fd_probe(device_t dev)
 {
+#if defined(__i386__) || defined(__amd64__)
 	int	unit;
+#endif
 	int	i;
 	u_int	st0, st3;
 	struct	fd_data *fd;
@@ -1913,7 +1915,6 @@ fd_probe(device_t dev)
 	fd->dev = dev;
 	fd->fdc = fdc;
 	fd->fdsu = fdsu;
-	unit = device_get_unit(dev);
 
 	/* Auto-probe if fdinfo is present, but always allow override. */
 	type = flags & FD_TYPEMASK;
@@ -1927,6 +1928,7 @@ fd_probe(device_t dev)
 	}
 
 #if defined(__i386__) || defined(__amd64__)
+	unit = device_get_unit(dev);
 	if (fd->type == FDT_NONE && (unit == 0 || unit == 1)) {
 		/* Look up what the BIOS thinks we have. */
 		if (unit == 0)
