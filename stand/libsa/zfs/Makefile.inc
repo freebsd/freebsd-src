@@ -3,11 +3,12 @@
 .PATH:		${ZFSSRC}
 .PATH:		${SYSDIR}/crypto/skein
 .PATH:		${ZFSOSSRC}/spl
+.PATH:		${OZFS}/module/zstd
 .PATH:		${OZFS}/module/zstd/lib/common
 .PATH:		${OZFS}/module/zstd/lib/compress
 .PATH:		${OZFS}/module/zstd/lib/decompress
 ZFS_SRC=	zfs.c nvlist.c skein.c skein_block.c list.c
-ZFS_SRC+=	zstd_shim.c
+ZFS_SRC+=	zfs_zstd.c
 ZSTD_SRC+=	entropy_common.c error_private.c
 ZSTD_SRC+=	fse_compress.c fse_decompress.c hist.c
 ZSTD_SRC+=	huf_compress.c huf_decompress.c pool.c xxhash.c
@@ -30,12 +31,12 @@ ZFS_EARLY=	-I${ZFSSRC}/spl					\
 		-I${ZFSOSINC}/zfs
 
 .for i in ${ZFS_SRC} ${ZSTD_SRC}
-CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h
-CFLAGS.$i+=	-Wformat -Wall
+CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h -Wformat -Wall -I${OZFS}/include \
+	-DNEED_SOLARIS_BOOLEAN
 .endfor
 
 CFLAGS_EARLY.list.c+= ${ZFS_EARLY}
-CFLAGS_EARLY.zstd_shim.c+= ${ZFS_EARLY}
+CFLAGS_EARLY.zfs_zstd.c+= ${ZFS_EARLY}
 
 # Can't use the early flags because there's two conflicting definitions of boolean_t in
 # the zfs code that need to be unified.
@@ -53,7 +54,7 @@ CFLAGS.zfs.c+=	-I${ZFSOSINC}/spl 				\
 CFLAGS.$i+=	-U__BMI__ ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 .endfor
 
-CFLAGS.zstd_shim.c+= -DIN_BASE -DIN_LIBSA -I${OZFS}/include
+CFLAGS.zfs_zstd.c+= -DIN_BASE -DIN_LIBSA
 
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111
