@@ -13,7 +13,8 @@ CFLAGS+=	-I${LDRSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
 CFLAGS+=	-I${SYSDIR}/crypto/skein
 
-ZFS_EARLY=	-I${ZFSOSINC}					\
+ZFS_EARLY=	-I${ZFSSRC}/spl					\
+		-I${ZFSOSINC}					\
 		-I${ZFSOSINC}/spl				\
 		-I${ZFSOSINC}/zfs
 
