@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 30, 2021
+.Dd July 8, 2022
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -130,7 +130,9 @@ struct timespec {
 .Pp
 Only the super-user may set the time of day, using only
 .Fa CLOCK_REALTIME .
-If the system securelevel is greater than 1 (see
+If the system
+.Xr securelevel 7
+is greater than 1 (see
 .Xr init 8 ) ,
 the time may only be advanced.
 This limitation is imposed to prevent a malicious super-user
@@ -183,7 +185,9 @@ The clock IDs
 .Fa CLOCK_UPTIME_FAST ,
 .Fa CLOCK_UPTIME_PRECISE ,
 .Fa CLOCK_SECOND
-are FreeBSD extensions to the POSIX interface.
+are
+.Fx
+extensions to the POSIX interface.
 .Sh HISTORY
 The
 .Fn clock_gettime ,
