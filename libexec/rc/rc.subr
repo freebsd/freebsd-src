@@ -864,7 +864,7 @@ startmsg()
 #			($sig_stop defaults to TERM.)
 #
 #	reload		Similar to stop, except use $sig_reload instead,
-#			and doesn't wait_for_pids.
+#			and don't wait_for_pids.
 #			$sig_reload defaults to HUP.
 #			Note that `reload' isn't provided by default,
 #			it should be enabled via $extra_commands.
