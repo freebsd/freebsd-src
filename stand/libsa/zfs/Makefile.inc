@@ -40,50 +40,15 @@ CFLAGS_EARLY.zstd_shim.c+= ${ZFS_EARLY}
 CFLAGS.nvlist.c+= -I${ZFSOSINC}/spl
 CFLAGS.zfs.c+=	-I${ZFSOSINC}/spl 				\
 		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
-CFLAGS.entropy_common.c=	-U__BMI__
-CFLAGS.entropy_common.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.error_private.c=		-U__BMI__
-CFLAGS.error_private.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.fse_compress.c=		-U__BMI__
-CFLAGS.fse_compress.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.fse_decompress.c=	-U__BMI__
-CFLAGS.fse_decompress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.hist.c=			-U__BMI__
-CFLAGS.hist.c+=			${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.huf_compress.c=		-U__BMI__
-CFLAGS.huf_compress.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.huf_decompress.c=	-U__BMI__
-CFLAGS.huf_decompress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.pool.c=			-U__BMI__
-CFLAGS.pool.c+=			${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.xxhash.c=		-U__BMI__
-CFLAGS.xxhash.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_common.c=		-U__BMI__
-CFLAGS.zstd_common.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_compress.c=		 -U__BMI__
-CFLAGS.zstd_compress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_compress_literals.c=	-U__BMI__
-CFLAGS.zstd_compress_literals.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_compress_sequences.c=	-U__BMI__
-CFLAGS.zstd_compress_sequences.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_compress_superblock.c=	-U__BMI__
-CFLAGS.zstd_compress_superblock.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_double_fast.c=	-U__BMI__
-CFLAGS.zstd_double_fast.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_fast.c=		-U__BMI__
-CFLAGS.zstd_fast.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_lazy.c=		-U__BMI__
-CFLAGS.zstd_lazy.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_ldm.c=		-U__BMI__
-CFLAGS.zstd_ldm.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_opt.c=		-U__BMI__
-CFLAGS.zstd_opt.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_ddict.c=		-U__BMI__
-CFLAGS.zstd_ddict.c+=		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_decompress.c=	-U__BMI__
-CFLAGS.zstd_decompress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_decompress_block.c=	-U__BMI__
-CFLAGS.zstd_decompress_block.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+
+#
+# ZSTD coding style has some issues, so suppress clang's warnings. Also, zstd's
+# use of BMI instrucitons is broken in this environment, so avoid them.
+#
+.for i in ${ZSTD_SRC}
+CFLAGS.$i+=	-U__BMI__ ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+.endfor
+
 CFLAGS.zstd_shim.c+= -DIN_BASE -DIN_LIBSA -I${OZFS}/include
 
 # Do not unroll skein loops, reduce code size
