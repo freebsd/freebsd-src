@@ -5652,7 +5652,7 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
-	pcicfgregs *cfg;
+	pcicfgregs *cfg __unused;
 
 	if (device_get_parent(child) != dev)
 		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
@@ -5662,7 +5662,7 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 	cfg = &dinfo->cfg;
 
 #ifdef PCI_IOV
-	if (dinfo->cfg.flags & PCICFG_VF) {
+	if (cfg->flags & PCICFG_VF) {
 		switch (type) {
 		/* VFs can't have I/O BARs. */
 		case SYS_RES_IOPORT:
