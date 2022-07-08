@@ -140,6 +140,7 @@ static const char *features_for_read[] = {
 	"org.freebsd:zstd_compress",
 	"com.delphix:bookmark_written",
 	"com.delphix:head_errlog",
+	"org.openzfs:blake3",
 	NULL
 };
 

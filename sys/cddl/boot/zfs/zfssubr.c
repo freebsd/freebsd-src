@@ -102,6 +102,7 @@ typedef struct zio_checksum_info {
 #include "blkptr.c"
 
 #include "fletcher.c"
+#include "blake3_zfs.c"
 #include "sha256.c"
 #include "skein_zfs.c"
 
@@ -140,7 +141,11 @@ static zio_checksum_info_t zio_checksum_table[ZIO_CHECKSUM_FUNCTIONS] = {
 	    ZCHECKSUM_FLAG_SALTED | ZCHECKSUM_FLAG_NOPWRITE, "skein"},
 	/* no edonr for now */
 	{{NULL, NULL}, NULL, NULL, ZCHECKSUM_FLAG_METADATA |
-	    ZCHECKSUM_FLAG_SALTED | ZCHECKSUM_FLAG_NOPWRITE, "edonr"}
+	    ZCHECKSUM_FLAG_SALTED | ZCHECKSUM_FLAG_NOPWRITE, "edonr"},
+	{{zio_checksum_blake3_native,	zio_checksum_blake3_byteswap},
+	    zio_checksum_blake3_tmpl_init, zio_checksum_blake3_tmpl_free,
+	    ZCHECKSUM_FLAG_METADATA | ZCHECKSUM_FLAG_DEDUP |
+	    ZCHECKSUM_FLAG_SALTED | ZCHECKSUM_FLAG_NOPWRITE, "blake3"}
 };
 
 /*
