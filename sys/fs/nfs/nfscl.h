@@ -49,10 +49,10 @@ struct nfsv4node {
 /*
  * Just a macro to convert the nfscl_reqstart arguments.
  */
-#define	NFSCL_REQSTART(n, p, v) 					\
+#define	NFSCL_REQSTART(n, p, v, c) 					\
 	nfscl_reqstart((n), (p), VFSTONFS((v)->v_mount), 		\
 	    VTONFS(v)->n_fhp->nfh_fh, VTONFS(v)->n_fhp->nfh_len, NULL,	\
-	    NULL, 0, 0)
+	    NULL, 0, 0, (c))
 
 /*
  * These two macros convert between a lease duration and renew interval.
