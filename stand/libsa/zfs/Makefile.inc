@@ -30,6 +30,7 @@ ZFS_EARLY=	-I${ZFSOSINC}					\
 
 .for i in ${ZFS_SRC} ${ZSTD_SRC}
 CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h
+CFLAGS.$i+=	-Wformat -Wall
 .endfor
 
 CFLAGS_EARLY.list.c+= ${ZFS_EARLY}
@@ -39,7 +40,9 @@ CFLAGS_EARLY.zstd_shim.c+= ${ZFS_EARLY}
 # the zfs code that need to be unified.
 CFLAGS.nvlist.c+= -I${ZFSOSINC}/spl
 CFLAGS.zfs.c+=	-I${ZFSOSINC}/spl 				\
-		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
+		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4 \
+		-I${ZFSOSINC}/zfs				\
+		-I${OZFS}/include
 
 #
 # ZSTD coding style has some issues, so suppress clang's warnings. Also, zstd's
@@ -53,9 +56,3 @@ CFLAGS.zstd_shim.c+= -DIN_BASE -DIN_LIBSA -I${OZFS}/include
 
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111
-
-CFLAGS+=	-I${SYSDIR}/contrib/openzfs/include
-CFLAGS+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
-CFLAGS.zfs.c+=	-I${SYSDIR}/cddl/contrib/opensolaris/common/lz4
-
-CFLAGS+=	-Wformat -Wall
