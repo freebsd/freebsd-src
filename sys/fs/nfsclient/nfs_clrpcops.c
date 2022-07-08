@@ -1061,10 +1061,12 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 			 */
 			tsep = NULL;
 			if (TAILQ_FIRST(&nmp->nm_sess) != NULL) {
+				/*
+				 * Mark the old session defunct.  Needed
+				 * when called from nfscl_hasexpired().
+				 */
 				tsep = NFSMNT_MDSSESSION(nmp);
-				if (tsep->nfsess_defunct == 0)
-					printf("nfsrpc_setclient: "
-					    "nfsess_defunct not set\n");
+				tsep->nfsess_defunct = 1;
 			}
 			TAILQ_INSERT_HEAD(&nmp->nm_sess, dsp,
 			    nfsclds_list);
