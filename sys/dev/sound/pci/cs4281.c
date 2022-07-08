@@ -257,9 +257,7 @@ static int
 cs4281_rdcd(kobj_t obj, void *devinfo, int regno)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
-    int codecno;
 
-    codecno = regno >> 8;
     regno &= 0xff;
 
     /* Remove old state */
@@ -291,9 +289,7 @@ static int
 cs4281_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
     struct sc_info *sc = (struct sc_info *)devinfo;
-    int codecno;
 
-    codecno = regno >> 8;
     regno &= 0xff;
 
     cs4281_wr(sc, CS4281PCI_ACCAD, regno);
