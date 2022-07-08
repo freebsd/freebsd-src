@@ -633,10 +633,8 @@ mx25l_task(void *arg)
 {
 	struct mx25l_softc *sc = (struct mx25l_softc*)arg;
 	struct bio *bp;
-	device_t dev;
 
 	for (;;) {
-		dev = sc->sc_dev;
 		M25PXX_LOCK(sc);
 		do {
 			if (sc->sc_taskstate == TSTATE_STOPPING) {
