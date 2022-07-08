@@ -198,6 +198,7 @@ SRCS+=  explicit_bzero.c crc32_libkern.c
 .endif
 
 .if ${MK_LOADER_VERIEXEC} == "yes" && ${MK_BEARSSL} == "yes"
+# XXX Note that these pollutes CFLAGS in a way that's not easy to fix
 .include "${SRCTOP}/lib/libbearssl/Makefile.libsa.inc"
 .include "${SRCTOP}/lib/libsecureboot/Makefile.libsa.inc"
 .endif
