@@ -921,7 +921,6 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	const struct wsp_dev_params *params = sc->sc_params;
 	struct usb_page_cache *pc;
 	struct tp_finger *f;
-	struct tp_header *h;
 	struct wsp_tuning tun = wsp_tuning;
 	int ntouch = 0;			/* the finger number in touch */
 	int ibt = 0;			/* button status */
@@ -962,8 +961,6 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			/* make sure we don't process old data */
 			memset(sc->tp_data + len, 0, sc->tp_datalen - len);
 		}
-
-		h = (struct tp_header *)(sc->tp_data);
 
 		if (params->tp != wsp_tp + TYPE1) {
 			ibt = sc->tp_data[params->tp->button];
