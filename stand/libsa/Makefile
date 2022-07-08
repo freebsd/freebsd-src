@@ -96,9 +96,11 @@ SRCS+=${i}
 
 # decompression functionality from zlib
 .PATH: ${SRCTOP}/sys/contrib/zlib
-CFLAGS+=-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
-SRCS+=	adler32.c crc32.c
-SRCS+=	infback.c inffast.c inflate.c inftrees.c zutil.c
+ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+.for i in adler32.c crc32.c infback.c inffast.c inflate.c inftrees.c zutil.c
+CFLAGS.${i}+=${ZLIB_CFLAGS}
+SRCS+=	${i}
+.endfor
 
 # lz4 decompression functionality
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
@@ -182,6 +184,8 @@ CFLAGS.ffs_subr.c+= -DSTANDALONE_SMALL
 CFLAGS.dosfs.c+= -I${LDRSRC}
 CFLAGS.tftp.c+= -I${LDRSRC}
 CFLAGS.ufs.c+= -I${LDRSRC}
+CFLAGS.gzipfs.c+= ${ZLIB_CFLAGS}
+CFLAGS.pkgfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 
 # explicit_bzero and calculate_crc32c
