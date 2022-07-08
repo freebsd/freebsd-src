@@ -863,7 +863,6 @@ clnt_vc_destroy(CLIENT *cl)
 	struct ct_data *ct = (struct ct_data *) cl->cl_private;
 	struct socket *so = NULL;
 	SVCXPRT *xprt;
-	enum clnt_stat stat;
 	uint32_t reterr;
 
 	clnt_vc_close(cl);
@@ -906,7 +905,7 @@ clnt_vc_destroy(CLIENT *cl)
 				 * daemon having crashed or been
 				 * restarted, so ignore return stat.
 				 */
-				stat = rpctls_cl_disconnect(ct->ct_sslsec,
+				rpctls_cl_disconnect(ct->ct_sslsec,
 				    ct->ct_sslusec, ct->ct_sslrefno,
 				    &reterr);
 			}
