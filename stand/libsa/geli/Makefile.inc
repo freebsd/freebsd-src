@@ -3,14 +3,13 @@
 
 .PATH: ${SASRC}/geli
 
-CFLAGS+=	-I${LDRSRC}
-
 # Our password input method
-SRCS+=  pwgets.c
+SRCS+=		pwgets.c
 
 # sha256 and sha512 from sys/crypto
 .PATH: ${SYSDIR}/crypto/sha2
-CFLAGS+=	-DWEAK_REFS
+CFLAGS.sha256.c+=	-DWEAK_REFS
+CFLAGS.sha512.c+=	-DWEAK_REFS
 SRCS+=		sha256c.c sha512c.c
 
 # md5 from libmd
@@ -27,11 +26,11 @@ SRCS+=		${i}
 
 # local GELI Implementation
 .PATH: ${SYSDIR}/geom/eli
+.for i in geliboot.c geliboot_crypto.c gelidev.c geli_metadata.c
+CFLAGS.${i}+=	-I${LDRSRC}
+SRCS+=		${i}
+.endfor
 SRCS+=		\
-		geliboot.c \
-		geliboot_crypto.c \
-		gelidev.c \
-		geli_metadata.c \
 		g_eli_hmac.c \
 		g_eli_key.c \
 		g_eli_key_cache.c \
