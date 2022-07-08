@@ -500,9 +500,10 @@ Specify tunnel FIB.
 A FIB
 .Ar fib_number
 is assigned to all packets encapsulated by tunnel interface, e.g.,
-.Xr gif 4
+.Xr gif 4 ,
+.Xr gre 4
 and
-.Xr gre 4 .
+.Xr vxlan 4 .
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to

@@ -163,6 +163,7 @@ struct vxlan_statistics {
 struct vxlan_softc {
 	struct ifnet			*vxl_ifp;
 	int				 vxl_reqcap;
+	u_int				 vxl_fibnum;
 	struct vxlan_socket		*vxl_sock;
 	uint32_t			 vxl_vni;
 	union vxlan_sockaddr		 vxl_src_addr;
@@ -2329,6 +2330,7 @@ vxlan_ioctl_drvspec(struct vxlan_softc *sc, struct ifdrv *ifd, int get)
 static int
 vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
+	struct rm_priotracker tracker;
 	struct vxlan_softc *sc;
 	struct ifreq *ifr;
 	struct ifdrv *ifd;
@@ -2376,6 +2378,25 @@ vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error == 0)
 			vxlan_set_hwcaps(sc);
 		VXLAN_WUNLOCK(sc);
+		break;
+
+	case SIOCGTUNFIB:
+		VXLAN_RLOCK(sc, &tracker);
+		ifr->ifr_fib = sc->vxl_fibnum;
+		VXLAN_RUNLOCK(sc, &tracker);
+		break;
+
+	case SIOCSTUNFIB:
+		if ((error = priv_check(curthread, PRIV_NET_VXLAN)) != 0)
+			break;
+
+		if (ifr->ifr_fib >= rt_numfibs)
+			error = EINVAL;
+		else {
+			VXLAN_WLOCK(sc);
+			sc->vxl_fibnum = ifr->ifr_fib;
+			VXLAN_WUNLOCK(sc);
+		}
 		break;
 
 	default:
@@ -2531,7 +2552,7 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = ip->ip_dst;
-		ro->ro_nh = fib4_lookup(RT_DEFAULT_FIB, ip->ip_dst, 0, NHR_NONE,
+		ro->ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_NONE,
 		    0);
 		if (ro->ro_nh == NULL) {
 			m_freem(m);
@@ -2643,7 +2664,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_addr = ip6->ip6_dst;
-		ro->ro_nh = fib6_lookup(RT_DEFAULT_FIB, &ip6->ip6_dst, 0,
+		ro->ro_nh = fib6_lookup(M_GETFIB(m), &ip6->ip6_dst, 0,
 		    NHR_NONE, 0);
 		if (ro->ro_nh == NULL) {
 			m_freem(m);
@@ -2720,6 +2741,7 @@ vxlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	ETHER_BPF_MTAP(ifp, m);
 
 	VXLAN_RLOCK(sc, &tracker);
+	M_SETFIB(m, sc->vxl_fibnum);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		VXLAN_RUNLOCK(sc, &tracker);
 		m_freem(m);
@@ -3183,6 +3205,7 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sc = malloc(sizeof(struct vxlan_softc), M_VXLAN, M_WAITOK | M_ZERO);
 	sc->vxl_unit = unit;
+	sc->vxl_fibnum = curthread->td_proc->p_fibnum;
 	vxlan_set_default_config(sc);
 	error = vxlan_stats_alloc(sc);
 	if (error != 0)
