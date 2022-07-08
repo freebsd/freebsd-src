@@ -388,12 +388,13 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 			return (EAGAIN);
 		}
 		if (kreq->ir_error != 0) {
+			error = kreq->ir_error;
 			TAILQ_REMOVE(&dev->ipmi_completed_requests, kreq,
 			    ir_link);
 			dev->ipmi_requests--;
 			IPMI_UNLOCK(sc);
 			ipmi_free_request(kreq);
-			return (kreq->ir_error);
+			return (error);
 		}
 
 		recv->recv_type = IPMI_RESPONSE_RECV_TYPE;
