@@ -6,19 +6,19 @@
 .PATH:		${OZFS}/module/zstd/lib/common
 .PATH:		${OZFS}/module/zstd/lib/compress
 .PATH:		${OZFS}/module/zstd/lib/decompress
-ZFSSRC=		zfs.c nvlist.c skein.c skein_block.c list.c
-ZFSSRC+=	zstd_shim.c
-ZFSSRC+=	entropy_common.c error_private.c
-ZFSSRC+=	fse_compress.c fse_decompress.c hist.c
-ZFSSRC+=	huf_compress.c huf_decompress.c pool.c xxhash.c
-ZFSSRC+=	zstd_common.c zstd_compress.c zstd_compress_literals.c
-ZFSSRC+=	zstd_compress_sequences.c zstd_compress_superblock.c
-ZFSSRC+=	zstd_ddict.c zstd_decompress.c zstd_decompress_block.c
-ZFSSRC+=	zstd_double_fast.c zstd_fast.c zstd_lazy.c zstd_ldm.c
-ZFSSRC+=	zstd_opt.c
+ZFS_SRC=	zfs.c nvlist.c skein.c skein_block.c list.c
+ZFS_SRC+=	zstd_shim.c
+ZFS_SRC+=	entropy_common.c error_private.c
+ZFS_SRC+=	fse_compress.c fse_decompress.c hist.c
+ZFS_SRC+=	huf_compress.c huf_decompress.c pool.c xxhash.c
+ZFS_SRC+=	zstd_common.c zstd_compress.c zstd_compress_literals.c
+ZFS_SRC+=	zstd_compress_sequences.c zstd_compress_superblock.c
+ZFS_SRC+=	zstd_ddict.c zstd_decompress.c zstd_decompress_block.c
+ZFS_SRC+=	zstd_double_fast.c zstd_fast.c zstd_lazy.c zstd_ldm.c
+ZFS_SRC+=	zstd_opt.c
 
 CFLAGS+=	-DHAS_ZSTD_ZFS
-SRCS+=		${ZFSSRC}
+SRCS+=		${ZFS_SRC}
 
 CFLAGS+=	-I${LDRSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
@@ -28,7 +28,7 @@ ZFS_EARLY=	-I${ZFSOSINC}					\
 		-I${ZFSOSINC}/spl				\
 		-I${ZFSOSINC}/zfs
 
-.for i in ${ZFSSRC}
+.for i in ${ZFS_SRC}
 CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h
 .endfor
 
