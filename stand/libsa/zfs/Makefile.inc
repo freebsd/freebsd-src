@@ -4,10 +4,10 @@
 .PATH:		${SYSDIR}/crypto/skein
 .PATH:		${ZFSOSSRC}/spl
 .PATH:		${OZFS}/module/zstd/lib
-ZFSSRC=		zfs.c nvlist.c skein.c skein_block.c list.c
-ZFSSRC+=	zstd_shim.c zstd.c
+ZFS_SRC=	zfs.c nvlist.c skein.c skein_block.c list.c
+ZFS_SRC+=	zstd_shim.c zstd.c
 CFLAGS+=	-DHAS_ZSTD_ZFS
-SRCS+=		${ZFSSRC}
+SRCS+=		${ZFS_SRC}
 
 CFLAGS+=	-I${LDRSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
@@ -17,7 +17,7 @@ ZFS_EARLY=	-I${ZFSOSINC}					\
 		-I${ZFSOSINC}/spl				\
 		-I${ZFSOSINC}/zfs
 
-.for i in ${ZFSSRC}
+.for i in ${ZFS_SRC}
 CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h
 .endfor
 
