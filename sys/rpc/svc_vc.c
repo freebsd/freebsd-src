@@ -449,7 +449,6 @@ svc_vc_rendezvous_stat(SVCXPRT *xprt)
 static void
 svc_vc_destroy_common(SVCXPRT *xprt)
 {
-	enum clnt_stat stat;
 	uint32_t reterr;
 
 	if (xprt->xp_socket) {
@@ -462,7 +461,7 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 				 * daemon having crashed or been
 				 * restarted, so just ignore returned stat.
 				 */
-				stat = rpctls_srv_disconnect(xprt->xp_sslsec,
+				rpctls_srv_disconnect(xprt->xp_sslsec,
 				    xprt->xp_sslusec, xprt->xp_sslrefno,
 				    &reterr);
 			}
