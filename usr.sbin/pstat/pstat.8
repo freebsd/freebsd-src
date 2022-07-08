@@ -35,7 +35,7 @@
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2014
+.Dd July 8, 2022
 .Dt PSTAT 8
 .Os
 .Sh NAME
@@ -228,6 +228,26 @@ If
 is also specified,
 extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width BLOCKSIZE
+.It Ev BLOCKSIZE
+If the environment variable
+.Ev BLOCKSIZE
+is set, and the
+.Fl h , k ,
+or
+.Fl m
+options are not specified, the block counts will be displayed in units of
+that block size.
+If
+.Ev BLOCKSIZE
+is not set, and the
+.Fl h , k ,
+or
+.Fl m
+options are not specified, the block counts will be displayed in 512-byte
+blocks.
 .El
 .Sh SEE ALSO
 .Xr ps 1 ,
