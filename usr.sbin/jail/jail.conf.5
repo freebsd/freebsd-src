@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2021
+.Dd July 8, 2022
 .Dt JAIL.CONF 5
 .Os
 .Sh NAME
@@ -178,6 +178,13 @@ shell formats:
 .Pp
 Comments are legal wherever whitespace is allowed, i.e. anywhere except
 in the middle of a string or a token.
+.Sh FILES
+.Bl -tag -width "indent" -compact
+.It Pa /etc/jail.conf
+.It Pa /etc/jail.*.conf
+.It Pa /etc/jail.conf.d/*.conf
+.It Pa /usr/share/examples/jails/
+.El
 .Sh EXAMPLES
 .Bd -literal
 # Typical static defaults:
