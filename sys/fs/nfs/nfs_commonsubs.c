@@ -323,7 +323,7 @@ static int nfs_bigrequest[NFSV42_NPROCS] = {
 void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
     u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep,
-    int vers, int minorvers)
+    int vers, int minorvers, __unused struct ucred *cred)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
