@@ -202,11 +202,9 @@ static int
 midicsa_attach(device_t dev)
 {
 	struct csa_midi_softc *scp;
-	struct sndcard_func *func;
 	int rc = ENXIO;
 
 	scp = device_get_softc(dev);
-	func = device_get_ivars(dev);
 
 	bzero(scp, sizeof(struct csa_midi_softc));
 	scp->dev = dev;
