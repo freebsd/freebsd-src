@@ -3,14 +3,13 @@
 
 .PATH: ${SASRC}/geli
 
-CFLAGS+=	-I${LDRSRC}
-
 # Our password input method
-SRCS+=  pwgets.c
+SRCS+=		pwgets.c
 
 # sha256 and sha512 from sys/crypto
 .PATH: ${SYSDIR}/crypto/sha2
-CFLAGS+=	-DWEAK_REFS
+CFLAGS.sha256.c+=	-DWEAK_REFS
+CFLAGS.sha512.c+=	-DWEAK_REFS
 SRCS+=		sha256c.c sha512c.c
 
 # md5 from libmd
