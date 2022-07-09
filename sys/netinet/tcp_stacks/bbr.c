@@ -9844,7 +9844,7 @@ bbr_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * We call a new function now so we might continue and setup
 	 * to reset at all data being ack'd.
 	 */
-	if (tp->t_state > TCPS_CLOSE_WAIT && tlen &&
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
 	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
 		return (1);
 	/*
