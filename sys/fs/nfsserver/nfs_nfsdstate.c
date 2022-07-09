@@ -6637,8 +6637,8 @@ nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
 	if (error != 0)
 		return (error);
 	sep = *sepp;
-	(void)nfsv4_sequencelookup(NULL, &sep->sess_cbsess, slotposp, &maxslot,
-	    &slotseq, sessionid);
+	nfsv4_sequencelookup(NULL, &sep->sess_cbsess, slotposp, &maxslot,
+	    &slotseq, sessionid, true);
 	KASSERT(maxslot >= 0, ("nfsv4_setcbsequence neg maxslot"));
 
 	/* Build the Sequence arguments. */
