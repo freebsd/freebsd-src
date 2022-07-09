@@ -88,13 +88,104 @@ static struct sysctl_ctx_list qoriq_therm_sysctl_ctx;
 
 struct tsensor default_sensors[] =
 {
-	{ 0, "site0", 0},
-	{ 1, "site1", 1},
-	{ 2, "site2", 2},
-	{ 3, "site3", 3},
-	{ 4, "site4", 4},
-	{ 5, "site5", 5},
-	{ 6, "site6", 6},
+	{ 0,	"site0",		0 },
+	{ 1,	"site1",		1 },
+	{ 2,	"site2",		2 },
+	{ 3,	"site3",		3 },
+	{ 4,	"site4",		4 },
+	{ 5,	"site5",		5 },
+	{ 6,	"site6",		6 },
+	{ 7,	"site7",		7 },
+	{ 8,	"site8",		8 },
+	{ 9,	"site9",		9 },
+	{ 10,	"site10",		10 },
+	{ 11,	"site11",		11 },
+	{ 12,	"site12",		12 },
+	{ 13,	"site13",		13 },
+	{ 14,	"site14",		14 },
+	{ 15,	"site15",		15 },
+};
+
+static struct tsensor imx8mq_sensors[] =
+{
+	{ 0,	"cpu",			0 },
+	{ 1,	"gpu",			1 },
+	{ 2,	"vpu",			2 },
+};
+
+static struct tsensor ls1012_sensors[] =
+{
+	{ 0,	"cpu-thermal",		0 },
+};
+
+static struct tsensor ls1028_sensors[] =
+{
+	{ 0,	"ddr-controller",	0 },
+	{ 1,	"core-cluster",		1 },
+};
+
+static struct tsensor ls1043_sensors[] =
+{
+	{ 0,	"ddr-controller",	0 },
+	{ 1,	"serdes",		1 },
+	{ 2,	"fman",			2 },
+	{ 3,	"core-cluster",		3 },
+};
+
+static struct tsensor ls1046_sensors[] =
+{
+	{ 0,	"ddr-controller",	0 },
+	{ 1,	"serdes",		1 },
+	{ 2,	"fman",			2 },
+	{ 3,	"core-cluster",		3 },
+	{ 4,	"sec",			4 },
+};
+
+static struct tsensor ls1088_sensors[] =
+{
+	{ 0,	"core-cluster",		0 },
+	{ 1,	"soc",			1 },
+};
+
+/* Note: tmu[1..7] not [0..6]. */
+static struct tsensor lx2080_sensors[] =
+{
+	{ 1,	"ddr-controller1",	0 },
+	{ 2,	"ddr-controller2",	1 },
+	{ 3,	"ddr-controller3",	2 },
+	{ 4,	"core-cluster1",	3 },
+	{ 5,	"core-cluster2",	4 },
+	{ 6,	"core-cluster3",	5 },
+	{ 7,	"core-cluster4",	6 },
+};
+
+static struct tsensor lx2160_sensors[] =
+{
+	{ 0,	"cluster6-7",		0 },
+	{ 1,	"ddr-cluster5",		1 },
+	{ 2,	"wriop",		2 },
+	{ 3,	"dce-qbman-hsio2",	3 },
+	{ 4,	"ccn-dpaa-tbu",		4 },
+	{ 5,	"cluster4-hsio3",	5 },
+	{ 6,	"cluster2-3",		6 },
+};
+
+struct qoriq_therm_socs {
+	const char		*name;
+	struct tsensor		*tsensors;
+	int			ntsensors;
+} qoriq_therm_socs[] = {
+#define	_SOC(_n, _a)	{ _n, _a, nitems(_a) }
+	_SOC("fsl,imx8mq",	imx8mq_sensors),
+	_SOC("fsl,ls1012a",	ls1012_sensors),
+	_SOC("fsl,ls1028a",	ls1028_sensors),
+	_SOC("fsl,ls1043a",	ls1043_sensors),
+	_SOC("fsl,ls1046a",	ls1046_sensors),
+	_SOC("fsl,ls1088a",	ls1088_sensors),
+	_SOC("fsl,ls2080a",	lx2080_sensors),
+	_SOC("fsl,lx2160a",	lx2160_sensors),
+	{ NULL,	NULL, 0 }
+#undef _SOC
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -260,7 +351,8 @@ static int
 qoriq_therm_attach(device_t dev)
 {
 	struct qoriq_therm_softc *sc;
-	phandle_t node;
+	struct qoriq_therm_socs *soc;
+	phandle_t node, root;
 	uint32_t sites;
 	int rid, rv;
 
@@ -307,9 +399,26 @@ qoriq_therm_attach(device_t dev)
 
 	sc->ver = (RD4(sc, TMU_VERSION) >> 8) & 0xFF;
 
-	/* XXX add per SoC customization */
-	sc->ntsensors = nitems(default_sensors);
-	sc->tsensors = default_sensors;
+	/* Select per SoC configuration. */
+	root = OF_finddevice("/");
+	if (root < 0) {
+		device_printf(dev, "Cannot get root node: %d\n", root);
+		goto fail;
+	}
+	soc = qoriq_therm_socs;
+	while (soc != NULL && soc->name != NULL) {
+		if (ofw_bus_node_is_compatible(root, soc->name))
+			break;
+		soc++;
+	}
+	if (soc == NULL) {
+		device_printf(dev, "Unsupported SoC, using default sites.\n");
+		sc->tsensors = default_sensors;
+		sc->ntsensors = nitems(default_sensors);
+	} else {
+		sc->tsensors = soc->tsensors;
+		sc->ntsensors = soc->ntsensors;
+	}
 
 	/* stop monitoring */
 	WR4(sc, TMU_TMR, 0);
