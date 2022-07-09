@@ -364,6 +364,8 @@ struct ucred *nfsrv_getgrpscred(struct ucred *);
 struct nfsdevice *nfsv4_findmirror(struct nfsmount *);
 void nfsm_set(struct nfsrv_descript *, u_int);
 struct mbuf *nfsm_add_ext_pgs(struct mbuf *, int, int *);
+int nfsrpc_destroysession(struct nfsmount *, struct nfsclsession *,
+    struct ucred *, NFSPROC_T *);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
@@ -530,8 +532,6 @@ int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
 int nfsrpc_createsession(struct nfsmount *, struct nfsclsession *,
     struct nfssockreq *, struct nfsclds *, uint32_t, int, struct ucred *,
     NFSPROC_T *);
-int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
-    struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
