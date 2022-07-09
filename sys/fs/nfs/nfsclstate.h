@@ -67,6 +67,7 @@ struct nfsclsession {
 	SVCXPRT		*nfsess_xprt;		/* For backchannel callback */
 	uint32_t	nfsess_slotseq[64];	/* Max for 64bit nm_slots */
 	uint64_t	nfsess_slots;
+	uint64_t	nfsess_badslots;	/* Slots possibly broken */
 	uint32_t	nfsess_sequenceid;
 	uint32_t	nfsess_maxcache;	/* Max size for cached reply. */
 	uint32_t	nfsess_maxreq;		/* Max request size. */

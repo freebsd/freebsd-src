@@ -1121,7 +1121,7 @@ tryagain:
 				if ((nd->nd_flag & ND_LOOPBADSESS) != 0) {
 					reterr = nfsv4_sequencelookup(nmp, sep,
 					    &slotpos, &maxslot, &slotseq,
-					    sessionid);
+					    sessionid, true);
 					if (reterr == 0) {
 						/* Fill in new session info. */
 						NFSCL_DEBUG(1,
