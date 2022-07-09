@@ -5844,6 +5844,7 @@ nfscl_initsessionslots(struct nfsclsession *sep)
 	for (i = 0; i < 64; i++)
 		sep->nfsess_slotseq[i] = 0;
 	sep->nfsess_slots = 0;
+	sep->nfsess_badslots = 0;
 }
 
 /*
