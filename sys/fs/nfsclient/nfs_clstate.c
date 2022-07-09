@@ -2093,10 +2093,10 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p, struct nfscldeleghead *dhp)
 		nfscl_delegreturnall(clp, p, dhp);
 		cred = newnfs_getcred();
 		if (NFSHASNFSV4N(nmp)) {
-			(void)nfsrpc_destroysession(nmp, clp, cred, p);
-			(void)nfsrpc_destroyclient(nmp, clp, cred, p);
+			nfsrpc_destroysession(nmp, NULL, cred, p);
+			nfsrpc_destroyclient(nmp, clp, cred, p);
 		} else
-			(void)nfsrpc_setclient(nmp, clp, 0, NULL, cred, p);
+			nfsrpc_setclient(nmp, clp, 0, NULL, cred, p);
 		nfscl_cleanclient(clp);
 		nmp->nm_clp = NULL;
 		NFSFREECRED(cred);
