@@ -332,7 +332,7 @@ _DP_proc=	cxxrt
 .if ${MK_CDDL} != "no"
 _DP_proc+=	ctf
 .endif
-_DP_proc+=	elf procstat rtld_db util
+_DP_proc+=	elf procstat rtld_db util z
 _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z
