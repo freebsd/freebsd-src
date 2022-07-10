@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-h3";
+};
+
+&{/soc/usb@1c1b000} {
+	status = "okay";
+};
+
+&{/soc/usb@1c1b400} {
+	status = "okay";
+};
