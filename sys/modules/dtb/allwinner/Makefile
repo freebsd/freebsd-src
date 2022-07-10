@@ -29,7 +29,9 @@ DTSO=	sun8i-a83t-sid.dtso \
 	sun8i-h3-mmc0-disable.dtso \
 	sun8i-h3-mmc1-disable.dtso \
 	sun8i-h3-mmc2-disable.dtso \
-	sun8i-h3-spi0.dtso
+	sun8i-h3-spi0.dtso \
+	sun8i-h3-usb1.dtso \
+	sun8i-h3-usb2.dtso
 
 LINKS= \
 	${DTBDIR}/sun4i-a10-cubieboard.dtb ${DTBDIR}/cubieboard.dtb \
