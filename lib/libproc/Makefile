@@ -4,8 +4,7 @@
 
 LIB=	proc
 
-SRCS=	crc32.c			\
-	proc_bkpt.c		\
+SRCS=	proc_bkpt.c		\
 	proc_create.c		\
 	proc_regs.c		\
 	proc_sym.c		\
@@ -22,7 +21,7 @@ CFLAGS+=	-DNO_CXA_DEMANGLE
 LIBADD+=		cxxrt
 .endif
 
-LIBADD+=	elf procstat rtld_db util
+LIBADD+=	elf procstat rtld_db util z
 
 .if ${MK_CDDL} != "no"
 LIBADD+=	ctf
