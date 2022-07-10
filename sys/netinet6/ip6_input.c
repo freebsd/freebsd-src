@@ -824,7 +824,7 @@ passin:
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 			goto bad;
 		}
-		if (V_ip6_sav && !(rcvif->if_flags & IFF_LOOPBACK) &&
+		if (V_ip6_sav && !(m->m_flags & M_LOOP) &&
 		    __predict_false(in6_localip_fib(&ip6->ip6_src,
 			    rcvif->if_fib))) {
 			IP6STAT_INC(ip6s_badscope); /* XXX */
