@@ -688,8 +688,8 @@ again:
 		if (ro->ro_nh != NULL && fwd_tag == NULL &&
 		    ro->ro_dst.sin6_family == AF_INET6 &&
 		    IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &ip6->ip6_dst)) {
+			/* Nexthop is valid and contains valid ifp */
 			nh = ro->ro_nh;
-			ifp = nh->nh_ifp;
 		} else {
 			if (ro->ro_lle)
 				LLE_FREE(ro->ro_lle);	/* zeros ro_lle */
@@ -708,8 +708,11 @@ again:
 					in6_ifstat_inc(ifp, ifs6_out_discard);
 				goto bad;
 			}
-			if (ifp != NULL)
-			    mtu = ifp->if_mtu;
+			/*
+			 * At this point at least @ifp is not NULL
+			 * Can be the case when dst is multicast, link-local or
+			 * interface is explicitly specificed by the caller.
+			 */
 		}
 		if (nh == NULL) {
 			/*
@@ -717,9 +720,11 @@ again:
 			 * dst may not have been updated.
 			 */
 			*dst = dst_sa;	/* XXX */
+			origifp = ifp;
+			mtu = ifp->if_mtu;
 		} else {
-			if (nh->nh_flags & NHF_HOST)
-			    mtu = nh->nh_mtu;
+			ifp = nh->nh_ifp;
+			origifp = nh->nh_aifp;
 			ia = (struct in6_ifaddr *)(nh->nh_ifa);
 			counter_u64_add(nh->nh_pksent, 1);
 		}
@@ -740,6 +745,7 @@ again:
 		    (ifp = im6o->im6o_multicast_ifp) != NULL) {
 			/* We do not need a route lookup. */
 			*dst = dst_sa;	/* XXX */
+			origifp = ifp;
 			goto nonh6lookup;
 		}
 
@@ -754,6 +760,7 @@ again:
 					goto bad;
 				}
 				*dst = dst_sa;	/* XXX */
+				origifp = ifp;
 				goto nonh6lookup;
 			}
 		}
@@ -768,7 +775,7 @@ again:
 		}
 
 		ifp = nh->nh_ifp;
-		mtu = nh->nh_mtu;
+		origifp = nh->nh_aifp;
 		ia = ifatoia6(nh->nh_ifa);
 		if (nh->nh_flags & NHF_GATEWAY)
 			dst->sin6_addr = nh->gw6_sa.sin6_addr;
@@ -777,8 +784,21 @@ again:
 nonh6lookup:
 		;
 	}
+	/*
+	 * At this point ifp MUST be pointing to the valid transmit ifp.
+	 * origifp MUST be valid and pointing to either the same ifp or,
+	 * in case of loopback output, to the interface which ip6_src
+	 * belongs to.
+	 * Examples:
+	 *  fe80::1%em0 -> fe80::2%em0 -> ifp=em0, origifp=em0
+	 *  fe80::1%em0 -> fe80::1%em0 -> ifp=lo0, origifp=em0
+	 *  ::1 -> ::1 -> ifp=lo0, origifp=lo0
+	 *
+	 * mtu can be 0 and will be refined later.
+	 */
+	KASSERT((ifp != NULL), ("output interface must not be NULL"));
+	KASSERT((origifp != NULL), ("output address interface must not be NULL"));
 
-	/* Then nh (for unicast) and ifp must be non-NULL valid values. */
 	if ((flags & IPV6_FORWARDING) == 0) {
 		/* XXX: the FORWARDING flag can be set for mrouting. */
 		in6_ifstat_inc(ifp, ifs6_out_request);
@@ -799,39 +819,22 @@ nonh6lookup:
 	dst_sa.sin6_addr = ip6->ip6_dst;
 
 	/* Check for valid scope ID. */
-	if (in6_setscope(&src0, ifp, &zone) == 0 &&
+	if (in6_setscope(&src0, origifp, &zone) == 0 &&
 	    sa6_recoverscope(&src_sa) == 0 && zone == src_sa.sin6_scope_id &&
-	    in6_setscope(&dst0, ifp, &zone) == 0 &&
+	    in6_setscope(&dst0, origifp, &zone) == 0 &&
 	    sa6_recoverscope(&dst_sa) == 0 && zone == dst_sa.sin6_scope_id) {
 		/*
 		 * The outgoing interface is in the zone of the source
 		 * and destination addresses.
 		 *
-		 * Because the loopback interface cannot receive
-		 * packets with a different scope ID than its own,
-		 * there is a trick to pretend the outgoing packet
-		 * was received by the real network interface, by
-		 * setting "origifp" different from "ifp". This is
-		 * only allowed when "ifp" is a loopback network
-		 * interface. Refer to code in nd6_output_ifp() for
-		 * more details.
 		 */
-		origifp = ifp;
-
-		/*
-		 * We should use ia_ifp to support the case of sending
-		 * packets to an address of our own.
-		 */
-		if (ia != NULL && ia->ia_ifp)
-			ifp = ia->ia_ifp;
-
-	} else if ((ifp->if_flags & IFF_LOOPBACK) == 0 ||
+	} else if ((origifp->if_flags & IFF_LOOPBACK) == 0 ||
 	    sa6_recoverscope(&src_sa) != 0 ||
 	    sa6_recoverscope(&dst_sa) != 0 ||
 	    dst_sa.sin6_scope_id == 0 ||
 	    (src_sa.sin6_scope_id != 0 &&
 	    src_sa.sin6_scope_id != dst_sa.sin6_scope_id) ||
-	    (origifp = ifnet_byindex(dst_sa.sin6_scope_id)) == NULL) {
+	    ifnet_byindex(dst_sa.sin6_scope_id) == NULL) {
 		/*
 		 * If the destination network interface is not a
 		 * loopback interface, or the destination network
@@ -842,7 +845,7 @@ nonh6lookup:
 		 * pair is considered invalid.
 		 */
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(ifp, ifs6_out_discard);
+		in6_ifstat_inc(origifp, ifs6_out_discard);
 		if (error == 0)
 			error = EHOSTUNREACH; /* XXX */
 		goto bad;

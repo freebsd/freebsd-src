@@ -447,7 +447,7 @@ class TestIP6OutputLoopback(SingleVnetTestTemplate):
         "source_validation",
         [
             pytest.param(0, id="no_sav"),
-            pytest.param(1, id="sav", marks=pytest.mark.skip(reason="fails")),
+            pytest.param(1, id="sav"),
         ],
     )
     @pytest.mark.parametrize("scope", ["gu", "ll", "lo"])
@@ -495,7 +495,7 @@ class TestIP6OutputLoopback(SingleVnetTestTemplate):
         "source_validation",
         [
             pytest.param(0, id="no_sav"),
-            pytest.param(1, id="sav", marks=pytest.mark.skip(reason="fails")),
+            pytest.param(1, id="sav"),
         ],
     )
     @pytest.mark.parametrize("scope", ["gu", "ll", "lo"])
