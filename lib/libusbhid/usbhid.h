@@ -29,6 +29,9 @@
  *
  */
 
+#ifndef _USBHID_H_
+#define _USBHID_H_
+
 #include <stdint.h>
 
 typedef struct report_desc *report_desc_t;
@@ -111,3 +114,5 @@ int hid_set_report(int fd, enum hid_kind k,
     unsigned char *data, unsigned int size);
 
 __END_DECLS
+
+#endif /* !_USBHID_H_ */
