@@ -925,10 +925,8 @@ tryagain:
 	} else if (stat == RPC_PROGVERSMISMATCH) {
 		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 		error = EPROTONOSUPPORT;
-	} else if (stat == RPC_INTR) {
-		error = EINTR;
 	} else if (stat == RPC_CANTSEND || stat == RPC_CANTRECV ||
-	     stat == RPC_SYSTEMERROR) {
+	     stat == RPC_SYSTEMERROR || stat == RPC_INTR) {
 		/* Check for a session slot that needs to be free'd. */
 		if ((nd->nd_flag & (ND_NFSV41 | ND_HASSLOTID)) ==
 		    (ND_NFSV41 | ND_HASSLOTID) && nmp != NULL &&
@@ -951,12 +949,17 @@ tryagain:
 			 */
 			mtx_lock(&sep->nfsess_mtx);
 			sep->nfsess_slotseq[nd->nd_slotid] += 10;
+			sep->nfsess_badslots |= (0x1ULL << nd->nd_slotid);
 			mtx_unlock(&sep->nfsess_mtx);
 			/* And free the slot. */
 			nfsv4_freeslot(sep, nd->nd_slotid, false);
 		}
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
-		error = ENXIO;
+		if (stat == RPC_INTR)
+			error = EINTR;
+		else {
+			NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+			error = ENXIO;
+		}
 	} else {
 		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 		error = EACCES;
@@ -1019,8 +1022,16 @@ tryagain:
 			 * If the first op is Sequence, free up the slot.
 			 */
 			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) ||
-			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0))
+			   (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0)) {
 				NFSCL_DEBUG(1, "failed seq=%d\n", j);
+				if (sep != NULL && i == NFSV4OP_SEQUENCE &&
+				    j == NFSERR_SEQMISORDERED) {
+					mtx_lock(&sep->nfsess_mtx);
+					sep->nfsess_badslots |=
+					    (0x1ULL << nd->nd_slotid);
+					mtx_unlock(&sep->nfsess_mtx);
+				}
+			}
 			if (((nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) ||
 			    (clp != NULL && i == NFSV4OP_CBSEQUENCE &&
 			    j == 0)) && sep != NULL) {
@@ -1039,11 +1050,35 @@ tryagain:
 					retseq = fxdr_unsigned(uint32_t, *tl++);
 					slot = fxdr_unsigned(int, *tl++);
 					if ((nd->nd_flag & ND_HASSLOTID) != 0) {
-						if (slot != nd->nd_slotid) {
+						if (slot >= NFSV4_SLOTS ||
+						    (i == NFSV4OP_CBSEQUENCE &&
+						     slot >= NFSV4_CBSLOTS)) {
 							printf("newnfs_request:"
-							    " Wrong session "
-							    "slot=%d\n", slot);
+							    " Bogus slot\n");
 							slot = nd->nd_slotid;
+						} else if (slot !=
+						    nd->nd_slotid) {
+						    printf("newnfs_request:"
+							" Wrong session "
+							"srvslot=%d "
+							"slot=%d\n", slot,
+							nd->nd_slotid);
+						    if (i == NFSV4OP_SEQUENCE) {
+							/*
+							 * Mark both slots as
+							 * bad, because we do
+							 * not know if the
+							 * server has advanced
+							 * the sequence# for
+							 * either of them.
+							 */
+							sep->nfsess_badslots |=
+							    (0x1ULL << slot);
+							sep->nfsess_badslots |=
+							    (0x1ULL <<
+							     nd->nd_slotid);
+						    }
+						    slot = nd->nd_slotid;
 						}
 					} else if (slot != 0) {
 						printf("newnfs_request: Bad "
