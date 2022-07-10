@@ -434,8 +434,8 @@ qoriq_therm_attach(device_t dev)
 		WR4(sc, TMUV2_TMTMIR, 0x0F);	/* disable */
 		/* these registers are not of settings is not in TRM */
 		WR4(sc, TMUV2_TEUMR(0), 0x51009c00);
-		for (int i = 0; i < 7; i++)
-			WR4(sc, TMUV2_TMSAR(0), 0xE);
+		for (int i = 0; i < sc->ntsensors; i++)
+			WR4(sc, TMUV2_TMSAR(sc->tsensors[i].site_id), 0xE);
 	}
 
 	/* prepare calibration tables */
@@ -446,10 +446,14 @@ qoriq_therm_attach(device_t dev)
 		goto fail;
 	}
 	/* start monitoring */
-	sites = (1U << sc->ntsensors) - 1;
+	sites = 0;
 	if (sc->ver == 1) {
+		for (int i = 0; i < sc->ntsensors; i++)
+			sites |= 1 << (15 - sc->tsensors[i].site_id);
 		WR4(sc, TMU_TMR, 0x8C000000 | sites);
 	} else {
+		for (int i = 0; i < sc->ntsensors; i++)
+			sites |= 1 << sc->tsensors[i].site_id;
 		WR4(sc, TMUV2_TMSR, sites);
 		WR4(sc, TMU_TMR, 0x83000000);
 	}
