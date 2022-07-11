@@ -245,7 +245,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 	TAILQ_INIT(&rmrr_entries);
 	dmar_dev_parse_rmrr(domain, dev_domain, dev_busno, dev_path,
 	    dev_path_len, &rmrr_entries);
-	TAILQ_FOREACH_SAFE(entry, &rmrr_entries, unroll_link, entry1) {
+	TAILQ_FOREACH_SAFE(entry, &rmrr_entries, dmamap_link, entry1) {
 		/*
 		 * VT-d specification requires that the start of an
 		 * RMRR entry is 4k-aligned.  Buggy BIOSes put
@@ -306,7 +306,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 				    error1);
 				error = error1;
 			}
-			TAILQ_REMOVE(&rmrr_entries, entry, unroll_link);
+			TAILQ_REMOVE(&rmrr_entries, entry, dmamap_link);
 			iommu_gas_free_entry(DOM2IODOM(domain), entry);
 		}
 		for (i = 0; i < size; i++)
