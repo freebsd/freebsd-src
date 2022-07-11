@@ -19,10 +19,15 @@ host_dup(int fd)
 	return host_syscall(SYS_dup, fd);
 }
 
+/* Same system call with different names on different Linux architectures due to history */
 int
 host_fstat(int fd, struct host_kstat *sb)
 {
+#ifdef SYS_newfstat
 	return host_syscall(SYS_newfstat, fd, (uintptr_t)sb);
+#else
+	return host_syscall(SYS_fstat, fd, (uintptr_t)sb);
+#endif
 }
 
 int

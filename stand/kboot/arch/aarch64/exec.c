@@ -1,0 +1,188 @@
+/*-
+ * Copyright (c) 2006 Marcel Moolenaar
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <stand.h>
+#include <string.h>
+
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <machine/elf.h>
+
+#include <bootstrap.h>
+
+#ifdef EFI
+#include <efi.h>
+#include <efilib.h>
+
+#include "loader_efi.h"
+
+#endif
+
+#include "bootstrap.h"
+
+#include "platform/acfreebsd.h"
+#include "acconfig.h"
+#define ACPI_SYSTEM_XFACE
+#include "actypes.h"
+#include "actbl.h"
+
+#include "cache.h"
+
+#ifdef EFI
+static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
+static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
+#endif
+
+static int elf64_exec(struct preloaded_file *amp);
+static int elf64_obj_exec(struct preloaded_file *amp);
+
+/* Stub out temporarily */
+static int
+bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs)
+{
+	return EINVAL;
+}
+
+static struct file_format arm64_elf = {
+	elf64_loadfile,
+	elf64_exec
+};
+
+struct file_format *file_formats[] = {
+	&arm64_elf,
+	NULL
+};
+
+static int
+elf64_exec(struct preloaded_file *fp)
+{
+	vm_offset_t modulep, kernendp;
+	vm_offset_t clean_addr;
+	size_t clean_size;
+	struct file_metadata *md;
+	Elf_Ehdr *ehdr;
+	void (*entry)(vm_offset_t);
+	int err;
+#ifdef EFI
+	ACPI_TABLE_RSDP *rsdp;
+	char buf[24];
+	int revision;
+#endif
+	/*
+	 * Report the RSDP to the kernel. The old code used the 'hints' method
+	 * to communite this to the kernel. However, while convenient, the
+	 * 'hints' method is fragile and does not work when static hints are
+	 * compiled into the kernel. Instead, move to setting different tunables
+	 * that start with acpi. The old 'hints' can be removed before we branch
+	 * for FreeBSD 15.
+	 */
+#ifdef EFI
+	rsdp = efi_get_table(&acpi20_guid);
+	if (rsdp == NULL) {
+		rsdp = efi_get_table(&acpi_guid);
+	}
+	if (rsdp != NULL) {
+		sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
+		setenv("hint.acpi.0.rsdp", buf, 1);
+		setenv("acpi.rsdp", buf, 1);
+		revision = rsdp->Revision;
+		if (revision == 0)
+			revision = 1;
+		sprintf(buf, "%d", revision);
+		setenv("hint.acpi.0.revision", buf, 1);
+		setenv("acpi.revision", buf, 1);
+		strncpy(buf, rsdp->OemId, sizeof(rsdp->OemId));
+		buf[sizeof(rsdp->OemId)] = '\0';
+		setenv("hint.acpi.0.oem", buf, 1);
+		setenv("acpi.oem", buf, 1);
+		sprintf(buf, "0x%016x", rsdp->RsdtPhysicalAddress);
+		setenv("hint.acpi.0.rsdt", buf, 1);
+		setenv("acpi.rsdt", buf, 1);
+		if (revision >= 2) {
+			/* XXX extended checksum? */
+			sprintf(buf, "0x%016llx",
+			    (unsigned long long)rsdp->XsdtPhysicalAddress);
+			setenv("hint.acpi.0.xsdt", buf, 1);
+			setenv("acpi.xsdt", buf, 1);
+			sprintf(buf, "%d", rsdp->Length);
+			setenv("hint.acpi.0.xsdt_length", buf, 1);
+			setenv("acpi.xsdt_length", buf, 1);
+		}
+	}
+#else
+#endif
+
+	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
+        	return(EFTYPE);
+
+	ehdr = (Elf_Ehdr *)&(md->md_data);
+#ifdef EFI
+	entry = efi_translate(ehdr->e_entry);
+
+	efi_time_fini();
+#else
+	entry = (void *)ehdr->e_entry;
+#endif
+	err = bi_load(fp->f_args, &modulep, &kernendp, true);
+	if (err != 0) {
+#ifdef EFI
+		efi_time_init();
+#endif
+		return (err);
+	}
+
+	dev_cleanup();
+
+	/* Clean D-cache under kernel area and invalidate whole I-cache */
+#ifdef EFI
+	clean_addr = (vm_offset_t)efi_translate(fp->f_addr);
+	clean_size = (vm_offset_t)efi_translate(kernendp) - clean_addr;
+#else
+	clean_addr = (vm_offset_t)fp->f_addr;
+	clean_size = (vm_offset_t)kernendp - clean_addr;
+#endif
+
+	cpu_flush_dcache((void *)clean_addr, clean_size);
+	cpu_inval_icache();
+
+	(*entry)(modulep);
+
+	panic("exec returned");
+}
+
+static int
+elf64_obj_exec(struct preloaded_file *fp)
+{
+
+	printf("%s called for preloaded file %p (=%s):\n", __func__, fp,
+	    fp->f_name);
+	return (ENOSYS);
+}
+
