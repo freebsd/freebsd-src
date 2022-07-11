@@ -557,7 +557,7 @@ static int
 iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
     struct bus_dmamap_iommu *map, vm_page_t *ma, int offset, bus_size_t buflen,
     int flags, bus_dma_segment_t *segs, int *segp,
-    struct iommu_map_entries_tailq *unroll_list)
+    struct iommu_map_entries_tailq *entries)
 {
 	struct iommu_ctx *ctx;
 	struct iommu_domain *domain;
@@ -625,10 +625,7 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 
 		KASSERT((entry->flags & IOMMU_MAP_ENTRY_MAP) != 0,
 		    ("entry %p missing IOMMU_MAP_ENTRY_MAP", entry));
-		IOMMU_DMAMAP_LOCK(map);
-		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
-		IOMMU_DMAMAP_UNLOCK(map);
-		TAILQ_INSERT_TAIL(unroll_list, entry, unroll_link);
+		TAILQ_INSERT_TAIL(entries, entry, dmamap_link);
 
 		segs[seg].ds_addr = entry->start + offset;
 		segs[seg].ds_len = buflen1;
@@ -650,36 +647,26 @@ iommu_bus_dmamap_load_something(struct bus_dma_tag_iommu *tag,
 {
 	struct iommu_ctx *ctx;
 	struct iommu_domain *domain;
-	struct iommu_map_entry *entry;
-	struct iommu_map_entries_tailq entries, unroll_list;
+	struct iommu_map_entries_tailq entries;
 	int error;
 
 	ctx = tag->ctx;
 	domain = ctx->domain;
 	atomic_add_long(&ctx->loads, 1);
 
-	TAILQ_INIT(&unroll_list);
+	TAILQ_INIT(&entries);
 	error = iommu_bus_dmamap_load_something1(tag, map, ma, offset,
-	    buflen, flags, segs, segp, &unroll_list);
-	if (error != 0 && !TAILQ_EMPTY(&unroll_list)) {
+	    buflen, flags, segs, segp, &entries);
+	if (error == 0) {
+		IOMMU_DMAMAP_LOCK(map);
+		TAILQ_CONCAT(&map->map_entries, &entries, dmamap_link);
+		IOMMU_DMAMAP_UNLOCK(map);
+	} else if (!TAILQ_EMPTY(&entries)) {
 		/*
 		 * The busdma interface does not allow us to report
 		 * partial buffer load, so unfortunately we have to
 		 * revert all work done.
 		 */
-		TAILQ_INIT(&entries);
-		IOMMU_DMAMAP_LOCK(map);
-		TAILQ_FOREACH(entry, &unroll_list, unroll_link) {
-			/*
-			 * No entries other than what we have created
-			 * during the failed run might have been
-			 * inserted there in between, since we own ctx
-			 * pglock.
-			 */
-			TAILQ_REMOVE(&map->map_entries, entry, dmamap_link);
-			TAILQ_INSERT_TAIL(&entries, entry, dmamap_link);
-		}
-		IOMMU_DMAMAP_UNLOCK(map);
 		IOMMU_DOMAIN_LOCK(domain);
 		TAILQ_CONCAT(&domain->unload_entries, &entries, dmamap_link);
 		IOMMU_DOMAIN_UNLOCK(domain);
