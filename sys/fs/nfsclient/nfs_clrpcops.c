@@ -4779,7 +4779,7 @@ nfsrpc_fsinfo(vnode_t vp, struct nfsfsinfo *fsp, struct ucred *cred,
 	int error;
 
 	*attrflagp = 0;
-	NFSCL_REQSTART(nd, NFSPROC_FSINFO, vp, cred);
+	NFSCL_REQSTART(nd, NFSPROC_FSINFO, vp, NULL);
 	error = nfscl_request(nd, vp, p, cred);
 	if (error)
 		return (error);
