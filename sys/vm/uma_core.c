@@ -206,7 +206,7 @@ static enum {
  * This is the handle used to schedule events that need to happen
  * outside of the allocation fast path.
  */
-static struct callout uma_callout;
+static struct timeout_task uma_timeout_task;
 #define	UMA_TIMEOUT	20		/* Seconds for callout interval. */
 
 /*
@@ -310,7 +310,7 @@ static void zone_timeout(uma_zone_t zone, void *);
 static int hash_alloc(struct uma_hash *, u_int);
 static int hash_expand(struct uma_hash *, struct uma_hash *);
 static void hash_free(struct uma_hash *hash);
-static void uma_timeout(void *);
+static void uma_timeout(void *, int);
 static void uma_shutdown(void);
 static void *zone_alloc_item(uma_zone_t, void *, int, int);
 static void zone_free_item(uma_zone_t, void *, void *, enum zfreeskip);
@@ -1052,13 +1052,14 @@ zone_maxaction(uma_zone_t zone)
  *	Nothing
  */
 static void
-uma_timeout(void *unused)
+uma_timeout(void *unused __unused, int pending __unused)
 {
 	bucket_enable();
 	zone_foreach(zone_timeout, NULL);
 
 	/* Reschedule this event */
-	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
+	taskqueue_enqueue_timeout(taskqueue_thread, &uma_timeout_task,
+	    UMA_TIMEOUT * hz);
 }
 
 /*
@@ -3150,14 +3151,22 @@ uma_startup3(void *arg __unused)
 	uma_skip_cnt = counter_u64_alloc(M_WAITOK);
 #endif
 	zone_foreach_unlocked(zone_alloc_sysctl, NULL);
-	callout_init(&uma_callout, 1);
-	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 	booted = BOOT_RUNNING;
 
 	EVENTHANDLER_REGISTER(shutdown_post_sync, uma_shutdown, NULL,
 	    EVENTHANDLER_PRI_FIRST);
 }
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
+
+static void
+uma_startup4(void *arg __unused)
+{
+	TIMEOUT_TASK_INIT(taskqueue_thread, &uma_timeout_task, 0, uma_timeout,
+	    NULL);
+	taskqueue_enqueue_timeout(taskqueue_thread, &uma_timeout_task,
+	    UMA_TIMEOUT * hz);
+}
+SYSINIT(uma_startup4, SI_SUB_TASKQ, SI_ORDER_ANY, uma_startup4, NULL);
 
 static void
 uma_shutdown(void)
