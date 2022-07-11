@@ -988,7 +988,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 			dsp->nfsclds_sess.nfsess_clientid =
 			    odsp->nfsclds_sess.nfsess_clientid;
 			dsp->nfsclds_sess.nfsess_sequenceid =
-			    odsp->nfsclds_sess.nfsess_sequenceid;
+			    odsp->nfsclds_sess.nfsess_sequenceid + 1;
 			dsp->nfsclds_flags = odsp->nfsclds_flags;
 			if (dsp->nfsclds_servownlen > 0)
 				memcpy(dsp->nfsclds_serverown,
