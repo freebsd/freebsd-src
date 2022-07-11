@@ -772,7 +772,8 @@ dummynet_send(struct mbuf *m)
 			 * to carry reinject info.
 			 */
 			ifp = ifnet_byindexgen(pkt->if_index, pkt->if_idxgen);
-			if (pkt->dn_dir == (DIR_OUT | PROTO_LAYER2) &&
+			if (((pkt->dn_dir == (DIR_OUT | PROTO_LAYER2)) ||
+			    (pkt->dn_dir == (DIR_OUT | PROTO_LAYER2 | PROTO_IPV6))) &&
 				ifp == NULL) {
 				dst = DIR_DROP;
 			} else {
@@ -827,6 +828,7 @@ dummynet_send(struct mbuf *m)
 
 		case DIR_OUT | PROTO_LAYER2 | PROTO_IPV6:
 		case DIR_OUT | PROTO_LAYER2: /* DN_TO_ETH_OUT: */
+			MPASS(ifp != NULL);
 			ether_output_frame(ifp, m);
 			break;
 
