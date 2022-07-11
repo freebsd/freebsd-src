@@ -668,13 +668,10 @@ short_pkt_body()
 	# Try sending ever shorter ping requests
 	# BPF won't let us send anything shorter than an Ethernet header, but
 	# that's good enough for this test
-	for i in `seq 46 14`
-	do
-		$(atf_get_srcdir)/pft_ether.py \
-		    --sendif ${epair}a \
-		    --to 192.0.2.2 \
-		    --len ${i}
-	done
+	$(atf_get_srcdir)/pft_ether.py \
+	    --sendif ${epair}a \
+	    --to 192.0.2.2 \
+	    --len 14-64
 }
 
 short_pkt_cleanup()

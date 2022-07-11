@@ -61,7 +61,12 @@ def main():
 
 	args = parser.parse_args()
 
-	ping(args.sendif[0], args.to[0], int(args.len[0]))
+	if '-' in args.len[0]:
+		s=args.len[0].split('-')
+		for i in range(int(s[0]), int(s[1]) + 1):
+			ping(args.sendif[0], args.to[0], i)
+	else:
+		ping(args.sendif[0], args.to[0], int(args.len[0]))
 
 if __name__ == '__main__':
 	main()
