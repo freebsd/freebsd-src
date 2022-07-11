@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2022
+.Dd July 12, 2022
 .Dt PROTECT 1
 .Os
 .Sh NAME
@@ -112,6 +112,24 @@ bit is set to 1.
 All children of this process will also be protected if
 .Nm PI
 bit is set to 1.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "protect: procctl: Operation not permitted"
+The
+.Nm
+command does not have the required permissions to protect selected processes.
+There are many reasons why this could be the case, e.g.:
+.Bl -dash
+.It
+.Nm
+is not executed by root.
+.It
+.Nm
+is executed inside a
+.Xr jail 8 ,
+which is not supported at the moment.
+.El
+.El
 .Sh SEE ALSO
 .Xr ps 1 ,
 .Xr procctl 2 ,
