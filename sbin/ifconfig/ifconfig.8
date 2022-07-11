@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2022
+.Dd July 11, 2022
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -470,13 +470,10 @@ Assign the interface to a
 Any interface can be in multiple groups.
 .Pp
 Cloned interfaces are members of their interface family group by default.
-For example, a PPP interface such as
-.Em ppp0
-is a member of the PPP interface family group,
-.Em ppp .
-.\" The interface(s) the default route(s) point to are members of the
-.\" .Em egress
-.\" interface group.
+For example, a VLAN interface such as
+.Em vlan10
+is a member of the VLAN interface family group,
+.Em vlan .
 .It Cm -group Ar groupname
 Remove the interface from the given
 .Dq group .
