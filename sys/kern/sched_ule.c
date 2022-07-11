@@ -483,7 +483,7 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 			("Invalid priority %d on timeshare runq", pri));
 		/*
 		 * This queue contains only priorities between MIN and MAX
-		 * realtime.  Use the whole queue to represent these values.
+		 * batch.  Use the whole queue to represent these values.
 		 */
 		if ((flags & (SRQ_BORROWING|SRQ_PREEMPTED)) == 0) {
 			pri = RQ_NQS * (pri - PRI_MIN_BATCH) / PRI_BATCH_RANGE;
