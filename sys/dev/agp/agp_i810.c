@@ -1744,7 +1744,7 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 	mem->am_size = size;
 	mem->am_type = type;
 	if (type != 1 && (type != 2 || size == AGP_PAGE_SIZE))
-		mem->am_obj = vm_object_allocate(OBJT_DEFAULT,
+		mem->am_obj = vm_object_allocate(OBJT_SWAP,
 		    atop(round_page(size)));
 	else
 		mem->am_obj = 0;
