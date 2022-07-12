@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
 #include <machine/atomic.h>
@@ -888,8 +889,8 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	if (seg >= 0 &&
 	    curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 	    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-	    vm_addr_bound_ok(segs[seg].ds_addr, segs[seg].ds_len,
-	    dmat->boundary))
+	    vm_addr_bound_ok(segs[seg].ds_addr,
+	    segs[seg].ds_len + sgsize, dmat->boundary))
 		segs[seg].ds_len += sgsize;
 	} else {
 		if (++seg >= dmat->nsegments)
