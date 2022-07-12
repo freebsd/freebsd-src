@@ -1988,6 +1988,7 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (__predict_false(ifp->if_link_state != LINK_STATE_UP)) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
 		OVPN_RUNLOCK(sc);
+		m_freem(m);
 		return (ENETDOWN);
 	}
 
@@ -2005,6 +2006,7 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		/* No destination. */
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
 		OVPN_RUNLOCK(sc);
+		m_freem(m);
 		return (ENETDOWN);
 	}
 
