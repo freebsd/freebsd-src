@@ -37,3 +37,4 @@ dev/ahci/ahci_mv_fdt.c		optional	ahci
 
 arm/mv/clk/armada38x_coreclk.c	standard
 arm/mv/clk/armada38x_gen.c	standard
+arm/mv/clk/armada38x_gateclk.c	standard
