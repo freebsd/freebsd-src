@@ -204,6 +204,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	KASSERT(object->type == OBJT_DEAD,
 	    ("object %p has non-dead type %d",
 	    object, object->type));
+	KASSERT(object->charge == 0 && object->cred == NULL,
+	    ("object %p has non-zero charge %ju (%p)",
+	    object, (uintmax_t)object->charge, object->cred));
 }
 #endif
 
