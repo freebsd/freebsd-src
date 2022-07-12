@@ -1222,7 +1222,7 @@ origin_subst(Obj_Entry *obj, const char *real)
 	res = __DECONST(char *, real);
 	for (i = 0; i < (int)nitems(tokens); i++) {
 		res = origin_subst_one(tokens[i].pass_obj ? obj : NULL,
-		    res, tokens[i].kw, tokens[i].subst, i == 0);
+		    res, tokens[i].kw, tokens[i].subst, i != 0);
 	}
 	return (res);
 }
