@@ -892,7 +892,7 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 	    vm_addr_bound_ok(segs[seg].ds_addr,
 	    segs[seg].ds_len + sgsize, dmat->boundary))
 		segs[seg].ds_len += sgsize;
-	} else {
+	else {
 		if (++seg >= dmat->nsegments)
 			return (0);
 		segs[seg].ds_addr = curaddr;
