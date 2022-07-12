@@ -15,8 +15,7 @@ static const char rcsid[] =
 #include "math_private.h"
 
 float
-cabsf(z)
-	float complex z;
+cabsf(float complex z)
 {
 
 	return hypotf(crealf(z), cimagf(z));
