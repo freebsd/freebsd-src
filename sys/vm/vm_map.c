@@ -5062,7 +5062,7 @@ RetryLookupLocked:
 		if (vm_map_lock_upgrade(map))
 			goto RetryLookup;
 		entry->object.vm_object = vm_object_allocate_anon(atop(size),
-		    NULL, entry->cred, entry->cred != NULL ? size : 0);
+		    NULL, entry->cred, size);
 		entry->offset = 0;
 		entry->cred = NULL;
 		vm_map_lock_downgrade(map);
