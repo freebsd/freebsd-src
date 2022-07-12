@@ -491,7 +491,7 @@ agp_generic_alloc_memory(device_t dev, int type, vm_size_t size)
 	mem->am_id = sc->as_nextid++;
 	mem->am_size = size;
 	mem->am_type = 0;
-	mem->am_obj = vm_object_allocate(OBJT_DEFAULT, atop(round_page(size)));
+	mem->am_obj = vm_object_allocate(OBJT_SWAP, atop(round_page(size)));
 	mem->am_physical = 0;
 	mem->am_offset = 0;
 	mem->am_is_bound = 0;
