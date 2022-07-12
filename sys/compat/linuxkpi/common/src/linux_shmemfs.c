@@ -84,7 +84,7 @@ linux_shmem_file_setup(const char *name, loff_t size, unsigned long flags)
 
 	filp->f_count = 1;
 	filp->f_vnode = vp;
-	filp->f_shmem = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	filp->f_shmem = vm_pager_allocate(OBJT_SWAP, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 	if (filp->f_shmem == NULL) {
 		error = -ENOMEM;
