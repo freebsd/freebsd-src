@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jun  2, 2022" "NLnet Labs" "unbound 1.16.0"
+.TH "unbound.conf" "5" "Jul 11, 2022" "NLnet Labs" "unbound 1.16.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -2067,8 +2067,8 @@ With allow\-notify you can specify additional sources of notifies.
 When notified, the server attempts to first probe and then zone transfer.
 If the notify is from a primary, it first attempts that primary.  Otherwise
 other primaries are attempted.  If there are no primaries, but only urls, the
-file is downloaded when notified.  The primaries from primary: statements are
-allowed notify by default.
+file is downloaded when notified.  The primaries from primary: and url:
+statements are allowed notify by default.
 .TP
 .B fallback\-enabled: \fI<yes or no>
 Default no.  If enabled, Unbound falls back to querying the internet as
@@ -2682,8 +2682,8 @@ With allow\-notify you can specify additional sources of notifies.
 When notified, the server attempts to first probe and then zone transfer.
 If the notify is from a primary, it first attempts that primary.  Otherwise
 other primaries are attempted.  If there are no primaries, but only urls, the
-file is downloaded when notified.  The primaries from primary: statements are
-allowed notify by default.
+file is downloaded when notified.  The primaries from primary: and url:
+statements are allowed notify by default.
 .TP
 .B zonefile: \fI<filename>
 The filename where the zone is stored.  If not given then no zonefile is used.

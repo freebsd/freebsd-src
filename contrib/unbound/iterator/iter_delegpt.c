@@ -185,6 +185,10 @@ delegpt_add_target(struct delegpt* dp, struct regional* region,
 		else	ns->got4 = 1;
 		if(ns->got4 && ns->got6)
 			ns->resolved = 1;
+	} else {
+		if(addr_is_ip6(addr, addrlen))
+			ns->done_pside6 = 1;
+		else	ns->done_pside4 = 1;
 	}
 	log_assert(ns->port>0);
 	return delegpt_add_addr(dp, region, addr, addrlen, bogus, lame,
@@ -338,13 +342,16 @@ delegpt_count_targets(struct delegpt* dp)
 }
 
 size_t 
-delegpt_count_missing_targets(struct delegpt* dp)
+delegpt_count_missing_targets(struct delegpt* dp, int* alllame)
 {
 	struct delegpt_ns* ns;
-	size_t n = 0;
-	for(ns = dp->nslist; ns; ns = ns->next)
-		if(!ns->resolved)
-			n++;
+	size_t n = 0, nlame = 0;
+	for(ns = dp->nslist; ns; ns = ns->next) {
+		if(ns->resolved) continue;
+		n++;
+		if(ns->lame) nlame++;
+	}
+	if(alllame && n == nlame) *alllame = 1;
 	return n;
 }
 
@@ -694,6 +701,10 @@ int delegpt_add_target_mlc(struct delegpt* dp, uint8_t* name, size_t namelen,
 		else	ns->got4 = 1;
 		if(ns->got4 && ns->got6)
 			ns->resolved = 1;
+	} else {
+		if(addr_is_ip6(addr, addrlen))
+			ns->done_pside6 = 1;
+		else	ns->done_pside4 = 1;
 	}
 	log_assert(ns->port>0);
 	return delegpt_add_addr_mlc(dp, addr, addrlen, bogus, lame,

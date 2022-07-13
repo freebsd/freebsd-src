@@ -1639,10 +1639,11 @@ lookup_cache:
 		is_secure_answer = 0;
 		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
 		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
+			struct reply_info* rep = (struct reply_info*)e->data;
 			/* answer from cache - we have acquired a readlock on it */
-			if(answer_from_cache(worker, &qinfo,
-				cinfo, &need_drop, &is_expired_answer, &is_secure_answer,
-				&alias_rrset, &partial_rep, (struct reply_info*)e->data,
+			if(answer_from_cache(worker, &qinfo, cinfo, &need_drop,
+				&is_expired_answer, &is_secure_answer,
+				&alias_rrset, &partial_rep, rep,
 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 				sldns_buffer_read_u16_at(c->buffer, 2), repinfo,
 				&edns)) {
@@ -1650,15 +1651,13 @@ lookup_cache:
 				 * Note that if there is more than one pass
 				 * its qname must be that used for cache
 				 * lookup. */
-				if((worker->env.cfg->prefetch && *worker->env.now >=
-							((struct reply_info*)e->data)->prefetch_ttl) ||
-						(worker->env.cfg->serve_expired &&
-						*worker->env.now >= ((struct reply_info*)e->data)->ttl)) {
+				if((worker->env.cfg->prefetch &&
+					*worker->env.now >= rep->prefetch_ttl) ||
+					(worker->env.cfg->serve_expired &&
+					*worker->env.now > rep->ttl)) {
 
-					time_t leeway = ((struct reply_info*)e->
-						data)->ttl - *worker->env.now;
-					if(((struct reply_info*)e->data)->ttl
-						< *worker->env.now)
+					time_t leeway = rep->ttl - *worker->env.now;
+					if(rep->ttl < *worker->env.now)
 						leeway = 0;
 					lock_rw_unlock(&e->lock);
 
@@ -2218,6 +2217,7 @@ void worker_stats_clear(struct worker* worker)
 	mesh_stats_clear(worker->env.mesh);
 	worker->back->unwanted_replies = 0;
 	worker->back->num_tcp_outgoing = 0;
+	worker->back->num_udp_outgoing = 0;
 }
 
 void worker_start_accept(void* arg)

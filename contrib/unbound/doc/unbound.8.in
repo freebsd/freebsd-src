@@ -1,4 +1,4 @@
-.TH "unbound" "8" "Jun  2, 2022" "NLnet Labs" "unbound 1.16.0"
+.TH "unbound" "8" "Jul 11, 2022" "NLnet Labs" "unbound 1.16.1"
 .\"
 .\" unbound.8 -- unbound manual
 .\"
@@ -9,7 +9,7 @@
 .\"
 .SH "NAME"
 .B unbound
-\- Unbound DNS validating resolver 1.16.0.
+\- Unbound DNS validating resolver 1.16.1.
 .SH "SYNOPSIS"
 .B unbound
 .RB [ \-h ]
@@ -75,7 +75,7 @@ concurrently.
 .TP
 .B \-v
 Increase verbosity. If given multiple times, more information is logged.
-This is in addition to the verbosity (if any) from the config file.
+This is added to the verbosity (if any) from the config file.
 .TP
 .B \-V
 Show the version number and build options, and exit.

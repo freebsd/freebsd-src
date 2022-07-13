@@ -367,6 +367,7 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 	struct sock_list* blacklist, time_t prefetch)
 {
 	int got_num = 0, low_rtt = 0, swap_to_front, rtt_band = RTT_BAND, nth;
+	int alllame = 0;
 	size_t num_results;
 	struct delegpt_addr* a, *n, *prev=NULL;
 
@@ -376,7 +377,10 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 	if(got_num == 0)
 		return 0;
 	if(low_rtt >= USEFUL_SERVER_TOP_TIMEOUT &&
-		(delegpt_count_missing_targets(dp) > 0 || open_target > 0)) {
+		/* If all missing (or not fully resolved) targets are lame,
+		 * then use the remaining lame address. */
+		((delegpt_count_missing_targets(dp, &alllame) > 0 && !alllame) ||
+		open_target > 0)) {
 		verbose(VERB_ALGO, "Bad choices, trying to get more choice");
 		return 0; /* we want more choice. The best choice is a bad one.
 			     return 0 to force the caller to fetch more */

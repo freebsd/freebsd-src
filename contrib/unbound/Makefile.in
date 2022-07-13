@@ -345,14 +345,12 @@ test:	unittest$(EXEEXT) testbound$(EXEEXT)
 	./unittest$(EXEEXT)
 	./testbound$(EXEEXT) -s
 	for x in $(srcdir)/testdata/*.rpl; do \
-		printf "%s" "$$x "; \
-		if ./testbound$(EXEEXT) -p $$x >/dev/null 2>&1; then \
-			echo OK; \
+		output=`./testbound$(EXEEXT) -p $$x -o -vvvvv 2>&1`; \
+		if test $$? -eq 0; then \
+			printf "%s OK\n" "$$x "; \
 		else \
-			echo failed; \
-			./testbound$(EXEEXT) -p $$x -o -vvvvv; \
-			printf "%s" "$$x "; \
-			echo failed; \
+			printf "%s\n" "$$output "; \
+			printf "%s failed\n" "$$x "; \
 			exit 1; \
 		fi; \
 	done

@@ -1,8 +1,0 @@
-example.com. IN SOA ns.example.com. hostmaster.example.com. 200154054 28800 7200 604800 3600
-example.com. IN NS ns.example.com.
-example.com. IN ZONEMD 200154054 1 2 D207FBBD1403DC8FDDC0159AB1F4B4C54A2FEB814E5CB1E82841C51D1372E78E4F6C75F7A9D710CC78C54E2DB3B92D07C72990644F93E1C44AC356EACA3980C5
-www.example.com. IN A 192.0.2.1
-ns.example.com. IN A 192.0.2.1
-bar.example.com. IN A 1.2.3.4
-ding.example.com. IN A 1.2.3.4
-foo.example.com. IN A 1.2.3.4

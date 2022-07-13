@@ -811,7 +811,8 @@ static void mesh_schedule_prefetch_subnet(struct mesh_area* mesh,
 			log_err("prefetch_subnet subnet_option_from_ss: invalid data");
 			return;
 		}
-		subnet_ecs_opt_list_append(&ecs, &s->s.edns_opts_front_in, &s->s);
+		subnet_ecs_opt_list_append(&ecs, &s->s.edns_opts_front_in,
+			&s->s, s->s.region);
 		if(!s->s.edns_opts_front_in) {
 			log_err("prefetch_subnet subnet_ecs_opt_list_append: out of memory");
 			return;

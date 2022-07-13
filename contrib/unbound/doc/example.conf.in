@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.16.0.
+# See unbound.conf(5) man page, version 1.16.1.
 #
 # this is a comment.
 
@@ -1045,8 +1045,8 @@ remote-control:
 # has a copy of the root for local usage.  The second serves example.org
 # authoritatively.  zonefile: reads from file (and writes to it if you also
 # download it), primary: fetches with AXFR and IXFR, or url to zonefile.
-# With allow-notify: you can give additional (apart from primaries) sources of
-# notifies.
+# With allow-notify: you can give additional (apart from primaries and urls)
+# sources of notifies.
 # auth-zone:
 #	name: "."
 #	primary: 199.9.14.201         # b.root-servers.net

@@ -1,8 +1,0 @@
-$ORIGIN failure-cases.
-$TTL 3600
-
-@       SOA     primary admin 0 0 0 0 0
-
-; 256 is too many characters for an alpn; maximum is 255
-
-f23	HTTPS   1 foo.example.com. ( alpn="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" )

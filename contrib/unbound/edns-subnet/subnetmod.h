@@ -76,6 +76,7 @@ struct subnet_msg_cache_data {
 struct subnet_qstate {
 	/** We need the hash for both cache lookup and insert */
 	hashvalue_type qinfo_hash;
+	int qinfo_hash_calculated;
 	/** ecs_data for client communication */
 	struct ecs_data	ecs_client_in;
 	struct ecs_data	ecs_client_out;
@@ -92,6 +93,8 @@ struct subnet_qstate {
 	uint8_t max_scope;
 	/** has the subnet module been started with no_cache_store? */
 	int started_no_cache_store;
+	/** has the subnet module been started with no_cache_lookup? */
+	int started_no_cache_lookup;
 };
 
 void subnet_data_delete(void* d, void* ATTR_UNUSED(arg));
@@ -145,7 +148,7 @@ void subnet_markdel(void* key);
 
 /** Add ecs struct to edns list, after parsing it to wire format. */
 void subnet_ecs_opt_list_append(struct ecs_data* ecs, struct edns_option** list,
-	struct module_qstate *qstate);
+	struct module_qstate *qstate, struct regional *region);
 
 /** Create ecs_data from the sockaddr_storage information. */
 void subnet_option_from_ss(struct sockaddr_storage *ss, struct ecs_data* ecs,

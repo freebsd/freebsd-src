@@ -1,8 +1,0 @@
-$ORIGIN failure-cases.
-$TTL 3600
-
-@       SOA     primary admin 0 0 0 0 0
-
-; Port must be a positive number < 65536
-
-f22	HTTPS   1 foo.example.com. port=65536

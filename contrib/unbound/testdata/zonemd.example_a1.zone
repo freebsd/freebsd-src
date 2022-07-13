@@ -1,6 +1,0 @@
-example.      86400   IN  SOA     ns1 admin 2018031900 ( 1800 900 604800 86400 )
-              86400   IN  NS      ns1
-              86400   IN  NS      ns2
-              86400   IN  ZONEMD  2018031900 1 1 ( c68090d90a7aed71 6bc459f9340e3d7c 1370d4d24b7e2fc3 a1ddc0b9a87153b9 a9713b3c9ae5cc27 777f98b8e730044c )
-ns1           3600    IN  A       203.0.113.63
-ns2           3600    IN  AAAA    2001:db8::63

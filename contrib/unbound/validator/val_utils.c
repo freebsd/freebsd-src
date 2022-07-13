@@ -458,7 +458,7 @@ verify_dnskeys_with_ds_rr(struct module_env* env, struct val_env* ve,
 		}
 		/* If it didn't validate with the DNSKEY, try the next one! */
 	}
-	if(numsizesupp != 0) {
+	if(numsizesupp != 0 || sec == sec_status_indeterminate) {
 		/* there is a working DS, but that DNSKEY is not supported */
 		return sec_status_insecure;
 	}

@@ -725,6 +725,8 @@ struct ub_server_stats {
 	long long qtcp;
 	/** number of outgoing queries over TCP */
 	long long qtcp_outgoing;
+	/** number of outgoing queries over UDP */
+	long long qudp_outgoing;
 	/** number of queries over (DNS over) TLS */
 	long long qtls;
 	/** number of queries over (DNS over) HTTPS */
