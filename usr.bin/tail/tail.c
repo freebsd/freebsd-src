@@ -59,12 +59,14 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
 
 #include "extern.h"
 
-int Fflag, fflag, qflag, rflag, rval, no_files;
+int Fflag, fflag, qflag, rflag, rval, no_files, vflag;
 fileargs_t *fa;
 
 static void obsolete(char **);
@@ -75,6 +77,9 @@ static const struct option long_opts[] =
 	{"blocks",	required_argument,	NULL, 'b'},
 	{"bytes",	required_argument,	NULL, 'c'},
 	{"lines",	required_argument,	NULL, 'n'},
+	{"quiet",	no_argument,		NULL, 'q'},
+	{"silent",	no_argument,		NULL, 'q'},
+	{"verbose",	no_argument,		NULL, 'v'},
 	{NULL,		no_argument,		NULL, 0}
 };
 
@@ -88,7 +93,6 @@ main(int argc, char *argv[])
 	enum STYLE style;
 	int ch, first;
 	file_info_t file, *filep, *files;
-	char *p;
 	cap_rights_t rights;
 
 	/*
@@ -106,8 +110,9 @@ main(int argc, char *argv[])
 #define	ARG(units, forward, backward) {					\
 	if (style)							\
 		usage();						\
-	off = strtoll(optarg, &p, 10) * (units);                        \
-	if (*p)								\
+	if (expand_number(optarg, &off))				\
+		err(1, "illegal offset -- %s", optarg);			\
+	if (off > INT64_MAX / units || off < INT64_MIN / units )	\
 		errx(1, "illegal offset -- %s", optarg);		\
 	switch(optarg[0]) {						\
 	case '+':							\
@@ -127,7 +132,7 @@ main(int argc, char *argv[])
 	obsolete(argv);
 	style = NOTSET;
 	off = 0;
-	while ((ch = getopt_long(argc, argv, "+Fb:c:fn:qr", long_opts, NULL)) !=
+	while ((ch = getopt_long(argc, argv, "+Fb:c:fn:qrv", long_opts, NULL)) !=
 	    -1)
 		switch(ch) {
 		case 'F':	/* -F is superset of (and implies) -f */
@@ -147,9 +152,14 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			qflag = 1;
+			vflag = 0;
 			break;
 		case 'r':
 			rflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
+			qflag = 0;
 			break;
 		case '?':
 		default:
@@ -230,7 +240,7 @@ main(int argc, char *argv[])
 				ierr(fn);
 				continue;
 			}
-			if (argc > 1 && !qflag) {
+			if (vflag || (qflag == 0 && argc > 1)) {
 				printfn(fn, !first);
 				first = 0;
 			}

@@ -77,5 +77,5 @@ int mapprint(struct mapinfo *, off_t, off_t);
 int maparound(struct mapinfo *, off_t);
 void printfn(const char *, int);
 
-extern int Fflag, fflag, qflag, rflag, rval, no_files;
+extern int Fflag, fflag, qflag, rflag, rval, no_files, vflag;
 extern fileargs_t *fa;
