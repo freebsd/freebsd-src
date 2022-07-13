@@ -136,6 +136,7 @@ Else this function returns zero.
 .Fn "cuse_vmfree" "void *"
 This function frees memory allocated by
 .Fn cuse_vmalloc .
+This function is NULL safe.
 Note that the
 cuse library will internally not free the memory until the
 .Fn cuse_uninit
