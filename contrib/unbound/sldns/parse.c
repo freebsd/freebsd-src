@@ -34,7 +34,7 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 {
 	int c, prev_c;
 	int p; /* 0 -> no parentheses seen, >0 nr of ( seen */
-	int com, quoted;
+	int com, quoted, only_blank;
 	char *t;
 	size_t i;
 	const char *d;
@@ -53,6 +53,7 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 	com = 0;
 	quoted = 0;
 	prev_c = 0;
+	only_blank = 1;	/* Assume we got only <blank> until now */
 	t = token;
 	if (del[0] == '"') {
 		quoted = 1;
@@ -101,6 +102,22 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 			if (line_nr) {
 				*line_nr = *line_nr + 1;
 			}
+			if (only_blank && i > 0) {
+				/* Got only <blank> so far. Reset and try
+				 * again with the next line.
+				 */
+				i = 0;
+				t = token;
+			}
+			if (p == 0) {
+				/* If p != 0 then the next line is a continuation. So
+				 * we assume that the next line starts with a blank only
+				 * if it is actually a new line.
+				 */
+				only_blank = 1;	/* Assume next line starts with
+						 * <blank>.
+						 */
+			}
 			if (p == 0 && i > 0) {
 				goto tokenread;
 			} else {
@@ -131,12 +148,29 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 
 		/* check if we hit the delim */
 		for (d = del; *d; d++) {
-			if (c == *d && i > 0 && prev_c != '\\' && p == 0) {
-				if (c == '\n' && line_nr) {
-					*line_nr = *line_nr + 1;
-				}
-				goto tokenread;
+			if (c == *d)
+				break;
+		}
+
+		if (c == *d && i > 0 && prev_c != '\\' && p == 0) {
+			if (c == '\n' && line_nr) {
+				*line_nr = *line_nr + 1;
 			}
+			if (only_blank) {
+				/* Got only <blank> so far. Reset and
+				 * try again with the next line.
+				 */
+				i = 0;
+				t = token;
+				only_blank = 1;
+				prev_c = c;
+				continue;
+			}
+			goto tokenread;
+		}
+		if (c != ' ' && c != '\t') {
+			/* Found something that is not <blank> */
+			only_blank= 0;
 		}
 		if (c != '\0' && c != '\n') {
 			i++;
@@ -149,8 +183,13 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 		if (c != '\0' && c != '\n') {
 			*t++ = c;
 		}
-		if (c == '\n' && line_nr) {
-			*line_nr = *line_nr + 1;
+		if (c == '\n') {
+			if (line_nr) {
+				*line_nr = *line_nr + 1;
+			}
+			only_blank = 1;	/* Assume next line starts with
+					 * <blank>.
+					 */
 		}
 		if (c == '\\' && prev_c == '\\')
 			prev_c = 0;

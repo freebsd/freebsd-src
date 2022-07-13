@@ -1162,10 +1162,11 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			(const unsigned char **)&pTargetCert->pbCertEncoded,
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
+			unsigned long error = ERR_get_error();
 			/* return error if a cert fails */
 			verbose(VERB_ALGO, "%s %d:%s",
 				"Unable to parse certificate in memory",
-				(int)ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
+				(int)error, ERR_error_string(error, NULL));
 			return 0;
 		}
 		else {
@@ -1176,10 +1177,11 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 				/* Ignore error X509_R_CERT_ALREADY_IN_HASH_TABLE which means the
 				* certificate is already in the store.  */
 				if(ERR_GET_LIB(error) != ERR_LIB_X509 ||
-				   ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+					ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+					error = ERR_get_error();
 					verbose(VERB_ALGO, "%s %d:%s\n",
-					    "Error adding certificate", (int)ERR_get_error(),
-					     ERR_error_string(ERR_get_error(), NULL));
+					    "Error adding certificate", (int)error,
+					     ERR_error_string(error, NULL));
 					X509_free(cert1);
 					return 0;
 				}

@@ -988,6 +988,8 @@ print_ext(RES* ssl, struct ub_stats_info* s)
 		(unsigned long)s->svr.qtcp)) return 0;
 	if(!ssl_printf(ssl, "num.query.tcpout"SQ"%lu\n", 
 		(unsigned long)s->svr.qtcp_outgoing)) return 0;
+	if(!ssl_printf(ssl, "num.query.udpout"SQ"%lu\n",
+		(unsigned long)s->svr.qudp_outgoing)) return 0;
 	if(!ssl_printf(ssl, "num.query.tls"SQ"%lu\n", 
 		(unsigned long)s->svr.qtls)) return 0;
 	if(!ssl_printf(ssl, "num.query.tls.resume"SQ"%lu\n", 

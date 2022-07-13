@@ -28,6 +28,7 @@ END {
 	print "unbound_hits_queries{type=\"total.num.prefetch\"} " val["total.num.prefetch"];
 	print "unbound_hits_queries{type=\"num.query.tcp\"} " val["num.query.tcp"];
 	print "unbound_hits_queries{type=\"num.query.tcpout\"} " val["num.query.tcpout"];
+	print "unbound_hits_queries{type=\"num.query.udpout\"} " val["num.query.udpout"];
 	print "unbound_hits_queries{type=\"num.query.tls\"} " val["num.query.tls"];
 	print "unbound_hits_queries{type=\"num.query.tls.resume\"} " val["num.query.tls.resume"];
 	print "unbound_hits_queries{type=\"num.query.ipv6\"} " val["num.query.ipv6"];

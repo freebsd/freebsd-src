@@ -113,6 +113,8 @@ struct outside_network {
 	/** if we perform udp-connect, connect() for UDP socket to mitigate
 	 * ICMP side channel leakage */
 	int udp_connect;
+	/** number of udp packets sent. */
+	size_t num_udp_outgoing;
 
 	/** array of outgoing IP4 interfaces */
 	struct port_if* ip4_ifs;

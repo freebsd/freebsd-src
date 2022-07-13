@@ -281,6 +281,7 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 	/* values from outside network */
 	s->svr.unwanted_replies = (long long)worker->back->unwanted_replies;
 	s->svr.qtcp_outgoing = (long long)worker->back->num_tcp_outgoing;
+	s->svr.qudp_outgoing = (long long)worker->back->num_udp_outgoing;
 
 	/* get and reset validator rrset bogus number */
 	s->svr.rrset_bogus = (long long)get_rrset_bogus(worker, reset);
@@ -424,6 +425,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 		total->svr.qclass_big += a->svr.qclass_big;
 		total->svr.qtcp += a->svr.qtcp;
 		total->svr.qtcp_outgoing += a->svr.qtcp_outgoing;
+		total->svr.qudp_outgoing += a->svr.qudp_outgoing;
 		total->svr.qtls += a->svr.qtls;
 		total->svr.qtls_resume += a->svr.qtls_resume;
 		total->svr.qhttps += a->svr.qhttps;

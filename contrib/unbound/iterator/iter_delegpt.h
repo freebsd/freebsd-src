@@ -330,9 +330,10 @@ void delegpt_add_unused_targets(struct delegpt* dp);
 /**
  * Count number of missing targets. These are ns names with no resolved flag.
  * @param dp: delegation point.
+ * @param alllame: if set, check if all the missing targets are lame.
  * @return number of missing targets (or 0).
  */
-size_t delegpt_count_missing_targets(struct delegpt* dp);
+size_t delegpt_count_missing_targets(struct delegpt* dp, int* alllame);
 
 /** count total number of targets in dp */
 size_t delegpt_count_targets(struct delegpt* dp);
