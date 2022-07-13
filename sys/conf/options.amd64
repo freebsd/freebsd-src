@@ -63,3 +63,6 @@ EFIRT			opt_efirt.h
 
 # Don't create a "legacy" PCI bridge if none is found.
 NO_LEGACY_PCIB		opt_cpu.h
+
+# Compatibility with Linux MP table bugs.
+MPTABLE_LINUX_BUG_COMPAT
