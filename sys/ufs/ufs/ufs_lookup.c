@@ -177,12 +177,12 @@ ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
  *	  nor deleting, add name to cache
  */
 int
-ufs_lookup(ap)
+ufs_lookup(
 	struct vop_cachedlookup_args /* {
 		struct vnode *a_dvp;
 		struct vnode **a_vpp;
 		struct componentname *a_cnp;
-	} */ *ap;
+	} */ *ap)
 {
 
 	return (ufs_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
@@ -760,10 +760,7 @@ found:
 }
 
 void
-ufs_dirbad(ip, offset, how)
-	struct inode *ip;
-	doff_t offset;
-	char *how;
+ufs_dirbad(struct inode *ip, doff_t offset, char *how)
 {
 	struct mount *mp;
 
@@ -787,10 +784,7 @@ ufs_dirbad(ip, offset, how)
  *	name must be as long as advertised, and null terminated
  */
 int
-ufs_dirbadentry(dp, ep, entryoffsetinblock)
-	struct vnode *dp;
-	struct direct *ep;
-	int entryoffsetinblock;
+ufs_dirbadentry(struct vnode *dp, struct direct *ep, int entryoffsetinblock)
 {
 	int i, namlen;
 
@@ -830,10 +824,8 @@ bad:
  * argument ip is the inode to which the new directory entry will refer.
  */
 void
-ufs_makedirentry(ip, cnp, newdirp)
-	struct inode *ip;
-	struct componentname *cnp;
-	struct direct *newdirp;
+ufs_makedirentry(struct inode *ip, struct componentname *cnp,
+    struct direct *newdirp)
 {
 	u_int namelen;
 
@@ -872,12 +864,8 @@ ufs_makedirentry(ip, cnp, newdirp)
  * soft dependency code).
  */
 int
-ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
-	struct vnode *dvp;
-	struct vnode *tvp;
-	struct direct *dirp;
-	struct componentname *cnp;
-	struct buf *newdirbp;
+ufs_direnter(struct vnode *dvp, struct vnode *tvp, struct direct *dirp,
+    struct componentname *cnp, struct buf *newdirbp)
 {
 	struct ucred *cr;
 	struct thread *td;
@@ -1130,11 +1118,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
  * to the size of the previous entry.
  */
 int
-ufs_dirremove(dvp, ip, flags, isrmdir)
-	struct vnode *dvp;
-	struct inode *ip;
-	int flags;
-	int isrmdir;
+ufs_dirremove(struct vnode *dvp, struct inode *ip, int flags, int isrmdir)
 {
 	struct inode *dp;
 	struct direct *ep, *rep;
@@ -1256,11 +1240,8 @@ out:
  * set up by a call to namei.
  */
 int
-ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
-	struct inode *dp, *oip;
-	ino_t newinum;
-	int newtype;
-	int isrmdir;
+ufs_dirrewrite(struct inode *dp, struct inode *oip, ino_t newinum, int newtype,
+    int isrmdir)
 {
 	struct buf *bp;
 	struct direct *ep;
@@ -1334,10 +1315,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
  * NB: does not handle corrupted directories.
  */
 int
-ufs_dirempty(ip, parentino, cred)
-	struct inode *ip;
-	ino_t parentino;
-	struct ucred *cred;
+ufs_dirempty(struct inode *ip, ino_t parentino, struct ucred *cred)
 {
 	doff_t off;
 	struct dirtemplate dbuf;

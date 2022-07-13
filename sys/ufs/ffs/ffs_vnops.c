@@ -471,13 +471,13 @@ ffs_fdatasync(struct vop_fdatasync_args *ap)
 }
 
 static int
-ffs_lock(ap)
+ffs_lock(
 	struct vop_lock1_args /* {
 		struct vnode *a_vp;
 		int a_flags;
 		char *file;
 		int line;
-	} */ *ap;
+	} */ *ap)
 {
 #if !defined(NO_FFS_SNAPSHOT) || defined(DIAGNOSTIC)
 	struct vnode *vp = ap->a_vp;
@@ -633,13 +633,13 @@ ffs_read_hole(struct uio *uio, long xfersize, long *size)
  * Vnode op for reading.
  */
 static int
-ffs_read(ap)
+ffs_read(
 	struct vop_read_args /* {
 		struct vnode *a_vp;
 		struct uio *a_uio;
 		int a_ioflag;
 		struct ucred *a_cred;
-	} */ *ap;
+	} */ *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
@@ -824,13 +824,13 @@ ffs_read(ap)
  * Vnode op for writing.
  */
 static int
-ffs_write(ap)
+ffs_write(
 	struct vop_write_args /* {
 		struct vnode *a_vp;
 		struct uio *a_uio;
 		int a_ioflag;
 		struct ucred *a_cred;
-	} */ *ap;
+	} */ *ap)
 {
 	struct vnode *vp;
 	struct uio *uio;
@@ -1506,14 +1506,12 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
  * Otherwise we just fall through and do the usual thing.
  */
 static int
-ffsext_strategy(struct vop_strategy_args *ap)
-/*
-struct vop_strategy_args {
-	struct vnodeop_desc *a_desc;
-	struct vnode *a_vp;
-	struct buf *a_bp;
-};
-*/
+ffsext_strategy(
+	struct vop_strategy_args /* {
+		struct vnodeop_desc *a_desc;
+		struct vnode *a_vp;
+		struct buf *a_bp;
+	} */ *ap)
 {
 	struct vnode *vp;
 	daddr_t lbn;
@@ -1531,15 +1529,13 @@ struct vop_strategy_args {
  * Vnode extattr transaction commit/abort
  */
 static int
-ffs_openextattr(struct vop_openextattr_args *ap)
-/*
-struct vop_openextattr_args {
-	struct vnodeop_desc *a_desc;
-	struct vnode *a_vp;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ffs_openextattr(
+	struct vop_openextattr_args /* {
+		struct vnodeop_desc *a_desc;
+		struct vnode *a_vp;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
@@ -1552,16 +1548,14 @@ struct vop_openextattr_args {
  * Vnode extattr transaction commit/abort
  */
 static int
-ffs_closeextattr(struct vop_closeextattr_args *ap)
-/*
-struct vop_closeextattr_args {
-	struct vnodeop_desc *a_desc;
-	struct vnode *a_vp;
-	int a_commit;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ffs_closeextattr(
+	struct vop_closeextattr_args /* {
+		struct vnodeop_desc *a_desc;
+		struct vnode *a_vp;
+		int a_commit;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct vnode *vp;
 
@@ -1584,16 +1578,14 @@ struct vop_closeextattr_args {
  * Vnode operation to remove a named attribute.
  */
 static int
-ffs_deleteextattr(struct vop_deleteextattr_args *ap)
-/*
-vop_deleteextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	IN const char *a_name;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ffs_deleteextattr(
+	struct vop_deleteextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		IN const char *a_name;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
@@ -1666,18 +1658,16 @@ vop_deleteextattr {
  * Vnode operation to retrieve a named extended attribute.
  */
 static int
-ffs_getextattr(struct vop_getextattr_args *ap)
-/*
-vop_getextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	IN const char *a_name;
-	INOUT struct uio *a_uio;
-	OUT size_t *a_size;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ffs_getextattr(
+	struct vop_getextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		IN const char *a_name;
+		INOUT struct uio *a_uio;
+		OUT size_t *a_size;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct inode *ip;
 	u_char *eae, *p;
@@ -1720,17 +1710,15 @@ vop_getextattr {
  * Vnode operation to retrieve extended attributes on a vnode.
  */
 static int
-ffs_listextattr(struct vop_listextattr_args *ap)
-/*
-vop_listextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	INOUT struct uio *a_uio;
-	OUT size_t *a_size;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ffs_listextattr(
+	struct vop_listextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		INOUT struct uio *a_uio;
+		OUT size_t *a_size;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct inode *ip;
 	struct extattr *eap, *eaend;
@@ -1779,17 +1767,15 @@ vop_listextattr {
  * Vnode operation to set a named attribute.
  */
 static int
-ffs_setextattr(struct vop_setextattr_args *ap)
-/*
-vop_setextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	IN const char *a_name;
-	INOUT struct uio *a_uio;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ffs_setextattr(
+	struct vop_setextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		IN const char *a_name;
+		INOUT struct uio *a_uio;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
@@ -1910,13 +1896,11 @@ vop_setextattr {
  * Vnode pointer to File handle
  */
 static int
-ffs_vptofh(struct vop_vptofh_args *ap)
-/*
-vop_vptofh {
-	IN struct vnode *a_vp;
-	IN struct fid *a_fhp;
-};
-*/
+ffs_vptofh(
+	struct vop_vptofh_args /* {
+		IN struct vnode *a_vp;
+		IN struct fid *a_fhp;
+	} */ *ap)
 {
 	struct inode *ip;
 	struct ufid *ufhp;

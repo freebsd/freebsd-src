@@ -903,10 +903,7 @@ loop:
  * Common code for mount and mountroot
  */
 static int
-ffs_mountfs(odevvp, mp, td)
-	struct vnode *odevvp;
-	struct mount *mp;
-	struct thread *td;
+ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 {
 	struct ufsmount *ump;
 	struct fs *fs;
@@ -1272,10 +1269,9 @@ SYSCTL_INT(_debug, OID_AUTO, bigcgs, CTLFLAG_RW, &bigcgs, 0, "");
  * Unfortunately new bits get added.
  */
 static void
-ffs_oldfscompat_read(fs, ump, sblockloc)
-	struct fs *fs;
-	struct ufsmount *ump;
-	ufs2_daddr_t sblockloc;
+ffs_oldfscompat_read(struct fs *fs,
+	struct ufsmount *ump,
+	ufs2_daddr_t sblockloc)
 {
 	off_t maxfilesize;
 
@@ -1332,9 +1328,7 @@ ffs_oldfscompat_read(fs, ump, sblockloc)
  * Unfortunately new bits get added.
  */
 void
-ffs_oldfscompat_write(fs, ump)
-	struct fs *fs;
-	struct ufsmount *ump;
+ffs_oldfscompat_write(struct fs *fs, struct ufsmount *ump)
 {
 
 	/*
@@ -1358,9 +1352,7 @@ ffs_oldfscompat_write(fs, ump)
  * unmount system call
  */
 static int
-ffs_unmount(mp, mntflags)
-	struct mount *mp;
-	int mntflags;
+ffs_unmount(struct mount *mp, int mntflags)
 {
 	struct thread *td;
 	struct ufsmount *ump = VFSTOUFS(mp);
@@ -1480,10 +1472,7 @@ fail1:
  * Flush out all the files in a filesystem.
  */
 int
-ffs_flushfiles(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
+ffs_flushfiles(struct mount *mp, int flags, struct thread *td)
 {
 	struct ufsmount *ump;
 	int qerror, error;
@@ -1566,9 +1555,7 @@ ffs_flushfiles(mp, flags, td)
  * Get filesystem statistics.
  */
 static int
-ffs_statfs(mp, sbp)
-	struct mount *mp;
-	struct statfs *sbp;
+ffs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct ufsmount *ump;
 	struct fs *fs;
@@ -1625,8 +1612,7 @@ ffs_sync_lazy_filter(struct vnode *vp, void *arg __unused)
  * disk by syncer.
  */
 static int
-ffs_sync_lazy(mp)
-     struct mount *mp;
+ffs_sync_lazy(struct mount *mp)
 {
 	struct vnode *mvp, *vp;
 	struct inode *ip;
@@ -1684,9 +1670,7 @@ sbupdate:
  * vfs_busy().
  */
 static int
-ffs_sync(mp, waitfor)
-	struct mount *mp;
-	int waitfor;
+ffs_sync(struct mount *mp, int waitfor)
 {
 	struct vnode *mvp, *vp, *devvp;
 	struct thread *td;
@@ -1831,22 +1815,17 @@ loop:
 }
 
 int
-ffs_vget(mp, ino, flags, vpp)
-	struct mount *mp;
-	ino_t ino;
-	int flags;
-	struct vnode **vpp;
+ffs_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 {
 	return (ffs_vgetf(mp, ino, flags, vpp, 0));
 }
 
 int
-ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
-	struct mount *mp;
-	ino_t ino;
-	int flags;
-	struct vnode **vpp;
-	int ffs_flags;
+ffs_vgetf(struct mount *mp,
+	ino_t ino,
+	int flags,
+	struct vnode **vpp,
+	int ffs_flags)
 {
 	struct fs *fs;
 	struct inode *ip;
@@ -2050,11 +2029,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
  *   those rights via. exflagsp and credanonp
  */
 static int
-ffs_fhtovp(mp, fhp, flags, vpp)
-	struct mount *mp;
-	struct fid *fhp;
-	int flags;
-	struct vnode **vpp;
+ffs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct ufid *ufhp;
 
@@ -2064,13 +2039,12 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 }
 
 int
-ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
-	struct mount *mp;
-	ino_t ino;
-	u_int64_t gen;
-	int lflags;
-	struct vnode **vpp;
-	int ffs_flags;
+ffs_inotovp(struct mount *mp,
+	ino_t ino,
+	u_int64_t gen,
+	int lflags,
+	struct vnode **vpp,
+	int ffs_flags)
 {
 	struct ufsmount *ump;
 	struct vnode *nvp;
@@ -2125,8 +2099,7 @@ ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
  * Initialize the filesystem.
  */
 static int
-ffs_init(vfsp)
-	struct vfsconf *vfsp;
+ffs_init(struct vfsconf *vfsp)
 {
 
 	ffs_susp_initialize();
@@ -2138,8 +2111,7 @@ ffs_init(vfsp)
  * Undo the work of ffs_init().
  */
 static int
-ffs_uninit(vfsp)
-	struct vfsconf *vfsp;
+ffs_uninit(struct vfsconf *vfsp)
 {
 	int ret;
 
@@ -2166,10 +2138,7 @@ struct devfd {
  * Write a superblock and associated information back to disk.
  */
 int
-ffs_sbupdate(ump, waitfor, suspended)
-	struct ufsmount *ump;
-	int waitfor;
-	int suspended;
+ffs_sbupdate(struct ufsmount *ump, int waitfor, int suspended)
 {
 	struct fs *fs;
 	struct buf *sbbp;
