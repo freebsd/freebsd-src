@@ -1107,7 +1107,7 @@ zone_maxaction(uma_zone_t zone)
  *	Nothing
  */
 static void
-uma_timeout(void *unused __unused, int pending __unused)
+uma_timeout(void *context __unused, int pending __unused)
 {
 	bucket_enable();
 	zone_foreach(zone_timeout, NULL);
