@@ -3,6 +3,7 @@
 .include <src.opts.mk>
 
 PROG=	head
+LIBADD=	util
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
