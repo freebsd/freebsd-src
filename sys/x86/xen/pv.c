@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xen_pv.h>
 
+#include <contrib/xen/arch-x86/cpuid.h>
 #include <contrib/xen/arch-x86/hvm/start_info.h>
 #include <contrib/xen/vcpu.h>
 
@@ -117,6 +118,44 @@ static struct hvm_start_info *start_info;
 
 /*-------------------------------- Xen PV init -------------------------------*/
 
+static int
+isxen(void)
+{
+	static int xen = -1;
+	uint32_t base;
+	u_int regs[4];
+
+	if (xen != -1)
+		return (xen);
+
+	/*
+	 * The full code for identifying which hypervisor we're running under
+	 * is in sys/x86/x86/identcpu.c and runs later in the boot process;
+	 * this is sufficient to distinguish Xen PVH booting from non-Xen PVH
+	 * and skip some very early Xen-specific code in the non-Xen case.
+	 */
+	xen = 0;
+	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
+		do_cpuid(base, regs);
+		if (regs[1] == XEN_CPUID_SIGNATURE_EBX &&
+		    regs[2] == XEN_CPUID_SIGNATURE_ECX &&
+		    regs[3] == XEN_CPUID_SIGNATURE_EDX) {
+			xen = 1;
+			break;
+		}
+	}
+	return (xen);
+}
+
+#define CRASH(...) do {					\
+	if (isxen()) {					\
+		xc_printf(__VA_ARGS__);			\
+		HYPERVISOR_shutdown(SHUTDOWN_crash);	\
+	} else {					\
+		halt();					\
+	}						\
+} while (0)
+
 uint64_t
 hammer_time_xen(vm_paddr_t start_info_paddr)
 {
@@ -126,21 +165,21 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	char *kenv;
 	int rc;
 
-	xen_domain_type = XEN_HVM_DOMAIN;
-	vm_guest = VM_GUEST_XEN;
-
-	rc = xen_hvm_init_hypercall_stubs(XEN_HVM_INIT_EARLY);
-	if (rc) {
-		xc_printf("ERROR: failed to initialize hypercall page: %d\n",
-		    rc);
-		HYPERVISOR_shutdown(SHUTDOWN_crash);
+	if (isxen()) {
+		xen_domain_type = XEN_HVM_DOMAIN;
+		vm_guest = VM_GUEST_XEN;
+		rc = xen_hvm_init_hypercall_stubs(XEN_HVM_INIT_EARLY);
+		if (rc) {
+			xc_printf("ERROR: failed to initialize hypercall page: %d\n",
+			    rc);
+			HYPERVISOR_shutdown(SHUTDOWN_crash);
+		}
 	}
 
 	start_info = (struct hvm_start_info *)(start_info_paddr + KERNBASE);
 	if (start_info->magic != XEN_HVM_START_MAGIC_VALUE) {
-		xc_printf("Unknown magic value in start_info struct: %#x\n",
+		CRASH("Unknown magic value in start_info struct: %#x\n",
 		    start_info->magic);
-		HYPERVISOR_shutdown(SHUTDOWN_crash);
 	}
 
 	/*
@@ -164,9 +203,8 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 		unsigned int i;
 
 		if (start_info->nr_modules == 0) {
-			xc_printf(
+			CRASH(
 			    "ERROR: modlist_paddr != 0 but nr_modules == 0\n");
-			HYPERVISOR_shutdown(SHUTDOWN_crash);
 		}
 		mod = (struct hvm_modlist_entry *)
 		    (start_info->modlist_paddr + KERNBASE);
@@ -175,16 +213,18 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 			    PAGE_SIZE), physfree);
 	}
 
-	xatp.domid = DOMID_SELF;
-	xatp.idx = 0;
-	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = atop(physfree);
-	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp)) {
-		xc_printf("ERROR: failed to setup shared_info page\n");
-		HYPERVISOR_shutdown(SHUTDOWN_crash);
+	if (isxen()) {
+		xatp.domid = DOMID_SELF;
+		xatp.idx = 0;
+		xatp.space = XENMAPSPACE_shared_info;
+		xatp.gpfn = atop(physfree);
+		if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp)) {
+			xc_printf("ERROR: failed to setup shared_info page\n");
+			HYPERVISOR_shutdown(SHUTDOWN_crash);
+		}
+		HYPERVISOR_shared_info = (shared_info_t *)(physfree + KERNBASE);
+		physfree += PAGE_SIZE;
 	}
-	HYPERVISOR_shared_info = (shared_info_t *)(physfree + KERNBASE);
-	physfree += PAGE_SIZE;
 
 	/*
 	 * Init a static kenv using a free page. The contents will be filled
@@ -245,7 +285,7 @@ xen_pvh_set_env(char *env, bool (*filter)(const char *))
 
 		value = option;
 		option = strsep(&value, "=");
-		if (kern_setenv(option, value) != 0)
+		if (kern_setenv(option, value) != 0 && isxen())
 			xc_printf("unable to add kenv %s=%s\n", option, value);
 		option = value + strlen(value) + 1;
 	}
@@ -269,7 +309,8 @@ xen_pvh_parse_symtab(void)
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) ||
 	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
 	    ehdr->e_version > 1) {
-		xc_printf("Unable to load ELF symtab: invalid symbol table\n");
+		if (isxen())
+			xc_printf("Unable to load ELF symtab: invalid symbol table\n");
 		return;
 	}
 
@@ -289,7 +330,7 @@ xen_pvh_parse_symtab(void)
 		break;
 	}
 
-	if (ksymtab == 0 || kstrtab == 0)
+	if ((ksymtab == 0 || kstrtab == 0) && isxen())
 		xc_printf(
     "Unable to load ELF symtab: could not find symtab or strtab\n");
 }
@@ -431,6 +472,9 @@ xen_pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	struct xen_memory_map memmap;
 	u_int32_t size;
 	int rc;
+
+	/* We should only reach here if we're running under Xen. */
+	KASSERT(isxen(), ("xen_pvh_parse_memmap reached when !Xen"));
 
 	/* Fetch the E820 map from Xen */
 	memmap.nr_entries = MAX_E820_ENTRIES;
