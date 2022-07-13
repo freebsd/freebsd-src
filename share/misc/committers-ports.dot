@@ -15,7 +15,7 @@ digraph ports {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at svn logs for the svnadmin/access file.
+# can find in git logs for the access file in the internal/admin branch.
 # Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
@@ -23,7 +23,7 @@ digraph ports {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
 #
 # The first date is the same as for an active committer, the second date is
-# the date when the commit bit has been returned. Again, check svn logs.
+# the date when the commit bit has been returned. Again, check git logs.
 
 node [color=grey62, style=filled, bgcolor=black];
 
