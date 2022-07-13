@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Jun  2, 2022" "NLnet Labs" "unbound 1.16.0"
+.TH "unbound-control" "8" "Jul 11, 2022" "NLnet Labs" "unbound 1.16.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -550,6 +550,10 @@ Number of queries that were made using TCP towards the Unbound server.
 .TP
 .I num.query.tcpout
 Number of queries that the Unbound server made using TCP outgoing towards
+other servers.
+.TP
+.I num.query.udpout
+Number of queries that the Unbound server made using UDP outgoing towards
 other servers.
 .TP
 .I num.query.tls
