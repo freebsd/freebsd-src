@@ -99,6 +99,7 @@ struct nfsclient {
 	struct nfsstatehead lc_deleg;		/* Delegations */
 	struct nfsstatehead lc_olddeleg;	/* and old delegations */
 	struct nfssessionhead lc_session;	/* List of NFSv4.1 sessions */
+	uint64_t	lc_prevsess;		/* CreateSession cache */
 	time_t		lc_expiry;		/* Expiry time (sec) */
 	time_t		lc_delegtime;		/* Old deleg expiry (sec) */
 	nfsquad_t	lc_clientid;		/* 64 bit clientid */
