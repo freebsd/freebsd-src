@@ -488,11 +488,13 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 	 * Note that pci_cfgregopen() thinks we have PCI devices..
 	 */
 	if (!found) {
+#ifndef NO_LEGACY_PCIB
 		if (bootverbose)
 			printf(
 	"legacy_pcib_identify: no bridge found, adding pcib0 anyway\n");
 		child = BUS_ADD_CHILD(parent, 100, "pcib", 0);
 		legacy_set_pcibus(child, 0);
+#endif
 	}
 }
 
