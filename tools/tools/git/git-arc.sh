@@ -307,7 +307,7 @@ prompt()
     local resp
 
     if [ "$ASSUME_YES" ]; then
-        return 1
+        return 0
     fi
 
     printf "\nDoes this look OK? [y/N] "
