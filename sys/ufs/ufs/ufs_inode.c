@@ -64,8 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int
-ufs_need_inactive(ap)
-	struct vop_need_inactive_args *ap;
+ufs_need_inactive(struct vop_need_inactive_args *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
@@ -103,10 +102,10 @@ ufs_need_inactive(ap)
  * Last reference to an inode.  If necessary, write or delete it.
  */
 int
-ufs_inactive(ap)
+ufs_inactive(
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-	} */ *ap;
+	} */ *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
@@ -219,10 +218,10 @@ out:
  * Reclaim an inode so that it can be used for other purposes.
  */
 int
-ufs_reclaim(ap)
+ufs_reclaim(
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
-	} */ *ap;
+	} */ *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
