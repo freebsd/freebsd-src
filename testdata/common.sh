@@ -14,6 +14,7 @@
 # info x		: print info
 # test_tool_avail x	: see if program in path and complain, exit if not.
 # get_ldns_testns	: set LDNS_TESTNS to executable ldns-testns
+# get_ldns_notify	: set LDNS_NOTIFY to executable ldns-notify
 # get_make		: set MAKE to gmake or make tool.
 # get_gcc		: set cc or gcc in CC
 # get_pcat		: set PCAT, PCAT_DIFF and PCAT_PRINT executables.
@@ -59,6 +60,15 @@ get_ldns_testns () {
 		LDNS_TESTNS=ldns-testns
 	else
 		LDNS_TESTNS=/home/wouter/bin/ldns-testns
+	fi
+}
+
+# get ldns-notify tool in LDNS_NOTIFY variable.
+get_ldns_notify () {
+	if test -x "`which ldns-notify 2>&1`"; then
+		LDNS_NOTIFY=ldns-notify
+	else
+		LDNS_NOTIFY=/home/wouter/bin/ldns-notify
 	fi
 }
 

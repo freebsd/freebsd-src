@@ -186,6 +186,7 @@ num.query.opcode.QUERY=1
 num.query.flags.RD=1
 num.query.flags.AD=1
 num.query.edns.present=1
+num.query.udpout=1
 msg.cache.count=1
 rrset.cache.count=1
 infra.cache.count=1
@@ -223,6 +224,7 @@ num.query.flags.AD=1
 num.query.flags.RD=1
 num.query.opcode.QUERY=1
 num.query.type.A=1
+num.query.udpout=1
 msg.cache.count=1
 rrset.cache.count=1
 infra.cache.count=1"
@@ -249,6 +251,7 @@ num.query.opcode.QUERY=1
 num.query.flags.RD=1
 num.query.flags.AD=1
 num.query.edns.present=1
+num.query.udpout=1
 msg.cache.count=2
 rrset.cache.count=2
 infra.cache.count=2
@@ -263,6 +266,7 @@ if grep "192.0.2.1" outfile; then
 else
 	end 1
 fi
+sleep 1  # make sure the outgoing UDP (and the edns1xx0 retry) are accounted for.
 check_stats "\
 total.num.queries=1
 total.num.expired=1
@@ -274,6 +278,7 @@ num.query.flags.AD=1
 num.query.flags.RD=1
 num.query.opcode.QUERY=1
 num.query.type.A=1
+num.query.udpout=2
 total.num.cachemiss=1
 msg.cache.count=2
 rrset.cache.count=2
@@ -327,6 +332,7 @@ num.query.edns.present=1
 num.query.flags.RD=1
 num.query.opcode.QUERY=1
 num.query.type.A=1
+num.query.udpout=1
 total.num.queries=1
 total.num.recursivereplies=1
 msg.cache.count=3

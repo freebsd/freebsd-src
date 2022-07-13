@@ -918,7 +918,7 @@ main(int argc, char* argv[])
 	checklock_stop();
 	printf("%d checks ok.\n", testcount);
 #ifdef HAVE_SSL
-#  if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
+#  if defined(USE_GOST)
 	sldns_key_EVP_unload_gost();
 #  endif
 #  ifdef HAVE_OPENSSL_CONFIG

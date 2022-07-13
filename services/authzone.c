@@ -3967,7 +3967,7 @@ probe_copy_masters_for_allow_notify(struct auth_xfer* xfr)
 	struct auth_master* list = NULL, *last = NULL;
 	struct auth_master* p;
 	/* build up new list with copies */
-	for(p = xfr->task_probe->masters; p; p=p->next) {
+	for(p = xfr->task_transfer->masters; p; p=p->next) {
 		struct auth_master* m = auth_master_copy(p);
 		if(!m) {
 			auth_free_masters(list);
@@ -5512,6 +5512,8 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 			addr_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "auth zone %s transfer next HTTP fetch from %s started", zname, as);
 		}
+		/* Create or refresh the list of allow_notify addrs */
+		probe_copy_masters_for_allow_notify(xfr);
 		return 1;
 	}
 

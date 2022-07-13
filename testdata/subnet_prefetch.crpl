@@ -12,7 +12,6 @@ server:
 	access-control: 127.0.0.1 allow_snoop
 	qname-minimisation: no
 	minimal-responses: no
-	serve-expired: yes
 	prefetch: yes
 
 stub-zone:
@@ -20,7 +19,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test prefetch option for global cache
+SCENARIO_BEGIN Test prefetch option for global cache with ECS enabled
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100
@@ -34,9 +33,6 @@ RANGE_BEGIN 0 100
 		SECTION ANSWER
 			. IN NS	K.ROOT-SERVERS.NET.
 		SECTION ADDITIONAL
-			HEX_EDNSDATA_BEGIN
-				;; we expect to receive empty
-			HEX_EDNSDATA_END
 			K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
 	ENTRY_END
 
@@ -65,9 +61,6 @@ RANGE_BEGIN 0 100
 		SECTION ANSWER
 			com.    IN NS   a.gtld-servers.net.
 		SECTION ADDITIONAL
-			HEX_EDNSDATA_BEGIN
-				;; we expect to receive empty
-			HEX_EDNSDATA_END
 			a.gtld-servers.net.     IN      A       192.5.6.30
 	ENTRY_END
 
@@ -96,9 +89,6 @@ RANGE_BEGIN 0 10
 		SECTION ANSWER
 			example.com.    IN NS   ns.example.com.
 		SECTION ADDITIONAL
-			HEX_EDNSDATA_BEGIN
-				;; we expect to receive empty
-			HEX_EDNSDATA_END
 			ns.example.com.         IN      A       1.2.3.4
 	ENTRY_END
 
@@ -130,9 +120,6 @@ RANGE_BEGIN 11 100
 		SECTION ANSWER
 			example.com.    IN NS   ns.example.com.
 		SECTION ADDITIONAL
-			HEX_EDNSDATA_BEGIN
-				;; we expect to receive empty
-			HEX_EDNSDATA_END
 			ns.example.com.         IN      A       1.2.3.4
 	ENTRY_END
 
@@ -144,7 +131,7 @@ RANGE_BEGIN 11 100
 		SECTION QUESTION
 			www.example.com. IN A
 		SECTION ANSWER
-			www.example.com. IN A	10.20.30.40
+			www.example.com. 10 IN A	10.20.30.40
 		SECTION AUTHORITY
 			example.com.	IN NS	ns.example.com.
 		SECTION ADDITIONAL
@@ -167,23 +154,23 @@ SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
-; This answer should be in the global cache
+; This answer should be in the global cache (because no ECS from upstream)
 STEP 2 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA NOERROR
 SECTION QUESTION
-www.example.com. IN A
+www.example.com.	IN A
 SECTION ANSWER
-www.example.com. IN A	10.20.30.40
+www.example.com.	IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.	IN NS	ns.example.com.
+example.com.		IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.		IN 	A	1.2.3.4
+ns.example.com.		IN A	1.2.3.4
 ENTRY_END
 
 ; Try to trigger a prefetch
-STEP 3 TIME_PASSES ELAPSE 11
+STEP 3 TIME_PASSES ELAPSE 9
 
 STEP 11 QUERY
 ENTRY_BEGIN
@@ -192,24 +179,46 @@ SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
-; This expired record came from the cache and a prefetch is triggered
+; This record came from the global cache and a prefetch was triggered
 STEP 12 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ttl
 REPLY QR RD RA NOERROR
 SECTION QUESTION
-www.example.com. IN A
+www.example.com.		IN A
 SECTION ANSWER
-www.example.com. 30 IN A	10.20.30.40
+www.example.com.	1	IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.	3589 IN NS	ns.example.com.
+example.com.		3591	IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.		3589 IN 	A	1.2.3.4
+ns.example.com.		3591	IN A	1.2.3.4
 ENTRY_END
 
-; Allow upstream to reply to the prefetch query.
-; It can only be answered if correct ECS was derived from the client's IP.
-; Otherwise the test will fail with "messages pending".
-STEP 13 TRAFFIC
+; Allow time to pass so that the global cache record is expired
+STEP 13 TIME_PASSES ELAPSE 2
+
+; Query again to verify that the record was prefetched and stored in the ECS
+; cache (because the server replied with ECS this time)
+STEP 14 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; This record came from the ECS cache
+STEP 15 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com.		IN A
+SECTION ANSWER
+www.example.com.	8	IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.		3598	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		3598	IN A	1.2.3.4
+ENTRY_END
 
 SCENARIO_END

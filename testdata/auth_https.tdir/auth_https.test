@@ -5,6 +5,7 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 PRE="../.."
+. ../common.sh
 # do the test
 echo "> dig www.example.com."
 dig @localhost -p $UNBOUND_PORT www.example.com. | tee outfile
@@ -46,6 +47,17 @@ if grep "1.2.3.4" outfile; then
 else
 	echo "Not OK"
 	exit 1
+fi
+
+# Test that notify is allowed from the webserver address
+get_ldns_notify
+echo "> ldns-notify -z example.com"
+$LDNS_NOTIFY -p $UNBOUND_PORT -z example.com 127.0.0.1 | tee outfile
+if grep "rcode: REFUSED"  outfile; then
+	echo "Not OK"
+	exit 1
+else
+	echo "OK"
 fi
 
 exit 0

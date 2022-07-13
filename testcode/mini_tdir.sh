@@ -5,6 +5,10 @@ if test "$1" = "-a"; then
 	shift
 	shift
 fi
+
+# This will keep the temporary directory around and return 1 when the test failed.
+DEBUG=0
+
 quiet=0
 if test "$1" = "-q"; then
 	quiet=1
@@ -184,11 +188,18 @@ echo "DateRunEnd: "`date "+%s" 2>/dev/null` >> $result
 
 mv $result ..
 cd ..
-rm -rf $dir
-# compat for windows where deletion may not succeed initially (files locked
-# by processes that still have to exit).
-if test $? -eq 1; then
-	echo "minitdir waiting for processes to terminate"
-	sleep 2 # some time to exit, and try again
+if test $DEBUG -eq 0; then
 	rm -rf $dir
+	# compat for windows where deletion may not succeed initially (files locked
+	# by processes that still have to exit).
+	if test $? -eq 1; then
+		echo "minitdir waiting for processes to terminate"
+		sleep 2 # some time to exit, and try again
+		rm -rf $dir
+	fi
+else
+	if test $success == "no"; then
+		exit 1
+	fi
+	exit 0
 fi

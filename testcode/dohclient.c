@@ -551,7 +551,7 @@ run(struct http2_session* h2_session, int port, int no_tls, int count, char** q)
 	if(ctx) {
 		SSL_CTX_free(ctx);
 	}
-	close(fd);
+	sock_close(fd);
 }
 
 /** getopt global, in case header files fail to declare it. */

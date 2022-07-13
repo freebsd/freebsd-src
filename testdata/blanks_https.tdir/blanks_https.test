@@ -1,0 +1,52 @@
+# #-- blanks_https.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# do the test
+TARGET=ns1.blanks.example.com.
+echo "> dig $TARGET"
+dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+if grep SERVFAIL outfile; then
+	echo "> try again"
+	dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+fi
+if grep SERVFAIL outfile; then
+	echo "> try again"
+	sleep 1
+	dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+fi
+if grep SERVFAIL outfile; then
+	echo "> try again"
+	sleep 1
+	dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+fi
+if grep SERVFAIL outfile; then
+	echo "> try again"
+	sleep 1
+	dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+fi
+if grep SERVFAIL outfile; then
+	echo "> try again"
+	sleep 10
+	dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+fi
+if grep SERVFAIL outfile; then
+	echo "> try again"
+	sleep 10
+	dig @localhost -p $UNBOUND_PORT $TARGET | tee outfile
+fi
+echo "> cat logfiles"
+cat petal.log 
+cat unbound.log
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

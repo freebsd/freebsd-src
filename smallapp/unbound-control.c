@@ -354,6 +354,7 @@ static void print_extended(struct ub_stats_info* s)
 	/* transport */
 	PR_UL("num.query.tcp", s->svr.qtcp);
 	PR_UL("num.query.tcpout", s->svr.qtcp_outgoing);
+	PR_UL("num.query.udpout", s->svr.qudp_outgoing);
 	PR_UL("num.query.tls", s->svr.qtls);
 	PR_UL("num.query.tls_resume", s->svr.qtls_resume);
 	PR_UL("num.query.ipv6", s->svr.qipv6);
@@ -486,6 +487,7 @@ static void print_stats_shm(const char* cfgfile, int quiet)
 	config_delete(cfg);
 #else
 	(void)cfgfile;
+	(void)quiet;
 #endif /* HAVE_SHMGET */
 }
 

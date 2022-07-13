@@ -1,0 +1,118 @@
+; Check if the NXNS fallback to the parent side does not mess with normal
+; parent side resolution. Parent side resolution should SERVFAIL when reaching
+; the MAX_TARGET_NX limit.
+
+server:
+	module-config: "iterator"
+	trust-anchor-signaling: no
+	target-fetch-policy: "0 0 0 0 0"
+	verbosity: 3
+	access-control: 127.0.0.1 allow_snoop
+	qname-minimisation: no
+	minimal-responses: no
+	rrset-roundrobin: no
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test that the NXNS fallback does not mess with parent side resolution
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			. IN NS
+		SECTION ANSWER
+			. IN NS	K.ROOT-SERVERS.NET.
+		SECTION ADDITIONAL
+			K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype subdomain
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION AUTHORITY
+			com.	IN NS	a.gtld-servers.net.
+		SECTION ADDITIONAL
+			a.gtld-servers.net.	IN 	A	192.5.6.30
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode subdomain
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			nonexistant.com. IN A
+		SECTION AUTHORITY
+			com.	IN NS	a.gtld-servers.net.
+		SECTION ADDITIONAL
+			a.gtld-servers.net.	IN 	A	192.5.6.30
+	ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			com. IN NS
+		SECTION ANSWER
+			com.    IN NS   a.gtld-servers.net.
+		SECTION ADDITIONAL
+			a.gtld-servers.net.     IN      A       192.5.6.30
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype subdomain
+		ADJUST copy_id copy_query
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION AUTHORITY
+			example.com.    IN NS   ns1.nonexistant.com.
+			example.com.    IN NS   ns2.nonexistant.com.
+			example.com.    IN NS   ns3.nonexistant.com.
+			example.com.    IN NS   ns4.nonexistant.com.
+			example.com.    IN NS   ns5.nonexistant.com.
+			example.com.    IN NS   ns6.nonexistant.com.
+			example.com.    IN NS   ns7.nonexistant.com.
+			example.com.    IN NS   ns8.nonexistant.com.
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode subdomain
+		ADJUST copy_id copy_query
+		REPLY QR NXDOMAIN
+		SECTION QUESTION
+			nonexistant.com. IN A
+	ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.example.com. IN A
+ENTRY_END
+
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+a.example.com. IN A
+ENTRY_END
+
+SCENARIO_END
