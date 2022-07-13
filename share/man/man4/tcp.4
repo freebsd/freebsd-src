@@ -421,9 +421,8 @@ protocol implements a number of variables in the
 branch of the
 .Xr sysctl 3
 MIB.
-.Bl -tag -width ".Va TCPCTL_DO_RFC1323"
-.It Dv TCPCTL_DO_RFC1323
-.Pq Va rfc1323
+.Bl -tag -width ".Va v6pmtud_blackhole_mss"
+.It Va rfc1323
 Implement the window scaling and timestamp options of RFC 1323/RFC 7323
 (default is true).
 .It Va tolerate_missing_ts
@@ -437,18 +436,15 @@ timestamps has been negotiated.
 As of June 2021, several TCP stacks are known to violate RFC 7323, including
 modern widely deployed ones.
 Therefore the default is 1, i.e., the missing of timestamps is tolerated.
-.It Dv TCPCTL_MSSDFLT
-.Pq Va mssdflt
+.It Va mssdflt
 The default value used for the maximum segment size
 .Pq Dq MSS
 when no advice to the contrary is received from MSS negotiation.
-.It Dv TCPCTL_SENDSPACE
-.Pq Va sendspace
+.It Va sendspace
 Maximum
 .Tn TCP
 send window.
-.It Dv TCPCTL_RECVSPACE
-.Pq Va recvspace
+.It Va recvspace
 Maximum
 .Tn TCP
 receive window.
