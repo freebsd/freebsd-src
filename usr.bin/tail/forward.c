@@ -246,8 +246,8 @@ show(file_info_t *file)
 	int ch;
 
 	while ((ch = getc(file->fp)) != EOF) {
-		if (last != file && no_files > 1) {
-			if (!qflag)
+		if (last != file) {
+			if (vflag || (qflag == 0 && no_files > 1))
 				printfn(file->file_name, 1);
 			last = file;
 		}
@@ -325,7 +325,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 		if (file->fp) {
 			active = 1;
 			n++;
-			if (no_files > 1 && !qflag)
+			if (vflag || (qflag == 0 && no_files > 1))
 				printfn(file->file_name, 1);
 			forward(file->fp, file->file_name, style, off, &file->st);
 			if (Fflag && fileno(file->fp) != STDIN_FILENO)

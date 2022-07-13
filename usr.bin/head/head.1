@@ -28,7 +28,7 @@
 .\"	@(#)head.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2018
+.Dd June 12, 2022
 .Dt HEAD 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd display first lines of a file
 .Sh SYNOPSIS
 .Nm
+.Op Fl qv
 .Op Fl n Ar count | Fl c Ar bytes
 .Op Ar
 .Sh DESCRIPTION
@@ -59,14 +60,30 @@ of each of the specified files.
 Print
 .Ar count
 lines of each of the specified files.
+.Pp
+Both
+.Ar count
+and
+.Ar bytes
+may also be specified with size suffixes supported by
+.Xr expand_number 3 .
+.It Fl q , Fl -quiet , Fl -silent
+Suppresses printing of headers when multiple files are being examined.
+.It Fl v , Fl -verbose
+Prepend each file with a header.
 .El
 .Pp
-If more than a single file is specified, each file is preceded by a
+If more than a single file is specified, or if the
+.Fl v
+option is used, each file is preceded by a
 header consisting of the string
 .Dq ==> XXX <==
 where
 .Dq XXX
 is the name of the file.
+The
+.Fl q
+flag disables the printing of the header in all cases.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
@@ -83,7 +100,8 @@ in the following way to, for example, display only line 500 from the file
 .Pp
 .Dl $ head -n 500 foo | tail -n 1
 .Sh SEE ALSO
-.Xr tail 1
+.Xr tail 1 ,
+.Xr expand_number 3
 .Sh HISTORY
 The
 .Nm

@@ -5,6 +5,7 @@
 
 PROG=	tail
 SRCS=	forward.c misc.c read.c reverse.c tail.c
+LIBADD=	util
 
 .if ${MK_CASPER} != "no" && !defined(RESCUE)
 LIBADD+= casper

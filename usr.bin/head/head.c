@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
 
@@ -66,7 +68,7 @@ __FBSDID("$FreeBSD$");
  * Bill Joy UCB August 24, 1977
  */
 
-static void head(FILE *, int);
+static void head(FILE *, intmax_t);
 static void head_bytes(FILE *, off_t);
 static void obsolete(char *[]);
 static void usage(void);
@@ -75,6 +77,9 @@ static const struct option long_opts[] =
 {
 	{"bytes",	required_argument,	NULL, 'c'},
 	{"lines",	required_argument,	NULL, 'n'},
+	{"quiet",	no_argument,		NULL, 'q'},
+	{"silent",	no_argument,		NULL, 'q'},
+	{"verbose",	no_argument,		NULL, 'v'},
 	{NULL,		no_argument,		NULL, 0}
 };
 
@@ -82,28 +87,36 @@ int
 main(int argc, char *argv[])
 {
 	FILE *fp;
-	char *ep;
 	off_t bytecnt;
-	int ch, first, linecnt, eval;
+	intmax_t linecnt;
+	int ch, first, eval;
 	fileargs_t *fa;
 	cap_rights_t rights;
+	int qflag = 0;
+	int vflag = 0;
 
 	linecnt = -1;
 	eval = 0;
 	bytecnt = -1;
 
 	obsolete(argv);
-	while ((ch = getopt_long(argc, argv, "+n:c:", long_opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "+n:c:qv", long_opts, NULL)) != -1) {
 		switch(ch) {
 		case 'c':
-			bytecnt = strtoimax(optarg, &ep, 10);
-			if (*ep || bytecnt <= 0)
+			if (expand_number(optarg, &bytecnt) || bytecnt <= 0)
 				errx(1, "illegal byte count -- %s", optarg);
 			break;
 		case 'n':
-			linecnt = strtol(optarg, &ep, 10);
-			if (*ep || linecnt <= 0)
+			if (expand_number(optarg, &linecnt) || linecnt <= 0)
 				errx(1, "illegal line count -- %s", optarg);
+			break;
+		case 'q':
+			qflag = 1;
+			vflag = 0;
+			break;
+		case 'v':
+			qflag = 0;
+			vflag = 1;
 			break;
 		case '?':
 		default:
@@ -134,7 +147,7 @@ main(int argc, char *argv[])
 				eval = 1;
 				continue;
 			}
-			if (argc > 1) {
+			if (vflag || (qflag == 0 && argc > 1)) {
 				(void)printf("%s==> %s <==\n",
 				    first ? "" : "\n", *argv);
 				first = 0;
@@ -155,7 +168,7 @@ main(int argc, char *argv[])
 }
 
 static void
-head(FILE *fp, int cnt)
+head(FILE *fp, intmax_t cnt)
 {
 	char *cp;
 	size_t error, readlen;
