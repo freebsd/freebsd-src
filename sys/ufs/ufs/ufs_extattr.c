@@ -1008,7 +1008,7 @@ ufs_deleteextattr(
  */
 int
 ufs_setextattr(
-	vop_setextattr_args /* {
+	struct vop_setextattr_args /* {
 		IN struct vnode *a_vp;
 		IN int a_attrnamespace;
 		IN const char *a_name;
