@@ -174,7 +174,6 @@ struct callout_cpu {
 	sbintime_t		cc_lastscan;
 	struct thread		*cc_thread;
 	u_int			cc_bucket;
-	u_int			cc_inited;
 #ifdef KTR
 	char			cc_ktr_event_name[20];
 #endif
@@ -323,7 +322,6 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 	int i;
 
 	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN);
-	cc->cc_inited = 1;
 	cc->cc_callwheel = malloc_domainset(sizeof(struct callout_list) *
 	    callwheelsize, M_CALLOUT,
 	    DOMAINSET_PREF(pcpu_find(cpu)->pc_domain), M_WAITOK);
@@ -946,16 +944,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	sbintime_t to_sbt, precision;
 	struct callout_cpu *cc;
 	int cancelled, direct;
-	int ignore_cpu=0;
 
 	cancelled = 0;
-	if (cpu == -1) {
-		ignore_cpu = 1;
-	} else if ((cpu >= MAXCPU) ||
-		   ((CC_CPU(cpu))->cc_inited == 0)) {
-		/* Invalid CPU spec */
-		panic("Invalid CPU in callout %d", cpu);
-	}
 	callout_when(sbt, prec, flags, &to_sbt, &precision);
 
 	/* 
@@ -971,13 +961,12 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	KASSERT(!direct || c->c_lock == NULL ||
 	    (LOCK_CLASS(c->c_lock)->lc_flags & LC_SPINLOCK),
 	    ("%s: direct callout %p has non-spin lock", __func__, c));
+
 	cc = callout_lock(c);
-	/*
-	 * Don't allow migration if the user does not care.
-	 */
-	if (ignore_cpu) {
+	if (cpu == -1)
 		cpu = c->c_cpu;
-	}
+	KASSERT(cpu >= 0 && cpu <= mp_maxid && !CPU_ABSENT(cpu),
+	    ("%s: invalid cpu %d", __func__, cpu));
 
 	if (cc_exec_curr(cc, direct) == c) {
 		/*
