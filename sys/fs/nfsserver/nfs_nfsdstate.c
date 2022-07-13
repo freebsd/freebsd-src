@@ -336,10 +336,10 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 * Add it after assigning a client id to it.
 		 */
 		new_clp->lc_flags |= LCL_NEEDSCONFIRM;
-		if ((nd->nd_flag & ND_NFSV41) != 0)
-			new_clp->lc_confirm.lval[0] = confirmp->lval[0] =
-			    ++confirm_index;
-		else
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+			confirmp->lval[0] = ++confirm_index;
+			new_clp->lc_confirm.lval[0] = confirmp->lval[0] - 1;
+		} else
 			confirmp->qval = new_clp->lc_confirm.qval =
 			    ++confirm_index;
 		clientidp->lval[0] = new_clp->lc_clientid.lval[0] =
@@ -348,6 +348,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		    nfsrv_nextclientindex();
 		new_clp->lc_stateindex = 0;
 		new_clp->lc_statemaxindex = 0;
+		new_clp->lc_prevsess = 0;
 		new_clp->lc_cbref = 0;
 		new_clp->lc_expiry = nfsrv_leaseexpiry();
 		LIST_INIT(&new_clp->lc_open);
@@ -449,10 +450,10 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		}
 
 		new_clp->lc_flags |= LCL_NEEDSCONFIRM;
-		if ((nd->nd_flag & ND_NFSV41) != 0)
-			new_clp->lc_confirm.lval[0] = confirmp->lval[0] =
-			    ++confirm_index;
-		else
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+			confirmp->lval[0] = ++confirm_index;
+			new_clp->lc_confirm.lval[0] = confirmp->lval[0] - 1;
+		} else
 			confirmp->qval = new_clp->lc_confirm.qval =
 			    ++confirm_index;
 		clientidp->lval[0] = new_clp->lc_clientid.lval[0] =
@@ -461,6 +462,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		    nfsrv_nextclientindex();
 		new_clp->lc_stateindex = 0;
 		new_clp->lc_statemaxindex = 0;
+		new_clp->lc_prevsess = 0;
 		new_clp->lc_cbref = 0;
 		new_clp->lc_expiry = nfsrv_leaseexpiry();
 
@@ -596,6 +598,7 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 	struct nfssessionhash *shp;
 	struct nfsdsession *sep;
 	uint64_t sessid[2];
+	bool sess_replay;
 	static uint64_t next_sess = 0;
 
 	if (clpp)
@@ -676,13 +679,29 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 	 * Perform any operations specified by the opflags.
 	 */
 	if (opflags & CLOPS_CONFIRM) {
-		if ((nd->nd_flag & ND_NFSV41) != 0 &&
-		     clp->lc_confirm.lval[0] != confirm.lval[0])
+		sess_replay = false;
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+		    /*
+		     * For the case where lc_confirm.lval[0] == confirm.lval[0],
+		     * use the new session, but with the previous sessionid.
+		     * This is not exactly what the RFC describes, but should
+		     * result in the same reply as the previous CreateSession.
+		     */
+		    if (clp->lc_confirm.lval[0] + 1 == confirm.lval[0]) {
+			clp->lc_confirm.lval[0] = confirm.lval[0];
+			clp->lc_prevsess = sessid[0];
+		    } else if (clp->lc_confirm.lval[0] == confirm.lval[0]) {
+			if (clp->lc_prevsess == 0)
+			    error = NFSERR_SEQMISORDERED;
+			else
+			    sessid[0] = clp->lc_prevsess;
+			sess_replay = true;
+		    } else
 			error = NFSERR_SEQMISORDERED;
-		else if ((nd->nd_flag & ND_NFSV41) == 0 &&
+		} else if ((nd->nd_flag & ND_NFSV41) == 0 &&
 		     clp->lc_confirm.qval != confirm.qval)
 			error = NFSERR_STALECLIENTID;
-		else if (nfsrv_notsamecredname(nd, clp))
+		if (error == 0 && nfsrv_notsamecredname(nd, clp))
 			error = NFSERR_CLIDINUSE;
 
 		if (!error) {
@@ -716,7 +735,7 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 		    if (nsep != NULL) {
 			/* Hold a reference on the xprt for a backchannel. */
 			if ((nsep->sess_crflags & NFSV4CRSESS_CONNBACKCHAN)
-			    != 0) {
+			    != 0 && !sess_replay) {
 			    if (clp->lc_req.nr_client == NULL)
 				clp->lc_req.nr_client = (struct __rpc_client *)
 				    clnt_bck_create(nd->nd_xprt->xp_socket,
@@ -735,14 +754,16 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 			    NFSX_V4SESSIONID);
 			NFSBCOPY(sessid, nsep->sess_cbsess.nfsess_sessionid,
 			    NFSX_V4SESSIONID);
-			shp = NFSSESSIONHASH(nsep->sess_sessionid);
-			NFSLOCKSTATE();
-			NFSLOCKSESSION(shp);
-			LIST_INSERT_HEAD(&shp->list, nsep, sess_hash);
-			LIST_INSERT_HEAD(&clp->lc_session, nsep, sess_list);
-			nsep->sess_clp = clp;
-			NFSUNLOCKSESSION(shp);
-			NFSUNLOCKSTATE();
+			if (!sess_replay) {
+			    shp = NFSSESSIONHASH(nsep->sess_sessionid);
+			    NFSLOCKSTATE();
+			    NFSLOCKSESSION(shp);
+			    LIST_INSERT_HEAD(&shp->list, nsep, sess_hash);
+			    LIST_INSERT_HEAD(&clp->lc_session, nsep, sess_list);
+			    nsep->sess_clp = clp;
+			    NFSUNLOCKSESSION(shp);
+			    NFSUNLOCKSTATE();
+			}
 		    }
 		}
 	} else if (clp->lc_flags & LCL_NEEDSCONFIRM) {
