@@ -271,7 +271,7 @@ outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss,
 	int s;
 	int af;
 	char* err;
-#ifdef SO_REUSEADDR
+#if defined(SO_REUSEADDR) || defined(IP_BIND_ADDRESS_NO_PORT)
 	int on = 1;
 #endif
 #ifdef INET6
@@ -317,7 +317,13 @@ outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss,
 			" setsockopt(TCP_MAXSEG) unsupported");
 #endif /* defined(IPPROTO_TCP) && defined(TCP_MAXSEG) */
 	}
-
+#ifdef IP_BIND_ADDRESS_NO_PORT
+	if(setsockopt(s, IPPROTO_IP, IP_BIND_ADDRESS_NO_PORT, (void*)&on,
+		(socklen_t)sizeof(on)) < 0) {
+		verbose(VERB_ALGO, "outgoing tcp:"
+			" setsockopt(.. IP_BIND_ADDRESS_NO_PORT ..) failed");
+	}
+#endif /* IP_BIND_ADDRESS_NO_PORT */
 	return s;
 }
 
@@ -1608,6 +1614,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	outnet->tcp_reuse_timeout= tcp_reuse_timeout;
 	outnet->tcp_auth_query_timeout = tcp_auth_query_timeout;
 	outnet->num_tcp_outgoing = 0;
+	outnet->num_udp_outgoing = 0;
 	outnet->infra = infra;
 	outnet->rnd = rnd;
 	outnet->sslctx = sslctx;
@@ -2142,6 +2149,7 @@ randomize_and_send_udp(struct pending* pend, sldns_buffer* packet, int timeout)
 		portcomm_loweruse(outnet, pend->pc);
 		return 0;
 	}
+	outnet->num_udp_outgoing++;
 
 	/* system calls to set timeout after sending UDP to make roundtrip
 	   smaller. */

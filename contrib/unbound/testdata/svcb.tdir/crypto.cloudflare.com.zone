@@ -1,9 +1,0 @@
-crypto.cloudflare.com.	3600 IN	SOA jobs.ns.cloudflare.com. dns.cloudflare.com. (
-				2037099480 ; serial
-				10000      ; refresh (2 hours 46 minutes 40 seconds)
-				2400       ; retry (40 minutes)
-				604800     ; expire (1 week)
-				3600       ; minimum (1 hour)
-				)
-crypto.cloudflare.com.  300     IN      HTTPS   1 . alpn=h2 ipv4hint=162.159.135.79,162.159.136.79 echconfig=AEj+CgBETwAgACDeVpr34JzYHDGNFoGWhksj5mpBxradonbqH3X9+h7jHgAEAAEAAQAAABNjbG91ZGZsYXJlLWVzbmkuY29tAAA= ipv6hint=2606:4700:7::a29f:874f,2606:4700:7::a29f:884f
-

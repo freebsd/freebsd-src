@@ -97,6 +97,23 @@ log_crypto_error(const char* str, unsigned long e)
 	log_err("%s crypto %s", str, buf);
 }
 
+/**
+ * Output a libcrypto openssl error to the logfile as a debug message.
+ * @param level: debug level to use in verbose() call
+ * @param str: string to add to it.
+ * @param e: the error to output, error number from ERR_get_error().
+ */
+static void
+log_crypto_verbose(enum verbosity_value level, const char* str, unsigned long e)
+{
+	char buf[128];
+	/* or use ERR_error_string if ERR_error_string_n is not avail TODO */
+	ERR_error_string_n(e, buf, sizeof(buf));
+	/* buf now contains */
+	/* error:[error code]:[library name]:[function name]:[reason string] */
+	verbose(level, "%s crypto %s", str, buf);
+}
+
 /* return size of digest if supported, or 0 otherwise */
 size_t
 nsec3_hash_algo_size_supported(int id)
@@ -215,6 +232,10 @@ ds_digest_size_supported(int algo)
 	switch(algo) {
 		case LDNS_SHA1:
 #if defined(HAVE_EVP_SHA1) && defined(USE_SHA1)
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_IS_FIPS_ENABLED
+			if (EVP_default_properties_is_fips_enabled(NULL))
+				return 0;
+#endif
 			return SHA_DIGEST_LENGTH;
 #else
 			if(fake_sha1) return 20;
@@ -325,7 +346,11 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_RSASHA1:
 	case LDNS_RSASHA1_NSEC3:
 #ifdef USE_SHA1
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_IS_FIPS_ENABLED
+		return !EVP_default_properties_is_fips_enabled(NULL);
+#else
 		return 1;
+#endif
 #else
 		if(fake_sha1) return 1;
 		return 0;
@@ -341,14 +366,21 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_ECDSAP256SHA256:
 	case LDNS_ECDSAP384SHA384:
 #endif
+#if (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) || defined(USE_ECDSA)
+		return 1;
+#endif
 #ifdef USE_ED25519
 	case LDNS_ED25519:
 #endif
 #ifdef USE_ED448
 	case LDNS_ED448:
 #endif
-#if (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) || defined(USE_ECDSA) || defined(USE_ED25519) || defined(USE_ED448)
+#if defined(USE_ED25519) || defined(USE_ED448)
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_IS_FIPS_ENABLED
+		return !EVP_default_properties_is_fips_enabled(NULL);
+#else
 		return 1;
+#endif
 #endif
 
 #ifdef USE_GOST
@@ -652,6 +684,36 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 	return 1;
 }
 
+static void
+digest_ctx_free(EVP_MD_CTX* ctx, EVP_PKEY *evp_key,
+	unsigned char* sigblock, int dofree, int docrypto_free)
+{
+#ifdef HAVE_EVP_MD_CTX_NEW
+	EVP_MD_CTX_destroy(ctx);
+#else
+	EVP_MD_CTX_cleanup(ctx);
+	free(ctx);
+#endif
+	EVP_PKEY_free(evp_key);
+	if(dofree) free(sigblock);
+	else if(docrypto_free) OPENSSL_free(sigblock);
+}
+
+static enum sec_status
+digest_error_status(const char *str)
+{
+	unsigned long e = ERR_get_error();
+#ifdef EVP_R_INVALID_DIGEST
+	if (ERR_GET_LIB(e) == ERR_LIB_EVP &&
+		ERR_GET_REASON(e) == EVP_R_INVALID_DIGEST) {
+		log_crypto_verbose(VERB_ALGO, str, e);
+		return sec_status_indeterminate;
+	}
+#endif
+	log_crypto_verbose(VERB_QUERY, str, e);
+	return sec_status_unchecked;
+}
+
 /**
  * Check a canonical sig+rrset and signature against a dnskey
  * @param buf: buffer with data to verify, the first rrsig part and the
@@ -663,10 +725,11 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
  * @param keylen: length of keydata.
  * @param reason: bogus reason in more detail.
  * @return secure if verification succeeded, bogus on crypto failure,
- *	unchecked on format errors and alloc failures.
+ *	unchecked on format errors and alloc failures, indeterminate
+ *	if digest is not supported by the crypto library (openssl3+ only).
  */
 enum sec_status
-verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock, 
+verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
 	char** reason)
 {
@@ -735,62 +798,36 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	}
 #ifndef HAVE_EVP_DIGESTVERIFY
 	if(EVP_DigestInit(ctx, digest_type) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_DigestInit failed");
-#ifdef HAVE_EVP_MD_CTX_NEW
-		EVP_MD_CTX_destroy(ctx);
-#else
-		EVP_MD_CTX_cleanup(ctx);
-		free(ctx);
-#endif
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		else if(docrypto_free) OPENSSL_free(sigblock);
-		return sec_status_unchecked;
+		enum sec_status sec;
+		sec = digest_error_status("verify: EVP_DigestInit failed");
+		digest_ctx_free(ctx, evp_key, sigblock,
+			dofree, docrypto_free);
+		return sec;
 	}
 	if(EVP_DigestUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
 		(unsigned int)sldns_buffer_limit(buf)) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_DigestUpdate failed");
-#ifdef HAVE_EVP_MD_CTX_NEW
-		EVP_MD_CTX_destroy(ctx);
-#else
-		EVP_MD_CTX_cleanup(ctx);
-		free(ctx);
-#endif
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		else if(docrypto_free) OPENSSL_free(sigblock);
+		log_crypto_verbose(VERB_QUERY, "verify: EVP_DigestUpdate failed",
+			ERR_get_error());
+		digest_ctx_free(ctx, evp_key, sigblock,
+			dofree, docrypto_free);
 		return sec_status_unchecked;
 	}
 
 	res = EVP_VerifyFinal(ctx, sigblock, sigblock_len, evp_key);
 #else /* HAVE_EVP_DIGESTVERIFY */
 	if(EVP_DigestVerifyInit(ctx, NULL, digest_type, NULL, evp_key) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_DigestVerifyInit failed");
-#ifdef HAVE_EVP_MD_CTX_NEW
-		EVP_MD_CTX_destroy(ctx);
-#else
-		EVP_MD_CTX_cleanup(ctx);
-		free(ctx);
-#endif
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		else if(docrypto_free) OPENSSL_free(sigblock);
-		return sec_status_unchecked;
+		enum sec_status sec;
+		sec = digest_error_status("verify: EVP_DigestVerifyInit failed");
+		digest_ctx_free(ctx, evp_key, sigblock,
+			dofree, docrypto_free);
+		return sec;
 	}
 	res = EVP_DigestVerify(ctx, sigblock, sigblock_len,
 		(unsigned char*)sldns_buffer_begin(buf),
 		sldns_buffer_limit(buf));
 #endif
-#ifdef HAVE_EVP_MD_CTX_NEW
-	EVP_MD_CTX_destroy(ctx);
-#else
-	EVP_MD_CTX_cleanup(ctx);
-	free(ctx);
-#endif
-	EVP_PKEY_free(evp_key);
-
-	if(dofree) free(sigblock);
-	else if(docrypto_free) OPENSSL_free(sigblock);
+	digest_ctx_free(ctx, evp_key, sigblock,
+		dofree, docrypto_free);
 
 	if(res == 1) {
 		return sec_status_secure;

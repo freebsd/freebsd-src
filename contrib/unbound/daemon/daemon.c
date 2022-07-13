@@ -795,7 +795,7 @@ daemon_delete(struct daemon* daemon)
 	ub_c_lex_destroy();
 	/* libcrypto cleanup */
 #ifdef HAVE_SSL
-#  if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
+#  if defined(USE_GOST)
 	sldns_key_EVP_unload_gost();
 #  endif
 #  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS && HAVE_DECL_SK_SSL_COMP_POP_FREE

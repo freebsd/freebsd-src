@@ -222,6 +222,10 @@
 /* Define to 1 if you have the `EVP_cleanup' function. */
 #undef HAVE_EVP_CLEANUP
 
+/* Define to 1 if you have the `EVP_default_properties_is_fips_enabled'
+   function. */
+#undef HAVE_EVP_DEFAULT_PROPERTIES_IS_FIPS_ENABLED
+
 /* Define to 1 if you have the `EVP_DigestVerify' function. */
 #undef HAVE_EVP_DIGESTVERIFY
 
