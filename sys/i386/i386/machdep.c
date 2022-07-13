@@ -178,6 +178,7 @@ int cold = 1;
 
 long Maxmem = 0;
 long realmem = 0;
+int late_console = 1;
 
 #ifdef PAE
 FEATURE(pae, "Physical Address Extensions");
@@ -1396,7 +1397,6 @@ init386(int first)
 	caddr_t kmdp;
 	vm_offset_t addend;
 	size_t ucode_len;
-	int late_console;
 
 	thread0.td_kstack = proc0kstack;
 	thread0.td_kstack_pages = TD0_KSTACK_PAGES;
@@ -1541,7 +1541,6 @@ init386(int first)
 	 * Default to late console initialization to support these drivers.
 	 * This loses mainly printf()s in getmemsize() and early debugging.
 	 */
-	late_console = 1;
 	TUNABLE_INT_FETCH("debug.late_console", &late_console);
 	if (!late_console) {
 		cninit();
