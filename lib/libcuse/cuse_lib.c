@@ -269,7 +269,7 @@ cuse_vmfree(void *ptr)
 	int error;
 	int n;
 
-	if (f_cuse < 0)
+	if (f_cuse < 0 || ptr == NULL)
 		return;
 
 	CUSE_LOCK();
