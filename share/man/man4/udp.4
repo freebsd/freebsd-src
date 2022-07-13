@@ -114,24 +114,21 @@ from RFC 3948, defined in
 The
 .Nm
 protocol implements a number of variables in the
-.Li net.inet
+.Va net.inet.udp
 branch of the
 .Xr sysctl 3
-MIB.
-.Bl -tag -width UDPCTL_RECVSPACEX
-.It UDPCTL_CHECKSUM
-.Pq udp.checksum
+MIB:
+.Bl -tag -width ".Va log_in_vain"
+.It Va checksum
 Enable udp checksums (enabled by default).
-.It UDPCTL_MAXDGRAM
-.Pq udp.maxdgram
+.It Va maxdgram
 Maximum outgoing UDP datagram size
-.It UDPCTL_RECVSPACE
-.Pq udp.recvspace
+.It Va recvspace
 Maximum space for incoming UDP datagrams
-.It udp.log_in_vain
+.It Va log_in_vain
 For all udp datagrams, to ports on which there is no socket
 listening, log the connection attempt (disabled by default).
-.It udp.blackhole
+.It Va blackhole
 When a datagram is received on a port where there is no socket
 listening, do not return an ICMP port unreachable message.
 (Disabled by default.
