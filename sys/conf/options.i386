@@ -104,3 +104,6 @@ XENHVM			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h
+
+# Don't create a "legacy" PCI bridge if none is found.
+NO_LEGACY_PCIB		opt_cpu.h
