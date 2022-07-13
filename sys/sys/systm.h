@@ -360,8 +360,6 @@ int	SAN_INTERCEPTOR(casueword)(volatile u_long *p, u_long oldval,
 #endif /* !SAN_RUNTIME */
 #endif /* SAN_NEEDS_INTERCEPTORS && !KCSAN */
 
-void	realitexpire(void *);
-
 int	sysbeep(int hertz, sbintime_t duration);
 
 void	hardclock(int cnt, int usermode);
