@@ -1159,7 +1159,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 			error = ENOMEM;
 			break;
 		}
-		if (pai->page_count >= CUSE_ALLOC_PAGES_MAX) {
+		if (pai->page_count > CUSE_ALLOC_PAGES_MAX) {
 			error = ENOMEM;
 			break;
 		}
