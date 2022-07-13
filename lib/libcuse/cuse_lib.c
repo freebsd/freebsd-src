@@ -145,7 +145,7 @@ cuse_vmoffset(void *_ptr)
 	unsigned long n;
 
 	CUSE_LOCK();
-	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
+	for (n = remainder = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
 		if (a_cuse[n].ptr == NULL)
 			continue;
 
@@ -153,20 +153,13 @@ cuse_vmoffset(void *_ptr)
 		ptr_max = a_cuse[n].ptr + a_cuse[n].size - 1;
 
 		if ((ptr >= ptr_min) && (ptr <= ptr_max)) {
-
-			CUSE_UNLOCK();
-
 			remainder = (ptr - ptr_min);
-
-			remainder -= remainder %
-			    (unsigned long)getpagesize();
-
-			return ((n * CUSE_ALLOC_BYTES_MAX) + remainder);
+			break;
 		}
 	}
 	CUSE_UNLOCK();
 
-	return (0x80000000UL);		/* failure */
+	return ((n << CUSE_ALLOC_UNIT_SHIFT) + remainder);
 }
 
 void   *
@@ -174,70 +167,70 @@ cuse_vmalloc(int size)
 {
 	struct cuse_alloc_info info;
 	unsigned long pgsize;
+	unsigned long x;
+	unsigned long m;
 	unsigned long n;
 	void *ptr;
 	int error;
 
-	if (f_cuse < 0)
+	/* some sanity checks */
+	if (f_cuse < 0 || size < 1 || (unsigned long)size > CUSE_ALLOC_BYTES_MAX)
 		return (NULL);
 
 	memset(&info, 0, sizeof(info));
 
-	if (size < 1)
-		return (NULL);
-
 	pgsize = getpagesize();
 	info.page_count = howmany(size, pgsize);
 
+	/* compute how many units the allocation needs */
+	m = howmany(size, 1 << CUSE_ALLOC_UNIT_SHIFT);
+	if (m == 0 || m > CUSE_ALLOC_UNIT_MAX)
+		return (NULL);
+
 	CUSE_LOCK();
-	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
-
-		if (a_cuse[n].ptr != NULL)
+	for (n = 0; n <= CUSE_ALLOC_UNIT_MAX - m; ) {
+		if (a_cuse[n].size != 0) {
+			/* skip to next available unit, depending on allocation size */
+			n += howmany(a_cuse[n].size, 1 << CUSE_ALLOC_UNIT_SHIFT);
 			continue;
-
-		a_cuse[n].ptr = ((uint8_t *)1);	/* reserve */
-		a_cuse[n].size = 0;
-
+		}
+		/* check if there are "m" free units ahead */
+		for (x = 1; x != m; x++) {
+			if (a_cuse[n + x].size != 0)
+				break;
+		}
+		if (x != m) {
+			/* skip to next available unit, if any */
+			n += x + 1;
+			continue;
+		}
+		/* reserve this unit by setting the size to a non-zero value */
+		a_cuse[n].size = size;
 		CUSE_UNLOCK();
 
 		info.alloc_nr = n;
 
 		error = ioctl(f_cuse, CUSE_IOCTL_ALLOC_MEMORY, &info);
 
-		if (error) {
+		if (error == 0) {
+			ptr = mmap(NULL, info.page_count * pgsize,
+			    PROT_READ | PROT_WRITE,
+			    MAP_SHARED, f_cuse, n << CUSE_ALLOC_UNIT_SHIFT);
 
-			CUSE_LOCK();
+			if (ptr != MAP_FAILED) {
+				CUSE_LOCK();
+				a_cuse[n].ptr = ptr;
+				CUSE_UNLOCK();
 
-			a_cuse[n].ptr = NULL;
-
-			if (errno == EBUSY)
-				continue;
-			else
-				break;
-		}
-		ptr = mmap(NULL, info.page_count * pgsize,
-		    PROT_READ | PROT_WRITE,
-		    MAP_SHARED, f_cuse, CUSE_ALLOC_BYTES_MAX * n);
-
-		if (ptr == MAP_FAILED) {
-
-			error = ioctl(f_cuse, CUSE_IOCTL_FREE_MEMORY, &info);
-
-			if (error) {
-				/* ignore */
+				return (ptr);		/* success */
 			}
-			CUSE_LOCK();
 
-			a_cuse[n].ptr = NULL;
-
-			break;
+			(void) ioctl(f_cuse, CUSE_IOCTL_FREE_MEMORY, &info);
 		}
-		CUSE_LOCK();
-		a_cuse[n].ptr = ptr;
-		a_cuse[n].size = size;
-		CUSE_UNLOCK();
 
-		return (ptr);		/* success */
+		CUSE_LOCK();
+		a_cuse[n].size = 0;
+		n++;
 	}
 	CUSE_UNLOCK();
 	return (NULL);			/* failure */

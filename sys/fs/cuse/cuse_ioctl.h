@@ -34,9 +34,11 @@
 #define	CUSE_DEVICES_MAX	64	/* units */
 #define	CUSE_BUF_MIN_PTR	0x10000UL
 #define	CUSE_BUF_MAX_PTR	0x20000UL
-#define	CUSE_ALLOC_UNIT_MAX	128	/* units */
+#define	CUSE_ALLOC_UNIT_MAX	128UL	/* units */
+#define	CUSE_ALLOC_UNIT_SHIFT	24	/* bits */
 /* All memory allocations must be less than the following limit */
-#define	CUSE_ALLOC_BYTES_MAX	(1UL << 24)	/* bytes */
+#define	CUSE_ALLOC_BYTES_MAX \
+    (CUSE_ALLOC_UNIT_MAX << CUSE_ALLOC_UNIT_SHIFT) /* bytes */
 
 struct cuse_dev;
 

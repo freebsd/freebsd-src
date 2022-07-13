@@ -1329,12 +1329,49 @@ cuse_server_poll(struct cdev *dev, int events, struct thread *td)
 }
 
 static int
+cuse_common_mmap_single(struct cuse_server *pcs,
+    vm_ooffset_t *offset, vm_size_t size, struct vm_object **object)
+{
+  	struct cuse_memory *mem;
+	int error;
+
+	/* verify size */
+	if ((size % PAGE_SIZE) != 0 || (size < PAGE_SIZE))
+		return (EINVAL);
+
+	cuse_server_lock(pcs);
+	error = ENOMEM;
+
+	/* lookup memory structure, if any */
+	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
+		vm_ooffset_t min_off;
+		vm_ooffset_t max_off;
+
+		min_off = (mem->alloc_nr << CUSE_ALLOC_UNIT_SHIFT);
+		max_off = min_off + (PAGE_SIZE * mem->page_count);
+
+		if (*offset >= min_off && *offset < max_off) {
+			/* range check size */
+			if (size > (max_off - *offset)) {
+				error = EINVAL;
+			} else {
+				/* get new VM object offset to use */
+				*offset -= min_off;
+				vm_object_reference(mem->object);
+				*object = mem->object;
+				error = 0;
+			}
+			break;
+		}
+	}
+	cuse_server_unlock(pcs);
+	return (error);
+}
+
+static int
 cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot)
 {
-	uint32_t page_nr = *offset / PAGE_SIZE;
-	uint32_t alloc_nr = page_nr / CUSE_ALLOC_PAGES_MAX;
-	struct cuse_memory *mem;
 	struct cuse_server *pcs;
 	int error;
 
@@ -1342,37 +1379,7 @@ cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	if (error != 0)
 		return (error);
 
-	cuse_server_lock(pcs);
-	/* lookup memory structure */
-	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
-		if (mem->alloc_nr == alloc_nr)
-			break;
-	}
-	if (mem == NULL) {
-		cuse_server_unlock(pcs);
-		return (ENOMEM);
-	}
-	/* verify page offset */
-	page_nr %= CUSE_ALLOC_PAGES_MAX;
-	if (page_nr >= mem->page_count) {
-		cuse_server_unlock(pcs);
-		return (ENXIO);
-	}
-	/* verify mmap size */
-	if ((size % PAGE_SIZE) != 0 || (size < PAGE_SIZE) ||
-	    (size > ((mem->page_count - page_nr) * PAGE_SIZE))) {
-		cuse_server_unlock(pcs);
-		return (EINVAL);
-	}
-	vm_object_reference(mem->object);
-	*object = mem->object;
-	cuse_server_unlock(pcs);
-
-	/* set new VM object offset to use */
-	*offset = page_nr * PAGE_SIZE;
-
-	/* success */
-	return (0);
+	return (cuse_common_mmap_single(pcs, offset, size, object));
 }
 
 /*------------------------------------------------------------------------*
@@ -1811,50 +1818,14 @@ static int
 cuse_client_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot)
 {
-	uint32_t page_nr = *offset / PAGE_SIZE;
-	uint32_t alloc_nr = page_nr / CUSE_ALLOC_PAGES_MAX;
-	struct cuse_memory *mem;
 	struct cuse_client *pcc;
-	struct cuse_server *pcs;
 	int error;
 
 	error = cuse_client_get(&pcc);
 	if (error != 0)
 		return (error);
 
-	pcs = pcc->server;
-
-	cuse_server_lock(pcs);
-	/* lookup memory structure */
-	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
-		if (mem->alloc_nr == alloc_nr)
-			break;
-	}
-	if (mem == NULL) {
-		cuse_server_unlock(pcs);
-		return (ENOMEM);
-	}
-	/* verify page offset */
-	page_nr %= CUSE_ALLOC_PAGES_MAX;
-	if (page_nr >= mem->page_count) {
-		cuse_server_unlock(pcs);
-		return (ENXIO);
-	}
-	/* verify mmap size */
-	if ((size % PAGE_SIZE) != 0 || (size < PAGE_SIZE) ||
-	    (size > ((mem->page_count - page_nr) * PAGE_SIZE))) {
-		cuse_server_unlock(pcs);
-		return (EINVAL);
-	}
-	vm_object_reference(mem->object);
-	*object = mem->object;
-	cuse_server_unlock(pcs);
-
-	/* set new VM object offset to use */
-	*offset = page_nr * PAGE_SIZE;
-
-	/* success */
-	return (0);
+	return (cuse_common_mmap_single(pcc->server, offset, size, object));
 }
 
 static void
