@@ -1395,7 +1395,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
 .if ${TARGET_ARCH} == "amd64"
-	-mkdir  ${DESTDIR}/${DISTDIR}/usr/include/i386
+	-mkdir ${DESTDIR}/${DISTDIR}/${dist}/usr/include/i386
 .endif
 .if ${MK_DEBUG_FILES} != "no"
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
