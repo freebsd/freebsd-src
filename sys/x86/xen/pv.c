@@ -94,7 +94,7 @@ uint64_t hammer_time_xen(vm_paddr_t);
 
 /*--------------------------- Forward Declarations ---------------------------*/
 static caddr_t xen_pvh_parse_preload_data(uint64_t);
-static void xen_pvh_parse_memmap(caddr_t, vm_paddr_t *, int *);
+static void pvh_parse_memmap(caddr_t, vm_paddr_t *, int *);
 
 /*---------------------------- Extern Declarations ---------------------------*/
 /*
@@ -108,7 +108,7 @@ struct init_ops xen_pvh_init_ops = {
 	.parse_preload_data		= xen_pvh_parse_preload_data,
 	.early_clock_source_init	= xen_clock_init,
 	.early_delay			= xen_delay,
-	.parse_memmap			= xen_pvh_parse_memmap,
+	.parse_memmap			= pvh_parse_memmap,
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
@@ -396,6 +396,36 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 }
 
 static void
+pvh_parse_memmap_start_info(caddr_t kmdp, vm_paddr_t *physmap,
+    int *physmap_idx)
+{
+	const struct hvm_memmap_table_entry * entries;
+	size_t nentries;
+	size_t i;
+
+	/* Extract from HVM start_info. */
+	entries = (struct hvm_memmap_table_entry *)(start_info->memmap_paddr + KERNBASE);
+	nentries = start_info->memmap_entries;
+
+	/* Convert into E820 format and handle one by one. */
+	for (i = 0; i < nentries; i++) {
+		struct bios_smap entry;
+
+		entry.base = entries[i].addr;
+		entry.length = entries[i].size;
+
+		/*
+		 * Luckily for us, the XEN_HVM_MEMMAP_TYPE_* values exactly
+		 * match the SMAP_TYPE_* values so we don't need to translate
+		 * anything here.
+		 */
+		entry.type = entries[i].type;
+
+		bios_add_smap_entries(&entry, 1, physmap, physmap_idx);
+	}
+}
+
+static void
 xen_pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 {
 	struct xen_memory_map memmap;
@@ -415,4 +445,19 @@ xen_pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	size = memmap.nr_entries * sizeof(xen_smap[0]);
 
 	bios_add_smap_entries(xen_smap, size, physmap, physmap_idx);
+}
+
+static void
+pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
+{
+
+	/*
+	 * If version >= 1 and memmap_paddr != 0, use the memory map provided
+	 * in the start_info structure; if not, we're running under legacy
+	 * Xen and need to use the Xen hypercall.
+	 */
+	if ((start_info->version >= 1) && (start_info->memmap_paddr != 0))
+		pvh_parse_memmap_start_info(kmdp, physmap, physmap_idx);
+	else
+		xen_pvh_parse_memmap(kmdp, physmap, physmap_idx);
 }
