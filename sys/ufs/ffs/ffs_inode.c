@@ -95,9 +95,7 @@ ffs_inode_bwrite(struct vnode *vp, struct buf *bp, int flags)
  * for the write to complete.
  */
 int
-ffs_update(vp, waitfor)
-	struct vnode *vp;
-	int waitfor;
+ffs_update(struct vnode *vp, int waitfor)
 {
 	struct fs *fs;
 	struct buf *bp;
@@ -234,11 +232,10 @@ loop:
  * disk blocks.
  */
 int
-ffs_truncate(vp, length, flags, cred)
-	struct vnode *vp;
-	off_t length;
-	int flags;
-	struct ucred *cred;
+ffs_truncate(struct vnode *vp,
+	off_t length,
+	int flags,
+	struct ucred *cred)
 {
 	struct inode *ip;
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[UFS_NIADDR];
@@ -695,12 +692,12 @@ extclean:
  * blocks.
  */
 static int
-ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
-	struct inode *ip;
-	ufs2_daddr_t lbn, lastbn;
-	ufs2_daddr_t dbn;
-	int level;
-	ufs2_daddr_t *countp;
+ffs_indirtrunc(struct inode *ip,
+	ufs2_daddr_t lbn,
+	ufs2_daddr_t dbn,
+	ufs2_daddr_t lastbn,
+	int level,
+	ufs2_daddr_t *countp)
 {
 	struct buf *bp;
 	struct fs *fs;

@@ -148,12 +148,13 @@ static void	ffs_ckhash_cg(struct buf *);
  *      available block is located.
  */
 int
-ffs_alloc(ip, lbn, bpref, size, flags, cred, bnp)
-	struct inode *ip;
-	ufs2_daddr_t lbn, bpref;
-	int size, flags;
-	struct ucred *cred;
-	ufs2_daddr_t *bnp;
+ffs_alloc(struct inode *ip,
+	ufs2_daddr_t lbn,
+	ufs2_daddr_t bpref,
+	int size,
+	int flags,
+	struct ucred *cred,
+	ufs2_daddr_t *bnp)
 {
 	struct fs *fs;
 	struct ufsmount *ump;
@@ -248,14 +249,15 @@ nospace:
  * invoked to get an appropriate block.
  */
 int
-ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
-	struct inode *ip;
-	ufs2_daddr_t lbprev;
-	ufs2_daddr_t bprev;
-	ufs2_daddr_t bpref;
-	int osize, nsize, flags;
-	struct ucred *cred;
-	struct buf **bpp;
+ffs_realloccg(struct inode *ip,
+	ufs2_daddr_t lbprev,
+	ufs2_daddr_t bprev,
+	ufs2_daddr_t bpref,
+	int osize,
+	int nsize,
+	int flags,
+	struct ucred *cred,
+	struct buf **bpp)
 {
 	struct vnode *vp;
 	struct fs *fs;
@@ -514,11 +516,11 @@ SYSCTL_INT(_debug, OID_AUTO, ffs_prtrealloc, CTLFLAG_RW, &prtrealloc, 0,
 #endif
 
 int
-ffs_reallocblks(ap)
+ffs_reallocblks(
 	struct vop_reallocblks_args /* {
 		struct vnode *a_vp;
 		struct cluster_save *a_buflist;
-	} */ *ap;
+	} */ *ap)
 {
 	struct ufsmount *ump;
 	int error;
@@ -559,11 +561,11 @@ ffs_reallocblks(ap)
 }
 
 static int
-ffs_reallocblks_ufs1(ap)
+ffs_reallocblks_ufs1(
 	struct vop_reallocblks_args /* {
 		struct vnode *a_vp;
 		struct cluster_save *a_buflist;
-	} */ *ap;
+	} */ *ap)
 {
 	struct fs *fs;
 	struct inode *ip;
@@ -825,11 +827,11 @@ fail:
 }
 
 static int
-ffs_reallocblks_ufs2(ap)
+ffs_reallocblks_ufs2(
 	struct vop_reallocblks_args /* {
 		struct vnode *a_vp;
 		struct cluster_save *a_buflist;
-	} */ *ap;
+	} */ *ap)
 {
 	struct fs *fs;
 	struct inode *ip;
@@ -1104,11 +1106,10 @@ fail:
  *      available inode is located.
  */
 int
-ffs_valloc(pvp, mode, cred, vpp)
-	struct vnode *pvp;
-	int mode;
-	struct ucred *cred;
-	struct vnode **vpp;
+ffs_valloc(struct vnode *pvp,
+	int mode,
+	struct ucred *cred,
+	struct vnode **vpp)
 {
 	struct inode *pip;
 	struct fs *fs;
@@ -1234,8 +1235,7 @@ noinodes:
  * in another cylinder group.
  */
 static ino_t
-ffs_dirpref(pip)
-	struct inode *pip;
+ffs_dirpref(struct inode *pip)
 {
 	struct fs *fs;
 	int cg, prefcg, dirsize, cgsize;
@@ -1381,11 +1381,10 @@ ffs_dirpref(pip)
  * allocate blocks contiguously within the section if possible.
  */
 ufs2_daddr_t
-ffs_blkpref_ufs1(ip, lbn, indx, bap)
-	struct inode *ip;
-	ufs_lbn_t lbn;
-	int indx;
-	ufs1_daddr_t *bap;
+ffs_blkpref_ufs1(struct inode *ip,
+	ufs_lbn_t lbn,
+	int indx,
+	ufs1_daddr_t *bap)
 {
 	struct fs *fs;
 	u_int cg, inocg;
@@ -1494,11 +1493,10 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
  * Same as above, but for UFS2
  */
 ufs2_daddr_t
-ffs_blkpref_ufs2(ip, lbn, indx, bap)
-	struct inode *ip;
-	ufs_lbn_t lbn;
-	int indx;
-	ufs2_daddr_t *bap;
+ffs_blkpref_ufs2(struct inode *ip,
+	ufs_lbn_t lbn,
+	int indx,
+	ufs2_daddr_t *bap)
 {
 	struct fs *fs;
 	u_int cg, inocg;
@@ -1616,13 +1614,12 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
  */
 /*VARARGS5*/
 static ufs2_daddr_t
-ffs_hashalloc(ip, cg, pref, size, rsize, allocator)
-	struct inode *ip;
-	u_int cg;
-	ufs2_daddr_t pref;
-	int size;	/* Search size for data blocks, mode for inodes */
-	int rsize;	/* Real allocated size. */
-	allocfcn_t *allocator;
+ffs_hashalloc(struct inode *ip,
+	u_int cg,
+	ufs2_daddr_t pref,
+	int size,	/* Search size for data blocks, mode for inodes */
+	int rsize,	/* Real allocated size. */
+	allocfcn_t *allocator)
 {
 	struct fs *fs;
 	ufs2_daddr_t result;
@@ -1675,11 +1672,11 @@ ffs_hashalloc(ip, cg, pref, size, rsize, allocator)
  * if they are, allocate them.
  */
 static ufs2_daddr_t
-ffs_fragextend(ip, cg, bprev, osize, nsize)
-	struct inode *ip;
-	u_int cg;
-	ufs2_daddr_t bprev;
-	int osize, nsize;
+ffs_fragextend(struct inode *ip,
+	u_int cg,
+	ufs2_daddr_t bprev,
+	int osize,
+	int nsize)
 {
 	struct fs *fs;
 	struct cg *cgp;
@@ -1752,12 +1749,11 @@ fail:
  * and if it is, allocate it.
  */
 static ufs2_daddr_t
-ffs_alloccg(ip, cg, bpref, size, rsize)
-	struct inode *ip;
-	u_int cg;
-	ufs2_daddr_t bpref;
-	int size;
-	int rsize;
+ffs_alloccg(struct inode *ip,
+	u_int cg,
+	ufs2_daddr_t bpref,
+	int size,
+	int rsize)
 {
 	struct fs *fs;
 	struct cg *cgp;
@@ -1849,11 +1845,10 @@ fail:
  * blocks may be fragmented by the routine that allocates them.
  */
 static ufs2_daddr_t
-ffs_alloccgblk(ip, bp, bpref, size)
-	struct inode *ip;
-	struct buf *bp;
-	ufs2_daddr_t bpref;
-	int size;
+ffs_alloccgblk(struct inode *ip,
+	struct buf *bp,
+	ufs2_daddr_t bpref,
+	int size)
 {
 	struct fs *fs;
 	struct cg *cgp;
@@ -1932,11 +1927,10 @@ gotit:
  * take the first one that we find following bpref.
  */
 static ufs2_daddr_t
-ffs_clusteralloc(ip, cg, bpref, len)
-	struct inode *ip;
-	u_int cg;
-	ufs2_daddr_t bpref;
-	int len;
+ffs_clusteralloc(struct inode *ip,
+	u_int cg,
+	ufs2_daddr_t bpref,
+	int len)
 {
 	struct fs *fs;
 	struct cg *cgp;
@@ -2043,7 +2037,10 @@ ffs_clusteralloc(ip, cg, bpref, len)
 }
 
 static inline struct buf *
-getinobuf(struct inode *ip, u_int cg, u_int32_t cginoblk, int gbflags)
+getinobuf(struct inode *ip,
+	u_int cg,
+	u_int32_t cginoblk,
+	int gbflags)
 {
 	struct fs *fs;
 
@@ -2073,12 +2070,11 @@ SYSCTL_INT(_vfs_ffs, OID_AUTO, doasyncinodeinit, CTLFLAG_RWTUN,
  *      inode in the specified cylinder group.
  */
 static ufs2_daddr_t
-ffs_nodealloccg(ip, cg, ipref, mode, unused)
-	struct inode *ip;
-	u_int cg;
-	ufs2_daddr_t ipref;
-	int mode;
-	int unused;
+ffs_nodealloccg(struct inode *ip,
+	u_int cg,
+	ufs2_daddr_t ipref,
+	int mode,
+	int unused)
 {
 	struct fs *fs;
 	struct cg *cgp;
@@ -2230,14 +2226,13 @@ gotit:
  * block reassembly is checked.
  */
 static void
-ffs_blkfree_cg(ump, fs, devvp, bno, size, inum, dephd)
-	struct ufsmount *ump;
-	struct fs *fs;
-	struct vnode *devvp;
-	ufs2_daddr_t bno;
-	long size;
-	ino_t inum;
-	struct workhead *dephd;
+ffs_blkfree_cg(struct ufsmount *ump,
+	struct fs *fs,
+	struct vnode *devvp,
+	ufs2_daddr_t bno,
+	long size,
+	ino_t inum,
+	struct workhead *dephd)
 {
 	struct mount *mp;
 	struct cg *cgp;
@@ -2422,8 +2417,7 @@ static void	ffs_blkfree_sendtrim(struct ffs_blkfree_trim_params *);
  * Called on trim completion to start a task to free the associated block(s).
  */
 static void
-ffs_blkfree_trim_completed(bp)
-	struct buf *bp;
+ffs_blkfree_trim_completed(struct buf *bp)
 {
 	struct ffs_blkfree_trim_params *tp;
 
@@ -2437,9 +2431,7 @@ ffs_blkfree_trim_completed(bp)
  * Trim completion task that free associated block(s).
  */
 static void
-ffs_blkfree_trim_task(ctx, pending)
-	void *ctx;
-	int pending;
+ffs_blkfree_trim_task(void *ctx, int pending)
 {
 	struct ffs_blkfree_trim_params *tp;
 	struct trim_blkreq *blkelm;
@@ -2466,14 +2458,13 @@ ffs_blkfree_trim_task(ctx, pending)
  * Allocate if requested (NEW, REPLACE, SINGLE).
  */
 static struct ffs_blkfree_trim_params *
-trim_lookup(ump, devvp, bno, size, inum, key, alloctype)
-	struct ufsmount *ump;
-	struct vnode *devvp;
-	ufs2_daddr_t bno;
-	long size;
-	ino_t inum;
-	u_long key;
-	int alloctype;
+trim_lookup(struct ufsmount *ump,
+	struct vnode *devvp,
+	ufs2_daddr_t bno,
+	long size,
+	ino_t inum,
+	u_long key,
+	int alloctype)
 {
 	struct trimlist_hashhead *tphashhead;
 	struct ffs_blkfree_trim_params *tp, *ntp;
@@ -2527,9 +2518,8 @@ trim_lookup(ump, devvp, bno, size, inum, key, alloctype)
  * Dispatch a trim request.
  */
 static void
-ffs_blkfree_sendtrim(tp)
-	struct ffs_blkfree_trim_params *tp;
-{
+ffs_blkfree_sendtrim(struct ffs_blkfree_trim_params *tp)
+{ 
 	struct ufsmount *ump;
 	struct mount *mp;
 	struct buf *bp;
@@ -2563,10 +2553,9 @@ ffs_blkfree_sendtrim(tp)
  * Allocate a new key to use to identify a range of blocks.
  */
 u_long
-ffs_blkrelease_start(ump, devvp, inum)
-	struct ufsmount *ump;
-	struct vnode *devvp;
-	ino_t inum;
+ffs_blkrelease_start(struct ufsmount *ump,
+	struct vnode *devvp,
+	ino_t inum)
 {
 	static u_long masterkey;
 	u_long key;
@@ -2584,9 +2573,7 @@ ffs_blkrelease_start(ump, devvp, inum)
  * Deallocate a key that has been used to identify a range of blocks.
  */
 void
-ffs_blkrelease_finish(ump, key)
-	struct ufsmount *ump;
-	u_long key;
+ffs_blkrelease_finish(struct ufsmount *ump, u_long key)
 {
 	struct ffs_blkfree_trim_params *tp;
 
@@ -2632,16 +2619,15 @@ ffs_blkrelease_finish(ump, key)
  * aggregate consecutive blocks into a single trim request.
  */
 void
-ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, key)
-	struct ufsmount *ump;
-	struct fs *fs;
-	struct vnode *devvp;
-	ufs2_daddr_t bno;
-	long size;
-	ino_t inum;
-	enum vtype vtype;
-	struct workhead *dephd;
-	u_long key;
+ffs_blkfree(struct ufsmount *ump,
+	struct fs *fs,
+	struct vnode *devvp,
+	ufs2_daddr_t bno,
+	long size,
+	ino_t inum,
+	enum vtype vtype,
+	struct workhead *dephd,
+	u_long key)
 {
 	struct ffs_blkfree_trim_params *tp, *ntp;
 	struct trim_blkreq *blkelm;
@@ -2740,10 +2726,9 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, key)
  * fragment is allocated, false if it is free.
  */
 static int
-ffs_checkblk(ip, bno, size)
-	struct inode *ip;
-	ufs2_daddr_t bno;
-	long size;
+ffs_checkblk(struct inode *ip,
+	ufs2_daddr_t bno,
+	long size)
 {
 	struct fs *fs;
 	struct cg *cgp;
@@ -2784,10 +2769,9 @@ ffs_checkblk(ip, bno, size)
  * Free an inode.
  */
 int
-ffs_vfree(pvp, ino, mode)
-	struct vnode *pvp;
-	ino_t ino;
-	int mode;
+ffs_vfree(struct vnode *pvp,
+	ino_t ino,
+	int mode)
 {
 	struct ufsmount *ump;
 
@@ -2804,13 +2788,12 @@ ffs_vfree(pvp, ino, mode)
  * The specified inode is placed back in the free map.
  */
 int
-ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
-	struct ufsmount *ump;
-	struct fs *fs;
-	struct vnode *devvp;
-	ino_t ino;
-	int mode;
-	struct workhead *wkhd;
+ffs_freefile(struct ufsmount *ump,
+	struct fs *fs,
+	struct vnode *devvp,
+	ino_t ino,
+	int mode,
+	struct workhead *wkhd)
 {
 	struct cg *cgp;
 	struct buf *bp;
@@ -2886,10 +2869,9 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
  * Used to check for allocated files in snapshots.
  */
 int
-ffs_checkfreefile(fs, devvp, ino)
-	struct fs *fs;
-	struct vnode *devvp;
-	ino_t ino;
+ffs_checkfreefile(struct fs *fs,
+	struct vnode *devvp,
+	ino_t ino)
 {
 	struct cg *cgp;
 	struct buf *bp;
@@ -2918,11 +2900,10 @@ ffs_checkfreefile(fs, devvp, ino)
  * available.
  */
 static ufs1_daddr_t
-ffs_mapsearch(fs, cgp, bpref, allocsiz)
-	struct fs *fs;
-	struct cg *cgp;
-	ufs2_daddr_t bpref;
-	int allocsiz;
+ffs_mapsearch(struct fs *fs,
+	struct cg *cgp,
+	ufs2_daddr_t bpref,
+	int allocsiz)
 {
 	ufs1_daddr_t bno;
 	int start, len, loc, i;
@@ -2991,13 +2972,12 @@ ffs_getmntstat(struct vnode *devvp)
  * Fetch and verify a cylinder group.
  */
 int
-ffs_getcg(fs, devvp, cg, flags, bpp, cgpp)
-	struct fs *fs;
-	struct vnode *devvp;
-	u_int cg;
-	int flags;
-	struct buf **bpp;
-	struct cg **cgpp;
+ffs_getcg(struct fs *fs,
+	struct vnode *devvp,
+	u_int cg,
+	int flags,
+	struct buf **bpp,
+	struct cg **cgpp)
 {
 	struct buf *bp;
 	struct cg *cgp;
@@ -3068,8 +3048,7 @@ ffs_getcg(fs, devvp, cg, flags, bpp, cgpp)
 }
 
 static void
-ffs_ckhash_cg(bp)
-	struct buf *bp;
+ffs_ckhash_cg(struct buf *bp)
 {
 	uint32_t ckhash;
 	struct cg *cgp;
@@ -3088,10 +3067,9 @@ ffs_ckhash_cg(bp)
  *	fs: error message
  */
 void
-ffs_fserr(fs, inum, cp)
-	struct fs *fs;
-	ino_t inum;
-	char *cp;
+ffs_fserr(struct fs *fs,
+	ino_t inum,
+	char *cp)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct proc *p = td->td_proc;

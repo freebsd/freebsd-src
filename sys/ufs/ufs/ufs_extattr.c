@@ -811,18 +811,16 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
  * Vnode operating to retrieve a named extended attribute.
  */
 int
-ufs_getextattr(struct vop_getextattr_args *ap)
-/*
-vop_getextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	IN const char *a_name;
-	INOUT struct uio *a_uio;
-	OUT size_t *a_size;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ufs_getextattr(
+	struct vop_getextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		IN const char *a_name;
+		INOUT struct uio *a_uio;
+		OUT size_t *a_size;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct mount *mp = ap->a_vp->v_mount;
 	struct ufsmount *ump = VFSTOUFS(mp);
@@ -983,16 +981,14 @@ vopunlock_exit:
  * Vnode operation to remove a named attribute.
  */
 int
-ufs_deleteextattr(struct vop_deleteextattr_args *ap)
-/*
-vop_deleteextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	IN const char *a_name;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ufs_deleteextattr(
+	struct vop_deleteextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		IN const char *a_name;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct mount *mp = ap->a_vp->v_mount;
 	struct ufsmount *ump = VFSTOUFS(mp); 
@@ -1012,17 +1008,15 @@ vop_deleteextattr {
  * Vnode operation to set a named attribute.
  */
 int
-ufs_setextattr(struct vop_setextattr_args *ap)
-/*
-vop_setextattr {
-	IN struct vnode *a_vp;
-	IN int a_attrnamespace;
-	IN const char *a_name;
-	INOUT struct uio *a_uio;
-	IN struct ucred *a_cred;
-	IN struct thread *a_td;
-};
-*/
+ufs_setextattr(
+	struct vop_setextattr_args /* {
+		IN struct vnode *a_vp;
+		IN int a_attrnamespace;
+		IN const char *a_name;
+		INOUT struct uio *a_uio;
+		IN struct ucred *a_cred;
+		IN struct thread *a_td;
+	} */ *ap)
 {
 	struct mount *mp = ap->a_vp->v_mount;
 	struct ufsmount *ump = VFSTOUFS(mp); 
