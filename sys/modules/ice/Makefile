@@ -18,7 +18,7 @@ SRCS	+= ice_fw_logging.c
 
 # RDMA Client interface
 # TODO: Is this the right way to compile this?
-SRCS    += irdma_di_if.c irdma_if.c
+SRCS    += ice_rdma.c irdma_di_if.c irdma_if.c
 CFLAGS.irdma_di_if.c += -I${SRCTOP}/sys/dev/ice
 CFLAGS.irdma_if.c += -I${SRCTOP}/sys/dev/ice
 
