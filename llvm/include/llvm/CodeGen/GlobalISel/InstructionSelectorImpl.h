@@ -379,6 +379,25 @@ bool InstructionSelector::executeMatchTable(
           return false;
       break;
     }
+    case GIM_CheckHasNoUse: {
+      int64_t InsnID = MatchTable[CurrentIdx++];
+
+      DEBUG_WITH_TYPE(TgtInstructionSelector::getName(),
+                      dbgs() << CurrentIdx << ": GIM_CheckHasNoUse(MIs["
+                             << InsnID << "]\n");
+
+      const MachineInstr *MI = State.MIs[InsnID];
+      assert(MI && "Used insn before defined");
+      assert(MI->getNumDefs() > 0 && "No defs");
+      const Register Res = MI->getOperand(0).getReg();
+
+      if (!MRI.use_nodbg_empty(Res)) {
+        if (handleReject() == RejectAndGiveUp)
+          return false;
+      }
+
+      break;
+    }
     case GIM_CheckAtomicOrdering: {
       int64_t InsnID = MatchTable[CurrentIdx++];
       AtomicOrdering Ordering = (AtomicOrdering)MatchTable[CurrentIdx++];
@@ -675,7 +694,7 @@ bool InstructionSelector::executeMatchTable(
           (ISel.*ISelInfo.ComplexPredicates[ComplexPredicateID])(
               State.MIs[InsnID]->getOperand(OpIdx));
       if (Renderer)
-        State.Renderers[RendererID] = Renderer.getValue();
+        State.Renderers[RendererID] = Renderer.value();
       else
         if (handleReject() == RejectAndGiveUp)
           return false;

@@ -2386,7 +2386,7 @@ private:
 
   tooling::Replacements generateFixes() {
     tooling::Replacements Fixes;
-    std::vector<FormatToken *> Tokens;
+    SmallVector<FormatToken *> Tokens;
     std::copy(DeletedTokens.begin(), DeletedTokens.end(),
               std::back_inserter(Tokens));
 
@@ -2580,7 +2580,7 @@ struct JavaImportDirective {
   StringRef Identifier;
   StringRef Text;
   unsigned Offset;
-  std::vector<StringRef> AssociatedCommentLines;
+  SmallVector<StringRef> AssociatedCommentLines;
   bool IsStatic;
 };
 
@@ -2983,7 +2983,7 @@ tooling::Replacements sortJavaImports(const FormatStyle &Style, StringRef Code,
   llvm::Regex ImportRegex(JavaImportRegexPattern);
   SmallVector<StringRef, 4> Matches;
   SmallVector<JavaImportDirective, 16> ImportsInBlock;
-  std::vector<StringRef> AssociatedCommentLines;
+  SmallVector<StringRef> AssociatedCommentLines;
 
   bool FormattingOff = false;
 
@@ -3433,17 +3433,19 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
 }
 
 const char *StyleOptionHelpDescription =
-    "Coding style, currently supports:\n"
-    "  LLVM, GNU, Google, Chromium, Microsoft, Mozilla, WebKit.\n"
-    "Use -style=file to load style configuration from\n"
-    ".clang-format file located in one of the parent\n"
-    "directories of the source file (or current\n"
-    "directory for stdin).\n"
-    "Use -style=file:<format_file_path> to explicitly specify\n"
-    "the configuration file.\n"
-    "Use -style=\"{key: value, ...}\" to set specific\n"
-    "parameters, e.g.:\n"
-    "  -style=\"{BasedOnStyle: llvm, IndentWidth: 8}\"";
+    "Set coding style. <string> can be:\n"
+    "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
+    "   Mozilla, WebKit.\n"
+    "2. 'file' to load style configuration from a\n"
+    "   .clang-format file in one of the parent directories\n"
+    "   of the source file (for stdin, see --assume-filename).\n"
+    "   If no .clang-format file is found, falls back to\n"
+    "   --fallback-style.\n"
+    "   --style=file is the default.\n"
+    "3. 'file:<format_file_path>' to explicitly specify\n"
+    "   the configuration file.\n"
+    "4. \"{key: value, ...}\" to set specific parameters, e.g.:\n"
+    "   --style=\"{BasedOnStyle: llvm, IndentWidth: 8}\"";
 
 static FormatStyle::LanguageKind getLanguageByFileName(StringRef FileName) {
   if (FileName.endswith(".java"))
@@ -3498,6 +3500,7 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
   return GuessedLanguage;
 }
 
+// Update StyleOptionHelpDescription above when changing this.
 const char *DefaultFormatStyle = "file";
 
 const char *DefaultFallbackStyle = "LLVM";

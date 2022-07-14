@@ -55,8 +55,11 @@ public:
                    Value *RHS) const override {
     auto *LC = dyn_cast<Constant>(LHS);
     auto *RC = dyn_cast<Constant>(RHS);
-    if (LC && RC)
-      return Fold(ConstantExpr::get(Opc, LC, RC));
+    if (LC && RC) {
+      if (ConstantExpr::isDesirableBinOp(Opc))
+        return Fold(ConstantExpr::get(Opc, LC, RC));
+      return ConstantFoldBinaryOpOperands(Opc, LC, RC, DL);
+    }
     return nullptr;
   }
 
@@ -64,9 +67,12 @@ public:
                         bool IsExact) const override {
     auto *LC = dyn_cast<Constant>(LHS);
     auto *RC = dyn_cast<Constant>(RHS);
-    if (LC && RC)
-      return Fold(ConstantExpr::get(
-          Opc, LC, RC, IsExact ? PossiblyExactOperator::IsExact : 0));
+    if (LC && RC) {
+      if (ConstantExpr::isDesirableBinOp(Opc))
+        return Fold(ConstantExpr::get(
+            Opc, LC, RC, IsExact ? PossiblyExactOperator::IsExact : 0));
+      return ConstantFoldBinaryOpOperands(Opc, LC, RC, DL);
+    }
     return nullptr;
   }
 
@@ -75,12 +81,15 @@ public:
     auto *LC = dyn_cast<Constant>(LHS);
     auto *RC = dyn_cast<Constant>(RHS);
     if (LC && RC) {
-      unsigned Flags = 0;
-      if (HasNUW)
-        Flags |= OverflowingBinaryOperator::NoUnsignedWrap;
-      if (HasNSW)
-        Flags |= OverflowingBinaryOperator::NoSignedWrap;
-      return Fold(ConstantExpr::get(Opc, LC, RC, Flags));
+      if (ConstantExpr::isDesirableBinOp(Opc)) {
+        unsigned Flags = 0;
+        if (HasNUW)
+          Flags |= OverflowingBinaryOperator::NoUnsignedWrap;
+        if (HasNSW)
+          Flags |= OverflowingBinaryOperator::NoSignedWrap;
+        return Fold(ConstantExpr::get(Opc, LC, RC, Flags));
+      }
+      return ConstantFoldBinaryOpOperands(Opc, LC, RC, DL);
     }
     return nullptr;
   }
@@ -89,11 +98,19 @@ public:
                       FastMathFlags FMF) const override {
     return FoldBinOp(Opc, LHS, RHS);
   }
+
   Value *FoldICmp(CmpInst::Predicate P, Value *LHS, Value *RHS) const override {
     auto *LC = dyn_cast<Constant>(LHS);
     auto *RC = dyn_cast<Constant>(RHS);
     if (LC && RC)
-      return ConstantExpr::getCompare(P, LC, RC);
+      return Fold(ConstantExpr::getCompare(P, LC, RC));
+    return nullptr;
+  }
+
+  Value *FoldUnOpFMF(Instruction::UnaryOps Opc, Value *V,
+                      FastMathFlags FMF) const override {
+    if (Constant *C = dyn_cast<Constant>(V))
+      return Fold(ConstantExpr::get(Opc, C));
     return nullptr;
   }
 
@@ -162,18 +179,6 @@ public:
     if (C1 && C2)
       return Fold(ConstantExpr::getShuffleVector(C1, C2, Mask));
     return nullptr;
-  }
-
-  //===--------------------------------------------------------------------===//
-  // Unary Operators
-  //===--------------------------------------------------------------------===//
-
-  Constant *CreateFNeg(Constant *C) const override {
-    return Fold(ConstantExpr::getFNeg(C));
-  }
-
-  Constant *CreateUnOp(Instruction::UnaryOps Opc, Constant *C) const override {
-    return Fold(ConstantExpr::get(Opc, C));
   }
 
   //===--------------------------------------------------------------------===//

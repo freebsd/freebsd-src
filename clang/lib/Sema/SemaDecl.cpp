@@ -1625,21 +1625,19 @@ bool Sema::CheckRedeclarationModuleOwnership(NamedDecl *New, NamedDecl *Old) {
   Module *NewM = New->getOwningModule();
   Module *OldM = Old->getOwningModule();
 
-  if (NewM && NewM->Kind == Module::PrivateModuleFragment)
+  if (NewM && NewM->isPrivateModule())
     NewM = NewM->Parent;
-  if (OldM && OldM->Kind == Module::PrivateModuleFragment)
+  if (OldM && OldM->isPrivateModule())
     OldM = OldM->Parent;
-
-  // If we have a decl in a module partition, it is part of the containing
-  // module (which is the only thing that can be importing it).
-  if (NewM && OldM &&
-      (OldM->Kind == Module::ModulePartitionInterface ||
-       OldM->Kind == Module::ModulePartitionImplementation)) {
-    return false;
-  }
 
   if (NewM == OldM)
     return false;
+
+  // Partitions are part of the module, but a partition could import another
+  // module, so verify that the PMIs agree.
+  if (NewM && OldM && (NewM->isModulePartition() || OldM->isModulePartition()))
+    return NewM->getPrimaryModuleInterfaceName() ==
+           OldM->getPrimaryModuleInterfaceName();
 
   bool NewIsModuleInterface = NewM && NewM->isModulePurview();
   bool OldIsModuleInterface = OldM && OldM->isModulePurview();
@@ -3209,6 +3207,45 @@ static void mergeParamDeclAttributes(ParmVarDecl *newDecl,
   if (!foundAny) newDecl->dropAttrs();
 }
 
+static bool EquivalentArrayTypes(QualType Old, QualType New,
+                                 const ASTContext &Ctx) {
+
+  auto NoSizeInfo = [&Ctx](QualType Ty) {
+    if (Ty->isIncompleteArrayType() || Ty->isPointerType())
+      return true;
+    if (const auto *VAT = Ctx.getAsVariableArrayType(Ty))
+      return VAT->getSizeModifier() == ArrayType::ArraySizeModifier::Star;
+    return false;
+  };
+
+  // `type[]` is equivalent to `type *` and `type[*]`.
+  if (NoSizeInfo(Old) && NoSizeInfo(New))
+    return true;
+
+  // Don't try to compare VLA sizes, unless one of them has the star modifier.
+  if (Old->isVariableArrayType() && New->isVariableArrayType()) {
+    const auto *OldVAT = Ctx.getAsVariableArrayType(Old);
+    const auto *NewVAT = Ctx.getAsVariableArrayType(New);
+    if ((OldVAT->getSizeModifier() == ArrayType::ArraySizeModifier::Star) ^
+        (NewVAT->getSizeModifier() == ArrayType::ArraySizeModifier::Star))
+      return false;
+    return true;
+  }
+
+  // Only compare size, ignore Size modifiers and CVR.
+  if (Old->isConstantArrayType() && New->isConstantArrayType()) {
+    return Ctx.getAsConstantArrayType(Old)->getSize() ==
+           Ctx.getAsConstantArrayType(New)->getSize();
+  }
+
+  // Don't try to compare dependent sized array
+  if (Old->isDependentSizedArrayType() && New->isDependentSizedArrayType()) {
+    return true;
+  }
+
+  return Old == New;
+}
+
 static void mergeParamDeclTypes(ParmVarDecl *NewParam,
                                 const ParmVarDecl *OldParam,
                                 Sema &S) {
@@ -3232,6 +3269,19 @@ static void mergeParamDeclTypes(ParmVarDecl *NewParam,
                          AttributedType::getNullabilityAttrKind(*Oldnullability),
                          NewT, NewT);
       NewParam->setType(NewT);
+    }
+  }
+  const auto *OldParamDT = dyn_cast<DecayedType>(OldParam->getType());
+  const auto *NewParamDT = dyn_cast<DecayedType>(NewParam->getType());
+  if (OldParamDT && NewParamDT &&
+      OldParamDT->getPointeeType() == NewParamDT->getPointeeType()) {
+    QualType OldParamOT = OldParamDT->getOriginalType();
+    QualType NewParamOT = NewParamDT->getOriginalType();
+    if (!EquivalentArrayTypes(OldParamOT, NewParamOT, S.getASTContext())) {
+      S.Diag(NewParam->getLocation(), diag::warn_inconsistent_array_form)
+          << NewParam << NewParamOT;
+      S.Diag(OldParam->getLocation(), diag::note_previous_declaration_as)
+          << OldParamOT;
     }
   }
 }
@@ -15464,7 +15514,7 @@ void Sema::AddKnownFunctionAttributesForReplaceableGlobalAllocationFunction(
   //         specified by the value of this argument.
   if (AlignmentParam && !FD->hasAttr<AllocAlignAttr>()) {
     FD->addAttr(AllocAlignAttr::CreateImplicit(
-        Context, ParamIdx(AlignmentParam.getValue(), FD), FD->getLocation()));
+        Context, ParamIdx(AlignmentParam.value(), FD), FD->getLocation()));
   }
 
   // FIXME:

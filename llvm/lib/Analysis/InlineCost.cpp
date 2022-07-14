@@ -131,6 +131,12 @@ static cl::opt<size_t>
                        cl::desc("Do not inline functions with a stack size "
                                 "that exceeds the specified limit"));
 
+static cl::opt<size_t>
+    RecurStackSizeThreshold("recursive-inline-max-stacksize", cl::Hidden,
+                       cl::init(InlineConstants::TotalAllocaSizeRecursiveCaller),
+                       cl::desc("Do not inline recursive functions with a stack "
+                                "size that exceeds the specified limit"));
+
 static cl::opt<bool> OptComputeFullInlineCost(
     "inline-cost-full", cl::Hidden,
     cl::desc("Compute the full inline cost of a call site even when the cost "
@@ -702,7 +708,7 @@ class InlineCostCallAnalyzer final : public CallAnalyzer {
       assert(BFI && "BFI must be available");
       auto ProfileCount = BFI->getBlockProfileCount(BB);
       assert(ProfileCount);
-      if (ProfileCount.getValue() == 0)
+      if (ProfileCount.value() == 0)
         ColdSize += Cost - CostAtBBStart;
     }
 
@@ -827,7 +833,7 @@ class InlineCostCallAnalyzer final : public CallAnalyzer {
 
       auto ProfileCount = CalleeBFI->getBlockProfileCount(&BB);
       assert(ProfileCount);
-      CurrentSavings *= ProfileCount.getValue();
+      CurrentSavings *= ProfileCount.value();
       CycleSavings += CurrentSavings;
     }
 
@@ -1781,12 +1787,12 @@ void InlineCostCallAnalyzer::updateThreshold(CallBase &Call, Function &Callee) {
 
   // return min(A, B) if B is valid.
   auto MinIfValid = [](int A, Optional<int> B) {
-    return B ? std::min(A, B.getValue()) : A;
+    return B ? std::min(A, B.value()) : A;
   };
 
   // return max(A, B) if B is valid.
   auto MaxIfValid = [](int A, Optional<int> B) {
-    return B ? std::max(A, B.getValue()) : A;
+    return B ? std::max(A, B.value()) : A;
   };
 
   // Various bonus percentages. These are multiplied by Threshold to get the
@@ -2444,8 +2450,7 @@ CallAnalyzer::analyzeBlock(BasicBlock *BB,
     // If the caller is a recursive function then we don't want to inline
     // functions which allocate a lot of stack space because it would increase
     // the caller stack usage dramatically.
-    if (IsCallerRecursive &&
-        AllocatedSize > InlineConstants::TotalAllocaSizeRecursiveCaller) {
+    if (IsCallerRecursive && AllocatedSize > RecurStackSizeThreshold) {
       auto IR =
           InlineResult::failure("recursive and allocates too much stack space");
       if (ORE)

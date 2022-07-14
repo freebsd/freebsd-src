@@ -456,10 +456,15 @@ bool LLParser::parseTargetDefinition() {
     return false;
   case lltok::kw_datalayout:
     Lex.Lex();
-    if (parseToken(lltok::equal, "expected '=' after target datalayout") ||
-        parseStringConstant(Str))
+    if (parseToken(lltok::equal, "expected '=' after target datalayout"))
       return true;
-    M->setDataLayout(Str);
+    LocTy Loc = Lex.getLoc();
+    if (parseStringConstant(Str))
+      return true;
+    Expected<DataLayout> MaybeDL = DataLayout::parse(Str);
+    if (!MaybeDL)
+      return error(Loc, toString(MaybeDL.takeError()));
+    M->setDataLayout(MaybeDL.get());
     return false;
   }
 }
@@ -1107,7 +1112,7 @@ static bool isSanitizer(lltok::Kind Kind) {
   switch (Kind) {
   case lltok::kw_no_sanitize_address:
   case lltok::kw_no_sanitize_hwaddress:
-  case lltok::kw_no_sanitize_memtag:
+  case lltok::kw_sanitize_memtag:
   case lltok::kw_sanitize_address_dyninit:
     return true;
   default:
@@ -1128,8 +1133,8 @@ bool LLParser::parseSanitizer(GlobalVariable *GV) {
   case lltok::kw_no_sanitize_hwaddress:
     Meta.NoHWAddress = true;
     break;
-  case lltok::kw_no_sanitize_memtag:
-    Meta.NoMemtag = true;
+  case lltok::kw_sanitize_memtag:
+    Meta.Memtag = true;
     break;
   case lltok::kw_sanitize_address_dyninit:
     Meta.IsDynInit = true;
@@ -3474,32 +3479,26 @@ bool LLParser::parseValID(ValID &ID, PerFunctionState *PFS, Type *ExpectedTy) {
   }
   case lltok::kw_extractvalue:
     return error(ID.Loc, "extractvalue constexprs are no longer supported");
-  case lltok::kw_insertvalue: {
-    Lex.Lex();
-    Constant *Val0, *Val1;
-    SmallVector<unsigned, 4> Indices;
-    if (parseToken(lltok::lparen, "expected '(' in insertvalue constantexpr") ||
-        parseGlobalTypeAndValue(Val0) ||
-        parseToken(lltok::comma,
-                   "expected comma in insertvalue constantexpr") ||
-        parseGlobalTypeAndValue(Val1) || parseIndexList(Indices) ||
-        parseToken(lltok::rparen, "expected ')' in insertvalue constantexpr"))
-      return true;
-    if (!Val0->getType()->isAggregateType())
-      return error(ID.Loc, "insertvalue operand must be aggregate type");
-    Type *IndexedType =
-        ExtractValueInst::getIndexedType(Val0->getType(), Indices);
-    if (!IndexedType)
-      return error(ID.Loc, "invalid indices for insertvalue");
-    if (IndexedType != Val1->getType())
-      return error(ID.Loc, "insertvalue operand and field disagree in type: '" +
-                               getTypeString(Val1->getType()) +
-                               "' instead of '" + getTypeString(IndexedType) +
-                               "'");
-    ID.ConstantVal = ConstantExpr::getInsertValue(Val0, Val1, Indices);
-    ID.Kind = ValID::t_Constant;
-    return false;
-  }
+  case lltok::kw_insertvalue:
+    return error(ID.Loc, "insertvalue constexprs are no longer supported");
+  case lltok::kw_udiv:
+    return error(ID.Loc, "udiv constexprs are no longer supported");
+  case lltok::kw_sdiv:
+    return error(ID.Loc, "sdiv constexprs are no longer supported");
+  case lltok::kw_urem:
+    return error(ID.Loc, "urem constexprs are no longer supported");
+  case lltok::kw_srem:
+    return error(ID.Loc, "srem constexprs are no longer supported");
+  case lltok::kw_fadd:
+    return error(ID.Loc, "fadd constexprs are no longer supported");
+  case lltok::kw_fsub:
+    return error(ID.Loc, "fsub constexprs are no longer supported");
+  case lltok::kw_fmul:
+    return error(ID.Loc, "fmul constexprs are no longer supported");
+  case lltok::kw_fdiv:
+    return error(ID.Loc, "fdiv constexprs are no longer supported");
+  case lltok::kw_frem:
+    return error(ID.Loc, "frem constexprs are no longer supported");
   case lltok::kw_icmp:
   case lltok::kw_fcmp: {
     unsigned PredVal, Opc = Lex.getUIntVal();
@@ -3559,17 +3558,8 @@ bool LLParser::parseValID(ValID &ID, PerFunctionState *PFS, Type *ExpectedTy) {
   }
   // Binary Operators.
   case lltok::kw_add:
-  case lltok::kw_fadd:
   case lltok::kw_sub:
-  case lltok::kw_fsub:
   case lltok::kw_mul:
-  case lltok::kw_fmul:
-  case lltok::kw_udiv:
-  case lltok::kw_sdiv:
-  case lltok::kw_fdiv:
-  case lltok::kw_urem:
-  case lltok::kw_srem:
-  case lltok::kw_frem:
   case lltok::kw_shl:
   case lltok::kw_lshr:
   case lltok::kw_ashr: {
@@ -5398,8 +5388,10 @@ bool LLParser::convertValIDToValue(Type *Ty, ValID &ID, Value *&V,
     V = PFS->getVal(ID.StrVal, Ty, ID.Loc);
     return V == nullptr;
   case ValID::t_InlineAsm: {
-    if (!ID.FTy || !InlineAsm::Verify(ID.FTy, ID.StrVal2))
+    if (!ID.FTy)
       return error(ID.Loc, "invalid type for inline asm constraint string");
+    if (Error Err = InlineAsm::verify(ID.FTy, ID.StrVal2))
+      return error(ID.Loc, toString(std::move(Err)));
     V = InlineAsm::get(
         ID.FTy, ID.StrVal, ID.StrVal2, ID.UIntVal & 1, (ID.UIntVal >> 1) & 1,
         InlineAsm::AsmDialect((ID.UIntVal >> 2) & 1), (ID.UIntVal >> 3) & 1);
@@ -7481,6 +7473,14 @@ int LLParser::parseAtomicRMW(Instruction *&Inst, PerFunctionState &PFS) {
     break;
   case lltok::kw_fsub:
     Operation = AtomicRMWInst::FSub;
+    IsFP = true;
+    break;
+  case lltok::kw_fmax:
+    Operation = AtomicRMWInst::FMax;
+    IsFP = true;
+    break;
+  case lltok::kw_fmin:
+    Operation = AtomicRMWInst::FMin;
     IsFP = true;
     break;
   }

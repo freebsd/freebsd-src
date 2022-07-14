@@ -1462,18 +1462,19 @@ bool ASTReader::ReadSLocEntry(int ID) {
     unsigned RecCode = MaybeRecCode.get();
 
     if (RecCode == SM_SLOC_BUFFER_BLOB_COMPRESSED) {
-      if (!llvm::zlib::isAvailable()) {
+      if (!llvm::compression::zlib::isAvailable()) {
         Error("zlib is not available");
         return nullptr;
       }
-      SmallString<0> Uncompressed;
-      if (llvm::Error E =
-              llvm::zlib::uncompress(Blob, Uncompressed, Record[0])) {
+      SmallVector<uint8_t, 0> Uncompressed;
+      if (llvm::Error E = llvm::compression::zlib::uncompress(
+              llvm::arrayRefFromStringRef(Blob), Uncompressed, Record[0])) {
         Error("could not decompress embedded file contents: " +
               llvm::toString(std::move(E)));
         return nullptr;
       }
-      return llvm::MemoryBuffer::getMemBufferCopy(Uncompressed, Name);
+      return llvm::MemoryBuffer::getMemBufferCopy(
+          llvm::toStringRef(Uncompressed), Name);
     } else if (RecCode == SM_SLOC_BUFFER_BLOB) {
       return llvm::MemoryBuffer::getMemBuffer(Blob.drop_back(1), Name, true);
     } else {
@@ -5171,8 +5172,9 @@ namespace {
     bool ReadPreprocessorOptions(const PreprocessorOptions &PPOpts,
                                  bool Complain,
                                  std::string &SuggestedPredefines) override {
-      return checkPreprocessorOptions(ExistingPPOpts, PPOpts, nullptr, FileMgr,
-                                      SuggestedPredefines, ExistingLangOpts);
+      return checkPreprocessorOptions(PPOpts, ExistingPPOpts, /*Diags=*/nullptr,
+                                      FileMgr, SuggestedPredefines,
+                                      ExistingLangOpts);
     }
   };
 

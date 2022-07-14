@@ -29,6 +29,8 @@ ELF Improvements
 * ``-z pack-relative-relocs`` is now available to support ``DT_RELR`` for glibc 2.36+.
   (`D120701 <https://reviews.llvm.org/D120701>`_)
 * ``--no-fortran-common`` (pre 12.0.0 behavior) is now the default.
+* ``FORCE_LLD_DIAGNOSTICS_CRASH`` environment variable is now available to force LLD to crash.
+  (`D128195 <https://reviews.llvm.org/D128195>`_)
 
 Breaking changes
 ----------------
@@ -63,7 +65,11 @@ MinGW Improvements
 MachO Improvements
 ------------------
 
-* Item 1.
+* We now support proper relocation and pruning of EH frames. **Note:** this
+  comes at some performance overhead on x86_64 builds, and we recommend adding
+  the ``-femit-compact-unwind=no-compact-unwind`` compile flag to avoid it.
+  (`D129540 <https://reviews.llvm.org/D129540>`_,
+  `D122258 <https://reviews.llvm.org/D122258>`_)
 
 WebAssembly Improvements
 ------------------------

@@ -125,6 +125,7 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
   bool HasMOVBE = false;
   bool HasPREFETCHWT1 = false;
   bool HasRDPID = false;
+  bool HasRDPRU = false;
   bool HasRetpolineExternalThunk = false;
   bool HasLAHFSAHF = false;
   bool HasWBNOINVD = false;
@@ -420,8 +421,8 @@ public:
 
     // Use fpret for all types.
     RealTypeUsesObjCFPRetMask =
-        (int)(FloatModeKind::Float | FloatModeKind::Double |
-              FloatModeKind::LongDouble);
+        (unsigned)(FloatModeKind::Float | FloatModeKind::Double |
+                   FloatModeKind::LongDouble);
 
     // x86-32 has atomics up to 8 bytes
     MaxAtomicPromoteWidth = 64;
@@ -700,7 +701,7 @@ public:
                                         "64-i64:64-f80:128-n8:16:32:64-S128");
 
     // Use fpret only for long double.
-    RealTypeUsesObjCFPRetMask = (int)FloatModeKind::LongDouble;
+    RealTypeUsesObjCFPRetMask = (unsigned)FloatModeKind::LongDouble;
 
     // Use fp2ret for _Complex long double.
     ComplexLongDoubleUsesFP2Ret = true;
