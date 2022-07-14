@@ -694,8 +694,8 @@ extclean:
 static int
 ffs_indirtrunc(struct inode *ip,
 	ufs2_daddr_t lbn,
-	ufs2_daddr_t lastbn,
 	ufs2_daddr_t dbn,
+	ufs2_daddr_t lastbn,
 	int level,
 	ufs2_daddr_t *countp)
 {
