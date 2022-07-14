@@ -307,6 +307,7 @@ static struct tdq	tdq_cpu;
 #define	TDQ_UNLOCK(t)		mtx_unlock_spin(TDQ_LOCKPTR((t)))
 #define	TDQ_LOCKPTR(t)		((struct mtx *)(&(t)->tdq_lock))
 
+static void sched_setpreempt(int);
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
 static int sched_interact_score(struct thread *);
@@ -949,13 +950,15 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		lowpri = tdq_move(high, low);
 		if (lowpri != -1) {
 			/*
-			 * In case the target isn't the current cpu notify it of
+			 * In case the target isn't the current CPU notify it of
 			 * the new load, possibly sending an IPI to force it to
-			 * reschedule.
+			 * reschedule.  Otherwise maybe schedule a preemption.
 			 */
 			cpu = TDQ_ID(low);
 			if (cpu != PCPU_GET(cpuid))
 				tdq_notify(low, lowpri);
+			else
+				sched_setpreempt(low->tdq_lowpri);
 			ret = true;
 		}
 	}
@@ -2632,20 +2635,19 @@ sched_choose(void)
 }
 
 /*
- * Set owepreempt if necessary.  Preemption never happens directly in ULE,
- * we always request it once we exit a critical section.
+ * Set owepreempt if the currently running thread has lower priority than "pri".
+ * Preemption never happens directly in ULE, we always request it once we exit a
+ * critical section.
  */
-static inline void
-sched_setpreempt(struct thread *td)
+static void
+sched_setpreempt(int pri)
 {
 	struct thread *ctd;
 	int cpri;
-	int pri;
-
-	THREAD_LOCK_ASSERT(curthread, MA_OWNED);
 
 	ctd = curthread;
-	pri = td->td_priority;
+	THREAD_LOCK_ASSERT(ctd, MA_OWNED);
+
 	cpri = ctd->td_priority;
 	if (pri < cpri)
 		ctd->td_flags |= TDF_NEEDRESCHED;
@@ -2722,7 +2724,7 @@ sched_add(struct thread *td, int flags)
 	if (cpu != PCPU_GET(cpuid))
 		tdq_notify(tdq, lowpri);
 	else if (!(flags & SRQ_YIELDING))
-		sched_setpreempt(td);
+		sched_setpreempt(td->td_priority);
 #else
 	tdq = TDQ_SELF();
 	/*
@@ -2738,7 +2740,7 @@ sched_add(struct thread *td, int flags)
 	}
 	(void)tdq_add(tdq, td, flags);
 	if (!(flags & SRQ_YIELDING))
-		sched_setpreempt(td);
+		sched_setpreempt(td->td_priority);
 #endif
 	if (!(flags & SRQ_HOLDTD))
 		thread_unlock(td);
