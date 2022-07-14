@@ -238,6 +238,7 @@ struct tdq {
 	 */
 	struct mtx_padalign tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
+	struct thread	*tdq_curthread;		/* Current executing thread. */
 	volatile int	tdq_load;		/* Aggregate load. */
 	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
@@ -323,16 +324,16 @@ static __inline void tdq_runq_rem(struct tdq *, struct thread *);
 static inline int sched_shouldpreempt(int, int, int);
 void tdq_print(int cpu);
 static void runq_print(struct runq *rq);
-static void tdq_add(struct tdq *, struct thread *, int);
+static int tdq_add(struct tdq *, struct thread *, int);
 #ifdef SMP
-static struct thread *tdq_move(struct tdq *, struct tdq *);
+static int tdq_move(struct tdq *, struct tdq *);
 static int tdq_idled(struct tdq *);
-static void tdq_notify(struct tdq *, struct thread *);
+static void tdq_notify(struct tdq *, int lowpri);
 static struct thread *tdq_steal(struct tdq *, int);
 static struct thread *runq_steal(struct runq *, int);
 static int sched_pickcpu(struct thread *, int);
 static void sched_balance(void);
-static int sched_balance_pair(struct tdq *, struct tdq *);
+static bool sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
 static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
@@ -606,7 +607,7 @@ tdq_setlowpri(struct tdq *tdq, struct thread *ctd)
 
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	if (ctd == NULL)
-		ctd = pcpu_find(TDQ_ID(tdq))->pc_curthread;
+		ctd = atomic_load_ptr(&tdq->tdq_curthread);
 	td = tdq_choose(tdq);
 	if (td == NULL || td->td_priority > ctd->td_priority)
 		tdq->tdq_lowpri = ctd->td_priority;
@@ -852,7 +853,7 @@ sched_balance_group(struct cpu_group *cg)
 			 * it from here, so tell it to pick new CPU by itself.
 			 */
 			TDQ_LOCK(tdq);
-			td = pcpu_find(high)->pc_curthread;
+			td = atomic_load_ptr(&tdq->tdq_curthread);
 			if ((td->td_flags & TDF_IDLETD) == 0 &&
 			    THREAD_CAN_MIGRATE(td)) {
 				td->td_flags |= TDF_NEEDRESCHED | TDF_PICKCPU;
@@ -929,37 +930,47 @@ tdq_unlock_pair(struct tdq *one, struct tdq *two)
 }
 
 /*
- * Transfer load between two imbalanced thread queues.
+ * Transfer load between two imbalanced thread queues.  Returns true if a thread
+ * was moved between the queues, and false otherwise.
  */
-static int
+static bool
 sched_balance_pair(struct tdq *high, struct tdq *low)
 {
-	struct thread *td;
-	int cpu;
+	int cpu, lowpri;
+	bool ret;
 
+	ret = false;
 	tdq_lock_pair(high, low);
-	td = NULL;
+
 	/*
 	 * Transfer a thread from high to low.
 	 */
-	if (high->tdq_transferable != 0 && high->tdq_load > low->tdq_load &&
-	    (td = tdq_move(high, low)) != NULL) {
-		/*
-		 * In case the target isn't the current cpu notify it of the
-		 * new load, possibly sending an IPI to force it to reschedule.
-		 */
-		cpu = TDQ_ID(low);
-		if (cpu != PCPU_GET(cpuid))
-			tdq_notify(low, td);
+	if (high->tdq_transferable != 0 && high->tdq_load > low->tdq_load) {
+		lowpri = tdq_move(high, low);
+		if (lowpri != -1) {
+			/*
+			 * In case the target isn't the current cpu notify it of
+			 * the new load, possibly sending an IPI to force it to
+			 * reschedule.
+			 */
+			cpu = TDQ_ID(low);
+			if (cpu != PCPU_GET(cpuid))
+				tdq_notify(low, lowpri);
+			ret = true;
+		}
 	}
 	tdq_unlock_pair(high, low);
-	return (td != NULL);
+	return (ret);
 }
 
 /*
- * Move a thread from one thread queue to another.
+ * Move a thread from one thread queue to another.  Returns -1 if the source
+ * queue was empty, else returns the maximum priority of all threads in
+ * the destination queue prior to the addition of the new thread.  In the latter
+ * case, this priority can be used to determine whether an IPI needs to be
+ * delivered.
  */
-static struct thread *
+static int
 tdq_move(struct tdq *from, struct tdq *to)
 {
 	struct thread *td;
@@ -971,7 +982,7 @@ tdq_move(struct tdq *from, struct tdq *to)
 	cpu = TDQ_ID(to);
 	td = tdq_steal(from, cpu);
 	if (td == NULL)
-		return (NULL);
+		return (-1);
 
 	/*
 	 * Although the run queue is locked the thread may be
@@ -982,9 +993,7 @@ tdq_move(struct tdq *from, struct tdq *to)
 	THREAD_LOCKPTR_ASSERT(td, TDQ_LOCKPTR(from));
 	td->td_lock = TDQ_LOCKPTR(to);
 	td_get_sched(td)->ts_cpu = cpu;
-	tdq_add(to, td, SRQ_YIELDING);
-
-	return (td);
+	return (tdq_add(to, td, SRQ_YIELDING));
 }
 
 /*
@@ -1082,7 +1091,7 @@ tdq_idled(struct tdq *tdq)
 		/*
 		 * Steal the thread and switch to it.
 		 */
-		if (tdq_move(steal, tdq) != NULL)
+		if (tdq_move(steal, tdq) != -1)
 			break;
 		/*
 		 * We failed to acquire a thread even though it looked
@@ -1102,20 +1111,27 @@ tdq_idled(struct tdq *tdq)
 
 /*
  * Notify a remote cpu of new work.  Sends an IPI if criteria are met.
+ *
+ * "lowpri" is the minimum scheduling priority among all threads on
+ * the queue prior to the addition of the new thread.
  */
 static void
-tdq_notify(struct tdq *tdq, struct thread *td)
+tdq_notify(struct tdq *tdq, int lowpri)
 {
-	struct thread *ctd;
-	int pri;
 	int cpu;
+
+	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
+	KASSERT(tdq->tdq_lowpri <= lowpri,
+	    ("tdq_notify: lowpri %d > tdq_lowpri %d", lowpri, tdq->tdq_lowpri));
 
 	if (tdq->tdq_owepreempt)
 		return;
-	cpu = td_get_sched(td)->ts_cpu;
-	pri = td->td_priority;
-	ctd = pcpu_find(cpu)->pc_curthread;
-	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
+
+	/*
+	 * Check to see if the newly added thread should preempt the one
+	 * currently running.
+	 */
+	if (!sched_shouldpreempt(tdq->tdq_lowpri, lowpri, 1))
 		return;
 
 	/*
@@ -1125,14 +1141,15 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	 */
 	atomic_thread_fence_seq_cst();
 
-	if (TD_IS_IDLETHREAD(ctd)) {
-		/*
-		 * If the MD code has an idle wakeup routine try that before
-		 * falling back to IPI.
-		 */
-		if (!tdq->tdq_cpu_idle || cpu_idle_wakeup(cpu))
-			return;
-	}
+	/*
+	 * Try to figure out if we can signal the idle thread instead of sending
+	 * an IPI.  This check is racy; at worst, we will deliever an IPI
+	 * unnecessarily.
+	 */
+	cpu = TDQ_ID(tdq);
+	if (TD_IS_IDLETHREAD(tdq->tdq_curthread) &&
+	    (tdq->tdq_cpu_idle == 0 || cpu_idle_wakeup(cpu)))
+		return;
 
 	/*
 	 * The run queues have been updated, so any switch on the remote CPU
@@ -1505,6 +1522,7 @@ sched_setup(void *dummy)
 	TDQ_LOCK(tdq);
 	thread0.td_lock = TDQ_LOCKPTR(tdq);
 	tdq_load_add(tdq, &thread0);
+	tdq->tdq_curthread = &thread0;
 	tdq->tdq_lowpri = thread0.td_priority;
 	TDQ_UNLOCK(tdq);
 }
@@ -2069,7 +2087,7 @@ tdq_trysteal(struct tdq *tdq)
 		 * bail out and let the idle thread to a more complete search
 		 * outside of a critical section.
 		 */
-		if (tdq_move(steal, tdq) == NULL) {
+		if (tdq_move(steal, tdq) == -1) {
 			TDQ_UNLOCK(steal);
 			break;
 		}
@@ -2088,6 +2106,7 @@ static struct mtx *
 sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 {
 	struct tdq *tdn;
+	int lowpri;
 
 	KASSERT(THREAD_CAN_MIGRATE(td) ||
 	    (td_get_sched(td)->ts_flags & TSF_BOUND) != 0,
@@ -2105,8 +2124,8 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 */
 	TDQ_UNLOCK(tdq);
 	TDQ_LOCK(tdn);
-	tdq_add(tdn, td, flags);
-	tdq_notify(tdn, td);
+	lowpri = tdq_add(tdn, td, flags);
+	tdq_notify(tdn, lowpri);
 	TDQ_UNLOCK(tdn);
 	TDQ_LOCK(tdq);
 #endif
@@ -2215,6 +2234,7 @@ sched_switch(struct thread *td, int flags)
 	 * thread-queue locked.
 	 */
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
+	MPASS(td == tdq->tdq_curthread);
 	newtd = choosethread();
 	sched_pctcpu_update(td_get_sched(newtd), 0);
 	TDQ_UNLOCK(tdq);
@@ -2600,13 +2620,15 @@ sched_choose(void)
 	tdq = TDQ_SELF();
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	td = tdq_choose(tdq);
-	if (td) {
+	if (td != NULL) {
 		tdq_runq_rem(tdq, td);
 		tdq->tdq_lowpri = td->td_priority;
-		return (td);
+	} else { 
+		tdq->tdq_lowpri = PRI_MAX_IDLE;
+		td = PCPU_GET(idlethread);
 	}
-	tdq->tdq_lowpri = PRI_MAX_IDLE;
-	return (PCPU_GET(idlethread));
+	tdq->tdq_curthread = td;
+	return (td);
 }
 
 /*
@@ -2639,9 +2661,10 @@ sched_setpreempt(struct thread *td)
  * thread to it.  This is the internal function called when the tdq is
  * predetermined.
  */
-void
+static int
 tdq_add(struct tdq *tdq, struct thread *td, int flags)
 {
+	int lowpri;
 
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_BLOCKED_ASSERT(td, MA_OWNED);
@@ -2652,10 +2675,12 @@ tdq_add(struct tdq *tdq, struct thread *td, int flags)
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_add: thread swapped out"));
 
-	if (td->td_priority < tdq->tdq_lowpri)
+	lowpri = tdq->tdq_lowpri;
+	if (td->td_priority < lowpri)
 		tdq->tdq_lowpri = td->td_priority;
 	tdq_runq_add(tdq, td, flags);
 	tdq_load_add(tdq, td);
+	return (lowpri);
 }
 
 /*
@@ -2669,7 +2694,7 @@ sched_add(struct thread *td, int flags)
 {
 	struct tdq *tdq;
 #ifdef SMP
-	int cpu;
+	int cpu, lowpri;
 #endif
 
 	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add",
@@ -2693,9 +2718,9 @@ sched_add(struct thread *td, int flags)
 	 */
 	cpu = sched_pickcpu(td, flags);
 	tdq = sched_setcpu(td, cpu, flags);
-	tdq_add(tdq, td, flags);
+	lowpri = tdq_add(tdq, td, flags);
 	if (cpu != PCPU_GET(cpuid))
-		tdq_notify(tdq, td);
+		tdq_notify(tdq, lowpri);
 	else if (!(flags & SRQ_YIELDING))
 		sched_setpreempt(td);
 #else
@@ -2711,7 +2736,7 @@ sched_add(struct thread *td, int flags)
 		else
 			thread_lock_set(td, TDQ_LOCKPTR(tdq));
 	}
-	tdq_add(tdq, td, flags);
+	(void)tdq_add(tdq, td, flags);
 	if (!(flags & SRQ_YIELDING))
 		sched_setpreempt(td);
 #endif
@@ -2952,9 +2977,9 @@ sched_idletd(void *dummy)
 		/* Run main MD idle handler. */
 		tdq->tdq_cpu_idle = 1;
 		/*
-		 * Make sure that tdq_cpu_idle update is globally visible
-		 * before cpu_idle() read tdq_load.  The order is important
-		 * to avoid race with tdq_notify.
+		 * Make sure that the tdq_cpu_idle update is globally visible
+		 * before cpu_idle() reads tdq_load.  The order is important
+		 * to avoid races with tdq_notify().
 		 */
 		atomic_thread_fence_seq_cst();
 		/*
