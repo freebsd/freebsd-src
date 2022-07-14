@@ -2300,9 +2300,10 @@ _crunchide=	usr.sbin/crunch/crunchide
 _bootstrap_tools_links+=crunchide
 .endif
 
-# 1300115: Higher WARNS fixes
-.if ${BOOTSTRAPPING} < 1202502 || \
-	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300131)
+# 1400052, 1300526, 1203507: Removed -dc from linker invocation
+.if ${BOOTSTRAPPING} < 1203507 || \
+	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300526) || \
+	(${BOOTSTRAPPING} > 1400000 && ${BOOTSTRAPPING} < 1400052)
 _crunchgen=	usr.sbin/crunch/crunchgen
 .else
 _bootstrap_tools_links+=crunchgen
