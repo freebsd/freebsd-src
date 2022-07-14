@@ -30,6 +30,7 @@
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/Config/config.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/ConstantFold.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -1142,8 +1143,12 @@ ConstantFoldConstantImpl(const Constant *C, const DataLayout &DL,
     Ops.push_back(NewC);
   }
 
-  if (auto *CE = dyn_cast<ConstantExpr>(C))
-    return ConstantFoldInstOperandsImpl(CE, CE->getOpcode(), Ops, DL, TLI);
+  if (auto *CE = dyn_cast<ConstantExpr>(C)) {
+    if (Constant *Res =
+            ConstantFoldInstOperandsImpl(CE, CE->getOpcode(), Ops, DL, TLI))
+      return Res;
+    return const_cast<Constant *>(C);
+  }
 
   assert(isa<ConstantVector>(C));
   return ConstantVector::get(Ops);
@@ -1339,7 +1344,9 @@ Constant *llvm::ConstantFoldBinaryOpOperands(unsigned Opcode, Constant *LHS,
     if (Constant *C = SymbolicallyEvaluateBinop(Opcode, LHS, RHS, DL))
       return C;
 
-  return ConstantExpr::get(Opcode, LHS, RHS);
+  if (ConstantExpr::isDesirableBinOp(Opcode))
+    return ConstantExpr::get(Opcode, LHS, RHS);
+  return ConstantFoldBinaryInstruction(Opcode, LHS, RHS);
 }
 
 Constant *llvm::FlushFPConstant(Constant *Operand, const Instruction *I,
@@ -1390,6 +1397,8 @@ Constant *llvm::ConstantFoldFPInstOperands(unsigned Opcode, Constant *LHS,
 
     // Calculate constant result.
     Constant *C = ConstantFoldBinaryOpOperands(Opcode, Op0, Op1, DL);
+    if (!C)
+      return nullptr;
 
     // Flush denormal output if needed.
     return FlushFPConstant(C, I, /* IsOutput */ true);

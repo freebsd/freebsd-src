@@ -116,6 +116,7 @@ INCS+=		pmmintrin.h
 INCS+=		popcntintrin.h
 INCS+=		prfchwintrin.h
 INCS+=		ptwriteintrin.h
+INCS+=		rdpruintrin.h
 INCS+=		rdseedintrin.h
 INCS+=		rtmintrin.h
 INCS+=		s390intrin.h

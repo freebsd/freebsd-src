@@ -2272,6 +2272,9 @@ private:
 
   bool isAcceptableSlow(const NamedDecl *D, AcceptableKind Kind);
 
+  // Determine whether the module M belongs to the  current TU.
+  bool isModuleUnitOfCurrentTU(const Module *M) const;
+
 public:
   /// Get the module unit whose scope we are currently within.
   Module *getCurrentModule() const {
@@ -5166,6 +5169,11 @@ public:
   /// Warn if a value is moved to itself.
   void DiagnoseSelfMove(const Expr *LHSExpr, const Expr *RHSExpr,
                         SourceLocation OpLoc);
+
+  /// Returns a field in a CXXRecordDecl that has the same name as the decl \p
+  /// SelfAssigned when inside a CXXMethodDecl.
+  const FieldDecl *
+  getSelfAssignmentClassMemberCandidate(const ValueDecl *SelfAssigned);
 
   /// Warn if we're implicitly casting from a _Nullable pointer type to a
   /// _Nonnull one.
@@ -12997,21 +13005,29 @@ public:
   SourceLocation getLocationOfStringLiteralByte(const StringLiteral *SL,
                                                 unsigned ByteNo) const;
 
-private:
-  void CheckArrayAccess(const Expr *BaseExpr, const Expr *IndexExpr,
-                        const ArraySubscriptExpr *ASE=nullptr,
-                        bool AllowOnePastEnd=true, bool IndexNegated=false);
-  void CheckArrayAccess(const Expr *E);
+  enum FormatArgumentPassingKind {
+    FAPK_Fixed,    // values to format are fixed (no C-style variadic arguments)
+    FAPK_Variadic, // values to format are passed as variadic arguments
+    FAPK_VAList,   // values to format are passed in a va_list
+  };
+
   // Used to grab the relevant information from a FormatAttr and a
   // FunctionDeclaration.
   struct FormatStringInfo {
     unsigned FormatIdx;
     unsigned FirstDataArg;
-    bool HasVAListArg;
+    FormatArgumentPassingKind ArgPassingKind;
   };
 
   static bool getFormatStringInfo(const FormatAttr *Format, bool IsCXXMember,
-                                  FormatStringInfo *FSI);
+                                  bool IsVariadic, FormatStringInfo *FSI);
+
+private:
+  void CheckArrayAccess(const Expr *BaseExpr, const Expr *IndexExpr,
+                        const ArraySubscriptExpr *ASE = nullptr,
+                        bool AllowOnePastEnd = true, bool IndexNegated = false);
+  void CheckArrayAccess(const Expr *E);
+
   bool CheckFunctionCall(FunctionDecl *FDecl, CallExpr *TheCall,
                          const FunctionProtoType *Proto);
   bool CheckObjCMethodCall(ObjCMethodDecl *Method, SourceLocation loc,
@@ -13022,6 +13038,8 @@ private:
   void CheckConstructorCall(FunctionDecl *FDecl, QualType ThisType,
                             ArrayRef<const Expr *> Args,
                             const FunctionProtoType *Proto, SourceLocation Loc);
+
+  void checkAIXMemberAlignment(SourceLocation Loc, const Expr *Arg);
 
   void CheckArgAlignment(SourceLocation Loc, NamedDecl *FDecl,
                          StringRef ParamName, QualType ArgTy, QualType ParamTy);
@@ -13166,16 +13184,15 @@ public:
 
 private:
   bool CheckFormatArguments(const FormatAttr *Format,
-                            ArrayRef<const Expr *> Args,
-                            bool IsCXXMember,
-                            VariadicCallType CallType,
-                            SourceLocation Loc, SourceRange Range,
+                            ArrayRef<const Expr *> Args, bool IsCXXMember,
+                            VariadicCallType CallType, SourceLocation Loc,
+                            SourceRange Range,
                             llvm::SmallBitVector &CheckedVarArgs);
   bool CheckFormatArguments(ArrayRef<const Expr *> Args,
-                            bool HasVAListArg, unsigned format_idx,
+                            FormatArgumentPassingKind FAPK, unsigned format_idx,
                             unsigned firstDataArg, FormatStringType Type,
-                            VariadicCallType CallType,
-                            SourceLocation Loc, SourceRange range,
+                            VariadicCallType CallType, SourceLocation Loc,
+                            SourceRange range,
                             llvm::SmallBitVector &CheckedVarArgs);
 
   void CheckAbsoluteValueFunction(const CallExpr *Call,

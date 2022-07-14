@@ -1771,6 +1771,16 @@ Instruction *InstCombinerImpl::visitAnd(BinaryOperator &I) {
     return new ZExtInst(IsZero, Ty);
   }
 
+  // (-(X & 1)) & Y --> (X & 1) == 0 ? 0 : Y
+  Value *Neg;
+  if (match(&I,
+            m_c_And(m_CombineAnd(m_Value(Neg),
+                                 m_OneUse(m_Neg(m_And(m_Value(), m_One())))),
+                    m_Value(Y)))) {
+    Value *Cmp = Builder.CreateIsNull(Neg);
+    return SelectInst::Create(Cmp, ConstantInt::getNullValue(Ty), Y);
+  }
+
   const APInt *C;
   if (match(Op1, m_APInt(C))) {
     const APInt *XorC;
@@ -1798,7 +1808,8 @@ Instruction *InstCombinerImpl::visitAnd(BinaryOperator &I) {
 
     unsigned Width = Ty->getScalarSizeInBits();
     const APInt *ShiftC;
-    if (match(Op0, m_OneUse(m_SExt(m_AShr(m_Value(X), m_APInt(ShiftC)))))) {
+    if (match(Op0, m_OneUse(m_SExt(m_AShr(m_Value(X), m_APInt(ShiftC))))) &&
+        ShiftC->ult(Width)) {
       if (*C == APInt::getLowBitsSet(Width, Width - ShiftC->getZExtValue())) {
         // We are clearing high bits that were potentially set by sext+ashr:
         // and (sext (ashr X, ShiftC)), C --> lshr (sext X), ShiftC

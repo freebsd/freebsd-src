@@ -12,12 +12,12 @@
 //===----------------------------------------------------------------------===//
 #include "OffloadDump.h"
 #include "llvm-objdump.h"
+#include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Support/Alignment.h"
 
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::objdump;
-
-constexpr const char OffloadSectionString[] = ".llvm.offloading";
 
 /// Get the printable name of the image kind.
 static StringRef getImageName(const OffloadBinary &OB) {
@@ -66,17 +66,27 @@ static Error visitAllBinaries(const OffloadBinary &OB) {
 
 /// Print the embedded offloading contents of an ObjectFile \p O.
 void llvm::dumpOffloadBinary(const ObjectFile &O) {
-  for (SectionRef Sec : O.sections()) {
-    Expected<StringRef> Name = Sec.getName();
-    if (!Name || !Name->startswith(OffloadSectionString))
+  if (!O.isELF()) {
+    reportWarning("--offloading is currently only supported for ELF targets",
+                  O.getFileName());
+    return;
+  }
+
+  for (ELFSectionRef Sec : O.sections()) {
+    if (Sec.getType() != ELF::SHT_LLVM_OFFLOADING)
       continue;
 
     Expected<StringRef> Contents = Sec.getContents();
     if (!Contents)
       reportError(Contents.takeError(), O.getFileName());
 
-    MemoryBufferRef Buffer = MemoryBufferRef(*Contents, O.getFileName());
-    auto BinaryOrErr = OffloadBinary::create(Buffer);
+    std::unique_ptr<MemoryBuffer> Buffer =
+        MemoryBuffer::getMemBuffer(*Contents, O.getFileName(), false);
+    if (!isAddrAligned(Align(OffloadBinary::getAlignment()),
+                       Buffer->getBufferStart()))
+      Buffer = MemoryBuffer::getMemBufferCopy(Buffer->getBuffer(),
+                                              Buffer->getBufferIdentifier());
+    auto BinaryOrErr = OffloadBinary::create(*Buffer);
     if (!BinaryOrErr)
       reportError(O.getFileName(), "while extracting offloading files: " +
                                        toString(BinaryOrErr.takeError()));

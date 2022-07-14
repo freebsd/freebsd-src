@@ -75,7 +75,8 @@ static bool callHasFP128Argument(const CallInst *CI) {
   });
 }
 
-static Value *convertStrToNumber(CallInst *CI, StringRef &Str, int64_t Base) {
+static Value *convertStrToNumber(CallInst *CI, StringRef &Str, Value *EndPtr,
+                                 int64_t Base, IRBuilderBase &B) {
   if (Base < 2 || Base > 36)
     // handle special zero base
     if (Base != 0)
@@ -96,6 +97,15 @@ static Value *convertStrToNumber(CallInst *CI, StringRef &Str, int64_t Base) {
 
   if (!isIntN(CI->getType()->getPrimitiveSizeInBits(), Result))
     return nullptr;
+
+  if (EndPtr) {
+    // Store the pointer to the end.
+    uint64_t ILen = End - nptr.c_str();
+    Value *Off = B.getInt64(ILen);
+    Value *StrBeg = CI->getArgOperand(0);
+    Value *StrEnd = B.CreateInBoundsGEP(B.getInt8Ty(), StrBeg, Off, "endptr");
+    B.CreateStore(StrEnd, EndPtr);
+  }
 
   return ConstantInt::get(CI->getType(), Result);
 }
@@ -295,29 +305,67 @@ Value *LibCallSimplifier::optimizeStrNCat(CallInst *CI, IRBuilderBase &B) {
   return copyFlags(*CI, emitStrLenMemCpy(Src, Dst, SrcLen, B));
 }
 
+// Helper to transform memchr(S, C, N) == S to N && *S == C and, when
+// NBytes is null, strchr(S, C) to *S == C.  A precondition of the function
+// is that either S is dereferenceable or the value of N is nonzero.
+static Value* memChrToCharCompare(CallInst *CI, Value *NBytes,
+                                  IRBuilderBase &B, const DataLayout &DL)
+{
+  Value *Src = CI->getArgOperand(0);
+  Value *CharVal = CI->getArgOperand(1);
+
+  // Fold memchr(A, C, N) == A to N && *A == C.
+  Type *CharTy = B.getInt8Ty();
+  Value *Char0 = B.CreateLoad(CharTy, Src);
+  CharVal = B.CreateTrunc(CharVal, CharTy);
+  Value *Cmp = B.CreateICmpEQ(Char0, CharVal, "char0cmp");
+
+  if (NBytes) {
+    Value *Zero = ConstantInt::get(NBytes->getType(), 0);
+    Value *And = B.CreateICmpNE(NBytes, Zero);
+    Cmp = B.CreateLogicalAnd(And, Cmp);
+  }
+
+  Value *NullPtr = Constant::getNullValue(CI->getType());
+  return B.CreateSelect(Cmp, Src, NullPtr);
+}
+
 Value *LibCallSimplifier::optimizeStrChr(CallInst *CI, IRBuilderBase &B) {
-  Function *Callee = CI->getCalledFunction();
-  FunctionType *FT = Callee->getFunctionType();
   Value *SrcStr = CI->getArgOperand(0);
+  Value *CharVal = CI->getArgOperand(1);
   annotateNonNullNoUndefBasedOnAccess(CI, 0);
+
+  if (isOnlyUsedInEqualityComparison(CI, SrcStr))
+    return memChrToCharCompare(CI, nullptr, B, DL);
 
   // If the second operand is non-constant, see if we can compute the length
   // of the input string and turn this into memchr.
-  ConstantInt *CharC = dyn_cast<ConstantInt>(CI->getArgOperand(1));
+  ConstantInt *CharC = dyn_cast<ConstantInt>(CharVal);
   if (!CharC) {
     uint64_t Len = GetStringLength(SrcStr);
     if (Len)
       annotateDereferenceableBytes(CI, 0, Len);
     else
       return nullptr;
+
+    Function *Callee = CI->getCalledFunction();
+    FunctionType *FT = Callee->getFunctionType();
     if (!FT->getParamType(1)->isIntegerTy(32)) // memchr needs i32.
       return nullptr;
 
     return copyFlags(
         *CI,
-        emitMemChr(SrcStr, CI->getArgOperand(1), // include nul.
+        emitMemChr(SrcStr, CharVal, // include nul.
                    ConstantInt::get(DL.getIntPtrType(CI->getContext()), Len), B,
                    DL, TLI));
+  }
+
+  if (CharC->isZero()) {
+    Value *NullPtr = Constant::getNullValue(CI->getType());
+    if (isOnlyUsedInEqualityComparison(CI, NullPtr))
+      // Pre-empt the transformation to strlen below and fold
+      // strchr(A, '\0') == null to false.
+      return B.CreateIntToPtr(B.getTrue(), CI->getType());
   }
 
   // Otherwise, the character is a constant, see if the first argument is
@@ -1008,8 +1056,12 @@ Value *LibCallSimplifier::optimizeMemRChr(CallInst *CI, IRBuilderBase &B) {
 Value *LibCallSimplifier::optimizeMemChr(CallInst *CI, IRBuilderBase &B) {
   Value *SrcStr = CI->getArgOperand(0);
   Value *Size = CI->getArgOperand(2);
-  if (isKnownNonZero(Size, DL))
+
+  if (isKnownNonZero(Size, DL)) {
     annotateNonNullNoUndefBasedOnAccess(CI, 0);
+    if (isOnlyUsedInEqualityComparison(CI, SrcStr))
+      return memChrToCharCompare(CI, Size, B, DL);
+  }
 
   Value *CharVal = CI->getArgOperand(1);
   ConstantInt *CharC = dyn_cast<ConstantInt>(CharVal);
@@ -1099,9 +1151,16 @@ Value *LibCallSimplifier::optimizeMemChr(CallInst *CI, IRBuilderBase &B) {
     return B.CreateSelect(And, SrcStr, Sel1, "memchr.sel2");
   }
 
-  if (!LenC)
+  if (!LenC) {
+    if (isOnlyUsedInEqualityComparison(CI, SrcStr))
+      // S is dereferenceable so it's safe to load from it and fold
+      //   memchr(S, C, N) == S to N && *S == C for any C and N.
+      // TODO: This is safe even even for nonconstant S.
+      return memChrToCharCompare(CI, Size, B, DL);
+
     // From now on we need a constant length and constant array.
     return nullptr;
+  }
 
   // If the char is variable but the input str and length are not we can turn
   // this memchr call into a simple bit field test. Of course this only works
@@ -1589,31 +1648,6 @@ static Value *optimizeTrigReflections(CallInst *Call, LibFunc Func,
   return nullptr;
 }
 
-static Value *getPow(Value *InnerChain[33], unsigned Exp, IRBuilderBase &B) {
-  // Multiplications calculated using Addition Chains.
-  // Refer: http://wwwhomes.uni-bielefeld.de/achim/addition_chain.html
-
-  assert(Exp != 0 && "Incorrect exponent 0 not handled");
-
-  if (InnerChain[Exp])
-    return InnerChain[Exp];
-
-  static const unsigned AddChain[33][2] = {
-      {0, 0}, // Unused.
-      {0, 0}, // Unused (base case = pow1).
-      {1, 1}, // Unused (pre-computed).
-      {1, 2},  {2, 2},   {2, 3},  {3, 3},   {2, 5},  {4, 4},
-      {1, 8},  {5, 5},   {1, 10}, {6, 6},   {4, 9},  {7, 7},
-      {3, 12}, {8, 8},   {8, 9},  {2, 16},  {1, 18}, {10, 10},
-      {6, 15}, {11, 11}, {3, 20}, {12, 12}, {8, 17}, {13, 13},
-      {3, 24}, {14, 14}, {4, 25}, {15, 15}, {3, 28}, {16, 16},
-  };
-
-  InnerChain[Exp] = B.CreateFMul(getPow(InnerChain, AddChain[Exp][0], B),
-                                 getPow(InnerChain, AddChain[Exp][1], B));
-  return InnerChain[Exp];
-}
-
 // Return a properly extended integer (DstWidth bits wide) if the operation is
 // an itofp.
 static Value *getIntToFPVal(Value *I2F, IRBuilderBase &B, unsigned DstWidth) {
@@ -1914,70 +1948,52 @@ Value *LibCallSimplifier::optimizePow(CallInst *Pow, IRBuilderBase &B) {
   if (Value *Sqrt = replacePowWithSqrt(Pow, B))
     return Sqrt;
 
-  // pow(x, n) -> x * x * x * ...
+  // pow(x, n) -> powi(x, n) * sqrt(x) if n has exactly a 0.5 fraction
   const APFloat *ExpoF;
-  if (AllowApprox && match(Expo, m_APFloat(ExpoF)) &&
-      !ExpoF->isExactlyValue(0.5) && !ExpoF->isExactlyValue(-0.5)) {
-    // We limit to a max of 7 multiplications, thus the maximum exponent is 32.
-    // If the exponent is an integer+0.5 we generate a call to sqrt and an
-    // additional fmul.
-    // TODO: This whole transformation should be backend specific (e.g. some
-    //       backends might prefer libcalls or the limit for the exponent might
-    //       be different) and it should also consider optimizing for size.
-    APFloat LimF(ExpoF->getSemantics(), 33),
-            ExpoA(abs(*ExpoF));
-    if (ExpoA < LimF) {
-      // This transformation applies to integer or integer+0.5 exponents only.
-      // For integer+0.5, we create a sqrt(Base) call.
-      Value *Sqrt = nullptr;
-      if (!ExpoA.isInteger()) {
-        APFloat Expo2 = ExpoA;
-        // To check if ExpoA is an integer + 0.5, we add it to itself. If there
-        // is no floating point exception and the result is an integer, then
-        // ExpoA == integer + 0.5
-        if (Expo2.add(ExpoA, APFloat::rmNearestTiesToEven) != APFloat::opOK)
-          return nullptr;
+  if (match(Expo, m_APFloat(ExpoF)) && !ExpoF->isExactlyValue(0.5) &&
+      !ExpoF->isExactlyValue(-0.5)) {
+    APFloat ExpoA(abs(*ExpoF));
+    APFloat ExpoI(*ExpoF);
+    Value *Sqrt = nullptr;
+    if (AllowApprox && !ExpoA.isInteger()) {
+      APFloat Expo2 = ExpoA;
+      // To check if ExpoA is an integer + 0.5, we add it to itself. If there
+      // is no floating point exception and the result is an integer, then
+      // ExpoA == integer + 0.5
+      if (Expo2.add(ExpoA, APFloat::rmNearestTiesToEven) != APFloat::opOK)
+        return nullptr;
 
-        if (!Expo2.isInteger())
-          return nullptr;
+      if (!Expo2.isInteger())
+        return nullptr;
 
-        Sqrt = getSqrtCall(Base, Pow->getCalledFunction()->getAttributes(),
-                           Pow->doesNotAccessMemory(), M, B, TLI);
-        if (!Sqrt)
-          return nullptr;
-      }
+      if (ExpoI.roundToIntegral(APFloat::rmTowardNegative) !=
+          APFloat::opInexact)
+        return nullptr;
+      if (!ExpoI.isInteger())
+        return nullptr;
+      ExpoF = &ExpoI;
 
-      // We will memoize intermediate products of the Addition Chain.
-      Value *InnerChain[33] = {nullptr};
-      InnerChain[1] = Base;
-      InnerChain[2] = B.CreateFMul(Base, Base, "square");
-
-      // We cannot readily convert a non-double type (like float) to a double.
-      // So we first convert it to something which could be converted to double.
-      ExpoA.convert(APFloat::IEEEdouble(), APFloat::rmTowardZero, &Ignored);
-      Value *FMul = getPow(InnerChain, ExpoA.convertToDouble(), B);
-
-      // Expand pow(x, y+0.5) to pow(x, y) * sqrt(x).
-      if (Sqrt)
-        FMul = B.CreateFMul(FMul, Sqrt);
-
-      // If the exponent is negative, then get the reciprocal.
-      if (ExpoF->isNegative())
-        FMul = B.CreateFDiv(ConstantFP::get(Ty, 1.0), FMul, "reciprocal");
-
-      return FMul;
+      Sqrt = getSqrtCall(Base, Pow->getCalledFunction()->getAttributes(),
+                         Pow->doesNotAccessMemory(), M, B, TLI);
+      if (!Sqrt)
+        return nullptr;
     }
 
+    // pow(x, n) -> powi(x, n) if n is a constant signed integer value
     APSInt IntExpo(TLI->getIntSize(), /*isUnsigned=*/false);
-    // powf(x, n) -> powi(x, n) if n is a constant signed integer value
     if (ExpoF->isInteger() &&
         ExpoF->convertToInteger(IntExpo, APFloat::rmTowardZero, &Ignored) ==
             APFloat::opOK) {
-      return copyFlags(
+      Value *PowI = copyFlags(
           *Pow,
           createPowWithIntegerExponent(
               Base, ConstantInt::get(B.getIntNTy(TLI->getIntSize()), IntExpo),
               M, B));
+
+      if (PowI && Sqrt)
+        return B.CreateFMul(PowI, Sqrt);
+
+      return PowI;
     }
   }
 
@@ -2517,7 +2533,7 @@ Value *LibCallSimplifier::optimizeAtoi(CallInst *CI, IRBuilderBase &B) {
   if (!getConstantStringInfo(CI->getArgOperand(0), Str))
     return nullptr;
 
-  return convertStrToNumber(CI, Str, 10);
+  return convertStrToNumber(CI, Str, nullptr, 10, B);
 }
 
 Value *LibCallSimplifier::optimizeStrtol(CallInst *CI, IRBuilderBase &B) {
@@ -2525,11 +2541,14 @@ Value *LibCallSimplifier::optimizeStrtol(CallInst *CI, IRBuilderBase &B) {
   if (!getConstantStringInfo(CI->getArgOperand(0), Str))
     return nullptr;
 
-  if (!isa<ConstantPointerNull>(CI->getArgOperand(1)))
+  Value *EndPtr = CI->getArgOperand(1);
+  if (isa<ConstantPointerNull>(EndPtr))
+    EndPtr = nullptr;
+  else if (!isKnownNonZero(EndPtr, DL))
     return nullptr;
 
   if (ConstantInt *CInt = dyn_cast<ConstantInt>(CI->getArgOperand(2))) {
-    return convertStrToNumber(CI, Str, CInt->getSExtValue());
+    return convertStrToNumber(CI, Str, EndPtr, CInt->getSExtValue(), B);
   }
 
   return nullptr;

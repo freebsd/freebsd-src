@@ -133,32 +133,48 @@ void VPlanVerifier::verifyHierarchicalCFG(
   verifyRegionRec(TopRegion);
 }
 
+static bool verifyVPBasicBlock(const VPBasicBlock *VPBB) {
+  // Verify that phi-like recipes are at the beginning of the block, with no
+  // other recipes in between.
+  auto RecipeI = VPBB->begin();
+  auto End = VPBB->end();
+  unsigned NumActiveLaneMaskPhiRecipes = 0;
+  while (RecipeI != End && RecipeI->isPhi()) {
+    if (isa<VPActiveLaneMaskPHIRecipe>(RecipeI))
+      NumActiveLaneMaskPhiRecipes++;
+    RecipeI++;
+  }
+
+  if (NumActiveLaneMaskPhiRecipes > 1) {
+    errs() << "There should be no more than one VPActiveLaneMaskPHIRecipe";
+    return false;
+  }
+
+  while (RecipeI != End) {
+    if (RecipeI->isPhi() && !isa<VPBlendRecipe>(&*RecipeI)) {
+      errs() << "Found phi-like recipe after non-phi recipe";
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+      errs() << ": ";
+      RecipeI->dump();
+      errs() << "after\n";
+      std::prev(RecipeI)->dump();
+#endif
+      return false;
+    }
+    RecipeI++;
+  }
+
+  return true;
+}
+
 bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
   auto Iter = depth_first(
       VPBlockRecursiveTraversalWrapper<const VPBlockBase *>(Plan.getEntry()));
   for (const VPBasicBlock *VPBB :
        VPBlockUtils::blocksOnly<const VPBasicBlock>(Iter)) {
-    // Verify that phi-like recipes are at the beginning of the block, with no
-    // other recipes in between.
-    auto RecipeI = VPBB->begin();
-    auto End = VPBB->end();
-    while (RecipeI != End && RecipeI->isPhi())
-      RecipeI++;
-
-    while (RecipeI != End) {
-      if (RecipeI->isPhi() && !isa<VPBlendRecipe>(&*RecipeI)) {
-        errs() << "Found phi-like recipe after non-phi recipe";
-
-#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-        errs() << ": ";
-        RecipeI->dump();
-        errs() << "after\n";
-        std::prev(RecipeI)->dump();
-#endif
-        return false;
-      }
-      RecipeI++;
-    }
+    if (!verifyVPBasicBlock(VPBB))
+      return false;
   }
 
   const VPRegionBlock *TopRegion = Plan.getVectorLoopRegion();
@@ -181,15 +197,16 @@ bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
   }
 
   if (Exiting->empty()) {
-    errs() << "VPlan vector loop exiting block must end with BranchOnCount "
-              "VPInstruction but is empty\n";
+    errs() << "VPlan vector loop exiting block must end with BranchOnCount or "
+              "BranchOnCond VPInstruction but is empty\n";
     return false;
   }
 
   auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exiting->end()));
-  if (!LastInst || LastInst->getOpcode() != VPInstruction::BranchOnCount) {
-    errs() << "VPlan vector loop exit must end with BranchOnCount "
-              "VPInstruction\n";
+  if (!LastInst || (LastInst->getOpcode() != VPInstruction::BranchOnCount &&
+                    LastInst->getOpcode() != VPInstruction::BranchOnCond)) {
+    errs() << "VPlan vector loop exit must end with BranchOnCount or "
+              "BranchOnCond VPInstruction\n";
     return false;
   }
 

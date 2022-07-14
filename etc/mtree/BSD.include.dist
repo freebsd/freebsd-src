@@ -31,6 +31,8 @@
             ..
             __coroutine
             ..
+            __debug_utils
+            ..
             __filesystem
             ..
             __format

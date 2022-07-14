@@ -44195,6 +44195,30 @@ fail:
 }
 
 
+static int _wrap_SBSection_GetAlignment(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBSection *arg1 = (lldb::SBSection *) 0 ;
+  uint32_t result;
+  
+  SWIG_check_num_args("lldb::SBSection::GetAlignment",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSection::GetAlignment",1,"lldb::SBSection *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSection,0))){
+    SWIG_fail_ptr("SBSection_GetAlignment",1,SWIGTYPE_p_lldb__SBSection);
+  }
+  
+  result = (uint32_t)(arg1)->GetAlignment();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBSection_GetDescription(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBSection *arg1 = (lldb::SBSection *) 0 ;
@@ -44312,6 +44336,7 @@ static swig_lua_method swig_SBSection_methods[]= {
     { "GetSectionType", _wrap_SBSection_GetSectionType},
     { "GetPermissions", _wrap_SBSection_GetPermissions},
     { "GetTargetByteSize", _wrap_SBSection_GetTargetByteSize},
+    { "GetAlignment", _wrap_SBSection_GetAlignment},
     { "GetDescription", _wrap_SBSection_GetDescription},
     { "__eq", _wrap_SBSection___eq},
     { "__tostring", _wrap_SBSection___tostring},
@@ -58700,6 +58725,180 @@ fail:
 }
 
 
+static int _wrap_SBTrace_SaveToDisk__SWIG_0(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
+  lldb::SBError *arg2 = 0 ;
+  lldb::SBFileSpec *arg3 = 0 ;
+  bool arg4 ;
+  lldb::SBFileSpec result;
+  
+  SWIG_check_num_args("lldb::SBTrace::SaveToDisk",4,4)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",1,"lldb::SBTrace *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",2,"lldb::SBError &");
+  if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",3,"lldb::SBFileSpec const &");
+  if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",4,"bool");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
+    SWIG_fail_ptr("SBTrace_SaveToDisk",1,SWIGTYPE_p_lldb__SBTrace);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+    SWIG_fail_ptr("SBTrace_SaveToDisk",2,SWIGTYPE_p_lldb__SBError);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
+    SWIG_fail_ptr("SBTrace_SaveToDisk",3,SWIGTYPE_p_lldb__SBFileSpec);
+  }
+  
+  arg4 = (lua_toboolean(L, 4)!=0);
+  result = (arg1)->SaveToDisk(*arg2,(lldb::SBFileSpec const &)*arg3,arg4);
+  {
+    lldb::SBFileSpec * resultptr = new lldb::SBFileSpec((const lldb::SBFileSpec &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFileSpec,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTrace_SaveToDisk__SWIG_1(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
+  lldb::SBError *arg2 = 0 ;
+  lldb::SBFileSpec *arg3 = 0 ;
+  lldb::SBFileSpec result;
+  
+  SWIG_check_num_args("lldb::SBTrace::SaveToDisk",3,3)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",1,"lldb::SBTrace *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",2,"lldb::SBError &");
+  if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTrace::SaveToDisk",3,"lldb::SBFileSpec const &");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
+    SWIG_fail_ptr("SBTrace_SaveToDisk",1,SWIGTYPE_p_lldb__SBTrace);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+    SWIG_fail_ptr("SBTrace_SaveToDisk",2,SWIGTYPE_p_lldb__SBError);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
+    SWIG_fail_ptr("SBTrace_SaveToDisk",3,SWIGTYPE_p_lldb__SBFileSpec);
+  }
+  
+  result = (arg1)->SaveToDisk(*arg2,(lldb::SBFileSpec const &)*arg3);
+  {
+    lldb::SBFileSpec * resultptr = new lldb::SBFileSpec((const lldb::SBFileSpec &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBFileSpec,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTrace_SaveToDisk(lua_State* L) {
+  int argc;
+  int argv[5]={
+    1,2,3,4,5
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 3) {
+    int _v;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTrace, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpec, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          return _wrap_SBTrace_SaveToDisk__SWIG_1(L);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTrace, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBError, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          void *ptr;
+          if (lua_isuserdata(L,argv[2])==0 || SWIG_ConvertPtr(L,argv[2], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpec, SWIG_POINTER_NO_NULL)) {
+            _v = 0;
+          } else {
+            _v = 1;
+          }
+        }
+        if (_v) {
+          {
+            _v = lua_isboolean(L,argv[3]);
+          }
+          if (_v) {
+            return _wrap_SBTrace_SaveToDisk__SWIG_0(L);
+          }
+        }
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBTrace_SaveToDisk'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBTrace::SaveToDisk(lldb::SBError &,lldb::SBFileSpec const &,bool)\n"
+    "    lldb::SBTrace::SaveToDisk(lldb::SBError &,lldb::SBFileSpec const &)\n");
+  lua_error(L);return 0;
+}
+
+
 static int _wrap_SBTrace_Start__SWIG_0(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
@@ -59005,6 +59204,7 @@ static swig_lua_attribute swig_SBTrace_attributes[] = {
 };
 static swig_lua_method swig_SBTrace_methods[]= {
     { "GetStartConfigurationHelp", _wrap_SBTrace_GetStartConfigurationHelp},
+    { "SaveToDisk", _wrap_SBTrace_SaveToDisk},
     { "Start", _wrap_SBTrace_Start},
     { "Stop", _wrap_SBTrace_Stop},
     { "IsValid", _wrap_SBTrace_IsValid},
@@ -72458,11 +72658,15 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eExpressionEvaluationIRGen", lldb::eExpressionEvaluationIRGen)},
     {SWIG_LUA_CONSTTAB_INT("eExpressionEvaluationExecution", lldb::eExpressionEvaluationExecution)},
     {SWIG_LUA_CONSTTAB_INT("eExpressionEvaluationComplete", lldb::eExpressionEvaluationComplete)},
-    {SWIG_LUA_CONSTTAB_INT("eTraceInstructionControlFlowTypeInstruction", lldb::eTraceInstructionControlFlowTypeInstruction)},
-    {SWIG_LUA_CONSTTAB_INT("eTraceInstructionControlFlowTypeBranch", lldb::eTraceInstructionControlFlowTypeBranch)},
-    {SWIG_LUA_CONSTTAB_INT("eTraceInstructionControlFlowTypeTakenBranch", lldb::eTraceInstructionControlFlowTypeTakenBranch)},
-    {SWIG_LUA_CONSTTAB_INT("eTraceInstructionControlFlowTypeCall", lldb::eTraceInstructionControlFlowTypeCall)},
-    {SWIG_LUA_CONSTTAB_INT("eTraceInstructionControlFlowTypeReturn", lldb::eTraceInstructionControlFlowTypeReturn)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindUnknown", lldb::eInstructionControlFlowKindUnknown)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindOther", lldb::eInstructionControlFlowKindOther)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindCall", lldb::eInstructionControlFlowKindCall)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindReturn", lldb::eInstructionControlFlowKindReturn)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindJump", lldb::eInstructionControlFlowKindJump)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindCondJump", lldb::eInstructionControlFlowKindCondJump)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindFarCall", lldb::eInstructionControlFlowKindFarCall)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindFarReturn", lldb::eInstructionControlFlowKindFarReturn)},
+    {SWIG_LUA_CONSTTAB_INT("eInstructionControlFlowKindFarJump", lldb::eInstructionControlFlowKindFarJump)},
     {SWIG_LUA_CONSTTAB_INT("eWatchpointKindWrite", lldb::eWatchpointKindWrite)},
     {SWIG_LUA_CONSTTAB_INT("eWatchpointKindRead", lldb::eWatchpointKindRead)},
     {SWIG_LUA_CONSTTAB_INT("eGdbSignalBadAccess", lldb::eGdbSignalBadAccess)},
@@ -72533,6 +72737,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eTraceCounterTSC", lldb::eTraceCounterTSC)},
     {SWIG_LUA_CONSTTAB_INT("eTraceEventDisabledSW", lldb::eTraceEventDisabledSW)},
     {SWIG_LUA_CONSTTAB_INT("eTraceEventDisabledHW", lldb::eTraceEventDisabledHW)},
+    {SWIG_LUA_CONSTTAB_INT("eTraceEventCPUChanged", lldb::eTraceEventCPUChanged)},
     {SWIG_LUA_CONSTTAB_INT("eTraceItemKindError", lldb::eTraceItemKindError)},
     {SWIG_LUA_CONSTTAB_INT("eTraceItemKindEvent", lldb::eTraceItemKindEvent)},
     {SWIG_LUA_CONSTTAB_INT("eTraceItemKindInstruction", lldb::eTraceItemKindInstruction)},

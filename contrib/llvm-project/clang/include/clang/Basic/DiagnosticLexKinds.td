@@ -113,6 +113,8 @@ def warn_four_char_character_literal : Warning<
 // Unicode and UCNs
 def err_invalid_utf8 : Error<
   "source file is not valid UTF-8">;
+def warn_invalid_utf8_in_comment : Extension<
+  "invalid UTF-8 in comment">, InGroup<DiagGroup<"invalid-utf8">>;
 def err_character_not_allowed : Error<
   "unexpected character <U+%0>">;
 def err_character_not_allowed_identifier : Error<
@@ -128,8 +130,15 @@ def warn_utf8_symbol_zero_width : Warning<
   "some environments">, InGroup<DiagGroup<"unicode-zero-width">>;
 
 def ext_delimited_escape_sequence : Extension<
-  "%select{delimited|named}0 escape sequences are a Clang extension">,
+  "%select{delimited|named}0 escape sequences are a "
+  "%select{Clang|C++2b}1 extension">,
   InGroup<DiagGroup<"delimited-escape-sequence-extension">>;
+
+def warn_cxx2b_delimited_escape_sequence : Warning<
+  "%select{delimited|named}0 escape sequences are "
+  "incompatible with C++ standards before C++2b">,
+  InGroup<CXXPre2bCompat>, DefaultIgnore;
+
 def err_delimited_escape_empty : Error<
   "delimited escape sequence cannot be empty">;
 def err_delimited_escape_missing_brace: Error<

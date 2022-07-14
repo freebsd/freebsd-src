@@ -60,17 +60,17 @@ void SanitizerMetadata::reportGlobal(llvm::GlobalVariable *GV,
   Meta.NoHWAddress |= CGM.isInNoSanitizeList(
       FsanitizeArgument.Mask & SanitizerKind::HWAddress, GV, Loc, Ty);
 
-  Meta.NoMemtag |= NoSanitizeAttrSet.hasOneOf(SanitizerKind::MemTag);
-  Meta.NoMemtag |= CGM.isInNoSanitizeList(
+  Meta.Memtag |=
+      static_cast<bool>(FsanitizeArgument.Mask & SanitizerKind::MemtagGlobals);
+  Meta.Memtag &= !NoSanitizeAttrSet.hasOneOf(SanitizerKind::MemTag);
+  Meta.Memtag &= !CGM.isInNoSanitizeList(
       FsanitizeArgument.Mask & SanitizerKind::MemTag, GV, Loc, Ty);
 
-  if (FsanitizeArgument.has(SanitizerKind::Address)) {
-    // TODO(hctim): Make this conditional when we migrate off llvm.asan.globals.
-    IsDynInit &= !CGM.isInNoSanitizeList(SanitizerKind::Address |
-                                             SanitizerKind::KernelAddress,
-                                         GV, Loc, Ty, "init");
-    Meta.IsDynInit = IsDynInit;
-  }
+  Meta.IsDynInit = IsDynInit && !Meta.NoAddress &&
+                   FsanitizeArgument.has(SanitizerKind::Address) &&
+                   !CGM.isInNoSanitizeList(SanitizerKind::Address |
+                                               SanitizerKind::KernelAddress,
+                                           GV, Loc, Ty, "init");
 
   GV->setSanitizerMetadata(Meta);
 }
