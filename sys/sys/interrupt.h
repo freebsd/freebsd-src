@@ -138,8 +138,8 @@ struct intr_event {
 #define	SWI_DELAY	0x2
 
 /*
- * Software interrupt numbers in priority order.  The priority determines
- * the priority of the corresponding interrupt thread.
+ * Software interrupt numbers.  Historically this was used to determine
+ * the relative priority of SWI ithreads.
  */
 #define	SWI_TTY		0
 #define	SWI_NET		1

@@ -1491,20 +1491,8 @@ db_dump_intrhand(struct intr_handler *ih)
 	case PI_REALTIME:
 		db_printf("CLK ");
 		break;
-	case PI_AV:
-		db_printf("AV  ");
-		break;
-	case PI_TTY:
-		db_printf("TTY ");
-		break;
-	case PI_NET:
-		db_printf("NET ");
-		break;
-	case PI_DISK:
-		db_printf("DISK");
-		break;
-	case PI_DULL:
-		db_printf("DULL");
+	case PI_INTR:
+		db_printf("INTR");
 		break;
 	default:
 		if (ih->ih_pri >= PI_SOFT)
