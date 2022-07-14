@@ -226,9 +226,16 @@ static int __read_mostly sched_idlespins = 10000;
 static int __read_mostly sched_idlespinthresh = -1;
 
 /*
- * tdq - per processor runqs and statistics.  All fields are protected by the
- * tdq_lock.  The load and lowpri may be accessed without to avoid excess
- * locking in sched_pickcpu();
+ * tdq - per processor runqs and statistics.  A mutex synchronizes access to
+ * most fields.  Some fields are loaded or modified without the mutex.
+ *
+ * Locking protocols:
+ * (c)  constant after initialization
+ * (f)  flag, set with the tdq lock held, cleared on local CPU
+ * (l)  all accesses are CPU-local
+ * (ls) stores are performed by the local CPU, loads may be lockless
+ * (t)  all accesses are protected by the tdq mutex
+ * (ts) stores are serialized by the tdq mutex, loads may be lockless
  */
 struct tdq {
 	/* 
@@ -236,32 +243,40 @@ struct tdq {
 	 * tdq_lock is padded to avoid false sharing with tdq_load and
 	 * tdq_cpu_idle.
 	 */
-	struct mtx_padalign tdq_lock;		/* run queue lock. */
-	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
-	struct thread	*tdq_curthread;		/* Current executing thread. */
-	volatile int	tdq_load;		/* Aggregate load. */
-	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
-	int		tdq_sysload;		/* For loadavg, !ITHD load. */
-	volatile int	tdq_transferable;	/* Transferable thread count. */
-	volatile short	tdq_switchcnt;		/* Switches this tick. */
-	volatile short	tdq_oldswitchcnt;	/* Switches last tick. */
-	u_char		tdq_lowpri;		/* Lowest priority thread. */
-	u_char		tdq_owepreempt;		/* Remote preemption pending. */
-	u_char		tdq_idx;		/* Current insert index. */
-	u_char		tdq_ridx;		/* Current removal index. */
-	int		tdq_id;			/* cpuid. */
-	struct runq	tdq_realtime;		/* real-time run queue. */
-	struct runq	tdq_timeshare;		/* timeshare run queue. */
-	struct runq	tdq_idle;		/* Queue of IDLE threads. */
+	struct mtx_padalign tdq_lock;	/* run queue lock. */
+	struct cpu_group *tdq_cg;	/* (c) Pointer to cpu topology. */
+	struct thread	*tdq_curthread;	/* (t) Current executing thread. */
+	int		tdq_load;	/* (ts) Aggregate load. */
+	int		tdq_sysload;	/* (ts) For loadavg, !ITHD load. */
+	int		tdq_cpu_idle;	/* (ls) cpu_idle() is active. */
+	int		tdq_transferable; /* (ts) Transferable thread count. */
+	short		tdq_switchcnt;	/* (l) Switches this tick. */
+	short		tdq_oldswitchcnt; /* (l) Switches last tick. */
+	u_char		tdq_lowpri;	/* (ts) Lowest priority thread. */
+	u_char		tdq_owepreempt;	/* (f) Remote preemption pending. */
+	u_char		tdq_idx;	/* (t) Current insert index. */
+	u_char		tdq_ridx;	/* (t) Current removal index. */
+	int		tdq_id;		/* (c) cpuid. */
+	struct runq	tdq_realtime;	/* (t) real-time run queue. */
+	struct runq	tdq_timeshare;	/* (t) timeshare run queue. */
+	struct runq	tdq_idle;	/* (t) Queue of IDLE threads. */
 	char		tdq_name[TDQ_NAME_LEN];
 #ifdef KTR
 	char		tdq_loadname[TDQ_LOADNAME_LEN];
 #endif
-} __aligned(64);
+};
 
 /* Idle thread states and config. */
 #define	TDQ_RUNNING	1
 #define	TDQ_IDLE	2
+
+/* Lockless accessors. */
+#define	TDQ_LOAD(tdq)		atomic_load_int(&(tdq)->tdq_load)
+#define	TDQ_TRANSFERABLE(tdq)	atomic_load_int(&(tdq)->tdq_transferable)
+#define	TDQ_SWITCHCNT(tdq)	(atomic_load_short(&(tdq)->tdq_switchcnt) + \
+				 atomic_load_short(&(tdq)->tdq_oldswitchcnt))
+#define	TDQ_SWITCHCNT_INC(tdq)	(atomic_store_short(&(tdq)->tdq_switchcnt, \
+				 atomic_load_short(&(tdq)->tdq_switchcnt) + 1))
 
 #ifdef SMP
 struct cpu_group __read_mostly *cpu_top;		/* CPU topology */
@@ -323,7 +338,7 @@ static void tdq_load_rem(struct tdq *, struct thread *);
 static __inline void tdq_runq_add(struct tdq *, struct thread *, int);
 static __inline void tdq_runq_rem(struct tdq *, struct thread *);
 static inline int sched_shouldpreempt(int, int, int);
-void tdq_print(int cpu);
+static void tdq_print(int cpu);
 static void runq_print(struct runq *rq);
 static int tdq_add(struct tdq *, struct thread *, int);
 #ifdef SMP
@@ -398,7 +413,7 @@ runq_print(struct runq *rq)
 /*
  * Print the status of a per-cpu thread queue.  Should be a ddb show cmd.
  */
-void
+static void __unused
 tdq_print(int cpu)
 {
 	struct tdq *tdq;
@@ -608,7 +623,7 @@ tdq_setlowpri(struct tdq *tdq, struct thread *ctd)
 
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	if (ctd == NULL)
-		ctd = atomic_load_ptr(&tdq->tdq_curthread);
+		ctd = tdq->tdq_curthread;
 	td = tdq_choose(tdq);
 	if (td == NULL || td->td_priority > ctd->td_priority)
 		tdq->tdq_lowpri = ctd->td_priority;
@@ -699,7 +714,7 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 		if (!CPU_ISSET(c, &cg->cg_mask))
 			continue;
 		tdq = TDQ_CPU(c);
-		l = tdq->tdq_load;
+		l = TDQ_LOAD(tdq);
 		if (c == s->cs_prefer) {
 			if (__predict_false(s->cs_running))
 				l--;
@@ -714,7 +729,8 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 		 * If the threads is already on the CPU, don't look on the TDQ
 		 * priority, since it can be the priority of the thread itself.
 		 */
-		if (l > s->cs_load || (tdq->tdq_lowpri <= s->cs_pri &&
+		if (l > s->cs_load ||
+		    (atomic_load_char(&tdq->tdq_lowpri) <= s->cs_pri &&
 		     (!s->cs_running || c != s->cs_prefer)) ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
@@ -769,14 +785,14 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 		if (!CPU_ISSET(c, &cg->cg_mask))
 			continue;
 		tdq = TDQ_CPU(c);
-		l = tdq->tdq_load;
+		l = TDQ_LOAD(tdq);
 		load = l * 256;
 		total += load;
 
 		/*
 		 * Check this CPU is acceptable.
 		 */
-		if (l < s->cs_load || (tdq->tdq_transferable < s->cs_trans) ||
+		if (l < s->cs_load || TDQ_TRANSFERABLE(tdq) < s->cs_trans ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
 
@@ -848,13 +864,13 @@ sched_balance_group(struct cpu_group *cg)
 		if (CPU_EMPTY(&lmask))
 			break;
 		tdq = TDQ_CPU(high);
-		if (tdq->tdq_load == 1) {
+		if (TDQ_LOAD(tdq) == 1) {
 			/*
 			 * There is only one running thread.  We can't move
 			 * it from here, so tell it to pick new CPU by itself.
 			 */
 			TDQ_LOCK(tdq);
-			td = atomic_load_ptr(&tdq->tdq_curthread);
+			td = tdq->tdq_curthread;
 			if ((td->td_flags & TDF_IDLETD) == 0 &&
 			    THREAD_CAN_MIGRATE(td)) {
 				td->td_flags |= TDF_NEEDRESCHED | TDF_PICKCPU;
@@ -866,9 +882,9 @@ sched_balance_group(struct cpu_group *cg)
 		}
 		anylow = 1;
 nextlow:
-		if (tdq->tdq_transferable == 0)
+		if (TDQ_TRANSFERABLE(tdq) == 0)
 			continue;
-		low = sched_lowest(cg, &lmask, -1, tdq->tdq_load - 1, high, 1);
+		low = sched_lowest(cg, &lmask, -1, TDQ_LOAD(tdq) - 1, high, 1);
 		/* Stop if we looked well and found no less loaded CPU. */
 		if (anylow && low == -1)
 			break;
@@ -1015,15 +1031,15 @@ tdq_idled(struct tdq *tdq)
 		return (1);
 	CPU_FILL(&mask);
 	CPU_CLR(PCPU_GET(cpuid), &mask);
-    restart:
-	switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+restart:
+	switchcnt = TDQ_SWITCHCNT(tdq);
 	for (cg = tdq->tdq_cg, goup = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * We were assigned a thread but not preempted.  Returning
 		 * 0 here will cause our caller to switch to it.
 		 */
-		if (tdq->tdq_load)
+		if (TDQ_LOAD(tdq))
 			return (0);
 
 		/*
@@ -1059,8 +1075,8 @@ tdq_idled(struct tdq *tdq)
 		 * this situation about 20% of the time on an 8 core
 		 * 16 thread Ryzen 7, but it still helps performance.
 		 */
-		if (steal->tdq_load < steal_thresh ||
-		    steal->tdq_transferable == 0)
+		if (TDQ_LOAD(steal) < steal_thresh ||
+		    TDQ_TRANSFERABLE(steal) == 0)
 			goto restart;
 		/*
 		 * Try to lock both queues. If we are assigned a thread while
@@ -1085,9 +1101,9 @@ tdq_idled(struct tdq *tdq)
 		 * of date.  The latter is rare.  In either case restart
 		 * the search.
 		 */
-		if (steal->tdq_load < steal_thresh ||
-		    steal->tdq_transferable == 0 ||
-		    switchcnt != tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt) {
+		if (TDQ_LOAD(steal) < steal_thresh ||
+		    TDQ_TRANSFERABLE(steal) == 0 ||
+		    switchcnt != TDQ_SWITCHCNT(tdq)) {
 			tdq_unlock_pair(tdq, steal);
 			goto restart;
 		}
@@ -1151,7 +1167,7 @@ tdq_notify(struct tdq *tdq, int lowpri)
 	 */
 	cpu = TDQ_ID(tdq);
 	if (TD_IS_IDLETHREAD(tdq->tdq_curthread) &&
-	    (tdq->tdq_cpu_idle == 0 || cpu_idle_wakeup(cpu)))
+	    (atomic_load_int(&tdq->tdq_cpu_idle) == 0 || cpu_idle_wakeup(cpu)))
 		return;
 
 	/*
@@ -1344,13 +1360,15 @@ sched_pickcpu(struct thread *td, int flags)
 	 * expired and it is idle, run it there.
 	 */
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu) &&
-	    tdq->tdq_lowpri >= PRI_MIN_IDLE &&
+	    atomic_load_int(&tdq->tdq_lowpri) >= PRI_MIN_IDLE &&
 	    SCHED_AFFINITY(ts, CG_SHARE_L2)) {
 		if (cg->cg_flags & CG_FLAG_THREAD) {
 			/* Check all SMT threads for being idle. */
 			for (cpu = cg->cg_first; cpu <= cg->cg_last; cpu++) {
+				pri =
+				    atomic_load_char(&TDQ_CPU(cpu)->tdq_lowpri);
 				if (CPU_ISSET(cpu, &cg->cg_mask) &&
-				    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
+				    pri < PRI_MIN_IDLE)
 					break;
 			}
 			if (cpu > cg->cg_last) {
@@ -1421,8 +1439,8 @@ llc:
 	 */
 	tdq = TDQ_CPU(cpu);
 	if (THREAD_CAN_SCHED(td, self) && TDQ_SELF()->tdq_lowpri > pri &&
-	    tdq->tdq_lowpri < PRI_MIN_IDLE &&
-	    TDQ_SELF()->tdq_load <= tdq->tdq_load + 1) {
+	    atomic_load_char(&tdq->tdq_lowpri) < PRI_MIN_IDLE &&
+	    TDQ_LOAD(TDQ_SELF()) <= TDQ_LOAD(tdq) + 1) {
 		SCHED_STAT_INC(pickcpu_local);
 		cpu = self;
 	}
@@ -2020,7 +2038,7 @@ tdq_trysteal(struct tdq *tdq)
 		 * If a thread was added while interrupts were disabled don't
 		 * steal one here.
 		 */
-		if (tdq->tdq_load > 0) {
+		if (TDQ_LOAD(tdq) > 0) {
 			TDQ_LOCK(tdq);
 			break;
 		}
@@ -2062,8 +2080,8 @@ tdq_trysteal(struct tdq *tdq)
 		 * At this point unconditionally exit the loop to bound
 		 * the time spent in the critcal section.
 		 */
-		if (steal->tdq_load < steal_thresh ||
-		    steal->tdq_transferable == 0)
+		if (TDQ_LOAD(steal) < steal_thresh ||
+		    TDQ_TRANSFERABLE(steal) == 0)
 			continue;
 		/*
 		 * Try to lock both queues. If we are assigned a thread while
@@ -2080,8 +2098,8 @@ tdq_trysteal(struct tdq *tdq)
 		 * The data returned by sched_highest() is stale and
                  * the chosen CPU no longer has an eligible thread.
 		 */
-		if (steal->tdq_load < steal_thresh ||
-		    steal->tdq_transferable == 0) {
+		if (TDQ_LOAD(steal) < steal_thresh ||
+		    TDQ_TRANSFERABLE(steal) == 0) {
 			TDQ_UNLOCK(steal);
 			break;
 		}
@@ -2182,9 +2200,9 @@ sched_switch(struct thread *td, int flags)
 	    (flags & SW_PREEMPT) != 0;
 	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_PICKCPU | TDF_SLICEEND);
 	td->td_owepreempt = 0;
-	tdq->tdq_owepreempt = 0;
+	atomic_store_char(&tdq->tdq_owepreempt, 0);
 	if (!TD_IS_IDLETHREAD(td))
-		tdq->tdq_switchcnt++;
+		TDQ_SWITCHCNT_INC(tdq);
 
 	/*
 	 * Always block the thread lock so we can drop the tdq lock early.
@@ -2544,6 +2562,7 @@ sched_clock(struct thread *td, int cnt)
 	 */
 	tdq->tdq_oldswitchcnt = tdq->tdq_switchcnt;
 	tdq->tdq_switchcnt = tdq->tdq_load;
+
 	/*
 	 * Advance the insert index once for each tick to ensure that all
 	 * threads get a chance to run.
@@ -2600,10 +2619,10 @@ sched_runnable(void)
 
 	tdq = TDQ_SELF();
 	if ((curthread->td_flags & TDF_IDLETD) != 0) {
-		if (tdq->tdq_load > 0)
+		if (TDQ_LOAD(tdq) > 0)
 			goto out;
 	} else
-		if (tdq->tdq_load - 1 > 0)
+		if (TDQ_LOAD(tdq) - 1 > 0)
 			goto out;
 	load = 0;
 out:
@@ -2898,10 +2917,10 @@ sched_load(void)
 
 	total = 0;
 	CPU_FOREACH(i)
-		total += TDQ_CPU(i)->tdq_sysload;
+		total += atomic_load_int(&TDQ_CPU(i)->tdq_sysload);
 	return (total);
 #else
-	return (TDQ_SELF()->tdq_sysload);
+	return (atomic_load_int(&TDQ_SELF()->tdq_sysload));
 #endif
 }
 
@@ -2941,18 +2960,18 @@ sched_idletd(void *dummy)
 	THREAD_NO_SLEEPING();
 	oldswitchcnt = -1;
 	for (;;) {
-		if (tdq->tdq_load) {
+		if (TDQ_LOAD(tdq)) {
 			thread_lock(td);
 			mi_switch(SW_VOL | SWT_IDLE);
 		}
-		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		switchcnt = TDQ_SWITCHCNT(tdq);
 #ifdef SMP
 		if (always_steal || switchcnt != oldswitchcnt) {
 			oldswitchcnt = switchcnt;
 			if (tdq_idled(tdq) == 0)
 				continue;
 		}
-		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		switchcnt = TDQ_SWITCHCNT(tdq);
 #else
 		oldswitchcnt = switchcnt;
 #endif
@@ -2965,19 +2984,19 @@ sched_idletd(void *dummy)
 		 */
 		if (TDQ_IDLESPIN(tdq) && switchcnt > sched_idlespinthresh) {
 			for (i = 0; i < sched_idlespins; i++) {
-				if (tdq->tdq_load)
+				if (TDQ_LOAD(tdq))
 					break;
 				cpu_spinwait();
 			}
 		}
 
 		/* If there was context switch during spin, restart it. */
-		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load != 0 || switchcnt != oldswitchcnt)
+		switchcnt = TDQ_SWITCHCNT(tdq);
+		if (TDQ_LOAD(tdq) != 0 || switchcnt != oldswitchcnt)
 			continue;
 
 		/* Run main MD idle handler. */
-		tdq->tdq_cpu_idle = 1;
+		atomic_store_int(&tdq->tdq_cpu_idle, 1);
 		/*
 		 * Make sure that the tdq_cpu_idle update is globally visible
 		 * before cpu_idle() reads tdq_load.  The order is important
@@ -2989,21 +3008,21 @@ sched_idletd(void *dummy)
 		 * threads often enough to make it worthwhile to do so in
 		 * order to avoid calling cpu_idle().
 		 */
-		if (tdq->tdq_load != 0) {
-			tdq->tdq_cpu_idle = 0;
+		if (TDQ_LOAD(tdq) != 0) {
+			atomic_store_int(&tdq->tdq_cpu_idle, 0);
 			continue;
 		}
 		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
-		tdq->tdq_cpu_idle = 0;
+		atomic_store_int(&tdq->tdq_cpu_idle, 0);
 
 		/*
 		 * Account thread-less hardware interrupts and
 		 * other wakeup reasons equal to context switches.
 		 */
-		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		switchcnt = TDQ_SWITCHCNT(tdq);
 		if (switchcnt != oldswitchcnt)
 			continue;
-		tdq->tdq_switchcnt++;
+		TDQ_SWITCHCNT_INC(tdq);
 		oldswitchcnt++;
 	}
 }
