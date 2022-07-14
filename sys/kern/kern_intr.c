@@ -589,7 +589,7 @@ ithread_destroy(struct intr_thread *ithread)
 	ithread->it_flags |= IT_DEAD;
 	if (TD_AWAITING_INTR(td)) {
 		TD_CLR_IWAIT(td);
-		sched_add(td, SRQ_INTR);
+		sched_wakeup(td, SRQ_INTR);
 	} else
 		thread_unlock(td);
 }
@@ -1020,7 +1020,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, td->td_proc->p_pid,
 		    td->td_name);
 		TD_CLR_IWAIT(td);
-		sched_add(td, SRQ_INTR);
+		sched_wakeup(td, SRQ_INTR);
 	} else {
 #ifdef HWPMC_HOOKS
 		it->it_waiting++;
