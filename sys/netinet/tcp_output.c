@@ -1681,8 +1681,13 @@ timer:
 				tp->sackhint.sack_bytes_rexmit -= len;
 				KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
 				    ("sackhint bytes rtx >= 0"));
-			} else
+				KASSERT((flags & TH_FIN) == 0,
+				    ("error while FIN with SACK rxmit"));
+			} else {
 				tp->snd_nxt -= len;
+				if (flags & TH_FIN)
+					tp->snd_nxt--;
+			}
 		}
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {
