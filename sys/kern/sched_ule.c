@@ -2375,6 +2375,15 @@ sched_wakeup(struct thread *td, int srqflags)
 		sched_interact_update(td);
 		sched_pctcpu_update(ts, 0);
 	}
+
+	/*
+	 * When resuming an idle ithread, restore its base ithread
+	 * priority.
+	 */
+	if (PRI_BASE(td->td_pri_class) == PRI_ITHD &&
+	    td->td_priority != td->td_base_ithread_pri)
+		sched_prio(td, td->td_base_ithread_pri);
+
 	/*
 	 * Reset the slice value since we slept and advanced the round-robin.
 	 */
@@ -2542,9 +2551,25 @@ sched_userret_slowpath(struct thread *td)
 	thread_unlock(td);
 }
 
+SCHED_STAT_DEFINE(ithread_demotions, "Interrupt thread priority demotions");
+SCHED_STAT_DEFINE(ithread_preemptions,
+    "Interrupt thread preemptions due to time-sharing");
+
+/*
+ * Return time slice for a given thread.  For ithreads this is
+ * sched_slice.  For other threads it is tdq_slice(tdq).
+ */
+static inline int
+td_slice(struct thread *td, struct tdq *tdq)
+{
+	if (PRI_BASE(td->td_pri_class) == PRI_ITHD)
+		return (sched_slice);
+	return (tdq_slice(tdq));
+}
+
 /*
  * Handle a stathz tick.  This is really only relevant for timeshare
- * threads.
+ * and interrupt threads.
  */
 void
 sched_clock(struct thread *td, int cnt)
@@ -2602,9 +2627,22 @@ sched_clock(struct thread *td, int cnt)
 	 * time slice (default is 100ms).
 	 */
 	ts->ts_slice += cnt;
-	if (ts->ts_slice >= tdq_slice(tdq)) {
+	if (ts->ts_slice >= td_slice(td, tdq)) {
 		ts->ts_slice = 0;
-		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
+
+		/*
+		 * If an ithread uses a full quantum, demote its
+		 * priority and preempt it.
+		 */
+		if (PRI_BASE(td->td_pri_class) == PRI_ITHD) {
+			SCHED_STAT_INC(ithread_preemptions);
+			td->td_owepreempt = 1;
+			if (td->td_base_pri + RQ_PPQ < PRI_MAX_ITHD) {
+				SCHED_STAT_INC(ithread_demotions);
+				sched_prio(td, td->td_base_pri + RQ_PPQ);
+			}
+		} else
+			td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
 	}
 }
 
