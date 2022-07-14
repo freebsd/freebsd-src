@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2021
+.Dd July 13, 2022
 .Dt CERTCTL 8
 .Os
 .Sh NAME
@@ -60,6 +60,8 @@ Flags:
 .Bl -tag -width 4n
 .It Fl D Ar destdir
 Specify the DESTDIR (overriding values from the environment).
+.It Fl d Ar distbase
+Specify the DISTBASE (overriding values from the environment).
 .It Fl M Ar metalog
 Specify the path of the METALOG file (default: $DESTDIR/METALOG).
 .It Fl n
@@ -96,25 +98,28 @@ Remove the specified file from the untrusted list.
 .Bl -tag -width UNTRUSTDESTDIR
 .It Ev DESTDIR
 Alternate destination directory to operate on.
+.It Ev DISTBASE
+Additional path component to include when operating on certificate directories.
 .It Ev TRUSTPATH
 List of paths to search for trusted certificates.
 Default:
-.Pa <DESTDIR>/usr/share/certs/trusted
-.Pa <DESTDIR>/usr/local/share/certs <DESTDIR>/usr/local/etc/ssl/certs
+.Pa <DESTDIR><DISTBASE>/usr/share/certs/trusted
+.Pa <DESTDIR><DISTBASE>/usr/local/share/certs
+.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/certs
 .It Ev UNTRUSTPATH
 List of paths to search for untrusted certificates.
 Default:
-.Pa <DESTDIR>/usr/share/certs/untrusted
-.Pa <DESTDIR>/usr/local/etc/ssl/untrusted
-.Pa <DESTDIR>/usr/local/etc/ssl/blacklisted
+.Pa <DESTDIR><DISTBASE>/usr/share/certs/untrusted
+.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/untrusted
+.Pa <DESTDIR><DISTBASE>/usr/local/etc/ssl/blacklisted
 .It Ev CERTDESTDIR
 Destination directory for symbolic links to trusted certificates.
 Default:
-.Pa <DESTDIR>/etc/ssl/certs
+.Pa <DESTDIR><DISTBASE>/etc/ssl/certs
 .It Ev UNTRUSTDESTDIR
 Destination directory for symbolic links to untrusted certificates.
 Default:
-.Pa <DESTDIR>/etc/ssl/untrusted
+.Pa <DESTDIR><DISTBASE>/etc/ssl/untrusted
 .It Ev EXTENSIONS
 List of file extensions to read as certificate files.
 Default: *.pem *.crt *.cer *.crl *.0

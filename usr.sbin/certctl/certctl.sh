@@ -30,6 +30,7 @@
 ############################################################ CONFIGURATION
 
 : ${DESTDIR:=}
+: ${DISTBASE:=}
 : ${FILEPAT:="\.pem$|\.crt$|\.cer$|\.crl$"}
 : ${VERBOSE:=0}
 
@@ -254,7 +255,7 @@ usage()
 	echo "		List trusted certificates"
 	echo "	$SCRIPTNAME [-v] untrusted"
 	echo "		List untrusted certificates"
-	echo "	$SCRIPTNAME [-nUv] [-D <destdir>] [-M <metalog>] rehash"
+	echo "	$SCRIPTNAME [-nUv] [-D <destdir>] [-d <distbase>] [-M <metalog>] rehash"
 	echo "		Generate hash links for all certificates"
 	echo "	$SCRIPTNAME [-nv] untrust <file>"
 	echo "		Add <file> to the list of untrusted certificates"
@@ -265,9 +266,10 @@ usage()
 
 ############################################################ MAIN
 
-while getopts D:M:nUv flag; do
+while getopts D:d:M:nUv flag; do
 	case "$flag" in
 	D) DESTDIR=${OPTARG} ;;
+	d) DISTBASE=${OPTARG} ;;
 	M) METALOG=${OPTARG} ;;
 	n) NOOP=1 ;;
 	U) UNPRIV=1 ;;
@@ -280,10 +282,10 @@ shift $(( $OPTIND - 1 ))
 INSTALLFLAGS=
 [ $UNPRIV -eq 1 ] && INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
 : ${LOCALBASE:=$(sysctl -n user.localbase)}
-: ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}${LOCALBASE}/share/certs:${DESTDIR}${LOCALBASE}/etc/ssl/certs}
-: ${UNTRUSTPATH:=${DESTDIR}/usr/share/certs/untrusted:${DESTDIR}${LOCALBASE}/etc/ssl/untrusted:${DESTDIR}${LOCALBASE}/etc/ssl/blacklisted}
-: ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
-: ${UNTRUSTDESTDIR:=${DESTDIR}/etc/ssl/untrusted}
+: ${TRUSTPATH:=${DESTDIR}${DISTBASE}/usr/share/certs/trusted:${DESTDIR}${LOCALBASE}/share/certs:${DESTDIR}${LOCALBASE}/etc/ssl/certs}
+: ${UNTRUSTPATH:=${DESTDIR}${DISTBASE}/usr/share/certs/untrusted:${DESTDIR}${LOCALBASE}/etc/ssl/untrusted:${DESTDIR}${LOCALBASE}/etc/ssl/blacklisted}
+: ${CERTDESTDIR:=${DESTDIR}${DISTBASE}/etc/ssl/certs}
+: ${UNTRUSTDESTDIR:=${DESTDIR}${DISTBASE}/etc/ssl/untrusted}
 
 [ $# -gt 0 ] || usage
 case "$1" in
