@@ -559,7 +559,7 @@ next:
 			thread_lock_block_wait(td);
 			THREAD_LOCK_ASSERT(td, MA_OWNED);
 			TD_CLR_IWAIT(td);
-			sched_add(td, SRQ_INTR);
+			sched_wakeup(td, SRQ_INTR);
 		} else
 			mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	} else
