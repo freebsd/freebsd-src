@@ -69,10 +69,10 @@
  * Priorities range from 0 to 255, but differences of less then 4 (RQ_PPQ)
  * are insignificant.  Ranges are as follows:
  *
- * Interrupt threads:		0 - 47
- * Realtime user threads:	48 - 79
- * Top half kernel threads:	80 - 119
- * Time sharing user threads:	120 - 223
+ * Interrupt threads:		0 - 15
+ * Realtime user threads:	16 - 47
+ * Top half kernel threads:	48 - 87
+ * Time sharing user threads:	88 - 223
  * Idle user threads:		224 - 255
  *
  * XXX If/When the specific interrupt thread and top half thread ranges
@@ -100,10 +100,10 @@
 #define	PI_SOFTCLOCK		PI_SOFT
 #define	PI_SWI(x)		PI_SOFT
 
-#define	PRI_MIN_REALTIME	(48)
+#define	PRI_MIN_REALTIME	(16)
 #define	PRI_MAX_REALTIME	(PRI_MIN_KERN - 1)
 
-#define	PRI_MIN_KERN		(80)
+#define	PRI_MIN_KERN		(48)
 #define	PRI_MAX_KERN		(PRI_MIN_TIMESHARE - 1)
 
 #define	PSWP			(PRI_MIN_KERN + 0)
@@ -117,7 +117,7 @@
 #define	PLOCK			(PRI_MIN_KERN + 32)
 #define	PPAUSE			(PRI_MIN_KERN + 36)
 
-#define	PRI_MIN_TIMESHARE	(120)
+#define	PRI_MIN_TIMESHARE	(88)
 #define	PRI_MAX_TIMESHARE	(PRI_MIN_IDLE - 1)
 
 #define	PUSER			(PRI_MIN_TIMESHARE)
