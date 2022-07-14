@@ -78,3 +78,11 @@ fi
 clean_dep   cddl/lib/libspl atomic S
 # 20211207  cbdec8db18b5    switch to libthr-friendly pdfork
 clean_dep   lib/libc        pdfork S
+
+# 20220524  68fe988a40ca    kqueue_test binary replaced shell script
+if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
+    "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.kqtest* >/dev/null 2>&1; then
+	echo "Removing old kqtest"
+	rm -f "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
+	   "$OBJTOP"/tests/sys/kqueue/libkqueue/*
+fi
