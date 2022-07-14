@@ -205,7 +205,7 @@ ithread_update(struct intr_thread *ithd)
 	sched_clear_tdname(td);
 #endif
 	thread_lock(td);
-	sched_prio(td, pri);
+	sched_ithread_prio(td, pri);
 	thread_unlock(td);
 }
 

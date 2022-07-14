@@ -257,6 +257,7 @@ struct thread {
 #define	td_siglist	td_sigqueue.sq_signals
 	u_char		td_lend_user_pri; /* (t) Lend user pri. */
 	u_char		td_allocdomain;	/* (b) NUMA domain backing this struct thread. */
+	u_char		td_base_ithread_pri; /* (t) Base ithread pri */
 	struct kmsan_td	*td_kmsan;	/* (k) KMSAN state */
 
 /* Cleared during fork1() */

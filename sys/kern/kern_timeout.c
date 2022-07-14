@@ -391,7 +391,7 @@ start_softclock(void *dummy)
 		cc->cc_thread = td;
 		thread_lock(td);
 		sched_class(td, PRI_ITHD);
-		sched_prio(td, PI_SOFTCLOCK);
+		sched_ithread_prio(td, PI_SOFTCLOCK);
 		TD_SET_IWAIT(td);
 		thread_lock_set(td, (struct mtx *)&cc->cc_lock);
 		thread_unlock(td);

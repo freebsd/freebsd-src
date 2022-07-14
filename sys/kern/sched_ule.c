@@ -1963,6 +1963,18 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 /*
+ * Set the base interrupt thread priority.
+ */
+void
+sched_ithread_prio(struct thread *td, u_char prio)
+{
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	MPASS(td->td_pri_class == PRI_ITHD);
+	td->td_base_ithread_pri = prio;
+	sched_prio(td, prio);
+}
+
+/*
  * Set the base user priority, does not effect current running priority.
  */
 void
