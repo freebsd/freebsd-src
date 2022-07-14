@@ -4849,12 +4849,6 @@ static Value *simplifyPHINode(PHINode *PN, ArrayRef<Value *> IncomingValues,
     return UndefValue::get(PN->getType());
 
   if (HasUndefInput) {
-    // We cannot start executing a trapping constant expression on more control
-    // flow paths.
-    auto *C = dyn_cast<Constant>(CommonValue);
-    if (C && C->canTrap())
-      return nullptr;
-
     // If we have a PHI node like phi(X, undef, X), where X is defined by some
     // instruction, we cannot return X as the result of the PHI node unless it
     // dominates the PHI block.
@@ -6117,8 +6111,8 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
     Value *Op2 = Call->getArgOperand(2);
     auto *FPI = cast<ConstrainedFPIntrinsic>(Call);
     if (Value *V = simplifyFPOp({Op0, Op1, Op2}, {}, Q,
-                                FPI->getExceptionBehavior().getValue(),
-                                FPI->getRoundingMode().getValue()))
+                                FPI->getExceptionBehavior().value(),
+                                FPI->getRoundingMode().value()))
       return V;
     return nullptr;
   }
@@ -6182,38 +6176,33 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
   }
   case Intrinsic::experimental_constrained_fadd: {
     auto *FPI = cast<ConstrainedFPIntrinsic>(Call);
-    return simplifyFAddInst(FPI->getArgOperand(0), FPI->getArgOperand(1),
-                            FPI->getFastMathFlags(), Q,
-                            FPI->getExceptionBehavior().getValue(),
-                            FPI->getRoundingMode().getValue());
+    return simplifyFAddInst(
+        FPI->getArgOperand(0), FPI->getArgOperand(1), FPI->getFastMathFlags(),
+        Q, FPI->getExceptionBehavior().value(), FPI->getRoundingMode().value());
   }
   case Intrinsic::experimental_constrained_fsub: {
     auto *FPI = cast<ConstrainedFPIntrinsic>(Call);
-    return simplifyFSubInst(FPI->getArgOperand(0), FPI->getArgOperand(1),
-                            FPI->getFastMathFlags(), Q,
-                            FPI->getExceptionBehavior().getValue(),
-                            FPI->getRoundingMode().getValue());
+    return simplifyFSubInst(
+        FPI->getArgOperand(0), FPI->getArgOperand(1), FPI->getFastMathFlags(),
+        Q, FPI->getExceptionBehavior().value(), FPI->getRoundingMode().value());
   }
   case Intrinsic::experimental_constrained_fmul: {
     auto *FPI = cast<ConstrainedFPIntrinsic>(Call);
-    return simplifyFMulInst(FPI->getArgOperand(0), FPI->getArgOperand(1),
-                            FPI->getFastMathFlags(), Q,
-                            FPI->getExceptionBehavior().getValue(),
-                            FPI->getRoundingMode().getValue());
+    return simplifyFMulInst(
+        FPI->getArgOperand(0), FPI->getArgOperand(1), FPI->getFastMathFlags(),
+        Q, FPI->getExceptionBehavior().value(), FPI->getRoundingMode().value());
   }
   case Intrinsic::experimental_constrained_fdiv: {
     auto *FPI = cast<ConstrainedFPIntrinsic>(Call);
-    return simplifyFDivInst(FPI->getArgOperand(0), FPI->getArgOperand(1),
-                            FPI->getFastMathFlags(), Q,
-                            FPI->getExceptionBehavior().getValue(),
-                            FPI->getRoundingMode().getValue());
+    return simplifyFDivInst(
+        FPI->getArgOperand(0), FPI->getArgOperand(1), FPI->getFastMathFlags(),
+        Q, FPI->getExceptionBehavior().value(), FPI->getRoundingMode().value());
   }
   case Intrinsic::experimental_constrained_frem: {
     auto *FPI = cast<ConstrainedFPIntrinsic>(Call);
-    return simplifyFRemInst(FPI->getArgOperand(0), FPI->getArgOperand(1),
-                            FPI->getFastMathFlags(), Q,
-                            FPI->getExceptionBehavior().getValue(),
-                            FPI->getRoundingMode().getValue());
+    return simplifyFRemInst(
+        FPI->getArgOperand(0), FPI->getArgOperand(1), FPI->getFastMathFlags(),
+        Q, FPI->getExceptionBehavior().value(), FPI->getRoundingMode().value());
   }
   default:
     return nullptr;

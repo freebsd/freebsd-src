@@ -1363,6 +1363,7 @@ OLD_FILES+=usr/lib/clang/15.0.0/include/pmmintrin.h
 OLD_FILES+=usr/lib/clang/15.0.0/include/popcntintrin.h
 OLD_FILES+=usr/lib/clang/15.0.0/include/prfchwintrin.h
 OLD_FILES+=usr/lib/clang/15.0.0/include/ptwriteintrin.h
+OLD_FILES+=usr/lib/clang/15.0.0/include/rdpruintrin.h
 OLD_FILES+=usr/lib/clang/15.0.0/include/rdseedintrin.h
 OLD_FILES+=usr/lib/clang/15.0.0/include/riscv_vector.h
 OLD_FILES+=usr/lib/clang/15.0.0/include/rtmintrin.h

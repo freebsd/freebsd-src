@@ -90,6 +90,9 @@
 /* Define if we have curl and want to use it */
 /* #undef LLVM_ENABLE_CURL */
 
+/* Define if we have cpp-httplib and want to use it */
+/* #undef LLVM_ENABLE_HTTPLIB */
+
 /* Define if zlib compression is available */
 #define LLVM_ENABLE_ZLIB 1
 

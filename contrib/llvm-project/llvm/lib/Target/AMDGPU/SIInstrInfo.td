@@ -193,43 +193,32 @@ def SIbuffer_atomic_fadd : SDBufferAtomic <"AMDGPUISD::BUFFER_ATOMIC_FADD">;
 def SIbuffer_atomic_fmin : SDBufferAtomic <"AMDGPUISD::BUFFER_ATOMIC_FMIN">;
 def SIbuffer_atomic_fmax : SDBufferAtomic <"AMDGPUISD::BUFFER_ATOMIC_FMAX">;
 
-multiclass SDBufferAtomicRetNoRet {
-  def "_ret" : PatFrag<
-    (ops node:$vdata_in, node:$rsrc, node:$vindex, node:$voffset, node:$soffset,
-      node:$offset, node:$cachepolicy, node:$idxen),
-    (!cast<SDNode>(NAME) node:$vdata_in, node:$rsrc, node:$vindex,
-      node:$voffset, node:$soffset, node:$offset, node:$cachepolicy,
-      node:$idxen)> {
-    let PredicateCode = [{ return !(SDValue(N, 0).use_empty()); }];
-    let GISelPredicateCode = [{ return true; }];
-  }
-
+multiclass SDBufferAtomicNoRet {
   def "_noret" : PatFrag<
     (ops node:$vdata_in, node:$rsrc, node:$vindex, node:$voffset, node:$soffset,
       node:$offset, node:$cachepolicy, node:$idxen),
     (!cast<SDNode>(NAME) node:$vdata_in, node:$rsrc, node:$vindex,
       node:$voffset, node:$soffset, node:$offset, node:$cachepolicy,
       node:$idxen)> {
-    let PredicateCode = [{ return SDValue(N, 0).use_empty(); }];
-    let GISelPredicateCode = [{ return false; }];
+    let HasNoUse = true;
   }
 }
 
-defm SIbuffer_atomic_swap : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_add : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_sub : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_smin : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_umin : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_smax : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_umax : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_and : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_or : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_xor : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_inc : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_dec : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_fadd : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_fmin : SDBufferAtomicRetNoRet;
-defm SIbuffer_atomic_fmax : SDBufferAtomicRetNoRet;
+defm SIbuffer_atomic_swap : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_add : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_sub : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_smin : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_umin : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_smax : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_umax : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_and : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_or : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_xor : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_inc : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_dec : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_fadd : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_fmin : SDBufferAtomicNoRet;
+defm SIbuffer_atomic_fmax : SDBufferAtomicNoRet;
 
 def SIbuffer_atomic_cmpswap : SDNode <"AMDGPUISD::BUFFER_ATOMIC_CMPSWAP",
   SDTypeProfile<1, 9,
@@ -246,24 +235,13 @@ def SIbuffer_atomic_cmpswap : SDNode <"AMDGPUISD::BUFFER_ATOMIC_CMPSWAP",
   [SDNPMemOperand, SDNPHasChain, SDNPMayLoad, SDNPMayStore]
 >;
 
-def SIbuffer_atomic_cmpswap_ret : PatFrag<
-  (ops node:$src, node:$cmp, node:$rsrc, node:$vindex, node:$voffset,
-    node:$soffset, node:$offset, node:$cachepolicy, node:$idxen),
-  (SIbuffer_atomic_cmpswap node:$src, node:$cmp, node:$rsrc, node:$vindex,
-    node:$voffset, node:$soffset, node:$offset, node:$cachepolicy,
-    node:$idxen)> {
-  let PredicateCode = [{ return !(SDValue(N, 0).use_empty()); }];
-  let GISelPredicateCode = [{ return true; }];
-}
-
 def SIbuffer_atomic_cmpswap_noret : PatFrag<
   (ops node:$src, node:$cmp, node:$rsrc, node:$vindex, node:$voffset,
     node:$soffset, node:$offset, node:$cachepolicy, node:$idxen),
   (SIbuffer_atomic_cmpswap node:$src, node:$cmp, node:$rsrc, node:$vindex,
     node:$voffset, node:$soffset, node:$offset, node:$cachepolicy,
     node:$idxen)> {
-  let PredicateCode = [{ return SDValue(N, 0).use_empty(); }];
-  let GISelPredicateCode = [{ return false; }];
+  let HasNoUse = true;
 }
 
 class SDGlobalAtomicNoRtn<string opcode, ValueType ty> : SDNode <opcode,
@@ -774,13 +752,13 @@ multiclass SIAtomicM0Glue2 <string op_name, bit is_amdgpu = 0,
 
   let AddressSpaces = StoreAddress_local.AddrSpaces in {
     defm _local_m0 : binary_atomic_op <!cast<SDNode>(NAME#"_glue"), IsInt>;
-    defm _local_m0 : ret_noret_binary_atomic_op <!cast<SDNode>(NAME#"_glue"),
+    defm _local_m0 : noret_binary_atomic_op <!cast<SDNode>(NAME#"_glue"),
                                                  IsInt>;
   }
 
   let AddressSpaces = StoreAddress_region.AddrSpaces in {
     defm _region_m0 : binary_atomic_op <!cast<SDNode>(NAME#"_glue"), IsInt>;
-    defm _region_m0 : ret_noret_binary_atomic_op <!cast<SDNode>(NAME#"_glue"),
+    defm _region_m0 : noret_binary_atomic_op <!cast<SDNode>(NAME#"_glue"),
                                                   IsInt>;
   }
 }
@@ -2194,21 +2172,21 @@ class getAsmVOP3DPPBase <int NumSrcArgs, bit HasDst, bit HasClamp,
                        "$sdst",
                        "$vdst"),
                     ""); // use $sdst for VOPC
-  string isrc0 = !if(!eq(NumSrcArgs, 1), "$src0", "$src0,");
-  string isrc1 = !if(!eq(NumSrcArgs, 1), "",
-                     !if(!eq(NumSrcArgs, 2), " $src1",
-                                             " $src1,"));
-  string isrc2 = !if(!eq(NumSrcArgs, 3), " $src2", "");
+  string src0nomods = !if(!eq(NumSrcArgs, 1), "$src0", "$src0,");
+  string src1nomods = !if(!eq(NumSrcArgs, 1), "",
+                    !if(!eq(NumSrcArgs, 2), " $src1",
+                                            " $src1,"));
+  string src2nomods = !if(!eq(NumSrcArgs, 3), " $src2", "");
 
-  string fsrc0 = !if(!eq(NumSrcArgs, 1), "$src0_modifiers", "$src0_modifiers,");
-  string fsrc1 = !if(!eq(NumSrcArgs, 1), "",
-                     !if(!eq(NumSrcArgs, 2), " $src1_modifiers",
-                                             " $src1_modifiers,"));
-  string fsrc2 = !if(!eq(NumSrcArgs, 3), " $src2_modifiers", "");
+  string src0mods = !if(!eq(NumSrcArgs, 1), "$src0_modifiers", "$src0_modifiers,");
+  string src1mods = !if(!eq(NumSrcArgs, 1), "",
+                    !if(!eq(NumSrcArgs, 2), " $src1_modifiers",
+                                            " $src1_modifiers,"));
+  string src2mods = !if(!eq(NumSrcArgs, 3), " $src2_modifiers", "");
 
-  string src0 = !if(Src0HasMods, fsrc0, isrc0);
-  string src1 = !if(Src1HasMods, fsrc1, isrc1);
-  string src2 = !if(Src2HasMods, fsrc2, isrc2);
+  string src0 = !if(Src0HasMods, src0mods, src0nomods);
+  string src1 = !if(Src1HasMods, src1mods, src1nomods);
+  string src2 = !if(Src2HasMods, src2mods, src2nomods);
   string opsel = !if(HasOpSel, "$op_sel", "");
   string 3PMods = !if(IsVOP3P,
                       !if(HasOpSel, "$op_sel_hi", "")
@@ -2559,8 +2537,8 @@ class VOPProfile <list<ValueType> _ArgVT, bit _EnableF32SrcMods = 0,
   // the asm operand name via this HasModifiers flag
   field string AsmDPP8 = getAsmDPP8<HasDst, NumSrcArgs, 0 /*HasModifiers*/, DstVT>.ret;
   field string AsmVOP3DPPBase = getAsmVOP3DPPBase<NumSrcArgs, HasDst, HasClamp,
-   HasOpSel, HasOMod, IsVOP3P, HasModifiers, HasSrc0FloatMods, HasSrc1FloatMods,
-   HasSrc2FloatMods, DstVT >.ret;
+   HasOpSel, HasOMod, IsVOP3P, HasModifiers, HasModifiers, HasModifiers,
+   HasModifiers, DstVT>.ret;
   field string AsmVOP3DPP = getAsmVOP3DPP<AsmVOP3DPPBase>.ret;
   field string AsmVOP3DPP16 = getAsmVOP3DPP16<AsmVOP3DPPBase>.ret;
   field string AsmVOP3DPP8 = getAsmVOP3DPP8<AsmVOP3DPPBase>.ret;
@@ -2800,6 +2778,14 @@ def getDPPOp32 : InstrMapping {
   let ValueCols = [["DPP"]];
 }
 
+def getDPPOp64 : InstrMapping {
+  let FilterClass = "VOP";
+  let RowFields = ["OpName"];
+  let ColFields = ["AsmVariantName"];
+  let KeyCol = ["VOP3"];
+  let ValueCols = [["VOP3_DPP"]];
+}
+
 // Maps an commuted opcode to its original version
 def getCommuteOrig : InstrMapping {
   let FilterClass = "Commutable_REV";
@@ -2959,6 +2945,27 @@ def getVCMPXOpFromVCMP : InstrMapping {
   let ColFields = ["IsVCMPX"];
   let KeyCol = ["0"];
   let ValueCols = [["1"]];
+}
+
+def VOPDComponentTable : GenericTable {
+  let FilterClass = "VOPD_Component";
+  let CppTypeName = "VOPDComponentInfo";
+  let Fields = ["BaseVOP", "VOPDOp", "CanBeVOPDX"];
+  let PrimaryKey = ["BaseVOP"];
+  let PrimaryKeyName = "getVOPDComponentHelper";
+}
+
+def VOPDPairs : GenericTable {
+  let FilterClass = "VOPD_Base";
+  let CppTypeName = "VOPDInfo";
+  let Fields = ["Opcode", "OpX", "OpY"];
+  let PrimaryKey = ["Opcode"];
+  let PrimaryKeyName = "getVOPDOpcodeHelper";
+}
+
+def getVOPDInfoFromComponentOpcodes : SearchIndex {
+  let Table = VOPDPairs;
+  let Key = ["OpX", "OpY"];
 }
 
 include "SIInstructions.td"

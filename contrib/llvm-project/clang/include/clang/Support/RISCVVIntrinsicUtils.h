@@ -209,8 +209,8 @@ public:
   }
 
   bool isValid() const { return Valid; }
-  bool isScalar() const { return Scale && Scale.getValue() == 0; }
-  bool isVector() const { return Scale && Scale.getValue() != 0; }
+  bool isScalar() const { return Scale && Scale.value() == 0; }
+  bool isVector() const { return Scale && Scale.value() != 0; }
   bool isVector(unsigned Width) const {
     return isVector() && ElementBitwidth == Width;
   }
@@ -224,6 +224,8 @@ public:
   bool isFloat(unsigned Width) const {
     return isFloat() && ElementBitwidth == Width;
   }
+
+  bool isPointer() const { return IsPointer; }
 
 private:
   // Verify RVV vector type and set Valid.

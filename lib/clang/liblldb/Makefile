@@ -212,6 +212,7 @@ SRCS+=		DataFormatters/TypeSynthetic.cpp
 SRCS+=		DataFormatters/ValueObjectPrinter.cpp
 SRCS+=		DataFormatters/VectorType.cpp
 SRCS+=		Expression/DWARFExpression.cpp
+SRCS+=		Expression/DWARFExpressionList.cpp
 SRCS+=		Expression/DiagnosticManager.cpp
 SRCS+=		Expression/Expression.cpp
 SRCS+=		Expression/ExpressionVariable.cpp
