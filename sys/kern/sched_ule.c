@@ -1360,7 +1360,7 @@ sched_pickcpu(struct thread *td, int flags)
 	 * expired and it is idle, run it there.
 	 */
 	if (THREAD_CAN_SCHED(td, ts->ts_cpu) &&
-	    atomic_load_int(&tdq->tdq_lowpri) >= PRI_MIN_IDLE &&
+	    atomic_load_char(&tdq->tdq_lowpri) >= PRI_MIN_IDLE &&
 	    SCHED_AFFINITY(ts, CG_SHARE_L2)) {
 		if (cg->cg_flags & CG_FLAG_THREAD) {
 			/* Check all SMT threads for being idle. */
