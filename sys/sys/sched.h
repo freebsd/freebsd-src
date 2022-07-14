@@ -95,6 +95,7 @@ void	sched_ap_entry(void);
 void	sched_exit_thread(struct thread *td, struct thread *child);
 u_int	sched_estcpu(struct thread *td);
 void	sched_fork_thread(struct thread *td, struct thread *child);
+void	sched_ithread_prio(struct thread *td, u_char prio);
 void	sched_lend_prio(struct thread *td, u_char prio);
 void	sched_lend_user_prio(struct thread *td, u_char pri);
 void	sched_lend_user_prio_cond(struct thread *td, u_char pri);
