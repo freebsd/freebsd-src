@@ -886,7 +886,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Register this media as a disk
 	 */
-	(void)cam_periph_hold(periph, PRIBIO);
+	(void)cam_periph_acquire(periph);
 	cam_periph_unlock(periph);
 	snprintf(announce_buf, sizeof(announce_buf),
 	    "kern.cam.nda.%d.quirks", periph->unit_number);
@@ -964,20 +964,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	if (nda_nvd_compat)
 		disk_add_alias(disk, "nvd");
 
-	/*
-	 * Acquire a reference to the periph before we register with GEOM.
-	 * We'll release this reference once GEOM calls us back (via
-	 * ndadiskgonecb()) telling us that our provider has been freed.
-	 */
-	if (cam_periph_acquire(periph) != 0) {
-		xpt_print(periph->path, "%s: lost periph during "
-			  "registration!\n", __func__);
-		cam_periph_lock(periph);
-		return (CAM_REQ_CMP_ERR);
-	}
-	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
-	cam_periph_unhold(periph);
 
 	snprintf(announce_buf, sizeof(announce_buf),
 		"%juMB (%ju %u byte sectors)",
@@ -1002,6 +989,15 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    ndaasync, periph, periph->path);
 
 	softc->state = NDA_STATE_NORMAL;
+
+	/*
+	 * We'll release this reference once GEOM calls us back via
+	 * ndadiskgonecb(), telling us that our provider has been freed.
+	 */
+	if (cam_periph_acquire(periph) == 0)
+		disk_create(softc->disk, DISK_VERSION);
+
+	cam_periph_release_locked(periph);
 	return(CAM_REQ_CMP);
 }
 

@@ -650,10 +650,10 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->minimum_command_size = 6;
 
 	/*
-	 * Refcount and block open attempts until we are setup
-	 * Can't block
+	 * Take a reference on the periph while cdstart is called to finish the
+	 * probe.  The reference will be dropped in cddone at the end of probe.
 	 */
-	(void)cam_periph_hold(periph, PRIBIO);
+	(void)cam_periph_acquire(periph);
 	cam_periph_unlock(periph);
 	/*
 	 * Load the user's default, if any.
@@ -714,20 +714,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	snprintf(softc->disk->d_attachment, sizeof(softc->disk->d_attachment),
 	    "%s%d", cpi.dev_name, cpi.unit_number);
-
-	/*
-	 * Acquire a reference to the periph before we register with GEOM.
-	 * We'll release this reference once GEOM calls us back (via
-	 * dadiskgonecb()) telling us that our provider has been freed.
-	 */
-	if (cam_periph_acquire(periph) != 0) {
-		xpt_print(periph->path, "%s: lost periph during "
-			  "registration!\n", __func__);
-		cam_periph_lock(periph);
-		return (CAM_REQ_CMP_ERR);
-	}
-
-	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
 
 	/*
@@ -747,6 +733,9 @@ cdregister(struct cam_periph *periph, void *arg)
 		callout_reset_sbt(&softc->mediapoll_c, cd_poll_period * SBT_1S,
 		    0, cdmediapoll, periph, C_PREL(1));
 	}
+
+	/* Released after probe when disk_create() call pass it to GEOM. */
+	cam_periph_hold_boot(periph);
 
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
 	return(CAM_REQ_CMP);
@@ -1385,7 +1374,16 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		 * operation.
 		 */
 		xpt_release_ccb(done_ccb);
-		cam_periph_unhold(periph);
+
+		/*
+		 * We'll release this reference once GEOM calls us back via
+		 * cddiskgonecb(), telling us that our provider has been freed.
+		 */
+		if (cam_periph_acquire(periph) == 0)
+			disk_create(softc->disk, DISK_VERSION);
+
+		cam_periph_release_boot(periph);
+		cam_periph_release_locked(periph);
 		return;
 	}
 	case CD_CCB_TUR:

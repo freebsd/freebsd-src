@@ -329,7 +329,6 @@ typedef enum {
 	DA_REF_OPEN = 1,
 	DA_REF_OPEN_HOLD,
 	DA_REF_CLOSE_HOLD,
-	DA_REF_PROBE_HOLD,
 	DA_REF_TUR,
 	DA_REF_GEOM,
 	DA_REF_SYSCTL,
@@ -2602,9 +2601,17 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 	wakeup(&softc->disk->d_mediasize);
 	if ((softc->flags & DA_FLAG_ANNOUNCED) == 0) {
 		softc->flags |= DA_FLAG_ANNOUNCED;
-		da_periph_unhold(periph, DA_REF_PROBE_HOLD);
-	} else
-		da_periph_release_locked(periph, DA_REF_REPROBE);
+
+		/*
+		 * We'll release this reference once GEOM calls us back via
+		 * dadiskgonecb(), telling us that our provider has been freed.
+		 */
+		if (da_periph_acquire(periph, DA_REF_GEOM) == 0)
+			disk_create(softc->disk, DISK_VERSION);
+
+		cam_periph_release_boot(periph);
+	}
+	da_periph_release_locked(periph, DA_REF_REPROBE);
 }
 
 static void
@@ -2864,14 +2871,10 @@ daregister(struct cam_periph *periph, void *arg)
 	}
 
 	/*
-	 * Take an exclusive section lock on the periph while dastart is called
-	 * to finish the probe.  The lock will be dropped in dadone at the end
-	 * of probe. This locks out daopen and daclose from racing with the
-	 * probe.
-	 *
-	 * XXX if cam_periph_hold returns an error, we don't hold a refcount.
+	 * Take a reference on the periph while dastart is called to finish the
+	 * probe.  The reference will be dropped in dadone at the end of probe.
 	 */
-	(void)da_periph_hold(periph, PRIBIO, DA_REF_PROBE_HOLD);
+	(void)da_periph_acquire(periph, DA_REF_REPROBE);
 
 	/*
 	 * Schedule a periodic event to occasionally send an
@@ -2967,20 +2970,6 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	snprintf(softc->disk->d_attachment, sizeof(softc->disk->d_attachment),
 	    "%s%d", cpi.dev_name, cpi.unit_number);
-
-	/*
-	 * Acquire a reference to the periph before we register with GEOM.
-	 * We'll release this reference once GEOM calls us back (via
-	 * dadiskgonecb()) telling us that our provider has been freed.
-	 */
-	if (da_periph_acquire(periph, DA_REF_GEOM) != 0) {
-		xpt_print(periph->path, "%s: lost periph during "
-			  "registration!\n", __func__);
-		cam_periph_lock(periph);
-		return (CAM_REQ_CMP_ERR);
-	}
-
-	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
 
 	/*
@@ -2995,14 +2984,6 @@ daregister(struct cam_periph *periph, void *arg)
 	    AC_INQ_CHANGED, daasync, periph, periph->path);
 
 	/*
-	 * Emit an attribute changed notification just in case
-	 * physical path information arrived before our async
-	 * event handler was registered, but after anyone attaching
-	 * to our disk device polled it.
-	 */
-	disk_attr_changed(softc->disk, "GEOM::physpath", M_NOWAIT);
-
-	/*
 	 * Schedule a periodic media polling events.
 	 */
 	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
@@ -3013,8 +2994,10 @@ daregister(struct cam_periph *periph, void *arg)
 		    0, damediapoll, periph, C_PREL(1));
 	}
 
-	xpt_schedule(periph, CAM_PRIORITY_DEV);
+	/* Released after probe when disk_create() call pass it to GEOM. */
+	cam_periph_hold_boot(periph);
 
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 	return(CAM_REQ_CMP);
 }
 
