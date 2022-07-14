@@ -85,15 +85,20 @@
 #define	PRI_MIN_ITHD		(PRI_MIN)
 #define	PRI_MAX_ITHD		(PRI_MIN_REALTIME - 1)
 
+/*
+ * Most hardware interrupt threads run at the same priority, but can
+ * decay to lower priorities if they run for full time slices.
+ */
 #define	PI_REALTIME		(PRI_MIN_ITHD + 0)
-#define	PI_AV			(PRI_MIN_ITHD + 4)
-#define	PI_SOFTCLOCK		PI_AV
-#define	PI_NET			(PRI_MIN_ITHD + 8)
-#define	PI_DISK			(PRI_MIN_ITHD + 12)
-#define	PI_TTY			(PRI_MIN_ITHD + 16)
-#define	PI_DULL			(PRI_MIN_ITHD + 20)
-#define	PI_SOFT			(PRI_MIN_ITHD + 24)
-#define	PI_SWI(x)		(PI_SOFT + (x) * RQ_PPQ)
+#define	PI_INTR			(PRI_MIN_ITHD + 4)
+#define	PI_AV			PI_INTR
+#define	PI_NET			PI_INTR
+#define	PI_DISK			PI_INTR
+#define	PI_TTY			PI_INTR
+#define	PI_DULL			PI_INTR
+#define	PI_SOFT			(PRI_MIN_ITHD + 8)
+#define	PI_SOFTCLOCK		PI_SOFT
+#define	PI_SWI(x)		PI_SOFT
 
 #define	PRI_MIN_REALTIME	(48)
 #define	PRI_MAX_REALTIME	(PRI_MIN_KERN - 1)
