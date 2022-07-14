@@ -69,6 +69,7 @@ struct devstat;
 
 typedef enum {
 	DISK_INIT_NONE,
+	DISK_INIT_CREATE,
 	DISK_INIT_START,
 	DISK_INIT_DONE
 } disk_init_level;
@@ -125,7 +126,8 @@ struct disk {
 
 	/* Fields private to geom_disk, to be moved on next version bump */
 	LIST_HEAD(,disk_alias)	d_aliases;
-	struct g_event		*d_event;
+	struct g_event		*d_cevent;
+	struct g_event		*d_devent;
 };
 
 #define	DISKFLAG_RESERVED		0x0001	/* Was NEEDSGIANT */

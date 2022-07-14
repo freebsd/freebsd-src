@@ -530,6 +530,20 @@ cam_periph_unhold(struct cam_periph *periph)
 	cam_periph_release_locked(periph);
 }
 
+void
+cam_periph_hold_boot(struct cam_periph *periph)
+{
+
+	root_mount_hold_token(periph->periph_name, &periph->periph_rootmount);
+}
+
+void
+cam_periph_release_boot(struct cam_periph *periph)
+{
+
+	root_mount_rel(&periph->periph_rootmount);
+}
+
 /*
  * Look for the next unit number that is not currently in use for this
  * peripheral type starting at "newunit".  Also exclude unit numbers that
