@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+LOADER_DISK_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	yes
 LOADER_MSDOS_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	yes
@@ -17,7 +18,7 @@ NEWVERSWHAT=	"kboot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		vers.c main.c host_syscalls.c hostcons.c hostdisk.c kbootfdt.c gfx_fb_stub.c
+SRCS=		crt1.c vers.c main.c host_syscalls.c hostcons.c hostdisk.c kbootfdt.c gfx_fb_stub.c
 
 CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 

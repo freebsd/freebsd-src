@@ -479,12 +479,6 @@ kboot_kseg_get(int *nseg, void **ptr)
 	*ptr = &loaded_segments[0];
 }
 
-void
-_start(int argc, const char **argv, char **env)
-{
-	main(argc, argv);
-}
-
 /*
  * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
  * and declaring it as extern is in contradiction with COMMAND_SET() macro
