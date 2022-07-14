@@ -90,3 +90,11 @@ fi
 if [ "$MACHINE_ARCH" = "amd64" ]; then
     clean_dep lib/libc bcmp c
 fi
+
+# 20220524  68fe988a40ca    kqueue_test binary replaced shell script
+if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
+    "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.kqtest* >/dev/null 2>&1; then
+	echo "Removing old kqtest"
+	rm -f "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
+	   "$OBJTOP"/tests/sys/kqueue/libkqueue/*
+fi
