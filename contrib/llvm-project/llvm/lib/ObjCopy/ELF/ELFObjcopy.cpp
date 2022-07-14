@@ -600,8 +600,8 @@ handleUserSection(const NewSectionInfo &NewSection,
 static Error handleArgs(const CommonConfig &Config, const ELFConfig &ELFConfig,
                         Object &Obj) {
   if (Config.OutputArch) {
-    Obj.Machine = Config.OutputArch.getValue().EMachine;
-    Obj.OSABI = Config.OutputArch.getValue().OSABI;
+    Obj.Machine = Config.OutputArch.value().EMachine;
+    Obj.OSABI = Config.OutputArch.value().OSABI;
   }
 
   if (!Config.SplitDWO.empty() && Config.ExtractDWO) {
@@ -629,6 +629,66 @@ static Error handleArgs(const CommonConfig &Config, const ELFConfig &ELFConfig,
   if (Error E = updateAndRemoveSymbols(Config, ELFConfig, Obj))
     return E;
 
+  if (!Config.SetSectionAlignment.empty()) {
+    for (SectionBase &Sec : Obj.sections()) {
+      auto I = Config.SetSectionAlignment.find(Sec.Name);
+      if (I != Config.SetSectionAlignment.end())
+        Sec.Align = I->second;
+    }
+  }
+
+  if (Config.OnlyKeepDebug)
+    for (auto &Sec : Obj.sections())
+      if (Sec.Flags & SHF_ALLOC && Sec.Type != SHT_NOTE)
+        Sec.Type = SHT_NOBITS;
+
+  for (const NewSectionInfo &AddedSection : Config.AddSection) {
+    auto AddSection = [&](StringRef Name, ArrayRef<uint8_t> Data) {
+      OwnedDataSection &NewSection =
+          Obj.addSection<OwnedDataSection>(Name, Data);
+      if (Name.startswith(".note") && Name != ".note.GNU-stack")
+        NewSection.Type = SHT_NOTE;
+      return Error::success();
+    };
+    if (Error E = handleUserSection(AddedSection, AddSection))
+      return E;
+  }
+
+  for (const NewSectionInfo &NewSection : Config.UpdateSection) {
+    auto UpdateSection = [&](StringRef Name, ArrayRef<uint8_t> Data) {
+      return Obj.updateSection(Name, Data);
+    };
+    if (Error E = handleUserSection(NewSection, UpdateSection))
+      return E;
+  }
+
+  if (!Config.AddGnuDebugLink.empty())
+    Obj.addSection<GnuDebugLinkSection>(Config.AddGnuDebugLink,
+                                        Config.GnuDebugLinkCRC32);
+
+  // If the symbol table was previously removed, we need to create a new one
+  // before adding new symbols.
+  if (!Obj.SymbolTable && !Config.SymbolsToAdd.empty())
+    if (Error E = Obj.addNewSymbolTable())
+      return E;
+
+  for (const NewSymbolInfo &SI : Config.SymbolsToAdd)
+    addSymbol(Obj, SI, ELFConfig.NewSymbolVisibility);
+
+  // --set-section-{flags,type} work with sections added by --add-section.
+  if (!Config.SetSectionFlags.empty() || !Config.SetSectionType.empty()) {
+    for (auto &Sec : Obj.sections()) {
+      const auto Iter = Config.SetSectionFlags.find(Sec.Name);
+      if (Iter != Config.SetSectionFlags.end()) {
+        const SectionFlagsUpdate &SFU = Iter->second;
+        setSectionFlagsAndType(Sec, SFU.NewFlags);
+      }
+      auto It2 = Config.SetSectionType.find(Sec.Name);
+      if (It2 != Config.SetSectionType.end())
+        Sec.Type = It2->second;
+    }
+  }
+
   if (!Config.SectionsToRename.empty()) {
     std::vector<RelocationSectionBase *> RelocSections;
     DenseSet<SectionBase *> RenamedSections;
@@ -639,7 +699,7 @@ static Error handleArgs(const CommonConfig &Config, const ELFConfig &ELFConfig,
         const SectionRename &SR = Iter->second;
         Sec.Name = std::string(SR.NewName);
         if (SR.NewFlags)
-          setSectionFlagsAndType(Sec, SR.NewFlags.getValue());
+          setSectionFlagsAndType(Sec, SR.NewFlags.value());
         RenamedSections.insert(&Sec);
       } else if (RelocSec && !(Sec.Flags & SHF_ALLOC))
         // Postpone processing relocation sections which are not specified in
@@ -689,63 +749,6 @@ static Error handleArgs(const CommonConfig &Config, const ELFConfig &ELFConfig,
                         TargetSec->Name)
                            .str();
         }
-      }
-    }
-  }
-
-  if (!Config.SetSectionAlignment.empty()) {
-    for (SectionBase &Sec : Obj.sections()) {
-      auto I = Config.SetSectionAlignment.find(Sec.Name);
-      if (I != Config.SetSectionAlignment.end())
-        Sec.Align = I->second;
-    }
-  }
-
-  if (Config.OnlyKeepDebug)
-    for (auto &Sec : Obj.sections())
-      if (Sec.Flags & SHF_ALLOC && Sec.Type != SHT_NOTE)
-        Sec.Type = SHT_NOBITS;
-
-  for (const NewSectionInfo &AddedSection : Config.AddSection) {
-    auto AddSection = [&](StringRef Name, ArrayRef<uint8_t> Data) {
-      OwnedDataSection &NewSection =
-          Obj.addSection<OwnedDataSection>(Name, Data);
-      if (Name.startswith(".note") && Name != ".note.GNU-stack")
-        NewSection.Type = SHT_NOTE;
-      return Error::success();
-    };
-    if (Error E = handleUserSection(AddedSection, AddSection))
-      return E;
-  }
-
-  for (const NewSectionInfo &NewSection : Config.UpdateSection) {
-    auto UpdateSection = [&](StringRef Name, ArrayRef<uint8_t> Data) {
-      return Obj.updateSection(Name, Data);
-    };
-    if (Error E = handleUserSection(NewSection, UpdateSection))
-      return E;
-  }
-
-  if (!Config.AddGnuDebugLink.empty())
-    Obj.addSection<GnuDebugLinkSection>(Config.AddGnuDebugLink,
-                                        Config.GnuDebugLinkCRC32);
-
-  // If the symbol table was previously removed, we need to create a new one
-  // before adding new symbols.
-  if (!Obj.SymbolTable && !Config.SymbolsToAdd.empty())
-    if (Error E = Obj.addNewSymbolTable())
-      return E;
-
-  for (const NewSymbolInfo &SI : Config.SymbolsToAdd)
-    addSymbol(Obj, SI, ELFConfig.NewSymbolVisibility);
-
-  // --set-section-flags works with sections added by --add-section.
-  if (!Config.SetSectionFlags.empty()) {
-    for (auto &Sec : Obj.sections()) {
-      const auto Iter = Config.SetSectionFlags.find(Sec.Name);
-      if (Iter != Config.SetSectionFlags.end()) {
-        const SectionFlagsUpdate &SFU = Iter->second;
-        setSectionFlagsAndType(Sec, SFU.NewFlags);
       }
     }
   }
@@ -808,7 +811,7 @@ Error objcopy::elf::executeObjcopyOnBinary(const CommonConfig &Config,
     return Obj.takeError();
   // Prefer OutputArch (-O<format>) if set, otherwise infer it from the input.
   const ElfType OutputElfType =
-      Config.OutputArch ? getOutputElfType(Config.OutputArch.getValue())
+      Config.OutputArch ? getOutputElfType(Config.OutputArch.value())
                         : getOutputElfType(In);
 
   if (Error E = handleArgs(Config, ELFConfig, **Obj))

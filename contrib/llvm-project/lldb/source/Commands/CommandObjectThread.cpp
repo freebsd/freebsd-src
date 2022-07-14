@@ -1033,11 +1033,21 @@ protected:
         line_table->FindLineEntryByAddress(fun_end_addr, function_start,
                                            &end_ptr);
 
+        // Since not all source lines will contribute code, check if we are
+        // setting the breakpoint on the exact line number or the nearest
+        // subsequent line number and set breakpoints at all the line table
+        // entries of the chosen line number (exact or nearest subsequent).
         for (uint32_t line_number : line_numbers) {
+          LineEntry line_entry;
+          bool exact = false;
           uint32_t start_idx_ptr = index_ptr;
+          start_idx_ptr = sc.comp_unit->FindLineEntry(
+              index_ptr, line_number, nullptr, exact, &line_entry);
+          if (start_idx_ptr != UINT32_MAX)
+            line_number = line_entry.line;
+          exact = true;
+          start_idx_ptr = index_ptr;
           while (start_idx_ptr <= end_ptr) {
-            LineEntry line_entry;
-            const bool exact = false;
             start_idx_ptr = sc.comp_unit->FindLineEntry(
                 start_idx_ptr, line_number, nullptr, exact, &line_entry);
             if (start_idx_ptr == UINT32_MAX)
@@ -2164,6 +2174,10 @@ public:
         m_dumper_options.forwards = true;
         break;
       }
+      case 'k': {
+        m_dumper_options.show_control_flow_kind = true;
+        break;
+      }
       case 't': {
         m_dumper_options.show_tsc = true;
         break;
@@ -2337,6 +2351,10 @@ public:
         m_verbose = true;
         break;
       }
+      case 'j': {
+        m_json = true;
+        break;
+      }
       default:
         llvm_unreachable("Unimplemented option");
       }
@@ -2345,6 +2363,7 @@ public:
 
     void OptionParsingStarting(ExecutionContext *execution_context) override {
       m_verbose = false;
+      m_json = false;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
@@ -2353,14 +2372,8 @@ public:
 
     // Instance variables to hold the values for command options.
     bool m_verbose;
+    bool m_json;
   };
-
-  bool DoExecute(Args &command, CommandReturnObject &result) override {
-    Target &target = m_exe_ctx.GetTargetRef();
-    result.GetOutputStream().Format("Trace technology: {0}\n",
-                                    target.GetTrace()->GetPluginName());
-    return CommandObjectIterateOverThreads::DoExecute(command, result);
-  }
 
   CommandObjectTraceDumpInfo(CommandInterpreter &interpreter)
       : CommandObjectIterateOverThreads(
@@ -2383,7 +2396,7 @@ protected:
     ThreadSP thread_sp =
         m_exe_ctx.GetProcessPtr()->GetThreadList().FindThreadByID(tid);
     trace_sp->DumpTraceInfo(*thread_sp, result.GetOutputStream(),
-                            m_options.m_verbose);
+                            m_options.m_verbose, m_options.m_json);
     return true;
   }
 

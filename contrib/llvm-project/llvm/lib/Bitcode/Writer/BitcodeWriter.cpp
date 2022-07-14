@@ -577,6 +577,8 @@ static unsigned getEncodedRMWOperation(AtomicRMWInst::BinOp Op) {
   case AtomicRMWInst::UMin: return bitc::RMW_UMIN;
   case AtomicRMWInst::FAdd: return bitc::RMW_FADD;
   case AtomicRMWInst::FSub: return bitc::RMW_FSUB;
+  case AtomicRMWInst::FMax: return bitc::RMW_FMAX;
+  case AtomicRMWInst::FMin: return bitc::RMW_FMIN;
   }
 }
 
@@ -632,6 +634,8 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
     return bitc::ATTR_KIND_COLD;
   case Attribute::DisableSanitizerInstrumentation:
     return bitc::ATTR_KIND_DISABLE_SANITIZER_INSTRUMENTATION;
+  case Attribute::FnRetThunkExtern:
+    return bitc::ATTR_KIND_FNRETTHUNK_EXTERN;
   case Attribute::Hot:
     return bitc::ATTR_KIND_HOT;
   case Attribute::ElementType:
@@ -1230,7 +1234,7 @@ static_assert(sizeof(GlobalValue::SanitizerMetadata) <= sizeof(unsigned),
 static unsigned
 serializeSanitizerMetadata(const GlobalValue::SanitizerMetadata &Meta) {
   return Meta.NoAddress | (Meta.NoHWAddress << 1) |
-         (Meta.NoMemtag << 2) | (Meta.IsDynInit << 3);
+         (Meta.Memtag << 2) | (Meta.IsDynInit << 3);
 }
 
 /// Emit top-level description of module, including target triple, inline asm,
@@ -2673,9 +2677,6 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
         Record.push_back(VE.getValueID(C->getOperand(0)));
         Record.push_back(VE.getValueID(C->getOperand(1)));
         Record.push_back(CE->getPredicate());
-        break;
-      case Instruction::InsertValue:
-        report_fatal_error("insertvalue constexprs not supported");
         break;
       }
     } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(C)) {
