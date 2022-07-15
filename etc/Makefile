@@ -145,7 +145,7 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 .for _m _d in ${MTREES}
 	@m=${.CURDIR}/${_m}; \
 	d=${_d}; \
-	test "$$d" == "/" && d=""; \
+	test "$$d" = "/" && d=""; \
 	d=${DISTBASE}$$d; \
 	test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
 	${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
