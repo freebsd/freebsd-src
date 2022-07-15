@@ -50,7 +50,10 @@ cp -r ../../stress2 $mp1
 umount $mp1
 
 mdconfig -a -t swap -s 5g -u $md2
-gunion create -v /dev/md$md2 /dev/md$md1
+set +e
+gunion create -v /dev/md$md2 /dev/md$md1; s=$?
+[ $s -ne 0 ] && echo "gunion create returned $s"
+set -e
 mount /dev/md$md2-md$md1.union $mntpoint
 
 export CTRLDIR=$mntpoint/stressX.control
@@ -79,7 +82,7 @@ testcases/swap/swap
 "
 export TESTPROGS=`echo $TESTPROGS | sed 's/\n/ /g'`
 
-set +e
+set -e
 chmod 777 $mntpoint
 su $testuser -c \
 	"(cd $mntpoint/stress2; ./testcases/run/run $TESTPROGS)" 
