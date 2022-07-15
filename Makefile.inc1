@@ -975,6 +975,8 @@ DISTR_MTREE=	${DISTR_MTREECMD} ${DISTR_MTREEFLAGS}
 WORLDTMP_MTREE=	${DISTR_MTREECMD} ${WORLDTMP_MTREEFLAGS}
 DESTDIR_MTREE=	${DISTR_MTREECMD} ${DESTDIR_MTREEFLAGS}
 
+METALOG_SORT_CMD=	env -i LC_COLLATE=C sort
+
 # kernel stage
 KMAKEENV=	${WMAKEENV:NSYSROOT=*}
 KMAKE=		${TIME_ENV} ${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
@@ -1468,7 +1470,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
-	find ./${dist} | sort -u ${METALOG} - | \
+	find ./${dist} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endfor
@@ -1478,7 +1480,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
-	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
+	find ./${dist}/usr/lib/debug | ${METALOG_SORT_CMD} -u ${METALOG} - | \
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
@@ -1999,7 +2001,7 @@ create-packages: .PHONY create-packages-world create-packages-kernel
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
 	@cd ${WSTAGEDIR} ; \
-		env -i LC_COLLATE=C sort ${WSTAGEDIR}/${DISTDIR}/METALOG | \
+		${METALOG_SORT_CMD} ${WSTAGEDIR}/${DISTDIR}/METALOG | \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk
 	@for plist in ${WSTAGEDIR}/*.plist; do \
 	  plist=$${plist##*/} ; \
@@ -2045,7 +2047,7 @@ create-kernel-packages:	.PHONY
 create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
-	env -i LC_COLLATE=C sort ${KSTAGEDIR}/kernel.meta | \
+	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
@@ -2081,7 +2083,7 @@ _debug=-dbg
 create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
 create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
-	env -i LC_COLLATE=C sort ${KSTAGEDIR}/kernel.${_kernel}.meta | \
+	${METALOG_SORT_CMD} ${KSTAGEDIR}/kernel.${_kernel}.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
