@@ -50,7 +50,10 @@ cp -r ../../stress2 $mp1
 umount $mp1
 
 mdconfig -a -t swap -s 5g -u $md2
-gunion create -v /dev/md$md2 /dev/md$md1
+set +e
+gunion create -v /dev/md$md2 /dev/md$md1; s=$?
+[ $s -ne 0 ] && echo "gunion create returned $s"
+set -e
 mount /dev/md$md2-md$md1.union $mntpoint
 
 export RUNDIR=$mntpoint/stressX
@@ -71,7 +74,7 @@ for i in `jot 6`; do
 done
 fsck_ffs -fyR /dev/md$md2-md$md1.union > $log 2>&1
 grep -Eq "IS CLEAN|MARKED CLEAN" $log || { s=2; cat $log; }
-set +e
+set -e
 gunion commit /dev/md$md2-md$md1.union
 gunion list | egrep Block\|Current | egrep -v 0 && s=3
 gunion destroy /dev/md$md2-md$md1.union
