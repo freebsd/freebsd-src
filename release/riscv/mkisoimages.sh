@@ -107,7 +107,11 @@ if [ "$bootable" != "" ]; then
 
 	# Create a GPT image containing the EFI partition.
 	efifilename=$(mktemp /tmp/efi.img.XXXXXX)
-	imgsize=`stat -f %z "$NAME"`
+	if [ "$(uname -s)" = "Linux" ]; then
+		imgsize=`stat -c %s "$NAME"`
+	else
+		imgsize=`stat -f %z "$NAME"`
+	fi
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    $espparam \
