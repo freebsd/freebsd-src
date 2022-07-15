@@ -14,6 +14,12 @@ host_close(int fd)
 }
 
 int
+host_fstat(int fd, struct host_kstat *sb)
+{
+	return host_syscall(SYS_newfstat, fd, (uintptr_t)sb);
+}
+
+int
 host_getdents(int fd, void *dirp, int count)
 {
 	return host_syscall(SYS_getdents, fd, (uintptr_t)dirp, count);
@@ -84,6 +90,12 @@ host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
 	 */
 	return host_syscall(SYS_pselect6, nfds, (uintptr_t)readfds, (uintptr_t)writefds,
 	    (uintptr_t)exceptfds, (uintptr_t)&ts, (uintptr_t)NULL);
+}
+
+int
+host_stat(const char *path, struct host_kstat *sb)
+{
+	return host_syscall(SYS_newfstatat, HOST_AT_FDCWD, (uintptr_t)path, (uintptr_t)sb, 0);
 }
 
 int
