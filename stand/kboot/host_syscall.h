@@ -33,6 +33,21 @@
 long host_syscall(int number, ...);
 
 /*
+ * Sizes taken from musl's include/alltypes.h.in and expanded for LP64 hosts
+ */
+typedef uint64_t host_dev_t;
+typedef uint64_t host_ino_t;
+typedef int64_t host_nlink_t;
+typedef unsigned int host_mode_t;
+typedef unsigned int host_uid_t;
+typedef unsigned int host_gid_t;
+typedef int64_t host_off_t;
+typedef long host_blksize_t;
+typedef int64_t host_blkcnt_t;
+
+#include "stat_arch.h"
+
+/*
  * Constants for open, fcntl, etc
  *
  * Note: Some of these are arch dependent on Linux, but are the same for
@@ -75,6 +90,7 @@ struct host_timeval {
  * System Calls
  */
 int host_close(int fd);
+int host_fstat(int fd, struct host_kstat *sb);
 int host_getdents(int fd, void *dirp, int count);
 int host_gettimeofday(struct host_timeval *a, void *b);
 int host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags);
@@ -85,6 +101,7 @@ ssize_t host_read(int fd, void *buf, size_t nbyte);
 int host_reboot(int, int, int, uintptr_t);
 int host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
     struct host_timeval *timeout);
+int host_stat(const char *path, struct host_kstat *sb);
 int host_uname(struct old_utsname *);
 ssize_t host_write(int fd, const void *buf, size_t nbyte);
 
