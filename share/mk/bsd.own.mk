@@ -265,6 +265,8 @@ INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
 STRIP?=		-s
 .endif
 
+TAR_CMD?=	tar
+
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
