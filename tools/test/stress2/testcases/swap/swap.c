@@ -155,10 +155,8 @@ test(void)
 			c[i] = 0;
 			i += page;
 		}
-#if 0
-		if (op->hog != 1)
-			usleep(1000);
-#endif
+		if (arc4random() % 100 < 10)
+			usleep(10000);
 	}
 	free((void *)c);
 
