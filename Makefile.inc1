@@ -1491,12 +1491,12 @@ packageworld: .PHONY
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 .if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvf - --exclude usr/lib/debug \
+	    ${TAR_CMD} cvf - --exclude usr/lib/debug \
 	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
 .else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvf - --exclude usr/lib/debug . | \
+	    ${TAR_CMD} cvf - --exclude usr/lib/debug . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
 .endif
 .endfor
@@ -1504,11 +1504,11 @@ packageworld: .PHONY
 .for dist in ${DEBUG_DISTRIBUTIONS}
 . if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
+	    ${TAR_CMD} cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 . else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvLf - usr/lib/debug | \
+	    ${TAR_CMD} cvLf - usr/lib/debug | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 . endif
 .endfor
@@ -1827,25 +1827,25 @@ packagekernel: .PHONY
 .if defined(NO_ROOT)
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - --exclude '*.debug' \
+	    ${TAR_CMD} cvf - --exclude '*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
 .if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - --include '*/*/*.debug' \
+	    ${TAR_CMD} cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - --exclude '*.debug' \
+	    ${TAR_CMD} cvf - --exclude '*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
 .if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - --include '*/*/*.debug' \
+	    ${TAR_CMD} cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endif
@@ -1854,22 +1854,22 @@ packagekernel: .PHONY
 .else
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - --exclude '*.debug' . | \
+	    ${TAR_CMD} cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
 .if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
+	    ${TAR_CMD} cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - --exclude '*.debug' . | \
+	    ${TAR_CMD} cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
 .if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
+	    ${TAR_CMD} cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endif
 .endfor

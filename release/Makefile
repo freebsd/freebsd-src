@@ -138,14 +138,14 @@ kernel.txz:
 src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
-	cd ${DISTDIR} && tar cLvf - --exclude .svn --exclude .zfs \
+	cd ${DISTDIR} && ${TAR_CMD} cLvf - --exclude .svn --exclude .zfs \
 	    --exclude .git --exclude @ --exclude usr/src/release/dist usr/src | \
 	    ${XZ_CMD} > ${.OBJDIR}/src.txz
 
 ports.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
-	cd ${DISTDIR} && tar cLvf - \
+	cd ${DISTDIR} && ${TAR_CMD} cLvf - \
 	    --exclude .git --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports | \
