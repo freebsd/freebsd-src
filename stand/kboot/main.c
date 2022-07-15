@@ -212,11 +212,17 @@ kboot_get_kernel_machine_bits(void)
 int
 kboot_getdev(void **vdev, const char *devspec, const char **path)
 {
-	int i;
+	int i, rv;
 	const char *devpath, *filepath;
 	struct devsw *dv;
 	struct devdesc *desc;
 
+	if (devspec == NULL) {
+		rv = kboot_getdev(vdev, getenv("currdev"), NULL);
+		if (rv == 0 && path != NULL)
+			*path = devspec;
+		return (rv);
+	}
 	if (strchr(devspec, ':') != NULL) {
 		devpath = devspec;
 		filepath = strchr(devspec, ':') + 1;
