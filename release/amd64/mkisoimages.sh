@@ -112,7 +112,11 @@ if [ "$bootable" != "" ]; then
 
 	# Create a GPT image containing the partitions we need for hybrid boot.
 	hybridfilename=$(mktemp /tmp/hybrid.img.XXXXXX)
-	imgsize=`stat -f %z "$NAME"`
+	if [ "$(uname -s)" = "Linux" ]; then
+		imgsize=`stat -c %s "$NAME"`
+	else
+		imgsize=`stat -f %z "$NAME"`
+	fi
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    -b "$BASEBITSDIR/boot/pmbr" \
