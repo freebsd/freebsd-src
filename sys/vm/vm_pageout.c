@@ -896,11 +896,8 @@ free_page:
 			vm_page_free(m);
 			VM_CNT_INC(v_dfree);
 		} else if ((object->flags & OBJ_DEAD) == 0) {
-			if ((object->flags & OBJ_SWAP) == 0 &&
-			    object->type != OBJT_DEFAULT)
-				pageout_ok = true;
-			else if (disable_swap_pageouts)
-				pageout_ok = false;
+			if ((object->flags & OBJ_SWAP) != 0)
+				pageout_ok = disable_swap_pageouts == 0;
 			else
 				pageout_ok = true;
 			if (!pageout_ok) {
@@ -1886,8 +1883,7 @@ vm_pageout_oom_pagecount(struct vmspace *vmspace)
 		if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) != 0 &&
 		    obj->ref_count != 1)
 			continue;
-		if (obj->type == OBJT_DEFAULT || obj->type == OBJT_SWAP ||
-		    obj->type == OBJT_PHYS || obj->type == OBJT_VNODE ||
+		if (obj->type == OBJT_PHYS || obj->type == OBJT_VNODE ||
 		    (obj->flags & OBJ_SWAP) != 0)
 			res += obj->resident_page_count;
 	}
