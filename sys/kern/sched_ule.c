@@ -2128,7 +2128,9 @@ static struct mtx *
 sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 {
 	struct tdq *tdn;
+#ifdef SMP
 	int lowpri;
+#endif
 
 	KASSERT(THREAD_CAN_MIGRATE(td) ||
 	    (td_get_sched(td)->ts_flags & TSF_BOUND) != 0,
