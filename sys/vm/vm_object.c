@@ -244,8 +244,10 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
 
 	object->type = type;
 	object->flags = flags;
-	if ((flags & OBJ_SWAP) != 0)
+	if ((flags & OBJ_SWAP) != 0) {
 		pctrie_init(&object->un_pager.swp.swp_blks);
+		object->un_pager.swp.writemappings = 0;
+	}
 
 	/*
 	 * Ensure that swap_pager_swapoff() iteration over object_list
@@ -473,8 +475,8 @@ vm_object_allocate_anon(vm_pindex_t size, vm_object_t backing_object,
 	else
 		handle = backing_object;
 	object = uma_zalloc(obj_zone, M_WAITOK);
-	_vm_object_allocate(OBJT_DEFAULT, size, OBJ_ANON | OBJ_ONEMAPPING,
-	    object, handle);
+	_vm_object_allocate(OBJT_SWAP, size,
+	    OBJ_ANON | OBJ_ONEMAPPING | OBJ_SWAP, object, handle);
 	object->cred = cred;
 	object->charge = cred != NULL ? charge : 0;
 	return (object);

@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
+#include <sys/pctrie.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/refcount.h>
@@ -218,6 +219,21 @@ fault_page_free(vm_page_t *mp)
 			vm_page_xunbusy(m);
 		*mp = NULL;
 	}
+}
+
+/*
+ * Return true if a vm_pager_get_pages() call is needed in order to check
+ * whether the pager might have a particular page, false if it can be determined
+ * immediately that the pager can not have a copy.  For swap objects, this can
+ * be checked quickly.
+ */
+static inline bool
+fault_object_needs_getpages(vm_object_t object)
+{
+	VM_OBJECT_ASSERT_LOCKED(object);
+
+	return ((object->flags & OBJ_SWAP) == 0 ||
+	    !pctrie_is_empty(&object->un_pager.swp.swp_blks));
 }
 
 static inline void
@@ -1406,10 +1422,9 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	/*
 	 * Page is not resident.  If the pager might contain the page
 	 * or this is the beginning of the search, allocate a new
-	 * page.  (Default objects are zero-fill, so there is no real
-	 * pager for them.)
+	 * page.
 	 */
-	if (fs->m == NULL && (fs->object->type != OBJT_DEFAULT ||
+	if (fs->m == NULL && (fault_object_needs_getpages(fs->object) ||
 	    fs->object == fs->first_object)) {
 		res = vm_fault_allocate(fs);
 		if (res != FAULT_CONTINUE)
@@ -1422,7 +1437,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	 * object without dropping the lock to preserve atomicity of
 	 * shadow faults.
 	 */
-	if (fs->object->type != OBJT_DEFAULT) {
+	if (fault_object_needs_getpages(fs->object)) {
 		/*
 		 * At this point, we have either allocated a new page
 		 * or found an existing page that is only partially
@@ -1841,7 +1856,7 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 		if (!obj_locked)
 			VM_OBJECT_RLOCK(lobject);
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
-		    lobject->type == OBJT_DEFAULT &&
+		    !fault_object_needs_getpages(lobject) &&
 		    (backing_object = lobject->backing_object) != NULL) {
 			KASSERT((lobject->backing_object_offset & PAGE_MASK) ==
 			    0, ("vm_fault_prefault: unaligned object offset"));
