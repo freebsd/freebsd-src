@@ -2737,7 +2737,7 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	if (c4iw_any_addr((struct sockaddr *)&lep->com.local_addr)) {
 		port_info = add_ep_to_listenlist(lep);
 		/* skip solisten() if refcnt > 1, as the listeners were
-		 * alredy created by 'Master lep'
+		 * already created by 'Master lep'
 		 */
 		if (port_info->refcnt > 1) {
 			/* As there will be only one listener socket for a TCP
