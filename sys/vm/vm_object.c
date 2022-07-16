@@ -702,27 +702,9 @@ vm_object_deallocate(vm_object_t object)
 	}
 }
 
-/*
- *	vm_object_destroy removes the object from the global object list
- *      and frees the space for the object.
- */
 void
 vm_object_destroy(vm_object_t object)
 {
-
-	/*
-	 * Release the allocation charge.
-	 */
-	if (object->cred != NULL) {
-		swap_release_by_cred(object->charge, object->cred);
-		object->charge = 0;
-		crfree(object->cred);
-		object->cred = NULL;
-	}
-
-	/*
-	 * Free the space for the object.
-	 */
 	uma_zfree(obj_zone, object);
 }
 
