@@ -503,7 +503,10 @@ run_command(int argc, char *argv[])
 	}
 	if (errstr != NULL && errstr[0] != '\0') {
 		warnx("%s", errstr);
-		if (strncmp(errstr, "warning: ", strlen("warning: ")) != 0) {
+		/* Suppress EXIT_FAILURE for warnings */
+		if (strncmp(errstr, "warning: ", strlen("warning: ")) == 0)
+			req->nerror = 0;
+		if (req->nerror != 0) {
 			gctl_free(req);
 			exit(EXIT_FAILURE);
 		}

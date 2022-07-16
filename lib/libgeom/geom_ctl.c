@@ -194,7 +194,7 @@ gctl_rw_param(struct gctl_req *req, const char *name, int len, void *value)
 const char *
 gctl_issue(struct gctl_req *req)
 {
-	int fd, error;
+	int fd;
 
 	if (req == NULL)
 		return ("NULL request pointer");
@@ -212,11 +212,11 @@ gctl_issue(struct gctl_req *req)
 	fd = open(_PATH_DEV PATH_GEOM_CTL, O_RDONLY);
 	if (fd < 0)
 		return(strerror(errno));
-	error = ioctl(fd, GEOM_CTL, req);
+	req->nerror = ioctl(fd, GEOM_CTL, req);
 	close(fd);
 	if (req->error[0] != '\0')
 		return (req->error);
-	if (error != 0)
+	if (req->nerror == -1)
 		return(strerror(errno));
 	return (NULL);
 }
