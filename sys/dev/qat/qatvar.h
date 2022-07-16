@@ -147,7 +147,7 @@ struct qat_dmamem {
 #define QAT_SIZE_TO_RING_SIZE_IN_BYTES(SIZE) ((1 << (SIZE - 1)) << 7)
 #define QAT_RING_SIZE_IN_BYTES_TO_SIZE(SIZE) ((1 << (SIZE - 1)) >> 7)
 
-/* Minimum ring bufer size for memory allocation */
+/* Minimum ring buffer size for memory allocation */
 #define QAT_RING_SIZE_BYTES_MIN(SIZE) \
 	((SIZE < QAT_SIZE_TO_RING_SIZE_IN_BYTES(QAT_RING_SIZE_4K)) ? \
 		QAT_SIZE_TO_RING_SIZE_IN_BYTES(QAT_RING_SIZE_4K) : SIZE)
