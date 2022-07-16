@@ -884,7 +884,7 @@ agp_mmap(struct cdev *kdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 /* Implementation of the kernel api */
 
 device_t
-agp_find_device()
+agp_find_device(void)
 {
 	device_t *children, child;
 	int i, count;
