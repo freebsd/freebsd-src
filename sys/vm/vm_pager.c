@@ -166,7 +166,6 @@ static const struct pagerops deadpagerops = {
 };
 
 const struct pagerops *pagertab[16] __read_mostly = {
-	[OBJT_DEFAULT] =	&defaultpagerops,
 	[OBJT_SWAP] =		&swappagerops,
 	[OBJT_VNODE] =		&vnodepagerops,
 	[OBJT_DEVICE] =		&devicepagerops,
@@ -190,7 +189,7 @@ vm_pager_init(void)
 	 */
 	for (i = 0; i < OBJT_FIRST_DYN; i++) {
 		pgops = &pagertab[i];
-		if ((*pgops)->pgo_init != NULL)
+		if (*pgops != NULL && (*pgops)->pgo_init != NULL)
 			(*(*pgops)->pgo_init)();
 	}
 }
@@ -402,7 +401,7 @@ vm_pager_alloc_dyn_type(struct pagerops *ops, int base_type)
 
 	mtx_lock(&pagertab_lock);
 	MPASS(base_type == -1 ||
-	    (base_type >= OBJT_DEFAULT && base_type < nitems(pagertab)));
+	    (base_type >= OBJT_SWAP && base_type < nitems(pagertab)));
 	for (res = OBJT_FIRST_DYN; res < nitems(pagertab); res++) {
 		if (pagertab[res] == NULL)
 			break;
