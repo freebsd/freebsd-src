@@ -458,6 +458,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
 	CHK(fs->fs_cssize, !=,
 	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
+	CHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
 	cgnum = dtog(fs, fs->fs_csaddr);
 	CHK(fs->fs_csaddr, <, cgdmin(fs, cgnum), %jd);
 	CHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
