@@ -787,6 +787,20 @@ swap_pager_dealloc(vm_object_t object)
 	swp_pager_meta_free_all(object);
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
+
+	/*
+	 * Release the allocation charge.
+	 */
+	if (object->cred != NULL) {
+		swap_release_by_cred(object->charge, object->cred);
+		object->charge = 0;
+		crfree(object->cred);
+		object->cred = NULL;
+	}
+
+	/*
+	 * Hide the object from swap_pager_swapoff().
+	 */
 	vm_object_clear_flag(object, OBJ_SWAP);
 }
 
