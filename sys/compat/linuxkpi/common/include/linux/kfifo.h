@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2021 Beckhoff Automation GmbH & Co. KG
+ * Copyright (c) 2022 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +28,95 @@
 #ifndef _LINUXKPI_LINUX_KFIFO_H_
 #define	_LINUXKPI_LINUX_KFIFO_H_
 
+#include <sys/types.h>
+
+#include <linux/slab.h>
+#include <linux/gfp.h>
+
 #define	INIT_KFIFO(x)	0
 #define	DECLARE_KFIFO(x, y, z)
+
+#define	DECLARE_KFIFO_PTR(_name, _type)					\
+	struct kfifo_ ## _name {					\
+		size_t		total;					\
+		size_t		count;					\
+		size_t		first;					\
+		size_t		last;					\
+		_type		*head;					\
+	} _name
+
+#define	kfifo_len(_kf)							\
+({									\
+	(_kf)->count;							\
+})
+
+#define	kfifo_is_empty(_kf)						\
+({									\
+	((_kf)->count == 0) ? true : false;				\
+})
+
+#define	kfifo_is_full(_kf)						\
+({									\
+	((_kf)->count == (_kf)->total) ? true : false;			\
+})
+
+#define	kfifo_put(_kf, _e)						\
+({									\
+	bool _rc;							\
+									\
+	/* Would overflow. */						\
+	if (kfifo_is_full(_kf)) {					\
+		_rc = false;						\
+	} else {							\
+		(_kf)->head[(_kf)->last] = (_e);			\
+		(_kf)->count++;						\
+		(_kf)->last++;						\
+		if ((_kf)->last > (_kf)->total)				\
+			(_kf)->last = 0;				\
+		_rc = true;						\
+	}								\
+									\
+	_rc;								\
+})
+
+#define	kfifo_get(_kf, _e)						\
+({									\
+	bool _rc;							\
+									\
+	if (kfifo_is_empty(_kf)) {					\
+		_rc = false;						\
+	} else {							\
+		*(_e) = (_kf)->head[(_kf)->first];			\
+		(_kf)->count--;						\
+		(_kf)->first++;						\
+		if ((_kf)->first > (_kf)->total)			\
+			(_kf)->first = 0;				\
+		_rc = true;						\
+	}								\
+									\
+	_rc;								\
+})
+
+#define	kfifo_alloc(_kf, _s, _gfp)					\
+({									\
+	int _error;							\
+									\
+	(_kf)->head = kmalloc(sizeof(__typeof(*(_kf)->head)) * (_s), _gfp); \
+	if ((_kf)->head == NULL)					\
+		_error = ENOMEM;					\
+	else {								\
+		(_kf)->total = (_s);					\
+		_error = 0;						\
+	}								\
+									\
+	_error;								\
+})
+
+#define	kfifo_free(_kf)							\
+({									\
+	kfree((_kf)->head);						\
+	(_kf)->head = NULL;						\
+	(_kf)->total = (_kf)->count = (_kf)->first = (_kf)->last = 0;	\
+})
 
 #endif	/* _LINUXKPI_LINUX_KFIFO_H_*/
