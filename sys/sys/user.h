@@ -487,7 +487,7 @@ struct kinfo_lockf {
  * another process as a series of entries.
  */
 #define	KVME_TYPE_NONE		0
-#define	KVME_TYPE_DEFAULT	1
+#define	KVME_TYPE_DEFAULT	1		/* no longer returned */
 #define	KVME_TYPE_VNODE		2
 #define	KVME_TYPE_SWAP		3
 #define	KVME_TYPE_DEVICE	4

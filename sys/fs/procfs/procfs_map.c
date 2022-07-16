@@ -167,7 +167,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			case KVME_TYPE_PHYS:
 				type = "phys";
 				break;
-			case KVME_TYPE_DEFAULT:
 			case KVME_TYPE_SWAP:
 				type = "swap";
 				break;
