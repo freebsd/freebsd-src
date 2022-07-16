@@ -1018,9 +1018,11 @@ swp_pager_xfer_source(vm_object_t srcobject, vm_object_t dstobject,
 	daddr_t dstaddr __diagused;
 
 	KASSERT((srcobject->flags & OBJ_SWAP) != 0,
-	    ("%s: Srcobject not swappable", __func__));
-	if ((dstobject->flags & OBJ_SWAP) != 0 &&
-	    swp_pager_meta_lookup(dstobject, pindex) != SWAPBLK_NONE) {
+	    ("%s: srcobject not swappable", __func__));
+	KASSERT((dstobject->flags & OBJ_SWAP) != 0,
+	    ("%s: dstobject not swappable", __func__));
+
+	if (swp_pager_meta_lookup(dstobject, pindex) != SWAPBLK_NONE) {
 		/* Caller should destroy the source block. */
 		return (false);
 	}
@@ -1051,8 +1053,6 @@ swp_pager_xfer_source(vm_object_t srcobject, vm_object_t dstobject,
  *
  *	The source object contains no vm_page_t's (which is just as well)
  *
- *	The source object is of type OBJT_SWAP.
- *
  *	The source and destination objects must be locked.
  *	Both object locks may temporarily be released.
  */
@@ -1060,7 +1060,6 @@ void
 swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
     vm_pindex_t offset, int destroysource)
 {
-
 	VM_OBJECT_ASSERT_WLOCKED(srcobject);
 	VM_OBJECT_ASSERT_WLOCKED(dstobject);
 
@@ -1087,21 +1086,9 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 
 	/*
 	 * Free left over swap blocks in source.
-	 *
-	 * We have to revert the type to OBJT_DEFAULT so we do not accidentally
-	 * double-remove the object from the swap queues.
 	 */
-	if (destroysource) {
+	if (destroysource)
 		swp_pager_meta_free_all(srcobject);
-		/*
-		 * Reverting the type is not necessary, the caller is going
-		 * to destroy srcobject directly, but I'm doing it here
-		 * for consistency since we've removed the object from its
-		 * queues.
-		 */
-		srcobject->type = OBJT_DEFAULT;
-		vm_object_clear_flag(srcobject, OBJ_SWAP);
-	}
 }
 
 /*
@@ -1454,9 +1441,6 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *ma, int count,
  *
  *	Assign swap (if necessary) and initiate I/O on the specified pages.
  *
- *	We support both OBJT_DEFAULT and OBJT_SWAP objects.  DEFAULT objects
- *	are automatically converted to SWAP objects.
- *
  *	In a low memory situation we may block in VOP_STRATEGY(), but the new
  *	vm_page reservation system coupled with properly written VFS devices
  *	should ensure that no low-memory deadlock occurs.  This is an area
@@ -1485,23 +1469,11 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 	    ("%s: object mismatch %p/%p",
 	    __func__, object, ma[0]->object));
 
-	/*
-	 * Step 1
-	 *
-	 * Turn object into OBJT_SWAP.  Force sync if not a pageout process.
-	 */
-	if ((object->flags & OBJ_SWAP) == 0) {
-		addr = swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-		KASSERT(addr == SWAPBLK_NONE,
-		    ("unexpected object swap block"));
-	}
 	VM_OBJECT_WUNLOCK(object);
 	async = curproc == pageproc && (flags & VM_PAGER_PUT_SYNC) == 0;
 	swp_pager_init_freerange(&s_free, &n_free);
 
 	/*
-	 * Step 2
-	 *
 	 * Assign swap blocks and issue I/O.  We reallocate swap on the fly.
 	 * The page is left dirty until the pageout operation completes
 	 * successfully.
@@ -1795,7 +1767,8 @@ swap_pager_swapped_pages(vm_object_t object)
 	int i;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
-	if ((object->flags & OBJ_SWAP) == 0)
+
+	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
 		return (0);
 
 	for (res = 0, pi = 0; (sb = SWAP_PCTRIE_LOOKUP_GE(
@@ -2025,9 +1998,6 @@ swp_pager_free_empty_swblk(vm_object_t object, struct swblk *sb)
 /*
  * SWP_PAGER_META_BUILD() -	add swap block to swap meta data for object
  *
- *	We first convert the object to a swap object if it is a default
- *	object.
- *
  *	The specified swapblk is added to the object's swap metadata.  If
  *	the swapblk is not valid, it is freed instead.  Any previously
  *	assigned swapblk is returned.
@@ -2042,27 +2012,6 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	int error, i;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-
-	/*
-	 * Convert default object to swap object if necessary
-	 */
-	if ((object->flags & OBJ_SWAP) == 0) {
-		pctrie_init(&object->un_pager.swp.swp_blks);
-
-		/*
-		 * Ensure that swap_pager_swapoff()'s iteration over
-		 * object_list does not see a garbage pctrie.
-		 */
-		atomic_thread_fence_rel();
-
-		object->type = OBJT_SWAP;
-		vm_object_set_flag(object, OBJ_SWAP);
-		object->un_pager.swp.writemappings = 0;
-		KASSERT((object->flags & OBJ_ANON) != 0 ||
-		    object->handle == NULL,
-		    ("default pager %p with handle %p",
-		    object, object->handle));
-	}
 
 	rdpi = rounddown(pindex, SWAP_META_PAGES);
 	sb = SWAP_PCTRIE_LOOKUP(&object->un_pager.swp.swp_blks, rdpi);
@@ -2165,7 +2114,7 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 	int i, limit, start;
 
 	VM_OBJECT_ASSERT_WLOCKED(srcobject);
-	if ((srcobject->flags & OBJ_SWAP) == 0 || count == 0)
+	if (count == 0 || pctrie_is_empty(&srcobject->un_pager.swp.swp_blks))
 		return;
 
 	swp_pager_init_freerange(&s_free, &n_free);
@@ -2232,7 +2181,8 @@ swp_pager_meta_free_all(vm_object_t object)
 	int i;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	if ((object->flags & OBJ_SWAP) == 0)
+
+	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
 		return;
 
 	swp_pager_init_freerange(&s_free, &n_free);
@@ -2296,9 +2246,9 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	int i;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
-	if ((object->flags & OBJ_SWAP) == 0)
-		return (object->size);
 
+	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
+		return (object->size);
 	sb = SWAP_PCTRIE_LOOKUP_GE(&object->un_pager.swp.swp_blks,
 	    rounddown(pindex, SWAP_META_PAGES));
 	if (sb == NULL)
