@@ -103,6 +103,8 @@ int fetchprocinfo(struct ktr_header *, u_int *);
 u_int findabi(struct ktr_header *);
 int fread_tail(void *, int, int);
 void dumpheader(struct ktr_header *, u_int);
+void dumptimeval(struct ktr_header_v0 *kth);
+void dumptimespec(struct ktr_header *kth);
 void ktrsyscall(struct ktr_syscall *, u_int);
 void ktrsysret(struct ktr_sysret *, u_int);
 void ktrnamei(char *, int);
@@ -134,10 +136,11 @@ void usage(void);
 #define	TIMESTAMP_RELATIVE	0x4
 
 bool decimal, fancy = true, resolv;
-static bool abiflag, suppressdata, syscallno, tail, threads;
+static bool abiflag, suppressdata, syscallno, tail, threads, cpuflag;
 static int timestamp, maxdata;
 static const char *tracefile = DEF_TRACEFILE;
 static struct ktr_header ktr_header;
+static short version;
 
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
@@ -345,13 +348,16 @@ main(int argc, char *argv[])
 
 	timestamp = TIMESTAMP_NONE;
 
-	while ((ch = getopt(argc,argv,"f:dElm:np:AHRrSsTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:cdElm:np:AHRrSsTt:")) != -1)
 		switch (ch) {
 		case 'A':
 			abiflag = true;
 			break;
 		case 'f':
 			tracefile = optarg;
+			break;
+		case 'c':
+			cpuflag = true;
 			break;
 		case 'd':
 			decimal = true;
@@ -434,6 +440,11 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
+		if (ktr_header.ktr_type & KTR_VERSIONED) {
+			ktr_header.ktr_type &= ~KTR_VERSIONED;
+			version = ktr_header.ktr_version;
+		} else
+			version = KTR_VERSION0;
 		if (ktr_header.ktr_type & KTR_DROP) {
 			ktr_header.ktr_type &= ~KTR_DROP;
 			if (!drop_logged && threads) {
@@ -459,6 +470,9 @@ main(int argc, char *argv[])
 				errx(1, "%s", strerror(ENOMEM));
 			size = ktrlen;
 		}
+		if (version == KTR_VERSION0 &&
+		    fseek(stdin, KTR_OFFSET_V0, SEEK_CUR) < 0)
+			errx(1, "%s", strerror(errno));
 		if (ktrlen && fread_tail(m, ktrlen, 1) == 0)
 			errx(1, "data too short");
 		if (fetchprocinfo(&ktr_header, (u_int *)m) != 0)
@@ -583,15 +597,80 @@ findabi(struct ktr_header *kth)
 }
 
 void
+dumptimeval(struct ktr_header_v0 *kth)
+{
+	static struct timeval prevtime, prevtime_e;
+	struct timeval temp;
+	const char *sign;
+
+	if (timestamp & TIMESTAMP_ABSOLUTE) {
+		printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
+		    kth->ktr_time.tv_usec);
+	}
+	if (timestamp & TIMESTAMP_ELAPSED) {
+		if (prevtime_e.tv_sec == 0)
+			prevtime_e = kth->ktr_time;
+		timersub(&kth->ktr_time, &prevtime_e, &temp);
+		printf("%jd.%06ld ", (intmax_t)temp.tv_sec,
+		    temp.tv_usec);
+	}
+	if (timestamp & TIMESTAMP_RELATIVE) {
+		if (prevtime.tv_sec == 0)
+			prevtime = kth->ktr_time;
+		if (timercmp(&kth->ktr_time, &prevtime, <)) {
+			timersub(&prevtime, &kth->ktr_time, &temp);
+			sign = "-";
+		} else {
+			timersub(&kth->ktr_time, &prevtime, &temp);
+			sign = "";
+		}
+		prevtime = kth->ktr_time;
+		printf("%s%jd.%06ld ", sign, (intmax_t)temp.tv_sec,
+		    temp.tv_usec);
+	}
+}
+
+void
+dumptimespec(struct ktr_header *kth)
+{
+	static struct timespec prevtime, prevtime_e;
+	struct timespec temp;
+	const char *sign;
+
+	if (timestamp & TIMESTAMP_ABSOLUTE) {
+		printf("%jd.%09ld ", (intmax_t)kth->ktr_time.tv_sec,
+		    kth->ktr_time.tv_nsec);
+	}
+	if (timestamp & TIMESTAMP_ELAPSED) {
+		if (prevtime_e.tv_sec == 0)
+			prevtime_e = kth->ktr_time;
+		timespecsub(&kth->ktr_time, &prevtime_e, &temp);
+		printf("%jd.%09ld ", (intmax_t)temp.tv_sec,
+		    temp.tv_nsec);
+	}
+	if (timestamp & TIMESTAMP_RELATIVE) {
+		if (prevtime.tv_sec == 0)
+			prevtime = kth->ktr_time;
+		if (timespeccmp(&kth->ktr_time, &prevtime, <)) {
+			timespecsub(&prevtime, &kth->ktr_time, &temp);
+			sign = "-";
+		} else {
+			timespecsub(&kth->ktr_time, &prevtime, &temp);
+			sign = "";
+		}
+		prevtime = kth->ktr_time;
+		printf("%s%jd.%09ld ", sign, (intmax_t)temp.tv_sec,
+		    temp.tv_nsec);
+	}
+}
+
+void
 dumpheader(struct ktr_header *kth, u_int sv_flags)
 {
 	static char unknown[64];
-	static struct timeval prevtime, prevtime_e;
-	struct timeval temp;
 	const char *abi;
 	const char *arch;
 	const char *type;
-	const char *sign;
 
 	switch (kth->ktr_type) {
 	case KTR_SYSCALL:
@@ -652,32 +731,13 @@ dumpheader(struct ktr_header *kth, u_int sv_flags)
 		printf("%6jd %-8.*s ", (intmax_t)kth->ktr_pid, MAXCOMLEN,
 		    kth->ktr_comm);
         if (timestamp) {
-		if (timestamp & TIMESTAMP_ABSOLUTE) {
-			printf("%jd.%06ld ", (intmax_t)kth->ktr_time.tv_sec,
-			    kth->ktr_time.tv_usec);
-		}
-		if (timestamp & TIMESTAMP_ELAPSED) {
-			if (prevtime_e.tv_sec == 0)
-				prevtime_e = kth->ktr_time;
-			timersub(&kth->ktr_time, &prevtime_e, &temp);
-			printf("%jd.%06ld ", (intmax_t)temp.tv_sec,
-			    temp.tv_usec);
-		}
-		if (timestamp & TIMESTAMP_RELATIVE) {
-			if (prevtime.tv_sec == 0)
-				prevtime = kth->ktr_time;
-			if (timercmp(&kth->ktr_time, &prevtime, <)) {
-				timersub(&prevtime, &kth->ktr_time, &temp);
-				sign = "-";
-			} else {
-				timersub(&kth->ktr_time, &prevtime, &temp);
-				sign = "";
-			}
-			prevtime = kth->ktr_time;
-			printf("%s%jd.%06ld ", sign, (intmax_t)temp.tv_sec,
-			    temp.tv_usec);
-		}
+		if (version == KTR_VERSION0)
+			dumptimeval((struct ktr_header_v0 *)kth);
+		else
+			dumptimespec(kth);
 	}
+	if (cpuflag && version > KTR_VERSION0)
+		printf("%3d ", kth->ktr_cpu);
 	printf("%s  ", type);
 	if (abiflag != 0) {
 		switch (sv_flags & SV_ABI_MASK) {
