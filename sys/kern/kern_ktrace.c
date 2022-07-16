@@ -322,9 +322,12 @@ ktr_getrequest_entered(struct thread *td, int type)
 			p->p_traceflag &= ~KTRFAC_DROP;
 		}
 		mtx_unlock(&ktrace_mtx);
-		microtime(&req->ktr_header.ktr_time);
+		nanotime(&req->ktr_header.ktr_time);
+		req->ktr_header.ktr_type |= KTR_VERSIONED;
 		req->ktr_header.ktr_pid = p->p_pid;
 		req->ktr_header.ktr_tid = td->td_tid;
+		req->ktr_header.ktr_cpu = PCPU_GET(cpuid);
+		req->ktr_header.ktr_version = KTR_VERSION1;
 		bcopy(td->td_name, req->ktr_header.ktr_comm,
 		    sizeof(req->ktr_header.ktr_comm));
 		req->ktr_buffer = NULL;
@@ -1301,9 +1304,9 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	mtx_unlock(&ktrace_mtx);
 
 	kth = &req->ktr_header;
-	KASSERT(((u_short)kth->ktr_type & ~KTR_DROP) < nitems(data_lengths),
+	KASSERT(((u_short)kth->ktr_type & ~KTR_TYPE) < nitems(data_lengths),
 	    ("data_lengths array overflow"));
-	datalen = data_lengths[(u_short)kth->ktr_type & ~KTR_DROP];
+	datalen = data_lengths[(u_short)kth->ktr_type & ~KTR_TYPE];
 	buflen = kth->ktr_len;
 	auio.uio_iov = &aiov[0];
 	auio.uio_offset = 0;
