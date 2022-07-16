@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 
 #define	LINUXKPI_PARAM_PREFIX ibcore_
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <linux/completion.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -1048,10 +1051,18 @@ static inline int cma_zero_addr(struct sockaddr *addr)
 static inline int cma_loopback_addr(struct sockaddr *addr)
 {
 	switch (addr->sa_family) {
+#ifdef INET
+	/*
+	 * ipv4_is_loopback() requires an inet variable via vnet,
+	 * not present if INET is not included.
+	 */
 	case AF_INET:
 		return ipv4_is_loopback(((struct sockaddr_in *) addr)->sin_addr.s_addr);
+#endif
+#ifdef INET6
 	case AF_INET6:
 		return ipv6_addr_loopback(&((struct sockaddr_in6 *) addr)->sin6_addr);
+#endif
 	case AF_IB:
 		return ib_addr_loopback(&((struct sockaddr_ib *) addr)->sib_addr);
 	default:
