@@ -705,7 +705,7 @@ void
 siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 {
 
-	/* sig alredy converted */
+	/* sig already converted */
 	lsi->lsi_signo = sig;
 	sicode_to_lsicode(sig, si->si_code, &lsi->lsi_code);
 
