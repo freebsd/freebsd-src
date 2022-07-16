@@ -2578,8 +2578,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		if (vp != NULL) {
 			vref(vp);
 		} else if ((obj->flags & OBJ_ANON) != 0) {
-			MPASS(kvo->kvo_type == KVME_TYPE_DEFAULT ||
-			    kvo->kvo_type == KVME_TYPE_SWAP);
+			MPASS(kvo->kvo_type == KVME_TYPE_SWAP);
 			kvo->kvo_me = (uintptr_t)obj;
 			/* tmpfs objs are reported as vnodes */
 			kvo->kvo_backing_obj = (uintptr_t)obj->backing_object;
