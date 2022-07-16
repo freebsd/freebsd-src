@@ -414,9 +414,6 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 	switch (type) {
 	case OBJT_DEAD:
 		panic("vm_object_allocate: can't create OBJT_DEAD");
-	case OBJT_DEFAULT:
-		flags = OBJ_COLORED;
-		break;
 	case OBJT_SWAP:
 		flags = OBJ_COLORED | OBJ_SWAP;
 		break;
@@ -688,8 +685,7 @@ vm_object_deallocate(vm_object_t object)
 		umtx_shm_object_terminated(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
-			KASSERT(object->type == OBJT_DEFAULT ||
-			    object->type == OBJT_SWAP,
+			KASSERT(object->type == OBJT_SWAP,
 			    ("shadowed tmpfs v_object 2 %p", object));
 			vm_object_backing_remove(object);
 		}
@@ -969,8 +965,7 @@ vm_object_terminate(vm_object_t object)
 		vm_reserv_break_all(object);
 #endif
 
-	KASSERT(object->cred == NULL || object->type == OBJT_DEFAULT ||
-	    (object->flags & OBJ_SWAP) != 0,
+	KASSERT(object->cred == NULL || (object->flags & OBJ_SWAP) != 0,
 	    ("%s: non-swap obj %p has cred", __func__, object));
 
 	/*
@@ -1306,8 +1301,7 @@ vm_object_madvise_freespace(vm_object_t object, int advice, vm_pindex_t pindex,
  *
  *	    Deactivate the specified pages if they are resident.
  *
- *	MADV_FREE	(OBJT_DEFAULT/OBJT_SWAP objects,
- *			 OBJ_ONEMAPPING only)
+ *	MADV_FREE	(OBJT_SWAP objects, OBJ_ONEMAPPING only)
  *
  *	    Deactivate and clean the specified pages if they are
  *	    resident.  This permits the process to reuse the pages
@@ -1529,10 +1523,6 @@ vm_object_split(vm_map_entry_t entry)
 	offidxstart = OFF_TO_IDX(entry->offset);
 	size = atop(entry->end - entry->start);
 
-	/*
-	 * If swap_pager_copy() is later called, it will convert new_object
-	 * into a swap object.
-	 */
 	new_object = vm_object_allocate_anon(size, orig_object,
 	    orig_object->cred, ptoa(size));
 
