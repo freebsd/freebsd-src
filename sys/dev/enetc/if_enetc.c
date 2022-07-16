@@ -868,7 +868,7 @@ enetc_vlan_register(if_ctx_t ctx, uint16_t vid)
 	sc = iflib_get_softc(ctx);
 	hash = enetc_hash_vid(vid);
 
-	/* Check if hash is alredy present in the bitmap. */
+	/* Check if hash is already present in the bitmap. */
 	if (++sc->vlan_bitmap[hash] != 1)
 		return;
 
