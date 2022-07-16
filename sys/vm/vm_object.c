@@ -1506,7 +1506,7 @@ vm_object_shadow(vm_object_t *object, vm_ooffset_t *offset, vm_size_t length,
 void
 vm_object_split(vm_map_entry_t entry)
 {
-	vm_page_t m, m_busy, m_next;
+	vm_page_t m, m_next;
 	vm_object_t orig_object, new_object, backing_object;
 	vm_pindex_t idx, offidxstart;
 	vm_size_t size;
@@ -1559,7 +1559,6 @@ vm_object_split(vm_map_entry_t entry)
 	 * that the object is in transition.
 	 */
 	vm_object_set_flag(orig_object, OBJ_SPLIT);
-	m_busy = NULL;
 #ifdef INVARIANTS
 	idx = 0;
 #endif
@@ -1622,26 +1621,17 @@ retry:
 		 */
 		vm_reserv_rename(m, new_object, orig_object, offidxstart);
 #endif
+	}
 
-		/*
-		 * orig_object's type may change while sleeping, so keep track
-		 * of the beginning of the busied range.
-		 */
-		if (orig_object->type != OBJT_SWAP)
-			vm_page_xunbusy(m);
-		else if (m_busy == NULL)
-			m_busy = m;
-	}
-	if ((orig_object->flags & OBJ_SWAP) != 0) {
-		/*
-		 * swap_pager_copy() can sleep, in which case the orig_object's
-		 * and new_object's locks are released and reacquired. 
-		 */
-		swap_pager_copy(orig_object, new_object, offidxstart, 0);
-		if (m_busy != NULL)
-			TAILQ_FOREACH_FROM(m_busy, &new_object->memq, listq)
-				vm_page_xunbusy(m_busy);
-	}
+	/*
+	 * swap_pager_copy() can sleep, in which case the orig_object's
+	 * and new_object's locks are released and reacquired.
+	 */
+	swap_pager_copy(orig_object, new_object, offidxstart, 0);
+
+	TAILQ_FOREACH(m, &new_object->memq, listq)
+		vm_page_xunbusy(m);
+
 	vm_object_clear_flag(orig_object, OBJ_SPLIT);
 	VM_OBJECT_WUNLOCK(orig_object);
 	VM_OBJECT_WUNLOCK(new_object);
@@ -1963,21 +1953,13 @@ vm_object_collapse(vm_object_t object)
 
 			/*
 			 * Move the pager from backing_object to object.
+			 *
+			 * swap_pager_copy() can sleep, in which case the
+			 * backing_object's and object's locks are released and
+			 * reacquired.
 			 */
-			if ((backing_object->flags & OBJ_SWAP) != 0) {
-				/*
-				 * swap_pager_copy() can sleep, in which case
-				 * the backing_object's and object's locks are
-				 * released and reacquired.
-				 * Since swap_pager_copy() is being asked to
-				 * destroy backing_object, it will change the
-				 * type to OBJT_DEFAULT.
-				 */
-				swap_pager_copy(
-				    backing_object,
-				    object,
-				    OFF_TO_IDX(object->backing_object_offset), TRUE);
-			}
+			swap_pager_copy(backing_object, object,
+			    OFF_TO_IDX(object->backing_object_offset), TRUE);
 
 			/*
 			 * Object now shadows whatever backing_object did.
