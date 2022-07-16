@@ -1287,7 +1287,6 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 {
 
 	struct work_request_hdr *wrp = (struct work_request_hdr *)txd;
-	struct tx_sw_desc *txsd = &txq->sdesc[txqs->pidx];
 	
 	if (__predict_true(ndesc == 1)) {
 		set_wr_hdr(wrp, htonl(F_WR_SOP | F_WR_EOP | V_WR_DATATYPE(1) |
@@ -1318,12 +1317,10 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 			
 			fp += avail;
 			txd++;
-			txsd++;
 			if (++txqs->pidx == txq->size) {
 				txqs->pidx = 0;
 				txqs->gen ^= 1;
 				txd = txq->desc;
-				txsd = txq->sdesc;
 			}
 
 			/*
