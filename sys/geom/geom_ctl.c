@@ -117,9 +117,15 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
  * the application must either call gctl_post_messages() or
  * call gctl_error() to cause the messages to be reported to
  * the calling process.
+ *
+ * The errno argument should be zero if it is an informational
+ * message or an errno value (EINVAL, EBUSY, etc) if it is an error.
+ * If any of the messages has a non-zero errno, the utility will
+ * EXIT_FAILURE. If only informational messages (with zero errno)
+ * are posted, the utility will EXIT_SUCCESS.
  */
 void
-gctl_msg(struct gctl_req *req, const char *fmt, ...)
+gctl_msg(struct gctl_req *req, int errno, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -131,6 +137,8 @@ gctl_msg(struct gctl_req *req, const char *fmt, ...)
 #endif
 		return;
 	}
+	if (req->nerror == 0)
+		req->nerror = errno;
 	/* Put second and later messages indented on a new line */
 	if (sbuf_len(req->serror) > 0)
 		sbuf_cat(req->serror, "\n\t");

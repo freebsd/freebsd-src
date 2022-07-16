@@ -341,8 +341,9 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	    (sc->sc_root_size + sc->sc_root_size * sc->sc_leaf_size) *
 	    sizeof(uint64_t) + roundup(sc->sc_root_size, BITS_PER_ENTRY);
 	if (verbose)
-		gctl_error(req, "Device %s created with memory map size %jd.",
+		gctl_msg(req, 0, "Device %s created with memory map size %jd.",
 		    gp->name, (intmax_t)sc->sc_writemap_memory);
+	gctl_post_messages(req);
 	G_UNION_DEBUG(1, "Device %s created with memory map size %jd.",
 	    gp->name, (intmax_t)sc->sc_writemap_memory);
 	return;
@@ -373,7 +374,8 @@ g_union_fetcharg(struct gctl_req *req, const char *name)
 		return (0);
 	if (*val >= 0)
 		return (*val);
-	gctl_error(req, "Invalid '%s': negative value, using default.", name);
+	gctl_msg(req, EINVAL, "Invalid '%s' (%jd): negative value, "
+	    "using default.", name, *val);
 	return (0);
 }
 
@@ -425,20 +427,20 @@ g_union_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool verbose)
 		snprintf(param, sizeof(param), "arg%d", i);
 		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
-			gctl_msg(req, "No '%s' argument.", param);
+			gctl_msg(req, EINVAL, "No '%s' argument.", param);
 			continue;
 		}
 		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 			name += strlen(_PATH_DEV);
 		gp = g_union_find_geom(mp, name);
 		if (gp == NULL) {
-			gctl_msg(req, "Device %s is invalid.", name);
+			gctl_msg(req, EINVAL, "Device %s is invalid.", name);
 			continue;
 		}
 		error = g_union_destroy(verbose ? req : NULL, gp, *force);
 		if (error != 0)
-			gctl_msg(req, "Error %d: cannot destroy device %s.",
-			    error, gp->name);
+			gctl_msg(req, error, "Error %d: "
+			    "cannot destroy device %s.", error, gp->name);
 	}
 	gctl_post_messages(req);
 }
@@ -486,12 +488,12 @@ g_union_ctl_reset(struct gctl_req *req, struct g_class *mp, bool verbose)
 		snprintf(param, sizeof(param), "arg%d", i);
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL) {
-			gctl_msg(req, "No '%s' argument.", param);
+			gctl_msg(req, EINVAL, "No '%s' argument.", param);
 			continue;
 		}
 		gp = pp->geom;
 		if (gp->class != mp) {
-			gctl_msg(req, "Provider %s is invalid.",
+			gctl_msg(req, EINVAL, "Provider %s is invalid.",
 			    pp->name);
 			continue;
 		}
@@ -508,7 +510,7 @@ g_union_ctl_reset(struct gctl_req *req, struct g_class *mp, bool verbose)
 		sc->sc_readbytes = 0;
 		sc->sc_wrotebytes = 0;
 		if (verbose)
-			gctl_msg(req, "Device %s has been reset.", pp->name);
+			gctl_msg(req, 0, "Device %s has been reset.", pp->name);
 		G_UNION_DEBUG(1, "Device %s has been reset.", pp->name);
 	}
 	gctl_post_messages(req);
@@ -542,17 +544,18 @@ g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 		snprintf(param, sizeof(param), "arg%d", i);
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL) {
-			gctl_msg(req, "No '%s' argument.", param);
+			gctl_msg(req, EINVAL, "No '%s' argument.", param);
 			continue;
 		}
 		gp = pp->geom;
 		if (gp->class != mp) {
-			gctl_msg(req, "Provider %s is invalid.", pp->name);
+			gctl_msg(req, EINVAL, "Provider %s is invalid.",
+			    pp->name);
 			continue;
 		}
 		sc = gp->softc;
 		if (g_union_get_writelock(sc) != 0) {
-			gctl_msg(req, "Revert already in progress for "
+			gctl_msg(req, EINVAL, "Revert already in progress for "
 			    "provider %s.", pp->name);
 			continue;
 		}
@@ -560,8 +563,8 @@ g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 		 * No mount or other use of union is allowed.
 		 */
 		if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0) {
-			gctl_msg(req, "Unable to get exclusive access for "
-			    "reverting of %s;\n\t%s cannot be mounted or "
+			gctl_msg(req, EPERM, "Unable to get exclusive access "
+			    "for reverting of %s;\n\t%s cannot be mounted or "
 			    "otherwise open during a revert.",
 			     pp->name, pp->name);
 			g_union_rel_writelock(sc);
@@ -570,7 +573,8 @@ g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 		g_union_revert(sc);
 		g_union_rel_writelock(sc);
 		if (verbose)
-			gctl_msg(req, "Device %s has been reverted.", pp->name);
+			gctl_msg(req, 0, "Device %s has been reverted.",
+			    pp->name);
 		G_UNION_DEBUG(1, "Device %s has been reverted.", pp->name);
 	}
 	gctl_post_messages(req);
@@ -637,17 +641,18 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		snprintf(param, sizeof(param), "arg%d", i);
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL) {
-			gctl_msg(req, "No '%s' argument.", param);
+			gctl_msg(req, EINVAL, "No '%s' argument.", param);
 			continue;
 		}
 		gp = pp->geom;
 		if (gp->class != mp) {
-			gctl_msg(req, "Provider %s is invalid.", pp->name);
+			gctl_msg(req, EINVAL, "Provider %s is invalid.",
+			    pp->name);
 			continue;
 		}
 		sc = gp->softc;
 		if (g_union_get_writelock(sc) != 0) {
-			gctl_msg(req, "Commit already in progress for "
+			gctl_msg(req, EINVAL, "Commit already in progress for "
 			    "provider %s.", pp->name);
 			continue;
 		}
@@ -661,10 +666,10 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		 */
 		if ((*force == false && pp->acr > 0) || pp->acw > 0 ||
 		     pp->ace > 0) {
-			gctl_msg(req, "Unable to get exclusive access for "
-			    "writing of %s.\n\tNote that %s cannot be mounted "
-			    "or otherwise\n\topen during a commit unless the "
-			    "-f flag is used.", pp->name, pp->name);
+			gctl_msg(req, EPERM, "Unable to get exclusive access "
+			    "for writing of %s.\n\tNote that %s cannot be "
+			    "mounted or otherwise\n\topen during a commit "
+			    "unless the -f flag is used.", pp->name, pp->name);
 			g_union_rel_writelock(sc);
 			continue;
 		}
@@ -675,7 +680,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		if ((*force == false && lowerpp->acr > lowercp->acr) ||
 		     lowerpp->acw > lowercp->acw ||
 		     lowerpp->ace > lowercp->ace) {
-			gctl_msg(req, "provider %s is unable to get "
+			gctl_msg(req, EPERM, "provider %s is unable to get "
 			    "exclusive access to %s\n\tfor writing. Note that "
 			    "%s cannot be mounted or otherwise open\n\tduring "
 			    "a commit unless the -f flag is used.", pp->name,
@@ -684,8 +689,8 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 			continue;
 		}
 		if ((error = g_access(lowercp, 0, 1, 0)) != 0) {
-			gctl_msg(req, "Error %d: provider %s is unable to "
-			    "access %s for writing.", error, pp->name,
+			gctl_msg(req, error, "Error %d: provider %s is unable "
+			    "to access %s for writing.", error, pp->name,
 			    lowerpp->name);
 			g_union_rel_writelock(sc);
 			continue;
@@ -715,18 +720,18 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_cmd = BIO_READ;
 				g_io_request(bp, sc->sc_uppercp);
 				if ((error = biowait(bp, "rdunion")) != 0) {
-					gctl_msg(req, "Commit read error %d "
-					    "in provider %s, commit aborted.",
-					    error, pp->name);
+					gctl_msg(req, error, "Commit read "
+					    "error %d in provider %s, commit "
+					    "aborted.", error, pp->name);
 					goto cleanup;
 				}
 				bp->bio_flags &= ~BIO_DONE;
 				bp->bio_cmd = BIO_WRITE;
 				g_io_request(bp, lowercp);
 				if ((error = biowait(bp, "wtunion")) != 0) {
-					gctl_msg(req, "Commit write error %d "
-					    "in provider %s, commit aborted.",
-					    error, pp->name);
+					gctl_msg(req, error, "Commit write "
+					    "error %d in provider %s, commit "
+					    "aborted.", error, pp->name);
 					goto cleanup;
 				}
 				bp->bio_flags &= ~BIO_DONE;
@@ -748,7 +753,7 @@ cleanup:
 		}
 		g_union_rel_writelock(sc);
 		if (error == 0 && verbose)
-			gctl_msg(req, "Device %s has been committed.",
+			gctl_msg(req, 0, "Device %s has been committed.",
 			    pp->name);
 		G_UNION_DEBUG(1, "Device %s has been committed.", pp->name);
 	}
@@ -1315,13 +1320,13 @@ g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 	    (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0))) {
 		if (force) {
 			if (req != NULL)
-				gctl_msg(req, "Device %s is still in use, "
+				gctl_msg(req, 0, "Device %s is still in use, "
 				    "so is being forcibly removed.", gp->name);
 			G_UNION_DEBUG(1, "Device %s is still in use, so "
 			    "is being forcibly removed.", gp->name);
 		} else {
 			if (req != NULL)
-				gctl_msg(req, "Device %s is still open "
+				gctl_msg(req, EBUSY, "Device %s is still open "
 				    "(r=%d w=%d e=%d).", gp->name, pp->acr,
 				    pp->acw, pp->ace);
 			G_UNION_DEBUG(1, "Device %s is still open "
@@ -1331,7 +1336,7 @@ g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 		}
 	} else {
 		if (req != NULL)
-			gctl_msg(req, "Device %s removed.", gp->name);
+			gctl_msg(req, 0, "Device %s removed.", gp->name);
 		G_UNION_DEBUG(1, "Device %s removed.", gp->name);
 	}
 	/* Close consumers */
