@@ -102,12 +102,7 @@ cd9660_ino_alloc(struct mount *mp, void *arg, int lkflags,
  * NOTE: (LOOKUP | LOCKPARENT) currently returns the parent inode unlocked.
  */
 int
-cd9660_lookup(ap)
-	struct vop_cachedlookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
+cd9660_lookup(struct vop_cachedlookup_args *ap)
 {
 	struct vnode *vdp;		/* vnode for directory being searched */
 	struct iso_node *dp;		/* inode for directory being searched */
@@ -434,11 +429,7 @@ found:
  * remaining space in the directory.
  */
 int
-cd9660_blkatoff(vp, offset, res, bpp)
-	struct vnode *vp;
-	off_t offset;
-	char **res;
-	struct buf **bpp;
+cd9660_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 {
 	struct iso_node *ip;
 	struct iso_mnt *imp;

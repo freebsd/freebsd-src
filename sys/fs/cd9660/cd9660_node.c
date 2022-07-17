@@ -60,10 +60,7 @@ static unsigned	cd9660_chars2ui(unsigned char *begin, int len);
  * truncate and deallocate the file.
  */
 int
-cd9660_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+cd9660_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
@@ -82,10 +79,7 @@ cd9660_inactive(ap)
  * Reclaim an inode so that it can be used for other purposes.
  */
 int
-cd9660_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+cd9660_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -106,11 +100,8 @@ cd9660_reclaim(ap)
  * File attributes
  */
 void
-cd9660_defattr(isodir, inop, bp, ftype)
-	struct iso_directory_record *isodir;
-	struct iso_node *inop;
-	struct buf *bp;
-	enum ISO_FTYPE ftype;
+cd9660_defattr(struct iso_directory_record *isodir, struct iso_node *inop,
+    struct buf *bp, enum ISO_FTYPE ftype)
 {
 	struct buf *bp2 = NULL;
 	struct iso_mnt *imp;
@@ -171,11 +162,8 @@ cd9660_defattr(isodir, inop, bp, ftype)
  * Time stamps
  */
 void
-cd9660_deftstamp(isodir,inop,bp,ftype)
-	struct iso_directory_record *isodir;
-	struct iso_node *inop;
-	struct buf *bp;
-	enum ISO_FTYPE ftype;
+cd9660_deftstamp(struct iso_directory_record *isodir, struct iso_node *inop,
+    struct buf *bp, enum ISO_FTYPE ftype)
 {
 	struct buf *bp2 = NULL;
 	struct iso_mnt *imp;
@@ -213,10 +201,7 @@ cd9660_deftstamp(isodir,inop,bp,ftype)
 }
 
 int
-cd9660_tstamp_conv7(pi,pu,ftype)
-	u_char *pi;
-	struct timespec *pu;
-	enum ISO_FTYPE ftype;
+cd9660_tstamp_conv7(u_char *pi, struct timespec *pu, enum ISO_FTYPE ftype)
 {
 	int crtime, days;
 	int y, m, d, hour, minute, second, tz;
@@ -261,9 +246,7 @@ cd9660_tstamp_conv7(pi,pu,ftype)
 }
 
 static u_int
-cd9660_chars2ui(begin,len)
-	u_char *begin;
-	int len;
+cd9660_chars2ui(u_char *begin, int len)
 {
 	u_int rc;
 
@@ -275,9 +258,7 @@ cd9660_chars2ui(begin,len)
 }
 
 int
-cd9660_tstamp_conv17(pi,pu)
-	u_char *pi;
-	struct timespec *pu;
+cd9660_tstamp_conv17(u_char *pi, struct timespec *pu)
 {
 	u_char buf[7];
 
@@ -306,9 +287,7 @@ cd9660_tstamp_conv17(pi,pu)
 }
 
 cd_ino_t
-isodirino(isodir, imp)
-	struct iso_directory_record *isodir;
-	struct iso_mnt *imp;
+isodirino(struct iso_directory_record *isodir, struct iso_mnt *imp)
 {
 	cd_ino_t ino;
 
