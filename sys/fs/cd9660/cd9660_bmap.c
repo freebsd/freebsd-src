@@ -54,15 +54,7 @@ __FBSDID("$FreeBSD$");
  * file.
  */
 int
-cd9660_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct bufobj **a_bop;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
+cd9660_bmap(struct vop_bmap_args *ap)
 {
 	struct iso_node *ip = VTOI(ap->a_vp);
 	daddr_t lblkno = ap->a_bn;
