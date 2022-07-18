@@ -69,6 +69,8 @@
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 
+#include <ddb/ddb.h>
+
 #include <fs/devfs/devfs.h>
 
 #include <net/bpfdesc.h>
@@ -451,6 +453,28 @@ test_cred_relabel(struct ucred *cred, struct label *newlabel)
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(newlabel, MAGIC_CRED);
 	COUNTER_INC(cred_relabel);
+}
+
+COUNTER_DECL(ddb_command_exec);
+static int
+test_ddb_command_exec(struct db_command *cmd, db_expr_t addr, bool have_addr,
+    db_expr_t count, char *modif)
+{
+
+	COUNTER_INC(ddb_command_exec);
+
+	return (0);
+}
+
+COUNTER_DECL(ddb_command_register);
+static int
+test_ddb_command_register(struct db_command_table *table,
+    struct db_command *cmd)
+{
+
+	COUNTER_INC(ddb_command_register);
+
+	return (0);
 }
 
 COUNTER_DECL(devfs_create_device);
@@ -866,6 +890,16 @@ test_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *q,
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(ipq_update);
+}
+
+COUNTER_DECL(kdb_backend_check);
+static int
+test_kdb_check_backend(struct kdb_dbbe *be)
+{
+
+	COUNTER_INC(kdb_backend_check);
+
+	return (0);
 }
 
 COUNTER_DECL(kenv_check_dump);
@@ -3022,6 +3056,9 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_internalize_label = test_cred_internalize_label,
 	.mpo_cred_relabel = test_cred_relabel,
 
+	.mpo_ddb_command_exec = test_ddb_command_exec,
+	.mpo_ddb_command_register = test_ddb_command_register,
+
 	.mpo_devfs_create_device = test_devfs_create_device,
 	.mpo_devfs_create_directory = test_devfs_create_directory,
 	.mpo_devfs_create_symlink = test_devfs_create_symlink,
@@ -3077,6 +3114,8 @@ static struct mac_policy_ops test_ops =
 	.mpo_ipq_match = test_ipq_match,
 	.mpo_ipq_reassemble = test_ipq_reassemble,
 	.mpo_ipq_update = test_ipq_update,
+
+	.mpo_kdb_check_backend = test_kdb_check_backend,
 
 	.mpo_kenv_check_dump = test_kenv_check_dump,
 	.mpo_kenv_check_get = test_kenv_check_get,

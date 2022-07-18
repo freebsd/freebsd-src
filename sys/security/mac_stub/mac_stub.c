@@ -54,6 +54,7 @@
 #include <sys/acl.h>
 #include <sys/conf.h>
 #include <sys/extattr.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
 #include <sys/mount.h>
@@ -71,6 +72,8 @@
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+
+#include <ddb/ddb.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -314,6 +317,22 @@ stub_cred_relabel(struct ucred *cred, struct label *newlabel)
 
 }
 
+static int
+stub_ddb_command_exec(struct db_command *cmd, db_expr_t addr, bool have_addr,
+    db_expr_t count, char *modif)
+{
+
+	return (0);
+}
+
+static int
+stub_ddb_command_register(struct db_command_table *table,
+    struct db_command *cmd)
+{
+
+	return (0);
+}
+
 static void
 stub_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
@@ -474,6 +493,13 @@ stub_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *q,
     struct label *qlabel)
 {
 
+}
+
+static int
+stub_kdb_check_backend(struct kdb_dbbe *be)
+{
+
+	return (0);
 }
 
 static int
@@ -1685,6 +1711,9 @@ static struct mac_policy_ops stub_ops =
 	.mpo_cred_internalize_label = stub_internalize_label,
 	.mpo_cred_relabel= stub_cred_relabel,
 
+	.mpo_ddb_command_exec = stub_ddb_command_exec,
+	.mpo_ddb_command_register = stub_ddb_command_register,
+
 	.mpo_devfs_create_device = stub_devfs_create_device,
 	.mpo_devfs_create_directory = stub_devfs_create_directory,
 	.mpo_devfs_create_symlink = stub_devfs_create_symlink,
@@ -1725,6 +1754,8 @@ static struct mac_policy_ops stub_ops =
 	.mpo_ipq_match = stub_ipq_match,
 	.mpo_ipq_update = stub_ipq_update,
 	.mpo_ipq_reassemble = stub_ipq_reassemble,
+
+	.mpo_kdb_check_backend = stub_kdb_check_backend,
 
 	.mpo_kenv_check_dump = stub_kenv_check_dump,
 	.mpo_kenv_check_get = stub_kenv_check_get,

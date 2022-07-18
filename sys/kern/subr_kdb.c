@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
+#include <security/mac/mac_framework.h>
+
 u_char __read_frequently kdb_active = 0;
 static void *kdb_jmpbufp = NULL;
 struct kdb_dbbe *kdb_dbbe = NULL;
@@ -731,6 +733,15 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	cngrab();
 
 	for (;;) {
+#ifdef MAC
+		if (mac_kdb_check_backend(be) != 0) {
+			printf("MAC prevented execution of KDB backend: %s\n",
+			    be->dbbe_name);
+			/* Unhandled breakpoint traps are fatal. */
+			handled = 1;
+			break;
+		}
+#endif
 		handled = be->dbbe_trap(type, code);
 		if (be == kdb_dbbe)
 			break;

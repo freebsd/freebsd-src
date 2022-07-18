@@ -65,6 +65,7 @@ struct image_params;
 struct inpcb;
 struct ip6q;
 struct ipq;
+struct kdb_dbbe;
 struct ksem;
 struct label;
 struct m_tag;
@@ -91,6 +92,8 @@ struct vop_setlabel_args;
 
 #include <sys/acl.h>			/* XXX acl_type_t */
 #include <sys/types.h>			/* accmode_t */
+
+#include <ddb/ddb.h>			/* db_expr_t */
 
 /*
  * Entry points to the TrustedBSD MAC Framework from the remainder of the
@@ -129,6 +132,11 @@ void	mac_cred_create_init(struct ucred *cred);
 void	mac_cred_create_swapper(struct ucred *cred);
 void	mac_cred_destroy(struct ucred *);
 void	mac_cred_init(struct ucred *);
+
+int	mac_ddb_command_register(struct db_command_table *table,
+	    struct db_command *cmd);
+int	mac_ddb_command_exec(struct db_command *cmd, db_expr_t addr,
+	    bool have_addr, db_expr_t count, char *modif);
 
 void	mac_devfs_create_device(struct ucred *cred, struct mount *mp,
 	    struct cdev *dev, struct devfs_dirent *de);
@@ -204,6 +212,8 @@ int	mac_ipq_init(struct ipq *q, int);
 int	mac_ipq_match(struct mbuf *m, struct ipq *q);
 void	mac_ipq_reassemble(struct ipq *q, struct mbuf *m);
 void	mac_ipq_update(struct mbuf *m, struct ipq *q);
+
+int	mac_kdb_check_backend(struct kdb_dbbe *be);
 
 int	mac_kenv_check_dump(struct ucred *cred);
 int	mac_kenv_check_get(struct ucred *cred, char *name);

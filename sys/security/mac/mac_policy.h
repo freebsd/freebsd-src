@@ -66,18 +66,22 @@
 #include <sys/acl.h>	/* XXX acl_type_t */
 #include <sys/types.h>	/* XXX accmode_t */
 
+#include <ddb/ddb.h>	/* XXX db_expr_t */
+
 struct acl;
 struct auditinfo;
 struct auditinfo_addr;
 struct bpf_d;
 struct cdev;
 struct componentname;
+struct db_command;
 struct devfs_dirent;
 struct ifnet;
 struct image_params;
 struct inpcb;
 struct ip6q;
 struct ipq;
+struct kdb_dbbe;
 struct ksem;
 struct label;
 struct mac_policy_conf;
@@ -168,6 +172,12 @@ typedef int	(*mpo_cred_internalize_label_t)(struct label *label,
 typedef void	(*mpo_cred_relabel_t)(struct ucred *cred,
 		    struct label *newlabel);
 
+typedef int	(*mpo_ddb_command_register_t)(struct db_command_table *table,
+		    struct db_command *cmd);
+typedef int	(*mpo_ddb_command_exec_t)(struct db_command *cmd,
+		    db_expr_t addr, bool have_addr, db_expr_t count,
+		    char *modif);
+
 typedef void	(*mpo_devfs_create_device_t)(struct ucred *cred,
 		    struct mount *mp, struct cdev *dev,
 		    struct devfs_dirent *de, struct label *delabel);
@@ -248,6 +258,8 @@ typedef void	(*mpo_ipq_reassemble)(struct ipq *q, struct label *qlabel,
 		    struct mbuf *m, struct label *mlabel);
 typedef void	(*mpo_ipq_update_t)(struct mbuf *m, struct label *mlabel,
 		    struct ipq *q, struct label *qlabel);
+
+typedef int	(*mpo_kdb_check_backend_t)(struct kdb_dbbe *be);
 
 typedef int	(*mpo_kenv_check_dump_t)(struct ucred *cred);
 typedef int	(*mpo_kenv_check_get_t)(struct ucred *cred, char *name);
@@ -720,6 +732,9 @@ struct mac_policy_ops {
 	mpo_cred_internalize_label_t		mpo_cred_internalize_label;
 	mpo_cred_relabel_t			mpo_cred_relabel;
 
+	mpo_ddb_command_register_t		mpo_ddb_command_register;
+	mpo_ddb_command_exec_t			mpo_ddb_command_exec;
+
 	mpo_devfs_create_device_t		mpo_devfs_create_device;
 	mpo_devfs_create_directory_t		mpo_devfs_create_directory;
 	mpo_devfs_create_symlink_t		mpo_devfs_create_symlink;
@@ -760,6 +775,8 @@ struct mac_policy_ops {
 	mpo_ipq_match_t				mpo_ipq_match;
 	mpo_ipq_reassemble			mpo_ipq_reassemble;
 	mpo_ipq_update_t			mpo_ipq_update;
+
+	mpo_kdb_check_backend_t			mpo_kdb_check_backend;
 
 	mpo_kenv_check_dump_t			mpo_kenv_check_dump;
 	mpo_kenv_check_get_t			mpo_kenv_check_get;

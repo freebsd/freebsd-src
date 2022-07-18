@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/setjmp.h>
 
+#include <security/mac/mac_framework.h>
+
 /*
  * Exported global variables
  */
@@ -236,6 +238,13 @@ db_command_register(struct db_command_table *list, struct db_command *cmd)
 {
 	struct db_command *c, *last;
 
+#ifdef MAC
+	if (mac_ddb_command_register(list, cmd)) {
+		printf("%s: MAC policy refused registration of command %s\n",
+		    __func__, cmd->name);
+		return;
+	}
+#endif
 	last = NULL;
 	LIST_FOREACH(c, list, next) {
 		int n = strcmp(cmd->name, c->name);
@@ -480,6 +489,13 @@ db_command(struct db_command **last_cmdp, struct db_command_table *cmd_table,
 
 	*last_cmdp = cmd;
 	if (cmd != NULL) {
+#ifdef MAC
+		if (mac_ddb_command_exec(cmd, addr, have_addr, count, modif)) {
+			db_printf("MAC prevented execution of command %s\n",
+			    cmd->name);
+			return;
+		}
+#endif
 		/*
 		 * Execute the command.
 		 */
