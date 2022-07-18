@@ -5894,7 +5894,7 @@ pmap_trm_import(void *unused __unused, vmem_size_t size, int flags,
 	vmem_addr_t af, addr, prev_addr;
 	pt_entry_t *trm_pte;
 
-	prev_addr = atomic_load_long(&pmap_trm_arena_last);
+	prev_addr = atomic_load_int(&pmap_trm_arena_last);
 	size = round_page(size) + trm_guard;
 	for (;;) {
 		if (prev_addr + size < prev_addr || prev_addr + size < size ||
