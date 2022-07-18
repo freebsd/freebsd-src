@@ -180,8 +180,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "usage: vtfontcvt "
-	    "[-n] [-f font|source|compressed-source] [-w width] "
-	    "[-h height]\n\t[-v] normal.bdf [bold.bdf] out.fnt\n");
+	    "[-n] [-f font|source|compressed-source] [-w width] [-h height]\n"
+	    "\t[-v] -o output_file normal.bdf [bold.bdf]\n");
 	exit(1);
 }
 
