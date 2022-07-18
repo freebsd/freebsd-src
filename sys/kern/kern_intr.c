@@ -1599,7 +1599,7 @@ db_dump_intr_event(struct intr_event *ie, int handlers)
 /*
  * Dump data about interrupt handlers
  */
-DB_SHOW_COMMAND(intr, db_show_intr)
+DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 {
 	struct intr_event *ie;
 	int all, verbose;
@@ -1683,7 +1683,7 @@ SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
 /*
  * DDB command to dump the interrupt statistics.
  */
-DB_SHOW_COMMAND(intrcnt, db_show_intrcnt)
+DB_SHOW_COMMAND_FLAGS(intrcnt, db_show_intrcnt, DB_CMD_MEMSAFE)
 {
 	u_long *i;
 	char *cp;

@@ -1827,7 +1827,7 @@ dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
 }
 
 #ifdef DDB
-DB_SHOW_COMMAND(panic, db_show_panic)
+DB_SHOW_COMMAND_FLAGS(panic, db_show_panic, DB_CMD_MEMSAFE)
 {
 
 	if (panicstr == NULL)

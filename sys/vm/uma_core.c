@@ -5822,7 +5822,7 @@ get_uma_stats(uma_keg_t kz, uma_zone_t z, uint64_t *allocs, uint64_t *used,
 	return (((int64_t)*used + *cachefree) * kz->uk_size);
 }
 
-DB_SHOW_COMMAND(uma, db_show_uma)
+DB_SHOW_COMMAND_FLAGS(uma, db_show_uma, DB_CMD_MEMSAFE)
 {
 	const char *fmt_hdr, *fmt_entry;
 	uma_keg_t kz;
@@ -5895,7 +5895,7 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 	}
 }
 
-DB_SHOW_COMMAND(umacache, db_show_umacache)
+DB_SHOW_COMMAND_FLAGS(umacache, db_show_umacache, DB_CMD_MEMSAFE)
 {
 	uma_zone_t z;
 	uint64_t allocs, frees;

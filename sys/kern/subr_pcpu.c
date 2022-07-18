@@ -338,7 +338,7 @@ sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef DDB
-DB_SHOW_COMMAND(dpcpu_off, db_show_dpcpu_off)
+DB_SHOW_COMMAND_FLAGS(dpcpu_off, db_show_dpcpu_off, DB_CMD_MEMSAFE)
 {
 	int id;
 
@@ -390,7 +390,7 @@ show_pcpu(struct pcpu *pc)
 #endif
 }
 
-DB_SHOW_COMMAND(pcpu, db_show_pcpu)
+DB_SHOW_COMMAND_FLAGS(pcpu, db_show_pcpu, DB_CMD_MEMSAFE)
 {
 	struct pcpu *pc;
 	int id;
@@ -421,5 +421,5 @@ DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 		}
 	}
 }
-DB_SHOW_ALIAS(allpcpu, db_show_cpu_all);
+DB_SHOW_ALIAS_FLAGS(allpcpu, db_show_cpu_all, DB_CMD_MEMSAFE);
 #endif

@@ -4971,7 +4971,7 @@ DB_SHOW_COMMAND(file, db_show_file)
 	db_print_file(fp, 1);
 }
 
-DB_SHOW_COMMAND(files, db_show_files)
+DB_SHOW_COMMAND_FLAGS(files, db_show_files, DB_CMD_MEMSAFE)
 {
 	struct filedesc *fdp;
 	struct file *fp;

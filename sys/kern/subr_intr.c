@@ -1546,7 +1546,7 @@ intr_pic_init_secondary(void)
 #endif
 
 #ifdef DDB
-DB_SHOW_COMMAND(irqs, db_show_irqs)
+DB_SHOW_COMMAND_FLAGS(irqs, db_show_irqs, DB_CMD_MEMSAFE)
 {
 	u_int i, irqsum;
 	u_long num;

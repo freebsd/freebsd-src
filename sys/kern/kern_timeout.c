@@ -1528,7 +1528,7 @@ _show_last_callout(int cpu, int direct, const char *dirstr)
 	db_printf("\ncpu %d last%s callout argument: %p\n", cpu, dirstr, arg);
 }
 
-DB_SHOW_COMMAND(callout_last, db_show_callout_last)
+DB_SHOW_COMMAND_FLAGS(callout_last, db_show_callout_last, DB_CMD_MEMSAFE)
 {
 	int cpu, last;
 

@@ -2706,7 +2706,7 @@ vm_object_in_map(vm_object_t object)
 	return 0;
 }
 
-DB_SHOW_COMMAND(vmochk, vm_object_check)
+DB_SHOW_COMMAND_FLAGS(vmochk, vm_object_check, DB_CMD_MEMSAFE)
 {
 	vm_object_t object;
 
@@ -2804,7 +2804,7 @@ vm_object_print(
 	vm_object_print_static(addr, have_addr, count, modif);
 }
 
-DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
+DB_SHOW_COMMAND_FLAGS(vmopag, vm_object_print_pages, DB_CMD_MEMSAFE)
 {
 	vm_object_t object;
 	vm_pindex_t fidx;

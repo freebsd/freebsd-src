@@ -515,7 +515,7 @@ physmem_init_kernel_globals(void)
 #ifdef DDB
 #include <ddb/ddb.h>
 
-DB_SHOW_COMMAND(physmem, db_show_physmem)
+DB_SHOW_COMMAND_FLAGS(physmem, db_show_physmem, DB_CMD_MEMSAFE)
 {
 
 	physmem_dump_tables(db_printf);

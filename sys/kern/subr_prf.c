@@ -1127,7 +1127,7 @@ SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
 
 #ifdef DDB
 
-DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
+DB_SHOW_COMMAND_FLAGS(msgbuf, db_show_msgbuf, DB_CMD_MEMSAFE)
 {
 	int i, j;
 

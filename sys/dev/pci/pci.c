@@ -5376,7 +5376,7 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
  * List resources based on pci map registers, used for within ddb
  */
 
-DB_SHOW_COMMAND(pciregs, db_pci_dump)
+DB_SHOW_COMMAND_FLAGS(pciregs, db_pci_dump, DB_CMD_MEMSAFE)
 {
 	struct pci_devinfo *dinfo;
 	struct devlist *devlist_head;
@@ -6787,7 +6787,7 @@ pci_print_faulted_dev(void)
 }
 
 #ifdef DDB
-DB_SHOW_COMMAND(pcierr, pci_print_faulted_dev_db)
+DB_SHOW_COMMAND_FLAGS(pcierr, pci_print_faulted_dev_db, DB_CMD_MEMSAFE)
 {
 
 	pci_print_faulted_dev();
@@ -6816,7 +6816,7 @@ db_clear_pcie_errors(const struct pci_devinfo *dinfo)
 		pci_write_config(dev, aer + PCIR_AER_COR_STATUS, r, 4);
 }
 
-DB_COMMAND(pci_clearerr, db_pci_clearerr)
+DB_COMMAND_FLAGS(pci_clearerr, db_pci_clearerr, DB_CMD_MEMSAFE)
 {
 	struct pci_devinfo *dinfo;
 	device_t dev;

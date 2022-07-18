@@ -1701,7 +1701,7 @@ apic_idt_to_irq(u_int apic_id, u_int vector)
 /*
  * Dump data about APIC IDT vector mappings.
  */
-DB_SHOW_COMMAND(apic, db_show_apic)
+DB_SHOW_COMMAND_FLAGS(apic, db_show_apic, DB_CMD_MEMSAFE)
 {
 	struct intsrc *isrc;
 	int i, verbose;
@@ -1765,7 +1765,7 @@ dump_mask(const char *prefix, uint32_t v, int base)
 }
 
 /* Show info from the lapic regs for this CPU. */
-DB_SHOW_COMMAND(lapic, db_show_lapic)
+DB_SHOW_COMMAND_FLAGS(lapic, db_show_lapic, DB_CMD_MEMSAFE)
 {
 	uint32_t v;
 

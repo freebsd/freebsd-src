@@ -2604,9 +2604,9 @@ DB_SHOW_ALL_COMMAND(locks, db_witness_list_all)
 		}
 	}
 }
-DB_SHOW_ALIAS(alllocks, db_witness_list_all)
+DB_SHOW_ALIAS_FLAGS(alllocks, db_witness_list_all, DB_CMD_MEMSAFE)
 
-DB_SHOW_COMMAND(witness, db_witness_display)
+DB_SHOW_COMMAND_FLAGS(witness, db_witness_display, DB_CMD_MEMSAFE)
 {
 
 	witness_ddb_display(db_printf);
@@ -2782,7 +2782,7 @@ sbuf_db_printf_drain(void *arg __unused, const char *data, int len)
 	return (db_printf("%.*s", len, data));
 }
 
-DB_SHOW_COMMAND(badstacks, db_witness_badstacks)
+DB_SHOW_COMMAND_FLAGS(badstacks, db_witness_badstacks, DB_CMD_MEMSAFE)
 {
 	struct sbuf sb;
 	char buffer[128];

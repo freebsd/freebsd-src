@@ -997,7 +997,7 @@ db_print_pgrp_one(struct pgrp *pgrp, struct proc *p)
 	    p->p_pptr == NULL ? 0 : isjobproc(p->p_pptr, pgrp));
 }
 
-DB_SHOW_COMMAND(pgrpdump, pgrpdump)
+DB_SHOW_COMMAND_FLAGS(pgrpdump, pgrpdump, DB_CMD_MEMSAFE)
 {
 	struct pgrp *pgrp;
 	struct proc *p;

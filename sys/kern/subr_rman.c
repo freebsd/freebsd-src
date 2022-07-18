@@ -1116,7 +1116,7 @@ DB_SHOW_COMMAND(rman, db_show_rman)
 	}
 }
 
-DB_SHOW_COMMAND(rmans, db_show_rmans)
+DB_SHOW_COMMAND_FLAGS(rmans, db_show_rmans, DB_CMD_MEMSAFE)
 {
 	struct rman *rm;
 
@@ -1134,5 +1134,5 @@ DB_SHOW_ALL_COMMAND(rman, db_show_all_rman)
 		dump_rman(rm);
 	}
 }
-DB_SHOW_ALIAS(allrman, db_show_all_rman);
+DB_SHOW_ALIAS_FLAGS(allrman, db_show_all_rman, DB_CMD_MEMSAFE);
 #endif
