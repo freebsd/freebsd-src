@@ -434,6 +434,7 @@ bl_recv(bl_t b)
 	} ub;
 	int got;
 	ssize_t rlen;
+	size_t rem;
 	bl_info_t *bi = &b->b_info;
 
 	got = 0;
@@ -504,10 +505,12 @@ bl_recv(bl_t b)
 		return NULL;
 	}
 
-	if ((size_t)rlen <= sizeof(ub.bl)) {
+	rem = (size_t)rlen;
+	if (rem < sizeof(ub.bl)) {
 		bl_log(b->b_fun, LOG_ERR, "message too short %zd", rlen);
 		return NULL;
 	}
+	rem -= sizeof(ub.bl);
 
 	if (ub.bl.bl_version != BL_VERSION) {
 		bl_log(b->b_fun, LOG_ERR, "bad version %d", ub.bl.bl_version);
@@ -521,7 +524,10 @@ bl_recv(bl_t b)
 	bi->bi_uid = -1;
 	bi->bi_gid = -1;
 #endif
-	strlcpy(bi->bi_msg, ub.bl.bl_data, MIN(sizeof(bi->bi_msg),
-	    ((size_t)rlen - sizeof(ub.bl) + 1)));
+	rem = MIN(sizeof(bi->bi_msg), rem);
+	if (rem == 0)
+		bi->bi_msg[0] = '\0';
+	else
+		strlcpy(bi->bi_msg, ub.bl.bl_data, rem);
 	return bi;
 }
