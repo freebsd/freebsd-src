@@ -163,7 +163,7 @@ cuse_vmoffset(void *_ptr)
 }
 
 void   *
-cuse_vmalloc(int size)
+cuse_vmalloc(unsigned size)
 {
 	struct cuse_alloc_info info;
 	unsigned long pgsize;
@@ -174,7 +174,7 @@ cuse_vmalloc(int size)
 	int error;
 
 	/* some sanity checks */
-	if (f_cuse < 0 || size < 1 || (unsigned long)size > CUSE_ALLOC_BYTES_MAX)
+	if (f_cuse < 0 || size < 1 || size > CUSE_ALLOC_BYTES_MAX)
 		return (NULL);
 
 	memset(&info, 0, sizeof(info));
