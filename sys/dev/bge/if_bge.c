@@ -6781,7 +6781,14 @@ bge_debugnet_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
 
 	sc = if_getsoftc(ifp);
 	BGE_LOCK(sc);
-	*nrxr = sc->bge_return_ring_cnt;
+	/*
+	 * There is only one logical receive ring, but it is backed
+	 * by two actual rings, for cluster- and jumbo-sized mbufs.
+	 * Debugnet expects only one size, so if jumbo is in use,
+	 * this says we have two rings of jumbo mbufs, but that's
+	 * only a little wasteful.
+	 */
+	*nrxr = 2;
 	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	if ((sc->bge_flags & BGE_FLAG_JUMBO_STD) != 0 &&
 	    (if_getmtu(sc->bge_ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN +
