@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2021
+.Dd June 29, 2022
 .Dt MAC 4
 .Os
 .Sh NAME
@@ -51,10 +51,11 @@ security provisions such as file permissions and superuser checks.
 .Pp
 Currently, the following MAC policy modules are shipped with
 .Fx :
-.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy" ".Em Labeling" "boot only"
+.Bl -column ".Xr mac_seeotheruids 4" "ddb(4) interface restrictions" ".Em Labeling" "boot only"
 .It Sy Name Ta Sy Description Ta Sy Labeling Ta Sy "Load time"
 .It Xr mac_biba 4 Ta "Biba integrity policy" Ta yes Ta boot only
 .It Xr mac_bsdextended 4 Ta "File system firewall" Ta no Ta any time
+.It Xr mac_ddb 4 Ta "ddb(4) interface restrictions" Ta no Ta any time
 .It Xr mac_ifoff 4 Ta "Interface silencing" Ta no Ta any time
 .It Xr mac_lomac 4 Ta "Low-Watermark MAC policy" Ta yes Ta boot only
 .It Xr mac_mls 4 Ta "Confidentiality policy" Ta yes Ta boot only
@@ -201,6 +202,7 @@ man page.
 .Xr mac 3 ,
 .Xr mac_biba 4 ,
 .Xr mac_bsdextended 4 ,
+.Xr mac_ddb 4 ,
 .Xr mac_ifoff 4 ,
 .Xr mac_lomac 4 ,
 .Xr mac_mls 4 ,

@@ -1,11 +1,7 @@
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
-.\" All rights reserved.
+.\" Copyright (c) 2022 Klara Systems
 .\"
-.\" This software was developed for the FreeBSD Project by Chris Costello
-.\" at Safeport Network Services and Network Associates Laboratories, the
-.\" Security Research Division of Network Associates, Inc. under
-.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
-.\" DARPA CHATS research program.
+.\" This software was developed by Mitchell Horne <mhorne@FreeBSD.org>
+.\" under sponsorship from Juniper Networks and Klara Systems.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -28,24 +24,22 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
-.Dd July 25, 2015
-.Dt MAC_SEEOTHERUIDS 4
+.Dd June 29, 2022
+.Dt MAC_DDB 4
 .Os
 .Sh NAME
-.Nm mac_seeotheruids
-.Nd "simple policy controlling whether users see other users"
+.Nm mac_ddb
+.Nd "Restricted kernel debugger interface policy"
 .Sh SYNOPSIS
-To compile the
-policy into your kernel, place the following lines in your kernel
+To compile the ddb policy
+into your kernel, place the following lines in your kernel
 configuration file:
 .Bd -ragged -offset indent
 .Cd "options MAC"
-.Cd "options MAC_SEEOTHERUIDS"
+.Cd "options MAC_DDB"
 .Ed
 .Pp
-Alternately, to load the module at boot time, place the following line
+Alternately, to load the ddb module at boot time, place the following line
 in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options MAC"
@@ -54,68 +48,58 @@ in your kernel configuration file:
 and in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-mac_seeotheruids_load="YES"
+mac_ddb_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-policy module, when enabled, denies users to see processes or sockets owned
-by other users.
+policy module implements a MAC policy which restricts the set of commands that
+can be used at the
+.Xr ddb 4
+command prompt.
+The subset of permitted commands is limited to those which do not read or write
+to arbitrary memory locations.
+This is done to deter the possible extraction of system secrets while still
+allowing enough debugger functionality to diagnose a kernel panic.
+For example, the
+.Ic trace
+or
+.Ic show registers
+commands are allowed by this policy, but
+.Ic show Cm buffer Ar addr
+is not.
 .Pp
-To enable
-.Nm ,
-set the sysctl OID
-.Va security.mac.seeotheruids.enabled
-to 1.
-To permit superuser awareness of other credentials by virtue of privilege,
-set the sysctl OID
-.Va security.mac.seeotheruids.suser_privileged
-to 1.
+All debugger commands that are declared with the
+.Va DB_CMD_MEMSAFE
+flag are allowed by
+.Nm .
+The policy provides validation functions to conditionally allow some additional
+commands, based on the user provided arguments.
 .Pp
-To allow users to see processes and sockets owned by the same primary group,
-set the sysctl OID
-.Va security.mac.seeotheruids.primarygroup_enabled
-to 1.
-.Pp
-To allow processes with a specific group ID to be exempt from the policy,
-set the sysctl OID
-.Va security.mac.seeotheruids.specificgid_enabled
-to 1, and
-.Va security.mac.seeotheruids.specificgid
-to the group ID to be exempted.
+When loaded, the
+.Nm
+policy also ensures that only the
+.Xr ddb 4
+debugger backend may be executed;
+.Xr gdb 4
+may not.
 .Ss Label Format
 No labels are defined for
 .Nm .
 .Sh SEE ALSO
+.Xr ddb 4 ,
 .Xr mac 4 ,
 .Xr mac_biba 4 ,
 .Xr mac_bsdextended 4 ,
-.Xr mac_ddb 4 ,
 .Xr mac_ifoff 4 ,
 .Xr mac_lomac 4 ,
 .Xr mac_mls 4 ,
 .Xr mac_none 4 ,
 .Xr mac_partition 4 ,
 .Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
 .Xr mac_test 4 ,
 .Xr mac 9
-.Sh HISTORY
-The
-.Nm
-policy module first appeared in
-.Fx 5.0
-and was developed by the
-.Tn TrustedBSD
-Project.
-.Sh AUTHORS
-This software was contributed to the
-.Fx
-Project by Network Associates Labs,
-the Security Research Division of Network Associates
-Inc.
-under DARPA/SPAWAR contract N66001-01-C-8035
-.Pq Dq CBOSS ,
-as part of the DARPA CHATS research program.
 .Sh BUGS
 While the MAC Framework design is intended to support the containment of
 the root user, not all attack channels are currently protected by entry
