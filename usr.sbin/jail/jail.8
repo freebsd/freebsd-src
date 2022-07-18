@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2022
+.Dd July 18, 2022
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -58,7 +58,8 @@
 .Op Fl U Ar username
 .Op Fl n Ar jailname
 .Op Fl s Ar securelevel
-.Ar path hostname ip Ns [ Ns Ar ,... Ns ] Ar command ...
+.Ar path hostname ip Ns Op Cm \&, Ns Ar ...
+.Ar command ...
 .Nm
 .Op Fl f Ar conf_file
 .Fl e
@@ -941,7 +942,7 @@ To set up a jail directory tree containing an entire
 distribution, the following
 .Xr sh 1
 command script can be used:
-.Bd -literal
+.Bd -literal -offset indent
 D=/here/is/the/jail
 cd /usr/src
 mkdir -p $D
@@ -1195,9 +1196,11 @@ the intended use of the jail, you may also want to run
 .Pa /etc/rc.shutdown
 from within the jail.
 .Pp
-To shut down the jail from the outside, simply remove it with
-.Nm
-.Ar -r ,
+To shut down the jail from the outside, simply remove it with:
+.Bd -literal -offset indent
+jail -r
+.Ed
+.Pp
 which will run any commands specified by
 .Va exec.stop ,
 and then send
