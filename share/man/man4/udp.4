@@ -28,7 +28,7 @@
 .\"     @(#)udp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2022
+.Dd July 20, 2022
 .Dt UDP 4
 .Os
 .Sh NAME
@@ -119,21 +119,21 @@ branch of the
 .Xr sysctl 3
 MIB:
 .Bl -tag -width ".Va log_in_vain"
-.It Va checksum
-Enable udp checksums (enabled by default).
-.It Va maxdgram
-Maximum outgoing UDP datagram size
-.It Va recvspace
-Maximum space for incoming UDP datagrams
-.It Va log_in_vain
-For all udp datagrams, to ports on which there is no socket
-listening, log the connection attempt (disabled by default).
 .It Va blackhole
 When a datagram is received on a port where there is no socket
 listening, do not return an ICMP port unreachable message.
 (Disabled by default.
 See
 .Xr blackhole 4 . )
+.It Va checksum
+Enable UDP checksums (enabled by default).
+.It Va log_in_vain
+For all UDP datagrams, to ports on which there is no socket
+listening, log the connection attempt (disabled by default).
+.It Va maxdgram
+Maximum outgoing UDP datagram size
+.It Va recvspace
+Maximum space for incoming UDP datagrams
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:

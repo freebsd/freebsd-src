@@ -28,7 +28,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2015
+.Dd July 20, 2022
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -162,18 +162,14 @@ branch of the
 .Xr sysctl 3
 MIB.
 .Bl -tag -width ".Va icmplim_output"
-.It Va maskrepl
+.It Va bmcastecho
 .Pq Vt boolean
-Enable/disable replies to ICMP Address Mask Request packets.
+Enable/disable ICMP replies received via broadcast or multicast.
 Defaults to false.
-.It Va maskfake
-.Pq Vt "unsigned integer"
-When
-.Va maskrepl
-is set and this value is non-zero,
-it will be used instead of the real address mask when
-the system replies to an ICMP Address Mask Request packet.
-Defaults to 0.
+.It Va drop_redirect
+.Pq Vt boolean
+Enable/disable dropping of ICMP Redirect packets.
+Defaults to false.
 .It Va icmplim
 .Pq Vt integer
 Bandwidth limit for ICMP replies in packets/second.
@@ -183,23 +179,27 @@ Defaults to 200.
 .Pq Vt boolean
 Enable/disable logging of ICMP replies bandwidth limiting.
 Defaults to true.
-.It Va drop_redirect
-.Pq Vt boolean
-Enable/disable dropping of ICMP Redirect packets.
-Defaults to false.
 .It Va log_redirect
 .Pq Vt boolean
 Enable/disable logging of ICMP Redirect packets.
 Defaults to false.
-.It Va bmcastecho
+.It Va maskfake
+.Pq Vt "unsigned integer"
+When
+.Va maskrepl
+is set and this value is non-zero,
+it will be used instead of the real address mask when
+the system replies to an ICMP Address Mask Request packet.
+Defaults to 0.
+.It Va maskrepl
 .Pq Vt boolean
-Enable/disable ICMP replies received via broadcast or multicast.
+Enable/disable replies to ICMP Address Mask Request packets.
 Defaults to false.
-.It Va reply_src
-.Pq Vt str
-An interface name used for the ICMP reply source in response to packets
-which are not directly addressed to us.
-By default continue with normal source selection.
+.It Va quotelen
+.Pq Vt integer
+Number of bytes from original packet to quote in ICMP reply.
+This number is internally enforced to be at least 8 bytes (per RFC792)
+and at most the maximal space left in the ICMP reply mbuf.
 .It Va reply_from_interface
 .Pq Vt boolean
 Use the IP address of the interface the packet came through in for
@@ -209,11 +209,11 @@ By default, continue with normal source selection.
 Enabling this option is particularly useful on routers because it
 makes external traceroutes show the actual path a packet has taken
 instead of the possibly different return path.
-.It Va quotelen
-.Pq Vt integer
-Number of bytes from original packet to quote in ICMP reply.
-This number is internally enforced to be at least 8 bytes (per RFC792)
-and at most the maximal space left in the ICMP reply mbuf.
+.It Va reply_src
+.Pq Vt str
+An interface name used for the ICMP reply source in response to packets
+which are not directly addressed to us.
+By default continue with normal source selection.
 .It Va tstamprepl
 .Pq Vt boolean
 Enable/disable replies to ICMP Timestamp packets.

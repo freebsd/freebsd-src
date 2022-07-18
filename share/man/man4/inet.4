@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2022
+.Dd July 20, 2022
 .Dt INET 4
 .Os
 .Sh NAME
@@ -168,25 +168,54 @@ branch of the
 MIB.
 The following general variables are defined:
 .Bl -tag -width ".Va accept_sourceroute"
+.It Va accept_sourceroute
+Boolean: enable/disable accepting of source-routed IP packets (default false).
+.It Va allow_net0
+Boolean: allow experimental use of addresses in 0.0.0.0/8 as endpoints,
+and allow forwarding of packets with these addresses.
+.It Va allow_net240
+Boolean: allow experimental use of addresses in 240.0.0.0/4 as endpoints,
+and allow forwarding of packets with these addresses.
 .It Va forwarding
 Boolean: enable/disable forwarding of IP packets.
 Defaults to off.
-.It Va redirect
-Boolean: enable/disable sending of ICMP redirects in response to
-.Tn IP
-packets for which a better, and for the sender directly reachable, route
-and next hop is known.
-Defaults to on.
-.It Va ttl
-Integer: default time-to-live
-.Pq Dq TTL
-to use for outgoing
-.Tn IP
-packets.
-.It Va accept_sourceroute
-Boolean: enable/disable accepting of source-routed IP packets (default false).
-.It Va sourceroute
-Boolean: enable/disable forwarding of source-routed IP packets (default false).
+.It Va loopback_prefixlen
+Integer: prefix length of the address space reserved for loopback purposes.
+The default is 8, meaning that 127.0.0.0/8 is reserved for loopback,
+and cannot be sent, received, or forwarded on a non-loopback interface.
+Use of other values is experimental.
+.It Va maxfragbucketsize
+Integer: maximum number of reassembly queues per bucket.
+Fragmented packets are hashed to buckets.
+Each bucket has a list of reassembly queues.
+The system must compare the incoming packets to the existing reassembly queues
+in the bucket to find a matching reassembly queue.
+To preserve system resources, the system limits the number of reassembly
+queues allowed in each bucket.
+This limit is recalculated when the number of mbuf clusters is changed or
+when the value of
+.Va maxfragpackets
+changes.
+This is a per-VNET limit.
+.It Va maxfragpackets
+Integer: maximum number of fragmented packets the host will accept and
+simultaneously hold in the reassembly queue for a particular VNET.
+0 means that the host will not accept any fragmented packets for that VNET.
+\-1 means that the host will not apply this limit for that VNET.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a per-VNET limit.
+.It Va maxfrags
+Integer: maximum number of fragments the host will accept and simultaneously
+hold across all reassembly queues in all VNETs.
+If set to 0, reassembly is disabled.
+If set to -1, this limit is not applied.
+This limit is recalculated when the number of mbuf clusters is changed.
+This is a global limit.
+.It Va maxfragsperpacket
+Integer: maximum number of fragments the host will accept and hold
+in the reassembly queue for a packet.
+0 means that the host will not accept any fragmented packets for the VNET.
+This is a per-VNET limit.
 .It Va process_options
 Integer: control IP options processing.
 By setting this variable to 0, all IP options in the incoming packets
@@ -202,39 +231,8 @@ This
 .Xr sysctl 8
 variable affects packets destined for a local host as well as packets
 forwarded to some other host.
-.It Va rfc1122_strong_es
-Boolean: in non-forwarding mode
-.Pq forwarding is disabled
-partially implement the Strong End System model per RFC1122.
-If a packet with destination address that is local arrives on a different
-interface than the interface the address belongs to, the packet would be
-silently dropped.
-Enabling this option may break certain setups, e.g. having an alias address(es)
-on loopback that are expected to be reachable by outside traffic.
-Enabling some other network features, e.g.
-.Xr carp 4
-or destination address rewriting
-.Xr pfil 4
-filters may override and bypass this check.
-Disabled by default.
-.It Va source_address_validation
-Boolean: perform source address validation for packets destined for the local
-host.
-Consider this as following Section 3.2 of RFC3704/BCP84, where we treat local
-host as our own infrastructure.
-This has no effect on packets to be forwarded, so don't consider it as
-anti-spoof feature for a router.
-Enabled by default.
-.It Va rfc6864
-Boolean: control IP IDs generation behaviour.
-True value enables RFC6864 support, which specifies that IP ID field of
-.Em atomic
-datagrams can be set to any value.
-The
-.Fx implementation sets it to zero.
-Enabled by default.
 .It Va random_id
-Boolean: control IP IDs generation behaviour.
+Boolean: control IP IDs generation behavior.
 Setting this
 .Xr sysctl 8
 to 1 causes the ID field in
@@ -250,49 +248,51 @@ At the same time, on high-speed links, it can decrease the ID reuse
 cycle greatly.
 Default is 0 (sequential IP IDs).
 IPv6 flow IDs and fragment IDs are always random.
-.It Va maxfrags
-Integer: maximum number of fragments the host will accept and simultaneously
-hold across all reassembly queues in all VNETs.
-If set to 0, reassembly is disabled.
-If set to -1, this limit is not applied.
-This limit is recalculated when the number of mbuf clusters is changed.
-This is a global limit.
-.It Va maxfragpackets
-Integer: maximum number of fragmented packets the host will accept and
-simultaneously hold in the reassembly queue for a particular VNET.
-0 means that the host will not accept any fragmented packets for that VNET.
-\-1 means that the host will not apply this limit for that VNET.
-This limit is recalculated when the number of mbuf clusters is changed.
-This is a per-VNET limit.
-.It Va maxfragbucketsize
-Integer: maximum number of reassembly queues per bucket.
-Fragmented packets are hashed to buckets.
-Each bucket has a list of reassembly queues.
-The system must compare the incoming packets to the existing reassembly queues
-in the bucket to find a matching reassembly queue.
-To preserve system resources, the system limits the number of reassembly
-queues allowed in each bucket.
-This limit is recalculated when the number of mbuf clusters is changed or
-when the value of
-.Va maxfragpackets
-changes.
-This is a per-VNET limit.
-.It Va maxfragsperpacket
-Integer: maximum number of fragments the host will accept and hold
-in the reassembly queue for a packet.
-0 means that the host will not accept any fragmented packets for the VNET.
-This is a per-VNET limit.
-.It Va allow_net0
-Boolean: allow experimental use of addresses in 0.0.0.0/8 as endpoints,
-and allow forwarding of packets with these addresses.
-.It Va allow_net240
-Boolean: allow experimental use of addresses in 240.0.0.0/4 as endpoints,
-and allow forwarding of packets with these addresses.
-.It Va loopback_prefixlen
-Integer: prefix length of the address space reserved for loopback purposes.
-The default is 8, meaning that 127.0.0.0/8 is reserved for loopback,
-and cannot be sent, received, or forwarded on a non-loopback interface.
-Use of other values is experimental.
+.It Va redirect
+Boolean: enable/disable sending of ICMP redirects in response to
+.Tn IP
+packets for which a better, and for the sender directly reachable, route
+and next hop is known.
+Defaults to on.
+.It Va rfc1122_strong_es
+Boolean: in non-forwarding mode
+.Pq forwarding is disabled
+partially implement the Strong End System model per RFC1122.
+If a packet with destination address that is local arrives on a different
+interface than the interface the address belongs to, the packet would be
+silently dropped.
+Enabling this option may break certain setups, e.g. having an alias address(es)
+on loopback that are expected to be reachable by outside traffic.
+Enabling some other network features, e.g.
+.Xr carp 4
+or destination address rewriting
+.Xr pfil 4
+filters may override and bypass this check.
+Disabled by default.
+.It Va rfc6864
+Boolean: control IP IDs generation behaviour.
+True value enables RFC6864 support, which specifies that IP ID field of
+.Em atomic
+datagrams can be set to any value.
+The
+.Fx implementation sets it to zero.
+Enabled by default.
+.It Va source_address_validation
+Boolean: perform source address validation for packets destined for the local
+host.
+Consider this as following Section 3.2 of RFC3704/BCP84, where we treat local
+host as our own infrastructure.
+Forwarded packets are unaffected by this
+and it should not be considered an anti-spoof feature for a router.
+Enabled by default.
+.It Va sourceroute
+Boolean: enable/disable forwarding of source-routed IP packets (default false).
+.It Va ttl
+Integer: default time-to-live
+.Pq Dq TTL
+to use for outgoing
+.Tn IP
+packets.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
