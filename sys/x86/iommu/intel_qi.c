@@ -354,6 +354,16 @@ dmar_qi_task(void *arg, int pending __unused)
 
 	unit = arg;
 
+	/*
+	 * Request an interrupt on the completion of the next invalidation
+	 * wait descriptor with the IF field set.
+	 */
+	ics = dmar_read4(unit, DMAR_ICS_REG);
+	if ((ics & DMAR_ICS_IWC) != 0) {
+		ics = DMAR_ICS_IWC;
+		dmar_write4(unit, DMAR_ICS_REG, ics);
+	}
+
 	DMAR_LOCK(unit);
 	for (;;) {
 		entry = TAILQ_FIRST(&unit->tlb_flush_entries);
@@ -365,11 +375,6 @@ dmar_qi_task(void *arg, int pending __unused)
 		DMAR_UNLOCK(unit);
 		dmar_domain_free_entry(entry, true);
 		DMAR_LOCK(unit);
-	}
-	ics = dmar_read4(unit, DMAR_ICS_REG);
-	if ((ics & DMAR_ICS_IWC) != 0) {
-		ics = DMAR_ICS_IWC;
-		dmar_write4(unit, DMAR_ICS_REG, ics);
 	}
 	if (unit->inv_seq_waiters > 0)
 		wakeup(&unit->inv_seq_waiters);
