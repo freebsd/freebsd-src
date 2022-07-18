@@ -219,6 +219,7 @@ SUBDIR=	\
 	lpt \
 	${_mac_biba} \
 	${_mac_bsdextended} \
+	${_mac_ddb} \
 	${_mac_ifoff} \
 	${_mac_lomac} \
 	${_mac_mls} \
@@ -546,6 +547,9 @@ _vmware=	vmware
 .if ${KERN_OPTS:MMAC} || defined(ALL_MODULES)
 _mac_biba=	mac_biba
 _mac_bsdextended= mac_bsdextended
+.if ${KERN_OPTS:MDDB} || defined(ALL_MODULES)
+_mac_ddb=	mac_ddb
+.endif
 _mac_ifoff=	mac_ifoff
 _mac_lomac=	mac_lomac
 _mac_mls=	mac_mls

@@ -1235,6 +1235,7 @@ options 	AUDIT
 options 	MAC
 options 	MAC_BIBA
 options 	MAC_BSDEXTENDED
+options 	MAC_DDB
 options 	MAC_IFOFF
 options 	MAC_LOMAC
 options 	MAC_MLS

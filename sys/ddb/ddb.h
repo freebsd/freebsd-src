@@ -99,6 +99,7 @@ LIST_HEAD(db_command_table, db_command);
 extern struct db_command_table db_cmd_table;
 extern struct db_command_table db_show_table;
 extern struct db_command_table db_show_all_table;
+extern struct db_command_table db_show_active_table;
 
 /*
  * Type signature for a function implementing a ddb command.
