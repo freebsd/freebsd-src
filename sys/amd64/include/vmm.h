@@ -365,13 +365,10 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 static int __inline
 vcpu_should_yield(struct vm *vm, int vcpu)
 {
+	struct thread *td;
 
-	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
-		return (1);
-	else if (curthread->td_owepreempt)
-		return (1);
-	else
-		return (0);
+	td = curthread;
+	return (td->td_ast != 0 || td->td_owepreempt != 0);
 }
 #endif
 

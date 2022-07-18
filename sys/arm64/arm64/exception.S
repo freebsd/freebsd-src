@@ -175,15 +175,13 @@ __FBSDID("$FreeBSD$");
 	 */
 	msr	daifset, #(DAIF_INTR)
 
-	/* Read the current thread flags */
+	/* Read the current thread AST mask */
 	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
-	ldr	x2, [x1, #TD_FLAGS]
+	add	x1, x1, #(TD_AST)
+	ldr	x1, [x1]
 
-	/* Check if we have either bits set */
-	mov	x3, #((TDF_ASTPENDING|TDF_NEEDRESCHED) >> 8)
-	lsl	x3, x3, #8
-	and	x2, x2, x3
-	cbz	x2, 2f
+	/* Check if we have a non-zero AST mask */
+	cbz	x1, 2f
 
 	/* Restore interrupts */
 	msr	daif, x19

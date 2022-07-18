@@ -1052,9 +1052,7 @@ kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
 		 * usermode and TDP_OLDMASK is cleared, restoring old
 		 * sigmask.
 		 */
-		thread_lock(td);
-		td->td_flags |= TDF_ASTPENDING;
-		thread_unlock(td);
+		ast_sched(td, TDA_SIGSUSPEND);
 	}
 	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
 	return (error);
@@ -1533,9 +1531,7 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		 * usermode and TDP_OLDMASK is cleared, restoring old
 		 * sigmask.
 		 */
-		thread_lock(td);
-		td->td_flags |= TDF_ASTPENDING;
-		thread_unlock(td);
+		ast_sched(td, TDA_SIGSUSPEND);
 	}
 
 	seltdinit(td);

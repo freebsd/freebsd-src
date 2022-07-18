@@ -801,11 +801,9 @@ CNAME(trapexit):
 	bf	17,1f			/* branch if PSL_PR is false */
 
 	GET_CPUINFO(%r3)		/* get per-CPU pointer */
-	lwz	%r4, TD_FLAGS(%r2)	/* get thread flags value
+	lwz	%r4, TD_AST(%r2)	/* get thread ast value
 					 * (r2 is curthread) */
-	lis	%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@h
-	ori	%r5,%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@l
-	and.	%r4,%r4,%r5
+	cmpwi	%r4, 0
 	beq	1f
 	mfmsr	%r3			/* re-enable interrupts */
 	ori	%r3,%r3,PSL_EE@l

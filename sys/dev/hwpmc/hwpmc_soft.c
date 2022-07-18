@@ -430,10 +430,11 @@ pmc_soft_intr(struct pmckern_soft *ks)
 			}
 
 			if (user_mode) {
-				/* If in user mode setup AST to process
+				/*
+				 * If in user mode setup AST to process
 				 * callchain out of interrupt context.
 				 */
-				curthread->td_flags |= TDF_ASTPENDING;
+				ast_sched(curthread, TDA_HWPMC);
 			}
 		} else
 			pc->soft_values[ri]++;
@@ -444,6 +445,15 @@ pmc_soft_intr(struct pmckern_soft *ks)
 		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	return (processed);
+}
+
+static void
+ast_hwpmc(struct thread *td, int tda __unused)
+{
+	/* Handle Software PMC callchain capture. */
+	if (PMC_IS_PENDING_CALLCHAIN(td))
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN_SOFT,
+		    (void *)td->td_frame);
 }
 
 void
@@ -477,6 +487,8 @@ pmc_soft_initialize(struct pmc_mdep *md)
 	pcd->pcd_stop_pmc     = soft_stop_pmc;
 
 	md->pmd_npmc += SOFT_NPMCS;
+
+	ast_register(TDA_HWPMC, ASTR_UNCOND, 0, ast_hwpmc);
 }
 
 void
@@ -493,6 +505,7 @@ pmc_soft_finalize(struct pmc_mdep *md)
 	KASSERT(md->pmd_classdep[PMC_CLASS_INDEX_SOFT].pcd_class ==
 	    PMC_CLASS_SOFT, ("[soft,%d] class mismatch", __LINE__));
 #endif
+	ast_deregister(TDA_HWPMC);
 	free(soft_pcpu, M_PMC);
 	soft_pcpu = NULL;
 }

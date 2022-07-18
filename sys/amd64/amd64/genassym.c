@@ -82,6 +82,7 @@ ASSYM(MD_EFIRT_TMP, offsetof(struct mdthread, md_efirt_tmp));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
+ASSYM(TD_AST, offsetof(struct thread, td_ast));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
@@ -89,9 +90,6 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_MD_PCB, offsetof(struct thread, td_md.md_pcb));
 ASSYM(TD_MD_STACK_BASE, offsetof(struct thread, td_md.md_stack_base));
-
-ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
-ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
 ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 ASSYM(TDP_KTHREAD, TDP_KTHREAD);

@@ -1331,7 +1331,7 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 		RENDEZVOUS_CTR0(vm, vcpuid, "Wait for rendezvous completion");
 		mtx_sleep(&vm->rendezvous_func, &vm->rendezvous_mtx, 0,
 		    "vmrndv", hz);
-		if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+		if (td_ast_pending(td, TDA_SUSPEND)) {
 			mtx_unlock(&vm->rendezvous_mtx);
 			error = thread_check_susp(td, true);
 			if (error != 0)
@@ -1421,7 +1421,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		msleep_spin(vcpu, &vcpu->mtx, wmesg, hz);
 		vcpu_require_state_locked(vm, vcpuid, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
-		if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+		if (td_ast_pending(td, TDA_SUSPEND)) {
 			vcpu_unlock(vcpu);
 			error = thread_check_susp(td, false);
 			if (error != 0)
@@ -1593,7 +1593,7 @@ vm_handle_suspend(struct vm *vm, int vcpuid, bool *retu)
 			vcpu_require_state_locked(vm, vcpuid, VCPU_SLEEPING);
 			msleep_spin(vcpu, &vcpu->mtx, "vmsusp", hz);
 			vcpu_require_state_locked(vm, vcpuid, VCPU_FROZEN);
-			if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+			if (td_ast_pending(td, TDA_SUSPEND)) {
 				vcpu_unlock(vcpu);
 				error = thread_check_susp(td, false);
 				vcpu_lock(vcpu);

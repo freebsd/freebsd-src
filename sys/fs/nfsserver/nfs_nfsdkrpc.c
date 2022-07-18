@@ -327,7 +327,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	svc_freereq(rqst);
 
 out:
-	td_softdep_cleanup(curthread);
+	ast_kclear(curthread);
 	NFSEXITCODE(0);
 }
 

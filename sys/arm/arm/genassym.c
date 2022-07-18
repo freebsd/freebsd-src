@@ -89,6 +89,7 @@ ASSYM(IP_DST, offsetof(struct ip, ip_dst));
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
+ASSYM(TD_AST, offsetof(struct thread, td_ast));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
@@ -116,8 +117,6 @@ ASSYM(PAGE_SIZE, PAGE_SIZE);
 #ifdef PMAP_INCLUDE_PTE_SYNC
 ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
 #endif
-ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
-ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXCPU, MAXCPU);

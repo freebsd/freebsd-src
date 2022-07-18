@@ -1072,9 +1072,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		CTR2(KTR_PTRACE, "PT_SUSPEND: tid %d (pid %d)", td2->td_tid,
 		    p->p_pid);
 		td2->td_dbgflags |= TDB_SUSPEND;
-		thread_lock(td2);
-		td2->td_flags |= TDF_NEEDSUSPCHK;
-		thread_unlock(td2);
+		ast_sched(td2, TDA_SUSPEND);
 		break;
 
 	case PT_RESUME:

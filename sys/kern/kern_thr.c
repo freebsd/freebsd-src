@@ -257,7 +257,7 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	sched_fork_thread(td, newtd);
 	thread_unlock(td);
 	if (P_SHOULDSTOP(p))
-		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
+		ast_sched(newtd, TDA_SUSPEND);
 	if (p->p_ptevents & PTRACE_LWP)
 		newtd->td_dbgflags |= TDB_BORN;
 

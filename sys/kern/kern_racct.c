@@ -1098,11 +1098,16 @@ racct_move(struct racct *dest, struct racct *src)
 	RACCT_UNLOCK();
 }
 
-void
-racct_proc_throttled(struct proc *p)
+static void
+ast_racct(struct thread *td, int tda __unused)
 {
+	struct proc *p;
 
 	ASSERT_RACCT_ENABLED();
+
+	p = td->td_proc;
+	if (p->p_throttled == 0)
+		return;
 
 	PROC_LOCK(p);
 	while (p->p_throttled != 0) {
@@ -1144,24 +1149,24 @@ racct_proc_throttle(struct proc *p, int timeout)
 
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
-		td->td_flags |= TDF_ASTPENDING;
+		ast_sched_locked(td, TDA_RACCT);
 
 		switch (TD_GET_STATE(td)) {
 		case TDS_RUNQ:
 			/*
 			 * If the thread is on the scheduler run-queue, we can
 			 * not just remove it from there.  So we set the flag
-			 * TDF_NEEDRESCHED for the thread, so that once it is
+			 * TDA_SCHED for the thread, so that once it is
 			 * running, it is taken off the cpu as soon as possible.
 			 */
-			td->td_flags |= TDF_NEEDRESCHED;
+			ast_sched_locked(td, TDA_SCHED);
 			break;
 		case TDS_RUNNING:
 			/*
 			 * If the thread is running, we request a context
-			 * switch for it by setting the TDF_NEEDRESCHED flag.
+			 * switch for it by setting the TDA_SCHED flag.
 			 */
-			td->td_flags |= TDF_NEEDRESCHED;
+			ast_sched_locked(td, TDA_SCHED);
 #ifdef SMP
 			cpuid = td->td_oncpu;
 			if ((cpuid != NOCPU) && (td != curthread))
@@ -1355,6 +1360,8 @@ racct_init(void)
 
 	racct_zone = uma_zcreate("racct", sizeof(struct racct),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	ast_register(TDA_RACCT, ASTR_ASTF_REQUIRED, 0, ast_racct);
+
 	/*
 	 * XXX: Move this somewhere.
 	 */

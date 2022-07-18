@@ -196,7 +196,6 @@ void	racct_proc_exit(struct proc *p);
 void	racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 	    struct ucred *newcred);
 void	racct_move(struct racct *dest, struct racct *src);
-void	racct_proc_throttled(struct proc *p);
 void	racct_proc_throttle(struct proc *p, int timeout);
 
 #else
