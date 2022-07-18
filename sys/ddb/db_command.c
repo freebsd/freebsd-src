@@ -94,13 +94,13 @@ static db_cmdfcn_t	db_watchdog;
 }
 
 static struct db_command db_show_active_cmds[] = {
-	DB_CMD("trace",		db_stack_trace_active,	0),
+	DB_CMD("trace",		db_stack_trace_active,	DB_CMD_MEMSAFE),
 };
 struct db_command_table db_show_active_table =
     LIST_HEAD_INITIALIZER(db_show_active_table);
 
 static struct db_command db_show_all_cmds[] = {
-	DB_CMD("trace",		db_stack_trace_all,	0),
+	DB_CMD("trace",		db_stack_trace_all,	DB_CMD_MEMSAFE),
 };
 struct db_command_table db_show_all_table =
     LIST_HEAD_INITIALIZER(db_show_all_table);
@@ -108,9 +108,9 @@ struct db_command_table db_show_all_table =
 static struct db_command db_show_cmds[] = {
 	DB_TABLE("active",	&db_show_active_table),
 	DB_TABLE("all",		&db_show_all_table),
-	DB_CMD("registers",	db_show_regs,		0),
-	DB_CMD("breaks",	db_listbreak_cmd,	0),
-	DB_CMD("threads",	db_show_threads,	0),
+	DB_CMD("registers",	db_show_regs,		DB_CMD_MEMSAFE),
+	DB_CMD("breaks",	db_listbreak_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("threads",	db_show_threads,	DB_CMD_MEMSAFE),
 };
 struct db_command_table db_show_table = LIST_HEAD_INITIALIZER(db_show_table);
 
@@ -121,48 +121,48 @@ static struct db_command db_cmds[] = {
 	DB_CMD("examine",	db_examine_cmd,		CS_SET_DOT),
 	DB_CMD("x",		db_examine_cmd,		CS_SET_DOT),
 	DB_CMD("search",	db_search_cmd,		CS_OWN|CS_SET_DOT),
-	DB_CMD("set",		db_set_cmd,		CS_OWN),
+	DB_CMD("set",		db_set_cmd,		CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("write",		db_write_cmd,		CS_MORE|CS_SET_DOT),
 	DB_CMD("w",		db_write_cmd,		CS_MORE|CS_SET_DOT),
-	DB_CMD("delete",	db_delete_cmd,		0),
-	DB_CMD("d",		db_delete_cmd,		0),
-	DB_CMD("dump",		db_dump,		0),
-	DB_CMD("break",		db_breakpoint_cmd,	0),
-	DB_CMD("b",		db_breakpoint_cmd,	0),
-	DB_CMD("dwatch",	db_deletewatch_cmd,	0),
-	DB_CMD("watch",		db_watchpoint_cmd,	CS_MORE),
-	DB_CMD("dhwatch",	db_deletehwatch_cmd,	0),
-	DB_CMD("hwatch",	db_hwatchpoint_cmd,	0),
-	DB_CMD("step",		db_single_step_cmd,	0),
-	DB_CMD("s",		db_single_step_cmd,	0),
-	DB_CMD("continue",	db_continue_cmd,	0),
-	DB_CMD("c",		db_continue_cmd,	0),
-	DB_CMD("until",		db_trace_until_call_cmd, 0),
-	DB_CMD("next",		db_trace_until_matching_cmd, 0),
+	DB_CMD("delete",	db_delete_cmd,		DB_CMD_MEMSAFE),
+	DB_CMD("d",		db_delete_cmd,		DB_CMD_MEMSAFE),
+	DB_CMD("dump",		db_dump,		DB_CMD_MEMSAFE),
+	DB_CMD("break",		db_breakpoint_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("b",		db_breakpoint_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("dwatch",	db_deletewatch_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("watch",		db_watchpoint_cmd,	CS_MORE|DB_CMD_MEMSAFE),
+	DB_CMD("dhwatch",	db_deletehwatch_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("hwatch",	db_hwatchpoint_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("step",		db_single_step_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("s",		db_single_step_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("continue",	db_continue_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("c",		db_continue_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("until",		db_trace_until_call_cmd, DB_CMD_MEMSAFE),
+	DB_CMD("next",		db_trace_until_matching_cmd, DB_CMD_MEMSAFE),
 	DB_CMD("match",		db_trace_until_matching_cmd, 0),
-	DB_CMD("trace",		db_stack_trace,		CS_OWN),
-	DB_CMD("t",		db_stack_trace,		CS_OWN),
+	DB_CMD("trace",		db_stack_trace,		CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("t",		db_stack_trace,		CS_OWN|DB_CMD_MEMSAFE),
 	/* XXX alias for active trace */
-	DB_CMD("acttrace",	db_stack_trace_active,	0),
+	DB_CMD("acttrace",	db_stack_trace_active,	DB_CMD_MEMSAFE),
 	/* XXX alias for all trace */
-	DB_CMD("alltrace",	db_stack_trace_all,	0),
-	DB_CMD("where",		db_stack_trace,		CS_OWN),
-	DB_CMD("bt",		db_stack_trace,		CS_OWN),
+	DB_CMD("alltrace",	db_stack_trace_all,	DB_CMD_MEMSAFE),
+	DB_CMD("where",		db_stack_trace,		CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("bt",		db_stack_trace,		CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("call",		db_fncall,		CS_OWN),
-	DB_CMD("ps",		db_ps,			0),
+	DB_CMD("ps",		db_ps,			DB_CMD_MEMSAFE),
 	DB_CMD("gdb",		db_gdb,			0),
-	DB_CMD("halt",		db_halt,		0),
-	DB_CMD("reboot",	db_reset,		0),
-	DB_CMD("reset",		db_reset,		0),
-	DB_CMD("kill",		db_kill,		CS_OWN),
-	DB_CMD("watchdog",	db_watchdog,		CS_OWN),
+	DB_CMD("halt",		db_halt,		DB_CMD_MEMSAFE),
+	DB_CMD("reboot",	db_reset,		DB_CMD_MEMSAFE),
+	DB_CMD("reset",		db_reset,		DB_CMD_MEMSAFE),
+	DB_CMD("kill",		db_kill,		CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("watchdog",	db_watchdog,		CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("thread",	db_set_thread,		0),
-	DB_CMD("run",		db_run_cmd,		CS_OWN),
-	DB_CMD("script",	db_script_cmd,		CS_OWN),
-	DB_CMD("scripts",	db_scripts_cmd,		0),
-	DB_CMD("unscript",	db_unscript_cmd,	CS_OWN),
-	DB_CMD("capture",	db_capture_cmd,		CS_OWN),
-	DB_CMD("textdump",	db_textdump_cmd,	CS_OWN),
+	DB_CMD("run",		db_run_cmd,		CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("script",	db_script_cmd,		CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("scripts",	db_scripts_cmd,		DB_CMD_MEMSAFE),
+	DB_CMD("unscript",	db_unscript_cmd,	CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("capture",	db_capture_cmd,		CS_OWN|DB_CMD_MEMSAFE),
+	DB_CMD("textdump",	db_textdump_cmd,	CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("findstack",	db_findstack_cmd,	0),
 };
 struct db_command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
