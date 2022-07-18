@@ -29,6 +29,17 @@ basic_body()
 	jexec singsing ifconfig ${vlan1} 10.0.0.2/24 up
 
 	atf_check -s exit:0 -o ignore jexec singsing ping -c 1 10.0.0.1
+
+	# Test changing the vlan ID
+	atf_check -s exit:0 \
+	    jexec singsing ifconfig ${vlan1} vlandev ${epair_vlan}b vlan 43
+	atf_check -s exit:2 -o ignore jexec singsing ping -c 1 10.0.0.1
+
+	# And change back
+	# Test changing the vlan ID
+	atf_check -s exit:0 \
+	    jexec singsing ifconfig ${vlan1} vlandev ${epair_vlan}b vlan 42
+	atf_check -s exit:0 -o ignore jexec singsing ping -c 1 10.0.0.1
 }
 
 basic_cleanup()
