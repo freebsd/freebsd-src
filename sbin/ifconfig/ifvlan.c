@@ -204,8 +204,11 @@ DECL_CMD_FUNC(setvlantag, val, d)
 	if (params.vlr_tag != ul)
 		errx(1, "value for vlan out of range");
 
-	if (getvlan(s, &ifr, &vreq) != -1)
+	if (getvlan(s, &ifr, &vreq) != -1) {
+		vreq.vlr_tag = params.vlr_tag;
+		memcpy(&params, &vreq, sizeof(params));
 		vlan_set(s, &ifr);
+	}
 }
 
 static
@@ -233,8 +236,11 @@ DECL_CMD_FUNC(setvlanproto, val, d)
 	} else
 		errx(1, "invalid value for vlanproto");
 
-	if (getvlan(s, &ifr, &vreq) != -1)
+	if (getvlan(s, &ifr, &vreq) != -1) {
+		vreq.vlr_proto = params.vlr_proto;
+		memcpy(&params, &vreq, sizeof(params));
 		vlan_set(s, &ifr);
+	}
 }
 
 static
