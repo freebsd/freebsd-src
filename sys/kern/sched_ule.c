@@ -874,7 +874,8 @@ sched_balance_group(struct cpu_group *cg)
 			if (td->td_lock == TDQ_LOCKPTR(tdq) &&
 			    (td->td_flags & TDF_IDLETD) == 0 &&
 			    THREAD_CAN_MIGRATE(td)) {
-				td->td_flags |= TDF_NEEDRESCHED | TDF_PICKCPU;
+				td->td_flags |= TDF_PICKCPU;
+				ast_sched_locked(td, TDA_SCHED);
 				if (high != curcpu)
 					ipi_cpu(high, IPI_AST);
 			}
@@ -1998,7 +1999,7 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 	if (td->td_priority > td->td_user_pri)
 		sched_prio(td, td->td_user_pri);
 	else if (td->td_priority != td->td_user_pri)
-		td->td_flags |= TDF_NEEDRESCHED;
+		ast_sched_locked(td, TDA_SCHED);
 }
 
 /*
@@ -2211,7 +2212,8 @@ sched_switch(struct thread *td, int flags)
 	td->td_lastcpu = td->td_oncpu;
 	preempted = (td->td_flags & TDF_SLICEEND) == 0 &&
 	    (flags & SW_PREEMPT) != 0;
-	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_PICKCPU | TDF_SLICEEND);
+	td->td_flags &= ~(TDF_PICKCPU | TDF_SLICEEND);
+	ast_unsched_locked(td, TDA_SCHED);
 	td->td_owepreempt = 0;
 	atomic_store_char(&tdq->tdq_owepreempt, 0);
 	if (!TD_IS_IDLETHREAD(td))
@@ -2644,8 +2646,10 @@ sched_clock(struct thread *td, int cnt)
 				SCHED_STAT_INC(ithread_demotions);
 				sched_prio(td, td->td_base_pri + RQ_PPQ);
 			}
-		} else
-			td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
+		} else {
+			ast_sched_locked(td, TDA_SCHED);
+			td->td_flags |= TDF_SLICEEND;
+		}
 	}
 }
 
@@ -2720,7 +2724,7 @@ sched_setpreempt(int pri)
 
 	cpri = ctd->td_priority;
 	if (pri < cpri)
-		ctd->td_flags |= TDF_NEEDRESCHED;
+		ast_sched_locked(ctd, TDA_SCHED);
 	if (KERNEL_PANICKED() || pri >= cpri || cold || TD_IS_INHIBITED(ctd))
 		return;
 	if (!sched_shouldpreempt(pri, cpri, 0))
@@ -2892,7 +2896,7 @@ sched_affinity(struct thread *td)
 	 * target thread is not running locally send an ipi to force
 	 * the issue.
 	 */
-	td->td_flags |= TDF_NEEDRESCHED;
+	ast_sched_locked(td, TDA_SCHED);
 	if (td != curthread)
 		ipi_cpu(ts->ts_cpu, IPI_PREEMPT);
 #endif

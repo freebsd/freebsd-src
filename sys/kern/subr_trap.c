@@ -89,8 +89,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-void (*softdep_ast_cleanup)(struct thread *);
-
 /*
  * Define the code needed before returning to user mode, for trap and
  * syscall.
@@ -118,15 +116,14 @@ userret(struct thread *td, struct trapframe *frame)
 		PROC_LOCK(p);
 		thread_lock(td);
 		if ((p->p_flag & P_PPWAIT) == 0 &&
-		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
-			if (SIGPENDING(td) && (td->td_flags &
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
-				thread_unlock(td);
-				panic(
-	"failed to set signal flags for ast p %p td %p fl %x",
-				    p, td, td->td_flags);
-			}
+		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0 &&
+		    SIGPENDING(td) && !td_ast_pending(td, TDA_AST) &&
+		    !td_ast_pending(td, TDA_SIG)) {
+			thread_unlock(td);
+			panic(
+			    "failed to set signal flags for ast p %p "
+			    "td %p td_ast %#x fl %#x",
+			    p, td, td->td_ast, td->td_flags);
 		}
 		thread_unlock(td);
 		PROC_UNLOCK(p);
@@ -205,182 +202,193 @@ userret(struct thread *td, struct trapframe *frame)
 #endif
 }
 
+static void
+ast_prep(struct thread *td, int tda __unused)
+{
+	VM_CNT_INC(v_trap);
+	td->td_pticks = 0;
+	if (td->td_cowgen != atomic_load_int(&td->td_proc->p_cowgen))
+		thread_cow_update(td);
+
+}
+
+struct ast_entry {
+	int	ae_flags;
+	int	ae_tdp;
+	void	(*ae_f)(struct thread *td, int ast);
+};
+
+_Static_assert(TDAI(TDA_MAX) <= UINT_MAX, "Too many ASTs");
+
+static struct ast_entry ast_entries[TDA_MAX] __read_mostly = {
+	[TDA_AST] = { .ae_f = ast_prep, .ae_flags = ASTR_UNCOND},
+};
+
+void
+ast_register(int ast, int flags, int tdp,
+    void (*f)(struct thread *, int asts))
+{
+	struct ast_entry *ae;
+
+	MPASS(ast < TDA_MAX);
+	MPASS((flags & ASTR_TDP) == 0 || ((flags & ASTR_ASTF_REQUIRED) != 0
+	    && __bitcount(tdp) == 1));
+	ae = &ast_entries[ast];
+	MPASS(ae->ae_f == NULL);
+	ae->ae_flags = flags;
+	ae->ae_tdp = tdp;
+	atomic_interrupt_fence();
+	ae->ae_f = f;
+}
+
+/*
+ * XXXKIB Note that the deregistration of an AST handler does not
+ * drain threads possibly executing it, which affects unloadable
+ * modules.  The issue is either handled by the subsystem using
+ * handlers, or simply ignored.  Fixing the problem is considered not
+ * worth the overhead.
+ */
+void
+ast_deregister(int ast)
+{
+	struct ast_entry *ae;
+
+	MPASS(ast < TDA_MAX);
+	ae = &ast_entries[ast];
+	MPASS(ae->ae_f != NULL);
+	ae->ae_f = NULL;
+	atomic_interrupt_fence();
+	ae->ae_flags = 0;
+	ae->ae_tdp = 0;
+}
+
+void
+ast_sched_locked(struct thread *td, int tda)
+{
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	MPASS(tda < TDA_MAX);
+
+	td->td_ast |= TDAI(tda);
+}
+
+void
+ast_unsched_locked(struct thread *td, int tda)
+{
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	MPASS(tda < TDA_MAX);
+
+	td->td_ast &= ~TDAI(tda);
+}
+
+void
+ast_sched(struct thread *td, int tda)
+{
+	thread_lock(td);
+	ast_sched_locked(td, tda);
+	thread_unlock(td);
+}
+
+void
+ast_sched_mask(struct thread *td, int ast)
+{
+	thread_lock(td);
+	td->td_ast |= ast;
+	thread_unlock(td);
+}
+
+static bool
+ast_handler_calc_tdp_run(struct thread *td, const struct ast_entry *ae)
+{
+	return ((ae->ae_flags & ASTR_TDP) == 0 ||
+	    (td->td_pflags & ae->ae_tdp) != 0);
+}
+
 /*
  * Process an asynchronous software trap.
- * This is relatively easy.
- * This function will return with preemption disabled.
  */
+static void
+ast_handler(struct thread *td, struct trapframe *framep, bool dtor)
+{
+	struct ast_entry *ae;
+	void (*f)(struct thread *td, int asts);
+	int a, td_ast;
+	bool run;
+
+	if (framep != NULL) {
+		kmsan_mark(framep, sizeof(*framep), KMSAN_STATE_INITED);
+		td->td_frame = framep;
+	}
+
+	if (__predict_true(!dtor)) {
+		WITNESS_WARN(WARN_PANIC, NULL, "Returning to user mode");
+		mtx_assert(&Giant, MA_NOTOWNED);
+		THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
+
+		/*
+		 * This updates the td_ast for the checks below in one
+		 * atomic operation with turning off all scheduled AST's.
+		 * If another AST is triggered while we are handling the
+		 * AST's saved in td_ast, the td_ast is again non-zero and
+		 * ast() will be called again.
+		 */
+		thread_lock(td);
+		td_ast = td->td_ast;
+		td->td_ast = 0;
+		thread_unlock(td);
+	} else {
+		/*
+		 * The td thread's td_lock is not guaranteed to exist,
+		 * the thread might be not initialized enough when it's
+		 * destructor is called.  It is safe to read and
+		 * update td_ast without locking since the thread is
+		 * not runnable or visible to other threads.
+		 */
+		td_ast = td->td_ast;
+		td->td_ast = 0;
+	}
+
+	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, td->td_proc->p_pid,
+            td->td_proc->p_comm);
+	KASSERT(framep == NULL || TRAPF_USERMODE(framep),
+	    ("ast in kernel mode"));
+
+	for (a = 0; a < nitems(ast_entries); a++) {
+		ae = &ast_entries[a];
+		f = ae->ae_f;
+		if (f == NULL)
+			continue;
+		atomic_interrupt_fence();
+
+		run = false;
+		if (__predict_false(framep == NULL)) {
+			if ((ae->ae_flags & ASTR_KCLEAR) != 0)
+				run = ast_handler_calc_tdp_run(td, ae);
+		} else {
+			if ((ae->ae_flags & ASTR_UNCOND) != 0)
+				run = true;
+			else if ((ae->ae_flags & ASTR_ASTF_REQUIRED) != 0 &&
+			    (td_ast & TDAI(a)) != 0)
+				run = ast_handler_calc_tdp_run(td, ae);
+		}
+		if (run)
+			f(td, td_ast);
+	}
+}
+
 void
 ast(struct trapframe *framep)
 {
 	struct thread *td;
-	struct proc *p;
-	int flags, sig;
-	bool resched_sigs;
-
-	kmsan_mark(framep, sizeof(*framep), KMSAN_STATE_INITED);
 
 	td = curthread;
-	p = td->td_proc;
-
-	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
-            p->p_comm);
-	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
-	WITNESS_WARN(WARN_PANIC, NULL, "Returning to user mode");
-	mtx_assert(&Giant, MA_NOTOWNED);
-	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
-	td->td_frame = framep;
-	td->td_pticks = 0;
-
-	/*
-	 * This updates the td_flag's for the checks below in one
-	 * "atomic" operation with turning off the astpending flag.
-	 * If another AST is triggered while we are handling the
-	 * AST's saved in flags, the astpending flag will be set and
-	 * ast() will be called again.
-	 */
-	thread_lock(td);
-	flags = td->td_flags;
-	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK |
-	    TDF_NEEDRESCHED | TDF_ALRMPEND | TDF_PROFPEND | TDF_MACPEND |
-	    TDF_KQTICKLED);
-	thread_unlock(td);
-	VM_CNT_INC(v_trap);
-
-	if (td->td_cowgen != atomic_load_int(&p->p_cowgen))
-		thread_cow_update(td);
-	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {
-		addupc_task(td, td->td_profil_addr, td->td_profil_ticks);
-		td->td_profil_ticks = 0;
-		td->td_pflags &= ~TDP_OWEUPC;
-	}
-#ifdef HWPMC_HOOKS
-	/* Handle Software PMC callchain capture. */
-	if (PMC_IS_PENDING_CALLCHAIN(td))
-		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN_SOFT, (void *) framep);
-#endif
-	if ((td->td_pflags & TDP_RFPPWAIT) != 0)
-		fork_rfppwait(td);
-	if (flags & TDF_ALRMPEND) {
-		PROC_LOCK(p);
-		kern_psignal(p, SIGVTALRM);
-		PROC_UNLOCK(p);
-	}
-	if (flags & TDF_PROFPEND) {
-		PROC_LOCK(p);
-		kern_psignal(p, SIGPROF);
-		PROC_UNLOCK(p);
-	}
-#ifdef MAC
-	if (flags & TDF_MACPEND)
-		mac_thread_userret(td);
-#endif
-	if (flags & TDF_NEEDRESCHED) {
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(1, 1, __func__);
-#endif
-		thread_lock(td);
-		sched_prio(td, td->td_user_pri);
-		mi_switch(SW_INVOL | SWT_NEEDRESCHED);
-#ifdef KTRACE
-		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(0, 1, __func__);
-#endif
-	}
-
-	td_softdep_cleanup(td);
-	MPASS(td->td_su == NULL);
-
-	/*
-	 * If this thread tickled GEOM, we need to wait for the giggling to
-	 * stop before we return to userland
-	 */
-	if (__predict_false(td->td_pflags & TDP_GEOM))
-		g_waitidle();
-
-#ifdef DIAGNOSTIC
-	if (p->p_numthreads == 1 && (flags & TDF_NEEDSIGCHK) == 0) {
-		PROC_LOCK(p);
-		thread_lock(td);
-		/*
-		 * Note that TDF_NEEDSIGCHK should be re-read from
-		 * td_flags, since signal might have been delivered
-		 * after we cleared td_flags above.  This is one of
-		 * the reason for looping check for AST condition.
-		 * See comment in userret() about P_PPWAIT.
-		 */
-		if ((p->p_flag & P_PPWAIT) == 0 &&
-		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
-			if (SIGPENDING(td) && (td->td_flags &
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
-				thread_unlock(td); /* fix dumps */
-				panic(
-	"failed2 to set signal flags for ast p %p td %p fl %x %x",
-				    p, td, flags, td->td_flags);
-			}
-		}
-		thread_unlock(td);
-		PROC_UNLOCK(p);
-	}
-#endif
-
-	/*
-	 * Check for signals. Unlocked reads of p_pendingcnt or
-	 * p_siglist might cause process-directed signal to be handled
-	 * later.
-	 */
-	if (flags & TDF_NEEDSIGCHK || p->p_pendingcnt > 0 ||
-	    !SIGISEMPTY(p->p_siglist)) {
-		sigfastblock_fetch(td);
-		PROC_LOCK(p);
-		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td)) != 0) {
-			KASSERT(sig >= 0, ("sig %d", sig));
-			postsig(sig);
-		}
-		mtx_unlock(&p->p_sigacts->ps_mtx);
-		PROC_UNLOCK(p);
-		resched_sigs = true;
-	} else {
-		resched_sigs = false;
-	}
-
-	if ((flags & TDF_KQTICKLED) != 0)
-		kqueue_drain_schedtask();
-
-	/*
-	 * Handle deferred update of the fast sigblock value, after
-	 * the postsig() loop was performed.
-	 */
-	sigfastblock_setpend(td, resched_sigs);
-
-#ifdef KTRACE
-	KTRUSERRET(td);
-#endif
-
-	/*
-	 * We need to check to see if we have to exit or wait due to a
-	 * single threading requirement or some other STOP condition.
-	 */
-	if (flags & TDF_NEEDSUSPCHK) {
-		PROC_LOCK(p);
-		thread_suspend_check(0);
-		PROC_UNLOCK(p);
-	}
-
-	if (td->td_pflags & TDP_OLDMASK) {
-		td->td_pflags &= ~TDP_OLDMASK;
-		kern_sigprocmask(td, SIG_SETMASK, &td->td_oldsigmask, NULL, 0);
-	}
-
-#ifdef RACCT
-	if (__predict_false(racct_enable && p->p_throttled != 0))
-		racct_proc_throttled(p);
-#endif
-
+	ast_handler(td, framep, false);
 	userret(td, framep);
+}
+
+void
+ast_kclear(struct thread *td)
+{
+	ast_handler(td, NULL, td != curthread);
 }
 
 const char *

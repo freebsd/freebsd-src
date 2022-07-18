@@ -130,9 +130,7 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 	td->td_profil_addr = pc;
 	td->td_profil_ticks = ticks;
 	td->td_pflags |= TDP_OWEUPC;
-	thread_lock(td);
-	td->td_flags |= TDF_ASTPENDING;
-	thread_unlock(td);
+	ast_sched(td, TDA_OWEUPC);
 }
 
 /*

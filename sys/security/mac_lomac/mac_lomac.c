@@ -532,9 +532,7 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 		subj->mac_lomac.ml_rangelow = objlabel->ml_single;
 	subj->mac_lomac.ml_rangehigh = objlabel->ml_single;
 	subj->mac_lomac.ml_flags |= MAC_LOMAC_FLAG_UPDATE;
-	thread_lock(curthread);
-	curthread->td_flags |= TDF_ASTPENDING | TDF_MACPEND;
-	thread_unlock(curthread);
+	ast_sched(curthread, TDA_MAC);
 
 	/*
 	 * Avoid memory allocation while holding a mutex; cache the label.
@@ -594,13 +592,25 @@ try_relabel(struct mac_lomac *from, struct mac_lomac *to)
 	}
 }
 
+static void
+ast_mac(struct thread *td, int tda __unused)
+{
+	mac_thread_userret(td);
+}
+
 /*
  * Policy module operations.
  */
 static void
-lomac_init(struct mac_policy_conf *conf)
+lomac_init(struct mac_policy_conf *conf __unused)
 {
+	ast_register(TDA_MAC, ASTR_ASTF_REQUIRED, 0, ast_mac);
+}
 
+static void
+lomac_fini(struct mac_policy_conf *conf __unused)
+{
+	ast_deregister(TDA_MAC);
 }
 
 /*
@@ -2898,6 +2908,7 @@ lomac_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
 static struct mac_policy_ops lomac_ops =
 {
 	.mpo_init = lomac_init,
+	.mpo_destroy = lomac_fini,
 
 	.mpo_bpfdesc_check_receive = lomac_bpfdesc_check_receive,
 	.mpo_bpfdesc_create = lomac_bpfdesc_create,

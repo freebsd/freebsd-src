@@ -186,7 +186,7 @@ forward_signal(struct thread *td)
 	int id;
 
 	/*
-	 * signotify() has already set TDF_ASTPENDING and TDF_NEEDSIGCHECK on
+	 * signotify() has already set TDA_AST and TDA_SIG on td_ast for
 	 * this thread, so all we need to do is poke it if it is currently
 	 * executing so that it executes ast().
 	 */

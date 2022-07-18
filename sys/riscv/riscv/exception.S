@@ -190,10 +190,8 @@ __FBSDID("$FreeBSD$");
 	csrci	sstatus, (SSTATUS_SIE)
 
 	ld	a1, PC_CURTHREAD(tp)
-	lw	a2, TD_FLAGS(a1)
+	lw	a2, TD_AST(a1)
 
-	li	a3, (TDF_ASTPENDING|TDF_NEEDRESCHED)
-	and	a2, a2, a3
 	beqz	a2, 2f
 
 	/* Restore interrupts */

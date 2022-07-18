@@ -1025,10 +1025,8 @@ CNAME(trapexit):
 
 	GET_CPUINFO(%r3)
 	LOAD	%r4, PC_CURTHREAD(%r3)
-	lwz	%r4, TD_FLAGS(%r4)
-	lis	%r5, (TDF_ASTPENDING | TDF_NEEDRESCHED)@h
-	ori	%r5, %r5, (TDF_ASTPENDING | TDF_NEEDRESCHED)@l
-	and.	%r4, %r4, %r5
+	lwz	%r4, TD_AST(%r4)
+	cmpwi	%r4, 0
 	beq	1f
 
 	/* re-enable interrupts before calling ast() */

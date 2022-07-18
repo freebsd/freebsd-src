@@ -470,7 +470,7 @@ doreti_ast:
 	 */
 	cli
 	movl	PCPU(CURTHREAD),%eax
-	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%eax)
+	cmpl	$0,TD_AST(%eax)
 	je	doreti_exit
 	sti
 	pushl	%esp			/* pass a pointer to the trapframe */

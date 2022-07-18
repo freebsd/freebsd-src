@@ -96,6 +96,24 @@ g_waitidle(void)
 	curthread->td_pflags &= ~TDP_GEOM;
 }
 
+static void
+ast_geom(struct thread *td __unused, int tda __unused)
+{
+	/*
+	 * If this thread tickled GEOM, we need to wait for the giggling to
+	 * stop before we return to userland.
+	 */
+	g_waitidle();
+}
+
+static void
+geom_event_init(void *arg __unused)
+{
+	ast_register(TDA_GEOM, ASTR_ASTF_REQUIRED | ASTR_TDP | ASTR_KCLEAR,
+	    TDP_GEOM, ast_geom);
+}
+SYSINIT(geom_event, SI_SUB_INTRINSIC, SI_ORDER_ANY, geom_event_init, NULL);
+
 struct g_attrchanged_args {
 	struct g_provider *pp;
 	const char *attr;
@@ -353,9 +371,7 @@ g_post_event_ep_va(g_event_t *func, void *arg, int wuflag,
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
 	curthread->td_pflags |= TDP_GEOM;
-	thread_lock(curthread);
-	curthread->td_flags |= TDF_ASTPENDING;
-	thread_unlock(curthread);
+	ast_sched(curthread, TDA_GEOM);
 }
 
 void

@@ -869,7 +869,7 @@ static	void pause_timer(void *);
 static	int request_cleanup(struct mount *, int);
 static	int softdep_request_cleanup_flush(struct mount *, struct ufsmount *);
 static	void schedule_cleanup(struct mount *);
-static void softdep_ast_cleanup_proc(struct thread *);
+static void softdep_ast_cleanup_proc(struct thread *, int);
 static struct ufsmount *softdep_bp_to_mp(struct buf *bp);
 static	int process_worklist_item(struct mount *, int, int);
 static	void process_removes(struct vnode *);
@@ -2546,7 +2546,8 @@ softdep_initialize(void)
 	bioops.io_complete = softdep_disk_write_complete;
 	bioops.io_deallocate = softdep_deallocate_dependencies;
 	bioops.io_countdeps = softdep_count_dependencies;
-	softdep_ast_cleanup = softdep_ast_cleanup_proc;
+	ast_register(TDA_UFS, ASTR_KCLEAR | ASTR_ASTF_REQUIRED, 0,
+	    softdep_ast_cleanup_proc);
 
 	/* Initialize the callout with an mtx. */
 	callout_init_mtx(&softdep_callout, &lk, 0);
@@ -2565,7 +2566,7 @@ softdep_uninitialize(void)
 	bioops.io_complete = NULL;
 	bioops.io_deallocate = NULL;
 	bioops.io_countdeps = NULL;
-	softdep_ast_cleanup = NULL;
+	ast_deregister(TDA_UFS);
 
 	callout_drain(&softdep_callout);
 }
@@ -13818,13 +13819,11 @@ schedule_cleanup(struct mount *mp)
 		vfs_rel(td->td_su);
 	vfs_ref(mp);
 	td->td_su = mp;
-	thread_lock(td);
-	td->td_flags |= TDF_ASTPENDING;
-	thread_unlock(td);
+	ast_sched(td, TDA_UFS);
 }
 
 static void
-softdep_ast_cleanup_proc(struct thread *td)
+softdep_ast_cleanup_proc(struct thread *td, int ast __unused)
 {
 	struct mount *mp;
 	struct ufsmount *ump;

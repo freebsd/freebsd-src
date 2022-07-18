@@ -632,11 +632,27 @@ loadav(void *arg)
 	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
-/* ARGSUSED */
 static void
-synch_setup(void *dummy)
+ast_scheduler(struct thread *td, int tda __unused)
+{
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 1, __func__);
+#endif
+	thread_lock(td);
+	sched_prio(td, td->td_user_pri);
+	mi_switch(SW_INVOL | SWT_NEEDRESCHED);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 1, __func__);
+#endif
+}
+
+static void
+synch_setup(void *dummy __unused)
 {
 	callout_init(&loadav_callout, 1);
+	ast_register(TDA_SCHED, ASTR_ASTF_REQUIRED, 0, ast_scheduler);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);

@@ -252,9 +252,11 @@ exit1(struct thread *td, int rval, int signo)
 	}
 
 	/*
-	 * Deref SU mp, since the thread does not return to userspace.
+	 * Process deferred operations, designated with ASTF_KCLEAR.
+	 * For instance, we need to deref SU mp, since the thread does
+	 * not return to userspace, and wait for geom to stabilize.
 	 */
-	td_softdep_cleanup(td);
+	ast_kclear(td);
 
 	/*
 	 * MUST abort all other threads before proceeding past here.
@@ -404,13 +406,6 @@ exit1(struct thread *td, int rval, int signo)
 	 */
 	pdescfree(td);
 	fdescfree(td);
-
-	/*
-	 * If this thread tickled GEOM, we need to wait for the giggling to
-	 * stop before we return to userland
-	 */
-	if (td->td_pflags & TDP_GEOM)
-		g_waitidle();
 
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.

@@ -231,9 +231,7 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
-
-ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
-ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
+ASSYM(TD_AST, offsetof(struct thread, td_ast));
 
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 

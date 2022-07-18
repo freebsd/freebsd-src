@@ -175,8 +175,7 @@ _C_LABEL(dtrace_invop_jump_addr):
 	bne	2f;			/* Nope, get out now */		   \
 	bic	r4, r4, #(PSR_I|PSR_F);					   \
 1:	GET_CURTHREAD_PTR(r5);						   \
-	ldr	r1, [r5, #(TD_FLAGS)];					   \
-	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED);		   \
+	ldr	r1, [r5, #(TD_AST)];					   \
 	teq	r1, #0;							   \
 	beq	2f;			/* Nope. Just bail */		   \
 	msr	cpsr_c, r4;		/* Restore interrupts */	   \

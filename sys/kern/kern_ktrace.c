@@ -210,6 +210,12 @@ ktrace_assert(struct thread *td)
 }
 
 static void
+ast_ktrace(struct thread *td, int tda __unused)
+{
+	KTRUSERRET(td);
+}
+
+static void
 ktrace_init(void *dummy)
 {
 	struct ktr_request *req;
@@ -223,6 +229,8 @@ ktrace_init(void *dummy)
 		    M_ZERO);
 		STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	}
+	ast_register(TDA_KTRACE, ASTR_UNCOND, 0, ast_ktrace);
+
 }
 SYSINIT(ktrace_init, SI_SUB_KTRACE, SI_ORDER_ANY, ktrace_init, NULL);
 
@@ -370,9 +378,7 @@ ktr_enqueuerequest(struct thread *td, struct ktr_request *req)
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
 	mtx_unlock(&ktrace_mtx);
-	thread_lock(td);
-	td->td_flags |= TDF_ASTPENDING;
-	thread_unlock(td);
+	ast_sched(td, TDA_KTRACE);
 }
 
 /*

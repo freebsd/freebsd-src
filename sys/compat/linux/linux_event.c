@@ -458,9 +458,7 @@ linux_epoll_wait_ts(struct thread *td, int epfd, struct epoll_event *events,
 		 * usermode and TDP_OLDMASK is cleared, restoring old
 		 * sigmask.
 		 */
-		thread_lock(td);
-		td->td_flags |= TDF_ASTPENDING;
-		thread_unlock(td);
+		ast_sched(td, TDA_SIGSUSPEND);
 	}
 
 	coargs.leventlist = events;
