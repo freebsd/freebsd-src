@@ -110,13 +110,15 @@ typedef void db_cmdfcn_t(db_expr_t addr, bool have_addr, db_expr_t count,
  * Command table entry.
  */
 struct db_command {
-	char *	name;		/* command name */
+	char *name;		/* command name */
 	db_cmdfcn_t *fcn;	/* function to call */
-	int	flag;		/* extra info: */
+	int flag;
 #define	CS_OWN		0x1	/* non-standard syntax */
 #define	CS_MORE		0x2	/* standard syntax, but may have other words
 				 * at end */
 #define	CS_SET_DOT	0x100	/* set dot after command */
+#define	DB_CMD_MEMSAFE	0x1000	/* Command does not allow reads or writes to
+				 * arbitrary memory. */
 	struct db_command_table *more; /* another level of command */
 	LIST_ENTRY(db_command) next; /* next entry in the command table */
 };
@@ -180,10 +182,12 @@ _func(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	_DB_SET(_show, alias_name, func_name, db_show_table, flags, NULL)
 #define	DB_SHOW_ALIAS(alias_name, func_name) \
 	DB_SHOW_ALIAS_FLAGS(alias_name, func_name, 0)
-#define	DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
-	_DB_FUNC(_show_all, cmd_name, func_name, db_show_all_table, 0, NULL)
-#define	DB_SHOW_ALL_ALIAS(alias_name, func_name) \
-	_DB_SET(_show_all, alias_name, func_name, db_show_all_table, 0, NULL)
+#define	DB_SHOW_ALL_COMMAND(cmd_name, func_name)			\
+	_DB_FUNC(_show_all, cmd_name, func_name, db_show_all_table,	\
+	    DB_CMD_MEMSAFE, NULL)
+#define	DB_SHOW_ALL_ALIAS(alias_name, func_name)			\
+	_DB_SET(_show_all, alias_name, func_name, db_show_all_table,	\
+	    DB_CMD_MEMSAFE, NULL)
 
 extern db_expr_t db_maxoff;
 extern int db_indent;
