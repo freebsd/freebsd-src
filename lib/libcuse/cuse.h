@@ -54,7 +54,7 @@ struct cuse_methods {
 int	cuse_init(void);
 int	cuse_uninit(void);
 
-void   *cuse_vmalloc(int);
+void   *cuse_vmalloc(unsigned);
 int	cuse_is_vmalloc_addr(void *);
 void	cuse_vmfree(void *);
 unsigned long cuse_vmoffset(void *ptr);
