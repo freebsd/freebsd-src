@@ -4271,7 +4271,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
  * List all of the locked vnodes in the system.
  * Called when debugging the kernel.
  */
-DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
+DB_SHOW_COMMAND_FLAGS(lockedvnods, lockedvnodes, DB_CMD_MEMSAFE)
 {
 	struct mount *mp;
 	struct vnode *vp;

@@ -216,7 +216,7 @@ db_watchpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
  * At least one non-optional show-command must be implemented using
  * DB_SHOW_COMMAND() so that db_show_cmd_set gets created.  Here is one.
  */
-DB_SHOW_COMMAND(watches, db_listwatch_cmd)
+DB_SHOW_COMMAND_FLAGS(watches, db_listwatch_cmd, DB_CMD_MEMSAFE)
 {
 	db_list_watchpoints();
 	db_md_list_watchpoints();

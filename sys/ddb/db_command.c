@@ -511,7 +511,7 @@ db_command(struct db_command **last_cmdp, struct db_command_table *cmd_table,
  * At least one non-optional command must be implemented using
  * DB_COMMAND() so that db_cmd_set gets created.  Here is one.
  */
-DB_COMMAND(panic, db_panic)
+DB_COMMAND_FLAGS(panic, db_panic, DB_CMD_MEMSAFE)
 {
 	db_disable_pager();
 	panic("from debugger");

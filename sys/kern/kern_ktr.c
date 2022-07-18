@@ -417,7 +417,7 @@ static	struct tstate tstate;
 static	int db_ktr_verbose;
 static	int db_mach_vtrace(void);
 
-DB_SHOW_COMMAND(ktr, db_ktr_all)
+DB_SHOW_COMMAND_FLAGS(ktr, db_ktr_all, DB_CMD_MEMSAFE)
 {
 
 	tstate.cur = (ktr_idx - 1) % ktr_entries;

@@ -893,7 +893,7 @@ db_show_print_syinit(struct sysinit *sip, bool ddb)
 #undef xprint
 }
 
-DB_SHOW_COMMAND(sysinit, db_show_sysinit)
+DB_SHOW_COMMAND_FLAGS(sysinit, db_show_sysinit, DB_CMD_MEMSAFE)
 {
 	struct sysinit **sipp;
 

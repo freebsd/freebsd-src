@@ -5533,7 +5533,7 @@ vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits)
 
 #include <ddb/ddb.h>
 
-DB_SHOW_COMMAND(page, vm_page_print_page_info)
+DB_SHOW_COMMAND_FLAGS(page, vm_page_print_page_info, DB_CMD_MEMSAFE)
 {
 
 	db_printf("vm_cnt.v_free_count: %d\n", vm_free_count());
@@ -5547,7 +5547,7 @@ DB_SHOW_COMMAND(page, vm_page_print_page_info)
 	db_printf("vm_cnt.v_inactive_target: %d\n", vm_cnt.v_inactive_target);
 }
 
-DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
+DB_SHOW_COMMAND_FLAGS(pageq, vm_page_print_pageq_info, DB_CMD_MEMSAFE)
 {
 	int dom;
 

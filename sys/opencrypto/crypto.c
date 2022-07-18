@@ -1951,7 +1951,7 @@ db_show_drivers(void)
 	}
 }
 
-DB_SHOW_COMMAND(crypto, db_show_crypto)
+DB_SHOW_COMMAND_FLAGS(crypto, db_show_crypto, DB_CMD_MEMSAFE)
 {
 	struct cryptop *crp;
 	struct crypto_ret_worker *ret_worker;

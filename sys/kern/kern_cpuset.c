@@ -2485,7 +2485,7 @@ ddb_display_domainset(const domainset_t *set)
 	ddb_display_bitset((const struct bitset *)set, DOMAINSET_SETSIZE);
 }
 
-DB_SHOW_COMMAND(cpusets, db_show_cpusets)
+DB_SHOW_COMMAND_FLAGS(cpusets, db_show_cpusets, DB_CMD_MEMSAFE)
 {
 	struct cpuset *set;
 
@@ -2505,7 +2505,7 @@ DB_SHOW_COMMAND(cpusets, db_show_cpusets)
 	}
 }
 
-DB_SHOW_COMMAND(domainsets, db_show_domainsets)
+DB_SHOW_COMMAND_FLAGS(domainsets, db_show_domainsets, DB_CMD_MEMSAFE)
 {
 	struct domainset *set;
 

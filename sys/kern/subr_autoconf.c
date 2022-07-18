@@ -298,7 +298,7 @@ config_intrhook_drain(struct intr_config_hook *hook)
 #ifdef DDB
 #include <ddb/ddb.h>
 
-DB_SHOW_COMMAND(conifhk, db_show_conifhk)
+DB_SHOW_COMMAND_FLAGS(conifhk, db_show_conifhk, DB_CMD_MEMSAFE)
 {
 	struct intr_config_hook *hook_entry;
 	char namebuf[64];

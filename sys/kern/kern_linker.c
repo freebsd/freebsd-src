@@ -1387,7 +1387,7 @@ kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat)
 }
 
 #ifdef DDB
-DB_COMMAND(kldstat, db_kldstat)
+DB_COMMAND_FLAGS(kldstat, db_kldstat, DB_CMD_MEMSAFE)
 {
 	linker_file_t lf;
 
