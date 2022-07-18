@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2022
+.Dd July 18, 2022
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -313,7 +313,9 @@ that prompt for a
 mirror will skip that step if this variable is already defined in the
 environment.
 Example:
-.Pa ftp://ftp.freebsd.org/pub/FreeBSD/releases/powerpc/powerpc64/9.1-RELEASE
+.Pa https://download.freebsd.org/ftp/releases/powerpc/powerpc64/13.1-RELEASE/
+or
+.Pa http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases/amd64/12.2-RELEASE/ .
 .It Ev BSDINSTALL_CHROOT
 The directory into which the distribution files should be unpacked and the
 directory at which the root file system of the new system should be mounted.
