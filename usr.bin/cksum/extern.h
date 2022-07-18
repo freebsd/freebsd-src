@@ -34,9 +34,6 @@
 
 #include <sys/cdefs.h>
 
-extern uint32_t crc_total;
-extern uint32_t crc32_total;
-
 __BEGIN_DECLS
 int	crc(int, uint32_t *, off_t *);
 void	pcrc(char *, uint32_t, off_t);
