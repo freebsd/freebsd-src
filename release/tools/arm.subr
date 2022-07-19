@@ -63,6 +63,10 @@ umount_loop() {
 }
 
 arm_create_disk() {
+	if [ $(sysctl -n kern.geom.part.mbr.enforce_chs) != 0 ]; then
+		return 1
+	fi
+
 	# Create the target raw file and temporary work directory.
 	chroot ${CHROOTDIR} gpart create -s ${PART_SCHEME} ${mddev}
 	if [ "${PART_SCHEME}" = "GPT" ]; then
