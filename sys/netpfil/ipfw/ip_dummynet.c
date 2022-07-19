@@ -799,7 +799,7 @@ static void
 fsk_detach_list(struct dn_fsk_head *h, int flags)
 {
 	struct dn_fsk *fs;
-	int n = 0; /* only for stats */
+	int n __unused = 0; /* only for stats */
 
 	ND("head %p flags %x", h, flags);
 	while ((fs = SLIST_FIRST(h))) {
