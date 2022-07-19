@@ -202,7 +202,7 @@ fb_init(struct fb_list_entry *entry, int unit)
 }
 
 int
-fbd_list()
+fbd_list(void)
 {
 	struct fb_list_entry *entry;
 
