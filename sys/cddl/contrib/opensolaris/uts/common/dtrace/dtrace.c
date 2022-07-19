@@ -17016,7 +17016,7 @@ dtrace_toxrange_add(uintptr_t base, uintptr_t limit)
 }
 
 static void
-dtrace_getf_barrier()
+dtrace_getf_barrier(void)
 {
 #ifdef illumos
 	/*
