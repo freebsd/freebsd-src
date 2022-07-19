@@ -541,7 +541,7 @@ dtnfsclient_load(void *dummy)
 }
 
 static int
-dtnfsclient_unload()
+dtnfsclient_unload(void)
 {
 
 	dtrace_nfscl_nfs234_start_probe = NULL;
