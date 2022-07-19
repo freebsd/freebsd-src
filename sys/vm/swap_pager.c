@@ -1514,10 +1514,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		}
 
 		/* Get a block of swap of size up to size n. */
-		VM_OBJECT_WLOCK(object);
 		blk = swp_pager_getswapspace(&n);
 		if (blk == SWAPBLK_NONE) {
-			VM_OBJECT_WUNLOCK(object);
 			mtx_lock(&swbuf_mtx);
 			if (++nsw_wcount_async == 1)
 				wakeup(&nsw_wcount_async);
@@ -1526,6 +1524,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 				rtvals[i + j] = VM_PAGER_FAIL;
 			continue;
 		}
+		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
 			mreq = ma[i + j];
 			vm_page_aflag_clear(mreq, PGA_SWAP_FREE);
