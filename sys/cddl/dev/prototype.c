@@ -93,7 +93,7 @@ prototype_load(void *dummy)
 
 
 static int
-prototype_unload()
+prototype_unload(void)
 {
 	int error = 0;
 
