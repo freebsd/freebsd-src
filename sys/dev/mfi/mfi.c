@@ -3695,7 +3695,7 @@ mfi_dump_all(void)
 	struct mfi_command *cm;
 	devclass_t dc;
 	time_t deadline;
-	int timedout;
+	int timedout __unused;
 	int i;
 
 	dc = devclass_find("mfi");
@@ -3739,7 +3739,7 @@ mfi_timeout(void *data)
 	struct mfi_softc *sc = (struct mfi_softc *)data;
 	struct mfi_command *cm, *tmp;
 	time_t deadline;
-	int timedout = 0;
+	int timedout __unused = 0;
 
 	deadline = time_uptime - mfi_cmd_timeout;
 	if (sc->adpreset == 0) {
