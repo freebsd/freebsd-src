@@ -684,6 +684,16 @@ next_code:
 #ifdef EVDEV_SUPPORT
 	/* push evdev event */
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && state->ks_evdev != NULL) {
+		/* "hancha" and "han/yong" korean keys handling */
+		if (state->ks_evdev_state == 0 &&
+		    (scancode == 0xF1 || scancode == 0xF2)) {
+			keycode = evdev_scancode2key(&state->ks_evdev_state,
+				scancode & 0x7F);
+			evdev_push_event(state->ks_evdev, EV_KEY,
+			    (uint16_t)keycode, 1);
+			evdev_sync(state->ks_evdev);
+		}
+
 		keycode = evdev_scancode2key(&state->ks_evdev_state,
 		    scancode);
 
