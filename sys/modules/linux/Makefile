@@ -132,9 +132,9 @@ linux${SFX}_vdso.so: linux${SFX}_vdso.so.o
 	${STRIPBIN} -N _binary_linux${SFX}_vdso_so_o_size ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "amd64"
-linux${SFX}_support.o: linux${SFX}_assym.h assym.inc
+linux${SFX}_support.o: linux${SFX}_support.S linux${SFX}_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
-	    ${.IMPSRC} -o ${.TARGET}
+	    ${.ALLSRC:M*.S:u} -o ${.TARGET}
 .endif
 
 linux${SFX}_genassym.o: offset.inc
