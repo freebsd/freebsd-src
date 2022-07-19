@@ -148,26 +148,6 @@ struct cpu_desc {
 static struct cpu_desc cpu_desc[MAXCPU];
 static struct cpu_desc kern_cpu_desc;
 static struct cpu_desc user_cpu_desc;
-static u_int cpu_print_regs;
-#define	PRINT_ID_AA64_AFR0	0x00000001
-#define	PRINT_ID_AA64_AFR1	0x00000002
-#define	PRINT_ID_AA64_DFR0	0x00000010
-#define	PRINT_ID_AA64_DFR1	0x00000020
-#define	PRINT_ID_AA64_ISAR0	0x00000100
-#define	PRINT_ID_AA64_ISAR1	0x00000200
-#define	PRINT_ID_AA64_ISAR2	0x00000400
-#define	PRINT_ID_AA64_MMFR0	0x00001000
-#define	PRINT_ID_AA64_MMFR1	0x00002000
-#define	PRINT_ID_AA64_MMFR2	0x00004000
-#define	PRINT_ID_AA64_PFR0	0x00010000
-#define	PRINT_ID_AA64_PFR1	0x00020000
-#define	PRINT_ID_AA64_ZFR0	0x00100000
-#ifdef COMPAT_FREEBSD32
-#define	PRINT_ID_ISAR5		0x01000000
-#define	PRINT_MVFR0		0x02000000
-#define	PRINT_MVFR1		0x04000000
-#endif
-#define	PRINT_CTR_EL0		0x10000000
 
 struct cpu_parts {
 	u_int		part_id;
@@ -2208,91 +2188,97 @@ print_cpu_features(u_int cpu)
 		    "hardware bugs that may cause the incorrect operation of "
 		    "atomic operations.\n");
 
+#define	SHOULD_PRINT_REG(_reg)						\
+    (cpu == 0 || cpu_desc[cpu]._reg != cpu_desc[cpu - 1]._reg)
+
 	/* Cache Type Register */
-	if (cpu == 0 || (cpu_print_regs & PRINT_CTR_EL0) != 0) {
+	if (SHOULD_PRINT_REG(ctr)) {
 		print_register(sb, "Cache Type",
 		    cpu_desc[cpu].ctr, print_ctr_fields, NULL);
 	}
 
 	/* AArch64 Instruction Set Attribute Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR0) != 0)
+	if (SHOULD_PRINT_REG(id_aa64isar0))
 		print_id_register(sb, "Instruction Set Attributes 0",
 		    cpu_desc[cpu].id_aa64isar0, id_aa64isar0_fields);
 
 	/* AArch64 Instruction Set Attribute Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR1) != 0)
+	if (SHOULD_PRINT_REG(id_aa64isar1))
 		print_id_register(sb, "Instruction Set Attributes 1",
 		    cpu_desc[cpu].id_aa64isar1, id_aa64isar1_fields);
 
 	/* AArch64 Instruction Set Attribute Register 2 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR2) != 0)
+	if (SHOULD_PRINT_REG(id_aa64isar2))
 		print_id_register(sb, "Instruction Set Attributes 2",
 		    cpu_desc[cpu].id_aa64isar2, id_aa64isar2_fields);
 
 	/* AArch64 Processor Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR0) != 0)
+	if (SHOULD_PRINT_REG(id_aa64pfr0))
 		print_id_register(sb, "Processor Features 0",
 		    cpu_desc[cpu].id_aa64pfr0, id_aa64pfr0_fields);
 
 	/* AArch64 Processor Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR1) != 0)
+	if (SHOULD_PRINT_REG(id_aa64pfr1))
 		print_id_register(sb, "Processor Features 1",
 		    cpu_desc[cpu].id_aa64pfr1, id_aa64pfr1_fields);
 
 	/* AArch64 Memory Model Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR0) != 0)
+	if (SHOULD_PRINT_REG(id_aa64mmfr0))
 		print_id_register(sb, "Memory Model Features 0",
 		    cpu_desc[cpu].id_aa64mmfr0, id_aa64mmfr0_fields);
 
 	/* AArch64 Memory Model Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR1) != 0)
+	if (SHOULD_PRINT_REG(id_aa64mmfr1))
 		print_id_register(sb, "Memory Model Features 1",
 		    cpu_desc[cpu].id_aa64mmfr1, id_aa64mmfr1_fields);
 
 	/* AArch64 Memory Model Feature Register 2 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_MMFR2) != 0)
+	if (SHOULD_PRINT_REG(id_aa64mmfr2))
 		print_id_register(sb, "Memory Model Features 2",
 		    cpu_desc[cpu].id_aa64mmfr2, id_aa64mmfr2_fields);
 
 	/* AArch64 Debug Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR0) != 0)
+	if (SHOULD_PRINT_REG(id_aa64dfr0))
 		print_id_register(sb, "Debug Features 0",
 		    cpu_desc[cpu].id_aa64dfr0, id_aa64dfr0_fields);
 
 	/* AArch64 Memory Model Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_DFR1) != 0)
+	if (SHOULD_PRINT_REG(id_aa64dfr1))
 		print_id_register(sb, "Debug Features 1",
 		    cpu_desc[cpu].id_aa64dfr1, id_aa64dfr1_fields);
 
 	/* AArch64 Auxiliary Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_AFR0) != 0)
+	if (SHOULD_PRINT_REG(id_aa64afr0))
 		print_id_register(sb, "Auxiliary Features 0",
 		    cpu_desc[cpu].id_aa64afr0, id_aa64afr0_fields);
 
 	/* AArch64 Auxiliary Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_AFR1) != 0)
+	if (SHOULD_PRINT_REG(id_aa64afr1))
 		print_id_register(sb, "Auxiliary Features 1",
 		    cpu_desc[cpu].id_aa64afr1, id_aa64afr1_fields);
 
 	/* AArch64 SVE Feature Register 0 */
-	/* We check the cpu == 0 case when setting PRINT_ID_AA64_ZFR0 */
-	if ((cpu_print_regs & PRINT_ID_AA64_ZFR0) != 0)
-		print_id_register(sb, "SVE Features 0",
-		    cpu_desc[cpu].id_aa64zfr0, id_aa64zfr0_fields);
+	if (cpu_desc[cpu].have_sve) {
+		if (SHOULD_PRINT_REG(id_aa64zfr0) ||
+		    !cpu_desc[cpu - 1].have_sve) {
+			print_id_register(sb, "SVE Features 0",
+			    cpu_desc[cpu].id_aa64zfr0, id_aa64zfr0_fields);
+		}
+	}
 
 #ifdef COMPAT_FREEBSD32
 	/* AArch32 Instruction Set Attribute Register 5 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_ID_ISAR5) != 0)
+	if (SHOULD_PRINT_REG(id_isar5))
 		print_id_register(sb, "AArch32 Instruction Set Attributes 5",
 		     cpu_desc[cpu].id_isar5, id_isar5_fields);
 
 	/* AArch32 Media and VFP Feature Register 0 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_MVFR0) != 0)
+	if (SHOULD_PRINT_REG(mvfr0))
 		print_id_register(sb, "AArch32 Media and VFP Features 0",
 		     cpu_desc[cpu].mvfr0, mvfr0_fields);
 
 	/* AArch32 Media and VFP Feature Register 1 */
-	if (cpu == 0 || (cpu_print_regs & PRINT_MVFR1) != 0)
+	if (SHOULD_PRINT_REG(mvfr1))
 		print_id_register(sb, "AArch32 Media and VFP Features 1",
 		     cpu_desc[cpu].mvfr1, mvfr1_fields);
 #endif
@@ -2301,6 +2287,7 @@ print_cpu_features(u_int cpu)
 
 	sbuf_delete(sb);
 	sb = NULL;
+#undef SHOULD_PRINT_REG
 #undef SEP_STR
 }
 
@@ -2431,61 +2418,11 @@ check_cpu_regs(u_int cpu)
 		break;
 	}
 
-	if (cpu_desc[cpu].id_aa64afr0 != cpu_desc[0].id_aa64afr0)
-		cpu_print_regs |= PRINT_ID_AA64_AFR0;
-	if (cpu_desc[cpu].id_aa64afr1 != cpu_desc[0].id_aa64afr1)
-		cpu_print_regs |= PRINT_ID_AA64_AFR1;
-
-	if (cpu_desc[cpu].id_aa64dfr0 != cpu_desc[0].id_aa64dfr0)
-		cpu_print_regs |= PRINT_ID_AA64_DFR0;
-	if (cpu_desc[cpu].id_aa64dfr1 != cpu_desc[0].id_aa64dfr1)
-		cpu_print_regs |= PRINT_ID_AA64_DFR1;
-
-	if (cpu_desc[cpu].id_aa64isar0 != cpu_desc[0].id_aa64isar0)
-		cpu_print_regs |= PRINT_ID_AA64_ISAR0;
-	if (cpu_desc[cpu].id_aa64isar1 != cpu_desc[0].id_aa64isar1)
-		cpu_print_regs |= PRINT_ID_AA64_ISAR1;
-	if (cpu_desc[cpu].id_aa64isar2 != cpu_desc[0].id_aa64isar2)
-		cpu_print_regs |= PRINT_ID_AA64_ISAR2;
-
-	if (cpu_desc[cpu].id_aa64mmfr0 != cpu_desc[0].id_aa64mmfr0)
-		cpu_print_regs |= PRINT_ID_AA64_MMFR0;
-	if (cpu_desc[cpu].id_aa64mmfr1 != cpu_desc[0].id_aa64mmfr1)
-		cpu_print_regs |= PRINT_ID_AA64_MMFR1;
-	if (cpu_desc[cpu].id_aa64mmfr2 != cpu_desc[0].id_aa64mmfr2)
-		cpu_print_regs |= PRINT_ID_AA64_MMFR2;
-
-	if (cpu_desc[cpu].id_aa64pfr0 != cpu_desc[0].id_aa64pfr0)
-		cpu_print_regs |= PRINT_ID_AA64_PFR0;
-	if (cpu_desc[cpu].id_aa64pfr1 != cpu_desc[0].id_aa64pfr1)
-		cpu_print_regs |= PRINT_ID_AA64_PFR1;
-
-	/* Only print if ID_AA64ZFR0_EL1 is valid */
-	if (cpu_desc[cpu].have_sve) {
-		/* Print if the value changed */
-		if (cpu_desc[cpu].id_aa64zfr0 != cpu_desc[0].id_aa64zfr0) {
-			cpu_print_regs |= PRINT_ID_AA64_ZFR0;
-		/* Print if it didn't, but the previous CPU was invalid */
-		} else if (cpu > 0 && !cpu_desc[cpu - 1].have_sve) {
-			cpu_print_regs |= PRINT_ID_AA64_ZFR0;
-		}
-	}
-
 	if (cpu_desc[cpu].ctr != cpu_desc[0].ctr) {
 		/*
 		 * If the cache type register is different we may
 		 * have a different l1 cache type.
 		 */
 		identify_cache(cpu_desc[cpu].ctr);
-		cpu_print_regs |= PRINT_CTR_EL0;
 	}
-
-#ifdef COMPAT_FREEBSD32
-	if (cpu_desc[cpu].id_isar5 != cpu_desc[0].id_isar5)
-		cpu_print_regs |= PRINT_ID_ISAR5;
-	if (cpu_desc[cpu].mvfr0 != cpu_desc[0].mvfr0)
-		cpu_print_regs |= PRINT_MVFR0;
-	if (cpu_desc[cpu].mvfr1 != cpu_desc[0].mvfr1)
-		cpu_print_regs |= PRINT_MVFR1;
-#endif
 }
