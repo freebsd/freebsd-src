@@ -231,7 +231,7 @@ t4_cloner_destroy(struct if_clone *ifc, struct ifnet *ifp)
 }
 
 void
-t4_tracer_modload()
+t4_tracer_modload(void)
 {
 
 	sx_init(&t4_trace_lock, "T4/T5 tracer lock");
@@ -240,7 +240,7 @@ t4_tracer_modload()
 }
 
 void
-t4_tracer_modunload()
+t4_tracer_modunload(void)
 {
 
 	if (t4_cloner != NULL) {
