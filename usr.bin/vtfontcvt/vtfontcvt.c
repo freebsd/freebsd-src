@@ -565,7 +565,7 @@ parse_hex(FILE *fp, unsigned int map_idx)
 			if (bytes != NULL)
 				errx(1, "malformed input: Width tag after font data");
 			set_width(atoi(ln + 9));
-		} else if (sscanf(ln, "%6x:", &curchar)) {
+		} else if (sscanf(ln, "%6x:", &curchar) == 1) {
 			if (bytes == NULL) {
 				bytes = xmalloc(wbytes * height);
 				bytes_r = xmalloc(wbytes * height);
