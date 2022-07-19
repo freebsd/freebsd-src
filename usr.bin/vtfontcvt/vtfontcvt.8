@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2020
+.Dd July 19, 2022
 .Dt VTFONTCVT 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl n
-.Op Fl f Ar font Ns | Ns Ar source Ns | Ns Ar compressed-source
+.Op Fl f Ar format
 .Op Fl h Ar height
 .Fl o Ar output_file
 .Op Fl v
@@ -44,22 +44,35 @@
 The
 .Nm
 utility reads source font files in either BDF or Unifont HEX format and
-outputs a binary font file, C source, or C source with font data compressed
-by using LZ4 compression method.
-The output in C source is intended to be used to embed the font into program
-binary.
-The binary font file is for use by
-.Xr vt 4 .
-HEX format files must have the file extension
+outputs a file in one of the available output formats.
+.Pp
+HEX format files
+.Po Ar normal_font
+and
+.Ar bold_font Pc
+must have the file extension
 .Pa .hex .
 .Pp
 The following options are available:
-.Bl -tag -width "12345678"
-.It Fl f Ar font Ns | Ns Ar source Ns | Ns Ar compressed-source
+.Bl -tag -width "-o output_file"
+.It Fl f Ar format
 Specify the output format.
-The default is binary
-.Ar font
-file.
+Available formats are:
+.Bl -tag -width "compressed-source"
+.It Cm compressed-source
+C source with font data compressed by using LZ4 compression method.
+.It Cm font
+A binary font file
+.Pq default .
+.It Cm source
+C source.
+.El
+.Pp
+The output in C source is intended to be used to embed the font into program
+binary.
+.Pp
+The binary font file is for use by
+.Xr vt 4 .
 .It Fl h Ar height
 Set font height.
 The default is 16.
