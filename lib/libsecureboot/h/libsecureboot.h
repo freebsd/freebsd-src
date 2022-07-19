@@ -59,6 +59,7 @@ size_t ve_trust_anchors_add_buf(unsigned char *, size_t);
 size_t ve_trust_anchors_revoke(unsigned char *, size_t);
 int ve_trust_add(const char *);
 void ve_debug_set(int);
+void ve_enforce_validity_set(int);
 void ve_anchor_verbose_set(int);
 int ve_anchor_verbose_get(void);
 void ve_utc_set(time_t utc);
