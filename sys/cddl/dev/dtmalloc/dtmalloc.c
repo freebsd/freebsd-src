@@ -186,7 +186,7 @@ dtmalloc_load(void *dummy)
 
 
 static int
-dtmalloc_unload()
+dtmalloc_unload(void)
 {
 	int error = 0;
 
