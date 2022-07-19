@@ -637,7 +637,7 @@ profile_load(void *dummy)
 
 
 static int
-profile_unload()
+profile_unload(void)
 {
 	int error = 0;
 
