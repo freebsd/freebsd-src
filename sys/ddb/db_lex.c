@@ -91,7 +91,7 @@ db_get_line(void)
 }
 
 static void
-db_flush_line()
+db_flush_line(void)
 {
 	db_lp = db_line;
 	db_endlp = db_line;
