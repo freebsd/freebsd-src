@@ -148,7 +148,7 @@ main(int argc, char *argv[])
 
 	dev_fd = open(_PATH_DEV_VERIEXEC, O_WRONLY, 0);
 
-	while ((c = getopt(argc, argv, "hC:i:xvz:")) != -1) {
+	while ((c = getopt(argc, argv, "hC:i:Sxvz:")) != -1) {
 		switch (c) {
 		case 'h':
 			/* Print usage info */
@@ -173,6 +173,10 @@ main(int argc, char *argv[])
 			state = veriexec_state_query(optarg);
 
 			exit((x & state) == 0);
+			break;
+		case 'S':
+			/* Strictly enforce certificate validity */
+			ve_enforce_validity_set(1);
 			break;
 		case 'v':
 			/* Increase the verbosity */

@@ -86,6 +86,20 @@ ve_debug_set(int n)
 	DebugVe = n;
 }
 
+/*
+ * For embedded systems (and boot loaders)
+ * we do not want to enforce certificate validity post install.
+ * It is generally unacceptible for infrastructure to stop working
+ * just because it has not been updated recently.
+ */
+static int enforce_validity = 0;
+
+void
+ve_enforce_validity_set(int i)
+{
+    enforce_validity = i;
+}
+
 static char ebuf[512];
 
 char *
@@ -444,23 +458,23 @@ verify_time_cb(void *tctx __unused,
 	char date[12], nb_date[12], na_date[12];
 #endif
 
-	not_before = ((not_before_days - X509_DAYS_TO_UTC0) * SECONDS_PER_DAY) + not_before_seconds;
-	not_after =  ((not_after_days - X509_DAYS_TO_UTC0) * SECONDS_PER_DAY) + not_after_seconds;
-	if (ve_utc < not_before)
-		rc = -1;
-	else if (ve_utc > not_after)
-		rc = 1;
-	else
-		rc = 0;
+	if (enforce_validity) {
+		not_before = ((not_before_days - X509_DAYS_TO_UTC0) * SECONDS_PER_DAY) + not_before_seconds;
+		not_after =  ((not_after_days - X509_DAYS_TO_UTC0) * SECONDS_PER_DAY) + not_after_seconds;
+		if (ve_utc < not_before)
+			rc = -1;
+		else if (ve_utc > not_after)
+			rc = 1;
+		else
+			rc = 0;
 #ifdef UNIT_TEST
-	printf("notBefore %s notAfter %s date %s rc %d\n",
-	    gdate(nb_date, sizeof(nb_date), not_before),
-	    gdate(na_date, sizeof(na_date), not_after),
-	    gdate(date, sizeof(date), ve_utc), rc);
+		printf("notBefore %s notAfter %s date %s rc %d\n",
+		    gdate(nb_date, sizeof(nb_date), not_before),
+		    gdate(na_date, sizeof(na_date), not_after),
+		    gdate(date, sizeof(date), ve_utc), rc);
 #endif
-#if defined(_STANDALONE)
-	rc = 0;				/* don't fail */
-#endif
+	} else
+		rc = 0;			/* don't fail */
 	return rc;
 }
 #endif
