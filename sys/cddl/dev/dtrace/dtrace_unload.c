@@ -23,7 +23,7 @@
  */
 
 static int
-dtrace_unload()
+dtrace_unload(void)
 {
 	dtrace_state_t *state;
 	int error = 0;
