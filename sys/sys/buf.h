@@ -522,7 +522,8 @@ extern int	bdwriteskip;
 extern int	dirtybufferflushes;
 extern int	altbufferflushes;
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
-extern caddr_t	unmapped_buf;	/* Data address for unmapped buffers. */
+extern caddr_t __read_mostly unmapped_buf; /* Data address for unmapped
+					      buffers. */
 
 static inline int
 buf_mapped(struct buf *bp)
