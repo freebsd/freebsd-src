@@ -3426,9 +3426,9 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 	 */
 	if (vap->iv_state == ostate) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-		    "ni %p mode %s state %s ostate %d arg %p status %d\n", ni,
+		    "ni %p mode %s state %s arg %p status %d\n", ni,
 		    ieee80211_opmode_name[vap->iv_opmode],
-		    ieee80211_state_name[vap->iv_state], ostate, arg, status);
+		    ieee80211_state_name[vap->iv_state], arg, status);
 
 		callout_reset(&vap->iv_mgtsend,
 			status == 0 ? IEEE80211_TRANS_WAIT*hz : 0,
