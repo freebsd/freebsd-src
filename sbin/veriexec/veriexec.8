@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2022
+.Dd July 8, 2022
 .Dt VERIEXEC 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Op Fl v
 .Op Fl C Ar directory
+.Op Fl S
 .Pa manifest
 .Nm
 .Fl z Ar state
@@ -53,6 +54,11 @@ The first form is for loading a
 first verifies a digital signature of the
 .Ar manifest
 and if successful, parses it and feeds its content to kernel.
+The
+.Fl S
+flag indicates that certificate validity should be checked.
+Without this, a valid signature with an expired certificate
+will still be accepted.
 .Pp
 The second form with
 .Fl z
