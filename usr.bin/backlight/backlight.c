@@ -65,11 +65,11 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\tbacklight [-f dev]\n");
-	fprintf(stderr, "\tbacklight [-f dev] -i\n");
-	fprintf(stderr, "\tbacklight [-f dev] <percent>\n");
-	fprintf(stderr, "\tbacklight [-f dev] incr|+ <percent>\n");
-	fprintf(stderr, "\tbacklight [-f dev] decr|- <percent>\n");
+	fprintf(stderr, "\tbacklight [-q] [-f device]\n");
+	fprintf(stderr, "\tbacklight [-q] [-f device] -i\n");
+	fprintf(stderr, "\tbacklight [-f device] value\n");
+	fprintf(stderr, "\tbacklight [-f device] incr|+ value\n");
+	fprintf(stderr, "\tbacklight [-f device] decr|- value\n");
 	exit(1);
 }
 
