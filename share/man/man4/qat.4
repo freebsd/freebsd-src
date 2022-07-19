@@ -1,0 +1,127 @@
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" Copyright(c) 2007-2022 Intel Corporation
+.\" $FreeBSD$
+.Dd June 30, 2022
+.Dt QAT 4
+.Os
+.Sh NAME
+.Nm qat
+.Nd Intel (R) QuickAssist Technology (QAT) driver
+.Sh SYNOPSIS
+To load the driver call:
+.Pp
+.Bl -item -compact
+.It
+kldload qat
+.El
+.Pp
+In order to load the driver on boot add these lines to
+.Xr loader.conf 5 selecting firmware(s) suitable for installed device(s)
+.Pp
+.Bl -item -compact
+.It
+qat_200xx_fw_load="YES"
+.It
+qat_c3xxx_fw_load="YES"
+.It
+qat_c4xxx_fw_load="YES"
+.It
+qat_c62x_fw_load="YES"
+.It
+qat_dh895xcc_fw_load="YES"
+.It
+qat_load="YES"
+.El
+.Sh DESCRIPTION
+The
+.Nm
+driver supports cryptography and compression acceleration of the
+Intel (R) QuickAssist Technology (QAT) devices.
+.Pp
+The
+.Nm
+driver is intended for platforms that contain:
+.Bl -bullet -compact
+.It
+Intel (R) C62x Chipset
+.It
+Intel (R) Atom C3000 processor product family
+.It
+Intel (R) QuickAssist Adapter 8960/Intel (R) QuickAssist Adapter 8970
+(formerly known as "Lewis Hill")
+.It
+Intel (R) Communications Chipset 8925 to 8955 Series
+.It
+Intel (R) Atom P5300 processor product family
+.El
+.Pp
+The
+.Nm
+driver supports cryptography and compression acceleration.
+A complete API for offloading these operations is exposed in the kernel and may
+be used by any other entity directly.
+For details of usage and supported operations and algorithms refer to the
+following documentation available from
+.Lk 01.org :
+.Bl -bullet -compact
+.It
+.Rs
+.%A Intel (R)
+.%T QuickAssist Technology API Programmer's Guide
+.Re
+.It
+.Rs
+.%A Intel (R)
+.%T QuickAssist Technology Cryptographic API Reference Manual
+.Re
+.It
+.Rs
+.%A Intel (R)
+.%T QuickAssist Technology Data Compression API Reference Manual
+.Re
+.It
+.Rs
+.%A Intel (R)
+.%T QuickAssist Technology Performance Optimization Guide
+.Re
+.El
+.Pp
+In addition to exposing complete kernel API for offloading cryptography and
+compression operations, the
+.Nm
+driver also integrates with
+.Xr crypto 4 ,
+allowing offloading supported cryptography operations to Intel (R) QuickAssist
+Technology (QAT) devices.
+For details of usage and supported operations and algorithms refer to the
+documentation mentioned above and
+.Sx SEE ALSO
+section.
+.Sh COMPATIBILITY
+The
+.Nm
+driver replaced previous implementation introduced in
+.Fx 13.0 .
+Current version, in addition to
+.Xr crypto 4
+integration, supports also data compression and exposes a complete API for
+offloading data compression and cryptography operations.
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr ipsec 4 ,
+.Xr pci 4 ,
+.Xr crypto 7 ,
+.Xr crypto 9
+.Sh HISTORY
+This
+.Nm
+driver was introduced in
+.Fx 14.0 .
+.Fx 13.0 included a different version of
+.Nm
+driver.
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Intel (R) Corporation .
