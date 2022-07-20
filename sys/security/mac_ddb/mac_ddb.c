@@ -77,7 +77,9 @@ static db_validation_fn_t	db_show_ffs_valid;
 static db_validation_fn_t	db_show_prison_valid;
 static db_validation_fn_t	db_show_proc_valid;
 static db_validation_fn_t	db_show_rman_valid;
+#ifdef VIMAGE
 static db_validation_fn_t	db_show_vnet_valid;
+#endif
 
 struct cmd_list_item {
 	const char *name;
@@ -96,7 +98,9 @@ static const struct cmd_list_item show_command_list[] = {
 	{ "proc",	db_show_proc_valid },
 	{ "rman",	db_show_rman_valid },
 	{ "thread",	db_thread_valid },
+#ifdef VIMAGE
 	{ "vnet",	db_show_vnet_valid },
+#endif
 };
 
 static int
@@ -188,6 +192,7 @@ db_show_rman_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	return (EACCES);
 }
 
+#ifdef VIMAGE
 static int
 db_show_vnet_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
@@ -203,6 +208,7 @@ db_show_vnet_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 
 	return (EACCES);
 }
+#endif
 
 static int
 command_match(struct db_command *cmd, struct cmd_list_item item)
