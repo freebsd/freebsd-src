@@ -110,7 +110,7 @@ SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_startup_countdown, CTLFLAG_RDTUN,
 SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RWTUN,
 	&wd_pretimeout_countdown, 0,
 	"IPMI watchdog pre-timeout countdown (seconds)");
-SYSCTL_INT(_hw_ipmi, OID_AUTO, cyle_wait, CTLFLAG_RWTUN,
+SYSCTL_INT(_hw_ipmi, OID_AUTO, cycle_wait, CTLFLAG_RWTUN,
 	&cycle_wait, 0,
 	"IPMI power cycle on reboot delay time (seconds)");
 
@@ -794,7 +794,7 @@ ipmi_power_cycle(void *arg, int howto)
 	}
 
 	/*
-	 * BMCs are notoriously slow, give it cyle_wait seconds for the power
+	 * BMCs are notoriously slow, give it cycle_wait seconds for the power
 	 * down leg of the power cycle. If that fails, fallback to the next
 	 * hanlder in the shutdown_final chain and/or the platform failsafe.
 	 */
