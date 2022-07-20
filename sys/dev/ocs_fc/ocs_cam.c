@@ -2553,27 +2553,22 @@ static int32_t
 ocs_tgt_resource_abort(struct ocs_softc *ocs, ocs_tgt_resource_t *trsrc)
 {
 	union ccb *ccb = NULL;
-	uint32_t	count;
 
-	count = 0;
 	do {
 		ccb = (union ccb *)STAILQ_FIRST(&trsrc->atio);
 		if (ccb) {
 			STAILQ_REMOVE_HEAD(&trsrc->atio, sim_links.stqe);
 			ccb->ccb_h.status = CAM_REQ_ABORTED;
 			xpt_done(ccb);
-			count++;
 		}
 	} while (ccb);
 
-	count = 0;
 	do {
 		ccb = (union ccb *)STAILQ_FIRST(&trsrc->inot);
 		if (ccb) {
 			STAILQ_REMOVE_HEAD(&trsrc->inot, sim_links.stqe);
 			ccb->ccb_h.status = CAM_REQ_ABORTED;
 			xpt_done(ccb);
-			count++;
 		}
 	} while (ccb);
 
