@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	last
+PACKAGE=	acct
 LIBADD=	xo
 
 NO_WFORMAT=
