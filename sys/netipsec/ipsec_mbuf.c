@@ -90,11 +90,10 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 		*off = skip;
 	} else if (hlen > M_TRAILINGSPACE(m)) {
 		struct mbuf *n0, *n, **np;
-		int todo, len, done, alloc;
+		int todo, len, done;
 
 		n0 = NULL;
 		np = &n0;
-		alloc = 0;
 		done = 0;
 		todo = remain;
 		while (todo > 0) {
@@ -112,7 +111,6 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 			}
 			*np = n;
 			np = &n->m_next;
-			alloc++;
 			len = min(todo, len);
 			memcpy(n->m_data, mtod(m, char *) + skip + done, len);
 			n->m_len = len;
@@ -134,7 +132,6 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 				m_freem(n0);
 				return NULL;
 			}
-			alloc++;
 
 			if ((n->m_next = n0) == NULL)
 				np = &n->m_next;
