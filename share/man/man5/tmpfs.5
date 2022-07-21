@@ -77,7 +77,7 @@ tmpfs_load="YES"
 The
 .Nm
 driver implements an in-memory, or
-.Tn tmpfs
+.Nm
 file system.
 The filesystem stores both file metadata and data in main memory.
 This allows very fast and low latency accesses to the data.
@@ -87,8 +87,9 @@ These properties make the filesystem's mounts suitable for fast
 scratch storage, like
 .Pa /tmp .
 .Pp
-If the system becomes low on memory and swap is configured (see
-.Xr swapon 8 ),
+If the system becomes low on memory and swap is configured
+.Po see
+.Xr swapon 8 Pc ,
 the system can transfer file data to swap space, freeing memory
 for other needs.
 Metadata, including the directory content, is never swapped out by the
