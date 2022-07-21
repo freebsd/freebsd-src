@@ -61,6 +61,7 @@ static char *ig4iic_ids[] = {
 	"808622C1",
 	"AMDI0510",
 	"AMDI0010",
+	"AMD0010",
 	"APMC0D0F",
 	NULL
 };
