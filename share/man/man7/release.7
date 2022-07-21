@@ -631,12 +631,7 @@ cd /usr/src/release
 sh release.sh
 .Ed
 .Pp
-Optionally, a configuration file can be used customize the release build,
-such as the subversion revision to use, the branch of the subversion tree for
-.Li src/ ,
-.Li ports/ ,
-and
-.Li doc/ .
+Optionally, a configuration file can be used to customize the release build:
 .Bd -literal -offset indent
 cd /usr/src/release
 sh release.sh -c $HOME/release.conf
