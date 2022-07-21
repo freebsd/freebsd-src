@@ -1225,7 +1225,7 @@ pmclog_process_userlog(struct pmc_owner *po, struct pmc_op_writelog *wl)
  */
 
 void
-pmclog_initialize()
+pmclog_initialize(void)
 {
 	struct pmclog_buffer *plb;
 	int domain, ncpus, total;
@@ -1274,7 +1274,7 @@ pmclog_initialize()
  */
 
 void
-pmclog_shutdown()
+pmclog_shutdown(void)
 {
 	struct pmclog_buffer *plb;
 	int domain;
