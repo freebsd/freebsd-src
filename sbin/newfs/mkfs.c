@@ -636,23 +636,26 @@ restart:
 	 * Read the last sector of the boot block, replace the last
 	 * 20 bytes with the recovery information, then write it back.
 	 * The recovery information only works for UFS2 filesystems.
+	 * For UFS1, zero out the area to ensure that an old UFS2
+	 * recovery block is not accidentally found.
 	 */
-	if (sblock.fs_magic == FS_UFS2_MAGIC) {
-		if ((fsrbuf = malloc(realsectorsize)) == NULL || bread(&disk,
-		    part_ofs + (SBLOCK_UFS2 - realsectorsize) / disk.d_bsize,
-		    fsrbuf, realsectorsize) == -1)
-			err(1, "can't read recovery area: %s", disk.d_error);
-		fsr =
-		    (struct fsrecovery *)&fsrbuf[realsectorsize - sizeof *fsr];
+	if ((fsrbuf = malloc(realsectorsize)) == NULL || bread(&disk,
+	    part_ofs + (SBLOCK_UFS2 - realsectorsize) / disk.d_bsize,
+	    fsrbuf, realsectorsize) == -1)
+		err(1, "can't read recovery area: %s", disk.d_error);
+	fsr = (struct fsrecovery *)&fsrbuf[realsectorsize - sizeof *fsr];
+	if (sblock.fs_magic != FS_UFS2_MAGIC) {
+		memset(fsr, 0, sizeof *fsr);
+	} else {
 		fsr->fsr_magic = sblock.fs_magic;
 		fsr->fsr_fpg = sblock.fs_fpg;
 		fsr->fsr_fsbtodb = sblock.fs_fsbtodb;
 		fsr->fsr_sblkno = sblock.fs_sblkno;
 		fsr->fsr_ncg = sblock.fs_ncg;
-		wtfs((SBLOCK_UFS2 - realsectorsize) / disk.d_bsize,
-		    realsectorsize, fsrbuf);
-		free(fsrbuf);
 	}
+	wtfs((SBLOCK_UFS2 - realsectorsize) / disk.d_bsize,
+	    realsectorsize, fsrbuf);
+	free(fsrbuf);
 	/*
 	 * Update information about this partition in pack
 	 * label, to that it may be updated on disk.
