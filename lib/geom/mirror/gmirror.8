@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2017
+.Dd July 21, 2022
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -388,21 +388,26 @@ Reading a dump from the mirror on boot will only work if the
 balance algorithm is used (that way
 .Nm
 will read only from the component with the highest priority).
-If you use a different balance algorithm, you should add:
+If you use a different balance algorithm, you should create an
+.Xr rc 8
+script that sets the balance algorithm to
+.Cm prefer ,
+for example with the following command:
 .Bd -literal -offset indent
 gmirror configure -b prefer data
 .Ed
 .Pp
-to the
-.Pa /etc/rc.early
-script and:
+Make sure that
+.Xr rcorder 8
+schedules the new script before
+.Xr savecore 8 .
+The desired balance algorithm can be restored later on
+by placing the following command in
+.Xr rc.local 8 :
 .Bd -literal -offset indent
 gmirror configure -b round-robin data
 .Ed
 .Pp
-to the
-.Pa /etc/rc.local
-script.
 The decision which component to choose for dumping is made when
 .Xr dumpon 8
 is called.
