@@ -2410,7 +2410,6 @@ lagg_rr_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 static int
 lagg_bcast_start(struct lagg_softc *sc, struct mbuf *m)
 {
-	int active_ports = 0;
 	int errors = 0;
 	int ret;
 	struct lagg_port *lp, *last = NULL;
@@ -2420,8 +2419,6 @@ lagg_bcast_start(struct lagg_softc *sc, struct mbuf *m)
 	CK_SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 		if (!LAGG_PORTACTIVE(lp))
 			continue;
-
-		active_ports++;
 
 		if (last != NULL) {
 			m0 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
