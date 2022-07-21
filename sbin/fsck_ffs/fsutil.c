@@ -129,7 +129,8 @@ reply(const char *question)
 
 	if (preen)
 		pfatal("INTERNAL ERROR: GOT TO reply()");
-	persevere = !strcmp(question, "CONTINUE");
+	persevere = strcmp(question, "CONTINUE") == 0 ||
+		strcmp(question, "LOOK FOR ALTERNATE SUPERBLOCKS") == 0;
 	printf("\n");
 	if (!persevere && (nflag || (fswritefd < 0 && bkgrdflag == 0))) {
 		printf("%s? no\n\n", question);
