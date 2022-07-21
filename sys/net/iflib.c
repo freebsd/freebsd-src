@@ -990,7 +990,6 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap kring */
 	u_int nic_i;	/* index into the NIC ring */
-	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
 	u_int const head = kring->rhead;
 	struct if_pkt_info pi;
@@ -1043,7 +1042,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 		__builtin_prefetch(&txq->ift_sds.ifsd_m[nic_i]);
 		__builtin_prefetch(&txq->ift_sds.ifsd_map[nic_i]);
 
-		for (n = 0; nm_i != head; n++) {
+		while (nm_i != head) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			uint64_t offset = nm_get_offset(kring, slot);
 			u_int len = slot->len;
