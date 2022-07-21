@@ -125,7 +125,7 @@ ipfw_kifhandler(void *arg, struct ifnet *ifp)
  * Registers interface tracking handlers for first VNET.
  */
 static void
-iface_khandler_register()
+iface_khandler_register(void)
 {
 	int create;
 
