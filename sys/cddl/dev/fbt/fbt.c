@@ -1135,7 +1135,7 @@ fbt_load(void *dummy)
 }
 
 static int
-fbt_unload()
+fbt_unload(void)
 {
 	int error = 0;
 
