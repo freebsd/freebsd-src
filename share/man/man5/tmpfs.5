@@ -53,7 +53,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2017
+.Dd July 21, 2022
 .Dt TMPFS 5
 .Os
 .Sh NAME
@@ -141,11 +141,19 @@ Specifies the maximum file size in bytes.
 Defaults to the maximum possible value.
 .El
 .Sh EXAMPLES
-To mount a
+Mount a
 .Nm
 memory file system:
 .Pp
 .Dl "mount -t tmpfs tmpfs /tmp"
+.Pp
+Configure a
+.Nm
+mount via
+.Xr fstab 5 :
+.Bd -literal -offset indent
+tmpfs /tmp tmpfs rw 0 0
+.Ed
 .Sh SEE ALSO
 .Xr procstat 1 ,
 .Xr mmap 2 ,
