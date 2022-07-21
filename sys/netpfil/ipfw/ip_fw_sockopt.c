@@ -185,7 +185,7 @@ VNET_DEFINE_STATIC(uma_zone_t, ipfw_cntr_zone);
 #define	V_ipfw_cntr_zone		VNET(ipfw_cntr_zone)
 
 void
-ipfw_init_counters()
+ipfw_init_counters(void)
 {
 
 	V_ipfw_cntr_zone = uma_zcreate("IPFW counters",
@@ -194,7 +194,7 @@ ipfw_init_counters()
 }
 
 void
-ipfw_destroy_counters()
+ipfw_destroy_counters(void)
 {
 	
 	uma_zdestroy(V_ipfw_cntr_zone);
@@ -3254,7 +3254,7 @@ update_opcode_kidx(ipfw_insn *cmd, uint16_t idx)
 }
 
 void
-ipfw_init_obj_rewriter()
+ipfw_init_obj_rewriter(void)
 {
 
 	ctl3_rewriters = NULL;
@@ -3262,7 +3262,7 @@ ipfw_init_obj_rewriter()
 }
 
 void
-ipfw_destroy_obj_rewriter()
+ipfw_destroy_obj_rewriter(void)
 {
 
 	if (ctl3_rewriters != NULL)
