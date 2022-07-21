@@ -157,7 +157,7 @@ iface_khandler_register()
  * detach.
  */
 static void
-iface_khandler_deregister()
+iface_khandler_deregister(void)
 {
 	int destroy;
 
