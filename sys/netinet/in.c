@@ -297,7 +297,7 @@ sysctl_loopback_prefixlen(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &preflen, 0, req);
 	if (error || !req->newptr)
 		return (error);
-	if (preflen < 8 || preflen > 32)
+	if (preflen < 8 || preflen > 31)
 		return (EINVAL);
 	V_in_loopback_mask = 0xffffffff << (32 - preflen);
 	return (0);
