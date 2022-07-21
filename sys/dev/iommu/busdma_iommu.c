@@ -1047,7 +1047,7 @@ bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
 		IOMMU_DMAMAP_UNLOCK(map);
 	} else {
-		iommu_domain_unload_entry(entry, true);
+		iommu_gas_free_entry(domain, entry);
 	}
 	for (i = 0; i < atop(length); i++)
 		vm_page_putfake(ma[i]);
