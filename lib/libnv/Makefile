@@ -6,7 +6,7 @@ SHLIBDIR?= /lib
 
 PACKAGE=	runtime
 LIB=	nv
-SHLIB_MAJOR= 0
+SHLIB_MAJOR= 1
 
 VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
 VERSION_MAP=	${.CURDIR}/Version.map
