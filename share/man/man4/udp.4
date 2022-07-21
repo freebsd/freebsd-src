@@ -28,7 +28,7 @@
 .\"     @(#)udp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2022
+.Dd August 1, 2022
 .Dt UDP 4
 .Os
 .Sh NAME
@@ -110,14 +110,15 @@ Only one value is supported for this option:
 .Tn UDP_ENCAP_ESPINUDP
 from RFC 3948, defined in
 .In netinet/udp.h .
-.Sh MIB VARIABLES
+.Sh MIB (sysctl) Variables
 The
 .Nm
 protocol implements a number of variables in the
 .Va net.inet.udp
 branch of the
 .Xr sysctl 3
-MIB:
+MIB, which can be also read or modified with
+.Xr sysctl 8 :
 .Bl -tag -width ".Va log_in_vain"
 .It Va blackhole
 When a datagram is received on a port where there is no socket

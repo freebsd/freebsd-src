@@ -28,7 +28,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2022
+.Dd August 1, 2022
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -153,14 +153,15 @@ The following codes are defined:
 .It 2 Ta auth-fail Ta photuris Ta "Authentication failed"
 .It 3 Ta decrypt-fail Ta photuris Ta "Decryption failed"
 .El
-.Ss MIB Variables
+.Ss MIB (sysctl) Variables
 The
 .Tn ICMP
 protocol implements a number of variables in the
 .Va net.inet.icmp
 branch of the
 .Xr sysctl 3
-MIB.
+MIB, which can also be read or modified with
+.Xr sysctl 8 .
 .Bl -tag -width ".Va icmplim_output"
 .It Va bmcastecho
 .Pq Vt boolean
@@ -200,9 +201,12 @@ Defaults to false.
 Number of bytes from original packet to quote in ICMP reply.
 This number is internally enforced to be at least 8 bytes (per RFC792)
 and at most the maximal space left in the ICMP reply mbuf.
+.It Va redirtimeout
+.Pq Vt integer
+Delay in seconds before expiring route created by ICMP redirect.
 .It Va reply_from_interface
 .Pq Vt boolean
-Use the IP address of the interface the packet came through in for
+Use the IP address of the interface the packet came in through for
 responses to packets which are not directly addressed to us.
 If enabled, this rule is processed before all others.
 By default, continue with normal source selection.
@@ -241,12 +245,14 @@ exists.
 .Sh SEE ALSO
 .Xr recv 2 ,
 .Xr send 2 ,
+.Xr sysctl 3 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,
-.Xr pf.conf 5
+.Xr pf.conf 5 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
-protocol appeared in
-.Bx 4.3 .
+protocol implementation appeared in
+.Bx 4.2 .
