@@ -2741,7 +2741,10 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 	uint8_t *ld;
 	uint32_t stat, off, status, event;
 	u_int spd;
-	int len, plen, hlen, pcnt, offset;
+#ifdef COUNT_PACKETS
+	int pcnt;
+#endif
+        int len, plen, hlen, offset;
 	int s;
 	caddr_t buf;
 	int resCount;
@@ -2756,7 +2759,9 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 
 	s = splfw();
 	db_tr = dbch->top;
+#ifdef COUNT_PACKETS
 	pcnt = 0;
+#endif
 	/* XXX we cannot handle a packet which lies in more than two buf */
 	fwdma_sync_multiseg_all(dbch->am, BUS_DMASYNC_POSTREAD);
 	fwdma_sync_multiseg_all(dbch->am, BUS_DMASYNC_POSTWRITE);
@@ -2922,7 +2927,9 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 #endif
 				break;
 			}
+#ifdef COUNT_PACKETS
 			pcnt++;
+#endif
 			if (dbch->pdb_tr != NULL) {
 				fwohci_arcv_free_buf(sc, dbch, dbch->pdb_tr,
 				    off, 1);
@@ -2952,7 +2959,7 @@ out:
 		}
 		/* XXX make sure DMA is not dead */
 	}
-#if 0
+#ifdef COUNT_PACKETS
 	if (pcnt < 1)
 		printf("fwohci_arcv: no packets\n");
 #endif
