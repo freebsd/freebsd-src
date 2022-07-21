@@ -170,6 +170,8 @@ copy_thread(struct thread *td1, struct thread *td2)
 		    cpu_max_ext_state_size);
 	}
 
+	td2->td_frame = (struct trapframe *)td2->td_md.md_stack_base - 1;
+
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
