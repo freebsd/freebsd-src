@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220721: libnv version bumps
+OLD_LIBS+=lib/libnv.so.0
+
 # 20220624: unix_passfd_test -> unix_passfd_stream/unix_passfd_dgram
 OLD_FILES+=usr/tests/sys/kern/unix_passfd_test
 
