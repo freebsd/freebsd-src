@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2022
+.Dd August 1, 2022
 .Dt INET 4
 .Os
 .Sh NAME
@@ -157,7 +157,7 @@ preferred way is to use
 .Xr getifaddrs 3
 API.
 .El
-.Ss MIB Variables
+.Ss MIB (sysctl) Variables
 In addition to the variables supported by the transport protocols in
 .Va net.inet
 (for which the respective manual pages may be consulted),
@@ -165,7 +165,8 @@ there are a number of general variables implemented in the
 .Va net.inet.ip
 branch of the
 .Xr sysctl 3
-MIB.
+MIB, which can be also read or modified with
+.Xr sysctl 8 .
 The following general variables are defined:
 .Bl -tag -width ".Va accept_sourceroute"
 .It Va accept_sourceroute
@@ -176,9 +177,15 @@ and allow forwarding of packets with these addresses.
 .It Va allow_net240
 Boolean: allow experimental use of addresses in 240.0.0.0/4 as endpoints,
 and allow forwarding of packets with these addresses.
+.It Va curfrags
+Integer: Current number of IPv4 fragments across all reassembly queues
+in all VNETs (read-only).
 .It Va forwarding
 Boolean: enable/disable forwarding of IP packets.
 Defaults to off.
+.It Va fragpackets
+Integer: Current number of IPv4 fragment reassembly queue entries
+for the VNET (read-only).
 .It Va loopback_prefixlen
 Integer: prefix length of the address space reserved for loopback purposes.
 The default is 8, meaning that 127.0.0.0/8 is reserved for loopback,
@@ -216,6 +223,20 @@ Integer: maximum number of fragments the host will accept and hold
 in the reassembly queue for a packet.
 0 means that the host will not accept any fragmented packets for the VNET.
 This is a per-VNET limit.
+.It Va mcast
+Variables under the
+.Va net.inet.ip.mcast
+node are documented in
+.Xr ip 4 .
+.It Va no_same_prefix
+Boolean: Refuse to create same prefixes on different interfaces.
+This is a per-VNET value.
+.It Va portrange
+Variables under the
+.Va net.inet.ip.portrange
+node control port ranges used by transport protocols; see
+.Xr ip 4
+for details.
 .It Va process_options
 Integer: control IP options processing.
 By setting this variable to 0, all IP options in the incoming packets
@@ -248,6 +269,15 @@ At the same time, on high-speed links, it can decrease the ID reuse
 cycle greatly.
 Default is 0 (sequential IP IDs).
 IPv6 flow IDs and fragment IDs are always random.
+.It Va random_id_collisions
+Integer: count of IP ID collisions (read-only, per-VNET).
+.It Va random_id_period
+Integer: size of the IP ID array, which is the number of previous packets
+for which the IDs are recorded.
+The number must be between 512 and 32768 inclusive.
+This is a per-VNET value.
+.It Va random_id_total
+Integer: count of IP IDs created (read-only, per-VNET).
 .It Va redirect
 Boolean: enable/disable sending of ICMP redirects in response to
 .Tn IP
@@ -306,6 +336,7 @@ packets.
 .Xr route 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
+.Xr sysctl 8 ,
 .Xr pfil 9
 .Rs
 .%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
