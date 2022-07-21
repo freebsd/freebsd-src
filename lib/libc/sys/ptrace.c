@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016 The FreeBSD Foundation.
- * All rights reserved.
  *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
