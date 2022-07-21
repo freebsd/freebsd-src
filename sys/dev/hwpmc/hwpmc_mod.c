@@ -4801,8 +4801,6 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	uint64_t considx, prodidx;
 	int nsamples, nrecords, pass, iter;
 #ifdef	INVARIANTS
-	int ncallchains;
-	int nfree;
 	int start_ticks = ticks;
 #endif
 	psb = pmc_pcpu[cpu]->pc_sb[ring];
@@ -4812,10 +4810,6 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	    ("[pmc,%d] Retrieving callchain for thread that doesn't want it",
 		__LINE__));
 
-#ifdef	INVARIANTS
-	ncallchains = 0;
-	nfree = 0;
-#endif
 	nrecords = INT_MAX;
 	pass = 0;
  restart:
@@ -4834,13 +4828,8 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 
 #ifdef	INVARIANTS
 		if (ps->ps_nsamples == PMC_SAMPLE_FREE) {
-			nfree++;
 			continue;
 		}
-
-		if ((ps->ps_pmc == NULL) ||
-		    (ps->ps_pmc->pm_state != PMC_STATE_RUNNING))
-			nfree++;
 #endif
 		if (ps->ps_td != td ||
 		   ps->ps_nsamples != PMC_USER_CALLCHAIN_PENDING ||
@@ -4870,10 +4859,6 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 		 * Retrieve the callchain and mark the sample buffer
 		 * as 'processable' by the timer tick sweep code.
 		 */
-
-#ifdef INVARIANTS
-		ncallchains++;
-#endif
 
 		if (__predict_true(nsamples < pmc_callchaindepth - 1))
 			nsamples += pmc_save_user_callchain(ps->ps_pc + nsamples,
