@@ -2126,7 +2126,7 @@ vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int event,
 }
 
 static void
-vt_mouse_paste()
+vt_mouse_paste(void)
 {
 	term_char_t *buf;
 	int i, len;
