@@ -10,6 +10,17 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+78ee8d1c4cda,f4f56ff43dbd:
+	The in-tree qat(4) driver has been replaced with Intel's QAT driver.
+	The new version provides additional interfaces to the chipset's
+	cryptographic and compression offload functionality.
+
+	This will have no visible change for most users; however, the new
+	driver does not support Atom C2000 chipsets.  To preserve support for
+	those chipsets, the old driver has been renamed to qat_c2xxx and kept
+	in the tree.  Users of qat(4) on C2000 hardware will thus need to
+	ensure that qat_c2xxx(4) is loaded instead of qat(4).
+
 da5b7e90e740,5a8fceb3bd9f,7b0a665d72c0,13ec1e3155c7,318d0db5fe8a,1ae2c59bcf21:
 	Boottrace is a new kernel-userspace interface for capturing trace
 	events during system boot and shutdown. Event annotations are
