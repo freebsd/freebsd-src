@@ -196,7 +196,6 @@ db_show_rman_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 static int
 db_show_vnet_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
-#ifdef VIMAGE
 	VNET_ITERATOR_DECL(vnet);
 
 	if (!have_addr)
@@ -208,9 +207,6 @@ db_show_vnet_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	}
 
 	return (EACCES);
-#else
-	return (EOPNOTSUPP);
-#endif
 }
 #endif
 
