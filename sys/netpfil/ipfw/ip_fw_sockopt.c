@@ -3476,7 +3476,7 @@ find_unref_sh(struct ipfw_sopt_handler *psh)
 }
 
 void
-ipfw_init_sopt_handler()
+ipfw_init_sopt_handler(void)
 {
 
 	CTL3_LOCK_INIT();
@@ -3484,7 +3484,7 @@ ipfw_init_sopt_handler()
 }
 
 void
-ipfw_destroy_sopt_handler()
+ipfw_destroy_sopt_handler(void)
 {
 
 	IPFW_DEL_SOPT_HANDLER(1, scodes);
