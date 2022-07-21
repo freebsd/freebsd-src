@@ -2459,7 +2459,7 @@ pmc_thread_descriptor_pool_free_task(void *arg __unused, int pending __unused)
  * Drain the thread free pool, freeing all allocations.
  */
 static void
-pmc_thread_descriptor_pool_drain()
+pmc_thread_descriptor_pool_drain(void)
 {
 	struct pmc_thread *pt, *next;
 
