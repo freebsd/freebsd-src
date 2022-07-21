@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2022
+.Dd July 21, 2022
 .Dt PW 8
 .Os
 .Sh NAME
@@ -541,6 +541,11 @@ This is like
 .Fl h ,
 but the password should be supplied already encrypted in a form
 suitable for writing directly to the password database.
+See
+.Xr openssl-passwd 1
+and
+.Xr crypt 3
+for more details about generating an encrypted password hash.
 .El
 .Pp
 It is possible to use
