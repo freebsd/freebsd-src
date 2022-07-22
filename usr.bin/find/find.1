@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2021
+.Dd July 22, 2022
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -158,6 +158,26 @@ Note:
 and
 .Ql "find | sort"
 may give different results.
+.Pp
+For example,
+.Ql find -s
+puts a directory
+.Ql Ar foo
+with all its contents before a directory
+.Ql Ar foo.
+but
+.Ql "find | sort"
+puts the directory name
+.Ql Ar foo.
+before any string like
+.Ql Ar foo/bar
+because
+.Ql .\&
+goes before
+.Ql /
+in ASCII. In locales other than
+.Ar C
+results may vary more due to collate differences.
 .It Fl x
 Prevent
 .Nm
