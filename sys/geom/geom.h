@@ -59,6 +59,7 @@ struct sbuf;
 struct gctl_req;
 struct g_configargs;
 struct disk_zone_args;
+struct thread;
 
 typedef int g_config_t (struct g_configargs *ca);
 typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
@@ -270,6 +271,7 @@ int g_media_gone(struct g_provider *pp, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
 struct g_event *g_alloc_event(int flag);
 void g_post_event_ep(g_event_t *func, void *arg, struct g_event *ep, ...);
+void	g_waitidle(struct thread *td);
 
 /* geom_subr.c */
 int g_access(struct g_consumer *cp, int nread, int nwrite, int nexcl);
