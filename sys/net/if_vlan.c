@@ -425,7 +425,7 @@ vlan_remhash(struct ifvlantrunk *trunk, struct ifvlan *ifv)
 	VLAN_XLOCK_ASSERT();
 	KASSERT(trunk->hwidth > 0, ("%s: hwidth not positive", __func__));
 
-	b = 1 << trunk->hwidth;
+	b = 1 << (trunk->hwidth - 1);
 	i = HASH(ifv->ifv_vid, trunk->hmask);
 	CK_SLIST_FOREACH(ifv2, &trunk->hash[i], ifv_list)
 		if (ifv2 == ifv) {
