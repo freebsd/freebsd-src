@@ -42,9 +42,9 @@
         ..
         freebsd-update  mode=0700
         ..
-        hyperv          mode=0700
+        hyperv          mode=0700 tags=package=hyperv-tools
         ..
-        ipf             mode=0700
+        ipf             mode=0700 tags=package=ipf
         ..
         mtree
         ..
@@ -56,7 +56,7 @@
         ..
         portsnap
         ..
-        zfsd
+        zfsd tags=package=zfs
             cases
             ..
         ..
