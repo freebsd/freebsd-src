@@ -8,7 +8,7 @@
 
 LIB=	spl
 LIBADD=
-PACKAGE=	runtime
+PACKAGE=	zfs
 
 SRCS = \
         assert.c \

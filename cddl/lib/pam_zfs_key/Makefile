@@ -1,7 +1,7 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/contrib/pam_zfs_key
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 
-PACKAGE=	utilities
+PACKAGE=	zfs
 LIB=		pam_zfs_key
 
 SHLIBDIR?=	/usr/lib

@@ -148,3 +148,5 @@ wpa_COMMENT=		802.11 Supplicant
 wpa_DESC=		802.11 Supplicant
 yp_COMMENT=		Yellow Pages programs
 yp_DESC=		Yellow Pages programs
+zfs_COMMENT=		ZFS Libraries and Utilities
+zfs_DESC=		ZFS Libraries and Utilities

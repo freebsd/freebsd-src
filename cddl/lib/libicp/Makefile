@@ -2,7 +2,7 @@
 
 .PATH: ${SRCTOP}/sys/contrib/openzfs/module/icp
 
-PACKAGE=	utilities
+PACKAGE=	zfs
 LIB=	icp
 LIBADD=
 
