@@ -116,6 +116,7 @@ static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
 static void	sigqueue_start(void);
+static void	sigfastblock_setpend(struct thread *td, bool resched);
 
 static uma_zone_t	ksiginfo_zone = NULL;
 struct filterops sig_filtops = {
@@ -272,7 +273,7 @@ static int sigproptbl[NSIG] = {
 	for (int32_t __i = -1, __bits = 0;				\
 	    _SIG_FOREACH_ADVANCE(i, set); )				\
 
-sigset_t fastblock_mask;
+static sigset_t fastblock_mask;
 
 static void
 ast_sig(struct thread *td, int tda)
@@ -4451,7 +4452,7 @@ sigfastblock_setpend1(struct thread *td)
 	}
 }
 
-void
+static void
 sigfastblock_setpend(struct thread *td, bool resched)
 {
 	struct proc *p;

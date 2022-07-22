@@ -272,7 +272,6 @@ int __sys_sigfastblock(int cmd, void *ptr);
 #endif
 
 #ifdef _KERNEL
-extern sigset_t fastblock_mask;
 extern bool sigfastblock_fetch_always;
 
 /* Return nonzero if process p has an unmasked pending signal. */
@@ -406,7 +405,6 @@ void	sigexit(struct thread *td, int sig) __dead2;
 int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 void	sigfastblock_clear(struct thread *td);
 void	sigfastblock_fetch(struct thread *td);
-void	sigfastblock_setpend(struct thread *td, bool resched);
 int	sig_intr(void);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
