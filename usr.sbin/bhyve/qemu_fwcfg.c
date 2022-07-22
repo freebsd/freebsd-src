@@ -365,6 +365,11 @@ qemu_fwcfg_add_file(const char *name, const uint32_t size, void *const data)
 	return (0);
 }
 
+static const struct acpi_device_emul qemu_fwcfg_acpi_device_emul = {
+	.name = QEMU_FWCFG_ACPI_DEVICE_NAME,
+	.hid = QEMU_FWCFG_ACPI_HARDWARE_ID,
+};
+
 int
 qemu_fwcfg_init(struct vmctx *const ctx)
 {
@@ -378,7 +383,7 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 	 */
 	if (strcmp(lpc_fwcfg(), "qemu") == 0) {
 		error = acpi_device_create(&fwcfg_sc.acpi_dev, ctx,
-		    QEMU_FWCFG_ACPI_DEVICE_NAME, QEMU_FWCFG_ACPI_HARDWARE_ID);
+		    &qemu_fwcfg_acpi_device_emul);
 		if (error) {
 			warnx("%s: failed to create ACPI device for QEMU FwCfg",
 			    __func__);
