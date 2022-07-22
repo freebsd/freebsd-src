@@ -401,7 +401,7 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 	 * tables and register io ports for fwcfg, if it's used.
 	 */
 	if (strcmp(lpc_fwcfg(), "qemu") == 0) {
-		error = acpi_device_create(&fwcfg_sc.acpi_dev, ctx,
+		error = acpi_device_create(&fwcfg_sc.acpi_dev, &fwcfg_sc, ctx,
 		    &qemu_fwcfg_acpi_device_emul);
 		if (error) {
 			warnx("%s: failed to create ACPI device for QEMU FwCfg",

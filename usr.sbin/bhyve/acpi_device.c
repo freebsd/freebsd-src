@@ -36,18 +36,20 @@ struct acpi_resource_list_entry {
  * Holds information about an ACPI device.
  *
  * @param vm_ctx VM context the ACPI device was created in.
+ * @param softc  A pointer to the software context of the ACPI device.
  * @param emul   Device emulation struct. It contains some information like the
                  name of the ACPI device and some device specific functions.
  * @param crs    Current resources used by the ACPI device.
  */
 struct acpi_device {
 	struct vmctx *vm_ctx;
+	void *softc;
 	const struct acpi_device_emul *emul;
 	SLIST_HEAD(acpi_resource_list, acpi_resource_list_entry) crs;
 };
 
 int
-acpi_device_create(struct acpi_device **const new_dev,
+acpi_device_create(struct acpi_device **const new_dev, void *const softc,
     struct vmctx *const vm_ctx, const struct acpi_device_emul *const emul)
 {
 	assert(new_dev != NULL);
@@ -60,6 +62,7 @@ acpi_device_create(struct acpi_device **const new_dev,
 	}
 
 	dev->vm_ctx = vm_ctx;
+	dev->softc = softc;
 	dev->emul = emul;
 	SLIST_INIT(&dev->crs);
 
@@ -134,6 +137,14 @@ acpi_device_add_res_fixed_memory32(struct acpi_device *const dev,
 	SLIST_INSERT_HEAD(&dev->crs, res, chain);
 
 	return (0);
+}
+
+void *
+acpi_device_get_softc(const struct acpi_device *const dev)
+{
+	assert(dev != NULL);
+
+	return (dev->softc);
 }
 
 int
