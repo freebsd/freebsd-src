@@ -4,7 +4,7 @@
 
 .include <src.opts.mk>
 
-PACKAGE=	runtime
+PACKAGE=	tcpd
 
 CONFS=	hosts.allow
 LIB=	wrap
