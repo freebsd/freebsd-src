@@ -35,24 +35,23 @@ struct acpi_resource_list_entry {
  * Holds information about an ACPI device.
  *
  * @param vm_ctx VM context the ACPI device was created in.
- * @param name   Name of the ACPI device.
- * @param hid    Hardware ID of the ACPI device.
+ * @param emul   Device emulation struct. It contains some information like the
+                 name of the ACPI device and some device specific functions.
  * @param crs    Current resources used by the ACPI device.
  */
 struct acpi_device {
 	struct vmctx *vm_ctx;
-	const char *name;
-	const char *hid;
+	const struct acpi_device_emul *emul;
 	SLIST_HEAD(acpi_resource_list, acpi_resource_list_entry) crs;
 };
 
 int
 acpi_device_create(struct acpi_device **const new_dev,
-    struct vmctx *const vm_ctx, const char *const name, const char *const hid)
+    struct vmctx *const vm_ctx, const struct acpi_device_emul *const emul)
 {
-	if (new_dev == NULL || vm_ctx == NULL || name == NULL || hid == NULL) {
-		return (EINVAL);
-	}
+	assert(new_dev != NULL);
+	assert(vm_ctx != NULL);
+	assert(emul != NULL);
 
 	struct acpi_device *const dev = calloc(1, sizeof(*dev));
 	if (dev == NULL) {
@@ -60,13 +59,8 @@ acpi_device_create(struct acpi_device **const new_dev,
 	}
 
 	dev->vm_ctx = vm_ctx;
-	dev->name = strdup(name);
-	dev->hid = strdup(hid);
+	dev->emul = emul;
 	SLIST_INIT(&dev->crs);
-	if (dev->name == NULL || dev->hid == NULL) {
-		acpi_device_destroy(dev);
-		return (ENOMEM);
-	}
 
 	const int error = acpi_tables_add_device(dev);
 	if (error) {
@@ -92,9 +86,7 @@ acpi_device_destroy(struct acpi_device *const dev)
 		SLIST_REMOVE_HEAD(&dev->crs, chain);
 		free(res);
 	}
-	
-	free(__DECONST(void *, dev->hid));
-	free(__DECONST(void *, dev->name));
+
 	free(dev);
 }
 
@@ -174,9 +166,9 @@ acpi_device_write_dsdt(const struct acpi_device *const dev)
 	dsdt_line("");
 	dsdt_line("  Scope (\\_SB)");
 	dsdt_line("  {");
-	dsdt_line("    Device (%s)", dev->name);
+	dsdt_line("    Device (%s)", dev->emul->name);
 	dsdt_line("    {");
-	dsdt_line("      Name (_HID, \"%s\")", dev->hid);
+	dsdt_line("      Name (_HID, \"%s\")", dev->emul->hid);
 	dsdt_line("      Name (_STA, 0x0F)");
 	dsdt_line("      Name (_CRS, ResourceTemplate ()");
 	dsdt_line("      {");
