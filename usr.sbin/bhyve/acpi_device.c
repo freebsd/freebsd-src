@@ -135,6 +135,19 @@ acpi_device_add_res_fixed_memory32(struct acpi_device *const dev,
 	return (0);
 }
 
+int
+acpi_device_build_table(const struct acpi_device *const dev)
+{
+	assert(dev != NULL);
+	assert(dev->emul != NULL);
+
+	if (dev->emul->build_table != NULL) {
+		return (dev->emul->build_table(dev));
+	}
+
+	return (0);
+}
+
 static void
 acpi_device_write_dsdt_crs(const struct acpi_device *const dev)
 {
