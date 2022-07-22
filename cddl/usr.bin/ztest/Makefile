@@ -7,6 +7,7 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 .PATH: ${ZFSTOP}/cmd/ztest
 .PATH: ${ZFSTOP}/man/man1
 
+PACKAGE=	zfs
 PROG=	ztest
 MAN=	ztest.1
 

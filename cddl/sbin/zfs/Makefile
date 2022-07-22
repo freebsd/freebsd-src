@@ -7,7 +7,7 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 .PATH: ${ZFSTOP}/man/man8
 .PATH: ${ZFSTOP}/module/os/freebsd/spl
 
-PACKAGE=	runtime
+PACKAGE=	zfs
 PROG=	zfs
 MAN= \
 	zfs.8 \

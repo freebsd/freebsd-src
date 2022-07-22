@@ -30,6 +30,7 @@ ATOMIC_SRCS=	opensolaris_atomic.c
 PICFLAG=	-fPIC
 .endif
 
+PACKAGE=	zfs
 LIB=		zpool
 
 USER_C = \
