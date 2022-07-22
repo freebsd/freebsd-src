@@ -3,6 +3,7 @@
 
 .PATH: ${SRCTOP}/sys/geom
 
+PACKAGE=	ufs
 PROG=	newfs
 LIBADD=	ufs util
 SRCS=	newfs.c mkfs.c geom_bsd_enc.c
