@@ -4,7 +4,7 @@
 
 .PATH: ${.CURDIR}/core ${.CURDIR}/misc
 
-PACKAGE=runtime
+PACKAGE=geom
 PROG=		geom
 SRCS=		geom.c subr.c
 MAN=		geom.8
