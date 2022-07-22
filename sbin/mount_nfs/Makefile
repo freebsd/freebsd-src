@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 
-PACKAGE=runtime
+PACKAGE=nfs
 PROG=	mount_nfs
 SRCS=	mount_nfs.c getmntopts.c mounttab.c
 MAN=	mount_nfs.8
