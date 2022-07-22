@@ -38,19 +38,22 @@ struct acpi_device_emul {
  * Creates an ACPI device.
  *
  * @param[out] new_dev Returns the newly create ACPI device.
+ * @param[in]  softc   Pointer to the software context of the ACPI device.
  * @param[in]  vm_ctx  VM context the ACPI device is created in.
  * @param[in]  emul    Device emulation struct. It contains some information
  *                     like the name of the ACPI device and some device specific
  *                     functions.
  */
-int acpi_device_create(struct acpi_device **new_dev, struct vmctx *vm_ctx,
-    const struct acpi_device_emul *emul);
+int acpi_device_create(struct acpi_device **new_dev, void *softc,
+    struct vmctx *vm_ctx, const struct acpi_device_emul *emul);
 void acpi_device_destroy(struct acpi_device *dev);
 
 int acpi_device_add_res_fixed_ioport(struct acpi_device *dev, UINT16 port,
     UINT8 length);
 int acpi_device_add_res_fixed_memory32(struct acpi_device *dev,
     UINT8 write_protected, UINT32 address, UINT32 length);
+
+void *acpi_device_get_softc(const struct acpi_device *dev);
 
 int acpi_device_build_table(const struct acpi_device *dev);
 int acpi_device_write_dsdt(const struct acpi_device *dev);
