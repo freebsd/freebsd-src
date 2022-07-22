@@ -1,7 +1,7 @@
 #	$OpenBSD: Makefile,v 1.1 1997/01/26 02:23:20 millert Exp $
 # $FreeBSD$
 
-PACKAGE=runtime
+PACKAGE=ufs
 PROG=	fsirand
 MAN=	fsirand.8
 LIBADD=	ufs

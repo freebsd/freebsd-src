@@ -3,7 +3,7 @@
 
 .PATH: ${.CURDIR:H}/dump
 
-PACKAGE=runtime
+PACKAGE=ufs
 PROG=	restore
 LINKS=	${BINDIR}/restore ${BINDIR}/rrestore
 MAN=	restore.8
