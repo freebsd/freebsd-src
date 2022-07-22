@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 WARNS?= 3
-PACKAGE=runtime
+PACKAGE=devd
 CONFGROUPS=	CONFS DEVD
 CONFS=	devd.conf
 DEVD=	devmatch.conf
