@@ -34,7 +34,7 @@
 .include <src.opts.mk>
 
 CONFS=	dhclient.conf
-PACKAGE=runtime
+PACKAGE=dhclient
 SRCS=	dhclient.c clparse.c alloc.c dispatch.c hash.c bpf.c options.c \
 	tree.c conflex.c errwarn.c inet.c packet.c convert.c tables.c \
 	parse.c privsep.c
