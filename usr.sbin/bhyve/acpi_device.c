@@ -190,6 +190,11 @@ acpi_device_write_dsdt(const struct acpi_device *const dev)
 	BASL_EXEC(acpi_device_write_dsdt_crs(dev));
 	dsdt_unindent(4);
 	dsdt_line("      })");
+	if (dev->emul->write_dsdt != NULL) {
+		dsdt_indent(3);
+		BASL_EXEC(dev->emul->write_dsdt(dev));
+		dsdt_unindent(3);
+	}
 	dsdt_line("    }");
 	dsdt_line("  }");
 
