@@ -5,6 +5,7 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 .PATH: ${ZFSTOP}/cmd/zinject
 .PATH: ${ZFSTOP}/man/man8
 
+PACKAGE=	zfs
 PROG=	zinject
 INCS=	zinject.h
 SRCS=	zinject.c translate.c

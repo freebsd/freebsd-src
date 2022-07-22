@@ -5,6 +5,7 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 .PATH: ${ZFSTOP}/cmd/zstream
 .PATH: ${ZFSTOP}/man/man8
 
+PACKAGE=	zfs
 PROG=	zstream
 MAN=	zstream.8
 MLINKS=	zstream.8 zstreamdump.8

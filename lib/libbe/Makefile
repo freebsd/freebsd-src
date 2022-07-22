@@ -4,7 +4,7 @@ SHLIBDIR?=	/lib
 
 .include <src.opts.mk>
 
-PACKAGE=	runtime
+PACKAGE=	zfs
 LIB=		be
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
