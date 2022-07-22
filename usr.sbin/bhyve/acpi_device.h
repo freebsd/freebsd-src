@@ -23,12 +23,15 @@ struct acpi_device;
  * @param hid         Used as _HID in the DSDT.
  * @param build_table Called to build a device specific ACPI table like the TPM2
  *                    table.
+ * @param write_dsdt  Called to append the DSDT with device specific
+ *                    information.
  */
 struct acpi_device_emul {
 	const char *name;
 	const char *hid;
 
 	int (*build_table)(const struct acpi_device *dev);
+	int (*write_dsdt)(const struct acpi_device *dev);
 };
 
 /**
