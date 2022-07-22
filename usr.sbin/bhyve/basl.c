@@ -491,6 +491,23 @@ basl_table_append_content(struct basl_table *table, void *data, uint32_t len)
 }
 
 int
+basl_table_append_fwcfg(struct basl_table *const table,
+    const uint8_t *fwcfg_name, const uint32_t alignment, const uint8_t size)
+{
+	assert(table != NULL);
+	assert(fwcfg_name != NULL);
+	assert(size <= sizeof(uint64_t));
+
+	BASL_EXEC(qemu_loader_alloc(basl_loader, fwcfg_name, alignment,
+	    QEMU_LOADER_ALLOC_HIGH));
+	BASL_EXEC(qemu_loader_add_pointer(basl_loader, table->fwcfg_name,
+	    fwcfg_name, table->len, size));
+	BASL_EXEC(basl_table_append_int(table, 0, size));
+
+	return (0);
+}
+
+int
 basl_table_append_gas(struct basl_table *const table, const uint8_t space_id,
     const uint8_t bit_width, const uint8_t bit_offset,
     const uint8_t access_width, const uint64_t address)
