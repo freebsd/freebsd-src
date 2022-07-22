@@ -243,6 +243,17 @@ dmar_qi_invalidate_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 }
 
 void
+dmar_qi_invalidate_sync_locked(struct dmar_domain *domain, iommu_gaddr_t base,
+    iommu_gaddr_t size, bool cansleep)
+{
+	struct iommu_qi_genseq gseq;
+
+	DMAR_ASSERT_LOCKED(domain->dmar);
+	dmar_qi_invalidate_locked(domain, base, size, &gseq, true);
+	dmar_qi_wait_for_seq(domain->dmar, &gseq, !cansleep);
+}
+
+void
 dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit)
 {
 	struct iommu_qi_genseq gseq;
@@ -352,8 +363,7 @@ dmar_qi_task(void *arg, int pending __unused)
 			break;
 		TAILQ_REMOVE(&unit->tlb_flush_entries, entry, dmamap_link);
 		DMAR_UNLOCK(unit);
-		dmar_domain_free_entry(entry, (entry->flags &
-		    IOMMU_MAP_ENTRY_QI_NF) == 0);
+		dmar_domain_free_entry(entry, true);
 		DMAR_LOCK(unit);
 	}
 	ics = dmar_read4(unit, DMAR_ICS_REG);

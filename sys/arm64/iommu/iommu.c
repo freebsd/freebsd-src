@@ -379,7 +379,8 @@ iommu_find(device_t dev, bool verbose)
 }
 
 void
-iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free)
+iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free,
+    bool cansleep __unused)
 {
 
 	dprintf("%s\n", __func__);
