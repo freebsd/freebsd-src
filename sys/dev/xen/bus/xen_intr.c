@@ -866,7 +866,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 	if (error != 0) {
 		evtchn_close_t close = { .port = bind_virq.port };
 
-		xen_intr_unbind(*port_handlep);
+		xen_intr_unbind(port_handlep);
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close))
 			panic("EVTCHNOP_close failed");
 		return (error);
@@ -923,7 +923,7 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
 	if (error != 0) {
 		evtchn_close_t close = { .port = bind_ipi.port };
 
-		xen_intr_unbind(*port_handlep);
+		xen_intr_unbind(port_handlep);
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close))
 			panic("EVTCHNOP_close failed");
 		return (error);
