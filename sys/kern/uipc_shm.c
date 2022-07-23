@@ -1990,15 +1990,15 @@ shm_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 	off_t off, len;
 	int error;
 
-	/* This assumes that the caller already checked for overflow. */
+	KASSERT(cmd == SPACECTL_DEALLOC, ("shm_fspacectl: Invalid cmd"));
+	KASSERT((flags & ~SPACECTL_F_SUPPORTED) == 0,
+	    ("shm_fspacectl: non-zero flags"));
+	KASSERT(*offset >= 0 && *length > 0 && *length <= OFF_MAX - *offset,
+	    ("shm_fspacectl: offset/length overflow or underflow"));
 	error = EINVAL;
 	shmfd = fp->f_data;
 	off = *offset;
 	len = *length;
-
-	if (cmd != SPACECTL_DEALLOC || off < 0 || len <= 0 ||
-	    len > OFF_MAX - off || flags != 0)
-		return (EINVAL);
 
 	rl_cookie = rangelock_wlock(&shmfd->shm_rl, off, off + len,
 	    &shmfd->shm_mtx);
