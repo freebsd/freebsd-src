@@ -104,7 +104,6 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 	static struct consdev name = {					\
 		.cn_ops = &ops,						\
 		.cn_arg = (arg),					\
-		.cn_name = #name,					\
 	};								\
 	DATA_SET(cons_set, name)
 
