@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/linux/linux_x86.h>
 
 int
-linux_vdso_tsc_selector_idx()
+linux_vdso_tsc_selector_idx(void)
 {
 	bool amd_cpu;
 
@@ -59,7 +59,7 @@ linux_vdso_tsc_selector_idx()
 }
 
 int
-linux_vdso_cpu_selector_idx()
+linux_vdso_cpu_selector_idx(void)
 {
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
