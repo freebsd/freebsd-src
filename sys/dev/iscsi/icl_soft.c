@@ -798,7 +798,10 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 	struct mbuf *m;
 	struct socket *so;
 	long available, size, size2;
-	int coalesced, error;
+#ifdef DEBUG_COALESCED
+	int coalesced;
+#endif
+	int error;
 
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
@@ -858,7 +861,15 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		}
 		if (coalesce) {
 			m = request->ip_bhs_mbuf;
-			for (coalesced = 1; ; coalesced++) {
+			for (
+#ifdef DEBUG_COALESCED
+			    coalesced = 1
+#endif
+			    ; ;
+#ifdef DEBUG_COALESCED
+			    coalesced++
+#endif
+			    ) {
 				request2 = STAILQ_FIRST(queue);
 				if (request2 == NULL)
 					break;
@@ -883,7 +894,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 				size += size2;
 				icl_soft_conn_pdu_free(ic, request2);
 			}
-#if 0
+#ifdef DEBUG_COALESCED
 			if (coalesced > 1) {
 				ICL_DEBUG("coalesced %d PDUs into %ld bytes",
 				    coalesced, size);
