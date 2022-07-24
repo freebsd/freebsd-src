@@ -30,11 +30,13 @@ __FBSDID("$FreeBSD$");
 
 static uint64_t zfs_crc64_table[256];
 
+#ifndef ASSERT3S	/* Proxy for all the assert defines */
 #define	ASSERT3S(x, y, z)	((void)0)
 #define	ASSERT3U(x, y, z)	((void)0)
 #define	ASSERT3P(x, y, z)	((void)0)
 #define	ASSERT0(x)		((void)0)
 #define	ASSERT(x)		((void)0)
+#endif
 
 #define	panic(...)	do {						\
 	printf(__VA_ARGS__);						\
