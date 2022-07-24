@@ -438,7 +438,7 @@ ENTRY(fork_trampoline)
 	SUPERALIGN_TEXT
 
 #ifdef DEV_ATPIC
-#include <i386/i386/atpic_vector.s>
+#include <i386/i386/atpic_vector.S>
 #endif
 
 #if defined(DEV_APIC) && defined(DEV_ATPIC)
@@ -449,7 +449,7 @@ ENTRY(fork_trampoline)
 #endif
 
 #ifdef DEV_APIC
-#include <i386/i386/apic_vector.s>
+#include <i386/i386/apic_vector.S>
 #endif
 
 #ifdef HYPERV
@@ -464,11 +464,11 @@ ENTRY(fork_trampoline)
 	.p2align 4
 	.text
 	SUPERALIGN_TEXT
-#include <i386/i386/vm86bios.s>
+#include <i386/i386/vm86bios.S>
 
 	.text
 
-#include <i386/i386/copyout_fast.s>
+#include <i386/i386/copyout_fast.S>
 
 /*
  * void doreti(struct trapframe)

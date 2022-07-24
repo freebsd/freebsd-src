@@ -37,7 +37,7 @@ SRCS=	linux_dummy_machdep.c \
 	bus_if.h \
 	device_if.h \
 	vnode_if.h \
-	linux_support.s
+	linux_support.S
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
 .endif
