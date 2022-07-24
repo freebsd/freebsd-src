@@ -81,5 +81,6 @@ CFLAGS.zfs_zstd.c+= -DIN_BASE -DIN_LIBSA
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111
 
-# To puck up blake3_impl.c...
+# To find blake3_impl.c in OpenZFS tree for our somehat ugly blake3_impl_hack.c
+# that's needed until the necessary tweaks can be upstreamed.
 CFLAGS.blake3_impl_hack.c+= -I${OZFS}/module/icp/algs/blake3
