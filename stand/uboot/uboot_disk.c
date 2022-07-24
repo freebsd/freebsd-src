@@ -81,15 +81,15 @@ static int stor_print(int);
 static void stor_cleanup(void);
 
 struct devsw uboot_storage = {
-	"disk",
-	DEVT_DISK,
-	stor_init,
-	stor_strategy,
-	stor_open,
-	stor_close,
-	stor_ioctl,
-	stor_print,
-	stor_cleanup
+	.dv_name = "disk",
+	.dv_type = DEVT_DISK,
+	.dv_init = stor_init,
+	.dv_strategy = stor_strategy,
+	.dv_open = stor_open,
+	.dv_close = stor_close,
+	.dv_ioctl = stor_ioctl,
+	.dv_print = stor_print,
+	.dv_cleanup = stor_cleanup,
 };
 
 static int
