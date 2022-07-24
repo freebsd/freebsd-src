@@ -19,7 +19,6 @@
 namespace llvm {
 template <typename T> class SmallVectorImpl;
 class Error;
-class StringRef;
 
 namespace compression {
 namespace zlib {
@@ -43,6 +42,28 @@ Error uncompress(ArrayRef<uint8_t> Input,
                  size_t UncompressedSize);
 
 } // End of namespace zlib
+
+namespace zstd {
+
+constexpr int NoCompression = -5;
+constexpr int BestSpeedCompression = 1;
+constexpr int DefaultCompression = 5;
+constexpr int BestSizeCompression = 12;
+
+bool isAvailable();
+
+void compress(ArrayRef<uint8_t> Input,
+              SmallVectorImpl<uint8_t> &CompressedBuffer,
+              int Level = DefaultCompression);
+
+Error uncompress(ArrayRef<uint8_t> Input, uint8_t *UncompressedBuffer,
+                 size_t &UncompressedSize);
+
+Error uncompress(ArrayRef<uint8_t> Input,
+                 SmallVectorImpl<uint8_t> &UncompressedBuffer,
+                 size_t UncompressedSize);
+
+} // End of namespace zstd
 
 } // End of namespace compression
 

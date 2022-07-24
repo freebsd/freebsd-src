@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_BINARYFORMAT_OFFLOADING_H
-#define LLVM_BINARYFORMAT_OFFLOADING_H
+#ifndef LLVM_OBJECT_OFFLOADBINARY_H
+#define LLVM_OBJECT_OFFLOADBINARY_H
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -80,7 +80,7 @@ public:
   /// Serialize the contents of \p File to a binary buffer to be read later.
   static std::unique_ptr<MemoryBuffer> write(const OffloadingImage &);
 
-  static uint64_t getAlignment() { return alignof(Header); }
+  static uint64_t getAlignment() { return 8; }
 
   ImageKind getImageKind() const { return TheEntry->TheImageKind; }
   OffloadKind getOffloadKind() const { return TheEntry->TheOffloadKind; }

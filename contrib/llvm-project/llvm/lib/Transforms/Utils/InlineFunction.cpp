@@ -2194,9 +2194,11 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
         CI->setTailCallKind(ChildTCK);
         InlinedMustTailCalls |= CI->isMustTailCall();
 
-        // Calls inlined through a 'nounwind' call site should be marked
-        // 'nounwind'.
-        if (MarkNoUnwind)
+        // Call sites inlined through a 'nounwind' call site should be
+        // 'nounwind' as well. However, avoid marking call sites explicitly
+        // where possible. This helps expose more opportunities for CSE after
+        // inlining, commonly when the callee is an intrinsic.
+        if (MarkNoUnwind && !CI->doesNotThrow())
           CI->setDoesNotThrow();
       }
     }
@@ -2625,7 +2627,7 @@ llvm::InlineResult llvm::InlineFunction(CallBase &CB, InlineFunctionInfo &IFI,
   } else if (!CB.use_empty()) {
     // No returns, but something is using the return value of the call.  Just
     // nuke the result.
-    CB.replaceAllUsesWith(UndefValue::get(CB.getType()));
+    CB.replaceAllUsesWith(PoisonValue::get(CB.getType()));
   }
 
   // Since we are now done with the Call/Invoke, we can delete it.

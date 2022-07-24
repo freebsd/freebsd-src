@@ -16,8 +16,6 @@
 namespace llvm {
 namespace object {
 
-class SectionRef;
-
 /// Decompressor helps to handle decompression of compressed sections.
 class Decompressor {
 public:
@@ -43,19 +41,9 @@ public:
   /// Return memory buffer size required for decompression.
   uint64_t getDecompressedSize() { return DecompressedSize; }
 
-  /// Return true if section is compressed, including gnu-styled case.
-  static bool isCompressed(const object::SectionRef &Section);
-
-  /// Return true if section is a ELF compressed one.
-  static bool isCompressedELFSection(uint64_t Flags, StringRef Name);
-
-  /// Return true if section name matches gnu style compressed one.
-  static bool isGnuStyle(StringRef Name);
-
 private:
   Decompressor(StringRef Data);
 
-  Error consumeCompressedGnuHeader();
   Error consumeCompressedZLibHeader(bool Is64Bit, bool IsLittleEndian);
 
   StringRef SectionData;

@@ -85,6 +85,17 @@ public:
 
   Status InitializeConnection(std::unique_ptr<Connection> connection);
 
+  struct DebuggedProcess {
+    enum class Flag {
+      vkilled = (1u << 0),
+
+      LLVM_MARK_AS_BITMASK_ENUM(vkilled)
+    };
+
+    std::unique_ptr<NativeProcessProtocol> process_up;
+    Flag flags;
+  };
+
 protected:
   MainLoop &m_mainloop;
   MainLoop::ReadHandleUP m_network_handle_up;
@@ -94,14 +105,11 @@ protected:
   NativeProcessProtocol *m_current_process;
   NativeProcessProtocol *m_continue_process;
   std::recursive_mutex m_debugged_process_mutex;
-  std::unordered_map<lldb::pid_t, std::unique_ptr<NativeProcessProtocol>>
-      m_debugged_processes;
-  std::unordered_set<lldb::pid_t> m_vkilled_processes;
+  std::unordered_map<lldb::pid_t, DebuggedProcess> m_debugged_processes;
 
   Communication m_stdio_communication;
   MainLoop::ReadHandleUP m_stdio_handle_up;
 
-  lldb::StateType m_inferior_prev_state = lldb::StateType::eStateInvalid;
   llvm::StringMap<std::unique_ptr<llvm::MemoryBuffer>> m_xfer_buffer_map;
   std::mutex m_saved_registers_mutex;
   std::unordered_map<uint32_t, lldb::DataBufferSP> m_saved_registers_map;
@@ -109,6 +117,8 @@ protected:
   bool m_thread_suffix_supported = false;
   bool m_list_threads_in_stop_reply = false;
   bool m_non_stop = false;
+  bool m_disabling_non_stop = false;
+  std::deque<std::string> m_stdio_notification_queue;
   std::deque<std::string> m_stop_notification_queue;
 
   NativeProcessProtocol::Extension m_extensions_supported = {};
@@ -146,6 +156,9 @@ protected:
   PacketResult Handle_QThreadSuffixSupported(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_QListThreadsInStopReply(StringExtractorGDBRemote &packet);
+
+  PacketResult ResumeProcess(NativeProcessProtocol &process,
+                             const ResumeActionList &actions);
 
   PacketResult Handle_C(StringExtractorGDBRemote &packet);
 
@@ -235,6 +248,10 @@ protected:
   PacketResult Handle_qSaveCore(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_QNonStop(StringExtractorGDBRemote &packet);
+
+  PacketResult HandleNotificationAck(std::deque<std::string> &queue);
+
+  PacketResult Handle_vStdio(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_vStopped(StringExtractorGDBRemote &packet);
 

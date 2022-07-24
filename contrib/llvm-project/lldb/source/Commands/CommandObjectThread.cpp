@@ -17,6 +17,7 @@
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionGroupPythonClassWithDict.h"
@@ -238,16 +239,6 @@ protected:
 };
 
 enum StepScope { eStepScopeSource, eStepScopeInstruction };
-
-static constexpr OptionEnumValueElement g_tri_running_mode[] = {
-    {eOnlyThisThread, "this-thread", "Run only this thread"},
-    {eAllThreads, "all-threads", "Run all threads"},
-    {eOnlyDuringStepping, "while-stepping",
-     "Run only this thread while stepping"}};
-
-static constexpr OptionEnumValues TriRunningModes() {
-  return OptionEnumValues(g_tri_running_mode);
-}
 
 #define LLDB_OPTIONS_thread_step_scope
 #include "CommandOptions.inc"
@@ -813,14 +804,6 @@ public:
 
 // CommandObjectThreadUntil
 
-static constexpr OptionEnumValueElement g_duo_running_mode[] = {
-    {eOnlyThisThread, "this-thread", "Run only this thread"},
-    {eAllThreads, "all-threads", "Run all threads"}};
-
-static constexpr OptionEnumValues DuoRunningModes() {
-  return OptionEnumValues(g_duo_running_mode);
-}
-
 #define LLDB_OPTIONS_thread_until
 #include "CommandOptions.inc"
 
@@ -894,8 +877,8 @@ public:
       return llvm::makeArrayRef(g_thread_until_options);
     }
 
-    uint32_t m_step_thread_idx;
-    bool m_stop_others;
+    uint32_t m_step_thread_idx = LLDB_INVALID_THREAD_ID;
+    bool m_stop_others = false;
     std::vector<lldb::addr_t> m_until_addrs;
 
     // Instance variables to hold the values for command options.

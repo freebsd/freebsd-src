@@ -142,12 +142,21 @@ XorOpnd::XorOpnd(Value *V) {
   isOr = true;
 }
 
+/// Return true if I is an instruction with the FastMathFlags that are needed
+/// for general reassociation set.  This is not the same as testing
+/// Instruction::isAssociative() because it includes operations like fsub.
+/// (This routine is only intended to be called for floating-point operations.)
+static bool hasFPAssociativeFlags(Instruction *I) {
+  assert(I && I->getType()->isFPOrFPVectorTy() && "Should only check FP ops");
+  return I->hasAllowReassoc() && I->hasNoSignedZeros();
+}
+
 /// Return true if V is an instruction of the specified opcode and if it
 /// only has one use.
 static BinaryOperator *isReassociableOp(Value *V, unsigned Opcode) {
   auto *I = dyn_cast<Instruction>(V);
   if (I && I->hasOneUse() && I->getOpcode() == Opcode)
-    if (!isa<FPMathOperator>(I) || I->isFast())
+    if (!isa<FPMathOperator>(I) || hasFPAssociativeFlags(I))
       return cast<BinaryOperator>(I);
   return nullptr;
 }
@@ -157,7 +166,7 @@ static BinaryOperator *isReassociableOp(Value *V, unsigned Opcode1,
   auto *I = dyn_cast<Instruction>(V);
   if (I && I->hasOneUse() &&
       (I->getOpcode() == Opcode1 || I->getOpcode() == Opcode2))
-    if (!isa<FPMathOperator>(I) || I->isFast())
+    if (!isa<FPMathOperator>(I) || hasFPAssociativeFlags(I))
       return cast<BinaryOperator>(I);
   return nullptr;
 }
@@ -449,7 +458,8 @@ using RepeatedValue = std::pair<Value*, APInt>;
 /// of the expression) if it can turn them into binary operators of the right
 /// type and thus make the expression bigger.
 static bool LinearizeExprTree(Instruction *I,
-                              SmallVectorImpl<RepeatedValue> &Ops) {
+                              SmallVectorImpl<RepeatedValue> &Ops,
+                              ReassociatePass::OrderedSet &ToRedo) {
   assert((isa<UnaryOperator>(I) || isa<BinaryOperator>(I)) &&
          "Expected a UnaryOperator or BinaryOperator!");
   LLVM_DEBUG(dbgs() << "LINEARIZE: " << *I << '\n');
@@ -572,23 +582,32 @@ static bool LinearizeExprTree(Instruction *I,
       assert((!isa<Instruction>(Op) ||
               cast<Instruction>(Op)->getOpcode() != Opcode
               || (isa<FPMathOperator>(Op) &&
-                  !cast<Instruction>(Op)->isFast())) &&
+                  !hasFPAssociativeFlags(cast<Instruction>(Op)))) &&
              "Should have been handled above!");
       assert(Op->hasOneUse() && "Has uses outside the expression tree!");
 
       // If this is a multiply expression, turn any internal negations into
-      // multiplies by -1 so they can be reassociated.
-      if (Instruction *Tmp = dyn_cast<Instruction>(Op))
-        if ((Opcode == Instruction::Mul && match(Tmp, m_Neg(m_Value()))) ||
-            (Opcode == Instruction::FMul && match(Tmp, m_FNeg(m_Value())))) {
-          LLVM_DEBUG(dbgs()
-                     << "MORPH LEAF: " << *Op << " (" << Weight << ") TO ");
-          Tmp = LowerNegateToMultiply(Tmp);
-          LLVM_DEBUG(dbgs() << *Tmp << '\n');
-          Worklist.push_back(std::make_pair(Tmp, Weight));
-          Changed = true;
-          continue;
+      // multiplies by -1 so they can be reassociated.  Add any users of the
+      // newly created multiplication by -1 to the redo list, so any
+      // reassociation opportunities that are exposed will be reassociated
+      // further.
+      Instruction *Neg;
+      if (((Opcode == Instruction::Mul && match(Op, m_Neg(m_Value()))) ||
+           (Opcode == Instruction::FMul && match(Op, m_FNeg(m_Value())))) &&
+           match(Op, m_Instruction(Neg))) {
+        LLVM_DEBUG(dbgs()
+                   << "MORPH LEAF: " << *Op << " (" << Weight << ") TO ");
+        Instruction *Mul = LowerNegateToMultiply(Neg);
+        LLVM_DEBUG(dbgs() << *Mul << '\n');
+        Worklist.push_back(std::make_pair(Mul, Weight));
+        for (User *U : Mul->users()) {
+          if (BinaryOperator *UserBO = dyn_cast<BinaryOperator>(U))
+            ToRedo.insert(UserBO);
         }
+        ToRedo.insert(Neg);
+        Changed = true;
+        continue;
+      }
 
       // Failed to morph into an expression of the right type.  This really is
       // a leaf.
@@ -1141,7 +1160,7 @@ Value *ReassociatePass::RemoveFactorFromExpression(Value *V, Value *Factor) {
     return nullptr;
 
   SmallVector<RepeatedValue, 8> Tree;
-  MadeChange |= LinearizeExprTree(BO, Tree);
+  MadeChange |= LinearizeExprTree(BO, Tree, RedoInsts);
   SmallVector<ValueEntry, 8> Factors;
   Factors.reserve(Tree.size());
   for (unsigned i = 0, e = Tree.size(); i != e; ++i) {
@@ -2206,8 +2225,9 @@ void ReassociatePass::OptimizeInst(Instruction *I) {
   if (Instruction *Res = canonicalizeNegFPConstants(I))
     I = Res;
 
-  // Don't optimize floating-point instructions unless they are 'fast'.
-  if (I->getType()->isFPOrFPVectorTy() && !I->isFast())
+  // Don't optimize floating-point instructions unless they have the
+  // appropriate FastMathFlags for reassociation enabled.
+  if (I->getType()->isFPOrFPVectorTy() && !hasFPAssociativeFlags(I))
     return;
 
   // Do not reassociate boolean (i1) expressions.  We want to preserve the
@@ -2320,7 +2340,7 @@ void ReassociatePass::ReassociateExpression(BinaryOperator *I) {
   // First, walk the expression tree, linearizing the tree, collecting the
   // operand information.
   SmallVector<RepeatedValue, 8> Tree;
-  MadeChange |= LinearizeExprTree(I, Tree);
+  MadeChange |= LinearizeExprTree(I, Tree, RedoInsts);
   SmallVector<ValueEntry, 8> Ops;
   Ops.reserve(Tree.size());
   for (const RepeatedValue &E : Tree)
