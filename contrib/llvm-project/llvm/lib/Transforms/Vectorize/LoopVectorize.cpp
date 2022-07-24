@@ -92,6 +92,7 @@
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
@@ -473,7 +474,7 @@ public:
   virtual std::pair<BasicBlock *, Value *> createVectorizedLoopSkeleton();
 
   /// Widen a single call instruction within the innermost loop.
-  void widenCallInstruction(CallInst &I, VPValue *Def, VPUser &ArgOperands,
+  void widenCallInstruction(CallInst &CI, VPValue *Def, VPUser &ArgOperands,
                             VPTransformState &State);
 
   /// Fix the vectorized code, taking care of header phi's, live-outs, and more.
@@ -1447,15 +1448,14 @@ public:
   // through scalar predication or masked load/store or masked gather/scatter.
   // \p VF is the vectorization factor that will be used to vectorize \p I.
   // Superset of instructions that return true for isScalarWithPredication.
-  bool isPredicatedInst(Instruction *I, ElementCount VF,
-                        bool IsKnownUniform = false) {
-    // When we know the load is uniform and the original scalar loop was not
-    // predicated we don't need to mark it as a predicated instruction. Any
-    // vectorised blocks created when tail-folding are something artificial we
-    // have introduced and we know there is always at least one active lane.
-    // That's why we call Legal->blockNeedsPredication here because it doesn't
-    // query tail-folding.
-    if (IsKnownUniform && isa<LoadInst>(I) &&
+  bool isPredicatedInst(Instruction *I, ElementCount VF) {
+    // When we know the load's address is loop invariant and the instruction
+    // in the original scalar loop was unconditionally executed then we
+    // don't need to mark it as a predicated instruction. Tail folding may
+    // introduce additional predication, but we're guaranteed to always have
+    // at least one active lane.  We call Legal->blockNeedsPredication here
+    // because it doesn't query tail-folding.
+    if (Legal->isUniformMemOp(*I) && isa<LoadInst>(I) &&
         !Legal->blockNeedsPredication(I->getParent()))
       return false;
     if (!blockNeedsPredicationForAnyReason(I->getParent()))
@@ -1656,10 +1656,6 @@ private:
   /// convenience wrapper for the type-based getScalarizationOverhead API.
   InstructionCost getScalarizationOverhead(Instruction *I,
                                            ElementCount VF) const;
-
-  /// Returns whether the instruction is a load or store and will be a emitted
-  /// as a vector operation.
-  bool isConsecutiveLoadOrStore(Instruction *I);
 
   /// Returns true if an artificially high cost for emulated masked memrefs
   /// should be used.
@@ -1919,10 +1915,13 @@ public:
 
       auto DiffChecks = RtPtrChecking.getDiffChecks();
       if (DiffChecks) {
+        Value *RuntimeVF = nullptr;
         MemRuntimeCheckCond = addDiffRuntimeChecks(
             MemCheckBlock->getTerminator(), L, *DiffChecks, MemCheckExp,
-            [VF](IRBuilderBase &B, unsigned Bits) {
-              return getRuntimeVF(B, B.getIntNTy(Bits), VF);
+            [VF, &RuntimeVF](IRBuilderBase &B, unsigned Bits) {
+              if (!RuntimeVF)
+                RuntimeVF = getRuntimeVF(B, B.getIntNTy(Bits), VF);
+              return RuntimeVF;
             },
             IC);
       } else {
@@ -2947,11 +2946,17 @@ void InnerLoopVectorizer::emitIterationCountCheck(BasicBlock *Bypass) {
   // If tail is to be folded, vector loop takes care of all iterations.
   Type *CountTy = Count->getType();
   Value *CheckMinIters = Builder.getFalse();
-  auto CreateStep = [&]() {
+  auto CreateStep = [&]() -> Value * {
     // Create step with max(MinProTripCount, UF * VF).
-    if (UF * VF.getKnownMinValue() < MinProfitableTripCount.getKnownMinValue())
-      return createStepForVF(Builder, CountTy, MinProfitableTripCount, 1);
-    return createStepForVF(Builder, CountTy, VF, UF);
+    if (UF * VF.getKnownMinValue() >= MinProfitableTripCount.getKnownMinValue())
+      return createStepForVF(Builder, CountTy, VF, UF);
+
+    Value *MinProfTC =
+        createStepForVF(Builder, CountTy, MinProfitableTripCount, 1);
+    if (!VF.isScalable())
+      return MinProfTC;
+    return Builder.CreateBinaryIntrinsic(
+        Intrinsic::umax, MinProfTC, createStepForVF(Builder, CountTy, VF, UF));
   };
 
   if (!Cost->foldTailByMasking())
@@ -4168,46 +4173,26 @@ bool InnerLoopVectorizer::useOrderedReductions(
   return Cost->useOrderedReductions(RdxDesc);
 }
 
-/// A helper function for checking whether an integer division-related
-/// instruction may divide by zero (in which case it must be predicated if
-/// executed conditionally in the scalar code).
-/// TODO: It may be worthwhile to generalize and check isKnownNonZero().
-/// Non-zero divisors that are non compile-time constants will not be
-/// converted into multiplication, so we will still end up scalarizing
-/// the division, but can do so w/o predication.
-static bool mayDivideByZero(Instruction &I) {
-  assert((I.getOpcode() == Instruction::UDiv ||
-          I.getOpcode() == Instruction::SDiv ||
-          I.getOpcode() == Instruction::URem ||
-          I.getOpcode() == Instruction::SRem) &&
-         "Unexpected instruction");
-  Value *Divisor = I.getOperand(1);
-  auto *CInt = dyn_cast<ConstantInt>(Divisor);
-  return !CInt || CInt->isZero();
-}
-
-void InnerLoopVectorizer::widenCallInstruction(CallInst &I, VPValue *Def,
+void InnerLoopVectorizer::widenCallInstruction(CallInst &CI, VPValue *Def,
                                                VPUser &ArgOperands,
                                                VPTransformState &State) {
-  assert(!isa<DbgInfoIntrinsic>(I) &&
+  assert(!isa<DbgInfoIntrinsic>(CI) &&
          "DbgInfoIntrinsic should have been dropped during VPlan construction");
-  State.setDebugLocFromInst(&I);
-
-  Module *M = I.getParent()->getParent()->getParent();
-  auto *CI = cast<CallInst>(&I);
+  State.setDebugLocFromInst(&CI);
 
   SmallVector<Type *, 4> Tys;
-  for (Value *ArgOperand : CI->args())
+  for (Value *ArgOperand : CI.args())
     Tys.push_back(ToVectorTy(ArgOperand->getType(), VF.getKnownMinValue()));
 
-  Intrinsic::ID ID = getVectorIntrinsicIDForCall(CI, TLI);
+  Intrinsic::ID ID = getVectorIntrinsicIDForCall(&CI, TLI);
 
   // The flag shows whether we use Intrinsic or a usual Call for vectorized
   // version of the instruction.
   // Is it beneficial to perform intrinsic call compared to lib call?
   bool NeedToScalarize = false;
-  InstructionCost CallCost = Cost->getVectorCallCost(CI, VF, NeedToScalarize);
-  InstructionCost IntrinsicCost = ID ? Cost->getVectorIntrinsicCost(CI, VF) : 0;
+  InstructionCost CallCost = Cost->getVectorCallCost(&CI, VF, NeedToScalarize);
+  InstructionCost IntrinsicCost =
+      ID ? Cost->getVectorIntrinsicCost(&CI, VF) : 0;
   bool UseVectorIntrinsic = ID && IntrinsicCost <= CallCost;
   assert((UseVectorIntrinsic || !NeedToScalarize) &&
          "Instruction should be scalarized elsewhere.");
@@ -4215,7 +4200,7 @@ void InnerLoopVectorizer::widenCallInstruction(CallInst &I, VPValue *Def,
          "Either the intrinsic cost or vector call cost must be valid");
 
   for (unsigned Part = 0; Part < UF; ++Part) {
-    SmallVector<Type *, 2> TysForDecl = {CI->getType()};
+    SmallVector<Type *, 2> TysForDecl = {CI.getType()};
     SmallVector<Value *, 4> Args;
     for (auto &I : enumerate(ArgOperands.operands())) {
       // Some intrinsics have a scalar argument - don't replace it with a
@@ -4235,27 +4220,28 @@ void InnerLoopVectorizer::widenCallInstruction(CallInst &I, VPValue *Def,
     if (UseVectorIntrinsic) {
       // Use vector version of the intrinsic.
       if (VF.isVector())
-        TysForDecl[0] = VectorType::get(CI->getType()->getScalarType(), VF);
+        TysForDecl[0] = VectorType::get(CI.getType()->getScalarType(), VF);
+      Module *M = State.Builder.GetInsertBlock()->getModule();
       VectorF = Intrinsic::getDeclaration(M, ID, TysForDecl);
       assert(VectorF && "Can't retrieve vector intrinsic.");
     } else {
       // Use vector version of the function call.
-      const VFShape Shape = VFShape::get(*CI, VF, false /*HasGlobalPred*/);
+      const VFShape Shape = VFShape::get(CI, VF, false /*HasGlobalPred*/);
 #ifndef NDEBUG
-      assert(VFDatabase(*CI).getVectorizedFunction(Shape) != nullptr &&
+      assert(VFDatabase(CI).getVectorizedFunction(Shape) != nullptr &&
              "Can't create vector function.");
 #endif
-        VectorF = VFDatabase(*CI).getVectorizedFunction(Shape);
+      VectorF = VFDatabase(CI).getVectorizedFunction(Shape);
     }
       SmallVector<OperandBundleDef, 1> OpBundles;
-      CI->getOperandBundlesAsDefs(OpBundles);
+      CI.getOperandBundlesAsDefs(OpBundles);
       CallInst *V = Builder.CreateCall(VectorF, Args, OpBundles);
 
       if (isa<FPMathOperator>(V))
-        V->copyFastMathFlags(CI);
+        V->copyFastMathFlags(&CI);
 
       State.set(Def, V, Part);
-      State.addMetadata(V, &I);
+      State.addMetadata(V, &CI);
   }
 }
 
@@ -4470,7 +4456,9 @@ bool LoopVectorizationCostModel::isScalarWithPredication(
   case Instruction::SDiv:
   case Instruction::SRem:
   case Instruction::URem:
-    return mayDivideByZero(*I);
+    // TODO: We can use the loop-preheader as context point here and get
+    // context sensitive reasoning
+    return !isSafeToSpeculativelyExecute(I);
   }
   return false;
 }
@@ -5406,7 +5394,7 @@ VectorizationFactor LoopVectorizationCostModel::selectVectorizationFactor(
   }
 
   LLVM_DEBUG(if (ForceVectorization && !ChosenFactor.Width.isScalar() &&
-                 ChosenFactor.Cost >= ScalarCost.Cost) dbgs()
+                 !isMoreProfitable(ChosenFactor, ScalarCost)) dbgs()
              << "LV: Vectorization seems to be not beneficial, "
              << "but was forced by a user.\n");
   LLVM_DEBUG(dbgs() << "LV: Selecting VF: " << ChosenFactor.Width << ".\n");
@@ -6069,7 +6057,8 @@ bool LoopVectorizationCostModel::useEmulatedMaskMemRefHack(Instruction *I,
   // from moving "masked load/store" check from legality to cost model.
   // Masked Load/Gather emulation was previously never allowed.
   // Limited number of Masked Store/Scatter emulation was allowed.
-  assert(isPredicatedInst(I, VF) && "Expecting a scalar emulated instruction");
+  assert((isPredicatedInst(I, VF) || Legal->isUniformMemOp(*I)) &&
+         "Expecting a scalar emulated instruction");
   return isa<LoadInst>(I) ||
          (isa<StoreInst>(I) &&
           NumPredStores > NumberOfStoresToPredicate);
@@ -6779,19 +6768,29 @@ void LoopVectorizationCostModel::setCostBasedWideningDecision(ElementCount VF) {
         NumPredStores++;
 
       if (Legal->isUniformMemOp(I)) {
-        // TODO: Avoid replicating loads and stores instead of
-        // relying on instcombine to remove them.
+        // Lowering story for uniform memory ops is currently a bit complicated.
+        // Scalarization works for everything which isn't a store with scalable
+        // VF.  Fixed len VFs just scalarize and then DCE later; scalarization
+        // knows how to handle uniform-per-part values (i.e. the first lane
+        // in each unrolled VF) and can thus handle scalable loads too.  For
+        // scalable stores, we use a scatter if legal.  If not, we have no way
+        // to lower (currently) and thus have to abort vectorization.
+        if (isa<StoreInst>(&I) && VF.isScalable()) {
+          if (isLegalGatherOrScatter(&I, VF))
+            setWideningDecision(&I, VF, CM_GatherScatter,
+                                getGatherScatterCost(&I, VF));
+          else
+            // Error case, abort vectorization
+            setWideningDecision(&I, VF, CM_Scalarize,
+                                InstructionCost::getInvalid());
+          continue;
+        }
         // Load: Scalar load + broadcast
         // Store: Scalar store + isLoopInvariantStoreValue ? 0 : extract
-        InstructionCost Cost;
-        if (isa<StoreInst>(&I) && VF.isScalable() &&
-            isLegalGatherOrScatter(&I, VF)) {
-          Cost = getGatherScatterCost(&I, VF);
-          setWideningDecision(&I, VF, CM_GatherScatter, Cost);
-        } else {
-          Cost = getUniformMemOpCost(&I, VF);
-          setWideningDecision(&I, VF, CM_Scalarize, Cost);
-        }
+        // TODO: Avoid replicating loads and stores instead of relying on
+        // instcombine to remove them.
+        setWideningDecision(&I, VF, CM_Scalarize,
+                            getUniformMemOpCost(&I, VF));
         continue;
       }
 
@@ -7146,13 +7145,10 @@ LoopVectorizationCostModel::getInstructionCost(Instruction *I, ElementCount VF,
       InstWidening Decision = getWideningDecision(I, Width);
       assert(Decision != CM_Unknown &&
              "CM decision should be taken at this point");
-      if (Decision == CM_Scalarize) {
-        if (VF.isScalable() && isa<StoreInst>(I))
-          // We can't scalarize a scalable vector store (even a uniform one
-          // currently), return an invalid cost so as to prevent vectorization.
-          return InstructionCost::getInvalid();
+      if (getWideningCost(I, VF) == InstructionCost::getInvalid())
+        return InstructionCost::getInvalid();
+      if (Decision == CM_Scalarize)
         Width = ElementCount::getFixed(1);
-      }
     }
     VectorTy = ToVectorTy(getLoadStoreType(I), Width);
     return getMemoryInstructionCost(I, VF);
@@ -7307,14 +7303,6 @@ Pass *createLoopVectorizePass(bool InterleaveOnlyWhenForced,
 }
 
 } // end namespace llvm
-
-bool LoopVectorizationCostModel::isConsecutiveLoadOrStore(Instruction *Inst) {
-  // Check if the pointer operand of a load or store instruction is
-  // consecutive.
-  if (auto *Ptr = getLoadStorePointerOperand(Inst))
-    return Legal->isConsecutivePtr(getLoadStoreType(Inst), Ptr);
-  return false;
-}
 
 void LoopVectorizationCostModel::collectValuesToIgnore() {
   // Ignore ephemeral values.
@@ -8370,7 +8358,7 @@ VPBasicBlock *VPRecipeBuilder::handleReplication(
       Range);
 
   bool IsPredicated = LoopVectorizationPlanner::getDecisionAndClampRange(
-      [&](ElementCount VF) { return CM.isPredicatedInst(I, VF, IsUniform); },
+      [&](ElementCount VF) { return CM.isPredicatedInst(I, VF); },
       Range);
 
   // Even if the instruction is not marked as uniform, there are certain
@@ -8406,8 +8394,6 @@ VPBasicBlock *VPRecipeBuilder::handleReplication(
 
   auto *Recipe = new VPReplicateRecipe(I, Plan->mapToVPValues(I->operands()),
                                        IsUniform, IsPredicated);
-  setRecipe(I, Recipe);
-  Plan->addVPValue(I, Recipe);
 
   // Find if I uses a predicated instruction. If so, it will use its scalar
   // value. Avoid hoisting the insert-element which packs the scalar value into
@@ -8426,6 +8412,8 @@ VPBasicBlock *VPRecipeBuilder::handleReplication(
   // Finalize the recipe for Instr, first if it is not predicated.
   if (!IsPredicated) {
     LLVM_DEBUG(dbgs() << "LV: Scalarizing:" << *I << "\n");
+    setRecipe(I, Recipe);
+    Plan->addVPValue(I, Recipe);
     VPBB->appendRecipe(Recipe);
     return VPBB;
   }
@@ -8436,7 +8424,7 @@ VPBasicBlock *VPRecipeBuilder::handleReplication(
                        "predicated replication.");
   VPBlockUtils::disconnectBlocks(VPBB, SingleSucc);
   // Record predicated instructions for above packing optimizations.
-  VPBlockBase *Region = createReplicateRegion(I, Recipe, Plan);
+  VPBlockBase *Region = createReplicateRegion(Recipe, Plan);
   VPBlockUtils::insertBlockAfter(Region, VPBB);
   auto *RegSucc = new VPBasicBlock();
   VPBlockUtils::insertBlockAfter(RegSucc, Region);
@@ -8444,11 +8432,12 @@ VPBasicBlock *VPRecipeBuilder::handleReplication(
   return RegSucc;
 }
 
-VPRegionBlock *VPRecipeBuilder::createReplicateRegion(
-    Instruction *Instr, VPReplicateRecipe *PredRecipe, VPlanPtr &Plan) {
+VPRegionBlock *
+VPRecipeBuilder::createReplicateRegion(VPReplicateRecipe *PredRecipe,
+                                       VPlanPtr &Plan) {
+  Instruction *Instr = PredRecipe->getUnderlyingInstr();
   // Instructions marked for predication are replicated and placed under an
   // if-then construct to prevent side-effects.
-
   // Generate recipes to compute the block mask for this region.
   VPValue *BlockInMask = createBlockInMask(Instr->getParent(), Plan);
 
@@ -8461,9 +8450,13 @@ VPRegionBlock *VPRecipeBuilder::createReplicateRegion(
                         ? nullptr
                         : new VPPredInstPHIRecipe(PredRecipe);
   if (PHIRecipe) {
-    Plan->removeVPValueFor(Instr);
+    setRecipe(Instr, PHIRecipe);
     Plan->addVPValue(Instr, PHIRecipe);
+  } else {
+    setRecipe(Instr, PredRecipe);
+    Plan->addVPValue(Instr, PredRecipe);
   }
+
   auto *Exiting = new VPBasicBlock(Twine(RegionName) + ".continue", PHIRecipe);
   auto *Pred = new VPBasicBlock(Twine(RegionName) + ".if", PredRecipe);
   VPRegionBlock *Region = new VPRegionBlock(Entry, Exiting, RegionName, true);
@@ -9564,63 +9557,24 @@ void VPReplicateRecipe::execute(VPTransformState &State) {
     return;
   }
 
-  // Generate scalar instances for all VF lanes of all UF parts, unless the
-  // instruction is uniform inwhich case generate only the first lane for each
-  // of the UF parts.
-  unsigned EndLane = IsUniform ? 1 : State.VF.getKnownMinValue();
-  assert((!State.VF.isScalable() || IsUniform) &&
-         "Can't scalarize a scalable vector");
+  if (IsUniform) {
+    // Uniform within VL means we need to generate lane 0 only for each
+    // unrolled copy.
+    for (unsigned Part = 0; Part < State.UF; ++Part)
+      State.ILV->scalarizeInstruction(getUnderlyingInstr(), this,
+                                      VPIteration(Part, 0), IsPredicated,
+                                      State);
+    return;
+  }
+
+  // Generate scalar instances for all VF lanes of all UF parts.
+  assert(!State.VF.isScalable() && "Can't scalarize a scalable vector");
+  const unsigned EndLane = State.VF.getKnownMinValue();
   for (unsigned Part = 0; Part < State.UF; ++Part)
     for (unsigned Lane = 0; Lane < EndLane; ++Lane)
       State.ILV->scalarizeInstruction(getUnderlyingInstr(), this,
                                       VPIteration(Part, Lane), IsPredicated,
                                       State);
-}
-
-void VPPredInstPHIRecipe::execute(VPTransformState &State) {
-  assert(State.Instance && "Predicated instruction PHI works per instance.");
-  Instruction *ScalarPredInst =
-      cast<Instruction>(State.get(getOperand(0), *State.Instance));
-  BasicBlock *PredicatedBB = ScalarPredInst->getParent();
-  BasicBlock *PredicatingBB = PredicatedBB->getSinglePredecessor();
-  assert(PredicatingBB && "Predicated block has no single predecessor.");
-  assert(isa<VPReplicateRecipe>(getOperand(0)) &&
-         "operand must be VPReplicateRecipe");
-
-  // By current pack/unpack logic we need to generate only a single phi node: if
-  // a vector value for the predicated instruction exists at this point it means
-  // the instruction has vector users only, and a phi for the vector value is
-  // needed. In this case the recipe of the predicated instruction is marked to
-  // also do that packing, thereby "hoisting" the insert-element sequence.
-  // Otherwise, a phi node for the scalar value is needed.
-  unsigned Part = State.Instance->Part;
-  if (State.hasVectorValue(getOperand(0), Part)) {
-    Value *VectorValue = State.get(getOperand(0), Part);
-    InsertElementInst *IEI = cast<InsertElementInst>(VectorValue);
-    PHINode *VPhi = State.Builder.CreatePHI(IEI->getType(), 2);
-    VPhi->addIncoming(IEI->getOperand(0), PredicatingBB); // Unmodified vector.
-    VPhi->addIncoming(IEI, PredicatedBB); // New vector with inserted element.
-    if (State.hasVectorValue(this, Part))
-      State.reset(this, VPhi, Part);
-    else
-      State.set(this, VPhi, Part);
-    // NOTE: Currently we need to update the value of the operand, so the next
-    // predicated iteration inserts its generated value in the correct vector.
-    State.reset(getOperand(0), VPhi, Part);
-  } else {
-    Type *PredInstType = getOperand(0)->getUnderlyingValue()->getType();
-    PHINode *Phi = State.Builder.CreatePHI(PredInstType, 2);
-    Phi->addIncoming(PoisonValue::get(ScalarPredInst->getType()),
-                     PredicatingBB);
-    Phi->addIncoming(ScalarPredInst, PredicatedBB);
-    if (State.hasScalarValue(this, *State.Instance))
-      State.reset(this, Phi, *State.Instance);
-    else
-      State.set(this, Phi, *State.Instance);
-    // NOTE: Currently we need to update the value of the operand, so the next
-    // predicated iteration inserts its generated value in the correct vector.
-    State.reset(getOperand(0), Phi, *State.Instance);
-  }
 }
 
 void VPWidenMemoryInstructionRecipe::execute(VPTransformState &State) {
@@ -9793,8 +9747,7 @@ static ScalarEpilogueLowering getScalarEpilogueLowering(
   };
 
   // 4) if the TTI hook indicates this is profitable, request predication.
-  if (TTI->preferPredicateOverEpilogue(L, LI, *SE, *AC, TLI, DT,
-                                       LVL.getLAI()))
+  if (TTI->preferPredicateOverEpilogue(L, LI, *SE, *AC, TLI, DT, &LVL))
     return CM_ScalarEpilogueNotNeededUsePredicate;
 
   return CM_ScalarEpilogueAllowed;

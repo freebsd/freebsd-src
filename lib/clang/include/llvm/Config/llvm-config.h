@@ -96,6 +96,9 @@
 /* Define if zlib compression is available */
 #define LLVM_ENABLE_ZLIB 1
 
+/* Define if zstd compression is available */
+#define LLVM_ENABLE_ZSTD 0
+
 /* Define if LLVM was built with a dependency to the libtensorflow dynamic library */
 /* #undef LLVM_HAVE_TF_API */
 

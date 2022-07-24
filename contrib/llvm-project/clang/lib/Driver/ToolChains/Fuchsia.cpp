@@ -101,7 +101,7 @@ void fuchsia::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   const SanitizerArgs &SanArgs = ToolChain.getSanitizerArgs(Args);
 
-  if (!Args.hasArg(options::OPT_shared)) {
+  if (!Args.hasArg(options::OPT_shared) && !Args.hasArg(options::OPT_r)) {
     std::string Dyld = D.DyldPrefix;
     if (SanArgs.needsAsanRt() && SanArgs.needsSharedRt())
       Dyld += "asan/";
@@ -417,6 +417,8 @@ void Fuchsia::AddCXXStdlibLibArgs(const ArgList &Args,
   switch (GetCXXStdlibType(Args)) {
   case ToolChain::CST_Libcxx:
     CmdArgs.push_back("-lc++");
+    if (Args.hasArg(options::OPT_fexperimental_library))
+      CmdArgs.push_back("-lc++experimental");
     break;
 
   case ToolChain::CST_Libstdcxx:

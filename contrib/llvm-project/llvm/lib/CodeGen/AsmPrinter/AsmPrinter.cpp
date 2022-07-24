@@ -488,7 +488,7 @@ bool AsmPrinter::doInitialization(Module &M) {
 
   GCModuleInfo *MI = getAnalysisIfAvailable<GCModuleInfo>();
   assert(MI && "AsmPrinter didn't require GCModuleInfo?");
-  for (auto &I : *MI)
+  for (const auto &I : *MI)
     if (GCMetadataPrinter *MP = GetOrCreateGCPrinter(*I))
       MP->beginAssembly(M, *MI, *this);
 
@@ -1731,7 +1731,7 @@ static unsigned getNumGlobalVariableUses(const Constant *C) {
     return 1;
 
   unsigned NumUses = 0;
-  for (auto *CU : C->users())
+  for (const auto *CU : C->users())
     NumUses += getNumGlobalVariableUses(dyn_cast<Constant>(CU));
 
   return NumUses;
@@ -1754,7 +1754,7 @@ static bool isGOTEquivalentCandidate(const GlobalVariable *GV,
 
   // To be a got equivalent, at least one of its users need to be a constant
   // expression used by another global variable.
-  for (auto *U : GV->users())
+  for (const auto *U : GV->users())
     NumGOTEquivUsers += getNumGlobalVariableUses(dyn_cast<Constant>(U));
 
   return NumGOTEquivUsers > 0;
@@ -1797,7 +1797,7 @@ void AsmPrinter::emitGlobalGOTEquivs() {
   }
   GlobalGOTEquivs.clear();
 
-  for (auto *GV : FailedCandidates)
+  for (const auto *GV : FailedCandidates)
     emitGlobalVariable(GV);
 }
 
@@ -2731,6 +2731,8 @@ const MCExpr *AsmPrinter::lowerConstant(const Constant *CV) {
   // to represent relocations on supported targets. Expressions involving only
   // constant addresses are constant folded instead.
   switch (CE->getOpcode()) {
+  default:
+    break; // Error
   case Instruction::AddrSpaceCast: {
     const Constant *Op = CE->getOperand(0);
     unsigned DstAS = CE->getType()->getPointerAddressSpace();
@@ -2738,24 +2740,7 @@ const MCExpr *AsmPrinter::lowerConstant(const Constant *CV) {
     if (TM.isNoopAddrSpaceCast(SrcAS, DstAS))
       return lowerConstant(Op);
 
-    // Fallthrough to error.
-    LLVM_FALLTHROUGH;
-  }
-  default: {
-    // If the code isn't optimized, there may be outstanding folding
-    // opportunities. Attempt to fold the expression using DataLayout as a
-    // last resort before giving up.
-    Constant *C = ConstantFoldConstant(CE, getDataLayout());
-    if (C != CE)
-      return lowerConstant(C);
-
-    // Otherwise report the problem to the user.
-    std::string S;
-    raw_string_ostream OS(S);
-    OS << "Unsupported expression in static initializer: ";
-    CE->printAsOperand(OS, /*PrintType=*/false,
-                   !MF ? nullptr : MF->getFunction().getParent());
-    report_fatal_error(Twine(OS.str()));
+    break; // Error
   }
   case Instruction::GetElementPtr: {
     // Generate a symbolic expression for the byte address
@@ -2860,6 +2845,21 @@ const MCExpr *AsmPrinter::lowerConstant(const Constant *CV) {
     return MCBinaryExpr::createAdd(LHS, RHS, Ctx);
   }
   }
+
+  // If the code isn't optimized, there may be outstanding folding
+  // opportunities. Attempt to fold the expression using DataLayout as a
+  // last resort before giving up.
+  Constant *C = ConstantFoldConstant(CE, getDataLayout());
+  if (C != CE)
+    return lowerConstant(C);
+
+  // Otherwise report the problem to the user.
+  std::string S;
+  raw_string_ostream OS(S);
+  OS << "Unsupported expression in static initializer: ";
+  CE->printAsOperand(OS, /*PrintType=*/false,
+                     !MF ? nullptr : MF->getFunction().getParent());
+  report_fatal_error(Twine(OS.str()));
 }
 
 static void emitGlobalConstantImpl(const DataLayout &DL, const Constant *C,
@@ -3359,9 +3359,12 @@ void AsmPrinter::emitGlobalConstant(const DataLayout &DL, const Constant *CV,
   }
   if (!AliasList)
     return;
-  for (const auto &AliasPair : *AliasList)
-    report_fatal_error("Aliases with offset " + Twine(AliasPair.first) +
-                       " were not emitted.");
+  // TODO: These remaining aliases are not emitted in the correct location. Need
+  // to handle the case where the alias offset doesn't refer to any sub-element.
+  for (auto &AliasPair : *AliasList) {
+    for (const GlobalAlias *GA : AliasPair.second)
+      OutStreamer->emitLabel(getSymbol(GA));
+  }
 }
 
 void AsmPrinter::emitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) {
@@ -3717,7 +3720,7 @@ void AsmPrinter::emitStackMaps(StackMaps &SM) {
     // No GC strategy, use the default format.
     NeedsDefault = true;
   else
-    for (auto &I : *MI) {
+    for (const auto &I : *MI) {
       if (GCMetadataPrinter *MP = GetOrCreateGCPrinter(*I))
         if (MP->emitStackMaps(SM, *this))
           continue;

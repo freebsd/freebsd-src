@@ -52,6 +52,7 @@ class LoadInst;
 class LoopAccessInfo;
 class Loop;
 class LoopInfo;
+class LoopVectorizationLegality;
 class ProfileSummaryInfo;
 class RecurrenceDescriptor;
 class SCEV;
@@ -129,7 +130,8 @@ class IntrinsicCostAttributes {
 public:
   IntrinsicCostAttributes(
       Intrinsic::ID Id, const CallBase &CI,
-      InstructionCost ScalarCost = InstructionCost::getInvalid());
+      InstructionCost ScalarCost = InstructionCost::getInvalid(),
+      bool TypeBasedOnly = false);
 
   IntrinsicCostAttributes(
       Intrinsic::ID Id, Type *RTy, ArrayRef<Type *> Tys,
@@ -530,7 +532,7 @@ public:
   bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
                                    AssumptionCache &AC, TargetLibraryInfo *TLI,
                                    DominatorTree *DT,
-                                   const LoopAccessInfo *LAI) const;
+                                   LoopVectorizationLegality *LVL) const;
 
   /// Query the target whether lowering of the llvm.get.active.lane.mask
   /// intrinsic is supported and how the mask should be used. A return value
@@ -1555,10 +1557,12 @@ public:
                                         AssumptionCache &AC,
                                         TargetLibraryInfo *LibInfo,
                                         HardwareLoopInfo &HWLoopInfo) = 0;
-  virtual bool
-  preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
-                              AssumptionCache &AC, TargetLibraryInfo *TLI,
-                              DominatorTree *DT, const LoopAccessInfo *LAI) = 0;
+  virtual bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI,
+                                           ScalarEvolution &SE,
+                                           AssumptionCache &AC,
+                                           TargetLibraryInfo *TLI,
+                                           DominatorTree *DT,
+                                           LoopVectorizationLegality *LVL) = 0;
   virtual PredicationStyle emitGetActiveLaneMask() = 0;
   virtual Optional<Instruction *> instCombineIntrinsic(InstCombiner &IC,
                                                        IntrinsicInst &II) = 0;
@@ -1935,8 +1939,8 @@ public:
   bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
                                    AssumptionCache &AC, TargetLibraryInfo *TLI,
                                    DominatorTree *DT,
-                                   const LoopAccessInfo *LAI) override {
-    return Impl.preferPredicateOverEpilogue(L, LI, SE, AC, TLI, DT, LAI);
+                                   LoopVectorizationLegality *LVL) override {
+    return Impl.preferPredicateOverEpilogue(L, LI, SE, AC, TLI, DT, LVL);
   }
   PredicationStyle emitGetActiveLaneMask() override {
     return Impl.emitGetActiveLaneMask();
