@@ -948,7 +948,7 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 }
 
 static bool_t
-svc_vc_null()
+svc_vc_null(void)
 {
 
 	return (FALSE);
