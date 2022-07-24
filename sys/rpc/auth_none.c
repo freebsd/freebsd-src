@@ -103,7 +103,7 @@ authnone_init(void *dummy)
 SYSINIT(authnone_init, SI_SUB_KMEM, SI_ORDER_ANY, authnone_init, NULL);
 
 AUTH *
-authnone_create()
+authnone_create(void)
 {
 	struct authnone_private *ap = &authnone_private;
 
