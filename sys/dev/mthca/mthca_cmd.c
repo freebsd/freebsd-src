@@ -659,7 +659,9 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 	int nent = 0;
 	int i;
 	int err = 0;
+#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 	int ts = 0, tc = 0;
+#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
@@ -693,8 +695,10 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 			pages[nent * 2 + 1] =
 				cpu_to_be64((mthca_icm_addr(&iter) + (i << lg)) |
 					    (lg - MTHCA_ICM_PAGE_SHIFT));
+#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 			ts += 1 << (lg - 10);
 			++tc;
+#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
 
 			if (++nent == MTHCA_MAILBOX_SIZE / 16) {
 				err = mthca_cmd(dev, mailbox->dma, nent, 0, op,
