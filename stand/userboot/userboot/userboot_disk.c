@@ -63,15 +63,15 @@ static int	userdisk_ioctl(struct open_file *f, u_long cmd, void *data);
 static int	userdisk_print(int verbose);
 
 struct devsw userboot_disk = {
-	"disk",
-	DEVT_DISK,
-	userdisk_init,
-	userdisk_strategy,
-	userdisk_open,
-	userdisk_close,
-	userdisk_ioctl,
-	userdisk_print,
-	userdisk_cleanup
+	.dv_name = "disk",
+	.dv_type = DEVT_DISK,
+	.dv_init = userdisk_init,
+	.dv_strategy = userdisk_strategy,
+	.dv_open = userdisk_open,
+	.dv_close = userdisk_close,
+	.dv_ioctl = userdisk_ioctl,
+	.dv_print = userdisk_print,
+	.dv_cleanup = userdisk_cleanup,
 };
 
 /*
