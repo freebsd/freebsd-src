@@ -618,7 +618,7 @@ irdma_remove(struct ice_rdma_peer *peer)
  * irdma_prep_for_unregister - ensure the driver is ready to unregister
  */
 static void
-irdma_prep_for_unregister()
+irdma_prep_for_unregister(void)
 {
 	struct irdma_handler *hdl;
 	unsigned long flags;
