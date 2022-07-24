@@ -51,14 +51,14 @@ static int	ofwd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int	ofwd_print(int verbose);
 
 struct devsw ofwdisk = {
-	"block",
-	DEVT_DISK,
-	ofwd_init,
-	ofwd_strategy,
-	ofwd_open,
-	ofwd_close,
-	ofwd_ioctl,
-	ofwd_print
+	.dv_name = "block",
+	.dv_type = DEVT_DISK,
+	.dv_init = ofwd_init,
+	.dv_strategy = ofwd_strategy,
+	.dv_open = ofwd_open,
+	.dv_close = ofwd_close,
+	.dv_ioctl = ofwd_ioctl,
+	.dv_print = ofwd_print,
 };
 
 /*
