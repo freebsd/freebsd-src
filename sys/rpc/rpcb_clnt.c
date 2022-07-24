@@ -436,7 +436,7 @@ getclnthandle(host, nconf, targaddr)
  * rpcbind. Returns NULL on error and free's everything.
  */
 static CLIENT *
-local_rpcb()
+local_rpcb(void)
 {
 	CLIENT *client;
 	struct socket *so;
