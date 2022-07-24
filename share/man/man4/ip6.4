@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2021
+.Dd July 24, 2022
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -156,9 +156,6 @@ datagrams sent on this socket.
 .\" .It Dv IPV6_RECVDSTADDR Fa "int *"
 .\" Get or set the status of whether datagrams are received with
 .\" destination addresses.
-.\" .It Dv IPV6_ORIGDSTADDR Fa "int *"
-.\" Get or set the status of whether datagrams are received with
-.\" destination addresses and destination ports.
 .\" .It Dv IPV6_RETOPTS
 .\" Get or set IPv6 options.
 .It Dv IPV6_MULTICAST_IF Fa "u_int *"
@@ -227,6 +224,14 @@ Note that setting to this value requires superuser privileges.
 Drop membership from the associated multicast group.
 Memberships are automatically dropped when the socket is closed or when
 the process exits.
+.It Dv IPV6_ORIGDSTADDR Fa "int *"
+Get or set whether a datagram's original destination address and port are
+returned as ancillary data along with the payload in subsequent
+.Xr recvmsg 2
+calls.
+The information is stored in the the ancillary data as a
+.Tn sockaddr_in6
+structure.
 .It Dv IPV6_PORTRANGE Fa "int *"
 Get or set the allocation policy of ephemeral ports for when the kernel
 automatically binds a local address to this socket.
@@ -420,8 +425,9 @@ The
 .Dv IPV6_HOPLIMIT ,
 .Dv IPV6_HOPOPTS ,
 .Dv IPV6_DSTOPTS ,
+.Dv IPV6_RTHDR ,
 and
-.Dv IPV6_RTHDR
+.Dv IPV6_ORIGDSTADDR
 options will return ancillary data along with payload contents in subsequent
 .Xr recvmsg 2
 calls with
@@ -432,7 +438,7 @@ and
 .Va cmsg_type
 set to respective option name value (e.g.,
 .Dv IPV6_HOPTLIMIT ) .
-These options may also be used directly as ancillary
+Some of these options may also be used directly as ancillary
 .Va cmsg_type
 values in
 .Xr sendmsg 2
