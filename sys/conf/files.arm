@@ -62,7 +62,7 @@ arm/arm/pmu_fdt.c		optional	fdt pmu | fdt hwpmc
 arm/arm/ptrace_machdep.c	standard
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
-arm/arm/setstack.s		standard
+arm/arm/setstack.S		standard
 arm/arm/stack_machdep.c		optional	ddb | stack
 arm/arm/stdatomic.c		standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"

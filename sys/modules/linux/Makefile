@@ -46,7 +46,7 @@ SRCS+=	linux_dummy_x86.c
 VDSODEPS=linux_vdso_gettc_x86.inc
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	linux${SFX}_support.s
+SRCS+=	linux${SFX}_support.S
 SRCS+=	linux_elf32.c
 .else
 SRCS+=	linux_copyout.c
