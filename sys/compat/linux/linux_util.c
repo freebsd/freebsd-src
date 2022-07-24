@@ -240,7 +240,7 @@ linux_vn_get_major_minor(const struct vnode *vp, int *major, int *minor)
 }
 
 char *
-linux_get_char_devices()
+linux_get_char_devices(void)
 {
 	struct device_element *de;
 	char *temp, *string, *last;
