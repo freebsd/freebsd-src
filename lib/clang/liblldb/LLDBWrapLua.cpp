@@ -72429,6 +72429,8 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eArgTypeConnectURL", lldb::eArgTypeConnectURL)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeTargetID", lldb::eArgTypeTargetID)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeStopHookID", lldb::eArgTypeStopHookID)},
+    {SWIG_LUA_CONSTTAB_INT("eArgTypeReproducerProvider", lldb::eArgTypeReproducerProvider)},
+    {SWIG_LUA_CONSTTAB_INT("eArgTypeReproducerSignal", lldb::eArgTypeReproducerSignal)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeLastArg", lldb::eArgTypeLastArg)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeAny", lldb::eSymbolTypeAny)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeInvalid", lldb::eSymbolTypeInvalid)},

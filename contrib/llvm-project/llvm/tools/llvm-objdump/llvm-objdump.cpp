@@ -1131,7 +1131,21 @@ static void emitPostInstructionInfo(formatted_raw_ostream &FOS,
   FOS.flush();
 }
 
-static void disassembleObject(const Target *TheTarget, const ObjectFile &Obj,
+static void createFakeELFSections(ObjectFile &Obj) {
+  assert(Obj.isELF());
+  if (auto *Elf32LEObj = dyn_cast<ELF32LEObjectFile>(&Obj))
+    Elf32LEObj->createFakeSections();
+  else if (auto *Elf64LEObj = dyn_cast<ELF64LEObjectFile>(&Obj))
+    Elf64LEObj->createFakeSections();
+  else if (auto *Elf32BEObj = dyn_cast<ELF32BEObjectFile>(&Obj))
+    Elf32BEObj->createFakeSections();
+  else if (auto *Elf64BEObj = cast<ELF64BEObjectFile>(&Obj))
+    Elf64BEObj->createFakeSections();
+  else
+    llvm_unreachable("Unsupported binary format");
+}
+
+static void disassembleObject(const Target *TheTarget, ObjectFile &Obj,
                               MCContext &Ctx, MCDisassembler *PrimaryDisAsm,
                               MCDisassembler *SecondaryDisAsm,
                               const MCInstrAnalysis *MIA, MCInstPrinter *IP,
@@ -1198,6 +1212,9 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile &Obj,
   if (Obj.isWasm())
     addMissingWasmCodeSymbols(cast<WasmObjectFile>(Obj), AllSymbols);
 
+  if (Obj.isELF() && Obj.sections().empty())
+    createFakeELFSections(Obj);
+
   BumpPtrAllocator A;
   StringSaver Saver(A);
   addPltEntries(Obj, AllSymbols, Saver);
@@ -1261,6 +1278,25 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile &Obj,
 
   LLVM_DEBUG(LVP.dump());
 
+  std::unordered_map<uint64_t, BBAddrMap> AddrToBBAddrMap;
+  auto ReadBBAddrMap = [&](Optional<unsigned> SectionIndex = None) {
+    AddrToBBAddrMap.clear();
+    if (const auto *Elf = dyn_cast<ELFObjectFileBase>(&Obj)) {
+      auto BBAddrMapsOrErr = Elf->readBBAddrMap(SectionIndex);
+      if (!BBAddrMapsOrErr)
+          reportWarning(toString(BBAddrMapsOrErr.takeError()),
+                        Obj.getFileName());
+      for (auto &FunctionBBAddrMap : *BBAddrMapsOrErr)
+        AddrToBBAddrMap.emplace(FunctionBBAddrMap.Addr,
+                                std::move(FunctionBBAddrMap));
+    }
+  };
+
+  // For non-relocatable objects, Read all LLVM_BB_ADDR_MAP sections into a
+  // single mapping, since they don't have any conflicts.
+  if (SymbolizeOperands && !Obj.isRelocatableObject())
+    ReadBBAddrMap();
+
   for (const SectionRef &Section : ToolSectionFilter(Obj)) {
     if (FilterSections.empty() && !DisassembleAll &&
         (!Section.isText() || Section.isVirtual()))
@@ -1271,19 +1307,10 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile &Obj,
     if (!SectSize)
       continue;
 
-    std::unordered_map<uint64_t, BBAddrMap> AddrToBBAddrMap;
-    if (SymbolizeOperands) {
-      if (auto *Elf = dyn_cast<ELFObjectFileBase>(&Obj)) {
-        // Read the BB-address-map corresponding to this section, if present.
-        auto SectionBBAddrMapsOrErr = Elf->readBBAddrMap(Section.getIndex());
-        if (!SectionBBAddrMapsOrErr)
-          reportWarning(toString(SectionBBAddrMapsOrErr.takeError()),
-                        Obj.getFileName());
-        for (auto &FunctionBBAddrMap : *SectionBBAddrMapsOrErr)
-          AddrToBBAddrMap.emplace(FunctionBBAddrMap.Addr,
-                                  std::move(FunctionBBAddrMap));
-      }
-    }
+    // For relocatable object files, read the LLVM_BB_ADDR_MAP section
+    // corresponding to this section, if present.
+    if (SymbolizeOperands && Obj.isRelocatableObject())
+      ReadBBAddrMap(Section.getIndex());
 
     // Get the list of all the symbols in this section.
     SectionSymbolsTy &Symbols = AllSymbols[Section];
@@ -1688,7 +1715,7 @@ static void disassembleObject(const Target *TheTarget, const ObjectFile &Obj,
     reportWarning("failed to disassemble missing symbol " + Sym, FileName);
 }
 
-static void disassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
+static void disassembleObject(ObjectFile *Obj, bool InlineRelocs) {
   const Target *TheTarget = getTarget(Obj);
 
   // Package up features to be passed to target/subtarget
@@ -1890,7 +1917,7 @@ static size_t getMaxSectionNameWidth(const ObjectFile &Obj) {
   return MaxWidth;
 }
 
-void objdump::printSectionHeaders(const ObjectFile &Obj) {
+void objdump::printSectionHeaders(ObjectFile &Obj) {
   size_t NameWidth = getMaxSectionNameWidth(Obj);
   size_t AddressWidth = 2 * Obj.getBytesInAddress();
   bool HasLMAColumn = shouldDisplayLMA(Obj);
@@ -1902,6 +1929,9 @@ void objdump::printSectionHeaders(const ObjectFile &Obj) {
   else
     outs() << "Idx " << left_justify("Name", NameWidth) << " Size     "
            << left_justify("VMA", AddressWidth) << " Type\n";
+
+  if (Obj.isELF() && Obj.sections().empty())
+    createFakeELFSections(Obj);
 
   uint64_t Idx;
   for (const SectionRef &Section : ToolSectionFilter(Obj, &Idx)) {

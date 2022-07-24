@@ -25,6 +25,11 @@ CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 
 CFLAGS+=	-I${LLVM_SRCS}/lib/ObjCopy
 
+.if ${TARGET_ARCH} != "amd64"
+CFLAGS+=	-DBLAKE3_NO_AVX512 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_SSE41 \
+		-DBLAKE3_NO_SSE2
+.endif
+
 SRCDIR=		llvm/lib
 
 # Explanation of different SRCS variants below:
@@ -355,6 +360,7 @@ SRCS_MIN+=	CodeGen/MachineVerifier.cpp
 SRCS_MIN+=	CodeGen/MacroFusion.cpp
 SRCS_MIN+=	CodeGen/ModuloSchedule.cpp
 SRCS_MIN+=	CodeGen/MultiHazardRecognizer.cpp
+SRCS_EXT+=	CodeGen/NonRelocatableStringpool.cpp
 SRCS_MIN+=	CodeGen/OptimizePHIs.cpp
 SRCS_MIN+=	CodeGen/PHIElimination.cpp
 SRCS_MIN+=	CodeGen/PHIEliminationUtils.cpp
@@ -455,6 +461,10 @@ SRCS_MIN+=	CodeGen/VirtRegMap.cpp
 SRCS_MIN+=	CodeGen/WasmEHPrepare.cpp
 SRCS_MIN+=	CodeGen/WinEHPrepare.cpp
 SRCS_MIN+=	CodeGen/XRayInstrumentation.cpp
+SRCS_EXT+=	DWARFLinker/DWARFLinker.cpp
+SRCS_EXT+=	DWARFLinker/DWARFLinkerCompileUnit.cpp
+SRCS_EXT+=	DWARFLinker/DWARFLinkerDeclContext.cpp
+SRCS_EXT+=	DWARFLinker/DWARFStreamer.cpp
 SRCS_EXT+=	DWP/DWP.cpp
 SRCS_EXT+=	DWP/DWPError.cpp
 SRCS_EXT+=	DebugInfo/CodeView/AppendingTypeTableBuilder.cpp
@@ -1000,15 +1010,20 @@ SRCS_MIN+=	Support/ARMAttributeParser.cpp
 SRCS_MIN+=	Support/ARMBuildAttrs.cpp
 SRCS_MIN+=	Support/ARMTargetParser.cpp
 SRCS_MIN+=	Support/ARMWinEH.cpp
+SRCS_EXT+=	Support/AddressRanges.cpp
 SRCS_MIN+=	Support/Allocator.cpp
 SRCS_LLD+=	Support/BLAKE3/blake3.c
 SRCS_LLD+=	Support/BLAKE3/blake3_dispatch.c
+.if ${TARGET_ARCH} == "aarch64"
 SRCS_LLD+=	Support/BLAKE3/blake3_neon.c
+.endif
 SRCS_LLD+=	Support/BLAKE3/blake3_portable.c
+.if ${TARGET_ARCH} == "amd64"
 SRCS_LLD+=	Support/BLAKE3/blake3_avx2_x86-64_unix.S
 SRCS_LLD+=	Support/BLAKE3/blake3_sse2_x86-64_unix.S
 SRCS_LLD+=	Support/BLAKE3/blake3_sse41_x86-64_unix.S
 SRCS_LLD+=	Support/BLAKE3/blake3_avx512_x86-64_unix.S
+.endif
 SRCS_MIN+=	Support/BinaryStreamError.cpp
 SRCS_MIN+=	Support/BinaryStreamReader.cpp
 SRCS_MIN+=	Support/BinaryStreamRef.cpp
@@ -1454,6 +1469,7 @@ SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVMCTargetDesc.cpp
 SRCS_MIN+=	Target/RISCV/MCTargetDesc/RISCVTargetStreamer.cpp
 SRCS_MIN+=	Target/RISCV/RISCVAsmPrinter.cpp
 SRCS_MIN+=	Target/RISCV/RISCVCallLowering.cpp
+SRCS_MIN+=	Target/RISCV/RISCVCodeGenPrepare.cpp
 SRCS_MIN+=	Target/RISCV/RISCVExpandAtomicPseudoInsts.cpp
 SRCS_MIN+=	Target/RISCV/RISCVExpandPseudoInsts.cpp
 SRCS_MIN+=	Target/RISCV/RISCVFrameLowering.cpp

@@ -22,15 +22,16 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-template <class _Iterator>
-_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11 void __debug_randomize_range(_Iterator __first, _Iterator __last) {
+template <class _AlgPolicy, class _Iterator, class _Sentinel>
+_LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_AFTER_CXX11
+void __debug_randomize_range(_Iterator __first, _Sentinel __last) {
 #ifdef _LIBCPP_DEBUG_RANDOMIZE_UNSPECIFIED_STABILITY
 #  ifdef _LIBCPP_CXX03_LANG
 #    error Support for unspecified stability is only for C++11 and higher
 #  endif
 
   if (!__libcpp_is_constant_evaluated())
-    std::shuffle(__first, __last, __libcpp_debug_randomizer());
+    std::__shuffle<_AlgPolicy>(__first, __last, __libcpp_debug_randomizer());
 #else
   (void)__first;
   (void)__last;

@@ -147,7 +147,7 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-Bdynamic");
     if (Args.hasArg(options::OPT_shared)) {
       CmdArgs.push_back("-shared");
-    } else {
+    } else if (!Args.hasArg(options::OPT_r)) {
       CmdArgs.push_back("-dynamic-linker");
       CmdArgs.push_back("/usr/libexec/ld.so");
     }
@@ -284,7 +284,7 @@ SanitizerMask OpenBSD::getSupportedSanitizers() const {
 OpenBSD::OpenBSD(const Driver &D, const llvm::Triple &Triple,
                  const ArgList &Args)
     : Generic_ELF(D, Triple, Args) {
-  getFilePaths().push_back(getDriver().SysRoot + "/usr/lib");
+  getFilePaths().push_back(concat(getDriver().SysRoot, "/usr/lib"));
 }
 
 void OpenBSD::AddClangSystemIncludeArgs(
@@ -317,13 +317,14 @@ void OpenBSD::AddClangSystemIncludeArgs(
     return;
   }
 
-  addExternCSystemInclude(DriverArgs, CC1Args, D.SysRoot + "/usr/include");
+  addExternCSystemInclude(DriverArgs, CC1Args,
+                          concat(D.SysRoot, "/usr/include"));
 }
 
 void OpenBSD::addLibCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
                                     llvm::opt::ArgStringList &CC1Args) const {
   addSystemInclude(DriverArgs, CC1Args,
-                   getDriver().SysRoot + "/usr/include/c++/v1");
+                   concat(getDriver().SysRoot, "/usr/include/c++/v1"));
 }
 
 void OpenBSD::AddCXXStdlibLibArgs(const ArgList &Args,
@@ -331,6 +332,8 @@ void OpenBSD::AddCXXStdlibLibArgs(const ArgList &Args,
   bool Profiling = Args.hasArg(options::OPT_pg);
 
   CmdArgs.push_back(Profiling ? "-lc++_p" : "-lc++");
+  if (Args.hasArg(options::OPT_fexperimental_library))
+    CmdArgs.push_back("-lc++experimental");
   CmdArgs.push_back(Profiling ? "-lc++abi_p" : "-lc++abi");
   CmdArgs.push_back(Profiling ? "-lpthread_p" : "-lpthread");
 }

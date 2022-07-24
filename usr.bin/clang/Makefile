@@ -35,6 +35,7 @@ SUBDIR+=	llvm-cxxdump
 SUBDIR+=	llvm-diff
 SUBDIR+=	llvm-dis
 SUBDIR+=	llvm-dwarfdump
+SUBDIR+=	llvm-dwarfutil
 SUBDIR+=	llvm-dwp
 SUBDIR+=	llvm-extract
 SUBDIR+=	llvm-link
