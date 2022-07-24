@@ -54,18 +54,19 @@ CFLAGS_EARLY.blake3_impl_hack.c+= ${ZFS_EARLY}
 CFLAGS_EARLY.list.c+= ${ZFS_EARLY}
 CFLAGS_EARLY.zfs_zstd.c+= ${ZFS_EARLY}
 CFLAGS_EARLY.nvlist.c+= ${ZFS_EARLY}
+CFLAGS_EARLY.zfs.c += ${ZFS_EARLY}
 
-# Can't use the early flags because there's two conflicting definitions of boolean_t in
-# the zfs code that need to be unified, as well as a number of other hacks for pre-openzfs
-# code still in the tree that needs to be fixed.
+#
+# zfs.c is special: we need to define HAS_ZSTD_ZFS to get zfssubr.c to initialize zstd
+# properly. We need to have the cddl boot compat directory in the include path for zfssubr.c
+# to be found, and we need a couple of other include paths for skein and lz4. Finally we
+# temporarily need LDRSRC to pick up disk.h until that layering violation is corrected.
+#
 CFLAGS.zfs.c+=	-DHAS_ZSTD_ZFS					\
 		-I${SYSDIR}/cddl/boot/zfs			\
 		-I${LDRSRC}					\
 		-I${SYSDIR}/crypto/skein			\
-		-I${ZFSOSINC}/spl				\
-		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4 \
-		-I${ZFSOSINC}/zfs				\
-		-I${OZFS}/include
+		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 
 #
 # ZSTD coding style has some issues, so suppress clang's warnings. Also, zstd's
