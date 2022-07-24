@@ -20,12 +20,7 @@ ZSTD_SRC+=	zstd_ddict.c zstd_decompress.c zstd_decompress_block.c
 ZSTD_SRC+=	zstd_double_fast.c zstd_fast.c zstd_lazy.c zstd_ldm.c
 ZSTD_SRC+=	zstd_opt.c
 
-CFLAGS+=	-DHAS_ZSTD_ZFS
 SRCS+=		${ZFS_SRC} ${ZSTD_SRC}
-
-CFLAGS+=	-I${LDRSRC}
-CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
-CFLAGS+=	-I${SYSDIR}/crypto/skein
 
 #
 # Any file that needs the FreeBSD overrides that are in
@@ -63,7 +58,11 @@ CFLAGS_EARLY.nvlist.c+= ${ZFS_EARLY}
 # Can't use the early flags because there's two conflicting definitions of boolean_t in
 # the zfs code that need to be unified, as well as a number of other hacks for pre-openzfs
 # code still in the tree that needs to be fixed.
-CFLAGS.zfs.c+=	-I${ZFSOSINC}/spl				\
+CFLAGS.zfs.c+=	-DHAS_ZSTD_ZFS					\
+		-I${SYSDIR}/cddl/boot/zfs			\
+		-I${LDRSRC}					\
+		-I${SYSDIR}/crypto/skein			\
+		-I${ZFSOSINC}/spl				\
 		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4 \
 		-I${ZFSOSINC}/zfs				\
 		-I${OZFS}/include
