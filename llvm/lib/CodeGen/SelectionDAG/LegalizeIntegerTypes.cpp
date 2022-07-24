@@ -1727,6 +1727,13 @@ bool DAGTypeLegalizer::PromoteIntegerOperand(SDNode *N, unsigned OpNo) {
   case ISD::STACKMAP:
     Res = PromoteIntOp_STACKMAP(N, OpNo);
     break;
+  case ISD::PATCHPOINT:
+    Res = PromoteIntOp_PATCHPOINT(N, OpNo);
+    break;
+  case ISD::EXPERIMENTAL_VP_STRIDED_LOAD:
+  case ISD::EXPERIMENTAL_VP_STRIDED_STORE:
+    Res = PromoteIntOp_VP_STRIDED(N, OpNo);
+    break;
   }
 
   // If the result is null, the sub-method took care of registering results etc.
@@ -2341,6 +2348,25 @@ SDValue DAGTypeLegalizer::PromoteIntOp_STACKMAP(SDNode *N, unsigned OpNo) {
   return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
 }
 
+SDValue DAGTypeLegalizer::PromoteIntOp_PATCHPOINT(SDNode *N, unsigned OpNo) {
+  assert(OpNo >= 7);
+  SmallVector<SDValue> NewOps(N->ops().begin(), N->ops().end());
+  SDValue Operand = N->getOperand(OpNo);
+  EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), Operand.getValueType());
+  NewOps[OpNo] = DAG.getNode(ISD::ANY_EXTEND, SDLoc(N), NVT, Operand);
+  return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
+}
+
+SDValue DAGTypeLegalizer::PromoteIntOp_VP_STRIDED(SDNode *N, unsigned OpNo) {
+  assert((N->getOpcode() == ISD::EXPERIMENTAL_VP_STRIDED_LOAD && OpNo == 3) ||
+         (N->getOpcode() == ISD::EXPERIMENTAL_VP_STRIDED_STORE && OpNo == 4));
+
+  SmallVector<SDValue, 8> NewOps(N->op_begin(), N->op_end());
+  NewOps[OpNo] = SExtPromotedInteger(N->getOperand(OpNo));
+
+  return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
+}
+
 //===----------------------------------------------------------------------===//
 //  Integer Result Expansion
 //===----------------------------------------------------------------------===//
@@ -2886,11 +2912,15 @@ void DAGTypeLegalizer::ExpandIntRes_ADDSUB(SDNode *N,
     if (N->getOpcode() == ISD::ADD) {
       Lo = DAG.getNode(ISD::UADDO, dl, VTList, LoOps);
       HiOps[2] = Lo.getValue(1);
-      Hi = DAG.getNode(ISD::ADDCARRY, dl, VTList, HiOps);
+      Hi = DAG.computeKnownBits(HiOps[2]).isZero()
+               ? DAG.getNode(ISD::UADDO, dl, VTList, makeArrayRef(HiOps, 2))
+               : DAG.getNode(ISD::ADDCARRY, dl, VTList, HiOps);
     } else {
       Lo = DAG.getNode(ISD::USUBO, dl, VTList, LoOps);
       HiOps[2] = Lo.getValue(1);
-      Hi = DAG.getNode(ISD::SUBCARRY, dl, VTList, HiOps);
+      Hi = DAG.computeKnownBits(HiOps[2]).isZero()
+               ? DAG.getNode(ISD::USUBO, dl, VTList, makeArrayRef(HiOps, 2))
+               : DAG.getNode(ISD::SUBCARRY, dl, VTList, HiOps);
     }
     return;
   }
@@ -4693,6 +4723,13 @@ bool DAGTypeLegalizer::ExpandIntegerOperand(SDNode *N, unsigned OpNo) {
   case ISD::STACKMAP:
     Res = ExpandIntOp_STACKMAP(N, OpNo);
     break;
+  case ISD::PATCHPOINT:
+    Res = ExpandIntOp_PATCHPOINT(N, OpNo);
+    break;
+  case ISD::EXPERIMENTAL_VP_STRIDED_LOAD:
+  case ISD::EXPERIMENTAL_VP_STRIDED_STORE:
+    Res = ExpandIntOp_VP_STRIDED(N, OpNo);
+    break;
   }
 
   // If the result is null, the sub-method took care of registering results etc.
@@ -5108,6 +5145,17 @@ SDValue DAGTypeLegalizer::ExpandIntOp_ATOMIC_STORE(SDNode *N) {
   return Swap.getValue(1);
 }
 
+SDValue DAGTypeLegalizer::ExpandIntOp_VP_STRIDED(SDNode *N, unsigned OpNo) {
+  assert((N->getOpcode() == ISD::EXPERIMENTAL_VP_STRIDED_LOAD && OpNo == 3) ||
+         (N->getOpcode() == ISD::EXPERIMENTAL_VP_STRIDED_STORE && OpNo == 4));
+
+  SDValue Hi; // The upper half is dropped out.
+  SmallVector<SDValue, 8> NewOps(N->op_begin(), N->op_end());
+  GetExpandedInteger(NewOps[OpNo], NewOps[OpNo], Hi);
+
+  return SDValue(DAG.UpdateNodeOperands(N, NewOps), 0);
+}
+
 SDValue DAGTypeLegalizer::PromoteIntRes_VECTOR_SPLICE(SDNode *N) {
   SDLoc dl(N);
 
@@ -5253,21 +5301,28 @@ SDValue DAGTypeLegalizer::PromoteIntRes_BUILD_VECTOR(SDNode *N) {
   assert(NOutVT.isVector() && "This type must be promoted to a vector type");
   unsigned NumElems = N->getNumOperands();
   EVT NOutVTElem = NOutVT.getVectorElementType();
-
+  TargetLoweringBase::BooleanContent NOutBoolType = TLI.getBooleanContents(NOutVT);
+  unsigned NOutExtOpc = TargetLowering::getExtendForContent(NOutBoolType);
   SDLoc dl(N);
 
   SmallVector<SDValue, 8> Ops;
   Ops.reserve(NumElems);
   for (unsigned i = 0; i != NumElems; ++i) {
-    SDValue Op;
+    SDValue Op = N->getOperand(i);
+    EVT OpVT = Op.getValueType();
     // BUILD_VECTOR integer operand types are allowed to be larger than the
     // result's element type. This may still be true after the promotion. For
     // example, we might be promoting (<v?i1> = BV <i32>, <i32>, ...) to
     // (v?i16 = BV <i32>, <i32>, ...), and we can't any_extend <i32> to <i16>.
-    if (N->getOperand(i).getValueType().bitsLT(NOutVTElem))
-      Op = DAG.getNode(ISD::ANY_EXTEND, dl, NOutVTElem, N->getOperand(i));
-    else
-      Op = N->getOperand(i);
+    if (OpVT.bitsLT(NOutVTElem)) {
+      unsigned ExtOpc = ISD::ANY_EXTEND;
+      // Attempt to extend constant bool vectors to match target's BooleanContent.
+      // While not necessary, this improves chances of the constant correctly
+      // folding with compare results (e.g. for NOT patterns).
+      if (OpVT == MVT::i1 && Op.getOpcode() == ISD::Constant)
+        ExtOpc = NOutExtOpc;
+      Op = DAG.getNode(ExtOpc, dl, NOutVTElem, Op);
+    }
     Ops.push_back(Op);
   }
 
@@ -5524,30 +5579,67 @@ SDValue DAGTypeLegalizer::PromoteIntOp_CONCAT_VECTORS(SDNode *N) {
 
 SDValue DAGTypeLegalizer::ExpandIntOp_STACKMAP(SDNode *N, unsigned OpNo) {
   assert(OpNo > 1);
-
   SDValue Op = N->getOperand(OpNo);
-  SDLoc DL = SDLoc(N);
-  SmallVector<SDValue> NewOps;
+
+  // FIXME: Non-constant operands are not yet handled:
+  //  - https://github.com/llvm/llvm-project/issues/26431
+  //  - https://github.com/llvm/llvm-project/issues/55957
+  ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Op);
+  if (!CN)
+    return SDValue();
 
   // Copy operands before the one being expanded.
+  SmallVector<SDValue> NewOps;
   for (unsigned I = 0; I < OpNo; I++)
     NewOps.push_back(N->getOperand(I));
 
-  if (Op->getOpcode() == ISD::Constant) {
-    ConstantSDNode *CN = cast<ConstantSDNode>(Op);
-    EVT Ty = Op.getValueType();
-    if (CN->getConstantIntValue()->getValue().getActiveBits() < 64) {
-      NewOps.push_back(
-          DAG.getTargetConstant(StackMaps::ConstantOp, DL, MVT::i64));
-      NewOps.push_back(DAG.getTargetConstant(CN->getZExtValue(), DL, Ty));
-    } else {
-      // FIXME: https://github.com/llvm/llvm-project/issues/55609
-      return SDValue();
-    }
+  EVT Ty = Op.getValueType();
+  SDLoc DL = SDLoc(N);
+  if (CN->getConstantIntValue()->getValue().getActiveBits() < 64) {
+    NewOps.push_back(
+        DAG.getTargetConstant(StackMaps::ConstantOp, DL, MVT::i64));
+    NewOps.push_back(DAG.getTargetConstant(CN->getZExtValue(), DL, Ty));
   } else {
-    // FIXME: Non-constant operands are not yet handled:
-    //  - https://github.com/llvm/llvm-project/issues/26431
-    //  - https://github.com/llvm/llvm-project/issues/55957
+    // FIXME: https://github.com/llvm/llvm-project/issues/55609
+    return SDValue();
+  }
+
+  // Copy remaining operands.
+  for (unsigned I = OpNo + 1; I < N->getNumOperands(); I++)
+    NewOps.push_back(N->getOperand(I));
+
+  SDValue NewNode = DAG.getNode(N->getOpcode(), DL, N->getVTList(), NewOps);
+
+  for (unsigned ResNum = 0; ResNum < N->getNumValues(); ResNum++)
+    ReplaceValueWith(SDValue(N, ResNum), NewNode.getValue(ResNum));
+
+  return SDValue(); // Signal that we have replaced the node already.
+}
+
+SDValue DAGTypeLegalizer::ExpandIntOp_PATCHPOINT(SDNode *N, unsigned OpNo) {
+  assert(OpNo >= 7);
+  SDValue Op = N->getOperand(OpNo);
+
+  // FIXME: Non-constant operands are not yet handled:
+  //  - https://github.com/llvm/llvm-project/issues/26431
+  //  - https://github.com/llvm/llvm-project/issues/55957
+  ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Op);
+  if (!CN)
+    return SDValue();
+
+  // Copy operands before the one being expanded.
+  SmallVector<SDValue> NewOps;
+  for (unsigned I = 0; I < OpNo; I++)
+    NewOps.push_back(N->getOperand(I));
+
+  EVT Ty = Op.getValueType();
+  SDLoc DL = SDLoc(N);
+  if (CN->getConstantIntValue()->getValue().getActiveBits() < 64) {
+    NewOps.push_back(
+        DAG.getTargetConstant(StackMaps::ConstantOp, DL, MVT::i64));
+    NewOps.push_back(DAG.getTargetConstant(CN->getZExtValue(), DL, Ty));
+  } else {
+    // FIXME: https://github.com/llvm/llvm-project/issues/55609
     return SDValue();
   }
 

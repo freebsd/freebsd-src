@@ -690,6 +690,14 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     // 32 trailing ones should use srliw via tablegen pattern.
     if (TrailingOnes == 32 || ShAmt >= TrailingOnes)
       break;
+    // If C2 is (1 << ShAmt) use bexti if possible.
+    if (Subtarget->hasStdExtZbs() && ShAmt + 1 == TrailingOnes) {
+      SDNode *BEXTI =
+          CurDAG->getMachineNode(RISCV::BEXTI, DL, VT, N0->getOperand(0),
+                                 CurDAG->getTargetConstant(ShAmt, DL, VT));
+      ReplaceNode(Node, BEXTI);
+      return;
+    }
     unsigned LShAmt = Subtarget->getXLen() - TrailingOnes;
     SDNode *SLLI =
         CurDAG->getMachineNode(RISCV::SLLI, DL, VT, N0->getOperand(0),
@@ -939,18 +947,17 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     if (!isMask_64(C2))
       break;
 
-    // This should be the only use of the AND unless we will use
-    // (SRLI (SLLI X, 32), 32). We don't use a shift pair for other AND
-    // constants.
-    if (!N0.hasOneUse() && C2 != UINT64_C(0xFFFFFFFF))
-      break;
-
-    // If this can be an ANDI, ZEXT.H or ZEXT.W we don't need to do this
-    // optimization.
-    if (isInt<12>(C2) ||
+    // If this can be an ANDI, ZEXT.H or ZEXT.W, don't do this if the ANDI/ZEXT
+    // has multiple users or the constant is a simm12. This prevents inserting
+    // a shift and still have uses of the AND/ZEXT. Shifting a simm12 will
+    // likely make it more costly to materialize. Otherwise, using a SLLI
+    // might allow it to be compressed.
+    bool IsANDIOrZExt =
+        isInt<12>(C2) ||
         (C2 == UINT64_C(0xFFFF) &&
          (Subtarget->hasStdExtZbb() || Subtarget->hasStdExtZbp())) ||
-        (C2 == UINT64_C(0xFFFFFFFF) && Subtarget->hasStdExtZba()))
+        (C2 == UINT64_C(0xFFFFFFFF) && Subtarget->hasStdExtZba());
+    if (IsANDIOrZExt && (isInt<12>(N1C->getSExtValue()) || !N0.hasOneUse()))
       break;
 
     // We need to shift left the AND input and C1 by a total of XLen bits.

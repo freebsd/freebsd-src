@@ -210,17 +210,15 @@ static void DoResetImpl(uptr epoch) {
 // Clang does not understand locking all slots in the loop:
 // error: expecting mutex 'slot.mtx' to be held at start of each loop
 void DoReset(ThreadState* thr, uptr epoch) SANITIZER_NO_THREAD_SAFETY_ANALYSIS {
-  {
-    for (auto& slot : ctx->slots) {
-      slot.mtx.Lock();
-      if (UNLIKELY(epoch == 0))
-        epoch = ctx->global_epoch;
-      if (UNLIKELY(epoch != ctx->global_epoch)) {
-        // Epoch can't change once we've locked the first slot.
-        CHECK_EQ(slot.sid, 0);
-        slot.mtx.Unlock();
-        return;
-      }
+  for (auto& slot : ctx->slots) {
+    slot.mtx.Lock();
+    if (UNLIKELY(epoch == 0))
+      epoch = ctx->global_epoch;
+    if (UNLIKELY(epoch != ctx->global_epoch)) {
+      // Epoch can't change once we've locked the first slot.
+      CHECK_EQ(slot.sid, 0);
+      slot.mtx.Unlock();
+      return;
     }
   }
   DPrintf("#%d: DoReset epoch=%lu\n", thr ? thr->tid : -1, epoch);
@@ -950,6 +948,15 @@ void TraceSwitchPartImpl(ThreadState* thr) {
     for (uptr i = 0; i < d.count; i++)
       TraceMutexLock(thr, d.write ? EventType::kLock : EventType::kRLock, 0,
                      d.addr, d.stack_id);
+  }
+  // Callers of TraceSwitchPart expect that TraceAcquire will always succeed
+  // after the call. It's possible that TryTraceFunc/TraceMutexLock above
+  // filled the trace part exactly up to the TracePart::kAlignment gap
+  // and the next TraceAcquire won't succeed. Skip the gap to avoid that.
+  EventFunc *ev;
+  if (!TraceAcquire(thr, &ev)) {
+    CHECK(TraceSkipGap(thr));
+    CHECK(TraceAcquire(thr, &ev));
   }
   {
     Lock lock(&ctx->slot_mtx);

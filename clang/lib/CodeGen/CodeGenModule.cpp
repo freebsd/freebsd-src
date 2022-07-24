@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenModule.h"
+#include "ABIInfo.h"
 #include "CGBlocks.h"
 #include "CGCUDARuntime.h"
 #include "CGCXXABI.h"
@@ -32,7 +33,6 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Mangle.h"
-#include "clang/AST/RecordLayout.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
@@ -58,6 +58,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ProfileSummary.h"
 #include "llvm/ProfileData/InstrProfReader.h"
+#include "llvm/Support/CRC.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ConvertUTF.h"
@@ -135,6 +136,13 @@ CodeGenModule::CodeGenModule(ASTContext &C, const HeaderSearchOptions &HSO,
   AllocaInt8PtrTy = Int8Ty->getPointerTo(DL.getAllocaAddrSpace());
   GlobalsInt8PtrTy = Int8Ty->getPointerTo(DL.getDefaultGlobalsAddressSpace());
   ASTAllocaAddressSpace = getTargetCodeGenInfo().getASTAllocaAddressSpace();
+
+  // Build C++20 Module initializers.
+  // TODO: Add Microsoft here once we know the mangling required for the
+  // initializers.
+  CXX20ModuleInits =
+      LangOpts.CPlusPlusModules && getCXXABI().getMangleContext().getKind() ==
+                                       ItaniumMangleContext::MK_Itanium;
 
   RuntimeCC = getTargetCodeGenInfo().getABIInfo().getRuntimeCC();
 
@@ -510,6 +518,9 @@ static void setVisibilityFromDLLStorageClass(const clang::LangOptions &LO,
 }
 
 void CodeGenModule::Release() {
+  Module *Primary = getContext().getModuleForCodeGen();
+  if (CXX20ModuleInits && Primary && !Primary->isModuleMapModule())
+    EmitModuleInitializers(Primary);
   EmitDeferred();
   DeferredDecls.insert(EmittedDeferredDecls.begin(),
                        EmittedDeferredDecls.end());
@@ -518,7 +529,10 @@ void CodeGenModule::Release() {
   applyGlobalValReplacements();
   applyReplacements();
   emitMultiVersionFunctions();
-  EmitCXXGlobalInitFunc();
+  if (CXX20ModuleInits && Primary && Primary->isInterfaceOrPartition())
+    EmitCXXModuleInitFunc(Primary);
+  else
+    EmitCXXGlobalInitFunc();
   EmitCXXGlobalCleanUpFunc();
   registerGlobalDtorsWithAtExit();
   EmitCXXThreadLocalInitFunc();
@@ -742,19 +756,22 @@ void CodeGenModule::Release() {
   if (CodeGenOpts.CFProtectionReturn &&
       Target.checkCFProtectionReturnSupported(getDiags())) {
     // Indicate that we want to instrument return control flow protection.
-    getModule().addModuleFlag(llvm::Module::Override, "cf-protection-return",
+    getModule().addModuleFlag(llvm::Module::Min, "cf-protection-return",
                               1);
   }
 
   if (CodeGenOpts.CFProtectionBranch &&
       Target.checkCFProtectionBranchSupported(getDiags())) {
     // Indicate that we want to instrument branch control flow protection.
-    getModule().addModuleFlag(llvm::Module::Override, "cf-protection-branch",
+    getModule().addModuleFlag(llvm::Module::Min, "cf-protection-branch",
                               1);
   }
 
   if (CodeGenOpts.IBTSeal)
-    getModule().addModuleFlag(llvm::Module::Override, "ibt-seal", 1);
+    getModule().addModuleFlag(llvm::Module::Min, "ibt-seal", 1);
+
+  if (CodeGenOpts.FunctionReturnThunks)
+    getModule().addModuleFlag(llvm::Module::Override, "function_return_thunk_extern", 1);
 
   // Add module metadata for return address signing (ignoring
   // non-leaf/all) and stack tagging. These are actually turned on by function
@@ -2498,6 +2515,31 @@ static void addLinkOptionsPostorder(CodeGenModule &CGM, Module *Mod,
   }
 }
 
+void CodeGenModule::EmitModuleInitializers(clang::Module *Primary) {
+  // Emit the initializers in the order that sub-modules appear in the
+  // source, first Global Module Fragments, if present.
+  if (auto GMF = Primary->getGlobalModuleFragment()) {
+    for (Decl *D : getContext().getModuleInitializers(GMF)) {
+      assert(D->getKind() == Decl::Var && "GMF initializer decl is not a var?");
+      EmitTopLevelDecl(D);
+    }
+  }
+  // Second any associated with the module, itself.
+  for (Decl *D : getContext().getModuleInitializers(Primary)) {
+    // Skip import decls, the inits for those are called explicitly.
+    if (D->getKind() == Decl::Import)
+      continue;
+    EmitTopLevelDecl(D);
+  }
+  // Third any associated with the Privat eMOdule Fragment, if present.
+  if (auto PMF = Primary->getPrivateModuleFragment()) {
+    for (Decl *D : getContext().getModuleInitializers(PMF)) {
+      assert(D->getKind() == Decl::Var && "PMF initializer decl is not a var?");
+      EmitTopLevelDecl(D);
+    }
+  }
+}
+
 void CodeGenModule::EmitModuleLinkOptions() {
   // Collect the set of all of the modules we want to visit to emit link
   // options, which is essentially the imported modules and all of their
@@ -2776,16 +2818,18 @@ bool CodeGenModule::isInNoSanitizeList(SanitizerMask Kind, llvm::Function *Fn,
   // NoSanitize by function name.
   if (NoSanitizeL.containsFunction(Kind, Fn->getName()))
     return true;
-  // NoSanitize by location.
+  // NoSanitize by location. Check "mainfile" prefix.
+  auto &SM = Context.getSourceManager();
+  const FileEntry &MainFile = *SM.getFileEntryForID(SM.getMainFileID());
+  if (NoSanitizeL.containsMainFile(Kind, MainFile.getName()))
+    return true;
+
+  // Check "src" prefix.
   if (Loc.isValid())
     return NoSanitizeL.containsLocation(Kind, Loc);
   // If location is unknown, this may be a compiler-generated function. Assume
   // it's located in the main file.
-  auto &SM = Context.getSourceManager();
-  if (const auto *MainFile = SM.getFileEntryForID(SM.getMainFileID())) {
-    return NoSanitizeL.containsFile(Kind, MainFile->getName());
-  }
-  return false;
+  return NoSanitizeL.containsFile(Kind, MainFile.getName());
 }
 
 bool CodeGenModule::isInNoSanitizeList(SanitizerMask Kind,
@@ -2795,8 +2839,13 @@ bool CodeGenModule::isInNoSanitizeList(SanitizerMask Kind,
   const auto &NoSanitizeL = getContext().getNoSanitizeList();
   if (NoSanitizeL.containsGlobal(Kind, GV->getName(), Category))
     return true;
+  auto &SM = Context.getSourceManager();
+  if (NoSanitizeL.containsMainFile(
+          Kind, SM.getFileEntryForID(SM.getMainFileID())->getName(), Category))
+    return true;
   if (NoSanitizeL.containsLocation(Kind, Loc, Category))
     return true;
+
   // Check global type.
   if (!Ty.isNull()) {
     // Drill down the array types: if global variable of a fixed type is
@@ -2840,8 +2889,8 @@ bool CodeGenModule::imbueXRayAttrs(llvm::Function *Fn, SourceLocation Loc,
   return true;
 }
 
-bool CodeGenModule::isProfileInstrExcluded(llvm::Function *Fn,
-                                           SourceLocation Loc) const {
+bool CodeGenModule::isFunctionBlockedByProfileList(llvm::Function *Fn,
+                                                   SourceLocation Loc) const {
   const auto &ProfileList = getContext().getProfileList();
   // If the profile list is empty, then instrument everything.
   if (ProfileList.isEmpty())
@@ -2866,6 +2915,20 @@ bool CodeGenModule::isProfileInstrExcluded(llvm::Function *Fn,
       return *V;
   }
   return ProfileList.getDefault();
+}
+
+bool CodeGenModule::isFunctionBlockedFromProfileInstr(
+    llvm::Function *Fn, SourceLocation Loc) const {
+  if (isFunctionBlockedByProfileList(Fn, Loc))
+    return true;
+
+  auto NumGroups = getCodeGenOpts().ProfileTotalFunctionGroups;
+  if (NumGroups > 1) {
+    auto Group = llvm::crc32(arrayRefFromStringRef(Fn->getName())) % NumGroups;
+    if (Group != getCodeGenOpts().ProfileSelectedFunctionGroup)
+      return true;
+  }
+  return false;
 }
 
 bool CodeGenModule::MustBeEmitted(const ValueDecl *Global) {
@@ -2903,12 +2966,20 @@ bool CodeGenModule::MayBeEmittedEagerly(const ValueDecl *Global) {
       // explicitly instantiated, so they should not be emitted eagerly.
       return false;
   }
-  if (const auto *VD = dyn_cast<VarDecl>(Global))
+  if (const auto *VD = dyn_cast<VarDecl>(Global)) {
     if (Context.getInlineVariableDefinitionKind(VD) ==
         ASTContext::InlineVariableDefinitionKind::WeakUnknown)
       // A definition of an inline constexpr static data member may change
       // linkage later if it's redeclared outside the class.
       return false;
+    if (CXX20ModuleInits && VD->getOwningModule() &&
+        !VD->getOwningModule()->isModuleMapModule()) {
+      // For CXX20, module-owned initializers need to be deferred, since it is
+      // not known at this point if they will be run for the current module or
+      // as part of the initializer for an imported one.
+      return false;
+    }
+  }
   // If OpenMP is enabled and threadprivates must be generated like TLS, delay
   // codegen for global variables, because they may be marked as threadprivate.
   if (LangOpts.OpenMP && LangOpts.OpenMPUseTLS &&
@@ -6208,6 +6279,16 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
         DI->EmitImportDecl(*Import);
     }
 
+    // For C++ standard modules we are done - we will call the module
+    // initializer for imported modules, and that will likewise call those for
+    // any imports it has.
+    if (CXX20ModuleInits && Import->getImportedOwningModule() &&
+        !Import->getImportedOwningModule()->isModuleMapModule())
+      break;
+
+    // For clang C++ module map modules the initializers for sub-modules are
+    // emitted here.
+
     // Find all of the submodules and emit the module initializers.
     llvm::SmallPtrSet<clang::Module *, 16> Visited;
     SmallVector<clang::Module *, 16> Stack;
@@ -6891,4 +6972,32 @@ void CodeGenModule::printPostfixForExternalizedDecl(llvm::raw_ostream &OS,
   } else {
     OS << getContext().getCUIDHash();
   }
+}
+
+void CodeGenModule::moveLazyEmissionStates(CodeGenModule *NewBuilder) {
+  assert(DeferredDeclsToEmit.empty() &&
+         "Should have emitted all decls deferred to emit.");
+  assert(NewBuilder->DeferredDecls.empty() &&
+         "Newly created module should not have deferred decls");
+  NewBuilder->DeferredDecls = std::move(DeferredDecls);
+
+  assert(NewBuilder->DeferredVTables.empty() &&
+         "Newly created module should not have deferred vtables");
+  NewBuilder->DeferredVTables = std::move(DeferredVTables);
+
+  assert(NewBuilder->MangledDeclNames.empty() &&
+         "Newly created module should not have mangled decl names");
+  assert(NewBuilder->Manglings.empty() &&
+         "Newly created module should not have manglings");
+  NewBuilder->Manglings = std::move(Manglings);
+
+  assert(WeakRefReferences.empty() && "Not all WeakRefRefs have been applied");
+  NewBuilder->WeakRefReferences = std::move(WeakRefReferences);
+
+  NewBuilder->TBAA = std::move(TBAA);
+
+  assert(NewBuilder->EmittedDeferredDecls.empty() &&
+         "Still have (unmerged) EmittedDeferredDecls deferred decls");
+
+  NewBuilder->EmittedDeferredDecls = std::move(EmittedDeferredDecls);
 }

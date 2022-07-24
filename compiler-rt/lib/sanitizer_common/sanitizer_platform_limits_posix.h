@@ -98,9 +98,10 @@ const unsigned struct_kernel_stat64_sz = 104;
 const unsigned struct_kernel_stat_sz = 144;
 const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__mips__)
-const unsigned struct_kernel_stat_sz = SANITIZER_ANDROID
-                                           ? FIRST_32_SECOND_64(104, 128)
-                                           : FIRST_32_SECOND_64(160, 216);
+const unsigned struct_kernel_stat_sz =
+    SANITIZER_ANDROID
+        ? FIRST_32_SECOND_64(104, 128)
+        : FIRST_32_SECOND_64((_MIPS_SIM == _ABIN32) ? 160 : 144, 216);
 const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__s390__) && !defined(__s390x__)
 const unsigned struct_kernel_stat_sz = 64;
@@ -120,6 +121,9 @@ const unsigned struct_kernel_stat64_sz = 104;
 const unsigned struct_kernel_stat_sz = 128;
 const unsigned struct_kernel_stat64_sz = 0;  // RISCV64 does not use stat64
 #    elif defined(__hexagon__)
+const unsigned struct_kernel_stat_sz = 128;
+const unsigned struct_kernel_stat64_sz = 0;
+#    elif defined(__loongarch__)
 const unsigned struct_kernel_stat_sz = 128;
 const unsigned struct_kernel_stat64_sz = 0;
 #    endif
@@ -142,7 +146,7 @@ const unsigned struct_kexec_segment_sz = 4 * sizeof(unsigned long);
 
 #if SANITIZER_LINUX
 
-#if defined(__powerpc64__) || defined(__s390__)
+#if defined(__powerpc64__) || defined(__s390__) || defined(__loongarch__)
 const unsigned struct___old_kernel_stat_sz = 0;
 #elif !defined(__sparc__)
 const unsigned struct___old_kernel_stat_sz = 32;

@@ -776,6 +776,11 @@ struct DSEState {
   // fall back to CFG scan starting from all non-unreachable roots.
   bool AnyUnreachableExit;
 
+  // Whether or not we should iterate on removing dead stores at the end of the
+  // function due to removing a store causing a previously captured pointer to
+  // no longer be captured.
+  bool ShouldIterateEndOfFunctionDSE;
+
   // Class contains self-reference, make sure it's not copied/moved.
   DSEState(const DSEState &) = delete;
   DSEState &operator=(const DSEState &) = delete;
@@ -1103,9 +1108,8 @@ struct DSEState {
       return {std::make_pair(MemoryLocation(Ptr, Len), false)};
 
     if (auto *CB = dyn_cast<CallBase>(I)) {
-      if (isFreeCall(I, &TLI))
-        return {std::make_pair(MemoryLocation::getAfter(CB->getArgOperand(0)),
-                               true)};
+      if (Value *FreedOp = getFreedOperand(CB, &TLI))
+        return {std::make_pair(MemoryLocation::getAfter(FreedOp), true)};
     }
 
     return None;
@@ -1114,9 +1118,9 @@ struct DSEState {
   /// Returns true if \p I is a memory terminator instruction like
   /// llvm.lifetime.end or free.
   bool isMemTerminatorInst(Instruction *I) const {
-    IntrinsicInst *II = dyn_cast<IntrinsicInst>(I);
-    return (II && II->getIntrinsicID() == Intrinsic::lifetime_end) ||
-           isFreeCall(I, &TLI);
+    auto *CB = dyn_cast<CallBase>(I);
+    return CB && (CB->getIntrinsicID() == Intrinsic::lifetime_end ||
+                  getFreedOperand(CB, &TLI) != nullptr);
   }
 
   /// Returns true if \p MaybeTerm is a memory terminator for \p Loc from
@@ -1598,6 +1602,14 @@ struct DSEState {
       if (MemoryAccess *MA = MSSA.getMemoryAccess(DeadInst)) {
         if (MemoryDef *MD = dyn_cast<MemoryDef>(MA)) {
           SkipStores.insert(MD);
+          if (auto *SI = dyn_cast<StoreInst>(MD->getMemoryInst())) {
+            if (SI->getValueOperand()->getType()->isPointerTy()) {
+              const Value *UO = getUnderlyingObject(SI->getValueOperand());
+              if (CapturedBeforeReturn.erase(UO))
+                ShouldIterateEndOfFunctionDSE = true;
+              InvisibleToCallerAfterRet.erase(UO);
+            }
+          }
         }
 
         Updater.removeMemoryAccess(MA);
@@ -1671,33 +1683,36 @@ struct DSEState {
     LLVM_DEBUG(
         dbgs()
         << "Trying to eliminate MemoryDefs at the end of the function\n");
-    for (MemoryDef *Def : llvm::reverse(MemDefs)) {
-      if (SkipStores.contains(Def))
-        continue;
+    do {
+      ShouldIterateEndOfFunctionDSE = false;
+      for (MemoryDef *Def : llvm::reverse(MemDefs)) {
+        if (SkipStores.contains(Def))
+          continue;
 
-      Instruction *DefI = Def->getMemoryInst();
-      auto DefLoc = getLocForWrite(DefI);
-      if (!DefLoc || !isRemovable(DefI))
-        continue;
+        Instruction *DefI = Def->getMemoryInst();
+        auto DefLoc = getLocForWrite(DefI);
+        if (!DefLoc || !isRemovable(DefI))
+          continue;
 
-      // NOTE: Currently eliminating writes at the end of a function is limited
-      // to MemoryDefs with a single underlying object, to save compile-time. In
-      // practice it appears the case with multiple underlying objects is very
-      // uncommon. If it turns out to be important, we can use
-      // getUnderlyingObjects here instead.
-      const Value *UO = getUnderlyingObject(DefLoc->Ptr);
-      if (!isInvisibleToCallerAfterRet(UO))
-        continue;
+        // NOTE: Currently eliminating writes at the end of a function is
+        // limited to MemoryDefs with a single underlying object, to save
+        // compile-time. In practice it appears the case with multiple
+        // underlying objects is very uncommon. If it turns out to be important,
+        // we can use getUnderlyingObjects here instead.
+        const Value *UO = getUnderlyingObject(DefLoc->Ptr);
+        if (!isInvisibleToCallerAfterRet(UO))
+          continue;
 
-      if (isWriteAtEndOfFunction(Def)) {
-        // See through pointer-to-pointer bitcasts
-        LLVM_DEBUG(dbgs() << "   ... MemoryDef is not accessed until the end "
-                             "of the function\n");
-        deleteDeadInstruction(DefI);
-        ++NumFastStores;
-        MadeChange = true;
+        if (isWriteAtEndOfFunction(Def)) {
+          // See through pointer-to-pointer bitcasts
+          LLVM_DEBUG(dbgs() << "   ... MemoryDef is not accessed until the end "
+                               "of the function\n");
+          deleteDeadInstruction(DefI);
+          ++NumFastStores;
+          MadeChange = true;
+        }
       }
-    }
+    } while (ShouldIterateEndOfFunctionDSE);
     return MadeChange;
   }
 

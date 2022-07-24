@@ -1615,7 +1615,10 @@ hasAcceptableDefaultArgument(Sema &S, const ParmDecl *D,
   if (!D->hasDefaultArgument())
     return false;
 
-  while (D) {
+  llvm::SmallDenseSet<const ParmDecl *, 4> Visited;
+  while (D && !Visited.count(D)) {
+    Visited.insert(D);
+
     auto &DefaultArg = D->getDefaultArgStorage();
     if (!DefaultArg.isInherited() && S.isAcceptable(D, Kind))
       return true;
@@ -1625,7 +1628,8 @@ hasAcceptableDefaultArgument(Sema &S, const ParmDecl *D,
       Modules->push_back(S.getOwningModule(NonConstD));
     }
 
-    // If there was a previous default argument, maybe its parameter is visible.
+    // If there was a previous default argument, maybe its parameter is
+    // acceptable.
     D = DefaultArg.getInheritedFrom();
   }
   return false;
@@ -2086,6 +2090,13 @@ bool LookupResult::isAvailableForLookup(Sema &SemaRef, NamedDecl *ND) {
   // We should check the visibility at the callsite already.
   if (isVisible(SemaRef, ND))
     return true;
+
+  // Deduction guide lives in namespace scope generally, but it is just a
+  // hint to the compilers. What we actually lookup for is the generated member
+  // of the corresponding template. So it is sufficient to check the
+  // reachability of the template decl.
+  if (auto *DeductionGuide = ND->getDeclName().getCXXDeductionGuideTemplate())
+    return SemaRef.hasReachableDefinition(DeductionGuide);
 
   auto *DC = ND->getDeclContext();
   // If ND is not visible and it is at namespace scope, it shouldn't be found

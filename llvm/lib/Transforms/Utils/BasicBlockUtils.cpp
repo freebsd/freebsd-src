@@ -80,7 +80,7 @@ void llvm::detachDeadBlocks(
       // contained within it must dominate their uses, that all uses will
       // eventually be removed (they are themselves dead).
       if (!I.use_empty())
-        I.replaceAllUsesWith(UndefValue::get(I.getType()));
+        I.replaceAllUsesWith(PoisonValue::get(I.getType()));
       BB->getInstList().pop_back();
     }
     new UnreachableInst(BB->getContext(), BB);
@@ -188,8 +188,10 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
 
   // Don't break self-loops.
   if (PredBB == BB) return false;
-  // Don't break unwinding instructions.
-  if (PredBB->getTerminator()->isExceptionalTerminator())
+
+  // Don't break unwinding instructions or terminators with other side-effects.
+  Instruction *PTI = PredBB->getTerminator();
+  if (PTI->isExceptionalTerminator() || PTI->mayHaveSideEffects())
     return false;
 
   // Can't merge if there are multiple distinct successors.
@@ -202,7 +204,7 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
   BasicBlock *NewSucc = nullptr;
   unsigned FallThruPath;
   if (PredecessorWithTwoSuccessors) {
-    if (!(PredBB_BI = dyn_cast<BranchInst>(PredBB->getTerminator())))
+    if (!(PredBB_BI = dyn_cast<BranchInst>(PTI)))
       return false;
     BranchInst *BB_JmpI = dyn_cast<BranchInst>(BB->getTerminator());
     if (!BB_JmpI || !BB_JmpI->isUnconditional())
@@ -256,7 +258,6 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
     Updates.push_back({DominatorTree::Delete, PredBB, BB});
   }
 
-  Instruction *PTI = PredBB->getTerminator();
   Instruction *STI = BB->getTerminator();
   Instruction *Start = &*BB->begin();
   // If there's nothing to move, mark the starting instruction as the last
@@ -1141,7 +1142,7 @@ SplitBlockPredecessorsImpl(BasicBlock *BB, ArrayRef<BasicBlock *> Preds,
   if (Preds.empty()) {
     // Insert dummy values as the incoming value.
     for (BasicBlock::iterator I = BB->begin(); isa<PHINode>(I); ++I)
-      cast<PHINode>(I)->addIncoming(UndefValue::get(I->getType()), NewBB);
+      cast<PHINode>(I)->addIncoming(PoisonValue::get(I->getType()), NewBB);
   }
 
   // Update DominatorTree, LoopInfo, and LCCSA analysis information.

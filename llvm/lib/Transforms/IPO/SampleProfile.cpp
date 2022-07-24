@@ -546,53 +546,6 @@ private:
     return AnnotatedPassName.c_str();
   }
 };
-
-class SampleProfileLoaderLegacyPass : public ModulePass {
-public:
-  // Class identification, replacement for typeinfo
-  static char ID;
-
-  SampleProfileLoaderLegacyPass(
-      StringRef Name = SampleProfileFile,
-      ThinOrFullLTOPhase LTOPhase = ThinOrFullLTOPhase::None)
-      : ModulePass(ID), SampleLoader(
-                            Name, SampleProfileRemappingFile, LTOPhase,
-                            [&](Function &F) -> AssumptionCache & {
-                              return ACT->getAssumptionCache(F);
-                            },
-                            [&](Function &F) -> TargetTransformInfo & {
-                              return TTIWP->getTTI(F);
-                            },
-                            [&](Function &F) -> TargetLibraryInfo & {
-                              return TLIWP->getTLI(F);
-                            }) {
-    initializeSampleProfileLoaderLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-  }
-
-  void dump() { SampleLoader.dump(); }
-
-  bool doInitialization(Module &M) override {
-    return SampleLoader.doInitialization(M);
-  }
-
-  StringRef getPassName() const override { return "Sample profile pass"; }
-  bool runOnModule(Module &M) override;
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<AssumptionCacheTracker>();
-    AU.addRequired<TargetTransformInfoWrapperPass>();
-    AU.addRequired<TargetLibraryInfoWrapperPass>();
-    AU.addRequired<ProfileSummaryInfoWrapperPass>();
-  }
-
-private:
-  SampleProfileLoader SampleLoader;
-  AssumptionCacheTracker *ACT = nullptr;
-  TargetTransformInfoWrapperPass *TTIWP = nullptr;
-  TargetLibraryInfoWrapperPass *TLIWP = nullptr;
-};
-
 } // end anonymous namespace
 
 ErrorOr<uint64_t> SampleProfileLoader::getInstWeight(const Instruction &Inst) {
@@ -734,8 +687,8 @@ SampleProfileLoader::findIndirectCallFunctionSamples(
 
   auto FSCompare = [](const FunctionSamples *L, const FunctionSamples *R) {
     assert(L && R && "Expect non-null FunctionSamples");
-    if (L->getEntrySamples() != R->getEntrySamples())
-      return L->getEntrySamples() > R->getEntrySamples();
+    if (L->getHeadSamplesEstimate() != R->getHeadSamplesEstimate())
+      return L->getHeadSamplesEstimate() > R->getHeadSamplesEstimate();
     return FunctionSamples::getGUID(L->getName()) <
            FunctionSamples::getGUID(R->getName());
   };
@@ -750,7 +703,7 @@ SampleProfileLoader::findIndirectCallFunctionSamples(
     // as that already includes both inlined callee and non-inlined ones..
     Sum = 0;
     for (const auto *const FS : CalleeSamples) {
-      Sum += FS->getEntrySamples();
+      Sum += FS->getHeadSamplesEstimate();
       R.push_back(FS);
     }
     llvm::sort(R, FSCompare);
@@ -771,7 +724,7 @@ SampleProfileLoader::findIndirectCallFunctionSamples(
     if (M->empty())
       return R;
     for (const auto &NameFS : *M) {
-      Sum += NameFS.second.getEntrySamples();
+      Sum += NameFS.second.getHeadSamplesEstimate();
       R.push_back(&NameFS.second);
     }
     llvm::sort(R, FSCompare);
@@ -1090,7 +1043,7 @@ void SampleProfileLoader::findExternalInlineCandidate(
     bool PreInline =
         UsePreInlinerDecision &&
         CalleeSample->getContext().hasAttribute(ContextShouldBeInlined);
-    if (!PreInline && CalleeSample->getEntrySamples() < Threshold)
+    if (!PreInline && CalleeSample->getHeadSamplesEstimate() < Threshold)
       continue;
 
     StringRef Name = CalleeSample->getFuncName();
@@ -1171,7 +1124,8 @@ bool SampleProfileLoader::inlineHotFunctions(
               assert((!FunctionSamples::UseMD5 || FS->GUIDToFuncNameMap) &&
                      "GUIDToFuncNameMap has to be populated");
               AllCandidates.push_back(CB);
-              if (FS->getEntrySamples() > 0 || FunctionSamples::ProfileIsCS)
+              if (FS->getHeadSamplesEstimate() > 0 ||
+                  FunctionSamples::ProfileIsCS)
                 LocalNotInlinedCallSites.try_emplace(CB, FS);
               if (callsiteIsHot(FS, PSI, ProfAccForSymsInList))
                 Hot = true;
@@ -1211,7 +1165,7 @@ bool SampleProfileLoader::inlineHotFunctions(
           if (!callsiteIsHot(FS, PSI, ProfAccForSymsInList))
             continue;
 
-          Candidate = {I, FS, FS->getEntrySamples(), 1.0};
+          Candidate = {I, FS, FS->getHeadSamplesEstimate(), 1.0};
           if (tryPromoteAndInlineCandidate(F, Candidate, SumOrigin, Sum)) {
             LocalNotInlinedCallSites.erase(I);
             LocalChanged = true;
@@ -1325,7 +1279,7 @@ bool SampleProfileLoader::getInlineCandidate(InlineCandidate *NewCandidate,
     Factor = Probe->Factor;
 
   uint64_t CallsiteCount =
-      CalleeSamples ? CalleeSamples->getEntrySamples() * Factor : 0;
+      CalleeSamples ? CalleeSamples->getHeadSamplesEstimate() * Factor : 0;
   *NewCandidate = {CB, CalleeSamples, CallsiteCount, Factor};
   return true;
 }
@@ -1481,7 +1435,7 @@ bool SampleProfileLoader::inlineHotFunctionsWithPriority(
           continue;
         }
         uint64_t EntryCountDistributed =
-            FS->getEntrySamples() * Candidate.CallsiteDistribution;
+            FS->getHeadSamplesEstimate() * Candidate.CallsiteDistribution;
         // In addition to regular inline cost check, we also need to make sure
         // ICP isn't introducing excessive speculative checks even if individual
         // target looks beneficial to promote and inline. That means we should
@@ -1568,7 +1522,7 @@ void SampleProfileLoader::promoteMergeNotInlinedContextSamples(
 
     ++NumCSNotInlined;
     const FunctionSamples *FS = Pair.getSecond();
-    if (FS->getTotalSamples() == 0 && FS->getEntrySamples() == 0) {
+    if (FS->getTotalSamples() == 0 && FS->getHeadSamplesEstimate() == 0) {
       continue;
     }
 
@@ -1586,7 +1540,7 @@ void SampleProfileLoader::promoteMergeNotInlinedContextSamples(
         // Use entry samples as head samples during the merge, as inlinees
         // don't have head samples.
         const_cast<FunctionSamples *>(FS)->addHeadSamples(
-            FS->getEntrySamples());
+            FS->getHeadSamplesEstimate());
 
         // Note that we have to do the merge right after processing function.
         // This allows OutlineFS's profile to be used for annotation during
@@ -1599,7 +1553,7 @@ void SampleProfileLoader::promoteMergeNotInlinedContextSamples(
     } else {
       auto pair =
           notInlinedCallInfo.try_emplace(Callee, NotInlinedProfileInfo{0});
-      pair.first->second.entryCount += FS->getEntrySamples();
+      pair.first->second.entryCount += FS->getHeadSamplesEstimate();
     }
   }
 }
@@ -1663,7 +1617,7 @@ void SampleProfileLoader::generateMDProfMetadata(Function &F) {
             if (const FunctionSamplesMap *M =
                     FS->findFunctionSamplesMapAt(CallSite)) {
               for (const auto &NameFS : *M)
-                Sum += NameFS.second.getEntrySamples();
+                Sum += NameFS.second.getHeadSamplesEstimate();
             }
           }
           if (Sum)
@@ -1824,17 +1778,6 @@ bool SampleProfileLoader::emitAnnotations(Function &F) {
   emitCoverageRemarks(F);
   return Changed;
 }
-
-char SampleProfileLoaderLegacyPass::ID = 0;
-
-INITIALIZE_PASS_BEGIN(SampleProfileLoaderLegacyPass, "sample-profile",
-                      "Sample Profile loader", false, false)
-INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
-INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ProfileSummaryInfoWrapperPass)
-INITIALIZE_PASS_END(SampleProfileLoaderLegacyPass, "sample-profile",
-                    "Sample Profile loader", false, false)
 
 std::unique_ptr<ProfiledCallGraph>
 SampleProfileLoader::buildProfiledCallGraph(CallGraph &CG) {
@@ -2073,14 +2016,6 @@ bool SampleProfileLoader::doInitialization(Module &M,
   return true;
 }
 
-ModulePass *llvm::createSampleProfileLoaderPass() {
-  return new SampleProfileLoaderLegacyPass();
-}
-
-ModulePass *llvm::createSampleProfileLoaderPass(StringRef Name) {
-  return new SampleProfileLoaderLegacyPass(Name);
-}
-
 bool SampleProfileLoader::runOnModule(Module &M, ModuleAnalysisManager *AM,
                                       ProfileSummaryInfo *_PSI, CallGraph *CG) {
   GUIDToFuncNameMapper Mapper(M, *Reader, GUIDToFuncNameMap);
@@ -2139,15 +2074,6 @@ bool SampleProfileLoader::runOnModule(Module &M, ModuleAnalysisManager *AM,
       updateProfileCallee(pair.first, pair.second.entryCount);
 
   return retval;
-}
-
-bool SampleProfileLoaderLegacyPass::runOnModule(Module &M) {
-  ACT = &getAnalysis<AssumptionCacheTracker>();
-  TTIWP = &getAnalysis<TargetTransformInfoWrapperPass>();
-  TLIWP = &getAnalysis<TargetLibraryInfoWrapperPass>();
-  ProfileSummaryInfo *PSI =
-      &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
-  return SampleLoader.runOnModule(M, nullptr, PSI, nullptr);
 }
 
 bool SampleProfileLoader::runOnFunction(Function &F, ModuleAnalysisManager *AM) {

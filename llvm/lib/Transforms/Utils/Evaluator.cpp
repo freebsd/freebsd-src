@@ -301,9 +301,9 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst, BasicBlock *&NextBB,
     LLVM_DEBUG(dbgs() << "Evaluating Instruction: " << *CurInst << "\n");
 
     if (StoreInst *SI = dyn_cast<StoreInst>(CurInst)) {
-      if (!SI->isSimple()) {
-        LLVM_DEBUG(dbgs() << "Store is not simple! Can not evaluate.\n");
-        return false;  // no volatile/atomic accesses.
+      if (SI->isVolatile()) {
+        LLVM_DEBUG(dbgs() << "Store is volatile! Can not evaluate.\n");
+        return false;  // no volatile accesses.
       }
       Constant *Ptr = getVal(SI->getOperand(1));
       Constant *FoldedPtr = ConstantFoldConstant(Ptr, DL, TLI);
@@ -337,10 +337,10 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst, BasicBlock *&NextBB,
       if (!Res.first->second.write(Val, Offset, DL))
         return false;
     } else if (LoadInst *LI = dyn_cast<LoadInst>(CurInst)) {
-      if (!LI->isSimple()) {
+      if (LI->isVolatile()) {
         LLVM_DEBUG(
-            dbgs() << "Found a Load! Not a simple load, can not evaluate.\n");
-        return false;  // no volatile/atomic accesses.
+            dbgs() << "Found a Load! Volatile load, can not evaluate.\n");
+        return false;  // no volatile accesses.
       }
 
       Constant *Ptr = getVal(LI->getOperand(0));

@@ -1141,25 +1141,38 @@ void DarwinClang::AddLinkARCArgs(const ArgList &Args,
   SmallString<128> P(getDriver().ClangExecutable);
   llvm::sys::path::remove_filename(P); // 'clang'
   llvm::sys::path::remove_filename(P); // 'bin'
+  llvm::sys::path::append(P, "lib", "arc");
 
   // 'libarclite' usually lives in the same toolchain as 'clang'. However, the
   // Swift open source toolchains for macOS distribute Clang without libarclite.
   // In that case, to allow the linker to find 'libarclite', we point to the
   // 'libarclite' in the XcodeDefault toolchain instead.
-  if (getXcodeDeveloperPath(P).empty()) {
-    if (const Arg *A = Args.getLastArg(options::OPT_isysroot)) {
+  if (!getVFS().exists(P)) {
+    auto updatePath = [&](const Arg *A) {
       // Try to infer the path to 'libarclite' in the toolchain from the
       // specified SDK path.
       StringRef XcodePathForSDK = getXcodeDeveloperPath(A->getValue());
-      if (!XcodePathForSDK.empty()) {
-        P = XcodePathForSDK;
-        llvm::sys::path::append(P, "Toolchains/XcodeDefault.xctoolchain/usr");
-      }
+      if (XcodePathForSDK.empty())
+        return false;
+
+      P = XcodePathForSDK;
+      llvm::sys::path::append(P, "Toolchains/XcodeDefault.xctoolchain/usr",
+                              "lib", "arc");
+      return getVFS().exists(P);
+    };
+
+    bool updated = false;
+    if (const Arg *A = Args.getLastArg(options::OPT_isysroot))
+      updated = updatePath(A);
+
+    if (!updated) {
+      if (const Arg *A = Args.getLastArg(options::OPT__sysroot_EQ))
+        updatePath(A);
     }
   }
 
   CmdArgs.push_back("-force_load");
-  llvm::sys::path::append(P, "lib", "arc", "libarclite_");
+  llvm::sys::path::append(P, "libarclite_");
   // Mash in the platform.
   if (isTargetWatchOSSimulator())
     P += "watchsimulator";
@@ -2448,6 +2461,7 @@ void DarwinClang::AddClangCXXStdlibIncludeArgs(
     break;
   }
 }
+
 void DarwinClang::AddCXXStdlibLibArgs(const ArgList &Args,
                                       ArgStringList &CmdArgs) const {
   CXXStdlibType Type = GetCXXStdlibType(Args);
@@ -2455,6 +2469,8 @@ void DarwinClang::AddCXXStdlibLibArgs(const ArgList &Args,
   switch (Type) {
   case ToolChain::CST_Libcxx:
     CmdArgs.push_back("-lc++");
+    if (Args.hasArg(options::OPT_fexperimental_library))
+      CmdArgs.push_back("-lc++experimental");
     break;
 
   case ToolChain::CST_Libstdcxx:
