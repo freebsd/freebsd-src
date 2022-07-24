@@ -1405,7 +1405,6 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 {
 	unsigned int group_size;
 	unsigned int candidate_index = 0;
-	unsigned int candidate_group_num = 0;
 	struct mlx5_flow_group *g;
 	struct mlx5_flow_group *ret;
 	struct list_head *prev = &ft->fgs;
@@ -1442,7 +1441,6 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 
 	/* sorted by start_index */
 	fs_for_each_fg(g, ft) {
-		candidate_group_num++;
 		if (candidate_index + group_size > g->start_index)
 			candidate_index = g->start_index + g->max_ftes;
 		else
