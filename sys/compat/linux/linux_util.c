@@ -214,7 +214,7 @@ linux_driver_get_major_minor(const char *node, int *major, int *minor)
 }
 
 char *
-linux_get_char_devices()
+linux_get_char_devices(void)
 {
 	struct device_element *de;
 	char *temp, *string, *last;
