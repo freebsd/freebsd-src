@@ -133,14 +133,14 @@ static int	nfs_readdir(struct open_file *f, struct dirent *d);
 struct	nfs_iodesc nfs_root_node;
 
 struct fs_ops nfs_fsops = {
-	"nfs",
-	nfs_open,
-	nfs_close,
-	nfs_read,
-	null_write,
-	nfs_seek,
-	nfs_stat,
-	nfs_readdir
+	.fs_name = "nfs",
+	.fo_open = nfs_open,
+	.fo_close = nfs_close,
+	.fo_read = nfs_read,
+	.fo_write = null_write,
+	.fo_seek = nfs_seek,
+	.fo_stat = nfs_stat,
+	.fo_readdir = nfs_readdir,
 };
 
 static int nfs_read_size = NFSREAD_MIN_SIZE;
