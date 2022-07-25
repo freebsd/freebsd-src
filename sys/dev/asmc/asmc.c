@@ -227,6 +227,12 @@ static const struct asmc_model asmc_models[] = {
 	},
 
 	{
+	  "MacBookPro6,2", "Apple SMC MacBook Pro (Mid 2010, 15-inch)",
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
+	  ASMC_MBP62_TEMPS, ASMC_MBP62_TEMPNAMES, ASMC_MBP62_TEMPDESCS
+	},
+
+	{
 	  "MacBookPro8,1", "Apple SMC MacBook Pro (early 2011, 13-inch)",
 	  ASMC_SMS_FUNCS_DISABLED, ASMC_FAN_FUNCS2, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP81_TEMPS, ASMC_MBP81_TEMPNAMES, ASMC_MBP81_TEMPDESCS
@@ -1376,6 +1382,7 @@ asmc_sms_intrfast(void *arg)
 static void
 asmc_sms_printintr(device_t dev, uint8_t type)
 {
+	struct asmc_softc *sc = device_get_softc(dev);
 
 	switch (type) {
 	case ASMC_SMS_INTFF:
@@ -1387,8 +1394,17 @@ asmc_sms_printintr(device_t dev, uint8_t type)
 	case ASMC_SMS_INTSH:
 		device_printf(dev, "WARNING: possible shock!\n");
 		break;
+	case ASMC_ALSL_INT2A:
+		/*
+		 * This suppresses console and log messages for the ambient
+		 * light sensor for the only model known to generate this
+		 * interrupt.
+		 */
+		if (strcmp(sc->sc_model->smc_model, "MacBookPro6,2") == 0)
+			break;
+		/* FALLTHROUGH */
 	default:
-		device_printf(dev, "%s unknown interrupt\n", __func__);
+		device_printf(dev, "unknown interrupt: 0x%x\n", type);
 	}
 }
 
