@@ -637,15 +637,23 @@
  * POSIX.1 requires that the macros we test be defined before any standard
  * header file is included.
  *
- * Here's a quick run-down of the versions:
+ * Here's a quick run-down of the versions (and some informal names)
  *  defined(_POSIX_SOURCE)		1003.1-1988
+ *					encoded as 198808 below
  *  _POSIX_C_SOURCE == 1		1003.1-1990
+ *					encoded as 199009 below
  *  _POSIX_C_SOURCE == 2		1003.2-1992 C Language Binding Option
+ *					encoded as 199209 below
  *  _POSIX_C_SOURCE == 199309		1003.1b-1993
+ *					(1003.1 Issue 4, Single Unix Spec v1, Unix 93)
  *  _POSIX_C_SOURCE == 199506		1003.1c-1995, 1003.1i-1995,
  *					and the omnibus ISO/IEC 9945-1: 1996
- *  _POSIX_C_SOURCE == 200112		1003.1-2001
- *  _POSIX_C_SOURCE == 200809		1003.1-2008
+ *					(1003.1 Issue 5, Single	Unix Spec v2, Unix 95)
+ *  _POSIX_C_SOURCE == 200112		1003.1-2001 (1003.1 Issue 6, Unix 03)
+ *  _POSIX_C_SOURCE == 200809		1003.1-2008 (1003.1 Issue 7)
+ *					IEEE Std 1003.1-2017 (Rev of 1003.1-2008) is
+ *					1003.1-2008 with two TCs applied with
+ *					_POSIX_C_SOURCE=200809 and _XOPEN_SOURCE=700
  *
  * In addition, the X/Open Portability Guide, which is now the Single UNIX
  * Specification, defines a feature-test macro which indicates the version of
