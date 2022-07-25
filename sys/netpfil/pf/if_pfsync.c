@@ -2149,7 +2149,7 @@ pfsync_bulk_update(void *arg)
 {
 	struct pfsync_softc *sc = arg;
 	struct pf_kstate *s;
-	int i, sent = 0;
+	int i;
 
 	PFSYNC_BLOCK_ASSERT(sc);
 	CURVNET_SET(sc->sc_ifp->if_vnet);
@@ -2190,7 +2190,6 @@ pfsync_bulk_update(void *arg)
 					    pfsync_bulk_update, sc);
 					goto full;
 				}
-				sent++;
 			}
 		}
 		PF_HASHROW_UNLOCK(ih);
