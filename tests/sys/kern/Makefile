@@ -25,6 +25,7 @@ ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sched_affinity
 ATF_TESTS_C+=	sigaltstack
 ATF_TESTS_C+=	sigwait
+ATF_TESTS_C+=	socket_msg_trunc
 TEST_METADATA.sigwait+=	is_exclusive="true"
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH:Mpowerpc*} == "" && \
     ${MACHINE_CPUARCH} != "mips"
