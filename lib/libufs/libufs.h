@@ -65,6 +65,7 @@ struct uufsd {
 	int d_ccg;			/* current cylinder group */
 	int d_lcg;			/* last cylinder group (in d_cg) */
 	const char *d_error;		/* human readable disk error */
+	off_t	d_sblockloc;		/* where to look for the superblock */
 	int d_mine;			/* internal flags */
 #define	d_fs	d_sbunion.d_fs
 #define	d_sb	d_sbunion.d_sb

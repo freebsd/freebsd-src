@@ -168,6 +168,7 @@ again:	if ((ret = stat(name, &st)) < 0) {
 	disk->d_ufs = 0;
 	disk->d_error = NULL;
 	disk->d_si = NULL;
+	disk->d_sblockloc = STDSB;
 
 	if (oname != name) {
 		name = strdup(name);
