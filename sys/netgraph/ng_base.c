@@ -978,7 +978,7 @@ ng_unname(node_p node)
  * Allocate a bigger name hash.
  */
 static void
-ng_name_rehash()
+ng_name_rehash(void)
 {
 	struct nodehash *new;
 	uint32_t hash;
@@ -1009,7 +1009,7 @@ ng_name_rehash()
  * Allocate a bigger ID hash.
  */
 static void
-ng_ID_rehash()
+ng_ID_rehash(void)
 {
 	struct nodehash *new;
 	uint32_t hash;
