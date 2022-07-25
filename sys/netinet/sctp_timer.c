@@ -507,7 +507,9 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	unsigned int cnt_mk;
 	uint32_t orig_flight, orig_tf;
 	uint32_t tsnlast, tsnfirst;
+#ifndef INVARIANTS
 	int recovery_cnt = 0;
+#endif
 
 	/* none in flight now */
 	audit_tf = 0;
@@ -565,10 +567,10 @@ start_again:
 			/* Strange case our list got out of order? */
 			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x\n",
 			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.tsn);
-			recovery_cnt++;
 #ifdef INVARIANTS
 			panic("last acked >= chk on sent-Q");
 #else
+			recovery_cnt++;
 			SCTP_PRINTF("Recover attempts a restart cnt:%d\n", recovery_cnt);
 			sctp_recover_sent_list(stcb);
 			if (recovery_cnt < 10) {
