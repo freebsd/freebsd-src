@@ -982,7 +982,7 @@ pf_free_src_nodes(struct pf_ksrc_node_list *head)
 }
 
 void
-pf_mtag_initialize()
+pf_mtag_initialize(void)
 {
 
 	pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
@@ -992,7 +992,7 @@ pf_mtag_initialize()
 
 /* Per-vnet data storage structures initialization. */
 void
-pf_initialize()
+pf_initialize(void)
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
@@ -1086,14 +1086,14 @@ pf_initialize()
 }
 
 void
-pf_mtag_cleanup()
+pf_mtag_cleanup(void)
 {
 
 	uma_zdestroy(pf_mtag_z);
 }
 
 void
-pf_cleanup()
+pf_cleanup(void)
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
@@ -1986,7 +1986,7 @@ pf_state_expires(const struct pf_kstate *state)
 }
 
 void
-pf_purge_expired_src_nodes()
+pf_purge_expired_src_nodes(void)
 {
 	struct pf_ksrc_node_list	 freelist;
 	struct pf_srchash	*sh;
@@ -2171,7 +2171,7 @@ relock:
 }
 
 static void
-pf_purge_unlinked_rules()
+pf_purge_unlinked_rules(void)
 {
 	struct pf_krulequeue tmpq;
 	struct pf_krule *r, *r1;
