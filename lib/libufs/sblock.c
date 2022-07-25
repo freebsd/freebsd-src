@@ -49,20 +49,36 @@ __FBSDID("$FreeBSD$");
 
 #include <libufs.h>
 
+static int handle_disk_read(struct uufsd *, struct fs *, int);
+
+/*
+ * Read the standard superblock.
+ */
 int
 sbread(struct uufsd *disk)
 {
 	struct fs *fs;
+	int error;
+
+	error = sbget(disk->d_fd, &fs, disk->d_sblockloc);
+	return (handle_disk_read(disk, fs, error));
+}
+
+static int
+handle_disk_read(struct uufsd *disk, struct fs *fs, int error)
+{
 
 	ERROR(disk, NULL);
-
-	if ((errno = sbget(disk->d_fd, &fs, STDSB)) != 0) {
-		switch (errno) {
+	if (error != 0) {
+		switch (error) {
 		case EIO:
 			ERROR(disk, "non-existent or truncated superblock");
 			break;
 		case ENOENT:
 			ERROR(disk, "no usable known superblock found");
+			break;
+		case EINTEGRITY:
+			ERROR(disk, "superblock check-hash failure");
 			break;
 		case ENOSPC:
 			ERROR(disk, "failed to allocate space for superblock "
