@@ -385,7 +385,7 @@ disk_close(struct disk_devdesc *dev)
 	return (0);
 }
 
-char*
+char *
 disk_fmtdev(struct disk_devdesc *dev)
 {
 	static char buf[128];
