@@ -2107,6 +2107,13 @@ again:
 				VM_OBJECT_WLOCK(dst_object);
 				goto again;
 			}
+
+			/*
+			 * See the comment in vm_fault_cow().
+			 */
+			if (src_object == dst_object &&
+			    (object->flags & OBJ_ONEMAPPING) == 0)
+				pmap_remove_all(src_m);
 			pmap_copy_page(src_m, dst_m);
 
 			/*
