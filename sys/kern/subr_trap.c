@@ -4,7 +4,7 @@
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2007 The FreeBSD Foundation
+ * Copyright (c) 2007, 2022 The FreeBSD Foundation
  *
  * This code is derived from software contributed to Berkeley by
  * the University of Utah, and William Jolitz.
@@ -47,35 +47,22 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
-#include "opt_ktrace.h"
-#include "opt_sched.h"
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/capsicum.h>
-#include <sys/event.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/msan.h>
 #include <sys/mutex.h>
-#include <sys/pmckern.h>
 #include <sys/proc.h>
 #include <sys/ktr.h>
-#include <sys/ptrace.h>
-#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
-#include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
-#include <security/audit/audit.h>
 
 #include <machine/cpu.h>
 
@@ -87,7 +74,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #endif
 
-#include <security/mac/mac_framework.h>
+#ifdef EPOCH_TRACE
+#include <sys/epoch.h>
+#endif
 
 /*
  * Define the code needed before returning to user mode, for trap and
