@@ -9364,7 +9364,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 	struct mbuf *m, *endofchain;
 	struct sctp_nets *net = NULL;
 	uint32_t tsns_sent = 0;
-	int no_fragmentflg, bundle_at, cnt_thru;
+	int no_fragmentflg, bundle_at;
 	unsigned int mtu;
 	int error, i, one_chunk, fwd_tsn, ctl_cnt, tmr_started;
 	struct sctp_auth_chunk *auth = NULL;
@@ -9433,7 +9433,6 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		}
 	}
 	one_chunk = 0;
-	cnt_thru = 0;
 	/* do we have control chunks to retransmit? */
 	if (m != NULL) {
 		/* Start a timer no matter if we succeed or fail */
@@ -9749,7 +9748,6 @@ one_chunk_around:
 			/* (void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time); */
 
 			/* For auto-close */
-			cnt_thru++;
 			if (*now_filled == 0) {
 				(void)SCTP_GETTIME_TIMEVAL(&asoc->time_last_sent);
 				*now = asoc->time_last_sent;
