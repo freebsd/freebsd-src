@@ -1417,7 +1417,7 @@ static int
 uipc_peek_dgram(struct socket *so, struct mbuf *m, struct sockaddr **psa,
     struct uio *uio, struct mbuf **controlp, int *flagsp)
 {
-	ssize_t len;
+	ssize_t len = 0;
 	int error;
 
 	so->so_rcv.uxdg_peeked = m;
@@ -1459,8 +1459,16 @@ uipc_peek_dgram(struct socket *so, struct mbuf *m, struct sockaddr **psa,
 	}
 	SOCK_IO_RECV_UNLOCK(so);
 
-	if (m != NULL && flagsp != NULL)
-		*flagsp |= MSG_TRUNC;
+	if (flagsp != NULL) {
+		if (m != NULL) {
+			if (*flagsp & MSG_TRUNC) {
+				/* Report real length of the packet */
+				uio->uio_resid -= m_length(m, NULL) - len;
+			}
+			*flagsp |= MSG_TRUNC;
+		} else
+			*flagsp &= ~MSG_TRUNC;
+	}
 
 	return (0);
 }
@@ -1475,7 +1483,7 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	struct sockbuf *sb = NULL;
 	struct mbuf *m;
 	int flags, error;
-	ssize_t len;
+	ssize_t len = 0;
 	bool nonblock;
 
 	MPASS(mp0 == NULL);
@@ -1619,11 +1627,16 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	SOCK_IO_RECV_UNLOCK(so);
 
 	if (m != NULL) {
-		flags |= MSG_TRUNC;
+		if (flagsp != NULL) {
+			if (flags & MSG_TRUNC) {
+				/* Report real length of the packet */
+				uio->uio_resid -= m_length(m, NULL);
+			}
+			*flagsp |= MSG_TRUNC;
+		}
 		m_freem(m);
-	}
-	if (flagsp != NULL)
-		*flagsp |= flags;
+	} else if (flagsp != NULL)
+		*flagsp &= ~MSG_TRUNC;
 
 	return (0);
 }

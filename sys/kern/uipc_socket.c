@@ -1896,15 +1896,18 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	struct mbuf *nextrecord;
 	int moff, type = 0;
 	ssize_t orig_resid = uio->uio_resid;
+	bool report_real_len = false;
 
 	mp = mp0;
 	if (psa != NULL)
 		*psa = NULL;
 	if (controlp != NULL)
 		*controlp = NULL;
-	if (flagsp != NULL)
+	if (flagsp != NULL) {
+		report_real_len = *flagsp & MSG_TRUNC;
+		*flagsp &= ~MSG_TRUNC;
 		flags = *flagsp &~ MSG_EOR;
-	else
+	} else
 		flags = 0;
 	if (flags & MSG_OOB)
 		return (soreceive_rcvoob(so, uio, flags));
@@ -1978,7 +1981,7 @@ restart:
 			error = ENOTCONN;
 			goto release;
 		}
-		if (uio->uio_resid == 0) {
+		if (uio->uio_resid == 0 && !report_real_len) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			goto release;
 		}
@@ -2326,6 +2329,8 @@ dontblock:
 
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	if (m != NULL && pr->pr_flags & PR_ATOMIC) {
+		if (report_real_len)
+			uio->uio_resid -= m_length(m, NULL) - moff;
 		flags |= MSG_TRUNC;
 		if ((flags & MSG_PEEK) == 0)
 			(void) sbdroprecord_locked(&so->so_rcv);
@@ -2624,7 +2629,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * For any complicated cases, fall back to the full
 	 * soreceive_generic().
 	 */
-	if (mp0 != NULL || (flags & MSG_PEEK) || (flags & MSG_OOB))
+	if (mp0 != NULL || (flags & (MSG_PEEK | MSG_OOB | MSG_TRUNC)))
 		return (soreceive_generic(so, psa, uio, mp0, controlp,
 		    flagsp));
 

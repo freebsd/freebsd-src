@@ -163,6 +163,7 @@ one or more of the values:
 .Bl -column ".Dv MSG_CMSG_CLOEXEC" -offset indent
 .It Dv MSG_OOB Ta process out-of-band data
 .It Dv MSG_PEEK Ta peek at incoming message
+.It Dv MSG_TRUNC Ta return real packet or datagram length
 .It Dv MSG_WAITALL Ta wait for full request or error
 .It Dv MSG_DONTWAIT Ta do not block
 .It Dv MSG_CMSG_CLOEXEC Ta set received fds close-on-exec
@@ -184,6 +185,17 @@ flag causes the receive operation to return data
 from the beginning of the receive queue without removing that
 data from the queue.
 Thus, a subsequent receive call will return the same data.
+The
+.Dv MSG_TRUNC
+flag causes the receive operation to return the full length of the packet
+or datagram even if larger than provided buffer. The flag is supported
+on SOCK_DGRAM sockets for
+.Dv AF_INET
+,
+.Dv AF_INET6
+and
+.Dv AF_UNIX
+families.
 The
 .Dv MSG_WAITALL
 flag requests that the operation block until
