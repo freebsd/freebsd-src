@@ -110,6 +110,11 @@ struct asmc_softc {
 #define ASMC_SMS_INTSH		0x80	/* Shock Interrupt */
 
 /*
+ * Light Sensor.
+ */
+#define ASMC_ALSL_INT2A		0x2a	/* Ambient Light related Interrupt */
+
+/*
  * Keyboard backlight.
  */
 #define ASMC_KEY_LIGHTLEFT	"ALV0"	/* RO; 6 bytes */
@@ -231,6 +236,33 @@ struct asmc_softc {
 				  "Northbridge Pin", "Unknown", \
 				  "Heatsink 2", "Memory Controller", \
 				  "PCI Express Slot Pin", "PCI Express Slot (unk)" }
+
+#define ASMC_MBP62_TEMPS	{ "TB0T", "TB1T", "TB2T", \
+				  "TC0C", "TC0D", "TC0P", \
+				  "TC1C", "TG0D", "TG0P", \
+				  "TG0T", "TMCD", "TP0P", \
+				  "TPCD", "Th1H", "Th2H", \
+				  "Tm0P", "Ts0P", "Ts0S" }
+
+#define ASMC_MBP62_TEMPNAMES	{ "enclosure_bottom_0", "enclosure_bottom_1", \
+				  "enclosure_bottom_2", "cpu0", \
+				  "cpu_diode", "cpu_proximity", \
+				  "cpu1", "gpu_diode", \
+				  "gpu_pin", "gpu_transistor", \
+				  "TMCD", "pch_controller_proximity", \
+				  "pch_die", "heatsink1", \
+				  "heatsink2", "memory-controller", \
+				  "palmrest", "memoryproximity" }
+
+#define ASMC_MBP62_TEMPDESCS	{ "Enclosure Bottom 0", "Enclosure Bottom 1", \
+				  "Enclosure Bottom 2", "CPU 0", \
+				  "CPU Diode", "CPU Proximity", \
+				  "CPU 1", "GPU Diode", \
+				  "GPU Pin", "GPU Transistor", \
+				  "TMCD", "PCH Controller Proximity", \
+				  "PCH Die", "Heat Sink 1", \
+				  "Heat Sink 2", "Memory Controller", \
+				  "Palm Rest", "Memory Proximity" }
 
 #define ASMC_MBP81_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
