@@ -171,7 +171,6 @@ SRCS+=	time.c
 SRCS+=ffs_subr.c ffs_tables.c
 
 CFLAGS.dosfs.c+= -I${LDRSRC}
-CFLAGS.tftp.c+= -I${LDRSRC}
 CFLAGS.ufs.c+= -I${LDRSRC}
 CFLAGS.gzipfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.pkgfs.c+= ${ZLIB_CFLAGS}
