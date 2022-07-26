@@ -243,14 +243,17 @@ dmar_qi_invalidate_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 }
 
 void
-dmar_qi_invalidate_sync_locked(struct dmar_domain *domain, iommu_gaddr_t base,
+dmar_qi_invalidate_sync(struct dmar_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size, bool cansleep)
 {
+	struct dmar_unit *unit;
 	struct iommu_qi_genseq gseq;
 
-	DMAR_ASSERT_LOCKED(domain->dmar);
+	unit = domain->dmar;
+	DMAR_LOCK(unit);
 	dmar_qi_invalidate_locked(domain, base, size, &gseq, true);
-	dmar_qi_wait_for_seq(domain->dmar, &gseq, !cansleep);
+	dmar_qi_wait_for_seq(unit, &gseq, !cansleep);
+	DMAR_UNLOCK(unit);
 }
 
 void
