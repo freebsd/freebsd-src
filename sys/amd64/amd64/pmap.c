@@ -6975,7 +6975,10 @@ pmap_remove_pages(pmap_t pmap)
 	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
-	int allfree, field, freed, idx;
+	int allfree, field, idx;
+#ifdef PV_STATS
+	int freed;
+#endif
 	boolean_t superpage;
 	vm_paddr_t pa;
 
@@ -7008,7 +7011,9 @@ pmap_remove_pages(pmap_t pmap)
 	PMAP_LOCK(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
+#ifdef PV_STATS
 		freed = 0;
+#endif
 		for (field = 0; field < _NPCM; field++) {
 			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
@@ -7123,7 +7128,9 @@ pmap_remove_pages(pmap_t pmap)
 					}
 				}
 				pmap_unuse_pt(pmap, pv->pv_va, ptepde, &free);
+#ifdef PV_STATS
 				freed++;
+#endif
 			}
 		}
 		PV_STAT(atomic_add_long(&pv_entry_frees, freed));
