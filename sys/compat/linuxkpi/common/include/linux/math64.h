@@ -100,4 +100,23 @@ div64_u64_round_up(uint64_t dividend, uint64_t divisor)
 #define	DIV64_U64_ROUND_UP(...) \
 	div64_u64_round_up(__VA_ARGS__)
 
+static inline uint64_t
+mul_u64_u32_div(uint64_t x, uint32_t y, uint32_t div)
+{
+	const uint64_t rem = x % div;
+
+	return ((x / div) * y + (rem * y) / div);
+}
+
+static inline uint64_t
+mul_u64_u32_shr(uint64_t x, uint32_t y, unsigned int shift)
+{
+	uint32_t hi, lo;
+	hi = x >> 32;
+	lo = x & 0xffffffff;
+
+	return (mul_u32_u32(lo, y) >> shift) +
+		(mul_u32_u32(hi, y) << (32 - shift));
+}
+
 #endif /* _LINUXKPI_LINUX_MATH64_H */
