@@ -868,7 +868,7 @@ static kobj_method_t null_methods[] = {
 DEFINE_CLASS(null, null_methods, 0);
 
 void
-bus_topo_assert()
+bus_topo_assert(void)
 {
 
 	GIANT_REQUIRED;	
