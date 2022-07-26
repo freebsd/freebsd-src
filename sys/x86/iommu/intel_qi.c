@@ -64,10 +64,11 @@ static bool
 dmar_qi_seq_processed(const struct dmar_unit *unit,
     const struct iommu_qi_genseq *pseq)
 {
+	u_int gen;
 
-	return (pseq->gen < unit->inv_waitd_gen ||
-	    (pseq->gen == unit->inv_waitd_gen &&
-	     pseq->seq <= unit->inv_waitd_seq_hw));
+	gen = unit->inv_waitd_gen;
+	return (pseq->gen < gen ||
+	    (pseq->gen == gen && pseq->seq <= unit->inv_waitd_seq_hw));
 }
 
 static int
@@ -131,6 +132,9 @@ dmar_qi_ensure(struct dmar_unit *unit, int descr_count)
 		 * inform the descriptor streamer about entries we
 		 * might have already filled, otherwise they could
 		 * clog the whole queue..
+		 *
+		 * See dmar_qi_invalidate_locked() for a discussion
+		 * about data race prevention.
 		 */
 		dmar_qi_advance_tail(unit);
 		unit->inv_queue_full++;
@@ -201,13 +205,17 @@ dmar_qi_emit_wait_seq(struct dmar_unit *unit, struct iommu_qi_genseq *pseq,
 	}
 }
 
+/*
+ * To avoid missed wakeups, callers must increment the unit's waiters count
+ * before advancing the tail past the wait descriptor.
+ */
 static void
 dmar_qi_wait_for_seq(struct dmar_unit *unit, const struct iommu_qi_genseq *gseq,
     bool nowait)
 {
 
 	DMAR_ASSERT_LOCKED(unit);
-	unit->inv_seq_waiters++;
+	KASSERT(unit->inv_seq_waiters > 0, ("%s: no waiters", __func__));
 	while (!dmar_qi_seq_processed(unit, gseq)) {
 		if (cold || nowait) {
 			cpu_spinwait();
@@ -219,8 +227,8 @@ dmar_qi_wait_for_seq(struct dmar_unit *unit, const struct iommu_qi_genseq *gseq,
 	unit->inv_seq_waiters--;
 }
 
-void
-dmar_qi_invalidate_locked(struct dmar_domain *domain, iommu_gaddr_t base,
+static void
+dmar_qi_invalidate_emit(struct dmar_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size, struct iommu_qi_genseq *pseq, bool emit_wait)
 {
 	struct dmar_unit *unit;
@@ -239,6 +247,40 @@ dmar_qi_invalidate_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 		    base | am);
 	}
 	dmar_qi_emit_wait_seq(unit, pseq, emit_wait);
+}
+
+/*
+ * The caller must not be using the entry's dmamap_link field.
+ */
+void
+dmar_qi_invalidate_locked(struct dmar_domain *domain,
+    struct iommu_map_entry *entry, bool emit_wait)
+{
+	struct dmar_unit *unit;
+
+	unit = domain->dmar;
+	DMAR_ASSERT_LOCKED(unit);
+	dmar_qi_invalidate_emit(domain, entry->start, entry->end -
+	    entry->start, &entry->gseq, emit_wait);
+
+	/*
+	 * To avoid a data race in dmar_qi_task(), the entry's gseq must be
+	 * initialized before the entry is added to the TLB flush list, and the
+	 * entry must be added to that list before the tail is advanced.  More
+	 * precisely, the tail must not be advanced past the wait descriptor
+	 * that will generate the interrupt that schedules dmar_qi_task() for
+	 * execution before the entry is added to the list.  While an earlier
+	 * call to dmar_qi_ensure() might have advanced the tail, it will not
+	 * advance it past the wait descriptor.
+	 *
+	 * See the definition of struct dmar_unit for more information on
+	 * synchronization.
+	 */
+	entry->tlb_flush_next = NULL;
+	atomic_store_rel_ptr((uintptr_t *)&unit->tlb_flush_tail->tlb_flush_next,
+	    (uintptr_t)entry);
+	unit->tlb_flush_tail = entry;
+
 	dmar_qi_advance_tail(unit);
 }
 
@@ -251,7 +293,15 @@ dmar_qi_invalidate_sync(struct dmar_domain *domain, iommu_gaddr_t base,
 
 	unit = domain->dmar;
 	DMAR_LOCK(unit);
-	dmar_qi_invalidate_locked(domain, base, size, &gseq, true);
+	dmar_qi_invalidate_emit(domain, base, size, &gseq, true);
+
+	/*
+	 * To avoid a missed wakeup in dmar_qi_task(), the unit's waiters count
+	 * must be incremented before the tail is advanced.
+	 */
+	unit->inv_seq_waiters++;
+
+	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, !cansleep);
 	DMAR_UNLOCK(unit);
 }
@@ -265,6 +315,8 @@ dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit)
 	dmar_qi_ensure(unit, 2);
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_CTX_INV | DMAR_IQ_DESCR_CTX_GLOB, 0);
 	dmar_qi_emit_wait_seq(unit, &gseq, true);
+	/* See dmar_qi_invalidate_sync(). */
+	unit->inv_seq_waiters++;
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
@@ -279,6 +331,8 @@ dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit)
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_IOTLB_INV | DMAR_IQ_DESCR_IOTLB_GLOB |
 	    DMAR_IQ_DESCR_IOTLB_DW | DMAR_IQ_DESCR_IOTLB_DR, 0);
 	dmar_qi_emit_wait_seq(unit, &gseq, true);
+	/* See dmar_qi_invalidate_sync(). */
+	unit->inv_seq_waiters++;
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
@@ -292,6 +346,8 @@ dmar_qi_invalidate_iec_glob(struct dmar_unit *unit)
 	dmar_qi_ensure(unit, 2);
 	dmar_qi_emit(unit, DMAR_IQ_DESCR_IEC_INV, 0);
 	dmar_qi_emit_wait_seq(unit, &gseq, true);
+	/* See dmar_qi_invalidate_sync(). */
+	unit->inv_seq_waiters++;
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 }
@@ -316,6 +372,13 @@ dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt)
 	}
 	dmar_qi_ensure(unit, 1);
 	dmar_qi_emit_wait_seq(unit, &gseq, true);
+
+	/*
+	 * Since dmar_qi_wait_for_seq() will not sleep, this increment's
+	 * placement relative to advancing the tail doesn't matter.
+	 */
+	unit->inv_seq_waiters++;
+
 	dmar_qi_advance_tail(unit);
 
 	/*
@@ -352,7 +415,8 @@ static void
 dmar_qi_task(void *arg, int pending __unused)
 {
 	struct dmar_unit *unit;
-	struct iommu_map_entry *entry;
+	struct iommu_domain *domain;
+	struct iommu_map_entry *entry, *head;
 	uint32_t ics;
 
 	unit = arg;
@@ -367,21 +431,33 @@ dmar_qi_task(void *arg, int pending __unused)
 		dmar_write4(unit, DMAR_ICS_REG, ics);
 	}
 
-	DMAR_LOCK(unit);
 	for (;;) {
-		entry = TAILQ_FIRST(&unit->tlb_flush_entries);
+		head = unit->tlb_flush_head;
+		entry = (struct iommu_map_entry *)
+		    atomic_load_acq_ptr((uintptr_t *)&head->tlb_flush_next);
 		if (entry == NULL)
 			break;
 		if (!dmar_qi_seq_processed(unit, &entry->gseq))
 			break;
-		TAILQ_REMOVE(&unit->tlb_flush_entries, entry, dmamap_link);
-		DMAR_UNLOCK(unit);
-		dmar_domain_free_entry(entry, true);
-		DMAR_LOCK(unit);
+		unit->tlb_flush_head = entry;
+		iommu_gas_free_entry(head->domain, head);
+		domain = entry->domain;
+		IOMMU_DOMAIN_LOCK(domain);
+		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+			iommu_gas_free_region(domain, entry);
+		else
+			iommu_gas_free_space(domain, entry);
+		IOMMU_DOMAIN_UNLOCK(domain);
 	}
-	if (unit->inv_seq_waiters > 0)
+	if (unit->inv_seq_waiters > 0) {
+		/*
+		 * Acquire the DMAR lock so that wakeup() is called only after
+		 * the waiter is sleeping.
+		 */
+		DMAR_LOCK(unit);
 		wakeup(&unit->inv_seq_waiters);
-	DMAR_UNLOCK(unit);
+		DMAR_UNLOCK(unit);
+	}
 }
 
 int
@@ -398,7 +474,8 @@ dmar_init_qi(struct dmar_unit *unit)
 	if (!unit->qi_enabled)
 		return (0);
 
-	TAILQ_INIT(&unit->tlb_flush_entries);
+	unit->tlb_flush_head = unit->tlb_flush_tail =
+            iommu_gas_alloc_entry(NULL, 0);
 	TASK_INIT(&unit->qi_task, 0, dmar_qi_task, unit);
 	unit->qi_taskqueue = taskqueue_create_fast("dmarqf", M_WAITOK,
 	    taskqueue_thread_enqueue, &unit->qi_taskqueue);
@@ -454,6 +531,8 @@ dmar_fini_qi(struct dmar_unit *unit)
 	/* quisce */
 	dmar_qi_ensure(unit, 1);
 	dmar_qi_emit_wait_seq(unit, &gseq, true);
+	/* See dmar_qi_invalidate_sync_locked(). */
+	unit->inv_seq_waiters++;
 	dmar_qi_advance_tail(unit);
 	dmar_qi_wait_for_seq(unit, &gseq, false);
 	/* only after the quisce, disable queue */

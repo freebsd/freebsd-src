@@ -177,8 +177,33 @@ struct dmar_unit {
 	u_int irte_cnt;
 	vmem_t *irtids;
 
-	/* Delayed freeing of map entries queue processing */
-	struct iommu_map_entries_tailq tlb_flush_entries;
+	/*
+	 * Delayed freeing of map entries queue processing:
+	 *
+	 * tlb_flush_head and tlb_flush_tail are used to implement a FIFO
+	 * queue that supports concurrent dequeues and enqueues.  However,
+	 * there can only be a single dequeuer (accessing tlb_flush_head) and
+	 * a single enqueuer (accessing tlb_flush_tail) at a time.  Since the
+	 * unit's qi_task is the only dequeuer, it can access tlb_flush_head
+	 * without any locking.  In contrast, there may be multiple enqueuers,
+	 * so the enqueuers acquire the iommu unit lock to serialize their
+	 * accesses to tlb_flush_tail.
+	 *
+	 * In this FIFO queue implementation, the key to enabling concurrent
+	 * dequeues and enqueues is that the dequeuer never needs to access
+	 * tlb_flush_tail and the enqueuer never needs to access
+	 * tlb_flush_head.  In particular, tlb_flush_head and tlb_flush_tail
+	 * are never NULL, so neither a dequeuer nor an enqueuer ever needs to
+	 * update both.  Instead, tlb_flush_head always points to a "zombie"
+	 * struct, which previously held the last dequeued item.  Thus, the
+	 * zombie's next field actually points to the struct holding the first
+	 * item in the queue.  When an item is dequeued, the current zombie is
+	 * finally freed, and the struct that held the just dequeued item
+	 * becomes the new zombie.  When the queue is empty, tlb_flush_tail
+	 * also points to the zombie.
+	 */
+	struct iommu_map_entry *tlb_flush_head;
+	struct iommu_map_entry *tlb_flush_tail;
 	struct task qi_task;
 	struct taskqueue *qi_taskqueue;
 };
@@ -248,8 +273,8 @@ void dmar_enable_qi_intr(struct dmar_unit *unit);
 void dmar_disable_qi_intr(struct dmar_unit *unit);
 int dmar_init_qi(struct dmar_unit *unit);
 void dmar_fini_qi(struct dmar_unit *unit);
-void dmar_qi_invalidate_locked(struct dmar_domain *domain, iommu_gaddr_t start,
-    iommu_gaddr_t size, struct iommu_qi_genseq *psec, bool emit_wait);
+void dmar_qi_invalidate_locked(struct dmar_domain *domain,
+    struct iommu_map_entry *entry, bool emit_wait);
 void dmar_qi_invalidate_sync(struct dmar_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t size, bool cansleep);
 void dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit);
