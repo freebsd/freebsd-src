@@ -1300,7 +1300,7 @@ ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS)
 }
 
 void
-ufsdirhash_init()
+ufsdirhash_init(void)
 {
 	ufs_dirhashmaxmem = lmax(roundup(hibufspace / 64, PAGE_SIZE),
 	    2 * 1024 * 1024);
@@ -1316,7 +1316,7 @@ ufsdirhash_init()
 }
 
 void
-ufsdirhash_uninit()
+ufsdirhash_uninit(void)
 {
 	KASSERT(TAILQ_EMPTY(&ufsdirhash_list), ("ufsdirhash_uninit"));
 	uma_zdestroy(ufsdirhash_zone);
