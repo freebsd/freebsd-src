@@ -201,7 +201,10 @@ ffs_snapshot(struct mount *mp, char *snapfile)
 	ufs2_daddr_t blockno;
 	uint64_t flag;
 	char saved_nice = 0;
-	long redo = 0, snaplistsize = 0;
+#ifdef DIAGNOSTIC
+	long redo = 0;
+#endif
+	long snaplistsize = 0;
 	int32_t *lp;
 	void *space;
 	struct fs *copy_fs = NULL, *fs;
@@ -457,7 +460,9 @@ restart:
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
 		if ((ACTIVECGNUM(fs, cg) & ACTIVECGOFF(cg)) != 0)
 			continue;
+#ifdef DIAGNOSTIC
 		redo++;
+#endif
 		error = UFS_BALLOC(vp, lfragtosize(fs, cgtod(fs, cg)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
