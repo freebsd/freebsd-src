@@ -17,6 +17,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220726:
+	12.3-RELEASE-p6	FreeBSD-SA-22:09.elf
+			FreeBSD-SA-22:10.aio
+			FreeBSD-SA-22:11.vm
+			FReeBSD-EN-22:17.cam
+
+	Out of bounds read in elf_note_prpsinfo() [SA-22:09.elf]
+
+	AIO credential reference count leak [SA-22:10.aio]
+
+	Memory disclosure by stale virtual memory mapping [SA-22:11.vm]
+
+	Kernel memory corruption during SCSI error recovery [EN-22:17.cam]
+
 20220405:
 	12.3-RELEASE-p5 FreeBSD-SA-22:04.netmap
 			FreeBSD-SA-22:05.bhyve
