@@ -269,7 +269,7 @@ g_reset_bio(struct bio *bp)
 }
 
 void
-g_io_init()
+g_io_init(void)
 {
 
 	g_bioq_init(&g_bio_run_down);
