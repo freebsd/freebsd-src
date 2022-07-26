@@ -846,6 +846,7 @@ typedef struct efsys_bar_s {
 		    ("not power of 2 aligned"));			\
 									\
 		(void) (_esbp);						\
+		(void) (_eqp);						\
 									\
 		/* FIXME: Perform a 64-bit write */			\
 		KASSERT(0, ("not implemented"));			\
