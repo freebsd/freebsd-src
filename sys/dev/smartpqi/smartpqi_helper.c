@@ -371,7 +371,7 @@ void pqisrc_display_device_info(pqisrc_softstate_t *softs,
 
 /* validate the structure sizes */
 void
-check_struct_sizes()
+check_struct_sizes(void)
 {
 
     ASSERT(sizeof(SCSI3Addr_struct)== 2);
