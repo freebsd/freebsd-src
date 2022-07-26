@@ -258,7 +258,7 @@ one_event(void)
 }
 
 void
-g_run_events()
+g_run_events(void)
 {
 
 	for (;;) {
@@ -402,7 +402,7 @@ g_post_event(g_event_t *func, void *arg, int flag, ...)
 }
 
 void
-g_do_wither()
+g_do_wither(void)
 {
 
 	mtx_lock(&g_eventlock);
@@ -446,7 +446,7 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 }
 
 void
-g_event_init()
+g_event_init(void)
 {
 
 	mtx_init(&g_eventlock, "GEOM orphanage", NULL, MTX_DEF);
