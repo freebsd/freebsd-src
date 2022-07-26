@@ -250,8 +250,8 @@ int dmar_init_qi(struct dmar_unit *unit);
 void dmar_fini_qi(struct dmar_unit *unit);
 void dmar_qi_invalidate_locked(struct dmar_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t size, struct iommu_qi_genseq *psec, bool emit_wait);
-void dmar_qi_invalidate_sync_locked(struct dmar_domain *domain,
-    iommu_gaddr_t start, iommu_gaddr_t size, bool cansleep);
+void dmar_qi_invalidate_sync(struct dmar_domain *domain, iommu_gaddr_t start,
+    iommu_gaddr_t size, bool cansleep);
 void dmar_qi_invalidate_ctx_glob_locked(struct dmar_unit *unit);
 void dmar_qi_invalidate_iotlb_glob_locked(struct dmar_unit *unit);
 void dmar_qi_invalidate_iec_glob(struct dmar_unit *unit);

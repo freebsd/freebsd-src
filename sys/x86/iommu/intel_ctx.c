@@ -879,17 +879,18 @@ iommu_domain_unload_entry(struct iommu_map_entry *entry, bool free,
 	 * dmar_qi_task() is finished processing it.
 	 */
 	if (unit->qi_enabled) {
-		DMAR_LOCK(unit);
 		if (free) {
+			DMAR_LOCK(unit);
 			dmar_qi_invalidate_locked(domain, entry->start,
 			    entry->end - entry->start, &entry->gseq, true);
 			TAILQ_INSERT_TAIL(&unit->tlb_flush_entries, entry,
 			    dmamap_link);
+			DMAR_UNLOCK(unit);
 		} else {
-			dmar_qi_invalidate_sync_locked(domain, entry->start,
+			dmar_qi_invalidate_sync(domain, entry->start,
 			    entry->end - entry->start, cansleep);
+			dmar_domain_free_entry(entry, false);
 		}
-		DMAR_UNLOCK(unit);
 	} else {
 		domain_flush_iotlb_sync(domain, entry->start, entry->end -
 		    entry->start);
