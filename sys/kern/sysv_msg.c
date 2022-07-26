@@ -210,7 +210,7 @@ static struct syscall_helper_data msg32_syscalls[] = {
 #endif
 
 static int
-msginit()
+msginit(void)
 {
 	struct prison *pr;
 	void **rsv;
@@ -313,7 +313,7 @@ msginit()
 }
 
 static int
-msgunload()
+msgunload(void)
 {
 	struct msqid_kernel *msqkptr;
 	int msqid;
