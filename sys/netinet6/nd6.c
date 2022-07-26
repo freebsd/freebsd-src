@@ -244,7 +244,7 @@ nd6_init(void)
 
 #ifdef VIMAGE
 void
-nd6_destroy()
+nd6_destroy(void)
 {
 
 	callout_drain(&V_nd6_slowtimo_ch);
