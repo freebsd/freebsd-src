@@ -436,6 +436,8 @@ MDOutput(const Algorithm_t *alg, char *p, char *argv[])
 				printf("%s: %s\n", *argv, checkfailed ? "FAILED" : "OK");
 		} else if (qflag || argv == NULL) {
 			printf("%s\n", p);
+			if (cflag)
+				checkfailed = strcasecmp(checkAgainst, p) != 0;
 		} else {
 			if (rflag)
 				if (gnu_emu)
