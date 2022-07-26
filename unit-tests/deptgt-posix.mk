@@ -1,16 +1,22 @@
-# $NetBSD: deptgt-posix.mk,v 1.2 2022/04/18 15:59:39 sjg Exp $
+# $NetBSD: deptgt-posix.mk,v 1.4 2022/05/07 21:24:52 rillig Exp $
 #
 # Tests for the special target '.POSIX', which enables POSIX mode.
 #
-# As of 2022-04-18, this only means that the variable '%POSIX' is defined and
-# that the variables and rules specified by POSIX replace the default ones.
-# This is done by loading <posix.mk>, if available.  That file is not included
-# in NetBSD, but only in the bmake distribution.  As of 2022-04-18, POSIX
-# support is not complete.
+# As of 2022-04-18, when parsing the dependency line '.POSIX', the variable
+# '%POSIX' is defined and <posix.mk> is included, if it exists.  Other than
+# that, POSIX support is still incomplete, the exact set of supported features
+# needs to be cross-checked with the POSIX specification.
 #
-# Implementation node: this test needs to be isolated from the usual test
-# to prevent unit-tests/posix.mk from interfering with the posix.mk from the
-# system directory that this test uses.
+# At the point of '.POSIX:', <sys.mk> has been loaded already, unless the
+# option '-r' was given.  This means that an implementation of <posix.mk> must
+# work both with and without the system rules from <sys.mk> being in effect.
+#
+# Implementation note: this test needs to run isolated from the usual tests
+# directory to prevent unit-tests/posix.mk from interfering with the posix.mk
+# from the system directory that this test uses; since at least 1997, the
+# directive '.include <file>' has been looking in the current directory first
+# before searching the file in the system search path, as described in
+# https://gnats.netbsd.org/15163.
 #
 # See also:
 #	https://pubs.opengroup.org/onlinepubs/9699919799/utilities/make.html
@@ -99,7 +105,8 @@ in-first-line: .PHONY set-up-sysdir check-is-posix run
 	    '.POSIX:'
 
 # The only allowed lines before switching to POSIX mode are comment lines.
-# POSIX defines that empty and blank lines are called comment lines as well.
+# POSIX defines comment lines as "blank lines, empty lines, and lines with
+# <number-sign> ('#') as the first character".
 all: after-comment-lines
 after-comment-lines: .PHONY set-up-sysdir check-is-posix run
 	printf '%s\n' > ${MAIN_MK} \

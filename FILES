@@ -158,8 +158,6 @@ unit-tests/cond-token-var.exp
 unit-tests/cond-token-var.mk
 unit-tests/cond-undef-lint.exp
 unit-tests/cond-undef-lint.mk
-unit-tests/cond1.exp
-unit-tests/cond1.mk
 unit-tests/counter-append.exp
 unit-tests/counter-append.mk
 unit-tests/counter.exp
@@ -324,6 +322,8 @@ unit-tests/directive-export-literal.exp
 unit-tests/directive-export-literal.mk
 unit-tests/directive-export.exp
 unit-tests/directive-export.mk
+unit-tests/directive-for-empty.exp
+unit-tests/directive-for-empty.mk
 unit-tests/directive-for-errors.exp
 unit-tests/directive-for-errors.mk
 unit-tests/directive-for-escape.exp
@@ -864,8 +864,6 @@ unit-tests/varparse-mod.exp
 unit-tests/varparse-mod.mk
 unit-tests/varparse-undef-partial.exp
 unit-tests/varparse-undef-partial.mk
-unit-tests/varquote.exp
-unit-tests/varquote.mk
 util.c
 var.c
 wait.h

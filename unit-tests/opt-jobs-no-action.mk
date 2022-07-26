@@ -1,4 +1,4 @@
-# $NetBSD: opt-jobs-no-action.mk,v 1.9 2021/04/04 09:58:51 rillig Exp $
+# $NetBSD: opt-jobs-no-action.mk,v 1.10 2022/05/08 06:51:27 rillig Exp $
 #
 # Tests for the combination of the options -j and -n, which prints the
 # commands instead of actually running them.
@@ -21,7 +21,7 @@
 # The shell attributes are handled by Job_ParseShell.
 # The shell attributes 'quiet' and 'echo' don't need a trailing newline,
 # this is handled by the [0] != '\0' checks in Job_ParseShell.
-# The '\#' is handled by ParseGetLine.
+# The '\#' is handled by ParseRawLine.
 # The '\n' is handled by Str_Words in Job_ParseShell.
 # The '$$' is handled by Var_Subst in ParseDependencyLine.
 .SHELL: \

@@ -1,4 +1,4 @@
-# $NetBSD: comment.mk,v 1.4 2022/01/23 18:00:53 rillig Exp $
+# $NetBSD: comment.mk,v 1.5 2022/05/08 06:51:27 rillig Exp $
 #
 # Demonstrate how comments are written in makefiles.
 
@@ -23,7 +23,7 @@ on and on.
 .endif			# And after the closing directive.
 
 VAR=			# This comment makes the variable value empty.
-			# ParseGetLine removes any whitespace before the
+			# ParseRawLine removes any whitespace before the
 			# comment.
 .if ${VAR} != ""
 .  error

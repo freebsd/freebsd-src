@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-defined.mk,v 1.8 2021/12/12 08:55:28 rillig Exp $
+# $NetBSD: cond-func-defined.mk,v 1.9 2022/05/08 06:51:27 rillig Exp $
 #
 # Tests for the defined() function in .if conditions.
 
@@ -48,5 +48,10 @@ ${:UA B}=	variable name with spaces
 .  endif
 .endfor
 
-all:
-	@:;
+# Neither of the conditions is true.  Before July 2020, the right-hand
+# condition was evaluated even though it was irrelevant.
+.if defined(UNDEF) && ${UNDEF:Mx} != ""
+.  error
+.endif
+
+all: .PHONY

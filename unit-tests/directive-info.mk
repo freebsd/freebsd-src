@@ -1,4 +1,4 @@
-# $NetBSD: directive-info.mk,v 1.9 2022/01/08 20:21:34 rillig Exp $
+# $NetBSD: directive-info.mk,v 1.10 2022/05/08 06:51:27 rillig Exp $
 #
 # Tests for the .info directive.
 #
@@ -18,7 +18,7 @@
 .info.man:			# not a message, but possibly a suffix rule
 
 # Even if lines would have trailing whitespace, this would be trimmed by
-# ParseGetLine.
+# ParseRawLine.
 .info
 .info				# comment
 

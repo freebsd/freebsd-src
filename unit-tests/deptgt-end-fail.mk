@@ -1,11 +1,11 @@
-# $NetBSD: deptgt-end-fail.mk,v 1.6 2020/12/07 01:04:07 rillig Exp $
+# $NetBSD: deptgt-end-fail.mk,v 1.7 2022/05/07 08:01:20 rillig Exp $
 #
 # Tests for an errors in the main target, its dependencies,
 # the .END node and its dependencies.
 #
 # Before 2020-11-25, an error in the .END target did not print the "Stop.",
 # even though this was intended.  The cause for this was a missing condition
-# in Compat_Run, in the code handling the .END node.
+# in Compat_MakeAll, in the code handling the .END node.
 
 test: .PHONY
 
