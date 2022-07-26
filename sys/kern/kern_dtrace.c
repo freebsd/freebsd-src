@@ -61,7 +61,7 @@ systrace_probe_func_t 		systrace_probe_func;
 
 /* Return the DTrace process data size compiled in the kernel hooks. */
 size_t
-kdtrace_proc_size()
+kdtrace_proc_size(void)
 {
 
 	return (KDTRACE_PROC_SIZE);
@@ -84,7 +84,7 @@ kdtrace_proc_dtor(struct proc *p)
 
 /* Return the DTrace thread data size compiled in the kernel hooks. */
 size_t
-kdtrace_thread_size()
+kdtrace_thread_size(void)
 {
 
 	return (KDTRACE_THREAD_SIZE);
