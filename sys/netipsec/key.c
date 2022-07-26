@@ -6429,7 +6429,7 @@ key_getsizes_ah(const struct auth_hash *ah, int alg, u_int16_t* min,
  * XXX reorder combinations by preference
  */
 static struct mbuf *
-key_getcomb_ah()
+key_getcomb_ah(void)
 {
 	const struct auth_hash *algo;
 	struct sadb_comb *comb;
@@ -6486,7 +6486,7 @@ key_getcomb_ah()
  * XXX reorder combinations by preference
  */
 static struct mbuf *
-key_getcomb_ipcomp()
+key_getcomb_ipcomp(void)
 {
 	const struct comp_algo *algo;
 	struct sadb_comb *comb;
