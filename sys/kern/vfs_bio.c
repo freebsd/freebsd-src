@@ -3322,7 +3322,7 @@ buf_flush(struct vnode *vp, struct bufdomain *bd, int target)
 }
 
 static void
-buf_daemon()
+buf_daemon(void)
 {
 	struct bufdomain *bd;
 	int speedupreq;
