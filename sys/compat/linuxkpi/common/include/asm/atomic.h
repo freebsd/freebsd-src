@@ -307,6 +307,13 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)		\
 	return (c);						\
 }
 
+static inline int
+atomic_fetch_inc(atomic_t *v)
+{
+
+	return ((atomic_inc_return(v) - 1));
+}
+
 LINUX_ATOMIC_OP(or, |)
 LINUX_ATOMIC_OP(and, &)
 LINUX_ATOMIC_OP(andnot, &~)
