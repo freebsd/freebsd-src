@@ -172,7 +172,7 @@ cninit(void)
 }
 
 void
-cninit_finish()
+cninit_finish(void)
 {
 	console_pausing = 0;
 } 
@@ -344,7 +344,7 @@ SYSCTL_PROC(_kern, OID_AUTO, console, CTLTYPE_STRING|CTLFLAG_RW,
 	0, 0, sysctl_kern_console, "A", "Console device control");
 
 void
-cngrab()
+cngrab(void)
 {
 	struct cn_device *cnd;
 	struct consdev *cn;
@@ -357,7 +357,7 @@ cngrab()
 }
 
 void
-cnungrab()
+cnungrab(void)
 {
 	struct cn_device *cnd;
 	struct consdev *cn;
@@ -370,7 +370,7 @@ cnungrab()
 }
 
 void
-cnresume()
+cnresume(void)
 {
 	struct cn_device *cnd;
 	struct consdev *cn;
