@@ -182,7 +182,6 @@ CFLAGS.ffs_subr.c+= -DSTANDALONE_SMALL
 .endif
 
 CFLAGS.dosfs.c+= -I${LDRSRC}
-CFLAGS.tftp.c+= -I${LDRSRC}
 CFLAGS.ufs.c+= -I${LDRSRC}
 CFLAGS.gzipfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.pkgfs.c+= ${ZLIB_CFLAGS}
