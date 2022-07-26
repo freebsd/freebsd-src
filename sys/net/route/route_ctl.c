@@ -122,7 +122,7 @@ VNET_DEFINE_STATIC(uma_zone_t, rtzone);
 SYSCTL_NODE(_net_route, OID_AUTO, debug, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 void
-vnet_rtzone_init()
+vnet_rtzone_init(void)
 {
 
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
@@ -131,7 +131,7 @@ vnet_rtzone_init()
 
 #ifdef VIMAGE
 void
-vnet_rtzone_destroy()
+vnet_rtzone_destroy(void)
 {
 
 	uma_zdestroy(V_rtzone);
