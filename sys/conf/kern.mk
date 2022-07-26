@@ -34,6 +34,9 @@ NO_WUNUSED_BUT_SET_VARIABLE=	-Wno-unused-but-set-variable
 .if ${COMPILER_VERSION} >= 140000
 NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
+.if ${COMPILER_VERSION} >= 150000
+NO_WSTRICT_PROTOTYPES=		-Wno-strict-prototypes
+.endif
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.

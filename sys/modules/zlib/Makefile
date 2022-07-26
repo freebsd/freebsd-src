@@ -21,5 +21,8 @@ SRCS+=	zutil.c
 CWARNFLAGS.compress.c+=-Wno-cast-qual # compress:49
 CWARNFLAGS.deflate.c+=-Wno-cast-qual # deflate.c:415
 CWARNFLAGS.uncompr.c+=-Wno-cast-qual # uncompr:49
+CWARNFLAGS.crc32.c+=${NO_WSTRICT_PROTOTYPES} # crc32.c:586
+CWARNFLAGS.trees.c+=${NO_WSTRICT_PROTOTYPES} # trees.c:232
+CWARNFLAGS.zutil.c+=${NO_WSTRICT_PROTOTYPES} # zutil.c:27,32
 
 .include <bsd.kmod.mk>
