@@ -502,7 +502,7 @@ nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_orig,
  * Returns pointer to nhop_priv or NULL.
  */
 static struct nhop_priv *
-alloc_nhop_structure()
+alloc_nhop_structure(void)
 {
 	struct nhop_object *nh;
 	struct nhop_priv *nh_priv;
