@@ -42,4 +42,9 @@ release_pages(struct page **pages, int nr)
 		put_page(pages[i]);
 }
 
+static inline void
+mapping_clear_unevictable(vm_object_t mapping)
+{
+}
+
 #endif
