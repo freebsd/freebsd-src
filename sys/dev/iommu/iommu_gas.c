@@ -99,7 +99,7 @@ iommu_gas_alloc_entry(struct iommu_domain *domain, u_int flags)
 
 	res = uma_zalloc(iommu_map_entry_zone, ((flags & IOMMU_PGF_WAITOK) !=
 	    0 ? M_WAITOK : M_NOWAIT) | M_ZERO);
-	if (res != NULL) {
+	if (res != NULL && domain != NULL) {
 		res->domain = domain;
 		atomic_add_int(&domain->entries_cnt, 1);
 	}
@@ -113,7 +113,8 @@ iommu_gas_free_entry(struct iommu_domain *domain, struct iommu_map_entry *entry)
 	KASSERT(domain == entry->domain,
 	    ("mismatched free domain %p entry %p entry->domain %p", domain,
 	    entry, entry->domain));
-	atomic_subtract_int(&domain->entries_cnt, 1);
+	if (domain != NULL)
+		atomic_subtract_int(&domain->entries_cnt, 1);
 	uma_zfree(iommu_map_entry_zone, entry);
 }
 

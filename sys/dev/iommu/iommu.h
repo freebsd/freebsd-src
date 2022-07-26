@@ -56,7 +56,10 @@ struct iommu_map_entry {
 	iommu_gaddr_t free_down;	/* Max free space below the
 					   current R/B tree node */
 	u_int flags;
-	TAILQ_ENTRY(iommu_map_entry) dmamap_link; /* Link for dmamap entries */
+	union {
+		TAILQ_ENTRY(iommu_map_entry) dmamap_link; /* DMA map entries */
+		struct iommu_map_entry *tlb_flush_next;
+	};
 	RB_ENTRY(iommu_map_entry) rb_entry;	 /* Links for domain entries */
 	struct iommu_domain *domain;
 	struct iommu_qi_genseq gseq;
