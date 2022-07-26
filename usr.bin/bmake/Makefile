@@ -147,10 +147,23 @@ ${OBJS}: config.h
 
 # A simple unit-test driver to help catch regressions
 TEST_MAKE ?= ${.OBJDIR}/${PROG:T}
-accept test:
+accept test: .NOMETA
 	cd ${.CURDIR}/unit-tests && \
 	MAKEFLAGS= ${TEST_MAKE} -r -m / ${.TARGET} ${TESTS:DTESTS=${TESTS:Q}}
 
+
+.if make(test) && ${MK_AUTO_OBJ} == "yes"
+# because of the way unit-tests is visted for test
+# the objdir will not be auto-created as expected.
+.if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:Uno:M*/*} != ""
+_utobj = ${.OBJDIR}/unit-tests
+.else
+_utobj = ${.CURDIR}/unit-tests/${MAKEOBJDIR:Uobj}
+.endif
+utobj: .NOMETA
+	mkdir -p ${_utobj}
+test: utobj
+.endif
 
 # override some simple things
 BINDIR= /usr/bin

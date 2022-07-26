@@ -505,6 +505,7 @@ ENV.depsrc-optional+=   TZ=UTC
 ENV.deptgt-phony+=	MAKESYSPATH=.
 ENV.directive-undef=	ENV_VAR=env-value
 ENV.envfirst=		FROM_ENV=value-from-env
+ENV.opt-m-include-dir=	${MAKEOBJDIR:DMAKEOBJDIR=${MAKEOBJDIR}}
 ENV.varmisc=		FROM_ENV=env
 ENV.varmisc+=		FROM_ENV_BEFORE=env
 ENV.varmisc+=		FROM_ENV_AFTER=env
