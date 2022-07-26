@@ -1067,7 +1067,7 @@ vap_update_ht_protmode(void *arg, int npending)
 	struct ieee80211vap *vap = arg;
 	struct ieee80211vap *iv;
 	struct ieee80211com *ic = vap->iv_ic;
-	int num_vaps = 0, num_pure = 0, num_mixed = 0;
+	int num_vaps = 0, num_pure = 0;
 	int num_optional = 0, num_ht2040 = 0, num_nonht = 0;
 	int num_ht_sta = 0, num_ht40_sta = 0, num_sta = 0;
 	int num_nonhtpr = 0;
@@ -1107,9 +1107,6 @@ vap_update_ht_protmode(void *arg, int npending)
 			break;
 		case IEEE80211_HTINFO_OPMODE_HT20PR:
 			num_ht2040++;
-			break;
-		case IEEE80211_HTINFO_OPMODE_MIXED:
-			num_mixed++;
 			break;
 		}
 
