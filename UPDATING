@@ -12,6 +12,26 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20220726:
+	13.1-RELEASE-p1	FreeBSD-SA-22:09.elf
+			FreeBSD-SA-22:11.vm
+			FreeBSD-SA-22:12.lib9p
+			FreeBSD-EN-22:16.kqueue
+			FreeBSD-EN-22:17.cam
+			FreeBSD-EN-22:19.pam_exec
+
+	Out of bounds read in elf_not_prpsinfo() [SA-22:09.elf]
+
+	Memory disclosure by stale virtual memory mapping [SA-22:11.vm]
+
+	Missing bounds check in 9p message handling [SA-22:12.lib9p]
+
+	kevent(2) timers fire too often [EN-22:16.kqueue]
+
+	Kernel memory corruption during SCSI error recovery [EN-22:17.cam]
+
+	NULL pointer dereference in pam_exec(8) [EN-22:19.pam_exec]
+
 20220516:
 	13.1-RELEASE.
 
