@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include "bootstrap.h"
 #include "host_syscall.h"
+#include "termios.h"
 
 static void hostcons_probe(struct console *cp);
 static int hostcons_init(int arg);
@@ -47,6 +48,8 @@ struct console hostconsole = {
 	hostcons_poll,
 };
 
+static struct host_termios old_settings;
+
 static void
 hostcons_probe(struct console *cp)
 {
@@ -57,9 +60,12 @@ hostcons_probe(struct console *cp)
 static int
 hostcons_init(int arg)
 {
+	struct host_termios new_settings;
 
-	/* XXX: set nonblocking */
-	/* tcsetattr(~(ICANON | ECHO)) */
+	host_tcgetattr(0, &old_settings);
+	new_settings = old_settings;
+	host_cfmakeraw(&new_settings);
+	host_tcsetattr(0, HOST_TCSANOW, &new_settings);
 
 	return (0);
 }
@@ -94,4 +100,3 @@ hostcons_poll()
 	ret = host_select(32, &fds, NULL, NULL, &tv);
 	return (ret > 0);
 }
-
