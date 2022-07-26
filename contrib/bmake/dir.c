@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.278 2022/02/04 23:22:19 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.279 2022/05/07 21:19:43 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -138,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.278 2022/02/04 23:22:19 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.279 2022/05/07 21:19:43 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -1035,7 +1035,7 @@ DirLookupAbs(CachedDir *dir, const char *name, const char *cp)
 }
 
 /*
- * Find the file given on "." or curdir.
+ * Find the given file in "." or curdir.
  * Return the freshly allocated path to the file, or NULL.
  */
 static char *

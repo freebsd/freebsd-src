@@ -13,6 +13,9 @@ CondParser_Eval: "${:Uvalue}"
 make: "cond-token-string.mk" line 68: A nonempty variable expression evaluates to true.
 CondParser_Eval: "${:U}"
 make: "cond-token-string.mk" line 76: An empty variable evaluates to false.
+CondParser_Eval: ("${VAR}")
+CondParser_Eval: "quoted" == quoted
+Comparing "quoted" == "quoted"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

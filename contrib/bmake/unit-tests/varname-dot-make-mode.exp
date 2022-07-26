@@ -1,1 +1,31 @@
+randomize compat mode:
+: Making a
+: Making a
+: Making a
+: Making b
+: Making b
+: Making b
+: Making c
+: Making c
+: Making c
+randomize jobs mode (-j1):
+: Making a
+: Making a
+: Making a
+: Making b
+: Making b
+: Making b
+: Making c
+: Making c
+: Making c
+randomize jobs mode (-j5):
+: Making a
+: Making a
+: Making a
+: Making b
+: Making b
+: Making b
+: Making c
+: Making c
+: Making c
 exit status 0

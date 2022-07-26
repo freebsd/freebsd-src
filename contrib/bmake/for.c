@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.167 2022/02/04 23:22:19 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.168 2022/06/12 16:09:21 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.167 2022/02/04 23:22:19 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.168 2022/06/12 16:09:21 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -269,7 +269,14 @@ For_Accum(const char *line, int *forLevel)
 	return true;
 }
 
-
+/*
+ * When the body of a '.for i' loop is prepared for an iteration, each
+ * occurrence of $i in the body is replaced with ${:U...}, inserting the
+ * value of the item.  If this item contains a '$', it may be the start of a
+ * variable expression.  This expression is copied verbatim, its length is
+ * determined here, in a rather naive way, ignoring escape characters and
+ * funny delimiters in modifiers like ':S}from}to}'.
+ */
 static size_t
 ExprLen(const char *s, const char *e)
 {

@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.238 2022/01/22 18:59:23 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.240 2022/05/07 17:49:47 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,16 +70,11 @@
  */
 
 /*
- * compat.c --
- *	The routines in this file implement the full-compatibility
- *	mode of PMake. Most of the special functionality of PMake
- *	is available in this mode. Things not supported:
- *	    - different shells.
- *	    - friendly variable substitution.
+ * This file implements the full-compatibility mode of make, which makes the
+ * targets without parallelism and without a custom shell.
  *
  * Interface:
- *	Compat_Run	Initialize things for this module and recreate
- *			thems as need creatin'
+ *	Compat_MakeAll	Initialize this module and make the given targets.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -99,7 +94,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.238 2022/01/22 18:59:23 rillig Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.240 2022/05/07 17:49:47 rillig Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -467,13 +462,65 @@ RunCommands(GNode *gn)
 }
 
 static void
+MakeInRandomOrder(GNode **gnodes, GNode **end, GNode *pgn)
+{
+	GNode **it;
+	size_t r;
+
+	for (r = (size_t)(end - gnodes); r >= 2; r--) {
+		/* Biased, but irrelevant in practice. */
+		size_t i = (size_t)random() % r;
+		GNode *t = gnodes[r - 1];
+		gnodes[r - 1] = gnodes[i];
+		gnodes[i] = t;
+	}
+
+	for (it = gnodes; it != end; it++)
+		Compat_Make(*it, pgn);
+}
+
+static void
+MakeWaitGroupsInRandomOrder(GNodeList *gnodes, GNode *pgn)
+{
+	Vector vec;
+	GNodeListNode *ln;
+	GNode **nodes;
+	size_t i, n, start;
+
+	Vector_Init(&vec, sizeof(GNode *));
+	for (ln = gnodes->first; ln != NULL; ln = ln->next)
+		*(GNode **)Vector_Push(&vec) = ln->datum;
+	nodes = vec.items;
+	n = vec.len;
+
+	start = 0;
+	for (i = 0; i < n; i++) {
+		if (nodes[i]->type & OP_WAIT) {
+			MakeInRandomOrder(nodes + start, nodes + i, pgn);
+			Compat_Make(nodes[i], pgn);
+			start = i + 1;
+		}
+	}
+	MakeInRandomOrder(nodes + start, nodes + i, pgn);
+
+	Vector_Done(&vec);
+}
+
+static void
 MakeNodes(GNodeList *gnodes, GNode *pgn)
 {
 	GNodeListNode *ln;
 
+	if (Lst_IsEmpty(gnodes))
+		return;
+	if (opts.randomizeTargets) {
+		MakeWaitGroupsInRandomOrder(gnodes, pgn);
+		return;
+	}
+
 	for (ln = gnodes->first; ln != NULL; ln = ln->next) {
-		GNode *cohort = ln->datum;
-		Compat_Make(cohort, pgn);
+		GNode *cgn = ln->datum;
+		Compat_Make(cgn, pgn);
 	}
 }
 
@@ -692,14 +739,8 @@ InitSignals(void)
 		bmake_signal(SIGQUIT, CompatInterrupt);
 }
 
-/*
- * Initialize this module and start making.
- *
- * Input:
- *	targs		The target nodes to re-create
- */
 void
-Compat_Run(GNodeList *targs)
+Compat_MakeAll(GNodeList *targs)
 {
 	GNode *errorNode = NULL;
 
