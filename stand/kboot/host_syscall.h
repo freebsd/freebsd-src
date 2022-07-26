@@ -160,6 +160,7 @@ int host_fstat(int fd, struct host_kstat *sb);
 int host_getdents64(int fd, void *dirp, int count);
 int host_getpid(void);
 int host_gettimeofday(struct host_timeval *a, void *b);
+int host_ioctl(int fd, unsigned long request, unsigned long arg);
 int host_kexec_load(unsigned long entry, unsigned long nsegs, struct host_kexec_segment *segs, unsigned long flags);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
 int host_mkdir(const char *, host_mode_t);
