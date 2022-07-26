@@ -1558,14 +1558,12 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 
 	STAILQ_FOREACH(nreq, &reqlist->contig_req_list, links) {
 		blkif_request_t		*ring_req;
-		u_int			 req_seg_idx;
 
 		ring_req	      = nreq->ring_req;
 		nr_sects              = 0;
 		nseg                  = ring_req->nr_segments;
 		nreq->nr_pages        = nseg;
 		nreq->nr_512b_sectors = 0;
-		req_seg_idx	      = 0;
 		sg	              = NULL;
 
 		/* Check that number of segments is sane. */
@@ -1619,7 +1617,6 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 			map++;
 			xbb_sg++;
 			seg_idx++;
-			req_seg_idx++;
 		}
 
 		/* Convert to the disk's sector size */
