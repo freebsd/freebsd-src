@@ -5,6 +5,7 @@
 #define SYS_getdents64		202
 #define	SYS_getpid		 20
 #define SYS_gettimeofday	 78
+#define SYS_ioctl		 54
 #define SYS_kexec_load		268
 #define SYS_llseek		140
 #define	SYS_mkdirat		287
