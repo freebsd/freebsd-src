@@ -3427,7 +3427,7 @@ buf_daemon_shutdown(void *arg __unused, int howto __unused)
 }
 
 static void
-buf_daemon()
+buf_daemon(void)
 {
 	struct bufdomain *bd;
 	int speedupreq;
