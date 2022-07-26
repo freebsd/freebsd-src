@@ -11,6 +11,26 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220726:
+	13.0-RELEASE-p12 FreeBSD-SA-22:09.elf
+			 FreeBSD-SA-22:10.aio
+			 FreeBSD-SA-22:11.vm
+			 FreeBSD-SA-22:12.lib9p
+			 FreeBSD-EN-22:17.cam
+			 FreeBSD-EN-22:19.pam_exec
+
+	Out of bounds read in elf_note_prpsinfo() [SA-22:09.elf]
+
+	AIO credential reference count leak [SA-22:10.aio]
+
+	Memory disclosure by stale virtual memory mapping [SA-22:11.vm]
+
+	Missing bounds check in 9p message handling [SA-22:12.lib9p]
+
+	Kernel memory corruption during SCSI error recovery [EN-22:17.cam]
+
+	NULL pointer dereference in pam_exec(8) [EN-22:19.pam_exec]
+
 20220405:
 	13.0-RELEASE-p11 FreeBSD-EN-22:15.pf
 			 FreeBSD-SA-22:04.netmap
