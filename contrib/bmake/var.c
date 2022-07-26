@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1019 2022/03/27 18:39:01 rillig Exp $	*/
+/*	$NetBSD: var.c,v 1.1025 2022/06/14 19:57:56 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@
 #include "metachar.h"
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1019 2022/03/27 18:39:01 rillig Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1025 2022/06/14 19:57:56 rillig Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -460,7 +460,6 @@ VarFindSubstring(Substring name, GNode *scope, bool elsewhere)
 	return var;
 }
 
-/* TODO: Replace these calls with VarFindSubstring, as far as possible. */
 static Var *
 VarFind(const char *name, GNode *scope, bool elsewhere)
 {
@@ -4147,15 +4146,15 @@ ParseVarname(const char **pp, char startc, char endc,
 	*pp = p;
 }
 
-static VarParseResult
-ValidShortVarname(char varname, const char *start)
+static bool
+IsShortVarnameValid(char varname, const char *start)
 {
 	if (varname != '$' && varname != ':' && varname != '}' &&
 	    varname != ')' && varname != '\0')
-		return VPR_OK;
+		return true;
 
 	if (!opts.strict)
-		return VPR_ERR;	/* XXX: Missing error message */
+		return false;	/* XXX: Missing error message */
 
 	if (varname == '$')
 		Parse_Error(PARSE_FATAL,
@@ -4166,7 +4165,7 @@ ValidShortVarname(char varname, const char *start)
 		Parse_Error(PARSE_FATAL,
 		    "Invalid variable name '%c', at \"%s\"", varname, start);
 
-	return VPR_ERR;
+	return false;
 }
 
 /*
@@ -4181,12 +4180,11 @@ ParseVarnameShort(char varname, const char **pp, GNode *scope,
 {
 	char name[2];
 	Var *v;
-	VarParseResult vpr;
+	const char *val;
 
-	vpr = ValidShortVarname(varname, *pp);
-	if (vpr != VPR_OK) {
-		(*pp)++;
-		*out_false_res = vpr;
+	if (!IsShortVarnameValid(varname, *pp)) {
+		(*pp)++;	/* only skip the '$' */
+		*out_false_res = VPR_ERR;
 		*out_false_val = var_Error;
 		return false;
 	}
@@ -4194,41 +4192,39 @@ ParseVarnameShort(char varname, const char **pp, GNode *scope,
 	name[0] = varname;
 	name[1] = '\0';
 	v = VarFind(name, scope, true);
-	if (v == NULL) {
-		const char *val;
-		*pp += 2;
+	if (v != NULL) {
+		/* No need to advance *pp, the calling code handles this. */
+		*out_true_var = v;
+		return true;
+	}
 
-		val = UndefinedShortVarValue(varname, scope);
-		if (val == NULL)
-			val = emode == VARE_UNDEFERR
-			    ? var_Error : varUndefined;
+	*pp += 2;
 
-		if (opts.strict && val == var_Error) {
-			Parse_Error(PARSE_FATAL,
-			    "Variable \"%s\" is undefined", name);
-			*out_false_res = VPR_ERR;
-			*out_false_val = val;
-			return false;
-		}
+	val = UndefinedShortVarValue(varname, scope);
+	if (val == NULL)
+		val = emode == VARE_UNDEFERR ? var_Error : varUndefined;
 
-		/*
-		 * XXX: This looks completely wrong.
-		 *
-		 * If undefined expressions are not allowed, this should
-		 * rather be VPR_ERR instead of VPR_UNDEF, together with an
-		 * error message.
-		 *
-		 * If undefined expressions are allowed, this should rather
-		 * be VPR_UNDEF instead of VPR_OK.
-		 */
-		*out_false_res = emode == VARE_UNDEFERR
-		    ? VPR_UNDEF : VPR_OK;
+	if (opts.strict && val == var_Error) {
+		Parse_Error(PARSE_FATAL,
+		    "Variable \"%s\" is undefined", name);
+		*out_false_res = VPR_ERR;
 		*out_false_val = val;
 		return false;
 	}
 
-	*out_true_var = v;
-	return true;
+	/*
+	 * XXX: This looks completely wrong.
+	 *
+	 * If undefined expressions are not allowed, this should
+	 * rather be VPR_ERR instead of VPR_UNDEF, together with an
+	 * error message.
+	 *
+	 * If undefined expressions are allowed, this should rather
+	 * be VPR_UNDEF instead of VPR_OK.
+	 */
+	*out_false_res = emode == VARE_UNDEFERR ? VPR_UNDEF : VPR_OK;
+	*out_false_val = val;
+	return false;
 }
 
 /* Find variables like @F or <D. */
@@ -4453,9 +4449,8 @@ Var_Parse_FastLane(const char **pp, VarEvalMode emode, FStr *out_value)
  *
  * Input:
  *	*pp		The string to parse.
- *			In CondParser_FuncCallEmpty, it may also point to the
- *			"y" of "empty(VARNAME:Modifiers)", which is
- *			syntactically the same.
+ *			When called from CondParser_FuncCallEmpty, it can
+ *			also point to the "y" of "empty(VARNAME:Modifiers)".
  *	scope		The scope for finding variables
  *	emode		Controls the exact details of parsing and evaluation
  *
@@ -4486,16 +4481,14 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 {
 	const char *p = *pp;
 	const char *const start = p;
-	/* true if have modifiers for the variable. */
-	bool haveModifier;
-	/* Starting character if variable in parens or braces. */
-	char startc;
-	/* Ending character if variable in parens or braces. */
-	char endc;
+	bool haveModifier;	/* true for ${VAR:...}, false for ${VAR} */
+	char startc;		/* the actual '{' or '(' or '\0' */
+	char endc;		/* the expected '}' or ')' or '\0' */
 	/*
-	 * true if the variable is local and we're expanding it in a
-	 * non-local scope. This is done to support dynamic sources.
-	 * The result is just the expression, unaltered.
+	 * true if the expression is based on one of the 7 predefined
+	 * variables that are local to a target, and the expression is
+	 * expanded in a non-local scope.  The result is the text of the
+	 * expression, unaltered.  This is needed to support dynamic sources.
 	 */
 	bool dynamic;
 	const char *extramodifiers;
@@ -4512,11 +4505,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 	extramodifiers = NULL;	/* extra modifiers to apply first */
 	dynamic = false;
 
-	/*
-	 * Appease GCC, which thinks that the variable might not be
-	 * initialized.
-	 */
-	endc = '\0';
+	endc = '\0';		/* Appease GCC. */
 
 	startc = p[1];
 	if (startc != '(' && startc != '{') {
@@ -4539,8 +4528,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 	if (v->inUse) {
 		if (scope->fname != NULL) {
 			fprintf(stderr, "In a command near ");
-			PrintLocation(stderr, false,
-			    scope->fname, scope->lineno);
+			PrintLocation(stderr, false, scope);
 		}
 		Fatal("Variable %s is recursive.", v->name.str);
 	}
@@ -4549,7 +4537,9 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 	 * XXX: This assignment creates an alias to the current value of the
 	 * variable.  This means that as long as the value of the expression
 	 * stays the same, the value of the variable must not change.
-	 * Using the '::=' modifier, it could be possible to do exactly this.
+	 * Using the '::=' modifier, it could be possible to trigger exactly
+	 * this situation.
+	 *
 	 * At the bottom of this function, the resulting value is compared to
 	 * the then-current value of the variable.  This might also invoke
 	 * undefined behavior.

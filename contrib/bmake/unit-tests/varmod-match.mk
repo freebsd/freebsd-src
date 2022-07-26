@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match.mk,v 1.8 2022/03/27 18:39:01 rillig Exp $
+# $NetBSD: varmod-match.mk,v 1.11 2022/06/11 09:15:49 rillig Exp $
 #
 # Tests for the :M variable modifier, which filters words that match the
 # given pattern.
@@ -28,9 +28,14 @@ NUMBERS=	One Two Three Four five six seven
 .  error
 .endif
 
-# Before 2020-06-13, this expression took quite a long time in Str_Match,
-# calling itself 601080390 times for 16 asterisks.
+# Before 2020-06-13, this expression called Str_Match 601,080,390 times.
+# Since 2020-06-13, this expression calls Str_Match 1 time.
 .if ${:U****************:M****************b}
+.endif
+
+# As of 2022-06-11, this expression calls Str_Match 5,242,223 times.
+# Adding another '*?' to the pattern calls Str_Match 41,261,143 times.
+.if ${:U..................................................b:M*?*?*?*?*?a}
 .endif
 
 # To match a dollar sign in a word, double it.
@@ -125,6 +130,12 @@ ${:U*}=		asterisk
 .  error
 .endif
 
+#	[\]	matches a single backslash
+WORDS=		a\b a[\]b ab
+.if ${WORDS:Ma[\]b} != "a\\b"
+.  error
+.endif
+
 #	:	terminates the pattern
 .if ${ A * :L:M:} != ""
 .  error
@@ -151,26 +162,95 @@ ${:U*}=		asterisk
 
 #	[\]	matches exactly a backslash; no escaping takes place in
 #		character ranges
-# Without the 'a' in the below expressions, the backslash would end a word and
-# thus influence how the string is split into words.
-.if ${ ${:U\\a} ${:U\\\\a} :L:M[\]a} != "\\a"
+# Without the 'a' in the below words, the backslash would end a word and thus
+# influence how the string is split into words.
+WORDS=		1\a 2\\a
+.if ${WORDS:M?[\]a} != "1\\a"
 .  error
 .endif
 
-#.MAKEFLAGS: -dcv
+#	[[-]]	May look like it would match a single '[', '\' or ']', but
+#		the inner ']' has two roles: it is the upper bound of the
+#		character range as well as the closing character of the
+#		character list.  The outer ']' is just a regular character.
+WORDS=		[ ] [] \] ]]
+.if ${WORDS:M[[-]]} != "[] \\] ]]"
+.  error
+.endif
+
+#	[b[-]a]
+#		Same as for '[[-]]': the character list stops at the first
+#		']', and the 'a]' is treated as a literal string.
+WORDS=		[a \a ]a []a \]a ]]a [a] \a] ]a] ba]
+.if ${WORDS:M[b[-]a]} != "[a] \\a] ]a] ba]"
+.  error
+.endif
+
+#	[-]	Matches a single '-' since the '-' only becomes part of a
+#		character range if it is preceded and followed by another
+#		character.
+WORDS=		- -]
+.if ${WORDS:M[-]} != "-"
+.  error
+.endif
+
+#	[	Incomplete empty character list, never matches.
+WORDS=		a a[
+.if ${WORDS:Ma[} != ""
+.  error
+.endif
+
+#	[^	Incomplete negated empty character list, matches any single
+#		character.
+WORDS=		a a[ aX
+.if ${WORDS:Ma[^} != "a[ aX"
+.  error
+.endif
+
+#	[-x1-3	Incomplete character list, matches those elements that can be
+#		parsed without lookahead.
+WORDS=		- + x xx 0 1 2 3 4 [x1-3
+.if ${WORDS:M[-x1-3} != "- x 1 2 3"
+.  error
+.endif
+
+#	[^-x1-3
+#		Incomplete negated character list, matches any character
+#		except those elements that can be parsed without lookahead.
+WORDS=		- + x xx 0 1 2 3 4 [x1-3
+.if ${WORDS:M[^-x1-3} != "+ 0 4"
+.  error
+.endif
+
+#	[\	Incomplete character list containing a single '\'.
 #
-# Incomplete patterns:
-#	[	matches TODO
-#	[x	matches TODO
-#	[^	matches TODO
-#	[-	matches TODO
-#	[xy	matches TODO
-#	[^x	matches TODO
-#	[\	matches TODO
+#		A word can only end with a backslash if the preceding
+#		character is a backslash as well; in all other cases the final
+#		backslash would escape the following space, making the space
+#		part of the word.  Only the very last word of a string can be
+#		'\', as there is no following space that could be escaped.
+WORDS=		\\ \a ${:Ux\\}
+.if ${WORDS:M?[\]} != "\\\\ x\\"
+.  error
+.endif
+
+#	[x-	Incomplete character list containing an incomplete character
+#		range, matches only the 'x'.
+WORDS=		[x- x x- y
+.if ${WORDS:M[x-} != "x"
+.  error
+.endif
+
+#	[^x-	Incomplete negated character list containing an incomplete
+#		character range; matches each word that does not have an 'x'
+#		at the position of the character list.
 #
-#	[x-	matches exactly 'x', doesn't match 'x-'
-#	[^x-	matches TODO
-#	\	matches never
+#		XXX: Even matches strings that are longer than a single
+#		character.
+WORDS=		[x- x x- y yyyyy
+.if ${WORDS:M[^x-} != "[x- y yyyyy"
+.  error
+.endif
 
 
 # The modifier ':tW' prevents splitting at whitespace.  Even leading and
@@ -182,5 +262,21 @@ ${:U*}=		asterisk
 # Without the modifier ':tW', the string is split into words.  All whitespace
 # around and between the words is normalized to a single space.
 .if ${   plain    string   :L:M*} != "plain string"
+.  error
+.endif
+
+
+# The pattern can come from a variable expression.  For single-letter
+# variables, either the short form or the long form can be used, just as
+# everywhere else.
+PRIMES=	2 3 5 7 11
+n=	2
+.if ${PRIMES:M$n} != "2"
+.  error
+.endif
+.if ${PRIMES:M${n}} != "2"
+.  error
+.endif
+.if ${PRIMES:M${:U2}} != "2"
 .  error
 .endif

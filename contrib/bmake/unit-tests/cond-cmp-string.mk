@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.15 2021/12/11 09:53:53 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.16 2022/05/08 06:51:27 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -133,6 +133,14 @@
 # Strings cannot be compared relationally, only for equality.
 .if "string" >= "string"
 .  error
+.else
+.  error
+.endif
+
+# Two variables with different values compare unequal.
+VAR1=	value1
+VAR2=	value2
+.if ${VAR1} != ${VAR2}
 .else
 .  error
 .endif

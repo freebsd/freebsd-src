@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-escape.mk,v 1.15 2022/01/27 20:15:14 rillig Exp $
+# $NetBSD: directive-for-escape.mk,v 1.16 2022/06/12 16:09:21 rillig Exp $
 #
 # Test escaping of special characters in the iteration values of a .for loop.
 # These values get expanded later using the :U variable modifier, and this
@@ -43,38 +43,67 @@ VALUES=		$$ $${V} $${V:=-with-modifier} $$(V) $$(V:=-with-modifier)
 .  info $i
 .endfor
 
+
 # Try to cover the code for nested '{}' in ExprLen, without success.
 #
 # The value of the variable VALUES is not meant to be a variable expression.
 # Instead, it is meant to represent literal text, the only escaping mechanism
 # being that each '$' is written as '$$'.
+VALUES=		$${UNDEF:U\$$\$$ {{}} end}
 #
 # The .for loop splits ${VALUES} into 3 words, at the space characters, since
 # the '$$' is an ordinary character and the spaces are not escaped.
 #	Word 1 is '${UNDEF:U\$\$'
 #	Word 2 is '{{}}'
 #	Word 3 is 'end}'
-# The first iteration expands the body of the .for loop to:
-# expect: .  info ${:U\${UNDEF\:U\\$\\$}
-# The modifier ':U' unescapes the '\$' to a simple '$'.
-# The modifier ':U' unescapes the '\:' to a simple ':'.
-# The modifier ':U' unescapes the '\\' to a simple '\'.
-# The modifier ':U' resolves the expression '$\' to the word 'backslash', due
-# to the following variable definition.
+#
+# Each of these words is now inserted in the body of the .for loop.
+.for i in ${VALUES}
+# $i
+.endfor
+#
+# When these words are injected into the body of the .for loop, each inside a
+# '${:U...}' expression, the result is:
+#
+# expect: For: loop body:
+# expect: # ${:U\${UNDEF\:U\\$\\$}
+# expect: For: loop body:
+# expect: # ${:U{{\}\}}
+# expect: For: loop body:
+# expect: # ${:Uend\}}
+# expect: For: end for 1
+#
+# The first of these expressions is the most interesting one, due to its many
+# special characters.  This expression is properly balanced:
+#
+#	Text	Meaning		Explanation
+#	\$	$		escaped
+#	{	{		ordinary text
+#	UNDEF	UNDEF		ordinary text
+#	\:	:		escaped
+#	U	U		ordinary text
+#	\\	\		escaped
+#	$\	(expr)		an expression, the variable name is '\'
+#	\$	$		escaped
+#
+# To make the expression '$\' visible, define it to an actual word:
 ${:U\\}=	backslash
-# FIXME: There was no expression '$\' in the original text of the previous
-# line, that's a surprise in the parser.
-# The modifier ':U' unescapes the '\$' to a simple '$'.
-# expect+4: ${UNDEF:U\backslash$
-VALUES=		$${UNDEF:U\$$\$$ {{}} end}
-# XXX: Where in the code does the '\$\$' get converted into a single '\$'?
 .for i in ${VALUES}
 .  info $i
 .endfor
+#
+# expect-3: ${UNDEF:U\backslash$
+# expect-4: {{}}
+# expect-5: end}
+#
+# FIXME: There was no expression '$\' in the original text of the variable
+# 'VALUES', that's a surprise in the parser.
+
 
 # Second try to cover the code for nested '{}' in ExprLen.
 #
-# XXX: It is wrong that ExprLen requires the braces to be balanced.
+# XXX: It is not the job of ExprLen to parse an expression, it is naive to
+# expect ExprLen to get all the details right in just a few lines of code.
 # Each variable modifier has its own inconsistent way of parsing nested
 # variable expressions, braces and parentheses.  (Compare ':M', ':S', and
 # ':D' for details.)  The only sensible thing to do is therefore to let

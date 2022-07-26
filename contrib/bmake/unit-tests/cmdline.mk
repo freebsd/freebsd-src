@@ -1,4 +1,4 @@
-# $NetBSD: cmdline.mk,v 1.3 2021/02/06 18:26:03 sjg Exp $
+# $NetBSD: cmdline.mk,v 1.4 2022/06/10 18:58:07 rillig Exp $
 #
 # Tests for command line parsing and related special variables.
 
@@ -11,6 +11,7 @@ DIR12=		${TMPBASE}/${SUB1}/${SUB2}
 
 all: prepare-dirs
 all: makeobjdir-direct makeobjdir-indirect
+all: space-and-comment
 
 prepare-dirs:
 	@rm -rf ${DIR2} ${DIR12}
@@ -34,3 +35,24 @@ makeobjdir-indirect:
 
 show-objdir:
 	@echo $@: ${.OBJDIR:Q}
+
+
+# Variable assignments in the command line are handled differently from
+# variable assignments in makefiles.  In the command line, trailing whitespace
+# is preserved, and the '#' does not start a comment.  This is because the
+# low-level parsing from ParseRawLine does not take place.
+#
+# Preserving '#' and trailing whitespace has the benefit that when passing
+# such values to sub-makes via MAKEFLAGS, no special encoding is needed.
+# Leading whitespace in the variable value is discarded though, which makes
+# the behavior inconsistent.
+space-and-comment: .PHONY
+	@echo $@:
+
+	@env -i \
+	    ${MAKE} -r -f /dev/null ' VAR= value # no comment ' -v VAR \
+	| sed 's,$$,$$,'
+
+	@env -i MAKEFLAGS="' VAR= value # no comment '" \
+	    ${MAKE} -r -f /dev/null -v VAR \
+	| sed 's,$$,$$,'

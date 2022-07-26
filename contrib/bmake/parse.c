@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.670 2022/04/18 16:09:05 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.681 2022/07/24 20:25:23 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.670 2022/04/18 16:09:05 sjg Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.681 2022/07/24 20:25:23 rillig Exp $");
 
 /*
  * A file being read.
@@ -325,7 +325,7 @@ CurFile(void)
 }
 
 static Buffer
-loadfile(const char *path, int fd)
+LoadFile(const char *path, int fd)
 {
 	ssize_t n;
 	Buffer buf;
@@ -452,10 +452,22 @@ FindKeyword(const char *str)
 }
 
 void
-PrintLocation(FILE *f, bool useVars, const char *fname, unsigned lineno)
+PrintLocation(FILE *f, bool useVars, const GNode *gn)
 {
 	char dirbuf[MAXPATHLEN + 1];
 	FStr dir, base;
+	const char *fname;
+	unsigned lineno;
+
+	if (gn != NULL) {
+		fname = gn->fname;
+		lineno = gn->lineno;
+	} else if (includes.len > 0) {
+		IncludedFile *curFile = CurFile();
+		fname = curFile->name.str;
+		lineno = curFile->lineno;
+	} else
+		return;
 
 	if (!useVars || fname[0] == '/' || strcmp(fname, "(stdin)") == 0) {
 		(void)fprintf(f, "\"%s\" line %u: ", fname, lineno);
@@ -478,16 +490,15 @@ PrintLocation(FILE *f, bool useVars, const char *fname, unsigned lineno)
 	FStr_Done(&dir);
 }
 
-static void MAKE_ATTR_PRINTFLIKE(6, 0)
-ParseVErrorInternal(FILE *f, bool useVars, const char *fname, unsigned lineno,
+static void MAKE_ATTR_PRINTFLIKE(5, 0)
+ParseVErrorInternal(FILE *f, bool useVars, const GNode *gn,
 		    ParseErrorLevel level, const char *fmt, va_list ap)
 {
 	static bool fatal_warning_error_printed = false;
 
 	(void)fprintf(f, "%s: ", progname);
 
-	if (fname != NULL)
-		PrintLocation(f, useVars, fname, lineno);
+	PrintLocation(f, useVars, gn);
 	if (level == PARSE_WARNING)
 		(void)fprintf(f, "warning: ");
 	(void)vfprintf(f, fmt, ap);
@@ -508,20 +519,20 @@ ParseVErrorInternal(FILE *f, bool useVars, const char *fname, unsigned lineno,
 		PrintStackTrace(false);
 }
 
-static void MAKE_ATTR_PRINTFLIKE(4, 5)
-ParseErrorInternal(const char *fname, unsigned lineno,
+static void MAKE_ATTR_PRINTFLIKE(3, 4)
+ParseErrorInternal(const GNode *gn,
 		   ParseErrorLevel level, const char *fmt, ...)
 {
 	va_list ap;
 
 	(void)fflush(stdout);
 	va_start(ap, fmt);
-	ParseVErrorInternal(stderr, false, fname, lineno, level, fmt, ap);
+	ParseVErrorInternal(stderr, false, gn, level, fmt, ap);
 	va_end(ap);
 
 	if (opts.debug_file != stdout && opts.debug_file != stderr) {
 		va_start(ap, fmt);
-		ParseVErrorInternal(opts.debug_file, false, fname, lineno,
+		ParseVErrorInternal(opts.debug_file, false, gn,
 		    level, fmt, ap);
 		va_end(ap);
 	}
@@ -539,26 +550,15 @@ void
 Parse_Error(ParseErrorLevel level, const char *fmt, ...)
 {
 	va_list ap;
-	const char *fname;
-	unsigned lineno;
-
-	if (includes.len == 0) {
-		fname = NULL;
-		lineno = 0;
-	} else {
-		IncludedFile *curFile = CurFile();
-		fname = curFile->name.str;
-		lineno = curFile->lineno;
-	}
 
 	(void)fflush(stdout);
 	va_start(ap, fmt);
-	ParseVErrorInternal(stderr, true, fname, lineno, level, fmt, ap);
+	ParseVErrorInternal(stderr, true, NULL, level, fmt, ap);
 	va_end(ap);
 
 	if (opts.debug_file != stdout && opts.debug_file != stderr) {
 		va_start(ap, fmt);
-		ParseVErrorInternal(opts.debug_file, true, fname, lineno,
+		ParseVErrorInternal(opts.debug_file, true, NULL,
 		    level, fmt, ap);
 		va_end(ap);
 	}
@@ -714,11 +714,11 @@ static void
 ApplyDependencySourceWait(bool isSpecial)
 {
 	static unsigned wait_number = 0;
-	char wait_src[16];
+	char name[6 + 10 + 1];
 	GNode *gn;
 
-	snprintf(wait_src, sizeof wait_src, ".WAIT_%u", ++wait_number);
-	gn = Targ_NewInternalNode(wait_src);
+	snprintf(name, sizeof name, ".WAIT_%u", ++wait_number);
+	gn = Targ_NewInternalNode(name);
 	if (doing_depend)
 		RememberLocation(gn);
 	gn->type = OP_WAIT | OP_PHONY | OP_DEPENDS | OP_NOTMAIN;
@@ -1037,27 +1037,34 @@ HandleDependencyTarget(const char *targetName,
 }
 
 static void
-HandleDependencyTargetMundane(char *targetName)
+HandleSingleDependencyTargetMundane(const char *name)
 {
-	StringList targetNames = LST_INIT;
+	GNode *gn = Suff_IsTransform(name)
+	    ? Suff_AddTransform(name)
+	    : Targ_GetNode(name);
+	if (doing_depend)
+		RememberLocation(gn);
 
+	Lst_Append(targets, gn);
+}
+
+static void
+HandleDependencyTargetMundane(const char *targetName)
+{
 	if (Dir_HasWildcards(targetName)) {
+		StringList targetNames = LST_INIT;
+
 		SearchPath *emptyPath = SearchPath_New();
 		SearchPath_Expand(emptyPath, targetName, &targetNames);
 		SearchPath_Free(emptyPath);
+
+		while (!Lst_IsEmpty(&targetNames)) {
+			char *targName = Lst_Dequeue(&targetNames);
+			HandleSingleDependencyTargetMundane(targName);
+			free(targName);
+		}
 	} else
-		Lst_Append(&targetNames, targetName);
-
-	while (!Lst_IsEmpty(&targetNames)) {
-		char *targName = Lst_Dequeue(&targetNames);
-		GNode *gn = Suff_IsTransform(targName)
-		    ? Suff_AddTransform(targName)
-		    : Targ_GetNode(targName);
-		if (doing_depend)
-			RememberLocation(gn);
-
-		Lst_Append(targets, gn);
-	}
+		HandleSingleDependencyTargetMundane(targetName);
 }
 
 static void
@@ -1113,10 +1120,12 @@ ParseDependencyOp(char **pp)
 {
 	if (**pp == '!')
 		return (*pp)++, OP_FORCE;
-	if ((*pp)[1] == ':')
+	if (**pp == ':' && (*pp)[1] == ':')
 		return *pp += 2, OP_DOUBLEDEP;
-	else
+	else if (**pp == ':')
 		return (*pp)++, OP_DEPENDS;
+	else
+		return OP_NONE;
 }
 
 static void
@@ -1129,6 +1138,56 @@ ClearPaths(SearchPathList *paths)
 	}
 
 	Dir_SetPATH();
+}
+
+static char *
+FindInDirOfIncludingFile(const char *file)
+{
+	char *fullname, *incdir, *slash, *newName;
+	int i;
+
+	fullname = NULL;
+	incdir = bmake_strdup(CurFile()->name.str);
+	slash = strrchr(incdir, '/');
+	if (slash != NULL) {
+		*slash = '\0';
+		/*
+		 * Now do lexical processing of leading "../" on the
+		 * filename.
+		 */
+		for (i = 0; strncmp(file + i, "../", 3) == 0; i += 3) {
+			slash = strrchr(incdir + 1, '/');
+			if (slash == NULL || strcmp(slash, "/..") == 0)
+				break;
+			*slash = '\0';
+		}
+		newName = str_concat3(incdir, "/", file + i);
+		fullname = Dir_FindFile(newName, parseIncPath);
+		if (fullname == NULL)
+			fullname = Dir_FindFile(newName, &dirSearchPath);
+		free(newName);
+	}
+	free(incdir);
+	return fullname;
+}
+
+static char *
+FindInQuotPath(const char *file)
+{
+	const char *suff;
+	SearchPath *suffPath;
+	char *fullname;
+
+	fullname = FindInDirOfIncludingFile(file);
+	if (fullname == NULL &&
+	    (suff = strrchr(file, '.')) != NULL &&
+	    (suffPath = Suff_GetPath(suff)) != NULL)
+		fullname = Dir_FindFile(file, suffPath);
+	if (fullname == NULL)
+		fullname = Dir_FindFile(file, parseIncPath);
+	if (fullname == NULL)
+		fullname = Dir_FindFile(file, &dirSearchPath);
+	return fullname;
 }
 
 /*
@@ -1146,77 +1205,14 @@ IncludeFile(const char *file, bool isSystem, bool depinc, bool silent)
 {
 	Buffer buf;
 	char *fullname;		/* full pathname of file */
-	char *newName;
-	char *slash, *incdir;
 	int fd;
-	int i;
 
 	fullname = file[0] == '/' ? bmake_strdup(file) : NULL;
 
-	if (fullname == NULL && !isSystem) {
-		/*
-		 * Include files contained in double-quotes are first searched
-		 * relative to the including file's location. We don't want to
-		 * cd there, of course, so we just tack on the old file's
-		 * leading path components and call Dir_FindFile to see if
-		 * we can locate the file.
-		 */
+	if (fullname == NULL && !isSystem)
+		fullname = FindInQuotPath(file);
 
-		incdir = bmake_strdup(CurFile()->name.str);
-		slash = strrchr(incdir, '/');
-		if (slash != NULL) {
-			*slash = '\0';
-			/*
-			 * Now do lexical processing of leading "../" on the
-			 * filename.
-			 */
-			for (i = 0; strncmp(file + i, "../", 3) == 0; i += 3) {
-				slash = strrchr(incdir + 1, '/');
-				if (slash == NULL || strcmp(slash, "/..") == 0)
-					break;
-				*slash = '\0';
-			}
-			newName = str_concat3(incdir, "/", file + i);
-			fullname = Dir_FindFile(newName, parseIncPath);
-			if (fullname == NULL)
-				fullname = Dir_FindFile(newName,
-				    &dirSearchPath);
-			free(newName);
-		}
-		free(incdir);
-
-		if (fullname == NULL) {
-			/*
-			 * Makefile wasn't found in same directory as included
-			 * makefile.
-			 *
-			 * Search for it first on the -I search path, then on
-			 * the .PATH search path, if not found in a -I
-			 * directory. If we have a suffix-specific path, we
-			 * should use that.
-			 */
-			const char *suff;
-			SearchPath *suffPath = NULL;
-
-			if ((suff = strrchr(file, '.')) != NULL) {
-				suffPath = Suff_GetPath(suff);
-				if (suffPath != NULL)
-					fullname = Dir_FindFile(file, suffPath);
-			}
-			if (fullname == NULL) {
-				fullname = Dir_FindFile(file, parseIncPath);
-				if (fullname == NULL)
-					fullname = Dir_FindFile(file,
-					    &dirSearchPath);
-			}
-		}
-	}
-
-	/* Looking for a system file or file still not found */
 	if (fullname == NULL) {
-		/*
-		 * Look for it on the system path
-		 */
 		SearchPath *path = Lst_IsEmpty(&sysIncPath->dirs)
 		    ? defSysIncPath : sysIncPath;
 		fullname = Dir_FindFile(file, path);
@@ -1228,16 +1224,14 @@ IncludeFile(const char *file, bool isSystem, bool depinc, bool silent)
 		return;
 	}
 
-	/* Actually open the file... */
-	fd = open(fullname, O_RDONLY);
-	if (fd == -1) {
+	if ((fd = open(fullname, O_RDONLY)) == -1) {
 		if (!silent)
 			Parse_Error(PARSE_FATAL, "Cannot open %s", fullname);
 		free(fullname);
 		return;
 	}
 
-	buf = loadfile(fullname, fd);
+	buf = LoadFile(fullname, fd);
 	(void)close(fd);
 
 	Parse_PushInput(fullname, 1, 0, buf, NULL);
@@ -1586,6 +1580,7 @@ ParseDependency(char *line)
 	ParseSpecial special;	/* in special targets, the children are
 				 * linked as children of the parent but not
 				 * vice versa */
+	GNodeType op;
 
 	DEBUG1(PARSE, "ParseDependency(%s)\n", line);
 	p = line;
@@ -1599,7 +1594,12 @@ ParseDependency(char *line)
 	if (!Lst_IsEmpty(targets))
 		CheckSpecialMundaneMixture(special);
 
-	ApplyDependencyOperator(ParseDependencyOp(&p));
+	op = ParseDependencyOp(&p);
+	if (op == OP_NONE) {
+		InvalidLineType(line);
+		goto out;
+	}
+	ApplyDependencyOperator(op);
 
 	pp_skip_whitespace(&p);
 
@@ -1945,7 +1945,7 @@ GNode_AddCommand(GNode *gn, char *cmd)
 		Parse_Error(PARSE_WARNING,
 		    "duplicate script for target \"%s\" ignored",
 		    gn->name);
-		ParseErrorInternal(gn->fname, gn->lineno, PARSE_WARNING,
+		ParseErrorInternal(gn, PARSE_WARNING,
 		    "using previous script for \"%s\" defined here",
 		    gn->name);
 #endif
@@ -2894,7 +2894,7 @@ Parse_File(const char *name, int fd)
 	char *line;
 	Buffer buf;
 
-	buf = loadfile(name, fd != -1 ? fd : STDIN_FILENO);
+	buf = LoadFile(name, fd != -1 ? fd : STDIN_FILENO);
 	if (fd != -1)
 		(void)close(fd);
 

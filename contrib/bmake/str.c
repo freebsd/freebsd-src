@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.89 2022/03/03 19:50:01 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.93 2022/06/11 09:24:07 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.89 2022/03/03 19:50:01 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.93 2022/06/11 09:24:07 rillig Exp $");
 
 
 static HashTable interned_strings;
@@ -219,7 +219,7 @@ Substring_Words(const char *str, bool expand)
 				if (word_start == NULL)
 					word_start = word_end;
 				*word_end++ = '\\';
-				/* catch '\' at end of line */
+				/* catch lonely '\' at end of string */
 				if (str_p[1] == '\0')
 					continue;
 				ch = *++str_p;
@@ -293,54 +293,56 @@ Str_Words(const char *str, bool expand)
 }
 
 /*
+ * XXX: In the extreme edge case that one of the characters is from the basic
+ * execution character set and the other isn't, the result of the comparison
+ * differs depending on whether plain char is signed or unsigned.
+ *
+ * An example is the character range from \xE4 to 'a', where \xE4 may come
+ * from U+00E4 'Latin small letter A with diaeresis'.
+ *
+ * If char is signed, \xE4 evaluates to -28, the first half of the condition
+ * becomes -28 <= '0' && '0' <= 'a', which evaluates to true.
+ *
+ * If char is unsigned, \xE4 evaluates to 228, the second half of the
+ * condition becomes 'a' <= '0' && '0' <= 228, which evaluates to false.
+ */
+static bool
+in_range(char e1, char c, char e2)
+{
+	return (e1 <= c && c <= e2) || (e2 <= c && c <= e1);
+}
+
+/*
  * Str_Match -- Test if a string matches a pattern like "*.[ch]".
  * The following special characters are known *?\[] (as in fnmatch(3)).
  *
  * XXX: this function does not detect or report malformed patterns.
+ *
+ * See varmod-match.mk for examples and edge cases.
  */
 bool
 Str_Match(const char *str, const char *pat)
 {
-	for (;;) {
-		/*
-		 * See if we're at the end of both the pattern and the
-		 * string. If so, we succeeded.  If we're at the end of the
-		 * pattern but not at the end of the string, we failed.
-		 */
-		if (*pat == '\0')
-			return *str == '\0';
-		if (*str == '\0' && *pat != '*')
-			return false;
-
-		/*
-		 * A '*' in the pattern matches any substring.  We handle this
-		 * by calling ourselves for each suffix of the string.
-		 */
-		if (*pat == '*') {
+	for (; *pat != '\0'; pat++, str++) {
+		if (*pat == '*') {	/* match any substring */
 			pat++;
 			while (*pat == '*')
 				pat++;
 			if (*pat == '\0')
 				return true;
-			while (*str != '\0') {
+			for (; *str != '\0'; str++)
 				if (Str_Match(str, pat))
 					return true;
-				str++;
-			}
 			return false;
 		}
 
-		/* A '?' in the pattern matches any single character. */
-		if (*pat == '?')
-			goto thisCharOK;
+		if (*str == '\0')
+			return false;
 
-		/*
-		 * A '[' in the pattern matches a character from a list.
-		 * The '[' is followed by the list of acceptable characters,
-		 * or by ranges (two characters separated by '-'). In these
-		 * character lists, the backslash is an ordinary character.
-		 */
-		if (*pat == '[') {
+		if (*pat == '?')	/* match any single character */
+			continue;
+
+		if (*pat == '[') {	/* match a character from a list */
 			bool neg = pat[1] == '^';
 			pat += neg ? 2 : 1;
 
@@ -350,23 +352,12 @@ Str_Match(const char *str, const char *pat)
 						break;
 					return false;
 				}
-				/*
-				 * XXX: This naive comparison makes the
-				 * control flow of the pattern parser
-				 * dependent on the actual value of the
-				 * string.  This is unpredictable.  It may be
-				 * though that the code only looks wrong but
-				 * actually all code paths result in the same
-				 * behavior.  This needs further tests.
-				 */
 				if (*pat == *str)
 					break;
 				if (pat[1] == '-') {
 					if (pat[2] == '\0')
 						return neg;
-					if (pat[0] <= *str && *str <= pat[2])
-						break;
-					if (pat[2] <= *str && *str <= pat[0])
+					if (in_range(pat[0], *str, pat[2]))
 						break;
 					pat += 2;
 				}
@@ -378,26 +369,16 @@ Str_Match(const char *str, const char *pat)
 				pat++;
 			if (*pat == '\0')
 				pat--;
-			goto thisCharOK;
+			continue;
 		}
 
-		/*
-		 * A backslash in the pattern matches the character following
-		 * it exactly.
-		 */
-		if (*pat == '\\') {
+		if (*pat == '\\')	/* match the next character exactly */
 			pat++;
-			if (*pat == '\0')
-				return false;
-		}
 
 		if (*pat != *str)
 			return false;
-
-	thisCharOK:
-		pat++;
-		str++;
 	}
+	return *str == '\0';
 }
 
 void

@@ -1,19 +1,20 @@
-# $NetBSD: hanoi-include.mk,v 1.2 2022/01/08 22:13:43 rillig Exp $
+# $NetBSD: hanoi-include.mk,v 1.3 2022/05/08 07:27:50 rillig Exp $
 #
-# Implements the Towers of Hanoi puzzle, thereby demonstrating a bunch of
-# more or less useful programming techniques:
+# Implements the Towers of Hanoi puzzle, demonstrating a bunch of more or less
+# useful programming techniques:
 #
-# * default assignment using the ?= assignment operator
-# * including the same file recursively (rather unusual)
-# * extracting the current value of a variable using the .for loop
-# * using shell commands for calculations since make is a text processor
-# * using the :: dependency operator for adding commands to a target
-# * on-the-fly variable assignment expressions using the ::= modifier
+#	* default assignment using the ?= assignment operator
+#	* including the same file recursively (rather unusual)
+#	* extracting the current value of a variable using the .for loop
+#	* using shell commands for calculations since make is a text processor
+#	* using the :: dependency operator for adding commands to a target
+#	* on-the-fly variable assignment expressions using the ::= modifier
 #
 # usage:
-#	env N=3 make -f hanoi-include.mk
-# endless loop:
-#	make -f hanoi-include.mk N=3
+#	env N=3 make -r -f hanoi-include.mk
+#
+# endless loop, since command line variables cannot be overridden:
+#	make -r -f hanoi-include.mk N=3
 
 N?=	5			# Move this number of disks ...
 FROM?=	A			# ... from this stack ...

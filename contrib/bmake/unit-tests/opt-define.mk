@@ -1,4 +1,4 @@
-# $NetBSD: opt-define.mk,v 1.3 2022/01/23 16:09:38 rillig Exp $
+# $NetBSD: opt-define.mk,v 1.4 2022/06/12 14:27:06 rillig Exp $
 #
 # Tests for the -D command line option, which defines global variables to the
 # value 1, like in the C preprocessor.
@@ -19,9 +19,21 @@ VAR=		overwritten
 .endif
 
 # The variable can be undefined.  If the variable had been defined in the
-# "Internal" scope instead, undefining it would have no effect.
+# "Internal" or in the "Command" scope instead, undefining it would have no
+# effect.
 .undef VAR
 .if defined(VAR)
+.  error
+.endif
+
+# The C preprocessor allows to define a macro with a specific value.  Make
+# behaves differently, it defines a variable with the name 'VAR=value' and the
+# value 1.
+.MAKEFLAGS: -DVAR=value
+.if defined(VAR)
+.  error
+.endif
+.if ${VAR=value} != "1"
 .  error
 .endif
 

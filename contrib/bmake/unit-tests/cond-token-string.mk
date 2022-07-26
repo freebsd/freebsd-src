@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-string.mk,v 1.4 2021/01/21 00:38:28 rillig Exp $
+# $NetBSD: cond-token-string.mk,v 1.6 2022/05/08 06:57:00 rillig Exp $
 #
 # Tests for quoted string literals in .if conditions.
 #
@@ -76,7 +76,24 @@
 .  info An empty variable evaluates to false.
 .endif
 
+# A non-empty string evaluates to true, no matter if it's a literal string or
+# if it contains variable expressions.  The parentheses are not necessary for
+# the parser, in this case their only purpose is to make the code harder to
+# read for humans.
+VAR=	value
+.if ("${VAR}")
+.else
+.  error
+.endif
+
+# In the conditions in .if directives, the left-hand side of a comparison must
+# be enclosed in quotes.  The right-hand side does not need to be enclosed in
+# quotes.
+.if "quoted" == quoted
+.else
+.  error
+.endif
+
 .MAKEFLAGS: -d0
 
-all:
-	@:;
+all: .PHONY

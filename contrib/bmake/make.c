@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.252 2022/01/09 15:48:30 rillig Exp $	*/
+/*	$NetBSD: make.c,v 1.255 2022/05/07 17:49:47 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -104,7 +104,7 @@
 #include "job.h"
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.252 2022/01/09 15:48:30 rillig Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.255 2022/05/07 17:49:47 rillig Exp $");
 
 /* Sequence # to detect recursion. */
 static unsigned int checked_seqno = 1;
@@ -125,17 +125,6 @@ debug_printf(const char *fmt, ...)
 	va_start(ap, fmt);
 	vfprintf(opts.debug_file, fmt, ap);
 	va_end(ap);
-}
-
-MAKE_ATTR_DEAD static void
-make_abort(GNode *gn, int lineno)
-{
-
-	debug_printf("make_abort from line %d\n", lineno);
-	Targ_PrintNode(gn, 2);
-	Targ_PrintNodes(&toBeMade, 2);
-	Targ_PrintGraph(3);
-	abort();
 }
 
 static const char *
@@ -644,7 +633,7 @@ IsWaitingForOrder(GNode *gn)
 	return false;
 }
 
-static void MakeBuildParent(GNode *, GNodeListNode *);
+static bool MakeBuildChild(GNode *, GNodeListNode *);
 
 static void
 ScheduleOrderSuccessors(GNode *gn)
@@ -652,8 +641,13 @@ ScheduleOrderSuccessors(GNode *gn)
 	GNodeListNode *toBeMadeNext = toBeMade.first;
 	GNodeListNode *ln;
 
-	for (ln = gn->order_succ.first; ln != NULL; ln = ln->next)
-		MakeBuildParent(ln->datum, toBeMadeNext);
+	for (ln = gn->order_succ.first; ln != NULL; ln = ln->next) {
+		GNode *succ = ln->datum;
+
+		if (succ->made == DEFERRED &&
+		    !MakeBuildChild(succ, toBeMadeNext))
+			succ->flags.doneOrder = true;
+	}
 }
 
 /*
@@ -938,6 +932,28 @@ GNode_SetLocalVars(GNode *gn)
 	gn->flags.doneAllsrc = true;
 }
 
+static void
+ScheduleRandomly(GNode *gn)
+{
+	GNodeListNode *ln;
+	size_t i, n;
+
+	n = 0;
+	for (ln = toBeMade.first; ln != NULL; ln = ln->next)
+		n++;
+	i = n > 0 ? (size_t)random() % (n + 1) : 0;
+
+	if (i == 0) {
+		Lst_Append(&toBeMade, gn);
+		return;
+	}
+	i--;
+
+	for (ln = toBeMade.first; i > 0; ln = ln->next)
+		i--;
+	Lst_InsertBefore(&toBeMade, ln, gn);
+}
+
 static bool
 MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 {
@@ -963,7 +979,9 @@ MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 	    cn->name, cn->cohort_num);
 
 	cn->made = REQUESTED;
-	if (toBeMadeNext == NULL)
+	if (opts.randomizeTargets && !(cn->type & OP_WAIT))
+		ScheduleRandomly(cn);
+	else if (toBeMadeNext == NULL)
 		Lst_Append(&toBeMade, cn);
 	else
 		Lst_InsertBefore(&toBeMade, toBeMadeNext, cn);
@@ -981,19 +999,6 @@ MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 	 * then don't add the next sibling.
 	 */
 	return cn->type & OP_WAIT && cn->unmade > 0;
-}
-
-/* When a .ORDER LHS node completes, we do this on each RHS. */
-static void
-MakeBuildParent(GNode *pn, GNodeListNode *toBeMadeNext)
-{
-	if (pn->made != DEFERRED)
-		return;
-
-	if (!MakeBuildChild(pn, toBeMadeNext)) {
-		/* When this node is built, reschedule its parents. */
-		pn->flags.doneOrder = true;
-	}
 }
 
 static void
@@ -1033,13 +1038,12 @@ MakeStartJobs(void)
 		DEBUG2(MAKE, "Examining %s%s...\n", gn->name, gn->cohort_num);
 
 		if (gn->made != REQUESTED) {
-			/*
-			 * XXX: Replace %d with string representation;
-			 * see made_name.
-			 */
-			DEBUG1(MAKE, "state %d\n", gn->made);
-
-			make_abort(gn, __LINE__);
+			debug_printf("internal error: made = %s\n",
+			    GNodeMade_Name(gn->made));
+			Targ_PrintNode(gn, 2);
+			Targ_PrintNodes(&toBeMade, 2);
+			Targ_PrintGraph(3);
+			abort();
 		}
 
 		if (gn->checked_seqno == checked_seqno) {

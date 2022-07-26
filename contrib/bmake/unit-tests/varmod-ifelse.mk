@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.18 2022/01/15 20:16:55 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.19 2022/05/08 06:51:27 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -133,7 +133,7 @@ VAR=	value
 # When parsing such an expression, the parser used to be strict.  It first
 # evaluated the left-hand side of the operator '&&' and then started parsing
 # the right-hand side 'no >= 10'.  The word 'no' is obviously a string
-# literal, not enclosed in quotes, which is ok, even on the left-hand side of
+# literal, not enclosed in quotes, which is OK, even on the left-hand side of
 # the comparison operator, but only because this is a condition in the
 # modifier ':?'.  In an ordinary directive '.if', this would be a parse error.
 # For strings, only the comparison operators '==' and '!=' are defined,
@@ -169,3 +169,16 @@ EMPTY=		# empty
 .info ${${ASTERISK}	:?true:false}
 # syntax error since the condition is completely blank.
 .info ${${EMPTY}	:?true:false}
+
+
+# Since the condition of the '?:' modifier is expanded before being parsed and
+# evaluated, it is common practice to enclose expressions in quotes, to avoid
+# producing syntactically invalid conditions such as ' == value'.  This only
+# works if the expanded values neither contain quotes nor backslashes.  For
+# strings containing quotes or backslashes, the '?:' modifier should not be
+# used.
+PRIMES=	2 3 5 7 11
+.if ${1 2 3 4 5:L:@n@$n:${ ("${PRIMES:M$n}" != "") :?prime:not_prime}@} != \
+  "1:not_prime 2:prime 3:prime 4:not_prime 5:prime"
+.  error
+.endif

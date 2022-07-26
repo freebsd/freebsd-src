@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.180 2022/04/18 21:25:37 sjg Exp $
+# $Id: Makefile,v 1.181 2022/06/13 00:18:20 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.312 2022/04/18 15:06:28 rillig Exp $
+# $NetBSD: Makefile,v 1.318 2022/06/10 21:28:50 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -83,7 +83,6 @@ TESTS+=		cond-token-plain
 TESTS+=		cond-token-string
 TESTS+=		cond-token-var
 TESTS+=		cond-undef-lint
-TESTS+=		cond1
 TESTS+=		counter
 TESTS+=		counter-append
 TESTS+=		dep
@@ -168,6 +167,7 @@ TESTS+=		directive-export-impl
 TESTS+=		directive-export-gmake
 TESTS+=		directive-export-literal
 TESTS+=		directive-for
+TESTS+=		directive-for-empty
 TESTS+=		directive-for-errors
 TESTS+=		directive-for-escape
 TESTS+=		directive-for-generating-endif
@@ -439,7 +439,6 @@ TESTS+=		varparse-dynamic
 TESTS+=		varparse-errors
 TESTS+=		varparse-mod
 TESTS+=		varparse-undef-partial
-TESTS+=		varquote
 
 # some shells have quirks
 _shell := ${.SHELL:tA:T}
@@ -579,8 +578,10 @@ SED_CMDS.varname-dot-shell+=	-e 's,\[/[^] ]*\],[(details omitted)],g'
 SED_CMDS.varname-empty=		${.OBJDIR .PARSEDIR .PATH .SHELL:L:@v@-e '/\\$v/d'@}
 
 # Some tests need an additional round of postprocessing.
+POSTPROC.depsrc-wait=		sed -e '/^---/d' -e 's,^\(: Making 3[abc]\)[123]$$,\1,'
 POSTPROC.deptgt-suffixes=	awk '/^\#\*\*\* Suffixes/,/^never-stop/'
 POSTPROC.gnode-submake=		awk '/Input graph/, /^$$/'
+POSTPROC.varname-dot-make-mode=	sed 's,^\(: Making [abc]\)[123]$$,\1,'
 
 # Some tests reuse other tests, which makes them unnecessarily fragile.
 export-all.rawout: export.mk
@@ -724,7 +725,7 @@ MAKE_TEST_ENV+=	MALLOC_CONF="junk:true"	# for jemalloc 510
 MAKE_TEST_ENV+= TMPDIR=${TMPDIR}
 
 .if ${.MAKE.OS} == "NetBSD"
-LIMIT_RESOURCES?=	ulimit -v 200000
+LIMIT_RESOURCES?=	ulimit -v 300000
 .endif
 LIMIT_RESOURCES?=	:
 
@@ -746,7 +747,7 @@ LIMIT_RESOURCES?=	:
 	echo $$status > ${.TARGET:R}.status
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-# Postprocess the test output so that the results can be compared.
+# Postprocess the test output to make the output platform-independent.
 #
 # always pretend .MAKE was called 'make'
 _SED_CMDS+=	-e 's,^${TEST_MAKE:T:S,.,\\.,g}[][0-9]*:,make:,'

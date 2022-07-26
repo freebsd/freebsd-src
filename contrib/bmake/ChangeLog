@@ -1,3 +1,32 @@
+2022-07-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220724
+	Merge with NetBSD make, pick up
+	o make.1: describe variable assignment and evaluation more precisely
+	o parse.c: fix out-of-bounds read when parsing an invalid line
+	o var.c: simplify return type of IsShortVarnameValid
+
+2022-06-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220612
+	Merge with NetBSD make, pick up
+	o allow to randomize build order of targets
+	.MAKE.MODE += randomize-targets can help uncover dependency bugs
+	within a makefile.
+	o compat.c: rename Compat_Run to Compat_MakeAll
+	o make.c: inline MakeBuildParent
+	inline make_abort, improve error details
+	o parse.c: reorganize Parse_Error
+	fix memory leak in wildcard targets and sources
+	separate cases in HandleDependencyTargetMundane
+	extract HandleSingleDependencyTargetMundane
+	rename loadfile to LoadFile
+	split IncludeFile into separate functions
+	condense code for searching a file in the paths
+	fix off-by-one error in buffer for .WAIT nodes
+	o str.c: condense Str_Match
+	make code for string matching syntactically more consistent
+
 2022-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20220418

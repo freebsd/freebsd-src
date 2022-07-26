@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# $Id: mkopt.sh,v 1.13 2020/08/19 17:51:53 sjg Exp $
+# $Id: mkopt.sh,v 1.15 2022/06/06 21:34:21 sjg Exp $
 #
-#	@(#) Copyright (c) 2014, 2020, Simon J. Gerraty
+#	@(#) Copyright (c) 2014-2022, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -84,9 +84,36 @@ _mk_opts_defaults() {
 	$OPTIONS_DEFAULT_DEPENDENT $__DEFAULT_DEPENDENT_OPTIONS
 }
 
+# _mk_cmdline_opts opt ...
+# look at the command line (saved in _cmdline)
+# to see any options we care about are being set with -DWITH*
+# or MK_*= if 'opt' is '*' then all options are of interest.
+_cmdline="$0 $@"
+_mk_cmdline_opts() {
+    for _x in $_cmdline
+    do
+	case "$_x" in
+	-DWITH*|${_MKOPT_PREFIX:-MK_}*)
+	    for _o in "$@"
+	    do
+		case "$_x" in
+		-DWITH_$_o|-DWITHOUT_$_o) eval ${_x#-D}=1;;
+		-DWITH_$_o=*|-DWITHOUT_$_o=*) eval ${_x#-D};;
+		${_MKOPT_PREFIX:-MK_}$_o=*) eval "$_x";;
+		esac
+	    done
+	    ;;
+	esac
+    done
+}
+
+
 case "/$0" in
 */mkopt*)
     _list=no
+    _mk_cmdline_opts '*'
+    _mk_opts no DEBUG
+    [ $MK_DEBUG = no ] || set -x
     while :
     do
 	case "$1" in

@@ -5,12 +5,13 @@ Comparing "five six seven" != "five six seven"
 CondParser_Eval: ${NUMBERS:M[^s]*[ex]} != "One Three five"
 Comparing "One Three five" != "One Three five"
 CondParser_Eval: ${:U****************:M****************b}
+CondParser_Eval: ${:U..................................................b:M*?*?*?*?*?a}
 CondParser_Eval: ${:Ua \$ sign:M*$$*} != "\$"
 Comparing "$" != "$"
 CondParser_Eval: ${:Ua \$ sign any-asterisk:M*\$*} != "any-asterisk"
 Comparing "any-asterisk" != "any-asterisk"
-make: "varmod-match.mk" line 146: Unknown modifier "]"
-make: "varmod-match.mk" line 146: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
+make: "varmod-match.mk" line 157: Unknown modifier "]"
+make: "varmod-match.mk" line 157: Malformed conditional (${ ${:U\:} ${:U\:\:} :L:M[:]} != ":")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

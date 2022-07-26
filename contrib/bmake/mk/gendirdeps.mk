@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.46 2020/08/19 17:51:53 sjg Exp $
+# $Id: gendirdeps.mk,v 1.47 2022/04/23 21:37:03 sjg Exp $
 
 # Copyright (c) 2011-2020, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -339,6 +339,8 @@ CAT_DEPEND ?= .depend
 .PHONY: ${_DEPENDFILE}
 .endif
 
+# set this to 'no' and we will not capture any
+# local depends
 LOCAL_DEPENDS_GUARD ?= _{.MAKE.LEVEL} > 0
 
 # 'cat .depend' should suffice, but if we are mixing build modes
@@ -351,6 +353,7 @@ ${_DEPENDFILE}: .NOMETA ${CAT_DEPEND:M.depend} ${META_FILES:O:u:@m@${exists($m):
 	echo '${DIRDEPS:@d@	$d \\${.newline}@}'; echo; \
 	${_include_src_dirdeps} \
 	echo '.include <dirdeps.mk>'; \
+	[ "${LOCAL_DEPENDS_GUARD:[1]:tl}" != no ] || exit 0; \
 	echo; \
 	echo '.if ${LOCAL_DEPENDS_GUARD}'; \
 	echo '# local dependencies - needed for -jN in clean tree'; \

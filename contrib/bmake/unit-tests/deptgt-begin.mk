@@ -1,4 +1,4 @@
-# $NetBSD: deptgt-begin.mk,v 1.5 2020/11/15 22:28:08 rillig Exp $
+# $NetBSD: deptgt-begin.mk,v 1.6 2022/05/07 08:01:20 rillig Exp $
 #
 # Tests for the special target .BEGIN in dependency declarations,
 # which is a container for commands that are run before any other
@@ -25,8 +25,8 @@ before-begin: .PHONY .NOTMAIN
 
 # Another way is to define a custom target and make that a .USE dependency.
 # For the .BEGIN target, .USE dependencies do not work though, since in
-# Compat_Run, the .USE and .USEBEFORE nodes are expanded right after the
-# .BEGIN target has been run, which is too late.
+# Compat_MakeAll, the .USE and .USEBEFORE nodes are expanded right after the
+# .BEGIN target has been made, which is too late.
 .BEGIN: use
 use: .USE .NOTMAIN
 	: Making $@ from a .USE dependency.
@@ -35,8 +35,8 @@ use: .USE .NOTMAIN
 # .BEGIN target.
 #
 # For the .BEGIN target, .USEBEFORE dependencies do not work though, since in
-# Compat_Run, the .USE and .USEBEFORE nodes are expanded right after the
-# .BEGIN target has been run, which is too late.
+# Compat_MakeAll, the .USE and .USEBEFORE nodes are expanded right after the
+# .BEGIN target has been made, which is too late.
 .BEGIN: use-before
 use-before: .USEBEFORE .NOTMAIN
 	: Making $@ from a .USEBEFORE dependency.

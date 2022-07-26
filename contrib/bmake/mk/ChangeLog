@@ -1,3 +1,23 @@
+2022-07-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220720
+
+	* prog.mk: handle PROG_CXX for more than just NetBSD
+
+2022-06-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220620
+
+	* yacc.mk: when we have *.y in SRCS used explicit rules and .ORDER
+	rather than just suffix rules
+
+2022-04-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220422
+
+	* gendirdeps.mk: If LOCAL_DEPENDS_GUARD is set to "no"
+	do not capture any local depends in Makefile.depend
+
 2022-03-25  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20220323
