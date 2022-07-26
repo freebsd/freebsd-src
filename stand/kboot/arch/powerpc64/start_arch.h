@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022 Netflix, Inc
  *
- * SPDX-Licnse-Identifier: BSD-2-Clause
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 /*
