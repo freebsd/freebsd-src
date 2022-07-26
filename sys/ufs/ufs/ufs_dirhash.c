@@ -1249,7 +1249,7 @@ ufsdirhash_recycle(int wanted)
  * Callback that frees some dirhashes when the system is low on virtual memory.
  */
 static void
-ufsdirhash_lowmem()
+ufsdirhash_lowmem(void)
 {
 	struct dirhash *dh, *dh_temp;
 	int memfreed, memwanted;
