@@ -179,7 +179,7 @@ static int pitchtab[] =
 };
 
 static void
-playinit()
+playinit(void)
 {
     octave = DFLT_OCTAVE;
     whole = (100 * SECS_PER_MIN * WHOLE_NOTE) / DFLT_TEMPO;
