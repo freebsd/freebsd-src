@@ -399,7 +399,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq,
  */
 #define N 2000
 static int
-acpi_timer_test()
+acpi_timer_test(void)
 {
     uint32_t last, this;
     int delta, max, max2, min, n;
