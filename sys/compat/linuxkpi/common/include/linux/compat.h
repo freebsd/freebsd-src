@@ -58,4 +58,7 @@ linux_set_current_flags(struct thread *td, int flags)
 	return (0);
 }
 
+#define	compat_ptr(x)		((void *)(uintptr_t)x)
+#define	ptr_to_compat(x)	((uintptr_t)x)
+
 #endif	/* _LINUXKPI_LINUX_COMPAT_H_ */
