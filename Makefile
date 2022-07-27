@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.117 2021/12/04 18:51:30 sjg Exp $
+#	$Id: Makefile,v 1.120 2022/07/26 23:02:54 sjg Exp $
 
 PROG=	bmake
 
@@ -215,7 +215,24 @@ install-mk:
 
 # A simple unit-test driver to help catch regressions
 TEST_MAKE ?= ${.OBJDIR}/${PROG:T}
-accept test:
+accept test: .NOMETA
 	cd ${.CURDIR}/unit-tests && \
 	MAKEFLAGS= ${TEST_MAKE} -r -m / ${.TARGET} ${TESTS:DTESTS=${TESTS:Q}}
 
+
+.if make(test) && ${MK_AUTO_OBJ} == "yes"
+# The test target above visits unit-tests with -r -m /
+# which prevents MK_AUTO_OBJ doing its job
+# so do it here
+.if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:U:M*/*} != ""
+_utobj = ${.OBJDIR}/unit-tests
+.else
+_utobj = ${.CURDIR}/unit-tests/${MAKEOBJDIR:Uobj}
+.endif
+utobj: .NOMETA
+	@test -d ${_utobj} && exit 0; \
+	echo "[Creating ${_utobj}...]"; \
+	umask ${OBJDIR_UMASK:U002}; \
+	mkdir -p ${_utobj}
+test: utobj
+.endif

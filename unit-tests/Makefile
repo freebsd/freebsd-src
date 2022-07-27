@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.181 2022/06/13 00:18:20 sjg Exp $
+# $Id: Makefile,v 1.182 2022/07/26 19:39:32 sjg Exp $
 #
 # $NetBSD: Makefile,v 1.318 2022/06/10 21:28:50 rillig Exp $
 #
@@ -501,6 +501,7 @@ ENV.depsrc-optional+=   TZ=UTC
 ENV.deptgt-phony+=	MAKESYSPATH=.
 ENV.directive-undef=	ENV_VAR=env-value
 ENV.envfirst=		FROM_ENV=value-from-env
+ENV.opt-m-include-dir=	${MAKEOBJDIR:DMAKEOBJDIR=${MAKEOBJDIR}}
 ENV.varmisc=		FROM_ENV=env
 ENV.varmisc+=		FROM_ENV_BEFORE=env
 ENV.varmisc+=		FROM_ENV_AFTER=env
