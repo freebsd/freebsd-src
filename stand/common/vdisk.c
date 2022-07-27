@@ -52,7 +52,7 @@ struct devsw vdisk_dev = {
 	.dv_close = vdisk_close,
 	.dv_ioctl = vdisk_ioctl,
 	.dv_print = vdisk_print,
-	.dv_cleanup = NULL
+	.dv_cleanup = nullsys,
 };
 
 typedef STAILQ_HEAD(vdisk_info_list, vdisk_info) vdisk_info_list_t;

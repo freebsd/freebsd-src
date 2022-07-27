@@ -94,7 +94,7 @@ struct devsw efihttp_dev = {
 	.dv_close =	efihttp_dev_close,
 	.dv_ioctl =	noioctl,
 	.dv_print =	NULL,
-	.dv_cleanup =	NULL,
+	.dv_cleanup =	nullsys,
 };
 
 struct fs_ops efihttp_fsops = {
