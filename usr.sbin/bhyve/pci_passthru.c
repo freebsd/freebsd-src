@@ -1094,7 +1094,7 @@ passthru_addr_rom(struct pci_devinst *const pi, const int idx,
 	} else {
 		if (vm_mmap_memseg(pi->pi_vmctx, addr, VM_PCIROM,
 			pi->pi_romoffset, size, PROT_READ | PROT_EXEC) != 0) {
-			errx(4, "%s: mnmap_memseg @ [%016lx - %016lx]  failed",
+			errx(4, "%s: mmap_memseg @ [%016lx - %016lx]  failed",
 			    __func__, addr, addr + size);
 		}
 	}
