@@ -12,7 +12,7 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.117 2021/12/04 18:51:30 sjg Exp $
+#	$Id: Makefile,v 1.120 2022/07/26 23:02:54 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 
@@ -153,14 +153,18 @@ accept test: .NOMETA
 
 
 .if make(test) && ${MK_AUTO_OBJ} == "yes"
-# because of the way unit-tests is visted for test
-# the objdir will not be auto-created as expected.
-.if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:Uno:M*/*} != ""
+# The test target above visits unit-tests with -r -m /
+# which prevents MK_AUTO_OBJ doing its job
+# so do it here
+.if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:U:M*/*} != ""
 _utobj = ${.OBJDIR}/unit-tests
 .else
 _utobj = ${.CURDIR}/unit-tests/${MAKEOBJDIR:Uobj}
 .endif
 utobj: .NOMETA
+	@test -d ${_utobj} && exit 0; \
+	echo "[Creating ${_utobj}...]"; \
+	umask ${OBJDIR_UMASK:U002}; \
 	mkdir -p ${_utobj}
 test: utobj
 .endif
