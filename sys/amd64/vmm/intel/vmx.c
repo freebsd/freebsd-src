@@ -2790,8 +2790,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		SDT_PROBE3(vmm, vmx, exit, vminsn, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_VMINSN;
 		break;
+	case EXIT_REASON_INVD:
 	case EXIT_REASON_WBINVD:
-		/* ignore WBINVD */
+		/* ignore exit */
 		handled = HANDLED;
 		break;
 	default:
