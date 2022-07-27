@@ -351,7 +351,7 @@ struct devsw efinet_dev = {
 	.dv_close = NULL,		/* Will be set in efinet_dev_init */
 	.dv_ioctl = noioctl,
 	.dv_print = efinet_dev_print,
-	.dv_cleanup = NULL
+	.dv_cleanup = nullsys,
 };
 
 static int
