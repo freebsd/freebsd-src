@@ -4266,9 +4266,10 @@ bool llvm::getConstantDataArrayInfo(const Value *V,
   return true;
 }
 
-/// This function computes the length of a null-terminated C string pointed to
-/// by V. If successful, it returns true and returns the string in Str.
-/// If unsuccessful, it returns false.
+/// Extract bytes from the initializer of the constant array V, which need
+/// not be a nul-terminated string.  On success, store the bytes in Str and
+/// return true.  When TrimAtNul is set, Str will contain only the bytes up
+/// to but not including the first nul.  Return false on failure.
 bool llvm::getConstantStringInfo(const Value *V, StringRef &Str,
                                  uint64_t Offset, bool TrimAtNul) {
   ConstantDataArraySlice Slice;
@@ -6543,7 +6544,6 @@ bool llvm::matchSimpleRecurrence(const BinaryOperator *I, PHINode *&P,
 static bool isTruePredicate(CmpInst::Predicate Pred, const Value *LHS,
                             const Value *RHS, const DataLayout &DL,
                             unsigned Depth) {
-  assert(!LHS->getType()->isVectorTy() && "TODO: extend to handle vectors!");
   if (ICmpInst::isTrueWhenEqual(Pred) && LHS == RHS)
     return true;
 
@@ -6656,14 +6656,12 @@ static Optional<bool> isImpliedCondMatchingOperands(CmpInst::Predicate APred,
 /// Return true if "icmp APred X, C1" implies "icmp BPred X, C2" is true.
 /// Return false if "icmp APred X, C1" implies "icmp BPred X, C2" is false.
 /// Otherwise, return None if we can't infer anything.
-static Optional<bool>
-isImpliedCondMatchingImmOperands(CmpInst::Predicate APred,
-                                 const ConstantInt *C1,
-                                 CmpInst::Predicate BPred,
-                                 const ConstantInt *C2) {
-  ConstantRange DomCR =
-      ConstantRange::makeExactICmpRegion(APred, C1->getValue());
-  ConstantRange CR = ConstantRange::makeExactICmpRegion(BPred, C2->getValue());
+static Optional<bool> isImpliedCondMatchingImmOperands(CmpInst::Predicate APred,
+                                                       const APInt &C1,
+                                                       CmpInst::Predicate BPred,
+                                                       const APInt &C2) {
+  ConstantRange DomCR = ConstantRange::makeExactICmpRegion(APred, C1);
+  ConstantRange CR = ConstantRange::makeExactICmpRegion(BPred, C2);
   ConstantRange Intersection = DomCR.intersectWith(CR);
   ConstantRange Difference = DomCR.difference(CR);
   if (Intersection.isEmptySet())
@@ -6701,14 +6699,9 @@ static Optional<bool> isImpliedCondICmps(const ICmpInst *LHS,
 
   // Can we infer anything when the LHS operands match and the RHS operands are
   // constants (not necessarily matching)?
-  if (ALHS == BLHS && isa<ConstantInt>(ARHS) && isa<ConstantInt>(BRHS)) {
-    if (Optional<bool> Implication = isImpliedCondMatchingImmOperands(
-            APred, cast<ConstantInt>(ARHS), BPred, cast<ConstantInt>(BRHS)))
-      return Implication;
-    // No amount of additional analysis will infer the second condition, so
-    // early exit.
-    return None;
-  }
+  const APInt *AC, *BC;
+  if (ALHS == BLHS && match(ARHS, m_APInt(AC)) && match(BRHS, m_APInt(BC)))
+    return isImpliedCondMatchingImmOperands(APred, *AC, BPred, *BC);
 
   if (APred == BPred)
     return isImpliedCondOperands(APred, ALHS, ARHS, BLHS, BRHS, DL, Depth);
@@ -6761,14 +6754,8 @@ llvm::isImpliedCondition(const Value *LHS, CmpInst::Predicate RHSPred,
   if (RHSOp0->getType()->isVectorTy() != LHS->getType()->isVectorTy())
     return None;
 
-  Type *OpTy = LHS->getType();
-  assert(OpTy->isIntOrIntVectorTy(1) && "Expected integer type only!");
-
-  // FIXME: Extending the code below to handle vectors.
-  if (OpTy->isVectorTy())
-    return None;
-
-  assert(OpTy->isIntegerTy(1) && "implied by above");
+  assert(LHS->getType()->isIntOrIntVectorTy(1) &&
+         "Expected integer type only!");
 
   // Both LHS and RHS are icmps.
   const ICmpInst *LHSCmp = dyn_cast<ICmpInst>(LHS);

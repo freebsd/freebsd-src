@@ -111,19 +111,19 @@ private:
   // COMDAT sequence.
   struct ComdatExportRequest {
     COFFSymbolIndex SymbolIndex;
-    COFFSectionIndex SectionIndex;
     jitlink::Linkage Linkage;
   };
-  Optional<ComdatExportRequest> PendingComdatExport;
+  std::vector<Optional<ComdatExportRequest>> PendingComdatExports;
 
   // This represents a pending request to create a weak external symbol with a
   // name.
-  struct WeakAliasRequest {
+  struct WeakExternalRequest {
     COFFSymbolIndex Alias;
     COFFSymbolIndex Target;
+    uint32_t Characteristics;
     StringRef SymbolName;
   };
-  std::vector<WeakAliasRequest> WeakAliasRequests;
+  std::vector<WeakExternalRequest> WeakExternalRequests;
 
   // Per COFF section jitlink symbol set sorted by offset.
   // Used for calculating implicit size of defined symbols.
@@ -162,6 +162,8 @@ private:
   Section *CommonSection = nullptr;
   std::vector<Block *> GraphBlocks;
   std::vector<Symbol *> GraphSymbols;
+
+  DenseMap<StringRef, Symbol *> ExternalSymbols;
 };
 
 template <typename RelocHandlerFunction>
