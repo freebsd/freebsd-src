@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2022
+.Dd July 28, 2022
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -353,9 +353,9 @@ Seconds, a number from 0 to 60
 Everything but the minutes is optional.
 .Pp
 .Nm
-understands the time zone definitions in the
-.Sy tzdata
-package located in
+understands the time zone definitions from the IANA Time Zone Database,
+.Sy tzdata ,
+located in
 .Pa /usr/share/zoneinfo .
 Time changes for Daylight Saving Time, standard time, leap seconds
 and leap years are handled automatically.
@@ -367,9 +367,8 @@ If the file or symlink
 exists, it is interpreted as a time zone definition file, usually in
 the directory hierarchy
 .Pa /usr/share/zoneinfo ,
-which contains the time zone definitions from the
-.Sy tzdata
-package.
+which contains the time zone definitions from
+.Sy tzdata .
 .Pp
 If the environment variable
 .Ev TZ
@@ -578,9 +577,8 @@ A number of options were added and then removed again, including the
 (set DST flag) and
 .Fl t
 (set negative time zone offset).
-Time zones are now handled by the
-.Sy tzdata
-package.
+Time zones are now handled by code bundled with
+.Sy tzdata .
 .Pp
 The
 .Fl I
