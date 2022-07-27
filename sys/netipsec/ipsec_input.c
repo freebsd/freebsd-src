@@ -276,6 +276,7 @@ ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
 	struct icmp *icp;
 	struct ip *ip = v;
 	uint32_t pmtu, spi;
+	uint32_t max_pmtu;
 	uint8_t proto;
 
 	if (code != PRC_MSGSIZE || ip == NULL)
@@ -304,7 +305,15 @@ ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
 
 	memset(&inc, 0, sizeof(inc));
 	inc.inc_faddr = satosin(sa)->sin_addr;
-	tcp_hc_updatemtu(&inc, pmtu);
+
+	/* Update pmtu only if its smaller than the current one. */
+	max_pmtu = tcp_hc_getmtu(&inc);
+	if (max_pmtu == 0)
+		max_pmtu = tcp_maxmtu(&inc, NULL);
+
+	if (pmtu < max_pmtu)
+		tcp_hc_updatemtu(&inc, pmtu);
+
 	return (0);
 }
 
