@@ -1178,13 +1178,21 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_RIP, rip)) != 0)
 		goto done;
 
+	/*
+	 * According to Intels Software Developer Manual CR0 should be
+	 * initialized with CR0_ET | CR0_NW | CR0_CD but that crashes some
+	 * guests like Windows.
+	 */
 	cr0 = CR0_NE;
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR0, cr0)) != 0)
 		goto done;
 
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR2, zero)) != 0)
+		goto done;
+
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR3, zero)) != 0)
 		goto done;
-	
+
 	cr4 = 0;
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_CR4, cr4)) != 0)
 		goto done;
@@ -1247,6 +1255,9 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_GS, sel)) != 0)
 		goto done;
 
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_EFER, zero)) != 0)
+		goto done;
+
 	/* General purpose registers */
 	rdx = 0xf00;
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_RAX, zero)) != 0)
@@ -1264,6 +1275,22 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_RBP, zero)) != 0)
 		goto done;
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_RSP, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R8, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R9, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R10, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R11, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R12, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R13, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R14, zero)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_R15, zero)) != 0)
 		goto done;
 
 	/* GDTR, IDTR */
@@ -1305,7 +1332,16 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_LDTR, 0)) != 0)
 		goto done;
 
-	/* XXX cr2, debug registers */
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_DR6,
+		 0xffff0ff0)) != 0)
+		goto done;
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_DR7, 0x400)) !=
+	    0)
+		goto done;
+
+	if ((error = vm_set_register(vmctx, vcpu, VM_REG_GUEST_INTR_SHADOW,
+		 zero)) != 0)
+		goto done;
 
 	error = 0;
 done:
