@@ -165,7 +165,7 @@ struct devsw biosfd = {
 	.dv_close = bd_close,
 	.dv_ioctl = bd_ioctl,
 	.dv_print = fd_print,
-	.dv_cleanup = NULL
+	.dv_cleanup = nullsys,
 };
 
 struct devsw bioscd = {
@@ -177,7 +177,7 @@ struct devsw bioscd = {
 	.dv_close = bd_close,
 	.dv_ioctl = bd_ioctl,
 	.dv_print = cd_print,
-	.dv_cleanup = NULL
+	.dv_cleanup = nullsys,
 };
 
 struct devsw bioshd = {
@@ -189,7 +189,7 @@ struct devsw bioshd = {
 	.dv_close = bd_close,
 	.dv_ioctl = bd_ioctl,
 	.dv_print = bd_print,
-	.dv_cleanup = NULL
+	.dv_cleanup = nullsys,
 };
 
 static bdinfo_list_t *

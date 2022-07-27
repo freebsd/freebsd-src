@@ -59,6 +59,7 @@ struct devsw ofwdisk = {
 	.dv_close = ofwd_close,
 	.dv_ioctl = ofwd_ioctl,
 	.dv_print = ofwd_print,
+	.dv_cleanup = nullsys,
 };
 
 /*

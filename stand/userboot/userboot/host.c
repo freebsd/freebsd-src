@@ -174,5 +174,5 @@ struct devsw host_dev = {
 	.dv_close = host_dev_close,
 	.dv_ioctl = noioctl,
 	.dv_print = host_dev_print,
-	.dv_cleanup = NULL
+	.dv_cleanup = nullsys,
 };

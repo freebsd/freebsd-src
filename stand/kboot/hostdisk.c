@@ -48,6 +48,7 @@ struct devsw hostdisk = {
 	.dv_close = hostdisk_close,
 	.dv_ioctl = hostdisk_ioctl,
 	.dv_print = hostdisk_print,
+	.dv_cleanup = nullsys,
 };
 
 static int

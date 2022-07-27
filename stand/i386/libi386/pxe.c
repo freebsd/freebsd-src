@@ -119,7 +119,7 @@ struct devsw pxedisk = {
 	.dv_close = NULL,	/* Will be set in pxe_init */
 	.dv_ioctl = noioctl,
 	.dv_print = pxe_print,
-	.dv_cleanup = pxe_cleanup
+	.dv_cleanup = pxe_cleanup,
 };
 
 /*
