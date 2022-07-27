@@ -229,14 +229,14 @@ public:
   bool validateInputSize(const llvm::StringMap<bool> &FeatureMap,
                          StringRef Constraint, unsigned Size) const override;
 
-  virtual bool
+  bool
   checkCFProtectionReturnSupported(DiagnosticsEngine &Diags) const override {
     if (CPU == llvm::X86::CK_None || CPU >= llvm::X86::CK_PentiumPro)
       return true;
     return TargetInfo::checkCFProtectionReturnSupported(Diags);
   };
 
-  virtual bool
+  bool
   checkCFProtectionBranchSupported(DiagnosticsEngine &Diags) const override {
     if (CPU == llvm::X86::CK_None || CPU >= llvm::X86::CK_PentiumPro)
       return true;

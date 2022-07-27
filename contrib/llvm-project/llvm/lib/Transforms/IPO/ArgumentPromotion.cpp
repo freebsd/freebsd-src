@@ -249,7 +249,8 @@ doPromotion(Function *F, FunctionAnalysisManager &FAM,
                              {LLVMContext::MD_range, LLVMContext::MD_nonnull,
                               LLVMContext::MD_dereferenceable,
                               LLVMContext::MD_dereferenceable_or_null,
-                              LLVMContext::MD_align, LLVMContext::MD_noundef});
+                              LLVMContext::MD_align, LLVMContext::MD_noundef,
+                              LLVMContext::MD_nontemporal});
           }
           Args.push_back(LI);
           ArgAttrVec.push_back(AttributeSet());
@@ -631,8 +632,7 @@ static bool findArgParts(Argument *Arg, const DataLayout &DL, AAResults &AAR,
 
   // Sort parts by offset.
   append_range(ArgPartsVec, ArgParts);
-  sort(ArgPartsVec,
-       [](const auto &A, const auto &B) { return A.first < B.first; });
+  sort(ArgPartsVec, llvm::less_first());
 
   // Make sure the parts are non-overlapping.
   int64_t Offset = ArgPartsVec[0].first;
