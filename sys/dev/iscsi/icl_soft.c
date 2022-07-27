@@ -1274,7 +1274,7 @@ icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 {
 	vm_offset_t vaddr;
 	size_t page_offset, todo;
-	int i;
+	int i __unused;
 
 	MPASS(bp->bio_flags & BIO_UNMAPPED);
 	if (bio_off < PAGE_SIZE - bp->bio_ma_offset) {
