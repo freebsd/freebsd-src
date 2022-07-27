@@ -467,8 +467,10 @@ device		vmd
 device		pmspcv
 
 #
-# Intel QuickAssist
-device		qat
+# Intel QuickAssist driver with OpenCrypto support
+#
+# Only for legacy Atom C2XXX chipsets.
+device		qat_c2xxx
 
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
