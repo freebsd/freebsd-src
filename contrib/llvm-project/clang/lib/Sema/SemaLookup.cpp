@@ -29,6 +29,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
+#include "clang/Sema/RISCVIntrinsicManager.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/Sema.h"
@@ -926,6 +927,14 @@ bool Sema::LookupBuiltin(LookupResult &R) {
                                                 Index.second);
           return true;
         }
+      }
+
+      if (DeclareRISCVVBuiltins) {
+        if (!RVIntrinsicManager)
+          RVIntrinsicManager = CreateRISCVIntrinsicManager(*this);
+
+        if (RVIntrinsicManager->CreateIntrinsicIfFound(R, II, PP))
+          return true;
       }
 
       // If this is a builtin on this (or all) targets, create the decl.
@@ -3838,6 +3847,12 @@ void Sema::ArgumentDependentLookup(DeclarationName Name, SourceLocation Loc,
     //        associated classes are visible within their respective
     //        namespaces even if they are not visible during an ordinary
     //        lookup (11.4).
+    //
+    // C++20 [basic.lookup.argdep] p4.3
+    //     -- are exported, are attached to a named module M, do not appear
+    //        in the translation unit containing the point of the lookup, and
+    //        have the same innermost enclosing non-inline namespace scope as
+    //        a declaration of an associated entity attached to M.
     DeclContext::lookup_result R = NS->lookup(Name);
     for (auto *D : R) {
       auto *Underlying = D;
@@ -3858,6 +3873,36 @@ void Sema::ArgumentDependentLookup(DeclarationName Name, SourceLocation Loc,
           if (isVisible(D)) {
             Visible = true;
             break;
+          } else if (getLangOpts().CPlusPlusModules &&
+                     D->isInExportDeclContext()) {
+            // C++20 [basic.lookup.argdep] p4.3 .. are exported ...
+            Module *FM = D->getOwningModule();
+            // exports are only valid in module purview and outside of any
+            // PMF (although a PMF should not even be present in a module
+            // with an import).
+            assert(FM && FM->isModulePurview() && !FM->isPrivateModule() &&
+                   "bad export context");
+            // .. are attached to a named module M, do not appear in the
+            // translation unit containing the point of the lookup..
+            if (!isModuleUnitOfCurrentTU(FM) &&
+                llvm::any_of(AssociatedClasses, [&](auto *E) {
+                  // ... and have the same innermost enclosing non-inline
+                  // namespace scope as a declaration of an associated entity
+                  // attached to M
+                  if (!E->hasOwningModule() ||
+                      E->getOwningModule()->getTopLevelModuleName() !=
+                          FM->getTopLevelModuleName())
+                    return false;
+                  // TODO: maybe this could be cached when generating the
+                  // associated namespaces / entities.
+                  DeclContext *Ctx = E->getDeclContext();
+                  while (!Ctx->isFileContext() || Ctx->isInlineNamespace())
+                    Ctx = Ctx->getParent();
+                  return Ctx == NS;
+                })) {
+              Visible = true;
+              break;
+            }
           }
         } else if (D->getFriendObjectKind()) {
           auto *RD = cast<CXXRecordDecl>(D->getLexicalDeclContext());

@@ -525,6 +525,7 @@ SRCS_MIN+=	Sema/SemaObjCProperty.cpp
 SRCS_MIN+=	Sema/SemaOpenMP.cpp
 SRCS_MIN+=	Sema/SemaOverload.cpp
 SRCS_MIN+=	Sema/SemaPseudoObject.cpp
+SRCS_MIN+=	Sema/SemaRISCVVectorLookup.cpp
 SRCS_MIN+=	Sema/SemaSYCL.cpp
 SRCS_MIN+=	Sema/SemaStmt.cpp
 SRCS_MIN+=	Sema/SemaStmtAsm.cpp
@@ -733,6 +734,7 @@ SRCS_FUL+=	StaticAnalyzer/Frontend/CreateCheckerManager.cpp
 SRCS_FUL+=	StaticAnalyzer/Frontend/FrontendActions.cpp
 SRCS_FUL+=	StaticAnalyzer/Frontend/ModelConsumer.cpp
 SRCS_FUL+=	StaticAnalyzer/Frontend/ModelInjector.cpp
+SRCS_MIN+=	Support/RISCVVIntrinsicUtils.cpp
 SRCS_MIN+=	Tooling/ArgumentsAdjusters.cpp
 SRCS_MIN+=	Tooling/CommonOptionsParser.cpp
 SRCS_MIN+=	Tooling/CompilationDatabase.cpp
@@ -1027,6 +1029,13 @@ clang/Basic/riscv_vector_builtin_cg.inc: \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
 TGHDRS+=	clang/Basic/riscv_vector_builtin_cg.inc
+
+clang/Basic/riscv_vector_builtin_sema.inc: \
+	${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+	${CLANG_TBLGEN} -gen-riscv-vector-builtin-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+TGHDRS+=	clang/Basic/riscv_vector_builtin_sema.inc
 
 clang/Driver/Options.inc: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
