@@ -1551,13 +1551,13 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	case VMCB_EXIT_CLGI:
 	case VMCB_EXIT_SKINIT:
 	case VMCB_EXIT_ICEBP:
-	case VMCB_EXIT_INVD:
 	case VMCB_EXIT_INVLPGA:
 		vm_inject_ud(svm_sc->vm, vcpu);
 		handled = 1;
 		break;
+	case VMCB_EXIT_INVD:
 	case VMCB_EXIT_WBINVD:
-		/* ignore WBINVD */
+		/* ignore exit */
 		handled = 1;
 		break;
 	default:
