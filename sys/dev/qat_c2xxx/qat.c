@@ -92,21 +92,9 @@ __KERNEL_RCSID(0, "$NetBSD: qat.c,v 1.6 2020/06/14 23:23:12 riastradh Exp $");
 #include "qat_aevar.h"
 
 extern struct qat_hw qat_hw_c2xxx;
-extern struct qat_hw qat_hw_c3xxx;
-extern struct qat_hw qat_hw_c62x;
-extern struct qat_hw qat_hw_d15xx;
-extern struct qat_hw qat_hw_dh895xcc;
 
 #define PCI_VENDOR_INTEL			0x8086
 #define PCI_PRODUCT_INTEL_C2000_IQIA_PHYS	0x1f18
-#define PCI_PRODUCT_INTEL_C3K_QAT		0x19e2
-#define PCI_PRODUCT_INTEL_C3K_QAT_VF		0x19e3
-#define PCI_PRODUCT_INTEL_C620_QAT		0x37c8
-#define PCI_PRODUCT_INTEL_C620_QAT_VF		0x37c9
-#define PCI_PRODUCT_INTEL_XEOND_QAT		0x6f54
-#define PCI_PRODUCT_INTEL_XEOND_QAT_VF		0x6f55
-#define PCI_PRODUCT_INTEL_DH895XCC_QAT		0x0435
-#define PCI_PRODUCT_INTEL_DH895XCC_QAT_VF	0x0443
 
 static const struct qat_product {
 	uint16_t qatp_vendor;
@@ -118,18 +106,6 @@ static const struct qat_product {
 	{ PCI_VENDOR_INTEL,	PCI_PRODUCT_INTEL_C2000_IQIA_PHYS,
 	  "Intel C2000 QuickAssist PF",
 	  QAT_CHIP_C2XXX, &qat_hw_c2xxx },
-	{ PCI_VENDOR_INTEL,	PCI_PRODUCT_INTEL_C3K_QAT,
-	  "Intel C3000 QuickAssist PF",
-	  QAT_CHIP_C3XXX, &qat_hw_c3xxx },
-	{ PCI_VENDOR_INTEL,	PCI_PRODUCT_INTEL_C620_QAT,
-	  "Intel C620/Xeon D-2100 QuickAssist PF",
-	  QAT_CHIP_C62X, &qat_hw_c62x },
-	{ PCI_VENDOR_INTEL,	PCI_PRODUCT_INTEL_XEOND_QAT,
-	  "Intel Xeon D-1500 QuickAssist PF",
-	  QAT_CHIP_D15XX, &qat_hw_d15xx },
-	{ PCI_VENDOR_INTEL,	PCI_PRODUCT_INTEL_DH895XCC_QAT,
-	  "Intel 8950 QuickAssist PCIe Adapter PF",
-	  QAT_CHIP_DH895XCC, &qat_hw_dh895xcc },
 	{ 0, 0, NULL, 0, NULL },
 };
 
@@ -2283,12 +2259,12 @@ static device_method_t qat_methods[] = {
 };
 
 static driver_t qat_driver = {
-	.name		= "qat",
+	.name		= "qat_c2xxx",
 	.methods	= qat_methods,
 	.size		= sizeof(struct qat_softc),
 };
 
-DRIVER_MODULE(qat, pci, qat_driver, 0, 0);
-MODULE_VERSION(qat, 1);
-MODULE_DEPEND(qat, crypto, 1, 1, 1);
-MODULE_DEPEND(qat, pci, 1, 1, 1);
+DRIVER_MODULE(qat_c2xxx, pci, qat_driver, 0, 0);
+MODULE_VERSION(qat_c2xxx, 1);
+MODULE_DEPEND(qat_c2xxx, crypto, 1, 1, 1);
+MODULE_DEPEND(qat_c2xxx, pci, 1, 1, 1);

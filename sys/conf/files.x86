@@ -288,15 +288,10 @@ dev/mana/mana_sysctl.c		optional	mana
 dev/mana/shm_channel.c		optional	mana
 dev/mana/hw_channel.c		optional	mana
 dev/mana/gdma_util.c		optional	mana
-dev/qat/qat.c			optional qat
-dev/qat/qat_ae.c		optional qat
-dev/qat/qat_c2xxx.c		optional qat
-dev/qat/qat_c3xxx.c		optional qat
-dev/qat/qat_c62x.c		optional qat
-dev/qat/qat_d15xx.c		optional qat
-dev/qat/qat_dh895xcc.c		optional qat
-dev/qat/qat_hw15.c		optional qat
-dev/qat/qat_hw17.c		optional qat
+dev/qat_c2xxx/qat.c		optional	qat_c2xxx
+dev/qat_c2xxx/qat_ae.c		optional	qat_c2xxx
+dev/qat_c2xxx/qat_c2xxx.c	optional	qat_c2xxx
+dev/qat_c2xxx/qat_hw15.c	optional	qat_c2xxx
 libkern/x86/crc32_sse42.c	standard
 #
 # x86 shared code between IA32 and AMD64 architectures

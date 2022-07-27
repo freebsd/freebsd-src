@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2021
-.Dt QAT 4
+.Dd July 21, 2022
+.Dt QAT_C2XXX 4
 .Os
 .Sh NAME
-.Nm qat
-.Nd Intel QuickAssist Technology (QAT) driver
+.Nm qat_c2xxx
+.Nd Intel QuickAssist Technology (QAT) driver for Atom C2000 chipsets
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -44,12 +44,8 @@ Alternatively, to load the driver as a
 module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-qat_load="YES"
+qat_c2xxx_load="YES"
 qat_c2xxxfw_load="YES"
-qat_c3xxxfw_load="YES"
-qat_c62xfw_load="YES"
-qat_d15xxfw_load="YES"
-qat_dh895xccfw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -57,20 +53,15 @@ The
 driver implements
 .Xr crypto 4
 support for some of the cryptographic acceleration functions of the Intel
-QuickAssist (QAT) device.
-The
-.Nm
-driver supports the QAT devices integrated with Atom C2000 and C3000 and Xeon
-C620 and D-1500 platforms, and the Intel QAT Adapter 8950.
-Other platforms and adapters not listed here may also be supported.
+QuickAssist (QAT) device found on Atom C2000 devices.
 QAT devices are enumerated through PCIe and are thus visible in
 .Xr pciconf 8
 output.
 .Pp
 The
 .Nm
-driver can accelerate AES in CBC, CTR, XTS (except for the C2000) and GCM modes,
-and can perform authenticated encryption combining the CBC, CTR and XTS modes
+driver can accelerate AES in CBC, CTR, and GCM modes,
+and can perform authenticated encryption combining the CBC, and CTR modes
 with SHA1-HMAC and SHA2-HMAC.
 The
 .Nm
@@ -84,6 +75,7 @@ requests that do not satisfy this constraint.
 .Xr crypto 4 ,
 .Xr ipsec 4 ,
 .Xr pci 4 ,
+.Xr qat 4 ,
 .Xr random 4 ,
 .Xr crypto 7 ,
 .Xr crypto 9
