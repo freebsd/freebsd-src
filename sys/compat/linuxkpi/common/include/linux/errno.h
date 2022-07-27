@@ -44,6 +44,7 @@
 #define	ERESTARTSYS     512
 #define	ENOTSUPP	EOPNOTSUPP
 #define	ENONET		EHOSTDOWN
+#define	EHWPOISON	133	/* Memory page hardware error */
 
 /*
  * The error numbers below are arbitrary and do not resemble the numbers
