@@ -115,7 +115,7 @@ pnp_write(int d, u_char r)
  * Intel May 94.
  */
 static void
-pnp_send_initiation_key()
+pnp_send_initiation_key(void)
 {
 	int cur, i;
 
