@@ -416,16 +416,6 @@ rt_get_inet6_prefix_pmask(const struct rtentry *rt, struct in6_addr *paddr,
 }
 #endif
 
-static void
-rt_set_expire_info(struct rtentry *rt, const struct rt_addrinfo *info)
-{
-
-	/* Kernel -> userland timebase conversion. */
-	if (info->rti_mflags & RTV_EXPIRE)
-		rt->rt_expire = info->rti_rmx->rmx_expire ?
-		    info->rti_rmx->rmx_expire - time_second + time_uptime : 0;
-}
-
 /*
  * Check if specified @gw matches gw data in the nexthop @nh.
  *
@@ -702,7 +692,6 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * examine the ifa and  ifa->ifa_ifp if it so desires.
 	 */
 	rt->rt_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
-	rt_set_expire_info(rt, info);
 
 	*prt = rt;
 	return (0);
@@ -1112,8 +1101,8 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 	rn = rnh->rnh_addaddr(ndst, netmask, &rnh->head, rt->rt_nodes);
 
 	if (rn != NULL) {
-		if (rt->rt_expire > 0)
-			tmproutes_update(rnh, rt);
+		if (!NH_IS_NHGRP(rnd->rnd_nhop) && nhop_get_expire(rnd->rnd_nhop))
+			tmproutes_update(rnh, rt, rnd->rnd_nhop);
 
 		/* Finalize notification */
 		rib_bump_gen(rnh);
@@ -1136,7 +1125,6 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 
 /*
  * Switch @rt nhop/weigh to the ones specified in @rnd.
- *  Conditionally set rt_expire if set in @info.
  * Returns 0 on success.
  */
 int
@@ -1151,12 +1139,11 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 	nh_orig = rt->rt_nhop;
 
 	if (rnd->rnd_nhop != NULL) {
-		/* Changing expiration & nexthop & weight to a new one */
-		rt_set_expire_info(rt, info);
+		/* Changing nexthop & weight to a new one */
 		rt->rt_nhop = rnd->rnd_nhop;
 		rt->rt_weight = rnd->rnd_weight;
-		if (rt->rt_expire > 0)
-			tmproutes_update(rnh, rt);
+		if (!NH_IS_NHGRP(rnd->rnd_nhop) && nhop_get_expire(rnd->rnd_nhop))
+			tmproutes_update(rnh, rt, rnd->rnd_nhop);
 	} else {
 		/* Route deletion requested. */
 		struct sockaddr *ndst, *netmask;

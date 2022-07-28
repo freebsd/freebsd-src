@@ -183,7 +183,6 @@ struct rtentry {
 
 	int		rte_flags;	/* up/down?, host/net */
 	u_long		rt_weight;	/* absolute weight */ 
-	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
 	struct epoch_context	rt_epoch_ctx;	/* net epoch tracker */
 };
@@ -214,7 +213,7 @@ struct rtentry {
 #define	RTE_RT_FLAG_MASK	(RTF_UP | RTF_HOST)
 
 /* route_temporal.c */
-void tmproutes_update(struct rib_head *rnh, struct rtentry *rt);
+void tmproutes_update(struct rib_head *rnh, struct rtentry *rt, struct nhop_object *nh);
 void tmproutes_init(struct rib_head *rh);
 void tmproutes_destroy(struct rib_head *rh);
 
