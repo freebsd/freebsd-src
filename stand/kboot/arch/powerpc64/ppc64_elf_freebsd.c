@@ -170,3 +170,13 @@ struct file_format	ppc_elf64 =
 	ppc64_elf_loadfile,
 	ppc64_elf_exec
 };
+
+/*
+ * Sort formats so that those that can detect based on arguments rather than
+ * reading the file first.
+ */
+
+struct file_format *file_formats[] = {
+    &ppc_elf64,
+    NULL
+};
