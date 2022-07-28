@@ -131,13 +131,32 @@ struct host_kexec_segment {
 	int memsz;
 };
 
+struct host_dirent64 {
+	uint64_t	d_ino;		/* 64-bit inode number */
+	int64_t		d_off;		/* 64-bit offset to next structure */
+	unsigned short	d_reclen;	/* Size of this dirent */
+	unsigned char	d_type;		/* File type */
+	char		d_name[];	/* Filename (null-terminated) */
+};
+
+/* d_type values */
+#define HOST_DT_UNKNOWN		 0
+#define HOST_DT_FIFO		 1
+#define HOST_DT_CHR		 2
+#define HOST_DT_DIR		 4
+#define HOST_DT_BLK		 6
+#define HOST_DT_REG		 8
+#define HOST_DT_LNK		10
+#define HOST_DT_SOCK		12
+#define HOST_DT_WHT		14
+
 /*
  * System Calls
  */
 int host_close(int fd);
 int host_dup(int fd);
 int host_fstat(int fd, struct host_kstat *sb);
-int host_getdents(int fd, void *dirp, int count);
+int host_getdents64(int fd, void *dirp, int count);
 int host_getpid(void);
 int host_gettimeofday(struct host_timeval *a, void *b);
 int host_kexec_load(unsigned long entry, unsigned long nsegs, struct host_kexec_segment *segs, unsigned long flags);

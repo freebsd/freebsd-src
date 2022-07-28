@@ -40,30 +40,23 @@ add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
 	void *propbuf;
 	ssize_t proplen;
 
-	struct host_dent {
-		unsigned long d_fileno;
-		unsigned long d_off;
-		unsigned short d_reclen;
-		char d_name[];
-		/* uint8_t	d_type; */
-	};
 	char dents[2048];
-	struct host_dent *dent;
+	struct host_dirent64 *dent;
 	int d_type;
 
 	fd = host_open(path, O_RDONLY, 0);
 	while (1) {
-		dentsize = host_getdents(fd, dents, sizeof(dents));
+		dentsize = host_getdents64(fd, dents, sizeof(dents));
 		if (dentsize <= 0)
 			break;
-		for (dent = (struct host_dent *)dents;
+		for (dent = (struct host_dirent64 *)dents;
 		     (char *)dent < dents + dentsize;
-		     dent = (struct host_dent *)((void *)dent + dent->d_reclen)) {
+		     dent = (struct host_dirent64 *)((void *)dent + dent->d_reclen)) {
 			sprintf(subpath, "%s/%s", path, dent->d_name);
 			if (strcmp(dent->d_name, ".") == 0 ||
 			    strcmp(dent->d_name, "..") == 0)
 				continue;
-			d_type = *((char *)(dent) + dent->d_reclen - 1);
+			d_type = dent->d_type;
 			if (d_type == 4 /* DT_DIR */) {
 				child_offset = fdt_add_subnode(buffer, fdt_offset,
 				    dent->d_name);
@@ -72,7 +65,6 @@ add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
 					    child_offset, path, dent->d_name);
 					continue;
 				}
-		
 				add_node_to_fdt(buffer, subpath, child_offset);
 			} else {
 				propbuf = malloc(1024);
