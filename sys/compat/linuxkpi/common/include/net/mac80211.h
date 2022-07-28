@@ -822,7 +822,7 @@ struct ieee80211_ops {
 	void (*configure_filter)(struct ieee80211_hw *, unsigned int, unsigned int *, u64);
 	void (*config_iface_filter)(struct ieee80211_hw *, struct ieee80211_vif *, unsigned int, unsigned int);
 
-	void (*bss_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u32);
+	void (*bss_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
 	int  (*set_rts_threshold)(struct ieee80211_hw *, u32);
 	void (*event_callback)(struct ieee80211_hw *, struct ieee80211_vif *, const struct ieee80211_event *);
 	int  (*get_survey)(struct ieee80211_hw *, int, struct survey_info *);
@@ -1434,7 +1434,8 @@ ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
 
 static __inline struct sk_buff *
 ieee80211_beacon_get_template(struct ieee80211_hw *hw,
-    struct ieee80211_vif *vif, struct ieee80211_mutable_offsets *offs)
+    struct ieee80211_vif *vif, struct ieee80211_mutable_offsets *offs,
+    int x)
 {
 	TODO();
 	return (NULL);
