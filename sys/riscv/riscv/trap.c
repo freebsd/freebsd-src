@@ -213,10 +213,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		 */
 		intr_enable();
 
-		if (!VIRT_IS_VALID(stval))
-			goto fatal;
-
-		if (stval >= VM_MAX_USER_ADDRESS) {
+		if (stval >= VM_MIN_KERNEL_ADDRESS) {
 			map = kernel_map;
 		} else {
 			if (pcb->pcb_onfault == 0)
@@ -235,7 +232,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		ftype = VM_PROT_READ;
 	}
 
-	if (pmap_fault(map->pmap, va, ftype))
+	if (VIRT_IS_VALID(va) && pmap_fault(map->pmap, va, ftype))
 		goto done;
 
 	error = vm_fault_trap(map, va, ftype, VM_FAULT_NORMAL, &sig, &ucode);

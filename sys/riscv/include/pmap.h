@@ -144,6 +144,11 @@ enum pmap_mode {
 
 extern enum pmap_mode pmap_mode;
 
+/* Check if an address resides in a mappable region. */
+#define	VIRT_IS_VALID(va)						\
+	((va) < (pmap_mode == PMAP_MODE_SV39 ? VM_MAX_USER_ADDRESS_SV39 : \
+	    VM_MAX_USER_ADDRESS_SV48) || (va) >= VM_MIN_KERNEL_ADDRESS)
+
 struct thread;
 
 #define	pmap_vm_page_alloc_check(m)
