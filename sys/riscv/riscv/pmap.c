@@ -2606,6 +2606,8 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 	pt_entry_t bits, *pte, oldpte;
 	int rv;
 
+	KASSERT(VIRT_IS_VALID(va), ("pmap_fault: invalid va %#lx", va));
+
 	rv = 0;
 	PMAP_LOCK(pmap);
 	l2 = pmap_l2(pmap, va);
