@@ -224,7 +224,7 @@ void lkpi_80211_mo_change_chanctx(struct ieee80211_hw *,
 void lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *,
     struct ieee80211_chanctx_conf *);
 void lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *, struct ieee80211_vif *,
-    struct ieee80211_bss_conf *, uint32_t);
+    struct ieee80211_bss_conf *, uint64_t);
 int lkpi_80211_mo_conf_tx(struct ieee80211_hw *, struct ieee80211_vif *,
     uint16_t, const struct ieee80211_tx_queue_params *);
 void lkpi_80211_mo_flush(struct ieee80211_hw *, struct ieee80211_vif *,

@@ -480,7 +480,7 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
 
 void
 lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    struct ieee80211_bss_conf *conf, uint32_t changed)
+    struct ieee80211_bss_conf *conf, uint64_t changed)
 {
 	struct lkpi_hw *lhw;
 
