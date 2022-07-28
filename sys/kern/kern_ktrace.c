@@ -229,8 +229,7 @@ ktrace_init(void *dummy)
 		    M_ZERO);
 		STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	}
-	ast_register(TDA_KTRACE, ASTR_UNCOND, 0, ast_ktrace);
-
+	ast_register(TDA_KTRACE, ASTR_ASTF_REQUIRED, 0, ast_ktrace);
 }
 SYSINIT(ktrace_init, SI_SUB_KTRACE, SI_ORDER_ANY, ktrace_init, NULL);
 
