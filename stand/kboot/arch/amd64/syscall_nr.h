@@ -1,5 +1,6 @@
 #define SYS_close		  3
 #define	SYS_dup			 32
+#define	SYS_exit		 60
 #define SYS_getdents64		217
 #define	SYS_getpid		 39
 #define SYS_gettimeofday	 96

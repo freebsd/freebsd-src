@@ -19,6 +19,12 @@ host_dup(int fd)
 	return host_syscall(SYS_dup, fd);
 }
 
+int
+host_exit(int code)
+{
+	return host_syscall(SYS_exit, code);
+}
+
 /* Same system call with different names on different Linux architectures due to history */
 int
 host_fstat(int fd, struct host_kstat *sb)
