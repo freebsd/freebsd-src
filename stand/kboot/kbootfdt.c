@@ -53,44 +53,44 @@ add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
 
 	fd = host_open(path, O_RDONLY, 0);
 	while (1) {
-	    dentsize = host_getdents(fd, dents, sizeof(dents));
-	    if (dentsize <= 0)
-	      break;
-	    for (dent = (struct host_dent *)dents;
-	      (char *)dent < dents + dentsize;
-	      dent = (struct host_dent *)((void *)dent + dent->d_reclen)) {
-		sprintf(subpath, "%s/%s", path, dent->d_name);
-		if (strcmp(dent->d_name, ".") == 0 ||
-		    strcmp(dent->d_name, "..") == 0)
-			continue;
-		d_type = *((char *)(dent) + dent->d_reclen - 1);
-		if (d_type == 4 /* DT_DIR */) {
-			child_offset = fdt_add_subnode(buffer, fdt_offset,
-			    dent->d_name);
-			if (child_offset < 0) {
-				printf("Error %d adding node %s/%s, skipping\n",
-				    child_offset, path, dent->d_name);
+		dentsize = host_getdents(fd, dents, sizeof(dents));
+		if (dentsize <= 0)
+			break;
+		for (dent = (struct host_dent *)dents;
+		     (char *)dent < dents + dentsize;
+		     dent = (struct host_dent *)((void *)dent + dent->d_reclen)) {
+			sprintf(subpath, "%s/%s", path, dent->d_name);
+			if (strcmp(dent->d_name, ".") == 0 ||
+			    strcmp(dent->d_name, "..") == 0)
 				continue;
-			}
+			d_type = *((char *)(dent) + dent->d_reclen - 1);
+			if (d_type == 4 /* DT_DIR */) {
+				child_offset = fdt_add_subnode(buffer, fdt_offset,
+				    dent->d_name);
+				if (child_offset < 0) {
+					printf("Error %d adding node %s/%s, skipping\n",
+					    child_offset, path, dent->d_name);
+					continue;
+				}
 		
-			add_node_to_fdt(buffer, subpath, child_offset);
-		} else {
-			propbuf = malloc(1024);
-			proplen = 0;
-			pfd = host_open(subpath, O_RDONLY, 0);
-			if (pfd > 0) {
-				proplen = host_read(pfd, propbuf, 1024);
-				host_close(pfd);
+				add_node_to_fdt(buffer, subpath, child_offset);
+			} else {
+				propbuf = malloc(1024);
+				proplen = 0;
+				pfd = host_open(subpath, O_RDONLY, 0);
+				if (pfd > 0) {
+					proplen = host_read(pfd, propbuf, 1024);
+					host_close(pfd);
+				}
+				error = fdt_setprop(buffer, fdt_offset, dent->d_name,
+				    propbuf, proplen);
+				free(propbuf);
+				if (error)
+					printf("Error %d adding property %s to "
+					    "node %d\n", error, dent->d_name,
+					    fdt_offset);
 			}
-			error = fdt_setprop(buffer, fdt_offset, dent->d_name,
-			    propbuf, proplen);
-			free(propbuf);
-			if (error)
-				printf("Error %d adding property %s to "
-				    "node %d\n", error, dent->d_name,
-				    fdt_offset);
 		}
-	    }
 	}
 
 	host_close(fd);
