@@ -220,8 +220,7 @@ void tmproutes_destroy(struct rib_head *rh);
 /* route_ctl.c */
 struct route_nhop_data;
 int change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
-    struct rt_addrinfo *info, struct route_nhop_data *rnd,
-    struct rib_cmd_info *rc);
+    struct route_nhop_data *rnd, struct rib_cmd_info *rc);
 int change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
     struct rt_addrinfo *info, struct route_nhop_data *nhd_orig,
     struct route_nhop_data *nhd_new, struct rib_cmd_info *rc);

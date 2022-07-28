@@ -188,7 +188,7 @@ del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
 			nhop_free_any(rnd.rnd_nhop);
 			return (ESRCH);
 		}
-		error = change_route_nhop(rh, rt, info, &rnd, rc);
+		error = change_route_nhop(rh, rt, &rnd, rc);
 	}
 	return (error);
 }
