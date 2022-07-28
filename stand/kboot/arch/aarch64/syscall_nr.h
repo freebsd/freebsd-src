@@ -1,5 +1,6 @@
 #define SYS_close		 57
 #define	SYS_dup			 23
+#define SYS_exit		 93
 #define SYS_fstat		 80
 #define SYS_getdents64		 61
 #define	SYS_getpid		172

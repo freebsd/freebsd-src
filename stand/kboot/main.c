@@ -303,7 +303,7 @@ main(int argc, const char **argv)
 void
 exit(int code)
 {
-	while (1); /* XXX: host_exit */
+	host_exit(code);
 	__unreachable();
 }
 
