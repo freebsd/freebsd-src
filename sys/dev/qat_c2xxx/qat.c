@@ -2267,4 +2267,5 @@ static driver_t qat_driver = {
 DRIVER_MODULE(qat_c2xxx, pci, qat_driver, 0, 0);
 MODULE_VERSION(qat_c2xxx, 1);
 MODULE_DEPEND(qat_c2xxx, crypto, 1, 1, 1);
+MODULE_DEPEND(qat_c2xxx, firmware, 1, 1, 1);
 MODULE_DEPEND(qat_c2xxx, pci, 1, 1, 1);
