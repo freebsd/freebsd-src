@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 1995-2019 The FreeBSD Project
+.\" Copyright (c) 1995-2022 The FreeBSD Project
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2022
+.Dd July 28, 2022
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -467,10 +467,6 @@ Functions that are used locally in more than one module go into a
 separate header file, e.g.,
 .Qq Pa extern.h .
 .Pp
-Do not use the
-.Dv __P
-macro.
-.Pp
 In general code can be considered
 .Dq "new code"
 when it makes up about 50% or more of the file(s) involved.
@@ -797,7 +793,10 @@ do not roll your own.
 }
 .Ed
 .Pp
-When converting K&R style declarations to ANSI style, preserve
+Do not use K&R style declarations or definitions, they are obsolete
+and are forbidden in C23.
+Compilers warn of their use and some treat them as an error by default.
+When converting K&R style definitions to ANSI style, preserve
 any comments about parameters.
 .Pp
 Long parameter lists are wrapped with a normal four space indent.
