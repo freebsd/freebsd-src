@@ -363,7 +363,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 		rman_set_bustag(r, fdtbus_bs_tag);
 #else
-		vaddr = (bus_space_handle_t)pmap_mapdev((vm_offset_t)paddr,
+		vaddr = (bus_space_handle_t)pmap_mapdev((vm_paddr_t)paddr,
 		    (vm_size_t)psize);
 		if (vaddr == 0) {
 			rman_deactivate_resource(r);
