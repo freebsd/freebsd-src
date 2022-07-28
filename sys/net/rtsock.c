@@ -1293,8 +1293,8 @@ rt_getmetrics(const struct rtentry *rt, const struct nhop_object *nh,
 	out->rmx_weight = rt->rt_weight;
 	out->rmx_nhidx = nhop_get_idx(nh);
 	/* Kernel -> userland timebase conversion. */
-	out->rmx_expire = rt->rt_expire ?
-	    rt->rt_expire - time_uptime + time_second : 0;
+	out->rmx_expire = nhop_get_expire(nh) ?
+	    nhop_get_expire(nh) - time_uptime + time_second : 0;
 }
 
 /*

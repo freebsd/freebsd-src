@@ -55,12 +55,13 @@ __FBSDID("$FreeBSD$");
 static int
 expire_route(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 {
+	uint32_t nh_expire = nhop_get_expire(nh);
 	time_t *next_callout;
 
-	if (rt->rt_expire == 0)
+	if (nh_expire == 0)
 		return (0);
 
-	if (rt->rt_expire <= time_uptime)
+	if (nh_expire <= time_uptime)
 		return (1);
 
 	next_callout = (time_t *)arg;
@@ -69,8 +70,8 @@ expire_route(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 	 * Update next_callout to determine the next ts to
 	 * run the callback at.
 	 */
-	if (*next_callout == 0 || *next_callout > rt->rt_expire)
-		*next_callout = rt->rt_expire;
+	if (*next_callout == 0 || *next_callout > nh_expire)
+		*next_callout = nh_expire;
 
 	return (0);
 }
@@ -78,7 +79,7 @@ expire_route(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 /*
  * Per-rnh callout function traversing the tree and deleting
  * expired routes. Calculates next callout run by looking at
- * the rt_expire time for the remaining temporal routes.
+ * the nh_expire time for the remaining temporal routes.
  */
 static void
 expire_callout(void *arg)
@@ -123,26 +124,27 @@ expire_callout(void *arg)
  * to the tree. RIB_WLOCK must be held.
  */
 void
-tmproutes_update(struct rib_head *rnh, struct rtentry *rt)
+tmproutes_update(struct rib_head *rnh, struct rtentry *rt, struct nhop_object *nh)
 {
 	int seconds;
+	uint32_t nh_expire = nhop_get_expire(nh);
 
 	RIB_WLOCK_ASSERT(rnh);
 
-	if (rnh->next_expire == 0 || rnh->next_expire > rt->rt_expire) {
+	if (rnh->next_expire == 0 || rnh->next_expire > nh_expire) {
 		/*
 		 * Callback is not scheduled, is executing,
 		 * or is scheduled for a later time than we need.
 		 *
 		 * Schedule the one for the current @rt expiration time.
 		 */
-		seconds = (rt->rt_expire - time_uptime);
+		seconds = (nh_expire - time_uptime);
 		if (seconds < 0)
 			seconds = 0;
 		callout_reset_sbt(&rnh->expire_callout, SBT_1S * seconds,
 		    SBT_1MS * 500, expire_callout, rnh, 0);
 
-		rnh->next_expire = rt->rt_expire;
+		rnh->next_expire = nh_expire;
 	}
 }
 

@@ -78,6 +78,7 @@ struct nhop_priv {
 	uint8_t			nh_neigh_family;/* neighbor address family */
 	uint16_t		nh_type;	/* nexthop type */
 	uint32_t		rt_flags;	/* routing flags for the control plane */
+	uint32_t		nh_expire;	/* path expiration time */
 	/* nhop lookup comparison end */
 	uint32_t		nh_idx;		/* nexthop index */
 	uint32_t		nh_fibnum;	/* nexthop fib */
@@ -95,6 +96,7 @@ struct nhop_priv {
 
 #define	NH_IS_PINNED(_nh)	((!NH_IS_NHGRP(_nh)) && \
 				((_nh)->nh_priv->rt_flags & RTF_PINNED))
+#define	NH_IS_LINKED(_nh)	((_nh)->nh_priv->nh_idx != 0)
 
 /* nhop.c */
 struct nhop_priv *find_nhop(struct nh_control *ctl,

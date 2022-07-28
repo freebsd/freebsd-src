@@ -272,6 +272,17 @@ convert_rt_to_nh_flags(int rt_flags)
 	return (res);
 }
 
+static void
+set_nhop_expire_from_info(struct nhop_object *nh, const struct rt_addrinfo *info)
+{
+	uint32_t nh_expire = 0;
+
+	/* Kernel -> userland timebase conversion. */
+	if ((info->rti_mflags & RTV_EXPIRE) && (info->rti_rmx->rmx_expire > 0))
+		nh_expire = info->rti_rmx->rmx_expire - time_second + time_uptime;
+	nhop_set_expire(nh, nh_expire);
+}
+
 static int
 fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 {
@@ -294,6 +305,7 @@ fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 		nh_priv->nh_neigh_family = nh_priv->nh_upper_family;
 	else
 		nh_priv->nh_neigh_family = nh->gw_sa.sa_family;
+	set_nhop_expire_from_info(nh, info);
 
 	nh->nh_ifp = (info->rti_ifp != NULL) ? info->rti_ifp : info->rti_ifa->ifa_ifp;
 	nh->nh_ifa = info->rti_ifa;
@@ -800,6 +812,19 @@ uint32_t
 nhop_get_fibnum(const struct nhop_object *nh)
 {
 	return (nh->nh_priv->nh_fibnum);
+}
+
+uint32_t
+nhop_get_expire(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_expire);
+}
+
+void
+nhop_set_expire(struct nhop_object *nh, uint32_t expire)
+{
+	MPASS(!NH_IS_LINKED(nh));
+	nh->nh_priv->nh_expire = expire;
 }
 
 void
