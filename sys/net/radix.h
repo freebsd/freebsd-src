@@ -106,13 +106,13 @@ struct radix_mask {
 struct radix_head;
 
 typedef int walktree_f_t(struct radix_node *, void *);
-typedef struct radix_node *rn_matchaddr_f_t(void *v,
+typedef struct radix_node *rn_matchaddr_f_t(const void *v,
     struct radix_head *head);
-typedef struct radix_node *rn_addaddr_f_t(void *v, void *mask,
+typedef struct radix_node *rn_addaddr_f_t(void *v, const void *mask,
     struct radix_head *head, struct radix_node nodes[]);
-typedef struct radix_node *rn_deladdr_f_t(void *v, void *mask,
+typedef struct radix_node *rn_deladdr_f_t(const void *v, const void *mask,
     struct radix_head *head);
-typedef struct radix_node *rn_lookup_f_t(void *v, void *mask,
+typedef struct radix_node *rn_lookup_f_t(const void *v, const void *mask,
     struct radix_head *head);
 typedef int rn_walktree_t(struct radix_head *head, walktree_f_t *f,
     void *w);
@@ -176,13 +176,13 @@ void rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes,
 
 int	 rn_inithead(void **, int);
 int	 rn_detachhead(void **);
-int	 rn_refines(void *, void *);
-struct radix_node *rn_addroute(void *, void *, struct radix_head *,
+int	 rn_refines(const void *, const void *);
+struct radix_node *rn_addroute(void *, const void *, struct radix_head *,
     struct radix_node[2]);
-struct radix_node *rn_delete(void *, void *, struct radix_head *);
-struct radix_node *rn_lookup (void *v_arg, void *m_arg,
+struct radix_node *rn_delete(const void *, const void *, struct radix_head *);
+struct radix_node *rn_lookup (const void *v_arg, const void *m_arg,
     struct radix_head *head);
-struct radix_node *rn_match(void *, struct radix_head *);
+struct radix_node *rn_match(const void *, struct radix_head *);
 int rn_walktree_from(struct radix_head *h, void *a, void *m,
     walktree_f_t *f, void *w);
 int rn_walktree(struct radix_head *, walktree_f_t *, void *);
