@@ -690,6 +690,143 @@ route_to_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ra" "cleanup"
+ra_head()
+{
+	atf_set descr 'Remote access with multiple clients'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+ra_body()
+{
+	ovpn_init
+
+	bridge=$(vnet_mkbridge)
+	srv=$(vnet_mkepair)
+	lan=$(vnet_mkepair)
+	one=$(vnet_mkepair)
+	two=$(vnet_mkepair)
+
+	ifconfig ${bridge} up
+
+	ifconfig ${srv}a up
+	ifconfig ${bridge} addm ${srv}a
+	ifconfig ${one}a up
+	ifconfig ${bridge} addm ${one}a
+	ifconfig ${two}a up
+	ifconfig ${bridge} addm ${two}a
+
+	vnet_mkjail srv ${srv}b ${lan}a
+	jexec srv ifconfig ${srv}b 192.0.2.1/24 up
+	jexec srv ifconfig ${lan}a 203.0.113.1/24 up
+	vnet_mkjail lan ${lan}b
+	jexec lan ifconfig ${lan}b 203.0.113.2/24 up
+	jexec lan route add default 203.0.113.1
+	vnet_mkjail one ${one}b
+	jexec one ifconfig ${one}b 192.0.2.2/24 up
+	vnet_mkjail two ${two}b
+	jexec two ifconfig ${two}b 192.0.2.3/24 up
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore jexec one ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore jexec two ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore jexec srv ping -c 1 203.0.113.2
+
+	jexec srv sysctl net.inet.ip.forwarding=1
+
+	ovpn_start srv "
+		dev ovpn0
+		dev-type tun
+		proto udp4
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local 192.0.2.1
+		server 198.51.100.0 255.255.255.0
+
+		push \"route 203.0.113.0 255.255.255.0\"
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		duplicate-cn
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start one "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+	sleep 2
+	ovpn_start two "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client2.crt
+		key $(atf_get_srcdir)/client2.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec one ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore jexec two ping -c 1 198.51.100.1
+
+	# Client-to-client communication
+	atf_check -s exit:0 -o ignore jexec one ping -c 1 198.51.100.3
+	atf_check -s exit:0 -o ignore jexec two ping -c 1 198.51.100.2
+
+	# RA test
+	atf_check -s exit:0 -o ignore jexec one ping -c 1 203.0.113.1
+	atf_check -s exit:0 -o ignore jexec two ping -c 1 203.0.113.1
+
+	atf_check -s exit:0 -o ignore jexec srv ping -c 1 -S 203.0.113.1 198.51.100.2
+	atf_check -s exit:0 -o ignore jexec srv ping -c 1 -S 203.0.113.1 198.51.100.3
+
+	atf_check -s exit:0 -o ignore jexec one ping -c 1 203.0.113.2
+	atf_check -s exit:0 -o ignore jexec two ping -c 1 203.0.113.2
+
+	atf_check -s exit:0 -o ignore jexec lan ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore jexec lan ping -c 1 198.51.100.2
+	atf_check -s exit:0 -o ignore jexec lan ping -c 1 198.51.100.3
+	atf_check -s exit:2 -o ignore jexec lan ping -c 1 198.51.100.4
+}
+
+ra_cleanup()
+{
+	ovpn_cleanup
+}
+
+
 atf_test_case "chacha" "cleanup"
 chacha_head()
 {
@@ -773,5 +910,6 @@ atf_init_test_cases()
 	atf_add_test_case "timeout_client"
 	atf_add_test_case "multi_client"
 	atf_add_test_case "route_to"
+	atf_add_test_case "ra"
 	atf_add_test_case "chacha"
 }
