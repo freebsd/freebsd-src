@@ -701,8 +701,7 @@ then in alphabetical order; multiple ones per line are okay.
 If a line overflows reuse the type keyword.
 Variables may be initialized where declared especially when they
 are constant for the rest of the scope.
-Declarations may be placed before executable lines at the start
-of any block.
+Declarations may be in any block, but must be placed before statements.
 Calls to complicated functions should be avoided when initializing variables.
 .Bd -literal
 	struct foo one, *two;
