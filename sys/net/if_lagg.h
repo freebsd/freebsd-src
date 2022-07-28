@@ -273,6 +273,7 @@ struct lagg_port {
 	uint32_t			lp_flags;	/* port flags */
 	int				lp_ifflags;	/* saved ifp flags */
 	int				lp_ifcapenable;	/* saved ifp capenable */
+	int				lp_ifcapenable2;/* saved ifp capenable2 */
 	void				*lh_cookie;	/* if state hook */
 	void				*lp_psc;	/* protocol data */
 	int				lp_detaching;	/* ifnet is detaching */
