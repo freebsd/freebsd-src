@@ -43,4 +43,5 @@ static moduledata_t qat_common_mod = { "qat_common", qat_common_modevent, 0 };
 
 DECLARE_MODULE(qat_common, qat_common_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(qat_common, 1);
+MODULE_DEPEND(qat_common, firmware, 1, 1, 1);
 MODULE_DEPEND(qat_common, linuxkpi, 1, 1, 1);
