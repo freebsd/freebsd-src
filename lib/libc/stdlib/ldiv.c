@@ -41,8 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>		/* ldiv_t */
 
 ldiv_t
-ldiv(num, denom)
-	long num, denom;
+ldiv(long num, long denom)
 {
 	ldiv_t r;
 
