@@ -81,7 +81,7 @@ fsl_ocotp_devmap(void)
 
 	ocotp_size = (vm_size_t)size;
 
-	if ((ocotp_regs = pmap_mapdev((vm_offset_t)base, ocotp_size)) == NULL)
+	if ((ocotp_regs = pmap_mapdev((vm_paddr_t)base, ocotp_size)) == NULL)
 		goto fatal;
 
 	return;

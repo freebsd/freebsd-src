@@ -627,7 +627,7 @@ macio_activate_resource(device_t bus, device_t child, int type, int rid,
                 return (bus_activate_resource(bus, type, rid, res));
 
 	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
-		p = pmap_mapdev((vm_offset_t)rman_get_start(res) + sc->sc_base,
+		p = pmap_mapdev((vm_paddr_t)rman_get_start(res) + sc->sc_base,
 				(vm_size_t)rman_get_size(res));
 		if (p == NULL)
 			return (ENOMEM);

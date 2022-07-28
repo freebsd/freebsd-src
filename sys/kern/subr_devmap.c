@@ -260,7 +260,7 @@ devmap_vtop(void * vpva, vm_size_t size)
  * pmap_kenter_device().
  */
 void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 	vm_offset_t va, offset;
 	void * rva;
@@ -292,7 +292,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 
 #if defined(__aarch64__) || defined(__riscv)
 void *
-pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	vm_offset_t va, offset;
 	void * rva;

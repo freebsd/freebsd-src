@@ -184,13 +184,13 @@ bool	pmap_klookup(vm_offset_t va, vm_paddr_t *pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	pmap_kremove_device(vm_offset_t, vm_size_t);
-void	*pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t ma);
+void	*pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma);
 bool	pmap_page_is_mapped(vm_page_t m);
 int	pmap_pinit_stage(pmap_t, enum pmap_stage, int);
 bool	pmap_ps_enabled(pmap_t pmap);
 uint64_t pmap_to_ttbr0(pmap_t pmap);
 
-void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapbios(vm_offset_t, vm_size_t);
