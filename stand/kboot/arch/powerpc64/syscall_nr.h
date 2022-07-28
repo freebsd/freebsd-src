@@ -1,7 +1,7 @@
 #define SYS_close		  6
 #define	SYS_dup			 41
 #define SYS_fstat		108
-#define SYS_getdents		141
+#define SYS_getdents64		202
 #define	SYS_getpid		 20
 #define SYS_gettimeofday	 78
 #define SYS_kexec_load		268

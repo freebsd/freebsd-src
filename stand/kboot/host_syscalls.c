@@ -26,9 +26,9 @@ host_fstat(int fd, struct host_kstat *sb)
 }
 
 int
-host_getdents(int fd, void *dirp, int count)
+host_getdents64(int fd, void *dirp, int count)
 {
-	return host_syscall(SYS_getdents, fd, (uintptr_t)dirp, count);
+	return host_syscall(SYS_getdents64, fd, (uintptr_t)dirp, count);
 }
 
 int
