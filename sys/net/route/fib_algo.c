@@ -1509,7 +1509,7 @@ set_fib_algo(uint32_t fibnum, int family, struct sysctl_oid *oidp, struct sysctl
 	fib_cleanup_algo(rh, true, false);
 
 	/* Drain cb so user can unload the module after userret if so desired */
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 
 	return (0);
 }

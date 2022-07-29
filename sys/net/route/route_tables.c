@@ -299,7 +299,7 @@ rtables_destroy(const void *unused __unused)
 	 *  nexthops deletions will be scheduled for the next epoch run
 	 *  and will be completed after vnet teardown.
 	 */
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 
 	free(V_rt_tables, M_RTABLE);
 	vnet_rtzone_destroy();
