@@ -236,7 +236,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 {
 	int i;
 
-	db_printf("%p: mac %s refcnt %d\n", ni,
+	db_printf("STA: %p: mac %s refcnt %d\n", ni,
 		ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni));
 	db_printf("\tvap %p wdsvap %p ic %p table %p\n",
 		ni->ni_vap, ni->ni_wdsvap, ni->ni_ic, ni->ni_table);
@@ -254,6 +254,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 		ni->ni_ies.ath_ie);
 	db_printf("\t htcap_ie %p htinfo_ie %p]\n",
 		ni->ni_ies.htcap_ie, ni->ni_ies.htinfo_ie);
+	db_printf("\t vhtcap_ie %p vhtopmode_ie %p vhtpwrenv_ie %p]\n",
+		ni->ni_ies.vhtcap_ie, ni->ni_ies.vhtopmode_ie,
+		ni->ni_ies.vhtpwrenv_ie);
 	if (ni->ni_flags & IEEE80211_NODE_QOS) {
 		for (i = 0; i < WME_NUM_TID; i++) {
 			if (ni->ni_txseqs[i] || ni->ni_rxseqs[i])
@@ -263,6 +266,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 				    ni->ni_rxseqs[i] & IEEE80211_SEQ_FRAG_MASK);
 		}
 	}
+
 	db_printf("\ttxseq %u rxseq %u fragno %u rxfragstamp %u\n",
 		ni->ni_txseqs[IEEE80211_NONQOS_TID],
 		ni->ni_rxseqs[IEEE80211_NONQOS_TID] >> IEEE80211_SEQ_SEQ_SHIFT,
@@ -307,6 +311,21 @@ _db_show_sta(const struct ieee80211_node *ni)
 	    ni->ni_mlstate, IEEE80211_MESH_MLSTATE_BITS,
 	    ni->ni_mllid, ni->ni_mlpid, ni->ni_mlrcnt, ni->ni_mltval);
 #endif
+
+	/* VHT state */
+	db_printf("\tvhtcap %b vht_basicmcs %#06x vht_pad2 %#06x\n",
+	    ni->ni_vhtcap, IEEE80211_VHTCAP_BITS,
+	    ni->ni_vht_basicmcs, ni->ni_vht_pad2);
+	db_printf("\tvht_mcsinfo: { rx_mcs_map %#06x rx_highest %#06x "
+	    "tx_mcs_map %#06x tx_highest %#06x }\n",
+	    ni->ni_vht_mcsinfo.rx_mcs_map, ni->ni_vht_mcsinfo.rx_highest,
+	    ni->ni_vht_mcsinfo.tx_mcs_map, ni->ni_vht_mcsinfo.tx_highest);
+	db_printf("\tvht_chan1/chan2 %u/%u vht_chanwidth %#04x\n",
+	    ni->ni_vht_chan1, ni->ni_vht_chan2, ni->ni_vht_chanwidth);
+	db_printf("\tvht_pad1 %#04x vht_spare { %#x %#x %#x %#x %#x %#x %#x %#x }\n",
+	    ni->ni_vht_pad1, ni->ni_vht_spare[0], ni->ni_vht_spare[1],
+	    ni->ni_vht_spare[2], ni->ni_vht_spare[3], ni->ni_vht_spare[4],
+	    ni->ni_vht_spare[5], ni->ni_vht_spare[6], ni->ni_vht_spare[7]);
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -334,7 +353,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	const struct ieee80211com *ic = vap->iv_ic;
 	int i;
 
-	db_printf("%p:", vap);
+	db_printf("VAP %p:", vap);
 	db_printf(" bss %p", vap->iv_bss);
 	db_printf(" myaddr %s", ether_sprintf(vap->iv_myaddr));
 	db_printf("\n");
@@ -364,6 +383,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	db_printf("\tflags_ven=%b\n", vap->iv_flags_ven, IEEE80211_FVEN_BITS);
 	db_printf("\tcaps=%b\n", vap->iv_caps, IEEE80211_C_BITS);
 	db_printf("\thtcaps=%b\n", vap->iv_htcaps, IEEE80211_C_HTCAP_BITS);
+	db_printf("\tvhtcaps=%b\n", vap->iv_vhtcaps, IEEE80211_VHTCAP_BITS);
 
 	_db_show_stats(&vap->iv_stats);
 
@@ -518,7 +538,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 {
 	struct ieee80211vap *vap;
 
-	db_printf("%p:", ic);
+	db_printf("COM: %p:", ic);
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
 	db_printf("\n");
@@ -543,6 +563,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	db_printf("\tcryptocaps=%b\n",
 	    ic->ic_cryptocaps, IEEE80211_CRYPTO_BITS);
 	db_printf("\thtcaps=%b\n", ic->ic_htcaps, IEEE80211_HTCAP_BITS);
+	db_printf("\tvhtcaps=%b\n", ic->ic_vhtcaps, IEEE80211_VHTCAP_BITS);
 
 #if 0
 	uint8_t			ic_modecaps[2];	/* set of mode capabilities */
