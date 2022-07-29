@@ -99,13 +99,24 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 
 static int
-rib6_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
+rib6_set_nh_pfxflags(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
     struct nhop_object *nh)
 {
-	uint16_t nh_type;
+	const struct sockaddr_in6 *mask6 = (const struct sockaddr_in6 *)mask;
 
-	/* XXX: RTF_LOCAL */
+	if (mask6 == NULL)
+		nhop_set_pxtype_flag(nh, NHF_HOST);
+	else if (IN6_IS_ADDR_UNSPECIFIED(&mask6->sin6_addr))
+		nhop_set_pxtype_flag(nh, NHF_DEFAULT);
+	else
+		nhop_set_pxtype_flag(nh, 0);
 
+	return (0);
+}
+
+static int
+rib6_augment_nh(u_int fibnum, struct nhop_object *nh)
+{
 	/*
 	 * Check route MTU:
 	 * inherit interface MTU if not set or
@@ -116,14 +127,9 @@ rib6_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 	} else if (nh->nh_mtu > IN6_LINKMTU(nh->nh_ifp))
 		nh->nh_mtu = IN6_LINKMTU(nh->nh_ifp);
 
-	/* Ensure that default route nhop has special flag */
-	const struct sockaddr_in6 *mask6 = (const struct sockaddr_in6 *)mask;
-	if ((nhop_get_rtflags(nh) & RTF_HOST) == 0 && mask6 != NULL &&
-	    IN6_IS_ADDR_UNSPECIFIED(&mask6->sin6_addr))
-		nh->nh_flags |= NHF_DEFAULT;
-
 	/* Set nexthop type */
 	if (nhop_get_type(nh) == 0) {
+		uint16_t nh_type;
 		if (nh->nh_flags & NHF_GATEWAY)
 			nh_type = NH_TYPE_IPV6_ETHER_NHOP;
 		else
@@ -150,7 +156,8 @@ in6_inithead(uint32_t fibnum)
 	if (rh == NULL)
 		return (NULL);
 
-	rh->rnh_preadd = rib6_preadd;
+	rh->rnh_set_nh_pfxflags = rib6_set_nh_pfxflags;
+	rh->rnh_augment_nh = rib6_augment_nh;
 
 	rs = rib_subscribe_internal(rh, nd6_subscription_cb, NULL,
 	    RIB_NOTIFY_IMMEDIATE, true);

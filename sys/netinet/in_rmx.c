@@ -52,18 +52,15 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 
 static int
-rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
+rib4_set_nh_pfxflags(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
     struct nhop_object *nh)
 {
 	const struct sockaddr_in *addr4 = (const struct sockaddr_in *)addr;
-	uint16_t nh_type;
-	int rt_flags;
+	const struct sockaddr_in *mask4 = (const struct sockaddr_in *)mask;
+	bool is_broadcast = false;
 
-	/* XXX: RTF_LOCAL && RTF_MULTICAST */
-
-	rt_flags = nhop_get_rtflags(nh);
-
-	if (rt_flags & RTF_HOST) {
+	if (mask == NULL) {
+		nhop_set_pxtype_flag(nh, NHF_HOST);
 		/*
 		 * Backward compatibility:
 		 * if the destination is broadcast,
@@ -76,13 +73,21 @@ rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 		 * add these routes to support some cases with active-active
 		 * load balancing. Given that, retain this support.
 		 */
-		if (in_broadcast(addr4->sin_addr, nh->nh_ifp)) {
-			rt_flags |= RTF_BROADCAST;
-			nhop_set_rtflags(nh, rt_flags);
-			nh->nh_flags |= NHF_BROADCAST;
-		}
-	}
+		if (in_broadcast(addr4->sin_addr, nh->nh_ifp))
+			is_broadcast = true;
+	} else if (mask4->sin_addr.s_addr == 0)
+		nhop_set_pxtype_flag(nh, NHF_DEFAULT);
+	else
+		nhop_set_pxtype_flag(nh, 0);
 
+	nhop_set_broadcast(nh, is_broadcast);
+
+	return (0);
+}
+
+static int
+rib4_augment_nh(u_int fibnum, struct nhop_object *nh)
+{
 	/*
 	 * Check route MTU:
 	 * inherit interface MTU if not set or
@@ -93,14 +98,9 @@ rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 	} else if (nh->nh_mtu > nh->nh_ifp->if_mtu)
 		nh->nh_mtu = nh->nh_ifp->if_mtu;
 
-	/* Ensure that default route nhop has special flag */
-	const struct sockaddr_in *mask4 = (const struct sockaddr_in *)mask;
-	if ((rt_flags & RTF_HOST) == 0 && mask4 != NULL &&
-	    mask4->sin_addr.s_addr == 0)
-		nh->nh_flags |= NHF_DEFAULT;
-
 	/* Set nhop type to basic per-AF nhop */
 	if (nhop_get_type(nh) == 0) {
+		uint16_t nh_type;
 		if (nh->nh_flags & NHF_GATEWAY)
 			nh_type = NH_TYPE_IPV4_ETHER_NHOP;
 		else
@@ -124,7 +124,8 @@ in_inithead(uint32_t fibnum)
 	if (rh == NULL)
 		return (NULL);
 
-	rh->rnh_preadd = rib4_preadd;
+	rh->rnh_set_nh_pfxflags = rib4_set_nh_pfxflags;
+	rh->rnh_augment_nh = rib4_augment_nh;
 
 	return (rh);
 }

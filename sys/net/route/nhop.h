@@ -175,6 +175,29 @@ struct sysctl_req;
 struct sockaddr_dl;
 struct rib_head;
 
+/* flags that can be set using nhop_set_rtflags() */
+#define	RT_SET_RTFLAGS_MASK     (RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_STATIC)
+#define	RT_CHANGE_RTFLAGS_MASK	RT_SET_RTFLAGS_MASK
+
+struct nhop_object *nhop_alloc(uint32_t fibnum, int family);
+void nhop_copy(struct nhop_object *nh, const struct nhop_object *nh_orig);
+struct nhop_object *nhop_get_nhop(struct nhop_object *nh, int *perror);
+
+void nhop_set_direct_gw(struct nhop_object *nh, struct ifnet *ifp);
+bool nhop_set_gw(struct nhop_object *nh, const struct sockaddr *sa, bool is_gw);
+
+
+void nhop_set_mtu(struct nhop_object *nh, uint32_t mtu, bool from_user);
+void nhop_set_rtflags(struct nhop_object *nh, int rt_flags);
+void nhop_set_pxtype_flag(struct nhop_object *nh, int nh_flag);
+void nhop_set_broadcast(struct nhop_object *nh, bool is_broadcast);
+void nhop_set_blackhole(struct nhop_object *nh, int blackhole_rt_flag);
+void nhop_set_pinned(struct nhop_object *nh, bool is_pinned);
+void nhop_set_redirect(struct nhop_object *nh, bool is_redirect);
+void nhop_set_type(struct nhop_object *nh, enum nhop_type nh_type);
+void nhop_set_src(struct nhop_object *nh, struct ifaddr *ifa);
+void nhop_set_transmit_ifp(struct nhop_object *nh, struct ifnet *ifp);
+
 uint32_t nhop_get_idx(const struct nhop_object *nh);
 enum nhop_type nhop_get_type(const struct nhop_object *nh);
 int nhop_get_rtflags(const struct nhop_object *nh);
