@@ -1182,7 +1182,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	 * which lead to leave group calls, which in turn access the
 	 * belonging ifnet structure:
 	 */
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 
 	/*
 	 * In any case (destroy or vmove) detach us from the groups
@@ -4083,7 +4083,7 @@ if_deregister_com_alloc(u_char type)
 	 * fixes issues about late invocation of if_destroy(), which leads
 	 * to memory leak from if_com_alloc[type] allocated if_l2com.
 	 */
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;

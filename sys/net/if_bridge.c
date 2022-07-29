@@ -600,7 +600,7 @@ vnet_bridge_uninit(const void *unused __unused)
 	BRIDGE_LIST_LOCK_DESTROY();
 
 	/* Callbacks may use the UMA zone. */
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 
 	uma_zdestroy(V_bridge_rtnode_zone);
 }
