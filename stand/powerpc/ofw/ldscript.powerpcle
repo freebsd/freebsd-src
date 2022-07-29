@@ -57,6 +57,7 @@ SECTIONS
   .sbss2     : { *(.sbss2)   }
   /* Adjust the address for the data segment to the next page up. */
   . = ((. + 0x1000) & ~(0x1000 - 1));
+  .data.rel.ro : { *(.data.rel.ro*) }
   .data    :
   {
     *(.data)
