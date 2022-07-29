@@ -258,7 +258,7 @@ DB_SHOW_COMMAND(skb, db_show_skb)
 
 	db_printf("skb %p\n", skb);
 	db_printf("\tnext %p prev %p\n", skb->next, skb->prev);
-	db_printf("\tlist %d\n", skb->list);
+	db_printf("\tlist %p\n", &skb->list);
 	db_printf("\t_alloc_len %u len %u data_len %u truesize %u mac_len %u\n",
 	    skb->_alloc_len, skb->len, skb->data_len, skb->truesize,
 	    skb->mac_len);
