@@ -410,16 +410,10 @@ iommu_free_ctx(struct iommu_ctx *ioctx)
 static void
 iommu_domain_free_entry(struct iommu_map_entry *entry, bool free)
 {
-	struct iommu_domain *iodom;
-
-	iodom = entry->domain;
-
-	IOMMU_DOMAIN_LOCK(iodom);
-	iommu_gas_free_space(iodom, entry);
-	IOMMU_DOMAIN_UNLOCK(iodom);
+	iommu_gas_free_space(entry);
 
 	if (free)
-		iommu_gas_free_entry(iodom, entry);
+		iommu_gas_free_entry(entry);
 	else
 		entry->flags = 0;
 }

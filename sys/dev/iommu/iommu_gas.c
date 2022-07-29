@@ -107,12 +107,11 @@ iommu_gas_alloc_entry(struct iommu_domain *domain, u_int flags)
 }
 
 void
-iommu_gas_free_entry(struct iommu_domain *domain, struct iommu_map_entry *entry)
+iommu_gas_free_entry(struct iommu_map_entry *entry)
 {
+	struct iommu_domain *domain;
 
-	KASSERT(domain == entry->domain,
-	    ("mismatched free domain %p entry %p entry->domain %p", domain,
-	    entry, entry->domain));
+	domain = entry->domain;
 	if (domain != NULL)
 		atomic_subtract_int(&domain->entries_cnt, 1);
 	uma_zfree(iommu_map_entry_zone, entry);
@@ -261,7 +260,7 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 	    (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED),
 	    ("start entry flags %p", domain));
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
-	iommu_gas_free_entry(domain, entry);
+	iommu_gas_free_entry(entry);
 
 	entry = RB_MAX(iommu_gas_entries_tree, &domain->rb_root);
 	KASSERT(entry->start == domain->end, ("end entry start %p", domain));
@@ -270,7 +269,7 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 	    (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED),
 	    ("end entry flags %p", domain));
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
-	iommu_gas_free_entry(domain, entry);
+	iommu_gas_free_entry(entry);
 
 	RB_FOREACH_SAFE(entry, iommu_gas_entries_tree, &domain->rb_root,
 	    entry1) {
@@ -278,7 +277,7 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 		    ("non-RMRR entry left %p", domain));
 		RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root,
 		    entry);
-		iommu_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(entry);
 	}
 }
 
@@ -558,32 +557,37 @@ iommu_gas_alloc_region(struct iommu_domain *domain, struct iommu_map_entry *entr
 }
 
 void
-iommu_gas_free_space(struct iommu_domain *domain, struct iommu_map_entry *entry)
+iommu_gas_free_space(struct iommu_map_entry *entry)
 {
+	struct iommu_domain *domain;
 
-	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+	domain = entry->domain;
 	KASSERT((entry->flags & (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_RMRR |
 	    IOMMU_MAP_ENTRY_MAP)) == IOMMU_MAP_ENTRY_MAP,
 	    ("permanent entry %p %p", domain, entry));
 
+	IOMMU_DOMAIN_LOCK(domain);
 	iommu_gas_rb_remove(domain, entry);
 	entry->flags &= ~IOMMU_MAP_ENTRY_MAP;
 #ifdef INVARIANTS
 	if (iommu_check_free)
 		iommu_gas_check_free(domain);
 #endif
+	IOMMU_DOMAIN_UNLOCK(domain);
 }
 
 void
-iommu_gas_free_region(struct iommu_domain *domain, struct iommu_map_entry *entry)
+iommu_gas_free_region(struct iommu_map_entry *entry)
 {
+	struct iommu_domain *domain;
 	struct iommu_map_entry *next, *prev;
 
-	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+	domain = entry->domain;
 	KASSERT((entry->flags & (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_RMRR |
 	    IOMMU_MAP_ENTRY_MAP)) == IOMMU_MAP_ENTRY_RMRR,
 	    ("non-RMRR entry %p %p", domain, entry));
 
+	IOMMU_DOMAIN_LOCK(domain);
 	prev = RB_PREV(iommu_gas_entries_tree, &domain->rb_root, entry);
 	next = RB_NEXT(iommu_gas_entries_tree, &domain->rb_root, entry);
 	iommu_gas_rb_remove(domain, entry);
@@ -593,6 +597,7 @@ iommu_gas_free_region(struct iommu_domain *domain, struct iommu_map_entry *entry
 		iommu_gas_rb_insert(domain, domain->first_place);
 	if (next == NULL)
 		iommu_gas_rb_insert(domain, domain->last_place);
+	IOMMU_DOMAIN_UNLOCK(domain);
 }
 
 int
@@ -621,7 +626,7 @@ iommu_gas_map(struct iommu_domain *domain,
 	error = iommu_gas_find_space(&a);
 	if (error == ENOMEM) {
 		IOMMU_DOMAIN_UNLOCK(domain);
-		iommu_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(entry);
 		return (error);
 	}
 #ifdef INVARIANTS
@@ -657,6 +662,9 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 	iommu_gaddr_t start;
 	int error;
 
+	KASSERT(entry->domain == domain,
+	    ("mismatched domain %p entry %p entry->domain %p", domain,
+	    entry, entry->domain));
 	KASSERT(entry->flags == 0, ("used RMRR entry %p %p %x", domain,
 	    entry, entry->flags));
 	KASSERT((flags & ~(IOMMU_MF_CANWAIT | IOMMU_MF_RMRR)) == 0,
@@ -716,7 +724,7 @@ iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
 	error = iommu_gas_reserve_region_locked(domain, start, end, entry);
 	IOMMU_DOMAIN_UNLOCK(domain);
 	if (error != 0)
-		iommu_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(entry);
 	else if (entry0 != NULL)
 		*entry0 = entry;
 	return (error);
@@ -770,7 +778,7 @@ iommu_gas_reserve_region_extend(struct iommu_domain *domain,
 	}
 	/* Release a preallocated entry if it was not used. */
 	if (entry != NULL)
-		iommu_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(entry);
 	return (error);
 }
 
@@ -788,11 +796,9 @@ iommu_unmap_msi(struct iommu_ctx *ctx)
 	domain->ops->unmap(domain, entry->start, entry->end -
 	    entry->start, IOMMU_PGF_WAITOK);
 
-	IOMMU_DOMAIN_LOCK(domain);
-	iommu_gas_free_space(domain, entry);
-	IOMMU_DOMAIN_UNLOCK(domain);
+	iommu_gas_free_space(entry);
 
-	iommu_gas_free_entry(domain, entry);
+	iommu_gas_free_entry(entry);
 
 	domain->msi_entry = NULL;
 	domain->msi_base = 0;
@@ -832,7 +838,7 @@ iommu_map_msi(struct iommu_ctx *ctx, iommu_gaddr_t size, int offset,
 				 * We lost the race and already have an
 				 * MSI page allocated. Free the unneeded entry.
 				 */
-				iommu_gas_free_entry(domain, entry);
+				iommu_gas_free_entry(entry);
 			}
 		} else if (domain->msi_entry != NULL) {
 			/*
