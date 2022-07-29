@@ -784,7 +784,7 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 	}
 
 #ifdef INET
-	laddr.s_addr = INADDR_ANY;
+	laddr.s_addr = INADDR_ANY;	/* used by INET6+INET below too */
 	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4) {
 		if (lsa != NULL)
 			laddr = ((struct sockaddr_in *)lsa)->sin_addr;
@@ -835,9 +835,16 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 #endif
 		} else {
 #ifdef INET6
-			if ((inp->inp_vflag & INP_IPV6) != 0)
+			if ((inp->inp_vflag & INP_IPV6) != 0) {
 				tmpinp = in6_pcblookup_local(pcbinfo,
 				    &inp->in6p_laddr, lport, lookupflags, cred);
+#ifdef INET
+				if (tmpinp == NULL &&
+				    (inp->inp_vflag & INP_IPV4))
+					tmpinp = in_pcblookup_local(pcbinfo,
+					    laddr, lport, lookupflags, cred);
+#endif
+			}
 #endif
 #if defined(INET) && defined(INET6)
 			else
