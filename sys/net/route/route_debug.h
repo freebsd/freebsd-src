@@ -96,6 +96,8 @@
 #define FIB_NH_LOG(_l, _nh, _fmt, ...)  FIB_LOG_##_l(_l, nhop_get_fibnum(_nh), nhop_get_upper_family(_nh), _fmt, ## __VA_ARGS__)
 /* Same as FIB_LOG, but uses rib_head to get fib and family */
 #define FIB_RH_LOG(_l, _rh, _fmt, ...)  FIB_LOG_##_l(_l, (_rh)->rib_fibnum, (_rh)->rib_family, _fmt, ## __VA_ARGS__)
+/* Same as FIB_LOG, but uses nh_control to get fib and family from linked rib */
+#define FIB_CTL_LOG(_l, _ctl, _fmt, ...)  FIB_LOG_##_l(_l, (_ctl)->ctl_rh->rib_fibnum, (_ctl)->ctl_rh->rib_family, _fmt, ## __VA_ARGS__)
 
 /*
  * Generic logging for routing subsystem

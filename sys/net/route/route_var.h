@@ -41,12 +41,6 @@
 #include <sys/counter.h>
 #include <net/route/nhop.h>
 
-#ifdef	RTDEBUG
-#define	DPRINTF(_fmt, ...)	printf("%s: " _fmt "\n", __func__ , ## __VA_ARGS__)
-#else
-#define	DPRINTF(_fmt, ...)
-#endif
-
 struct nh_control;
 /* Sets prefix-specific nexthop flags (NHF_DEFAULT, RTF/NHF_HOST, RTF_BROADCAST,..) */
 typedef int rnh_set_nh_pfxflags_f_t(u_int fibnum, const struct sockaddr *addr,
