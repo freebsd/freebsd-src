@@ -48,8 +48,11 @@
 #endif
 
 struct nh_control;
-typedef int rnh_preadd_entry_f_t(u_int fibnum, const struct sockaddr *addr,
+/* Sets prefix-specific nexthop flags (NHF_DEFAULT, RTF/NHF_HOST, RTF_BROADCAST,..) */
+typedef int rnh_set_nh_pfxflags_f_t(u_int fibnum, const struct sockaddr *addr,
 	const struct sockaddr *mask, struct nhop_object *nh);
+/* Fills in family-specific details that are not yet set up (mtu, nhop type, ..) */
+typedef int rnh_augment_nh_f_t(u_int fibnum, struct nhop_object *nh);
 
 struct rib_head {
 	struct radix_head	head;
@@ -59,7 +62,7 @@ struct rib_head {
 	rn_lookup_f_t		*rnh_lookup;	/* exact match for sockaddr */
 	rn_walktree_t		*rnh_walktree;	/* traverse tree */
 	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
-	rnh_preadd_entry_f_t	*rnh_preadd;	/* hook to alter record prior to insertion */
+	rnh_set_nh_pfxflags_f_t	*rnh_set_nh_pfxflags;	/* hook to alter record prior to insertion */
 	rt_gen_t		rnh_gen;	/* datapath generation counter */
 	int			rnh_multipath;	/* multipath capable ? */
 	struct radix_node	rnh_nodes[3];	/* empty tree for common case */
@@ -76,6 +79,7 @@ struct rib_head {
 	uint32_t		rib_algo_fixed:1;/* fixed algorithm */
 	uint32_t		rib_algo_init:1;/* algo init done */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
+	rnh_augment_nh_f_t	*rnh_augment_nh;/* hook to alter nexthop prior to insertion */
 	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
 };
 
@@ -204,11 +208,6 @@ struct rtentry {
  *  RTF_PINNED, RTF_REJECT, RTF_BLACKHOLE, RTF_BROADCAST
  */
 
-/* Nexthop rt flags mask */
-#define	NHOP_RT_FLAG_MASK	(RTF_GATEWAY | RTF_HOST | RTF_REJECT | RTF_DYNAMIC | \
-    RTF_MODIFIED | RTF_STATIC | RTF_BLACKHOLE | RTF_PROTO1 | RTF_PROTO2 | \
-    RTF_PROTO3 | RTF_FIXEDMTU | RTF_PINNED | RTF_BROADCAST)
-
 /* rtentry rt flag mask */
 #define	RTE_RT_FLAG_MASK	(RTF_UP | RTF_HOST)
 
@@ -250,8 +249,6 @@ int nhop_try_ref_object(struct nhop_object *nh);
 void nhop_ref_any(struct nhop_object *nh);
 void nhop_free_any(struct nhop_object *nh);
 
-void nhop_set_type(struct nhop_object *nh, enum nhop_type nh_type);
-void nhop_set_rtflags(struct nhop_object *nh, int rt_flags);
 
 int nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
     struct nhop_object **nh_ret);

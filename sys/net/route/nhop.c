@@ -304,6 +304,7 @@ link_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv)
 
 	nh_priv->nh_idx = idx;
 	nh_priv->nh_control = ctl;
+	nh_priv->nh_finalized = 1;
 
 	CHT_SLIST_INSERT_HEAD(&ctl->nh_head, nhops, nh_priv);
 
