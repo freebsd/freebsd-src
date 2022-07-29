@@ -118,6 +118,9 @@ SYSCTL_INT(_compat_linuxkpi_80211, OID_AUTO, debug, CTLFLAG_RWTUN,
 /* This is DSAP | SSAP | CTRL | ProtoID/OrgCode{3}. */
 const uint8_t rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
+/* IEEE 802.11-05/0257r1 */
+const uint8_t bridge_tunnel_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+
 const uint8_t tid_to_mac80211_ac[] = {
 	IEEE80211_AC_BE,
 	IEEE80211_AC_BK,
