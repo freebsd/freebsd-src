@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=	kerberos
+PACKAGE=	kerberos-lib
 
 LIB=	hdb
 LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}

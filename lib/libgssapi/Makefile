@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE= runtime
 LIB=		gssapi
 SHLIB_MAJOR=	10
 VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def

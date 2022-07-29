@@ -1,6 +1,6 @@
 #$FreeBSD$
 
-PACKAGE=	kerberos
+PACKAGE=	kerberos-lib
 
 LIB=	wind
 LDFLAGS=	-Wl,--no-undefined
