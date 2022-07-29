@@ -101,6 +101,7 @@ static struct vmd_type vmd_devs[] = {
         { 0x8086, 0x467f, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0x8086, 0x4c3d, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0x8086, 0x9a0b, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
+        { 0x8086, 0xa77f, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0, 0, NULL, 0 }
 };
 
