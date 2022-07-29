@@ -1019,7 +1019,7 @@ bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 	ma = malloc(sizeof(vm_page_t) * atop(length), M_TEMP, waitok ?
 	    M_WAITOK : M_NOWAIT);
 	if (ma == NULL) {
-		iommu_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(entry);
 		return (ENOMEM);
 	}
 	for (i = 0; i < atop(length); i++) {
@@ -1034,7 +1034,7 @@ bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
 		IOMMU_DMAMAP_UNLOCK(map);
 	} else {
-		iommu_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(entry);
 	}
 	for (i = 0; i < atop(length); i++)
 		vm_page_putfake(ma[i]);

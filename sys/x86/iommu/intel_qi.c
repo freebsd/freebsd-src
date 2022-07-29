@@ -415,7 +415,6 @@ static void
 dmar_qi_task(void *arg, int pending __unused)
 {
 	struct dmar_unit *unit;
-	struct iommu_domain *domain;
 	struct iommu_map_entry *entry, *head;
 	uint32_t ics;
 
@@ -440,14 +439,11 @@ dmar_qi_task(void *arg, int pending __unused)
 		if (!dmar_qi_seq_processed(unit, &entry->gseq))
 			break;
 		unit->tlb_flush_head = entry;
-		iommu_gas_free_entry(head->domain, head);
-		domain = entry->domain;
-		IOMMU_DOMAIN_LOCK(domain);
+		iommu_gas_free_entry(head);
 		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-			iommu_gas_free_region(domain, entry);
+			iommu_gas_free_region(entry);
 		else
-			iommu_gas_free_space(domain, entry);
-		IOMMU_DOMAIN_UNLOCK(domain);
+			iommu_gas_free_space(entry);
 	}
 	if (unit->inv_seq_waiters > 0) {
 		/*
