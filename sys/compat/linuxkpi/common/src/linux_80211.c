@@ -118,6 +118,9 @@ SYSCTL_INT(_compat_linuxkpi_80211, OID_AUTO, debug, CTLFLAG_RWTUN,
 /* This is DSAP | SSAP | CTRL | ProtoID/OrgCode{3}. */
 const uint8_t rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
+/* IEEE 802.11-05/0257r1 */
+const uint8_t bridge_tunnel_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+
 const uint8_t tid_to_mac80211_ac[] = {
 	IEEE80211_AC_BE,
 	IEEE80211_AC_BK,
@@ -525,6 +528,31 @@ linuxkpi_ieee80211_get_channel(struct wiphy *wiphy, uint32_t freq)
 	}
 
 	return (NULL);
+}
+
+void
+linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211com *ic;
+	struct ieee80211vap *vap;
+
+	lhw = wiphy_priv(wiphy);
+	ic = lhw->ic;
+
+	/*
+	 * If we haven't called ieee80211_ifattach() yet
+	 * or there is no VAP, there are no scans to flush.
+	 */
+	if (ic == NULL ||
+	    (lhw->sc_flags & LKPI_MAC80211_DRV_STARTED) == 0)
+		return;
+
+	/* Should only happen on the current one? Not seen it late enough. */
+	IEEE80211_LOCK(ic);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		ieee80211_scan_flush(vap);
+	IEEE80211_UNLOCK(ic);
 }
 
 #ifdef TRY_HW_CRYPTO
