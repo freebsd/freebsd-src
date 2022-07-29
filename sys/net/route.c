@@ -570,7 +570,7 @@ rt_getifa_family(struct rt_addrinfo *info, uint32_t fibnum)
 }
 
 /*
- * Look up rt_addrinfo for a specific fib.
+ * Fills in rti_ifp and rti_ifa for the provided fib.
  *
  * Assume basic consistency checks are executed by callers:
  * RTAX_DST exists, if RTF_GATEWAY is set, RTAX_GATEWAY exists as well.

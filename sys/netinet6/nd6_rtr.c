@@ -2042,6 +2042,7 @@ nd6_prefix_rtrequest(uint32_t fibnum, int cmd, struct sockaddr_in6 *dst,
 
 	struct rt_addrinfo info = {
 		.rti_ifa = ifa,
+		.rti_ifp = ifp,
 		.rti_flags = RTF_PINNED | ((netmask != NULL) ? 0 : RTF_HOST),
 		.rti_info = {
 			[RTAX_DST] = (struct sockaddr *)dst,

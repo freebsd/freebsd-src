@@ -85,6 +85,7 @@ struct nhop_priv {
 	void			*cb_func;	/* function handling additional rewrite caps */
 	u_int			nh_refcnt;	/* number of references, refcount(9)  */
 	u_int			nh_linked;	/* refcount(9), == 2 if linked to the list */
+	int			nh_finalized;	/* non-zero if finalized() was called */
 	struct nhop_object	*nh;		/* backreference to the dataplane nhop */
 	struct nh_control	*nh_control;	/* backreference to the rnh */
 	struct nhop_priv	*nh_next;	/* hash table membership */
