@@ -48,6 +48,11 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop_var.h>
 #include <net/vnet.h>
 
+#define	DEBUG_MOD_NAME	nhop
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 /*
  * This file contains data structures management logic for the nexthop ("nhop")
  *   route subsystem.
@@ -99,8 +104,7 @@ nhops_init_rib(struct rib_head *rh)
 	rh->nh_control = ctl;
 	ctl->ctl_rh = rh;
 
-	DPRINTF("NHOPS init for fib %u af %u: ctl %p rh %p", rh->rib_fibnum,
-	    rh->rib_family, ctl, rh);
+	FIB_CTL_LOG(LOG_DEBUG2, ctl, "nhops init: ctl %p rh %p", ctl, rh);
 
 	return (0);
 }
@@ -154,7 +158,7 @@ nhops_destroy_rib(struct rib_head *rh)
 
 	NHOPS_WLOCK(ctl);
 	CHT_SLIST_FOREACH(&ctl->nh_head, nhops, nh_priv) {
-		DPRINTF("Marking nhop %u unlinked", nh_priv->nh_idx);
+		FIB_RH_LOG(LOG_DEBUG3, rh, "marking nhop %u unlinked", nh_priv->nh_idx);
 		refcount_release(&nh_priv->nh_linked);
 	} CHT_SLIST_FOREACH_END;
 #ifdef ROUTE_MPATH
@@ -251,8 +255,9 @@ consider_resize(struct nh_control *ctl, uint32_t new_nh_buckets, uint32_t new_id
 		return;
 	}
 
-	DPRINTF("going to resize: nh:[ptr:%p sz:%u] idx:[ptr:%p sz:%u]", nh_ptr,
-	    new_nh_buckets, nh_idx_ptr, new_idx_items);
+	FIB_CTL_LOG(LOG_DEBUG, ctl,
+	    "going to resize: nh:[ptr:%p sz:%u] idx:[ptr:%p sz:%u]",
+	    nh_ptr, new_nh_buckets, nh_idx_ptr, new_idx_items);
 
 	old_idx_ptr = NULL;
 
@@ -296,7 +301,7 @@ link_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv)
 
 	if (bitmask_alloc_idx(&ctl->nh_idx_head, &idx) != 0) {
 		NHOPS_WUNLOCK(ctl);
-		DPRINTF("Unable to allocate nhop index");
+		FIB_CTL_LOG(LOG_INFO, ctl, "Unable to allocate nhop index");
 		RTSTAT_INC(rts_nh_idx_alloc_failure);
 		consider_resize(ctl, num_buckets_new, num_items_new);
 		return (0);
@@ -310,8 +315,9 @@ link_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv)
 
 	NHOPS_WUNLOCK(ctl);
 
-	DPRINTF("Linked nhop priv %p to %d, hash %u, ctl %p", nh_priv, idx,
-	    hash_priv(nh_priv), ctl);
+	FIB_RH_LOG(LOG_DEBUG2, ctl->ctl_rh,
+	    "Linked nhop priv %p to %d, hash %u, ctl %p",
+	    nh_priv, idx, hash_priv(nh_priv), ctl);
 	consider_resize(ctl, num_buckets_new, num_items_new);
 
 	return (idx);
@@ -340,9 +346,9 @@ unlink_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv_del)
 
 		KASSERT((idx != 0), ("bogus nhop index 0"));
 		if ((bitmask_free_idx(&ctl->nh_idx_head, idx)) != 0) {
-			DPRINTF("Unable to remove index %d from fib %u af %d",
-			    idx, ctl->ctl_rh->rib_fibnum,
-			    ctl->ctl_rh->rib_family);
+			FIB_CTL_LOG(LOG_DEBUG, ctl,
+			    "Unable to remove index %d from fib %u af %d",
+			    idx, ctl->ctl_rh->rib_fibnum, ctl->ctl_rh->rib_family);
 		}
 	}
 
@@ -351,12 +357,17 @@ unlink_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv_del)
 	num_items_new = bitmask_get_resize_items(&ctl->nh_idx_head);
 
 	NHOPS_WUNLOCK(ctl);
-
-	if (priv_ret == NULL)
-		DPRINTF("Unable to unlink nhop priv %p from hash, hash %u ctl %p",
+		FIB_CTL_LOG(LOG_INFO, ctl, "Unable to unlink nhop priv %p from hash, hash %u ctl %p",
 		    nh_priv_del, hash_priv(nh_priv_del), ctl);
-	else
-		DPRINTF("Unlinked nhop %p priv idx %d", priv_ret, idx);
+
+	if (priv_ret == NULL) {
+		FIB_CTL_LOG(LOG_INFO, ctl,
+		    "Unable to unlink nhop priv %p from hash, hash %u ctl %p",
+		    nh_priv_del, hash_priv(nh_priv_del), ctl);
+	} else {
+		FIB_CTL_LOG(LOG_DEBUG2, ctl, "Unlinked nhop %p priv idx %d",
+		    priv_ret, idx);
+	}
 
 	consider_resize(ctl, num_buckets_new, num_items_new);
 

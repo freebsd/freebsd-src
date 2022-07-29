@@ -383,8 +383,6 @@ rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 	struct rib_cmd_info rc_new;
 
 	rc_new = *rc;
-	DPRINTF("cb=%p cmd=%d nh_old=%p nh_new=%p",
-	    cb, rc->cmd, rc->nh_old, rc->nh_new);
 	switch (rc->rc_cmd) {
 	case RTM_ADD:
 		if (!NH_IS_NHGRP(rc->rc_nh_new))
