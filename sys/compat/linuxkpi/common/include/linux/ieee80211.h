@@ -71,6 +71,7 @@ struct ieee80211_mmie_16 {
 
 #define	IEEE80211_MAX_MPDU_LEN_HT_BA		4095	/* 9.3.2.1 Format of Data frames; non-VHT non-DMG STA */
 #define	IEEE80211_MAX_MPDU_LEN_HT_3839		3839
+#define	IEEE80211_MAX_MPDU_LEN_HT_7935		7935
 #define	IEEE80211_MAX_MPDU_LEN_VHT_3895		3895
 #define	IEEE80211_MAX_MPDU_LEN_VHT_7991		7991
 #define	IEEE80211_MAX_MPDU_LEN_VHT_11454	11454
@@ -83,10 +84,14 @@ struct ieee80211_mmie_16 {
 #define	IEEE80211_P2P_OPPPS_CTWINDOW_MASK	0x7f
 #define	IEEE80211_P2P_OPPPS_ENABLE_BIT		BIT(7)
 
+/* 802.11-2016, 9.2.4.5.1, Table 9-6 QoS Control Field */
 #define	IEEE80211_QOS_CTL_TAG1D_MASK		0x0007
 #define	IEEE80211_QOS_CTL_TID_MASK		IEEE80211_QOS_TID
 #define	IEEE80211_QOS_CTL_EOSP			0x0010
-#define	IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080	/* 9.2.4.5.1, Table 9-6 QoS Control Field */
+#define	IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080
+#define	IEEE80211_QOS_CTL_ACK_POLICY_MASK	0x0060
+#define	IEEE80211_QOS_CTL_ACK_POLICY_NOACK	0x0020
+#define	IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT	0x0100
 
 #define	IEEE80211_RATE_SHORT_PREAMBLE		BIT(0)
 
@@ -151,6 +156,13 @@ enum ieee80211_min_mpdu_start_spacing {
 #define	IEEE80211_FCTL_STYPE			IEEE80211_FC0_SUBTYPE_MASK
 #define	IEEE80211_FCTL_ORDER			(IEEE80211_FC1_ORDER << 8)
 #define	IEEE80211_FCTL_PROTECTED		(IEEE80211_FC1_PROTECTED << 8)
+#define	IEEE80211_FCTL_FROMDS			(IEEE80211_FC1_DIR_FROMDS << 8)
+#define	IEEE80211_FCTL_TODS			(IEEE80211_FC1_DIR_TODS << 8)
+#define	IEEE80211_FCTL_MOREFRAGS		(IEEE80211_FC1_MORE_FRAG << 8)
+
+#define	IEEE80211_FTYPE_MGMT			IEEE80211_FC0_TYPE_MGT
+#define	IEEE80211_FTYPE_CTL			IEEE80211_FC0_TYPE_CTL
+#define	IEEE80211_FTYPE_DATA			IEEE80211_FC0_TYPE_DATA
 
 #define	IEEE80211_STYPE_ASSOC_REQ		IEEE80211_FC0_SUBTYPE_ASSOC_REQ
 #define	IEEE80211_STYPE_REASSOC_REQ		IEEE80211_FC0_SUBTYPE_REASSOC_REQ
@@ -204,8 +216,10 @@ enum ieee80211_tdls_action_code {
 #define	WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING			BIT(2  % 8)
 #define	WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT			BIT(22 % 8)
 #define	WLAN_EXT_CAPA8_OPMODE_NOTIF				BIT(62 % 8)
+
 #define	WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT			BIT(5)		/* XXX */
 #define	WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT	BIT(7)		/* XXX */
+#define	WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT			BIT(6)		/* XXX */
 
 
 /* iwlwifi/mvm/utils:: for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_VI; ac++) */
@@ -225,6 +239,36 @@ enum ieee80211_ac_numbers {
 #define	IEEE80211_WMM_IE_STA_QOSINFO_AC_BE	8
 #define	IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL	0xf
 
+
+/* XXX net80211 calls these IEEE80211_HTCAP_* */
+#define	IEEE80211_HT_CAP_LDPC_CODING		0x0001	/* IEEE80211_HTCAP_LDPC */
+#define	IEEE80211_HT_CAP_SUP_WIDTH_20_40	0x0002	/* IEEE80211_HTCAP_CHWIDTH40 */
+#define	IEEE80211_HT_CAP_GRN_FLD		0x0010	/* IEEE80211_HTCAP_GREENFIELD */
+#define	IEEE80211_HT_CAP_SGI_20			0x0020	/* IEEE80211_HTCAP_SHORTGI20 */
+#define	IEEE80211_HT_CAP_SGI_40			0x0040	/* IEEE80211_HTCAP_SHORTGI40 */
+#define	IEEE80211_HT_CAP_TX_STBC		0x0080	/* IEEE80211_HTCAP_TXSTBC */
+#define	IEEE80211_HT_CAP_RX_STBC		0x0100	/* IEEE80211_HTCAP_RXSTBC */
+#define	IEEE80211_HT_CAP_RX_STBC_SHIFT		8	/* IEEE80211_HTCAP_RXSTBC_S */
+#define	IEEE80211_HT_CAP_MAX_AMSDU		0x0800	/* IEEE80211_HTCAP_MAXAMSDU */
+#define	IEEE80211_HT_CAP_DSSSCCK40		0x1000	/* IEEE80211_HTCAP_DSSSCCK40 */
+#define	IEEE80211_HT_CAP_SM_PS			0x000c	/* IEEE80211_HTCAP_SMPS */
+#define	IEEE80211_HT_CAP_SM_PS_SHIFT		2
+#define	IEEE80211_HT_CAP_LSIG_TXOP_PROT		0x8000	/* IEEE80211_HTCAP_LSIGTXOPPROT */
+
+#define	IEEE80211_HT_MCS_TX_DEFINED		0x0001
+#define	IEEE80211_HT_MCS_TX_RX_DIFF		0x0002
+#define	IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT	2
+#define	IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK	0x0c
+#define	IEEE80211_HT_MCS_RX_HIGHEST_MASK	0x3ff
+#define	IEEE80211_HT_MCS_MASK_LEN		10
+
+struct ieee80211_mcs_info {
+	uint8_t		rx_mask[IEEE80211_HT_MCS_MASK_LEN];
+	uint16_t	rx_highest;
+	uint8_t		tx_params;
+	uint8_t		__reserved[3];
+};
+
 struct vht_mcs {
 	uint16_t	rx_mcs_map;
 	uint16_t	rx_highest;
@@ -232,9 +276,19 @@ struct vht_mcs {
 	uint16_t	tx_highest;
 };
 
+/* 802.11-2020, 9.4.2.55.1 HT Capabilities element structure */
+struct ieee80211_ht_cap {
+	uint16_t				cap_info;
+	uint8_t					ampdu_params_info;
+	struct ieee80211_mcs_info		mcs;
+	uint16_t				extended_ht_cap_info;
+	uint32_t				tx_BF_cap_info;
+	uint8_t					antenna_selection_info;
+};
+
 struct ieee80211_vht_cap {
-	struct vht_mcs				supp_mcs;;
 	__le32					vht_cap_info;
+	struct vht_mcs				supp_mcs;
 };
 
 #define	IEEE80211_HT_MAX_AMPDU_FACTOR		13
@@ -248,12 +302,13 @@ enum ieee80211_ampdu_mlme_action {
 	IEEE80211_AMPDU_RX_STOP,
 	IEEE80211_AMPDU_TX_OPERATIONAL,
 	IEEE80211_AMPDU_TX_START,
-	IEEE80211_AMPDU_TX_START_DELAY_ADDBA,
-	IEEE80211_AMPDU_TX_START_IMMEDIATE,
 	IEEE80211_AMPDU_TX_STOP_CONT,
 	IEEE80211_AMPDU_TX_STOP_FLUSH,
 	IEEE80211_AMPDU_TX_STOP_FLUSH_CONT
 };
+
+#define	IEEE80211_AMPDU_TX_START_IMMEDIATE	1
+#define	IEEE80211_AMPDU_TX_START_DELAY_ADDBA	2
 
 enum ieee80211_chanctx_switch_mode {
 	CHANCTX_SWMODE_REASSIGN_VIF,
@@ -335,11 +390,15 @@ enum ieee80211_tx_info_flags {
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(13),
 	IEEE80211_TX_CTL_NO_CCK_RATE		= BIT(14),
 	IEEE80211_TX_CTL_INJECTED		= BIT(15),
+	IEEE80211_TX_CTL_HW_80211_ENCAP		= BIT(16),
+	IEEE80211_TX_CTL_USE_MINRATE		= BIT(17),
+	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(18),
 };
 
 enum ieee80211_tx_control_flags {
 	/* XXX TODO .. right shift numbers */
 	IEEE80211_TX_CTRL_PORT_CTRL_PROTO	= BIT(0),
+	IEEE80211_TX_CTRL_PS_RESPONSE		= BIT(1),
 };
 
 enum ieee80211_tx_rate_flags {
@@ -376,6 +435,16 @@ struct ieee80211_hdr_3addr {	/* net80211::ieee80211_frame */
 };
 
 struct ieee80211_vendor_ie {
+};
+
+/* 802.11-2020, Table 9-359-Block Ack Action field values */
+enum ieee80211_back {
+	WLAN_ACTION_ADDBA_REQ		= 0,
+};
+
+/* 802.11-2020, Table 9-51-Category values */
+enum ieee80211_category {
+	WLAN_CATEGORY_BACK		= 3,
 };
 
 /* 9.3.3.2 Format of Management frames */
@@ -421,6 +490,16 @@ struct ieee80211_mgmt {
 					uint16_t toa_error;
 					uint8_t variable[0];
 				} ftm;
+				/* 802.11-2016, 9.6.5.2 ADDBA Request frame format */
+				struct {
+					uint8_t action_code;
+					uint8_t dialog_token;
+					uint16_t capab;
+					uint16_t timeout;
+					uint16_t start_seq_num;
+					/* Optional follows... */
+					uint8_t variable[0];
+				} addba_req;
 			} u;
 		} action;
 	} u;
@@ -449,16 +528,34 @@ enum ieee80211_eid {
 	WLAN_EID_SUPP_RATES			= 1,
 	WLAN_EID_DS_PARAMS			= 3,
 	WLAN_EID_TIM				= 5,
-	WLAN_EID_COUNTRY			= 7, /* IEEE80211_ELEMID_COUNTRY */
+	WLAN_EID_COUNTRY			= 7,	/* IEEE80211_ELEMID_COUNTRY */
 	WLAN_EID_REQUEST			= 10,
 	WLAN_EID_CHANNEL_SWITCH			= 37,
 	WLAN_EID_MEASURE_REPORT			= 39,
-	WLAN_EID_RSN				= 48, /* IEEE80211_ELEMID_RSN */
+	WLAN_EID_HT_CAPABILITY			= 45,	/* IEEE80211_ELEMID_HTCAP */
+	WLAN_EID_RSN				= 48,	/* IEEE80211_ELEMID_RSN */
 	WLAN_EID_EXT_SUPP_RATES			= 50,
 	WLAN_EID_EXT_CHANSWITCH_ANN		= 60,
+	WLAN_EID_MULTIPLE_BSSID			= 71,	/* IEEE80211_ELEMID_MULTIBSSID */
+	WLAN_EID_MULTI_BSSID_IDX		= 85,
 	WLAN_EID_EXT_CAPABILITY			= 127,
+	WLAN_EID_VHT_CAPABILITY			= 191,	/* IEEE80211_ELEMID_VHT_CAP */
 	WLAN_EID_VENDOR_SPECIFIC		= 221,
 };
+
+enum ieee80211_eid_ext {
+	WLAN_EID_EXT_HE_CAPABILITY		= 35,
+};
+
+#define	for_each_element(_elem, _data, _len) \
+	for (_elem = (const struct element *)(_data); \
+	    (((const uint8_t *)(_data) + (_len) - (const uint8_t *)_elem) >= sizeof(*_elem)) && \
+		(((const uint8_t *)(_data) + (_len) - (const uint8_t *)_elem) >= (sizeof(*_elem) + _elem->datalen)); \
+	    _elem = (const struct element *)(_elem->data + _elem->datalen))
+
+#define	for_each_element_id(_elem, _eid, _data, _len) \
+	for_each_element(_elem, _data, _len) \
+		if (_elem->id == (_eid))
 
 /* 9.4.1.7, Table 9-45. Reason codes. */
 enum ieee80211_reason_code {
@@ -500,6 +597,46 @@ enum {
 	/* 0x8..0xf reserved */
 #endif
 	IEEE80211_TRIGGER_TYPE_MASK		= 0xf
+};
+
+/* 802.11-2020, Figure 9-687-Control field format; 802.11ax-2021 */
+#define	IEEE80211_TWT_CONTROL_NEG_TYPE_BROADCAST	BIT(3)
+#define	IEEE80211_TWT_CONTROL_RX_DISABLED		BIT(4)
+#define	IEEE80211_TWT_CONTROL_WAKE_DUR_UNIT		BIT(5)
+
+/* 802.11-2020, Figure 9-688-Request Type field format; 802.11ax-2021 */
+#define	IEEE80211_TWT_REQTYPE_SETUP_CMD		(BIT(1) | BIT(2) | BIT(3))
+#define	IEEE80211_TWT_REQTYPE_TRIGGER		BIT(4)
+#define	IEEE80211_TWT_REQTYPE_IMPLICIT		BIT(5)
+#define	IEEE80211_TWT_REQTYPE_FLOWTYPE		BIT(6)
+#define	IEEE80211_TWT_REQTYPE_FLOWID		(BIT(7) | BIT(8) | BIT(9))
+#define	IEEE80211_TWT_REQTYPE_WAKE_INT_EXP	(BIT(10) | BIT(11) | BIT(12) | BIT(13) | BIT(14))
+#define	IEEE80211_TWT_REQTYPE_PROTECTION	BIT(15)
+
+struct ieee80211_twt_params {
+	int	mantissa, min_twt_dur, twt;
+	uint16_t				req_type;
+};
+
+struct ieee80211_twt_setup {
+	int	control;
+	struct ieee80211_twt_params		*params;
+};
+
+/* 802.11-2020, Table 9-297-TWT Setup Command field values */
+enum ieee80211_twt_setup_cmd {
+	TWT_SETUP_CMD_REQUEST			= 0,
+	TWT_SETUP_CMD_SUGGEST			= 1,
+	/* DEMAND				= 2, */
+	/* GROUPING				= 3, */
+	TWT_SETUP_CMD_ACCEPT			= 4,
+	/* ALTERNATE				= 5 */
+	TWT_SETUP_CMD_DICTATE			= 6,
+	TWT_SETUP_CMD_REJECT			= 7,
+};
+
+struct ieee80211_bssid_index {
+	int	bssid_index;
 };
 
 /* net80211: IEEE80211_IS_CTL() */
