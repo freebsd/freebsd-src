@@ -398,6 +398,8 @@ gctl_error(struct gctl_req *req, const char *error, ...)
 		fprintf(stderr, "\n");
 	}
 	va_end(ap);
+	if (req != NULL && req->nerror == 0)
+		req->nerror = EINVAL;
 }
 
 static void *
