@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE= runtime
 PROG=	sort
 SRCS=	bwstring.c coll.c file.c mem.c radixsort.c sort.c vsort.c
 CSTD=	c11
