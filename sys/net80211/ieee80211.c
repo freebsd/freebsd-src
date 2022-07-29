@@ -2204,7 +2204,11 @@ media_status(enum ieee80211_opmode opmode, const struct ieee80211_channel *chan)
 		status |= IFM_IEEE80211_MBSS;
 		break;
 	}
-	if (IEEE80211_IS_CHAN_HTA(chan)) {
+	if (IEEE80211_IS_CHAN_VHT_5GHZ(chan)) {
+		status |= IFM_IEEE80211_VHT5G;
+	} else if (IEEE80211_IS_CHAN_VHT_2GHZ(chan)) {
+		status |= IFM_IEEE80211_VHT2G;
+	} else if (IEEE80211_IS_CHAN_HTA(chan)) {
 		status |= IFM_IEEE80211_11NA;
 	} else if (IEEE80211_IS_CHAN_HTG(chan)) {
 		status |= IFM_IEEE80211_11NG;
