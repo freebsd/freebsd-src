@@ -340,7 +340,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 static int
 validate_sblock(struct fs *fs, int isaltsblk)
 {
-	u_long i, sectorsize, cgnum;
+	u_long i, sectorsize;
 	u_int64_t maxfilesize, sizepb;
 
 	sectorsize = dbtob(1);
@@ -354,6 +354,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 			sizeof(ufs2_daddr_t)), %jd);
 		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs2_daddr_t),
 		    %jd);
+		CHK(fs->fs_inopb, <, 1, %jd);
 		CHK(fs->fs_inopb, !=, fs->fs_bsize / sizeof(struct ufs2_dinode),
 		    %jd);
 	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
@@ -363,6 +364,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 		}
 		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs1_daddr_t),
 		    %jd);
+		CHK(fs->fs_inopb, <, 1, %jd);
 		CHK(fs->fs_inopb, !=, fs->fs_bsize / sizeof(struct ufs1_dinode),
 		    %jd);
 		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
@@ -390,12 +392,21 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_bsize, <, MINBSIZE, %jd);
 	CHK(fs->fs_bsize, >, MAXBSIZE, %jd);
 	CHK(fs->fs_bsize, <, roundup(sizeof(struct fs), DEV_BSIZE), %jd);
-	CHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 	CHK(powerof2(fs->fs_bsize), ==, 0, %jd);
+	CHK(fs->fs_frag, <, 1, %jd);
+	CHK(fs->fs_frag, >, MAXFRAG, %jd);
+	CHK(fs->fs_frag, !=, numfrags(fs, fs->fs_bsize), %jd);
 	CHK(fs->fs_fsize, <, sectorsize, %jd);
-	CHK(fs->fs_fsize, >, fs->fs_bsize, %jd);
-	CHK(fs->fs_fsize * MAXFRAG, <, fs->fs_bsize, %jd);
+	CHK(fs->fs_fsize * fs->fs_frag, !=, fs->fs_bsize, %jd);
 	CHK(powerof2(fs->fs_fsize), ==, 0, %jd);
+	CHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
+	CHK(fs->fs_ncg, <, 1, %jd);
+	CHK(fs->fs_ipg, <, 1, %jd);
+	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
+	    %jd);
+	CHK(fs->fs_sblockloc, <, 0, %jd);
+	CHK(fs->fs_sblockloc, >, fs->fs_fpg, %jd);
+	CHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 	CHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
 	CHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
 	CHK(fs->fs_maxbsize, >, FS_MAXCONTIG * fs->fs_bsize, %jd);
@@ -405,9 +416,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_qfmask, !=, ~fs->fs_fmask, %#jx);
 	CHK(fs->fs_bshift, !=, ILOG2(fs->fs_bsize), %jd);
 	CHK(fs->fs_fshift, !=, ILOG2(fs->fs_fsize), %jd);
-	CHK(fs->fs_frag, !=, numfrags(fs, fs->fs_bsize), %jd);
 	CHK(fs->fs_fragshift, !=, ILOG2(fs->fs_frag), %jd);
-	CHK(fs->fs_frag, >, MAXFRAG, %jd);
 	CHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
 	CHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
@@ -417,8 +426,6 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_iblkno, !=, fs->fs_cblkno + fs->fs_frag, %jd);
 	CHK(fs->fs_dblkno, !=, fs->fs_iblkno + fs->fs_ipg / INOPF(fs), %jd);
 	CHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
-	CHK(fs->fs_cssize, !=,
-		fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
 	/*
 	 * This test is valid, however older versions of growfs failed
 	 * to correctly update fs_dsize so will fail this test. Thus we
@@ -449,19 +456,16 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	 * that the summary information size is correct and that it starts
 	 * and ends in the data area of the same cylinder group.
 	 */
-	CHK(fs->fs_ncg, <, 1, %jd);
 	CHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
 	CHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
 	CHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	CHK(fs->fs_csaddr, <, 0, %jd);
 	CHK(fs->fs_cssize, !=,
 	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
 	CHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
-	cgnum = dtog(fs, fs->fs_csaddr);
-	CHK(fs->fs_csaddr, <, cgdmin(fs, cgnum), %jd);
+	CHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)), %jd);
 	CHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
-	    cgnum, %jd);
-	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
-	    %jd);
+	    dtog(fs, fs->fs_csaddr), %jd);
 	/*
 	 * With file system clustering it is possible to allocate
 	 * many contiguous blocks. The kernel variable maxphys defines
