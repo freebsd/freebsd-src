@@ -1280,15 +1280,6 @@ command_reboot(int argc, char *argv[])
 	return (CMD_ERROR);
 }
 
-COMMAND_SET(quit, "quit", "exit the loader", command_quit);
-
-static int
-command_quit(int argc, char *argv[])
-{
-	exit(0);
-	return (CMD_OK);
-}
-
 COMMAND_SET(memmap, "memmap", "print memory map", command_memmap);
 
 static int

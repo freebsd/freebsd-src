@@ -576,3 +576,12 @@ command_readtest(int argc, char *argv[])
 }
 
 COMMAND_SET(readtest, "readtest", "Time a file read", command_readtest);
+
+static int
+command_quit(int argc, char *argv[])
+{
+	exit(0);
+	return (CMD_OK);
+}
+
+COMMAND_SET(quit, "quit", "exit the loader", command_quit);
