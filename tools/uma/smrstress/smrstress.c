@@ -123,6 +123,7 @@ smrs_thread(void *arg)
 	else
 		smrs_read();
 	atomic_add_int(&smrs_completed, 1);
+	kthread_exit();
 }
 
 static void
