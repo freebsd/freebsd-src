@@ -114,7 +114,7 @@ server_init(bthid_server_p srv)
 		return (-1);
 	}
 
-	/* Create intrrupt socket */
+	/* Create interrupt socket */
 	srv->intr = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BLUETOOTH_PROTO_L2CAP);
 	if (srv->intr < 0) {
 		syslog(LOG_ERR, "Could not create interrupt L2CAP socket. " \
