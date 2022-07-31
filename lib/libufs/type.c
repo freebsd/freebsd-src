@@ -168,7 +168,8 @@ again:	if ((ret = stat(name, &st)) < 0) {
 	disk->d_ufs = 0;
 	disk->d_error = NULL;
 	disk->d_si = NULL;
-	disk->d_sblockloc = STDSB;
+	disk->d_sblockloc = UFS_STDSB;
+	disk->d_lookupflags = 0;
 
 	if (oname != name) {
 		name = strdup(name);

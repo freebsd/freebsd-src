@@ -321,7 +321,7 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 		}
 	}
 	sync();
-	if ((ret = sbget(fi, &fs, STDSB)) != 0) {
+	if ((ret = sbget(fi, &fs, UFS_STDSB, UFS_NOCSUM)) != 0) {
 		switch (ret) {
 		case ENOENT:
 			warn("Cannot find file system superblock");
