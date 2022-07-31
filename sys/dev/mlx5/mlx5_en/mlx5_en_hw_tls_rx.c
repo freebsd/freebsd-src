@@ -648,7 +648,7 @@ mlx5e_tls_rx_set_params(void *ctx, struct inpcb *inp, const struct tls_session_p
 CTASSERT(MLX5E_TLS_RX_ST_INIT == 0);
 
 /*
- * This functino is responsible for allocating a TLS RX tag. It is a
+ * This function is responsible for allocating a TLS RX tag. It is a
  * callback function invoked by the network stack.
  *
  * Returns zero on success else an error happened.
