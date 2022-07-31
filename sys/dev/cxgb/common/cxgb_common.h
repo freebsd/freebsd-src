@@ -191,7 +191,7 @@ struct mac_stats {
 	u64 tx_deferred;          /* frames with deferred transmissions */
 	u64 tx_late_collisions;   /* # of late collisions */
 	u64 tx_total_collisions;  /* # of total collisions */
-	u64 tx_excess_collisions; /* frame errors from excessive collissions */
+	u64 tx_excess_collisions; /* frame errors from excessive collisions */
 	u64 tx_underrun;          /* # of Tx FIFO underruns */
 	u64 tx_len_errs;          /* # of Tx length errors */
 	u64 tx_mac_internal_errs; /* # of internal MAC errors on Tx */
