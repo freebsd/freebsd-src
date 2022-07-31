@@ -600,6 +600,124 @@ iommu_gas_free_region(struct iommu_map_entry *entry)
 	IOMMU_DOMAIN_UNLOCK(domain);
 }
 
+static struct iommu_map_entry *
+iommu_gas_remove_clip_left(struct iommu_domain *domain, iommu_gaddr_t start,
+    iommu_gaddr_t end, struct iommu_map_entry **r)
+{
+	struct iommu_map_entry *entry, *res, fentry;
+
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+	MPASS(start <= end);
+	MPASS(end <= domain->last_place->end);
+
+	/*
+	 * Find an entry which contains the supplied guest's address
+	 * start, or the first entry after the start.  Since we
+	 * asserted that start is below domain end, entry should
+	 * exist.  Then clip it if needed.
+	 */
+	fentry.start = start + 1;
+	fentry.end = start + 1;
+	entry = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, &fentry);
+
+	if (entry->start >= start ||
+	    (entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+		return (entry);
+
+	res = *r;
+	*r = NULL;
+	*res = *entry;
+	res->start = entry->end = start;
+	RB_UPDATE_AUGMENT(entry, rb_entry);
+	iommu_gas_rb_insert(domain, res);
+	return (res);
+}
+
+static bool
+iommu_gas_remove_clip_right(struct iommu_domain *domain,
+    iommu_gaddr_t end, struct iommu_map_entry *entry,
+    struct iommu_map_entry *r)
+{
+	if (entry->start >= end || (entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+		return (false);
+
+	*r = *entry;
+	r->end = entry->start = end;
+	RB_UPDATE_AUGMENT(entry, rb_entry);
+	iommu_gas_rb_insert(domain, r);
+	return (true);
+}
+
+static void
+iommu_gas_remove_unmap(struct iommu_domain *domain,
+    struct iommu_map_entry *entry, struct iommu_map_entries_tailq *gcp)
+{
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+
+	if ((entry->flags & (IOMMU_MAP_ENTRY_UNMAPPED |
+	    IOMMU_MAP_ENTRY_REMOVING)) != 0)
+		return;
+	MPASS((entry->flags & IOMMU_MAP_ENTRY_PLACE) == 0);
+	entry->flags |= IOMMU_MAP_ENTRY_REMOVING;
+	TAILQ_INSERT_TAIL(gcp, entry, dmamap_link);
+}
+
+/*
+ * Remove specified range from the GAS of the domain.  Note that the
+ * removal is not guaranteed to occur upon the function return, it
+ * might be finalized some time after, when hardware reports that
+ * (queued) IOTLB invalidation was performed.
+ */
+void
+iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
+    iommu_gaddr_t size)
+{
+	struct iommu_map_entry *entry, *nentry, *r1, *r2;
+	struct iommu_map_entries_tailq gc;
+	iommu_gaddr_t end;
+
+	end = start + size;
+	r1 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+	r2 = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+	TAILQ_INIT(&gc);
+
+	IOMMU_DOMAIN_LOCK(domain);
+
+	nentry = iommu_gas_remove_clip_left(domain, start, end, &r1);
+	RB_FOREACH_FROM(entry, iommu_gas_entries_tree, nentry) {
+		if (entry->start >= end)
+			break;
+		KASSERT(start <= entry->start,
+		    ("iommu_gas_remove entry (%#jx, %#jx) start %#jx",
+		    entry->start, entry->end, start));
+		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+			continue;
+		iommu_gas_remove_unmap(domain, entry, &gc);
+	}
+	if (iommu_gas_remove_clip_right(domain, end, entry, r2)) {
+		iommu_gas_remove_unmap(domain, r2, &gc);
+		r2 = NULL;
+	}
+
+#ifdef INVARIANTS
+	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
+		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+			continue;
+		KASSERT(entry->end <= start || entry->start >= end,
+		    ("iommu_gas_remove leftover entry (%#jx, %#jx) range "
+		    "(%#jx, %#jx)",
+		    entry->start, entry->end, start, end));
+	}
+#endif
+
+	IOMMU_DOMAIN_UNLOCK(domain);
+	if (r1 != NULL)
+		iommu_gas_free_entry(r1);
+	if (r2 != NULL)
+		iommu_gas_free_entry(r2);
+	iommu_domain_unload(domain, &gc, true);
+}
+
 int
 iommu_gas_map(struct iommu_domain *domain,
     const struct bus_dma_tag_common *common, iommu_gaddr_t size, int offset,
