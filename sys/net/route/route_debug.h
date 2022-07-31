@@ -152,6 +152,7 @@ struct nhop_object;
 struct nhgrp_object;
 struct llentry;
 struct nhop_neigh;
+struct rtentry;
 
 #define	NHOP_PRINT_BUFSIZE	48
 char *nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize);
@@ -161,5 +162,7 @@ char *llentry_print_buf(const struct llentry *lle, struct ifnet *ifp, int family
     size_t bufsize);
 char *llentry_print_buf_lltable(const struct llentry *lle, char *buf, size_t bufsize);
 char *neigh_print_buf(const struct nhop_neigh *nn, char *buf, size_t bufsize);
+char *rt_print_buf(const struct rtentry *rt, char *buf, size_t bufsize);
+const char *rib_print_cmd(int rib_cmd);
 
 #endif
