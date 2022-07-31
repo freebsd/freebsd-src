@@ -463,7 +463,7 @@ static enum _ecore_status_t ecore_db_rec_attn(struct ecore_hwfn *p_hwfn,
 		return ECORE_TIMEOUT;
 	}
 
-	/* flush any pedning (e)dpm as they may never arrive */
+	/* flush any pending (e)dpm as they may never arrive */
 	ecore_wr(p_hwfn, p_ptt, DORQ_REG_DPM_FORCE_ABORT, 0x1);
 
 	/* release overflow sticky indication (stop silently dropping everything) */
