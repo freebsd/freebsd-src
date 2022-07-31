@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2022
+.Dd August 1, 2022
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -203,12 +203,12 @@ The alternate TCP stack must already be loaded in the kernel.
 To list the available TCP stacks, see
 .Va functions_available
 in the
-.Sx MIB Variables
+.Sx MIB (sysctl) Variables
 section further down.
 To list the default TCP stack, see
 .Va functions_default
 in the
-.Sx MIB Variables
+.Sx MIB (sysctl) Variables
 section.
 .It Dv TCP_KEEPINIT
 This
@@ -221,7 +221,7 @@ connections.
 For the global default in milliseconds see
 .Va keepinit
 in the
-.Sx MIB Variables
+.Sx MIB (sysctl) Variables
 section further down.
 .It Dv TCP_KEEPIDLE
 This
@@ -237,7 +237,7 @@ socket upon
 For the global default in milliseconds see
 .Va keepidle
 in the
-.Sx MIB Variables
+.Sx MIB (sysctl) Variables
 section further down.
 .It Dv TCP_KEEPINTVL
 This
@@ -252,7 +252,7 @@ socket upon
 For the global default in milliseconds see
 .Va keepintvl
 in the
-.Sx MIB Variables
+.Sx MIB (sysctl) Variables
 section further down.
 .It Dv TCP_KEEPCNT
 This
@@ -267,7 +267,7 @@ socket upon
 For the global default see the
 .Va keepcnt
 in the
-.Sx MIB Variables
+.Sx MIB (sysctl) Variables
 section further down.
 .It Dv TCP_NODELAY
 Under most circumstances,
@@ -413,14 +413,15 @@ is
 Other congestion control algorithms can be made available using the
 .Xr mod_cc 4
 framework.
-.Ss MIB Variables
+.Ss MIB (sysctl) Variables
 The
 .Tn TCP
 protocol implements a number of variables in the
 .Va net.inet.tcp
 branch of the
 .Xr sysctl 3
-MIB.
+MIB, which can also be read or modified with
+.Xr sysctl 8 .
 .Bl -tag -width ".Va v6pmtud_blackhole_mss"
 .It Va always_keepalive
 Assume that
@@ -432,13 +433,28 @@ periodically send a packet to the remote host to verify the connection
 is still up.
 .It Va blackhole
 If enabled, disable sending of RST when a connection is attempted
-to a port where there is not a socket accepting connections.
+to a port where there is no socket accepting connections.
 See
 .Xr blackhole 4 .
+.It Va blackhole_local
+See
+.Xr blackhole 4 .
+.It Va cc
+A number of variables for congestion control are under the
+.Va net.inet.tcp.cc
+node.
+See
+.Xr mod_cc 4 .
+.It Va cc.newreno
+Variables for NewReno congestion control are under the
+.Va net.inet.tcp.cc.newreno
+node.
+See
+.Xr cc_newreno 4 .
 .It Va delacktime
 Maximum amount of time, in milliseconds, before a delayed ACK is sent.
 .It Va delayed_ack
-Delay ACK to try and piggyback it onto a data packet.
+Delay ACK to try and piggyback it onto a data packet or another ACK.
 .It Va do_lrd
 Enable Lost Retransmission Detection for SACK-enabled sessions, disabled by
 default.
@@ -463,6 +479,8 @@ high losses leading to RTO, but reduces PRR effectiveness in more common setting
 Flush packets in the
 .Tn TCP
 reassembly queue if the system is low on mbufs.
+.It Va drop_synfin
+Drop TCP packets with both SYN and FIN set.
 .It Va ecn.enable
 Enable support for TCP Explicit Congestion Notification (ECN).
 ECN allows a TCP sender to reduce the transmission rate in order to
@@ -706,7 +724,7 @@ machines, when no response is received on a
 probe.
 The default is 75000 msec (75K msec, 75 sec).
 .It Va log_in_vain
-Log any connection attempts to ports where there is not a socket
+Log any connection attempts to ports where there is no socket
 accepting connections.
 The value of 1 limits the logging to
 .Tn SYN
@@ -733,12 +751,15 @@ MIB variable controls the maximum number of these structures allocated.
 By default, it is initialized to
 .Va kern.ipc.maxsockets
 / 5.
+.It Va minmss
+Minimum TCP Maximum Segment Size; used to prevent a denial of service attack
+from an unreasonably low MSS.
 .It Va msl
 The Maximum Segment Lifetime, in milliseconds, for a packet.
 .It Va mssdflt
-The default value used for the maximum segment size
+The default value used for the TCP Maximum Segment Size
 .Pq Dq MSS
-when no advice to the contrary is received from MSS negotiation.
+for IPv4 when no advice to the contrary is received from MSS negotiation.
 .It Va newcwd
 Enable the New Congestion Window Validation mechanism as described in RFC 7661.
 This gently reduces the congestion window during periods, where TCP is
@@ -766,6 +787,10 @@ A CSV list of template_spec=percent key-value pairs which controls the per
 template sampling rates when
 .Xr stats 3
 sampling is enabled.
+.It Va persmax
+Maximum persistence interval, msec.
+.It Va persmin
+Minimum persistence interval, msec.
 .It Va pmtud_blackhole_detection
 Enable automatic path MTU blackhole detection.
 In case of retransmits of MSS sized segments,
@@ -808,10 +833,21 @@ limit.
 The maximum limit on the total number of segments across all reassembly
 queues.
 The limit can be adjusted as a tunable.
+.It Va recvbuf_auto
+Enable automatic receive buffer sizing as a connection progresses.
+.It Va recvbuf_max
+Maximum size of automatic receive buffer.
 .It Va recvspace
-Maximum
+Initial
 .Tn TCP
-receive window.
+receive window (buffer size).
+.It Va require_unique_port
+Require unique ephemeral port for outgoing connections;
+otherwise, the 4-tuple of local and remote ports and addresses must be unique.
+Requiring a unique port limits the number of outgoing connections.
+.It Va rexmit_drop_options
+Drop TCP options from third and later retransmitted SYN segments
+of a connection.
 .It Va rexmit_initial , rexmit_min , rexmit_slop
 Adjust the retransmit timer calculation for
 .Tn TCP .
@@ -857,6 +893,8 @@ Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully
 arrived segments, allowing the sender to retransmit the missing segments
 only.
+.It Va sack.globalholes
+Global number of TCP SACK holes currently allocated.
 .It Va sack.globalmaxholes
 Maximum number of SACK holes per system, across all connections.
 Defaults to 65536.
@@ -874,10 +912,24 @@ recovery, the trailing segment is immediately resent, rather than waiting
 for a Retransmission timeout.
 Finally, SACK loss recovery is also engaged, once two segments plus one byte are
 SACKed - even if no traditional duplicate ACKs were observed.
+.It Va sendbuf_auto
+Enable automatic send buffer sizing.
+.It Va sendbuf_auto_lowat
+Modify threshold for auto send buffer growth to account for
+.Dv SO_SNDLOWAT .
+.It Va sendbuf_inc
+Incrementor step size of automatic send buffer.
+.It Va sendbuf_max
+Maximum size of automatic send buffer.
 .It Va sendspace
-Maximum
+Initial
 .Tn TCP
-send window.
+send window (buffer size).
+.It Va syncache
+Variables under the
+.Va net.inet.tcp.syncache
+node are documented in
+.Xr syncache 4 .
 .It Va syncookies
 Determines whether or not
 .Tn SYN
@@ -890,6 +942,9 @@ cookies are a great help during
 flood attacks, and are enabled by default.
 (See
 .Xr syncookies 4 . )
+.It Va syncookies_only
+See
+.Xr syncookies 4 .
 .It Va tcbhashsize
 Size of the
 .Tn TCP
@@ -916,6 +971,8 @@ Therefore the default is 1, i.e., the missing of timestamps is tolerated.
 When initializing the TCP timestamps, use a per connection offset instead of a
 per host pair offset.
 Default is to use per connection offsets as recommended in RFC 7323.
+.It Va tso
+Enable TCP Segmentation Offload.
 .It Va udp_tunneling_overhead
 The overhead taken into account when using UDP encapsulation.
 Since MSS clamping by middleboxes will most likely not work, values larger than
@@ -926,6 +983,10 @@ The default is 8.
 The local UDP encapsulation port.
 A value of 0 indicates that UDP encapsulation is disabled.
 The default is 0.
+.It Va v6mssdflt
+The default value used for the TCP Maximum Segment Size
+.Pq Dq MSS
+for IPv6 when no advice to the contrary is received from MSS negotiation.
 .It Va v6pmtud_blackhole_mss
 MSS to try for IPv6 if PMTU blackhole detection is turned on.
 See
@@ -981,6 +1042,7 @@ when trying to use a TCP function block that is not available;
 .Xr syncache 4 ,
 .Xr tcp_bbr 4 ,
 .Xr setkey 8 ,
+.Xr sysctl 8 ,
 .Xr tcp_functions 9
 .Rs
 .%A "V. Jacobson"
