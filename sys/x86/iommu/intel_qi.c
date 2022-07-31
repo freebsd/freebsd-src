@@ -412,13 +412,33 @@ dmar_qi_intr(void *arg)
 }
 
 static void
+dmar_qi_drain_tlb_flush(struct dmar_unit *unit)
+{
+	struct iommu_map_entry *entry, *head;
+
+	for (head = unit->tlb_flush_head;; head = entry) {
+		entry = (struct iommu_map_entry *)
+		    atomic_load_acq_ptr((uintptr_t *)&head->tlb_flush_next);
+		if (entry == NULL ||
+		    !dmar_qi_seq_processed(unit, &entry->gseq))
+			break;
+		unit->tlb_flush_head = entry;
+		iommu_gas_free_entry(head);
+		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
+			iommu_gas_free_region(entry);
+		else
+			iommu_gas_free_space(entry);
+	}
+}
+
+static void
 dmar_qi_task(void *arg, int pending __unused)
 {
 	struct dmar_unit *unit;
-	struct iommu_map_entry *entry, *head;
 	uint32_t ics;
 
 	unit = arg;
+	dmar_qi_drain_tlb_flush(unit);
 
 	/*
 	 * Request an interrupt on the completion of the next invalidation
@@ -428,23 +448,16 @@ dmar_qi_task(void *arg, int pending __unused)
 	if ((ics & DMAR_ICS_IWC) != 0) {
 		ics = DMAR_ICS_IWC;
 		dmar_write4(unit, DMAR_ICS_REG, ics);
+
+		/*
+		 * Drain a second time in case the DMAR processes an entry
+		 * after the first call and before clearing DMAR_ICS_IWC.
+		 * Otherwise, such entries will linger until a later entry
+		 * that requests an interrupt is processed.
+		 */
+		dmar_qi_drain_tlb_flush(unit);
 	}
 
-	for (;;) {
-		head = unit->tlb_flush_head;
-		entry = (struct iommu_map_entry *)
-		    atomic_load_acq_ptr((uintptr_t *)&head->tlb_flush_next);
-		if (entry == NULL)
-			break;
-		if (!dmar_qi_seq_processed(unit, &entry->gseq))
-			break;
-		unit->tlb_flush_head = entry;
-		iommu_gas_free_entry(head);
-		if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-			iommu_gas_free_region(entry);
-		else
-			iommu_gas_free_space(entry);
-	}
 	if (unit->inv_seq_waiters > 0) {
 		/*
 		 * Acquire the DMAR lock so that wakeup() is called only after
