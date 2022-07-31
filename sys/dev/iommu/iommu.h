@@ -171,6 +171,8 @@ struct iommu_map_entry *iommu_gas_alloc_entry(struct iommu_domain *domain,
     u_int flags);
 void iommu_gas_free_entry(struct iommu_map_entry *entry);
 void iommu_gas_free_space(struct iommu_map_entry *entry);
+void iommu_gas_remove(struct iommu_domain *domain, iommu_gaddr_t start,
+    iommu_gaddr_t size);
 int iommu_gas_map(struct iommu_domain *domain,
     const struct bus_dma_tag_common *common, iommu_gaddr_t size, int offset,
     u_int eflags, u_int flags, vm_page_t *ma, struct iommu_map_entry **res);
