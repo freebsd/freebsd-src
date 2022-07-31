@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2020
+.Dd July 31, 2022
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -219,11 +219,13 @@ If the shared file is not referenced by a full pathname,
 searches in the current (or home) directory first, and then in the
 directory
 .Pa /usr/share/calendar .
-Empty lines and text protected by the C commenting syntax
-.Pq Li /* ... */
+.Pp
+Blank lines and text protected by the C comment syntax
+.Ql /* ... */
 or
-.Pq Li //
-are ignored.
+.Ql //
+are ignored, but the latter only at the beginning of a line or after
+white space to allow for URLs in calendar entries.
 .Pp
 Some possible calendar entries (<tab> characters highlighted by
 \fB\et\fR sequence):
