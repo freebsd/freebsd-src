@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #define MFI_ODR0	0x9c 		/* outbound doorbell register0 */
 #define MFI_ODCR0	0xa0 		/* outbound doorbell clear register0  */
 #define MFI_OSP0	0xb0 		/* outbound scratch pad0  */
-#define MFI_1078_EIM	0x80000004 	/* 1078 enable intrrupt mask  */
+#define MFI_1078_EIM	0x80000004 	/* 1078 enable interrupt mask  */
 #define MFI_RMI		0x2 		/* reply message interrupt  */
 #define MFI_1078_RM	0x80000000 	/* reply 1078 message interrupt  */
 #define MFI_ODC		0x4 		/* outbound doorbell change interrupt */
