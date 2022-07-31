@@ -252,18 +252,20 @@ int
 readsb(int listerr)
 {
 	off_t super;
-	int bad, ret;
+	int bad, ret, flags;
 	struct fs *fs;
 
-	super = bflag ? bflag * dev_bsize :
-	    sbhashfailed ? STDSB_NOHASHFAIL_NOMSG : STDSB_NOMSG;
+	super = bflag ? bflag * dev_bsize : UFS_STDSB;
+	flags = sbhashfailed ? UFS_NOHASHFAIL | UFS_NOMSG : UFS_NOMSG;
 	readcnt[sblk.b_type]++;
-	while ((ret = sbget(fsreadfd, &fs, super)) != 0) {
+	while ((ret = sbget(fsreadfd, &fs, super, flags)) != 0) {
 		switch (ret) {
 		case EINTEGRITY:
-			if (bflag || super == STDSB_NOHASHFAIL_NOMSG)
+			if (bflag || (super == UFS_STDSB &&
+			    flags == (UFS_NOHASHFAIL | UFS_NOMSG)))
 				return (0);
-			super = STDSB_NOHASHFAIL_NOMSG;
+			super = UFS_STDSB;
+			flags = UFS_NOHASHFAIL | UFS_NOMSG;
 			sbhashfailed = 1;
 			continue;
 		case ENOENT:

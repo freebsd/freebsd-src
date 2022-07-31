@@ -139,8 +139,9 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	label[0] = '\0';
 
 	fs = NULL;
-	if (SBLOCKSIZE % pp->sectorsize != 0 || ffs_sbget(cp, &fs,
-	    STDSB_NOHASHFAIL_NOMSG, M_GEOM, g_use_g_read_data) != 0) {
+	if (SBLOCKSIZE % pp->sectorsize != 0 || ffs_sbget(cp, &fs, UFS_STDSB,
+	    UFS_NOHASHFAIL | UFS_NOCSUM | UFS_NOMSG, M_GEOM, g_use_g_read_data)
+	    != 0) {
 		KASSERT(fs == NULL,
 		    ("g_label_ufs_taste_common: non-NULL fs %p\n", fs));
 		return;
@@ -172,8 +173,6 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 		break;
 	}
 out:
-	g_free(fs->fs_csp);
-	g_free(fs->fs_si);
 	g_free(fs);
 }
 

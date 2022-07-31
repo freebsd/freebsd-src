@@ -50,11 +50,9 @@ fstyp_ufs(FILE *fp, char *label, size_t labelsize)
 {
 	struct fs *fs;
 
-	switch (sbget(fileno(fp), &fs, STDSB)) {
+	switch (sbget(fileno(fp), &fs, UFS_STDSB, UFS_NOCSUM)) {
 	case 0:
 		strlcpy(label, fs->fs_volname, labelsize);
-		free(fs->fs_csp);
-		free(fs->fs_si);
 		free(fs);
 		return (0);
 	case ENOENT:

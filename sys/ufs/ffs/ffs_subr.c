@@ -125,7 +125,7 @@ ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
  * the superblock and its associated data.
  */
 static off_t sblock_try[] = SBLOCKSEARCH;
-static int readsuper(void *, struct fs **, off_t, int, int,
+static int readsuper(void *, struct fs **, off_t, int,
 	int (*)(void *, off_t, void **, int));
 static int validate_sblock(struct fs *, int);
 
@@ -149,7 +149,7 @@ static int validate_sblock(struct fs *, int);
  *         The administrator must complete newfs before using this volume.
  */
 int
-ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
+ffs_sbget(void *devfd, struct fs **fsp, off_t sblock, int flags,
     struct malloc_type *filltype,
     int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
 {
@@ -163,18 +163,23 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 
 	fs = NULL;
 	*fsp = NULL;
-	if (altsblock >= 0) {
-		if ((error = readsuper(devfd, &fs, altsblock, 1, 0,
-		     readfunc)) != 0) {
+	if (sblock != UFS_STDSB) {
+		if ((error = readsuper(devfd, &fs, sblock,
+		    flags | UFS_ALTSBLK, readfunc)) != 0) {
 			if (fs != NULL)
 				UFS_FREE(fs, filltype);
 			return (error);
 		}
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
-			if ((error = readsuper(devfd, &fs, sblock_try[i], 0,
-			     altsblock, readfunc)) == 0)
+			if ((error = readsuper(devfd, &fs, sblock_try[i],
+			     flags, readfunc)) == 0) {
+				if ((flags & UFS_NOCSUM) != 0) {
+					*fsp = fs;
+					return (0);
+				}
 				break;
+			}
 			if (fs != NULL) {
 				UFS_FREE(fs, filltype);
 				fs = NULL;
@@ -243,8 +248,8 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
  * Return zero on success or an errno on failure.
  */
 static int
-readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
-    int chkhash, int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
+readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
+    int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
 {
 	struct fs *fs;
 	int error, res;
@@ -263,10 +268,10 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	 * that will be accessed. Here we fail the lookup so that we can
 	 * retry with the correct location for the UFS1 superblock.
 	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC && !isaltsblk &&
+	if (fs->fs_magic == FS_UFS1_MAGIC && (flags & UFS_ALTSBLK) == 0 &&
 	    fs->fs_bsize == SBLOCK_UFS2 && sblockloc == SBLOCK_UFS2)
 		return (ENOENT);
-	if ((error = validate_sblock(fs, isaltsblk)) != 0)
+	if ((error = validate_sblock(fs, flags)) > 0)
 		return (error);
 	/*
 	 * If the filesystem has been run on a kernel without
@@ -281,15 +286,16 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	fs->fs_metackhash &= CK_SUPPORTED;
 	fs->fs_flags &= FS_SUPPORTED;
 	if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
-		if (chkhash == STDSB_NOMSG)
-			return (EINTEGRITY);
-		if (chkhash == STDSB_NOHASHFAIL_NOMSG)
+		if ((flags & (UFS_NOMSG | UFS_NOHASHFAIL)) ==
+		    (UFS_NOMSG | UFS_NOHASHFAIL))
 			return (0);
+		if ((flags & UFS_NOMSG) != 0)
+			return (EINTEGRITY);
 #ifdef _KERNEL
 		res = uprintf("Superblock check-hash failed: recorded "
 		    "check-hash 0x%x != computed check-hash 0x%x%s\n",
 		    fs->fs_ckhash, ckhash,
-		    chkhash == STDSB_NOHASHFAIL ? " (Ignored)" : "");
+		    (flags & UFS_NOHASHFAIL) != 0 ? " (Ignored)" : "");
 #else
 		res = 0;
 #endif
@@ -301,12 +307,10 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 			printf("Superblock check-hash failed: recorded "
 			    "check-hash 0x%x != computed check-hash "
 			    "0x%x%s\n", fs->fs_ckhash, ckhash,
-			    chkhash == STDSB_NOHASHFAIL ?
-			    " (Ignored)" : "");
-		if (chkhash == STDSB)
-			return (EINTEGRITY);
-		/* chkhash == STDSB_NOHASHFAIL */
-		return (0);
+			    (flags & UFS_NOHASHFAIL) ? " (Ignored)" : "");
+		if ((flags & UFS_NOHASHFAIL) != 0)
+			return (0);
+		return (EINTEGRITY);
 	}
 	/* Have to set for old filesystems that predate this field */
 	fs->fs_sblockactualloc = sblockloc;
@@ -318,34 +322,40 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 /*
  * Verify the filesystem values.
  */
-#define ILOG2(num) (fls(num) - 1)
+#define ILOG2(num)	(fls(num) - 1)
+#define MPRINT		if (prtmsg) printf
 #undef CHK
 #define CHK(lhs, op, rhs, fmt)						\
 	if (lhs op rhs) {						\
-		printf("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
+		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
 		    #fmt ")\n", fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2,	\
 		    #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs);	\
-		return (ENOENT);					\
+		if (error == 0)						\
+			error = ENOENT;					\
 	}
 #define CHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
 	if (lhs1 op1 rhs1 && lhs2 op2 rhs2) {				\
-		printf("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
+		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
 		    #fmt ") && %s (" #fmt ") %s %s (" #fmt ")\n",	\
 		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1, 	\
 		    (intmax_t)lhs1, #op1, #rhs1, (intmax_t)rhs1, #lhs2,	\
 		    (intmax_t)lhs2, #op2, #rhs2, (intmax_t)rhs2);	\
-		return (ENOENT);					\
+		if (error == 0)						\
+			error = ENOENT;					\
 	}
 
 static int
-validate_sblock(struct fs *fs, int isaltsblk)
+validate_sblock(struct fs *fs, int flags)
 {
 	u_long i, sectorsize;
 	u_int64_t maxfilesize, sizepb;
+	int error, prtmsg;
 
+	error = 0;
 	sectorsize = dbtob(1);
+	prtmsg = ((flags & UFS_NOMSG) == 0);
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
-		if (!isaltsblk) {
+		if ((flags & UFS_ALTSBLK) == 0) {
 			CHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
 			CHK2(fs->fs_sblockactualloc, !=, SBLOCK_UFS2,
 			    fs->fs_sblockactualloc, !=, 0, %jd);
@@ -358,7 +368,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 		CHK(fs->fs_inopb, !=, fs->fs_bsize / sizeof(struct ufs2_dinode),
 		    %jd);
 	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
-		if (!isaltsblk) {
+		if ((flags & UFS_ALTSBLK) == 0) {
 			CHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
 			CHK(fs->fs_sblockactualloc, >, SBLOCK_UFS1, %jd);
 		}
@@ -459,6 +469,13 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
 	CHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
 	CHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	/*
+	 * If we are not requested to read in the csum data stop here
+	 * as the correctness of the remaining values is only important
+	 * to bound the space needed to be allocated to hold the csum data.
+	 */
+	if ((flags & UFS_NOCSUM) != 0)
+		return (error);
 	CHK(fs->fs_csaddr, <, 0, %jd);
 	CHK(fs->fs_cssize, !=,
 	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
@@ -490,7 +507,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	CHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
 	CHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
 	    MIN(fs->fs_maxcontig, FS_MAXCONTIG), %jd);
-	return (0);
+	return (error);
 }
 
 /*

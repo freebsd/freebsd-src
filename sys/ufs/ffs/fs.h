@@ -79,26 +79,30 @@
 	{ SBLOCK_UFS2, SBLOCK_UFS1, SBLOCK_FLOPPY, SBLOCK_PIGGY, -1 }
 /*
  * Request standard superblock location in ffs_sbget().
- *
- * STDSB will fail if the superblock has a check hash and it is wrong.
- *
- * STDSB_NOHASHFAIL will note that the check hash is wrong but will
- *    still return the superblock. This is used by the bootstrap code
- *    to give the system a chance to come up so that fsck can be run
- *    to correct the problem.
- *
- * STDSB_NOMSG is the same as STDSB but the kernel does not print an 
- *    error message. It is used by programs like fsck that want to
- *    print their own error message.
- *
- * STDSB_NOHASHFAIL_NOMSG is the same as STDSB_NOHASHFAIL but the kernel
- *    does not print an error message. It is used by clients like glabel
- *    that just want to check for possible filesystem types.
  */
-#define	STDSB			-1	/* Fail if check-hash is bad */
-#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
-#define	STDSB_NOMSG		-3	/* STDSB with no kernel message */
-#define	STDSB_NOHASHFAIL_NOMSG	-4	/* STDSB_NOHASHFAIL with no message */
+#define	UFS_STDSB	-1	/* Search standard places for superblock */
+
+/*
+ * UFS_NOMSG indicates that superblock inconsistency error messages
+ *    should not be printed. It is used by programs like fsck that
+ *    want to print their own error message.
+ *
+ * UFS_NOCSUM causes only the superblock itself to be returned, but does
+ *    not read in any auxiliary data structures like the cylinder group
+ *    summary information. It is used by clients like glabel that just
+ *    want to check for possible filesystem types. Using UFS_NOCSUM
+ *    skips the superblock checks for csum data which allows superblocks
+ *    that have corrupted csum data to be read and used.
+ *
+ * UFS_NOHASHFAIL will note that the check hash is wrong but will still
+ *    return the superblock. This is used by the bootstrap code to
+ *    give the system a chance to come up so that fsck can be run to
+ *    correct the problem.
+ */
+#define	UFS_NOHASHFAIL	0x0001	/* Ignore check-hash failure */
+#define	UFS_NOMSG	0x0004	/* Print no error message */
+#define	UFS_NOCSUM	0x0008	/* Read just the superblock without csum */
+#define	UFS_ALTSBLK	0x1000	/* Flag used internally */
 
 /*
  * Max number of fragments per block. This value is NOT tweakable.

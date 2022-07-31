@@ -913,7 +913,7 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 	struct g_consumer *cp;
 	struct mount *nmp;
 	struct vnode *devvp;
-	int candelete, canspeedup;
+	int candelete, canspeedup, flags;
 	off_t loc;
 
 	fs = NULL;
@@ -958,10 +958,12 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		goto out;
 	}
 	/* fetch the superblock and summary information */
-	loc = STDSB;
+	loc = UFS_STDSB;
+	flags = 0;
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_FORCE)) != 0)
-		loc = STDSB_NOHASHFAIL;
-	if ((error = ffs_sbget(devvp, &fs, loc, M_UFSMNT, ffs_use_bread)) != 0)
+		flags = UFS_NOHASHFAIL;
+	if ((error = ffs_sbget(devvp, &fs, loc, flags, M_UFSMNT, ffs_use_bread))
+	    != 0)
 		goto out;
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {

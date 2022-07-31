@@ -457,7 +457,7 @@ main(int argc, char *argv[])
 		msgtail("to %s\n", tape);
 
 	sync();
-	if ((ret = sbget(diskfd, &sblock, STDSB)) != 0) {
+	if ((ret = sbget(diskfd, &sblock, UFS_STDSB, UFS_NOCSUM)) != 0) {
 		switch (ret) {
 		case ENOENT:
 			warn("Cannot find file system superblock");

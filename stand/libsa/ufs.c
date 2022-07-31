@@ -152,7 +152,7 @@ static int	search_directory(char *, struct open_file *, ino_t *);
 static int	ufs_use_sa_read(void *, off_t, void **, int);
 
 /* from ffs_subr.c */
-int	ffs_sbget(void *, struct fs **, off_t, char *,
+int	ffs_sbget(void *, struct fs **, off_t, int, char *,
 	    int (*)(void *, off_t, void **, int));
 
 /*
@@ -530,7 +530,7 @@ ufs_open(const char *upath, struct open_file *f)
 	if (mnt == NULL) {
 		/* read super block */
 		twiddle(1);
-		if ((rc = ffs_sbget(f, &fs, STDSB_NOHASHFAIL, "stand",
+		if ((rc = ffs_sbget(f, &fs, UFS_STDSB, UFS_NOHASHFAIL, "stand",
 		     ufs_use_sa_read)) != 0) {
 			goto out;
 		}

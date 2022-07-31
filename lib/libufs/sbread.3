@@ -27,7 +27,7 @@
 .In ufs/ffs/fs.h
 .In libufs.h
 .Ft int
-.Fn sbget "int devfd" "struct fs **fsp" "off_t sblockloc"
+.Fn sbget "int devfd" "struct fs **fsp" "off_t sblockloc" "int flags"
 .Ft int
 .Fn sbput "int devfd" "struct fs *fs" "int numaltwrite"
 .Ft int
@@ -60,7 +60,27 @@ file descriptor that references the filesystem disk,
 reads the superblock located at the byte offset specified by
 .Va sblockloc
 into the allocated buffer.
-If successful, it returns a pointer to the buffer containing the superblock in
+The value
+.Cm UFS_STDSB
+may be specified for
+.Va sblockloc
+to request that the standard location for the superblock be read.
+Flags are specified by
+.Em or Ns 'ing
+the following values:
+.Pp
+.Bl -tag -width UFS_NOHASHFAIL
+.It Cm UFS_NOHASHFAIL
+Will note if the check hash is wrong but will still return the superblock.
+.It Cm UFS_NOMSG
+Indicates that superblock inconsistency error messages should not be printed.
+.It Cm UFS_NOCSUM
+Causes only the superblock itself to be returned, but does not read in any auxiliary data structures like the cylinder group summary information.
+.El
+.Pp
+If successful,
+.Fn sbget
+returns a pointer to the buffer containing the superblock in
 .Va fsp .
 The
 .Fn sbget
