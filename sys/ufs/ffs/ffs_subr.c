@@ -415,7 +415,7 @@ validate_sblock(struct fs *fs, int flags)
 	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
 	    %jd);
 	CHK(fs->fs_sblockloc, <, 0, %jd);
-	CHK(fs->fs_sblockloc, >, fs->fs_fpg, %jd);
+	CHK(fs->fs_sblockloc, >, dbtob(fs->fs_fpg), %jd);
 	CHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 	CHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
 	CHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
