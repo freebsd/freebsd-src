@@ -164,18 +164,20 @@ For example,
 puts a directory
 .Ql Ar foo
 with all its contents before a directory
-.Ql Ar foo.
+.Ql Ar foo .
 but
 .Ql "find | sort"
 puts the directory name
-.Ql Ar foo.
+.Ql Ar foo .
 before any string like
 .Ql Ar foo/bar
 because
 .Ql .\&
 goes before
 .Ql /
-in ASCII. In locales other than
+in
+.Xr ASCII 8 .
+In locales other than
 .Ar C
 results may vary more due to collation differences.
 .It Fl x
@@ -795,7 +797,7 @@ is specified, the given expression shall be effectively replaced by
 .It Ic -print0
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output, followed by an
-.Tn ASCII
+.Xr ASCII 8
 .Dv NUL
 character (character code 0).
 .It Ic -prune
@@ -1112,7 +1114,7 @@ It was rewritten for
 .At v5
 and later be enhanced for the Programmer's Workbench (PWB).
 These changes were later incorporated in
-.At v7.
+.At v7 .
 .Sh BUGS
 The special characters used by
 .Nm
