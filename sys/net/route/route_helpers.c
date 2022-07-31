@@ -565,3 +565,60 @@ rt_get_inet6_parent(uint32_t fibnum, const struct in6_addr *paddr, int plen)
 	return (NULL);
 }
 #endif
+
+/*
+ * Prints rtentry @rt data in the provided @buf.
+ * Example: rt/192.168.0.0/24
+ */
+char *
+rt_print_buf(const struct rtentry *rt, char *buf, size_t bufsize)
+{
+	char abuf[INET6_ADDRSTRLEN];
+	uint32_t scopeid;
+	int plen;
+
+	switch (rt_get_family(rt)) {
+#ifdef INET
+	case AF_INET:
+		{
+			struct in_addr addr4;
+			rt_get_inet_prefix_plen(rt, &addr4, &plen, &scopeid);
+			inet_ntop(AF_INET, &addr4, abuf, sizeof(abuf));
+			snprintf(buf, bufsize, "rt/%s/%d", abuf, plen);
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		{
+			struct in6_addr addr6;
+			rt_get_inet6_prefix_plen(rt, &addr6, &plen, &scopeid);
+			inet_ntop(AF_INET6, &addr6, abuf, sizeof(abuf));
+			snprintf(buf, bufsize, "rt/%s/%d", abuf, plen);
+		}
+		break;
+#endif
+	default:
+		snprintf(buf, bufsize, "rt/unknown_af#%d", rt_get_family(rt));
+		break;
+	}
+
+	return (buf);
+}
+
+const char *
+rib_print_cmd(int rib_cmd)
+{
+	switch (rib_cmd) {
+	case RTM_ADD:
+		return ("RTM_ADD");
+	case RTM_CHANGE:
+		return ("RTM_CHANGE");
+	case RTM_DELETE:
+		return ("RTM_DELETE");
+	case RTM_GET:
+		return ("RTM_GET");
+	}
+
+	return ("UNKNOWN");
+}
