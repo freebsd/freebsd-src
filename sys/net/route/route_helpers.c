@@ -290,7 +290,7 @@ decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
     void *cbdata)
 {
 	uint32_t num_old, num_new;
-	struct weightened_nhop *wn_old, *wn_new;
+	const struct weightened_nhop *wn_old, *wn_new;
 	struct weightened_nhop tmp = { NULL, 0 };
 	uint32_t idx_old = 0, idx_new = 0;
 
@@ -378,7 +378,7 @@ void
 rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
     void *cbdata)
 {
-	struct weightened_nhop *wn;
+	const struct weightened_nhop *wn;
 	uint32_t num_nhops;
 	struct rib_cmd_info rc_new;
 

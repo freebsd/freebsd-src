@@ -135,7 +135,7 @@ uint32_t nhops_get_count(struct rib_head *rh);
 /* Multipath */
 struct weightened_nhop;
 
-struct weightened_nhop *nhgrp_get_nhops(struct nhgrp_object *nhg,
+const struct weightened_nhop *nhgrp_get_nhops(const struct nhgrp_object *nhg,
     uint32_t *pnum_nhops);
 uint32_t nhgrp_get_count(struct rib_head *rh);
 
