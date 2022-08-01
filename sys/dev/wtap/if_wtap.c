@@ -88,7 +88,6 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int err = 0;
 	struct mbuf *m;
-	struct ifnet *ifp;
 	struct wtap_softc *sc;
 	uint8_t buf[1024];
 	struct epoch_tracker et;
@@ -106,22 +105,13 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 	MGETHDR(m, M_NOWAIT, MT_DATA);
 	m_copyback(m, 0, buf_len, buf);
 
-	CURVNET_SET(TD_TO_VNET(curthread));
 	NET_EPOCH_ENTER(et);
 
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		printf("ifp->if_xname = %s\n", ifp->if_xname);
-		if(strcmp(devtoname(dev), ifp->if_xname) == 0){
-			printf("found match, correspoding wtap = %s\n",
-			    ifp->if_xname);
-			sc = (struct wtap_softc *)ifp->if_softc;
-			printf("wtap id = %d\n", sc->id);
-			wtap_inject(sc, m);
-		}
-	}
+	sc = (struct wtap_softc *)dev->si_drv1;
+	printf("wtap id = %d\n", sc->id);
+	wtap_inject(sc, m);
 
 	NET_EPOCH_EXIT(et);
-	CURVNET_RESTORE();
 
 	return(err);
 }
@@ -345,7 +335,8 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	ieee80211_vap_attach(vap, ieee80211_media_change,
 	    ieee80211_media_status, mac);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "%s", (const char *)sc->name);
+	    "%s", (const char *)vap->iv_ifp->if_xname);
+	avp->av_dev->si_drv1 = sc;
 
 	/* TODO this is a hack to force it to choose the rate we want */
 	ni = ieee80211_ref_node(vap->iv_bss);
