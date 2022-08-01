@@ -255,9 +255,8 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 	    "recvmsg: did not receive single-fd message");
 	ATF_REQUIRE_MSG(!localcreds(sockfd) || foundcreds,
 	    "recvmsg: expected credentials were not received");
-	if (recvmsg_flags & MSG_TRUNC)
-		ATF_REQUIRE_MSG(msghdr.msg_flags & MSG_TRUNC,
-		    "recvmsg: expected MSG_TRUNC missing");
+	ATF_REQUIRE_MSG((msghdr.msg_flags & MSG_TRUNC) == 0,
+	    "recvmsg: MSG_TRUNC is set while buffer is sufficient");
 }
 
 static void
@@ -584,8 +583,7 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	ATF_REQUIRE_MSG((size_t)len == sendspace,
 	    "sendmsg: %zu bytes sent", len);
 	recvfd_payload(fd[1], &getfd, buf, len,
-	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)),
-	    MSG_TRUNC);
+	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
 #endif
 
 	close(putfd);
