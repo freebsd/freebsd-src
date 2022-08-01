@@ -4774,6 +4774,9 @@ product TWINMOS MDIV		0x1325	Memory Disk IV
 /* Ubiquam products */
 product UBIQUAM UALL		0x3100	CDMA 1xRTT USB Modem (U-100/105/200/300/520)
 
+/* u-blox products */
+product UBLOX XPLR_M9		0x0501	M9 GNSS Explorer Kit
+
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
 
