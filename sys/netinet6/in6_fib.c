@@ -205,7 +205,7 @@ check_urpf(struct nhop_object *nh, uint32_t flags,
 {
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		struct weightened_nhop *wn;
+		const struct weightened_nhop *wn;
 		uint32_t num_nhops;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 		for (int i = 0; i < num_nhops; i++) {

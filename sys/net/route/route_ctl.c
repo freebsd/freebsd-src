@@ -155,7 +155,7 @@ destroy_rtentry(struct rtentry *rt)
 	 */
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		struct weightened_nhop *wn;
+		const struct weightened_nhop *wn;
 		uint32_t num_nhops;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 		nh = wn[0].nh;
@@ -1010,8 +1010,9 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 {
 	int error = 0, found_idx = 0;
 	struct nhop_object *nh_orig = NULL, *nh_new;
-	struct route_nhop_data rnd_new;
-	struct weightened_nhop *wn = NULL, *wn_new;
+	struct route_nhop_data rnd_new = {};
+	const struct weightened_nhop *wn = NULL;
+	struct weightened_nhop *wn_new;
 	uint32_t num_nhops;
 
 	wn = nhgrp_get_nhops(rnd_orig->rnd_nhgrp, &num_nhops);
@@ -1041,7 +1042,7 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	wn_new[found_idx].nh = nh_new;
 	wn_new[found_idx].weight = get_info_weight(info, wn[found_idx].weight);
 
-	error = nhgrp_get_group(rnh, wn_new, num_nhops, &rnd_new);
+	error = nhgrp_get_group(rnh, wn_new, num_nhops, &rnd_new.rnd_nhgrp);
 	nhop_free(nh_new);
 	free(wn_new, M_TEMP);
 
@@ -1375,7 +1376,7 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool
 		if (report) {
 #ifdef ROUTE_MPATH
 			struct nhgrp_object *nhg;
-			struct weightened_nhop *wn;
+			const struct weightened_nhop *wn;
 			uint32_t num_nhops;
 			if (NH_IS_NHGRP(nh)) {
 				nhg = (struct nhgrp_object *)nh;
