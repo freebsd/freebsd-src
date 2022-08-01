@@ -570,7 +570,7 @@ printrange(FILE *p, struct range *r)
 		return;
 
 	if (r->from > r->to)
-			errx(EXIT_FAILURE, "invalid print range");
+		errx(EXIT_FAILURE, "invalid print range");
 
 	/*
 	 * XXX-THJ: We read through all of the file for each range printed.
