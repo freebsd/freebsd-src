@@ -355,33 +355,28 @@ validate_sblock(struct fs *fs, int flags)
 	sectorsize = dbtob(1);
 	prtmsg = ((flags & UFS_NOMSG) == 0);
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
-		if ((flags & UFS_ALTSBLK) == 0) {
-			CHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
+		if ((flags & UFS_ALTSBLK) == 0)
 			CHK2(fs->fs_sblockactualloc, !=, SBLOCK_UFS2,
 			    fs->fs_sblockactualloc, !=, 0, %jd);
-		}
+		CHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
 		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
 			sizeof(ufs2_daddr_t)), %jd);
 		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs2_daddr_t),
 		    %jd);
-		CHK(fs->fs_inopb, <, 1, %jd);
-		CHK(fs->fs_inopb, !=, fs->fs_bsize / sizeof(struct ufs2_dinode),
-		    %jd);
+		CHK(fs->fs_inopb, !=,
+		    fs->fs_bsize / sizeof(struct ufs2_dinode), %jd);
 	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
-		if ((flags & UFS_ALTSBLK) == 0) {
-			CHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
+		if ((flags & UFS_ALTSBLK) == 0)
 			CHK(fs->fs_sblockactualloc, >, SBLOCK_UFS1, %jd);
-		}
+		CHK(fs->fs_sblockloc, <, 0, %jd);
+		CHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
 		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs1_daddr_t),
 		    %jd);
-		CHK(fs->fs_inopb, <, 1, %jd);
-		CHK(fs->fs_inopb, !=, fs->fs_bsize / sizeof(struct ufs1_dinode),
-		    %jd);
+		CHK(fs->fs_inopb, !=,
+		    fs->fs_bsize / sizeof(struct ufs1_dinode), %jd);
 		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
 			sizeof(ufs1_daddr_t)), %jd);
 		CHK(fs->fs_old_inodefmt, !=, FS_44INODEFMT, %jd);
-		CHK(fs->fs_old_cgoffset, !=, 0, %jd);
-		CHK(fs->fs_old_cgmask, !=, 0xffffffff, %#jx);
 		CHK(fs->fs_old_rotdelay, !=, 0, %jd);
 		CHK(fs->fs_old_rps, !=, 60, %jd);
 		CHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
@@ -414,8 +409,6 @@ validate_sblock(struct fs *fs, int flags)
 	CHK(fs->fs_ipg, <, 1, %jd);
 	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
 	    %jd);
-	CHK(fs->fs_sblockloc, <, 0, %jd);
-	CHK(fs->fs_sblockloc, >, dbtob(fs->fs_fpg), %jd);
 	CHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 	CHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
 	CHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
@@ -428,6 +421,9 @@ validate_sblock(struct fs *fs, int flags)
 	CHK(fs->fs_fshift, !=, ILOG2(fs->fs_fsize), %jd);
 	CHK(fs->fs_fragshift, !=, ILOG2(fs->fs_frag), %jd);
 	CHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
+	CHK(fs->fs_old_cgoffset, <, 0, %jd);
+	CHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
+	CHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg, %jd);
 	CHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
 	    fs->fs_frag), %jd);
