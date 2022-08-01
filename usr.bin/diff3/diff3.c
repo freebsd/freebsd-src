@@ -144,6 +144,7 @@ static char *f1mark, *f2mark, *f3mark;
 static const char *oldmark = "<<<<<<<";
 static const char *orgmark = "|||||||";
 static const char *newmark = ">>>>>>>";
+static const char *divider = "=======";
 
 static bool duplicate(struct range *, struct range *);
 static int edit(struct diff *, bool, int, int);
@@ -599,7 +600,7 @@ edscript(int n)
 			prange(&de[n].old, delete);
 		} else {
 			printf("%da\n", de[n].old.to - 1);
-			printf("=======\n");
+			printf("%s\n", divider);
 		}
 		printrange(fp[2], &de[n].new);
 		if (!oflag || !overlap[n]) {
@@ -657,7 +658,7 @@ Ascript(int n)
 				printf("%s %s\n", oldmark, f2mark);
 				if (!deleteold)
 					printrange(fp[1], &de[n].old);
-				printf("=======\n.\n");
+				printf("%s\n.\n", divider);
 			}
 
 		} else if (de[n].type == DIFF_TYPE3) {
@@ -676,7 +677,7 @@ Ascript(int n)
 				} else
 					printrange(fp[1], &de[n].old);
 
-				printf("=======\n");
+				printf("%s\n", divider);
 				printrange(fp[2], &de[n].new);
 			}
 
@@ -724,7 +725,7 @@ mergescript(int i)
 		if (de[n].type == DIFF_TYPE2) {
 			printf("%s %s\n", oldmark, f2mark);
 			printrange(fp[1], &de[n].old);
-			printf("=======\n");
+			printf("%s\n", divider);
 			printrange(fp[2], &de[n].new);
 			printf("%s %s\n", newmark, f3mark);
 		} else if (de[n].type == DIFF_TYPE3) {
@@ -744,7 +745,7 @@ mergescript(int i)
 				} else
 					printrange(fp[1], &de[n].old);
 
-				printf("=======\n");
+				printf("%s\n", divider);
 
 				printrange(fp[2], &de[n].new);
 				printf("%s %s\n", newmark, f3mark);
