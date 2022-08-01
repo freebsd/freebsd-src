@@ -98,8 +98,13 @@
  *    return the superblock. This is used by the bootstrap code to
  *    give the system a chance to come up so that fsck can be run to
  *    correct the problem.
+ *
+ * UFS_NOWARNFAIL will warn about inconsistencies but still return the
+ *    superblock. It includes UFS_NOHASHFAIL. UFS_NOWARNFAIL is used by
+ *    programs like fsck_ffs(8) to debug broken filesystems.
  */
 #define	UFS_NOHASHFAIL	0x0001	/* Ignore check-hash failure */
+#define	UFS_NOWARNFAIL	0x0003	/* Ignore non-fatal inconsistencies */
 #define	UFS_NOMSG	0x0004	/* Print no error message */
 #define	UFS_NOCSUM	0x0008	/* Read just the superblock without csum */
 #define	UFS_ALTSBLK	0x1000	/* Flag used internally */

@@ -324,8 +324,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
  */
 #define ILOG2(num)	(fls(num) - 1)
 #define MPRINT		if (prtmsg) printf
-#undef CHK
-#define CHK(lhs, op, rhs, fmt)						\
+#define FCHK(lhs, op, rhs, fmt)						\
 	if (lhs op rhs) {						\
 		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
 		    #fmt ")\n", fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2,	\
@@ -333,15 +332,33 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 		if (error == 0)						\
 			error = ENOENT;					\
 	}
-#define CHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
+#define WCHK(lhs, op, rhs, fmt)						\
+	if (lhs op rhs) {						\
+		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
+		    #fmt ")%s\n", fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2,\
+		    #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs, wmsg);\
+		if (error == 0)						\
+			error = warnerr;				\
+	}
+#define FCHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
 	if (lhs1 op1 rhs1 && lhs2 op2 rhs2) {				\
 		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
 		    #fmt ") && %s (" #fmt ") %s %s (" #fmt ")\n",	\
-		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1, 	\
+		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1,	\
 		    (intmax_t)lhs1, #op1, #rhs1, (intmax_t)rhs1, #lhs2,	\
 		    (intmax_t)lhs2, #op2, #rhs2, (intmax_t)rhs2);	\
 		if (error == 0)						\
 			error = ENOENT;					\
+	}
+#define WCHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
+	if (lhs1 op1 rhs1 && lhs2 op2 rhs2) {				\
+		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
+		    #fmt ") && %s (" #fmt ") %s %s (" #fmt ")%s\n",	\
+		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1,	\
+		    (intmax_t)lhs1, #op1, #rhs1, (intmax_t)rhs1, #lhs2,	\
+		    (intmax_t)lhs2, #op2, #rhs2, (intmax_t)rhs2, wmsg);	\
+		if (error == 0)						\
+			error = warnerr;				\
 	}
 
 static int
@@ -349,108 +366,111 @@ validate_sblock(struct fs *fs, int flags)
 {
 	u_long i, sectorsize;
 	u_int64_t maxfilesize, sizepb;
-	int error, prtmsg;
+	int error, prtmsg, warnerr;
+	char *wmsg;
 
 	error = 0;
 	sectorsize = dbtob(1);
 	prtmsg = ((flags & UFS_NOMSG) == 0);
+	warnerr = (flags & UFS_NOWARNFAIL) == UFS_NOWARNFAIL ? 0 : ENOENT;
+	wmsg = warnerr ? "" : " (Ignored)";
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		if ((flags & UFS_ALTSBLK) == 0)
-			CHK2(fs->fs_sblockactualloc, !=, SBLOCK_UFS2,
+			FCHK2(fs->fs_sblockactualloc, !=, SBLOCK_UFS2,
 			    fs->fs_sblockactualloc, !=, 0, %jd);
-		CHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
-		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
+		FCHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
+		FCHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
 			sizeof(ufs2_daddr_t)), %jd);
-		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs2_daddr_t),
+		FCHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs2_daddr_t),
 		    %jd);
-		CHK(fs->fs_inopb, !=,
+		FCHK(fs->fs_inopb, !=,
 		    fs->fs_bsize / sizeof(struct ufs2_dinode), %jd);
 	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
 		if ((flags & UFS_ALTSBLK) == 0)
-			CHK(fs->fs_sblockactualloc, >, SBLOCK_UFS1, %jd);
-		CHK(fs->fs_sblockloc, <, 0, %jd);
-		CHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
-		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs1_daddr_t),
+			FCHK(fs->fs_sblockactualloc, >, SBLOCK_UFS1, %jd);
+		FCHK(fs->fs_sblockloc, <, 0, %jd);
+		FCHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
+		FCHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs1_daddr_t),
 		    %jd);
-		CHK(fs->fs_inopb, !=,
+		FCHK(fs->fs_inopb, !=,
 		    fs->fs_bsize / sizeof(struct ufs1_dinode), %jd);
-		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
+		FCHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
 			sizeof(ufs1_daddr_t)), %jd);
-		CHK(fs->fs_old_inodefmt, !=, FS_44INODEFMT, %jd);
-		CHK(fs->fs_old_rotdelay, !=, 0, %jd);
-		CHK(fs->fs_old_rps, !=, 60, %jd);
-		CHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
-		CHK(fs->fs_old_cpg, !=, 1, %jd);
-		CHK(fs->fs_old_interleave, !=, 1, %jd);
-		CHK(fs->fs_old_trackskew, !=, 0, %jd);
-		CHK(fs->fs_old_cpc, !=, 0, %jd);
-		CHK(fs->fs_old_postblformat, !=, 1, %jd);
-		CHK(fs->fs_old_nrpos, !=, 1, %jd);
-		CHK(fs->fs_old_spc, !=, fs->fs_fpg * fs->fs_old_nspf, %jd);
-		CHK(fs->fs_old_nsect, !=, fs->fs_old_spc, %jd);
-		CHK(fs->fs_old_npsect, !=, fs->fs_old_spc, %jd);
-		CHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
+		WCHK(fs->fs_old_inodefmt, !=, FS_44INODEFMT, %jd);
+		WCHK(fs->fs_old_rotdelay, !=, 0, %jd);
+		WCHK(fs->fs_old_rps, !=, 60, %jd);
+		WCHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
+		WCHK(fs->fs_old_cpg, !=, 1, %jd);
+		WCHK(fs->fs_old_interleave, !=, 1, %jd);
+		WCHK(fs->fs_old_trackskew, !=, 0, %jd);
+		WCHK(fs->fs_old_cpc, !=, 0, %jd);
+		WCHK(fs->fs_old_postblformat, !=, 1, %jd);
+		WCHK(fs->fs_old_nrpos, !=, 1, %jd);
+		WCHK(fs->fs_old_spc, !=, fs->fs_fpg * fs->fs_old_nspf, %jd);
+		WCHK(fs->fs_old_nsect, !=, fs->fs_old_spc, %jd);
+		WCHK(fs->fs_old_npsect, !=, fs->fs_old_spc, %jd);
+		FCHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
 	} else {
 		/* Bad magic number, so assume not a superblock */
 		return (ENOENT);
 	}
-	CHK(fs->fs_bsize, <, MINBSIZE, %jd);
-	CHK(fs->fs_bsize, >, MAXBSIZE, %jd);
-	CHK(fs->fs_bsize, <, roundup(sizeof(struct fs), DEV_BSIZE), %jd);
-	CHK(powerof2(fs->fs_bsize), ==, 0, %jd);
-	CHK(fs->fs_frag, <, 1, %jd);
-	CHK(fs->fs_frag, >, MAXFRAG, %jd);
-	CHK(fs->fs_frag, !=, numfrags(fs, fs->fs_bsize), %jd);
-	CHK(fs->fs_fsize, <, sectorsize, %jd);
-	CHK(fs->fs_fsize * fs->fs_frag, !=, fs->fs_bsize, %jd);
-	CHK(powerof2(fs->fs_fsize), ==, 0, %jd);
-	CHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
-	CHK(fs->fs_ncg, <, 1, %jd);
-	CHK(fs->fs_ipg, <, 1, %jd);
-	CHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
+	FCHK(fs->fs_bsize, <, MINBSIZE, %jd);
+	FCHK(fs->fs_bsize, >, MAXBSIZE, %jd);
+	FCHK(fs->fs_bsize, <, roundup(sizeof(struct fs), DEV_BSIZE), %jd);
+	FCHK(powerof2(fs->fs_bsize), ==, 0, %jd);
+	FCHK(fs->fs_frag, <, 1, %jd);
+	FCHK(fs->fs_frag, >, MAXFRAG, %jd);
+	FCHK(fs->fs_frag, !=, numfrags(fs, fs->fs_bsize), %jd);
+	FCHK(fs->fs_fsize, <, sectorsize, %jd);
+	FCHK(fs->fs_fsize * fs->fs_frag, !=, fs->fs_bsize, %jd);
+	FCHK(powerof2(fs->fs_fsize), ==, 0, %jd);
+	FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
+	FCHK(fs->fs_ncg, <, 1, %jd);
+	FCHK(fs->fs_ipg, <, 1, %jd);
+	FCHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
 	    %jd);
-	CHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
-	CHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
-	CHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
-	CHK(fs->fs_maxbsize, >, FS_MAXCONTIG * fs->fs_bsize, %jd);
-	CHK(fs->fs_bmask, !=, ~(fs->fs_bsize - 1), %#jx);
-	CHK(fs->fs_fmask, !=, ~(fs->fs_fsize - 1), %#jx);
-	CHK(fs->fs_qbmask, !=, ~fs->fs_bmask, %#jx);
-	CHK(fs->fs_qfmask, !=, ~fs->fs_fmask, %#jx);
-	CHK(fs->fs_bshift, !=, ILOG2(fs->fs_bsize), %jd);
-	CHK(fs->fs_fshift, !=, ILOG2(fs->fs_fsize), %jd);
-	CHK(fs->fs_fragshift, !=, ILOG2(fs->fs_frag), %jd);
-	CHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
-	CHK(fs->fs_old_cgoffset, <, 0, %jd);
-	CHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
-	CHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg, %jd);
-	CHK(fs->fs_sblkno, !=, roundup(
+	FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
+	FCHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
+	FCHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
+	FCHK(fs->fs_maxbsize, >, FS_MAXCONTIG * fs->fs_bsize, %jd);
+	FCHK(fs->fs_bmask, !=, ~(fs->fs_bsize - 1), %#jx);
+	FCHK(fs->fs_fmask, !=, ~(fs->fs_fsize - 1), %#jx);
+	FCHK(fs->fs_qbmask, !=, ~fs->fs_bmask, %#jx);
+	FCHK(fs->fs_qfmask, !=, ~fs->fs_fmask, %#jx);
+	FCHK(fs->fs_bshift, !=, ILOG2(fs->fs_bsize), %jd);
+	FCHK(fs->fs_fshift, !=, ILOG2(fs->fs_fsize), %jd);
+	FCHK(fs->fs_fragshift, !=, ILOG2(fs->fs_frag), %jd);
+	FCHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
+	FCHK(fs->fs_old_cgoffset, <, 0, %jd);
+	FCHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
+	FCHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg, %jd);
+	FCHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
 	    fs->fs_frag), %jd);
-	CHK(fs->fs_cblkno, !=, fs->fs_sblkno +
+	FCHK(fs->fs_cblkno, !=, fs->fs_sblkno +
 	    roundup(howmany(SBLOCKSIZE, fs->fs_fsize), fs->fs_frag), %jd);
-	CHK(fs->fs_iblkno, !=, fs->fs_cblkno + fs->fs_frag, %jd);
-	CHK(fs->fs_dblkno, !=, fs->fs_iblkno + fs->fs_ipg / INOPF(fs), %jd);
-	CHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
+	FCHK(fs->fs_iblkno, !=, fs->fs_cblkno + fs->fs_frag, %jd);
+	FCHK(fs->fs_dblkno, !=, fs->fs_iblkno + fs->fs_ipg / INOPF(fs), %jd);
+	FCHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
 	/*
 	 * This test is valid, however older versions of growfs failed
 	 * to correctly update fs_dsize so will fail this test. Thus we
 	 * exclude it from the requirements.
 	 */
 #ifdef notdef
-	CHK(fs->fs_dsize, !=, fs->fs_size - fs->fs_sblkno -
+	WCHK(fs->fs_dsize, !=, fs->fs_size - fs->fs_sblkno -
 		fs->fs_ncg * (fs->fs_dblkno - fs->fs_sblkno) -
 		howmany(fs->fs_cssize, fs->fs_fsize), %jd);
 #endif
-	CHK(fs->fs_metaspace, <, 0, %jd);
-	CHK(fs->fs_metaspace, >, fs->fs_fpg / 2, %jd);
-	CHK(fs->fs_minfree, >, 99, %jd%%);
+	WCHK(fs->fs_metaspace, <, 0, %jd);
+	WCHK(fs->fs_metaspace, >, fs->fs_fpg / 2, %jd);
+	WCHK(fs->fs_minfree, >, 99, %jd%%);
 	maxfilesize = fs->fs_bsize * UFS_NDADDR - 1;
 	for (sizepb = fs->fs_bsize, i = 0; i < UFS_NIADDR; i++) {
 		sizepb *= NINDIR(fs);
 		maxfilesize += sizepb;
 	}
-	CHK(fs->fs_maxfilesize, !=, maxfilesize, %jd);
+	WCHK(fs->fs_maxfilesize, !=, maxfilesize, %jd);
 	/*
 	 * These values have a tight interaction with each other that
 	 * makes it hard to tightly bound them. So we can only check
@@ -462,9 +482,9 @@ validate_sblock(struct fs *fs, int flags)
 	 * that the summary information size is correct and that it starts
 	 * and ends in the data area of the same cylinder group.
 	 */
-	CHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
-	CHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
-	CHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
+	WCHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
+	WCHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
 	/*
 	 * If we are not requested to read in the csum data stop here
 	 * as the correctness of the remaining values is only important
@@ -472,12 +492,12 @@ validate_sblock(struct fs *fs, int flags)
 	 */
 	if ((flags & UFS_NOCSUM) != 0)
 		return (error);
-	CHK(fs->fs_csaddr, <, 0, %jd);
-	CHK(fs->fs_cssize, !=,
+	FCHK(fs->fs_csaddr, <, 0, %jd);
+	FCHK(fs->fs_cssize, !=,
 	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
-	CHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
-	CHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)), %jd);
-	CHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
+	FCHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
+	FCHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)), %jd);
+	FCHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
 	    dtog(fs, fs->fs_csaddr), %jd);
 	/*
 	 * With file system clustering it is possible to allocate
@@ -498,10 +518,10 @@ validate_sblock(struct fs *fs, int flags)
 	 * those (mostly 32-bit machines) can (very slowly) handle I/O
 	 * requests that exceed maxphys.
 	 */
-	CHK(fs->fs_maxcontig, <, 0, %jd);
-	CHK(fs->fs_maxcontig, >, MAX(256, maxphys / fs->fs_bsize), %jd);
-	CHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
-	CHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
+	WCHK(fs->fs_maxcontig, <, 0, %jd);
+	WCHK(fs->fs_maxcontig, >, MAX(256, maxphys / fs->fs_bsize), %jd);
+	WCHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
+	WCHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
 	    MIN(fs->fs_maxcontig, FS_MAXCONTIG), %jd);
 	return (error);
 }
