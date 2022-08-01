@@ -721,7 +721,7 @@ select_nhop(struct nhop_object *nh, const struct sockaddr *gw)
 	if (!NH_IS_NHGRP(nh))
 		return (nh);
 #ifdef ROUTE_MPATH
-	struct weightened_nhop *wn;
+	const struct weightened_nhop *wn;
 	uint32_t num_nhops;
 	wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 	if (gw == NULL)
@@ -2243,7 +2243,7 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 	nh = rt_get_raw_nhop(rt);
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		struct weightened_nhop *wn;
+		const struct weightened_nhop *wn;
 		uint32_t num_nhops;
 		int error;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);

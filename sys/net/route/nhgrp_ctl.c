@@ -598,7 +598,7 @@ append_nhops(struct nh_control *ctl, const struct nhgrp_object *gr_orig,
  */
 int
 nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn, int num_nhops,
-    struct route_nhop_data *rnd)
+    struct nhgrp_object **pnhg)
 {
 	struct nh_control *ctl = rh->nh_control;
 	struct nhgrp_priv *nhg_priv;
@@ -606,8 +606,7 @@ nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn, int num_nhops,
 
 	nhg_priv = get_nhgrp(ctl, wn, num_nhops, &error);
 	if (nhg_priv != NULL)
-		rnd->rnd_nhgrp = nhg_priv->nhg;
-	rnd->rnd_weight = 0;
+		*pnhg = nhg_priv->nhg;
 
 	return (error);
 }
@@ -718,14 +717,14 @@ nhgrp_get_addition_group(struct rib_head *rh, struct route_nhop_data *rnd_orig,
  * Returns pointer to array of nexthops with weights for
  * given @nhg. Stores number of items in the array into @pnum_nhops.
  */
-struct weightened_nhop *
-nhgrp_get_nhops(struct nhgrp_object *nhg, uint32_t *pnum_nhops)
+const struct weightened_nhop *
+nhgrp_get_nhops(const struct nhgrp_object *nhg, uint32_t *pnum_nhops)
 {
-	struct nhgrp_priv *nhg_priv;
+	const struct nhgrp_priv *nhg_priv;
 
 	KASSERT(((nhg->nhg_flags & MPF_MULTIPATH) != 0), ("nhop is not mpath"));
 
-	nhg_priv = NHGRP_PRIV(nhg);
+	nhg_priv = NHGRP_PRIV_CONST(nhg);
 	*pnum_nhops = nhg_priv->nhg_nh_count;
 
 	return (nhg_priv->nhg_nh_weights);
