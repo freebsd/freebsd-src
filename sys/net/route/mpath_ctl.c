@@ -117,13 +117,12 @@ add_route_mpath(struct rib_head *rnh, struct rt_addrinfo *info,
 			 * Refresh @rnd_orig data and retry.
 			 */
 			RIB_RLOCK(rnh);
-			lookup_prefix(rnh, info, rnd_orig);
+			lookup_prefix_rt(rnh, rt, rnd_orig);
 			RIB_RUNLOCK(rnh);
 			continue;
 		}
 
-		error = change_route_conditional(rnh, rt, info, rnd_orig,
-		    &rnd_new, rc);
+		error = change_route_conditional(rnh, rt, rnd_orig, &rnd_new, rc);
 		if (error != EAGAIN)
 			break;
 		RTSTAT_INC(rts_add_retry);
@@ -188,7 +187,7 @@ del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
 			nhop_free_any(rnd.rnd_nhop);
 			return (ESRCH);
 		}
-		error = change_route_nhop(rh, rt, &rnd, rc);
+		error = change_route(rh, rt, &rnd, rc);
 	}
 	return (error);
 }
