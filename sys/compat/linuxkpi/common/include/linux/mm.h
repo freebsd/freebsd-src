@@ -288,6 +288,19 @@ vmalloc_to_page(const void *addr)
 	return (PHYS_TO_VM_PAGE(paddr));
 }
 
+static inline int
+trylock_page(struct page *page)
+{
+	return (vm_page_trylock(page));
+}
+
+static inline void
+unlock_page(struct page *page)
+{
+
+	vm_page_unlock(page);
+}
+
 extern int is_vmalloc_addr(const void *addr);
 void si_meminfo(struct sysinfo *si);
 
