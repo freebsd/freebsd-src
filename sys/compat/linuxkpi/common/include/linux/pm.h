@@ -33,9 +33,19 @@
 #ifndef	_LINUXKPI_LINUX_PM_H
 #define	_LINUXKPI_LINUX_PM_H
 
+/* Needed but breaks linux_usb.c */
+/* #include <linux/completion.h> */
+/* #include <linux/wait.h> */
+
 typedef struct pm_message {
 	int event;
 } pm_message_t;
+
+struct dev_pm_domain {
+};
+
+#define	PM_EVENT_FREEZE		0x0001
+#define	PM_EVENT_SUSPEND	0x0002
 
 #ifdef CONFIG_PM_SLEEP
 #define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
