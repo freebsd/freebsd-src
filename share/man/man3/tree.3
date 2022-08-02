@@ -100,6 +100,7 @@
 .Nm RB_REMOVE ,
 .Nm RB_REINSERT ,
 .Nm RB_AUGMENT
+.Nm RB_UPDATE_AUGMENT
 .Nd "implementations of splay and rank-balanced (wavl) trees"
 .Sh SYNOPSIS
 .In sys/tree.h
@@ -196,6 +197,8 @@
 .Fn RB_REINSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "void"
 .Fn RB_AUGMENT NAME "struct TYPE *elm"
+.Ft "void"
+.Fn RB_UPDATE_AUGMENT NAME "struct TYPE *elm"
 .Sh DESCRIPTION
 These macros define data structures for different types of trees:
 splay trees and rank-balanced (wavl) trees.
@@ -592,12 +595,25 @@ macro updates augmentation data of the element
 in the tree.
 By default, it has no effect.
 It is not meant to be invoked by the RB user.
-If RB_AUGMENT is defined by the RB user, then when an element is
-inserted or removed from the tree, it is invoked for every element in
-the tree that is the root of an altered subtree, working from the
-bottom of the tree up to the top.
+If
+.Fn RB_AUGMENT
+is defined by the RB user, then when an element is inserted or removed
+from the tree, it is invoked for every element in the tree that is the
+root of an altered subtree, working from the bottom of the tree up to
+the top.
 It is typically used to maintain some associative accumulation of tree
 elements, such as sums, minima, maxima, and the like.
+.Pp
+The
+.Fn RB_UPDATE_AUGMENT
+macro updates augmentation data of the element
+.Fa elm
+and its ancestors in the tree.
+If RB_AUGMENT is defined by the RB user, then when an element in the
+tree is changed, without changing the order of items in the tree,
+invoking this function on that element restores consistency of the
+augmentation state of the tree as if the element had been removed and
+inserted again.
 .Sh EXAMPLES
 The following example demonstrates how to declare a rank-balanced tree
 holding integers.
