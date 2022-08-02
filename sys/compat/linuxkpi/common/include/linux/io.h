@@ -38,6 +38,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <asm/set_memory.h>
 
 /*
  * XXX This is all x86 specific.  It should be bus space access.
@@ -493,5 +494,20 @@ void lkpi_arch_phys_wc_del(int);
 #define	arch_phys_wc_del(...)	lkpi_arch_phys_wc_del(__VA_ARGS__)
 #define	arch_phys_wc_index(x)	\
 	(((x) < __MTRR_ID_BASE) ? -1 : ((x) - __MTRR_ID_BASE))
+
+#if defined(__amd64__) || defined(__i386__) || defined(__aarch64__) || defined(__powerpc__) || defined(__riscv)
+static inline int
+arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
+{
+
+	return (set_memory_wc(start, size >> PAGE_SHIFT));
+}
+
+static inline void
+arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	set_memory_wb(start, size >> PAGE_SHIFT);
+}
+#endif
 
 #endif	/* _LINUXKPI_LINUX_IO_H_ */
