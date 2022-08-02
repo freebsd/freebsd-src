@@ -372,10 +372,10 @@ struct {								\
 #endif
 
 #define RB_UPDATE_AUGMENT(elm, field) do {				\
-	__typeof(elm) tmp = (elm);					\
+		__typeof(elm) rb_update_tmp = (elm);			\
 	do {								\
-		RB_AUGMENT(tmp);					\
-	} while ((tmp = RB_PARENT(tmp, field)) != NULL);		\
+		RB_AUGMENT(rb_update_tmp);				\
+	} while ((rb_update_tmp = RB_PARENT(rb_update_tmp, field)) != NULL); \
 } while (0)
 
 #define RB_SWAP_CHILD(head, out, in, field) do {			\
