@@ -212,13 +212,15 @@ void tmproutes_destroy(struct rib_head *rh);
 
 /* route_ctl.c */
 struct route_nhop_data;
-int change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
+int change_route(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd, struct rib_cmd_info *rc);
 int change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
-    struct rt_addrinfo *info, struct route_nhop_data *nhd_orig,
-    struct route_nhop_data *nhd_new, struct rib_cmd_info *rc);
+    struct route_nhop_data *nhd_orig, struct route_nhop_data *nhd_new,
+    struct rib_cmd_info *rc);
 struct rtentry *lookup_prefix(struct rib_head *rnh,
     const struct rt_addrinfo *info, struct route_nhop_data *rnd);
+struct rtentry *lookup_prefix_rt(struct rib_head *rnh, const struct rtentry *rt,
+    struct route_nhop_data *rnd);
 
 bool nhop_can_multipath(const struct nhop_object *nh);
 bool match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw);
