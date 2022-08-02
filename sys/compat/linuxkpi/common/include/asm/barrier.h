@@ -55,4 +55,7 @@
 #define	smp_store_mb(x, v)	do { WRITE_ONCE(x, v); smp_mb(); } while (0)
 #endif
 
+#define	smp_mb__before_atomic()	barrier()
+#define	smp_mb__after_atomic()	barrier()
+
 #endif	/* _LINUXKPI_ASM_BARRIER_H_ */
