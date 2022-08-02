@@ -299,6 +299,7 @@ yuri [label="Yuri Victorovich\nyuri@FreeBSD.org\n2017/10/30"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
 zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
 zi [label="Ryan Steinmetz\nzi@FreeBSD.org\n2011/07/14"]
+zirias [label="Felix Palmen\nzirias@FreeBSD.org\n2022/08/02"]
 znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 
 # Here are the mentor/mentee relationships.
@@ -785,6 +786,7 @@ tcberner -> rigoletto
 tcberner -> salvadore
 tcberner -> vishwin
 tcberner -> yuri
+tcberner -> zirias
 
 thierry -> jadawin
 thierry -> riggs
