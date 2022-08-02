@@ -714,51 +714,54 @@ Ascript(int n)
 static void
 mergescript(int i)
 {
-	struct range r;
+	struct range r, *new, *old;
 	int n;
 
 	r.from = 1;
 	r.to = 1;
 
 	for (n = 1; n < i+1; n++) {
+		new = &de[n].new;
+		old = &de[n].old;
+
 		/* print any lines leading up to here */
-		r.to = de[n].old.from;
+		r.to = old->from;
 		printrange(fp[0], &r);
 
 		if (de[n].type == DIFF_TYPE2) {
 			printf("%s %s\n", oldmark, f2mark);
-			printrange(fp[1], &de[n].old);
+			printrange(fp[1], old);
 			printf("%s\n", divider);
-			printrange(fp[2], &de[n].new);
+			printrange(fp[2], new);
 			printf("%s %s\n", newmark, f3mark);
 		} else if (de[n].type == DIFF_TYPE3) {
 			if (!oflag || !overlap[n]) {
-				printrange(fp[2], &de[n].new);
+				printrange(fp[2], new);
 			} else {
 
 				printf("%s %s\n", oldmark, f1mark);
-				printrange(fp[0], &de[n].old);
+				printrange(fp[0], old);
 
 				printf("%s %s\n", orgmark, f2mark);
-				if (de[n].old.from == de[n].old.to) {
+				if (old->from == old->to) {
 					struct range or;
-					or.from = de[n].old.from -1;
-					or.to = de[n].new.to;
+					or.from = old->from - 1;
+					or.to = new->to;
 					printrange(fp[1], &or);
 				} else
-					printrange(fp[1], &de[n].old);
+					printrange(fp[1], old);
 
 				printf("%s\n", divider);
 
-				printrange(fp[2], &de[n].new);
+				printrange(fp[2], new);
 				printf("%s %s\n", newmark, f3mark);
 			}
 		}
 
-		if (de[n].old.from == de[n].old.to)
-			r.from = de[n].new.to;
+		if (old->from == old->to)
+			r.from = new->to;
 		else
-			r.from = de[n].old.to;
+			r.from = old->to;
 	}
 	/*
 	 * Print from the final range to the end of 'myfile'. Any deletions or
@@ -768,11 +771,13 @@ mergescript(int i)
 	 * If the new range is 0 length (from == to), we need to use the old
 	 * range.
 	 */
-	if ((de[n-1].old.from == de[n-1].new.from) &&
-		(de[n-1].old.to == de[n-1].new.to))
+	new = &de[n-1].new;
+	old = &de[n-1].old;
+	if ((old->from == new->from) &&
+		(old->to == new->to))
 		r.from--;
-	else if (de[n-1].new.from == de[n-1].new.to)
-		r.from = de[n-1].old.from;
+	else if (new->from == new->to)
+		r.from = old->from;
 
 	/*
 	 * If the range is a 3 way merge then we need to skip a line in the
