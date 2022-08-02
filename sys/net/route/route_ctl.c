@@ -77,15 +77,16 @@ struct rib_subscription {
 	struct epoch_context			epoch_ctx;
 };
 
-static int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
+static int add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc);
-static int add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
-    struct route_nhop_data *rnd, struct rib_cmd_info *rc);
-static int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
+static int change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
+    struct rt_addrinfo *info, struct route_nhop_data *nhd_orig,
     struct rib_cmd_info *rc);
-static int change_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct route_nhop_data *nhd_orig, struct rib_cmd_info *rc);
 
+static int add_route(struct rib_head *rnh, struct rtentry *rt,
+    struct route_nhop_data *rnd, struct rib_cmd_info *rc);
+static int delete_route(struct rib_head *rnh, struct rtentry *rt,
+    struct rib_cmd_info *rc);
 static int rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc);
 
@@ -519,8 +520,7 @@ lookup_prefix_bysa(struct rib_head *rnh, const struct sockaddr *dst,
 
 	RIB_LOCK_ASSERT(rnh);
 
-	rt = (struct rtentry *)rnh->rnh_lookup(__DECONST(void *, dst),
-	    __DECONST(void *, netmask), &rnh->head);
+	rt = (struct rtentry *)rnh->rnh_lookup(dst, netmask, &rnh->head);
 	if (rt != NULL) {
 		rnd->rnd_nhop = rt->rt_nhop;
 		rnd->rnd_weight = rt->rt_weight;
@@ -530,6 +530,13 @@ lookup_prefix_bysa(struct rib_head *rnh, const struct sockaddr *dst,
 	}
 
 	return (rt);
+}
+
+struct rtentry *
+lookup_prefix_rt(struct rib_head *rnh, const struct rtentry *rt,
+    struct route_nhop_data *rnd)
+{
+	return (lookup_prefix_bysa(rnh, rt_key_const(rt), rt_mask_const(rt), rnd));
 }
 
 /*
@@ -583,7 +590,7 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
 	bzero(rc, sizeof(struct rib_cmd_info));
 	rc->rc_cmd = RTM_ADD;
 
-	error = add_route(rnh, info, rc);
+	error = add_route_byinfo(rnh, info, rc);
 	if (error == 0)
 		rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
 
@@ -701,7 +708,7 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 }
 
 static int
-add_route(struct rib_head *rnh, struct rt_addrinfo *info,
+add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
 	struct nhop_object *nh_orig;
@@ -719,7 +726,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	nh = rt->rt_nhop;
 
 	RIB_WLOCK(rnh);
-	error = add_route_nhop(rnh, rt, &rnd_add, rc);
+	error = add_route(rnh, rt, &rnd_add, rc);
 	if (error == 0) {
 		RIB_WUNLOCK(rnh);
 		return (0);
@@ -740,7 +747,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	/* Check if new route has higher preference */
 	if (can_override_nhop(info, nh_orig) > 0) {
 		/* Update nexthop to the new route */
-		change_route_nhop(rnh, rt_orig, &rnd_add, rc);
+		change_route(rnh, rt_orig, &rnd_add, rc);
 		RIB_WUNLOCK(rnh);
 		uma_zfree(V_rtzone, rt);
 		nhop_free(nh_orig);
@@ -808,10 +815,32 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 		rt_maskedcopy(dst_orig, (struct sockaddr *)&mdst, netmask);
 		info->rti_info[RTAX_DST] = (struct sockaddr *)&mdst;
 	}
-	error = del_route(rnh, info, rc);
+
+	RIB_WLOCK(rnh);
+	error = rt_unlinkrte(rnh, info, rc);
+	RIB_WUNLOCK(rnh);
+
 	info->rti_info[RTAX_DST] = dst_orig;
 
-	return (error);
+	if (error != 0)
+		return (error);
+
+	rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
+
+	if (rc->rc_cmd == RTM_DELETE)
+		rtfree(rc->rc_rt);
+#ifdef ROUTE_MPATH
+	else {
+		/*
+		 * Deleting 1 path may result in RTM_CHANGE to
+		 * a different mpath group/nhop.
+		 * Free old mpath group.
+		 */
+		nhop_free_any(rc->rc_nh_old);
+	}
+#endif
+
+	return (0);
 }
 
 /*
@@ -827,7 +856,6 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 {
 	struct rtentry *rt;
 	struct nhop_object *nh;
-	struct radix_node *rn;
 	struct route_nhop_data rnd;
 	int error;
 
@@ -850,65 +878,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 	if (can_override_nhop(info, nh) < 0)
 		return (EADDRINUSE);
 
-	/*
-	 * Remove the item from the tree and return it.
-	 * Complain if it is not there and do no more processing.
-	 */
-	rn = rnh->rnh_deladdr(rt_key_const(rt), rt_mask_const(rt), &rnh->head);
-	if (rn == NULL)
-		return (ESRCH);
-
-	if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
-		panic ("rtrequest delete");
-
-	rt = RNTORT(rn);
-	rt->rte_flags &= ~RTF_UP;
-
-	/* Finalize notification */
-	rib_bump_gen(rnh);
-	rnh->rnh_prefixes--;
-
-	rc->rc_cmd = RTM_DELETE;
-	rc->rc_rt = rt;
-	rc->rc_nh_old = rt->rt_nhop;
-	rc->rc_nh_weight = rt->rt_weight;
-	rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
-
-	return (0);
-}
-
-static int
-del_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
-{
-	int error;
-
-	RIB_WLOCK(rnh);
-	error = rt_unlinkrte(rnh, info, rc);
-	RIB_WUNLOCK(rnh);
-	if (error != 0)
-		return (error);
-
-	rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
-
-	/*
-	 * If the caller wants it, then it can have it,
-	 * the entry will be deleted after the end of the current epoch.
-	 */
-	if (rc->rc_cmd == RTM_DELETE)
-		rtfree(rc->rc_rt);
-#ifdef ROUTE_MPATH
-	else {
-		/*
-		 * Deleting 1 path may result in RTM_CHANGE to
-		 * a different mpath group/nhop.
-		 * Free old mpath group.
-		 */
-		nhop_free_any(rc->rc_nh_old);
-	}
-#endif
-
-	return (0);
+	return (delete_route(rnh, rt, rc));
 }
 
 int
@@ -965,7 +935,7 @@ rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
 	RIB_RUNLOCK(rnh);
 
 	for (int i = 0; i < RIB_MAX_RETRIES; i++) {
-		error = change_route(rnh, info, &rnd_orig, rc);
+		error = change_route_byinfo(rnh, rt, info, &rnd_orig, rc);
 		if (error != EAGAIN)
 			break;
 	}
@@ -1005,8 +975,9 @@ change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
 
 #ifdef ROUTE_MPATH
 static int
-change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct route_nhop_data *rnd_orig, struct rib_cmd_info *rc)
+change_mpath_route(struct rib_head *rnh, struct rtentry *rt,
+    struct rt_addrinfo *info, struct route_nhop_data *rnd_orig,
+    struct rib_cmd_info *rc)
 {
 	int error = 0, found_idx = 0;
 	struct nhop_object *nh_orig = NULL, *nh_new;
@@ -1049,15 +1020,16 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (error != 0)
 		return (error);
 
-	error = change_route_conditional(rnh, NULL, info, rnd_orig, &rnd_new, rc);
+	error = change_route_conditional(rnh, rt, rnd_orig, &rnd_new, rc);
 
 	return (error);
 }
 #endif
 
 static int
-change_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct route_nhop_data *rnd_orig, struct rib_cmd_info *rc)
+change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
+    struct rt_addrinfo *info, struct route_nhop_data *rnd_orig,
+    struct rib_cmd_info *rc)
 {
 	int error = 0;
 	struct nhop_object *nh_orig;
@@ -1069,14 +1041,14 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh_orig))
-		return (change_mpath_route(rnh, info, rnd_orig, rc));
+		return (change_mpath_route(rnh, rt, info, rnd_orig, rc));
 #endif
 
 	rnd_new.rnd_weight = get_info_weight(info, rnd_orig->rnd_weight);
 	error = change_nhop(rnh, info, nh_orig, &rnd_new.rnd_nhop);
 	if (error != 0)
 		return (error);
-	error = change_route_conditional(rnh, NULL, info, rnd_orig, &rnd_new, rc);
+	error = change_route_conditional(rnh, rt, rnd_orig, &rnd_new, rc);
 
 	return (error);
 }
@@ -1086,11 +1058,10 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
  * Returns 0 on success and stores operation results in @rc.
  */
 static int
-add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
+add_route(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd, struct rib_cmd_info *rc)
 {
 	struct radix_node *rn;
-	int error = 0;
 
 	RIB_WLOCK_ASSERT(rnh);
 
@@ -1113,12 +1084,42 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 		rc->rc_nh_weight = rnd->rnd_weight;
 
 		rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
-	} else {
-		/* Existing route or memory allocation failure */
-		error = EEXIST;
+		return (0);
 	}
 
-	return (error);
+	/* Existing route or memory allocation failure. */
+	return (EEXIST);
+}
+
+/*
+ * Unconditionally deletes @rt from @rnh.
+ */
+static int
+delete_route(struct rib_head *rnh, struct rtentry *rt, struct rib_cmd_info *rc)
+{
+	RIB_WLOCK_ASSERT(rnh);
+
+	/* Route deletion requested. */
+	struct radix_node *rn;
+
+	rn = rnh->rnh_deladdr(rt_key_const(rt), rt_mask_const(rt), &rnh->head);
+	if (rn == NULL)
+		return (ESRCH);
+	rt = RNTORT(rn);
+	rt->rte_flags &= ~RTF_UP;
+
+	rib_bump_gen(rnh);
+	rnh->rnh_prefixes--;
+
+	rc->rc_cmd = RTM_DELETE;
+	rc->rc_rt = rt;
+	rc->rc_nh_old = rt->rt_nhop;
+	rc->rc_nh_new = NULL;
+	rc->rc_nh_weight = rt->rt_weight;
+
+	rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
+
+	return (0);
 }
 
 /*
@@ -1126,7 +1127,7 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
  * Returns 0 on success.
  */
 int
-change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
+change_route(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd, struct rib_cmd_info *rc)
 {
 	struct nhop_object *nh_orig;
@@ -1135,29 +1136,18 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 
 	nh_orig = rt->rt_nhop;
 
-	if (rnd->rnd_nhop != NULL) {
-		/* Changing nexthop & weight to a new one */
-		rt->rt_nhop = rnd->rnd_nhop;
-		rt->rt_weight = rnd->rnd_weight;
-		if (!NH_IS_NHGRP(rnd->rnd_nhop) && nhop_get_expire(rnd->rnd_nhop))
-			tmproutes_update(rnh, rt, rnd->rnd_nhop);
-	} else {
-		/* Route deletion requested. */
-		struct radix_node *rn;
+	if (rnd->rnd_nhop == NULL)
+		return (delete_route(rnh, rt, rc));
 
-		rn = rnh->rnh_deladdr(rt_key_const(rt), rt_mask_const(rt), &rnh->head);
-		if (rn == NULL)
-			return (ESRCH);
-		rt = RNTORT(rn);
-		rt->rte_flags &= ~RTF_UP;
-	}
+	/* Changing nexthop & weight to a new one */
+	rt->rt_nhop = rnd->rnd_nhop;
+	rt->rt_weight = rnd->rnd_weight;
+	if (!NH_IS_NHGRP(rnd->rnd_nhop) && nhop_get_expire(rnd->rnd_nhop))
+		tmproutes_update(rnh, rt, rnd->rnd_nhop);
 
 	/* Finalize notification */
 	rib_bump_gen(rnh);
-	if (rnd->rnd_nhop == NULL)
-		rnh->rnh_prefixes--;
-
-	rc->rc_cmd = (rnd->rnd_nhop != NULL) ? RTM_CHANGE : RTM_DELETE;
+	rc->rc_cmd = RTM_CHANGE;
 	rc->rc_rt = rt;
 	rc->rc_nh_old = nh_orig;
 	rc->rc_nh_new = rnd->rnd_nhop;
@@ -1175,8 +1165,8 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
  */
 int
 change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
-    struct rt_addrinfo *info, struct route_nhop_data *rnd_orig,
-    struct route_nhop_data *rnd_new, struct rib_cmd_info *rc)
+    struct route_nhop_data *rnd_orig, struct route_nhop_data *rnd_new,
+    struct rib_cmd_info *rc)
 {
 	struct rtentry *rt_new;
 	int error = 0;
@@ -1192,12 +1182,12 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 #endif
 	RIB_WLOCK(rnh);
 
-	rt_new = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
-	    info->rti_info[RTAX_NETMASK], &rnh->head);
+	struct route_nhop_data rnd;
+	rt_new = lookup_prefix_rt(rnh, rt, &rnd);
 
 	if (rt_new == NULL) {
 		if (rnd_orig->rnd_nhop == NULL)
-			error = add_route_nhop(rnh, rt, rnd_new, rc);
+			error = add_route(rnh, rt, rnd_new, rc);
 		else {
 			/*
 			 * Prefix does not exist, which was not our assumption.
@@ -1214,7 +1204,7 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 			 * Nhop/mpath group hasn't changed. Flip
 			 * to the new precalculated one and return
 			 */
-			error = change_route_nhop(rnh, rt_new, rnd_new, rc);
+			error = change_route(rnh, rt_new, rnd_new, rc);
 		} else {
 			/* Update and retry */
 			rnd_orig->rnd_nhop = rt_new->rt_nhop;
