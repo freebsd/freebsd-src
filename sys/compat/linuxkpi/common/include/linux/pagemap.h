@@ -32,6 +32,7 @@
 #define _LINUXKPI_LINUX_PAGEMAP_H_
 
 #include <linux/mm.h>
+#include <linux/highmem.h>
 
 static inline void
 release_pages(struct page **pages, int nr)
