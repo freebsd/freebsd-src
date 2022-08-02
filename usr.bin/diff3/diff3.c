@@ -593,22 +593,26 @@ static void
 edscript(int n)
 {
 	bool delete;
+	struct range *new, *old;
 
 	for (; n > 0; n--) {
-		delete = (de[n].new.from == de[n].new.to);
+		new = &de[n].new;
+		old = &de[n].old;
+
+		delete = (new->from == new->to);
 		if (!oflag || !overlap[n]) {
-			prange(&de[n].old, delete);
+			prange(old, delete);
 		} else {
-			printf("%da\n", de[n].old.to - 1);
+			printf("%da\n", old->to - 1);
 			printf("%s\n", divider);
 		}
-		printrange(fp[2], &de[n].new);
+		printrange(fp[2], new);
 		if (!oflag || !overlap[n]) {
 			if (!delete)
 				printf(".\n");
 		} else {
 			printf("%s %s\n.\n", newmark, f3mark);
-			printf("%da\n%s %s\n.\n", de[n].old.from - 1,
+			printf("%da\n%s %s\n.\n", old->from - 1,
 				oldmark, f1mark);
 		}
 	}
