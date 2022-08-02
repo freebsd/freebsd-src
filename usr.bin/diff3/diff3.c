@@ -638,14 +638,13 @@ Ascript(int n)
 		old = &de[n].old;
 		deletenew = (new->from == new->to);
 		deleteold = (old->from == old->to);
-		startmark = old->from + (old->to - old->from) - 1;
 
 		if (de[n].type == DIFF_TYPE2) {
 			if (!oflag || !overlap[n]) {
 				prange(old, deletenew);
 				printrange(fp[2], new);
 			} else {
-				startmark = new->from + (new->to - new->from);
+				startmark = new->to;
 
 				if (!deletenew)
 					startmark--;
@@ -664,6 +663,8 @@ Ascript(int n)
 			}
 
 		} else if (de[n].type == DIFF_TYPE3) {
+			startmark = old->to - 1;
+
 			if (!oflag || !overlap[n]) {
 				prange(old, deletenew);
 				printrange(fp[2], new);
