@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2022
+.Dd August 2, 2022
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -175,8 +175,7 @@ because
 .Ql .\&
 goes before
 .Ql /
-in
-.Xr ASCII 8 .
+in ASCII.
 In locales other than
 .Ar C
 results may vary more due to collation differences.
@@ -797,7 +796,7 @@ is specified, the given expression shall be effectively replaced by
 .It Ic -print0
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output, followed by an
-.Xr ASCII 8
+ASCII
 .Dv NUL
 character (character code 0).
 .It Ic -prune
@@ -1033,6 +1032,7 @@ section below for details.
 .Xr getgrent 3 ,
 .Xr getpwent 3 ,
 .Xr strmode 3 ,
+.Xr ascii 7 ,
 .Xr re_format 7 ,
 .Xr symlink 7
 .Sh STANDARDS
