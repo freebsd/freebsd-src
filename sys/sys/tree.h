@@ -371,6 +371,13 @@ struct {								\
 #define RB_AUGMENT(x)	break
 #endif
 
+#define RB_UPDATE_AUGMENT(elm, field) do {				\
+	__typeof(elm) tmp = (elm);					\
+	do {								\
+		RB_AUGMENT(tmp);					\
+	} while ((tmp = RB_PARENT(tmp, field)) != NULL);		\
+} while (0)
+
 #define RB_SWAP_CHILD(head, out, in, field) do {			\
 	if (RB_PARENT(out, field) == NULL)				\
 		RB_ROOT(head) = (in);					\
@@ -678,11 +685,9 @@ name##_RB_REMOVE(struct name *head, struct type *elm)			\
 	RB_SWAP_CHILD(head, old, elm, field);				\
 	if (child != NULL)						\
 		RB_SET_PARENT(child, parent, field);			\
-	if (parent != NULL)						\
+	if (parent != NULL) {						\
 		name##_RB_REMOVE_COLOR(head, parent, child);		\
-	while (parent != NULL) {					\
-		RB_AUGMENT(parent);					\
-		parent = RB_PARENT(parent, field);			\
+		RB_UPDATE_AUGMENT(parent, field);			\
 	}								\
 	return (old);							\
 }
@@ -714,10 +719,7 @@ name##_RB_INSERT(struct name *head, struct type *elm)			\
 	else								\
 		RB_RIGHT(parent, field) = elm;				\
 	name##_RB_INSERT_COLOR(head, elm);				\
-	while (elm != NULL) {						\
-		RB_AUGMENT(elm);					\
-		elm = RB_PARENT(elm, field);				\
-	}								\
+	RB_UPDATE_AUGMENT(elm, field);					\
 	return (NULL);							\
 }
 
