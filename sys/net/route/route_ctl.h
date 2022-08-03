@@ -85,7 +85,7 @@ void rib_walk_from(uint32_t fibnum, int family, uint32_t flags, struct sockaddr 
     struct sockaddr *mask, rib_walktree_f_t *wa_f, void *arg);
 
 void rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f,
-    void *arg, bool report);
+    void *filter_arg, bool report);
 
 void rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
     rib_walk_hook_f_t *hook_f, void *arg);

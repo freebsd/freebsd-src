@@ -87,11 +87,14 @@ static int add_route(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd, struct rib_cmd_info *rc);
 static int delete_route(struct rib_head *rnh, struct rtentry *rt,
     struct rib_cmd_info *rc);
-static int rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
+static int rt_delete_conditional(struct rib_head *rnh, struct rtentry *rt,
+    int prio, rib_filter_f_t *cb, void *cbdata, struct rib_cmd_info *rc);
 
 static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
+
+static int get_prio_from_info(const struct rt_addrinfo *info);
+static int nhop_get_prio(const struct nhop_object *nh);
 
 static void destroy_subscription_epoch(epoch_context_t ctx);
 #ifdef ROUTE_MPATH
@@ -461,6 +464,22 @@ match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw)
 	return (false);
 }
 
+struct gw_filter_data {
+	const struct sockaddr *gw;
+	int count;
+};
+
+static int
+gw_filter_func(const struct rtentry *rt, const struct nhop_object *nh, void *_data)
+{
+	struct gw_filter_data *gwd = (struct gw_filter_data *)_data;
+
+	/* Return only first match to make rtsock happy */
+	if (match_nhop_gw(nh, gwd->gw) && gwd->count++ == 0)
+		return (1);
+	return (0);
+}
+
 /*
  * Checks if data in @info matches nexhop @nh.
  *
@@ -484,27 +503,6 @@ check_info_match_nhop(const struct rt_addrinfo *info, const struct rtentry *rt,
 		return (ESRCH);
 
 	return (0);
-}
-
-/*
- * Checks if nexhop @nh can be rewritten by data in @info because
- *  of higher "priority". Currently the only case for such scenario
- *  is kernel installing interface routes, marked by RTF_PINNED flag.
- *
- * Returns:
- * 1 if @info data has higher priority
- * 0 if priority is the same
- * -1 if priority is lower
- */
-int
-can_override_nhop(const struct rt_addrinfo *info, const struct nhop_object *nh)
-{
-
-	if (info->rti_flags & RTF_PINNED) {
-		return (NH_IS_PINNED(nh)) ? 0 : 1;
-	} else {
-		return (NH_IS_PINNED(nh)) ? -1 : 0;
-	}
 }
 
 /*
@@ -745,7 +743,7 @@ add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
 	/* We have existing route in the RIB. */
 	nh_orig = rnd_orig.rnd_nhop;
 	/* Check if new route has higher preference */
-	if (can_override_nhop(info, nh_orig) > 0) {
+	if (get_prio_from_info(info) > nhop_get_prio(nh_orig)) {
 		/* Update nexthop to the new route */
 		change_route(rnh, rt_orig, &rnd_add, rc);
 		RIB_WUNLOCK(rnh);
@@ -790,7 +788,7 @@ int
 rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	struct rib_head *rnh;
-	struct sockaddr *dst_orig, *netmask;
+	struct sockaddr *dst, *netmask;
 	struct sockaddr_storage mdst;
 	int error;
 
@@ -803,24 +801,42 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 	bzero(rc, sizeof(struct rib_cmd_info));
 	rc->rc_cmd = RTM_DELETE;
 
-	dst_orig = info->rti_info[RTAX_DST];
+	dst = info->rti_info[RTAX_DST];
 	netmask = info->rti_info[RTAX_NETMASK];
 
 	if (netmask != NULL) {
 		/* Ensure @dst is always properly masked */
-		if (dst_orig->sa_len > sizeof(mdst)) {
+		if (dst->sa_len > sizeof(mdst)) {
 			FIB_RH_LOG(LOG_DEBUG, rnh, "error: dst->sa_len too large");
 			return (EINVAL);
 		}
-		rt_maskedcopy(dst_orig, (struct sockaddr *)&mdst, netmask);
-		info->rti_info[RTAX_DST] = (struct sockaddr *)&mdst;
+		rt_maskedcopy(dst, (struct sockaddr *)&mdst, netmask);
+		dst = (struct sockaddr *)&mdst;
 	}
 
-	RIB_WLOCK(rnh);
-	error = rt_unlinkrte(rnh, info, rc);
-	RIB_WUNLOCK(rnh);
+	rib_filter_f_t *filter_func = NULL;
+	void *filter_arg = NULL;
+	struct gw_filter_data gwd = { .gw = info->rti_info[RTAX_GATEWAY] };
 
-	info->rti_info[RTAX_DST] = dst_orig;
+	if (info->rti_filter != NULL) {
+		filter_func = info->rti_filter;
+		filter_arg = info->rti_filterdata;
+	} else if (gwd.gw != NULL) {
+		filter_func = gw_filter_func;
+		filter_arg = &gwd;
+	}
+
+	int prio = get_prio_from_info(info);
+
+	RIB_WLOCK(rnh);
+	struct route_nhop_data rnd;
+	struct rtentry *rt = lookup_prefix_bysa(rnh, dst, netmask, &rnd);
+	if (rt != NULL) {
+		error = rt_delete_conditional(rnh, rt, prio, filter_func,
+		    filter_arg, rc);
+	} else
+		error = ESRCH;
+	RIB_WUNLOCK(rnh);
 
 	if (error != 0)
 		return (error);
@@ -844,38 +860,64 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 }
 
 /*
- * Conditionally unlinks rtentry matching data inside @info from @rnh.
+ * File-local concept for distingushing between the normal and
+ * RTF_PINNED routes tha can override the "normal" one.
+ */
+#define	NH_PRIORITY_HIGH	2
+#define	NH_PRIORITY_NORMAL	1
+static int
+get_prio_from_info(const struct rt_addrinfo *info)
+{
+	if (info->rti_flags & RTF_PINNED)
+		return (NH_PRIORITY_HIGH);
+	return (NH_PRIORITY_NORMAL);
+}
+
+static int
+nhop_get_prio(const struct nhop_object *nh)
+{
+	if (NH_IS_PINNED(nh))
+		return (NH_PRIORITY_HIGH);
+	return (NH_PRIORITY_NORMAL);
+}
+
+/*
+ * Conditionally unlinks rtentry paths from @rnh matching @cb.
  * Returns 0 on success with operation result stored in @rc.
  * On error, returns:
- * ESRCH - if prefix was not found,
+ * ESRCH - if prefix was not found or filter function failed to match
  * EADDRINUSE - if trying to delete higher priority route.
- * ENOENT - if supplied filter function returned 0 (not matched).
  */
 static int
-rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc)
+rt_delete_conditional(struct rib_head *rnh, struct rtentry *rt,
+    int prio, rib_filter_f_t *cb, void *cbdata, struct rib_cmd_info *rc)
 {
-	struct rtentry *rt;
-	struct nhop_object *nh;
+	struct nhop_object *nh = rt->rt_nhop;
 	struct route_nhop_data rnd;
-	int error;
 
-	rt = lookup_prefix(rnh, info, &rnd);
-	if (rt == NULL)
-		return (ESRCH);
-
-	nh = rt->rt_nhop;
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		error = del_route_mpath(rnh, info, rt,
-		    (struct nhgrp_object *)nh, rc);
+		struct nhgrp_object *nhg = (struct nhgrp_object *)nh;
+		int error;
+
+		if (cb == NULL)
+			return (ESRCH);
+		error = nhgrp_get_filtered_group(rnh, rt, nhg, cb, cbdata, &rnd);
+		if (error == 0) {
+			if (rnd.rnd_nhgrp == nhg) {
+				/* No match, unreference new group and return. */
+				nhop_free_any(rnd.rnd_nhop);
+				return (ESRCH);
+			}
+			error = change_route(rnh, rt, &rnd, rc);
+		}
 		return (error);
 	}
 #endif
-	error = check_info_match_nhop(info, rt, nh);
-	if (error != 0)
-		return (error);
+	if (cb != NULL && !cb(rt, nh, cbdata))
+		return (ESRCH);
 
-	if (can_override_nhop(info, nh) < 0)
+	if (prio < nhop_get_prio(nh))
 		return (EADDRINUSE);
 
 	return (delete_route(rnh, rt, rc));
@@ -1261,31 +1303,26 @@ rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
 
 struct rt_delinfo
 {
-	struct rt_addrinfo info;
 	struct rib_head *rnh;
 	struct rtentry *head;
+	rib_filter_f_t *filter_f;
+	void *filter_arg;
+	int prio;
 	struct rib_cmd_info rc;
 };
 
 /*
- * Conditionally unlinks @rn from radix tree based
- * on info data passed in @arg.
+ * Conditionally unlinks rtenties or paths from radix tree based
+ * on the callback data passed in @arg.
  */
 static int
 rt_checkdelroute(struct radix_node *rn, void *arg)
 {
-	struct rt_delinfo *di;
-	struct rt_addrinfo *info;
-	struct rtentry *rt;
+	struct rt_delinfo *di = (struct rt_delinfo *)arg;
+	struct rtentry *rt = (struct rtentry *)rn;
 
-	di = (struct rt_delinfo *)arg;
-	rt = (struct rtentry *)rn;
-	info = &di->info;
-
-	info->rti_info[RTAX_DST] = rt_key(rt);
-	info->rti_info[RTAX_NETMASK] = rt_mask(rt);
-
-	if (rt_unlinkrte(di->rnh, info, &di->rc) != 0)
+	if (rt_delete_conditional(di->rnh, rt, di->prio,
+	    di->filter_f, di->filter_arg, &di->rc) != 0)
 		return (0);
 
 	/*
@@ -1302,7 +1339,7 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 #ifdef ROUTE_MPATH
 	} else {
 		/*
-		 * RTM_CHANGE to a diferent nexthop or nexthop group.
+		 * RTM_CHANGE to a different nexthop or nexthop group.
 		 * Free old multipath group.
 		 */
 		nhop_free_any(di->rc.rc_nh_old);
@@ -1322,10 +1359,10 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
  * @report: true if rtsock notification is needed.
  */
 void
-rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool report)
+rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *filter_arg,
+    bool report)
 {
 	struct rib_head *rnh;
-	struct rt_delinfo di;
 	struct rtentry *rt;
 	struct nhop_object *nh;
 	struct epoch_tracker et;
@@ -1334,11 +1371,12 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool
 	if (rnh == NULL)
 		return;
 
-	bzero(&di, sizeof(di));
-	di.info.rti_filter = filter_f;
-	di.info.rti_filterdata = arg;
-	di.rnh = rnh;
-	di.rc.rc_cmd = RTM_DELETE;
+	struct rt_delinfo di = {
+		.rnh = rnh,
+		.filter_f = filter_f,
+		.filter_arg = filter_arg,
+		.prio = NH_PRIORITY_NORMAL,
+	};
 
 	NET_EPOCH_ENTER(et);
 
@@ -1358,10 +1396,6 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool
 		di.rc.rc_rt = rt;
 		di.rc.rc_nh_old = nh;
 		rib_notify(rnh, RIB_NOTIFY_DELAYED, &di.rc);
-
-		/* TODO std rt -> rt_addrinfo export */
-		di.info.rti_info[RTAX_DST] = rt_key(rt);
-		di.info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 
 		if (report) {
 #ifdef ROUTE_MPATH
