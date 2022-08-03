@@ -39,6 +39,7 @@
 extern "C" {
 #endif
 
+int xasprintf(char **, const char *, ...);
 void *xmalloc(size_t);
 void *xcalloc(size_t);
 char *xstrdup(const char *);

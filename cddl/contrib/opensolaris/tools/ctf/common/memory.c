@@ -44,6 +44,20 @@ memory_bailout(void)
 	exit(1);
 }
 
+int
+xasprintf(char **s, const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = vasprintf(s, fmt, ap);
+	va_end(ap);
+	if (ret == -1)
+		memory_bailout();
+	return (ret);
+}
+
 void *
 xmalloc(size_t size)
 {
