@@ -317,7 +317,7 @@ ast_sig(struct thread *td, int tda)
 	 * p_siglist might cause process-directed signal to be handled
 	 * later.
 	 */
-	if ((tda & TDA_SIG) != 0 || p->p_pendingcnt > 0 ||
+	if ((tda & TDAI(TDA_SIG)) != 0 || p->p_pendingcnt > 0 ||
 	    !SIGISEMPTY(p->p_siglist)) {
 		sigfastblock_fetch(td);
 		PROC_LOCK(p);
