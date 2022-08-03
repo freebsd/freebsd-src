@@ -1279,6 +1279,7 @@ in6_handle_dstaddr_rtrequest(int cmd, struct in6_ifaddr *ia)
 
 	struct rt_addrinfo info = {
 		.rti_ifa = ifa,
+		.rti_ifp = ifa->ifa_ifp,
 		.rti_flags = RTF_PINNED | RTF_HOST,
 		.rti_info = {
 			[RTAX_DST] = (struct sockaddr *)&dst,
