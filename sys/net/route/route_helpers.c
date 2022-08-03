@@ -571,9 +571,11 @@ rt_get_inet6_parent(uint32_t fibnum, const struct in6_addr *paddr, int plen)
 char *
 rt_print_buf(const struct rtentry *rt, char *buf, size_t bufsize)
 {
+#if defined(INET) || defined(INET6)
 	char abuf[INET6_ADDRSTRLEN];
 	uint32_t scopeid;
 	int plen;
+#endif
 
 	switch (rt_get_family(rt)) {
 #ifdef INET
