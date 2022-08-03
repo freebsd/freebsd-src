@@ -1009,19 +1009,18 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 #endif
 	}
 
-	if (!dounpriv & 
-	    (gid != (gid_t)-1 && gid != to_sb.st_gid) ||
-	    (uid != (uid_t)-1 && uid != to_sb.st_uid))
+	if (!dounpriv && ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
+	    (uid != (uid_t)-1 && uid != to_sb.st_uid))) {
 		if (fchown(to_fd, uid, gid) == -1) {
 			serrno = errno;
 			(void)unlink(to_name);
 			errno = serrno;
 			err(EX_OSERR,"%s: chown/chgrp", to_name);
 		}
-
+	}
 	if (mode != (to_sb.st_mode & ALLPERMS)) {
 		if (fchmod(to_fd,
-		     dounpriv ? mode & (S_IRWXU|S_IRWXG|S_IRWXO) : mode)) {
+		    dounpriv ? mode & (S_IRWXU|S_IRWXG|S_IRWXO) : mode)) {
 			serrno = errno;
 			(void)unlink(to_name);
 			errno = serrno;
@@ -1036,7 +1035,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
 	 * then warn if the fs doesn't support it, otherwise fail.
 	 */
-	if (!dounpriv & !devnull && (flags & SETFLAGS ||
+	if (!dounpriv && !devnull && (flags & SETFLAGS ||
 	    (from_sb.st_flags & ~UF_NODUMP) != to_sb.st_flags) &&
 	    fchflags(to_fd,
 	    flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
@@ -1082,7 +1081,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		return 1;
 
 	do_digest = (digesttype != DIGEST_NONE && dresp != NULL &&
-			*dresp == NULL);
+	    *dresp == NULL);
 	if (from_len <= MAX_CMP_SIZE) {
 		if (do_digest)
 			digest_init(&ctx);
@@ -1390,7 +1389,7 @@ install_dir(char *path)
 			ch = *p;
 			*p = '\0';
 again:
-			if (stat(path, &sb) < 0) {
+			if (stat(path, &sb) != 0) {
 				if (errno != ENOENT || tried_mkdir)
 					err(EX_OSERR, "stat %s", path);
 				if (mkdir(path, 0755) < 0) {
