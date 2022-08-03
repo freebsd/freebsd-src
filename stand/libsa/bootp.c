@@ -670,12 +670,14 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 	/* if not found we end up on the default entry */
 
 	/*
-	 * Copy data into the buffer. libstand does not have snprintf so we
-	 * need to be careful with sprintf(). With strings, the source is
-	 * always <256 char so shorter than the buffer so we are safe; with
-	 * other arguments, the longest string is inet_ntoa which is 16 bytes
-	 * so we make sure to have always enough room in the string before
-	 * trying an sprint.
+	 * Copy data into the buffer. While the code uses snprintf, it's also
+	 * careful never to insert strings that would be truncated. inet_ntoa is
+	 * tricky to know the size, so it assumes we can always insert it
+	 * because we reserve 16 bytes at the end of the string for its worst
+	 * case. Other cases are covered because they will write fewer than
+	 * these reserved bytes at the end. Source strings can't overflow (as
+	 * noted below) because buf is 256 bytes and all strings are limited by
+	 * the protocol to be 256 bytes or smaller.
 	 */
 	vp = buf;
 	*vp = '\0';
@@ -695,14 +697,14 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 		if (vp != buf)
 		    *vp++ = FLD_SEP;
 		bcopy(cp, &in_ip.s_addr, sizeof(in_ip.s_addr));
-		sprintf(vp, "%s", inet_ntoa(in_ip));
+		snprintf(vp, endv - vp, "%s", inet_ntoa(in_ip));
 		vp += strlen(vp);
 	    }
 	    break;
 
 	case __BYTES:	/* opaque byte string */
 	    for (; size > 0 && vp < endv; size -= 1, cp += 1) {
-		sprintf(vp, "%02x", *cp);
+		snprintf(vp, endv - vp, "%02x", *cp);
 		vp += strlen(vp);
 	    }
 	    break;
@@ -725,7 +727,7 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 			v = cp[0];
 		if (vp != buf)
 		    *vp++ = FLD_SEP;
-		sprintf(vp, "%u", v);
+		snprintf(vp, endv - vp, "%u", v);
 		vp += strlen(vp);
 	    }
 	    break;
@@ -750,21 +752,22 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 		vp = s;	/* prepare for next round */
 	    }
 	    buf[0] = '\0';	/* option already done */
+	    break;
 	}
 
 	if (tp - tags < sizeof(tags) - 5) {	/* add tag to the list */
 	    if (tp != tags)
 		*tp++ = FLD_SEP;
-	    sprintf(tp, "%d", tag);
+	    snprintf(tp, sizeof(tags) - (tp - tags), "%d", tag);
 	    tp += strlen(tp);
 	}
 	if (buf[0]) {
 	    char	env[128];	/* the string name */
 
 	    if (op->tag == 0)
-		sprintf(env, op->desc, opts[0].desc, tag);
+		snprintf(env, sizeof(env), op->desc, opts[0].desc, tag);
 	    else
-		sprintf(env, "%s%s", opts[0].desc, op->desc);
+		snprintf(env, sizeof(env), "%s%s", opts[0].desc, op->desc);
 	    /*
 	     * Do not replace existing values in the environment, so that
 	     * locally-obtained values can override server-provided values.
@@ -774,7 +777,7 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
     }
     if (tp != tags) {
 	char	env[128];	/* the string name */
-	sprintf(env, "%stags", opts[0].desc);
+	snprintf(env, sizeof(env), "%stags", opts[0].desc);
 	setenv(env, tags, 1);
     }
 }
