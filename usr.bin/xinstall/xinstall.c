@@ -80,6 +80,21 @@ __FBSDID("$FreeBSD$");
 #include "mtree.h"
 
 /*
+ * Memory strategy threshold, in pages: if physmem is larger then this, use a
+ * large buffer.
+ */
+#define PHYSPAGES_THRESHOLD (32*1024)
+
+/* Maximum buffer size in bytes - do not allow it to grow larger than this. */
+#define BUFSIZE_MAX (2*1024*1024)
+
+/*
+ * Small (default) buffer size in bytes. It's inefficient for this to be
+ * smaller than MAXPHYS.
+ */
+#define BUFSIZE_SMALL (MAXPHYS)
+
+/*
  * We need to build xinstall during the bootstrap stage when building on a
  * non-FreeBSD system. Linux does not have the st_flags and st_birthtime
  * members in struct stat so we need to omit support for changing those fields.
@@ -1139,15 +1154,32 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		}
 	out:
 		if (!done_compare) {
-			char buf1[MAXBSIZE];
-			char buf2[MAXBSIZE];
+			static char *buf, *buf1, *buf2;
+			static size_t bufsize;
 			int n1, n2;
 
+			if (buf == NULL) {
+				/*
+				 * Note that buf and bufsize are static. If
+				 * malloc() fails, it will fail at the start
+				 * and not copy only some files.
+				 */
+				if (sysconf(_SC_PHYS_PAGES) >
+				    PHYSPAGES_THRESHOLD)
+					bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
+				else
+					bufsize = BUFSIZE_SMALL;
+				buf = malloc(bufsize * 2);
+				if (buf == NULL)
+					err(1, "Not enough memory");
+				buf1 = buf;
+				buf2 = buf + bufsize;
+			}
 			rv = 0;
 			lseek(from_fd, 0, SEEK_SET);
 			lseek(to_fd, 0, SEEK_SET);
 			while (rv == 0) {
-				n1 = read(from_fd, buf1, sizeof(buf1));
+				n1 = read(from_fd, buf1, bufsize);
 				if (n1 == 0)
 					break;		/* EOF */
 				else if (n1 > 0) {
@@ -1264,10 +1296,11 @@ static char *
 copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
     off_t size)
 {
+	static char *buf = NULL;
+	static size_t bufsize;
 	int nr, nw;
 	int serrno;
 	char *p;
-	char buf[MAXBSIZE];
 	int done_copy;
 	DIGEST_CTX ctx;
 
@@ -1301,7 +1334,22 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		done_copy = 1;
 	}
 	if (!done_copy) {
-		while ((nr = read(from_fd, buf, sizeof(buf))) > 0) {
+		if (buf == NULL) {
+			/*
+			 * Note that buf and bufsize are static. If
+			 * malloc() fails, it will fail at the start
+			 * and not copy only some files.
+			 */
+			if (sysconf(_SC_PHYS_PAGES) >
+			    PHYSPAGES_THRESHOLD)
+				bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
+			else
+				bufsize = BUFSIZE_SMALL;
+			buf = malloc(bufsize);
+			if (buf == NULL)
+				err(1, "Not enough memory");
+		}
+		while ((nr = read(from_fd, buf, bufsize)) > 0) {
 			if ((nw = write(to_fd, buf, nr)) != nr) {
 				serrno = errno;
 				(void)unlink(to_name);
