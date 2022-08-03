@@ -14,7 +14,8 @@ MAN=		install.1
 CFLAGS+=	-I${SRCTOP}/contrib/mtree
 CFLAGS+=	-I${SRCTOP}/lib/libnetbsd
 
-LIBADD=	md
+LIBADD=		md
+CFLAGS+=	-DWITH_MD5 -DWITH_RIPEMD160
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

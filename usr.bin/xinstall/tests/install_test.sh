@@ -404,6 +404,84 @@ symbolic_link_relative_absolute_common_body() {
 	fi
 }
 
+atf_test_case set_owner_group_mode
+set_owner_group_mode_head() {
+	atf_set "require.user" "root"
+}
+set_owner_group_mode_body() {
+	local fu=65531 fg=65531
+	local cu=65532 cg=65532
+	local u="$(id -u)"
+	local g="$(id -g)"
+	local m=0755 cm=4444
+	printf "test" >testf
+	atf_check chown "$fu:$fg" testf
+	atf_check chmod "$m" testf
+
+	atf_check install testf testc
+	atf_check_equal "$u:$g:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -o "$cu" testf testc
+	atf_check_equal "$cu:$g:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -g "$cg" testf testc
+	atf_check_equal "$u:$cg:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -o "$cu" -g "$cg" testf testc
+	atf_check_equal "$cu:$cg:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -m "$cm" testf testc
+	atf_check_equal "$u:$g:10$cm" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -o "$cu" -m "$cm" testf testc
+	atf_check_equal "$cu:$g:10$cm" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -g "$cg" -m "$cm" testf testc
+	atf_check_equal "$u:$cg:10$cm" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -o "$cu" -g "$cg" -m "$cm" testf testc
+	atf_check_equal "$cu:$cg:10$cm" "$(stat -f"%u:%g:%p" testc)"
+}
+
+atf_test_case set_owner_group_mode_unpriv
+set_owner_group_mode_unpriv_head() {
+	atf_set "require.user" "root"
+}
+set_owner_group_mode_unpriv_body() {
+	local fu=65531 fg=65531
+	local cu=65532 cg=65532
+	local u="$(id -u)"
+	local g="$(id -g)"
+	local m=0755 cm=4444 cM=0444
+	printf "test" >testf
+	atf_check chown "$fu:$fg" testf
+	atf_check chmod "$m" testf
+
+	atf_check install -U testf testc
+	atf_check_equal "$u:$g:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -o "$cu" testf testc
+	atf_check_equal "$u:$g:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -g "$cg" testf testc
+	atf_check_equal "$u:$g:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -o "$cu" -g "$cg" testf testc
+	atf_check_equal "$u:$g:10$m" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -m "$cm" testf testc
+	atf_check_equal "$u:$g:10$cM" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -o "$cu" -m "$cm" testf testc
+	atf_check_equal "$u:$g:10$cM" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -g "$cg" -m "$cm" testf testc
+	atf_check_equal "$u:$g:10$cM" "$(stat -f"%u:%g:%p" testc)"
+
+	atf_check install -U -o "$cu" -g "$cg" -m "$cm" testf testc
+	atf_check_equal "$u:$g:10$cM" "$(stat -f"%u:%g:%p" testc)"
+}
+
 atf_init_test_cases() {
 	atf_add_test_case copy_to_nonexistent
 	atf_add_test_case copy_to_nonexistent_safe
@@ -444,4 +522,6 @@ atf_init_test_cases() {
 	atf_add_test_case symbolic_link_relative_absolute_source_and_dest2
 	atf_add_test_case symbolic_link_relative_absolute_common
 	atf_add_test_case mkdir_simple
+	atf_add_test_case set_owner_group_mode
+	atf_add_test_case set_owner_group_mode_unpriv
 }
