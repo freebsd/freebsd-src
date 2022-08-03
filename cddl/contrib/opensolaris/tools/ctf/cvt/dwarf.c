@@ -618,7 +618,7 @@ tdesc_intr_long(dwarf_t *dw)
  * caller can then use the copy as the type for a bitfield structure member.
  */
 static tdesc_t *
-tdesc_intr_clone(dwarf_t *dw, tdesc_t *old, size_t bitsz)
+tdesc_intr_clone(dwarf_t *dw, tdesc_t *old, size_t bitsz, const char *suffix)
 {
 	tdesc_t *new = xcalloc(sizeof (tdesc_t));
 
@@ -627,7 +627,7 @@ tdesc_intr_clone(dwarf_t *dw, tdesc_t *old, size_t bitsz)
 		    "unresolved type\n", old->t_id);
 	}
 
-	new->t_name = xstrdup(old->t_name);
+	asprintf(&new->t_name, "%s %s", old->t_name, suffix);
 	new->t_size = old->t_size;
 	new->t_id = mfgtid_next(dw);
 	new->t_type = INTRINSIC;
@@ -1158,7 +1158,8 @@ die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 			debug(3, "tdp %u: creating bitfield for %d bits\n",
 			    tdp->t_id, ml->ml_size);
 
-			ml->ml_type = tdesc_intr_clone(dw, mt, ml->ml_size);
+			ml->ml_type = tdesc_intr_clone(dw, mt, ml->ml_size,
+			    "bitfield");
 		}
 	}
 
