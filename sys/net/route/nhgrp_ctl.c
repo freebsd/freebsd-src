@@ -617,8 +617,9 @@ nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn, int num_nhops,
  * Returns 0 on success, storring the reference nhop group/object in @rnd.
  */
 int
-nhgrp_get_filtered_group(struct rib_head *rh, const struct nhgrp_object *src,
-    nhgrp_filter_cb_t flt_func, void *flt_data, struct route_nhop_data *rnd)
+nhgrp_get_filtered_group(struct rib_head *rh, const struct rtentry *rt,
+    const struct nhgrp_object *src, rib_filter_f_t flt_func, void *flt_data,
+    struct route_nhop_data *rnd)
 {
 	char storage[64];
 	struct nh_control *ctl = rh->nh_control;
@@ -642,7 +643,7 @@ nhgrp_get_filtered_group(struct rib_head *rh, const struct nhgrp_object *src,
 	error = 0;
 	num_nhops = 0;
 	for (i = 0; i < src_priv->nhg_nh_count; i++) {
-		if (flt_func(src_priv->nhg_nh_weights[i].nh, flt_data))
+		if (flt_func(rt, src_priv->nhg_nh_weights[i].nh, flt_data))
 			continue;
 		memcpy(&pnhops[num_nhops++], &src_priv->nhg_nh_weights[i],
 		  sizeof(struct weightened_nhop));
