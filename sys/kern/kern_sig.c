@@ -110,7 +110,7 @@ static int	issignal(struct thread *td);
 static void	reschedule_signals(struct proc *p, sigset_t block, int flags);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
-static int	sig_suspend_threads(struct thread *, struct proc *, int);
+static int	sig_suspend_threads(struct thread *, struct proc *);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
@@ -2483,7 +2483,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xsig = sig;
 			PROC_SLOCK(p);
-			wakeup_swapper = sig_suspend_threads(td, p, 1);
+			wakeup_swapper = sig_suspend_threads(td, p);
 			if (p->p_numthreads == p->p_suspcount) {
 				/*
 				 * only thread sending signal to another
@@ -2650,14 +2650,13 @@ wake:
 }
 
 static int
-sig_suspend_threads(struct thread *td, struct proc *p, int sending)
+sig_suspend_threads(struct thread *td, struct proc *p)
 {
 	struct thread *td2;
 	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
-	MPASS(sending || td == curthread);
 
 	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
@@ -2682,8 +2681,6 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 			} else if (!TD_IS_SUSPENDED(td2))
 				thread_suspend_one(td2);
 		} else if (!TD_IS_SUSPENDED(td2)) {
-			if (sending || td != td2)
-				ast_sched_locked(td2, TDA_AST);
 #ifdef SMP
 			if (TD_IS_RUNNING(td2) && td2 != td)
 				forward_signal(td2);
@@ -2770,7 +2767,7 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 
 				p->p_flag2 &= ~P2_PTRACE_FSTP;
 				p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
-				sig_suspend_threads(td, p, 0);
+				sig_suspend_threads(td, p);
 			}
 			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 				td->td_dbgflags &= ~TDB_STOPATFORK;
@@ -3125,7 +3122,7 @@ sigprocess(struct thread *td, int sig)
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xsig = sig;
 			PROC_SLOCK(p);
-			sig_suspend_threads(td, p, 0);
+			sig_suspend_threads(td, p);
 			thread_suspend_switch(td, p);
 			PROC_SUNLOCK(p);
 			mtx_lock(&ps->ps_mtx);
