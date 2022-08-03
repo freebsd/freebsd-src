@@ -61,7 +61,7 @@ EOF
 sleeper()
 {
 	while true; do
-		$longsleep &
+		limits -c unlimited $longsleep &
                 /bin/sleep 1
 		kill -SEGV $!
 	done
