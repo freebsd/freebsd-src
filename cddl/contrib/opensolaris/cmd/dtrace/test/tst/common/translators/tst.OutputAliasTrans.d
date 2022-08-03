@@ -37,23 +37,23 @@
 
 #pragma D option quiet
 
-struct input_struct {
+struct dtrace_input_struct {
 	int ii;
 	char ic;
 };
 
-struct output_struct {
+struct dtrace_output_struct {
 	int oi;
 	char oc;
 };
 
-typedef struct output_struct output_t;
+typedef struct dtrace_output_struct dtrace_output_t;
 
 
-translator output_t < struct input_struct *ivar >
+translator dtrace_output_t < struct dtrace_input_struct *ivar >
 {
-	oi = ((struct input_struct *) ivar)->ii;
-	oc = ((struct input_struct *) ivar)->ic;
+	oi = ((struct dtrace_input_struct *) ivar)->ii;
+	oc = ((struct dtrace_input_struct *) ivar)->ic;
 };
 
 BEGIN
