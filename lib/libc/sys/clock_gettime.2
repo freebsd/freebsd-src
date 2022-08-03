@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 8, 2022
+.Dd October 27, 2023
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -120,10 +120,12 @@ and
 are aliases of corresponding IDs with _FAST suffix for compatibility with other
 systems.
 Finally,
-.Dv CLOCK_BOOTTIME
+.Fa CLOCK_BOOTTIME
 is an alias for
-.Dv CLOCK_UPTIME
-for compatibility with other systems.
+.Fa CLOCK_UPTIME
+for compatibility with other systems and is unrelated to the
+.Fa kern.boottime
+.Xr sysctl 8 .
 .Pp
 The structure pointed to by
 .Fa tp
