@@ -493,7 +493,7 @@ pfslowtimo(void *arg)
 	}
 	NET_EPOCH_EXIT(et);
 	rm_runlock(&pftimo_lock, &tracker);
-	callout_reset(&pfslow_callout, hz/2, pfslowtimo, NULL);
+	callout_reset(&pfslow_callout, hz / PR_SLOWHZ, pfslowtimo, NULL);
 }
 
 static void
@@ -510,5 +510,5 @@ pffasttimo(void *arg)
 	}
 	NET_EPOCH_EXIT(et);
 	rm_runlock(&pftimo_lock, &tracker);
-	callout_reset(&pffast_callout, hz/5, pffasttimo, NULL);
+	callout_reset(&pffast_callout, hz / PR_FASTHZ, pffasttimo, NULL);
 }
