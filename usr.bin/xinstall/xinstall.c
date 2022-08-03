@@ -57,10 +57,14 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <grp.h>
 #include <libgen.h>
+#ifdef WITH_MD5
 #include <md5.h>
+#endif
 #include <paths.h>
 #include <pwd.h>
+#ifdef WITH_RIPEMD160
 #include <ripemd.h>
+#endif
 #include <sha.h>
 #include <sha256.h>
 #include <sha512.h>
@@ -100,8 +104,12 @@ __FBSDID("$FreeBSD$");
 #define	BACKUP_SUFFIX	".old"
 
 typedef union {
+#ifdef WITH_MD5
 	MD5_CTX		MD5;
+#endif
+#ifdef WITH_RIPEMD160
 	RIPEMD160_CTX	RIPEMD160;
+#endif
 	SHA1_CTX	SHA1;
 	SHA256_CTX	SHA256;
 	SHA512_CTX	SHA512;
@@ -109,8 +117,12 @@ typedef union {
 
 static enum {
 	DIGEST_NONE = 0,
+#ifdef WITH_MD5
 	DIGEST_MD5,
+#endif
+#ifdef WITH_RIPEMD160
 	DIGEST_RIPEMD160,
+#endif
 	DIGEST_SHA1,
 	DIGEST_SHA256,
 	DIGEST_SHA512,
@@ -288,10 +300,14 @@ main(int argc, char *argv[])
 	if (digest != NULL) {
 		if (strcmp(digest, "none") == 0) {
 			digesttype = DIGEST_NONE;
+#ifdef WITH_MD5
 		} else if (strcmp(digest, "md5") == 0) {
 		       digesttype = DIGEST_MD5;
+#endif
+#ifdef WITH_RIPEMD160
 		} else if (strcmp(digest, "rmd160") == 0) {
 			digesttype = DIGEST_RIPEMD160;
+#endif
 		} else if (strcmp(digest, "sha1") == 0) {
 			digesttype = DIGEST_SHA1;
 		} else if (strcmp(digest, "sha256") == 0) {
@@ -402,10 +418,14 @@ digest_file(const char *name)
 {
 
 	switch (digesttype) {
+#ifdef WITH_MD5
 	case DIGEST_MD5:
 		return (MD5File(name, NULL));
+#endif
+#ifdef WITH_RIPEMD160
 	case DIGEST_RIPEMD160:
 		return (RIPEMD160_File(name, NULL));
+#endif
 	case DIGEST_SHA1:
 		return (SHA1_File(name, NULL));
 	case DIGEST_SHA256:
@@ -424,12 +444,16 @@ digest_init(DIGEST_CTX *c)
 	switch (digesttype) {
 	case DIGEST_NONE:
 		break;
+#ifdef WITH_MD5
 	case DIGEST_MD5:
 		MD5Init(&(c->MD5));
 		break;
+#endif
+#ifdef WITH_RIPEMD160
 	case DIGEST_RIPEMD160:
 		RIPEMD160_Init(&(c->RIPEMD160));
 		break;
+#endif
 	case DIGEST_SHA1:
 		SHA1_Init(&(c->SHA1));
 		break;
@@ -449,12 +473,16 @@ digest_update(DIGEST_CTX *c, const char *data, size_t len)
 	switch (digesttype) {
 	case DIGEST_NONE:
 		break;
+#ifdef WITH_MD5
 	case DIGEST_MD5:
 		MD5Update(&(c->MD5), data, len);
 		break;
+#endif
+#ifdef WITH_RIPEMD160
 	case DIGEST_RIPEMD160:
 		RIPEMD160_Update(&(c->RIPEMD160), data, len);
 		break;
+#endif
 	case DIGEST_SHA1:
 		SHA1_Update(&(c->SHA1), data, len);
 		break;
@@ -472,10 +500,14 @@ digest_end(DIGEST_CTX *c, char *buf)
 {
 
 	switch (digesttype) {
+#ifdef WITH_MD5
 	case DIGEST_MD5:
 		return (MD5End(&(c->MD5), buf));
+#endif
+#ifdef WITH_RIPEMD160
 	case DIGEST_RIPEMD160:
 		return (RIPEMD160_End(&(c->RIPEMD160), buf));
+#endif
 	case DIGEST_SHA1:
 		return (SHA1_End(&(c->SHA1), buf));
 	case DIGEST_SHA256:
