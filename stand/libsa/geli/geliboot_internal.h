@@ -40,8 +40,6 @@
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
 
-#include <bootstrap.h>
-
 /* Pull in the md5, sha256, and sha512 implementations */
 #include <sys/md5.h>
 #include <crypto/sha2/sha256.h>
