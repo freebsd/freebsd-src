@@ -627,7 +627,7 @@ tdesc_intr_clone(dwarf_t *dw, tdesc_t *old, size_t bitsz, const char *suffix)
 		    "unresolved type\n", old->t_id);
 	}
 
-	asprintf(&new->t_name, "%s %s", old->t_name, suffix);
+	xasprintf(&new->t_name, "%s %s", old->t_name, suffix);
 	new->t_size = old->t_size;
 	new->t_id = mfgtid_next(dw);
 	new->t_type = INTRINSIC;
