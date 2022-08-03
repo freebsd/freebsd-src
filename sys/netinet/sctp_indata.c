@@ -3837,10 +3837,9 @@ static int
 sctp_fs_audit(struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
-	int inflight = 0, inbetween = 0;
+	int inflight = 0, resend = 0, inbetween = 0, acked = 0, above = 0;
 	int ret;
 #ifndef INVARIANTS
-	int resend = 0, acked = 0, above = 0;
 	int entry_flight, entry_cnt;
 #endif
 
@@ -3860,29 +3859,23 @@ sctp_fs_audit(struct sctp_association *asoc)
 			    chk->snd_count);
 			inflight++;
 		} else if (chk->sent == SCTP_DATAGRAM_RESEND) {
-#ifndef INVARIANTS
 			resend++;
-#endif
 		} else if (chk->sent < SCTP_DATAGRAM_ACKED) {
 			inbetween++;
 		} else if (chk->sent > SCTP_DATAGRAM_ACKED) {
-#ifndef INVARIANTS
 			above++;
-#endif
 		} else {
-#ifndef INVARIANTS
 			acked++;
-#endif
 		}
 	}
 
 	if ((inflight > 0) || (inbetween > 0)) {
 #ifdef INVARIANTS
-		panic("Flight size-express incorrect? \n");
+		panic("Flight size-express incorrect F: %d I: %d R: %d Ab: %d ACK: %d",
+		    inflight, inbetween, resend, above, acked);
 #else
 		SCTP_PRINTF("asoc->total_flight: %d cnt: %d\n",
 		    entry_flight, entry_cnt);
-
 		SCTP_PRINTF("Flight size-express incorrect F: %d I: %d R: %d Ab: %d ACK: %d\n",
 		    inflight, inbetween, resend, above, acked);
 		ret = 1;
