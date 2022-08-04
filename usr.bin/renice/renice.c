@@ -69,8 +69,9 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd *pwd;
-	int errs, incr, prio, which, who;
+	int delim, errs, incr, prio, which, who;
 
+	delim = 0;
 	errs = 0;
 	incr = 0;
 	which = PRIO_PROCESS;
@@ -88,17 +89,23 @@ main(int argc, char *argv[])
 		return (1);
 	argc--, argv++;
 	for (; argc > 0; argc--, argv++) {
-		if (strcmp(*argv, "-g") == 0) {
-			which = PRIO_PGRP;
-			continue;
-		}
-		if (strcmp(*argv, "-u") == 0) {
-			which = PRIO_USER;
-			continue;
-		}
-		if (strcmp(*argv, "-p") == 0) {
-			which = PRIO_PROCESS;
-			continue;
+		if (!delim) {
+			if (strcmp(*argv, "-g") == 0) {
+				which = PRIO_PGRP;
+				continue;
+			}
+			if (strcmp(*argv, "-u") == 0) {
+				which = PRIO_USER;
+				continue;
+			}
+			if (strcmp(*argv, "-p") == 0) {
+				which = PRIO_PROCESS;
+				continue;
+			}
+			if (strcmp(*argv, "--") == 0) {
+				delim = 1;
+				continue;
+			}
 		}
 		if (which == PRIO_USER) {
 			if ((pwd = getpwnam(*argv)) != NULL)
