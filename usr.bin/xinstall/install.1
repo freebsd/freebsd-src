@@ -28,7 +28,7 @@
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2019
+.Dd August 4, 2022
 .Dt INSTALL 1
 .Os
 .Sh NAME
@@ -99,6 +99,12 @@ option's argument.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl B Ar suffix
+Use
+.Ar suffix
+as the backup suffix if
+.Fl b
+is given.
 .It Fl b
 Back up any existing files before overwriting them by renaming
 them to
@@ -106,12 +112,6 @@ them to
 See
 .Fl B
 for specifying a different backup suffix.
-.It Fl B Ar suffix
-Use
-.Ar suffix
-as the backup suffix if
-.Fl b
-is given.
 .It Fl C
 Copy the file.
 If the target file already exists and the files are the same,
