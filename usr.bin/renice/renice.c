@@ -52,11 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static int	donice(int, int, int, int);
+static int	donice(int, int, int, bool);
 static int	getnum(const char *, const char *, int *);
 static void	usage(void);
 
@@ -69,35 +70,42 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd *pwd;
-	int errs, incr, prio, which, who;
+	bool havedelim = false, haveprio = false, incr = false;
+	int errs = 0, prio = 0, who = 0, which = PRIO_PROCESS;
 
-	errs = 0;
-	incr = 0;
-	which = PRIO_PROCESS;
-	who = 0;
-	argc--, argv++;
-	if (argc < 2)
-		usage();
-	if (strcmp(*argv, "-n") == 0) {
-		incr = 1;
-		argc--, argv++;
-		if (argc < 2)
-			usage();
-	}
-	if (getnum("priority", *argv, &prio))
-		return (1);
-	argc--, argv++;
-	for (; argc > 0; argc--, argv++) {
-		if (strcmp(*argv, "-g") == 0) {
-			which = PRIO_PGRP;
-			continue;
+	for (argc--, argv++; argc > 0; argc--, argv++) {
+		if (!havedelim) {
+			/* can occur at any time prior to delimiter */
+			if (strcmp(*argv, "-g") == 0) {
+				which = PRIO_PGRP;
+				continue;
+			}
+			if (strcmp(*argv, "-u") == 0) {
+				which = PRIO_USER;
+				continue;
+			}
+			if (strcmp(*argv, "-p") == 0) {
+				which = PRIO_PROCESS;
+				continue;
+			}
+			if (strcmp(*argv, "--") == 0) {
+				havedelim = true;
+				continue;
+			}
+			if (strcmp(*argv, "-n") == 0) {
+				/* may occur only once, prior to priority */
+				if (haveprio || incr)
+					usage();
+				incr = true;
+				(void)argc--, argv++;
+				/* fall through to priority */
+			}
 		}
-		if (strcmp(*argv, "-u") == 0) {
-			which = PRIO_USER;
-			continue;
-		}
-		if (strcmp(*argv, "-p") == 0) {
-			which = PRIO_PROCESS;
+		if (!haveprio) {
+			/* must occur exactly once, prior to target */
+			if (getnum("priority", *argv, &prio))
+				return (1);
+			haveprio = true;
 			continue;
 		}
 		if (which == PRIO_USER) {
@@ -124,11 +132,13 @@ main(int argc, char *argv[])
 		}
 		errs += donice(which, who, prio, incr);
 	}
+	if (!haveprio)
+		usage();
 	exit(errs != 0);
 }
 
 static int
-donice(int which, int who, int prio, int incr)
+donice(int which, int who, int prio, bool incr)
 {
 	int oldprio;
 
@@ -166,7 +176,7 @@ getnum(const char *com, const char *str, int *val)
 		return (1);
 	}
 	if (ep == str || *ep != '\0' || errno != 0) {
-		warnx("Bad %s argument: %s.", com, str);
+		warnx("%s argument %s is invalid.", com, str);
 		return (1);
 	}
 
