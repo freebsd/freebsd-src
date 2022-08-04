@@ -44,6 +44,29 @@ struct rib_cmd_info {
 	struct nhop_object	*rc_nh_new;	/* Target nhop OR mpath */
 };
 
+struct route_nhop_data {
+	union {
+		struct nhop_object *rnd_nhop;
+		struct nhgrp_object *rnd_nhgrp;
+	};
+	uint32_t rnd_weight;
+};
+
+int rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+    struct route_nhop_data *rnd, int op_flags, struct rib_cmd_info *rc);
+int rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+    rib_filter_f_t *filter_func, void *filter_arg, int op_flags,
+    struct rib_cmd_info *rc);
+int rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+    const struct sockaddr *gw, int op_flags, struct rib_cmd_info *rc);
+
+/* operation flags */
+#define	RTM_F_CREATE	0x01
+#define	RTM_F_EXCL	0x02
+#define	RTM_F_REPLACE	0x04
+#define	RTM_F_APPEND	0x08
+#define	RTM_F_FORCE	0x10
+
 int rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
 int rib_del_route(uint32_t fibnum, struct rt_addrinfo *info,
@@ -93,13 +116,6 @@ void rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg)
 
 struct nhop_object;
 struct nhgrp_object;
-struct route_nhop_data {
-	union {
-		struct nhop_object *rnd_nhop;
-		struct nhgrp_object *rnd_nhgrp;
-	};
-	uint32_t rnd_weight;
-};
 
 const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
     const struct sockaddr *dst, const struct sockaddr *netmask,
@@ -127,6 +143,9 @@ void rt_get_inet6_prefix_pmask(const struct rtentry *rt, struct in6_addr *paddr,
     struct in6_addr *pmask, uint32_t *pscopeid);
 struct rtentry *rt_get_inet6_parent(uint32_t fibnum, const struct in6_addr *paddr,
     int plen);
+
+struct in6_addr;
+void ip6_writemask(struct in6_addr *addr6, uint8_t mask);
 #endif
 
 /* Nexthops */
