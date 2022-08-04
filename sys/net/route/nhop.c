@@ -357,8 +357,6 @@ unlink_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv_del)
 	num_items_new = bitmask_get_resize_items(&ctl->nh_idx_head);
 
 	NHOPS_WUNLOCK(ctl);
-		FIB_CTL_LOG(LOG_INFO, ctl, "Unable to unlink nhop priv %p from hash, hash %u ctl %p",
-		    nh_priv_del, hash_priv(nh_priv_del), ctl);
 
 	if (priv_ret == NULL) {
 		FIB_CTL_LOG(LOG_INFO, ctl,
