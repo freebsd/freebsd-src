@@ -4225,7 +4225,6 @@ net/radix.c			standard
 net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
-net/route/mpath_ctl.c		optional route_mpath
 net/route/nhgrp.c		optional route_mpath
 net/route/nhgrp_ctl.c		optional route_mpath
 net/route/nhop.c		standard
