@@ -423,7 +423,8 @@ int	 rt_addrmsg(int, struct ifaddr *, int);
 int	 rt_routemsg(int, struct rtentry *, struct nhop_object *, int);
 int	 rt_routemsg_info(int, struct rt_addrinfo *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
-void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
+void 	 rt_maskedcopy(const struct sockaddr *, struct sockaddr *,
+	    const struct sockaddr *);
 struct rib_head *rt_table_init(int, int, u_int);
 void	rt_table_destroy(struct rib_head *);
 u_int	rt_tables_get_gen(uint32_t table, sa_family_t family);
