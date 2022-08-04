@@ -11,7 +11,7 @@
  * Paul Borman at Krystal Technologies.
  *
  * Copyright (c) 2011 The FreeBSD Foundation
- * All rights reserved.
+ *
  * Portions of this software were developed by David Chisnall
  * under sponsorship from the FreeBSD Foundation.
  *
