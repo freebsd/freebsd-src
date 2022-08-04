@@ -626,13 +626,38 @@ check_gateway(struct rib_head *rnh, struct sockaddr *dst,
  *  to be stable till the end of the operation (radix rt insertion/change/removal).
  * return errno otherwise.
  */
-static int
-create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rtentry **prt)
+static struct rtentry *
+create_rtentry(struct rib_head *rnh, const struct sockaddr *dst,
+    struct sockaddr *netmask)
 {
-	struct sockaddr *dst, *ndst, *gateway, *netmask;
-	struct rtentry *rt;
+	MPASS(dst->sa_len <= sizeof(((struct rtentry *)NULL)->rt_dstb));
+
+	struct rtentry *rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
+	if (rt == NULL)
+		return (NULL);
+	rt->rte_flags = RTF_UP | (netmask == NULL ? RTF_HOST : 0);
+
+	/* Fill in dst, ensuring it's masked if needed. */
+	if (netmask != NULL) {
+		rt_maskedcopy(dst, &rt->rt_dst, netmask);
+	} else
+		bcopy(dst, &rt->rt_dst, dst->sa_len);
+	rt_key(rt) = &rt->rt_dst;
+	/* Set netmask to the storage from info. It will be updated upon insertion */
+	rt_mask(rt) = netmask;
+
+	return (rt);
+}
+
+static int
+add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc)
+{
+	struct nhop_object *nh_orig;
+	struct route_nhop_data rnd_orig, rnd_add;
 	struct nhop_object *nh;
+	struct rtentry *rt, *rt_orig;
+	struct sockaddr *dst, *gateway, *netmask;
 	int error, flags;
 
 	dst = info->rti_info[RTAX_DST];
@@ -663,65 +688,17 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 			return (error);
 	}
 
-	error = nhop_create_from_info(rnh, info, &nh);
-	if (error != 0)
-		return (error);
-
-	rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
-	if (rt == NULL) {
-		nhop_free(nh);
+	if ((rt = create_rtentry(rnh, dst, netmask)) == NULL)
 		return (ENOBUFS);
-	}
-	rt->rte_flags = (RTF_UP | flags) & RTE_RT_FLAG_MASK;
-	rt->rt_nhop = nh;
 
-	/* Fill in dst */
-	memcpy(&rt->rt_dst, dst, dst->sa_len);
-	rt_key(rt) = &rt->rt_dst;
-
-	/*
-	 * point to the (possibly newly malloc'd) dest address.
-	 */
-	ndst = (struct sockaddr *)rt_key(rt);
-
-	/*
-	 * make sure it contains the value we want (masked if needed).
-	 */
-	if (netmask) {
-		rt_maskedcopy(dst, ndst, netmask);
-	} else
-		bcopy(dst, ndst, dst->sa_len);
-	/* Set netmask to the storage from info. It will be updated upon insertion */
-	rt_mask(rt) = netmask;
-
-	/*
-	 * We use the ifa reference returned by rt_getifa_fib().
-	 * This moved from below so that rnh->rnh_addaddr() can
-	 * examine the ifa and  ifa->ifa_ifp if it so desires.
-	 */
-	rt->rt_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
-
-	*prt = rt;
-	return (0);
-}
-
-static int
-add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
-{
-	struct nhop_object *nh_orig;
-	struct route_nhop_data rnd_orig, rnd_add;
-	struct nhop_object *nh;
-	struct rtentry *rt, *rt_orig;
-	int error;
-
-	error = create_rtentry(rnh, info, &rt);
-	if (error != 0)
+	error = nhop_create_from_info(rnh, info, &nh);
+	if (error != 0) {
+		uma_zfree(V_rtzone, rt);
 		return (error);
+	}
 
-	rnd_add.rnd_nhop = rt->rt_nhop;
-	rnd_add.rnd_weight = rt->rt_weight;
-	nh = rt->rt_nhop;
+	rnd_add.rnd_nhop = nh;
+	rnd_add.rnd_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
 
 	RIB_WLOCK(rnh);
 	error = add_route(rnh, rt, &rnd_add, rc);

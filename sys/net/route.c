@@ -727,11 +727,12 @@ rt_print(char *buf, int buflen, struct rtentry *rt)
 #endif
 
 void
-rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
+rt_maskedcopy(const struct sockaddr *src, struct sockaddr *dst,
+    const struct sockaddr *netmask)
 {
-	u_char *cp1 = (u_char *)src;
+	const u_char *cp1 = (const u_char *)src;
 	u_char *cp2 = (u_char *)dst;
-	u_char *cp3 = (u_char *)netmask;
+	const u_char *cp3 = (const u_char *)netmask;
 	u_char *cplim = cp2 + *cp3;
 	u_char *cplim2 = cp2 + *cp1;
 
