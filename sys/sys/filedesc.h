@@ -270,6 +270,9 @@ struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
+struct filedesc_to_leader *
+	filedesc_to_leader_share(struct filedesc_to_leader *fdtol,
+	    struct filedesc *fdp);
 int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 int	getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
