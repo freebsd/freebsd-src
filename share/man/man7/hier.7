@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2022
+.Dd August 4, 2022
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -825,6 +825,11 @@ see
 .Pp
 .It Pa db/
 miscellaneous automatically generated system-specific database files
+.Bl -tag -width Fl -compact
+.It Pa freebsd-update/
+.Xr freebsd-update 8
+work directory for temporary files and downloaded updates
+.El
 .It Pa empty/
 empty directory for use by programs that need a specifically empty directory.
 Used for instance by
