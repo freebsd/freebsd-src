@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 
 struct inoinfo **inphead, **inpsort;	/* info about all inodes */
 
-struct bufarea asblk;
-#define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
 static int calcsb(char *dev, int devfd, struct fs *fs);
@@ -163,10 +161,6 @@ setup(char *dev)
 		pfatal("from before 2002 with the command ``fsck -c 2''\n");
 		exit(EEXIT);
 	}
-	if ((asblk.b_flags & B_DIRTY) != 0 && !bflag) {
-		memmove(&altsblock, &sblock, (size_t)sblock.fs_sbsize);
-		flush(fswritefd, &asblk);
-	}
 	if (preen == 0 && yflag == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
 	    fswritefd != -1 && chkrecovery(fsreadfd) == 0 &&
 	    reply("SAVE DATA TO FIND ALTERNATE SUPERBLOCKS") != 0)
@@ -252,7 +246,7 @@ int
 readsb(int listerr)
 {
 	off_t super;
-	int bad, ret;
+	int ret;
 	struct fs *fs;
 
 	super = bflag ? bflag * dev_bsize :
@@ -292,58 +286,6 @@ readsb(int listerr)
 	sblk.b_bno = sblock.fs_sblockactualloc / dev_bsize;
 	sblk.b_size = SBLOCKSIZE;
 	/*
-	 * Compare all fields that should not differ in alternate super block.
-	 * When an alternate super-block is specified this check is skipped.
-	 */
-	if (bflag)
-		goto out;
-	getblk(&asblk, cgsblock(&sblock, sblock.fs_ncg - 1), sblock.fs_sbsize);
-	if (asblk.b_errs)
-		return (0);
-	bad = 0;
-#define CHK(x, y)				\
-	if (altsblock.x != sblock.x) {		\
-		bad++;				\
-		if (listerr && debug)		\
-			printf("SUPER BLOCK VS ALTERNATE MISMATCH %s: " y " vs " y "\n", \
-			    #x, (intmax_t)sblock.x, (intmax_t)altsblock.x); \
-	}
-	CHK(fs_sblkno, "%jd");
-	CHK(fs_cblkno, "%jd");
-	CHK(fs_iblkno, "%jd");
-	CHK(fs_dblkno, "%jd");
-	CHK(fs_ncg, "%jd");
-	CHK(fs_bsize, "%jd");
-	CHK(fs_fsize, "%jd");
-	CHK(fs_frag, "%jd");
-	CHK(fs_bmask, "%#jx");
-	CHK(fs_fmask, "%#jx");
-	CHK(fs_bshift, "%jd");
-	CHK(fs_fshift, "%jd");
-	CHK(fs_fragshift, "%jd");
-	CHK(fs_fsbtodb, "%jd");
-	CHK(fs_sbsize, "%jd");
-	CHK(fs_nindir, "%jd");
-	CHK(fs_inopb, "%jd");
-	CHK(fs_cssize, "%jd");
-	CHK(fs_ipg, "%jd");
-	CHK(fs_fpg, "%jd");
-	CHK(fs_magic, "%#jx");
-#undef CHK
-	if (bad) {
-		if (listerr == 0)
-			return (0);
-		if (preen)
-			printf("%s: ", cdevname);
-		printf(
-		    "VALUES IN SUPER BLOCK LSB=%jd DISAGREE WITH THOSE IN\n"
-		    "LAST ALTERNATE LSB=%jd\n",
-		    sblk.b_bno, asblk.b_bno);
-		if (reply("IGNORE ALTERNATE SUPER BLOCK") == 0)
-			return (0);
-	}
-out:
-	/*
 	 * If not yet done, update UFS1 superblock with new wider fields.
 	 */
 	if (sblock.fs_magic == FS_UFS1_MAGIC &&
@@ -371,10 +313,8 @@ sblock_init(void)
 	fsmodified = 0;
 	lfdir = 0;
 	initbarea(&sblk, BT_SUPERBLK);
-	initbarea(&asblk, BT_SUPERBLK);
 	sblk.b_un.b_buf = Malloc(SBLOCKSIZE);
-	asblk.b_un.b_buf = Malloc(SBLOCKSIZE);
-	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
+	if (sblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	dev_bsize = secsize = DEV_BSIZE;
 }
