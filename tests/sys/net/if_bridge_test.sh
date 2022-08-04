@@ -268,6 +268,7 @@ span_head()
 {
 	atf_set descr 'Bridge span test'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 span_body()
