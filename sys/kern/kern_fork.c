@@ -451,10 +451,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			 * Shared file descriptor table, and shared
 			 * process leaders.
 			 */
-			fdtol = p1->p_fdtol;
-			FILEDESC_XLOCK(p1->p_fd);
-			fdtol->fdl_refcount++;
-			FILEDESC_XUNLOCK(p1->p_fd);
+			fdtol = filedesc_to_leader_share(p1->p_fdtol, p1->p_fd);
 		} else {
 			/*
 			 * Shared file descriptor table, and different
