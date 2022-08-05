@@ -105,21 +105,15 @@ crossmp_vop_lock1(struct vop_lock1_args *ap)
 {
 	struct vnode *vp;
 	struct lock *lk __diagused;
-	const char *file __witness_used;
-	int flags, line __witness_used;
+	int flags;
 
 	vp = ap->a_vp;
 	lk = vp->v_vnlock;
 	flags = ap->a_flags;
-	file = ap->a_file;
-	line = ap->a_line;
 
-	if ((flags & LK_SHARED) == 0)
-		panic("invalid lock request for crossmp");
+	KASSERT((flags & (LK_SHARED | LK_NOWAIT)) == (LK_SHARED | LK_NOWAIT),
+	    ("%s: invalid lock request 0x%x for crossmp", __func__, flags));
 
-	WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER, file, line,
-	    flags & LK_INTERLOCK ? &VI_MTX(vp)->lock_object : NULL);
-	WITNESS_LOCK(&lk->lock_object, 0, file, line);
 	if ((flags & LK_INTERLOCK) != 0)
 		VI_UNLOCK(vp);
 	LOCK_LOG_LOCK("SLOCK", &lk->lock_object, 0, 0, ap->a_file, ap->a_line);
@@ -135,7 +129,6 @@ crossmp_vop_unlock(struct vop_unlock_args *ap)
 	vp = ap->a_vp;
 	lk = vp->v_vnlock;
 
-	WITNESS_UNLOCK(&lk->lock_object, 0, LOCK_FILE, LOCK_LINE);
 	LOCK_LOG_LOCK("SUNLOCK", &lk->lock_object, 0, 0, LOCK_FILE,
 	    LOCK_LINE);
 	return (0);
