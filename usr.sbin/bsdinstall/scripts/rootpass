@@ -33,7 +33,13 @@ echo "$OSNAME Installer"
 echo "========================"
 echo
 
-echo "Please select a password for the system management account (root):"
-echo "Typed characters will not be visible."
+if [ -n "$ROOTPASS_ENC" ]; then
+	printf '%s\n' "$ROOTPASS_ENC" | pw -R $BSDINSTALL_CHROOT usermod root -H 0
+elif [ -n "$ROOTPASS_PLAIN" ]; then
+	printf '%s\n' "$ROOTPASS_PLAIN" | pw -R $BSDINSTALL_CHROOT usermod root -h 0
+else
+	echo "Please select a password for the system management account (root):"
+	echo "Typed characters will not be visible."
 
-chroot $BSDINSTALL_CHROOT passwd root 2>&1
+	chroot $BSDINSTALL_CHROOT passwd root 2>&1
+fi
