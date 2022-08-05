@@ -310,6 +310,30 @@ unionfs_domount(struct mount *mp)
 		return (ENOENT);
 	}
 
+	/*
+	 * Specify that the covered vnode lock should remain held while
+	 * lookup() performs the cross-mount walk.  This prevents a lock-order
+	 * reversal between the covered vnode lock (which is also locked by
+	 * unionfs_lock()) and the mountpoint's busy count.  Without this,
+	 * unmount will lock the covered vnode lock (directly through the
+	 * covered vnode) and wait for the busy count to drain, while a
+	 * concurrent lookup will increment the busy count and then lock
+	 * the covered vnode lock (indirectly through unionfs_lock()).
+	 *
+	 * Note that we can't yet use this facility for the 'below' case
+	 * in which the upper vnode is the covered vnode, because that would
+	 * introduce a different LOR in which the cross-mount lookup would
+	 * effectively hold the upper vnode lock before acquiring the lower
+	 * vnode lock, while an unrelated lock operation would still acquire
+	 * the lower vnode lock before the upper vnode lock, which is the
+	 * order unionfs currently requires.
+	 */
+	if (!below) {
+		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
+		mp->mnt_vnodecovered->v_vflag |= VV_CROSSLOCK;
+		VOP_UNLOCK(mp->mnt_vnodecovered);
+	}
+
 	MNT_ILOCK(mp);
 	if ((lowermp->mnt_flag & MNT_LOCAL) != 0 &&
 	    (uppermp->mnt_flag & MNT_LOCAL) != 0)
@@ -362,6 +386,9 @@ unionfs_unmount(struct mount *mp, int mntflags)
 	if (error)
 		return (error);
 
+	vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
+	mp->mnt_vnodecovered->v_vflag &= ~VV_CROSSLOCK;
+	VOP_UNLOCK(mp->mnt_vnodecovered);
 	vfs_unregister_upper(ump->um_lowervp->v_mount, &ump->um_lower_link);
 	vfs_unregister_upper(ump->um_uppervp->v_mount, &ump->um_upper_link);
 	free(ump, M_UNIONFSMNT);

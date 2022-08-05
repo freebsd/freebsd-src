@@ -901,6 +901,8 @@ vfs_lookup(struct nameidata *ndp)
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lkflags_save;
 	int ni_dvp_unlocked;
+	int crosslkflags;
+	bool crosslock;
 
 	/*
 	 * Setup: break out flag bits into variables.
@@ -1232,18 +1234,32 @@ good:
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
+		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
+		crosslkflags = compute_cn_lkflags(mp, cnp->cn_lkflags,
+		    cnp->cn_flags);
+		if (__predict_false(crosslock) &&
+		    (crosslkflags & LK_EXCLUSIVE) != 0 &&
+		    VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
+			vn_lock(dp, LK_UPGRADE | LK_RETRY);
+			if (VN_IS_DOOMED(dp)) {
+				error = ENOENT;
+				goto bad2;
+			}
+		}
 		if (vfs_busy(mp, 0))
 			continue;
-		vput(dp);
+		if (__predict_true(!crosslock))
+			vput(dp);
 		if (dp != ndp->ni_dvp)
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
 		vrefact(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
-		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags,
-		    cnp->cn_flags), &tdp);
+		error = VFS_ROOT(mp, crosslkflags, &tdp);
 		vfs_unbusy(mp);
+		if (__predict_false(crosslock))
+			vput(dp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
 		if (error) {
