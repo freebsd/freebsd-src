@@ -1871,7 +1871,7 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cpi->maxio = maxphys;
+		cpi->maxio = (FSL_SATA_SG_ENTRIES - 1) * PAGE_SIZE;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
