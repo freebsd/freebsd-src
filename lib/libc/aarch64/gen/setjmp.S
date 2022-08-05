@@ -1,7 +1,6 @@
 /*-
  * Copyright (c) 2014 Andrew Turner
  * Copyright (c) 2014 The FreeBSD Foundation
- * All rights reserved.
  *
  * Portions of this software were developed by Andrew Turner
  * under sponsorship from the FreeBSD Foundation
