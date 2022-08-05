@@ -973,27 +973,13 @@ vm_page_sunbusy(vm_page_t m)
 {
 	u_int x;
 
-	vm_page_assert_sbusied(m);
-
-	x = vm_page_busy_fetch(m);
-	for (;;) {
-		KASSERT(x != VPB_FREED,
-		    ("vm_page_sunbusy: Unlocking freed page."));
-		if (VPB_SHARERS(x) > 1) {
-			if (atomic_fcmpset_int(&m->busy_lock, &x,
-			    x - VPB_ONE_SHARER))
-				break;
-			continue;
-		}
-		KASSERT((x & ~VPB_BIT_WAITERS) == VPB_SHARERS_WORD(1),
-		    ("vm_page_sunbusy: invalid lock state"));
-		if (!atomic_fcmpset_rel_int(&m->busy_lock, &x, VPB_UNBUSIED))
-			continue;
-		if ((x & VPB_BIT_WAITERS) == 0)
-			break;
+	atomic_thread_fence_rel();
+	x = atomic_fetchadd_int(&m->busy_lock, -VPB_ONE_SHARER);
+	KASSERT(x != VPB_FREED, ("page %p is freed", m));
+	KASSERT(x != VPB_UNBUSIED && (x & VPB_BIT_SHARED) != 0,
+	    ("page %p not sbusied", m));
+	if (x == (VPB_SHARERS_WORD(1) | VPB_BIT_WAITERS))
 		wakeup(m);
-		break;
-	}
 }
 
 /*
