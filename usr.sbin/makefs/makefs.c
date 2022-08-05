@@ -77,6 +77,9 @@ static fstype_t fstypes[] = {
 	ENTRY(cd9660),
 	ENTRY(ffs),
 	ENTRY(msdos),
+#ifdef HAVE_ZFS
+	ENTRY(zfs),
+#endif
 	{ .type = NULL	},
 };
 
