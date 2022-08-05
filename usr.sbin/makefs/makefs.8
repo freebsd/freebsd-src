@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2020
+.Dd August 5, 2022
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -266,6 +266,8 @@ BSD fast file system (default).
 ISO 9660 file system.
 .It Sy msdos
 FAT12, FAT16, or FAT32 file system.
+.It Sy zfs
+ZFS pool containing one or more file systems.
 .El
 .It Fl x
 Exclude file system nodes not explicitly listed in the specfile.
@@ -494,10 +496,97 @@ Volume ID.
 .It Cm volume_label
 Volume Label.
 .El
+.Ss zfs-specific options
+Note: ZFS support is currently considered experimental.
+Do not use it for anything critical.
+.Pp
+The image created by
+.Nm
+contains a ZFS pool with a single vdev of type
+.Ql disk .
+The root dataset is always created implicitly and contains the entire input
+directory tree unless additional datasets are specified using the options
+described below.
+.Pp
+The arguments consist of a keyword, an equal sign
+.Pq Ql = ,
+and a value.
+The following keywords are supported:
+.Pp
+.Bl -tag -width omit-trailing-period -offset indent -compact
+.It ashift
+The base-2 logarithm of the minimum block size.
+Typical values are 9 (512B blocks) and 12 (4KB blocks).
+The default value is 12.
+.It bootfs
+The name of the bootable dataset for the pool.
+Specifying this option causes the
+.Ql bootfs
+property to be set in the created pool.
+.It mssize
+The size of metaslabs in the created pool.
+By default,
+.Nm
+allocates large (up to 512MB) metaslabs with the expectation that
+the image will be auto-expanded upon first use.
+This option allows the default heuristic to be overridden.
+.It poolname
+The name of the ZFS pool.
+This option must be specified.
+.It rootpath
+An implicit path prefix added to dataset mountpoints.
+By default it is
+.Pa /<poolname> .
+For creating bootable pools, the
+.Va rootpath
+should be set to
+.Pa / .
+At least one dataset must have a mountpoint equal to
+.Va rootpath .
+.It fs
+Create an additional dataset.
+This option may be specified multiple times.
+The argument value must be of the form
+.Ar <dataset>[;<prop1=v1>[;<prop2=v2>[;...]]] ,
+where
+.Ar dataset
+is the name of the dataset and must belong to the pool's namespace.
+For example, with a pool name of
+.Ql test
+all dataset names must be prefixed by
+.Ql test/ .
+A dataset must exist at each level of the pool's namespace.
+For example, to create
+.Ql test/foo/bar ,
+.Ql test/foo
+must be created as well.
+.Pp
+The dataset mountpoints determine how the datasets are populated with
+files from the staged directory tree.
+Conceptually, all datasets are mounted before any are populated with files.
+The root of the staged directory tree is mapped to
+.Va rootpath .
+.Pp
+Dataset properties, as described in
+.Xr zfsprops 8 ,
+may be specified following the dataset name.
+The following properties may be set for a dataset:
+.Pp
+.Bl -tag -compact -offset indent
+.It atime
+.It canmount
+.It exec
+.It mountpoint
+.It setuid
+.El
+.El
 .Sh SEE ALSO
 .Xr mtree 5 ,
 .Xr mtree 8 ,
-.Xr newfs 8
+.Xr newfs 8 ,
+.Xr zfsconcepts 8 ,
+.Xr zfsprops 8 ,
+.Xr zpoolprops 8
 .Sh HISTORY
 The
 .Nm
@@ -518,4 +607,6 @@ and first appeared in
 .An Ram Vedam
 (cd9660 support),
 .An Christos Zoulas
-(msdos support).
+(msdos support),
+.An Mark Johnston
+(zfs support).

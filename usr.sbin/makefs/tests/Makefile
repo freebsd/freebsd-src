@@ -2,6 +2,7 @@
 
 ATF_TESTS_SH+=	makefs_cd9660_tests
 ATF_TESTS_SH+=	makefs_ffs_tests
+ATF_TESTS_SH+=	makefs_zfs_tests
 
 BINDIR=		${TESTSDIR}
 
