@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+240afd8c1fcc:
+	makefs(8) has ZFS support; it can create a ZFS pool, backed by a
+	single disk vdev, containing one or more datasets populated from
+	the staging directory.
+
 78ee8d1c4cda,f4f56ff43dbd:
 	The in-tree qat(4) driver has been replaced with Intel's QAT driver.
 	The new version provides additional interfaces to the chipset's
