@@ -157,6 +157,10 @@ apei_bus_write_8(struct resource *res, bus_size_t offset, uint64_t val)
 
 #define PGE_ID(ge)	(fls(MAX(1, (ge)->v1.Notify.PollInterval)) - 1)
 
+static struct sysctl_ctx_list apei_sysctl_ctx;
+static struct sysctl_oid *apei_sysctl_tree;
+static int log_corrected = 1;
+
 int apei_nmi_handler(void);
 
 static const char *
@@ -179,6 +183,11 @@ static int
 apei_mem_handler(ACPI_HEST_GENERIC_DATA *ged)
 {
 	struct apei_mem_error *p = (struct apei_mem_error *)GED_DATA(ged);
+
+	if (!log_corrected &&
+	    (ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_CORRECTED ||
+	    ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_NONE))
+		return (1);
 
 	printf("APEI %s Memory Error:\n", apei_severity(ged->ErrorSeverity));
 	if (p->ValidationBits & 0x01)
@@ -234,10 +243,10 @@ static int
 apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 {
 	struct apei_pcie_error *p = (struct apei_pcie_error *)GED_DATA(ged);
-	int h = 0, off;
+	int off;
 #ifdef DEV_PCI
 	device_t dev;
-	int sev;
+	int h = 0, sev;
 
 	if ((p->ValidationBits & 0x8) == 0x8) {
 		mtx_lock(&Giant);
@@ -265,6 +274,11 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	if (h)
 		return (h);
 #endif
+
+	if (!log_corrected &&
+	    (ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_CORRECTED ||
+	    ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_NONE))
+		return (1);
 
 	printf("APEI %s PCIe Error:\n", apei_severity(ged->ErrorSeverity));
 	if (p->ValidationBits & 0x01)
@@ -308,7 +322,7 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 				printf("\n");
 		}
 	}
-	return (h);
+	return (0);
 }
 
 static void
@@ -333,6 +347,11 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 	} else if (memcmp(pcie_uuid, ged->SectionType, ACPI_UUID_LENGTH) == 0) {
 		h = apei_pcie_handler(ged);
 	} else {
+		if (!log_corrected &&
+		    (ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_CORRECTED ||
+		    ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_NONE))
+			return;
+
 		t = ged->SectionType;
 		printf("APEI %s Error %02x%02x%02x%02x-%02x%02x-"
 		    "%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x:\n",
@@ -645,10 +664,23 @@ static int
 apei_attach(device_t dev)
 {
 	struct apei_softc *sc = device_get_softc(dev);
+	struct acpi_softc *acpi_sc;
 	struct apei_pges *pges;
 	struct apei_ge *ge;
 	ACPI_STATUS status;
 	int rid;
+
+	if (!apei_sysctl_tree) {
+		/* Install hw.acpi.apei sysctl tree */
+		acpi_sc = acpi_device_get_parent_softc(dev);
+		apei_sysctl_tree = SYSCTL_ADD_NODE(&apei_sysctl_ctx,
+		    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO,
+		    "apei", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+		    "ACPI Platform Error Interface");
+		SYSCTL_ADD_INT(&apei_sysctl_ctx, SYSCTL_CHILDREN(apei_sysctl_tree),
+		    OID_AUTO, "log_corrected", CTLFLAG_RWTUN, &log_corrected, 0,
+		    "Log corrected errors to the console");
+	}
 
 	TAILQ_INIT(&sc->ges);
 	TAILQ_INIT(&sc->nges.ges);
@@ -778,5 +810,23 @@ static driver_t	apei_driver = {
 	sizeof(struct apei_softc),
 };
 
-DRIVER_MODULE(apei, acpi, apei_driver, 0, 0);
+static int
+apei_modevent(struct module *mod __unused, int evt, void *cookie __unused)
+{
+	int err = 0;
+
+	switch (evt) {
+	case MOD_LOAD:
+		sysctl_ctx_init(&apei_sysctl_ctx);
+		break;
+	case MOD_UNLOAD:
+		sysctl_ctx_free(&apei_sysctl_ctx);
+		break;
+	default:
+		err = EINVAL;
+	}
+	return (err);
+}
+
+DRIVER_MODULE(apei, acpi, apei_driver, apei_modevent, 0);
 MODULE_DEPEND(apei, acpi, 1, 1, 1);
