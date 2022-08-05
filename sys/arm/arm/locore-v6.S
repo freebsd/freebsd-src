@@ -295,6 +295,13 @@ ASENTRY_NP(init_mmu)
 	mcr	CP15_DACR(r0)
 
 	/*
+	 * Ensure that LPAE is disabled and that TTBR0 is used for translation,
+	 * use a 16KB translation table
+	 */
+	mov	r0, #0
+	mcr	CP15_TTBCR(r0)
+
+	/*
 	 * Set TEX remap registers
 	 *  - All is set to uncacheable memory
 	 */
