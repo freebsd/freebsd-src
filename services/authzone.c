@@ -8189,7 +8189,6 @@ auth_zone_verify_zonemd_key_with_ds(struct auth_zone* z,
 	keystorage->rk.type = htons(LDNS_RR_TYPE_DNSKEY);
 	keystorage->rk.rrset_class = htons(z->dclass);
 	auth_zone_log(z->name, VERB_QUERY, "zonemd: verify zone DNSKEY with DS");
-	// @TODO add EDE here? we currently just pass NULL
 	sec = val_verify_DNSKEY_with_DS(env, ve, keystorage, ds, sigalg,
 		why_bogus, NULL, NULL);
 	regional_free_all(env->scratch);

@@ -1375,7 +1375,8 @@ int set_return_msg(struct module_qstate* qstate,
 /* Functions which we will need to lookup delegations */
 struct delegpt* dns_cache_find_delegation(struct module_env* env,
         uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-        struct regional* region, struct dns_msg** msg, uint32_t timenow);
+        struct regional* region, struct dns_msg** msg, uint32_t timenow,
+        int noexpiredabove, uint8_t* expiretop, size_t expiretoplen);
 int iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
         struct delegpt* dp, int supports_ipv4, int supports_ipv6);
 struct iter_hints_stub* hints_lookup_stub(struct iter_hints* hints,
@@ -1404,7 +1405,7 @@ struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t n
     qinfo.qclass = LDNS_RR_CLASS_IN;
 
     while(1) {
-        dp = dns_cache_find_delegation(qstate->env, (uint8_t*)nm, nmlen, qinfo.qtype, qinfo.qclass, region, &msg, timenow);
+        dp = dns_cache_find_delegation(qstate->env, (uint8_t*)nm, nmlen, qinfo.qtype, qinfo.qclass, region, &msg, timenow, 0, NULL, 0);
         if(!dp)
             return NULL;
         if(iter_dp_is_useless(&qinfo, BIT_RD, dp,
