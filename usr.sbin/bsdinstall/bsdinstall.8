@@ -343,6 +343,15 @@ target is executed.
 If this directory does not already exist, it will be created.
 Default:
 .Dq Pa $TMPDIR/bsdinstall_boot
+.It Ev ROOTPASS_ENC
+Encrypted string to set the root password to in the format expected by
+.Xr pw 8
+.Fl H Ar 0 .
+This option is used if both it and
+.Ev ROOTPASS_PLAIN
+are set.
+.It Ev ROOTPASS_PLAIN
+Plain text string to set the root password to.
 .It Ev ZFSBOOT_POOL_NAME
 Name for the pool containing the base system.
 Default:
