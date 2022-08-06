@@ -68,11 +68,16 @@
  * 	in a prefetch situation to be updated (without becoming sticky).
  * @param qrep: update rrsets here if cache is better
  * @param region: for qrep allocs.
+ * @param qstarttime: time when delegations were looked up, this is perhaps
+ *	earlier than the time in now. The time is used to determine if RRsets
+ *	of type NS have expired, so that they can only be updated using
+ *	lookups of delegation points that did not use them, since they had
+ *	expired then.
  */
 static void
 store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 	time_t leeway, int pside, struct reply_info* qrep,
-	struct regional* region)
+	struct regional* region, time_t qstarttime)
 {
 	size_t i;
 	/* see if rrset already exists in cache, if not insert it. */
@@ -81,8 +86,8 @@ store_rrsets(struct module_env* env, struct reply_info* rep, time_t now,
 		rep->ref[i].id = rep->rrsets[i]->id;
 		/* update ref if it was in the cache */
 		switch(rrset_cache_update(env->rrset_cache, &rep->ref[i],
-				env->alloc, now + ((ntohs(rep->ref[i].key->rk.type)==
-				LDNS_RR_TYPE_NS && !pside)?0:leeway))) {
+				env->alloc, ((ntohs(rep->ref[i].key->rk.type)==
+				LDNS_RR_TYPE_NS && !pside)?qstarttime:now + leeway))) {
 		case 0: /* ref unchanged, item inserted */
 			break;
 		case 2: /* ref updated, cache is superior */
@@ -155,7 +160,8 @@ msg_del_servfail(struct module_env* env, struct query_info* qinfo,
 void 
 dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
 	hashvalue_type hash, struct reply_info* rep, time_t leeway, int pside,
-	struct reply_info* qrep, uint32_t flags, struct regional* region)
+	struct reply_info* qrep, uint32_t flags, struct regional* region,
+	time_t qstarttime)
 {
 	struct msgreply_entry* e;
 	time_t ttl = rep->ttl;
@@ -170,7 +176,8 @@ dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
 	/* there was a reply_info_sortref(rep) here but it seems to be
 	 * unnecessary, because the cache gets locked per rrset. */
 	reply_info_set_ttls(rep, *env->now);
-	store_rrsets(env, rep, *env->now, leeway, pside, qrep, region);
+	store_rrsets(env, rep, *env->now, leeway, pside, qrep, region,
+		qstarttime);
 	if(ttl == 0 && !(flags & DNSCACHE_STORE_ZEROTTL)) {
 		/* we do not store the message, but we did store the RRs,
 		 * which could be useful for delegation information */
@@ -194,10 +201,51 @@ dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
 	slabhash_insert(env->msg_cache, hash, &e->entry, rep, env->alloc);
 }
 
+/** see if an rrset is expired above the qname, return upper qname. */
+static int
+rrset_expired_above(struct module_env* env, uint8_t** qname, size_t* qnamelen,
+	uint16_t searchtype, uint16_t qclass, time_t now, uint8_t* expiretop,
+	size_t expiretoplen)
+{
+	struct ub_packed_rrset_key *rrset;
+	uint8_t lablen;
+
+	while(*qnamelen > 0) {
+		/* look one label higher */
+		lablen = **qname;
+		*qname += lablen + 1;
+		*qnamelen -= lablen + 1;
+		if(*qnamelen <= 0)
+			break;
+
+		/* looks up with a time of 0, to see expired entries */
+		if((rrset = rrset_cache_lookup(env->rrset_cache, *qname,
+			*qnamelen, searchtype, qclass, 0, 0, 0))) {
+			struct packed_rrset_data* data =
+				(struct packed_rrset_data*)rrset->entry.data;
+			if(now > data->ttl) {
+				/* it is expired, this is not wanted */
+				lock_rw_unlock(&rrset->entry.lock);
+				log_nametypeclass(VERB_ALGO, "this rrset is expired", *qname, searchtype, qclass);
+				return 1;
+			}
+			/* it is not expired, continue looking */
+			lock_rw_unlock(&rrset->entry.lock);
+		}
+
+		/* do not look above the expiretop. */
+		if(expiretop && *qnamelen == expiretoplen &&
+			query_dname_compare(*qname, expiretop)==0)
+			break;
+	}
+	return 0;
+}
+
 /** find closest NS or DNAME and returns the rrset (locked) */
 static struct ub_packed_rrset_key*
 find_closest_of_type(struct module_env* env, uint8_t* qname, size_t qnamelen, 
-	uint16_t qclass, time_t now, uint16_t searchtype, int stripfront)
+	uint16_t qclass, time_t now, uint16_t searchtype, int stripfront,
+	int noexpiredabove, uint8_t* expiretop, size_t expiretoplen)
 {
 	struct ub_packed_rrset_key *rrset;
 	uint8_t lablen;
@@ -212,8 +260,40 @@ find_closest_of_type(struct module_env* env, uint8_t* qname, size_t qnamelen,
 	/* snip off front part of qname until the type is found */
 	while(qnamelen > 0) {
 		if((rrset = rrset_cache_lookup(env->rrset_cache, qname, 
-			qnamelen, searchtype, qclass, 0, now, 0)))
-			return rrset;
+			qnamelen, searchtype, qclass, 0, now, 0))) {
+			uint8_t* origqname = qname;
+			size_t origqnamelen = qnamelen;
+			if(!noexpiredabove)
+				return rrset;
+			/* if expiretop set, do not look above it, but
+			 * qname is equal, so the just found result is also
+			 * the nonexpired above part. */
+			if(expiretop && qnamelen == expiretoplen &&
+				query_dname_compare(qname, expiretop)==0)
+				return rrset;
+			/* check for expiry, but we have to let go of the rrset
+			 * for the lock ordering */
+			lock_rw_unlock(&rrset->entry.lock);
+			/* the expired_above function always takes off one
+			 * label (if qnamelen>0) and returns the final qname
+			 * where it searched, so we can continue from there
+			 * turning the O N*N search into O N. */
+			if(!rrset_expired_above(env, &qname, &qnamelen,
+				searchtype, qclass, now, expiretop,
+				expiretoplen)) {
+				/* we want to return rrset, but it may be
+				 * gone from cache, if so, just loop like
+				 * it was not in the cache in the first place.
+				 */
+				if((rrset = rrset_cache_lookup(env->
+					rrset_cache, origqname, origqnamelen,
+					searchtype, qclass, 0, now, 0))) {
+					return rrset;
+				}
+			}
+			log_nametypeclass(VERB_ALGO, "ignoring rrset because expired rrsets exist above it", origqname, searchtype, qclass);
+			continue;
+		}
 
 		/* snip off front label */
 		lablen = *qname;
@@ -462,7 +542,8 @@ dns_msg_ansadd(struct dns_msg* msg, struct regional* region,
 struct delegpt* 
 dns_cache_find_delegation(struct module_env* env, uint8_t* qname, 
 	size_t qnamelen, uint16_t qtype, uint16_t qclass, 
-	struct regional* region, struct dns_msg** msg, time_t now)
+	struct regional* region, struct dns_msg** msg, time_t now,
+	int noexpiredabove, uint8_t* expiretop, size_t expiretoplen)
 {
 	/* try to find closest NS rrset */
 	struct ub_packed_rrset_key* nskey;
@@ -470,7 +551,7 @@ dns_cache_find_delegation(struct module_env* env, uint8_t* qname,
 	struct delegpt* dp;
 
 	nskey = find_closest_of_type(env, qname, qnamelen, qclass, now,
-		LDNS_RR_TYPE_NS, 0);
+		LDNS_RR_TYPE_NS, 0, noexpiredabove, expiretop, expiretoplen);
 	if(!nskey) /* hope the caller has hints to prime or something */
 		return NULL;
 	nsdata = (struct packed_rrset_data*)nskey->entry.data;
@@ -840,7 +921,7 @@ dns_cache_lookup(struct module_env* env,
 	 * consistent with the DNAME */
 	if(!no_partial &&
 		(rrset=find_closest_of_type(env, qname, qnamelen, qclass, now,
-		LDNS_RR_TYPE_DNAME, 1))) {
+		LDNS_RR_TYPE_DNAME, 1, 0, NULL, 0))) {
 		/* synthesize a DNAME+CNAME message based on this */
 		enum sec_status sec_status = sec_status_unchecked;
 		struct dns_msg* msg = synth_dname_msg(rrset, region, now, &k,
@@ -973,7 +1054,7 @@ dns_cache_lookup(struct module_env* env,
 int
 dns_cache_store(struct module_env* env, struct query_info* msgqinf,
         struct reply_info* msgrep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint32_t flags)
+	struct regional* region, uint32_t flags, time_t qstarttime)
 {
 	struct reply_info* rep = NULL;
 	/* alloc, malloc properly (not in region, like msg is) */
@@ -996,9 +1077,9 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
 			/*ignore ret: it was in the cache, ref updated */
 			/* no leeway for typeNS */
 			(void)rrset_cache_update(env->rrset_cache, &ref, 
-				env->alloc, *env->now + 
+				env->alloc,
 				((ntohs(ref.key->rk.type)==LDNS_RR_TYPE_NS
-				 && !pside) ? 0:leeway));
+				 && !pside) ? qstarttime:*env->now + leeway));
 		}
 		free(rep);
 		return 1;
@@ -1020,7 +1101,7 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
 		rep->flags &= ~(BIT_AA | BIT_CD);
 		h = query_info_hash(&qinf, (uint16_t)flags);
 		dns_cache_store_msg(env, &qinf, h, rep, leeway, pside, msgrep,
-			flags, region);
+			flags, region, qstarttime);
 		/* qname is used inside query_info_entrysetup, and set to 
 		 * NULL. If it has not been used, free it. free(0) is safe. */
 		free(qinf.qname);

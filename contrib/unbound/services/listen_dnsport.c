@@ -490,6 +490,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			return -1;
 		}
 # elif defined(IPV6_MTU)
+#   ifndef USE_WINSOCK
 		/*
 		 * On Linux, to send no larger than 1280, the PMTUD is
 		 * disabled by default for datagrams anyway, so we set
@@ -497,13 +498,27 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		 */
 		if (setsockopt(s, IPPROTO_IPV6, IPV6_MTU,
 			(void*)&mtu, (socklen_t)sizeof(mtu)) < 0) {
-			log_err("setsockopt(..., IPV6_MTU, ...) failed: %s", 
+			log_err("setsockopt(..., IPV6_MTU, ...) failed: %s",
 				sock_strerror(errno));
 			sock_close(s);
 			*noproto = 0;
 			*inuse = 0;
 			return -1;
 		}
+#   elif defined(IPV6_USER_MTU)
+		/* As later versions of the mingw crosscompiler define
+		 * IPV6_MTU, do the same for windows but use IPV6_USER_MTU
+		 * instead which is writable; IPV6_MTU is readonly there. */
+		if (setsockopt(s, IPPROTO_IPV6, IPV6_USER_MTU,
+			(void*)&mtu, (socklen_t)sizeof(mtu)) < 0) {
+			log_err("setsockopt(..., IPV6_USER_MTU, ...) failed: %s",
+				wsa_strerror(WSAGetLastError()));
+			sock_close(s);
+			*noproto = 0;
+			*inuse = 0;
+			return -1;
+		}
+#   endif /* USE_WINSOCK */
 # endif /* IPv6 MTU */
 # if defined(IPV6_MTU_DISCOVER) && defined(IP_PMTUDISC_DONT)
 #  if defined(IP_PMTUDISC_OMIT)

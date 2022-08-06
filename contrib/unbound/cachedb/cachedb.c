@@ -662,7 +662,7 @@ cachedb_intcache_store(struct module_qstate* qstate)
 		return;
 	(void)dns_cache_store(qstate->env, &qstate->qinfo,
 		qstate->return_msg->rep, 0, qstate->prefetch_leeway, 0,
-		qstate->region, store_flags);
+		qstate->region, store_flags, qstate->qstarttime);
 }
 
 /**
