@@ -4083,7 +4083,7 @@ pool_opt	: BITMASK	{
 			pool_opts.staticport = 1;
 		}
 		| STICKYADDRESS	{
-			if (filter_opts.marker & POM_STICKYADDRESS) {
+			if (pool_opts.marker & POM_STICKYADDRESS) {
 				yyerror("sticky-address cannot be redefined");
 				YYERROR;
 			}
