@@ -94,15 +94,17 @@ struct rbtree_type;
 extern int UNKNOWN_SERVER_NICENESS;
 /** maximum timeout before a host is deemed unsuitable, in msec. 
  * After host_ttl this will be timed out and the host will be tried again. 
- * Equals RTT_MAX_TIMEOUT
- */
-#define USEFUL_SERVER_TOP_TIMEOUT	120000
+ * Equals RTT_MAX_TIMEOUT, and thus when RTT_MAX_TIMEOUT is overwritten by
+ * config infra_cache_max_rtt, it will be overwritten as well. */
+extern int USEFUL_SERVER_TOP_TIMEOUT;
+/** penalty to validation failed blacklisted IPs
+ * Equals USEFUL_SERVER_TOP_TIMEOUT*4, and thus when RTT_MAX_TIMEOUT is
+ * overwritten by config infra_cache_max_rtt, it will be overwritten as well. */
+extern int BLACKLIST_PENALTY;
 /** RTT band, within this amount from the best, servers are chosen randomly.
  * Chosen so that the UNKNOWN_SERVER_NICENESS falls within the band of a 
  * fast server, this causes server exploration as a side benefit. msec. */
 #define RTT_BAND 400
-/** Start value for blacklisting a host, 2*USEFUL_SERVER_TOP_TIMEOUT in sec */
-#define INFRA_BACKOFF_INITIAL 240
 
 /**
  * Global state for the iterator. 

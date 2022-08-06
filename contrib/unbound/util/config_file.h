@@ -186,8 +186,10 @@ struct config_file {
 	size_t infra_cache_slabs;
 	/** max number of hosts in the infra cache */
 	size_t infra_cache_numhosts;
-	/** min value for infra cache rtt */
+	/** min value for infra cache rtt (min retransmit timeout) */
 	int infra_cache_min_rtt;
+	/** max value for infra cache rtt (max retransmit timeout) */
+	int infra_cache_max_rtt;
 	/** keep probing hosts that are down */
 	int infra_keep_probing;
 	/** delay close of udp-timeouted ports, if 0 no delayclose. in msec */
