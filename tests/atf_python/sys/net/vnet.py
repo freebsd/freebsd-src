@@ -101,11 +101,15 @@ class VnetInterface(object):
         addr = ipaddress.ip_interface(_addr)
         if addr.version == 6:
             family = "inet6"
+            cmd = "/sbin/ifconfig {} {} {}".format(self.name, family, addr)
         else:
             family = "inet"
-        cmd = "/sbin/ifconfig {} {} {}".format(self.name, family, addr)
+            if self.addr_map[family]:
+                cmd = "/sbin/ifconfig {} alias {}".format(self.name, addr)
+            else:
+                cmd = "/sbin/ifconfig {} {} {}".format(self.name, family, addr)
         self.run_cmd(cmd)
-        self.addr_map[family][str(addr)] = addr
+        self.addr_map[family][str(addr.ip)] = addr
 
     def delete_addr(self, _addr: str):
         addr = ipaddress.ip_address(_addr)

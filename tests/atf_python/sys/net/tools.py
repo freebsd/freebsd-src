@@ -41,12 +41,25 @@ class ToolsHelper(object):
     def get_routes(cls, family: str, fibnum: int = 0):
         family_key = {"inet": "-4", "inet6": "-6"}.get(family)
         out = cls.get_output(
-            "{} {} -rn -F {} --libxo json".format(cls.NETSTAT_PATH, family_key, fibnum)
+            "{} {} -rnW -F {} --libxo json".format(cls.NETSTAT_PATH, family_key, fibnum)
         )
         js = json.loads(out)
         js = js["statistics"]["route-information"]["route-table"]["rt-family"]
         if js:
             return js[0]["rt-entry"]
+        else:
+            return []
+
+    @classmethod
+    def get_nhops(cls, family: str, fibnum: int = 0):
+        family_key = {"inet": "-4", "inet6": "-6"}.get(family)
+        out = cls.get_output(
+            "{} {} -onW -F {} --libxo json".format(cls.NETSTAT_PATH, family_key, fibnum)
+        )
+        js = json.loads(out)
+        js = js["statistics"]["route-nhop-information"]["nhop-table"]["rt-family"]
+        if js:
+            return js[0]["nh-entry"]
         else:
             return []
 
