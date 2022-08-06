@@ -1135,7 +1135,9 @@ destroy_fd_instance_epoch(epoch_context_t ctx)
 
 	fd = __containerof(ctx, struct fib_data, fd_epoch_ctx);
 
+	CURVNET_SET(fd->fd_vnet);
 	destroy_fd_instance(fd);
+	CURVNET_RESTORE();
 }
 
 /*
