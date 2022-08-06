@@ -79,30 +79,22 @@ extern shared_info_t *HYPERVISOR_shared_info;
 
 extern bool xen_suspend_cancelled;
 
-enum xen_domain_type {
-	XEN_NATIVE,             /* running on bare hardware    */
-	XEN_PV_DOMAIN,          /* running in a PV domain      */
-	XEN_HVM_DOMAIN,         /* running in a Xen hvm domain */
-};
-
-extern enum xen_domain_type xen_domain_type;
-
-static inline int
+static inline bool
 xen_domain(void)
 {
-	return (xen_domain_type != XEN_NATIVE);
+	return (vm_guest == VM_GUEST_XEN);
 }
 
-static inline int
+static inline bool
 xen_pv_domain(void)
 {
-	return (xen_domain_type == XEN_PV_DOMAIN);
+	return (false);
 }
 
-static inline int
+static inline bool
 xen_hvm_domain(void)
 {
-	return (xen_domain_type == XEN_HVM_DOMAIN);
+	return (vm_guest == VM_GUEST_XEN);
 }
 
 static inline bool
