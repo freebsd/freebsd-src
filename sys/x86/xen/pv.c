@@ -165,7 +165,6 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	int rc;
 
 	if (isxen()) {
-		xen_domain_type = XEN_HVM_DOMAIN;
 		vm_guest = VM_GUEST_XEN;
 		rc = xen_hvm_init_hypercall_stubs(XEN_HVM_INIT_EARLY);
 		if (rc) {
