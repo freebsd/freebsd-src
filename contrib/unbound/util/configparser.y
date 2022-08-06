@@ -120,7 +120,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
 %token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UDP_CONNECT
 %token VAR_UNBLOCK_LAN_ZONES VAR_INSECURE_LAN_ZONES
-%token VAR_INFRA_CACHE_MIN_RTT VAR_INFRA_KEEP_PROBING
+%token VAR_INFRA_CACHE_MIN_RTT VAR_INFRA_CACHE_MAX_RTT VAR_INFRA_KEEP_PROBING
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL VAR_DNS64_IGNORE_AAAA
 %token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH VAR_DNSTAP_IP
 %token VAR_DNSTAP_TLS VAR_DNSTAP_TLS_SERVER_NAME VAR_DNSTAP_TLS_CERT_BUNDLE
@@ -267,7 +267,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_so_reuseport | server_delay_close | server_udp_connect |
 	server_unblock_lan_zones | server_insecure_lan_zones |
 	server_dns64_prefix | server_dns64_synthall | server_dns64_ignore_aaaa |
-	server_infra_cache_min_rtt | server_harden_algo_downgrade |
+	server_infra_cache_min_rtt | server_infra_cache_max_rtt | server_harden_algo_downgrade |
 	server_ip_transparent | server_ip_ratelimit | server_ratelimit |
 	server_ip_dscp | server_infra_keep_probing |
 	server_ip_ratelimit_slabs | server_ratelimit_slabs |
@@ -1656,6 +1656,15 @@ server_infra_cache_min_rtt: VAR_INFRA_CACHE_MIN_RTT STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->infra_cache_min_rtt = atoi($2);
+		free($2);
+	}
+	;
+server_infra_cache_max_rtt: VAR_INFRA_CACHE_MAX_RTT STRING_ARG
+	{
+		OUTYY(("P(server_infra_cache_max_rtt:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->infra_cache_max_rtt = atoi($2);
 		free($2);
 	}
 	;
