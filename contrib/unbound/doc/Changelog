@@ -1,3 +1,30 @@
+1 August 2022: Wouter
+	- Fix the novel ghost domain issues CVE-2022-30698 and CVE-2022-30699.
+	- Tests for ghost domain fixes.
+
+19 July 2022: George
+	- Update documentation for 'outbound-msg-retry:'.
+
+19 July 2022: Wouter
+	- Merge #718: Introduce infra-cache-max-rtt option to config max
+	  retransmit timeout.
+
+15 July 2022: Wouter
+	- Merge PR 714: Avoid treat normal hosts as unresponsive servers.
+	  And fixup the lock code.
+	- iana portlist update.
+
+12 July 2022: George
+	- For windows crosscompile, fix setting the IPV6_MTU socket option
+	  equivalent (IPV6_USER_MTU); allows cross compiling with latest
+	  cross-compiler versions.
+
+12 July 2022: Wouter
+	- Fix dname count in sldns parse type descriptor for SVCB and HTTPS.
+
+11 July 2022: Wouter
+	- Fix verbose EDE error printout.
+
 4 July 2022: George
 	- Fix bug introduced in 'improve val_sigcrypt.c::algo_needs_missing for
 	  one loop pass'.
@@ -5,7 +32,8 @@
 	  outbound tcp sockets.
 
 4 July 2022: Wouter
-	- Tag for 1.16.1rc1 release.
+	- Tag for 1.16.1rc1 release. This became 1.16.1 on 11 July 2022.
+	  The code repo continues with version 1.16.2 under development.
 
 3 July 2022: George
 	- Merge PR #671 from Petr Menšík: Disable ED25519 and ED448 in FIPS

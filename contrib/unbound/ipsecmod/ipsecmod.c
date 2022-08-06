@@ -456,7 +456,7 @@ ipsecmod_handle_query(struct module_qstate* qstate,
 	/* Store A/AAAA in cache. */
 	if(!dns_cache_store(qstate->env, &qstate->qinfo,
 		qstate->return_msg->rep, 0, qstate->prefetch_leeway,
-		0, qstate->region, qstate->query_flags)) {
+		0, qstate->region, qstate->query_flags, qstate->qstarttime)) {
 		log_err("ipsecmod: out of memory caching record");
 	}
 	qstate->ext_state[id] = module_finished;

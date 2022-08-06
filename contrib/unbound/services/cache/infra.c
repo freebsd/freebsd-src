@@ -721,13 +721,13 @@ infra_get_lame_rtt(struct infra_cache* infra,
 			else	*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
 		}
 	}
+	/* expired entry */
 	if(timenow > host->ttl) {
-		/* expired entry */
+
 		/* see if this can be a re-probe of an unresponsive server */
 		/* minus 1000 because that is outside of the RTTBAND, so
 		 * blacklisted servers stay blacklisted if this is chosen */
-		if(host->rtt.rto >= USEFUL_SERVER_TOP_TIMEOUT ||
-			infra->infra_keep_probing) {
+		if(host->rtt.rto >= USEFUL_SERVER_TOP_TIMEOUT) {
 			lock_rw_unlock(&e->lock);
 			*rtt = USEFUL_SERVER_TOP_TIMEOUT-1000;
 			*lame = 0;

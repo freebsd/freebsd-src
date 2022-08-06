@@ -459,7 +459,7 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 
 	dp = dns_cache_find_delegation(&worker->env, qinfo->qname, 
 		qinfo->qname_len, qinfo->qtype, qinfo->qclass,
-		worker->scratchpad, &msg, timenow);
+		worker->scratchpad, &msg, timenow, 0, NULL, 0);
 	if(!dp) { /* no delegation, need to reprime */
 		return 0;
 	}

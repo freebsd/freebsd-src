@@ -954,6 +954,7 @@ mesh_state_create(struct module_env* env, struct query_info* qinfo,
 	mstate->s.no_cache_store = 0;
 	mstate->s.need_refetch = 0;
 	mstate->s.was_ratelimited = 0;
+	mstate->s.qstarttime = *env->now;
 
 	/* init modules */
 	for(i=0; i<env->mesh->mods.num; i++) {

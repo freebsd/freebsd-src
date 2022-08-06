@@ -45,6 +45,9 @@
 
 /* overwritten by config: infra_cache_min_rtt: */
 int RTT_MIN_TIMEOUT = 50;
+/* overwritten by config: infra_cache_max_rtt: */
+int RTT_MAX_TIMEOUT = 120000;
+
 /** calculate RTO from rtt information */
 static int
 calc_rto(const struct rtt_info* rtt)

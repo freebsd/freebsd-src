@@ -2202,7 +2202,7 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		if(!qstate->no_cache_store) {
 			if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo,
 				vq->orig_msg->rep, 0, qstate->prefetch_leeway, 0, NULL,
-				qstate->query_flags)) {
+				qstate->query_flags, qstate->qstarttime)) {
 				log_err("out of memory caching validator results");
 			}
 		}
@@ -2211,7 +2211,7 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		/* and this does not get prefetched, so no leeway */
 		if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo,
 			vq->orig_msg->rep, 1, 0, 0, NULL,
-			qstate->query_flags)) {
+			qstate->query_flags, qstate->qstarttime)) {
 			log_err("out of memory caching validator results");
 		}
 	}
@@ -2493,7 +2493,8 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 			/* If they aren't usable, then we treat it like 
 			 * there was no DS. */
 
-			// @TODO add EDE Unsupported DS Digest Type
+			/* TODO add EDE Unsupported DS Digest Type; this needs
+			 * EDE to be added on non SERVFAIL answers. */
 
 			*ke = key_entry_create_null(qstate->region, 
 				qinfo->qname, qinfo->qname_len, qinfo->qclass, 

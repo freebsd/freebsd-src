@@ -1071,7 +1071,7 @@ static int sldns_wire2str_svcparam_mandatory2str(char** s,
 	assert(data_len > 0);
 
 	if (data_len % sizeof(uint16_t))
-		return -1; // wireformat error, data_len must be multiple of shorts
+		return -1; /* wireformat error, data_len must be multiple of shorts */
 	w += sldns_str_print(s, slen, "=");
 	w += sldns_print_svcparamkey(s, slen, sldns_read_uint16(data));
 	data += 2;

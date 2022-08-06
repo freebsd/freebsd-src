@@ -652,7 +652,7 @@ handle_event_moddone(struct module_qstate* qstate, int id)
 	if ( (!iq || !iq->started_no_cache_store) &&
 		qstate->return_msg && qstate->return_msg->rep &&
 		!dns_cache_store(qstate->env, &qstate->qinfo, qstate->return_msg->rep,
-		0, 0, 0, NULL, qstate->query_flags))
+		0, 0, 0, NULL, qstate->query_flags, qstate->qstarttime))
 		log_err("out of memory");
 
 	/* do nothing */
@@ -991,7 +991,7 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 	/* Store the generated response in cache. */
 	if ( (!super_dq || !super_dq->started_no_cache_store) &&
 		!dns_cache_store(super->env, &super->qinfo, super->return_msg->rep,
-		0, 0, 0, NULL, super->query_flags))
+		0, 0, 0, NULL, super->query_flags, qstate->qstarttime))
 		log_err("out of memory");
 }
 

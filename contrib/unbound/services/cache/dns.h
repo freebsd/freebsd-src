@@ -88,11 +88,13 @@ struct dns_msg {
  * @param flags: flags with BIT_CD for AAAA queries in dns64 translation.
  *   The higher 16 bits are used internally to customize the cache policy.
  *   (See DNSCACHE_STORE_xxx flags).
+ * @param qstarttime: time when the query was started, and thus when the
+ * 	delegations were looked up.
  * @return 0 on alloc error (out of memory).
  */
 int dns_cache_store(struct module_env* env, struct query_info* qinf,
         struct reply_info* rep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint32_t flags);
+	struct regional* region, uint32_t flags, time_t qstarttime);
 
 /**
  * Store message in the cache. Stores in message cache and rrset cache.
@@ -112,11 +114,14 @@ int dns_cache_store(struct module_env* env, struct query_info* qinf,
  * 	can be updated to full TTL even in prefetch situations.
  * @param qrep: message that can be altered with better rrs from cache.
  * @param flags: customization flags for the cache policy.
+ * @param qstarttime: time when the query was started, and thus when the
+ * 	delegations were looked up.
  * @param region: to allocate into for qmsg.
  */
 void dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
 	hashvalue_type hash, struct reply_info* rep, time_t leeway, int pside,
-	struct reply_info* qrep, uint32_t flags, struct regional* region);
+	struct reply_info* qrep, uint32_t flags, struct regional* region,
+	time_t qstarttime);
 
 /**
  * Find a delegation from the cache.
@@ -129,11 +134,18 @@ void dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
  * @param msg: if not NULL, delegation message is returned here, synthesized
  *	from the cache.
  * @param timenow: the time now, for checking if TTL on cache entries is OK.
+ * @param noexpiredabove: if set, no expired NS rrsets above the one found
+ * 	are tolerated. It only returns delegations where the delegations above
+ * 	it are valid.
+ * @param expiretop: if not NULL, name where check for expiry ends for
+ * 	noexpiredabove.
+ * @param expiretoplen: length of expiretop dname.
  * @return new delegation or NULL on error or if not found in cache.
  */
 struct delegpt* dns_cache_find_delegation(struct module_env* env, 
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass, 
-	struct regional* region, struct dns_msg** msg, time_t timenow);
+	struct regional* region, struct dns_msg** msg, time_t timenow,
+	int noexpiredabove, uint8_t* expiretop, size_t expiretoplen);
 
 /**
  * generate dns_msg from cached message

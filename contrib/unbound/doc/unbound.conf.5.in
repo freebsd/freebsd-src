@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jul 11, 2022" "NLnet Labs" "unbound 1.16.1"
+.TH "unbound.conf" "5" "Aug  1, 2022" "NLnet Labs" "unbound 1.16.2"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -394,6 +394,10 @@ Number of hosts for which information is cached. Default is 10000.
 Lower limit for dynamic retransmit timeout calculation in infrastructure
 cache. Default is 50 milliseconds. Increase this value if using forwarders
 needing more time to do recursive name resolution.
+.TP
+.B infra\-cache\-max\-rtt: \fI<msec>
+Upper limit for dynamic retransmit timeout calculation in infrastructure
+cache. Default is 2 minutes.
 .TP
 .B infra\-keep\-probing: \fI<yes or no>
 If enabled the server keeps probing hosts that are down, in the one probe
@@ -1758,9 +1762,12 @@ set ip\-ratelimit to a suspicious rate to aggressively limit unusually high
 traffic.  Default is off.
 .TP 5
 .B outbound\-msg\-retry: \fI<number>
-The number of retries Unbound will do in case of a non positive response is
-received. If a forward nameserver is used, this is the number of retries per
-forward nameserver in case of throwaway response.
+The number of retries, per upstream nameserver in a delegation, that Unbound
+will attempt in case a throwaway response is received.
+No response (timeout) contributes to the retry counter.
+If a forward/stub zone is used, this is the number of retries per nameserver in
+the zone.
+Default is 5.
 .TP 5
 .B fast\-server\-permil: \fI<number>
 Specify how many times out of 1000 to pick from the set of fastest servers.
