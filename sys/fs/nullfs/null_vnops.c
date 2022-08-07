@@ -84,7 +84,7 @@
  * pass.
  *
  * The bypass routine accepts arbitrary vnode operations for
- * handling by the lower layer.  It begins by examing vnode
+ * handling by the lower layer.  It begins by examining vnode
  * operation arguments and replacing any null-nodes by their
  * lower-layer equivlants.  It then invokes the operation
  * on the lower layer.  Finally, it replaces the null-nodes
