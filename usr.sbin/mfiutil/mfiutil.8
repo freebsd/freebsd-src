@@ -326,7 +326,8 @@ the controller for each low-level request.
 The default is 15 events.
 .Pp
 By default, matching event log entries from the previous shutdown up to the
-present are displayed.  This range can be adjusted via the
+present are displayed.
+This range can be adjusted via the
 .Ar start
 and
 .Ar stop
@@ -383,7 +384,8 @@ The firmware should kick off an array rebuild on its own if a failed drive
 is marked as a rebuild drive.
 .It Cm syspd Ar drive
 Present the drive to the host operating system as a disk SYSPD block device in
-the format /dev/mfisyspdX.  Clear this flag with
+the format /dev/mfisyspdX.
+Clear this flag with
 .Cm good
 .Ar drive
 .It Cm drive progress Ar drive
@@ -524,7 +526,7 @@ Creates a single volume by concatenating all of the drives in the single drive
 list.
 .El
 .Pp
-.Sy Note:
+.Sy Note :
 Not all volume types are supported by all controllers.
 .Pp
 If the
@@ -602,7 +604,8 @@ Start a patrol read operation.
 .It Cm stop patrol
 Stop a currently running patrol read operation.
 .It Cm foreign scan
-Scan for foreign configurations and display the number found. The
+Scan for foreign configurations and display the number found.
+The
 .Ar config
 argument for the commands below takes the form of a number from 0 to the total
 configurations found.
@@ -645,8 +648,8 @@ Update battery backup unit (BBU) properties related to battery relearning.
 The following settings are configurable:
 .Bl -tag -width indent
 .It Cm learn-delay
-Add a delay to the next scheduled battery relearn event. This setting is
-given in hours and must lie in the range of 0 to 255.
+Add a delay to the next scheduled battery relearn event.
+This setting is given in hours and must lie in the range of 0 to 255.
 .It Cm autolearn-mode
 Enable or disable automatic periodic battery relearning.
 The setting may be set to
@@ -659,7 +662,8 @@ Mode 0 enables periodic relearning, mode 1 disables it, and mode 2 disables
 it and logs a warning to the event log when it detects that a battery relearn
 should be performed.
 .It Cm bbu-mode
-Set the BBU's mode of operation. This setting is not supported by all BBUs.
+Set the BBU's mode of operation.
+This setting is not supported by all BBUs.
 Where it is supported, the possible values are the integers between 1 and 5
 inclusive.
 Modes 1, 2 and 3 enable a transparent learn cycle, whereas modes 4 and 5 do not.
@@ -670,7 +674,8 @@ With no arguments display the rate of rebuild (percentage)a for volumes.
 With an integer argument (0-100), set that value as the new rebuild rate for volumes.
 .It Cm ctrlprop Ar alarm Op Ar 0/1
 With no arguments display the current alarm enable/disable status.
-With a 0, disable alarms.  With a 1, enable alarms.
+With a 0, disable alarms.
+With a 1, enable alarms.
 .El
 .Sh EXAMPLES
 Configure the cache for volume mfid0 to cache only writes:
