@@ -280,8 +280,6 @@ linux_clone_thread(struct thread *td, struct l_clone_args *args)
 	if (error)
 		goto fail;
 
-	cpu_copy_thread(newtd, td);
-
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
@@ -289,6 +287,8 @@ linux_clone_thread(struct thread *td, struct l_clone_args *args)
 
 	newtd->td_proc = p;
 	thread_cow_get(newtd, td);
+
+	cpu_copy_thread(newtd, td);
 
 	/* create the emuldata */
 	linux_proc_init(td, newtd, true);

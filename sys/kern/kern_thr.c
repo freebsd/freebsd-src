@@ -231,8 +231,6 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	if (error)
 		goto fail;
 
-	cpu_copy_thread(newtd, td);
-
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
@@ -240,6 +238,8 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	newtd->td_proc = td->td_proc;
 	newtd->td_rb_list = newtd->td_rbp_list = newtd->td_rb_inact = 0;
 	thread_cow_get(newtd, td);
+
+	cpu_copy_thread(newtd, td);
 
 	error = initialize_thread(newtd, thunk);
 	if (error != 0) {
