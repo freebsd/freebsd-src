@@ -1082,8 +1082,7 @@ findpcb:
 			 */
 			tcp_dooptions(&to, optp, optlen, 0);
 			/*
-			 * NB: syncache_expand() doesn't unlock
-			 * inp and tcpinfo locks.
+			 * NB: syncache_expand() doesn't unlock inp.
 			 */
 			rstreason = syncache_expand(&inc, &to, th, &so, m, port);
 			if (rstreason < 0) {
