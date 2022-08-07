@@ -108,7 +108,7 @@ struct debugnet_conn_params {
 	uint32_t	dc_herald_datalen;
 
 	/*
-	 * Consistent with debugnet_send(), aux paramaters to debugnet
+	 * Consistent with debugnet_send(), aux parameters to debugnet
 	 * functions are provided host-endian (but converted to
 	 * network endian on the wire).
 	 */
