@@ -206,6 +206,7 @@ struct nhop_object *nhop_select_func(struct nhop_object *nh, uint32_t flowid);
 int nhop_get_upper_family(const struct nhop_object *nh);
 int nhop_get_neigh_family(const struct nhop_object *nh);
 uint32_t nhop_get_fibnum(const struct nhop_object *nh);
+void nhop_set_fibnum(struct nhop_object *nh, uint32_t fibnum);
 uint32_t nhop_get_expire(const struct nhop_object *nh);
 void nhop_set_expire(struct nhop_object *nh, uint32_t expire);
 

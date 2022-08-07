@@ -313,12 +313,18 @@ nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
 struct nhop_object *
 nhop_get_nhop(struct nhop_object *nh, int *perror)
 {
+	struct rib_head *rnh = nhop_get_rh(nh);
+
+	return (nhop_get_nhop_internal(rnh, nh, perror));
+}
+
+struct nhop_object *
+nhop_get_nhop_internal(struct rib_head *rnh, struct nhop_object *nh, int *perror)
+{
 	struct nhop_priv *tmp_priv;
 	int error;
 
 	nh->nh_aifp = get_aifp(nh);
-
-	struct rib_head *rnh = nhop_get_rh(nh);
 
 	/* Give the protocols chance to augment nexthop properties */
 	error = rnh->rnh_augment_nh(rnh->rib_fibnum, nh);
@@ -891,6 +897,12 @@ uint32_t
 nhop_get_fibnum(const struct nhop_object *nh)
 {
 	return (nh->nh_priv->nh_fibnum);
+}
+
+void
+nhop_set_fibnum(struct nhop_object *nh, uint32_t fibnum)
+{
+	nh->nh_priv->nh_fibnum = fibnum;
 }
 
 uint32_t
