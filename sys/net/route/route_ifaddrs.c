@@ -195,4 +195,49 @@ ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	return (ifa_maintain_loopback_route(RTM_CHANGE, "switch", ifa, ia));
 }
 
+static bool
+match_kernel_route(const struct rtentry *rt, struct nhop_object *nh)
+{
+	if (!NH_IS_NHGRP(nh) && (nhop_get_rtflags(nh) & RTF_PINNED) &&
+	    nh->nh_aifp->if_fib == nhop_get_fibnum(nh))
+		return (true);
+	return (false);
+}
+
+static int
+pick_kernel_route(struct rtentry *rt, void *arg)
+{
+	struct nhop_object *nh = rt->rt_nhop;
+	struct rib_head *rh_dst = (struct rib_head *)arg;
+
+	if (match_kernel_route(rt, nh)) {
+		struct rib_cmd_info rc = {};
+		struct route_nhop_data rnd = {
+			.rnd_nhop = nh,
+			.rnd_weight = rt->rt_weight,
+		};
+		rib_copy_route(rt, &rnd, rh_dst, &rc);
+	}
+	return (0);
+}
+
+/*
+ * Tries to copy kernel routes matching pattern from @rh_src to @rh_dst.
+ *
+ * Note: as this function acquires locks for both @rh_src and @rh_dst,
+ *  it needs to be called under RTABLES_LOCK() to avoid deadlocking
+ * with multiple ribs.
+ */
+void
+rib_copy_kernel_routes(struct rib_head *rh_src, struct rib_head *rh_dst)
+{
+	struct epoch_tracker et;
+
+	if (V_rt_add_addr_allfibs == 0)
+		return;
+
+	NET_EPOCH_ENTER(et);
+	rib_walk_ext_internal(rh_src, false, pick_kernel_route, NULL, rh_dst);
+	NET_EPOCH_EXIT(et);
+}
 
