@@ -581,7 +581,6 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 		return (ENXIO);
 	}
 
-	sc->sc_noport = sc->sc_noport;
 	sc->sc_noslot = XHCI_HCS1_DEVSLOT_MAX(temp);
 
 	DPRINTF("Max slots: %u\n", sc->sc_noslot);
