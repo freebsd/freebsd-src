@@ -1047,6 +1047,8 @@ vm_fault_next(struct faultstate *fs)
 {
 	vm_object_t next_object;
 
+	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+
 	/*
 	 * The requested page does not exist at this object/
 	 * offset.  Remove the invalid page from the object,
@@ -1067,7 +1069,6 @@ vm_fault_next(struct faultstate *fs)
 	 * Move on to the next object.  Lock the next object before
 	 * unlocking the current one.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(fs->object);
 	next_object = fs->object->backing_object;
 	if (next_object == NULL)
 		return (false);
@@ -1382,6 +1383,8 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	enum fault_status res;
 	bool dead;
 
+	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+
 	/*
 	 * If the object is marked for imminent termination, we retry
 	 * here, since the collapse pass has raced with us.  Otherwise,
@@ -1416,7 +1419,6 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 			return (FAULT_SOFT);
 		}
 	}
-	VM_OBJECT_ASSERT_WLOCKED(fs->object);
 
 	/*
 	 * Page is not resident.  If the pager might contain the page
