@@ -39,13 +39,18 @@ mdconfig -a -t swap -s 1g -u $mdstart
 newfs $newfs_flags md$mdstart > /dev/null
 mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
+export badcodeLOAD=100
+export RUNDIR=$mntpoint/stressX
+mkdir -p $RUNDIR
+chmod 0777 $RUNDIR
 
 here=`pwd`
 cd $mntpoint
 (cd $here/../testcases/swap; ./swap -t 5m -i 20) &
 sleep 2
 while pgrep -q swap; do
-	timeout 1m limits -c 0 $here/../testcases/badcode/badcode -t 1m -i 20
+	su $testuser -c \
+	    "timeout 1m limits -c 0 $here/../testcases/badcode/badcode -t 1m -i 20"
 done
 wait
 cd $here
