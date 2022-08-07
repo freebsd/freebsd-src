@@ -931,7 +931,7 @@ acpi_child_pnpinfo_method(device_t cbdev, device_t child, struct sbuf *sb)
 }
 
 /*
- * Note: the check for ACPI locator may be reduntant. However, this routine is
+ * Note: the check for ACPI locator may be redundant. However, this routine is
  * suitable for both busses whose only locator is ACPI and as a building block
  * for busses that have multiple locators to cope with.
  */
