@@ -58,13 +58,6 @@ with the
 mib.
 While the kernel returns a packed structure, this function expands the
 data into a fixed record format.
-.Sh CAVEAT
-.Fn kinfo_getvmmap
-calls can cause significant CPU consumption because calculating the residency
-counts requires iterating over all memory pages of the process.
-Setting the sysctl variable
-.Va kern.proc_vmmap_skip_resident_count
-to 1 prevents this calculation.
 .Sh RETURN VALUES
 On success the
 .Fn kinfo_getvmmap
@@ -89,3 +82,10 @@ The
 .Fn kinfo_getvmmap
 function first appeared in
 .Fx 7.0 .
+.Sh CAVEATS
+.Fn kinfo_getvmmap
+calls can cause significant CPU consumption because calculating the residency
+counts requires iterating over all memory pages of the process.
+Setting the sysctl variable
+.Va kern.proc_vmmap_skip_resident_count
+to 1 prevents this calculation.
