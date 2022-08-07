@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #define IVSZ	8
 #define BLOCKSZ	64
 #define RSBUFSZ	(16*BLOCKSZ)
+#define REKEY_BASE (1024*1024) /* NB. should be a power of 2 */
 
 /* Marked INHERIT_ZERO, so zero'd out in fork children. */
 static struct _rs {
@@ -106,6 +107,7 @@ static void
 _rs_stir(void)
 {
 	u_char rnd[KEYSZ + IVSZ];
+	uint32_t rekey_fuzz = 0;
 
 #if defined(__FreeBSD__)
 	bool need_init;
@@ -152,7 +154,10 @@ _rs_stir(void)
 	rs->rs_have = 0;
 	memset(rsx->rs_buf, 0, sizeof(rsx->rs_buf));
 
-	rs->rs_count = 1600000;
+	/* rekey interval should not be predictable */
+	chacha_encrypt_bytes(&rs, (uint8_t *)&rekey_fuzz,
+			(uint8_t *)&rekey_fuzz, sizeof(rekey_fuzz));
+	rs->rs_count = REKEY_BASE + (rekey_fuzz % REKEY_BASE);
 }
 
 static inline void
