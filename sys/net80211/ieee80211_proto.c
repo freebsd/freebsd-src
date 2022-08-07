@@ -1792,7 +1792,7 @@ ieee80211_wme_vap_getparams(struct ieee80211vap *vap, struct chanAccParams *wp)
 }
 
 /*
- * For NICs which only support one set of WME paramaters (ie, softmac NICs)
+ * For NICs which only support one set of WME parameters (ie, softmac NICs)
  * there may be different VAP WME parameters but only one is "active".
  * This returns the "NIC" WME parameters for the currently active
  * context.
