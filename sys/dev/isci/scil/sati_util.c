@@ -447,7 +447,7 @@ void sati_scsi_common_response_iu_construct(
  *                for which to construct the buffer for sense data.
  * @param[in]     scsi_status This parameter specifies the SCSI status
  *                value for the user's IO request.
- * @param[out]    sense_data This paramater
+ * @param[out]    sense_data This parameter
  *
  * @return none
  */
