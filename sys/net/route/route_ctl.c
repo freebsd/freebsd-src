@@ -597,6 +597,71 @@ rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
 }
 
 /*
+ * Tries to copy route @rt from one rtable to the rtable specified by @dst_rh.
+ * @rt: route to copy.
+ * @rnd_src: nhop and weight. Multipath routes are not supported
+ * @rh_dst: target rtable.
+ * @rc: operation result storage
+ *
+ * Return 0 on success.
+ */
+int
+rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
+    struct rib_head *rh_dst, struct rib_cmd_info *rc)
+{
+	struct nhop_object *nh_src = rnd_src->rnd_nhop;
+	int error;
+
+	MPASS((nh_src->nh_flags & NHF_MULTIPATH) == 0);
+
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
+		char nhbuf[NHOP_PRINT_BUFSIZE], rtbuf[NHOP_PRINT_BUFSIZE];
+		nhop_print_buf_any(nh_src, nhbuf, sizeof(nhbuf));
+		rt_print_buf(rt, rtbuf, sizeof(rtbuf));
+		FIB_RH_LOG(LOG_DEBUG2, rh_dst, "copying %s -> %s from fib %u",
+		    rtbuf, nhbuf, nhop_get_fibnum(nh_src));
+#endif
+	struct nhop_object *nh = nhop_alloc(rh_dst->rib_fibnum, rh_dst->rib_family);
+	if (nh == NULL) {
+		FIB_RH_LOG(LOG_INFO, rh_dst, "unable to allocate new nexthop");
+		return (ENOMEM);
+	}
+	nhop_copy(nh, rnd_src->rnd_nhop);
+	nhop_set_fibnum(nh, rh_dst->rib_fibnum);
+	nh = nhop_get_nhop_internal(rh_dst, nh, &error);
+	if (error != 0) {
+		FIB_RH_LOG(LOG_INFO, rh_dst,
+		    "unable to finalize new nexthop: error %d", error);
+		return (ENOMEM);
+	}
+
+	struct rtentry *rt_new = rt_alloc(rh_dst, rt_key(rt), rt_mask(rt));
+	if (rt_new == NULL) {
+		FIB_RH_LOG(LOG_INFO, rh_dst, "unable to create new rtentry");
+		nhop_free(nh);
+		return (ENOMEM);
+	}
+
+	struct route_nhop_data rnd = {
+		.rnd_nhop = nh,
+		.rnd_weight = rnd_src->rnd_weight
+	};
+	int op_flags = RTM_F_CREATE | (NH_IS_PINNED(nh) ? RTM_F_FORCE : 0);
+	error = add_route_flags(rh_dst, rt_new, &rnd, op_flags, rc);
+
+	if (error != 0) {
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+		char buf[NHOP_PRINT_BUFSIZE];
+		rt_print_buf(rt_new, buf, sizeof(buf));
+		FIB_RH_LOG(LOG_DEBUG, rh_dst, "Unable to add route %s: error %d", buf, error);
+#endif
+		nhop_free(nh);
+		rt_free_immediate(rt_new);
+	}
+	return (error);
+}
+
+/*
  * Adds route defined by @info into the kernel table specified by @fibnum and
  * sa_family in @info->rti_info[RTAX_DST].
  *

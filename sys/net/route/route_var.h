@@ -78,7 +78,7 @@ struct rib_head {
 };
 
 #define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
-#define	RIB_LOCK_INIT(rh)	rm_init(&(rh)->rib_lock, "rib head lock")
+#define	RIB_LOCK_INIT(rh)	rm_init_flags(&(rh)->rib_lock, "rib head lock", RM_DUPOK)
 #define	RIB_LOCK_DESTROY(rh)	rm_destroy(&(rh)->rib_lock)
 #define	RIB_RLOCK(rh)		rm_rlock(&(rh)->rib_lock, &_rib_tracker)
 #define	RIB_RUNLOCK(rh)		rm_runlock(&(rh)->rib_lock, &_rib_tracker)
@@ -221,6 +221,8 @@ struct rtentry *lookup_prefix(struct rib_head *rnh,
     const struct rt_addrinfo *info, struct route_nhop_data *rnd);
 struct rtentry *lookup_prefix_rt(struct rib_head *rnh, const struct rtentry *rt,
     struct route_nhop_data *rnd);
+int rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
+    struct rib_head *rh_dst, struct rib_cmd_info *rc);
 
 bool nhop_can_multipath(const struct nhop_object *nh);
 bool match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw);
@@ -239,6 +241,9 @@ struct rtentry *rt_alloc(struct rib_head *rnh, const struct sockaddr *dst,
 void rib_init_subscriptions(struct rib_head *rnh);
 void rib_destroy_subscriptions(struct rib_head *rnh);
 
+/* route_ifaddrs.c */
+void rib_copy_kernel_routes(struct rib_head *rh_src, struct rib_head *rh_dst);
+
 /* Nexhops */
 void nhops_init(void);
 int nhops_init_rib(struct rib_head *rh);
@@ -247,6 +252,8 @@ void nhop_ref_object(struct nhop_object *nh);
 int nhop_try_ref_object(struct nhop_object *nh);
 void nhop_ref_any(struct nhop_object *nh);
 void nhop_free_any(struct nhop_object *nh);
+struct nhop_object *nhop_get_nhop_internal(struct rib_head *rnh,
+    struct nhop_object *nh, int *perror);
 
 
 int nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
