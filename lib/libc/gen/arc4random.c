@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 static struct _rs {
 	size_t		rs_have;	/* valid bytes at end of rs_buf */
 	size_t		rs_count;	/* bytes till reseed */
+	chacha_ctx	rs_chacha;	/* chacha context for random keystream */
 } *rs;
 
 /* Maybe be preserved in fork children, if _rs_allocate() decides. */
@@ -155,7 +156,7 @@ _rs_stir(void)
 	memset(rsx->rs_buf, 0, sizeof(rsx->rs_buf));
 
 	/* rekey interval should not be predictable */
-	chacha_encrypt_bytes(&rs, (uint8_t *)&rekey_fuzz,
+	chacha_encrypt_bytes(&rs->rs_chacha, (uint8_t *)&rekey_fuzz,
 			(uint8_t *)&rekey_fuzz, sizeof(rekey_fuzz));
 	rs->rs_count = REKEY_BASE + (rekey_fuzz % REKEY_BASE);
 }
