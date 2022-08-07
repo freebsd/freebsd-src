@@ -25,7 +25,7 @@
 .\"
 .\"  $FreeBSD$
 .\"
-.Dd Dec 15, 1997"
+.Dd December 15, 1997
 .Dt ABS2REL 3
 .Os
 .Sh NAME
@@ -60,6 +60,23 @@ function returns relative path name on success.
 If an error occurs,
 it returns
 .Dv NULL .
+.Sh EXAMPLES
+    char result[MAXPATHLEN];
+    char *path = abs2rel("/usr/src/sys", "/usr/local/lib", result, MAXPATHLEN);
+
+yields:
+
+    path == "../../src/sys"
+
+Similarly,
+
+    path1 = abs2rel("/usr/src/sys", "/usr", result, MAXPATHLEN);
+    path2 = abs2rel("/usr/src/sys", "/usr/src/sys", result, MAXPATHLEN);
+
+yields:
+
+    path1 == "src/sys"
+    path2 == "."
 .Sh ERRORS
 The
 .Fn abs2rel
@@ -77,24 +94,11 @@ argument is zero.
 The
 .Fa size
 argument is greater than zero but smaller than the length of the pathname plus 1.
-.Sh EXAMPLE
-    char result[MAXPATHLEN];
-    char *path = abs2rel("/usr/src/sys", "/usr/local/lib", result, MAXPATHLEN);
 
-yields:
-
-    path == "../../src/sys"
-
-Similarly,
-
-    path1 = abs2rel("/usr/src/sys", "/usr", result, MAXPATHLEN);
-    path2 = abs2rel("/usr/src/sys", "/usr/src/sys", result, MAXPATHLEN);
-
-yields:
-
-    path1 == "src/sys"
-    path2 == "."
-
+.Sh SEE ALSO
+.Xr rel2abs 3
+.Sh AUTHORS
+.An Shigio Yamaguchi (shigio@tamacom.com)
 .Sh BUGS
 If the
 .Fa base
@@ -130,7 +134,3 @@ The
 function assures correct result, but don't forget that
 .Fn realpath
 requires that all but the last component of the path exist.
-.Sh "SEE ALSO"
-.Xr rel2abs 3
-.Sh AUTHORS
-Shigio Yamaguchi (shigio@tamacom.com)
