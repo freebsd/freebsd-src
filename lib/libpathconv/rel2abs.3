@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Dec 3, 1997"
+.Dd December 3, 1997
 .Dt REL2ABS 3
 .Os
 .Sh NAME
@@ -58,6 +58,23 @@ The
 function returns absolute path name on success.
 If an error occurs, it returns
 .Dv NULL .
+.Sh EXAMPLES
+    char result[MAXPATHLEN];
+    char *path = rel2abs("../../src/sys", "/usr/local/lib", result, MAXPATHLEN);
+
+yields:
+
+    path == "/usr/src/sys"
+
+Similarly,
+
+    path1 = rel2abs("src/sys", "/usr", result, MAXPATHLEN);
+    path2 = rel2abs(".", "/usr/src/sys", result, MAXPATHLEN);
+
+yields:
+
+    path1 == "/usr/src/sys"
+    path2 == "/usr/src/sys"
 .Sh ERRORS
 The
 .Fn rel2abs
@@ -75,24 +92,7 @@ argument is zero.
 The
 .Fa size
 argument is greater than zero but smaller than the length of the pathname plus 1
-.Sh EXAMPLE
-    char result[MAXPATHLEN];
-    char *path = rel2abs("../../src/sys", "/usr/local/lib", result, MAXPATHLEN);
-
-yields:
-
-    path == "/usr/src/sys"
-
-Similarly,
-
-    path1 = rel2abs("src/sys", "/usr", result, MAXPATHLEN);
-    path2 = rel2abs(".", "/usr/src/sys", result, MAXPATHLEN);
-
-yields:
-
-    path1 == "/usr/src/sys"
-    path2 == "/usr/src/sys"
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr abs2rel 3
 .Sh AUTHORS
-Shigio Yamaguchi (shigio@tamacom.com)
+.An Shigio Yamaguchi (shigio@tamacom.com)
