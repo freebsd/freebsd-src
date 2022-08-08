@@ -81,6 +81,18 @@ check_tls_mode(const atf_tc_t *tc, int s, int sockopt)
 		if (mode != TCP_TLS_MODE_IFNET)
 			atf_tc_skip("connection did not use ifnet TLS");
 	}
+
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ktls.require_toe", false)) {
+		socklen_t len;
+		int mode;
+
+		len = sizeof(mode);
+		if (getsockopt(s, IPPROTO_TCP, sockopt, &mode, &len) == -1)
+			atf_libc_error(errno, "Failed to fetch TLS mode");
+
+		if (mode != TCP_TLS_MODE_TOE)
+			atf_tc_skip("connection did not use TOE TLS");
+	}
 }
 
 static char
