@@ -400,11 +400,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 			 V_SCMD_KEY_CTX_INLINE(0) |
 			 V_SCMD_TLS_FRAG_ENABLE(1));
 
-		if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-			toep->tls.iv_len = 8;
-		else
-			toep->tls.iv_len = AES_BLOCK_LEN;
-
+		toep->tls.iv_len = explicit_iv_size;
 		toep->tls.frag_size = tls->params.max_frame_len;
 		toep->tls.fcplenmax = get_tp_plen_max(tls);
 		toep->tls.expn_per_ulp = tls->params.tls_hlen +
@@ -509,24 +505,23 @@ tls_uninit_toep(struct toepcb *toep)
 
 static void
 write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
-    unsigned int immdlen, unsigned int plen, unsigned int expn,
-    unsigned int pdus, uint8_t credits, int shove, int imm_ivs)
+    unsigned int plen, unsigned int expn, uint8_t credits, int shove)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	unsigned int len = plen + expn;
 
 	txwr->op_to_immdlen = htobe32(V_WR_OP(FW_TLSTX_DATA_WR) |
 	    V_FW_TLSTX_DATA_WR_COMPL(1) |
-	    V_FW_TLSTX_DATA_WR_IMMDLEN(immdlen));
+	    V_FW_TLSTX_DATA_WR_IMMDLEN(0));
 	txwr->flowid_len16 = htobe32(V_FW_TLSTX_DATA_WR_FLOWID(toep->tid) |
 	    V_FW_TLSTX_DATA_WR_LEN16(credits));
 	txwr->plen = htobe32(len);
 	txwr->lsodisable_to_flags = htobe32(V_TX_ULP_MODE(ULP_MODE_TLS) |
 	    V_TX_URG(0) | /* F_T6_TX_FORCE | */ V_TX_SHOVE(shove));
-	txwr->ctxloc_to_exp = htobe32(V_FW_TLSTX_DATA_WR_NUMIVS(pdus) |
+	txwr->ctxloc_to_exp = htobe32(V_FW_TLSTX_DATA_WR_NUMIVS(1) |
 	    V_FW_TLSTX_DATA_WR_EXP(expn) |
 	    V_FW_TLSTX_DATA_WR_CTXLOC(TLS_SFO_WR_CONTEXTLOC_DDR) |
-	    V_FW_TLSTX_DATA_WR_IVDSGL(!imm_ivs) |
+	    V_FW_TLSTX_DATA_WR_IVDSGL(0) |
 	    V_FW_TLSTX_DATA_WR_KEYSIZE(tls_ofld->tx_key_info_size >> 4));
 	txwr->mfs = htobe16(tls_ofld->frag_size);
 	txwr->adjustedplen_pkd = htobe16(
@@ -539,15 +534,12 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 
 static void
 write_tlstx_cpl(struct cpl_tx_tls_sfo *cpl, struct toepcb *toep,
-    struct tls_hdr *tls_hdr, unsigned int plen, unsigned int pdus)
+    struct tls_hdr *tls_hdr, unsigned int plen, uint64_t seqno)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	int data_type, seglen;
 
-	if (plen < tls_ofld->frag_size)
-		seglen = plen;
-	else
-		seglen = tls_ofld->frag_size;
+	seglen = plen;
 	data_type = tls_content_type(tls_hdr->type);
 	cpl->op_to_seg_len = htobe32(V_CPL_TX_TLS_SFO_OPCODE(CPL_TX_TLS_SFO) |
 	    V_CPL_TX_TLS_SFO_DATA_TYPE(data_type) |
@@ -557,10 +549,9 @@ write_tlstx_cpl(struct cpl_tx_tls_sfo *cpl, struct toepcb *toep,
 		cpl->type_protover = htobe32(
 		    V_CPL_TX_TLS_SFO_TYPE(tls_hdr->type));
 	cpl->seqno_numivs = htobe32(tls_ofld->scmd0.seqno_numivs |
-	    V_SCMD_NUM_IVS(pdus));
+	    V_SCMD_NUM_IVS(1));
 	cpl->ivgen_hdrlen = htobe32(tls_ofld->scmd0.ivgen_hdrlen);
-	cpl->scmd1 = htobe64(tls_ofld->tx_seq_no);
-	tls_ofld->tx_seq_no += pdus;
+	cpl->scmd1 = htobe64(seqno);
 }
 
 static int
@@ -820,10 +811,8 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		expn_size = m->m_epg_hdrlen +
 		    m->m_epg_trllen;
 		tls_size = m->m_len - expn_size;
-		write_tlstx_wr(txwr, toep, 0,
-		    tls_size, expn_size, 1, credits, shove, 1);
-		toep->tls.tx_seq_no = m->m_epg_seqno;
-		write_tlstx_cpl(cpl, toep, thdr, tls_size, 1);
+		write_tlstx_wr(txwr, toep, tls_size, expn_size, credits, shove);
+		write_tlstx_cpl(cpl, toep, thdr, tls_size, m->m_epg_seqno);
 
 		idata = (struct ulptx_idata *)(cpl + 1);
 		idata->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
