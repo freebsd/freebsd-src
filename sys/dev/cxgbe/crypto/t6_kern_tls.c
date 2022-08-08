@@ -367,7 +367,7 @@ ktls_set_tcb_fields(struct tlspcb *tlsp, struct tcpcb *tp, struct sge_txq *txq)
 }
 
 int
-cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
 {
 	const struct ktls_session *tls;
@@ -2072,7 +2072,7 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
 }
 
 void
-cxgbe_tls_tag_free(struct m_snd_tag *mst)
+t6_tls_tag_free(struct m_snd_tag *mst)
 {
 	struct adapter *sc;
 	struct tlspcb *tlsp;
@@ -2113,7 +2113,7 @@ t6_ktls_modunload(void)
 #else
 
 int
-cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
 {
 	return (ENXIO);
@@ -2133,7 +2133,7 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
 }
 
 void
-cxgbe_tls_tag_free(struct m_snd_tag *mst)
+t6_tls_tag_free(struct m_snd_tag *mst)
 {
 	panic("can't happen");
 }

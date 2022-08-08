@@ -691,7 +691,7 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, cop_managed_offloading, CTLFLAG_RDTUN,
  */
 static int t4_kern_tls = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, kern_tls, CTLFLAG_RDTUN, &t4_kern_tls, 0,
-    "Enable KERN_TLS mode for all supported adapters");
+    "Enable KERN_TLS mode for T6 adapters");
 
 SYSCTL_NODE(_hw_cxgbe, OID_AUTO, tls, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "cxgbe(4) KERN_TLS parameters");
@@ -1846,7 +1846,10 @@ ok_to_reset(struct adapter *sc)
 	struct port_info *pi;
 	struct vi_info *vi;
 	int i, j;
-	const int caps = IFCAP_TOE | IFCAP_TXTLS | IFCAP_NETMAP | IFCAP_TXRTLMT;
+	int caps = IFCAP_TOE | IFCAP_NETMAP | IFCAP_TXRTLMT;
+
+	if (is_t6(sc))
+		caps |= IFCAP_TXTLS;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	MPASS(!(sc->flags & IS_VF));
@@ -2563,7 +2566,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 #ifdef KERN_TLS
 	if (is_ktls(sc)) {
 		ifp->if_capabilities |= IFCAP_TXTLS;
-		if (sc->flags & KERN_TLS_ON)
+		if (sc->flags & KERN_TLS_ON || !is_t6(sc))
 			ifp->if_capenable |= IFCAP_TXTLS;
 	}
 #endif
@@ -3171,8 +3174,15 @@ cxgbe_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 #endif
 #ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS:
-		error = cxgbe_tls_tag_alloc(ifp, params, pt);
+	{
+		struct vi_info *vi = ifp->if_softc;
+
+		if (is_t6(vi->pi->adapter))
+			error = t6_tls_tag_alloc(ifp, params, pt);
+		else
+			error = EOPNOTSUPP;
 		break;
+	}
 #endif
 	default:
 		error = EOPNOTSUPP;
@@ -3222,7 +3232,7 @@ cxgbe_snd_tag_free(struct m_snd_tag *mst)
 #endif
 #ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS:
-		cxgbe_tls_tag_free(mst);
+		t6_tls_tag_free(mst);
 		return;
 #endif
 	default:
@@ -5556,7 +5566,7 @@ ktls_tick(void *arg)
 }
 
 static int
-t4_config_kern_tls(struct adapter *sc, bool enable)
+t6_config_kern_tls(struct adapter *sc, bool enable)
 {
 	int rc;
 	uint32_t param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
@@ -5702,12 +5712,13 @@ set_params__post_init(struct adapter *sc)
 		 */
 		t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
 		    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
-		if (is_ktls(sc)) {
-			sc->tlst.inline_keys = t4_tls_inline_keys;
-			sc->tlst.combo_wrs = t4_tls_combo_wrs;
-			if (t4_kern_tls != 0)
-				t4_config_kern_tls(sc, true);
-		}
+	}
+
+	if (is_ktls(sc)) {
+		sc->tlst.inline_keys = t4_tls_inline_keys;
+		sc->tlst.combo_wrs = t4_tls_combo_wrs;
+		if (t4_kern_tls != 0 && is_t6(sc))
+			t6_config_kern_tls(sc, true);
 	}
 #endif
 	return (0);
@@ -7588,9 +7599,12 @@ t4_sysctls(struct adapter *sc)
 		    CTLFLAG_RW, &sc->tlst.inline_keys, 0, "Always pass TLS "
 		    "keys in work requests (1) or attempt to store TLS keys "
 		    "in card memory.");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "combo_wrs",
-		    CTLFLAG_RW, &sc->tlst.combo_wrs, 0, "Attempt to combine "
-		    "TCB field updates with TLS record work requests.");
+
+		if (is_t6(sc))
+			SYSCTL_ADD_INT(ctx, children, OID_AUTO, "combo_wrs",
+			    CTLFLAG_RW, &sc->tlst.combo_wrs, 0, "Attempt to "
+			    "combine TCB field updates with TLS record work "
+			    "requests.");
 	}
 #endif
 
@@ -12428,7 +12442,7 @@ toe_capability(struct vi_info *vi, bool enable)
 
 	if (enable) {
 #ifdef KERN_TLS
-		if (sc->flags & KERN_TLS_ON) {
+		if (sc->flags & KERN_TLS_ON && is_t6(sc)) {
 			int i, j, n;
 			struct port_info *p;
 			struct vi_info *v;
@@ -12455,7 +12469,7 @@ toe_capability(struct vi_info *vi, bool enable)
 				    "trying to enable TOE.\n");
 				return (EAGAIN);
 			}
-			rc = t4_config_kern_tls(sc, false);
+			rc = t6_config_kern_tls(sc, false);
 			if (rc)
 				return (rc);
 		}
@@ -12698,6 +12712,8 @@ ktls_capability(struct adapter *sc, bool enable)
 
 	if (!is_ktls(sc))
 		return (ENODEV);
+	if (!is_t6(sc))
+		return (0);
 	if (hw_off_limits(sc))
 		return (ENXIO);
 
@@ -12710,7 +12726,7 @@ ktls_capability(struct adapter *sc, bool enable)
 			    "this adapter before trying to enable NIC TLS.\n");
 			return (EAGAIN);
 		}
-		return (t4_config_kern_tls(sc, true));
+		return (t6_config_kern_tls(sc, true));
 	} else {
 		/*
 		 * Nothing to do for disable.  If TOE is enabled sometime later
