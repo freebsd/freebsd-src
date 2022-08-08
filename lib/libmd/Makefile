@@ -103,7 +103,7 @@ CFLAGS.skein_block.c+= -DSKEIN_LOOP=995
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 
 USE_ASM_SOURCES?=1
-.if defined(BOOTSTRAPPING)
+.if defined(BOOTSTRAPPING) || ${MK_MACHDEP_OPTIMIZATIONS} == no
 # Don't build ASM sources when bootstrapping to avoid toolchain dependencies
 USE_ASM_SOURCES:=0
 .endif
