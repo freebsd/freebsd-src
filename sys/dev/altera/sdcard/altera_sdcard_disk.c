@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/altera/sdcard/altera_sdcard.h>
 
 static int
-altera_sdcard_disk_dump(void *arg, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length)
+altera_sdcard_disk_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 
 	panic("%s: not yet", __func__);
