@@ -178,5 +178,7 @@ struct rib_subscription *rib_subscribe_locked(struct rib_head *rnh,
     rib_subscription_cb_t *f, void *arg, enum rib_subscription_type type);
 void rib_unsubscribe(struct rib_subscription *rs);
 void rib_unsubscribe_locked(struct rib_subscription *rs);
+void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
+    struct rib_cmd_info *rc);
 
 #endif
