@@ -227,8 +227,13 @@ bool match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw);
 int check_info_match_nhop(const struct rt_addrinfo *info,
     const struct rtentry *rt, const struct nhop_object *nh);
 
+/* route_rtentry.c */
 void vnet_rtzone_init(void);
 void vnet_rtzone_destroy(void);
+void rt_free(struct rtentry *rt);
+void rt_free_immediate(struct rtentry *rt);
+struct rtentry *rt_alloc(struct rib_head *rnh, const struct sockaddr *dst,
+    struct sockaddr *netmask);
 
 /* subscriptions */
 void rib_init_subscriptions(struct rib_head *rnh);
