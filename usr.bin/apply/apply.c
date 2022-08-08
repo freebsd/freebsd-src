@@ -176,23 +176,24 @@ main(int argc, char *argv[])
 	 */
 	for (rval = 0; argc > nargs; argc -= nargs, argv += nargs) {
 		sbuf_clear(cmdbuf);
-		sbuf_cat(cmdbuf, "exec ");
+		if (sbuf_cat(cmdbuf, "exec ") != 0)
+			err(1, "sbuf");
 		/* Expand command argv references. */
 		for (p = cmd; *p != '\0'; ++p) {
 			if (ISMAGICNO(p)) {
-				if (sbuf_cat(cmdbuf, argv[(++p)[0] - '0'])
-				    == -1)
-					errc(1, ENOMEM, "sbuf");
+				if (sbuf_cat(cmdbuf, argv[*++p - '0']) != 0)
+					err(1, "sbuf");
 			} else {
-				if (sbuf_putc(cmdbuf, *p) == -1)
-					errc(1, ENOMEM, "sbuf");
+				if (sbuf_putc(cmdbuf, *p) != 0)
+					err(1, "sbuf");
 			}
 			if (sbuf_len(cmdbuf) > arg_max)
 				errc(1, E2BIG, NULL);
 		}
 
 		/* Terminate the command string. */
-		sbuf_finish(cmdbuf);
+		if (sbuf_finish(cmdbuf) != 0)
+			err(1, "sbuf");
 
 		/* Run the command. */
 		if (debug)
