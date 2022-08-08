@@ -721,6 +721,26 @@ pipe_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int size;
 
 	rpipe = fp->f_data;
+
+	/*
+	 * Try to avoid locking the pipe if we have nothing to do.
+	 *
+	 * There are programs which share one pipe amongst multiple processes
+	 * and perform non-blocking reads in parallel, even if the pipe is
+	 * empty.  This in particular is the case with BSD make, which when
+	 * spawned with a high -j number can find itself with over half of the
+	 * calls failing to find anything.
+	 */
+	if ((fp->f_flag & FNONBLOCK) != 0 && !mac_pipe_check_read_enabled()) {
+		if (__predict_false(uio->uio_resid == 0))
+			return (0);
+		if ((atomic_load_short(&rpipe->pipe_state) & PIPE_EOF) != 0)
+			return (0);
+		if (atomic_load_int(&rpipe->pipe_buffer.cnt) == 0 &&
+		    atomic_load_int(&rpipe->pipe_pages.cnt) == 0)
+			return (EAGAIN);
+	}
+
 	PIPE_LOCK(rpipe);
 	++rpipe->pipe_busy;
 	error = pipelock(rpipe, 1);
