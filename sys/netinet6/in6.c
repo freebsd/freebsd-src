@@ -1267,6 +1267,29 @@ in6_broadcast_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	return (error);
 }
 
+static int
+in6_handle_dstaddr_rtadd(uint32_t fibnum, struct sockaddr *dst, struct ifaddr *ifa)
+{
+	struct nhop_object *nh = nhop_alloc(fibnum, dst->sa_family);
+	struct route_nhop_data rnd = { .rnd_weight = RT_DEFAULT_WEIGHT };
+	int error = 0;
+
+	if (nh == NULL)
+		return (ENOMEM);
+	nhop_set_direct_gw(nh, ifa->ifa_ifp);
+	nhop_set_transmit_ifp(nh, ifa->ifa_ifp);
+	nhop_set_src(nh, ifa);
+	nhop_set_pinned(nh, true);
+	nhop_set_pxtype_flag(nh, NHF_HOST);
+	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
+	if (error == 0) {
+		int op_flags = RTM_F_CREATE | RTM_F_REPLACE | RTM_F_FORCE;
+		error = rib_add_kernel_px(fibnum, dst, -1, &rnd, op_flags);
+	}
+
+	return (error);
+}
+
 /*
  * Adds or deletes interface route for p2p ifa.
  * Returns 0 on success or errno.
@@ -1276,15 +1299,8 @@ in6_handle_dstaddr_rtrequest(int cmd, struct in6_ifaddr *ia)
 {
 	struct epoch_tracker et;
 	struct ifaddr *ifa = &ia->ia_ifa;
+	uint32_t fibnum = ifa->ifa_ifp->if_fib;
 	int error;
-
-	/* Prepare gateway */
-	struct sockaddr_dl_short sdl = {
-		.sdl_family = AF_LINK,
-		.sdl_len = sizeof(struct sockaddr_dl_short),
-		.sdl_type = ifa->ifa_ifp->if_type,
-		.sdl_index = ifa->ifa_ifp->if_index,
-	};
 
 	struct sockaddr_in6 dst = {
 		.sin6_family = AF_INET6,
@@ -1292,19 +1308,17 @@ in6_handle_dstaddr_rtrequest(int cmd, struct in6_ifaddr *ia)
 		.sin6_addr = ia->ia_dstaddr.sin6_addr,
 	};
 
-	struct rt_addrinfo info = {
-		.rti_ifa = ifa,
-		.rti_ifp = ifa->ifa_ifp,
-		.rti_flags = RTF_PINNED | RTF_HOST,
-		.rti_info = {
-			[RTAX_DST] = (struct sockaddr *)&dst,
-			[RTAX_GATEWAY] = (struct sockaddr *)&sdl,
-		},
-	};
-	/* Don't set additional per-gw filters on removal */
-
 	NET_EPOCH_ENTER(et);
-	error = rib_handle_ifaddr_info(ifa->ifa_ifp->if_fib, cmd, &info);
+	if (cmd == RTM_DELETE) {
+		struct sockaddr_dl link_sdl;
+		struct sockaddr *gw = (struct sockaddr *)&link_sdl;
+		struct ifnet *ifp = ifa->ifa_ifp;
+
+		link_init_sdl(ifp, gw, ifp->if_type);
+		error = rib_del_kernel_px(fibnum, (struct sockaddr *)&dst, 128,
+		    rib_match_gw, gw, RTM_F_FORCE);
+	} else
+		error = in6_handle_dstaddr_rtadd(fibnum, (struct sockaddr *)&dst, ifa);
 	NET_EPOCH_EXIT(et);
 
 	return (error);

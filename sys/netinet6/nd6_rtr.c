@@ -2014,41 +2014,55 @@ restart:
 	ND6_ONLINK_UNLOCK();
 }
 
+static int
+nd6_prefix_rtadd(uint32_t fibnum, struct sockaddr *dst, int plen,
+    struct ifnet *ifp, struct ifaddr *ifa)
+{
+	struct route_nhop_data rnd = { .rnd_weight = RT_DEFAULT_WEIGHT };
+	int error = 0;
+
+	struct nhop_object *nh = nhop_alloc(fibnum, dst->sa_family);
+	if (nh == NULL)
+		return (ENOMEM);
+	nhop_set_direct_gw(nh, ifp);
+	nhop_set_transmit_ifp(nh, ifp);
+	nhop_set_src(nh, ifa);
+	nhop_set_pinned(nh, true);
+	nhop_set_pxtype_flag(nh, plen == 128 ? NHF_HOST : 0);
+	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
+	if (error == 0) {
+		int op_flags = RTM_F_CREATE | RTM_F_REPLACE | RTM_F_FORCE;
+		error = rib_add_kernel_px(fibnum, dst, plen, &rnd, op_flags);
+	}
+
+	return (error);
+}
+
 /*
  * Add or remove interface route specified by @dst, @netmask and @ifp.
  * ifa can be NULL.
  * Returns 0 on success
  */
 static int
-nd6_prefix_rtrequest(uint32_t fibnum, int cmd, struct sockaddr_in6 *dst,
-    struct sockaddr_in6 *netmask, struct ifnet *ifp, struct ifaddr *ifa)
+nd6_prefix_rtrequest(uint32_t fibnum, int cmd, struct sockaddr *dst,
+    int plen, struct ifnet *ifp, struct ifaddr *ifa)
 {
 	struct epoch_tracker et;
 	int error;
 
-	/* Prepare gateway */
-	struct sockaddr_dl_short sdl = {
-		.sdl_family = AF_LINK,
-		.sdl_len = sizeof(struct sockaddr_dl_short),
-		.sdl_type = ifp->if_type,
-		.sdl_index = ifp->if_index,
-	};
-
-	struct rt_addrinfo info = {
-		.rti_ifa = ifa,
-		.rti_ifp = ifp,
-		.rti_flags = RTF_PINNED | ((netmask != NULL) ? 0 : RTF_HOST),
-		.rti_info = {
-			[RTAX_DST] = (struct sockaddr *)dst,
-			[RTAX_NETMASK] = (struct sockaddr *)netmask,
-			[RTAX_GATEWAY] = (struct sockaddr *)&sdl,
-		},
-	};
-	/* Don't set additional per-gw filters on removal */
-
 	NET_EPOCH_ENTER(et);
-	error = rib_handle_ifaddr_info(fibnum, cmd, &info);
+	if (cmd == RTM_DELETE) {
+		struct sockaddr_dl link_sdl;
+		struct sockaddr *gw = (struct sockaddr *)&link_sdl;
+
+		link_init_sdl(ifp, gw, ifp->if_type);
+		error = rib_del_kernel_px(fibnum, dst, plen,
+		    rib_match_gw, gw, RTM_F_FORCE);
+	} else
+		error = nd6_prefix_rtadd(fibnum, dst, plen, ifp, ifa);
+
 	NET_EPOCH_EXIT(et);
+
 	return (error);
 }
 
@@ -2057,15 +2071,8 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 {
 	int error;
 
-	struct sockaddr_in6 mask6 = {
-		.sin6_family = AF_INET6,
-		.sin6_len = sizeof(struct sockaddr_in6),
-		.sin6_addr = pr->ndpr_mask,
-	};
-	struct sockaddr_in6 *pmask6 = (pr->ndpr_plen != 128) ? &mask6 : NULL;
-
 	error = nd6_prefix_rtrequest(pr->ndpr_ifp->if_fib, RTM_ADD,
-	    &pr->ndpr_prefix, pmask6, pr->ndpr_ifp, ifa);
+	    (struct sockaddr *)&pr->ndpr_prefix, pr->ndpr_plen, pr->ndpr_ifp, ifa);
 	if (error == 0)
 		pr->ndpr_stateflags |= NDPRF_ONLINK;
 
@@ -2176,10 +2183,9 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		.sin6_len = sizeof(struct sockaddr_in6),
 		.sin6_addr = pr->ndpr_mask,
 	};
-	struct sockaddr_in6 *pmask6 = (pr->ndpr_plen != 128) ? &mask6 : NULL;
 
 	error = nd6_prefix_rtrequest(ifp->if_fib, RTM_DELETE,
-	    &pr->ndpr_prefix, pmask6, ifp, NULL);
+	    (struct sockaddr *)&pr->ndpr_prefix, pr->ndpr_plen, ifp, NULL);
 
 	a_failure = 1;
 	if (error == 0) {
