@@ -343,13 +343,17 @@ l9p_puqids(struct l9p_message *msg, uint16_t *num, struct l9p_qid *qids)
 	ssize_t ret, r;
 
 	r = l9p_pu16(msg, num);
-	if (r > 0) {
-		for (i = 0, lim = *num; i < lim; i++) {
-			ret = l9p_puqid(msg, &qids[i]);
-			if (ret < 0)
-				return (-1);
-			r += ret;
-		}
+	if (r <= 0)
+		return (r);
+
+	if (*num > L9P_MAX_WELEM)
+		return (-1);
+
+	for (i = 0, lim = *num; i < lim; i++) {
+		ret = l9p_puqid(msg, &qids[i]);
+		if (ret < 0)
+			return (-1);
+		r += ret;
 	}
 	return (r);
 }
