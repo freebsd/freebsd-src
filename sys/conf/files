@@ -4235,6 +4235,8 @@ net/route/route_ctl.c		standard
 net/route/route_ddb.c		optional ddb
 net/route/route_helpers.c	standard
 net/route/route_ifaddrs.c	standard
+net/route/route_rtentry.c	standard
+net/route/route_subscription.c	standard
 net/route/route_tables.c	standard
 net/route/route_temporal.c	standard
 net/rss_config.c		optional inet rss | inet6 rss
