@@ -640,6 +640,9 @@ t4_alloc_tls_keyid(struct adapter *sc)
 {
 	vmem_addr_t addr;
 
+	if (sc->vres.key.size == 0)
+		return (-1);
+
 	if (vmem_alloc(sc->key_map, TLS_KEY_CONTEXT_SZ, M_NOWAIT | M_FIRSTFIT,
 	    &addr) != 0)
 		return (-1);
