@@ -1299,8 +1299,8 @@ void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 void t4_os_cim_err(struct adapter *);
 
 #ifdef KERN_TLS
-/* t4_kern_tls.c */
-int cxgbe_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
+/* t6_kern_tls.c */
+int t6_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
 void t6_ktls_modload(void);
 void t6_ktls_modunload(void);
