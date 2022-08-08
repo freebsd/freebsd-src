@@ -76,7 +76,6 @@ struct tls_ofld_info {
 	int key_location;
 	int rx_key_addr;
 	int tx_key_addr;
-	uint64_t tx_seq_no;
 	uint16_t rx_version;
 	unsigned short fcplenmax;
 	unsigned short adjusted_plen;
