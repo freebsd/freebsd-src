@@ -129,11 +129,6 @@ tls_clr_ofld_mode(struct toepcb *toep)
 static inline unsigned char
 tls_content_type(unsigned char content_type)
 {
-	/*
-	 * XXX: Shouldn't this map CONTENT_TYPE_APP_DATA to DATA and
-	 * default to "CUSTOM" for all other types including
-	 * heartbeat?
-	 */
 	switch (content_type) {
 	case CONTENT_TYPE_CCS:
 		return CPL_TX_TLS_SFO_TYPE_CCS;
@@ -141,10 +136,11 @@ tls_content_type(unsigned char content_type)
 		return CPL_TX_TLS_SFO_TYPE_ALERT;
 	case CONTENT_TYPE_HANDSHAKE:
 		return CPL_TX_TLS_SFO_TYPE_HANDSHAKE;
-	case CONTENT_TYPE_HEARTBEAT:
-		return CPL_TX_TLS_SFO_TYPE_HEARTBEAT;
+	case CONTENT_TYPE_APP_DATA:
+		return CPL_TX_TLS_SFO_TYPE_DATA;
+	default:
+		return CPL_TX_TLS_SFO_TYPE_CUSTOM;
 	}
-	return CPL_TX_TLS_SFO_TYPE_DATA;
 }
 
 /* TLS Key memory management */
@@ -545,7 +541,7 @@ write_tlstx_cpl(struct cpl_tx_tls_sfo *cpl, struct toepcb *toep,
 	    V_CPL_TX_TLS_SFO_DATA_TYPE(data_type) |
 	    V_CPL_TX_TLS_SFO_CPL_LEN(2) | V_CPL_TX_TLS_SFO_SEG_LEN(seglen));
 	cpl->pld_len = htobe32(plen);
-	if (data_type == CPL_TX_TLS_SFO_TYPE_HEARTBEAT)
+	if (data_type == CPL_TX_TLS_SFO_TYPE_CUSTOM)
 		cpl->type_protover = htobe32(
 		    V_CPL_TX_TLS_SFO_TYPE(tls_hdr->type));
 	cpl->seqno_numivs = htobe32(tls_ofld->scmd0.seqno_numivs |
