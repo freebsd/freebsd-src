@@ -77,7 +77,7 @@ arm_create_disk() {
 		chroot ${CHROOTDIR} newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
 		chroot ${CHROOTDIR} gpart add -t freebsd ${mddev}
 		chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
-		chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k ${mddev}s2
+		chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k -b 64k ${mddev}s2
 		chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
 	fi
 
