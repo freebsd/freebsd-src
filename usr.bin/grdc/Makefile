@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	games
+
 PROG=	grdc
 MAN=	grdc.6
 LIBADD=	ncursesw
