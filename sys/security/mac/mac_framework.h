@@ -271,7 +271,22 @@ extern bool mac_pipe_check_stat_fp_flag;
 #endif
 #define mac_pipe_check_stat_enabled() __predict_false(mac_pipe_check_stat_fp_flag)
 int	mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp);
-int	mac_pipe_check_read(struct ucred *cred, struct pipepair *pp);
+int	mac_pipe_check_read_impl(struct ucred *cred, struct pipepair *pp);
+#ifdef MAC
+extern bool mac_pipe_check_read_fp_flag;
+#else
+#define mac_pipe_check_read_fp_flag false
+#endif
+#define mac_pipe_check_read_enabled() __predict_false(mac_pipe_check_read_fp_flag)
+static inline int
+mac_pipe_check_read(struct ucred *cred, struct pipepair *pp)
+{
+
+	if (mac_pipe_check_read_enabled())
+		return (mac_pipe_check_read_impl(cred, pp));
+	return (0);
+}
+
 int	mac_pipe_check_write(struct ucred *cred, struct pipepair *pp);
 void	mac_pipe_create(struct ucred *cred, struct pipepair *pp);
 void	mac_pipe_destroy(struct pipepair *);
