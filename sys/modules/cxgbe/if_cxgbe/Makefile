@@ -24,7 +24,7 @@ SRCS+=	t4_hw.c
 SRCS+=	t4_if.c t4_if.h
 SRCS+=	t4_iov.c
 .if ${KERN_OPTS:MKERN_TLS} != ""
-SRCS+=	t4_kern_tls.c
+SRCS+=	t6_kern_tls.c
 .endif
 SRCS+=	t4_keyctx.c
 SRCS+=	t4_l2t.c
