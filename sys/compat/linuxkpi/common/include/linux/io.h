@@ -38,7 +38,9 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#if defined(__amd64__) || defined(__arm64__) || defined(__i386__) || defined(__riscv__)
 #include <asm/set_memory.h>
+#endif
 
 /*
  * XXX This is all x86 specific.  It should be bus space access.
