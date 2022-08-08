@@ -38,7 +38,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#if defined(__amd64__) || defined(__arm64__) || defined(__i386__) || defined(__riscv__)
+#if !defined(__arm__)
 #include <asm/set_memory.h>
 #endif
 
