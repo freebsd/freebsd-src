@@ -74,7 +74,7 @@ void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, u_int8_t, u_int8_t, int, int);
 int		 ifa_skip_if(const char *filter, struct node_host *p);
 
-struct node_host	*host_if(const char *, int);
+struct node_host	*host_if(const char *, int, int *);
 struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
 struct node_host	*host_dns(const char *, int, int);
@@ -1695,7 +1695,7 @@ host(const char *s)
 
 	/* interface with this name exists? */
 	/* expensive with thousands of interfaces - prioritze IPv4/6 check */
-	if (cont && (h = host_if(ps, mask)) != NULL)
+	if (cont && (h = host_if(ps, mask, &cont)) != NULL)
 		cont = 0;
 
 	/* dns lookup */
@@ -1711,7 +1711,7 @@ host(const char *s)
 }
 
 struct node_host *
-host_if(const char *s, int mask)
+host_if(const char *s, int mask, int *cont)
 {
 	struct node_host	*n, *h = NULL;
 	char			*p, *ps;
@@ -1733,6 +1733,7 @@ host_if(const char *s, int mask)
 			return (NULL);
 		}
 		*p = '\0';
+		*cont = 0;
 	}
 	if (flags & (flags - 1) & PFI_AFLAG_MODEMASK) { /* Yep! */
 		fprintf(stderr, "illegal combination of interface modifiers\n");
