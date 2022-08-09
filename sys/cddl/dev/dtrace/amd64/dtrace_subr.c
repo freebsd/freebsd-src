@@ -50,7 +50,7 @@
 extern void dtrace_getnanotime(struct timespec *tsp);
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 
-int	dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
+int	dtrace_invop(uintptr_t, struct trapframe *, void **);
 int	dtrace_invop_start(struct trapframe *frame);
 void	dtrace_invop_init(void);
 void	dtrace_invop_uninit(void);
@@ -63,15 +63,16 @@ typedef struct dtrace_invop_hdlr {
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, struct trapframe *frame, uintptr_t eax)
+dtrace_invop(uintptr_t addr, struct trapframe *frame, void **scratch)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
-	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
-		if ((rval = hdlr->dtih_func(addr, frame, eax)) != 0)
+	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next) {
+		rval = hdlr->dtih_func(addr, frame, (uintptr_t)scratch);
+		if (rval != 0)
 			return (rval);
-
+	}
 	return (0);
 }
 
