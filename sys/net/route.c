@@ -188,11 +188,10 @@ int
 rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
     struct sockaddr *author, struct ifnet *ifp, int flags, int lifetime_sec)
 {
+	struct route_nhop_data rnd = { .rnd_weight = RT_DEFAULT_WEIGHT };
 	struct rib_cmd_info rc;
-	int error;
-	struct rt_addrinfo info;
-	struct rt_metrics rti_rmx;
 	struct ifaddr *ifa;
+	int error;
 
 	NET_EPOCH_ASSERT();
 
@@ -208,21 +207,21 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	if ((ifa = ifaof_ifpforaddr(gateway, ifp)) == NULL)
 		return (ENETUNREACH);
 
-	bzero(&info, sizeof(info));
-	info.rti_info[RTAX_DST] = dst;
-	info.rti_info[RTAX_GATEWAY] = gateway;
-	info.rti_ifa = ifa;
-	info.rti_ifp = ifp;
-	info.rti_flags = flags;
+	struct nhop_object *nh = nhop_alloc(fibnum, dst->sa_family);
+	if (nh == NULL)
+		return (ENOMEM);
 
-	/* Setup route metrics to define expire time. */
-	bzero(&rti_rmx, sizeof(rti_rmx));
-	/* Set expire time as absolute. */
-	rti_rmx.rmx_expire = lifetime_sec + time_second;
-	info.rti_mflags |= RTV_EXPIRE;
-	info.rti_rmx = &rti_rmx;
-
-	error = rib_action(fibnum, RTM_ADD, &info, &rc);
+	nhop_set_gw(nh, gateway, flags & RTF_GATEWAY);
+	nhop_set_transmit_ifp(nh, ifp);
+	nhop_set_src(nh, ifa);
+	nhop_set_pxtype_flag(nh, NHF_HOST);
+	nhop_set_expire(nh, lifetime_sec + time_uptime);
+	nhop_set_redirect(nh, true);
+	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
+	if (error == 0) {
+		error = rib_add_route_px(fibnum, dst, -1,
+		    &rnd, RTM_F_CREATE, &rc);
+	}
 
 	if (error != 0) {
 		/* TODO: add per-fib redirect stats. */
@@ -232,10 +231,11 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	RTSTAT_INC(rts_dynamic);
 
 	/* Send notification of a route addition to userland. */
-	bzero(&info, sizeof(info));
-	info.rti_info[RTAX_DST] = dst;
-	info.rti_info[RTAX_GATEWAY] = gateway;
-	info.rti_info[RTAX_AUTHOR] = author;
+	struct rt_addrinfo info = {
+		.rti_info[RTAX_DST] = dst,
+		.rti_info[RTAX_GATEWAY] = gateway,
+		.rti_info[RTAX_AUTHOR] = author,
+	};
 	rt_missmsg_fib(RTM_REDIRECT, &info, flags | RTF_UP, error, fibnum);
 
 	return (0);
