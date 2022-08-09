@@ -341,4 +341,24 @@ dma_max_mapping_size(struct device *dev)
 extern int uma_align_cache;
 #define	dma_get_cache_alignment()	uma_align_cache
 
+
+static inline int
+dma_map_sgtable(struct device *dev, struct sg_table *sgt,
+    enum dma_data_direction dir,
+    unsigned long attrs)
+{
+
+	return (dma_map_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs));
+}
+
+static inline void
+dma_unmap_sgtable(struct device *dev, struct sg_table *sgt,
+    enum dma_data_direction dir,
+    unsigned long attrs)
+{
+
+	dma_unmap_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs);
+}
+
+
 #endif	/* _LINUXKPI_LINUX_DMA_MAPPING_H_ */
