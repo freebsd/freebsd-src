@@ -8,7 +8,6 @@ COUNT_XINVLTLB_HITS	opt_smp.h
 COUNT_IPIS		opt_smp.h
 MAXMEM
 MPTABLE_FORCE_HTT
-MP_WATCHDOG
 NKPT			opt_pmap.h
 PV_STATS		opt_pmap.h
 

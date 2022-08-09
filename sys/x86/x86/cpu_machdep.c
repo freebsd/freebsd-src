@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdb.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_mp_watchdog.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
 #ifdef __i386__
@@ -81,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
-#include <machine/mp_watchdog.h>
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -656,9 +654,6 @@ cpu_idle(int busy)
 	sbintime_t sbt = -1;
 
 	CTR1(KTR_SPARE2, "cpu_idle(%d)", busy);
-#ifdef MP_WATCHDOG
-	ap_watchdog(PCPU_GET(cpuid));
-#endif
 
 	/* If we are busy - try to use fast methods. */
 	if (busy) {
