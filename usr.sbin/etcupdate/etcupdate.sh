@@ -225,7 +225,7 @@ build_tree()
 	find $1 -type f -size 0 -delete || return 1
 
 	# Trim empty directories.
-	find -d $1 -type d -empty -delete || return 1
+	find $1 -depth -type d -empty -delete || return 1
 	return 0
 )
 
