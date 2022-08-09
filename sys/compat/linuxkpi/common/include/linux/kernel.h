@@ -682,6 +682,8 @@ linux_ratelimited(linux_ratelimit_t *rl)
 
 #define	TAINT_WARN	0
 #define	test_taint(x)	(0)
+#define	add_taint(x,y)	do {	\
+	} while (0)
 
 static inline int
 _h2b(const char c)
