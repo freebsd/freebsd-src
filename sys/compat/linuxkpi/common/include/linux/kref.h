@@ -43,6 +43,7 @@
 #include <asm/atomic.h>
 
 struct kref {
+	/* XXX In Linux this is a refcount_t */
 	atomic_t refcount;
 };
 

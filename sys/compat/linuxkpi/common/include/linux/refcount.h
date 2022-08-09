@@ -79,4 +79,15 @@ refcount_dec_and_lock_irqsave(refcount_t *ref, spinlock_t *lock,
 	return (false);
 }
 
+/*
+ * struct kref uses atomic_t and not refcount_t so
+ * we differ from Linux here.
+ */
+static inline bool
+refcount_dec_and_test(atomic_t *r)
+{
+
+	return (atomic_dec_and_test(r));
+}
+
 #endif /* __LINUXKPI_LINUX_REFCOUNT_H__ */
