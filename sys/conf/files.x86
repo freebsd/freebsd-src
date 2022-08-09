@@ -335,7 +335,6 @@ x86/x86/legacy.c		standard
 x86/x86/mca.c			standard
 x86/x86/x86_mem.c		optional	mem
 x86/x86/mp_x86.c		optional	smp
-x86/x86/mp_watchdog.c		optional	mp_watchdog smp
 x86/x86/nexus.c			standard
 x86/x86/pvclock.c		optional	kvm_clock | xenhvm
 x86/x86/stack_machdep.c		optional	ddb | stack

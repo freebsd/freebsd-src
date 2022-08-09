@@ -60,11 +60,6 @@ device		apic			# I/O apic
 options 	MPTABLE_FORCE_HTT	# Enable HTT CPUs with the MP Table
 options 	IPI_PREEMPTION
 
-#
-# Watchdog routines.
-#
-options 	MP_WATCHDOG
-
 # Debugging options.
 #
 options 	COUNT_XINVLTLB_HITS	# Counters for TLB events

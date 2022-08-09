@@ -43,11 +43,6 @@ options 	IPI_PREEMPTION
 device		atpic			# Optional legacy pic support
 device		mptable			# Optional MPSPEC mptable support
 
-#
-# Watchdog routines.
-#
-options 	MP_WATCHDOG
-
 # Debugging options.
 #
 options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
