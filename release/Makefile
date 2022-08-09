@@ -117,15 +117,22 @@ clean: beforeclean
 base.txz:
 	mkdir -p ${DISTDIR}
 	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR}
-# TODO: Add NO_ROOT mode to mm-tree.sh and etcupdate
+# TODO: Add NO_ROOT mode to mm-tree.sh
 .if !defined(NO_ROOT)
 # Set up mergemaster root database
 	sh ${.CURDIR}/scripts/mm-mtree.sh -m ${WORLDDIR} -F \
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET} ${.MAKE.JOBS:D-j${.MAKE.JOBS}}" \
 	    -D "${.OBJDIR}/${DISTDIR}/base"
+.endif
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
-	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate"
+	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate" \
+	    ${NO_ROOT:D-N}
+.if defined(NO_ROOT)
+	echo "./var/db/etcupdate type=dir uname=root gname=wheel mode=0755" >> ${.OBJDIR}/${DISTDIR}/base.meta
+	sed -n 's,^\.,./var/db/etcupdate/current,p' ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG \
+	    >> ${.OBJDIR}/${DISTDIR}/base.meta
+	rm ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG
 .endif
 # Package all components
 	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR}
