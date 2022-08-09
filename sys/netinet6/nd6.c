@@ -1575,18 +1575,15 @@ nd6_free_redirect(const struct llentry *ln)
 {
 	int fibnum;
 	struct sockaddr_in6 sin6;
-	struct rt_addrinfo info;
 	struct rib_cmd_info rc;
 	struct epoch_tracker et;
 
 	lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
-	memset(&info, 0, sizeof(info));
-	info.rti_info[RTAX_DST] = (struct sockaddr *)&sin6;
-	info.rti_filter = nd6_isdynrte;
 
 	NET_EPOCH_ENTER(et);
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
-		rib_action(fibnum, RTM_DELETE, &info, &rc);
+		rib_del_route_px(fibnum, (struct sockaddr *)&sin6, 128,
+		    nd6_isdynrte, NULL, 0, &rc);
 	NET_EPOCH_EXIT(et);
 }
 
