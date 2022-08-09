@@ -3778,6 +3778,7 @@ kern/kern_cpu.c			standard
 kern/kern_cpuset.c		standard
 kern/kern_context.c		standard
 kern/kern_descrip.c		standard
+kern/kern_devctl.c		standard
 kern/kern_dtrace.c		optional kdtrace_hooks
 kern/kern_dump.c		standard
 kern/kern_environment.c		standard
