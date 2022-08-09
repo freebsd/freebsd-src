@@ -1,5 +1,9 @@
 /*
  * Copyright (c) 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+ * Copyright (c) 2022 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Mark Johnston under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +29,13 @@
 
 /*
  * Test behavior when a mapping of a shared shadow vm object is
- * invalidated by COW from another mapping.
+ * invalidated by COW from another mapping.  In particular, when
+ * minherit(INHERT_SHARE) is applied to a COW mapping, a subsequently
+ * forked child process will share the parent's shadow object.  Thus,
+ * pages already mapped into one sharing process may be written from
+ * another, triggering a copy into the shadow object.  The VM system
+ * expects that a fully shadowed page is unmapped, but at one point the
+ * use of a shared shadow object could break this invariant.
  *
  * This is a regression test for an issue isolated by rlibby@FreeBSD.org
  * from an issue detected by stress2's collapse.sh by jeff@FreeBSD.org.
@@ -35,10 +45,13 @@
  * standalone program with -DSTANDALONE (and optionally -DDEBUG).
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/procctl.h>
+#include <sys/resource.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
+
 #include <machine/atomic.h>
 
 #include <err.h>
@@ -49,7 +62,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#ifdef	STANDALONE
+#ifdef STANDALONE
 #define	ATF_REQUIRE(x)	do {		\
 	if (!(x))			\
 		errx(1, "%s", #x);	\
@@ -58,7 +71,7 @@
 #include <atf-c.h>
 #endif
 
-#ifdef	DEBUG
+#ifdef DEBUG
 #define	dprintf(...)	printf(__VA_ARGS__)
 #else
 #define	dprintf(...)
@@ -66,19 +79,24 @@
 
 #define	DEPTH	5
 
+#define	FLAG_COLLAPSE		0x1
+#define	FLAG_BLOCK_XFER		0x2
+#define	FLAG_FULLMOD		0x4
+#define FLAG_MASK		(FLAG_COLLAPSE | FLAG_BLOCK_XFER | FLAG_FULLMOD)
+
 struct shared_state {
 	void *p;
 	size_t len;
 	size_t modlen;
+	size_t pagesize;
 	bool collapse;
 	bool block_xfer;
+	bool lazy_cow;
 	bool okay;
 	volatile bool exiting[DEPTH];
 	volatile bool exit;
 	volatile bool p3_did_write;
 };
-
-static long g_pagesize;
 
 /*
  * Program flow.  There are three or four processes that are descendants
@@ -123,7 +141,7 @@ child_fault(struct shared_state *ss)
 {
 	size_t i;
 
-	for (i = 0; i < ss->len; i += g_pagesize)
+	for (i = 0; i < ss->len; i += ss->pagesize)
 		(void)((volatile char *)ss->p)[i];
 }
 
@@ -132,7 +150,7 @@ child_write(struct shared_state *ss, int val, size_t len)
 {
 	size_t i;
 
-	for (i = 0; i < len; i += g_pagesize)
+	for (i = 0; i < len; i += ss->pagesize)
 		((int *)ss->p)[i / sizeof(int)] = val;
 	atomic_thread_fence_rel();
 }
@@ -154,7 +172,7 @@ child_verify(struct shared_state *ss, int depth, int newval, int oldval)
 	size_t i;
 	int expectval, foundval;
 
-	for (i = 0; i < ss->len; i += g_pagesize) {
+	for (i = 0; i < ss->len; i += ss->pagesize) {
 		expectval = i < ss->modlen ? newval : oldval;
 		foundval = ((int *)ss->p)[i / sizeof(int)];
 		if (foundval == expectval)
@@ -180,8 +198,15 @@ child(struct shared_state *ss, int depth)
 		    MAP_SHARED | MAP_ANON, -1, 0);
 		if (ss->p == MAP_FAILED)
 			child_err("mmap");
+
 		/* P1 stamps the shared memory. */
 		child_write(ss, mypid, ss->len);
+		if (!ss->lazy_cow) {
+			if (mlock(ss->p, ss->len) == -1)
+				child_err("mprotect");
+			if (mprotect(ss->p, ss->len, PROT_READ) == -1)
+				child_err("mprotect");
+		}
 		if (ss->block_xfer) {
 			/*
 			 * P4 is forked so that its existence blocks a page COW
@@ -216,12 +241,16 @@ child(struct shared_state *ss, int depth)
 		 */
 		if (minherit(ss->p, ss->len, INHERIT_SHARE) != 0)
 			child_err("minherit");
+
 		/*
 		 * P2 faults a page in P1's object before P1 exits and the
-		 * shadow chain is collapsed.
+		 * shadow chain is collapsed.  This may be redundant if the
+		 * (read-only) mappings were copied by fork(), but it doesn't
+		 * hurt.
 		 */
 		child_fault(ss);
 		oldval = atomic_load_acq_int(ss->p);
+
 		/* Fork P3. */
 		pid = child_fork(ss, depth + 1);
 		if (ss->collapse) {
@@ -242,6 +271,19 @@ child(struct shared_state *ss, int depth)
 		ss->exit = true;
 		break;
 	case 3:
+		/*
+		 * Use mlock()+mprotect() to trigger the COW.  This
+		 * exercises a different COW handler than the one used
+		 * for lazy faults.
+		 */
+		if (!ss->lazy_cow) {
+			if (mlock(ss->p, ss->len) == -1)
+				child_err("mlock");
+			if (mprotect(ss->p, ss->len, PROT_READ | PROT_WRITE) ==
+			    -1)
+				child_err("mprotect");
+		}
+
 		/*
 		 * P3 writes the memory.  A page is faulted into the shared
 		 * P2/P3 shadow object.  P2's mapping of the page in P1's
@@ -268,18 +310,17 @@ child(struct shared_state *ss, int depth)
 }
 
 static void
-do_shared_shadow_inval(bool collapse, bool block_xfer, bool full_mod)
+do_one_shared_shadow_inval(bool lazy_cow, size_t pagesize, size_t len,
+    unsigned int flags)
 {
 	struct shared_state *ss;
 	pid_t pid;
+	int status;
 
 	pid = getpid();
 
 	dprintf("P0 (pid %d) %s(collapse=%d, block_xfer=%d, full_mod=%d)\n",
 	    pid, __func__, (int)collapse, (int)block_xfer, (int)full_mod);
-
-	g_pagesize = sysconf(_SC_PAGESIZE);
-	ATF_REQUIRE(g_pagesize > 0);
 
 	ATF_REQUIRE(procctl(P_PID, pid, PROC_REAP_ACQUIRE, NULL) == 0);
 
@@ -288,10 +329,12 @@ do_shared_shadow_inval(bool collapse, bool block_xfer, bool full_mod)
 	    MAP_SHARED | MAP_ANON, -1, 0);
 	ATF_REQUIRE(ss != MAP_FAILED);
 
-	ss->len = 2 * 1024 * 1024 + g_pagesize; /* 2 MB + page size */
-	ss->modlen = full_mod ? ss->len : ss->len / 2;
-	ss->collapse = collapse;
-	ss->block_xfer = block_xfer;
+	ss->len = len;
+	ss->modlen = (flags & FLAG_FULLMOD) ? ss->len : ss->len / 2;
+	ss->pagesize = pagesize;
+	ss->collapse = (flags & FLAG_COLLAPSE) != 0;
+	ss->block_xfer = (flags & FLAG_BLOCK_XFER) != 0;
+	ss->lazy_cow = lazy_cow;
 
 	pid = fork();
 	ATF_REQUIRE(pid != -1);
@@ -300,7 +343,8 @@ do_shared_shadow_inval(bool collapse, bool block_xfer, bool full_mod)
 
 	/* Wait for all descendants to exit. */
 	do {
-		pid = wait(NULL);
+		pid = wait(&status);
+		ATF_REQUIRE(WIFEXITED(status));
 	} while (pid != -1 || errno != ECHILD);
 
 	atomic_thread_fence_acq();
@@ -310,51 +354,81 @@ do_shared_shadow_inval(bool collapse, bool block_xfer, bool full_mod)
 	ATF_REQUIRE(procctl(P_PID, getpid(), PROC_REAP_RELEASE, NULL) == 0);
 }
 
+static void
+do_shared_shadow_inval(bool lazy_cow)
+{
+	size_t largepagesize, pagesize, pagesizes[MAXPAGESIZES], sysctllen;
+
+	sysctllen = sizeof(pagesizes);
+	ATF_REQUIRE(sysctlbyname("hw.pagesizes", pagesizes, &sysctllen, NULL,
+	    0) == 0);
+	ATF_REQUIRE(sysctllen >= sizeof(size_t));
+
+	pagesize = pagesizes[0];
+	largepagesize = sysctllen >= 2 * sizeof(size_t) ?
+	    pagesizes[1] : 2 * 1024 * 1024;
+
+	for (unsigned int i = 0; i <= FLAG_MASK; i++) {
+		do_one_shared_shadow_inval(lazy_cow, pagesize,
+		    pagesize, i);
+		do_one_shared_shadow_inval(lazy_cow, pagesize,
+		    2 * pagesize, i);
+		do_one_shared_shadow_inval(lazy_cow, pagesize,
+		    largepagesize - pagesize, i);
+		do_one_shared_shadow_inval(lazy_cow, pagesize,
+		    largepagesize, i);
+		do_one_shared_shadow_inval(lazy_cow, pagesize,
+		    largepagesize + pagesize, i);
+	}
+}
+
+static void
+do_shared_shadow_inval_eager(void)
+{
+	struct rlimit rl;
+
+	rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
+	ATF_REQUIRE(setrlimit(RLIMIT_MEMLOCK, &rl) == 0);
+
+	do_shared_shadow_inval(false);
+}
+
+static void
+do_shared_shadow_inval_lazy(void)
+{
+	do_shared_shadow_inval(true);
+}
+
 #ifdef STANDALONE
 int
 main(void)
 {
-
-	do_shared_shadow_inval(false, false, false);
-	do_shared_shadow_inval(false, false, true);
-	do_shared_shadow_inval(false, true, false);
-	do_shared_shadow_inval(false, true, true);
-	do_shared_shadow_inval(true, false, false);
-	do_shared_shadow_inval(true, false, true);
-	do_shared_shadow_inval(true, true, false);
-	do_shared_shadow_inval(true, true, true);
+	do_shared_shadow_inval_lazy();
+	do_shared_shadow_inval_eager();
 	printf("pass\n");
 }
 #else
-
-#define SHARED_SHADOW_INVAL_TC(suffix, collapse, block_xfer, full_mod)	\
-ATF_TC_WITHOUT_HEAD(shared_shadow_inval__##suffix);			\
-ATF_TC_BODY(shared_shadow_inval__##suffix, tc)				\
-{									\
-	do_shared_shadow_inval(collapse, block_xfer, full_mod);		\
+ATF_TC_WITHOUT_HEAD(shared_shadow_inval__lazy_cow);
+ATF_TC_BODY(shared_shadow_inval__lazy_cow, tc)
+{
+	do_shared_shadow_inval_lazy();
 }
 
-SHARED_SHADOW_INVAL_TC(nocollapse_noblockxfer_nofullmod, false, false, false);
-SHARED_SHADOW_INVAL_TC(nocollapse_noblockxfer_fullmod, false, false, true);
-SHARED_SHADOW_INVAL_TC(nocollapse_blockxfer_nofullmod, false, true, false);
-SHARED_SHADOW_INVAL_TC(nocollapse_blockxfer_fullmod, false, true, true);
-SHARED_SHADOW_INVAL_TC(collapse_noblockxfer_nofullmod, true, false, false);
-SHARED_SHADOW_INVAL_TC(collapse_noblockxfer_fullmod, true, false, true);
-SHARED_SHADOW_INVAL_TC(collapse_blockxfer_nofullmod, true, true, false);
-SHARED_SHADOW_INVAL_TC(collapse_blockxfer_fullmod, true, true, true);
+ATF_TC(shared_shadow_inval__eager_cow);
+ATF_TC_HEAD(shared_shadow_inval__eager_cow, tc)
+{
+	/* Needed to raise the mlock() limit. */
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(shared_shadow_inval__eager_cow, tc)
+{
+	do_shared_shadow_inval_eager();
+}
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp,
-	    shared_shadow_inval__nocollapse_noblockxfer_nofullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__nocollapse_noblockxfer_fullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__nocollapse_blockxfer_nofullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__nocollapse_blockxfer_fullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__collapse_noblockxfer_nofullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__collapse_noblockxfer_fullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__collapse_blockxfer_nofullmod);
-	ATF_TP_ADD_TC(tp, shared_shadow_inval__collapse_blockxfer_fullmod);
-
-	return atf_no_error();
+	ATF_TP_ADD_TC(tp, shared_shadow_inval__lazy_cow);
+	ATF_TP_ADD_TC(tp, shared_shadow_inval__eager_cow);
+	return (atf_no_error());
 }
-#endif
+#endif /* !STANDALONE */
