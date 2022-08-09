@@ -64,12 +64,12 @@ usage()
 	cat <<EOF
 usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
                  [-A patterns] [-D destdir] [-I patterns] [-L logfile]
-                 [-M options]
+                 [-M options] [-m make]
        etcupdate build [-B] [-d workdir] [-s source] [-L logfile] [-M options]
-                 <tarball>
+                 [-m make] <tarball>
        etcupdate diff [-d workdir] [-D destdir] [-I patterns] [-L logfile]
        etcupdate extract [-B] [-d workdir] [-s source | -t tarball]
-                 [-D destdir] [-L logfile] [-M options]
+                 [-D destdir] [-L logfile] [-M options] [-m make]
        etcupdate resolve [-p] [-d workdir] [-D destdir] [-L logfile]
        etcupdate revert [-d workdir] [-D destdir] [-L logfile] file ...
        etcupdate status [-d workdir] [-D destdir]
@@ -186,7 +186,7 @@ build_tree()
 (
 	local destdir dir file make
 
-	make="make $MAKE_OPTIONS -DNO_FILEMON"
+	make="$MAKE_CMD $MAKE_OPTIONS -DNO_FILEMON"
 
 	log "Building tree at $1 with $make"
 
@@ -1707,6 +1707,9 @@ ALWAYS_INSTALL=
 # Files to ignore and never update during a merge.
 IGNORE_FILES=
 
+# The path to the make binary
+MAKE_CMD=make
+
 # Flags to pass to 'make' when building a tree.
 MAKE_OPTIONS=
 
@@ -1719,6 +1722,7 @@ MAKE_OPTIONS=
 # - FREEBSD_ID
 # - IGNORE_FILES
 # - LOGFILE
+# - MAKE_CMD
 # - MAKE_OPTIONS
 # - SRCDIR
 # - WORKDIR
@@ -1734,10 +1738,13 @@ dryrun=
 ignore=
 nobuild=
 preworld=
-while getopts "d:nprs:t:A:BD:FI:L:M:" option; do
+while getopts "d:m:nprs:t:A:BD:FI:L:M:" option; do
 	case "$option" in
 		d)
 			WORKDIR=$OPTARG
+			;;
+		m)
+			MAKE_CMD=$OPTARG
 			;;
 		n)
 			dryrun=YES

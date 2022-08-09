@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2021
+.Dd August 9, 2022
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Fl I Ar patterns
 .Op Fl L Ar logfile
 .Op Fl M Ar options
+.Op Fl m Ar make
 .Nm
 .Cm build
 .Op Fl B
@@ -48,6 +49,7 @@
 .Op Fl s Ar source
 .Op Fl L Ar logfile
 .Op Fl M Ar options
+.Op Fl m Ar make
 .Ar tarball
 .Nm
 .Cm diff
@@ -63,6 +65,7 @@
 .Op Fl D Ar destdir
 .Op Fl L Ar logfile
 .Op Fl M Ar options
+.Op Fl m Ar make
 .Nm
 .Cm resolve
 .Op Fl p
@@ -489,6 +492,14 @@ This can be used for to set the
 or
 .Dv TARGET_ARCH
 variables for a cross-build.
+.It Fl m Ar make
+Use
+.Ar make
+as the
+.Xr make 1
+binary when building a
+.Dq current
+tree.
 .It Fl n
 Enable
 .Dq dry-run
@@ -592,6 +603,14 @@ option.
 .It Ev LOGFILE
 Specify an alternate path for the log file similar to the
 .Fl L
+option.
+.It Ev MAKE_CMD
+Specify the
+.Xr make 1
+binary when building a
+.Dq current
+tree similar to the
+.Fl m
 option.
 .It Ev MAKE_OPTIONS
 Pass additional options to
