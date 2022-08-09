@@ -67,6 +67,7 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kmem_cache_zalloc(...)	lkpi_kmem_cache_zalloc(__VA_ARGS__)
 #define	kmem_cache_free(...)	lkpi_kmem_cache_free(__VA_ARGS__)
 #define	kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
+#define	kmem_cache_shrink(x)	(0)
 
 #define	KMEM_CACHE(__struct, flags)					\
 	linux_kmem_cache_create(#__struct, sizeof(struct __struct),	\
