@@ -35,4 +35,16 @@
 
 #define	ACPI_VIDEO_NOTIFY_PROBE	0x81
 
+static inline int
+acpi_video_register(void)
+{
+
+	return (-ENODEV);
+}
+
+static inline void
+acpi_video_unregister(void)
+{
+}
+
 #endif	/* _LINUXKPI_ACPI_VIDEO_H_ */
