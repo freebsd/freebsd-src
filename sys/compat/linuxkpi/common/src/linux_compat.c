@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
+#include <asm/processor.h>
 #endif
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -2730,6 +2731,7 @@ io_mapping_create_wc(resource_size_t base, unsigned long size)
 
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
+struct cpuinfo_x86 boot_cpu_data;
 #endif
 
 static void
@@ -2740,6 +2742,8 @@ linux_compat_init(void *arg)
 
 #if defined(__i386__) || defined(__amd64__)
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
+	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
+	boot_cpu_data.x86 = ((cpu_id & 0xf0000) >> 12) | ((cpu_id & 0xf0) >> 4);
 #endif
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");
 
