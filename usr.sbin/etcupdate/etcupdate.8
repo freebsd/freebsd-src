@@ -33,7 +33,7 @@
 .Nd "manage updates to system files not updated by installworld"
 .Sh SYNOPSIS
 .Nm
-.Op Fl npBF
+.Op Fl npBFN
 .Op Fl d Ar workdir
 .Op Fl r | Fl s Ar source | Fl t Ar tarball
 .Op Fl A Ar patterns
@@ -44,7 +44,7 @@
 .Op Fl m Ar make
 .Nm
 .Cm build
-.Op Fl B
+.Op Fl BN
 .Op Fl d Ar workdir
 .Op Fl s Ar source
 .Op Fl L Ar logfile
@@ -59,7 +59,7 @@
 .Op Fl L Ar logfile
 .Nm
 .Cm extract
-.Op Fl B
+.Op Fl BN
 .Op Fl d Ar workdir
 .Op Fl s Ar source | Fl t Ar tarball
 .Op Fl D Ar destdir
@@ -518,6 +518,15 @@ option is not specified,
 then a temporary
 .Dq current
 tree will be extracted to perform the comparison.
+.It Fl N
+Perform a
+.Dv NO_ROOT
+build when building a
+.Dq current
+tree.
+The resulting tree will include a corresponding
+.Pa METALOG
+file at its root.
 .It Fl p
 Enable
 .Dq pre-world

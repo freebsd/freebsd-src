@@ -62,13 +62,13 @@
 usage()
 {
 	cat <<EOF
-usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
+usage: etcupdate [-npBFN] [-d workdir] [-r | -s source | -t tarball]
                  [-A patterns] [-D destdir] [-I patterns] [-L logfile]
                  [-M options] [-m make]
-       etcupdate build [-B] [-d workdir] [-s source] [-L logfile] [-M options]
+       etcupdate build [-BN] [-d workdir] [-s source] [-L logfile] [-M options]
                  [-m make] <tarball>
        etcupdate diff [-d workdir] [-D destdir] [-I patterns] [-L logfile]
-       etcupdate extract [-B] [-d workdir] [-s source | -t tarball]
+       etcupdate extract [-BN] [-d workdir] [-s source | -t tarball]
                  [-D destdir] [-L logfile] [-M options] [-m make]
        etcupdate resolve [-p] [-d workdir] [-D destdir] [-L logfile]
        etcupdate revert [-d workdir] [-D destdir] [-L logfile] file ...
@@ -184,14 +184,24 @@ always_install()
 # $1 - directory to store new tree in
 build_tree()
 (
-	local destdir dir file make
+	local destdir dir file make autogenfiles metatmp
 
 	make="$MAKE_CMD $MAKE_OPTIONS -DNO_FILEMON"
+
+	if [ -n "$noroot" ]; then
+		make="$make -DNO_ROOT"
+		metatmp=`mktemp $WORKDIR/etcupdate-XXXXXXX`
+		: > $metatmp
+		trap "rm -f $metatmp; trap '' EXIT; return 1" INT
+		trap "rm -f $metatmp" EXIT
+	else
+		metatmp="/dev/null"
+		trap "return 1" INT
+	fi
 
 	log "Building tree at $1 with $make"
 
 	exec >&3 2>&1
-	trap 'return 1' INT
 
 	mkdir -p $1/usr/obj
 	destdir=`realpath $1`
@@ -219,13 +229,38 @@ build_tree()
 
 	# Purge auto-generated files.  Only the source files need to
 	# be updated after which these files are regenerated.
-	rm -f $1/etc/*.db $1/etc/passwd $1/var/db/services.db || return 1
+	autogenfiles="./etc/*.db ./etc/passwd ./var/db/services.db"
+	(cd $1 && printf '%s\n' $autogenfiles >> $metatmp && \
+	    rm -f $autogenfiles) || return 1
 
 	# Remove empty files.  These just clutter the output of 'diff'.
-	find $1 -type f -size 0 -delete || return 1
+	(cd $1 && find . -type f -size 0 -delete -print >> $metatmp) || \
+	    return 1
 
 	# Trim empty directories.
-	find $1 -depth -type d -empty -delete || return 1
+	(cd $1 && find . -depth -type d -empty -delete -print >> $metatmp) || \
+	    return 1
+
+	if [ -n "$noroot" ]; then
+		# Rewrite the METALOG to exclude the files (and directories)
+		# removed above. $metatmp contains the list of files to delete,
+		# and we append #METALOG# as a delimiter followed by the
+		# original METALOG. This lets us scan through $metatmp in awk
+		# building up a table of names to delete until we reach the
+		# delimiter, then emit all the entries of the original METALOG
+		# after it that aren't in that table. We also exclude ./usr/obj
+		# and its children explicitly for simplicity rather than
+		# building up that list (and in practice only ./usr/obj itself
+		# will be in the METALOG since nothing is installed there).
+		echo '#METALOG#' >> $metatmp || return 1
+		cat $1/METALOG >> $metatmp || return 1
+		awk '/^#METALOG#$/ { metalog = 1; next }
+		    { f=$1; gsub(/\/\/+/, "/", f) }
+		    !metalog { rm[f] = 1; next }
+		    !rm[f] && f !~ /^\.\/usr\/obj(\/|$)/ { print }' \
+		    $metatmp > $1/METALOG || return 1
+	fi
+
 	return 0
 )
 
@@ -1738,7 +1773,8 @@ dryrun=
 ignore=
 nobuild=
 preworld=
-while getopts "d:m:nprs:t:A:BD:FI:L:M:" option; do
+noroot=
+while getopts "d:m:nprs:t:A:BD:FI:L:M:N" option; do
 	case "$option" in
 		d)
 			WORKDIR=$OPTARG
@@ -1797,6 +1833,9 @@ while getopts "d:m:nprs:t:A:BD:FI:L:M:" option; do
 			;;
 		M)
 			MAKE_OPTIONS="$OPTARG"
+			;;
+		N)
+			noroot=YES
 			;;
 		*)
 			echo
