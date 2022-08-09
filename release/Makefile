@@ -124,7 +124,7 @@ base.txz:
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET} ${.MAKE.JOBS:D-j${.MAKE.JOBS}}" \
 	    -D "${.OBJDIR}/${DISTDIR}/base"
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
-	    -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
+	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate"
 .endif
 # Package all components
