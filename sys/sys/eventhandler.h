@@ -309,8 +309,10 @@ enum evhdev_detach {
 };
 typedef void (*device_attach_fn)(void *, device_t);
 typedef void (*device_detach_fn)(void *, device_t, enum evhdev_detach);
+typedef void (*device_nomatch_fn)(void *, device_t);
 EVENTHANDLER_DECLARE(device_attach, device_attach_fn);
 EVENTHANDLER_DECLARE(device_detach, device_detach_fn);
+EVENTHANDLER_DECLARE(device_nomatch, device_nomatch_fn);
 
 /* Interface address addition and removal event */
 struct ifaddr;
