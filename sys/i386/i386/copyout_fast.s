@@ -93,7 +93,7 @@ ENTRY(copyout_fast)
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	rep; movsb
+pf_x1:	rep; movsb
 
 	movl	%ebx,%cr3
 	movl	%eax,%esp
@@ -150,7 +150,7 @@ ENTRY(copyin_fast)
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	rep; movsb
+pf_x2:	rep; movsb
 
 	movl	%ebx,%cr3
 
@@ -197,7 +197,7 @@ ENTRY(fueword_fast)
 	cli
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%eax,%cr3
-	movl	(%ecx),%eax
+pf_x3:	movl	(%ecx),%eax
 	movl	%ebx,%cr3
 	movl	%esi,%esp
 	sti
@@ -226,7 +226,7 @@ ENTRY(fuword16_fast)
 	cli
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%eax,%cr3
-	movzwl	(%ecx),%eax
+pf_x4:	movzwl	(%ecx),%eax
 	movl	%ebx,%cr3
 	movl	%esi,%esp
 	sti
@@ -252,7 +252,7 @@ ENTRY(fubyte_fast)
 	cli
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%eax,%cr3
-	movzbl	(%ecx),%eax
+pf_x5:	movzbl	(%ecx),%eax
 	movl	%ebx,%cr3
 	movl	%esi,%esp
 	sti
@@ -291,7 +291,7 @@ ENTRY(suword_fast)
 	cli
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%eax,%cr3
-	movl	%edi,(%ecx)
+pf_x6:	movl	%edi,(%ecx)
 	movl	%ebx,%cr3
 	movl	%esi,%esp
 	sti
@@ -319,7 +319,7 @@ ENTRY(suword16_fast)
 	cli
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%eax,%cr3
-	movw	%di,(%ecx)
+pf_x7:	movw	%di,(%ecx)
 	movl	%ebx,%cr3
 	movl	%esi,%esp
 	sti
@@ -348,7 +348,7 @@ ENTRY(subyte_fast)
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%eax,%cr3
 	movl	%edi,%eax
-	movb	%al,(%ecx)
+pf_x8:	movb	%al,(%ecx)
 	movl	%ebx,%cr3
 	movl	%esi,%esp
 	sti
