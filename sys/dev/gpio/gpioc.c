@@ -269,7 +269,8 @@ gpioc_attach_priv_pin(struct gpioc_cdevpriv *priv,
 {
 	struct gpioc_privs	*priv_link;
 	struct gpioc_pins	*pin_link;
-	unsigned int		consistency_a, consistency_b;
+	unsigned int		consistency_a __diagused;
+	unsigned int		consistency_b __diagused;
 
 	consistency_a = 0;
 	consistency_b = 0;
@@ -634,7 +635,7 @@ gpioc_cdevpriv_dtor(void *data)
 	struct gpioc_cdevpriv	*priv;
 	struct gpioc_privs	*priv_link, *priv_link_temp;
 	struct gpioc_pins	*pin_link, *pin_link_temp;
-	unsigned int		consistency;
+	unsigned int		consistency __diagused;
 
 	priv = data;
 
