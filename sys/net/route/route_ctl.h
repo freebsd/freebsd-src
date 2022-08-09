@@ -79,8 +79,8 @@ int rib_match_gw(const struct rtentry *rt, const struct nhop_object *nh,
     void *_data);
 int rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info);
 
-int rib_match_gw(const struct rtentry *rt, const struct nhop_object *nh,
-    void *gw_sa);
+int rib_add_default_route(uint32_t fibnum, int family, struct ifnet *ifp,
+    struct sockaddr *gw, struct rib_cmd_info *rc);
 
 typedef void route_notification_t(struct rib_cmd_info *rc, void *);
 void rib_decompose_notification(struct rib_cmd_info *rc,

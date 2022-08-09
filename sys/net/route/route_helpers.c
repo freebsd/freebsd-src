@@ -409,6 +409,62 @@ rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 }
 #endif
 
+union sockaddr_union {
+	struct sockaddr		sa;
+	struct sockaddr_in	sin;
+	struct sockaddr_in6	sin6;
+	char			_buf[32];
+};
+
+/*
+ * Creates nexhops suitable for using as a default route nhop.
+ * Helper for the various kernel subsystems adding/changing default route.
+ */
+int
+rib_add_default_route(uint32_t fibnum, int family, struct ifnet *ifp,
+    struct sockaddr *gw, struct rib_cmd_info *rc)
+{
+	struct route_nhop_data rnd = { .rnd_weight = RT_DEFAULT_WEIGHT };
+	union sockaddr_union saun = {};
+	struct sockaddr *dst = &saun.sa;
+	int error;
+
+	switch (family) {
+#ifdef INET
+	case AF_INET:
+		saun.sin.sin_family = AF_INET;
+		saun.sin.sin_len = sizeof(struct sockaddr_in);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		saun.sin6.sin6_family = AF_INET6;
+		saun.sin6.sin6_len = sizeof(struct sockaddr_in6);
+		break;
+#endif
+	default:
+		return (EAFNOSUPPORT);
+	}
+
+	struct ifaddr *ifa = ifaof_ifpforaddr(gw, ifp);
+	if (ifa == NULL)
+		return (ENOENT);
+
+	struct nhop_object *nh = nhop_alloc(fibnum, family);
+	if (nh == NULL)
+		return (ENOMEM);
+
+	nhop_set_gw(nh, gw, true);
+	nhop_set_transmit_ifp(nh, ifp);
+	nhop_set_src(nh, ifa);
+	nhop_set_pxtype_flag(nh, NHF_DEFAULT);
+	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
+
+	if (error == 0)
+		error = rib_add_route_px(fibnum, dst, 0, &rnd, RTM_F_CREATE, rc);
+	return (error);
+}
+
 #ifdef INET
 /*
  * Checks if the found key in the trie contains (<=) a prefix covering
