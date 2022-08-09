@@ -58,6 +58,8 @@
 	swapgs;					\
 1:	addq	$TF_RIP,%rsp;
 
+.globl dtrace_invop_callsite
+.type dtrace_invop_callsite,@function
 
 	ENTRY(dtrace_invop_start)
 
@@ -69,11 +71,22 @@
 	movq	TF_RIP(%rsp), %rdi
 	decq	%rdi
 	movq	%rsp, %rsi
-	movq	TF_RAX(%rsp), %rdx
+
+	/*
+	 * Allocate some scratch space to let the invop handler return a value.
+	 * This is needed when emulating "call" instructions.
+	 */
+	subq	$16, %rsp
+	movq	%rsp, %rdx
+
 	call	dtrace_invop
-	ENTRY(dtrace_invop_callsite)
+dtrace_invop_callsite:
+	addq	$16, %rsp
+
 	cmpl	$DTRACE_INVOP_PUSHL_EBP, %eax
 	je	bp_push
+	cmpl	$DTRACE_INVOP_CALL, %eax
+	je	bp_call
 	cmpl	$DTRACE_INVOP_LEAVE, %eax
 	je	bp_leave
 	cmpl	$DTRACE_INVOP_NOP, %eax
@@ -106,6 +119,40 @@ bp_push:
 	movq	32(%rsp), %rax		/* reload calling RSP */
 	movq	%rbp, (%rax)		/* store %rbp there */
 	popq	%rax			/* pop off temp */
+	iretq				/* return from interrupt */
+	/*NOTREACHED*/
+
+bp_call:
+	/*
+	 * Emulate a "call" instruction.  The invop handler must have already
+	 * updated the saved copy of %rip in the register set.  It's our job to
+	 * pull the hardware-saved registers down to make space for the return
+	 * address, which is provided by the invop handler in our scratch
+	 * space.
+	 */
+	INTR_POP
+	subq	$16, %rsp		/* make room for %rbp */
+	pushq	%rax			/* push temp */
+	pushq	%rbx			/* push temp */
+
+	movq	32(%rsp), %rax		/* load calling RIP */
+	movq	%rax, 16(%rsp)		/* store calling RIP */
+	movq	40(%rsp), %rax		/* load calling CS */
+	movq	%rax, 24(%rsp)		/* store calling CS */
+	movq	48(%rsp), %rax		/* load calling RFLAGS */
+	movq	%rax, 32(%rsp)		/* store calling RFLAGS */
+	movq	56(%rsp), %rax		/* load calling RSP */
+	subq	$8, %rax		/* make room for return address */
+	movq	%rax, 40(%rsp)		/* store calling RSP */
+	movq	64(%rsp), %rax		/* load calling SS */
+	movq	%rax, 48(%rsp)		/* store calling SS */
+
+	movq	-(TF_RIP - 16)(%rsp), %rax /* load return address */
+	movq	40(%rsp), %rbx		/* reload calling RSP */
+	movq	%rax, (%rbx)		/* store return address */
+
+	popq	%rbx			/* pop temp */
+	popq	%rax			/* pop temp */
 	iretq				/* return from interrupt */
 	/*NOTREACHED*/
 
