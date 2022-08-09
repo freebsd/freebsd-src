@@ -49,10 +49,13 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/typecheck.h>
 #include <linux/jiffies.h>
 #include <linux/log2.h>
 
 #include <asm/byteorder.h>
+#include <asm/cpufeature.h>
+#include <asm/processor.h>
 #include <asm/uaccess.h>
 
 #include <machine/stdarg.h>
