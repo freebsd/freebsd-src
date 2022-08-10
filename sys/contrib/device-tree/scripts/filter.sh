@@ -6,6 +6,8 @@ set -e
 
 export SCRIPTS=$(dirname $(readlink -f $0))
 
+export FILTER_BRANCH_SQUELCH_WARNING=1
+
 UPSTREAM_MASTER=upstream/master
 UPSTREAM_REWRITTEN=upstream/dts
 
