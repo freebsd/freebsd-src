@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_kdtrace.h>
 #include <net/if_llatbl.h>
 #include <netinet/if_ether.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -129,7 +130,7 @@ VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
-static int nd6_is_new_addr_neighbor(const struct sockaddr_in6 *,
+static bool nd6_is_new_addr_neighbor(const struct sockaddr_in6 *,
 	struct ifnet *);
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
@@ -1225,20 +1226,11 @@ nd6_alloc(const struct in6_addr *addr6, int flags, struct ifnet *ifp)
 }
 
 /*
- * Test whether a given IPv6 address is a neighbor or not, ignoring
- * the actual neighbor cache.  The neighbor cache is ignored in order
- * to not reenter the routing code from within itself.
+ * Test whether a given IPv6 address can be a neighbor.
  */
-static int
+static bool
 nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
-	struct nd_prefix *pr;
-	struct ifaddr *ifa;
-	struct rt_addrinfo info;
-	struct sockaddr_in6 rt_key;
-	const struct sockaddr *dst6;
-	uint64_t genid;
-	int error, fibnum;
 
 	/*
 	 * A link-local address is always a neighbor.
@@ -1262,89 +1254,51 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 		else
 			return (0);
 	}
+	/* Checking global unicast */
 
-	bzero(&rt_key, sizeof(rt_key));
-	bzero(&info, sizeof(info));
-	info.rti_info[RTAX_DST] = (struct sockaddr *)&rt_key;
+	/* If an address is directly reachable, it is a neigbor */
+	struct nhop_object *nh;
+	nh = fib6_lookup(ifp->if_fib, &addr->sin6_addr, 0, NHR_NONE, 0);
+	if (nh != NULL && nh->nh_aifp == ifp && (nh->nh_flags & NHF_GATEWAY) == 0)
+		return (true);
 
 	/*
-	 * If the address matches one of our addresses,
-	 * it should be a neighbor.
-	 * If the address matches one of our on-link prefixes, it should be a
-	 * neighbor.
+	 * Check prefixes with desired on-link state, as some may be not
+	 * installed in the routing table.
 	 */
+	bool matched = false;
+	struct nd_prefix *pr;
 	ND6_RLOCK();
-restart:
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		if (pr->ndpr_ifp != ifp)
 			continue;
-
-		if ((pr->ndpr_stateflags & NDPRF_ONLINK) == 0) {
-			dst6 = (const struct sockaddr *)&pr->ndpr_prefix;
-
-			/*
-			 * We only need to check all FIBs if add_addr_allfibs
-			 * is unset. If set, checking any FIB will suffice.
-			 */
-			fibnum = V_rt_add_addr_allfibs ? rt_numfibs - 1 : 0;
-			for (; fibnum < rt_numfibs; fibnum++) {
-				genid = V_nd6_list_genid;
-				ND6_RUNLOCK();
-
-				/*
-				 * Restore length field before
-				 * retrying lookup
-				 */
-				rt_key.sin6_len = sizeof(rt_key);
-				error = rib_lookup_info(fibnum, dst6, 0, 0,
-						        &info);
-
-				ND6_RLOCK();
-				if (genid != V_nd6_list_genid)
-					goto restart;
-				if (error == 0)
-					break;
-			}
-			if (error != 0)
-				continue;
-
-			/*
-			 * This is the case where multiple interfaces
-			 * have the same prefix, but only one is installed 
-			 * into the routing table and that prefix entry
-			 * is not the one being examined here.
-			 */
-			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
-			    &rt_key.sin6_addr))
-				continue;
-		}
-
+		if ((pr->ndpr_stateflags & NDPRF_ONLINK) == 0)
+			continue;
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
 		    &addr->sin6_addr, &pr->ndpr_mask)) {
-			ND6_RUNLOCK();
-			return (1);
+			matched = true;
+			break;
 		}
 	}
 	ND6_RUNLOCK();
+	if (matched)
+		return (true);
 
 	/*
 	 * If the address is assigned on the node of the other side of
 	 * a p2p interface, the address should be a neighbor.
 	 */
 	if (ifp->if_flags & IFF_POINTOPOINT) {
-		struct epoch_tracker et;
+		struct ifaddr *ifa;
 
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sin6_family)
 				continue;
 			if (ifa->ifa_dstaddr != NULL &&
 			    sa_equal(addr, ifa->ifa_dstaddr)) {
-				NET_EPOCH_EXIT(et);
-				return 1;
+				return (true);
 			}
 		}
-		NET_EPOCH_EXIT(et);
 	}
 
 	/*
