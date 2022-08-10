@@ -84,7 +84,7 @@ TESTBRANCH=test-${DATE}
 MERGE_OUTPUT=`(
 set -e
 git checkout -b ${TESTBRANCH} origin/master
-git merge --no-edit upstream/dts
+git -c merge.renameLimit=1000000 merge --no-edit upstream/dts
 ) 2>&1 `
 REF=$(git show-ref --verify refs/heads/${TESTBRANCH})
 echo "Testing: ${REF}"
