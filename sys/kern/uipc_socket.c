@@ -587,16 +587,17 @@ SYSCTL_TIMEVAL_SEC(_kern_ipc, OID_AUTO, sooverinterval, CTLFLAG_RW,
     "Delay in seconds between warnings for listen socket overflows");
 
 /*
- * When an attempt at a new connection is noted on a socket which accepts
- * connections, sonewconn is called.  If the connection is possible (subject
- * to space constraints, etc.) then we allocate a new structure, properly
- * linked into the data structure of the original socket, and return this.
- * Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED.
+ * When an attempt at a new connection is noted on a socket which supports
+ * accept(2), the protocol has two options:
+ * 1) Call legacy sonewconn() function, which would call protocol attach
+ *    method, same as used for socket(2).
+ * 2) Call solisten_clone(), do attach that is specific to a cloned connection,
+ *    and then call solisten_enqueue().
  *
  * Note: the ref count on the socket is 0 on return.
  */
 struct socket *
-sonewconn(struct socket *head, int connstatus)
+solisten_clone(struct socket *head)
 {
 	struct sbuf descrsb;
 	struct socket *so;
@@ -701,20 +702,27 @@ sonewconn(struct socket *head, int connstatus)
 			}
 			KASSERT(sbuf_len(&descrsb) > 0,
 			    ("%s: sbuf creation failed", __func__));
+			/*
+			 * Preserve the historic listen queue overflow log
+			 * message, that starts with "sonewconn:".  It has
+			 * been known to sysadmins for years and also test
+			 * sys/kern/sonewconn_overflow checks for it.
+			 */
 			if (head->so_cred == 0) {
-				log(LOG_DEBUG,
-			    	"%s: pcb %p (%s): Listen queue overflow: "
-			    	"%i already in queue awaiting acceptance "
-			    	"(%d occurrences)\n",
-			    	__func__, head->so_pcb, sbuf_data(&descrsb),
+				log(LOG_DEBUG, "sonewconn: pcb %p (%s): "
+				    "Listen queue overflow: %i already in "
+				    "queue awaiting acceptance (%d "
+				    "occurrences)\n", head->so_pcb,
+				    sbuf_data(&descrsb),
 			    	qlen, overcount);
 			} else {
-				log(LOG_DEBUG, "%s: pcb %p (%s): Listen queue overflow: "
+				log(LOG_DEBUG, "sonewconn: pcb %p (%s): "
+				    "Listen queue overflow: "
 				    "%i already in queue awaiting acceptance "
 				    "(%d occurrences), euid %d, rgid %d, jail %s\n",
-				    __func__, head->so_pcb, sbuf_data(&descrsb),
-				    qlen, overcount,
-				    head->so_cred->cr_uid, head->so_cred->cr_rgid,
+				    head->so_pcb, sbuf_data(&descrsb), qlen,
+				    overcount, head->so_cred->cr_uid,
+				    head->so_cred->cr_rgid,
 				    head->so_cred->cr_prison ?
 					head->so_cred->cr_prison->pr_name :
 					"not_jailed");
@@ -758,25 +766,52 @@ sonewconn(struct socket *head, int connstatus)
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
+	so->so_rcv.sb_lowat = head->sol_sbrcv_lowat;
+	so->so_snd.sb_lowat = head->sol_sbsnd_lowat;
+	so->so_rcv.sb_timeo = head->sol_sbrcv_timeo;
+	so->so_snd.sb_timeo = head->sol_sbsnd_timeo;
+	so->so_rcv.sb_flags = head->sol_sbrcv_flags & SB_AUTOSIZE;
+	so->so_snd.sb_flags = head->sol_sbsnd_flags & SB_AUTOSIZE;
 	if ((so->so_proto->pr_flags & PR_SOCKBUF) == 0) {
 		so->so_snd.sb_mtx = &so->so_snd_mtx;
 		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
 	}
-	/* Socket starts with a reference from the listen queue. */
-	refcount_init(&so->so_count, 1);
+
+	return (so);
+}
+
+/* Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED. */
+struct socket *
+sonewconn(struct socket *head, int connstatus)
+{
+	struct socket *so;
+
+	if ((so = solisten_clone(head)) == NULL)
+		return (NULL);
+
 	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
-		MPASS(refcount_release(&so->so_count));
 		sodealloc(so);
 		log(LOG_DEBUG, "%s: pcb %p: pru_attach() failed\n",
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
-	so->so_rcv.sb_lowat = head->sol_sbrcv_lowat;
-	so->so_snd.sb_lowat = head->sol_sbsnd_lowat;
-	so->so_rcv.sb_timeo = head->sol_sbrcv_timeo;
-	so->so_snd.sb_timeo = head->sol_sbsnd_timeo;
-	so->so_rcv.sb_flags |= head->sol_sbrcv_flags & SB_AUTOSIZE;
-	so->so_snd.sb_flags |= head->sol_sbsnd_flags & SB_AUTOSIZE;
+
+	solisten_enqueue(so, connstatus);
+
+	return (so);
+}
+
+/*
+ * Enqueue socket cloned by solisten_clone() to the listen queue of the
+ * listener it has been cloned from.
+ */
+void
+solisten_enqueue(struct socket *so, int connstatus)
+{
+	struct socket *head = so->so_listen;
+
+	MPASS(refcount_load(&so->so_count) == 0);
+	refcount_init(&so->so_count, 1);
 
 	SOLISTEN_LOCK(head);
 	if (head->sol_accept_filter != NULL)
@@ -815,13 +850,14 @@ sonewconn(struct socket *head, int connstatus)
 		head->sol_incqlen++;
 		SOLISTEN_UNLOCK(head);
 	}
-	return (so);
 }
 
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 /*
  * Socket part of sctp_peeloff().  Detach a new socket from an
  * association.  The new socket is returned with a reference.
+ *
+ * XXXGL: reduce copy-paste with solisten_clone().
  */
 struct socket *
 sopeeloff(struct socket *head)
