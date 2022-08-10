@@ -21,7 +21,7 @@ sinf (float y)
   int n;
   const sincos_t *p = &__sincosf_table[0];
 
-  if (abstop12 (y) < abstop12 (pio4))
+  if (abstop12 (y) < abstop12 (pio4f))
     {
       s = x * x;
 
