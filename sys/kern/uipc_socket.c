@@ -455,7 +455,7 @@ soalloc(struct vnet *vnet)
  * locks, labels, etc.  All protocol state is assumed already to have been
  * torn down (and possibly never set up) by the caller.
  */
-static void
+void
 sodealloc(struct socket *so)
 {
 
