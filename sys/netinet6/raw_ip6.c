@@ -658,9 +658,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	inp->inp_vflag |= INP_IPV6;
 	inp->inp_ip_p = (long)proto;
-	inp->in6p_hops = -1;	/* use kernel default */
 	inp->in6p_cksum = -1;
 	inp->in6p_icmp6filt = filter;
 	ICMP6_FILTER_SETPASSALL(inp->in6p_icmp6filt);
