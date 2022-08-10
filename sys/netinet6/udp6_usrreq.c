@@ -1045,10 +1045,6 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		return (error);
 	inp = (struct inpcb *)so->so_pcb;
-	inp->inp_vflag |= INP_IPV6;
-	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
-		inp->inp_vflag |= INP_IPV4;
-	inp->in6p_hops = -1;	/* use kernel default */
 	inp->in6p_cksum = -1;	/* just to be sure */
 	/*
 	 * XXX: ugly!!

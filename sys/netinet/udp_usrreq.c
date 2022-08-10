@@ -1529,7 +1529,6 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 
 	inp = sotoinpcb(so);
-	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = V_ip_defttl;
 	inp->inp_flowid = atomic_fetchadd_int(&udp_flowid, 1);
 	inp->inp_flowtype = M_HASHTYPE_OPAQUE;

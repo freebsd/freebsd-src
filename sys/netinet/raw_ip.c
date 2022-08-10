@@ -857,7 +857,6 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		return (error);
 	inp = (struct inpcb *)so->so_pcb;
-	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_p = proto;
 	inp->inp_ip_ttl = V_ip_defttl;
 	INP_HASH_WLOCK(&V_ripcbinfo);
