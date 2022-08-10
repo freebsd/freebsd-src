@@ -920,11 +920,11 @@ rt_delete_conditional(struct rib_head *rnh, struct rtentry *rt,
     int prio, rib_filter_f_t *cb, void *cbdata, struct rib_cmd_info *rc)
 {
 	struct nhop_object *nh = rt->rt_nhop;
-	struct route_nhop_data rnd;
 
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
 		struct nhgrp_object *nhg = (struct nhgrp_object *)nh;
+		struct route_nhop_data rnd;
 		int error;
 
 		if (cb == NULL)
