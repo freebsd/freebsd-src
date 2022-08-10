@@ -529,20 +529,11 @@ e6000sw_attach(device_t dev)
 		if (!e6000sw_is_phyport(sc, port))
 			continue;
 
-		/*
-		 * It's necessary to unlock mutex, because e6000sw_attach_miibus
-		 * calls functions, which try to lock mutex.That leads
-		 * to recursive lock on non recursive mutex.
-		 */
-		E6000SW_UNLOCK(sc);
-
 		err = e6000sw_attach_miibus(sc, port);
 		if (err != 0) {
 			device_printf(sc->dev, "failed to attach miibus\n");
 			goto out_fail;
 		}
-
-		E6000SW_LOCK(sc);
 	}
 
 	etherswitch_info.es_nports = sc->num_ports;
