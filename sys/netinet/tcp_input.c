@@ -833,8 +833,9 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 	 * PCB, be it a listening one or a synchronized one.  The packet
 	 * shall not modify its state.
 	 */
-	lookupflag = (thflags & (TH_ACK|TH_SYN)) == TH_SYN ?
-	    INPLOOKUP_RLOCKPCB : INPLOOKUP_WLOCKPCB;
+	lookupflag = INPLOOKUP_WILDCARD |
+	    ((thflags & (TH_ACK|TH_SYN)) == TH_SYN ?
+	    INPLOOKUP_RLOCKPCB : INPLOOKUP_WLOCKPCB);
 findpcb:
 #ifdef INET6
 	if (isipv6 && fwd_tag != NULL) {
@@ -857,13 +858,12 @@ findpcb:
 			inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_src,
 			    th->th_sport, &next_hop6->sin6_addr,
 			    next_hop6->sin6_port ? ntohs(next_hop6->sin6_port) :
-			    th->th_dport, INPLOOKUP_WILDCARD | lookupflag,
-			    m->m_pkthdr.rcvif);
+			    th->th_dport, lookupflag, m->m_pkthdr.rcvif);
 		}
 	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
-		    th->th_sport, &ip6->ip6_dst, th->th_dport,
-		    INPLOOKUP_WILDCARD | lookupflag, m->m_pkthdr.rcvif, m);
+		    th->th_sport, &ip6->ip6_dst, th->th_dport, lookupflag,
+		    m->m_pkthdr.rcvif, m);
 	}
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
@@ -889,13 +889,12 @@ findpcb:
 			inp = in_pcblookup(&V_tcbinfo, ip->ip_src,
 			    th->th_sport, next_hop->sin_addr,
 			    next_hop->sin_port ? ntohs(next_hop->sin_port) :
-			    th->th_dport, INPLOOKUP_WILDCARD | lookupflag,
-			    m->m_pkthdr.rcvif);
+			    th->th_dport, lookupflag, m->m_pkthdr.rcvif);
 		}
 	} else
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
-		    th->th_sport, ip->ip_dst, th->th_dport,
-		    INPLOOKUP_WILDCARD | lookupflag, m->m_pkthdr.rcvif, m);
+		    th->th_sport, ip->ip_dst, th->th_dport, lookupflag,
+		    m->m_pkthdr.rcvif, m);
 #endif /* INET */
 
 	/*
@@ -904,6 +903,11 @@ findpcb:
 	 * XXX MRT Send RST using which routing table?
 	 */
 	if (inp == NULL) {
+		if (rstreason != 0) {
+			/* We came here after second (safety) lookup. */
+			MPASS((lookupflag & INPLOOKUP_WILDCARD) == 0);
+			goto dropwithreset;
+		}
 		/*
 		 * Log communication attempts to ports that are not
 		 * in use.
@@ -1095,13 +1099,26 @@ findpcb:
 				goto dropunlock;
 			} else if (rstreason == 0) {
 				/*
-				 * No syncache entry or ACK was not
-				 * for our SYN/ACK.  Send a RST.
+				 * No syncache entry, or ACK was not for our
+				 * SYN/ACK.  Do our protection against double
+				 * ACK.  If peer sent us 2 ACKs, then for the
+				 * first one syncache_expand() successfully
+				 * converted syncache entry into a socket,
+				 * while we were waiting on the inpcb lock.  We
+				 * don't want to sent RST for the second ACK,
+				 * so we perform second lookup without wildcard
+				 * match, hoping to find the new socket.  If
+				 * the ACK is stray indeed, rstreason would
+				 * hint the above code that the lookup was a
+				 * second attempt.
+				 *
 				 * NB: syncache did its own logging
 				 * of the failure cause.
 				 */
+				INP_WUNLOCK(inp);
 				rstreason = BANDLIM_RST_OPENPORT;
-				goto dropwithreset;
+				lookupflag &= ~INPLOOKUP_WILDCARD;
+				goto findpcb;
 			}
 tfo_socket_result:
 			if (so == NULL) {
@@ -1390,7 +1407,7 @@ tfo_socket_result:
 	 * to upgrade the lock, because calling convention for stacks is
 	 * write-lock on PCB.  If upgrade fails, drop the SYN.
 	 */
-	if (lookupflag == INPLOOKUP_RLOCKPCB && INP_TRY_UPGRADE(inp) == 0)
+	if ((lookupflag & INPLOOKUP_RLOCKPCB) && INP_TRY_UPGRADE(inp) == 0)
 		goto dropunlock;
 
 	tp->t_fb->tfb_tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos);
