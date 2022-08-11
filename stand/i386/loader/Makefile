@@ -19,7 +19,7 @@ PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
-LOADERSIZE=	510000		# Largest known safe size
+LOADERSIZE?=	510000		# Largest known safe size
 
 
 .PATH:		${BOOTSRC}/i386/loader

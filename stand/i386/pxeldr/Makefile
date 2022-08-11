@@ -13,7 +13,7 @@ BOOT=	pxeboot
 LDR=	pxeldr
 ORG=	0x7c00
 LOADER=	loader
-PXELDRSIZE= 510000		# Largest known safe size
+PXELDRSIZE?= 510000		# Largest known safe size
 
 .if defined(BOOT_PXELDR_PROBE_KEYBOARD)
 CFLAGS+=-DPROBE_KEYBOARD
