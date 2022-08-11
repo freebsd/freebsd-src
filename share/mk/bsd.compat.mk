@@ -122,6 +122,7 @@ LIBCOMPATCFLAGS+=	-B${WORLDTMP}/usr/lib${libcompat}
 
 .if defined(WANT_COMPAT)
 LIBDIR_BASE:=	/usr/lib${libcompat}
+LIBDATADIR:=	/usr/lib${libcompat}
 _LIB_OBJTOP=	${LIBCOMPAT_OBJTOP}
 CFLAGS+=	${LIBCOMPATCFLAGS}
 LDFLAGS+=	${CFLAGS} ${LIBCOMPATLDFLAGS}

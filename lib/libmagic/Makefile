@@ -42,9 +42,9 @@ PACKAGE_VERSION!=	sed -n '/define.*PACKAGE_VERSION/{s,[^0-9.],,gp;q;}' ${.CURDIR
 libmagic.pc: libmagic.pc.in
 	sed -e 's,@prefix@,/usr,g ; \
 		s,@exec_prefix@,$${prefix},g ; \
-		s,@libdir@,$${exec_prefix}/lib,g ; \
-		s,@sharedlibdir@,$${libdir},g ; \
-		s,@includedir@,$${prefix}/include,g ; \
+		s,@libdir@,${LIBDIR},g ; \
+		s,@sharedlibdir@,${SHLIBDIR},g ; \
+		s,@includedir@,${INCLUDEDIR},g ; \
 		s,@VERSION@,${PACKAGE_VERSION},g ; \
 		s,@LIBS@,,g ;' \
                 ${.ALLSRC} > ${.TARGET}

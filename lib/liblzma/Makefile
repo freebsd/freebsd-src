@@ -159,8 +159,9 @@ PCFILES=	liblzma.pc
 liblzma.pc: liblzma.pc.in
 	sed -e 's,@prefix@,/usr,g ; \
 		s,@exec_prefix@,/usr,g ; \
-		s,@libdir@,/usr/lib,g ; \
-		s,@includedir@,/usr/include,g ; \
+		s,@libdir@,${LIBDIR},g ; \
+		s,@sharedlibdir@,${SHLIBDIR},g ; \
+		s,@includedir@,${INCLUDEDIR},g ; \
 		s,@LIBS@,-pthread -lmd,g ; \
 		s,@PACKAGE_URL@,https://tukaani.org/xz/,g ; \
 		s,@PACKAGE_VERSION@,${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH},g ; \

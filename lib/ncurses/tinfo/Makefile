@@ -1038,9 +1038,9 @@ gen-pkgconfig: gen-pkgconfig.in
 		s,@PC_MODULE_SUFFIX@,,g ; \
 		s,@prefix@,/usr,g ; \
 		s,@exec_prefix@,$${prefix},g ; \
-		s,@includedir@,/usr/include,g ; \
+		s,@includedir@,${INCLUDEDIR},g ; \
 		s,@includesubdir@,,g ; \
-		s,@libdir@,/usr/lib,g ; \
+		s,@libdir@,${LIBDIR},g ; \
 		s,@RPATH_LIST@,$${libdir},g ; \
 		s,@PRIVATE_LIBS@,,g ; \
 		s,@USE_ARG_SUFFIX@,,g ; \

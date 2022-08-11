@@ -1,8 +1,9 @@
 # $FreeBSD$
 prefix=/usr
 exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
-includedir=${prefix}/include
+libdir=@libdir@
+sharedlibdir=@sharedlibdir@
+includedir=@includedir@
 
 Name: libusb-2.0
 Description: Library that abstracts ways to access USB devices (v2.0)
