@@ -390,9 +390,9 @@ extract_currdev(void)
 		init_zfs_boot_options(devformat(&new_currdev.dd));
 #endif
 
-	env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
+	env_setenv("currdev", EV_VOLATILE, devformat(&new_currdev.dd),
 	    i386_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev),
+	env_setenv("loaddev", EV_VOLATILE, devformat(&new_currdev.dd),
 	    env_noset, env_nounset);
 }
 
