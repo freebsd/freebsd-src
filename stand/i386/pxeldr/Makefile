@@ -39,7 +39,7 @@ LDFLAGS+=${LDFLAGS_BIN}
 CLEANFILES+= ${LOADER}
 
 ${LOADER}: ${LOADERBIN} ${BTXLDR} ${BTXKERN}
-	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
+	btxld -v -f elf -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 	    -b ${BTXKERN} ${LOADERBIN}
 
 .include <bsd.prog.mk>
