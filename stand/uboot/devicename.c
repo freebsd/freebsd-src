@@ -160,29 +160,6 @@ fail:
 }
 
 
-char *
-uboot_fmtdev(void *vdev)
-{
-	struct uboot_devdesc *dev = (struct uboot_devdesc *)vdev;
-	static char buf[128];
-
-	switch(dev->dd.d_dev->dv_type) {
-	case DEVT_NONE:
-		strcpy(buf, "(no device)");
-		break;
-
-	case DEVT_DISK:
-#ifdef LOADER_DISK_SUPPORT
-		return (disk_fmtdev(vdev));
-#endif
-
-	case DEVT_NET:
-		sprintf(buf, "%s%d:", dev->dd.d_dev->dv_name, dev->dd.d_unit);
-		break;
-	}
-	return(buf);
-}
-
 /*
  * Set currdev to suit the value being supplied in (value).
  */
