@@ -443,7 +443,7 @@ dsl_dir_finalize_props(zfs_dsl_dir_t *dir)
 	    (nvh = nvlist_next_nvpair(dir->propsnv, nvh)) != NULL;) {
 		nv_string_t *nvname;
 		nv_pair_data_t *nvdata;
-		const char *name;
+		char *name;
 
 		nvname = (nv_string_t *)(nvh + 1);
 		nvdata = (nv_pair_data_t *)(&nvname->nv_data[0] +
@@ -460,15 +460,18 @@ dsl_dir_finalize_props(zfs_dsl_dir_t *dir)
 		}
 		case DATA_TYPE_STRING: {
 			nv_string_t *nvstr;
+			char *val;
 
 			nvstr = (nv_string_t *)&nvdata->nv_data[0];
-			zap_add_string(dir->propszap, name,
-			    nvstring_get(nvstr));
+			val = nvstring_get(nvstr);
+			zap_add_string(dir->propszap, name, val);
+			free(val);
 			break;
 		}
 		default:
 			assert(0);
 		}
+		free(name);
 	}
 }
 
