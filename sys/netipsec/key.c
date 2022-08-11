@@ -66,7 +66,6 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
-#include <net/raw_cb.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -468,7 +467,6 @@ SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug,
     "Enable IPsec debugging output when set.");
 #endif
 
-SYSCTL_DECL(_net_key);
 SYSCTL_INT(_net_key, KEYCTL_DEBUG_LEVEL,	debug,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_debug_level), 0, "");
 
@@ -516,8 +514,7 @@ SYSCTL_INT(_net_key, KEYCTL_AH_KEYMIN, ah_keymin,
 SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA, preferred_oldsa,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_preferred_oldsa), 0, "");
 
-static SYSCTL_NODE(_net_key, OID_AUTO, spdcache,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+SYSCTL_NODE(_net_key, OID_AUTO, spdcache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "SPD cache");
 
 SYSCTL_UINT(_net_key_spdcache, OID_AUTO, maxentries,
@@ -7157,7 +7154,7 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	}
 
 	newreg->so = so;
-	((struct keycb *)sotorawcb(so))->kp_registered++;
+	((struct keycb *)(so->so_pcb))->kp_registered++;
 
 	/* add regnode to regtree. */
 	LIST_INSERT_HEAD(&V_regtree[mhp->msg->sadb_msg_satype], newreg, chain);
@@ -7717,7 +7714,7 @@ key_promisc(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		/* enable/disable promisc mode */
 		struct keycb *kp;
 
-		if ((kp = (struct keycb *)sotorawcb(so)) == NULL)
+		if ((kp = so->so_pcb) == NULL)
 			return key_senderror(so, m, EINVAL);
 		mhp->msg->sadb_msg_errno = 0;
 		switch (mhp->msg->sadb_msg_satype) {
