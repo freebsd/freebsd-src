@@ -559,6 +559,12 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		goto error_locked;
 	}
 
+	/* Make sure this is really a UDP socket. */
+	if (so->so_type != SOCK_DGRAM || so->so_proto->pr_type != SOCK_DGRAM) {
+		ret = EPROTOTYPE;
+		goto error_locked;
+	}
+
 	/* Must be the same socket as for other peers on this interface. */
 	if (sc->so != NULL && so != sc->so)
 		goto error_locked;
