@@ -19,6 +19,8 @@ PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
+LOADERSIZE=	510000		# Largest known safe size
+
 
 .PATH:		${BOOTSRC}/i386/loader
 
@@ -79,9 +81,12 @@ CFLAGS+=	-I${BOOTSRC}/i386
 8x16.c: ${SRCTOP}/contrib/terminus/ter-u16b.bdf
 	vtfontcvt -f compressed-source -o ${.TARGET} ${.ALLSRC}
 
+
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f elf -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} ${LOADER}.bin
+	@set -- `${SIZE} ${.TARGET} | tail -1` ; x=$$((${LOADERSIZE}-$$4)); \
+	    echo "$$x bytes available"; test $$x -ge 0
 
 ${LOADER}.bin: ${LOADER}.sym
 	${STRIPBIN} -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
