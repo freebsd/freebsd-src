@@ -549,7 +549,7 @@ powerpc_pmc_intr(struct trapframe *tf)
 }
 
 struct pmc_mdep *
-pmc_md_initialize()
+pmc_md_initialize(void)
 {
 	struct pmc_mdep *pmc_mdep;
 	int error;

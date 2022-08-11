@@ -527,7 +527,7 @@ arm64_pcpu_fini(struct pmc_mdep *md, int cpu)
 }
 
 struct pmc_mdep *
-pmc_arm64_initialize()
+pmc_arm64_initialize(void)
 {
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;

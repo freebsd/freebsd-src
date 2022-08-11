@@ -711,7 +711,7 @@ cmn600_pmu_intr(struct trapframe *tf, int unit, int i)
  * Initialize ourselves.
  */
 static int
-cmn600_init_pmc_units()
+cmn600_init_pmc_units(void)
 {
 	int i;
 
@@ -732,7 +732,7 @@ cmn600_init_pmc_units()
 }
 
 int
-pmc_cmn600_nclasses()
+pmc_cmn600_nclasses(void)
 {
 
 	if (cmn600_pmc_nunits() > 0)
