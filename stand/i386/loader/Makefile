@@ -19,7 +19,7 @@ PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
-LOADERSIZE?=	510000		# Largest known safe size
+LOADERSIZE?=	508000		# Largest known safe size for loader.bin
 
 
 .PATH:		${BOOTSRC}/i386/loader
@@ -83,13 +83,13 @@ CFLAGS+=	-I${BOOTSRC}/i386
 
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
-	btxld -v -f elf -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
+	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} ${LOADER}.bin
-	@set -- `${SIZE} ${.TARGET} | tail -1` ; x=$$((${LOADERSIZE}-$$4)); \
-	    echo "$$x bytes available"; test $$x -ge 0
 
 ${LOADER}.bin: ${LOADER}.sym
 	${STRIPBIN} -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
+	@set -- `ls -l ${.TARGET}` ; x=$$((${LOADERSIZE}-$$5)); \
+	    echo "$$x bytes available"; test $$x -ge 0
 
 .if ${MK_LOADER_ZFS} == "yes" && ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
 LINKS+=		${BINDIR}/${LOADER} ${BINDIR}/zfsloader
@@ -103,8 +103,8 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # Note: crt0.o needs to be first for pxeboot(8) to work. It assumes that the
 # startup code is located at the start of the loader and will jump
 # there. Although btx is more flexible than this, the emulated boot2 environment
-# that pxeloader provides has none of that flexibility because it lacks access
-# to the a.out/elf headers and assumes an entry point of 0.
+# that pxeldr provides has none of that flexibility assumes an entry point of
+# 0. In addition, pxeldr and cdboot assume that it is loading an a.out file.
 #
 # We must add it to the LDFLAGS instead of the OBJS because the former won't try
 # to clean it. When it is in OBJS, this cleaning can lead to races where
