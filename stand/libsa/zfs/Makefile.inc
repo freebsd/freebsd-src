@@ -60,7 +60,8 @@ CFLAGS_EARLY.zfs.c += ${ZFS_EARLY}
 # zfs.c is special: we need to define HAS_ZSTD_ZFS to get zfssubr.c to initialize zstd
 # properly. We need to have the cddl boot compat directory in the include path for zfssubr.c
 # to be found, and we need a couple of other include paths for skein and lz4. Finally we
-# temporarily need LDRSRC to pick up disk.h until that layering violation is corrected.
+# temporarily need LDRSRC to pick up part.h until libsa has a way to look into partitions
+# or enumerate them...
 #
 CFLAGS.zfs.c+=	-DHAS_ZSTD_ZFS					\
 		-I${SYSDIR}/cddl/boot/zfs			\
