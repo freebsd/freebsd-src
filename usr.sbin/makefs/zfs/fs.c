@@ -714,10 +714,10 @@ fs_layout_one(zfs_opt_t *zfs, zfs_dsl_dir_t *dsldir, void *arg)
 	if (!dsl_dir_has_dataset(dsldir))
 		return;
 
+	if (dsl_dir_get_canmount(dsldir, &canmount) == 0 && canmount == 0)
+		return;
 	mountpoint = dsl_dir_get_mountpoint(zfs, dsldir);
 	if (mountpoint == NULL)
-		return;
-	if (dsl_dir_get_canmount(dsldir, &canmount) == 0 && canmount == 0)
 		return;
 
 	/*
