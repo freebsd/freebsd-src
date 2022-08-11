@@ -167,7 +167,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     }
 
     /* Try reading the /etc/fstab file to select the root device */
-    getrootmount(i386_fmtdev((void *)rootdev));
+    getrootmount(devformat(&rootdev->dd));
 
     /* Do legacy rootdev guessing */
 
@@ -191,7 +191,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 	    rootdev->dd.d_dev->dv_type);
     }
     if (bootdevnr == -1) {
-	printf("root device %s invalid\n", i386_fmtdev(rootdev));
+	printf("root device %s invalid\n", devformat(&rootdev->dd));
 	return (EINVAL);
     }
     free(rootdev);

@@ -171,33 +171,6 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
     return(err);
 }
 
-
-char *
-i386_fmtdev(void *vdev)
-{
-    struct i386_devdesc	*dev = (struct i386_devdesc *)vdev;
-    static char		buf[128];	/* XXX device length constant? */
-
-    switch(dev->dd.d_dev->dv_type) {
-    case DEVT_NONE:
-	strcpy(buf, "(no device)");
-	break;
-
-    case DEVT_CD:
-    case DEVT_NET:
-	sprintf(buf, "%s%d:", dev->dd.d_dev->dv_name, dev->dd.d_unit);
-	break;
-
-    case DEVT_DISK:
-	return (disk_fmtdev(vdev));
-
-    case DEVT_ZFS:
-	return(zfs_fmtdev(vdev));
-    }
-    return(buf);
-}
-
-
 /*
  * Set currdev to suit the value being supplied in (value)
  */
