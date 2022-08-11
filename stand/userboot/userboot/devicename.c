@@ -176,40 +176,6 @@ fail:
 }
 
 
-char *
-userboot_fmtdev(void *vdev)
-{
-	struct devdesc *dev = (struct devdesc *)vdev;
-	static char buf[128];	/* XXX device length constant? */
-
-	switch(dev->d_dev->dv_type) {
-	case DEVT_NONE:
-		strcpy(buf, "(no device)");
-		break;
-
-	case DEVT_CD:
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
-		break;
-
-	case DEVT_DISK:
-		return (disk_fmtdev(vdev));
-
-	case DEVT_NET:
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
-		break;
-
-	case DEVT_ZFS:
-#if defined(USERBOOT_ZFS_SUPPORT)
-		return (zfs_fmtdev(vdev));
-#else
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
-#endif
-		break;
-	}
-	return (buf);
-}
-
-
 /*
  * Set currdev to suit the value being supplied in (value)
  */
