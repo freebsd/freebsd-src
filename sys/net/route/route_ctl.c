@@ -609,7 +609,7 @@ int
 rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
     struct rib_head *rh_dst, struct rib_cmd_info *rc)
 {
-	struct nhop_object *nh_src = rnd_src->rnd_nhop;
+	struct nhop_object __diagused *nh_src = rnd_src->rnd_nhop;
 	int error;
 
 	MPASS((nh_src->nh_flags & NHF_MULTIPATH) == 0);
