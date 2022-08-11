@@ -376,9 +376,11 @@ The source file <code>etcetera</code> defines names that may be useful
 on platforms that do not support POSIX-style <code>TZ</code> strings;
 no other source file other than <code>backward</code>
 contains links to its zones.
-One of <code>etcetera</code>'s names is <code>GMT</code>,
+One of <code>etcetera</code>'s names is <code>Etc/UTC</code>,
 used by functions like <code>gmtime</code> to obtain leap
 second information on platforms that support leap seconds.
+Another <code>etcetera</code> name, <code>GMT</code>,
+is used by older code releases.
 </p>
 </section>
 
@@ -468,6 +470,7 @@ in decreasing order of importance:
       PST/PDT Philippine,
       SAST South Africa,
       SST Samoa,
+      UTC Universal,
       WAT/WAST West Africa,
       WET/WEST/WEMT Western European,
       WIB Waktu Indonesia Barat,
@@ -502,7 +505,7 @@ in decreasing order of importance:
       HMT Havana, Helsinki, Horta, Howrah;
       IMT Irkutsk, Istanbul;
       JMT Jerusalem;
-      KMT Kaunas, Kiev, Kingston;
+      KMT Kaunas, Kyiv, Kingston;
       LMT Lima, Lisbon, local, Luanda;
       MMT Macassar, Madras, Malé, Managua, Minsk, Monrovia, Montevideo,
 	Moratuwa, Moscow;
@@ -720,8 +723,8 @@ href="https://www.dissentmagazine.org/blog/booked-a-global-history-of-time-vanes
     than what the <code><abbr>tz</abbr></code> code can handle.
     For example, from 1880 to 1916 clocks in Ireland observed Dublin Mean
     Time (estimated to be <abbr>UT</abbr>
-    &minus;00:25:21.1), but the <code><abbr>tz</abbr></code>
-    code cannot represent the fractional second.
+    &minus;00:25:21.1); although the <code><abbr>tz</abbr></code>
+    source data can represent the .1 second, TZif files and the code cannot.
     In practice these old specifications were rarely if ever
     implemented to subsecond precision.
   </li>
@@ -1295,7 +1298,8 @@ Because a leap second adjustment may be needed even
 if no time zone correction is desired,
 calls to <code>gmtime</code>-like functions
 also need to consult a <abbr>TZif</abbr> file,
-conventionally named <samp><abbr>GMT</abbr></samp>,
+conventionally named <samp><abbr>Etc/UTC</abbr></samp>
+(<samp><abbr>GMT</abbr></samp> in previous versions),
 to see whether leap second corrections are needed.
 To convert an application's <code>time_t</code> timestamps to or from
 POSIX <code>time_t</code> timestamps (for use when, say,
