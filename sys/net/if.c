@@ -1006,9 +1006,6 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 	if (IS_DEFAULT_VNET(curvnet))
 		devctl_notify("IFNET", ifp->if_xname, "ATTACH", NULL);
-
-	/* Announce the interface. */
-	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 }
 
 static void
@@ -1258,8 +1255,6 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 #endif
 	if_purgemaddrs(ifp);
 
-	/* Announce that the interface is gone. */
-	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 	if (IS_DEFAULT_VNET(curvnet))
 		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
@@ -2691,8 +2686,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		 */
 		ifp->if_flags |= IFF_RENAMING;
 		
-		/* Announce the departure of the interface. */
-		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 		EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
 
 		if_printf(ifp, "changing name to '%s'\n", new_name);
@@ -2721,8 +2714,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		IF_ADDR_WUNLOCK(ifp);
 
 		EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
-		/* Announce the return of the interface. */
-		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 
 		ifp->if_flags &= ~IFF_RENAMING;
 		break;
