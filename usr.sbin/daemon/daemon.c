@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 #include <login_cap.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -465,6 +466,10 @@ restrict_process(const char *user)
 
 	if (setusercontext(NULL, pw, pw->pw_uid, LOGIN_SETALL) != 0)
 		errx(1, "failed to set user environment");
+
+	setenv("USER", pw->pw_name, 1);
+	setenv("HOME", pw->pw_dir, 1);
+	setenv("SHELL", *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL, 1);
 }
 
 /*
