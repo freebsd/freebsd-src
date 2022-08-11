@@ -139,7 +139,7 @@ int
 bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t *modulep, vm_offset_t *kernendp)
 {
     struct preloaded_file	*xp, *kfp;
-    struct i386_devdesc		*rootdev;
+    struct devdesc		*rootdev;
     struct file_metadata	*md;
     vm_offset_t			addr;
     vm_offset_t			kernend;
@@ -167,12 +167,12 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     }
 
     /* Try reading the /etc/fstab file to select the root device */
-    getrootmount(userboot_fmtdev((void *)rootdev));
+    getrootmount(devformat(rootdev));
 
     bootdevnr = 0;
 #if 0
     if (bootdevnr == -1) {
-	printf("root device %s invalid\n", i386_fmtdev(rootdev));
+	printf("root device %s invalid\n", devformat(rootdev));
 	return (EINVAL);
     }
 #endif

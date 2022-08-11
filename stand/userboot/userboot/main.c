@@ -285,7 +285,7 @@ extract_currdev(void)
 		dd = &dev.dd;
 	}
 
-	set_currdev(userboot_fmtdev(dd));
+	set_currdev(devformat(dd));
 
 #if defined(USERBOOT_ZFS_SUPPORT)
 	if (userboot_zfs_found) {

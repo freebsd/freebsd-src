@@ -182,7 +182,7 @@ int
 bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 {
     struct preloaded_file	*xp, *kfp;
-    struct userboot_devdesc	*rootdev;
+    struct devdesc		*rootdev;
     struct file_metadata	*md;
     vm_offset_t			addr;
     uint64_t			kernend;
@@ -211,7 +211,7 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
     }
 
     /* Try reading the /etc/fstab file to select the root device */
-    getrootmount(userboot_fmtdev((void *)rootdev));
+    getrootmount(devformat(rootdev));
 
     /* find the last module in the chain */
     addr = 0;
