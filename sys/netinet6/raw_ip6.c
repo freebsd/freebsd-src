@@ -364,32 +364,62 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
  * Generate IPv6 header and pass packet to ip6_output.  Tack on options user
  * may have setup with control call.
  */
-int
-rip6_output(struct mbuf *m, struct socket *so, ...)
+static int
+rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
+    struct mbuf *control, struct thread *td)
 {
 	struct epoch_tracker et;
-	struct mbuf *control;
-	struct m_tag *mtag;
-	struct sockaddr_in6 *dstsock;
-	struct ip6_hdr *ip6;
 	struct inpcb *inp;
+	struct sockaddr_in6 tmp, *dstsock;
+	struct m_tag *mtag;
+	struct ip6_hdr *ip6;
 	u_int	plen = m->m_pkthdr.len;
-	int error = 0;
 	struct ip6_pktopts opt, *optp;
 	struct ifnet *oifp = NULL;
+	int error;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int scope_ambiguous = 0;
 	int use_defzone = 0;
 	int hlim = 0;
 	struct in6_addr in6a;
-	va_list ap;
-
-	va_start(ap, so);
-	dstsock = va_arg(ap, struct sockaddr_in6 *);
-	control = va_arg(ap, struct mbuf *);
-	va_end(ap);
 
 	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip6_send: inp == NULL"));
+
+	/* Always copy sockaddr to avoid overwrites. */
+	/* Unlocked read. */
+	if (so->so_state & SS_ISCONNECTED) {
+		if (nam) {
+			error = EISCONN;
+			goto release;
+		}
+		tmp = (struct sockaddr_in6 ){
+			.sin6_family = AF_INET6,
+			.sin6_len = sizeof(struct sockaddr_in6),
+		};
+		INP_RLOCK(inp);
+		bcopy(&inp->in6p_faddr, &tmp.sin6_addr,
+		    sizeof(struct in6_addr));
+		INP_RUNLOCK(inp);
+		dstsock = &tmp;
+	} else {
+		if (nam == NULL)
+			error = ENOTCONN;
+		else if (nam->sa_family != AF_INET6)
+			error = EAFNOSUPPORT;
+		else if (nam->sa_len != sizeof(struct sockaddr_in6))
+			error = EINVAL;
+		else
+			error = 0;
+		if (error != 0)
+			goto release;
+		dstsock = (struct sockaddr_in6 *)nam;
+		if (dstsock->sin6_family != AF_INET6) {
+			error = EAFNOSUPPORT;
+			goto release;
+		}
+	}
+
 	INP_WLOCK(inp);
 
 	if (control != NULL) {
@@ -554,6 +584,12 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 		m_freem(control);
 	}
 	INP_WUNLOCK(inp);
+	return (error);
+
+release:
+	if (control != NULL)
+		m_freem(control);
+	m_freem(m);
 	return (error);
 }
 
@@ -831,70 +867,6 @@ rip6_shutdown(struct socket *so)
 	socantsendmore(so);
 	INP_WUNLOCK(inp);
 	return (0);
-}
-
-static int
-rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-    struct mbuf *control, struct thread *td)
-{
-	struct inpcb *inp;
-	struct sockaddr_in6 tmp;
-	struct sockaddr_in6 *dst;
-	int error;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip6_send: inp == NULL"));
-
-	/* Always copy sockaddr to avoid overwrites. */
-	/* Unlocked read. */
-	if (so->so_state & SS_ISCONNECTED) {
-		if (nam) {
-			error = EISCONN;
-			goto release;
-		}
-		/* XXX */
-		bzero(&tmp, sizeof(tmp));
-		tmp.sin6_family = AF_INET6;
-		tmp.sin6_len = sizeof(struct sockaddr_in6);
-		INP_RLOCK(inp);
-		bcopy(&inp->in6p_faddr, &tmp.sin6_addr,
-		    sizeof(struct in6_addr));
-		INP_RUNLOCK(inp);
-		dst = &tmp;
-	} else {
-		error = 0;
-		if (nam == NULL)
-			error = ENOTCONN;
-		else if (nam->sa_family != AF_INET6)
-			error = EAFNOSUPPORT;
-		else if (nam->sa_len != sizeof(struct sockaddr_in6))
-			error = EINVAL;
-		if (error != 0)
-			goto release;
-		tmp = *(struct sockaddr_in6 *)nam;
-		dst = &tmp;
-
-		if (dst->sin6_family == AF_UNSPEC) {
-			/*
-			 * XXX: we allow this case for backward
-			 * compatibility to buggy applications that
-			 * rely on old (and wrong) kernel behavior.
-			 */
-			log(LOG_INFO, "rip6 SEND: address family is "
-			    "unspec. Assume AF_INET6\n");
-			dst->sin6_family = AF_INET6;
-		} else if (dst->sin6_family != AF_INET6) {
-			error = EAFNOSUPPORT;
-			goto release;
-		}
-	}
-	return (rip6_output(m, so, dst, control));
-
-release:
-	if (control != NULL)
-		m_freem(control);
-	m_freem(m);
-	return (error);
 }
 
 struct pr_usrreqs rip6_usrreqs = {
