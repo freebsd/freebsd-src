@@ -13,6 +13,7 @@ BOOT=	pxeboot
 LDR=	pxeldr
 ORG=	0x7c00
 LOADER=	loader
+PXELDRSIZE= 510000		# Largest known safe size
 
 .if defined(BOOT_PXELDR_PROBE_KEYBOARD)
 CFLAGS+=-DPROBE_KEYBOARD
@@ -41,5 +42,7 @@ CLEANFILES+= ${LOADER}
 ${LOADER}: ${LOADERBIN} ${BTXLDR} ${BTXKERN}
 	btxld -v -f elf -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 	    -b ${BTXKERN} ${LOADERBIN}
+	@set -- `${SIZE} ${.TARGET} | tail -1` ; x=$$((${PXELDRSIZE}-$$4)); \
+	    echo "$$x bytes available"; test $$x -ge 0
 
 .include <bsd.prog.mk>
