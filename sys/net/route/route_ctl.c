@@ -82,9 +82,11 @@ static int change_route_byinfo(struct rib_head *rnh, struct rtentry *rt,
 
 static int add_route_flags(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd_add, int op_flags, struct rib_cmd_info *rc);
+#ifdef ROUTE_MPATH
 static int add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd_add, struct route_nhop_data *rnd_orig,
     int op_flags, struct rib_cmd_info *rc);
+#endif
 
 static int add_route(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd, struct rib_cmd_info *rc);
@@ -783,6 +785,7 @@ out:
 	return (error);
 }
 
+#ifdef ROUTE_MPATH
 static int
 add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
     struct route_nhop_data *rnd_add, struct route_nhop_data *rnd_orig,
@@ -826,6 +829,7 @@ add_route_flags_mpath(struct rib_head *rnh, struct rtentry *rt,
 
 	return (0);
 }
+#endif
 
 /*
  * Removes route defined by @info from the kernel table specified by @fibnum and
