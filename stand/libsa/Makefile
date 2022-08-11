@@ -170,7 +170,6 @@ SRCS+=	time.c
 .PATH: ${SRCTOP}/sys/ufs/ffs
 SRCS+=ffs_subr.c ffs_tables.c
 
-CFLAGS.ufs.c+= -I${LDRSRC}
 CFLAGS.gzipfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.pkgfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
