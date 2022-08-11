@@ -140,6 +140,8 @@ extern struct fs_ops efihttp_fsops;
  * Device switch
  */
 #define DEV_NAMLEN	8		/* Length of name of device class */
+#define DEV_DEVLEN	128		/* Length of longest device instance name */
+struct devdesc;
 struct devsw {
     const char	dv_name[DEV_NAMLEN];
     int		dv_type;		/* opaque type constant */
@@ -157,6 +159,7 @@ struct devsw {
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
     int		(*dv_print)(int verbose);	/* print device information */
     void	(*dv_cleanup)(void);
+    char *	(*dv_fmtdev)(struct devdesc *);
 };
 
 /*
@@ -176,6 +179,8 @@ struct devdesc {
     int			d_unit;
     void		*d_opendata;
 };
+
+char *devformat(struct devdesc *d);
 
 struct open_file {
     int			f_flags;	/* see F_* below */
