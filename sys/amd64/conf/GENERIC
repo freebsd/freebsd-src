@@ -260,7 +260,8 @@ device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet
 
 # Nvidia/Mellanox Connect-X 4 and later, Ethernet only
-# mlx5ib requires ibcore infra and is not included by default
+#  o requires COMPAT_LINUXKPI and xz(4)
+#  o mlx5ib requires ibcore infra and is not included by default
 device		mlx5			# Base driver
 device		mlxfw			# Firmware update
 device		mlx5en			# Ethernet driver
