@@ -90,6 +90,7 @@ struct devsw uboot_storage = {
 	.dv_ioctl = stor_ioctl,
 	.dv_print = stor_print,
 	.dv_cleanup = stor_cleanup,
+	.dv_fmtdev = disk_fmtdev,
 };
 
 static int
