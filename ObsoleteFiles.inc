@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 202208XX: raw socket layer removed
+OLD_FILES+=usr/include/net/raw_cb.h
+
 # 20220721: libnv version bumps
 OLD_LIBS+=lib/libnv.so.0
 
