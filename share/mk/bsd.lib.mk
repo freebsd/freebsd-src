@@ -470,7 +470,7 @@ installpcfiles: installpcfiles-${pcfile}
 installpcfiles-${pcfile}: ${pcfile}
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} \
-	    ${.ALLSRC} ${DESTDIR}${LIBDATADIR}/pkgconfig
+	    ${.ALLSRC} ${DESTDIR}${LIBDATADIR}/pkgconfig/
 .endfor
 .endif
 installpcfiles: .PHONY

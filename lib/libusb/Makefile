@@ -35,6 +35,12 @@ SRCS+=		libusb10_hotplug.c
 SRCS+=		libusb10_io.c
 
 PCFILES=	libusb-0.1.pc libusb-1.0.pc libusb-2.0.pc
+.for pcfile in ${PCFILES}
+${pcfile}: ${pcfile}.in
+	sed -e 's,@libdir@,${LIBDIR},g ; s,@sharedlibdir@,${SHLIBDIR},g ; \
+		s,@includedir@,${INCLUDEDIR},g ;' ${.ALLSRC} > ${.TARGET}
+.endfor
+CLEANFILES+=	${PCFILES}
 
 #
 # Cross platform support

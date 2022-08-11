@@ -18,5 +18,7 @@
             encoder
             ..
         ..
+        pkgconfig
+        ..
     ..
 ..
