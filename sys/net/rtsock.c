@@ -39,6 +39,7 @@
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/domain.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
