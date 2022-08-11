@@ -190,6 +190,7 @@ struct devsw bioshd = {
 	.dv_ioctl = bd_ioctl,
 	.dv_print = bd_print,
 	.dv_cleanup = nullsys,
+	.dv_fmtdev = disk_fmtdev,
 };
 
 static bdinfo_list_t *
