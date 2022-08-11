@@ -305,7 +305,7 @@ geli_probe_and_attach(struct open_file *f)
 	hlastblk = (hmediasize / DEV_BSIZE) - 1;
 
 	/* Taste the host provider.  If it's not geli-encrypted just return. */
-	gdev = geli_taste(diskdev_read, hdesc, hlastblk, disk_fmtdev(hdesc));
+	gdev = geli_taste(diskdev_read, hdesc, hlastblk, disk_fmtdev(&hdesc->dd));
 	if (gdev == NULL)
 		return;
 
