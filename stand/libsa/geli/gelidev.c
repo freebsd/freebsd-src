@@ -62,6 +62,7 @@ static struct devsw geli_devsw = {
 	.dv_ioctl    = geli_dev_ioctl,
 	.dv_print    = geli_dev_print,
 	.dv_cleanup  = geli_dev_cleanup,
+	.dv_fmtdev   = disk_fmtdev,
 };
 
 /*
@@ -305,7 +306,7 @@ geli_probe_and_attach(struct open_file *f)
 	hlastblk = (hmediasize / DEV_BSIZE) - 1;
 
 	/* Taste the host provider.  If it's not geli-encrypted just return. */
-	gdev = geli_taste(diskdev_read, hdesc, hlastblk, disk_fmtdev(&hdesc->dd));
+	gdev = geli_taste(diskdev_read, hdesc, hlastblk, devformat(&hdesc->dd));
 	if (gdev == NULL)
 		return;
 

@@ -61,6 +61,7 @@ struct devsw umass_disk = {
 	.dv_ioctl = umass_disk_ioctl,
 	.dv_print = umass_disk_print,
 	.dv_cleanup = umass_disk_cleanup,
+	.dv_fmtdev = disk_fmtdev,
 };
 
 static int
