@@ -406,23 +406,50 @@ rip_input(struct mbuf **mp, int *offp, int proto)
  * Generate IP header and pass packet to ip_output.  Tack on options user may
  * have setup with control call.
  */
-int
-rip_output(struct mbuf *m, struct socket *so, ...)
+static int
+rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
+    struct mbuf *control, struct thread *td)
 {
 	struct epoch_tracker et;
 	struct ip *ip;
-	int error;
-	struct inpcb *inp = sotoinpcb(so);
-	va_list ap;
-	u_long dst;
-	int flags = ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
-	    IP_ALLOWBROADCAST;
-	int cnt, hlen;
+	struct inpcb *inp;
+	in_addr_t *dst;
+	int error, flags, cnt, hlen;
 	u_char opttype, optlen, *cp;
 
-	va_start(ap, so);
-	dst = va_arg(ap, u_long);
-	va_end(ap);
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("rip_send: inp == NULL"));
+
+	if (control != NULL) {
+		m_freem(control);
+		control = NULL;
+	}
+
+	if (so->so_state & SS_ISCONNECTED) {
+		if (nam) {
+			error = EISCONN;
+			m_freem(m);
+			return (error);
+		}
+		dst = &inp->inp_faddr.s_addr;
+	} else {
+		if (nam == NULL)
+			error = ENOTCONN;
+		else if (nam->sa_family != AF_INET)
+			error = EAFNOSUPPORT;
+		else if (nam->sa_len != sizeof(struct sockaddr_in))
+			error = EINVAL;
+		else
+			error = 0;
+		if (error != 0) {
+			m_freem(m);
+			return (error);
+		}
+		dst = &((struct sockaddr_in *)nam)->sin_addr.s_addr;
+	}
+
+	flags = ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
+	    IP_ALLOWBROADCAST;
 
 	/*
 	 * If the user handed us a complete IP packet, use it.  Otherwise,
@@ -447,7 +474,7 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = htons(m->m_pkthdr.len);
 		ip->ip_src = inp->inp_laddr;
-		ip->ip_dst.s_addr = dst;
+		ip->ip_dst.s_addr = *dst;
 #ifdef ROUTE_MPATH
 		if (CALC_FLOWID_OUTBOUND) {
 			uint32_t hash_type, hash_val;
@@ -970,50 +997,6 @@ rip_shutdown(struct socket *so)
 	socantsendmore(so);
 	INP_WUNLOCK(inp);
 	return (0);
-}
-
-static int
-rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-    struct mbuf *control, struct thread *td)
-{
-	struct inpcb *inp;
-	u_long dst;
-	int error;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("rip_send: inp == NULL"));
-
-	if (control != NULL) {
-		m_freem(control);
-		control = NULL;
-	}
-
-	/*
-	 * Note: 'dst' reads below are unlocked.
-	 */
-	if (so->so_state & SS_ISCONNECTED) {
-		if (nam) {
-			error = EISCONN;
-			goto release;
-		}
-		dst = inp->inp_faddr.s_addr;	/* Unlocked read. */
-	} else {
-		error = 0;
-		if (nam == NULL)
-			error = ENOTCONN;
-		else if (nam->sa_family != AF_INET)
-			error = EAFNOSUPPORT;
-		else if (nam->sa_len != sizeof(struct sockaddr_in))
-			error = EINVAL;
-		if (error != 0)
-			goto release;
-		dst = ((struct sockaddr_in *)nam)->sin_addr.s_addr;
-	}
-	return (rip_output(m, so, dst));
-
-release:
-	m_freem(m);
-	return (error);
 }
 #endif /* INET */
 
