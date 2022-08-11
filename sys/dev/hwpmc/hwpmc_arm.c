@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct pmc_mdep *
-pmc_md_initialize()
+pmc_md_initialize(void)
 {
 #ifdef CPU_CORTEXA
 	if (cpu_class == CPU_CLASS_CORTEXA)
