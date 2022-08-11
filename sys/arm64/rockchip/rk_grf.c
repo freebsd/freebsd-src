@@ -48,6 +48,12 @@ static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk3328-grf", 1},
 	{"rockchip,rk3399-grf", 1},
 	{"rockchip,rk3399-pmugrf", 1},
+	{"rockchip,rk3568-grf", 1},
+	{"rockchip,rk3568-pmugrf", 1},
+	{"rockchip,rk3568-usb2phy-grf", 1},
+	{"rockchip,rk3566-pipegrf", 1},
+	{"rockchip,rk3568-pipegrf", 1},
+	{"rockchip,pipe-phy-grf", 1},
 	{NULL,             0}
 };
 
