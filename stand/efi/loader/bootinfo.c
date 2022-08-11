@@ -478,7 +478,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	}
 
 	/* Try reading the /etc/fstab file to select the root device */
-	getrootmount(efi_fmtdev((void *)rootdev));
+	getrootmount(devformat(rootdev));
 
 	addr = 0;
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
