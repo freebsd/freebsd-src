@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <btxv86.h>
 #include <gfx_fb.h>
 #include <teken.h>
-#include <stdbool.h>
 #include "vbe.h"
 
 #include <dev/vt/hw/vga/vt_vga_reg.h>
