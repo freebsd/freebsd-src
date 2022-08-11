@@ -50,7 +50,7 @@ struct zfs_devdesc {
 
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
 		     const char **path);
-char	*zfs_fmtdev(void *vdev);
+char	*zfs_fmtdev(struct devdesc *);
 int	zfs_probe_dev(const char *devname, uint64_t *pool_guid);
 int	zfs_list(const char *name);
 int	zfs_get_bootonce(void *, const char *, char *, size_t);
