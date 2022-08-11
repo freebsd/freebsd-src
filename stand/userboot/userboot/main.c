@@ -260,7 +260,7 @@ extract_currdev(void)
 		bzero(&zdev, sizeof(zdev));
 		zdev.dd.d_dev = &zfs_dev;
 		
-		init_zfs_boot_options(zfs_fmtdev(&zdev.dd));
+		init_zfs_boot_options(devformat(&zdev.dd));
 		dd = &zdev.dd;
 	} else
 #endif

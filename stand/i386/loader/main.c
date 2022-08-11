@@ -387,7 +387,7 @@ extract_currdev(void)
 
 #ifdef LOADER_ZFS_SUPPORT
 	if (new_currdev.dd.d_dev->dv_type == DEVT_ZFS)
-		init_zfs_boot_options(zfs_fmtdev(&new_currdev.dd));
+		init_zfs_boot_options(devformat(&new_currdev.dd));
 #endif
 
 	env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
