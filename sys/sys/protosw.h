@@ -282,9 +282,7 @@ int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
  * where cmd is one of the commands below, sa is a pointer to a sockaddr,
  * and arg is a `void *' argument used within a protocol family.
  */
-#define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
-#define	PRC_IFUP		2	/* interface has come back up */
 /* was	PRC_QUENCH2		3	DEC congestion bit says slow down */
 /* was	PRC_QUENCH		4	Deprecated by RFC 6633 */
 #define	PRC_MSGSIZE		5	/* message size forced drop */

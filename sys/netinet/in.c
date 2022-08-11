@@ -954,7 +954,7 @@ ia_getrtprefix(const struct in_ifaddr *ia, struct in_addr *prefix, struct in_add
  * Adds or delete interface "prefix" route corresponding to @ifa.
  *  Returns 0 on success or errno.
  */
-int
+static int
 in_handle_ifaddr_route(int cmd, struct in_ifaddr *ia)
 {
 	struct ifaddr *ifa = &ia->ia_ifa;
@@ -1302,6 +1302,61 @@ in_ifdetach(struct ifnet *ifp)
 	 */
 	inm_release_wait(NULL);
 }
+
+static void
+in_ifnet_event(void *arg __unused, struct ifnet *ifp, int event)
+{
+	struct epoch_tracker et;
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
+	int error;
+
+	NET_EPOCH_ENTER(et);
+	switch (event) {
+	case IFNET_EVENT_DOWN:
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ia = (struct in_ifaddr *)ifa;
+			if ((ia->ia_flags & IFA_ROUTE) == 0)
+				continue;
+			ifa_ref(ifa);
+			/*
+			 * in_scrubprefix() kills the interface route.
+			 */
+			in_scrubprefix(ia, 0);
+			/*
+			 * in_ifadown gets rid of all the rest of the
+			 * routes.  This is not quite the right thing
+			 * to do, but at least if we are running a
+			 * routing process they will come back.
+			 */
+			in_ifadown(ifa, 0);
+			ifa_free(ifa);
+		}
+		break;
+
+	case IFNET_EVENT_UP:
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			ia = (struct in_ifaddr *)ifa;
+			if (ia->ia_flags & IFA_ROUTE)
+				continue;
+			ifa_ref(ifa);
+			error = ifa_del_loopback_route(ifa, ifa->ifa_addr);
+			rt_addrmsg(RTM_ADD, ifa, ifa->ifa_ifp->if_fib);
+			error = in_handle_ifaddr_route(RTM_ADD, ia);
+			if (error == 0)
+				ia->ia_flags |= IFA_ROUTE;
+			error = ifa_add_loopback_route(ifa, ifa->ifa_addr);
+			ifa_free(ifa);
+		}
+		break;
+	}
+	NET_EPOCH_EXIT(et);
+}
+EVENTHANDLER_DEFINE(ifnet_event, in_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 
 /*
  * Delete all IPv4 multicast address records, and associated link-layer

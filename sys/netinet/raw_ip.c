@@ -769,64 +769,11 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
-/*
- * This function exists solely to receive the PRC_IFDOWN messages which are
- * sent by if_down().  It looks for an ifaddr whose ifa_addr is sa, and calls
- * in_ifadown() to remove all routes corresponding to that address.  It also
- * receives the PRC_IFUP messages from if_up() and reinstalls the interface
- * routes.
- */
 void
 rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
-	struct in_ifaddr *ia;
-	int err;
-
-	NET_EPOCH_ASSERT();
 
 	switch (cmd) {
-	case PRC_IFDOWN:
-		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-			if (ia->ia_ifa.ifa_addr == sa
-			    && (ia->ia_flags & IFA_ROUTE)) {
-				ifa_ref(&ia->ia_ifa);
-				/*
-				 * in_scrubprefix() kills the interface route.
-				 */
-				in_scrubprefix(ia, 0);
-				/*
-				 * in_ifadown gets rid of all the rest of the
-				 * routes.  This is not quite the right thing
-				 * to do, but at least if we are running a
-				 * routing process they will come back.
-				 */
-				in_ifadown(&ia->ia_ifa, 0);
-				ifa_free(&ia->ia_ifa);
-				break;
-			}
-		}
-		break;
-
-	case PRC_IFUP:
-		CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-			if (ia->ia_ifa.ifa_addr == sa)
-				break;
-		}
-		if (ia == NULL || (ia->ia_flags & IFA_ROUTE))
-			return;
-		ifa_ref(&ia->ia_ifa);
-
-		err = ifa_del_loopback_route((struct ifaddr *)ia, sa);
-
-		rt_addrmsg(RTM_ADD, &ia->ia_ifa, ia->ia_ifp->if_fib);
-		err = in_handle_ifaddr_route(RTM_ADD, ia);
-		if (err == 0)
-			ia->ia_flags |= IFA_ROUTE;
-
-		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
-
-		ifa_free(&ia->ia_ifa);
-		break;
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	case PRC_MSGSIZE:
 		if (IPSEC_ENABLED(ipv4))
