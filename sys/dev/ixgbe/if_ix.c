@@ -1925,8 +1925,27 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 	 * the VFTA and other state, so if there
 	 * have been no vlan's registered do nothing.
 	 */
-	if (sc->num_vlans == 0)
+	if (sc->num_vlans == 0 || (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0) {
+		/* Clear the vlan hw flag */
+		for (i = 0; i < sc->num_rx_queues; i++) {
+			rxr = &sc->rx_queues[i].rxr;
+			/* On 82599 the VLAN enable is per/queue in RXDCTL */
+			if (hw->mac.type != ixgbe_mac_82598EB) {
+				ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(rxr->me));
+				ctrl &= ~IXGBE_RXDCTL_VME;
+				IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me), ctrl);
+			}
+			rxr->vtag_strip = false;
+		}
+		ctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
+		/* Enable the Filter Table if enabled */
+		ctrl |= IXGBE_VLNCTRL_CFIEN;
+		ctrl &= ~IXGBE_VLNCTRL_VFE;
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			ctrl &= ~IXGBE_VLNCTRL_VME;
+		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
 		return;
+	}
 
 	/* Setup the queues for vlans */
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
