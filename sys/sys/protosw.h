@@ -57,19 +57,11 @@ struct sockopt;
  * The system will call the pr_drain entry if it is low on space and
  * this should throw away any non-critical data.
  *
- * Protocols pass data between themselves as chains of mbufs using
- * the pr_input and pr_output hooks.  Pr_input passes data up (towards
- * the users) and pr_output passes it down (towards the interfaces); control
- * information passes up and down on pr_ctlinput and pr_ctloutput.
- * The protocol is responsible for the space occupied by any the
- * arguments to these entries and must dispose it.
- *
  * In retrospect, it would be a lot nicer to use an interface
  * similar to the vnode VOP interface.
  */
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_input_t (struct mbuf **, int*, int);
-typedef int	pr_output_t (struct mbuf *, struct socket *, ...);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_fasttimo_t (void);
@@ -83,7 +75,6 @@ struct protosw {
 	short	pr_flags;		/* see below */
 /* protocol-protocol hooks */
 	pr_input_t *pr_input;		/* input to protocol (from below) */
-	pr_output_t *pr_output;		/* output to protocol (from above) */
 	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
