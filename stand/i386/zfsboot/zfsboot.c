@@ -467,8 +467,8 @@ load(void)
 
 	if (bdev->dd.d_dev->dv_type == DEVT_ZFS) {
 		zfsargs.size = sizeof(zfsargs);
-		zfsargs.pool = bdev->d_kind.zfs.pool_guid;
-		zfsargs.root = bdev->d_kind.zfs.root_guid;
+		zfsargs.pool = bdev->zfs.pool_guid;
+		zfsargs.root = bdev->zfs.root_guid;
 #ifdef LOADER_GELI_SUPPORT
 		export_geli_boot_data(&zfsargs.gelidata);
 #endif
@@ -481,8 +481,8 @@ load(void)
 		__exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 		    bootdev,
 		    KARGS_FLAGS_ZFS | KARGS_FLAGS_EXTARG,
-		    (uint32_t)bdev->d_kind.zfs.pool_guid,
-		    (uint32_t)(bdev->d_kind.zfs.pool_guid >> 32),
+		    (uint32_t)bdev->zfs.pool_guid,
+		    (uint32_t)(bdev->zfs.pool_guid >> 32),
 		    VTOP(&bootinfo),
 		    zfsargs);
 	} else {
@@ -528,13 +528,12 @@ mount_root(char *arg)
 	free(bdev);
 	bdev = ddesc;
 	if (bdev->dd.d_dev->dv_type == DEVT_DISK) {
-		if (bdev->d_kind.biosdisk.partition == -1)
+		if (bdev->disk.d_partition == -1)
 			part = 0xff;
 		else
-			part = bdev->d_kind.biosdisk.partition;
+			part = bdev->disk.d_partition;
 		bootdev = MAKEBOOTDEV(dev_maj[bdev->dd.d_dev->dv_type],
-		    bdev->d_kind.biosdisk.slice + 1,
-		    bdev->dd.d_unit, part);
+		    bdev->disk.d_slice + 1, bdev->dd.d_unit, part);
 		bootinfo.bi_bios_dev = bd_unit2bios(bdev);
 	}
 	strncpy(boot_devname, root, sizeof (boot_devname));
@@ -714,8 +713,8 @@ i386_zfs_probe(void)
 		if (pool_guid != 0 && bdev == NULL) {
 			bdev = malloc(sizeof (struct i386_devdesc));
 			bzero(bdev, sizeof (struct i386_devdesc));
-			bdev->dd.d_dev = &zfs_dev;
-			bdev->d_kind.zfs.pool_guid = pool_guid;
+			bdev->zfs.dd.d_dev = &zfs_dev;
+			bdev->zfs.pool_guid = pool_guid;
 		}
 	}
 }
