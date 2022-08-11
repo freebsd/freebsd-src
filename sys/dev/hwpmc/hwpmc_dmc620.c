@@ -131,7 +131,7 @@ dmc620_pmc_unregister(int unit)
 }
 
 int
-pmc_dmc620_nclasses()
+pmc_dmc620_nclasses(void)
 {
 
 	if (dmc620_npmcs > 0)
