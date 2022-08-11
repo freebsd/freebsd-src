@@ -52,12 +52,12 @@ struct route_nhop_data {
 	uint32_t rnd_weight;
 };
 
-int rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+int rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
     struct route_nhop_data *rnd, int op_flags, struct rib_cmd_info *rc);
-int rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+int rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
     rib_filter_f_t *filter_func, void *filter_arg, int op_flags,
     struct rib_cmd_info *rc);
-int rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+int rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, int plen,
     const struct sockaddr *gw, int op_flags, struct rib_cmd_info *rc);
 
 /* operation flags */

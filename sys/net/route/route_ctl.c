@@ -296,7 +296,7 @@ struct gw_filter_data {
 };
 
 static int
-gw_filter_func(const struct rtentry *rt, const struct nhop_object *nh, void *_data)
+gw_fulter_func(const struct rtentry *rt, const struct nhop_object *nh, void *_data)
 {
 	struct gw_filter_data *gwd = (struct gw_filter_data *)_data;
 
@@ -385,17 +385,22 @@ static bool
 fill_pxmask_family(int family, int plen, struct sockaddr *_dst,
     struct sockaddr **pmask)
 {
+	if (plen == -1) {
+		*pmask = NULL;
+		return (true);
+	}
+
 	switch (family) {
 #ifdef INET
 	case AF_INET:
 		{
-			struct sockaddr_in *mask = (struct sockaddr_in *)pmask;
+			struct sockaddr_in *mask = (struct sockaddr_in *)(*pmask);
 			struct sockaddr_in *dst= (struct sockaddr_in *)_dst;
 
 			memset(mask, 0, sizeof(*mask));
 			mask->sin_family = family;
 			mask->sin_len = sizeof(*mask);
-			if (plen == 32 || plen == -1)
+			if (plen == 32)
 				*pmask = NULL;
 			else if (plen > 32 || plen < 0)
 				return (false);
@@ -414,13 +419,13 @@ fill_pxmask_family(int family, int plen, struct sockaddr *_dst,
 #ifdef INET6
 	case AF_INET6:
 		{
-			struct sockaddr_in6 *mask = (struct sockaddr_in6 *)pmask;
+			struct sockaddr_in6 *mask = (struct sockaddr_in6 *)(*pmask);
 			struct sockaddr_in6 *dst = (struct sockaddr_in6 *)_dst;
 
 			memset(mask, 0, sizeof(*mask));
 			mask->sin6_family = family;
 			mask->sin6_len = sizeof(*mask);
-			if (plen == 128 || plen == -1)
+			if (plen == 128)
 				*pmask = NULL;
 			else if (plen > 128 || plen < 0)
 				return (false);
@@ -449,7 +454,7 @@ fill_pxmask_family(int family, int plen, struct sockaddr *_dst,
  * Returns 0 on success.
  */
 int
-rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
     struct route_nhop_data *rnd, int op_flags, struct rib_cmd_info *rc)
 {
 	union sockaddr_union mask_storage;
@@ -471,8 +476,10 @@ rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
 	}
 
 	if (op_flags & RTM_F_CREATE) {
-		if ((rt = rt_alloc(rnh, dst, netmask)) == NULL)
+		if ((rt = rt_alloc(rnh, dst, netmask)) == NULL) {
+			FIB_RH_LOG(LOG_INFO, rnh, "rtentry allocation failed");
 			return (ENOMEM);
+		}
 	} else {
 		struct route_nhop_data rnd_tmp;
 
@@ -481,6 +488,14 @@ rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
 			return (ESRCH);
 	}
 
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
+	{
+		char nhbuf[NHOP_PRINT_BUFSIZE], rtbuf[NHOP_PRINT_BUFSIZE];
+		nhop_print_buf_any(rnd->rnd_nhop, nhbuf, sizeof(nhbuf));
+		rt_print_buf(rt, rtbuf, sizeof(rtbuf));
+		FIB_RH_LOG(LOG_DEBUG2, rnh, "request %s -> %s", rtbuf, nhbuf);
+	}
+#endif
 	return (add_route_flags(rnh, rt, rnd, op_flags, rc));
 }
 
@@ -498,12 +513,12 @@ rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
  * Returns 0 on success.
  */
 int
-rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, int plen,
     const struct sockaddr *gw, int op_flags, struct rib_cmd_info *rc)
 {
 	struct gw_filter_data gwd = { .gw = gw };
 
-	return (rib_del_route_px(fibnum, dst, plen, gw_filter_func, &gwd, op_flags, rc));
+	return (rib_del_route_px(fibnum, dst, plen, gw_fulter_func, &gwd, op_flags, rc));
 }
 
 /*
@@ -521,7 +536,7 @@ rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
  * Returns 0 on success.
  */
 int
-rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, unsigned int plen,
+rib_del_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
     rib_filter_f_t *filter_func, void *filter_arg, int op_flags,
     struct rib_cmd_info *rc)
 {
@@ -875,7 +890,7 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 		filter_func = info->rti_filter;
 		filter_arg = info->rti_filterdata;
 	} else if (gwd.gw != NULL) {
-		filter_func = gw_filter_func;
+		filter_func = gw_fulter_func;
 		filter_arg = &gwd;
 	}
 
