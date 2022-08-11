@@ -80,7 +80,7 @@ CFLAGS+=	-I${BOOTSRC}/i386
 	vtfontcvt -f compressed-source -o ${.TARGET} ${.ALLSRC}
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
-	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
+	btxld -v -f elf -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
 		-b ${BTXKERN} ${LOADER}.bin
 
 ${LOADER}.bin: ${LOADER}.sym
