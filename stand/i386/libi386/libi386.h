@@ -27,25 +27,23 @@
  */
 
 
+#include "disk.h"
+#ifdef LOADER_ZFS_SUPPORT
+#include "libzfs.h"
+#endif
 /*
  * i386 fully-qualified device descriptor.
  */
-struct i386_devdesc {
-    struct devdesc	dd;		/* Must be first. */
-    union 
-    {
-	struct 
+struct i386_devdesc
+{
+	union
 	{
-	    int		slice;
-	    int		partition;
-	    off_t	offset;
-	} biosdisk;
-	struct
-	{
-	    uint64_t	pool_guid;
-	    uint64_t	root_guid;
-	} zfs;
-    } d_kind;
+		struct devdesc dd;
+		struct disk_devdesc disk;
+#ifdef LOADER_ZFS_SUPPORT
+		struct zfs_devdesc zfs;
+#endif
+	};
 };
 
 /*
