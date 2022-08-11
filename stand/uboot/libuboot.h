@@ -50,7 +50,6 @@ struct uboot_devdesc {
 #endif
 
 int uboot_getdev(void **vdev, const char *devspec, const char **path);
-char *uboot_fmtdev(void *vdev);
 int uboot_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 extern int devs_no;
