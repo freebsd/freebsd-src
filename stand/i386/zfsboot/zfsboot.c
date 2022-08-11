@@ -222,11 +222,11 @@ main(void)
 	    devdesc.d_partition >= 0 ? devdesc.d_partition : 0xff);
 
 	/*
-	 * zfs_fmtdev() can be called only after dv_init
+	 * devformat() can be called only after dv_init
 	 */
 	if (bdev != NULL && bdev->dd.d_dev->dv_type == DEVT_ZFS) {
 		/* set up proper device name string for ZFS */
-		strncpy(boot_devname, zfs_fmtdev(&bdev->dd), sizeof (boot_devname));
+		strncpy(boot_devname, devformat(&bdev->dd), sizeof (boot_devname));
 		if (zfs_get_bootonce(bdev, OS_BOOTONCE, cmd,
 		    sizeof(cmd)) == 0) {
 			nvlist_t *benv;
