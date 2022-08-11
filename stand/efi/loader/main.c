@@ -203,7 +203,7 @@ set_currdev_devdesc(struct devdesc *currdev)
 {
 	const char *devname;
 
-	devname = efi_fmtdev(currdev);
+	devname = devformat(currdev);
 	printf("Setting currdev to %s\n", devname);
 	set_currdev(devname);
 }
@@ -273,7 +273,7 @@ probe_zfs_currdev(uint64_t guid)
 	currdev.pool_guid = guid;
 	currdev.root_guid = 0;
 	set_currdev_devdesc((struct devdesc *)&currdev);
-	devname = efi_fmtdev(&currdev);
+	devname = devformat(&currdev.dd);
 	init_zfs_boot_options(devname);
 
 	rv = sanity_check_currdev();

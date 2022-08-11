@@ -85,7 +85,6 @@ efi_exit_boot_services(UINTN key)
 }
 
 int efi_getdev(void **vdev, const char *devspec, const char **path);
-char *efi_fmtdev(void *vdev);
 int efi_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 
