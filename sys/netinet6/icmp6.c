@@ -2350,16 +2350,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 			    (struct sockaddr *)&ssrc, ifp, rt_flags,
 			    V_icmp6_redirtimeout);
 	}
-	/* finally update cached route in each socket via pfctlinput */
-    {
-	struct sockaddr_in6 sdst;
-
-	bzero(&sdst, sizeof(sdst));
-	sdst.sin6_family = AF_INET6;
-	sdst.sin6_len = sizeof(struct sockaddr_in6);
-	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
-	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
-    }
 
  freeit:
 	m_freem(m);
