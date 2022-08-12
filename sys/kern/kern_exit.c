@@ -218,8 +218,6 @@ proc_set_p2_wexit(struct proc *p)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag2 |= P2_WEXIT;
-	while (p->p_singlethr > 0)
-		msleep(&p->p_singlethr, &p->p_mtx, PWAIT | PCATCH, "exit1t", 0);
 }
 
 /*
