@@ -720,8 +720,6 @@ struct proc {
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
 	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 	int		p_pdeathsig;	/* (c) Signal from parent on exit. */
-	int		p_singlethr;	/* (c) Count of threads doing
-					   external thread_single() */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
