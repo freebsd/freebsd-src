@@ -19,8 +19,22 @@ PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
-LOADERSIZE?=	508000		# Largest known safe size for loader.bin
-
+#
+# There's 640k - 40k maximum space, less however much memory the BIOS uses.  A
+# non-random survey suggests that 20k-25k is a good value for 'most' machines.
+# We also need to subtract maximum stack usage (20-25k).
+#
+# So 640k - 40k - 25k - 25k = 550k = 563,200 bytes, but use 550,000 below for
+# some extra buffer for more complex setups and/or wider BIOS lomem variation.
+#
+# Some systems use more stack or have BIOS resere more RAM (or both), and will
+# need to set this lower in /etc/loader.conf if the above buffer is too small.
+#
+# sudo dd if=/dev/mem bs=1 iseek=0x413 count=2 | hd -d
+#
+# will tell you how many kiB of lomem are available.
+#
+LOADERSIZE?=	550000		# Largest known safe size for loader.bin
 
 .PATH:		${BOOTSRC}/i386/loader
 
