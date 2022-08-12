@@ -324,7 +324,7 @@ in_socktrim(struct sockaddr_in *ap)
  * Generic internet control operations (ioctl's).
  */
 int
-in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
+in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
     struct thread *td)
 {
 	struct ifreq *ifr = (struct ifreq *)data;

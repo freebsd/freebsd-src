@@ -79,8 +79,8 @@ typedef int	pr_bind_t(struct socket *, struct sockaddr *, struct thread *);
 typedef int	pr_connect_t(struct socket *, struct sockaddr *,
 		    struct thread *);
 typedef int	pr_connect2_t(struct socket *, struct socket *);
-typedef int	pr_control_t(struct socket *, u_long, caddr_t, struct ifnet *,
-		    struct thread *);
+typedef int	pr_control_t(struct socket *, unsigned long, void *,
+		    struct ifnet *, struct thread *);
 typedef void	pr_detach_t(struct socket *);
 typedef int	pr_disconnect_t(struct socket *);
 typedef int	pr_listen_t(struct socket *, int, struct thread *);
@@ -272,7 +272,7 @@ int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
 int	pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
 int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
-int	pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
+int	pru_control_notsupp(struct socket *so, u_long cmd, void *data,
 	    struct ifnet *ifp, struct thread *td);
 int	pru_disconnect_notsupp(struct socket *so);
 int	pru_listen_notsupp(struct socket *so, int backlog, struct thread *td);

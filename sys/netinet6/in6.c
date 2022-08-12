@@ -246,7 +246,7 @@ struct in6_ndifreq32 {
 #endif
 
 int
-in6_control(struct socket *so, u_long cmd, caddr_t data,
+in6_control(struct socket *so, u_long cmd, void *data,
     struct ifnet *ifp, struct thread *td)
 {
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;

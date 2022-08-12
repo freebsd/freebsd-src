@@ -1445,7 +1445,7 @@ ng_btsocket_sco_connect(struct socket *so, struct sockaddr *nam,
  */
 
 int
-ng_btsocket_sco_control(struct socket *so, u_long cmd, caddr_t data,
+ng_btsocket_sco_control(struct socket *so, u_long cmd, void *data,
 		struct ifnet *ifp, struct thread *td)
 {
 	return (EINVAL);

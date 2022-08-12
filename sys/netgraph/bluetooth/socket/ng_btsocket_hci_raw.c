@@ -1031,7 +1031,7 @@ ng_btsocket_hci_raw_connect(struct socket *so, struct sockaddr *nam,
  */
 
 int
-ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
+ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, void *data,
 		struct ifnet *ifp, struct thread *td)
 {
 	ng_btsocket_hci_raw_pcb_p	 pcb = so2hci_raw_pcb(so);

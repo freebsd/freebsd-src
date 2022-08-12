@@ -444,7 +444,7 @@ int	in_joingroup_locked(struct ifnet *, const struct in_addr *,
 int	in_leavegroup(struct in_multi *, /*const*/ struct in_mfilter *);
 int	in_leavegroup_locked(struct in_multi *,
 	    /*const*/ struct in_mfilter *);
-int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
+int	in_control(struct socket *, u_long, void *, struct ifnet *,
 	    struct thread *);
 int	in_addprefix(struct in_ifaddr *);
 int	in_scrubprefix(struct in_ifaddr *, u_int);

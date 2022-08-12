@@ -3725,7 +3725,7 @@ pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 }
 
 int
-pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
+pru_control_notsupp(struct socket *so, u_long cmd, void *data,
     struct ifnet *ifp, struct thread *td)
 {
 
