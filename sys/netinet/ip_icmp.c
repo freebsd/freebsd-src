@@ -729,7 +729,6 @@ reflect:
 			    (struct sockaddr *)&icmpgw, m->m_pkthdr.rcvif,
 			    RTF_GATEWAY, V_redirtimeout);
 		}
-		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
 		break;
 
 	/*

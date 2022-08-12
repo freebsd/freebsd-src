@@ -364,7 +364,6 @@ char	*prcorequests[] = {
 #endif
 
 #ifdef _KERNEL
-void	pfctlinput(int, struct sockaddr *);
 struct domain *pffinddomain(int family);
 struct protosw *pffindproto(int family, int protocol, int type);
 struct protosw *pffindtype(int family, int type);

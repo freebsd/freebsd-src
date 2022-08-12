@@ -464,20 +464,6 @@ pf_proto_unregister(int family, int protocol, int type)
 	return (0);
 }
 
-void
-pfctlinput(int cmd, struct sockaddr *sa)
-{
-	struct domain *dp;
-	struct protosw *pr;
-
-	NET_EPOCH_ASSERT();
-
-	for (dp = domains; dp; dp = dp->dom_next)
-		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-			if (pr->pr_ctlinput)
-				(*pr->pr_ctlinput)(cmd, sa, (void *)0);
-}
-
 static void
 pfslowtimo(void *arg)
 {
