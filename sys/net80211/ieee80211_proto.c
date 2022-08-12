@@ -602,7 +602,7 @@ ieee80211_dump_pkt(struct ieee80211com *ic,
 		printf(" QoS [TID %u%s]", qwh->i_qos[0] & IEEE80211_QOS_TID,
 			qwh->i_qos[0] & IEEE80211_QOS_ACKPOLICY ? " ACM" : "");
 	}
-	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+	if (IEEE80211_IS_PROTECTED(wh)) {
 		int off;
 
 		off = ieee80211_anyhdrspace(ic, wh);

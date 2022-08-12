@@ -622,7 +622,7 @@ ieee80211_validate_frame(struct mbuf *m,
 	}
 
 	if ((params && (params->ibp_flags & IEEE80211_BPF_CRYPTO) != 0) ||
-	    (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0) {
+	    (IEEE80211_IS_PROTECTED(wh))) {
 		int subtype;
 
 		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
