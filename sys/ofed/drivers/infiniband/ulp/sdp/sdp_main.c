@@ -1575,13 +1575,6 @@ sdp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	sdp_pcbnotifyall(faddr, inetctlerrmap[cmd], sdp_notify);
 }
 
-static int
-sdp_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
-    struct thread *td)
-{
-	return (EOPNOTSUPP);
-}
-
 static void
 sdp_keepalive_timeout(void *data)
 {
@@ -1923,7 +1916,6 @@ struct pr_usrreqs sdp_usrreqs = {
 	.pru_attach =		sdp_attach,
 	.pru_bind =		sdp_bind,
 	.pru_connect =		sdp_connect,
-	.pru_control =		sdp_control,
 	.pru_detach =		sdp_detach,
 	.pru_disconnect =	sdp_disconnect,
 	.pru_listen =		sdp_listen,

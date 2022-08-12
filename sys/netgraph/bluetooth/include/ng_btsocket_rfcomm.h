@@ -323,7 +323,7 @@ int  ng_btsocket_rfcomm_bind       (struct socket *, struct sockaddr *,
                                     struct thread *);
 int  ng_btsocket_rfcomm_connect    (struct socket *, struct sockaddr *,
                                     struct thread *);
-int  ng_btsocket_rfcomm_control    (struct socket *, u_long, caddr_t,
+int  ng_btsocket_rfcomm_control    (struct socket *, u_long, void *,
                                     struct ifnet *, struct thread *);
 int  ng_btsocket_rfcomm_ctloutput  (struct socket *, struct sockopt *);
 void ng_btsocket_rfcomm_detach     (struct socket *);

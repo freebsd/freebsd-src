@@ -881,7 +881,7 @@ int	ip6_setmoptions(struct inpcb *, struct sockopt *);
 #define IN6_IFAUPDATE_DADDELAY	0x1 /* first time to configure an address */
 
 int	in6_mask2len(struct in6_addr *, u_char *);
-int	in6_control(struct socket *, u_long, caddr_t, struct ifnet *,
+int	in6_control(struct socket *, u_long, void *, struct ifnet *,
 	struct thread *);
 int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
 	struct in6_ifaddr *, int);
