@@ -185,7 +185,7 @@ db_show_rman_valid(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 	struct rman *rm;
 
 	TAILQ_FOREACH(rm, &rman_head, rm_link) {
-		if ((void *)rm == (void *)rm)
+		if ((void *)rm == (void *)addr)
 			return (0);
 	}
 
