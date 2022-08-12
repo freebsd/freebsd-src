@@ -482,7 +482,7 @@ sleepq_check_ast_sc_locked(struct thread *td, struct sleepqueue_chain *sc)
 	 * Lock the per-process spinlock prior to dropping the
 	 * PROC_LOCK to avoid a signal delivery race.
 	 * PROC_LOCK, PROC_SLOCK, and thread_lock() are
-	 * currently held in tdsendsignal().
+	 * currently held in tdsendsignal() and thread_single().
 	 */
 	PROC_SLOCK(p);
 	mtx_lock_spin(&sc->sc_lock);
