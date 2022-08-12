@@ -290,13 +290,28 @@ match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw)
 	return (false);
 }
 
+/*
+ * Matches all nexthop with given @gw.
+ * Can be used as rib_filter_f callback.
+ */
+int
+rib_match_gw(const struct rtentry *rt, const struct nhop_object *nh, void *gw_sa)
+{
+	const struct sockaddr *gw = (const struct sockaddr *)gw_sa;
+
+	return (match_nhop_gw(nh, gw));
+}
+
 struct gw_filter_data {
 	const struct sockaddr *gw;
 	int count;
 };
 
+/*
+ * Matches first occurence of the gateway provided in @gwd
+ */
 static int
-gw_fulter_func(const struct rtentry *rt, const struct nhop_object *nh, void *_data)
+match_gw_one(const struct rtentry *rt, const struct nhop_object *nh, void *_data)
 {
 	struct gw_filter_data *gwd = (struct gw_filter_data *)_data;
 
@@ -518,7 +533,7 @@ rib_del_route_px_gw(uint32_t fibnum, struct sockaddr *dst, int plen,
 {
 	struct gw_filter_data gwd = { .gw = gw };
 
-	return (rib_del_route_px(fibnum, dst, plen, gw_fulter_func, &gwd, op_flags, rc));
+	return (rib_del_route_px(fibnum, dst, plen, match_gw_one, &gwd, op_flags, rc));
 }
 
 /*
@@ -955,7 +970,7 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 		filter_func = info->rti_filter;
 		filter_arg = info->rti_filterdata;
 	} else if (gwd.gw != NULL) {
-		filter_func = gw_fulter_func;
+		filter_func = match_gw_one;
 		filter_arg = &gwd;
 	}
 
