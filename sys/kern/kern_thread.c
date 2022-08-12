@@ -1216,12 +1216,8 @@ thread_single(struct proc *p, int mode)
 		else
 			p->p_flag &= ~P_SINGLE_BOUNDARY;
 	}
-	if (mode == SINGLE_ALLPROC) {
+	if (mode == SINGLE_ALLPROC)
 		p->p_flag |= P_TOTAL_STOP;
-		thread_lock(td);
-		td->td_flags |= TDF_DOING_SA;
-		thread_unlock(td);
-	}
 	p->p_flag |= P_STOPPED_SINGLE;
 	PROC_SLOCK(p);
 	p->p_singlethread = td;
@@ -1308,11 +1304,6 @@ stopme:
 		}
 	}
 	PROC_SUNLOCK(p);
-	if (mode == SINGLE_ALLPROC) {
-		thread_lock(td);
-		td->td_flags &= ~TDF_DOING_SA;
-		thread_unlock(td);
-	}
 	return (0);
 }
 
@@ -1599,11 +1590,10 @@ thread_unsuspend(struct proc *p)
 	if (!P_SHOULDSTOP(p)) {
                 FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
-			if (TD_IS_SUSPENDED(td) && (td->td_flags &
-			    TDF_DOING_SA) == 0) {
+			if (TD_IS_SUSPENDED(td))
 				wakeup_swapper |= thread_unsuspend_one(td, p,
 				    true);
-			} else
+			else
 				thread_unlock(td);
 		}
 	} else if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
