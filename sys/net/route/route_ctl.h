@@ -77,6 +77,9 @@ int rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
 int rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info);
 
+int rib_match_gw(const struct rtentry *rt, const struct nhop_object *nh,
+    void *gw_sa);
+
 typedef void route_notification_t(struct rib_cmd_info *rc, void *);
 void rib_decompose_notification(struct rib_cmd_info *rc,
     route_notification_t *cb, void *cbdata);
