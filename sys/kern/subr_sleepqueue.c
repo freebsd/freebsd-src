@@ -388,8 +388,9 @@ sleepq_add(const void *wchan, struct lock_object *lock, const char *wmesg,
 }
 
 /*
- * Sets a timeout that will remove the current thread from the specified
- * sleep queue after timo ticks if the thread has not already been awakened.
+ * Sets a timeout that will remove the current thread from the
+ * specified sleep queue at the specified time if the thread has not
+ * already been awakened.  Flags are from C_* (callout) namespace.
  */
 void
 sleepq_set_timeout_sbt(const void *wchan, sbintime_t sbt, sbintime_t pr,
