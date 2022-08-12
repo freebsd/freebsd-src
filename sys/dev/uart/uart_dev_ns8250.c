@@ -178,11 +178,18 @@ ns8250_drain(struct uart_bas *bas, int what)
 		 * limit high enough to handle large FIFOs and integrated
 		 * UARTs. The HP rx2600 for example has 3 UARTs on the
 		 * management board that tend to get a lot of data send
-		 * to it when the UART is first activated.
+		 * to it when the UART is first activated.  Assume that we
+		 * have finished draining if LSR_RXRDY is not asserted both
+		 * prior to and after a DELAY; but as long as LSR_RXRDY is
+		 * asserted, read (and discard) characters as quickly as
+		 * possible.
 		 */
 		limit=10*4096;
-		while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) && --limit) {
-			(void)uart_getreg(bas, REG_DATA);
+		while (limit && (uart_getreg(bas, REG_LSR) & LSR_RXRDY) && --limit) {
+			do {
+				(void)uart_getreg(bas, REG_DATA);
+				uart_barrier(bas);
+			} while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) && --limit);
 			uart_barrier(bas);
 			DELAY(delay << 2);
 		}
