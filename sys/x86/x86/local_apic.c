@@ -434,6 +434,8 @@ lapic_init(vm_paddr_t addr)
 	int i;
 	bool arat;
 
+	TSENTER();
+
 	/*
 	 * Enable x2APIC mode if possible. Map the local APIC
 	 * registers page.
@@ -531,7 +533,7 @@ lapic_init(vm_paddr_t addr)
 	}
 
 #ifdef SMP
-#define	LOOPS	100000
+#define	LOOPS	1000
 	/*
 	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
 	 * lapic_ipi_wait_mult contains the number of iterations which
@@ -563,6 +565,8 @@ lapic_init(vm_paddr_t addr)
 	}
 #undef LOOPS
 #endif /* SMP */
+
+	TSEXIT();
 }
 
 /*
