@@ -60,13 +60,60 @@ struct sockopt;
  * In retrospect, it would be a lot nicer to use an interface
  * similar to the vnode VOP interface.
  */
+struct ifnet;
+struct stat;
+struct ucred;
+struct uio;
+
 /* USE THESE FOR YOUR PROTOTYPES ! */
-typedef int	pr_input_t (struct mbuf **, int*, int);
-typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
-typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
-typedef	void	pr_fasttimo_t (void);
-typedef	void	pr_slowtimo_t (void);
-typedef	void	pr_drain_t (void);
+typedef int	pr_input_t(struct mbuf **, int*, int);
+typedef void	pr_ctlinput_t(int, struct sockaddr *, void *);
+typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
+typedef	void	pr_fasttimo_t(void);
+typedef	void	pr_slowtimo_t(void);
+typedef	void	pr_drain_t(void);
+typedef void	pr_abort_t(struct socket *);
+typedef int	pr_accept_t(struct socket *, struct sockaddr **);
+typedef int	pr_attach_t(struct socket *, int, struct thread *);
+typedef int	pr_bind_t(struct socket *, struct sockaddr *, struct thread *);
+typedef int	pr_connect_t(struct socket *, struct sockaddr *,
+		    struct thread *);
+typedef int	pr_connect2_t(struct socket *, struct socket *);
+typedef int	pr_control_t(struct socket *, u_long, caddr_t, struct ifnet *,
+		    struct thread *);
+typedef void	pr_detach_t(struct socket *);
+typedef int	pr_disconnect_t(struct socket *);
+typedef int	pr_listen_t(struct socket *, int, struct thread *);
+typedef int	pr_peeraddr_t(struct socket *, struct sockaddr **);
+typedef int	pr_rcvd_t(struct socket *, int);
+typedef int	pr_rcvoob_t(struct socket *, struct mbuf *, int);
+typedef enum {
+	PRUS_OOB =		0x1,
+	PRUS_EOF =		0x2,
+	PRUS_MORETOCOME =	0x4,
+	PRUS_NOTREADY =		0x8,
+	PRUS_IPV6 =		0x10,
+} pr_send_flags_t;
+typedef int	pr_send_t(struct socket *, int, struct mbuf *,
+		    struct sockaddr *, struct mbuf *, struct thread *);
+typedef int	pr_ready_t(struct socket *, struct mbuf *, int);
+typedef int	pr_sense_t(struct socket *, struct stat *);
+typedef int	pr_shutdown_t(struct socket *);
+typedef int	pr_flush_t(struct socket *, int);
+typedef int	pr_sockaddr_t(struct socket *, struct sockaddr **);
+typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
+		    struct mbuf *, struct mbuf *, int, struct thread *);
+typedef int	pr_soreceive_t(struct socket *, struct sockaddr **,
+		    struct uio *, struct mbuf **, struct mbuf **, int *);
+typedef int	pr_sopoll_t(struct socket *, int, struct ucred *,
+		    struct thread *);
+typedef void	pr_sosetlabel_t(struct socket *);
+typedef void	pr_close_t(struct socket *);
+typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
+		    struct thread *);
+typedef int	pr_connectat_t(int, struct socket *, struct sockaddr *,
+		    struct thread *);
+typedef int	pr_aio_queue_t(struct socket *, struct kaiocb *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -181,51 +228,33 @@ struct uio;
  * Some fields initialized to defaults if they are NULL.
  */
 struct pr_usrreqs {
-	void	(*pru_abort)(struct socket *so);
-	int	(*pru_accept)(struct socket *so, struct sockaddr **nam);
-	int	(*pru_attach)(struct socket *so, int proto, struct thread *td);
-	int	(*pru_bind)(struct socket *so, struct sockaddr *nam,
-		    struct thread *td);
-	int	(*pru_connect)(struct socket *so, struct sockaddr *nam,
-		    struct thread *td);
-	int	(*pru_connect2)(struct socket *so1, struct socket *so2);
-	int	(*pru_control)(struct socket *so, u_long cmd, caddr_t data,
-		    struct ifnet *ifp, struct thread *td);
-	void	(*pru_detach)(struct socket *so);
-	int	(*pru_disconnect)(struct socket *so);
-	int	(*pru_listen)(struct socket *so, int backlog,
-		    struct thread *td);
-	int	(*pru_peeraddr)(struct socket *so, struct sockaddr **nam);
-	int	(*pru_rcvd)(struct socket *so, int flags);
-	int	(*pru_rcvoob)(struct socket *so, struct mbuf *m, int flags);
-	int	(*pru_send)(struct socket *so, int flags, struct mbuf *m,
-		    struct sockaddr *addr, struct mbuf *control,
-		    struct thread *td);
-#define	PRUS_OOB	0x1
-#define	PRUS_EOF	0x2
-#define	PRUS_MORETOCOME	0x4
-#define	PRUS_NOTREADY	0x8
-#define	PRUS_IPV6	0x10
-	int	(*pru_ready)(struct socket *so, struct mbuf *m, int count);
-	int	(*pru_sense)(struct socket *so, struct stat *sb);
-	int	(*pru_shutdown)(struct socket *so);
-	int	(*pru_flush)(struct socket *so, int direction);
-	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
-	int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
-		    struct uio *uio, struct mbuf *top, struct mbuf *control,
-		    int flags, struct thread *td);
-	int	(*pru_soreceive)(struct socket *so, struct sockaddr **paddr,
-		    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
-		    int *flagsp);
-	int	(*pru_sopoll)(struct socket *so, int events,
-		    struct ucred *cred, struct thread *td);
-	void	(*pru_sosetlabel)(struct socket *so);
-	void	(*pru_close)(struct socket *so);
-	int	(*pru_bindat)(int fd, struct socket *so, struct sockaddr *nam,
-		    struct thread *td);
-	int	(*pru_connectat)(int fd, struct socket *so,
-		    struct sockaddr *nam, struct thread *td);
-	int	(*pru_aio_queue)(struct socket *so, struct kaiocb *job);
+	pr_abort_t	*pru_abort;
+	pr_accept_t	*pru_accept;
+	pr_attach_t	*pru_attach;
+	pr_bind_t	*pru_bind;
+	pr_connect_t	*pru_connect;
+	pr_connect2_t	*pru_connect2;
+	pr_control_t	*pru_control;
+	pr_detach_t	*pru_detach;
+	pr_disconnect_t	*pru_disconnect;
+	pr_listen_t	*pru_listen;
+	pr_peeraddr_t	*pru_peeraddr;
+	pr_rcvd_t	*pru_rcvd;
+	pr_rcvoob_t	*pru_rcvoob;
+	pr_send_t	*pru_send;
+	pr_ready_t	*pru_ready;
+	pr_sense_t	*pru_sense;
+	pr_shutdown_t	*pru_shutdown;
+	pr_flush_t	*pru_flush;
+	pr_sockaddr_t	*pru_sockaddr;
+	pr_sosend_t	*pru_sosend;
+	pr_soreceive_t	*pru_soreceive;
+	pr_sopoll_t	*pru_sopoll;
+	pr_sosetlabel_t	*pru_sosetlabel;
+	pr_close_t	*pru_close;
+	pr_bindat_t	*pru_bindat;
+	pr_connectat_t	*pru_connectat;
+	pr_aio_queue_t	*pru_aio_queue;
 };
 
 /*
