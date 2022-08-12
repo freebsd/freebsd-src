@@ -495,6 +495,8 @@ pbuf_init(void *mem, int size, int flags)
 {
 	struct buf *bp = mem;
 
+	TSENTER();
+
 	bp->b_kvabase = (void *)kva_alloc(ptoa(PBUF_PAGES));
 	if (bp->b_kvabase == NULL)
 		return (ENOMEM);
@@ -503,6 +505,8 @@ pbuf_init(void *mem, int size, int flags)
 	LIST_INIT(&bp->b_dep);
 	bp->b_rcred = bp->b_wcred = NOCRED;
 	bp->b_xflags = 0;
+
+	TSEXIT();
 
 	return (0);
 }
