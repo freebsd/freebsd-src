@@ -72,7 +72,8 @@ MTX_SYSINIT(keysock, &keysock_mtx, "key socket pcb list", MTX_DEF);
 #define	KEYSOCK_LOCK()		mtx_lock(&keysock_mtx)
 #define	KEYSOCK_UNLOCK()	mtx_unlock(&keysock_mtx)
 
-VNET_DEFINE_STATIC(LIST_HEAD(, keycb), keycb_list);
+VNET_DEFINE_STATIC(LIST_HEAD(, keycb), keycb_list) =
+    LIST_HEAD_INITIALIZER(keycb_list);
 #define	V_keycb_list		VNET(keycb_list)
 
 static struct sockaddr key_src = { 2, PF_KEY, };
