@@ -323,7 +323,11 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
  * Verify the filesystem values.
  */
 #define ILOG2(num)	(fls(num) - 1)
-#define MPRINT		if (prtmsg) printf
+#ifdef STANDALONE_SMALL
+#define MPRINT(...)	do { } while (0)
+#else
+#define MPRINT(...)	if (prtmsg) printf(__VA_ARGS__)
+#endif
 /*
  * Print error messages when bad superblock values are found.
  */
