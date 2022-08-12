@@ -1762,6 +1762,8 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	uint8_t sflags;
 	int i;
 
+	TSENTER();
+
 	KASSERT(domain >= 0 && domain < vm_ndomains,
 	    ("keg_alloc_slab: domain %d out of range", domain));
 
@@ -1858,6 +1860,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	dom->ud_pages += keg->uk_ppera;
 	dom->ud_free_items += keg->uk_ipers;
 
+	TSEXIT();
 	return (slab);
 
 fail:

@@ -148,9 +148,11 @@ kva_alloc(vm_size_t size)
 {
 	vm_offset_t addr;
 
+	TSENTER();
 	size = round_page(size);
 	if (vmem_alloc(kernel_arena, size, M_BESTFIT | M_NOWAIT, &addr))
 		return (0);
+	TSEXIT();
 
 	return (addr);
 }
