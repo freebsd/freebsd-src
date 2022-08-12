@@ -281,10 +281,6 @@ reap_kill_proc_locked(struct thread *td, struct proc *p2,
 	 * into all structures during fork, ignored by iterator, and
 	 * then escaping signalling.
 	 *
-	 * If need_stop is true, then reap_kill_proc() returns true if
-	 * the process was successfully stopped and signalled, and
-	 * false if stopping failed and the signal was not sent.
-	 *
 	 * The thread cannot usefully stop itself anyway, and if other
 	 * thread of the current process forks while the current
 	 * thread signals the whole subtree, it is an application
