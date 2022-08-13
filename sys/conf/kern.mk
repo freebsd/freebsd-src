@@ -46,9 +46,13 @@ CWARNEXTRA+=	-Wno-address-of-packed-member
 CWARNFLAGS+=	-Wno-error=unused-but-set-variable
 .endif
 .if ${COMPILER_VERSION} >= 150000
-CWARNFLAGS+=	-Wno-error=deprecated-non-prototype
-CWARNFLAGS+=	-Wno-error=array-parameter
-CWARNFLAGS+=	-Wno-error=strict-prototypes
+# Clang 15 has much more aggressive diagnostics about inconsistently declared
+# array parameters, K&R prototypes, mismatched prototypes, and unused-but-set
+# variables. Make these non-fatal for the time being.
+CWARNEXTRA+=	-Wno-error=array-parameter
+CWARNEXTRA+=	-Wno-error=deprecated-non-prototype
+CWARNEXTRA+=	-Wno-error=strict-prototypes
+CWARNEXTRA+=	-Wno-error=unused-but-set-variable
 .endif
 .endif	# clang
 
