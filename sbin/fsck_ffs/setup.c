@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 struct inoinfo **inphead, **inpsort;	/* info about all inodes */
 
+static int sbhashfailed;
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
 static int calcsb(char *dev, int devfd, struct fs *fs);
@@ -74,39 +75,15 @@ static int chkrecovery(int devfd);
 int
 setup(char *dev)
 {
-	long cg, bmapsize;
-	struct fs proto;
+	long bmapsize;
 
 	/*
-	 * We are expected to have an open file descriptor
+	 * We are expected to have an open file descriptor and a superblock.
 	 */
-	if (fsreadfd < 0)
+	if (fsreadfd < 0 || havesb == 0) {
+		if (debug)
+			printf("setup: bad fsreadfd or missing superblock\n");
 		return (0);
-	/*
-	 * If we do not yet have a superblock, read it in looking
-	 * for alternates if necessary.
-	 */
-	if (havesb == 0 && readsb(1) == 0) {
-		skipclean = 0;
-		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
-			return(0);
-		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
-			return (0);
-		for (cg = 0; cg < proto.fs_ncg; cg++) {
-			bflag = fsbtodb(&proto, cgsblock(&proto, cg));
-			if (readsb(0) != 0)
-				break;
-		}
-		if (cg >= proto.fs_ncg) {
-			printf("SEARCH FOR ALTERNATE SUPER-BLOCK FAILED. "
-			    "YOU MUST USE THE\n-b OPTION TO FSCK TO SPECIFY "
-			    "THE LOCATION OF AN ALTERNATE\nSUPER-BLOCK TO "
-			    "SUPPLY NEEDED INFORMATION; SEE fsck_ffs(8).\n");
-			bflag = 0;
-			return(0);
-		}
-		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
-		bflag = 0;
 	}
 	if (preen == 0)
 		printf("** %s", dev);
@@ -243,40 +220,64 @@ openfilesys(char *dev)
  * Read in the super block and its summary info.
  */
 int
-readsb(int listerr)
+readsb(void)
 {
-	off_t super;
-	int ret, flags;
 	struct fs *fs;
 
-	super = bflag ? bflag * dev_bsize : UFS_STDSB;
-	flags = sbhashfailed ? UFS_NOHASHFAIL | UFS_NOMSG : UFS_NOMSG;
+	sbhashfailed = 0;
 	readcnt[sblk.b_type]++;
-	while ((ret = sbget(fsreadfd, &fs, super, flags)) != 0) {
-		switch (ret) {
+	/*
+	 * If bflag is given, then check just that superblock.
+	 */
+	if (bflag) {
+		switch (sbget(fsreadfd, &fs, bflag * dev_bsize, UFS_NOMSG)) {
+		case 0:
+			goto goodsb;
 		case EINTEGRITY:
-			if (bflag || (super == UFS_STDSB &&
-			    flags == (UFS_NOHASHFAIL | UFS_NOMSG)))
-				return (0);
-			super = UFS_STDSB;
-			flags = UFS_NOHASHFAIL | UFS_NOMSG;
-			sbhashfailed = 1;
-			continue;
+			printf("Check hash failed for superblock at %jd\n",
+			    bflag);
+			return (0);
 		case ENOENT:
-			if (bflag)
-				printf("%jd is not a file system "
-				    "superblock\n", super / dev_bsize);
-			else
-				printf("Cannot find file system "
-				    "superblock\n");
+			printf("%jd is not a file system superblock\n", bflag);
 			return (0);
 		case EIO:
 		default:
-			printf("I/O error reading %jd\n",
-			    super / dev_bsize);
+			printf("I/O error reading %jd\n", bflag);
 			return (0);
 		}
 	}
+	/*
+	 * Check for the standard superblock and use it if good.
+	 */
+	if (sbget(fsreadfd, &fs, UFS_STDSB, UFS_NOMSG) == 0)
+		goto goodsb;
+	/*
+	 * Check if the only problem is a check-hash failure.
+	 */
+	skipclean = 0;
+	if (sbget(fsreadfd, &fs, UFS_STDSB, UFS_NOMSG | UFS_NOHASHFAIL) == 0) {
+		sbhashfailed = 1;
+		goto goodsb;
+	}
+	/*
+	 * Do an exhaustive search for a usable superblock.
+	 */
+	switch (sbsearch(fsreadfd, &fs, 0)) {
+	case 0:
+		goto goodsb;
+	case ENOENT:
+		printf("SEARCH FOR ALTERNATE SUPER-BLOCK FAILED. "
+		    "YOU MUST USE THE\n-b OPTION TO FSCK TO SPECIFY "
+		    "THE LOCATION OF AN ALTERNATE\nSUPER-BLOCK TO "
+		    "SUPPLY NEEDED INFORMATION; SEE fsck_ffs(8).\n");
+		return (0);
+	case EIO:
+	default:
+		printf("I/O error reading a usable superblock\n");
+		return (0);
+	}
+
+goodsb:
 	memcpy(&sblock, fs, fs->fs_sbsize);
 	free(fs);
 	/*

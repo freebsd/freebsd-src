@@ -56,7 +56,6 @@ main(argc, argv)
 	char ibuf[64];
 	char *fsname, *filename;
 	ino_t inonum;
-	int error;
 
 	filename = NULL;
 	if (argc == 2) {
@@ -83,7 +82,8 @@ main(argc, argv)
 	fsname = *++argv;
 
 	/* get the superblock. */
-	if ((error = ufs_disk_fillout(&disk, fsname)) < 0)
+	if (ufs_disk_fillout_blank(&disk, fsname) == -1 ||
+	    sbfind(&disk, 0) == -1)
 		err(1, "Cannot access file system superblock on %s", fsname);
 	fs = (struct fs *)&disk.d_sb;
 
@@ -99,7 +99,7 @@ main(argc, argv)
 			(void)printf("%s (inode #%jd): ", filename,
 			    (intmax_t)inonum);
 
-		if ((error = getinode(&disk, &dp, inonum)) < 0)
+		if (getinode(&disk, &dp, inonum) < 0)
 			warn("Read of inode %jd on %s failed: %s",
 			    (intmax_t)inonum, fsname, disk.d_error);
 

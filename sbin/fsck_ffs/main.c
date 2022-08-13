@@ -271,7 +271,7 @@ checkfilesys(char *filesys)
 	 */
 	sblock_init();
 	sbreadfailed = 0;
-	if (openfilesys(filesys) == 0 || readsb(0) == 0)
+	if (openfilesys(filesys) == 0 || readsb() == 0)
 		sbreadfailed = 1;
 	if (bkgrdcheck) {
 		if (sbreadfailed)

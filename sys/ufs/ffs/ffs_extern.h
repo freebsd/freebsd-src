@@ -86,6 +86,8 @@ int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
 int	ffs_own_mount(const struct mount *mp);
+int	ffs_sbsearch(void *, struct fs **, int, struct malloc_type *,
+	    int (*)(void *, off_t, void **, int));
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);

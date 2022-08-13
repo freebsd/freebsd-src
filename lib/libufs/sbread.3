@@ -3,19 +3,21 @@
 .\" Description:
 .\" 	Manual page for libufs functions:
 .\"		sbget(3)
+.\"		sbsearch(3)
 .\"		sbput(3)
 .\"		sbread(3)
+.\"		sbfind(3)
 .\"		sbwrite(3)
 .\"
 .\" This file is in the public domain.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2020
+.Dd August 8, 2022
 .Dt SBREAD 3
 .Os
 .Sh NAME
-.Nm sbget , sbput , sbread , sbwrite
+.Nm sbget , sbsearch , sbput , sbread , sbfind , sbwrite
 .Nd read and write superblocks of a UFS file system
 .Sh LIBRARY
 .Lb libufs
@@ -29,16 +31,22 @@
 .Ft int
 .Fn sbget "int devfd" "struct fs **fsp" "off_t sblockloc" "int flags"
 .Ft int
+.Fn sbsearch "int devfd" "struct fs **fsp" "int flags"
+.Ft int
 .Fn sbput "int devfd" "struct fs *fs" "int numaltwrite"
 .Ft int
 .Fn sbread "struct uufsd *disk"
 .Ft int
+.Fn sbfind "struct uufsd *disk" "int flags"
+.Ft int
 .Fn sbwrite "struct uufsd *disk" "int all"
 .Sh DESCRIPTION
 The
-.Fn sbget
+.Fn sbget ,
+.Fn sbsearch ,
+.Fn sbread ,
 and
-.Fn sbread
+.Fn sbfind
 functions provide superblock reads for
 .Xr libufs 3
 consumers.
@@ -52,7 +60,9 @@ consumers.
 .Pp
 The
 .Fn sbget
-function first allocates a buffer to hold the superblock.
+and
+.Fn sbsearch
+functions first allocate a buffer to hold the superblock.
 Using the
 .Va devfd
 file descriptor that references the filesystem disk,
@@ -65,26 +75,38 @@ The value
 may be specified for
 .Va sblockloc
 to request that the standard location for the superblock be read.
+The
+.Fn sbsearch
+function uses the
+.Va devfd
+file descriptor that references the filesystem disk,
+to search first for the superblock at the standard location.
+If it is not found or is too damaged to use
+.Fn sbsearch
+will attempt to find one of the filesystem's alternate superblocks.
 Flags are specified by
 .Em or Ns 'ing
 the following values:
 .Pp
-.Bl -tag -width UFS_NOHASHFAIL
-.It Cm UFS_NOHASHFAIL
-Will note if the check hash is wrong but will still return the superblock.
+.Bl -tag -width UFS_NOCSUM
+.It Cm UFS_NOCSUM
+Causes only the superblock itself to be returned, but does not read in any
+auxiliary data structures like the cylinder group summary information.
 .It Cm UFS_NOMSG
 Indicates that superblock inconsistency error messages should not be printed.
-.It Cm UFS_NOCSUM
-Causes only the superblock itself to be returned, but does not read in any auxiliary data structures like the cylinder group summary information.
 .El
 .Pp
 If successful,
 .Fn sbget
-returns a pointer to the buffer containing the superblock in
+and
+.Fn sbsearch
+functions return a pointer to the buffer containing the superblock in
 .Va fsp .
 The
 .Fn sbget
-function is safe to use in threaded applications.
+and
+.Fn sbsearch
+functions are safe to use in threaded applications.
 .Pp
 The
 .Fn sbput
@@ -113,7 +135,19 @@ modified and the on-disk copy needs to be updated.
 .Pp
 The
 .Fn sbread
-function reads the standard filesystem superblock into the
+function reads the standard filesystem superblock.
+The
+.Fn sbfind
+function tries to find a usable superblock.
+It searchs first for the superblock at the standard location.
+If it is not found or is too damaged to use
+.Fn sbfind
+will attempt to find one of the filesystem's alternate superblocks.
+If successful
+.Fn sbread
+and
+.Fn sbfind
+return a superblock in the
 .Va d_sb ,
 structure embedded in the given user-land UFS disk structure.
 .Pp
@@ -131,16 +165,19 @@ value is non-zero.
 .Sh RETURN VALUES
 .Rv -std sbread sbwrite
 The
-.Fn sbget
+.Fn sbget ,
+.Fn sbsearch ,
 and
 .Fn sbput
 functions return the value 0 if successful;
 otherwise they return one of the errors described below.
 .Sh ERRORS
 The errors returned by
-.Fn sbget
+.Fn sbget ,
+.Fn sbsearch ,
+.Fn sbread ,
 and
-.Fn sbread
+.Fn sbfind ,
 include any of the errors specified for the library function
 .Xr bread 3 .
 Additionally, they may follow the
