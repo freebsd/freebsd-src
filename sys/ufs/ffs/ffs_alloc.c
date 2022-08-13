@@ -1159,7 +1159,7 @@ retry:
 	 * return the error.
 	 */
 	if ((error = ffs_vgetf(pvp->v_mount, ino, LK_EXCLUSIVE, vpp,
-	    FFSV_FORCEINSMQ | FFSV_REPLACE)) != 0) {
+	    FFSV_FORCEINSMQ | FFSV_REPLACE | FFSV_NEWINODE)) != 0) {
 		ffs_vfree(pvp, ino, mode);
 		return (error);
 	}

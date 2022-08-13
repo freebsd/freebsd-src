@@ -132,6 +132,7 @@ int	ffs_breadz(struct ufsmount *, struct vnode *, daddr_t, daddr_t, int,
 					   doomed */
 #define	FFSV_FORCEINODEDEP	0x0008	/* Force allocation of inodedep, ignore
 					   MNT_SOFTDEP */
+#define	FFSV_NEWINODE		0x0010	/* Newly allocated inode */
 
 /*
  * Flags to ffs_reload
