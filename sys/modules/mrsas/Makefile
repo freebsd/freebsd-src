@@ -15,8 +15,7 @@ SRCS+=  device_if.h bus_if.h pci_if.h opt_cam.h opt_scsi.h
 .include <bsd.kmod.mk>
 CFLAGS+= -fgnu89-inline
 
-TARGET_ARCH = ${MACHINE_ARCH}
-.if ${TARGET_ARCH} == "amd64"
+.if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -DCOMPAT_FREEBSD32
 .endif
 
