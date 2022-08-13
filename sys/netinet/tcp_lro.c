@@ -53,6 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
+#include <net/if_dl.h>
+#include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/infiniband.h>
+#include <net/if_lagg.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -85,7 +90,8 @@ static int	tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m,
 
 #ifdef TCPHPTS
 static bool	do_bpf_strip_and_compress(struct inpcb *, struct lro_ctrl *,
-		struct lro_entry *, struct mbuf **, struct mbuf **, struct mbuf **, bool *, bool);
+		struct lro_entry *, struct mbuf **, struct mbuf **, struct mbuf **,
+		bool *, bool, bool, struct ifnet *);
 
 #endif
 
@@ -1283,7 +1289,8 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct mbuf **pp, *cmp, *mv_to;
-	bool bpf_req, should_wake;
+	struct ifnet *lagg_ifp;
+	bool bpf_req, lagg_bpf_req, should_wake;
 
 	/* Check if packet doesn't belongs to our network interface. */
 	if ((tcplro_stacks_wanting_mbufq == 0) ||
@@ -1341,13 +1348,25 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 		should_wake = true;
 	/* Check if packets should be tapped to BPF. */
 	bpf_req = bpf_peers_present(lc->ifp->if_bpf);
+	lagg_bpf_req = false;
+	lagg_ifp = NULL;
+	if (lc->ifp->if_type == IFT_IEEE8023ADLAG ||
+	    lc->ifp->if_type == IFT_INFINIBANDLAG) {
+		struct lagg_port *lp = lc->ifp->if_lagg;
+		struct lagg_softc *sc = lp->lp_softc;
+
+		lagg_ifp = sc->sc_ifp;
+		if (lagg_ifp != NULL)
+			lagg_bpf_req = bpf_peers_present(lagg_ifp->if_bpf);
+	}
 
 	/* Strip and compress all the incoming packets. */
 	cmp = NULL;
 	for (pp = &le->m_head; *pp != NULL; ) {
 		mv_to = NULL;
 		if (do_bpf_strip_and_compress(inp, lc, le, pp,
-			 &cmp, &mv_to, &should_wake, bpf_req ) == false) {
+			&cmp, &mv_to, &should_wake, bpf_req,
+			lagg_bpf_req, lagg_ifp) == false) {
 			/* Advance to next mbuf. */
 			pp = &(*pp)->m_nextpkt;
 		} else if (mv_to != NULL) {
@@ -1593,7 +1612,7 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
 static bool
 do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
     struct lro_entry *le, struct mbuf **pp, struct mbuf **cmp, struct mbuf **mv_to,
-    bool *should_wake, bool bpf_req)
+    bool *should_wake, bool bpf_req, bool lagg_bpf_req, struct ifnet *lagg_ifp)
 {
 	union {
 		void *ptr;
@@ -1618,6 +1637,9 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 	/* Let the BPF see the packet */
 	if (__predict_false(bpf_req))
 		ETHER_BPF_MTAP(lc->ifp, m);
+
+	if (__predict_false(lagg_bpf_req))
+		ETHER_BPF_MTAP(lagg_ifp, m);
 
 	tcp_hdr_offset = m->m_pkthdr.lro_tcp_h_off;
 	lro_type = le->inner.data.lro_type;
