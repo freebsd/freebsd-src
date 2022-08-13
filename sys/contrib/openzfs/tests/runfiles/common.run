@@ -241,7 +241,8 @@ tests = ['zfs_receive_001_pos', 'zfs_receive_002_pos', 'zfs_receive_003_pos',
     'zfs_receive_from_encrypted', 'zfs_receive_to_encrypted',
     'zfs_receive_raw', 'zfs_receive_raw_incremental', 'zfs_receive_-e',
     'zfs_receive_raw_-d', 'zfs_receive_from_zstd', 'zfs_receive_new_props',
-    'zfs_receive_-wR-encrypted-mix']
+    'zfs_receive_-wR-encrypted-mix', 'zfs_receive_corrective',
+    'zfs_receive_compressed_corrective']
 tags = ['functional', 'cli_root', 'zfs_receive']
 
 [tests/functional/cli_root/zfs_rename]
@@ -868,7 +869,7 @@ tests = ['clone_001_pos', 'rollback_001_pos', 'rollback_002_pos',
     'snapshot_006_pos', 'snapshot_007_pos', 'snapshot_008_pos',
     'snapshot_009_pos', 'snapshot_010_pos', 'snapshot_011_pos',
     'snapshot_012_pos', 'snapshot_013_pos', 'snapshot_014_pos',
-    'snapshot_017_pos']
+    'snapshot_017_pos', 'snapshot_018_pos']
 tags = ['functional', 'snapshot']
 
 [tests/functional/snapused]

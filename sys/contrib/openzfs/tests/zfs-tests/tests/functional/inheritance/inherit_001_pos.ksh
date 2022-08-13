@@ -7,7 +7,7 @@
 # You may not use this file except in compliance with the License.
 #
 # You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or http://www.opensolaris.org/os/licensing.
+# or https://opensource.org/licenses/CDDL-1.0.
 # See the License for the specific language governing permissions
 # and limitations under the License.
 #
@@ -332,7 +332,7 @@ function scan_state { #state-file
 					log_note "No operation specified"
 				else
 					export __ZFS_POOL_RESTRICT="TESTPOOL"
-					log_must zfs unmount -a
+					log_must_busy zfs unmount -a
 					unset __ZFS_POOL_RESTRICT
 
 					for p in ${prop[i]} ${prop[((i+1))]}; do

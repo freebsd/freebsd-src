@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -1315,6 +1315,9 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	avl_create(&spa->spa_errlist_last,
 	    spa_error_entry_compare, sizeof (spa_error_entry_t),
 	    offsetof(spa_error_entry_t, se_avl));
+	avl_create(&spa->spa_errlist_healed,
+	    spa_error_entry_compare, sizeof (spa_error_entry_t),
+	    offsetof(spa_error_entry_t, se_avl));
 
 	spa_activate_os(spa);
 
@@ -1425,6 +1428,7 @@ spa_deactivate(spa_t *spa)
 	spa_errlog_drain(spa);
 	avl_destroy(&spa->spa_errlist_scrub);
 	avl_destroy(&spa->spa_errlist_last);
+	avl_destroy(&spa->spa_errlist_healed);
 
 	spa_keystore_fini(&spa->spa_keystore);
 

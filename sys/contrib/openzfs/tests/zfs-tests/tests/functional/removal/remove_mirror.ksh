@@ -49,7 +49,8 @@ log_mustnot zpool remove $TESTPOOL $DISK2
 log_must wait_for_removal $TESTPOOL
 
 # Add back the first disk.
-log_must zpool add $TESTPOOL $DISK1
+# We use -f as we're adding a single vdev to zpool with only mirrors.
+log_must zpool add -f $TESTPOOL $DISK1
 
 # Now attempt to remove the mirror.
 log_must zpool remove $TESTPOOL mirror-1

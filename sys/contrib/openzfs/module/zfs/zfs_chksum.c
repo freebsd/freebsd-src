@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2021 Tino Reichardt <milky-zfs@mcmilk.de>
+ * Copyright (c) 2021-2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
 #include <sys/types.h>
@@ -31,7 +31,8 @@
 
 #include <sys/blake3.h>
 
-static kstat_t *chksum_kstat = NULL;
+/* limit benchmarking to max 256KiB, when EdonR is slower then this: */
+#define	LIMIT_PERF_MBS	300
 
 typedef struct {
 	const char *name;
@@ -43,14 +44,16 @@ typedef struct {
 	uint64_t bs256k;
 	uint64_t bs1m;
 	uint64_t bs4m;
+	uint64_t bs16m;
 	zio_cksum_salt_t salt;
 	zio_checksum_t *(func);
 	zio_checksum_tmpl_init_t *(init);
 	zio_checksum_tmpl_free_t *(free);
 } chksum_stat_t;
 
-static int chksum_stat_cnt = 0;
 static chksum_stat_t *chksum_stat_data = 0;
+static int chksum_stat_cnt = 0;
+static kstat_t *chksum_kstat = NULL;
 
 /*
  * i3-1005G1 test output:
@@ -74,7 +77,7 @@ static chksum_stat_t *chksum_stat_data = 0;
  * blake3-avx512     473    2687    4905    5836    5844    5643    5374
  */
 static int
-chksum_stat_kstat_headers(char *buf, size_t size)
+chksum_kstat_headers(char *buf, size_t size)
 {
 	ssize_t off = 0;
 
@@ -85,13 +88,14 @@ chksum_stat_kstat_headers(char *buf, size_t size)
 	off += snprintf(buf + off, size - off, "%8s", "64k");
 	off += snprintf(buf + off, size - off, "%8s", "256k");
 	off += snprintf(buf + off, size - off, "%8s", "1m");
-	(void) snprintf(buf + off, size - off, "%8s\n", "4m");
+	off += snprintf(buf + off, size - off, "%8s", "4m");
+	(void) snprintf(buf + off, size - off, "%8s\n", "16m");
 
 	return (0);
 }
 
 static int
-chksum_stat_kstat_data(char *buf, size_t size, void *data)
+chksum_kstat_data(char *buf, size_t size, void *data)
 {
 	chksum_stat_t *cs;
 	ssize_t off = 0;
@@ -112,14 +116,16 @@ chksum_stat_kstat_data(char *buf, size_t size, void *data)
 	    (u_longlong_t)cs->bs256k);
 	off += snprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs1m);
-	(void) snprintf(buf + off, size - off, "%8llu\n",
+	off += snprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs4m);
+	(void) snprintf(buf + off, size - off, "%8llu\n",
+	    (u_longlong_t)cs->bs16m);
 
 	return (0);
 }
 
 static void *
-chksum_stat_kstat_addr(kstat_t *ksp, loff_t n)
+chksum_kstat_addr(kstat_t *ksp, loff_t n)
 {
 	if (n < chksum_stat_cnt)
 		ksp->ks_private = (void *)(chksum_stat_data + n);
@@ -153,6 +159,8 @@ chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
 		size = 1<<20; loops = 4; break;
 	case 7: /* 4m */
 		size = 1<<22; loops = 1; break;
+	case 8: /* 16m */
+		size = 1<<24; loops = 1; break;
 	}
 
 	kpreempt_disable();
@@ -170,33 +178,57 @@ chksum_run(chksum_stat_t *cs, abd_t *abd, void *ctx, int round,
 	*result = run_bw/1024/1024; /* MiB/s */
 }
 
+#define	LIMIT_INIT	0
+#define	LIMIT_NEEDED	1
+#define	LIMIT_NOLIMIT	2
+
 static void
 chksum_benchit(chksum_stat_t *cs)
 {
 	abd_t *abd;
 	void *ctx = 0;
 	void *salt = &cs->salt.zcs_bytes;
+	static int chksum_stat_limit = LIMIT_INIT;
 
-	/* allocate test memory via default abd interface */
-	abd = abd_alloc_linear(1<<22, B_FALSE);
 	memset(salt, 0, sizeof (cs->salt.zcs_bytes));
-	if (cs->init) {
+	if (cs->init)
 		ctx = cs->init(&cs->salt);
-	}
 
+	/* allocate test memory via abd linear interface */
+	abd = abd_alloc_linear(1<<20, B_FALSE);
 	chksum_run(cs, abd, ctx, 1, &cs->bs1k);
 	chksum_run(cs, abd, ctx, 2, &cs->bs4k);
 	chksum_run(cs, abd, ctx, 3, &cs->bs16k);
 	chksum_run(cs, abd, ctx, 4, &cs->bs64k);
 	chksum_run(cs, abd, ctx, 5, &cs->bs256k);
+
+	/* check if we ran on a slow cpu */
+	if (chksum_stat_limit == LIMIT_INIT) {
+		if (cs->bs1k < LIMIT_PERF_MBS) {
+			chksum_stat_limit = LIMIT_NEEDED;
+		} else {
+			chksum_stat_limit = LIMIT_NOLIMIT;
+		}
+	}
+
+	/* skip benchmarks >= 1MiB when the CPU is to slow */
+	if (chksum_stat_limit == LIMIT_NEEDED)
+		goto abort;
+
 	chksum_run(cs, abd, ctx, 6, &cs->bs1m);
+	abd_free(abd);
+
+	/* allocate test memory via abd non linear interface */
+	abd = abd_alloc(1<<24, B_FALSE);
 	chksum_run(cs, abd, ctx, 7, &cs->bs4m);
+	chksum_run(cs, abd, ctx, 8, &cs->bs16m);
+
+abort:
+	abd_free(abd);
 
 	/* free up temp memory */
-	if (cs->free) {
+	if (cs->free)
 		cs->free(ctx);
-	}
-	abd_free(abd);
 }
 
 /*
@@ -221,7 +253,7 @@ chksum_benchmark(void)
 	chksum_stat_data = (chksum_stat_t *)kmem_zalloc(
 	    sizeof (chksum_stat_t) * chksum_stat_cnt, KM_SLEEP);
 
-	/* edonr */
+	/* edonr - needs to be the first one here (slow CPU check) */
 	cs = &chksum_stat_data[cbid++];
 	cs->init = abd_checksum_edonr_tmpl_init;
 	cs->func = abd_checksum_edonr_native;
@@ -292,9 +324,9 @@ chksum_init(void)
 		chksum_kstat->ks_data = NULL;
 		chksum_kstat->ks_ndata = UINT32_MAX;
 		kstat_set_raw_ops(chksum_kstat,
-		    chksum_stat_kstat_headers,
-		    chksum_stat_kstat_data,
-		    chksum_stat_kstat_addr);
+		    chksum_kstat_headers,
+		    chksum_kstat_data,
+		    chksum_kstat_addr);
 		kstat_install(chksum_kstat);
 	}
 

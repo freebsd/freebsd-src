@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -882,7 +882,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	return (zio);
 }
 
-static void
+void
 zio_destroy(zio_t *zio)
 {
 	metaslab_trace_fini(&zio->io_alloc_list);
@@ -4997,7 +4997,7 @@ zbookmark_subtree_completed(const dnode_phys_t *dnp,
 {
 	zbookmark_phys_t mod_zb = *subtree_root;
 	mod_zb.zb_blkid++;
-	ASSERT(last_block->zb_level == 0);
+	ASSERT0(last_block->zb_level);
 
 	/* The objset_phys_t isn't before anything. */
 	if (dnp == NULL)
@@ -5021,6 +5021,22 @@ zbookmark_subtree_completed(const dnode_phys_t *dnp,
 	return (zbookmark_compare(dnp->dn_datablkszsec, dnp->dn_indblkshift,
 	    1ULL << (DNODE_BLOCK_SHIFT - SPA_MINBLOCKSHIFT), 0, &mod_zb,
 	    last_block) <= 0);
+}
+
+/*
+ * This function is similar to zbookmark_subtree_completed(), but returns true
+ * if subtree_root is equal or ahead of last_block, i.e. still to be done.
+ */
+boolean_t
+zbookmark_subtree_tbd(const dnode_phys_t *dnp,
+    const zbookmark_phys_t *subtree_root, const zbookmark_phys_t *last_block)
+{
+	ASSERT0(last_block->zb_level);
+	if (dnp == NULL)
+		return (B_FALSE);
+	return (zbookmark_compare(dnp->dn_datablkszsec, dnp->dn_indblkshift,
+	    1ULL << (DNODE_BLOCK_SHIFT - SPA_MINBLOCKSHIFT), 0, subtree_root,
+	    last_block) >= 0);
 }
 
 EXPORT_SYMBOL(zio_type_name);

@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -232,6 +232,18 @@ __zpl_show_options(struct seq_file *seq, zfsvfs_t *zfsvfs)
 		break;
 	}
 #endif /* CONFIG_FS_POSIX_ACL */
+
+	switch (zfsvfs->z_case) {
+	case ZFS_CASE_SENSITIVE:
+		seq_puts(seq, ",casesensitive");
+		break;
+	case ZFS_CASE_INSENSITIVE:
+		seq_puts(seq, ",caseinsensitive");
+		break;
+	default:
+		seq_puts(seq, ",casemixed");
+		break;
+	}
 
 	return (0);
 }

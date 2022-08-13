@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -25,8 +25,8 @@
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
  * Copyright (c) 2016 Actifio, Inc. All rights reserved.
- * Copyright (c) 2017 Datto Inc.
  * Copyright (c) 2017, Intel Corporation.
+ * Copyright (c) 2019 Datto Inc.
  */
 
 #ifndef _SYS_SPA_IMPL_H
@@ -349,6 +349,7 @@ struct spa {
 	kmutex_t	spa_errlist_lock;	/* error list/ereport lock */
 	avl_tree_t	spa_errlist_last;	/* last error list */
 	avl_tree_t	spa_errlist_scrub;	/* scrub error list */
+	avl_tree_t	spa_errlist_healed;	/* list of healed blocks */
 	uint64_t	spa_deflate;		/* should we deflate? */
 	uint64_t	spa_history;		/* history object */
 	kmutex_t	spa_history_lock;	/* history lock */

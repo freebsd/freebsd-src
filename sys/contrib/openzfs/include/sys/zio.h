@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -534,6 +534,8 @@ extern zio_t *zio_null(zio_t *pio, spa_t *spa, vdev_t *vd,
 extern zio_t *zio_root(spa_t *spa,
     zio_done_func_t *done, void *priv, enum zio_flag flags);
 
+extern void zio_destroy(zio_t *zio);
+
 extern zio_t *zio_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
     struct abd *data, uint64_t lsize, zio_done_func_t *done, void *priv,
     zio_priority_t priority, enum zio_flag flags, const zbookmark_phys_t *zb);
@@ -695,6 +697,8 @@ extern void spa_handle_ignored_writes(spa_t *spa);
 
 /* zbookmark_phys functions */
 boolean_t zbookmark_subtree_completed(const struct dnode_phys *dnp,
+    const zbookmark_phys_t *subtree_root, const zbookmark_phys_t *last_block);
+boolean_t zbookmark_subtree_tbd(const struct dnode_phys *dnp,
     const zbookmark_phys_t *subtree_root, const zbookmark_phys_t *last_block);
 int zbookmark_compare(uint16_t dbss1, uint8_t ibs1, uint16_t dbss2,
     uint8_t ibs2, const zbookmark_phys_t *zb1, const zbookmark_phys_t *zb2);

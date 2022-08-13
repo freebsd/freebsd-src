@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -487,7 +487,7 @@ static void *
 i_fm_alloc(nv_alloc_t *nva, size_t size)
 {
 	(void) nva;
-	return (kmem_zalloc(size, KM_SLEEP));
+	return (kmem_alloc(size, KM_SLEEP));
 }
 
 static void

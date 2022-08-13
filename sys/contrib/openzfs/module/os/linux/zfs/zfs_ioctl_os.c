@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -369,8 +369,7 @@ MODULE_ALIAS("zcommon");
 MODULE_ALIAS("zzstd");
 MODULE_DESCRIPTION("ZFS");
 MODULE_AUTHOR(ZFS_META_AUTHOR);
-MODULE_LICENSE("Lua: MIT");
-MODULE_LICENSE("zstd: Dual BSD/GPL");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("Dual MIT/GPL"); /* lua */
+MODULE_LICENSE("Dual BSD/GPL"); /* zstd / misc */
 MODULE_LICENSE(ZFS_META_LICENSE);
 MODULE_VERSION(ZFS_META_VERSION "-" ZFS_META_RELEASE);

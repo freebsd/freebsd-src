@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -475,7 +475,6 @@ _LIBZFS_H void zpool_obj_to_path_ds(zpool_handle_t *, uint64_t, uint64_t,
 _LIBZFS_H void zpool_obj_to_path(zpool_handle_t *, uint64_t, uint64_t, char *,
     size_t);
 _LIBZFS_H int zfs_ioctl(libzfs_handle_t *, int, struct zfs_cmd *);
-_LIBZFS_H int zpool_get_physpath(zpool_handle_t *, char *, size_t);
 _LIBZFS_H void zpool_explain_recover(libzfs_handle_t *, const char *, int,
     nvlist_t *);
 _LIBZFS_H int zpool_checkpoint(zpool_handle_t *);
@@ -829,6 +828,9 @@ typedef struct recvflags {
 
 	/* force unmount while recv snapshot (private) */
 	boolean_t forceunmount;
+
+	/* use this recv to check (and heal if needed) an existing snapshot */
+	boolean_t heal;
 } recvflags_t;
 
 _LIBZFS_H int zfs_receive(libzfs_handle_t *, const char *, nvlist_t *,

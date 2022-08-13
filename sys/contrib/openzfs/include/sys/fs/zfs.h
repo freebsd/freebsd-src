@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -189,6 +189,7 @@ typedef enum {
 	ZFS_PROP_IVSET_GUID,		/* not exposed to the user */
 	ZFS_PROP_REDACTED,
 	ZFS_PROP_REDACT_SNAPS,
+	ZFS_PROP_SNAPSHOTS_CHANGED,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 

@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -53,6 +53,7 @@ int zfs_for_each(int, char **, int options, zfs_type_t,
 int zfs_add_sort_column(zfs_sort_column_t **, const char *, boolean_t);
 void zfs_free_sort_columns(zfs_sort_column_t *);
 int zfs_sort_only_by_name(const zfs_sort_column_t *);
+int zfs_sort_only_by_createtxg(const zfs_sort_column_t *);
 
 #ifdef	__cplusplus
 }
