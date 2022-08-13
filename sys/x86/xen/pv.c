@@ -419,7 +419,7 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 		if (start_info->cmdline_paddr != 0)
 			boot_parse_cmdline_delim(
 			    (char *)(start_info->cmdline_paddr + KERNBASE),
-			    ",");
+			    ", \t\n");
 		kmdp = NULL;
 		strlcpy(bootmethod, "XEN", sizeof(bootmethod));
 	}
