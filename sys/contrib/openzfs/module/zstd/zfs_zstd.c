@@ -182,16 +182,20 @@ struct zstd_levelmap {
  *
  * The ZSTD handlers were split up for the most simplified implementation.
  */
+#ifndef IN_LIBSA
 static void *zstd_alloc(void *opaque, size_t size);
+#endif
 static void *zstd_dctx_alloc(void *opaque, size_t size);
 static void zstd_free(void *opaque, void *ptr);
 
+#ifndef IN_LIBSA
 /* Compression memory handler */
 static const ZSTD_customMem zstd_malloc = {
 	zstd_alloc,
 	zstd_free,
 	NULL,
 };
+#endif
 
 /* Decompression memory handler */
 static const ZSTD_customMem zstd_dctx_malloc = {
@@ -489,7 +493,6 @@ keep_trying:
 	return (zfs_zstd_compress(s_start, d_start, s_len, d_len, level));
 
 }
-#endif
 
 /* Compress block using zstd */
 size_t
@@ -596,6 +599,7 @@ zfs_zstd_compress(void *s_start, void *d_start, size_t s_len, size_t d_len,
 
 	return (c_len + sizeof (*hdr));
 }
+#endif
 
 /* Decompress block using zstd and return its stored level */
 int
@@ -683,6 +687,7 @@ zfs_zstd_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len,
 	    NULL));
 }
 
+#ifndef IN_LIBSA
 /* Allocator for zstd compression context using mempool_allocator */
 static void *
 zstd_alloc(void *opaque __maybe_unused, size_t size)
@@ -699,6 +704,7 @@ zstd_alloc(void *opaque __maybe_unused, size_t size)
 
 	return ((void*)z + (sizeof (struct zstd_kmem)));
 }
+#endif
 
 /*
  * Allocator for zstd decompression context using mempool_allocator with
