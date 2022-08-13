@@ -474,6 +474,9 @@ void
 irelse(struct inode *ip)
 {
 
+	/* Check for failed inode read */
+	if (ip->i_bp == NULL)
+		return;
 	if (ip->i_bp->b_refcnt <= 0)
 		pfatal("irelse: releasing unreferenced ino %ju\n",
 		    (uintmax_t) ip->i_number);
