@@ -421,7 +421,7 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 			    (char *)(start_info->cmdline_paddr + KERNBASE),
 			    ", \t\n");
 		kmdp = NULL;
-		strlcpy(bootmethod, "XEN", sizeof(bootmethod));
+		strlcpy(bootmethod, "PVH", sizeof(bootmethod));
 	}
 
 	boothowto |= boot_env_to_howto();
