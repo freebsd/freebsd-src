@@ -145,6 +145,7 @@ setup(char *dev)
 	/*
 	 * allocate and initialize the necessary maps
 	 */
+	bufinit();
 	bmapsize = roundup(howmany(maxfsblock, CHAR_BIT), sizeof(short));
 	blockmap = Calloc((unsigned)bmapsize, sizeof (char));
 	if (blockmap == NULL) {
@@ -169,7 +170,6 @@ setup(char *dev)
 		    (uintmax_t)numdirs * sizeof(struct inoinfo *));
 		goto badsb;
 	}
-	bufinit();
 	if (sblock.fs_flags & FS_DOSOFTDEP)
 		usedsoftdep = 1;
 	else
