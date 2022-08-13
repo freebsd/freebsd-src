@@ -16,7 +16,7 @@
 #define OVPN_NEW_PEER		_IO  ('D', 1)
 
 static nvlist_t *
-fake_sockaddr()
+fake_sockaddr(void)
 {
 	uint32_t addr = htonl(INADDR_LOOPBACK);
 	nvlist_t *nvl;
