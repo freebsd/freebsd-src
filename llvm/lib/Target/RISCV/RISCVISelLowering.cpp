@@ -8199,7 +8199,13 @@ static SDValue performSETCCCombine(SDNode *N, SelectionDAG &DAG,
   if (!isIntEqualitySetCC(Cond))
     return SDValue();
 
-  const APInt &C1 = cast<ConstantSDNode>(N1)->getAPIntValue();
+  // Don't do this if the sign bit is provably zero, it will be turned back into
+  // an AND.
+  APInt SignMask = APInt::getOneBitSet(64, 31);
+  if (DAG.MaskedValueIsZero(N0.getOperand(0), SignMask))
+    return SDValue();
+
+  const APInt &C1 = N1C->getAPIntValue();
 
   SDLoc dl(N);
   // If the constant is larger than 2^32 - 1 it is impossible for both sides
