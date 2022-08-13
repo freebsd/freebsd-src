@@ -5266,10 +5266,28 @@ static bool mac_intr_handler(struct adapter *adap, int port, bool verbose)
 	return (fatal);
 }
 
+static bool pl_timeout_status(struct adapter *adap, int arg, bool verbose)
+{
+
+	CH_ALERT(adap, "    PL_TIMEOUT_STATUS 0x%08x 0x%08x\n",
+	    t4_read_reg(adap, A_PL_TIMEOUT_STATUS0),
+	    t4_read_reg(adap, A_PL_TIMEOUT_STATUS1));
+
+	return (false);
+}
+
 static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
 {
+	static const struct intr_action plpl_intr_actions[] = {
+		{ F_TIMEOUT, 0, pl_timeout_status },
+		{ 0 },
+	};
 	static const struct intr_details plpl_intr_details[] = {
+		{ F_PL_BUSPERR, "Bus parity error" },
 		{ F_FATALPERR, "Fatal parity error" },
+		{ F_INVALIDACCESS, "Global reserved memory access" },
+		{ F_TIMEOUT,  "Bus timeout" },
+		{ F_PLERR, "Module reserved access" },
 		{ F_PERRVFID, "VFID_MAP parity error" },
 		{ 0 }
 	};
@@ -5280,7 +5298,7 @@ static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.fatal = F_FATALPERR | F_PERRVFID,
 		.flags = NONFATAL_IF_DISABLED,
 		.details = plpl_intr_details,
-		.actions = NULL,
+		.actions = plpl_intr_actions,
 	};
 
 	return (t4_handle_intr(adap, &plpl_intr_info, 0, verbose));
