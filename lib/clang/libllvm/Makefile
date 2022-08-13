@@ -25,6 +25,8 @@ CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 
 CFLAGS+=	-I${LLVM_SRCS}/lib/ObjCopy
 
+TARGET_ARCH?=	${MACHINE_ARCH}
+
 .if ${TARGET_ARCH} != "amd64"
 CFLAGS+=	-DBLAKE3_NO_AVX512 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_SSE41 \
 		-DBLAKE3_NO_SSE2
@@ -496,7 +498,7 @@ SRCS_MIN+=	DebugInfo/CodeView/RecordSerialization.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SimpleTypeSerializer.cpp
 SRCS_EXT+=	DebugInfo/CodeView/StringsAndChecksums.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolDumper.cpp
-SRCS_EXT+=	DebugInfo/CodeView/SymbolRecordHelpers.cpp
+SRCS_MIN+=	DebugInfo/CodeView/SymbolRecordHelpers.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolRecordMapping.cpp
 SRCS_EXT+=	DebugInfo/CodeView/SymbolSerializer.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDumpVisitor.cpp

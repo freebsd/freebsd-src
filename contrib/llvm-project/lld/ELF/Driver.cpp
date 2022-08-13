@@ -590,11 +590,6 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     if (errorCount())
       return;
 
-    // The Target instance handles target-specific stuff, such as applying
-    // relocations or writing a PLT section. It also contains target-dependent
-    // values such as a default image base address.
-    target = getTarget();
-
     link(args);
   }
 
@@ -1150,6 +1145,7 @@ static void readConfigs(opt::InputArgList &args) {
   config->optimize = args::getInteger(args, OPT_O, 1);
   config->orphanHandling = getOrphanHandling(args);
   config->outputFile = args.getLastArgValue(OPT_o);
+  config->packageMetadata = args.getLastArgValue(OPT_package_metadata);
   config->pie = args.hasFlag(OPT_pie, OPT_no_pie, false);
   config->printIcfSections =
       args.hasFlag(OPT_print_icf_sections, OPT_no_print_icf_sections, false);
