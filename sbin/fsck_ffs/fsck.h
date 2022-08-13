@@ -363,7 +363,6 @@ extern char preen;		/* just fix normal inconsistencies */
 extern char rerun;		/* rerun fsck. Only used in non-preen mode */
 extern char resolved;		/* cleared if unresolved changes => not clean */
 extern int returntosingle;	/* 1 => return to single user mode on exit */
-extern int sbhashfailed;	/* when reading superblock check hash failed */
 extern long secsize;		/* actual disk sector size */
 extern char skipclean;		/* skip clean file systems if preening */
 extern char snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
@@ -502,7 +501,7 @@ void		pfatal(const char *fmt, ...) __printflike(1, 2);
 void		propagate(void);
 void		prtinode(struct inode *);
 void		pwarn(const char *fmt, ...) __printflike(1, 2);
-int		readsb(int listerr);
+int		readsb(void);
 int		reply(const char *question);
 void		rwerror(const char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);

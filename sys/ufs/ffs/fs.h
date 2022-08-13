@@ -102,11 +102,19 @@
  * UFS_NOWARNFAIL will warn about inconsistencies but still return the
  *    superblock. It includes UFS_NOHASHFAIL. UFS_NOWARNFAIL is used by
  *    programs like fsck_ffs(8) to debug broken filesystems.
+ *
+ * UFS_FSRONLY will only validate the superblock fields needed to
+ *    calculate where the backup filesystem superblocks are located.
+ *    If these values pass their validation tests, then the superblock
+ *    is returned. This flag is used as part of the attempt to find
+ *    alternate superblocks when using ffs_sbsearch().
  */
 #define	UFS_NOHASHFAIL	0x0001	/* Ignore check-hash failure */
 #define	UFS_NOWARNFAIL	0x0003	/* Ignore non-fatal inconsistencies */
 #define	UFS_NOMSG	0x0004	/* Print no error message */
 #define	UFS_NOCSUM	0x0008	/* Read just the superblock without csum */
+#define	UFS_FSRONLY	0x0010	/* Validate only values needed for recovery
+				   of alternate superblocks */
 #define	UFS_ALTSBLK	0x1000	/* Flag used internally */
 
 /*

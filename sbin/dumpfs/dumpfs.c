@@ -130,13 +130,8 @@ main(int argc, char *argv[])
 		usage();
 
 	while ((name = *argv++) != NULL) {
-		if (ufs_disk_fillout_blank(&disk, name) == -1) {
-			ufserr(name);
-			eval |= 1;
-			continue;
-		}
-		disk.d_lookupflags |= UFS_NOHASHFAIL;
-		if (sbread(&disk) == -1) {
+		if (ufs_disk_fillout_blank(&disk, name) == -1 ||
+		    sbfind(&disk, 0) == -1) {
 			ufserr(name);
 			eval |= 1;
 			continue;

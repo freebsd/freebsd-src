@@ -73,6 +73,30 @@ sbread(struct uufsd *disk)
 	return (handle_disk_read(disk, fs, error));
 }
 
+/*
+ * Make an extensive search to find a superblock. If the superblock
+ * in the standard place cannot be used, try looking for one of the
+ * backup superblocks.
+ *
+ * The flags parameter is made up of the following or'ed together options:
+ *
+ * UFS_NOMSG indicates that superblock inconsistency error messages
+ *    should not be printed.
+ *
+ * UFS_NOCSUM causes only the superblock itself to be returned, but does
+ *    not read in any auxillary data structures like the cylinder group
+ *    summary information.
+ */
+int
+sbfind(struct uufsd *disk, int flags)
+{
+	struct fs *fs;
+	int error;
+
+	error = sbsearch(disk->d_fd, &fs, flags);
+	return (handle_disk_read(disk, fs, error));
+}
+
 static int
 handle_disk_read(struct uufsd *disk, struct fs *fs, int error)
 {
@@ -174,8 +198,27 @@ static int use_pwrite(void *devfd, off_t loc, void *buf, int size);
 int
 sbget(int devfd, struct fs **fsp, off_t sblockloc, int flags)
 {
+	int error;
 
-	return (ffs_sbget(&devfd, fsp, sblockloc, flags, "user", use_pread));
+	error = ffs_sbget(&devfd, fsp, sblockloc, flags, "user", use_pread);
+	fflush(NULL); /* flush any messages */
+	return (error);
+}
+
+/*
+ * Make an extensive search of the devfd device to find a superblock.
+ * If the superblock in the standard place cannot be used, try looking
+ * for one of the backup superblocks. If found, memory is allocated and
+ * returned in fsp.
+ */
+int
+sbsearch(int devfd, struct fs **fsp, int flags)
+{
+	int error;
+
+	error = ffs_sbsearch(&devfd, fsp, flags, "user", use_pread);
+	fflush(NULL); /* flush any messages */
+	return (error);
 }
 
 /*
@@ -209,11 +252,10 @@ sbput(int devfd, struct fs *fs, int numaltwrite)
 	off_t savedactualloc;
 	int i, error;
 
-	if ((error = ffs_sbput(&devfd, fs, fs->fs_sblockactualloc,
-	     use_pwrite)) != 0)
+	error = ffs_sbput(&devfd, fs, fs->fs_sblockactualloc, use_pwrite);
+	fflush(NULL); /* flush any messages */
+	if (error != 0 || numaltwrite == 0)
 		return (error);
-	if (numaltwrite == 0)
-		return (0);
 	savedactualloc = fs->fs_sblockactualloc;
 	if (fs->fs_si != NULL) {
 		savedcsp = fs->fs_csp;
@@ -223,6 +265,7 @@ sbput(int devfd, struct fs *fs, int numaltwrite)
 		fs->fs_sblockactualloc = dbtob(fsbtodb(fs, cgsblock(fs, i)));
 		if ((error = ffs_sbput(&devfd, fs, fs->fs_sblockactualloc,
 		     use_pwrite)) != 0) {
+			fflush(NULL); /* flush any messages */
 			fs->fs_sblockactualloc = savedactualloc;
 			fs->fs_csp = savedcsp;
 			return (error);
@@ -231,6 +274,7 @@ sbput(int devfd, struct fs *fs, int numaltwrite)
 	fs->fs_sblockactualloc = savedactualloc;
 	if (fs->fs_si != NULL)
 		fs->fs_csp = savedcsp;
+	fflush(NULL); /* flush any messages */
 	return (0);
 }
 

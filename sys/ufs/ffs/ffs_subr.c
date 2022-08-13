@@ -378,6 +378,40 @@ validate_sblock(struct fs *fs, int flags)
 	prtmsg = ((flags & UFS_NOMSG) == 0);
 	warnerr = (flags & UFS_NOWARNFAIL) == UFS_NOWARNFAIL ? 0 : ENOENT;
 	wmsg = warnerr ? "" : " (Ignored)";
+	/*
+	 * If just validating for recovery, then do just the minimal
+	 * checks needed for the superblock fields needed to find
+	 * alternate superblocks.
+	 */
+	if ((flags & UFS_FSRONLY) == UFS_FSRONLY &&
+	    (fs->fs_magic == FS_UFS1_MAGIC || fs->fs_magic == FS_UFS2_MAGIC)) {
+		if (fs->fs_magic == FS_UFS2_MAGIC) {
+			FCHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
+		} else if (fs->fs_magic == FS_UFS1_MAGIC) {
+			FCHK(fs->fs_sblockloc, <, 0, %jd);
+			FCHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
+		}
+		FCHK(fs->fs_frag, <, 1, %jd);
+		FCHK(fs->fs_frag, >, MAXFRAG, %jd);
+		FCHK(fs->fs_bsize, <, MINBSIZE, %jd);
+		FCHK(fs->fs_bsize, >, MAXBSIZE, %jd);
+		FCHK(fs->fs_bsize, <, roundup(sizeof(struct fs), DEV_BSIZE),
+		    %jd);
+		FCHK(fs->fs_fsize, <, sectorsize, %jd);
+		FCHK(fs->fs_fsize * fs->fs_frag, !=, fs->fs_bsize, %jd);
+		FCHK(powerof2(fs->fs_fsize), ==, 0, %jd);
+		FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
+		FCHK(fs->fs_ncg, <, 1, %jd);
+		FCHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
+		FCHK(fs->fs_old_cgoffset, <, 0, %jd);
+		FCHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
+		FCHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg,
+		    %jd);
+		FCHK(fs->fs_sblkno, !=, roundup(
+		    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
+		    fs->fs_frag), %jd);
+		return (error);
+	}
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		if ((flags & UFS_ALTSBLK) == 0)
 			FCHK2(fs->fs_sblockactualloc, !=, SBLOCK_UFS2,
@@ -528,6 +562,146 @@ validate_sblock(struct fs *fs, int flags)
 	WCHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
 	    MIN(fs->fs_maxcontig, FS_MAXCONTIG), %jd);
 	return (error);
+}
+
+/*
+ * Make an extensive search to find a superblock. If the superblock
+ * in the standard place cannot be used, try looking for one of the
+ * backup superblocks.
+ *
+ * Flags are made up of the following or'ed together options:
+ *
+ * UFS_NOMSG indicates that superblock inconsistency error messages
+ *    should not be printed.
+ *
+ * UFS_NOCSUM causes only the superblock itself to be returned, but does
+ *    not read in any auxillary data structures like the cylinder group
+ *    summary information.
+ */
+int
+ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
+    struct malloc_type *filltype,
+    int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
+{
+	struct fsrecovery *fsr;
+	struct fs *protofs;
+	void *fsrbuf;
+	char *cp;
+	long nocsum, flags, msg, cg;
+	off_t sblk, secsize;
+	int error;
+
+	msg = (reqflags & UFS_NOMSG) == 0;
+	nocsum = reqflags & UFS_NOCSUM;
+	/*
+	 * Try normal superblock read and return it if it works.
+	 *
+	 * Suppress messages if it fails until we find out if
+	 * failure can be avoided.
+	 */
+	flags = UFS_NOMSG | nocsum;
+	if (ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc) == 0)
+		return (0);
+	/*
+	 * First try: ignoring hash failures.
+	 */
+	flags |= UFS_NOHASHFAIL;
+	if (msg)
+		flags &= ~UFS_NOMSG;
+	if (ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc) == 0)
+		return (0);
+	/*
+	 * Next up is to check if fields of the superblock that are
+	 * needed to find backup superblocks are usable.
+	 */
+	if (msg)
+		printf("Attempted recovery for standard superblock: failed\n");
+	flags = UFS_FSRONLY | UFS_NOHASHFAIL | UFS_NOMSG;
+	if (ffs_sbget(devfd, &protofs, UFS_STDSB, flags, filltype,
+	    readfunc) == 0) {
+		if (msg)
+			printf("Attempted extraction of recovery data from "
+			    "standard superblock: ");
+	} else {
+		/*
+		 * Final desperation is to see if alternate superblock
+		 * parameters have been saved in the boot area.
+		 */
+		if (msg)
+			printf("Attempted extraction of recovery data from "
+			    "standard superblock: failed\nAttempt to find "
+			    "boot zone recovery data: ");
+		/*
+		 * Look to see if recovery information has been saved.
+		 * If so we can generate a prototype superblock based
+		 * on that information.
+		 *
+		 * We need fragments-per-group, number of cylinder groups,
+		 * location of the superblock within the cylinder group, and
+		 * the conversion from filesystem fragments to disk blocks.
+		 *
+		 * When building a UFS2 filesystem, newfs(8) stores these
+		 * details at the end of the boot block area at the start
+		 * of the filesystem partition. If they have been overwritten
+		 * by a boot block, we fail.  But usually they are there
+		 * and we can use them.
+		 *
+		 * We could ask the underlying device for its sector size,
+		 * but some devices lie. So we just try a plausible range.
+		 */
+		error = ENOENT;
+		for (secsize = dbtob(1); secsize <= SBLOCKSIZE; secsize *= 2)
+			if ((error = (*readfunc)(devfd, (SBLOCK_UFS2 - secsize),
+			    &fsrbuf, secsize)) == 0)
+				break;
+		if (error != 0)
+			goto trynowarn;
+		cp = fsrbuf; /* type change to keep compiler happy */
+		fsr = (struct fsrecovery *)&cp[secsize - sizeof *fsr];
+		if (fsr->fsr_magic != FS_UFS2_MAGIC ||
+		    (protofs = UFS_MALLOC(SBLOCKSIZE, filltype, M_NOWAIT))
+		    == NULL) {
+			UFS_FREE(fsrbuf, filltype);
+			goto trynowarn;
+		}
+		memset(protofs, 0, sizeof(struct fs));
+		protofs->fs_fpg = fsr->fsr_fpg;
+		protofs->fs_fsbtodb = fsr->fsr_fsbtodb;
+		protofs->fs_sblkno = fsr->fsr_sblkno;
+		protofs->fs_magic = fsr->fsr_magic;
+		protofs->fs_ncg = fsr->fsr_ncg;
+		UFS_FREE(fsrbuf, filltype);
+	}
+	/*
+	 * Scan looking for alternative superblocks.
+	 */
+	for (cg = 0; cg < protofs->fs_ncg; cg++) {
+		sblk = dbtob(fsbtodb(protofs, cgsblock(protofs, cg)));
+		if (ffs_sbget(devfd, fsp, sblk, UFS_NOMSG | nocsum, filltype,
+		    readfunc) == 0) {
+			if (msg)
+				printf("succeeded with alternate superblock "
+				    "at %jd\n", (intmax_t)btodb(sblk));
+			UFS_FREE(protofs, filltype);
+			return (0);
+		}
+	}
+	UFS_FREE(protofs, filltype);
+	/*
+	 * Our alternate superblock strategies failed. Our last ditch effort
+	 * is to see if the standard superblock has only non-critical errors.
+	 */
+trynowarn:
+	flags = UFS_NOWARNFAIL | UFS_NOMSG | nocsum;
+	if (msg) {
+		printf("failed\n");
+		flags &= ~UFS_NOMSG;
+	}
+	if (ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc) != 0)
+		return (ENOENT);
+	if (msg)
+		printf("Using standard superblock with non-critical errors.\n");
+	return (0);
 }
 
 /*
