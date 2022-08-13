@@ -27,8 +27,8 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 # So 640k - 40k - 25k - 25k = 550k = 563,200 bytes, but use 550,000 below for
 # some extra buffer for more complex setups and/or wider BIOS lomem variation.
 #
-# Some systems use more stack or have BIOS resere more RAM (or both), and will
-# need to set this lower in /etc/loader.conf if the above buffer is too small.
+# Some systems use more stack or have BIOS reserve more RAM (or both), and will
+# need to set this lower in /etc/src.conf if the above buffer is too small.
 #
 # sudo dd if=/dev/mem bs=1 iseek=0x413 count=2 | hd -d
 #
