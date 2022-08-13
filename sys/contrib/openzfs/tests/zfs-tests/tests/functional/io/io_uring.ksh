@@ -7,7 +7,7 @@
 # You may not use this file except in compliance with the License.
 #
 # You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or http://www.opensolaris.org/os/licensing.
+# or https://opensource.org/licenses/CDDL-1.0.
 # See the License for the specific language governing permissions
 # and limitations under the License.
 #
@@ -40,7 +40,7 @@
 verify_runnable "global"
 
 
-if [[ $(linux_version) -lt $(linux_version "5.1") ]]; then
+if ! $(grep -q "CONFIG_IO_URING=y" /boot/config-$(uname -r)); then
 	log_unsupported "Requires io_uring support"
 fi
 

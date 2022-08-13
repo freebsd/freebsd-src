@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -218,6 +218,13 @@ zfs_sort_only_by_name(const zfs_sort_column_t *sc)
 	    sc->sc_prop == ZFS_PROP_NAME);
 }
 
+int
+zfs_sort_only_by_createtxg(const zfs_sort_column_t *sc)
+{
+	return (sc != NULL && sc->sc_next == NULL &&
+	    sc->sc_prop == ZFS_PROP_CREATETXG);
+}
+
 static int
 zfs_compare(const void *larg, const void *rarg)
 {
@@ -301,7 +308,7 @@ zfs_sort(const void *larg, const void *rarg, void *data)
 	for (psc = sc; psc != NULL; psc = psc->sc_next) {
 		char lbuf[ZFS_MAXPROPLEN], rbuf[ZFS_MAXPROPLEN];
 		char *lstr, *rstr;
-		uint64_t lnum, rnum;
+		uint64_t lnum = 0, rnum = 0;
 		boolean_t lvalid, rvalid;
 		int ret = 0;
 
@@ -352,11 +359,9 @@ zfs_sort(const void *larg, const void *rarg, void *data)
 			    zfs_get_type(r), B_FALSE);
 
 			if (lvalid)
-				(void) zfs_prop_get_numeric(l, psc->sc_prop,
-				    &lnum, NULL, NULL, 0);
+				lnum = zfs_prop_get_int(l, psc->sc_prop);
 			if (rvalid)
-				(void) zfs_prop_get_numeric(r, psc->sc_prop,
-				    &rnum, NULL, NULL, 0);
+				rnum = zfs_prop_get_int(r, psc->sc_prop);
 		}
 
 		if (!lvalid && !rvalid)

@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -3654,11 +3654,14 @@ found3:;
 	argv += optind;
 
 	/*
-	 * If we are only going to list snapshot names and sort by name,
-	 * then we can use faster version.
+	 * If we are only going to list snapshot names and sort by name or
+	 * by createtxg, then we can use faster version.
 	 */
-	if (strcmp(fields, "name") == 0 && zfs_sort_only_by_name(sortcol))
+	if (strcmp(fields, "name") == 0 &&
+	    (zfs_sort_only_by_name(sortcol) ||
+	    zfs_sort_only_by_createtxg(sortcol))) {
 		flags |= ZFS_ITER_SIMPLE;
+	}
 
 	/*
 	 * If "-o space" and no types were specified, don't display snapshots.
@@ -4743,7 +4746,7 @@ zfs_do_receive(int argc, char **argv)
 		nomem();
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":o:x:dehMnuvFsA")) != -1) {
+	while ((c = getopt(argc, argv, ":o:x:dehMnuvFsAc")) != -1) {
 		switch (c) {
 		case 'o':
 			if (!parseprop(props, optarg)) {
@@ -4798,6 +4801,9 @@ zfs_do_receive(int argc, char **argv)
 			break;
 		case 'A':
 			abort_resumable = B_TRUE;
+			break;
+		case 'c':
+			flags.heal = B_TRUE;
 			break;
 		case ':':
 			(void) fprintf(stderr, gettext("missing argument for "

@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -84,6 +84,13 @@ static const option_map_t option_map[] = {
 	{ MNTOPT_ACL,		MS_POSIXACL,	ZS_COMMENT	},
 	{ MNTOPT_NOACL,		MS_COMMENT,	ZS_COMMENT	},
 	{ MNTOPT_POSIXACL,	MS_POSIXACL,	ZS_COMMENT	},
+	/*
+	 * Case sensitive options are just listed here to silently
+	 * ignore the error if passed with zfs mount command.
+	 */
+	{ MNTOPT_CASESENSITIVE,		MS_COMMENT,	ZS_COMMENT	},
+	{ MNTOPT_CASEINSENSITIVE,	MS_COMMENT,	ZS_COMMENT	},
+	{ MNTOPT_CASEMIXED,		MS_COMMENT,	ZS_COMMENT	},
 #ifdef MS_NOATIME
 	{ MNTOPT_NOATIME,	MS_NOATIME,	ZS_COMMENT	},
 	{ MNTOPT_ATIME,		MS_COMMENT,	ZS_COMMENT	},

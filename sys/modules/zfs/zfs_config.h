@@ -88,6 +88,9 @@
 #define HAVE_AVX512VL 1
 #endif
 
+/* bdevname() is available */
+/* #undef HAVE_BDEVNAME */
+
 /* bdev_check_media_change() exists */
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
@@ -165,6 +168,9 @@
 
 /* blk_alloc_queue_rh() expects request function */
 /* #undef HAVE_BLK_ALLOC_QUEUE_REQUEST_FN_RH */
+
+/* blk_cleanup_disk() exists */
+/* #undef HAVE_BLK_CLEANUP_DISK */
 
 /* block multiqueue is available */
 /* #undef HAVE_BLK_MQ */
@@ -506,9 +512,6 @@
 /* Noting that make_request_fn() returns void */
 /* #undef HAVE_MAKE_REQUEST_FN_RET_VOID */
 
-/* Define to 1 if you have the <memory.h> header file. */
-#define HAVE_MEMORY_H 1
-
 /* iops->mkdir() takes umode_t */
 /* #undef HAVE_MKDIR_UMODE_T */
 
@@ -571,6 +574,9 @@
 
 /* qat is enabled and existed */
 /* #undef HAVE_QAT */
+
+/* register_shrinker is vararg */
+/* #undef HAVE_REGISTER_SHRINKER_VARARG */
 
 /* iops->rename() wants flags */
 /* #undef HAVE_RENAME_WANTS_FLAGS */
@@ -672,6 +678,9 @@
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#define HAVE_STDIO_H 1
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -883,13 +892,15 @@
 /* pde_data() is PDE_DATA() */
 /* #undef SPL_PDE_DATA */
 
-/* True if ZFS is to be compiled for a FreeBSD system */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #define SYSTEM_FREEBSD 1
 
 /* True if ZFS is to be compiled for a Linux system */
 /* #undef SYSTEM_LINUX */
 
-/* zfs debugging enabled */
+/* Version number of package */
 /* #undef ZFS_DEBUG */
 
 /* /dev/zfs minor */
@@ -929,7 +940,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gcb01da680"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gb3d0568cf"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -938,7 +949,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.18"
+#define ZFS_META_KVER_MAX "5.19"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -959,11 +970,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gcb01da680"
+#define ZFS_META_RELEASE "FreeBSD_gb3d0568cf"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
-

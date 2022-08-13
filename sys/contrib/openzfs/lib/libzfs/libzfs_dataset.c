@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -527,6 +527,7 @@ make_dataset_simple_handle_zc(zfs_handle_t *pzhp, zfs_cmd_t *zc)
 	zhp->zfs_head_type = pzhp->zfs_type;
 	zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
 	zhp->zpool_hdl = zpool_handle(zhp);
+	zhp->zfs_dmustats = zc->zc_objset_stats;
 
 	return (zhp);
 }
@@ -2283,6 +2284,19 @@ get_numeric_property(zfs_handle_t *zhp, zfs_prop_t prop, zprop_source_t *src,
 		*val = zhp->zfs_dmustats.dds_redacted;
 		break;
 
+	case ZFS_PROP_CREATETXG:
+		/*
+		 * We can directly read createtxg property from zfs
+		 * handle for Filesystem, Snapshot and ZVOL types.
+		 */
+		if ((zhp->zfs_type == ZFS_TYPE_FILESYSTEM) ||
+		    (zhp->zfs_type == ZFS_TYPE_SNAPSHOT) ||
+		    (zhp->zfs_type == ZFS_TYPE_VOLUME)) {
+			*val = zhp->zfs_dmustats.dds_creation_txg;
+			break;
+		}
+		zfs_fallthrough;
+
 	default:
 		switch (zfs_prop_get_type(prop)) {
 		case PROP_TYPE_NUMBER:
@@ -2917,6 +2931,26 @@ zfs_prop_get(zfs_handle_t *zhp, zfs_prop_t prop, char *propbuf, size_t proplen,
 			    (u_longlong_t)val);
 		} else {
 			zfs_nicebytes(val, propbuf, proplen);
+		}
+		zcp_check(zhp, prop, val, NULL);
+		break;
+
+	case ZFS_PROP_SNAPSHOTS_CHANGED:
+		{
+			if ((get_numeric_property(zhp, prop, src, &source,
+			    &val) != 0) || val == 0) {
+				return (-1);
+			}
+
+			time_t time = (time_t)val;
+			struct tm t;
+
+			if (literal ||
+			    localtime_r(&time, &t) == NULL ||
+			    strftime(propbuf, proplen, "%a %b %e %k:%M %Y",
+			    &t) == 0)
+				(void) snprintf(propbuf, proplen, "%llu",
+				    (u_longlong_t)val);
 		}
 		zcp_check(zhp, prop, val, NULL);
 		break;

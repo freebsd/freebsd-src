@@ -6,7 +6,7 @@
  * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
+ * or https://opensource.org/licenses/CDDL-1.0.
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
@@ -102,6 +102,16 @@ static inline struct block_device *
 bdev_whole(struct block_device *bdev)
 {
 	return (bdev->bd_contains);
+}
+#endif
+
+#if defined(HAVE_BDEVNAME)
+#define	vdev_bdevname(bdev, name)	bdevname(bdev, name)
+#else
+static inline void
+vdev_bdevname(struct block_device *bdev, char *name)
+{
+	snprintf(name, BDEVNAME_SIZE, "%pg", bdev);
 }
 #endif
 
@@ -204,7 +214,7 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 
 		if (bdev) {
 			if (v->vdev_expanding && bdev != bdev_whole(bdev)) {
-				bdevname(bdev_whole(bdev), disk_name + 5);
+				vdev_bdevname(bdev_whole(bdev), disk_name + 5);
 				/*
 				 * If userland has BLKPG_RESIZE_PARTITION,
 				 * then it should have updated the partition

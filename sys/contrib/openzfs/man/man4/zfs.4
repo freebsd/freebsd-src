@@ -5,7 +5,7 @@
 .\" The contents of this file are subject to the terms of the Common Development
 .\" and Distribution License (the "License").  You may not use this file except
 .\" in compliance with the License. You can obtain a copy of the license at
-.\" usr/src/OPENSOLARIS.LICENSE or http://www.opensolaris.org/os/licensing.
+.\" usr/src/OPENSOLARIS.LICENSE or https://opensource.org/licenses/CDDL-1.0.
 .\"
 .\" See the License for the specific language governing permissions and
 .\" limitations under the License. When distributing Covered Code, include this
@@ -1869,6 +1869,17 @@ This is the uncompressed size, even when receiving a compressed send stream.
 This setting will not reduce the write size below a single block.
 Capped at a maximum of
 .Sy 32 MiB .
+.
+.It Sy zfs_recv_best_effort_corrective Ns = Ns Sy 0 Pq int
+When this variable is set to non-zero a corrective receive:
+.Bl -enum -compact -offset 4n -width "1."
+.It
+Does not enforce the restriction of source & destination snapshot GUIDs
+matching.
+.It
+If there is an error during healing, the healing receive is not
+terminated instead it moves on to the next record.
+.El
 .
 .It Sy zfs_override_estimate_recordsize Ns = Ns Sy 0 Ns | Ns 1 Pq ulong
 Setting this variable overrides the default logic for estimating block
