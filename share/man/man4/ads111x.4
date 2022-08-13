@@ -55,8 +55,9 @@ The devices offer a number of configuration options which can be
 set via hints, FDT data, and
 .Xr sysctl 8 .
 .Pp
-.Xr Sysctl 8
-provides access to the voltage measurements made by the device.
+The
+.Xr sysctl 8
+utility provides access to the voltage measurements made by the device.
 Each time the
 .Va dev.ads111x.<unit>.<channel>.voltage
 variable is accessed for a given channel, the driver switches the
