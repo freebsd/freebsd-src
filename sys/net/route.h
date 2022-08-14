@@ -440,9 +440,6 @@ void	rt_flushifroutes(struct ifnet *ifp);
  * but this will change.. 
  */
 int	rtioctl_fib(u_long, caddr_t, u_int);
-int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
-	    struct rt_addrinfo *);
-void	rib_free_info(struct rt_addrinfo *info);
 
 /* New API */
 void rib_flush_routes_family(int family);
