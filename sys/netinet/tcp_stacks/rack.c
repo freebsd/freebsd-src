@@ -16145,7 +16145,9 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 	struct tcpopt to;
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
+#ifdef TCP_ACCOUNTING
 	int cnt_thru = 1;
+#endif
 	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error, ulen = 0;
 	uint16_t flags;
 	uint32_t s_soff;
@@ -16503,7 +16505,9 @@ again:
 		max_val -= len;
 		len = segsiz;
 		th = rack->r_ctl.fsb.th;
+#ifdef TCP_ACCOUNTING
 		cnt_thru++;
+#endif
 		goto again;
 	}
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
