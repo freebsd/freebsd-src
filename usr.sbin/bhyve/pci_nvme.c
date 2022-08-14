@@ -1418,9 +1418,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 {
 	uint64_t logoff;
 	uint32_t logsize;
-	uint8_t logpage = command->cdw10 & 0xFF;
-
-	DPRINTF("%s log page %u len %u", __func__, logpage, logsize);
+	uint8_t logpage;
 
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
 
@@ -1428,9 +1426,12 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	 * Command specifies the number of dwords to return in fields NUMDU
 	 * and NUMDL. This is a zero-based value.
 	 */
+	logpage = command->cdw10 & 0xFF;
 	logsize = ((command->cdw11 << 16) | (command->cdw10 >> 16)) + 1;
 	logsize *= sizeof(uint32_t);
 	logoff  = ((uint64_t)(command->cdw13) << 32) | command->cdw12;
+
+	DPRINTF("%s log page %u len %u", __func__, logpage, logsize);
 
 	switch (logpage) {
 	case NVME_LOG_ERROR:
@@ -2507,18 +2508,17 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 
 	lba = ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10;
 	nblocks = (cmd->cdw12 & 0xFFFF) + 1;
+	bytes = nblocks << nvstore->sectsz_bits;
+	if (bytes > NVME_MAX_DATA_SIZE) {
+		WPRINTF("%s command would exceed MDTS", __func__);
+		pci_nvme_status_genc(status, NVME_SC_INVALID_FIELD);
+		goto out;
+	}
 
 	if (pci_nvme_out_of_range(nvstore, lba, nblocks)) {
 		WPRINTF("%s command would exceed LBA range(slba=%#lx nblocks=%#lx)",
 		    __func__, lba, nblocks);
 		pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
-		goto out;
-	}
-
-	bytes  = nblocks << nvstore->sectsz_bits;
-	if (bytes > NVME_MAX_DATA_SIZE) {
-		WPRINTF("%s command would exceed MDTS", __func__);
-		pci_nvme_status_genc(status, NVME_SC_INVALID_FIELD);
 		goto out;
 	}
 
