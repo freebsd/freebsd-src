@@ -110,7 +110,7 @@ Prohibit the
 .Cm allow_other
 mount flag.
 Intended for use in scripts and the
-.Xr sudoers 5
+.Xr sudoers 5 Pq Pa ports/security/sudo
 file.
 .It Fl S , Ic --safe
 Run in safe mode (i.e., reject invoking a filesystem daemon).
@@ -253,7 +253,7 @@ beyond the
 .Va vfs.usermount
 sysctl).
 The primary tool for such purposes is
-.Xr sudo 8 .
+.Xr sudo 8 Pq Pa ports/security/sudo .
 However, given that
 .Nm
 is capable of invoking an arbitrary program, one must be careful when doing this.
@@ -275,7 +275,7 @@ ignores the environment variable
 and always behaves as described.
 .Pp
 In general, to be as scripting /
-.Xr sudoers 5
+.Xr sudoers 5 Pq Pa ports/security/sudo
 friendly as possible, no information has a fixed
 position in the command line, but once a given piece of information is
 provided, subsequent arguments/options cannot override it (with the
@@ -355,7 +355,7 @@ does not call any external utility and also provides a hacky
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr mount 8 ,
-.Xr sudo 8 ,
+.Xr sudo 8 Pq Pa ports/security/sudo ,
 .Xr umount 8
 .Sh HISTORY
 .Nm
