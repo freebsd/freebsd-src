@@ -26,15 +26,14 @@ CFLAGS+=	-DHAVE_VCS_VERSION_INC
 CFLAGS+=	-DNDEBUG
 .endif
 
-TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
 # Armv6 and armv7 uses hard float abi, unless the CPUTYPE has soft in it.
 # arm (for armv4 and armv5 CPUs) always uses the soft float ABI.
 # For all other targets, we stick with 'unknown'.
-.if ${TARGET_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
+.if ${MACHINE_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 TARGET_ABI=	-gnueabihf
-.elif ${TARGET_ARCH:Marm*}
+.elif ${MACHINE_ARCH:Marm*}
 TARGET_ABI=	-gnueabi
 .else
 TARGET_ABI=
@@ -42,7 +41,7 @@ TARGET_ABI=
 VENDOR=		unknown
 OS_VERSION=	freebsd13.1
 
-LLVM_TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${VENDOR}-${OS_VERSION}${TARGET_ABI}
+LLVM_TARGET_TRIPLE?=	${MACHINE_ARCH:C/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${VENDOR}-${OS_VERSION}${TARGET_ABI}
 LLVM_BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${VENDOR}-${OS_VERSION}
 
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${LLVM_TARGET_TRIPLE}\"
