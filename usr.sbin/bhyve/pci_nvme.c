@@ -2219,6 +2219,8 @@ pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 		req->io_req.br_iov[iovidx].iov_base =
 		    paddr_guest2host(req->sc->nsc_pi->pi_vmctx,
 				     req->prev_gpaddr, size);
+		if (req->io_req.br_iov[iovidx].iov_base == NULL)
+			return (-1);
 
 		req->prev_size += size;
 		req->io_req.br_resid += size;
@@ -2235,6 +2237,8 @@ pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 		req->io_req.br_iov[iovidx].iov_base =
 		    paddr_guest2host(req->sc->nsc_pi->pi_vmctx,
 				     gpaddr, size);
+		if (req->io_req.br_iov[iovidx].iov_base == NULL)
+			return (-1);
 
 		req->io_req.br_iov[iovidx].iov_len = size;
 
@@ -2420,8 +2424,7 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 	size = MIN(PAGE_SIZE - (prp1 % PAGE_SIZE), bytes);
 	if (pci_nvme_append_iov_req(sc, req, prp1,
 	    size, is_write, offset)) {
-		pci_nvme_status_genc(&status,
-		    NVME_SC_DATA_TRANSFER_ERROR);
+		err = -1;
 		goto out;
 	}
 
@@ -2434,8 +2437,7 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 		size = bytes;
 		if (pci_nvme_append_iov_req(sc, req, prp2,
 		    size, is_write, offset)) {
-			pci_nvme_status_genc(&status,
-			    NVME_SC_DATA_TRANSFER_ERROR);
+			err = -1;
 			goto out;
 		}
 	} else {
@@ -2451,6 +2453,10 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 
 				prp_list = paddr_guest2host(vmctx, prp,
 				    PAGE_SIZE - (prp % PAGE_SIZE));
+				if (prp_list == NULL) {
+					err = -1;
+					goto out;
+				}
 				last = prp_list + (NVME_PRP2_ITEMS - 1);
 			}
 
@@ -2458,8 +2464,7 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 
 			if (pci_nvme_append_iov_req(sc, req, *prp_list,
 			    size, is_write, offset)) {
-				pci_nvme_status_genc(&status,
-				    NVME_SC_DATA_TRANSFER_ERROR);
+				err = -1;
 				goto out;
 			}
 
@@ -2474,10 +2479,10 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 		err = blockif_write(nvstore->ctx, &req->io_req);
 	else
 		err = blockif_read(nvstore->ctx, &req->io_req);
-
+out:
 	if (err)
 		pci_nvme_status_genc(&status, NVME_SC_DATA_TRANSFER_ERROR);
-out:
+
 	return (status);
 }
 
