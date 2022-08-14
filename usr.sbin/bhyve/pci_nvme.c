@@ -546,7 +546,7 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->aerl = 4;
 
 	/* Advertise 1, Read-only firmware slot */
-	cd->frmw = NVME_CTRLR_DATA_FRMW_SLOT1_RO_MASK |
+	cd->frmw = NVMEB(NVME_CTRLR_DATA_FRMW_SLOT1_RO) |
 	    (1 << NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT);
 	cd->lpa = 0;	/* TODO: support some simple things like SMART */
 	cd->elpe = 0;	/* max error log page entries */
