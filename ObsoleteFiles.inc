@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220813: minigzip(1) removed in favor of gzip(1)
+OLD_FILES+=usr/bin/minigzip
+OLD_FILES+=usr/share/man/man1/minigzip.1.gz
+
 # 20220811: new iconv encoder trait added
 OLD_LIBS+=usr/lib/i18n/libBIG5.so.4
 OLD_LIBS+=usr/lib/i18n/libDECHanyu.so.4

@@ -91,7 +91,6 @@ SUBDIR=	alias \
 	m4 \
 	mandoc \
 	mesg \
-	minigzip \
 	ministat \
 	mkdep \
 	mkfifo \
