@@ -214,7 +214,7 @@ Do not overwrite existing files with
 .Ql > .
 .It Fl E Li emacs
 Enable the built-in
-.Xr emacs 1
+.Xr emacs 1 Pq Pa ports/editors/emacs
 command line editor (disables the
 .Fl V
 option if it has been set;
@@ -359,8 +359,8 @@ This option only has a long name.
 Set
 .Dv O_VERIFY
 when sourcing files or loading profiles.
-See also
-.Xr mac_veriexec 4 .
+.\" See also
+.\" .Xr mac_veriexec 4 . TODO Does not exist; write it.
 .El
 .Pp
 The
@@ -378,7 +378,7 @@ to be enabled or disabled.
 For example, the following two invocations of
 .Nm
 both enable the built-in
-.Xr emacs 1
+.Xr emacs 1 Pq Pa ports/editors/emacs
 command line editor:
 .Bd -literal -offset indent
 set -E
@@ -2869,7 +2869,7 @@ will return the argument.
 .Xr chsh 1 ,
 .Xr echo 1 ,
 .Xr ed 1 ,
-.Xr emacs 1 ,
+.Xr emacs 1 Pq Pa ports/editors/emacs ,
 .Xr kill 1 ,
 .Xr printf 1 ,
 .Xr pwd 1 ,
