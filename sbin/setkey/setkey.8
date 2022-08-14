@@ -535,7 +535,7 @@ level is the same as
 but, in addition, it allows the policy to bind with the unique out-bound SA.
 For example, if you specify the policy level
 .Li unique ,
-.Xr racoon 8
+.Xr racoon 8 Pq Pa ports/security/ipsec-tools
 will configure the SA for the policy.
 If you configure the SA by manual keying for that policy,
 you can put the decimal number as the policy identifier after
@@ -688,7 +688,7 @@ add 10.1.10.36 10.1.10.34 tcp 0x1001 -A tcp-md5 "TCP-MD5 BGP secret" ;
 .Sh SEE ALSO
 .Xr ipsec_set_policy 3 ,
 .Xr if_ipsec 4 ,
-.Xr racoon 8 ,
+.Xr racoon 8 Pq Pa ports/security/ipsec-tools ,
 .Xr sysctl 8
 .Rs
 .%T "Changed manual key configuration for IPsec"
