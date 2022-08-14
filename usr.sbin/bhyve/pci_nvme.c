@@ -1638,18 +1638,17 @@ nvme_fid_to_name(uint8_t fid)
 }
 
 static void
-nvme_feature_invalid_cb(struct pci_nvme_softc *sc,
-    struct nvme_feature_obj *feat,
-    struct nvme_command *command,
+nvme_feature_invalid_cb(struct pci_nvme_softc *sc __unused,
+    struct nvme_feature_obj *feat __unused,
+    struct nvme_command *command __unused,
     struct nvme_completion *compl)
 {
-
 	pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 }
 
 static void
 nvme_feature_iv_config(struct pci_nvme_softc *sc,
-    struct nvme_feature_obj *feat,
+    struct nvme_feature_obj *feat __unused,
     struct nvme_command *command,
     struct nvme_completion *compl)
 {
@@ -1681,12 +1680,11 @@ nvme_feature_iv_config(struct pci_nvme_softc *sc,
 
 #define NVME_ASYNC_EVENT_ENDURANCE_GROUP		(0x4000)
 static void
-nvme_feature_async_event(struct pci_nvme_softc *sc,
-    struct nvme_feature_obj *feat,
+nvme_feature_async_event(struct pci_nvme_softc *sc __unused,
+    struct nvme_feature_obj *feat __unused,
     struct nvme_command *command,
     struct nvme_completion *compl)
 {
-
 	if (command->cdw11 & NVME_ASYNC_EVENT_ENDURANCE_GROUP)
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 }
@@ -1695,7 +1693,7 @@ nvme_feature_async_event(struct pci_nvme_softc *sc,
 #define NVME_TEMP_THRESH_UNDER	1
 static void
 nvme_feature_temperature(struct pci_nvme_softc *sc,
-    struct nvme_feature_obj *feat,
+    struct nvme_feature_obj *feat __unused,
     struct nvme_command *command,
     struct nvme_completion *compl)
 {
@@ -1740,7 +1738,7 @@ nvme_feature_temperature(struct pci_nvme_softc *sc,
 
 static void
 nvme_feature_num_queues(struct pci_nvme_softc *sc,
-    struct nvme_feature_obj *feat,
+    struct nvme_feature_obj *feat __unused,
     struct nvme_command *command,
     struct nvme_completion *compl)
 {
@@ -1938,8 +1936,8 @@ nvme_opc_format_nvm(struct pci_nvme_softc* sc, struct nvme_command* command,
 }
 
 static int
-nvme_opc_abort(struct pci_nvme_softc* sc, struct nvme_command* command,
-	struct nvme_completion* compl)
+nvme_opc_abort(struct pci_nvme_softc *sc __unused, struct nvme_command *command,
+    struct nvme_completion *compl)
 {
 	DPRINTF("%s submission queue %u, command ID 0x%x", __func__,
 	        command->cdw10 & 0xFFFF, (command->cdw10 >> 16) & 0xFFFF);
@@ -2217,8 +2215,7 @@ pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 
 static void
 pci_nvme_set_completion(struct pci_nvme_softc *sc,
-	struct nvme_submission_queue *sq, int sqid, uint16_t cid,
-	uint32_t cdw0, uint16_t status)
+    struct nvme_submission_queue *sq, int sqid, uint16_t cid, uint16_t status)
 {
 	struct nvme_completion_queue *cq = &sc->compl_queues[sq->cqid];
 
@@ -2226,11 +2223,7 @@ pci_nvme_set_completion(struct pci_nvme_softc *sc,
 		 __func__, sqid, sq->cqid, cid, NVME_STATUS_GET_SCT(status),
 		 NVME_STATUS_GET_SC(status));
 
-	pci_nvme_cq_update(sc, cq,
-	    0,		/* CDW0 */
-	    cid,
-	    sqid,
-	    status);
+	pci_nvme_cq_update(sc, cq, 0, cid, sqid, status);
 
 	if (cq->head != cq->tail) {
 		if (cq->intr_en & NVME_CQ_INTEN) {
@@ -2305,7 +2298,7 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
 	pci_nvme_status_genc(&status, code);
 
-	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, 0, status);
+	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, status);
 	pci_nvme_stats_write_read_update(req->sc, req->opc,
 	    req->bytes, status);
 	pci_nvme_release_ioreq(req->sc, req);
@@ -2320,8 +2313,8 @@ pci_nvme_io_done(struct blockif_req *br, int err)
  * not supported (i.e. RAM or as indicated by the blockif).
  */
 static bool
-nvme_opc_flush(struct pci_nvme_softc *sc,
-    struct nvme_command *cmd,
+nvme_opc_flush(struct pci_nvme_softc *sc __unused,
+    struct nvme_command *cmd __unused,
     struct pci_nvme_blockstore *nvstore,
     struct pci_nvme_ioreq *req,
     uint16_t *status)
@@ -2537,8 +2530,8 @@ pci_nvme_dealloc_sm(struct blockif_req *br, int err)
 	}
 
 	if (done) {
-		pci_nvme_set_completion(sc, req->nvme_sq, req->sqid,
-		    req->cid, 0, status);
+		pci_nvme_set_completion(sc, req->nvme_sq, req->sqid, req->cid,
+		    status);
 		pci_nvme_release_ioreq(sc, req);
 	}
 }
@@ -2740,8 +2733,7 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 		}
 complete:
 		if (!pending) {
-			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
-			    status);
+			pci_nvme_set_completion(sc, sq, idx, cmd->cid, status);
 			if (req != NULL)
 				pci_nvme_release_ioreq(sc, req);
 		}
@@ -2753,7 +2745,7 @@ complete:
 }
 
 static void
-pci_nvme_handle_doorbell(struct vmctx *ctx, struct pci_nvme_softc* sc,
+pci_nvme_handle_doorbell(struct vmctx *ctx __unused, struct pci_nvme_softc* sc,
 	uint64_t idx, int is_sq, uint64_t value)
 {
 	DPRINTF("nvme doorbell %lu, %s, val 0x%lx",
@@ -2966,8 +2958,8 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 }
 
 static void
-pci_nvme_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-                int baridx, uint64_t offset, int size, uint64_t value)
+pci_nvme_write(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
+    int baridx, uint64_t offset, int size, uint64_t value)
 {
 	struct pci_nvme_softc* sc = pi->pi_arg;
 
@@ -3029,8 +3021,8 @@ static uint64_t pci_nvme_read_bar_0(struct pci_nvme_softc* sc,
 
 
 static uint64_t
-pci_nvme_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
-    uint64_t offset, int size)
+pci_nvme_read(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_nvme_softc* sc = pi->pi_arg;
 
@@ -3157,7 +3149,8 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 }
 
 static void
-pci_nvme_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
+pci_nvme_resized(struct blockif_ctxt *bctxt __unused, void *arg,
+    size_t new_size)
 {
 	struct pci_nvme_softc *sc;
 	struct pci_nvme_blockstore *nvstore;
@@ -3179,7 +3172,7 @@ pci_nvme_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
 }
 
 static int
-pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_nvme_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_nvme_softc *sc;
 	uint32_t pci_membar_sz;
