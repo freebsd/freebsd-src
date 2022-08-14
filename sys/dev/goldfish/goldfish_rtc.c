@@ -151,6 +151,11 @@ goldfish_rtc_settime(device_t dev, struct timespec *ts)
 
 	sc = device_get_softc(dev);
 
+	/*
+	 * We request a timespec with no resolution-adjustment.  That also
+	 * disables utc adjustment, so apply that ourselves.
+	 */
+	ts->tv_sec -= utc_offset();
 	nsec = (uint64_t)ts->tv_sec * 1000000000 + ts->tv_nsec;
 
 	mtx_lock(&sc->mtx);
