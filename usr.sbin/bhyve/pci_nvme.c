@@ -550,7 +550,11 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	    (1 << NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT);
 	cd->lpa = 0;	/* TODO: support some simple things like SMART */
 	cd->elpe = 0;	/* max error log page entries */
-	cd->npss = 1;	/* number of power states support */
+	/*
+	 * Report a single power state (zero-based value)
+	 * power_state[] values are left as zero to indicate "Not reported"
+	 */
+	cd->npss = 0;
 
 	/* Warning Composite Temperature Threshold */
 	cd->wctemp = 0x0157;
@@ -579,8 +583,6 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	    NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT;
 
 	cd->vwc = NVME_CTRLR_DATA_VWC_ALL_NO << NVME_CTRLR_DATA_VWC_ALL_SHIFT;
-
-	cd->power_state[0].mp = 10;
 }
 
 /*
