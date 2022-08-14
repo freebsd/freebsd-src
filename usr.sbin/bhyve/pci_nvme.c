@@ -398,6 +398,7 @@ static void pci_nvme_io_done(struct blockif_req *, int);
 	((sts) >> NVME_CSTS_REG_RDY_SHIFT & NVME_CSTS_REG_RDY_MASK)
 
 #define	NVME_CSTS_RDY	(1 << NVME_CSTS_REG_RDY_SHIFT)
+#define	NVME_CSTS_CFS	(1 << NVME_CSTS_REG_CFS_SHIFT)
 
 /* Completion Queue status word utils */
 #define	NVME_STATUS_P	(1 << NVME_STATUS_P_SHIFT)
@@ -1081,30 +1082,61 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 	pthread_mutex_unlock(&sc->mtx);
 }
 
-static void
+static int
 pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 {
 	uint16_t acqs, asqs;
 
 	DPRINTF("%s", __func__);
 
-	asqs = (sc->regs.aqa & NVME_AQA_REG_ASQS_MASK) + 1;
+	/*
+	 * NVMe 2.0 states that "enabling a controller while this field is
+	 * cleared to 0h produces undefined results" for both ACQS and
+	 * ASQS. If zero, set CFS and do not become ready.
+	 */
+	asqs = ONE_BASED(sc->regs.aqa & NVME_AQA_REG_ASQS_MASK);
+	if (asqs < 2) {
+		EPRINTLN("%s: illegal ASQS value %#x (aqa=%#x)", __func__,
+		    asqs - 1, sc->regs.aqa);
+		sc->regs.csts |= NVME_CSTS_CFS;
+		return (-1);
+	}
 	sc->submit_queues[0].size = asqs;
 	sc->submit_queues[0].qbase = vm_map_gpa(ctx, sc->regs.asq,
 	            sizeof(struct nvme_command) * asqs);
+	if (sc->submit_queues[0].qbase == NULL) {
+		EPRINTLN("%s: ASQ vm_map_gpa(%lx) failed", __func__,
+		    sc->regs.asq);
+		sc->regs.csts |= NVME_CSTS_CFS;
+		return (-1);
+	}
 
 	DPRINTF("%s mapping Admin-SQ guest 0x%lx, host: %p",
 	        __func__, sc->regs.asq, sc->submit_queues[0].qbase);
 
-	acqs = ((sc->regs.aqa >> NVME_AQA_REG_ACQS_SHIFT) &
-	    NVME_AQA_REG_ACQS_MASK) + 1;
+	acqs = ONE_BASED((sc->regs.aqa >> NVME_AQA_REG_ACQS_SHIFT) &
+	    NVME_AQA_REG_ACQS_MASK);
+	if (acqs < 2) {
+		EPRINTLN("%s: illegal ACQS value %#x (aqa=%#x)", __func__,
+		    acqs - 1, sc->regs.aqa);
+		sc->regs.csts |= NVME_CSTS_CFS;
+		return (-1);
+	}
 	sc->compl_queues[0].size = acqs;
 	sc->compl_queues[0].qbase = vm_map_gpa(ctx, sc->regs.acq,
 	         sizeof(struct nvme_completion) * acqs);
+	if (sc->compl_queues[0].qbase == NULL) {
+		EPRINTLN("%s: ACQ vm_map_gpa(%lx) failed", __func__,
+		    sc->regs.acq);
+		sc->regs.csts |= NVME_CSTS_CFS;
+		return (-1);
+	}
 	sc->compl_queues[0].intr_en = NVME_CQ_INTEN;
 
 	DPRINTF("%s mapping Admin-CQ guest 0x%lx, host: %p",
 	        __func__, sc->regs.acq, sc->compl_queues[0].qbase);
+
+	return (0);
 }
 
 static int
@@ -2872,12 +2904,24 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 		uint64_t idx = belloffset / 8; /* door bell size = 2*int */
 		int is_sq = (belloffset % 8) < 4;
 
+		if ((sc->regs.csts & NVME_CSTS_RDY) == 0) {
+			WPRINTF("doorbell write prior to RDY (offset=%#lx)\n",
+			    offset);
+			return;
+		}
+
 		if (belloffset > ((sc->max_queues+1) * 8 - 4)) {
 			WPRINTF("guest attempted an overflow write offset "
 			         "0x%lx, val 0x%lx in %s",
 			         offset, value, __func__);
 			return;
 		}
+
+		if (is_sq) {
+			if (sc->submit_queues[idx].qbase == NULL)
+				return;
+		} else if (sc->compl_queues[idx].qbase == NULL)
+			return;
 
 		pci_nvme_handle_doorbell(ctx, sc, idx, is_sq, value);
 		return;
@@ -2945,7 +2989,8 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 			sc->regs.cc &= ~NVME_CC_NEN_WRITE_MASK;
 			sc->regs.cc |= ccreg & NVME_CC_NEN_WRITE_MASK;
 			sc->regs.csts &= ~NVME_CSTS_RDY;
-		} else if (sc->pending_ios == 0) {
+		} else if ((sc->pending_ios == 0) &&
+		    !(sc->regs.csts & NVME_CSTS_CFS)) {
 			sc->regs.csts |= NVME_CSTS_RDY;
 		}
 		break;
