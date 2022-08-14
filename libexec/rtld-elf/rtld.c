@@ -5033,7 +5033,7 @@ trace_loaded_objects(Obj_Entry *obj, bool show_preload)
 				path = "not found";
 
 			name = obj->strtab + needed->name;
-			trace_print_obj(obj, name, path, main_local,
+			trace_print_obj(needed->obj, name, path, main_local,
 			    fmt1, fmt2);
 		}
 	}
