@@ -364,7 +364,7 @@ ether_poll(int count)
 static struct timeval poll_start_t;
 
 void
-netisr_pollmore()
+netisr_pollmore(void)
 {
 	struct timeval t;
 	int kern_load;
