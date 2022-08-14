@@ -171,7 +171,7 @@ dtrace_sync(void)
  * Returns nanoseconds since boot.
  */
 uint64_t
-dtrace_gethrtime()
+dtrace_gethrtime(void)
 {
 	struct	timespec curtime;
 
