@@ -226,12 +226,10 @@ rk_spi_fill_txfifo(struct rk_spi_softc *sc)
 {
 	uint32_t txlevel;
 	txlevel = RK_SPI_READ_4(sc, RK_SPI_TXFLR);
-	int cnt = 0;
 
 	while (sc->txidx < sc->txlen && txlevel < sc->fifo_size) {
 		RK_SPI_WRITE_4(sc, RK_SPI_TXDR, sc->txbuf[sc->txidx++]);
 		txlevel++;
-		cnt++;
 	}
 
 	if (sc->txidx != sc->txlen)
