@@ -234,7 +234,7 @@ SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init,
  * Returns nanoseconds since boot.
  */
 uint64_t
-dtrace_gethrtime()
+dtrace_gethrtime(void)
 {
 	uint64_t timebase;
 	uint32_t lo;
