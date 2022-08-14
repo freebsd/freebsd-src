@@ -698,6 +698,11 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 	sc->health_log.temperature = NVME_TEMPERATURE;
 	sc->health_log.available_spare = 100;
 	sc->health_log.available_spare_threshold = 10;
+
+	/* Set Active Firmware Info to slot 1 */
+	sc->fw_log.afi = (1 << NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT);
+	memcpy(&sc->fw_log.revision[0], sc->ctrldata.fr,
+	    sizeof(sc->fw_log.revision[0]));
 }
 
 static void
