@@ -17406,7 +17406,7 @@ again:
 	    ipoptlen == 0)
 		tso = 1;
 	{
-		uint32_t outstanding;
+		uint32_t outstanding __unused;
 
 		outstanding = tp->snd_max - tp->snd_una;
 		if (tp->t_flags & TF_SENTFIN) {
