@@ -11922,7 +11922,6 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	int32_t prefetch_so_done = 0;
 	int32_t prefetch_rsm = 0;
 	uint32_t tot_len = 0;
-	uint32_t rtr_cnt = 0;
 	uint32_t maxseg, pace_max_segs, p_maxseg;
 	int32_t csum_flags = 0;
  	int32_t hw_tls;
@@ -12242,7 +12241,6 @@ recheck_resend:
 			goto recheck_resend;
 #endif
 		}
-		rtr_cnt++;
 		if (rsm->r_flags & BBR_HAS_SYN) {
 			/* Only retransmit a SYN by itself */
 			len = 0;
@@ -12291,7 +12289,6 @@ recheck_resend:
 		bbr->r_ctl.rc_tlp_send = NULL;
 		sack_rxmit = 1;
 		len = rsm->r_end - rsm->r_start;
-		rtr_cnt++;
 		if ((bbr->rc_resends_use_tso == 0) && (len > maxseg))
 			len = maxseg;
 
