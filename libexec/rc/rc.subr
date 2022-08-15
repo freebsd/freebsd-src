@@ -804,6 +804,8 @@ startmsg()
 #
 #	${name}_prepend	n	Command added before ${command}.
 #
+#	${name}_setup	n	Command executed before ${command}.
+#
 #	${name}_login_class n	Login class to use, else "daemon".
 #
 #	${name}_limits	n	limits(1) to apply to ${command}.
@@ -993,8 +995,8 @@ run_rc_command()
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
-	    _limits=\$${name}_limits    _oomprotect=\$${name}_oomprotect \
-	    _env_file=\$${name}_env_file
+	    _limits=\$${name}_limits	_oomprotect=\$${name}_oomprotect \
+	    _setup=\$${name}_setup	_env_file=\$${name}_env_file
 
 	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
 		set -a
@@ -1146,6 +1148,12 @@ $command $rc_flags $command_args"
 				fi
 				if [ -n "$_prepend" ]; then
 					_doit="$_prepend $_doit"
+				fi
+			fi
+
+			if [ -n "$_setup" ]; then
+				if ! _run_rc_doit "$_setup"; then
+					warn "failed to setup ${name}"
 				fi
 			fi
 
@@ -2187,7 +2195,7 @@ check_kern_features()
 # check_namevarlist var
 #	Return "0" if ${name}_var is reserved in rc.subr.
 
-_rc_namevarlist="program chroot chdir env flags fib nice user group groups prepend"
+_rc_namevarlist="program chroot chdir env flags fib nice user group groups prepend setup"
 check_namevarlist()
 {
 	local _v
