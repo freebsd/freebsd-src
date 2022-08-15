@@ -411,7 +411,7 @@ static int mv_win_cesa_attr_armadaxp(int eng_sel)
 }
 
 enum soc_family
-mv_check_soc_family()
+mv_check_soc_family(void)
 {
 	uint32_t dev, rev;
 
