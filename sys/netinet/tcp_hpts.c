@@ -1407,9 +1407,7 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout)
 	struct tcpcb *tp;
 	struct inpcb *inp = NULL, *ninp;
 	struct timeval tv;
-	uint64_t total_slots_processed = 0;
 	int32_t slots_to_run, i, error;
-	int32_t paced_cnt = 0;
 	int32_t loop_cnt = 0;
 	int32_t did_prefetch = 0;
 	int32_t prefetch_ninp = 0;
@@ -1529,9 +1527,7 @@ again:
 				/* Record the new position */
 				orig_exit_slot = hpts->p_runningslot;
 			}
-			total_slots_processed++;
 			hpts->p_inp = inp;
-			paced_cnt++;
 			KASSERT(hpts->p_runningslot == inp->inp_hptsslot,
 				("Hpts:%p inp:%p slot mis-aligned %u vs %u",
 				 hpts, inp, hpts->p_runningslot, inp->inp_hptsslot));
