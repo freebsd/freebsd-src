@@ -169,20 +169,20 @@ and
 environment variables.
 .It Fl p Op Cm eprtv
 Use the list of given preprocessors before running
-.Xr nroff 1
+.Xr nroff 1 Pq Pa ports/textproc/groff
 or
-.Xr troff 1 .
+.Xr troff 1 Pq Pa ports/textproc/groff .
 Valid preprocessors arguments:
 .Pp
 .Bl -tag -width indent -compact
 .It Cm e
-.Xr eqn 1
+.Xr eqn 1 Pq Pa ports/textproc/groff
 .It Cm p
-.Xr pic 1
+.Xr pic 1 Pq Pa ports/textproc/groff
 .It Cm r
-.Xr refer 1
+.Xr refer 1 Pq Pa ports/textproc/groff
 .It Cm t
-.Xr tbl 1
+.Xr tbl 1 Pq Pa ports/textproc/groff
 .It Cm v
 .Xr vgrind 1
 .El
@@ -192,7 +192,7 @@ Overrides the
 environment variable.
 .It Fl t
 Send manual page source through
-.Xr troff 1
+.Xr troff 1 Pq Pa ports/textproc/groff
 allowing transformation of the manual pages to other formats.
 .It Fl w
 Display the location of the manual page instead of the contents of
@@ -324,11 +324,11 @@ If none of these conditions are met, it overrides the
 standard search path.
 .It Ev MANROFFSEQ
 Used to determine the preprocessors for the manual source before running
-.Xr nroff 1
+.Xr nroff 1 Pq Pa ports/textproc/groff
 or
-.Xr troff 1 .
+.Xr troff 1 Pq Pa ports/textproc/groff .
 If unset, defaults to
-.Xr tbl 1 .
+.Xr tbl 1 Pq Pa ports/textproc/groff .
 Corresponds to the
 .Fl p
 option.

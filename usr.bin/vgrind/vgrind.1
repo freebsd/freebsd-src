@@ -53,7 +53,7 @@ The
 .Nm
 utility formats the program sources specified as arguments
 on the command line in a nice style using
-.Xr troff 1 .
+.Xr troff 1 Pq Pa ports/textproc/groff .
 Comments are placed in italics, keywords in bold face,
 and the name of the current function is listed down the margin of each
 page as it is encountered.
@@ -81,12 +81,12 @@ ends processing
 These lines are formatted as described above.
 The output from this
 filter can be passed to
-.Xr troff 1
+.Xr troff 1 Pq Pa ports/textproc/groff
 for output.
 There need be no particular ordering with
-.Xr eqn 1
+.Xr eqn 1 Pq Pa ports/textproc/groff
 or
-.Xr tbl 1 .
+.Xr tbl 1 Pq Pa ports/textproc/groff .
 .Pp
 In regular mode
 .Nm
@@ -159,7 +159,7 @@ specifies a point size to use on output (exactly the same as the argument
 of a .ps)
 .It Fl t
 similar to the same option in
-.Xr troff 1
+.Xr troff 1 Pq Pa ports/textproc/groff
 causing formatted text to go to the standard output
 .It Fl x
 outputs the index file in a ``pretty'' format.
