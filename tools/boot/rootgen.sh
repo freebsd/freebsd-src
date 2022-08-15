@@ -34,13 +34,19 @@ cpsys() {
     (cd $src ; tar cf - .) | (cd $dst; tar xf -)
 }
 
-mk_nogeli_gpt_ufs_legacy() {
+ufs_fstab() {
     src=$1
-    img=$2
 
     cat > ${src}/etc/fstab <<EOF
 /dev/ufs/root	/		ufs	rw	1	1
 EOF
+}
+
+mk_nogeli_gpt_ufs_legacy() {
+    src=$1
+    img=$2
+
+    ufs_fstab ${src}
     makefs -t ffs -B little -s 200m -o label=root ${img}.p2 ${src}
     mkimg -s gpt -b ${src}/boot/pmbr \
 	  -p freebsd-boot:=${src}/boot/gptboot \
@@ -52,9 +58,7 @@ mk_nogeli_gpt_ufs_uefi() {
     src=$1
     img=$2
 
-    cat > ${src}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${src}
     make_esp_file ${img}.p1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m -o label=root ${img}.p2 ${src}
     mkimg -s gpt \
@@ -67,9 +71,7 @@ mk_nogeli_gpt_ufs_both() {
     src=$1
     img=$2
 
-    cat > ${src}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${src}
     make_esp_file ${img}.p1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m -o label=root ${img}.p3 ${src}
     # p1 is boot for uefi, p2 is boot for gpt, p3 is /
@@ -203,9 +205,7 @@ mk_nogeli_mbr_ufs_legacy() {
     src=$1
     img=$2
 
-    cat > ${src}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${src}
     makefs -t ffs -B little -s 200m -o label=root ${img}.s1a ${src}
     mkimg -s bsd -b ${src}/boot/boot -p freebsd-ufs:=${img}.s1a -o ${img}.s1
     mkimg -a 1 -s mbr -b ${src}/boot/boot0sio -p freebsd:=${img}.s1 -o ${img}
@@ -216,9 +216,7 @@ mk_nogeli_mbr_ufs_uefi() {
     src=$1
     img=$2
 
-    cat > ${src}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${src}
     make_esp_file ${img}.s1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m -o label=root ${img}.s2a ${src}
     mkimg -s bsd -p freebsd-ufs:=${img}.s2a -o ${img}.s2
@@ -230,9 +228,7 @@ mk_nogeli_mbr_ufs_both() {
     src=$1
     img=$2
 
-    cat > ${src}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${src}
     make_esp_file ${img}.s1 ${espsize} ${src}/boot/loader.efi
     makefs -t ffs -B little -s 200m -o label=root ${img}.s2a ${src}
     mkimg -s bsd -b ${src}/boot/boot -p freebsd-ufs:=${img}.s2a -o ${img}.s2
@@ -389,9 +385,7 @@ mk_geli_gpt_ufs_legacy() {
     cat > ${mntpt}/boot/loader.conf <<EOF
 geom_eli_load=YES
 EOF
-    cat > ${mntpt}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${mntpt}
 
     cp /boot/kernel/geom_eli.ko ${mntpt}/boot/kernel/geom_eli.ko
     # end tweaks
@@ -425,9 +419,7 @@ mk_geli_gpt_ufs_uefi() {
     cat > ${mntpt}/boot/loader.conf <<EOF
 geom_eli_load=YES
 EOF
-    cat > ${mntpt}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${mntpt}
 
     cp /boot/kernel/geom_eli.ko ${mntpt}/boot/kernel/geom_eli.ko
     # end tweaks
@@ -462,9 +454,7 @@ mk_geli_gpt_ufs_both() {
     cat > ${mntpt}/boot/loader.conf <<EOF
 geom_eli_load=YES
 EOF
-    cat > ${mntpt}/etc/fstab <<EOF
-/dev/ufs/root	/		ufs	rw	1	1
-EOF
+    ufs_fstab ${mntpt}
 
     cp /boot/kernel/geom_eli.ko ${mntpt}/boot/kernel/geom_eli.ko
     # end tweaks
