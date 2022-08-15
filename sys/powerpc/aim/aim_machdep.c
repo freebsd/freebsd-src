@@ -649,7 +649,7 @@ flush_disable_caches(void)
 }
 
 void
-cpu_sleep()
+cpu_sleep(void)
 {
 	static u_quad_t timebase = 0;
 	static register_t sprgs[4];
