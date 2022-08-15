@@ -783,7 +783,7 @@ mmu_radix_tlbiel_flush(int scope)
 }
 
 static void
-mmu_radix_tlbie_all()
+mmu_radix_tlbie_all(void)
 {
 	if (powernv_enabled)
 		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
@@ -3612,7 +3612,7 @@ radix_pgd_release(void *arg __unused, void **store, int count)
 }
 
 static void
-mmu_radix_init()
+mmu_radix_init(void)
 {
 	vm_page_t mpte;
 	vm_size_t s;
@@ -6078,7 +6078,7 @@ mmu_radix_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 }
 
 static void
-mmu_radix_scan_init()
+mmu_radix_scan_init(void)
 {
 
 	CTR1(KTR_PMAP, "%s()", __func__);
