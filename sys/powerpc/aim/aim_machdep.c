@@ -747,7 +747,7 @@ flush_disable_caches(void)
 
 #ifndef __powerpc64__
 void
-mpc745x_sleep()
+mpc745x_sleep(void)
 {
 	static u_quad_t timebase = 0;
 	static register_t sprgs[4];
