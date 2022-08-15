@@ -134,6 +134,7 @@ struct wtap_softc {
 	int32_t			id;
 	int32_t			up;
 	struct wtap_medium	*sc_md;		/* interface medium */
+	struct wtap_hal		*hal;
 	struct ieee80211_node*	(* sc_node_alloc)
 	    (struct ieee80211vap *, const uint8_t [IEEE80211_ADDR_LEN]);
 	void (*sc_node_free)(struct ieee80211_node *);

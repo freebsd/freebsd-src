@@ -41,6 +41,7 @@
 
 #include <net80211/ieee80211_ratectl.h>
 #include "if_medium.h"
+#include "wtap_hal/hal.h"
 
 /*
  * This _requires_ vimage to be useful.
@@ -149,10 +150,39 @@ wtap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
     int subtype, const struct ieee80211_rx_stats *stats, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct wtap_softc *sc = vap->iv_ic->ic_softc;
 #if 0
 	DWTAP_PRINTF("[%d] %s\n", myath_id(ni), __func__);
 #endif
+	/*
+	 * Call up first so subsequent work can use information
+	 * potentially stored in the node (e.g. for ibss merge).
+	 */
 	WTAP_VAP(vap)->av_recv_mgmt(ni, m, subtype, stats, rssi, nf);
+
+	switch (subtype) {
+	case IEEE80211_FC0_SUBTYPE_BEACON:
+	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
+		if (vap->iv_opmode == IEEE80211_M_IBSS &&
+		    vap->iv_state == IEEE80211_S_RUN &&
+		    ieee80211_ibss_merge_check(ni)) {
+			uint64_t tsf = wtap_hal_get_tsf(sc->hal);
+
+			/*
+			 * Handle ibss merge as needed; check the tsf on the
+			 * frame before attempting the merge.  The 802.11 spec
+			 * says the station should change it's bssid to match
+			 * the oldest station with the same ssid, where oldest
+			 * is determined by the tsf.  Note that hardware
+			 * reconfiguration happens through callback to
+			 * ath_newstate as the state machine will go from
+			 * RUN -> RUN when this happens.
+			 */
+			if (le64toh(ni->ni_tstamp.tsf) >= tsf)
+				(void) ieee80211_ibss_merge(ni);
+		}
+		break;
+	}
 }
 
 static int
@@ -193,7 +223,6 @@ wtap_beacon_alloc(struct wtap_softc *sc, struct ieee80211_node *ni)
 		printf("%s: cannot get mbuf\n", __func__);
 		return ENOMEM;
 	}
-	callout_init(&avp->av_swba, 0);
 	avp->bf_node = ieee80211_ref_node(ni);
 
 	return 0;
@@ -202,7 +231,6 @@ wtap_beacon_alloc(struct wtap_softc *sc, struct ieee80211_node *ni)
 static void
 wtap_beacon_config(struct wtap_softc *sc, struct ieee80211vap *vap)
 {
-
 	DWTAP_PRINTF("%s\n", __func__);
 }
 
@@ -211,7 +239,10 @@ wtap_beacon_intrp(void *arg)
 {
 	struct wtap_vap *avp = arg;
 	struct ieee80211vap *vap = arg;
+	struct wtap_softc *sc = vap->iv_ic->ic_softc;
+	struct ieee80211_frame *wh;
 	struct mbuf *m;
+	uint64_t tsf;
 
 	if (vap->iv_state < IEEE80211_S_RUN) {
 	    DWTAP_PRINTF("Skip beacon, not running, state %d", vap->iv_state);
@@ -229,6 +260,11 @@ wtap_beacon_intrp(void *arg)
 		printf("%s, need to remap the memory because the beacon frame"
 		    " changed size.\n",__func__);
 	}
+
+	/* Get TSF from HAL, and insert it into beacon frame */
+	tsf = wtap_hal_get_tsf(sc->hal);
+	wh = mtod(m, struct ieee80211_frame *);
+	memcpy(&wh[1], &tsf, sizeof(tsf));
 
 	if (ieee80211_radiotap_active_vap(vap))
 	    ieee80211_radiotap_tx(vap, m);
@@ -264,11 +300,37 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_free_node(ni);
 		ni = ieee80211_ref_node(vap->iv_bss);
 		switch (vap->iv_opmode) {
+		case IEEE80211_M_IBSS:
 		case IEEE80211_M_MBSS:
+			/*
+			 * Stop any previous beacon callout. This may be
+			 * necessary, for example, when an ibss merge
+			 * causes reconfiguration; there will be a state
+			 * transition from RUN->RUN that means we may
+			 * be called with beacon transmission active.
+			 */
+			callout_stop(&avp->av_swba);
+
 			error = wtap_beacon_alloc(sc, ni);
 			if (error != 0)
 				goto bad;
+
+			/*
+			 * If joining an adhoc network defer beacon timer
+			 * configuration to the next beacon frame so we
+			 * have a current TSF to use.  Otherwise we're
+			 * starting an ibss/bss so there's no need to delay;
+			 * if this is the first vap moving to RUN state, then
+			 * beacon state needs to be [re]configured.
+			 */
+			if (vap->iv_opmode == IEEE80211_M_IBSS &&
+			    ni->ni_tstamp.tsf != 0)
+				break;
+
 			wtap_beacon_config(sc, vap);
+
+			/* Start TSF timer from now, and start s/w beacon alert */
+			wtap_hal_reset_tsf(sc->hal);
 			callout_reset(&avp->av_swba, avp->av_bcinterval,
 			    wtap_beacon_intrp, vap);
 			break;
@@ -314,7 +376,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	avp->av_md = sc->sc_md;
 	avp->av_bcinterval = msecs_to_ticks(BEACON_INTRERVAL + 100*sc->id);
 	vap = (struct ieee80211vap *) avp;
-	error = ieee80211_vap_setup(ic, vap, name, unit, IEEE80211_M_MBSS,
+	error = ieee80211_vap_setup(ic, vap, name, unit, opmode,
 	    flags | IEEE80211_CLONE_NOBEACONS, bssid);
 	if (error) {
 		free(avp, M_80211_VAP);
@@ -337,6 +399,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "%s", (const char *)vap->iv_ifp->if_xname);
 	avp->av_dev->si_drv1 = sc;
+	callout_init(&avp->av_swba, 0);
 
 	/* TODO this is a hack to force it to choose the rate we want */
 	ni = ieee80211_ref_node(vap->iv_bss);
@@ -460,6 +523,13 @@ wtap_rx_proc(void *arg, int npending)
 			free(bf, M_WTAP_RXBUF);
 			return;
 		}
+
+		/*
+		 * It's weird to do this, but sometimes wtap will
+		 * receive AMPDU packets (like ping(8)) even when
+		 * the ic does not supports 11n HT.
+		 */
+		m->m_flags &= ~M_AMPDU;
 #if 0
 		ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 #endif
@@ -585,7 +655,7 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_MBSS;
-	ic->ic_caps = IEEE80211_C_MBSS;
+	ic->ic_caps = IEEE80211_C_MBSS | IEEE80211_C_IBSS;
 
 	ic->ic_max_keyix = 128; /* A value read from Atheros ATH_KEYMAX */
 
