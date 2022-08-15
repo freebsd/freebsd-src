@@ -95,6 +95,46 @@ this parameter should be set higher.
 Specify the expected average file size.
 .It Fl j Cm enable | disable
 Turn on/off soft updates journaling.
+.Pp
+Enabling journaling reduces the time spent by
+.Xr fsck_ffs 8
+cleaning up a filesystem after a crash to a few seconds from minutes to hours.
+Without journaling, the time to recover after a crash is a function
+of the number of files in the filesystem and the size of the filesystem.
+With journaling, the time to recover after a crash is a function of the
+amount of activity in the filesystem in the minute before the crash.
+Journaled recovery time is usually only a few seconds and never
+exceeds a minute.
+.Pp
+The drawback to using journaling is that the writes to its log adds
+an extra write load to the media containing the filesystem.
+Thus a write-intensive workload will have reduced throughput on a
+filesystem running with journaling.
+.Pp
+Like all journaling filesystems, the journal recovery will only fix
+issues known to the journal.
+Specifically if a media error occurs,
+the journal will not know about it and hence will not fix it.
+Thus when using journaling, it is still necessary to run a full fsck
+every few months or after a filesystem panic to check for and fix
+any errors brought on by media failure.
+A full fsck can be done by running a background fsck on a live
+filesystem or by running with the
+.Fl f
+flag on an unmounted filesystem.
+When running
+.Xr fsck_ffs 8
+in background on a live filesystem the filesystem performance
+will be about half of normal during the time that the background
+.Xr fsck_ffs 8
+is running.
+Running a full fsck on a UFS filesystem is the equivalent of
+running a scrub on a ZFS filesystem.
+.Pp
+Presently it is not possible to take a snapshot on a UFS filesystem
+running with journaled soft updates.
+Thus it is not possible to reliably dump mounted filesystems or
+to run background fsck on filesystems enabled for journaling.
 .It Fl J Cm enable | disable
 Turn on/off gjournal flag.
 .It Fl k Ar held-for-metadata-blocks
