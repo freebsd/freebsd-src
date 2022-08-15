@@ -1591,7 +1591,7 @@ out_with_mtx:
 }
 
 static struct tcp_hpts_entry *
-tcp_choose_hpts_to_run()
+tcp_choose_hpts_to_run(void)
 {
 	int i, oldest_idx, start, end;
 	uint32_t cts, time_since_ran, calc;
