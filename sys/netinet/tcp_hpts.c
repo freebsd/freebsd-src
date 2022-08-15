@@ -1109,9 +1109,7 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout)
 	struct tcpcb *tp;
 	struct inpcb *inp;
 	struct timeval tv;
-	uint64_t total_slots_processed = 0;
 	int32_t slots_to_run, i, error;
-	int32_t paced_cnt = 0;
 	int32_t loop_cnt = 0;
 	int32_t did_prefetch = 0;
 	int32_t prefetch_ninp = 0;
@@ -1258,8 +1256,6 @@ again:
 				/* Record the new position */
 				orig_exit_slot = runningslot;
 			}
-			total_slots_processed++;
-			paced_cnt++;
 
 			INP_WLOCK(inp);
 			if (inp->inp_hpts_cpu_set == 0) {
