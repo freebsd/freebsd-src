@@ -556,6 +556,8 @@ mana_gd_process_eq_events(void *arg)
 			break;
 		}
 
+		rmb();
+
 		mana_gd_process_eqe(eq);
 
 		eq->head++;
@@ -1365,6 +1367,8 @@ mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 		    owner_bits, new_bits);
 		return -1;
 	}
+
+	rmb();
 
 	comp->wq_num = cqe->cqe_info.wq_num;
 	comp->is_sq = cqe->cqe_info.is_sq;
