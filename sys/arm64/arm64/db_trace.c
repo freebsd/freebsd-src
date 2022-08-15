@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define	FRAME_UNHANDLED	4
 
 void
-db_md_list_watchpoints()
+db_md_list_watchpoints(void)
 {
 
 	dbg_show_watchpoint();
