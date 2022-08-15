@@ -1349,7 +1349,6 @@ tcp_hptsi(struct tcp_hpts_entry *hpts)
 	struct inpcb *inp = NULL, *ninp;
 	struct timeval tv;
 	int32_t ticks_to_run, i, error;
-	int32_t paced_cnt = 0;
 	int32_t loop_cnt = 0;
 	int32_t did_prefetch = 0;
 	int32_t prefetch_ninp = 0;
@@ -1462,7 +1461,6 @@ again:
 		while ((inp = TAILQ_FIRST(&hpts->p_hptss[hpts->p_runningtick])) != NULL) {
 			/* For debugging */
 			hpts->p_inp = inp;
-			paced_cnt++;
 #ifdef INVARIANTS
 			if (hpts->p_runningtick != inp->inp_hptsslot) {
 				panic("Hpts:%p inp:%p slot mis-aligned %u vs %u",
