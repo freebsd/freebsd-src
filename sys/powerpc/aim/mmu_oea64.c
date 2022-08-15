@@ -1944,7 +1944,7 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 extern int elf32_nxstack;
 
 void
-moea64_init()
+moea64_init(void)
 {
 
 	CTR0(KTR_PMAP, "moea64_init");
@@ -3254,7 +3254,7 @@ moea64_dumpsys_map(vm_paddr_t pa, size_t sz, void **va)
 extern struct dump_pa dump_map[PHYS_AVAIL_SZ + 1];
 
 void
-moea64_scan_init()
+moea64_scan_init(void)
 {
 	struct pvo_entry *pvo;
 	vm_offset_t va;
