@@ -46,6 +46,17 @@ __FBSDID("$FreeBSD$");
 #define	RK3288_GRF_IO_VSEL		0x380
 #define	RK3399_GRF_IO_VSEL		0xe640
 #define	RK3399_PMUGRF_SOC_CON0		0x180
+#define	RK3568_PMUGRF_IO_VSEL0		0x0140
+#define	RK3568_PMUGRF_IO_VSEL1		0x0144
+#define	RK3568_PMUGRF_IO_VSEL2		0x0148
+
+#define	MAX_1V8				1850000
+
+enum rk_iodomain_type {
+	RK3328 = 1,
+	RK3399,
+	RK3568,
+};
 
 struct rk_iodomain_supply {
 	char		*name;
@@ -59,6 +70,7 @@ struct rk_iodomain_conf {
 	int				nsupply;
 	uint32_t			grf_reg;
 	void				(*init)(struct rk_iodomain_softc *sc);
+	enum rk_iodomain_type		type;
 };
 
 struct rk_iodomain_softc {
@@ -85,6 +97,7 @@ static struct rk_iodomain_conf rk3288_conf = {
 	.supply = rk3288_supply,
 	.nsupply = nitems(rk3288_supply),
 	.grf_reg = RK3288_GRF_IO_VSEL,
+	.type = RK3328,
 };
 
 static struct rk_iodomain_supply rk3399_supply[] = {
@@ -98,6 +111,7 @@ static struct rk_iodomain_conf rk3399_conf = {
 	.supply = rk3399_supply,
 	.nsupply = nitems(rk3399_supply),
 	.grf_reg = RK3399_GRF_IO_VSEL,
+	.type = RK3399,
 };
 
 static struct rk_iodomain_supply rk3399_pmu_supply[] = {
@@ -110,12 +124,31 @@ static struct rk_iodomain_conf rk3399_pmu_conf = {
 	.nsupply = nitems(rk3399_pmu_supply),
 	.grf_reg = RK3399_PMUGRF_SOC_CON0,
 	.init = rk3399_pmu_init,
+	.type = RK3399,
+};
+
+static struct rk_iodomain_supply rk3568_pmu_supply[] = {
+	{"pmuio1-supply", 0},
+	{"pmuio2-supply", 1},
+	{"vccio1-supply", 1},
+	{"vccio2-supply", 2},
+	{"vccio3-supply", 3},
+	{"vccio4-supply", 4},
+	{"vccio5-supply", 5},
+	{"vccio6-supply", 6},
+	{"vccio7-supply", 7},
+};
+static struct rk_iodomain_conf rk3568_pmu_conf = {
+	.supply = rk3568_pmu_supply,
+	.nsupply = nitems(rk3568_pmu_supply),
+	.type = RK3568,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk3288-io-voltage-domain", (uintptr_t)&rk3288_conf},
 	{"rockchip,rk3399-io-voltage-domain", (uintptr_t)&rk3399_conf},
 	{"rockchip,rk3399-pmu-io-voltage-domain", (uintptr_t)&rk3399_pmu_conf},
+	{"rockchip,rk3568-pmu-io-voltage-domain", (uintptr_t)&rk3568_pmu_conf},
 	{NULL,             0}
 };
 
@@ -127,7 +160,7 @@ rk3399_pmu_init(struct rk_iodomain_softc *sc)
 	    (1 << 8) | (1 << (8 + 16)));	/* set pmu1830_volsel */
 }
 
-static void
+static int
 rk_iodomain_set(struct rk_iodomain_softc *sc)
 {
 	regulator_t supply;
@@ -136,26 +169,77 @@ rk_iodomain_set(struct rk_iodomain_softc *sc)
 	int uvolt, i;
 
 	for (i = 0; i < sc->conf->nsupply; i++) {
-		mask |= (1 << sc->conf->supply[i].bit) << 16;
 		if (regulator_get_by_ofw_property(sc->dev, sc->node,
-		    sc->conf->supply[i].name, &supply) == 0) {
-			if (regulator_get_voltage(supply, &uvolt) == 0) {
-				if (uvolt == 1800000)
-					reg |= (1 << sc->conf->supply[i].bit);
-				else if (uvolt != 3000000)
-					device_printf(sc->dev,
-					  "%s regulator is at %duV, ignoring\n",
-					  sc->conf->supply[i].name, uvolt);
-			} else
-				device_printf(sc->dev, "Cannot get current "
-				    "voltage for regulator %s\n",
-				    sc->conf->supply[i].name);
+		    sc->conf->supply[i].name, &supply) != 0) {
+			device_printf(sc->dev,
+			    "Cannot get property for regulator %s\n",
+			    sc->conf->supply[i].name);
+			return (ENXIO);
+		}
+
+		if (regulator_get_voltage(supply, &uvolt) != 0) {
+			device_printf(sc->dev,
+			    "Cannot get current voltage for regulator %s\n",
+			    sc->conf->supply[i].name);
+			return (ENXIO);
+		}
+
+		if (sc->conf->type != RK3568) {
+			/* RK3328 and RK3399 iodomain */
+			mask |= (1 << sc->conf->supply[i].bit) << 16;
+			if (uvolt == 1800000)
+				reg |= (1 << sc->conf->supply[i].bit);
+			else if (uvolt != 3000000)
+				device_printf(sc->dev,
+				    "%s regulator is at %duV, ignoring\n",
+				    sc->conf->supply[i].name, uvolt);
+		} else {
+			/* RK3568 iodomain */
+			if (bootverbose) {
+				device_printf(sc->dev,
+				    "Setting regulator %s voltage=%duV\n",
+				    sc->conf->supply[i].name, uvolt);
+			}
+			switch(i) {
+			case 0:	/* pmuio1 */
+				break;
+			case 1:	/* pmuio2 */
+				SYSCON_WRITE_4(sc->grf, RK3568_PMUGRF_IO_VSEL2,
+				    (1 << (sc->conf->supply[i].bit + 16)) |
+				    (uvolt > MAX_1V8 ?
+				    0 : 1 << sc->conf->supply[i].bit));
+				SYSCON_WRITE_4(sc->grf, RK3568_PMUGRF_IO_VSEL2,
+				    (1 << (sc->conf->supply[i].bit + 4 + 16)) |
+				    (uvolt > MAX_1V8 ?
+				    1 << (sc->conf->supply[i].bit + 4) : 0));
+			case 3:	/* vccio2 */
+				break;
+			case 2:	/* vccio1 */
+			case 4:	/* vccio3 */
+			case 5:	/* vccio4 */
+			case 6:	/* vccio5 */
+			case 7:	/* vccio6 */
+			case 8:	/* vccio7 */
+				SYSCON_WRITE_4(sc->grf, RK3568_PMUGRF_IO_VSEL0,
+				    (1 << (sc->conf->supply[i].bit + 16)) |
+				    (uvolt > MAX_1V8 ?
+				    0 : 1 << sc->conf->supply[i].bit));
+				SYSCON_WRITE_4(sc->grf, RK3568_PMUGRF_IO_VSEL1,
+				    (1 << (sc->conf->supply[i].bit + 16)) |
+				    (uvolt > MAX_1V8 ?
+				    1 << sc->conf->supply[i].bit : 0));
+				break;
+			default:
+				device_printf(sc->dev, "Index out of range\n");
+			}
 		}
 	}
-
-	SYSCON_WRITE_4(sc->grf, sc->conf->grf_reg, reg | mask);
+	if (sc->conf->type != RK3568)
+		SYSCON_WRITE_4(sc->grf, sc->conf->grf_reg, reg | mask);
 	if (sc->conf->init != NULL)
 		 sc->conf->init(sc);
+
+	return (0);
 }
 
 static int
@@ -189,9 +273,9 @@ rk_iodomain_attach(device_t dev)
 	}
 
 	sc->conf = (struct rk_iodomain_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	rk_iodomain_set(sc);
+	rv = rk_iodomain_set(sc);
 
-	return (0);
+	return (rv);
 }
 
 static int
