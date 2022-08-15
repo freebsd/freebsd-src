@@ -303,7 +303,7 @@ static struct moea64_funcs moea64_native_funcs = {
 MMU_DEF_INHERIT(oea64_mmu_native, MMU_TYPE_G5, moea64_native_methods, oea64_mmu);
 
 static void
-moea64_install_native()
+moea64_install_native(void)
 {
 
 	/* Install the MOEA64 ops. */
