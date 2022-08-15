@@ -38,11 +38,19 @@
 #include "../plugins/wtap_plugin.h"
 #include "handler.h"
 
+#define	HAL_TIMER_INTVAL	50 /* in msecs */
+
 struct wtap_hal {
 	struct wtap_medium	*hal_md;
 	struct mtx		hal_mtx;
 	struct wtap_plugin	*plugin;
 	struct wtap_softc 	*hal_devs[MAX_NBR_WTAP];
+	/* hardware information */
+	struct hw {
+		struct callout timer_intr;
+		uint32_t timer_intr_intval;
+		uint64_t tsf;
+	} hw;
 };
 
 void init_hal(struct wtap_hal *);
@@ -51,5 +59,8 @@ void register_plugin(struct wtap_hal *, struct wtap_plugin *);
 void deregister_plugin(struct wtap_hal *);
 int32_t new_wtap(struct wtap_hal *, int32_t id);
 int32_t free_wtap(struct wtap_hal *, int32_t id);
+void wtap_hal_timer_intr(void *);
+void wtap_hal_reset_tsf(struct wtap_hal *);
+uint64_t wtap_hal_get_tsf(struct wtap_hal *);
 
 #endif
