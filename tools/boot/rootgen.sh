@@ -7,22 +7,18 @@ iterations=50000
 
 # The smallest FAT32 filesystem is 33292 KB
 espsize=33292
-dev=vtbd0
 
 #
 # Builds all the bat-shit crazy combinations we support booting from,
 # at least for amd64. It assume you have a ~sane kernel in /boot/kernel
 # and copies that into the ~150MB root images we create (we create the du
-# size of the kernel + 20MB
+# size of the kernel + 20MB).
 #
 # Sad panda sez: this runs as root, but could be any user if someone
 # creates userland geli.
 #
 # This assumes an external program install-boot.sh which will install
 # the appropriate boot files in the appropriate locations.
-#
-# These images assume ${dev} will be the root image. We should likely
-# use labels, but we don't for all cases just yet (see GELI cases)
 #
 # Assumes you've already rebuilt... maybe bad? Also maybe bad: the env
 # vars should likely be conditionally set to allow better automation.
@@ -386,7 +382,7 @@ mk_geli_gpt_ufs_legacy() {
     # install-boot will make this bootable
     echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p2
     echo ${passphrase} | geli attach -j - ${md}p2
-    newfs /dev/${md}p2.eli
+    newfs -L root /dev/${md}p2.eli
     mount /dev/${md}p2.eli ${mntpt}
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
@@ -394,7 +390,7 @@ mk_geli_gpt_ufs_legacy() {
 geom_eli_load=YES
 EOF
     cat > ${mntpt}/etc/fstab <<EOF
-/dev/${dev}p2.eli	/		ufs	rw	1	1
+/dev/ufs/root	/		ufs	rw	1	1
 EOF
 
     cp /boot/kernel/geom_eli.ko ${mntpt}/boot/kernel/geom_eli.ko
@@ -422,7 +418,7 @@ mk_geli_gpt_ufs_uefi() {
     # install-boot will make this bootable
     echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p2
     echo ${passphrase} | geli attach -j - ${md}p2
-    newfs /dev/${md}p2.eli
+    newfs -L root /dev/${md}p2.eli
     mount /dev/${md}p2.eli ${mntpt}
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
@@ -430,7 +426,7 @@ mk_geli_gpt_ufs_uefi() {
 geom_eli_load=YES
 EOF
     cat > ${mntpt}/etc/fstab <<EOF
-/dev/${dev}p2.eli	/		ufs	rw	1	1
+/dev/ufs/root	/		ufs	rw	1	1
 EOF
 
     cp /boot/kernel/geom_eli.ko ${mntpt}/boot/kernel/geom_eli.ko
@@ -459,7 +455,7 @@ mk_geli_gpt_ufs_both() {
     # install-boot will make this bootable
     echo ${passphrase} | geli init -bg -e AES-XTS -i ${iterations} -J - -l 256 -s 4096 ${md}p3
     echo ${passphrase} | geli attach -j - ${md}p3
-    newfs /dev/${md}p3.eli
+    newfs -L root /dev/${md}p3.eli
     mount /dev/${md}p3.eli ${mntpt}
     cpsys ${src} ${mntpt}
     # need to make a couple of tweaks
@@ -467,7 +463,7 @@ mk_geli_gpt_ufs_both() {
 geom_eli_load=YES
 EOF
     cat > ${mntpt}/etc/fstab <<EOF
-/dev/${dev}p3.eli	/		ufs	rw	1	1
+/dev/ufs/root	/		ufs	rw	1	1
 EOF
 
     cp /boot/kernel/geom_eli.ko ${mntpt}/boot/kernel/geom_eli.ko
