@@ -1025,7 +1025,7 @@ rms_rlock(struct rmslock *rms)
 {
 	struct rmslock_pcpu *pcpu;
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+	rms_assert_rlock_ok(rms);
 	MPASS(atomic_load_ptr(&rms->owner) != curthread);
 
 	critical_enter();

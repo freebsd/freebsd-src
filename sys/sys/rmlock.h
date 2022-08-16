@@ -151,6 +151,13 @@ rms_wowned(struct rmslock *rms)
 }
 
 #ifdef INVARIANTS
+#define rms_assert_rlock_ok(x)	\
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+#else
+#define rms_assert_rlock_ok(x)
+#endif
+
+#ifdef INVARIANTS
 /*
  * For assertion purposes.
  *
