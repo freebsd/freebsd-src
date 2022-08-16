@@ -366,6 +366,7 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 #ifdef FDT
 	phandle_t node;
 	phy_t usb2_phy, usb3_phy;
+	uint32_t reg;
 #endif
 	int error, rid;
 
@@ -403,7 +404,13 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	error = phy_get_by_ofw_name(dev, node, "usb3-phy", &usb3_phy);
 	if (error == 0 && usb3_phy != NULL)
 		phy_enable(usb3_phy);
-
+	else {
+		reg = DWC3_READ(sc, DWC3_GUCTL1);
+		if (bootverbose)
+			device_printf(dev, "Forcing USB2 clock only\n");
+		reg |= DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
+		DWC3_WRITE(sc, DWC3_GUCTL1, reg);
+	}
 	snps_dwc3_configure_phy(sc, node);
 skip_phys:
 #endif
