@@ -2626,7 +2626,7 @@ pci_emul_snapshot(struct vm_snapshot_meta *meta)
 }
 #endif
 
-struct pci_devemu pci_dummy = {
+static const struct pci_devemu pci_dummy = {
 	.pe_emu = "dummy",
 	.pe_init = pci_emul_dinit,
 	.pe_barwrite = pci_emul_diow,

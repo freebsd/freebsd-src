@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Back-end state-machine
  */
-enum state {
+static enum state {
 	DORMANT,
 	IDENT_WAIT,
 	IDENT_SEND,

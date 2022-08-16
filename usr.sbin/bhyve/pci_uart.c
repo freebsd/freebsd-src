@@ -125,7 +125,7 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	return (0);
 }
 
-struct pci_devemu pci_de_com = {
+static const struct pci_devemu pci_de_com = {
 	.pe_emu =	"uart",
 	.pe_init =	pci_uart_init,
 	.pe_legacy_config = pci_uart_legacy_config,

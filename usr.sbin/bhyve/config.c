@@ -305,7 +305,7 @@ _expand_config_value(const char *value, int depth)
 	return (valbuf);
 }
 
-const char *
+static const char *
 expand_config_value(const char *value)
 {
 	static char *valbuf;
@@ -346,7 +346,7 @@ get_config_value_node(const nvlist_t *parent, const char *name)
 	return (expand_config_value(nvlist_get_string(parent, name)));
 }
 
-bool
+static bool
 _bool_value(const char *name, const char *value)
 {
 

@@ -174,7 +174,7 @@ vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix)
  * The guest just gave us a page frame number, from which we can
  * calculate the addresses of the queue.
  */
-void
+static void
 vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
 {
 	struct vqueue_info *vq;

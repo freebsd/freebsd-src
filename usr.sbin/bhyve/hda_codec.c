@@ -845,16 +845,14 @@ hda_codec_audio_inout_nid(struct hda_codec_stream *st, uint16_t verb,
 	return (res);
 }
 
-struct hda_codec_class hda_codec  = {
+static const struct hda_codec_class hda_codec = {
 	.name		= "hda_codec",
 	.init		= hda_codec_init,
 	.reset		= hda_codec_reset,
 	.command	= hda_codec_command,
 	.notify		= hda_codec_notify,
 };
-
 HDA_EMUL_SET(hda_codec);
-
 
 /*
  * HDA Audio Context module function definitions
