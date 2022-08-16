@@ -135,7 +135,7 @@ static struct vcpu_state *vcpu_state;
 static int cur_vcpu, stopped_vcpu;
 static bool gdb_active = false;
 
-const int gdb_regset[] = {
+static const int gdb_regset[] = {
 	VM_REG_GUEST_RAX,
 	VM_REG_GUEST_RBX,
 	VM_REG_GUEST_RCX,
@@ -162,7 +162,7 @@ const int gdb_regset[] = {
 	VM_REG_GUEST_GS
 };
 
-const int gdb_regsize[] = {
+static const int gdb_regsize[] = {
 	8,
 	8,
 	8,
@@ -1804,7 +1804,7 @@ new_connection(int fd, enum ev_type event, void *arg)
 }
 
 #ifndef WITHOUT_CAPSICUM
-void
+static void
 limit_gdb_socket(int s)
 {
 	cap_rights_t rights;

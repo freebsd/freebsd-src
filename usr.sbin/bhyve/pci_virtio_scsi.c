@@ -735,7 +735,7 @@ pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 }
 
 
-struct pci_devemu pci_de_vscsi = {
+static const struct pci_devemu pci_de_vscsi = {
 	.pe_emu =	"virtio-scsi",
 	.pe_init =	pci_vtscsi_init,
 	.pe_legacy_config = pci_vtscsi_legacy_config,

@@ -170,7 +170,7 @@ pci_fbuf_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	}
 }
 
-uint64_t
+static uint64_t
 pci_fbuf_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	      int baridx, uint64_t offset, int size)
 {
@@ -348,7 +348,7 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 
 extern void vga_render(struct bhyvegc *gc, void *arg);
 
-void
+static void
 pci_fbuf_render(struct bhyvegc *gc, void *arg)
 {
 	struct pci_fbuf_softc *sc;
@@ -464,7 +464,7 @@ err:
 }
 #endif
 
-struct pci_devemu pci_fbuf = {
+static const struct pci_devemu pci_fbuf = {
 	.pe_emu =	"fbuf",
 	.pe_init =	pci_fbuf_init,
 	.pe_barwrite =	pci_fbuf_write,

@@ -772,7 +772,7 @@ failed:
 	return (-1);
 }
 
-struct pci_devemu pci_de_vinput = {
+static const struct pci_devemu pci_de_vinput = {
 	.pe_emu = "virtio-input",
 	.pe_init = pci_vtinput_init,
 	.pe_legacy_config = pci_vtinput_legacy_config,

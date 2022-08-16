@@ -343,7 +343,7 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	return (0);
 }
 
-struct pci_devemu pci_de_v9p = {
+static const struct pci_devemu pci_de_v9p = {
 	.pe_emu =	"virtio-9p",
 	.pe_legacy_config = pci_vt9p_legacy_config,
 	.pe_init =	pci_vt9p_init,

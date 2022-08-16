@@ -204,7 +204,7 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 }
 
 
-struct pci_devemu pci_de_vrnd = {
+static const struct pci_devemu pci_de_vrnd = {
 	.pe_emu =	"virtio-rnd",
 	.pe_init =	pci_vtrnd_init,
 	.pe_barwrite =	vi_pci_write,
