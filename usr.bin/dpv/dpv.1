@@ -90,7 +90,7 @@ progress is displayed using one of
 .Xr dialog 1
 .Pq see Ql Fl D ,
 or instead
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 .Pq see Ql Fl X .
 .Pp
 The following options are available:
@@ -104,7 +104,7 @@ Display
 .Ar backtitle
 on the backdrop, at top-left, behind the dialog widget.
 When using
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 this is displayed inside the window
 .Pq at the top
 followed by a separator line.
@@ -249,10 +249,12 @@ and
 .Ql Fl a
 to bump the dialog width.
 Prompts wider than the maximum width will wrap
-.Pq unless using Xr Xdialog 1 ; see BUGS section below .
+unless using
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ;
+see BUGS section below.
 .It Fl X
 Enable X11 mode by using
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 instead of
 .Xr dialog 1
 or
@@ -289,7 +291,7 @@ Override command string used to launch
 .Xr dialog 1
 .Pq requires Ql Fl D
 or
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 .Pq requires Ql Fl X ;
 default is either
 .Ql dialog
@@ -309,8 +311,9 @@ is either not set or NULL, used as a prefix to
 .Pq i.e., Ql $HOME/.dialogrc .
 .It Ev USE_COLOR
 If set and NULL, disables the use of color when using
-.Xr dialog 1
-.Pq does not apply to Xr Xdialog 1 .
+.Xr dialog 1 .
+Does not apply to
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 .El
 .Sh DEPENDENCIES
 If using
@@ -320,7 +323,7 @@ is required.
 .Pp
 If using
 .Ql Fl X ,
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 is required.
 .Sh FILES
 .Bl -tag -width "$HOME/.dialogrc" -compact
@@ -379,7 +382,7 @@ dpv -o /dev/md42 "Zeroing md42" < /dev/zero
 .Sh SEE ALSO
 .Xr dialog 1 ,
 .Xr sh 1 ,
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 .Xr dialog 3
 .Sh HISTORY
 A
@@ -389,7 +392,7 @@ utility first appeared in
 .Sh AUTHORS
 .An Devin Teske Aq dteske@FreeBSD.org
 .Sh BUGS
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 when given both
 .Ql Fl -title Ar title
 .Pq see above Ql Fl t Ar title
@@ -398,12 +401,12 @@ and
 .Pq see above Ql Fl b Ar backtitle ,
 displays the backtitle in place of the title and vice-versa.
 .Pp
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 does not wrap long prompt texts received after initial launch.
 This is a known issue with the
 .Ql --gauge
 widget in
-.Xr Xdialog 1 .
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 .Pp
 .Xr dialog 1
 does not display the first character after a series of escaped escape-sequences
@@ -413,7 +416,7 @@ This is a known issue with
 and does not affect
 .Xr dialog 3
 or
-.Xr Xdialog 1 .
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 .Pp
 If your application ignores
 .Ev USE_COLOR
@@ -436,7 +439,7 @@ to unset
 .Ev USE_COLOR ,
 forcing interpretation of color sequences.
 This does not effect
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 which renders the color escape sequences as plain text.
 See
 .Do

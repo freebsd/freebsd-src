@@ -55,8 +55,7 @@ library can display progress with one of
 .Xr dialog 3 ,
 .Xr dialog 1 ,
 or
-.Xr Xdialog 1
-.Pq x11/xdialog from the ports tree .
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 .Pp
 The
 .Fn dpv
@@ -152,7 +151,7 @@ argument will bump the width of the gauge widget.
 Prompts wider than the maximum width will wrap
 .Po
 unless using
-.Xr Xdialog 1 ;
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ;
 see BUGS section below
 .Pc .
 .It Dv DPV_NO_LABELS
@@ -405,7 +404,7 @@ Override command string used to launch
 .Xr dialog 1
 .Pq requires Dv DPV_DISPLAY_DIALOG
 or
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 .Pq requires Dv DPV_DISPLAY_XDIALOG ;
 default is either
 .Ql dialog
@@ -428,8 +427,9 @@ used as a prefix to
 .It Ev USE_COLOR
 If set and NULL,
 disables the use of color when using
-.Xr dialog 1
-.Pq does not apply to Xr Xdialog 1 .
+.Xr dialog 1 .
+Does not apply to
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 .It Ev msg_done Ev msg_fail Ev msg_pending
 Internationalization strings for overriding the default English strings
 .Ql Done ,
@@ -456,7 +456,7 @@ or desired values.
 .El
 .Sh SEE ALSO
 .Xr dialog 1 ,
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 .Xr dialog 3
 .Sh HISTORY
 The
@@ -466,7 +466,7 @@ library first appeared in
 .Sh AUTHORS
 .An Devin Teske Aq dteske@FreeBSD.org
 .Sh BUGS
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 when given both
 .Ql Fl -title Ar title
 .Po
@@ -485,12 +485,12 @@ member of
 .Pc ,
 displays the backtitle in place of the title and vice-versa.
 .Pp
-.Xr Xdialog 1
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog
 does not wrap long prompt texts received after initial launch.
 This is a known issue with the
 .Ql --gauge
 widget in
-.Xr Xdialog 1 .
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 Embed escaped newlines within prompt text to force line breaks.
 .Pp
 .Xr dialog 1
@@ -501,7 +501,7 @@ This is a known issue with
 and does not affect
 .Xr dialog 3
 or
-.Xr Xdialog 1 .
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog .
 .Pp
 If an application ignores
 .Ev USE_COLOR
@@ -520,7 +520,7 @@ to unset
 .Ev USE_COLOR ,
 forcing interpretation of color sequences.
 This does not effect
-.Xr Xdialog 1 ,
+.Xr Xdialog 1 Pq Pa ports/x11/xdialog ,
 which renders the color escape sequences as plain text.
 See
 .Do
