@@ -241,26 +241,6 @@ sdp_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	return 0;
 }
 
-static void
-sdp_pcbnotifyall(struct in_addr faddr, int errno,
-    struct sdp_sock *(*notify)(struct sdp_sock *, int))
-{
-	struct sdp_sock *ssk, *ssk_temp;
-
-	SDP_LIST_WLOCK();
-	LIST_FOREACH_SAFE(ssk, &sdp_list, list, ssk_temp) {
-		SDP_WLOCK(ssk);
-		if (ssk->faddr != faddr.s_addr || ssk->socket == NULL) {
-			SDP_WUNLOCK(ssk);
-			continue;
-		}
-		if ((ssk->flags & SDP_DESTROY) == 0)
-			if ((*notify)(ssk, errno))
-				SDP_WUNLOCK(ssk);
-	}
-	SDP_LIST_WUNLOCK();
-}
-
 #if 0
 static void
 sdp_apply_all(void (*func)(struct sdp_sock *, void *), void *arg)
@@ -1564,18 +1544,6 @@ sdp_notify(struct sdp_sock *ssk, int error)
 }
 
 static void
-sdp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
-{
-	struct in_addr faddr;
-
-	faddr = ((struct sockaddr_in *)sa)->sin_addr;
-	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
-		return;
-
-	sdp_pcbnotifyall(faddr, inetctlerrmap[cmd], sdp_notify);
-}
-
-static void
 sdp_keepalive_timeout(void *data)
 {
 	struct sdp_sock *ssk;
@@ -1935,7 +1903,6 @@ struct protosw sdpsw[] = {
 	.pr_domain =		&sdpdomain,
 	.pr_protocol =		IPPROTO_IP,
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
-	.pr_ctlinput =		sdp_ctlinput,
 	.pr_ctloutput =		sdp_ctloutput,
 	.pr_usrreqs =		&sdp_usrreqs
 },
@@ -1944,7 +1911,6 @@ struct protosw sdpsw[] = {
 	.pr_domain =		&sdpdomain,
 	.pr_protocol =		IPPROTO_TCP,
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
-	.pr_ctlinput =		sdp_ctlinput,
 	.pr_ctloutput =		sdp_ctloutput,
 	.pr_usrreqs =		&sdp_usrreqs
 },
