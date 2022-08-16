@@ -147,10 +147,10 @@ rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
 trap true SIGINT	# This section is optional
-bsdinstall keymap
+[ -z "$BSDINSTALL_SKIP_KEYMAP" ] && bsdinstall keymap
 
 trap error SIGINT	# Catch cntrl-C here
-bsdinstall hostname || error "Set hostname failed"
+if [ -z "$BSDINSTALL_SKIP_HOSTNAME" ]; then bsdinstall hostname || error "Set hostname failed"; fi
 
 export DISTRIBUTIONS="${DISTRIBUTIONS:-base.txz kernel.txz}"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
@@ -354,11 +354,12 @@ trap true SIGINT	# This section is optional
 if [ "$NETCONFIG_DONE" != yes ]; then
 	bsdinstall netconfig	# Don't check for errors -- the user may cancel
 fi
-bsdinstall time
-bsdinstall services
-bsdinstall hardening
+[ -z "$BSDINSTALL_SKIP_TIME" ] && bsdinstall time
+[ -z "$BSDINSTALL_SKIP_SERVICES" ] && bsdinstall services
+[ -z "$BSDINSTALL_SKIP_HARDENING" ] && bsdinstall hardening
 
-dialog --backtitle "$OSNAME Installer" --title "Add User Accounts" --yesno \
+[ -z "$BSDINSTALL_SKIP_USERS" ] && dialog --backtitle "$OSNAME Installer" \
+	--title "Add User Accounts" --yesno \
     "Would you like to add users to the installed system now?" 0 0 && \
     bsdinstall adduser
 
@@ -415,7 +416,7 @@ finalconfig() {
 }
 
 # Allow user to change his mind
-finalconfig
+[ -z "$BSDINSTALL_SKIP_FINALCONFIG" ] && finalconfig
 
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
@@ -424,14 +425,16 @@ if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 	rm -rf "$BSDINSTALL_FETCHDEST"
 fi
 
-dialog --backtitle "$OSNAME Installer" --title "Manual Configuration" \
-    --default-button no --yesno \
-   "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
-if [ $? -eq 0 ]; then
-	clear
-	echo This shell is operating in a chroot in the new system. \
-	    When finished making configuration changes, type \"exit\".
-	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
+if [ -z "$BSDINSTALL_SKIP_MANUAL" ]; then
+	dialog --backtitle "$OSNAME Installer" --title "Manual Configuration" \
+		--default-button no --yesno \
+		"The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
+	if [ $? -eq 0 ]; then
+		clear
+		echo This shell is operating in a chroot in the new system. \
+		    When finished making configuration changes, type \"exit\".
+		chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
+	fi
 fi
 
 bsdinstall entropy
