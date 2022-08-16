@@ -1,149 +1,169 @@
-NAME
+NEWSTRFTIME(3)             Library Functions Manual             NEWSTRFTIME(3)
 
-     strftime - format date and time
+NAME
+       strftime - format date and time
 
 SYNOPSIS
-     #include <sys/types.h>
-     #include <time.h>
+       #include <time.h>
 
-     size_t strftime(buf, maxsize, format, timeptr)
-     char *buf;
-     size_t maxsize;
-     const char *format;
-     const struct tm *timeptr
+       size_t strftime(char *restrict buf, size_t maxsize,
+           char const *restrict format, struct tm const *restrict timeptr);
 
-     cc ... -ltz
+       cc ... -ltz
 
 DESCRIPTION
-     The strftime function formats the information from timeptr
-     into the buffer buf according to the string pointed to by
-     format.
+       The strftime function formats the information from timeptr into the
+       array pointed to by buf according to the string pointed to by format.
 
-     The format string consists of zero or more conversion
-     specifications and ordinary characters.  All ordinary
-     characters are copied directly into the buffer.  A
-     conversion specification consists of a percent sign and one
-     other character.
+       The format string consists of zero or more conversion specifications
+       and ordinary characters.  All ordinary characters are copied directly
+       into the array.  A conversion specification consists of a percent sign
+       and one other character.
 
-     No more than maxsize characters are be placed into the
-     array.  If the total number of resulting characters,
-     including the terminating null character, is not more than
-     maxsize, strftime returns the number of characters in the
-     array, not counting the terminating null.  Otherwise, zero
-     is returned.
+       No more than maxsize bytes are placed into the array.
 
-     Each conversion specification is replaced by the characters
-     as follows which are then copied into the buffer.
+       Each conversion specification is replaced by the characters as follows
+       which are then copied into the array.
 
-     %A   is replaced by the locale's full weekday name.
+       %A     is replaced by the locale's full weekday name.
 
-     %a   is replaced by the locale's abbreviated weekday name.
+       %a     is replaced by the locale's abbreviated weekday name.
 
-     %B   is replaced by the locale's full month name.
+       %B     is replaced by the locale's full month name.
 
-     %b or %h
-          is replaced by the locale's abbreviated month name.
+       %b or %h
+              is replaced by the locale's abbreviated month name.
 
-     %C   is replaced by the century (a year divided by 100 and
-          truncated to an integer) as a decimal number (00-99).
+       %C     is replaced by the century (a year divided by 100 and truncated
+              to an integer) as a decimal number [00,99].
 
-     %c   is replaced by the locale's appropriate date and time
-          representation.
+       %c     is replaced by the locale's appropriate date and time
+              representation.
 
-     %D   is replaced by the date in the format %m/%d/%y.
+       %D     is equivalent to %m/%d/%y.
 
-     %d   is replaced by the day of the month as a decimal number
-          (01-31).
+       %d     is replaced by the day of the month as a decimal number [01,31].
 
-     %e   is replaced by the day of month as a decimal number
-          (1-31); single digits are preceded by a blank.
-     %F   is replaced by the date in the format %Y-%m-%d.
+       %e     is replaced by the day of month as a decimal number [1,31];
+              single digits are preceded by a blank.
 
-     %G   is replaced by the ISO 8601 year with century as a
-          decimal number.
+       %F     is equivalent to %Y-%m-%d (the ISO 8601 date format).
 
-     %g   is replaced by the ISO 8601 year without century as a
-          decimal number (00-99).
-     %H   is replaced by the hour (24-hour clock) as a decimal
-          number (00-23).
+       %G     is replaced by the ISO 8601 year with century as a decimal
+              number.  See also the %V conversion specification.
 
-     %I   is replaced by the hour (12-hour clock) as a decimal
-          number (01-12).
+       %g     is replaced by the ISO 8601 year without century as a decimal
+              number [00,99].  This is the year that includes the greater part
+              of the week.  (Monday as the first day of a week).  See also the
+              %V conversion specification.
 
-     %j   is replaced by the day of the year as a decimal number
-          (001-366).
+       %H     is replaced by the hour (24-hour clock) as a decimal number
+              [00,23].
 
-     %k   is replaced by the hour (24-hour clock) as a decimal
-          number (0-23); single digits are preceded by a blank.
+       %I     is replaced by the hour (12-hour clock) as a decimal number
+              [01,12].
 
-     %l   is replaced by the hour (12-hour clock) as a decimal
-          number (1-12); single digits are preceded by a blank.
+       %j     is replaced by the day of the year as a decimal number
+              [001,366].
 
-     %M   is replaced by the minute as a decimal number (00-59).
+       %k     is replaced by the hour (24-hour clock) as a decimal number
+              [0,23]; single digits are preceded by a blank.
 
-     %m   is replaced by the month as a decimal number (01-12).
+       %l     is replaced by the hour (12-hour clock) as a decimal number
+              [1,12]; single digits are preceded by a blank.
 
-     %n   is replaced by a newline.
+       %M     is replaced by the minute as a decimal number [00,59].
 
-     %p   is replaced by the locale's equivalent of either AM or
-          PM.
+       %m     is replaced by the month as a decimal number [01,12].
 
-     %R   is replaced by the time in the format %H:%M.
+       %n     is replaced by a newline.
 
-     %r   is replaced by the locale's representation of 12-hour
-          clock time using AM/PM notation.
+       %p     is replaced by the locale's equivalent of either "AM" or "PM".
 
-     %S   is replaced by the second as a decimal number (00-60).
+       %R     is replaced by the time in the format %H:%M.
 
-     %s   is replaced by the number of seconds since the Epoch,
-          UTC (see mktime(3)).
+       %r     is replaced by the locale's representation of 12-hour clock time
+              using AM/PM notation.
 
-     %T   is replaced by the time in the format %H:%M:%S.
+       %S     is replaced by the second as a decimal number [00,60].  The
+              range of seconds is [00,60] instead of [00,59] to allow for the
+              periodic occurrence of leap seconds.
 
-     %t   is replaced by a tab.
+       %s     is replaced by the number of seconds since the Epoch (see
+              ctime(3)).
 
-     %U   is replaced by the week number of the year (Sunday as
-          the first day of the week) as a decimal number (00-53).
+       %T     is replaced by the time in the format %H:%M:%S.
 
-     %u   is replaced by the weekday (Monday as the first day of
-          the week) as a decimal number (1-7).
+       %t     is replaced by a tab.
 
-     %V   is replaced by the week number of the year (Monday as
-          the first day of the week) as a decimal number (01-53).
-          If the week containing January 1 has four or more days
-          in the new year, then it is week 1; otherwise it is
-          week 53 of the previous year, and the next week is week
-          1.
+       %U     is replaced by the week number of the year (Sunday as the first
+              day of the week) as a decimal number [00,53].
 
-     %W   is replaced by the week number of the year (Monday as
-          the first day of the week) as a decimal number (00-53).
+       %u     is replaced by the weekday (Monday as the first day of the week)
+              as a decimal number [1,7].
 
-     %w   is replaced by the weekday (Sunday as the first day of
-          the week) as a decimal number (0-6).
+       %V     is replaced by the week number of the year (Monday as the first
+              day of the week) as a decimal number [01,53].  If the week
+              containing January 1 has four or more days in the new year, then
+              it is week 1; otherwise it is week 53 of the previous year, and
+              the next week is week 1.  The year is given by the %G conversion
+              specification.
 
-     %X   is replaced by the locale's appropriate time
-          representation.
-     %x   is replaced by the locale's appropriate date
-          representation.
+       %W     is replaced by the week number of the year (Monday as the first
+              day of the week) as a decimal number [00,53].
 
-     %Y   is replaced by the year with century as a decimal
-          number.
+       %w     is replaced by the weekday (Sunday as the first day of the week)
+              as a decimal number [0,6].
 
-     %y   is replaced by the year without century as a decimal
-          number (00-99).
+       %X     is replaced by the locale's appropriate time representation.
 
-     %Z   is replaced by the time zone name, or by the empty
-          string if this is not determinable.
+       %x     is replaced by the locale's appropriate date representation.
 
-     %z   is replaced by the offset from UTC in the format +HHMM
-          or -HHMM as appropriate, with positive values
-          representing locations east of Greenwich, or by the
-          empty string if this is not determinable.
+       %Y     is replaced by the year with century as a decimal number.
 
-     %%   is replaced by a single %.
+       %y     is replaced by the year without century as a decimal number
+              [00,99].
 
-     %+   is replaced by the date and time in date(1) format.
+       %Z     is replaced by the time zone abbreviation, or by the empty
+              string if this is not determinable.
+
+       %z     is replaced by the offset from the Prime Meridian in the format
+              +HHMM or -HHMM (ISO 8601) as appropriate, with positive values
+              representing locations east of Greenwich, or by the empty string
+              if this is not determinable.  The numeric time zone abbreviation
+              -0000 is used when the time is Universal Time but local time is
+              indeterminate; by convention this is used for locations while
+              uninhabited, and corresponds to a zero offset when the time zone
+              abbreviation begins with "-".
+
+       %%     is replaced by a single %.
+
+       %+     is replaced by the locale's date and time in date(1) format.
+
+RETURN VALUE
+       If the conversion is successful, strftime returns the number of bytes
+       placed into the array, not counting the terminating NUL; errno is
+       unchanged if the returned value is zero.  Otherwise, errno is set to
+       indicate the error, zero is returned, and the array contents are
+       unspecified.
+
+ERRORS
+       This function fails if:
+
+       [ERANGE]
+              The total number of resulting bytes, including the terminating
+              NUL character, is more than maxsize.
+
+       This function may fail if:
+
+       [EOVERFLOW]
+              The format includes an %s conversion and the number of seconds
+              since the Epoch cannot be represented in a time_t.
 
 SEE ALSO
-     date(1), getenv(3), newctime(3), newtzset(3), time(2),
-     tzfile(5)
+       date(1), getenv(3), newctime(3), newtzset(3), time(2), tzfile(5)
+
+BUGS
+       There is no conversion specification for the phase of the moon.
+
+                                                                NEWSTRFTIME(3)

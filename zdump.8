@@ -1,59 +1,231 @@
 .TH ZDUMP 8
 .SH NAME
-zdump \- time zone dumper
+zdump \- timezone dumper
 .SH SYNOPSIS
 .B zdump
 [
-.B \-\-version
-]
-[
-.B \-v
-] [
-.B \-c
-[loyear,]hiyear ] [ zonename ... ]
+.I option
+\&... ] [
+.I timezone
+\&... ]
 .SH DESCRIPTION
-.I Zdump
-prints the current time in each
-.I zonename
+.ie '\(lq'' .ds lq \&"\"
+.el .ds lq \(lq\"
+.ie '\(rq'' .ds rq \&"\"
+.el .ds rq \(rq\"
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
+.ie \n(.g .ds - \f(CW-\fP
+.el .ds - \-
+The
+.B zdump
+program prints the current time in each
+.I timezone
 named on the command line.
-.PP
-These options are available:
+.SH OPTIONS
 .TP
-.BI "\-\-version"
+.B \*-\*-version
 Output version information and exit.
 .TP
-.B \-v
-For each
-.I zonename
-on the command line,
-print the time at the lowest possible time value,
-the time one day after the lowest possible time value,
-the times both one second before and exactly at
-each detected time discontinuity,
-the time at one day less than the highest possible time value,
-and the time at the highest possible time value,
-Each line ends with
-.B isdst=1
-if the given time is Daylight Saving Time or
-.B isdst=0
-otherwise.
+.B \*-\*-help
+Output short usage message and exit.
 .TP
-.BI "\-c " [loyear,]hiyear
-Cut off verbose output near the start of the given year(s).
-By default,
-the program cuts off verbose output near the starts of the years -500 and 2500.
-.SH LIMITATIONS
+.B \*-i
+Output a description of time intervals.  For each
+.I timezone
+on the command line, output an interval-format description of the
+timezone.  See
+.q "INTERVAL FORMAT"
+below.
+.TP
+.B \*-v
+Output a verbose description of time intervals.
+For each
+.I timezone
+on the command line,
+print the times at the two extreme time values,
+the times (if present) at and just beyond the boundaries of years that
+.BR localtime (3)
+and
+.BR gmtime (3)
+can represent, and
+the times both one second before and exactly at
+each detected time discontinuity.
+Each line is followed by
+.BI isdst= D
+where
+.I D
+is positive, zero, or negative depending on whether
+the given time is daylight saving time, standard time,
+or an unknown time type, respectively.
+Each line is also followed by
+.BI gmtoff= N
+if the given local time is known to be
+.I N
+seconds east of Greenwich.
+.TP
+.B \*-V
+Like
+.BR \*-v ,
+except omit output concerning extreme time and year values.
+This generates output that is easier to compare to that of
+implementations with different time representations.
+.TP
+.BI "\*-c " \fR[\fIloyear , \fR]\fIhiyear
+Cut off interval output at the given year(s).
+Cutoff times are computed using the proleptic Gregorian calendar with year 0
+and with Universal Time (UT) ignoring leap seconds.
+Cutoffs are at the start of each year, where the lower-bound
+timestamp is inclusive and the upper is exclusive; for example,
+.B "\*-c 1970,2070"
+selects transitions on or after 1970-01-01 00:00:00 UTC
+and before 2070-01-01 00:00:00 UTC.
+The default cutoff is
+.BR \*-500,2500 .
+.TP
+.BI "\*-t " \fR[\fIlotime , \fR]\fIhitime
+Cut off interval output at the given time(s),
+given in decimal seconds since 1970-01-01 00:00:00
+Coordinated Universal Time (UTC).
 The
-.B \-v
-option may not be used on systems with floating-point time_t values
-that are neither float nor double.
+.I timezone
+determines whether the count includes leap seconds.
+As with
+.BR \*-c ,
+the cutoff's lower bound is inclusive and its upper bound is exclusive.
+.SH "INTERVAL FORMAT"
+The interval format is a compact text representation that is intended
+to be both human- and machine-readable.  It consists of an empty line,
+then a line
+.q "TZ=\fIstring\fP"
+where
+.I string
+is a double-quoted string giving the timezone, a second line
+.q "\*- \*- \fIinterval\fP"
+describing the time interval before the first transition if any, and
+zero or more following lines
+.q "\fIdate time interval\fP",
+one line for each transition time and following interval.  Fields are
+separated by single tabs.
 .PP
-Time discontinuities are found by sampling the results returned by localtime
+Dates are in
+.IR yyyy - mm - dd
+format and times are in 24-hour
+.IR hh : mm : ss
+format where
+.IR hh <24.
+Times are in local time immediately after the transition.  A
+time interval description consists of a UT offset in signed
+.RI \(+- hhmmss
+format, a time zone abbreviation, and an isdst flag.  An abbreviation
+that equals the UT offset is omitted; other abbreviations are
+double-quoted strings unless they consist of one or more alphabetic
+characters.  An isdst flag is omitted for standard time, and otherwise
+is a decimal integer that is unsigned and positive (typically 1) for
+daylight saving time and negative for unknown.
+.PP
+In times and in UT offsets with absolute value less than 100 hours,
+the seconds are omitted if they are zero, and
+the minutes are also omitted if they are also zero.  Positive UT
+offsets are east of Greenwich.  The UT offset \*-00 denotes a UT
+placeholder in areas where the actual offset is unspecified; by
+convention, this occurs when the UT offset is zero and the time zone
+abbreviation begins with
+.q "\*-"
+or is
+.q "zzz".
+.PP
+In double-quoted strings, escape sequences represent unusual
+characters.  The escape sequences are \es for space, and \e", \e\e,
+\ef, \en, \er, \et, and \ev with their usual meaning in the C
+programming language.  E.g., the double-quoted string
+\*(lq"CET\es\e"\e\e"\*(rq represents the character sequence \*(lqCET
+"\e\*(rq.\""
+.PP
+.ne 9
+Here is an example of the output, with the leading empty line omitted.
+(This example is shown with tab stops set far enough apart so that the
+tabbed columns line up.)
+.nf
+.sp
+.if \n(.g .ft CW
+.if t .in +.5i
+.if n .in +2
+.nr w \w'1896-01-13  'u+\n(.i
+.ta \w'1896-01-13  'u +\w'12:01:26  'u +\w'-103126  'u +\w'HWT  'u
+TZ="Pacific/Honolulu"
+-	-	-103126	LMT
+1896-01-13	12:01:26	-1030	HST
+1933-04-30	03	-0930	HDT	1
+1933-05-21	11	-1030	HST
+1942-02-09	03	-0930	HWT	1
+1945-08-14	13:30	-0930	HPT	1
+1945-09-30	01	-1030	HST
+1947-06-08	02:30	-10	HST
+.in
+.if \n(.g .ft
+.sp
+.fi
+Here, local time begins 10 hours, 31 minutes and 26 seconds west of
+UT, and is a standard time abbreviated LMT.  Immediately after the
+first transition, the date is 1896-01-13 and the time is 12:01:26, and
+the following time interval is 10.5 hours west of UT, a standard time
+abbreviated HST.  Immediately after the second transition, the date is
+1933-04-30 and the time is 03:00:00 and the following time interval is
+9.5 hours west of UT, is abbreviated HDT, and is daylight saving time.
+Immediately after the last transition the date is 1947-06-08 and the
+time is 02:30:00, and the following time interval is 10 hours west of
+UT, a standard time abbreviated HST.
+.PP
+.ne 10
+Here are excerpts from another example:
+.nf
+.sp
+.if \n(.g .ft CW
+.if t .in +.5i
+.if n .in +2
+TZ="Europe/Astrakhan"
+-	-	+031212	LMT
+1924-04-30	23:47:48	+03
+1930-06-21	01	+04
+1981-04-01	01	+05		1
+1981-09-30	23	+04
+\&...
+2014-10-26	01	+03
+2016-03-27	03	+04
+.in
+.if \n(.g .ft
+.sp
+.fi
+This time zone is east of UT, so its UT offsets are positive.  Also,
+many of its time zone abbreviations are omitted since they duplicate
+the text of the UT offset.
+.SH LIMITATIONS
+Time discontinuities are found by sampling the results returned by
+.BR localtime (3)
 at twelve-hour intervals.
 This works in all real-world cases;
 one can construct artificial time zones for which this fails.
-.SH "SEE ALSO"
-newctime(3), tzfile(5), zic(8)
-.\" @(#)zdump.8	8.2
+.PP
+In the
+.B \*-v
+and
+.B \*-V
+output,
+.q "UT"
+denotes the value returned by
+.BR gmtime (3),
+which uses UTC for modern timestamps and some other UT flavor for
+timestamps that predate the introduction of UTC.
+No attempt is currently made to have the output use
+.q "UTC"
+for newer and
+.q "UT"
+for older timestamps, partly because the exact date of the
+introduction of UTC is problematic.
+.SH SEE ALSO
+.BR tzfile (5),
+.BR zic (8)
 .\" This file is in the public domain, so clarified as of
 .\" 2009-05-17 by Arthur David Olson.

@@ -3,23 +3,30 @@
 time2posix, posix2time \- convert seconds since the Epoch
 .SH SYNOPSIS
 .nf
-.B #include <sys/types.h>
+.ie \n(.g .ds - \f(CW-\fP
+.el .ds - \-
 .B #include <time.h>
 .PP
-.B time_t time2posix(t)
-.B time_t t
+.B time_t time2posix(time_t t);
 .PP
-.B time_t posix2time(t)
-.B time_t t
+.B time_t posix2time(time_t t);
 .PP
-.B cc ... -ltz
+.B cc ... \*-ltz
 .fi
 .SH DESCRIPTION
+.ie '\(en'' .ds en \-
+.el .ds en \(en
+.ie '\(lq'' .ds lq \&"\"
+.el .ds lq \(lq\"
+.ie '\(rq'' .ds rq \&"\"
+.el .ds rq \(rq\"
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
 IEEE Standard 1003.1
 (POSIX)
-legislates that a time_t value of
-536457599 shall correspond to "Wed Dec 31 23:59:59 UTC 1986."
-This effectively implies that POSIX time_t's cannot include leap
+requires the time_t value 536457599 to stand for 1986-12-31 23:59:59 UTC.
+This effectively implies that POSIX time_t values cannot include leap
 seconds and,
 therefore,
 that the system time must be adjusted as each leap occurs.
@@ -29,20 +36,22 @@ enabled,
 however,
 no such adjustment is needed and
 time_t values continue to increase over leap events
-(as a true `seconds since...' value).
+(as a true
+.q "seconds since...\&"
+value).
 This means that these values will differ from those required by POSIX
 by the net number of leap seconds inserted since the Epoch.
 .PP
 Typically this is not a problem as the type time_t is intended
 to be
 (mostly)
-opaque\(emtime_t values should only be obtained-from and
+opaque \*(en time_t values should only be obtained-from and
 passed-to functions such as
-.IR time(2) ,
-.IR localtime(3) ,
-.IR mktime(3) ,
+.BR time(2) ,
+.BR localtime(3) ,
+.BR mktime(3) ,
 and
-.IR difftime(3) .
+.BR difftime(3) .
 However,
 POSIX gives an arithmetic
 expression for directly computing a time_t value from a given date/time,
@@ -54,9 +63,9 @@ using such a relationship will typically not handle intervals
 over leap seconds correctly.
 .PP
 The
-.I time2posix
+.B time2posix
 and
-.I posix2time
+.B posix2time
 functions are provided to address this time_t mismatch by converting
 between local time_t values and their POSIX equivalents.
 This is done by accounting for the number of time-base changes that
@@ -66,12 +75,16 @@ These converted values can then be used in lieu of correcting the older
 applications,
 or when communicating with POSIX-compliant systems.
 .PP
-.I Time2posix
+The
+.B time2posix
+function
 is single-valued.
 That is,
 every local time_t
 corresponds to a single POSIX time_t.
-.I Posix2time
+The
+.B posix2time
+function
 is less well-behaved:
 for a positive leap second hit the result is not unique,
 and for a negative leap second hit the corresponding
@@ -107,15 +120,14 @@ If leap-second support is not enabled,
 local time_t's and
 POSIX time_t's are equivalent,
 and both
-.I time2posix
+.B time2posix
 and
-.I posix2time
+.B posix2time
 degenerate to the identity function.
 .SH SEE ALSO
 difftime(3),
 localtime(3),
 mktime(3),
 time(2)
-.\" @(#)time2posix.3	8.2
 .\" This file is in the public domain, so clarified as of
 .\" 1996-06-05 by Arthur David Olson.
