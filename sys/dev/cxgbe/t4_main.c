@@ -626,6 +626,10 @@ static int t4_reset_on_fatal_err = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, reset_on_fatal_err, CTLFLAG_RWTUN,
     &t4_reset_on_fatal_err, 0, "reset adapter on fatal errors");
 
+static int t4_clock_gate_on_suspend = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, clock_gate_on_suspend, CTLFLAG_RWTUN,
+    &t4_clock_gate_on_suspend, 0, "gate the clock on suspend");
+
 static int t4_tx_vm_wr = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, tx_vm_wr, CTLFLAG_RWTUN, &t4_tx_vm_wr, 0,
     "Use VM work requests to transmit packets.");
@@ -1995,6 +1999,12 @@ t4_suspend(device_t dev)
 	sc->flags &= ~(FW_OK | MASTER_PF);
 	sc->reset_thread = NULL;
 	mtx_unlock(&sc->reg_lock);
+
+	if (t4_clock_gate_on_suspend) {
+		t4_set_reg_field(sc, A_PMU_PART_CG_PWRMODE, F_MA_PART_CGEN |
+		    F_LE_PART_CGEN | F_EDC1_PART_CGEN | F_EDC0_PART_CGEN |
+		    F_TP_PART_CGEN | F_PDP_PART_CGEN | F_SGE_PART_CGEN, 0);
+	}
 
 	CH_ALERT(sc, "suspend completed.\n");
 done:
