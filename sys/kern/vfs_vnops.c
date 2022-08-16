@@ -1393,7 +1393,6 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 			error = EFAULT;
 			break;
 		}
-		cnt = atop(end - trunc_page(addr));
 		/*
 		 * A perfectly misaligned address and length could cause
 		 * both the start and the end of the chunk to use partial
