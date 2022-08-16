@@ -36,6 +36,8 @@
 enum rk_pmic_type {
 	RK805 = 1,
 	RK808,
+	RK809,
+	RK817,
 };
 
 struct rk8xx_regdef {
@@ -47,7 +49,10 @@ struct rk8xx_regdef {
 	uint8_t			voltage_mask;
 	int			voltage_min;
 	int			voltage_max;
+	int			voltage_min2;
+	int			voltage_max2;
 	int			voltage_step;
+	int			voltage_step2;
 	int			voltage_nstep;
 };
 
@@ -88,6 +93,7 @@ struct rk8xx_rtc_reg {
 struct rk8xx_dev_ctrl {
 	uint8_t	dev_ctrl_reg;
 	uint8_t	pwr_off_mask;
+	uint8_t	pwr_rst_mask;
 };
 
 struct rk8xx_softc {

@@ -61,6 +61,10 @@ rk8xx_gettime(device_t dev, struct timespec *ts)
 	error = rk8xx_write(dev, sc->rtc_regs.ctrl, &ctrl, 1);
 	if (error != 0)
 		return (error);
+	if (sc->type == RK809 || sc->type == RK817) {
+		/* wait one 32khz cycle for clock shadow registers to latch */
+		DELAY(1000000 / 32000);
+	}
 	ctrl &= ~sc->rtc_regs.ctrl_gettime_mask;
 	error = rk8xx_write(dev, sc->rtc_regs.ctrl, &ctrl, 1);
 	if (error != 0)
@@ -91,6 +95,8 @@ rk8xx_gettime(device_t dev, struct timespec *ts)
 	if (bct.dow == 7)
 		bct.dow = 0;
 	bct.ispm = 0;
+	if (sc->type == RK809 || sc->type == RK817)
+		bct.year += 0x2000;	/* valid for 2000-2099 only */
 
 	if (bootverbose)
 		device_printf(dev, "Read RTC: %02x-%02x-%02x %02x:%02x:%02x\n",
@@ -113,6 +119,14 @@ rk8xx_settime(device_t dev, struct timespec *ts)
 	clock_ts_to_bcd(ts, &bct, false);
 
 	/* This works as long as RK805_RTC_SECS = 0 */
+	if (sc->type == RK809 || sc->type == RK817) {
+		/* valid for 2000-2099 only */
+		if ((bct.year & 0xff00) != 0x2000) {
+			device_printf(dev, "year out of range\n");
+			return (EINVAL);
+		}
+		bct.year &= 0x00ff;
+	}
 	data[sc->rtc_regs.years] = bct.year;
 	data[sc->rtc_regs.months] = bct.mon;
 	data[sc->rtc_regs.days] = bct.day;
