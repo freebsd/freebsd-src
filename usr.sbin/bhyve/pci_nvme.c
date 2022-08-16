@@ -560,6 +560,10 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->wctemp = 0x0157;
 	cd->cctemp = 0x0157;
 
+	/* SANICAP must not be 0 for Revision 1.4 and later NVMe Controllers */
+	cd->sanicap = (NVME_CTRLR_DATA_SANICAP_NODMMAS_NO <<
+			NVME_CTRLR_DATA_SANICAP_NODMMAS_SHIFT);
+
 	cd->sqes = (6 << NVME_CTRLR_DATA_SQES_MAX_SHIFT) |
 	    (6 << NVME_CTRLR_DATA_SQES_MIN_SHIFT);
 	cd->cqes = (4 << NVME_CTRLR_DATA_CQES_MAX_SHIFT) |
