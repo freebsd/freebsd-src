@@ -122,7 +122,7 @@ If geolocation information is available, a selection interface can
 locate the user on a timezone map or prioritize names that are
 geographically close. For an example selection interface, see the
 <code>tzselect</code> program in the <code><abbr>tz</abbr></code> code.
-The <a href="http://cldr.unicode.org">Unicode Common Locale Data
+The <a href="https://cldr.unicode.org">Unicode Common Locale Data
 Repository</a> contains data that may be useful for other selection
 interfaces; it maps timezone names like <code>Europe/Prague</code> to
 locale-dependent strings like "Prague", "Praha", "Прага", and "布拉格".
@@ -571,7 +571,7 @@ in decreasing order of importance:
     locations while uninhabited.
     The leading '<code>-</code>' is a flag that the <abbr>UT</abbr> offset is in
     some sense undefined; this notation is derived
-    from <a href="https://tools.ietf.org/html/rfc3339">Internet
+    from <a href="https://datatracker.ietf.org/doc/html/rfc3339">Internet
     <abbr title="Request For Comments">RFC</abbr> 3339</a>.
   </li>
 </ul>
@@ -624,7 +624,7 @@ Errors in the <code><abbr>tz</abbr></code> database arise from many sources:
     should be observed.
     In her 2015 book
     <cite><a
-    href="http://www.hup.harvard.edu/catalog.php?isbn=9780674286146">The
+    href="https://www.hup.harvard.edu/catalog.php?isbn=9780674286146">The
     Global Transformation of Time, 1870&ndash;1950</a></cite>,
     Vanessa Ogle writes
     "Outside of Europe and North America there was no system of time
@@ -810,7 +810,7 @@ href="https://www.dissentmagazine.org/blog/booked-a-global-history-of-time-vanes
     See: Stephenson FR, Morrison LV, Hohenkerk CY.
     <a href="https://dx.doi.org/10.1098/rspa.2016.0404">Measurement of
     the Earth's rotation: 720 BC to AD 2015</a>.
-    <cite>Proc Royal Soc A</cite>. 2016 Dec 7;472:20160404.
+    <cite>Proc Royal Soc A</cite>. 2016;472:20160404.
     Also see: Espenak F. <a
     href="https://eclipse.gsfc.nasa.gov/SEhelp/uncertainty2004.html">Uncertainty
     in Delta T (ΔT)</a>.
@@ -1036,7 +1036,7 @@ an older <code>zic</code>.
     and numeric data as described <a href="#POSIX">above</a>.
     The file's format is <dfn><abbr>TZif</abbr></dfn>,
     a timezone information format that contains binary data; see
-    <a href="https://tools.ietf.org/html/8536">Internet
+    <a href="https://datatracker.ietf.org/doc/html/8536">Internet
     <abbr>RFC</abbr> 8536</a>.
     The daylight saving time rules to be used for a
     particular timezone are encoded in the
@@ -1064,11 +1064,12 @@ an older <code>zic</code>.
   </li>
   <li>
     The code supports platforms with a <abbr>UT</abbr> offset member
-    in <code>struct tm</code>, e.g., <code>tm_gmtoff</code>.
-  </li>
-  <li>
-    The code supports platforms with a time zone abbreviation member in
-    <code>struct tm</code>, e.g., <code>tm_zone</code>.
+    in <code>struct tm</code>, e.g., <code>tm_gmtoff</code>,
+    or with a time zone abbreviation member in
+    <code>struct tm</code>, e.g., <code>tm_zone</code>. As noted
+    in <a href="https://austingroupbugs.net/view.php?id=1533">Austin
+    Group defect 1533</a>, a future version of POSIX is planned to
+    require <code>tm_gmtoff</code> and <code>tm_zone</code>.
   </li>
   <li>
     Functions <code>tzalloc</code>, <code>tzfree</code>,
@@ -1129,7 +1130,8 @@ The vestigial <abbr>API</abbr>s are:
     <abbr>API</abbr>s.
     Although it can still be used in arguments to
     <code>mktime</code> to disambiguate timestamps near
-    a <abbr>DST</abbr> transition when the clock jumps back, this
+    a <abbr>DST</abbr> transition when the clock jumps back on
+    platforms lacking <code>tm_gmtoff</code>, this
     disambiguation does not work when standard time itself jumps back,
     which can occur when a location changes to a time zone with a
     lesser <abbr>UT</abbr> offset.
@@ -1277,7 +1279,7 @@ the operating system kernel clock as described in
 <a href="tz-link.html#precision">Precision timekeeping</a>,
 and this package by default installs a <samp>leapseconds</samp> file
 commonly used by
-<a href="http://www.ntp.org"><abbr title="Network Time Protocol">NTP</abbr></a>
+<a href="https://www.ntp.org"><abbr title="Network Time Protocol">NTP</abbr></a>
 software that adjusts the kernel clock.
 However, kernel-clock twiddling approximates UTC only roughly,
 and systems needing more-precise UTC can use this package's leap

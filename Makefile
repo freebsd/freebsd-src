@@ -298,8 +298,9 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 # guess TM_GMTOFF from other macros; define NO_TM_GMTOFF to suppress this.
 # Similarly, if your system has a "zone abbreviation" field, define
 #	-DTM_ZONE=tm_zone
-# and define NO_TM_ZONE to suppress any guessing.  These two fields are not
-# required by POSIX, but are widely available on GNU/Linux and BSD systems.
+# and define NO_TM_ZONE to suppress any guessing.  Although these two fields
+# not required by POSIX, a future version of POSIX is planned to require them
+# and they are widely available on GNU/Linux and BSD systems.
 #
 # The next batch of options control support for external variables
 # exported by tzcode.  In practice these variables are less useful
@@ -538,7 +539,7 @@ DATA=		$(TDATA_TO_CHECK) backzone iso3166.tab leap-seconds.list \
 			leapseconds $(ZONETABLES)
 AWK_SCRIPTS=	checklinks.awk checktab.awk leapseconds.awk \
 			ziguard.awk zishrink.awk
-MISC=		$(AWK_SCRIPTS) zoneinfo2tdf.pl
+MISC=		$(AWK_SCRIPTS)
 TZS_YEAR=	2050
 TZS_CUTOFF_FLAG=	-c $(TZS_YEAR)
 TZS=		to$(TZS_YEAR).tzs
@@ -567,7 +568,7 @@ VERSION_DEPS= \
 		tzfile.5 tzfile.h tzselect.8 tzselect.ksh \
 		workman.sh zdump.8 zdump.c zic.8 zic.c \
 		ziguard.awk zishrink.awk \
-		zone.tab zone1970.tab zoneinfo2tdf.pl
+		zone.tab zone1970.tab
 
 # And for the benefit of csh users on systems that assume the user
 # shell should be used to handle commands in Makefiles. . .

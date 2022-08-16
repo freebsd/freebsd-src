@@ -91,12 +91,13 @@ $1 == "#PACKRATLIST" && $2 == PACKRATLIST {
 /^Zone/ { zone = $2 }
 
 DATAFORM != "main" {
-  in_comment = /^#/
+  in_comment = $0 ~ /^#/
   uncomment = comment_out = 0
 
   # If this line should differ due to Czechoslovakia using negative SAVE values,
   # uncomment the desired version and comment out the undesired one.
-  if (zone == "Europe/Prague" && /^#?[\t ]+[01]:00[\t ]/ && /1947 Feb 23/) {
+  if (zone == "Europe/Prague" && $0 ~ /^#?[\t ]+[01]:00[\t ]/ \
+      && $0 ~ /1947 Feb 23/) {
     if (($(in_comment + 2) != "-") == (DATAFORM != "rearguard")) {
       uncomment = in_comment
     } else {
@@ -106,9 +107,9 @@ DATAFORM != "main" {
 
   # If this line should differ due to Ireland using negative SAVE values,
   # uncomment the desired version and comment out the undesired one.
-  Rule_Eire = /^#?Rule[\t ]+Eire[\t ]/
+  Rule_Eire = $0 ~ /^#?Rule[\t ]+Eire[\t ]/
   Zone_Dublin_post_1968 \
-    = (zone == "Europe/Dublin" && /^#?[\t ]+[01]:00[\t ]/ \
+    = (zone == "Europe/Dublin" && $0 ~ /^#?[\t ]+[01]:00[\t ]/ \
        && (!$(in_comment + 4) || 1968 < $(in_comment + 4)))
   if (Rule_Eire || Zone_Dublin_post_1968) {
     if ((Rule_Eire \
@@ -122,9 +123,9 @@ DATAFORM != "main" {
 
   # If this line should differ due to Namibia using negative SAVE values,
   # uncomment the desired version and comment out the undesired one.
-  Rule_Namibia = /^#?Rule[\t ]+Namibia[\t ]/
+  Rule_Namibia = $0 ~ /^#?Rule[\t ]+Namibia[\t ]/
   Zone_using_Namibia_rule \
-    = (zone == "Africa/Windhoek" && /^#?[\t ]+[12]:00[\t ]/ \
+    = (zone == "Africa/Windhoek" && $0 ~ /^#?[\t ]+[12]:00[\t ]/ \
        && ($(in_comment + 2) == "Namibia" \
 	   || ($(in_comment + 2) == "-" && $(in_comment + 3) == "CAT" \
 	       && ((1994 <= $(in_comment + 4) && $(in_comment + 4) <= 2017) \
@@ -142,8 +143,8 @@ DATAFORM != "main" {
 
   # If this line should differ due to Portugal benefiting from %z if supported,
   # uncomment the desired version and comment out the undesired one.
-  if (/^#?[\t ]+-[12]:00[\t ]+Port[\t ]+[%+-]/) {
-    if (/%z/ == (DATAFORM == "vanguard")) {
+  if ($0 ~ /^#?[\t ]+-[12]:00[\t ]+Port[\t ]+[%+-]/) {
+    if (($0 ~ /%z/) == (DATAFORM == "vanguard")) {
       uncomment = in_comment
     } else {
       comment_out = !in_comment
@@ -164,8 +165,8 @@ DATAFORM != "main" {
     sub(/-00CHANGE-TO-%z/, "-00")
     sub(/[-+][^\t ]+CHANGE-TO-/, "")
   } else {
-    if (/^[^#]*%z/) {
-      stdoff_column = 2 * /^Zone/ + 1
+    if ($0 ~ /^[^#]*%z/) {
+      stdoff_column = 2 * ($0 ~ /^Zone/) + 1
       rules_column = stdoff_column + 1
       stdoff = get_minutes($stdoff_column)
       rules = $rules_column
@@ -184,9 +185,9 @@ DATAFORM != "main" {
 	    dstoff = 20
 	  } else if (((rules == "Cook" || rules == "LH") && NF == 3) \
 		     || (rules == "Uruguay" \
-			 && /[\t ](1942 Dec 14|1960|1970|1974 Dec 22)$/)) {
+			 && $0 ~ /[\t ](1942 Dec 14|1960|1970|1974 Dec 22)$/)) {
 	    dstoff = 30
-	  } else if (rules == "Uruguay" && /[\t ]1974 Mar 10$/) {
+	  } else if (rules == "Uruguay" && $0 ~ /[\t ]1974 Mar 10$/) {
 	    dstoff = 90
 	  } else {
 	    dstoff = 60
@@ -222,7 +223,7 @@ DATAFORM != "main" {
       stdoff_subst[1] = rounded_stdoff
     }
   } else if (stdoff_subst[0]) {
-    stdoff_column = 2 * /^Zone/ + 1
+    stdoff_column = 2 * ($0 ~ /^Zone/) + 1
     stdoff_column_val = $stdoff_column
     if (stdoff_column_val == stdoff_subst[0]) {
       sub(stdoff_subst[0], stdoff_subst[1])
@@ -233,7 +234,7 @@ DATAFORM != "main" {
 
   # In rearguard form, change the Japan rule line with "Sat>=8 25:00"
   # to "Sun>=9 1:00", to cater to zic before 2007 and to older Java.
-  if (/^Rule/ && $2 == "Japan") {
+  if ($0 ~ /^Rule/ && $2 == "Japan") {
     if (DATAFORM == "rearguard") {
       if ($7 == "Sat>=8" && $8 == "25:00") {
 	sub(/Sat>=8/, "Sun>=9")
@@ -250,7 +251,7 @@ DATAFORM != "main" {
   # In rearguard form, change the Morocco lines with negative SAVE values
   # to use positive SAVE values.
   if ($2 == "Morocco") {
-    if (/^Rule/) {
+    if ($0 ~ /^Rule/) {
       if ($4 ~ /^201[78]$/ && $6 == "Oct") {
 	if (DATAFORM == "rearguard") {
 	  sub(/\t2018\t/, "\t2017\t")
@@ -290,8 +291,10 @@ DATAFORM != "main" {
 /^Zone/ {
   packrat_ignored = FILENAME == PACKRATDATA && PACKRATLIST && !packratlist[$2];
 }
-packrat_ignored && !/^Rule/ {
-  sub(/^/, "#")
+{
+  if (packrat_ignored && $0 !~ /^Rule/) {
+    sub(/^/, "#")
+  }
 }
 
 # If a Link line is followed by a Link or Zone line for the same data, comment
