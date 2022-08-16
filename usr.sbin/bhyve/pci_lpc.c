@@ -143,7 +143,7 @@ done:
 }
 
 void
-lpc_print_supported_devices()
+lpc_print_supported_devices(void)
 {
 	size_t i;
 
