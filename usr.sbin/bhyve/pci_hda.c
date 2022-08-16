@@ -94,7 +94,7 @@ struct hda_bdle_desc {
 };
 
 struct hda_codec_cmd_ctl {
-	char *name;
+	const char *name;
 	void *dma_vaddr;
 	uint8_t run;
 	uint16_t rp;
@@ -729,7 +729,7 @@ static inline void
 hda_print_cmd_ctl_data(struct hda_codec_cmd_ctl *p)
 {
 #if DEBUG_HDA == 1
-	char *name = p->name;
+	const char *name = p->name;
 #endif
 	DPRINTF("%s size: %d", name, p->size);
 	DPRINTF("%s dma_vaddr: %p", name, p->dma_vaddr);

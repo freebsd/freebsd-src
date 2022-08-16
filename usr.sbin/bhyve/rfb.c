@@ -114,7 +114,7 @@ struct rfb_softc {
 
 	int		width, height;
 
-	char		*password;
+	const char	*password;
 
 	bool		enc_raw_ok;
 	bool		enc_zlib_ok;
@@ -859,7 +859,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 {
 	const char *vbuf = "RFB 003.008\n";
 	unsigned char buf[80];
-	unsigned char *message = NULL;
+	unsigned const char *message;
 
 #ifndef NO_OPENSSL
 	unsigned char challenge[AUTH_LENGTH];
@@ -1130,7 +1130,7 @@ sse42_supported(void)
 }
 
 int
-rfb_init(char *hostname, int port, int wait, char *password)
+rfb_init(const char *hostname, int port, int wait, const char *password)
 {
 	int e;
 	char servname[6];
