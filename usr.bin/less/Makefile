@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	runtime
 PROG=	less
 SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c cvt.c \
 	decode.c edit.c filename.c forwback.c help.c ifile.c input.c \
