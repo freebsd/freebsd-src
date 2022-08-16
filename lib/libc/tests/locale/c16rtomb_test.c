@@ -127,6 +127,9 @@ ATF_TC_WITHOUT_HEAD(c16rtomb_utf_8_test);
 ATF_TC_BODY(c16rtomb_utf_8_test, tc)
 {
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/265871");
+
 	require_lc_ctype("en_US.UTF-8");
 
 	/* Unicode character 'Pile of poo'. */
