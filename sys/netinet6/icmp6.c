@@ -1113,6 +1113,7 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 	struct mbuf *m = ip6cp->ip6c_m;	/* will be necessary for scope issue */
 	u_int mtu = ntohl(icmp6->icmp6_mtu);
 	struct in_conninfo inc;
+	uint32_t max_mtu;
 
 #if 0
 	/*
@@ -1153,7 +1154,11 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 	if (in6_setscope(&inc.inc6_faddr, m->m_pkthdr.rcvif, NULL))
 		return;
 
-	if (mtu < tcp_maxmtu6(&inc, NULL)) {
+	max_mtu = tcp_hc_getmtu(&inc);
+	if (max_mtu == 0)
+		max_mtu = tcp_maxmtu6(&inc, NULL);
+
+	if (mtu < max_mtu) {
 		tcp_hc_updatemtu(&inc, mtu);
 		ICMP6STAT_INC(icp6s_pmtuchg);
 	}
