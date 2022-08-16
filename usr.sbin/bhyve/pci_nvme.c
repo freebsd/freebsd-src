@@ -1569,6 +1569,15 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 		((uint8_t *)dest)[1] = sizeof(uint64_t);
 		bcopy(sc->nsdata.eui64, ((uint8_t *)dest) + 4, sizeof(uint64_t));
 		break;
+	case 0x13:
+		/*
+		 * Controller list is optional but used by UNH tests. Return
+		 * a valid but empty list.
+		 */
+		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
+		                  sizeof(uint16_t) * 2048);
+		memset(dest, 0, sizeof(uint16_t) * 2048);
+		break;
 	default:
 		DPRINTF("%s unsupported identify command requested 0x%x",
 		         __func__, command->cdw10 & 0xFF);
