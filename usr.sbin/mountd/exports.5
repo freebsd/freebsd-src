@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2021
+.Dd August 16, 2022
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -412,6 +412,13 @@ file.
 the default remote mount-point file
 .El
 .Sh EXAMPLES
+Given that
+.Pa /usr , /u , /a
+and
+.Pa /u2
+are
+local file system mount points, let's consider the following example:
+.Pp
 .Bd -literal -offset indent
 /usr /usr/local -maproot=0:10 friends
 /usr -maproot=daemon grumpy.cis.uoguelph.ca 131.104.48.16
@@ -428,27 +435,21 @@ V4: /	-sec=krb5:krb5i:krb5p -network 131.104.48 -mask 255.255.255.0
 V4: /	-sec=sys:krb5:krb5i:krb5p grumpy.cis.uoguelph.ca
 .Ed
 .Pp
-Given that
-.Pa /usr , /u , /a
+The file systems rooted at
+.Pa /usr
 and
-.Pa /u2
-are
-local file system mount points, the above example specifies the following:
+.Pa /usr/local
+are exported to hosts within the
+.Dq friends
+network group
+with users mapped to their remote credentials and
+root mapped to UID 0 and group 10.
+They are exported read-write and the hosts in
+.Dq friends .
 .Pp
 The file system rooted at
 .Pa /usr
-is exported to hosts
-.Em friends
-where friends is specified in the netgroup file
-with users mapped to their remote credentials and
-root mapped to UID 0 and group 10.
-It is exported read-write and the hosts in
-.Dq friends
-can mount either
-.Pa /usr
-or
-.Pa /usr/local .
-It is exported to
+is exported to
 .Em 131.104.48.16
 and
 .Em grumpy.cis.uoguelph.ca
@@ -591,12 +592,21 @@ afterwards, whereas NFSv3 rejects the mount request.
 .Xr rpc.tlsservd 8 ,
 .Xr showmount 8
 .Sh STANDARDS
-The implementation is based on the specification in
+The implementation is based on the following documents:
+.Bl -dash
+.It
 .Rs
 .%T "Network File System Protocol Specification, Appendix A, RFC 1094"
+.Re
+.It
+.Rs
 .%T "NFS: Network File System Version 3, Appendix I, RFC 1813"
+.Re
+.It
+.Rs
 .%T "Towards Remote Procedure Call Encryption By Default, RFC nnnn"
 .Re
+.El
 .Sh BUGS
 The export options are tied to the local mount points in the kernel and
 must be non-contradictory for any exported subdirectory of the local
