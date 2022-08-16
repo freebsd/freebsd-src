@@ -117,7 +117,8 @@ msi_caplen(int msgctrl)
 }
 
 static int
-pcifd_init() {
+pcifd_init(void)
+{
 	pcifd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (pcifd < 0) {
 		warn("failed to open %s", _PATH_DEVPCI);
