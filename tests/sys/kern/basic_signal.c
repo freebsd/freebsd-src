@@ -164,6 +164,10 @@ ATF_TC_HEAD(signal_test_T32_to_A32, tc)
 
 t32_isa ATF_TC_BODY(signal_test_T32_to_A32, tc)
 {
+#if defined(__i386__)
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_skip("https://bugs.freebsd.org/265889");
+#endif
 	/*
 	 * Setup the signal handlers
 	 */
