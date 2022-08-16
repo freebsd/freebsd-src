@@ -1,5 +1,29 @@
 News for the tz database
 
+Release 2022c - 2022-08-15 17:47:18 -0700
+
+  Briefly:
+    Work around awk bug in FreeBSD, macOS, etc.
+    Improve tzselect on intercontinental Zones.
+
+  Changes to code
+
+    Work around a bug in onetrueawk that broke commands like
+    'make traditional_tarballs' on FreeBSD, macOS, etc.
+    (Problem reported by Deborah Goldsmith.)
+
+    Add code to tzselect that uses experimental structured comments in
+    zone1970.tab to clarify whether Zones like Africa/Abidjan and
+    Europe/Istanbul cross continent or ocean boundaries.
+    (Inspired by a problem reported by Peter Krefting.)
+
+    Fix bug with 'zic -d /a/b/c' when /a is unwritable but the
+    directory /a/b already exists.
+
+    Remove zoneinfo2tdf.pl, as it was unused and triggered false
+    malware alarms on some email servers.
+
+
 Release 2022b - 2022-08-10 15:38:32 -0700
 
   Briefly:
@@ -83,7 +107,7 @@ Release 2022b - 2022-08-10 15:38:32 -0700
 
     zic no longer complains "can't determine time zone abbreviation to
     use just after until time" when a transition to a new standard
-    time occurs simultanously with the first DST fallback transition.
+    time occurs simultaneously with the first DST fallback transition.
 
   Changes to build procedure
 
