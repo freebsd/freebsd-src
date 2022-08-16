@@ -1643,7 +1643,7 @@ kern_linkat_vp(struct thread *td, struct vnode *vp, int fd, const char *path,
 			vput(nd.ni_dvp);
 			vrele(vp);
 			return (EXDEV);
-		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
+		} else if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
 			error = can_hardlink(vp, td->td_ucred);
 #ifdef MAC
 			if (error == 0)
