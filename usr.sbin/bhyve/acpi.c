@@ -858,7 +858,7 @@ basl_compile(struct vmctx *ctx, int (*fwrite_section)(FILE *), uint64_t offset)
 {
 	struct basl_fio io[2];
 	static char iaslbuf[3*MAXPATHLEN + 10];
-	char *fmt;
+	const char *fmt;
 	int err;
 
 	err = basl_start(&io[0], &io[1]);
