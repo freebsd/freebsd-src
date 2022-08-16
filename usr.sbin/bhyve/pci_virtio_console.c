@@ -752,7 +752,7 @@ pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	return (0);
 }
 
-struct pci_devemu pci_de_vcon = {
+static const struct pci_devemu pci_de_vcon = {
 	.pe_emu =	"virtio-console",
 	.pe_init =	pci_vtcon_init,
 	.pe_barwrite =	vi_pci_write,

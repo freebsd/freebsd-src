@@ -515,7 +515,7 @@ done:
 }
 #endif
 
-struct pci_devemu pci_de_lpc = {
+static const struct pci_devemu pci_de_lpc = {
 	.pe_emu =	"lpc",
 	.pe_init =	pci_lpc_init,
 	.pe_write_dsdt = pci_lpc_write_dsdt,

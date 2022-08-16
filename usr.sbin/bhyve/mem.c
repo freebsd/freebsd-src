@@ -61,7 +61,7 @@ struct mmio_rb_range {
 struct mmio_rb_tree;
 RB_PROTOTYPE(mmio_rb_tree, mmio_rb_range, mr_link, mmio_rb_range_compare);
 
-RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rb_root, mmio_rb_fallback;
+static RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rb_root, mmio_rb_fallback;
 
 /*
  * Per-vCPU cache. Since most accesses from a vCPU will be to

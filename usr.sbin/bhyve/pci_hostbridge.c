@@ -74,14 +74,14 @@ pci_amd_hostbridge_legacy_config(nvlist_t *nvl, const char *opts)
 	return (0);
 }
 
-struct pci_devemu pci_de_amd_hostbridge = {
+static const struct pci_devemu pci_de_amd_hostbridge = {
 	.pe_emu = "amd_hostbridge",
 	.pe_legacy_config = pci_amd_hostbridge_legacy_config,
 	.pe_alias = "hostbridge",
 };
 PCI_EMUL_SET(pci_de_amd_hostbridge);
 
-struct pci_devemu pci_de_hostbridge = {
+static const struct pci_devemu pci_de_hostbridge = {
 	.pe_emu = "hostbridge",
 	.pe_init = pci_hostbridge_init,
 };

@@ -1125,7 +1125,7 @@ passthru_addr(struct vmctx *ctx, struct pci_devinst *pi, int baridx,
 	}
 }
 
-struct pci_devemu passthru = {
+static const struct pci_devemu passthru = {
 	.pe_emu		= "passthru",
 	.pe_init	= passthru_init,
 	.pe_legacy_config = passthru_legacy_config,

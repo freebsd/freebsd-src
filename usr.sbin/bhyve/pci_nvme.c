@@ -3361,7 +3361,7 @@ pci_nvme_legacy_config(nvlist_t *nvl, const char *opts)
 		return (blockif_legacy_config(nvl, opts));
 }
 
-struct pci_devemu pci_de_nvme = {
+static const struct pci_devemu pci_de_nvme = {
 	.pe_emu =	"nvme",
 	.pe_init =	pci_nvme_init,
 	.pe_legacy_config = pci_nvme_legacy_config,

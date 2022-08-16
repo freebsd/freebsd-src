@@ -812,7 +812,7 @@ e82545_tx_ctl(struct e82545_softc *sc, uint32_t val)
 	sc->esc_TCTL = val & ~0xFE800005;
 }
 
-int
+static int
 e82545_bufsz(uint32_t rctl)
 {
 
@@ -1022,7 +1022,7 @@ e82545_iov_checksum(struct iovec *iov, int iovcnt, int off, int len)
 /*
  * Return the transmit descriptor type.
  */
-int
+static int
 e82545_txdesc_type(uint32_t lower)
 {
 	int type;
@@ -2500,7 +2500,7 @@ done:
 }
 #endif
 
-struct pci_devemu pci_de_e82545 = {
+static const struct pci_devemu pci_de_e82545 = {
 	.pe_emu = 	"e1000",
 	.pe_init =	e82545_init,
 	.pe_legacy_config = netbe_legacy_config,
@@ -2511,4 +2511,3 @@ struct pci_devemu pci_de_e82545 = {
 #endif
 };
 PCI_EMUL_SET(pci_de_e82545);
-

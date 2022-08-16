@@ -564,7 +564,7 @@ pci_xhci_portregs_write(struct pci_xhci_softc *sc, uint64_t offset,
 	}
 }
 
-struct xhci_dev_ctx *
+static struct xhci_dev_ctx *
 pci_xhci_get_dev_ctx(struct pci_xhci_softc *sc, uint32_t slot)
 {
 	uint64_t devctx_addr;
@@ -588,7 +588,7 @@ pci_xhci_get_dev_ctx(struct pci_xhci_softc *sc, uint32_t slot)
 	return (devctx);
 }
 
-struct xhci_trb *
+static struct xhci_trb *
 pci_xhci_trb_next(struct pci_xhci_softc *sc, struct xhci_trb *curtrb,
     uint64_t *guestaddr)
 {
@@ -3180,7 +3180,7 @@ done:
 }
 #endif
 
-struct pci_devemu pci_de_xhci = {
+static const struct pci_devemu pci_de_xhci = {
 	.pe_emu =	"xhci",
 	.pe_init =	pci_xhci_init,
 	.pe_legacy_config = pci_xhci_legacy_config,
