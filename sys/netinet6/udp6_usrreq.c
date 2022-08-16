@@ -131,12 +131,18 @@ VNET_DEFINE(int, zero_checksum_port) = 0;
 SYSCTL_INT(_net_inet6_udp6, OID_AUTO, rfc6935_port, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(zero_checksum_port), 0,
     "Zero UDP checksum allowed for traffic to/from this port.");
+
+
+/* netinet/udp_usrreqs.c */
+pr_abort_t	udp_abort;
+pr_disconnect_t	udp_disconnect;
+pr_send_t	udp_send;
+
 /*
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.
  */
 
-extern struct protosw	inetsw[];
 static void		udp6_detach(struct socket *so);
 
 static int
@@ -777,8 +783,6 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 			hasv4addr = IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)
 			    ? 1 : 0;
 		if (hasv4addr) {
-			struct pr_usrreqs *pru;
-
 			/*
 			 * XXXRW: We release UDP-layer locks before calling
 			 * udp_send() in order to avoid recursion.  However,
@@ -790,9 +794,8 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 			INP_UNLOCK(inp);
 			if (sin6)
 				in6_sin6_2_sin_in_sock((struct sockaddr *)sin6);
-			pru = inetsw[ip_protox[nxt]].pr_usrreqs;
 			/* addr will just be freed in sendit(). */
-			return ((*pru->pru_send)(so, flags_arg | PRUS_IPV6, m,
+			return (udp_send(so, flags_arg | PRUS_IPV6, m,
 			    (struct sockaddr *)sin6, control, td));
 		}
 	} else
@@ -1003,14 +1006,8 @@ udp6_abort(struct socket *so)
 	INP_WLOCK(inp);
 #ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
-		struct pr_usrreqs *pru;
-		uint8_t nxt;
-
-		nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
-		    IPPROTO_UDP : IPPROTO_UDPLITE;
 		INP_WUNLOCK(inp);
-		pru = inetsw[ip_protox[nxt]].pr_usrreqs;
-		(*pru->pru_abort)(so);
+		udp_abort(so);
 		return;
 	}
 #endif
@@ -1131,14 +1128,8 @@ udp6_close(struct socket *so)
 	INP_WLOCK(inp);
 #ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
-		struct pr_usrreqs *pru;
-		uint8_t nxt;
-
-		nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
-		    IPPROTO_UDP : IPPROTO_UDPLITE;
 		INP_WUNLOCK(inp);
-		pru = inetsw[ip_protox[nxt]].pr_usrreqs;
-		(*pru->pru_disconnect)(so);
+		(void)udp_disconnect(so);
 		return;
 	}
 #endif
@@ -1283,14 +1274,8 @@ udp6_disconnect(struct socket *so)
 	INP_WLOCK(inp);
 #ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
-		struct pr_usrreqs *pru;
-		uint8_t nxt;
-
-		nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
-		    IPPROTO_UDP : IPPROTO_UDPLITE;
 		INP_WUNLOCK(inp);
-		pru = inetsw[ip_protox[nxt]].pr_usrreqs;
-		(void)(*pru->pru_disconnect)(so);
+		(void)udp_disconnect(so);
 		return (0);
 	}
 #endif
