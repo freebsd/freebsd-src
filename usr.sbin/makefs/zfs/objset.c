@@ -180,9 +180,11 @@ objset_write(zfs_opt_t *zfs, zfs_objset_t *os)
 		vdev_spacemap_write(zfs);
 
 		/*
-		 * We've finished allocating space, account for it in $MOS.
+		 * We've finished allocating space, account for it in $MOS and
+		 * in the parent directory.
 		 */
-		dsl_dir_size_set(zfs->mosdsldir, os->space);
+		dsl_dir_size_add(zfs->mosdsldir, os->space);
+		dsl_dir_size_add(zfs->rootdsldir, os->space);
 	}
 	_objset_write(zfs, os, c, dnodeloc);
 }
