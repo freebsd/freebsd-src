@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -69,7 +70,13 @@ struct dnode_cursor {
 void
 zfs_prep_opts(fsinfo_t *fsopts)
 {
-	zfs_opt_t *zfs = ecalloc(1, sizeof(*zfs));
+	size_t align;
+
+	align = alignof(uint64_t);
+	zfs_opt_t *zfs = aligned_alloc(align, roundup2(sizeof(*zfs), align));
+	if (zfs == NULL)
+		err(1, "aligned_alloc");
+	memset(zfs, 0, sizeof(*zfs));
 
 	const option_t zfs_options[] = {
 		{ '\0', "bootfs", &zfs->bootfs, OPT_STRPTR,
