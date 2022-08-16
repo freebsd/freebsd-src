@@ -529,10 +529,6 @@ snapshot_body()
 	create_test_dirs
 	cd $TEST_INPUTS_DIR
 
-	if [ "$(atf_config_get ci false)" = true ]; then
-		atf_skip "https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=265849"
-	fi
-
 	mkdir dir
 	echo "hello" > dir/hello
 	echo "goodbye" > goodbye
