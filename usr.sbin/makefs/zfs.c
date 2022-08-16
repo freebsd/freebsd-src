@@ -70,10 +70,11 @@ struct dnode_cursor {
 void
 zfs_prep_opts(fsinfo_t *fsopts)
 {
+	zfs_opt_t *zfs;
 	size_t align;
 
 	align = alignof(uint64_t);
-	zfs_opt_t *zfs = aligned_alloc(align, roundup2(sizeof(*zfs), align));
+	zfs = aligned_alloc(align, roundup2(sizeof(*zfs), align));
 	if (zfs == NULL)
 		err(1, "aligned_alloc");
 	memset(zfs, 0, sizeof(*zfs));
