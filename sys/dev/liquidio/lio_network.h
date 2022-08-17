@@ -95,7 +95,7 @@ struct lio {
 	/* Pointer to the octeon device structure. */
 	struct octeon_device	*oct_dev;
 
-	struct ifnet	*ifp;
+	if_t		ifp;
 	struct ifmedia	ifmedia;
 	int		if_flags;
 
@@ -139,7 +139,7 @@ struct lio {
  * @param cmd       Command that just requires acknowledgment
  * @param param1    Parameter to command
  */
-int	lio_set_feature(struct ifnet *ifp, int cmd, uint16_t param1);
+int	lio_set_feature(if_t ifp, int cmd, uint16_t param1);
 
 /*
  * \brief Link control command completion callback

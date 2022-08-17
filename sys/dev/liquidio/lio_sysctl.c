@@ -105,7 +105,7 @@ struct lio_intrmod_resp {
 };
 
 static int
-lio_send_queue_count_update(struct ifnet *ifp, uint32_t num_queues)
+lio_send_queue_count_update(if_t ifp, uint32_t num_queues)
 {
 	struct lio_ctrl_pkt	nctrl;
 	struct lio		*lio = if_getsoftc(ifp);
@@ -732,7 +732,7 @@ lio_get_regs(SYSCTL_HANDLER_ARGS)
 {
 	struct lio		*lio = (struct lio *)arg1;
 	struct octeon_device	*oct = lio->oct_dev;
-	struct ifnet		*ifp = lio->ifp;
+	if_t			ifp = lio->ifp;
 	char	*regbuf;
 	int	error = EINVAL, len = 0;
 
@@ -984,7 +984,7 @@ lio_get_ringparam(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-lio_reset_queues(struct ifnet *ifp, uint32_t num_qs)
+lio_reset_queues(if_t ifp, uint32_t num_qs)
 {
 	struct lio		*lio = if_getsoftc(ifp);
 	struct octeon_device	*oct = lio->oct_dev;
@@ -1254,7 +1254,7 @@ static int
 lio_get_set_fwmsglevel(SYSCTL_HANDLER_ARGS)
 {
 	struct lio	*lio = (struct lio *)arg1;
-	struct ifnet	*ifp = lio->ifp;
+	if_t		ifp = lio->ifp;
 	int	err, new_msglvl = 0, old_msglvl = 0;
 
 	if (lio_ifstate_check(lio, LIO_IFSTATE_RESETTING))
@@ -1311,7 +1311,7 @@ lio_fw_stats_callback(struct octeon_device *oct_dev, uint32_t status, void *ptr)
 	struct octeon_tx_stats	*rsp_tstats = &resp->stats.fromhost;
 	struct octeon_rx_stats	*rstats = &oct_dev->link_stats.fromwire;
 	struct octeon_tx_stats	*tstats = &oct_dev->link_stats.fromhost;
-	struct ifnet		*ifp = oct_dev->props.ifp;
+	if_t			ifp = oct_dev->props.ifp;
 	struct lio		*lio = if_getsoftc(ifp);
 
 	if ((status != LIO_REQUEST_TIMEOUT) && !resp->status) {
@@ -1446,7 +1446,7 @@ lio_get_intrmod_callback(struct octeon_device *oct_dev, uint32_t status,
 			 void *ptr)
 {
 	struct lio_soft_command	*sc = (struct lio_soft_command *)ptr;
-	struct ifnet		*ifp = oct_dev->props.ifp;
+	if_t			ifp = oct_dev->props.ifp;
 	struct lio		*lio = if_getsoftc(ifp);
 	struct lio_intrmod_resp	*resp;
 
