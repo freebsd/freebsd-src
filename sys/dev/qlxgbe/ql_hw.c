@@ -2163,7 +2163,7 @@ ql_get_stats(qla_host_t *ha)
 	q80_rcv_stats_t		*rstat;
 	uint32_t		cmd;
 	int			i;
-	struct ifnet *ifp = ha->ifp;
+	if_t ifp = ha->ifp;
 
 	if (ifp == NULL)
 		return;
@@ -2173,7 +2173,7 @@ ql_get_stats(qla_host_t *ha)
 		return;
 	}
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		QLA_UNLOCK(ha, __func__);
 		return;
 	}
@@ -2187,7 +2187,7 @@ ql_get_stats(qla_host_t *ha)
 
 	cmd |= ((ha->pci_func & 0x1) << 16);
 
-	if (ha->qla_watchdog_pause || (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+	if (ha->qla_watchdog_pause || (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) ||
 		ha->offline)
 		goto ql_get_stats_exit;
 
@@ -2205,7 +2205,7 @@ ql_get_stats(qla_host_t *ha)
 //	cmd |= Q8_GET_STATS_CMD_CLEAR;
 	cmd |= (ha->hw.rcv_cntxt_id << 16);
 
-	if (ha->qla_watchdog_pause || (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+	if (ha->qla_watchdog_pause || (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) ||
 		ha->offline)
 		goto ql_get_stats_exit;
 
@@ -2217,7 +2217,7 @@ ql_get_stats(qla_host_t *ha)
 			__func__, ha->hw.mbox[0]);
 	}
 
-	if (ha->qla_watchdog_pause || (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+	if (ha->qla_watchdog_pause || (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) ||
 		ha->offline)
 		goto ql_get_stats_exit;
 	/*
@@ -2225,7 +2225,7 @@ ql_get_stats(qla_host_t *ha)
 	 */
 	for (i = 0 ; (i < ha->hw.num_tx_rings); i++) {
 		if (ha->qla_watchdog_pause ||
-			(!(ifp->if_drv_flags & IFF_DRV_RUNNING)) ||
+			(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) ||
 			ha->offline)
 			goto ql_get_stats_exit;
 
@@ -2977,7 +2977,7 @@ ql_init_hw_if(qla_host_t *ha)
 	if (qla_link_event_req(ha, ha->hw.rcv_cntxt_id))
 		return (-1);
 
-	if (ha->ifp->if_capenable & IFCAP_LRO) {
+	if (if_getcapenable(ha->ifp) & IFCAP_LRO) {
 		if (ha->hw.enable_hw_lro) {
 			ha->hw.enable_soft_lro = 0;
 
@@ -3786,7 +3786,7 @@ ql_update_link_state(qla_host_t *ha)
 
 	prev_link_state =  ha->hw.link_up;
 
-	if (ha->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING) {
 		link_state = READ_REG32(ha, Q8_LINK_STATE);
 
 		if (ha->pci_func == 0) {

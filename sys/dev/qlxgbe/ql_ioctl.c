@@ -59,7 +59,7 @@ int
 ql_make_cdev(qla_host_t *ha)
 {
         ha->ioctl_dev = make_dev(&qla_cdevsw,
-				ha->ifp->if_dunit,
+				if_getdunit(ha->ifp),
                                 UID_ROOT,
                                 GID_WHEEL,
                                 0600,
@@ -89,7 +89,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
         qla_host_t *ha;
         int rval = 0;
 	device_t pci_dev;
-	struct ifnet *ifp;
+	if_t ifp;
 	int count;
 
 	q80_offchip_mem_val_t val;
@@ -147,7 +147,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			rval = ENXIO;
 			break;
 		}
@@ -174,7 +174,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			rval = ENXIO;
 			break;
 		}
