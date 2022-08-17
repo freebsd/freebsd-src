@@ -62,152 +62,110 @@
 #include <netgraph/bluetooth/include/ng_btsocket_sco.h>
 
 static int			ng_btsocket_modevent (module_t, int, void *);
-static struct domain		ng_btsocket_domain;
-
-/*
- * Bluetooth raw HCI sockets
- */
-
-static struct pr_usrreqs	ng_btsocket_hci_raw_usrreqs = {
-	.pru_abort =		ng_btsocket_hci_raw_abort,
-	.pru_attach =		ng_btsocket_hci_raw_attach,
-	.pru_bind =		ng_btsocket_hci_raw_bind,
-	.pru_connect =		ng_btsocket_hci_raw_connect,
-	.pru_control =		ng_btsocket_hci_raw_control,
-	.pru_detach =		ng_btsocket_hci_raw_detach,
-	.pru_disconnect =	ng_btsocket_hci_raw_disconnect,
-	.pru_peeraddr =		ng_btsocket_hci_raw_peeraddr,
-	.pru_send =		ng_btsocket_hci_raw_send,
-	.pru_sockaddr =		ng_btsocket_hci_raw_sockaddr,
-	.pru_close =		ng_btsocket_hci_raw_close,
-};
-
-/*
- * Bluetooth raw L2CAP sockets
- */
-
-static struct pr_usrreqs	ng_btsocket_l2cap_raw_usrreqs = {
-	.pru_abort =		ng_btsocket_l2cap_raw_abort,
-	.pru_attach =		ng_btsocket_l2cap_raw_attach,
-	.pru_bind =		ng_btsocket_l2cap_raw_bind,
-	.pru_connect =		ng_btsocket_l2cap_raw_connect,
-	.pru_control =		ng_btsocket_l2cap_raw_control,
-	.pru_detach =		ng_btsocket_l2cap_raw_detach,
-	.pru_disconnect =	ng_btsocket_l2cap_raw_disconnect,
-	.pru_peeraddr =		ng_btsocket_l2cap_raw_peeraddr,
-	.pru_send =		ng_btsocket_l2cap_raw_send,
-	.pru_sockaddr =		ng_btsocket_l2cap_raw_sockaddr,
-	.pru_close =		ng_btsocket_l2cap_raw_close,
-};
-
-/*
- * Bluetooth SEQPACKET L2CAP sockets
- */
-
-static struct pr_usrreqs	ng_btsocket_l2cap_usrreqs = {
-	.pru_abort =		ng_btsocket_l2cap_abort,
-	.pru_accept =		ng_btsocket_l2cap_accept,
-	.pru_attach =		ng_btsocket_l2cap_attach,
-	.pru_bind =		ng_btsocket_l2cap_bind,
-	.pru_connect =		ng_btsocket_l2cap_connect,
-	.pru_control =		ng_btsocket_l2cap_control,
-	.pru_detach =		ng_btsocket_l2cap_detach,
-	.pru_disconnect =	ng_btsocket_l2cap_disconnect,
-        .pru_listen =		ng_btsocket_l2cap_listen,
-	.pru_peeraddr =		ng_btsocket_l2cap_peeraddr,
-	.pru_send =		ng_btsocket_l2cap_send,
-	.pru_sockaddr =		ng_btsocket_l2cap_sockaddr,
-	.pru_close =		ng_btsocket_l2cap_close,
-};
-
-/*
- * Bluetooth STREAM RFCOMM sockets
- */
-
-static struct pr_usrreqs	ng_btsocket_rfcomm_usrreqs = {
-	.pru_abort =		ng_btsocket_rfcomm_abort,
-	.pru_accept =		ng_btsocket_rfcomm_accept,
-	.pru_attach =		ng_btsocket_rfcomm_attach,
-	.pru_bind =		ng_btsocket_rfcomm_bind,
-	.pru_connect =		ng_btsocket_rfcomm_connect,
-	.pru_control =		ng_btsocket_rfcomm_control,
-	.pru_detach =		ng_btsocket_rfcomm_detach,
-	.pru_disconnect =	ng_btsocket_rfcomm_disconnect,
-        .pru_listen =		ng_btsocket_rfcomm_listen,
-	.pru_peeraddr =		ng_btsocket_rfcomm_peeraddr,
-	.pru_send =		ng_btsocket_rfcomm_send,
-	.pru_sockaddr =		ng_btsocket_rfcomm_sockaddr,
-	.pru_close =		ng_btsocket_rfcomm_close,
-};
-
-/*
- * Bluetooth SEQPACKET SCO sockets
- */
-
-static struct pr_usrreqs	ng_btsocket_sco_usrreqs = {
-	.pru_abort =		ng_btsocket_sco_abort,
-	.pru_accept =		ng_btsocket_sco_accept,
-	.pru_attach =		ng_btsocket_sco_attach,
-	.pru_bind =		ng_btsocket_sco_bind,
-	.pru_connect =		ng_btsocket_sco_connect,
-	.pru_control =		ng_btsocket_sco_control,
-	.pru_detach =		ng_btsocket_sco_detach,
-	.pru_disconnect =	ng_btsocket_sco_disconnect,
-	.pru_listen =		ng_btsocket_sco_listen,
-	.pru_peeraddr =		ng_btsocket_sco_peeraddr,
-	.pru_send =		ng_btsocket_sco_send,
-	.pru_sockaddr =		ng_btsocket_sco_sockaddr,
-	.pru_close =		ng_btsocket_sco_close,
-};
 
 /* 
  * Definitions of protocols supported in the BLUETOOTH domain 
  */
 
-static struct protosw		ng_btsocket_protosw[] = {
-{
+/* Bluetooth raw HCI sockets */
+static struct protosw ng_btsocket_hci_raw_protosw = {
 	.pr_type =		SOCK_RAW,
-	.pr_domain =		&ng_btsocket_domain,
 	.pr_protocol =		BLUETOOTH_PROTO_HCI,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_ctloutput =		ng_btsocket_hci_raw_ctloutput,
-	.pr_usrreqs =		&ng_btsocket_hci_raw_usrreqs,
-},
-{
+	.pr_abort =		ng_btsocket_hci_raw_abort,
+	.pr_attach =		ng_btsocket_hci_raw_attach,
+	.pr_bind =		ng_btsocket_hci_raw_bind,
+	.pr_connect =		ng_btsocket_hci_raw_connect,
+	.pr_control =		ng_btsocket_hci_raw_control,
+	.pr_detach =		ng_btsocket_hci_raw_detach,
+	.pr_disconnect =	ng_btsocket_hci_raw_disconnect,
+	.pr_peeraddr =		ng_btsocket_hci_raw_peeraddr,
+	.pr_send =		ng_btsocket_hci_raw_send,
+	.pr_sockaddr =		ng_btsocket_hci_raw_sockaddr,
+	.pr_close =		ng_btsocket_hci_raw_close,
+};
+
+/* Bluetooth raw L2CAP sockets */
+static struct protosw ng_btsocket_l2cap_raw_protosw = {
 	.pr_type =		SOCK_RAW,
-	.pr_domain =		&ng_btsocket_domain,
 	.pr_protocol =		BLUETOOTH_PROTO_L2CAP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_usrreqs =		&ng_btsocket_l2cap_raw_usrreqs,
-},
-{
+	.pr_abort =		ng_btsocket_l2cap_raw_abort,
+	.pr_attach =		ng_btsocket_l2cap_raw_attach,
+	.pr_bind =		ng_btsocket_l2cap_raw_bind,
+	.pr_connect =		ng_btsocket_l2cap_raw_connect,
+	.pr_control =		ng_btsocket_l2cap_raw_control,
+	.pr_detach =		ng_btsocket_l2cap_raw_detach,
+	.pr_disconnect =	ng_btsocket_l2cap_raw_disconnect,
+	.pr_peeraddr =		ng_btsocket_l2cap_raw_peeraddr,
+	.pr_send =		ng_btsocket_l2cap_raw_send,
+	.pr_sockaddr =		ng_btsocket_l2cap_raw_sockaddr,
+	.pr_close =		ng_btsocket_l2cap_raw_close,
+};
+
+/* Bluetooth SEQPACKET L2CAP sockets */
+static struct protosw ng_btsocket_l2cap_protosw = {
 	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&ng_btsocket_domain,
 	.pr_protocol =		BLUETOOTH_PROTO_L2CAP,
 	.pr_flags =		PR_ATOMIC|PR_CONNREQUIRED,
 	.pr_ctloutput =		ng_btsocket_l2cap_ctloutput,
-	.pr_usrreqs =		&ng_btsocket_l2cap_usrreqs,
-},
-{
+	.pr_abort =		ng_btsocket_l2cap_abort,
+	.pr_accept =		ng_btsocket_l2cap_accept,
+	.pr_attach =		ng_btsocket_l2cap_attach,
+	.pr_bind =		ng_btsocket_l2cap_bind,
+	.pr_connect =		ng_btsocket_l2cap_connect,
+	.pr_control =		ng_btsocket_l2cap_control,
+	.pr_detach =		ng_btsocket_l2cap_detach,
+	.pr_disconnect =	ng_btsocket_l2cap_disconnect,
+        .pr_listen =		ng_btsocket_l2cap_listen,
+	.pr_peeraddr =		ng_btsocket_l2cap_peeraddr,
+	.pr_send =		ng_btsocket_l2cap_send,
+	.pr_sockaddr =		ng_btsocket_l2cap_sockaddr,
+	.pr_close =		ng_btsocket_l2cap_close,
+};
+
+/* Bluetooth STREAM RFCOMM sockets */
+static struct protosw ng_btsocket_rfcomm_protosw = {
 	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&ng_btsocket_domain,
 	.pr_protocol =		BLUETOOTH_PROTO_RFCOMM,
 	.pr_flags =		PR_CONNREQUIRED,
 	.pr_ctloutput =		ng_btsocket_rfcomm_ctloutput,
-	.pr_usrreqs =		&ng_btsocket_rfcomm_usrreqs,
-},
-{
+	.pr_abort =		ng_btsocket_rfcomm_abort,
+	.pr_accept =		ng_btsocket_rfcomm_accept,
+	.pr_attach =		ng_btsocket_rfcomm_attach,
+	.pr_bind =		ng_btsocket_rfcomm_bind,
+	.pr_connect =		ng_btsocket_rfcomm_connect,
+	.pr_control =		ng_btsocket_rfcomm_control,
+	.pr_detach =		ng_btsocket_rfcomm_detach,
+	.pr_disconnect =	ng_btsocket_rfcomm_disconnect,
+        .pr_listen =		ng_btsocket_rfcomm_listen,
+	.pr_peeraddr =		ng_btsocket_rfcomm_peeraddr,
+	.pr_send =		ng_btsocket_rfcomm_send,
+	.pr_sockaddr =		ng_btsocket_rfcomm_sockaddr,
+	.pr_close =		ng_btsocket_rfcomm_close,
+};
+
+/* Bluetooth SEQPACKET SCO sockets */
+static struct protosw ng_btsocket_sco_protosw = {
 	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&ng_btsocket_domain,
 	.pr_protocol =		BLUETOOTH_PROTO_SCO,
 	.pr_flags =		PR_ATOMIC|PR_CONNREQUIRED,
 	.pr_ctloutput =		ng_btsocket_sco_ctloutput,
-	.pr_usrreqs =		&ng_btsocket_sco_usrreqs,
-},
+	.pr_abort =		ng_btsocket_sco_abort,
+	.pr_accept =		ng_btsocket_sco_accept,
+	.pr_attach =		ng_btsocket_sco_attach,
+	.pr_bind =		ng_btsocket_sco_bind,
+	.pr_connect =		ng_btsocket_sco_connect,
+	.pr_control =		ng_btsocket_sco_control,
+	.pr_detach =		ng_btsocket_sco_detach,
+	.pr_disconnect =	ng_btsocket_sco_disconnect,
+	.pr_listen =		ng_btsocket_sco_listen,
+	.pr_peeraddr =		ng_btsocket_sco_peeraddr,
+	.pr_send =		ng_btsocket_sco_send,
+	.pr_sockaddr =		ng_btsocket_sco_sockaddr,
+	.pr_close =		ng_btsocket_sco_close,
 };
-
-#define ng_btsocket_protosw_end \
-	&ng_btsocket_protosw[nitems(ng_btsocket_protosw)]
 
 /*
  * BLUETOOTH domain
@@ -216,8 +174,14 @@ static struct protosw		ng_btsocket_protosw[] = {
 static struct domain ng_btsocket_domain = {
 	.dom_family =		AF_BLUETOOTH,
 	.dom_name =		"bluetooth",
-	.dom_protosw =		ng_btsocket_protosw,
-	.dom_protoswNPROTOSW =	ng_btsocket_protosw_end
+	.dom_nprotosw =		5,
+	.dom_protosw = {
+		&ng_btsocket_hci_raw_protosw,
+		&ng_btsocket_l2cap_raw_protosw,
+		&ng_btsocket_l2cap_protosw,
+		&ng_btsocket_rfcomm_protosw,
+		&ng_btsocket_sco_protosw,
+	},
 };
 
 /* 

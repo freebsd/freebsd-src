@@ -105,9 +105,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_FILECAPS);
 
-/*
- * See unpcb.h for the locking key.
- */
+static struct domain localdomain;
 
 static uma_zone_t	unp_zone;
 static unp_gen_t	unp_gencnt;	/* (l) */
@@ -221,7 +219,7 @@ SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
  * using a reference counter to maintain liveness.
  *
  * UNIX domain sockets each have an unpcb hung off of their so_pcb pointer,
- * allocated in pru_attach() and freed in pru_detach().  The validity of that
+ * allocated in pr_attach() and freed in pr_detach().  The validity of that
  * pointer is an invariant, so no lock is required to dereference the so_pcb
  * pointer if a valid socket reference is held by the caller.  In practice,
  * this is always true during operations performed on a socket.  Each unpcb
@@ -418,55 +416,6 @@ unp_pcb_lock_peer(struct unpcb *unp)
 	}
 	return (unp2);
 }
-
-/*
- * Definitions of protocols supported in the LOCAL domain.
- */
-static struct domain localdomain;
-static struct pr_usrreqs uipc_usrreqs_dgram, uipc_usrreqs_stream;
-static struct pr_usrreqs uipc_usrreqs_seqpacket;
-static struct protosw localsw[] = {
-{
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&localdomain,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS|
-				    PR_CAPATTACH,
-	.pr_ctloutput =		&uipc_ctloutput,
-	.pr_usrreqs =		&uipc_usrreqs_stream
-},
-{
-	.pr_type =		SOCK_DGRAM,
-	.pr_domain =		&localdomain,
-	.pr_flags =		PR_ATOMIC | PR_ADDR |PR_RIGHTS | PR_CAPATTACH |
-				    PR_SOCKBUF,
-	.pr_ctloutput =		&uipc_ctloutput,
-	.pr_usrreqs =		&uipc_usrreqs_dgram
-},
-{
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&localdomain,
-
-	/*
-	 * XXXRW: For now, PR_ADDR because soreceive will bump into them
-	 * due to our use of sbappendaddr.  A new sbappend variants is needed
-	 * that supports both atomic record writes and control data.
-	 */
-	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|
-				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
-	.pr_ctloutput =		&uipc_ctloutput,
-	.pr_usrreqs =		&uipc_usrreqs_seqpacket,
-},
-};
-
-static struct domain localdomain = {
-	.dom_family =		AF_LOCAL,
-	.dom_name =		"local",
-	.dom_externalize =	unp_externalize,
-	.dom_dispose =		unp_dispose,
-	.dom_protosw =		localsw,
-	.dom_protoswNPROTOSW =	&localsw[nitems(localsw)]
-};
-DOMAIN_SET(local);
 
 static void
 uipc_abort(struct socket *so)
@@ -1118,7 +1067,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	m = NULL;
 out:
 	/*
-	 * PRUS_EOF is equivalent to pru_send followed by pru_shutdown.
+	 * PRUS_EOF is equivalent to pr_send followed by pr_shutdown.
 	 */
 	if (flags & PRUS_EOF) {
 		UNP_PCB_LOCK(unp);
@@ -1211,7 +1160,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		    (error = unp_internalize(&c, td, &clast, &ctl, &mbcnt)))
 			goto out;
 	} else {
-		/* pru_sosend() with mbuf usually is a kernel thread. */
+		/* pr_sosend() with mbuf usually is a kernel thread. */
 
 		M_ASSERTPKTHDR(m);
 		if (__predict_false(c != NULL))
@@ -1770,71 +1719,6 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 	UNP_PCB_UNLOCK(unp);
 	return (0);
 }
-
-static struct pr_usrreqs uipc_usrreqs_dgram = {
-	.pru_abort = 		uipc_abort,
-	.pru_accept =		uipc_accept,
-	.pru_attach =		uipc_attach,
-	.pru_bind =		uipc_bind,
-	.pru_bindat =		uipc_bindat,
-	.pru_connect =		uipc_connect,
-	.pru_connectat =	uipc_connectat,
-	.pru_connect2 =		uipc_connect2,
-	.pru_detach =		uipc_detach,
-	.pru_disconnect =	uipc_disconnect,
-	.pru_peeraddr =		uipc_peeraddr,
-	.pru_sosend =		uipc_sosend_dgram,
-	.pru_sense =		uipc_sense,
-	.pru_shutdown =		uipc_shutdown,
-	.pru_sockaddr =		uipc_sockaddr,
-	.pru_soreceive =	uipc_soreceive_dgram,
-	.pru_close =		uipc_close,
-};
-
-static struct pr_usrreqs uipc_usrreqs_seqpacket = {
-	.pru_abort =		uipc_abort,
-	.pru_accept =		uipc_accept,
-	.pru_attach =		uipc_attach,
-	.pru_bind =		uipc_bind,
-	.pru_bindat =		uipc_bindat,
-	.pru_connect =		uipc_connect,
-	.pru_connectat =	uipc_connectat,
-	.pru_connect2 =		uipc_connect2,
-	.pru_detach =		uipc_detach,
-	.pru_disconnect =	uipc_disconnect,
-	.pru_listen =		uipc_listen,
-	.pru_peeraddr =		uipc_peeraddr,
-	.pru_rcvd =		uipc_rcvd,
-	.pru_send =		uipc_send,
-	.pru_sense =		uipc_sense,
-	.pru_shutdown =		uipc_shutdown,
-	.pru_sockaddr =		uipc_sockaddr,
-	.pru_soreceive =	soreceive_generic,	/* XXX: or...? */
-	.pru_close =		uipc_close,
-};
-
-static struct pr_usrreqs uipc_usrreqs_stream = {
-	.pru_abort = 		uipc_abort,
-	.pru_accept =		uipc_accept,
-	.pru_attach =		uipc_attach,
-	.pru_bind =		uipc_bind,
-	.pru_bindat =		uipc_bindat,
-	.pru_connect =		uipc_connect,
-	.pru_connectat =	uipc_connectat,
-	.pru_connect2 =		uipc_connect2,
-	.pru_detach =		uipc_detach,
-	.pru_disconnect =	uipc_disconnect,
-	.pru_listen =		uipc_listen,
-	.pru_peeraddr =		uipc_peeraddr,
-	.pru_rcvd =		uipc_rcvd,
-	.pru_send =		uipc_send,
-	.pru_ready =		uipc_ready,
-	.pru_sense =		uipc_sense,
-	.pru_shutdown =		uipc_shutdown,
-	.pru_sockaddr =		uipc_sockaddr,
-	.pru_soreceive =	soreceive_generic,
-	.pru_close =		uipc_close,
-};
 
 static int
 uipc_ctloutput(struct socket *so, struct sockopt *sopt)
@@ -3425,6 +3309,105 @@ unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
 		m0 = m0->m_nextpkt;
 	}
 }
+
+/*
+ * Definitions of protocols supported in the LOCAL domain.
+ */
+static struct protosw streamproto = {
+	.pr_type =		SOCK_STREAM,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS|
+				    PR_CAPATTACH,
+	.pr_ctloutput =		&uipc_ctloutput,
+	.pr_abort = 		uipc_abort,
+	.pr_accept =		uipc_accept,
+	.pr_attach =		uipc_attach,
+	.pr_bind =		uipc_bind,
+	.pr_bindat =		uipc_bindat,
+	.pr_connect =		uipc_connect,
+	.pr_connectat =		uipc_connectat,
+	.pr_connect2 =		uipc_connect2,
+	.pr_detach =		uipc_detach,
+	.pr_disconnect =	uipc_disconnect,
+	.pr_listen =		uipc_listen,
+	.pr_peeraddr =		uipc_peeraddr,
+	.pr_rcvd =		uipc_rcvd,
+	.pr_send =		uipc_send,
+	.pr_ready =		uipc_ready,
+	.pr_sense =		uipc_sense,
+	.pr_shutdown =		uipc_shutdown,
+	.pr_sockaddr =		uipc_sockaddr,
+	.pr_soreceive =		soreceive_generic,
+	.pr_close =		uipc_close,
+};
+
+static struct protosw dgramproto = {
+	.pr_type =		SOCK_DGRAM,
+	.pr_flags =		PR_ATOMIC | PR_ADDR |PR_RIGHTS | PR_CAPATTACH |
+				    PR_SOCKBUF,
+	.pr_ctloutput =		&uipc_ctloutput,
+	.pr_abort = 		uipc_abort,
+	.pr_accept =		uipc_accept,
+	.pr_attach =		uipc_attach,
+	.pr_bind =		uipc_bind,
+	.pr_bindat =		uipc_bindat,
+	.pr_connect =		uipc_connect,
+	.pr_connectat =		uipc_connectat,
+	.pr_connect2 =		uipc_connect2,
+	.pr_detach =		uipc_detach,
+	.pr_disconnect =	uipc_disconnect,
+	.pr_peeraddr =		uipc_peeraddr,
+	.pr_sosend =		uipc_sosend_dgram,
+	.pr_sense =		uipc_sense,
+	.pr_shutdown =		uipc_shutdown,
+	.pr_sockaddr =		uipc_sockaddr,
+	.pr_soreceive =		uipc_soreceive_dgram,
+	.pr_close =		uipc_close,
+};
+
+static struct protosw seqpacketproto = {
+	.pr_type =		SOCK_SEQPACKET,
+	/*
+	 * XXXRW: For now, PR_ADDR because soreceive will bump into them
+	 * due to our use of sbappendaddr.  A new sbappend variants is needed
+	 * that supports both atomic record writes and control data.
+	 */
+	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|
+				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
+	.pr_ctloutput =		&uipc_ctloutput,
+	.pr_abort =		uipc_abort,
+	.pr_accept =		uipc_accept,
+	.pr_attach =		uipc_attach,
+	.pr_bind =		uipc_bind,
+	.pr_bindat =		uipc_bindat,
+	.pr_connect =		uipc_connect,
+	.pr_connectat =		uipc_connectat,
+	.pr_connect2 =		uipc_connect2,
+	.pr_detach =		uipc_detach,
+	.pr_disconnect =	uipc_disconnect,
+	.pr_listen =		uipc_listen,
+	.pr_peeraddr =		uipc_peeraddr,
+	.pr_rcvd =		uipc_rcvd,
+	.pr_send =		uipc_send,
+	.pr_sense =		uipc_sense,
+	.pr_shutdown =		uipc_shutdown,
+	.pr_sockaddr =		uipc_sockaddr,
+	.pr_soreceive =		soreceive_generic,	/* XXX: or...? */
+	.pr_close =		uipc_close,
+};
+
+static struct domain localdomain = {
+	.dom_family =		AF_LOCAL,
+	.dom_name =		"local",
+	.dom_externalize =	unp_externalize,
+	.dom_dispose =		unp_dispose,
+	.dom_nprotosw =		3,
+	.dom_protosw =		{
+		&streamproto,
+		&dgramproto,
+		&seqpacketproto,
+	}
+};
+DOMAIN_SET(local);
 
 /*
  * A helper function called by VFS before socket-type vnode reclamation.

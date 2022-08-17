@@ -726,23 +726,19 @@ SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist,
     "List of active divert sockets");
 #endif
 
-struct pr_usrreqs div_usrreqs = {
-	.pru_attach =		div_attach,
-	.pru_bind =		div_bind,
-	.pru_control =		in_control,
-	.pru_detach =		div_detach,
-	.pru_peeraddr =		in_getpeeraddr,
-	.pru_send =		div_send,
-	.pru_shutdown =		div_shutdown,
-	.pru_sockaddr =		in_getsockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel
-};
-
-struct protosw div_protosw = {
+static struct protosw div_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_protocol =		IPPROTO_DIVERT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_usrreqs =		&div_usrreqs
+	.pr_attach =		div_attach,
+	.pr_bind =		div_bind,
+	.pr_control =		in_control,
+	.pr_detach =		div_detach,
+	.pr_peeraddr =		in_getpeeraddr,
+	.pr_send =		div_send,
+	.pr_shutdown =		div_shutdown,
+	.pr_sockaddr =		in_getsockaddr,
+	.pr_sosetlabel =	in_pcbsosetlabel
 };
 
 static int
@@ -755,7 +751,7 @@ div_modevent(module_t mod, int type, void *unused)
 		/*
 		 * Protocol will be initialized by pf_proto_register().
 		 */
-		err = pf_proto_register(PF_INET, &div_protosw);
+		err = protosw_register(&inetdomain, &div_protosw);
 		if (err != 0)
 			return (err);
 		ip_divert_ptr = divert_packet;
@@ -787,7 +783,7 @@ div_modevent(module_t mod, int type, void *unused)
 			break;
 		}
 		ip_divert_ptr = NULL;
-		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
+		err = protosw_unregister(&div_protosw);
 		INP_INFO_WUNLOCK(&V_divcbinfo);
 #ifndef VIMAGE
 		div_destroy(NULL);

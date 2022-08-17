@@ -523,9 +523,8 @@ socreate(int dom, struct socket **aso, int type, int proto,
 			return (EPROTOTYPE);
 		return (EPROTONOSUPPORT);
 	}
-	if (prp->pr_usrreqs->pru_attach == NULL ||
-	    prp->pr_usrreqs->pru_attach == pru_attach_notsupp)
-		return (EPROTONOSUPPORT);
+
+	MPASS(prp->pr_attach);
 
 	if (IN_CAPABILITY_MODE(td) && (prp->pr_flags & PR_CAPATTACH) == 0)
 		return (ECAPMODE);
@@ -564,7 +563,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	 * the appropriate flags must be set in the pru_attach function.
 	 */
 	CURVNET_SET(so->so_vnet);
-	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
+	error = prp->pr_attach(so, proto, td);
 	CURVNET_RESTORE();
 	if (error) {
 		sodealloc(so);
@@ -789,9 +788,9 @@ sonewconn(struct socket *head, int connstatus)
 	if ((so = solisten_clone(head)) == NULL)
 		return (NULL);
 
-	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
+	if (so->so_proto->pr_attach(so, 0, NULL) != 0) {
 		sodealloc(so);
-		log(LOG_DEBUG, "%s: pcb %p: pru_attach() failed\n",
+		log(LOG_DEBUG, "%s: pcb %p: pr_attach() failed\n",
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
@@ -894,7 +893,7 @@ sopeeloff(struct socket *head)
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
-	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
+	if ((*so->so_proto->pr_attach)(so, 0, NULL)) {
 		sodealloc(so);
 		log(LOG_DEBUG, "%s: pcb %p: pru_attach() failed\n",
 		    __func__, head->so_pcb);
@@ -919,7 +918,7 @@ sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
+	error = so->so_proto->pr_bind(so, nam, td);
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -930,7 +929,7 @@ sobindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_bindat)(fd, so, nam, td);
+	error = so->so_proto->pr_bindat(fd, so, nam, td);
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -953,7 +952,7 @@ solisten(struct socket *so, int backlog, struct thread *td)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, backlog, td);
+	error = so->so_proto->pr_listen(so, backlog, td);
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -1178,8 +1177,8 @@ sofree(struct socket *so)
 		MPASS(pr->pr_domain->dom_dispose != NULL);
 		(*pr->pr_domain->dom_dispose)(so);
 	}
-	if (pr->pr_usrreqs->pru_detach != NULL)
-		(*pr->pr_usrreqs->pru_detach)(so);
+	if (pr->pr_detach != NULL)
+		pr->pr_detach(so);
 
 	/*
 	 * From this point on, we assume that no other references to this
@@ -1253,8 +1252,8 @@ soclose(struct socket *so)
 	}
 
 drop:
-	if (so->so_proto->pr_usrreqs->pru_close != NULL)
-		(*so->so_proto->pr_usrreqs->pru_close)(so);
+	if (so->so_proto->pr_close != NULL)
+		so->so_proto->pr_close(so);
 
 	SOCK_LOCK(so);
 	if ((listening = SOLISTENING(so))) {
@@ -1314,8 +1313,8 @@ soabort(struct socket *so)
 
 	VNET_SO_ASSERT(so);
 
-	if (so->so_proto->pr_usrreqs->pru_abort != NULL)
-		(*so->so_proto->pr_usrreqs->pru_abort)(so);
+	if (so->so_proto->pr_abort != NULL)
+		so->so_proto->pr_abort(so);
 	SOCK_LOCK(so);
 	sorele_locked(so);
 }
@@ -1326,7 +1325,7 @@ soaccept(struct socket *so, struct sockaddr **nam)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_accept)(so, nam);
+	error = so->so_proto->pr_accept(so, nam);
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -1360,11 +1359,9 @@ soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 		 */
 		so->so_error = 0;
 		if (fd == AT_FDCWD) {
-			error = (*so->so_proto->pr_usrreqs->pru_connect)(so,
-			    nam, td);
+			error = so->so_proto->pr_connect(so, nam, td);
 		} else {
-			error = (*so->so_proto->pr_usrreqs->pru_connectat)(fd,
-			    so, nam, td);
+			error = so->so_proto->pr_connectat(fd, so, nam, td);
 		}
 	}
 	CURVNET_RESTORE();
@@ -1378,7 +1375,7 @@ soconnect2(struct socket *so1, struct socket *so2)
 	int error;
 
 	CURVNET_SET(so1->so_vnet);
-	error = (*so1->so_proto->pr_usrreqs->pru_connect2)(so1, so2);
+	error = so1->so_proto->pr_connect2(so1, so2);
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -1393,7 +1390,7 @@ sodisconnect(struct socket *so)
 	if (so->so_state & SS_ISDISCONNECTING)
 		return (EALREADY);
 	VNET_SO_ASSERT(so);
-	error = (*so->so_proto->pr_usrreqs->pru_disconnect)(so);
+	error = so->so_proto->pr_disconnect(so);
 	return (error);
 }
 
@@ -1519,8 +1516,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 * rethink this.
 	 */
 	VNET_SO_ASSERT(so);
-	error = (*so->so_proto->pr_usrreqs->pru_send)(so,
-	    (flags & MSG_OOB) ? PRUS_OOB :
+	error = so->so_proto->pr_send(so, (flags & MSG_OOB) ? PRUS_OOB :
 	/*
 	 * If the user set MSG_EOF, the protocol understands this flag and
 	 * nothing left to send then use PRU_SEND_EOF instead of PRU_SEND.
@@ -1570,10 +1566,10 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	ssize_t resid;
 	int clen = 0, error, dontroute;
 	int atomic = sosendallatonce(so) || top;
-	int pru_flag;
+	int pr_send_flag;
 #ifdef KERN_TLS
 	struct ktls_session *tls;
-	int tls_enq_cnt, tls_pruflag;
+	int tls_enq_cnt, tls_send_flag;
 	uint8_t tls_rtype;
 
 	tls = NULL;
@@ -1613,11 +1609,11 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		goto out;
 
 #ifdef KERN_TLS
-	tls_pruflag = 0;
+	tls_send_flag = 0;
 	tls = ktls_hold(so->so_snd.sb_tls_info);
 	if (tls != NULL) {
 		if (tls->mode == TCP_TLS_MODE_SW)
-			tls_pruflag = PRUS_NOTREADY;
+			tls_send_flag = PRUS_NOTREADY;
 
 		if (control != NULL) {
 			struct cmsghdr *cm = mtod(control, struct cmsghdr *);
@@ -1764,7 +1760,7 @@ restart:
 			 */
 			VNET_SO_ASSERT(so);
 
-			pru_flag = (flags & MSG_OOB) ? PRUS_OOB :
+			pr_send_flag = (flags & MSG_OOB) ? PRUS_OOB :
 			/*
 			 * If the user set MSG_EOF, the protocol understands
 			 * this flag and nothing left to send then use
@@ -1779,11 +1775,11 @@ restart:
 			    (resid > 0 && space > 0) ? PRUS_MORETOCOME : 0;
 
 #ifdef KERN_TLS
-			pru_flag |= tls_pruflag;
+			pr_send_flag |= tls_send_flag;
 #endif
 
-			error = (*so->so_proto->pr_usrreqs->pru_send)(so,
-			    pru_flag, top, addr, control, td);
+			error = so->so_proto->pr_send(so, pr_send_flag, top,
+			    addr, control, td);
 
 			if (dontroute) {
 				SOCK_LOCK(so);
@@ -1831,7 +1827,7 @@ sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio,
+	error = so->so_proto->pr_sosend(so, addr, uio,
 	    top, control, flags, td);
 	CURVNET_RESTORE();
 	return (error);
@@ -1856,7 +1852,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 	VNET_SO_ASSERT(so);
 
 	m = m_get(M_WAITOK, MT_DATA);
-	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
+	error = pr->pr_rcvoob(so, m, flags & MSG_PEEK);
 	if (error)
 		goto bad;
 	do {
@@ -1952,7 +1948,7 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	if ((pr->pr_flags & PR_WANTRCVD) && (so->so_state & SS_ISCONFIRMING)
 	    && uio->uio_resid) {
 		VNET_SO_ASSERT(so);
-		(*pr->pr_usrreqs->pru_rcvd)(so, 0);
+		pr->pr_rcvd(so, 0);
 	}
 
 	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
@@ -2341,7 +2337,7 @@ dontblock:
 			if (pr->pr_flags & PR_WANTRCVD) {
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				VNET_SO_ASSERT(so);
-				(*pr->pr_usrreqs->pru_rcvd)(so, flags);
+				pr->pr_rcvd(so, flags);
 				SOCKBUF_LOCK(&so->so_rcv);
 			}
 			SBLASTRECORDCHK(&so->so_rcv);
@@ -2396,7 +2392,7 @@ dontblock:
 		    (pr->pr_flags & PR_WANTRCVD)) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			VNET_SO_ASSERT(so);
-			(*pr->pr_usrreqs->pru_rcvd)(so, flags);
+			pr->pr_rcvd(so, flags);
 			SOCKBUF_LOCK(&so->so_rcv);
 		}
 	}
@@ -2617,7 +2613,7 @@ deliver:
 		     !(flags & MSG_SOCALLBCK))) {
 			SOCKBUF_UNLOCK(sb);
 			VNET_SO_ASSERT(so);
-			(*so->so_proto->pr_usrreqs->pru_rcvd)(so, flags);
+			so->so_proto->pr_rcvd(so, flags);
 			SOCKBUF_LOCK(sb);
 		}
 	}
@@ -2831,8 +2827,7 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = (so->so_proto->pr_usrreqs->pru_soreceive(so, psa, uio,
-	    mp0, controlp, flagsp));
+	error = so->so_proto->pr_soreceive(so, psa, uio, mp0, controlp, flagsp);
 	CURVNET_RESTORE();
 	return (error);
 }
@@ -2879,12 +2874,12 @@ soshutdown(struct socket *so, int how)
 
 	CURVNET_SET(so->so_vnet);
 	pr = so->so_proto;
-	if (pr->pr_usrreqs->pru_flush != NULL)
-		(*pr->pr_usrreqs->pru_flush)(so, how);
+	if (pr->pr_flush != NULL)
+		pr->pr_flush(so, how);
 	if (how != SHUT_WR)
 		sorflush(so);
 	if (how != SHUT_RD) {
-		error = (*pr->pr_usrreqs->pru_shutdown)(so);
+		error = pr->pr_shutdown(so);
 		wakeup(&so->so_timeo);
 		CURVNET_RESTORE();
 		return ((error == 0 && soerror_enotconn) ? ENOTCONN : error);
@@ -3555,8 +3550,7 @@ sopoll(struct socket *so, int events, struct ucred *active_cred,
 	 * We do not need to set or assert curvnet as long as everyone uses
 	 * sopoll_generic().
 	 */
-	return (so->so_proto->pr_usrreqs->pru_sopoll(so, events, active_cred,
-	    td));
+	return (so->so_proto->pr_sopoll(so, events, active_cred, td));
 }
 
 int
@@ -3660,180 +3654,6 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 	}
 	SOCK_UNLOCK(so);
 	return (0);
-}
-
-/*
- * Some routines that return EOPNOTSUPP for entry points that are not
- * supported by a protocol.  Fill in as needed.
- */
-int
-pru_accept_notsupp(struct socket *so, struct sockaddr **nam)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_aio_queue_notsupp(struct socket *so, struct kaiocb *job)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_attach_notsupp(struct socket *so, int proto, struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_bind_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
-    struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
-    struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_connect2_notsupp(struct socket *so1, struct socket *so2)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_control_notsupp(struct socket *so, u_long cmd, void *data,
-    struct ifnet *ifp, struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_disconnect_notsupp(struct socket *so)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_listen_notsupp(struct socket *so, int backlog, struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_peeraddr_notsupp(struct socket *so, struct sockaddr **nam)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_rcvd_notsupp(struct socket *so, int flags)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
-    struct sockaddr *addr, struct mbuf *control, struct thread *td)
-{
-
-	if (control != NULL)
-		m_freem(control);
-	if ((flags & PRUS_NOTREADY) == 0)
-		m_freem(m);
-	return (EOPNOTSUPP);
-}
-
-int
-pru_ready_notsupp(struct socket *so, struct mbuf *m, int count)
-{
-
-	return (EOPNOTSUPP);
-}
-
-/*
- * This isn't really a ``null'' operation, but it's the default one and
- * doesn't do anything destructive.
- */
-int
-pru_sense_null(struct socket *so, struct stat *sb)
-{
-
-	sb->st_blksize = so->so_snd.sb_hiwat;
-	return 0;
-}
-
-int
-pru_shutdown_notsupp(struct socket *so)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_sosend_notsupp(struct socket *so, struct sockaddr *addr, struct uio *uio,
-    struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
-    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
-{
-
-	return EOPNOTSUPP;
-}
-
-int
-pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
-    struct thread *td)
-{
-
-	return EOPNOTSUPP;
 }
 
 static void

@@ -1209,7 +1209,8 @@ uint32_t tcp_hc_getmtu(struct in_conninfo *);
 void	 tcp_hc_updatemtu(struct in_conninfo *, uint32_t);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 
-extern	struct pr_usrreqs tcp_usrreqs;
+extern	struct protosw tcp_protosw;		/* shared for TOE */
+extern	struct protosw tcp6_protosw;		/* shared for TOE */
 
 uint32_t tcp_new_ts_offset(struct in_conninfo *);
 tcp_seq	 tcp_new_isn(struct in_conninfo *);

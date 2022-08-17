@@ -49,6 +49,7 @@ struct	rib_head;
 
 struct domain {
 	int	dom_family;		/* AF_xxx */
+	u_int	dom_nprotosw;		/* length of dom_protosw[] */
 	char	*dom_name;
 	int	dom_flags;
 	int	(*dom_probe)(void);	/* check for support (optional) */
@@ -56,7 +57,6 @@ struct domain {
 		(struct mbuf *, struct mbuf **, int);
 	void	(*dom_dispose)		/* dispose of internalized rights */
 		(struct socket *);
-	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
 	struct	domain *dom_next;
 	struct rib_head *(*dom_rtattach)	/* initialize routing table */
 		(uint32_t);
@@ -66,6 +66,7 @@ struct domain {
 	void	(*dom_ifdetach)(struct ifnet *, void *);
 	int	(*dom_ifmtu)(struct ifnet *);
 					/* af-dependent data on ifnet */
+	struct	protosw *dom_protosw[];
 };
 
 /* dom_flags */

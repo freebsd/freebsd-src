@@ -3163,8 +3163,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	 * layer, and do not perform any credentials checks or input
 	 * validation.
 	 */
-	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data,
-	    ifp, td));
+	error = so->so_proto->pr_control(so, cmd, data, ifp, td);
 	if (error == EOPNOTSUPP && ifp != NULL && ifp->if_ioctl != NULL &&
 	    cmd != SIOCSIFADDR && cmd != SIOCSIFBRDADDR &&
 	    cmd != SIOCSIFDSTADDR && cmd != SIOCSIFNETMASK)

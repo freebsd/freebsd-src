@@ -52,60 +52,16 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/sctp6_var.h>
 
-#ifdef INET
-extern struct domain inetdomain;
-
-struct protosw sctp_stream_protosw = {
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_usrreqs =		&sctp_usrreqs,
-};
-
-struct protosw sctp_seqpacket_protosw = {
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_usrreqs =		&sctp_usrreqs,
-};
-#endif
-
-#ifdef INET6
-extern struct domain inet6domain;
-
-struct protosw sctp6_stream_protosw = {
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_usrreqs =		&sctp6_usrreqs,
-};
-
-struct protosw sctp6_seqpacket_protosw = {
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_usrreqs =		&sctp6_usrreqs,
-};
-#endif
-
 static int
 sctp_module_load(void)
 {
 	int error;
 
 #ifdef INET
-	error = pf_proto_register(PF_INET, &sctp_stream_protosw);
+	error = protosw_register(&inetdomain, &sctp_stream_protosw);
 	if (error != 0)
 		return (error);
-	error = pf_proto_register(PF_INET, &sctp_seqpacket_protosw);
+	error = protosw_register(&inetdomain, &sctp_seqpacket_protosw);
 	if (error != 0)
 		return (error);
 	error = ipproto_register(IPPROTO_SCTP, sctp_input, sctp_ctlinput);
@@ -113,10 +69,10 @@ sctp_module_load(void)
 		return (error);
 #endif
 #ifdef INET6
-	error = pf_proto_register(PF_INET6, &sctp6_stream_protosw);
+	error = protosw_register(&inet6domain, &sctp6_stream_protosw);
 	if (error != 0)
 		return (error);
-	error = pf_proto_register(PF_INET6, &sctp6_seqpacket_protosw);
+	error = protosw_register(&inet6domain, &sctp6_seqpacket_protosw);
 	if (error != 0)
 		return (error);
 	error = ip6proto_register(IPPROTO_SCTP, sctp6_input, sctp6_ctlinput);
@@ -137,13 +93,13 @@ sctp_module_unload(void)
 
 #ifdef INET
 	(void)ipproto_unregister(IPPROTO_SCTP);
-	(void)pf_proto_unregister(PF_INET, IPPROTO_SCTP, SOCK_STREAM);
-	(void)pf_proto_unregister(PF_INET, IPPROTO_SCTP, SOCK_SEQPACKET);
+	(void)protosw_unregister(&sctp_seqpacket_protosw);
+	(void)protosw_unregister(&sctp_stream_protosw);
 #endif
 #ifdef INET6
 	(void)ip6proto_unregister(IPPROTO_SCTP);
-	(void)pf_proto_unregister(PF_INET6, IPPROTO_SCTP, SOCK_STREAM);
-	(void)pf_proto_unregister(PF_INET6, IPPROTO_SCTP, SOCK_SEQPACKET);
+	(void)protosw_unregister(&sctp6_seqpacket_protosw);
+	(void)protosw_unregister(&sctp6_stream_protosw);
 #endif
 	return (0);
 }

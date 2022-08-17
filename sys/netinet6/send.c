@@ -318,16 +318,13 @@ send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused
 	return (0);
 }
 
-struct pr_usrreqs send_usrreqs = {
-	.pru_attach =		send_attach,
-	.pru_send =		send_send,
-	.pru_detach =		send_close
-};
-struct protosw send_protosw = {
+static struct protosw send_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_protocol =		IPPROTO_SEND,
-	.pr_usrreqs =		&send_usrreqs
+	.pr_attach =		send_attach,
+	.pr_send =		send_send,
+	.pr_detach =		send_close
 };
 
 static int
@@ -342,7 +339,7 @@ send_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		SEND_LOCK_INIT();
 
-		error = pf_proto_register(PF_INET6, &send_protosw);
+		error = protosw_register(&inet6domain, &send_protosw);
 		if (error != 0) {
 			printf("%s:%d: MOD_LOAD pf_proto_register(): %d\n",
 			   __func__, __LINE__, error);
@@ -369,7 +366,7 @@ send_modevent(module_t mod, int type, void *unused)
 		}
 		SEND_UNLOCK();
 		VNET_LIST_RUNLOCK_NOSLEEP();
-		error = pf_proto_unregister(PF_INET6, IPPROTO_SEND, SOCK_RAW);
+		error = protosw_unregister(&send_protosw);
 		if (error == 0)
 			SEND_LOCK_DESTROY();
 		send_sendso_input_hook = NULL;

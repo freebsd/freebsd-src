@@ -1128,59 +1128,42 @@ dummy_disconnect(struct socket *so)
 {
 	return (0);
 }
+
 /*
+ * Definitions of protocols supported in the NETGRAPH domain.
  * Control and data socket type descriptors
  *
  * XXXRW: Perhaps _close should do something?
  */
-
-static struct pr_usrreqs ngc_usrreqs = {
-	.pru_attach =		ngc_attach,
-	.pru_bind =		ngc_bind,
-	.pru_connect =		ngc_connect,
-	.pru_detach =		ngc_detach,
-	.pru_disconnect =	dummy_disconnect,
-	.pru_send =		ngc_send,
-	.pru_sockaddr =		ng_getsockaddr,
-};
-
-static struct pr_usrreqs ngd_usrreqs = {
-	.pru_attach =		ngd_attach,
-	.pru_connect =		ngd_connect,
-	.pru_detach =		ngd_detach,
-	.pru_disconnect =	dummy_disconnect,
-	.pru_send =		ngd_send,
-	.pru_sockaddr =		ng_getsockaddr,
-};
-
-/*
- * Definitions of protocols supported in the NETGRAPH domain.
- */
-
-extern struct domain ngdomain;		/* stop compiler warnings */
-
-static struct protosw ngsw[] = {
-{
+static struct protosw ngcontrol_protosw = {
 	.pr_type =		SOCK_DGRAM,
-	.pr_domain =		&ngdomain,
 	.pr_protocol =		NG_CONTROL,
 	.pr_flags =		PR_ATOMIC | PR_ADDR /* | PR_RIGHTS */,
-	.pr_usrreqs =		&ngc_usrreqs
-},
-{
+	.pr_attach =		ngc_attach,
+	.pr_bind =		ngc_bind,
+	.pr_connect =		ngc_connect,
+	.pr_detach =		ngc_detach,
+	.pr_disconnect =	dummy_disconnect,
+	.pr_send =		ngc_send,
+	.pr_sockaddr =		ng_getsockaddr,
+};
+static struct protosw ngdata_protosw = {
 	.pr_type =		SOCK_DGRAM,
-	.pr_domain =		&ngdomain,
 	.pr_protocol =		NG_DATA,
 	.pr_flags =		PR_ATOMIC | PR_ADDR,
-	.pr_usrreqs =		&ngd_usrreqs
-}
+	.pr_attach =		ngd_attach,
+	.pr_connect =		ngd_connect,
+	.pr_detach =		ngd_detach,
+	.pr_disconnect =	dummy_disconnect,
+	.pr_send =		ngd_send,
+	.pr_sockaddr =		ng_getsockaddr,
 };
 
-struct domain ngdomain = {
+static struct domain ngdomain = {
 	.dom_family =		AF_NETGRAPH,
 	.dom_name =		"netgraph",
-	.dom_protosw =		ngsw,
-	.dom_protoswNPROTOSW =	&ngsw[nitems(ngsw)]
+	.dom_nprotosw =		2,
+	.dom_protosw =		{ &ngcontrol_protosw, &ngdata_protosw },
 };
 
 /*

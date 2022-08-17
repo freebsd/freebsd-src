@@ -195,7 +195,7 @@ __rpc_socket2sockinfo(struct socket *so, struct __rpc_sockinfo *sip)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	error = so->so_proto->pr_sockaddr(so, &sa);
 	CURVNET_RESTORE();
 	if (error)
 		return 0;
@@ -708,7 +708,7 @@ __rpc_sockisbound(struct socket *so)
 	int error, bound;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	error = so->so_proto->pr_sockaddr(so, &sa);
 	CURVNET_RESTORE();
 	if (error)
 		return (0);
@@ -798,7 +798,7 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 
 	if (sa == NULL) {
 		CURVNET_SET(so->so_vnet);
-		error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+		error = so->so_proto->pr_sockaddr(so, &sa);
 		CURVNET_RESTORE();
 		if (error)
 			return (error);

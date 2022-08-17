@@ -1753,22 +1753,34 @@ udp_shutdown(struct socket *so)
 }
 
 #ifdef INET
-struct pr_usrreqs udp_usrreqs = {
-	.pru_abort =		udp_abort,
-	.pru_attach =		udp_attach,
-	.pru_bind =		udp_bind,
-	.pru_connect =		udp_connect,
-	.pru_control =		in_control,
-	.pru_detach =		udp_detach,
-	.pru_disconnect =	udp_disconnect,
-	.pru_peeraddr =		in_getpeeraddr,
-	.pru_send =		udp_send,
-	.pru_soreceive =	soreceive_dgram,
-	.pru_sosend =		sosend_dgram,
-	.pru_shutdown =		udp_shutdown,
-	.pru_sockaddr =		in_getsockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel,
-	.pru_close =		udp_close,
+#define	UDP_PROTOSW							\
+	.pr_type =		SOCK_DGRAM,				\
+	.pr_flags =		PR_ATOMIC | PR_ADDR | PR_CAPATTACH,	\
+	.pr_ctloutput =		udp_ctloutput,				\
+	.pr_abort =		udp_abort,				\
+	.pr_attach =		udp_attach,				\
+	.pr_bind =		udp_bind,				\
+	.pr_connect =		udp_connect,				\
+	.pr_control =		in_control,				\
+	.pr_detach =		udp_detach,				\
+	.pr_disconnect =	udp_disconnect,				\
+	.pr_peeraddr =		in_getpeeraddr,				\
+	.pr_send =		udp_send,				\
+	.pr_soreceive =		soreceive_dgram,			\
+	.pr_sosend =		sosend_dgram,				\
+	.pr_shutdown =		udp_shutdown,				\
+	.pr_sockaddr =		in_getsockaddr,				\
+	.pr_sosetlabel =	in_pcbsosetlabel,			\
+	.pr_close =		udp_close
+
+struct protosw udp_protosw = {
+	.pr_protocol =		IPPROTO_UDP,
+	UDP_PROTOSW
+};
+
+struct protosw udplite_protosw = {
+	.pr_protocol =		IPPROTO_UDPLITE,
+	UDP_PROTOSW
 };
 
 static void

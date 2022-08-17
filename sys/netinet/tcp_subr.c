@@ -1535,10 +1535,10 @@ tcp_init(void *arg __unused)
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
-		tcp_usrreqs.pru_soreceive = soreceive_stream;
+		tcp_protosw.pr_soreceive = soreceive_stream;
 #endif
 #ifdef INET6
-		tcp6_usrreqs.pru_soreceive = soreceive_stream;
+		tcp6_protosw.pr_soreceive = soreceive_stream;
 #endif /* INET6 */
 	}
 

@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #if defined(_KERNEL)
 
 SYSCTL_DECL(_net_inet6_sctp6);
-extern struct pr_usrreqs sctp6_usrreqs;
+extern struct protosw sctp6_seqpacket_protosw, sctp6_stream_protosw;
 
 int sctp6_input(struct mbuf **, int *, int);
 int sctp6_input_with_port(struct mbuf **, int *, uint16_t);

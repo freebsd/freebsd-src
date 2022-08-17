@@ -195,7 +195,6 @@ extern int	(*legal_vif_num)(int);
 extern u_long	(*ip_mcast_src)(int);
 VNET_DECLARE(int, rsvp_on);
 VNET_DECLARE(int, drop_redirect);
-extern struct	pr_usrreqs rip_usrreqs;
 
 #define	V_ip_id			VNET(ip_id)
 #define	V_ip_defttl		VNET(ip_defttl)

@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
-extern struct pr_usrreqs sctp_usrreqs;
+extern struct protosw sctp_seqpacket_protosw, sctp_stream_protosw;
 
 #define sctp_feature_on(inp, feature)  (inp->sctp_features |= feature)
 #define sctp_feature_off(inp, feature) (inp->sctp_features &= ~feature)

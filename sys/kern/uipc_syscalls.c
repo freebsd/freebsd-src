@@ -1385,7 +1385,7 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	so = fp->f_data;
 	*sa = NULL;
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, sa);
+	error = so->so_proto->pr_sockaddr(so, sa);
 	CURVNET_RESTORE();
 	if (error != 0)
 		goto bad;
@@ -1471,7 +1471,7 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	}
 	*sa = NULL;
 	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, sa);
+	error = so->so_proto->pr_peeraddr(so, sa);
 	CURVNET_RESTORE();
 	if (error != 0)
 		goto bad;

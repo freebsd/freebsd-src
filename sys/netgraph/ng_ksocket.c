@@ -774,9 +774,9 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				if ((so->so_state
 				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
 					ERROUT(ENOTCONN);
-				func = so->so_proto->pr_usrreqs->pru_peeraddr;
+				func = so->so_proto->pr_peeraddr;
 			} else
-				func = so->so_proto->pr_usrreqs->pru_sockaddr;
+				func = so->so_proto->pr_sockaddr;
 
 			/* Get local or peer address */
 			if ((error = (*func)(so, &sa)) != 0)

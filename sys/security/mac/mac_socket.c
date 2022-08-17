@@ -516,8 +516,8 @@ mac_socket_label_set(struct ucred *cred, struct socket *so,
 	 * from the socket, notify it of the label change while holding the
 	 * socket lock.
 	 */
-	if (so->so_proto->pr_usrreqs->pru_sosetlabel != NULL)
-		(so->so_proto->pr_usrreqs->pru_sosetlabel)(so);
+	if (so->so_proto->pr_sosetlabel != NULL)
+		so->so_proto->pr_sosetlabel(so);
 
 	return (0);
 }

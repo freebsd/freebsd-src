@@ -7526,24 +7526,37 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 	return (0);
 }
 
-struct pr_usrreqs sctp_usrreqs = {
-	.pru_abort = sctp_abort,
-	.pru_accept = sctp_accept,
-	.pru_attach = sctp_attach,
-	.pru_bind = sctp_bind,
-	.pru_connect = sctp_connect,
-	.pru_control = in_control,
-	.pru_close = sctp_close,
-	.pru_detach = sctp_close,
-	.pru_sopoll = sopoll_generic,
-	.pru_flush = sctp_flush,
-	.pru_disconnect = sctp_disconnect,
-	.pru_listen = sctp_listen,
-	.pru_peeraddr = sctp_peeraddr,
-	.pru_send = sctp_sendm,
-	.pru_shutdown = sctp_shutdown,
-	.pru_sockaddr = sctp_ingetaddr,
-	.pru_sosend = sctp_sosend,
-	.pru_soreceive = sctp_soreceive
+#define	SCTP_PROTOSW						\
+	.pr_protocol =	IPPROTO_SCTP,				\
+	.pr_ctloutput =	sctp_ctloutput,				\
+	.pr_abort =	sctp_abort,				\
+	.pr_accept =	sctp_accept,				\
+	.pr_attach =	sctp_attach,				\
+	.pr_bind =	sctp_bind,				\
+	.pr_connect =	sctp_connect,				\
+	.pr_control =	in_control,				\
+	.pr_close =	sctp_close,				\
+	.pr_detach =	sctp_close,				\
+	.pr_sopoll =	sopoll_generic,				\
+	.pr_flush =	sctp_flush,				\
+	.pr_disconnect = sctp_disconnect,			\
+	.pr_listen =	sctp_listen,				\
+	.pr_peeraddr =	sctp_peeraddr,				\
+	.pr_send =	sctp_sendm,				\
+	.pr_shutdown =	sctp_shutdown,				\
+	.pr_sockaddr =	sctp_ingetaddr,				\
+	.pr_sosend =	sctp_sosend,				\
+	.pr_soreceive =	sctp_soreceive				\
+
+struct protosw sctp_seqpacket_protosw = {
+	.pr_type =	SOCK_SEQPACKET,
+	.pr_flags =	PR_WANTRCVD,
+	SCTP_PROTOSW
+};
+
+struct protosw sctp_stream_protosw = {
+	.pr_type =      SOCK_STREAM,
+	.pr_flags =	PR_CONNREQUIRED | PR_WANTRCVD,
+	SCTP_PROTOSW
 };
 #endif
