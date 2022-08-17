@@ -55,7 +55,7 @@ int
 qls_make_cdev(qla_host_t *ha)
 {
         ha->ioctl_dev = make_dev(&qla_cdevsw,
-				ha->ifp->if_dunit,
+				if_getdunit(ha->ifp),
                                 UID_ROOT,
                                 GID_WHEEL,
                                 0600,
