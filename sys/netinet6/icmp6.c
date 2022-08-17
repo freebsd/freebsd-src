@@ -2127,20 +2127,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	return;
 }
 
-void
-icmp6_fasttimo(void)
-{
-
-	mld_fasttimo();
-}
-
-void
-icmp6_slowtimo(void)
-{
-
-	mld_slowtimo();
-}
-
 static const char *
 icmp6_redirect_diag(struct in6_addr *src6, struct in6_addr *dst6,
     struct in6_addr *tgt6)

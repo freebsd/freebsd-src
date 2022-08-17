@@ -83,7 +83,7 @@
 #define MLD_MAX_STATE_CHANGE_PACKETS	8 /* # of packets per state change */
 #define MLD_MAX_RESPONSE_PACKETS	16 /* # of packets for general query */
 #define MLD_MAX_RESPONSE_BURST		4 /* # of responses to send at once */
-#define MLD_RESPONSE_BURST_INTERVAL	(PR_FASTHZ / 2)	/* 500ms */
+#define MLD_RESPONSE_BURST_INTERVAL	(MLD_FASTHZ / 2)	/* 500ms */
 
 /*
  * MLD-specific mbuf flags.
@@ -165,10 +165,11 @@ int	mld_change_state(struct in6_multi *, const int);
 struct mld_ifsoftc *
 	mld_domifattach(struct ifnet *);
 void	mld_domifdetach(struct ifnet *);
-void	mld_fasttimo(void);
 void	mld_ifdetach(struct ifnet *, struct in6_multi_head *);
 int	mld_input(struct mbuf **, int, int);
-void	mld_slowtimo(void);
+
+#define	MLD_SLOWHZ	2	/* 2 slow timeouts per second */
+#define	MLD_FASTHZ	5	/* 5 fast timeouts per second */
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet6_mld);
