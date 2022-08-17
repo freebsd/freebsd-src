@@ -101,6 +101,7 @@ CTASSERT(sizeof(struct ip) == 20);
 
 /* IP reassembly functions are defined in ip_reass.c. */
 extern void ipreass_init(void);
+extern void ipreass_vnet_init(void);
 #ifdef VIMAGE
 extern void ipreass_destroy(void);
 #endif
@@ -315,7 +316,7 @@ ip_vnet_init(void *arg __unused)
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
 
 	/* Initialize IP reassembly queue. */
-	ipreass_init();
+	ipreass_vnet_init();
 
 	/* Initialize packet filter hooks. */
 	args.pa_version = PFIL_VERSION;
@@ -348,6 +349,8 @@ VNET_SYSINIT(ip_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
 static void
 ip_init(const void *unused __unused)
 {
+
+	ipreass_init();
 
 	/*
 	 * Register statically compiled protocols, that are unlikely to
