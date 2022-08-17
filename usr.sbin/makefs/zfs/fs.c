@@ -156,12 +156,19 @@ struct fs_populate_dir {
 struct fs_populate_arg {
 	zfs_opt_t	*zfs;
 	zfs_fs_t	*fs;			/* owning filesystem */
-	int		dirfd;			/* current directory fd */
 	uint64_t	rootdirid;		/* root directory dnode ID */
+	int		rootdirfd;		/* root directory fd */
 	SLIST_HEAD(, fs_populate_dir) dirs;	/* stack of directories */
 };
 
 static void fs_build_one(zfs_opt_t *, zfs_dsl_dir_t *, fsnode *, int);
+
+static void
+eclose(int fd)
+{
+	if (close(fd) != 0)
+		err(1, "close");
+}
 
 static bool
 fsnode_isroot(const fsnode *cur)
@@ -235,6 +242,65 @@ fs_populate_varszattr(zfs_fs_t *fs, char *attrbuf, const void *val,
 	*szp += valsz;
 }
 
+/*
+ * Derive the relative fd/path combo needed to access a file.  Ideally we'd
+ * always be able to use relative lookups (i.e., use the *at() system calls),
+ * since they require less path translation and are more amenable to sandboxing,
+ * but the handling of multiple staging directories makes that difficult.  To
+ * make matters worse, we have no choice but to use relative lookups when
+ * dealing with an mtree manifest, so both mechanisms are implemented.
+ */
+static void
+fs_populate_path(const fsnode *cur, struct fs_populate_arg *arg,
+    char *path, size_t sz, int *dirfdp)
+{
+	if (cur->root == NULL) {
+		size_t n;
+
+		*dirfdp = SLIST_FIRST(&arg->dirs)->dirfd;
+		n = strlcpy(path, cur->name, sz);
+		assert(n < sz);
+	} else {
+		int n;
+
+		*dirfdp = AT_FDCWD;
+		n = snprintf(path, sz, "%s/%s/%s",
+		    cur->root, cur->path, cur->name);
+		assert(n >= 0);
+		assert((size_t)n < sz);
+	}
+}
+
+static int
+fs_open(const fsnode *cur, struct fs_populate_arg *arg, int flags)
+{
+	char path[PATH_MAX];
+	int fd;
+
+	fs_populate_path(cur, arg, path, sizeof(path), &fd);
+
+	fd = openat(fd, path, flags);
+	if (fd < 0)
+		err(1, "openat(%s)", path);
+	return (fd);
+}
+
+static void
+fs_readlink(const fsnode *cur, struct fs_populate_arg *arg,
+    char *buf, size_t bufsz)
+{
+	char path[PATH_MAX];
+	ssize_t n;
+	int fd;
+
+	fs_populate_path(cur, arg, path, sizeof(path), &fd);
+
+	n = readlinkat(fd, path, buf, bufsz - 1);
+	if (n == -1)
+		err(1, "readlinkat(%s)", cur->name);
+	buf[n] = '\0';
+}
+
 static void
 fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
     dnode_phys_t *dnode)
@@ -283,20 +349,14 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 		parent = SLIST_EMPTY(&arg->dirs) ?
 		    arg->rootdirid : SLIST_FIRST(&arg->dirs)->objid;
 		break;
-	case S_IFLNK: {
-		ssize_t n;
-
-		if ((n = readlinkat(SLIST_FIRST(&arg->dirs)->dirfd, cur->name,
-		    target, sizeof(target) - 1)) == -1)
-			err(1, "readlinkat(%s)", cur->name);
-		target[n] = '\0';
+	case S_IFLNK:
+		fs_readlink(cur, arg, target, sizeof(target));
 
 		layout = SA_LAYOUT_INDEX_SYMLINK;
 		links = 1;
 		objsize = strlen(target);
 		parent = SLIST_FIRST(&arg->dirs)->objid;
 		break;
-		}
 	default:
 		assert(0);
 	}
@@ -438,9 +498,7 @@ fs_populate_file(fsnode *cur, struct fs_populate_arg *arg)
 	cur->inode->ino = dnid;
 	cur->inode->flags |= FI_ALLOCATED;
 
-	fd = openat(SLIST_FIRST(&arg->dirs)->dirfd, cur->name, O_RDONLY);
-	if (fd == -1)
-		err(1, "openat(%s)", cur->name);
+	fd = fs_open(cur, arg, O_RDONLY);
 
 	buf = zfs->filebuf;
 	bufsz = sizeof(zfs->filebuf);
@@ -473,8 +531,7 @@ fs_populate_file(fsnode *cur, struct fs_populate_arg *arg)
 		vdev_pwrite_dnode_indir(zfs, dnode, 0, 1, buf, target, loc,
 		    dnode_cursor_next(zfs, c, foff));
 	}
-	if (close(fd) != 0)
-		err(1, "close");
+	eclose(fd);
 	dnode_cursor_finish(zfs, c);
 
 	fs_populate_sattrs(arg, cur, dnode);
@@ -502,13 +559,11 @@ fs_populate_dir(fsnode *cur, struct fs_populate_arg *arg)
 	 */
 	if (!SLIST_EMPTY(&arg->dirs)) {
 		fs_populate_dirent(arg, cur, dnid);
-		dirfd = openat(SLIST_FIRST(&arg->dirs)->dirfd, cur->name,
-		    O_DIRECTORY);
-		if (dirfd < 0)
-			err(1, "open(%s)", cur->name);
+		dirfd = fs_open(cur, arg, O_DIRECTORY | O_RDONLY);
 	} else {
 		arg->rootdirid = dnid;
-		dirfd = arg->dirfd;
+		dirfd = arg->rootdirfd;
+		arg->rootdirfd = -1;
 	}
 
 	/*
@@ -589,8 +644,8 @@ fs_foreach_populate(fsnode *cur, void *_arg)
 			dir = SLIST_FIRST(&arg->dirs);
 			SLIST_REMOVE_HEAD(&arg->dirs, next);
 			zap_write(arg->zfs, dir->zap);
-			if (dir->dirfd != -1 && close(dir->dirfd) != 0)
-				err(1, "close");
+			if (dir->dirfd != -1)
+				eclose(dir->dirfd);
 			free(dir);
 			cur = cur->parent;
 		} while (cur != NULL && cur->next == NULL &&
@@ -881,7 +936,7 @@ fs_build_one(zfs_opt_t *zfs, zfs_dsl_dir_t *dsldir, fsnode *root, int dirfd)
 	 * Make a second pass to populate the dataset with files from the
 	 * staged directory.  Most of our runtime is spent here.
 	 */
-	arg.dirfd = dirfd;
+	arg.rootdirfd = dirfd;
 	arg.zfs = zfs;
 	arg.fs = &fs;
 	SLIST_INIT(&arg.dirs);
