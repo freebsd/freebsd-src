@@ -230,7 +230,7 @@ readsb(void)
 	 * If bflag is given, then check just that superblock.
 	 */
 	if (bflag) {
-		switch (sbget(fsreadfd, &fs, bflag * dev_bsize, UFS_NOMSG)) {
+		switch (sbget(fsreadfd, &fs, bflag * dev_bsize, 0)) {
 		case 0:
 			goto goodsb;
 		case EINTEGRITY:
