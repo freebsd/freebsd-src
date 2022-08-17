@@ -245,8 +245,6 @@ create_one_review()
         return 1
     fi
 
-    git checkout -q "$commit"
-
     msg=$(mktemp)
     git show -s --format='%B' "$commit" > "$msg"
     printf "\nTest Plan:\n" >> "$msg"
@@ -256,7 +254,8 @@ create_one_review()
     printf "%s\n" "${subscribers}" >> "$msg"
 
     yes | env EDITOR=true \
-        arc diff --message-file "$msg" --never-apply-patches --create --allow-untracked $BROWSE HEAD~
+        arc diff --message-file "$msg" --never-apply-patches --create \
+        --allow-untracked $BROWSE --head "$commit" "${commit}~"
     [ $? -eq 0 ] || err "could not create Phabricator diff"
 
     if [ -n "$parent" ]; then
@@ -333,24 +332,6 @@ show_and_prompt()
     prompt
 }
 
-save_head()
-{
-    local orig
-
-    if ! orig=$(git symbolic-ref --short -q HEAD); then
-        orig=$(git show -s --pretty=%H HEAD)
-    fi
-    SAVED_HEAD=$orig
-}
-
-restore_head()
-{
-    if [ -n "$SAVED_HEAD" ]; then
-        git checkout -q "$SAVED_HEAD"
-        SAVED_HEAD=
-    fi
-}
-
 build_commit_list()
 {
     local chash _commits commits
@@ -410,7 +391,6 @@ gitarc__create()
         doprompt=
     fi
 
-    save_head
     for commit in ${commits}; do
         if create_one_review "$commit" "$reviewers" "$subscribers" "$prev" \
                              "$doprompt"; then
@@ -419,7 +399,6 @@ gitarc__create()
             prev=""
         fi
     done
-    restore_head
 }
 
 gitarc__list()
@@ -524,7 +503,6 @@ gitarc__update()
     local commit commits diff
 
     commits=$(build_commit_list "$@")
-    save_head
     for commit in ${commits}; do
         diff=$(commit2diff "$commit")
 
@@ -532,14 +510,12 @@ gitarc__update()
             break
         fi
 
-        git checkout -q "$commit"
-
         # The linter is stupid and applies patches to the working copy.
         # This would be tolerable if it didn't try to correct "misspelled" variable
         # names.
-        arc diff --allow-untracked --never-apply-patches --update "$diff" HEAD~
+        arc diff --allow-untracked --never-apply-patches --update "$diff" \
+            --head "$commit" "${commit}~"
     done
-    restore_head
 }
 
 set -e
@@ -612,7 +588,5 @@ esac
 if [ "$(git config --bool --get arc.browse 2>/dev/null || echo false)" != "false" ]; then
     BROWSE=--browse
 fi
-
-trap restore_head EXIT INT
 
 gitarc__"${verb}" "$@"
