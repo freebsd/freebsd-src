@@ -228,7 +228,6 @@ struct mbuf *
 	ip_reass(struct mbuf *);
 void	ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
 	    struct mbuf *);
-void	ip_slowtimo(void);
 void	ip_fillid(struct ip *);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
