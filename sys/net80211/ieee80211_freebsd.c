@@ -487,7 +487,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 	len = roundup2(headroom + pktlen, 4);
 	KASSERT(len <= MCLBYTES, ("802.11 mgt frame too large: %u", len));
 	if (len < MINCLSIZE) {
-		m = m_gethdr(M_NOWAIT, MT_DATA);
+		m = m_gethdr(IEEE80211_M_NOWAIT, MT_DATA);
 		/*
 		 * Align the data in case additional headers are added.
 		 * This should only happen when a WEP header is added
@@ -497,7 +497,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 		if (m != NULL)
 			M_ALIGN(m, len);
 	} else {
-		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(IEEE80211_M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m != NULL)
 			MC_ALIGN(m, len);
 	}
@@ -522,9 +522,9 @@ ieee80211_realign(struct ieee80211vap *vap, struct mbuf *m, size_t align)
 	pktlen = m->m_pkthdr.len;
 	space = pktlen + align;
 	if (space < MINCLSIZE)
-		n = m_gethdr(M_NOWAIT, MT_DATA);
+		n = m_gethdr(IEEE80211_M_NOWAIT, MT_DATA);
 	else {
-		n = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+		n = m_getjcl(IEEE80211_M_NOWAIT, MT_DATA, M_PKTHDR,
 		    space <= MCLBYTES ?     MCLBYTES :
 #if MJUMPAGESIZE != MCLBYTES
 		    space <= MJUMPAGESIZE ? MJUMPAGESIZE :
@@ -555,7 +555,7 @@ ieee80211_add_callback(struct mbuf *m,
 	struct ieee80211_cb *cb;
 
 	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_CALLBACK,
-			sizeof(struct ieee80211_cb), M_NOWAIT);
+			sizeof(struct ieee80211_cb), IEEE80211_M_NOWAIT);
 	if (mtag == NULL)
 		return 0;
 
@@ -575,7 +575,7 @@ ieee80211_add_xmit_params(struct mbuf *m,
 	struct ieee80211_tx_params *tx;
 
 	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_XMIT_PARAMS,
-	    sizeof(struct ieee80211_tx_params), M_NOWAIT);
+	    sizeof(struct ieee80211_tx_params), IEEE80211_M_NOWAIT);
 	if (mtag == NULL)
 		return (0);
 
@@ -626,7 +626,7 @@ ieee80211_add_rx_params(struct mbuf *m, const struct ieee80211_rx_stats *rxs)
 	struct ieee80211_rx_params *rx;
 
 	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_RECV_PARAMS,
-	    sizeof(struct ieee80211_rx_stats), M_NOWAIT);
+	    sizeof(struct ieee80211_rx_stats), IEEE80211_M_NOWAIT);
 	if (mtag == NULL)
 		return (0);
 
@@ -675,7 +675,7 @@ ieee80211_add_toa_params(struct mbuf *m, const struct ieee80211_toa_params *p)
 	struct ieee80211_toa_params *rp;
 
 	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_TOA_PARAMS,
-	    sizeof(struct ieee80211_toa_params), M_NOWAIT);
+	    sizeof(struct ieee80211_toa_params), IEEE80211_M_NOWAIT);
 	if (mtag == NULL)
 		return (0);
 
