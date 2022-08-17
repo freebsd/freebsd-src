@@ -201,24 +201,24 @@ static void sk_intr(void *);
 static void sk_intr_xmac(struct sk_if_softc *);
 static void sk_intr_bcom(struct sk_if_softc *);
 static void sk_intr_yukon(struct sk_if_softc *);
-static __inline void sk_rxcksum(struct ifnet *, struct mbuf *, u_int32_t);
+static __inline void sk_rxcksum(if_t, struct mbuf *, u_int32_t);
 static __inline int sk_rxvalid(struct sk_softc *, u_int32_t, u_int32_t);
 static void sk_rxeof(struct sk_if_softc *);
 static void sk_jumbo_rxeof(struct sk_if_softc *);
 static void sk_txeof(struct sk_if_softc *);
-static void sk_txcksum(struct ifnet *, struct mbuf *, struct sk_tx_desc *);
+static void sk_txcksum(if_t, struct mbuf *, struct sk_tx_desc *);
 static int sk_encap(struct sk_if_softc *, struct mbuf **);
-static void sk_start(struct ifnet *);
-static void sk_start_locked(struct ifnet *);
-static int sk_ioctl(struct ifnet *, u_long, caddr_t);
+static void sk_start(if_t);
+static void sk_start_locked(if_t);
+static int sk_ioctl(if_t, u_long, caddr_t);
 static void sk_init(void *);
 static void sk_init_locked(struct sk_if_softc *);
 static void sk_init_xmac(struct sk_if_softc *);
 static void sk_init_yukon(struct sk_if_softc *);
 static void sk_stop(struct sk_if_softc *);
 static void sk_watchdog(void *);
-static int sk_ifmedia_upd(struct ifnet *);
-static void sk_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int sk_ifmedia_upd(if_t);
+static void sk_ifmedia_sts(if_t, struct ifmediareq *);
 static void sk_reset(struct sk_softc *);
 static __inline void sk_discard_rxbuf(struct sk_if_softc *, int);
 static __inline void sk_discard_jumbo_rxbuf(struct sk_if_softc *, int);
@@ -746,7 +746,7 @@ sk_add_maddr_genesis(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 sk_rxfilter_genesis(struct sk_if_softc *sc_if)
 {
-	struct ifnet		*ifp = sc_if->sk_ifp;
+	if_t			ifp = sc_if->sk_ifp;
 	struct sk_add_maddr_genesis_ctx ctx = { sc_if, { 0, 0 } };
 	int			i;
 	u_int16_t		dummy[] = { 0, 0, 0 };
@@ -761,10 +761,10 @@ sk_rxfilter_genesis(struct sk_if_softc *sc_if)
 		sk_setfilt(sc_if, dummy, i);
 
 	/* Now program new ones. */
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
+		if (if_getflags(ifp) & IFF_ALLMULTI)
 			ctx.mode |= XM_MODE_RX_USE_HASH;
-		if (ifp->if_flags & IFF_PROMISC)
+		if (if_getflags(ifp) & IFF_PROMISC)
 			ctx.mode |= XM_MODE_RX_PROMISC;
 		ctx.hashes[0] = 0xFFFFFFFF;
 		ctx.hashes[1] = 0xFFFFFFFF;
@@ -794,16 +794,16 @@ sk_hash_maddr_yukon(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 sk_rxfilter_yukon(struct sk_if_softc *sc_if)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	uint32_t		hashes[2] = { 0, 0 }, mode;
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
 	ifp = sc_if->sk_ifp;
 	mode = SK_YU_READ_2(sc_if, YUKON_RCR);
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		mode &= ~(YU_RCR_UFLEN | YU_RCR_MUFLEN); 
-	else if (ifp->if_flags & IFF_ALLMULTI) {
+	else if (if_getflags(ifp) & IFF_ALLMULTI) {
 		mode |= YU_RCR_UFLEN | YU_RCR_MUFLEN; 
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
@@ -1052,9 +1052,9 @@ sk_jumbo_newbuf(sc_if, idx)
  */
 static int
 sk_ifmedia_upd(ifp)
-	struct ifnet		*ifp;
+	if_t			ifp;
 {
-	struct sk_if_softc	*sc_if = ifp->if_softc;
+	struct sk_if_softc	*sc_if = if_getsoftc(ifp);
 	struct mii_data		*mii;
 
 	mii = device_get_softc(sc_if->sk_miibus);
@@ -1069,13 +1069,13 @@ sk_ifmedia_upd(ifp)
  */
 static void
 sk_ifmedia_sts(ifp, ifmr)
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct ifmediareq	*ifmr;
 {
 	struct sk_if_softc	*sc_if;
 	struct mii_data		*mii;
 
-	sc_if = ifp->if_softc;
+	sc_if = if_getsoftc(ifp);
 	mii = device_get_softc(sc_if->sk_miibus);
 
 	mii_pollstat(mii);
@@ -1087,11 +1087,11 @@ sk_ifmedia_sts(ifp, ifmr)
 
 static int
 sk_ioctl(ifp, command, data)
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_long			command;
 	caddr_t			data;
 {
-	struct sk_if_softc	*sc_if = ifp->if_softc;
+	struct sk_if_softc	*sc_if = if_getsoftc(ifp);
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			error, mask;
 	struct mii_data		*mii;
@@ -1101,15 +1101,15 @@ sk_ioctl(ifp, command, data)
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > SK_JUMBO_MTU)
 			error = EINVAL;
-		else if (ifp->if_mtu != ifr->ifr_mtu) {
+		else if (if_getmtu(ifp) != ifr->ifr_mtu) {
 			if (sc_if->sk_jumbo_disable != 0 &&
 			    ifr->ifr_mtu > SK_MAX_FRAMELEN)
 				error = EINVAL;
 			else {
 				SK_IF_LOCK(sc_if);
-				ifp->if_mtu = ifr->ifr_mtu;
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setmtu(ifp, ifr->ifr_mtu);
+				if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+					if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 					sk_init_locked(sc_if);
 				}
 				SK_IF_UNLOCK(sc_if);
@@ -1118,24 +1118,24 @@ sk_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		SK_IF_LOCK(sc_if);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc_if->sk_if_flags)
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if ((if_getflags(ifp) ^ sc_if->sk_if_flags)
 				    & (IFF_PROMISC | IFF_ALLMULTI))
 					sk_rxfilter(sc_if);
 			} else
 				sk_init_locked(sc_if);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				sk_stop(sc_if);
 		}
-		sc_if->sk_if_flags = ifp->if_flags;
+		sc_if->sk_if_flags = if_getflags(ifp);
 		SK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SK_IF_LOCK(sc_if);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			sk_rxfilter(sc_if);
 		SK_IF_UNLOCK(sc_if);
 		break;
@@ -1150,18 +1150,18 @@ sk_ioctl(ifp, command, data)
 			SK_IF_UNLOCK(sc_if);
 			break;
 		}
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= SK_CSUM_FEATURES;
+		    (IFCAP_TXCSUM & if_getcapabilities(ifp)) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+				if_sethwassistbits(ifp, SK_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~SK_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, SK_CSUM_FEATURES);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0) 
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (IFCAP_RXCSUM & if_getcapabilities(ifp)) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		SK_IF_UNLOCK(sc_if);
 		break;
 	default:
@@ -1304,7 +1304,7 @@ sk_attach(dev)
 {
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int32_t		r;
 	int			error, i, phy, port;
 	u_char			eaddr[6];
@@ -1342,20 +1342,20 @@ sk_attach(dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc_if;
+	if_setsoftc(ifp, sc_if);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	/*
 	 * SK_GENESIS has a bug in checksum offload - From linux.
 	 */
 	if (sc_if->sk_softc->sk_type != SK_GENESIS) {
-		ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM;
-		ifp->if_hwassist = 0;
+		if_setcapabilities(ifp, IFCAP_TXCSUM | IFCAP_RXCSUM);
+		if_sethwassist(ifp, 0);
 	} else {
-		ifp->if_capabilities = 0;
-		ifp->if_hwassist = 0;
+		if_setcapabilities(ifp, 0);
+		if_sethwassist(ifp, 0);
 	}
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 	/*
 	 * Some revision of Yukon controller generates corrupted
 	 * frame when TX checksum offloading is enabled.  The
@@ -1365,13 +1365,12 @@ sk_attach(dev)
 	 * when they know their controller works without problems
 	 * with TX checksum offloading.
 	 */
-	ifp->if_capenable &= ~IFCAP_TXCSUM;
-	ifp->if_ioctl = sk_ioctl;
-	ifp->if_start = sk_start;
-	ifp->if_init = sk_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, SK_TX_RING_CNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = SK_TX_RING_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setcapenablebit(ifp, 0, IFCAP_TXCSUM);
+	if_setioctlfn(ifp, sk_ioctl);
+	if_setstartfn(ifp, sk_start);
+	if_setinitfn(ifp, sk_init);
+	if_setsendqlen(ifp, SK_TX_RING_CNT - 1);
+	if_setsendqready(ifp);
 
 	/*
 	 * Get station address for this interface. Note that
@@ -1484,14 +1483,14 @@ sk_attach(dev)
 	 * YU_SMR_MFL_VLAN is set by this driver in Yukon.
 	 *
 	 */
-        ifp->if_capabilities |= IFCAP_VLAN_MTU;
-        ifp->if_capenable |= IFCAP_VLAN_MTU;
+        if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+        if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-        ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+        if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	/*
 	 * Do miibus setup.
@@ -1815,7 +1814,7 @@ sk_detach(dev)
 	device_t		dev;
 {
 	struct sk_if_softc	*sc_if;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	sc_if = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc_if->sk_softc->sk_mtx),
@@ -2328,7 +2327,7 @@ sk_dma_jumbo_free(sc_if)
 
 static void
 sk_txcksum(ifp, m, f)
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct mbuf		*m;
 	struct sk_tx_desc	*f;
 {
@@ -2419,7 +2418,7 @@ sk_encap(sc_if, m_head)
 	}
 
 	m = *m_head;
-	if ((m->m_pkthdr.csum_flags & sc_if->sk_ifp->if_hwassist) != 0)
+	if ((m->m_pkthdr.csum_flags & if_gethwassist(sc_if->sk_ifp)) != 0)
 		cflags = SK_OPCODE_CSUM;
 	else
 		cflags = SK_OPCODE_DEFAULT;
@@ -2466,11 +2465,11 @@ sk_encap(sc_if, m_head)
 
 static void
 sk_start(ifp)
-	struct ifnet		*ifp;
+	if_t			ifp;
 {
 	struct sk_if_softc *sc_if;
 
-	sc_if = ifp->if_softc;
+	sc_if = if_getsoftc(ifp);
 
 	SK_IF_LOCK(sc_if);
 	sk_start_locked(ifp);
@@ -2481,21 +2480,21 @@ sk_start(ifp)
 
 static void
 sk_start_locked(ifp)
-	struct ifnet		*ifp;
+	if_t			ifp;
 {
         struct sk_softc		*sc;
         struct sk_if_softc	*sc_if;
         struct mbuf		*m_head;
 	int			enq;
 
-	sc_if = ifp->if_softc;
+	sc_if = if_getsoftc(ifp);
 	sc = sc_if->sk_softc;
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
-	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	for (enq = 0; !if_sendq_empty(ifp) &&
 	    sc_if->sk_cdata.sk_tx_cnt < SK_TX_RING_CNT - 1; ) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
@@ -2507,8 +2506,8 @@ sk_start_locked(ifp)
 		if (sk_encap(sc_if, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -2534,10 +2533,10 @@ sk_watchdog(arg)
 	void			*arg;
 {
 	struct sk_if_softc	*sc_if;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	ifp = arg;
-	sc_if = ifp->if_softc;
+	sc_if = if_getsoftc(ifp);
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
@@ -2552,7 +2551,7 @@ sk_watchdog(arg)
 	if (sc_if->sk_cdata.sk_tx_cnt != 0) {
 		if_printf(sc_if->sk_ifp, "watchdog timeout\n");
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		sk_init_locked(sc_if);
 	}
 
@@ -2590,7 +2589,7 @@ skc_suspend(dev)
 {
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if0, *sc_if1;
-	struct ifnet		*ifp0 = NULL, *ifp1 = NULL;
+	if_t			ifp0 = NULL, ifp1 = NULL;
 
 	sc = device_get_softc(dev);
 
@@ -2619,7 +2618,7 @@ skc_resume(dev)
 {
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if0, *sc_if1;
-	struct ifnet		*ifp0 = NULL, *ifp1 = NULL;
+	if_t			ifp0 = NULL, ifp1 = NULL;
 
 	sc = device_get_softc(dev);
 
@@ -2631,9 +2630,9 @@ skc_resume(dev)
 		ifp0 = sc_if0->sk_ifp;
 	if (sc_if1 != NULL)
 		ifp1 = sc_if1->sk_ifp;
-	if (ifp0 != NULL && ifp0->if_flags & IFF_UP)
+	if (ifp0 != NULL && if_getflags(ifp0) & IFF_UP)
 		sk_init_locked(sc_if0);
-	if (ifp1 != NULL && ifp1->if_flags & IFF_UP)
+	if (ifp1 != NULL && if_getflags(ifp1) & IFF_UP)
 		sk_init_locked(sc_if1);
 	sc->sk_suspended = 0;
 
@@ -2658,7 +2657,7 @@ skc_resume(dev)
  */
 static __inline void
 sk_rxcksum(ifp, m, csum)
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct mbuf		*m;
 	u_int32_t		csum;
 {
@@ -2736,7 +2735,7 @@ sk_rxeof(sc_if)
 {
 	struct sk_softc		*sc;
 	struct mbuf		*m;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct sk_rx_desc	*cur_rx;
 	struct sk_rxdesc	*rxd;
 	int			cons, prog;
@@ -2782,10 +2781,10 @@ sk_rxeof(sc_if)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = SK_RXBYTES(sk_ctl);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 			sk_rxcksum(ifp, m, csum);
 		SK_IF_UNLOCK(sc_if);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		SK_IF_LOCK(sc_if);
 	}
 
@@ -2803,7 +2802,7 @@ sk_jumbo_rxeof(sc_if)
 {
 	struct sk_softc		*sc;
 	struct mbuf		*m;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct sk_rx_desc	*cur_rx;
 	struct sk_rxdesc	*jrxd;
 	int			cons, prog;
@@ -2850,10 +2849,10 @@ sk_jumbo_rxeof(sc_if)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = SK_RXBYTES(sk_ctl);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 			sk_rxcksum(ifp, m, csum);
 		SK_IF_UNLOCK(sc_if);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		SK_IF_LOCK(sc_if);
 	}
 
@@ -2871,7 +2870,7 @@ sk_txeof(sc_if)
 {
 	struct sk_txdesc	*txd;
 	struct sk_tx_desc	*cur_tx;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int32_t		idx, sk_ctl;
 
 	ifp = sc_if->sk_ifp;
@@ -2893,7 +2892,7 @@ sk_txeof(sc_if)
 		if (sk_ctl & SK_TXCTL_OWN)
 			break;
 		sc_if->sk_cdata.sk_tx_cnt--;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if ((sk_ctl & SK_TXCTL_LASTFRAG) == 0)
 			continue;
 		bus_dmamap_sync(sc_if->sk_cdata.sk_tx_tag, txd->tx_dmamap,
@@ -2921,14 +2920,14 @@ sk_tick(xsc_if)
 {
 	struct sk_if_softc	*sc_if;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			i;
 
 	sc_if = xsc_if;
 	ifp = sc_if->sk_ifp;
 	mii = device_get_softc(sc_if->sk_miibus);
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!(if_getflags(ifp) & IFF_UP))
 		return;
 
 	if (sc_if->sk_phytype == SK_PHYTYPE_BCOM) {
@@ -2979,7 +2978,7 @@ sk_intr_bcom(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			status;
 	mii = device_get_softc(sc_if->sk_miibus);
 	ifp = sc_if->sk_ifp;
@@ -2992,7 +2991,7 @@ sk_intr_bcom(sc_if)
 	 */
 	status = sk_xmac_miibus_readreg(sc_if, SK_PHYADDR_BCOM, BRGPHY_MII_ISR);
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		sk_init_xmac(sc_if);
 		return;
 	}
@@ -3087,7 +3086,7 @@ sk_intr(xsc)
 {
 	struct sk_softc		*sc = xsc;
 	struct sk_if_softc	*sc_if0, *sc_if1;
-	struct ifnet		*ifp0 = NULL, *ifp1 = NULL;
+	if_t			ifp0 = NULL, ifp1 = NULL;
 	u_int32_t		status;
 
 	SK_LOCK(sc);
@@ -3107,7 +3106,7 @@ sk_intr(xsc)
 	for (; (status &= sc->sk_intrmask) != 0;) {
 		/* Handle receive interrupts first. */
 		if (status & SK_ISR_RX1_EOF) {
-			if (ifp0->if_mtu > SK_MAX_FRAMELEN)
+			if (if_getmtu(ifp0) > SK_MAX_FRAMELEN)
 				sk_jumbo_rxeof(sc_if0);
 			else
 				sk_rxeof(sc_if0);
@@ -3115,7 +3114,7 @@ sk_intr(xsc)
 			    SK_RXBMU_CLR_IRQ_EOF|SK_RXBMU_RX_START);
 		}
 		if (status & SK_ISR_RX2_EOF) {
-			if (ifp1->if_mtu > SK_MAX_FRAMELEN)
+			if (if_getflags(ifp1) > SK_MAX_FRAMELEN)
 				sk_jumbo_rxeof(sc_if1);
 			else
 				sk_rxeof(sc_if1);
@@ -3135,7 +3134,7 @@ sk_intr(xsc)
 
 		/* Then MAC interrupts. */
 		if (status & SK_ISR_MAC1 &&
-		    ifp0->if_drv_flags & IFF_DRV_RUNNING) {
+		    if_getdrvflags(ifp0) & IFF_DRV_RUNNING) {
 			if (sc->sk_type == SK_GENESIS)
 				sk_intr_xmac(sc_if0);
 			else
@@ -3143,7 +3142,7 @@ sk_intr(xsc)
 		}
 
 		if (status & SK_ISR_MAC2 &&
-		    ifp1->if_drv_flags & IFF_DRV_RUNNING) {
+		    if_getdrvflags(ifp1) & IFF_DRV_RUNNING) {
 			if (sc->sk_type == SK_GENESIS)
 				sk_intr_xmac(sc_if1);
 			else
@@ -3163,9 +3162,9 @@ sk_intr(xsc)
 
 	CSR_WRITE_4(sc, SK_IMR, sc->sk_intrmask);
 
-	if (ifp0 != NULL && !IFQ_DRV_IS_EMPTY(&ifp0->if_snd))
+	if (ifp0 != NULL && !if_sendq_empty(ifp0))
 		sk_start_locked(ifp0);
-	if (ifp1 != NULL && !IFQ_DRV_IS_EMPTY(&ifp1->if_snd))
+	if (ifp1 != NULL && !if_sendq_empty(ifp1))
 		sk_start_locked(ifp1);
 
 done_locked:
@@ -3177,7 +3176,7 @@ sk_init_xmac(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int16_t		eaddr[(ETHER_ADDR_LEN+1)/2];
 	static const struct sk_bcom_hack bhack[] = {
 	{ 0x18, 0x0c20 }, { 0x17, 0x0012 }, { 0x15, 0x1104 }, { 0x17, 0x0013 },
@@ -3243,13 +3242,13 @@ sk_init_xmac(sc_if)
 	}
 
 	/* Set station address */
-	bcopy(IF_LLADDR(sc_if->sk_ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc_if->sk_ifp), eaddr, ETHER_ADDR_LEN);
 	SK_XM_WRITE_2(sc_if, XM_PAR0, eaddr[0]);
 	SK_XM_WRITE_2(sc_if, XM_PAR1, eaddr[1]);
 	SK_XM_WRITE_2(sc_if, XM_PAR2, eaddr[2]);
 	SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_USE_STATION);
 
-	if (ifp->if_flags & IFF_BROADCAST) {
+	if (if_getflags(ifp) & IFF_BROADCAST) {
 		SK_XM_CLRBIT_4(sc_if, XM_MODE, XM_MODE_RX_NOBROAD);
 	} else {
 		SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_NOBROAD);
@@ -3275,7 +3274,7 @@ sk_init_xmac(sc_if)
 	 * case the XMAC will start transferring frames out of the
 	 * RX FIFO as soon as the FIFO threshold is reached.
 	 */
-	if (ifp->if_mtu > SK_MAX_FRAMELEN) {
+	if (if_getmtu(ifp) > SK_MAX_FRAMELEN) {
 		SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_BADFRAMES|
 		    XM_MODE_RX_GIANTS|XM_MODE_RX_RUNTS|XM_MODE_RX_CRCERRS|
 		    XM_MODE_RX_INRANGELEN);
@@ -3341,7 +3340,7 @@ sk_init_yukon(sc_if)
 	u_int32_t		phy, v;
 	u_int16_t		reg;
 	struct sk_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int8_t		*eaddr;
 	int			i;
 
@@ -3414,12 +3413,12 @@ sk_init_yukon(sc_if)
 
 	/* serial mode register */
 	reg = YU_SMR_DATA_BLIND(0x1c) | YU_SMR_MFL_VLAN | YU_SMR_IPG_DATA(0x1e);
-	if (ifp->if_mtu > SK_MAX_FRAMELEN)
+	if (if_getmtu(ifp) > SK_MAX_FRAMELEN)
 		reg |= YU_SMR_MFL_JUMBO;
 	SK_YU_WRITE_2(sc_if, YUKON_SMR, reg);
 
 	/* Setup Yukon's station address */
-	eaddr = IF_LLADDR(sc_if->sk_ifp);
+	eaddr = if_getlladdr(sc_if->sk_ifp);
 	for (i = 0; i < 3; i++)
 		SK_YU_WRITE_2(sc_if, SK_MAC0_0 + i * 4,
 		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
@@ -3486,7 +3485,7 @@ sk_init_locked(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct mii_data		*mii;
 	u_int16_t		reg;
 	u_int32_t		imr;
@@ -3498,7 +3497,7 @@ sk_init_locked(sc_if)
 	sc = sc_if->sk_softc;
 	mii = device_get_softc(sc_if->sk_miibus);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	/* Cancel pending I/O and free all RX/TX buffers. */
@@ -3586,7 +3585,7 @@ sk_init_locked(sc_if)
 
 	/* Configure BMUs */
 	SK_IF_WRITE_4(sc_if, 0, SK_RXQ1_BMU_CSR, SK_RXBMU_ONLINE);
-	if (ifp->if_mtu > SK_MAX_FRAMELEN) {
+	if (if_getmtu(ifp) > SK_MAX_FRAMELEN) {
 		SK_IF_WRITE_4(sc_if, 0, SK_RXQ1_CURADDR_LO,
 		    SK_ADDR_LO(SK_JUMBO_RX_RING_ADDR(sc_if, 0)));
 		SK_IF_WRITE_4(sc_if, 0, SK_RXQ1_CURADDR_HI,
@@ -3605,7 +3604,7 @@ sk_init_locked(sc_if)
 	    SK_ADDR_HI(SK_TX_RING_ADDR(sc_if, 0)));
 
 	/* Init descriptors */
-	if (ifp->if_mtu > SK_MAX_FRAMELEN)
+	if (if_getmtu(ifp) > SK_MAX_FRAMELEN)
 		error = sk_init_jumbo_rx_ring(sc_if);
 	else
 		error = sk_init_rx_ring(sc_if);
@@ -3665,8 +3664,8 @@ sk_init_locked(sc_if)
 	/* start transfer of Tx descriptors */
 	CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	switch (sc->sk_type) {
 	case SK_YUKON:
@@ -3690,7 +3689,7 @@ sk_stop(sc_if)
 	struct sk_txdesc	*txd;
 	struct sk_rxdesc	*rxd;
 	struct sk_rxdesc	*jrxd;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int32_t		val;
 
 	SK_IF_LOCK_ASSERT(sc_if);
@@ -3807,7 +3806,7 @@ sk_stop(sc_if)
 		}
 	}
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING|IFF_DRV_OACTIVE));
 
 	return;
 }
