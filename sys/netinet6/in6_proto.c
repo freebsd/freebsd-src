@@ -146,7 +146,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_flags =		PR_CAPATTACH,
-	.pr_slowtimo =		frag6_slowtimo,
 	.pr_drain =		frag6_drain,
 	.pr_usrreqs =		&nousrreqs,
 },

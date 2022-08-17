@@ -883,8 +883,9 @@ dropfrag2:
  * IPv6 reassembling timer processing;
  * if a timer expires on a reassembly queue, discard it.
  */
-void
-frag6_slowtimo(void)
+static struct callout frag6_callout;
+static void
+frag6_slowtimo(void *arg __unused)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ip6qhead *head;
@@ -892,7 +893,7 @@ frag6_slowtimo(void)
 	uint32_t bucket;
 
 	if (atomic_load_int(&frag6_nfrags) == 0)
-		return;
+		goto done;
 
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
@@ -949,7 +950,20 @@ frag6_slowtimo(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+done:
+	callout_reset_sbt(&frag6_callout, SBT_1MS * 500, SBT_1MS * 10,
+	    frag6_slowtimo, NULL, 0);
 }
+
+static void
+frag6_slowtimo_init(void *arg __unused)
+{
+
+	callout_init(&frag6_callout, 1);
+	callout_reset_sbt(&frag6_callout, SBT_1MS * 500, SBT_1MS * 10,
+	    frag6_slowtimo, NULL, 0);
+}
+SYSINIT(frag6, SI_SUB_VNET_DONE, SI_ORDER_ANY, frag6_slowtimo_init, NULL);
 
 /*
  * Eventhandler to adjust limits in case nmbclusters change.
