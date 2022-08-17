@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2014 Juniper Networks, Inc.
+# Copyright (c) 2014, 2019, 2020 Juniper Networks, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,8 @@
 # Author: Sreekanth Rupavatharam
 #
 
+MAX_PASSES=100
+
 if [ $# -lt 1 ]
 then
 	echo " $0 <driver source (e.g., if_em.c)>";
@@ -47,40 +49,24 @@ __ifp__="ifp";
 file=$1
 
 rotateCursor() {
-  case $toggle
-  in
-    1)
-      printf " \\ "
-      printf "\b\b"
-      toggle="2"
-    ;;
-
-    2)
-      printf " | "
-      printf "\b\b\b"
-      toggle="3"
-    ;;
-
-    3)
-      printf " / "
-      printf "\b\b\b"
-      toggle="4"
-    ;;
-
-    *)
-      printf " - "
-      printf "\b\b\b"
-      toggle="1"
-    ;;
-  esac
+	case $toggle in
+	1) c="\\" ;;
+	2) c="|" ;;
+	3) c="/" ;;
+	*) c="-" ;;
+	esac
+	toggle=$(((toggle + 1) % 4))
+	printf " %s \b\b\b" $c
 }
 
-handle_set() {
 # Handle the case where $__ifp__->if_blah = XX;
-	line=$1
-	set=`echo $line| grep "$__ifp__->.* = "`
-	if [ ! -z "$set" ]
+handle_set() {
+	if echo $line | grep "$__ifp__->.* = " > /dev/null 2>&1
 	then
+		if echo $line | grep "\[$__ifp__->.* = " > /dev/null 2>&1; then
+			# Special case of array[ifp->member] = value
+			return 1
+		fi
 		word=`echo $line | awk -F "if_" ' { print $2 }' | awk -F" =" '{ print $1 }'`
 		value=`echo $line | awk -F "=" '{ print $2 }' | sed -e 's/;//g'`
 		new=`echo if_set$word"\($__ifp__,"$value");"`
@@ -93,9 +79,7 @@ handle_set() {
 }
 
 handle_inc() {
-	line=$1	
-	inc=`echo $line | grep "$__ifp__->.*++\|++$__ifp__->.*"`
-	if [ ! -z "$inc" ]
+	if echo $line | grep "$__ifp__->.*++\|++$__ifp__->.*" > /dev/null 2>&1
 	then
 		word=`echo $line | awk -F"if_" '{ print $2 }'|awk -F"\+" '{ print $1}'`
 		value=' 1';
@@ -104,14 +88,12 @@ handle_inc() {
 		new=`echo $new | sed -e 's/&/\\\&/'`
 		line=`echo $line| sed -e's/'$old'/'$new'/g'`
 		return 0;
-	fi	
+	fi
 	return 1;
 }
 
 handle_add() {
-	line=$1
-	add=`echo $line|grep "$__ifp__->.*+= "`
-	if [ ! -z "$add" ]
+	if echo $line | grep "$__ifp__->.*+= " > /dev/null 2>&1
 	then
 		word=`echo $line | awk -F"if_" '{ print $2 }'|awk '{ print $1}'`
 		value=`echo $line | awk -F"=" '{ print $2}' | sed -e 's/;//g'`
@@ -126,14 +108,12 @@ handle_add() {
 }
 
 handle_or() {
-	line=$1
-	or=`echo $line|grep "$__ifp__->.*|= "`
-	if [ ! -z "$or" ]
+	if echo $line | grep "$__ifp__->.*|= " > /dev/null 2>&1
 	then
-		word=`echo $line | awk -F"if_" '{ print $2 }'|awk '{ print $1}'`	
+		word=`echo $line | awk -F"if_" '{ print $2 }'|awk '{ print $1}'`
 		value=`echo $line | awk -F"=" '{ print $2}' | sed -e 's/;//g'`
 		new=`echo if_set${word}bit"($__ifp__,$value, 0);"`
-		new=`echo $new | sed -e 's/&/\\\&/'` 
+		new=`echo $new | sed -e 's/&/\\\&/'`
 		#line=`echo $line|sed -e 's/&/\\&/'`
 		old=`echo $line|sed -e 's/^[ 	]*//'`
 		line=`echo $line| sed -e's/'$old'/'$new'/g'`
@@ -144,11 +124,9 @@ handle_or() {
 }
 
 handle_and() {
-	line=$1
-	or=`echo $line|grep "$__ifp__->.*&= "`
-	if [ ! -z "$or" ]
+	if echo $line |grep "$__ifp__->.*&= " > /dev/null 2>&1
 	then
-		word=`echo $line | awk -F"if_" '{ print $2 }'|awk '{ print $1}'`	
+		word=`echo $line | awk -F"if_" '{ print $2 }'|awk '{ print $1}'`
 		value=`echo $line | awk -F"=" '{ print $2}' | sed -e 's/;//g'`
 		value=`echo $value | sed -e's/~//g'`
 		new=`echo if_set${word}bit"\($__ifp__, 0,$value);"`
@@ -162,8 +140,7 @@ handle_and() {
 }
 
 handle_toggle() {
-	line=$1
-	if [ ! -z `echo $line | grep "\^="` ]
+	if echo $line | grep "\^=" > /dev/null 2>&1
 	then
 		line=`echo $line | sed -e 's/'"$__ifp__"'->if_\(.*\) ^=\(.*\);/if_toggle\1('"$__ifp__"',\2);/g'`
 		return 0;
@@ -174,9 +151,7 @@ handle_toggle() {
 
 # XXX - this needs updating
 handle_misc() {
-	line=$1
-	get=`echo $line | grep "if_capabilities\|if_flags\|if_softc\|if_capenable\|if_mtu\|if_drv_flags"`
-	if [ ! -z "$get" ]
+	if echo $line | grep "$__ifp__->\(if_capabilities\|if_flags\|if_softc\|if_capenable\|if_hwassist\|if_mtu\|if_drv_flags\|if_index\|if_alloctype\|if_dname\|if_xname\|if_addr\|if_hw_tsomax\|if_hw_tsomaxsegcount\|if_hw_tsomaxsegsize\)" > /dev/null 2>&1
 	then
 		word=`echo $line |awk -F"$__ifp__->if_" '{ print $2 }' | \
 			sed -e's/[^a-zA-Z0-9_]/\@/'|awk -F"\@" '{ print $1}'`
@@ -192,31 +167,66 @@ handle_misc() {
 
 replace_str ()
 {
-	line=$1
-	orig=$2
-	new=$3
-	line=`echo $line | sed -e 's/'"$orig"'\(.*\)/'"$new"'\1/g'`
-	return 0;
+	orig=$1
+	new=$2
+
+	if echo $line | grep "$orig" > /dev/null 2>&1
+	then
+		line=`echo $line | sed -e "s|$orig|$new|"`
+	else
+		return 1
+	fi
 }
 
-# Handle special cases which do not fall under regular patterns
 handle_special ()
 {
-	line=$1
-	replace_str $line "(\*$__ifp__->if_input)" "if_input"
-	replace_str $line "if_setinit" "if_setinitfn"
-	replace_str $line "if_setioctl" "if_setioctlfn"
-	replace_str $line "if_getdrv_flags" "if_getdrvflags"
-	replace_str $line "if_setdrv_flagsbit" "if_setdrvflagbits"
-	replace_str $line "if_setstart" "if_setstartfn"
-	replace_str $line "if_sethwassistbit" "if_sethwassistbits"
-	replace_str $line "ifmedia_init" "ifmedia_init_drv"
-	replace_str $line "IFQ_DRV_IS_EMPTY(&$__ifp__->if_snd)" "if_sendq_empty($__ifp__)"
-	replace_str $line "IFQ_DRV_PREPEND(&$__ifp__->if_snd" "if_sendq_prepend($__ifp__"
-	replace_str $line "IFQ_SET_READY(&ifp->if_snd)" "if_setsendqready($__ifp__)"
-	line=`echo $line | sed -e 's/IFQ_SET_MAXLEN(&'$__ifp__'->if_snd, \(.*\))/if_setsendqlen('$__ifp__', \1)/g'`
-	line=`echo $line | sed -e 's/IFQ_DRV_DEQUEUE(&'$__ifp__'->if_snd, \(.*\))/\1 = if_dequeue('$__ifp__')/g'`
-	return 0
+	replace_str "(\*$__ifp__->if_input)" "if_input" || \
+	replace_str "IFQ_DRV_IS_EMPTY(&$__ifp__->if_snd)" \
+		"if_sendq_empty($__ifp__)" || \
+	replace_str "IFQ_DRV_PREPEND(&$__ifp__->if_snd" \
+		"if_sendq_prepend($__ifp__" || \
+	replace_str "IFQ_SET_READY(&$__ifp__->if_snd)" \
+		"if_setsendqready($__ifp__)" || \
+	replace_str "VLAN_CAPABILITIES($__ifp__)" \
+		"if_vlancap($__ifp__)" || \
+	replace_str "IFQ_SET_MAXLEN(&$__ifp__->if_snd," \
+		"if_setsendqlen($__ifp__," || \
+	replace_str "IFQ_DRV_DEQUEUE(&$__ifp__->if_snd, \(.*\))" \
+		"\1 = if_dequeue($__ifp__)"
+	replace_str "$__ifp__->if_vlantrunk != NULL" \
+		"if_vlantrunkinuse($__ifp__)"
+}
+
+handle_ifps() {
+	handle_set || handle_inc || handle_add || handle_or || handle_and || \
+	handle_toggle || handle_misc || handle_special
+}
+
+handle_renames ()
+{
+	replace_str "if_setinit(" "if_setinitfn(" || \
+	replace_str "if_setioctl(" "if_setioctlfn(" || \
+	replace_str "if_setqflush(" "if_setqflushfn(" || \
+	replace_str "if_settransmit(" "if_settransmitfn(" || \
+	replace_str "if_getdrv_flags(" "if_getdrvflags(" || \
+	replace_str "if_setdrv_flagsbit(" "if_setdrvflagbits(" || \
+	replace_str "if_setstart(" "if_setstartfn(" || \
+	replace_str "if_sethwassistbit(" "if_sethwassistbits(" || \
+	replace_str "ifmedia_init(" "ifmedia_init_drv("
+}
+
+check_ifp()
+{
+	case "$line" in
+	*"${__ifp__}->"*) return 0;; # Still an ifp to convert
+	esac
+	return 1
+}
+
+add_failed ()
+{
+	line="$line /* ${FAIL_PAT} */"
+	return 1
 }
 
 if [ -e $file.tmp ]
@@ -227,69 +237,37 @@ IFS=
 echo -n "Conversion for $file started, please wait: "
 FAIL_PAT="XXX - DRVAPI"
 count=0
-cat $1 | while read -r line
+while read -r line
 do
-count=`expr $count + 1`
-rotateCursor 
-pat=`echo $line | grep "$__ifp__->"`
-while  [ "$pat" != "" ]
-do
-	pat=`echo $line | grep "$__ifp__->"`
-	if [ ! -z `echo $pat | grep "$FAIL_PAT"` ]
-	then
-		break;
-	fi
+	rotateCursor
 
-	handle_set $line
+	# There is an ifp, we need to process it
+	passes=0
+	while check_ifp
+	do
+		if handle_ifps
+		then
+			handle_renames
+		else
+			add_failed
+			break
+		fi
+		passes=$((passes + 1))
+		if [ $passes -ge $MAX_PASSES ]; then
+			add_failed
+			break
+		fi
+	done
 
-	if [ $? != 0 ]
-	then 
-		handle_inc $line
-	fi
-
-	if [ $? != 0 ]
-	then
-		handle_add $line
-	fi
-
-	if [ $? != 0 ]
-	then
-		handle_or $line
-	fi
-
-	if [ $? != 0 ]
-	then
-		handle_and $line
-	fi
-
-	if [ $? != 0 ]
-	then
-		handle_toggle $line
-	fi
-
-	if [ $? != 0 ]
-	then
-		handle_misc $line
-	fi
-	
-	if [ $? != 0 ]
-	then
-		handle_special $line
-	fi	
-
-	if [ ! -z `echo $line | grep "$__ifp__->"` ]
-	then
-		line=`echo $line | sed -e 's:$: \/* '${FAIL_PAT}' *\/:g'`
-	fi
-done
-	line=`echo "$line" | sed -e 's:VLAN_CAPABILITIES('$__ifp__'):if_vlancap('$__ifp__'):g'`
 	# Replace the ifnet * with if_t
-	if [ ! -z `echo $line | grep "struct ifnet"` ]
-	then
-		line=`echo $line | sed -e 's/struct ifnet[ \t]*\*/if_t /g'`
-	fi
-	echo "$line" >> $file.tmp
-done
+	case "$line" in
+	*"struct ifnet"*)
+		line=`echo $line | sed -e 's/struct ifnet[ \t]*\*/if_t /g'` ;;
+	*"IF_LLADDR("*)
+		line=`echo $line | sed -e 's/IF_LLADDR(/if_getlladdr(/g'` ;;
+	esac
+	printf "%s\n" "$line" >> $file.tmp
+done < $1
 echo ""
 count=`grep $FAIL_PAT $file.tmp | wc -l`
 if [ $count -gt 0 ]
