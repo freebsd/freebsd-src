@@ -74,6 +74,7 @@ static void	vtmmio_child_detached(device_t, device_t);
 static int	vtmmio_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	vtmmio_write_ivar(device_t, device_t, int, uintptr_t);
 static uint64_t	vtmmio_negotiate_features(device_t, uint64_t);
+static int	vtmmio_finalize_features(device_t);
 static int	vtmmio_with_feature(device_t, uint64_t);
 static void	vtmmio_set_virtqueue(struct vtmmio_softc *sc,
 		    struct virtqueue *vq, uint32_t size);
@@ -85,9 +86,11 @@ static void	vtmmio_poll(device_t);
 static int	vtmmio_reinit(device_t, uint64_t);
 static void	vtmmio_reinit_complete(device_t);
 static void	vtmmio_notify_virtqueue(device_t, uint16_t, bus_size_t);
+static int	vtmmio_config_generation(device_t);
 static uint8_t	vtmmio_get_status(device_t);
 static void	vtmmio_set_status(device_t, uint8_t);
 static void	vtmmio_read_dev_config(device_t, bus_size_t, void *, int);
+static uint64_t	vtmmio_read_dev_config_8(struct vtmmio_softc *, bus_size_t);
 static void	vtmmio_write_dev_config(device_t, bus_size_t, const void *, int);
 static void	vtmmio_describe_features(struct vtmmio_softc *, const char *,
 		    uint64_t);
@@ -152,6 +155,7 @@ static device_method_t vtmmio_methods[] = {
 
 	/* VirtIO bus interface. */
 	DEVMETHOD(virtio_bus_negotiate_features,  vtmmio_negotiate_features),
+	DEVMETHOD(virtio_bus_finalize_features,	  vtmmio_finalize_features),
 	DEVMETHOD(virtio_bus_with_feature,	  vtmmio_with_feature),
 	DEVMETHOD(virtio_bus_alloc_virtqueues,	  vtmmio_alloc_virtqueues),
 	DEVMETHOD(virtio_bus_setup_intr,	  vtmmio_setup_intr),
@@ -160,6 +164,7 @@ static device_method_t vtmmio_methods[] = {
 	DEVMETHOD(virtio_bus_reinit,		  vtmmio_reinit),
 	DEVMETHOD(virtio_bus_reinit_complete,	  vtmmio_reinit_complete),
 	DEVMETHOD(virtio_bus_notify_vq,		  vtmmio_notify_virtqueue),
+	DEVMETHOD(virtio_bus_config_generation,	  vtmmio_config_generation),
 	DEVMETHOD(virtio_bus_read_device_config,  vtmmio_read_dev_config),
 	DEVMETHOD(virtio_bus_write_device_config, vtmmio_write_dev_config),
 
@@ -462,6 +467,31 @@ vtmmio_negotiate_features(device_t dev, uint64_t child_features)
 }
 
 static int
+vtmmio_finalize_features(device_t dev)
+{
+	struct vtmmio_softc *sc;
+	uint8_t status;
+
+	sc = device_get_softc(dev);
+
+	if (sc->vtmmio_version > 1) {
+		/*
+		 * Must re-read the status after setting it to verify the
+		 * negotiated features were accepted by the device.
+		 */
+		vtmmio_set_status(dev, VIRTIO_CONFIG_S_FEATURES_OK);
+
+		status = vtmmio_get_status(dev);
+		if ((status & VIRTIO_CONFIG_S_FEATURES_OK) == 0) {
+			device_printf(dev, "desired features were not accepted\n");
+			return (ENOTSUP);
+		}
+	}
+
+	return (0);
+}
+
+static int
 vtmmio_with_feature(device_t dev, uint64_t feature)
 {
 	struct vtmmio_softc *sc;
@@ -540,8 +570,6 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		vqx = &sc->vtmmio_vqs[idx];
 		info = &vq_info[idx];
 
-		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_SEL, idx);
-
 		vtmmio_select_virtqueue(sc, idx);
 		size = vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX);
 
@@ -605,7 +633,16 @@ vtmmio_reinit(device_t dev, uint64_t features)
 	vtmmio_set_status(dev, VIRTIO_CONFIG_STATUS_ACK);
 	vtmmio_set_status(dev, VIRTIO_CONFIG_STATUS_DRIVER);
 
+	/*
+	 * TODO: Check that features are not added as to what was
+	 * originally negotiated.
+	 */
 	vtmmio_negotiate_features(dev, features);
+	error = vtmmio_finalize_features(dev);
+	if (error) {
+		device_printf(dev, "cannot finalize features during reinit\n");
+		return (error);
+	}
 
 	if (sc->vtmmio_version == 1) {
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_PAGE_SIZE,
@@ -639,6 +676,22 @@ vtmmio_notify_virtqueue(device_t dev, uint16_t queue, bus_size_t offset)
 	vtmmio_write_config_4(sc, offset, queue);
 }
 
+static int
+vtmmio_config_generation(device_t dev)
+{
+	struct vtmmio_softc *sc;
+	uint32_t gen;
+
+	sc = device_get_softc(dev);
+
+	if (sc->vtmmio_version > 1)
+		gen = vtmmio_read_config_4(sc, VIRTIO_MMIO_CONFIG_GENERATION);
+	else
+		gen = 0;
+
+	return (gen);
+}
+
 static uint8_t
 vtmmio_get_status(device_t dev)
 {
@@ -670,7 +723,6 @@ vtmmio_read_dev_config(device_t dev, bus_size_t offset,
 	bus_size_t off;
 	uint8_t *d;
 	int size;
-	uint64_t low32, high32;
 
 	sc = device_get_softc(dev);
 	off = VIRTIO_MMIO_CONFIG + offset;
@@ -707,9 +759,7 @@ vtmmio_read_dev_config(device_t dev, bus_size_t offset,
 			    le32toh(vtmmio_read_config_4(sc, off));
 			break;
 		case 8:
-			low32 = le32toh(vtmmio_read_config_4(sc, off));
-			high32 = le32toh(vtmmio_read_config_4(sc, off + 4));
-			*(uint64_t *)dst = (high32 << 32) | low32;
+			*(uint64_t *)dst = vtmmio_read_dev_config_8(sc, off);
 			break;
 		default:
 			panic("%s: invalid length %d\n", __func__, length);
@@ -733,6 +783,24 @@ vtmmio_read_dev_config(device_t dev, bus_size_t offset,
 			*d = vtmmio_read_config_1(sc, off);
 		}
 	}
+}
+
+static uint64_t
+vtmmio_read_dev_config_8(struct vtmmio_softc *sc, bus_size_t off)
+{
+	device_t dev;
+	int gen;
+	uint32_t val0, val1;
+
+	dev = sc->dev;
+
+	do {
+		gen = vtmmio_config_generation(dev);
+		val0 = le32toh(vtmmio_read_config_4(sc, off));
+		val1 = le32toh(vtmmio_read_config_4(sc, off + 4));
+	} while (gen != vtmmio_config_generation(dev));
+
+	return (((uint64_t) val1 << 32) | val0);
 }
 
 static void
@@ -888,10 +956,11 @@ vtmmio_free_virtqueues(struct vtmmio_softc *sc)
 		vqx = &sc->vtmmio_vqs[idx];
 
 		vtmmio_select_virtqueue(sc, idx);
-		if (sc->vtmmio_version == 1)
-			vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_PFN, 0);
-		else
+		if (sc->vtmmio_version > 1) {
 			vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_READY, 0);
+			vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_READY);
+		} else
+			vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_PFN, 0);
 
 		virtqueue_free(vqx->vtv_vq);
 		vqx->vtv_vq = NULL;
