@@ -117,9 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_pcap.h>
 #endif
 #include <netinet/tcp_syncache.h>
-#ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
-#endif /* TCPDEBUG */
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
