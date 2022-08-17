@@ -1550,7 +1550,7 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
 		                  sizeof(uint32_t) * 1024);
 		/* All unused entries shall be zero */
-		bzero(dest, sizeof(uint32_t) * 1024);
+		memset(dest, 0, sizeof(uint32_t) * 1024);
 		((uint32_t *)dest)[0] = 1;
 		break;
 	case 0x03: /* list of NSID structures in CDW1.NSID, 4096 bytes */
@@ -1562,12 +1562,12 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
 		                  sizeof(uint32_t) * 1024);
 		/* All bytes after the descriptor shall be zero */
-		bzero(dest, sizeof(uint32_t) * 1024);
+		memset(dest, 0, sizeof(uint32_t) * 1024);
 
 		/* Return NIDT=1 (i.e. EUI64) descriptor */
 		((uint8_t *)dest)[0] = 1;
 		((uint8_t *)dest)[1] = sizeof(uint64_t);
-		bcopy(sc->nsdata.eui64, ((uint8_t *)dest) + 4, sizeof(uint64_t));
+		memcpy(((uint8_t *)dest) + 4, sc->nsdata.eui64, sizeof(uint64_t));
 		break;
 	case 0x13:
 		/*
