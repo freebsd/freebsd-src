@@ -2264,7 +2264,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * IEEE Std 1003.1-2001: return success when killing a zombie.
 	 */
 	if (p->p_state == PRS_ZOMBIE) {
-		if (ksi && (ksi->ksi_flags & KSI_INS))
+		if (ksi != NULL && (ksi->ksi_flags & KSI_INS) != 0)
 			ksiginfo_tryfree(ksi);
 		return (ret);
 	}
@@ -2294,7 +2294,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			SDT_PROBE3(proc, , , signal__discard, td, p, sig);
 
 			mtx_unlock(&ps->ps_mtx);
-			if (ksi && (ksi->ksi_flags & KSI_INS))
+			if (ksi != NULL && (ksi->ksi_flags & KSI_INS) != 0)
 				ksiginfo_tryfree(ksi);
 			return (ret);
 		} else {
@@ -2327,7 +2327,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		if ((prop & SIGPROP_TTYSTOP) != 0 &&
 		    (p->p_pgrp->pg_flags & PGRP_ORPHANED) != 0 &&
 		    action == SIG_DFL) {
-			if (ksi && (ksi->ksi_flags & KSI_INS))
+			if (ksi != NULL && (ksi->ksi_flags & KSI_INS) != 0)
 				ksiginfo_tryfree(ksi);
 			return (ret);
 		}
