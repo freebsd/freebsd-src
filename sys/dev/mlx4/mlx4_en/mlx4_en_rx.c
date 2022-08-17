@@ -338,14 +338,14 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 	}
 }
 
-void mlx4_en_calc_rx_buf(struct ifnet *dev)
+void mlx4_en_calc_rx_buf(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
-	int eff_mtu = dev->if_mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN +
+	int eff_mtu = if_getmtu(dev) + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN +
 	    MLX4_NET_IP_ALIGN;
 
 	if (eff_mtu > MJUM16BYTES) {
-		en_err(priv, "MTU(%u) is too big\n", (unsigned)dev->if_mtu);
+		en_err(priv, "MTU(%u) is too big\n", (unsigned)if_getmtu(dev));
                 eff_mtu = MJUM16BYTES;
         } else if (eff_mtu > MJUM9BYTES) {
                 eff_mtu = MJUM16BYTES;
@@ -502,9 +502,9 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 
 #ifdef INET
 		/* Configure lro mngr */
-		if (priv->dev->if_capenable & IFCAP_LRO) {
+		if (if_getcapenable(priv->dev) & IFCAP_LRO) {
 			if (tcp_lro_init(&ring->lro))
-				priv->dev->if_capenable &= ~IFCAP_LRO;
+				if_setcapenablebit(priv->dev, 0, IFCAP_LRO);
 			else
 				ring->lro.ifp = priv->dev;
 		}
@@ -735,7 +735,7 @@ mlx4_en_rss_hash(__be16 status, int udp_rss)
  * The following calc ensures that when factor==1, it means we are aligned to 64B
  * and we get the real cqe data*/
 #define CQE_FACTOR_INDEX(index, factor) (((index) << (factor)) + (factor))
-int mlx4_en_process_rx_cq(struct ifnet *dev, struct mlx4_en_cq *cq, int budget)
+int mlx4_en_process_rx_cq(if_t dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_cqe *cqe;
@@ -806,7 +806,7 @@ int mlx4_en_process_rx_cq(struct ifnet *dev, struct mlx4_en_cq *cq, int budget)
 			mb->m_pkthdr.ether_vtag = be16_to_cpu(cqe->sl_vid);
 			mb->m_flags |= M_VLANTAG;
 		}
-		if (likely(dev->if_capenable &
+		if (likely(if_getcapenable(dev) &
 		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) &&
 		    (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
 		    (cqe->checksum == cpu_to_be16(0xffff))) {
@@ -823,7 +823,7 @@ int mlx4_en_process_rx_cq(struct ifnet *dev, struct mlx4_en_cq *cq, int budget)
 			 */
 #ifdef INET
 			if (mlx4_en_can_lro(cqe->status) &&
-					(dev->if_capenable & IFCAP_LRO)) {
+					(if_getcapenable(dev) & IFCAP_LRO)) {
 				if (ring->lro.lro_cnt != 0 &&
 						tcp_lro_rx(&ring->lro, mb, 0) == 0)
 					goto next;
@@ -838,7 +838,7 @@ int mlx4_en_process_rx_cq(struct ifnet *dev, struct mlx4_en_cq *cq, int budget)
 		}
 
 		/* Push it up the stack */
-		dev->if_input(dev, mb);
+		if_input(dev, mb);
 
 next:
 		++cons_index;
@@ -866,7 +866,7 @@ out:
 /* Rx CQ polling - called by NAPI */
 static int mlx4_en_poll_rx_cq(struct mlx4_en_cq *cq, int budget)
 {
-	struct ifnet *dev = cq->dev;
+	if_t dev = cq->dev;
 	struct epoch_tracker et;
 	int done;
 
@@ -912,7 +912,7 @@ void mlx4_en_rx_que(void *context, int pending)
         while (mlx4_en_poll_rx_cq(cq, MLX4_EN_RX_BUDGET)
                         == MLX4_EN_RX_BUDGET);
 	NET_EPOCH_EXIT(et);
-        mlx4_en_arm_cq(cq->dev->if_softc, cq);
+        mlx4_en_arm_cq(if_getsoftc(cq->dev), cq);
 }
 
 

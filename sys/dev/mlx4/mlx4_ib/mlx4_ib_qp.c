@@ -1790,7 +1790,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 				status = -ENOENT;
 			if (!status && gid_attr.ndev) {
 				vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
-				memcpy(smac, IF_LLADDR(gid_attr.ndev), ETH_ALEN);
+				memcpy(smac, if_getlladdr(gid_attr.ndev), ETH_ALEN);
 				if_rele(gid_attr.ndev);
 			}
 		}

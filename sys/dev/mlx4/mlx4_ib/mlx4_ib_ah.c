@@ -98,7 +98,7 @@ static int create_iboe_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
 	eth_zero_addr(ah->av.eth.s_mac);
 	if (gid_attr.ndev) {
 		vlan_tag = rdma_vlan_dev_vlan_id(gid_attr.ndev);
-		memcpy(ah->av.eth.s_mac, IF_LLADDR(gid_attr.ndev), ETH_ALEN);
+		memcpy(ah->av.eth.s_mac, if_getlladdr(gid_attr.ndev), ETH_ALEN);
 		if_rele(gid_attr.ndev);
 	}
 	if (vlan_tag < 0x1000)
