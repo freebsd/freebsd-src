@@ -184,8 +184,6 @@ struct protosw inetsw[] = {
 	.pr_protocol =		IPPROTO_IGMP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_fasttimo =		igmp_fasttimo,
-	.pr_slowtimo =		igmp_slowtimo,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
