@@ -2462,14 +2462,6 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREEN	0xfffffffffffffffful
 #define	PC_FREEL	((1ul << (_NPCPV % 64)) - 1)
 
-#if _NPCM == 3
-#define	PC_IS_FREE(pc)	((pc)->pc_map[0] == PC_FREEN &&			\
-    (pc)->pc_map[1] == PC_FREEN && (pc)->pc_map[2] == PC_FREEL)
-#else
-#define	PC_IS_FREE(pc)							\
-    (memcmp((pc)->pc_map, pc_freemask, sizeof(pc_freemask)) == 0)
-#endif
-
 static const uint64_t pc_freemask[] = { PC_FREEN, PC_FREEN,
 #if _NPCM > 3
     PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN,
@@ -2487,6 +2479,15 @@ pc_is_full(struct pv_chunk *pc)
 		if (pc->pc_map[i] != 0)
 			return (false);
 	return (true);
+}
+
+static __inline bool
+pc_is_free(struct pv_chunk *pc)
+{
+	for (u_int i = 0; i < _NPCM - 1; i++)
+		if (pc->pc_map[i] != PC_FREEN)
+			return (false);
+	return (pc->pc_map[_NPCM - 1] == PC_FREEL);
 }
 
 #ifdef PV_STATS
@@ -2653,7 +2654,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 		PV_STAT(atomic_add_int(&pv_entry_spare, freed));
 		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-		if (PC_IS_FREE(pc)) {
+		if (pc_is_free(pc)) {
 			PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
 			PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 			PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
@@ -2722,7 +2723,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	field = idx / 64;
 	bit = idx % 64;
 	pc->pc_map[field] |= 1ul << bit;
-	if (!PC_IS_FREE(pc)) {
+	if (!pc_is_free(pc)) {
 		/* 98% of the time, pc is already at the head of the list. */
 		if (__predict_false(pc != TAILQ_FIRST(&pmap->pm_pvchunk))) {
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
