@@ -327,7 +327,6 @@ int sctp_ctloutput(struct socket *, struct sockopt *);
 void sctp_input_with_port(struct mbuf *, int, uint16_t);
 int sctp_input(struct mbuf **, int *, int);
 void sctp_pathmtu_adjustment(struct sctp_tcb *, uint32_t, bool);
-void sctp_drain(void);
 void
 sctp_notify(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *,
     uint8_t, uint8_t, uint16_t, uint32_t);

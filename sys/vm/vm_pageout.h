@@ -87,6 +87,7 @@ extern int vm_pageout_page_count;
  */
 #define	VM_LOW_KMEM	0x01
 #define	VM_LOW_PAGES	0x02
+#define	VM_LOW_MBUFS	0x04
 
 /*
  *	Exported routines.

@@ -39,14 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/ktls.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/protosw.h>
 #include <sys/refcount.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
@@ -395,14 +393,6 @@ mbuf_init(void *dummy)
 		nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_warning(zone_jumbo16, "kern.ipc.nmbjumbo16 limit reached");
 	uma_zone_set_maxaction(zone_jumbo16, mb_reclaim);
-
-	/*
-	 * Hook event handler for low-memory situation, used to
-	 * drain protocols and push data back to the caches (UMA
-	 * later pushes it back to VM).
-	 */
-	EVENTHANDLER_REGISTER(vm_lowmem, mb_reclaim, NULL,
-	    EVENTHANDLER_PRI_FIRST);
 
 	snd_tag_count = counter_u64_alloc(M_WAITOK);
 }
@@ -828,26 +818,12 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 /*
  * This is the protocol drain routine.  Called by UMA whenever any of the
  * mbuf zones is closed to its limit.
- *
- * No locks should be held when this is called.  The drain routines have to
- * presently acquire some locks which raises the possibility of lock order
- * reversal.
  */
 static void
 mb_reclaim(uma_zone_t zone __unused, int pending __unused)
 {
-	struct epoch_tracker et;
-	struct domain *dp;
-	struct protosw *pr;
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK | WARN_PANIC, NULL, __func__);
-
-	NET_EPOCH_ENTER(et);
-	for (dp = domains; dp != NULL; dp = dp->dom_next)
-		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-			if (pr->pr_drain != NULL)
-				(*pr->pr_drain)();
-	NET_EPOCH_EXIT(et);
+	EVENTHANDLER_INVOKE(mbuf_lowmem, VM_LOW_MBUFS);
 }
 
 /*

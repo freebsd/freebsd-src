@@ -6942,15 +6942,18 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 	 */
 }
 
-void
+static void
 sctp_drain(void)
 {
+	struct epoch_tracker et;
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	NET_EPOCH_ENTER(et);
 	/*
 	 * We must walk the PCB lists for ALL associations here. The system
 	 * is LOW on MBUF's and needs help. This is where reneging will
 	 * occur. We really hope this does NOT happen!
 	 */
-	VNET_ITERATOR_DECL(vnet_iter);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -6962,6 +6965,7 @@ sctp_drain(void)
 #ifdef VIMAGE
 			continue;
 #else
+			NET_EPOCH_EXIT(et);
 			return;
 #endif
 		}
@@ -6981,7 +6985,10 @@ sctp_drain(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 }
+EVENTHANDLER_DEFINE(vm_lowmem, sctp_drain, NULL, LOWMEM_PRI_DEFAULT);
+EVENTHANDLER_DEFINE(mbuf_lowmem, sctp_drain, NULL, LOWMEM_PRI_DEFAULT);
 
 /*
  * start a new iterator
