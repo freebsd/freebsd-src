@@ -89,9 +89,9 @@ __FBSDID("$FreeBSD$");
 
 static void	sbni_init(void *);
 static void	sbni_init_locked(struct sbni_softc *);
-static void	sbni_start(struct ifnet *);
-static void	sbni_start_locked(struct ifnet *);
-static int	sbni_ioctl(struct ifnet *, u_long, caddr_t);
+static void	sbni_start(if_t);
+static void	sbni_start_locked(if_t);
+static int	sbni_ioctl(if_t, u_long, caddr_t);
 static void	sbni_stop(struct sbni_softc *);
 static void	handle_channel(struct sbni_softc *);
 
@@ -217,8 +217,9 @@ sbni_probe(struct sbni_softc *sc)
 int
 sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	u_char csr0;
+	uint64_t baudrate;
    
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
@@ -227,26 +228,26 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	set_initial_values(sc, flags);
 
 	/* Initialize ifnet structure */
-	ifp->if_softc	= sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, "sbni", unit);
-	ifp->if_init	= sbni_init;
-	ifp->if_start	= sbni_start;
-	ifp->if_ioctl	= sbni_ioctl;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	if_setinitfn(ifp, sbni_init);
+	if_setstartfn(ifp, sbni_start);
+	if_setioctlfn(ifp, sbni_ioctl);
+	if_setsendqlen(ifp, ifqmaxlen);
 
 	/* report real baud rate */
 	csr0 = sbni_inb(sc, CSR0);
-	ifp->if_baudrate =
-		(csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
+	baudrate = (csr0 & 0x01 ? 500000 : 2000000) / (1 << flags.rate);
 
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if_setbaudrate(ifp, baudrate);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
-	mtx_init(&sc->lock, ifp->if_xname, MTX_NETWORK_LOCK, MTX_DEF);
+	mtx_init(&sc->lock, if_name(ifp), MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->wch, &sc->lock, 0);
 	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	if_printf(ifp, "speed %ju, rxl ", (uintmax_t)ifp->if_baudrate);
+	if_printf(ifp, "speed %ju, rxl ", (uintmax_t)baudrate);
 	if (sc->delta_rxl)
 		printf("auto\n");
 	else
@@ -297,7 +298,7 @@ sbni_init(void *xsc)
 static void
 sbni_init_locked(struct sbni_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->ifp;
 
@@ -305,23 +306,23 @@ sbni_init_locked(struct sbni_softc *sc)
 	 * kludge to avoid multiple initialization when more than once
 	 * protocols configured
 	 */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	card_start(sc);
 	callout_reset(&sc->wch, hz/SBNI_HZ, sbni_timeout, sc);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	/* attempt to start output */
 	sbni_start_locked(ifp);
 }
 
 static void
-sbni_start(struct ifnet *ifp)
+sbni_start(if_t ifp)
 {
-	struct sbni_softc *sc = ifp->if_softc;
+	struct sbni_softc *sc = if_getsoftc(ifp);
 
 	SBNI_LOCK(sc);
 	sbni_start_locked(ifp);
@@ -329,9 +330,9 @@ sbni_start(struct ifnet *ifp)
 }
 
 static void
-sbni_start_locked(struct ifnet *ifp)
+sbni_start_locked(if_t ifp)
 {
-	struct sbni_softc *sc = ifp->if_softc;
+	struct sbni_softc *sc = if_getsoftc(ifp);
 
 	if (sc->tx_frameno == 0)
 		prepare_to_send(sc);
@@ -349,7 +350,7 @@ sbni_stop(struct sbni_softc *sc)
 	}
 
 	callout_stop(&sc->wch);
-	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(sc->ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -699,13 +700,13 @@ prepare_to_send(struct sbni_softc *sc)
 	sc->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
 
 	for (;;) {
-		IF_DEQUEUE(&sc->ifp->if_snd, sc->tx_buf_p);
+		sc->tx_buf_p = if_dequeue(sc->ifp);
 		if (!sc->tx_buf_p) {
 			/* nothing to transmit... */
 			sc->pktlen     = 0;
 			sc->tx_frameno = 0;
 			sc->framelen   = 0;
-			sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+			if_setdrvflagbits(sc->ifp, 0, IFF_DRV_OACTIVE);
 			return;
 		}
 
@@ -725,7 +726,7 @@ prepare_to_send(struct sbni_softc *sc)
 	sc->framelen	= min(len, sc->maxframe);
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);
-	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	if_setdrvflagbits(sc->ifp, IFF_DRV_OACTIVE, 0);
 	BPF_MTAP(sc->ifp, sc->tx_buf_p);
 }
 
@@ -741,7 +742,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 	}
 
 	for (;;) {
-		IF_DEQUEUE(&sc->ifp->if_snd, m);
+		m = if_dequeue(sc->ifp);
 		if (m == NULL)
 			break;
 		m_freem(m);
@@ -752,7 +753,7 @@ drop_xmit_queue(struct sbni_softc *sc)
 	sc->framelen	= 0;
 	sc->outpos	= 0;
 	sc->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(sc->ifp, 0, IFF_DRV_OACTIVE);
 }
 
 static void
@@ -876,7 +877,7 @@ get_rx_buf(struct sbni_softc *sc)
 static void
 indicate_pkt(struct sbni_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mbuf *m;
 
 	m = sc->rx_buf_p;
@@ -885,7 +886,7 @@ indicate_pkt(struct sbni_softc *sc)
 	sc->rx_buf_p = NULL;
 
 	SBNI_UNLOCK(sc);
-	(*ifp->if_input)(ifp, m);
+	if_input(ifp, m);
 	SBNI_LOCK(sc);
 }
 
@@ -1063,7 +1064,7 @@ timeout_change_level(struct sbni_softc *sc)
  */
 
 static int
-sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+sbni_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct sbni_softc *sc;
 	struct ifreq *ifr;
@@ -1072,7 +1073,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct sbni_flags flags;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 	td = curthread;
 	error = 0;
@@ -1084,11 +1085,11 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * If it is marked down and running, then stop it.
 		 */
 		SBNI_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+		if (if_getflags(ifp) & IFF_UP) {
+			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 				sbni_init_locked(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				sbni_stop(sc);
 			}
 		}
@@ -1111,7 +1112,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 */
 	case SIOCGHWFLAGS:	/* get flags */
 		SBNI_LOCK(sc);
-		bcopy((caddr_t)IF_LLADDR(sc->ifp)+3, (caddr_t) &flags, 3);
+		bcopy((caddr_t)if_getlladdr(sc->ifp)+3, (caddr_t) &flags, 3);
 		flags.rxl = sc->cur_rxl_index;
 		flags.rate = sc->csr1.rate;
 		flags.fixed_rxl = (sc->delta_rxl == 0);
@@ -1149,7 +1150,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		sc->csr1.rate = flags.fixed_rate ? flags.rate : DEFAULT_RATE;
 		if (flags.mac_addr)
 			bcopy((caddr_t) &flags,
-			      (caddr_t) IF_LLADDR(sc->ifp)+3, 3);
+			      (caddr_t) if_getlladdr(sc->ifp)+3, 3);
 
 		/* Don't be afraid... */
 		sbni_outb(sc, CSR1, *(char*)(&sc->csr1) | PR_RES);
