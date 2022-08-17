@@ -267,10 +267,10 @@ typedef struct qla_sp_log qla_sp_log_t;
 	"qla_ioctl [%ld]: SIOCSIFMTU if_drv_flags = 0x%08x [0x%08x] max_frame_size = 0x%08x if_mtu = 0x%08x\n"
 
 #define SP_TLOG_FMT_STR_10	\
-	"qla_ioctl [%ld]: SIOCSIFFLAGS if_drv_flags = 0x%08x [0x%08x] ha->if_flags = 0x%08x ifp->if_flags = 0x%08x\n"
+
 
 #define SP_TLOG_FMT_STR_11	\
-	"qla_ioctl [%ld]: SIOCSIFCAP if_drv_flags = 0x%08x [0x%08x] mask = 0x%08x ifp->if_capenable = 0x%08x\n"
+
 
 #define SP_TLOG_FMT_STR_12	\
 	"qla_set_multi [%ld]: if_drv_flags = 0x%08x [0x%08x] add_multi = 0x%08x mcnt = 0x%08x\n"
