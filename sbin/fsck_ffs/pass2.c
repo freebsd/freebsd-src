@@ -217,9 +217,9 @@ pass2(void)
 			continue;
 		if (inp->i_dotdot == 0) {
 			inp->i_dotdot = inp->i_parent;
-			fileerror(inp->i_parent, inp->i_number, "MISSING '..'");
-			if (reply("FIX") == 0)
-				continue;
+			if (debug)
+				fileerror(inp->i_parent, inp->i_number,
+				    "DEFERRED MISSING '..' FIX");
 			(void)makeentry(inp->i_number, inp->i_parent, "..");
 			inoinfo(inp->i_parent)->ino_linkcnt--;
 			continue;
@@ -289,7 +289,7 @@ pass2check(struct inodesc *idesc)
 	struct inode ip;
 	union dinode *dp;
 	const char *errmsg;
-	struct direct proto;
+	struct direct proto, *newdirp;
 
 	/*
 	 * check for "."
@@ -301,45 +301,52 @@ pass2check(struct inodesc *idesc)
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, ".") == 0) {
 		if (dirp->d_ino != idesc->id_number) {
 			direrror(idesc->id_number, "BAD INODE NUMBER FOR '.'");
-			dirp->d_ino = idesc->id_number;
-			if (reply("FIX") == 1)
+			if (reply("FIX") == 1) {
+				dirp->d_ino = idesc->id_number;
 				ret |= ALTERED;
+			}
 		}
 		if (dirp->d_type != DT_DIR) {
 			direrror(idesc->id_number, "BAD TYPE VALUE FOR '.'");
-			dirp->d_type = DT_DIR;
-			if (reply("FIX") == 1)
+			if (reply("FIX") == 1) {
+				dirp->d_type = DT_DIR;
 				ret |= ALTERED;
+			}
 		}
 		goto chk1;
 	}
-	direrror(idesc->id_number, "MISSING '.'");
 	proto.d_ino = idesc->id_number;
 	proto.d_type = DT_DIR;
 	proto.d_namlen = 1;
 	(void)strcpy(proto.d_name, ".");
 	entrysize = DIRSIZ(0, &proto);
-	if (dirp->d_ino != 0 && strcmp(dirp->d_name, "..") != 0) {
-		pfatal("CANNOT FIX, FIRST ENTRY IN DIRECTORY CONTAINS %s\n",
-			dirp->d_name);
-	} else if (dirp->d_reclen < entrysize) {
-		pfatal("CANNOT FIX, INSUFFICIENT SPACE TO ADD '.'\n");
-	} else if (dirp->d_reclen < 2 * entrysize) {
+	direrror(idesc->id_number, "MISSING '.'");
+	errmsg = "ADD '.' ENTRY";
+	if (dirp->d_reclen < entrysize + DIRSIZ(0, dirp)) {
+		/* Not enough space to add '.', replace first entry with '.' */
+		if (dirp->d_ino != 0) {
+			pwarn("\nFIRST ENTRY IN DIRECTORY CONTAINS %s\n",
+			     dirp->d_name);
+			errmsg = "REPLACE WITH '.'";
+		}
+		if (reply(errmsg) == 0)
+			goto chk1;
 		proto.d_reclen = dirp->d_reclen;
 		memmove(dirp, &proto, (size_t)entrysize);
-		if (reply("FIX") == 1)
-			ret |= ALTERED;
+		ret |= ALTERED;
 	} else {
-		n = dirp->d_reclen - entrysize;
+		/* Move over first entry and add '.' entry */
+		if (reply(errmsg) == 0)
+			goto chk1;
+		newdirp = (struct direct *)((char *)(dirp) + entrysize);
+		dirp->d_reclen -= entrysize;
+		memmove(newdirp, dirp, dirp->d_reclen);
 		proto.d_reclen = entrysize;
 		memmove(dirp, &proto, (size_t)entrysize);
 		idesc->id_entryno++;
-		inoinfo(dirp->d_ino)->ino_linkcnt--;
-		dirp = (struct direct *)((char *)(dirp) + entrysize);
-		memset(dirp, 0, (size_t)n);
-		dirp->d_reclen = n;
-		if (reply("FIX") == 1)
-			ret |= ALTERED;
+		inoinfo(idesc->id_number)->ino_linkcnt--;
+		dirp = newdirp;
+		ret |= ALTERED;
 	}
 chk1:
 	if (idesc->id_entryno > 1)
@@ -372,30 +379,60 @@ chk1:
 		}
 		goto chk2;
 	}
-	if (dirp->d_ino != 0 && strcmp(dirp->d_name, ".") != 0) {
-		fileerror(inp->i_parent, idesc->id_number, "MISSING '..'");
-		pfatal("CANNOT FIX, SECOND ENTRY IN DIRECTORY CONTAINS %s\n",
-			dirp->d_name);
-		inp->i_dotdot = (ino_t)-1;
-	} else if (dirp->d_reclen < entrysize) {
-		fileerror(inp->i_parent, idesc->id_number, "MISSING '..'");
-		pfatal("CANNOT FIX, INSUFFICIENT SPACE TO ADD '..'\n");
-		inp->i_dotdot = (ino_t)-1;
-	} else if (inp->i_parent != 0) {
-		/*
-		 * We know the parent, so fix now.
-		 */
-		inp->i_dotdot = inp->i_parent;
-		fileerror(inp->i_parent, idesc->id_number, "MISSING '..'");
+	fileerror(inp->i_parent != 0 ? inp->i_parent : idesc->id_number,
+	    idesc->id_number, "MISSING '..'");
+	errmsg = "ADD '..' ENTRY";
+	if (dirp->d_reclen < entrysize + DIRSIZ(0, dirp)) {
+		/* No space to add '..', replace second entry with '..' */
+		if (dirp->d_ino != 0) {
+			pfatal("SECOND ENTRY IN DIRECTORY CONTAINS %s\n",
+			    dirp->d_name);
+			errmsg = "REPLACE WITH '..'";
+		}
+		if (reply(errmsg) == 0) {
+			inp->i_dotdot = (ino_t)-1;
+			goto chk2;
+		}
+		if (proto.d_ino == 0) {
+			/* Defer processing until parent known */
+			idesc->id_entryno++;
+			if (debug)
+				printf("(FIX DEFERRED)\n");
+		}
+		inp->i_dotdot = proto.d_ino;
 		proto.d_reclen = dirp->d_reclen;
 		memmove(dirp, &proto, (size_t)entrysize);
-		if (reply("FIX") == 1)
-			ret |= ALTERED;
+		ret |= ALTERED;
+	} else {
+		/* Move over second entry and add '..' entry */
+		if (reply(errmsg) == 0) {
+			inp->i_dotdot = (ino_t)-1;
+			goto chk2;
+		}
+		if (proto.d_ino == 0) {
+			/* Defer processing until parent known */
+			idesc->id_entryno++;
+			if (debug)
+				printf("(FIX DEFERRED)\n");
+		}
+		inp->i_dotdot = proto.d_ino;
+		if (dirp->d_ino == 0) {
+			proto.d_reclen = dirp->d_reclen;
+			memmove(dirp, &proto, (size_t)entrysize);
+		} else {
+			newdirp = (struct direct *)((char *)(dirp) + entrysize);
+			dirp->d_reclen -= entrysize;
+			memmove(newdirp, dirp, dirp->d_reclen);
+			proto.d_reclen = entrysize;
+			memmove(dirp, &proto, (size_t)entrysize);
+			if (dirp->d_ino != 0) {
+				idesc->id_entryno++;
+				inoinfo(dirp->d_ino)->ino_linkcnt--;
+			}
+			dirp = newdirp;
+		}
+		ret |= ALTERED;
 	}
-	idesc->id_entryno++;
-	if (dirp->d_ino != 0)
-		inoinfo(dirp->d_ino)->ino_linkcnt--;
-	return (ret|KEEPON);
 chk2:
 	if (dirp->d_ino == 0)
 		return (ret|KEEPON);
