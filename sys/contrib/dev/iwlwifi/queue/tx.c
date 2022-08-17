@@ -988,6 +988,19 @@ void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 	if (trans->trans_cfg->use_tfh) {
 		IWL_ERR(trans, "Queue %d is stuck %d %d\n", txq_id,
 			txq->read_ptr, txq->write_ptr);
+#if defined(__FreeBSD__)
+		/*
+		 * Dump some more queue and timer information to rule
+		 * out a LinuxKPI issues and gather some extra data.
+		 */
+		IWL_ERR(trans, "  need_update %d frozen %d ampdu %d "
+		   "now %ju stuck_timer.expires %ju "
+		   "frozen_expiry_remainder %ju wd_timeout %ju\n",
+		    txq->need_update, txq->frozen, txq->ampdu,
+		    (uintmax_t)jiffies, (uintmax_t)txq->stuck_timer.expires,
+		    (uintmax_t)txq->frozen_expiry_remainder,
+		    (uintmax_t)txq->wd_timeout);
+#endif
 		/* TODO: access new SCD registers and dump them */
 		return;
 	}
