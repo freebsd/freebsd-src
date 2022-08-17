@@ -386,7 +386,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		struct mbuf *mcopy = NULL;
 
 		if (m->m_flags & M_MCAST) {
-			mcopy = m_dup(m, M_NOWAIT);
+			mcopy = m_dup(m, IEEE80211_M_NOWAIT);
 			if (mcopy == NULL)
 				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			else
@@ -1654,7 +1654,7 @@ ieee80211_deliver_l2uf(struct ieee80211_node *ni)
 	struct l2_update_frame *l2uf;
 	struct ether_header *eh;
 
-	m = m_gethdr(M_NOWAIT, MT_DATA);
+	m = m_gethdr(IEEE80211_M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
 		    "%s", "no mbuf for l2uf frame");

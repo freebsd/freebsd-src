@@ -146,7 +146,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m)
 			 * so do a deep copy of the packet.
 			 * NB: tags are copied too.
 			 */
-			mcopy = m_dup(m, M_NOWAIT);
+			mcopy = m_dup(m, IEEE80211_M_NOWAIT);
 			if (mcopy == NULL) {
 				/* XXX stat+msg */
 				continue;

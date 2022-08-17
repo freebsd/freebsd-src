@@ -202,7 +202,7 @@ wep_encap(struct ieee80211_key *k, struct mbuf *m)
 	/*
 	 * Copy down 802.11 header and add the IV + KeyID.
 	 */
-	M_PREPEND(m, wep.ic_header, M_NOWAIT);
+	M_PREPEND(m, wep.ic_header, IEEE80211_M_NOWAIT);
 	if (m == NULL)
 		return 0;
 	ivp = mtod(m, uint8_t *);
