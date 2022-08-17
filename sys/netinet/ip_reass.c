@@ -92,6 +92,7 @@ VNET_DEFINE_STATIC(int, ipreass_maxbucketsize);
 #define	V_ipreass_maxbucketsize	VNET(ipreass_maxbucketsize)
 
 void		ipreass_init(void);
+void		ipreass_vnet_init(void);
 #ifdef VIMAGE
 void		ipreass_destroy(void);
 #endif
@@ -625,7 +626,7 @@ ipreass_drain(void)
  * Initialize IP reassembly structures.
  */
 void
-ipreass_init(void)
+ipreass_vnet_init(void)
 {
 	int max;
 
@@ -642,16 +643,19 @@ ipreass_init(void)
 	max = IP_MAXFRAGPACKETS;
 	max = uma_zone_set_max(V_ipq_zone, max);
 	V_ipreass_maxbucketsize = imax(max / (IPREASS_NHASH / 2), 1);
+}
 
-	if (IS_DEFAULT_VNET(curvnet)) {
-		maxfrags = IP_MAXFRAGS;
-		EVENTHANDLER_REGISTER(nmbclusters_change, ipreass_zone_change,
-		    NULL, EVENTHANDLER_PRI_ANY);
-		EVENTHANDLER_REGISTER(vm_lowmem, ipreass_drain, NULL,
-		    LOWMEM_PRI_DEFAULT);
-		EVENTHANDLER_REGISTER(mbuf_lowmem, ipreass_drain, NULL,
-			LOWMEM_PRI_DEFAULT);
-	}
+void
+ipreass_init(void)
+{
+
+	maxfrags = IP_MAXFRAGS;
+	EVENTHANDLER_REGISTER(nmbclusters_change, ipreass_zone_change,
+	    NULL, EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(vm_lowmem, ipreass_drain, NULL,
+	    LOWMEM_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(mbuf_lowmem, ipreass_drain, NULL,
+		LOWMEM_PRI_DEFAULT);
 }
 
 /*
