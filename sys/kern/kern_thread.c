@@ -468,7 +468,7 @@ proc_linkup(struct proc *p, struct thread *td)
 {
 
 	sigqueue_init(&p->p_sigqueue, p);
-	p->p_ksi = ksiginfo_alloc(1);
+	p->p_ksi = ksiginfo_alloc(M_WAITOK);
 	if (p->p_ksi != NULL) {
 		/* XXX p_ksi may be null if ksiginfo zone is not ready */
 		p->p_ksi->ksi_flags = KSI_EXT | KSI_INS;
