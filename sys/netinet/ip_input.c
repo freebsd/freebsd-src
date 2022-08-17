@@ -102,7 +102,6 @@ CTASSERT(sizeof(struct ip) == 20);
 /* IP reassembly functions are defined in ip_reass.c. */
 extern void ipreass_init(void);
 extern void ipreass_drain(void);
-extern void ipreass_slowtimo(void);
 #ifdef VIMAGE
 extern void ipreass_destroy(void);
 #endif
@@ -844,25 +843,6 @@ ours:
 	return;
 bad:
 	m_freem(m);
-}
-
-/*
- * IP timer processing;
- * if a timer expires on a reassembly
- * queue, discard it.
- */
-void
-ip_slowtimo(void)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		ipreass_slowtimo();
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 void
