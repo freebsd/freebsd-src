@@ -104,15 +104,15 @@ static const char *smc_chip_ids[16] = {
 };
 
 static void	smc_init(void *);
-static void	smc_start(struct ifnet *);
+static void	smc_start(if_t);
 static void	smc_stop(struct smc_softc *);
-static int	smc_ioctl(struct ifnet *, u_long, caddr_t);
+static int	smc_ioctl(if_t, u_long, caddr_t);
 
 static void	smc_init_locked(struct smc_softc *);
-static void	smc_start_locked(struct ifnet *);
+static void	smc_start_locked(if_t);
 static void	smc_reset(struct smc_softc *);
-static int	smc_mii_ifmedia_upd(struct ifnet *);
-static void	smc_mii_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	smc_mii_ifmedia_upd(if_t);
+static void	smc_mii_ifmedia_sts(if_t, struct ifmediareq *);
 static void	smc_mii_tick(void *);
 static void	smc_mii_mediachg(struct smc_softc *);
 static int	smc_mii_mediaioctl(struct smc_softc *, struct ifreq *, u_long);
@@ -307,7 +307,7 @@ smc_attach(device_t dev)
 	uint16_t		val;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct smc_softc	*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	sc = device_get_softc(dev);
 	error = 0;
@@ -377,18 +377,18 @@ smc_attach(device_t dev)
 	eaddr[5] = smc_read_1(sc, IAR5);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = smc_init;
-	ifp->if_ioctl = smc_ioctl;
-	ifp->if_start = smc_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setinitfn(ifp, smc_init);
+	if_setioctlfn(ifp, smc_ioctl);
+	if_setstartfn(ifp, smc_start);
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 
-	ifp->if_capabilities = ifp->if_capenable = 0;
+	if_setcapabilities(ifp, if_getcapenable(ifp) );
 
 #ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
 
 	ether_ifattach(ifp, eaddr);
@@ -437,7 +437,7 @@ smc_detach(device_t dev)
 	callout_drain(&sc->smc_mii_tick_ch);
 
 #ifdef DEVICE_POLLING
-	if (sc->smc_ifp->if_capenable & IFCAP_POLLING)
+	if (sc->smc_if_getcapenable(ifp) & IFCAP_POLLING)
 		ether_poll_deregister(sc->smc_ifp);
 #endif
 
@@ -501,35 +501,35 @@ driver_t smc_driver = {
 DRIVER_MODULE(miibus, smc, miibus_driver, 0, 0);
 
 static void
-smc_start(struct ifnet *ifp)
+smc_start(if_t ifp)
 {
 	struct smc_softc	*sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SMC_LOCK(sc);
 	smc_start_locked(ifp);
 	SMC_UNLOCK(sc);
 }
 
 static void
-smc_start_locked(struct ifnet *ifp)
+smc_start_locked(if_t ifp)
 {
 	struct smc_softc	*sc;
 	struct mbuf		*m;
 	u_int			len, npages, spin_count;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SMC_ASSERT_LOCKED(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE)
 		return;
-	if (IFQ_IS_EMPTY(&ifp->if_snd))
+	if (if_sendq_empty(ifp))
 		return;
 
 	/*
 	 * Grab the next packet.  If it's too big, drop it.
 	 */
-	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	m = if_dequeue(ifp);
 	len = m_length(m, NULL);
 	len += (len & 1);
 	if (len > ETHER_MAX_LEN - ETHER_CRC_LEN) {
@@ -542,7 +542,7 @@ smc_start_locked(struct ifnet *ifp)
 	/*
 	 * Flag that we're busy.
 	 */
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 	sc->smc_pending = m;
 
 	/*
@@ -577,7 +577,7 @@ smc_start_locked(struct ifnet *ifp)
 	 */
 	if (spin_count == 0) {
 		sc->smc_mask |= ALLOC_INT;
-		if ((ifp->if_capenable & IFCAP_POLLING) == 0)
+		if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
 			smc_write_1(sc, MSK, sc->smc_mask);
 		return;
 	}
@@ -588,7 +588,7 @@ smc_start_locked(struct ifnet *ifp)
 static void
 smc_task_tx(void *context, int pending)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct smc_softc	*sc;
 	struct mbuf		*m, *m0;
 	u_int			packet, len;
@@ -596,8 +596,8 @@ smc_task_tx(void *context, int pending)
 	uint8_t			*data;
 
 	(void)pending;
-	ifp = (struct ifnet *)context;
-	sc = ifp->if_softc;
+	ifp = (if_t)context;
+	sc = if_getsoftc(ifp);
 
 	SMC_LOCK(sc);
 
@@ -619,9 +619,9 @@ smc_task_tx(void *context, int pending)
 	 * If the allocation failed, requeue the packet and retry.
 	 */
 	if (packet & ARR_FAILED) {
-		IFQ_DRV_PREPEND(&ifp->if_snd, m);
+		if_sendq_prepend(ifp, m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		smc_start_locked(ifp);
 		SMC_UNLOCK(sc);
 		return;
@@ -664,7 +664,7 @@ smc_task_tx(void *context, int pending)
 	 * Unmask the TX empty interrupt.
 	 */
 	sc->smc_mask |= TX_EMPTY_INT;
-	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
+	if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 
 	/*
@@ -678,7 +678,7 @@ smc_task_tx(void *context, int pending)
 	 * Finish up.
 	 */
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	SMC_UNLOCK(sc);
 	BPF_MTAP(ifp, m0);
 	m_freem(m0);
@@ -695,13 +695,13 @@ smc_task_rx(void *context, int pending)
 {
 	u_int			packet, status, len;
 	uint8_t			*data;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct smc_softc	*sc;
 	struct mbuf		*m, *mhead, *mtail;
 
 	(void)pending;
-	ifp = (struct ifnet *)context;
-	sc = ifp->if_softc;
+	ifp = (if_t)context;
+	sc = if_getsoftc(ifp);
 	mhead = mtail = NULL;
 
 	SMC_LOCK(sc);
@@ -789,7 +789,7 @@ smc_task_rx(void *context, int pending)
 	}
 
 	sc->smc_mask |= RCV_INT;
-	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
+	if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 
 	SMC_UNLOCK(sc);
@@ -799,20 +799,20 @@ smc_task_rx(void *context, int pending)
 		mhead = mhead->m_next;
 		m->m_next = NULL;
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 	}
 }
 
 #ifdef DEVICE_POLLING
 static int
-smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+smc_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
 	struct smc_softc	*sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	SMC_LOCK(sc);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 		SMC_UNLOCK(sc);
 		return (0);
 	}
@@ -854,12 +854,12 @@ static void
 smc_task_intr(void *context, int pending)
 {
 	struct smc_softc	*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int			status, packet, counter, tcr;
 
 	(void)pending;
-	ifp = (struct ifnet *)context;
-	sc = ifp->if_softc;
+	ifp = (if_t)context;
+	sc = if_getsoftc(ifp);
 
 	SMC_LOCK(sc);
 
@@ -963,7 +963,7 @@ smc_task_intr(void *context, int pending)
 	 * Update the interrupt mask.
 	 */
 	smc_select_bank(sc, 2);
-	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
+	if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 
 	SMC_UNLOCK(sc);
@@ -1069,12 +1069,12 @@ smc_miibus_statchg(device_t dev)
 }
 
 static int
-smc_mii_ifmedia_upd(struct ifnet *ifp)
+smc_mii_ifmedia_upd(if_t ifp)
 {
 	struct smc_softc	*sc;
 	struct mii_data		*mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	if (sc->smc_miibus == NULL)
 		return (ENXIO);
 
@@ -1083,12 +1083,12 @@ smc_mii_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-smc_mii_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+smc_mii_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct smc_softc	*sc;
 	struct mii_data		*mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	if (sc->smc_miibus == NULL)
 		return;
 
@@ -1188,7 +1188,7 @@ smc_reset(struct smc_softc *sc)
 static void
 smc_enable(struct smc_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t	ifp;
 
 	SMC_ASSERT_LOCKED(sc);
 	ifp = sc->smc_ifp;
@@ -1211,7 +1211,7 @@ smc_enable(struct smc_softc *sc)
 	 */
 	smc_select_bank(sc, 2);
 	sc->smc_mask = EPH_INT | RX_OVRN_INT | RCV_INT | TX_INT;
-	if ((ifp->if_capenable & IFCAP_POLLING) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_POLLING) != 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 }
 
@@ -1235,7 +1235,7 @@ smc_stop(struct smc_softc *sc)
 	smc_write_1(sc, MSK, 0);
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(sc->smc_ifp);
-	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING;
+	if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 #endif
 
 	/*
@@ -1245,7 +1245,7 @@ smc_stop(struct smc_softc *sc)
 	smc_write_2(sc, TCR, 0);
 	smc_write_2(sc, RCR, 0);
 
-	sc->smc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->smc_ifp, 0, IFF_DRV_RUNNING);
 }
 
 static void
@@ -1272,18 +1272,18 @@ smc_init(void *context)
 static void
 smc_init_locked(struct smc_softc *sc)
 {
-	struct ifnet	*ifp;
+	if_t	ifp;
 
 	SMC_ASSERT_LOCKED(sc);
 	ifp = sc->smc_ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	smc_reset(sc);
 	smc_enable(sc);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	smc_start_locked(ifp);
 
@@ -1294,23 +1294,23 @@ smc_init_locked(struct smc_softc *sc)
 	SMC_UNLOCK(sc);
 	ether_poll_register(smc_poll, ifp);
 	SMC_LOCK(sc);
-	ifp->if_capenable |= IFCAP_POLLING;
+	if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 #endif
 }
 
 static int
-smc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+smc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct smc_softc	*sc;
 	int			error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	error = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		if ((ifp->if_flags & IFF_UP) == 0 &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		if ((if_getflags(ifp) & IFF_UP) == 0 &&
+		    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 			SMC_LOCK(sc);
 			smc_stop(sc);
 			SMC_UNLOCK(sc);
