@@ -228,8 +228,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 }
 
 #ifdef INET
-extern struct protosw inetsw[];
-
 /*
  * IPSEC_INPUT() method implementation for IPv4.
  *  0 - Permitted by inbound security policy for further processing.
@@ -253,9 +251,21 @@ ipsec4_input(struct mbuf *m, int offset, int proto)
 		 * Protocols with further headers get their IPsec treatment
 		 * within the protocol specific processing.
 		 */
-		if ((inetsw[ip_protox[proto]].pr_flags & PR_LASTHDR) == 0)
+		switch (proto) {
+		case IPPROTO_ICMP:
+		case IPPROTO_IGMP:
+		case IPPROTO_IPV4:
+		case IPPROTO_IPV6:
+		case IPPROTO_RSVP:
+		case IPPROTO_GRE:
+		case IPPROTO_MOBILE:
+		case IPPROTO_ETHERIP:
+		case IPPROTO_PIM:
+		case IPPROTO_SCTP:
+			break;
+		default:
 			return (0);
-		/* FALLTHROUGH */
+		}
 	};
 	/*
 	 * Enforce IPsec policy checking if we are seeing last header.
@@ -501,6 +511,24 @@ bad_noepoch:
 #endif /* INET */
 
 #ifdef INET6
+static bool
+ipsec6_lasthdr(int proto)
+{
+
+	switch (proto) {
+	case IPPROTO_IPV4:
+	case IPPROTO_IPV6:
+	case IPPROTO_GRE:
+	case IPPROTO_ICMPV6:
+	case IPPROTO_ETHERIP:
+	case IPPROTO_PIM:
+	case IPPROTO_SCTP:
+		return (true);
+	default:
+		return (false);
+	};
+}
+
 /*
  * IPSEC_INPUT() method implementation for IPv6.
  *  0 - Permitted by inbound security policy for further processing.
@@ -524,7 +552,7 @@ ipsec6_input(struct mbuf *m, int offset, int proto)
 		 * Protocols with further headers get their IPsec treatment
 		 * within the protocol specific processing.
 		 */
-		if ((inet6sw[ip6_protox[proto]].pr_flags & PR_LASTHDR) == 0)
+		if (!ipsec6_lasthdr(proto))
 			return (0);
 		/* FALLTHROUGH */
 	};
@@ -728,8 +756,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		 * note that we do not visit this with protocols with pcb layer
 		 * code - like udp/tcp/raw ip.
 		 */
-		if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
-		    ipsec6_in_reject(m, NULL)) {
+		if (ipsec6_lasthdr(nxt) && ipsec6_in_reject(m, NULL)) {
 			error = EINVAL;
 			goto bad;
 		}

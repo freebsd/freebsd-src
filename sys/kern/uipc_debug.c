@@ -288,10 +288,6 @@ db_print_prflags(short pr_flags)
 		db_printf("%sPR_IMPLOPCL", comma ? ", " : "");
 		comma = 1;
 	}
-	if (pr_flags & PR_LASTHDR) {
-		db_printf("%sPR_LASTHDR", comma ? ", " : "");
-		comma = 1;
-	}
 }
 
 static void

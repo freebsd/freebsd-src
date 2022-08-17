@@ -161,7 +161,7 @@ struct protosw {
 #define	PR_WANTRCVD	0x08		/* want PRU_RCVD calls */
 #define	PR_RIGHTS	0x10		/* passes capabilities */
 #define PR_IMPLOPCL	0x20		/* implied open/close */
-#define	PR_LASTHDR	0x40		/* enforce ipsec policy; last header */
+/* was	PR_LASTHDR	0x40		   enforce ipsec policy; last header */
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
 
