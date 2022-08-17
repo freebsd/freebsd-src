@@ -37,7 +37,7 @@
 The
 .Nm
 kernel debugger is a variation of
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 which understands some aspects of the
 .Fx
 kernel environment.
@@ -90,7 +90,7 @@ on,
 In this mode, you need the
 .Fl k
 flag to indicate to
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 that the
 .Dq "dump file"
 .Pa /dev/mem
@@ -336,9 +336,9 @@ The remote system continues to run.
 The user interface to
 .Nm
 is via
-.Xr gdb 1 ,
+.Xr gdb 1 Pq Pa ports/devel/gdb ,
 so
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 commands also work.
 This section discusses only the extensions for kernel debugging that get
 installed in the kernel build directory.
@@ -387,7 +387,7 @@ are convenience commands which invoke
 .Ss "The current process environment"
 The following macros are convenience functions intended to make things easier
 than the standard
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 commands.
 .Bl -tag -width indent
 .It Ic f0
@@ -467,7 +467,7 @@ Show some PCB contents of the process
 .El
 .Ss "Examining data structures"
 You can use standard
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 commands to look at most data structures.
 The macros in this section are
 convenience functions which typically display the data in a more readable
@@ -568,7 +568,7 @@ It does nothing else except to print a warning
 message to remind you to remove it again.
 .El
 .Sh SEE ALSO
-.Xr gdb 1 ,
+.Xr gdb 1 Pq Pa ports/devel/gdb ,
 .Xr ps 1 ,
 .Xr ddb 4 ,
 .Xr firewire 4 ,
@@ -581,7 +581,7 @@ This man page was written by
 .An Greg Lehey Aq Mt grog@FreeBSD.org .
 .Sh BUGS
 The
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 debugger
 was never designed to debug kernels, and it is not a very good match.
 Many problems exist.

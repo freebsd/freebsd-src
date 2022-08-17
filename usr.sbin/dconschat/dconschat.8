@@ -79,16 +79,16 @@ utility and the
 .Xr dcons 4
 driver communicate using 2 ports, one for the console port and another
 for remote
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 port.
 Users are supposed to access
 .Nm
 using TTY,
 .Xr telnet 1
 and
-.Xr gdb 1 .
+.Xr gdb 1 Pq Pa ports/devel/gdb .
 You can specify listen ports for console and
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 port using the
 .Fl C
 and
@@ -129,7 +129,7 @@ The following options are supported.
 Translate Ctrl-C to ALT_BREAK (CR +
 .Ql ~
 + Ctrl-B) on
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 port.
 .It Fl r
 Replay old buffer on connection.
@@ -169,7 +169,7 @@ Specify the console port.
 The default value is 0 (stdin/stdout).
 .It Fl G Ar gdb_port
 Specify
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 port.
 The default value is \-1 (disabled).
 .It Fl M Ar core
@@ -252,9 +252,9 @@ To quit the session, type CR +
 in the console port.
 .Pp
 Using
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 port is almost the same as remote
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 over serial line except
 using TCP/IP instead of
 .Pa /dev/cu* .
@@ -271,13 +271,13 @@ for details.
 .Ed
 .Pp
 Once
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 is attached and you specified the
 .Fl b
 option to
 .Nm ,
 typing Ctrl-C in
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 causes a break to debugger.
 .Pp
 The following command gets the console log from the crash dump:
@@ -311,7 +311,7 @@ console remote {
 }
 .Ed
 .Sh SEE ALSO
-.Xr gdb 1 ,
+.Xr gdb 1 Pq Pa ports/devel/gdb ,
 .Xr telnet 1 ,
 .Xr kvm 3 ,
 .Xr dcons 4 ,

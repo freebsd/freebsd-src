@@ -312,7 +312,7 @@ or shorter:
 The
 .Pa vmcore.#
 can be now examined using
-.Xr kgdb 1 :
+.Xr kgdb 1 Pq Pa ports/devel/gdb :
 .Pp
 .Dl # kgdb /boot/kernel/kernel vmcore.#
 .Pp
@@ -321,7 +321,7 @@ or shorter:
 .Dl # kgdb -n #
 .Pp
 The core was decrypted properly if
-.Xr kgdb 1
+.Xr kgdb 1 Pq Pa ports/devel/gdb
 does not print any errors.
 Note that the live kernel might be at a different path
 which can be examined by looking at the
@@ -368,7 +368,7 @@ Be sure to fill in the server IP address and change the interface name if
 needed.
 .Sh SEE ALSO
 .Xr gzip 1 ,
-.Xr kgdb 1 ,
+.Xr kgdb 1 Pq Pa ports/devel/gdb ,
 .Xr zstd 1 ,
 .Xr ddb 4 ,
 .Xr netdump 4 ,

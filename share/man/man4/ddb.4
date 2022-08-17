@@ -58,7 +58,7 @@ representation, define:
 .Ed
 .Pp
 To enable the
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 backend, so that remote debugging with
 .Xr kgdb 1 Pq Pa ports/devel/gdb
 is possible, include:
@@ -69,7 +69,7 @@ is possible, include:
 The
 .Nm
 kernel debugger is an interactive debugger with a syntax inspired by
-.Xr gdb 1 .
+.Xr gdb 1 Pq Pa ports/devel/gdb .
 If linked into the running kernel,
 it can be invoked locally with the
 .Ql debug
@@ -1190,7 +1190,7 @@ subsystem.
 .It Ic gdb
 Switches to remote GDB mode.
 In remote GDB mode, another machine is required that runs
-.Xr gdb 1
+.Xr gdb 1 Pq Pa ports/devel/gdb
 using the remote debug feature, with a connection to the serial
 console port on the target machine.
 .Pp
@@ -1598,7 +1598,7 @@ directory.
 .Pa sys/vnode.h
 .El
 .Sh SEE ALSO
-.Xr gdb 1 ,
+.Xr gdb 1 Pq Pa ports/devel/gdb ,
 .Xr kgdb 1 Pq Pa ports/devel/gdb ,
 .Xr acpi 4 ,
 .Xr CAM 4 ,
