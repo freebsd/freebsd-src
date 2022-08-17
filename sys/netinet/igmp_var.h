@@ -148,7 +148,6 @@ CTASSERT(sizeof(struct igmpstat) == IGPS_VERSION3_LEN);
 #define IGMP_MAX_STATE_CHANGE_PACKETS	8 /* # of packets per state change */
 #define IGMP_MAX_RESPONSE_PACKETS	16 /* # of packets for general query */
 #define IGMP_MAX_RESPONSE_BURST		4 /* # of responses to send at once */
-#define IGMP_RESPONSE_BURST_INTERVAL	(PR_FASTHZ / 2)	/* 500ms */
 
 /*
  * IGMP-specific mbuf flags.
@@ -223,13 +222,11 @@ struct igmp_ifsoftc {
 };
 
 int	igmp_change_state(struct in_multi *);
-void	igmp_fasttimo(void);
 struct igmp_ifsoftc *
 	igmp_domifattach(struct ifnet *);
 void	igmp_domifdetach(struct ifnet *);
 void	igmp_ifdetach(struct ifnet *);
 int	igmp_input(struct mbuf **, int *, int);
-void	igmp_slowtimo(void);
 
 SYSCTL_DECL(_net_inet_igmp);
 

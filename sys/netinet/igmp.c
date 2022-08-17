@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/protosw.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
@@ -92,6 +91,10 @@ __FBSDID("$FreeBSD$");
 #ifndef KTR_IGMPV3
 #define KTR_IGMPV3 KTR_INET
 #endif
+
+#define	IGMP_SLOWHZ	2	/* 2 slow timeouts per second */
+#define	IGMP_FASTHZ	5	/* 5 fast timeouts per second */
+#define	IGMP_RESPONSE_BURST_INTERVAL	(IGMP_FASTHZ / 2)
 
 static struct igmp_ifsoftc *
 		igi_alloc_locked(struct ifnet *);
@@ -201,8 +204,8 @@ static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 /*
  * VIMAGE-wide globals.
  *
- * The IGMPv3 timers themselves need to run per-image, however,
- * protosw timers run globally (see tcp).
+ * The IGMPv3 timers themselves need to run per-image, however, for
+ * historical reasons, timers run globally.  This needs to be improved.
  * An ifnet can only be in one vimage at a time, and the loopback
  * ifnet, loif, is itself virtualized.
  * It would otherwise be possible to seriously hose IGMP state,
@@ -816,7 +819,7 @@ igmp_input_v1_query(struct ifnet *ifp, const struct ip *ip,
 		case IGMP_AWAKENING_MEMBER:
 			inm->inm_state = IGMP_REPORTING_MEMBER;
 			inm->inm_timer = IGMP_RANDOM_DELAY(
-			    IGMP_V1V2_MAX_RI * PR_FASTHZ);
+			    IGMP_V1V2_MAX_RI * IGMP_FASTHZ);
 			V_current_state_timers_running = 1;
 			break;
 		case IGMP_LEAVING_MEMBER:
@@ -886,7 +889,7 @@ igmp_input_v2_query(struct ifnet *ifp, const struct ip *ip,
 
 	igmp_set_version(igi, IGMP_VERSION_2);
 
-	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
+	timer = igmp->igmp_code * IGMP_FASTHZ / IGMP_TIMER_SCALE;
 	if (timer == 0)
 		timer = 1;
 
@@ -1026,7 +1029,7 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 		     (IGMP_EXP(igmpv3->igmp_qqi) + 3);
 	}
 
-	timer = maxresp * PR_FASTHZ / IGMP_TIMER_SCALE;
+	timer = maxresp * IGMP_FASTHZ / IGMP_TIMER_SCALE;
 	if (timer == 0)
 		timer = 1;
 
@@ -1655,11 +1658,14 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
  * Fast timeout handler (global).
  * VIMAGE: Timeout handlers are expected to service all vimages.
  */
-void
-igmp_fasttimo(void)
+static struct callout igmpfast_callout;
+static void
+igmp_fasttimo(void *arg __unused)
 {
+	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
 
+	NET_EPOCH_ENTER(et);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -1667,6 +1673,9 @@ igmp_fasttimo(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
+
+	callout_reset(&igmpfast_callout, hz / IGMP_FASTHZ, igmp_fasttimo, NULL);
 }
 
 /*
@@ -1741,7 +1750,7 @@ igmp_fasttimo_vnet(void)
 		if (igi->igi_version == IGMP_VERSION_3) {
 			loop = (igi->igi_flags & IGIF_LOOPBACK) ? 1 : 0;
 			uri_fasthz = IGMP_RANDOM_DELAY(igi->igi_uri *
-			    PR_FASTHZ);
+			    IGMP_FASTHZ);
 			mbufq_init(&qrq, IGMP_MAX_G_GS_PACKETS);
 			mbufq_init(&scq, IGMP_MAX_STATE_CHANGE_PACKETS);
 		}
@@ -2000,7 +2009,7 @@ igmp_set_version(struct igmp_ifsoftc *igi, const int version)
 		 * Section 8.12.
 		 */
 		old_version_timer = igi->igi_rv * igi->igi_qi + igi->igi_qri;
-		old_version_timer *= PR_SLOWHZ;
+		old_version_timer *= IGMP_SLOWHZ;
 
 		if (version == IGMP_VERSION_1) {
 			igi->igi_v1_timer = old_version_timer;
@@ -2193,11 +2202,14 @@ igmp_v1v2_process_querier_timers(struct igmp_ifsoftc *igi)
  * Global slowtimo handler.
  * VIMAGE: Timeout handlers are expected to service all vimages.
  */
-void
-igmp_slowtimo(void)
+static struct callout igmpslow_callout;
+static void
+igmp_slowtimo(void *arg __unused)
 {
+	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
 
+	NET_EPOCH_ENTER(et);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -2205,6 +2217,9 @@ igmp_slowtimo(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
+
+	callout_reset(&igmpslow_callout, hz / IGMP_SLOWHZ, igmp_slowtimo, NULL);
 }
 
 /*
@@ -2433,7 +2448,7 @@ igmp_initial_join(struct in_multi *inm, struct igmp_ifsoftc *igi)
 			     IGMP_v1_HOST_MEMBERSHIP_REPORT);
 			if (error == 0) {
 				inm->inm_timer = IGMP_RANDOM_DELAY(
-				    IGMP_V1V2_MAX_RI * PR_FASTHZ);
+				    IGMP_V1V2_MAX_RI * IGMP_FASTHZ);
 				V_current_state_timers_running = 1;
 			}
 			break;
@@ -3688,6 +3703,12 @@ igmp_modevent(module_t mod, int type, void *unused __unused)
 		IGMP_LOCK_INIT();
 		m_raopt = igmp_ra_alloc();
 		netisr_register(&igmp_nh);
+		callout_init(&igmpslow_callout, 1);
+		callout_reset(&igmpslow_callout, hz / IGMP_SLOWHZ,
+		    igmp_slowtimo, NULL);
+		callout_init(&igmpfast_callout, 1);
+		callout_reset(&igmpfast_callout, hz / IGMP_FASTHZ,
+		    igmp_fasttimo, NULL);
 		break;
 	case MOD_UNLOAD:
 		CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
