@@ -498,7 +498,7 @@ exit1(struct thread *td, int rval, int signo)
 		wakeup(q->p_reaper);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
-		ksi = ksiginfo_alloc(TRUE);
+		ksi = ksiginfo_alloc(M_WAITOK);
 		PROC_LOCK(q);
 		q->p_sigparent = SIGCHLD;
 

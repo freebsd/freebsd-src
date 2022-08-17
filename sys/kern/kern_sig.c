@@ -365,14 +365,13 @@ sigqueue_start(void)
 }
 
 ksiginfo_t *
-ksiginfo_alloc(int wait)
+ksiginfo_alloc(int mwait)
 {
-	int flags;
+	MPASS(mwait == M_WAITOK || mwait == M_NOWAIT);
 
-	flags = M_ZERO | (wait ? M_WAITOK : M_NOWAIT);
-	if (ksiginfo_zone != NULL)
-		return ((ksiginfo_t *)uma_zalloc(ksiginfo_zone, flags));
-	return (NULL);
+	if (ksiginfo_zone == NULL)
+		return (NULL);
+	return (uma_zalloc(ksiginfo_zone, mwait | M_ZERO));
 }
 
 void
@@ -513,7 +512,7 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 	if (p != NULL && p->p_pendingcnt >= max_pending_per_proc) {
 		signal_overflow++;
 		ret = EAGAIN;
-	} else if ((ksi = ksiginfo_alloc(0)) == NULL) {
+	} else if ((ksi = ksiginfo_alloc(M_NOWAIT)) == NULL) {
 		signal_alloc_fail++;
 		ret = EAGAIN;
 	} else {
