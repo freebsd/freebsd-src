@@ -303,14 +303,14 @@ ksiginfo_free(ksiginfo_t *ksi)
 	uma_zfree(ksiginfo_zone, ksi);
 }
 
-static __inline int
+static __inline bool
 ksiginfo_tryfree(ksiginfo_t *ksi)
 {
-	if (!(ksi->ksi_flags & KSI_EXT)) {
+	if ((ksi->ksi_flags & KSI_EXT) == 0) {
 		uma_zfree(ksiginfo_zone, ksi);
-		return (1);
+		return (true);
 	}
-	return (0);
+	return (false);
 }
 
 void
