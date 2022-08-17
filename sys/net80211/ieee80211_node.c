@@ -1137,6 +1137,14 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 	ie = ies->data;
 	ielen = ies->len;
 	while (ielen > 1) {
+		/* Make sure the given IE length fits into the total length. */
+		if ((2 + ie[1]) > ielen) {
+			printf("%s: malformed IEs! ies %p { data %p len %d }: "
+			    "ie %u len 2+%u > total len left %d\n",
+			    __func__, ies, ies->data, ies->len,
+			    ie[0], ie[1], ielen);
+			return;
+		}
 		switch (ie[0]) {
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswpaoui(ie))
