@@ -293,7 +293,8 @@ static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
 static int	unp_connectat(int, struct socket *, struct sockaddr *,
 		    struct thread *, bool);
-static void	unp_connect2(struct socket *so, struct socket *so2, int);
+typedef enum { PRU_CONNECT, PRU_CONNECT2 } conn2_how;
+static void	unp_connect2(struct socket *so, struct socket *so2, conn2_how);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
 static void	unp_shutdown(struct unpcb *);
@@ -2151,7 +2152,7 @@ unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
 }
 
 static void
-unp_connect2(struct socket *so, struct socket *so2, int req)
+unp_connect2(struct socket *so, struct socket *so2, conn2_how req)
 {
 	struct unpcb *unp;
 	struct unpcb *unp2;
