@@ -1733,7 +1733,7 @@ qla_hw_tx_done(qla_host_t *ha)
 	qla_hw_tx_done_locked(ha);
 
 	if (ha->hw.txr_free > free_pkt_thres)
-		ha->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ha->ifp, 0, IFF_DRV_OACTIVE);
 
 	mtx_unlock(&ha->tx_lock);
 	return;
@@ -1745,7 +1745,7 @@ qla_update_link_state(qla_host_t *ha)
 	uint32_t link_state;
 	uint32_t prev_link_state;
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING)) {
 		ha->hw.flags.link_up = 0;
 		return;
 	}

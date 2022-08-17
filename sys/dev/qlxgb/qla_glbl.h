@@ -54,7 +54,7 @@ extern uint32_t free_pkt_thres;
 
 extern int qla_alloc_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf);
 extern void qla_free_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf);
-extern void qla_start(struct ifnet *ifp);
+extern void qla_start(if_t ifp);
 extern int qla_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp,
 	        uint32_t jumbo);
 
