@@ -1890,6 +1890,10 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 			bprintf(bp, "abort");
 		else if (cmd->arg1 == ICMP_UNREACH_HOST)
 			bprintf(bp, "reject");
+		else if (cmd->arg1 == ICMP_UNREACH_NEEDFRAG &&
+		    cmd->len == F_INSN_SIZE(ipfw_insn_u16))
+			bprintf(bp, "needfrag %u",
+			    ((const ipfw_insn_u16 *)cmd)->ports[0]);
 		else
 			print_reject_code(bp, cmd->arg1);
 		break;
@@ -3992,6 +3996,17 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		NEED1("missing reject code");
 		fill_reject_code(&action->arg1, *av);
 		av++;
+		if (action->arg1 == ICMP_UNREACH_NEEDFRAG && isdigit(**av)) {
+			uint16_t mtu;
+
+			mtu = strtoul(*av, NULL, 10);
+			if (mtu < 68 || mtu >= IP_MAXPACKET)
+				errx(EX_DATAERR, "illegal argument for %s",
+				    *(av - 1));
+			action->len = F_INSN_SIZE(ipfw_insn_u16);
+			((ipfw_insn_u16 *)action)->ports[0] = mtu;
+			av++;
+		}
 		break;
 
 	case TOK_UNREACH6:

@@ -993,8 +993,17 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
+send_reject(struct ip_fw_args *args, const ipfw_insn *cmd, int iplen,
+    struct ip *ip)
 {
+	int code, mtu;
+
+	code = cmd->arg1;
+	if (code == ICMP_UNREACH_NEEDFRAG &&
+	    cmd->len == F_INSN_SIZE(ipfw_insn_u16))
+		mtu = ((const ipfw_insn_u16 *)cmd)->ports[0];
+	else
+		mtu = 0;
 
 #if 0
 	/* XXX When ip is not guaranteed to be at mtod() we will
@@ -1008,7 +1017,7 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 #endif
 	if (code != ICMP_REJECT_RST && code != ICMP_REJECT_ABORT) {
 		/* Send an ICMP unreach */
-		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
+		icmp_error(args->m, ICMP_UNREACH, code, 0L, mtu);
 	} else if (code == ICMP_REJECT_RST && args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
@@ -3042,7 +3051,7 @@ do {								\
 				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
-					send_reject(args, cmd->arg1, iplen, ip);
+					send_reject(args, cmd, iplen, ip);
 					m = args->m;
 				}
 				/* FALLTHROUGH */
