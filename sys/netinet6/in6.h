@@ -681,7 +681,6 @@ char	*ip6_sprintf(char *, const struct in6_addr *);
 struct	in6_ifaddr *in6_ifawithifp(struct ifnet *, struct in6_addr *);
 extern void in6_if_up(struct ifnet *);
 struct sockaddr;
-extern	u_char	ip6_protox[];
 
 void	in6_sin6_2_sin(struct sockaddr_in *sin,
 			    struct sockaddr_in6 *sin6);

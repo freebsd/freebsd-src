@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif /* INET */
 
+extern ipproto_ctlinput_t	*ip_ctlprotox[];
+
 /*
  * ICMP routines: error generation, receive packet processing, and
  * routines to turnaround packets back to the originator, and
@@ -186,8 +188,6 @@ static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
 static int	icmp_verify_redirect_gateway(struct sockaddr_in *,
     struct sockaddr_in *, struct sockaddr_in *, u_int);
-
-extern	struct protosw inetsw[];
 
 /*
  * Kernel module interface for updating icmpstat.  The argument is an index
@@ -417,7 +417,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	int hlen = *offp;
 	int icmplen = ntohs(ip->ip_len) - *offp;
 	int i, code;
-	void (*ctlfunc)(int, struct sockaddr *, void *);
 	int fibnum;
 
 	NET_EPOCH_ASSERT();
@@ -573,10 +572,9 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 *   n is at least 8, but might be larger based on
 		 *   ICMP_ADVLENPREF. See its definition in ip_icmp.h.
 		 */
-		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
-		if (ctlfunc)
-			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
-				   (void *)&icp->icmp_ip);
+		if (ip_ctlprotox[icp->icmp_ip.ip_p] != NULL)
+			ip_ctlprotox[icp->icmp_ip.ip_p](code,
+			    (struct sockaddr *)&icmpsrc, &icp->icmp_ip);
 		break;
 
 	badcode:

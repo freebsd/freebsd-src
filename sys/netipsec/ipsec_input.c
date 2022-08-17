@@ -573,6 +573,8 @@ ipsec6_ctlinput(int code, struct sockaddr *sa, void *v)
 	return (0);
 }
 
+extern ipproto_input_t	*ip6_protox[];
+
 /*
  * IPsec input callback, called by the transform callback. Takes care of
  * filtering and other sanity checks on the processed packet.
@@ -760,7 +762,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			error = EINVAL;
 			goto bad;
 		}
-		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &skip, nxt);
+		nxt = ip6_protox[nxt](&m, &skip, nxt);
 	}
 	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);

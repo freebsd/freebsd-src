@@ -155,8 +155,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_UDP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_CAPATTACH,
-	.pr_input =		udp6_input,
-	.pr_ctlinput =		udp6_ctlinput,
 	.pr_ctloutput =		ip6_ctloutput,
 	.pr_usrreqs =		&udp6_usrreqs,
 },
@@ -166,8 +164,6 @@ struct protosw inet6sw[] = {
 	.pr_protocol =		IPPROTO_TCP,
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD|
 				    PR_LISTEN|PR_CAPATTACH,
-	.pr_input =		tcp6_input,
-	.pr_ctlinput =		tcp6_ctlinput,
 	.pr_ctloutput =		tcp_ctloutput,
 #ifndef INET	/* don't call initialization, timeout, and drain routines twice */
 	.pr_slowtimo =		tcp_slowtimo,
@@ -181,8 +177,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
-	.pr_input =		sctp6_input,
-	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =	sctp_ctloutput,
 #ifndef INET	/* Do not call initialization and drain routines twice. */
 	.pr_drain =		sctp_drain,
@@ -194,8 +188,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
-	.pr_input =		sctp6_input,
-	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		NULL, /* Covered by the SOCK_SEQPACKET entry. */
 	.pr_usrreqs =		&sctp6_usrreqs
@@ -206,8 +198,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_UDPLITE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_CAPATTACH,
-	.pr_input =		udp6_input,
-	.pr_ctlinput =		udplite6_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_usrreqs =		&udp6_usrreqs,
 },
@@ -216,8 +206,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_RAW,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		rip6_input,
-	.pr_ctlinput =		rip6_ctlinput,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
@@ -226,8 +214,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_ICMPV6,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		icmp6_input,
-	.pr_ctlinput =		rip6_ctlinput,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_fasttimo =		icmp6_fasttimo,
 	.pr_slowtimo =		icmp6_slowtimo,
@@ -238,7 +224,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_DSTOPTS,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		dest6_input,
 	.pr_usrreqs =		&nousrreqs
 },
 {
@@ -246,7 +231,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_ROUTING,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		route6_input,
 	.pr_usrreqs =		&nousrreqs
 },
 {
@@ -254,7 +238,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_FRAGMENT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		frag6_input,
 	.pr_usrreqs =		&nousrreqs
 },
 #ifdef INET
@@ -263,7 +246,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_IPV4,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap6_input,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
@@ -273,7 +255,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap6_input,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
@@ -282,7 +263,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_ETHERIP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap6_input,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
@@ -291,7 +271,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_GRE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap6_input,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
@@ -300,7 +279,6 @@ struct protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_PIM,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap6_input,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },
@@ -318,7 +296,6 @@ IP6PROTOSPACER,
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		rip6_input,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 },

@@ -696,6 +696,23 @@ void	 in_ifdetach(struct ifnet *);
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 #define	sintosa(sin)	((struct sockaddr *)(sin))
 #define	ifatoia(ifa)	((struct in_ifaddr *)(ifa))
+
+typedef int	ipproto_input_t(struct mbuf **, int *, int);
+typedef void	ipproto_ctlinput_t(int, struct sockaddr *, void *);
+int	ipproto_register(uint8_t, ipproto_input_t, ipproto_ctlinput_t);
+int	ipproto_unregister(uint8_t);
+int	ip6proto_register(uint8_t, ipproto_input_t, ipproto_ctlinput_t);
+int	ip6proto_unregister(uint8_t);
+#define	IPPROTO_REGISTER(prot, input, ctl)	do {			\
+	int error __diagused;						\
+	error = ipproto_register(prot, input, ctl);			\
+	MPASS(error == 0);						\
+} while (0)
+#define	IP6PROTO_REGISTER(prot, input, ctl)	do {			\
+	int error __diagused;						\
+	error = ip6proto_register(prot, input, ctl);			\
+	MPASS(error == 0);						\
+} while (0)
 #endif /* _KERNEL */
 
 /* INET6 stuff */

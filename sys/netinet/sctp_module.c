@@ -60,8 +60,6 @@ struct protosw sctp_stream_protosw = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs,
@@ -72,8 +70,6 @@ struct protosw sctp_seqpacket_protosw = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs,
@@ -88,8 +84,6 @@ struct protosw sctp6_stream_protosw = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
-	.pr_input =		sctp6_input,
-	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp6_usrreqs,
@@ -100,8 +94,6 @@ struct protosw sctp6_seqpacket_protosw = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
-	.pr_input =		sctp6_input,
-	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 #ifndef INET	/* Do not call initialization and drain routines twice. */
 	.pr_drain =		sctp_drain,
@@ -122,7 +114,7 @@ sctp_module_load(void)
 	error = pf_proto_register(PF_INET, &sctp_seqpacket_protosw);
 	if (error != 0)
 		return (error);
-	error = ipproto_register(IPPROTO_SCTP);
+	error = ipproto_register(IPPROTO_SCTP, sctp_input, sctp_ctlinput);
 	if (error != 0)
 		return (error);
 #endif
@@ -133,7 +125,7 @@ sctp_module_load(void)
 	error = pf_proto_register(PF_INET6, &sctp6_seqpacket_protosw);
 	if (error != 0)
 		return (error);
-	error = ip6proto_register(IPPROTO_SCTP);
+	error = ip6proto_register(IPPROTO_SCTP, sctp6_input, sctp6_ctlinput);
 	if (error != 0)
 		return (error);
 #endif

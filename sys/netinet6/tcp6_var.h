@@ -75,7 +75,6 @@ VNET_DECLARE(int, tcp_v6mssdflt);	/* XXX */
 struct	ip6_hdr;
 void	tcp6_ctlinput(int, struct sockaddr *, void *);
 void 	tcp6_ctlinput_viaudp(int, struct sockaddr *, void *, void *);
-void	tcp6_init(void);
 int	tcp6_input(struct mbuf **, int *, int);
 int	tcp6_input_with_port(struct mbuf **, int *, int, uint16_t);
 

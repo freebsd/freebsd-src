@@ -324,10 +324,8 @@ void sctp_close(struct socket *so);
 int sctp_disconnect(struct socket *so);
 void sctp_ctlinput(int, struct sockaddr *, void *);
 int sctp_ctloutput(struct socket *, struct sockopt *);
-#ifdef INET
 void sctp_input_with_port(struct mbuf *, int, uint16_t);
 int sctp_input(struct mbuf **, int *, int);
-#endif
 void sctp_pathmtu_adjustment(struct sctp_tcb *, uint32_t, bool);
 void sctp_drain(void);
 void

@@ -66,8 +66,6 @@ struct ucred;
 struct uio;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
-typedef int	pr_input_t(struct mbuf **, int*, int);
-typedef void	pr_ctlinput_t(int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
 typedef	void	pr_fasttimo_t(void);
 typedef	void	pr_slowtimo_t(void);
@@ -121,8 +119,6 @@ struct protosw {
 	short	pr_protocol;		/* protocol number */
 	short	pr_flags;		/* see below */
 /* protocol-protocol hooks */
-	pr_input_t *pr_input;		/* input to protocol (from below) */
-	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */

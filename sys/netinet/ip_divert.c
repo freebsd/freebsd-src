@@ -147,20 +147,6 @@ div_destroy(void *unused __unused)
 }
 VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_destroy, NULL);
 
-/*
- * IPPROTO_DIVERT is not in the real IP protocol number space; this
- * function should never be called.  Just in case, drop any packets.
- */
-static int
-div_input(struct mbuf **mp, int *offp, int proto)
-{
-	struct mbuf *m = *mp;
-
-	KMOD_IPSTAT_INC(ips_noproto);
-	m_freem(m);
-	return (IPPROTO_DONE);
-}
-
 static bool
 div_port_match(const struct inpcb *inp, void *v)
 {
@@ -171,9 +157,6 @@ div_port_match(const struct inpcb *inp, void *v)
 
 /*
  * Divert a packet by passing it up to the divert socket at port 'port'.
- *
- * Setup generic address and protocol structures for div_input routine,
- * then pass them along with mbuf chain.
  */
 static void
 divert_packet(struct mbuf *m, bool incoming)
@@ -759,7 +742,6 @@ struct protosw div_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_protocol =		IPPROTO_DIVERT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		div_input,
 	.pr_usrreqs =		&div_usrreqs
 };
 
@@ -772,8 +754,6 @@ div_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		/*
 		 * Protocol will be initialized by pf_proto_register().
-		 * We don't have to register ip_protox because we are not
-		 * a true IP protocol that goes over the wire.
 		 */
 		err = pf_proto_register(PF_INET, &div_protosw);
 		if (err != 0)

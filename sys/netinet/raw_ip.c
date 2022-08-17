@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <security/mac/mac_framework.h>
 
+extern ipproto_input_t *ip_protox[];
+
 VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_defttl), 0,
@@ -392,8 +394,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 		}
 		appended += rip_append(inp, ctx.ip, m, &ripsrc);
 	}
-	if (appended == 0 &&
-	    inetsw[ip_protox[ctx.ip->ip_p]].pr_input == rip_input) {
+	if (appended == 0 && ip_protox[ctx.ip->ip_p] == rip_input) {
 		IPSTAT_INC(ips_noproto);
 		IPSTAT_DEC(ips_delivered);
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PROTOCOL, 0, 0);

@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
-#include <sys/protosw.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -2421,19 +2420,6 @@ pfsync_detach_ifnet(struct ifnet *ifp)
 	PFSYNC_UNLOCK(sc);
 }
 
-#ifdef INET
-extern  struct domain inetdomain;
-static struct protosw in_pfsync_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_PFSYNC,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		pfsync_input,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
-#endif
-
 static void
 pfsync_pointers_init(void)
 {
@@ -2506,14 +2492,9 @@ pfsync_init(void)
 
 	pfsync_detach_ifnet_ptr = pfsync_detach_ifnet;
 
-	error = pf_proto_register(PF_INET, &in_pfsync_protosw);
+	error = ipproto_register(IPPROTO_PFSYNC, pfsync_input, NULL);
 	if (error)
 		return (error);
-	error = ipproto_register(IPPROTO_PFSYNC);
-	if (error) {
-		pf_proto_unregister(PF_INET, IPPROTO_PFSYNC, SOCK_RAW);
-		return (error);
-	}
 #endif
 
 	return (0);
@@ -2526,7 +2507,6 @@ pfsync_uninit(void)
 
 #ifdef INET
 	ipproto_unregister(IPPROTO_PFSYNC);
-	pf_proto_unregister(PF_INET, IPPROTO_PFSYNC, SOCK_RAW);
 #endif
 }
 

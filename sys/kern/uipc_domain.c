@@ -473,8 +473,6 @@ pf_proto_unregister(int family, int protocol, int type)
 	dpr->pr_domain = dp;
 	dpr->pr_protocol = PROTO_SPACER;
 	dpr->pr_flags = 0;
-	dpr->pr_input = NULL;
-	dpr->pr_ctlinput = NULL;
 	dpr->pr_ctloutput = NULL;
 	dpr->pr_fasttimo = NULL;
 	dpr->pr_slowtimo = NULL;
