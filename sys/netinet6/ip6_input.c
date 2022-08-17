@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/eventhandler.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
