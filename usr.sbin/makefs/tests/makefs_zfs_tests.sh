@@ -38,7 +38,7 @@ common_cleanup()
 {
 	local pool md
 
-        # Try to force a TXG, this can help catch bugs by triggering a panic.
+	# Try to force a TXG, this can help catch bugs by triggering a panic.
 	sync
 
 	pool=$(cat $TEST_ZFS_POOL_NAME)
@@ -90,7 +90,7 @@ autoexpand_body()
 	poolsize1=$(zpool list -Hp -o size $ZFS_POOL_NAME)
 	atf_check [ $((poolsize1 + $mssize)) -eq $poolsize ]
 
-        atf_check zpool online -e $ZFS_POOL_NAME /dev/$(cat $TEST_MD_DEVICE_FILE)
+	atf_check zpool online -e $ZFS_POOL_NAME /dev/$(cat $TEST_MD_DEVICE_FILE)
 
 	check_image_contents
 
