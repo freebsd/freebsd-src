@@ -495,7 +495,7 @@ ieee80211_decap_amsdu(struct ieee80211_node *ni, struct mbuf *m)
 		}
 		if (m->m_pkthdr.len == framelen)
 			break;
-		n = m_split(m, framelen, M_NOWAIT);
+		n = m_split(m, framelen, IEEE80211_M_NOWAIT);
 		if (n == NULL) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 			    ni->ni_macaddr, "a-msdu",

@@ -333,12 +333,13 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	TAILQ_INIT(&ic->ic_vaps);
 
 	/* Create a taskqueue for all state changes */
-	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
+	ic->ic_tq = taskqueue_create("ic_taskq",
+	    IEEE80211_M_WAITOK | IEEE80211_M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
 	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
 	    ic->ic_name);
-	ic->ic_ierrors = counter_u64_alloc(M_WAITOK);
-	ic->ic_oerrors = counter_u64_alloc(M_WAITOK);
+	ic->ic_ierrors = counter_u64_alloc(IEEE80211_M_WAITOK);
+	ic->ic_oerrors = counter_u64_alloc(IEEE80211_M_WAITOK);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
