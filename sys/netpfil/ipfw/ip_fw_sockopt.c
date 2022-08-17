@@ -2000,12 +2000,17 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
  			goto check_action;
 		case O_CHECK_STATE:
 			ci->object_opcodes++;
+			goto check_size;
+		case O_REJECT:
+			/* "unreach needfrag" has variable len. */
+			if ((cmdlen == F_INSN_SIZE(ipfw_insn) ||
+			    cmdlen == F_INSN_SIZE(ipfw_insn_u16)))
+				goto check_action;
 			/* FALLTHROUGH */
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_COUNT:
 		case O_ACCEPT:
 		case O_DENY:
-		case O_REJECT:
 		case O_SETDSCP:
 #ifdef INET6
 		case O_UNREACH6:

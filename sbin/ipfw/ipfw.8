@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2022
+.Dd August 17, 2022
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1080,7 +1080,7 @@ Send a copy of packets matching this rule to the
 socket bound to port
 .Ar port .
 The search continues with the next rule.
-.It Cm unreach Ar code
+.It Cm unreach Ar code Op mtu
 Discard packets that match this rule, and try to send an ICMP
 unreachable notice with code
 .Ar code ,
@@ -1093,6 +1093,12 @@ is a number from 0 to 255, or one of these aliases:
 .Cm toshost , filter-prohib , host-precedence
 or
 .Cm precedence-cutoff .
+The
+.Cm needfrag
+code may have an optional
+.Ar mtu
+parameter.
+If specified, the MTU value will be put into generated ICMP packet.
 The search terminates.
 .It Cm unreach6 Ar code
 Discard packets that match this rule, and try to send an ICMPv6
