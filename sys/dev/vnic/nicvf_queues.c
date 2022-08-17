@@ -732,7 +732,7 @@ static int
 nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 {
 	struct mbuf *mbuf;
-	struct ifnet *ifp;
+	if_t ifp;
 	int processed_cqe, tx_done = 0;
 #ifdef DEBUG
 	int work_done = 0;
@@ -831,7 +831,7 @@ out:
 	while (!buf_ring_empty(cq->rx_br)) {
 		mbuf = buf_ring_dequeue_mc(cq->rx_br);
 		if (__predict_true(mbuf != NULL))
-			(*ifp->if_input)(ifp, mbuf);
+			if_input(ifp, mbuf);
 	}
 
 	return (cmp_err);
@@ -987,7 +987,7 @@ int
 nicvf_xmit_locked(struct snd_queue *sq)
 {
 	struct nicvf *nic;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *next;
 	int err;
 
@@ -1020,7 +1020,7 @@ nicvf_snd_task(void *arg, int pending)
 {
 	struct snd_queue *sq = (struct snd_queue *)arg;
 	struct nicvf *nic;
-	struct ifnet *ifp;
+	if_t ifp;
 	int err;
 
 	nic = sq->nic;
@@ -1296,7 +1296,7 @@ nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	union nic_mbx mbx = {};
 	struct rcv_queue *rq;
 	struct rq_cfg rq_cfg;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct lro_ctrl	*lro;
 
 	ifp = nic->ifp;
