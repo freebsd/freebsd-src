@@ -141,7 +141,6 @@ void	kmod_udpstat_inc(int statnum);
 #include <netinet/in_pcb.h>
 SYSCTL_DECL(_net_inet_udp);
 
-extern struct pr_usrreqs	udp_usrreqs;
 VNET_DECLARE(struct inpcbinfo, udbinfo);
 VNET_DECLARE(struct inpcbinfo, ulitecbinfo);
 #define	V_udbinfo		VNET(udbinfo)

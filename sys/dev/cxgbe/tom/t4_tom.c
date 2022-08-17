@@ -80,13 +80,8 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom.h"
 #include "tom/t4_tls.h"
 
-static struct protosw *tcp_protosw;
 static struct protosw toe_protosw;
-static struct pr_usrreqs toe_usrreqs;
-
-static struct protosw *tcp6_protosw;
 static struct protosw toe6_protosw;
-static struct pr_usrreqs toe6_usrreqs;
 
 /* Module ops */
 static int t4_tom_mod_load(void);
@@ -269,9 +264,9 @@ void
 restore_so_proto(struct socket *so, bool v6)
 {
 	if (v6)
-		so->so_proto = tcp6_protosw;
+		so->so_proto = &tcp6_protosw;
 	else
-		so->so_proto = tcp_protosw;
+		so->so_proto = &tcp_protosw;
 }
 
 /* This is _not_ the normal way to "unoffload" a socket. */
@@ -2024,21 +2019,11 @@ t4_tom_mod_load(void)
 	t4_ddp_mod_load();
 	t4_tls_mod_load();
 
-	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
-	if (tcp_protosw == NULL)
-		return (ENOPROTOOPT);
-	bcopy(tcp_protosw, &toe_protosw, sizeof(toe_protosw));
-	bcopy(tcp_protosw->pr_usrreqs, &toe_usrreqs, sizeof(toe_usrreqs));
-	toe_usrreqs.pru_aio_queue = t4_aio_queue_tom;
-	toe_protosw.pr_usrreqs = &toe_usrreqs;
+	bcopy(&tcp_protosw, &toe_protosw, sizeof(toe_protosw));
+	toe_protosw.pr_aio_queue = t4_aio_queue_tom;
 
-	tcp6_protosw = pffindproto(PF_INET6, IPPROTO_TCP, SOCK_STREAM);
-	if (tcp6_protosw == NULL)
-		return (ENOPROTOOPT);
-	bcopy(tcp6_protosw, &toe6_protosw, sizeof(toe6_protosw));
-	bcopy(tcp6_protosw->pr_usrreqs, &toe6_usrreqs, sizeof(toe6_usrreqs));
-	toe6_usrreqs.pru_aio_queue = t4_aio_queue_tom;
-	toe6_protosw.pr_usrreqs = &toe6_usrreqs;
+	bcopy(&tcp6_protosw, &toe6_protosw, sizeof(toe6_protosw));
+	toe6_protosw.pr_aio_queue = t4_aio_queue_tom;
 
 	return (t4_register_uld(&tom_uld_info));
 }

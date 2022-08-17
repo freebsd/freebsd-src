@@ -107,22 +107,44 @@ typedef int	pr_aio_queue_t(struct socket *, struct kaiocb *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
-	struct	domain *pr_domain;	/* domain protocol a member of */
 	short	pr_protocol;		/* protocol number */
 	short	pr_flags;		/* see below */
-/* protocol-protocol hooks */
-	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
-/* utility hooks */
+	short	pr_unused;
+	struct	domain	*pr_domain;	/* domain protocol a member of */
 
-	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
+	pr_soreceive_t	*pr_soreceive;	/* recv(2) */
+	pr_rcvd_t	*pr_rcvd;	/* soreceive_generic() if PR_WANTRCVD */
+	pr_sosend_t	*pr_sosend;	/* send(2) */
+	pr_send_t	*pr_send;	/* send(2) via sosend_generic() */
+	pr_ready_t	*pr_ready;	/* sendfile/ktls readyness */
+	pr_sopoll_t	*pr_sopoll;	/* poll(2) */
+/* Cache line #2 */
+	pr_attach_t	*pr_attach;	/* creation: socreate(), sonewconn() */
+	pr_detach_t	*pr_detach;	/* destruction: sofree() */
+	pr_connect_t	*pr_connect;	/* connect(2) */
+	pr_disconnect_t	*pr_disconnect;	/* sodisconnect() */
+	pr_close_t	*pr_close;	/* close(2) */
+	pr_shutdown_t	*pr_shutdown;	/* shutdown(2) */
+	pr_abort_t	*pr_abort;	/* abrupt tear down: soabort() */
+	pr_aio_queue_t	*pr_aio_queue;	/* aio(9) */
+/* Cache line #3 */
+	pr_bind_t	*pr_bind;	/* bind(2) */
+	pr_bindat_t	*pr_bindat;	/* bindat(2) */
+	pr_listen_t	*pr_listen;	/* listen(2) */
+	pr_accept_t	*pr_accept;	/* accept(2) */
+	pr_connectat_t	*pr_connectat;	/* connectat(2) */
+	pr_connect2_t	*pr_connect2;	/* socketpair(2) */
+	pr_control_t	*pr_control;	/* ioctl(2) */
+	pr_rcvoob_t	*pr_rcvoob;	/* soreceive_rcvoob() */
+/* Cache line #4 */
+	pr_ctloutput_t	*pr_ctloutput;	/* control output (from above) */
+	pr_peeraddr_t	*pr_peeraddr;	/* getpeername(2) */
+	pr_sockaddr_t	*pr_sockaddr;	/* getsockname(2) */
+	pr_sense_t	*pr_sense;	/* stat(2) */
+	pr_flush_t	*pr_flush;	/* XXXGL: merge with pr_shutdown_t! */
+	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
 };
 /*#endif*/
-
-/*
- * This number should be defined again within each protocol family to avoid
- * confusion.
- */
-#define	PROTO_SPACER	32767		/* spacer for loadable protocols */
 
 /*
  * Values for pr_flags.
@@ -144,88 +166,6 @@ struct protosw {
 /* was	PR_LASTHDR	0x40		   enforce ipsec policy; last header */
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
-
-#ifdef	_KERNEL			/* users shouldn't see this decl */
-
-struct ifnet;
-struct stat;
-struct ucred;
-struct uio;
-
-/*
- * If the ordering here looks odd, that's because it's alphabetical.  These
- * should eventually be merged back into struct protosw.
- *
- * Some fields initialized to defaults if they are NULL.
- */
-struct pr_usrreqs {
-	pr_abort_t	*pru_abort;
-	pr_accept_t	*pru_accept;
-	pr_attach_t	*pru_attach;
-	pr_bind_t	*pru_bind;
-	pr_connect_t	*pru_connect;
-	pr_connect2_t	*pru_connect2;
-	pr_control_t	*pru_control;
-	pr_detach_t	*pru_detach;
-	pr_disconnect_t	*pru_disconnect;
-	pr_listen_t	*pru_listen;
-	pr_peeraddr_t	*pru_peeraddr;
-	pr_rcvd_t	*pru_rcvd;
-	pr_rcvoob_t	*pru_rcvoob;
-	pr_send_t	*pru_send;
-	pr_ready_t	*pru_ready;
-	pr_sense_t	*pru_sense;
-	pr_shutdown_t	*pru_shutdown;
-	pr_flush_t	*pru_flush;
-	pr_sockaddr_t	*pru_sockaddr;
-	pr_sosend_t	*pru_sosend;
-	pr_soreceive_t	*pru_soreceive;
-	pr_sopoll_t	*pru_sopoll;
-	pr_sosetlabel_t	*pru_sosetlabel;
-	pr_close_t	*pru_close;
-	pr_bindat_t	*pru_bindat;
-	pr_connectat_t	*pru_connectat;
-	pr_aio_queue_t	*pru_aio_queue;
-};
-
-/*
- * All nonvoid pru_*() functions below return EOPNOTSUPP.
- */
-int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
-int	pru_aio_queue_notsupp(struct socket *so, struct kaiocb *job);
-int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
-int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
-	    struct thread *td);
-int	pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
-	    struct thread *td);
-int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
-	    struct thread *td);
-int	pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
-	    struct thread *td);
-int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
-int	pru_control_notsupp(struct socket *so, u_long cmd, void *data,
-	    struct ifnet *ifp, struct thread *td);
-int	pru_disconnect_notsupp(struct socket *so);
-int	pru_listen_notsupp(struct socket *so, int backlog, struct thread *td);
-int	pru_peeraddr_notsupp(struct socket *so, struct sockaddr **nam);
-int	pru_rcvd_notsupp(struct socket *so, int flags);
-int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
-int	pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
-	    struct sockaddr *addr, struct mbuf *control, struct thread *td);
-int	pru_ready_notsupp(struct socket *so, struct mbuf *m, int count);
-int	pru_sense_null(struct socket *so, struct stat *sb);
-int	pru_shutdown_notsupp(struct socket *so);
-int	pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam);
-int	pru_sosend_notsupp(struct socket *so, struct sockaddr *addr,
-	    struct uio *uio, struct mbuf *top, struct mbuf *control, int flags,
-	    struct thread *td);
-int	pru_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
-	    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
-	    int *flagsp);
-int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
-	    struct thread *td);
-
-#endif /* _KERNEL */
 
 /*
  * The arguments to the ctlinput routine are
@@ -298,8 +238,12 @@ char	*prcorequests[] = {
 struct domain *pffinddomain(int family);
 struct protosw *pffindproto(int family, int protocol, int type);
 struct protosw *pffindtype(int family, int type);
-int	pf_proto_register(int family, struct protosw *npr);
-int	pf_proto_unregister(int family, int protocol, int type);
+int protosw_register(struct domain *, struct protosw *);
+int protosw_unregister(struct protosw *);
+
+/* Domains that are known to be avaliable for protosw_register(). */
+extern struct domain inetdomain;
+extern struct domain inet6domain;
 #endif
 
 #endif

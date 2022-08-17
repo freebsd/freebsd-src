@@ -1199,25 +1199,37 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	return (error);
 }
 
-struct pr_usrreqs sctp6_usrreqs = {
-	.pru_abort = sctp6_abort,
-	.pru_accept = sctp_accept,
-	.pru_attach = sctp6_attach,
-	.pru_bind = sctp6_bind,
-	.pru_connect = sctp6_connect,
-	.pru_control = in6_control,
-	.pru_close = sctp6_close,
-	.pru_detach = sctp6_close,
-	.pru_sopoll = sopoll_generic,
-	.pru_flush = sctp_flush,
-	.pru_disconnect = sctp6_disconnect,
-	.pru_listen = sctp_listen,
-	.pru_peeraddr = sctp6_getpeeraddr,
-	.pru_send = sctp6_send,
-	.pru_shutdown = sctp_shutdown,
-	.pru_sockaddr = sctp6_in6getaddr,
-	.pru_sosend = sctp_sosend,
-	.pru_soreceive = sctp_soreceive
+#define	SCTP6_PROTOSW							\
+	.pr_protocol =	IPPROTO_SCTP,					\
+	.pr_ctloutput =	sctp_ctloutput,					\
+	.pr_abort =	sctp6_abort,					\
+	.pr_accept =	sctp_accept,					\
+	.pr_attach =	sctp6_attach,					\
+	.pr_bind =	sctp6_bind,					\
+	.pr_connect =	sctp6_connect,					\
+	.pr_control =	in6_control,					\
+	.pr_close =	sctp6_close,					\
+	.pr_detach =	sctp6_close,					\
+	.pr_sopoll =	sopoll_generic,					\
+	.pr_flush =	sctp_flush,					\
+	.pr_disconnect = sctp6_disconnect,				\
+	.pr_listen =	sctp_listen,					\
+	.pr_peeraddr =	sctp6_getpeeraddr,				\
+	.pr_send =	sctp6_send,					\
+	.pr_shutdown =	sctp_shutdown,					\
+	.pr_sockaddr =	sctp6_in6getaddr,				\
+	.pr_sosend =	sctp_sosend,					\
+	.pr_soreceive =	sctp_soreceive
+
+struct protosw sctp6_seqpacket_protosw = {
+	.pr_type =	SOCK_SEQPACKET,
+	.pr_flags =	PR_WANTRCVD,
+	SCTP6_PROTOSW
 };
 
+struct protosw sctp6_stream_protosw = {
+	.pr_type =	SOCK_STREAM,
+	.pr_flags =	PR_CONNREQUIRED | PR_WANTRCVD,
+	SCTP6_PROTOSW
+};
 #endif

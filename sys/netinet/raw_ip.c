@@ -133,8 +133,6 @@ int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 #endif /* INET */
 
-extern	struct protosw inetsw[];
-
 u_long	rip_sendspace = 9216;
 SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
@@ -1070,19 +1068,70 @@ SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist,
     "List of active raw IP sockets");
 
 #ifdef INET
-struct pr_usrreqs rip_usrreqs = {
-	.pru_abort =		rip_abort,
-	.pru_attach =		rip_attach,
-	.pru_bind =		rip_bind,
-	.pru_connect =		rip_connect,
-	.pru_control =		in_control,
-	.pru_detach =		rip_detach,
-	.pru_disconnect =	rip_disconnect,
-	.pru_peeraddr =		in_getpeeraddr,
-	.pru_send =		rip_send,
-	.pru_shutdown =		rip_shutdown,
-	.pru_sockaddr =		in_getsockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel,
-	.pru_close =		rip_close,
+/*
+ * See comment in in_proto.c containing "protosw definitions are not needed".
+ */
+#define	RAW_PROTOSW							\
+	.pr_type =		SOCK_RAW,				\
+	.pr_flags =		PR_ATOMIC|PR_ADDR,			\
+	.pr_ctloutput =		rip_ctloutput,				\
+	.pr_abort =		rip_abort,				\
+	.pr_attach =		rip_attach,				\
+	.pr_bind =		rip_bind,				\
+	.pr_connect =		rip_connect,				\
+	.pr_control =		in_control,				\
+	.pr_detach =		rip_detach,				\
+	.pr_disconnect =	rip_disconnect,				\
+	.pr_peeraddr =		in_getpeeraddr,				\
+	.pr_send =		rip_send,				\
+	.pr_shutdown =		rip_shutdown,				\
+	.pr_sockaddr =		in_getsockaddr,				\
+	.pr_sosetlabel =	in_pcbsosetlabel,			\
+	.pr_close =		rip_close
+
+struct protosw rip_protosw = {
+	.pr_protocol = IPPROTO_RAW,
+	RAW_PROTOSW
+};
+struct protosw icmp_protosw = {
+	.pr_protocol =	IPPROTO_ICMP,
+	RAW_PROTOSW
+};
+struct protosw igmp_protosw = {
+	.pr_protocol =	IPPROTO_IGMP,
+	RAW_PROTOSW
+};
+struct protosw rsvp_protosw = {
+	.pr_protocol =	IPPROTO_RSVP,
+	RAW_PROTOSW
+};
+struct protosw rawipv4_protosw = {
+	.pr_protocol =	IPPROTO_IPV4,
+	RAW_PROTOSW
+};
+struct protosw mobile_protosw = {
+	.pr_protocol =	IPPROTO_MOBILE,
+	RAW_PROTOSW
+};
+struct protosw etherip_protosw = {
+	.pr_protocol =	IPPROTO_ETHERIP,
+	RAW_PROTOSW
+};
+struct protosw gre_protosw = {
+	.pr_protocol =	IPPROTO_GRE,
+	RAW_PROTOSW
+};
+#ifdef INET6
+struct protosw rawipv6_protosw = {
+	.pr_protocol =	IPPROTO_IPV6,
+	RAW_PROTOSW
+};
+#endif
+struct protosw pim_protosw = {
+	.pr_protocol =	IPPROTO_PIM,
+	RAW_PROTOSW
+};
+struct protosw ripwild_protosw = {
+	RAW_PROTOSW
 };
 #endif /* INET */

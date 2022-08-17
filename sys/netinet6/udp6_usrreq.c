@@ -1322,22 +1322,34 @@ bad:
 	return (error);
 }
 
-struct pr_usrreqs udp6_usrreqs = {
-	.pru_abort =		udp6_abort,
-	.pru_attach =		udp6_attach,
-	.pru_bind =		udp6_bind,
-	.pru_connect =		udp6_connect,
-	.pru_control =		in6_control,
-	.pru_detach =		udp6_detach,
-	.pru_disconnect =	udp6_disconnect,
-	.pru_peeraddr =		in6_mapped_peeraddr,
-	.pru_send =		udp6_send,
-	.pru_shutdown =		udp_shutdown,
-	.pru_sockaddr =		in6_mapped_sockaddr,
-	.pru_soreceive =	soreceive_dgram,
-	.pru_sosend =		sosend_dgram,
-	.pru_sosetlabel =	in_pcbsosetlabel,
-	.pru_close =		udp6_close
+#define	UDP6_PROTOSW							\
+	.pr_type =		SOCK_DGRAM,				\
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_CAPATTACH,		\
+	.pr_ctloutput =		ip6_ctloutput,				\
+	.pr_abort =		udp6_abort,				\
+	.pr_attach =		udp6_attach,				\
+	.pr_bind =		udp6_bind,				\
+	.pr_connect =		udp6_connect,				\
+	.pr_control =		in6_control,				\
+	.pr_detach =		udp6_detach,				\
+	.pr_disconnect =	udp6_disconnect,			\
+	.pr_peeraddr =		in6_mapped_peeraddr,			\
+	.pr_send =		udp6_send,				\
+	.pr_shutdown =		udp_shutdown,				\
+	.pr_sockaddr =		in6_mapped_sockaddr,			\
+	.pr_soreceive =		soreceive_dgram,			\
+	.pr_sosend =		sosend_dgram,				\
+	.pr_sosetlabel =	in_pcbsosetlabel,			\
+	.pr_close =		udp6_close
+
+struct protosw udp6_protosw = {
+	.pr_protocol =		IPPROTO_UDP,
+	UDP6_PROTOSW
+};
+
+struct protosw udplite6_protosw = {
+	.pr_protocol =		IPPROTO_UDPLITE,
+	UDP6_PROTOSW
 };
 
 static void

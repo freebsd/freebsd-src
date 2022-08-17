@@ -127,7 +127,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_ops = &svc_dg_ops;
 
 	CURVNET_SET(so->so_vnet);
-	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	error = so->so_proto->pr_sockaddr(so, &sa);
 	CURVNET_RESTORE();
 	if (error)
 		goto freedata;

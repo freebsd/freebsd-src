@@ -318,39 +318,25 @@ key_shutdown(struct socket *so)
 	return (0);
 }
 
-struct pr_usrreqs key_usrreqs = {
-	.pru_abort =		key_close,
-	.pru_attach =		key_attach,
-	.pru_detach =		key_detach,
-	.pru_send =		key_send,
-	.pru_shutdown =		key_shutdown,
-	.pru_close =		key_close,
-};
-
-/* sysctl */
 SYSCTL_NODE(_net, PF_KEY, key, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Key Family");
 
-/*
- * Definitions of protocols supported in the KEY domain.
- */
-
-extern struct domain keydomain;
-
-struct protosw keysw[] = {
-{
+static struct protosw keysw = {
 	.pr_type =		SOCK_RAW,
-	.pr_domain =		&keydomain,
 	.pr_protocol =		PF_KEY_V2,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_usrreqs =		&key_usrreqs
-}
+	.pr_abort =		key_close,
+	.pr_attach =		key_attach,
+	.pr_detach =		key_detach,
+	.pr_send =		key_send,
+	.pr_shutdown =		key_shutdown,
+	.pr_close =		key_close,
 };
 
-struct domain keydomain = {
+static struct domain keydomain = {
 	.dom_family =		PF_KEY,
 	.dom_name =		"key",
-	.dom_protosw =		keysw,
-	.dom_protoswNPROTOSW =	&keysw[nitems(keysw)]
+	.dom_nprotosw =		1,
+	.dom_protosw =		{ &keysw },
 };
 DOMAIN_SET(key);

@@ -513,7 +513,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	callout_init_rm(&peer->ping_send, &sc->lock, CALLOUT_SHAREDLOCK);
 	callout_init_rm(&peer->ping_rcv, &sc->lock, 0);
 
-	ret = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &name);
+	ret = so->so_proto->pr_sockaddr(so, &name);
 	if (ret)
 		goto error;
 

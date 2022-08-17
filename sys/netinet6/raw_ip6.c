@@ -869,17 +869,66 @@ rip6_shutdown(struct socket *so)
 	return (0);
 }
 
-struct pr_usrreqs rip6_usrreqs = {
-	.pru_abort =		rip6_abort,
-	.pru_attach =		rip6_attach,
-	.pru_bind =		rip6_bind,
-	.pru_connect =		rip6_connect,
-	.pru_control =		in6_control,
-	.pru_detach =		rip6_detach,
-	.pru_disconnect =	rip6_disconnect,
-	.pru_peeraddr =		in6_getpeeraddr,
-	.pru_send =		rip6_send,
-	.pru_shutdown =		rip6_shutdown,
-	.pru_sockaddr =		in6_getsockaddr,
-	.pru_close =		rip6_close,
+/*
+ * See comment in in6_proto.c containing "protosw definitions are not needed".
+ */
+#define	RAW6_PROTOSW						\
+	.pr_type =		SOCK_RAW,			\
+	.pr_flags =		PR_ATOMIC|PR_ADDR,		\
+	.pr_ctloutput =		rip6_ctloutput,			\
+	.pr_abort =		rip6_abort,			\
+	.pr_attach =		rip6_attach,			\
+	.pr_bind =		rip6_bind,			\
+	.pr_connect =		rip6_connect,			\
+	.pr_control =		in6_control,			\
+	.pr_detach =		rip6_detach,			\
+	.pr_disconnect =	rip6_disconnect,		\
+	.pr_peeraddr =		in6_getpeeraddr,		\
+	.pr_send =		rip6_send,			\
+	.pr_shutdown =		rip6_shutdown,			\
+	.pr_sockaddr =		in6_getsockaddr,		\
+	.pr_close =		rip6_close
+
+struct protosw rip6_protosw = {
+	.pr_protocol =	IPPROTO_RAW,
+	RAW6_PROTOSW
+};
+struct protosw icmp6_protosw = {
+	.pr_protocol =	IPPROTO_ICMPV6,
+	RAW6_PROTOSW
+};
+struct protosw dstopts6_protosw = {
+	.pr_protocol =	IPPROTO_DSTOPTS,
+	RAW6_PROTOSW
+};
+struct protosw routing6_protosw = {
+	.pr_protocol =	IPPROTO_ROUTING,
+	RAW6_PROTOSW
+};
+struct protosw frag6_protosw = {
+	.pr_protocol =	IPPROTO_FRAGMENT,
+	RAW6_PROTOSW
+};
+struct protosw rawipv4in6_protosw = {
+	.pr_protocol =	IPPROTO_IPV4,
+	RAW6_PROTOSW
+};
+struct protosw rawipv6in6_protosw = {
+	.pr_protocol =	IPPROTO_IPV6,
+	RAW6_PROTOSW
+};
+struct protosw etherip6_protosw = {
+	.pr_protocol =	IPPROTO_ETHERIP,
+	RAW6_PROTOSW
+};
+struct protosw gre6_protosw = {
+	.pr_protocol =	IPPROTO_GRE,
+	RAW6_PROTOSW
+};
+struct protosw pim6_protosw = {
+	.pr_protocol =	IPPROTO_PIM,
+	RAW6_PROTOSW
+};
+struct protosw rip6wild_protosw = {
+	RAW6_PROTOSW
 };

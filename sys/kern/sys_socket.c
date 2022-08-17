@@ -276,8 +276,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 			CURVNET_RESTORE();
 		} else {
 			CURVNET_SET(so->so_vnet);
-			error = ((*so->so_proto->pr_usrreqs->pru_control)
-			    (so, cmd, data, 0, td));
+			error = so->so_proto->pr_control(so, cmd, data, 0, td);
 			CURVNET_RESTORE();
 		}
 		break;
@@ -336,7 +335,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred)
 	}
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
-	error = so->so_proto->pr_usrreqs->pru_sense(so, ub);
+	error = so->so_proto->pr_sense(so, ub);
 	SOCK_UNLOCK(so);
 	return (error);
 }
@@ -414,13 +413,13 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 		}
 		break;
 	}
-	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	error = so->so_proto->pr_sockaddr(so, &sa);
 	if (error == 0 &&
 	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_local)) {
 		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_local, sa->sa_len);
 		free(sa, M_SONAME);
 	}
-	error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
+	error = so->so_proto->pr_peeraddr(so, &sa);
 	if (error == 0 &&
 	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_peer)) {
 		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_peer, sa->sa_len);
@@ -812,7 +811,7 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	int error;
 
 	so = fp->f_data;
-	error = (*so->so_proto->pr_usrreqs->pru_aio_queue)(so, job);
+	error = so->so_proto->pr_aio_queue(so, job);
 	if (error == 0)
 		return (0);
 

@@ -1195,7 +1195,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 	KASSERT(flags & MSG_OOB, ("soreceive_rcvoob: (flags & MSG_OOB) == 0"));
 
 	m = m_get(M_WAITOK, MT_DATA);
-	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
+	error = pr->pr_rcvoob(so, m, flags & MSG_PEEK);
 	if (error)
 		goto bad;
 	do {
@@ -1876,51 +1876,45 @@ sdp_init(void *arg __unused)
 }
 SYSINIT(sdp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, sdp_init, NULL);
 
-extern struct domain sdpdomain;
+#define	SDP_PROTOSW							\
+	.pr_type =		SOCK_STREAM,				\
+	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,\
+	.pr_ctloutput =		sdp_ctloutput,				\
+	.pr_abort =		sdp_abort,				\
+	.pr_accept =		sdp_accept,				\
+	.pr_attach =		sdp_attach,				\
+	.pr_bind =		sdp_bind,				\
+	.pr_connect =		sdp_connect,				\
+	.pr_detach =		sdp_detach,				\
+	.pr_disconnect =	sdp_disconnect,				\
+	.pr_listen =		sdp_listen,				\
+	.pr_peeraddr =		sdp_getpeeraddr,			\
+	.pr_rcvoob =		sdp_rcvoob,				\
+	.pr_send =		sdp_send,				\
+	.pr_sosend =		sdp_sosend,				\
+	.pr_soreceive =		sdp_sorecv,				\
+	.pr_shutdown =		sdp_shutdown,				\
+	.pr_sockaddr =		sdp_getsockaddr,			\
+	.pr_close =		sdp_close
 
-struct pr_usrreqs sdp_usrreqs = {
-	.pru_abort =		sdp_abort,
-	.pru_accept =		sdp_accept,
-	.pru_attach =		sdp_attach,
-	.pru_bind =		sdp_bind,
-	.pru_connect =		sdp_connect,
-	.pru_detach =		sdp_detach,
-	.pru_disconnect =	sdp_disconnect,
-	.pru_listen =		sdp_listen,
-	.pru_peeraddr =		sdp_getpeeraddr,
-	.pru_rcvoob =		sdp_rcvoob,
-	.pru_send =		sdp_send,
-	.pru_sosend =		sdp_sosend,
-	.pru_soreceive =	sdp_sorecv,
-	.pru_shutdown =		sdp_shutdown,
-	.pru_sockaddr =		sdp_getsockaddr,
-	.pru_close =		sdp_close,
-};
 
-struct protosw sdpsw[] = {
-{
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&sdpdomain,
+static struct protosw sdp_ip_protosw = {
 	.pr_protocol =		IPPROTO_IP,
-	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
-	.pr_ctloutput =		sdp_ctloutput,
-	.pr_usrreqs =		&sdp_usrreqs
-},
-{
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&sdpdomain,
+	SDP_PROTOSW
+};
+static struct protosw sdp_tcp_protosw = {
 	.pr_protocol =		IPPROTO_TCP,
-	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,
-	.pr_ctloutput =		sdp_ctloutput,
-	.pr_usrreqs =		&sdp_usrreqs
-},
+	SDP_PROTOSW
 };
 
-struct domain sdpdomain = {
+static struct domain sdpdomain = {
 	.dom_family =		AF_INET_SDP,
 	.dom_name =		"SDP",
-	.dom_protosw =		sdpsw,
-	.dom_protoswNPROTOSW =	&sdpsw[sizeof(sdpsw)/sizeof(sdpsw[0])],
+	.dom_nprotosw =		2,
+	.dom_protosw = {
+		&sdp_ip_protosw,
+		&sdp_tcp_protosw,
+	},
 };
 
 DOMAIN_SET(sdp);
