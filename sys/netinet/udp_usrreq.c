@@ -175,7 +175,7 @@ INPCBSTORAGE_DEFINE(udplitecbstor, "udpliteinp", "udplite_inpcb", "udplite",
     "udplitehash");
 
 static void
-udp_init(void *arg __unused)
+udp_vnet_init(void *arg __unused)
 {
 
 	/*
@@ -195,7 +195,8 @@ udp_init(void *arg __unused)
 	in_pcbinfo_init(&V_ulitecbinfo, &udplitecbstor, UDBHASHSIZE,
 	    UDBHASHSIZE);
 }
-VNET_SYSINIT(udp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, udp_init, NULL);
+VNET_SYSINIT(udp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    udp_vnet_init, NULL);
 
 /*
  * Kernel module interface for updating udpstat.  The argument is an index
@@ -482,7 +483,7 @@ udp_multi_input(struct mbuf *m, int proto, struct sockaddr_in *udp_in)
 	return (IPPROTO_DONE);
 }
 
-int
+static int
 udp_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ip *ip;
@@ -798,14 +799,15 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 		in_pcbnotifyall(pcbinfo, faddr, inetctlerrmap[cmd],
 		    udp_notify);
 }
-void
+
+static void
 udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 
 	return (udp_common_ctlinput(cmd, sa, vip, &V_udbinfo));
 }
 
-void
+static void
 udplite_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 
@@ -1768,4 +1770,13 @@ struct pr_usrreqs udp_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		udp_close,
 };
+
+static void
+udp_init(void *arg __unused)
+{
+
+	IPPROTO_REGISTER(IPPROTO_UDP, udp_input, udp_ctlinput);
+	IPPROTO_REGISTER(IPPROTO_UDPLITE, udp_input, udplite_ctlinput);
+}
+SYSINIT(udp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, udp_init, NULL);
 #endif /* INET */

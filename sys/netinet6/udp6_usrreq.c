@@ -1339,3 +1339,12 @@ struct pr_usrreqs udp6_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		udp6_close
 };
+
+static void
+udp6_init(void *arg __unused)
+{
+
+	IP6PROTO_REGISTER(IPPROTO_UDP, udp6_input, udp6_ctlinput);
+	IP6PROTO_REGISTER(IPPROTO_UDPLITE, udp6_input, udplite6_ctlinput);
+}
+SYSINIT(udp6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, udp6_init, NULL);

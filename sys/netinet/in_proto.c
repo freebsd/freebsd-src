@@ -122,8 +122,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_UDP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_CAPATTACH,
-	.pr_input =		udp_input,
-	.pr_ctlinput =		udp_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_usrreqs =		&udp_usrreqs
 },
@@ -133,8 +131,6 @@ struct protosw inetsw[] = {
 	.pr_protocol =		IPPROTO_TCP,
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD|
 				    PR_CAPATTACH,
-	.pr_input =		tcp_input,
-	.pr_ctlinput =		tcp_ctlinput,
 	.pr_ctloutput =		tcp_ctloutput,
 	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
@@ -146,8 +142,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
@@ -157,8 +151,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_drain =		NULL, /* Covered by the SOCK_SEQPACKET entry. */
 	.pr_usrreqs =		&sctp_usrreqs
@@ -169,8 +161,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_UDPLITE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_CAPATTACH,
-	.pr_input =		udp_input,
-	.pr_ctlinput =		udplite_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_usrreqs =		&udp_usrreqs
 },
@@ -179,8 +169,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_RAW,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		rip_input,
-	.pr_ctlinput =		rip_ctlinput,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -189,7 +177,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_ICMP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		icmp_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -198,7 +185,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IGMP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		igmp_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_fasttimo =		igmp_fasttimo,
 	.pr_slowtimo =		igmp_slowtimo,
@@ -209,7 +195,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_RSVP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		rsvp_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -218,7 +203,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IPV4,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -227,7 +211,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_MOBILE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -236,7 +219,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_ETHERIP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -245,7 +227,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_GRE,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -255,7 +236,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -265,7 +245,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_PIM,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
@@ -283,8 +262,6 @@ IPPROTOSPACER,
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		rip_input,
-	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
 };

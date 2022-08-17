@@ -62,9 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/refcount.h>
 #include <sys/mbuf.h>
-#ifdef INET6
-#include <sys/domain.h>
-#endif
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sdt.h>
@@ -1564,6 +1561,13 @@ tcp_init(void *arg __unused)
 		    hashsize);
 	}
 	tcp_tcbhashsize = hashsize;
+
+#ifdef INET
+	IPPROTO_REGISTER(IPPROTO_TCP, tcp_input, tcp_ctlinput);
+#endif
+#ifdef INET6
+	IP6PROTO_REGISTER(IPPROTO_TCP, tcp6_input, tcp6_ctlinput);
+#endif
 }
 SYSINIT(tcp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, tcp_init, NULL);
 

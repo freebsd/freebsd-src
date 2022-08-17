@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_route.h"
 #include "opt_rss.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -112,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
+#include <netinet/ip_encap.h>
 #include <netinet/in_pcb.h>
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
@@ -119,14 +121,20 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
+#ifdef SCTP
+#include <netinet/sctp_pcb.h>
+#include <netinet6/sctp6_var.h>
+#endif
 
 #include <netipsec/ipsec_support.h>
 
 #include <netinet6/ip6protosw.h>
 
-extern struct domain inet6domain;
+ipproto_input_t		*ip6_protox[IPPROTO_MAX] = {
+			    [0 ... IPPROTO_MAX - 1] = rip6_input };
+ipproto_ctlinput_t	*ip6_ctlprotox[IPPROTO_MAX] = {
+			    [0 ... IPPROTO_MAX - 1] = rip6_ctlinput };
 
-u_char ip6_protox[IPPROTO_MAX];
 VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
 VNET_DEFINE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);
 VNET_DEFINE(u_long, in6_ifaddrhmask);
@@ -269,26 +277,23 @@ VNET_SYSINIT(ip6_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
 static void
 ip6_init(void *arg __unused)
 {
-	struct protosw *pr;
 
-	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
-	KASSERT(pr, ("%s: PF_INET6 not found", __func__));
-
-	/* Initialize the entire ip6_protox[] array to IPPROTO_RAW. */
-	for (int i = 0; i < IPPROTO_MAX; i++)
-		ip6_protox[i] = pr - inet6sw;
 	/*
-	 * Cycle through IP protocols and put them into the appropriate place
-	 * in ip6_protox[].
+	 * Register statically those protocols that are unlikely to ever go
+	 * dynamic.
 	 */
-	for (pr = inet6domain.dom_protosw;
-	    pr < inet6domain.dom_protoswNPROTOSW; pr++)
-		if (pr->pr_domain->dom_family == PF_INET6 &&
-		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
-			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol < IPPROTO_MAX)
-				ip6_protox[pr->pr_protocol] = pr - inet6sw;
-		}
+	IP6PROTO_REGISTER(IPPROTO_ICMPV6, icmp6_input, rip6_ctlinput);
+	IP6PROTO_REGISTER(IPPROTO_DSTOPTS, dest6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_ROUTING, route6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_FRAGMENT, frag6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_IPV4, encap6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_IPV6, encap6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_ETHERIP, encap6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_GRE, encap6_input, NULL);
+	IP6PROTO_REGISTER(IPPROTO_PIM, encap6_input, NULL);
+#ifdef SCTP	/* XXX: has a loadable & static version */
+	IP6PROTO_REGISTER(IPPROTO_SCTP, sctp6_input, sctp6_ctlinput);
+#endif
 
 	netisr_register(&ip6_nh);
 #ifdef RSS
@@ -297,62 +302,32 @@ ip6_init(void *arg __unused)
 }
 SYSINIT(ip6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_init, NULL);
 
-/*
- * The protocol to be inserted into ip6_protox[] must be already registered
- * in inet6sw[], either statically or through pf_proto_register().
- */
 int
-ip6proto_register(short ip6proto)
+ip6proto_register(uint8_t proto, ipproto_input_t input, ipproto_ctlinput_t ctl)
 {
-	struct protosw *pr;
 
-	/* Sanity checks. */
-	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
-		return (EPROTONOSUPPORT);
+	MPASS(proto > 0);
 
-	/*
-	 * The protocol slot must not be occupied by another protocol
-	 * already.  An index pointing to IPPROTO_RAW is unused.
-	 */
-	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
-	if (pr == NULL)
-		return (EPFNOSUPPORT);
-	if (ip6_protox[ip6proto] != pr - inet6sw)	/* IPPROTO_RAW */
+	if (ip6_protox[proto] == rip6_input) {
+		ip6_protox[proto] = input;
+		ip6_ctlprotox[proto] = ctl;
+		return (0);
+	} else
 		return (EEXIST);
-
-	/*
-	 * Find the protocol position in inet6sw[] and set the index.
-	 */
-	for (pr = inet6domain.dom_protosw;
-	    pr < inet6domain.dom_protoswNPROTOSW; pr++) {
-		if (pr->pr_domain->dom_family == PF_INET6 &&
-		    pr->pr_protocol && pr->pr_protocol == ip6proto) {
-			ip6_protox[pr->pr_protocol] = pr - inet6sw;
-			return (0);
-		}
-	}
-	return (EPROTONOSUPPORT);
 }
 
 int
-ip6proto_unregister(short ip6proto)
+ip6proto_unregister(uint8_t proto)
 {
-	struct protosw *pr;
 
-	/* Sanity checks. */
-	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
-		return (EPROTONOSUPPORT);
+	MPASS(proto > 0);
 
-	/* Check if the protocol was indeed registered. */
-	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
-	if (pr == NULL)
-		return (EPFNOSUPPORT);
-	if (ip6_protox[ip6proto] == pr - inet6sw)	/* IPPROTO_RAW */
+	if (ip6_protox[proto] != rip6_input) {
+		ip6_protox[proto] = rip6_input;
+		ip6_ctlprotox[proto] = rip6_ctlinput;
+		return (0);
+	} else
 		return (ENOENT);
-
-	/* Reset the protocol slot to IPPROTO_RAW. */
-	ip6_protox[ip6proto] = pr - inet6sw;
-	return (0);
 }
 
 #ifdef VIMAGE
@@ -530,7 +505,7 @@ ip6_direct_input(struct mbuf *m)
 		}
 #endif /* IPSEC */
 
-		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
+		nxt = ip6_protox[nxt](&m, &off, nxt);
 	}
 	return;
 bad:
@@ -940,7 +915,7 @@ passin:
 		}
 #endif /* IPSEC */
 
-		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
+		nxt = ip6_protox[nxt](&m, &off, nxt);
 	}
 	return;
 bad:
