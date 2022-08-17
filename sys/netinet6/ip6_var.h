@@ -391,7 +391,6 @@ int	route6_input(struct mbuf **, int *, int);
 void	frag6_init(void);
 void	frag6_destroy(void);
 int	frag6_input(struct mbuf **, int *, int);
-void	frag6_slowtimo(void);
 void	frag6_drain(void);
 
 void	rip6_init(void);
