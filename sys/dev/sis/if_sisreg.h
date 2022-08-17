@@ -454,7 +454,7 @@ struct sis_rxdesc {
 };
 
 struct sis_softc {
-	struct ifnet		*sis_ifp;	/* interface info */
+	if_t			sis_ifp;	/* interface info */
 	struct resource		*sis_res[2];
 	void			*sis_intrhand;
 	device_t		sis_dev;
