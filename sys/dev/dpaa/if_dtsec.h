@@ -49,7 +49,7 @@ enum eth_dev_type {
 
 struct dtsec_softc {
 	/* XXX MII bus requires that struct ifnet is first!!! */
-	struct ifnet			*sc_ifnet;
+	if_t				sc_ifnet;
 
 	device_t			sc_dev;
 	struct resource			*sc_mem;
