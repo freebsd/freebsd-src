@@ -495,7 +495,7 @@ struct mlx4_port_gid_table {
 
 struct mlx4_ib_iboe {
 	spinlock_t		lock;
-	struct ifnet      *netdevs[MLX4_MAX_PORTS];
+	if_t netdevs[MLX4_MAX_PORTS];
 	atomic64_t		mac[MLX4_MAX_PORTS];
 	struct notifier_block 	nb;
 	struct mlx4_port_gid_table gids[MLX4_MAX_PORTS];
