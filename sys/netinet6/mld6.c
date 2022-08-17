@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/protosw.h>
 #include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/callout.h>
@@ -670,7 +669,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	KASSERT(mli != NULL, ("%s: no mld_ifsoftc for ifp %p", __func__, ifp));
 	mld_set_version(mli, MLD_VERSION_1);
 
-	timer = (ntohs(mld->mld_maxdelay) * PR_FASTHZ) / MLD_TIMER_SCALE;
+	timer = (ntohs(mld->mld_maxdelay) * MLD_FASTHZ) / MLD_TIMER_SCALE;
 	if (timer == 0)
 		timer = 1;
 
@@ -821,7 +820,7 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		maxdelay = (MLD_MRC_MANT(maxdelay) | 0x1000) <<
 			   (MLD_MRC_EXP(maxdelay) + 3);
 	}
-	timer = (maxdelay * PR_FASTHZ) / MLD_TIMER_SCALE;
+	timer = (maxdelay * MLD_FASTHZ) / MLD_TIMER_SCALE;
 	if (timer == 0)
 		timer = 1;
 
@@ -1294,14 +1293,17 @@ mld_input(struct mbuf **mp, int off, int icmp6len)
  * Fast timeout handler (global).
  * VIMAGE: Timeout handlers are expected to service all vimages.
  */
-void
-mld_fasttimo(void)
+static struct callout mldfast_callout;
+static void
+mld_fasttimo(void *arg __unused)
 {
+	struct epoch_tracker et;
 	struct in6_multi_head inmh;
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	SLIST_INIT(&inmh);
 
+	NET_EPOCH_ENTER(et);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -1309,7 +1311,10 @@ mld_fasttimo(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 	in6m_release_list_deferred(&inmh);
+
+	callout_reset(&mldfast_callout, hz / MLD_FASTHZ, mld_fasttimo, NULL);
 }
 
 /*
@@ -1320,7 +1325,6 @@ mld_fasttimo(void)
 static void
 mld_fasttimo_vnet(struct in6_multi_head *inmh)
 {
-	struct epoch_tracker     et;
 	struct mbufq		 scq;	/* State-change packets */
 	struct mbufq		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
@@ -1380,12 +1384,11 @@ mld_fasttimo_vnet(struct in6_multi_head *inmh)
 
 		if (mli->mli_version == MLD_VERSION_2) {
 			uri_fasthz = MLD_RANDOM_DELAY(mli->mli_uri *
-			    PR_FASTHZ);
+			    MLD_FASTHZ);
 			mbufq_init(&qrq, MLD_MAX_G_GS_PACKETS);
 			mbufq_init(&scq, MLD_MAX_STATE_CHANGE_PACKETS);
 		}
 
-		NET_EPOCH_ENTER(et);
 		IF_ADDR_WLOCK(ifp);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			inm = in6m_ifmultiaddr_get_inm(ifma);
@@ -1424,7 +1427,6 @@ mld_fasttimo_vnet(struct in6_multi_head *inmh)
 			mld_dispatch_queue(&scq, 0);
 			break;
 		}
-		NET_EPOCH_EXIT(et);
 	}
 
 out_locked:
@@ -1616,7 +1618,7 @@ mld_set_version(struct mld_ifsoftc *mli, const int version)
 		 * Section 9.12.
 		 */
 		old_version_timer = (mli->mli_rv * mli->mli_qi) + mli->mli_qri;
-		old_version_timer *= PR_SLOWHZ;
+		old_version_timer *= MLD_SLOWHZ;
 		mli->mli_v1_timer = old_version_timer;
 	}
 
@@ -1707,8 +1709,9 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
  * Global slowtimo handler.
  * VIMAGE: Timeout handlers are expected to service all vimages.
  */
-void
-mld_slowtimo(void)
+static struct callout mldslow_callout;
+static void
+mld_slowtimo(void *arg __unused)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
@@ -1719,6 +1722,8 @@ mld_slowtimo(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+
+	callout_reset(&mldslow_callout, hz / MLD_SLOWHZ, mld_slowtimo, NULL);
 }
 
 /*
@@ -1853,7 +1858,7 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
  *
  * If delay is non-zero, and the state change is an initial multicast
  * join, the state change report will be delayed by 'delay' ticks
- * in units of PR_FASTHZ if MLDv1 is active on the link; otherwise
+ * in units of MLD_FASTHZ if MLDv1 is active on the link; otherwise
  * the initial MLDv2 state change report will be delayed by whichever
  * is sooner, a pending state-change timer or delay itself.
  *
@@ -1935,7 +1940,7 @@ out_locked:
  *  initial state of the membership.
  *
  * If the delay argument is non-zero, then we must delay sending the
- * initial state change for delay ticks (in units of PR_FASTHZ).
+ * initial state change for delay ticks (in units of MLD_FASTHZ).
  */
 static int
 mld_initial_join(struct in6_multi *inm, struct mld_ifsoftc *mli,
@@ -2003,7 +2008,7 @@ mld_initial_join(struct in6_multi *inm, struct mld_ifsoftc *mli,
 			 * and delay sending the initial MLDv1 report
 			 * by not transitioning to the IDLE state.
 			 */
-			odelay = MLD_RANDOM_DELAY(MLD_V1_MAX_RI * PR_FASTHZ);
+			odelay = MLD_RANDOM_DELAY(MLD_V1_MAX_RI * MLD_FASTHZ);
 			if (delay) {
 				inm->in6m_timer = max(delay, odelay);
 				V_current_state_timers_running6 = 1;
@@ -3268,6 +3273,11 @@ mld_init(void *unused __unused)
 	mld_po.ip6po_hbh = &mld_ra.hbh;
 	mld_po.ip6po_prefer_tempaddr = IP6PO_TEMPADDR_NOTPREFER;
 	mld_po.ip6po_flags = IP6PO_DONTFRAG;
+
+	callout_init(&mldslow_callout, 1);
+	callout_reset(&mldslow_callout, hz / MLD_SLOWHZ, mld_slowtimo, NULL);
+	callout_init(&mldfast_callout, 1);
+	callout_reset(&mldfast_callout, hz / MLD_FASTHZ, mld_fasttimo, NULL);
 }
 SYSINIT(mld_init, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE, mld_init, NULL);
 
@@ -3276,6 +3286,8 @@ mld_uninit(void *unused __unused)
 {
 
 	CTR1(KTR_MLD, "%s: tearing down", __func__);
+	callout_drain(&mldslow_callout);
+	callout_drain(&mldfast_callout);
 	MLD_LOCK_DESTROY();
 }
 SYSUNINIT(mld_uninit, SI_SUB_PROTO_MC, SI_ORDER_MIDDLE, mld_uninit, NULL);
