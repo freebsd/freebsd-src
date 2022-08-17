@@ -52,8 +52,6 @@ struct sockopt;
  * Each protocol has a handle initializing one of these structures,
  * which is used for protocol-protocol and system-protocol communication.
  *
- * Thereafter it is called every 200ms through the pr_fasttimo entry and
- * every 500ms through the pr_slowtimo for timer based actions.
  * The system will call the pr_drain entry if it is low on space and
  * this should throw away any non-critical data.
  *
@@ -67,8 +65,6 @@ struct uio;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
-typedef	void	pr_fasttimo_t(void);
-typedef	void	pr_slowtimo_t(void);
 typedef	void	pr_drain_t(void);
 typedef void	pr_abort_t(struct socket *);
 typedef int	pr_accept_t(struct socket *, struct sockaddr **);
@@ -121,18 +117,11 @@ struct protosw {
 /* protocol-protocol hooks */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
-	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
-	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
 	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
-	LIST_ENTRY(protosw)  pr_fasttimos;
-	LIST_ENTRY(protosw)  pr_slowtimos;
 };
 /*#endif*/
-
-#define	PR_SLOWHZ	2		/* 2 slow timeouts per second */
-#define	PR_FASTHZ	5		/* 5 fast timeouts per second */
 
 /*
  * This number should be defined again within each protocol family to avoid

@@ -95,11 +95,8 @@ struct rt_metrics {
 
 /*
  * rmx_rtt and rmx_rttvar are stored as microseconds;
- * RTTTOPRHZ(rtt) converts to a value suitable for use
- * by a protocol slowtimo counter.
  */
 #define	RTM_RTTUNIT	1000000	/* units for rtt, rttvar, as units per sec */
-#define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
 /* lle state is exported in rmx_state rt_metrics field */
 #define	rmx_state	rmx_weight
