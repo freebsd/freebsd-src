@@ -1305,7 +1305,7 @@ qls_update_link_state(qla_host_t *ha)
 	uint32_t link_state;
 	uint32_t prev_link_state;
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING)) {
 		ha->link_up = 0;
 		return;
 	}
