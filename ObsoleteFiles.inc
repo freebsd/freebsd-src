@@ -1066,8 +1066,8 @@ OLD_FILES+=usr/include/c++/v1/unwind-itanium.h
 OLD_FILES+=usr/include/c++/v1/unwind.h
 
 # 20220128: mips pmc events removed
-OLD_FILES+=usr/share/man/man3/pmc.mips24k.3
-OLD_FILES+=usr/share/man/man3/pmc.octeon.3
+OLD_FILES+=usr/share/man/man3/pmc.mips24k.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.octeon.3.gz
 
 # 20220127: terasic_mtl.4 removed
 OLD_FILES+=usr/share/man/man4/terasic_mtl.4.gz
