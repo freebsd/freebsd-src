@@ -126,15 +126,15 @@ static void	sge_rxeof(struct sge_softc *);
 static void	sge_txeof(struct sge_softc *);
 static void	sge_intr(void *);
 static void	sge_tick(void *);
-static void	sge_start(struct ifnet *);
-static void	sge_start_locked(struct ifnet *);
-static int	sge_ioctl(struct ifnet *, u_long, caddr_t);
+static void	sge_start(if_t);
+static void	sge_start_locked(if_t);
+static int	sge_ioctl(if_t, u_long, caddr_t);
 static void	sge_init(void *);
 static void	sge_init_locked(struct sge_softc *);
 static void	sge_stop(struct sge_softc *);
 static void	sge_watchdog(struct sge_softc *);
-static int	sge_ifmedia_upd(struct ifnet *);
-static void	sge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	sge_ifmedia_upd(if_t);
+static void	sge_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int	sge_get_mac_addr_apc(struct sge_softc *, uint8_t *);
 static int	sge_get_mac_addr_eeprom(struct sge_softc *, uint8_t *);
@@ -379,14 +379,14 @@ sge_miibus_statchg(device_t dev)
 {
 	struct sge_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t ctl, speed;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->sge_miibus);
 	ifp = sc->sge_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 	speed = 0;
 	sc->sge_flags &= ~SGE_FLAG_LINK;
@@ -454,7 +454,7 @@ sge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
 static void
 sge_rxfilter(struct sge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t hashes[2];
 	uint16_t rxfilt;
 
@@ -464,10 +464,10 @@ sge_rxfilter(struct sge_softc *sc)
 	rxfilt = CSR_READ_2(sc, RxMacControl);
 	rxfilt &= ~(AcceptBroadcast | AcceptAllPhys | AcceptMulticast);
 	rxfilt |= AcceptMyPhys;
-	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+	if ((if_getflags(ifp) & IFF_BROADCAST) != 0)
 		rxfilt |= AcceptBroadcast;
-	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
-		if ((ifp->if_flags & IFF_PROMISC) != 0)
+	if ((if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+		if ((if_getflags(ifp) & IFF_PROMISC) != 0)
 			rxfilt |= AcceptAllPhys;
 		rxfilt |= AcceptMulticast;
 		hashes[0] = 0xFFFFFFFF;
@@ -486,16 +486,16 @@ sge_rxfilter(struct sge_softc *sc)
 static void
 sge_setvlan(struct sge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t rxfilt;
 
 	SGE_LOCK_ASSERT(sc);
 
 	ifp = sc->sge_ifp;
-	if ((ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) == 0)
+	if ((if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING) == 0)
 		return;
 	rxfilt = CSR_READ_2(sc, RxMacControl);
-	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0)
 		rxfilt |= RXMAC_STRIP_VLAN;
 	else
 		rxfilt &= ~RXMAC_STRIP_VLAN;
@@ -554,7 +554,7 @@ static int
 sge_attach(device_t dev)
 {
 	struct sge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	int error = 0, rid;
 
@@ -610,18 +610,17 @@ sge_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = sge_ioctl;
-	ifp->if_start = sge_start;
-	ifp->if_init = sge_init;
-	ifp->if_snd.ifq_drv_maxlen = SGE_TX_RING_CNT - 1;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_RXCSUM | IFCAP_TSO4;
-	ifp->if_hwassist = SGE_CSUM_FEATURES | CSUM_TSO;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, sge_ioctl);
+	if_setstartfn(ifp, sge_start);
+	if_setinitfn(ifp, sge_init);
+	if_setsendqlen(ifp, SGE_TX_RING_CNT - 1);
+	if_setsendqready(ifp);
+	if_setcapabilities(ifp, IFCAP_TXCSUM | IFCAP_RXCSUM | IFCAP_TSO4);
+	if_sethwassist(ifp, SGE_CSUM_FEATURES | CSUM_TSO);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 	/*
 	 * Do MII setup.
 	 */
@@ -638,11 +637,11 @@ sge_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* VLAN setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM |
-	    IFCAP_VLAN_HWTSO | IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapabilities(ifp, IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM |
+	    IFCAP_VLAN_HWTSO | IFCAP_VLAN_MTU);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sge_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -671,7 +670,7 @@ static int
 sge_detach(device_t dev)
 {
 	struct sge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->sge_ifp;
@@ -722,12 +721,12 @@ static int
 sge_suspend(device_t dev)
 {
 	struct sge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	SGE_LOCK(sc);
 	ifp = sc->sge_ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		sge_stop(sc);
 	SGE_UNLOCK(sc);
 	return (0);
@@ -737,12 +736,12 @@ static int
 sge_resume(device_t dev)
 {
 	struct sge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	SGE_LOCK(sc);
 	ifp = sc->sge_ifp;
-	if ((ifp->if_flags & IFF_UP) != 0)
+	if ((if_getflags(ifp) & IFF_UP) != 0)
 		sge_init_locked(sc);
 	SGE_UNLOCK(sc);
 	return (0);
@@ -1140,7 +1139,7 @@ sge_discard_rxbuf(struct sge_softc *sc, int index)
 static void
 sge_rxeof(struct sge_softc *sc)
 {
-        struct ifnet *ifp;
+        if_t ifp;
         struct mbuf *m;
 	struct sge_chain_data *cd;
 	struct sge_desc	*cur_rx;
@@ -1157,7 +1156,7 @@ sge_rxeof(struct sge_softc *sc)
 	cons = cd->sge_rx_cons;
 	for (prog = 0; prog < SGE_RX_RING_CNT; prog++,
 	    SGE_INC(cons, SGE_RX_RING_CNT)) {
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 		cur_rx = &sc->sge_ldata.sge_rx_ring[cons];
 		rxinfo = le32toh(cur_rx->sge_cmdsts);
@@ -1181,7 +1180,7 @@ sge_rxeof(struct sge_softc *sc)
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			continue;
 		}
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) {
 			if ((rxinfo & RDC_IP_CSUM) != 0 &&
 			    (rxinfo & RDC_IP_CSUM_OK) != 0)
 				m->m_pkthdr.csum_flags |=
@@ -1196,7 +1195,7 @@ sge_rxeof(struct sge_softc *sc)
 			}
 		}
 		/* Check for VLAN tagged frame. */
-		if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+		if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0 &&
 		    (rxstat & RDS_VLAN) != 0) {
 			m->m_pkthdr.ether_vtag = rxinfo & RDC_VLAN_MASK;
 			m->m_flags |= M_VLANTAG;
@@ -1213,7 +1212,7 @@ sge_rxeof(struct sge_softc *sc)
 		m->m_pkthdr.rcvif = ifp;
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		SGE_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		SGE_LOCK(sc);
 	}
 
@@ -1231,7 +1230,7 @@ sge_rxeof(struct sge_softc *sc)
 static void
 sge_txeof(struct sge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct sge_list_data *ld;
 	struct sge_chain_data *cd;
 	struct sge_txdesc *txd;
@@ -1290,7 +1289,7 @@ sge_txeof(struct sge_softc *sc)
 		KASSERT(cd->sge_tx_cnt >= 0,
 		    ("%s: Active Tx desc counter was garbled\n", __func__));
 		txd->tx_ndesc = 0;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	}
 	cd->sge_tx_cons = cons;
 	if (cd->sge_tx_cnt == 0)
@@ -1302,7 +1301,7 @@ sge_tick(void *arg)
 {
 	struct sge_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = arg;
 	SGE_LOCK_ASSERT(sc);
@@ -1313,7 +1312,7 @@ sge_tick(void *arg)
 	if ((sc->sge_flags & SGE_FLAG_LINK) == 0) {
 		sge_miibus_statchg(sc->sge_dev);
 		if ((sc->sge_flags & SGE_FLAG_LINK) != 0 &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		    !if_sendq_empty(ifp))
 			sge_start_locked(ifp);
 	}
 	/*
@@ -1330,7 +1329,7 @@ static void
 sge_intr(void *arg)
 {
 	struct sge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t status;
 
 	sc = arg;
@@ -1357,7 +1356,7 @@ sge_intr(void *arg)
 	 * no other way at this time.
 	 */
 	for (;;) {
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 		if ((status & (INTR_RX_DONE | INTR_RX_IDLE)) != 0) {
 			sge_rxeof(sc);
@@ -1374,10 +1373,10 @@ sge_intr(void *arg)
 		/* Acknowledge interrupts. */
 		CSR_WRITE_4(sc, IntrStatus, status);
 	}
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		/* Re-enable interrupts */
 		CSR_WRITE_4(sc, IntrMask, SGE_INTRS);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			sge_start_locked(ifp);
 	}
 	SGE_UNLOCK(sc);
@@ -1551,45 +1550,45 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 }
 
 static void
-sge_start(struct ifnet *ifp)
+sge_start(if_t ifp)
 {
 	struct sge_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SGE_LOCK(sc);
 	sge_start_locked(ifp);
 	SGE_UNLOCK(sc);
 }
 
 static void
-sge_start_locked(struct ifnet *ifp)
+sge_start_locked(if_t ifp)
 {
 	struct sge_softc *sc;
 	struct mbuf *m_head;
 	int queued = 0;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SGE_LOCK_ASSERT(sc);
 
 	if ((sc->sge_flags & SGE_FLAG_LINK) == 0 ||
-	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    (if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
-	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
+	for (queued = 0; !if_sendq_empty(ifp); ) {
 		if (sc->sge_cdata.sge_tx_cnt > (SGE_TX_RING_CNT -
 		    SGE_MAXTXSEGS)) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 		if (sge_encap(sc, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 		queued++;
@@ -1623,7 +1622,7 @@ sge_init(void *arg)
 static void
 sge_init_locked(struct sge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mii_data *mii;
 	uint16_t rxfilt;
 	int i;
@@ -1631,7 +1630,7 @@ sge_init_locked(struct sge_softc *sc)
 	SGE_LOCK_ASSERT(sc);
 	ifp = sc->sge_ifp;
 	mii = device_get_softc(sc->sge_miibus);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1661,7 +1660,7 @@ sge_init_locked(struct sge_softc *sc)
 	    SGE_RX_PAD_BYTES);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, RxMacAddr + i, IF_LLADDR(ifp)[i]);
+		CSR_WRITE_1(sc, RxMacAddr + i, if_getlladdr(ifp)[i]);
 	/* Configure RX MAC. */
 	rxfilt = RXMAC_STRIP_FCS | RXMAC_PAD_ENB | RXMAC_CSUM_ENB;
 	CSR_WRITE_2(sc, RxMacControl, rxfilt);
@@ -1697,8 +1696,8 @@ sge_init_locked(struct sge_softc *sc)
 	CSR_WRITE_4(sc, TX_CTL, 0x1a00 | TX_CTL_ENB);
 	CSR_WRITE_4(sc, RX_CTL, 0x1a00 | 0x000c | RX_CTL_POLL | RX_CTL_ENB);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	sc->sge_flags &= ~SGE_FLAG_LINK;
 	mii_mediachg(mii);
@@ -1709,14 +1708,14 @@ sge_init_locked(struct sge_softc *sc)
  * Set media options.
  */
 static int
-sge_ifmedia_upd(struct ifnet *ifp)
+sge_ifmedia_upd(if_t ifp)
 {
 	struct sge_softc *sc;
 	struct mii_data *mii;
 		struct mii_softc *miisc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SGE_LOCK(sc);
 	mii = device_get_softc(sc->sge_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
@@ -1731,15 +1730,15 @@ sge_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-sge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+sge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct sge_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SGE_LOCK(sc);
 	mii = device_get_softc(sc->sge_miibus);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		SGE_UNLOCK(sc);
 		return;
 	}
@@ -1750,74 +1749,74 @@ sge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-sge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+sge_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct sge_softc *sc;
 	struct ifreq *ifr;
 	struct mii_data *mii;
 	int error = 0, mask, reinit;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	switch(command) {
 	case SIOCSIFFLAGS:
 		SGE_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			    ((ifp->if_flags ^ sc->sge_if_flags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+			    ((if_getflags(ifp) ^ sc->sge_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				sge_rxfilter(sc);
 			else
 				sge_init_locked(sc);
-		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		} else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			sge_stop(sc);
-		sc->sge_if_flags = ifp->if_flags;
+		sc->sge_if_flags = if_getflags(ifp);
 		SGE_UNLOCK(sc);
 		break;
 	case SIOCSIFCAP:
 		SGE_LOCK(sc);
 		reinit = 0;
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= SGE_CSUM_FEATURES;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+				if_sethwassistbits(ifp, SGE_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~SGE_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, SGE_CSUM_FEATURES);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWCSUM) != 0)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWCSUM);
 		if ((mask & IFCAP_TSO4) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((ifp->if_capenable & IFCAP_TSO4) != 0)
-				ifp->if_hwassist |= CSUM_TSO;
+		    (if_getcapabilities(ifp) & IFCAP_TSO4) != 0) {
+			if_togglecapenable(ifp, IFCAP_TSO4);
+			if ((if_getcapenable(ifp) & IFCAP_TSO4) != 0)
+				if_sethwassistbits(ifp, CSUM_TSO, 0);
 			else
-				ifp->if_hwassist &= ~CSUM_TSO;
+				if_sethwassistbits(ifp, 0, CSUM_TSO);
 		}
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTSO) != 0)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING) != 0) {
 			/*
 			 * Due to unknown reason, toggling VLAN hardware
 			 * tagging require interface reinitialization.
 			 */
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-				ifp->if_capenable &=
-				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
+			if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) == 0)
+				if_setcapenablebit(ifp, 0,
+				    IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			reinit = 1;
 		}
-		if (reinit > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if (reinit > 0 && (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			sge_init_locked(sc);
 		}
 		SGE_UNLOCK(sc);
@@ -1826,7 +1825,7 @@ sge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SGE_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			sge_rxfilter(sc);
 		SGE_UNLOCK(sc);
 		break;
@@ -1846,7 +1845,7 @@ sge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 sge_watchdog(struct sge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	SGE_LOCK_ASSERT(sc);
 	if (sc->sge_timer == 0 || --sc->sge_timer > 0)
@@ -1858,16 +1857,16 @@ sge_watchdog(struct sge_softc *sc)
 			device_printf(sc->sge_dev,
 			    "watchdog timeout (lost link)\n");
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		sge_init_locked(sc);
 		return;
 	}
 	device_printf(sc->sge_dev, "watchdog timeout\n");
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	sge_init_locked(sc);
-	if (!IFQ_DRV_IS_EMPTY(&sc->sge_ifp->if_snd))
+	if (!if_sendq_empty(sc->sge_ifp))
 		sge_start_locked(ifp);
 }
 
@@ -1878,7 +1877,7 @@ sge_watchdog(struct sge_softc *sc)
 static void
 sge_stop(struct sge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->sge_ifp;
 
@@ -1886,7 +1885,7 @@ sge_stop(struct sge_softc *sc)
 
 	sc->sge_timer = 0;
 	callout_stop(&sc->sge_stat_ch);
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	CSR_WRITE_4(sc, IntrMask, 0);
 	CSR_READ_4(sc, IntrMask);
