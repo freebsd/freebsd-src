@@ -256,8 +256,7 @@ sfxge_start(struct sfxge_softc *sc)
 	sc->init_state = SFXGE_STARTED;
 
 	/* Tell the stack we're running. */
-	sc->ifnet->if_drv_flags |= IFF_DRV_RUNNING;
-	sc->ifnet->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(sc->ifnet, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
 	return (0);
 
@@ -321,7 +320,7 @@ sfxge_stop(struct sfxge_softc *sc)
 
 	efx_nic_fini(sc->enp);
 
-	sc->ifnet->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->ifnet, 0, IFF_DRV_RUNNING);
 }
 
 static int
@@ -384,7 +383,7 @@ sfxge_private_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ioc)
 }
 
 static int
-sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
+sfxge_if_ioctl(if_t ifp, unsigned long command, caddr_t data)
 {
 	struct sfxge_softc *sc;
 	struct ifreq *ifr;
@@ -392,52 +391,52 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	int error;
 
 	ifr = (struct ifreq *)data;
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	error = 0;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		SFXGE_ADAPTER_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc->if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if ((if_getflags(ifp) ^ sc->if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
 					sfxge_mac_filter_set(sc);
 				}
 			} else
 				sfxge_start(sc);
 		} else
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				sfxge_stop(sc);
-		sc->if_flags = ifp->if_flags;
+		sc->if_flags = if_getflags(ifp);
 		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu == ifp->if_mtu) {
+		if (ifr->ifr_mtu == if_getmtu(ifp)) {
 			/* Nothing to do */
 			error = 0;
 		} else if (ifr->ifr_mtu > SFXGE_MAX_MTU) {
 			error = EINVAL;
-		} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-			ifp->if_mtu = ifr->ifr_mtu;
+		} else if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
+			if_setmtu(ifp, ifr->ifr_mtu);
 			error = 0;
 		} else {
 			/* Restart required */
 			SFXGE_ADAPTER_LOCK(sc);
 			sfxge_stop(sc);
-			ifp->if_mtu = ifr->ifr_mtu;
+			if_setmtu(ifp, ifr->ifr_mtu);
 			error = sfxge_start(sc);
 			SFXGE_ADAPTER_UNLOCK(sc);
 			if (error != 0) {
-				ifp->if_flags &= ~IFF_UP;
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setflagbits(ifp, 0, IFF_UP);
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				if_down(ifp);
 			}
 		}
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			sfxge_mac_filter_set(sc);
 		break;
 	case SIOCSIFCAP:
@@ -448,7 +447,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		SFXGE_ADAPTER_LOCK(sc);
 
 		/* Capabilities to be changed in accordance with request */
-		capchg_mask = ifp->if_capenable ^ reqcap;
+		capchg_mask = if_getcapenable(ifp) ^ reqcap;
 
 		/*
 		 * The networking core already rejects attempts to
@@ -456,11 +455,11 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 * to reject attempts to disable capabilities that we
 		 * can't (yet) disable.
 		 */
-		KASSERT((reqcap & ~ifp->if_capabilities) == 0,
+		KASSERT((reqcap & ~if_getcapabilities(ifp)) == 0,
 		    ("Unsupported capabilities 0x%x requested 0x%x vs "
 		     "supported 0x%x",
-		     reqcap & ~ifp->if_capabilities,
-		     reqcap , ifp->if_capabilities));
+		     reqcap & ~if_getcapabilities(ifp),
+		     reqcap , if_getcapabilities(ifp)));
 		if (capchg_mask & SFXGE_CAP_FIXED) {
 			error = EINVAL;
 			SFXGE_ADAPTER_UNLOCK(sc);
@@ -484,9 +483,9 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		}
 
 		if (reqcap & IFCAP_TXCSUM) {
-			ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
+			if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP), 0);
 		} else {
-			ifp->if_hwassist &= ~(CSUM_IP | CSUM_TCP | CSUM_UDP);
+			if_sethwassistbits(ifp, 0, (CSUM_IP | CSUM_TCP | CSUM_UDP));
 			if (reqcap & IFCAP_TSO4) {
 				reqcap &= ~IFCAP_TSO4;
 				if_printf(ifp,
@@ -494,9 +493,9 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			}
 		}
 		if (reqcap & IFCAP_TXCSUM_IPV6) {
-			ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+			if_sethwassistbits(ifp, (CSUM_TCP_IPV6 | CSUM_UDP_IPV6), 0);
 		} else {
-			ifp->if_hwassist &= ~(CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+			if_sethwassistbits(ifp, 0, (CSUM_TCP_IPV6 | CSUM_UDP_IPV6));
 			if (reqcap & IFCAP_TSO6) {
 				reqcap &= ~IFCAP_TSO6;
 				if_printf(ifp,
@@ -512,7 +511,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 * but both bits are set in IPv4 and IPv6 mbufs.
 		 */
 
-		ifp->if_capenable = reqcap;
+		if_setcapenable(ifp, reqcap);
 
 		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
@@ -567,9 +566,9 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 }
 
 static void
-sfxge_ifnet_fini(struct ifnet *ifp)
+sfxge_ifnet_fini(if_t ifp)
 {
-	struct sfxge_softc *sc = ifp->if_softc;
+	struct sfxge_softc *sc = if_getsoftc(ifp);
 
 	SFXGE_ADAPTER_LOCK(sc);
 	sfxge_stop(sc);
@@ -581,7 +580,7 @@ sfxge_ifnet_fini(struct ifnet *ifp)
 }
 
 static int
-sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
+sfxge_ifnet_init(if_t ifp, struct sfxge_softc *sc)
 {
 	const efx_nic_cfg_t *encp = efx_nic_cfg_get(sc->enp);
 	device_t dev;
@@ -591,35 +590,35 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	sc->ifnet = ifp;
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_init = sfxge_if_init;
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = sfxge_if_ioctl;
+	if_setinitfn(ifp, sfxge_if_init);
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, sfxge_if_ioctl);
 
-	ifp->if_capabilities = SFXGE_CAP;
-	ifp->if_capenable = SFXGE_CAP_ENABLE;
-	ifp->if_hw_tsomax = SFXGE_TSO_MAX_SIZE;
-	ifp->if_hw_tsomaxsegcount = SFXGE_TX_MAPPING_MAX_SEG;
-	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
+	if_setcapabilities(ifp, SFXGE_CAP);
+	if_setcapenable(ifp, SFXGE_CAP_ENABLE);
+	if_sethwtsomax(ifp, SFXGE_TSO_MAX_SIZE);
+	if_sethwtsomaxsegcount(ifp, SFXGE_TX_MAPPING_MAX_SEG);
+	if_sethwtsomaxsegsize(ifp, PAGE_SIZE);
 
 #ifdef SFXGE_LRO
-	ifp->if_capabilities |= IFCAP_LRO;
-	ifp->if_capenable |= IFCAP_LRO;
+	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
+	if_setcapenablebit(ifp, IFCAP_LRO, 0);
 #endif
 
 	if (encp->enc_hw_tx_insert_vlan_enabled) {
-		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
-		ifp->if_capenable |= IFCAP_VLAN_HWTAGGING;
+		if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING, 0);
+		if_setcapenablebit(ifp, IFCAP_VLAN_HWTAGGING, 0);
 	}
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
-			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
+	if_sethwassistbits(ifp, CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6, 0);
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 
-	ifp->if_transmit = sfxge_if_transmit;
-	ifp->if_qflush = sfxge_if_qflush;
+	if_settransmitfn(ifp, sfxge_if_transmit);
+	if_setqflushfn(ifp, sfxge_if_qflush);
 
-	ifp->if_get_counter = sfxge_get_counter;
+	if_setgetcounterfn(ifp, sfxge_get_counter);
 
 	DBGPRINT(sc->dev, "ifmedia_init");
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
@@ -1076,7 +1075,7 @@ static int
 sfxge_attach(device_t dev)
 {
 	struct sfxge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	sc = device_get_softc(dev);

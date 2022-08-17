@@ -780,12 +780,12 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 }
 
 void
-sfxge_if_qflush(struct ifnet *ifp)
+sfxge_if_qflush(if_t ifp)
 {
 	struct sfxge_softc *sc;
 	unsigned int i;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	for (i = 0; i < sc->txq_count; i++)
 		sfxge_tx_qdpl_flush(sc->txq[i]);
@@ -872,13 +872,13 @@ static void sfxge_parse_tx_packet(struct mbuf *mbuf)
  * TX start -- called by the stack.
  */
 int
-sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
+sfxge_if_transmit(if_t ifp, struct mbuf *m)
 {
 	struct sfxge_softc *sc;
 	struct sfxge_txq *txq;
 	int rc;
 
-	sc = (struct sfxge_softc *)ifp->if_softc;
+	sc = (struct sfxge_softc *)if_getsoftc(ifp);
 
 	/*
 	 * Transmit may be called when interface is up from the kernel
@@ -888,7 +888,7 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * point of view, but already down from the kernel point of
 	 * view. I.e. Rx when interface shutdown is in progress.
 	 */
-	KASSERT((ifp->if_flags & IFF_UP) || (sc->if_flags & IFF_UP),
+	KASSERT((if_getflags(ifp) & IFF_UP) || (sc->if_flags & IFF_UP),
 		("interface not up"));
 
 	/* Pick the desired transmit queue. */

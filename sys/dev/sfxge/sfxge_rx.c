@@ -324,11 +324,11 @@ sfxge_rx_qrefill(struct sfxge_rxq *rxq)
 
 static void __sfxge_rx_deliver(struct sfxge_softc *sc, struct mbuf *m)
 {
-	struct ifnet *ifp = sc->ifnet;
+	if_t ifp = sc->ifnet;
 
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.csum_data = 0xffff;
-	ifp->if_input(ifp, m);
+	if_input(ifp, m);
 }
 
 static void
@@ -812,7 +812,7 @@ void
 sfxge_rx_qcomplete(struct sfxge_rxq *rxq, boolean_t eop)
 {
 	struct sfxge_softc *sc = rxq->sc;
-	int if_capenable = sc->ifnet->if_capenable;
+	int if_capenable = if_getcapenable(sc->ifnet);
 	int lro_enabled = if_capenable & IFCAP_LRO;
 	unsigned int index;
 	struct sfxge_evq *evq __diagused;
@@ -1094,7 +1094,7 @@ sfxge_rx_start(struct sfxge_softc *sc)
 		return (rc);
 
 	encp = efx_nic_cfg_get(sc->enp);
-	sc->rx_buffer_size = EFX_MAC_PDU(sc->ifnet->if_mtu);
+	sc->rx_buffer_size = EFX_MAC_PDU(if_getmtu(sc->ifnet));
 
 	/* Calculate the receive packet buffer size. */
 	sc->rx_prefix_size = encp->enc_rx_prefix_size;
