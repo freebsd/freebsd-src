@@ -244,7 +244,7 @@ extern int sfxge_tx_start(struct sfxge_softc *sc);
 extern void sfxge_tx_stop(struct sfxge_softc *sc);
 extern void sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq);
 extern void sfxge_tx_qflush_done(struct sfxge_txq *txq);
-extern void sfxge_if_qflush(struct ifnet *ifp);
-extern int sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m);
+extern void sfxge_if_qflush(if_t ifp);
+extern int sfxge_if_transmit(if_t ifp, struct mbuf *m);
 
 #endif

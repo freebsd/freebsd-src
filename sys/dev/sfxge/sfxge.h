@@ -270,7 +270,7 @@ struct sfxge_softc {
 	struct sx			softc_lock;
 	char				softc_lock_name[SFXGE_LOCK_NAME_MAX];
 	enum sfxge_softc_state		init_state;
-	struct ifnet			*ifnet;
+	if_t				ifnet;
 	unsigned int			if_flags;
 	struct sysctl_oid		*stats_node;
 #if EFSYS_OPT_QSTATS
@@ -338,7 +338,7 @@ struct sfxge_softc {
 #define	SFXGE_LINK_UP(sc) \
 	((sc)->port.link_mode != EFX_LINK_DOWN && \
 	 (sc)->port.link_mode != EFX_LINK_UNKNOWN)
-#define	SFXGE_RUNNING(sc) ((sc)->ifnet->if_drv_flags & IFF_DRV_RUNNING)
+#define	SFXGE_RUNNING(sc) (if_getdrvflags((sc)->ifnet) & IFF_DRV_RUNNING)
 
 #define	SFXGE_PARAM(_name)	"hw.sfxge." #_name
 
@@ -404,7 +404,7 @@ extern void sfxge_mac_link_update(struct sfxge_softc *sc,
 				  efx_link_mode_t mode);
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
-extern uint64_t sfxge_get_counter(struct ifnet *ifp, ift_counter c);
+extern uint64_t sfxge_get_counter(if_t ifp, ift_counter c);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
 
