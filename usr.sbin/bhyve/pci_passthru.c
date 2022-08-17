@@ -143,11 +143,11 @@ pcifd_init(void)
 uint32_t
 read_config(const struct pcisel *sel, long reg, int width)
 {
+	struct pci_io pi;
+
 	if (pcifd < 0 && pcifd_init()) {
 		return (0);
 	}
-
-	struct pci_io pi;
 
 	bzero(&pi, sizeof(pi));
 	pi.pi_sel = *sel;
@@ -163,11 +163,11 @@ read_config(const struct pcisel *sel, long reg, int width)
 void
 write_config(const struct pcisel *sel, long reg, int width, uint32_t data)
 {
+	struct pci_io pi;
+
 	if (pcifd < 0 && pcifd_init()) {
 		return;
 	}
-
-	struct pci_io pi;
 
 	bzero(&pi, sizeof(pi));
 	pi.pi_sel = *sel;
