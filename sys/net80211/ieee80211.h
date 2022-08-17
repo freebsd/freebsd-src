@@ -769,10 +769,14 @@ struct ieee80211_ie_htinfo {
  * + rx_mcs_map/tx_mcs_map: bitmap of per-stream supported MCS;
  *    2 bits each.
  */
-#define	IEEE80211_VHT_MCS_SUPPORT_0_7		0	/* MCS0-7 */
-#define	IEEE80211_VHT_MCS_SUPPORT_0_8		1	/* MCS0-8 */
-#define	IEEE80211_VHT_MCS_SUPPORT_0_9		2	/* MCS0-9 */
-#define	IEEE80211_VHT_MCS_NOT_SUPPORTED		3	/* not supported */
+
+/* 802.11ac-2013, 8.4.2.160.3 Supported VHT-MCS and NSS Set field */
+enum ieee80211_vht_mcs_support {
+	IEEE80211_VHT_MCS_SUPPORT_0_7		= 0,	/* MCS0-7 */
+	IEEE80211_VHT_MCS_SUPPORT_0_8		= 1,	/* MCS0-8 */
+	IEEE80211_VHT_MCS_SUPPORT_0_9		= 2,	/* MCS0-9 */
+	IEEE80211_VHT_MCS_NOT_SUPPORTED		= 3	/* not supported */
+};
 
 struct ieee80211_vht_mcs_info {
 	uint16_t rx_mcs_map;

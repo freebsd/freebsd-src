@@ -129,12 +129,6 @@ struct linuxkpi_ieee80211_channel {
 	int	orig_mpwr;
 };
 
-enum ieee80211_vht_mcs_support {
-	LKPI_IEEE80211_VHT_MCS_SUPPORT_0_7,
-	LKPI_IEEE80211_VHT_MCS_SUPPORT_0_8,
-	LKPI_IEEE80211_VHT_MCS_SUPPORT_0_9,
-};
-
 struct cfg80211_bitrate_mask {
 	/* TODO FIXME */
 	/* This is so weird but nothing else works out...*/
@@ -1700,19 +1694,6 @@ cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 #ifndef LINUXKPI_NET80211
 #define	ieee80211_channel		linuxkpi_ieee80211_channel
 #define	ieee80211_regdomain		linuxkpi_ieee80211_regdomain
-/* net80211::IEEE80211_VHT_MCS_SUPPORT_0_n() conflicts */
-#if defined(IEEE80211_VHT_MCS_SUPPORT_0_7)
-#undef	IEEE80211_VHT_MCS_SUPPORT_0_7
-#endif
-#if defined(IEEE80211_VHT_MCS_SUPPORT_0_8)
-#undef	IEEE80211_VHT_MCS_SUPPORT_0_8
-#endif
-#if defined(IEEE80211_VHT_MCS_SUPPORT_0_9)
-#undef	IEEE80211_VHT_MCS_SUPPORT_0_9
-#endif
-#define	IEEE80211_VHT_MCS_SUPPORT_0_7	LKPI_IEEE80211_VHT_MCS_SUPPORT_0_7
-#define	IEEE80211_VHT_MCS_SUPPORT_0_8	LKPI_IEEE80211_VHT_MCS_SUPPORT_0_8
-#define	IEEE80211_VHT_MCS_SUPPORT_0_9	LKPI_IEEE80211_VHT_MCS_SUPPORT_0_9
 #endif
 
 #endif	/* _LINUXKPI_NET_CFG80211_H */
