@@ -498,6 +498,88 @@ multi_dataset_4_cleanup()
 }
 
 #
+# Validate handling of multiple staging directories.
+#
+atf_test_case multi_staging_1 cleanup
+multi_staging_1_body()
+{
+	local tmpdir
+
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+
+	mkdir dir1
+	echo a > a
+	echo a > dir1/a
+	echo z > z
+
+	cd -
+
+	tmpdir=$(mktemp -d)
+	cd $tmpdir
+
+	mkdir dir2 dir2/dir3
+	echo b > dir2/b
+	echo c > dir2/dir3/c
+	ln -s dir2/dir3c s
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    $TEST_IMAGE ${TEST_INPUTS_DIR} $tmpdir
+
+	import_image
+
+	check_image_contents -d $tmpdir
+}
+multi_staging_1_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case multi_staging_2 cleanup
+multi_staging_2_body()
+{
+	local tmpdir
+
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+
+	mkdir dir
+	echo a > dir/foo
+	echo b > dir/bar
+
+	cd -
+
+	tmpdir=$(mktemp -d)
+	cd $tmpdir
+
+	mkdir dir
+	echo c > dir/baz
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    $TEST_IMAGE ${TEST_INPUTS_DIR} $tmpdir
+
+	import_image
+
+	# check_image_contents can't easily handle merged directories, so
+	# just check that the merged directory contains the files we expect.
+	atf_check -o not-empty stat ${TEST_MOUNT_DIR}/dir/foo
+	atf_check -o not-empty stat ${TEST_MOUNT_DIR}/dir/bar
+	atf_check -o not-empty stat ${TEST_MOUNT_DIR}/dir/baz
+
+	if [ "$(ls ${TEST_MOUNT_DIR}/dir | wc -l)" -ne 3 ]; then
+		atf_fail "Expected 3 files in ${TEST_MOUNT_DIR}/dir"
+	fi
+}
+multi_staging_2_cleanup()
+{
+	common_cleanup
+}
+
+#
 # Rudimentary test to verify that two ZFS images created using the same
 # parameters and input hierarchy are byte-identical.  In particular, makefs(1)
 # does not preserve file access times.
@@ -623,6 +705,8 @@ atf_init_test_cases()
 	atf_add_test_case multi_dataset_2
 	atf_add_test_case multi_dataset_3
 	atf_add_test_case multi_dataset_4
+	atf_add_test_case multi_staging_1
+	atf_add_test_case multi_staging_2
 	atf_add_test_case reproducible
 	atf_add_test_case snapshot
 	atf_add_test_case soft_links
