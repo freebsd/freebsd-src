@@ -71,20 +71,6 @@ static void domainfinalize(void *);
 SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
     NULL);
 
-static struct callout pffast_callout;
-static struct callout pfslow_callout;
-
-static void	pffasttimo(void *);
-static void	pfslowtimo(void *);
-
-static struct rmlock pftimo_lock;
-RM_SYSINIT(pftimo_lock, &pftimo_lock, "pftimo");
-
-static LIST_HEAD(, protosw) pffast_list =
-    LIST_HEAD_INITIALIZER(pffast_list);
-static LIST_HEAD(, protosw) pfslow_list =
-    LIST_HEAD_INITIALIZER(pfslow_list);
-
 struct domain *domains;		/* registered protocol domains */
 int domain_init_status = 0;
 static struct mtx dom_mtx;		/* domain list lock */
@@ -192,12 +178,6 @@ domain_init(void *arg)
 
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		pr_usrreqs_init(pr);
-		rm_wlock(&pftimo_lock);
-		if (pr->pr_fasttimo != NULL)
-			LIST_INSERT_HEAD(&pffast_list, pr, pr_fasttimos);
-		if (pr->pr_slowtimo != NULL)
-			LIST_INSERT_HEAD(&pfslow_list, pr, pr_slowtimos);
-		rm_wunlock(&pftimo_lock);
 	}
 
 	/*
@@ -270,9 +250,6 @@ domaininit(void *dummy)
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
 
-	callout_init(&pffast_callout, 1);
-	callout_init(&pfslow_callout, 1);
-
 	mtx_lock(&dom_mtx);
 	KASSERT(domain_init_status == 0, ("domaininit called too late!"));
 	domain_init_status = 1;
@@ -288,9 +265,6 @@ domainfinalize(void *dummy)
 	KASSERT(domain_init_status == 1, ("domainfinalize called too late!"));
 	domain_init_status = 2;
 	mtx_unlock(&dom_mtx);	
-
-	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
-	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
 }
 
 struct domain *
@@ -403,12 +377,6 @@ pf_proto_register(int family, struct protosw *npr)
 	bcopy(npr, fpr, sizeof(*fpr));
 
 	pr_usrreqs_init(fpr);
-	rm_wlock(&pftimo_lock);
-	if (fpr->pr_fasttimo != NULL)
-		LIST_INSERT_HEAD(&pffast_list, fpr, pr_fasttimos);
-	if (fpr->pr_slowtimo != NULL)
-		LIST_INSERT_HEAD(&pfslow_list, fpr, pr_slowtimos);
-	rm_wunlock(&pftimo_lock);
 
 	/* Job is done, no more protection required. */
 	mtx_unlock(&dom_mtx);
@@ -461,21 +429,12 @@ pf_proto_unregister(int family, int protocol, int type)
 		return (EPROTONOSUPPORT);
 	}
 
-	rm_wlock(&pftimo_lock);
-	if (dpr->pr_fasttimo != NULL)
-		LIST_REMOVE(dpr, pr_fasttimos);
-	if (dpr->pr_slowtimo != NULL)
-		LIST_REMOVE(dpr, pr_slowtimos);
-	rm_wunlock(&pftimo_lock);
-
 	/* De-orbit the protocol and make the slot available again. */
 	dpr->pr_type = 0;
 	dpr->pr_domain = dp;
 	dpr->pr_protocol = PROTO_SPACER;
 	dpr->pr_flags = 0;
 	dpr->pr_ctloutput = NULL;
-	dpr->pr_fasttimo = NULL;
-	dpr->pr_slowtimo = NULL;
 	dpr->pr_drain = NULL;
 	dpr->pr_usrreqs = &nousrreqs;
 
@@ -483,38 +442,4 @@ pf_proto_unregister(int family, int protocol, int type)
 	mtx_unlock(&dom_mtx);
 
 	return (0);
-}
-
-static void
-pfslowtimo(void *arg)
-{
-	struct rm_priotracker tracker;
-	struct epoch_tracker et;
-	struct protosw *pr;
-
-	rm_rlock(&pftimo_lock, &tracker);
-	NET_EPOCH_ENTER(et);
-	LIST_FOREACH(pr, &pfslow_list, pr_slowtimos) {
-		(*pr->pr_slowtimo)();
-	}
-	NET_EPOCH_EXIT(et);
-	rm_runlock(&pftimo_lock, &tracker);
-	callout_reset(&pfslow_callout, hz / PR_SLOWHZ, pfslowtimo, NULL);
-}
-
-static void
-pffasttimo(void *arg)
-{
-	struct rm_priotracker tracker;
-	struct epoch_tracker et;
-	struct protosw *pr;
-
-	rm_rlock(&pftimo_lock, &tracker);
-	NET_EPOCH_ENTER(et);
-	LIST_FOREACH(pr, &pffast_list, pr_fasttimos) {
-		(*pr->pr_fasttimo)();
-	}
-	NET_EPOCH_EXIT(et);
-	rm_runlock(&pftimo_lock, &tracker);
-	callout_reset(&pffast_callout, hz / PR_FASTHZ, pffasttimo, NULL);
 }
