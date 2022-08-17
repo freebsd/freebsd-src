@@ -34,10 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/socket.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/simplebus.h>
+
+#include <net/if.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
