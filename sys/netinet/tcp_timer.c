@@ -233,15 +233,17 @@ inp_to_cpuid(struct inpcb *inp)
 }
 
 /*
- * Tcp protocol timeout routine called every 500 ms.
- * Updates timestamps used for TCP
- * causes finite state machine actions if timers expire.
+ * Legacy TCP global callout routine called every 500 ms.
+ * Used to cleanup timewait states, which lack their own callouts.
  */
-void
-tcp_slowtimo(void)
+static struct callout tcpslow_callout;
+static void
+tcp_slowtimo(void *arg __unused)
 {
+	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
 
+	NET_EPOCH_ENTER(et);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -249,7 +251,21 @@ tcp_slowtimo(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
+
+	callout_reset_sbt(&tcpslow_callout, SBT_1MS * 500, SBT_1MS * 10,
+	    tcp_slowtimo, NULL, 0);
 }
+
+static void
+tcp_slowtimo_init(void *arg __unused)
+{
+
+        callout_init(&tcpslow_callout, 1);
+	callout_reset_sbt(&tcpslow_callout, SBT_1MS * 500, SBT_1MS * 10,
+	    tcp_slowtimo, NULL, 0);
+}
+SYSINIT(tcp_timer, SI_SUB_VNET_DONE, SI_ORDER_ANY, tcp_slowtimo_init, NULL);
 
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 512, 512, 512 };

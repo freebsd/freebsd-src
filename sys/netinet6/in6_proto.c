@@ -166,7 +166,6 @@ struct protosw inet6sw[] = {
 				    PR_LISTEN|PR_CAPATTACH,
 	.pr_ctloutput =		tcp_ctloutput,
 #ifndef INET	/* don't call initialization, timeout, and drain routines twice */
-	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
 #endif
 	.pr_usrreqs =		&tcp6_usrreqs,

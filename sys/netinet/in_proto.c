@@ -131,7 +131,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD|
 				    PR_CAPATTACH,
 	.pr_ctloutput =		tcp_ctloutput,
-	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
 },
