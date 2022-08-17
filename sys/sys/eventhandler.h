@@ -205,6 +205,8 @@ EVENTHANDLER_DECLARE(power_suspend_early, power_change_fn);
 typedef void (*vm_lowmem_handler_t)(void *, int);
 #define	LOWMEM_PRI_DEFAULT	EVENTHANDLER_PRI_FIRST
 EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
+/* Some of mbuf(9) zones reached maximum */
+EVENTHANDLER_DECLARE(mbuf_lowmem, vm_lowmem_handler_t);
 
 /* Root mounted event */
 typedef void (*mountroot_handler_t)(void *);

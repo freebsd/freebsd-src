@@ -142,14 +142,6 @@ static	struct pr_usrreqs nousrreqs;
 
 struct protosw inet6sw[] = {
 {
-	.pr_type =		0,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_IPV6,
-	.pr_flags =		PR_CAPATTACH,
-	.pr_drain =		frag6_drain,
-	.pr_usrreqs =		&nousrreqs,
-},
-{
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_UDP,
@@ -164,9 +156,6 @@ struct protosw inet6sw[] = {
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD|
 				    PR_LISTEN|PR_CAPATTACH,
 	.pr_ctloutput =		tcp_ctloutput,
-#ifndef INET	/* don't call initialization, timeout, and drain routines twice */
-	.pr_drain =		tcp_drain,
-#endif
 	.pr_usrreqs =		&tcp6_usrreqs,
 },
 #ifdef SCTP
@@ -176,9 +165,6 @@ struct protosw inet6sw[] = {
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
 	.pr_ctloutput =	sctp_ctloutput,
-#ifndef INET	/* Do not call initialization and drain routines twice. */
-	.pr_drain =		sctp_drain,
-#endif
 	.pr_usrreqs =		&sctp6_usrreqs
 },
 {
@@ -187,7 +173,6 @@ struct protosw inet6sw[] = {
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
 	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		NULL, /* Covered by the SOCK_SEQPACKET entry. */
 	.pr_usrreqs =		&sctp6_usrreqs
 },
 #endif /* SCTP */

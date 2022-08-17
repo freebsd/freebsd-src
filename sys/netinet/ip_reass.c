@@ -92,7 +92,6 @@ VNET_DEFINE_STATIC(int, ipreass_maxbucketsize);
 #define	V_ipreass_maxbucketsize	VNET(ipreass_maxbucketsize)
 
 void		ipreass_init(void);
-void		ipreass_drain(void);
 #ifdef VIMAGE
 void		ipreass_destroy(void);
 #endif
@@ -598,6 +597,31 @@ ipreass_timer_init(void *arg __unused)
 SYSINIT(ipreass, SI_SUB_VNET_DONE, SI_ORDER_ANY, ipreass_timer_init, NULL);
 
 /*
+ * Drain off all datagram fragments.
+ */
+static void
+ipreass_drain(void)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		for (int i = 0; i < IPREASS_NHASH; i++) {
+			IPQ_LOCK(i);
+			while(!TAILQ_EMPTY(&V_ipq[i].head))
+				ipq_drop(&V_ipq[i],
+				    TAILQ_FIRST(&V_ipq[i].head));
+			KASSERT(V_ipq[i].count == 0,
+			    ("%s: V_ipq[%d] count %d (V_ipq=%p)", __func__, i,
+			    V_ipq[i].count, V_ipq));
+			IPQ_UNLOCK(i);
+		}
+		CURVNET_RESTORE();
+	}
+}
+
+
+/*
  * Initialize IP reassembly structures.
  */
 void
@@ -623,24 +647,10 @@ ipreass_init(void)
 		maxfrags = IP_MAXFRAGS;
 		EVENTHANDLER_REGISTER(nmbclusters_change, ipreass_zone_change,
 		    NULL, EVENTHANDLER_PRI_ANY);
-	}
-}
-
-/*
- * Drain off all datagram fragments.
- */
-void
-ipreass_drain(void)
-{
-
-	for (int i = 0; i < IPREASS_NHASH; i++) {
-		IPQ_LOCK(i);
-		while(!TAILQ_EMPTY(&V_ipq[i].head))
-			ipq_drop(&V_ipq[i], TAILQ_FIRST(&V_ipq[i].head));
-		KASSERT(V_ipq[i].count == 0,
-		    ("%s: V_ipq[%d] count %d (V_ipq=%p)", __func__, i,
-		    V_ipq[i].count, V_ipq));
-		IPQ_UNLOCK(i);
+		EVENTHANDLER_REGISTER(vm_lowmem, ipreass_drain, NULL,
+		    LOWMEM_PRI_DEFAULT);
+		EVENTHANDLER_REGISTER(mbuf_lowmem, ipreass_drain, NULL,
+			LOWMEM_PRI_DEFAULT);
 	}
 }
 

@@ -52,9 +52,6 @@ struct sockopt;
  * Each protocol has a handle initializing one of these structures,
  * which is used for protocol-protocol and system-protocol communication.
  *
- * The system will call the pr_drain entry if it is low on space and
- * this should throw away any non-critical data.
- *
  * In retrospect, it would be a lot nicer to use an interface
  * similar to the vnode VOP interface.
  */
@@ -65,7 +62,6 @@ struct uio;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
-typedef	void	pr_drain_t(void);
 typedef void	pr_abort_t(struct socket *);
 typedef int	pr_accept_t(struct socket *, struct sockaddr **);
 typedef int	pr_attach_t(struct socket *, int, struct thread *);
@@ -117,7 +113,6 @@ struct protosw {
 /* protocol-protocol hooks */
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
-	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
 	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
 };

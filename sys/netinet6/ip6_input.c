@@ -295,6 +295,10 @@ ip6_init(void *arg __unused)
 	IP6PROTO_REGISTER(IPPROTO_SCTP, sctp6_input, sctp6_ctlinput);
 #endif
 
+	EVENTHANDLER_REGISTER(vm_lowmem, frag6_drain, NULL, LOWMEM_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(mbuf_lowmem, frag6_drain, NULL,
+	    LOWMEM_PRI_DEFAULT);
+
 	netisr_register(&ip6_nh);
 #ifdef RSS
 	netisr_register(&ip6_direct_nh);

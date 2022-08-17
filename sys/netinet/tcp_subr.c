@@ -1448,6 +1448,8 @@ tcp_vnet_init(void *arg __unused)
 VNET_SYSINIT(tcp_vnet_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
     tcp_vnet_init, NULL);
 
+static void tcp_drain(void);
+
 static void
 tcp_init(void *arg __unused)
 {
@@ -1506,6 +1508,8 @@ tcp_init(void *arg __unused)
 	ISN_LOCK_INIT();
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(vm_lowmem, tcp_drain, NULL, LOWMEM_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(mbuf_lowmem, tcp_drain, NULL, LOWMEM_PRI_DEFAULT);
 
 	tcp_inp_lro_direct_queue = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_wokeup_queue = counter_u64_alloc(M_WAITOK);
@@ -2513,14 +2517,16 @@ tcp_close(struct tcpcb *tp)
 	return (tp);
 }
 
-void
+static void
 tcp_drain(void)
 {
+	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	if (!do_tcpdrain)
 		return;
 
+	NET_EPOCH_ENTER(et);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -2558,6 +2564,7 @@ tcp_drain(void)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 }
 
 /*

@@ -1085,7 +1085,6 @@ void	 tcp_twclose(struct tcptw *, int);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 void 	 tcp_ctlinput_viaudp(int, struct sockaddr *, void *, void *);
-void	 tcp_drain(void);
 void	 tcp_fini(void *);
 char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, const void *,
 	    const void *);

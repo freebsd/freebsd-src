@@ -109,14 +109,6 @@ extern	struct domain inetdomain;
 
 struct protosw inetsw[] = {
 {
-	.pr_type =		0,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_IP,
-	.pr_flags =		PR_CAPATTACH,
-	.pr_drain =		ip_drain,
-	.pr_usrreqs =		&nousrreqs
-},
-{
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_UDP,
@@ -131,7 +123,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD|
 				    PR_CAPATTACH,
 	.pr_ctloutput =		tcp_ctloutput,
-	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
 },
 #ifdef SCTP
@@ -141,7 +132,6 @@ struct protosw inetsw[] = {
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_WANTRCVD,
 	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
 },
 {
@@ -150,7 +140,6 @@ struct protosw inetsw[] = {
 	.pr_protocol =		IPPROTO_SCTP,
 	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
 	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		NULL, /* Covered by the SOCK_SEQPACKET entry. */
 	.pr_usrreqs =		&sctp_usrreqs
 },
 #endif /* SCTP */

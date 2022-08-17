@@ -214,7 +214,6 @@ int	inp_getmoptions(struct inpcb *, struct sockopt *);
 int	inp_setmoptions(struct inpcb *, struct sockopt *);
 
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
-void	ip_drain(void);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
