@@ -1139,6 +1139,11 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
 	if (WARN_ONCE(txq_id == IWL_MVM_INVALID_QUEUE, "Invalid TXQ id")) {
+#if defined(__FreeBSD__)
+		IWL_ERR(mvm, "fc %#06x sta_id %u tid %u txq_id %u mvm %p "
+		    "skb %p { len %u } info %p sta %p\n", fc, mvmsta->sta_id,
+		    tid, txq_id, mvm, skb, skb->len, info, sta);
+#endif
 		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 		spin_unlock(&mvmsta->lock);
 		return -1;
