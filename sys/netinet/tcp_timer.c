@@ -77,9 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
-#ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
-#endif
 
 int    tcp_persmin;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmin,

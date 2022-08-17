@@ -145,55 +145,6 @@ struct protosw {
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
 
-/*
- * In earlier BSD network stacks, a single pr_usrreq() function pointer was
- * invoked with an operation number indicating what operation was desired.
- * We now provide individual function pointers which protocols can implement,
- * which offers a number of benefits (such as type checking for arguments).
- * These older constants are still present in order to support TCP debugging.
- */
-#define	PRU_ATTACH		0	/* attach protocol to up */
-#define	PRU_DETACH		1	/* detach protocol from up */
-#define	PRU_BIND		2	/* bind socket to address */
-#define	PRU_LISTEN		3	/* listen for connection */
-#define	PRU_CONNECT		4	/* establish connection to peer */
-#define	PRU_ACCEPT		5	/* accept connection from peer */
-#define	PRU_DISCONNECT		6	/* disconnect from peer */
-#define	PRU_SHUTDOWN		7	/* won't send any more data */
-#define	PRU_RCVD		8	/* have taken data; more room now */
-#define	PRU_SEND		9	/* send this data */
-#define	PRU_ABORT		10	/* abort (fast DISCONNECT, DETATCH) */
-#define	PRU_CONTROL		11	/* control operations on protocol */
-#define	PRU_SENSE		12	/* return status into m */
-#define	PRU_RCVOOB		13	/* retrieve out of band data */
-#define	PRU_SENDOOB		14	/* send out of band data */
-#define	PRU_SOCKADDR		15	/* fetch socket's address */
-#define	PRU_PEERADDR		16	/* fetch peer's address */
-#define	PRU_CONNECT2		17	/* connect two sockets */
-/* begin for protocols internal use */
-#define	PRU_FASTTIMO		18	/* 200ms timeout */
-#define	PRU_SLOWTIMO		19	/* 500ms timeout */
-#define	PRU_PROTORCV		20	/* receive from below */
-#define	PRU_PROTOSEND		21	/* send to below */
-/* end for protocol's internal use */
-#define PRU_SEND_EOF		22	/* send and close */
-#define	PRU_SOSETLABEL		23	/* MAC label change */
-#define	PRU_CLOSE		24	/* socket close */
-#define	PRU_FLUSH		25	/* flush the socket */
-#define	PRU_NREQ		25
-
-#ifdef PRUREQUESTS
-const char *prurequests[] = {
-	"ATTACH",	"DETACH",	"BIND",		"LISTEN",
-	"CONNECT",	"ACCEPT",	"DISCONNECT",	"SHUTDOWN",
-	"RCVD",		"SEND",		"ABORT",	"CONTROL",
-	"SENSE",	"RCVOOB",	"SENDOOB",	"SOCKADDR",
-	"PEERADDR",	"CONNECT2",	"FASTTIMO",	"SLOWTIMO",
-	"PROTORCV",	"PROTOSEND",	"SEND_EOF",	"SOSETLABEL",
-	"CLOSE",	"FLUSH",
-};
-#endif
-
 #ifdef	_KERNEL			/* users shouldn't see this decl */
 
 struct ifnet;
