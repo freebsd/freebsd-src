@@ -68,4 +68,8 @@ typedef unsigned long cap_ioctl_t;
 struct cap_rights;
 
 typedef struct cap_rights cap_rights_t;
+
+/* Needed for bitstring */
+#include <sys/bitcount.h>
+
 #endif
