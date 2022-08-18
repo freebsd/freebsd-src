@@ -302,6 +302,21 @@ fs_readlink(const fsnode *cur, struct fs_populate_arg *arg,
 }
 
 static void
+fs_populate_time(zfs_fs_t *fs, char *attrbuf, struct timespec *ts,
+    uint16_t ind, size_t *szp)
+{
+	uint64_t timebuf[2];
+
+	assert(ind < fs->sacnt);
+	assert(fs->saoffs[ind] != 0xffff);
+	assert(fs->satab[ind].size == sizeof(timebuf));
+
+	timebuf[0] = ts->tv_sec;
+	timebuf[1] = ts->tv_nsec;
+	fs_populate_attr(fs, attrbuf, timebuf, ind, szp);
+}
+
+static void
 fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
     dnode_phys_t *dnode)
 {
@@ -438,14 +453,10 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 	 * We deliberately set atime = mtime here to ensure that images are
 	 * reproducible.
 	 */
-	assert(sizeof(sb->st_mtim) == fs->satab[ZPL_ATIME].size);
-	fs_populate_attr(fs, attrbuf, &sb->st_mtim, ZPL_ATIME, &bonussz);
-	assert(sizeof(sb->st_ctim) == fs->satab[ZPL_CTIME].size);
-	fs_populate_attr(fs, attrbuf, &sb->st_ctim, ZPL_CTIME, &bonussz);
-	assert(sizeof(sb->st_mtim) == fs->satab[ZPL_MTIME].size);
-	fs_populate_attr(fs, attrbuf, &sb->st_mtim, ZPL_MTIME, &bonussz);
-	assert(sizeof(sb->st_birthtim) == fs->satab[ZPL_CRTIME].size);
-	fs_populate_attr(fs, attrbuf, &sb->st_birthtim, ZPL_CRTIME, &bonussz);
+	fs_populate_time(fs, attrbuf, &sb->st_mtim, ZPL_ATIME, &bonussz);
+	fs_populate_time(fs, attrbuf, &sb->st_ctim, ZPL_CTIME, &bonussz);
+	fs_populate_time(fs, attrbuf, &sb->st_mtim, ZPL_MTIME, &bonussz);
+	fs_populate_time(fs, attrbuf, &sb->st_birthtim, ZPL_CRTIME, &bonussz);
 
 	fs_populate_varszattr(fs, attrbuf, aces, sizeof(aces), 0,
 	    ZPL_DACL_ACES, &bonussz);
