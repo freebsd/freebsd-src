@@ -100,7 +100,7 @@ do_i2c_transfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int nmsgs)
 
 	retries = adapter->retries == 0 ? 1 : adapter->retries;
 	for (; retries != 0; retries--) {
-		if (adapter->algo->master_xfer != NULL)
+		if (adapter->algo != NULL && adapter->algo->master_xfer != NULL)
 			ret = adapter->algo->master_xfer(adapter, msgs, nmsgs);
 		else
 			ret = lkpi_i2cbb_transfer(adapter, msgs, nmsgs);
@@ -116,7 +116,7 @@ i2c_transfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int nmsgs)
 {
 	int ret;
 
-	if (!adapter->algo)
+	if (adapter->algo == NULL && adapter->algo_data == NULL)
 		return (-EOPNOTSUPP);
 
 	if (adapter->lock_ops)
