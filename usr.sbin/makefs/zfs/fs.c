@@ -28,11 +28,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/dirent.h>
 #include <sys/stat.h>
 
 #include <assert.h>
+#include <dirent.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -456,7 +457,12 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 	fs_populate_time(fs, attrbuf, &sb->st_mtim, ZPL_ATIME, &bonussz);
 	fs_populate_time(fs, attrbuf, &sb->st_ctim, ZPL_CTIME, &bonussz);
 	fs_populate_time(fs, attrbuf, &sb->st_mtim, ZPL_MTIME, &bonussz);
+#ifdef __linux__
+	/* Linux has no st_birthtim; approximate with st_ctim */
+	fs_populate_time(fs, attrbuf, &sb->st_ctim, ZPL_CRTIME, &bonussz);
+#else
 	fs_populate_time(fs, attrbuf, &sb->st_birthtim, ZPL_CRTIME, &bonussz);
+#endif
 
 	fs_populate_varszattr(fs, attrbuf, aces, sizeof(aces), 0,
 	    ZPL_DACL_ACES, &bonussz);

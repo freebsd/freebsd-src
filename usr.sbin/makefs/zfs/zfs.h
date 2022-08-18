@@ -32,6 +32,7 @@
 #define	_MAKEFS_ZFS_H_
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/queue.h>
 
 #include <bitstring.h>
