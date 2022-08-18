@@ -2054,9 +2054,11 @@ mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr;
 	int error, mask;
 	uint32_t flags;
+	bool reinit;
 	int q;
 
 	error = 0;
+	reinit = false;
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -2157,8 +2159,10 @@ mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * Reinitialize RX queues.
 			 * We need to update RX descriptor size.
 			 */
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				reinit = true;
 				mvneta_stop_locked(sc);
+			}
 
 			for (q = 0; q < MVNETA_RX_QNUM_MAX; q++) {
 				mvneta_rx_lockq(sc, q);
@@ -2172,7 +2176,7 @@ mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				}
 				mvneta_rx_unlockq(sc, q);
 			}
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (reinit)
 				mvneta_init_locked(sc);
 
 			mvneta_sc_unlock(sc);
