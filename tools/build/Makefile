@@ -190,6 +190,8 @@ SRCS+=	rpmatch.c
 # On Linux, glibc does not provide strlcpy,strlcat or strmode.
 .PATH: ${LIBC_SRCTOP}/string
 SRCS+=	strlcpy.c strlcat.c strmode.c
+# On Linux, glibc provides ffs* but not fls*
+SRCS+=	fls.c flsl.c flsll.c
 # Compile the fgetln/fgetwln/closefrom fallback code from libbsd:
 SRCS+=	fgetln_fallback.c fgetwln_fallback.c closefrom.c
 CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
