@@ -80,12 +80,14 @@ chk() {
 	rerun=0
 	fsck_ffs -fy $1 > $log 2>&1
 	r=$?
-	if grep -qE "Cannot find file system superblock|Superblock check-hash failed" $log; then
+	if grep -qiE "super-?block.*failed" $log; then
 		for b in $backups; do
+			echo "fsck_ffs -b $b -fy $1"
 			fsck_ffs -b $b -fy $1 > $log 2>&1
 			r=$?
-			grep -qE "Cannot find file system superblock|Superblock check-hash failed" $log ||
+			grep -qiE "super-?block.*failed" $log ||
 			   break
+			echo "Checking next SB"
 		done
 		usedasb=1
 	else
@@ -102,8 +104,12 @@ clean=0
 s=0
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 300 ]; do
-	mount /dev/md$u2 $mp2 || { s=101; break; }
-	ls -lR $mp2 > /dev/null || { s=102; echo "ls failed"; break; }
+	mount /dev/md$u2 $mp2 || break
+	if ! ls -lR $mp2 > /dev/null; then
+		s=102
+		echo "ls failed"; grep "core dumped" /var/log/messages | tail -1
+		break
+	fi
 	touch $mp2/`jot -rc 8 a z | tr -d '\n'`
 	while mount | grep -q "on $mp2 "; do umount $mp2; done
 	echo * | grep -q core && break
@@ -119,19 +125,21 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 		gzip < $diskimage > $backup
 	fi
 	fsync $backup
+	sync
 
 	for i in `jot 5`; do
 		[ $i -gt 2 ] && echo "fsck run #$i"
 		chk $diskimage
 		[ $rerun -eq 1 ] && { reruns=$((reruns + 1)); continue; }
 		[ $clean -eq 1 ] && { cleans=$((cleans + 1)); break; }
-		[ -f fsck_ffs.core ] && break 2
+		[ -f fsck_ffs.core ] &&
+		    { cp -v $diskimage \
+		        /tmp/fsck_ffs.core.diskimage.`date +%Y%m%dT%H%M%S`; break 2; }
 	done
 	if [ $clean -eq 1 ]; then
-#		echo "Checking clean claim"
 		fsck_ffs -fy $diskimage > $log 2>&1
 		if grep -q MODIFIED $log; then
-			echo "fsck of "clean" FS found more issues:"
+			echo "*** fsck of \"clean\" FS found more issues:"
 			cat $log
 			s=1
 			break
@@ -149,7 +157,7 @@ for i in `jot 5`; do
 done
 mdconfig -d -u $u2 2>/dev/null # XXX when mount fails
 
-[ $s -eq 0 ] && rm -f $backup
+[ $s -eq 0 ] && rm -f $backup || echo "Preserved $backup due to status code $s"
 cd /tmp
 for i in `jot 5`; do
 	umount $mp1 && break
