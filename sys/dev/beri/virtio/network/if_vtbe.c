@@ -114,7 +114,7 @@ struct vtbe_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	device_t		dev;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			if_flags;
 	struct mtx		mtx;
 	boolean_t		is_attached;
@@ -146,7 +146,7 @@ vtbe_txstart_locked(struct vtbe_softc *sc)
 	struct virtio_net_hdr *vnh;
 	struct vqueue_info *vq;
 	struct iovec *tiov;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	struct uio uio;
 	int enqueued;
@@ -165,7 +165,7 @@ vtbe_txstart_locked(struct vtbe_softc *sc)
 	}
 
 	ifp = sc->ifp;
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
 		return;
 	}
 
@@ -178,11 +178,11 @@ vtbe_txstart_locked(struct vtbe_softc *sc)
 
 	for (;;) {
 		if (!vq_has_descs(vq)) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL) {
 			break;
 		}
@@ -230,9 +230,9 @@ vtbe_txstart_locked(struct vtbe_softc *sc)
 }
 
 static void
-vtbe_txstart(struct ifnet *ifp)
+vtbe_txstart(if_t ifp)
 {
-	struct vtbe_softc *sc = ifp->if_softc;
+	struct vtbe_softc *sc = if_getsoftc(ifp);
 
 	VTBE_LOCK(sc);
 	vtbe_txstart_locked(sc);
@@ -242,25 +242,25 @@ vtbe_txstart(struct ifnet *ifp)
 static void
 vtbe_stop_locked(struct vtbe_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	VTBE_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 }
 
 static void
 vtbe_init_locked(struct vtbe_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 
 	VTBE_ASSERT_LOCKED(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 }
 
 static void
@@ -274,34 +274,34 @@ vtbe_init(void *if_softc)
 }
 
 static int
-vtbe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+vtbe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct ifmediareq *ifmr;
 	struct vtbe_softc *sc;
 	struct ifreq *ifr;
 	int mask, error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	error = 0;
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		VTBE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
+		if (if_getflags(ifp) & IFF_UP) {
 			pio_enable_irq(sc, 1);
 
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 				vtbe_init_locked(sc);
 			}
 		} else {
 			pio_enable_irq(sc, 0);
 
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				vtbe_stop_locked(sc);
 			}
 		}
-		sc->if_flags = ifp->if_flags;
+		sc->if_flags = if_getflags(ifp);
 		VTBE_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
@@ -316,9 +316,9 @@ vtbe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifmr->ifm_current = ifmr->ifm_active;
 		break;
 	case SIOCSIFCAP:
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_VLAN_MTU) {
-			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		}
 		break;
 
@@ -335,7 +335,7 @@ vtbe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 vtbe_txfinish_locked(struct vtbe_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	VTBE_ASSERT_LOCKED(sc);
 
@@ -388,7 +388,7 @@ vtbe_proc_rx(struct vtbe_softc *sc, struct vqueue_info *vq)
 {
 	struct iovec iov[DESC_COUNT];
 	struct iovec *tiov;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct uio uio;
 	struct mbuf *m;
 	int iolen;
@@ -426,9 +426,9 @@ vtbe_proc_rx(struct vtbe_softc *sc, struct vqueue_info *vq)
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
-	CURVNET_SET(ifp->if_vnet);
+	CURVNET_SET(if_getvnet(ifp));
 	VTBE_UNLOCK(sc);
-	(*ifp->if_input)(ifp, m);
+	if_input(ifp, m);
 	VTBE_LOCK(sc);
 	CURVNET_RESTORE();
 
@@ -563,7 +563,7 @@ vtbe_attach(device_t dev)
 {
 	uint8_t macaddr[ETHER_ADDR_LEN];
 	struct vtbe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int reg;
 
 	sc = device_get_softc(dev);
@@ -613,20 +613,19 @@ vtbe_attach(device_t dev)
 
 	/* Set up the ethernet interface. */
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
-	ifp->if_baudrate = IF_Gbps(10);
-	ifp->if_softc = sc;
+	if_setbaudrate(ifp, IF_Gbps(10));
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX |
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX |
 			 IFF_MULTICAST | IFF_PROMISC);
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_start = vtbe_txstart;
-	ifp->if_ioctl = vtbe_ioctl;
-	ifp->if_init = vtbe_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, DESC_COUNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = DESC_COUNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_setstartfn(ifp, vtbe_txstart);
+	if_setioctlfn(ifp, vtbe_ioctl);
+	if_setinitfn(ifp, vtbe_init);
+	if_setsendqlen(ifp, DESC_COUNT - 1);
+	if_setsendqready(ifp);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	/* All ready to run, attach the ethernet interface. */
 	ether_ifattach(ifp, macaddr);
