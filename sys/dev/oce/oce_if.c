@@ -137,10 +137,10 @@ static int  oce_probe(device_t dev);
 static int  oce_attach(device_t dev);
 static int  oce_detach(device_t dev);
 static int  oce_shutdown(device_t dev);
-static int  oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+static int  oce_ioctl(if_t ifp, u_long command, caddr_t data);
 static void oce_init(void *xsc);
-static int  oce_multiq_start(struct ifnet *ifp, struct mbuf *m);
-static void oce_multiq_flush(struct ifnet *ifp);
+static int  oce_multiq_start(if_t ifp, struct mbuf *m);
+static void oce_multiq_flush(if_t ifp);
 
 /* Driver interrupt routines protypes */
 static void oce_intr(void *arg, int pending);
@@ -150,14 +150,14 @@ static int  oce_alloc_intr(POCE_SOFTC sc, int vector,
 			  void (*isr) (void *arg, int pending));
 
 /* Media callbacks prototypes */
-static void oce_media_status(struct ifnet *ifp, struct ifmediareq *req);
-static int  oce_media_change(struct ifnet *ifp);
+static void oce_media_status(if_t ifp, struct ifmediareq *req);
+static int  oce_media_change(if_t ifp);
 
 /* Transmit routines prototypes */
 static int  oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index);
 static void oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq);
 static void oce_process_tx_completion(struct oce_wq *wq);
-static int  oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m,
+static int  oce_multiq_transmit(if_t ifp, struct mbuf *m,
 				 struct oce_wq *wq);
 
 /* Receive routines prototypes */
@@ -172,11 +172,11 @@ static void oce_rx_mbuf_chain(struct oce_rq *rq, struct oce_common_cqe_info *cqe
 
 /* Helper function prototypes in this file */
 static int  oce_attach_ifp(POCE_SOFTC sc);
-static void oce_add_vlan(void *arg, struct ifnet *ifp, uint16_t vtag);
-static void oce_del_vlan(void *arg, struct ifnet *ifp, uint16_t vtag);
+static void oce_add_vlan(void *arg, if_t ifp, uint16_t vtag);
+static void oce_del_vlan(void *arg, if_t ifp, uint16_t vtag);
 static int  oce_vid_config(POCE_SOFTC sc);
 static void oce_mac_addr_set(POCE_SOFTC sc);
-static int  oce_handle_passthrough(struct ifnet *ifp, caddr_t data);
+static int  oce_handle_passthrough(if_t ifp, caddr_t data);
 static void oce_local_timer(void *arg);
 static void oce_if_deactivate(POCE_SOFTC sc);
 static void oce_if_activate(POCE_SOFTC sc);
@@ -460,10 +460,10 @@ oce_shutdown(device_t dev)
 }
 
 static int
-oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+oce_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 	struct ifi2creq i2c;
 	uint8_t	offset = 0;
 	int rc = 0;
@@ -478,21 +478,21 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifr->ifr_mtu > OCE_MAX_MTU)
 			rc = EINVAL;
 		else
-			ifp->if_mtu = ifr->ifr_mtu;
+			if_setmtu(ifp, ifr->ifr_mtu);
 		break;
 
 	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;	
+		if (if_getflags(ifp) & IFF_UP) {
+			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
+				if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 				oce_init(sc);
 			}
 			device_printf(sc->dev, "Interface Up\n");	
 		} else {
 			LOCK(&sc->dev_lock);
 
-			sc->ifp->if_drv_flags &=
-			    ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+			if_setdrvflagbits(sc->ifp, 0, 
+			    IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 			oce_if_deactivate(sc);
 
 			UNLOCK(&sc->dev_lock);
@@ -500,10 +500,10 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			device_printf(sc->dev, "Interface Down\n");
 		}
 
-		if ((ifp->if_flags & IFF_PROMISC) && !sc->promisc) {
+		if ((if_getflags(ifp) & IFF_PROMISC) && !sc->promisc) {
 			if (!oce_rxf_set_promiscuous(sc, (1 | (1 << 1))))
 				sc->promisc = TRUE;
-		} else if (!(ifp->if_flags & IFF_PROMISC) && sc->promisc) {
+		} else if (!(if_getflags(ifp) & IFF_PROMISC) && sc->promisc) {
 			if (!oce_rxf_set_promiscuous(sc, 0))
 				sc->promisc = FALSE;
 		}
@@ -519,54 +519,54 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		u = ifr->ifr_reqcap ^ ifp->if_capenable;
+		u = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 
 		if (u & IFCAP_TXCSUM) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if_togglehwassist(ifp, (CSUM_TCP | CSUM_UDP | CSUM_IP));
 			
-			if (IFCAP_TSO & ifp->if_capenable &&
-			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+			if (IFCAP_TSO & if_getcapenable(ifp) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(ifp))) {
 				u &= ~IFCAP_TSO;
-				ifp->if_capenable &= ~IFCAP_TSO;
-				ifp->if_hwassist &= ~CSUM_TSO;
+				if_setcapenablebit(ifp, 0, IFCAP_TSO);
+				if_sethwassistbits(ifp, 0, CSUM_TSO);
 				if_printf(ifp,
 					 "TSO disabled due to -txcsum.\n");
 			}
 		}
 
 		if (u & IFCAP_RXCSUM)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 
 		if (u & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
+			if_togglecapenable(ifp, IFCAP_TSO4);
 
-			if (IFCAP_TSO & ifp->if_capenable) {
-				if (IFCAP_TXCSUM & ifp->if_capenable)
-					ifp->if_hwassist |= CSUM_TSO;
+			if (IFCAP_TSO & if_getcapenable(ifp)) {
+				if (IFCAP_TXCSUM & if_getcapenable(ifp))
+					if_sethwassistbits(ifp, CSUM_TSO, 0);
 				else {
-					ifp->if_capenable &= ~IFCAP_TSO;
-					ifp->if_hwassist &= ~CSUM_TSO;
+					if_setcapenablebit(ifp, 0, IFCAP_TSO);
+					if_sethwassistbits(ifp, 0, CSUM_TSO);
 					if_printf(ifp,
 					    "Enable txcsum first.\n");
 					rc = EAGAIN;
 				}
 			} else
-				ifp->if_hwassist &= ~CSUM_TSO;
+				if_sethwassistbits(ifp, 0, CSUM_TSO);
 		}
 
 		if (u & IFCAP_VLAN_HWTAGGING)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
 
 		if (u & IFCAP_VLAN_HWFILTER) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWFILTER);
 			oce_vid_config(sc);
 		}
 #if defined(INET6) || defined(INET)
 		if (u & IFCAP_LRO) {
-			ifp->if_capenable ^= IFCAP_LRO;
+			if_togglecapenable(ifp, IFCAP_LRO);
 			if(sc->enable_hwlro) {
-				if(ifp->if_capenable & IFCAP_LRO) {
+				if(if_getcapenable(ifp) & IFCAP_LRO) {
 					rc = oce_mbox_nic_set_iface_lro_config(sc, 1);
 				}else {
 					rc = oce_mbox_nic_set_iface_lro_config(sc, 0);
@@ -629,7 +629,7 @@ oce_init(void *arg)
 
 	LOCK(&sc->dev_lock);
 
-	if (sc->ifp->if_flags & IFF_UP) {
+	if (if_getflags(sc->ifp) & IFF_UP) {
 		oce_if_deactivate(sc);
 		oce_if_activate(sc);
 	}
@@ -639,9 +639,9 @@ oce_init(void *arg)
 }
 
 static int
-oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
+oce_multiq_start(if_t ifp, struct mbuf *m)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 	struct oce_wq *wq = NULL;
 	int queue_index = 0;
 	int status = 0;
@@ -663,9 +663,9 @@ oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
 }
 
 static void
-oce_multiq_flush(struct ifnet *ifp)
+oce_multiq_flush(if_t ifp)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 	struct mbuf     *m;
 	int i = 0;
 
@@ -895,9 +895,9 @@ oce_intr_free(POCE_SOFTC sc)
 ******************************************************************************/
 
 static void
-oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
+oce_media_status(if_t ifp, struct ifmediareq *req)
 {
-	POCE_SOFTC sc = (POCE_SOFTC) ifp->if_softc;
+	POCE_SOFTC sc = (POCE_SOFTC) if_getsoftc(ifp);
 
 	req->ifm_status = IFM_AVALID;
 	req->ifm_active = IFM_ETHER;
@@ -945,7 +945,7 @@ oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
 }
 
 int
-oce_media_change(struct ifnet *ifp)
+oce_media_change(if_t ifp)
 {
 	return 0;
 }
@@ -1248,9 +1248,9 @@ oce_process_tx_completion(struct oce_wq *wq)
 	m_freem(m);
 	pd->mbuf = NULL;
 
-	if (sc->ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+	if (if_getdrvflags(sc->ifp) & IFF_DRV_OACTIVE) {
 		if (wq->ring->num_used < (wq->ring->num_items / 2)) {
-			sc->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+			if_setdrvflagbits(sc->ifp, 0, (IFF_DRV_OACTIVE));
 			oce_tx_restart(sc, wq);	
 		}
 	}
@@ -1260,7 +1260,7 @@ static void
 oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
 {
 
-	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
+	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
 		return;
 
 	if (!drbr_empty(sc->ifp, wq->br))
@@ -1339,7 +1339,7 @@ oce_tx_task(void *arg, int npending)
 {
 	struct oce_wq *wq = arg;
 	POCE_SOFTC sc = wq->parent;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	int rc = 0;
 
 	LOCK(&wq->tx_lock);
@@ -1352,14 +1352,14 @@ oce_tx_task(void *arg, int npending)
 }
 
 void
-oce_start(struct ifnet *ifp)
+oce_start(if_t ifp)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 	struct mbuf *m;
 	int rc = 0;
 	int def_q = 0; /* Defualt tx queue is 0*/
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 			IFF_DRV_RUNNING)
 		return;
 
@@ -1367,7 +1367,7 @@ oce_start(struct ifnet *ifp)
 		return;
 
 	while (true) {
-		IF_DEQUEUE(&sc->ifp->if_snd, m);
+		m = if_dequeue(sc->ifp);
 		if (m == NULL)
 			break;
 
@@ -1377,8 +1377,8 @@ oce_start(struct ifnet *ifp)
 		if (rc) {
 			if (m != NULL) {
 				sc->wq[def_q]->tx_stats.tx_stops ++;
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				IFQ_DRV_PREPEND(&ifp->if_snd, m);
+				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+				if_sendq_prepend(ifp, m);
 				m = NULL;
 			}
 			break;
@@ -1426,9 +1426,9 @@ oce_wq_handler(void *arg)
 }
 
 static int 
-oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
+oce_multiq_transmit(if_t ifp, struct mbuf *m, struct oce_wq *wq)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 	int status = 0, queue_index = 0;
 	struct mbuf *next = NULL;
 	struct buf_ring *br = NULL;
@@ -1436,7 +1436,7 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 	br  = wq->br;
 	queue_index = wq->queue_index;
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 		IFF_DRV_RUNNING) {
 		if (m != NULL)
 			status = drbr_enqueue(ifp, br, m);
@@ -1454,7 +1454,7 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 			} else {
 				drbr_putback(ifp, br, next);
 				wq->tx_stats.tx_stops ++;
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			}  
 			break;
 		}
@@ -1645,7 +1645,7 @@ oce_rx_lro(struct oce_rq *rq, struct nic_hwlro_singleton_cqe *cqe, struct nic_hw
 		}
 		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 		
-		(*sc->ifp->if_input) (sc->ifp, m);
+		if_input(sc->ifp, m);
 
 		/* Update rx stats per queue */
 		rq->rx_stats.rx_pkts++;
@@ -1737,7 +1737,7 @@ oce_rx(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe)
 		}
 #endif
 
-		(*sc->ifp->if_input) (sc->ifp, m);
+		if_input(sc->ifp, m);
 #if defined(INET6) || defined(INET)
 post_done:
 #endif
@@ -2111,42 +2111,41 @@ oce_attach_ifp(POCE_SOFTC sc)
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_AUTO);
 
-	sc->ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST | IFF_KNOWSEPOCH;
-	sc->ifp->if_ioctl = oce_ioctl;
-	sc->ifp->if_start = oce_start;
-	sc->ifp->if_init = oce_init;
-	sc->ifp->if_mtu = ETHERMTU;
-	sc->ifp->if_softc = sc;
-	sc->ifp->if_transmit = oce_multiq_start;
-	sc->ifp->if_qflush = oce_multiq_flush;
+	if_setflags(sc->ifp, IFF_BROADCAST | IFF_MULTICAST | IFF_KNOWSEPOCH);
+	if_setioctlfn(sc->ifp, oce_ioctl);
+	if_setstartfn(sc->ifp, oce_start);
+	if_setinitfn(sc->ifp, oce_init);
+	if_setmtu(sc->ifp, ETHERMTU);
+	if_setsoftc(sc->ifp, sc);
+	if_settransmitfn(sc->ifp, oce_multiq_start);
+	if_setqflushfn(sc->ifp, oce_multiq_flush);
 
 	if_initname(sc->ifp,
 		    device_get_name(sc->dev), device_get_unit(sc->dev));
 
-	sc->ifp->if_snd.ifq_drv_maxlen = OCE_MAX_TX_DESC - 1;
-	IFQ_SET_MAXLEN(&sc->ifp->if_snd, sc->ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&sc->ifp->if_snd);
+	if_setsendqlen(sc->ifp, OCE_MAX_TX_DESC - 1);
+	if_setsendqready(sc->ifp);
 
-	sc->ifp->if_hwassist = OCE_IF_HWASSIST;
-	sc->ifp->if_hwassist |= CSUM_TSO;
-	sc->ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
+	if_sethwassist(sc->ifp, OCE_IF_HWASSIST);
+	if_sethwassistbits(sc->ifp, CSUM_TSO, 0);
+	if_sethwassistbits(sc->ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP), 0);
 
-	sc->ifp->if_capabilities = OCE_IF_CAPABILITIES;
-	sc->ifp->if_capabilities |= IFCAP_HWCSUM;
-	sc->ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
+	if_setcapabilities(sc->ifp, OCE_IF_CAPABILITIES);
+	if_setcapabilitiesbit(sc->ifp, IFCAP_HWCSUM, 0);
+	if_setcapabilitiesbit(sc->ifp, IFCAP_VLAN_HWFILTER, 0);
 
 #if defined(INET6) || defined(INET)
-	sc->ifp->if_capabilities |= IFCAP_TSO;
-	sc->ifp->if_capabilities |= IFCAP_LRO;
-	sc->ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
+	if_setcapabilitiesbit(sc->ifp, IFCAP_TSO, 0);
+	if_setcapabilitiesbit(sc->ifp, IFCAP_LRO, 0);
+	if_setcapabilitiesbit(sc->ifp, IFCAP_VLAN_HWTSO, 0);
 #endif
 
-	sc->ifp->if_capenable = sc->ifp->if_capabilities;
-	sc->ifp->if_baudrate = IF_Gbps(10);
+	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
+	if_setbaudrate(sc->ifp, IF_Gbps(10));
 
-	sc->ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
-	sc->ifp->if_hw_tsomaxsegcount = OCE_MAX_TX_ELEMENTS;
-	sc->ifp->if_hw_tsomaxsegsize = 4096;
+	if_sethwtsomax(sc->ifp, 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
+	if_sethwtsomaxsegcount(sc->ifp, OCE_MAX_TX_ELEMENTS);
+	if_sethwtsomaxsegsize(sc->ifp, 4096);
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
 
@@ -2154,11 +2153,11 @@ oce_attach_ifp(POCE_SOFTC sc)
 }
 
 static void
-oce_add_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
+oce_add_vlan(void *arg, if_t ifp, uint16_t vtag)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 
-	if (ifp->if_softc !=  arg)
+	if (if_getsoftc(ifp) !=  arg)
 		return;
 	if ((vtag == 0) || (vtag > 4095))
 		return;
@@ -2170,11 +2169,11 @@ oce_add_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
 }
 
 static void
-oce_del_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
+oce_del_vlan(void *arg, if_t ifp, uint16_t vtag)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 
-	if (ifp->if_softc !=  arg)
+	if (if_getsoftc(ifp) !=  arg)
 		return;
 	if ((vtag == 0) || (vtag > 4095))
 		return;
@@ -2196,7 +2195,7 @@ oce_vid_config(POCE_SOFTC sc)
 	int status = 0;
 
 	if ((sc->vlans_added <= MAX_VLANFILTER_SIZE) && 
-			(sc->ifp->if_capenable & IFCAP_VLAN_HWFILTER)) {
+			(if_getcapenable(sc->ifp) & IFCAP_VLAN_HWFILTER)) {
 		for (i = 0; i < MAX_VLANS; i++) {
 			if (sc->vlan_tag[i]) {
 				vtags[ntags].vtag = i;
@@ -2218,16 +2217,16 @@ oce_mac_addr_set(POCE_SOFTC sc)
 	uint32_t old_pmac_id = sc->pmac_id;
 	int status = 0;
 
-	status = bcmp((IF_LLADDR(sc->ifp)), sc->macaddr.mac_addr,
+	status = bcmp((if_getlladdr(sc->ifp)), sc->macaddr.mac_addr,
 			 sc->macaddr.size_of_struct);
 	if (!status)
 		return;
 
-	status = oce_mbox_macaddr_add(sc, (uint8_t *)(IF_LLADDR(sc->ifp)),
+	status = oce_mbox_macaddr_add(sc, (uint8_t *)(if_getlladdr(sc->ifp)),
 					sc->if_id, &sc->pmac_id);
 	if (!status) {
 		status = oce_mbox_macaddr_del(sc, sc->if_id, old_pmac_id);
-		bcopy((IF_LLADDR(sc->ifp)), sc->macaddr.mac_addr,
+		bcopy((if_getlladdr(sc->ifp)), sc->macaddr.mac_addr,
 				 sc->macaddr.size_of_struct); 
 	}
 	if (status)
@@ -2236,9 +2235,9 @@ oce_mac_addr_set(POCE_SOFTC sc)
 }
 
 static int
-oce_handle_passthrough(struct ifnet *ifp, caddr_t data)
+oce_handle_passthrough(if_t ifp, caddr_t data)
 {
-	POCE_SOFTC sc = ifp->if_softc;
+	POCE_SOFTC sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int rc = ENXIO;
 	char cookie[32] = {0};
@@ -2516,7 +2515,7 @@ oce_if_deactivate(POCE_SOFTC sc)
 	struct oce_wq *wq;
 	struct oce_eq *eq;
 
-	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(sc->ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	oce_tx_compl_clean(sc);
 
@@ -2563,7 +2562,7 @@ oce_if_activate(POCE_SOFTC sc)
 	struct oce_wq *wq;
 	int i, rc = 0;
 
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING; 
+	if_setdrvflagbits(sc->ifp, IFF_DRV_RUNNING , 0);
 
 	oce_hw_intr_disable(sc);
 
