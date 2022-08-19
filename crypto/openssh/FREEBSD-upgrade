@@ -129,19 +129,6 @@
 	  An overview of FreeBSD changes to OpenSSH-portable
 	  ==================================================
 
-0) VersionAddendum
-
-   The SSH protocol allows for a human-readable version string of up
-   to 40 characters to be appended to the protocol version string.
-   FreeBSD takes advantage of this to include a date indicating the
-   "patch level", so people can easily determine whether their system
-   is vulnerable when an OpenSSH advisory goes out.  Some people,
-   however, dislike advertising their patch level in the protocol
-   handshake, so we've added a VersionAddendum configuration variable
-   to allow them to change or disable it.  Upstream added support for
-   VersionAddendum on the server side, but we also support it on the
-   client side.
-
 1) Modified server-side defaults
 
    We've modified some configuration defaults in sshd:
