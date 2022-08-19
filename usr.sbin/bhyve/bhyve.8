@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2021
+.Dd August 19, 2022
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -390,6 +390,7 @@ Network device backends:
 .Xc
 .El
 .Sm on
+.Pp
 If
 .Cm mac
 is not specified, the MAC address is derived from a fixed OUI and the
@@ -520,14 +521,32 @@ to that file.
 .El
 .Pp
 Pass-through device backends:
-.Bl -tag -width 10n
-.It Ns Ar slot Ns Cm \&/ Ns Ar bus Ns Cm \&/ Ns Ar function
-Connect to a PCI device on the host at the selector described by
+.Sm off
+.Bl -bullet
+.It
+.Cm ppt Ar N Oo , Ar passthru-device-options Oc
+.It
+.Ns Ar bus Cm \&/ Ar slot Cm \&/ Ar function
+.Op , Ar passthru-device-options
+.It
+.Cm pci Ar bus Cm : Ar slot Cm : Ns Ar function
+.Op , Ar passthru-device-options
+.El
+.Sm on
+.Pp
+Connect to a PCI device on the host either named ppt
+.Ns Ar N
+or at the selector described by
 .Ar slot ,
 .Ar bus ,
 and
 .Ar function
 numbers.
+.Pp
+The
+.Ar passthru-device-options
+are:
+.Bl -tag -width 10n
 .It Cm rom= Ns Ar romfile
 Add
 .Ar romfile
