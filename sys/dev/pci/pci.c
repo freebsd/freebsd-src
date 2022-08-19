@@ -3170,6 +3170,21 @@ pci_find_bar(device_t dev, int reg)
 	return (NULL);
 }
 
+struct pci_map *
+pci_first_bar(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	return (STAILQ_FIRST(&dinfo->cfg.maps));
+}
+
+struct pci_map *
+pci_next_bar(struct pci_map *pm)
+{
+	return (STAILQ_NEXT(pm, pm_link));
+}
+
 int
 pci_bar_enabled(device_t dev, struct pci_map *pm)
 {
