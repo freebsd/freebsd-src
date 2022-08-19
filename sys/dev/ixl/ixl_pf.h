@@ -290,8 +290,8 @@ void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
 void	ixl_handle_que(void *context, int pending);
 
 void	ixl_init(void *);
-void	ixl_register_vlan(void *, struct ifnet *, u16);
-void	ixl_unregister_vlan(void *, struct ifnet *, u16);
+void	ixl_register_vlan(void *, if_t, u16);
+void	ixl_unregister_vlan(void *, if_t, u16);
 int	ixl_intr(void *);
 int	ixl_msix_que(void *);
 int	ixl_msix_adminq(void *);
@@ -302,9 +302,9 @@ const char *	ixl_switch_res_type_string(u8);
 void	ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *,
 		    struct sysctl_oid_list *, struct i40e_hw_port_stats *);
 
-void    ixl_media_status(struct ifnet *, struct ifmediareq *);
-int     ixl_media_change(struct ifnet *);
-int     ixl_ioctl(struct ifnet *, u_long, caddr_t);
+void    ixl_media_status(if_t, struct ifmediareq *);
+int     ixl_media_change(if_t);
+int     ixl_ioctl(if_t, u_long, caddr_t);
 
 void	ixl_enable_queue(struct i40e_hw *, int);
 void	ixl_disable_queue(struct i40e_hw *, int);
@@ -388,7 +388,7 @@ int	ixl_enable_rx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
 int	ixl_enable_ring(struct ixl_pf *pf, struct ixl_pf_qtag *, u16);
 
 void	ixl_update_eth_stats(struct ixl_vsi *);
-void	ixl_cap_txcsum_tso(struct ixl_vsi *, struct ifnet *, int);
+void	ixl_cap_txcsum_tso(struct ixl_vsi *, if_t, int);
 int	ixl_initialize_vsi(struct ixl_vsi *);
 void	ixl_add_ifmedia(struct ifmedia *, u64);
 int	ixl_setup_queue_msix(struct ixl_vsi *);
