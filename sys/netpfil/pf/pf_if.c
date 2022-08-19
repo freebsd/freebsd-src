@@ -319,7 +319,7 @@ pfi_kkif_find(const char *kif_name)
 
 	PF_RULES_ASSERT();
 
-	bzero(&s, sizeof(s));
+	memset(&s, 0, sizeof(s));
 	strlcpy(s.pfik_name, kif_name, sizeof(s.pfik_name));
 
 	return (RB_FIND(pfi_ifhead, &V_pfi_ifs, (struct pfi_kkif *)&s));
@@ -746,7 +746,7 @@ pfi_address_add(struct sockaddr *sa, int af, int net)
 	if (af == AF_INET && net > 32)
 		net = 128;
 	p = V_pfi_buffer + V_pfi_buffer_cnt++;
-	bzero(p, sizeof(*p));
+	memset(p, 0, sizeof(*p));
 	p->pfra_af = af;
 	p->pfra_net = net;
 	if (af == AF_INET)
@@ -804,21 +804,22 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 	int			 i, j, k;
 
 	if (pfs) {
-		bzero(pfs->pcounters, sizeof(pfs->pcounters));
-		bzero(pfs->bcounters, sizeof(pfs->bcounters));
+		memset(pfs->pcounters, 0, sizeof(pfs->pcounters));
+		memset(pfs->bcounters, 0, sizeof(pfs->bcounters));
 	}
 
 	strlcpy(key.pfik_name, name, sizeof(key.pfik_name));
 	p = RB_FIND(pfi_ifhead, &V_pfi_ifs, (struct pfi_kkif *)&key);
-	if (p == NULL)
+	if (p == NULL) {
 		return;
+	}
 
 	if (p->pfik_group != NULL) {
-		bcopy(&p->pfik_group->ifg_members, &ifg_members,
+		memcpy(&ifg_members, &p->pfik_group->ifg_members,
 		    sizeof(ifg_members));
 	} else {
 		/* build a temporary list for p only */
-		bzero(&p_member, sizeof(p_member));
+		memset(&p_member, 0, sizeof(p_member));
 		p_member.ifgm_ifp = p->pfik_ifp;
 		CK_STAILQ_INIT(&ifg_members);
 		CK_STAILQ_INSERT_TAIL(&ifg_members, &p_member, ifgm_next);
@@ -848,7 +849,7 @@ static void
 pf_kkif_to_kif(struct pfi_kkif *kkif, struct pfi_kif *kif)
 {
 
-	bzero(kif, sizeof(*kif));
+	memset(kif, 0, sizeof(*kif));
 	strlcpy(kif->pfik_name, kkif->pfik_name, sizeof(kif->pfik_name));
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 2; j++) {
