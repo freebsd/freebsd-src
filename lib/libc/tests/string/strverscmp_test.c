@@ -9,10 +9,12 @@
 static void
 check_all(size_t len, const char *ordered[len])
 {
+	const char *a, *b;
+
 	for (size_t i = 0; i < len; i++) {
 		for (size_t j = 0; j < len; j++) {
-			const char *a = ordered[i];
-			const char *b = ordered[j];
+			a = ordered[i];
+			b = ordered[j];
 
 			if (i == j)
 				ATF_CHECK_MSG(
