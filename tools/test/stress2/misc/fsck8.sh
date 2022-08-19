@@ -80,15 +80,15 @@ chk() {
 	clean=0
 	rerun=0
 	waccess=0
-	fsck_ffs -fy $1 > $log 2>&1
+	timeout 5m fsck_ffs -fy $1 > $log 2>&1
 	r=$?
-	if grep -qE "Cannot find file system superblock|Superblock check-hash failed" $log; then
+	if grep -qiE "super-?block.*failed" $log; then
 		for b in $backups; do
 			echo "Using alternate SB $b"
 			asbs=$((asbs + 1))
 			fsck_ffs -b $b -fy $1 > $log 2>&1
 			r=$?
-			grep -qE "Cannot find file system superblock|Superblock check-hash failed" $log ||
+			grep -qiE "super-?block.*failed" $log ||
 			   break
 		done
 		usedasb=1
@@ -110,7 +110,7 @@ clean=0
 s=0
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 300 ]; do
-	mount /dev/md$u2 $mp2 || { s=101; break; }
+	mount /dev/md$u2 $mp2 || break
 	ls -lR $mp2 > /dev/null || { s=102; echo "ls failed"; break; }
 	touch $mp2/`jot -rc 8 a z | tr -d '\n'`
 	while mount | grep -q "on $mp2 "; do umount $mp2; done
@@ -128,6 +128,7 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 		gzip < $diskimage > $backup
 	fi
 	fsync $backup
+	sync
 
 	for i in `jot 5`; do
 		[ $i -gt 2 ] && echo "fsck run #$i"
@@ -135,7 +136,7 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 		[ $rerun -eq 1 ] && { reruns=$((reruns + 1)); continue; }
 		[ $clean -eq 1 ] && { cleans=$((cleans + 1)); break; }
 		[ -f fsck_ffs.core ] &&
-		    { cp $diskimage \
+		    { cp -v $diskimage \
 		        /tmp/fsck_ffs.core.diskimage.`date +%Y%m%dT%H%M%S`; break 2; }
 	done
 	[ $clean -ne 1 ] && break
@@ -165,7 +166,7 @@ if [ $clean -ne 1 ]; then
 	cp -v $log /tmp
 	[ $s -eq 0 ] && s=106
 fi
-echo * | grep -q core && { ls -l *.core; cp $log /tmp; exit 106; } ||
+echo * | grep -q core && { ls -l *.core; cp -v $log /tmp; exit 106; } ||
     rm -f $backup
 [ $s -eq 101 ] && rm -f $backup	# mount error breakout
 cd /tmp
