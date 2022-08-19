@@ -1523,14 +1523,6 @@ destroy_dev_drain(struct cdevsw *csw)
 	dev_unlock();
 }
 
-void
-drain_dev_clone_events(void)
-{
-
-	sx_xlock(&clone_drain_lock);
-	sx_xunlock(&clone_drain_lock);
-}
-
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>

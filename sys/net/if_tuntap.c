@@ -707,7 +707,6 @@ tun_uninit(const void *unused __unused)
 
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, arrival_tag);
 	EVENTHANDLER_DEREGISTER(dev_clone, clone_tag);
-	drain_dev_clone_events();
 
 	mtx_lock(&tunmtx);
 	while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {

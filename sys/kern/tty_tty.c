@@ -68,9 +68,7 @@ ctty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	if (strcmp(name, "tty"))
 		return;
 	p = curproc;
-	sx_sunlock(&clone_drain_lock);
 	sx_slock(&proctree_lock);
-	sx_slock(&clone_drain_lock);
 	dev_lock();
 	if (!(p->p_flag & P_CONTROLT))
 		*dev = ctty;
