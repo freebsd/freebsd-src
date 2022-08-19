@@ -544,46 +544,36 @@ do_show_info_header(uint32_t mode)
 		case T4_FILTER_FCoE:
 			printf(" FCoE");
 			break;
-
 		case T4_FILTER_PORT:
 			printf(" Port");
 			break;
-
 		case T4_FILTER_VNIC:
 			if (mode & T4_FILTER_IC_VNIC)
 				printf("   VFvld:PF:VF");
 			else
 				printf("     vld:oVLAN");
 			break;
-
 		case T4_FILTER_VLAN:
 			printf("      vld:VLAN");
 			break;
-
 		case T4_FILTER_IP_TOS:
 			printf("   TOS");
 			break;
-
 		case T4_FILTER_IP_PROTO:
 			printf("  Prot");
 			break;
-
 		case T4_FILTER_ETH_TYPE:
 			printf("   EthType");
 			break;
-
 		case T4_FILTER_MAC_IDX:
 			printf("  MACIdx");
 			break;
-
 		case T4_FILTER_MPS_HIT_TYPE:
 			printf(" MPS");
 			break;
-
 		case T4_FILTER_IP_FRAGMENT:
 			printf(" Frag");
 			break;
-
 		default:
 			/* compressed filter field not enabled */
 			break;
@@ -825,11 +815,9 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 		case T4_FILTER_FCoE:
 			printf("  %1d/%1d", t->fs.val.fcoe, t->fs.mask.fcoe);
 			break;
-
 		case T4_FILTER_PORT:
 			printf("  %1d/%1d", t->fs.val.iport, t->fs.mask.iport);
 			break;
-
 		case T4_FILTER_VNIC:
 			if (mode & T4_FILTER_IC_VNIC) {
 				printf(" %1d:%1x:%02x/%1d:%1x:%02x",
@@ -845,40 +833,32 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 				    t->fs.mask.ovlan_vld, t->fs.mask.vnic);
 			}
 			break;
-
 		case T4_FILTER_VLAN:
 			printf(" %1d:%04x/%1d:%04x",
 			    t->fs.val.vlan_vld, t->fs.val.vlan,
 			    t->fs.mask.vlan_vld, t->fs.mask.vlan);
 			break;
-
 		case T4_FILTER_IP_TOS:
 			printf(" %02x/%02x", t->fs.val.tos, t->fs.mask.tos);
 			break;
-
 		case T4_FILTER_IP_PROTO:
 			printf(" %02x/%02x", t->fs.val.proto, t->fs.mask.proto);
 			break;
-
 		case T4_FILTER_ETH_TYPE:
 			printf(" %04x/%04x", t->fs.val.ethtype,
 			    t->fs.mask.ethtype);
 			break;
-
 		case T4_FILTER_MAC_IDX:
 			printf(" %03x/%03x", t->fs.val.macidx,
 			    t->fs.mask.macidx);
 			break;
-
 		case T4_FILTER_MPS_HIT_TYPE:
 			printf(" %1x/%1x", t->fs.val.matchtype,
 			    t->fs.mask.matchtype);
 			break;
-
 		case T4_FILTER_IP_FRAGMENT:
 			printf("  %1d/%1d", t->fs.val.frag, t->fs.mask.frag);
 			break;
-
 		default:
 			/* compressed filter field not enabled */
 			break;
@@ -1010,43 +990,30 @@ get_filter_mode(int hashfilter)
 
 	if (mode & T4_FILTER_IPv4)
 		printf("ipv4 ");
-
 	if (mode & T4_FILTER_IPv6)
 		printf("ipv6 ");
-
 	if (mode & T4_FILTER_IP_SADDR)
 		printf("sip ");
-
 	if (mode & T4_FILTER_IP_DADDR)
 		printf("dip ");
-
 	if (mode & T4_FILTER_IP_SPORT)
 		printf("sport ");
-
 	if (mode & T4_FILTER_IP_DPORT)
 		printf("dport ");
-
 	if (mode & T4_FILTER_IP_FRAGMENT)
 		printf("frag ");
-
 	if (mode & T4_FILTER_MPS_HIT_TYPE)
 		printf("matchtype ");
-
 	if (mode & T4_FILTER_MAC_IDX)
 		printf("macidx ");
-
 	if (mode & T4_FILTER_ETH_TYPE)
 		printf("ethtype ");
-
 	if (mode & T4_FILTER_IP_PROTO)
 		printf("proto ");
-
 	if (mode & T4_FILTER_IP_TOS)
 		printf("tos ");
-
 	if (mode & T4_FILTER_VLAN)
 		printf("vlan ");
-
 	if (mode & T4_FILTER_VNIC) {
 		if (mode & T4_FILTER_IC_VNIC)
 			printf("vnic_id ");
@@ -1055,13 +1022,10 @@ get_filter_mode(int hashfilter)
 		else
 			printf("ovlan ");
 	}
-
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
-
 	if (mode & T4_FILTER_FCoE)
 		printf("fcoe ");
-
 	printf("\n");
 
 	return (0);
