@@ -588,9 +588,8 @@ thread_reap_domain(struct thread_domain_data *tdd)
 	struct thread *itd, *ntd;
 	struct tidbatch tidbatch;
 	struct credbatch credbatch;
+	struct limbatch limbatch;
 	int tdcount;
-	struct plimit *lim;
-	int limcount;
 
 	/*
 	 * Reading upfront is pessimal if followed by concurrent atomic_swap,
@@ -612,42 +611,37 @@ thread_reap_domain(struct thread_domain_data *tdd)
 
 	tidbatch_prep(&tidbatch);
 	credbatch_prep(&credbatch);
+	limbatch_prep(&limbatch);
 	tdcount = 0;
-	lim = NULL;
-	limcount = 0;
 
 	while (itd != NULL) {
 		ntd = itd->td_zombie;
 		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, itd);
+
 		tidbatch_add(&tidbatch, itd);
 		credbatch_add(&credbatch, itd);
-		MPASS(itd->td_limit != NULL);
-		if (lim != itd->td_limit) {
-			if (limcount != 0) {
-				lim_freen(lim, limcount);
-				limcount = 0;
-			}
-		}
-		lim = itd->td_limit;
-		limcount++;
+		limbatch_add(&limbatch, itd);
+
 		thread_free_batched(itd);
+
 		tidbatch_process(&tidbatch);
 		credbatch_process(&credbatch);
+		limbatch_process(&limbatch);
 		tdcount++;
 		if (tdcount == 32) {
 			thread_count_sub(tdcount);
 			tdcount = 0;
 		}
+
 		itd = ntd;
 	}
 
 	tidbatch_final(&tidbatch);
 	credbatch_final(&credbatch);
+	limbatch_final(&limbatch);
 	if (tdcount != 0) {
 		thread_count_sub(tdcount);
 	}
-	MPASS(limcount != 0);
-	lim_freen(lim, limcount);
 }
 
 /*

@@ -1276,6 +1276,33 @@ lim_freen(struct plimit *limp, int n)
 		free((void *)limp, M_PLIMIT);
 }
 
+void
+limbatch_add(struct limbatch *lb, struct thread *td)
+{
+	struct plimit *limp;
+
+	MPASS(td->td_limit != NULL);
+	limp = td->td_limit;
+
+	if (lb->limp != limp) {
+		if (lb->count != 0) {
+			lim_freen(lb->limp, lb->count);
+			lb->count = 0;
+		}
+		lb->limp = limp;
+	}
+
+	lb->count++;
+}
+
+void
+limbatch_final(struct limbatch *lb)
+{
+
+	MPASS(lb->count != 0);
+	lim_freen(lb->limp, lb->count);
+}
+
 /*
  * Make a copy of the plimit structure.
  * We share these structures copy-on-write after fork.
