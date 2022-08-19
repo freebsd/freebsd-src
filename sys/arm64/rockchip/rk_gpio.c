@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2018 Emmanuel Vadot <manu@FreeBSD.org>
+ * Copyright (c) 2021 Soren Schmidt <sos@deepcore.dk>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,20 +54,21 @@ __FBSDID("$FreeBSD$");
 
 #include "fdt_pinctrl_if.h"
 
-#define	RK_GPIO_SWPORTA_DR	0x00	/* Data register */
-#define	RK_GPIO_SWPORTA_DDR	0x04	/* Data direction register */
-
-#define	RK_GPIO_INTEN		0x30	/* Interrupt enable register */
-#define	RK_GPIO_INTMASK		0x34	/* Interrupt mask register */
-#define	RK_GPIO_INTTYPE_LEVEL	0x38	/* Interrupt level register */
-#define	RK_GPIO_INT_POLARITY	0x3C	/* Interrupt polarity register */
-#define	RK_GPIO_INT_STATUS	0x40	/* Interrupt status register */
-#define	RK_GPIO_INT_RAWSTATUS	0x44	/* Raw Interrupt status register */
-
-#define	RK_GPIO_DEBOUNCE	0x48	/* Debounce enable register */
-
-#define	RK_GPIO_PORTA_EOI	0x4C	/* Clear interrupt register */
-#define	RK_GPIO_EXT_PORTA	0x50	/* External port register */
+enum gpio_regs {
+	RK_GPIO_SWPORTA_DR = 1,	/* Data register */
+	RK_GPIO_SWPORTA_DDR,	/* Data direction register */
+	RK_GPIO_INTEN,		/* Interrupt enable register */
+	RK_GPIO_INTMASK,	/* Interrupt mask register */
+	RK_GPIO_INTTYPE_LEVEL,	/* Interrupt level register */
+	RK_GPIO_INTTYPE_BOTH,	/* Both rise and falling edge */
+	RK_GPIO_INT_POLARITY,	/* Interrupt polarity register */
+	RK_GPIO_INT_STATUS,	/* Interrupt status register */
+	RK_GPIO_INT_RAWSTATUS,	/* Raw Interrupt status register */
+	RK_GPIO_DEBOUNCE,	/* Debounce enable register */
+	RK_GPIO_PORTA_EOI,	/* Clear interrupt register */
+	RK_GPIO_EXT_PORTA,	/* External port register */
+	RK_GPIO_REGNUM
+};
 
 #define	RK_GPIO_LS_SYNC		0x60	/* Level sensitive syncronization enable register */
 
@@ -92,7 +94,9 @@ struct rk_gpio_softc {
 	device_t		pinctrl;
 	uint32_t		swporta;
 	uint32_t		swporta_ddr;
+	uint32_t		version;
 	struct pin_cached	pin_cached[RK_GPIO_MAX_PINS];
+	uint8_t			regs[RK_GPIO_REGNUM];
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -106,6 +110,10 @@ static struct resource_spec rk_gpio_spec[] = {
 	{ -1, 0 }
 };
 
+#define	RK_GPIO_VERSION		0x78
+#define	RK_GPIO_TYPE_V1		0x00000000
+#define	RK_GPIO_TYPE_V2		0x01000c2b
+
 static int rk_gpio_detach(device_t dev);
 
 #define	RK_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -116,6 +124,49 @@ static int rk_gpio_detach(device_t dev);
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
 #define	RK_GPIO_READ(_sc, _off)		\
     bus_space_read_4(_sc->sc_bst, _sc->sc_bsh, _off)
+
+static int
+rk_gpio_read_bit(struct rk_gpio_softc *sc, int reg, int bit)
+{
+	int offset = sc->regs[reg];
+	uint32_t value;
+
+	if (sc->version == RK_GPIO_TYPE_V1) {
+		value = RK_GPIO_READ(sc, offset);
+		value >>= bit;
+	} else {
+		value = RK_GPIO_READ(sc, bit > 15 ? offset + 4 : offset);
+		value >>= (bit % 16);
+	}
+	return (value & 1);
+}
+
+static uint32_t
+rk_gpio_read_4(struct rk_gpio_softc *sc, int reg)
+{
+	int offset = sc->regs[reg];
+	uint32_t value;
+
+	if (sc->version == RK_GPIO_TYPE_V1)
+		value = RK_GPIO_READ(sc, offset);
+	else
+		value = (RK_GPIO_READ(sc, offset) & 0xffff) |
+		    (RK_GPIO_READ(sc, offset + 4) << 16);
+	return (value);
+}
+
+static void
+rk_gpio_write_4(struct rk_gpio_softc *sc, int reg, uint32_t value)
+{
+	int offset = sc->regs[reg];
+
+	if (sc->version == RK_GPIO_TYPE_V1)
+		RK_GPIO_WRITE(sc, offset, value);
+	else {
+		RK_GPIO_WRITE(sc, offset, (value & 0xffff) | 0xffff0000);
+		RK_GPIO_WRITE(sc, offset + 4, (value >> 16) | 0xffff0000);
+	}
+}
 
 static int
 rk_gpio_probe(device_t dev)
@@ -170,6 +221,43 @@ rk_gpio_attach(device_t dev)
 		rk_gpio_detach(dev);
 		return (ENXIO);
 	}
+	RK_GPIO_LOCK(sc);
+	sc->version = rk_gpio_read_4(sc, RK_GPIO_VERSION);
+	RK_GPIO_UNLOCK(sc);
+
+	switch (sc->version) {
+	case RK_GPIO_TYPE_V1:
+		sc->regs[RK_GPIO_SWPORTA_DR] = 0x00;
+		sc->regs[RK_GPIO_SWPORTA_DDR] = 0x04;
+		sc->regs[RK_GPIO_INTEN] = 0x30;
+		sc->regs[RK_GPIO_INTMASK] = 0x34;
+		sc->regs[RK_GPIO_INTTYPE_LEVEL] = 0x38;
+		sc->regs[RK_GPIO_INT_POLARITY] = 0x3c;
+		sc->regs[RK_GPIO_INT_STATUS] = 0x40;
+		sc->regs[RK_GPIO_INT_RAWSTATUS] = 0x44;
+		sc->regs[RK_GPIO_DEBOUNCE] = 0x48;
+		sc->regs[RK_GPIO_PORTA_EOI] = 0x4c;
+		sc->regs[RK_GPIO_EXT_PORTA] = 0x50;
+		break;
+	case RK_GPIO_TYPE_V2:
+		sc->regs[RK_GPIO_SWPORTA_DR] = 0x00;
+		sc->regs[RK_GPIO_SWPORTA_DDR] = 0x08;
+		sc->regs[RK_GPIO_INTEN] = 0x10;
+		sc->regs[RK_GPIO_INTMASK] = 0x18;
+		sc->regs[RK_GPIO_INTTYPE_LEVEL] = 0x20;
+		sc->regs[RK_GPIO_INTTYPE_BOTH] = 0x30;
+		sc->regs[RK_GPIO_INT_POLARITY] = 0x28;
+		sc->regs[RK_GPIO_INT_STATUS] = 0x50;
+		sc->regs[RK_GPIO_INT_RAWSTATUS] = 0x58;
+		sc->regs[RK_GPIO_DEBOUNCE] = 0x38;
+		sc->regs[RK_GPIO_PORTA_EOI] = 0x60;
+		sc->regs[RK_GPIO_EXT_PORTA] = 0x70;
+		break;
+	default:
+		device_printf(dev, "Unknown gpio version %08x\n", sc->version);
+		rk_gpio_detach(dev);
+		return (ENXIO);
+	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL) {
@@ -182,8 +270,8 @@ rk_gpio_attach(device_t dev)
 		sc->pin_cached[i].is_gpio = 2;
 
 	RK_GPIO_LOCK(sc);
-	sc->swporta = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DR);
-	sc->swporta_ddr = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
+	sc->swporta = rk_gpio_read_4(sc, RK_GPIO_SWPORTA_DR);
+	sc->swporta_ddr = rk_gpio_read_4(sc, RK_GPIO_SWPORTA_DDR);
 	RK_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -260,7 +348,6 @@ rk_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 		if (sc->pin_cached[pin].is_gpio == 0)
 			return (EINVAL);
 	}
-
 	*flags = 0;
 	rv = FDT_PINCTRL_GET_FLAGS(sc->pinctrl, dev, pin, flags);
 	if (rv != 0)
@@ -279,6 +366,9 @@ static int
 rk_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 
+	if (pin >= RK_GPIO_MAX_PINS)
+		return EINVAL;
+
 	*caps = RK_GPIO_DEFAULT_CAPS;
 	return (0);
 }
@@ -290,6 +380,9 @@ rk_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	int rv;
 
 	sc = device_get_softc(dev);
+
+	if (pin >= RK_GPIO_MAX_PINS)
+		return (EINVAL);
 
 	if (__predict_false(sc->pin_cached[pin].is_gpio != 1)) {
 		rv = FDT_PINCTRL_IS_GPIO(sc->pinctrl, dev, pin, (bool *)&sc->pin_cached[pin].is_gpio);
@@ -312,7 +405,7 @@ rk_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	else if (flags & GPIO_PIN_OUTPUT)
 		sc->swporta_ddr |= (1 << pin);
 
-	RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DDR, sc->swporta_ddr);
+	rk_gpio_write_4(sc, RK_GPIO_SWPORTA_DDR, sc->swporta_ddr);
 	RK_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -322,15 +415,15 @@ static int
 rk_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct rk_gpio_softc *sc;
-	uint32_t reg;
 
 	sc = device_get_softc(dev);
 
-	RK_GPIO_LOCK(sc);
-	reg = RK_GPIO_READ(sc, RK_GPIO_EXT_PORTA);
-	RK_GPIO_UNLOCK(sc);
+	if (pin >= RK_GPIO_MAX_PINS)
+		return (EINVAL);
 
-	*val = reg & (1 << pin) ? 1 : 0;
+	RK_GPIO_LOCK(sc);
+	*val = rk_gpio_read_bit(sc, RK_GPIO_EXT_PORTA, pin);
+	RK_GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -342,12 +435,15 @@ rk_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 
 	sc = device_get_softc(dev);
 
+	if (pin >= RK_GPIO_MAX_PINS)
+		return (EINVAL);
+
 	RK_GPIO_LOCK(sc);
 	if (value)
 		sc->swporta |= (1 << pin);
 	else
 		sc->swporta &= ~(1 << pin);
-	RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DR, sc->swporta);
+	rk_gpio_write_4(sc, RK_GPIO_SWPORTA_DR, sc->swporta);
 	RK_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -360,12 +456,15 @@ rk_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 	sc = device_get_softc(dev);
 
+	if (pin >= RK_GPIO_MAX_PINS)
+		return (EINVAL);
+
 	RK_GPIO_LOCK(sc);
 	if (sc->swporta & (1 << pin))
 		sc->swporta &= ~(1 << pin);
 	else
 		sc->swporta |= (1 << pin);
-	RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DR, sc->swporta);
+	rk_gpio_write_4(sc, RK_GPIO_SWPORTA_DR, sc->swporta);
 	RK_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -381,14 +480,14 @@ rk_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 	sc = device_get_softc(dev);
 
 	RK_GPIO_LOCK(sc);
-	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DR);
+	reg = rk_gpio_read_4(sc, RK_GPIO_SWPORTA_DR);
 	if (orig_pins)
 		*orig_pins = reg;
 	sc->swporta = reg;
 
 	if ((clear_pins | change_pins) != 0) {
 		reg = (reg & ~clear_pins) ^ change_pins;
-		RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DR, reg);
+		rk_gpio_write_4(sc, RK_GPIO_SWPORTA_DR, reg);
 	}
 	RK_GPIO_UNLOCK(sc);
 
@@ -421,10 +520,10 @@ rk_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
 	}
 
 	RK_GPIO_LOCK(sc);
-	reg = RK_GPIO_READ(sc, RK_GPIO_SWPORTA_DDR);
+	reg = rk_gpio_read_4(sc, RK_GPIO_SWPORTA_DDR);
 	reg &= ~mask;
 	reg |= set;
-	RK_GPIO_WRITE(sc, RK_GPIO_SWPORTA_DDR, reg);
+	rk_gpio_write_4(sc, RK_GPIO_SWPORTA_DDR, reg);
 	sc->swporta_ddr = reg;
 	RK_GPIO_UNLOCK(sc);
 
