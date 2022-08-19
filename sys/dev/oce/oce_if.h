@@ -818,7 +818,7 @@ typedef struct oce_softc {
 	int intr_count;
         int roce_intr_count;
 
-	struct ifnet *ifp;
+	if_t ifp;
 
 	struct ifmedia media;
 	uint8_t link_status;
@@ -1080,7 +1080,7 @@ uint16_t oce_mq_handler(void *arg);
  * Transmit functions
  ************************************************************/
 uint16_t oce_wq_handler(void *arg);
-void	 oce_start(struct ifnet *ifp);
+void	 oce_start(if_t ifp);
 void	 oce_tx_task(void *arg, int npending);
 
 /************************************************************
@@ -1129,9 +1129,9 @@ extern uint32_t oce_rq_buf_size;
 #define ADDR_HI(x)			((uint32_t)((uint64_t)(x) >> 32))
 #define ADDR_LO(x)			((uint32_t)((uint64_t)(x) & 0xffffffff));
 
-#define IF_LRO_ENABLED(sc)  (((sc)->ifp->if_capenable & IFCAP_LRO) ? 1:0)
-#define IF_LSO_ENABLED(sc)  (((sc)->ifp->if_capenable & IFCAP_TSO4) ? 1:0)
-#define IF_CSUM_ENABLED(sc) (((sc)->ifp->if_capenable & IFCAP_HWCSUM) ? 1:0)
+#define IF_LRO_ENABLED(sc)  ((if_getcapenable((sc)->ifp) & IFCAP_LRO) ? 1:0)
+#define IF_LSO_ENABLED(sc)  ((if_getcapenable((sc)->ifp) & IFCAP_TSO4) ? 1:0)
+#define IF_CSUM_ENABLED(sc) ((if_getcapenable((sc)->ifp) & IFCAP_HWCSUM) ? 1:0)
 
 #define OCE_LOG2(x) 			(oce_highbit(x))
 static inline uint32_t oce_highbit(uint32_t x)

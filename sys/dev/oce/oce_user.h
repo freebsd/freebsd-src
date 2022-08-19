@@ -54,7 +54,7 @@ enum oce_interrupt_mode {
 
 struct oce_dev_info {
 	device_t dev;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct oce_softc *softc;
 
 	bus_space_handle_t db_bhandle;

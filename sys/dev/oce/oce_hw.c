@@ -547,7 +547,7 @@ oce_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 int
 oce_hw_update_multicast(POCE_SOFTC sc)
 {
-	struct ifnet    *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mbx_set_common_iface_multicast *req = NULL;
 	OCE_DMA_MEM dma;
 	int rc = 0;
