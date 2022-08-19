@@ -185,7 +185,7 @@ am79900_detach(struct am79900_softc *sc)
 static void
 am79900_meminit(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct leinit init;
 	struct lermd rmd;
 	struct letmd tmd;
@@ -194,7 +194,7 @@ am79900_meminit(struct lance_softc *sc)
 
 	LE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		init.init_mode = LE_HTOLE32(LE_MODE_NORMAL | LE_MODE_PROM);
 	else
 		init.init_mode = LE_HTOLE32(LE_MODE_NORMAL);
@@ -251,7 +251,7 @@ am79900_meminit(struct lance_softc *sc)
 static inline void
 am79900_rint(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m;
 	struct lermd rmd;
 	uint32_t rmd1;
@@ -332,7 +332,7 @@ am79900_rint(struct lance_softc *sc)
 
 			/* Pass the packet up. */
 			LE_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
+			if_input(ifp, m);
 			LE_LOCK(sc);
 		} else
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
@@ -344,7 +344,7 @@ am79900_rint(struct lance_softc *sc)
 static inline void
 am79900_tint(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct letmd tmd;
 	uint32_t tmd1, tmd2;
 	int bix;
@@ -370,7 +370,7 @@ am79900_tint(struct lance_softc *sc)
 		if (tmd1 & LE_T1_OWN)
 			break;
 
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 		if (tmd1 & LE_T1_ERR) {
 			tmd2 = LE_LE32TOH(tmd.tmd2);
@@ -428,7 +428,7 @@ void
 am79900_intr(void *arg)
 {
 	struct lance_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint16_t isr;
 
 	LE_LOCK(sc);
@@ -518,7 +518,7 @@ am79900_intr(void *arg)
 	/* Enable interrupts again. */
 	(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_INEA);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		am79900_start_locked(sc);
 
 	LE_UNLOCK(sc);
@@ -532,14 +532,14 @@ am79900_intr(void *arg)
 static void
 am79900_start_locked(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct letmd tmd;
 	struct mbuf *m;
 	int bix, enq, len, rp;
 
 	LE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
@@ -547,18 +547,18 @@ am79900_start_locked(struct lance_softc *sc)
 	enq = 0;
 
 	for (; sc->sc_no_td < sc->sc_ntbuf &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
+	    !if_sendq_empty(ifp);) {
 		rp = LE_TMDADDR(sc, bix);
 		(*sc->sc_copyfromdesc)(sc, &tmd, rp, sizeof(tmd));
 
 		if (LE_LE32TOH(tmd.tmd1) & LE_T1_OWN) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			if_printf(ifp,
 			    "missing buffer, no_td = %d, last_td = %d\n",
 			    sc->sc_no_td, sc->sc_last_td);
 		}
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 
@@ -600,7 +600,7 @@ am79900_start_locked(struct lance_softc *sc)
 			bix = 0;
 
 		if (++sc->sc_no_td == sc->sc_ntbuf) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 	}
@@ -615,7 +615,7 @@ am79900_start_locked(struct lance_softc *sc)
 static void
 am79900_recv_print(struct lance_softc *sc, int no)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct ether_header eh;
 	struct lermd rmd;
 	uint16_t len;
@@ -637,7 +637,7 @@ am79900_recv_print(struct lance_softc *sc, int no)
 static void
 am79900_xmit_print(struct lance_softc *sc, int no)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct ether_header eh;
 	struct letmd tmd;
 	uint16_t len;
