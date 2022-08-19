@@ -104,7 +104,7 @@ struct nfe_hw_stats {
 };
 
 struct nfe_softc {
-	struct ifnet		*nfe_ifp;
+	if_t			nfe_ifp;
 	device_t		nfe_dev;
 	uint16_t		nfe_devid;
 	uint16_t		nfe_revid;

@@ -1597,7 +1597,7 @@ bnxt_attach_post(if_ctx_t ctx)
 	bnxt_add_media_types(softc);
 	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
 
-	softc->scctx->isc_max_frame_size = ifp->if_mtu + ETHER_HDR_LEN +
+	softc->scctx->isc_max_frame_size = if_getmtu(ifp) + ETHER_HDR_LEN +
 	    ETHER_CRC_LEN;
 
 	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
@@ -2156,7 +2156,7 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 	if_t ifp = iflib_get_ifp(ctx);
 	int rc;
 
-	if (ifp->if_flags & IFF_ALLMULTI ||
+	if (if_getflags(ifp) & IFF_ALLMULTI ||
 	    if_llmaddr_count(ifp) > BNXT_MAX_MC_ADDRS)
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
@@ -2164,7 +2164,7 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 		softc->vnic_info.rx_mask &=
 		    ~HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS |
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN;

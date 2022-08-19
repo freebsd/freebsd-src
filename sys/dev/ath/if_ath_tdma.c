@@ -290,7 +290,7 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* XXX short preamble assumed */
 		/* XXX non-11n rate assumed */
 		sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
-		    vap->iv_ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE,
+		    if_getmtu(vap->iv_ifp) + IEEE80211_MAXOVERHEAD, rix, AH_TRUE,
 		    AH_TRUE);
 	}
 
