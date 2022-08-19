@@ -279,7 +279,6 @@ void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
 void	destroy_dev_drain(struct cdevsw *csw);
-void	drain_dev_clone_events(void);
 struct cdevsw *dev_refthread(struct cdev *_dev, int *_ref);
 struct cdevsw *devvn_refthread(struct vnode *vp, struct cdev **devp, int *_ref);
 void	dev_relthread(struct cdev *_dev, int _ref);
