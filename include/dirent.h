@@ -108,6 +108,7 @@ int	 alphasort(const struct dirent **, const struct dirent **);
 int	 dirfd(DIR *);
 #endif
 #if __BSD_VISIBLE
+int	 versionsort(const struct dirent **, const struct dirent **);
 DIR	*__opendir2(const char *, int);
 int	 fdclosedir(DIR *);
 ssize_t	 getdents(int, char *, size_t);
