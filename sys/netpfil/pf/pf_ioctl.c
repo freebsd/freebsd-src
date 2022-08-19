@@ -739,11 +739,6 @@ pf_begin_eth(uint32_t *ticket, const char *anchor)
 	if (rs == NULL)
 		return (EINVAL);
 
-	if (rs->inactive.open)
-		/* We may be waiting for NET_EPOCH_CALL(pf_rollback_eth_cb) to
-		 * finish. */
-		return (EBUSY);
-
 	/* Purge old inactive rules. */
 	TAILQ_FOREACH_SAFE(rule, rs->inactive.rules, entries,
 	    tmp) {
