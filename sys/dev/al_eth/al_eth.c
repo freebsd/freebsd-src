@@ -197,11 +197,11 @@ static void al_eth_down(struct al_eth_adapter *);
 static void al_eth_interrupts_unmask(struct al_eth_adapter *);
 static void al_eth_interrupts_mask(struct al_eth_adapter *);
 static int al_eth_check_mtu(struct al_eth_adapter *, int);
-static uint64_t al_get_counter(struct ifnet *, ift_counter);
+static uint64_t al_get_counter(if_t, ift_counter);
 static void al_eth_req_rx_buff_size(struct al_eth_adapter *, int);
 static int al_eth_board_params_init(struct al_eth_adapter *);
-static int al_media_update(struct ifnet *);
-static void al_media_status(struct ifnet *, struct ifmediareq *);
+static int al_media_update(if_t);
+static void al_media_status(if_t, struct ifmediareq *);
 static int al_eth_function_reset(struct al_eth_adapter *);
 static int al_eth_hw_init_adapter(struct al_eth_adapter *);
 static void al_eth_serdes_init(struct al_eth_adapter *);
@@ -212,9 +212,9 @@ static void al_tick_stats(void *);
 
 /* ifnet entry points */
 static void al_init(void *);
-static int al_mq_start(struct ifnet *, struct mbuf *);
-static void al_qflush(struct ifnet *);
-static int al_ioctl(struct ifnet * ifp, u_long, caddr_t);
+static int al_mq_start(if_t, struct mbuf *);
+static void al_qflush(if_t);
+static int al_ioctl(if_t ifp, u_long, caddr_t);
 
 /* bus entry points */
 static int al_probe(device_t);
@@ -274,7 +274,7 @@ al_attach(device_t dev)
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t dev_id;
 	uint32_t rev_id;
 	int bar_udma;
@@ -341,27 +341,27 @@ al_attach(device_t dev)
 
 	adapter->netdev->if_link_state = LINK_STATE_DOWN;
 
-	ifp->if_softc = adapter;
+	if_setsoftc(ifp, adapter);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_flags = ifp->if_drv_flags;
-	ifp->if_flags |= IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_ALLMULTI;
-	ifp->if_transmit = al_mq_start;
-	ifp->if_qflush = al_qflush;
-	ifp->if_ioctl = al_ioctl;
-	ifp->if_init = al_init;
-	ifp->if_get_counter = al_get_counter;
-	ifp->if_mtu = AL_DEFAULT_MTU;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+	if_setflags(ifp, if_getdrvflags(ifp));
+	if_setflagbits(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_ALLMULTI, 0);
+	if_settransmitfn(ifp, al_mq_start);
+	if_setqflushfn(ifp, al_qflush);
+	if_setioctlfn(ifp, al_ioctl);
+	if_setinitfn(ifp, al_init);
+	if_setgetcounterfn(ifp, al_get_counter);
+	if_setmtu(ifp, AL_DEFAULT_MTU);
 
-	adapter->if_flags = ifp->if_flags;
+	adapter->if_flags = if_getflags(ifp);
 
-	ifp->if_capabilities = ifp->if_capenable = 0;
+	if_setcapabilities(ifp, if_getcapenable(ifp) );
 
-	ifp->if_capabilities |= IFCAP_HWCSUM |
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM |
 	    IFCAP_HWCSUM_IPV6 | IFCAP_TSO |
-	    IFCAP_LRO | IFCAP_JUMBO_MTU;
+	    IFCAP_LRO | IFCAP_JUMBO_MTU, 0);
 
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	adapter->id_number = g_adapters_count;
 
@@ -424,7 +424,7 @@ al_attach(device_t dev)
 	callout_init_mtx(&adapter->wd_callout, &adapter->wd_mtx, 0);
 
 	ether_ifattach(ifp, adapter->mac_addr);
-	ifp->if_mtu = AL_DEFAULT_MTU;
+	if_setmtu(ifp, AL_DEFAULT_MTU);
 
 	if (adapter->mac_mode == AL_ETH_MAC_MODE_RGMII) {
 		al_eth_hw_init(adapter);
@@ -1028,9 +1028,9 @@ al_init_locked(void *arg)
 	al_eth_down(adapter);
 	rc = al_eth_up(adapter);
 
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	if (rc == 0)
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 }
 
 static void
@@ -1726,9 +1726,9 @@ al_eth_start_xmit(void *arg, int pending)
 }
 
 static int
-al_mq_start(struct ifnet *ifp, struct mbuf *m)
+al_mq_start(if_t ifp, struct mbuf *m)
 {
-	struct al_eth_adapter *adapter = ifp->if_softc;
+	struct al_eth_adapter *adapter = if_getsoftc(ifp);
 	struct al_eth_ring *tx_ring;
 	int i;
 	int ret;
@@ -1739,7 +1739,7 @@ al_mq_start(struct ifnet *ifp, struct mbuf *m)
 	else
 		i = curcpu % adapter->num_tx_queues;
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING) {
 		return (EFAULT);
 	}
@@ -1762,7 +1762,7 @@ al_mq_start(struct ifnet *ifp, struct mbuf *m)
 }
 
 static void
-al_qflush(struct ifnet * ifp)
+al_qflush(if_t ifp)
 {
 
 	/* unused */
@@ -2829,7 +2829,7 @@ al_eth_update_stats(struct al_eth_adapter *adapter)
 }
 
 static uint64_t
-al_get_counter(struct ifnet *ifp, ift_counter cnt)
+al_get_counter(if_t ifp, ift_counter cnt)
 {
 	struct al_eth_adapter *adapter;
 	struct al_eth_mac_stats *mac_stats;
@@ -2906,7 +2906,7 @@ al_program_addr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 al_eth_set_rx_mode(struct al_eth_adapter *adapter)
 {
-	struct ifnet *ifp = adapter->netdev;
+	if_t ifp = adapter->netdev;
 	int mc, uc;
 	uint8_t i;
 
@@ -2914,10 +2914,10 @@ al_eth_set_rx_mode(struct al_eth_adapter *adapter)
 	mc = if_foreach_llmaddr(ifp, al_count_maddr, NULL);
 	uc = if_lladdr_count(ifp);
 
-	if ((ifp->if_flags & IFF_PROMISC) != 0) {
+	if ((if_getflags(ifp) & IFF_PROMISC) != 0) {
 		al_eth_mac_table_promiscuous_set(adapter, true);
 	} else {
-		if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+		if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 			/* This interface is in all-multicasts mode (used by multicast routers). */
 			al_eth_mac_table_all_multicast_add(adapter,
 			    AL_ETH_MAC_TABLE_ALL_MULTICAST_IDX, 1);
@@ -3128,20 +3128,20 @@ al_eth_up_complete(struct al_eth_adapter *adapter)
 }
 
 static int
-al_media_update(struct ifnet *ifp)
+al_media_update(if_t ifp)
 {
-	struct al_eth_adapter *adapter = ifp->if_softc;
+	struct al_eth_adapter *adapter = if_getsoftc(ifp);
 
-	if ((ifp->if_flags & IFF_UP) != 0)
+	if ((if_getflags(ifp) & IFF_UP) != 0)
 		mii_mediachg(adapter->mii);
 
 	return (0);
 }
 
 static void
-al_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+al_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct al_eth_adapter *sc = ifp->if_softc;
+	struct al_eth_adapter *sc = if_getsoftc(ifp);
 	struct mii_data *mii;
 
 	if (sc->mii == NULL) {
@@ -3182,7 +3182,7 @@ al_tick_stats(void *arg)
 static int
 al_eth_up(struct al_eth_adapter *adapter)
 {
-	struct ifnet *ifp = adapter->netdev;
+	if_t ifp = adapter->netdev;
 	int rc;
 
 	if (adapter->up)
@@ -3193,13 +3193,13 @@ al_eth_up(struct al_eth_adapter *adapter)
 		adapter->flags &= ~AL_ETH_FLAG_RESET_REQUESTED;
 	}
 
-	ifp->if_hwassist = 0;
-	if ((ifp->if_capenable & IFCAP_TSO) != 0)
-		ifp->if_hwassist |= CSUM_TSO;
-	if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
-	if ((ifp->if_capenable & IFCAP_TXCSUM_IPV6) != 0)
-		ifp->if_hwassist |= (CSUM_TCP_IPV6 | CSUM_UDP_IPV6);
+	if_sethwassist(ifp, 0);
+	if ((if_getcapenable(ifp) & IFCAP_TSO) != 0)
+		if_sethwassistbits(ifp, CSUM_TSO, 0);
+	if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+		if_sethwassistbits(ifp, (CSUM_TCP | CSUM_UDP), 0);
+	if ((if_getcapenable(ifp) & IFCAP_TXCSUM_IPV6) != 0)
+		if_sethwassistbits(ifp, (CSUM_TCP_IPV6 | CSUM_UDP_IPV6), 0);
 
 	al_eth_serdes_init(adapter);
 
@@ -3298,9 +3298,9 @@ al_eth_down(struct al_eth_adapter *adapter)
 }
 
 static int
-al_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+al_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct al_eth_adapter	*adapter = ifp->if_softc;
+	struct al_eth_adapter	*adapter = if_getsoftc(ifp);
 	struct ifreq		*ifr = (struct ifreq *)data;
 	int			error = 0;
 
@@ -3314,15 +3314,15 @@ al_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			break;
 		}
 
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		adapter->netdev->if_mtu = ifr->ifr_mtu;
 		al_init(adapter);
 		break;
 	}
 	case SIOCSIFFLAGS:
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-				if (((ifp->if_flags ^ adapter->if_flags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+				if (((if_getflags(ifp) ^ adapter->if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
 					device_printf_dbg(adapter->dev,
 					    "ioctl promisc/allmulti\n");
@@ -3331,26 +3331,26 @@ al_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			} else {
 				error = al_eth_up(adapter);
 				if (error == 0)
-					ifp->if_drv_flags |= IFF_DRV_RUNNING;
+					if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 			}
 		} else {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 				al_eth_down(adapter);
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			}
 		}
 
-		adapter->if_flags = ifp->if_flags;
+		adapter->if_flags = if_getflags(ifp);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 			device_printf_dbg(adapter->dev,
 			    "ioctl add/del multi before\n");
 			al_eth_set_rx_mode(adapter);
 #ifdef DEVICE_POLLING
-			if ((ifp->if_capenable & IFCAP_POLLING) == 0)
+			if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
 #endif
 		}
 		break;
@@ -3368,50 +3368,50 @@ al_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		int mask, reinit;
 
 		reinit = 0;
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 #ifdef DEVICE_POLLING
 		if ((mask & IFCAP_POLLING) != 0) {
 			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
 				if (error != 0)
 					return (error);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 			} else {
 				error = ether_poll_deregister(ifp);
 				/* Enable interrupt even in error case */
-				ifp->if_capenable &= ~IFCAP_POLLING;
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 			}
 		}
 #endif
 		if ((mask & IFCAP_HWCSUM) != 0) {
 			/* apply to both rx and tx */
-			ifp->if_capenable ^= IFCAP_HWCSUM;
+			if_togglecapenable(ifp, IFCAP_HWCSUM);
 			reinit = 1;
 		}
 		if ((mask & IFCAP_HWCSUM_IPV6) != 0) {
-			ifp->if_capenable ^= IFCAP_HWCSUM_IPV6;
+			if_togglecapenable(ifp, IFCAP_HWCSUM_IPV6);
 			reinit = 1;
 		}
 		if ((mask & IFCAP_TSO) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO;
+			if_togglecapenable(ifp, IFCAP_TSO);
 			reinit = 1;
 		}
 		if ((mask & IFCAP_LRO) != 0) {
-			ifp->if_capenable ^= IFCAP_LRO;
+			if_togglecapenable(ifp, IFCAP_LRO);
 		}
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
 			reinit = 1;
 		}
 		if ((mask & IFCAP_VLAN_HWFILTER) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWFILTER);
 			reinit = 1;
 		}
 		if ((mask & IFCAP_VLAN_HWTSO) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
 			reinit = 1;
 		}
 		if ((reinit != 0) &&
-		    ((ifp->if_drv_flags & IFF_DRV_RUNNING)) != 0)
+		    ((if_getdrvflags(ifp) & IFF_DRV_RUNNING)) != 0)
 		{
 			al_init(adapter);
 		}
