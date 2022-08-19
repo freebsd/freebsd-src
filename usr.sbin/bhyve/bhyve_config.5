@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 30, 2022
+.Dd August 19, 2022
 .Dt BHYVE_CONFIG 5
 .Os
 .Sh NAME
@@ -575,6 +575,12 @@ If set, allocate a memory disk as the backing store.
 The value of this variable is the size of the memory disk in megabytes.
 .El
 .Ss PCI Passthrough Settings
+The
+.Xr ppt 4
+device driver must be attached to the
+PCI device being passed through.
+The device to pass through can be identified either by name or its
+host PCI bus location.
 .Bl -column "Name" "integer" "Default"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va bus Ta integer Ta Ta
@@ -583,6 +589,10 @@ Host PCI bus address of device to pass through.
 Host PCI slot address of device to pass through.
 .It Va func Ta integer Ta Ta
 Host PCI function address of device to pass through.
+.It Va pptdev Ta string Ta Ta
+Name of a
+.Xr ppt 4
+device to pass through.
 .It Va rom Ta path Ta Ta
 ROM file of the device which will be executed by OVMF to init the device.
 .El

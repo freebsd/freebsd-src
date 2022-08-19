@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
 #endif
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,7 +133,7 @@ pcifd_init(void)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 
 	const cap_ioctl_t pcifd_ioctls[] = { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR,
-		PCIOCBARIO, PCIOCBARMMAP };
+		PCIOCBARIO, PCIOCBARMMAP, PCIOCGETCONF };
 	if (caph_ioctls_limit(pcifd, pcifd_ioctls, nitems(pcifd_ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
@@ -645,30 +646,39 @@ done:
 static int
 passthru_legacy_config(nvlist_t *nvl, const char *opts)
 {
+	const char *cp;
+	char *tofree;
 	char value[16];
 	int bus, slot, func;
 
 	if (opts == NULL)
 		return (0);
 
-	if (sscanf(opts, "%d/%d/%d", &bus, &slot, &func) != 3) {
+	cp = strchr(opts, ',');
+
+	if (strncmp(opts, "ppt", strlen("ppt")) == 0) {
+		tofree = strndup(opts, cp - opts);
+		set_config_value_node(nvl, "pptdev", tofree);
+		free(tofree);
+	} else if (sscanf(opts, "pci0:%d:%d:%d", &bus, &slot, &func) == 3 ||
+	    sscanf(opts, "pci%d:%d:%d", &bus, &slot, &func) == 3 ||
+	    sscanf(opts, "%d/%d/%d", &bus, &slot, &func) == 3) {
+		snprintf(value, sizeof(value), "%d", bus);
+		set_config_value_node(nvl, "bus", value);
+		snprintf(value, sizeof(value), "%d", slot);
+		set_config_value_node(nvl, "slot", value);
+		snprintf(value, sizeof(value), "%d", func);
+		set_config_value_node(nvl, "func", value);
+	} else {
 		EPRINTLN("passthru: invalid options \"%s\"", opts);
 		return (-1);
 	}
 
-	snprintf(value, sizeof(value), "%d", bus);
-	set_config_value_node(nvl, "bus", value);
-	snprintf(value, sizeof(value), "%d", slot);
-	set_config_value_node(nvl, "slot", value);
-	snprintf(value, sizeof(value), "%d", func);
-	set_config_value_node(nvl, "func", value);
-
-	opts = strchr(opts, ',');
-	if (opts == NULL) {
+	if (cp == NULL) {
 		return (0);
 	}
 
-	return pci_parse_legacy_config(nvl, opts + 1);
+	return (pci_parse_legacy_config(nvl, cp + 1));
 }
 
 static int
@@ -722,6 +732,72 @@ passthru_init_rom(struct vmctx *const ctx, struct passthru_softc *const sc,
 	return (0);
 }
 
+static bool
+passthru_lookup_pptdev(const char *name, int *bus, int *slot, int *func)
+{
+	struct pci_conf_io pc;
+	struct pci_conf conf[1];
+	struct pci_match_conf patterns[1];
+	char *cp;
+
+	bzero(&pc, sizeof(struct pci_conf_io));
+	pc.match_buf_len = sizeof(conf);
+	pc.matches = conf;
+
+	bzero(&patterns, sizeof(patterns));
+
+	/*
+	 * The pattern structure requires the unit to be split out from
+	 * the driver name.  Walk backwards from the end of the name to
+	 * find the start of the unit.
+	 */
+	cp = strchr(name, '\0');
+	assert(cp != NULL);
+	while (cp != name && isdigit(cp[-1]))
+		cp--;
+	if (cp == name || !isdigit(*cp)) {
+		EPRINTLN("Invalid passthru device name %s", name);
+		return (false);
+	}
+	if ((size_t)(cp - name) + 1 > sizeof(patterns[0].pd_name)) {
+		EPRINTLN("Passthru device name %s is too long", name);
+		return (false);
+	}
+	memcpy(patterns[0].pd_name, name, cp - name);
+	patterns[0].pd_unit = strtol(cp, &cp, 10);
+	if (*cp != '\0') {
+		EPRINTLN("Invalid passthru device name %s", name);
+		return (false);
+	}
+	patterns[0].flags = PCI_GETCONF_MATCH_NAME | PCI_GETCONF_MATCH_UNIT;
+	pc.num_patterns = 1;
+	pc.pat_buf_len = sizeof(patterns);
+	pc.patterns = patterns;
+
+	if (ioctl(pcifd, PCIOCGETCONF, &pc) == -1) {
+		EPRINTLN("ioctl(PCIOCGETCONF): %s", strerror(errno));
+		return (false);
+	}
+	if (pc.status != PCI_GETCONF_LAST_DEVICE &&
+	    pc.status != PCI_GETCONF_MORE_DEVS) {
+		EPRINTLN("error returned from PCIOCGETCONF ioctl");
+		return (false);
+	}
+	if (pc.num_matches == 0) {
+		EPRINTLN("Passthru device %s not found", name);
+		return (false);
+	}
+
+	if (conf[0].pc_sel.pc_domain != 0) {
+		EPRINTLN("Passthru device %s on unsupported domain", name);
+		return (false);
+	}
+	*bus = conf[0].pc_sel.pc_bus;
+	*slot = conf[0].pc_sel.pc_dev;
+	*func = conf[0].pc_sel.pc_func;
+	return (true);
+}
+
 static int
 passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
@@ -751,9 +827,15 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	var = atoi(value);						\
 } while (0)
 
-	GET_INT_CONFIG(bus, "bus");
-	GET_INT_CONFIG(slot, "slot");
-	GET_INT_CONFIG(func, "func");
+	value = get_config_value_node(nvl, "pptdev");
+	if (value != NULL) {
+		if (!passthru_lookup_pptdev(value, &bus, &slot, &func))
+			return (error);
+	} else {
+		GET_INT_CONFIG(bus, "bus");
+		GET_INT_CONFIG(slot, "slot");
+		GET_INT_CONFIG(func, "func");
+	}
 
 	if (vm_assign_pptdev(ctx, bus, slot, func) != 0) {
 		warnx("PCI device at %d/%d/%d is not using the ppt(4) driver",
