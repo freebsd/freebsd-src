@@ -181,12 +181,12 @@
    upstream submission from
    https://github.com/openssh/openssh-portable/pull/262.
 
-8) HPN
+8) Retired patches
 
-   We no longer have the HPN patches (adaptive buffer size for
-   increased throughput on high-BxD links), but we recognize and
-   ignore HPN-related configuration options to avoid breaking existing
-   configurations.
+   We no longer have HPN patches (adaptive buffer size for increased
+   throughput on high-BxD links) or client-side VersionAddendum, but we
+   recognize and ignore the configuration options to avoid breaking
+   existing configurations.
 
 
 
