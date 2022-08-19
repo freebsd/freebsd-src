@@ -1578,7 +1578,7 @@ static void
 acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 {
 	char *uuidstr;
-	uint32_t status;
+	uint32_t m, status;
 
 	ACPI_NFIT_SYSTEM_ADDRESS *sysaddr;
 	ACPI_NFIT_MEMORY_MAP *mmap;
@@ -1655,7 +1655,10 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		    (u_int)ileave->InterleaveIndex);
 		printf("\tLineCount=%u\n", (u_int)ileave->LineCount);
 		printf("\tLineSize=%u\n", (u_int)ileave->LineSize);
-		/* XXX ileave->LineOffset[i] output is not supported */
+		for (m = 0; m < ileave->LineCount; m++) {
+			printf("\tLine%uOffset=0x%08x\n", (u_int)m + 1,
+			    (u_int)ileave->LineOffset[m]);
+		}
 		break;
 	case ACPI_NFIT_TYPE_SMBIOS:
 		smbios = (ACPI_NFIT_SMBIOS *)nfit;
@@ -1716,7 +1719,10 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		fladdr = (ACPI_NFIT_FLUSH_ADDRESS *)nfit;
 		printf("\tDeviceHandle=%u\n", (u_int)fladdr->DeviceHandle);
 		printf("\tHintCount=%u\n", (u_int)fladdr->HintCount);
-		/* XXX fladdr->HintAddress[i] output is not supported */
+		for (m = 0; m < fladdr->HintCount; m++) {
+			printf("\tHintAddress%u=0x%016jx\n", (u_int)m + 1,
+			    (uintmax_t)fladdr->HintAddress[m]);
+		}
 		break;
 	case ACPI_NFIT_TYPE_CAPABILITIES:
 		caps = (ACPI_NFIT_CAPABILITIES *)nfit;
