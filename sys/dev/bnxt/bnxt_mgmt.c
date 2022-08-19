@@ -309,7 +309,7 @@ bnxt_mgmt_get_dev_info(struct cdev *dev, u_long cmd, caddr_t data,
 	}
 	
 	if_t ifp = iflib_get_ifp(softc->ctx);
-	dev_info.nic_info.mtu = ifp->if_mtu;
+	dev_info.nic_info.mtu = if_getmtu(ifp);
 	memcpy(dev_info.nic_info.mac, softc->func.mac_addr, ETHER_ADDR_LEN);
 	
 	if (pci_find_cap(softc->dev, PCIY_EXPRESS, &capreg)) {

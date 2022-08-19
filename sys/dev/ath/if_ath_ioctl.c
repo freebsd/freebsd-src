@@ -242,7 +242,7 @@ ath_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	switch (cmd) {
 	case SIOCGATHSTATS: {
 		struct ieee80211vap *vap;
-		struct ifnet *ifp;
+		if_t ifp;
 		const HAL_RATE_TABLE *rt;
 
 		/* NB: embed these numbers to get a consistent view */

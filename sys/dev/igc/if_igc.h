@@ -336,7 +336,7 @@ struct igc_rx_queue {
 
 /* Our adapter structure */
 struct igc_adapter {
-	struct ifnet 	*ifp;
+	if_t		ifp;
 	struct igc_hw	hw;
 
         if_softc_ctx_t shared;

@@ -442,7 +442,7 @@ awg_setup_rxfilter(struct awg_softc *sc)
 		val |= HASH_MULTICAST;
 
 	/* Write our unicast address */
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	machi = (eaddr[5] << 8) | eaddr[4];
 	maclo = (eaddr[3] << 24) | (eaddr[2] << 16) | (eaddr[1] << 8) |
 	   (eaddr[0] << 0);
