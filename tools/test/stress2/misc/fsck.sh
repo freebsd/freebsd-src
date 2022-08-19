@@ -86,13 +86,13 @@ chk() {
 	waccess=0
 	fsck_ffs -fy $1 > $log 2>&1
 	r=$?
-	if grep -qE "Cannot find file system superblock|Superblock check-hash failed" $log; then
+	if grep -qiE "super-?block.*failed" $log; then
 		for b in $backups; do
 			echo "Using alternate SB $b"
 			asbs=$((asbs + 1))
 			fsck_ffs -b $b -fy $1 > $log 2>&1
 			r=$?
-			grep -qE "Cannot find file system superblock|Superblock check-hash failed" $log ||
+			grep -qiE "super-?block.*failed" $log ||
 			   break
 		done
 		usedasb=1
