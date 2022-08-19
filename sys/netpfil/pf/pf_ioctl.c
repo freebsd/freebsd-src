@@ -6714,6 +6714,9 @@ pf_unload_vnet(void)
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
 
+	/* Make sure we've cleaned up ethernet rules before we continue. */
+	NET_EPOCH_DRAIN_CALLBACKS();
+
 	ret = swi_remove(V_pf_swi_cookie);
 	MPASS(ret == 0);
 	ret = intr_event_destroy(V_pf_swi_ie);
