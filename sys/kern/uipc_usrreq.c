@@ -1096,8 +1096,13 @@ uipc_dgram_sbspace(struct sockbuf *sb, u_int cc, u_int mbcnt)
 {
 	u_int bleft, mleft;
 
-	MPASS(sb->sb_hiwat >= sb->uxdg_cc);
-	MPASS(sb->sb_mbmax >= sb->uxdg_mbcnt);
+	/*
+	 * Negative space may happen if send(2) is followed by
+	 * setsockopt(SO_SNDBUF/SO_RCVBUF) that shrinks maximum.
+	 */
+	if (__predict_false(sb->sb_hiwat < sb->uxdg_cc ||
+	    sb->sb_mbmax < sb->uxdg_mbcnt))
+		return (false);
 
 	if (__predict_false(sb->sb_state & SBS_CANTRCVMORE))
 		return (false);
