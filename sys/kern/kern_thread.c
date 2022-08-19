@@ -339,6 +339,46 @@ tidbatch_final(struct tidbatch *tb)
 }
 
 /*
+ * Batching thread count free, for consistency
+ */
+struct tdcountbatch {
+	int n;
+};
+
+static void
+tdcountbatch_prep(struct tdcountbatch *tb)
+{
+
+	tb->n = 0;
+}
+
+static void
+tdcountbatch_add(struct tdcountbatch *tb, struct thread *td __unused)
+{
+
+	tb->n++;
+}
+
+static void
+tdcountbatch_process(struct tdcountbatch *tb)
+{
+
+	if (tb->n == 32) {
+		thread_count_sub(tb->n);
+		tb->n = 0;
+	}
+}
+
+static void
+tdcountbatch_final(struct tdcountbatch *tb)
+{
+
+	if (tb->n != 0) {
+		thread_count_sub(tb->n);
+	}
+}
+
+/*
  * Prepare a thread for use.
  */
 static int
@@ -589,7 +629,7 @@ thread_reap_domain(struct thread_domain_data *tdd)
 	struct tidbatch tidbatch;
 	struct credbatch credbatch;
 	struct limbatch limbatch;
-	int tdcount;
+	struct tdcountbatch tdcountbatch;
 
 	/*
 	 * Reading upfront is pessimal if followed by concurrent atomic_swap,
@@ -612,7 +652,7 @@ thread_reap_domain(struct thread_domain_data *tdd)
 	tidbatch_prep(&tidbatch);
 	credbatch_prep(&credbatch);
 	limbatch_prep(&limbatch);
-	tdcount = 0;
+	tdcountbatch_prep(&tdcountbatch);
 
 	while (itd != NULL) {
 		ntd = itd->td_zombie;
@@ -621,17 +661,14 @@ thread_reap_domain(struct thread_domain_data *tdd)
 		tidbatch_add(&tidbatch, itd);
 		credbatch_add(&credbatch, itd);
 		limbatch_add(&limbatch, itd);
+		tdcountbatch_add(&tdcountbatch, itd);
 
 		thread_free_batched(itd);
 
 		tidbatch_process(&tidbatch);
 		credbatch_process(&credbatch);
 		limbatch_process(&limbatch);
-		tdcount++;
-		if (tdcount == 32) {
-			thread_count_sub(tdcount);
-			tdcount = 0;
-		}
+		tdcountbatch_process(&tdcountbatch);
 
 		itd = ntd;
 	}
@@ -639,9 +676,7 @@ thread_reap_domain(struct thread_domain_data *tdd)
 	tidbatch_final(&tidbatch);
 	credbatch_final(&credbatch);
 	limbatch_final(&limbatch);
-	if (tdcount != 0) {
-		thread_count_sub(tdcount);
-	}
+	tdcountbatch_final(&tdcountbatch);
 }
 
 /*
