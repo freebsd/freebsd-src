@@ -152,7 +152,7 @@ struct ffec_softc {
 	device_t		dev;
 	device_t		miibus;
 	struct mii_data *	mii_softc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			if_flags;
 	struct mtx		mtx;
 	struct resource		*irq_res[MAX_IRQ_COUNT];
@@ -441,13 +441,13 @@ ffec_miibus_statchg(device_t dev)
 }
 
 static void
-ffec_media_status(struct ifnet * ifp, struct ifmediareq *ifmr)
+ffec_media_status(if_t  ifp, struct ifmediareq *ifmr)
 {
 	struct ffec_softc *sc;
 	struct mii_data *mii;
 
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = sc->mii_softc;
 	FFEC_LOCK(sc);
 	mii_pollstat(mii);
@@ -464,12 +464,12 @@ ffec_media_change_locked(struct ffec_softc *sc)
 }
 
 static int
-ffec_media_change(struct ifnet * ifp)
+ffec_media_change(if_t  ifp)
 {
 	struct ffec_softc *sc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	FFEC_LOCK(sc);
 	error = ffec_media_change_locked(sc);
@@ -519,7 +519,7 @@ static void ffec_clear_stats(struct ffec_softc *sc)
 static void
 ffec_harvest_stats(struct ffec_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->ifp;
 
@@ -553,7 +553,7 @@ static void
 ffec_tick(void *arg)
 {
 	struct ffec_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int link_was_up;
 
 	sc = arg;
@@ -562,7 +562,7 @@ ffec_tick(void *arg)
 
 	ifp = sc->ifp;
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 	    return;
 
 	/*
@@ -649,7 +649,7 @@ ffec_setup_txbuf(struct ffec_softc *sc, int idx, struct mbuf **mp)
 static void
 ffec_txstart_locked(struct ffec_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	int enqueued;
 
@@ -660,21 +660,21 @@ ffec_txstart_locked(struct ffec_softc *sc)
 
 	ifp = sc->ifp;
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE)
 		return;
 
 	enqueued = 0;
 
 	for (;;) {
 		if (sc->txcount == (TX_DESC_COUNT-1)) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 		if (ffec_setup_txbuf(sc, sc->tx_idx_head, &m) != 0) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			if_sendq_prepend(ifp, m);
 			break;
 		}
 		BPF_MTAP(ifp, m);
@@ -691,9 +691,9 @@ ffec_txstart_locked(struct ffec_softc *sc)
 }
 
 static void
-ffec_txstart(struct ifnet *ifp)
+ffec_txstart(if_t ifp)
 {
-	struct ffec_softc *sc = ifp->if_softc;
+	struct ffec_softc *sc = if_getsoftc(ifp);
 
 	FFEC_LOCK(sc);
 	ffec_txstart_locked(sc);
@@ -703,7 +703,7 @@ ffec_txstart(struct ifnet *ifp)
 static void
 ffec_txfinish_locked(struct ffec_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct ffec_hwdesc *desc;
 	struct ffec_bufmap *bmap;
 	boolean_t retired_buffer;
@@ -735,7 +735,7 @@ ffec_txfinish_locked(struct ffec_softc *sc)
 	 * the descriptor ring, go try to start some new output.
 	 */
 	if (retired_buffer) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		ffec_txstart_locked(sc);
 	}
 
@@ -858,7 +858,7 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 		bcopy(src, dst, len);
 		m->m_data = dst;
 	}
-	sc->ifp->if_input(sc->ifp, m);
+	if_input(sc->ifp, m);
 
 	FFEC_LOCK(sc);
 
@@ -991,7 +991,7 @@ ffec_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 ffec_setup_rxfilter(struct ffec_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t *eaddr;
 	uint64_t ghash, ihash;
 
@@ -1002,7 +1002,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 	/*
 	 * Set the multicast (group) filter hash.
 	 */
-	if ((ifp->if_flags & IFF_ALLMULTI))
+	if ((if_getflags(ifp) & IFF_ALLMULTI))
 		ghash = 0xffffffffffffffffLLU;
 	else {
 		ghash = 0;
@@ -1018,7 +1018,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 	 * seems to support the concept of MAC address aliases, does such a
 	 * thing even exist?
 	 */
-	if ((ifp->if_flags & IFF_PROMISC))
+	if ((if_getflags(ifp) & IFF_PROMISC))
 		ihash = 0xffffffffffffffffLLU;
 	else {
 		ihash = 0;
@@ -1029,7 +1029,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 	/*
 	 * Set the primary address.
 	 */
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	WR4(sc, FEC_PALR_REG, (eaddr[0] << 24) | (eaddr[1] << 16) |
 	    (eaddr[2] <<  8) | eaddr[3]);
 	WR4(sc, FEC_PAUR_REG, (eaddr[4] << 24) | (eaddr[5] << 16));
@@ -1038,7 +1038,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 static void
 ffec_stop_locked(struct ffec_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct ffec_hwdesc *desc;
 	struct ffec_bufmap *bmap;
 	int idx;
@@ -1046,7 +1046,7 @@ ffec_stop_locked(struct ffec_softc *sc)
 	FFEC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->tx_watchdog_count = 0;
 
 	/* 
@@ -1101,7 +1101,7 @@ ffec_stop_locked(struct ffec_softc *sc)
 static void
 ffec_init_locked(struct ffec_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	uint32_t maxbuf, maxfl, regval;
 
 	FFEC_ASSERT_LOCKED(sc);
@@ -1126,7 +1126,7 @@ ffec_init_locked(struct ffec_softc *sc)
 	maxbuf = MCLBYTES - roundup(ETHER_ALIGN, sc->rxbuf_align);
 	maxfl = min(maxbuf, 0x7ff);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	/* Mask all interrupts and clear all current interrupt status bits. */
@@ -1257,7 +1257,7 @@ ffec_init_locked(struct ffec_softc *sc)
 	regval |= FEC_ECR_ETHEREN;
 	WR4(sc, FEC_ECR_REG, regval);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
        /*
 	* Call mii_mediachg() which will call back into ffec_miibus_statchg() to
@@ -1326,23 +1326,23 @@ ffec_intr(void *arg)
 }
 
 static int
-ffec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+ffec_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct ffec_softc *sc;
 	struct mii_data *mii;
 	struct ifreq *ifr;
 	int mask, error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	error = 0;
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		FFEC_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc->if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if ((if_getflags(ifp) ^ sc->if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI))
 					ffec_setup_rxfilter(sc);
 			} else {
@@ -1350,16 +1350,16 @@ ffec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					ffec_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				ffec_stop_locked(sc);
 		}
-		sc->if_flags = ifp->if_flags;
+		sc->if_flags = if_getflags(ifp);
 		FFEC_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			FFEC_LOCK(sc);
 			ffec_setup_rxfilter(sc);
 			FFEC_UNLOCK(sc);
@@ -1373,10 +1373,10 @@ ffec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_VLAN_MTU) {
 			/* No work to do except acknowledge the change took. */
-			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		}
 		break;
 
@@ -1468,7 +1468,7 @@ static int
 ffec_attach(device_t dev)
 {
 	struct ffec_softc *sc;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	struct mbuf *m;
 	void *dummy;
 	uintptr_t typeflags;
@@ -1739,22 +1739,21 @@ ffec_attach(device_t dev)
 	/* Set up the ethernet interface. */
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_start = ffec_txstart;
-	ifp->if_ioctl = ffec_ioctl;
-	ifp->if_init = ffec_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, TX_DESC_COUNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = TX_DESC_COUNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_setstartfn(ifp, ffec_txstart);
+	if_setioctlfn(ifp, ffec_ioctl);
+	if_setinitfn(ifp, ffec_init);
+	if_setsendqlen(ifp, TX_DESC_COUNT - 1);
+	if_setsendqready(ifp);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 #if 0 /* XXX The hardware keeps stats we could use for these. */
-	ifp->if_linkmib = &sc->mibdata;
-	ifp->if_linkmiblen = sizeof(sc->mibdata);
+	if_setlinkmib(ifp, &sc->mibdata);
+	if_setlinkmiblen(ifp, sizeof(sc->mibdata));
 #endif
 
 	/* Set up the miigasket hardware (if any). */
