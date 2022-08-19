@@ -2942,7 +2942,7 @@ struct bge_bcom_hack {
 #define	ASF_STACKUP		4
 
 struct bge_softc {
-	struct ifnet		*bge_ifp;	/* interface info */
+	if_t			bge_ifp;	/* interface info */
 	device_t		bge_dev;
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;
