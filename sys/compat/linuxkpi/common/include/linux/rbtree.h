@@ -132,7 +132,8 @@ rb_replace_node(struct rb_node *victim, struct rb_node *new,
     struct rb_root *root)
 {
 
-	RB_SWAP_CHILD((struct linux_root *)root, victim, new, __entry);
+	RB_SWAP_CHILD((struct linux_root *)root, rb_parent(victim),
+	    victim, new, __entry);
 	if (victim->rb_left)
 		RB_SET_PARENT(victim->rb_left, new, __entry);
 	if (victim->rb_right)
