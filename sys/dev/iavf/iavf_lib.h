@@ -487,8 +487,8 @@ void iavf_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *child, struct iavf_eth_stats *eth_stats);
 void iavf_media_status_common(struct iavf_sc *sc,
     struct ifmediareq *ifmr);
-int iavf_media_change_common(struct ifnet *ifp);
-void iavf_set_initial_baudrate(struct ifnet *ifp);
+int iavf_media_change_common(if_t ifp);
+void iavf_set_initial_baudrate(if_t ifp);
 u64 iavf_max_vc_speed_to_value(u8 link_speeds);
 void iavf_config_rss_reg(struct iavf_sc *sc);
 void iavf_config_rss_pf(struct iavf_sc *sc);

@@ -968,7 +968,7 @@ iavf_media_status_common(struct iavf_sc *sc, struct ifmediareq *ifmr)
  * @returns ENODEV because changing the media and speed is not supported.
  */
 int
-iavf_media_change_common(struct ifnet *ifp)
+iavf_media_change_common(if_t ifp)
 {
 	if_printf(ifp, "Changing speed is not supported\n");
 
@@ -984,7 +984,7 @@ iavf_media_change_common(struct ifnet *ifp)
  * reports speed to us over the virtchnl interface.
  */
 void
-iavf_set_initial_baudrate(struct ifnet *ifp)
+iavf_set_initial_baudrate(if_t ifp)
 {
 #if __FreeBSD_version >= 1100000
 	if_setbaudrate(ifp, IF_Gbps(40));
@@ -1210,7 +1210,7 @@ iavf_config_rss(struct iavf_sc *sc)
 int
 iavf_config_promisc(struct iavf_sc *sc, int flags)
 {
-	struct ifnet *ifp = sc->vsi.ifp;
+	if_t ifp = sc->vsi.ifp;
 
 	sc->promisc_flags = 0;
 
