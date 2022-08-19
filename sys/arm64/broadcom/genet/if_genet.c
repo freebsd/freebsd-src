@@ -950,7 +950,7 @@ gen_setup_multi(void *arg, struct sockaddr_dl *sdl, u_int count)
 static void
 gen_setup_rxfilter(struct gen_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	uint32_t cmd, mdf_ctrl;
 	u_int n;
 
@@ -966,17 +966,17 @@ gen_setup_rxfilter(struct gen_softc *sc)
 	n = if_llmaddr_count(ifp) + 2;
 
 	if (n > GENET_MAX_MDF_FILTER)
-		ifp->if_flags |= IFF_ALLMULTI;
+		if_setflagbits(ifp, IFF_ALLMULTI, 0);
 	else
-		ifp->if_flags &= ~IFF_ALLMULTI;
+		if_setflagbits(ifp, 0, IFF_ALLMULTI);
 
-	if ((ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI)) != 0) {
+	if ((if_getflags(ifp) & (IFF_PROMISC|IFF_ALLMULTI)) != 0) {
 		cmd |= GENET_UMAC_CMD_PROMISC;
 		mdf_ctrl = 0;
 	} else {
 		cmd &= ~GENET_UMAC_CMD_PROMISC;
 		gen_setup_rxfilter_mdf(sc, 0, ether_broadcastaddr);
-		gen_setup_rxfilter_mdf(sc, 1, IF_LLADDR(ifp));
+		gen_setup_rxfilter_mdf(sc, 1, if_getlladdr(ifp));
 		(void) if_foreach_llmaddr(ifp, gen_setup_multi, sc);
 		mdf_ctrl = (__BIT(GENET_MAX_MDF_FILTER) - 1)  &~
 		    (__BIT(GENET_MAX_MDF_FILTER - n) - 1);
@@ -998,7 +998,7 @@ gen_set_enaddr(struct gen_softc *sc)
 	ifp = sc->ifp;
 
 	/* Write our unicast address */
-	enaddr = IF_LLADDR(ifp);
+	enaddr = if_getlladdr(ifp);
 	/* Write hardware address */
 	val = enaddr[3] | (enaddr[2] << 8) | (enaddr[1] << 16) |
 	    (enaddr[0] << 24);
@@ -1084,7 +1084,7 @@ gen_encap(struct gen_softc *sc, struct mbuf **mp)
 	if (m->m_len == sizeof(struct ether_header)) {
 		m = m_pullup(m, MIN(m->m_pkthdr.len, gen_tx_hdr_min));
 		if (m == NULL) {
-			if (sc->ifp->if_flags & IFF_DEBUG)
+			if (if_getflags(sc->ifp) & IFF_DEBUG)
 				device_printf(sc->dev,
 				    "header pullup fail\n");
 			*mp = NULL;
@@ -1098,7 +1098,7 @@ gen_encap(struct gen_softc *sc, struct mbuf **mp)
 		csumdata = m->m_pkthdr.csum_data;
 		M_PREPEND(m, sizeof(struct statusblock), M_NOWAIT);
 		if (m == NULL) {
-			if (sc->ifp->if_flags & IFF_DEBUG)
+			if (if_getflags(sc->ifp) & IFF_DEBUG)
 				device_printf(sc->dev, "prepend fail\n");
 			*mp = NULL;
 			return (ENOMEM);
@@ -1377,7 +1377,7 @@ gen_rxintr(struct gen_softc *sc, struct rx_queue *q)
 		    (GENET_RX_DESC_STATUS_SOP | GENET_RX_DESC_STATUS_EOP |
 		    GENET_RX_DESC_STATUS_RX_ERROR)) !=
 		    (GENET_RX_DESC_STATUS_SOP | GENET_RX_DESC_STATUS_EOP)) {
-			if (ifp->if_flags & IFF_DEBUG)
+			if (if_getflags(ifp) & IFF_DEBUG)
 				device_printf(sc->dev,
 				    "error/frag %x csum %x\n", status,
 				    sb->rxcsum);
@@ -1388,7 +1388,7 @@ gen_rxintr(struct gen_softc *sc, struct rx_queue *q)
 		error = gen_newbuf_rx(sc, q, index);
 		if (error != 0) {
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
-			if (ifp->if_flags & IFF_DEBUG)
+			if (if_getflags(ifp) & IFF_DEBUG)
 				device_printf(sc->dev, "gen_newbuf_rx %d\n",
 				    error);
 			/* reuse previous mbuf */
