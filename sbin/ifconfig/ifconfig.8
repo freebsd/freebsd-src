@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2022
+.Dd February 1, 2023
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2880,17 +2880,15 @@ must both be set at the same time.
 .It Cm vlanproto Ar vlan_proto
 Set the VLAN encapsulation protocol to
 .Ar vlan_proto .
-Supported encapsulation protocols are currently
-.Dq 802.1Q
-and
-.Dq 802.1ad .
-The default encapsulation protocol is
-.Dq 802.1Q .
-The
-.Dq 802.1ad
-protocol is also commonly known as
-.Dq QinQ ;
-either name can be used.
+Supported encapsulation protocols are currently:
+.Bl -tag
+.It Cm 802.1Q
+Default.
+.It Cm 802.1ad
+.It Cm QinQ
+Same as
+.Cm 802.1ad .
+.El
 .It Cm vlanpcp Ar priority_code_point
 Priority code point
 .Pq Dv PCP
