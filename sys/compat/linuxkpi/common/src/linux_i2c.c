@@ -183,7 +183,7 @@ lkpi_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	for (i = 0; i < nmsgs; i++) {
-		linux_msgs[i].addr = msgs[i].slave;
+		linux_msgs[i].addr = msgs[i].slave >> 1;
 		linux_msgs[i].len = msgs[i].len;
 		linux_msgs[i].buf = msgs[i].buf;
 		if (msgs[i].flags & IIC_M_RD) {
