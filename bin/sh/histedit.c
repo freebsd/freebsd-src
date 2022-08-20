@@ -255,7 +255,6 @@ setterm(const char *term)
 int
 histcmd(int argc, char **argv __unused)
 {
-	int ch;
 	const char *editor = NULL;
 	HistEvent he;
 	int lflg = 0, nflg = 0, rflg = 0, sflg = 0;
@@ -277,25 +276,29 @@ histcmd(int argc, char **argv __unused)
 	if (argc == 1)
 		error("missing history argument");
 
-	while (not_fcnumber(*argptr) && (ch = nextopt("e:lnrs")) != '\0')
-		switch ((char)ch) {
-		case 'e':
-			editor = shoptarg;
-			break;
-		case 'l':
-			lflg = 1;
-			break;
-		case 'n':
-			nflg = 1;
-			break;
-		case 'r':
-			rflg = 1;
-			break;
-		case 's':
-			sflg = 1;
-			break;
-		}
-
+	while (not_fcnumber(*argptr))
+		do {
+			switch (nextopt("e:lnrs")) {
+			case 'e':
+				editor = shoptarg;
+				break;
+			case 'l':
+				lflg = 1;
+				break;
+			case 'n':
+				nflg = 1;
+				break;
+			case 'r':
+				rflg = 1;
+				break;
+			case 's':
+				sflg = 1;
+				break;
+			case '\0':
+				goto operands;
+			}
+		} while (nextopt_optptr != NULL);
+operands:
 	savehandler = handler;
 	/*
 	 * If executing...

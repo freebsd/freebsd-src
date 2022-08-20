@@ -1,0 +1,9 @@
+export PS1='_ ' # cannot predict whether ran by root or not
+
+echo ': command1
+: command2
+: command3
+: command4
+fc -l -n -1
+fc -ln 2 3
+' | ENV= HISTFILE=/dev/null ${SH} +m -i
