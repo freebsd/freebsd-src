@@ -475,7 +475,7 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	/*
 	 * Set the primary address.
 	 */
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	lo = eaddr[0] | (eaddr[1] << 8) | (eaddr[2] << 16) |
 	    (eaddr[3] << 24);
 	hi = eaddr[4] | (eaddr[5] << 8);
