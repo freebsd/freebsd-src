@@ -8,7 +8,7 @@ T=$(mktemp -d sh-test.XXXXXX)
 cd $T
 
 mkfifo input output error
-HISTFILE=/dev/null ${SH} +m -i <input >output 2>error &
+ENV= HISTFILE=/dev/null ${SH} +m -i <input >output 2>error &
 {
 	# Syntax error
 	echo ')' >&3
