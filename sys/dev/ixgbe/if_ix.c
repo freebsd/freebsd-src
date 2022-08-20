@@ -666,7 +666,7 @@ ixgbe_initialize_receive_units(if_ctx_t ctx)
 	struct ixgbe_softc     *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t     scctx = sc->shared;
 	struct ixgbe_hw    *hw = &sc->hw;
-	struct ifnet       *ifp = iflib_get_ifp(ctx);
+	if_t               ifp = iflib_get_ifp(ctx);
 	struct ix_rx_queue *que;
 	int                i, j;
 	u32                bufsz, fctrl, srrctl, rxcsum;
@@ -689,7 +689,7 @@ ixgbe_initialize_receive_units(if_ctx_t ctx)
 
 	/* Set for Jumbo Frames? */
 	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
-	if (ifp->if_mtu > ETHERMTU)
+	if (if_getmtu(ifp) > ETHERMTU)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
 	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
@@ -759,7 +759,7 @@ ixgbe_initialize_receive_units(if_ctx_t ctx)
 		rxcsum |= IXGBE_RXCSUM_PCSD;
 	}
 
-	if (ifp->if_capenable & IFCAP_RXCSUM)
+	if (if_getcapenable(ifp) & IFCAP_RXCSUM)
 		rxcsum |= IXGBE_RXCSUM_PCSD;
 
 	/* This is useful for calculating UDP/IP fragment checksums */
@@ -1170,14 +1170,14 @@ ixgbe_check_wol_support(struct ixgbe_softc *sc)
 static int
 ixgbe_setup_interface(if_ctx_t ctx)
 {
-	struct ifnet   *ifp = iflib_get_ifp(ctx);
+	if_t               ifp = iflib_get_ifp(ctx);
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 
 	INIT_DEBUGOUT("ixgbe_setup_interface: begin");
 
 	if_setbaudrate(ifp, IF_Gbps(10));
 
-	sc->max_frame_size = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+	sc->max_frame_size = if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 	sc->phy_layer = ixgbe_get_supported_physical_layer(&sc->hw);
 
@@ -1915,7 +1915,7 @@ ixgbe_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 static void
 ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 {
-	struct ifnet	*ifp = iflib_get_ifp(ctx);
+	if_t            ifp = iflib_get_ifp(ctx);
 	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	struct rx_ring  *rxr;
@@ -1929,7 +1929,7 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 	 * the VFTA and other state, so if there
 	 * have been no vlan's registered do nothing.
 	 */
-	if (sc->num_vlans == 0 || (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0) {
+	if (sc->num_vlans == 0 || (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) == 0) {
 		/* Clear the vlan hw flag */
 		for (i = 0; i < sc->num_rx_queues; i++) {
 			rxr = &sc->rx_queues[i].rxr;
@@ -1952,7 +1952,7 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 	}
 
 	/* Setup the queues for vlans */
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
 		for (i = 0; i < sc->num_rx_queues; i++) {
 			rxr = &sc->rx_queues[i].rxr;
 			/* On 82599 the VLAN enable is per/queue in RXDCTL */
@@ -1965,7 +1965,7 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 		}
 	}
 
-	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
 		return;
 	/*
 	 * A soft reset zero's out the VFTA, so
@@ -1978,7 +1978,7 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 
 	ctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
 	/* Enable the Filter Table if enabled */
-	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER) {
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) {
 		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
 		ctrl |= IXGBE_VLNCTRL_VFE;
 	}
@@ -2208,10 +2208,10 @@ ixgbe_msix_que(void *arg)
 {
 	struct ix_rx_queue *que = arg;
 	struct ixgbe_softc     *sc = que->sc;
-	struct ifnet       *ifp = iflib_get_ifp(que->sc->ctx);
+	if_t               ifp = iflib_get_ifp(que->sc->ctx);
 
 	/* Protect against spurious interrupts */
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return (FILTER_HANDLED);
 
 	ixgbe_disable_queue(sc, que->msix);
@@ -2493,13 +2493,13 @@ static int
 ixgbe_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	struct ifnet   *ifp = iflib_get_ifp(ctx);
+	if_t           ifp = iflib_get_ifp(ctx);
 	u32            rctl;
 	int            mcnt = 0;
 
 	rctl = IXGBE_READ_REG(&sc->hw, IXGBE_FCTRL);
 	rctl &= (~IXGBE_FCTRL_UPE);
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
 	else {
 		mcnt = min(if_llmaddr_count(ifp), MAX_NUM_MULTICAST_ADDRESSES);
@@ -2508,10 +2508,10 @@ ixgbe_if_promisc_set(if_ctx_t ctx, int flags)
 		rctl &= (~IXGBE_FCTRL_MPE);
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_FCTRL, rctl);
 
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		rctl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 		IXGBE_WRITE_REG(&sc->hw, IXGBE_FCTRL, rctl);
-	} else if (ifp->if_flags & IFF_ALLMULTI) {
+	} else if (if_getflags(ifp) & IFF_ALLMULTI) {
 		rctl |= IXGBE_FCTRL_MPE;
 		rctl &= ~IXGBE_FCTRL_UPE;
 		IXGBE_WRITE_REG(&sc->hw, IXGBE_FCTRL, rctl);
@@ -2926,7 +2926,7 @@ ixgbe_if_resume(if_ctx_t ctx)
 {
 	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
 	device_t        dev = iflib_get_dev(ctx);
-	struct ifnet    *ifp = iflib_get_ifp(ctx);
+	if_t            ifp = iflib_get_ifp(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	u32             wus;
 
@@ -2945,7 +2945,7 @@ ixgbe_if_resume(if_ctx_t ctx)
 	 * Required after D3->D0 transition;
 	 * will re-advertise all previous advertised speeds
 	 */
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		ixgbe_if_init(ctx);
 
 	return (0);
@@ -3033,7 +3033,7 @@ void
 ixgbe_if_init(if_ctx_t ctx)
 {
 	struct ixgbe_softc     *sc = iflib_get_softc(ctx);
-	struct ifnet       *ifp = iflib_get_ifp(ctx);
+	if_t               ifp = iflib_get_ifp(ctx);
 	device_t           dev = iflib_get_dev(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	struct ix_rx_queue *rx_que;
@@ -3053,7 +3053,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	ixgbe_set_rar(hw, 0, hw->mac.addr, sc->pool, IXGBE_RAH_AV);
 
 	/* Get the latest mac address, User can use a LAA */
-	bcopy(IF_LLADDR(ifp), hw->mac.addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	bcopy(if_getlladdr(ifp), hw->mac.addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
 	ixgbe_set_rar(hw, 0, hw->mac.addr, sc->pool, 1);
 	hw->addr_ctrl.rar_used_count = 1;
 
@@ -3082,7 +3082,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	ixgbe_config_gpie(sc);
 
 	/* Set MTU size */
-	if (ifp->if_mtu > ETHERMTU) {
+	if (if_getmtu(ifp) > ETHERMTU) {
 		/* aka IXGBE_MAXFRS on 82599 and newer */
 		mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
 		mhadd &= ~IXGBE_MHADD_MFS_MASK;
@@ -3412,7 +3412,7 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 {
 	struct ixgbe_softc       *sc = iflib_get_softc(ctx);
 	struct ixgbe_mc_addr *mta;
-	struct ifnet         *ifp = iflib_get_ifp(ctx);
+	if_t                  ifp = iflib_get_ifp(ctx);
 	u8                   *update_ptr;
 	u32                  fctrl;
 	u_int		     mcnt;
@@ -3432,10 +3432,10 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 
 	fctrl = IXGBE_READ_REG(&sc->hw, IXGBE_FCTRL);
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 	else if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES ||
-	    ifp->if_flags & IFF_ALLMULTI) {
+	    if_getflags(ifp) & IFF_ALLMULTI) {
 		fctrl |= IXGBE_FCTRL_MPE;
 		fctrl &= ~IXGBE_FCTRL_UPE;
 	} else
@@ -4316,7 +4316,7 @@ static int
 ixgbe_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 {
 	struct ixgbe_softc *sc = (struct ixgbe_softc *)arg1;
-	struct ifnet   *ifp = iflib_get_ifp(sc->ctx);
+	if_t           ifp = iflib_get_ifp(sc->ctx);
 	int            error;
 	u16            newval;
 
@@ -4351,8 +4351,8 @@ ixgbe_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Re-initialize hardware if it's already running */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ifp->if_init(ifp);
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+		if_init(ifp, ifp);
 
 	return (0);
 } /* ixgbe_sysctl_dmac */
@@ -4606,7 +4606,7 @@ ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS)
 {
 	struct ixgbe_softc *sc = (struct ixgbe_softc *)arg1;
 	device_t       dev = sc->dev;
-	struct ifnet   *ifp = iflib_get_ifp(sc->ctx);
+	if_t           ifp = iflib_get_ifp(sc->ctx);
 	int            curr_eee, new_eee, error = 0;
 	s32            retval;
 
@@ -4635,7 +4635,7 @@ ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Restart auto-neg */
-	ifp->if_init(ifp);
+	if_init(ifp, ifp);
 
 	device_printf(dev, "New EEE state: %d\n", new_eee);
 
