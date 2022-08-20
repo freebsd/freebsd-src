@@ -574,15 +574,15 @@ static int
 ixv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	struct ifnet   *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	int            error = 0;
 
 	IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
 	if (mtu > IXGBE_MAX_FRAME_SIZE - IXGBE_MTU_HDR) {
 		error = EINVAL;
 	} else {
-		ifp->if_mtu = mtu;
-		sc->max_frame_size = ifp->if_mtu + IXGBE_MTU_HDR;
+		if_setmtu(ifp, mtu);
+		sc->max_frame_size = if_getmtu(ifp) + IXGBE_MTU_HDR;
 	}
 
 	return error;
@@ -602,7 +602,7 @@ static void
 ixv_if_init(if_ctx_t ctx)
 {
 	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
-	struct ifnet    *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	device_t        dev = iflib_get_dev(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	int             error = 0;
@@ -615,7 +615,7 @@ ixv_if_init(if_ctx_t ctx)
 	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
 
 	/* Get the latest mac address, User can use a LAA */
-	bcopy(IF_LLADDR(ifp), hw->mac.addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	bcopy(if_getlladdr(ifp), hw->mac.addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
 	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, 1);
 
 	/* Reset VF and renegotiate mailbox API version */
@@ -834,6 +834,15 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 } /* ixv_negotiate_api */
 
 
+static u_int
+ixv_if_multi_set_cb(void *cb_arg, struct sockaddr_dl *addr, u_int cnt)
+{
+	bcopy(LLADDR(addr), &((u8 *)cb_arg)[cnt * IXGBE_ETH_LENGTH_OF_ADDRESS],
+	    IXGBE_ETH_LENGTH_OF_ADDRESS);
+
+	return (++cnt);
+}
+
 /************************************************************************
  * ixv_if_multi_set - Multicast Update
  *
@@ -845,20 +854,12 @@ ixv_if_multi_set(if_ctx_t ctx)
 	u8       mta[MAX_NUM_MULTICAST_ADDRESSES * IXGBE_ETH_LENGTH_OF_ADDRESS];
 	struct ixgbe_softc     *sc = iflib_get_softc(ctx);
 	u8                 *update_ptr;
-	struct ifmultiaddr *ifma;
 	if_t               ifp = iflib_get_ifp(ctx);
 	int                mcnt = 0;
 
 	IOCTL_DEBUGOUT("ixv_if_multi_set: begin");
 
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    &mta[mcnt * IXGBE_ETH_LENGTH_OF_ADDRESS],
-		    IXGBE_ETH_LENGTH_OF_ADDRESS);
-		mcnt++;
-	}
+	mcnt = if_foreach_llmaddr(ifp, ixv_if_multi_set_cb, mta);
 
 	update_ptr = mta;
 
@@ -925,7 +926,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
 		 * We need reinitialization. */
-		iflib_get_ifp(ctx)->if_init(ctx);
+		if_init(iflib_get_ifp(ctx), ctx);
 	}
 
 	if (sc->link_up && sc->link_enabled) {
@@ -1159,15 +1160,15 @@ ixv_setup_interface(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = sc->shared;
-	struct ifnet   *ifp = iflib_get_ifp(ctx);
+	if_t           ifp = iflib_get_ifp(ctx);
 
 	INIT_DEBUGOUT("ixv_setup_interface: begin");
 
 	if_setbaudrate(ifp, IF_Gbps(10));
-	ifp->if_snd.ifq_maxlen = scctx->isc_ntxd[0] - 2;
+	if_setsendqlen(ifp, scctx->isc_ntxd[0] - 2);
 
 
-	sc->max_frame_size = ifp->if_mtu + IXGBE_MTU_HDR;
+	sc->max_frame_size = if_getmtu(ifp) + IXGBE_MTU_HDR;
 	ifmedia_add(sc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(sc->media, IFM_ETHER | IFM_AUTO);
 
@@ -1379,11 +1380,11 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t     scctx;
 	struct ixgbe_hw    *hw = &sc->hw;
-	struct ifnet       *ifp = iflib_get_ifp(ctx);
+	if_t               ifp = iflib_get_ifp(ctx);
 	struct ix_rx_queue *que = sc->rx_queues;
 	u32                bufsz, psrtype;
 
-	if (ifp->if_mtu > ETHERMTU)
+	if (if_getmtu(ifp) > ETHERMTU)
 		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 	else
 		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
@@ -1474,7 +1475,7 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 		 * RDT points to the last slot available for reception (?),
 		 * so RDT = num_rx_desc - 1 means the whole ring is available.
 		 */
-		if (ifp->if_capenable & IFCAP_NETMAP) {
+		if (if_getcapenable(ifp) & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(ifp);
 			struct netmap_kring *kring = na->rx_rings[j];
 			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
@@ -1500,7 +1501,7 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 static void
 ixv_setup_vlan_support(if_ctx_t ctx)
 {
-	struct ifnet	*ifp = iflib_get_ifp(ctx);
+	if_t            ifp = iflib_get_ifp(ctx);
 	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	u32             ctrl, vid, vfta, retry;
@@ -1514,7 +1515,7 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 	if (sc->num_vlans == 0)
 		return;
 
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
 		/* Enable the queues */
 		for (int i = 0; i < sc->num_rx_queues; i++) {
 			ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
@@ -1532,7 +1533,7 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 	 * If filtering VLAN tags is disabled,
 	 * there is no need to fill VLAN Filter Table Array (VFTA).
 	 */
-	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
 		return;
 
 	/*

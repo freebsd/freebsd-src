@@ -575,7 +575,7 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 {
 	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
 #ifdef KTR
-	struct ifnet	*ifp = iflib_get_ifp(ctx);
+	if_t		ifp = iflib_get_ifp(ctx);
 #endif
 	struct ixgbe_hw *hw;
 	uint32_t msg[IXGBE_VFMAILBOX_SIZE];
@@ -588,7 +588,7 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 	if (error != 0)
 		return;
 
-	CTR3(KTR_MALLOC, "%s: received msg %x from %d", ifp->if_xname,
+	CTR3(KTR_MALLOC, "%s: received msg %x from %d", if_name(ifp),
 	    msg[0], vf->pool);
 	if (msg[0] == IXGBE_VF_RESET) {
 		ixgbe_vf_reset_msg(sc, vf, msg);
