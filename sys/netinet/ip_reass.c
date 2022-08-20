@@ -167,6 +167,10 @@ SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragbucketsize,
     sysctl_maxfragbucketsize, "I",
     "Maximum number of IPv4 fragment reassembly queue entries per bucket");
 
+static u_int ipfragttl = IPFRAGTTL / 2;
+SYSCTL_UINT(_net_inet_ip, OID_AUTO, fragttl, CTLFLAG_RD, &ipfragttl,
+    IPFRAGTTL / 2, "IP fragment life time on reassembly queue");
+
 /*
  * Take incoming datagram fragment and try to reassemble it into
  * whole datagram.  If the argument is the first fragment or one
