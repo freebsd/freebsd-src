@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 
 #include "gpio_if.h"
+#include "pic_if.h"
 
 #include "fdt_pinctrl_if.h"
 
@@ -73,7 +75,9 @@ enum gpio_regs {
 #define	RK_GPIO_LS_SYNC		0x60	/* Level sensitive syncronization enable register */
 
 #define	RK_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
-    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
+    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN | GPIO_INTR_EDGE_BOTH | \
+    GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING | \
+    GPIO_INTR_LEVEL_HIGH | GPIO_INTR_LEVEL_LOW)
 
 #define	GPIO_FLAGS_PINCTRL	GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN
 #define	RK_GPIO_MAX_PINS	32
@@ -81,6 +85,12 @@ enum gpio_regs {
 struct pin_cached {
 	uint8_t		is_gpio;
 	uint32_t	flags;
+};
+
+struct rk_pin_irqsrc {
+	struct intr_irqsrc	isrc;
+	uint32_t		irq;
+	uint32_t		mode;
 };
 
 struct rk_gpio_softc {
@@ -97,6 +107,8 @@ struct rk_gpio_softc {
 	uint32_t		version;
 	struct pin_cached	pin_cached[RK_GPIO_MAX_PINS];
 	uint8_t			regs[RK_GPIO_REGNUM];
+	void			*ihandle;
+	struct rk_pin_irqsrc	isrcs[RK_GPIO_MAX_PINS];
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -113,6 +125,7 @@ static struct resource_spec rk_gpio_spec[] = {
 #define	RK_GPIO_VERSION		0x78
 #define	RK_GPIO_TYPE_V1		0x00000000
 #define	RK_GPIO_TYPE_V2		0x01000c2b
+#define	RK_GPIO_ISRC(sc, irq)	(&(sc->isrcs[irq].isrc))
 
 static int rk_gpio_detach(device_t dev);
 
@@ -141,6 +154,29 @@ rk_gpio_read_bit(struct rk_gpio_softc *sc, int reg, int bit)
 	return (value & 1);
 }
 
+static void
+rk_gpio_write_bit(struct rk_gpio_softc *sc, int reg, int bit, int data)
+{
+	int offset = sc->regs[reg];
+	uint32_t value;
+
+	if (sc->version == RK_GPIO_TYPE_V1) {
+		value = RK_GPIO_READ(sc, offset);
+		if (data)
+			value |= (1 << bit);
+		else
+			value &= ~(1 << bit);
+		RK_GPIO_WRITE(sc, offset, value);
+	} else {
+		if (data)
+			value = (1 << (bit % 16));
+		else
+			value = 0;
+		value |= (1 << ((bit % 16) + 16));
+		RK_GPIO_WRITE(sc, bit > 15 ? offset + 4 : offset, value);
+	}
+}
+
 static uint32_t
 rk_gpio_read_4(struct rk_gpio_softc *sc, int reg)
 {
@@ -166,6 +202,43 @@ rk_gpio_write_4(struct rk_gpio_softc *sc, int reg, uint32_t value)
 		RK_GPIO_WRITE(sc, offset, (value & 0xffff) | 0xffff0000);
 		RK_GPIO_WRITE(sc, offset + 4, (value >> 16) | 0xffff0000);
 	}
+}
+
+static int
+rk_gpio_intr(void *arg)
+{
+	struct rk_gpio_softc *sc = (struct rk_gpio_softc *)arg;;
+	struct trapframe *tf = curthread->td_intr_frame;
+	uint32_t status;
+
+	RK_GPIO_LOCK(sc);
+	status = rk_gpio_read_4(sc, RK_GPIO_INT_STATUS);
+	rk_gpio_write_4(sc, RK_GPIO_PORTA_EOI, status);
+	RK_GPIO_UNLOCK(sc);
+
+	while (status) {
+		int pin = ffs(status) - 1;
+
+		status &= ~(1 << pin);
+		if (intr_isrc_dispatch(RK_GPIO_ISRC(sc, pin), tf)) {
+			device_printf(sc->sc_dev, "Interrupt pin=%d unhandled\n",
+			    pin);
+			continue;
+		}
+
+		if ((sc->version == RK_GPIO_TYPE_V1) &&
+		    (sc->isrcs[pin].mode & GPIO_INTR_EDGE_BOTH)) {
+			RK_GPIO_LOCK(sc);
+			if (rk_gpio_read_bit(sc, RK_GPIO_EXT_PORTA, pin))
+				rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY,
+				    (1 << pin), 0);
+			else
+				rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY,
+				    (1 << pin), 1);
+			RK_GPIO_UNLOCK(sc);
+		}
+	}
+	return (FILTER_HANDLED);
 }
 
 static int
@@ -221,6 +294,15 @@ rk_gpio_attach(device_t dev)
 		rk_gpio_detach(dev);
 		return (ENXIO);
 	}
+
+	if ((err = bus_setup_intr(dev, sc->sc_res[1],
+	    INTR_TYPE_MISC | INTR_MPSAFE, rk_gpio_intr, NULL,
+	    sc, &sc->ihandle))) {
+		device_printf(dev, "Can not setup IRQ\n");
+		rk_gpio_detach(dev);
+		return (ENXIO);
+	}
+
 	RK_GPIO_LOCK(sc);
 	sc->version = rk_gpio_read_4(sc, RK_GPIO_VERSION);
 	RK_GPIO_UNLOCK(sc);
@@ -255,6 +337,23 @@ rk_gpio_attach(device_t dev)
 		break;
 	default:
 		device_printf(dev, "Unknown gpio version %08x\n", sc->version);
+		rk_gpio_detach(dev);
+		return (ENXIO);
+	}
+
+	for (i = 0; i < RK_GPIO_MAX_PINS; i++) {
+		sc->isrcs[i].irq = i;
+		sc->isrcs[i].mode = GPIO_INTR_CONFORM;
+		if ((err = intr_isrc_register(RK_GPIO_ISRC(sc, i),
+		    dev, 0, "%s", device_get_nameunit(dev)))) {
+			device_printf(dev, "Can not register isrc %d\n", err);
+			rk_gpio_detach(dev);
+			return (ENXIO);
+		}
+	}
+
+	if (intr_pic_register(dev, OF_xref_from_node(node)) == NULL) {
+		device_printf(dev, "Can not register pic\n");
 		rk_gpio_detach(dev);
 		return (ENXIO);
 	}
@@ -549,6 +648,127 @@ rk_gpio_get_node(device_t bus, device_t dev)
 	return (ofw_bus_get_node(bus));
 }
 
+static int
+rk_pic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct intr_map_data_gpio *gdata;
+	uint32_t irq;
+
+	if (data->type != INTR_MAP_DATA_GPIO) {
+		device_printf(dev, "Wrong type\n");
+		return (ENOTSUP);
+	}
+	gdata = (struct intr_map_data_gpio *)data;
+	irq = gdata->gpio_pin_num;
+	if (irq >= RK_GPIO_MAX_PINS) {
+		device_printf(dev, "Invalid interrupt %u\n", irq);
+		return (EINVAL);
+	}
+	*isrcp = RK_GPIO_ISRC(sc, irq);
+	return (0);
+}
+
+static int
+rk_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
+	struct intr_map_data_gpio *gdata;
+	uint32_t mode;
+	uint8_t pin;
+
+	if (!data) {
+		device_printf(dev, "No map data\n");
+		return (ENOTSUP);
+	}
+	gdata = (struct intr_map_data_gpio *)data;
+	mode = gdata->gpio_intr_mode;
+	pin = gdata->gpio_pin_num;
+
+	if (rkisrc->irq != gdata->gpio_pin_num) {
+		device_printf(dev, "Interrupts don't match\n");
+		return (EINVAL);
+	}
+
+	if (isrc->isrc_handlers != 0) {
+		device_printf(dev, "Handler already attached\n");
+		return (rkisrc->mode == mode ? 0 : EINVAL);
+	}
+	rkisrc->mode = mode;
+
+	RK_GPIO_LOCK(sc);
+
+	switch (mode & GPIO_INTR_MASK) {
+	case GPIO_INTR_EDGE_RISING:
+		rk_gpio_write_bit(sc, RK_GPIO_SWPORTA_DDR, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INTTYPE_LEVEL, pin, 1);
+		rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY, pin, 1);
+		break;
+	case GPIO_INTR_EDGE_FALLING:
+		rk_gpio_write_bit(sc, RK_GPIO_SWPORTA_DDR, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INTTYPE_LEVEL, pin, 1);
+		rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY, pin, 0);
+		break;
+	case GPIO_INTR_EDGE_BOTH:
+		rk_gpio_write_bit(sc, RK_GPIO_SWPORTA_DDR, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INTTYPE_LEVEL, pin, 1);
+		if (sc->version == RK_GPIO_TYPE_V1) {
+			if (rk_gpio_read_bit(sc, RK_GPIO_EXT_PORTA, pin))
+				rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY,
+				    pin, 0);
+			else
+				rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY,
+				    pin, 1);
+		} else
+			rk_gpio_write_bit(sc, RK_GPIO_INTTYPE_BOTH, pin, 1);
+		break;
+	case GPIO_INTR_LEVEL_HIGH:
+		rk_gpio_write_bit(sc, RK_GPIO_SWPORTA_DDR, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INTTYPE_LEVEL, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY, pin, 1);
+		break;
+	case GPIO_INTR_LEVEL_LOW:
+		rk_gpio_write_bit(sc, RK_GPIO_SWPORTA_DDR, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INTTYPE_LEVEL, pin, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INT_POLARITY, pin, 0);
+		break;
+	default:
+		rk_gpio_write_bit(sc, RK_GPIO_INTMASK, pin, 1);
+		rk_gpio_write_bit(sc, RK_GPIO_INTEN, pin, 0);
+		RK_GPIO_UNLOCK(sc);
+		return (EINVAL);
+	}
+	rk_gpio_write_bit(sc, RK_GPIO_DEBOUNCE, pin, 1);
+	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, pin, 0);
+	rk_gpio_write_bit(sc, RK_GPIO_INTEN, pin, 1);
+	RK_GPIO_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+rk_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *irqsrc;
+
+	irqsrc = (struct rk_pin_irqsrc *)isrc;
+
+	if (isrc->isrc_handlers == 0) {
+		irqsrc->mode = GPIO_INTR_CONFORM;
+		RK_GPIO_LOCK(sc);
+		rk_gpio_write_bit(sc, RK_GPIO_INTEN, irqsrc->irq, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_INTMASK, irqsrc->irq, 0);
+		rk_gpio_write_bit(sc, RK_GPIO_DEBOUNCE, irqsrc->irq, 0);
+		RK_GPIO_UNLOCK(sc);
+	}
+	return (0);
+}
+
 static device_method_t rk_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		rk_gpio_probe),
@@ -568,6 +788,11 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_access_32,	rk_gpio_pin_access_32),
 	DEVMETHOD(gpio_pin_config_32,	rk_gpio_pin_config_32),
 	DEVMETHOD(gpio_map_gpios,	rk_gpio_map_gpios),
+
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_map_intr,		rk_pic_map_intr),
+	DEVMETHOD(pic_setup_intr,	rk_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	rk_pic_teardown_intr),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	rk_gpio_get_node),
