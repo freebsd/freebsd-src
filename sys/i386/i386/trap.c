@@ -693,12 +693,12 @@ kernel_trctrap:
 	ksi.ksi_addr = (void *)addr;
 	ksi.ksi_trapno = type;
 	if (uprintf_signal) {
-		uprintf("pid %d comm %s: signal %d err %x code %d type %d "
-		    "addr 0x%x ss 0x%04x esp 0x%08x cs 0x%04x eip 0x%08x "
+		uprintf("pid %d comm %s: signal %d err %#x code %d type %d "
+		    "addr %#x ss %#04x esp %#08x cs %#04x eip %#08x eax %#08x"
 		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
 		    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, type,
 		    addr, frame->tf_ss, frame->tf_esp, frame->tf_cs,
-		    frame->tf_eip,
+		    frame->tf_eip, frame->tf_eax,
 		    fubyte((void *)(frame->tf_eip + 0)),
 		    fubyte((void *)(frame->tf_eip + 1)),
 		    fubyte((void *)(frame->tf_eip + 2)),
