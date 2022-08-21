@@ -160,6 +160,7 @@ dg [label="David Greenman\ndg@FreeBSD.org\n1993/06/14"]
 dim [label="Dimitry Andric\ndim@FreeBSD.org\n2010/08/30"]
 donner [label="Lutz Donnerhacke\ndonner@FreeBSD.org\n2021/01/14"]
 dougm [label="Doug Moore\ndougm@FreeBSD.org\n2019/04/30"]
+dsl [label="Dmitry Salychev\ndsl@FreeBSD.org\n2022/07/02"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2012/04/10"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2004/11/29"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
@@ -464,6 +465,7 @@ brooks -> arichardson
 bz -> anchie
 bz -> jamie
 bz -> syrinx
+bz -> dsl
 
 cognet -> br
 cognet -> jceel
