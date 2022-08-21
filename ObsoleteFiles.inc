@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220820: remove knlist_init_rw_reader()
+OLD_FILES+=usr/share/man/man9/knlist_init_rw_reader.9.gz
+
 # 20220813: minigzip(1) removed in favor of gzip(1)
 OLD_FILES+=usr/bin/minigzip
 OLD_FILES+=usr/share/man/man1/minigzip.1.gz
