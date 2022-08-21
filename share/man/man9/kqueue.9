@@ -24,14 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2021
+.Dd August 20, 2022
 .Dt KQUEUE 9
 .Os
 .Sh NAME
 .Nm kqueue_add_filteropts , kqueue_del_filteropts ,
 .Nm kqfd_register ,
 .Nm knote_fdclose ,
-.Nm knlist_init , knlist_init_mtx , knlist_init_rw_reader ,
+.Nm knlist_init , knlist_init_mtx ,
 .Nm knlist_add , knlist_remove , knlist_remove_inevent , knlist_empty ,
 .Nm knlist_clear , knlist_delete , knlist_destroy ,
 .Nm KNOTE_LOCKED , KNOTE_UNLOCKED
@@ -56,8 +56,6 @@
 .Fc
 .Ft void
 .Fn knlist_init_mtx "struct knlist *knl" "struct mtx *lock"
-.Ft void
-.Fn knlist_init_rw_reader "struct knlist *knl" "struct rwlock *lock"
 .Ft void
 .Fn knlist_add "struct knlist *knl" "struct knote *kn" "int islocked"
 .Ft void
@@ -260,10 +258,9 @@ is not required, but is commonly used.
 If used, the
 .Vt knlist
 must be initialized with either
-.Fn knlist_init ,
-.Fn knlist_init_mtx
+.Fn knlist_init
 or
-.Fn knlist_init_rw_reader .
+.Fn knlist_init_mtx .
 The
 .Vt knlist
 structure may be embedded into the object structure.
@@ -306,19 +303,6 @@ is a
 style
 .Xr mutex 9
 lock.
-.Pp
-The function
-.Fn knlist_init_rw_reader
-may be used to initialize a
-.Vt knlist
-when
-.Fa lock
-is a
-.Xr rwlock 9
-read lock.
-Lock is acquired via
-.Fn rw_rlock
-function.
 .Pp
 The function
 .Fn knlist_empty
