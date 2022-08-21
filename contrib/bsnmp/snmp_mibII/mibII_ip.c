@@ -44,6 +44,7 @@ static struct icmpstat icmpstat;
 
 static int	ip_forwarding;
 static int	ip_defttl;
+static u_int	ip_fragttl;
 static uint64_t ip_tick;
 
 static uint64_t ipstat_tick;
@@ -76,6 +77,17 @@ fetch_ipstat(void)
 	}
 	if (len != sizeof(icmpstat)) {
 		syslog(LOG_ERR, "net.inet.icmp.stats: wrong size");
+		return (-1);
+	}
+
+	len = sizeof(ip_fragttl);
+	if (sysctlbyname("net.inet.ip.fragttl", &ip_fragttl, &len,
+	    NULL, 0) == -1) {
+		syslog(LOG_ERR, "net.inet.ip.fragttl: %m");
+		return (-1);
+	}
+	if (len != sizeof(ip_fragttl)) {
+		syslog(LOG_ERR, "net.inet.ip.fragttl: wrong size");
 		return (-1);
 	}
 
@@ -309,7 +321,7 @@ op_ipstat(struct snmp_context *ctx __unused, struct snmp_value *value,
 		break;
 
 	  case LEAF_ipReasmTimeout:
-		value->v.integer = IPFRAGTTL;
+		value->v.integer = ip_fragttl;
 		break;
 
 	  case LEAF_ipReasmReqds:
