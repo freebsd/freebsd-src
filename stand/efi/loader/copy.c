@@ -200,7 +200,7 @@ out:
 static u_long staging_slop = EFI_STAGING_SLOP;
 
 EFI_PHYSICAL_ADDRESS	staging, staging_end, staging_base;
-int			stage_offset_set = 0;
+bool			stage_offset_set = false;
 ssize_t			stage_offset;
 
 static void
@@ -208,7 +208,7 @@ efi_copy_free(void)
 {
 	BS->FreePages(staging_base, (staging_end - staging_base) /
 	    EFI_PAGE_SIZE);
-	stage_offset_set = 0;
+	stage_offset_set = false;
 	stage_offset = 0;
 }
 
@@ -478,7 +478,7 @@ efi_copyin(const void *src, vm_offset_t dest, const size_t len)
 
 	if (!stage_offset_set) {
 		stage_offset = (vm_offset_t)staging - dest;
-		stage_offset_set = 1;
+		stage_offset_set = true;
 	}
 
 	/* XXX: Callers do not check for failure. */
@@ -509,7 +509,7 @@ efi_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 
 	if (!stage_offset_set) {
 		stage_offset = (vm_offset_t)staging - dest;
-		stage_offset_set = 1;
+		stage_offset_set = true;
 	}
 
 	if (!efi_check_space(dest + stage_offset + len)) {
