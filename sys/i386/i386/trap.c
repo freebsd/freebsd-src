@@ -283,8 +283,10 @@ trap(struct trapframe *frame)
 	 */
 	if ((frame->tf_eflags & PSL_I) == 0 && TRAPF_USERMODE(frame) &&
 	    (curpcb->pcb_flags & PCB_VM86CALL) == 0)
-		uprintf("pid %ld (%s): trap %d with interrupts disabled\n",
-		    (long)curproc->p_pid, curthread->td_name, type);
+		uprintf("pid %ld (%s): usermode trap %d (%s) with "
+		    "interrupts disabled\n",
+		    (long)curproc->p_pid, curthread->td_name, type,
+		    trap_data[type].msg);
 
 	/*
 	 * Conditionally reenable interrupts.  If we hold a spin lock,
