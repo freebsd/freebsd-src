@@ -1083,11 +1083,12 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	    td, td_get_sched(td), p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
+
 	/*
-	* Processes normally resume in mi_switch() after being
-	* cpu_switch()'ed to, but when children start up they arrive here
-	* instead, so we must do much the same things as mi_switch() would.
-	*/
+	 * Processes normally resume in mi_switch() after being
+	 * cpu_switch()'ed to, but when children start up they arrive here
+	 * instead, so we must do much the same things as mi_switch() would.
+	 */
 	if ((dtd = PCPU_GET(deadthread))) {
 		PCPU_SET(deadthread, NULL);
 		thread_stash(dtd);
