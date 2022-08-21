@@ -277,8 +277,10 @@ trap(struct trapframe *frame)
 		 */
 		if (TRAPF_USERMODE(frame)) {
 			uprintf(
-			    "pid %ld (%s): trap %d with interrupts disabled\n",
-			    (long)curproc->p_pid, curthread->td_name, type);
+			    "pid %ld (%s): trap %d (%s) "
+			    "with interrupts disabled\n",
+			    (long)curproc->p_pid, curthread->td_name, type,
+			    trap_msg[type]);
 		} else {
 			switch (type) {
 			case T_NMI:
