@@ -463,7 +463,7 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 				 */
 				rpctls_srv_disconnect(xprt->xp_sslsec,
 				    xprt->xp_sslusec, xprt->xp_sslrefno,
-				    &reterr);
+				    xprt->xp_sslproc, &reterr);
 			}
 			/* Must sorele() to get rid of reference. */
 			CURVNET_SET(xprt->xp_socket->so_vnet);
@@ -817,7 +817,7 @@ tryagain:
 			sx_xunlock(&xprt->xp_lock);
 			ret = rpctls_srv_handlerecord(xprt->xp_sslsec,
 			    xprt->xp_sslusec, xprt->xp_sslrefno,
-			    &reterr);
+			    xprt->xp_sslproc, &reterr);
 			sx_xlock(&xprt->xp_lock);
 			xprt->xp_dontrcv = FALSE;
 			if (ret != RPC_SUCCESS || reterr != RPCTLSERR_OK) {
