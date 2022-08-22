@@ -1849,6 +1849,10 @@ identify_cpu_sysinit(void *dummy __unused)
 		arm64_icache_sync_range = &arm64_dic_idc_icache_sync_range;
 		if (bootverbose)
 			printf("Enabling DIC & IDC ICache sync\n");
+	} else if (idc) {
+		arm64_icache_sync_range = &arm64_idc_aliasing_icache_sync_range;
+		if (bootverbose)
+			printf("Enabling IDC ICache sync\n");
 	}
 
 	if ((elf_hwcap & HWCAP_ATOMICS) != 0) {
