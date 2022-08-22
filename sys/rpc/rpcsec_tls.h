@@ -37,6 +37,10 @@
 #define	RPCTLS_SYSC_SRVSETPATH	4
 #define	RPCTLS_SYSC_SRVSOCKET	5
 #define	RPCTLS_SYSC_SRVSHUTDOWN	6
+#define	RPCTLS_SYSC_SRVSTARTUP	7
+
+/* Max nprocs for SRV startup */
+#define	RPCTLS_SRV_MAXNPROCS	16
 
 /* System call used by the rpctlscd, rpctlssd daemons. */
 int	rpctls_syscall(int, const char *);
@@ -63,11 +67,11 @@ enum clnt_stat	rpctls_connect(CLIENT *newclient, char *certname,
 enum clnt_stat	rpctls_cl_handlerecord(uint64_t sec, uint64_t usec,
 		    uint64_t ssl, uint32_t *reterr);
 enum clnt_stat	rpctls_srv_handlerecord(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, uint32_t *reterr);
+		    uint64_t ssl, int procpos, uint32_t *reterr);
 enum clnt_stat	rpctls_cl_disconnect(uint64_t sec, uint64_t usec,
 		    uint64_t ssl, uint32_t *reterr);
 enum clnt_stat	rpctls_srv_disconnect(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, uint32_t *reterr);
+		    uint64_t ssl, int procpos, uint32_t *reterr);
 
 /* Initialization function for rpcsec_tls. */
 int		rpctls_init(void);
