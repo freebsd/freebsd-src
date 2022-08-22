@@ -288,7 +288,7 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 
 	sc = device_get_softc(dev);
 
-	KASSERT((start + count) < sc->nirqs,
+	KASSERT((start + count) <= sc->nirqs,
 	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
 	    start, count, sc->nirqs));
 	for (i = 0; i < count; i++) {
