@@ -231,26 +231,23 @@ irettraps:
 	jne	2f
 	/* -8 because exception did not switch ring */
 	movl	$(2 * TF_SZ - TF_EIP - 8), %ecx
-	jmp	6f
+	jmp	5f
 2:	leal	(doreti_popl_ds - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
 	jne	3f
 	movl	$(2 * TF_SZ - TF_DS - 8), %ecx
-	jmp	6f
+	jmp	5f
 3:	leal	(doreti_popl_es - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
 	jne	4f
 	movl	$(2 * TF_SZ - TF_ES - 8), %ecx
-	jmp	6f
+	jmp	5f
 4:	leal	(doreti_popl_fs - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
-	jne	5f
+	jne	calltrap
 	movl	$(2 * TF_SZ - TF_FS - 8), %ecx
-	jmp	6f
-	/* kernel mode, normal */
-5:	jmp	calltrap
-6:	cmpl	$PMAP_TRM_MIN_ADDRESS, %esp	/* trampoline stack ? */
-	jb	5b	/* if not, no need to change stacks */
+5:	cmpl	$PMAP_TRM_MIN_ADDRESS, %esp	/* trampoline stack ? */
+	jb	calltrap	  /* if not, no need to change stacks */
 	movl	(tramp_idleptd - 1b)(%ebx), %eax
 	movl	%eax, %cr3
 	movl	PCPU(KESP0), %edx
@@ -259,6 +256,7 @@ irettraps:
 	movl	%esp, %esi
 	rep; movsb
 	movl	%edx, %esp
+	/* kernel mode, normal */
 	jmp	calltrap
 
 /*
