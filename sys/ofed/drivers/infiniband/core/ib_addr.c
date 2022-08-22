@@ -153,7 +153,7 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 		return (0);
 	} else if (dev->if_type == IFT_INFINIBAND)
 		dev_addr->dev_type = ARPHRD_INFINIBAND;
-	else if (dev->if_type == IFT_ETHER)
+	else if (dev->if_type == IFT_ETHER || dev->if_type == IFT_L2VLAN)
 		dev_addr->dev_type = ARPHRD_ETHER;
 	else
 		dev_addr->dev_type = 0;
