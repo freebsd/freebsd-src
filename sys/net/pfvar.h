@@ -1067,7 +1067,7 @@ struct pfsync_state {
 
 #ifdef _KERNEL
 /* pfsync */
-typedef int		pfsync_state_import_t(struct pfsync_state *, u_int8_t);
+typedef int		pfsync_state_import_t(struct pfsync_state *, int);
 typedef	void		pfsync_insert_state_t(struct pf_kstate *);
 typedef	void		pfsync_update_state_t(struct pf_kstate *);
 typedef	void		pfsync_delete_state_t(struct pf_kstate *);
