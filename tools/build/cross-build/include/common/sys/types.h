@@ -69,7 +69,15 @@ struct cap_rights;
 
 typedef struct cap_rights cap_rights_t;
 
+/*
+ * make.py uses these headers during the bmake bootstrap on Linux only, at
+ * which point sys/bitcount.h won't yet exist, so don't include it there.
+ *
+ * TODO: Untangle this mess.
+ */
+#if __has_include(<sys/bitcount.h>)
 /* Needed for bitstring */
 #include <sys/bitcount.h>
+#endif
 
 #endif
