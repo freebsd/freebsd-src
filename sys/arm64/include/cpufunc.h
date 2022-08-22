@@ -241,6 +241,7 @@ extern void (*arm64_icache_sync_range)(vm_offset_t, vm_size_t);
 void arm64_nullop(void);
 void arm64_tlb_flushID(void);
 void arm64_dic_idc_icache_sync_range(vm_offset_t, vm_size_t);
+void arm64_idc_aliasing_icache_sync_range(vm_offset_t, vm_size_t);
 void arm64_aliasing_icache_sync_range(vm_offset_t, vm_size_t);
 int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t);
 void arm64_dcache_wbinv_range(vm_offset_t, vm_size_t);
