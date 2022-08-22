@@ -229,22 +229,23 @@ irettraps:
 	leal	(doreti_iret - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
 	jne	2f
-	movl	$(2 * TF_SZ - TF_EIP), %ecx
+	/* -8 because exception did not switch ring */
+	movl	$(2 * TF_SZ - TF_EIP - 8), %ecx
 	jmp	6f
 2:	leal	(doreti_popl_ds - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
 	jne	3f
-	movl	$(2 * TF_SZ - TF_DS), %ecx
+	movl	$(2 * TF_SZ - TF_DS - 8), %ecx
 	jmp	6f
 3:	leal	(doreti_popl_es - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
 	jne	4f
-	movl	$(2 * TF_SZ - TF_ES), %ecx
+	movl	$(2 * TF_SZ - TF_ES - 8), %ecx
 	jmp	6f
 4:	leal	(doreti_popl_fs - 1b)(%ebx), %edx
 	cmpl	%edx, TF_EIP(%esp)
 	jne	5f
-	movl	$(2 * TF_SZ - TF_FS), %ecx
+	movl	$(2 * TF_SZ - TF_FS - 8), %ecx
 	jmp	6f
 	/* kernel mode, normal */
 5:	jmp	calltrap
