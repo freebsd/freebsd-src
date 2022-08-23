@@ -1786,9 +1786,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 
 		ND6_WLOCK();
 		LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, next) {
-			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
-				continue; /* XXX */
-			nd6_prefix_unlink(pr, &prl);
+			if (pr->ndpr_raf_ra_derived)
+				nd6_prefix_unlink(pr, &prl);
 		}
 		ND6_WUNLOCK();
 
@@ -2662,6 +2661,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 
 	ND6_RLOCK();
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
+		if (!pr->ndpr_raf_ra_derived)
+			continue;
 		p.prefix = pr->ndpr_prefix;
 		if (sa6_recoverscope(&p.prefix)) {
 			log(LOG_ERR, "scope error in prefix list (%s)\n",
