@@ -270,10 +270,8 @@ static driver_t pmu_dmc620_acpi_driver = {
 	pmu_dmc620_acpi_methods,
 	sizeof(struct pmu_dmc620_softc),
 };
-static devclass_t pmu_dmc620_acpi_devclass;
 
-DRIVER_MODULE(pmu_dmc620, acpi, pmu_dmc620_acpi_driver,
-    pmu_dmc620_acpi_devclass, 0, 0);
+DRIVER_MODULE(pmu_dmc620, acpi, pmu_dmc620_acpi_driver, 0, 0);
 /* Reverse dependency. hwpmc needs DMC-620 on ARM64. */
 MODULE_DEPEND(pmc, pmu_dmc620, 1, 1, 1);
 MODULE_VERSION(pmu_dmc620, 1);
