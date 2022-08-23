@@ -828,7 +828,6 @@ static driver_t cmn600_acpi_driver = {
 	cmn600_acpi_methods,
 	sizeof(struct cmn600_softc),
 };
-static devclass_t cmn600_acpi_devclass;
 
-DRIVER_MODULE(cmn600, acpi, cmn600_acpi_driver, cmn600_acpi_devclass, 0, 0);
+DRIVER_MODULE(cmn600, acpi, cmn600_acpi_driver, 0, 0);
 MODULE_VERSION(cmn600, 1);
