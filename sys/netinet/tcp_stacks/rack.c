@@ -385,6 +385,9 @@ counter_u64_t rack_move_some;
 
 counter_u64_t rack_input_idle_reduces;
 counter_u64_t rack_collapsed_win;
+counter_u64_t rack_collapsed_win_seen;
+counter_u64_t rack_collapsed_win_rxt;
+counter_u64_t rack_collapsed_win_rxt_bytes;
 counter_u64_t rack_try_scwnd;
 counter_u64_t rack_hw_pace_init_fail;
 counter_u64_t rack_hw_pace_lost;
@@ -790,6 +793,9 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_move_some);
 		counter_u64_zero(rack_try_scwnd);
 		counter_u64_zero(rack_collapsed_win);
+		counter_u64_zero(rack_collapsed_win_rxt);
+		counter_u64_zero(rack_collapsed_win_seen);
+		counter_u64_zero(rack_collapsed_win_rxt_bytes);
 	}
 	rack_clear_counter = 0;
 	return (0);
@@ -1757,12 +1763,31 @@ rack_init_sysctls(void)
 	    OID_AUTO, "idle_reduce_oninput", CTLFLAG_RD,
 	    &rack_input_idle_reduces,
 	    "Total number of idle reductions on input");
+	rack_collapsed_win_seen = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_counters),
+	    OID_AUTO, "collapsed_win_seen", CTLFLAG_RD,
+	    &rack_collapsed_win_seen,
+	    "Total number of collapsed window events seen (where our window shrinks)");
+
 	rack_collapsed_win = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
 	    OID_AUTO, "collapsed_win", CTLFLAG_RD,
 	    &rack_collapsed_win,
-	    "Total number of collapsed windows");
+	    "Total number of collapsed window events where we mark packets");
+	rack_collapsed_win_rxt = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_counters),
+	    OID_AUTO, "collapsed_win_rxt", CTLFLAG_RD,
+	    &rack_collapsed_win_rxt,
+	    "Total number of packets that were retransmitted");
+	rack_collapsed_win_rxt_bytes = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_counters),
+	    OID_AUTO, "collapsed_win_bytes", CTLFLAG_RD,
+	    &rack_collapsed_win_rxt_bytes,
+	    "Total number of bytes that were retransmitted");
 	rack_try_scwnd = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -2772,6 +2797,9 @@ rack_counter_destroy(void)
 	counter_u64_free(rack_sack_splits);
 	counter_u64_free(rack_input_idle_reduces);
 	counter_u64_free(rack_collapsed_win);
+	counter_u64_free(rack_collapsed_win_rxt);
+	counter_u64_free(rack_collapsed_win_rxt_bytes);
+	counter_u64_free(rack_collapsed_win_seen);
 	counter_u64_free(rack_try_scwnd);
 	counter_u64_free(rack_persists_sends);
 	counter_u64_free(rack_persists_acks);
@@ -5295,7 +5323,9 @@ activate_rxt:
 		goto activate_rxt;
 	}
 	/* Convert from ms to usecs */
-	if ((rsm->r_flags & RACK_SACK_PASSED) || (rsm->r_dupack >= DUP_ACK_THRESHOLD)) {
+	if ((rsm->r_flags & RACK_SACK_PASSED) ||
+	    (rsm->r_flags & RACK_RWND_COLLAPSED) ||
+	    (rsm->r_dupack >= DUP_ACK_THRESHOLD)) {
 		if ((tp->t_flags & TF_SENTFIN) &&
 		    ((tp->snd_max - tp->snd_una) == 1) &&
 		    (rsm->r_flags & RACK_HAS_FIN)) {
@@ -5757,7 +5787,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * real pacing. And the tlp or rxt is smaller
 		 * than the pacing calculation. Lets not
 		 * pace that long since we know the calculation
-		 * so far is not accurate. 
+		 * so far is not accurate.
 		 */
 		slot = hpts_timeout;
 	}
@@ -6501,7 +6531,7 @@ rack_remxt_tmr(struct tcpcb *tp)
 		trsm = rsm;
 		if (rsm->r_flags & RACK_ACKED)
 			rsm->r_flags |= RACK_WAS_ACKED;
-		rsm->r_flags &= ~(RACK_ACKED | RACK_SACK_PASSED | RACK_WAS_SACKPASS);
+		rsm->r_flags &= ~(RACK_ACKED | RACK_SACK_PASSED | RACK_WAS_SACKPASS | RACK_RWND_COLLAPSED);
 		rsm->r_flags |= RACK_MUST_RXT;
 	}
 	/* Clear the count (we just un-acked them) */
@@ -8037,6 +8067,13 @@ rack_log_sack_passed(struct tcpcb *tp,
 			 * Skip ack'd segments, though we
 			 * should not see these, since tmap
 			 * should not have ack'd segments.
+			 */
+			continue;
+		}
+		if (nrsm->r_flags & RACK_RWND_COLLAPSED) {
+			/*
+			 * If the peer dropped the rwnd on
+			 * these then we don't worry about them.
 			 */
 			continue;
 		}
@@ -9797,7 +9834,7 @@ rack_strike_dupack(struct tcp_rack *rack)
 			/* Sendmap entries that are marked to
 			 * be retransmitted do not need dupack's
 			 * struck. We get these marks for a number
-			 * of reasons (rxt timeout with no sack, 
+			 * of reasons (rxt timeout with no sack,
 			 * mtu change, or rwnd collapses). When
 			 * these events occur, we know we must retransmit
 			 * them and mark the sendmap entries. Dupack counting
@@ -10308,47 +10345,83 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	return (0);
 }
 
+
 static void
-rack_collapsed_window(struct tcp_rack *rack)
+rack_log_collapse(struct tcp_rack *rack, uint32_t cnt, uint32_t split, uint32_t out, int line,
+		  int dir, uint32_t flags, struct rack_sendmap *rsm)
+{
+	if (rack->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+
+		memset(&log, 0, sizeof(log));
+		log.u_bbr.flex1 = cnt;
+		log.u_bbr.flex2 = split;
+		log.u_bbr.flex3 = out;
+		log.u_bbr.flex4 = line;
+		log.u_bbr.flex5 = rack->r_must_retran;
+		log.u_bbr.flex6 = flags;
+		log.u_bbr.flex7 = rack->rc_has_collapsed;
+		log.u_bbr.flex8 = dir;	/*
+					 * 1 is collapsed, 0 is uncollapsed,
+					 * 2 is log of a rsm being marked, 3 is a split.
+					 */
+		if (rsm == NULL)
+			log.u_bbr.rttProp = 0;
+		else
+			log.u_bbr.rttProp = (uint64_t)rsm;
+		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
+		TCP_LOG_EVENTP(rack->rc_tp, NULL,
+		    &rack->rc_inp->inp_socket->so_rcv,
+		    &rack->rc_inp->inp_socket->so_snd,
+		    TCP_RACK_LOG_COLLAPSE, 0,
+		    0, &log, false, &tv);
+	}
+}
+
+static void
+rack_collapsed_window(struct tcp_rack *rack, uint32_t out, int line)
 {
 	/*
-	 * Now we must walk the
-	 * send map and divide the
-	 * ones left stranded. These
-	 * guys can't cause us to abort
-	 * the connection and are really
-	 * "unsent". However if a buggy
-	 * client actually did keep some
-	 * of the data i.e. collapsed the win
-	 * and refused to ack and then opened
-	 * the win and acked that data. We would
-	 * get into an ack war, the simplier
-	 * method then of just pretending we
-	 * did not send those segments something
-	 * won't work.
+	 * Here all we do is mark the collapsed point and set the flag.
+	 * This may happen again and again, but there is no
+	 * sense splitting our map until we know where the
+	 * peer finally lands in the collapse.
 	 */
-	struct rack_sendmap *rsm, *nrsm, fe;
+	rack_trace_point(rack, RACK_TP_COLLAPSED_WND);
+	if ((rack->rc_has_collapsed == 0) ||
+	    (rack->r_ctl.last_collapse_point != (rack->rc_tp->snd_una + rack->rc_tp->snd_wnd)))
+		counter_u64_add(rack_collapsed_win_seen, 1);
+	rack->r_ctl.last_collapse_point = rack->rc_tp->snd_una + rack->rc_tp->snd_wnd;
+	rack->r_ctl.high_collapse_point = rack->rc_tp->snd_max;
+	rack->rc_has_collapsed = 1;
+	rack->r_collapse_point_valid = 1;
+	rack_log_collapse(rack, 0, 0, rack->r_ctl.last_collapse_point, line, 1, 0, NULL);
+}
+
+static void
+rack_un_collapse_window(struct tcp_rack *rack, int line)
+{
+	struct rack_sendmap *nrsm, *rsm, fe;
+	int cnt = 0, split = 0;
 #ifdef INVARIANTS
 	struct rack_sendmap *insret;
 #endif
-	tcp_seq max_seq;
 
-	rack_trace_point(rack, RACK_TP_COLLAPSED_WND);
-	max_seq = rack->rc_tp->snd_una + rack->rc_tp->snd_wnd;
 	memset(&fe, 0, sizeof(fe));
-	fe.r_start = max_seq;
-	/* Find the first seq past or at maxseq */
+	rack->rc_has_collapsed = 0;
+	fe.r_start = rack->r_ctl.last_collapse_point;
 	rsm = RB_FIND(rack_rb_tree_head, &rack->r_ctl.rc_mtree, &fe);
 	if (rsm == NULL) {
-		/* Nothing to do strange */
-		rack->rc_has_collapsed = 0;
+		/* Nothing to do maybe the peer ack'ed it all */
+		rack_log_collapse(rack, 0, 0, ctf_outstanding(rack->rc_tp), line, 0, 0, NULL);
 		return;
 	}
-	/*
-	 * Now do we need to split at
-	 * the collapse point?
-	 */
-	if (SEQ_GT(max_seq, rsm->r_start)) {
+	/* Now do we need to split this one? */
+	if (SEQ_GT(rack->r_ctl.last_collapse_point, rsm->r_start)) {
+		rack_log_collapse(rack, rsm->r_start, rsm->r_end,
+				  rack->r_ctl.last_collapse_point, line, 3, rsm->r_flags, rsm);
 		nrsm = rack_alloc_limit(rack, RACK_LIMIT_TYPE_SPLIT);
 		if (nrsm == NULL) {
 			/* We can't get a rsm, mark all? */
@@ -10356,7 +10429,8 @@ rack_collapsed_window(struct tcp_rack *rack)
 			goto no_split;
 		}
 		/* Clone it */
-		rack_clone_rsm(rack, nrsm, rsm, max_seq);
+		split = 1;
+		rack_clone_rsm(rack, nrsm, rsm, rack->r_ctl.last_collapse_point);
 #ifndef INVARIANTS
 		(void)RB_INSERT(rack_rb_tree_head, &rack->r_ctl.rc_mtree, nrsm);
 #else
@@ -10366,7 +10440,8 @@ rack_collapsed_window(struct tcp_rack *rack)
 			      nrsm, insret, rack, rsm);
 		}
 #endif
-		rack_log_map_chg(rack->rc_tp, rack, NULL, rsm, nrsm, MAP_SPLIT, max_seq, __LINE__);
+		rack_log_map_chg(rack->rc_tp, rack, NULL, rsm, nrsm, MAP_SPLIT,
+				 rack->r_ctl.last_collapse_point, __LINE__);
 		if (rsm->r_in_tmap) {
 			TAILQ_INSERT_AFTER(&rack->r_ctl.rc_tmap, rsm, nrsm, r_tnext);
 			nrsm->r_in_tmap = 1;
@@ -10378,38 +10453,15 @@ rack_collapsed_window(struct tcp_rack *rack)
 		rsm = nrsm;
 	}
 no_split:
-	counter_u64_add(rack_collapsed_win, 1);
 	RB_FOREACH_FROM(nrsm, rack_rb_tree_head, rsm) {
 		nrsm->r_flags |= RACK_RWND_COLLAPSED;
+		rack_log_collapse(rack, nrsm->r_start, nrsm->r_end, 0, line, 4, nrsm->r_flags, nrsm);
+		cnt++;
 	}
-	rack->rc_has_collapsed = 1;
-}
-
-static void
-rack_un_collapse_window(struct tcp_rack *rack)
-{
-	struct rack_sendmap *rsm;
-	int cnt = 0;;
-
-	rack->r_ctl.rc_out_at_rto = 0;
-	rack->r_ctl.rc_snd_max_at_rto = rack->rc_tp->snd_una;
-	RB_FOREACH_REVERSE(rsm, rack_rb_tree_head, &rack->r_ctl.rc_mtree) {
-		if (rsm->r_flags & RACK_RWND_COLLAPSED) {
-			rsm->r_flags &= ~RACK_RWND_COLLAPSED;
-			rsm->r_flags |= RACK_MUST_RXT;
-			if (SEQ_GEQ(rsm->r_end, rack->r_ctl.rc_snd_max_at_rto)) {
-				rack->r_ctl.rc_snd_max_at_rto = rsm->r_end;
-				rack->r_ctl.rc_out_at_rto += (rsm->r_end - rsm->r_start);
-			}
-			cnt++;
-		}
-		else
-			break;
-	}
-	rack->rc_has_collapsed = 0;
 	if (cnt) {
-		rack->r_must_retran = 1;
+		counter_u64_add(rack_collapsed_win, 1);
 	}
+	rack_log_collapse(rack, cnt, split, ctf_outstanding(rack->rc_tp), line, 0, 0, NULL);
 }
 
 static void
@@ -10518,9 +10570,12 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	}
 	if (tp->snd_wnd < ctf_outstanding(tp))
 		/* The peer collapsed the window */
-		rack_collapsed_window(rack);
+		rack_collapsed_window(rack, ctf_outstanding(tp), __LINE__);
 	else if (rack->rc_has_collapsed)
-		rack_un_collapse_window(rack);
+		rack_un_collapse_window(rack, __LINE__);
+	if ((rack->r_collapse_point_valid) &&
+	    (SEQ_GT(th->th_ack, rack->r_ctl.high_collapse_point)))
+		rack->r_collapse_point_valid = 0;
 	/* Was persist timer active and now we have window space? */
 	if ((rack->rc_in_persist != 0) &&
 	    (tp->snd_wnd >= min((rack->r_ctl.rc_high_rwnd/2),
@@ -11076,10 +11131,12 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if (tp->snd_wnd < ctf_outstanding(tp)) {
 		/* The peer collapsed the window */
-		rack_collapsed_window(rack);
+		rack_collapsed_window(rack, ctf_outstanding(tp), __LINE__);
 	} else if (rack->rc_has_collapsed)
-		rack_un_collapse_window(rack);
-
+		rack_un_collapse_window(rack, __LINE__);
+	if ((rack->r_collapse_point_valid) &&
+	    (SEQ_GT(tp->snd_una, rack->r_ctl.high_collapse_point)))
+		rack->r_collapse_point_valid = 0;
 	/*
 	 * Pull snd_wl2 up to prevent seq wrap relative to th_ack.
 	 */
@@ -13066,13 +13123,6 @@ rack_do_win_updates(struct tcpcb *tp, struct tcp_rack *rack, uint32_t tiwin, uin
 		/* Not a valid win update */
 		return;
 	}
-	if (tp->snd_wnd > tp->max_sndwnd)
-		tp->max_sndwnd = tp->snd_wnd;
-	if (tp->snd_wnd < (tp->snd_max - high_seq)) {
-		/* The peer collapsed the window */
-		rack_collapsed_window(rack);
-	} else if (rack->rc_has_collapsed)
-		rack_un_collapse_window(rack);
 	/* Do we exit persists? */
 	if ((rack->rc_in_persist != 0) &&
 	    (tp->snd_wnd >= min((rack->r_ctl.rc_high_rwnd/2),
@@ -13609,6 +13659,15 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 #ifdef TCP_ACCOUNTING
 	ts_val = get_cyclecount();
 #endif
+	/* Tend to any collapsed window */
+	if (SEQ_GT(tp->snd_max, high_seq) && (tp->snd_wnd < (tp->snd_max - high_seq))) {
+		/* The peer collapsed the window */
+		rack_collapsed_window(rack, (tp->snd_max - high_seq), __LINE__);
+	} else if (rack->rc_has_collapsed)
+		rack_un_collapse_window(rack, __LINE__);
+	if ((rack->r_collapse_point_valid) &&
+	    (SEQ_GT(high_seq, rack->r_ctl.high_collapse_point)))
+		rack->r_collapse_point_valid = 0;
 	acked_amount = acked = (high_seq - tp->snd_una);
 	if (acked) {
 		/*
@@ -15930,6 +15989,11 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
 		union tcp_log_stackspecific log;
 
+		if (rsm->r_flags & RACK_RWND_COLLAPSED) {
+			rack_log_collapse(rack, rsm->r_start, rsm->r_end, 0, __LINE__, 5, rsm->r_flags, rsm);
+			counter_u64_add(rack_collapsed_win_rxt, 1);
+			counter_u64_add(rack_collapsed_win_rxt_bytes, (rsm->r_end - rsm->r_start));
+		}
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 		log.u_bbr.inhpts = tcp_in_hpts(rack->rc_inp);
 		if (rack->rack_no_prr)
@@ -16538,6 +16602,58 @@ failed:
 	return (-1);
 }
 
+static struct rack_sendmap *
+rack_check_collapsed(struct tcp_rack *rack, uint32_t cts)
+{
+	struct rack_sendmap *rsm = NULL;
+	struct rack_sendmap fe;
+	int thresh;
+
+restart:
+	fe.r_start = rack->r_ctl.last_collapse_point;
+	rsm = RB_FIND(rack_rb_tree_head, &rack->r_ctl.rc_mtree, &fe);
+	if ((rsm == NULL) || ((rsm->r_flags & RACK_RWND_COLLAPSED) == 0)) {
+		/* Nothing, strange turn off validity  */
+		rack->r_collapse_point_valid = 0;
+		return (NULL);
+	}
+	/* Can we send it yet? */
+	if (rsm->r_end > (rack->rc_tp->snd_una + rack->rc_tp->snd_wnd)) {
+		/*
+		 * Receiver window has not grown enough for
+		 * the segment to be put on the wire.
+		 */
+		return (NULL);
+	}
+	if (rsm->r_flags & RACK_ACKED) {
+		/*
+		 * It has been sacked, lets move to the
+		 * next one if possible.
+		 */
+		rack->r_ctl.last_collapse_point = rsm->r_end;
+		/* Are we done? */
+		if (SEQ_GEQ(rack->r_ctl.last_collapse_point,
+			    rack->r_ctl.high_collapse_point)) {
+			rack->r_collapse_point_valid = 0;
+			return (NULL);
+		}
+		goto restart;
+	}
+	/* Now has it been long enough ? */
+	thresh = rack_calc_thresh_rack(rack, rack_grab_rtt(rack->rc_tp, rack), cts);
+	if ((cts - ((uint32_t)rsm->r_tim_lastsent[(rsm->r_rtr_cnt-1)])) > thresh) {
+		rack_log_collapse(rack, rsm->r_start,
+				  (cts - ((uint32_t)rsm->r_tim_lastsent[(rsm->r_rtr_cnt-1)])),
+				  thresh, __LINE__, 6, rsm->r_flags, rsm);
+		return (rsm);
+	}
+	/* Not enough time */
+	rack_log_collapse(rack, rsm->r_start,
+			  (cts - ((uint32_t)rsm->r_tim_lastsent[(rsm->r_rtr_cnt-1)])),
+			  thresh, __LINE__, 7, rsm->r_flags, rsm);
+	return (NULL);
+}
+
 static int
 rack_output(struct tcpcb *tp)
 {
@@ -16598,7 +16714,6 @@ rack_output(struct tcpcb *tp)
 	struct ip6_hdr *ip6 = NULL;
 	int32_t isipv6;
 #endif
-	uint8_t filled_all = 0;
 	bool hw_tls = false;
 
 	/* setup and take the cache hits here */
@@ -16863,6 +16978,29 @@ again:
 		sb_offset = rsm->r_start - tp->snd_una;
 		if (len >= segsiz)
 			len = segsiz;
+	} else if (rack->r_collapse_point_valid &&
+		   ((rsm = rack_check_collapsed(rack, cts)) != NULL)) {
+		/*
+		 * If an RSM is returned then enough time has passed
+		 * for us to retransmit it. Move up the collapse point,
+		 * since this rsm has its chance to retransmit now.
+		 */
+		rack_trace_point(rack, RACK_TP_COLLAPSED_RXT);
+		rack->r_ctl.last_collapse_point = rsm->r_end;
+		/* Are we done? */
+		if (SEQ_GEQ(rack->r_ctl.last_collapse_point,
+			    rack->r_ctl.high_collapse_point))
+			rack->r_collapse_point_valid = 0;
+		sack_rxmit = 1;
+		/* We are not doing a TLP */
+		doing_tlp = 0;
+		len = rsm->r_end - rsm->r_start;
+		sb_offset = rsm->r_start - tp->snd_una;
+		sendalot = 0;
+		if ((rack->full_size_rxt == 0) &&
+		    (rack->shape_rxt_to_pacing_min == 0) &&
+		    (len >= segsiz))
+			len = segsiz;
 	} else if ((rsm = tcp_rack_output(tp, rack, cts)) != NULL) {
 		/* We have a retransmit that takes precedence */
 		if ((!IN_FASTRECOVERY(tp->t_flags)) &&
@@ -16921,53 +17059,72 @@ again:
 	}
 	if (rack->r_must_retran &&
 	    (doing_tlp == 0) &&
+	    (SEQ_GT(tp->snd_max, tp->snd_una)) &&
 	    (rsm == NULL)) {
 		/*
-		 * Non-Sack and we had a RTO or Sack/non-Sack and a
-		 * MTU change, we need to retransmit until we reach
-		 * the former snd_max (rack->r_ctl.rc_snd_max_at_rto).
+		 * There are two different ways that we
+		 * can get into this block:
+		 * a) This is a non-sack connection, we had a time-out
+		 *    and thus r_must_retran was set and everything
+		 *    left outstanding as been marked for retransmit.
+		 * b) The MTU of the path shrank, so that everything
+		 *    was marked to be retransmitted with the smaller
+		 *    mtu and r_must_retran was set.
+		 *
+		 * This means that we expect the sendmap (outstanding)
+		 * to all be marked must. We can use the tmap to
+		 * look at them.
+		 *
 		 */
-		if (SEQ_GT(tp->snd_max, tp->snd_una)) {
-			int sendwin, flight;
+		int sendwin, flight;
 
-			sendwin = min(tp->snd_wnd, tp->snd_cwnd);
-			flight = ctf_flight_size(tp, rack->r_ctl.rc_out_at_rto);
-			if (flight >= sendwin) {
-				so = inp->inp_socket;
-				sb = &so->so_snd;
-				goto just_return_nolock;
-			}
-			rsm = TAILQ_FIRST(&rack->r_ctl.rc_tmap);
-			if (rsm == NULL) {
-				/* TSNH */
-				rack->r_must_retran = 0;
-				rack->r_ctl.rc_out_at_rto = 0;
-				so = inp->inp_socket;
-				sb = &so->so_snd;
-				goto just_return_nolock;
-			}
-			if ((rsm->r_flags & RACK_MUST_RXT) == 0) {
-				/* It does not have the flag, we are done */
-				rack->r_must_retran = 0;
-				rack->r_ctl.rc_out_at_rto = 0;
-			} else {
-				sack_rxmit = 1;
-				len = rsm->r_end - rsm->r_start;
-				sendalot = 0;
-				sb_offset = rsm->r_start - tp->snd_una;
-				if (len >= segsiz)
-					len = segsiz;
-				/*
-				 * Delay removing the flag RACK_MUST_RXT so
-				 * that the fastpath for retransmit will
-				 * work with this rsm.
-				 */
-
-			}
-		} else {
-			/* We must be done if there is nothing outstanding */
+		sendwin = min(tp->snd_wnd, tp->snd_cwnd);
+		flight = ctf_flight_size(tp, rack->r_ctl.rc_out_at_rto);
+		if (flight >= sendwin) {
+			/*
+			 * We can't send yet.
+			 */
+			so = inp->inp_socket;
+			sb = &so->so_snd;
+			goto just_return_nolock;
+		}
+		/*
+		 * This is the case a/b mentioned above. All
+		 * outstanding/not-acked should be marked.
+		 * We can use the tmap to find them.
+		 */
+		rsm = TAILQ_FIRST(&rack->r_ctl.rc_tmap);
+		if (rsm == NULL) {
+			/* TSNH */
 			rack->r_must_retran = 0;
 			rack->r_ctl.rc_out_at_rto = 0;
+			so = inp->inp_socket;
+			sb = &so->so_snd;
+			goto just_return_nolock;
+		}
+		if ((rsm->r_flags & RACK_MUST_RXT) == 0) {
+			/*
+			 * The first one does not have the flag, did we collapse
+			 * further up in our list?
+			 */
+			rack->r_must_retran = 0;
+			rack->r_ctl.rc_out_at_rto = 0;
+			rsm = NULL;
+			sack_rxmit = 0;
+		} else {
+			sack_rxmit = 1;
+			len = rsm->r_end - rsm->r_start;
+			sb_offset = rsm->r_start - tp->snd_una;
+			sendalot = 0;
+			if ((rack->full_size_rxt == 0) &&
+			    (rack->shape_rxt_to_pacing_min == 0) &&
+			    (len >= segsiz))
+				len = segsiz;
+			/*
+			 * Delay removing the flag RACK_MUST_RXT so
+			 * that the fastpath for retransmit will
+			 * work with this rsm.
+			 */
 		}
 	}
 	/*
@@ -18177,7 +18334,7 @@ send:
 				if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, msb,
 				((rsm == NULL) ? hw_tls : 0)
 #ifdef NETFLIX_COPY_ARGS
-				, &filled_all
+				, &s_mb, &s_moff
 #endif
 				);
 			if (len <= (tp->t_maxseg - optlen)) {
@@ -18548,15 +18705,17 @@ send:
 		log.u_bbr.flex2 = rack->r_ctl.rc_pace_min_segs;
 		log.u_bbr.flex3 = rack->r_ctl.rc_pace_max_segs;
 		log.u_bbr.flex4 = orig_len;
-		if (filled_all)
-			log.u_bbr.flex5 = 0x80000000;
-		else
-			log.u_bbr.flex5 = 0;
 		/* Save off the early/late values */
 		log.u_bbr.flex6 = rack->r_ctl.rc_agg_early;
 		log.u_bbr.applimited = rack->r_ctl.rc_agg_delayed;
 		log.u_bbr.bw_inuse = rack_get_bw(rack);
-		if (rsm || sack_rxmit) {
+		log.u_bbr.flex8 = 0;
+		if (rsm) {
+			if (rsm->r_flags & RACK_RWND_COLLAPSED) {
+				rack_log_collapse(rack, rsm->r_start, rsm->r_end, 0, __LINE__, 5, rsm->r_flags, rsm);
+				counter_u64_add(rack_collapsed_win_rxt, 1);
+				counter_u64_add(rack_collapsed_win_rxt_bytes, (rsm->r_end - rsm->r_start));
+			}
 			if (doing_tlp)
 				log.u_bbr.flex8 = 2;
 			else

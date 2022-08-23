@@ -236,7 +236,9 @@ enum tcp_log_events {
 	TCP_LOG_FSB,		/* FSB information 63 */
 	RACK_DSACK_HANDLING,	/* Handling of DSACK in rack for reordering window 64 */
 	TCP_HYSTART,		/* TCP Hystart logging 65 */
-	TCP_LOG_END		/* End (keep at end)                66 */
+	TCP_CHG_QUERY,		/* Change query during fnc_init() 66 */
+	TCP_RACK_LOG_COLLAPSE,	/* Window collapse by peer 67 */
+	TCP_LOG_END		/* End (keep at end)                68 */
 };
 
 enum tcp_log_states {
