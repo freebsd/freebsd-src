@@ -1072,6 +1072,8 @@
         ..
         sort
         ..
+        split
+        ..
         stat
         ..
         tail
