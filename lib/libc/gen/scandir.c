@@ -42,8 +42,10 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <dirent.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "un-namespace.h"
 
 #ifdef	I_AM_SCANDIR_B
@@ -159,6 +161,25 @@ scandir(const char *dirname, struct dirent ***namelist,
 }
 
 #ifndef I_AM_SCANDIR_B
+int
+scandirat(int dirfd, const char *dirname, struct dirent ***namelist,
+    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
+    const struct dirent **))
+{
+	DIR *dirp;
+	int fd;
+
+	fd = _openat(dirfd, dirname, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (fd == -1)
+		return (-1);
+	dirp = fdopendir(fd);
+	if (dirp == NULL) {
+		_close(fd);
+		return (-1);
+	}
+	return (scandir_dirp(dirp, namelist, select, dcomp));
+}
+
 /*
  * Alphabetic order comparison routine for those who want it.
  * POSIX 2008 requires that alphasort() uses strcoll().
