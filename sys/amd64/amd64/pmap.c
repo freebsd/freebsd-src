@@ -5085,7 +5085,7 @@ pv_to_chunk(pv_entry_t pv)
 
 #define	PC_FREE0	0xfffffffffffffffful
 #define	PC_FREE1	0xfffffffffffffffful
-#define	PC_FREE2	0x000000fffffffffful
+#define	PC_FREE2	((1ul << (_NPCPV % 64)) - 1)
 
 static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
