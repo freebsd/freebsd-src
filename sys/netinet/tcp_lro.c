@@ -91,7 +91,7 @@ static int	tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m,
 #ifdef TCPHPTS
 static bool	do_bpf_strip_and_compress(struct inpcb *, struct lro_ctrl *,
 		struct lro_entry *, struct mbuf **, struct mbuf **, struct mbuf **,
-		bool *, bool, bool, struct ifnet *);
+ 		bool *, bool, bool, struct ifnet *, bool);
 
 #endif
 
@@ -118,6 +118,11 @@ static uint32_t tcp_lro_cpu_set_thresh = TCP_LRO_CPU_DECLARATION_THRESH;
 SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, lro_cpu_threshold,
     CTLFLAG_RDTUN | CTLFLAG_MPSAFE, &tcp_lro_cpu_set_thresh, 0,
     "Number of interrupts in a row on the same CPU that will make us declare an 'affinity' cpu?");
+
+static uint32_t tcp_less_accurate_lro_ts = 0;
+SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, lro_less_accurate,
+    CTLFLAG_MPSAFE, &tcp_less_accurate_lro_ts, 0,
+    "Do we trade off efficency by doing less timestamp operations for time accuracy?");
 
 SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, fullqueue, CTLFLAG_RD,
     &tcp_inp_lro_direct_queue, "Number of lro's fully queued to transport");
@@ -598,6 +603,29 @@ tcp_lro_rx_done(struct lro_ctrl *lc)
 	}
 }
 
+static void
+tcp_lro_flush_active(struct lro_ctrl *lc)
+{
+	struct lro_entry *le;
+
+	/*
+	 * Walk through the list of le entries, and
+	 * any one that does have packets flush. This
+	 * is called because we have an inbound packet
+	 * (e.g. SYN) that has to have all others flushed
+	 * in front of it. Note we have to do the remove
+	 * because tcp_lro_flush() assumes that the entry
+	 * is being freed. This is ok it will just get
+	 * reallocated again like it was new.
+	 */
+	LIST_FOREACH(le, &lc->lro_active, next) {
+		if (le->m_head != NULL) {
+			tcp_lro_active_remove(le);
+			tcp_lro_flush(lc, le);
+		}
+	}
+}
+
 void
 tcp_lro_flush_inactive(struct lro_ctrl *lc, const struct timeval *timeout)
 {
@@ -664,9 +692,9 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
 			log.u_bbr.flex2 = m->m_pkthdr.len;
 		else
 			log.u_bbr.flex2 = 0;
-		log.u_bbr.flex3 = le->m_head->m_pkthdr.lro_nsegs;
-		log.u_bbr.flex4 = le->m_head->m_pkthdr.lro_tcp_d_len;
 		if (le->m_head) {
+			log.u_bbr.flex3 = le->m_head->m_pkthdr.lro_nsegs;
+			log.u_bbr.flex4 = le->m_head->m_pkthdr.lro_tcp_d_len;
 			log.u_bbr.flex5 = le->m_head->m_pkthdr.len;
 			log.u_bbr.delRate = le->m_head->m_flags;
 			log.u_bbr.rttProp = le->m_head->m_pkthdr.rcv_tstmp;
@@ -1161,7 +1189,7 @@ tcp_queue_pkts(struct inpcb *inp, struct tcpcb *tp, struct lro_entry *le)
 
 static struct mbuf *
 tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
-    struct inpcb *inp, int32_t *new_m)
+    struct inpcb *inp, int32_t *new_m, bool can_append_old_cmp)
 {
 	struct tcpcb *tp;
 	struct mbuf *m;
@@ -1171,19 +1199,22 @@ tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
 		return (NULL);
 
 	/* Look at the last mbuf if any in queue */
-	m = tp->t_tail_pkt;
-	if (m != NULL && (m->m_flags & M_ACKCMP) != 0) {
-		if (M_TRAILINGSPACE(m) >= sizeof(struct tcp_ackent)) {
-			tcp_lro_log(tp, lc, le, NULL, 23, 0, 0, 0, 0);
-			*new_m = 0;
-			counter_u64_add(tcp_extra_mbuf, 1);
-			return (m);
-		} else {
-			/* Mark we ran out of space */
-			inp->inp_flags2 |= INP_MBUF_L_ACKS;
+ 	if (can_append_old_cmp) {
+		m = tp->t_tail_pkt;
+		if (m != NULL && (m->m_flags & M_ACKCMP) != 0) {
+			if (M_TRAILINGSPACE(m) >= sizeof(struct tcp_ackent)) {
+				tcp_lro_log(tp, lc, le, NULL, 23, 0, 0, 0, 0);
+				*new_m = 0;
+				counter_u64_add(tcp_extra_mbuf, 1);
+				return (m);
+			} else {
+				/* Mark we ran out of space */
+				inp->inp_flags2 |= INP_MBUF_L_ACKS;
+			}
 		}
 	}
 	/* Decide mbuf size. */
+	tcp_lro_log(tp, lc, le, NULL, 21, 0, 0, 0, 0);
 	if (inp->inp_flags2 & INP_MBUF_L_ACKS)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_ACKCMP | M_PKTHDR);
 	else
@@ -1194,6 +1225,7 @@ tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
 		return (NULL);
 	}
 	counter_u64_add(tcp_comp_total, 1);
+ 	m->m_pkthdr.rcvif = lc->ifp;
 	m->m_flags |= M_ACKCMP;
 	*new_m = 1;
 	return (m);
@@ -1290,7 +1322,7 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	struct tcpcb *tp;
 	struct mbuf **pp, *cmp, *mv_to;
 	struct ifnet *lagg_ifp;
-	bool bpf_req, lagg_bpf_req, should_wake;
+ 	bool bpf_req, lagg_bpf_req, should_wake, can_append_old_cmp;
 
 	/* Check if packet doesn't belongs to our network interface. */
 	if ((tcplro_stacks_wanting_mbufq == 0) ||
@@ -1361,18 +1393,33 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	}
 
 	/* Strip and compress all the incoming packets. */
+ 	can_append_old_cmp = true;
 	cmp = NULL;
 	for (pp = &le->m_head; *pp != NULL; ) {
 		mv_to = NULL;
 		if (do_bpf_strip_and_compress(inp, lc, le, pp,
 			&cmp, &mv_to, &should_wake, bpf_req,
-			lagg_bpf_req, lagg_ifp) == false) {
+ 			lagg_bpf_req, lagg_ifp, can_append_old_cmp) == false) {
 			/* Advance to next mbuf. */
 			pp = &(*pp)->m_nextpkt;
+ 			/*
+ 			 * Once we have appended we can't look in the pending
+ 			 * inbound packets for a compressed ack to append to.
+ 			 */
+ 			can_append_old_cmp = false;
+ 			/*
+ 			 * Once we append we also need to stop adding to any
+ 			 * compressed ack we were remembering. A new cmp
+ 			 * ack will be required.
+ 			 */
+ 			cmp = NULL;
+ 			tcp_lro_log(tp, lc, le, NULL, 25, 0, 0, 0, 0);
 		} else if (mv_to != NULL) {
 			/* We are asked to move pp up */
 			pp = &mv_to->m_nextpkt;
-		}
+ 			tcp_lro_log(tp, lc, le, NULL, 24, 0, 0, 0, 0);
+		} else
+ 			tcp_lro_log(tp, lc, le, NULL, 26, 0, 0, 0, 0);
 	}
 	/* Update "m_last_mbuf", if any. */
 	if (pp == &le->m_head)
@@ -1562,6 +1609,8 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 
 		/* add packet to LRO engine */
 		if (tcp_lro_rx_common(lc, mb, 0, false) != 0) {
+ 			/* Flush anything we have acummulated */
+ 			tcp_lro_flush_active(lc);
 			/* input packet to network layer */
 			(*lc->ifp->if_input)(lc->ifp, mb);
 			lc->lro_queued++;
@@ -1589,10 +1638,11 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
 	 * entry.
 	 */
 	ae->timestamp = m->m_pkthdr.rcv_tstmp;
+	ae->flags = 0;
 	if (m->m_flags & M_TSTMP_LRO)
-		ae->flags = TSTMP_LRO;
+		ae->flags |= TSTMP_LRO;
 	else if (m->m_flags & M_TSTMP)
-		ae->flags = TSTMP_HDWR;
+		ae->flags |= TSTMP_HDWR;
 	ae->seq = ntohl(th->th_seq);
 	ae->ack = ntohl(th->th_ack);
 	ae->flags |= tcp_get_flags(th);
@@ -1612,7 +1662,7 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
 static bool
 do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
     struct lro_entry *le, struct mbuf **pp, struct mbuf **cmp, struct mbuf **mv_to,
-    bool *should_wake, bool bpf_req, bool lagg_bpf_req, struct ifnet *lagg_ifp)
+    bool *should_wake, bool bpf_req, bool lagg_bpf_req, struct ifnet *lagg_ifp, bool can_append_old_cmp)
 {
 	union {
 		void *ptr;
@@ -1718,7 +1768,7 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 	/* Now lets get space if we don't have some already */
 	if (*cmp == NULL) {
 new_one:
-		nm = tcp_lro_get_last_if_ackcmp(lc, le, inp, &n_mbuf);
+		nm = tcp_lro_get_last_if_ackcmp(lc, le, inp, &n_mbuf, can_append_old_cmp);
 		if (__predict_false(nm == NULL))
 			goto done;
 		*cmp = nm;
@@ -1954,6 +2004,14 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	binuptime(&lc->lro_last_queue_time);
 	CURVNET_SET(lc->ifp->if_vnet);
 	error = tcp_lro_rx_common(lc, m, csum, true);
+	if (__predict_false(error != 0)) {
+		/*
+		 * Flush anything we have acummulated
+		 * ahead of this packet that can't
+		 * be LRO'd. This preserves order.
+		 */
+		tcp_lro_flush_active(lc);
+	}
 	CURVNET_RESTORE();
 
 	return (error);
@@ -1977,6 +2035,16 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;
 	}
+
+ 	/* If no hardware or arrival stamp on the packet add timestamp */
+ 	if ((tcplro_stacks_wanting_mbufq > 0) &&
+ 	    (tcp_less_accurate_lro_ts == 0) &&
+ 	    ((mb->m_flags & M_TSTMP) == 0)) {
+ 		/* Add in an LRO time since no hardware */
+ 		binuptime(&lc->lro_last_queue_time);
+ 		mb->m_pkthdr.rcv_tstmp = bintime2ns(&lc->lro_last_queue_time); 
+ 		mb->m_flags |= M_TSTMP_LRO;
+ 	}
 
 	/* create sequence number */
 	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
