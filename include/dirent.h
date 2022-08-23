@@ -131,6 +131,11 @@ int	 scandir_b(const char *, struct dirent ***,
 	    int (^)(const struct dirent **, const struct dirent **));
 #endif
 #endif
+#if __BSD_VISIBLE
+int	 scandirat(int, const char *, struct dirent ***,
+	    int (*)(const struct dirent *), int (*)(const struct dirent **,
+	    const struct dirent **));
+#endif
 #if __XSI_VISIBLE
 void	 seekdir(DIR *, long);
 long	 telldir(DIR *);
