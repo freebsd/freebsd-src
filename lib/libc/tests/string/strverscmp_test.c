@@ -18,21 +18,22 @@ check_all(size_t len, const char *ordered[len])
 
 			if (i == j)
 				ATF_CHECK_MSG(
-					strverscmp(a, b) == 0,
-					"strverscmp(\"%s\", \"%s\") == 0",
-					a, b);
-
+				    strverscmp(a, b) == 0,
+				    "strverscmp(\"%s\", \"%s\") == 0",
+				    a, b
+				);
 			else if (i < j)
 				ATF_CHECK_MSG(
-					strverscmp(a, b) < 0,
-					"strverscmp(\"%s\", \"%s\") < 0",
-					a, b);
-
+				    strverscmp(a, b) < 0,
+				    "strverscmp(\"%s\", \"%s\") < 0",
+				    a, b
+				);
 			else if (i > j)
 				ATF_CHECK_MSG(
-					strverscmp(a, b) > 0,
-					"strverscmp(\"%s\", \"%s\") > 0",
-					a, b);
+				    strverscmp(a, b) > 0,
+				    "strverscmp(\"%s\", \"%s\") > 0",
+				    a, b
+				);
 		}
 	}
 }
@@ -68,9 +69,9 @@ ATF_TC_WITHOUT_HEAD(glibc_bug_9913);
 ATF_TC_BODY(glibc_bug_9913, tc)
 {
 	CHECK_ALL(
-		"B0075022800016.gbp.corp.com",
-		"B007502280067.gbp.corp.com",
-		"B007502357019.GBP.CORP.COM"
+	    "B0075022800016.gbp.corp.com",
+	    "B007502280067.gbp.corp.com",
+	    "B007502357019.GBP.CORP.COM"
 	);
 }
 
