@@ -800,17 +800,14 @@ struct driver_module_data {
 	int		dmd_pass;
 };
 
-#define	_DRIVER_MODULE_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, NAME, ...)	\
-	NAME
-
-#define	_EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, devclass,	\
-    evh, arg, order, pass)						\
-								\
+#define	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	 \
+    order, pass)							\
+									\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
 	evh, arg,							\
 	#busname,							\
 	(kobj_class_t) &driver,						\
-	devclass,							\
+	NULL,								\
 	pass								\
 };									\
 									\
@@ -822,56 +819,17 @@ static moduledata_t name##_##busname##_mod = {				\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, order)
 
-#define	EARLY_DRIVER_MODULE_ORDERED7(name, busname, driver, evh, arg,	\
-    order, pass)							\
-	_EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, NULL, evh,	\
-	    arg, order, pass)
-
-#define	EARLY_DRIVER_MODULE_ORDERED8(name, busname, driver, devclass,	\
-    evh, arg, order, pass)						\
-	_EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, &devclass,	\
-	    evh, arg, order, pass)
-
-#define	EARLY_DRIVER_MODULE_ORDERED(...)				\
-	_DRIVER_MODULE_MACRO(__VA_ARGS__, EARLY_DRIVER_MODULE_ORDERED8,	\
-	    EARLY_DRIVER_MODULE_ORDERED7)(__VA_ARGS__)
-
-#define	EARLY_DRIVER_MODULE7(name, busname, driver, devclass, evh, arg, pass) \
-	EARLY_DRIVER_MODULE_ORDERED8(name, busname, driver, devclass,	\
-	    evh, arg, SI_ORDER_MIDDLE, pass)
-
-#define	EARLY_DRIVER_MODULE6(name, busname, driver, evh, arg, pass)	\
-	EARLY_DRIVER_MODULE_ORDERED7(name, busname, driver, evh, arg,	\
+#define	EARLY_DRIVER_MODULE(name, busname, driver, evh, arg, pass)	\
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	\
 	    SI_ORDER_MIDDLE, pass)
 
-#define	EARLY_DRIVER_MODULE(...)					\
-	_DRIVER_MODULE_MACRO(__VA_ARGS__, INVALID,			\
-	    EARLY_DRIVER_MODULE7, EARLY_DRIVER_MODULE6)(__VA_ARGS__)
-
-#define	DRIVER_MODULE_ORDERED7(name, busname, driver, devclass, evh, arg,\
-    order)								\
-	EARLY_DRIVER_MODULE_ORDERED8(name, busname, driver, devclass,	\
-	    evh, arg, order, BUS_PASS_DEFAULT)
-
-#define	DRIVER_MODULE_ORDERED6(name, busname, driver, evh, arg, order)	\
-	EARLY_DRIVER_MODULE_ORDERED7(name, busname, driver, evh, arg,	\
+#define	DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg, order)	\
+	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	\
 	    order, BUS_PASS_DEFAULT)
 
-#define	DRIVER_MODULE_ORDERED(...)					\
-	_DRIVER_MODULE_MACRO(__VA_ARGS__, INVALID,			\
-	    DRIVER_MODULE_ORDERED7, DRIVER_MODULE_ORDERED6)(__VA_ARGS__)
-
-#define	DRIVER_MODULE6(name, busname, driver, devclass, evh, arg)	\
-	EARLY_DRIVER_MODULE7(name, busname, driver, devclass, evh, arg,	\
+#define	DRIVER_MODULE(name, busname, driver, evh, arg)			\
+	EARLY_DRIVER_MODULE(name, busname, driver, evh, arg,		\
 	    BUS_PASS_DEFAULT)
-
-#define	DRIVER_MODULE5(name, busname, driver, evh, arg)			\
-	EARLY_DRIVER_MODULE6(name, busname, driver, evh, arg,		\
-	    BUS_PASS_DEFAULT)
-
-#define	DRIVER_MODULE(...)						\
-	_DRIVER_MODULE_MACRO(__VA_ARGS__, INVALID, INVALID,		\
-	    DRIVER_MODULE6, DRIVER_MODULE5)(__VA_ARGS__)
 
 /**
  * Generic ivar accessor generation macros for bus drivers
