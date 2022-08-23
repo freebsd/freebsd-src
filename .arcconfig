@@ -1,5 +1,5 @@
 {
-	"repository.callsign" : "S",
+	"repository.callsign" : "G",
 	"phabricator.uri" : "https://reviews.freebsd.org/",
 	"arc.land.onto.default": "main",
 	"arc.land.onto": ["main"]
