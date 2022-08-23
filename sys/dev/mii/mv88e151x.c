@@ -65,15 +65,13 @@ static device_method_t mv88e151x_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t mv88e151x_devclass;
-
 static driver_t mv88e151x_driver = {
 	"mv88e151x",
 	mv88e151x_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(mv88e151x, miibus, mv88e151x_driver, mv88e151x_devclass, 0, 0);
+DRIVER_MODULE(mv88e151x, miibus, mv88e151x_driver, 0, 0);
 
 static int mv88e151x_service(struct mii_softc *, struct mii_data *, int);
 static void mv88e151x_status(struct mii_softc *);
