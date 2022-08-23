@@ -4,7 +4,7 @@
 .include <src.opts.mk>
 
 PROG=	bintrans
-SRCS=	bintrans.c uuencode.c uudecode.c quoted-printable.c
+SRCS=	bintrans.c uuencode.c uudecode.c qp.c
 MAN=	bintrans.1 uuencode.format.5
 LINKS+=	${BINDIR}/bintrans ${BINDIR}/uuencode
 LINKS+=	${BINDIR}/bintrans ${BINDIR}/b64encode
