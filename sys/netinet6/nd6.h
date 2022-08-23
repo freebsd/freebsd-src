@@ -243,6 +243,7 @@ struct nd_prefix {
 #define ndpr_raf		ndpr_flags
 #define ndpr_raf_onlink		ndpr_flags.onlink
 #define ndpr_raf_auto		ndpr_flags.autonomous
+#define ndpr_raf_ra_derived	ndpr_flags.ra_derived
 #define ndpr_raf_router		ndpr_flags.router
 
 struct nd_pfxrouter {
