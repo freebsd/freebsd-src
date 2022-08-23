@@ -70,7 +70,6 @@ static off_t	 chunks = 0;		/* Chunks count to split into. */
 static long	 numlines;		/* Line count to split on. */
 static int	 file_open;		/* If a file open. */
 static int	 ifd = -1, ofd = -1;	/* Input/output file descriptors. */
-static char	 bfr[MAXBSIZE];		/* I/O buffer. */
 static char	 fname[MAXPATHLEN];	/* File name prefix. */
 static regex_t	 rgx;
 static int	 pflag;
@@ -203,6 +202,7 @@ main(int argc, char **argv)
 static void
 split1(void)
 {
+	static char bfr[MAXBSIZE];
 	off_t bcnt;
 	char *C;
 	ssize_t dist, len;
@@ -211,7 +211,7 @@ split1(void)
 	nfiles = 0;
 
 	for (bcnt = 0;;)
-		switch ((len = read(ifd, bfr, MAXBSIZE))) {
+		switch ((len = read(ifd, bfr, sizeof(bfr)))) {
 		case 0:
 			exit(0);
 		case -1:
@@ -264,46 +264,45 @@ split1(void)
 static void
 split2(void)
 {
+	char *buf;
+	size_t bufsize;
+	ssize_t len;
 	long lcnt = 0;
 	FILE *infp;
+
+	buf = NULL;
+	bufsize = 0;
 
 	/* Stick a stream on top of input file descriptor */
 	if ((infp = fdopen(ifd, "r")) == NULL)
 		err(EX_NOINPUT, "fdopen");
 
 	/* Process input one line at a time */
-	while (fgets(bfr, sizeof(bfr), infp) != NULL) {
-		const int len = strlen(bfr);
-
-		/* If line is too long to deal with, just write it out */
-		if (bfr[len - 1] != '\n')
-			goto writeit;
-
+	while ((len = getline(&buf, &bufsize, infp)) > 0) {
 		/* Check if we need to start a new file */
 		if (pflag) {
 			regmatch_t pmatch;
 
 			pmatch.rm_so = 0;
 			pmatch.rm_eo = len - 1;
-			if (regexec(&rgx, bfr, 0, &pmatch, REG_STARTEND) == 0)
+			if (regexec(&rgx, buf, 0, &pmatch, REG_STARTEND) == 0)
 				newfile();
 		} else if (lcnt++ == numlines) {
 			newfile();
 			lcnt = 1;
 		}
 
-writeit:
 		/* Open output file if needed */
 		if (!file_open)
 			newfile();
 
 		/* Write out line */
-		if (write(ofd, bfr, len) != len)
+		if (write(ofd, buf, len) != len)
 			err(EX_IOERR, "write");
 	}
 
 	/* EOF or error? */
-	if (ferror(infp))
+	if ((len == -1 && errno != 0) || ferror(infp))
 		err(EX_IOERR, "read");
 	else
 		exit(0);
