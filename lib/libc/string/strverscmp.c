@@ -12,8 +12,8 @@ strverscmp(const char *s1, const char *s2)
 	size_t digit_count_1, digit_count_2;
 	size_t zeros_count_1, zeros_count_2;
 	const unsigned char *num_1, *num_2;
-	const unsigned char *u1 = __DECONST(s1);
-	const unsigned char *u2 = __DECONST(s2);
+	const unsigned char *u1 = __DECONST(const unsigned char *, s1);
+	const unsigned char *u2 = __DECONST(const unsigned char *, s2);
 
 	/*
 	 * If pointers are the same, no need to go through to process of
