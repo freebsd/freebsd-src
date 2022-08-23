@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2009
+.Dd August 23, 2022
 .Dt VACCESS 9
 .Os
 .Sh NAME
@@ -42,7 +42,6 @@
 .Fa "gid_t file_gid"
 .Fa "accmode_t accmode"
 .Fa "struct ucred *cred"
-.Fa "int *privused"
 .Fc
 .Sh DESCRIPTION
 This call implements the logic for the
@@ -59,19 +58,9 @@ owning UID
 owning GID
 .Fa file_gid ,
 desired access mode
-.Fa accmode ,
-requesting credential
-.Fa cred ,
-and an optional call-by-reference
-.Vt int
-pointer returning whether or not
-privilege was required for successful evaluation of the call; the
-.Fa privused
-pointer may be set to
-.Dv NULL
-by the caller in order not to be informed of
-privilege information, or it may point to an integer that will be set to
-1 if privilege is used, and 0 otherwise.
+.Fa accmode
+and requesting credential
+.Fa cred .
 .Pp
 This call is intended to support implementations of
 .Xr VOP_ACCESS 9 ,
