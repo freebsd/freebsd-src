@@ -40,9 +40,19 @@
 .Sh SYNOPSIS
 .In dirent.h
 .Ft int
-.Fn scandir "const char *dirname" "struct dirent ***namelist" "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp" "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fo scandir
+.Fa "const char *dirname"
+.Fa "struct dirent ***namelist"
+.Fa "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp"
+.Fa "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fc
 .Ft int
-.Fn scandir_b "const char *dirname" "struct dirent ***namelist" "int \*(lp*select\^(rp\*(lpconst struct dirent *\*(rp" "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fo scandir_b
+.Fa "const char *dirname"
+.Fa "struct dirent ***namelist"
+.Fa "int \*(lp*select\^(rp\*(lpconst struct dirent *\*(rp"
+.Fa "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Fc
 .Ft int
 .Fn alphasort "const struct dirent **d1" "const struct dirent **d2"
 .Sh DESCRIPTION
