@@ -365,7 +365,8 @@ do_shared_shadow_inval(bool lazy_cow)
 	ATF_REQUIRE(sysctllen >= sizeof(size_t));
 
 	pagesize = pagesizes[0];
-	largepagesize = sysctllen >= 2 * sizeof(size_t) && pagesizes[1] != 0 ?
+	largepagesize = MAXPAGESIZES >= 2 &&
+	    sysctllen >= 2 * sizeof(size_t) && pagesizes[1] != 0 ?
 	    pagesizes[1] : 2 * 1024 * 1024;
 
 	for (unsigned int i = 0; i <= FLAG_MASK; i++) {
