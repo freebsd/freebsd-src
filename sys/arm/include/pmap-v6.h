@@ -143,8 +143,9 @@ typedef struct pv_entry {
  * pv_entries are allocated in chunks per-process.  This avoids the
  * need to track per-pmap assignments.
  */
-#define	_NPCM	11
 #define	_NPCPV	336
+#define	_NPCM	howmany(_NPCPV, 32)
+
 struct pv_chunk {
 	pmap_t			pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_list;

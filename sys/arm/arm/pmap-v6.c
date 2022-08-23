@@ -2753,7 +2753,7 @@ pv_to_chunk(pv_entry_t pv)
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
 
 #define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
-#define	PC_FREE10	0x0000fffful	/* Free values for index 10 */
+#define	PC_FREE10	((1ul << (_NPCPV % 32)) - 1)	/* Free values for index 10 */
 
 static const uint32_t pc_freemask[_NPCM] = {
 	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
