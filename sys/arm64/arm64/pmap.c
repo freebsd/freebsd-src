@@ -380,7 +380,10 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
 #define	PMAP_ENTER_NORECLAIM	0x1000000	/* Don't reclaim PV entries. */
 #define	PMAP_ENTER_NOREPLACE	0x2000000	/* Don't replace mappings. */
 
+TAILQ_HEAD(pv_chunklist, pv_chunk);
+
 static void	free_pv_chunk(struct pv_chunk *pc);
+static void	free_pv_chunk_batch(struct pv_chunklist *batch);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
@@ -2756,13 +2759,10 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 }
 
 static void
-free_pv_chunk(struct pv_chunk *pc)
+free_pv_chunk_dequeued(struct pv_chunk *pc)
 {
 	vm_page_t m;
 
-	mtx_lock(&pv_chunks_mutex);
- 	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
-	mtx_unlock(&pv_chunks_mutex);
 	PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
@@ -2771,6 +2771,34 @@ free_pv_chunk(struct pv_chunk *pc)
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
+}
+
+static void
+free_pv_chunk(struct pv_chunk *pc)
+{
+	mtx_lock(&pv_chunks_mutex);
+	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+	mtx_unlock(&pv_chunks_mutex);
+	free_pv_chunk_dequeued(pc);
+}
+
+static void
+free_pv_chunk_batch(struct pv_chunklist *batch)
+{
+	struct pv_chunk *pc, *npc;
+
+	if (TAILQ_EMPTY(batch))
+		return;
+
+	mtx_lock(&pv_chunks_mutex);
+	TAILQ_FOREACH(pc, batch, pc_list) {
+		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+	}
+	mtx_unlock(&pv_chunks_mutex);
+
+	TAILQ_FOREACH_SAFE(pc, batch, pc_list, npc) {
+		free_pv_chunk_dequeued(pc);
+	}
 }
 
 /*
@@ -5248,6 +5276,7 @@ pmap_remove_pages(pmap_t pmap)
 	pd_entry_t *pde;
 	pt_entry_t *pte, tpte;
 	struct spglist free;
+	struct pv_chunklist free_chunks;
 	vm_page_t m, ml3, mt;
 	pv_entry_t pv;
 	struct md_page *pvh;
@@ -5260,6 +5289,7 @@ pmap_remove_pages(pmap_t pmap)
 
 	lock = NULL;
 
+	TAILQ_INIT(&free_chunks);
 	SLIST_INIT(&free);
 	PMAP_LOCK(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
@@ -5400,12 +5430,13 @@ pmap_remove_pages(pmap_t pmap)
 		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
 		if (allfree) {
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			free_pv_chunk(pc);
+			TAILQ_INSERT_TAIL(&free_chunks, pc, pc_list);
 		}
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
 	pmap_invalidate_all(pmap);
+	free_pv_chunk_batch(&free_chunks);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, true);
 }
