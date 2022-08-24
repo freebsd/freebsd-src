@@ -495,7 +495,8 @@ MLINKS+=rand48.3 _rand48.3 \
 MLINKS+=recv.2 recvmmsg.2
 MLINKS+=scandir.3 alphasort.3 \
 	scandir.3 scandirat.3 \
-	scandir.3 scandir_b.3
+	scandir.3 scandir_b.3 \
+	scandir.3 versionsort.3
 MLINKS+=sem_open.3 sem_close.3 \
 	sem_open.3 sem_unlink.3
 MLINKS+=sem_wait.3 sem_trywait.3

@@ -443,6 +443,7 @@ FBSD_1.7 {
 	 sched_getaffinity;
 	 sched_setaffinity;
 	 sched_getcpu;
+	 versionsort;
 	 __cpuset_alloc;
 	 __cpuset_free;
 };
