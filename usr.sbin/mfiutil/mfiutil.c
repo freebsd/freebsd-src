@@ -31,12 +31,15 @@
  * $FreeBSD$
  */
 
-#include <sys/errno.h>
+#include <sys/param.h>
+
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <paths.h>
 #include "mfiutil.h"
 
 SET_DECLARE(MFI_DATASET(top), struct mfiutil_command);
@@ -45,7 +48,7 @@ MFI_TABLE(top, start);
 MFI_TABLE(top, stop);
 MFI_TABLE(top, abort);
 
-int mfi_unit;
+char *mfi_device = NULL;
 u_int mfi_opts;
 static int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
 
@@ -53,7 +56,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: mfiutil [-de] [-u unit] <command> ...\n\n");
+	fprintf(stderr, "usage: %s [-de] [-D device] [-u unit] [-t type] <command> ...\n\n", getprogname());
 	fprintf(stderr, "Commands include:\n");
 	fprintf(stderr, "    version\n");
 	fprintf(stderr, "    show adapter              - display controller information\n");
@@ -121,10 +124,24 @@ int
 main(int ac, char **av)
 {
 	struct mfiutil_command **cmd;
-	int ch;
+	int ch, mfi_unit;
+	const char *pn, *mfi_type;
+	char *temp;
 
-	while ((ch = getopt(ac, av, "deu:")) != -1) {
+	mfi_unit = 0;
+
+	pn = getprogname();
+
+	if (strcmp(pn, "mrsasutil") == 0)
+		mfi_type = MRSAS_TYPE;
+	else
+		mfi_type = MFI_TYPE;
+
+	while ((ch = getopt(ac, av, "D:det:u:")) != -1) {
 		switch (ch) {
+		case 'D':
+			mfi_device = optarg;
+			break;
 		case 'd':
 			mfi_opts |= MFI_DNAME_DEVICE_ID;
 			break;
@@ -134,8 +151,24 @@ main(int ac, char **av)
 		case 'u':
 			mfi_unit = atoi(optarg);
 			break;
+		case 't':
+			mfi_type = optarg;
+			break;
 		case '?':
 			usage();
+		}
+	}
+
+	if (mfi_device == NULL) {
+		if (asprintf(&mfi_device, "%s%s%d", _PATH_DEV, mfi_type,
+		    mfi_unit) < 0)
+			errx(1, "Can't allocate memory for device name\n");
+	} else {
+		if (strncmp(mfi_device, _PATH_DEV, strlen(_PATH_DEV)) != 0) {
+			if (asprintf(&temp, "%s%s%d", _PATH_DEV, mfi_type,
+			    mfi_unit) < 0)
+				errx(1, "Can't allocate memory for device name\n");
+			mfi_device = temp;
 		}
 	}
 

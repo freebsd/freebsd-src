@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2013 Yahoo!, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -64,7 +64,7 @@ mfi_ctrl_set_properties(int fd, struct mfi_ctrl_props *info)
 }
 
 /*
- * aquite the controller properties data structure modify the 
+ * aquire the controller properties data structure modify the
  * rebuild rate if requested and then retun
  */
 static int
@@ -77,8 +77,8 @@ mfi_ctrl_rebuild_rate(int ac, char **av)
 		warn("mfi_ctrl_set_rebuild_rate");
 		return(-1);
 	}
-		
-	fd = mfi_open(mfi_unit, O_RDWR);
+
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -129,8 +129,8 @@ mfi_ctrl_alarm_enable(int ac, char **av)
 		warn("mfi_ctrl_alarm_enable");
 		return(-1);
 	}
-		
-	fd = mfi_open(mfi_unit, O_RDWR);
+
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

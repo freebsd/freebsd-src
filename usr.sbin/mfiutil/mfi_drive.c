@@ -74,7 +74,7 @@ mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id, uint32_t def)
 		else
 			snprintf(buf, sizeof(buf), "%2u", device_id);
 
-		fd = mfi_open(mfi_unit, O_RDWR);
+		fd = mfi_open(mfi_device, O_RDWR);
 		if (fd < 0) {
 			warn("mfi_open");
 			return (buf);
@@ -388,7 +388,7 @@ drive_set_state(char *drive, uint16_t new_state)
 	uint8_t mbox[6];
 	int error, fd;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -503,7 +503,7 @@ start_rebuild(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -560,7 +560,7 @@ abort_rebuild(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -616,7 +616,7 @@ drive_progress(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -682,7 +682,7 @@ drive_clear(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -742,7 +742,7 @@ drive_locate(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

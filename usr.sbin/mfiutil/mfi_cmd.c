@@ -44,6 +44,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <paths.h>
 
 #include "mfiutil.h"
 #include <dev/mfi/mfi_ioctl.h>
@@ -209,15 +210,23 @@ mfi_volume_busy(int fd, uint8_t target_id)
  * configuration of the mfi controller.
  */
 int
-mfi_reconfig_supported(void)
+mfi_reconfig_supported(const char *dev)
 {
 	char mibname[64];
+	const char *cp;
 	size_t len;
-	int dummy;
+	int dummy, mfi_unit;
+
+	cp = dev + strlen(_PATH_DEV);
+	if (strncmp(cp, MRSAS_TYPE, strlen(MRSAS_TYPE)) == 0)
+		return (1);
+
+	cp += strlen(MFI_TYPE);
+	mfi_unit = strtol(cp, NULL, 10);;
 
 	len = sizeof(dummy);
-	snprintf(mibname, sizeof(mibname), "dev.mfi.%d.delete_busy_volumes",
-	    mfi_unit);
+	snprintf(mibname, sizeof(mibname),
+	    "dev.mfi.%d.delete_busy_volumes", mfi_unit);
 	return (sysctlbyname(mibname, &dummy, &len, NULL, 0) == 0);
 }
 
@@ -239,7 +248,7 @@ mfi_lookup_volume(int fd, const char *name, uint8_t *target_id)
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_LD_GET_LIST, &list, sizeof(list),
 	    NULL, 0, NULL) < 0)
-		return (-1);	
+		return (-1);
 
 	for (i = 0; i < list.ld_count; i++) {
 		if (mfi_query_disk(fd, list.ld_list[i].ld.v.target_id,
@@ -304,12 +313,14 @@ mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp)
 }
 
 int
-mfi_open(int unit, int acs)
+mfi_open(char *dev, int acs)
 {
-	char path[MAXPATHLEN];
+	int ret;
 
-	snprintf(path, sizeof(path), "/dev/mfi%d", unit);
-	return (open(path, acs));
+	ret = open(dev, acs);
+	if (ret < 0)
+		warn("Couldn't open %s", dev);
+	return (ret);
 }
 
 static void
