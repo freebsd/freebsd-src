@@ -894,11 +894,9 @@ m_gettype(int size)
 	case MCLBYTES:
 		type = EXT_CLUSTER;
 		break;
-#if MJUMPAGESIZE != MCLBYTES
 	case MJUMPAGESIZE:
 		type = EXT_JUMBOP;
 		break;
-#endif
 	case MJUM9BYTES:
 		type = EXT_JUMBO9;
 		break;
@@ -944,11 +942,9 @@ m_getzone(int size)
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
-#if MJUMPAGESIZE != MCLBYTES
 	case MJUMPAGESIZE:
 		zone = zone_jumbop;
 		break;
-#endif
 	case MJUM9BYTES:
 		zone = zone_jumbo9;
 		break;
@@ -1068,11 +1064,9 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	case EXT_CLUSTER:
 		size = MCLBYTES;
 		break;
-#if MJUMPAGESIZE != MCLBYTES
 	case EXT_JUMBOP:
 		size = MJUMPAGESIZE;
 		break;
-#endif
 	case EXT_JUMBO9:
 		size = MJUM9BYTES;
 		break;

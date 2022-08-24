@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_dbg.h>
 
+_Static_assert(MJUMPAGESIZE > MCLBYTES,
+    "Cluster must be smaller than a jumbo page");
+
 /*
  * In FreeBSD, Mbufs and Mbuf Clusters are allocated from UMA
  * Zones.
