@@ -420,14 +420,6 @@ arm64_get_writable_addr(vm_offset_t addr, vm_offset_t *out)
 	return (false);
 }
 
-typedef struct {
-	uint32_t type;
-	uint64_t phys_start;
-	uint64_t virt_start;
-	uint64_t num_pages;
-	uint64_t attr;
-} EFI_MEMORY_DESCRIPTOR;
-
 typedef void (*efi_map_entry_cb)(struct efi_md *);
 
 static void
