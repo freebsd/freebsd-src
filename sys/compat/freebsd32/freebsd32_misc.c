@@ -1535,6 +1535,7 @@ freebsd32_copyin_control(struct mbuf **mp, caddr_t buf, u_int buflen)
 	u_int msglen, outlen;
 	int error;
 
+	/* Enforce the size limit of the native implementation. */
 	if (buflen > MCLBYTES)
 		return (EINVAL);
 
@@ -1570,20 +1571,20 @@ freebsd32_copyin_control(struct mbuf **mp, caddr_t buf, u_int buflen)
 		outlen += CMSG_ALIGN(sizeof(*cm)) +
 		    CMSG_ALIGN(msglen - FREEBSD32_ALIGN(sizeof(*cm)));
 	}
-	if (error == 0 && outlen > MCLBYTES) {
-		/*
-		 * XXXMJ This implies that the upper limit on 32-bit aligned
-		 * control messages is less than MCLBYTES, and so we are not
-		 * perfectly compatible.  However, there is no platform
-		 * guarantee that mbuf clusters larger than MCLBYTES can be
-		 * allocated.
-		 */
-		error = EINVAL;
-	}
 	if (error != 0)
 		goto out;
 
+	/*
+	 * Allocate up to MJUMPAGESIZE space for the re-aligned and
+	 * re-padded control messages.  This allows a full MCLBYTES of
+	 * 32-bit sized and aligned messages to fit and avoids an ABI
+	 * mismatch with the native implementation.
+	 */
 	m = m_get2(outlen, M_WAITOK, MT_CONTROL, 0);
+	if (m == NULL) {
+		error = EINVAL;
+		goto out;
+	}
 	m->m_len = outlen;
 	md = mtod(m, void *);
 
