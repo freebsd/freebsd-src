@@ -203,7 +203,7 @@ child(struct shared_state *ss, int depth)
 		child_write(ss, mypid, ss->len);
 		if (!ss->lazy_cow) {
 			if (mlock(ss->p, ss->len) == -1)
-				child_err("mprotect");
+				child_err("mlock");
 			if (mprotect(ss->p, ss->len, PROT_READ) == -1)
 				child_err("mprotect");
 		}
