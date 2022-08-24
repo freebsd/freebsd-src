@@ -191,6 +191,13 @@ alphasort(const struct dirent **d1, const struct dirent **d2)
 	return (strcoll((*d1)->d_name, (*d2)->d_name));
 }
 
+int
+versionsort(const struct dirent **d1, const struct dirent **d2)
+{
+
+	return (strverscmp((*d1)->d_name, (*d2)->d_name));
+}
+
 static int
 alphasort_thunk(void *thunk, const void *p1, const void *p2)
 {

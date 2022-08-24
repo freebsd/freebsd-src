@@ -35,7 +35,8 @@
 .Nm scandir ,
 .Nm scandirat ,
 .Nm scandir_b ,
-.Nm alphasort
+.Nm alphasort ,
+.Nm versionsort
 .Nd scan a directory
 .Sh LIBRARY
 .Lb libc
@@ -65,6 +66,8 @@
 .Fc
 .Ft int
 .Fn alphasort "const struct dirent **d1" "const struct dirent **d2"
+.Ft int
+.Fn versionsort "const struct dirent **d1" "const struct dirent **d2"
 .Sh DESCRIPTION
 The
 .Fn scandir
@@ -105,6 +108,13 @@ is a routine which can be used for the
 .Fa compar
 argument to sort the array alphabetically using
 .Xr strcoll 3 .
+.Pp
+The
+.Fn versionsort
+function is a routine which can be used for the
+.Fa compar
+argument to sort the array naturally using
+.Xr strverscmp 3 .
 .Pp
 The memory allocated for the array can be deallocated with
 .Xr free 3 ,
@@ -161,7 +171,12 @@ cannot allocate enough memory to hold all the data structures.
 .Xr malloc 3 ,
 .Xr qsort 3 ,
 .Xr strcoll 3 ,
+.Xr strverscmp 3 ,
 .Xr dir 5
+.Sh STANDARDS
+The
+.Fn versionsort
+function is a GNU extension and conforms to no standard.
 .Sh HISTORY
 The
 .Fn scandir
@@ -171,5 +186,8 @@ functions appeared in
 .Bx 4.2 .
 The
 .Fn scandirat
-function was added in
+and
+.Fn
+versionsort
+functions were added in
 .Fx 14.0 .
