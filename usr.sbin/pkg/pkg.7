@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2022
+.Dd August 24, 2022
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -32,16 +32,17 @@
 .Nd a utility for manipulating packages
 .Sh SYNOPSIS
 .Nm
+.Op Fl d
 .Ar command ...
 .Nm
 .Cm add
-.Op Fl fy
+.Op Fl dfy
 .Op Fl r Ar reponame
 .Ar pkg.txz
 .Nm
 .Fl N
 .Nm
-.Op Fl 46
+.Op Fl 46d
 .Cm bootstrap
 .Op Fl fy
 .Op Fl r Ar reponame
@@ -120,6 +121,17 @@ flag is specified, no confirmation will be asked when bootstrapping
 If a
 .Ar reponame
 has been specified, then the configuration for that repository will be used.
+.El
+.Sh OPTIONS
+The following options are supported by
+.Nm :
+.Bl -tag -width indent
+.It Fl d, Fl -debug
+Show debug information.
+May be specified more than once to increase the level of detail.
+When specified twice,
+.Xr fetch 3
+debug output is enabled.
 .El
 .Sh CONFIGURATION
 Configuration varies in whether it is in a repository configuration file
