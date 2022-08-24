@@ -1322,6 +1322,10 @@ ping_body(void *data)
 		return NULL;
 	}
 
+	if (targ->g->af == AF_INET6) {
+		D("Warning: ping-pong with IPv6 not supported");
+	}
+
 	bzero(&buckets, sizeof(buckets));
 	clock_gettime(CLOCK_REALTIME_PRECISE, &last_print);
 	now = last_print;
@@ -1504,6 +1508,11 @@ pong_body(void *data)
 	if (n > 0)
 		D("understood ponger %llu but don't know how to do it",
 			(unsigned long long)n);
+
+	if (targ->g->af == AF_INET6) {
+		D("Warning: ping-pong with IPv6 not supported");
+	}
+
 	while (!targ->cancel && (n == 0 || sent < n)) {
 		uint32_t txhead, txavail;
 //#define BUSYWAIT
@@ -1547,7 +1556,15 @@ pong_body(void *data)
 				dpkt[3] = spkt[0];
 				dpkt[4] = spkt[1];
 				dpkt[5] = spkt[2];
+				/* swap source and destination IPv4 */
+				if (spkt[6] == htons(ETHERTYPE_IP)) {
+					dpkt[13] = spkt[15];
+					dpkt[14] = spkt[16];
+					dpkt[15] = spkt[13];
+					dpkt[16] = spkt[14];
+				}
 				txring->slot[txhead].len = slot->len;
+				//dump_payload(dst, slot->len, txring, txhead);
 				txhead = nm_ring_next(txring, txhead);
 				txavail--;
 				sent++;
