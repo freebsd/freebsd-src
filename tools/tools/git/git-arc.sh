@@ -363,9 +363,9 @@ gitarc__create()
         l)
             list=1
             ;;
-	p)
-	    prev="$OPTARG"
-	    ;;
+        p)
+            prev="$OPTARG"
+            ;;
         r)
             reviewers="$OPTARG"
             ;;
