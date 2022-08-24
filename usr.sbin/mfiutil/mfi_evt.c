@@ -77,7 +77,7 @@ show_logstate(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -91,13 +91,13 @@ show_logstate(int ac, char **av __unused)
 		return (error);
 	}
 
-	printf("mfi%d Event Log Sequence Numbers:\n", mfi_unit);
+	printf("%s Event Log Sequence Numbers:\n", mfi_device);
 	printf("  Newest Seq #: %u\n", info.newest_seq_num);
 	printf("  Oldest Seq #: %u\n", info.oldest_seq_num);
 	printf("   Clear Seq #: %u\n", info.clear_seq_num);
 	printf("Shutdown Seq #: %u\n", info.shutdown_seq_num);
 	printf("    Boot Seq #: %u\n", info.boot_seq_num);
-	
+
 	close(fd);
 
 	return (0);
@@ -547,7 +547,7 @@ show_events(int ac, char **av)
 	int ch, error, fd, num_events, verbose;
 	u_int i;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -691,7 +691,7 @@ show_events(int ac, char **av)
 		 * need to know the size of the buffer somehow.
 		 */
 		seq = list->event[list->count - 1].seq + 1;
-			
+
 	}
 finish:
 	if (first)

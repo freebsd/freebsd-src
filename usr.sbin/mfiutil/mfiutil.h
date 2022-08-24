@@ -39,6 +39,9 @@
 
 #include <dev/mfi/mfireg.h>
 
+#define MRSAS_TYPE	"mrsas"
+#define MFI_TYPE	"mfi"
+
 /* 4.x compat */
 #ifndef SET_DECLARE
 
@@ -122,7 +125,7 @@ struct mfiutil_command {
 #define	MFI_DNAME_DEVICE_ID	0x0002	/* %u */
 #define	MFI_DNAME_HONOR_OPTS	0x8000	/* Allow cmd line to override default */
 
-extern int mfi_unit;
+extern char *mfi_device;
 
 extern u_int mfi_opts;
 
@@ -154,7 +157,7 @@ int	mfi_lookup_drive(int fd, char *drive, uint16_t *device_id);
 int	mfi_lookup_volume(int fd, const char *name, uint8_t *target_id);
 int	mfi_dcmd_command(int fd, uint32_t opcode, void *buf, size_t bufsize,
     uint8_t *mbox, size_t mboxlen, uint8_t *statusp);
-int	mfi_open(int unit, int acs);
+int	mfi_open(char *dev, int acs);
 int	mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp);
 int	mfi_ld_get_info(int fd, uint8_t target_id, struct mfi_ld_info *info,
     uint8_t *statusp);
@@ -162,7 +165,7 @@ int	mfi_ld_get_list(int fd, struct mfi_ld_list *list, uint8_t *statusp);
 int	mfi_pd_get_info(int fd, uint16_t device_id, struct mfi_pd_info *info,
     uint8_t *statusp);
 int	mfi_pd_get_list(int fd, struct mfi_pd_list **listp, uint8_t *statusp);
-int	mfi_reconfig_supported(void);
+int	mfi_reconfig_supported(const char *mfi_device);
 const char *mfi_status(u_int status_code);
 const char *mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id,
     uint32_t def);
@@ -177,6 +180,8 @@ int	mfi_bbu_set_props(int fd, struct mfi_bbu_properties *props,
 void	mfi_autolearn_period(uint32_t, char *, size_t);
 void	mfi_next_learn_time(uint32_t, char *, size_t);
 void	mfi_autolearn_mode(uint8_t, char *, size_t);
+int	get_mfi_unit(const char *dev);
+char	*get_mfi_type(const char *dev);
 
 void	scan_firmware(struct mfi_info_component *comp);
 void	display_firmware(struct mfi_info_component *comp, const char *tag);

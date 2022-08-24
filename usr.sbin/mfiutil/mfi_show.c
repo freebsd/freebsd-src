@@ -50,7 +50,7 @@ void
 format_stripe(char *buf, size_t buflen, uint8_t stripe)
 {
 
-	humanize_number(buf, buflen, (1 << stripe) * 512, "", HN_AUTOSCALE,  
+	humanize_number(buf, buflen, (1 << stripe) * 512, "", HN_AUTOSCALE,
 	    HN_B | HN_NOSPACE);
 }
 
@@ -66,7 +66,7 @@ show_adapter(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -79,7 +79,7 @@ show_adapter(int ac, char **av __unused)
 		close(fd);
 		return (error);
 	}
-	printf("mfi%d Adapter:\n", mfi_unit);
+	printf("%s Adapter:\n", mfi_device);
 	printf("    Product Name: %.80s\n", info.product_name);
 	printf("   Serial Number: %.32s\n", info.serial_number);
 	if (info.package_version[0] != '\0')
@@ -155,7 +155,7 @@ show_battery(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -170,7 +170,7 @@ show_battery(int ac, char **av __unused)
 		return (error);
 	}
 	if (status == MFI_STAT_NO_HW_PRESENT) {
-		printf("mfi%d: No battery present\n", mfi_unit);
+		printf("%s: No battery present\n", mfi_device);
 		close(fd);
 		return (0);
 	}
@@ -200,7 +200,7 @@ show_battery(int ac, char **av __unused)
 	}
 	show_props = (status == MFI_STAT_OK);
 
-	printf("mfi%d: Battery State:\n", mfi_unit);
+	printf("%s: Battery State:\n", mfi_device);
 	printf("     Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
 	    design.mfg_date & 0x1f, design.mfg_date >> 9 & 0xffff);
 	printf("        Serial Number: %d\n", design.serial_number);
@@ -357,7 +357,7 @@ show_config(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -373,8 +373,8 @@ show_config(int ac, char **av __unused)
 	}
 
 	/* Dump out the configuration. */
-	printf("mfi%d Configuration: %d arrays, %d volumes, %d spares\n",
-	    mfi_unit, config->array_count, config->log_drv_count,
+	printf("%s Configuration: %d arrays, %d volumes, %d spares\n",
+	    mfi_device, config->array_count, config->log_drv_count,
 	    config->spares_count);
 	p = (char *)config->array;
 
@@ -458,7 +458,7 @@ show_volumes(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -474,7 +474,7 @@ show_volumes(int ac, char **av __unused)
 	}
 
 	/* List the volumes. */
-	printf("mfi%d Volumes:\n", mfi_unit);
+	printf("%s Volumes:\n", mfi_device);
 	state_len = strlen("State");
 	for (i = 0; i < list.ld_count; i++) {
 		len = strlen(mfi_ldstate(list.ld_list[i].state));
@@ -541,7 +541,7 @@ show_drives(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -576,7 +576,7 @@ show_drives(int ac, char **av __unused)
 	}
 
 	/* List the drives. */
-	printf("mfi%d Physical Drives:\n", mfi_unit);
+	printf("%s Physical Drives:\n", mfi_device);
 	for (i = 0; i < list->count; i++) {
 
 		/* Skip non-hard disks. */
@@ -621,7 +621,7 @@ show_firmware(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -636,9 +636,9 @@ show_firmware(int ac, char **av __unused)
 	}
 
 	if (info.package_version[0] != '\0')
-		printf("mfi%d Firmware Package Version: %s\n", mfi_unit,
+		printf("%s Firmware Package Version: %s\n", mfi_device,
 		    info.package_version);
-	printf("mfi%d Firmware Images:\n", mfi_unit);
+	printf("%s Firmware Images:\n", mfi_device);
 	strcpy(header.name, "Name");
 	strcpy(header.version, "Version");
 	strcpy(header.build_date, "Date");
@@ -681,7 +681,7 @@ show_progress(int ac, char **av __unused)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDONLY);
+	fd = mfi_open(mfi_device, O_RDONLY);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -776,7 +776,8 @@ show_progress(int ac, char **av __unused)
 	close(fd);
 
 	if (!busy)
-		printf("No activity in progress for adapter mfi%d\n", mfi_unit);
+		printf("No activity in progress for adapter %s\n",
+		    mfi_device);
 
 	return (0);
 }

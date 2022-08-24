@@ -35,6 +35,7 @@
 #ifdef DEBUG
 #include <sys/sysctl.h>
 #endif
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -52,30 +53,30 @@ static int	remove_spare(int ac, char **av);
 static long
 dehumanize(const char *value)
 {
-        char    *vtp;
-        long    iv;
- 
-        if (value == NULL)
-                return (0);
-        iv = strtoq(value, &vtp, 0);
-        if (vtp == value || (vtp[0] != '\0' && vtp[1] != '\0')) {
-                return (0);
-        }
-        switch (vtp[0]) {
-        case 't': case 'T':
-                iv *= 1024;
-        case 'g': case 'G':
-                iv *= 1024;
-        case 'm': case 'M':
-                iv *= 1024;
-        case 'k': case 'K':
-                iv *= 1024;
-        case '\0':
-                break;
-        default:
-                return (0);
-        }
-        return (iv);
+	char    *vtp;
+	long    iv;
+
+	if (value == NULL)
+		return (0);
+	iv = strtoq(value, &vtp, 0);
+	if (vtp == value || (vtp[0] != '\0' && vtp[1] != '\0')) {
+		return (0);
+	}
+	switch (vtp[0]) {
+	case 't': case 'T':
+		iv *= 1024;
+	case 'g': case 'G':
+		iv *= 1024;
+	case 'm': case 'M':
+		iv *= 1024;
+	case 'k': case 'K':
+		iv *= 1024;
+	case '\0':
+		break;
+	default:
+		return (0);
+	}
+	return (iv);
 }
 
 int
@@ -162,16 +163,16 @@ clear_config(int ac __unused, char **av __unused)
 	int ch, error, fd;
 	u_int i;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
 		return (error);
 	}
 
-	if (!mfi_reconfig_supported()) {
-		warnx("The current mfi(4) driver does not support "
-		    "configuration changes.");
+	if (!mfi_reconfig_supported(mfi_device)) {
+		warnx("The current %s driver does not support "
+		    "configuration changes.", mfi_device);
 		close(fd);
 		return (EOPNOTSUPP);
 	}
@@ -193,8 +194,8 @@ clear_config(int ac __unused, char **av __unused)
 	}
 
 	printf(
-	    "Are you sure you wish to clear the configuration on mfi%u? [y/N] ",
-	    mfi_unit);
+	    "Are you sure you wish to clear the configuration on %s? [y/N] ",
+	    mfi_device);
 	ch = getchar();
 	if (ch != 'y' && ch != 'Y') {
 		printf("\nAborting\n");
@@ -209,7 +210,7 @@ clear_config(int ac __unused, char **av __unused)
 		return (error);
 	}
 
-	printf("mfi%d: Configuration cleared\n", mfi_unit);
+	printf("%s: Configuration cleared\n", mfi_device);
 	close(fd);
 
 	return (0);
@@ -587,16 +588,16 @@ create_volume(int ac, char **av)
 	narrays = 0;
 	error = 0;
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
 		return (error);
 	}
 
-	if (!mfi_reconfig_supported()) {
-		warnx("The current mfi(4) driver does not support "
-		    "configuration changes.");
+	if (!mfi_reconfig_supported(mfi_device)) {
+		warnx("The current %s(4) driver does not support "
+		    "configuration changes.", mfi_device);
 		error = EOPNOTSUPP;
 		goto error;
 	}
@@ -869,16 +870,16 @@ delete_volume(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
 		return (error);
 	}
 
-	if (!mfi_reconfig_supported()) {
-		warnx("The current mfi(4) driver does not support "
-		    "configuration changes.");
+	if (!mfi_reconfig_supported(mfi_device)) {
+		warnx("The current %s(4) driver does not support "
+		    "configuration changes.", mfi_device);
 		close(fd);
 		return (EOPNOTSUPP);
 	}
@@ -937,7 +938,7 @@ add_spare(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1027,7 +1028,7 @@ add_spare(int ac, char **av)
 				    ar->array_ref);
 				error = EINVAL;
 				goto error;
-			}				
+			}
 			spare->array_ref[i] = ar->array_ref;
 		}
 	}
@@ -1062,7 +1063,7 @@ remove_spare(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1120,7 +1121,7 @@ dump_config(int fd, struct mfi_config_data *config, const char *msg_prefix)
 		msg_prefix = "Configuration (Debug)";
 
 	printf(
-	    "mfi%d %s: %d arrays, %d volumes, %d spares\n", mfi_unit,
+	    "%s %s: %d arrays, %d volumes, %d spares\n", mfi_device,
 	    msg_prefix, config->array_count, config->log_drv_count,
 	    config->spares_count);
 	printf("  array size: %u\n", config->array_size);
@@ -1211,7 +1212,7 @@ debug_config(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1248,7 +1249,7 @@ dump(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit, O_RDWR);
+	fd = mfi_open(mfi_device, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
