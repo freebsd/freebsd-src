@@ -108,11 +108,7 @@ enum {
 	CTRL_EQ_QSIZE = 1024,
 	TX_EQ_QSIZE = 1024,
 
-#if MJUMPAGESIZE != MCLBYTES
 	SW_ZONE_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
-#else
-	SW_ZONE_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
-#endif
 	CL_METADATA_SIZE = CACHE_LINE_SIZE,
 
 	SGE_MAX_WR_NDESC = SGE_MAX_WR_LEN / EQ_ESIZE, /* max WR size in desc */
