@@ -2013,7 +2013,7 @@ device		rtwnfw
 # mismatch between the mbuf size assumed by the kernel and the mbuf size
 # assumed by a module.  The only driver that currently has the ability to
 # detect a mismatch is ti(4).
-options 	MCLSHIFT=11	# mbuf cluster shift in bits, 12 == 4KB
+options 	MCLSHIFT=11	# mbuf cluster shift in bits, 11 == 2KB
 options 	MSIZE=256	# mbuf size in bytes
 
 #
