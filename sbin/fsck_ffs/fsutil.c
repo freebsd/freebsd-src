@@ -682,14 +682,17 @@ ckfini(int markclean)
 	if (debug)
 		printf("Flush the superblock\n");
 	flush(fswritefd, &sblk);
-	if (havesb && cursnapshot == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
-	    sblk.b_bno != sblock.fs_sblockloc / dev_bsize &&
-	    !preen && reply("UPDATE STANDARD SUPERBLOCK")) {
-		/* Change the write destination to standard superblock */
-		sblock.fs_sblockactualloc = sblock.fs_sblockloc;
-		sblk.b_bno = sblock.fs_sblockloc / dev_bsize;
-		sbdirty();
-		flush(fswritefd, &sblk);
+	if (havesb && cursnapshot == 0 &&
+	    sblk.b_bno != sblock.fs_sblockloc / dev_bsize) {
+		if (preen || reply("UPDATE STANDARD SUPERBLOCK")) {
+			/* Change write destination to standard superblock */
+			sblock.fs_sblockactualloc = sblock.fs_sblockloc;
+			sblk.b_bno = sblock.fs_sblockloc / dev_bsize;
+			sbdirty();
+			flush(fswritefd, &sblk);
+		} else {
+			markclean = 0;
+		}
 	}
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {
