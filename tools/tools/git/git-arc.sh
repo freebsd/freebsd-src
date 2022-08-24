@@ -575,6 +575,16 @@ USAGE=
 # shellcheck disable=SC1090
 . "$git_sh_setup"
 
+# git commands use GIT_EDITOR instead of EDITOR, so try to provide consistent
+# behaviour.  Ditto for PAGER.  This makes git-arc play nicer with editor
+# plugins like vim-fugitive.
+if [ -n "$GIT_EDITOR" ]; then
+    EDITOR=$GIT_EDITOR
+fi
+if [ -n "$GIT_PAGER" ]; then
+    PAGER=$GIT_PAGER
+fi
+
 # Bail if the working tree is unclean, except for "list" and "patch"
 # operations.
 case $verb in
