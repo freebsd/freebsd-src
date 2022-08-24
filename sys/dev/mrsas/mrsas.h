@@ -3648,4 +3648,7 @@ mrsas_test_bit(int b, volatile void *p)
 	return ((volatile int *)p)[b >> 5] & (1 << (b & 0x1f));
 }
 
+#include "mrsas_ioctl.h"
+extern int mrsas_user_command(struct mrsas_softc *, struct mfi_ioc_passthru *);
+
 #endif					/* MRSAS_H */
