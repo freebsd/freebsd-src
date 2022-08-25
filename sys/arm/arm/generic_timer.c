@@ -274,7 +274,9 @@ cntpct_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 static void
 tmr_setup_user_access(void *arg __unused)
 {
+#ifdef __aarch64__
 	int emulate;
+#endif
 
 	if (arm_tmr_sc != NULL) {
 		smp_rendezvous(NULL, setup_user_access, NULL, NULL);
