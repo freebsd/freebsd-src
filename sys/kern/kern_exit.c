@@ -1269,8 +1269,8 @@ report_alive_proc(struct thread *td, struct proc *p, siginfo_t *siginfo,
 	}
 	if (status != NULL)
 		*status = cont ? SIGCONT : W_STOPCODE(p->p_xsig);
-	PROC_UNLOCK(p);
 	td->td_retval[0] = p->p_pid;
+	PROC_UNLOCK(p);
 }
 
 int
