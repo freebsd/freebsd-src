@@ -1070,6 +1070,8 @@
         ..
         procstat
         ..
+        renice
+        ..
         rs
         ..
         sdiff
