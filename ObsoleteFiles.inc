@@ -52,6 +52,32 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220825: awk tests moved to subdirs
+OLD_FILES+=usr/tests/usr.bin/awk/awk_test
+OLD_FILES+=usr/tests/usr.bin/awk/d_assign_NF.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_assign_NF.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_assign_NF.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_big_regexp.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_big_regexp.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_big_regexp.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_end1.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_end1.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_end1.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_end2.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_end2.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_end2.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_period.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_period.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_period.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_string1.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_string1.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_tolower.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_tolower.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_tolower.out
+OLD_FILES+=usr/tests/usr.bin/awk/d_toupper.awk
+OLD_FILES+=usr/tests/usr.bin/awk/d_toupper.in
+OLD_FILES+=usr/tests/usr.bin/awk/d_toupper.out
+
 # 20220820: remove knlist_init_rw_reader()
 OLD_FILES+=usr/share/man/man9/knlist_init_rw_reader.9.gz
 
