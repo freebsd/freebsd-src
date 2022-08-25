@@ -526,6 +526,9 @@ Specifies the time at which a snapshot for a dataset was last
 created or deleted.
 .Pp
 This allows us to be more efficient how often we query snapshots.
+The property is persistent across mount and unmount operations only if the
+.Sy extensible_dataset
+feature is enabled.
 .It Sy volblocksize
 For volumes, specifies the block size of the volume.
 The
@@ -1545,7 +1548,7 @@ Access time is only updated if the previous
 access time was earlier than the current modify or change time or if the
 existing access time hasn't been updated within the past 24 hours.
 The default value is
-.Sy off .
+.Sy on .
 The values
 .Sy on
 and
