@@ -106,10 +106,6 @@ ATF_TC_HEAD(trap_signal_test, tc)
 
 ATF_TC_BODY(trap_signal_test, tc)
 {
-#if defined(__i386__)
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/265889");
-#endif
 	/*
 	 * Setup the signal handlers
 	 */
