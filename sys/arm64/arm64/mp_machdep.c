@@ -154,7 +154,7 @@ static bool
 is_boot_cpu(uint64_t target_cpu)
 {
 
-	return (cpuid_to_pcpu[0]->pc_mpidr == (target_cpu & CPU_AFF_MASK));
+	return (PCPU_GET_MPIDR(cpuid_to_pcpu[0]) == (target_cpu & CPU_AFF_MASK));
 }
 
 static void
@@ -208,7 +208,7 @@ init_secondary(uint64_t cpu)
 {
 	struct pcpu *pcpup;
 	pmap_t pmap0;
-	u_int mpidr;
+	uint64_t mpidr;
 
 	/*
 	 * Verify that the value passed in 'cpu' argument (aka context_id) is
@@ -217,10 +217,10 @@ init_secondary(uint64_t cpu)
 	 */
 	mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
 	if (cpu >= MAXCPU || cpuid_to_pcpu[cpu] == NULL ||
-	    cpuid_to_pcpu[cpu]->pc_mpidr != mpidr) {
+	    PCPU_GET_MPIDR(cpuid_to_pcpu[cpu]) != mpidr) {
 		for (cpu = 0; cpu < mp_maxid; cpu++)
 			if (cpuid_to_pcpu[cpu] != NULL &&
-			    cpuid_to_pcpu[cpu]->pc_mpidr == mpidr)
+			    PCPU_GET_MPIDR(cpuid_to_pcpu[cpu]) == mpidr)
 				break;
 		if ( cpu >= MAXCPU)
 			panic("MPIDR for this CPU is not in pcpu table");
@@ -517,7 +517,8 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 
 	pcpup = (struct pcpu *)pcpu_mem;
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
-	pcpup->pc_mpidr = target_cpu & CPU_AFF_MASK;
+	pcpup->pc_mpidr_low = target_cpu & CPU_AFF_MASK;
+	pcpup->pc_mpidr_high = (target_cpu & CPU_AFF_MASK) >> 32;
 
 	dpcpu[cpuid - 1] = (void *)(pcpup + 1);
 	dpcpu_init(dpcpu[cpuid - 1], cpuid);
@@ -688,11 +689,15 @@ cpu_init_fdt(void)
 void
 cpu_mp_start(void)
 {
+	uint64_t mpidr;
+
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* CPU 0 is always boot CPU. */
 	CPU_SET(0, &all_cpus);
-	cpuid_to_pcpu[0]->pc_mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
+	mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
+	cpuid_to_pcpu[0]->pc_mpidr_low = mpidr;
+	cpuid_to_pcpu[0]->pc_mpidr_high = mpidr >> 32;
 
 	switch(arm64_bus_method) {
 #ifdef DEV_ACPI
