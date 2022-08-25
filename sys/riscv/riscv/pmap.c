@@ -3174,8 +3174,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 
 	if ((l2pg = pmap_alloc_l2(pmap, va, (flags & PMAP_ENTER_NOSLEEP) != 0 ?
 	    NULL : lockp)) == NULL) {
-		CTR2(KTR_PMAP, "pmap_enter_l2: failure for va %#lx in pmap %p",
-		    va, pmap);
+		CTR2(KTR_PMAP, "pmap_enter_l2: failed to allocate PT page"
+		    " for va %#lx in pmap %p", va, pmap);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
 
@@ -3187,8 +3187,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
 			l2pg->ref_count--;
 			CTR2(KTR_PMAP,
-			    "pmap_enter_l2: failure for va %#lx in pmap %p",
-			    va, pmap);
+			    "pmap_enter_l2: failed to replace existing mapping"
+			    " for va %#lx in pmap %p", va, pmap);
 			return (KERN_FAILURE);
 		}
 		SLIST_INIT(&free);
@@ -3234,8 +3234,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				vm_page_free_pages_toq(&free, true);
 			}
 			CTR2(KTR_PMAP,
-			    "pmap_enter_l2: failure for va %#lx in pmap %p",
-			    va, pmap);
+			    "pmap_enter_l2: failed to create PV entry"
+			    " for va %#lx in pmap %p", va, pmap);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		if ((new_l2 & PTE_W) != 0)
