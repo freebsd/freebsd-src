@@ -3908,6 +3908,10 @@ pmap_remove_pages(pmap_t pmap)
 				ptepde = pmap_load(pte);
 				pte = pmap_l1_to_l2(pte, pv->pv_va);
 				tpte = pmap_load(pte);
+
+				KASSERT((tpte & PTE_V) != 0,
+				    ("L2 PTE is invalid... bogus PV entry? "
+				    "va=%#lx, pte=%#lx", pv->pv_va, tpte));
 				if ((tpte & PTE_RWX) != 0) {
 					superpage = true;
 				} else {
