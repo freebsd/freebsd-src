@@ -139,6 +139,8 @@ set_tls(void *tls)
 #define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
 #define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
 
+#define	PCPU_GET_MPIDR(pc)	((pc)->pc_mpidr)
+
 void pcpu0_init(void);
 #endif	/* _KERNEL */
 

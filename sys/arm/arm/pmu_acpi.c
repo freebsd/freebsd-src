@@ -72,7 +72,7 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 
 	for (i = 0; i < MAXCPU; i++) {
 		pcpu = pcpu_find(i);
-		if (pcpu != NULL && pcpu->pc_mpidr == intr->ArmMpidr) {
+		if (pcpu != NULL && PCPU_GET_MPIDR(pcpu) == intr->ArmMpidr) {
 			cpuid = i;
 			break;
 		}
