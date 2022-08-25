@@ -728,26 +728,21 @@ attr struct type *							\
 name##_RB_INSERT(struct name *head, struct type *elm)			\
 {									\
 	struct type *tmp;						\
+	struct type **tmpp = &RB_ROOT(head);				\
 	struct type *parent = NULL;					\
-	__typeof(cmp(NULL, NULL)) comp = 0;				\
-	tmp = RB_ROOT(head);						\
-	while (tmp) {							\
+									\
+	while ((tmp = *tmpp) != NULL) {					\
 		parent = tmp;						\
-		comp = (cmp)(elm, parent);				\
+		__typeof(cmp(NULL, NULL)) comp = (cmp)(elm, parent);	\
 		if (comp < 0)						\
-			tmp = RB_LEFT(tmp, field);			\
+			tmpp = &RB_LEFT(parent, field);			\
 		else if (comp > 0)					\
-			tmp = RB_RIGHT(tmp, field);			\
+			tmpp = &RB_RIGHT(parent, field);		\
 		else							\
-			return (tmp);					\
+			return (parent);				\
 	}								\
 	RB_SET(elm, parent, field);					\
-	if (parent == NULL)						\
-		RB_ROOT(head) = elm;					\
-	else if (comp < 0)						\
-		RB_LEFT(parent, field) = elm;				\
-	else								\
-		RB_RIGHT(parent, field) = elm;				\
+	*tmpp = elm;							\
 	name##_RB_INSERT_COLOR(head, elm);				\
 	RB_UPDATE_AUGMENT(elm, field);					\
 	return (NULL);							\
