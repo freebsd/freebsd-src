@@ -27,11 +27,13 @@
  * $FreeBSD$
  */
 
+#include <teken.h>
 #include <gfx_fb.h>
 
 #ifndef	_EFIFB_H_
 #define	_EFIFB_H_
 
+bool	efi_has_gop(void);
 int	efi_find_framebuffer(teken_gfx_t *gfx_state);
 
 #endif /* _EFIFB_H_ */
