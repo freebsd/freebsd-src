@@ -1,0 +1,12 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+enginesdir=${libdir}/engines
+
+Name: OpenSSL-libcrypto
+Description: OpenSSL cryptography library
+Version: @openssl_ver@
+Libs: -L${libdir} -lcrypto
+Libs.private: -pthread 
+Cflags: -I${includedir}
