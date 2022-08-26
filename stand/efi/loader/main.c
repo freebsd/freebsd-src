@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <smbios.h>
 
 #include "efizfs.h"
+#include "framebuffer.h"
 
 #include "loader_efi.h"
 
@@ -760,8 +761,20 @@ parse_uefi_con_out(void)
 	if (rv != EFI_SUCCESS)
 		rv = efi_global_getenv("ConOutDev", buf, &sz);
 	if (rv != EFI_SUCCESS) {
-		/* If we don't have any ConOut default to serial */
-		how = RB_SERIAL;
+		/*
+		 * If we don't have any ConOut default to both. If we have GOP
+		 * make video primary, otherwise just make serial primary. In
+		 * either case, try to use both the 'efi' console which will use
+		 * the GOP, if present and serial. If there's an EFI BIOS that
+		 * omits this, but has a serial port redirect, we'll
+		 * unavioidably get doubled characters (but we'll be right in
+		 * all the other more common cases).
+		 */
+		if (efi_has_gop())
+			how = RB_MULTIPLE;
+		else
+			how = RB_MULTIPLE | RB_SERIAL;
+		setenv("console", "efi,comconsole", 1);
 		goto out;
 	}
 	ep = buf + sz;
@@ -949,6 +962,9 @@ main(int argc, CHAR16 *argv[])
 	setenv("console", "efi", 1);
 	uhowto = parse_uefi_con_out();
 #if defined(__riscv)
+	/*
+	 * This workaround likely is papering over a real issue
+	 */
 	if ((uhowto & RB_SERIAL) != 0)
 		setenv("console", "comconsole", 1);
 #endif
