@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2018
+.Dd August 26, 2022
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -61,14 +61,11 @@ PF_UNIX		Host-internal protocols,
 PF_INET		Internet version 4 protocols,
 PF_INET6	Internet version 6 protocols,
 PF_ROUTE	Internal routing protocol,
-PF_LINK		Link layer interface,
 PF_KEY		Internal key-management function,
-PF_NATM		Asynchronous transfer mode protocols,
 PF_NETGRAPH	Netgraph sockets,
-PF_IEEE80211	IEEE 802.11 wireless link-layer protocols (WiFi),
 PF_BLUETOOTH	Bluetooth protocols,
 PF_INET_SDP	OFED socket direct protocol (IPv4),
-PF_INET6_SDP	OFED socket direct protocol (IPv6)
+AF_HYPERV	HyperV sockets
 .Ed
 .Pp
 Each protocol family is connected to an address family, which has the
@@ -90,7 +87,6 @@ defined types are:
 SOCK_STREAM	Stream socket,
 SOCK_DGRAM	Datagram socket,
 SOCK_RAW	Raw-protocol interface,
-SOCK_RDM	Reliably-delivered packet,
 SOCK_SEQPACKET	Sequenced packet stream
 .Ed
 .Pp
@@ -113,12 +109,12 @@ an entire packet with each read system call.
 This facility may have protocol-specific properties.
 .Dv SOCK_RAW
 sockets provide access to internal network protocols and interfaces.
-The types
-.Dv SOCK_RAW ,
-which is available only to the super-user, and
-.Dv SOCK_RDM ,
-which is planned,
-but not yet implemented, are not described here.
+The
+.Dv SOCK_RAW
+type is available only to the super-user and is described in
+.Xr ip 4
+and
+.Xr ip6 4 .
 .Pp
 Additionally, the following flags are allowed in the
 .Fa type
@@ -291,6 +287,8 @@ The socket type is not supported by the protocol.
 .Xr getsockname 2 ,
 .Xr getsockopt 2 ,
 .Xr ioctl 2 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
 .Xr listen 2 ,
 .Xr read 2 ,
 .Xr recv 2 ,
