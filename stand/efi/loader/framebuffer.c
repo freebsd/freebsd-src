@@ -535,6 +535,21 @@ efifb_get_edid(edid_res_list_t *res)
 	return (rv);
 }
 
+bool
+efi_has_gop(void)
+{
+	EFI_STATUS status;
+	EFI_HANDLE *hlist;
+	UINTN hsize;
+
+	hsize = 0;
+	hlist = NULL;
+	status = BS->LocateHandle(ByProtocol, &gop_guid, NULL, &hsize, hlist);
+
+	return (status == EFI_BUFFER_TOO_SMALL);
+}
+
+
 int
 efi_find_framebuffer(teken_gfx_t *gfx_state)
 {
