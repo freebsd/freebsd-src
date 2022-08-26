@@ -303,7 +303,7 @@ static int
 soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred)
 {
 	struct socket *so = fp->f_data;
-	int error;
+	int error = 0;
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
