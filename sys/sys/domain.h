@@ -77,9 +77,9 @@ struct domain {
 #ifdef _KERNEL
 extern int	domain_init_status;
 extern struct	domain *domains;
-void		domain_add(void *);
-void		domain_remove(void *);
-void		domain_init(void *);
+void		domain_add(struct domain *);
+void		domain_remove(struct domain *);
+void		domain_init(struct domain *);
 #ifdef VIMAGE
 void		vnet_domain_init(void *);
 void		vnet_domain_uninit(void *);
