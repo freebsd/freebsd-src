@@ -42,6 +42,13 @@ BOOT_BOOT0_ORG?=	0x600
 ORG=${BOOT_BOOT0_ORG}
 
 # Comm settings for boot0sio.
+#
+# boot0sio uses BIOS INT $0x14 for serial ports, we can only support these
+# baudrates due to INT14's limited interface. In addition, if
+# BOOT_BOOT0_COMCONSOLE_SPEED=0, then the baud rate and frame format will remain
+# unchanged. Some BIOSes initialize the serial ports to 115200, and this may
+# allow boot0sio access at that rate if so.
+#
 # Bit(s) Description
 # 7-5    data rate (110,150,300,600,1200,2400,4800,9600 bps)
 # 4-3    parity (00 or 10 = none, 01 = odd, 11 = even)
