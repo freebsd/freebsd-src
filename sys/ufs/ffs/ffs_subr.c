@@ -333,6 +333,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
 		    #fmt ")\n", fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2,	\
 		    #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs);	\
+		if (error < 0)						\
+			return (ENOENT);				\
 		if (error == 0)						\
 			error = ENOENT;					\
 	}
@@ -351,6 +353,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1,	\
 		    (intmax_t)lhs1, #op1, #rhs1, (intmax_t)rhs1, #lhs2,	\
 		    (intmax_t)lhs2, #op2, #rhs2, (intmax_t)rhs2);	\
+		if (error < 0)						\
+			return (ENOENT);				\
 		if (error == 0)						\
 			error = ENOENT;					\
 	}
@@ -385,12 +389,16 @@ validate_sblock(struct fs *fs, int flags)
 	 */
 	if ((flags & UFS_FSRONLY) == UFS_FSRONLY &&
 	    (fs->fs_magic == FS_UFS1_MAGIC || fs->fs_magic == FS_UFS2_MAGIC)) {
+		error = -1; /* fail on first error */
 		if (fs->fs_magic == FS_UFS2_MAGIC) {
 			FCHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
 		} else if (fs->fs_magic == FS_UFS1_MAGIC) {
 			FCHK(fs->fs_sblockloc, <, 0, %jd);
 			FCHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
 		}
+		FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
+		FCHK(fs->fs_sbsize, <, (signed)sizeof(struct fs), %jd);
+		FCHK(fs->fs_sbsize % fs->fs_fsize, !=, 0, %jd);
 		FCHK(fs->fs_frag, <, 1, %jd);
 		FCHK(fs->fs_frag, >, MAXFRAG, %jd);
 		FCHK(fs->fs_bsize, <, MINBSIZE, %jd);
@@ -438,12 +446,12 @@ validate_sblock(struct fs *fs, int flags)
 		WCHK(fs->fs_old_rotdelay, !=, 0, %jd);
 		WCHK(fs->fs_old_rps, !=, 60, %jd);
 		WCHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
-		WCHK(fs->fs_old_cpg, !=, 1, %jd);
+		FCHK(fs->fs_old_cpg, !=, 1, %jd);
 		WCHK(fs->fs_old_interleave, !=, 1, %jd);
 		WCHK(fs->fs_old_trackskew, !=, 0, %jd);
 		WCHK(fs->fs_old_cpc, !=, 0, %jd);
 		WCHK(fs->fs_old_postblformat, !=, 1, %jd);
-		WCHK(fs->fs_old_nrpos, !=, 1, %jd);
+		FCHK(fs->fs_old_nrpos, !=, 1, %jd);
 		WCHK(fs->fs_old_spc, !=, fs->fs_fpg * fs->fs_old_nspf, %jd);
 		WCHK(fs->fs_old_nsect, !=, fs->fs_old_spc, %jd);
 		WCHK(fs->fs_old_npsect, !=, fs->fs_old_spc, %jd);
@@ -464,10 +472,18 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(powerof2(fs->fs_fsize), ==, 0, %jd);
 	FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
 	FCHK(fs->fs_ncg, <, 1, %jd);
-	FCHK(fs->fs_ipg, <, 1, %jd);
+	FCHK(fs->fs_ipg, <, fs->fs_inopb, %jd);
+	FCHK(fs->fs_ipg % fs->fs_inopb, !=, 0, %jd);
 	FCHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
 	    %jd);
+	FCHK(fs->fs_cstotal.cs_nifree, <, 0, %jd);
+	FCHK(fs->fs_cstotal.cs_nifree, >, fs->fs_ipg * fs->fs_ncg, %jd);
+	FCHK(fs->fs_cstotal.cs_ndir, <, 0, %jd);
+	FCHK(fs->fs_cstotal.cs_ndir, >,
+	    (fs->fs_ipg * fs->fs_ncg) - fs->fs_cstotal.cs_nifree, %jd);
 	FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
+	FCHK(fs->fs_sbsize, <, (signed)sizeof(struct fs), %jd);
+	FCHK(fs->fs_sbsize % fs->fs_fsize, !=, 0, %jd);
 	FCHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
 	FCHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
 	FCHK(fs->fs_maxbsize, >, FS_MAXCONTIG * fs->fs_bsize, %jd);
@@ -482,6 +498,13 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(fs->fs_old_cgoffset, <, 0, %jd);
 	FCHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
 	FCHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg, %jd);
+	/*
+	 * If anything has failed up to this point, it is usafe to proceed
+	 * as checks below may divide by zero or make other fatal calculations.
+	 * So if we have any errors at this point, give up.
+	 */
+	if (error)
+		return (error);
 	FCHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
 	    fs->fs_frag), %jd);
@@ -490,6 +513,8 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(fs->fs_iblkno, !=, fs->fs_cblkno + fs->fs_frag, %jd);
 	FCHK(fs->fs_dblkno, !=, fs->fs_iblkno + fs->fs_ipg / INOPF(fs), %jd);
 	FCHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
+	FCHK(fs->fs_cgsize, <, fs->fs_fsize, %jd);
+	FCHK(fs->fs_cgsize % fs->fs_fsize, !=, 0, %jd);
 	/*
 	 * This test is valid, however older versions of growfs failed
 	 * to correctly update fs_dsize so will fail this test. Thus we
@@ -521,8 +546,8 @@ validate_sblock(struct fs *fs, int flags)
 	 * and ends in the data area of the same cylinder group.
 	 */
 	FCHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
-	WCHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
-	WCHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
 	/*
 	 * If we are not requested to read in the csum data stop here
 	 * as the correctness of the remaining values is only important
@@ -558,8 +583,8 @@ validate_sblock(struct fs *fs, int flags)
 	 */
 	WCHK(fs->fs_maxcontig, <, 0, %jd);
 	WCHK(fs->fs_maxcontig, >, MAX(256, maxphys / fs->fs_bsize), %jd);
-	WCHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
-	WCHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
+	FCHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
+	FCHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
 	    MIN(fs->fs_maxcontig, FS_MAXCONTIG), %jd);
 	return (error);
 }
@@ -620,8 +645,8 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 	if (ffs_sbget(devfd, &protofs, UFS_STDSB, flags, filltype,
 	    readfunc) == 0) {
 		if (msg)
-			printf("Attempted extraction of recovery data from "
-			    "standard superblock: ");
+			printf("Attempt extraction of recovery data from "
+			    "standard superblock.\n");
 	} else {
 		/*
 		 * Final desperation is to see if alternate superblock
@@ -630,7 +655,7 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 		if (msg)
 			printf("Attempted extraction of recovery data from "
 			    "standard superblock: failed\nAttempt to find "
-			    "boot zone recovery data: ");
+			    "boot zone recovery data.\n");
 		/*
 		 * Look to see if recovery information has been saved.
 		 * If so we can generate a prototype superblock based
@@ -675,13 +700,19 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 	/*
 	 * Scan looking for alternative superblocks.
 	 */
+	flags = nocsum;
+	if (!msg)
+		flags |= UFS_NOMSG;
 	for (cg = 0; cg < protofs->fs_ncg; cg++) {
-		sblk = dbtob(fsbtodb(protofs, cgsblock(protofs, cg)));
-		if (ffs_sbget(devfd, fsp, sblk, UFS_NOMSG | nocsum, filltype,
+		sblk = fsbtodb(protofs, cgsblock(protofs, cg));
+		if (msg)
+			printf("Try cg %ld at sblock loc %jd\n", cg,
+			    (intmax_t)sblk);
+		if (ffs_sbget(devfd, fsp, dbtob(sblk), flags, filltype,
 		    readfunc) == 0) {
 			if (msg)
-				printf("succeeded with alternate superblock "
-				    "at %jd\n", (intmax_t)btodb(sblk));
+				printf("Succeeded with alternate superblock "
+				    "at %jd\n", (intmax_t)sblk);
 			UFS_FREE(protofs, filltype);
 			return (0);
 		}
@@ -694,13 +725,18 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 trynowarn:
 	flags = UFS_NOWARNFAIL | UFS_NOMSG | nocsum;
 	if (msg) {
-		printf("failed\n");
+		printf("Finding an alternate superblock failed.\nCheck for "
+		    "only non-critical errors in standard superblock\n");
 		flags &= ~UFS_NOMSG;
 	}
-	if (ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc) != 0)
+	if (ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc) != 0) {
+		if (msg)
+			printf("Failed, superblock has critical errors\n");
 		return (ENOENT);
+	}
 	if (msg)
-		printf("Using standard superblock with non-critical errors.\n");
+		printf("Success, using standard superblock with "
+		    "non-critical errors.\n");
 	return (0);
 }
 
