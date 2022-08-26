@@ -63,12 +63,14 @@ linux_common_modevent(module_t mod, int type, void *data)
 		linux_osd_jail_register();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_register_handler(*ldhp);
+		linux_netlink_register();
 		break;
 	case MOD_UNLOAD:
 		linux_dev_shm_destroy();
 		linux_osd_jail_deregister();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_unregister_handler(*ldhp);
+		linux_netlink_deregister();
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -84,3 +86,4 @@ static moduledata_t linux_common_mod = {
 
 DECLARE_MODULE(linux_common, linux_common_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_VERSION(linux_common, 1);
+MODULE_DEPEND(linux_common, netlink, 1, 1, 1);
