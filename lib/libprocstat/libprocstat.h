@@ -105,6 +105,7 @@
 #define	PS_FST_FFLAG_HASLOCK	0x4000
 
 struct kinfo_kstack;
+struct kinfo_proc;
 struct kinfo_vmentry;
 struct procstat;
 struct ptrace_lwpinfo;
