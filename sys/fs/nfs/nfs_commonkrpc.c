@@ -966,12 +966,12 @@ tryagain:
 							    "slot=%d\n", slot);
 							slot = nd->nd_slotid;
 						}
+						freeslot = slot;
 					} else if (slot != 0) {
 						printf("newnfs_request: Bad "
 						    "session slot=%d\n", slot);
 						slot = 0;
 					}
-					freeslot = slot;
 					if (retseq != sep->nfsess_slotseq[slot])
 						printf("retseq diff 0x%x\n",
 						    retseq);
