@@ -952,9 +952,10 @@ blzero(int fd, ufs2_daddr_t blk, long size)
 #undef CHK
 #define CHK(lhs, op, rhs, fmt)						\
 	if (lhs op rhs) {						\
-		pwarn("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
-		    #fmt ")\n", sblock.fs_magic == FS_UFS1_MAGIC ? 1 :	\
-		    2, #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs);	\
+		pwarn("UFS%d cylinder group %d failed: "		\
+		    "%s (" #fmt ") %s %s (" #fmt ")\n",			\
+		    sblock.fs_magic == FS_UFS1_MAGIC ? 1 : 2, cg,	\
+		    #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs);	\
 		error = 1;						\
 	}
 int
