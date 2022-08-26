@@ -91,6 +91,8 @@ static int linux_recvmsg_common(struct thread *, l_int, struct l_msghdr *,
 					l_uint, struct msghdr *);
 static int linux_set_socket_flags(int, int *);
 
+#define	SOL_NETLINK	270
+
 static int
 linux_to_bsd_sockopt_level(int level)
 {
@@ -2083,6 +2085,10 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
+		break;
+	case SOL_NETLINK:
+		level = SOL_SOCKET;
+		name = args->optname;
 		break;
 	default:
 		name = -1;

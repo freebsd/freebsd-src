@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <netlink/netlink.h>
 
 #include <sys/un.h>
 #include <netinet/in.h>
@@ -364,6 +365,8 @@ linux_to_bsd_domain(int domain)
 		return (AF_IPX);
 	case LINUX_AF_APPLETALK:
 		return (AF_APPLETALK);
+	case LINUX_AF_NETLINK:
+		return (AF_NETLINK);
 	}
 	return (-1);
 }
@@ -387,6 +390,8 @@ bsd_to_linux_domain(int domain)
 		return (LINUX_AF_IPX);
 	case AF_APPLETALK:
 		return (LINUX_AF_APPLETALK);
+	case AF_NETLINK:
+		return (LINUX_AF_NETLINK);
 	}
 	return (-1);
 }
@@ -512,6 +517,14 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 			error = ENAMETOOLONG;
 			goto out;
 		}
+	}
+
+	if (bdom == AF_NETLINK) {
+		if (salen < sizeof(struct sockaddr_nl)) {
+			error = EINVAL;
+			goto out;
+		}
+		salen = sizeof(struct sockaddr_nl);
 	}
 
 	sa = (struct sockaddr *)kosa;

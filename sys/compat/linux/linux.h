@@ -271,4 +271,7 @@ struct l_statx {
 	ktrstruct("l_sigset_t", (s), l)
 #endif
 
+void linux_netlink_register(void);
+void linux_netlink_deregister(void);
+
 #endif /* _LINUX_MI_H_ */

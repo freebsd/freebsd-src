@@ -4,7 +4,7 @@
 
 KMOD=	linux_common
 SRCS=	linux_common.c linux_mib.c linux_mmap.c linux_util.c linux_emul.c \
-	linux_dummy.c linux_errno.c \
+	linux_dummy.c linux_errno.c linux_netlink.c \
 	linux.c device_if.h vnode_if.h bus_if.h opt_inet6.h
 
 .if ${MACHINE_CPUARCH} == "amd64"
