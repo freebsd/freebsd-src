@@ -1679,6 +1679,14 @@ product DELL U5520_3		0x8138	Dell 5520 3G
 product DELL U5730		0x8180	Dell 5730 3G
 product DELL U5730_2		0x8181	Dell 5730 3G
 product DELL U5730_3		0x8182	Dell 5730 3G
+product DELL DW5809		0x81b1	Dell DW5809e Snapdragon X7 LTE/GPS
+product DELL DW5809_2		0x81b3	Dell DW5809e Snapdragon X7 LTE/GPS
+product DELL DW5811		0x81b5	Dell DW5811e Snapdragon X7 LTE/GPS
+product DELL DW5811_2		0x81b6	Dell DW5811e Snapdragon X7 LTE/GPS
+product DELL DW5816		0x81cb	Dell DW5816e Snapdragon X7 LTE/GPS
+product DELL DW5816_2		0x81cc	Dell DW5816e Snapdragon X7 LTE/GPS
+product DELL DW5818		0x81d0	Dell DW5818 Snapdragon X7 LTE
+product DELL DW5818_2		0x81d2	Dell DW5819 Snapdragon X7 LTE
 product DELL DW700		0x9500	Dell DW700 GPS
 product DELL2 VARIOUS_UPS	0xffff	Various UPS Models
 
@@ -4324,6 +4332,12 @@ product SIERRA MC7355		0x9041	MC7355
 product SIERRA MC7430		0x9071	Sierra Wireless MC7430 Qualcomm Snapdragon X7 LTE-A
 product SIERRA AC313U		0x68aa	Sierra Wireless AirCard 313U
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
+product SIERRA EM7430		0x81cb	Sierra Wireless EM7430 Qualcomm Snapdragon X7 LTE-A
+product SIERRA EM7430_2		0x81cc	Sierra Wireless EM7430 Qualcomm Snapdragon X7 LTE-A
+product SIERRA EM7455		0x9078	Sierra Wireless EM7455 Qualcomm Snapdragon X7 LTE-A
+product SIERRA EM7455_2		0x9079	Sierra Wireless EM7455 Qualcomm Snapdragon X7 LTE-A
+product SIERRA EM7565		0x9090	Sierra Wireless EM7565 Qualcomm Snapdragon X7 LTE-A
+product SIERRA EM7565_2		0x9091	Sierra Wireless EM7565 Qualcomm Snapdragon X7 LTE-A
 
 /* Sigmatel products */
 product SIGMATEL WBT_3052	0x4200	WBT-3052 IrDA/USB Bridge
