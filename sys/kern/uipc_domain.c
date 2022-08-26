@@ -248,9 +248,8 @@ pr_init(struct protosw *pr)
  * XXX can't fail at this time.
  */
 void
-domain_init(void *arg)
+domain_init(struct domain *dp)
 {
-	struct domain *dp = arg;
 	struct protosw *pr;
 	int flags;
 
@@ -283,11 +282,9 @@ domain_init(void *arg)
  * XXX can't fail at this time.
  */
 void
-domain_add(void *data)
+domain_add(struct domain *dp)
 {
-	struct domain *dp;
 
-	dp = (struct domain *)data;
 	if (dp->dom_probe != NULL && (*dp->dom_probe)() != 0)
 		return;
 	atomic_set_rel_int(&dp->dom_flags, DOMF_SUPPORTED);
@@ -307,9 +304,8 @@ domain_add(void *data)
 }
 
 void
-domain_remove(void *data)
+domain_remove(struct domain *dp)
 {
-	struct domain *dp = (struct domain *)data;
 
 	if ((dp->dom_flags & DOMF_UNLOADABLE) == 0)
 		return;
