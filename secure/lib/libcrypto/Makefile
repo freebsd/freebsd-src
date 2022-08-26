@@ -10,6 +10,7 @@ SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
 
 NO_LINT=
+PCFILES=	libcrypto.pc
 
 .include "Makefile.man"
 .include "Makefile.inc"
