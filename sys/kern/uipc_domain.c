@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
-#include <sys/stat.h>		/* XXXGL: remove */
 
 #include <machine/atomic.h>
 
@@ -175,17 +174,6 @@ pr_ready_notsupp(struct socket *so, struct mbuf *m, int count)
 	return (EOPNOTSUPP);
 }
 
-/*
- * This isn't really a ``null'' operation, but it's the default one and
- * doesn't do anything destructive.
- */
-static int
-pr_sense_notsupp(struct socket *so, struct stat *sb)
-{
-	sb->st_blksize = so->so_snd.sb_hiwat;
-	return (0);
-}
-
 static int
 pr_shutdown_notsupp(struct socket *so)
 {
@@ -246,7 +234,6 @@ pr_init(struct protosw *pr)
 	NOTSUPP(pr_rcvd);
 	NOTSUPP(pr_rcvoob);
 	NOTSUPP(pr_send);
-	NOTSUPP(pr_sense);
 	NOTSUPP(pr_shutdown);
 	NOTSUPP(pr_sockaddr);
 	NOTSUPP(pr_sosend);

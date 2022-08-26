@@ -335,7 +335,8 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred)
 	}
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
-	error = so->so_proto->pr_sense(so, ub);
+	if (so->so_proto->pr_sense)
+		error = so->so_proto->pr_sense(so, ub);
 	SOCK_UNLOCK(so);
 	return (error);
 }
