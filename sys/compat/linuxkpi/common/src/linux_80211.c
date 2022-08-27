@@ -115,6 +115,9 @@ SYSCTL_INT(_compat_linuxkpi_80211, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	PREP_TX_INFO_DURATION	0 /* Let the driver do its thing. */
 #endif
 
+/* c.f. ieee80211_ioctl.c */
+static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
+
 /* This is DSAP | SSAP | CTRL | ProtoID/OrgCode{3}. */
 const uint8_t rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
@@ -996,7 +999,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* Set bss info (bss_info_changed). */
 	bss_changed = 0;
-	IEEE80211_ADDR_COPY(vif->bss_conf.bssid, ni->ni_bssid);
+	vif->bss_conf.bssid = ni->ni_bssid;
 	bss_changed |= BSS_CHANGED_BSSID;
 	vif->bss_conf.txpower = ni->ni_txpower;
 	bss_changed |= BSS_CHANGED_TXPOWER;
@@ -2230,6 +2233,15 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vif->bss_conf.ht_operation_mode = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
 	vif->bss_conf.assoc = false;
 	vif->bss_conf.aid = 0;
+	/*
+	 * We need to initialize it to something as the bss_info_changed call
+	 * will try to copy from it in iwlwifi and NULL is a panic.
+	 * We will set the proper one in scan_to_auth() before being assoc.
+	 * NB: the logic there with using an array as bssid_override and checking
+	 * for non-NULL later is flawed but in their workflow does not seem to
+	 * matter.
+	 */
+	vif->bss_conf.bssid = zerobssid;
 #endif
 #if 0
 	vif->bss_conf.dtim_period = 0; /* IEEE80211_DTIM_DEFAULT ; must stay 0. */
