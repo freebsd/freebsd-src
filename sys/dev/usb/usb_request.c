@@ -313,6 +313,16 @@ tr_setup:
 		 */
 		if (usb_no_cs_fail)
 			goto tr_transferred;
+
+		/*
+		 * Some non-compliant USB devices do not implement the
+		 * clear endpoint halt feature. Silently ignore such
+		 * devices, when they at least respond correctly
+		 * passing up a valid STALL PID packet.
+		 */
+		if (error == USB_ERR_STALLED)
+			goto tr_transferred;
+
 		if (udev->clear_stall_errors == USB_CS_RESET_LIMIT)
 			goto tr_setup;
 
