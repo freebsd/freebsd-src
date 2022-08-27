@@ -215,7 +215,7 @@ struct mac80211_fils_discovery {
 
 struct ieee80211_bss_conf {
 	/* TODO FIXME */
-	uint8_t					bssid[ETH_ALEN];
+	const uint8_t				*bssid;
 	uint8_t					transmitter_bssid[ETH_ALEN];
 	struct ieee80211_ftm_responder_params	*ftmr_params;
 	struct ieee80211_p2p_noa_attr		p2p_noa_attr;
