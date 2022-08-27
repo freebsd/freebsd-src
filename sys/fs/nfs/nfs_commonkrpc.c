@@ -1169,9 +1169,6 @@ tryagain:
 						*tl++ = txdr_unsigned(slotseq);
 						*tl++ = txdr_unsigned(slotpos);
 						*tl = txdr_unsigned(maxslot);
-						if ((nd->nd_flag &
-						    ND_HASSLOTID) != 0)
-							nd->nd_slotid = slotpos;
 					}
 					if (reterr == NFSERR_BADSESSION ||
 					    reterr == 0) {
