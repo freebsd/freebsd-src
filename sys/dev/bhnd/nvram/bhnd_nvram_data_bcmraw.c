@@ -318,7 +318,7 @@ bhnd_nvram_bcmraw_init(struct bhnd_nvram_bcmraw *bcm, struct bhnd_nvram_io *src)
 			break;
 	}
 
-	/* Reclaim any unused space in he backing buffer */
+	/* Reclaim any unused space in the backing buffer */
 	if (offset < bcm->size) {
 		bcm->data = bhnd_nv_reallocf(bcm->data, bcm->size);
 		if (bcm->data == NULL)
