@@ -1712,8 +1712,8 @@ nat64lsn_init_instance(struct ip_fw_chain *ch, in_addr_t prefix, int plen)
 		ALIAS_LOCK_INIT(alias);
 	}
 
-        callout_init_mtx(&cfg->periodic, &cfg->periodic_lock, 0);
-        callout_init(&cfg->jcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&cfg->periodic, &cfg->periodic_lock, 0);
+	callout_init(&cfg->jcallout, CALLOUT_MPSAFE);
 
 	return (cfg);
 }
