@@ -791,6 +791,8 @@ startmsg()
 #
 #	${name}_oomprotect n	Don't kill ${command} when swap space is exhausted.
 #
+#	${name}_umask	n	The file creation mask to run ${command} with.
+#
 #	${name}_user	n	User to run ${command} as, using su(1) if not
 #				using ${name}_chroot.
 #				Requires /usr to be mounted.
@@ -996,7 +998,8 @@ run_rc_command()
 	    _fib=\$${name}_fib		_env=\$${name}_env \
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
 	    _limits=\$${name}_limits	_oomprotect=\$${name}_oomprotect \
-	    _setup=\$${name}_setup	_env_file=\$${name}_env_file
+	    _setup=\$${name}_setup	_env_file=\$${name}_env_file \
+	    _umask=\$${name}_umask
 
 	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
 		set -a
@@ -1357,9 +1360,14 @@ _run_rc_postcmd()
 
 _run_rc_doit()
 {
+	local _m
+
 	debug "run_rc_command: doit: $*"
+	_m=$(umask)
+	${_umask:+umask ${_umask}}
 	eval "$@"
 	_return=$?
+	umask ${_m}
 
 	# If command failed and force isn't set, request exit.
 	if [ $_return -ne 0 ] && [ -z "$rc_force" ]; then
