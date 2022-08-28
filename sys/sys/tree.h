@@ -343,8 +343,9 @@ struct {								\
 #define RB_FLIP_ALL(elm, field)		(RB_BITS(elm, field) ^= RB_RED_MASK)
 #define RB_RED_LEFT(elm, field)		((RB_BITS(elm, field) & RB_RED_L) != 0)
 #define RB_RED_RIGHT(elm, field)	((RB_BITS(elm, field) & RB_RED_R) != 0)
-#define RB_PARENT(elm, field)		((__typeof(RB_UP(elm, field)))	\
-					 (RB_BITS(elm, field) & ~RB_RED_MASK))
+#define _RB_PARENT_ONLY(elm)		(__typeof(elm))			\
+					((__uintptr_t)elm & ~RB_RED_MASK)
+#define RB_PARENT(elm, field)		_RB_PARENT_ONLY(RB_UP(elm, field))
 #define RB_ROOT(head)			(head)->rbh_root
 #define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
 
@@ -397,7 +398,7 @@ struct {								\
  * relationship between elm and its former parent is not changed;
  * where this macro once updated those fields, that is now left to the
  * caller of RB_ROTATE to clean up, so that a pair of rotations does
- * not twice update the came pair of pointer fields with distinct
+ * not twice update the same pair of pointer fields with distinct
  * values.
  */
 #define RB_ROTATE_LEFT(elm, tmp, field) do {				\
@@ -682,44 +683,42 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 
 #define RB_GENERATE_REMOVE(name, type, field, attr)			\
 attr struct type *							\
-name##_RB_REMOVE(struct name *head, struct type *elm)			\
+name##_RB_REMOVE(struct name *head, struct type *out)			\
 {									\
-	struct type *child, *gpar, *old, *parent, *right;		\
+	struct type *child, *in, *opar, *parent;			\
 									\
-	old = elm;							\
-	gpar = parent = RB_PARENT(elm, field);				\
-	right = RB_RIGHT(elm, field);					\
-	if (RB_LEFT(elm, field) == NULL)				\
-		elm = child = right;					\
-	else if (right == NULL)						\
-		elm = child = RB_LEFT(elm, field);			\
-	else {								\
-		if ((child = RB_LEFT(right, field)) == NULL) {		\
-			child = RB_RIGHT(right, field);			\
-			RB_RIGHT(old, field) = child;			\
-			parent = elm = right;				\
-		} else {						\
-			do						\
-				elm = child;				\
-			while ((child = RB_LEFT(elm, field)) != NULL);	\
-			child = RB_RIGHT(elm, field);			\
-			parent = RB_PARENT(elm, field);			\
+	child = RB_LEFT(out, field);					\
+	in = RB_RIGHT(out, field);					\
+	opar = RB_UP(out, field);					\
+	if (in == NULL || child == NULL) {				\
+		in = child = in == NULL ? child : in;			\
+		parent = opar = _RB_PARENT_ONLY(opar);			\
+	} else {							\
+		parent = in;						\
+		while (RB_LEFT(in, field))				\
+			in = RB_LEFT(in, field);			\
+		RB_SET_PARENT(child, in, field);			\
+		RB_LEFT(in, field) = child;				\
+		child = RB_RIGHT(in, field);				\
+		if (parent != in) {					\
+			RB_SET_PARENT(parent, in, field);		\
+			RB_RIGHT(in, field) = parent;			\
+			parent = RB_PARENT(in, field);			\
 			RB_LEFT(parent, field) = child;			\
-			RB_SET_PARENT(RB_RIGHT(old, field), elm, field);\
 		}							\
-		RB_SET_PARENT(RB_LEFT(old, field), elm, field);		\
-		elm->field = old->field;				\
+		RB_UP(in, field) = opar;				\
+		opar = _RB_PARENT_ONLY(opar);				\
 	}								\
-	RB_SWAP_CHILD(head, gpar, old, elm, field);			\
+	RB_SWAP_CHILD(head, opar, out, in, field);			\
 	if (child != NULL)						\
-		RB_SET_PARENT(child, parent, field);			\
+		RB_UP(child, field) = parent;				\
 	if (parent != NULL) {						\
 		name##_RB_REMOVE_COLOR(head, parent, child);		\
-		if (parent == elm && RB_LEFT(parent, field) == NULL)	\
+		if (parent == in && RB_LEFT(parent, field) == NULL)	\
 			parent = RB_PARENT(parent, field);		\
 		RB_UPDATE_AUGMENT(parent, field);			\
 	}								\
-	return (old);							\
+	return (out);							\
 }
 
 #define RB_GENERATE_INSERT(name, type, field, cmp, attr)		\
