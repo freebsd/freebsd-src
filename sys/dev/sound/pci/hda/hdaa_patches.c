@@ -329,10 +329,14 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_IDT92HD95B &&
-	    (subid == FRAMEWORK_LAPTOP_SUBVENDOR)) {
+	    (subid == FRAMEWORK_LAPTOP_0001_SUBVENDOR ||
+	    subid == FRAMEWORK_LAPTOP_0002_SUBVENDOR)) {
 		switch (nid) {
 		case 10:
 			patch_str = "as=1 seq=15 color=Black loc=Left";
+			break;
+		case 11:
+			patch_str = "as=3 seq=15 color=Black loc=Left";
 			break;
 		}
 	} else {
