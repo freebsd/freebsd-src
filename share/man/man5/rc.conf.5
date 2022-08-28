@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2022
+.Dd August 28, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -234,6 +234,11 @@ such as PostgreSQL will not inherit the OOM killer protection.
 .Pp
 This variable has no effect on services running within a
 .Xr jail 8 .
+.It Ao Ar name Ac Ns Va _umask
+.Pq Vt int
+Run the service using this
+.Xr umask 1
+value.
 .It Ao Ar name Ac Ns Va _user
 .Pq Vt str
 Run the service under this user account.
@@ -4672,6 +4677,7 @@ files.
 .Xr limits 1 ,
 .Xr protect 1 ,
 .Xr sh 1 ,
+.Xr umask 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr bridge 4 ,
