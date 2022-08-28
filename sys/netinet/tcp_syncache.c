@@ -1368,6 +1368,7 @@ syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
 		tp->snd_max = tp->iss;
 		tp->snd_nxt = tp->iss;
 		tp->t_tfo_pending = pending_counter;
+		TCPSTATES_INC(TCPS_SYN_RECEIVED);
 		TCPSTAT_INC(tcps_sc_completed);
 	}
 }
