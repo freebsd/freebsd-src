@@ -6383,9 +6383,12 @@ nfsrv_cache_session(struct nfsrv_descript *nd, struct mbuf **m)
 			}
 			if (cp != NULL)
 				printf("nfsrv_cache_session: no session "
-				    "IPaddr=%s\n", cp);
+				    "IPaddr=%s, check NFS clients for unique "
+				    "/etc/hostid's\n", cp);
 			else
-				printf("nfsrv_cache_session: no session\n");
+				printf("nfsrv_cache_session: no session, "
+				    "check NFS clients for unique "
+				    "/etc/hostid's\n");
 			free(buf, M_TEMP);
 		}
 		m_freem(*m);
