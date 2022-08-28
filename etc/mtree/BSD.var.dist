@@ -46,6 +46,8 @@
         ..
         ipf             mode=0700 tags=package=ipf
         ..
+        mtree
+        ..
         ntp             uname=ntpd gname=ntpd
         ..
         pkg

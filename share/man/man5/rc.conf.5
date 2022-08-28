@@ -463,6 +463,34 @@ is mounted on normal systems.
 Clean the
 .Pa /var
 directory.
+.It Va var_run_enable
+.Pq Vt bool
+Set to "YES" to enable saving of the
+.Pa /var/run
+directory strcucture into an mtree file at shutdown and the reload of the
+.Pa /var/run
+directory structure at boot.
+.It Va var_run_autosave
+.Pq Vt bool
+In some cases it may be undesirable to save
+.Pa /var/run
+at shutdown.
+When set to "NO"
+.Pa /var/run
+is loaded at reboot but not saved at shutdown. Typically in this scenario
+a
+.Pa service
+.Pa var_run
+.Pa save
+would be performed to save a copy of the
+.Pa /var/run
+directory structure once, to be reload during all subsequent reboots.
+.It Va var_run_mtree
+.Pq Vt str
+Where to save the
+.Pa /var/run
+mtree. The default location is
+.Pa /var/db/mtree/BSD.var-run.mtree .
 .It Va local_startup
 .Pq Vt str
 List of directories to search for startup script files.
