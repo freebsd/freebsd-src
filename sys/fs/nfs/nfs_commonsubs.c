@@ -4791,7 +4791,6 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
 		if (error == NFSERR_SEQMISORDERED) {
 			/* If all slots are bad, Destroy the session. */
 			nfsrpc_destroysession(nmp, sep, cred, curthread);
-			error = 0;
 		}
 	} else
 		error = nfsv4_sequencelookup(nmp, sep, &slotpos, &maxslot,
