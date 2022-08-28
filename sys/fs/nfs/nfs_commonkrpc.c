@@ -1131,6 +1131,10 @@ tryagain:
 				sep = NFSMNT_MDSSESSION(nmp);
 				if (bcmp(sep->nfsess_sessionid, nd->nd_sequence,
 				    NFSX_V4SESSIONID) == 0) {
+					printf("Initiate recovery. If server "
+					    "has not rebooted, "
+					    "check NFS clients for unique "
+					    "/etc/hostid's\n");
 					/* Initiate recovery. */
 					sep->nfsess_defunct = 1;
 					NFSCL_DEBUG(1, "Marked defunct\n");
