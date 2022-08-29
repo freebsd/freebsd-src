@@ -64,103 +64,112 @@ VNET_DEFINE(u_int, rt_add_addr_allfibs) = 0;
 SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(rt_add_addr_allfibs), 0, "");
 
-static void
-report_operation(uint32_t fibnum, struct rib_cmd_info *rc)
+/*
+ * Executes routing tables change specified by @cmd and @info for the fib
+ * @fibnum. Generates routing message on success.
+ * Note: it assumes there is only single route (interface route) for the
+ * provided prefix.
+ * Returns 0 on success or errno.
+ */
+static int
+rib_handle_ifaddr_one(uint32_t fibnum, int cmd, struct rt_addrinfo *info)
 {
+	struct rib_cmd_info rc;
 	struct nhop_object *nh;
+	int error;
 
-	if (rc->rc_cmd == RTM_DELETE)
-		nh = nhop_select(rc->rc_nh_old, 0);
-	else
-		nh = nhop_select(rc->rc_nh_new, 0);
-	rt_routemsg(rc->rc_cmd, rc->rc_rt, nh, fibnum);
-}
-
-int
-rib_add_kernel_px(uint32_t fibnum, struct sockaddr *dst, int plen,
-    struct route_nhop_data *rnd, int op_flags)
-{
-	struct rib_cmd_info rc = {};
-
-	NET_EPOCH_ASSERT();
-
-	int error = rib_add_route_px(fibnum, dst, plen, rnd, op_flags, &rc);
-	if (error != 0)
-		return (error);
-	report_operation(fibnum, &rc);
-
-	if (V_rt_add_addr_allfibs != 0) {
-		for (int i = 0; i < V_rt_numfibs; i++) {
-			if (i == fibnum)
-				continue;
-			struct rib_head *rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
-			/* Don't care much about the errors in non-primary fib */
-			if (rnh != NULL) {
-				if (rib_copy_route(rc.rc_rt, rnd, rnh, &rc) == 0)
-					report_operation(i, &rc);
-			}
-		}
+	error = rib_action(fibnum, cmd, info, &rc);
+	if (error == 0) {
+		if (cmd == RTM_ADD)
+			nh = nhop_select(rc.rc_nh_new, 0);
+		else
+			nh = nhop_select(rc.rc_nh_old, 0);
+		rt_routemsg(cmd, rc.rc_rt, nh, fibnum);
 	}
 
 	return (error);
 }
 
+/*
+ * Adds/deletes interface prefix specified by @info to the routing table.
+ * If V_rt_add_addr_allfibs is set, iterates over all existing routing
+ * tables, otherwise uses fib in @fibnum. Generates routing message for
+ *  each table.
+ * Returns 0 on success or errno.
+ */
 int
-rib_del_kernel_px(uint32_t fibnum, struct sockaddr *dst, int plen,
-    rib_filter_f_t *filter_func, void *filter_arg, int op_flags)
+rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info)
 {
-	struct rib_cmd_info rc = {};
+	int error = 0, last_error = 0;
+	bool didwork = false;
 
-	NET_EPOCH_ASSERT();
-
-	int error = rib_del_route_px(fibnum, dst, plen, filter_func, filter_arg,
-	    op_flags, &rc);
-	if (error != 0)
-		return (error);
-	report_operation(fibnum, &rc);
-
-	if (V_rt_add_addr_allfibs != 0) {
-		for (int i = 0; i < V_rt_numfibs; i++) {
-			if (i == fibnum)
-				continue;
-			/* Don't care much about the errors in non-primary fib */
-			if (rib_del_route_px(fibnum, dst, plen, filter_func, filter_arg,
-			    op_flags, &rc) == 0)
-				report_operation(i, &rc);
+	if (V_rt_add_addr_allfibs == 0) {
+		error = rib_handle_ifaddr_one(fibnum, cmd, info);
+		didwork = (error == 0);
+	} else {
+		for (fibnum = 0; fibnum < V_rt_numfibs; fibnum++) {
+			error = rib_handle_ifaddr_one(fibnum, cmd, info);
+			if (error == 0)
+				didwork = true;
+			else
+				last_error = error;
 		}
 	}
 
+	if (cmd == RTM_DELETE) {
+		if (didwork) {
+			error = 0;
+		} else {
+			/* we only give an error if it wasn't in any table */
+			error = ((info->rti_flags & RTF_HOST) ?
+			    EHOSTUNREACH : ENETUNREACH);
+		}
+	} else {
+		if (last_error != 0) {
+			/* return an error if any of them failed */
+			error = last_error;
+		}
+	}
 	return (error);
 }
 
 static int
-add_loopback_route_flags(struct ifaddr *ifa, struct sockaddr *ia, int op_flags)
+ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
+    struct sockaddr *ia)
 {
 	struct rib_cmd_info rc;
+	struct epoch_tracker et;
 	int error;
+	struct rt_addrinfo info;
+	struct sockaddr_dl null_sdl;
+	struct ifnet *ifp;
 
-	NET_EPOCH_ASSERT();
+	ifp = ifa->ifa_ifp;
 
-	struct ifnet *ifp = ifa->ifa_ifp;
-	struct nhop_object *nh = nhop_alloc(ifp->if_fib, ia->sa_family);
-	struct route_nhop_data rnd = { .rnd_weight = RT_DEFAULT_WEIGHT };
-	if (nh == NULL)
-		return (ENOMEM);
+	NET_EPOCH_ENTER(et);
+	bzero(&info, sizeof(info));
+	if (cmd != RTM_DELETE)
+		info.rti_ifp = V_loif;
+	if (cmd == RTM_ADD) {
+		/* explicitly specify (loopback) ifa */
+		if (info.rti_ifp != NULL)
+			info.rti_ifa = ifaof_ifpforaddr(ifa->ifa_addr, info.rti_ifp);
+	}
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC | RTF_PINNED;
+	info.rti_info[RTAX_DST] = ia;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+	link_init_sdl(ifp, (struct sockaddr *)&null_sdl, ifp->if_type);
 
-	nhop_set_direct_gw(nh, ifp);
-	nhop_set_transmit_ifp(nh, V_loif);
-	nhop_set_src(nh, ifaof_ifpforaddr(ifa->ifa_addr, ifp));
-	nhop_set_pinned(nh, true);
-	nhop_set_rtflags(nh, RTF_STATIC);
-	nhop_set_pxtype_flag(nh, NHF_HOST);
-	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
-	if (error != 0)
+	error = rib_action(ifp->if_fib, cmd, &info, &rc);
+	NET_EPOCH_EXIT(et);
+
+	if (error == 0 ||
+	    (cmd == RTM_ADD && error == EEXIST) ||
+	    (cmd == RTM_DELETE && (error == ENOENT || error == ESRCH)))
 		return (error);
-	error = rib_add_route_px(ifp->if_fib, ia, -1, &rnd, op_flags, &rc);
 
-	if (error != 0)
-		log(LOG_DEBUG, "%s: failed to update interface %s route: %u\n",
-		    __func__, if_name(ifp), error);
+	log(LOG_DEBUG, "%s: %s failed for interface %s: %u\n",
+		__func__, otype, if_name(ifp), error);
 
 	return (error);
 }
@@ -168,49 +177,22 @@ add_loopback_route_flags(struct ifaddr *ifa, struct sockaddr *ia, int op_flags)
 int
 ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	struct epoch_tracker et;
 
-	NET_EPOCH_ENTER(et);
-	int error = add_loopback_route_flags(ifa, ia, RTM_F_CREATE | RTM_F_FORCE);
-	NET_EPOCH_EXIT(et);
-
-	return (error);
-}
-
-int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
-{
-	struct epoch_tracker et;
-
-	NET_EPOCH_ENTER(et);
-	int error = add_loopback_route_flags(ifa, ia, RTM_F_REPLACE | RTM_F_FORCE);
-	NET_EPOCH_EXIT(et);
-
-	return (error);
+	return (ifa_maintain_loopback_route(RTM_ADD, "insertion", ifa, ia));
 }
 
 int
 ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	struct ifnet *ifp = ifa->ifa_ifp;
-	struct sockaddr_dl link_sdl;
-	struct sockaddr *gw = (struct sockaddr *)&link_sdl;
-	struct rib_cmd_info rc;
-	struct epoch_tracker et;
-	int error;
 
-	NET_EPOCH_ENTER(et);
+	return (ifa_maintain_loopback_route(RTM_DELETE, "deletion", ifa, ia));
+}
 
-	link_init_sdl(ifp, gw, ifp->if_type);
-	error = rib_del_route_px_gw(ifp->if_fib, ia, -1, gw, RTM_F_FORCE, &rc);
+int
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
 
-	NET_EPOCH_EXIT(et);
-
-	if (error != 0)
-		log(LOG_DEBUG, "%s: failed to delete interface %s route: %u\n",
-		    __func__,  if_name(ifp), error);
-
-	return (error);
+	return (ifa_maintain_loopback_route(RTM_CHANGE, "switch", ifa, ia));
 }
 
 static bool

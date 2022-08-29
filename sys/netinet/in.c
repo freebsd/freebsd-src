@@ -821,34 +821,36 @@ in_match_ifaddr(const struct rtentry *rt, const struct nhop_object *nh, void *ar
 }
 
 static int
-in_handle_prefix_route(uint32_t fibnum, int cmd, struct sockaddr *dst,
-    int plen, struct ifaddr *ifa, struct ifnet *ifp)
+in_handle_prefix_route(uint32_t fibnum, int cmd,
+    struct sockaddr_in *dst, struct sockaddr_in *netmask, struct ifaddr *ifa,
+    struct ifnet *ifp)
 {
-	int error = 0;
 
 	NET_EPOCH_ASSERT();
 
-	if (cmd == RTM_DELETE) {
-		error = rib_del_kernel_px(fibnum, dst, plen, in_match_ifaddr, ifa,
-		    RTM_F_FORCE);
-	} else {
-		struct nhop_object *nh = nhop_alloc(fibnum, dst->sa_family);
-		struct route_nhop_data rnd = { .rnd_weight = RT_DEFAULT_WEIGHT };
+	/* Prepare gateway */
+	struct sockaddr_dl_short sdl = {
+		.sdl_family = AF_LINK,
+		.sdl_len = sizeof(struct sockaddr_dl_short),
+		.sdl_type = ifa->ifa_ifp->if_type,
+		.sdl_index = ifa->ifa_ifp->if_index,
+	};
 
-		if (nh == NULL)
-			return (ENOMEM);
-		nhop_set_direct_gw(nh, ifa->ifa_ifp);
-		nhop_set_transmit_ifp(nh, ifp);
-		nhop_set_src(nh, ifa);
-		nhop_set_pinned(nh, true);
-		nhop_set_pxtype_flag(nh, plen == 32 ? NHF_HOST : 0);
-		rnd.rnd_nhop = nhop_get_nhop(nh, &error);
-		if (error != 0)
-			return (error);
-		int op_flags = RTM_F_CREATE | RTM_F_REPLACE | RTM_F_FORCE;
-		error = rib_add_kernel_px(fibnum, dst, plen, &rnd, op_flags);
-	}
-	return (error);
+	struct rt_addrinfo info = {
+		.rti_ifa = ifa,
+		.rti_ifp = ifp,
+		.rti_flags = RTF_PINNED | ((netmask != NULL) ? 0 : RTF_HOST),
+		.rti_info = {
+			[RTAX_DST] = (struct sockaddr *)dst,
+			[RTAX_NETMASK] = (struct sockaddr *)netmask,
+			[RTAX_GATEWAY] = (struct sockaddr *)&sdl,
+		},
+		/* Ensure we delete the prefix IFF prefix ifa matches */
+		.rti_filter = in_match_ifaddr,
+		.rti_filterdata = ifa,
+	};
+
+	return (rib_handle_ifaddr_info(fibnum, cmd, &info));
 }
 
 /*
@@ -957,12 +959,19 @@ in_handle_ifaddr_route(int cmd, struct in_ifaddr *ia)
 {
 	struct ifaddr *ifa = &ia->ia_ifa;
 	struct in_addr daddr, maddr;
+	struct sockaddr_in *pmask;
 	struct epoch_tracker et;
 	int error;
 
 	ia_getrtprefix(ia, &daddr, &maddr);
 
-	int plen = bitcount32(maddr.s_addr);
+	struct sockaddr_in mask = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = maddr,
+	};
+
+	pmask = (maddr.s_addr != INADDR_BROADCAST) ? &mask : NULL;
 
 	struct sockaddr_in dst = {
 		.sin_family = AF_INET,
@@ -980,8 +989,7 @@ in_handle_ifaddr_route(int cmd, struct in_ifaddr *ia)
 
 	uint32_t fibnum = ifa->ifa_ifp->if_fib;
 	NET_EPOCH_ENTER(et);
-	error = in_handle_prefix_route(fibnum, cmd, (struct sockaddr *)&dst,
-	    plen, ifa, ifp);
+	error = in_handle_prefix_route(fibnum, cmd, &dst, pmask, ifa, ifp);
 	NET_EPOCH_EXIT(et);
 
 	return (error);

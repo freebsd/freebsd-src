@@ -75,13 +75,9 @@ int rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
 int rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
-int rib_add_kernel_px(uint32_t fibnum, struct sockaddr *dst, int plen,
-    struct route_nhop_data *rnd, int op_flags);
-int rib_del_kernel_px(uint32_t fibnum, struct sockaddr *dst, int plen,
-    rib_filter_f_t *filter_func, void *filter_arg, int op_flags);
-
 int rib_match_gw(const struct rtentry *rt, const struct nhop_object *nh,
     void *_data);
+int rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info);
 
 int rib_add_default_route(uint32_t fibnum, int family, struct ifnet *ifp,
     struct sockaddr *gw, struct rib_cmd_info *rc);
