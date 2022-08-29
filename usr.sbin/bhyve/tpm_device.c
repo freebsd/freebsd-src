@@ -141,7 +141,8 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 	}
 
 	if (dev->intf->init) {
-		error = dev->intf->init(&dev->intf_sc, dev->emul, dev->emul_sc);
+		error = dev->intf->init(&dev->intf_sc, dev->emul, dev->emul_sc,
+		    dev->acpi_dev);
 		if (error)
 			goto err_out;
 	}

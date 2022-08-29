@@ -9,6 +9,7 @@
 
 #include <vmmapi.h>
 
+#include "acpi_device.h"
 #include "config.h"
 #include "tpm_device.h"
 #include "tpm_emul.h"
@@ -31,7 +32,8 @@
 struct tpm_intf {
 	const char *name;
 
-	int (*init)(void **sc, struct tpm_emul *emul, void *emul_sc);
+	int (*init)(void **sc, struct tpm_emul *emul, void *emul_sc,
+	    struct acpi_device *acpi_dev);
 	void (*deinit)(void *sc);
 	int (*build_acpi_table)(void *sc, struct vmctx *vm_ctx);
 };
