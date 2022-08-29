@@ -192,6 +192,13 @@ rt_get_raw_nhop(const struct rtentry *rt)
 	return (rt->rt_nhop);
 }
 
+void
+rt_get_rnd(const struct rtentry *rt, struct route_nhop_data *rnd)
+{
+	rnd->rnd_nhop = rt->rt_nhop;
+	rnd->rnd_weight = rt->rt_weight;
+}
+
 #ifdef INET
 /*
  * Stores IPv4 address and prefix length of @rt inside
