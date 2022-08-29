@@ -473,7 +473,6 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
 	FCHK(fs->fs_ncg, <, 1, %jd);
 	FCHK(fs->fs_ipg, <, fs->fs_inopb, %jd);
-	FCHK(fs->fs_ipg % fs->fs_inopb, !=, 0, %jd);
 	FCHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
 	    %jd);
 	FCHK(fs->fs_cstotal.cs_nifree, <, 0, %jd);
@@ -505,6 +504,7 @@ validate_sblock(struct fs *fs, int flags)
 	 */
 	if (error)
 		return (error);
+	FCHK(fs->fs_ipg % fs->fs_inopb, !=, 0, %jd);
 	FCHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
 	    fs->fs_frag), %jd);
