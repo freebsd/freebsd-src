@@ -261,27 +261,33 @@ rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 #ifdef ROUTE_MPATH
 static void
 notify_add(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
-    route_notification_t *cb, void *cbdata) {
+    route_notification_t *cb, void *cbdata)
+{
 	rc->rc_nh_new = wn_src->nh;
 	rc->rc_nh_weight = wn_src->weight;
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
-	char nhbuf[NHOP_PRINT_BUFSIZE];
-	FIB_NH_LOG(LOG_DEBUG2, wn_src->nh, "RTM_ADD for %s @ w=%u",
-	    nhop_print_buf(wn_src->nh, nhbuf, sizeof(nhbuf)), wn_src->weight);
-#endif
+
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
+		char nhbuf[NHOP_PRINT_BUFSIZE] __unused;
+		FIB_NH_LOG(LOG_DEBUG2, wn_src->nh, "RTM_ADD for %s @ w=%u",
+		    nhop_print_buf(wn_src->nh, nhbuf, sizeof(nhbuf)),
+		    wn_src->weight);
+	}
 	cb(rc, cbdata);
 }
 
 static void
 notify_del(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
-    route_notification_t *cb, void *cbdata) {
+    route_notification_t *cb, void *cbdata)
+{
 	rc->rc_nh_old = wn_src->nh;
 	rc->rc_nh_weight = wn_src->weight;
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
-	char nhbuf[NHOP_PRINT_BUFSIZE];
-	FIB_NH_LOG(LOG_DEBUG2, wn_src->nh, "RTM_DEL for %s @ w=%u",
-	    nhop_print_buf(wn_src->nh, nhbuf, sizeof(nhbuf)), wn_src->weight);
-#endif
+
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
+		char nhbuf[NHOP_PRINT_BUFSIZE] __unused;
+		FIB_NH_LOG(LOG_DEBUG2, wn_src->nh, "RTM_DEL for %s @ w=%u",
+		    nhop_print_buf(wn_src->nh, nhbuf, sizeof(nhbuf)),
+		    wn_src->weight);
+	}
 	cb(rc, cbdata);
 }
 
@@ -313,14 +319,12 @@ decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 		wn_new = &tmp;
 		num_new = 1;
 	}
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	{
+	IF_DEBUG_LEVEL(LOG_DEBUG) {
 		char buf_old[NHOP_PRINT_BUFSIZE], buf_new[NHOP_PRINT_BUFSIZE];
 		nhop_print_buf_any(rc->rc_nh_old, buf_old, NHOP_PRINT_BUFSIZE);
 		nhop_print_buf_any(rc->rc_nh_new, buf_new, NHOP_PRINT_BUFSIZE);
 		FIB_NH_LOG(LOG_DEBUG, wn_old[0].nh, "change %s -> %s", buf_old, buf_new);
 	}
-#endif
 
 	/* Use the fact that each @wn array is sorted */
 	/*

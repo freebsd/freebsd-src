@@ -609,13 +609,13 @@ rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
 
 	MPASS((nh_src->nh_flags & NHF_MULTIPATH) == 0);
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
 		char nhbuf[NHOP_PRINT_BUFSIZE], rtbuf[NHOP_PRINT_BUFSIZE];
 		nhop_print_buf_any(nh_src, nhbuf, sizeof(nhbuf));
 		rt_print_buf(rt, rtbuf, sizeof(rtbuf));
 		FIB_RH_LOG(LOG_DEBUG2, rh_dst, "copying %s -> %s from fib %u",
 		    rtbuf, nhbuf, nhop_get_fibnum(nh_src));
-#endif
+	}
 	struct nhop_object *nh = nhop_alloc(rh_dst->rib_fibnum, rh_dst->rib_family);
 	if (nh == NULL) {
 		FIB_RH_LOG(LOG_INFO, rh_dst, "unable to allocate new nexthop");
@@ -645,11 +645,12 @@ rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
 	error = add_route_flags(rh_dst, rt_new, &rnd, op_flags, rc);
 
 	if (error != 0) {
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-		char buf[NHOP_PRINT_BUFSIZE];
-		rt_print_buf(rt_new, buf, sizeof(buf));
-		FIB_RH_LOG(LOG_DEBUG, rh_dst, "Unable to add route %s: error %d", buf, error);
-#endif
+		IF_DEBUG_LEVEL(LOG_DEBUG2) {
+			char buf[NHOP_PRINT_BUFSIZE];
+			rt_print_buf(rt_new, buf, sizeof(buf));
+			FIB_RH_LOG(LOG_DEBUG, rh_dst,
+			    "Unable to add route %s: error %d", buf, error);
+		}
 		nhop_free(nh);
 		rt_free_immediate(rt_new);
 	}
@@ -1295,15 +1296,13 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 	struct rtentry *rt_new;
 	int error = 0;
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
-	{
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
 		char buf_old[NHOP_PRINT_BUFSIZE], buf_new[NHOP_PRINT_BUFSIZE];
 		nhop_print_buf_any(rnd_orig->rnd_nhop, buf_old, NHOP_PRINT_BUFSIZE);
 		nhop_print_buf_any(rnd_new->rnd_nhop, buf_new, NHOP_PRINT_BUFSIZE);
 		FIB_LOG(LOG_DEBUG2, rnh->rib_fibnum, rnh->rib_family,
 		    "trying change %s -> %s", buf_old, buf_new);
 	}
-#endif
 	RIB_WLOCK(rnh);
 
 	struct route_nhop_data rnd;
