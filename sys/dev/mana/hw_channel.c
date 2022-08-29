@@ -931,7 +931,7 @@ mana_hwc_send_request(struct hw_channel_context *hwc, uint32_t req_len,
 		goto out;
 	}
 
-	if (ctx->status_code) {
+	if (ctx->status_code && ctx->status_code != GDMA_STATUS_MORE_ENTRIES) {
 		device_printf(hwc->dev,
 		    "HWC: Failed hw_channel req: 0x%x\n", ctx->status_code);
 		err = EPROTO;
