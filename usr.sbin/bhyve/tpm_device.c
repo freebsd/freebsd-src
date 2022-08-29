@@ -18,17 +18,21 @@
 #include "config.h"
 #include "tpm_device.h"
 #include "tpm_emul.h"
+#include "tpm_intf.h"
 
 #define TPM_ACPI_DEVICE_NAME "TPM"
 #define TPM_ACPI_HARDWARE_ID "MSFT0101"
 
 SET_DECLARE(tpm_emul_set, struct tpm_emul);
+SET_DECLARE(tpm_intf_set, struct tpm_intf);
 
 struct tpm_device {
 	struct vmctx *vm_ctx;
 	struct acpi_device *acpi_dev;
 	struct tpm_emul *emul;
 	void *emul_sc;
+	struct tpm_intf *intf;
+	void *intf_sc;
 };
 
 static const struct acpi_device_emul tpm_acpi_device_emul = {
@@ -42,6 +46,8 @@ tpm_device_destroy(struct tpm_device *const dev)
 	if (dev == NULL)
 		return;
 
+	if (dev->intf != NULL && dev->intf->deinit != NULL)
+		dev->intf->deinit(dev->intf_sc);
 	if (dev->emul != NULL && dev->emul->deinit != NULL)
 		dev->emul->deinit(dev->emul_sc);
 
@@ -55,6 +61,7 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 {
 	struct tpm_device *dev = NULL;
 	struct tpm_emul **ppemul;
+	struct tpm_intf **ppintf;
 	const char *value;
 	int error;
 
@@ -62,6 +69,8 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 		error = EINVAL;
 		goto err_out;
 	}
+
+	set_config_value_node_if_unset(nvl, "intf", "crb");
 
 	value = get_config_value_node(nvl, "version");
 	assert(value != NULL);
@@ -100,6 +109,26 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 
 	if (dev->emul->init) {
 		error = dev->emul->init(&dev->emul_sc, nvl);
+		if (error)
+			goto err_out;
+	}
+
+	value = get_config_value_node(nvl, "intf");
+	SET_FOREACH(ppintf, tpm_intf_set) {
+		if (strcmp(value, (*ppintf)->name)) {
+			continue;
+		}
+		dev->intf = *ppintf;
+		break;
+	}
+	if (dev->intf == NULL) {
+		warnx("TPM interface \"%s\" not found", value);
+		error = EINVAL;
+		goto err_out;
+	}
+
+	if (dev->intf->init) {
+		error = dev->intf->init(&dev->intf_sc);
 		if (error)
 			goto err_out;
 	}
