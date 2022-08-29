@@ -182,6 +182,7 @@ struct rib_head;
 struct nhop_object *nhop_alloc(uint32_t fibnum, int family);
 void nhop_copy(struct nhop_object *nh, const struct nhop_object *nh_orig);
 struct nhop_object *nhop_get_nhop(struct nhop_object *nh, int *perror);
+int nhop_get_unlinked(struct nhop_object *nh);
 
 void nhop_set_direct_gw(struct nhop_object *nh, struct ifnet *ifp);
 bool nhop_set_gw(struct nhop_object *nh, const struct sockaddr *sa, bool is_gw);
@@ -206,11 +207,13 @@ int nhop_get_rtflags(const struct nhop_object *nh);
 struct vnet *nhop_get_vnet(const struct nhop_object *nh);
 struct nhop_object *nhop_select_func(struct nhop_object *nh, uint32_t flowid);
 int nhop_get_upper_family(const struct nhop_object *nh);
+bool nhop_set_upper_family(struct nhop_object *nh, int family);
 int nhop_get_neigh_family(const struct nhop_object *nh);
 uint32_t nhop_get_fibnum(const struct nhop_object *nh);
 void nhop_set_fibnum(struct nhop_object *nh, uint32_t fibnum);
 uint32_t nhop_get_expire(const struct nhop_object *nh);
 void nhop_set_expire(struct nhop_object *nh, uint32_t expire);
+struct rib_head *nhop_get_rh(const struct nhop_object *nh);
 
 struct nhgrp_object;
 uint32_t nhgrp_get_uidx(const struct nhgrp_object *nhg);

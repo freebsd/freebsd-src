@@ -85,13 +85,12 @@ _DECLARE_DEBUG(LOG_INFO);
 
 static int dump_nhop_entry(struct rib_head *rh, struct nhop_object *nh, struct sysctl_req *w);
 
-static int finalize_nhop(struct nh_control *ctl, struct nhop_object *nh);
+static int finalize_nhop(struct nh_control *ctl, struct nhop_object *nh, bool link);
 static struct ifnet *get_aifp(const struct nhop_object *nh);
 static void fill_sdl_from_ifp(struct sockaddr_dl_short *sdl, const struct ifnet *ifp);
 
 static void destroy_nhop_epoch(epoch_context_t ctx);
 static void destroy_nhop(struct nhop_object *nh);
-static struct rib_head *nhop_get_rh(const struct nhop_object *nh);
 
 _Static_assert(__offsetof(struct nhop_object, nh_ifp) == 32,
     "nhop_object: wrong nh_ifp offset");
@@ -315,6 +314,12 @@ nhop_get_nhop(struct nhop_object *nh, int *perror)
 {
 	struct rib_head *rnh = nhop_get_rh(nh);
 
+	if (__predict_false(rnh == NULL)) {
+		*perror = EAFNOSUPPORT;
+		nhop_free(nh);
+		return (NULL);
+	}
+
 	return (nhop_get_nhop_internal(rnh, nh, perror));
 }
 
@@ -349,9 +354,32 @@ nhop_get_nhop_internal(struct rib_head *rnh, struct nhop_object *nh, int *perror
 	 *  relative number of such nexthops is significant, which
 	 *  is extremely unlikely.
 	 */
-	*perror = finalize_nhop(rnh->nh_control, nh);
+	*perror = finalize_nhop(rnh->nh_control, nh, true);
 	return (*perror == 0 ? nh : NULL);
 }
+
+/*
+ * Gets referenced but unlinked nhop.
+ * Alocates/references the remaining bits of the nexthop data, so
+ *  it can be safely linked later or used as a clone source.
+ *
+ * Returns 0 on success.
+ */
+int
+nhop_get_unlinked(struct nhop_object *nh)
+{
+	struct rib_head *rnh = nhop_get_rh(nh);
+
+	if (__predict_false(rnh == NULL)) {
+		nhop_free(nh);
+		return (EAFNOSUPPORT);
+	}
+
+	nh->nh_aifp = get_aifp(nh);
+
+	return (finalize_nhop(rnh->nh_control, nh, false));
+}
+
 
 /*
  * Update @nh with data supplied in @info.
@@ -458,7 +486,7 @@ reference_nhop_deps(struct nhop_object *nh)
  *  errno otherwise. @nh_priv is freed in case of error.
  */
 static int
-finalize_nhop(struct nh_control *ctl, struct nhop_object *nh)
+finalize_nhop(struct nh_control *ctl, struct nhop_object *nh, bool link)
 {
 
 	/* Allocate per-cpu packet counter */
@@ -484,9 +512,14 @@ finalize_nhop(struct nh_control *ctl, struct nhop_object *nh)
 	/* Please see nhop_free() comments on the initial value */
 	refcount_init(&nh->nh_priv->nh_linked, 2);
 
-	nh->nh_priv->nh_fibnum = ctl->ctl_rh->rib_fibnum;
+	MPASS(nh->nh_priv->nh_fibnum == ctl->ctl_rh->rib_fibnum);
 
-	if (link_nhop(ctl, nh->nh_priv) == 0) {
+	if (!link) {
+		refcount_release(&nh->nh_priv->nh_linked);
+		NHOPS_WLOCK(ctl);
+		nh->nh_priv->nh_finalized = 1;
+		NHOPS_WUNLOCK(ctl);
+	} else if (link_nhop(ctl, nh->nh_priv) == 0) {
 		/*
 		 * Adding nexthop to the datastructures
 		 *  failed. Call destructor w/o waiting for
@@ -693,6 +726,22 @@ nhop_set_direct_gw(struct nhop_object *nh, struct ifnet *ifp)
 	memset(&nh->gw_buf[nh->gw_sa.sa_len], 0, sizeof(nh->gw_buf) - nh->gw_sa.sa_len);
 }
 
+bool
+nhop_check_gateway(int upper_family, int neigh_family)
+{
+	if (upper_family == neigh_family)
+		return (true);
+	else if (neigh_family == AF_UNSPEC || neigh_family == AF_LINK)
+		return (true);
+#if defined(INET) && defined(INET6)
+	else if (upper_family == AF_INET && neigh_family == AF_INET6 &&
+	    rib_can_4o6_nhop())
+		return (true);
+#endif
+	else
+		return (false);
+}
+
 /*
  * Sets gateway for the nexthop.
  * It can be "normal" gateway with is_gw set or a special form of
@@ -707,6 +756,14 @@ nhop_set_gw(struct nhop_object *nh, const struct sockaddr *gw, bool is_gw)
 		    gw->sa_family, gw->sa_len);
 		return (false);
 	}
+
+	if (!nhop_check_gateway(nh->nh_priv->nh_upper_family, gw->sa_family)) {
+		FIB_NH_LOG(LOG_DEBUG, nh,
+		    "error: invalid dst/gateway family combination (%d, %d)",
+		    nh->nh_priv->nh_upper_family, gw->sa_family);
+		return (false);
+	}
+
 	memcpy(&nh->gw_sa, gw, gw->sa_len);
 	memset(&nh->gw_buf[gw->sa_len], 0, sizeof(nh->gw_buf) - gw->sa_len);
 
@@ -720,6 +777,20 @@ nhop_set_gw(struct nhop_object *nh, const struct sockaddr *gw, bool is_gw)
 		nh->nh_priv->nh_neigh_family = nh->nh_priv->nh_upper_family;
 	}
 
+	return (true);
+}
+
+bool
+nhop_set_upper_family(struct nhop_object *nh, int family)
+{
+	if (!nhop_check_gateway(nh->nh_priv->nh_upper_family, family)) {
+		FIB_NH_LOG(LOG_DEBUG, nh,
+		    "error: invalid upper/neigh family combination (%d, %d)",
+		    nh->nh_priv->nh_upper_family, family);
+		return (false);
+	}
+
+	nh->nh_priv->nh_upper_family = family;
 	return (true);
 }
 
@@ -930,7 +1001,7 @@ nhop_set_expire(struct nhop_object *nh, uint32_t expire)
 	nh->nh_priv->nh_expire = expire;
 }
 
-static struct rib_head *
+struct rib_head *
 nhop_get_rh(const struct nhop_object *nh)
 {
 	uint32_t fibnum = nhop_get_fibnum(nh);
