@@ -780,6 +780,18 @@ nhop_get_idx(const struct nhop_object *nh)
 	return (nh->nh_priv->nh_idx);
 }
 
+uint32_t
+nhop_get_uidx(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_uidx);
+}
+
+void
+nhop_set_uidx(struct nhop_object *nh, uint32_t uidx)
+{
+	nh->nh_priv->nh_uidx = uidx;
+}
+
 enum nhop_type
 nhop_get_type(const struct nhop_object *nh)
 {

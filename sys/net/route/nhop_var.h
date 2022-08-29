@@ -79,6 +79,7 @@ struct nhop_priv {
 	uint16_t		nh_type;	/* nexthop type */
 	uint32_t		rt_flags;	/* routing flags for the control plane */
 	uint32_t		nh_expire;	/* path expiration time */
+	uint32_t		nh_uidx;	/* userland-provided index */
 	/* nhop lookup comparison end */
 	uint32_t		nh_idx;		/* nexthop index */
 	uint32_t		nh_fibnum;	/* nexthop fib */

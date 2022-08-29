@@ -166,6 +166,8 @@ struct weightened_nhop;
 const struct weightened_nhop *nhgrp_get_nhops(const struct nhgrp_object *nhg,
     uint32_t *pnum_nhops);
 uint32_t nhgrp_get_count(struct rib_head *rh);
+int nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn, int num_nhops,
+    uint32_t uidx, struct nhgrp_object **pnhg);
 
 /* Route subscriptions */
 enum rib_subscription_type {

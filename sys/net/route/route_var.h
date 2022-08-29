@@ -304,8 +304,6 @@ void nhgrp_ctl_unlink_all(struct nh_control *ctl);
 /* nhgrp_ctl.c */
 int nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
 
-int nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn,
-    int num_nhops, struct nhgrp_object **pnhg);
 int nhgrp_get_filtered_group(struct rib_head *rh, const struct rtentry *rt,
     const struct nhgrp_object *src, rib_filter_f_t flt_func, void *flt_data,
     struct route_nhop_data *rnd);
