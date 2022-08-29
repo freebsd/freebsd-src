@@ -14,17 +14,20 @@
 #include <string.h>
 #include <vmmapi.h>
 
+#include "acpi.h"
 #include "acpi_device.h"
 #include "config.h"
 #include "tpm_device.h"
 #include "tpm_emul.h"
 #include "tpm_intf.h"
+#include "tpm_ppi.h"
 
 #define TPM_ACPI_DEVICE_NAME "TPM"
 #define TPM_ACPI_HARDWARE_ID "MSFT0101"
 
 SET_DECLARE(tpm_emul_set, struct tpm_emul);
 SET_DECLARE(tpm_intf_set, struct tpm_intf);
+SET_DECLARE(tpm_ppi_set, struct tpm_ppi);
 
 struct tpm_device {
 	struct vmctx *vm_ctx;
@@ -33,6 +36,8 @@ struct tpm_device {
 	void *emul_sc;
 	struct tpm_intf *intf;
 	void *intf_sc;
+	struct tpm_ppi *ppi;
+	void *ppi_sc;
 };
 
 static int
@@ -47,10 +52,57 @@ tpm_build_acpi_table(const struct acpi_device *const dev)
 	return (tpm->intf->build_acpi_table(tpm->intf_sc, tpm->vm_ctx));
 }
 
+static int
+tpm_write_dsdt(const struct acpi_device *const dev)
+{
+	int error;
+
+	const struct tpm_device *const tpm = acpi_device_get_softc(dev);
+	const struct tpm_ppi *const ppi = tpm->ppi;
+
+	/*
+	 * packages for returns
+	 */
+	dsdt_line("Name(TPM2, Package(2) {0, 0})");
+	dsdt_line("Name(TPM3, Package(3) {0, 0, 0})");
+
+	if (ppi->write_dsdt_regions) {
+		error = ppi->write_dsdt_regions(tpm->ppi_sc);
+		if (error) {
+			warnx("%s: failed to write ppi dsdt regions\n",
+			    __func__);
+			return (error);
+		}
+	}
+
+	/*
+	 * Device Specific Method
+	 * Arg0: UUID
+	 * Arg1: Revision ID
+	 * Arg2: Function Index
+	 * Arg3: Arguments
+	 */
+	dsdt_line("Method(_DSM, 4, Serialized)");
+	dsdt_line("{");
+	dsdt_indent(1);
+	if (ppi->write_dsdt_dsm) {
+		error = ppi->write_dsdt_dsm(tpm->ppi_sc);
+		if (error) {
+			warnx("%s: failed to write ppi dsdt dsm\n", __func__);
+			return (error);
+		}
+	}
+	dsdt_unindent(1);
+	dsdt_line("}");
+
+	return (0);
+}
+
 static const struct acpi_device_emul tpm_acpi_device_emul = {
 	.name = TPM_ACPI_DEVICE_NAME,
 	.hid = TPM_ACPI_HARDWARE_ID,
 	.build_table = tpm_build_acpi_table,
+	.write_dsdt = tpm_write_dsdt,
 };
 
 void
@@ -59,6 +111,8 @@ tpm_device_destroy(struct tpm_device *const dev)
 	if (dev == NULL)
 		return;
 
+	if (dev->ppi != NULL && dev->ppi->deinit != NULL)
+		dev->ppi->deinit(dev->ppi_sc);
 	if (dev->intf != NULL && dev->intf->deinit != NULL)
 		dev->intf->deinit(dev->intf_sc);
 	if (dev->emul != NULL && dev->emul->deinit != NULL)
@@ -75,6 +129,7 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 	struct tpm_device *dev = NULL;
 	struct tpm_emul **ppemul;
 	struct tpm_intf **ppintf;
+	struct tpm_ppi **pp_ppi;
 	const char *value;
 	int error;
 
@@ -84,6 +139,7 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 	}
 
 	set_config_value_node_if_unset(nvl, "intf", "crb");
+	set_config_value_node_if_unset(nvl, "ppi", "qemu");
 
 	value = get_config_value_node(nvl, "version");
 	assert(value != NULL);
@@ -143,6 +199,26 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 	if (dev->intf->init) {
 		error = dev->intf->init(&dev->intf_sc, dev->emul, dev->emul_sc,
 		    dev->acpi_dev);
+		if (error)
+			goto err_out;
+	}
+
+	value = get_config_value_node(nvl, "ppi");
+	SET_FOREACH(pp_ppi, tpm_ppi_set) {
+		if (strcmp(value, (*pp_ppi)->name)) {
+			continue;
+		}
+		dev->ppi = *pp_ppi;
+		break;
+	}
+	if (dev->ppi == NULL) {
+		warnx("TPM PPI \"%s\" not found\n", value);
+		error = EINVAL;
+		goto err_out;
+	}
+
+	if (dev->ppi->init) {
+		error = dev->ppi->init(&dev->ppi_sc);
 		if (error)
 			goto err_out;
 	}
