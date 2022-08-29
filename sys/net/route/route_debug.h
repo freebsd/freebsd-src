@@ -83,6 +83,8 @@
 #define _output			printf
 #define	_DEBUG_PASS_MSG(_l)	(DEBUG_VAR_NAME >= (_l))
 
+#define	IF_DEBUG_LEVEL(_l)	if ((DEBUG_MAX_LEVEL >= (_l)) && (__predict_false(DEBUG_VAR_NAME >= (_l))))
+
 /*
  * Logging for events specific for particular family and fib
  * Example: [nhop_neigh] inet.0 find_lle: nhop nh#4/inet/vtnet0/10.0.0.1: mapped to lle NULL
@@ -155,6 +157,7 @@ struct nhgrp_object;
 struct llentry;
 struct nhop_neigh;
 struct rtentry;
+struct ifnet;
 
 #define	NHOP_PRINT_BUFSIZE	48
 char *nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize);

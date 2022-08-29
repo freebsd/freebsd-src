@@ -179,13 +179,11 @@ link_nhgrp(struct nh_control *ctl, struct nhgrp_priv *grp_priv)
 
 	NHOPS_WUNLOCK(ctl);
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
-	{
-		char nhgrp_buf[NHOP_PRINT_BUFSIZE];
-		nhgrp_print_buf(grp_priv->nhg, nhgrp_buf, sizeof(nhgrp_buf));
-		FIB_RH_LOG(LOG_DEBUG2, ctl->ctl_rh, "linked %s", nhgrp_buf);
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
+		char nhgrp_buf[NHOP_PRINT_BUFSIZE] __unused;
+		FIB_RH_LOG(LOG_DEBUG2, ctl->ctl_rh, "linked %s",
+		    nhgrp_print_buf(grp_priv->nhg, nhgrp_buf, sizeof(nhgrp_buf)));
 	}
-#endif
 	consider_resize(ctl, new_num_buckets, new_num_items);
 
 	return (1);
@@ -214,14 +212,13 @@ unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
 
 	NHOPS_WUNLOCK(ctl);
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
-	{
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
 		char nhgrp_buf[NHOP_PRINT_BUFSIZE];
 		nhgrp_print_buf(nhg_priv_ret->nhg, nhgrp_buf, sizeof(nhgrp_buf));
 		FIB_RH_LOG(LOG_DEBUG2, ctl->ctl_rh, "unlinked idx#%d %s", idx,
 		    nhgrp_buf);
 	}
-#endif
+
 	return (nhg_priv_ret);
 }
 
@@ -340,11 +337,11 @@ nhgrp_ctl_unlink_all(struct nh_control *ctl)
 	NHOPS_WLOCK_ASSERT(ctl);
 
 	CHT_SLIST_FOREACH(&ctl->gr_head, mpath, nhg_priv) {
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-		char nhgbuf[NHOP_PRINT_BUFSIZE];
-		FIB_RH_LOG(LOG_DEBUG, ctl->ctl_rh, "marking %s unlinked",
-		    nhgrp_print_buf(nhg_priv->nhg, nhgbuf, sizeof(nhgbuf)));
-#endif
+		IF_DEBUG_LEVEL(LOG_DEBUG2) {
+			char nhgbuf[NHOP_PRINT_BUFSIZE] __unused;
+			FIB_RH_LOG(LOG_DEBUG2, ctl->ctl_rh, "marking %s unlinked",
+			    nhgrp_print_buf(nhg_priv->nhg, nhgbuf, sizeof(nhgbuf)));
+		}
 		refcount_release(&nhg_priv->nhg_linked);
 	} CHT_SLIST_FOREACH_END;
 }
