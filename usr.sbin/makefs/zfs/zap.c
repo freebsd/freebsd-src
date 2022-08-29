@@ -215,7 +215,6 @@ zap_micro_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 	dnode = zap->dnode;
 	dnode->dn_maxblkid = 0;
 	dnode->dn_datablkszsec = bytes >> MINBLOCKSHIFT;
-	dnode->dn_flags = DNODE_FLAG_USED_BYTES;
 
 	vdev_pwrite_dnode_data(zfs, dnode, zfs->filebuf, bytes, loc);
 }
@@ -505,10 +504,8 @@ zap_fat_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 	 * Write the whole thing to disk.
 	 */
 	dnode = zap->dnode;
-	dnode->dn_nblkptr = 1;
 	dnode->dn_datablkszsec = blksz >> MINBLOCKSHIFT;
 	dnode->dn_maxblkid = lblkcnt + 1;
-	dnode->dn_flags = DNODE_FLAG_USED_BYTES;
 
 	c = dnode_cursor_init(zfs, zap->os, zap->dnode,
 	    (lblkcnt + 1) * blksz, blksz);
