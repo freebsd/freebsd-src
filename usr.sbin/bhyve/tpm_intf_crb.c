@@ -26,6 +26,7 @@
 #include "config.h"
 #include "mem.h"
 #include "qemu_fwcfg.h"
+#include "tpm_device.h"
 #include "tpm_intf.h"
 
 #define TPM_CRB_ADDRESS 0xFED40000
@@ -44,6 +45,8 @@
 #define TPM_CRB_LOG_AREA_MINIMUM_SIZE (64 * 1024)
 
 #define TPM_CRB_LOG_AREA_FWCFG_NAME "etc/tpm/log"
+
+#define TPM_CRB_INTF_NAME "crb"
 
 struct tpm_crb_regs {
 	union tpm_crb_reg_loc_state {
@@ -164,17 +167,82 @@ static_assert(sizeof(struct tpm_crb_regs) == TPM_CRB_REGS_SIZE,
 	} while (0)
 
 struct tpm_crb {
+	struct tpm_emul *emul;
+	void *emul_sc;
 	uint8_t tpm_log_area[TPM_CRB_LOG_AREA_MINIMUM_SIZE];
 	struct tpm_crb_regs regs;
+	pthread_t thread;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	bool closing;
 };
 
+static void *
+tpm_crb_thread(void *const arg)
+{
+	struct tpm_crb *const crb = arg;
+
+	pthread_mutex_lock(&crb->mutex);
+	for (;;) {
+		pthread_cond_wait(&crb->cond, &crb->mutex);
+
+		if (crb->closing)
+			break;
+
+		const uint64_t cmd_addr = CRB_CMD_ADDR_READ(crb->regs);
+		const uint64_t rsp_addr = CRB_RSP_ADDR_READ(crb->regs);
+		const uint32_t cmd_size = CRB_CMD_SIZE_READ(crb->regs);
+		const uint32_t rsp_size = CRB_RSP_SIZE_READ(crb->regs);
+
+		const uint64_t cmd_off = cmd_addr - TPM_CRB_DATA_BUFFER_ADDRESS;
+		const uint64_t rsp_off = rsp_addr - TPM_CRB_DATA_BUFFER_ADDRESS;
+
+		if (cmd_off > TPM_CRB_DATA_BUFFER_SIZE ||
+		    cmd_off + cmd_size > TPM_CRB_DATA_BUFFER_SIZE ||
+		    rsp_off > TPM_CRB_DATA_BUFFER_SIZE ||
+		    rsp_off + rsp_size > TPM_CRB_DATA_BUFFER_SIZE) {
+			warnx(
+			    "%s: invalid cmd [%16lx, %16lx] --> [%16lx, %16lx]\n\r",
+			    __func__, cmd_addr, cmd_addr + cmd_size, rsp_addr,
+			    rsp_addr + rsp_size);
+			break;
+		}
+
+		/*
+		 * The command response buffer interface uses a single buffer
+		 * for sending a command to and receiving a response from the
+		 * tpm. To avoid reading old data from the command buffer which
+		 * might be a security issue, we zero out the command buffer
+		 * before writing the response into it. The rsp_size parameter
+		 * is controlled by the guest and it's not guaranteed that the
+		 * response has a size of rsp_size (e.g. if the tpm returned an
+		 * error, the response would have a different size than
+		 * expected). For that reason, use a second buffer for the
+		 * response.
+		 */
+		uint8_t rsp[TPM_CRB_DATA_BUFFER_SIZE] = { 0 };
+		crb->emul->execute_cmd(crb->emul_sc,
+		    &crb->regs.data_buffer[cmd_off], cmd_size, &rsp[rsp_off],
+		    rsp_size);
+
+		memset(crb->regs.data_buffer, 0, TPM_CRB_DATA_BUFFER_SIZE);
+		memcpy(&crb->regs.data_buffer[rsp_off], &rsp[rsp_off], rsp_size);
+
+		crb->regs.ctrl_start.start = false;
+	}
+	pthread_mutex_unlock(&crb->mutex);
+
+	return (NULL);
+}
+
 static int
-tpm_crb_init(void **sc)
+tpm_crb_init(void **sc, struct tpm_emul *emul, void *emul_sc)
 {
 	struct tpm_crb *crb = NULL;
 	int error;
 
 	assert(sc != NULL);
+	assert(emul != NULL);
 
 	crb = calloc(1, sizeof(struct tpm_crb));
 	if (crb == NULL) {
@@ -184,6 +252,9 @@ tpm_crb_init(void **sc)
 	}
 
 	memset(crb, 0, sizeof(*crb));
+
+	crb->emul = emul;
+	crb->emul_sc = emul_sc;
 
 	crb->regs.loc_state.tpm_req_valid_sts = true;
 	crb->regs.loc_state.tpm_established = true;
@@ -216,6 +287,26 @@ tpm_crb_init(void **sc)
 		goto err_out;
 	}
 
+	error = pthread_mutex_init(&crb->mutex, NULL);
+	if (error) {
+		warnc(error, "%s: failed to init mutex", __func__);
+		goto err_out;
+	}
+
+	error = pthread_cond_init(&crb->cond, NULL);
+	if (error) {
+		warnc(error, "%s: failed to init cond", __func__);
+		goto err_out;
+	}
+
+	error = pthread_create(&crb->thread, NULL, tpm_crb_thread, crb);
+	if (error) {
+		warnx("%s: failed to create thread\n", __func__);
+		goto err_out;
+	}
+
+	pthread_set_name_np(crb->thread, "tpm_intf_crb");
+
 	*sc = crb;
 
 	return (0);
@@ -236,6 +327,13 @@ tpm_crb_deinit(void *sc)
 	}
 
 	crb = sc;
+
+	crb->closing = true;
+	pthread_cond_signal(&crb->cond);
+	pthread_join(crb->thread, NULL);
+
+	pthread_cond_destroy(&crb->cond);
+	pthread_mutex_destroy(&crb->mutex);
 
 	free(crb);
 }
@@ -275,7 +373,7 @@ tpm_crb_build_acpi_table(void *sc __unused, struct vmctx *vm_ctx)
 }
 
 static struct tpm_intf tpm_intf_crb = {
-	.name = "crb",
+	.name = TPM_CRB_INTF_NAME,
 	.init = tpm_crb_init,
 	.deinit = tpm_crb_deinit,
 	.build_acpi_table = tpm_crb_build_acpi_table,

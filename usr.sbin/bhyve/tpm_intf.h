@@ -11,6 +11,7 @@
 
 #include "config.h"
 #include "tpm_device.h"
+#include "tpm_emul.h"
 
 #define TPM_INTF_TYPE_FIFO_PTP 0x0
 #define TPM_INTF_TYPE_CRB 0x1
@@ -30,7 +31,7 @@
 struct tpm_intf {
 	const char *name;
 
-	int (*init)(void **sc);
+	int (*init)(void **sc, struct tpm_emul *emul, void *emul_sc);
 	void (*deinit)(void *sc);
 	int (*build_acpi_table)(void *sc, struct vmctx *vm_ctx);
 };
