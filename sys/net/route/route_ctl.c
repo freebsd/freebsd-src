@@ -474,7 +474,7 @@ rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
 {
 	union sockaddr_union mask_storage;
 	struct sockaddr *netmask = &mask_storage.sa;
-	struct rtentry *rt;
+	struct rtentry *rt = NULL;
 
 	NET_EPOCH_ASSERT();
 
@@ -495,22 +495,8 @@ rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
 			FIB_RH_LOG(LOG_INFO, rnh, "rtentry allocation failed");
 			return (ENOMEM);
 		}
-	} else {
-		struct route_nhop_data rnd_tmp;
-
-		rt = lookup_prefix_bysa(rnh, dst, netmask, &rnd_tmp);
-		if (rt == NULL)
-			return (ESRCH);
 	}
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
-	{
-		char nhbuf[NHOP_PRINT_BUFSIZE], rtbuf[NHOP_PRINT_BUFSIZE];
-		nhop_print_buf_any(rnd->rnd_nhop, nhbuf, sizeof(nhbuf));
-		rt_print_buf(rt, rtbuf, sizeof(rtbuf));
-		FIB_RH_LOG(LOG_DEBUG2, rnh, "request %s -> %s", rtbuf, nhbuf);
-	}
-#endif
 	return (add_route_flags(rnh, rt, rnd, op_flags, rc));
 }
 
@@ -817,7 +803,7 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 		if (op_flags & RTM_F_CREATE)
 			error = add_route(rnh, rt, rnd_add, rc);
 		else
-			error = ENOENT; // no entry but creation was not required
+			error = ESRCH; /* no entry but creation was not required */
 		RIB_WUNLOCK(rnh);
 		if (error != 0)
 			goto out;
@@ -852,7 +838,7 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 	    nhop_can_multipath(rnd_orig.rnd_nhop)) {
 
 		for (int i = 0; i < RIB_MAX_RETRIES; i++) {
-			error = add_route_flags_mpath(rnh, rt, rnd_add, &rnd_orig,
+			error = add_route_flags_mpath(rnh, rt_orig, rnd_add, &rnd_orig,
 			    op_flags, rc);
 			if (error != EAGAIN)
 				break;
