@@ -425,7 +425,6 @@ void
 ginode(ino_t inumber, struct inode *ip)
 {
 	ufs2_daddr_t iblk;
-	ino_t numinodes;
 
 	if (inumber < UFS_ROOTINO || inumber > maxino)
 		errx(EEXIT, "bad inode number %ju to ginode",
@@ -436,14 +435,12 @@ ginode(ino_t inumber, struct inode *ip)
 		ip->i_bp = &inobuf;
 		inobuf.b_refcnt++;
 		inobuf.b_index = firstinum;
-		numinodes = lastinum - firstinum;
 	} else if (icachebp != NULL &&
 	    inumber >= icachebp->b_index &&
 	    inumber < icachebp->b_index + INOPB(&sblock)) {
 		/* take an additional reference for the returned inode */
 		icachebp->b_refcnt++;
 		ip->i_bp = icachebp;
-		numinodes = INOPB(&sblock);
 	} else {
 		iblk = ino_to_fsba(&sblock, inumber);
 		/* release our cache-hold reference on old icachebp */
@@ -460,15 +457,14 @@ ginode(ino_t inumber, struct inode *ip)
 		icachebp->b_refcnt++;
 		icachebp->b_index = rounddown(inumber, INOPB(&sblock));
 		ip->i_bp = icachebp;
-		numinodes = INOPB(&sblock);
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		ip->i_dp = (union dinode *)
-		    &ip->i_bp->b_un.b_dinode1[inumber % numinodes];
+		    &ip->i_bp->b_un.b_dinode1[inumber - firstinum];
 		return;
 	}
 	ip->i_dp = (union dinode *)
-	    &ip->i_bp->b_un.b_dinode2[inumber % numinodes];
+	    &ip->i_bp->b_un.b_dinode2[inumber - firstinum];
 	if (ffs_verify_dinode_ckhash(&sblock, (struct ufs2_dinode *)ip->i_dp)) {
 		pwarn("INODE CHECK-HASH FAILED");
 		prtinode(ip);

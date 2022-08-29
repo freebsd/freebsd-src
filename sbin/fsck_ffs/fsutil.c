@@ -465,7 +465,7 @@ flush(int fd, struct bufarea *bp)
 			struct ufs2_dinode *dp = bp->b_un.b_dinode2;
 			int i;
 
-			for (i = 0; i < INOPB(&sblock); dp++, i++) {
+			for (i = 0; i < bp->b_size; dp++, i += sizeof(*dp)) {
 				if (ffs_verify_dinode_ckhash(&sblock, dp) == 0)
 					continue;
 				pwarn("flush: INODE CHECK-HASH FAILED");
