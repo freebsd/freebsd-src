@@ -115,7 +115,7 @@ cmp_nhgrp(const struct nhgrp_priv *a, const struct nhgrp_priv *b)
 	 * different set of "data plane" nexthops.
 	 * For now, ignore the data plane and focus on the control plane list.
 	 */
-	if (a->nhg_nh_count != b->nhg_nh_count)
+	if (a->nhg_nh_count != b->nhg_nh_count || a->nhg_uidx != b->nhg_uidx)
 		return (0);
 	return !memcmp(a->nhg_nh_weights, b->nhg_nh_weights,
 	    sizeof(struct weightened_nhop) * a->nhg_nh_count);

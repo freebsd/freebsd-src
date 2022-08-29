@@ -1181,7 +1181,7 @@ change_mpath_route(struct rib_head *rnh, struct rtentry *rt,
 	wn_new[found_idx].nh = nh_new;
 	wn_new[found_idx].weight = get_info_weight(info, wn[found_idx].weight);
 
-	error = nhgrp_get_group(rnh, wn_new, num_nhops, &rnd_new.rnd_nhgrp);
+	error = nhgrp_get_group(rnh, wn_new, num_nhops, 0, &rnd_new.rnd_nhgrp);
 	nhop_free(nh_new);
 	free(wn_new, M_TEMP);
 

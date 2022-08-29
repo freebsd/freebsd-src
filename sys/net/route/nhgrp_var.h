@@ -47,6 +47,7 @@
 
 struct nhgrp_priv {
 	uint32_t		nhg_idx;
+	uint32_t		nhg_uidx;
 	uint8_t			nhg_nh_count;	/* number of items in nh_weights */
 	uint8_t			nhg_spare[3];
 	u_int			nhg_refcount;	/* use refcount */
