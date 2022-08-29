@@ -534,10 +534,11 @@ finalize_nhop(struct nh_control *ctl, struct nhop_object *nh, bool link)
 		return (ENOBUFS);
 	}
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	char nhbuf[NHOP_PRINT_BUFSIZE];
-	FIB_NH_LOG(LOG_DEBUG, nh, "finalized: %s", nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
-#endif
+	IF_DEBUG_LEVEL(LOG_DEBUG) {
+		char nhbuf[NHOP_PRINT_BUFSIZE] __unused;
+		FIB_NH_LOG(LOG_DEBUG, nh, "finalized: %s",
+		    nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
+	}
 
 	return (0);
 }
@@ -598,10 +599,11 @@ nhop_free(struct nhop_object *nh)
 		return;
 	}
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	char nhbuf[NHOP_PRINT_BUFSIZE];
-	FIB_NH_LOG(LOG_DEBUG, nh, "deleting %s", nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
-#endif
+	IF_DEBUG_LEVEL(LOG_DEBUG) {
+		char nhbuf[NHOP_PRINT_BUFSIZE] __unused;
+		FIB_NH_LOG(LOG_DEBUG, nh, "deleting %s",
+		    nhop_print_buf(nh, nhbuf, sizeof(nhbuf)));
+	}
 
 	/*
 	 * There are only 2 places, where nh_linked can be decreased:
@@ -1189,10 +1191,7 @@ nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 	ctl = rh->nh_control;
 
 	NHOPS_RLOCK(ctl);
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	FIB_LOG(LOG_DEBUG, rh->rib_fibnum, rh->rib_family, "dump %u items",
-	    ctl->nh_head.items_count);
-#endif
+	FIB_RH_LOG(LOG_DEBUG, rh, "dump %u items", ctl->nh_head.items_count);
 	CHT_SLIST_FOREACH(&ctl->nh_head, nhops, nh_priv) {
 		error = dump_nhop_entry(rh, nh_priv->nh, w);
 		if (error != 0) {

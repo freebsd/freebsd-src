@@ -406,12 +406,12 @@ destroy_nhgrp(struct nhgrp_priv *nhg_priv)
 	KASSERT((nhg_priv->nhg_refcount == 0), ("nhg_refcount != 0"));
 	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
 
-#if DEBUG_MAX_LEVEL >= LOG_DEBUG
-	char nhgbuf[NHOP_PRINT_BUFSIZE];
-	FIB_NH_LOG(LOG_DEBUG, nhg_priv->nhg_nh_weights[0].nh,
-	    "destroying %s", nhgrp_print_buf(nhg_priv->nhg,
-	    nhgbuf, sizeof(nhgbuf)));
-#endif
+	IF_DEBUG_LEVEL(LOG_DEBUG2) {
+		char nhgbuf[NHOP_PRINT_BUFSIZE] __unused;
+		FIB_NH_LOG(LOG_DEBUG2, nhg_priv->nhg_nh_weights[0].nh,
+		    "destroying %s", nhgrp_print_buf(nhg_priv->nhg,
+		    nhgbuf, sizeof(nhgbuf)));
+	}
 
 	free_nhgrp_nhops(nhg_priv);
 	destroy_nhgrp_int(nhg_priv);
