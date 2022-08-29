@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <vmmapi.h>
+
 #include "config.h"
 #include "tpm_device.h"
 
@@ -30,6 +32,6 @@ struct tpm_intf {
 
 	int (*init)(void **sc);
 	void (*deinit)(void *sc);
-	int (*build_acpi_table)(void *sc);
+	int (*build_acpi_table)(void *sc, struct vmctx *vm_ctx);
 };
 #define TPM_INTF_SET(x) DATA_SET(tpm_intf_set, x)
