@@ -199,6 +199,8 @@ void nhop_set_src(struct nhop_object *nh, struct ifaddr *ifa);
 void nhop_set_transmit_ifp(struct nhop_object *nh, struct ifnet *ifp);
 
 uint32_t nhop_get_idx(const struct nhop_object *nh);
+uint32_t nhop_get_uidx(const struct nhop_object *nh);
+void nhop_set_uidx(struct nhop_object *nh, uint32_t uidx);
 enum nhop_type nhop_get_type(const struct nhop_object *nh);
 int nhop_get_rtflags(const struct nhop_object *nh);
 struct vnet *nhop_get_vnet(const struct nhop_object *nh);
@@ -210,6 +212,8 @@ void nhop_set_fibnum(struct nhop_object *nh, uint32_t fibnum);
 uint32_t nhop_get_expire(const struct nhop_object *nh);
 void nhop_set_expire(struct nhop_object *nh, uint32_t expire);
 
+struct nhgrp_object;
+uint32_t nhgrp_get_uidx(const struct nhgrp_object *nhg);
 #endif /* _KERNEL */
 
 /* Kernel <> userland structures */
