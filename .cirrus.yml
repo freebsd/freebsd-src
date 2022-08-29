@@ -21,7 +21,7 @@ task:
       TARGET: arm64
       TARGET_ARCH: aarch64
   install_script:
-  - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
+  - pkg install -y qemu
   script:
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
 # FAT root fs fails on stable/12:
