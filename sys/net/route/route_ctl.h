@@ -82,8 +82,8 @@ int rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info);
 int rib_add_default_route(uint32_t fibnum, int family, struct ifnet *ifp,
     struct sockaddr *gw, struct rib_cmd_info *rc);
 
-typedef void route_notification_t(struct rib_cmd_info *rc, void *);
-void rib_decompose_notification(struct rib_cmd_info *rc,
+typedef void route_notification_t(const struct rib_cmd_info *rc, void *);
+void rib_decompose_notification(const struct rib_cmd_info *rc,
     route_notification_t *cb, void *cbdata);
 
 int rib_add_redirect(u_int fibnum, struct sockaddr *dst,
