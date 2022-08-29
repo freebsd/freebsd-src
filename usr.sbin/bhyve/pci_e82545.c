@@ -1466,9 +1466,12 @@ e82545_tx_run(struct e82545_softc *sc)
 	uint16_t head, rhead, tail, size;
 	int lim, tdwb, sent;
 
-	head = sc->esc_TDH;
-	tail = sc->esc_TDT;
 	size = sc->esc_TDLEN / 16;
+	if (size == 0)
+		return;
+
+	head = sc->esc_TDH % size;
+	tail = sc->esc_TDT % size;
 	DPRINTF("tx_run: head %x, rhead %x, tail %x",
 	    sc->esc_TDH, sc->esc_TDHr, sc->esc_TDT);
 
@@ -1734,12 +1737,17 @@ e82545_write_register(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 			e82545_tx_update_tdba(sc);
 		break;
 	case E1000_TDH(0):
-		//assert(!sc->esc_tx_enabled);
-		/* XXX should only ever be zero ? Range check ? */
+		if (sc->esc_tx_enabled) {
+			WPRINTF("ignoring write to TDH while transmit enabled");
+			break;
+		}
+		if (value != 0) {
+			WPRINTF("ignoring non-zero value written to TDH");
+			break;
+		}
 		sc->esc_TDHr = sc->esc_TDH = value;
 		break;
 	case E1000_TDT(0):
-		/* XXX range check ? */
 		sc->esc_TDT = value;
 		if (sc->esc_tx_enabled)
 			e82545_tx_start(sc);
