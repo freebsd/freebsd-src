@@ -1054,8 +1054,11 @@ mana_cfg_vport(struct mana_port_context *apc, uint32_t protection_dom_id,
 	apc->tx_shortform_allowed = resp.short_form_allowed;
 	apc->tx_vp_offset = resp.tx_vport_offset;
 
+#if defined(__amd64__)
 	if_printf(apc->ndev, "Configured vPort %lu PD %u DB %u\n",
 	    apc->port_handle, protection_dom_id, doorbell_pg_id);
+#endif
+
 out:
 	if (err)
 		mana_uncfg_vport(apc);
@@ -1124,8 +1127,11 @@ mana_cfg_vport_steering(struct mana_port_context *apc,
 		err = EPROTO;
 	}
 
+#if defined(__amd64__)
 	if_printf(ndev, "Configured steering vPort %lu entries %u\n",
 	    apc->port_handle, num_entries);
+#endif
+
 out:
 	free(req, M_DEVBUF);
 	return err;
