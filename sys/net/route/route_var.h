@@ -228,6 +228,7 @@ bool nhop_can_multipath(const struct nhop_object *nh);
 bool match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw);
 int check_info_match_nhop(const struct rt_addrinfo *info,
     const struct rtentry *rt, const struct nhop_object *nh);
+bool rib_can_4o6_nhop(void);
 
 /* route_rtentry.c */
 void vnet_rtzone_init(void);
@@ -255,6 +256,7 @@ void nhop_free_any(struct nhop_object *nh);
 struct nhop_object *nhop_get_nhop_internal(struct rib_head *rnh,
     struct nhop_object *nh, int *perror);
 
+bool nhop_check_gateway(int upper_family, int neigh_family);
 
 int nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
     struct nhop_object **nh_ret);

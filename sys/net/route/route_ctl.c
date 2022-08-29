@@ -134,7 +134,7 @@ uint8_t mpath_entropy_key[MPATH_ENTROPY_KEY_LEN] = {
 #if defined(INET) && defined(INET6)
 FEATURE(ipv4_rfc5549_support, "Route IPv4 packets via IPv6 nexthops");
 #define V_rib_route_ipv6_nexthop VNET(rib_route_ipv6_nexthop)
-VNET_DEFINE(u_int, rib_route_ipv6_nexthop) = 1;
+VNET_DEFINE_STATIC(u_int, rib_route_ipv6_nexthop) = 1;
 SYSCTL_UINT(_net_route, OID_AUTO, ipv6_nexthop, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(rib_route_ipv6_nexthop), 0, "Enable IPv4 route via IPv6 Next Hop address");
 #endif
@@ -157,16 +157,10 @@ get_rnh(uint32_t fibnum, const struct rt_addrinfo *info)
 }
 
 #if defined(INET) && defined(INET6)
-static bool
-rib_can_ipv6_nexthop_address(struct rib_head *rh)
+bool
+rib_can_4o6_nhop(void)
 {
-	int result;
-
-	CURVNET_SET(rh->rib_vnet);
-	result = !!V_rib_route_ipv6_nexthop;
-	CURVNET_RESTORE();
-
-	return (result);
+	return (!!V_rib_route_ipv6_nexthop);
 }
 #endif
 
@@ -702,30 +696,6 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
 	return (error);
 }
 
-/*
- * Checks if @dst and @gateway is valid combination.
- *
- * Returns true if is valid, false otherwise.
- */
-static bool
-check_gateway(struct rib_head *rnh, struct sockaddr *dst,
-    struct sockaddr *gateway)
-{
-	if (dst->sa_family == gateway->sa_family)
-		return (true);
-	else if (gateway->sa_family == AF_UNSPEC)
-		return (true);
-	else if (gateway->sa_family == AF_LINK)
-		return (true);
-#if defined(INET) && defined(INET6)
-	else if (dst->sa_family == AF_INET && gateway->sa_family == AF_INET6 &&
-		rib_can_ipv6_nexthop_address(rnh))
-		return (true);
-#endif
-	else
-		return (false);
-}
-
 static int
 add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
@@ -744,7 +714,7 @@ add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
 		FIB_RH_LOG(LOG_DEBUG, rnh, "error: RTF_GATEWAY set with empty gw");
 		return (EINVAL);
 	}
-	if (dst && gateway && !check_gateway(rnh, dst, gateway)) {
+	if (dst && gateway && !nhop_check_gateway(dst->sa_family, gateway->sa_family)) {
 		FIB_RH_LOG(LOG_DEBUG, rnh,
 		    "error: invalid dst/gateway family combination (%d, %d)",
 		    dst->sa_family, gateway->sa_family);
@@ -1578,3 +1548,4 @@ rib_print_family(int family)
 	}
 	return ("unknown");
 }
+
