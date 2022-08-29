@@ -1,8 +1,12 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 ATF_TESTS_SH+=	makefs_cd9660_tests
 ATF_TESTS_SH+=	makefs_ffs_tests
+.if ${MK_ZFS} != "no"
 ATF_TESTS_SH+=	makefs_zfs_tests
+.endif
 
 BINDIR=		${TESTSDIR}
 
