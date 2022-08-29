@@ -253,7 +253,173 @@ tpm_crb_thread(void *const arg)
 }
 
 static int
-tpm_crb_init(void **sc, struct tpm_emul *emul, void *emul_sc)
+tpm_crb_mmiocpy(void *const dst, void *const src, const int size)
+{
+	if (!(size == 1 || size == 2 || size == 4 || size == 8))
+		return (EINVAL);
+	memcpy(dst, src, size);
+
+	return (0);
+}
+
+static int
+tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
+    const uint64_t addr, const int size, uint64_t *const val, void *const arg1,
+    const long arg2 __unused)
+{
+	struct tpm_crb *crb;
+	uint8_t *ptr;
+	uint64_t off, shift;
+	int error = 0;
+
+	if ((addr & (size - 1)) != 0) {
+		warnx("%s: unaligned %s access @ %16lx [size = %x]", __func__,
+		    (dir == MEM_F_READ) ? "read" : "write", addr, size);
+		return (EINVAL);
+	}
+
+	crb = arg1;
+
+	off = addr - TPM_CRB_ADDRESS;
+	if (off > TPM_CRB_REGS_SIZE || off + size >= TPM_CRB_REGS_SIZE) {
+		return (EINVAL);
+	}
+
+	shift = 8 * (off & 3);
+	ptr = (uint8_t *)&crb->regs + off;
+
+	if (dir == MEM_F_READ) {
+		error = tpm_crb_mmiocpy(val, ptr, size);
+		if (error)
+			goto err_out;
+	} else {
+		switch (off & ~0x3) {
+		case offsetof(struct tpm_crb_regs, loc_ctrl): {
+			union tpm_crb_reg_loc_ctrl loc_ctrl;
+
+			if ((size_t)size > sizeof(loc_ctrl))
+				goto err_out;
+
+			*val = *val << shift;
+			tpm_crb_mmiocpy(&loc_ctrl, val, size);
+
+			if (loc_ctrl.relinquish) {
+				crb->regs.loc_sts.granted = false;
+				crb->regs.loc_state.loc_assigned = false;
+			} else if (loc_ctrl.request_access) {
+				crb->regs.loc_sts.granted = true;
+				crb->regs.loc_state.loc_assigned = true;
+			}
+
+			break;
+		}
+		case offsetof(struct tpm_crb_regs, ctrl_req): {
+			union tpm_crb_reg_ctrl_req req;
+
+			if ((size_t)size > sizeof(req))
+				goto err_out;
+
+			*val = *val << shift;
+			tpm_crb_mmiocpy(&req, val, size);
+
+			if (req.cmd_ready && !req.go_idle) {
+				crb->regs.ctrl_sts.tpm_idle = false;
+			} else if (!req.cmd_ready && req.go_idle) {
+				crb->regs.ctrl_sts.tpm_idle = true;
+			}
+
+			break;
+		}
+		case offsetof(struct tpm_crb_regs, ctrl_cancel): {
+			/* TODO: cancel the tpm command */
+			warnx(
+			    "%s: cancelling a TPM command is not implemented yet",
+			    __func__);
+
+			break;
+		}
+		case offsetof(struct tpm_crb_regs, ctrl_start): {
+			union tpm_crb_reg_ctrl_start start;
+
+			if ((size_t)size > sizeof(start))
+				goto err_out;
+
+			*val = *val << shift;
+
+			pthread_mutex_lock(&crb->mutex);
+			tpm_crb_mmiocpy(&start, val, size);
+
+			if (!start.start || crb->regs.ctrl_start.start)
+				break;
+
+			crb->regs.ctrl_start.start = true;
+
+			pthread_cond_signal(&crb->cond);
+			pthread_mutex_unlock(&crb->mutex);
+
+			break;
+		}
+		case offsetof(struct tpm_crb_regs, cmd_size):
+		case offsetof(struct tpm_crb_regs, cmd_addr_lo):
+		case offsetof(struct tpm_crb_regs, cmd_addr_hi):
+		case offsetof(struct tpm_crb_regs, rsp_size):
+		case offsetof(struct tpm_crb_regs,
+		    rsp_addr) ... offsetof(struct tpm_crb_regs, rsp_addr) +
+		    4:
+		case offsetof(struct tpm_crb_regs,
+		    data_buffer) ... offsetof(struct tpm_crb_regs, data_buffer) +
+		    TPM_CRB_DATA_BUFFER_SIZE / 4:
+			/*
+			 * Those fields are used to execute a TPM command. The
+			 * crb_thread will access them. For that reason, we have
+			 * to acquire the crb mutex in order to write them.
+			 */
+			pthread_mutex_lock(&crb->mutex);
+			error = tpm_crb_mmiocpy(ptr, val, size);
+			pthread_mutex_unlock(&crb->mutex);
+			if (error)
+				goto err_out;
+			break;
+		default:
+			/*
+			 * The other fields are either readonly or we do not
+			 * support writing them.
+			 */
+			error = EINVAL;
+			goto err_out;
+		}
+	}
+
+	return (0);
+
+err_out:
+	warnx("%s: invalid %s @ %16lx [size = %d]", __func__,
+	    dir == MEM_F_READ ? "read" : "write", addr, size);
+
+	return (error);
+}
+
+static int
+tpm_crb_modify_mmio_registration(const bool registration, void *const arg1)
+{
+	struct mem_range crb_mmio = {
+		.name = "crb-mmio",
+		.base = TPM_CRB_ADDRESS,
+		.size = TPM_CRB_LOCALITIES_MAX * TPM_CRB_CONTROL_AREA_SIZE,
+		.flags = MEM_F_RW,
+		.arg1 = arg1,
+		.handler = tpm_crb_mem_handler,
+	};
+
+	if (registration)
+		return (register_mem(&crb_mmio));
+	else
+		return (unregister_mem(&crb_mmio));
+}
+
+static int
+tpm_crb_init(void **sc, struct tpm_emul *emul, void *emul_sc,
+    struct acpi_device *acpi_dev)
 {
 	struct tpm_crb *crb = NULL;
 	int error;
@@ -304,6 +470,19 @@ tpm_crb_init(void **sc, struct tpm_emul *emul, void *emul_sc)
 		goto err_out;
 	}
 
+	error = acpi_device_add_res_fixed_memory32(acpi_dev, false,
+	    TPM_CRB_ADDRESS, TPM_CRB_CONTROL_AREA_SIZE);
+	if (error) {
+		warnx("%s: failed to add acpi resources\n", __func__);
+		goto err_out;
+	}
+
+	error = tpm_crb_modify_mmio_registration(true, crb);
+	if (error) {
+		warnx("%s: failed to register crb mmio", __func__);
+		goto err_out;
+	}
+
 	error = pthread_mutex_init(&crb->mutex, NULL);
 	if (error) {
 		warnc(error, "%s: failed to init mutex", __func__);
@@ -338,6 +517,7 @@ static void
 tpm_crb_deinit(void *sc)
 {
 	struct tpm_crb *crb;
+	int error;
 
 	if (sc == NULL) {
 		return;
@@ -351,6 +531,9 @@ tpm_crb_deinit(void *sc)
 
 	pthread_cond_destroy(&crb->cond);
 	pthread_mutex_destroy(&crb->mutex);
+
+	error = tpm_crb_modify_mmio_registration(false, NULL);
+	assert(error == 0);
 
 	free(crb);
 }
