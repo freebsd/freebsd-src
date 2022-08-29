@@ -460,11 +460,11 @@ ginode(ino_t inumber, struct inode *ip)
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		ip->i_dp = (union dinode *)
-		    &ip->i_bp->b_un.b_dinode1[inumber - firstinum];
+		    &ip->i_bp->b_un.b_dinode1[inumber - ip->i_bp->b_index];
 		return;
 	}
 	ip->i_dp = (union dinode *)
-	    &ip->i_bp->b_un.b_dinode2[inumber - firstinum];
+	    &ip->i_bp->b_un.b_dinode2[inumber - ip->i_bp->b_index];
 	if (ffs_verify_dinode_ckhash(&sblock, (struct ufs2_dinode *)ip->i_dp)) {
 		pwarn("INODE CHECK-HASH FAILED");
 		prtinode(ip);
