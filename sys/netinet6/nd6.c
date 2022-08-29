@@ -1591,7 +1591,7 @@ nd6_free_redirect(const struct llentry *ln)
  * Updates status of the default router route.
  */
 static void
-check_release_defrouter(struct rib_cmd_info *rc, void *_cbdata)
+check_release_defrouter(const struct rib_cmd_info *rc, void *_cbdata)
 {
 	struct nd_defrouter *dr;
 	struct nhop_object *nh;

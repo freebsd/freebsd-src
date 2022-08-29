@@ -292,7 +292,7 @@ notify_del(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
 }
 
 static void
-decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
+decompose_change_notification(const struct rib_cmd_info *rc, route_notification_t *cb,
     void *cbdata)
 {
 	uint32_t num_old, num_new;
@@ -379,7 +379,7 @@ decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
  * Assumes at least one of the nexthops in @rc is multipath.
  */
 void
-rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
+rib_decompose_notification(const struct rib_cmd_info *rc, route_notification_t *cb,
     void *cbdata)
 {
 	const struct weightened_nhop *wn;

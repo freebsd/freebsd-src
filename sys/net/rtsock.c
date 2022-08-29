@@ -935,7 +935,7 @@ update_rtm_from_rc(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 
 #ifdef ROUTE_MPATH
 static void
-save_del_notification(struct rib_cmd_info *rc, void *_cbdata)
+save_del_notification(const struct rib_cmd_info *rc, void *_cbdata)
 {
 	struct rib_cmd_info *rc_new = (struct rib_cmd_info *)_cbdata;
 
@@ -944,7 +944,7 @@ save_del_notification(struct rib_cmd_info *rc, void *_cbdata)
 }
 
 static void
-save_add_notification(struct rib_cmd_info *rc, void *_cbdata)
+save_add_notification(const struct rib_cmd_info *rc, void *_cbdata)
 {
 	struct rib_cmd_info *rc_new = (struct rib_cmd_info *)_cbdata;
 
