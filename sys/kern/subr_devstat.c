@@ -52,17 +52,9 @@ SDT_PROVIDER_DEFINE(io);
 
 SDT_PROBE_DEFINE2(io, , , start, "struct bio *", "struct devstat *");
 SDT_PROBE_DEFINE2(io, , , done, "struct bio *", "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , wait__start, "struct bio *",
-    "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , wait__done, "struct bio *",
-    "struct devstat *");
 
-#define	DTRACE_DEVSTAT_START()		SDT_PROBE2(io, , , start, NULL, ds)
 #define	DTRACE_DEVSTAT_BIO_START()	SDT_PROBE2(io, , , start, bp, ds)
-#define	DTRACE_DEVSTAT_DONE()		SDT_PROBE2(io, , , done, NULL, ds)
 #define	DTRACE_DEVSTAT_BIO_DONE()	SDT_PROBE2(io, , , done, bp, ds)
-#define	DTRACE_DEVSTAT_WAIT_START()	SDT_PROBE2(io, , , wait__start, NULL, ds)
-#define	DTRACE_DEVSTAT_WAIT_DONE()	SDT_PROBE2(io, , , wait__done, NULL, ds)
 
 static int devstat_num_devs;
 static long devstat_generation = 1;
@@ -245,7 +237,6 @@ devstat_start_transaction(struct devstat *ds, const struct bintime *now)
 			binuptime(&ds->busy_from);
 	}
 	atomic_add_rel_int(&ds->sequence0, 1);
-	DTRACE_DEVSTAT_START();
 }
 
 void
@@ -341,7 +332,6 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 
 	ds->end_count++;
 	atomic_add_rel_int(&ds->sequence0, 1);
-	DTRACE_DEVSTAT_DONE();
 }
 
 void
