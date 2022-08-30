@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2022
+.Dd August 29, 2022
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -242,6 +242,7 @@ supported by the NFS Version 4 server will be used.
 See the
 .Cm minorversion
 option.
+Make sure that all your NFS Version 4 clients have unique /etc/hostid's.
 .It Cm minorversion Ns = Ns Aq Ar value
 Use the specified minor version for a NFS Version 4 mount,
 overriding the default.
