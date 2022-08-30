@@ -122,9 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 
 /* netinet6/raw_ip6.c */
-extern struct protosw rip6_protosw, icmp6_protosw, dstopts6_protosw,
-    routing6_protosw, frag6_protosw, rawipv4in6_protosw, rawipv6in6_protosw,
-    etherip6_protosw, gre6_protosw, pim6_protosw, rip6wild_protosw;
+extern struct protosw rip6_protosw;
 /* netinet6/udp6_usrreq.c */
 extern struct protosw udp6_protosw, udplite6_protosw;
 
@@ -143,7 +141,7 @@ struct domain inet6domain = {
 	.dom_ifattach =		in6_domifattach,
 	.dom_ifdetach =		in6_domifdetach,
 	.dom_ifmtu    =		in6_domifmtu,
-	.dom_nprotosw =		24,
+	.dom_nprotosw =		14,
 	.dom_protosw = {
 		&tcp6_protosw,
 		&udp6_protosw,
@@ -155,28 +153,8 @@ struct domain inet6domain = {
 #endif
 		&udplite6_protosw,
 		&rip6_protosw,
-		/*
-		 * XXXGL: it is entirely possible that all below raw-based
-		 * protosw definitions are not needed.  They could have existed
-		 * just to define pr_input, pr_drain, pr_*timo or PR_LASTHDR
-		 * flag, and were never supposed to create a special socket.
-		 */
-		&icmp6_protosw,
-		&dstopts6_protosw,
-		&routing6_protosw,
-		&frag6_protosw,
-#ifdef INET
-		&rawipv4in6_protosw,
-#else
-		NULL,
-#endif
-		&rawipv6in6_protosw,
-		&etherip6_protosw,
-		&gre6_protosw,
-		&pim6_protosw,
 		/* Spacer 8 times for loadable protocols. XXXGL: why 8? */
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-		&rip6wild_protosw,
 	},
 };
 

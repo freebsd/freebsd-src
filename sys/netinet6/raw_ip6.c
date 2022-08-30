@@ -424,9 +424,8 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 	if (control != NULL) {
 		NET_EPOCH_ENTER(et);
-		error = ip6_setpktopts(control, &opt,
-		    inp->in6p_outputopts, so->so_cred,
-		    so->so_proto->pr_protocol);
+		error = ip6_setpktopts(control, &opt, inp->in6p_outputopts,
+		    so->so_cred, inp->inp_ip_p);
 		NET_EPOCH_EXIT(et);
 
 		if (error != 0) {
@@ -455,7 +454,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 * For an ICMPv6 packet, we should know its type and code to update
 	 * statistics.
 	 */
-	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
+	if (inp->inp_ip_p == IPPROTO_ICMPV6) {
 		struct icmp6_hdr *icmp6;
 		if (m->m_len < sizeof(struct icmp6_hdr) &&
 		    (m = m_pullup(m, sizeof(struct icmp6_hdr))) == NULL) {
@@ -479,8 +478,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		uint32_t hash_type, hash_val;
 
 		hash_val = fib6_calc_software_hash(&inp->in6p_laddr,
-		    &dstsock->sin6_addr, 0, 0, so->so_proto->pr_protocol,
-		    &hash_type);
+		    &dstsock->sin6_addr, 0, 0, inp->inp_ip_p, &hash_type);
 		inp->inp_flowid = hash_val;
 		inp->inp_flowtype = hash_type;
 	}
@@ -516,14 +514,13 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	ip6->ip6_nxt = inp->inp_ip_p;
 	ip6->ip6_hlim = hlim;
 
-	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6 ||
-	    inp->in6p_cksum != -1) {
+	if (inp->inp_ip_p == IPPROTO_ICMPV6 || inp->in6p_cksum != -1) {
 		struct mbuf *n;
 		int off;
 		u_int16_t *p;
 
 		/* Compute checksum. */
-		if (so->so_proto->pr_protocol == IPPROTO_ICMPV6)
+		if (inp->inp_ip_p == IPPROTO_ICMPV6)
 			off = offsetof(struct icmp6_hdr, icmp6_cksum);
 		else
 			off = inp->in6p_cksum;
@@ -550,7 +547,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 * them to rtadvd/rtsol.
 	 */
 	if ((send_sendso_input_hook != NULL) &&
-	    so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
+	    inp->inp_ip_p == IPPROTO_ICMPV6) {
 		switch (type) {
 		case ND_ROUTER_ADVERT:
 		case ND_ROUTER_SOLICIT:
@@ -565,7 +562,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	NET_EPOCH_ENTER(et);
 	error = ip6_output(m, optp, NULL, 0, inp->in6p_moptions, &oifp, inp);
 	NET_EPOCH_EXIT(et);
-	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
+	if (inp->inp_ip_p == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
 		ICMP6STAT_INC(icp6s_outhist[type]);
@@ -682,6 +679,8 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	error = priv_check(td, PRIV_NETINET_RAW);
 	if (error)
 		return (error);
+	if (proto >= IPPROTO_MAX || proto < 0)
+		return (EPROTONOSUPPORT);
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
 		return (error);
@@ -694,7 +693,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	inp->inp_ip_p = (long)proto;
+	inp->inp_ip_p = proto;
 	inp->in6p_cksum = -1;
 	inp->in6p_icmp6filt = filter;
 	ICMP6_FILTER_SETPASSALL(inp->in6p_icmp6filt);
@@ -869,66 +868,20 @@ rip6_shutdown(struct socket *so)
 	return (0);
 }
 
-/*
- * See comment in in6_proto.c containing "protosw definitions are not needed".
- */
-#define	RAW6_PROTOSW						\
-	.pr_type =		SOCK_RAW,			\
-	.pr_flags =		PR_ATOMIC|PR_ADDR,		\
-	.pr_ctloutput =		rip6_ctloutput,			\
-	.pr_abort =		rip6_abort,			\
-	.pr_attach =		rip6_attach,			\
-	.pr_bind =		rip6_bind,			\
-	.pr_connect =		rip6_connect,			\
-	.pr_control =		in6_control,			\
-	.pr_detach =		rip6_detach,			\
-	.pr_disconnect =	rip6_disconnect,		\
-	.pr_peeraddr =		in6_getpeeraddr,		\
-	.pr_send =		rip6_send,			\
-	.pr_shutdown =		rip6_shutdown,			\
-	.pr_sockaddr =		in6_getsockaddr,		\
-	.pr_close =		rip6_close
-
 struct protosw rip6_protosw = {
-	.pr_protocol =	IPPROTO_RAW,
-	RAW6_PROTOSW
-};
-struct protosw icmp6_protosw = {
-	.pr_protocol =	IPPROTO_ICMPV6,
-	RAW6_PROTOSW
-};
-struct protosw dstopts6_protosw = {
-	.pr_protocol =	IPPROTO_DSTOPTS,
-	RAW6_PROTOSW
-};
-struct protosw routing6_protosw = {
-	.pr_protocol =	IPPROTO_ROUTING,
-	RAW6_PROTOSW
-};
-struct protosw frag6_protosw = {
-	.pr_protocol =	IPPROTO_FRAGMENT,
-	RAW6_PROTOSW
-};
-struct protosw rawipv4in6_protosw = {
-	.pr_protocol =	IPPROTO_IPV4,
-	RAW6_PROTOSW
-};
-struct protosw rawipv6in6_protosw = {
-	.pr_protocol =	IPPROTO_IPV6,
-	RAW6_PROTOSW
-};
-struct protosw etherip6_protosw = {
-	.pr_protocol =	IPPROTO_ETHERIP,
-	RAW6_PROTOSW
-};
-struct protosw gre6_protosw = {
-	.pr_protocol =	IPPROTO_GRE,
-	RAW6_PROTOSW
-};
-struct protosw pim6_protosw = {
-	.pr_protocol =	IPPROTO_PIM,
-	RAW6_PROTOSW
-};
-struct protosw rip6wild_protosw = {
-	RAW6_PROTOSW
+	.pr_type =		SOCK_RAW,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_ctloutput =		rip6_ctloutput,
+	.pr_abort =		rip6_abort,
+	.pr_attach =		rip6_attach,
+	.pr_bind =		rip6_bind,
+	.pr_connect =		rip6_connect,
+	.pr_control =		in6_control,
+	.pr_detach =		rip6_detach,
+	.pr_disconnect =	rip6_disconnect,
+	.pr_peeraddr =		in6_getpeeraddr,
+	.pr_send =		rip6_send,
+	.pr_shutdown =		rip6_shutdown,
+	.pr_sockaddr =		in6_getsockaddr,
+	.pr_close =		rip6_close
 };

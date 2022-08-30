@@ -94,9 +94,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* netinet/raw_ip.c */
-extern struct protosw rip_protosw, rsvp_protosw, rawipv4_protosw,
-    rawipv6_protosw, mobile_protosw, etherip_protosw, icmp_protosw,
-    igmp_protosw, gre_protosw, pim_protosw, ripwild_protosw;
+extern struct protosw rip_protosw;
 /* netinet/udp_usrreq.c */
 extern struct protosw udp_protosw, udplite_protosw;
 
@@ -111,7 +109,7 @@ struct domain inetdomain = {
 #endif
 	.dom_ifattach =		in_domifattach,
 	.dom_ifdetach =		in_domifdetach,
-	.dom_nprotosw =		24,
+	.dom_nprotosw =		14,
 	.dom_protosw = {
 		&tcp_protosw,
 		&udp_protosw,
@@ -123,28 +121,8 @@ struct domain inetdomain = {
 #endif
 		&udplite_protosw,
 		&rip_protosw,
-		/*
-		 * XXXGL: it is entirely possible that all below raw-based
-		 * protosw definitions are not needed.  They could have existed
-		 * just to define pr_input, pr_drain, pr_*timo or PR_LASTHDR
-		 * flag, and were never supposed to create a special socket.
-		 */
-		&icmp_protosw,
-		&igmp_protosw,
-		&rsvp_protosw,
-		&rawipv4_protosw,
-		&mobile_protosw,
-		&etherip_protosw,
-		&gre_protosw,
-#ifdef INET6
-		&rawipv6_protosw,
-#else
-		NULL,
-#endif
-		&pim_protosw,
 		/* Spacer 8 times for loadable protocols. XXXGL: why 8? */
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-		&ripwild_protosw,
 	},
 };
 
