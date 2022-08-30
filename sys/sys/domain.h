@@ -71,8 +71,6 @@ struct domain {
 };
 
 /* dom_flags */
-#define	DOMF_SUPPORTED	0x0001	/* System supports this domain. */
-#define	DOMF_INITED	0x0002	/* Initialized in the default vnet. */
 #define	DOMF_UNLOADABLE	0x0004	/* Can be unloaded */
 
 #ifdef _KERNEL
@@ -80,7 +78,6 @@ extern int	domain_init_status;
 extern SLIST_HEAD(domainhead, domain) domains;
 void		domain_add(struct domain *);
 void		domain_remove(struct domain *);
-void		domain_init(struct domain *);
 #ifdef VIMAGE
 void		vnet_domain_init(void *);
 void		vnet_domain_uninit(void *);
@@ -90,9 +87,7 @@ void		vnet_domain_uninit(void *);
 	SYSINIT(domain_add_ ## name, SI_SUB_PROTO_DOMAIN,		\
 	    SI_ORDER_FIRST, domain_add, & name ## domain);		\
 	SYSUNINIT(domain_remove_ ## name, SI_SUB_PROTO_DOMAIN,		\
-	    SI_ORDER_FIRST, domain_remove, & name ## domain);		\
-	SYSINIT(domain_init_ ## name, SI_SUB_PROTO_DOMAIN,		\
-	    SI_ORDER_SECOND, domain_init, & name ## domain);
+	    SI_ORDER_FIRST, domain_remove, & name ## domain);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_DOMAIN_H_ */

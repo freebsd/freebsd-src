@@ -52,27 +52,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-/*
- * System initialization
- *
- * Note: domain initialization takes place on a per domain basis
- * as a result of traversing a SYSINIT linker set.  Most likely,
- * each domain would want to call DOMAIN_SET(9) itself, which
- * would cause the domain to be added just after domaininit()
- * is called during startup.
- *
- * See DOMAIN_SET(9) for details on its use.
- */
-
-static void domaininit(void *);
-SYSINIT(domain, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, domaininit, NULL);
-
-static void domainfinalize(void *);
-SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
-    NULL);
-
 struct domainhead domains = SLIST_HEAD_INITIALIZER(&domains);
-int domain_init_status = 0;
+int domain_init_status = 1;
 static struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
@@ -250,48 +231,26 @@ pr_init(struct domain *dom, struct protosw *pr)
  * XXX can't fail at this time.
  */
 void
-domain_init(struct domain *dp)
+domain_add(struct domain *dp)
 {
 	struct protosw *pr;
-	int flags;
 
 	MPASS(IS_DEFAULT_VNET(curvnet));
 
-	flags = atomic_load_acq_int(&dp->dom_flags);
-	if ((flags & DOMF_SUPPORTED) == 0)
+	if (dp->dom_probe != NULL && (*dp->dom_probe)() != 0)
 		return;
-	MPASS((flags & DOMF_INITED) == 0);
 
 	for (int i = 0; i < dp->dom_nprotosw; i++)
 		if ((pr = dp->dom_protosw[i]) != NULL)
 			pr_init(dp, pr);
 
-	atomic_set_rel_int(&dp->dom_flags, DOMF_INITED);
-}
-
-/*
- * Add a new protocol domain to the list of supported domains
- * Note: you cant unload it again because a socket may be using it.
- * XXX can't fail at this time.
- */
-void
-domain_add(struct domain *dp)
-{
-
-	if (dp->dom_probe != NULL && (*dp->dom_probe)() != 0)
-		return;
-	atomic_set_rel_int(&dp->dom_flags, DOMF_SUPPORTED);
 	mtx_lock(&dom_mtx);
-	SLIST_INSERT_HEAD(&domains, dp, dom_next);
-
-	KASSERT(domain_init_status >= 1,
-	    ("attempt to domain_add(%s) before domaininit()",
-	    dp->dom_name));
-#ifndef INVARIANTS
-	if (domain_init_status < 1)
-		printf("WARNING: attempt to domain_add(%s) before "
-		    "domaininit()\n", dp->dom_name);
+#ifdef INVARIANTS
+	struct domain *tmp;
+	SLIST_FOREACH(tmp, &domains, dom_next)
+		MPASS(tmp->dom_family != dp->dom_family);
 #endif
+	SLIST_INSERT_HEAD(&domains, dp, dom_next);
 	mtx_unlock(&dom_mtx);
 }
 
@@ -307,18 +266,6 @@ domain_remove(struct domain *dp)
 	mtx_unlock(&dom_mtx);
 }
 
-/* ARGSUSED*/
-static void
-domaininit(void *dummy)
-{
-
-	mtx_lock(&dom_mtx);
-	KASSERT(domain_init_status == 0, ("domaininit called too late!"));
-	domain_init_status = 1;
-	mtx_unlock(&dom_mtx);
-}
-
-/* ARGSUSED*/
 static void
 domainfinalize(void *dummy)
 {
@@ -328,6 +275,8 @@ domainfinalize(void *dummy)
 	domain_init_status = 2;
 	mtx_unlock(&dom_mtx);	
 }
+SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
+    NULL);
 
 struct domain *
 pffinddomain(int family)
