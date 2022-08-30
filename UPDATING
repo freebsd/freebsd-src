@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220830:
+	13.0-RELEASE-p13 FreeBSD-SA-22:13.zlib
+			 FreeBSD-EN-22:20.tzdata
+
+	zlib heap buffer overflow [SA-22:13.zlib]
+
+	Timezone database information update [EN-22:20.tzdata]
+
 20220726:
 	13.0-RELEASE-p12 FreeBSD-SA-22:09.elf
 			 FreeBSD-SA-22:10.aio
