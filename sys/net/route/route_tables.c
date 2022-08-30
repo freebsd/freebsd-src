@@ -216,7 +216,7 @@ grow_rtables(uint32_t num_tables)
 		    V_rt_numfibs * (AF_MAX + 1) * sizeof(void *));
 
 	/* Populate the remainders */
-	for (dom = domains; dom; dom = dom->dom_next) {
+	SLIST_FOREACH(dom, &domains, dom_next) {
 		if (dom->dom_rtattach == NULL)
 			continue;
 		family = dom->dom_family;
@@ -252,7 +252,7 @@ grow_rtables(uint32_t num_tables)
 
 #ifdef FIB_ALGO
 	/* Attach fib algo to the new rtables */
-	for (dom = domains; dom; dom = dom->dom_next) {
+	SLIST_FOREACH(dom, &domains, dom_next) {
 		if (dom->dom_rtattach != NULL)
 			fib_setup_family(dom->dom_family, num_tables);
 	}
@@ -296,7 +296,7 @@ rtables_destroy(const void *unused __unused)
 	int family;
 
 	RTABLES_LOCK();
-	for (dom = domains; dom; dom = dom->dom_next) {
+	SLIST_FOREACH(dom, &domains, dom_next) {
 		if (dom->dom_rtdetach == NULL)
 			continue;
 		family = dom->dom_family;

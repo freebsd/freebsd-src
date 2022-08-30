@@ -248,7 +248,7 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 
 	db_print_indent(indent);
 	db_printf("dom_protosw: %p   ", d->dom_protosw);
-	db_printf("dom_next: %p\n", d->dom_next);
+	db_printf("dom_next: %p\n", d->dom_next.sle_next);
 
 	db_print_indent(indent);
 	db_printf("dom_rtattach: %p   ", d->dom_rtattach);

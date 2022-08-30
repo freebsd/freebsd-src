@@ -999,7 +999,7 @@ if_attachdomain1(struct ifnet *ifp)
 
 	/* address family dependent data region */
 	bzero(ifp->if_afdata, sizeof(ifp->if_afdata));
-	for (dp = domains; dp; dp = dp->dom_next) {
+	SLIST_FOREACH(dp, &domains, dom_next) {
 		if (dp->dom_ifattach)
 			ifp->if_afdata[dp->dom_family] =
 			    (*dp->dom_ifattach)(ifp);
@@ -1244,7 +1244,9 @@ finish_vnet_shutdown:
 	i = ifp->if_afdata_initialized;
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_UNLOCK(ifp);
-	for (dp = domains; i > 0 && dp; dp = dp->dom_next) {
+	if (i == 0)
+		return (0);
+	SLIST_FOREACH(dp, &domains, dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family]) {
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
@@ -4369,7 +4371,7 @@ if_getmtu_family(if_t ifp, int family)
 {
 	struct domain *dp;
 
-	for (dp = domains; dp; dp = dp->dom_next) {
+	SLIST_FOREACH(dp, &domains, dom_next) {
 		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
 			return (dp->dom_ifmtu((struct ifnet *)ifp));
 	}

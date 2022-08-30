@@ -71,7 +71,7 @@ static void domainfinalize(void *);
 SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
     NULL);
 
-struct domain *domains;		/* registered protocol domains */
+struct domainhead domains = SLIST_HEAD_INITIALIZER(&domains);
 int domain_init_status = 0;
 static struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
@@ -282,8 +282,7 @@ domain_add(struct domain *dp)
 		return;
 	atomic_set_rel_int(&dp->dom_flags, DOMF_SUPPORTED);
 	mtx_lock(&dom_mtx);
-	dp->dom_next = domains;
-	domains = dp;
+	SLIST_INSERT_HEAD(&domains, dp, dom_next);
 
 	KASSERT(domain_init_status >= 1,
 	    ("attempt to domain_add(%s) before domaininit()",
@@ -304,17 +303,7 @@ domain_remove(struct domain *dp)
 		return;
 
 	mtx_lock(&dom_mtx);
-	if (domains == dp) {
-		domains = dp->dom_next;
-	} else {
-		struct domain *curr;
-		for (curr = domains; curr != NULL; curr = curr->dom_next) {
-			if (curr->dom_next == dp) {
-				curr->dom_next = dp->dom_next;
-				break;
-			}
-		}
-	}
+	SLIST_REMOVE(&domains, dp, domain, dom_next);
 	mtx_unlock(&dom_mtx);
 }
 
@@ -345,7 +334,7 @@ pffinddomain(int family)
 {
 	struct domain *dp;
 
-	for (dp = domains; dp != NULL; dp = dp->dom_next)
+	SLIST_FOREACH(dp, &domains, dom_next)
 		if (dp->dom_family == family)
 			return (dp);
 	return (NULL);
