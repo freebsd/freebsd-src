@@ -36,10 +36,9 @@
 
 #ifndef _NETINET_IP_DIVERT_H_
 #define	_NETINET_IP_DIVERT_H_
+#include <sys/types.h>
 
 /*
- * divert has no custom kernel-userland API.
- *
  * All communication occurs through a sockaddr_in socket where
  *
  * kernel-->userland
@@ -54,4 +53,11 @@
  *	sin_addr = IN: address of the incoming interface;
  *		   OUT: INADDR_ANY
  */
+
+struct divstat {
+	uint64_t	div_diverted;	/* successfully diverted to userland */
+	uint64_t	div_noport;	/* failed due to no bound socket */
+	uint64_t	div_outbound;	/* re-injected as outbound */
+	uint64_t	div_inbound;	/* re-injected as inbound */
+};
 #endif /* _NETINET_IP_DIVERT_H_ */

@@ -101,7 +101,7 @@ static struct protox {
 	 NULL,		NULL,		"sdp",	1,	IPPROTO_TCP },
 #endif
 	{ N_DIVCBINFO,	-1,		1,	protopr,
-	  NULL,		NULL,		"divert", 1,	0 },
+	  divert_stats,	NULL,		"divert", 1,	0 },
 	{ N_RIPCBINFO,	N_IPSTAT,	1,	protopr,
 	  ip_stats,	NULL,		"ip",	1,	IPPROTO_RAW },
 	{ N_RIPCBINFO,	N_ICMPSTAT,	1,	protopr,
