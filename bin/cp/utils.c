@@ -99,13 +99,12 @@ copy_file(const FTSENT *entp, int dne)
 	static char *buf = NULL;
 	static size_t bufsize;
 	struct stat *fs;
-	ssize_t rcount, wcount;
-	size_t wresid;
+	ssize_t wcount;
 	off_t wtotal;
 	int ch, checkch, from_fd, rval, to_fd;
-	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-	char *p;
+	size_t wresid;
+	char *bufp, *p;
 #endif
 	int use_copy_file_range = 1;
 
@@ -234,18 +233,18 @@ copy_file(const FTSENT *entp, int dne)
 			wtotal = 0;
 			do {
 				if (use_copy_file_range) {
-					rcount = copy_file_range(from_fd, NULL,
+					wcount = copy_file_range(from_fd, NULL,
 					    to_fd, NULL, SSIZE_MAX, 0);
-					if (rcount < 0 && errno == EINVAL) {
+					if (wcount < 0 && errno == EINVAL) {
 						/* Prob a non-seekable FD */
 						use_copy_file_range = 0;
 					}
 				}
 				if (!use_copy_file_range) {
-					rcount = copy_fallback(from_fd, to_fd,
+					wcount = copy_fallback(from_fd, to_fd,
 					    buf, bufsize);
 				}
-				wtotal += rcount;
+				wtotal += wcount;
 				if (info) {
 					info = 0;
 					(void)fprintf(stderr,
@@ -253,8 +252,8 @@ copy_file(const FTSENT *entp, int dne)
 					    entp->fts_path, to.p_path,
 					    cp_pct(wtotal, fs->st_size));
 				}
-			} while (rcount > 0);
-			if (rcount < 0) {
+			} while (wcount > 0);
+			if (wcount < 0) {
 				warn("%s", entp->fts_path);
 				rval = 1;
 			}
