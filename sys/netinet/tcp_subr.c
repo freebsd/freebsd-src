@@ -1543,15 +1543,10 @@ tcp_init(void *arg __unused)
 	}
 
 #ifdef INET6
-#define TCP_MINPROTOHDR (sizeof(struct ip6_hdr) + sizeof(struct tcphdr))
+	max_protohdr_grow(sizeof(struct ip6_hdr) + sizeof(struct tcphdr));
 #else /* INET6 */
-#define TCP_MINPROTOHDR (sizeof(struct tcpiphdr))
+	max_protohdr_grow(sizeof(struct tcpiphdr));
 #endif /* INET6 */
-	if (max_protohdr < TCP_MINPROTOHDR)
-		max_protohdr = TCP_MINPROTOHDR;
-	if (max_linkhdr + TCP_MINPROTOHDR > MHLEN)
-		panic("tcp_init");
-#undef TCP_MINPROTOHDR
 
 	ISN_LOCK_INIT();
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,

@@ -266,13 +266,6 @@ domain_init(struct domain *dp)
 			pr_init(pr);
 		}
 
-	/*
-	 * update global information about maximums
-	 */
-	max_hdr = max_linkhdr + max_protohdr;
-	max_datalen = MHLEN - max_hdr;
-	if (max_datalen < 1)
-		panic("%s: max_datalen < 1", __func__);
 	atomic_set_rel_int(&dp->dom_flags, DOMF_INITED);
 }
 
@@ -329,9 +322,6 @@ domain_remove(struct domain *dp)
 static void
 domaininit(void *dummy)
 {
-
-	if (max_linkhdr < 16)		/* XXX */
-		max_linkhdr = 16;
 
 	mtx_lock(&dom_mtx);
 	KASSERT(domain_init_status == 0, ("domaininit called too late!"));

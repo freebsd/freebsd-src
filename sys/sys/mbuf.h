@@ -1300,10 +1300,12 @@ m_rcvif(struct mbuf *m)
 /* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
-extern int		max_datalen;	/* MHLEN - max_hdr */
-extern int		max_hdr;	/* Largest link + protocol header */
-extern int		max_linkhdr;	/* Largest link-level header */
-extern int		max_protohdr;	/* Largest protocol header */
+extern u_int		max_linkhdr;	/* Largest link-level header */
+extern u_int		max_hdr;	/* Largest link + protocol header */
+extern u_int		max_protohdr;	/* Largest protocol header */
+void max_linkhdr_grow(u_int);
+void max_protohdr_grow(u_int);
+
 extern int		nmbclusters;	/* Maximum number of clusters */
 extern bool		mb_use_ext_pgs;	/* Use ext_pgs for sendfile */
 
