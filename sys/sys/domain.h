@@ -34,6 +34,7 @@
 
 #ifndef _SYS_DOMAIN_H_
 #define _SYS_DOMAIN_H_
+#include <sys/queue.h>
 
 /*
  * Structure per communications domain.
@@ -48,6 +49,7 @@ struct	socket;
 struct	rib_head;
 
 struct domain {
+	SLIST_ENTRY(domain) dom_next;
 	int	dom_family;		/* AF_xxx */
 	u_int	dom_nprotosw;		/* length of dom_protosw[] */
 	char	*dom_name;
@@ -57,7 +59,6 @@ struct domain {
 		(struct mbuf *, struct mbuf **, int);
 	void	(*dom_dispose)		/* dispose of internalized rights */
 		(struct socket *);
-	struct	domain *dom_next;
 	struct rib_head *(*dom_rtattach)	/* initialize routing table */
 		(uint32_t);
 	void	(*dom_rtdetach)		/* clean up routing table */
@@ -76,7 +77,7 @@ struct domain {
 
 #ifdef _KERNEL
 extern int	domain_init_status;
-extern struct	domain *domains;
+extern SLIST_HEAD(domainhead, domain) domains;
 void		domain_add(struct domain *);
 void		domain_remove(struct domain *);
 void		domain_init(struct domain *);
