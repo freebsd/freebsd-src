@@ -76,7 +76,7 @@ ipdivert_create(const char *test)
 {
 	int s;
 
-	s = socket(PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+	s = socket(PF_DIVERT, SOCK_RAW, 0);
 	if (s < 0)
 		fail(test, "socket");
 	return (s);
