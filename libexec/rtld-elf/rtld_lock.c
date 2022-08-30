@@ -89,39 +89,39 @@ static uint32_t fsigblock;
 static void *
 def_lock_create(void)
 {
-    void *base;
-    char *p;
-    uintptr_t r;
-    Lock *l;
+	void *base;
+	char *p;
+	uintptr_t r;
+	Lock *l;
 
-    /*
-     * Arrange for the lock to occupy its own cache line.  First, we
-     * optimistically allocate just a cache line, hoping that malloc
-     * will give us a well-aligned block of memory.  If that doesn't
-     * work, we allocate a larger block and take a well-aligned cache
-     * line from it.
-     */
-    base = xmalloc(CACHE_LINE_SIZE);
-    p = (char *)base;
-    if ((uintptr_t)p % CACHE_LINE_SIZE != 0) {
-	free(base);
-	base = xmalloc(2 * CACHE_LINE_SIZE);
-	p = (char *)base;
-	if ((r = (uintptr_t)p % CACHE_LINE_SIZE) != 0)
-	    p += CACHE_LINE_SIZE - r;
-    }
-    l = (Lock *)p;
-    l->base = base;
-    l->lock = 0;
-    return l;
+	/*
+	 * Arrange for the lock to occupy its own cache line.  First, we
+	 * optimistically allocate just a cache line, hoping that malloc
+	 * will give us a well-aligned block of memory.  If that doesn't
+	 * work, we allocate a larger block and take a well-aligned cache
+	 * line from it.
+	 */
+	base = xmalloc(CACHE_LINE_SIZE);
+	p = base;
+	if ((uintptr_t)p % CACHE_LINE_SIZE != 0) {
+		free(base);
+		base = xmalloc(2 * CACHE_LINE_SIZE);
+		p = base;
+		if ((r = (uintptr_t)p % CACHE_LINE_SIZE) != 0)
+			p += CACHE_LINE_SIZE - r;
+	}
+	l = (Lock *)p;
+	l->base = base;
+	l->lock = 0;
+	return (l);
 }
 
 static void
 def_lock_destroy(void *lock)
 {
-    Lock *l = (Lock *)lock;
+	Lock *l = lock;
 
-    free(l->base);
+	free(l->base);
 }
 
 static void
@@ -189,9 +189,8 @@ def_wlock_acquire(void *lock)
 static void
 def_lock_release(void *lock)
 {
-	Lock *l;
+	Lock *l = lock;
 
-	l = (Lock *)lock;
 	atomic_add_rel_int(&l->lock, -((l->lock & WAFLAG) == 0 ?
 	    RC_INCR : WAFLAG));
 	if (ld_fast_sigblock)
@@ -204,6 +203,7 @@ static int
 def_thread_set_flag(int mask)
 {
 	int old_val = thread_flag;
+
 	thread_flag |= mask;
 	return (old_val);
 }
@@ -212,6 +212,7 @@ static int
 def_thread_clr_flag(int mask)
 {
 	int old_val = thread_flag;
+
 	thread_flag &= ~mask;
 	return (old_val);
 }
@@ -225,7 +226,7 @@ static struct RtldLockInfo deflockinfo;
 static __inline int
 thread_mask_set(int mask)
 {
-	return lockinfo.thread_set_flag(mask);
+	return (lockinfo.thread_set_flag(mask));
 }
 
 static __inline void
