@@ -68,8 +68,6 @@ protocol_to_string(int domain, int type, int protocol)
 			return ("RAW");
 		case IPPROTO_SCTP:
 			return ("SCT");
-		case IPPROTO_DIVERT:
-			return ("IPD");
 		default:
 			return ("IP?");
 		}
@@ -83,6 +81,9 @@ protocol_to_string(int domain, int type, int protocol)
 		default:
 			return ("UD?");
 		}
+	case AF_DIVERT:
+		return ("IPD");
+		break;
 	default:
 		return ("?");
 	}
