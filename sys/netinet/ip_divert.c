@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_sctp.h"
-#ifndef INET
-#error "IPDIVERT requires INET"		/* XXX! */
-#endif
 
 #include <sys/param.h>
 #include <sys/eventhandler.h>
@@ -171,9 +168,6 @@ MTX_SYSINIT(divert, &divert_mtx, "divert(4) socket pcb lists", MTX_DEF);
 static void
 divert_packet(struct mbuf *m, bool incoming)
 {
-#if defined(SCTP) || defined(SCTP_SUPPORT)
-	struct ip *ip;
-#endif
 	struct divcb *dcb;
 	u_int16_t nport;
 	struct sockaddr_in divsrc;
@@ -190,14 +184,17 @@ divert_packet(struct mbuf *m, bool incoming)
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return;
-
+#ifdef INET
 	/* Delayed checksums are currently not compatible with divert. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
+#endif
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+		struct ip *ip;
+
 		ip = mtod(m, struct ip *);
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
@@ -379,9 +376,11 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 	ip = mtod(m, struct ip *);
 	switch (ip->ip_v) {
+#ifdef INET
 	case IPVERSION:
 		family = AF_INET;
 		break;
+#endif
 #ifdef INET6
 	case IPV6_VERSION >> 4:
 		family = AF_INET6;
@@ -414,17 +413,22 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static int
 div_output_outbound(int family, struct socket *so, struct mbuf *m)
 {
-	struct ip *const ip = mtod(m, struct ip *);
 	int error;
 
 	switch (family) {
+#ifdef INET
 	case AF_INET:
+	    {
+		struct ip *const ip = mtod(m, struct ip *);
+
 		/* Don't allow packet length sizes that will crash. */
 		if (((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			m_freem(m);
 			return (EINVAL);
 		}
 		break;
+	    }
+#endif
 #ifdef INET6
 	case AF_INET6:
 	    {
@@ -446,11 +450,13 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 
 	error = 0;
 	switch (family) {
+#ifdef INET
 	case AF_INET:
 		error = ip_output(m, NULL, NULL,
 		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
 		    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
@@ -472,7 +478,6 @@ static int
 div_output_inbound(int family, struct socket *so, struct mbuf *m,
     struct sockaddr_in *sin)
 {
-	const struct ip *ip;
 	struct ifaddr *ifa;
 
 	if (m->m_pkthdr.rcvif == NULL) {
@@ -497,7 +502,11 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 #endif
 	/* Send packet to input processing via netisr */
 	switch (family) {
+#ifdef INET
 	case AF_INET:
+	    {
+		const struct ip *ip;
+
 		ip = mtod(m, struct ip *);
 		/*
 		 * Restore M_BCAST flag when destination address is
@@ -510,6 +519,8 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 		DIVSTAT_INC(inbound);
 		break;
+	    }
+#endif
 #ifdef INET6
 	case AF_INET6:
 		netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
