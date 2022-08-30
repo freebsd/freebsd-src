@@ -4409,7 +4409,7 @@ static const char *re_compile(ReCompiled **ppRe, const char *zIn, int noCase){
         pRe->zInit[j++] = (unsigned char)(0xc0 | (x>>6));
         pRe->zInit[j++] = 0x80 | (x&0x3f);
       }else if( x<=0xffff ){
-        pRe->zInit[j++] = (unsigned char)(0xd0 | (x>>12));
+        pRe->zInit[j++] = (unsigned char)(0xe0 | (x>>12));
         pRe->zInit[j++] = 0x80 | ((x>>6)&0x3f);
         pRe->zInit[j++] = 0x80 | (x&0x3f);
       }else{
@@ -23078,7 +23078,7 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
   char **argv;
 #endif
 #ifdef SQLITE_DEBUG
-  sqlite3_uint64 mem_main_enter = sqlite3_memory_used();
+  sqlite3_int64 mem_main_enter = sqlite3_memory_used();
 #endif
   char *zErrMsg = 0;
 #ifdef SQLITE_SHELL_WASM_MODE
