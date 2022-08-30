@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_divert.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -110,8 +111,19 @@ __FBSDID("$FreeBSD$");
  * written in the sin_port (ipfw does not allow a rule #0, so sin_port=0
  * will apply the entire ruleset to the packet).
  */
+static SYSCTL_NODE(_net_inet, OID_AUTO, divert, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "divert(4)");
 
-/* Internal variables. */
+VNET_PCPUSTAT_DEFINE_STATIC(struct divstat, divstat);
+VNET_PCPUSTAT_SYSINIT(divstat);
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(divstat);
+#endif
+SYSCTL_VNET_PCPUSTAT(_net_inet_divert, OID_AUTO, stats, struct divstat,
+    divstat, "divert(4) socket statistics");
+#define	DIVSTAT_INC(name)	\
+    VNET_PCPUSTAT_ADD(struct divstat, divstat, div_ ## name, 1)
+
 VNET_DEFINE_STATIC(struct inpcbinfo, divcbinfo);
 #define	V_divcbinfo			VNET(divcbinfo)
 
@@ -273,17 +285,18 @@ divert_packet(struct mbuf *m, bool incoming)
 		    (struct sockaddr *)&divsrc, m, NULL) == 0) {
 			soroverflow_locked(sa);
 			sa = NULL;	/* force mbuf reclaim below */
-		} else
+		} else {
 			sorwakeup_locked(sa);
+			DIVSTAT_INC(diverted);
+		}
 		/* XXX why does only one socket match? */
 		INP_RUNLOCK(inp);
 		break;
 	}
 	if (sa == NULL) {
 		m_freem(m);
-		KMOD_IPSTAT_INC(ips_noproto);
-		KMOD_IPSTAT_DEC(ips_delivered);
-        }
+		DIVSTAT_INC(noport);
+	}
 }
 
 /*
@@ -310,7 +323,6 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		KMOD_IPSTAT_INC(ips_toosmall);
 		m_freem(m);
 		return (EINVAL);
 	}
@@ -447,9 +459,6 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 #endif
 	}
 
-	/* Send packet to output processing */
-	KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
-
 #ifdef MAC
 	mac_inpcb_create_mbuf(inp, m);
 #endif
@@ -498,6 +507,8 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 		break;
 #endif
 	}
+	if (error == 0)
+		DIVSTAT_INC(outbound);
 	if (options != NULL)
 		m_freem(options);
 
@@ -549,10 +560,12 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 		else if (in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 			m->m_flags |= M_BCAST;
 		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
+		DIVSTAT_INC(inbound);
 		break;
 #ifdef INET6
 	case AF_INET6:
 		netisr_queue_src(NETISR_IPV6, (uintptr_t)so, m);
+		DIVSTAT_INC(inbound);
 		break;
 #endif
 	default:
@@ -704,16 +717,9 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 
 	return (error);
 }
-
-#ifdef SYSCTL_NODE
-static SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "IPDIVERT");
 SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist,
-   CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, div_pcblist, "S,xinpcb",
-    "List of active divert sockets");
-#endif
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, div_pcblist,
+    "S,xinpcb", "List of active divert sockets");
 
 static struct protosw div_protosw = {
 	.pr_type =		SOCK_RAW,
