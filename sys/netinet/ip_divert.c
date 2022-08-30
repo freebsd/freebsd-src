@@ -293,18 +293,25 @@ divert_packet(struct mbuf *m, bool incoming)
  * the interface with that address.
  */
 static int
-div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
-    struct mbuf *control)
+div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
+    struct mbuf *control, struct thread *td)
 {
 	struct epoch_tracker et;
+	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	const struct ip *ip;
 	struct m_tag *mtag;
 	struct ipfw_rule_ref *dt;
 	int error, family;
 
-	if (control) {
-		m_freem(control);		/* XXX */
-		control = NULL;
+	if (control)
+		m_freem(control);
+
+	/* Packet must have a header (but that's about it) */
+	if (m->m_len < sizeof (struct ip) &&
+	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
+		KMOD_IPSTAT_INC(ips_toosmall);
+		m_freem(m);
+		return (EINVAL);
 	}
 
 	if (sin != NULL) {
@@ -632,25 +639,6 @@ div_shutdown(struct socket *so)
 	socantsendmore(so);
 	INP_WUNLOCK(inp);
 	return 0;
-}
-
-static int
-div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-    struct mbuf *control, struct thread *td)
-{
-
-	/* Packet must have a header (but that's about it) */
-	if (m->m_len < sizeof (struct ip) &&
-	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		KMOD_IPSTAT_INC(ips_toosmall);
-		if (control != NULL)
-			m_freem(control);
-		m_freem(m);
-		return EINVAL;
-	}
-
-	/* Send packet */
-	return div_output(so, m, (struct sockaddr_in *)nam, control);
 }
 
 static int
