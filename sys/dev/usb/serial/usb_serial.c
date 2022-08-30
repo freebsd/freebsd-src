@@ -628,9 +628,9 @@ ucom_queue_command(struct ucom_softc *sc,
 		task->termios_copy = *pt;
 
 	/*
-	 * Closing the device should be synchronous.
+	 * Closing or opening the device should be synchronous.
 	 */
-	if (fn == ucom_cfg_close)
+	if (fn == ucom_cfg_close || fn == ucom_cfg_open)
 		usb_proc_mwait(&ssc->sc_tq, t0, t1);
 
 	/*
