@@ -2125,16 +2125,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			goto process_ACK;
 
 		goto step6;
-
-	/*
-	 * If the state is LAST_ACK or CLOSING or TIME_WAIT:
-	 *      do normal processing.
-	 *
-	 * NB: Leftover from RFC1644 T/TCP.  Cases to be reused later.
-	 */
-	case TCPS_LAST_ACK:
-	case TCPS_CLOSING:
-		break;  /* continue normal processing */
 	}
 
 	/*
