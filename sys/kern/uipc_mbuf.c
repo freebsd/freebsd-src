@@ -117,30 +117,56 @@ SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freem,
 
 #include <security/mac/mac_framework.h>
 
-int	max_linkhdr;
-int	max_protohdr;
-int	max_hdr;
-int	max_datalen;
+/*
+ * Provide minimum possible defaults for link and protocol header space,
+ * assuming IPv4 over Ethernet.  Enabling IPv6, IEEE802.11 or some other
+ * protocol may grow these values.
+ */
+u_int	max_linkhdr = 16;
+u_int	max_protohdr = 40;
+u_int	max_hdr = 16 + 40;
+SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RD,
+	   &max_linkhdr, 16, "Size of largest link layer header");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RD,
+	   &max_protohdr, 40, "Size of largest protocol layer header");
+SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RD,
+	   &max_hdr, 16 + 40, "Size of largest link plus protocol header");
+
+static void
+max_hdr_grow(void)
+{
+
+	max_hdr = max_linkhdr + max_protohdr;
+	MPASS(max_hdr <= MHLEN);
+}
+
+void
+max_linkhdr_grow(u_int new)
+{
+
+	if (new > max_linkhdr) {
+		max_linkhdr = new;
+		max_hdr_grow();
+	}
+}
+
+void
+max_protohdr_grow(u_int new)
+{
+
+	if (new > max_protohdr) {
+		max_protohdr = new;
+		max_hdr_grow();
+	}
+}
+
 #ifdef MBUF_STRESS_TEST
 int	m_defragpackets;
 int	m_defragbytes;
 int	m_defraguseless;
 int	m_defragfailure;
 int	m_defragrandomfailures;
-#endif
 
-/*
- * sysctl(8) exported objects
- */
-SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RD,
-	   &max_linkhdr, 0, "Size of largest link layer header");
-SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RD,
-	   &max_protohdr, 0, "Size of largest protocol layer header");
-SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RD,
-	   &max_hdr, 0, "Size of largest link plus protocol header");
-SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RD,
-	   &max_datalen, 0, "Minimum space left in mbuf after max_hdr");
-#ifdef MBUF_STRESS_TEST
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragpackets, CTLFLAG_RD,
 	   &m_defragpackets, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragbytes, CTLFLAG_RD,

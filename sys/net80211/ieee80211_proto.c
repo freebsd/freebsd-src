@@ -273,12 +273,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 		+ IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN
 		+ IEEE80211_WEP_EXTIVLEN;
 	/* XXX no way to recalculate on ifdetach */
-	if (ALIGN(hdrlen) > max_linkhdr) {
-		/* XXX sanity check... */
-		max_linkhdr = ALIGN(hdrlen);
-		max_hdr = max_linkhdr + max_protohdr;
-		max_datalen = MHLEN - max_hdr;
-	}
+	max_linkhdr_grow(ALIGN(hdrlen));
 	//ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 
 	TASK_INIT(&ic->ic_parent_task, 0, parent_updown, ic);
