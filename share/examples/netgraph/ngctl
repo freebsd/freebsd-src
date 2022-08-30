@@ -31,10 +31,10 @@
       quit       Exit program
     +
 
-# Now let's create a ng_ksocket(4) node, in the family PF_INET,
-# of type SOCK_RAW, and protocol IPPROTO_DIVERT:
+# Now let's create a ng_ksocket(4) node, in the family PF_DIVERT,
+# of type SOCK_RAW:
 
-    + mkpeer ksocket foo inet/raw/divert
+    + mkpeer ksocket foo divert/raw/0
 
 # Note that ``foo'' is the hook name on the socket node, which can be
 # anything.  The ``inet/raw/divert'' is the hook name on the ksocket

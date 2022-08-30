@@ -109,15 +109,14 @@ pcblist_sysctl(int proto, const char *name, char **bufp)
 	case IPPROTO_UDP:
 		mibvar = "net.inet.udp.pcblist";
 		break;
-	case IPPROTO_DIVERT:
-		mibvar = "net.inet.divert.pcblist";
-		break;
 	default:
 		mibvar = "net.inet.raw.pcblist";
 		break;
 	}
 	if (strncmp(name, "sdp", 3) == 0)
 		mibvar = "net.inet.sdp.pcblist";
+	else if (strncmp(name, "divert", 6) == 0)
+		mibvar = "net.inet.divert.pcblist";
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
@@ -272,7 +271,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 		so = &inp->xi_socket;
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != proto)
+		if (proto != 0 && so->xso_protocol != proto)
 			continue;
 
 		/* Ignore PCBs which were freed during copyout. */

@@ -1772,13 +1772,9 @@ ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	INP_WLOCK(inp);
 	im6o = inp->in6p_moptions;
-	/*
-	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
-	 * or is a divert socket, reject it.
-	 */
-	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
-	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
-	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM)) {
+	/* If socket is neither of type SOCK_RAW or SOCK_DGRAM, reject it. */
+	if (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM) {
 		INP_WUNLOCK(inp);
 		return (EOPNOTSUPP);
 	}
@@ -2655,13 +2651,9 @@ ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	error = 0;
 
-	/*
-	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
-	 * or is a divert socket, reject it.
-	 */
-	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
-	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
-	     inp->inp_socket->so_proto->pr_type != SOCK_DGRAM))
+	/* If socket is neither of type SOCK_RAW or SOCK_DGRAM, reject it. */
+	if (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	     inp->inp_socket->so_proto->pr_type != SOCK_DGRAM)
 		return (EOPNOTSUPP);
 
 	switch (sopt->sopt_name) {
