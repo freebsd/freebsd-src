@@ -17,6 +17,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220830:
+	12.3-RELEASE-p7 FreeBSD-SA-22:13.zlib
+			FreeBSD-EN-22:20.tzdata
+
+	zlib heap buffer overflow [SA-22:13.zlib]
+
+	Timezone database information update [EN-22:20.tzdata]
+
 20220726:
 	12.3-RELEASE-p6	FreeBSD-SA-22:09.elf
 			FreeBSD-SA-22:10.aio
