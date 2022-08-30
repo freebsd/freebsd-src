@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20220830:
+	13.1-RELEASE-p2	FreeBSD-SA-22:13.zlib
+			FreeBSD-EN-22:20.tzdata
+
+	zlib heap buffer overflow [SA-22:13.zlib]
+
+	Timezone database information update [EN-22:20.tzdata]
+
 20220726:
 	13.1-RELEASE-p1	FreeBSD-SA-22:09.elf
 			FreeBSD-SA-22:11.vm
