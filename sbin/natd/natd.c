@@ -226,7 +226,7 @@ int main (int argc, char** argv)
  */
 		if (mip->inOutPort) {
 
-			mip->divertInOut = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+			mip->divertInOut = socket(PF_DIVERT, SOCK_RAW, 0);
 			if (mip->divertInOut == -1)
 				Quit ("Unable to create divert socket.");
 			if (mip->divertInOut > fdMax)
@@ -249,14 +249,14 @@ int main (int argc, char** argv)
 		}
 		else {
 
-			mip->divertIn = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+			mip->divertIn = socket(PF_DIVERT, SOCK_RAW, 0);
 			if (mip->divertIn == -1)
 				Quit ("Unable to create incoming divert socket.");
 			if (mip->divertIn > fdMax)
 				fdMax = mip->divertIn;
 
 
-			mip->divertOut = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+			mip->divertOut = socket(PF_DIVERT, SOCK_RAW, 0);
 			if (mip->divertOut == -1)
 				Quit ("Unable to create outgoing divert socket.");
 			if (mip->divertOut > fdMax)
@@ -317,7 +317,7 @@ int main (int argc, char** argv)
 	}
 	if (globalPort) {
 
-		divertGlobal = socket (PF_INET, SOCK_RAW, IPPROTO_DIVERT);
+		divertGlobal = socket(PF_DIVERT, SOCK_RAW, 0);
 		if (divertGlobal == -1)
 			Quit ("Unable to create divert socket.");
 		if (divertGlobal > fdMax)
