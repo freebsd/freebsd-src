@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2022
+.Dd August 30, 2022
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -60,6 +60,7 @@ PF_LOCAL	Host-internal protocols (alias for PF_UNIX),
 PF_UNIX		Host-internal protocols,
 PF_INET		Internet version 4 protocols,
 PF_INET6	Internet version 6 protocols,
+PF_DIVERT	Firewall packet diversion/re-injection,
 PF_ROUTE	Internal routing protocol,
 PF_KEY		Internal key-management function,
 PF_NETGRAPH	Netgraph sockets,
@@ -283,6 +284,7 @@ The socket type is not supported by the protocol.
 .Xr accept 2 ,
 .Xr bind 2 ,
 .Xr connect 2 ,
+.Xr divert 4 ,
 .Xr getpeername 2 ,
 .Xr getsockname 2 ,
 .Xr getsockopt 2 ,

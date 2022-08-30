@@ -121,6 +121,7 @@ static const struct ng_ksocket_alias ng_ksocket_families[] = {
 	{ "inet",	PF_INET		},
 	{ "inet6",	PF_INET6	},
 	{ "atm",	PF_ATM		},
+	{ "divert",	PF_DIVERT	},
 	{ NULL,		-1		},
 };
 
@@ -147,7 +148,6 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 	{ "ah",		IPPROTO_AH,		PF_INET		},
 	{ "swipe",	IPPROTO_SWIPE,		PF_INET		},
 	{ "encap",	IPPROTO_ENCAP,		PF_INET		},
-	{ "divert",	IPPROTO_DIVERT,		PF_INET		},
 	{ "pim",	IPPROTO_PIM,		PF_INET		},
 	{ NULL,		-1					},
 };

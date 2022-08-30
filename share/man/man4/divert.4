@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2004
+.Dd August 30, 2022
 .Dt DIVERT 4
 .Os
 .Sh NAME
@@ -11,7 +11,7 @@
 .In sys/socket.h
 .In netinet/in.h
 .Ft int
-.Fn socket PF_INET SOCK_RAW IPPROTO_DIVERT
+.Fn socket PF_DIVERT SOCK_RAW 0
 .Pp
 To enable support for divert sockets, place the following lines in the
 kernel configuration file:
@@ -30,24 +30,30 @@ ipfw_load="YES"
 ipdivert_load="YES"
 .Ed
 .Sh DESCRIPTION
-Divert sockets are similar to raw IP sockets, except that they
-can be bound to a specific
+Divert sockets allow to intercept and re-inject packets flowing through
+the
+.Xr ipfw 4
+firewall.
+A divert socket can be bound to a specific
 .Nm
 port via the
 .Xr bind 2
 system call.
-The IP address in the bind is ignored; only the port
-number is significant.
+The sockaddr argument shall be sockaddr_in with sin_port set to the
+desired value.
+Note that the
+.Nm
+port has nothing to do with TCP/UDP ports.
+It is just a cookie number, that allows to differentiate between different
+divert points in the
+.Xr ipfw 4
+ruleset.
 A divert socket bound to a divert port will receive all packets diverted
-to that port by some (here unspecified) kernel mechanism(s).
-Packets may also be written to a divert port, in which case they
-re-enter kernel IP packet processing.
+to that port by
+.Xr ipfw 4 .
+Packets may also be written to a divert port, in which case they re-enter
+firewall processing at the next rule.
 .Pp
-Divert sockets are normally used in conjunction with
-.Fx Ns 's
-packet filtering implementation and the
-.Xr ipfw 8
-program.
 By reading from and writing to a divert socket, matching packets
 can be passed through an arbitrary ``filter'' as they travel through
 the host machine, special routing tricks can be done, etc.
@@ -154,7 +160,9 @@ Packets written as incoming and having incorrect checksums will be dropped.
 Otherwise, all header fields are unchanged (and therefore in network order).
 .Pp
 Binding to port numbers less than 1024 requires super-user access, as does
-creating a socket of type SOCK_RAW.
+creating a
+.Nm
+socket.
 .Sh ERRORS
 Writing to a divert socket can return these errors, along with
 the usual errors possible when writing raw packets:

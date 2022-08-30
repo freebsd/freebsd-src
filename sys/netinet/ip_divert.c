@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_sctp.h"
 #ifndef INET
-#error "IPDIVERT requires INET"
+#error "IPDIVERT requires INET"		/* XXX! */
 #endif
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -716,7 +717,6 @@ SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist,
 
 static struct protosw div_protosw = {
 	.pr_type =		SOCK_RAW,
-	.pr_protocol =		IPPROTO_DIVERT,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_attach =		div_attach,
 	.pr_bind =		div_bind,
@@ -729,6 +729,13 @@ static struct protosw div_protosw = {
 	.pr_sosetlabel =	in_pcbsosetlabel
 };
 
+static struct domain divertdomain = {
+	.dom_family =	PF_DIVERT,
+	.dom_name =	"divert",
+	.dom_nprotosw =	1,
+	.dom_protosw =	{ &div_protosw },
+};
+
 static int
 div_modevent(module_t mod, int type, void *unused)
 {
@@ -736,12 +743,7 @@ div_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		/*
-		 * Protocol will be initialized by pf_proto_register().
-		 */
-		err = protosw_register(&inetdomain, &div_protosw);
-		if (err != 0)
-			return (err);
+		domain_add(&divertdomain);
 		ip_divert_ptr = divert_packet;
 		break;
 	case MOD_QUIESCE:
@@ -763,6 +765,9 @@ div_modevent(module_t mod, int type, void *unused)
 		 * XXXRW: Note that there is a slight race here, as a new
 		 * socket open request could be spinning on the lock and then
 		 * we destroy the lock.
+		 *
+		 * XXXGL: One more reason this code is incorrect is that it
+		 * checks only the current vnet.
 		 */
 		INP_INFO_WLOCK(&V_divcbinfo);
 		if (V_divcbinfo.ipi_count != 0) {
@@ -771,7 +776,7 @@ div_modevent(module_t mod, int type, void *unused)
 			break;
 		}
 		ip_divert_ptr = NULL;
-		err = protosw_unregister(&div_protosw);
+		domain_remove(&divertdomain);
 		INP_INFO_WUNLOCK(&V_divcbinfo);
 #ifndef VIMAGE
 		div_destroy(NULL);
