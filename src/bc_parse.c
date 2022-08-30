@@ -71,11 +71,12 @@ bc_parse_expr_status(BcParse* p, uint8_t flags, BcParseNext next);
  * Returns true if an instruction could only have come from a "leaf" expression.
  * For more on what leaf expressions are, read the comment for BC_PARSE_LEAF().
  * @param t  The instruction to test.
+ * @return   True if the instruction is a from a leaf expression.
  */
 static bool
 bc_parse_inst_isLeaf(BcInst t)
 {
-	return (t >= BC_INST_NUM && t <= BC_INST_MAXSCALE) ||
+	return (t >= BC_INST_NUM && t <= BC_INST_LEADING_ZERO) ||
 #if BC_ENABLE_EXTRA_MATH
 	       t == BC_INST_TRUNC ||
 #endif // BC_ENABLE_EXTRA_MATH
@@ -401,7 +402,7 @@ bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
 	// We want a copy of the name since the lexer might overwrite its copy.
 	name = bc_vm_strdup(p->l.str.v);
 
-	BC_SETJMP_LOCKED(err);
+	BC_SETJMP_LOCKED(vm, err);
 
 	// We need the next token to see if it's just a variable or something more.
 	bc_lex_next(&p->l);
@@ -474,7 +475,7 @@ bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
 err:
 	// Need to make sure to unallocate the name.
 	free(name);
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 
@@ -1090,9 +1091,9 @@ bc_parse_endif(BcParse* p)
 	{
 		// We set this to restore it later. We don't want the parser thinking
 		// that we are on stdin for this one because it will want more.
-		bool is_stdin = vm.is_stdin;
+		bool is_stdin = vm->is_stdin;
 
-		vm.is_stdin = false;
+		vm->is_stdin = false;
 
 		// End all of the if statements and loops.
 		while (p->flags.len > 1 || BC_PARSE_IF_END(p))
@@ -1101,10 +1102,10 @@ bc_parse_endif(BcParse* p)
 			if (p->flags.len > 1) bc_parse_endBody(p, false);
 		}
 
-		vm.is_stdin = is_stdin;
+		vm->is_stdin = is_stdin;
 	}
 	// If we reach here, a block was not properly closed, and we should error.
-	else bc_parse_err(&vm.prs, BC_ERR_PARSE_BLOCK);
+	else bc_parse_err(&vm->prs, BC_ERR_PARSE_BLOCK);
 }
 
 /**
@@ -1803,7 +1804,7 @@ bc_parse_stmt(BcParse* p)
 		{
 			// Quit is a compile-time command. We don't exit directly, so the vm
 			// can clean up.
-			vm.status = BC_STATUS_QUIT;
+			vm->status = BC_STATUS_QUIT;
 			BC_JMP;
 			break;
 		}
@@ -1820,7 +1821,77 @@ bc_parse_stmt(BcParse* p)
 			break;
 		}
 
-		default:
+		case BC_LEX_EOF:
+		case BC_LEX_INVALID:
+		case BC_LEX_NEG:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_TRUNC:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_POWER:
+		case BC_LEX_OP_MULTIPLY:
+		case BC_LEX_OP_DIVIDE:
+		case BC_LEX_OP_MODULUS:
+		case BC_LEX_OP_PLUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_PLACES:
+		case BC_LEX_OP_LSHIFT:
+		case BC_LEX_OP_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_REL_EQ:
+		case BC_LEX_OP_REL_LE:
+		case BC_LEX_OP_REL_GE:
+		case BC_LEX_OP_REL_NE:
+		case BC_LEX_OP_REL_LT:
+		case BC_LEX_OP_REL_GT:
+		case BC_LEX_OP_BOOL_OR:
+		case BC_LEX_OP_BOOL_AND:
+		case BC_LEX_OP_ASSIGN_POWER:
+		case BC_LEX_OP_ASSIGN_MULTIPLY:
+		case BC_LEX_OP_ASSIGN_DIVIDE:
+		case BC_LEX_OP_ASSIGN_MODULUS:
+		case BC_LEX_OP_ASSIGN_PLUS:
+		case BC_LEX_OP_ASSIGN_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN_PLACES:
+		case BC_LEX_OP_ASSIGN_LSHIFT:
+		case BC_LEX_OP_ASSIGN_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN:
+		case BC_LEX_NLINE:
+		case BC_LEX_WHITESPACE:
+		case BC_LEX_RPAREN:
+		case BC_LEX_LBRACKET:
+		case BC_LEX_COMMA:
+		case BC_LEX_RBRACKET:
+		case BC_LEX_LBRACE:
+		case BC_LEX_KW_AUTO:
+		case BC_LEX_KW_DEFINE:
+#if DC_ENABLED
+		case BC_LEX_EQ_NO_REG:
+		case BC_LEX_COLON:
+		case BC_LEX_EXECUTE:
+		case BC_LEX_PRINT_STACK:
+		case BC_LEX_CLEAR_STACK:
+		case BC_LEX_REG_STACK_LEVEL:
+		case BC_LEX_STACK_LEVEL:
+		case BC_LEX_DUPLICATE:
+		case BC_LEX_SWAP:
+		case BC_LEX_POP:
+		case BC_LEX_STORE_IBASE:
+		case BC_LEX_STORE_OBASE:
+		case BC_LEX_STORE_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_STORE_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_LOAD:
+		case BC_LEX_LOAD_POP:
+		case BC_LEX_STORE_PUSH:
+		case BC_LEX_PRINT_POP:
+		case BC_LEX_NQUIT:
+		case BC_LEX_EXEC_STACK_LENGTH:
+		case BC_LEX_SCALE_FACTOR:
+		case BC_LEX_ARRAY_LENGTH:
+#endif // DC_ENABLED
 		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 		}
@@ -1855,7 +1926,7 @@ bc_parse_parse(BcParse* p)
 {
 	assert(p);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 	// We should not let an EOF get here unless some partial parse was not
 	// completed, in which case, it's the user's fault.
@@ -1881,12 +1952,12 @@ bc_parse_parse(BcParse* p)
 exit:
 
 	// We need to reset on error.
-	if (BC_ERR(((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig)))
+	if (BC_ERR(((vm->status && vm->status != BC_STATUS_QUIT) || vm->sig)))
 	{
 		bc_parse_reset(p);
 	}
 
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 
@@ -2316,7 +2387,57 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 				break;
 			}
 
-			default:
+			case BC_LEX_EOF:
+			case BC_LEX_INVALID:
+			case BC_LEX_NEG:
+			case BC_LEX_NLINE:
+			case BC_LEX_WHITESPACE:
+			case BC_LEX_LBRACKET:
+			case BC_LEX_COMMA:
+			case BC_LEX_RBRACKET:
+			case BC_LEX_LBRACE:
+			case BC_LEX_SCOLON:
+			case BC_LEX_RBRACE:
+			case BC_LEX_KW_AUTO:
+			case BC_LEX_KW_BREAK:
+			case BC_LEX_KW_CONTINUE:
+			case BC_LEX_KW_DEFINE:
+			case BC_LEX_KW_FOR:
+			case BC_LEX_KW_IF:
+			case BC_LEX_KW_LIMITS:
+			case BC_LEX_KW_RETURN:
+			case BC_LEX_KW_WHILE:
+			case BC_LEX_KW_HALT:
+			case BC_LEX_KW_PRINT:
+			case BC_LEX_KW_QUIT:
+			case BC_LEX_KW_STREAM:
+			case BC_LEX_KW_ELSE:
+#if DC_ENABLED
+			case BC_LEX_EQ_NO_REG:
+			case BC_LEX_COLON:
+			case BC_LEX_EXECUTE:
+			case BC_LEX_PRINT_STACK:
+			case BC_LEX_CLEAR_STACK:
+			case BC_LEX_REG_STACK_LEVEL:
+			case BC_LEX_STACK_LEVEL:
+			case BC_LEX_DUPLICATE:
+			case BC_LEX_SWAP:
+			case BC_LEX_POP:
+			case BC_LEX_STORE_IBASE:
+			case BC_LEX_STORE_OBASE:
+			case BC_LEX_STORE_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+			case BC_LEX_STORE_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+			case BC_LEX_LOAD:
+			case BC_LEX_LOAD_POP:
+			case BC_LEX_STORE_PUSH:
+			case BC_LEX_PRINT_POP:
+			case BC_LEX_NQUIT:
+			case BC_LEX_EXEC_STACK_LENGTH:
+			case BC_LEX_SCALE_FACTOR:
+			case BC_LEX_ARRAY_LENGTH:
+#endif // DC_ENABLED
 			{
 #ifndef NDEBUG
 				// We should never get here, even in debug builds.

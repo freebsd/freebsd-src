@@ -54,9 +54,7 @@
 #endif // _WIN32
 
 // This pulls in cross-platform stuff.
-#include "../include/bcl.h"
-
-#define BC_ERR(v) (v)
+#include <status.h>
 
 // clang-format off
 

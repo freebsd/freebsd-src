@@ -47,3 +47,5 @@ for f in $files; do
 	sed -i 's|^#else  //|#else //|g' "$f"
 
 done
+
+sed -i 's|^       // clang-format on|			// clang-format on|g' src/program.c

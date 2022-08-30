@@ -136,6 +136,7 @@ typedef enum BcLexType
 	BC_LEX_OP_MINUS,
 
 #if BC_ENABLE_EXTRA_MATH
+
 	/// Places (truncate or extend) operator.
 	BC_LEX_OP_PLACES,
 
@@ -144,6 +145,7 @@ typedef enum BcLexType
 
 	/// Right (decimal) shift operator.
 	BC_LEX_OP_RSHIFT,
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 	/// Equal operator.
@@ -171,6 +173,7 @@ typedef enum BcLexType
 	BC_LEX_OP_BOOL_AND,
 
 #if BC_ENABLED
+
 	/// Power assignment operator.
 	BC_LEX_OP_ASSIGN_POWER,
 
@@ -353,8 +356,10 @@ typedef enum BcLexType
 	BC_LEX_KW_MAXSCALE,
 
 #if BC_ENABLE_EXTRA_MATH
+
 	/// bc maxrand keyword.
 	BC_LEX_KW_MAXRAND,
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 	/// bc line_length keyword.
@@ -418,8 +423,10 @@ typedef enum BcLexType
 	BC_LEX_STORE_SCALE,
 
 #if BC_ENABLE_EXTRA_MATH
+
 	/// Store seed command.
 	BC_LEX_STORE_SEED,
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 	/// Load variable onto stack command.

@@ -34,15 +34,14 @@ bc - arbitrary-precision decimal arithmetic language and calculator
 
 # SYNOPSIS
 
-**bc** [**-ghilPqRsvVw**] [**-\-global-stacks**] [**-\-help**] [**-\-interactive**] [**-\-mathlib**] [**-\-no-prompt**] [**-\-no-read-prompt**] [**-\-quiet**] [**-\-standard**] [**-\-warn**] [**-\-version**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...] [**-I** *ibase*] [**-\-ibase**=*ibase*] [**-O** *obase*] [**-\-obase**=*obase*] [**-S** *scale*] [**-\-scale**=*scale*] [**-E** *seed*] [**-\-seed**=*seed*]
+**bc** [**-cCghilPqRsvVw**] [**-\-digit-clamp**] [**-\-no-digit-clamp**] [**-\-global-stacks**] [**-\-help**] [**-\-interactive**] [**-\-mathlib**] [**-\-no-prompt**] [**-\-no-read-prompt**] [**-\-quiet**] [**-\-standard**] [**-\-warn**] [**-\-version**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...] [**-I** *ibase*] [**-\-ibase**=*ibase*] [**-O** *obase*] [**-\-obase**=*obase*] [**-S** *scale*] [**-\-scale**=*scale*] [**-E** *seed*] [**-\-seed**=*seed*]
 
 # DESCRIPTION
 
 bc(1) is an interactive processor for a language first standardized in 1991 by
-POSIX. (The current standard is at
-https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .) The
-language provides unlimited precision decimal arithmetic and is somewhat C-like,
-but there are differences. Such differences will be noted in this document.
+POSIX. (See the **STANDARDS** section.) The language provides unlimited
+precision decimal arithmetic and is somewhat C-like, but there are differences.
+Such differences will be noted in this document.
 
 After parsing and handling options, this bc(1) reads any files given on the
 command line and executes them before reading from **stdin**.
@@ -63,6 +62,86 @@ that is a bug and should be reported. See the **BUGS** section.
 # OPTIONS
 
 The following are the options that bc(1) accepts.
+
+**-C**, **-\-no-digit-clamp**
+
+:   Disables clamping of digits greater than or equal to the current **ibase**
+    when parsing numbers.
+
+    This means that the value added to a number from a digit is always that
+    digit's value multiplied by the value of ibase raised to the power of the
+    digit's position, which starts from 0 at the least significant digit.
+
+    If this and/or the **-c** or **-\-digit-clamp** options are given multiple
+    times, the last one given is used.
+
+    This option overrides the **BC_DIGIT_CLAMP** environment variable (see the
+    **ENVIRONMENT VARIABLES** section) and the default, which can be queried
+    with the **-h** or **-\-help** options.
+
+    This is a **non-portable extension**.
+
+**-c**, **-\-digit-clamp**
+
+:   Enables clamping of digits greater than or equal to the current **ibase**
+    when parsing numbers.
+
+    This means that digits that the value added to a number from a digit that is
+    greater than or equal to the ibase is the value of ibase minus 1 all
+    multiplied by the value of ibase raised to the power of the digit's
+    position, which starts from 0 at the least significant digit.
+
+    If this and/or the **-C** or **-\-no-digit-clamp** options are given
+    multiple times, the last one given is used.
+
+    This option overrides the **BC_DIGIT_CLAMP** environment variable (see the
+    **ENVIRONMENT VARIABLES** section) and the default, which can be queried
+    with the **-h** or **-\-help** options.
+
+    This is a **non-portable extension**.
+
+**-E** *seed*, **-\-seed**=*seed*
+
+:   Sets the builtin variable **seed** to the value *seed* assuming that *seed*
+    is in base 10. It is a fatal error if *seed* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
+**-e** *expr*, **-\-expression**=*expr*
+
+:   Evaluates *expr*. If multiple expressions are given, they are evaluated in
+    order. If files are given as well (see the **-f** and **-\-file** options),
+    the expressions and files are evaluated in the order given. This means that
+    if a file is given before an expression, the file is read in and evaluated
+    first.
+
+    If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **-\-file**, whether on the
+    command-line or in **BC_ENV_ARGS**. However, if any other **-e**,
+    **-\-expression**, **-f**, or **-\-file** arguments are given after **-f-**
+    or equivalent is given, bc(1) will give a fatal error and exit.
+
+    This is a **non-portable extension**.
+
+**-f** *file*, **-\-file**=*file*
+
+:   Reads in *file* and evaluates it, line by line, as though it were read
+    through **stdin**. If expressions are also given (see the **-e** and
+    **-\-expression** options), the expressions are evaluated in the order
+    given.
+
+    If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **-\-file**. However, if any other
+    **-e**, **-\-expression**, **-f**, or **-\-file** arguments are given after
+    **-f-** or equivalent is given, bc(1) will give a fatal error and exit.
+
+    This is a **non-portable extension**.
 
 **-g**, **-\-global-stacks**
 
@@ -134,7 +213,16 @@ The following are the options that bc(1) accepts.
 
 **-h**, **-\-help**
 
-:   Prints a usage message and quits.
+:   Prints a usage message and exits.
+
+**-I** *ibase*, **-\-ibase**=*ibase*
+
+:   Sets the builtin variable **ibase** to the value *ibase* assuming that
+    *ibase* is in base 10. It is a fatal error if *ibase* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
 
 **-i**, **-\-interactive**
 
@@ -158,6 +246,15 @@ The following are the options that bc(1) accepts.
 
     To learn what is in the libraries, see the **LIBRARY** section.
 
+**-O** *obase*, **-\-obase**=*obase*
+
+:   Sets the builtin variable **obase** to the value *obase* assuming that
+    *obase* is in base 10. It is a fatal error if *obase* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
 **-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
@@ -168,6 +265,19 @@ The following are the options that bc(1) accepts.
 
     These options override the **BC_PROMPT** and **BC_TTY_MODE** environment
     variables (see the **ENVIRONMENT VARIABLES** section).
+
+    This is a **non-portable extension**.
+
+**-q**, **-\-quiet**
+
+:   This option is for compatibility with the GNU bc(1)
+    (https://www.gnu.org/software/bc/); it is a no-op. Without this option, GNU
+    bc(1) prints a copyright header. This bc(1) only prints the copyright header
+    if one or more of the **-v**, **-V**, or **-\-version** options are given
+    unless the **BC_BANNER** environment variable is set and contains a non-zero
+    integer or if this bc(1) was built with the header displayed by default. If
+    *any* of that is the case, then this option *does* prevent bc(1) from
+    printing the header.
 
     This is a **non-portable extension**.
 
@@ -224,35 +334,29 @@ The following are the options that bc(1) accepts.
     Keywords are *not* redefined when parsing the builtin math library (see the
     **LIBRARY** section).
 
-    It is a fatal error to redefine keywords mandated by the POSIX standard
-    (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html). It is
-    a fatal error to attempt to redefine words that this bc(1) does not reserve
-    as keywords.
+    It is a fatal error to redefine keywords mandated by the POSIX standard (see
+    the **STANDARDS** section). It is a fatal error to attempt to redefine words
+    that this bc(1) does not reserve as keywords.
 
-**-q**, **-\-quiet**
+**-S** *scale*, **-\-scale**=*scale*
 
-:   This option is for compatibility with the GNU bc(1)
-    (https://www.gnu.org/software/bc/); it is a no-op. Without this option, GNU
-    bc(1) prints a copyright header. This bc(1) only prints the copyright header
-    if one or more of the **-v**, **-V**, or **-\-version** options are given
-    unless the **BC_BANNER** environment variable is set and contains a non-zero
-    integer or if this bc(1) was built with the header displayed by default. If
-    *any* of that is the case, then this option *does* prevent bc(1) from
-    printing the header.
+:   Sets the builtin variable **scale** to the value *scale* assuming that
+    *scale* is in base 10. It is a fatal error if *scale* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
 
     This is a **non-portable extension**.
 
 **-s**, **-\-standard**
 
-:   Process exactly the language defined by the standard
-    (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) and
-    error if any extensions are used.
+:   Process exactly the language defined by the standard (see the **STANDARDS**
+    section) and error if any extensions are used.
 
     This is a **non-portable extension**.
 
 **-v**, **-V**, **-\-version**
 
-:   Print the version information (copyright header) and exit.
+:   Print the version information (copyright header) and exits.
 
     This is a **non-portable extension**.
 
@@ -271,74 +375,6 @@ The following are the options that bc(1) accepts.
     This can be set for individual numbers with the **plz(x)**, plznl(x)**,
     **pnlz(x)**, and **pnlznl(x)** functions in the extended math library (see
     the **LIBRARY** section).
-
-    This is a **non-portable extension**.
-
-**-e** *expr*, **-\-expression**=*expr*
-
-:   Evaluates *expr*. If multiple expressions are given, they are evaluated in
-    order. If files are given as well (see below), the expressions and files are
-    evaluated in the order given. This means that if a file is given before an
-    expression, the file is read in and evaluated first.
-
-    If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
-    see the **ENVIRONMENT VARIABLES** section), then after processing all
-    expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
-    as an argument at least once to **-f** or **-\-file**, whether on the
-    command-line or in **BC_ENV_ARGS**. However, if any other **-e**,
-    **-\-expression**, **-f**, or **-\-file** arguments are given after **-f-**
-    or equivalent is given, bc(1) will give a fatal error and exit.
-
-    This is a **non-portable extension**.
-
-**-f** *file*, **-\-file**=*file*
-
-:   Reads in *file* and evaluates it, line by line, as though it were read
-    through **stdin**. If expressions are also given (see above), the
-    expressions are evaluated in the order given.
-
-    If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
-    see the **ENVIRONMENT VARIABLES** section), then after processing all
-    expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
-    as an argument at least once to **-f** or **-\-file**. However, if any other
-    **-e**, **-\-expression**, **-f**, or **-\-file** arguments are given after
-    **-f-** or equivalent is given, bc(1) will give a fatal error and exit.
-
-    This is a **non-portable extension**.
-
-**-I** *ibase*, **-\-ibase**=*ibase*
-
-:   Sets the builtin variable **ibase** to the value *ibase* assuming that
-    *ibase* is in base 10. It is a fatal error if *ibase* is not a valid number.
-
-    If multiple instances of this option are given, the last is used.
-
-    This is a **non-portable extension**.
-
-**-O** *obase*, **-\-obase**=*obase*
-
-:   Sets the builtin variable **obase** to the value *obase* assuming that
-    *obase* is in base 10. It is a fatal error if *obase* is not a valid number.
-
-    If multiple instances of this option are given, the last is used.
-
-    This is a **non-portable extension**.
-
-**-S** *scale*, **-\-scale**=*scale*
-
-:   Sets the builtin variable **scale** to the value *scale* assuming that
-    *scale* is in base 10. It is a fatal error if *scale* is not a valid number.
-
-    If multiple instances of this option are given, the last is used.
-
-    This is a **non-portable extension**.
-
-**-E** *seed*, **-\-seed**=*seed*
-
-:   Sets the builtin variable **seed** to the value *seed* assuming that *seed*
-    is in base 10. It is a fatal error if *seed* is not a valid number.
-
-    If multiple instances of this option are given, the last is used.
 
     This is a **non-portable extension**.
 
@@ -393,8 +429,7 @@ it is recommended that those scripts be changed to redirect **stderr** to
 # SYNTAX
 
 The syntax for bc(1) programs is mostly C-like, with some differences. This
-bc(1) follows the POSIX standard
-(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html), which is a
+bc(1) follows the POSIX standard (see the **STANDARDS** section), which is a
 much more thorough resource for the language this bc(1) accepts. This section is
 meant to be a summary and a listing of all the extensions to the standard.
 
@@ -592,14 +627,40 @@ use a non-seeded pseudo-random number generator.
 
 Numbers are strings made up of digits, uppercase letters, and at most **1**
 period for a radix. Numbers can have up to **BC_NUM_MAX** digits. Uppercase
-letters are equal to **9** + their position in the alphabet (i.e., **A** equals
-**10**, or **9+1**). If a digit or letter makes no sense with the current value
-of **ibase**, they are set to the value of the highest valid digit in **ibase**.
+letters are equal to **9** plus their position in the alphabet, starting from
+**1** (i.e., **A** equals **10**, or **9+1**).
 
-Single-character numbers (i.e., **A** alone) take the value that they would have
-if they were valid digits, regardless of the value of **ibase**. This means that
-**A** alone always equals decimal **10** and **Z** alone always equals decimal
-**35**.
+If a digit or letter makes no sense with the current value of **ibase** (i.e.,
+they are greater than or equal to the current value of **ibase**), then the
+behavior depends on the existence of the **-c**/**-\-digit-clamp** or
+**-C**/**-\-no-digit-clamp** options (see the **OPTIONS** section), the
+existence and setting of the **BC_DIGIT_CLAMP** environment variable (see the
+**ENVIRONMENT VARIABLES** section), or the default, which can be queried with
+the **-h**/**-\-help** option.
+
+If clamping is off, then digits or letters that are greater than or equal to the
+current value of **ibase** are not changed. Instead, their given value is
+multiplied by the appropriate power of **ibase** and added into the number. This
+means that, with an **ibase** of **3**, the number **AB** is equal to
+**3\^1\*A+3\^0\*B**, which is **3** times **10** plus **11**, or **41**.
+
+If clamping is on, then digits or letters that are greater than or equal to the
+current value of **ibase** are set to the value of the highest valid digit in
+**ibase** before being multiplied by the appropriate power of **ibase** and
+added into the number. This means that, with an **ibase** of **3**, the number
+**AB** is equal to **3\^1\*2+3\^0\*2**, which is **3** times **2** plus **2**,
+or **8**.
+
+There is one exception to clamping: single-character numbers (i.e., **A**
+alone). Such numbers are never clamped and always take the value they would have
+in the highest possible **ibase**. This means that **A** alone always equals
+decimal **10** and **Z** alone always equals decimal **35**. This behavior is
+mandated by the standard (see the STANDARDS section) and is meant to provide an
+easy way to set the current **ibase** (with the **i** command) regardless of the
+current value of **ibase**.
+
+If clamping is on, and the clamped value of a character is needed, use a leading
+zero, i.e., for **A**, use **0A**.
 
 In addition, bc(1) accepts numbers in scientific notation. These have the form
 **\<number\>e\<integer\>**. The exponent (the portion after the **e**) must be
@@ -849,10 +910,9 @@ The operators will be described in more detail below.
     **assignment** operators, which means that **a=b\>c** is interpreted as
     **(a=b)\>c**.
 
-    Also, unlike the standard
-    (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
-    requires, these operators can appear anywhere any other expressions can be
-    used. This allowance is a **non-portable extension**.
+    Also, unlike the standard (see the **STANDARDS** section) requires, these
+    operators can appear anywhere any other expressions can be used. This
+    allowance is a **non-portable extension**.
 
 **&&**
 
@@ -1099,9 +1159,8 @@ equivalents are given.
 
 ## Standard Library
 
-The standard
-(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) defines the
-following functions for the math library:
+The standard (see the **STANDARDS** section) defines the following functions for
+the math library:
 
 **s(x)**
 
@@ -1149,8 +1208,7 @@ following functions for the math library:
 
 The extended library is *not* loaded when the **-s**/**-\-standard** or
 **-w**/**-\-warn** options are given since they are not part of the library
-defined by the standard
-(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html).
+defined by the standard (see the **STANDARDS** section).
 
 The extended library is a **non-portable extension**.
 
@@ -2085,7 +2143,8 @@ be hit.
 
 # ENVIRONMENT VARIABLES
 
-bc(1) recognizes the following environment variables:
+As **non-portable extensions**, bc(1) recognizes the following environment
+variables:
 
 **POSIXLY_CORRECT**
 
@@ -2191,6 +2250,21 @@ bc(1) recognizes the following environment variables:
     This environment variable overrides the default, which can be queried with
     the **-h** or **-\-help** options.
 
+**BC_DIGIT_CLAMP**
+
+:   When parsing numbers and if this environment variable exists and contains an
+    integer, a non-zero value makes bc(1) clamp digits that are greater than or
+    equal to the current **ibase** so that all such digits are considered equal
+    to the **ibase** minus 1, and a zero value disables such clamping so that
+    those digits are always equal to their value, which is multiplied by the
+    power of the **ibase**.
+
+    This never applies to single-digit numbers, as per the standard (see the
+    **STANDARDS** section).
+
+    This environment variable overrides the default, which can be queried with
+    the **-h** or **-\-help** options.
+
 # EXIT STATUS
 
 bc(1) returns the following exit statuses:
@@ -2266,12 +2340,10 @@ checking, and its normal behavior can be forced by using the **-i** flag or
 
 # INTERACTIVE MODE
 
-Per the standard
-(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html), bc(1) has
-an interactive mode and a non-interactive mode. Interactive mode is turned on
-automatically when both **stdin** and **stdout** are hooked to a terminal, but
-the **-i** flag and **-\-interactive** option can turn it on in other
-situations.
+Per the standard (see the **STANDARDS** section), bc(1) has an interactive mode
+and a non-interactive mode. Interactive mode is turned on automatically when
+both **stdin** and **stdout** are hooked to a terminal, but the **-i** flag and
+**-\-interactive** option can turn it on in other situations.
 
 In interactive mode, bc(1) attempts to recover from errors (see the **RESET**
 section), and in normal execution, flushes **stdout** as soon as execution is
@@ -2297,10 +2369,8 @@ setting is used. The default setting can be queried with the **-h** or
 **-\-help** options.
 
 TTY mode is different from interactive mode because interactive mode is required
-in the bc(1) standard
-(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html), and
-interactive mode requires only **stdin** and **stdout** to be connected to a
-terminal.
+in the bc(1) standard (see the **STANDARDS** section), and interactive mode
+requires only **stdin** and **stdout** to be connected to a terminal.
 
 ## Prompt
 

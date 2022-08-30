@@ -50,14 +50,14 @@ bc_main(int argc, char* argv[])
 {
 	// All of these just set bc-specific items in BcVm.
 
-	vm.read_ret = BC_INST_RET;
-	vm.help = bc_help;
-	vm.sigmsg = bc_sig_msg;
-	vm.siglen = bc_sig_msg_len;
+	vm->read_ret = BC_INST_RET;
+	vm->help = bc_help;
+	vm->sigmsg = bc_sig_msg;
+	vm->siglen = bc_sig_msg_len;
 
-	vm.next = bc_lex_token;
-	vm.parse = bc_parse_parse;
-	vm.expr = bc_parse_expr;
+	vm->next = bc_lex_token;
+	vm->parse = bc_parse_parse;
+	vm->expr = bc_parse_expr;
 
 	bc_vm_boot(argc, argv);
 }

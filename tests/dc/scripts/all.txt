@@ -7,3 +7,4 @@ factorial.dc
 loop.dc
 quit.dc
 weird.dc
+no_clamp.dc

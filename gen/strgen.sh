@@ -52,7 +52,7 @@ label="$5"
 define="$6"
 remove_tabs="$7"
 
-tmpinput=$(mktemp -t "${input##*/}")
+tmpinput=$(mktemp -t "${input##*/}_XXXXXX")
 
 if [ "$exclude" -ne 0 ]; then
 	filter_text "$input" "$tmpinput" "E"

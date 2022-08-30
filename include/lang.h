@@ -38,19 +38,19 @@
 
 #include <stdbool.h>
 
-#if BC_C11
-#include <assert.h>
-#endif // BC_C11
-
+// These have to come first to silence a warning on BC_C11 below.
 #include <status.h>
 #include <vector.h>
 #include <num.h>
+
+#if BC_C11
+#include <assert.h>
+#endif // BC_C11
 
 /// The instructions for bytecode.
 typedef enum BcInst
 {
 #if BC_ENABLED
-
 	/// Postfix increment and decrement. Prefix are translated into
 	/// BC_INST_ONE with either BC_INST_ASSIGN_PLUS or BC_INST_ASSIGN_MINUS.
 	BC_INST_INC = 0,
@@ -62,6 +62,7 @@ typedef enum BcInst
 
 	/// Boolean not.
 	BC_INST_BOOL_NOT,
+
 #if BC_ENABLE_EXTRA_MATH
 	/// Truncation operator.
 	BC_INST_TRUNC,
@@ -76,7 +77,6 @@ typedef enum BcInst
 	BC_INST_MINUS,
 
 #if BC_ENABLE_EXTRA_MATH
-
 	/// Places operator.
 	BC_INST_PLACES,
 

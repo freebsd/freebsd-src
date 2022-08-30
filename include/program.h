@@ -69,8 +69,10 @@ typedef struct BcProgram
 	/// The array of globals values.
 	BcBigDig globals[BC_PROG_GLOBALS_LEN];
 
+#if BC_ENABLED
 	/// The array of globals stacks.
 	BcVec globals_v[BC_PROG_GLOBALS_LEN];
+#endif // BC_ENABLED
 
 #if BC_ENABLE_EXTRA_MATH
 
@@ -121,6 +123,10 @@ typedef struct BcProgram
 
 	/// A BcNum that has the proper base for asciify.
 	BcNum strmb;
+
+	// A BcNum to run asciify. This is to prevent GCC longjmp() clobbering
+	// warnings.
+	BcNum asciify;
 
 #if BC_ENABLED
 
@@ -206,16 +212,36 @@ typedef struct BcProgram
 
 /// This define disappears the parameter last because for dc only, last is
 /// always true.
-#define bc_program_copyToVar(p, name, t, last) bc_program_copyToVar(p, name, t)
+#define bc_program_copyToVar(p, name, t, last) \
+	bc_program_copyToVar_impl(p, name, t)
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (pop)
+
+#else // !BC_ENABLED
+
+// This is here to quiet a compiler warning.
+#define bc_program_copyToVar(p, name, t, last) \
+	bc_program_copyToVar_impl(p, name, t, last)
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (BC_IS_BC || (pop))
 
 #endif // !BC_ENABLED
 
+// This is here to satisfy a clang warning about recursive macros.
+#define bc_program_pushVar(p, code, bgn, pop, copy) \
+	bc_program_pushVar_impl(p, code, bgn, pop, copy)
+
 #else // DC_ENABLED
 
-/// This define disappears pop and copy because for bc, 'pop' and 'copy' are
-/// always false.
+// This define disappears pop and copy because for bc, 'pop' and 'copy' are
+// always false.
 #define bc_program_pushVar(p, code, bgn, pop, copy) \
-	bc_program_pushVar(p, code, bgn)
+	bc_program_pushVar_impl(p, code, bgn)
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (BC_IS_BC)
 
 // In debug mode, we want bc to check the stack, but otherwise, we don't because
 // the bc language implicitly mandates that the stack should always have enough
@@ -438,14 +464,14 @@ extern const char bc_program_esc_seqs[];
 #if BC_DEBUG_CODE
 
 // clang-format off
-#define BC_PROG_JUMP(inst, code, ip)                                 \
-	do                                                               \
-	{                                                                \
-		inst = (uchar) (code)[(ip)->idx++];                          \
-		bc_file_printf(&vm.ferr, "inst: %s\n", bc_inst_names[inst]); \
-		bc_file_flush(&vm.ferr, bc_flush_none);                      \
-		goto *bc_program_inst_lbls[inst];                            \
-	}                                                                \
+#define BC_PROG_JUMP(inst, code, ip)                                  \
+	do                                                                \
+	{                                                                 \
+		inst = (uchar) (code)[(ip)->idx++];                           \
+		bc_file_printf(&vm->ferr, "inst: %s\n", bc_inst_names[inst]); \
+		bc_file_flush(&vm->ferr, bc_flush_none);                      \
+		goto *bc_program_inst_lbls[inst];                             \
+	}                                                                 \
 	while (0)
 // clang-format on
 

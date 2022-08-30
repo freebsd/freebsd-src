@@ -79,7 +79,7 @@ bc_lex_comment(BcLex* l)
 		got_more = false;
 
 		// If we are in stdin mode, the buffer must be the one used for stdin.
-		assert(!vm.is_stdin || buf == vm.buffer.v);
+		assert(!vm->is_stdin || buf == vm->buffer.v);
 
 		// Find the end of the comment.
 		for (i = l->i; !end; i += !end)
@@ -94,7 +94,7 @@ bc_lex_comment(BcLex* l)
 			if (BC_ERR(!c || buf[i + 1] == '\0'))
 			{
 				// Read more, if possible.
-				if (!vm.eof && (l->is_stdin || l->is_exprs))
+				if (!vm->eof && (l->is_stdin || l->is_exprs))
 				{
 					got_more = bc_lex_readLine(l);
 				}
@@ -293,7 +293,7 @@ bc_lex_file(BcLex* l, const char* file)
 {
 	assert(l != NULL && file != NULL);
 	l->line = 1;
-	vm.file = file;
+	vm->file = file;
 }
 
 void
@@ -320,7 +320,7 @@ bc_lex_next(BcLex* l)
 	// is so the parser doesn't get inundated with whitespace.
 	do
 	{
-		vm.next(l);
+		vm->next(l);
 	}
 	while (l->t == BC_LEX_WHITESPACE);
 }
@@ -358,7 +358,7 @@ bc_lex_readLine(BcLex* l)
 
 	BC_SIG_LOCK;
 
-	bc_lex_fixText(l, vm.buffer.v, vm.buffer.len - 1);
+	bc_lex_fixText(l, vm->buffer.v, vm->buffer.len - 1);
 
 	return good;
 }

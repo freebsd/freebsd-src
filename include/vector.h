@@ -427,17 +427,6 @@ bc_slabvec_init(BcVec* restrict v);
 char*
 bc_slabvec_strdup(BcVec* restrict v, const char* str);
 
-#if BC_ENABLED
-
-/**
- * Undoes the last allocation on the slab vector. This allows bc to have a
- * heap-based stacks for strings. This is used by the bc parser.
- */
-void
-bc_slabvec_undo(BcVec* restrict v, size_t len);
-
-#endif // BC_ENABLED
-
 /**
  * Clears a slab vector. This deallocates all but the first slab and clears the
  * first slab.
@@ -459,6 +448,25 @@ bc_slabvec_print(BcVec* v, const char* func);
 
 /// A convenience macro for freeing a vector of slabs.
 #define bc_slabvec_free bc_vec_free
+
+#if BC_ENABLED
+#if DC_ENABLED
+
+/// Returns the set of slabs for the maps and the current calculator.
+#define BC_VEC_MAP_SLABS (BC_IS_DC ? &vm->main_slabs : &vm->other_slabs)
+
+#else // DC_ENABLED
+
+/// Returns the set of slabs for the maps and the current calculator.
+#define BC_VEC_MAP_SLABS (&vm->other_slabs)
+
+#endif // DC_ENABLED
+#else // BC_ENABLED
+
+/// Returns the set of slabs for the maps and the current calculator.
+#define BC_VEC_MAP_SLABS (&vm->main_slabs)
+
+#endif // BC_ENABLED
 
 #ifndef _WIN32
 

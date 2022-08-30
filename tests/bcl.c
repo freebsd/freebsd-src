@@ -59,6 +59,9 @@ main(void)
 	char* res;
 	BclBigDig b = 0;
 
+	e = bcl_start();
+	err(e);
+
 	// We do this twice to test the reference counting code.
 	e = bcl_init();
 	err(e);
@@ -334,6 +337,8 @@ main(void)
 	bcl_free();
 
 	bcl_free();
+
+	bcl_end();
 
 	return 0;
 }

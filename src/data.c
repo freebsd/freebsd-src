@@ -141,6 +141,7 @@ const char bc_pledge_end[] = "";
 /// end.
 const BcOptLong bc_args_lopt[] = {
 
+	{ "digit-clamp", BC_OPT_NONE, 'c' },
 	{ "expression", BC_OPT_REQUIRED, 'e' },
 	{ "file", BC_OPT_REQUIRED, 'f' },
 	{ "help", BC_OPT_NONE, 'h' },
@@ -149,6 +150,7 @@ const BcOptLong bc_args_lopt[] = {
 	{ "leading-zeroes", BC_OPT_NONE, 'z' },
 	{ "no-line-length", BC_OPT_NONE, 'L' },
 	{ "obase", BC_OPT_REQUIRED, 'O' },
+	{ "no-digit-clamp", BC_OPT_NONE, 'C' },
 	{ "no-prompt", BC_OPT_NONE, 'P' },
 	{ "no-read-prompt", BC_OPT_NONE, 'R' },
 	{ "scale", BC_OPT_REQUIRED, 'S' },

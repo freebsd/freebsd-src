@@ -207,6 +207,7 @@ bc_program_dereference(const BcProgram* p, BcVec* vec)
 
 	return v;
 }
+
 #endif // BC_ENABLED
 
 /**
@@ -246,8 +247,8 @@ bc_program_addString(BcProgram* p, const char* str, size_t fidx)
 
 	// Figure out which slab vector to use.
 	slabs = fidx == BC_PROG_MAIN || fidx == BC_PROG_READ ?
-	            &vm.main_slabs :
-	            &vm.other_slabs;
+	            &vm->main_slabs :
+	            &vm->other_slabs;
 
 	*str_ptr = bc_slabvec_strdup(slabs, str);
 
@@ -390,13 +391,13 @@ bc_program_num(BcProgram* p, BcResult* r)
 
 		case BC_RESULT_ZERO:
 		{
-			n = &vm.zero;
+			n = &vm->zero;
 			break;
 		}
 
 		case BC_RESULT_ONE:
 		{
-			n = &vm.one;
+			n = &vm->one;
 			break;
 		}
 
@@ -407,15 +408,23 @@ bc_program_num(BcProgram* p, BcResult* r)
 #ifndef NDEBUG
 		{
 			abort();
+			// Fallthrough
 		}
 #endif // NDEBUG
-       // Fallthrough
 		case BC_RESULT_LAST:
 		{
 			n = &p->last;
 			break;
 		}
 #endif // BC_ENABLED
+
+#if BC_GCC
+		// This is here in GCC to quiet the "maybe-uninitialized" warning.
+		default:
+		{
+			abort();
+		}
+#endif // BC_GCC
 	}
 
 	return n;
@@ -541,6 +550,7 @@ bc_program_assignPrep(BcProgram* p, BcResult** l, BcNum** ln, BcResult** r,
                       BcNum** rn)
 {
 	BcResultType lt, min;
+	bool good;
 
 	// This is the min non-allowable result type. dc allows strings.
 	min = BC_RESULT_TEMP - ((unsigned int) (BC_IS_BC));
@@ -555,7 +565,7 @@ bc_program_assignPrep(BcProgram* p, BcResult** l, BcNum** ln, BcResult** r,
 
 	// Strings can be assigned to variables. We are already good if we are
 	// assigning a string.
-	bool good = ((*r)->t == BC_RESULT_STR && lt <= BC_RESULT_ARRAY_ELEM);
+	good = ((*r)->t == BC_RESULT_STR && lt <= BC_RESULT_ARRAY_ELEM);
 
 	assert(BC_PROG_STR(*rn) || (*r)->t != BC_RESULT_STR);
 
@@ -636,8 +646,11 @@ bc_program_const(BcProgram* p, const char* code, size_t* bgn)
 		// Allocate if we haven't yet.
 		if (c->num.num == NULL)
 		{
+			// The plus 1 is in case of overflow with lack of clamping.
+			size_t len = strlen(c->val) + (BC_DIGIT_CLAMP == 0);
+
 			BC_SIG_LOCK;
-			bc_num_init(&c->num, BC_NUM_RDX(strlen(c->val)));
+			bc_num_init(&c->num, BC_NUM_RDX(len));
 			BC_SIG_UNLOCK;
 		}
 
@@ -716,55 +729,55 @@ bc_program_read(BcProgram* p)
 	BC_SIG_LOCK;
 
 	// Save the filename because we are going to overwrite it.
-	file = vm.file;
-	is_stdin = vm.is_stdin;
+	file = vm->file;
+	is_stdin = vm->is_stdin;
 
 	// It is a parse error if there needs to be more than one line, so we unset
 	// this to tell the lexer to not request more. We set it back later.
-	vm.is_stdin = false;
+	vm->is_stdin = false;
 
-	if (!BC_PARSE_IS_INITED(&vm.read_prs, p))
+	if (!BC_PARSE_IS_INITED(&vm->read_prs, p))
 	{
 		// We need to parse, but we don't want to use the existing parser
 		// because it has state it needs to keep. (It could have a partial parse
 		// state.) So we create a new parser. This parser is in the BcVm struct
 		// so that it is not local, which means that a longjmp() could change
 		// it.
-		bc_parse_init(&vm.read_prs, p, BC_PROG_READ);
+		bc_parse_init(&vm->read_prs, p, BC_PROG_READ);
 
 		// We need a separate input buffer; that's why it is also in the BcVm
 		// struct.
-		bc_vec_init(&vm.read_buf, sizeof(char), BC_DTOR_NONE);
+		bc_vec_init(&vm->read_buf, sizeof(char), BC_DTOR_NONE);
 	}
 	// This needs to be updated because the parser could have been used
 	// somewhere else
-	else bc_parse_updateFunc(&vm.read_prs, BC_PROG_READ);
+	else bc_parse_updateFunc(&vm->read_prs, BC_PROG_READ);
 
-	BC_SETJMP_LOCKED(exec_err);
+	BC_SETJMP_LOCKED(vm, exec_err);
 
 	BC_SIG_UNLOCK;
 
 	// Set up the lexer and the read function.
-	bc_lex_file(&vm.read_prs.l, bc_program_stdin_name);
+	bc_lex_file(&vm->read_prs.l, bc_program_stdin_name);
 	bc_vec_popAll(&f->code);
 
 	// Read a line.
-	if (!BC_R) s = bc_read_line(&vm.read_buf, "");
-	else s = bc_read_line(&vm.read_buf, BC_IS_BC ? "read> " : "?> ");
+	if (!BC_R) s = bc_read_line(&vm->read_buf, "");
+	else s = bc_read_line(&vm->read_buf, BC_VM_READ_PROMPT);
 
 	// We should *not* have run into EOF.
 	if (s == BC_STATUS_EOF) bc_err(BC_ERR_EXEC_READ_EXPR);
 
 	// Parse *one* expression, so is_stdin should be false.
-	bc_parse_text(&vm.read_prs, vm.read_buf.v, false, false);
+	bc_parse_text(&vm->read_prs, vm->read_buf.v, false, false);
 	BC_SIG_LOCK;
-	vm.expr(&vm.read_prs, BC_PARSE_NOREAD | BC_PARSE_NEEDVAL);
+	vm->expr(&vm->read_prs, BC_PARSE_NOREAD | BC_PARSE_NEEDVAL);
 	BC_SIG_UNLOCK;
 
 	// We *must* have a valid expression. A semicolon cannot end an expression,
 	// although EOF can.
-	if (BC_ERR(vm.read_prs.l.t != BC_LEX_NLINE &&
-	           vm.read_prs.l.t != BC_LEX_EOF))
+	if (BC_ERR(vm->read_prs.l.t != BC_LEX_NLINE &&
+	           vm->read_prs.l.t != BC_LEX_EOF))
 	{
 		bc_err(BC_ERR_EXEC_READ_EXPR);
 	}
@@ -783,7 +796,7 @@ bc_program_read(BcProgram* p)
 	f = bc_vec_item(&p->fns, BC_PROG_READ);
 
 	// We want a return instruction to simplify things.
-	bc_vec_pushByte(&f->code, vm.read_ret);
+	bc_vec_pushByte(&f->code, vm->read_ret);
 
 	// This lock is here to make sure dc's tail calls are the same length.
 	BC_SIG_LOCK;
@@ -800,9 +813,9 @@ bc_program_read(BcProgram* p)
 
 exec_err:
 	BC_SIG_MAYLOCK;
-	vm.is_stdin = is_stdin;
-	vm.file = file;
-	BC_LONGJMP_CONT;
+	vm->is_stdin = is_stdin;
+	vm->file = file;
+	BC_LONGJMP_CONT(vm);
 }
 
 #if BC_ENABLE_EXTRA_MATH
@@ -837,12 +850,12 @@ static void
 bc_program_printChars(const char* str)
 {
 	const char* nl;
-	size_t len = vm.nchars + strlen(str);
+	size_t len = vm->nchars + strlen(str);
 	sig_atomic_t lock;
 
 	BC_SIG_TRYLOCK(lock);
 
-	bc_file_puts(&vm.fout, bc_flush_save, str);
+	bc_file_puts(&vm->fout, bc_flush_save, str);
 
 	// We need to update the number of characters, so we find the last newline
 	// and set the characters accordingly.
@@ -850,7 +863,7 @@ bc_program_printChars(const char* str)
 
 	if (nl != NULL) len = strlen(nl + 1);
 
-	vm.nchars = len > UINT16_MAX ? UINT16_MAX : (uint16_t) len;
+	vm->nchars = len > UINT16_MAX ? UINT16_MAX : (uint16_t) len;
 
 	BC_SIG_TRYUNLOCK(lock);
 }
@@ -894,7 +907,7 @@ bc_program_printString(const char* restrict str)
 				if (c == 'n')
 				{
 					BC_SIG_LOCK;
-					vm.nchars = UINT16_MAX;
+					vm->nchars = UINT16_MAX;
 					BC_SIG_UNLOCK;
 				}
 
@@ -977,7 +990,7 @@ bc_program_print(BcProgram* p, uchar inst, size_t idx)
 	else
 	{
 		// We want to flush any stuff in the stdout buffer first.
-		bc_file_flush(&vm.fout, bc_flush_save);
+		bc_file_flush(&vm->fout, bc_flush_save);
 		str = bc_program_string(p, n);
 
 #if BC_ENABLED
@@ -992,8 +1005,8 @@ bc_program_print(BcProgram* p, uchar inst, size_t idx)
 		}
 	}
 
-	// bc always pops.
-	if (BC_IS_BC || pop) bc_vec_pop(&p->results);
+	// bc always pops. This macro makes sure that happens.
+	if (BC_PROGRAM_POP(pop)) bc_vec_pop(&p->results);
 }
 
 void
@@ -1339,10 +1352,12 @@ bc_program_copyToVar(BcProgram* p, size_t idx, BcType t, bool last)
 void
 bc_program_assignBuiltin(BcProgram* p, bool scale, bool obase, BcBigDig val)
 {
-	BcVec* v;
-	BcBigDig* ptr;
 	BcBigDig* ptr_t;
 	BcBigDig max, min;
+#if BC_ENABLED
+	BcVec* v;
+	BcBigDig* ptr;
+#endif // BC_ENABLED
 
 	assert(!scale || !obase);
 
@@ -1351,10 +1366,14 @@ bc_program_assignBuiltin(BcProgram* p, bool scale, bool obase, BcBigDig val)
 	{
 		// Set the min and max.
 		min = 0;
-		max = vm.maxes[BC_PROG_GLOBALS_SCALE];
+		max = vm->maxes[BC_PROG_GLOBALS_SCALE];
 
-		// Get a pointer to the stack and to the current value.
+#if BC_ENABLED
+		// Get a pointer to the stack.
 		v = p->globals_v + BC_PROG_GLOBALS_SCALE;
+#endif // BC_ENABLED
+
+		// Get a pointer to the current value.
 		ptr_t = p->globals + BC_PROG_GLOBALS_SCALE;
 	}
 	else
@@ -1365,10 +1384,14 @@ bc_program_assignBuiltin(BcProgram* p, bool scale, bool obase, BcBigDig val)
 		{
 			min = 0;
 		}
-		max = vm.maxes[obase + BC_PROG_GLOBALS_IBASE];
+		max = vm->maxes[obase + BC_PROG_GLOBALS_IBASE];
 
-		// Get a pointer to the stack and to the current value.
+#if BC_ENABLED
+		// Get a pointer to the stack.
 		v = p->globals_v + BC_PROG_GLOBALS_IBASE + obase;
+#endif // BC_ENABLED
+
+		// Get a pointer to the current value.
 		ptr_t = p->globals + BC_PROG_GLOBALS_IBASE + obase;
 	}
 
@@ -1385,9 +1408,13 @@ bc_program_assignBuiltin(BcProgram* p, bool scale, bool obase, BcBigDig val)
 		bc_verr(e, min, max);
 	}
 
-	// Set the top of the stack and the actual global value.
+#if BC_ENABLED
+	// Set the top of the stack.
 	ptr = bc_vec_top(v);
 	*ptr = val;
+#endif // BC_ENABLED
+
+	// Set the actual global variable.
 	*ptr_t = val;
 }
 
@@ -1705,7 +1732,7 @@ bc_program_incdec(BcProgram* p, uchar inst)
 	copy.t = BC_RESULT_TEMP;
 	bc_num_createCopy(&copy.d.n, num);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 	BC_SIG_UNLOCK;
 
@@ -1720,7 +1747,7 @@ bc_program_incdec(BcProgram* p, uchar inst)
 
 	bc_vec_push(&p->results, &copy);
 
-	BC_UNSETJMP;
+	BC_UNSETJMP(vm);
 
 	BC_SIG_UNLOCK;
 
@@ -1730,7 +1757,7 @@ bc_program_incdec(BcProgram* p, uchar inst)
 exit:
 	BC_SIG_MAYLOCK;
 	bc_num_free(&copy.d.n);
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 }
 
 /**
@@ -2174,42 +2201,20 @@ bc_program_modexp(BcProgram* p)
 static uchar
 bc_program_asciifyNum(BcProgram* p, BcNum* n)
 {
-	BcNum num;
-	BcBigDig val;
-
-#ifndef NDEBUG
-	// This is entirely to satisfy a useless scan-build error.
-	val = 0;
-#endif // NDEBUG
-
-	bc_num_clear(&num);
-
-	BC_SETJMP(num_err);
-
-	BC_SIG_LOCK;
-
-	bc_num_createCopy(&num, n);
-
-	BC_SIG_UNLOCK;
+	bc_num_copy(&p->asciify, n);
 
 	// We want to clear the scale and sign for easy mod later.
-	bc_num_truncate(&num, num.scale);
-	BC_NUM_NEG_CLR_NP(num);
+	bc_num_truncate(&p->asciify, p->asciify.scale);
+	BC_NUM_NEG_CLR(&p->asciify);
 
 	// This is guaranteed to not have a divide by 0
 	// because strmb is equal to 256.
-	bc_num_mod(&num, &p->strmb, &num, 0);
+	bc_num_mod(&p->asciify, &p->strmb, &p->asciify, 0);
 
 	// This is also guaranteed to not error because num is in the range
 	// [0, UCHAR_MAX], which is definitely in range for a BcBigDig. And
 	// it is not negative.
-	val = bc_num_bigdig2(&num);
-
-num_err:
-	BC_SIG_MAYLOCK;
-	bc_num_free(&num);
-	BC_LONGJMP_CONT;
-	return (uchar) val;
+	return (uchar) bc_num_bigdig2(&p->asciify);
 }
 
 /**
@@ -2365,7 +2370,7 @@ bc_program_nquit(BcProgram* p, uchar inst)
 	// If we don't have enough executions, just quit.
 	if (i == p->stack.len)
 	{
-		vm.status = BC_STATUS_QUIT;
+		vm->status = BC_STATUS_QUIT;
 		BC_JMP;
 	}
 	else
@@ -2434,7 +2439,11 @@ bc_program_execStr(BcProgram* p, const char* restrict code,
 	if (cond)
 	{
 		bool exec;
-		size_t idx, then_idx, else_idx;
+		size_t then_idx;
+		// These are volatile to quiet warnings on GCC about clobbering with
+		// longjmp().
+		volatile size_t else_idx;
+		volatile size_t idx;
 
 		// Get the index of the "then" var and "else" var.
 		then_idx = bc_program_index(code, bgn);
@@ -2446,7 +2455,7 @@ bc_program_execStr(BcProgram* p, const char* restrict code,
 		idx = exec ? then_idx : else_idx;
 
 		BC_SIG_LOCK;
-		BC_SETJMP_LOCKED(exit);
+		BC_SETJMP_LOCKED(vm, exit);
 
 		// If we are supposed to execute, execute. If else_idx == SIZE_MAX, that
 		// means there was no else clause, so if execute is false and else does
@@ -2460,7 +2469,7 @@ bc_program_execStr(BcProgram* p, const char* restrict code,
 
 		if (BC_ERR(!BC_PROG_STR(n))) bc_err(BC_ERR_EXEC_TYPE);
 
-		BC_UNSETJMP;
+		BC_UNSETJMP(vm);
 		BC_SIG_UNLOCK;
 	}
 	else
@@ -2489,35 +2498,35 @@ bc_program_execStr(BcProgram* p, const char* restrict code,
 	{
 		BC_SIG_LOCK;
 
-		if (!BC_PARSE_IS_INITED(&vm.read_prs, p))
+		if (!BC_PARSE_IS_INITED(&vm->read_prs, p))
 		{
-			bc_parse_init(&vm.read_prs, p, fidx);
+			bc_parse_init(&vm->read_prs, p, fidx);
 
 			// Initialize this too because bc_vm_shutdown() expects them to be
 			// initialized togther.
-			bc_vec_init(&vm.read_buf, sizeof(char), BC_DTOR_NONE);
+			bc_vec_init(&vm->read_buf, sizeof(char), BC_DTOR_NONE);
 		}
 		// This needs to be updated because the parser could have been used
 		// somewhere else
-		else bc_parse_updateFunc(&vm.read_prs, fidx);
+		else bc_parse_updateFunc(&vm->read_prs, fidx);
 
-		bc_lex_file(&vm.read_prs.l, vm.file);
+		bc_lex_file(&vm->read_prs.l, vm->file);
 
-		BC_SETJMP_LOCKED(err);
+		BC_SETJMP_LOCKED(vm, err);
 
 		BC_SIG_UNLOCK;
 
 		// Parse.
-		bc_parse_text(&vm.read_prs, str, false, false);
+		bc_parse_text(&vm->read_prs, str, false, false);
 
 		BC_SIG_LOCK;
-		vm.expr(&vm.read_prs, BC_PARSE_NOCALL);
+		vm->expr(&vm->read_prs, BC_PARSE_NOCALL);
 
-		BC_UNSETJMP;
+		BC_UNSETJMP(vm);
 
 		// We can just assert this here because
 		// dc should parse everything until EOF.
-		assert(vm.read_prs.l.t == BC_LEX_EOF);
+		assert(vm->read_prs.l.t == BC_LEX_EOF);
 
 		BC_SIG_UNLOCK;
 	}
@@ -2566,7 +2575,7 @@ err:
 
 exit:
 	bc_vec_pop(&p->results);
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 }
 
 /**
@@ -2616,7 +2625,7 @@ bc_program_globalSetting(BcProgram* p, uchar inst)
 	// Make sure the instruction is valid.
 	assert(inst >= BC_INST_LINE_LENGTH && inst <= BC_INST_LEADING_ZERO);
 
-	if (inst == BC_INST_LINE_LENGTH) val = (BcBigDig) vm.line_len;
+	if (inst == BC_INST_LINE_LENGTH) val = (BcBigDig) vm->line_len;
 #if BC_ENABLED
 	else if (inst == BC_INST_GLOBAL_STACKS) val = (BC_G != 0);
 #endif // BC_ENABLED
@@ -2716,17 +2725,21 @@ bc_program_insertFunc(BcProgram* p, const char* name)
 void
 bc_program_free(BcProgram* p)
 {
+#if BC_ENABLED
 	size_t i;
+#endif // BC_ENABLED
 
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(p != NULL);
 
+#if BC_ENABLED
 	// Free the globals stacks.
 	for (i = 0; i < BC_PROG_GLOBALS_LEN; ++i)
 	{
 		bc_vec_free(p->globals_v + i);
 	}
+#endif // BC_ENABLED
 
 	bc_vec_free(&p->fns);
 	bc_vec_free(&p->fn_map);
@@ -2736,6 +2749,8 @@ bc_program_free(BcProgram* p)
 	bc_vec_free(&p->arr_map);
 	bc_vec_free(&p->results);
 	bc_vec_free(&p->stack);
+
+	bc_num_free(&p->asciify);
 
 #if BC_ENABLED
 	if (BC_IS_BC) bc_num_free(&p->last);
@@ -2770,8 +2785,10 @@ bc_program_init(BcProgram* p)
 	{
 		BcBigDig val = i == BC_PROG_GLOBALS_SCALE ? 0 : BC_BASE;
 
+#if BC_ENABLED
 		bc_vec_init(p->globals_v + i, sizeof(BcBigDig), BC_DTOR_NONE);
 		bc_vec_push(p->globals_v + i, &val);
+#endif // BC_ENABLED
 
 		p->globals[i] = val;
 	}
@@ -2790,6 +2807,8 @@ bc_program_init(BcProgram* p)
 
 	bc_num_setup(&p->strmb, p->strmb_num, BC_NUM_BIGDIG_LOG10);
 	bc_num_bigdig2num(&p->strmb, BC_NUM_STREAM_BASE);
+
+	bc_num_init(&p->asciify, BC_NUM_DEF_SIZE);
 
 #if BC_ENABLE_EXTRA_MATH
 	// We need to initialize srand() just in case /dev/urandom and /dev/random
@@ -2857,11 +2876,11 @@ bc_program_reset(BcProgram* p)
 	memset(ip, 0, sizeof(BcInstPtr));
 
 	// Write the ready message for a signal, and clear the signal.
-	if (vm.sig)
+	if (vm->sig)
 	{
-		bc_file_printf(&vm.fout, "%s", bc_program_ready_msg);
-		bc_file_flush(&vm.fout, bc_flush_err);
-		vm.sig = 0;
+		bc_file_printf(&vm->fout, "%s", bc_program_ready_msg);
+		bc_file_flush(&vm->fout, bc_flush_err);
+		vm->sig = 0;
 	}
 }
 
@@ -2886,8 +2905,25 @@ bc_program_exec(BcProgram* p)
 #endif // !BC_HAS_COMPUTED_GOTO
 
 #if BC_HAS_COMPUTED_GOTO
+
+#if BC_GCC
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif // BC_GCC
+
+#if BC_CLANG
+#pragma clang diagnostic ignored "-Wgnu-label-as-value"
+#endif // BC_CLANG
+
 	BC_PROG_LBLS;
 	BC_PROG_LBLS_ASSERT;
+
+#if BC_CLANG
+#pragma clang diagnostic warning "-Wgnu-label-as-value"
+#endif // BC_CLANG
+
+#if BC_GCC
+#pragma GCC diagnostic warning "-Wpedantic"
+#endif // BC_GCC
 
 	// BC_INST_INVALID is a marker for the end so that we don't have to have an
 	// execution loop.
@@ -2907,7 +2943,7 @@ bc_program_exec(BcProgram* p)
 #if !BC_HAS_COMPUTED_GOTO
 
 #ifndef NDEBUG
-	jmp_bufs_len = vm.jmp_bufs.len;
+	jmp_bufs_len = vm->jmp_bufs.len;
 #endif // NDEBUG
 
 	// This loop is the heart of the execution engine. It *is* the engine. For
@@ -2919,6 +2955,14 @@ bc_program_exec(BcProgram* p)
 
 #if BC_HAS_COMPUTED_GOTO
 
+#if BC_GCC
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif // BC_GCC
+
+#if BC_CLANG
+#pragma clang diagnostic ignored "-Wgnu-label-as-value"
+#endif // BC_CLANG
+
 		BC_PROG_JUMP(inst, code, ip);
 
 #else // BC_HAS_COMPUTED_GOTO
@@ -2929,8 +2973,8 @@ bc_program_exec(BcProgram* p)
 #endif // BC_HAS_COMPUTED_GOTO
 
 #if BC_DEBUG_CODE
-		bc_file_printf(&vm.ferr, "inst: %s\n", bc_inst_names[inst]);
-		bc_file_flush(&vm.ferr, bc_flush_none);
+		bc_file_printf(&vm->ferr, "inst: %s\n", bc_inst_names[inst]);
+		bc_file_flush(&vm->ferr, bc_flush_none);
 #endif // BC_DEBUG_CODE
 
 #if !BC_HAS_COMPUTED_GOTO
@@ -3010,7 +3054,7 @@ bc_program_exec(BcProgram* p)
 			BC_PROG_LBL(BC_INST_HALT):
 			// clang-format on
 			{
-				vm.status = BC_STATUS_QUIT;
+				vm->status = BC_STATUS_QUIT;
 
 				// Just jump out. The jump series will take care of everything.
 				BC_JMP;
@@ -3060,7 +3104,7 @@ bc_program_exec(BcProgram* p)
 			{
 				// We want to flush output before
 				// this in case there is a prompt.
-				bc_file_flush(&vm.fout, bc_flush_save);
+				bc_file_flush(&vm->fout, bc_flush_save);
 
 				bc_program_read(p);
 
@@ -3093,9 +3137,9 @@ bc_program_exec(BcProgram* p)
 #if BC_ENABLE_EXTRA_MATH
 			BC_PROG_LBL(BC_INST_MAXRAND):
 #endif // BC_ENABLE_EXTRA_MATH
-       // clang-format on
+			// clang-format on
 			{
-				BcBigDig dig = vm.maxes[inst - BC_INST_MAXIBASE];
+				BcBigDig dig = vm->maxes[inst - BC_INST_MAXIBASE];
 				bc_program_pushBigdig(p, dig, BC_RESULT_TEMP);
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -3157,7 +3201,7 @@ bc_program_exec(BcProgram* p)
 #if BC_ENABLE_EXTRA_MATH
 			BC_PROG_LBL(BC_INST_IRAND):
 #endif // BC_ENABLE_EXTRA_MATH
-       // clang-format on
+			// clang-format on
 			{
 				bc_program_builtin(p, inst);
 				BC_PROG_JUMP(inst, code, ip);
@@ -3195,7 +3239,7 @@ bc_program_exec(BcProgram* p)
 #if BC_ENABLED
 			BC_PROG_LBL(BC_INST_LAST):
 #endif // BC_ENABLED
-       // clang-format on
+			// clang-format on
 			{
 				r.t = BC_RESULT_ZERO + (inst - BC_INST_ZERO);
 				bc_vec_push(&p->results, &r);
@@ -3208,13 +3252,13 @@ bc_program_exec(BcProgram* p)
 #if BC_ENABLED
 			BC_PROG_LBL(BC_INST_PRINT_STR):
 #endif // BC_ENABLED
-       // clang-format on
+			// clang-format on
 			{
 				bc_program_print(p, inst, 0);
 
 				// We want to flush right away to save the output for history,
 				// if history must preserve it when taking input.
-				bc_file_flush(&vm.fout, bc_flush_save);
+				bc_file_flush(&vm->fout, bc_flush_save);
 
 				BC_PROG_JUMP(inst, code, ip);
 			}
@@ -3244,7 +3288,7 @@ bc_program_exec(BcProgram* p)
 			BC_PROG_LBL(BC_INST_LSHIFT):
 			BC_PROG_LBL(BC_INST_RSHIFT):
 #endif // BC_ENABLE_EXTRA_MATH
-       // clang-format on
+			// clang-format on
 			{
 				bc_program_op(p, inst);
 				BC_PROG_JUMP(inst, code, ip);
@@ -3256,7 +3300,7 @@ bc_program_exec(BcProgram* p)
 #if BC_ENABLE_EXTRA_MATH
 			BC_PROG_LBL(BC_INST_TRUNC):
 #endif // BC_ENABLE_EXTRA_MATH
-       // clang-format on
+			// clang-format on
 			{
 				bc_program_unary(p, inst);
 				BC_PROG_JUMP(inst, code, ip);
@@ -3531,21 +3575,33 @@ bc_program_exec(BcProgram* p)
 			default:
 			{
 				BC_UNREACHABLE
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !BC_CLANG
 				abort();
-#endif // NDEBUG
+#endif // !defined(NDEBUG) && !BC_CLANG
 			}
 #endif // BC_HAS_COMPUTED_GOTO
 		}
 
-#if !BC_HAS_COMPUTED_GOTO
+#if BC_HAS_COMPUTED_GOTO
+
+#if BC_CLANG
+#pragma clang diagnostic warning "-Wgnu-label-as-value"
+#endif // BC_CLANG
+
+#if BC_GCC
+#pragma GCC diagnostic warning "-Wpedantic"
+#endif // BC_GCC
+
+#else // BC_HAS_COMPUTED_GOTO
+
 #ifndef NDEBUG
 		// This is to allow me to use a debugger to see the last instruction,
 		// which will point to which function was the problem. But it's also a
 		// good smoke test for error handling changes.
-		assert(jmp_bufs_len == vm.jmp_bufs.len);
+		assert(jmp_bufs_len == vm->jmp_bufs.len);
 #endif // NDEBUG
-#endif // !BC_HAS_COMPUTED_GOTO
+
+#endif // BC_HAS_COMPUTED_GOTO
 	}
 }
 
@@ -3554,9 +3610,9 @@ bc_program_exec(BcProgram* p)
 void
 bc_program_printStackDebug(BcProgram* p)
 {
-	bc_file_puts(&vm.fout, bc_flush_err, "-------------- Stack ----------\n");
+	bc_file_puts(&vm->fout, bc_flush_err, "-------------- Stack ----------\n");
 	bc_program_printStack(p);
-	bc_file_puts(&vm.fout, bc_flush_err, "-------------- Stack End ------\n");
+	bc_file_puts(&vm->fout, bc_flush_err, "-------------- Stack End ------\n");
 }
 
 static void
@@ -3638,7 +3694,7 @@ bc_program_code(const BcProgram* p)
 		{
 			bc_program_printInst(p, code, &ip.idx);
 		}
-		bc_file_puts(&vm.fout, bc_flush_err, "\n\n");
+		bc_file_puts(&vm->fout, bc_flush_err, "\n\n");
 	}
 }
 #endif // BC_ENABLED && DC_ENABLED

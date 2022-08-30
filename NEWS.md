@@ -1,5 +1,53 @@
 # News
 
+## 6.0.2
+
+This is a production release that fixes two bugs:
+
+* The `-l` option overrode the `-S` option.
+* A double-free and crash when sending a `SIGINT` while executing expressions
+  given on the command-line.
+
+## 6.0.1
+
+This is a production release that fixes memory bugs and memory leaks in `bcl`.
+
+Users that do not use `bcl` (use only `bc` and/or `dc`) do ***NOT*** need to
+upgrade.
+
+These happened because I was unaware that the `bcl` test was not hooked into the
+Valgrind test infrastructure. Then, when I ran the release script, which tests
+everything under Valgrind (or so I thought), it caught nothing, and I thought it
+was safe.
+
+But it was not.
+
+Nevertheless, I have now run it under Valgrind and fixed all of the memory bugs
+(caused by not using `memset()` where I should have but previously didn't have
+to) and memory leaks.
+
+## 6.0.0
+
+This is a production release that fixes an oversight in the `bc` parser (that
+sometimes caused the wrong error message) and adds a feature for compatibility
+with the BSD `bc` and `dc`: turning off digit clamping when parsing numbers.
+
+The default for clamping can be set during the build (see the [build
+manual][13]), it can be set with the `BC_DIGIT_CLAMP` and `DC_DIGIT_CLAMP`
+environment variables, and it can be set with the `-c` and `-C` command-line
+options.
+
+Turning off clamping was also added to the `bcl` library.
+
+In addition, signal handling was removed from the `bcl` library in order to add
+the capability for multi-threading. This required a major version bump. I
+apologize to all library users (I don't know of any), but signals and threads do
+not play well together.
+
+To help with building, a convenience option (`-p`) to `configure.sh` was added
+to build a `bc` and `dc` that is by default compatible with either the BSD `bc`
+and `dc` or the GNU `bc` and `dc`.
+
 ## 5.3.3
 
 This is a production release that fixes a build problem in the FreeBSD base

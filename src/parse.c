@@ -113,8 +113,8 @@ bc_parse_addNum(BcParse* p, const char* string)
 
 	// Get the right slab.
 	slabs = p->fidx == BC_PROG_MAIN || p->fidx == BC_PROG_READ ?
-	            &vm.main_const_slab :
-	            &vm.other_slabs;
+	            &vm->main_const_slab :
+	            &vm->other_slabs;
 
 	// Push an empty constant.
 	c = bc_vec_pushEmpty(consts);
@@ -207,7 +207,7 @@ bc_parse_reset(BcParse* p)
 	bc_program_reset(p->prog);
 
 	// Jump if there is an error.
-	if (BC_ERR(vm.status)) BC_JMP;
+	if (BC_ERR(vm->status)) BC_JMP;
 }
 
 #ifndef NDEBUG

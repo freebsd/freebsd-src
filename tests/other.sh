@@ -131,7 +131,7 @@ if [ "$d" = "bc" ]; then
 
 	checktest_retcode "$d" "$?" "environment var"
 
-	"$exe" "$@" -e 4 > /dev/null
+	printf 'halt\n' | "$exe" "$@" -e 4 > /dev/null
 
 	err="$?"
 	checktest_retcode "$d" "$?" "environment var"
@@ -153,19 +153,19 @@ if [ "$d" = "bc" ]; then
 
 	printf '5\n0\n' > "$redefine_res"
 
-	"$exe" "$@" --redefine=print -e 'define print(x) { x }' -e 'print(5)' > "$redefine_out"
+	printf 'halt\n' | "$exe" "$@" --redefine=print -e 'define print(x) { x }' -e 'print(5)' > "$redefine_out"
 	err="$?"
 
 	checktest "$d" "$err" "keyword redefinition" "$redefine_res" "$redefine_out"
 
-	"$exe" "$@" -r "abs" -r "else" -e 'abs = 5;else = 0' -e 'abs;else' > "$redefine_out"
+	printf 'halt\n' | "$exe" "$@" -r "abs" -r "else" -e 'abs = 5;else = 0' -e 'abs;else' > "$redefine_out"
 	err="$?"
 
 	checktest "$d" "$err" "keyword redefinition" "$redefine_res" "$redefine_out"
 
 	if [ "$extra_math" -ne 0 ]; then
 
-		"$exe" "$@" -lr abs -e "perm(5, 1)" -e "0" > "$redefine_out"
+		printf 'halt\n' | "$exe" "$@" -lr abs -e "perm(5, 1)" -e "0" > "$redefine_out"
 		err="$?"
 
 		checktest "$d" "$err" "keyword not redefined in builtin library" "$redefine_res" "$redefine_out"
@@ -189,7 +189,7 @@ if [ "$d" = "bc" ]; then
 	multiline_expr_out="$outputdir/bc_outputs/multiline_expr_results.txt"
 
 	# tests/bc/misc1.txt happens to have a multiline comment in it.
-	"$exe" "$@" -f "$testdir/bc/misc1.txt" > "$multiline_expr_out"
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/misc1.txt" > "$multiline_expr_out"
 	err="$?"
 
 	checktest "$d" "$err" "multiline comment in expression file" "$testdir/bc/misc1_results.txt" \
@@ -198,7 +198,7 @@ if [ "$d" = "bc" ]; then
 	printf 'pass\n'
 	printf 'Running multiline comment expression file error test...'
 
-	"$exe" "$@" -f "$testdir/bc/errors/05.txt" 2> "$multiline_expr_out"
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/errors/05.txt" 2> "$multiline_expr_out"
 	err="$?"
 
 	checkerrtest "$d" "$err" "multiline comment in expression file error" \
@@ -208,7 +208,7 @@ if [ "$d" = "bc" ]; then
 	printf 'Running multiline string expression file test...'
 
 	# tests/bc/strings.txt happens to have a multiline string in it.
-	"$exe" "$@" -f "$testdir/bc/strings.txt" > "$multiline_expr_out"
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/strings.txt" > "$multiline_expr_out"
 	err="$?"
 
 	checktest "$d" "$err" "multiline string in expression file" "$testdir/bc/strings_results.txt" \
@@ -217,13 +217,13 @@ if [ "$d" = "bc" ]; then
 	printf 'pass\n'
 	printf 'Running multiline string expression file error test...'
 
-	"$exe" "$@" -f "$testdir/bc/errors/16.txt" 2> "$multiline_expr_out"
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/errors/16.txt" 2> "$multiline_expr_out"
 	err="$?"
 
 	checkerrtest "$d" "$err" "multiline string in expression file with backslash error" \
 		"$multiline_expr_out" "$d"
 
-	"$exe" "$@" -f "$testdir/bc/errors/04.txt" 2> "$multiline_expr_out"
+	printf 'halt\n' | "$exe" "$@" -f "$testdir/bc/errors/04.txt" 2> "$multiline_expr_out"
 	err="$?"
 
 	checkerrtest "$d" "$err" "multiline string in expression file error" \
@@ -453,6 +453,37 @@ else
 
 	printf '%s\n' "$data" | "$exe" "$@" --scale=14 --ibase=15 --obase=16 > "$out2"
 	checktest "$d" "$?" "builtin variable long args" "$out1" "$out2"
+
+fi
+
+if [ "$d" = "bc" ]; then
+
+	out=$(printf '100\n')
+	printf '%s\n' "$out" > "$out1"
+
+	printf 'scale\n' | "$exe" "$@" -S100 -l > "$out2"
+	checktest "$d" "$?" "builtin variable args with math lib" "$out1" "$out2"
+
+	printf 'scale\n' | "$exe" "$@" --scale=100 --mathlib > "$out2"
+	checktest "$d" "$?" "builtin variable long args with math lib" "$out1" "$out2"
+
+	export BC_ENV_ARGS="-l"
+
+	printf 'scale\n' | "$exe" "$@" -S100 > "$out2"
+	checktest "$d" "$?" "builtin variable args with math lib env arg" "$out1" "$out2"
+
+	printf 'scale\n' | "$exe" "$@" --scale=100 > "$out2"
+	checktest "$d" "$?" "builtin variable long args with math lib env arg" "$out1" "$out2"
+
+	export BC_ENV_ARGS="-S100"
+
+	printf 'scale\n' | "$exe" "$@" -l > "$out2"
+	checktest "$d" "$?" "builtin variable args with math lib arg" "$out1" "$out2"
+
+	export BC_ENV_ARGS="--scale=100"
+
+	printf 'scale\n' | "$exe" "$@" -l > "$out2"
+	checktest "$d" "$?" "builtin variable long args with math lib arg" "$out1" "$out2"
 
 fi
 
