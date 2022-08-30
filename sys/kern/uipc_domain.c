@@ -306,32 +306,6 @@ pffindtype(int family, int type)
 	return (NULL);
 }
 
-struct protosw *
-pffindproto(int family, int protocol, int type)
-{
-	struct domain *dp;
-	struct protosw *pr;
-	struct protosw *maybe;
-
-	dp = pffinddomain(family);
-	if (dp == NULL)
-		return (NULL);
-
-	maybe = NULL;
-	for (int i = 0; i < dp->dom_nprotosw; i++) {
-		if ((pr = dp->dom_protosw[i]) == NULL)
-			continue;
-		if ((pr->pr_protocol == protocol) && (pr->pr_type == type))
-			return (pr);
-
-		/* XXX: raw catches all. Why? */
-		if (type == SOCK_RAW && pr->pr_type == SOCK_RAW &&
-		    pr->pr_protocol == 0 && maybe == NULL)
-			maybe = pr;
-	}
-	return (maybe);
-}
-
 /*
  * The caller must make sure that the new protocol is fully set up and ready to
  * accept requests before it is registered.
