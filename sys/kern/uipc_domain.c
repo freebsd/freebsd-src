@@ -208,11 +208,13 @@ pr_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
 }
 
 static void
-pr_init(struct protosw *pr)
+pr_init(struct domain *dom, struct protosw *pr)
 {
 
 	KASSERT(pr->pr_attach != NULL,
 	    ("%s: protocol doesn't have pr_attach", __func__));
+
+	pr->pr_domain = dom;
 
 #define	DEFAULT(foo, bar)	if (pr->foo == NULL) pr->foo = bar
 	DEFAULT(pr_sosend, sosend_generic);
@@ -261,10 +263,8 @@ domain_init(struct domain *dp)
 	MPASS((flags & DOMF_INITED) == 0);
 
 	for (int i = 0; i < dp->dom_nprotosw; i++)
-		if ((pr = dp->dom_protosw[i]) != NULL) {
-			pr->pr_domain = dp;
-			pr_init(pr);
-		}
+		if ((pr = dp->dom_protosw[i]) != NULL)
+			pr_init(dp, pr);
 
 	atomic_set_rel_int(&dp->dom_flags, DOMF_INITED);
 }
@@ -439,8 +439,7 @@ protosw_register(struct domain *dp, struct protosw *npr)
 		return (ENOMEM);
 	}
 
-	npr->pr_domain = dp;
-	pr_init(npr);
+	pr_init(dp, npr);
 	*prp = npr;
 	mtx_unlock(&dom_mtx);
 
