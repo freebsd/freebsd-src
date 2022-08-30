@@ -159,10 +159,9 @@ with the correct value.
 Packets written as incoming and having incorrect checksums will be dropped.
 Otherwise, all header fields are unchanged (and therefore in network order).
 .Pp
-Binding to port numbers less than 1024 requires super-user access, as does
-creating a
+Creating a
 .Nm
-socket.
+socket requires super-user access.
 .Sh ERRORS
 Writing to a divert socket can return these errors, along with
 the usual errors possible when writing raw packets:

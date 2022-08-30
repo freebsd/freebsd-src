@@ -87,6 +87,14 @@ __FBSDID("$FreeBSD$");
 #define	DIVRCVQ		(65536 + 100)
 
 /*
+ * Usually a system has very few divert ports.  Previous implementation
+ * used a linked list.
+ */
+#define	DIVHASHSIZE	(1 << 3)	/* 8 entries, one cache line. */
+#define	DIVHASH(port)	(port % DIVHASHSIZE)
+#define	DCBHASH(dcb)	((dcb)->dcb_port % DIVHASHSIZE)
+
+/*
  * Divert sockets work in conjunction with ipfw or other packet filters,
  * see the divert(4) manpage for features.
  * Packets are selected by the packet filter and tagged with an
@@ -124,9 +132,6 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_divert, OID_AUTO, stats, struct divstat,
 #define	DIVSTAT_INC(name)	\
     VNET_PCPUSTAT_ADD(struct divstat, divstat, div_ ## name, 1)
 
-VNET_DEFINE_STATIC(struct inpcbinfo, divcbinfo);
-#define	V_divcbinfo			VNET(divcbinfo)
-
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 
@@ -134,39 +139,31 @@ static int div_output_inbound(int fmaily, struct socket *so, struct mbuf *m,
     struct sockaddr_in *sin);
 static int div_output_outbound(int family, struct socket *so, struct mbuf *m);
 
-/*
- * Initialize divert connection block queue.
- */
-INPCBSTORAGE_DEFINE(divcbstor, "divinp", "divcb", "div", "divhash");
+struct divcb {
+	union {
+		SLIST_ENTRY(divcb)	dcb_next;
+		intptr_t		dcb_bound;
+#define	DCB_UNBOUND	((intptr_t)-1)
+	};
+	struct socket		*dcb_socket;
+	uint16_t		 dcb_port;
+	uint64_t		 dcb_gencnt;
+	struct epoch_context	 dcb_epochctx;
+};
 
-static void
-div_init(void *arg __unused)
-{
+SLIST_HEAD(divhashhead, divcb);
 
-	/*
-	 * XXX We don't use the hash list for divert IP, but it's easier to
-	 * allocate one-entry hash lists than it is to check all over the
-	 * place for hashbase == NULL.
-	 */
-	in_pcbinfo_init(&V_divcbinfo, &divcbstor, 1, 1);
-}
-VNET_SYSINIT(div_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_init, NULL);
+VNET_DEFINE_STATIC(struct divhashhead, divhash[DIVHASHSIZE]) = {};
+#define	V_divhash	VNET(divhash)
+VNET_DEFINE_STATIC(uint64_t, dcb_count) = 0;
+#define	V_dcb_count	VNET(dcb_count)
+VNET_DEFINE_STATIC(uint64_t, dcb_gencnt) = 0;
+#define	V_dcb_gencnt	VNET(dcb_gencnt)
 
-static void
-div_destroy(void *unused __unused)
-{
-
-	in_pcbinfo_destroy(&V_divcbinfo);
-}
-VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, div_destroy, NULL);
-
-static bool
-div_port_match(const struct inpcb *inp, void *v)
-{
-	uint16_t nport = *(uint16_t *)v;
-
-	return (inp->inp_lport == nport);
-}
+static struct mtx divert_mtx;
+MTX_SYSINIT(divert, &divert_mtx, "divert(4) socket pcb lists", MTX_DEF);
+#define	DIVERT_LOCK()	mtx_lock(&divert_mtx)
+#define	DIVERT_UNLOCK()	mtx_unlock(&divert_mtx)
 
 /*
  * Divert a packet by passing it up to the divert socket at port 'port'.
@@ -177,12 +174,9 @@ divert_packet(struct mbuf *m, bool incoming)
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	struct ip *ip;
 #endif
-	struct inpcb *inp;
-	struct socket *sa;
+	struct divcb *dcb;
 	u_int16_t nport;
 	struct sockaddr_in divsrc;
-	struct inpcb_iterator inpi = INP_ITERATOR(&V_divcbinfo,
-	    INPLOOKUP_RLOCKPCB, div_port_match, &nport);
 	struct m_tag *mtag;
 
 	NET_EPOCH_ASSERT();
@@ -275,27 +269,26 @@ divert_packet(struct mbuf *m, bool incoming)
 	}
 
 	/* Put packet on socket queue, if any */
-	sa = NULL;
-	/* nport is inp_next's context. */
-	nport = htons((u_int16_t)(((struct ipfw_rule_ref *)(mtag+1))->info));
-	while ((inp = inp_next(&inpi)) != NULL) {
-		sa = inp->inp_socket;
+	nport = htons((uint16_t)(((struct ipfw_rule_ref *)(mtag+1))->info));
+	SLIST_FOREACH(dcb, &V_divhash[DIVHASH(nport)], dcb_next)
+		if (dcb->dcb_port == nport)
+			break;
+
+	if (dcb != NULL) {
+		struct socket *sa = dcb->dcb_socket;
+
 		SOCKBUF_LOCK(&sa->so_rcv);
 		if (sbappendaddr_locked(&sa->so_rcv,
 		    (struct sockaddr *)&divsrc, m, NULL) == 0) {
 			soroverflow_locked(sa);
-			sa = NULL;	/* force mbuf reclaim below */
+			m_freem(m);
 		} else {
 			sorwakeup_locked(sa);
 			DIVSTAT_INC(diverted);
 		}
-		/* XXX why does only one socket match? */
-		INP_RUNLOCK(inp);
-		break;
-	}
-	if (sa == NULL) {
-		m_freem(m);
+	} else {
 		DIVSTAT_INC(noport);
+		m_freem(m);
 	}
 }
 
@@ -422,23 +415,12 @@ static int
 div_output_outbound(int family, struct socket *so, struct mbuf *m)
 {
 	struct ip *const ip = mtod(m, struct ip *);
-	struct mbuf *options;
-	struct inpcb *inp;
 	int error;
 
-	inp = sotoinpcb(so);
-	INP_RLOCK(inp);
 	switch (family) {
 	case AF_INET:
-		/*
-		 * Don't allow both user specified and setsockopt
-		 * options, and don't allow packet length sizes that
-		 * will crash.
-		 */
-		if ((((ip->ip_hl << 2) != sizeof(struct ip)) &&
-		    inp->inp_options != NULL) ||
-		    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
-			INP_RUNLOCK(inp);
+		/* Don't allow packet length sizes that will crash. */
+		if (((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			m_freem(m);
 			return (EINVAL);
 		}
@@ -450,7 +432,6 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 
 		/* Don't allow packet length sizes that will crash */
 		if (((u_short)ntohs(ip6->ip6_plen) > m->m_pkthdr.len)) {
-			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (EINVAL);
 		}
@@ -460,44 +441,13 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 	}
 
 #ifdef MAC
-	mac_inpcb_create_mbuf(inp, m);
+	mac_socket_create_mbuf(so, m);
 #endif
-	/*
-	 * Get ready to inject the packet into ip_output().
-	 * Just in case socket options were specified on the
-	 * divert socket, we duplicate them.  This is done
-	 * to avoid having to hold the PCB locks over the call
-	 * to ip_output(), as doing this results in a number of
-	 * lock ordering complexities.
-	 *
-	 * Note that we set the multicast options argument for
-	 * ip_output() to NULL since it should be invariant that
-	 * they are not present.
-	 */
-	KASSERT(inp->inp_moptions == NULL,
-	    ("multicast options set on a divert socket"));
-	/*
-	 * XXXCSJP: It is unclear to me whether or not it makes
-	 * sense for divert sockets to have options.  However,
-	 * for now we will duplicate them with the INP locks
-	 * held so we can use them in ip_output() without
-	 * requring a reference to the pcb.
-	 */
-	options = NULL;
-	if (inp->inp_options != NULL) {
-		options = m_dup(inp->inp_options, M_NOWAIT);
-		if (options == NULL) {
-			INP_RUNLOCK(inp);
-			m_freem(m);
-			return (ENOBUFS);
-		}
-	}
-	INP_RUNLOCK(inp);
 
 	error = 0;
 	switch (family) {
 	case AF_INET:
-		error = ip_output(m, options, NULL,
+		error = ip_output(m, NULL, NULL,
 		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
 		    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
 		break;
@@ -509,8 +459,6 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 	}
 	if (error == 0)
 		DIVSTAT_INC(outbound);
-	if (options != NULL)
-		m_freem(options);
 
 	return (error);
 }
@@ -579,11 +527,9 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 static int
 div_attach(struct socket *so, int proto, struct thread *td)
 {
-	struct inpcb *inp;
+	struct divcb *dcb;
 	int error;
 
-	inp  = sotoinpcb(so);
-	KASSERT(inp == NULL, ("div_attach: inp != NULL"));
 	if (td != NULL) {
 		error = priv_check(td, PRIV_NETINET_DIVERT);
 		if (error)
@@ -592,85 +538,90 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	error = soreserve(so, div_sendspace, div_recvspace);
 	if (error)
 		return error;
-	error = in_pcballoc(so, &V_divcbinfo);
-	if (error)
-		return error;
-	inp = (struct inpcb *)so->so_pcb;
-	inp->inp_ip_p = proto;
-	inp->inp_flags |= INP_HDRINCL;
-	INP_WUNLOCK(inp);
-	return 0;
+	dcb = malloc(sizeof(*dcb), M_PCB, M_WAITOK);
+	dcb->dcb_bound = DCB_UNBOUND;
+	dcb->dcb_socket = so;
+	DIVERT_LOCK();
+	V_dcb_count++;
+	dcb->dcb_gencnt = ++V_dcb_gencnt;
+	DIVERT_UNLOCK();
+	so->so_pcb = dcb;
+
+	return (0);
+}
+
+static void
+div_free(epoch_context_t ctx)
+{
+	struct divcb *dcb = __containerof(ctx, struct divcb, dcb_epochctx);
+
+	free(dcb, M_PCB);
 }
 
 static void
 div_detach(struct socket *so)
 {
-	struct inpcb *inp;
+	struct divcb *dcb = so->so_pcb;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("div_detach: inp == NULL"));
-	INP_WLOCK(inp);
-	in_pcbdetach(inp);
-	in_pcbfree(inp);
+	so->so_pcb = NULL;
+	DIVERT_LOCK();
+	if (dcb->dcb_bound != DCB_UNBOUND)
+		SLIST_REMOVE(&V_divhash[DCBHASH(dcb)], dcb, divcb, dcb_next);
+	V_dcb_count--;
+	V_dcb_gencnt++;
+	DIVERT_UNLOCK();
+	NET_EPOCH_CALL(div_free, &dcb->dcb_epochctx);
 }
 
 static int
 div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp;
-	int error;
+	struct divcb *dcb;
+	uint16_t port;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("div_bind: inp == NULL"));
-	/* in_pcbbind assumes that nam is a sockaddr_in
-	 * and in_pcbbind requires a valid address. Since divert
-	 * sockets don't we need to make sure the address is
-	 * filled in properly.
-	 * XXX -- divert should not be abusing in_pcbind
-	 * and should probably have its own family.
-	 */
 	if (nam->sa_family != AF_INET)
 		return EAFNOSUPPORT;
 	if (nam->sa_len != sizeof(struct sockaddr_in))
 		return EINVAL;
-	((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
-	INP_WLOCK(inp);
-	INP_HASH_WLOCK(&V_divcbinfo);
-	error = in_pcbbind(inp, nam, td->td_ucred);
-	INP_HASH_WUNLOCK(&V_divcbinfo);
-	INP_WUNLOCK(inp);
-	return error;
+	port = ((struct sockaddr_in *)nam)->sin_port;
+	DIVERT_LOCK();
+	SLIST_FOREACH(dcb, &V_divhash[DIVHASH(port)], dcb_next)
+		if (dcb->dcb_port == port) {
+			DIVERT_UNLOCK();
+			return (EADDRINUSE);
+		}
+	dcb = so->so_pcb;
+	if (dcb->dcb_bound != DCB_UNBOUND)
+		SLIST_REMOVE(&V_divhash[DCBHASH(dcb)], dcb, divcb, dcb_next);
+	dcb->dcb_port = port;
+	SLIST_INSERT_HEAD(&V_divhash[DIVHASH(port)], dcb, dcb_next);
+	DIVERT_UNLOCK();
+
+	return (0);
 }
 
 static int
 div_shutdown(struct socket *so)
 {
-	struct inpcb *inp;
 
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("div_shutdown: inp == NULL"));
-	INP_WLOCK(inp);
 	socantsendmore(so);
-	INP_WUNLOCK(inp);
 	return 0;
 }
 
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_divcbinfo,
-	    INPLOOKUP_RLOCKPCB);
 	struct xinpgen xig;
-	struct inpcb *inp;
+	struct divcb *dcb;
 	int error;
 
 	if (req->newptr != 0)
 		return EPERM;
 
 	if (req->oldptr == 0) {
-		int n;
+		u_int n;
 
-		n = V_divcbinfo.ipi_count;
+		n = V_dcb_count;
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xinpcb);
 		return 0;
@@ -681,39 +632,45 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 
 	bzero(&xig, sizeof(xig));
 	xig.xig_len = sizeof xig;
-	xig.xig_count = V_divcbinfo.ipi_count;
-	xig.xig_gen = V_divcbinfo.ipi_gencnt;
+	xig.xig_count = V_dcb_count;
+	xig.xig_gen = V_dcb_gencnt;
 	xig.xig_sogen = so_gencnt;
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
 		return error;
 
-	while ((inp = inp_next(&inpi)) != NULL) {
-		if (inp->inp_gencnt <= xig.xig_gen) {
-			struct xinpcb xi;
+	DIVERT_LOCK();
+	for (int i = 0; i < DIVHASHSIZE; i++)
+		SLIST_FOREACH(dcb, &V_divhash[i], dcb_next) {
+			if (dcb->dcb_gencnt <= xig.xig_gen) {
+				struct xinpcb xi;
 
-			in_pcbtoxinpcb(inp, &xi);
-			error = SYSCTL_OUT(req, &xi, sizeof xi);
-			if (error) {
-				INP_RUNLOCK(inp);
-				break;
+				bzero(&xi, sizeof(xi));
+				xi.xi_len = sizeof(struct xinpcb);
+				sotoxsocket(dcb->dcb_socket, &xi.xi_socket);
+				xi.inp_gencnt = dcb->dcb_gencnt;
+				xi.inp_vflag = INP_IPV4; /* XXX: netstat(1) */
+				xi.inp_inc.inc_ie.ie_lport = dcb->dcb_port;
+				error = SYSCTL_OUT(req, &xi, sizeof xi);
+				if (error)
+					goto errout;
 			}
 		}
-	}
 
-	if (!error) {
-		/*
-		 * Give the user an updated idea of our state.
-		 * If the generation differs from what we told
-		 * her before, she knows that something happened
-		 * while we were processing this request, and it
-		 * might be necessary to retry.
-		 */
-		xig.xig_gen = V_divcbinfo.ipi_gencnt;
-		xig.xig_sogen = so_gencnt;
-		xig.xig_count = V_divcbinfo.ipi_count;
-		error = SYSCTL_OUT(req, &xig, sizeof xig);
-	}
+	/*
+	 * Give the user an updated idea of our state.
+	 * If the generation differs from what we told
+	 * her before, she knows that something happened
+	 * while we were processing this request, and it
+	 * might be necessary to retry.
+	 */
+	xig.xig_gen = V_dcb_gencnt;
+	xig.xig_sogen = so_gencnt;
+	xig.xig_count = V_dcb_count;
+	error = SYSCTL_OUT(req, &xig, sizeof xig);
+
+errout:
+	DIVERT_UNLOCK();
 
 	return (error);
 }
@@ -726,13 +683,9 @@ static struct protosw div_protosw = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_attach =		div_attach,
 	.pr_bind =		div_bind,
-	.pr_control =		in_control,
 	.pr_detach =		div_detach,
-	.pr_peeraddr =		in_getpeeraddr,
 	.pr_send =		div_send,
 	.pr_shutdown =		div_shutdown,
-	.pr_sockaddr =		in_getsockaddr,
-	.pr_sosetlabel =	in_pcbsosetlabel
 };
 
 static struct domain divertdomain = {
@@ -775,18 +728,15 @@ div_modevent(module_t mod, int type, void *unused)
 		 * XXXGL: One more reason this code is incorrect is that it
 		 * checks only the current vnet.
 		 */
-		INP_INFO_WLOCK(&V_divcbinfo);
-		if (V_divcbinfo.ipi_count != 0) {
+		DIVERT_LOCK();
+		if (V_dcb_count != 0) {
+			DIVERT_UNLOCK();
 			err = EBUSY;
-			INP_INFO_WUNLOCK(&V_divcbinfo);
 			break;
 		}
+		DIVERT_UNLOCK();
 		ip_divert_ptr = NULL;
 		domain_remove(&divertdomain);
-		INP_INFO_WUNLOCK(&V_divcbinfo);
-#ifndef VIMAGE
-		div_destroy(NULL);
-#endif
 		break;
 	default:
 		err = EOPNOTSUPP;
