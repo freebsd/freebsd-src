@@ -1123,13 +1123,11 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 		   (p == anchor_call ||
 		   *(--p) == '/')) || (opts & PF_OPT_RECURSE))) {
 			brace++;
-			if ((p = strrchr(anchor_call, '/')) !=
-			    NULL)
-				p++;
-			else
-				p = &anchor_call[0];
-		} else
-			p = &anchor_call[0];
+			int aclen = strlen(anchor_call);
+			if (anchor_call[aclen - 1] == '*')
+				anchor_call[aclen - 2] = '\0';
+		}
+		p = &anchor_call[0];
 		if (dotitle) {
 			pfctl_print_title("ETH RULES:");
 			dotitle = 0;
