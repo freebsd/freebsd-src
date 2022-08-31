@@ -1269,9 +1269,14 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		v_wme_ac = TID_TO_WME_AC(EVL_PRIOFTAG(ni->ni_vlan));
 	}
 
+	if (eh == NULL)
+		goto no_eh;
+
 	/* XXX m_copydata may be too slow for fast path */
+	switch (ntohs(eh->ether_type)) {
 #ifdef INET
-	if (eh && eh->ether_type == htons(ETHERTYPE_IP)) {
+	case ETHERTYPE_IP:
+	{
 		uint8_t tos;
 		/*
 		 * IP frame, map the DSCP bits from the TOS field.
@@ -1281,10 +1286,12 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		    offsetof(struct ip, ip_tos), sizeof(tos), &tos);
 		tos >>= 5;		/* NB: ECN + low 3 bits of DSCP */
 		d_wme_ac = TID_TO_WME_AC(tos);
-	} else {
-#endif /* INET */
+		break;
+	}
+#endif
 #ifdef INET6
-	if (eh && eh->ether_type == htons(ETHERTYPE_IPV6)) {
+	case ETHERTYPE_IPV6:
+	{
 		uint32_t flow;
 		uint8_t tos;
 		/*
@@ -1296,15 +1303,15 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		tos = (uint8_t)(ntohl(flow) >> 20);
 		tos >>= 5;		/* NB: ECN + low 3 bits of DSCP */
 		d_wme_ac = TID_TO_WME_AC(tos);
-	} else {
-#endif /* INET6 */
+		break;
+	}
+#endif
+	default:
+no_eh:
 		d_wme_ac = WME_AC_BE;
-#ifdef INET6
+		break;
 	}
-#endif
-#ifdef INET
-	}
-#endif
+
 	/*
 	 * Use highest priority AC.
 	 */
