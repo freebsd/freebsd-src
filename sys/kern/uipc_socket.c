@@ -520,7 +520,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 		    td->td_proc->p_comm);
 	}
 
-	prp = pffindtype(dom, type);
+	prp = pffindproto(dom, type, proto);
 	if (prp == NULL) {
 		/* No support for domain. */
 		if (pffinddomain(dom) == NULL)
@@ -530,8 +530,6 @@ socreate(int dom, struct socket **aso, int type, int proto,
 			return (EPROTOTYPE);
 		return (EPROTONOSUPPORT);
 	}
-	if (prp->pr_protocol != 0 && proto != 0 && prp->pr_protocol != proto)
-		return (EPROTONOSUPPORT);
 
 	MPASS(prp->pr_attach);
 
