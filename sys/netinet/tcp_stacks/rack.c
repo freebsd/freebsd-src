@@ -15883,7 +15883,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	if (TCPS_HAVERCVDSYN(tp->t_state) &&
-	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
+	    (tp->t_flags2 & (TF2_ECN_PERMIT | TF2_ACE_PERMIT))) {
 		int ect = tcp_ecn_output_established(tp, &flags, len, true);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
@@ -16362,7 +16362,7 @@ again:
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 	if (TCPS_HAVERCVDSYN(tp->t_state) &&
-	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
+	    (tp->t_flags2 & (TF2_ECN_PERMIT | TF2_ACE_PERMIT))) {
 		int ect = tcp_ecn_output_established(tp, &flags, len, false);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
@@ -18487,7 +18487,7 @@ send:
 	}
 	/* Also handle parallel SYN for ECN */
 	if (TCPS_HAVERCVDSYN(tp->t_state) &&
-	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
+	    (tp->t_flags2 & (TF2_ECN_PERMIT | TF2_ACE_PERMIT))) {
 		int ect = tcp_ecn_output_established(tp, &flags, len, sack_rxmit);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
@@ -20489,7 +20489,7 @@ rack_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 		ti->tcpi_snd_wscale = tp->snd_scale;
 		ti->tcpi_rcv_wscale = tp->rcv_scale;
 	}
-	if (tp->t_flags2 & TF2_ECN_PERMIT)
+	if (tp->t_flags2 & (TF2_ECN_PERMIT | TF2_ACE_PERMIT))
 		ti->tcpi_options |= TCPI_OPT_ECN;
 	if (tp->t_flags & TF_FASTOPEN)
 		ti->tcpi_options |= TCPI_OPT_TFO;

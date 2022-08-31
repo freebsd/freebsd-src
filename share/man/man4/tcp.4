@@ -495,6 +495,13 @@ Outgoing connections will request ECN.
 Allow incoming connections to request ECN.
 Outgoing connections will not request ECN.
 (default)
+.It 3
+Negotiate on incoming connection for Accurate ECN, ECN, or no ECN.
+Outgoing connections will request Accurate ECN and fall back to
+ECN depending on the capabilities of the server.
+.It 4
+Negotiate on incoming connection for Accurate ECN, ECN, or no ECN.
+Outgoing connections will not request ECN.
 .El
 .It Va ecn.maxretries
 Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a

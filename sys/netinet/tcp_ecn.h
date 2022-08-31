@@ -49,6 +49,7 @@ int	 tcp_ecn_output_established(struct tcpcb *, uint16_t *, int, bool);
 void	 tcp_ecn_syncache_socket(struct tcpcb *, struct syncache *);
 int	 tcp_ecn_syncache_add(uint16_t, int);
 uint16_t tcp_ecn_syncache_respond(uint16_t, struct syncache *);
+int	 tcp_ecn_get_ace(uint16_t);
 
 #endif /* _KERNEL */
 
