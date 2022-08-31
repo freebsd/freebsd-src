@@ -467,11 +467,13 @@ int
 irdma_resolve_neigh_lpb_chk(struct irdma_device *iwdev, struct irdma_cm_node *cm_node,
 			    struct irdma_cm_info *cm_info)
 {
+	struct rdma_cm_id *rdma_id = (struct rdma_cm_id *)cm_node->cm_id->context;
+	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
 	int arpindex;
 	int oldarpindex;
 
 	if ((cm_node->ipv4 &&
-	     irdma_ipv4_is_lpb(cm_node->loc_addr[0], cm_node->rem_addr[0])) ||
+	     irdma_ipv4_is_lpb(vnet, cm_node->loc_addr[0], cm_node->rem_addr[0])) ||
 	    (!cm_node->ipv4 &&
 	     irdma_ipv6_is_lpb(cm_node->loc_addr, cm_node->rem_addr))) {
 		cm_node->do_lpb = true;
