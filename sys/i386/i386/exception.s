@@ -251,7 +251,6 @@ irettraps:
 	cmpl	%edx, TF_EIP(%esp)
 	jne	calltrap
 	movl	$(2 * TF_SZ - TF_FS - 8), %ecx
-	jmp	6f
 5:	cmpl	$PMAP_TRM_MIN_ADDRESS, %esp	/* trampoline stack ? */
 	jb	calltrap	  /* if not, no need to change stacks */
 	movl	(tramp_idleptd - 1b)(%ebx), %eax
