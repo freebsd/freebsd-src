@@ -1816,7 +1816,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		else
 #endif
 			qos[1] = 0;
-		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
+		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS_DATA;
 
 		/*
 		 * If this is an A-MSDU then ensure we set the
