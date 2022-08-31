@@ -290,7 +290,7 @@ pffinddomain(int family)
 }
 
 struct protosw *
-pffindtype(int family, int type)
+pffindproto(int family, int type, int proto)
 {
 	struct domain *dp;
 	struct protosw *pr;
@@ -300,7 +300,9 @@ pffindtype(int family, int type)
 		return (NULL);
 
 	for (int i = 0; i < dp->dom_nprotosw; i++)
-		if ((pr = dp->dom_protosw[i]) != NULL && pr->pr_type == type)
+		if ((pr = dp->dom_protosw[i]) != NULL && pr->pr_type == type &&
+		    (pr->pr_protocol == 0 || proto == 0 ||
+		     pr->pr_protocol == proto))
 			return (pr);
 
 	return (NULL);

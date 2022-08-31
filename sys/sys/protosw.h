@@ -236,7 +236,7 @@ char	*prcorequests[] = {
 
 #ifdef _KERNEL
 struct domain *pffinddomain(int family);
-struct protosw *pffindtype(int family, int type);
+struct protosw *pffindproto(int family, int type, int proto);
 int protosw_register(struct domain *, struct protosw *);
 int protosw_unregister(struct protosw *);
 
