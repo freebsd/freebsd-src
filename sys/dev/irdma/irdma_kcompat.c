@@ -284,7 +284,8 @@ irdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 }
 
 static void
-irdma_fill_ah_info(struct irdma_ah_info *ah_info,
+irdma_fill_ah_info(struct vnet *vnet,
+		   struct irdma_ah_info *ah_info,
 		   const struct ib_gid_attr *sgid_attr,
 		   struct sockaddr *sgid_addr, struct sockaddr *dgid_addr,
 		   u8 *dmac, u8 net_type)
@@ -295,7 +296,8 @@ irdma_fill_ah_info(struct irdma_ah_info *ah_info,
 		    ntohl(((struct sockaddr_in *)dgid_addr)->sin_addr.s_addr);
 		ah_info->src_ip_addr[0] =
 		    ntohl(((struct sockaddr_in *)sgid_addr)->sin_addr.s_addr);
-		ah_info->do_lpbk = irdma_ipv4_is_lpb(ah_info->src_ip_addr[0],
+		ah_info->do_lpbk = irdma_ipv4_is_lpb(vnet,
+						     ah_info->src_ip_addr[0],
 						     ah_info->dest_ip_addr[0]);
 		if (ipv4_is_multicast(((struct sockaddr_in *)dgid_addr)->sin_addr.s_addr)) {
 			irdma_mcast_mac_v4(ah_info->dest_ip_addr, dmac);
@@ -440,7 +442,8 @@ irdma_create_ah(struct ib_ah *ib_ah,
 
 	ether_addr_copy(dmac, attr->dmac);
 
-	irdma_fill_ah_info(ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
+	irdma_fill_ah_info(iwdev->netdev->if_vnet,
+			   ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
 			   dmac, ah->av.net_type);
 
 	err = irdma_create_ah_vlan_tag(iwdev, ah_info, &sgid_attr, dmac);

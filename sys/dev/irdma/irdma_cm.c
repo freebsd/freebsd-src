@@ -2055,9 +2055,15 @@ irdma_add_hte_node(struct irdma_cm_core *cm_core,
  * @rem_addr: remote address
  */
 bool
-irdma_ipv4_is_lpb(u32 loc_addr, u32 rem_addr)
+irdma_ipv4_is_lpb(struct vnet *vnet, u32 loc_addr, u32 rem_addr)
 {
-	return ipv4_is_loopback(htonl(rem_addr)) || (loc_addr == rem_addr);
+	bool ret;
+
+	CURVNET_SET_QUIET(vnet);
+	ret = ipv4_is_loopback(htonl(rem_addr)) || (loc_addr == rem_addr);
+	CURVNET_RESTORE();
+
+	return (ret);
 }
 
 /**
@@ -2083,6 +2089,8 @@ irdma_ipv6_is_lpb(u32 *loc_addr, u32 *rem_addr)
 static int
 irdma_cm_create_ah(struct irdma_cm_node *cm_node, bool wait)
 {
+	struct rdma_cm_id *rdma_id = (struct rdma_cm_id *)cm_node->cm_id->context;
+	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
 	struct irdma_ah_info ah_info = {0};
 	struct irdma_device *iwdev = cm_node->iwdev;
 
@@ -2096,7 +2104,8 @@ irdma_cm_create_ah(struct irdma_cm_node *cm_node, bool wait)
 		ah_info.ipv4_valid = true;
 		ah_info.dest_ip_addr[0] = cm_node->rem_addr[0];
 		ah_info.src_ip_addr[0] = cm_node->loc_addr[0];
-		ah_info.do_lpbk = irdma_ipv4_is_lpb(ah_info.src_ip_addr[0],
+		ah_info.do_lpbk = irdma_ipv4_is_lpb(vnet,
+						    ah_info.src_ip_addr[0],
 						    ah_info.dest_ip_addr[0]);
 	} else {
 		memcpy(ah_info.dest_ip_addr, cm_node->rem_addr,
