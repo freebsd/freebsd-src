@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2022
+.Dd August 31, 2022
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -216,7 +216,9 @@ Use the NFS Version 3 protocol.
 Use the NFS Version 4 protocol.
 This option will force the mount to use
 TCP transport.
-Make sure that all your NFS Version 4 clients have unique /etc/hostid's.
+Make sure that all your NFS Version 4 clients have unique
+values in
+.Pa /etc/hostid .
 .It Cm minorversion Ns = Ns Aq Ar value
 Override the default of 0 for the minor version of the NFS Version 4 protocol.
 The only minor version currently supported is 1.
