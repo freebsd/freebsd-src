@@ -43,7 +43,7 @@ SRCS+=	libpmc_events.c
 
 WARNS?=	3
 
-CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR} -I${SRCTOP}/sys
 CWARNFLAGS.gcc+= -Wno-shadow -Wno-cast-align
 
 # Silence warnings about usage of deprecated std::auto_ptr

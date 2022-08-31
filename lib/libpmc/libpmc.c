@@ -1440,14 +1440,11 @@ pmc_init(void)
 		memcpy(&cpu_info.pm_classes[n], &op_cpu_info.pm_classes[n],
 		    sizeof(cpu_info.pm_classes[n]));
 
-	pmc_class_table = malloc(PMC_CLASS_TABLE_SIZE *
+	pmc_class_table = calloc(PMC_CLASS_TABLE_SIZE,
 	    sizeof(struct pmc_class_descr *));
 
 	if (pmc_class_table == NULL)
 		return (-1);
-
-	for (n = 0; n < PMC_CLASS_TABLE_SIZE; n++)
-		pmc_class_table[n] = NULL;
 
 	/*
 	 * Get soft events list.
@@ -1472,19 +1469,97 @@ pmc_init(void)
 	 * Fill in the class table.
 	 */
 	n = 0;
+	for (unsigned i = 0; i < PMC_CLASS_TABLE_SIZE; i++) {
+		switch (cpu_info.pm_classes[i].pm_class) {
+#if defined(__amd64__) || defined(__i386__)
+		case PMC_CLASS_TSC:
+			pmc_class_table[n++] = &tsc_class_table_descr;
+			break;
 
-	/* Fill soft events information. */
-	pmc_class_table[n++] = &soft_class_table_descr;
+		case PMC_CLASS_K8:
+			pmc_class_table[n++] = &k8_class_table_descr;
+			break;
+#endif
+
+		case PMC_CLASS_SOFT:
+			pmc_class_table[n++] = &soft_class_table_descr;
+			break;
+
+#if defined(__arm__)
+		case PMC_CLASS_ARMV7:
+			switch (cpu_info.pm_cputype) {
+			case PMC_CPU_ARMV7_CORTEX_A8:
+				pmc_class_table[n++] =
+				    &cortex_a8_class_table_descr;
+				break;
+			case PMC_CPU_ARMV7_CORTEX_A9:
+				pmc_class_table[n++] =
+				    &cortex_a9_class_table_descr;
+				break;
+			default:
+				errno = ENXIO;
+				return (pmc_syscall = -1);
+			}
+			break;
+#endif
 
 #if defined(__aarch64__)
-	pmc_class_table[n++] = &cmn600_pmu_class_table_descr;
-	pmc_class_table[n++] = &dmc620_pmu_cd2_class_table_descr;
-	pmc_class_table[n++] = &dmc620_pmu_c_class_table_descr;
+		case PMC_CLASS_ARMV8:
+			switch (cpu_info.pm_cputype) {
+			case PMC_CPU_ARMV8_CORTEX_A53:
+				pmc_class_table[n++] =
+				    &cortex_a53_class_table_descr;
+				break;
+			case PMC_CPU_ARMV8_CORTEX_A57:
+				pmc_class_table[n++] =
+				    &cortex_a57_class_table_descr;
+				break;
+			case PMC_CPU_ARMV8_CORTEX_A76:
+				pmc_class_table[n++] =
+				    &cortex_a76_class_table_descr;
+				break;
+			default:
+				errno = ENXIO;
+				return (pmc_syscall = -1);
+			}
+			break;
+
+		case PMC_CLASS_DMC620_PMU_CD2:
+			pmc_class_table[n++] =
+			    &dmc620_pmu_cd2_class_table_descr;
+			break;
+
+		case PMC_CLASS_DMC620_PMU_C:
+			pmc_class_table[n++] = &dmc620_pmu_c_class_table_descr;
+			break;
+
+		case PMC_CLASS_CMN600_PMU:
+			pmc_class_table[n++] = &cmn600_pmu_class_table_descr;
+			break;
 #endif
-#if defined(__amd64__) || defined(__i386__)
-	if (cpu_info.pm_cputype != PMC_CPU_GENERIC)
-		pmc_class_table[n++] = &tsc_class_table_descr;
+
+#if defined(__powerpc__)
+		case PMC_CLASS_PPC7450:
+			pmc_class_table[n++] = &ppc7450_class_table_descr;
+			break;
+
+		case PMC_CLASS_PPC970:
+			pmc_class_table[n++] = &ppc970_class_table_descr;
+			break;
+
+		case PMC_CLASS_E500:
+			pmc_class_table[n++] = &e500_class_table_descr;
+			break;
 #endif
+
+		default:
+#if defined(DEBUG)
+			printf("pm_class: 0x%x\n",
+			    cpu_info.pm_classes[i].pm_class);
+#endif
+			break;
+		}
+	}
 
 #define	PMC_MDEP_INIT(C) pmc_mdep_event_aliases = C##_aliases
 
@@ -1493,7 +1568,6 @@ pmc_init(void)
 #if defined(__amd64__) || defined(__i386__)
 	case PMC_CPU_AMD_K8:
 		PMC_MDEP_INIT(k8);
-		pmc_class_table[n] = &k8_class_table_descr;
 		break;
 #endif
 	case PMC_CPU_GENERIC:
@@ -1502,39 +1576,31 @@ pmc_init(void)
 #if defined(__arm__)
 	case PMC_CPU_ARMV7_CORTEX_A8:
 		PMC_MDEP_INIT(cortex_a8);
-		pmc_class_table[n] = &cortex_a8_class_table_descr;
 		break;
 	case PMC_CPU_ARMV7_CORTEX_A9:
 		PMC_MDEP_INIT(cortex_a9);
-		pmc_class_table[n] = &cortex_a9_class_table_descr;
 		break;
 #endif
 #if defined(__aarch64__)
 	case PMC_CPU_ARMV8_CORTEX_A53:
 		PMC_MDEP_INIT(cortex_a53);
-		pmc_class_table[n] = &cortex_a53_class_table_descr;
 		break;
 	case PMC_CPU_ARMV8_CORTEX_A57:
 		PMC_MDEP_INIT(cortex_a57);
-		pmc_class_table[n] = &cortex_a57_class_table_descr;
 		break;
 	case PMC_CPU_ARMV8_CORTEX_A76:
 		PMC_MDEP_INIT(cortex_a76);
-		pmc_class_table[n] = &cortex_a76_class_table_descr;
 		break;
 #endif
 #if defined(__powerpc__)
 	case PMC_CPU_PPC_7450:
 		PMC_MDEP_INIT(ppc7450);
-		pmc_class_table[n] = &ppc7450_class_table_descr;
 		break;
 	case PMC_CPU_PPC_970:
 		PMC_MDEP_INIT(ppc970);
-		pmc_class_table[n] = &ppc970_class_table_descr;
 		break;
 	case PMC_CPU_PPC_E500:
 		PMC_MDEP_INIT(e500);
-		pmc_class_table[n] = &e500_class_table_descr;
 		break;
 #endif
 	default:
