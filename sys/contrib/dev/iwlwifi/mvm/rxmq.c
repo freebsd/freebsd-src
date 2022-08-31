@@ -963,7 +963,11 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	bool amsdu = desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU;
 	bool last_subframe =
 		desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME;
+#if defined(__linux__)
 	u8 tid = ieee80211_get_tid(hdr);
+#elif defined(__FreeBSD__)
+	u8 tid;
+#endif
 	u8 sub_frame_idx = desc->amsdu_info &
 			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
 	struct iwl_mvm_reorder_buf_entry *entries;
@@ -1008,6 +1012,9 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		return false;
 	}
 
+#if defined(__FreeBSD__)
+	tid = ieee80211_get_tid(hdr);
+#endif
 	if (WARN(tid != baid_data->tid || mvm_sta->sta_id != baid_data->sta_id,
 		 "baid 0x%x is mapped to sta:%d tid:%d, but was received for sta:%d tid:%d\n",
 		 baid, baid_data->sta_id, baid_data->tid, mvm_sta->sta_id,
