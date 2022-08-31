@@ -441,7 +441,7 @@ void irdma_cm_teardown_connections(struct irdma_device *iwdev, u32 *ipaddr,
 				   bool disconnect_all);
 int irdma_cm_start(struct irdma_device *dev);
 int irdma_cm_stop(struct irdma_device *dev);
-bool irdma_ipv4_is_lpb(u32 loc_addr, u32 rem_addr);
+bool irdma_ipv4_is_lpb(struct vnet *, u32 loc_addr, u32 rem_addr);
 bool irdma_ipv6_is_lpb(u32 *loc_addr, u32 *rem_addr);
 int irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr,
 		    u8 *mac_addr, u32 action);
