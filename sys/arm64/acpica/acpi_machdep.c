@@ -194,6 +194,9 @@ acpi_find_table(const char *sig)
 				break;
 			}
 		acpi_unmap_table(xsdt);
+	} else {
+		printf("ACPI: Unsupported RSDP version %d and XSDT %#llx\n",
+		    rsdp->Revision, rsdp->XsdtPhysicalAddress);
 	}
 	pmap_unmapbios((vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
 
