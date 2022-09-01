@@ -184,8 +184,7 @@ acpi_find_table(const char *sig)
 		return (0);
 	rsdp = pmap_mapbios(rsdp_ptr, sizeof(ACPI_TABLE_RSDP));
 	if (rsdp == NULL) {
-		if (bootverbose)
-			printf("ACPI: Failed to map RSDP\n");
+		printf("ACPI: Failed to map RSDP\n");
 		return (0);
 	}
 
@@ -201,16 +200,14 @@ acpi_find_table(const char *sig)
 		 * an additional checksum that we verify first.
 		 */
 		if (AcpiTbChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
-			if (bootverbose)
-				printf("ACPI: RSDP failed extended checksum\n");
+			printf("ACPI: RSDP failed extended checksum\n");
 			pmap_unmapbios((vm_offset_t)rsdp,
 			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
-			if (bootverbose)
-				printf("ACPI: Failed to map XSDT\n");
+			printf("ACPI: Failed to map XSDT\n");
 			pmap_unmapbios((vm_offset_t)rsdp,
 			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
@@ -226,8 +223,7 @@ acpi_find_table(const char *sig)
 	} else {
 		rsdt = map_table(rsdp->RsdtPhysicalAddress, ACPI_SIG_RSDT);
 		if (rsdt == NULL) {
-			if (bootverbose)
-				printf("ACPI: Failed to map RSDT\n");
+			printf("ACPI: Failed to map RSDT\n");
 			pmap_unmapbios((vm_offset_t)rsdp,
 			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
