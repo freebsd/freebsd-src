@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <bootstrap.h>
 #include "host_syscall.h"
-
+#include "kboot.h"
 
 struct arch_switch	archsw;
 extern void *_end;
@@ -261,8 +261,11 @@ main(int argc, const char **argv)
 	const size_t heapsize = 15*1024*1024;
 	const char *bootdev;
 
+	/* Give us a sane world if we're running as init */
+	do_init();
+
 	/*
-	 * Set the heap to one page after the end of the loader.
+	 * Setup the heap 15MB should be plenty
 	 */
 	heapbase = host_getmem(heapsize);
 	setheap(heapbase, heapbase + heapsize);
