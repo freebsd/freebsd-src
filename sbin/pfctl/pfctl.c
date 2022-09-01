@@ -100,7 +100,7 @@ int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 void	 pfctl_print_eth_rule_counters(struct pfctl_eth_rule *, int);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
 int	 pfctl_show_eth_rules(int, char *, int, enum pfctl_show, char *, int);
-int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int);
+int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int, int);
 int	 pfctl_show_nat(int, char *, int, char *, int);
 int	 pfctl_show_src_nodes(int, int);
 int	 pfctl_show_states(int, const char *, int);
@@ -1153,7 +1153,7 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 int
 pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
-    char *anchorname, int depth)
+    char *anchorname, int depth, int wildcard)
 {
 	struct pfctl_rules_info ri;
 	struct pfctl_rule rule;
@@ -1161,15 +1161,65 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	u_int32_t nr, header = 0;
 	int rule_numbers = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
 	int numeric = opts & PF_OPT_NUMERIC;
-	int len = strlen(path);
-	int brace;
-	int ret;
-	char *p;
+	int len = strlen(path), ret = 0;
+	char *npath, *p;
 
-	if (path[0])
-		snprintf(&path[len], MAXPATHLEN - len, "/%s", anchorname);
-	else
-		snprintf(&path[len], MAXPATHLEN - len, "%s", anchorname);
+	/*
+	 * Truncate a trailing / and * on an anchorname before searching for
+	 * the ruleset, this is syntactic sugar that doesn't actually make it
+	 * to the kernel.
+	 */
+	if ((p = strrchr(anchorname, '/')) != NULL &&
+	    p[1] == '*' && p[2] == '\0') {
+		p[0] = '\0';
+	}
+
+	if (anchorname[0] == '/') {
+		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
+			errx(1, "pfctl_rules: calloc");
+		snprintf(npath, MAXPATHLEN, "%s", anchorname);
+	} else {
+		if (path[0])
+			snprintf(&path[len], MAXPATHLEN - len, "/%s", anchorname);
+		else
+			snprintf(&path[len], MAXPATHLEN - len, "%s", anchorname);
+		npath = path;
+	}
+
+	/*
+	 * If this anchor was called with a wildcard path, go through
+	 * the rulesets in the anchor rather than the rules.
+	 */
+	if (wildcard && (opts & PF_OPT_RECURSE)) {
+		struct pfioc_ruleset     prs;
+		u_int32_t                mnr, nr;
+
+		memset(&prs, 0, sizeof(prs));
+		memcpy(prs.path, npath, sizeof(prs.path));
+		if (ioctl(dev, DIOCGETRULESETS, &prs)) {
+			if (errno == EINVAL)
+				fprintf(stderr, "Anchor '%s' "
+				    "not found.\n", anchorname);
+			else
+				err(1, "DIOCGETRULESETS");
+		}
+		mnr = prs.nr;
+
+		pfctl_print_rule_counters(&rule, opts);
+		for (nr = 0; nr < mnr; ++nr) {
+			prs.nr = nr;
+			if (ioctl(dev, DIOCGETRULESET, &prs))
+				err(1, "DIOCGETRULESET");
+			INDENT(depth, !(opts & PF_OPT_VERBOSE));
+			printf("anchor \"%s\" all {\n", prs.name);
+			pfctl_show_rules(dev, npath, opts,
+			    format, prs.name, depth + 1, 0);
+			INDENT(depth, !(opts & PF_OPT_VERBOSE));
+			printf("}\n");
+		}
+		path[len] = '\0';
+		return (0);
+	}
 
 	if (opts & PF_OPT_SHOWALL) {
 		ret = pfctl_get_rules_info(dev, &ri, PF_PASS, path);
@@ -1260,32 +1310,30 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			break;
 		}
 		case PFCTL_SHOW_RULES:
-			brace = 0;
 			if (rule.label[0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
+			print_rule(&rule, anchor_call, rule_numbers, numeric);
+
+			/*
+			 * If this is a 'unnamed' brace notation
+			 * anchor, OR the user has explicitly requested
+			 * recursion, print it recursively.
+			 */
 			if (anchor_call[0] &&
-			   ((((p = strrchr(anchor_call, '_')) != NULL) &&
-			   ((void *)p == (void *)anchor_call ||
-			   *(--p) == '/')) || (opts & PF_OPT_RECURSE))) {
-				brace++;
-				int aclen = strlen(anchor_call);
-				if (anchor_call[aclen - 1] == '*')
-					anchor_call[aclen - 2] = '\0';
-			}
-			p = &anchor_call[0];
-		
-			print_rule(&rule, p, rule_numbers, numeric);
-			if (brace)
+			    (((p = strrchr(anchor_call, '/')) ?
+			      p[1] == '_' : anchor_call[0] == '_') ||
+			     opts & PF_OPT_RECURSE)) {
 				printf(" {\n");
-			else
-				printf("\n");
-			pfctl_print_rule_counters(&rule, opts);
-			if (brace) { 
-				pfctl_show_rules(dev, path, opts, format,
-				    p, depth + 1);
+				pfctl_print_rule_counters(&rule, opts);
+				pfctl_show_rules(dev, npath, opts, format,
+				    anchor_call, depth + 1,
+				    rule.anchor_wildcard);
 				INDENT(depth, !(opts & PF_OPT_VERBOSE));
 				printf("}\n");
+			} else {
+				printf("\n");
+				pfctl_print_rule_counters(&rule, opts);
 			}
 			break;
 		case PFCTL_SHOW_NOTHING:
@@ -1293,12 +1341,10 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 		pfctl_clear_pool(&rule.rpool);
 	}
-	path[len] = '\0';
-	return (0);
 
  error:
 	path[len] = '\0';
-	return (-1);
+	return (ret);
 }
 
 int
@@ -1909,7 +1955,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 
 	if (pf->opts & PF_OPT_VERBOSE) {
 		INDENT(depth, !(pf->opts & PF_OPT_VERBOSE2));
-		print_rule(r, r->anchor ? r->anchor->name : "",
+		print_rule(r, name,
 		    pf->opts & PF_OPT_VERBOSE2,
 		    pf->opts & PF_OPT_NUMERIC);
 		if (was_present)
@@ -2908,12 +2954,12 @@ main(int argc, char *argv[])
 		case 'r':
 			pfctl_load_fingerprints(dev, opts);
 			pfctl_show_rules(dev, path, opts, PFCTL_SHOW_RULES,
-			    anchorname, 0);
+			    anchorname, 0, 0);
 			break;
 		case 'l':
 			pfctl_load_fingerprints(dev, opts);
 			pfctl_show_rules(dev, path, opts, PFCTL_SHOW_LABELS,
-			    anchorname, 0);
+			    anchorname, 0, 0);
 			break;
 		case 'n':
 			pfctl_load_fingerprints(dev, opts);
@@ -2951,12 +2997,12 @@ main(int argc, char *argv[])
 			pfctl_show_eth_rules(dev, path, opts, 0, anchorname, 0);
 
 			pfctl_show_nat(dev, path, opts, anchorname, 0);
-			pfctl_show_rules(dev, path, opts, 0, anchorname, 0);
+			pfctl_show_rules(dev, path, opts, 0, anchorname, 0, 0);
 			pfctl_show_altq(dev, ifaceopt, opts, 0);
 			pfctl_show_states(dev, ifaceopt, opts);
 			pfctl_show_src_nodes(dev, opts);
 			pfctl_show_status(dev, opts);
-			pfctl_show_rules(dev, path, opts, 1, anchorname, 0);
+			pfctl_show_rules(dev, path, opts, 1, anchorname, 0, 0);
 			pfctl_show_timeouts(dev, opts);
 			pfctl_show_limits(dev, opts);
 			pfctl_show_tables(anchorname, opts);
@@ -2979,7 +3025,7 @@ main(int argc, char *argv[])
 		pfctl_show_eth_rules(dev, path, opts, PFCTL_SHOW_NOTHING,
 		    anchorname, 0);
 		pfctl_show_rules(dev, path, opts, PFCTL_SHOW_NOTHING,
-		    anchorname, 0);
+		    anchorname, 0, 0);
 	}
 
 	if (clearopt != NULL) {
