@@ -19,7 +19,7 @@ by Roberto Ierusalimschy, Luiz Henrique de Figueiredo, Waldemar Celes
 
 <P>
 <SMALL>
-Copyright &copy; 2020 Lua.org, PUC-Rio.
+Copyright &copy; 2020&ndash;2021 Lua.org, PUC-Rio.
 Freely available under the terms of the
 <a href="http://www.lua.org/license.html">Lua license</a>.
 </SMALL>
@@ -143,6 +143,11 @@ The type <em>boolean</em> has two values, <b>false</b> and <b>true</b>.
 Both <b>nil</b> and <b>false</b> make a condition false;
 they are collectively called <em>false values</em>.
 Any other value makes a condition true.
+Despite its name,
+<b>false</b> is frequently used as an alternative to <b>nil</b>,
+with the key difference that <b>false</b> behaves
+like a regular value in a table,
+while a <b>nil</b> in a table represents an absent key.
 
 
 <p>
@@ -434,7 +439,7 @@ under certain events.
 You can change several aspects of the behavior
 of a value by setting specific fields in its metatable.
 For instance, when a non-numeric value is the operand of an addition,
-Lua checks for a function in the field "<code>__add</code>" of the value's metatable.
+Lua checks for a function in the field <code>__add</code> of the value's metatable.
 If it finds one,
 Lua calls this function to perform the addition.
 
@@ -901,7 +906,7 @@ For an object (table or userdata) to be finalized when collected,
 you must <em>mark</em> it for finalization.
 
 You mark an object for finalization when you set its metatable
-and the metatable has a field indexed by the string "<code>__gc</code>".
+and the metatable has a <code>__gc</code> metamethod.
 Note that if you set a metatable without a <code>__gc</code> field
 and later create that field in the metatable,
 the object will not be marked for finalization.
@@ -1992,16 +1997,8 @@ they are closed in the reverse order that they were declared.
 If there is any error while running a closing method,
 that error is handled like an error in the regular code
 where the variable was defined.
-However, Lua may call the method one more time.
-
-
-<p>
 After an error,
 the other pending closing methods will still be called.
-Errors in these methods
-interrupt the respective method and generate a warning,
-but are otherwise ignored;
-the error reported is only the original one.
 
 
 <p>
@@ -3763,6 +3760,29 @@ will probably need to close states as soon as they are not needed.
 
 
 
+<hr><h3><a name="lua_closeslot"><code>lua_closeslot</code></a></h3><p>
+<span class="apii">[-0, +0, <em>e</em>]</span>
+<pre>void lua_closeslot (lua_State *L, int index);</pre>
+
+<p>
+Close the to-be-closed slot at the given index and set its value to <b>nil</b>.
+The index must be the last index previously marked to be closed
+(see <a href="#lua_toclose"><code>lua_toclose</code></a>) that is still active (that is, not closed yet).
+
+
+<p>
+A <code>__close</code> metamethod cannot yield
+when called through this function.
+
+
+<p>
+(Exceptionally, this function was introduced in release 5.4.3.
+It is not present in previous 5.4 releases.)
+
+
+
+
+
 <hr><h3><a name="lua_compare"><code>lua_compare</code></a></h3><p>
 <span class="apii">[-0, +0, <em>e</em>]</span>
 <pre>int lua_compare (lua_State *L, int index1, int index2, int op);</pre>
@@ -4657,11 +4677,7 @@ except that it allows the called function to yield (see <a href="#4.5">&sect;4.5
 
 <p>
 Pops <code>n</code> elements from the stack.
-
-
-<p>
-This function can run arbitrary code when removing an index
-marked as to-be-closed from the stack.
+It is implemented as a macro over <a href="#lua_settop"><code>lua_settop</code></a>.
 
 
 
@@ -5140,10 +5156,12 @@ and then pops the top element.
 Resets a thread, cleaning its call stack and closing all pending
 to-be-closed variables.
 Returns a status code:
-<a href="#pdf-LUA_OK"><code>LUA_OK</code></a> for no errors in closing methods,
+<a href="#pdf-LUA_OK"><code>LUA_OK</code></a> for no errors in the thread
+(either the original error that stopped the thread or
+errors in closing methods),
 or an error status otherwise.
 In case of error,
-leaves the error object on the top of the stack,
+leaves the error object on the top of the stack.
 
 
 
@@ -5466,28 +5484,24 @@ otherwise, returns <code>NULL</code>.
 
 <p>
 Marks the given index in the stack as a
-to-be-closed "variable" (see <a href="#3.3.8">&sect;3.3.8</a>).
+to-be-closed slot (see <a href="#3.3.8">&sect;3.3.8</a>).
 Like a to-be-closed variable in Lua,
-the value at that index in the stack will be closed
+the value at that slot in the stack will be closed
 when it goes out of scope.
 Here, in the context of a C function,
 to go out of scope means that the running function returns to Lua,
-there is an error,
-or the index is removed from the stack through
-<a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>.
-An index marked as to-be-closed should not be removed from the stack
-by any other function in the API except <a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>.
+or there is an error,
+or the slot is removed from the stack through
+<a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>,
+or there is a call to <a href="#lua_closeslot"><code>lua_closeslot</code></a>.
+A slot marked as to-be-closed should not be removed from the stack
+by any other function in the API except <a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>,
+unless previously deactivated by <a href="#lua_closeslot"><code>lua_closeslot</code></a>.
 
 
 <p>
 This function should not be called for an index
-that is equal to or below an active to-be-closed index.
-
-
-<p>
-In the case of an out-of-memory error,
-the value in the given index is immediately closed,
-as if it was already marked.
+that is equal to or below an active to-be-closed slot.
 
 
 <p>
@@ -5495,7 +5509,7 @@ Note that, both in case of errors and of a regular return,
 by the time the <code>__close</code> metamethod runs,
 the C&nbsp;stack was already unwound,
 so that any automatic C&nbsp;variable declared in the calling function
-will be out of scope.
+(e.g., a buffer) will be out of scope.
 
 
 
@@ -8398,7 +8412,9 @@ that is,
 closes all its pending to-be-closed variables
 and puts the coroutine in a dead state.
 The given coroutine must be dead or suspended.
-In case of error closing some variable,
+In case of error
+(either the original error that stopped the coroutine or
+errors in closing methods),
 returns <b>false</b> plus the error object;
 otherwise returns <b>true</b>.
 
@@ -9960,23 +9976,23 @@ from <code>list[1]</code> to <code>list[#list]</code>.
 If <code>comp</code> is given,
 then it must be a function that receives two list elements
 and returns true when the first element must come
-before the second in the final order
-(so that, after the sort,
-<code>i &lt; j</code> implies <code>not comp(list[j],list[i])</code>).
+before the second in the final order,
+so that, after the sort,
+<code>i &lt;= j</code> implies <code>not comp(list[j],list[i])</code>.
 If <code>comp</code> is not given,
 then the standard Lua operator <code>&lt;</code> is used instead.
 
 
 <p>
-Note that the <code>comp</code> function must define
-a strict partial order over the elements in the list;
-that is, it must be asymmetric and transitive.
-Otherwise, no valid sort may be possible.
+The <code>comp</code> function must define a consistent order;
+more formally, the function must define a strict weak order.
+(A weak order is similar to a total order,
+but it can equate different elements for comparison purposes.)
 
 
 <p>
 The sort algorithm is not stable:
-elements considered equal by the given order
+Different elements considered equal by the given order
 may have their relative positions changed by the sort.
 
 
@@ -11908,10 +11924,10 @@ and LiteralString, see <a href="#3.1">&sect;3.1</a>.)
 
 <P CLASS="footer">
 Last update:
-Fri Nov 13 15:35:22 UTC 2020
+Mon Mar 15 13:39:42 UTC 2021
 </P>
 <!--
-Last change: revised for Lua 5.4.2
+Last change: revised for Lua 5.4.3
 -->
 
 </body></html>

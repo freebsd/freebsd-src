@@ -39,7 +39,7 @@ const char lua_ident[] =
 
 
 /*
-** Test for a valid index.
+** Test for a valid index (one that is not the 'nilvalue').
 ** '!ttisnil(o)' implies 'o != &G(L)->nilvalue', so it is not needed.
 ** However, it covers the most common cases in a faster way.
 */
@@ -74,7 +74,8 @@ static TValue *index2value (lua_State *L, int idx) {
       return &G(L)->nilvalue;  /* it has no upvalues */
     else {
       CClosure *func = clCvalue(s2v(ci->func));
-      return (idx <= func->nupvalues) ? &func->upvalue[idx-1] : &G(L)->nilvalue;
+      return (idx <= func->nupvalues) ? &func->upvalue[idx-1]
+                                      : &G(L)->nilvalue;
     }
   }
 }
@@ -172,7 +173,7 @@ LUA_API int lua_gettop (lua_State *L) {
 
 LUA_API void lua_settop (lua_State *L, int idx) {
   CallInfo *ci;
-  StkId func;
+  StkId func, newtop;
   ptrdiff_t diff;  /* difference for new top */
   lua_lock(L);
   ci = L->ci;
@@ -187,9 +188,26 @@ LUA_API void lua_settop (lua_State *L, int idx) {
     api_check(L, -(idx+1) <= (L->top - (func + 1)), "invalid new top");
     diff = idx + 1;  /* will "subtract" index (as it is negative) */
   }
-  if (diff < 0 && hastocloseCfunc(ci->nresults))
-    luaF_close(L, L->top + diff, LUA_OK);
-  L->top += diff;  /* correct top only after closing any upvalue */
+  api_check(L, L->tbclist < L->top, "previous pop of an unclosed slot");
+  newtop = L->top + diff;
+  if (diff < 0 && L->tbclist >= newtop) {
+    lua_assert(hastocloseCfunc(ci->nresults));
+    luaF_close(L, newtop, CLOSEKTOP, 0);
+  }
+  L->top = newtop;  /* correct top only after closing any upvalue */
+  lua_unlock(L);
+}
+
+
+LUA_API void lua_closeslot (lua_State *L, int idx) {
+  StkId level;
+  lua_lock(L);
+  level = index2stack(L, idx);
+  api_check(L, hastocloseCfunc(L->ci->nresults) && L->tbclist == level,
+     "no variable to close at given level");
+  luaF_close(L, level, CLOSEKTOP, 0);
+  level = index2stack(L, idx);  /* stack may be moved */
+  setnilvalue(s2v(level));
   lua_unlock(L);
 }
 
@@ -629,11 +647,21 @@ static int auxgetstr (lua_State *L, const TValue *t, const char *k) {
 }
 
 
+/*
+** Get the global table in the registry. Since all predefined
+** indices in the registry were inserted right when the registry
+** was created and never removed, they must always be in the array
+** part of the registry.
+*/
+#define getGtable(L)  \
+	(&hvalue(&G(L)->l_registry)->array[LUA_RIDX_GLOBALS - 1])
+
+
 LUA_API int lua_getglobal (lua_State *L, const char *name) {
-  Table *reg;
+  const TValue *G;
   lua_lock(L);
-  reg = hvalue(&G(L)->l_registry);
-  return auxgetstr(L, luaH_getint(reg, LUA_RIDX_GLOBALS), name);
+  G = getGtable(L);
+  return auxgetstr(L, G, name);
 }
 
 
@@ -811,10 +839,10 @@ static void auxsetstr (lua_State *L, const TValue *t, const char *k) {
 
 
 LUA_API void lua_setglobal (lua_State *L, const char *name) {
-  Table *reg;
+  const TValue *G;
   lua_lock(L);  /* unlock done in 'auxsetstr' */
-  reg = hvalue(&G(L)->l_registry);
-  auxsetstr(L, luaH_getint(reg, LUA_RIDX_GLOBALS), name);
+  G = getGtable(L);
+  auxsetstr(L, G, name);
 }
 
 
@@ -861,12 +889,10 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
 
 static void aux_rawset (lua_State *L, int idx, TValue *key, int n) {
   Table *t;
-  TValue *slot;
   lua_lock(L);
   api_checknelems(L, n);
   t = gettable(L, idx);
-  slot = luaH_set(L, t, key);
-  setobj2t(L, slot, s2v(L->top - 1));
+  luaH_set(L, t, key, s2v(L->top - 1));
   invalidateTMcache(t);
   luaC_barrierback(L, obj2gco(t), s2v(L->top - 1));
   L->top -= n;
@@ -1063,8 +1089,7 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
     LClosure *f = clLvalue(s2v(L->top - 1));  /* get newly created function */
     if (f->nupvalues >= 1) {  /* does it have an upvalue? */
       /* get global table from registry */
-      Table *reg = hvalue(&G(L)->l_registry);
-      const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
+      const TValue *gt = getGtable(L);
       /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
       setobj(L, f->upvals[0]->v, gt);
       luaC_barrier(L, f->upvals[0], gt);
@@ -1240,8 +1265,7 @@ LUA_API void lua_toclose (lua_State *L, int idx) {
   lua_lock(L);
   o = index2stack(L, idx);
   nresults = L->ci->nresults;
-  api_check(L, L->openupval == NULL || uplevel(L->openupval) <= o,
-               "marked index below or equal new one");
+  api_check(L, L->tbclist < o, "given index below or equal a marked one");
   luaF_newtbcupval(L, o);  /* create new to-be-closed upvalue */
   if (!hastocloseCfunc(nresults))  /* function not marked yet? */
     L->ci->nresults = codeNresults(nresults);  /* mark it */
