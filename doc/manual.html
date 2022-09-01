@@ -19,7 +19,7 @@ by Roberto Ierusalimschy, Luiz Henrique de Figueiredo, Waldemar Celes
 
 <P>
 <SMALL>
-Copyright &copy; 2020&ndash;2021 Lua.org, PUC-Rio.
+Copyright &copy; 2020&ndash;2022 Lua.org, PUC-Rio.
 Freely available under the terms of the
 <a href="http://www.lua.org/license.html">Lua license</a>.
 </SMALL>
@@ -961,11 +961,8 @@ these marks have no effect.
 
 
 <p>
-Finalizers cannot yield.
-Except for that, they can do anything,
-such as raise errors, create new objects,
-or even run the garbage collector.
-However, because they can run in unpredictable times,
+Finalizers cannot yield nor run the garbage collector.
+Because they can run in unpredictable times,
 it is good practice to restrict each finalizer
 to the minimum necessary to properly release
 its associated resource.
@@ -1636,8 +1633,10 @@ before the adjustment
 
 
 <p>
-The assignment statement first evaluates all its expressions
-and only then the assignments are performed.
+If a variable is both assigned and read
+inside a multiple assignment,
+Lua ensures all reads get the value of the variable
+before the assignment.
 Thus the code
 
 <pre>
@@ -1659,6 +1658,14 @@ and
      x, y, z = y, z, x
 </pre><p>
 cyclically permutes the values of <code>x</code>, <code>y</code>, and <code>z</code>.
+
+
+<p>
+Note that this guarantee covers only accesses
+syntactically inside the assignment statement.
+If a function or a metamethod called during the assignment
+changes the value of a variable,
+Lua gives no guarantees about the order of that access.
 
 
 <p>
@@ -2416,16 +2423,21 @@ character is one byte.)
 <p>
 The length operator applied on a table
 returns a border in that table.
-A <em>border</em> in a table <code>t</code> is any natural number
+A <em>border</em> in a table <code>t</code> is any non-negative integer
 that satisfies the following condition:
 
 <pre>
-     (border == 0 or t[border] ~= nil) and t[border + 1] == nil
+     (border == 0 or t[border] ~= nil) and
+     (t[border + 1] == nil or border == math.maxinteger)
 </pre><p>
 In words,
-a border is any (natural) index present in the table
-that is followed by an absent index
-(or zero, when index 1 is absent).
+a border is any positive integer index present in the table
+that is followed by an absent index,
+plus two limit cases:
+zero, when index 1 is absent;
+and the maximum value for an integer, when that index is present.
+Note that keys that are not positive integers
+do not interfere with borders.
 
 
 <p>
@@ -2436,12 +2448,9 @@ The table <code>{10, 20, 30, nil, 50}</code> has two borders (3 and 5),
 and therefore it is not a sequence.
 (The <b>nil</b> at index 4 is called a <em>hole</em>.)
 The table <code>{nil, 20, 30, nil, nil, 60, nil}</code>
-has three borders (0, 3, and 6) and three holes
-(at indices 1, 4, and 5),
+has three borders (0, 3, and 6),
 so it is not a sequence, too.
 The table <code>{}</code> is a sequence with border 0.
-Note that non-natural keys do not interfere
-with whether a table is a sequence.
 
 
 <p>
@@ -2459,7 +2468,7 @@ the memory addresses of its non-numeric keys.)
 <p>
 The computation of the length of a table
 has a guaranteed worst time of <em>O(log n)</em>,
-where <em>n</em> is the largest natural key in the table.
+where <em>n</em> is the largest integer key in the table.
 
 
 <p>
@@ -3977,6 +3986,10 @@ Returns the previous mode (<code>LUA_GCGEN</code> or <code>LUA_GCINC</code>).
 </ul><p>
 For more details about these options,
 see <a href="#pdf-collectgarbage"><code>collectgarbage</code></a>.
+
+
+<p>
+This function should not be called by a finalizer.
 
 
 
@@ -5933,7 +5946,10 @@ information about a function or an activation record.
 <a href="#lua_getstack"><code>lua_getstack</code></a> fills only the private part
 of this structure, for later use.
 To fill the other fields of <a href="#lua_Debug"><code>lua_Debug</code></a> with useful information,
-you must call <a href="#lua_getinfo"><code>lua_getinfo</code></a>.
+you must call <a href="#lua_getinfo"><code>lua_getinfo</code></a> with an appropriate parameter.
+(Specifically, to get a field,
+you must add the letter between parentheses in the field's comment
+to the parameter <code>what</code> of <a href="#lua_getinfo"><code>lua_getinfo</code></a>.)
 
 
 <p>
@@ -6110,19 +6126,30 @@ you can write the following code:
 <p>
 Each character in the string <code>what</code>
 selects some fields of the structure <code>ar</code> to be filled or
-a value to be pushed on the stack:
+a value to be pushed on the stack.
+(These characters are also documented in the declaration of
+the structure <a href="#lua_Debug"><code>lua_Debug</code></a>,
+between parentheses in the comments following each field.)
 
 <ul>
 
-<li><b>'<code>n</code>': </b> fills in the field <code>name</code> and <code>namewhat</code>;
+<li><b>'<code>f</code>': </b>
+pushes onto the stack the function that is
+running at the given level;
+</li>
+
+<li><b>'<code>l</code>': </b> fills in the field <code>currentline</code>;
+</li>
+
+<li><b>'<code>n</code>': </b> fills in the fields <code>name</code> and <code>namewhat</code>;
+</li>
+
+<li><b>'<code>r</code>': </b> fills in the fields <code>ftransfer</code> and <code>ntransfer</code>;
 </li>
 
 <li><b>'<code>S</code>': </b>
 fills in the fields <code>source</code>, <code>short_src</code>,
 <code>linedefined</code>, <code>lastlinedefined</code>, and <code>what</code>;
-</li>
-
-<li><b>'<code>l</code>': </b> fills in the field <code>currentline</code>;
 </li>
 
 <li><b>'<code>t</code>': </b> fills in the field <code>istailcall</code>;
@@ -6132,25 +6159,13 @@ fills in the fields <code>source</code>, <code>short_src</code>,
 <code>nups</code>, <code>nparams</code>, and <code>isvararg</code>;
 </li>
 
-<li><b>'<code>f</code>': </b>
-pushes onto the stack the function that is
-running at the given level;
-</li>
-
 <li><b>'<code>L</code>': </b>
-pushes onto the stack a table whose indices are the
-numbers of the lines that are valid on the function.
-(A <em>valid line</em> is a line with some associated code,
-that is, a line where you can put a break point.
-Non-valid lines include empty lines and comments.)
-
-
-<p>
+pushes onto the stack a table whose indices are
+the lines on the function with some associated code,
+that is, the lines where you can put a break point.
+(Lines with no code include empty lines and comments.)
 If this option is given together with option '<code>f</code>',
 its table is pushed after the function.
-
-
-<p>
 This is the only option that can raise a memory error.
 </li>
 
@@ -6508,7 +6523,7 @@ Adds the byte <code>c</code> to the buffer <code>B</code>
 
 
 <hr><h3><a name="luaL_addgsub"><code>luaL_addgsub</code></a></h3><p>
-<span class="apii">[-0, +0, <em>m</em>]</span>
+<span class="apii">[-?, +?, <em>m</em>]</span>
 <pre>const void luaL_addgsub (luaL_Buffer *B, const char *s,
                          const char *p, const char *r);</pre>
 
@@ -6562,7 +6577,7 @@ to the buffer <code>B</code>
 
 
 <hr><h3><a name="luaL_addvalue"><code>luaL_addvalue</code></a></h3><p>
-<span class="apii">[-1, +?, <em>m</em>]</span>
+<span class="apii">[-?, +?, <em>m</em>]</span>
 <pre>void luaL_addvalue (luaL_Buffer *B);</pre>
 
 <p>
@@ -6716,7 +6731,7 @@ Note that any addition to the buffer may invalidate this address.
 
 
 <hr><h3><a name="luaL_buffinit"><code>luaL_buffinit</code></a></h3><p>
-<span class="apii">[-0, +0, &ndash;]</span>
+<span class="apii">[-0, +?, &ndash;]</span>
 <pre>void luaL_buffinit (lua_State *L, luaL_Buffer *B);</pre>
 
 <p>
@@ -6754,7 +6769,7 @@ Equivalent to the sequence
 
 
 <hr><h3><a name="luaL_buffsub"><code>luaL_buffsub</code></a></h3><p>
-<span class="apii">[-0, +0, &ndash;]</span>
+<span class="apii">[-?, +?, &ndash;]</span>
 <pre>void luaL_buffsub (luaL_Buffer *B, int n);</pre>
 
 <p>
@@ -7557,6 +7572,11 @@ on top of the library table.
 These values are popped from the stack after the registration.
 
 
+<p>
+A function with a <code>NULL</code> value represents a placeholder,
+which is filled with <b>false</b>.
+
+
 
 
 
@@ -7919,6 +7939,10 @@ See <a href="#2.5">&sect;2.5</a> for more details about garbage collection
 and some of these options.
 
 
+<p>
+This function should not be called by a finalizer.
+
+
 
 
 <p>
@@ -7936,7 +7960,7 @@ to its caller.
 
 <p>
 <hr><h3><a name="pdf-error"><code>error (message [, level])</code></a></h3>
-Raises an error (see <a href="#2.3">&sect;2.3</a>) with @{message} as the error object.
+Raises an error (see <a href="#2.3">&sect;2.3</a>) with <code>message</code> as the error object.
 This function never returns.
 
 
@@ -8111,9 +8135,8 @@ use a numerical <b>for</b>.)
 
 
 <p>
-The behavior of <code>next</code> is undefined if,
-during the traversal,
-you assign any value to a non-existent field in the table.
+You should not assign any value to a non-existent field in a table
+during its traversal.
 You may however modify existing fields.
 In particular, you may set existing fields to nil.
 
@@ -8159,7 +8182,7 @@ This means that any error inside&nbsp;<code>f</code> is not propagated;
 instead, <code>pcall</code> catches the error
 and returns a status code.
 Its first result is the status code (a boolean),
-which is true if the call succeeds without errors.
+which is <b>true</b> if the call succeeds without errors.
 In such case, <code>pcall</code> also returns all results from the call,
 after this first result.
 In case of any error, <code>pcall</code> returns <b>false</b> plus the error object.
@@ -8439,7 +8462,7 @@ an object with type <code>"thread"</code>.
 
 
 <p>
-Returns true when the coroutine <code>co</code> can yield.
+Returns <b>true</b> when the coroutine <code>co</code> can yield.
 The default for <code>co</code> is the running coroutine.
 
 
@@ -8483,7 +8506,7 @@ If there is any error,
 
 <p>
 Returns the running coroutine plus a boolean,
-true when the running coroutine is the main one.
+<b>true</b> when the running coroutine is the main one.
 
 
 
@@ -9021,7 +9044,7 @@ otherwise, it returns <b>fail</b>.
 A third, optional numeric argument <code>init</code> specifies
 where to start the search;
 its default value is&nbsp;1 and can be negative.
-A value of <b>true</b> as a fourth, optional argument <code>plain</code>
+A <b>true</b> as a fourth, optional argument <code>plain</code>
 turns off the pattern matching facilities,
 so the function does a plain "find substring" operation,
 with no characters in <code>pattern</code> being considered magic.
@@ -9046,8 +9069,10 @@ following the description given in its first argument,
 which must be a string.
 The format string follows the same rules as the ISO&nbsp;C function <code>sprintf</code>.
 The only differences are that the conversion specifiers and modifiers
-<code>*</code>, <code>h</code>, <code>L</code>, <code>l</code>, and <code>n</code> are not supported
+<code>F</code>, <code>n</code>, <code>*</code>, <code>h</code>, <code>L</code>, and <code>l</code> are not supported
 and that there is an extra specifier, <code>q</code>.
+Both width and precision, when present,
+are limited to two digits.
 
 
 <p>
@@ -9071,7 +9096,7 @@ may produce the string:
      "a string with \"quotes\" and \
       new line"
 </pre><p>
-This specifier does not support modifiers (flags, width, length).
+This specifier does not support modifiers (flags, width, precision).
 
 
 <p>
@@ -10362,7 +10387,7 @@ or <b>fail</b> if <code>x</code> is not a number.
 
 <p>
 Returns a boolean,
-true if and only if integer <code>m</code> is below integer <code>n</code> when
+<b>true</b> if and only if integer <code>m</code> is below integer <code>n</code> when
 they are compared as unsigned integers.
 
 
@@ -11924,10 +11949,10 @@ and LiteralString, see <a href="#3.1">&sect;3.1</a>.)
 
 <P CLASS="footer">
 Last update:
-Mon Mar 15 13:39:42 UTC 2021
+Thu Jan 13 11:33:16 UTC 2022
 </P>
 <!--
-Last change: revised for Lua 5.4.3
+Last change: revised for Lua 5.4.4
 -->
 
 </body></html>
