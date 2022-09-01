@@ -64,6 +64,21 @@ lua_command(lua_State *L)
 }
 
 static int
+lua_has_command(lua_State *L)
+{
+	const char	*cmd;
+
+	if (lua_gettop(L) != 1) {
+		lua_pushnil(L);
+		return 1;
+	}
+	cmd = luaL_checkstring(L, 1);
+	lua_pushinteger(L, interp_has_builtin_cmd(cmd));
+
+	return 1;
+}
+
+static int
 lua_perform(lua_State *L)
 {
 	int	argc;
@@ -539,9 +554,9 @@ static const struct luaL_Reg loaderlib[] = {
 	REG_SIMPLE(interpret),
 	REG_SIMPLE(parse),
 	REG_SIMPLE(getenv),
+	REG_SIMPLE(has_command),
 	REG_SIMPLE(perform),
-	/* Also registered as the global 'printc' */
-	REG_SIMPLE(printc),
+	REG_SIMPLE(printc),	/* Also registered as the global 'printc' */
 	REG_SIMPLE(setenv),
 	REG_SIMPLE(time),
 	REG_SIMPLE(unsetenv),
