@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #define	 FAN53555_ID2_DIE_REV(x)	(((x) >> 4) & 0x0F)
 #define	FAN53555_MON		0x05
 
+#define	TCS4525_VSEL0		0x11
+#define	TCS4525_VSEL1		0x10
+#define	TCS4525_CHIP_ID_12	12
 
 #if 0
 #define	dprintf(sc, format, arg...)					\
@@ -73,12 +76,14 @@ enum fan53555_pmic_type {
 	FAN53555 = 1,
 	SYR827,
 	SYR828,
+	TCS4525,
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{"fcs,fan53555", 	FAN53555},
 	{"silergy,syr827",	SYR827},
 	{"silergy,syr828",	SYR828},
+	{"tcs,tcs4525",		TCS4525},
 	{NULL,		0}
 };
 
@@ -110,6 +115,8 @@ static struct regulator_range fan_1_range =
 static struct regulator_range fan_4_range =
    REG_RANGE_INIT(  0, 0x3F,  603000, 12826);
 
+static struct regulator_range tcs_12_range =
+   REG_RANGE_INIT(  0, 0x3F,  800000, 6250);
 
 static int
 fan53555_read(device_t dev, uint8_t reg, uint8_t *val)
@@ -308,6 +315,15 @@ fan53555_get_range(struct fan53555_softc *sc, int type, uint8_t id,
 		}
 	}
 
+	if (type == TCS4525) {
+		switch (id) {
+		case TCS4525_CHIP_ID_12:
+			return (&tcs_12_range);
+		default:
+			return (NULL);
+		}
+	}
+
 	return (NULL);
 }
 
@@ -411,6 +427,9 @@ fan53555_probe(device_t dev)
 	case SYR828:
 		device_set_desc(dev, "SYR828 PMIC");
 		break;
+	case TCS4525:
+		device_set_desc(dev, "TCS4525 PMIC");
+		break;
 	default:
 		return (ENXIO);
 	}
@@ -434,12 +453,30 @@ fan53555_attach(device_t dev)
 		sizeof(susp_sel));
 	if (rv <= 0)
 		susp_sel = 1;
-	if (susp_sel == 1) {
-		sc->live_reg = FAN53555_VSEL0;
-		sc->sleep_reg = FAN53555_VSEL1;
-	} else {
-		sc->live_reg = FAN53555_VSEL1;
-		sc->sleep_reg = FAN53555_VSEL0;
+
+	switch (type) {
+	case FAN53555:
+	case SYR827:
+	case SYR828:
+		if (susp_sel == 1) {
+			sc->live_reg = FAN53555_VSEL0;
+			sc->sleep_reg = FAN53555_VSEL1;
+		} else {
+			sc->live_reg = FAN53555_VSEL1;
+			sc->sleep_reg = FAN53555_VSEL0;
+		}
+		break;
+	case TCS4525:
+		if (susp_sel == 1) {
+			sc->live_reg = TCS4525_VSEL0;
+			sc->sleep_reg = TCS4525_VSEL1;
+		} else {
+			sc->live_reg = TCS4525_VSEL1;
+			sc->sleep_reg = TCS4525_VSEL0;
+		}
+		break;
+	default:
+		return (ENXIO);
 	}
 	if (fan53555_reg_attach(sc, node, type) == NULL)
 		device_printf(dev, "cannot attach regulator.\n");
