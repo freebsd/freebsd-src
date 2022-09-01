@@ -190,3 +190,12 @@ interp_builtin_cmd(int argc, char *argv[])
 	}
 	return (result);
 }
+
+/*
+ * Return true if the builtin command exists
+ */
+bool
+interp_has_builtin_cmd(const char *cmd)
+{
+	return (interp_lookup_cmd(cmd) != NULL);
+}
