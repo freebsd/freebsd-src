@@ -259,12 +259,13 @@ static int
 rk_gpio_attach(device_t dev)
 {
 	struct rk_gpio_softc *sc;
-	phandle_t node;
+	phandle_t parent_node, node;
 	int err, i;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->pinctrl = device_get_parent(dev);
+	parent_node = ofw_bus_get_node(sc->pinctrl);
 
 	node = ofw_bus_get_node(sc->sc_dev);
 	if (!OF_hasprop(node, "gpio-controller"))
@@ -303,9 +304,15 @@ rk_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	RK_GPIO_LOCK(sc);
-	sc->version = rk_gpio_read_4(sc, RK_GPIO_VERSION);
-	RK_GPIO_UNLOCK(sc);
+	/*
+	 * RK3568 has GPIO_VER_ID register, however both
+	 * RK3328 and RK3399 doesn't have. So choose the
+	 * version based on parent's compat string.
+	 */
+	if (ofw_bus_node_is_compatible(parent_node, "rockchip,rk3568-pinctrl"))
+		sc->version = RK_GPIO_TYPE_V2;
+	else
+		sc->version = RK_GPIO_TYPE_V1;
 
 	switch (sc->version) {
 	case RK_GPIO_TYPE_V1:
