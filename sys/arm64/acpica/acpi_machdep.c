@@ -176,6 +176,8 @@ acpi_find_table(const char *sig)
 		if (AcpiTbChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
 			if (bootverbose)
 				printf("ACPI: RSDP failed extended checksum\n");
+			pmap_unmapbios((vm_offset_t)rsdp,
+			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);

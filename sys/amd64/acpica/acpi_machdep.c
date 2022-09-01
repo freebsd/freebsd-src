@@ -203,12 +203,16 @@ acpi_find_table(const char *sig)
 		if (AcpiTbChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
 			if (bootverbose)
 				printf("ACPI: RSDP failed extended checksum\n");
+			pmap_unmapbios((vm_offset_t)rsdp,
+			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map XSDT\n");
+			pmap_unmapbios((vm_offset_t)rsdp,
+			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		count = (xsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
@@ -224,6 +228,8 @@ acpi_find_table(const char *sig)
 		if (rsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map RSDT\n");
+			pmap_unmapbios((vm_offset_t)rsdp,
+			    sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		count = (rsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
