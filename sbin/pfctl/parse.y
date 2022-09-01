@@ -891,7 +891,12 @@ pfa_anchor	: '{'
 			pf->asd++;
 			pf->bn++;
 
-			/* create a holding ruleset in the root */
+			/*
+			* Anchor contents are parsed before the anchor rule
+			* production completes, so we don't know the real
+			* location yet. Create a holding ruleset in the root;
+			* contents will be moved afterwards.
+			*/
 			snprintf(ta, PF_ANCHOR_NAME_SIZE, "_%d", pf->bn);
 			rs = pf_find_or_create_ruleset(ta);
 			if (rs == NULL)
@@ -928,7 +933,14 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 
 			memset(&r, 0, sizeof(r));
 			if (pf->astack[pf->asd + 1]) {
-				/* move inline rules into relative location */
+				if ($2 && strchr($2, '/') != NULL) {
+					free($2);
+					yyerror("anchor paths containing '/' "
+					   "cannot be used for inline anchors.");
+					YYERROR;
+				}
+
+				/* Move inline rules into relative location. */
 				pfctl_anchor_setup(&r,
 				    &pf->astack[pf->asd]->ruleset,
 				    $2 ? $2 : pf->alast->name);
