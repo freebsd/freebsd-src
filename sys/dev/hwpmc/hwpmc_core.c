@@ -151,7 +151,7 @@ core_pcpu_init(struct pmc_mdep *md, int cpu)
 		pc->pc_hwpmcs[n + core_ri]  = phw;
 	}
 
-	if (core_version >= 2) {
+	if (core_version >= 2 && vm_guest == VM_GUEST_NO) {
 		/* Enable Freezing PMCs on PMI. */
 		wrmsr(MSR_DEBUGCTLMSR, rdmsr(MSR_DEBUGCTLMSR) | 0x1000);
 	}
