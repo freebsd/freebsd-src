@@ -56,9 +56,9 @@ __FBSDID("$FreeBSD$");
 #define	 FAN53555_VSEL_MASK		0x3f
 #define	FAN53555_CTRL		0x02
 #define	FAN53555_ID1		0x03
-#define	 FAN53555_ID1_DIE_ID(x)		(((x) >> 4) & 0x0F)
+#define	 FAN53555_ID1_DIE_ID(x)		((x) & 0x0F)
 #define	FAN53555_ID2		0x04
-#define	 FAN53555_ID2_DIE_REV(x)	(((x) >> 4) & 0x0F)
+#define	 FAN53555_ID2_DIE_REV(x)	((x) & 0x0F)
 #define	FAN53555_MON		0x05
 
 #define	TCS4525_VSEL0		0x11
