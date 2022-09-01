@@ -1276,7 +1276,14 @@ etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfr
 
 			memset(&r, 0, sizeof(r));
 			if (pf->eastack[pf->asd + 1]) {
-				/* move inline rules into relative location */
+				if ($3 && strchr($3, '/') != NULL) {
+					free($3);
+					yyerror("anchor paths containing '/' "
+					   "cannot be used for inline anchors.");
+					YYERROR;
+				}
+
+				/* Move inline rules into relative location. */
 				pfctl_eth_anchor_setup(pf, &r,
 				    &pf->eastack[pf->asd]->ruleset,
 				    $3 ? $3 : pf->ealast->name);
