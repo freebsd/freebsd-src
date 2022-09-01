@@ -152,6 +152,19 @@ interp_emit_prompt(void)
 	free(pr);
 }
 
+static struct bootblk_command *
+interp_lookup_cmd(const char *cmd)
+{
+	struct bootblk_command	**cmdp;
+
+	/* search the command set for the command */
+	SET_FOREACH(cmdp, Xcommand_set) {
+		if (((*cmdp)->c_name != NULL) && !strcmp(cmd, (*cmdp)->c_name))
+			return (*cmdp);
+	}
+	return (NULL);
+}
+
 /*
  * Perform a builtin command
  */
@@ -159,27 +172,21 @@ int
 interp_builtin_cmd(int argc, char *argv[])
 {
 	int			result;
-	struct bootblk_command	**cmdp;
-	bootblk_cmd_t		*cmd;
+	struct bootblk_command	*cmd;
 
 	if (argc < 1)
-		return(CMD_OK);
+		return (CMD_OK);
 
 	/* set return defaults; a successful command will override these */
 	command_errmsg = command_errbuf;
 	strcpy(command_errbuf, "no error message");
-	cmd = NULL;
 	result = CMD_ERROR;
 
-	/* search the command set for the command */
-	SET_FOREACH(cmdp, Xcommand_set) {
-		if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
-			cmd = (*cmdp)->c_fn;
-	}
-	if (cmd != NULL) {
-		result = (cmd)(argc, argv);
+	cmd = interp_lookup_cmd(argv[0]);
+	if (cmd != NULL && cmd->c_fn) {
+		result = cmd->c_fn(argc, argv);
 	} else {
 		command_errmsg = "unknown command";
 	}
-	return(result);
+	return (result);
 }
