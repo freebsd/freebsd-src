@@ -298,6 +298,8 @@ smbios_parse_table(const caddr_t addr)
 {
 	caddr_t		cp;
 	int		proc, size, osize, type;
+	uint8_t		bios_minor, bios_major;
+	char		buf[16];
 
 	type = SMBIOS_GET8(addr, 0);	/* 3.1.2 Structure Header Format */
 	switch(type) {
@@ -305,6 +307,13 @@ smbios_parse_table(const caddr_t addr)
 		smbios_setenv("smbios.bios.vendor", addr, 0x04);
 		smbios_setenv("smbios.bios.version", addr, 0x05);
 		smbios_setenv("smbios.bios.reldate", addr, 0x08);
+		bios_major = SMBIOS_GET8(addr, 0x14);
+		bios_minor = SMBIOS_GET8(addr, 0x15);
+		if (bios_minor != 0xFF && bios_major != 0xFF) {
+			snprintf(buf, sizeof(buf), "%u.%u",
+			    bios_major, bios_minor);
+			setenv("smbios.bios.revision", buf, 1);
+		}
 		break;
 
 	case 1:		/* 3.3.2 System Information (Type 1) */
