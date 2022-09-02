@@ -214,8 +214,8 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT |
-	    PFIL_FWD, NULL) != PFIL_PASS)
+	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT,
+	    NULL) != PFIL_PASS)
 		goto dropout;
 
 	/*

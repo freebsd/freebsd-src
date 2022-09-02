@@ -117,9 +117,6 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 	struct ip *ip;
 	int pflags = PFIL_OUT;
 
-	if (flags & IP_FORWARDING)
-		pflags |= PFIL_FWD;
-
 	m = *mp;
 	ip = mtod(m, struct ip *);
 

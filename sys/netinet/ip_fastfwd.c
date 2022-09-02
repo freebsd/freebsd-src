@@ -403,7 +403,7 @@ passin:
 		goto passout;
 
 	if (pfil_run_hooks(V_inet_pfil_head, &m, nh->nh_ifp,
-	    PFIL_OUT | PFIL_FWD, NULL) != PFIL_PASS)
+	    PFIL_OUT, NULL) != PFIL_PASS)
 		goto drop;
 
 	M_ASSERTVALID(m);
