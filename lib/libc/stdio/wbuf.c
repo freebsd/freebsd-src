@@ -91,7 +91,7 @@ __swbuf(int c, FILE *fp)
 	old_p = fp->_p;
 	if (++n == fp->_bf._size || (fp->_flags & __SLBF && c == '\n')) {
 		if (__fflush(fp) != 0) {
-			if (fp->_p == old_p) {
+			if (fp->_p == old_p && errno == EINTR) {
 				fp->_p--;
 				fp->_w++;
 			}
