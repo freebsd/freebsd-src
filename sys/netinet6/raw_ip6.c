@@ -596,7 +596,7 @@ release:
 int
 rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	struct inpcb *inp;
+	struct inpcb *inp = sotoinpcb(so);
 	int error;
 
 	if (sopt->sopt_level == IPPROTO_ICMPV6)
@@ -608,7 +608,6 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 	else if (sopt->sopt_level != IPPROTO_IPV6) {
 		if (sopt->sopt_level == SOL_SOCKET &&
 		    sopt->sopt_name == SO_SETFIB) {
-			inp = sotoinpcb(so);
 			INP_WLOCK(inp);
 			inp->inp_inc.inc_fibnum = so->so_fibnum;
 			INP_WUNLOCK(inp);
@@ -629,6 +628,8 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
+			if (inp->inp_ip_p != IPPROTO_ICMPV6)
+				return (EOPNOTSUPP);
 			error = ip6_mrouter_get ?  ip6_mrouter_get(so, sopt) :
 			    EOPNOTSUPP;
 			break;
@@ -650,6 +651,8 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
+			if (inp->inp_ip_p != IPPROTO_ICMPV6)
+				return (EOPNOTSUPP);
 			error = ip6_mrouter_set ?  ip6_mrouter_set(so, sopt) :
 			    EOPNOTSUPP;
 			break;

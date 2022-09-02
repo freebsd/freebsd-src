@@ -693,6 +693,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
+			if (inp->inp_ip_p != IPPROTO_IGMP)
+				return (EOPNOTSUPP);
 			error = ip_mrouter_get ? ip_mrouter_get(so, sopt) :
 				EOPNOTSUPP;
 			break;
@@ -747,6 +749,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
+			if (inp->inp_ip_p != IPPROTO_RSVP)
+				return (EOPNOTSUPP);
 			error = ip_rsvp_init(so);
 			break;
 
@@ -762,6 +766,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
+			if (inp->inp_ip_p != IPPROTO_RSVP)
+				return (EOPNOTSUPP);
 			error = ip_rsvp_vif ?
 				ip_rsvp_vif(so, sopt) : EINVAL;
 			break;
@@ -781,6 +787,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
+			if (inp->inp_ip_p != IPPROTO_IGMP)
+				return (EOPNOTSUPP);
 			error = ip_mrouter_set ? ip_mrouter_set(so, sopt) :
 					EOPNOTSUPP;
 			break;

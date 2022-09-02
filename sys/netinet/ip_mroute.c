@@ -686,11 +686,7 @@ static int
 ip_mrouter_init(struct socket *so, int version)
 {
 
-    CTR3(KTR_IPMF, "%s: so_type %d, pr_protocol %d", __func__,
-        so->so_type, so->so_proto->pr_protocol);
-
-    if (so->so_type != SOCK_RAW || so->so_proto->pr_protocol != IPPROTO_IGMP)
-	return EOPNOTSUPP;
+    CTR2(KTR_IPMF, "%s: so %p", __func__, so);
 
     if (version != 1)
 	return ENOPROTOOPT;

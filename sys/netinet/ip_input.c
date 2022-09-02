@@ -1313,10 +1313,6 @@ int
 ip_rsvp_init(struct socket *so)
 {
 
-	if (so->so_type != SOCK_RAW ||
-	    so->so_proto->pr_protocol != IPPROTO_RSVP)
-		return EOPNOTSUPP;
-
 	if (V_ip_rsvpd != NULL)
 		return EADDRINUSE;
 
