@@ -194,6 +194,10 @@ void		pfil_head_unregister(pfil_head_t);
 /* Public functions to run the packet inspection by inspection points. */
 int	pfil_run_hooks(struct pfil_head *, pfil_packet_t, struct ifnet *, int,
     struct inpcb *inp);
+int	pfil_mbuf_in(struct pfil_head *, pfil_packet_t, struct ifnet *,
+    struct inpcb *inp);
+int	pfil_mbuf_out(struct pfil_head *, pfil_packet_t, struct ifnet *,
+    struct inpcb *inp);
 /*
  * Minimally exposed structure to avoid function call in case of absence
  * of any filters by protocols and macros to do the check.
