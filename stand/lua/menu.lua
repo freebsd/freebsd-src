@@ -60,6 +60,10 @@ local function bootenvSet(env)
 	config.reload()
 end
 
+local function multiUserPrompt()
+	return loader.getenv("loader_menu_multi_user_prompt") or "Multi user"
+end
+
 -- Module exports
 menu.handlers = {
 	-- Menu handlers take the current menu and selected entry as parameters,
@@ -263,11 +267,16 @@ menu.welcome = {
 	all_entries = {
 		multi_user = {
 			entry_type = core.MENU_ENTRY,
-			name = color.highlight("B") .. "oot Multi user " ..
-			    color.highlight("[Enter]"),
+			name = function()
+				return color.highlight("B") .. "oot " ..
+				    multiUserPrompt() .. " " ..
+				    color.highlight("[Enter]")
+			end,
 			-- Not a standard menu entry function!
-			alternate_name = color.highlight("B") ..
-			    "oot Multi user",
+			alternate_name = function()
+				return color.highlight("B") .. "oot " ..
+				    multiUserPrompt()
+			end,
 			func = function()
 				core.setSingleUser(false)
 				core.boot()
