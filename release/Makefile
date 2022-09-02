@@ -187,6 +187,7 @@ disc1: packagesystem
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
+	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 .if defined(NO_ROOT)
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG
@@ -222,6 +223,7 @@ bootonly: packagesystem
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
+	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 .if defined(NO_ROOT)
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG
@@ -256,6 +258,7 @@ dvd: packagesystem
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
+	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 .if defined(NO_ROOT)
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG
