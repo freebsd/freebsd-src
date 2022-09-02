@@ -5,6 +5,8 @@
 #include "cpa.h"
 #include "icp_accel_devices.h"
 #include "adf_common_drv.h"
+#include "icp_adf_accel_mgr.h"
+#include "icp_adf_cfg.h"
 #include "icp_adf_debug.h"
 #include "icp_adf_init.h"
 #include "lac_sal_ctrl.h"
