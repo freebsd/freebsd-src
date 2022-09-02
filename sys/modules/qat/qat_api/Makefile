@@ -71,5 +71,6 @@ CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/firmware/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include/common
 CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include
 
-CWARNFLAGS += -Wno-pointer-sign
 .include <bsd.kmod.mk>
+
+CWARNFLAGS+= -Wno-cast-qual
