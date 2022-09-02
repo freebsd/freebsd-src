@@ -198,6 +198,42 @@ pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
 	return (rv);
 }
 
+static __always_inline int
+pfil_mbuf_common(pfil_chain_t *pch, pfil_packet_t p, struct ifnet *ifp,
+    int flags, struct inpcb *inp)
+{
+	struct pfil_link *link;
+	pfil_return_t rv;
+
+	NET_EPOCH_ASSERT();
+	KASSERT(flags == PFIL_IN || flags == PFIL_OUT,
+	    ("%s: unsupported flags %d", __func__, flags));
+
+	rv = PFIL_PASS;
+	CK_STAILQ_FOREACH(link, pch, link_chain) {
+		rv = (*link->link_func)(p, ifp, flags, link->link_ruleset, inp);
+		if (rv == PFIL_DROPPED || rv == PFIL_CONSUMED)
+			break;
+	}
+	return (rv);
+}
+
+int
+pfil_mbuf_in(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
+   struct inpcb *inp)
+{
+
+	return (pfil_mbuf_common(&head->head_in, p, ifp, PFIL_IN, inp));
+}
+
+int
+pfil_mbuf_out(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
+    struct inpcb *inp)
+{
+
+	return (pfil_mbuf_common(&head->head_out, p, ifp, PFIL_OUT, inp));
+}
+
 /*
  * pfil_head_register() registers a pfil_head with the packet filter hook
  * mechanism.
