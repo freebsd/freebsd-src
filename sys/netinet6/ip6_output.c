@@ -2451,8 +2451,7 @@ ip6_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 				 * values or -1 as a special value.
 				 */
 				error = EINVAL;
-			} else if (so->so_proto->pr_protocol ==
-			    IPPROTO_ICMPV6) {
+			} else if (inp->inp_ip_p == IPPROTO_ICMPV6) {
 				if (optval != icmp6off)
 					error = EINVAL;
 			} else
@@ -2460,7 +2459,7 @@ ip6_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 
 		case SOPT_GET:
-			if (so->so_proto->pr_protocol == IPPROTO_ICMPV6)
+			if (inp->inp_ip_p == IPPROTO_ICMPV6)
 				optval = icmp6off;
 			else
 				optval = inp->in6p_cksum;

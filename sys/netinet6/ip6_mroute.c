@@ -555,12 +555,7 @@ static int
 ip6_mrouter_init(struct socket *so, int v, int cmd)
 {
 
-	MRT6_DLOG(DEBUG_ANY, "so_type = %d, pr_protocol = %d",
-	    so->so_type, so->so_proto->pr_protocol);
-
-	if (so->so_type != SOCK_RAW ||
-	    so->so_proto->pr_protocol != IPPROTO_ICMPV6)
-		return (EOPNOTSUPP);
+	MRT6_DLOG(DEBUG_ANY, "%s: socket %p", __func__, so);
 
 	if (v != 1)
 		return (ENOPROTOOPT);
