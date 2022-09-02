@@ -82,7 +82,7 @@ __swbuf(int c, FILE *fp)
 	 */
 	n = fp->_p - fp->_bf._base;
 	if (n >= fp->_bf._size) {
-		if (__fflush(fp))
+		if (__fflush(fp) != 0)
 			return (EOF);
 		n = 0;
 	}
@@ -90,7 +90,7 @@ __swbuf(int c, FILE *fp)
 	*fp->_p++ = c;
 	old_p = fp->_p;
 	if (++n == fp->_bf._size || (fp->_flags & __SLBF && c == '\n')) {
-		if (__fflush(fp)) {
+		if (__fflush(fp) != 0) {
 			if (fp->_p == old_p) {
 				fp->_p--;
 				fp->_w++;
