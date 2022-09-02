@@ -530,7 +530,7 @@ doreti_exit:
 	testl	$PSL_VM,TF_EFLAGS(%esp)
 	jz	2f			/* PCB_VM86CALL is not set */
 	addl	$VM86_STACK_SPACE, %ecx
-2:	subl	$TF_SZ, %edx
+2:	subl	%ecx, %edx
 	movl	%edx, %edi
 	rep; movsb
 	movl	%edx, %esp
