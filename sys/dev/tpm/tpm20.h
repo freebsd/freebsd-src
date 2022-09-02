@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -125,8 +126,7 @@ struct tpm_sc {
 
 	struct callout 	discard_buffer_callout;
 #ifdef TPM_HARVEST
-	struct callout 	harvest_callout;
-	int		harvest_ticks;
+	struct timeout_task 	harvest_task;
 #endif
 
 	int		(*transmit)(struct tpm_sc *, size_t);
