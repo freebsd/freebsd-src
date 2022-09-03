@@ -619,7 +619,7 @@ mgb_init(if_ctx_t ctx)
 		    error);
 }
 
-#ifdef DEBUG
+#if 0
 static void
 mgb_dump_some_stats(struct mgb_softc *sc)
 {
