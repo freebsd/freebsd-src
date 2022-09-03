@@ -3,7 +3,7 @@
 #
 # Written in 2021 by Alfonso Sabato Siciliano
 
-VERSION = 0.2
+VERSION = 0.3
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
 LIBRARY_A = lib${LIBRARY:=.a}
@@ -14,7 +14,7 @@ OBJECTS = ${SOURCES:.c=.o}
 CFLAGS += -D_XOPEN_SOURCE_EXTENDED -fPIC -Wall -Wextra
 LDFLAGS += -fstack-protector-strong -shared -Wl,-x -Wl,--fatal-warnings \
 	-Wl,--warn-shared-textrel -Wl,-soname,${LIBRARY_SO}.${VERSION} \
-	-L/usr/lib -lformw -lncursesw -ltinfow
+	-L/usr/lib -lncursesw -ltinfow
 
 .if defined(DEBUG)
 # `make -DDEBUG`

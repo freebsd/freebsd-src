@@ -28,18 +28,61 @@
 #include <sys/param.h>
 
 #include <curses.h>
+#include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "bsddialog.h"
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
 static void
+updateborders(struct bsddialog_conf *conf, WINDOW *widget, int padmargin,
+    int hpad, int wpad, int ypad, int xpad)
+{
+	int h, w;
+	chtype arrowch, borderch;
+
+	getmaxyx(widget, h, w);
+
+	if (conf->no_lines)
+		borderch = ' ';
+	else if (conf->ascii_lines)
+		borderch = '|';
+	else
+		borderch = ACS_VLINE;
+
+	if (xpad > 0) {
+		arrowch = conf->ascii_lines ? '<' : ACS_LARROW;
+		arrowch |= A_ATTRIBUTES & t.dialog.arrowcolor;
+	} else {
+		arrowch = borderch;
+		arrowch |= A_ATTRIBUTES & t.dialog.lineraisecolor;
+	}
+	mvwvline(widget, (h / 2) - 2, 0, arrowch, 4);
+
+	if (xpad + w-2-padmargin < wpad) {
+		arrowch = conf->ascii_lines ? '>' : ACS_RARROW;
+		arrowch |= A_ATTRIBUTES & t.dialog.arrowcolor;
+	} else {
+		arrowch = borderch;
+		arrowch |= A_ATTRIBUTES & t.dialog.linelowercolor;
+	}
+	mvwvline(widget, (h / 2) - 2, w - 1, arrowch, 4);
+
+	if (hpad > h - 4) {
+		wattron(widget, t.dialog.arrowcolor);
+		mvwprintw(widget, h-3, w-6, "%3d%%", 100 * (ypad+h-4)/ hpad);
+		wattroff(widget, t.dialog.arrowcolor);
+	}
+}
+
+static void
 textbox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
-    int *w, int hpad, int wpad, struct buttons bs)
+    int *w, int hpad, int wpad, int padmargin, struct buttons bs)
 {
 	if (cols == BSDDIALOG_AUTOSIZE)
-		*w = widget_min_width(conf, 0, wpad, &bs);
+		*w = widget_min_width(conf, 0, wpad + padmargin, &bs);
 
 	if (rows == BSDDIALOG_AUTOSIZE)
 		*h = widget_min_height(conf, 0, hpad, true);
@@ -50,7 +93,8 @@ textbox_checksize(int rows, int cols, int hpad, struct buttons bs)
 {
 	int mincols;
 
-	mincols = VBORDERS + bs.sizebutton;
+	mincols = VBORDERS;
+	mincols += buttons_min_width(bs);
 
 	if (cols < mincols)
 		RETURN_ERROR("Few cols for the textbox");
@@ -66,9 +110,11 @@ int
 bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
     int cols)
 {
-	bool loop;
-	int i, output, input;
-	int y, x, h, w, hpad, wpad, ypad, xpad, ys, ye, xs, xe, printrows;
+	bool loop, has_multi_col;
+	int i, retval, y, x, h, w;
+	int hpad, wpad, ypad, xpad, ys, ye, xs, xe, padmargin, printrows;
+	unsigned int defaulttablen, linecols;
+	wint_t input;
 	char buf[BUFSIZ];
 	FILE *fp;
 	struct buttons bs;
@@ -77,14 +123,19 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 	if ((fp = fopen(file, "r")) == NULL)
 		RETURN_ERROR("Cannot open file");
 
+	defaulttablen = TABSIZE;
+	set_tabsize((conf->text.tablen == 0) ? TABSIZE : (int)conf->text.tablen);
 	hpad = 1;
 	wpad = 1;
 	pad = newpad(hpad, wpad);
 	wbkgd(pad, t.dialog.color);
+	padmargin = 0;
 	i = 0;
 	while (fgets(buf, BUFSIZ, fp) != NULL) {
-		if ((int) strlen(buf) > wpad) {
-			wpad = strlen(buf);
+		if (str_props(buf, &linecols, &has_multi_col) != 0)
+			continue;
+		if ((int)linecols > wpad) {
+			wpad = linecols;
 			wresize(pad, hpad, wpad);
 		}
 		if (i > hpad-1) {
@@ -93,20 +144,19 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 		}
 		mvwaddstr(pad, i, 0, buf);
 		i++;
+		if (has_multi_col)
+			padmargin = 2;
 	}
 	fclose(fp);
+	set_tabsize(defaulttablen);
 
-	bs.nbuttons = 1;
-	bs.label[0] = "EXIT";
-	if (conf->button.ok_label != NULL)
-		bs.label[0] = conf->button.ok_label;
-	bs.value[0] = BSDDIALOG_OK;
+	get_buttons(conf, &bs, "EXIT", NULL);
 	bs.curr = 0;
-	bs.sizebutton = strlen(bs.label[0]) + 2;
+	bs.nbuttons = 1;
 
 	if (set_widget_size(conf, rows, cols, &h, &w) != 0)
 		return (BSDDIALOG_ERROR);
-	textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad, bs);
+	textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad, padmargin, bs);
 	if (textbox_checksize(h, w, hpad, bs) != 0)
 		return (BSDDIALOG_ERROR);
 	if (set_widget_position(conf, &y, &x, h, w) != 0)
@@ -117,26 +167,33 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 		return (BSDDIALOG_ERROR);
 
 	ys = y + 1;
-	xs = x + 1;
+	xs = (padmargin == 0) ? x + 1 : x + 2;
 	ye = ys + h - 5;
-	xe = xs + w - 3;
+	xe = xs + w - 3 - padmargin;
 	ypad = xpad = 0;
 	printrows = h-4;
 	loop = true;
 	while (loop) {
-		wnoutrefresh(widget);
-		pnoutrefresh(pad, ypad, xpad, ys, xs, ye, xe);
-		doupdate();
-		input = getch();
+		updateborders(conf, widget, padmargin, hpad, wpad, ypad, xpad);
+		/*
+		 * Overflow multicolumn charchter right border:
+		 * wnoutrefresh(widget);
+		 * pnoutrefresh(pad, ypad, xpad, ys, xs, ye, xe);
+		 * doupdate();
+		 */
+		wrefresh(widget);
+		prefresh(pad, ypad, xpad, ys, xs, ye, xe);
+		if (get_wch(&input) == ERR)
+			continue;
 		switch(input) {
 		case KEY_ENTER:
 		case 10: /* Enter */
-			output = BSDDIALOG_OK;
+			retval = BSDDIALOG_OK;
 			loop = false;
 			break;
 		case 27: /* Esc */
 			if (conf->key.enable_esc) {
-				output = BSDDIALOG_ESC;
+				retval = BSDDIALOG_ESC;
 				loop = false;
 			}
 			break;
@@ -164,7 +221,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 			break;
 		case KEY_RIGHT:
 		case 'l':
-			xpad = (xpad + w-2) < wpad-1 ? xpad + 1 : xpad;
+			xpad = (xpad + w-2-padmargin) < wpad ? xpad + 1 : xpad;
 			break;
 		case KEY_UP:
 		case 'k':
@@ -189,16 +246,16 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 			if (set_widget_size(conf, rows, cols, &h, &w) != 0)
 				return (BSDDIALOG_ERROR);
 			textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad,
-			    bs);
+			    padmargin, bs);
 			if (textbox_checksize(h, w, hpad, bs) != 0)
 				return (BSDDIALOG_ERROR);
 			if (set_widget_position(conf, &y, &x, h, w) != 0)
 				return (BSDDIALOG_ERROR);
 
 			ys = y + 1;
-			xs = x + 1;
+			xs = (padmargin == 0) ? x + 1 : x + 2;
 			ye = ys + h - 5;
-			xe = xs + w - 3;
+			xe = xs + w - 3 - padmargin;
 			ypad = xpad = 0;
 			printrows = h - 4;
 
@@ -211,7 +268,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 			break;
 		default:
 			if (shortcut_buttons(input, &bs)) {
-				output = bs.value[bs.curr];
+				retval = bs.value[bs.curr];
 				loop = false;
 			}
 		}
@@ -219,5 +276,5 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 
 	end_dialog(conf, shadow, widget, pad);
 
-	return (output);
+	return (retval);
 }

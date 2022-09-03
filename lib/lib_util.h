@@ -33,14 +33,21 @@
 #define TEXTHMARGIN     1
 #define TEXTHMARGINS    (TEXTHMARGIN + TEXTHMARGIN)
 
-/* current theme */
+/* theme utils */
 extern struct bsddialog_theme t;
+extern bool hastermcolors;
 
 /* debug */
 #define BSDDIALOG_DEBUG(y,x,fmt, ...) do {	\
 	mvprintw(y, x, fmt, __VA_ARGS__);	\
 	refresh();				\
 } while (0)
+
+/* unicode */
+unsigned int strcols(const char *mbstring);
+int str_props(const char *mbstring, unsigned int *cols, bool *has_multi_col);
+void mvwaddwch(WINDOW *w, int y, int x, wchar_t wch);
+wchar_t* alloc_mbstows(const char *mbstring);
 
 /* error buffer */
 const char *get_error_string(void);
@@ -56,6 +63,7 @@ struct buttons {
 	unsigned int nbuttons;
 #define MAXBUTTONS 6 /* ok + extra + cancel + help + 2 generics */
 	const char *label[MAXBUTTONS];
+	wchar_t first[MAXBUTTONS];
 	int value[MAXBUTTONS];
 	int curr;
 	unsigned int sizebutton; /* including left and right delimiters */
@@ -70,8 +78,8 @@ get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
 void
 draw_buttons(WINDOW *window, struct buttons bs, bool shortcut);
 
-int buttons_width(struct buttons bs);
-bool shortcut_buttons(int key, struct buttons *bs);
+int buttons_min_width(struct buttons bs);
+bool shortcut_buttons(wint_t key, struct buttons *bs);
 
 /* help window with F1 key */
 int f1help(struct bsddialog_conf *conf);

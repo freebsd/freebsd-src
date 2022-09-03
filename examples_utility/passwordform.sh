@@ -16,11 +16,11 @@
 
 FORMS=$(./bsddialog --insecure --title " passwordform " \
 	--passwordform "Example" 12 40 5 \
-	Password1:  1  1  ""  1  12  18  25 \
-	Password2:  2  1  ""  2  12  18  25 \
-	Password3:  3  1  ""  3  12  18  25 \
-	Password4:  4  1  ""  4  12  18  25 \
-	Password5:  5  1  ""  5  12  18  25 \
+	Password1:  0  0  ""  0  11  18  25 \
+	Password2:  1  0  ""  1  11  18  25 \
+	Password3:  2  0  ""  2  11  18  25 \
+	Password4:  3  0  ""  3  11  18  25 \
+	Password5:  4  0  ""  4  11  18  25 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in

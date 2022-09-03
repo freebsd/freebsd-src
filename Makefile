@@ -4,7 +4,7 @@
 # Written in 2021 by Alfonso Sabato Siciliano
 
 OUTPUT=  bsddialog
-SOURCES= bsddialog.c
+SOURCES= bsddialog.c util_theme.c
 OBJECTS= ${SOURCES:.c=.o}
 LIBPATH= ${.CURDIR}/lib
 LIBBSDDIALOG= ${LIBPATH}/libbsddialog.so
