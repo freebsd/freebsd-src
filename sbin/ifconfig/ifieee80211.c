@@ -5733,7 +5733,7 @@ setdefregdomain(int s)
 	/* Send changes to net80211. */
 	setregdomain_cb(s, &regdomain);
 
-	/* Cleanup (so it can be overriden by subsequent parameters). */
+	/* Cleanup (so it can be overridden by subsequent parameters). */
 	regdomain.regdomain = 0;
 	regdomain.country = CTRY_DEFAULT;
 	regdomain.isocc[0] = 0;
