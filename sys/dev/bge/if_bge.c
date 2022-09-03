@@ -130,7 +130,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names. Note: the
  * spec seems to indicate that the hardware still has Alteon's vendor
- * ID burned into it, though it will always be overriden by the vendor
+ * ID burned into it, though it will always be overridden by the vendor
  * ID in the EEPROM. Just to be safe, we cover all possibilities.
  */
 static const struct bge_type {
