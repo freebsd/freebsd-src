@@ -88,10 +88,12 @@ pass1b(void)
 			if (inoinfo(inumber)->ino_state != USTATE &&
 			    (ckinode(dp, &idesc) & STOP)) {
 				rerun = 1;
+				freeinodebuf();
 				return;
 			}
 		}
 	}
+	freeinodebuf();
 }
 
 static int
