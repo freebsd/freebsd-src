@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/workqueue.h>
 #include "linux_80211.h"
 
+/* #define	LKPI_80211_HW_CRYPTO */
+
 static MALLOC_DEFINE(M_LKPI80211, "lkpi80211", "LinuxKPI 80211 compat");
 
 /* -------------------------------------------------------------------------- */
@@ -364,7 +366,7 @@ lkpi_opmode_to_vif_type(enum ieee80211_opmode opmode)
 	return (NL80211_IFTYPE_UNSPECIFIED);
 }
 
-#ifdef __notyet__
+#ifdef LKPI_80211_HW_CRYPTO
 static uint32_t
 lkpi_l80211_to_net80211_cyphers(uint32_t wlan_cipher_suite)
 {
@@ -395,9 +397,7 @@ lkpi_l80211_to_net80211_cyphers(uint32_t wlan_cipher_suite)
 
 	return (0);
 }
-#endif
 
-#ifdef TRY_HW_CRYPTO
 static uint32_t
 lkpi_net80211_to_l80211_cipher_suite(uint32_t cipher, uint8_t keylen)
 {
@@ -558,7 +558,7 @@ linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
 	IEEE80211_UNLOCK(ic);
 }
 
-#ifdef TRY_HW_CRYPTO
+#ifdef LKPI_80211_HW_CRYPTO
 static int
 _lkpi_iv_key_set_delete(struct ieee80211vap *vap, const struct ieee80211_key *k,
     enum set_key_cmd cmd)
@@ -2295,7 +2295,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	/* Key management. */
 	if (lhw->ops->set_key != NULL) {
-#ifdef TRY_HW_CRYPTO
+#ifdef LKPI_80211_HW_CRYPTO
 		vap->iv_key_set = lkpi_iv_key_set;
 		vap->iv_key_delete = lkpi_iv_key_delete;
 #endif
@@ -2925,7 +2925,9 @@ static void
 lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 {
 	struct ieee80211_node *ni;
+#ifndef LKPI_80211_HW_CRYPTO
 	struct ieee80211_frame *wh;
+#endif
 	struct ieee80211_key *k;
 	struct sk_buff *skb;
 	struct ieee80211com *ic;
@@ -2947,7 +2949,8 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 #endif
 
 	ni = lsta->ni;
-#ifndef TRY_HW_CRYPTO
+	k = NULL;
+#ifndef LKPI_80211_HW_CRYPTO
 	/* Encrypt the frame if need be; XXX-BZ info->control.hw_key. */
 	wh = mtod(m, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -3037,7 +3040,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	lsta = lkpi_find_lsta_by_ni(lvif, ni);
 	if (lsta != NULL) {
 		sta = LSTA_TO_STA(lsta);
-#ifdef TRY_HW_CRYPTO
+#ifdef LKPI_80211_HW_CRYPTO
 		info->control.hw_key = lsta->kc;
 #endif
 	} else {
@@ -3493,7 +3496,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 #endif
 
 	ic->ic_cryptocaps = 0;
-#ifdef TRY_HW_CRYPTO
+#ifdef LKPI_80211_HW_CRYPTO
 	if (hw->wiphy->n_cipher_suites > 0) {
 		for (i = 0; i < hw->wiphy->n_cipher_suites; i++)
 			ic->ic_cryptocaps |= lkpi_l80211_to_net80211_cyphers(
