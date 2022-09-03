@@ -194,7 +194,7 @@ ENTRY(_rtld_tlsdesc_dynamic)
 	 *
 	 */
 1:
-	/* Save all interger registers */
+	/* Save all integer registers */
 	stp	x29, x30, [sp, #-(8 * 16)]!
 	.cfi_adjust_cfa_offset	8 * 16
 	.cfi_rel_offset		x29, 0
