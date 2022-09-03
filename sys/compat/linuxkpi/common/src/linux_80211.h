@@ -197,6 +197,7 @@ struct lkpi_wiphy {
 
 int lkpi_80211_mo_start(struct ieee80211_hw *);
 void lkpi_80211_mo_stop(struct ieee80211_hw *);
+int lkpi_80211_mo_get_antenna(struct ieee80211_hw *, u32 *, u32 *);
 int lkpi_80211_mo_set_frag_threshold(struct ieee80211_hw *, uint32_t);
 int lkpi_80211_mo_set_rts_threshold(struct ieee80211_hw *, uint32_t);
 int lkpi_80211_mo_add_interface(struct ieee80211_hw *, struct ieee80211_vif *);

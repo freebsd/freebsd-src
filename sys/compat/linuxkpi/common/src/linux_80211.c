@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/libkern.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -3494,6 +3495,22 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40 | IEEE80211_HTCAP_SHORTGI40;
 	ic->ic_htcaps |= IEEE80211_HTCAP_TXSTBC;
 #endif
+
+	/*
+	 * The wiphy variables report bitmasks of avail antennas.
+	 * (*get_antenna) get the current bitmask sets which can be
+	 * altered by (*set_antenna) for some drivers.
+	 * XXX-BZ will the count alone do us much good long-term in net80211?
+	 */
+	if (hw->wiphy->available_antennas_rx ||
+	    hw->wiphy->available_antennas_tx) {
+		uint32_t rxs, txs;
+
+		if (lkpi_80211_mo_get_antenna(hw, &txs, &rxs) == 0) {
+			ic->ic_rxstream = bitcount32(rxs);
+			ic->ic_txstream = bitcount32(txs);
+		}
+	}
 
 	ic->ic_cryptocaps = 0;
 #ifdef LKPI_80211_HW_CRYPTO

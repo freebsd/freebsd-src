@@ -78,6 +78,24 @@ lkpi_80211_mo_stop(struct ieee80211_hw *hw)
 }
 
 int
+lkpi_80211_mo_get_antenna(struct ieee80211_hw *hw, u32 *txs, u32 *rxs)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->get_antenna == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	error = lhw->ops->get_antenna(hw, txs, rxs);
+
+out:
+	return (error);
+}
+
+int
 lkpi_80211_mo_set_frag_threshold(struct ieee80211_hw *hw, uint32_t frag_th)
 {
 	struct lkpi_hw *lhw;
