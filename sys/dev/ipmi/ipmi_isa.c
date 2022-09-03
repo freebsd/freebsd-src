@@ -140,7 +140,7 @@ ipmi_hint_identify(device_t dev, struct ipmi_get_info *info)
 		bus_delete_resource(dev, SYS_RES_IOPORT, i);
 	}
 
-	/* Allow the I/O address to be overriden via hints. */
+	/* Allow the I/O address to be overridden via hints. */
 	if (resource_int_value(name, unit, "port", &val) == 0 && val != 0) {
 		info->address = val;
 		info->io_mode = 1;
@@ -150,7 +150,7 @@ ipmi_hint_identify(device_t dev, struct ipmi_get_info *info)
 		info->io_mode = 0;
 	}
 
-	/* Allow the spacing to be overriden. */
+	/* Allow the spacing to be overridden. */
 	if (resource_int_value(name, unit, "spacing", &val) == 0) {
 		switch (val) {
 		case 8:
