@@ -2642,7 +2642,7 @@ hdaa_audio_ctl_set_defaults(struct hdaa_pcm_devinfo *pdevinfo)
 		if ((pdevinfo->ossmask & (1 << dev)) == 0)
 			continue;
 
-		/* If the value was overriden, leave it as is. */
+		/* If the value was overridden, leave it as is. */
 		if (resource_int_value(device_get_name(pdevinfo->dev),
 		    device_get_unit(pdevinfo->dev), ossnames[dev], &vol) == 0)
 			continue;
