@@ -144,6 +144,11 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 
 	struct mtx			mtx;
 
+	/* Scan functions we overload to handle depending on scan mode. */
+	void                    (*ic_scan_curchan)(struct ieee80211_scan_state *,
+				    unsigned long);
+	void                    (*ic_scan_mindwell)(struct ieee80211_scan_state *);
+
 	/* Node functions we overload to sync state. */
 	struct ieee80211_node *	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
@@ -153,7 +158,8 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 
 #define	LKPI_MAC80211_DRV_STARTED	0x00000001
 	uint32_t			sc_flags;
-#define	LKPI_SCAN_RUNNING		0x00000001
+#define	LKPI_LHW_SCAN_RUNNING		0x00000001
+#define	LKPI_LHW_SCAN_HW		0x00000002
 	uint32_t			scan_flags;
 
 	int				supbands;	/* Number of supported bands. */
