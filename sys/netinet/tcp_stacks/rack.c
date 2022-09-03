@@ -16100,7 +16100,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		/*
 		 * We have no pacing set or we
 		 * are using old-style rack or
-		 * we are overriden to use the old 1ms pacing.
+		 * we are overridden to use the old 1ms pacing.
 		 */
 		slot = rack->r_ctl.rc_min_to;
 	}
@@ -19172,7 +19172,7 @@ enobufs:
 			/*
 			 * We have no pacing set or we
 			 * are using old-style rack or
-			 * we are overriden to use the old 1ms pacing.
+			 * we are overridden to use the old 1ms pacing.
 			 */
 			slot = rack->r_ctl.rc_min_to;
 		}
