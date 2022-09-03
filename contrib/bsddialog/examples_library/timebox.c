@@ -34,9 +34,7 @@ int main()
 
 	bsddialog_initconf(&conf);
 	conf.title = "timebox";
-	output = bsddialog_timebox(&conf,
-	    "TAB / RIGHT / LEFT to move,\nUP / DOWN to select time", 10, 35,
-	    &hh, &mm, &ss);
+	output = bsddialog_timebox(&conf, "Example", 9, 35, &hh, &mm, &ss);
 
 	bsddialog_end();
 

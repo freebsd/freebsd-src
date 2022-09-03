@@ -32,13 +32,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "bsddialog.h"
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-#define TABLEN     4    /* Default tab len */
-#define ERRBUFLEN  1024 /* Error buffer    */
+#define ERRBUFLEN    1024 /* Error buffer len */
 
 /* Error */
 static char errorbuffer[ERRBUFLEN];
@@ -53,12 +54,101 @@ void set_error_string(const char *str)
 	strncpy(errorbuffer, str, ERRBUFLEN-1);
 }
 
+/* Unicode */
+wchar_t* alloc_mbstows(const char *mbstring)
+{
+	size_t charlen, nchar;
+	mbstate_t mbs;
+	const char *pmbstring;
+	wchar_t *wstring;
+
+	nchar = 1;
+	pmbstring = mbstring;
+	memset(&mbs, 0, sizeof(mbs));
+	while ((charlen = mbrlen(pmbstring, MB_CUR_MAX, &mbs)) != 0 &&
+	    charlen != (size_t)-1 && charlen != (size_t)-2) {
+		pmbstring += charlen;
+		nchar++;
+	}
+
+	if ((wstring = calloc(nchar, sizeof(wchar_t))) == NULL)
+		return (NULL);
+	mbstowcs(wstring, mbstring, nchar);
+
+	return (wstring);
+}
+
+void mvwaddwch(WINDOW *w, int y, int x, wchar_t wch)
+{
+	wchar_t ws[2];
+
+	ws[0] = wch;
+	ws[1] = L'\0';
+	mvwaddwstr(w, y, x, ws);
+
+}
+
+int str_props(const char *mbstring, unsigned int *cols, bool *has_multi_col)
+{
+	bool multicol;
+	int w;
+	unsigned int ncol;
+	size_t charlen, mb_cur_max;
+	wchar_t wch;
+	mbstate_t mbs;
+
+	multicol = false;
+	mb_cur_max = MB_CUR_MAX;
+	ncol = 0;
+	memset(&mbs, 0, sizeof(mbs));
+	while ((charlen = mbrlen(mbstring, mb_cur_max, &mbs)) != 0 &&
+	    charlen != (size_t)-1 && charlen != (size_t)-2) {
+		if (mbtowc(&wch, mbstring, mb_cur_max) < 0)
+			return (-1);
+		w = (wch == L'\t') ? TABSIZE : wcwidth(wch);
+		ncol += (w < 0) ? 0 : w;
+		if (w > 1 && wch != L'\t')
+			multicol = true;
+		mbstring += charlen;
+	}
+
+	if (cols != NULL)
+		*cols = ncol;
+	if (has_multi_col != NULL)
+		*has_multi_col = multicol;
+
+	return (0);
+}
+
+unsigned int strcols(const char *mbstring)
+{
+	int w;
+	unsigned int ncol;
+	size_t charlen, mb_cur_max;
+	wchar_t wch;
+	mbstate_t mbs;
+
+	mb_cur_max = MB_CUR_MAX;
+	ncol = 0;
+	memset(&mbs, 0, sizeof(mbs));
+	while ((charlen = mbrlen(mbstring, mb_cur_max, &mbs)) != 0 &&
+	    charlen != (size_t)-1 && charlen != (size_t)-2) {
+		if (mbtowc(&wch, mbstring, mb_cur_max) < 0)
+			return (0);
+		w = (wch == L'\t') ? TABSIZE : wcwidth(wch);
+		ncol += (w < 0) ? 0 : w;
+		mbstring += charlen;
+	}
+
+	return (ncol);
+}
+
 /* Clear */
 int hide_widget(int y, int x, int h, int w, bool withshadow)
 {
 	WINDOW *clear;
 
-	if ((clear = newwin(h, w, y + t.shadow.h, x + t.shadow.w)) == NULL)
+	if ((clear = newwin(h, w, y + t.shadow.y, x + t.shadow.x)) == NULL)
 		RETURN_ERROR("Cannot hide the widget");
 	wbkgd(clear, t.screen.color);
 
@@ -101,7 +191,7 @@ int f1help(struct bsddialog_conf *conf)
 /* Buttons */
 static void
 draw_button(WINDOW *window, int y, int x, int size, const char *text,
-    bool selected, bool shortcut)
+    wchar_t first, bool selected, bool shortcut)
 {
 	int i, color_arrows, color_shortkey, color_button;
 
@@ -126,14 +216,14 @@ draw_button(WINDOW *window, int y, int x, int size, const char *text,
 	mvwaddch(window, y, x + i, t.button.rightdelim);
 	wattroff(window, color_arrows);
 
-	x = x + 1 + ((size - 2 - strlen(text))/2);
+	x = x + 1 + ((size - 2 - strcols(text))/2);
 	wattron(window, color_button);
 	mvwaddstr(window, y, x, text);
 	wattroff(window, color_button);
 
 	if (shortcut) {
 		wattron(window, color_shortkey);
-		mvwaddch(window, y, x, text[0]);
+		mvwaddwch(window, y, x, first);
 		wattroff(window, color_shortkey);
 	}
 }
@@ -142,16 +232,28 @@ void
 draw_buttons(WINDOW *window, struct buttons bs, bool shortcut)
 {
 	int i, x, startx, y, rows, cols;
+	unsigned int newmargin, margin, wbuttons;
 
 	getmaxyx(window, rows, cols);
 	y = rows - 2;
 
-	startx = cols/2 - buttons_width(bs)/2;
+	newmargin = cols - VBORDERS - (bs.nbuttons * bs.sizebutton);
+	newmargin /= (bs.nbuttons + 1);
+	newmargin = MIN(newmargin, t.button.maxmargin);
+	if (newmargin == 0) {
+		margin = t.button.minmargin;
+		wbuttons = buttons_min_width(bs);
+	} else {
+		margin = newmargin;
+		wbuttons = bs.nbuttons * bs.sizebutton;
+		wbuttons += (bs.nbuttons + 1) * margin;
+	}
 
+	startx = (cols)/2 - wbuttons/2 + newmargin;
 	for (i = 0; i < (int)bs.nbuttons; i++) {
-		x = i * (bs.sizebutton + t.button.hmargin);
+		x = i * (bs.sizebutton + margin);
 		draw_button(window, y, startx + x, bs.sizebutton, bs.label[i],
-		    i == bs.curr, shortcut);
+		    bs.first[i],  i == bs.curr, shortcut);
 	}
 }
 
@@ -163,6 +265,7 @@ get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
 #define SIZEBUTTON              8
 #define DEFAULT_BUTTON_LABEL	BUTTON_OK_LABEL
 #define DEFAULT_BUTTON_VALUE	BSDDIALOG_OK
+	wchar_t first;
 
 	bs->nbuttons = 0;
 	bs->curr = 0;
@@ -216,6 +319,11 @@ get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
 		bs->nbuttons = 1;
 	}
 
+	for (i = 0; i < (int)bs->nbuttons; i++) {
+		mbtowc(&first, bs->label[i], MB_CUR_MAX);
+		bs->first[i] = first;
+	}
+
 	if (conf->button.default_label != NULL) {
 		for (i = 0; i < (int)bs->nbuttons; i++) {
 			if (strcmp(conf->button.default_label,
@@ -224,31 +332,31 @@ get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
 		}
 	}
 
-	bs->sizebutton = MAX(SIZEBUTTON - 2, strlen(bs->label[0]));
+	bs->sizebutton = MAX(SIZEBUTTON - 2, strcols(bs->label[0]));
 	for (i = 1; i < (int)bs->nbuttons; i++)
-		bs->sizebutton = MAX(bs->sizebutton, strlen(bs->label[i]));
+		bs->sizebutton = MAX(bs->sizebutton, strcols(bs->label[i]));
 	bs->sizebutton += 2;
 }
 
-int buttons_width(struct buttons bs)
+int buttons_min_width(struct buttons bs)
 {
 	unsigned int width;
 
 	width = bs.nbuttons * bs.sizebutton;
 	if (bs.nbuttons > 0)
-		width += (bs.nbuttons - 1) * t.button.hmargin;
+		width += (bs.nbuttons - 1) * t.button.minmargin;
 
 	return (width);
 }
 
-bool shortcut_buttons(int key, struct buttons *bs)
+bool shortcut_buttons(wint_t key, struct buttons *bs)
 {
 	bool match;
 	unsigned int i;
 
 	match = false;
 	for (i = 0; i < bs->nbuttons; i++) {
-		if (tolower(key) == tolower(bs->label[i][0])) {
+		if (towlower(key) == towlower(bs->first[i])) {
 			bs->curr = i;
 			match = true;
 			break;
@@ -259,48 +367,51 @@ bool shortcut_buttons(int key, struct buttons *bs)
 }
 
 /* Text */
-static bool is_text_attr(const char *text)
+static bool is_wtext_attr(const wchar_t *wtext)
 {
-	if (strnlen(text, 3) < 3)
+	if (wcsnlen(wtext, 3) < 3)
 		return (false);
 
-	if (text[0] != '\\' || text[1] != 'Z')
+	if (wtext[0] != L'\\' || wtext[1] != L'Z')
 		return (false);
 
-	return (strchr("nbBrRuU01234567", text[2]) == NULL ? false : true);
+	return (wcschr(L"nbBrRuU01234567", wtext[2]) == NULL ? false : true);
 }
 
-static bool check_set_text_attr(WINDOW *win, char *text)
+static bool check_set_wtext_attr(WINDOW *win, wchar_t *wtext)
 {
-	if (is_text_attr(text) == false)
+	enum bsddialog_color bg;
+
+	if (is_wtext_attr(wtext) == false)
 		return (false);
 
-	if ((text[2] - '0') >= 0 && (text[2] - '0') < 8) {
-		wattron(win, bsddialog_color(text[2] - '0', COLOR_WHITE, 0));
+	if ((wtext[2] - L'0') >= 0 && (wtext[2] - L'0') < 8) {
+		bsddialog_color_attrs(t.dialog.color, NULL, &bg, NULL);
+		wattron(win, bsddialog_color(wtext[2] - L'0', bg, 0));
 		return (true);
 	}
 
-	switch (text[2]) {
-	case 'n':
+	switch (wtext[2]) {
+	case L'n':
 		wattron(win, t.dialog.color);
 		wattrset(win, A_NORMAL);
 		break;
-	case 'b':
+	case L'b':
 		wattron(win, A_BOLD);
 		break;
-	case 'B':
+	case L'B':
 		wattroff(win, A_BOLD);
 		break;
-	case 'r':
+	case L'r':
 		wattron(win, A_REVERSE);
 		break;
-	case 'R':
+	case L'R':
 		wattroff(win, A_REVERSE);
 		break;
-	case 'u':
+	case L'u':
 		wattron(win, A_UNDERLINE);
 		break;
-	case 'U':
+	case L'U':
 		wattroff(win, A_UNDERLINE);
 		break;
 	}
@@ -308,21 +419,27 @@ static bool check_set_text_attr(WINDOW *win, char *text)
 	return (true);
 }
 
+/* Word Wrapping */
 static void
-print_string(WINDOW *win, int *rows, int cols, int *y, int *x, char *str,
+print_string(WINDOW *win, int *rows, int cols, int *y, int *x, wchar_t *str,
     bool color)
 {
-	int i, j, len, reallen;
+	int i, j, len, reallen, wc;
+	wchar_t ws[2];
 
-	len = reallen = strlen(str);
+	ws[1] = L'\0';
+
+	len = wcslen(str);
 	if (color) {
+		reallen = 0;
 		i=0;
 		while (i < len) {
-			if (is_text_attr(str+i))
-				reallen -= 3;
+			if (is_wtext_attr(str+i) == false)
+				reallen += wcwidth(str[i]);
 			i++;
 		}
-	}
+	} else
+		reallen = wcswidth(str, len);
 
 	i = 0;
 	while (i < len) {
@@ -336,13 +453,18 @@ print_string(WINDOW *win, int *rows, int cols, int *y, int *x, char *str,
 		}
 		j = *x;
 		while (j < cols && i < len) {
-			if (color && check_set_text_attr(win, str+i)) {
+			if (color && check_set_wtext_attr(win, str+i)) {
 				i += 3;
+			} else if (j + wcwidth(str[i]) > cols) {
+				break;
 			} else {
-				mvwaddch(win, *y, j, str[i]);
+				/* inline mvwaddwch() for efficiency */
+				ws[0] = str[i];
+				mvwaddwstr(win, *y, j, ws);
+				wc = wcwidth(str[i]);;
+				reallen -= wc;
+				j += wc;
 				i++;
-				reallen--;
-				j++;
 				*x = j;
 			}
 		}
@@ -354,35 +476,38 @@ print_textpad(struct bsddialog_conf *conf, WINDOW *pad, const char *text)
 {
 	bool loop;
 	int i, j, z, rows, cols, x, y, tablen;
-	char *string;
+	wchar_t *wtext, *string;
 
-	if ((string = malloc(strlen(text) + 1)) == NULL)
+	if ((wtext = alloc_mbstows(text)) == NULL)
+		RETURN_ERROR("Cannot allocate/print text in wchar_t*");
+
+	if ((string = calloc(wcslen(wtext) + 1, sizeof(wchar_t))) == NULL)
 		RETURN_ERROR("Cannot build (analyze) text");
 
 	getmaxyx(pad, rows, cols);
-	tablen = (conf->text.tablen == 0) ? TABLEN : (int)conf->text.tablen;
+	tablen = (conf->text.tablen == 0) ? TABSIZE : (int)conf->text.tablen;
 
 	i = j = x = y = 0;
 	loop = true;
 	while (loop) {
-		string[j] = text[i];
+		string[j] = wtext[i];
 
-		if (strchr("\n\t  ", string[j]) != NULL || string[j] == '\0') {
-			string[j] = '\0';
+		if (wcschr(L"\n\t  ", string[j]) != NULL || string[j] == L'\0') {
+			string[j] = L'\0';
 			print_string(pad, &rows, cols, &y, &x, string,
 			    conf->text.highlight);
 		}
 
-		switch (text[i]) {
-		case '\0':
+		switch (wtext[i]) {
+		case L'\0':
 			loop = false;
 			break;
-		case '\n':
+		case L'\n':
 			x = 0;
 			y++;
 			j = -1;
 			break;
-		case '\t':
+		case L'\t':
 			for (z = 0; z < tablen; z++) {
 				if (x >= cols) {
 					x = 0;
@@ -392,7 +517,7 @@ print_textpad(struct bsddialog_conf *conf, WINDOW *pad, const char *text)
 			}
 			j = -1;
 			break;
-		case ' ':
+		case L' ':
 			x++;
 			if (x >= cols) {
 				x = 0;
@@ -410,79 +535,133 @@ print_textpad(struct bsddialog_conf *conf, WINDOW *pad, const char *text)
 		i++;
 	}
 
+	free(wtext);
 	free(string);
 
 	return (0);
 }
 
-/* Autosize */
-static int
-text_autosize(struct bsddialog_conf *conf, const char *text, int maxrows,
-    int mincols, bool increasecols, int *h, int *w)
-{
-	int i, j, z, x, y;
-	int tablen, wordlen, maxwordlen, nword, maxwords, line, maxwidth;
+/* Text Autosize */
+#define NL  -1
+#define WS  -2
+#define TB  -3
+
+struct textproperties {
+	int nword;
 	int *words;
-#define NL -1
-#define WS -2
+	uint8_t *wletters;
+	int maxwordcols;
+	int maxline;
+	bool hasnewline;
+};
+
+static int
+text_properties(struct bsddialog_conf *conf, const char *text,
+    struct textproperties *tp)
+{
+	int i, l, currlinecols, maxwords, wtextlen, tablen, wordcols;
+	wchar_t *wtext;
+
+	tablen = (conf->text.tablen == 0) ? TABSIZE : (int)conf->text.tablen;
 
 	maxwords = 1024;
-	if ((words = calloc(maxwords, sizeof(int))) == NULL)
+	if ((tp->words = calloc(maxwords, sizeof(int))) == NULL)
 		RETURN_ERROR("Cannot alloc memory for text autosize");
 
-	tablen = (conf->text.tablen == 0) ? TABLEN : (int)conf->text.tablen;
-	maxwidth = widget_max_width(conf) - HBORDERS - TEXTHMARGINS;
+	if ((wtext = alloc_mbstows(text)) == NULL)
+		RETURN_ERROR("Cannot allocate/autosize text in wchar_t*");
+	wtextlen = wcslen(wtext);
+	if ((tp->wletters = calloc(wtextlen, sizeof(uint8_t))) == NULL)
+		RETURN_ERROR("Cannot allocate wletters for text autosizing");
 
-	nword = 0;
-	wordlen = 0;
-	maxwordlen = 0;
-	i=0;
-	while (true) {
-		if (conf->text.highlight && is_text_attr(text + i)) {
-			i += 3;
+	tp->nword = 0;
+	tp->maxline = 0;
+	tp->maxwordcols = 0;
+	tp->hasnewline = false;
+	currlinecols = 0;
+	wordcols = 0;
+	l = 0;
+	for (i = 0; i < wtextlen; i++) {
+		if (conf->text.highlight && is_wtext_attr(wtext + i)) {
+			i += 2; /* +1 for update statement */
 			continue;
 		}
 
-		if (nword + tablen + 1 >= maxwords) {
+		if (tp->nword + 1 >= maxwords) {
 			maxwords += 1024;
-			words = realloc(words, maxwords * sizeof(int));
-			if (words == NULL)
+			tp->words = realloc(tp->words, maxwords * sizeof(int));
+			if (tp->words == NULL)
 				RETURN_ERROR("Cannot realloc memory for text "
 				    "autosize");
 		}
 
-		if (text[i] == '\0') {
-			words[nword] = wordlen;
-			maxwordlen = MAX(wordlen, maxwordlen);
-			break;
-		}
+		if (wcschr(L"\t\n  ", wtext[i]) != NULL) {
+			tp->maxwordcols = MAX(wordcols, tp->maxwordcols);
 
-		if (strchr("\t\n  ", text[i]) != NULL) {
-			maxwordlen = MAX(wordlen, maxwordlen);
-
-			if (wordlen != 0) {
-				words[nword] = wordlen;
-				nword++;
-				wordlen = 0;
+			if (wordcols != 0) {
+				/* line */
+				currlinecols += wordcols;
+				/* word */
+				tp->words[tp->nword] = wordcols;
+				tp->nword += 1;
+				wordcols = 0;
 			}
 
-			if (text[i] == '\t') {
-				for (j = 0; j < tablen; j++)
-					words[nword + j] = 1;
-				nword += tablen;
-			} else {
-				words[nword] = text[i] == '\n' ? NL : WS;
-				nword++;
+			switch (wtext[i]) {
+			case L'\t':
+				/* line */
+				currlinecols += tablen;
+				/* word */
+				tp->words[tp->nword] = TB;
+				break;
+			case L'\n':
+				/* line */
+				tp->hasnewline = true;
+				tp->maxline = MAX(tp->maxline, currlinecols);
+				currlinecols = 0;
+				/* word */
+				tp->words[tp->nword] = NL;
+				break;
+			case L' ':
+				/* line */
+				currlinecols += 1;
+				/* word */
+				tp->words[tp->nword] = WS;
+				break;
 			}
+			tp->nword += 1;
+		} else {
+			tp->wletters[l] = wcwidth(wtext[i]);
+			wordcols += tp->wletters[l];
+			l++;
 		}
-		else
-			wordlen++;
-
-		i++;
 	}
+	/* word */
+	if (wordcols != 0) {
+		tp->words[tp->nword] = wordcols;
+		tp->nword += 1;
+		tp->maxwordcols = MAX(wordcols, tp->maxwordcols);
+	}
+	/* line */
+	tp->maxline = MAX(tp->maxline, currlinecols);
+
+	free(wtext);
+
+	return (0);
+}
+
+
+static int
+text_autosize(struct bsddialog_conf *conf, struct textproperties *tp,
+    int maxrows, int mincols, bool increasecols, int *h, int *w)
+{
+	int i, j, x, y, z, l, line, maxwidth, tablen;
+
+	maxwidth = widget_max_width(conf) - HBORDERS - TEXTHMARGINS;
+	tablen = (conf->text.tablen == 0) ? TABSIZE : (int)conf->text.tablen;
 
 	if (increasecols) {
-		mincols = MAX(mincols, maxwordlen);
+		mincols = MAX(mincols, tp->maxwordcols);
 		mincols = MAX(mincols,
 		    (int)conf->auto_minwidth - HBORDERS - TEXTHMARGINS);
 		mincols = MIN(mincols, maxwidth);
@@ -492,26 +671,50 @@ text_autosize(struct bsddialog_conf *conf, const char *text, int maxrows,
 		x = 0;
 		y = 1;
 		line=0;
-		for (i = 0; i <= nword; i++) {
-			if (words[i] == NL) {
+		l = 0;
+		for (i = 0; i < tp->nword; i++) {
+			switch (tp->words[i]) {
+			case TB:
+				for (j = 0; j < tablen; j++) {
+					if (x >= mincols) {
+						x = 0;
+						y++;
+					}
+				x++;
+				}
+				break;
+			case NL:
 				y++;
 				x = 0;
-			}
-			else if (words[i] == WS) {
+				break;
+			case WS:
 				x++;
 				if (x >= mincols) {
 					x = 0;
 					y++;
 				}
-			}
-			else {
-				if (words[i] + x <= mincols)
-					x += words[i];
-				else {
-					for (z = words[i]; z > 0; ) {
-						y++;
-						x = MIN(mincols, z);
-						z -= x;
+				break;
+			default:
+				if (tp->words[i] + x <= mincols) {
+					x += tp->words[i];
+					for (z = 0 ; z != tp->words[i]; l++ )
+						z += tp->wletters[l];
+				} else if (tp->words[i] <= mincols) {
+					y++;
+					x = tp->words[i];
+					for (z = 0 ; z != tp->words[i]; l++ )
+						z += tp->wletters[l];
+				} else {
+					for (j = tp->words[i]; j > 0; ) {
+						y = (x == 0) ? y : y + 1;
+						z = 0;
+						while (z != j && z < mincols) {
+							z += tp->wletters[l];
+							l++;
+						}
+						x = z;
+						line = MAX(line, x);
+						j -= z;
 					}
 				}
 			}
@@ -520,15 +723,15 @@ text_autosize(struct bsddialog_conf *conf, const char *text, int maxrows,
 
 		if (increasecols == false)
 			break;
-		if (y <= maxrows || mincols >= maxwidth)
+		if (mincols >= maxwidth)
+			break;
+		if (line >= y * (int)conf->text.cols_per_row && y <= maxrows)
 			break;
 		mincols++;
 	}
 
-	*h = (nword == 0 && words[0] == 0) ? 0 : y;
+	*h = (tp->nword == 0) ? 0 : y;
 	*w = MIN(mincols, line); /* wtext can be less than mincols */
-
-	free(words);
 
 	return (0);
 }
@@ -537,13 +740,26 @@ int
 text_size(struct bsddialog_conf *conf, int rows, int cols, const char *text,
     struct buttons *bs, int rowsnotext, int startwtext, int *htext, int *wtext)
 {
-	int wbuttons, maxhtext;
 	bool changewtext;
+	int wbuttons, maxhtext;
+	struct textproperties tp;
 
 	wbuttons = 0;
 	if (bs != NULL)
-		wbuttons = buttons_width(*bs);
+		wbuttons = buttons_min_width(*bs);
 
+	/* Rows */
+	if (rows == BSDDIALOG_AUTOSIZE || rows == BSDDIALOG_FULLSCREEN) {
+		maxhtext = widget_max_height(conf) - VBORDERS - rowsnotext;
+	} else { /* fixed */
+		maxhtext = rows - VBORDERS - rowsnotext;
+	}
+	if (bs != NULL)
+		maxhtext -= 2;
+	if (maxhtext <= 0)
+		maxhtext = 1; /* text_autosize() computes always htext */
+
+	/* Cols */
 	if (cols == BSDDIALOG_AUTOSIZE) {
 		startwtext = MAX(startwtext, wbuttons - TEXTHMARGINS);
 		changewtext = true;
@@ -555,44 +771,51 @@ text_size(struct bsddialog_conf *conf, int rows, int cols, const char *text,
 		changewtext = false;
 	}
 
-	if (rows == BSDDIALOG_AUTOSIZE || rows == BSDDIALOG_FULLSCREEN) {
-		maxhtext = widget_max_height(conf) - VBORDERS - rowsnotext;
-		if (bs != NULL)
-			maxhtext -= 2;
-	} else { /* fixed */
-		maxhtext = rows - VBORDERS - rowsnotext;
-		if (bs != NULL)
-			maxhtext -= 2;
-	}
-
 	if (startwtext <= 0 && changewtext)
 		startwtext = 1;
-	if (maxhtext <= 0 || startwtext <= 0) {
-		*htext = *wtext = 0;
-		return (0);
-	}
+	if (startwtext <= 0)
+		RETURN_ERROR("Fullscreen or fixed cols to print text <=0");
 
-	if (text_autosize(conf, text, maxhtext, startwtext, changewtext,
-	    htext, wtext) != 0)
+	/* Sizing calculation */
+	if (text_properties(conf, text, &tp) != 0)
 		return (BSDDIALOG_ERROR);
+	if (text_autosize(conf, &tp, maxhtext, startwtext, changewtext, htext,
+	    wtext) != 0)
+		return (BSDDIALOG_ERROR);
+
+	free(tp.words);
+	free(tp.wletters);
 
 	return (0);
 }
 
+/* Widget size and position */
 int widget_max_height(struct bsddialog_conf *conf)
 {
 	int maxheight;
 
-	maxheight = conf->shadow ? SCREENLINES - (int)t.shadow.h : SCREENLINES;
+	maxheight = conf->shadow ? SCREENLINES - (int)t.shadow.y : SCREENLINES;
 	if (maxheight <= 0)
 		RETURN_ERROR("Terminal too small, screen lines - shadow <= 0");
 
-	if (conf->y > 0) {
+	if (conf->y != BSDDIALOG_CENTER && conf->auto_topmargin > 0)
+		RETURN_ERROR("conf.y > 0 and conf->auto_topmargin > 0");
+	else if (conf->y == BSDDIALOG_CENTER) {
+		maxheight -= conf->auto_topmargin;
+		if (maxheight <= 0)
+			RETURN_ERROR("Terminal too small, screen lines - top "
+			    "margins <= 0");
+	} else if (conf->y > 0) {
 		maxheight -= conf->y;
 		if (maxheight <= 0)
 			RETURN_ERROR("Terminal too small, screen lines - "
 			    "shadow - y <= 0");
 	}
+
+	maxheight -= conf->auto_downmargin;
+	if (maxheight <= 0)
+		RETURN_ERROR("Terminal too small, screen lines - Down margins "
+		    "<= 0");
 
 	return (maxheight);
 }
@@ -601,7 +824,7 @@ int widget_max_width(struct bsddialog_conf *conf)
 {
 	int maxwidth;
 
-	maxwidth = conf->shadow ? SCREENCOLS - (int)t.shadow.w : SCREENCOLS;
+	maxwidth = conf->shadow ? SCREENCOLS - (int)t.shadow.x : SCREENCOLS;
 	if (maxwidth <= 0)
 		RETURN_ERROR("Terminal too small, screen cols - shadow <= 0");
 
@@ -648,13 +871,13 @@ widget_min_width(struct bsddialog_conf *conf, int wtext, int minwidget,
     struct buttons *bs)
 
 {
-	int min, delimtitle;
+	int min, delimtitle, wbottomtitle, wtitle;
 
 	min = 0;
 
 	/* buttons */
 	if (bs != NULL)
-		min += buttons_width(*bs);
+		min += buttons_min_width(*bs);
 
 	/* text */
 	if (wtext > 0)
@@ -666,12 +889,15 @@ widget_min_width(struct bsddialog_conf *conf, int wtext, int minwidget,
 	/* title */
 	if (conf->title != NULL) {
 		delimtitle = t.dialog.delimtitle ? 2 : 0;
-		min = MAX(min, (int)strlen(conf->title) + 2 + delimtitle);
+		wtitle = strcols(conf->title);
+		min = MAX(min, wtitle + 2 + delimtitle);
 	}
 
 	/* bottom title */
-	if (conf->bottomtitle != NULL)
-		min = MAX(min, (int)strlen(conf->bottomtitle) + 4);
+	if (conf->bottomtitle != NULL) {
+		wbottomtitle = strcols(conf->bottomtitle);
+		min = MAX(min, wbottomtitle + 4);
+	}
 
 	/* dialog borders */
 	min += VBORDERS;
@@ -722,8 +948,16 @@ set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w)
 int
 set_widget_position(struct bsddialog_conf *conf, int *y, int *x, int h, int w)
 {
-	if (conf->y == BSDDIALOG_CENTER)
-		*y = SCREENLINES/2 - (h + t.shadow.h)/2;
+	int hshadow = conf->shadow ? (int)t.shadow.y : 0;
+	int wshadow = conf->shadow ? (int)t.shadow.x : 0;
+
+	if (conf->y == BSDDIALOG_CENTER) {
+		*y = SCREENLINES/2 - (h + hshadow)/2;
+		if (*y < (int)conf->auto_topmargin)
+			*y = conf->auto_topmargin;
+		if (*y + h + hshadow > SCREENLINES - (int)conf->auto_downmargin)
+			*y = SCREENLINES - h - hshadow - conf->auto_downmargin;
+	}
 	else if (conf->y < BSDDIALOG_CENTER)
 		RETURN_ERROR("Negative begin y (less than -1)");
 	else if (conf->y >= SCREENLINES)
@@ -731,13 +965,13 @@ set_widget_position(struct bsddialog_conf *conf, int *y, int *x, int h, int w)
 	else
 		*y = conf->y;
 
-	if ((*y + h + (conf->shadow ? (int) t.shadow.h : 0)) > SCREENLINES)
+	if (*y + h + hshadow > SCREENLINES)
 		RETURN_ERROR("The lower of the box under the terminal "
 		    "(begin Y + height (+ shadow) > terminal lines)");
 
 
 	if (conf->x == BSDDIALOG_CENTER)
-		*x = SCREENCOLS/2 - (w + t.shadow.w)/2;
+		*x = SCREENCOLS/2 - (w + wshadow)/2;
 	else if (conf->x < BSDDIALOG_CENTER)
 		RETURN_ERROR("Negative begin x (less than -1)");
 	else if (conf->x >= SCREENCOLS)
@@ -745,14 +979,14 @@ set_widget_position(struct bsddialog_conf *conf, int *y, int *x, int h, int w)
 	else
 		*x = conf->x;
 
-	if ((*x + w + (conf->shadow ? (int) t.shadow.w : 0)) > SCREENCOLS)
+	if ((*x + w + wshadow) > SCREENCOLS)
 		RETURN_ERROR("The right of the box over the terminal "
 		    "(begin X + width (+ shadow) > terminal cols)");
 
 	return (0);
 }
 
-/* Widgets builders */
+/* Widgets build, update, destroy */
 void
 draw_borders(struct bsddialog_conf *conf, WINDOW *win, int rows, int cols,
     enum elevation elev)
@@ -816,7 +1050,7 @@ static int
 draw_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
     WINDOW *textpad, const char *text, struct buttons *bs, bool shortcutbuttons)
 {
-	int h, w, ts, ltee, rtee;
+	int h, w, wtitle, wbottomtitle, ts, ltee, rtee;
 
 	ts = conf->ascii_lines ? '-' : ACS_HLINE;
 	ltee = conf->ascii_lines ? '+' : ACS_LTEE;
@@ -830,13 +1064,15 @@ draw_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
 	draw_borders(conf, widget, h, w, RAISED);
 
 	if (conf->title != NULL) {
+		if ((wtitle = strcols(conf->title)) < 0)
+			return (BSDDIALOG_ERROR);
 		if (t.dialog.delimtitle && conf->no_lines == false) {
 			wattron(widget, t.dialog.lineraisecolor);
-			mvwaddch(widget, 0, w/2-strlen(conf->title)/2-1, rtee);
+			mvwaddch(widget, 0, w/2 - wtitle/2 -1, rtee);
 			wattroff(widget, t.dialog.lineraisecolor);
 		}
 		wattron(widget, t.dialog.titlecolor);
-		mvwaddstr(widget, 0, w/2 - strlen(conf->title)/2, conf->title);
+		mvwaddstr(widget, 0, w/2 - wtitle/2, conf->title);
 		wattroff(widget, t.dialog.titlecolor);
 		if (t.dialog.delimtitle && conf->no_lines == false) {
 			wattron(widget, t.dialog.lineraisecolor);
@@ -860,8 +1096,10 @@ draw_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
 	}
 
 	if (conf->bottomtitle != NULL) {
+		if ((wbottomtitle = strcols(conf->bottomtitle)) < 0)
+			return (BSDDIALOG_ERROR);
 		wattron(widget, t.dialog.bottomtitlecolor);
-		wmove(widget, h - 1, w/2 - strlen(conf->bottomtitle)/2 - 1);
+		wmove(widget, h - 1, w/2 - wbottomtitle/2 - 1);
 		waddch(widget, ' ');
 		waddstr(widget, conf->bottomtitle);
 		waddch(widget, ' ');
@@ -886,7 +1124,7 @@ update_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
 
 	if (conf->shadow) {
 		wclear(shadow);
-		mvwin(shadow, y + t.shadow.h, x + t.shadow.w);
+		mvwin(shadow, y + t.shadow.y, x + t.shadow.x);
 		wresize(shadow, h, w);
 	}
 
@@ -913,7 +1151,7 @@ new_dialog(struct bsddialog_conf *conf, WINDOW **shadow, WINDOW **widget, int y,
 	int error;
 
 	if (conf->shadow) {
-		*shadow = newwin(h, w, y + t.shadow.h, x + t.shadow.w);
+		*shadow = newwin(h, w, y + t.shadow.y, x + t.shadow.x);
 		if (*shadow == NULL)
 			RETURN_ERROR("Cannot build shadow");
 		wbkgd(*shadow, t.shadow.color);
