@@ -599,7 +599,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 
 	/*
 	 * We get some default values established. As a side
-	 * effect, NVRAM is read here (unless overriden by
+	 * effect, NVRAM is read here (unless overridden by
 	 * a configuration flag).
 	 */
 	if (do_load_defaults) {
