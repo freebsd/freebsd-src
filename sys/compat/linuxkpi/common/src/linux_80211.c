@@ -797,7 +797,7 @@ lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 	struct ieee80211_hw *hw;
 	int error;
 
-	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) == 0)
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) == 0)
 		return;
 
 	hw = LHW_TO_HW(lhw);
@@ -812,7 +812,7 @@ lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(lhw->ic);
 
-	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) != 0)
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0)
 		ic_printf(lhw->ic, "%s: failed to cancel scan: %d (%p, %p)\n",
 		    __func__, error, lhw, vif);
 }
@@ -2514,7 +2514,7 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	int error;
 
 	lhw = ic->ic_softc;
-	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) != 0) {
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0) {
 		/* A scan is still running. */
 		return;
 	}
@@ -2527,7 +2527,9 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	}
 
 	hw = LHW_TO_HW(lhw);
-	if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) {
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0) {
+		/* If hw_scan is cleared clear FEXT_SCAN_OFFLOAD too. */
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
 sw_scan:
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
@@ -2670,7 +2672,7 @@ sw_scan:
 			 * not possible.  Fall back to sw scan in that case.
 			 */
 			if (error == 1) {
-				vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
+				lhw->scan_flags &= ~LKPI_LHW_SCAN_HW;
 				ieee80211_start_scan(vap,
 				    IEEE80211_SCAN_ACTIVE |
 				    IEEE80211_SCAN_NOPICK |
@@ -2692,26 +2694,25 @@ static void
 lkpi_ic_scan_end(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
-	struct ieee80211_scan_state *ss;
-	struct ieee80211vap *vap;
 
 	lhw = ic->ic_softc;
-	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) == 0) {
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) == 0) {
 		return;
 	}
 
-	ss = ic->ic_scan;
-	vap = ss->ss_vap;
-	if (vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
-		/* Nothing to do. */
-	} else {
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0) {
+		struct ieee80211_scan_state *ss;
+		struct ieee80211vap *vap;
 		struct ieee80211_hw *hw;
 		struct lkpi_vif *lvif;
 		struct ieee80211_vif *vif;
 
+		ss = ic->ic_scan;
+		vap = ss->ss_vap;
 		hw = LHW_TO_HW(lhw);
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
+
 		lkpi_80211_mo_sw_scan_complete(hw, vif);
 
 		/* Send PS to stop buffering if n80211 does not for us? */
@@ -2719,6 +2720,27 @@ lkpi_ic_scan_end(struct ieee80211com *ic)
 		if (vap->iv_state == IEEE80211_S_SCAN)
 			lkpi_hw_conf_idle(hw, true);
 	}
+}
+
+static void
+lkpi_ic_scan_curchan(struct ieee80211_scan_state *ss,
+    unsigned long maxdwell)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = ss->ss_ic->ic_softc;
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0)
+		lhw->ic_scan_curchan(ss, maxdwell);
+}
+
+static void
+lkpi_ic_scan_mindwell(struct ieee80211_scan_state *ss)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = ss->ss_ic->ic_softc;
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0)
+		lhw->ic_scan_mindwell(ss);
 }
 
 static void
@@ -2734,6 +2756,11 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 
 	/* If we do not support (*config)() save us the work. */
 	if (lhw->ops->config == NULL)
+		return;
+
+	/* If we have a hw_scan running do not switch channels. */
+	if ((lhw->scan_flags & (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW)) ==
+	    (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW))
 		return;
 
 	c = ic->ic_curchan;
@@ -3482,6 +3509,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		 * the flag.
 		 */
 		ic->ic_flags_ext |= IEEE80211_FEXT_SCAN_OFFLOAD;
+		lhw->scan_flags |= LKPI_LHW_SCAN_HW;
 	}
 
 #ifdef __notyet__
@@ -3539,6 +3567,11 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_vap_delete = lkpi_ic_vap_delete;
 	ic->ic_getradiocaps = lkpi_ic_getradiocaps;
 	ic->ic_wme.wme_update = lkpi_ic_wme_update;
+
+	lhw->ic_scan_curchan = ic->ic_scan_curchan;
+	ic->ic_scan_curchan = lkpi_ic_scan_curchan;
+	lhw->ic_scan_mindwell = ic->ic_scan_mindwell;
+	ic->ic_scan_mindwell = lkpi_ic_scan_mindwell;
 
 	lhw->ic_node_alloc = ic->ic_node_alloc;
 	ic->ic_node_alloc = lkpi_ic_node_alloc;
@@ -3781,7 +3814,7 @@ linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *hw,
 	LKPI_80211_LHW_LOCK(lhw);
 	free(lhw->hw_req, M_LKPI80211);
 	lhw->hw_req = NULL;
-	lhw->scan_flags &= ~LKPI_SCAN_RUNNING;
+	lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
 	wakeup(lhw);
 	LKPI_80211_LHW_UNLOCK(lhw);
 
