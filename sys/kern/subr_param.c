@@ -262,7 +262,7 @@ init_param2(long physpages)
 
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:
-	 * unless overriden, these macros are ultimately based on maxusers.
+	 * unless overridden, these macros are ultimately based on maxusers.
 	 * Limit maxproc so that kmap entries cannot be exhausted by
 	 * processes.
 	 */
