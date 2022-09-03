@@ -527,7 +527,7 @@ child_process(e, u)
 			 */
 			if (mailto == NULL) {
 				/* MAILTO not present, set to USER,
-				 * unless globally overriden.
+				 * unless globally overridden.
 				 */
 				if (defmailto)
 					mailto = defmailto;
