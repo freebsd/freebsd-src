@@ -57,7 +57,7 @@
 #define	SDHCI_QUIRK_LOWER_FREQUENCY			(1 << 9)
 /* Data timeout is invalid, should use SD clock */
 #define	SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1 << 10)
-/* Timeout value is invalid, should be overriden */
+/* Timeout value is invalid, should be overridden */
 #define	SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1 << 11)
 /* SDHCI_CAPABILITIES is invalid */
 #define	SDHCI_QUIRK_MISSING_CAPS			(1 << 12)
