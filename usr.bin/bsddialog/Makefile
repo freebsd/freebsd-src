@@ -3,7 +3,7 @@ BSDDIALOG=	${SRCTOP}/contrib/bsddialog
 
 PROG=	bsddialog
 SRCS=	bsddialog.c
-MAN=	bsddialog.1
+MAN=	bsddialog.1 util_theme.c
 CFLAGS+=	-I${BSDDIALOG}/lib
 LIBADD=	bsddialog
 

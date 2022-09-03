@@ -39,8 +39,8 @@ struct bsddialog_theme {
 	} screen;
 	struct {
 		int color;
-		unsigned int h;
-		unsigned int w;
+		unsigned int y;
+		unsigned int x;
 	} shadow;
 	struct {
 		int  color;
@@ -62,20 +62,23 @@ struct bsddialog_theme {
 		int descsepcolor;
 		int f_shortcutcolor;
 		int shortcutcolor;
+		int bottomdesccolor;
 	} menu;
 	struct {
 		int f_fieldcolor;
 		int fieldcolor;
 		int readonlycolor;
+		int bottomdesccolor;
 	} form;
 	struct {
 		int f_color;
 		int color;
 	} bar;
 	struct {
-		unsigned int hmargin;
-		int leftdelim;
-		int rightdelim;
+		unsigned int minmargin;
+		unsigned int maxmargin;
+		char leftdelim;
+		char rightdelim;
 		int delimcolor;
 		int f_delimcolor;
 		int color;
@@ -106,7 +109,11 @@ enum bsddialog_color {
 int
 bsddialog_color(enum bsddialog_color foreground,
     enum bsddialog_color background, unsigned int flags);
+int
+bsddialog_color_attrs(int color, enum bsddialog_color *foreground,
+    enum bsddialog_color *background, unsigned int *flags);
 int bsddialog_get_theme(struct bsddialog_theme *theme);
+bool bsddialog_hascolors(void);
 int bsddialog_set_default_theme(enum bsddialog_default_theme theme);
 int bsddialog_set_theme(struct bsddialog_theme *theme);
 

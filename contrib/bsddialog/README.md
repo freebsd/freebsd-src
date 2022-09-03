@@ -1,14 +1,13 @@
-# BSDDialog 0.2
+# BSDDialog 0.3
 
-
-This project provides **bsddialog** and **libbsddialog**, an utility and a
-library to build scripts and tools with TUI dialogs and widgets.
+This project provides **bsddialog** and **libbsddialog**, an utility
+and a library to build scripts and tools with TUI dialogs and widgets.
 
 
 ## Intro
 
 Briefly:
-<https://www.freebsd.org/status/report-2021-04-2021-06/#_bsddialog_tui_widgets>
+<https://www.freebsd.org/status/report-2021-04-2021-06/bsddialog/>
 
 Utility:
 <https://alfonsosiciliano.gitlab.io/posts/2021-12-07-bsddialog.html>
@@ -28,6 +27,15 @@ FreeBSD:
 % git clone https://gitlab.com/alfix/bsddialog.git
 % cd bsddialog
 % make
+% ./bsddialog --msgbox "Hello World!" 8 20
+```
+
+Linux:
+
+```
+% git clone https://gitlab.com/alfix/bsddialog.git
+% cd bsddialog
+% make -f GNUMakefile
 % ./bsddialog --msgbox "Hello World!" 8 20
 ```
 
@@ -101,6 +109,7 @@ in the _Public Domain_ to build new projects:
 ```
 % cd examples_library
 % sh compile
+% ./checklist
 % ./datebox
 % ./form
 % ./infobox
@@ -114,4 +123,10 @@ in the _Public Domain_ to build new projects:
 % ./timebox
 % ./yesno
 ```
+
+
+## TODO and Ideas
  
+ - menubar feature
+ - key callback
+ - Right-To-Left text

@@ -16,9 +16,9 @@
 
 FORMS=$(./bsddialog --insecure --title " mixedform " \
 	--mixedform "Hello World!" 12 40 3 \
-	Label:    1 1  Entry      1  11  18  25  0 \
-	Label:    2 1  Read-Only  2  11  18  25  2 \
-	Password: 3 1  ""         3  11  18  25  1 \
+	Label:    0 0  Entry      0  10  18  25  0 \
+	Label:    1 0  Read-Only  1  10  18  25  2 \
+	Password: 2 0  ""         2  10  18  25  1 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in

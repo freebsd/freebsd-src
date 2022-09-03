@@ -7,6 +7,7 @@ examples_library/checklist
 examples_library/datebox
 examples_library/form
 examples_library/formw
+examples_library/margin
 examples_library/menu
 examples_library/mixedlist
 examples_library/radiolist
@@ -19,6 +20,7 @@ examples_library/rangebox
 examples_library/sade
 examples_library/timebox
 examples_library/yesno
+examples_library/u_msgbox
 *.gz
 lib/libbsddialog.so*
 BSDDIALOG.geany
