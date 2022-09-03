@@ -15,7 +15,7 @@ ENTRY(trunc)
 	movw	-4(%ebp),%dx
 	orw	$0x0c00,%dx		/* round towards -oo */
 	movw	%dx,-8(%ebp)
-	fldcw	-8(%ebp)		/* load modfied control word */
+	fldcw	-8(%ebp)		/* load modified control word */
 
 	fldl	8(%ebp)			/* round */
 	frndint
