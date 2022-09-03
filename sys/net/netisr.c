@@ -134,7 +134,7 @@ static SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
  * Three global direct dispatch policies are supported:
  *
  * NETISR_DISPATCH_DEFERRED: All work is deferred for a netisr, regardless of
- * context (may be overriden by protocols).
+ * context (may be overridden by protocols).
  *
  * NETISR_DISPATCH_HYBRID: If the executing context allows direct dispatch,
  * and we're running on the CPU the work would be performed on, then direct
