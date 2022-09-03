@@ -311,9 +311,15 @@ extern struct inoinfo {
 	ino_t	i_parent;		/* inode number of parent */
 	ino_t	i_dotdot;		/* inode number of `..' */
 	size_t	i_isize;		/* size of inode */
+	u_int	i_flags;		/* flags, see below */
 	u_int	i_numblks;		/* size of block array in bytes */
 	ufs2_daddr_t i_blks[1];		/* actually longer */
 } **inphead, **inpsort;
+/*
+ * flags for struct inoinfo
+ */
+#define INFO_NEW	0x0000001	/* replaced broken directory */
+
 extern long dirhash, inplast;
 extern unsigned long numdirs, listmax;
 extern long countdirs;		/* number of directories we actually found */
@@ -446,7 +452,7 @@ void		blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size);
 void		blerase(int fd, ufs2_daddr_t blk, long size);
 void		blzero(int fd, ufs2_daddr_t blk, long size);
 void		brelse(struct bufarea *);
-void		cacheino(union dinode *dp, ino_t inumber);
+struct inoinfo *cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 void		cgdirty(struct bufarea *);

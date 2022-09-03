@@ -474,6 +474,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 	union dinode *dp;
 	int lostdir;
 	ino_t oldlfdir;
+	struct inoinfo *inp;
 	struct inodesc idesc;
 	char tempname[BUFSIZ];
 
@@ -581,10 +582,12 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		inodirty(&ip);
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
-		if (parentdir != (ino_t)-1) {
+		inp = getinoinfo(parentdir);
+		if (parentdir != (ino_t)-1 && (inp->i_flags & INFO_NEW) == 0) {
 			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
 			/*
-			 * The parent directory, because of the ordering
+			 * If the parent directory did not have to
+			 * be replaced then because of the ordering
 			 * guarantees, has had the link count incremented
 			 * for the child, but no entry was made.  This
 			 * fixes the parent link count so that fsck does
@@ -823,7 +826,12 @@ allocdir(ino_t parent, ino_t request, int mode)
 	inodirty(&ip);
 	if (ino == UFS_ROOTINO) {
 		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
-		cacheino(dp, ino);
+		if ((inp = getinoinfo(ino)) == NULL)
+			inp = cacheino(dp, ino);
+		else
+			inp->i_flags = INFO_NEW;
+		inp->i_parent = parent;
+		inp->i_dotdot = parent;
 		irelse(&ip);
 		return(ino);
 	}
@@ -832,8 +840,8 @@ allocdir(ino_t parent, ino_t request, int mode)
 		irelse(&ip);
 		return (0);
 	}
-	cacheino(dp, ino);
-	inp = getinoinfo(ino);
+	if ((inp = getinoinfo(ino)) == NULL)
+		inp = cacheino(dp, ino);
 	inp->i_parent = parent;
 	inp->i_dotdot = parent;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;

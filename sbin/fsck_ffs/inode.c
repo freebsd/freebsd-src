@@ -698,12 +698,14 @@ freeinodebuf(void)
  *
  * Enter inodes into the cache.
  */
-void
+struct inoinfo *
 cacheino(union dinode *dp, ino_t inumber)
 {
 	struct inoinfo *inp, **inpp;
 	int i, blks;
 
+	if (getinoinfo(inumber) != NULL)
+		pfatal("cacheino: duplicate entry for ino %ld\n", inumber);
 	if (howmany(DIP(dp, di_size), sblock.fs_bsize) > UFS_NDADDR)
 		blks = UFS_NDADDR + UFS_NIADDR;
 	else if (DIP(dp, di_size) > 0)
@@ -735,6 +737,7 @@ cacheino(union dinode *dp, ino_t inumber)
 			errx(EEXIT, "cannot increase directory list");
 	}
 	inpsort[inplast++] = inp;
+	return (inp);
 }
 
 /*
@@ -750,7 +753,6 @@ getinoinfo(ino_t inumber)
 			continue;
 		return (inp);
 	}
-	errx(EEXIT, "cannot find inode %ju", (uintmax_t)inumber);
 	return ((struct inoinfo *)0);
 }
 
