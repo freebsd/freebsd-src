@@ -1,4 +1,77 @@
-2022-03-02 version 0.2
+2022-08-29 Version 0.3
+
+	Utility:
+	* add: --textbox accepts options for the first button.
+	* add: --columns-per-row option for text autosizing.
+	* add: --load-theme option to read and set a custom theme at runtime.
+	* add: --save-theme option to save current theme.
+	* add: --bikeshed option for random settings.
+	* add: --switch-buttons enables focus switching: buttons / input
+	       components. Available for: --form, --inputbox, --mixedform,
+	       --passwordform, --passwordbox, --timebox and --datebox.
+	* change: rename --esc-cancelvalue to --esc-return-cancel.
+	* change: form field value is printed like multibyte charachter string,
+	          previously widechar string.
+	* fix: --hline with empty string.
+	* fix: avoid to overlay the backtitle by setting a top margin.
+	* fix: avoid to overlay down shadow with menus and forms bottomdesc
+	       by setting a down margin.
+	* fix: --form read-only flag with multiple fields.
+
+	Library:
+	* add: conf.auto_topmargin and conf.auto_downmargin.
+	* add: bsddialog_textbox() accepts conf.button.* for the first button.
+	* add: bsddialog_textbox() arrows and percentage.
+	* add: conf.text.cols_per_row to set a ratio for text autosizing.
+	* add: timebox and datebox arrows and focus background for boxes.
+	* add: timebox and datebox UP key to switch focus.
+	* add: bsddialog_init_notheme() in bsddialo_theme.h.
+	* add: bsddialog_hascolors() in bsddialo_theme.h.
+	* add: theme.form.bottomdesccolor and theme.menu.bottomdesccolor.
+	* add: conf.button.always_active to disable buttons/input-boxes switch.
+	* add: dynamic buttons margin.
+	    - add: theme.button.minmargin and theme.button.maxmargin.
+	    - delete: theme.button.hmargin.
+	* add: Unicode.
+	    - UI handles multicolumn charachters: backtitle, title,
+	      text (word wrapping, autosizing), menus (shortcuts, name, desc),
+	      forms (label, field), textbox, mixedgauge (minilabel),
+	      buttons (label, shortcuts), bottomtitle.
+	    - API handles char* arguments like multibyte charachter string,
+	      depending on the current locale.
+	    - Internally wide charachters are used to get input from keyboard
+	      and to adapt word wrapping and dynamic text autosizing to
+	      muticolumn charachters.
+	* refactoring: (rewrite) form.c.
+	    - delete: libformw dep implementing its features from scratch.
+	    - delete: maxvaluelen >= valuelen constraint.
+	    - delete: conf.form.enable_wchar, get always unicode (wchar) input.
+	    - add: KEY_HOME, KEY_END, KEY_PPAGE, KEY_NPAGE keys in field.
+	    - add: KEY_UP can move focus from buttons to fields.
+	    - add: KEY_DOWN can move focus from item to buttons, if nitem is 1.
+	    - add: conf.form.securembch secure multibyte charachter.
+	    - add: BSDDIALOG_FIELDNOCOLOR for formitem.flags.
+	    - add: BSDDIALOG_FIELDCURSOREND for formitem.flags.
+	    - add: BSDDIALOG_FIELDEXTEND for formitem.flags.
+	    - add: BSDDIALOG_FIELDSINGLEBYTE for formitem.flags.
+	    - add: resizing and refresh after KEY_RESIZE (SIGWINCH).
+	    - add: items scrolling.
+	    - add: conf.form.value_wchar, value is wchar_t* instead of MB-char*.
+	    - add: formheight autosizing.
+	    - add: dynamic item position.
+	* fix: bsddialog_gauge() with fd < 0.
+	* fix: internal segmentation fault with disabled shadow.
+	* fix: bsddialog_gauge() refresh new text.
+	* fix: center position without shadow.
+	* fix: bsddialog_infobox() with zero text length.
+	* fix: text wrapping with more than 1024 words.
+	* fix: rename theme.shadow.h to theme.shadow.y.
+	* fix: rename theme.shadow.w to theme.shadow.x.
+	* fix: menurows autosize with fixed rows improving text_size().
+	* fix: messagebox.c scrolling and checksize without text.
+
+
+2022-03-02 Version 0.2
 
 	Utility:
 	* add: (this) CHANGELOG.
@@ -31,7 +104,7 @@
 	* improve: "menus" colors for accessibility.
 
 
-2022-01-27 version 0.1
+2022-01-27 Version 0.1
 
 	* Common-Options: --ascii-lines, --backtitle <backtitle>, --begin-x <x>,
 	  --begin-y <y>, --cancel-label <label>, --clear, --colors, --cr-wrap,

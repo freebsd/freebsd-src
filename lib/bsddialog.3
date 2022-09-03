@@ -22,13 +22,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 9, 2022
+.Dd August 29, 2022
 .Dt BSDDIALOG 3
 .Os
 .Sh NAME
 .Nm bsddialog_backtitle ,
 .Nm bsddialog_clearterminal ,
 .Nm bsddialog_color ,
+.Nm bsddialog_color_attrs ,
 .Nm bsddialog_checklist ,
 .Nm bsddialog_datebox ,
 .Nm bsddialog_end ,
@@ -36,8 +37,10 @@
 .Nm bsddialog_gauge ,
 .Nm bsddialog_geterror ,
 .Nm bsddialog_get_theme ,
+.Nm bsddialog_hascolors ,
 .Nm bsddialog_infobox ,
 .Nm bsddialog_init ,
+.Nm bsddialog_init_notheme ,
 .Nm bsddialog_initconf ,
 .Nm bsddialog_menu ,
 .Nm bsddialog_mixedgauge ,
@@ -114,6 +117,8 @@
 .Fc
 .Ft int
 .Fn bsddialog_init "void"
+.Ft int
+.Fn bsddialog_init_notheme "void"
 .Ft int
 .Fn bsddialog_initconf "struct bsddialog_conf *conf"
 .Ft int
@@ -218,7 +223,16 @@
 .Fa "unsigned int flags"
 .Fc
 .Ft int
+.Fo bsddialog_color_attrs
+.Fa "int color"
+.Fa "enum bsddialog_color *foreground"
+.Fa "enum bsddialog_color *background"
+.Fa "unsigned int *flags"
+.Fc
+.Ft int
 .Fn bsddialog_get_theme "struct bsddialog_theme *theme"
+.Ft bool
+.Fn bsddialog_hascolors "void"
 .Ft int
 .Fn bsddialog_set_default_theme "enum bsddialog_default_theme theme"
 .Ft int
@@ -239,6 +253,12 @@ API.
 restores the screen like before
 .Fn bsddialog_init ,
 then it is not possible to use the library functions.
+.Fn bsddialog_init_notheme
+is equivalent to
+.Fn bsddialog_init
+except it does not set the default graphical theme; see
+.Sx Theme
+subsection to set a theme explicitly.
 .Pp
 .Fn bsddialog_error
 returns a string to describe the last error, it should be called after a
@@ -258,10 +278,9 @@ is described later.
 .Pp
 Each
 .Fa char*
-argument has to be a well terminated string, can be empty
-.Pq Dq
-but not
-.Dv NULL .
+argument has to be a well terminated string, it can be a multibyte character
+string depending on current locale, see
+.Xr setlocale 3 .
 .Ss Dialogs
 The dialogs have common arguments.
 .Fa text
@@ -282,6 +301,8 @@ struct bsddialog_conf {
 	bool ascii_lines;
 	unsigned int auto_minheight;
 	unsigned int auto_minwidth;
+	unsigned int auto_topmargin;
+	unsigned int auto_downmargin;
 	const char *bottomtitle;
 	bool clear;
 	int *get_height;
@@ -298,6 +319,7 @@ struct bsddialog_conf {
 		const char *f1_message;
 	} key;
 	struct {
+		unsigned int cols_per_row;
 		bool highlight;
 		unsigned int tablen;
 	} text;
@@ -309,11 +331,13 @@ struct bsddialog_conf {
 		bool shortcut_buttons;
 	} menu;
 	struct {
-		bool enable_wchar;
-		int  securech;
+		char securech;
+		char *securembch;
+		bool value_wchar;
 		bool value_without_ok;
 	} form;
 	struct {
+		bool always_active;
 		bool without_ok;
 		const char *ok_label;
 		bool with_extra;
@@ -343,6 +367,23 @@ minimum width if
 .Fa cols
 is
 .Dv BSDDIALOG_AUTOSIZE .
+.It Fa conf.auto_topmargin
+top margin if
+.Fa rows
+is
+.Dv BSDDIALOG_AUTOSIZE
+or
+.Dv BSDDIALOG_FULLSCREEN ,
+.Fa conf.y
+has to be
+.Dv BSDDIALOG_CENTER .
+.It Fa conf.auto_downmargin
+down margin if
+.Fa rows
+is
+.Dv BSDDIALOG_AUTOSIZE
+or
+.Dv BSDDIALOG_FULLSCREEN .
 .It Fa conf.bottomtitle
 subtitle at the dialog bottom side.
 .It Fa conf.clear
@@ -382,11 +423,16 @@ file to open if F1 is pressed.
 message to display if F1 is pressed.
 .El
 .Pp
-.Fa conf.text.highlight
+.Bl -column -compact
+.It Fa conf.text.cols_per_row
+Try to set the number of columns for a row of
+.Fa text
+with autosizing; default
+.Dv 10 .
+.It Fa conf.text.highlight
 enables highlights for
 .Fa text ,
 properly the following sequences are considered escapes:
-.Bl -column -compact
 .It Dq \eZ0
 black.
 .It Dq \eZ1
@@ -404,7 +450,7 @@ cyan.
 .It Dq \eZ7
 white.
 .It Dq \eZr
-reverse colors between foreground and background.
+reverse foreground and background.
 .It Dq \eZR
 disable reverse.
 .It Dq \eZb
@@ -417,11 +463,22 @@ underline.
 disable underline.
 .It Dq \eZn
 disable each customization.
+.It Fa conf.text.tablen
+tab length for
+.Fa text
+argument and
+.Fn bsddialog_textbox
+function.
 .El
-.Fa conf.text.tablen
-tab length.
 .Pp
 .Bl -column -compact
+.It Fa conf.button.always_active
+buttons always active, avoidind focus switch between buttons and input fields or
+input boxes in
+.Fn bsddialog_form ,
+.Fn bsddialog_datebox
+and
+.Fn bsddialog_timebox .
 .It Fa conf.button.without_ok
 disable OK button.
 .It Fa conf.button.ok_label
@@ -598,8 +655,16 @@ enable shortcut keys on buttons, default on items.
 .El
 .Pp
 .Fn bsddialog_form
-builds a dialog to display a list of items to get strings in input, an item is
-defined like:
+builds a dialog to display an array of
+.Fa items
+of
+.Fa nitems
+elements to get strings in input.
+.Fa formrows
+specifies the graphical height for the box around the items,
+.Dv 0
+for autosizing.
+An item is defined like:
 .Pp
 .Bd -literal -offset indent -compact
 struct bsddialog_formitem {
@@ -621,7 +686,7 @@ struct bsddialog_formitem {
 .Ed
 .Pp
 .Fa label
-describes the request, it is printed at the position
+is a string to describe the request, it is printed at the position
 .Fa ylabel
 and
 .Fa xlabel .
@@ -632,45 +697,43 @@ and
 .Fa fieldlen
 is its graphical width, while
 .Fa maxvalelen
-is the maximum length of the input string,
+is the maximum number of characters of the input string.
 .Fa init
-is the default value.
+is the default field value.
 If the OK button is pressed
 .Fa value
-is the allocated memory with the current field string.
+is the allocated memory with the current field string, its size depends on
+the current locale.
 .Fa flags
 is an OR value to set the
-.Dv BSDDIALOG_FIELDHIDDEN
+.Dv BSDDIALOG_FIELDHIDDEN ,
+.Dv BSDDIALOG_FIELDREADONLY ,
+.Dv BSDDIALOG_FIELDNOCOLOR ,
+.Dv BSDDIALOG_FIELDCURSOREND ,
+.Dv BSDDIALOG_FIELDEXTEND
 and
-.Dv BSDDIALOG_FIELDREADONLY
+.Dv BSDDIALOG_FIELDSINGLEBYTE .
 flags for the field.
 .Fa bottomdesc
 is printed on the bottom side of the screen if the item is focused.
-.Fa items
-is an array of items of
-.Fa nitems
-elements,
-.Fa formrows
-specifies the graphical fixed height for the items list;
-.Fa ylabel
-and
-.Fa yfield
-have to be between 1 and
-.Fa formrows .
 .Pp
 .Fn bsddialog_form
 can be customized by:
 .Bl -column -compact
-.It Fa conf.form.enable_wchar
-enables characters greater than 127 in the field,
-.Fa value
-is a pointer to allocated memory for a
-.Em wchar_t
-string.
 .It Fa conf.form.securech
-charachter to hide the input
-with
+charachter to hide the input with
 .Dv BSDDIALOG_FIELDHIDDEN .
+.It Fa conf.form.securembch
+multibyte charachter to hide the input with
+.Dv BSDDIALOG_FIELDHIDDEN ,
+.Fa conf.form.securech
+is ignored.
+.It Fa conf.form.value_wchar
+the allocated
+.Fa value
+is a
+.Em wchar_t*
+string.
 .It Fa conf.form.value_without_ok
 allocate memory and set
 .Fa value
@@ -747,8 +810,8 @@ struct bsddialog_theme {
 	} screen;
 	struct {
 		int color;
-		unsigned int h;
-		unsigned int w;
+		unsigned int y;
+		unsigned int x;
 	} shadow;
 	struct {
 		int  color;
@@ -770,20 +833,23 @@ struct bsddialog_theme {
 		int descsepcolor;
 		int f_shortcutcolor;
 		int shortcutcolor;
+		int bottomdesccolor;
 	} menu;
 	struct {
 		int f_fieldcolor;
 		int fieldcolor;
 		int readonlycolor;
+		int bottomdesccolor;
 	} form;
 	struct {
 		int f_color;
 		int color;
 	} bar;
 	struct {
-		unsigned int hmargin;
-		int leftdelim;
-		int rightdelim;
+		unsigned int minmargin;
+		unsigned int maxmargin;
+		char leftdelim;
+		char rightdelim;
 		int delimcolor;
 		int f_delimcolor;
 		int color;
@@ -825,6 +891,8 @@ specifies OR-flags, possible values:
 .Dv BSDDIALOG_REVERSE
 and
 .Dv BSDDIALOG_UNDERLINE .
+.Fn bsddialog_color_attrs
+gets the properties of a color.
 .Pp
 .Fn bsddialog_set_theme
 sets
@@ -840,6 +908,13 @@ and
 .Dv BSDDIALOG_THEME_DIALOG ,
 they can be set via
 .Fn bsddialog_set_default_theme .
+.Pp
+.Fn bsddialog_hascolors
+returns
+.Dv true
+if the terminal provides colors,
+.Dv false
+otherwise.
 .Sh RETURN VALUES
 The functions return the value
 .Dv BSDDIALOG_ERROR
@@ -975,8 +1050,7 @@ for (i = 0; i < 3; i++) {
 .Ed
 .Sh SEE ALSO
 .Xr bsddialog 1 ,
-.Xr curses 3 ,
-.Xr ncurses 3
+.Xr curses 3
 .Sh HISTORY
 The
 .Nm bsddialog
@@ -985,8 +1059,4 @@ library first appeared in
 .Sh AUTHORS
 .Nm bsddialog
 was written by
-.An Alfonso Sabato Siciliano Aq Mt alf.siciliano@gmail.com .
-.Sh BUGS
-.Fn bsddialog_form
-does not resize the dialog after a terminal resize and does not provide
-scrolling for items.
+.An Alfonso Sabato Siciliano Aq Mt asiciliano@FreeBSD.org .

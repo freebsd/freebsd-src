@@ -15,11 +15,11 @@
 : ${BSDDIALOG_ESC=5}
 
 FORMS=$(./bsddialog --title " form " --form "Hello World!" 12 40 5 \
-	Label1:  1  1  Value1  1  9  18  25 \
-	Label2:  2  1  Value2  2  9  18  25 \
-	Label3:  3  1  Value3  3  9  18  25 \
-	Label4:  4  1  Value4  4  9  18  25 \
-	Label5:  5  1  Value5  5  9  18  25 \
+	Label1:  0  0  Value1  0  8  18  25 \
+	Label2:  1  0  Value2  1  8  18  25 \
+	Label3:  2  0  Value3  2  8  18  25 \
+	Label4:  3  0  Value4  3  8  18  25 \
+	Label5:  4  0  Value5  4  8  18  25 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in

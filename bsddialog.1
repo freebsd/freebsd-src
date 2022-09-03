@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 3, 2022
+.Dd August 29, 2022
 .Dt BSDDIALOG 1
 .Os
 .Sh NAME
@@ -74,6 +74,13 @@ Title on the top side of the screen.
 Dialog horizontal position, 0 is the left screen side, -1 center.
 .It Fl Fl begin-y Ar y
 Dialog vertical position, 0 is the top screen side, -1 center.
+.It Fl Fl bikeshed
+Random settings.
+Colors.
+Delimiter and margins around the title.
+Buttons always active or TAB to switch focus with input components, see
+.Fl Fl switch-buttons .
+Zero padding with time or date output.
 .It Fl Fl cancel-label Ar label
 Label for the
 .Dq Cancel
@@ -100,7 +107,7 @@ cyan.
 .It Dq \eZ7
 white.
 .It Dq \eZr
-reverse foreground and background colors.
+reverse foreground and background.
 .It Dq \eZR
 disable reverse.
 .It Dq \eZb
@@ -112,8 +119,11 @@ underline.
 .It Dq \eZU
 disable underline.
 .It Dq \eZn
-restore to normal text.
+restore normal text.
 .El
+.It Fl Fl columns-per-row Ar columns
+Try to set the number of columns for a row of text with autosizing; default
+.Dv 10 .
 .It Fl Fl cr-wrap
 Replace new line with a space in
 .Ar text .
@@ -141,7 +151,7 @@ Equivalent to
 .Fl Fl default-no .
 .It Fl Fl disable-esc
 Disable ESC key to quit.
-.It Fl Fl esc-cancelvalue
+.It Fl Fl esc-return-cancel
 Exits with the
 .Dq Cancel
 button value if the ESC key is pressed.
@@ -197,8 +207,7 @@ Do not exit with unknown options.
 .It Fl Fl insecure
 Print
 .Sq *
-to hide passwords while typing, default space
-.Sq " " .
+to hide passwords while typing; whitespace otherwise.
 .It Fl Fl item-depth
 Specify a margin for items, available for Checklist, Menu and Radiolist.
 .It Fl Fl item-help
@@ -206,9 +215,12 @@ Set a help string for each element of a Checklist, Form, Menu, Mixedform,
 Passwordform, Radiolist and Treeview to display at the bottom screen side.
 .It Fl Fl item-prefix
 Set a string to prefix each item of a Checklist, Menu, Radiolist or Treeview.
+.It Fl Fl load-theme Ar file
+Load theme from
+.Ar file .
 .It Fl Fl max-input Ar size
 Maximum length of the input for
-.Fl Fl input-box
+.Fl Fl inputbox
 ans
 .Fl Fl passwordbox ,
 default 2048.
@@ -262,6 +274,8 @@ Print Dialog height and widget at exit.
 Print version.
 .It Fl Fl quoted
 Quote items in output, default only when necessary.
+.It Fl Fl save-theme Ar file
+Save the current theme.
 .It Fl Fl separate-output
 Separate selected items with a new line and avoid to quote.
 .It Fl Fl separator Ar sep
@@ -279,6 +293,18 @@ seconds to close the dialog.
 Print input from user interface to standand error, default.
 .It Fl Fl stdout
 Print input from user interface to standard output.
+.It Fl Fl switch-buttons
+enables focus switching between buttons and input components pressing TAB,
+otherwise buttons are always active and ENTER key closes the dialog.
+Suitable for:
+.Fl Fl form ,
+.Fl Fl inputbox ,
+.Fl Fl mixedform ,
+.Fl Fl passwordbox ,
+.Fl Fl passwordform ,
+.Fl Fl timebox
+and
+.Fl Fl datebox .
 .It Fl Fl tab-len Ar spaces
 Number of spaces to print a TAB in
 .Ar text .
@@ -319,7 +345,7 @@ is the graphical height of the list, 0 for autosize.
 .It Fl Fl datebox Ar text Ar rows Ar cols Op Ar year Ar month Ar day
 Dialog to select a date.
 .It Fl Fl form Ar text Ar rows Ar cols Ar formrows Oo Ar label Ar ylabel \
-Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxvaluelen Oc ...
+Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxletters Oc ...
 Dialog to get a list of strings via forms.
 A form has a
 .Ar label
@@ -333,19 +359,21 @@ and
 .Ar xfield
 with graphical length
 .Ar fieldlen ,
-.Ar maxvaluelen
+.Ar maxletters
 is the maximum input length.
 The field can be customized, if
 .Ar fieldlen
-is 0 its length is the absolute value of
-.Ar maxvaluelen ,
-if
-.Ar maxvaluelen
-is negative the field is read only,
+is negative the field is read only and its absolute value is the field length.
+If
+.Ar maxletters
+is 0 it is the absolute value of
+.Ar fieldlen .
 .Ar init
 is a default value.
 .Ar formrows
-is the graphical height of the list, has to be at least the number of forms.
+is the graphical height of the list,
+.Dv 0
+for autosize.
 .It Fl Fl gauge Ar text Ar rows Ar cols Op Ar percentage
 Dialog with a bar to shows
 .Ar percentage ,
@@ -374,7 +402,7 @@ The name of the selected item is printed to standard error.
 .Ar menurows
 is the graphical height of the list, 0 for autosize.
 .It Fl Fl mixedform Ar text Ar rows Ar cols Ar formrows Oo Ar label Ar ylabel \
-Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxvaluelen Ar flag Oc ...
+Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxletters Ar flag Oc ...
 Dialog to get a list of strings via forms.
 A form has a
 .Ar label
@@ -388,7 +416,7 @@ at the position
 .Ar yfield
 and
 .Ar xfield ,
-.Ar maxvaluelen
+.Ar maxletters
 is the maximum input length,
 .Ar init
 is a default value,
@@ -396,7 +424,9 @@ is a default value,
 can be 0 for normal field, 1 to hide the typed characters and 2 to set the
 field read only.
 .Ar formrows
-is the graphical height of the list, has to be at least the number of forms.
+is the graphical height of the list,
+.Dv 0
+for autosize.
 .It Fl Fl mixedgauge Ar text Ar rows Ar cols Ar mainperc Oo Ar minilabel \
 Ar miniperc Oc ...
 Dialog to show a main bar to represent
@@ -436,7 +466,8 @@ Dialog to get a password,
 .Ar init
 is the default value.
 .It Fl Fl passwordform Ar text Ar rows Ar cols Ar formrows Oo Ar label \
-Ar ylabel Ar xlabel Ar init Ar yfield Ar xfield  Ar fieldlen Ar valuelen Oc ...
+Ar ylabel Ar xlabel Ar init Ar yfield Ar xfield  Ar fieldlen Ar maxletters \
+Oc ...
 Dialog to get a list of passwords, equivalent to
 .Fl Fl form
 except typed characters are hidden.
@@ -531,14 +562,39 @@ Backtitle, title and message:
 Yes-No Question and theme:
 .Dl bsddialog --theme blackwhite --yesno Question 10 30
 .Pp
+Save a custom theme:
+.Dl bsddialog --save-theme mytheme.txt --infobox \*qSaving theme...\*q 0 0
+.Pp
+Load a custom theme:
+.Dl bsddialog --load-theme mytheme.txt --infobox \*qCustom theme\*q 0 0
+.Pp
 Checklist:
 .Dl bsddialog --checklist Checklist 0 0 3 N1 \&D1 off N2 D2 on N3 D3 off
 .Pp
-Mixedgauge:
-.Dl bsddialog --sleep 3 --mixedgauge Example 10 30 60 L1 "\(dq" -1" L2 30
-.Pp
 Form:
-.Dl bsddialog --form Form 0 0 2 L1: 1 1 X 1 5 20 25 L2: 2 1 X 2 5 20 25
+.Dl bsddialog --form Form 0 0 0 L1: 0 0 X 0 4 20 25 L2: 1 0 Y 1 4 20 25
+.Pp
+Bikeshed:
+.Dl bsddialog --bikeshed --inputbox Example 0 0
+.Pp
+Mixedgauge:
+.Dl bsddialog --sleep 3 --mixedgauge Example 10 30 60 L1 \*q -1\*q L2 30
+.Pp
+Mixedgauge script:
+.Bd -literal -offset indent -compact
+perc=0
+while [ $perc -le 100 ]
+do
+	bsddialog --sleep 1 --title Mixedgauge          \e
+		--mixedgauge "\enExample...\en" 0 0 $perc \e
+		"Hidden"   " -9"                        \e
+		"Label 1"  " -4"                        \e
+		"Label 2"  " -4"                        \e
+		"Label 3"  $perc
+
+	perc=`expr $perc + 20`
+done
+.Ed
 .Pp
 Gauge script:
 .Bd -literal -offset indent -compact
@@ -558,22 +614,6 @@ do
 	i=`expr $i + 1`
 done | bsddialog --title Gauge --gauge "Starting..." 10 70
 .Ed
-.Pp
-Mixedgauge script:
-.Bd -literal -offset indent -compact
-perc=0
-while [ $perc -le 100 ]
-do
-	bsddialog --sleep 1 --title Mixedgauge          \e
-		--mixedgauge "\enExample...\en" 0 0 $perc \e
-		"Hidden"   " -9"                        \e
-		"Label 1"  " -4"                        \e
-		"Label 2"  " -4"                        \e
-		"Label 3"  $perc
-
-	perc=`expr $perc + 20`
-done
-.Ed
 .Sh SEE ALSO
 .Xr bsddialog 3
 .Sh HISTORY
@@ -584,7 +624,99 @@ utility first appeared in
 .Sh AUTHORS
 .Nm bsddialog
 was written by
-.An Alfonso Sabato Siciliano Aq Mt alf.siciliano@gmail.com .
-.Sh BUGS
-Forms do not resize the dialog after a terminal change and do not provide
-scrolling for items.
+.An Alfonso Sabato Siciliano
+.Aq Mt asiciliano@FreeBSD.org .
+.Pp
+.Nm bsddialog
+provides a subset of the functionality described in the
+.Nm dialog
+manual.
+The following features were reimplemented:
+.Pp
+Common options:
+.Fl Fl ascii-lines ,
+.Fl Fl backtitle ,
+.Fl Fl cancel-label ,
+.Fl Fl clear ,
+.Fl Fl colors ,
+.Fl Fl cr-wrap ,
+.Fl Fl date-format ,
+.Fl Fl defaultno ,
+.Fl Fl default-button ,
+.Fl Fl default-no ,
+.Fl Fl default-item ,
+.Fl Fl exit-label ,
+.Fl Fl extra-button ,
+.Fl Fl extra-label ,
+.Fl Fl help ,
+.Fl Fl help-button ,
+.Fl Fl help-label ,
+.Fl Fl help-status ,
+.Fl Fl help-tags ,
+.Fl Fl hfile ,
+.Fl Fl hline ,
+.Fl Fl ignore ,
+.Fl Fl insecure ,
+.Fl Fl item-help ,
+.Fl Fl max-input ,
+.Fl Fl no-cancel ,
+.Fl Fl nocancel ,
+.Fl Fl no-collapse ,
+.Fl Fl no-items ,
+.Fl Fl no-label ,
+.Fl Fl no-lines ,
+.Fl Fl no-nl-expand ,
+.Fl Fl no-ok ,
+.Fl Fl nook ,
+.Fl Fl no-shadow ,
+.Fl Fl no-tags ,
+.Fl Fl ok-label ,
+.Fl Fl output-fd ,
+.Fl Fl output-separator ,
+.Fl Fl print-maxsize ,
+.Fl Fl print-size ,
+.Fl Fl print-version ,
+.Fl Fl quoted ,
+.Fl Fl separate-output ,
+.Fl Fl separator ,
+.Fl Fl shadow ,
+.Fl Fl single-quoted ,
+.Fl Fl sleep ,
+.Fl Fl stderr ,
+.Fl Fl stdout ,
+.Fl Fl tab-len ,
+.Fl Fl time-format ,
+.Fl Fl title ,
+.Fl Fl trim ,
+.Fl Fl version ,
+.Fl Fl yes-label .
+.Pp
+Dialogs:
+.Fl Fl checklist ,
+.Fl Fl form ,
+.Fl Fl gauge ,
+.Fl Fl infobox ,
+.Fl Fl inputbox ,
+.Fl Fl menu ,
+.Fl Fl mixedform ,
+.Fl Fl mixedgauge ,
+.Fl Fl msgbox ,
+.Fl Fl passwordbox ,
+.Fl Fl passwordform ,
+.Fl Fl pause ,
+.Fl Fl radiolist ,
+.Fl Fl rangebox ,
+.Fl Fl textbox ,
+.Fl Fl timebox ,
+.Fl Fl treeview ,
+.Fl Fl yesno .
+.Pp
+Some feature differs in input, output, or behavior.
+Compatibility is not a priority for future development.
+.Sh THANKS TO
+.An Baptiste Daroussin
+.Aq Mt bapt@FreeBSD.org
+and
+.An \&Ed Maste
+.Aq Mt emaste@FreeBSD.org
+for suggestions, help, and testing.

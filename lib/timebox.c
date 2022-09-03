@@ -32,10 +32,41 @@
 #include <string.h>
 
 #include "bsddialog.h"
+#include "bsddialog_theme.h"
 #include "lib_util.h"
 
 #define MINWDATE   23 /* 3 windows and their borders */
 #define MINWTIME   14 /* 3 windows and their borders */
+
+static void
+drawquare(struct bsddialog_conf *conf, WINDOW *win, const char *fmt,
+    const void *value, bool focus)
+{
+	int h, l, w;
+
+	getmaxyx(win, h, w);
+	draw_borders(conf, win, h, w, LOWERED);
+	if (focus) {
+		l = 2 + w%2;
+		wattron(win, t.dialog.arrowcolor);
+		mvwhline(win, 0, w/2 - l/2,
+		    conf->ascii_lines ? '^' : ACS_UARROW, l);
+		mvwhline(win, h-1, w/2 - l/2,
+		    conf->ascii_lines ? 'v' : ACS_DARROW, l);
+		wattroff(win, t.dialog.arrowcolor);
+	}
+
+	if (focus)
+		wattron(win, t.menu.f_namecolor);
+	if (strchr(fmt, 's') != NULL)
+		mvwprintw(win, 1, 1, fmt, (const char*)value);
+	else
+		mvwprintw(win, 1, 1, fmt, *((const int*)value));
+	if (focus)
+		wattroff(win, t.menu.f_namecolor);
+
+	wrefresh(win);
+}
 
 static int
 datetime_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
@@ -50,7 +81,7 @@ datetime_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
 	}
 
 	if (cols == BSDDIALOG_AUTOSIZE)
-		*w = widget_min_width(conf, htext,minw, &bs);
+		*w = widget_min_width(conf, wtext, minw, &bs);
 
 	if (rows == BSDDIALOG_AUTOSIZE)
 		*h = widget_min_height(conf, htext, 3 /* windows */, true);
@@ -64,7 +95,7 @@ datetime_checksize(int rows, int cols, int minw, struct buttons bs)
 	int mincols;
 
 	mincols = VBORDERS;
-	mincols += buttons_width(bs);
+	mincols += buttons_min_width(bs);
 	mincols = MAX(minw, mincols);
 
 	if (cols < mincols)
@@ -81,7 +112,8 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
     int cols, unsigned int *hh, unsigned int *mm, unsigned int *ss)
 {
 	bool loop, focusbuttons;
-	int i, input, output, y, x, h, w, sel;
+	int i, retval, y, x, h, w, sel;
+	wint_t input;
 	WINDOW *widget, *textpad, *shadow;
 	struct buttons bs;
 	struct myclockstruct {
@@ -131,30 +163,26 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
 
 	wrefresh(widget);
 
+	sel = -1;
 	loop = focusbuttons = true;
 	while (loop) {
-		for (i = 0; i < 3; i++) {
-			mvwprintw(c[i].win, 1, 1, "%2d", c[i].value);
-			wrefresh(c[i].win);
-		}
+		for (i = 0; i < 3; i++)
+			drawquare(conf, c[i].win, "%02d", &c[i].value,
+			    sel == i);
 
-		if (focusbuttons == false) {
-			wmove(c[sel].win, 1, 2);
-			wrefresh(c[sel].win);
-		}
-
-		input = getch();
+		if (get_wch(&input) == ERR)
+			continue;
 		switch(input) {
 		case KEY_ENTER:
 		case 10: /* Enter */
-			if (focusbuttons == false)
-				break;
-			output = bs.value[bs.curr];
-			loop = false;
+			if (focusbuttons || conf->button.always_active) {
+				retval = bs.value[bs.curr];
+				loop = false;
+			}
 			break;
 		case 27: /* Esc */
 			if (conf->key.enable_esc) {
-				output = BSDDIALOG_ESC;
+				retval = BSDDIALOG_ESC;
 				loop = false;
 			}
 			break;
@@ -165,14 +193,13 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
 				focusbuttons = bs.curr < (int)bs.nbuttons ?
 				    true : false;
 				if (focusbuttons == false) {
-					curs_set(1);
 					sel = 0;
+					bs.curr = conf->button.always_active ? 0 : -1;
 				}
 			} else {
 				sel++;
 				focusbuttons = sel > 2 ? true : false;
 				if (focusbuttons) {
-					curs_set(0);
 					bs.curr = 0;
 				}
 			}
@@ -184,25 +211,28 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
 				bs.curr--;
 				focusbuttons = bs.curr < 0 ? false : true;
 				if (focusbuttons == false) {
-					curs_set(1);
 					sel = 2;
+					bs.curr = conf->button.always_active ? 0 : -1;
 				}
 			} else {
 				sel--;
 				focusbuttons = sel < 0 ? true : false;
-				if (focusbuttons) {
-					curs_set(0);
+				if (focusbuttons)
 					bs.curr = (int)bs.nbuttons - 1;
-				}
 			}
 			draw_buttons(widget, bs, true);
 			wrefresh(widget);
 			break;
 		case KEY_UP:
-			if (focusbuttons)
-				break;
-			c[sel].value = c[sel].value > 0 ?
+			if (focusbuttons) {
+				sel = 0;
+				focusbuttons = false;
+				bs.curr = conf->button.always_active ? 0 : -1;
+				draw_buttons(widget, bs, true);
+				wrefresh(widget);
+			} else { c[sel].value = c[sel].value > 0 ?
 			    c[sel].value - 1 : c[sel].max;
+			}
 			break;
 		case KEY_DOWN:
 			if (focusbuttons)
@@ -214,10 +244,8 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
 			if (conf->key.f1_file == NULL &&
 			    conf->key.f1_message == NULL)
 				break;
-			curs_set(0);
 			if (f1help(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			curs_set(1);
 			/* No break, screen size can change */
 		case KEY_RESIZE:
 			/* Important for decreasing screen */
@@ -248,43 +276,33 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
 
 			wclear(c[0].win);
 			mvwin(c[0].win, y + h - 6, x + w/2 - 7);
-			draw_borders(conf, c[0].win, 3, 4, LOWERED);
-			wrefresh(c[0].win);
-
 			wclear(c[1].win);
 			mvwin(c[1].win, y + h - 6, x + w/2 - 2);
-			draw_borders(conf, c[1].win, 3, 4, LOWERED);
-			wrefresh(c[1].win);
-
 			wclear(c[2].win);
 			mvwin(c[2].win, y + h - 6, x + w/2 + 3);
-			draw_borders(conf, c[2].win, 3, 4, LOWERED);
-			wrefresh(c[2].win);
 
 			/* Important to avoid grey lines expanding screen */
 			refresh();
 			break;
 		default:
 			if (shortcut_buttons(input, &bs)) {
-				output = bs.value[bs.curr];
+				retval = bs.value[bs.curr];
 				loop = false;
 			}
 		}
 	}
 
-	if (output == BSDDIALOG_OK) {
+	if (retval == BSDDIALOG_OK) {
 		*hh = c[0].value;
 		*mm = c[1].value;
 		*ss = c[2].value;
 	}
 
-	curs_set(0);
-
 	for (i = 0; i < 3; i++)
 		delwin(c[i].win);
 	end_dialog(conf, shadow, widget, textpad);
 
-	return (output);
+	return (retval);
 }
 
 int
@@ -292,7 +310,8 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
     int cols, unsigned int *yy, unsigned int *mm, unsigned int *dd)
 {
 	bool loop, focusbuttons;
-	int i, input, output, y, x, h, w, sel;
+	int i, retval, y, x, h, w, sel;
+	wint_t input;
 	WINDOW *widget, *textpad, *shadow;
 	struct buttons bs;
 	struct calendar {
@@ -363,31 +382,27 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 
 	wrefresh(widget);
 
+	sel = -1;
 	loop = focusbuttons = true;
 	while (loop) {
-		mvwprintw(c[0].win, 1, 1, "%4d", c[0].value);
-		mvwprintw(c[1].win, 1, 1, "%9s", m[c[1].value-1].name);
-		mvwprintw(c[2].win, 1, 1, "%2d", c[2].value);
-		for (i = 0; i < 3; i++) {
-			wrefresh(c[i].win);
-		}
-		if (focusbuttons == false) {
-			wmove(c[sel].win, 1, c[sel].x);
-			wrefresh(c[sel].win);
-		}
+		drawquare(conf, c[0].win, "%4d", &c[0].value, sel == 0);
+		drawquare(conf, c[1].win, "%9s", m[c[1].value-1].name,
+		    sel == 1);
+		drawquare(conf, c[2].win, "%02d", &c[2].value, sel == 2);
 
-		input = getch();
+		if (get_wch(&input) == ERR)
+			continue;
 		switch(input) {
 		case KEY_ENTER:
 		case 10: /* Enter */
-			if (focusbuttons == false)
-				break;
-			output = bs.value[bs.curr];
-			loop = false;
+			if (focusbuttons || conf->button.always_active) {
+				retval = bs.value[bs.curr];
+				loop = false;
+			}
 			break;
 		case 27: /* Esc */
 			if (conf->key.enable_esc) {
-				output = BSDDIALOG_ESC;
+				retval = BSDDIALOG_ESC;
 				loop = false;
 			}
 			break;
@@ -398,14 +413,13 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 				focusbuttons = bs.curr < (int)bs.nbuttons ?
 				    true : false;
 				if (focusbuttons == false) {
-					curs_set(1);
 					sel = 0;
+					bs.curr = conf->button.always_active ? 0 : -1;
 				}
 			} else {
 				sel++;
 				focusbuttons = sel > 2 ? true : false;
 				if (focusbuttons) {
-					curs_set(0);
 					bs.curr = 0;
 				}
 			}
@@ -417,33 +431,37 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 				bs.curr--;
 				focusbuttons = bs.curr < 0 ? false : true;
 				if (focusbuttons == false) {
-					curs_set(1);
 					sel = 2;
+					bs.curr = conf->button.always_active ? 0 : -1;
 				}
 			} else {
 				sel--;
 				focusbuttons = sel < 0 ? true : false;
-				if (focusbuttons) {
-					curs_set(0);
+				if (focusbuttons)
 					bs.curr = (int)bs.nbuttons - 1;
-				}
 			}
 			draw_buttons(widget, bs, true);
 			wrefresh(widget);
 			break;
 		case KEY_UP:
-			if (focusbuttons)
-				break;
-			c[sel].value = c[sel].value > 1 ?
-			    c[sel].value - 1 : c[sel].max ;
-			/* if mount change */
-			c[2].max = m[c[1].value -1].days;
-			/* if year change */
-			if (c[1].value == 2 && ISLEAF(c[0].value))
-				c[2].max = 29;
-			/* set new day */
-			if (c[2].value > c[2].max)
-				c[2].value = c[2].max;
+			if (focusbuttons) {
+				sel = 0;
+				focusbuttons = false;
+				bs.curr = conf->button.always_active ? 0 : -1;
+				draw_buttons(widget, bs, true);
+				wrefresh(widget);
+			} else {
+				c[sel].value = c[sel].value > 1 ?
+				    c[sel].value - 1 : c[sel].max ;
+				/* if mount change */
+				c[2].max = m[c[1].value -1].days;
+				/* if year change */
+				if (c[1].value == 2 && ISLEAF(c[0].value))
+					c[2].max = 29;
+				/* set new day */
+				if (c[2].value > c[2].max)
+					c[2].value = c[2].max;
+			}
 			break;
 		case KEY_DOWN:
 			if (focusbuttons)
@@ -463,10 +481,8 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 			if (conf->key.f1_file == NULL &&
 			    conf->key.f1_message == NULL)
 				break;
-			curs_set(0);
 			if (f1help(conf) != 0)
 				return (BSDDIALOG_ERROR);
-			curs_set(1);
 			/* No break, screen size can change */
 		case KEY_RESIZE:
 			/* Important for decreasing screen */
@@ -496,41 +512,31 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 
 			wclear(c[0].win);
 			mvwin(c[0].win, y + h - 6, x + w/2 - 11);
-			draw_borders(conf, c[0].win, 3, 6, LOWERED);
-			wrefresh(c[0].win);
-
 			wclear(c[1].win);
 			mvwin(c[1].win, y + h - 6, x + w/2 - 4);
-			draw_borders(conf, c[1].win, 3, 11, LOWERED);
-			wrefresh(c[1].win);
-
 			wclear(c[2].win);
 			mvwin(c[2].win, y + h - 6, x + w/2 + 8);
-			draw_borders(conf, c[2].win, 3, 4, LOWERED);
-			wrefresh(c[2].win);
 
 			/* Important to avoid grey lines expanding screen */
 			refresh();
 			break;
 		default:
 			if (shortcut_buttons(input, &bs)) {
-				output = bs.value[bs.curr];
+				retval = bs.value[bs.curr];
 				loop = false;
 			}
 		}
 	}
 
-	if (output == BSDDIALOG_OK) {
+	if (retval == BSDDIALOG_OK) {
 		*yy = c[0].value;
 		*mm = c[1].value;
 		*dd = c[2].value;
 	}
 
-	curs_set(0);
-
 	for (i = 0; i < 3; i++)
 		delwin(c[i].win);
 	end_dialog(conf, shadow, widget, textpad);
 
-	return (output);
+	return (retval);
 }
