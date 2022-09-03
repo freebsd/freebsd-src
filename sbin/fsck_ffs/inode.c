@@ -705,7 +705,8 @@ cacheino(union dinode *dp, ino_t inumber)
 	int i, blks;
 
 	if (getinoinfo(inumber) != NULL)
-		pfatal("cacheino: duplicate entry for ino %ld\n", inumber);
+		pfatal("cacheino: duplicate entry for ino %jd\n",
+		    (intmax_t)inumber);
 	if (howmany(DIP(dp, di_size), sblock.fs_bsize) > UFS_NDADDR)
 		blks = UFS_NDADDR + UFS_NIADDR;
 	else if (DIP(dp, di_size) > 0)
