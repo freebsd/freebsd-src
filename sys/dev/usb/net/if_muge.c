@@ -1582,7 +1582,7 @@ muge_attach_post(struct usb_ether *ue)
  *	@ue: the USB ethernet device
  *
  *	Most of this is boilerplate code and copied from the base USB ethernet
- *	driver.  It has been overriden so that we can indicate to the system
+ *	driver.  It has been overridden so that we can indicate to the system
  *	that the chip supports H/W checksumming.
  *
  *	RETURNS:
