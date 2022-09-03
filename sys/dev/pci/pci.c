@@ -3331,7 +3331,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * not allow that.  It is best to ignore such entries for the
 	 * moment.  These will be allocated later if the driver specifically
 	 * requests them.  However, some removable buses look better when
-	 * all resources are allocated, so allow '0' to be overriden.
+	 * all resources are allocated, so allow '0' to be overridden.
 	 *
 	 * Similarly treat maps whose values is the same as the test value
 	 * read back.  These maps have had all f's written to them by the
