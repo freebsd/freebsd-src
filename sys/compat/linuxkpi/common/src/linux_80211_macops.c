@@ -205,10 +205,10 @@ lkpi_80211_mo_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	lhw->scan_flags |= LKPI_SCAN_RUNNING;
+	lhw->scan_flags |= LKPI_LHW_SCAN_RUNNING;
 	error = lhw->ops->hw_scan(hw, vif, sr);
 	if (error != 0)
-		lhw->scan_flags &= ~LKPI_SCAN_RUNNING;
+		lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
 
 out:
 	return (error);
@@ -236,7 +236,7 @@ lkpi_80211_mo_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vi
 		return;
 
 	lhw->ops->sw_scan_complete(hw, vif);
-	lhw->scan_flags &= ~LKPI_SCAN_RUNNING;
+	lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
 }
 
 void
