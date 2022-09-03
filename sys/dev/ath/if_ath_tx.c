@@ -1352,7 +1352,7 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	);
 
 	/*
-	 * This will be overriden when the descriptor chain is written.
+	 * This will be overridden when the descriptor chain is written.
 	 */
 	bf->bf_lastds = ds;
 	bf->bf_last = bf;
