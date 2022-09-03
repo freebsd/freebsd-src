@@ -73,7 +73,7 @@ SET_HOSTNAME='hostname -s "%s"'
 dialog_hostname()
 {
 	local prompt="$msg_please_choose_a_hostname"
-	local hline="Use TAB and Enter to select $msg_ok"
+	local hline=
 	local value="$*"
 
 	bsddialog \
@@ -83,7 +83,7 @@ dialog_hostname()
 		--ok-label "$msg_ok"            \
 		--no-cancel                     \
 		--inputbox "$prompt"            \
-		0 56 "$value"                   \
+		0 0 "$value"                    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 }
 
