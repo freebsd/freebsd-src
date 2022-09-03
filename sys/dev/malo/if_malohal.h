@@ -48,7 +48,7 @@
 /*
  * Calibration data builtin to the firmware.  The firmware image
  * has a single set of calibration tables that we retrieve right
- * after download.  This can be overriden by the driver (e.g. for
+ * after download.  This can be overridden by the driver (e.g. for
  * a different regdomain and/or tx power setup).
  */
 struct malo_hal_caldata {
