@@ -756,7 +756,7 @@ cd9660_rrip_add_NM(cd9660node *node, const char *name)
 	struct ISO_SUSP_ATTRIBUTES *r;
 
 	/*
-	 * Each NM record has 254 byes to work with. This means that
+	 * Each NM record has 254 bytes to work with. This means that
 	 * the name data itself only has 249 bytes to work with. So, a
 	 * name with 251 characters would require two nm records.
 	 */
