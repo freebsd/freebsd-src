@@ -636,7 +636,7 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 
 	/*
 	 * Make sure this is a node type we can deal with. Everything is explicitly
-	 * enumerated without the 'default' clause so the the compiler can throw an
+	 * enumerated without the 'default' clause so the compiler can throw an
 	 * error in case a new type is added.
 	 */
 	switch (node->tn_type) {
