@@ -214,7 +214,7 @@ void __tcp_hpts_remove(struct inpcb *inp, int32_t flags, int32_t line);
  * it to be 1 (so you wont call output) it may be transitioning
  * to 0 (by the hpts). That will be fine since that will just
  * mean an extra call to tcp_output that most likely will find
- * the call you executed (when the mis-match occured) will have
+ * the call you executed (when the mis-match occurred) will have
  * put the TCB back on the hpts and it will return. If your
  * call did not add it back to the hpts then you will either
  * over-send or the cwnd will block you from sending more.
