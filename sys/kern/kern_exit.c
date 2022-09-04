@@ -764,7 +764,7 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
  * kern_abort2()
  * Arguments:
  *  why - user pointer to why
- *  nargs - number of arguments copied or -1 if an error occured in copying
+ *  nargs - number of arguments copied or -1 if an error occurred in copying
  *  args - pointer to an array of pointers in kernel format
  */
 int
