@@ -3283,7 +3283,32 @@ nfs_advlock(struct vop_advlock_args *ap)
 	error = NFSVOPLOCK(vp, LK_SHARED);
 	if (error != 0)
 		return (EBADF);
-	if (NFS_ISV4(vp) && (ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
+	nmp = VFSTONFS(vp->v_mount);
+	if (!NFS_ISV4(vp) || (nmp->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		if ((nmp->nm_flag & NFSMNT_NOLOCKD) != 0) {
+			size = np->n_size;
+			NFSVOPUNLOCK(vp);
+			error = lf_advlock(ap, &(vp->v_lockf), size);
+		} else {
+			if (nfs_advlock_p != NULL)
+				error = nfs_advlock_p(ap);
+			else {
+				NFSVOPUNLOCK(vp);
+				error = ENOLCK;
+			}
+		}
+		if (error == 0 && ap->a_op == F_SETLK) {
+			error = NFSVOPLOCK(vp, LK_SHARED);
+			if (error == 0) {
+				/* Mark that a file lock has been acquired. */
+				NFSLOCKNODE(np);
+				np->n_flag |= NHASBEENLOCKED;
+				NFSUNLOCKNODE(np);
+				NFSVOPUNLOCK(vp);
+			}
+		}
+		return (error);
+	} else if ((ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
 		if (vp->v_type != VREG) {
 			error = EINVAL;
 			goto out;
@@ -3317,7 +3342,6 @@ nfs_advlock(struct vop_advlock_args *ap)
 		 * state structure cannot exist for the file.
 		 * Only done for "oneopenown" NFSv4.1/4.2 mounts.
 		 */
-		nmp = VFSTONFS(vp->v_mount);
 		if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp)) {
 			NFSLOCKNODE(np);
 			np->n_flag |= NMIGHTBELOCKED;
@@ -3384,30 +3408,6 @@ nfs_advlock(struct vop_advlock_args *ap)
 			np->n_flag |= NHASBEENLOCKED;
 			NFSUNLOCKNODE(np);
 		}
-	} else if (!NFS_ISV4(vp)) {
-		if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
-			size = VTONFS(vp)->n_size;
-			NFSVOPUNLOCK(vp);
-			error = lf_advlock(ap, &(vp->v_lockf), size);
-		} else {
-			if (nfs_advlock_p != NULL)
-				error = nfs_advlock_p(ap);
-			else {
-				NFSVOPUNLOCK(vp);
-				error = ENOLCK;
-			}
-		}
-		if (error == 0 && ap->a_op == F_SETLK) {
-			error = NFSVOPLOCK(vp, LK_SHARED);
-			if (error == 0) {
-				/* Mark that a file lock has been acquired. */
-				NFSLOCKNODE(np);
-				np->n_flag |= NHASBEENLOCKED;
-				NFSUNLOCKNODE(np);
-				NFSVOPUNLOCK(vp);
-			}
-		}
-		return (error);
 	} else
 		error = EOPNOTSUPP;
 out:
