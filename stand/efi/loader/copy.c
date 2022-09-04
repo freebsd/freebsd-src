@@ -286,7 +286,7 @@ COMMAND_SET(staging_slop, "staging_slop", "set staging slop",
 
 #if defined(__i386__) || defined(__amd64__)
 /*
- * The staging area must reside in the the first 1GB or 4GB physical
+ * The staging area must reside in the first 1GB or 4GB physical
  * memory: see elf64_exec() in
  * boot/efi/loader/arch/amd64/elf64_freebsd.c.
  */
