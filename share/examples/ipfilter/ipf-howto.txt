@@ -367,7 +367,7 @@ in on the tun0 interface?
     block in quick on tun0 all
     pass  in               all
 
-In this case, the on keyword means that that data is  coming
+In this case, the on keyword means that the data is  coming
 in  on  the  named interface.  If a packet comes in on tun0,
 the first rule will block it.  If a packet comes in  on  lo0
 or in on xl0, the first rule will not match, the second rule
