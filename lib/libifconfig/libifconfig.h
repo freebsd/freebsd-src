@@ -129,7 +129,7 @@ ifconfig_handle_t *ifconfig_open(void);
  */
 void ifconfig_close(ifconfig_handle_t *h);
 
-/** Identifies what kind of error occured. */
+/** Identifies what kind of error occurred. */
 ifconfig_errtype ifconfig_err_errtype(ifconfig_handle_t *h);
 
 /** Retrieves the errno associated with the error, if any. */
@@ -285,7 +285,7 @@ int ifconfig_carp_get_info(ifconfig_handle_t *h, const char *name,
 /** Retrieve additional information about an inet address
  * @param h	An open ifconfig state object
  * @param name	The interface name
- * @param ifa	Pointer to the the address structure of interest
+ * @param ifa	Pointer to the address structure of interest
  * @param addr	Return argument.  It will be filled with additional information
  *              about the address.
  * @return	0 on success, nonzero on failure.
@@ -296,7 +296,7 @@ int ifconfig_inet_get_addrinfo(ifconfig_handle_t *h,
 /** Retrieve additional information about an inet6 address
  * @param h	An open ifconfig state object
  * @param name	The interface name
- * @param ifa	Pointer to the the address structure of interest
+ * @param ifa	Pointer to the address structure of interest
  * @param addr	Return argument.  It will be filled with additional information
  *              about the address.
  * @return	0 on success, nonzero on failure.

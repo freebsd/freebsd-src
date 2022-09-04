@@ -38,13 +38,13 @@ struct errstate {
 	ifconfig_errtype errtype;
 
 	/**
-	 * The error occured in this ioctl() request.
+	 * The error occurred in this ioctl() request.
 	 * Populated if errtype = IOCTL
 	 */
 	unsigned long ioctl_request;
 
 	/**
-	 * The value of the global errno variable when the error occured.
+	 * The value of the global errno variable when the error occurred.
 	 */
 	int errcode;
 };
