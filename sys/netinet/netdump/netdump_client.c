@@ -609,7 +609,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
  *	priv, Unused.
  *
  * Returns:
- *	int, An errno value if an error occured, 0 otherwise.
+ *	int, An errno value if an error occurred, 0 otherwise.
  */
 static int
 netdump_modevent(module_t mod __unused, int what, void *priv __unused)
