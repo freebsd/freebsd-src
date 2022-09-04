@@ -3188,11 +3188,37 @@ nfs_advlock(struct vop_advlock_args *ap)
 	struct vattr va;
 	int ret, error = EOPNOTSUPP;
 	u_quad_t size;
+	struct nfsmount *nmp;
 	
 	ret = NFSVOPLOCK(vp, LK_SHARED);
 	if (ret != 0)
 		return (EBADF);
-	if (NFS_ISV4(vp) && (ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
+	nmp = VFSTONFS(vp->v_mount);
+	if (!NFS_ISV4(vp) || (nmp->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		if ((nmp->nm_flag & NFSMNT_NOLOCKD) != 0) {
+			size = np->n_size;
+			NFSVOPUNLOCK(vp, 0);
+			error = lf_advlock(ap, &(vp->v_lockf), size);
+		} else {
+			if (nfs_advlock_p != NULL)
+				error = nfs_advlock_p(ap);
+			else {
+				NFSVOPUNLOCK(vp, 0);
+				error = ENOLCK;
+			}
+		}
+		if (error == 0 && ap->a_op == F_SETLK) {
+			error = NFSVOPLOCK(vp, LK_SHARED);
+			if (error == 0) {
+				/* Mark that a file lock has been acquired. */
+				NFSLOCKNODE(np);
+				np->n_flag |= NHASBEENLOCKED;
+				NFSUNLOCKNODE(np);
+				NFSVOPUNLOCK(vp, 0);
+			}
+		}
+		return (error);
+	} else if ((ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
 		if (vp->v_type != VREG) {
 			NFSVOPUNLOCK(vp, 0);
 			return (EINVAL);
@@ -3279,29 +3305,6 @@ nfs_advlock(struct vop_advlock_args *ap)
 		}
 		NFSVOPUNLOCK(vp, 0);
 		return (0);
-	} else if (!NFS_ISV4(vp)) {
-		if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
-			size = VTONFS(vp)->n_size;
-			NFSVOPUNLOCK(vp, 0);
-			error = lf_advlock(ap, &(vp->v_lockf), size);
-		} else {
-			if (nfs_advlock_p != NULL)
-				error = nfs_advlock_p(ap);
-			else {
-				NFSVOPUNLOCK(vp, 0);
-				error = ENOLCK;
-			}
-		}
-		if (error == 0 && ap->a_op == F_SETLK) {
-			error = NFSVOPLOCK(vp, LK_SHARED);
-			if (error == 0) {
-				/* Mark that a file lock has been acquired. */
-				NFSLOCKNODE(np);
-				np->n_flag |= NHASBEENLOCKED;
-				NFSUNLOCKNODE(np);
-				NFSVOPUNLOCK(vp, 0);
-			}
-		}
 	} else
 		NFSVOPUNLOCK(vp, 0);
 	return (error);
