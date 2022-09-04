@@ -565,7 +565,7 @@ doreti_iret_nmi:
 	 * case, and continues in the corresponding place in the code
 	 * below.
 	 *
-	 * If the fault occured during return to usermode, we recreate
+	 * If the fault occurred during return to usermode, we recreate
 	 * the trap frame and call trap() to send a signal.  Otherwise
 	 * the kernel was tricked into fault by attempt to restore invalid
 	 * usermode segment selectors on return from nested fault or
