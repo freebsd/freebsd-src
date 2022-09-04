@@ -150,7 +150,7 @@ void LacSymQat_CipherArc4StateInit(const Cpa8U *pKey,
  *
  * @description
  *       For XTS mode using partial packets, after the first partial response
- *       has been received, the the key length needs to be halved for subsequent
+ *       has been received, the key length needs to be halved for subsequent
  *       partials.
  *
  * @param[in] pSessionDesc      The session descriptor.
