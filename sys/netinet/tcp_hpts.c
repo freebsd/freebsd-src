@@ -1341,7 +1341,7 @@ again:
 				 * goes off and sees the mis-match. We
 				 * simply correct it here and the CPU will
 				 * switch to the new hpts nextime the tcb
-				 * gets added to the the hpts (not this one)
+				 * gets added to the hpts (not this one)
 				 * :-)
 				 */
 				tcp_set_hpts(inp);
@@ -1376,7 +1376,7 @@ again:
 				 * than the previous inp) and there no
 				 * assurance that ninp was not pulled while
 				 * we were processing inp and freed. If this
-				 * occured it could mean that either:
+				 * occurred it could mean that either:
 				 *
 				 * a) Its NULL (which is fine we won't go
 				 * here) <or> b) Its valid (which is cool we
