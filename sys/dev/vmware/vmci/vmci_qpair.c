@@ -486,7 +486,7 @@ vmci_qpair_consume_buf_ready(const struct vmci_qpair *qpair)
  *     VMCI_ERROR_QUEUEPAIR_NOSPACE if no space was available to enqueue data.
  *     VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *     (as defined by the queue size).
- *     VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
+ *     VMCI_ERROR_INVALID_ARGS, if an error occurred when accessing the buffer.
  *     VMCI_ERROR_QUEUEPAIR_NOTATTACHED, if the queue pair pages aren't
  *     available.
  *     Otherwise, the number of bytes written to the queue is returned.
@@ -557,7 +557,7 @@ enqueue(struct vmci_queue *produce_q, struct vmci_queue *consume_q,
  *     VMCI_ERROR_QUEUEPAIR_NODATA if no data was available to dequeue.
  *     VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  *     (as defined by the queue size).
- *     VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
+ *     VMCI_ERROR_INVALID_ARGS, if an error occurred when accessing the buffer.
  *     VMCI_ERROR_NOT_FOUND, if the vmm_world registered with the queue pair
  *     cannot be found.
  *     Otherwise the number of bytes dequeued is returned.
