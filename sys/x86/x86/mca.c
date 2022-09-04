@@ -811,7 +811,7 @@ update_threshold(enum scan_mode mode, int valid, int last_intr, int count,
 	if (mode != POLLED)
 		return (limit);
 
-	/* If a CMCI occured recently, do nothing for now. */
+	/* If a CMCI occurred recently, do nothing for now. */
 	if (delta < cmc_throttle)
 		return (limit);
 
