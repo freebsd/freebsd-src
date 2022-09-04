@@ -2608,7 +2608,7 @@ struct iwm_soc_configuration_cmd {
  * struct iwm_error_resp - FW error indication
  * ( IWM_REPLY_ERROR = 0x2 )
  * @error_type: one of IWM_FW_ERR_*
- * @cmd_id: the command ID for which the error occured
+ * @cmd_id: the command ID for which the error occurred
  * @bad_cmd_seq_num: sequence number of the erroneous command
  * @error_service: which service created the error, applicable only if
  *	error_type = 2, otherwise 0
