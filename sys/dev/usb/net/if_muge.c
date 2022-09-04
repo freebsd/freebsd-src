@@ -1556,7 +1556,7 @@ muge_set_leds(struct usb_ether *ue)
  *	@ue: the USB ethernet device
  *
  *	This is where the chip is intialised for the first time.  This is
- *	different from the muge_init() function in that that one is designed to
+ *	different from the muge_init() function in that one is designed to
  *	setup the H/W to match the UE settings and can be called after a reset.
  *
  */
