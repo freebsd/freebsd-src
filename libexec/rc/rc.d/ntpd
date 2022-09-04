@@ -60,7 +60,7 @@ can_run_nonroot()
 	local fileopts="^[ \t]*crypto|^[ \t]*driftfile|^[ \t]*key|^[ \t]*logfile|^[ \t]*statsdir"
 	grep -E -q "${fileopts}" "${ntpd_config}" && return 1
 
-	# Try to set up the the MAC ntpd policy so ntpd can run with reduced
+	# Try to set up the MAC ntpd policy so ntpd can run with reduced
 	# privileges.  Detect whether MAC is compiled into the kernel, load
 	# the policy module if not already present, then check whether the
 	# policy has been disabled via tunable or sysctl.
