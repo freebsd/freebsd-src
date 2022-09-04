@@ -345,7 +345,7 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 	}
 	/*
 	 * Check either we are already using the VFP in the kernel, or
-	 * the the saved state points to the default user space.
+	 * the saved state points to the default user space.
 	 */
 	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) != 0 ||
 	    pcb->pcb_fpusaved == &pcb->pcb_fpustate,
