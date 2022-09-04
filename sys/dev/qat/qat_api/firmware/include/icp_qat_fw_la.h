@@ -1670,7 +1670,7 @@ typedef struct icp_qat_fw_la_key_gen_common_s {
  * @ingroup icp_qat_fw_la
  *        Definition of the SSL3 request parameters block
  * @description
- *        This structure contains the the SSL3 processing request parameters
+ *        This structure contains the SSL3 processing request parameters
  *        incorporating LWs 14-26, as defined by the common base
  *        parameters structure. Unused fields must be set to 0.
  *
@@ -1709,7 +1709,7 @@ typedef struct icp_qat_fw_la_ssl3_req_params_s {
  * @ingroup icp_qat_fw_la
  *        Definition of the MGF request parameters block
  * @description
- *        This structure contains the the MGF processing request parameters
+ *        This structure contains the MGF processing request parameters
  *        incorporating LWs 14-26, as defined by the common base parameters
  *        structure. Unused fields must be set to 0.
  *
@@ -1748,7 +1748,7 @@ typedef struct icp_qat_fw_la_mgf_req_params_s {
  * @ingroup icp_qat_fw_la
  *        Definition of the TLS request parameters block
  * @description
- *        This structure contains the the TLS processing request parameters
+ *        This structure contains the TLS processing request parameters
  *        incorporating LWs 14-26, as defined by the common base parameters
  *        structure. Unused fields must be set to 0.
  *

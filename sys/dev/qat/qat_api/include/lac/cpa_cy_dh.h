@@ -228,7 +228,7 @@ typedef struct _CpaCyDhStats64 {
  * @description
  *      This function may be used to implement the Diffie-Hellman phase 1
  *      operations as defined in the PKCS #3 standard. It may be used to
- *      generate the the (local) octet string public value (PV) key.
+ *      generate the (local) octet string public value (PV) key.
  *      The prime number sizes specified in RFC 2409, 4306, and part of
  *      RFC 3526 are supported (bit sizes 6144 and 8192 from RFC 3536 are not
  *      supported).
