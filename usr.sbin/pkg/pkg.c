@@ -1220,10 +1220,10 @@ main(int argc, char *argv[])
 	}
 
 	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
-		/* 
+		/*
 		 * To allow 'pkg -N' to be used as a reliable test for whether
 		 * a system is configured to use pkg, don't bootstrap pkg
-		 * when that that option is passed.
+		 * when that option is passed.
 		 */
 		if (activation_test)
 			errx(EXIT_FAILURE, "pkg is not installed");
