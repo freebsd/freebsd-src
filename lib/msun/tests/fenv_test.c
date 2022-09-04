@@ -401,7 +401,7 @@ ATF_TC_BODY(masking, tc)
 	/*
 	 * Some CPUs, e.g. AArch64 QEMU does not support trapping on FP
 	 * exceptions. In that case the trap enable bits are all RAZ/WI, so
-	 * writing to those bits will be ignored and the the next read will
+	 * writing to those bits will be ignored and the next read will
 	 * return all zeroes for those bits. Skip the test if no floating
 	 * point exceptions are supported and mark it XFAIL if some are missing.
 	 */
