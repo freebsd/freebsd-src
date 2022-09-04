@@ -3,6 +3,11 @@
 .\"
 .\" Copyright (c) 2019-2022 Netflix, Inc
 .\" Copyright (c) 2022 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright 2022 The FreeBSD Foundation, Inc.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -27,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2022
+.Dd September 4, 2022
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -202,6 +207,116 @@ does not implement the probe
 .Fl P
 functionality where we use the video console if a keyboard is connected and a
 serial console otherwise.
+.Ss Staging Slop
+The kernel must parse the firmware memory map tables to know what memory
+it can use.
+Since it must allocate memory to do this,
+.Nm
+ensures there's extra memory available, called
+.Dq slop ,
+after everything it loads
+.Po
+the kernel, modules and metadata
+.Pc
+for the kernel to bootstrap the memory allocator.
+.Pp
+By default, amd64 reserves 8MB.
+The
+.Ic staging_slop
+command allows for tuning the slop size.
+It takes a single argument, the size of the slop in bytes.
+.Ss amd64 Nocopy
+.Nm
+will load the kernel into memory that is 2MB aligned below 4GB.
+It cannot load to a fixed address because the UEFI firmware may reserve
+arbitrary memory for its use at runtime.
+Prior to
+.Fx 13.1 ,
+kernels retained the old BIOS-boot protocol of loading at exactly 2MB.
+Such kernels must be copied from their loaded location to 2MB prior
+starting them up.
+The
+.Ic copy_staging
+command is used to enable this copying for older kernels.
+It takes a single argument
+which can be one of
+.Bl -tag -width disable
+.It Ar disable
+Force-disable copying staging area to
+.Ad 2M .
+.It Ar enable
+Force-enable copying staging area to
+.Ad 2M .
+.It Ar auto
+Selects the behaviour based on the kernel's capability of boostraping
+from non-2M physical base.
+The kernel reports this capability by exporting the symbol
+.Va kernphys .
+.El
+.Pp
+Arm64 loaders have operated in the
+.Sq nocopy
+mode from their inception, so there is no
+.Ic copy_staging
+command on that platform.
+Riscv, 32-bit arm and arm64 have always loaded at any
+.Ad 2MB
+aligned location, so do not provide
+.Ic copy_staging .
+.Pp
+.Bd -ragged -offset indent
+.Sy Note.
+BIOS loaders on i386 and amd64 put the staging area starting
+at the physical address
+.Ad 2M ,
+then enable paging with identical mapping for the low
+.Ad 1G .
+The initial port of
+.Nm
+followed the same scheme for handing control to the kernel,
+since it avoided modifications for the loader/kernel hand-off protocol,
+and for the kernel page table bootstrap.
+.Pp
+This approach is incompatible with the UEFI specification,
+and as a practical matter, caused troubles on many boards,
+because UEFI firmware is free to use any memory for its own needs.
+Applications like
+.Nm
+must only use memory explicitly allocated using boot interfaces.
+The original way also potentially destroyed UEFI runtime interfaces data.
+.Pp
+Eventually,
+.Nm
+and the kernel were improved to avoid this problem.
+.Ed
+.Ss amd64 Faults
+Because it executes in x86 protected mode, the amd64 version of
+.Nm
+is susceptible to CPU faults due to programmer mistakes and
+memory corruption.
+To make debugging such faults easier, amd64
+.Nm
+can provide detailed reporting of the CPU state at the time
+of the fault.
+.Pp
+The
+.Ic grab_faults
+command installs a handler for faults directly in the IDT,
+avoiding the use of the UEFI debugging interface
+.Fn EFI_DEBUG_SUPPORT_PROTOCOL.RegisterExceptionCallback .
+That interface is left available for advanced debuggers in
+the UEFI environment.
+The
+.Ic ungrab_faults
+command tries to deinstall the fault handler, returning TSS and IDT
+CPU tables to their pre-installation state.
+The
+.Ic fault
+command produces a fault in the
+.Nm
+environment for testing purposes, by executing the
+.Ic ud2
+processor instruction.
 .Sh FILES
 .Bl -tag -width "/boot/loader.efi"
 .It Pa /boot/loader.efi
