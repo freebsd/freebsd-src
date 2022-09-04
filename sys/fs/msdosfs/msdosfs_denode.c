@@ -128,7 +128,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	 * MSDOSFSROOT, offset MSDOSFSROOT_OFS
 	 *
 	 * NOTE: de_vncmpf will explicitly skip any denodes that do not have
-	 * a de_refcnt > 0.  This insures that that we do not attempt to use
+	 * a de_refcnt > 0.  This insures that we do not attempt to use
 	 * a denode that represents an unlinked but still open file.
 	 * These files are not to be accessible even when the directory
 	 * entry that represented the file happens to be reused while the
