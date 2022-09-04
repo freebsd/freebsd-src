@@ -9123,7 +9123,7 @@ iwn_set_channel(struct ieee80211com *ic)
 		error = iwn_config(sc);
 		if (error != 0)
 		device_printf(sc->sc_dev,
-		    "%s: error %d settting channel\n", __func__, error);
+		    "%s: error %d setting channel\n", __func__, error);
 	}
 	IWN_UNLOCK(sc);
 }
