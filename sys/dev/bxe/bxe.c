@@ -4432,7 +4432,7 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
     /* Bug 165447: the 'ifconfig' tool skips printing of the "status: ..."
        line if the IFM_AVALID flag is *NOT* set. So we need to set this
        flag unconditionally (irrespective of the admininistrative
-       'up/down' state of the interface) to ensure that that line is always
+       'up/down' state of the interface) to ensure that the line is always
        displayed.
     */
     ifmr->ifm_status = IFM_AVALID;
