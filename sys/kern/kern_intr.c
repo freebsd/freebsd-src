@@ -775,7 +775,7 @@ intr_event_barrier(struct intr_event *ie)
 
 	/*
 	 * Now wait on the inactive phase.
-	 * The acquire fence is needed so that that all post-barrier accesses
+	 * The acquire fence is needed so that all post-barrier accesses
 	 * are after the check.
 	 */
 	while (ie->ie_active[phase] > 0)
