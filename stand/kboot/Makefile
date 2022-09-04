@@ -35,6 +35,9 @@ CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
 .include	"${BOOTSRC}/fdt.mk"
 
+# Note: Since we're producing a userland binary, we key off of MACHINE_ARCH
+# instead of the more normal MACHINE since the changes between different flavors
+# of MACHINE_ARCH are large enough in Linux that it's easier that way.
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 .include "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
