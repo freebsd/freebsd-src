@@ -720,13 +720,13 @@ bcma_erom_seek_matching_core(struct bcma_erom *sc,
 		return (0);
 	}
 
-	/* Not found, or a parse error occured */
+	/* Not found, or a parse error occurred */
 	return (error);
 }
 
 /**
  * Read the next core descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @param[out] core On success, will be populated with the parsed core
  * descriptor data.
