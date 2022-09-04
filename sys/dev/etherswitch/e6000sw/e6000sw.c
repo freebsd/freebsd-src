@@ -957,7 +957,7 @@ e6000sw_init_vlan(struct e6000sw_softc *sc)
 		ret &= ~(PORT_CONTROL_EGRESS | PORT_CONTROL_FRAME);
 		e6000sw_writereg(sc, REG_PORT(sc, port), PORT_CONTROL, ret);
 
-		/* Set the the 802.1q mode. */
+		/* Set the 802.1q mode. */
 		ret = e6000sw_readreg(sc, REG_PORT(sc, port), PORT_CONTROL2);
 		ret &= ~PORT_CONTROL2_DOT1Q;
 		if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q)
