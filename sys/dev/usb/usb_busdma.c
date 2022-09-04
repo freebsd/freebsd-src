@@ -546,7 +546,7 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 		/*
 		 * XXX BUS-DMA workaround - FIXME later:
 		 *
-		 * We assume that the alignment at this point of
+		 * We assume that that the alignment at this point of
 		 * the code is greater than or equal to the size and
 		 * less than two times the size, so that if we double
 		 * the size, the size will be greater than the

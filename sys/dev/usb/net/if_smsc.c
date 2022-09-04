@@ -1545,7 +1545,7 @@ smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  *	@ue: the USB ethernet device
  *
  *	This is where the chip is intialised for the first time.  This is different
- *	from the smsc_init() function in that one is designed to setup the
+ *	from the smsc_init() function in that that one is designed to setup the
  *	H/W to match the UE settings and can be called after a reset.
  *
  *
