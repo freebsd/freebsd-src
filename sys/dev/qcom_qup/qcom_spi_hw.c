@@ -841,7 +841,7 @@ qcom_spi_hw_write_pio_block(struct qcom_spi_softc *sc)
 }
 
 /*
- * Read data into the the RX buffer and increment the RX offset.
+ * Read data into the RX buffer and increment the RX offset.
  *
  * Return true if the byte was saved into the RX buffer, else
  * return false.
