@@ -833,7 +833,7 @@ typedef	struct	frentry {
 #define	FR_STATESYNC	0x1000000	/* synchronize state to slave */
 #define	FR_COPIED	0x2000000	/* copied from user space */
 #define	FR_INACTIVE	0x4000000	/* only used when flush'ing rules */
-#define	FR_NOMATCH	0x8000000	/* no match occured */
+#define	FR_NOMATCH	0x8000000	/* no match occurred */
 		/*	0x10000000 	FF_LOGPASS */
 		/*	0x20000000 	FF_LOGBLOCK */
 		/*	0x40000000 	FF_LOGNOMATCH */

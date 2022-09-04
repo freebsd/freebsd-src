@@ -1904,7 +1904,7 @@ ipf_tcpoptions(ipf_state_softc_t *softs, fr_info_t *fin, tcphdr_t *tcp,
 
 			/*
 			 * Extract the TCP options we are interested in out of
-			 * the header and store them in the the tcpdata struct.
+			 * the header and store them in the tcpdata struct.
 			 */
 			switch (opt)
 			{

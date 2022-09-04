@@ -7360,7 +7360,7 @@ ipf_token_expire(ipf_main_softc_t *softc)
 /* Loop through all of the existing tokens and call deref to see if they    */
 /* can be freed. Normally a function like this might just loop on           */
 /* ipf_token_head but there is a chance that a token might have a ref count */
-/* of greater than one and in that case the the reference would drop twice  */
+/* of greater than one and in that case the reference would drop twice      */
 /* by code that is only entitled to drop it once.                           */
 /* ------------------------------------------------------------------------ */
 static void
