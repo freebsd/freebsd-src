@@ -4048,297 +4048,6 @@ if test "$ac_res" != no; then :
 fi
 
 
-# Checks for terminal libraries
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for working terminal libraries" >&5
-$as_echo_n "checking for working terminal libraries... " >&6; }
-TERMLIBS=
-
-# Check for systems where curses is broken.
-curses_broken=0
-if test x`uname -s` = "xHP-UX" >/dev/null 2>&1; then
-if test x`uname -r` = "xB.11.00" >/dev/null 2>&1; then
-   curses_broken=1
-fi
-if test x`uname -r` = "xB.11.11" >/dev/null 2>&1; then
-   curses_broken=1
-fi
-fi
-
-if test $curses_broken = 0; then
-
-# -- Try tinfo.
-if test "x$TERMLIBS" = x; then
-  if test $have_tinfo = yes; then
-    TERMLIBS="-ltinfo"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try tinfow.
-if test "x$TERMLIBS" = x; then
-  if test $have_tinfow = yes; then
-    TERMLIBS="-ltinfow"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try xcurses.
-if test "x$TERMLIBS" = x; then
-  if test $have_xcurses = yes; then
-    TERMLIBS="-lxcurses"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try ncursesw.
-if test "x$TERMLIBS" = x; then
-  if test $have_ncursesw = yes; then
-    TERMLIBS="-lncursesw"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try ncurses.
-if test "x$TERMLIBS" = x; then
-  if test $have_ncurses = yes; then
-    TERMLIBS="-lncurses"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <termcap.h>
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try curses.
-if test "x$TERMLIBS" = x; then
-  if test $have_curses = yes; then
-    TERMLIBS="-lcurses"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try curses & termcap.
-if test "x$TERMLIBS" = x; then
-  if test $have_curses = yes; then
-  if test $have_termcap = yes; then
-    TERMLIBS="-lcurses -ltermcap"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-  fi
-fi
-fi
-
-# -- Try termcap.
-if test "x$TERMLIBS" = x; then
-  if test $have_termcap = yes; then
-    TERMLIBS="-ltermcap"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-# -- Try termlib.
-if test "x$TERMLIBS" = x; then
-  if test $have_termlib = yes; then
-    TERMLIBS="-lcurses -ltermlib"
-    SAVE_LIBS=$LIBS
-    LIBS="$LIBS $TERMLIBS"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  termok=yes
-else
-  termok=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS=$SAVE_LIBS
-    if test $termok = no; then TERMLIBS=""; fi
-  fi
-fi
-
-if test "x$TERMLIBS" = x; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Cannot find terminal libraries - configure failed" >&5
-$as_echo "Cannot find terminal libraries - configure failed" >&6; }
-  exit 1
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: using $TERMLIBS" >&5
-$as_echo "using $TERMLIBS" >&6; }
-LIBS="$LIBS $TERMLIBS"
-
 # Checks for header files.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
 $as_echo_n "checking for ANSI C header files... " >&6; }
@@ -4665,7 +4374,301 @@ $as_echo "#define TIME_WITH_SYS_TIME 1" >>confdefs.h
 fi
 
 
+# Checks for terminal libraries
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for working terminal libraries" >&5
+$as_echo_n "checking for working terminal libraries... " >&6; }
+TERMLIBS=
+include_termcap_h=
+if test "x$ac_cv_header_termcap_h" = xyes; then include_termcap_h="#include <termcap.h>"; fi
+
+# Check for systems where curses is broken.
+curses_broken=0
+if test x`uname -s` = "xHP-UX" >/dev/null 2>&1; then
+if test x`uname -r` = "xB.11.00" >/dev/null 2>&1; then
+   curses_broken=1
+fi
+if test x`uname -r` = "xB.11.11" >/dev/null 2>&1; then
+   curses_broken=1
+fi
+fi
+
+if test $curses_broken = 0; then
+
+# -- Try tinfo.
+if test "x$TERMLIBS" = x; then
+  if test $have_tinfo = yes; then
+    TERMLIBS="-ltinfo"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try tinfow.
+if test "x$TERMLIBS" = x; then
+  if test $have_tinfow = yes; then
+    TERMLIBS="-ltinfow"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try xcurses.
+if test "x$TERMLIBS" = x; then
+  if test $have_xcurses = yes; then
+    TERMLIBS="-lxcurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try ncursesw.
+if test "x$TERMLIBS" = x; then
+  if test $have_ncursesw = yes; then
+    TERMLIBS="-lncursesw"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try ncurses.
+if test "x$TERMLIBS" = x; then
+  if test $have_ncurses = yes; then
+    TERMLIBS="-lncurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try curses.
+if test "x$TERMLIBS" = x; then
+  if test $have_curses = yes; then
+    TERMLIBS="-lcurses"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try curses & termcap.
+if test "x$TERMLIBS" = x; then
+  if test $have_curses = yes; then
+  if test $have_termcap = yes; then
+    TERMLIBS="-lcurses -ltermcap"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+  fi
+fi
+fi
+
+# -- Try termcap.
+if test "x$TERMLIBS" = x; then
+  if test $have_termcap = yes; then
+    TERMLIBS="-ltermcap"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try termlib.
+if test "x$TERMLIBS" = x; then
+  if test $have_termlib = yes; then
+    TERMLIBS="-lcurses -ltermlib"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$include_termcap_h
+int
+main ()
+{
+tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  termok=yes
+else
+  termok=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+if test "x$TERMLIBS" = x; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Cannot find terminal libraries - configure failed" >&5
+$as_echo "Cannot find terminal libraries - configure failed" >&6; }
+  exit 1
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: using $TERMLIBS" >&5
+$as_echo "using $TERMLIBS" >&6; }
+LIBS="$LIBS $TERMLIBS"
+
 # Autoheader templates for symbols defined later by AC_DEFINE.
+
 
 
 
@@ -4791,6 +4794,28 @@ _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }; $as_echo "#define HAVE_STAT_INO 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for procfs" >&5
+$as_echo_n "checking for procfs... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/statfs.h>
+int
+main ()
+{
+struct statfs s; s.f_type = PROC_SUPER_MAGIC; (void) fstatfs(0,&s);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }; $as_echo "#define HAVE_PROCFS 1" >>confdefs.h
 
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -5346,15 +5371,15 @@ else
 
 #include <sys/types.h>
 #include <regex.h>
-main() { regex_t r; regmatch_t rm; char *text = "xabcy";
-if (regcomp(&r, "abc", 0)) exit(1);
-if (regexec(&r, text, 1, &rm, 0)) exit(1);
+int main() { regex_t r; regmatch_t rm; char *text = "xabcy";
+if (regcomp(&r, "abc", 0)) return (1);
+if (regexec(&r, text, 1, &rm, 0)) return (1);
 #ifndef __WATCOMC__
-if (rm.rm_so != 1) exit(1); /* check for correct offset */
+if (rm.rm_so != 1) return (1); /* check for correct offset */
 #else
-if (rm.rm_sp != text + 1) exit(1); /* check for correct offset */
+if (rm.rm_sp != text + 1) return (1); /* check for correct offset */
 #endif
-exit(0); }
+return (0); }
 _ACEOF
 if ac_fn_c_try_run "$LINENO"; then :
   have_posix_regex=yes

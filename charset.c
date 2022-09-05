@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -445,7 +445,7 @@ prchar(c)
 	LWCHAR c;
 {
 	/* {{ This buffer can be overrun if LESSBINFMT is a long string. }} */
-	static char buf[32];
+	static char buf[MAX_PRCHAR_LEN+1];
 
 	c &= 0377;
 	if ((c < 128 || !utf_mode) && !control_char(c))
@@ -480,7 +480,7 @@ prchar(c)
 prutfchar(ch)
 	LWCHAR ch;
 {
-	static char buf[32];
+	static char buf[MAX_PRCHAR_LEN+1];
 
 	if (ch == ESC)
 		strcpy(buf, "ESC");
@@ -805,18 +805,6 @@ is_ubin_char(ch)
 {
 	int ubin = is_in_table(ch, &ubin_table) ||
 	           (bs_mode == BS_CONTROL && is_in_table(ch, &fmt_table));
-#if MSDOS_COMPILER==WIN32C
-	if (!ubin && utf_mode == 2 && ch < 0x10000)
-	{
-		/*
-		 * Consider it binary if it can't be converted.
-		 */
-		BOOL used_default = TRUE;
-		WideCharToMultiByte(GetConsoleOutputCP(), WC_NO_BEST_FIT_CHARS, (LPCWSTR) &ch, 1, NULL, 0, NULL, &used_default);
-		if (used_default)
-			ubin = 1;
-	}
-#endif
 	return ubin;
 }
 

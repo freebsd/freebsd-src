@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -60,8 +60,10 @@ extern int      know_dumb;
 extern int      pr_type;
 extern int      quit_if_one_screen;
 extern int      no_init;
-extern int errmsgs;
-
+extern int      errmsgs;
+extern int      redraw_on_quit;
+extern int      term_init_done;
+extern int      first_time;
 
 /*
  * Entry point.
@@ -139,7 +141,7 @@ main(argc, argv)
 
 	s = lgetenv(less_is_more ? "MORE" : "LESS");
 	if (s != NULL)
-		scan_option(save(s));
+		scan_option(s);
 
 #define isoptstring(s)  (((s)[0] == '-' || (s)[0] == '+') && (s)[1] != '\0')
 	while (argc > 0 && (isoptstring(*argv) || isoptpending()))
@@ -409,12 +411,23 @@ quit(status)
 	rstat('Q');
 #endif /*LESSTEST*/
 	quitting = 1;
-	edit((char*)NULL);
-	save_cmdhist();
 	if (interactive())
 		clear_bot();
 	deinit();
 	flush();
+	if (redraw_on_quit && term_init_done)
+	{
+		/*
+		 * The last file text displayed might have been on an 
+		 * alternate screen, which now (since deinit) cannot be seen.
+		 * redraw_on_quit tells us to redraw it on the main screen.
+		 */
+		first_time = 1; /* Don't print "skipping" or tildes */
+		repaint();
+		flush();
+	}
+	edit((char*)NULL);
+	save_cmdhist();
 	raw_mode(0);
 #if MSDOS_COMPILER && MSDOS_COMPILER != DJGPPC
 	/* 

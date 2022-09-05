@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -231,6 +231,7 @@ typedef off_t           LINENUM;
 #define MAX_LINENUM_WIDTH   16  /* Max width of a line number */
 #define MAX_STATUSCOL_WIDTH 4   /* Max width of the status column */
 #define MAX_UTF_CHAR_LEN    6   /* Max bytes in one UTF-8 char */
+#define MAX_PRCHAR_LEN      31  /* Max chars in prchar() result */
 
 #define NULL_POSITION   ((POSITION)(-1))
 
@@ -406,6 +407,7 @@ struct wchar_range_table
 #define AT_COLOR_PROMPT   (7 << AT_COLOR_SHIFT)
 #define AT_COLOR_RSCROLL  (8 << AT_COLOR_SHIFT)
 #define AT_COLOR_SEARCH   (9 << AT_COLOR_SHIFT)
+#define AT_COLOR_HEADER   (11 << AT_COLOR_SHIFT)
 
 typedef enum { CT_NULL, CT_4BIT, CT_6BIT } COLOR_TYPE;
 

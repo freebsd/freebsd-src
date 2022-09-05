@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -25,6 +25,7 @@ static POSITION *table = NULL;  /* The position table */
 static int table_size = 0;
 
 extern int sc_width, sc_height;
+extern int header_lines;
 
 /*
  * Return the starting file position of a line displayed on the screen.

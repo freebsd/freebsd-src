@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -55,7 +55,7 @@ opt_desc(o)
 propt(c)
 	int c;
 {
-	static char buf[8];
+	static char buf[MAX_PRCHAR_LEN+2];
 
 	sprintf(buf, "-%s", prchar(c));
 	return (buf);
