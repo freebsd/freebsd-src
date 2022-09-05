@@ -46,53 +46,27 @@ ENTRY(copyout_fast)
 	pushl	%edi
 	pushl	%ebx
 
-	movl	$copyout_fault,%edx
-	movl	20(%ebp),%ebx	/* KCR3 */
-
-	movl	PCPU(CURPCB),%eax
-	movl	PCB_CR3(%eax),%edi
-
-	cli
-	movl	PCPU(TRAMPSTK),%esi
-	movl	PCPU(COPYOUT_BUF),%eax
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	12(%ebp),%eax	/* udaddr */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	16(%ebp),%eax	/* len */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-
-	subl	$4, %esi
-	movl	%edi, (%esi)
-
-	movl	8(%ebp),%eax	/* kaddr */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	PCPU(COPYOUT_BUF),%eax
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	16(%ebp),%eax	/* len */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-
-	movl	%esp,%eax
-	movl	%esi,%esp
-
+	movl	20(%ebp),%ebx		/* KCR3 */
+	movl	PCPU(CURPCB),%edx
+	movl	PCB_CR3(%edx),%edx	/* UCR3 */
 	/* bcopy(%esi = kaddr, %edi = PCPU(copyout_buf), %ecx = len) */
-	popl	%ecx
-	popl	%edi
-	popl	%esi
+	movl	16(%ebp),%ecx
+	movl	8(%ebp),%esi
+	cli
+	movl	PCPU(COPYOUT_BUF),%edi
 	rep; movsb
 
-	popl	%edi
-	movl	%edi,%cr3
+	movl	16(%ebp),%ecx		/* len */
+	movl	PCPU(COPYOUT_BUF),%esi	/* kaddr */
+	movl	12(%ebp),%edi		/* uaddr */
+
+	movl	%esp,%eax
+	movl	PCPU(TRAMPSTK),%esp
+
+	movl	%edx,%cr3
+	movl	$copyout_fault,%edx
 
 	/* bcopy(%esi = PCPU(copyout_buf), %edi = udaddr, %ecx = len) */
-	popl	%ecx
-	popl	%edi
-	popl	%esi
 pf_x1:	rep; movsb
 
 	movl	%ebx,%cr3
@@ -114,53 +88,30 @@ ENTRY(copyin_fast)
 	pushl	%edi
 	pushl	%ebx
 
-	movl	$copyout_fault,%edx
-	movl	20(%ebp),%ebx	/* KCR3 */
-
+	movl	20(%ebp),%ebx		/* KCR3 */
 	movl	PCPU(CURPCB),%eax
-	movl	PCB_CR3(%eax),%edi
-
+	movl	PCB_CR3(%eax),%edx	/* UCR3 */
+	movl	16(%ebp),%ecx		/* len */
+	movl	8(%ebp),%esi		/* udaddr */
 	cli
-	movl	PCPU(TRAMPSTK),%esi
-	movl	PCPU(COPYOUT_BUF),%eax
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	12(%ebp),%eax	/* kaddr */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	16(%ebp),%eax	/* len */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-
-	movl	8(%ebp),%eax	/* udaddr */
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	PCPU(COPYOUT_BUF),%eax
-	subl	$4,%esi
-	movl	%eax,(%esi)
-	movl	16(%ebp),%eax	/* len */
-	subl	$4,%esi
-	movl	%eax,(%esi)
+	movl	PCPU(COPYOUT_BUF),%edi	/* kaddr */
 
 	movl	%esp,%eax
-	movl	%esi,%esp
-	movl	%edi,%cr3
-
+	movl	PCPU(TRAMPSTK),%esp
+	movl	%edx,%cr3
+	movl	$copyout_fault,%edx
 	/* bcopy(%esi = udaddr, %edi = PCPU(copyout_buf), %ecx = len) */
-	popl	%ecx
-	popl	%edi
-	popl	%esi
 pf_x2:	rep; movsb
 
 	movl	%ebx,%cr3
+	movl	%eax,%esp
 
 	/* bcopy(%esi = PCPU(copyout_buf), %edi = kaddr, %ecx = len) */
-	popl	%ecx
-	popl	%edi
-	popl	%esi
+	movl	16(%ebp),%ecx
+	movl	12(%ebp),%edi
+	movl	PCPU(COPYOUT_BUF),%esi
 	rep; movsb
 
-	movl	%eax,%esp
 	sti
 
 	xorl	%eax,%eax
