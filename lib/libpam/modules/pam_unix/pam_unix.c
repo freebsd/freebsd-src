@@ -87,7 +87,7 @@ static char password_hash[] =		PASSWORD_HASH;
  * authentication management
  */
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
+pam_sm_authenticate(pam_handle_t *pamh, int flags,
     int argc __unused, const char *argv[] __unused)
 {
 	login_cap_t *lc;
