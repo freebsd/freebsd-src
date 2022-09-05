@@ -90,8 +90,8 @@
 				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
 				    CSUM_SCTP_VALID)
 
-int		loioctl(struct ifnet *, u_long, caddr_t);
-int		looutput(struct ifnet *ifp, struct mbuf *m,
+static int	loioctl(struct ifnet *, u_long, caddr_t);
+static int	looutput(struct ifnet *ifp, struct mbuf *m,
 		    const struct sockaddr *dst, struct route *ro);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
@@ -200,7 +200,7 @@ static moduledata_t loop_mod = {
 
 DECLARE_MODULE(if_lo, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
-int
+static int
 looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
@@ -369,8 +369,7 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 /*
  * Process an ioctl request.
  */
-/* ARGSUSED */
-int
+static int
 loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
