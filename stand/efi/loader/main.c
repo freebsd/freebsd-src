@@ -720,7 +720,7 @@ parse_args(int argc, CHAR16 *argv[])
 	 * method is flawed for non-ASCII characters).
 	 */
 	howto = 0;
-	for (i = 1; i < argc; i++) {
+	for (i = 0; i < argc; i++) {
 		cpy16to8(argv[i], var, sizeof(var));
 		howto |= boot_parse_arg(var);
 	}
