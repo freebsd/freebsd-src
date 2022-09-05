@@ -316,6 +316,7 @@ lkpi_nl80211_band_to_net80211_band(enum nl80211_band band)
 	return (0x00);
 }
 
+#if 0
 static enum ieee80211_ac_numbers
 lkpi_ac_net_to_l80211(int ac)
 {
@@ -334,6 +335,7 @@ lkpi_ac_net_to_l80211(int ac)
 		return (IEEE80211_AC_BE);
 	}
 }
+#endif
 
 static enum nl80211_iftype
 lkpi_opmode_to_vif_type(enum ieee80211_opmode opmode)
@@ -2196,7 +2198,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	struct ieee80211_vif *vif;
 	enum ieee80211_bss_changed changed;
 	size_t len;
-	int error;
+	int error, i;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))	/* 1 so far. Add <n> once this works. */
 		return (NULL);
@@ -2252,6 +2254,18 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	if (vif->bss_conf.beacon_int < 16)
 		vif->bss_conf.beacon_int = 16;
 #endif
+
+	/* Setup queue defaults; driver may override in (*add_interface). */
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		if (ieee80211_hw_check(hw, QUEUE_CONTROL))
+			vif->hw_queue[i] = IEEE80211_INVAL_HW_QUEUE;
+		else if (hw->queues >= IEEE80211_NUM_ACS)
+			vif->hw_queue[i] = i;
+		else
+			vif->hw_queue[i] = 0;
+	}
+	vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
+
 	IMPROVE();
 
 	error = lkpi_80211_mo_start(hw);
@@ -2967,8 +2981,9 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	struct ieee80211_tx_control control;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sta *sta;
+	struct ieee80211_hdr *hdr;
 	void *buf;
-	int ac;
+	uint8_t ac, tid;
 
 	M_ASSERTPKTHDR(m);
 #ifdef LINUXKPI_DEBUG_80211
@@ -3047,10 +3062,15 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	lvif = VAP_TO_LVIF(ni->ni_vap);
 	vif = LVIF_TO_VIF(lvif);
 
-	/* XXX-BZ review this at some point [4] vs. [8] vs. [16](TID). */
-	ac = M_WME_GETAC(m);
-	skb->priority = WME_AC_TO_TID(ac);
-	ac = lkpi_ac_net_to_l80211(ac);
+	hdr = (void *)skb->data;
+	tid = linuxkpi_ieee80211_get_tid(hdr, true);
+	if (tid == IEEE80211_NONQOS_TID) { /* == IEEE80211_NUM_TIDS */
+		skb->priority = 0;
+		ac = IEEE80211_AC_BE;
+	} else {
+		skb->priority = tid & IEEE80211_QOS_CTL_TID_MASK;
+		ac = tid_to_mac80211_ac[tid & 7];
+	}
 	skb_set_queue_mapping(skb, ac);
 
 	info = IEEE80211_SKB_CB(skb);
@@ -3059,7 +3079,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	if (c == NULL || c == IEEE80211_CHAN_ANYC)
 		c = ic->ic_curchan;
 	info->band = lkpi_net80211_chan_to_nl80211_band(c);
-	info->hw_queue = ac;		/* XXX-BZ is this correct? */
+	info->hw_queue = vif->hw_queue[ac];
 	if (m->m_flags & M_EAPOL)
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
 	info->control.vif = vif;
@@ -3079,49 +3099,22 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 
 	if (sta != NULL) {
 		struct lkpi_txq *ltxq;
-		struct ieee80211_hdr *hdr;
 
-		hdr = (void *)skb->data;
-		if (lsta->added_to_drv &&
-		    !ieee80211_is_data_present(hdr->frame_control)) {
-			if (sta->txq[IEEE80211_NUM_TIDS] != NULL)
+		ltxq = NULL;
+		if (!ieee80211_is_data_present(hdr->frame_control)) {
+			if (vif->type == NL80211_IFTYPE_STATION &&
+			    lsta->added_to_drv &&
+			    sta->txq[IEEE80211_NUM_TIDS] != NULL)
 				ltxq = TXQ_TO_LTXQ(sta->txq[IEEE80211_NUM_TIDS]);
-			else
-				goto ops_tx;
-		} else if (lsta->added_to_drv) {
-			ltxq = TXQ_TO_LTXQ(sta->txq[ac]);	/* XXX-BZ re-check */
-		} else
+		} else if (lsta->added_to_drv &&
+		    sta->txq[skb->priority] != NULL) {
+			ltxq = TXQ_TO_LTXQ(sta->txq[skb->priority]);
+		}
+		if (ltxq == NULL)
 			goto ops_tx;
+
 		KASSERT(ltxq != NULL, ("%s: lsta %p sta %p m %p skb %p "
 		    "ltxq %p != NULL\n", __func__, lsta, sta, m, skb, ltxq));
-
-		/*
-		 * We currently do not use queues but do direct TX.
-		 * The exception to the rule is initial packets, as we cannot
-		 * TX until queues are allocated (at least for iwlwifi).
-		 * So we wake_tx_queue in newstate and register any dequeue
-		 * calls.  In the time until then we queue packets and
-		 * let the driver deal with them.
-		 */
-#if 0
-		if (!ltxq->seen_dequeue) {
-
-			/* Prevent an ordering problem, likely other issues. */
-			while (!skb_queue_empty(&ltxq->skbq)) {
-				struct sk_buff *skb2;
-
-				skb2 = skb_dequeue(&ltxq->skbq);
-				if (skb2 != NULL) {
-					memset(&control, 0, sizeof(control));
-					control.sta = sta;
-					lkpi_80211_mo_tx(hw, &control, skb2);
-				}
-			}
-			goto ops_tx;
-		}
-		if (0 && ltxq->seen_dequeue && skb_queue_empty(&ltxq->skbq))
-			goto ops_tx;
-#endif
 
 		skb_queue_tail(&ltxq->skbq, skb);
 #ifdef LINUXKPI_DEBUG_80211
