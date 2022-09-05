@@ -693,20 +693,18 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
+	NET_EPOCH_ENTER(et);
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
-		goto out;
+		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
 	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 	    (error = tcp_offload_connect(so, nam)) == 0)
-		goto out;
+		goto out_in_epoch;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-	NET_EPOCH_ENTER(et);
 	error = tcp_output(tp);
-#ifdef INET
 out_in_epoch:
-#endif
 	NET_EPOCH_EXIT(et);
 out:
 	KASSERT(error >= 0, ("TCP stack %s requested tcp_drop(%p) at connect()"
