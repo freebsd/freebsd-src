@@ -4056,12 +4056,22 @@ err:
 }
 
 uint8_t
-linuxkpi_ieee80211_get_tid(struct ieee80211_hdr *hdr)
+linuxkpi_ieee80211_get_tid(struct ieee80211_hdr *hdr, bool nonqos_ok)
 {
 	const struct ieee80211_frame *wh;
+	uint8_t tid;
+
+	/* Linux seems to assume this is a QOS-Data-Frame */
+	KASSERT(nonqos_ok || ieee80211_is_data_qos(hdr->frame_control),
+	   ("%s: hdr %p fc %#06x not qos_data\n", __func__, hdr,
+	   hdr->frame_control));
 
 	wh = (const struct ieee80211_frame *)hdr;
-	return (ieee80211_gettid(wh));
+	tid = ieee80211_gettid(wh);
+	KASSERT(nonqos_ok || tid == (tid & IEEE80211_QOS_TID), ("%s: tid %u "
+	   "not expected (%u?)\n", __func__, tid, IEEE80211_NONQOS_TID));
+
+	return (tid);
 }
 
 struct wiphy *
