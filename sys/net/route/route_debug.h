@@ -35,9 +35,13 @@
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
-
 /* DEBUG logic */
 #if defined(DEBUG_MOD_NAME) && defined(DEBUG_MAX_LEVEL)
+
+#ifndef	_DEBUG_SYSCTL_OID
+#define	_DEBUG_SYSCTL_OID	_net_route_debug
+SYSCTL_DECL(_net_route_debug);
+#endif
 
 #define DEBUG_VAR_NAME                  	_DEBUG_VAR_NAME(DEBUG_MOD_NAME)
 #define _DEBUG_VAR_NAME(a)			_DEBUG_VAR_NAME_INDIRECT(a)
@@ -48,9 +52,8 @@
 #define __DEBUG_PREFIX_NAME(n)			#n
 
 #define	_DECLARE_DEBUG(_default_level)  	        		\
-	SYSCTL_DECL(_net_route_debug);					\
 	static int DEBUG_VAR_NAME = _default_level;	                \
-        SYSCTL_INT(_net_route_debug, OID_AUTO, DEBUG_VAR_NAME,          \
+        SYSCTL_INT(_DEBUG_SYSCTL_OID, OID_AUTO, DEBUG_VAR_NAME,          \
 		CTLFLAG_RW | CTLFLAG_RWTUN,				\
                 &(DEBUG_VAR_NAME), 0, "debuglevel")
 
