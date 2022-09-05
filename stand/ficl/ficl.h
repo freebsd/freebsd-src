@@ -149,7 +149,7 @@
 **   inner loop. I'll look at it for ficl 3.0
 ** - Make the main hash table a bigger prime (HASHSIZE)
 ** - FORGET about twiddling the hash function - my experience is
-**   that this is a waste of time.
+**   that that is a waste of time.
 ** - Eliminate the need to pass the pVM parameter on the stack
 **   by dedicating a register to it. Most words need access to the
 **   vm, but the parameter passing overhead can be reduced. One way
