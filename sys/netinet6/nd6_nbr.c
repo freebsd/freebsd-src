@@ -785,11 +785,11 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			goto freeit;
 
 		flush_holdchain = true;
-		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited)
 			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
 		else
 			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
+		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if ((ln->ln_router = is_router) != 0) {
 			/*
 			 * This means a router's state has changed from
