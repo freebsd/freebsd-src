@@ -81,9 +81,9 @@ int slowio_pollcnt;
 static struct bufarea cgblk;	/* backup buffer for cylinder group blocks */
 static TAILQ_HEAD(bufqueue, bufarea) bufqueuehd; /* head of buffer cache LRU */
 static LIST_HEAD(bufhash, bufarea) bufhashhd[HASHSIZE]; /* buffer hash list */
-static int numbufs;				/* size of buffer cache */
-static int cachelookups;			/* number of cache lookups */
-static int cachereads;				/* number of cache reads */
+static int numbufs;		/* size of buffer cache */
+static int cachelookups;	/* number of cache lookups */
+static int cachereads;		/* number of cache reads */
 static int flushtries;		/* number of tries to reclaim memory */
 
 char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
@@ -471,7 +471,7 @@ flush(int fd, struct bufarea *bp)
 				pwarn("flush: INODE CHECK-HASH FAILED");
 				ip.i_bp = bp;
 				ip.i_dp = (union dinode *)dp;
-				ip.i_number = bp->b_index + i;
+				ip.i_number = bp->b_index + (i / sizeof(*dp));
 				prtinode(&ip);
 				if (preen || reply("FIX") != 0) {
 					if (preen)
@@ -1266,9 +1266,9 @@ prtbuf(const char *msg, struct bufarea *bp)
 {
 	
 	printf("%s: bp %p, type %s, bno %jd, size %d, refcnt %d, flags %s, "
-	    "index %jd\n", msg, bp, BT_BUFTYPE(bp->b_type), (intmax_t) bp->b_bno,
-	    bp->b_size, bp->b_refcnt, bp->b_flags & B_DIRTY ? "dirty" : "clean",
-	    (intmax_t) bp->b_index);
+	    "index %jd\n", msg, bp, BT_BUFTYPE(bp->b_type),
+	    (intmax_t) bp->b_bno, bp->b_size, bp->b_refcnt,
+	    bp->b_flags & B_DIRTY ? "dirty" : "clean", (intmax_t) bp->b_index);
 }
 
 /*
