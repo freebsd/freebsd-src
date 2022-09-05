@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2022 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -967,7 +967,7 @@ void linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *,
     struct cfg80211_scan_info *);
 void linuxkpi_ieee80211_rx(struct ieee80211_hw *, struct sk_buff *,
     struct ieee80211_sta *, struct napi_struct *);
-uint8_t linuxkpi_ieee80211_get_tid(struct ieee80211_hdr *);
+uint8_t linuxkpi_ieee80211_get_tid(struct ieee80211_hdr *, bool);
 struct ieee80211_sta *linuxkpi_ieee80211_find_sta(struct ieee80211_vif *,
     const u8 *);
 struct ieee80211_sta *linuxkpi_ieee80211_find_sta_by_ifaddr(
@@ -1452,7 +1452,7 @@ static __inline uint8_t
 ieee80211_get_tid(struct ieee80211_hdr *hdr)
 {
 
-	return (linuxkpi_ieee80211_get_tid(hdr));
+	return (linuxkpi_ieee80211_get_tid(hdr, false));
 }
 
 static __inline struct sk_buff *
