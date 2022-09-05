@@ -571,6 +571,132 @@ mac_veriexec_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	return (error);
 }
 
+ /**
+ * @brief Unlink on a file has been requested and may need to be validated.
+ *
+ * @param cred		credentials to use
+ * @param dvp		parent directory for file vnode vp
+ * @param dlabel	vnode label assigned to the directory vnode
+ * @param vp		vnode of the file to unlink
+ * @param label		vnode label assigned to the vnode
+ * @param cnp		component name for vp
+ *
+ *
+ * @return 0 if opening the file should be allowed, otherwise an error code.
+ */
+static int
+mac_veriexec_vnode_check_unlink(struct ucred *cred, struct vnode *dvp __unused, struct label *dvplabel __unused, 
+		struct vnode *vp, struct label *label __unused, struct componentname *cnp __unused)
+{
+	int error;
+
+	/*
+	 * Look for the file on the fingerprint lists iff it has not been seen
+	 * before.
+	 */
+	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
+		return (0);
+
+	/*
+	 * Check if it's a verified file
+	 */
+	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
+	if (error == 0)             /* file is verified */
+	{
+		MAC_VERIEXEC_DBG(2, "(UNLINK) attempted to unlink a protected file (euid: %u)", cred->cr_uid);
+
+		return (EAUTH);
+	}
+	return (0);
+}
+
+/**
+ * @brief Rename the file has been requested and may need to be validated.
+ *
+ * @param cred		credentials to use
+ * @param dvp		parent directory for file vnode vp
+ * @param dlabel	vnode label assigned to the directory vnode
+ * @param vp		vnode of the file to rename 
+ * @param label		vnode label assigned to the vnode
+ * @param cnp		component name for vp
+ *
+ *
+ * @return 0 if opening the file should be allowed, otherwise an error code.
+ */
+static int
+mac_veriexec_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp __unused, struct label *dvplabel __unused, 
+		struct vnode *vp, struct label *label __unused, struct componentname *cnp __unused)
+{
+	int error;
+
+	/*
+	 * Look for the file on the fingerprint lists iff it has not been seen
+	 * before.
+	 */
+	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
+		return (0);
+
+	/*
+	 * Check if it's a verified file
+	 */
+	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
+	if (error == 0)             /* file is verified */
+	{
+		MAC_VERIEXEC_DBG(2, "(RENAME_FROM) attempted to rename a protected file (euid: %u)", cred->cr_uid);
+
+		return (EAUTH);
+	}
+	return (0);
+}
+
+
+/**
+ * @brief Rename to file into the directory (overwrite the file name) has been requested and may need to be validated.
+ *
+ * @param cred		credentials to use
+ * @param dvp		parent directory for file vnode vp
+ * @param dlabel	vnode label assigned to the directory vnode
+ * @param vp		vnode of the overwritten file
+ * @param label		vnode label assigned to the vnode
+ * @param samedir	1 if the source and destination directories are the same
+ * @param cnp		component name for vp
+ *
+ *
+ * @return 0 if opening the file should be allowed, otherwise an error code.
+ */
+	static int
+mac_veriexec_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp __unused, struct label *dvplabel __unused, 
+		struct vnode *vp, struct label *label __unused, int samedir __unused, struct componentname *cnp __unused)
+{
+	int error;
+	/*
+	 * If there is no existing file to overwrite, 
+	 * vp and label will be NULL.
+	 * */
+	 if (vp == NULL) 
+		 return (0);
+
+	/*
+	 * Look for the file on the fingerprint lists iff it has not been seen
+	 * before.
+	 */
+	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
+		return (0);
+
+	/*
+	 * Check if it's a verified file
+	 */
+	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
+	if (error == 0)             /* file is verified */
+	{
+		MAC_VERIEXEC_DBG(2, "(RENAME_TO) attempted to overwrite a protected file (euid: %u)", cred->cr_uid); 
+   
+		return (EAUTH);
+	}
+	return (0);
+}
+
+
 /**
  * @brief Check mode changes on file to ensure they should be allowed.
  *
@@ -729,6 +855,9 @@ static struct mac_policy_ops mac_veriexec_ops =
 	.mpo_system_check_sysctl = mac_veriexec_sysctl_check,
 	.mpo_vnode_check_exec = mac_veriexec_vnode_check_exec,
 	.mpo_vnode_check_open = mac_veriexec_vnode_check_open,
+	.mpo_vnode_check_unlink = mac_veriexec_vnode_check_unlink,
+	.mpo_vnode_check_rename_to = mac_veriexec_vnode_check_rename_to,
+	.mpo_vnode_check_rename_from = mac_veriexec_vnode_check_rename_from,
 	.mpo_vnode_check_setmode = mac_veriexec_vnode_check_setmode,
 	.mpo_vnode_copy_label = mac_veriexec_copy_label,
 	.mpo_vnode_destroy_label = mac_veriexec_vnode_destroy_label,
