@@ -65,9 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#if defined(__aarch64__)
 #include <dev/extres/clk/clk.h>
-#endif
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -532,9 +530,8 @@ mvneta_attach(device_t self)
 #if !defined(__aarch64__)
 	uint32_t reg;
 #endif
-#if defined(__aarch64__)
 	clk_t clk;
-#endif
+
 	sc = device_get_softc(self);
 	sc->dev = self;
 
@@ -556,14 +553,19 @@ mvneta_attach(device_t self)
 	MVNETA_WRITE(sc, MVNETA_PRXINIT, 0x00000001);
 	MVNETA_WRITE(sc, MVNETA_PTXINIT, 0x00000001);
 
-#if defined(__aarch64__)
 	error = clk_get_by_ofw_index(sc->dev, ofw_bus_get_node(sc->dev), 0,
 	    &clk);
 	if (error != 0) {
+#if defined(__aarch64__)
 		device_printf(sc->dev,
 			"Cannot get clock, using default frequency: %d\n",
 			A3700_TCLK_250MHZ);
 		sc->clk_freq = A3700_TCLK_250MHZ;
+#else
+		device_printf(sc->dev,
+			"Cannot get clock, using get_tclk()\n");
+		sc->clk_freq = get_tclk();
+#endif
 	} else {
 		error = clk_get_freq(clk, &sc->clk_freq);
 		if (error != 0) {
@@ -573,9 +575,6 @@ mvneta_attach(device_t self)
 			return (error);
 		}
 	}
-#else
-	sc->clk_freq = get_tclk();
-#endif
 
 #if !defined(__aarch64__)
 	/*
