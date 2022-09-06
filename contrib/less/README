@@ -8,7 +8,7 @@
 **************************************************************************
 
     This is the source code distribution of "less".
-    This program is part of the GNU project (http://www.gnu.org).
+    This program is part of the GNU project (https://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
     modify it under the terms of either:
@@ -28,7 +28,7 @@
 You should build from a clone of a git repository 
 ONLY IF you are doing development on the less source itself.
 If you are merely using less as a tool, you should download a release
-from http://greenwoodsoftware.com and NOT from github.
+from https://greenwoodsoftware.com and NOT from github.
 
 The formatted manual page is in less.man.
 The manual page nroff source is in less.nro.
@@ -41,7 +41,7 @@ INSTALLATION (Unix & Linux systems only):
    if you have not already done so.  
 
 2. If you are building from a clone of a git repository,
-   type "make -f Makefile.aut".
+   type "make -f Makefile.aut distfiles".
    If you are building from a numbered release package (a tar or 
    zip file with a name like less-999.tar.gz or less-999.zip downloaded 
    from greenwoodsoftware.com, not from github), you should skip this step. 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -61,11 +61,13 @@
 #endif
 
 public int reading;
+public int consecutive_nulls = 0;
 
 static jmp_buf read_label;
 
 extern int sigs;
 extern int ignore_eoi;
+extern int exit_F_on_close;
 #if !MSDOS_COMPILER
 extern int tty;
 #endif
@@ -157,20 +159,26 @@ start:
 		FD_ZERO(&readfds);
 		FD_SET(fd, &readfds);
 		if (select(fd+1, &readfds, 0, 0, 0) == -1)
+		{
+			reading = 0;
 			return (-1);
+		}
 	}
 #endif
 #if USE_POLL
 	if (ignore_eoi && fd != tty)
 	{
+		int close_events = exit_F_on_close ? POLLERR|POLLHUP : POLLERR;
 		if (poll_events(tty, POLLIN) && getchr() == CONTROL('X'))
 		{
 			sigs |= S_INTERRUPT;
+			reading = 0;
 			return (READ_INTR);
 		}
-		if (poll_events(fd, POLLERR|POLLHUP))
+		if (poll_events(fd, close_events))
 		{
 			sigs |= S_INTERRUPT;
+			reading = 0;
 			return (READ_INTR);
 		}
 	}
@@ -179,11 +187,13 @@ start:
 	if (win32_kbhit() && WIN32getch() == CONTROL('X'))
 	{
 		sigs |= S_INTERRUPT;
+		reading = 0;
 		return (READ_INTR);
 	}
 #endif
 #endif
 	n = read(fd, buf, len);
+	reading = 0;
 #if 1
 	/*
 	 * This is a kludge to workaround a problem on some systems
@@ -193,7 +203,6 @@ start:
 	{
 		if (!ignore_eoi)
 		{
-			static int consecutive_nulls = 0;
 			if (n == 0)
 				consecutive_nulls++;
 			else
@@ -203,7 +212,6 @@ start:
 		}
 	}
 #endif
-	reading = 0;
 	if (n < 0)
 	{
 #if HAVE_ERRNO
@@ -259,7 +267,7 @@ get_time(VOID_PARAM)
 strerror(err)
 	int err;
 {
-	static char buf[16];
+	static char buf[INT_STRLEN_BOUND(int)+12];
 #if HAVE_SYS_ERRLIST
 	extern char *sys_errlist[];
 	extern int sys_nerr;

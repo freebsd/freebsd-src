@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -14,6 +14,7 @@
 #include "less.h"
 
 extern int caseless;
+extern int is_caseless;
 extern int utf_mode;
 
 /*
@@ -49,7 +50,7 @@ compile_pattern2(pattern, search_type, comp_pattern, show_error)
 #endif
 #if HAVE_POSIX_REGCOMP
 	regex_t *comp = (regex_t *) ecalloc(1, sizeof(regex_t));
-	if (regcomp(comp, pattern, REGCOMP_FLAG))
+	if (regcomp(comp, pattern, REGCOMP_FLAG | (is_caseless ? REG_ICASE : 0)))
 	{
 		free(comp);
 		if (show_error)
@@ -68,7 +69,8 @@ compile_pattern2(pattern, search_type, comp_pattern, show_error)
 	int erroffset;
 	PARG parg;
 	pcre *comp = pcre_compile(pattern,
-			(utf_mode) ? PCRE_UTF8 | PCRE_NO_UTF8_CHECK : 0,
+			((utf_mode) ? PCRE_UTF8 | PCRE_NO_UTF8_CHECK : 0) |
+			(is_caseless ? PCRE_CASELESS : 0),
 			&errstring, &erroffset, NULL);
 	if (comp == NULL)
 	{
@@ -84,7 +86,8 @@ compile_pattern2(pattern, search_type, comp_pattern, show_error)
 	PCRE2_SIZE erroffset;
 	PARG parg;
 	pcre2_code *comp = pcre2_compile((PCRE2_SPTR)pattern, strlen(pattern),
-			0, &errcode, &erroffset, NULL);
+			(is_caseless ? PCRE2_CASELESS : 0),
+			&errcode, &erroffset, NULL);
 	if (comp == NULL)
 	{
 		if (show_error)
@@ -154,7 +157,7 @@ compile_pattern(pattern, search_type, show_error, comp_pattern)
 	char *cvt_pattern;
 	int result;
 
-	if (caseless != OPT_ONPLUS)
+	if (caseless != OPT_ONPLUS || re_handles_caseless)
 		cvt_pattern = pattern;
 	else
 	{

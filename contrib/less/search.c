@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -35,7 +35,6 @@ extern int utf_mode;
 extern int screen_trashed;
 extern int sc_width;
 extern int sc_height;
-extern int chopline;
 extern int hshift;
 #if HILITE_SEARCH
 extern int hilite_search;
@@ -120,7 +119,7 @@ struct pattern_info {
 	
 static struct pattern_info search_info;
 static int is_ucase_pattern;
-static int is_caseless;
+public int is_caseless;
 
 /*
  * Are there any uppercase letters in this string?
@@ -166,6 +165,12 @@ set_pattern(info, pattern, search_type, show_error)
 	int search_type;
 	int show_error;
 {
+	/*
+	 * Ignore case if -I is set OR
+	 * -i is set AND the pattern is all lowercase.
+	 */
+	is_ucase_pattern = (pattern == NULL) ? FALSE : is_ucase(pattern);
+	is_caseless = (is_ucase_pattern && caseless != OPT_ONPLUS) ? 0 : caseless;
 #if !NO_REGEX
 	if (pattern == NULL)
 		SET_NULL_PATTERN(info->compiled);
@@ -182,16 +187,6 @@ set_pattern(info, pattern, search_type, show_error)
 		strcpy(info->text, pattern);
 	}
 	info->search_type = search_type;
-
-	/*
-	 * Ignore case if -I is set OR
-	 * -i is set AND the pattern is all lowercase.
-	 */
-	is_ucase_pattern = is_ucase(pattern);
-	if (is_ucase_pattern && caseless != OPT_ONPLUS)
-		is_caseless = 0;
-	else
-		is_caseless = caseless;
 	return 0;
 }
 
@@ -225,7 +220,7 @@ get_cvt_ops(VOID_PARAM)
 {
 	int ops = 0;
 
-	if (is_caseless) 
+	if (is_caseless && !re_handles_caseless)
 		ops |= CVT_TO_LC;
 	if (bs_mode == BS_SPECIAL)
 		ops |= CVT_BS;
@@ -291,6 +286,7 @@ repaint_hilite(on)
 		goto_line(sindex);
 		put_line();
 	}
+	overlay_header();
 	lower_left();
 	hide_hilite = save_hide_hilite;
 }
@@ -339,6 +335,8 @@ clear_attn(VOID_PARAM)
 			moved = 1;
 		}
 	}
+	if (overlay_header())
+		moved = 1;
 	if (moved)
 		lower_left();
 #endif
@@ -946,7 +944,7 @@ add_hilite(anchor, hl)
 }
 
 /*
- * Hilight every character in a range of displayed characters.
+ * Highlight every character in a range of displayed characters.
  */
 	static void
 create_hilites(linepos, start_index, end_index, chpos)
@@ -1236,7 +1234,7 @@ get_seg(pos, tpos)
 
 	for (seg = 0;;  seg++)
 	{
-		POSITION npos = forw_line_seg(pos, TRUE);
+		POSITION npos = forw_line_seg(pos, FALSE, FALSE, TRUE);
 		if (npos > tpos)
 			return seg;
 		pos = npos;
@@ -1446,7 +1444,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos, pla
 						hilite_line(linepos, cline, line_len, chpos, sp, ep, cvt_ops);
 					}
 #endif
-					if (chopline)
+					if (chop_line())
 					{
 						/*
 						 * If necessary, shift horizontally to make sure 
@@ -1460,10 +1458,8 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos, pla
 							int sshift;
 							int eshift;
 							hshift = 0; /* make get_seg count screen lines */
-							chopline = FALSE;
 							sshift = swidth * get_seg(linepos, linepos + chpos[start_off]);
 							eshift = swidth * get_seg(linepos, linepos + chpos[end_off]);
-							chopline = TRUE;
 							if (sshift >= save_hshift && eshift <= save_hshift)
 							{
 								hshift = save_hshift;
@@ -1540,20 +1536,25 @@ hist_pattern(search_type)
 chg_caseless(VOID_PARAM)
 {
 	if (!is_ucase_pattern)
-		/*
-		 * Pattern did not have uppercase.
-		 * Just set the search caselessness to the global caselessness.
-		 */
-		is_caseless = caseless;
-	else
 	{
 		/*
-		 * Pattern did have uppercase.
-		 * Regenerate the pattern using the new state.
+		 * Pattern did not have uppercase.
+		 * Set the search caselessness to the global caselessness.
 		 */
-		clear_pattern(&search_info);
-		(void) hist_pattern(search_info.search_type);
+		is_caseless = caseless;
+		/*
+		 * If regex handles caseless, we need to discard 
+		 * the pattern which was compiled with the old caseless.
+		 */
+		if (!re_handles_caseless)
+			/* We handle caseless, so the pattern doesn't change. */
+			return;
 	}
+	/*
+	 * Regenerate the pattern using the new state.
+	 */
+	clear_pattern(&search_info);
+	(void) hist_pattern(search_info.search_type);
 }
 
 /*
@@ -1908,7 +1909,11 @@ set_filter_pattern(pattern, search_type)
 		/* Create a new filter and add it to the filter_infos list. */
 		filter = ecalloc(1, sizeof(struct pattern_info));
 		init_pattern(filter);
-		set_pattern(filter, pattern, search_type, 1);
+		if (set_pattern(filter, pattern, search_type, 1) < 0)
+		{
+			free(filter);
+			return;
+		}
 		filter->next = filter_infos;
 		filter_infos = filter;
 	}

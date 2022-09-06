@@ -34,7 +34,7 @@ xbuf_reset(xbuf)
 	public void
 xbuf_add(xbuf, ch)
 	struct xbuffer *xbuf;
-	char ch;
+	int ch;
 {
 	if (xbuf->end >= xbuf->size)
 	{
@@ -49,4 +49,25 @@ xbuf_add(xbuf, ch)
 		xbuf->data = data;
 	}
 	xbuf->data[xbuf->end++] = ch;
+}
+
+	public int
+xbuf_pop(buf)
+	struct xbuffer *buf;
+{
+	if (buf->end == 0)
+		return -1;
+	return buf->data[--(buf->end)];
+}
+
+	public void
+xbuf_set(dst, src)
+	struct xbuffer *dst;
+	struct xbuffer *src;
+{
+	int i;
+
+	xbuf_reset(dst);
+	for (i = 0;  i < src->end;  i++)
+		xbuf_add(dst, src->data[i]);
 }
