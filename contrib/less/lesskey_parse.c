@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -21,9 +21,12 @@
 extern void lesskey_parse_error(char *msg);
 extern char *homefile(char *filename);
 extern void *ecalloc(int count, unsigned int size);
+extern int lstrtoi(char *str, char **end);
+extern char version[];
 
 static int linenum;
 static int errors;
+static int less_version = 0;
 static char *lesskey_file;
 
 static struct lesskey_cmdname cmdnames[] = 
@@ -124,13 +127,15 @@ static struct lesskey_cmdname editnames[] =
  * Print a parse error message.
  */
 	static void
-parse_error(s1, s2)
-	char *s1;
-	char *s2;
+parse_error(fmt, arg1)
+	char *fmt;
+	char *arg1;
 {
 	char buf[1024];
+	int n = snprintf(buf, sizeof(buf), "%s: line %d: ", lesskey_file, linenum);
+	if (n >= 0 && n < sizeof(buf))
+		snprintf(buf+n, sizeof(buf)-n, fmt, arg1);
 	++errors;
-	snprintf(buf, sizeof(buf), "%s: line %d: %s%s", lesskey_file, linenum, s1, s2);
 	lesskey_parse_error(buf);
 }
 
@@ -156,6 +161,37 @@ init_tables(tables)
 	xbuf_init(&tables->vartable.buf);
 }
 
+#define CHAR_STRING_LEN 8
+
+	static char *
+char_string(buf, ch, lit)
+	char *buf;
+	int ch;
+	int lit;
+{
+	if (lit || (ch >= 0x20 && ch < 0x7f))
+	{
+		buf[0] = ch;
+		buf[1] = '\0';
+	} else
+	{
+		snprintf(buf, CHAR_STRING_LEN, "\\x%02x", ch);
+	}
+	return buf;
+}
+
+/*
+ * Increment char pointer by one up to terminating nul byte.
+ */
+	static char *
+increment_pointer(p)
+	char *p;
+{
+	if (*p == '\0')
+		return p;
+	return p+1;
+}
+
 /*
  * Parse one character of a string.
  */
@@ -167,7 +203,7 @@ tstr(pp, xlate)
 	char *p;
 	char ch;
 	int i;
-	static char buf[10];
+	static char buf[CHAR_STRING_LEN];
 	static char tstr_control_k[] =
 		{ SK_SPECIAL_KEY, SK_CONTROL_K, 6, 1, 1, 1, '\0' };
 
@@ -191,17 +227,13 @@ tstr(pp, xlate)
 			*pp = p;
 			if (xlate && ch == CONTROL('K'))
 				return tstr_control_k;
-			buf[0] = ch;
-			buf[1] = '\0';
-			return (buf);
+			return char_string(buf, ch, 1);
 		case 'b':
 			*pp = p+1;
 			return ("\b");
 		case 'e':
 			*pp = p+1;
-			buf[0] = ESC;
-			buf[1] = '\0';
-			return (buf);
+			return char_string(buf, ESC, 1);
 		case 'n':
 			*pp = p+1;
 			return ("\n");
@@ -216,19 +248,27 @@ tstr(pp, xlate)
 			{
 				switch (*++p)
 				{
-				case 'u': ch = SK_UP_ARROW; break;
+				case 'b': ch = SK_BACKSPACE; break;
+				case 'B': ch = SK_CTL_BACKSPACE; break;
 				case 'd': ch = SK_DOWN_ARROW; break;
-				case 'r': ch = SK_RIGHT_ARROW; break;
-				case 'l': ch = SK_LEFT_ARROW; break;
-				case 'U': ch = SK_PAGE_UP; break;
 				case 'D': ch = SK_PAGE_DOWN; break;
-				case 'h': ch = SK_HOME; break;
 				case 'e': ch = SK_END; break;
+				case 'h': ch = SK_HOME; break;
+				case 'i': ch = SK_INSERT; break;
+				case 'l': ch = SK_LEFT_ARROW; break;
+				case 'L': ch = SK_CTL_LEFT_ARROW; break;
+				case 'r': ch = SK_RIGHT_ARROW; break;
+				case 'R': ch = SK_CTL_RIGHT_ARROW; break;
+				case 't': ch = SK_BACKTAB; break;
+				case 'u': ch = SK_UP_ARROW; break;
+				case 'U': ch = SK_PAGE_UP; break;
 				case 'x': ch = SK_DELETE; break;
-				default: { char buf[2]; buf[0] = *p; buf[1] = '\0';
-					parse_error("illegal escape sequence \\k", buf);
-					*pp = p+1;
-					return (""); }
+				case 'X': ch = SK_CTL_DELETE; break;
+				case '1': ch = SK_F1; break;
+				default:
+					parse_error("invalid escape sequence \"\\k%s\"", char_string(buf, *p, 0));
+					*pp = increment_pointer(p);
+					return ("");
 				}
 				*pp = p+1;
 				buf[0] = SK_SPECIAL_KEY;
@@ -246,9 +286,8 @@ tstr(pp, xlate)
 			 * Backslash followed by any other char 
 			 * just means that char.
 			 */
-			*pp = p+1;
-			buf[0] = *p;
-			buf[1] = '\0';
+			*pp = increment_pointer(p);
+			char_string(buf, *p, 1);
 			if (xlate && buf[0] == CONTROL('K'))
 				return tstr_control_k;
 			return (buf);
@@ -257,16 +296,14 @@ tstr(pp, xlate)
 		/*
 		 * Caret means CONTROL.
 		 */
-		*pp = p+2;
-		buf[0] = CONTROL(p[1]);
-		buf[1] = '\0';
+		*pp = increment_pointer(p+1);
+		char_string(buf, CONTROL(p[1]), 1);
 		if (xlate && buf[0] == CONTROL('K'))
 			return tstr_control_k;
 		return (buf);
 	}
-	*pp = p+1;
-	buf[0] = *p;
-	buf[1] = '\0';
+	*pp = increment_pointer(p);
+	char_string(buf, *p, 1);
 	if (xlate && buf[0] == CONTROL('K'))
 		return tstr_control_k;
 	return (buf);
@@ -332,6 +369,13 @@ add_cmd_char(c, tables)
 	xbuf_add(&tables->currtable->buf, c);
 }
 
+	static void
+erase_cmd_char(tables)
+	struct lesskey_tables *tables;
+{
+	xbuf_pop(&tables->currtable->buf);
+}
+
 /*
  * Add a string to the output command table.
  */
@@ -345,9 +389,71 @@ add_cmd_str(s, tables)
 }
 
 /*
- * See if we have a special "control" line.
+ * Does a given version number match the running version?
+ * Operator compares the running version to the given version.
  */
 	static int
+match_version(op, ver)
+	char op;
+	int ver;
+{
+	switch (op)
+	{
+	case '>': return less_version > ver;
+	case '<': return less_version < ver;
+	case '+': return less_version >= ver;
+	case '-': return less_version <= ver;
+	case '=': return less_version == ver;
+	case '!': return less_version != ver;
+	default: return 0; /* cannot happen */
+	}
+}
+
+/*
+ * Handle a #version line.
+ * If the version matches, return the part of the line that should be executed.
+ * Otherwise, return NULL.
+ */
+	static char *
+version_line(s, tables)
+	char *s;
+	struct lesskey_tables *tables;
+{
+	char op;
+	int ver;
+	char *e;
+	char buf[CHAR_STRING_LEN];
+
+	s += strlen("#version");
+	s = skipsp(s);
+	op = *s++;
+	/* Simplify 2-char op to one char. */
+	switch (op)
+	{
+	case '<': if (*s == '=') { s++; op = '-'; } break;
+	case '>': if (*s == '=') { s++; op = '+'; } break;
+	case '=': if (*s == '=') { s++; } break;
+	case '!': if (*s == '=') { s++; } break;
+	default: 
+		parse_error("invalid operator '%s' in #version line", char_string(buf, op, 0));
+		return (NULL);
+	}
+	s = skipsp(s);
+	ver = lstrtoi(s, &e);
+	if (e == s)
+	{
+		parse_error("non-numeric version number in #version line", "");
+		return (NULL);
+	}
+	if (!match_version(op, ver))
+		return (NULL);
+	return (e);
+}
+
+/*
+ * See if we have a special "control" line.
+ */
+	static char *
 control_line(s, tables)
 	char *s;
 	struct lesskey_tables *tables;
@@ -357,25 +463,29 @@ control_line(s, tables)
 	if (PREFIX(s, "#line-edit"))
 	{
 		tables->currtable = &tables->edittable;
-		return (1);
+		return (NULL);
 	}
 	if (PREFIX(s, "#command"))
 	{
 		tables->currtable = &tables->cmdtable;
-		return (1);
+		return (NULL);
 	}
 	if (PREFIX(s, "#env"))
 	{
 		tables->currtable = &tables->vartable;
-		return (1);
+		return (NULL);
 	}
 	if (PREFIX(s, "#stop"))
 	{
 		add_cmd_char('\0', tables);
 		add_cmd_char(A_END_LIST, tables);
-		return (1);
+		return (NULL);
 	}
-	return (0);
+	if (PREFIX(s, "#version"))
+	{
+		return (version_line(s, tables));
+	}
+	return (s);
 }
 
 /*
@@ -391,7 +501,7 @@ findaction(actname, tables)
 	for (i = 0;  tables->currtable->names[i].cn_name != NULL;  i++)
 		if (strcmp(tables->currtable->names[i].cn_name, actname) == 0)
 			return (tables->currtable->names[i].cn_action);
-	parse_error("unknown action: ", actname);
+	parse_error("unknown action: \"%s\"", actname);
 	return (A_INVALID);
 }
 
@@ -478,26 +588,37 @@ parse_varline(line, tables)
 {
 	char *s;
 	char *p = line;
+	char *eq;
 
-	do
+	eq = strchr(line, '=');
+	if (eq != NULL && eq > line && eq[-1] == '+')
 	{
-		s = tstr(&p, 0);
-		add_cmd_str(s, tables);
-	} while (*p != '\0' && !issp(*p) && *p != '=');
-	/*
-	 * Terminate the variable name with a null byte.
-	 */
-	add_cmd_char('\0', tables);
-
-	p = skipsp(p);
-	if (*p++ != '=')
+		/*
+		 * Rather ugly way of handling a += line.
+		 * {{ Note that we ignore the variable name and 
+		 *    just append to the previously defined variable. }}
+		 */
+		erase_cmd_char(tables); /* backspace over the final null */
+		p = eq+1;
+	} else
 	{
-		parse_error("missing = in: ", line);
-		return;
+		do
+		{
+			s = tstr(&p, 0);
+			add_cmd_str(s, tables);
+		} while (*p != '\0' && !issp(*p) && *p != '=');
+		/*
+		 * Terminate the variable name with a null byte.
+		 */
+		add_cmd_char('\0', tables);
+		p = skipsp(p);
+		if (*p++ != '=')
+		{
+			parse_error("missing = in variable definition", "");
+			return;
+		}
+		add_cmd_char(EV_OK|A_EXTRA, tables);
 	}
-
-	add_cmd_char(EV_OK|A_EXTRA, tables);
-
 	p = skipsp(p);
 	while (*p != '\0')
 	{
@@ -520,14 +641,15 @@ parse_line(line, tables)
 	/*
 	 * See if it is a control line.
 	 */
-	if (control_line(line, tables))
+	p = control_line(line, tables);
+	if (p == NULL)
 		return;
 	/*
 	 * Skip leading white space.
 	 * Replace the final newline with a null byte.
 	 * Ignore blank lines and comments.
 	 */
-	p = clean_line(line);
+	p = clean_line(p);
 	if (*p == '\0')
 		return;
 
@@ -555,6 +677,8 @@ parse_lesskey(infile, tables)
 	init_tables(tables);
 	errors = 0;
 	linenum = 0;
+	if (less_version == 0)
+		less_version = lstrtoi(version, NULL);
 
 	/*
 	 * Open the input file.
@@ -563,7 +687,7 @@ parse_lesskey(infile, tables)
 		desc = stdin;
 	else if ((desc = fopen(infile, "r")) == NULL)
 	{
-		/* parse_error("cannot open lesskey file ", infile); */
+		/* parse_error("cannot open lesskey file %s", infile); */
 		return (-1);
 	}
 
@@ -575,6 +699,6 @@ parse_lesskey(infile, tables)
 		++linenum;
 		parse_line(line, tables);
 	}
-
+	fclose(desc);
 	return (errors);
 }

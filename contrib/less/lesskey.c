@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -120,6 +120,14 @@ lesskey_parse_error(s)
 	char *s;
 {
 	fprintf(stderr, "%s\n", s);
+}
+
+	int
+lstrtoi(buf, ebuf)
+	char *buf;
+	char **ebuf;
+{
+	return (int) strtol(buf, ebuf, 10);
 }
 
 	void *
@@ -366,5 +374,6 @@ main(argc, argv)
 	/* File trailer */
 	fputbytes(out, endsection, sizeof(endsection));
 	fputbytes(out, filetrailer, sizeof(filetrailer));
+	fclose(out);
 	return (0);
 }

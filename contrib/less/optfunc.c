@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -59,6 +59,10 @@ extern int linenum_width;
 extern int status_col_width;
 extern int use_color;
 extern int want_filesize;
+extern int header_lines;
+extern int header_cols;
+extern int def_search_type;
+extern int chopline;
 #if LOGFILE
 extern char *namelogfile;
 extern int force_logfile;
@@ -164,7 +168,6 @@ opt_j(type, s)
 	char *s;
 {
 	PARG parg;
-	char buf[24];
 	int len;
 	int err;
 
@@ -199,7 +202,7 @@ opt_j(type, s)
 			error("Position target at screen line %d", &parg);
 		} else
 		{
-
+			char buf[24];
 			SNPRINTF1(buf, sizeof(buf), ".%06ld", jump_sline_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
@@ -229,7 +232,6 @@ opt_shift(type, s)
 	char *s;
 {
 	PARG parg;
-	char buf[24];
 	int len;
 	int err;
 
@@ -264,7 +266,7 @@ opt_shift(type, s)
 			error("Horizontal shift %d columns", &parg);
 		} else
 		{
-
+			char buf[24];
 			SNPRINTF1(buf, sizeof(buf), ".%06ld", shift_count_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
@@ -542,7 +544,7 @@ opt__V(type, s)
 		putstr(" regular expressions)\n");
 		{
 			char constant *copyright = 
-				"Copyright (C) 1984-2021  Mark Nudelman\n\n";
+				"Copyright (C) 1984-2022  Mark Nudelman\n\n";
 			putstr(copyright);
 		}
 		if (version[strlen(version)-1] == 'x')
@@ -612,15 +614,16 @@ color_from_namechar(namechar)
 {
 	switch (namechar)
 	{
-	case 'W': case 'A': return AT_COLOR_ATTN;
 	case 'B': return AT_COLOR_BIN;
 	case 'C': return AT_COLOR_CTRL;
 	case 'E': return AT_COLOR_ERROR;
+	case 'H': return AT_COLOR_HEADER;
 	case 'M': return AT_COLOR_MARK;
 	case 'N': return AT_COLOR_LINENUM;
 	case 'P': return AT_COLOR_PROMPT;
 	case 'R': return AT_COLOR_RSCROLL;
 	case 'S': return AT_COLOR_SEARCH;
+	case 'W': case 'A': return AT_COLOR_ATTN;
 	case 'n': return AT_NORMAL;
 	case 's': return AT_STANDOUT;
 	case 'd': return AT_BOLD;
@@ -721,7 +724,7 @@ opt_x(type, s)
 	extern int tabstops[];
 	extern int ntabstops;
 	extern int tabdefault;
-	char msg[60+(4*TABSTOP_MAX)];
+	char msg[60+((INT_STRLEN_BOUND(int)+1)*TABSTOP_MAX)];
 	int i;
 	PARG p;
 
@@ -976,9 +979,111 @@ opt_filesize(type, s)
 	case INIT:
 	case TOGGLE:
 		if (want_filesize && curr_ifile != NULL && ch_length() == NULL_POSITION)
-            scan_eof();
+			scan_eof();
 		break;
 	case QUERY:
+		break;
+	}
+}
+
+/*
+ * Handler for the --header option.
+ */
+	/*ARGSUSED*/
+	public void
+opt_header(type, s)
+	int type;
+	char *s;
+{
+	int err;
+	int n;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		n = getnum(&s, "header", &err);
+		if (err)
+			error("invalid number of lines", NULL_PARG);
+		else
+		{
+			header_lines = n;
+			header_cols = 0;
+			if (*s == ',')
+			{
+				++s;
+				n = getnum(&s, "header", &err);
+				if (err)
+					error("invalid number of columns", NULL_PARG);
+				else
+					header_cols = n;
+			}
+		}
+		break;
+	case QUERY:
+		{
+			char buf[2*INT_STRLEN_BOUND(int)+2];
+			PARG parg;
+			SNPRINTF2(buf, sizeof(buf), "%d,%d", header_lines, header_cols);
+			parg.p_string = buf;
+			error("header (lines,columns) is %s", &parg);
+		}
+		break;
+	}
+}
+
+/*
+ * Handler for the --search-options option.
+ */
+	/*ARGSUSED*/
+	public void
+opt_search_type(type, s)
+	int type;
+	char *s;
+{
+	int st;
+	PARG parg;
+	char buf[16];
+	char *bp;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		st = 0;
+		for (;  *s != '\0';  s++)
+		{
+			switch (*s)
+			{
+			case 'E': case 'e': case CONTROL('E'): st |= SRCH_PAST_EOF;   break;
+			case 'F': case 'f': case CONTROL('F'): st |= SRCH_FIRST_FILE; break;
+			case 'K': case 'k': case CONTROL('K'): st |= SRCH_NO_MOVE;    break;
+			case 'N': case 'n': case CONTROL('N'): st |= SRCH_NO_MATCH;   break;
+			case 'R': case 'r': case CONTROL('R'): st |= SRCH_NO_REGEX;   break;
+			case 'W': case 'w': case CONTROL('W'): st |= SRCH_WRAP;       break;
+			case '-': st = 0; break;
+			case '^': break;
+			default:
+				parg.p_char = *s;
+				error("invalid search option '%c'", &parg);
+				return;
+			}
+		}
+		def_search_type = norm_search_type(st);
+		break;
+	case QUERY:
+		bp = buf;
+		if (def_search_type & SRCH_PAST_EOF)   *bp++ = 'E'; 
+		if (def_search_type & SRCH_FIRST_FILE) *bp++ = 'F'; 
+		if (def_search_type & SRCH_NO_MOVE)    *bp++ = 'K'; 
+		if (def_search_type & SRCH_NO_MATCH)   *bp++ = 'N'; 
+		if (def_search_type & SRCH_NO_REGEX)   *bp++ = 'R'; 
+		if (def_search_type & SRCH_WRAP)       *bp++ = 'W'; 
+		if (bp == buf)
+			*bp++ = '-';
+		*bp = '\0';
+		parg.p_string = buf;
+		error("search options: %s", &parg);
 		break;
 	}
 }
@@ -1026,6 +1131,12 @@ opt_rstat(type, s)
 }
 #endif /*LESSTEST*/
 
+	public int
+chop_line(VOID_PARAM)
+{
+	return (chopline || header_cols > 0 || header_lines > 0);
+}
+
 /*
  * Get the "screen window" size.
  */
@@ -1034,6 +1145,6 @@ get_swindow(VOID_PARAM)
 {
 	if (swindow > 0)
 		return (swindow);
-	return (sc_height + swindow);
+	return (sc_height - header_lines + swindow);
 }
 

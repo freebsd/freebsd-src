@@ -76,7 +76,7 @@
   '_<_l_e_t_t_e_r_>            Go to a previously marked position.
   ''                   Go to the previous position.
   ^X^X                 Same as '.
-  ESC-M_<_l_e_t_t_e_r_>        Clear a mark.
+  ESC-m_<_l_e_t_t_e_r_>        Clear a mark.
         ---------------------------------------------------
         A mark is any upper-case or lower-case letter.
         Certain marks are predefined:
@@ -161,8 +161,10 @@
                   Ignore the LESSOPEN environment variable.
   -m  -M  ....  --long-prompt  --LONG-PROMPT
                   Set prompt style.
-  -n  -N  ....  --line-numbers  --LINE-NUMBERS
-                  Don't use line numbers.
+  -n .........  --line-numbers
+                  Suppress line numbers in prompts and messages.
+  -N .........  --LINE-NUMBERS
+                  Display line number at start of each line.
   -o [_f_i_l_e]  .  --log-file=[_f_i_l_e]
                   Copy to log file (standard input only).
   -O [_f_i_l_e]  .  --LOG-FILE=[_f_i_l_e]
@@ -209,6 +211,8 @@
                   Automatically determine the size of the input file.
                 --follow-name
                   The F command changes files if the input file is renamed.
+                --header=[_N[,_M]]
+                  Use N lines and M columns to display file headers.
                 --incsearch
                   Search file as each pattern character is typed in.
                 --line-num-width=N
@@ -219,12 +223,20 @@
                   Don't send termcap keypad init/deinit strings.
                 --no-histdups
                   Remove duplicates from command history.
+                --no-number-headers
+                  Don't give line numbers to header lines.
+                --redraw-on-quit
+                  Redraw final screen when quitting.
                 --rscroll=C
                   Set the character used to mark truncated lines.
                 --save-marks
                   Retain marks across invocations of less.
+                --search-options=[EFKNRW-]
+                  Set default options for every search.
                 --status-col-width=N
                   Set the width of the -J status column to N characters.
+                --status-line
+                  Highlight or color the entire line containing a mark.
                 --use-backslash
                   Subsequent options use backslash as escape char.
                 --use-color

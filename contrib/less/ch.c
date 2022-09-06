@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -24,6 +24,10 @@
 #include <sys/stat.h>
 extern dev_t curr_dev;
 extern ino_t curr_ino;
+#endif
+
+#if HAVE_PROCFS
+#include <sys/statfs.h>
 #endif
 
 typedef POSITION BLOCKNUM;
@@ -725,7 +729,7 @@ ch_flush(VOID_PARAM)
 	ch_block = 0; /* ch_fpos / LBUFSIZE; */
 	ch_offset = 0; /* ch_fpos % LBUFSIZE; */
 
-#if 1
+#if HAVE_PROCFS
 	/*
 	 * This is a kludge to workaround a Linux kernel bug: files in
 	 * /proc have a size of 0 according to fstat() but have readable 
@@ -734,8 +738,15 @@ ch_flush(VOID_PARAM)
 	 */
 	if (ch_fsize == 0)
 	{
-		ch_fsize = NULL_POSITION;
-		ch_flags &= ~CH_CANSEEK;
+		struct statfs st;
+		if (fstatfs(ch_file, &st) == 0)
+		{
+			if (st.f_type == PROC_SUPER_MAGIC)
+			{
+				ch_fsize = NULL_POSITION;
+				ch_flags &= ~CH_CANSEEK;
+			}
+		}
 	}
 #endif
 

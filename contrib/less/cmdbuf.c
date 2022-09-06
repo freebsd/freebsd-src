@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -24,6 +24,7 @@ extern int sc_width;
 extern int utf_mode;
 extern int no_hist_dups;
 extern int marks_modified;
+extern int secure;
 
 static char cmdbuf[CMDBUF_SIZE]; /* Buffer for holding a multi-char command */
 static int cmd_col;              /* Current column of the cursor */
@@ -31,7 +32,7 @@ static int prompt_col;           /* Column of cursor just after prompt */
 static char *cp;                 /* Pointer into cmdbuf */
 static int cmd_offset;           /* Index into cmdbuf of first displayed char */
 static int literal;              /* Next input char should not be interpreted */
-static int updown_match = -1;    /* Prefix length in up/down movement */
+public int updown_match = -1;    /* Prefix length in up/down movement */
 
 #if TAB_COMPLETE_FILENAME
 static int cmd_complete LESSPARAMS((int action));
@@ -860,9 +861,10 @@ cmd_edit(c)
 		flags |= ECF_NOHISTORY;
 #endif
 #if TAB_COMPLETE_FILENAME
-	if (curr_mlist == ml_search)
+	if (curr_mlist == ml_search || curr_mlist == NULL)
 		/*
-		 * In a search command; don't accept file-completion cmds.
+		 * Don't accept file-completion cmds in contexts 
+		 * such as search pattern, digits, long option name, etc.
 		 */
 		flags |= ECF_NOCOMPLETE;
 #endif
@@ -1352,7 +1354,15 @@ cmd_int(frac)
 	int err;
 
 	for (p = cmdbuf;  *p >= '0' && *p <= '9';  p++)
-		n = (n * 10) + (*p - '0');
+	{
+		LINENUM nn = (n * 10) + (*p - '0');
+		if (nn < n)
+		{
+			error("Integer is too big", NULL_PARG);
+			return (0);
+		}
+		n = nn;
+	}
 	*frac = 0;
 	if (*p++ == '.')
 	{
@@ -1368,6 +1378,9 @@ cmd_int(frac)
 	public char *
 get_cmdbuf(VOID_PARAM)
 {
+	if (cmd_mbc_buf_index < cmd_mbc_buf_len)
+		/* Don't return buffer containing an incomplete multibyte char. */
+		return (NULL);
 	return (cmdbuf);
 }
 
@@ -1401,13 +1414,40 @@ mlist_size(ml)
  * Get the name of the history file.
  */
 	static char *
+histfile_find(must_exist)
+	int must_exist;
+{
+	char *home = lgetenv("HOME");
+	char *name = NULL;
+
+	/* Try in $XDG_STATE_HOME, then in $HOME/.local/state, then in $XDG_DATA_HOME, then in $HOME. */
+#if OS2
+	if (isnullenv(home))
+		home = lgetenv("INIT");
+#endif
+	name = dirfile(lgetenv("XDG_STATE_HOME"), &LESSHISTFILE[1], must_exist);
+	if (name == NULL)
+	{
+		char *dir = dirfile(home, ".local/state", 1);
+		if (dir != NULL)
+		{
+			name = dirfile(dir, &LESSHISTFILE[1], must_exist);
+			free(dir);
+		}
+	}
+	if (name == NULL)
+		name = dirfile(lgetenv("XDG_DATA_HOME"), &LESSHISTFILE[1], must_exist);
+	if (name == NULL)
+		name = dirfile(home, LESSHISTFILE, must_exist);
+	return (name);
+}
+
+	static char *
 histfile_name(must_exist)
 	int must_exist;
 {
-	char *home;
-	char *xdg;
 	char *name;
-	
+
 	/* See if filename is explicitly specified by $LESSHISTFILE. */
 	name = lgetenv("LESSHISTFILE");
 	if (!isnullenv(name))
@@ -1422,25 +1462,14 @@ histfile_name(must_exist)
 	if (strcmp(LESSHISTFILE, "") == 0 || strcmp(LESSHISTFILE, "-") == 0)
 		return (NULL);
 
-	/* Try in $XDG_DATA_HOME first, then in $HOME. */
-	xdg = lgetenv("XDG_DATA_HOME");
-	home = lgetenv("HOME");
-#if OS2
-	if (isnullenv(home))
-		home = lgetenv("INIT");
-#endif
 	name = NULL;
 	if (!must_exist)
 	{
 	 	/* If we're writing the file and the file already exists, use it. */
-		name = dirfile(xdg, &LESSHISTFILE[1], 1);
-		if (name == NULL)
-			name = dirfile(home, LESSHISTFILE, 1);
+		name = histfile_find(1);
 	}
 	if (name == NULL)
-		name = dirfile(xdg, &LESSHISTFILE[1], must_exist);
-	if (name == NULL)
-		name = dirfile(home, LESSHISTFILE, must_exist);
+		name = histfile_find(must_exist);
 	return (name);
 }
 
@@ -1524,17 +1553,22 @@ read_cmdhist(action, uparam, skip_search, skip_shell)
 	int skip_search;
 	int skip_shell;
 {
+	if (secure)
+		return;
 	read_cmdhist2(action, uparam, skip_search, skip_shell);
 	(*action)(uparam, NULL, NULL); /* signal end of file */
 }
 
 	static void
-addhist_init(void *uparam, struct mlist *ml, char *string)
+addhist_init(uparam, ml, string)
+	void *uparam;
+	struct mlist *ml;
+	char constant *string;
 {
 	if (ml != NULL)
 		cmd_addhist(ml, string, 0);
 	else if (string != NULL)
-		restore_mark(string);
+		restore_mark((char*)string); /* stupid const cast */
 }
 #endif /* CMD_HISTORY */
 
@@ -1611,7 +1645,10 @@ struct save_ctx
  * created during this session.
  */
 	static void
-copy_hist(void *uparam, struct mlist *ml, char *string)
+copy_hist(uparam, ml, string)
+	void *uparam;
+	struct mlist *ml;
+	char constant *string;
 {
 	struct save_ctx *ctx = (struct save_ctx *) uparam;
 
@@ -1673,6 +1710,7 @@ make_file_private(f)
 /*
  * Does the history file need to be updated?
  */
+#if CMD_HISTORY
 	static int
 histfile_modified(VOID_PARAM)
 {
@@ -1682,12 +1720,11 @@ histfile_modified(VOID_PARAM)
 	if (mlist_shell.modified)
 		return 1;
 #endif
-#if CMD_HISTORY
 	if (marks_modified)
 		return 1;
-#endif
 	return 0;
 }
+#endif
 
 /*
  * Update the .lesshst file.
@@ -1705,7 +1742,7 @@ save_cmdhist(VOID_PARAM)
 	FILE *fout = NULL;
 	int histsize = 0;
 
-	if (!histfile_modified())
+	if (secure || !histfile_modified())
 		return;
 	histname = histfile_name(0);
 	if (histname == NULL)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -63,7 +63,14 @@ public int linenum_width;       /* Width of line numbers */
 public int status_col_width;    /* Width of status column */
 public int incr_search;         /* Incremental search */
 public int use_color;           /* Use UI color */
-public int want_filesize;       /* */
+public int want_filesize;       /* Scan to EOF if necessary to get file size */
+public int status_line;         /* Highlight entire marked lines */
+public int header_lines;        /* Freeze header lines at top of screen */
+public int header_cols;         /* Freeze header columns at left of screen */
+public int nonum_headers;       /* Don't give headers line numbers */
+public int redraw_on_quit;      /* Redraw last screen after term deinit */
+public int def_search_type;     /* */
+public int exit_F_on_close;     /* Exit F command when input closes */
 #if HILITE_SEARCH
 public int hilite_search;       /* Highlight matched search patterns? */
 #endif
@@ -139,6 +146,12 @@ static struct optname status_col_width_optname = { "status-col-width", NULL };
 static struct optname incr_search_optname = { "incsearch",       NULL };
 static struct optname use_color_optname = { "use-color",         NULL };
 static struct optname want_filesize_optname = { "file-size",     NULL };
+static struct optname status_line_optname = { "status-line",     NULL };
+static struct optname header_optname = { "header",               NULL };
+static struct optname nonum_headers_optname = { "no-number-headers", NULL };
+static struct optname redraw_on_quit_optname = { "redraw-on-quit", NULL };
+static struct optname search_type_optname = { "search-options", NULL };
+static struct optname exit_F_on_close_optname = { "exit-follow-on-close", NULL };
 #if LESSTEST
 static struct optname ttyin_name_optname = { "tty",              NULL };
 static struct optname rstat_optname  = { "rstat",                NULL };
@@ -559,6 +572,54 @@ static struct loption option[] =
 		{
 			"Don't get size of each file",
 			"Get size of each file",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &status_line_optname,
+		BOOL|REPAINT, OPT_OFF, &status_line, NULL,
+		{
+			"Don't color each line with its status column color",
+			"Color each line with its status column color",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &header_optname,
+		STRING|REPAINT, 0, NULL, opt_header,
+		{
+			"Header lines: ",
+			NULL,
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &nonum_headers_optname,
+		BOOL|REPAINT, 0, &nonum_headers, NULL,
+		{
+			"Number header lines",
+			"Don't number header lines",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &redraw_on_quit_optname,
+		BOOL, OPT_OFF, &redraw_on_quit, NULL,
+		{
+			"Don't redraw screen when quitting",
+			"Redraw last screen when quitting",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &search_type_optname,
+		STRING, 0, NULL, opt_search_type,
+		{
+			"Search options: ",
+			NULL,
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &exit_F_on_close_optname,
+		BOOL, OPT_OFF, &exit_F_on_close, NULL,
+		{
+			"Don't exit F command when input closes",
+			"Exit F command when input closes",
 			NULL
 		}
 	},
