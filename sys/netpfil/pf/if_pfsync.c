@@ -618,6 +618,7 @@ cleanup:
 
 cleanup_state:	/* pf_state_insert() frees the state keys. */
 	if (st) {
+		st->timeout = PFTM_UNLINKED; /* appease an assert */
 		pf_free_state(st);
 	}
 	return (error);
