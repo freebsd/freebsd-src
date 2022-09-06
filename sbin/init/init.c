@@ -1138,10 +1138,10 @@ run_script(const char *script)
 	do {
 		if ((wpid = waitpid(-1, &status, WUNTRACED)) != -1)
 			collect_child(wpid);
+		if (requested_transition == death_single ||
+		    requested_transition == reroot)
+			return (state_func_t) requested_transition;
 		if (wpid == -1) {
-			if (requested_transition == death_single ||
-			    requested_transition == reroot)
-				return (state_func_t) requested_transition;
 			if (errno == EINTR)
 				continue;
 			warning("wait for %s on %s failed: %m; going to "
