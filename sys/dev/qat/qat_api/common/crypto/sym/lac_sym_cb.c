@@ -520,7 +520,7 @@ cleanup:
  * @ingroup LacSymCb
  */
 void
-LacSymCb_CallbacksRegister()
+LacSymCb_CallbacksRegister(void)
 {
 	/*** HASH ***/
 	LacSymQat_RespHandlerRegister(ICP_QAT_FW_LA_CMD_AUTH,
