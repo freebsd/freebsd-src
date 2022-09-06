@@ -208,7 +208,7 @@ ioctl_ifcreate(int s, struct ifreq *ifr)
 		case EEXIST:
 			errx(1, "interface %s already exists", ifr->ifr_name);
 		default:
-			err(1, "SIOCIFCREATE2");
+			err(1, "SIOCIFCREATE2 (%s)", ifr->ifr_name);
 		}
 	}
 }
