@@ -83,19 +83,29 @@ uart_acpi_find_device(device_t dev)
 static int
 uart_acpi_probe(device_t dev)
 {
-	struct uart_softc *sc;
 	struct acpi_uart_compat_data *cd;
+	struct uart_softc *sc;
+	uint32_t rclk;
+	ssize_t size;
 
 	sc = device_get_softc(dev);
+	rclk = 0;
 
-	if ((cd = uart_acpi_find_device(dev)) != NULL) {
-		sc->sc_class = cd->cd_class;
-		if (cd->cd_desc != NULL)
-			device_set_desc(dev, cd->cd_desc);
-		return (uart_bus_probe(dev, cd->cd_regshft, cd->cd_regiowidth,
-		    cd->cd_rclk, 0, 0, cd->cd_quirks));
-	}
-	return (ENXIO);
+	cd = uart_acpi_find_device(dev);
+	if (cd == NULL)
+		return (ENXIO);
+
+	sc->sc_class = cd->cd_class;
+	if (cd->cd_desc != NULL)
+		device_set_desc(dev, cd->cd_desc);
+
+	size = device_get_property(dev, "clock-frequency", &rclk,
+	    sizeof(rclk), DEVICE_PROP_UINT32);
+	if (size < 0 || rclk == 0)
+		rclk = cd->cd_rclk;
+
+	return (uart_bus_probe(dev, cd->cd_regshft, cd->cd_regiowidth,
+	    rclk, 0, 0, cd->cd_quirks));
 }
 
 DRIVER_MODULE(uart, acpi, uart_acpi_driver, 0, 0);
