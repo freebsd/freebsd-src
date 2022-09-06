@@ -1,7 +1,7 @@
 '\" t
-.TH LESSKEY 1 "Version 590: 03 Jun 2021"
+.TH LESSKEY 1 "Version 608: 22 Jul 2022"
 .SH NAME
-lesskey \- specify key bindings for less
+lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
 .B "lesskey [\-o output] [\-\-] [input]"
 .br
@@ -26,24 +26,30 @@ source file into a format understood by
 .IR less .
 This compilation step is no longer required and the
 .I lesskey
-program is therefore deprecated although the file format remains supported by
+program is therefore deprecated, although the file format remains supported by
 .I less
 itself.
 .PP
+.SH DESCRIPTION
+A
+.I lesskey
+file specifies a set of key bindings and environment variables
+to be used by subsequent invocations of
+.I less.
 .SH FILE FORMAT
 The input file consists of one or more
 .I sections.
 Each section starts with a line that identifies the type of section.
 Possible sections are:
 .IP #command
-Defines new command keys.
+Customizes command key bindings.
 .IP #line-edit
-Defines new line-editing keys.
+Customizes line-editing key bindings.
 .IP #env
 Defines environment variables.
 .PP
 Blank lines and lines which start with a pound sign (#) are ignored,
-except for the special section header lines.
+except as noted below.
 .
 .SH "COMMAND SECTION"
 The command section begins with the line
@@ -66,34 +72,38 @@ A backslash followed by one to three octal digits may be used to
 specify a character by its octal value.
 A backslash followed by certain characters specifies input
 characters as follows:
-.IP \eb
-BACKSPACE
-.IP \ee
-ESCAPE
-.IP \en
-NEWLINE
-.IP \er
-RETURN
-.IP \et
-TAB
-.IP \eku
-UP ARROW
-.IP \ekd
-DOWN ARROW
-.IP \ekr
-RIGHT ARROW
-.IP \ekl
-LEFT ARROW
-.IP \ekU
-PAGE UP
-.IP \ekD
-PAGE DOWN
-.IP \ekh
-HOME
-.IP \eke
-END
-.IP \ekx
-DELETE
+.RS 5m
+.TS
+l l l.
+\eb	BACKSPACE	(0x08)
+\ee	ESCAPE	(0x1B)
+\en	NEWLINE	(0x0A)
+\er	RETURN	(0x0D)
+\et	TAB	(0x09)
+.TE
+.sp
+\ek followed by a single character represents the char(s) produced when one of these keys is pressed:
+.TS
+l l.
+\ekb	BACKSPACE (the BACKSPACE key)
+\ekB	ctrl-BACKSPACE
+\ekd	DOWN ARROW
+\ekD	PAGE DOWN
+\eke	END
+\ekh	HOME
+\eki	INSERT
+\ekl	LEFT ARROW
+\ekL	ctrl-LEFT ARROW
+\ekr	RIGHT ARROW
+\ekR	ctrl-RIGHT ARROW
+\ekt	BACKTAB
+\eku	UP ARROW
+\ekU	PAGE UP
+\ekx	DELETE
+\ekX	ctrl-DELETE
+\ek1	F1
+.TE
+
 .PP
 A backslash followed by any other character indicates that character is
 to be taken literally.
@@ -116,7 +126,11 @@ quits, the first character of the extra string is used as its exit status.
 .
 .SH EXAMPLE
 The following input file describes the set of
-default command keys used by less:
+default command keys used by 
+.IR less .
+Documentation on each command can be found in the
+.less
+man page, under the key sequence which invokes the command.
 .sp
 .RS 5m
 .TS
@@ -217,6 +231,8 @@ T	prev-tag
 -	toggle-option
 :t	toggle-option t
 s	toggle-option o
+	## Use a long option name by starting the extra string with ONE dash; eg:
+	##   s toggle-option -log-file\n
 \&_	display-option
 |	pipe
 v	visual
@@ -282,7 +298,8 @@ one per line as in the example below.
 .
 .SH EXAMPLE
 The following input file describes the set of
-default line-editing keys used by less:
+default line-editing keys used by
+.IR less :
 .sp
 .RS 5m
 .TS
@@ -333,23 +350,67 @@ Variables assigned in this way are visible only to
 .IR less .
 If a variable is specified in the system environment and also in a
 lesskey file, the value in the lesskey file takes precedence.
-Although the lesskey file can be used to override variables set in the
-environment, the main purpose of assigning variables in the lesskey file
-is simply to have all
+.
+.sp
+If the variable name is followed by += rather than =,
+the string is appended to the variable's existing value.
+This currently works only if any += lines immediately follow
+the same variable's original definition (with an = line),
+without any intervening definitions of other variables.
+It can append only to a variable defined earlier in the file;
+it cannot append to a variable in the system environment.
+.
+.SH CONDITIONAL CONFIGURATION
+If a line begins with #version followed by a relational operator and a version number,
+the remainder of the line is parsed if and only if the running version of
 .I less
-configuration information stored in one file.
+(or
+.IR lesskey )
+matches the operator.
+This can be helpful if a lesskey file is used by different versions of
+.IR less .
+.sp
+For example, suppose that a new command named 'sideways-search' is added in 
+.I less
+version 777.
+Then the following line would assign the command to the Q key, but only in versions of
+.I less
+which support it. The line would be ignored by versions earlier than 777.
+.sp
+.nf
+	#version >= 777  Q sideways-search
+.fi
+.sp
+These six operators are supported:
+.RS 5m
+.TS
+l l.
+ >	Greater than
+ <	Less than
+ >=	Greater than or equal to
+ <=	Less than or equal to
+ =	Equal to
+ !=	Not equal to
+.TE
+.RE
+.sp
+The #version feature is not supported in
+.I less
+and
+.I lesskey
+before version 594.
+In those older versions, all #version lines are ignored.
 .
 .SH EXAMPLE
-The following input file sets the \-i option whenever
-.I less
-is run, and specifies the character set to be "latin1":
+The following input file sets the \-i and \-S options when
+.less
+is run and, on version 595 and higher, adds a \-\-color option.
 .sp
 .nf
 	#env
-	LESS = \-i
-	LESSCHARSET = latin1
+	LESS = \-i\ \-S
+	#version\ >=\ 595\ \ LESS\ +=\ \-\-color=Hkc
 .fi
-.sp
 .
 .SH "SEE ALSO"
 .BR less (1)
@@ -360,7 +421,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2021  Mark Nudelman
+Copyright (C) 1984-2022  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it

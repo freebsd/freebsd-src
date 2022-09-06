@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -117,12 +117,7 @@ lsystem(cmd, donemsg)
 	inp = dup(0);
 	close(0);
 #if !MSDOS_COMPILER
-#if OS2
-	/* The __open() system call translates "/dev/tty" to "con". */
-	if (__open(tty_device(), OPEN_READ) < 0)
-#else
-	if (open(tty_device(), OPEN_READ) < 0)
-#endif
+	if (open_tty() < 0)
 #endif
 		dup(inp);
 #endif

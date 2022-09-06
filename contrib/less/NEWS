@@ -11,6 +11,73 @@
 
 ======================================================================
 
+	Major changes between "less" versions 590 and 608
+
+* Add the --header option (github #43).
+
+* Add the --no-number-headers option (github #178).
+
+* Add the --status-line option.
+
+* Add the --redraw-on-quit option (github #36).
+
+* Add the --search-options option (github #213).
+
+* Add the --exit-follow-on-close option (github #244).
+
+* Add 'H' color type to set color of header lines.
+
+* Add #version conditional to lesskey.
+
+* Add += syntax to variable section in lesskey files.
+
+* Allow option name in -- command to end with '=' in addition to '\n'.
+
+* Add $HOME/.config to possible locations of lesskey file (github #153).
+
+* Add $XDG_STATE_HOME and $HOME/.local/state to possible locations
+  of history file (github #223).
+
+* Don't read or write history file in secure mode (github #201).
+
+* Fix display of multibyte and double-width chars in prompt.
+
+* Fix ESC-BACKSPACE command when BACKSPACE key does not send 0x08
+  (github #188).
+
+* Add more \k codes to lesskey format.
+
+* Fix bug when empty file is modified while viewing it.
+
+* Fix bug when parsing a malformed lesskey file (githb #234).
+
+* Fix bug scrolling history when --incsearch is set (github #214).
+
+* Fix buffer overflow when invoking lessecho with more than 63 -m/-n 
+  options (github #198).
+
+* Fix buffer overflow in bin_file (github #271).
+
+* Fix bug restoring color at end of highlighted text.
+
+* Fix bug in parsing lesskey file.
+
+* Defer moving cursor to lower left in some more cases.
+
+* Suppress TAB filename expansion in some cases where it doesn't make sense.
+
+* Fix termlib detection when compiler doesn't accept 
+  calls to undeclared functions.
+
+* Fix bug in input of non-ASCII characters on Windows (github #247)
+
+* Escape filenames when invoking LESSCLOSE.
+
+* Fix bug using multibyte UTF-8 char in search string 
+  with --incsearch (github #273).
+
+======================================================================
+
 	Major changes between "less" versions 581 and 590
 
 * Make less able to read lesskey source files (deprecating lesskey).

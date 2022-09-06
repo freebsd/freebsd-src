@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -477,7 +477,7 @@ bin_file(f)
 	edata = &data[n];
 	for (p = data;  p < edata;  )
 	{
-		if (utf_mode && !is_utf8_well_formed(p, edata-data))
+		if (utf_mode && !is_utf8_well_formed(p, edata-p))
 		{
 			bin_count++;
 			utf_skip_to_lead(&p, edata);
@@ -757,10 +757,11 @@ lglob(filename)
 	 */
 	len = (int) (strlen(lessecho) + strlen(filename) + (7*strlen(metachars())) + 24);
 	cmd = (char *) ecalloc(len, sizeof(char));
-	SNPRINTF4(cmd, len, "%s -p0x%x -d0x%x -e%s ", lessecho, openquote, closequote, esc);
+	SNPRINTF4(cmd, len, "%s -p0x%x -d0x%x -e%s ", lessecho,
+		(unsigned char) openquote, (unsigned char) closequote, esc);
 	free(esc);
 	for (s = metachars();  *s != '\0';  s++)
-		sprintf(cmd + strlen(cmd), "-n0x%x ", *s);
+		sprintf(cmd + strlen(cmd), "-n0x%x ", (unsigned char) *s);
 	sprintf(cmd + strlen(cmd), "-- %s", filename);
 	fd = shellcmd(cmd);
 	free(cmd);
@@ -971,6 +972,8 @@ close_altfile(altfilename, filename)
 {
 #if HAVE_POPEN
 	char *lessclose;
+	char *qfilename;
+	char *qaltfilename;
 	FILE *fd;
 	char *cmd;
 	int len;
@@ -985,9 +988,13 @@ close_altfile(altfilename, filename)
 		error("LESSCLOSE ignored; must contain no more than 2 %%s", NULL_PARG);
 		return;
 	}
-	len = (int) (strlen(lessclose) + strlen(filename) + strlen(altfilename) + 2);
+	qfilename = shell_quote(filename);
+	qaltfilename = shell_quote(altfilename);
+	len = (int) (strlen(lessclose) + strlen(qfilename) + strlen(qaltfilename) + 2);
 	cmd = (char *) ecalloc(len, sizeof(char));
-	SNPRINTF2(cmd, len, lessclose, filename, altfilename);
+	SNPRINTF2(cmd, len, lessclose, qfilename, qaltfilename);
+	free(qaltfilename);
+	free(qfilename);
 	fd = shellcmd(cmd);
 	free(cmd);
 	if (fd != NULL)

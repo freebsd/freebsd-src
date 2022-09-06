@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -34,8 +34,9 @@ static char openquote = '"';
 static char closequote = '"';
 static char *meta_escape = "\\";
 static char meta_escape_buf[2];
-static char metachars[64] = "";
+static char* metachars = NULL;
 static int num_metachars = 0;
+static int size_metachars = 0;
 
 	static void
 pr_usage(VOID_PARAM)
@@ -140,6 +141,35 @@ lstrtol(s, radix, pend)
 	return (n);
 }
 
+	static void
+add_metachar(ch)
+	int ch;
+{
+	if (num_metachars+1 >= size_metachars)
+	{
+		char *p;
+		size_metachars = (size_metachars > 0) ? size_metachars*2 : 16;
+		p = (char *) malloc(size_metachars);
+		if (p == NULL)
+			pr_error("Cannot allocate memory");
+
+		if (metachars != NULL)
+		{
+			strcpy(p, metachars);
+			free(metachars);
+		}
+		metachars = p;
+	}
+	metachars[num_metachars++] = ch;
+	metachars[num_metachars] = '\0';
+}
+
+	static int
+is_metachar(ch)
+	int ch;
+{
+	return (metachars != NULL && strchr(metachars, ch) != NULL);
+}
 
 #if !HAVE_STRCHR
 	char *
@@ -192,6 +222,7 @@ main(argc, argv)
 			break;
 		case 'f':
 			meta_escape_buf[0] = lstrtol(++arg, 0, &s);
+			meta_escape_buf[1] = '\0';
 			meta_escape = meta_escape_buf;
 			if (s == arg)
 				pr_error("Missing number after -f");
@@ -205,14 +236,12 @@ main(argc, argv)
 				pr_error("Missing number after -p");
 			break;
 		case 'm':
-			metachars[num_metachars++] = *++arg;
-			metachars[num_metachars] = '\0';
+			add_metachar(*++arg);
 			break;
 		case 'n':
-			metachars[num_metachars++] = lstrtol(++arg, 0, &s);
+			add_metachar(lstrtol(++arg, 0, &s));
 			if (s == arg)
 				pr_error("Missing number after -n");
-			metachars[num_metachars] = '\0';
 			break;
 		case '?':
 			pr_usage();
@@ -245,7 +274,7 @@ main(argc, argv)
 		arg = *argv++;
 		for (s = arg;  *s != '\0';  s++)
 		{
-			if (strchr(metachars, *s) != NULL)
+			if (is_metachar(*s))
 			{
 				has_meta = 1;
 				break;
@@ -257,7 +286,7 @@ main(argc, argv)
 		{
 			for (s = arg;  *s != '\0';  s++)
 			{
-				if (strchr(metachars, *s) != NULL)
+				if (is_metachar(*s))
 					printf("%s", meta_escape);
 				printf("%c", *s);
 			}
