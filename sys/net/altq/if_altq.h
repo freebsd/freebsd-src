@@ -169,7 +169,6 @@ extern int altq_detach(struct ifaltq *);
 extern int altq_enable(struct ifaltq *);
 extern int altq_disable(struct ifaltq *);
 extern struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int);
-extern int (*altq_input)(struct mbuf *, int);
 #if 0 /* ALTQ3_CLFIER_COMPAT */
 void altq_etherclassify(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
 #endif

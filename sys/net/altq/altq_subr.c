@@ -78,7 +78,6 @@
  * internal function prototypes
  */
 static void	tbr_timeout(void *);
-int (*altq_input)(struct mbuf *, int) = NULL;
 static struct mbuf *tbr_dequeue(struct ifaltq *, int);
 static int tbr_timer = 0;	/* token bucket regulator timer */
 #if !defined(__FreeBSD__) || (__FreeBSD_version < 600000)

@@ -251,14 +251,6 @@ ip_tryforward(struct mbuf *m)
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
 
-#ifdef ALTQ
-	/*
-	 * Is packet dropped by traffic conditioner?
-	 */
-	if (altq_input != NULL && (*altq_input)(m, AF_INET) == 0)
-		goto drop;
-#endif
-
 	/*
 	 * Only IP packets without options
 	 */
