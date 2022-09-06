@@ -1631,8 +1631,10 @@ ktls_reset_receive_tag(void *context, int pending)
 	}
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	m_snd_tag_rele(tls->snd_tag);
+	mst = tls->snd_tag;
 	tls->snd_tag = NULL;
+	if (mst != NULL)
+		m_snd_tag_rele(mst);
 
 	ifp = tls->rx_ifp;
 	if_ref(ifp);
