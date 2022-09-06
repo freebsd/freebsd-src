@@ -583,7 +583,8 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
 		inp = getinoinfo(parentdir);
-		if (parentdir != (ino_t)-1 && (inp->i_flags & INFO_NEW) == 0) {
+		if (parentdir != (ino_t)-1 && inp != NULL &&
+		    (inp->i_flags & INFO_NEW) == 0) {
 			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
 			/*
 			 * If the parent directory did not have to
@@ -840,8 +841,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 		irelse(&ip);
 		return (0);
 	}
-	if ((inp = getinoinfo(ino)) == NULL)
-		inp = cacheino(dp, ino);
+	inp = cacheino(dp, ino);
 	inp->i_parent = parent;
 	inp->i_dotdot = parent;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
