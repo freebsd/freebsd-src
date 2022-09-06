@@ -28,8 +28,7 @@ static const struct fun
   // clang-format off
   F(stpcpy, 0)
 #if __aarch64__
-  F(__stpcpy_aarch64, 0)
-  F(__stpcpy_aarch64_mte, 1)
+  F(__stpcpy_aarch64, 1)
 # if __ARM_FEATURE_SVE
   F(__stpcpy_aarch64_sve, 1)
 # endif

@@ -28,6 +28,9 @@ static const struct fun
 # if __ARM_NEON
   F(__memmove_aarch64_simd, 1)
 # endif
+# if __ARM_FEATURE_SVE
+  F(__memmove_aarch64_sve, 1)
+# endif
 #endif
   {0, 0, 0}
   // clang-format on
