@@ -77,7 +77,7 @@ spinup_ap_realmode(struct vmctx *ctx, int newcpu, uint64_t *rip)
 }
 
 int
-spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip)
+spinup_ap(struct vmctx *ctx, int newcpu, uint64_t rip)
 {
 	int error;
 
@@ -100,7 +100,7 @@ spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip)
 
 	spinup_ap_realmode(ctx, newcpu, &rip);
 
-	fbsdrun_addcpu(ctx, vcpu, newcpu, rip);
+	vm_resume_cpu(ctx, newcpu);
 
 	return (newcpu);
 }
