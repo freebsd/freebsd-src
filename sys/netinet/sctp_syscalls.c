@@ -153,10 +153,11 @@ sys_sctp_peeloff(td, uap)
 	int error, fd;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td, uap->sd, cap_rights_init_one(&rights, CAP_PEELOFF),
-	    &headfp, &fflag, NULL);
+	error = getsock(td, uap->sd, cap_rights_init_one(&rights, CAP_PEELOFF),
+	    &headfp);
 	if (error != 0)
 		goto done2;
+	fflag = atomic_load_int(&fp->f_flag);
 	head = headfp->f_data;
 	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
 		error = EOPNOTSUPP;
@@ -252,7 +253,7 @@ sys_sctp_generic_sendmsg (td, uap)
 	}
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td, uap->sd, &rights, &fp, NULL, NULL);
+	error = getsock(td, uap->sd, &rights, &fp);
 	if (error != 0)
 		goto sctp_bad;
 #ifdef KTRACE
@@ -361,7 +362,7 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 	}
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td, uap->sd, &rights, &fp, NULL, NULL);
+	error = getsock(td, uap->sd, &rights, &fp);
 	if (error != 0)
 		goto sctp_bad1;
 
@@ -472,8 +473,8 @@ sys_sctp_generic_recvmsg(td, uap)
 	int error, fromlen, i, msg_flags;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td, uap->sd, cap_rights_init_one(&rights, CAP_RECV),
-	    &fp, NULL, NULL);
+	error = getsock(td, uap->sd, cap_rights_init_one(&rights, CAP_RECV),
+	    &fp);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
