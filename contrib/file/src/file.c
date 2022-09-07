@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.195 2022/06/02 15:45:43 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.196 2022/07/04 17:00:51 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -506,35 +506,47 @@ unwrap(struct magic_set *ms, const char *fn)
 	size_t llen = 0;
 	int wid = 0, cwid;
 	int e = 0;
+	size_t fi = 0, fimax = 100;
+	char **flist = malloc(sizeof(*flist) * fimax);
 
-	if (strcmp("-", fn) == 0) {
+	if (flist == NULL)
+out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
+
+	if (strcmp("-", fn) == 0)
 		f = stdin;
-		wid = 1;
-	} else {
+	else {
 		if ((f = fopen(fn, "r")) == NULL) {
 			file_warn("Cannot open `%s'", fn);
 			return 1;
 		}
-
-		while ((len = getline(&line, &llen, f)) > 0) {
-			if (line[len - 1] == '\n')
-				line[len - 1] = '\0';
-			cwid = file_mbswidth(ms, line);
-			if (cwid > wid)
-				wid = cwid;
-		}
-
-		rewind(f);
 	}
 
 	while ((len = getline(&line, &llen, f)) > 0) {
 		if (line[len - 1] == '\n')
 			line[len - 1] = '\0';
-		e |= process(ms, line, wid);
+		if (fi >= fimax) {
+			fimax += 100;
+			char **nf = realloc(flist, fimax * sizeof(*flist));
+			if (nf == NULL)
+				goto out;
+		}
+		flist[fi++] = line;
+		cwid = file_mbswidth(ms, line);
+		if (cwid > wid)
+			wid = cwid;
+		line = NULL;
+		llen = 0;
 	}
 
-	free(line);
-	(void)fclose(f);
+	fimax = fi;
+	for (fi = 0; fi < fimax; fi++) {
+		e |= process(ms, flist[fi], wid);
+		free(flist[fi]);
+	}
+	free(flist);
+
+	if (f != stdin)
+		(void)fclose(f);
 	return e;
 }
 
