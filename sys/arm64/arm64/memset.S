@@ -33,17 +33,6 @@
 
 #include <machine/asm.h>
 
-
-/* By default we assume that the DC instruction can be used to zero
-   data blocks more efficiently.  In some circumstances this might be
-   unsafe, for example in an asymmetric multiprocessor environment with
-   different DC clear lengths (neither the upper nor lower lengths are
-   safe to use).  The feature can be disabled by defining DONT_USE_DC.
-
-   If code may be run in a virtualized environment, then define
-   MAYBE_VIRT.  This will cause the code to cache the system register
-   values rather than re-reading them each call.  */
-
 #define dstin		x0
 #define val		w1
 #define count		x2
@@ -143,7 +132,6 @@ ENTRY(memset)
 	b.ne	.Ltail63
 	ret
 
-#ifndef DONT_USE_DC
 	/* For zeroing memory, check to see if we can use the ZVA feature to
 	 * zero entire 'cache' lines.  */
 .Lzero_mem:
@@ -163,30 +151,11 @@ ENTRY(memset)
 	 * the line-clear code.  */
 	cmp	count, #128
 	b.lt	.Lnot_short
-#ifdef MAYBE_VIRT
-	/* For efficiency when virtualized, we cache the ZVA capability.  */
-	adrp	tmp2, .Lcache_clear
-	ldr	zva_len, [tmp2, #:lo12:.Lcache_clear]
-	tbnz	zva_len, #31, .Lnot_short
-	cbnz	zva_len, .Lzero_by_line
-	mrs	tmp1, dczid_el0
-	tbz	tmp1, #4, 1f
-	/* ZVA not available.  Remember this for next time.  */
-	mov	zva_len, #~0
-	str	zva_len, [tmp2, #:lo12:.Lcache_clear]
-	b	.Lnot_short
-1:
-	mov	tmp3w, #4
-	and	zva_len, tmp1w, #15	/* Safety: other bits reserved.  */
-	lsl	zva_len, tmp3w, zva_len
-	str	zva_len, [tmp2, #:lo12:.Lcache_clear]
-#else
-	mrs	tmp1, dczid_el0
-	tbnz	tmp1, #4, .Lnot_short
-	mov	tmp3w, #4
-	and	zva_len, tmp1w, #15	/* Safety: other bits reserved.  */
-	lsl	zva_len, tmp3w, zva_len
-#endif
+
+	adrp	tmp2, dczva_line_size
+	add	tmp2, tmp2, :lo12:dczva_line_size
+	ldr	zva_len, [tmp2]
+	cbz	zva_len, .Lnot_short
 
 .Lzero_by_line:
 	/* Compute how far we need to go to become suitably aligned.  We're
@@ -225,11 +194,4 @@ ENTRY(memset)
 	ands	count, count, zva_bits_x
 	b.ne	.Ltail_maybe_long
 	ret
-#ifdef MAYBE_VIRT
-	.bss
-	.p2align 2
-.Lcache_clear:
-	.space 4
-#endif
-#endif /* DONT_USE_DC */
 END(memset)
