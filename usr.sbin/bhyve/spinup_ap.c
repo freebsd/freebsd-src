@@ -98,6 +98,9 @@ spinup_ap(struct vmctx *ctx, int newcpu, uint64_t rip)
 	error = vm_set_capability(ctx, newcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
 	assert(error == 0);
 
+	error = vm_set_capability(ctx, newcpu, VM_CAP_IPI_EXIT, 1);
+	assert(error == 0);
+
 	spinup_ap_realmode(ctx, newcpu, &rip);
 
 	vm_resume_cpu(ctx, newcpu);

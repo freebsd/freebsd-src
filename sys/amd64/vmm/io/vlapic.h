@@ -115,4 +115,6 @@ void vlapic_self_ipi_handler(struct vlapic *vlapic, uint64_t val);
 int vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta);
 #endif
 
+int vm_handle_ipi(struct vm *vm, int vcpuid, struct vm_exit *vme, bool *retu);
+
 #endif	/* _VLAPIC_H_ */
