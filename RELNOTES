@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+b875d4f5ddcb,0685c73cfe88:
+	The NFSv4.1/4.2 client and server will now generate console messages
+	if sessions are broken, suggesting that users check to ensure
+	that the /etc/hostid strings are unique for all NFSv4.1/4.2 clients.
+
 240afd8c1fcc:
 	makefs(8) has ZFS support; it can create a ZFS pool, backed by a
 	single disk vdev, containing one or more datasets populated from
