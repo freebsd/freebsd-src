@@ -811,6 +811,13 @@ key_havesp(u_int dir)
 	return (TAILQ_FIRST(&V_sptree[dir]) != NULL);
 }
 
+int
+key_havesp_any(void)
+{
+
+	return (V_spd_size != 0);
+}
+
 /* %%% IPsec policy management */
 /*
  * Return current SPDB generation.
