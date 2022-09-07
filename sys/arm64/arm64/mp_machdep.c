@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
+#define	MP_BOOTSTACK_SIZE	(kstack_pages * PAGE_SIZE)
+
 #define	MP_QUIRK_CPULIST	0x01	/* The list of cpus may be wrong, */
 					/* don't panic if one fails to start */
 static uint32_t mp_quirks;
@@ -314,7 +316,8 @@ smp_after_idle_runnable(void *arg __unused)
 
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		if (bootstacks[cpu] != NULL)
-			kmem_free((vm_offset_t)bootstacks[cpu], PAGE_SIZE);
+			kmem_free((vm_offset_t)bootstacks[cpu],
+			    MP_BOOTSTACK_SIZE);
 	}
 }
 SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,
@@ -515,10 +518,10 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 	dpcpu_init(dpcpu[cpuid - 1], cpuid);
 
 	bootstacks[cpuid] = (void *)kmem_malloc_domainset(
-	    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+	    DOMAINSET_PREF(domain), MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
 
 	naps = atomic_load_int(&aps_started);
-	bootstack = (char *)bootstacks[cpuid] + PAGE_SIZE;
+	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
 
 	printf("Starting CPU %u (%lx)\n", cpuid, target_cpu);
 	pa = pmap_extract(kernel_pmap, (vm_offset_t)mpentry);
@@ -537,7 +540,7 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 		pcpu_destroy(pcpup);
 		kmem_free((vm_offset_t)dpcpu[cpuid - 1], DPCPU_SIZE);
 		dpcpu[cpuid - 1] = NULL;
-		kmem_free((vm_offset_t)bootstacks[cpuid], PAGE_SIZE);
+		kmem_free((vm_offset_t)bootstacks[cpuid], MP_BOOTSTACK_SIZE);
 		bootstacks[cpuid] = NULL;
 		mp_ncpus--;
 		return (false);
