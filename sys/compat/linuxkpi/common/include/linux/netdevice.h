@@ -5,7 +5,7 @@
  * Copyright (c) 2013-2019 Mellanox Technologies, Ltd.
  * All rights reserved.
  * Copyright (c) 2020-2021 The FreeBSD Foundation
- * Copyright (c) 2020-2021 Bjoern A. Zeeb
+ * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -182,6 +182,30 @@ int	unregister_inetaddr_notifier(struct notifier_block *);
 
 #define	NAPI_POLL_WEIGHT			64	/* budget */
 
+/*
+ * There are drivers directly testing napi state bits, so we need to publicly
+ * expose them.  If you ask me, those accesses should be hid behind an
+ * inline function and the bit flags not be directly exposed.
+ */
+enum napi_state_bits {
+	/*
+	 * Official Linux flags encountered.
+	 */
+	NAPI_STATE_SCHED = 1,
+
+	/*
+	 * Our internal versions (for now).
+	 */
+	/* Do not schedule new things while we are waiting to clear things. */
+	LKPI_NAPI_FLAG_DISABLE_PENDING = 0,
+	/* To synchronise that only one poll is ever running. */
+	LKPI_NAPI_FLAG_IS_SCHEDULED = 1,
+	/* If trying to schedule while poll is running. Need to re-schedule. */
+	LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN = 2,
+	/* When shutting down forcefully prevent anything from running task/poll. */
+	LKPI_NAPI_FLAG_SHUTDOWN = 3,
+};
+
 struct napi_struct {
 	TAILQ_ENTRY(napi_struct)	entry;
 
@@ -191,11 +215,12 @@ struct napi_struct {
 	int			budget;
 	int			rx_count;
 
+
 	/*
 	 * These flags mostly need to be checked/changed atomically
 	 * (multiple together in some cases).
 	 */
-	volatile unsigned long	_flags;
+	volatile unsigned long	state;
 
 	/* FreeBSD internal. */
 	/* Use task for now, so we can easily switch between direct and task. */
