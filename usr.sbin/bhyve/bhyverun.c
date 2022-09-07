@@ -546,12 +546,10 @@ fbsdrun_start_thread(void *param)
 	return (NULL);
 }
 
-void
-fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
+static void
+fbsdrun_addcpu(struct vmctx *ctx, int newcpu, uint64_t rip, bool suspend)
 {
 	int error;
-
-	assert(fromcpu == BSP);
 
 	/*
 	 * The 'newcpu' must be activated in the context of 'fromcpu'. If
@@ -564,6 +562,9 @@ fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 		err(EX_OSERR, "could not activate CPU %d", newcpu);
 
 	CPU_SET_ATOMIC(newcpu, &cpumask);
+
+	if (suspend)
+		vm_suspend_cpu(ctx, newcpu);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
@@ -687,8 +688,7 @@ static int
 vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
 
-	(void)spinup_ap(ctx, *pvcpu,
-		    vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
+	(void)spinup_ap(ctx, vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
 
 	return (VMEXIT_CONTINUE);
 }
@@ -1138,8 +1138,8 @@ do_open(const char *vmname)
 	return (ctx);
 }
 
-void
-spinup_vcpu(struct vmctx *ctx, int vcpu)
+static void
+spinup_vcpu(struct vmctx *ctx, int vcpu, bool suspend)
 {
 	int error;
 	uint64_t rip;
@@ -1151,7 +1151,7 @@ spinup_vcpu(struct vmctx *ctx, int vcpu)
 	error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
 	assert(error == 0);
 
-	fbsdrun_addcpu(ctx, BSP, vcpu, rip);
+	fbsdrun_addcpu(ctx, vcpu, rip, suspend);
 }
 
 static bool
@@ -1584,25 +1584,16 @@ main(int argc, char *argv[])
 	mt_vmm_info = calloc(guest_ncpus, sizeof(*mt_vmm_info));
 
 	/*
-	 * Add CPU 0
+	 * Add all vCPUs.
 	 */
-	fbsdrun_addcpu(ctx, BSP, BSP, rip);
-
+	for (int vcpu = 0; vcpu < guest_ncpus; vcpu++) {
+		bool suspend = (vcpu != BSP);
 #ifdef BHYVE_SNAPSHOT
-	/*
-	 * If we restore a VM, start all vCPUs now (including APs), otherwise,
-	 * let the guest OS to spin them up later via vmexits.
-	 */
-	if (restore_file != NULL) {
-		for (vcpu = 0; vcpu < guest_ncpus; vcpu++) {
-			if (vcpu == BSP)
-				continue;
-
-			fprintf(stdout, "spinning up vcpu no %d...\r\n", vcpu);
-			spinup_vcpu(ctx, vcpu);
-		}
-	}
+		if (restore_file != NULL)
+			suspend = false;
 #endif
+		spinup_vcpu(ctx, vcpu, suspend);
+	}
 
 	/*
 	 * Head off to the main event dispatch loop
