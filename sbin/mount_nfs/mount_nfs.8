@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2022
+.Dd September 5, 2022
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -188,6 +188,10 @@ Same as not specifying
 Make the mount interruptible, which implies that file system calls that
 are delayed due to an unresponsive server will fail with EINTR when a
 termination signal is posted for the process.
+To avoid leaving file locks in an indeterminate state on the NFS
+server, it is recommended that the
+.Cm nolockd
+option be used with this option.
 .It Cm maxgroups Ns = Ns Aq Ar value
 Set the maximum size of the group list for the credentials to the
 specified value.
@@ -317,22 +321,23 @@ Do
 .Em not
 forward
 .Xr fcntl 2
-locks over the wire via the NLM protocol for NFSv3 mounts.
+locks over the wire via the NLM protocol for NFSv3 mounts
+or via the NFSv4 protocol for NFSv4 mounts.
 All locks will be local and not seen by the server
-and likewise not seen by other NFS clients for NFSv3 mounts.
+and likewise not seen by other NFS clients for NFSv3 or NFSv4 mounts.
 This removes the need to run the
 .Xr rpcbind 8
 service and the
 .Xr rpc.statd 8
 and
 .Xr rpc.lockd 8
-servers on the client.
+servers on the client for NFSv3 mounts.
 Note that this option will only be honored when performing the
 initial mount, it will be silently ignored if used while updating
 the mount options.
-Also, note that NFSv4 mounts do not use these daemons and handle locks over the
-wire in the NFSv4 protocol.
-As such, this option is meaningless for NFSv4 mounts.
+Also, note that NFSv4 mounts do not use these daemons.
+The NFSv4 protocol handles locks,
+unless this option is specified.
 .It Cm noncontigwr
 This mount option allows the NFS client to
 combine non-contiguous byte ranges being written
@@ -659,14 +664,25 @@ A version of the
 utility appeared in
 .Bx 4.4 .
 .Sh BUGS
-Since nfsv4 performs open/lock operations that have their ordering strictly
+Since NFSv4 performs open/lock operations that have their ordering strictly
 enforced by the server, the options
 .Cm intr
 and
 .Cm soft
 cannot be safely used.
-For NFSv4 minor version 1 or 2 mounts, these options may
-also result
-in hung mount points, due to corruption of session slots.
+For NFSv4 minor version 1 or 2 mounts, the ordering is done
+via session slots and the NFSv4 client now handles broken session slots
+fairly well.
+As such, if the
+.Cm nolockd
+option is used along with
+.Cm intr
+and/or
+.Cm soft ,
+an NFSv4 minor version 1 or 2 mount
+should work fairly well, although still not completely correctly.
+For NFSv4 minor version 0 mounts,
 .Cm hard
-nfsv4 mounts are strongly recommended.
+mounts without the
+.Cm intr
+mount option is strongly recommended.
