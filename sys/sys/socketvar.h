@@ -450,6 +450,8 @@ int	getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr,
 	    size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, u_int *fflagp, struct filecaps *havecaps);
+int	getsock(struct thread *td, int fd, cap_rights_t *rightsp,
+	    struct file **fpp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 void	soaio_enqueue(struct task *task);

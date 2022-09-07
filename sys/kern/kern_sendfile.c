@@ -653,8 +653,7 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	/*
 	 * The socket must be a stream socket and connected.
 	 */
-	error = getsock_cap(td, s, &cap_send_rights,
-	    sock_fp, NULL, NULL);
+	error = getsock(td, s, &cap_send_rights, sock_fp);
 	if (error != 0)
 		return (error);
 	*so = (*sock_fp)->f_data;

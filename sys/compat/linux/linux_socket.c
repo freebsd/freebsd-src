@@ -970,7 +970,6 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	struct socket *so;
 	struct sockaddr *sa;
 	struct file *fp;
-	u_int fflag;
 	int error;
 
 	error = linux_to_bsd_sockaddr(PTRIN(args->name), &sa,
@@ -988,14 +987,13 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * when on a non-blocking socket. Instead it returns the
 	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
 	 */
-	error = getsock_cap(td, args->s, &cap_connect_rights,
-	    &fp, &fflag, NULL);
+	error = getsock(td, args->s, &cap_connect_rights, &fp);
 	if (error != 0)
 		return (error);
 
 	error = EISCONN;
 	so = fp->f_data;
-	if (fflag & FNONBLOCK) {
+	if (atomic_load_int(&fp->f_flag) & FNONBLOCK) {
 		SOCK_LOCK(so);
 		if (so->so_emuldata == 0)
 			error = so->so_error;
@@ -1058,7 +1056,7 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 				error = EINVAL;
 			break;
 		case EINVAL:
-			error1 = getsock_cap(td, s, &cap_accept_rights, &fp1, NULL, NULL);
+			error1 = getsock(td, s, &cap_accept_rights, &fp1);
 			if (error1 != 0) {
 				error = error1;
 				break;
@@ -1207,7 +1205,7 @@ linux_send(struct thread *td, struct linux_send_args *args)
 		int tolen;
 	} */ bsd_args;
 	struct file *fp;
-	int error, fflag;
+	int error;
 
 	bsd_args.s = args->s;
 	bsd_args.buf = (caddr_t)PTRIN(args->msg);
@@ -1221,10 +1219,9 @@ linux_send(struct thread *td, struct linux_send_args *args)
 		 * Linux doesn't return ENOTCONN for non-blocking sockets.
 		 * Instead it returns the EAGAIN.
 		 */
-		error = getsock_cap(td, args->s, &cap_send_rights, &fp,
-		    &fflag, NULL);
+		error = getsock(td, args->s, &cap_send_rights, &fp);
 		if (error == 0) {
-			if (fflag & FNONBLOCK)
+			if (atomic_load_int(&fp->f_flag) & FNONBLOCK)
 				error = EAGAIN;
 			fdrop(fp, td);
 		}
@@ -1275,8 +1272,7 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 		return (linux_sendto_hdrincl(td, args));
 
 	bzero(&msg, sizeof(msg));
-	error = getsock_cap(td, args->s, &cap_send_connect_rights,
-	    &fp, NULL, NULL);
+	error = getsock(td, args->s, &cap_send_connect_rights, &fp);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;
@@ -1366,7 +1362,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	void *data;
 	l_size_t len;
 	l_size_t clen;
-	int error, fflag;
+	int error;
 
 	error = copyin(msghdr, &linux_msghdr, sizeof(linux_msghdr));
 	if (error != 0)
@@ -1409,8 +1405,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		if (sa_family == AF_UNIX)
 			goto bad;
 
-		error = getsock_cap(td, s, &cap_send_rights, &fp,
-		    &fflag, NULL);
+		error = getsock(td, s, &cap_send_rights, &fp);
 		if (error != 0)
 			goto bad;
 		so = fp->f_data;
@@ -1908,8 +1903,7 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	struct file *fp;
 	int error;
 
-	error = getsock_cap(td, args->s, &cap_recv_rights,
-	    &fp, NULL, NULL);
+	error = getsock(td, args->s, &cap_recv_rights, &fp);
 	if (error != 0)
 		return (error);
 	fdrop(fp, td);
@@ -1927,8 +1921,7 @@ linux_recvmmsg_common(struct thread *td, l_int s, struct l_mmsghdr *msg,
 	l_uint retval;
 	int error, datagrams;
 
-	error = getsock_cap(td, s, &cap_recv_rights,
-	    &fp, NULL, NULL);
+	error = getsock(td, s, &cap_recv_rights, &fp);
 	if (error != 0)
 		return (error);
 	datagrams = 0;
