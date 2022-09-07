@@ -460,6 +460,7 @@ struct ctl_lun_req {
 	union ctl_lunreq_data	reqdata;
 	void *			args;
 	nvlist_t *		args_nvl;
+#define	CTL_MAX_ARGS_LEN	(1024 * 1024)
 	size_t			args_len;
 	void *			result;
 	nvlist_t *		result_nvl;
