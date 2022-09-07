@@ -41,7 +41,7 @@ task:
       TOOLCHAIN_PKG: amd64-gcc12
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu-nox11 ${TOOLCHAIN_PKG}
+  - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG}
   setup_script:
   - uname -a
   - gpart show
@@ -57,6 +57,7 @@ task:
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
   test_script:
+  - sh .cirrus-ci/pkg-install.sh qemu-nox11
   - sh tools/boot/ci-qemu-test.sh
   post_script:
   - df -m
