@@ -416,16 +416,65 @@ struct ieee80211_action {
 	uint8_t		ia_action;
 } __packed;
 
-#define	IEEE80211_ACTION_CAT_SM		0	/* Spectrum Management */
-#define	IEEE80211_ACTION_CAT_QOS	1	/* QoS */
-#define	IEEE80211_ACTION_CAT_DLS	2	/* DLS */
-#define	IEEE80211_ACTION_CAT_BA		3	/* BA */
-#define	IEEE80211_ACTION_CAT_HT		7	/* HT */
-#define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
-#define	IEEE80211_ACTION_CAT_SELF_PROT	15	/* Self-protected */
-/* 16 - 125 reserved */
-#define	IEEE80211_ACTION_CAT_VHT	21
-#define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
+/* 80211-2020 Table 9-51-Category values */
+#define	IEEE80211_ACTION_CAT_SM			0	/* 9.6.2 Spectrum Management */
+#define	IEEE80211_ACTION_CAT_QOS		1	/* 9.6.3 QoS */
+/* Reserved					2	was IEEE80211_ACTION_CAT_DLS */
+#define	IEEE80211_ACTION_CAT_BA			3	/* 9.6.4 Block Ack */
+#define	IEEE80211_ACTION_CAT_PUBLIC		4	/* 9.6.7 Public */
+#define	IEEE80211_ACTION_CAT_RADIO_MEASUREMENT	5	/* 9.6.6 Radio Measurement */
+#define	IEEE80211_ACTION_CAT_FAST_BBS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
+#define	IEEE80211_ACTION_CAT_HT			7	/* 9.6.11 HT */
+#define	IEEE80211_ACTION_CAT_SA_QUERY		8	/* 9.6.9 SA Query */
+#define	IEEE80211_ACTION_CAT_PROTECTED_DUAL_OF_PUBLIC_ACTION 9 /* 9.6.10 Protected Dual of Public Action */
+#define	IEEE80211_ACTION_CAT_WNM		10	/* 9.6.13 WNM */
+#define	IEEE80211_ACTION_CAT_UNPROTECTED_WNM	11	/* 9.6.14 Unprotected WNM */
+#define	IEEE80211_ACTION_CAT_TDLS		12	/* 9.6.12 TDLS */
+#define	IEEE80211_ACTION_CAT_MESH		13	/* 9.6.16 Mesh */
+#define	IEEE80211_ACTION_CAT_MULTIHOP		14	/* 9.6.17 Multihop */
+#define	IEEE80211_ACTION_CAT_SELF_PROT		15	/* 9.6.15 Self-protected */
+#define	IEEE80211_ACTION_CAT_DMG		16	/* 9.6.19 DMG */
+/* Reserved					17	(R)Wi-Fi Alliance */
+#define	IEEE80211_ACTION_CAT_FAST_SESSION_TRANSFER 18	/* 9.6.20 Fast Session Transfer */
+#define	IEEE80211_ACTION_CAT_ROBUST_AV_STREAMING 19	/* 9.6.18 Robust AV Streaming */
+#define	IEEE80211_ACTION_CAT_UNPROTECTED_DMG	20	/* 9.6.21 Unprotected DMG */
+#define	IEEE80211_ACTION_CAT_VHT		21	/* 9.6.22 VHT */
+#define	IEEE80211_ACTION_CAT_UNPROTECTED_S1G	22	/* 9.6.24 Unprotected S1G */
+#define	IEEE80211_ACTION_CAT_S1G		23	/* 9.6.25 S1G */
+#define	IEEE80211_ACTION_CAT_FLOW_CONTROL	24	/* 9.6.26 Flow Control */
+#define	IEEE80211_ACTION_CAT_CTL_RESP_MCS_NEG	25	/* 9.6.27 Control Response MCS Negotiation */
+#define	IEEE80211_ACTION_CAT_FILS		26	/* 9.6.23 FILS */
+#define	IEEE80211_ACTION_CAT_CDMG		27	/* 9.6.28 CDMG */
+#define	IEEE80211_ACTION_CAT_CMMG		28	/* 9.6.29 CMMG */
+#define	IEEE80211_ACTION_CAT_GLK		29	/* 9.6.30 GLK */
+#define	IEEE80211_ACTION_CAT_HE			30	/* 9.6.31 HE, 80211ax-2021 */
+#define	IEEE80211_ACTION_CAT_PROTECTED_HE	31	/* 9.6.32 Protected HE, 80211ax-2021 */
+/* Reserved					32-125 */
+#define	IEEE80211_ACTION_CAT_VENDOR_SPECIFIC_PROTECTED 126 /* 9.6.5 Vendor-specific Protected */
+#define	IEEE80211_ACTION_CAT_VENDOR		127	/* 9.6.5 Vendor-specific */
+/* Error					128-255 */
+
+
+/* 80211-2020 Table 9-346-Spectrum Management Action field values */
+enum ieee80211_action_sm {
+	IEEE80211_ACTION_SM_SMREQ		= 0,	/* Spectrum Measurement Request */
+	IEEE80211_ACTION_SM_SMREP		= 1,	/* Spectrum Measurement Report */
+	IEEE80211_ACTION_SM_TPCREQ		= 2,	/* TPC Request */
+	IEEE80211_ACTION_SM_TPCREP		= 3,	/* TPC Report */
+	IEEE80211_ACTION_SM_CSA			= 4,	/* Channel Switch Announcement */
+	/* Reserved				= 5-255 */
+};
+
+/* 80211-2020 Table 9-363-Radio Measurement Action field values */
+enum ieee80211_action_radio_measurement {
+	IEEE80211_ACTION_RADIO_MEASUREMENT_RMREQ	= 0,	/* Radio Measurement Request */
+	IEEE80211_ACTION_RADIO_MEASUREMENT_RMREP	= 1,	/* Radio Measurement Report */
+	IEEE80211_ACTION_RADIO_MEASUREMENT_LMREQ	= 2,	/* Link Measurement Request */
+	IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP	= 3,	/* Link Measurement Report */
+	IEEE80211_ACTION_RADIO_MEASUREMENT_NRREQ	= 4,	/* Neighbor Report Request */
+	IEEE80211_ACTION_RADIO_MEASUREMENT_NRRESP	= 5,	/* Neighbor Report Response */
+	/* Reserved					= 6-255 */
+};
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
 #define	IEEE80211_ACTION_HT_MIMOPWRSAVE	1	/* MIMO power save */
