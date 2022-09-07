@@ -10,8 +10,6 @@ kern/subr_devmap.c				standard
 kern/subr_intr.c				optional intrng
 kern/subr_physmem.c				standard
 libkern/bcmp.c					standard
-libkern/memset.c				standard	\
-	compile-with "${NORMAL_C:N-fsanitize*}"
 libkern/strlen.c		standard
 libkern/arm64/crc32c_armv8.S			standard
 
@@ -60,6 +58,7 @@ arm64/arm64/machdep_boot.c			standard
 arm64/arm64/mem.c				standard
 arm64/arm64/memcmp.S				standard
 arm64/arm64/memcpy.S				standard
+arm64/arm64/memset.S				standard
 arm64/arm64/minidump_machdep.c			standard
 arm64/arm64/mp_machdep.c			optional smp
 arm64/arm64/nexus.c				standard
