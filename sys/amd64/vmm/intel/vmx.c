@@ -3504,6 +3504,7 @@ vmx_getcap(void *arg, int vcpu, int type, int *retval)
 			ret = 0;
 		break;
 	case VM_CAP_BPT_EXIT:
+	case VM_CAP_IPI_EXIT:
 		ret = 0;
 		break;
 	default:
@@ -3521,6 +3522,7 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 {
 	struct vmx *vmx = arg;
 	struct vmcs *vmcs = &vmx->vmcs[vcpu];
+	struct vlapic *vlapic;
 	uint32_t baseval;
 	uint32_t *pptr;
 	int error;
@@ -3598,6 +3600,12 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 			flag = (1 << IDT_BP);
 			reg = VMCS_EXCEPTION_BITMAP;
 		}
+		break;
+	case VM_CAP_IPI_EXIT:
+		retval = 0;
+
+		vlapic = vm_lapic(vmx->vm, vcpu);
+		vlapic->ipi_exit = val;
 		break;
 	default:
 		break;
