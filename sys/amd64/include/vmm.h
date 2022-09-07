@@ -31,6 +31,7 @@
 #ifndef _VMM_H_
 #define	_VMM_H_
 
+#include <sys/cpuset.h>
 #include <sys/sdt.h>
 #include <x86/segments.h>
 
@@ -486,6 +487,7 @@ enum vm_cap_type {
 	VM_CAP_BPT_EXIT,
 	VM_CAP_RDPID,
 	VM_CAP_RDTSCP,
+	VM_CAP_IPI_EXIT,
 	VM_CAP_MAX
 };
 
@@ -633,6 +635,7 @@ enum vm_exitcode {
 	VM_EXITCODE_DEBUG,
 	VM_EXITCODE_VMINSN,
 	VM_EXITCODE_BPT,
+	VM_EXITCODE_IPI,
 	VM_EXITCODE_MAX
 };
 
@@ -740,6 +743,11 @@ struct vm_exit {
 		struct {
 			enum vm_suspend_how how;
 		} suspended;
+		struct {
+			uint32_t mode;
+			uint8_t vector;
+			cpuset_t dmask;
+		} ipi;
 		struct vm_task_switch task_switch;
 	} u;
 };
