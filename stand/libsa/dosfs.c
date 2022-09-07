@@ -321,7 +321,7 @@ dos_open(const char *path, struct open_file *fd)
 
 	if (mnt == NULL) {
 		/* Allocate mount structure, associate with open */
-		if ((fs = malloc(sizeof(DOS_FS))) == NULL)
+		if ((fs = calloc(1, sizeof(DOS_FS))) == NULL)
 			return (errno);
 		if ((err = dos_mount_impl(fs, fd))) {
 			free(fs);
