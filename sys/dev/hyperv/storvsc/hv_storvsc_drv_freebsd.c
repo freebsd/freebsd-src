@@ -1831,13 +1831,16 @@ storvsc_xferbuf_prepare(void *arg, bus_dma_segment_t *segs, int nsegs, int error
 	for (i = 0; i < nsegs; i++) {
 #ifdef INVARIANTS
 		if (nsegs > 1) {
+#if defined(__amd64__)
 			if (i == 0) {
 				KASSERT((segs[i].ds_addr & PAGE_MASK) +
 				    segs[i].ds_len == PAGE_SIZE,
 				    ("invalid 1st page, ofs 0x%jx, len %zu",
 				     (uintmax_t)segs[i].ds_addr,
 				     segs[i].ds_len));
-			} else if (i == nsegs - 1) {
+			} else
+#endif
+			if (i == nsegs - 1) {
 				KASSERT((segs[i].ds_addr & PAGE_MASK) == 0,
 				    ("invalid last page, ofs 0x%jx",
 				     (uintmax_t)segs[i].ds_addr));
