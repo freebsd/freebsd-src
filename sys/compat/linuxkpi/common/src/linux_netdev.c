@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2021 The FreeBSD Foundation
+ * Copyright (c) 2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -48,14 +49,6 @@ MALLOC_DEFINE(M_NETDEV, "lkpindev", "Linux KPI netdevice compat");
 #define	NAPI_UNLOCK(_ndev)		mtx_unlock(&(_ndev)->napi_mtx)
 
 /* -------------------------------------------------------------------------- */
-/* Do not schedule new things while we are waiting to clear things. */
-#define	LKPI_NAPI_FLAG_DISABLE_PENDING				0
-/* To synchronise that only one poll is ever running. */
-#define	LKPI_NAPI_FLAG_IS_SCHEDULED				1
-/* If trying to schedule while poll is running. Need to re-schedule. */
-#define	LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN			2
-/* When shutting down forcefully prevent anything from running task/poll. */
-#define	LKPI_NAPI_FLAG_SHUTDOWN					3
 
 #define LKPI_NAPI_FLAGS \
         "\20\1DISABLE_PENDING\2IS_SCHEDULED\3LOST_RACE_TRY_AGAIN"
@@ -74,17 +67,17 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug_napi, CTLFLAG_RWTUN,
 
 #define	NAPI_TRACE(_n)		if (debug_napi & DNAPI_TRACE)		\
     printf("NAPI_TRACE %s:%d %u %p (%#jx %b)\n", __func__, __LINE__,	\
-	(unsigned int)ticks, _n, (uintmax_t)(_n)->_flags,		\
-	(int)(_n)->_flags, LKPI_NAPI_FLAGS)
+	(unsigned int)ticks, _n, (uintmax_t)(_n)->state,		\
+	(int)(_n)->state, LKPI_NAPI_FLAGS)
 #define	NAPI_TRACE2D(_n, _d)	if (debug_napi & DNAPI_TRACE)		\
     printf("NAPI_TRACE %s:%d %u %p (%#jx %b) %d\n", __func__, __LINE__, \
-	(unsigned int)ticks, _n, (uintmax_t)(_n)->_flags,		\
-	(int)(_n)->_flags, LKPI_NAPI_FLAGS, _d)
+	(unsigned int)ticks, _n, (uintmax_t)(_n)->state,		\
+	(int)(_n)->state, LKPI_NAPI_FLAGS, _d)
 #define	NAPI_TRACE_TASK(_n, _p, _c) if (debug_napi & DNAPI_TRACE_TASK)	\
     printf("NAPI_TRACE %s:%d %u %p (%#jx %b) pending %d count %d "	\
 	"rx_count %d\n", __func__, __LINE__,				\
-	(unsigned int)ticks, _n, (uintmax_t)(_n)->_flags,		\
-	(int)(_n)->_flags, LKPI_NAPI_FLAGS, _p, _c, (_n)->rx_count)
+	(unsigned int)ticks, _n, (uintmax_t)(_n)->state,		\
+	(int)(_n)->state, LKPI_NAPI_FLAGS, _p, _c, (_n)->rx_count)
 #define	NAPI_TODO()		if (debug_napi & DNAPI_TODO)		\
     printf("NAPI_TODO %s:%d %d\n", __func__, __LINE__, ticks)
 #define	NAPI_IMPROVE()		if (debug_napi & DNAPI_IMPROVE)		\
@@ -118,7 +111,7 @@ linuxkpi_napi_schedule_prep(struct napi_struct *napi)
 
 	/* Can can only update/return if all flags agree. */
 	do {
-		old = READ_ONCE(napi->_flags);
+		old = READ_ONCE(napi->state);
 
 		/* If we are stopping, cannot run again. */
 		if ((old & BIT(LKPI_NAPI_FLAG_DISABLE_PENDING)) != 0) {
@@ -132,7 +125,7 @@ linuxkpi_napi_schedule_prep(struct napi_struct *napi)
 			new |= BIT(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN);
 		new |= BIT(LKPI_NAPI_FLAG_IS_SCHEDULED);
 
-	} while (atomic_cmpset_acq_long(&napi->_flags, old, new) == 0);
+	} while (atomic_cmpset_acq_long(&napi->state, old, new) == 0);
 
 	NAPI_TRACE(napi);
         return ((old & BIT(LKPI_NAPI_FLAG_IS_SCHEDULED)) == 0);
@@ -157,14 +150,14 @@ again:
 		goto again;
 
 	/* Bandaid for now. */
-	if (test_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &napi->_flags))
+	if (test_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &napi->state))
 		goto again;
 
 	do {
-		new = old = READ_ONCE(napi->_flags);
+		new = old = READ_ONCE(napi->state);
 		clear_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &new);
 		clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &new);
-	} while (atomic_cmpset_acq_long(&napi->_flags, old, new) == 0);
+	} while (atomic_cmpset_acq_long(&napi->state, old, new) == 0);
 
 	NAPI_TRACE2D(napi, rc);
 }
@@ -175,9 +168,9 @@ linuxkpi___napi_schedule(struct napi_struct *napi)
 	int rc;
 
 	NAPI_TRACE(napi);
-	if (test_bit(LKPI_NAPI_FLAG_SHUTDOWN, &napi->_flags)) {
-		clear_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &napi->_flags);
-		clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->_flags);
+	if (test_bit(LKPI_NAPI_FLAG_SHUTDOWN, &napi->state)) {
+		clear_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &napi->state);
+		clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state);
 		NAPI_TRACE(napi);
 		return;
 	}
@@ -229,7 +222,7 @@ linuxkpi_napi_complete_done(struct napi_struct *napi, int ret)
 		return (true);
 
 	do {
-		new = old = READ_ONCE(napi->_flags);
+		new = old = READ_ONCE(napi->state);
 
 		/*
 		 * If we lost a race before, we need to re-schedule.
@@ -238,7 +231,7 @@ linuxkpi_napi_complete_done(struct napi_struct *napi, int ret)
 		if (!test_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &old))
 			clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &new);
 		clear_bit(LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN, &new);
-	} while (atomic_cmpset_acq_long(&napi->_flags, old, new) == 0);
+	} while (atomic_cmpset_acq_long(&napi->state, old, new) == 0);
 
 	NAPI_TRACE(napi);
 
@@ -263,10 +256,10 @@ void
 linuxkpi_napi_disable(struct napi_struct *napi)
 {
 	NAPI_TRACE(napi);
-	set_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->_flags);
-	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->_flags))
+	set_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->state);
+	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state))
 		pause_sbt("napidslp", SBT_1MS, 0, C_HARDCLOCK);
-	clear_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->_flags);
+	clear_bit(LKPI_NAPI_FLAG_DISABLE_PENDING, &napi->state);
 }
 
 void
@@ -274,11 +267,11 @@ linuxkpi_napi_enable(struct napi_struct *napi)
 {
 
 	NAPI_TRACE(napi);
-	KASSERT(!test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->_flags),
+	KASSERT(!test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state),
 	    ("%s: enabling napi %p already scheduled\n", __func__, napi));
 	mb();
 	/* Let us be scheduled. */
-	clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->_flags);
+	clear_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state);
 }
 
 void
@@ -287,7 +280,7 @@ linuxkpi_napi_synchronize(struct napi_struct *napi)
 	NAPI_TRACE(napi);
 #if defined(SMP)
 	/* Check & sleep while a napi is scheduled. */
-	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->_flags))
+	while (test_bit(LKPI_NAPI_FLAG_IS_SCHEDULED, &napi->state))
 		pause_sbt("napisslp", SBT_1MS, 0, C_HARDCLOCK);
 #else
 	mb();
@@ -350,7 +343,7 @@ linuxkpi_netif_napi_add(struct net_device *ndev, struct napi_struct *napi,
 	NAPI_UNLOCK(ndev);
 
 	/* Anything else to do on the ndev? */
-	clear_bit(LKPI_NAPI_FLAG_SHUTDOWN, &napi->_flags);
+	clear_bit(LKPI_NAPI_FLAG_SHUTDOWN, &napi->state);
 }
 
 static void
@@ -361,7 +354,7 @@ lkpi_netif_napi_del_locked(struct napi_struct *napi)
 	ndev = napi->dev;
 	NAPI_LOCK_ASSERT(ndev);
 
-	set_bit(LKPI_NAPI_FLAG_SHUTDOWN, &napi->_flags);
+	set_bit(LKPI_NAPI_FLAG_SHUTDOWN, &napi->state);
 	TAILQ_REMOVE(&ndev->napi_head, napi, entry);
 	while (taskqueue_cancel(ndev->napi_tq, &napi->napi_task, NULL) != 0)
 		taskqueue_drain(ndev->napi_tq, &napi->napi_task);
