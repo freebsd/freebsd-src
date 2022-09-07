@@ -188,7 +188,9 @@ libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		optional	powerpc | powerpcspe
 libkern/qdivrem.c		optional	powerpc | powerpcspe
+libkern/strcmp.c		standard
 libkern/strlen.c		standard
+libkern/strncmp.c		standard
 libkern/ucmpdi2.c		optional	powerpc | powerpcspe
 libkern/udivdi3.c		optional	powerpc | powerpcspe
 libkern/umoddi3.c		optional	powerpc | powerpcspe
