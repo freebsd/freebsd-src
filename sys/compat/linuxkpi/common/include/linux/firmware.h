@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -56,6 +57,8 @@ int linuxkpi_request_firmware(const struct linuxkpi_firmware **,
 int linuxkpi_firmware_request_nowarn(const struct linuxkpi_firmware **,
     const char *, struct device *);
 void linuxkpi_release_firmware(const struct linuxkpi_firmware *);
+int linuxkpi_request_partial_firmware_into_buf(const struct linuxkpi_firmware **,
+    const char *, struct device *, uint8_t *, size_t, size_t);
 
 
 static __inline int
@@ -98,6 +101,16 @@ release_firmware(const struct linuxkpi_firmware *fw)
 {
 
 	linuxkpi_release_firmware(fw);
+}
+
+static inline int
+request_partial_firmware_into_buf(const struct linuxkpi_firmware **fw,
+    const char *fw_name, struct device *dev, void *buf, size_t buflen,
+    size_t offset)
+{
+
+	return (linuxkpi_request_partial_firmware_into_buf(fw, fw_name,
+	    dev, buf, buflen, offset));
 }
 
 #define	firmware	linuxkpi_firmware
