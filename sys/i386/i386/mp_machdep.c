@@ -658,6 +658,7 @@ invltlb_handler(void)
 {
 	uint32_t generation;
 
+	trap_check_kstack();
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -680,6 +681,7 @@ invlpg_handler(void)
 {
 	uint32_t generation;
 
+	trap_check_kstack();
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_pg[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -699,6 +701,7 @@ invlrng_handler(void)
 	vm_offset_t addr, addr2;
 	uint32_t generation;
 
+	trap_check_kstack();
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_rng[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -724,6 +727,7 @@ invlcache_handler(void)
 {
 	uint32_t generation;
 
+	trap_check_kstack();
 #ifdef COUNT_IPIS
 	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
