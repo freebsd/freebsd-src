@@ -39,7 +39,8 @@
 #define	_SYS_SYSCTL_H_
 
 #ifdef _KERNEL
-#include <sys/queue.h>
+#include <sys/tree.h>
+#include <sys/systm.h>
 #endif
 
 /*
@@ -173,20 +174,25 @@ struct sysctl_req {
 	int		 flags;
 };
 
-SLIST_HEAD(sysctl_oid_list, sysctl_oid);
+struct sysctl_oid;
+
+/* RB Tree handling */
+RB_HEAD(sysctl_oid_list, sysctl_oid);
 
 /*
  * This describes one "oid" in the MIB tree.  Potentially more nodes can
  * be hidden behind it, expanded by the handler.
  */
 struct sysctl_oid {
-	struct sysctl_oid_list oid_children;
-	struct sysctl_oid_list *oid_parent;
-	SLIST_ENTRY(sysctl_oid) oid_link;
+	struct sysctl_oid_list	oid_children;
+	struct sysctl_oid_list*	oid_parent;
+	RB_ENTRY(sysctl_oid) oid_link;
+	/* Sort key for all siblings, and lookup key for userland */
 	int		 oid_number;
 	u_int		 oid_kind;
 	void		*oid_arg1;
 	intmax_t	 oid_arg2;
+	/* Must be unique amongst all siblings. */
 	const char	*oid_name;
 	int		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
@@ -195,6 +201,19 @@ struct sysctl_oid {
 	const char	*oid_descr;
 	const char	*oid_label;
 };
+
+static inline int
+cmp_sysctl_oid(struct sysctl_oid *a, struct sysctl_oid *b)
+{
+	if (a->oid_number > b->oid_number)
+		return (1);
+	else if (a->oid_number < b->oid_number)
+		return (-1);
+	else
+		return (0);
+}
+
+RB_PROTOTYPE(sysctl_oid_list, sysctl_oid, oid_link, cmp_sysctl_oid);
 
 #define	SYSCTL_IN(r, p, l)	(r->newfunc)(r, p, l)
 #define	SYSCTL_OUT(r, p, l)	(r->oldfunc)(r, p, l)
@@ -275,7 +294,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	SYSCTL_OID_RAW(id, parent_child_head, nbr, name, kind, a1, a2, handler, fmt, descr, label) \
 	struct sysctl_oid id = {					\
 		.oid_parent = (parent_child_head),			\
-		.oid_children = SLIST_HEAD_INITIALIZER(&id.oid_children), \
+		.oid_children = RB_INITIALIZER(&id.oid_children), \
 		.oid_number = (nbr),					\
 		.oid_kind = (kind),					\
 		.oid_arg1 = (a1),					\

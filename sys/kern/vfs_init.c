@@ -525,7 +525,7 @@ vfs_register(struct vfsconf *vfc)
 	 * number.
 	 */
 	sysctl_wlock();
-	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
+	RB_FOREACH(oidp, sysctl_oid_list, SYSCTL_CHILDREN(&sysctl___vfs)) {
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
 			oidp->oid_number = vfc->vfc_typenum;
