@@ -127,7 +127,9 @@ libkern/flsll.c			optional	!armv7 !armv6
 libkern/lshrdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
+libkern/strcmp.c		standard
 libkern/strlen.c		standard
+libkern/strncmp.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard

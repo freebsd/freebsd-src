@@ -71,6 +71,8 @@ arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
 arm64/arm64/sigtramp.S				standard
 arm64/arm64/stack_machdep.c			optional ddb | stack
+arm64/arm64/strcmp.S				standard
+arm64/arm64/strncmp.S				standard
 arm64/arm64/support_ifunc.c			standard
 arm64/arm64/support.S				standard
 arm64/arm64/swtch.S				standard
