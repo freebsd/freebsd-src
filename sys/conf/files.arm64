@@ -61,7 +61,6 @@ arm64/arm64/machdep.c				standard
 arm64/arm64/machdep_boot.c			standard
 arm64/arm64/mem.c				standard
 arm64/arm64/memcpy.S				standard
-arm64/arm64/memmove.S				standard
 arm64/arm64/minidump_machdep.c			standard
 arm64/arm64/mp_machdep.c			optional smp
 arm64/arm64/nexus.c				standard
