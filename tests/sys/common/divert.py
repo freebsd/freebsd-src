@@ -36,7 +36,7 @@ import scapy.all as sc
 import argparse
 
 
-PF_DIVERT = 44
+IPPROTO_DIVERT = 258
 
 
 def parse_args():
@@ -52,14 +52,14 @@ def parse_args():
 
 def ipdivert_ip_output_remote_success(args):
     packet = sc.IP(dst=args.dip) / sc.ICMP(type='echo-request')
-    with socket.socket(PF_DIVERT, socket.SOCK_RAW, 0) as s:
+    with socket.socket(socket.AF_INET, socket.SOCK_RAW, IPPROTO_DIVERT) as s:
         s.bind(('0.0.0.0', args.divert_port))
         s.sendto(bytes(packet), ('0.0.0.0', 0))
 
 
 def ipdivert_ip6_output_remote_success(args):
     packet = sc.IPv6(dst=args.dip) / sc.ICMPv6EchoRequest()
-    with socket.socket(PF_DIVERT, socket.SOCK_RAW, 0) as s:
+    with socket.socket(socket.AF_INET, socket.SOCK_RAW, IPPROTO_DIVERT) as s:
         s.bind(('0.0.0.0', args.divert_port))
         s.sendto(bytes(packet), ('0.0.0.0', 0))
 
@@ -67,7 +67,7 @@ def ipdivert_ip6_output_remote_success(args):
 def ipdivert_ip_input_local_success(args):
     """Sends IPv4 packet to OS stack as inbound local packet."""
     packet = sc.IP(dst=args.dip,src=args.sip) / sc.ICMP(type='echo-request')
-    with socket.socket(PF_DIVERT, socket.SOCK_RAW, 0) as s:
+    with socket.socket(socket.AF_INET, socket.SOCK_RAW, IPPROTO_DIVERT) as s:
         s.bind(('0.0.0.0', args.divert_port))
         s.sendto(bytes(packet), (args.dip, 0))
 
