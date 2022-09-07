@@ -401,8 +401,7 @@ ipsec_kmod_capability(struct ipsec_support * const sc, struct mbuf *m,
 	 * call key_havesp() without additional synchronizations.
 	 */
 	if (cap == IPSEC_CAP_OPERABLE)
-		return (key_havesp(IPSEC_DIR_INBOUND) != 0 ||
-		    key_havesp(IPSEC_DIR_OUTBOUND) != 0);
+		return (key_havesp_any());
 	return (ipsec_kmod_caps(sc, m, cap));
 }
 
