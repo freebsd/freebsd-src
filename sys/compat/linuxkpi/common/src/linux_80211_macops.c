@@ -425,7 +425,7 @@ lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *
 		goto out;
 	}
 
-	error = lhw->ops->assign_vif_chanctx(hw, vif, chanctx_conf);
+	error = lhw->ops->assign_vif_chanctx(hw, vif, NULL, chanctx_conf);
 	if (error == 0)
 		vif->chanctx_conf = chanctx_conf;
 
@@ -446,7 +446,7 @@ lkpi_80211_mo_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif
 	if (*chanctx_conf == NULL)
 		return;
 
-	lhw->ops->unassign_vif_chanctx(hw, vif, *chanctx_conf);
+	lhw->ops->unassign_vif_chanctx(hw, vif, NULL, *chanctx_conf);
 	*chanctx_conf = NULL;
 }
 
@@ -523,7 +523,7 @@ lkpi_80211_mo_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	error = lhw->ops->conf_tx(hw, vif, ac, txqp);
+	error = lhw->ops->conf_tx(hw, vif, 0, ac, txqp);
 
 out:
 	return (error);
