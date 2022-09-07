@@ -2315,6 +2315,7 @@ static int
 svm_setcap(void *arg, int vcpu, int type, int val)
 {
 	struct svm_softc *sc;
+	struct vlapic *vlapic;
 	int error;
 
 	sc = arg;
@@ -2333,6 +2334,10 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 		if (val == 0)
 			error = EINVAL;
 		break;
+	case VM_CAP_IPI_EXIT:
+		vlapic = vm_lapic(sc->vm, vcpu);
+		vlapic->ipi_exit = val;
+		break;
 	default:
 		error = ENOENT;
 		break;
@@ -2344,6 +2349,7 @@ static int
 svm_getcap(void *arg, int vcpu, int type, int *retval)
 {
 	struct svm_softc *sc;
+	struct vlapic *vlapic;
 	int error;
 
 	sc = arg;
@@ -2360,6 +2366,10 @@ svm_getcap(void *arg, int vcpu, int type, int *retval)
 		break;
 	case VM_CAP_UNRESTRICTED_GUEST:
 		*retval = 1;	/* unrestricted guest is always enabled */
+		break;
+	case VM_CAP_IPI_EXIT:
+		vlapic = vm_lapic(sc->vm, vcpu);
+		*retval = vlapic->ipi_exit;
 		break;
 	default:
 		error = ENOENT;

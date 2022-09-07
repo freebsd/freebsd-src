@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 static void vlapic_set_error(struct vlapic *, uint32_t, bool);
 static void vlapic_callout_handler(void *arg);
+static void vlapic_reset(struct vlapic *vlapic);
 
 static __inline uint32_t
 vlapic_get_id(struct vlapic *vlapic)
@@ -957,9 +958,9 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 {
 	int i;
 	bool phys;
-	cpuset_t dmask;
+	cpuset_t dmask, ipimask;
 	uint64_t icrval;
-	uint32_t dest, vec, mode;
+	uint32_t dest, vec, mode, shorthand;
 	struct vlapic *vlapic2;
 	struct vm_exit *vmexit;
 	struct LAPIC *lapic;
@@ -975,97 +976,122 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 		dest = icrval >> (32 + 24);
 	vec = icrval & APIC_VECTOR_MASK;
 	mode = icrval & APIC_DELMODE_MASK;
+	phys = (icrval & APIC_DESTMODE_LOG) == 0;
+	shorthand = icrval & APIC_DEST_MASK;
 
-	if (mode == APIC_DELMODE_FIXED && vec < 16) {
-		vlapic_set_error(vlapic, APIC_ESR_SEND_ILLEGAL_VECTOR, false);
-		VLAPIC_CTR1(vlapic, "Ignoring invalid IPI %d", vec);
-		return (0);
-	}
+	maxcpus = vm_get_maxcpus(vlapic->vm);
+
 
 	VLAPIC_CTR2(vlapic, "icrlo 0x%016lx triggered ipi %d", icrval, vec);
 
-	if (mode == APIC_DELMODE_FIXED || mode == APIC_DELMODE_NMI) {
-		switch (icrval & APIC_DEST_MASK) {
-		case APIC_DEST_DESTFLD:
-			phys = ((icrval & APIC_DESTMODE_LOG) == 0);
-			vlapic_calcdest(vlapic->vm, &dmask, dest, phys, false,
-			    x2apic(vlapic));
-			break;
-		case APIC_DEST_SELF:
-			CPU_SETOF(vlapic->vcpuid, &dmask);
-			break;
-		case APIC_DEST_ALLISELF:
-			dmask = vm_active_cpus(vlapic->vm);
-			break;
-		case APIC_DEST_ALLESELF:
-			dmask = vm_active_cpus(vlapic->vm);
-			CPU_CLR(vlapic->vcpuid, &dmask);
-			break;
-		default:
-			CPU_ZERO(&dmask);	/* satisfy gcc */
-			break;
+	switch (shorthand) {
+	case APIC_DEST_DESTFLD:
+		vlapic_calcdest(vlapic->vm, &dmask, dest, phys, false, x2apic(vlapic));
+		break;
+	case APIC_DEST_SELF:
+		CPU_SETOF(vlapic->vcpuid, &dmask);
+		break;
+	case APIC_DEST_ALLISELF:
+		dmask = vm_active_cpus(vlapic->vm);
+		break;
+	case APIC_DEST_ALLESELF:
+		dmask = vm_active_cpus(vlapic->vm);
+		CPU_CLR(vlapic->vcpuid, &dmask);
+		break;
+	default:
+		__assert_unreachable();
+	}
+
+	/*
+	 * ipimask is a set of vCPUs needing userland handling of the current
+	 * IPI.
+	 */
+	CPU_ZERO(&ipimask);
+
+	switch (mode) {
+	case APIC_DELMODE_FIXED:
+		if (vec < 16) {
+			vlapic_set_error(vlapic, APIC_ESR_SEND_ILLEGAL_VECTOR,
+			    false);
+			VLAPIC_CTR1(vlapic, "Ignoring invalid IPI %d", vec);
+			return (0);
 		}
 
 		CPU_FOREACH_ISSET(i, &dmask) {
-			if (mode == APIC_DELMODE_FIXED) {
-				lapic_intr_edge(vlapic->vm, i, vec);
-				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
-						    IPIS_SENT, i, 1);
-				VLAPIC_CTR2(vlapic, "vlapic sending ipi %d "
-				    "to vcpuid %d", vec, i);
-			} else {
-				vm_inject_nmi(vlapic->vm, i);
-				VLAPIC_CTR1(vlapic, "vlapic sending ipi nmi "
-				    "to vcpuid %d", i);
-			}
+			lapic_intr_edge(vlapic->vm, i, vec);
+			vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
+			    IPIS_SENT, i, 1);
+			VLAPIC_CTR2(vlapic,
+			    "vlapic sending ipi %d to vcpuid %d", vec, i);
 		}
 
-		return (0);	/* handled completely in the kernel */
-	}
+		break;
+	case APIC_DELMODE_NMI:
+		CPU_FOREACH_ISSET(i, &dmask) {
+			vm_inject_nmi(vlapic->vm, i);
+			VLAPIC_CTR1(vlapic,
+			    "vlapic sending ipi nmi to vcpuid %d", i);
+		}
 
-	maxcpus = vm_get_maxcpus(vlapic->vm);
-	if (mode == APIC_DELMODE_INIT) {
+		break;
+	case APIC_DELMODE_INIT:
 		if ((icrval & APIC_LEVEL_MASK) == APIC_LEVEL_DEASSERT)
-			return (0);
+			break;
 
-		if (vlapic->vcpuid == 0 && dest != 0 && dest < maxcpus) {
-			vlapic2 = vm_lapic(vlapic->vm, dest);
-
-			/* move from INIT to waiting-for-SIPI state */
-			if (vlapic2->boot_state == BS_INIT) {
-				vlapic2->boot_state = BS_SIPI;
-			}
-
-			return (0);
+		CPU_FOREACH_ISSET(i, &dmask) {
+			vlapic2 = vm_lapic(vlapic->vm, i);
+			vlapic2->boot_state = BS_SIPI;
+			CPU_SET(i, &ipimask);
 		}
-	}
 
-	if (mode == APIC_DELMODE_STARTUP) {
-		if (vlapic->vcpuid == 0 && dest != 0 && dest < maxcpus) {
-			vlapic2 = vm_lapic(vlapic->vm, dest);
-
+		break;
+	case APIC_DELMODE_STARTUP:
+		CPU_FOREACH_ISSET(i, &dmask) {
+			vlapic2 = vm_lapic(vlapic->vm, i);
 			/*
 			 * Ignore SIPIs in any state other than wait-for-SIPI
 			 */
 			if (vlapic2->boot_state != BS_SIPI)
-				return (0);
-
+				continue;
+			/*
+			 * TODO:
+			 * This should be triggered from userspace.
+			 */
+			vlapic_reset(vlapic2);
 			vlapic2->boot_state = BS_RUNNING;
+			CPU_SET(i, &ipimask);
+		}
 
-			*retu = true;
-			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
-			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
-			vmexit->u.spinup_ap.vcpu = dest;
-			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
+		break;
+	default:
+		return (1);
+	}
 
-			return (0);
+	if (!CPU_EMPTY(&ipimask)) {
+		vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+		vmexit->exitcode = VM_EXITCODE_IPI;
+		vmexit->u.ipi.mode = mode;
+		vmexit->u.ipi.vector = vec;
+		vmexit->u.ipi.dmask = dmask;
+
+		*retu = true;
+
+		/*
+		 * Old bhyve versions don't support the IPI exit. Translate it
+		 * into the old style.
+		 */
+		if (!vlapic->ipi_exit) {
+			if (mode == APIC_DELMODE_STARTUP) {
+				vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
+				vmexit->u.spinup_ap.vcpu = CPU_FFS(&ipimask) - 1;
+				vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
+			} else {
+				*retu = false;
+			}
 		}
 	}
 
-	/*
-	 * This will cause a return to userland.
-	 */
-	return (1);
+	return (0);
 }
 
 void
@@ -1466,6 +1492,8 @@ vlapic_init(struct vlapic *vlapic)
 
 	if (vlapic->vcpuid == 0)
 		vlapic->msr_apicbase |= APICBASE_BSP;
+
+	vlapic->ipi_exit = false;
 
 	vlapic_reset(vlapic);
 }
