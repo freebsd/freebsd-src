@@ -2977,6 +2977,12 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		if (lun_req->args != NULL) {
+			if (lun_req->args_len > CTL_MAX_ARGS_LEN) {
+				lun_req->status = CTL_LUN_ERROR;
+				snprintf(lun_req->error_str, sizeof(lun_req->error_str),
+				    "Too big args.");
+				break;
+			}
 			packed = malloc(lun_req->args_len, M_CTL, M_WAITOK);
 			if (copyin(lun_req->args, packed, lun_req->args_len) != 0) {
 				free(packed, M_CTL);
@@ -2998,6 +3004,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		} else
 			lun_req->args_nvl = nvlist_create(0);
 
+		lun_req->result_nvl = NULL;
 		retval = backend->ioctl(dev, cmd, addr, flag, td);
 		nvlist_destroy(lun_req->args_nvl);
 		lun_req->args_nvl = tmp_args_nvl;
@@ -3254,6 +3261,12 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		if (req->args != NULL) {
+			if (req->args_len > CTL_MAX_ARGS_LEN) {
+				req->status = CTL_LUN_ERROR;
+				snprintf(req->error_str, sizeof(req->error_str),
+				    "Too big args.");
+				break;
+			}
 			packed = malloc(req->args_len, M_CTL, M_WAITOK);
 			if (copyin(req->args, packed, req->args_len) != 0) {
 				free(packed, M_CTL);
@@ -3275,6 +3288,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		} else
 			req->args_nvl = nvlist_create(0);
 
+		req->result_nvl = NULL;
 		if (fe->ioctl)
 			retval = fe->ioctl(dev, cmd, addr, flag, td);
 		else
