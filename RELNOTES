@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+981ef32230b2,33721eb991d8:
+	These commits make the use of NFSv4.1/4.2 mounts with the "intr"
+	mount option fairly usable, although not 100% correct, so long as
+	the "nolockd" mount option is used as well.  See the mount_nfs(8)
+	manual page for more information.
+
 b875d4f5ddcb,0685c73cfe88:
 	The NFSv4.1/4.2 client and server will now generate console messages
 	if sessions are broken, suggesting that users check to ensure
