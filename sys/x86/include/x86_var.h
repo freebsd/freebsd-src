@@ -174,4 +174,10 @@ void	x86_set_fork_retval(struct thread *td);
 
 void x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res);
 
+#if defined(__i386__) && defined(INVARIANTS)
+void	trap_check_kstack(void);
+#else
+#define	trap_check_kstack()
+#endif
+
 #endif

@@ -525,6 +525,7 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 
 	/* The frame may have been written into a poisoned region. */
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	trap_check_kstack();
 
 	KASSERT(vector < NUM_ISA_IRQS, ("unknown int %u\n", vector));
 	isrc = &atintrs[vector].at_intsrc;
