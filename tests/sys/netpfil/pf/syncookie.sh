@@ -217,10 +217,43 @@ adaptive_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "limits" "cleanup"
+limits_head()
+{
+	atf_set descr 'Ensure limit calculation works for low or high state limits'
+	atf_set require.user root
+}
+
+limits_body()
+{
+	pft_init
+
+	vnet_mkjail alcatraz
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set limit states 1" \
+		"set syncookies adaptive (start 10%%, end 5%%)" \
+		"pass in" \
+		"pass out"
+
+	pft_set_rules alcatraz \
+		"set limit states 326000000" \
+		"set syncookies adaptive (start 10%%, end 5%%)" \
+		"pass in" \
+		"pass out"
+}
+
+limits_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
 	atf_add_test_case "forward"
 	atf_add_test_case "nostate"
 	atf_add_test_case "adaptive"
+	atf_add_test_case "limits"
 }
