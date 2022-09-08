@@ -428,8 +428,11 @@ int	msleep_spin_sbt(const void * _Nonnull chan, struct mtx *mtx,
 	    0, C_HARDCLOCK)
 int	pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr,
 	    int flags);
-#define	pause(wmesg, timo)						\
-	pause_sbt((wmesg), tick_sbt * (timo), 0, C_HARDCLOCK)
+static __inline int
+pause(const char *wmesg, int timo)
+{
+	return (pause_sbt(wmesg, tick_sbt * timo, 0, C_HARDCLOCK));
+}
 #define	pause_sig(wmesg, timo)						\
 	pause_sbt((wmesg), tick_sbt * (timo), 0, C_HARDCLOCK | C_CATCH)
 #define	tsleep(chan, pri, wmesg, timo)					\
