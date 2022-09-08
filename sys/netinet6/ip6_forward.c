@@ -313,7 +313,7 @@ again:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for forwarded packets. */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT,
+	if (pfil_mbuf_out(V_inet6_pfil_head, &m, nh->nh_ifp,
 	    NULL) != PFIL_PASS)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
