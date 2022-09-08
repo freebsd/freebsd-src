@@ -199,6 +199,14 @@ void nhop_set_type(struct nhop_object *nh, enum nhop_type nh_type);
 void nhop_set_src(struct nhop_object *nh, struct ifaddr *ifa);
 void nhop_set_transmit_ifp(struct nhop_object *nh, struct ifnet *ifp);
 
+#define	NH_ORIGIN_UNSPEC	0 /* not set */
+#define	NH_ORIGIN_REDIRECT	1 /* kernel-originated redirect */
+#define	NH_ORIGIN_KERNEL	2 /* kernel (interface) routes */
+#define	NH_ORIGIN_BOOT		3 /* kernel-originated routes at boot */
+#define	NH_ORIGIN_STATIC	4 /* route(8) routes */
+void nhop_set_origin(struct nhop_object *nh, uint8_t origin);
+uint8_t nhop_get_origin(struct nhop_object *nh);
+
 uint32_t nhop_get_idx(const struct nhop_object *nh);
 uint32_t nhop_get_uidx(const struct nhop_object *nh);
 void nhop_set_uidx(struct nhop_object *nh, uint32_t uidx);
@@ -217,6 +225,8 @@ struct rib_head *nhop_get_rh(const struct nhop_object *nh);
 
 struct nhgrp_object;
 uint32_t nhgrp_get_uidx(const struct nhgrp_object *nhg);
+uint8_t nhgrp_get_origin(struct nhgrp_object *nhg);
+void nhgrp_set_origin(struct nhgrp_object *nhg, uint8_t origin);
 #endif /* _KERNEL */
 
 /* Kernel <> userland structures */

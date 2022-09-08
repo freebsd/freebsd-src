@@ -217,6 +217,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	nhop_set_pxtype_flag(nh, NHF_HOST);
 	nhop_set_expire(nh, lifetime_sec + time_uptime);
 	nhop_set_redirect(nh, true);
+	nhop_set_origin(nh, NH_ORIGIN_REDIRECT);
 	rnd.rnd_nhop = nhop_get_nhop(nh, &error);
 	if (error == 0) {
 		error = rib_add_route_px(fibnum, dst, -1,
