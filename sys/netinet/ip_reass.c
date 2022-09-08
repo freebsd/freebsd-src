@@ -82,10 +82,12 @@ struct ipqbucket {
 	int			 count;
 };
 
-VNET_DEFINE_STATIC(struct ipqbucket, ipq[IPREASS_NHASH]);
+VNET_DEFINE_STATIC(struct ipqbucket *, ipq);
 #define	V_ipq		VNET(ipq)
 VNET_DEFINE_STATIC(uint32_t, ipq_hashseed);
-#define V_ipq_hashseed   VNET(ipq_hashseed)
+#define	V_ipq_hashseed	VNET(ipq_hashseed)
+VNET_DEFINE_STATIC(uint32_t, ipq_hashsize);
+#define	V_ipq_hashsize	VNET(ipq_hashsize)
 
 #define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
 #define	IPQ_TRYLOCK(i)	mtx_trylock(&V_ipq[i].lock)
@@ -135,14 +137,14 @@ ipq_drop(struct ipqbucket *bucket, struct ipq *fp)
  * Limit the total number of reassembly queues per VNET to the
  * IP fragment limit, but ensure the limit will not allow any bucket
  * to grow above 100 items. (The bucket limit is
- * IP_MAXFRAGPACKETS / (IPREASS_NHASH / 2), so the 50 is the correct
+ * IP_MAXFRAGPACKETS / (V_ipq_hashsize / 2), so the 50 is the correct
  * multiplier to reach a 100-item limit.)
  * The 100-item limit was chosen as brief testing seems to show that
  * this produces "reasonable" performance on some subset of systems
  * under DoS attack.
  */
 #define	IP_MAXFRAGS		(nmbclusters / 32)
-#define	IP_MAXFRAGPACKETS	(imin(IP_MAXFRAGS, IPREASS_NHASH * 50))
+#define	IP_MAXFRAGPACKETS	(imin(IP_MAXFRAGS, V_ipq_hashsize * 50))
 
 static int		maxfrags;
 static u_int __exclusive_cache_line	nfrags;
@@ -155,6 +157,11 @@ SYSCTL_UINT(_net_inet_ip, OID_AUTO, curfrags, CTLFLAG_RD,
 
 VNET_DEFINE_STATIC(uma_zone_t, ipq_zone);
 #define	V_ipq_zone	VNET(ipq_zone)
+
+SYSCTL_UINT(_net_inet_ip, OID_AUTO, reass_hashsize,
+    CTLFLAG_VNET | CTLFLAG_RDTUN, &VNET_NAME(ipq_hashsize), 0,
+    "Size of IP fragment reassembly hashtable");
+
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets,
     CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     NULL, 0, sysctl_maxfragpackets, "I",
@@ -626,7 +633,7 @@ static void
 ipreass_drain_vnet(void)
 {
 
-	for (int i = 0; i < IPREASS_NHASH; i++) {
+	for (int i = 0; i < V_ipq_hashsize; i++) {
 		IPQ_LOCK(i);
 		while(!TAILQ_EMPTY(&V_ipq[i].head))
 			ipq_drop(&V_ipq[i], TAILQ_FIRST(&V_ipq[i].head));
@@ -656,15 +663,21 @@ ipreass_drain(void)
 /*
  * Initialize IP reassembly structures.
  */
+MALLOC_DEFINE(M_IPREASS_HASH, "IP reass", "IP packet reassembly hash headers");
 void
 ipreass_vnet_init(void)
 {
 	int max;
 
-	for (int i = 0; i < IPREASS_NHASH; i++) {
+	V_ipq_hashsize = IPREASS_NHASH;
+	TUNABLE_INT_FETCH("net.inet.ip.reass_hashsize", &V_ipq_hashsize);
+	V_ipq = malloc(sizeof(struct ipqbucket) * V_ipq_hashsize,
+	    M_IPREASS_HASH, M_WAITOK);
+
+	for (int i = 0; i < V_ipq_hashsize; i++) {
 		TAILQ_INIT(&V_ipq[i].head);
 		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL,
-		    MTX_DEF | MTX_DUPOK);
+		    MTX_DEF | MTX_DUPOK | MTX_NEW);
 		callout_init_mtx(&V_ipq[i].timer, &V_ipq[i].lock, 0);
 		V_ipq[i].count = 0;
 #ifdef VIMAGE
@@ -677,7 +690,7 @@ ipreass_vnet_init(void)
 	    NULL, UMA_ALIGN_PTR, 0);
 	max = IP_MAXFRAGPACKETS;
 	max = uma_zone_set_max(V_ipq_zone, max);
-	V_ipreass_maxbucketsize = imax(max / (IPREASS_NHASH / 2), 1);
+	V_ipreass_maxbucketsize = imax(max / (V_ipq_hashsize / 2), 1);
 }
 
 void
@@ -717,7 +730,7 @@ ipreass_cleanup(void *arg __unused, struct ifnet *ifp)
 		return;
 	}
 
-	for (i = 0; i < IPREASS_NHASH; i++) {
+	for (i = 0; i < V_ipq_hashsize; i++) {
 		IPQ_LOCK(i);
 		/* Scan fragment list. */
 		TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, temp) {
@@ -744,7 +757,7 @@ ipreass_destroy(void)
 	ipreass_drain_vnet();
 	uma_zdestroy(V_ipq_zone);
 	V_ipq_zone = NULL;
-	for (int i = 0; i < IPREASS_NHASH; i++)
+	for (int i = 0; i < V_ipq_hashsize; i++)
 		mtx_destroy(&V_ipq[i].lock);
 }
 #endif
@@ -765,7 +778,7 @@ ipreass_drain_tomax(void)
 	 * necessary, drop enough of the oldest elements from
 	 * each bucket to get under the new limit.
 	 */
-	for (int i = 0; i < IPREASS_NHASH; i++) {
+	for (int i = 0; i < V_ipq_hashsize; i++) {
 		IPQ_LOCK(i);
 		while (V_ipq[i].count > V_ipreass_maxbucketsize &&
 		    (fp = TAILQ_LAST(&V_ipq[i].head, ipqhead)) != NULL)
@@ -782,7 +795,7 @@ ipreass_drain_tomax(void)
 	 */
 	target = uma_zone_get_max(V_ipq_zone);
 	while (uma_zone_get_cur(V_ipq_zone) > target) {
-		for (int i = 0; i < IPREASS_NHASH; i++) {
+		for (int i = 0; i < V_ipq_hashsize; i++) {
 			IPQ_LOCK(i);
 			fp = TAILQ_LAST(&V_ipq[i].head, ipqhead);
 			if (fp != NULL) {
@@ -806,7 +819,7 @@ ipreass_zone_change(void *tag)
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		max = uma_zone_set_max(V_ipq_zone, max);
-		V_ipreass_maxbucketsize = imax(max / (IPREASS_NHASH / 2), 1);
+		V_ipreass_maxbucketsize = imax(max / (V_ipq_hashsize / 2), 1);
 		ipreass_drain_tomax();
 		CURVNET_RESTORE();
 	}
@@ -838,7 +851,7 @@ sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS)
 		 * and place an extreme upper bound.
 		 */
 		max = uma_zone_set_max(V_ipq_zone, max);
-		V_ipreass_maxbucketsize = imax(max / (IPREASS_NHASH / 2), 1);
+		V_ipreass_maxbucketsize = imax(max / (V_ipq_hashsize / 2), 1);
 		ipreass_drain_tomax();
 		V_noreass = 0;
 	} else if (max == 0) {
@@ -865,8 +878,8 @@ ipq_reuse(int start)
 
 	IPQ_LOCK_ASSERT(start);
 
-	for (i = 0; i < IPREASS_NHASH; i++) {
-		bucket = (start + i) % IPREASS_NHASH;
+	for (i = 0; i < V_ipq_hashsize; i++) {
+		bucket = (start + i) % V_ipq_hashsize;
 		if (bucket != start && IPQ_TRYLOCK(bucket) == 0)
 			continue;
 		fp = TAILQ_LAST(&V_ipq[bucket].head, ipqhead);

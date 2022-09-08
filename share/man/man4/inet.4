@@ -280,6 +280,8 @@ The number must be between 512 and 32768 inclusive.
 This is a per-VNET value.
 .It Va random_id_total
 Integer: count of IP IDs created (read-only, per-VNET).
+.It Va reass_hashsize
+Number of hash slots in the IPv4 reassembly queue (loader tunable).
 .It Va redirect
 Boolean: enable/disable sending of ICMP redirects in response to
 .Tn IP
