@@ -372,6 +372,11 @@ struct iq_desc {
 CTASSERT(sizeof(struct iq_desc) == IQ_ESIZE);
 
 enum {
+	/* iq type */
+	IQ_OTHER	= FW_IQ_IQTYPE_OTHER,
+	IQ_ETH		= FW_IQ_IQTYPE_NIC,
+	IQ_OFLD		= FW_IQ_IQTYPE_OFLD,
+
 	/* iq flags */
 	IQ_SW_ALLOCATED	= (1 << 0),	/* sw resources allocated */
 	IQ_HAS_FL	= (1 << 1),	/* iq associated with a freelist */
@@ -415,7 +420,8 @@ typedef int (*fw_msg_handler_t)(struct adapter *, const __be64 *);
  * Ingress Queue: T4 is producer, driver is consumer.
  */
 struct sge_iq {
-	uint32_t flags;
+	uint16_t flags;
+	uint8_t qtype;
 	volatile int state;
 	struct adapter *adapter;
 	struct iq_desc  *desc;	/* KVA of descriptor ring */
