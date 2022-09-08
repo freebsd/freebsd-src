@@ -127,8 +127,7 @@ a percent sign
 after each whiteout,
 and a vertical bar
 .Pq Ql \&|
-after each that is a
-.Tn FIFO .
+after each that is a FIFO.
 .It Fl G
 Enable colorized output.
 This option is equivalent to defining
@@ -205,9 +204,7 @@ dot
 .It Fl b
 As
 .Fl B ,
-but use
-.Tn C
-escape codes whenever possible.
+but use C escape codes whenever possible.
 This option is not defined in
 .St -p1003.1-2008 .
 .It Fl c
@@ -229,9 +226,7 @@ If
 .Ev TERM
 is unset or set to an invalid terminal, then
 .Nm
-will fall back to explicit
-.Tn ANSI
-escape sequences without the help of
+will fall back to explicit ANSI escape sequences without the help of
 .Xr termcap 5 .
 .Cm always
 is the default if
@@ -572,7 +567,7 @@ Directory.
 .It Sy l
 Symbolic link.
 .It Sy p
-.Tn FIFO .
+FIFO.
 .It Sy s
 Socket.
 .It Sy w
@@ -671,9 +666,7 @@ See
 .Sx The Long Format
 subsection for more information.
 .It Ev CLICOLOR
-Use
-.Tn ANSI
-color sequences to distinguish file types.
+Use ANSI color sequences to distinguish file types.
 See
 .Ev LSCOLORS
 below.
@@ -792,9 +785,7 @@ default foreground or background
 default foreground or background, with an underline or bold
 .El
 .Pp
-Note that the above are standard
-.Tn ANSI
-colors.
+Note that the above are standard ANSI colors.
 The actual display may differ
 depending on the color capabilities of the terminal in use.
 .Pp
@@ -918,10 +909,8 @@ and
 .Fl ,
 are non-standard extensions.
 .Pp
-The ACL support is compatible with
-.Tn IEEE
-Std\~1003.2c
-.Pq Dq Tn POSIX Ns .2c
+The ACL support is compatible with IEEE Std\~1003.2c
+.Pq Dq POSIX Ns .2c
 Draft\~17
 (withdrawn).
 .Sh HISTORY
