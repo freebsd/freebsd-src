@@ -853,9 +853,9 @@ nhgrp_get_idx(const struct nhgrp_object *nhg)
 }
 
 uint8_t
-nhgrp_get_origin(struct nhgrp_object *nhg)
+nhgrp_get_origin(const struct nhgrp_object *nhg)
 {
-	return (NHGRP_PRIV(nhg)->nhg_origin);
+	return (NHGRP_PRIV_CONST(nhg)->nhg_origin);
 }
 
 void
