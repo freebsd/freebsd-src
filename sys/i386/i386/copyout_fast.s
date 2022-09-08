@@ -47,32 +47,30 @@ ENTRY(copyout_fast)
 	pushl	%ebx
 
 	movl	20(%ebp),%ebx		/* KCR3 */
-	movl	PCPU(CURPCB),%edx
-	movl	PCB_CR3(%edx),%edx	/* UCR3 */
 	/* bcopy(%esi = kaddr, %edi = PCPU(copyout_buf), %ecx = len) */
 	movl	16(%ebp),%ecx
 	movl	8(%ebp),%esi
+	movl	%esp,%eax
+	movl	$copyout_fault,%edx
+
 	cli
 	movl	PCPU(COPYOUT_BUF),%edi
-	rep; movsb
+pf_y1:	rep; movsb
 
 	movl	16(%ebp),%ecx		/* len */
 	movl	PCPU(COPYOUT_BUF),%esi	/* kaddr */
 	movl	12(%ebp),%edi		/* uaddr */
-
-	movl	%esp,%eax
 	movl	PCPU(TRAMPSTK),%esp
-
+	movl	PCPU(CURPCB),%edx
+	movl	PCB_CR3(%edx),%edx	/* UCR3 */
 	movl	%edx,%cr3
 	movl	$copyout_fault,%edx
-
 	/* bcopy(%esi = PCPU(copyout_buf), %edi = udaddr, %ecx = len) */
 pf_x1:	rep; movsb
 
 	movl	%ebx,%cr3
 	movl	%eax,%esp
 	sti
-
 	xorl	%eax,%eax
 	popl	%ebx
 	popl	%edi
@@ -93,10 +91,10 @@ ENTRY(copyin_fast)
 	movl	PCB_CR3(%eax),%edx	/* UCR3 */
 	movl	16(%ebp),%ecx		/* len */
 	movl	8(%ebp),%esi		/* udaddr */
+	movl	%esp,%eax
+
 	cli
 	movl	PCPU(COPYOUT_BUF),%edi	/* kaddr */
-
-	movl	%esp,%eax
 	movl	PCPU(TRAMPSTK),%esp
 	movl	%edx,%cr3
 	movl	$copyout_fault,%edx
@@ -110,10 +108,9 @@ pf_x2:	rep; movsb
 	movl	16(%ebp),%ecx
 	movl	12(%ebp),%edi
 	movl	PCPU(COPYOUT_BUF),%esi
-	rep; movsb
+pf_y2:	rep; movsb
 
 	sti
-
 	xorl	%eax,%eax
 	popl	%ebx
 	popl	%edi
