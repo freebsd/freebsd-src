@@ -1039,7 +1039,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	TCPSTAT_INC(tcps_accepts);
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, TCPS_LISTEN);
 
-	solisten_enqueue(so, SS_ISCONNECTED);
+	if (!solisten_enqueue(so, SS_ISCONNECTED))
+		tp->t_flags |= TF_INCQUEUE;
 
 	return (so);
 

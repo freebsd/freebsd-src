@@ -800,7 +800,7 @@ sonewconn(struct socket *head, int connstatus)
 		return (NULL);
 	}
 
-	solisten_enqueue(so, connstatus);
+	(void)solisten_enqueue(so, connstatus);
 
 	return (so);
 }
@@ -808,8 +808,10 @@ sonewconn(struct socket *head, int connstatus)
 /*
  * Enqueue socket cloned by solisten_clone() to the listen queue of the
  * listener it has been cloned from.
+ *
+ * Return 'true' if socket landed on complete queue, otherwise 'false'.
  */
-void
+bool
 solisten_enqueue(struct socket *so, int connstatus)
 {
 	struct socket *head = so->so_listen;
@@ -827,6 +829,7 @@ solisten_enqueue(struct socket *so, int connstatus)
 		so->so_qstate = SQ_COMP;
 		head->sol_qlen++;
 		solisten_wakeup(head);	/* unlocks */
+		return (true);
 	} else {
 		/*
 		 * Keep removing sockets from the head until there's room for
@@ -853,6 +856,7 @@ solisten_enqueue(struct socket *so, int connstatus)
 		so->so_qstate = SQ_INCOMP;
 		head->sol_incqlen++;
 		SOLISTEN_UNLOCK(head);
+		return (false);
 	}
 }
 
