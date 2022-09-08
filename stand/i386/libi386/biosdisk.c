@@ -1032,7 +1032,8 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		d_offset = dev->d_offset;
 	}
 	if (disk_blocks == 0)
-		disk_blocks = bd->bd_sectors - d_offset;
+		disk_blocks = bd->bd_sectors * (bd->bd_sectorsize /
+		    BIOSDISK_SECSIZE) - d_offset;
 
 	/* Validate source block address. */
 	if (dblk < d_offset || dblk >= d_offset + disk_blocks)
