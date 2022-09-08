@@ -3411,8 +3411,8 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 				int rb_color =
 					parent == NULL ? 0 :
 					RB_LEFT(parent, rblnk) == rbctd64 ?
-					(RB_BITS(parent, rblnk) & RB_RED_L) != 0 :
- 					(RB_BITS(parent, rblnk) & RB_RED_R) != 0;
+					(_RB_BITSUP(parent, rblnk) & _RB_L) != 0 :
+ 					(_RB_BITSUP(parent, rblnk) & _RB_R) != 0;
 				printf(" RB ctd=%3d p=%3d l=%3d r=%3d c=%2d "
 				    "mu=%s\n",
 				    (int)ARB_SELFIDX(ctd64tree, rbctd64),
