@@ -1014,7 +1014,7 @@ nonh6lookup:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
-	switch (pfil_run_hooks(V_inet6_pfil_head, &m, ifp, PFIL_OUT, inp)) {
+	switch (pfil_mbuf_out(V_inet6_pfil_head, &m, ifp, inp)) {
 	case PFIL_PASS:
 		ip6 = mtod(m, struct ip6_hdr *);
 		break;
