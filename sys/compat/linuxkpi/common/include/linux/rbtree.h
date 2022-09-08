@@ -41,8 +41,8 @@
 struct rb_node {
 	RB_ENTRY(rb_node)	__entry;
 };
-#define	rb_left		__entry.rbe_left
-#define	rb_right	__entry.rbe_right
+#define	rb_left		__entry.rbe_link[_RB_L]
+#define	rb_right	__entry.rbe_link[_RB_R]
 
 /*
  * We provide a false structure that has the same bit pattern as tree.h
@@ -134,10 +134,10 @@ rb_replace_node(struct rb_node *victim, struct rb_node *new,
 
 	RB_SWAP_CHILD((struct linux_root *)root, rb_parent(victim),
 	    victim, new, __entry);
-	if (victim->rb_left)
-		RB_SET_PARENT(victim->rb_left, new, __entry);
-	if (victim->rb_right)
-		RB_SET_PARENT(victim->rb_right, new, __entry);
+	if (RB_LEFT(victim, __entry))
+		RB_SET_PARENT(RB_LEFT(victim, __entry), new, __entry);
+	if (RB_RIGHT(victim, __entry))
+		RB_SET_PARENT(RB_RIGHT(victim, __entry), new, __entry);
 	*new = *victim;
 }
 
