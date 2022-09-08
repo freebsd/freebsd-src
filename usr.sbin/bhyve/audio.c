@@ -221,10 +221,11 @@ audio_set_params(struct audio *aud, struct audio_params *params)
  * @count - the number of bytes in buffer
  */
 int
-audio_playback(struct audio *aud, const void *buf, size_t count)
+audio_playback(struct audio *aud, const uint8_t *buf, size_t count)
 {
-	int audio_fd = -1;
-	ssize_t len = 0, total = 0;
+	ssize_t len;
+	size_t total;
+	int audio_fd;
 
 	assert(aud);
 	assert(aud->dir);
@@ -233,16 +234,13 @@ audio_playback(struct audio *aud, const void *buf, size_t count)
 	audio_fd = aud->fd;
 	assert(audio_fd != -1);
 
-	total = 0;
-	while (total < count) {
+	for (total = 0; total < count; total += len) {
 		len = write(audio_fd, buf + total, count - total);
-		if (len == -1) {
+		if (len < 0) {
 			DPRINTF("Fail to write to fd: %d, errno: %d",
 			    audio_fd, errno);
 			return -1;
 		}
-
-		total += len;
 	}
 
 	return 0;
@@ -257,10 +255,11 @@ audio_playback(struct audio *aud, const void *buf, size_t count)
  * Returns -1 on error and 0 on success
  */
 int
-audio_record(struct audio *aud, void *buf, size_t count)
+audio_record(struct audio *aud, uint8_t *buf, size_t count)
 {
-	int audio_fd = -1;
-	ssize_t len = 0, total = 0;
+	ssize_t len;
+	size_t total;
+	int audio_fd;
 
 	assert(aud);
 	assert(!aud->dir);
@@ -269,16 +268,13 @@ audio_record(struct audio *aud, void *buf, size_t count)
 	audio_fd = aud->fd;
 	assert(audio_fd != -1);
 
-	total = 0;
-	while (total < count) {
+	for (total = 0; total < count; total += len) {
 		len = read(audio_fd, buf + total, count - total);
-		if (len == -1) {
+		if (len < 0) {
 			DPRINTF("Fail to write to fd: %d, errno: %d",
 			    audio_fd, errno);
 			return -1;
 		}
-
-		total += len;
 	}
 
 	return 0;
