@@ -1012,6 +1012,18 @@ nhop_get_rh(const struct nhop_object *nh)
 	return (rt_tables_get_rnh(fibnum, family));
 }
 
+uint8_t
+nhop_get_origin(struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_origin);
+}
+
+void
+nhop_set_origin(struct nhop_object *nh, uint8_t origin)
+{
+	nh->nh_priv->nh_origin = origin;
+}
+
 void
 nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 {
