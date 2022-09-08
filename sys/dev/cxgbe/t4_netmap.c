@@ -326,6 +326,7 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	}
 	c.iqns_to_fl0congen |=
 	    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
+		V_FW_IQ_CMD_IQTYPE(FW_IQ_IQTYPE_NIC) |
 		F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
 		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
 		(black_hole == 2 ? F_FW_IQ_CMD_FL0PACKEN : 0));
