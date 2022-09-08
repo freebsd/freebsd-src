@@ -236,7 +236,7 @@ static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
 static int eth_rx(struct adapter *, struct sge_rxq *, const struct iq_desc *,
     u_int);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
-    int, int);
+    int, int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, char *);
 static inline void init_eq(struct adapter *, struct sge_eq *, int, int, uint8_t,
     struct sge_iq *, char *);
@@ -3357,7 +3357,7 @@ send_txpkts:
 
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
-    int qsize, int intr_idx, int cong)
+    int qsize, int intr_idx, int cong, int qtype)
 {
 
 	KASSERT(tmr_idx >= 0 && tmr_idx < SGE_NTIMERS,
@@ -3366,10 +3366,13 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 	    ("%s: bad pktc_idx %d", __func__, pktc_idx));
 	KASSERT(intr_idx >= -1 && intr_idx < sc->intr_count,
 	    ("%s: bad intr_idx %d", __func__, intr_idx));
+	KASSERT(qtype == FW_IQ_IQTYPE_OTHER || qtype == FW_IQ_IQTYPE_NIC ||
+	    qtype == FW_IQ_IQTYPE_OFLD, ("%s: bad qtype %d", __func__, qtype));
 
 	iq->flags = 0;
 	iq->state = IQS_DISABLED;
 	iq->adapter = sc;
+	iq->qtype = qtype;
 	iq->intr_params = V_QINTR_TIMER_IDX(tmr_idx);
 	iq->intr_pktc_idx = SGE_NCOUNTERS - 1;
 	if (pktc_idx >= 0) {
@@ -3585,8 +3588,9 @@ alloc_iq_fl_hwq(struct vi_info *vi, struct sge_iq *iq, struct sge_fl *fl)
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(iq->qsize);
 	c.iqaddr = htobe64(iq->ba);
+	c.iqns_to_fl0congen = htobe32(V_FW_IQ_CMD_IQTYPE(iq->qtype));
 	if (iq->cong >= 0)
-		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN);
+		c.iqns_to_fl0congen |= htobe32(F_FW_IQ_CMD_IQFLINTCONGEN);
 
 	if (fl) {
 		bzero(fl->desc, fl->sidx * EQ_ESIZE + sc->params.sge.spg_len);
@@ -3802,7 +3806,7 @@ alloc_fwq(struct adapter *sc)
 			intr_idx = 0;
 		else
 			intr_idx = sc->intr_count > 1 ? 1 : 0;
-		init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, intr_idx, -1);
+		init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, intr_idx, -1, IQ_OTHER);
 		rc = alloc_iq_fl(vi, fwq, NULL, &sc->ctx, sc->fwq_oid);
 		if (rc != 0) {
 			CH_ERR(sc, "failed to allocate fwq: %d\n", rc);
@@ -3956,7 +3960,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int idx, int intr_idx,
 		    "rx queue");
 
 		init_iq(&rxq->iq, sc, vi->tmr_idx, vi->pktc_idx, vi->qsize_rxq,
-		    intr_idx, tnl_cong(vi->pi, cong_drop));
+		    intr_idx, tnl_cong(vi->pi, cong_drop), IQ_ETH);
 #if defined(INET) || defined(INET6)
 		if (ifp->if_capenable & IFCAP_LRO)
 			rxq->iq.flags |= IQ_LRO_ENABLED;
@@ -4079,7 +4083,7 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload rx queue");
 
 		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
-		    vi->qsize_rxq, intr_idx, 0);
+		    vi->qsize_rxq, intr_idx, 0, IQ_OFLD);
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(vi->dev), idx);
 		init_fl(sc, &ofld_rxq->fl, vi->qsize_rxq / 8, maxp, name);
