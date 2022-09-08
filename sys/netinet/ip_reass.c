@@ -75,6 +75,10 @@ SYSCTL_DECL(_net_inet_ip);
 struct ipqbucket {
 	TAILQ_HEAD(ipqhead, ipq) head;
 	struct mtx		 lock;
+	struct callout		 timer;
+#ifdef VIMAGE
+	struct vnet		 *vnet;
+#endif
 	int			 count;
 };
 
@@ -87,6 +91,7 @@ VNET_DEFINE_STATIC(uint32_t, ipq_hashseed);
 #define	IPQ_TRYLOCK(i)	mtx_trylock(&V_ipq[i].lock)
 #define	IPQ_UNLOCK(i)	mtx_unlock(&V_ipq[i].lock)
 #define	IPQ_LOCK_ASSERT(i)	mtx_assert(&V_ipq[i].lock, MA_OWNED)
+#define	IPQ_BUCKET_LOCK_ASSERT(b)	mtx_assert(&(b)->lock, MA_OWNED)
 
 VNET_DEFINE_STATIC(int, ipreass_maxbucketsize);
 #define	V_ipreass_maxbucketsize	VNET(ipreass_maxbucketsize)
@@ -98,10 +103,13 @@ void		ipreass_destroy(void);
 #endif
 static int	sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS);
 static int	sysctl_maxfragbucketsize(SYSCTL_HANDLER_ARGS);
+static int	sysctl_fragttl(SYSCTL_HANDLER_ARGS);
 static void	ipreass_zone_change(void *);
 static void	ipreass_drain_tomax(void);
 static void	ipq_free(struct ipqbucket *, struct ipq *);
 static struct ipq * ipq_reuse(int);
+static void	ipreass_callout(void *);
+static void	ipreass_reschedule(struct ipqbucket *);
 
 static inline void
 ipq_timeout(struct ipqbucket *bucket, struct ipq *fp)
@@ -117,6 +125,7 @@ ipq_drop(struct ipqbucket *bucket, struct ipq *fp)
 
 	IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 	ipq_free(bucket, fp);
+	ipreass_reschedule(bucket);
 }
 
 /*
@@ -167,9 +176,11 @@ SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragbucketsize,
     sysctl_maxfragbucketsize, "I",
     "Maximum number of IPv4 fragment reassembly queue entries per bucket");
 
-static u_int ipfragttl = IPFRAGTTL / 2;
-SYSCTL_UINT(_net_inet_ip, OID_AUTO, fragttl, CTLFLAG_RD, &ipfragttl,
-    IPFRAGTTL / 2, "IP fragment life time on reassembly queue");
+VNET_DEFINE_STATIC(u_int, ipfragttl) = 30;
+#define	V_ipfragttl	VNET(ipfragttl)
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, fragttl, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE | CTLFLAG_VNET, NULL, 0, sysctl_fragttl, "IU",
+    "IP fragment life time on reassembly queue (seconds)");
 
 /*
  * Take incoming datagram fragment and try to reassemble it into
@@ -311,7 +322,7 @@ ip_reass(struct mbuf *m)
 		V_ipq[hash].count++;
 		fp->ipq_nfrags = 1;
 		atomic_add_int(&nfrags, 1);
-		fp->ipq_ttl = IPFRAGTTL;
+		fp->ipq_expire = time_uptime + V_ipfragttl;
 		fp->ipq_p = ip->ip_p;
 		fp->ipq_id = ip->ip_id;
 		fp->ipq_src = ip->ip_src;
@@ -322,6 +333,12 @@ ip_reass(struct mbuf *m)
 		else
 			fp->ipq_maxoff = ntohs(ip->ip_off) + ntohs(ip->ip_len);
 		m->m_nextpkt = NULL;
+		if (fp == TAILQ_LAST(head, ipqhead))
+			callout_reset_sbt(&V_ipq[hash].timer,
+			    SBT_1S * V_ipfragttl, SBT_1S, ipreass_callout,
+			    &V_ipq[hash], 0);
+		else
+			MPASS(callout_active(&V_ipq[hash].timer));
 		goto done;
 	} else {
 		/*
@@ -509,6 +526,7 @@ ip_reass(struct mbuf *m)
 		m->m_pkthdr.rcvif = srcifp;
 	}
 	IPSTAT_INC(ips_reassembled);
+	ipreass_reschedule(&V_ipq[hash]);
 	IPQ_UNLOCK(hash);
 
 #ifdef	RSS
@@ -560,44 +578,48 @@ done:
 }
 
 /*
- * If a timer expires on a reassembly queue, discard it.
+ * Timer expired on a bucket.
+ * There should be at least one ipq to be timed out.
  */
-static struct callout ipreass_callout;
 static void
-ipreass_slowtimo(void *arg __unused)
+ipreass_callout(void *arg)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct ipq *fp, *tmp;
+	struct ipqbucket *bucket = arg;
+	struct ipq *fp;
 
-	if (atomic_load_int(&nfrags) == 0)
-		return;
+	IPQ_BUCKET_LOCK_ASSERT(bucket);
+	MPASS(atomic_load_int(&nfrags) > 0);
 
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		for (int i = 0; i < IPREASS_NHASH; i++) {
-			if (TAILQ_EMPTY(&V_ipq[i].head))
-				continue;
-			IPQ_LOCK(i);
-			TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, tmp)
-			if (--fp->ipq_ttl == 0)
-				ipq_timeout(&V_ipq[i], fp);
-			IPQ_UNLOCK(i);
-		}
-		CURVNET_RESTORE();
+	CURVNET_SET(bucket->vnet);
+	fp = TAILQ_LAST(&bucket->head, ipqhead);
+	KASSERT(fp != NULL && fp->ipq_expire >= time_uptime,
+	    ("%s: stray callout on bucket %p", __func__, bucket));
+
+	while (fp != NULL && fp->ipq_expire >= time_uptime) {
+		ipq_timeout(bucket, fp);
+		fp = TAILQ_LAST(&bucket->head, ipqhead);
 	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
-
-	callout_reset_sbt(&ipreass_callout, SBT_1MS * 500, SBT_1MS * 10,
-	    ipreass_slowtimo, NULL, 0);
+	ipreass_reschedule(bucket);
+	CURVNET_RESTORE();
 }
 
 static void
-ipreass_timer_init(void *arg __unused)
+ipreass_reschedule(struct ipqbucket *bucket)
 {
+	struct ipq *fp;
 
-	callout_init(&ipreass_callout, 1);
-	callout_reset_sbt(&ipreass_callout, SBT_1MS * 500, SBT_1MS * 10,
-	    ipreass_slowtimo, NULL, 0);
+	IPQ_BUCKET_LOCK_ASSERT(bucket);
+
+	if ((fp = TAILQ_LAST(&bucket->head, ipqhead)) != NULL) {
+		time_t t;
+
+		/* Protect against time_uptime tick. */
+		t = fp->ipq_expire - time_uptime;
+		t = (t > 0) ? t : 1;
+		callout_reset_sbt(&bucket->timer, SBT_1S * t, SBT_1S,
+		    ipreass_callout, bucket, 0);
+	} else
+		callout_stop(&bucket->timer);
 }
 
 static void
@@ -614,7 +636,6 @@ ipreass_drain_vnet(void)
 		IPQ_UNLOCK(i);
 	}
 }
-SYSINIT(ipreass, SI_SUB_VNET_DONE, SI_ORDER_ANY, ipreass_timer_init, NULL);
 
 /*
  * Drain off all datagram fragments.
@@ -644,7 +665,11 @@ ipreass_vnet_init(void)
 		TAILQ_INIT(&V_ipq[i].head);
 		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL,
 		    MTX_DEF | MTX_DUPOK);
+		callout_init_mtx(&V_ipq[i].timer, &V_ipq[i].lock, 0);
 		V_ipq[i].count = 0;
+#ifdef VIMAGE
+		V_ipq[i].vnet = curvnet;
+#endif
 	}
 	V_ipq_hashseed = arc4random();
 	V_maxfragsperpacket = 16;
@@ -745,6 +770,7 @@ ipreass_drain_tomax(void)
 		while (V_ipq[i].count > V_ipreass_maxbucketsize &&
 		    (fp = TAILQ_LAST(&V_ipq[i].head, ipqhead)) != NULL)
 			ipq_timeout(&V_ipq[i], fp);
+		ipreass_reschedule(&V_ipq[i]);
 		IPQ_UNLOCK(i);
 	}
 
@@ -759,8 +785,10 @@ ipreass_drain_tomax(void)
 		for (int i = 0; i < IPREASS_NHASH; i++) {
 			IPQ_LOCK(i);
 			fp = TAILQ_LAST(&V_ipq[i].head, ipqhead);
-			if (fp != NULL)
+			if (fp != NULL) {
 				ipq_timeout(&V_ipq[i], fp);
+				ipreass_reschedule(&V_ipq[i]);
+			}
 			IPQ_UNLOCK(i);
 		}
 	}
@@ -854,6 +882,7 @@ ipq_reuse(int start)
 			}
 			TAILQ_REMOVE(&V_ipq[bucket].head, fp, ipq_list);
 			V_ipq[bucket].count--;
+			ipreass_reschedule(&V_ipq[bucket]);
 			if (bucket != start)
 				IPQ_UNLOCK(bucket);
 			break;
@@ -900,5 +929,26 @@ sysctl_maxfragbucketsize(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	V_ipreass_maxbucketsize = max;
 	ipreass_drain_tomax();
+	return (0);
+}
+
+/*
+ * Get or set the IP fragment time to live.
+ */
+static int
+sysctl_fragttl(SYSCTL_HANDLER_ARGS)
+{
+	u_int ttl;
+	int error;
+
+	ttl = V_ipfragttl;
+	error = sysctl_handle_int(oidp, &ttl, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (ttl < 1 || ttl > MAXTTL)
+		return (EINVAL);
+
+	atomic_store_int(&V_ipfragttl, ttl);
 	return (0);
 }
