@@ -73,7 +73,7 @@ int audio_set_params(struct audio *aud, struct audio_params *params);
  * @count - the number of bytes in buffer
  * Returns -1 on error and 0 on success
  */
-int audio_playback(struct audio *aud, const void *buf, size_t count);
+int audio_playback(struct audio *aud, const uint8_t *buf, size_t count);
 
 /*
  * audio_record - records samples from the sound device using blocking
@@ -83,6 +83,6 @@ int audio_playback(struct audio *aud, const void *buf, size_t count);
  * @count - the number of bytes to capture in buffer
  * Returns -1 on error and 0 on success
  */
-int audio_record(struct audio *aud, void *buf, size_t count);
+int audio_record(struct audio *aud, uint8_t *buf, size_t count);
 
 #endif  /* _AUDIO_EMUL_H_ */
