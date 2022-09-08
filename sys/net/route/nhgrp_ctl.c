@@ -852,6 +852,18 @@ nhgrp_get_idx(const struct nhgrp_object *nhg)
 	return (nhg_priv->nhg_idx);
 }
 
+uint8_t
+nhgrp_get_origin(struct nhgrp_object *nhg)
+{
+	return (NHGRP_PRIV(nhg)->nhg_origin);
+}
+
+void
+nhgrp_set_origin(struct nhgrp_object *nhg, uint8_t origin)
+{
+	NHGRP_PRIV(nhg)->nhg_origin = origin;
+}
+
 uint32_t
 nhgrp_get_count(struct rib_head *rh)
 {

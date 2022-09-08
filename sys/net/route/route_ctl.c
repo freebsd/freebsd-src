@@ -622,6 +622,7 @@ rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
 		return (ENOMEM);
 	}
 	nhop_copy(nh, rnd_src->rnd_nhop);
+	nhop_set_origin(nh, nhop_get_origin(rnd_src->rnd_nhop));
 	nhop_set_fibnum(nh, rh_dst->rib_fibnum);
 	nh = nhop_get_nhop_internal(rh_dst, nh, &error);
 	if (error != 0) {
