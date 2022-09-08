@@ -2433,7 +2433,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	case TCPS_SYN_RECEIVED:
 
 		TCPSTAT_INC(tcps_connects);
-		soisconnected(so);
+		if (tp->t_flags & TF_INCQUEUE) {
+			tp->t_flags &= ~TF_INCQUEUE;
+			soisconnected(so);
+		}
 		/* Do window scaling? */
 		if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 			(TF_RCVD_SCALE|TF_REQ_SCALE)) {
