@@ -1013,7 +1013,7 @@ nhop_get_rh(const struct nhop_object *nh)
 }
 
 uint8_t
-nhop_get_origin(struct nhop_object *nh)
+nhop_get_origin(const struct nhop_object *nh)
 {
 	return (nh->nh_priv->nh_origin);
 }
