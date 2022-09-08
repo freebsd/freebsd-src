@@ -29,6 +29,7 @@
  */
 #include <sys/types.h>
 
+#define _RB_DIAGNOSTIC 1
 #include <sys/tree.h>
 #include <stdlib.h>
 
@@ -54,52 +55,54 @@ RB_PROTOTYPE(tree, node, node, compare);
 RB_GENERATE(tree, node, node, compare);
 
 #define ITER 150
-#define MIN 5
-#define MAX 5000
 
 ATF_TC_WITHOUT_HEAD(rb_test);
 ATF_TC_BODY(rb_test, tc)
 {
-	struct node *tmp, *ins;
-	int i, max, min;
+	struct node *tmp, *ins, store[ITER];
+	int i, j, k, max, min;
 
-	max = min = 42; /* pacify gcc */
+	min = ITER;
+	max = -1;
 
 	RB_INIT(&root);
 
+	/* Initialize keys */
+	for (i = 0; i < ITER; i++)
+		store[i].key = i;
+
+	/* Randomly shuffle keys */
 	for (i = 0; i < ITER; i++) {
-		tmp = malloc(sizeof(struct node));
-		ATF_REQUIRE_MSG(tmp != NULL, "malloc failed");
-		do {
-			tmp->key = arc4random_uniform(MAX-MIN);
-			tmp->key += MIN;
-		} while (RB_FIND(tree, &root, tmp) != NULL);
-		if (i == 0)
-			max = min = tmp->key;
-		else {
-			if (tmp->key > max)
-				max = tmp->key;
-			if (tmp->key < min)
-				min = tmp->key;
-		}
-		ATF_REQUIRE_EQ(NULL, RB_INSERT(tree, &root, tmp));
+		j = i + arc4random_uniform(ITER - i);
+		k = store[j].key;
+		store[j].key = store[i].key;
+		store[i].key = k;
 	}
 
-	ins = RB_MIN(tree, &root);
-	ATF_REQUIRE_MSG(ins != NULL, "RB_MIN error");
-	ATF_CHECK_EQ(min, ins->key);
-	tmp = ins;
-	ins = RB_MAX(tree, &root);
-	ATF_REQUIRE_MSG(ins != NULL, "RB_MAX error");
-	ATF_CHECK_EQ(max, ins->key);
-
-	ATF_CHECK_EQ(tmp, RB_REMOVE(tree, &root, tmp));
-
-	for (i = 0; i < ITER - 1; i++) {
+	for (i = 0; i < ITER; i++) {
+		for (j = 0; j < i; ++j) {
+			tmp = &store[j];
+			ATF_REQUIRE_EQ(tmp, RB_FIND(tree, &root, tmp));
+		}
+		tmp = &store[i];
+		if (tmp->key > max)
+			max = tmp->key;
+		if (tmp->key < min)
+			min = tmp->key;
+		ATF_REQUIRE_EQ(NULL, RB_INSERT(tree, &root, tmp));
+		ins = RB_MIN(tree, &root);
+		ATF_REQUIRE_MSG(ins != NULL, "RB_MIN error");
+		ATF_CHECK_EQ(min, ins->key);
+		ins = RB_MAX(tree, &root);
+		ATF_REQUIRE_MSG(ins != NULL, "RB_MAX error");
+		ATF_CHECK_EQ(max, ins->key);
+	}
+	tmp = RB_ROOT(&root);
+	ATF_REQUIRE_MSG(tree_RB_RANK(tmp) >= 0, "RB rank balance error");
+	for (i = 0; i < ITER; i++) {
 		tmp = RB_ROOT(&root);
 		ATF_REQUIRE_MSG(tmp != NULL, "RB_ROOT error");
 		ATF_CHECK_EQ(tmp, RB_REMOVE(tree, &root, tmp));
-		free(tmp);
 	}
 }
 

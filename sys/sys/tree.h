@@ -410,12 +410,17 @@ struct {								\
 	RB_SET_PARENT(elm, tmp, field);					\
 } while (/*CONSTCOND*/ 0)
 
+#if defined(_KERNEL) && defined(DIAGNOSTIC) && !defined(_RB_DIAGNOSTIC)
+#define _RB_DIAGNOSTIC 1
+#endif
+
 /* Generates prototypes and inline functions */
 #define	RB_PROTOTYPE(name, type, field, cmp)				\
 	RB_PROTOTYPE_INTERNAL(name, type, field, cmp,)
 #define	RB_PROTOTYPE_STATIC(name, type, field, cmp)			\
 	RB_PROTOTYPE_INTERNAL(name, type, field, cmp, __unused static)
 #define RB_PROTOTYPE_INTERNAL(name, type, field, cmp, attr)		\
+	RB_PROTOTYPE_RANK(name, type, attr)				\
 	RB_PROTOTYPE_INSERT_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_REMOVE_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_INSERT(name, type, attr);				\
@@ -426,6 +431,12 @@ struct {								\
 	RB_PROTOTYPE_PREV(name, type, attr);				\
 	RB_PROTOTYPE_MINMAX(name, type, attr);				\
 	RB_PROTOTYPE_REINSERT(name, type, attr);
+#ifdef _RB_DIAGNOSTIC
+#define RB_PROTOTYPE_RANK(name, type, attr)				\
+	attr int name##_RB_RANK(struct type *);
+#else
+#define RB_PROTOTYPE_RANK(name, type, attr)
+#endif
 #define RB_PROTOTYPE_INSERT_COLOR(name, type, attr)			\
 	attr void name##_RB_INSERT_COLOR(struct name *, struct type *)
 #define RB_PROTOTYPE_REMOVE_COLOR(name, type, attr)			\
@@ -456,6 +467,7 @@ struct {								\
 #define	RB_GENERATE_STATIC(name, type, field, cmp)			\
 	RB_GENERATE_INTERNAL(name, type, field, cmp, __unused static)
 #define RB_GENERATE_INTERNAL(name, type, field, cmp, attr)		\
+	RB_GENERATE_RANK(name, type, field, attr)			\
 	RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
 	RB_GENERATE_REMOVE_COLOR(name, type, field, attr)		\
 	RB_GENERATE_INSERT(name, type, field, cmp, attr)		\
@@ -466,6 +478,31 @@ struct {								\
 	RB_GENERATE_PREV(name, type, field, attr)			\
 	RB_GENERATE_MINMAX(name, type, field, attr)			\
 	RB_GENERATE_REINSERT(name, type, field, cmp, attr)
+
+#ifdef _RB_DIAGNOSTIC
+#define RB_GENERATE_RANK(name, type, field, attr)			\
+attr int								\
+name##_RB_RANK(struct type *elm)					\
+{									\
+	struct type *left, *right;					\
+	int left_rank, right_rank;					\
+	__uintptr_t bits;						\
+									\
+	if (elm == NULL)						\
+		return (0);						\
+	bits = RB_BITS(elm, field);					\
+	left = RB_LEFT(elm, field);					\
+	left_rank = ((bits & RB_RED_L) ? 2 : 1) + name##_RB_RANK(left);	\
+	right = RB_RIGHT(elm, field);					\
+	right_rank = ((bits & RB_RED_R) ? 2 : 1) + name##_RB_RANK(right); \
+	if (left_rank != right_rank ||					\
+	    (left_rank == 2 && left == NULL && right == NULL))		\
+		return (-1);						\
+	return (left_rank);						\
+}
+#else
+#define RB_GENERATE_RANK(name, type, field, attr)
+#endif
 
 #define RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
 attr void								\
