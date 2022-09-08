@@ -273,6 +273,7 @@ main(int argc, char *argv[])
 		} else if (fflag) {
 			file.file_name = fn;
 			file.fp = stdin;
+			file.st = sb;
 			follow(&file, style, off);
 		} else {
 			forward(stdin, fn, style, off, &sb);
