@@ -56,18 +56,18 @@ struct ipovly {
 /*
  * Ip reassembly queue structure.  Each fragment
  * being reassembled is attached to one of these structures.
- * They are timed out after ipq_ttl drops to 0, and may also
- * be reclaimed if memory becomes tight.
+ * They are timed out after net.inet.ip.fragttl seconds, and may also be
+ * reclaimed if memory becomes tight.
  */
 struct ipq {
 	TAILQ_ENTRY(ipq) ipq_list;	/* to other reass headers */
-	u_char	ipq_ttl;		/* time for reass q to live */
+	time_t	ipq_expire;		/* time_uptime when ipq expires */
+	u_char	ipq_nfrags;		/* # frags in this packet */
 	u_char	ipq_p;			/* protocol of this fragment */
 	u_short	ipq_id;			/* sequence id for reassembly */
 	int	ipq_maxoff;		/* total length of packet */
 	struct mbuf *ipq_frags;		/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
-	u_char	ipq_nfrags;		/* # frags in this packet */
 	struct label *ipq_label;	/* MAC label */
 };
 #endif /* _KERNEL */
