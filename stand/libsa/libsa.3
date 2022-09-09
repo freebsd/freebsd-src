@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2018
+.Dd September 9, 2022
 .Dt LIBSA 3
 .Os
 .Sh NAME
@@ -502,6 +502,12 @@ Returns -1 on error, 0 at EOF, or 1 if the user elects to quit while reading.
 .Sh MISC
 .Bl -hang -width 10n
 .It Xo
+.Ft char *
+.Fn devformat "struct devdesc *"
+.Xc
+.Pp
+Format the specified device as a string.
+.It Xo
 .Ft void
 .Fn twiddle void
 .Xc
@@ -615,7 +621,7 @@ The device driver itself will already have been called for the close; this call
 should clean up any allocation made by devopen only.
 .It Xo
 .Ft void
-.Fn abort
+.Fn __abort
 .Xc
 .Pp
 Calls
@@ -687,6 +693,65 @@ pointers should be terminated with a NULL.
 Devices are exported by the supporting code via the array
 .Vt struct devsw *devsw[]
 which is a NULL terminated array of pointers to device switch structures.
+.Sh DRIVER INTERFACE
+The driver needs to provide a common set of entry points that are
+used by
+.Nm libsa
+to interface with the device.
+.Bd -literal
+struct devsw {
+    const char	dv_name[DEV_NAMLEN];
+    int		dv_type;
+    int		(*dv_init)(void);
+    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk,
+			size_t size, char *buf, size_t *rsize);
+    int		(*dv_open)(struct open_file *f, ...);
+    int		(*dv_close)(struct open_file *f);
+    int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
+    int		(*dv_print)(int verbose);
+    void	(*dv_cleanup)(void);
+    void	(*dv_fmtdev)(struct devdesc *);
+};
+.Ed
+.Bl -tag -width ".Fn dv_strategy"
+.It Fn dv_name
+The device's name.
+.It Fn dv_type
+Type of device.
+The supported types are:
+.Bl -tag -width "DEVT_NONE"
+.It DEVT_NONE
+.It DEVT_DISK
+.It DEVT_NET
+.It DEVT_CD
+.It DEVT_ZFS
+.It DEVT_FD
+.El
+Each type may have its own associated (struct type_devdesc),
+which has the generic (struct devdesc) as its first member.
+.It Fn dv_init
+Driver initialization routine.
+This routine should probe for available units.
+Drivers are responsible for maintaining lists of units for later enumeration.
+No other driver routines may be called before
+.Fn dv_init
+returns.
+.It Fn dv_open
+The driver open routine.
+.It Fn dv_close
+The driver close routine.
+.It Fn dv_ioctl
+The driver ioctl routine.
+.It Fn dv_print
+Prints information about the available devices.
+Information should be presented with
+.Fn pager_output .
+.It Fn dv_cleanup
+Cleans up any memory used by the device before the next stage is run.
+.It Fn dv_fmtdev
+Converts the specified devdesc to the canonical string representation
+for that device.
+.El
 .Sh HISTORY
 The
 .Nm
