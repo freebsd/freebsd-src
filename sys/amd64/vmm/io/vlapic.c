@@ -964,6 +964,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	struct vlapic *vlapic2;
 	struct vm_exit *vmexit;
 	struct LAPIC *lapic;
+	uint16_t maxcpus;
 
 	lapic = vlapic->apic_page;
 	lapic->icr_lo &= ~APIC_DELSTAT_PEND;
@@ -977,6 +978,9 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	mode = icrval & APIC_DELMODE_MASK;
 	phys = (icrval & APIC_DESTMODE_LOG) == 0;
 	shorthand = icrval & APIC_DEST_MASK;
+
+	maxcpus = vm_get_maxcpus(vlapic->vm);
+
 
 	VLAPIC_CTR2(vlapic, "icrlo 0x%016lx triggered ipi %d", icrval, vec);
 
