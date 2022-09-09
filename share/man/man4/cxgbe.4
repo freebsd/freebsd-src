@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2021
+.Dd September 12, 2022
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -277,6 +277,7 @@ Controls the hardware response to congestion.
 0 instructs the hardware to backpressure its pipeline on congestion.
 This usually results in the port emitting PAUSE frames.
 1 instructs the hardware to drop frames destined for congested queues.
+2 instructs the hardware to both backpressure the pipeline and drop frames.
 .It Va hw.cxgbe.pause_settings
 PAUSE frame settings.
 Bit 0 is rx_pause, bit 1 is tx_pause, bit 2 is pause_autoneg.
