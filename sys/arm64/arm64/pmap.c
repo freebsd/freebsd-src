@@ -3787,18 +3787,15 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
  * identical characteristics.
  */
 static void
-pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
+pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
 	pt_entry_t *firstl3, *l3, newl2, oldl3, pa;
-	vm_page_t mpte;
-	vm_offset_t sva;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PMAP_ASSERT_STAGE1(pmap);
 
-	sva = va & ~L2_OFFSET;
-	firstl3 = pmap_l2_to_l3(l2, sva);
+	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(pmap_load(l2) & ~ATTR_MASK);
 	newl2 = pmap_load(firstl3);
 
 	if (((newl2 & (~ATTR_MASK | ATTR_AF)) & L2_OFFSET) != ATTR_AF ||
@@ -3851,7 +3848,8 @@ setl3:
 	 * mapping the superpage is demoted by pmap_demote_l2() or
 	 * destroyed by pmap_remove_l3().
 	 */
-	mpte = PHYS_TO_VM_PAGE(pmap_load(l2) & ~ATTR_MASK);
+	if (mpte == NULL)
+		mpte = PHYS_TO_VM_PAGE(pmap_load(l2) & ~ATTR_MASK);
 	KASSERT(mpte >= vm_page_array &&
 	    mpte < &vm_page_array[vm_page_array_size],
 	    ("pmap_promote_l2: page table page is out of range"));
@@ -3871,7 +3869,7 @@ setl3:
 	newl2 &= ~ATTR_DESCR_MASK;
 	newl2 |= L2_BLOCK;
 
-	pmap_update_entry(pmap, l2, newl2, sva, L2_SIZE);
+	pmap_update_entry(pmap, l2, newl2, va & ~L2_OFFSET, L2_SIZE);
 
 	atomic_add_long(&pmap_l2_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l2: success for va %#lx in pmap %p", va,
@@ -4295,7 +4293,7 @@ validate:
 	    pmap_ps_enabled(pmap) && pmap->pm_stage == PM_STAGE1 &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0) {
-		pmap_promote_l2(pmap, pde, va, &lock);
+		pmap_promote_l2(pmap, pde, va, mpte, &lock);
 	}
 #endif
 
