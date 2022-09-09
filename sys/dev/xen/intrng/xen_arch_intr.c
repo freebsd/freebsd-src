@@ -171,7 +171,7 @@ xen_attach(device_t dev)
 	cpu = PCPU_GET(cpuid);
 	phys = vtophys(vcpu_info);
 	info.mfn = phys >> PAGE_SHIFT_4K;
-	info.offset = phys & PAGE_MASK_4K;
+	info.offset = phys & (PAGE_SIZE_4K - 1);
 
 	rc = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
 	KASSERT(rc == 0, ("Unable to register cpu %u\n", cpu));
