@@ -36,7 +36,7 @@
 
 struct vmctx;
 extern int guest_ncpus;
-extern uint16_t cores, sockets, threads;
+extern uint16_t cpu_cores, cpu_sockets, cpu_threads;
 
 void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
 #ifdef BHYVE_SNAPSHOT
