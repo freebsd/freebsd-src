@@ -656,7 +656,7 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 			/* Non-cacheable */
 			xbaser |= GICR_PROPBASER_CACHE_NIN <<
 			    GICR_PROPBASER_CACHE_SHIFT;
-			/* Non-sareable */
+			/* Non-shareable */
 			xbaser |= GICR_PROPBASER_SHARE_NS <<
 			    GICR_PROPBASER_SHARE_SHIFT;
 			gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
