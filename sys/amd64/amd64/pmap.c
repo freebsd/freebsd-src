@@ -1277,7 +1277,7 @@ static vm_page_t pmap_large_map_getptp_unlocked(void);
 static vm_paddr_t pmap_large_map_kextract(vm_offset_t va);
 #if VM_NRESERVLEVEL > 0
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
-    struct rwlock **lockp);
+    vm_page_t mpte, struct rwlock **lockp);
 #endif
 static boolean_t pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva,
     vm_prot_t prot);
@@ -6737,13 +6737,12 @@ pmap_pde_ept_executable(pmap_t pmap, pd_entry_t pde)
  * identical characteristics. 
  */
 static void
-pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
+pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
 	pd_entry_t newpde;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
 	pt_entry_t PG_G, PG_A, PG_M, PG_RW, PG_V, PG_PKU_MASK;
-	vm_page_t mpte;
 	int PG_PTE_CACHE;
 
 	PG_A = pmap_accessed_bit(pmap);
@@ -6823,7 +6822,8 @@ setpte:
 	 * mapping the superpage is demoted by pmap_demote_pde() or
 	 * destroyed by pmap_remove_pde(). 
 	 */
-	mpte = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
+	if (mpte == NULL)
+		mpte = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
 	KASSERT(mpte >= vm_page_array &&
 	    mpte < &vm_page_array[vm_page_array_size],
 	    ("pmap_promote_pde: page table page is out of range"));
@@ -7237,7 +7237,7 @@ unchanged:
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
-		pmap_promote_pde(pmap, pde, va, &lock);
+		pmap_promote_pde(pmap, pde, va, mpte, &lock);
 #endif
 
 	rv = KERN_SUCCESS;
@@ -10183,7 +10183,7 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0) {
-		pmap_promote_pde(pmap, pde, va, &lock);
+		pmap_promote_pde(pmap, pde, va, mpte, &lock);
 #ifdef INVARIANTS
 		atomic_add_long(&ad_emulation_superpage_promotions, 1);
 #endif
