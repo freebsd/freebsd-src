@@ -151,7 +151,7 @@ COMMON_SRCS+=	catrig.c catrigf.c \
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
 # Exclude the generic versions of what we provide in the MD area.
-.if defined(ARCH_SRCS) && ${MK_MACHDEP_OPTIMIZATIONS} != no
+.if defined(ARCH_SRCS) && "${MK_MACHDEP_OPTIMIZATIONS}" != no
 .for i in ${ARCH_SRCS}
 COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
 .endfor
