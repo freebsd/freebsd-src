@@ -549,7 +549,7 @@ struct tcp_rack {
 	struct inpcb *rc_inp;	/* The inpcb Lock(a) */
 	uint8_t rc_free_cnt;	/* Number of free entries on the rc_free list
 				 * Lock(a) */
-	uint8_t client_bufferlvl : 4, /* Expected range [0,5]: 0=unset, 1=low/empty */
+	uint8_t client_bufferlvl : 3, /* Expected range [0,5]: 0=unset, 1=low/empty */
 		rack_deferred_inited : 1,
 	        /* ******************************************************************** */
 	        /* Note for details of next two fields see rack_init_retransmit_rate()  */
@@ -557,6 +557,7 @@ struct tcp_rack {
 		full_size_rxt: 1,
 		shape_rxt_to_pacing_min : 1,
 	        /* ******************************************************************** */
+		rc_ack_required: 1,
 		spare : 1;
 	uint8_t no_prr_addback : 1,
 		gp_ready : 1,
