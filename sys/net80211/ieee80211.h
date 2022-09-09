@@ -865,6 +865,12 @@ struct ieee80211_vht_mcs_info {
 	uint16_t tx_highest;
 } __packed;
 
+/* 802.11ac-2013, 8.4.2.160.1 VHT Capabilities element structure */
+struct ieee80211_vht_cap {
+	uint32_t			vht_cap_info;
+	struct ieee80211_vht_mcs_info	supp_mcs;
+} __packed;
+
 /* VHT capabilities element: 802.11ac-2013 8.4.2.160 */
 struct ieee80211_ie_vhtcap {
 	uint8_t ie;
