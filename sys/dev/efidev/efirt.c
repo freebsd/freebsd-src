@@ -137,7 +137,7 @@ efi_is_in_map(struct efi_md *map, int ndesc, int descsz, vm_offset_t addr)
 			continue;
 
 		if (addr >= p->md_virt &&
-		    addr < p->md_virt + p->md_pages * PAGE_SIZE)
+		    addr < p->md_virt + p->md_pages * EFI_PAGE_SIZE)
 			return (true);
 	}
 
