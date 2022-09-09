@@ -37,6 +37,17 @@
 
 #include "assym.inc"
 
+/*
+ * Fast path for copyout code.  We switch to user space %cr3 and perform
+ * move operation between user memory and copyout buffer, located in the
+ * trampoline area.  We must switch to trampoline stack, because both
+ * user and kernel buffer accesses might cause page fault.
+ *
+ * Page fault handler expects %edx to point to the onfault routine.
+ * Handler switches to idlePTD and calls the routine.
+ * The routine must restore the stack, enable interrupts, and
+ * return to the caller, informing it about failure.
+ */
 	.text
 
 ENTRY(copyout_fast)
