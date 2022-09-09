@@ -84,6 +84,8 @@
         ..
         ppp
         ..
+        profile.d
+        ..
         rc.conf.d
         ..
         rc.d
