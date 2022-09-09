@@ -2041,6 +2041,13 @@ ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int x)
 	return (-EINVAL);
 }
 
+static __inline int
+ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid)
+{
+	TODO();
+	return (-EINVAL);
+}
+
 static __inline void
 ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 {
