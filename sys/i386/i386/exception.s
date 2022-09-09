@@ -130,15 +130,15 @@ IDTVEC(prot)
 	jmp	irettraps
 IDTVEC(page)
 	testl	$PSL_VM, TF_EFLAGS-TF_ERR(%esp)
-	jnz	5f
+	jnz	6f
 	testb	$SEL_RPL_MASK, TF_CS-TF_ERR(%esp)
-	jnz	5f
+	jnz	6f
 	cmpl	$PMAP_TRM_MIN_ADDRESS, TF_EIP-TF_ERR(%esp)
-	jb	5f
+	jb	6f
 	pushl	%eax
 	movl	TF_EIP-TF_ERR+4(%esp), %eax
 	addl	$1f, %eax
-	call	6f
+	call	7f
 1:	cmpl	$pf_x1, %eax
 	je	2f
 	cmpl	$pf_x2, %eax
@@ -156,19 +156,25 @@ IDTVEC(page)
 	cmpl	$pf_x8, %eax
 	je	2f
 	cmpl	$pf_y1, %eax
-	je	3f
+	je	4f
 	cmpl	$pf_y2, %eax
-	je	3f
-	jmp	4f
-2:	movl	%ebx, %cr3
-3:	popl	%eax
+	je	4f
+	jmp	5f
+2:	movl	$tramp_idleptd, %eax
+	subl	$3f, %eax
+	call	8f
+3:	movl	(%eax), %eax
+	movl	%eax, %cr3
+4:	popl	%eax
 	movl	%edx, TF_EIP-TF_ERR(%esp)
 	addl	$4, %esp
 	iret
-4:	popl	%eax
-5:	pushl	$T_PAGEFLT
+5:	popl	%eax
+6:	pushl	$T_PAGEFLT
 	jmp	alltraps
-6:	subl	(%esp), %eax
+7:	subl	(%esp), %eax
+	retl
+8:	addl	(%esp), %eax
 	retl
 IDTVEC(rsvd_pti)
 IDTVEC(rsvd)
