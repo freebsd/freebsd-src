@@ -35,7 +35,7 @@
 #define	VMEXIT_ABORT		(-1)
 
 extern int guest_ncpus;
-extern uint16_t cores, sockets, threads;
+extern uint16_t cpu_cores, cpu_sockets, cpu_threads;
 
 struct vmctx;
 struct vm_exit;

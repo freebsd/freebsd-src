@@ -185,7 +185,7 @@ static const char * const vmx_exit_reason_desc[] = {
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 
 int guest_ncpus;
-uint16_t cores, maxcpus, sockets, threads;
+uint16_t cpu_cores, cpu_sockets, cpu_threads;
 
 int raw_stdio = 0;
 
@@ -348,25 +348,25 @@ calc_topolopgy(void)
 	}
 	value = get_config_value("cores");
 	if (value != NULL)
-		cores = parse_int_value("cores", value, 1, UINT16_MAX);
+		cpu_cores = parse_int_value("cores", value, 1, UINT16_MAX);
 	else
-		cores = 1;
+		cpu_cores = 1;
 	value = get_config_value("threads");
 	if (value != NULL)
-		threads = parse_int_value("threads", value, 1, UINT16_MAX);
+		cpu_threads = parse_int_value("threads", value, 1, UINT16_MAX);
 	else
-		threads = 1;
+		cpu_threads = 1;
 	value = get_config_value("sockets");
 	if (value != NULL)
-		sockets = parse_int_value("sockets", value, 1, UINT16_MAX);
+		cpu_sockets = parse_int_value("sockets", value, 1, UINT16_MAX);
 	else
-		sockets = guest_ncpus;
+		cpu_sockets = guest_ncpus;
 
 	/*
 	 * Compute sockets * cores * threads avoiding overflow.  The
 	 * range check above insures these are 16 bit values.
 	 */
-	ncpus = (uint64_t)sockets * cores * threads;
+	ncpus = (uint64_t)cpu_sockets * cpu_cores * cpu_threads;
 	if (ncpus > UINT16_MAX)
 		errx(4, "Computed number of vCPUs too high: %ju",
 		    (uintmax_t)ncpus);
@@ -374,7 +374,8 @@ calc_topolopgy(void)
 	if (explicit_cpus) {
 		if (guest_ncpus != ncpus)
 			errx(4, "Topology (%d sockets, %d cores, %d threads) "
-			    "does not match %d vCPUs", sockets, cores, threads,
+			    "does not match %d vCPUs",
+			    cpu_sockets, cpu_cores, cpu_threads,
 			    guest_ncpus);
 	} else
 		guest_ncpus = ncpus;
@@ -1153,7 +1154,8 @@ do_open(const char *vmname)
 			exit(4);
 		}
 	}
-	error = vm_set_topology(ctx, sockets, cores, threads, maxcpus);
+	error = vm_set_topology(ctx, cpu_sockets, cpu_cores, cpu_threads,
+	    0 /* maxcpus, unimplemented */);
 	if (error)
 		errx(EX_OSERR, "vm_set_topology");
 	return (ctx);
