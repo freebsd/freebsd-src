@@ -132,7 +132,9 @@ enum wlan_ht_cap_sm_ps {
 
 #define	WLAN_KEY_LEN_WEP40			5
 #define	WLAN_KEY_LEN_WEP104			13
+#define	WLAN_KEY_LEN_TKIP			32
 #define	WLAN_KEY_LEN_CCMP			16
+#define	WLAN_KEY_LEN_GCMP			16
 #define	WLAN_KEY_LEN_GCMP_256			32
 
 /* 802.11-2020, 9.4.2.55.3, Table 9-185 Subfields of the A-MPDU Parameters field */
@@ -243,6 +245,8 @@ enum ieee80211_ac_numbers {
 /* XXX net80211 calls these IEEE80211_HTCAP_* */
 #define	IEEE80211_HT_CAP_LDPC_CODING		0x0001	/* IEEE80211_HTCAP_LDPC */
 #define	IEEE80211_HT_CAP_SUP_WIDTH_20_40	0x0002	/* IEEE80211_HTCAP_CHWIDTH40 */
+#define	IEEE80211_HT_CAP_SM_PS			0x000c	/* IEEE80211_HTCAP_SMPS */
+#define	IEEE80211_HT_CAP_SM_PS_SHIFT		2
 #define	IEEE80211_HT_CAP_GRN_FLD		0x0010	/* IEEE80211_HTCAP_GREENFIELD */
 #define	IEEE80211_HT_CAP_SGI_20			0x0020	/* IEEE80211_HTCAP_SHORTGI20 */
 #define	IEEE80211_HT_CAP_SGI_40			0x0040	/* IEEE80211_HTCAP_SHORTGI40 */
@@ -251,8 +255,6 @@ enum ieee80211_ac_numbers {
 #define	IEEE80211_HT_CAP_RX_STBC_SHIFT		8	/* IEEE80211_HTCAP_RXSTBC_S */
 #define	IEEE80211_HT_CAP_MAX_AMSDU		0x0800	/* IEEE80211_HTCAP_MAXAMSDU */
 #define	IEEE80211_HT_CAP_DSSSCCK40		0x1000	/* IEEE80211_HTCAP_DSSSCCK40 */
-#define	IEEE80211_HT_CAP_SM_PS			0x000c	/* IEEE80211_HTCAP_SMPS */
-#define	IEEE80211_HT_CAP_SM_PS_SHIFT		2
 #define	IEEE80211_HT_CAP_LSIG_TXOP_PROT		0x8000	/* IEEE80211_HTCAP_LSIGTXOPPROT */
 
 #define	IEEE80211_HT_MCS_TX_DEFINED		0x0001
@@ -269,13 +271,6 @@ struct ieee80211_mcs_info {
 	uint8_t		__reserved[3];
 };
 
-struct vht_mcs {
-	uint16_t	rx_mcs_map;
-	uint16_t	rx_highest;
-	uint16_t	tx_mcs_map;
-	uint16_t	tx_highest;
-};
-
 /* 802.11-2020, 9.4.2.55.1 HT Capabilities element structure */
 struct ieee80211_ht_cap {
 	uint16_t				cap_info;
@@ -284,11 +279,6 @@ struct ieee80211_ht_cap {
 	uint16_t				extended_ht_cap_info;
 	uint32_t				tx_BF_cap_info;
 	uint8_t					antenna_selection_info;
-};
-
-struct ieee80211_vht_cap {
-	__le32					vht_cap_info;
-	struct vht_mcs				supp_mcs;
 };
 
 #define	IEEE80211_HT_MAX_AMPDU_FACTOR		13
@@ -447,7 +437,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_BACK		= 3,
 };
 
-/* 9.3.3.2 Format of Management frames */
+/* 80211-2020 9.3.3.2 Format of Management frames */
 struct ieee80211_mgmt {
 	__le16		frame_control;
         __le16		duration_id;
@@ -480,6 +470,16 @@ struct ieee80211_mgmt {
 			uint8_t		category;
 			/* 9.6.8 Public Action details */
 			union {
+				/* 9.6.2.5 TPC Report frame format */
+				struct {
+					uint8_t spec_mgmt;
+					uint8_t dialog_token;
+					/* uint32_t tpc_rep_elem:: */
+					uint8_t tpc_elem_id;
+					uint8_t tpc_elem_length;
+					uint8_t tpc_elem_tx_power;
+					uint8_t tpc_elem_link_margin;
+				} tpc_report;
 				/* 9.6.8.33 Fine Timing Measurement frame format */
 				struct {
 					uint8_t	dialog_token;
@@ -669,9 +669,8 @@ ieee80211_is_data_qos(__le16 fc)
 {
 	__le16 v;
 
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_QOS_DATA | IEEE80211_FC0_TYPE_MASK |
-	    IEEE80211_FC0_VERSION_MASK);
-	v = htole16(IEEE80211_FC0_QOSDATA);
+	fc &= htole16(IEEE80211_FC0_SUBTYPE_QOS_DATA | IEEE80211_FC0_TYPE_MASK);
+	v = htole16(IEEE80211_FC0_SUBTYPE_QOS_DATA | IEEE80211_FC0_TYPE_DATA);
 
 	return (fc == v);
 }

@@ -162,6 +162,8 @@ enum ieee80211_bss_changed {
 /* Reserved				14-255 */
 /* Apparently 11ax defines more. Seen (19,20) mentioned. */
 
+#define	TKIP_PN_TO_IV16(_x)		((uint16_t)(_x & 0xffff))
+#define	TKIP_PN_TO_IV32(_x)		((uint32_t)((_x >> 16) & 0xffffffff))
 
 struct ieee80211_sta;
 
@@ -773,6 +775,7 @@ enum ieee80211_iface_iter {
 	/* ieee80211_iterate_active_interfaces*(). */
 	IEEE80211_IFACE_ITER__ATOMIC	= BIT(6),
 	IEEE80211_IFACE_ITER__ACTIVE	= BIT(7),
+	IEEE80211_IFACE_ITER__MTX	= BIT(8),
 };
 
 enum set_key_cmd {
@@ -1492,6 +1495,17 @@ ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
 }
 
 static __inline void
+ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
+    enum ieee80211_iface_iter flags,
+    void(*iterfunc)(void *, uint8_t *, struct ieee80211_vif *),
+    void *arg)
+{
+	flags |= IEEE80211_IFACE_ITER__ACTIVE;
+	flags |= IEEE80211_IFACE_ITER__MTX;
+	linuxkpi_ieee80211_iterate_interfaces(hw, flags, iterfunc, arg);
+}
+
+static __inline void
 ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
    enum ieee80211_iface_iter flags,
    void (*iterfunc)(void *, uint8_t *, struct ieee80211_vif *),
@@ -1621,11 +1635,47 @@ ieee80211_tu_to_usec(unsigned long tu)
 }
 
 
-static __inline int
+static __inline bool
 ieee80211_action_contains_tpc(struct sk_buff *skb)
 {
-	TODO();
-	return (0);
+	struct ieee80211_mgmt *mgmt;
+
+	mgmt = (struct ieee80211_mgmt *)skb->data;
+
+	/* Check that this is a mgmt/action frame? */
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return (false);
+
+	/*
+	 * This is a bit convoluted but according to docs both actions
+	 * are checked for this.  Kind-of makes sense for the only consumer
+	 * (iwlwifi) I am aware off given the txpower fields are at the
+	 * same location so firmware can update the value.
+	 */
+	/* 80211-2020 9.6.2 Spectrum Management Action frames */
+	/* 80211-2020 9.6.2.5 TPC Report frame format */
+	/* 80211-2020 9.6.6 Radio Measurement action details */
+	/* 80211-2020 9.6.6.4 Link Measurement Report frame format */
+	/* Check that it is Spectrum Management or Radio Measurement? */
+	if (mgmt->u.action.category != IEEE80211_ACTION_CAT_SM &&
+	    mgmt->u.action.category != IEEE80211_ACTION_CAT_RADIO_MEASUREMENT)
+		return (false);
+
+	/* Check that it is TPC Report or Link Measurement Report? */
+	KASSERT(IEEE80211_ACTION_SM_TPCREP == IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP,
+	    ("%s: SM_TPCREP %d != RADIO_MEASUREMENT_LMREP %d\n", __func__,
+	    IEEE80211_ACTION_SM_TPCREP, IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP));
+	if (mgmt->u.action.u.tpc_report.spec_mgmt != IEEE80211_ACTION_SM_TPCREP)
+		return (false);
+
+	/* 80211-2020 9.4.2.16 TPC Report element */
+	/* Check that the ELEMID and length are correct? */
+	if (mgmt->u.action.u.tpc_report.tpc_elem_id != IEEE80211_ELEMID_TPCREP ||
+	    mgmt->u.action.u.tpc_report.tpc_elem_length != 4)
+		return (false);
+
+	/* All the right fields in the right place. */
+	return (true);
 }
 
 static __inline void
@@ -1868,13 +1918,6 @@ ieee80211_sta_uapsd_trigger(struct ieee80211_sta *sta, int ntids)
 }
 
 static __inline void
-ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
-{
-	TODO();
-}
-
-static __inline void
 ieee80211_tkip_add_iv(u8 *crypto_hdr, struct ieee80211_key_conf *keyconf,
     uint64_t pn)
 {
@@ -1926,11 +1969,32 @@ ieee80211_sta_eosp(struct ieee80211_sta *sta)
 	TODO();
 }
 
+static __inline int
+ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int x)
+{
+	TODO("rtw8x");
+	return (-EINVAL);
+}
+
+static __inline int
+ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid)
+{
+	TODO("rtw89");
+	return (-EINVAL);
+}
+
+static __inline void
+ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO("iwlwifi");
+}
+
 static __inline void
 ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, uint8_t *addr,
     uint8_t tid)
 {
-	TODO();
+	TODO("iwlwifi/rtw8x/...");
 }
 
 static __inline void
@@ -1948,7 +2012,8 @@ ieee80211_scan_completed(struct ieee80211_hw *hw,
 }
 
 static __inline struct sk_buff *
-ieee80211_beacon_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+ieee80211_beacon_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    uint32_t link_id)
 {
 	TODO();
 	return (NULL);
@@ -2032,20 +2097,6 @@ ieee80211_tx_status_ni(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	IMPROVE();
 	ieee80211_tx_status(hw, skb);
-}
-
-static __inline int
-ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int x)
-{
-	TODO();
-	return (-EINVAL);
-}
-
-static __inline int
-ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid)
-{
-	TODO();
-	return (-EINVAL);
 }
 
 static __inline void
@@ -2143,13 +2194,6 @@ ieee80211_txq_may_transmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	return (false);
 }
 
-static __inline struct ieee80211_txq *
-ieee80211_next_txq(struct ieee80211_hw *hw, uint32_t ac)
-{
-	TODO();
-	return (NULL);
-}
-
 static __inline void
 ieee80211_radar_detected(struct ieee80211_hw *hw)
 {
@@ -2165,22 +2209,23 @@ ieee80211_sta_register_airtime(struct ieee80211_sta *sta,
 
 
 static __inline void
-ieee80211_return_txq(struct ieee80211_hw *hw,
-    struct ieee80211_txq *txq, bool _t)
+ieee80211_txq_schedule_start(struct ieee80211_hw *hw, uint8_t ac)
 {
 	TODO();
 }
 
 static __inline void
-ieee80211_txq_schedule_end(struct ieee80211_hw *hw, uint32_t ac)
+ieee80211_txq_schedule_end(struct ieee80211_hw *hw, uint8_t ac)
 {
-	TODO();
+	/* DO_NADA; */
 }
 
-static __inline void
-ieee80211_txq_schedule_start(struct ieee80211_hw *hw, uint32_t ac)
+static __inline struct ieee80211_txq *
+ieee80211_next_txq(struct ieee80211_hw *hw, uint8_t ac)
 {
+
 	TODO();
+	return (NULL);
 }
 
 static __inline void
@@ -2188,6 +2233,14 @@ ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 {
 	TODO();
 }
+
+static __inline void
+ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
+    bool withoutpkts)
+{
+	TODO();
+}
+
 
 static __inline void
 ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter)
@@ -2312,6 +2365,68 @@ linuxkpi_ieee80211_send_bar(struct ieee80211_vif *vif, uint8_t *ra, uint16_t tid
     uint16_t ssn)
 {
 	TODO();
+}
+
+static __inline void
+ieee80211_resume_disconnect(struct ieee80211_vif *vif)
+{
+        TODO();
+        return;
+}
+
+static __inline int
+ieee80211_data_to_8023(struct sk_buff *skb, const uint8_t *addr,
+     enum nl80211_iftype iftype)
+{
+        TODO();
+        return (-1);
+}
+
+static __inline void
+ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *key,
+    uint32_t iv32, uint16_t *p1k)
+{
+        TODO();
+        return;
+}
+
+static __inline struct ieee80211_key_conf *
+ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
+    struct ieee80211_key_conf *key)
+{
+        TODO();
+        return (NULL);
+}
+
+static __inline void
+ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const uint8_t *bssid,
+    const uint8_t *replay_ctr, gfp_t gfp)
+{
+        TODO();
+        return;
+}
+
+static __inline void
+ieee80211_remove_key(struct ieee80211_key_conf *key)
+{
+        TODO();
+        return;
+}
+
+static __inline void
+ieee80211_set_key_rx_seq(struct ieee80211_key_conf *key, int tid,
+    struct ieee80211_key_seq *seq)
+{
+        TODO();
+        return;
+}
+
+static __inline void
+ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
+    struct cfg80211_wowlan_wakeup *wakeup, gfp_t gfp)
+{
+        TODO();
+        return;
 }
 
 #define	ieee80211_send_bar(_v, _r, _t, _s)				\
