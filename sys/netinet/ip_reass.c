@@ -70,7 +70,7 @@ SYSCTL_DECL(_net_inet_ip);
  */
 #define	IPREASS_NHASH_LOG2	10
 #define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
-#define	IPREASS_HMASK		(IPREASS_NHASH - 1)
+#define	IPREASS_HMASK		(V_ipq_hashsize - 1)
 
 struct ipqbucket {
 	TAILQ_HEAD(ipqhead, ipq) head;
@@ -759,6 +759,7 @@ ipreass_destroy(void)
 	V_ipq_zone = NULL;
 	for (int i = 0; i < V_ipq_hashsize; i++)
 		mtx_destroy(&V_ipq[i].lock);
+	free(V_ipq, M_IPREASS_HASH);
 }
 #endif
 
