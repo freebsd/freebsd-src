@@ -183,8 +183,6 @@ struct vlapic {
 	 */
 	uint32_t	svr_last;
 	uint32_t	lvt_last[VLAPIC_MAXLVT_INDEX + 1];
-
-	bool		ipi_exit;
 };
 
 void vlapic_init(struct vlapic *vlapic);
