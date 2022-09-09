@@ -1247,6 +1247,12 @@ options 	MAC_PRIORITY
 options 	MAC_SEEOTHERUIDS
 options 	MAC_STUB
 options 	MAC_TEST
+options 	MAC_VERIEXEC
+options 	MAC_VERIEXEC_SHA1
+options 	MAC_VERIEXEC_SHA256
+options 	MAC_VERIEXEC_SHA384
+options 	MAC_VERIEXEC_SHA512
+device		mac_veriexec_parser
 
 # Support for Capsicum
 options 	CAPABILITIES	# fine-grained rights on file descriptors
