@@ -12,3 +12,23 @@
 # msgs -q
 # Allow terminal messages
 # mesg y
+
+# Load each file in /etc/profile.d/, then /usr/local/etc/profile, then
+# each file in /usr/local/etc/profile.d/.
+_loaded=${_loaded:-/etc/profile}
+export _loaded
+for _dir in /etc /usr/local/etc ; do
+	for _file in "${_dir}"/profile "${_dir}"/profile.d/* ; do
+		if [ -f "${_file}" ] ; then
+			case :${_loaded}: in
+			*:"${_file}":*)
+				;;
+			*)
+				_loaded="${_loaded:+${_loaded}:}${_file}"
+				. "${_file}"
+				;;
+			esac
+		fi
+	done
+done
+unset _loaded _dir _file
