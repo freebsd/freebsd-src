@@ -438,40 +438,6 @@ VNET_DEFINE(struct intr_event *, pf_swi_ie);
 VNET_DEFINE(uint32_t, pf_hashseed);
 #define	V_pf_hashseed	VNET(pf_hashseed)
 
-#ifdef __LP64__
-static int
-pf_bcmp_state_key(struct pf_state_key *k1_orig, struct pf_state_key_cmp *k2_orig)
-{
-	unsigned long *k1 = (unsigned long *)k1_orig;
-	unsigned long *k2 = (unsigned long *)k2_orig;
-
-	if (k1[0] != k2[0])
-		return (1);
-
-	if (k1[1] != k2[1])
-		return (1);
-
-	if (k1[2] != k2[2])
-		return (1);
-
-	if (k1[3] != k2[3])
-		return (1);
-
-	if (k1[4] != k2[4])
-		return (1);
-
-	return (0);
-}
-_Static_assert(sizeof(struct pf_state_key_cmp) == 40, "bad size of pf_state_key_cmp");
-#else
-static inline int
-pf_bcmp_state_key(struct pf_state_key *k1_orig, struct pf_state_key_cmp *k2_orig)
-{
-
-	return (bcmp(k1_orig, k2_orig, sizeof(struct pf_state_key_cmp)));
-}
-#endif
-
 int
 pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
 {
@@ -1227,7 +1193,7 @@ pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
 
 keyattach:
 	LIST_FOREACH(cur, &kh->keys, entry)
-		if (pf_bcmp_state_key(cur, (struct pf_state_key_cmp *)sk) == 0)
+		if (bcmp(cur, sk, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
 
 	if (cur != NULL) {
@@ -1533,7 +1499,7 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 
 	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(sk, &kh->keys, entry)
-		if (pf_bcmp_state_key(sk, key) == 0)
+		if (bcmp(sk, key, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
 	if (sk == NULL) {
 		PF_HASHROW_UNLOCK(kh);
@@ -1580,7 +1546,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 
 	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(sk, &kh->keys, entry)
-		if (pf_bcmp_state_key(sk, key) == 0)
+		if (bcmp(sk, key, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
 	if (sk == NULL) {
 		PF_HASHROW_UNLOCK(kh);
