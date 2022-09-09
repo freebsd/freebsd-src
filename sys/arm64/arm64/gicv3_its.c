@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/physmem.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
 #include <machine/bus.h>
@@ -277,12 +279,11 @@ struct gicv3_its_softc {
 #define	ITS_FLAGS_CMDQ_FLUSH		0x00000001
 #define	ITS_FLAGS_LPI_CONF_FLUSH	0x00000002
 #define	ITS_FLAGS_ERRATA_CAVIUM_22375	0x00000004
+#define ITS_FLAGS_LPI_PREALLOC		0x00000008
 	u_int sc_its_flags;
 	bool	trace_enable;
 	vm_page_t ma; /* fake msi page */
 };
-
-static void *conf_base;
 
 typedef void (its_quirk_func_t)(device_t);
 static its_quirk_func_t its_quirk_cavium_22375;
@@ -572,20 +573,65 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 static void
 gicv3_its_conftable_init(struct gicv3_its_softc *sc)
 {
-	void *conf_table;
+	/* note: we assume the ITS children are serialized by the parent */
+	static int extra_flags;
+	static void *conf_table;
+	vm_paddr_t conf_pa;
+	vm_offset_t conf_va;
+	device_t gicv3;
+	int unit;
+	uint32_t ctlr;
 
-	conf_table = atomic_load_ptr(&conf_base);
-	if (conf_table == NULL) {
+	/*
+	 * The PROPBASER is a singleton in our parent, so only unit 0 will set
+	 * it up. Skip all the other units, but make a note of where it was done
+	 * and how we set it up.
+	 */
+	unit = device_get_unit(sc->dev);
+	if (unit != 0) {
+		KASSERT(conf_table != NULL, ("Conf table null for unit %d", unit));
+		sc->sc_its_flags |= extra_flags;
+		sc->sc_conf_base = conf_table;
+		return;
+	}
+
+	gicv3 = device_get_parent(sc->dev);
+	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
+	if (ctlr & GICR_CTLR_LPI_ENABLE) {
+		conf_pa = gic_r_read_8(gicv3, GICR_PROPBASER);
+		conf_pa &= ~((PAGE_SIZE_4K - 1) | GICR_PROPBASER_OUTER_CACHE_MASK); /* mask off */
+		/*
+		 * If there was a pre-existing PROPBASER, then we need to honor
+		 * it because implemenetation defined behavior in gicv3 makes it
+		 * impossible to quiesce to change it out. We will only see a
+		 * pre-existing one when we've been kexec'd from a Linux kernel,
+		 * or from a LinuxBoot environment.
+		 *
+		 * Linux provides us with a MEMRESERVE table that we put into
+		 * the excluded physmem area. If PROPBASER isn't in this tabke,
+		 * the system cannot run due to random memory corruption,
+		 * so we panic for this case.
+		 */
+		if (!physmem_excluded(conf_pa, LPI_CONFTAB_SIZE))
+			panic("gicv3 memory needs to reuse %#lx, but not reserved\n",
+			    conf_pa);
+		conf_va = PHYS_TO_DMAP(conf_pa);
+		if (!pmap_klookup(conf_va, NULL))
+			panic("Can't mapped prior LPI mapping into VA\n");
+		conf_table = (void *)conf_va;
+		extra_flags = ITS_FLAGS_LPI_PREALLOC | ITS_FLAGS_LPI_CONF_FLUSH;
+		device_printf(sc->dev, "LPI enabled, conf table using pa %#lx va %lx\n",
+		    conf_pa, conf_va);
+	} else {
+		/*
+		 * Otherwise just allocate contiguous pages. We'll configure the
+		 * PROPBASER register later in its_init_cpu_lpi().
+		 */
 		conf_table = contigmalloc(LPI_CONFTAB_SIZE,
 		    M_GICV3_ITS, M_WAITOK, 0, LPI_CONFTAB_MAX_ADDR,
 		    LPI_CONFTAB_ALIGN, 0);
-
-		if (atomic_cmpset_ptr((uintptr_t *)&conf_base,
-		    (uintptr_t)NULL, (uintptr_t)conf_table) == 0) {
-			contigfree(conf_table, LPI_CONFTAB_SIZE, M_GICV3_ITS);
-			conf_table = atomic_load_ptr(&conf_base);
-		}
 	}
+	sc->sc_its_flags |= extra_flags;
 	sc->sc_conf_base = conf_table;
 
 	/* Set the default configuration */
@@ -601,17 +647,18 @@ gicv3_its_pendtables_init(struct gicv3_its_softc *sc)
 {
 	int i;
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (CPU_ISSET(i, &sc->sc_cpus) == 0)
-			continue;
+	if ((sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) == 0) {
+		for (i = 0; i <= mp_maxid; i++) {
+			if (CPU_ISSET(i, &sc->sc_cpus) == 0)
+				continue;
+			sc->sc_pend_base[i] = (vm_offset_t)contigmalloc(
+			    LPI_PENDTAB_SIZE, M_GICV3_ITS, M_WAITOK | M_ZERO,
+			    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
 
-		sc->sc_pend_base[i] = (vm_offset_t)contigmalloc(
-		    LPI_PENDTAB_SIZE, M_GICV3_ITS, M_WAITOK | M_ZERO,
-		    0, LPI_PENDTAB_MAX_ADDR, LPI_PENDTAB_ALIGN, 0);
-
-		/* Flush so the ITS can see the memory */
-		cpu_dcache_wb_range((vm_offset_t)sc->sc_pend_base[i],
-		    LPI_PENDTAB_SIZE);
+			/* Flush so the ITS can see the memory */
+			cpu_dcache_wb_range((vm_offset_t)sc->sc_pend_base[i],
+			    LPI_PENDTAB_SIZE);
+		}
 	}
 }
 
@@ -619,81 +666,105 @@ static void
 its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 {
 	device_t gicv3;
-	uint64_t xbaser, tmp;
-	uint32_t ctlr;
+	uint64_t xbaser, tmp, size;
 	u_int cpuid;
+	uint32_t ctlr;
 
 	gicv3 = device_get_parent(dev);
 	cpuid = PCPU_GET(cpuid);
 
-	/* Disable LPIs */
-	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
-	ctlr &= ~GICR_CTLR_LPI_ENABLE;
-	gic_r_write_4(gicv3, GICR_CTLR, ctlr);
-
-	/* Make sure changes are observable my the GIC */
-	dsb(sy);
-
 	/*
-	 * Set the redistributor base
+	 * Set the redistributor base. If we're reusing what we found on boot
+	 * since the gic was already running, then don't touch it here. We also
+	 * don't need to disable / enable LPI if we're not changing PROPBASER.
 	 */
-	xbaser = vtophys(sc->sc_conf_base) |
-	    (GICR_PROPBASER_SHARE_IS << GICR_PROPBASER_SHARE_SHIFT) |
-	    (GICR_PROPBASER_CACHE_NIWAWB << GICR_PROPBASER_CACHE_SHIFT) |
-	    (flsl(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1);
-	gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+	if ((sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) == 0) {
+		size = (flsl(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1);
 
-	/* Check the cache attributes we set */
-	tmp = gic_r_read_8(gicv3, GICR_PROPBASER);
+		xbaser = vtophys(sc->sc_conf_base) |
+		    (GICR_PROPBASER_SHARE_IS << GICR_PROPBASER_SHARE_SHIFT) |
+		    (GICR_PROPBASER_CACHE_NIWAWB << GICR_PROPBASER_CACHE_SHIFT) |
+		    size;
 
-	if ((tmp & GICR_PROPBASER_SHARE_MASK) !=
-	    (xbaser & GICR_PROPBASER_SHARE_MASK)) {
-		if ((tmp & GICR_PROPBASER_SHARE_MASK) ==
-		    (GICR_PROPBASER_SHARE_NS << GICR_PROPBASER_SHARE_SHIFT)) {
-			/* We need to mark as non-cacheable */
-			xbaser &= ~(GICR_PROPBASER_SHARE_MASK |
-			    GICR_PROPBASER_CACHE_MASK);
-			/* Non-cacheable */
-			xbaser |= GICR_PROPBASER_CACHE_NIN <<
-			    GICR_PROPBASER_CACHE_SHIFT;
-			/* Non-shareable */
-			xbaser |= GICR_PROPBASER_SHARE_NS <<
-			    GICR_PROPBASER_SHARE_SHIFT;
-			gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+		gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+
+		/* Check the cache attributes we set */
+		tmp = gic_r_read_8(gicv3, GICR_PROPBASER);
+
+		if ((tmp & GICR_PROPBASER_SHARE_MASK) !=
+		    (xbaser & GICR_PROPBASER_SHARE_MASK)) {
+			if ((tmp & GICR_PROPBASER_SHARE_MASK) ==
+			    (GICR_PROPBASER_SHARE_NS << GICR_PROPBASER_SHARE_SHIFT)) {
+				/* We need to mark as non-cacheable */
+				xbaser &= ~(GICR_PROPBASER_SHARE_MASK |
+				    GICR_PROPBASER_CACHE_MASK);
+				/* Non-cacheable */
+				xbaser |= GICR_PROPBASER_CACHE_NIN <<
+				    GICR_PROPBASER_CACHE_SHIFT;
+				/* Non-shareable */
+				xbaser |= GICR_PROPBASER_SHARE_NS <<
+				    GICR_PROPBASER_SHARE_SHIFT;
+				gic_r_write_8(gicv3, GICR_PROPBASER, xbaser);
+			}
+			sc->sc_its_flags |= ITS_FLAGS_LPI_CONF_FLUSH;
 		}
-		sc->sc_its_flags |= ITS_FLAGS_LPI_CONF_FLUSH;
 	}
 
 	/*
 	 * Set the LPI pending table base
 	 */
-	xbaser = vtophys(sc->sc_pend_base[cpuid]) |
-	    (GICR_PENDBASER_CACHE_NIWAWB << GICR_PENDBASER_CACHE_SHIFT) |
-	    (GICR_PENDBASER_SHARE_IS << GICR_PENDBASER_SHARE_SHIFT);
-
-	gic_r_write_8(gicv3, GICR_PENDBASER, xbaser);
-
-	tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
-
-	if ((tmp & GICR_PENDBASER_SHARE_MASK) ==
-	    (GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT)) {
-		/* Clear the cahce and shareability bits */
-		xbaser &= ~(GICR_PENDBASER_CACHE_MASK |
-		    GICR_PENDBASER_SHARE_MASK);
-		/* Mark as non-shareable */
-		xbaser |= GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT;
-		/* And non-cacheable */
-		xbaser |= GICR_PENDBASER_CACHE_NIN <<
-		    GICR_PENDBASER_CACHE_SHIFT;
+	if (sc->sc_pend_base[cpuid] == 0) {
+		tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
+		tmp &= ~((PAGE_SIZE_4K - 1) | GICR_PENDBASER_OUTER_CACHE_MASK);
+		if (!physmem_excluded(tmp, LPI_PENDTAB_SIZE))
+			panic("gicv3: Forced to reuse %#lx, but not reserved\n",
+			    tmp);
+		sc->sc_pend_base[cpuid] = PHYS_TO_DMAP(tmp);
 	}
 
-	/* Enable LPIs */
-	ctlr = gic_r_read_4(gicv3, GICR_CTLR);
-	ctlr |= GICR_CTLR_LPI_ENABLE;
-	gic_r_write_4(gicv3, GICR_CTLR, ctlr);
+	if ((sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) == 0) {
+		xbaser = vtophys(sc->sc_pend_base[cpuid]) |
+		    (GICR_PENDBASER_CACHE_NIWAWB << GICR_PENDBASER_CACHE_SHIFT) |
+		    (GICR_PENDBASER_SHARE_IS << GICR_PENDBASER_SHARE_SHIFT);
 
-	/* Make sure the GIC has seen everything */
-	dsb(sy);
+		gic_r_write_8(gicv3, GICR_PENDBASER, xbaser);
+
+		tmp = gic_r_read_8(gicv3, GICR_PENDBASER);
+
+		if ((tmp & GICR_PENDBASER_SHARE_MASK) ==
+		    (GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT)) {
+			/* Clear the cahce and shareability bits */
+			xbaser &= ~(GICR_PENDBASER_CACHE_MASK |
+			    GICR_PENDBASER_SHARE_MASK);
+			/* Mark as non-shareable */
+			xbaser |= GICR_PENDBASER_SHARE_NS << GICR_PENDBASER_SHARE_SHIFT;
+			/* And non-cacheable */
+			xbaser |= GICR_PENDBASER_CACHE_NIN <<
+			    GICR_PENDBASER_CACHE_SHIFT;
+
+			/*
+			 * I added the following, but I'm unsure if we need to
+			 * do any of this. It seemed missing and likely should
+			 * be committed separately, or not done at all. It's
+			 * not hit in any test cases I've seen.
+			 */
+			printf("****** WEIRD *******\n");
+			/* gic_r_write_8(gicv3, GICR_PENDBASER, xbaser); */
+		}
+
+		/* Enable LPIs -- already enabled if LPI_PREALLOC is true */
+		ctlr = gic_r_read_4(gicv3, GICR_CTLR);
+		ctlr |= GICR_CTLR_LPI_ENABLE;
+		gic_r_write_4(gicv3, GICR_CTLR, ctlr);
+
+		/* Make sure the GIC has seen everything */
+		dsb(sy);
+	}
+
+	if (bootverbose)
+		device_printf(gicv3, "using %sPENDBASE of %#lx on cpu %d\n",
+		    (sc->sc_its_flags & ITS_FLAGS_LPI_PREALLOC) ? "pre-existing " : "",
+		    vtophys(sc->sc_pend_base[cpuid]), cpuid);
 }
 
 static int

@@ -570,7 +570,8 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
 
-	printf("Starting CPU %u (%lx)\n", cpuid, target_cpu);
+	if (bootverbose)
+		printf("Starting CPU %u (%lx)\n", cpuid, target_cpu);
 	pa = pmap_extract(kernel_pmap, (vm_offset_t)mpentry);
 
 	/*
