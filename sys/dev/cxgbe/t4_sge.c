@@ -129,6 +129,11 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, spg_len, CTLFLAG_RDTUN, &spg_len, 0,
 static int cong_drop = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, cong_drop, CTLFLAG_RDTUN, &cong_drop, 0,
     "Congestion control for NIC RX queues (0 = backpressure, 1 = drop, 2 = both");
+#ifdef TCP_OFFLOAD
+static int ofld_cong_drop = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, ofld_cong_drop, CTLFLAG_RDTUN, &ofld_cong_drop, 0,
+    "Congestion control for TOE RX queues (0 = backpressure, 1 = drop, 2 = both");
+#endif
 
 /*
  * Deliver multiple frames in the same free list buffer if they fit.
@@ -560,6 +565,13 @@ t4_sge_modload(void)
 		    " using 0 instead.\n", cong_drop);
 		cong_drop = 0;
 	}
+#ifdef TCP_OFFLOAD
+	if (ofld_cong_drop < -1 || ofld_cong_drop > 2) {
+		printf("Invalid hw.cxgbe.ofld_cong_drop value (%d),"
+		    " using 0 instead.\n", ofld_cong_drop);
+		ofld_cong_drop = 0;
+	}
+#endif
 
 	if (tscale != 1 && (tscale < 3 || tscale > 17)) {
 		printf("Invalid hw.cxgbe.tscale value (%d),"
@@ -1004,6 +1016,10 @@ t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
 	    NULL, cong_drop, "congestion drop setting");
+#ifdef TCP_OFFLOAD
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ofld_cong_drop", CTLFLAG_RD,
+	    NULL, ofld_cong_drop, "congestion drop setting");
+#endif
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pack", CTLFLAG_RD,
 	    NULL, sp->pack_boundary, "payload pack boundary (bytes)");
@@ -4113,7 +4129,7 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload rx queue");
 
 		init_iq(&ofld_rxq->iq, sc, vi->ofld_tmr_idx, vi->ofld_pktc_idx,
-		    vi->qsize_rxq, intr_idx, 0, IQ_OFLD);
+		    vi->qsize_rxq, intr_idx, ofld_cong_drop, IQ_OFLD);
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(vi->dev), idx);
 		init_fl(sc, &ofld_rxq->fl, vi->qsize_rxq / 8, maxp, name);
