@@ -432,18 +432,17 @@ printdev(size_t width, dev_t dev)
 	(void)printf("%#*jx ", (u_int)width, (uintmax_t)dev);
 }
 
-static size_t
+static void
 ls_strftime(char *str, size_t len, const char *fmt, const struct tm *tm)
 {
 	char *posb, nfmt[BUFSIZ];
 	const char *format = fmt;
-	size_t ret;
 
 	if ((posb = strstr(fmt, "%b")) != NULL) {
 		if (month_max_size == 0) {
 			compute_abbreviated_month_size();
 		}
-		if (month_max_size > 0) {
+		if (month_max_size > 0 && tm != NULL) {
 			snprintf(nfmt, sizeof(nfmt),  "%.*s%s%*s%s",
 			    (int)(posb - fmt), fmt,
 			    get_abmon(tm->tm_mon),
@@ -453,8 +452,10 @@ ls_strftime(char *str, size_t len, const char *fmt, const struct tm *tm)
 			format = nfmt;
 		}
 	}
-	ret = strftime(str, len, format, tm);
-	return (ret);
+	if (tm != NULL)
+		strftime(str, len, format, tm);
+	else
+		strlcpy(str, "bad date val", len);
 }
 
 static void
