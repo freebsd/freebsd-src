@@ -1703,6 +1703,7 @@ dounmount_cleanup(struct mount *mp, struct vnode *coveredvp, int mntkflags)
 		vdrop(coveredvp);
 	}
 	vn_finished_write(mp);
+	vfs_rel(mp);
 }
 
 /*
@@ -2127,7 +2128,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 
 	vfs_op_enter(mp);
 
-	vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
+	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    (mp->mnt_flag & MNT_UPDATE) != 0 ||
@@ -2200,6 +2201,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	vfs_deallocate_syncvnode(mp);
 	error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
+	vfs_rel(mp);
 	/*
 	 * If we failed to flush the dirty blocks for this mount point,
 	 * undo all the cdir/rdir and rootvnode changes we made above.
