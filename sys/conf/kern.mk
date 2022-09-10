@@ -51,7 +51,7 @@ CWARNEXTRA+=	-Wno-address-of-packed-member
 # variables. Make these non-fatal for the time being.
 CWARNEXTRA+=	-Wno-error=array-parameter
 CWARNEXTRA+=	-Wno-error=deprecated-non-prototype
-CWARNEXTRA+=	-Wno-error=strict-protoypes
+CWARNEXTRA+=	-Wno-error=strict-prototypes
 CWARNEXTRA+=	-Wno-error=unused-but-set-variable
 .endif
 .endif	# clang
