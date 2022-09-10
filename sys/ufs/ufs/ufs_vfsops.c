@@ -121,11 +121,12 @@ ufs_quotactl(struct mount *mp, int cmds, uid_t id, void *arg, bool *mp_busy)
 		vfs_ref(mp);
 		KASSERT(*mp_busy,
 		    ("%s called without busied mount", __func__));
-		vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
+		vn_start_write(NULL, &mp, V_WAIT);
 		vfs_unbusy(mp);
 		*mp_busy = false;
 		error = quotaoff(td, mp, type);
 		vn_finished_write(mp);
+		vfs_rel(mp);
 		break;
 
 	case Q_SETQUOTA32:
