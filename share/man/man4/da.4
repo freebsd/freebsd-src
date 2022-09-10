@@ -133,13 +133,6 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width 12
-.It Va kern.cam.da.default_softtimeout
-Soft I/O timeout (ms). The default is 0.
-Attempting to set this value to a
-time span longer than
-.It kern.cam.da.default_timeout
-will return
-.Dv EINVAL .
 .It Va kern.cam.da.default_timeout
 This variable determines how long the
 .Nm
