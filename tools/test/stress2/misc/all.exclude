@@ -31,7 +31,7 @@ memguard2.sh		Waiting for fix commit
 memguard3.sh		Waiting for fix commit
 mlockall2.sh		Unrecoverable OOM killing seen					20190203
 mlockall7.sh		Needs further investigation					20210123
-msetdomain.sh		May change policy for random threads to to domainset_fixed	20210104
+msetdomain.sh		May change policy for random threads to domainset_fixed		20210104
 newfs4.sh		watchdog fired. newbuf						20190225
 nfs10.sh		Double fault							20151013
 nfs13.sh		mount_nfs hangs in mntref					20191007
