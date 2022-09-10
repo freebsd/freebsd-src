@@ -80,7 +80,7 @@ SX_SYSINIT(vfsconf, &vfsconf_sx, "vfsconf");
 static int	vfs_typenumhash = 1;
 SYSCTL_INT(_vfs, OID_AUTO, typenumhash, CTLFLAG_RDTUN, &vfs_typenumhash, 0,
     "Set vfc_typenum using a hash calculation on vfc_name, so that it does not"
-    "change when file systems are loaded in a different order.");
+    " change when file systems are loaded in a different order.");
 
 /*
  * A Zen vnode attribute structure.
