@@ -96,9 +96,9 @@ getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	int error;
 
 	error = fget_cap(td, fd, rightsp, &fp, havecapsp);
-	if (error != 0)
+	if (__predict_false(error != 0))
 		return (error);
-	if (fp->f_type != DTYPE_SOCKET) {
+	if (__predict_false(fp->f_type != DTYPE_SOCKET)) {
 		fdrop(fp, td);
 		if (havecapsp != NULL)
 			filecaps_free(havecapsp);
