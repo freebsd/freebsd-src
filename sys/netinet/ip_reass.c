@@ -633,16 +633,27 @@ ipreass_reschedule(struct ipqbucket *bucket)
 static void
 ipreass_drain_vnet(void)
 {
+	u_int dropped = 0;
 
 	for (int i = 0; i < V_ipq_hashsize; i++) {
+		bool resched;
+
 		IPQ_LOCK(i);
-		while(!TAILQ_EMPTY(&V_ipq[i].head))
-			ipq_drop(&V_ipq[i], TAILQ_FIRST(&V_ipq[i].head));
+		resched = !TAILQ_EMPTY(&V_ipq[i].head);
+		while(!TAILQ_EMPTY(&V_ipq[i].head)) {
+			struct ipq *fp = TAILQ_FIRST(&V_ipq[i].head);
+
+			dropped += fp->ipq_nfrags;
+			ipq_free(&V_ipq[i], fp);
+		}
+		if (resched)
+			ipreass_reschedule(&V_ipq[i]);
 		KASSERT(V_ipq[i].count == 0,
 		    ("%s: V_ipq[%d] count %d (V_ipq=%p)", __func__, i,
 		    V_ipq[i].count, V_ipq));
 		IPQ_UNLOCK(i);
 	}
+	IPSTAT_ADD(ips_fragdropped, dropped);
 }
 
 /*
