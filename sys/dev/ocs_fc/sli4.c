@@ -5669,7 +5669,7 @@ int32_t sli_raise_ue(sli4_t *sli4, uint8_t dump)
 
 /**
  * @ingroup sli
- * @brief Read the SLIPORT_STATUS register to to check if a dump is present.
+ * @brief Read the SLIPORT_STATUS register to check if a dump is present.
  *
  * @param sli4 SLI context.
  *
