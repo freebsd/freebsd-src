@@ -1362,6 +1362,8 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
 
     setOperationAction(ISD::SINT_TO_FP,         MVT::v8i32, Custom);
     setOperationAction(ISD::STRICT_SINT_TO_FP,  MVT::v8i32, Custom);
+    setOperationAction(ISD::FP_EXTEND,          MVT::v8f32, Expand);
+    setOperationAction(ISD::FP_ROUND,           MVT::v8f16, Expand);
     setOperationAction(ISD::FP_EXTEND,          MVT::v4f64, Custom);
     setOperationAction(ISD::STRICT_FP_EXTEND,   MVT::v4f64, Custom);
 
@@ -1519,7 +1521,7 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
     // Extract subvector is special because the value type
     // (result) is 128-bit but the source is 256-bit wide.
     for (auto VT : { MVT::v16i8, MVT::v8i16, MVT::v4i32, MVT::v2i64,
-                     MVT::v4f32, MVT::v2f64 }) {
+                     MVT::v8f16, MVT::v4f32, MVT::v2f64 }) {
       setOperationAction(ISD::EXTRACT_SUBVECTOR, VT, Legal);
     }
 
@@ -1859,7 +1861,7 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
     // (result) is 256-bit but the source is 512-bit wide.
     // 128-bit was made Legal under AVX1.
     for (auto VT : { MVT::v32i8, MVT::v16i16, MVT::v8i32, MVT::v4i64,
-                     MVT::v8f32, MVT::v4f64 })
+                     MVT::v16f16, MVT::v8f32, MVT::v4f64 })
       setOperationAction(ISD::EXTRACT_SUBVECTOR, VT, Legal);
 
     for (auto VT : { MVT::v64i8, MVT::v32i16, MVT::v16i32, MVT::v8i64,
@@ -16120,16 +16122,18 @@ static SDValue lowerV8F16Shuffle(const SDLoc &DL, ArrayRef<int> Mask,
   assert(Mask.size() == 8 && "Unexpected mask size for v8 shuffle!");
   int NumV2Elements = count_if(Mask, [](int M) { return M >= 8; });
 
-  if (NumV2Elements == 0) {
-    // Check for being able to broadcast a single element.
-    if (SDValue Broadcast = lowerShuffleAsBroadcast(DL, MVT::v8f16, V1, V2,
-                                                    Mask, Subtarget, DAG))
-      return Broadcast;
+  if (Subtarget.hasFP16()) {
+    if (NumV2Elements == 0) {
+      // Check for being able to broadcast a single element.
+      if (SDValue Broadcast = lowerShuffleAsBroadcast(DL, MVT::v8f16, V1, V2,
+                                                      Mask, Subtarget, DAG))
+        return Broadcast;
+    }
+    if (NumV2Elements == 1 && Mask[0] >= 8)
+      if (SDValue V = lowerShuffleAsElementInsertion(
+              DL, MVT::v8f16, V1, V2, Mask, Zeroable, Subtarget, DAG))
+        return V;
   }
-  if (NumV2Elements == 1 && Mask[0] >= 8)
-    if (SDValue V = lowerShuffleAsElementInsertion(DL, MVT::v8f16, V1, V2, Mask,
-                                                   Zeroable, Subtarget, DAG))
-      return V;
 
   V1 = DAG.getBitcast(MVT::v8i16, V1);
   V2 = DAG.getBitcast(MVT::v8i16, V2);
@@ -32701,7 +32705,28 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
                     N->getOpcode() == ISD::STRICT_FP_TO_SINT;
     EVT VT = N->getValueType(0);
     SDValue Src = N->getOperand(IsStrict ? 1 : 0);
+    SDValue Chain = IsStrict ? N->getOperand(0) : SDValue();
     EVT SrcVT = Src.getValueType();
+
+    SDValue Res;
+    if (isSoftFP16(SrcVT)) {
+      EVT NVT = VT.isVector() ? VT.changeVectorElementType(MVT::f32) : MVT::f32;
+      if (IsStrict) {
+        Res =
+            DAG.getNode(N->getOpcode(), dl, {VT, MVT::Other},
+                        {Chain, DAG.getNode(ISD::STRICT_FP_EXTEND, dl,
+                                            {NVT, MVT::Other}, {Chain, Src})});
+        Chain = Res.getValue(1);
+      } else {
+        Res = DAG.getNode(N->getOpcode(), dl, VT,
+                          DAG.getNode(ISD::FP_EXTEND, dl, NVT, Src));
+      }
+      Results.push_back(Res);
+      if (IsStrict)
+        Results.push_back(Chain);
+
+      return;
+    }
 
     if (VT.isVector() && Subtarget.hasFP16() &&
         SrcVT.getVectorElementType() == MVT::f16) {
@@ -32716,7 +32741,6 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
         Src = DAG.getNode(ISD::CONCAT_VECTORS, dl, MVT::v8f16, Ops);
       }
 
-      SDValue Res, Chain;
       if (IsStrict) {
         unsigned Opc =
             IsSigned ? X86ISD::STRICT_CVTTP2SI : X86ISD::STRICT_CVTTP2UI;
@@ -32908,7 +32932,6 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
       return;
     }
 
-    SDValue Chain;
     if (SDValue V = FP_TO_INTHelper(SDValue(N, 0), DAG, IsSigned, Chain)) {
       Results.push_back(V);
       if (IsStrict)

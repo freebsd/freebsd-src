@@ -15603,6 +15603,8 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
               resultType->castAs<VectorType>()->getVectorKind() !=
               VectorType::AltiVecBool))
       break;
+    else if (resultType->isVLSTBuiltinType()) // SVE vectors allow + and -
+      break;
     else if (getLangOpts().CPlusPlus && // C++ [expr.unary.op]p6
              Opc == UO_Plus &&
              resultType->isPointerType())
@@ -17596,6 +17598,11 @@ static void RemoveNestedImmediateInvocation(
     }
     ExprResult TransformDeclRefExpr(DeclRefExpr *E) {
       DRSet.erase(E);
+      return E;
+    }
+    ExprResult TransformLambdaExpr(LambdaExpr *E) {
+      // Do not rebuild lambdas to avoid creating a new type.
+      // Lambdas have already been processed inside their eval context.
       return E;
     }
     bool AlwaysRebuild() { return false; }
