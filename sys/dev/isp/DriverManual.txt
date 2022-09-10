@@ -331,7 +331,7 @@ is the registry of a function that the SCSI subsystem for this platform
 will call when it has a SCSI command to run.
 
 The platform specific module function that receives this will do whatever
-it needs to to prepare this command for execution in the core module. This
+it needs to prepare this command for execution in the core module. This
 sounds vague, but it's also very flexible. In principle, this could be
 a complete marshalling/demarshalling of this platform's SCSI command
 structure (should it be impossible to represent in an XS_T). In addition,
