@@ -50,7 +50,7 @@ __kernel_tandf(double x, int iy)
 	 * We add the small terms from lowest degree up for efficiency on
 	 * non-sequential machines (the lowest degree terms tend to be ready
 	 * earlier).  Apart from this, we don't care about order of
-	 * operations, and don't need to to care since we have precision to
+	 * operations, and don't need to care since we have precision to
 	 * spare.  However, the chosen splitting is good for accuracy too,
 	 * and would give results as accurate as Horner's method if the
 	 * small terms were added from highest degree down.
