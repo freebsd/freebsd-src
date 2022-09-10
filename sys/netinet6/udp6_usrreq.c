@@ -722,7 +722,7 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	sin6 = (struct sockaddr_in6 *)addr6;
 
 	/*
-	 * In contrast to to IPv4 we do not validate the max. packet length
+	 * In contrast to IPv4 we do not validate the max. packet length
 	 * here due to IPv6 Jumbograms (RFC2675).
 	 */
 
