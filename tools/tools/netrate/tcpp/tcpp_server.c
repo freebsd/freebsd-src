@@ -54,7 +54,7 @@
  * Server side -- create a pool of processes, each listening on its own TCP
  * port number for new connections.  The first 8 bytes of each connection
  * will be a network byte order length, then there will be that number of
- * bytes of data.  We use non-blocking sockets with kqueue to to avoid the
+ * bytes of data.  We use non-blocking sockets with kqueue to avoid the
  * overhead of threading or more than one process per processor, which makes
  * things a bit awkward when dealing with data we care about.  As such, we
  * read into a small character buffer which we then convert to a length once
