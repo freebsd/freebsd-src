@@ -52,7 +52,7 @@ _objroot ?= ${_OBJROOT:tA}
 # make sure this is global
 _STAGED_DIRS ?=
 .export _STAGED_DIRS
-# add each dir we stage to to _STAGED_DIRS
+# add each dir we stage to _STAGED_DIRS
 # and make sure we have absolute paths so that bmake
 # will match against .MAKE.META.BAILIWICK
 STAGE_DIR_FILTER = tA:@d@$${_STAGED_DIRS::+=$$d}$$d@
