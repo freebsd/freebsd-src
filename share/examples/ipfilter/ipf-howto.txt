@@ -1260,7 +1260,7 @@ your firewall.
 
 keep frags keyword.  With it, IPF will notice and keep track
 of  packets that are fragmented, allowing the expected frag-
-ments to to go through.  Let's rewrite the 3  rules  to  log
+ments to go through.  Let's rewrite the 3  rules  to  log
 forgeries and allow fragments:
 
     pass  in  quick on tun0 proto tcp from any to 20.20.20.1/32 port = 23 flags S keep state keep frags
