@@ -2809,7 +2809,7 @@ tap_alloc(char *dev)
 
 	/* try to create the device */
 	if( (err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ) {
-		D("failed to to a TUNSETIFF: %s", strerror(errno));
+		D("failed to do a TUNSETIFF: %s", strerror(errno));
 		close(fd);
 		return err;
 	}
