@@ -1904,9 +1904,6 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	struct mount *mp;
 	int error;
 
-	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
-	    ("V_MNTREF requires mp"));
-
 	error = 0;
 	/*
 	 * If a vnode is provided, get and return the mount point that
@@ -1930,7 +1927,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	 * refcount for the provided mountpoint too, in order to
 	 * emulate a vfs_ref().
 	 */
-	if (vp == NULL && (flags & V_MNTREF) == 0)
+	if (vp == NULL)
 		vfs_ref(mp);
 
 	return (vn_start_write_refed(mp, flags, false));
@@ -1948,9 +1945,6 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
 	int error;
-
-	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
-	    ("V_MNTREF requires mp"));
 
  retry:
 	if (vp != NULL) {
@@ -1976,7 +1970,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	 * emulate a vfs_ref().
 	 */
 	MNT_ILOCK(mp);
-	if (vp == NULL && (flags & V_MNTREF) == 0)
+	if (vp == NULL)
 		MNT_REF(mp);
 	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
