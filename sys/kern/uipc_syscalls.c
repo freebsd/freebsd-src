@@ -348,7 +348,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	    &headfp, &fcaps);
 	if (error != 0)
 		return (error);
-	fflag = atomic_load_int(&fp->f_flag);
+	fflag = atomic_load_int(&headfp->f_flag);
 	head = headfp->f_data;
 	if (!SOLISTENING(head)) {
 		error = EINVAL;
