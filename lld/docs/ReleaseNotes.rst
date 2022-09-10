@@ -5,13 +5,6 @@ lld |release| Release Notes
 .. contents::
     :local:
 
-.. only:: PreRelease
-
-  .. warning::
-     These are in-progress notes for the upcoming LLVM |release| release.
-     Release notes for previous releases can be found on
-     `the Download Page <https://releases.llvm.org/download.html>`_.
-
 Introduction
 ============
 
@@ -98,7 +91,7 @@ MachO Improvements
 
 * We now support proper relocation and pruning of EH frames. **Note:** this
   comes at some performance overhead on x86_64 builds, and we recommend adding
-  the ``-femit-compact-unwind=no-compact-unwind`` compile flag to avoid it.
+  the ``-femit-dwarf-unwind=no-compact-unwind`` compile flag to avoid it.
   (`D129540 <https://reviews.llvm.org/D129540>`_,
   `D122258 <https://reviews.llvm.org/D122258>`_)
 
@@ -212,6 +205,8 @@ Fixes
   errors. (`D122624 <https://reviews.llvm.org/D122624>`_)
 * Fixed handling of relocatable object files within frameworks.
   (`D114841 <https://reviews.llvm.org/D114841>`_)
+* Fixed the PPC64R2SaveStub to only use non-pc-relative code.
+  (`D129580 <https://reviews.llvm.org/D129580>`_)
 
 WebAssembly Improvements
 ------------------------
