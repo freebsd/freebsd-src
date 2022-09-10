@@ -963,7 +963,7 @@ SCI_STATUS scic_sds_remote_node_context_await_suspension_state_resume_handler(
 *
 * @param[in] this_rnc The remote node context which is to receive the task
 *       request.
-* @param[in] the_request The task request to be transmitted to to the remote
+* @param[in] the_request The task request to be transmitted to the remote
 *       target device.
 *
 * @return SCI_STATUS
