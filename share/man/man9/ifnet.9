@@ -736,9 +736,9 @@ This Ethernet interface supports TCP6 Segmentation offloading.
 A shorthand for
 .Pq Dv IFCAP_TSO4 | IFCAP_TSO6 .
 .It Dv IFCAP_TOE4
-This Ethernet interface supports TCP offloading.
+This Ethernet interface supports TCP4 Offload Engine.
 .It Dv IFCAP_TOE6
-This Ethernet interface supports TCP6 offloading.
+This Ethernet interface supports TCP6 Offload Engine.
 .It Dv IFCAP_TOE
 A shorthand for
 .Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
@@ -753,13 +753,6 @@ as those sent by
 .It Dv IFCAP_WOL
 A shorthand for
 .Pq Dv IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC .
-.It Dv IFCAP_TOE4
-This Ethernet interface supports TCP4 Offload Engine.
-.It Dv IFCAP_TOE6
-This Ethernet interface supports TCP6 Offload Engine.
-.It Dv IFCAP_TOE
-A shorthand for
-.Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
 .It Dv IFCAP_VLAN_HWFILTER
 This interface supports frame filtering in hardware on
 .Xr vlan 4
