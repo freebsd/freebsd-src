@@ -802,7 +802,7 @@ usbhid_probe(device_t dev)
 	if (hid_test_quirk(&sc->sc_hw, HQ_HID_IGNORE))
 		return (ENXIO);
 
-	return (BUS_PROBE_GENERIC + 1);
+	return (BUS_PROBE_DEFAULT + 1);
 }
 
 static int
