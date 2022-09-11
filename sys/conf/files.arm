@@ -99,7 +99,10 @@ dev/psci/psci.c			optional	psci
 dev/psci/smccc_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
-dev/usb/controller/dwc3.c	optional	fdt dwc3
+
+dev/usb/controller/dwc3.c		optional	fdt dwc3
+dev/usb/controller/generic_xhci.c	optional	xhci
+dev/usb/controller/generic_xhci_fdt.c	optional	xhci fdt
 
 kern/msi_if.m			optional	intrng
 kern/pic_if.m			optional	intrng
