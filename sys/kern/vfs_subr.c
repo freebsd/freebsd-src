@@ -1918,7 +1918,12 @@ freevnode(struct vnode *vp)
 	mac_vnode_destroy(vp);
 #endif
 	if (vp->v_pollinfo != NULL) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		/*
+		 * Use LK_NOWAIT to shut up witness about the lock. We may get
+		 * here while having another vnode locked when trying to
+		 * satisfy a lookup and needing to recycle.
+		 */
+		VOP_LOCK(vp, LK_EXCLUSIVE | LK_NOWAIT);
 		destroy_vpollinfo(vp->v_pollinfo);
 		VOP_UNLOCK(vp);
 		vp->v_pollinfo = NULL;
