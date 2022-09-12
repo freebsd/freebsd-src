@@ -74,6 +74,12 @@ __FBSDID("$FreeBSD$");
 #define	NAMEI_DIAGNOSTIC 1
 #undef NAMEI_DIAGNOSTIC
 
+#ifdef INVARIANTS
+static void NDVALIDATE(struct nameidata *);
+#else
+#define NDVALIDATE(ndp) do { } while (0)
+#endif
+
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
@@ -1643,7 +1649,7 @@ void
  * stricter over time.
  */
 #define NDMODIFYINGFLAGS (LOCKLEAF | LOCKPARENT | WANTPARENT | SAVENAME | SAVESTART | HASBUF)
-void
+static void
 NDVALIDATE(struct nameidata *ndp)
 {
 	struct componentname *cnp;

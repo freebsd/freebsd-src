@@ -298,10 +298,8 @@ void NDFREE(struct nameidata *, const u_int);
 
 #ifdef INVARIANTS
 void NDFREE_NOTHING(struct nameidata *);
-void NDVALIDATE(struct nameidata *);
 #else
 #define NDFREE_NOTHING(ndp)	do { } while (0)
-#define NDVALIDATE(ndp)	do { } while (0)
 #endif
 
 int	namei(struct nameidata *ndp);
