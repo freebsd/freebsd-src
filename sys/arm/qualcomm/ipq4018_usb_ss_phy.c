@@ -192,8 +192,6 @@ fail:
 static int
 ipq4018_usb_ss_usbphy_detach(device_t dev)
 {
-	struct ipq4018_usb_ss_phy_softc *sc;
-	sc = device_get_softc(dev);
 
 	return (0);
 }
