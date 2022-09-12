@@ -169,8 +169,8 @@ SYSCTL_PROC(_vm, OID_AUTO, swap_total, CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE
     &swap_total, 0, sysctl_page_shift, "QU",
     "Total amount of available swap storage.");
 
-static int overcommit = 0;
-SYSCTL_INT(_vm, VM_OVERCOMMIT, overcommit, CTLFLAG_RW, &overcommit, 0,
+int vm_overcommit = 0;
+SYSCTL_INT(_vm, VM_OVERCOMMIT, overcommit, CTLFLAG_RW, &vm_overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
 static unsigned long swzone;
@@ -189,11 +189,6 @@ static COUNTER_U64_DEFINE_EARLY(swap_free_completed);
 SYSCTL_COUNTER_U64(_vm_stats_swap, OID_AUTO, free_completed,
     CTLFLAG_RD, &swap_free_completed,
     "Number of deferred frees completed");
-
-/* bits from overcommit */
-#define	SWAP_RESERVE_FORCE_ON		(1 << 0)
-#define	SWAP_RESERVE_RLIMIT_ON		(1 << 1)
-#define	SWAP_RESERVE_ALLOW_NONWIRED	(1 << 2)
 
 static int
 sysctl_page_shift(SYSCTL_HANDLER_ARGS)
@@ -286,7 +281,7 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	prev = atomic_fetchadd_long(&swap_reserved, pincr);
 	r = prev + pincr;
 	s = swap_total;
-	oc = atomic_load_int(&overcommit);
+	oc = atomic_load_int(&vm_overcommit);
 	if (r > s && (oc & SWAP_RESERVE_ALLOW_NONWIRED) != 0) {
 		s += vm_cnt.v_page_count - vm_cnt.v_free_reserved -
 		    vm_wire_count();

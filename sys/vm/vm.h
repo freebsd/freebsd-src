@@ -165,6 +165,12 @@ extern int old_mlock;
 
 extern int vm_ndomains;
 
+/* bits from overcommit */
+#define	SWAP_RESERVE_FORCE_ON		(1 << 0)
+#define	SWAP_RESERVE_RLIMIT_ON		(1 << 1)
+#define	SWAP_RESERVE_ALLOW_NONWIRED	(1 << 2)
+extern int vm_overcommit;
+
 #ifdef _KERNEL
 struct ucred;
 bool swap_reserve(vm_ooffset_t incr);
