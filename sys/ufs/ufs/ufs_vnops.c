@@ -190,6 +190,11 @@ ufs_itimes_locked(struct vnode *vp)
 void
 ufs_itimes(struct vnode *vp)
 {
+	struct inode *ip;
+
+	ip = VTOI(vp);
+	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
+		return;
 
 	VI_LOCK(vp);
 	ufs_itimes_locked(vp);
