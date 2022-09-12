@@ -351,13 +351,8 @@ ufs_close(
 	} */ *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	int usecount;
 
-	VI_LOCK(vp);
-	usecount = vp->v_usecount;
-	if (usecount > 1)
-		ufs_itimes_locked(vp);
-	VI_UNLOCK(vp);
+	ufs_itimes(vp);
 	return (0);
 }
 
@@ -2645,14 +2640,8 @@ ufsfifo_close(
 		struct thread *a_td;
 	} */ *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	int usecount;
 
-	VI_LOCK(vp);
-	usecount = vp->v_usecount;
-	if (usecount > 1)
-		ufs_itimes_locked(vp);
-	VI_UNLOCK(vp);
+	ufs_close(ap);
 	return (fifo_specops.vop_close(ap));
 }
 
