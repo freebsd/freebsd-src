@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
@@ -155,8 +155,7 @@ singlethread_map_stacks_exec(void)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_USRSTACK;
 	len = sizeof(usrstack);
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), &usrstack, &len, NULL, 0)
-	    == -1)
+	if (sysctl(mib, nitems(mib), &usrstack, &len, NULL, 0) == -1)
 		return;
 	if (getrlimit(RLIMIT_STACK, &rlim) == -1)
 		return;
