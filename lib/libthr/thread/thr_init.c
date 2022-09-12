@@ -37,7 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/signalvar.h>
 #include <sys/ioctl.h>
 #include <sys/link_elf.h>
@@ -466,7 +466,7 @@ init_private(void)
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;
 		len = sizeof (_usrstack);
-		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
+		if (sysctl(mib, nitems(mib), &_usrstack, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
 		env_bigstack = getenv("LIBPTHREAD_BIGSTACK_MAIN");
 		env_splitstack = getenv("LIBPTHREAD_SPLITSTACK_MAIN");
