@@ -11,6 +11,7 @@
 #ifdef JEMALLOC_SYSCTL_VM_OVERCOMMIT
 #include <sys/sysctl.h>
 #ifdef __FreeBSD__
+#include <sys/auxv.h>
 #include <vm/vm_param.h>
 #include <vm/vm.h>
 #endif
@@ -440,6 +441,13 @@ static bool
 os_overcommits_sysctl(void) {
 	int vm_overcommit;
 	size_t sz;
+
+#ifdef ELF_BSDF_VMNOOVERCOMMIT
+	int bsdflags;
+
+	if (_elf_aux_info(AT_BSDFLAGS, &bsdflags, sizeof(bsdflags)) == 0)
+		return ((bsdflags & ELF_BSDF_VMNOOVERCOMMIT) == 0);
+#endif
 
 	sz = sizeof(vm_overcommit);
 #if defined(__FreeBSD__) && defined(VM_OVERCOMMIT)
