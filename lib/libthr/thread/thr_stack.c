@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/auxv.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
@@ -149,18 +150,23 @@ singlethread_map_stacks_exec(void)
 {
 	int mib[2];
 	struct rlimit rlim;
-	u_long usrstack;
+	u_long usrstack, stacksz;
 	size_t len;
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_USRSTACK;
-	len = sizeof(usrstack);
-	if (sysctl(mib, nitems(mib), &usrstack, &len, NULL, 0) == -1)
-		return;
-	if (getrlimit(RLIMIT_STACK, &rlim) == -1)
-		return;
-	mprotect((void *)(uintptr_t)(usrstack - rlim.rlim_cur),
-	    rlim.rlim_cur, _rtld_get_stack_prot());
+	if (elf_aux_info(AT_USRSTACKBASE, &usrstack, sizeof(usrstack)) != 0) {
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_USRSTACK;
+		len = sizeof(usrstack);
+		if (sysctl(mib, nitems(mib), &usrstack, &len, NULL, 0) == -1)
+			return;
+	}
+	if (elf_aux_info(AT_USRSTACKLIM, &stacksz, sizeof(stacksz)) != 0) {
+		if (getrlimit(RLIMIT_STACK, &rlim) == -1)
+			return;
+		stacksz = rlim.rlim_cur;
+	}
+	mprotect((void *)(uintptr_t)(usrstack - stacksz), stacksz,
+	    _rtld_get_stack_prot());
 }
 
 void
