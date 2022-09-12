@@ -1128,8 +1128,7 @@ inp_unlock6:
 		INP_RUNLOCK(inp);
 
 ret6:
-	/* Returning 0 ensures pfil will not discard the pkt. */
-	return (0);
+	return (PFIL_PASS);
 }
 #endif /* #ifdef SIFTR_IPV6 */
 
