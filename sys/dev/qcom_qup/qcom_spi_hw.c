@@ -723,14 +723,14 @@ qcom_spi_hw_ack_write_pio_fifo(struct qcom_spi_softc *sc)
 int
 qcom_spi_hw_ack_opmode(struct qcom_spi_softc *sc)
 {
-	uint32_t reg;
 
 	QCOM_SPI_ASSERT_LOCKED(sc);
 
 	QCOM_SPI_BARRIER_READ(sc);
-	reg = QCOM_SPI_READ_4(sc, QUP_OPERATIONAL);
+	QCOM_SPI_READ_4(sc, QUP_OPERATIONAL);
 	QCOM_SPI_WRITE_4(sc, QUP_OPERATIONAL, QUP_OP_OUT_SERVICE_FLAG);
 	QCOM_SPI_BARRIER_WRITE(sc);
+
 	return (0);
 
 }
