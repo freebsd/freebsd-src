@@ -389,8 +389,8 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 		return (SMB_EINVAL);
 	bcopy(buf, sc->block_data, count);
 	sc->block_count = count;
-	sc->block_index = 1;
-	sc->block_write = 1;
+	sc->block_index = 1;	/* buf[0] is written here */
+	sc->block_write = true;
 
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
@@ -413,26 +413,23 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	const sc_p sc = device_get_softc(dev);
 	int smb_error;
 
-	DBG("slave=0x%02x cmd=0x%02x count=%d\n", slave, (u_char)cmd, count);
+	DBG("slave=0x%02x cmd=0x%02x\n", slave, (u_char)cmd);
 	KASSERT(sc->ich_cmd == -1,
 	    ("%s: ich_cmd=%d\n", __func__ , sc->ich_cmd));
-	if (*count < 1 || *count > 32)
-		return (SMB_EINVAL);
 	bzero(sc->block_data, sizeof(sc->block_data));
 	sc->block_count = 0;
 	sc->block_index = 0;
-	sc->block_write = 0;
+	sc->block_write = false;
 
 	mtx_lock(&sc->mutex);
 	sc->ich_cmd = ICH_HST_CNT_SMB_CMD_BLOCK;
 	bus_write_1(sc->io_res, ICH_XMIT_SLVA,
 	    slave | ICH_XMIT_SLVA_READ);
 	bus_write_1(sc->io_res, ICH_HST_CMD, cmd);
-	bus_write_1(sc->io_res, ICH_D0, *count); /* XXX? */
 	bus_write_1(sc->io_res, ICH_HST_CNT,
 	    ICH_HST_CNT_START | ICH_HST_CNT_INTREN | sc->ich_cmd);
 	if ((smb_error = ichsmb_wait(sc)) == SMB_ENOERR) {
-		bcopy(sc->block_data, buf, min(sc->block_count, *count));
+		bcopy(sc->block_data, buf, sc->block_count);
 		*count = sc->block_count;
 	}
 	mtx_unlock(&sc->mutex);
@@ -514,16 +511,24 @@ ichsmb_device_intr(void *cookie)
 
 		/* Check for unexpected interrupt */
 		ok_bits = ICH_HST_STA_SMBALERT_STS;
-		cmd_index = sc->ich_cmd >> 2;
+
+		if (sc->killed) {
+			sc->killed = 0;
+			ok_bits |= ICH_HST_STA_FAILED;
+			bus_write_1(sc->io_res, ICH_HST_CNT,
+			    ICH_HST_CNT_INTREN);
+		}
+
 		if (sc->ich_cmd != -1) {
+			cmd_index = sc->ich_cmd >> 2;
 			KASSERT(cmd_index < sizeof(ichsmb_state_irqs),
 			    ("%s: ich_cmd=%d", device_get_nameunit(dev),
 			    sc->ich_cmd));
 			ok_bits |= ichsmb_state_irqs[cmd_index];
 		}
 		if ((status & ~ok_bits) != 0) {
-			device_printf(dev, "irq 0x%02x during %d\n", status,
-			    cmd_index);
+			device_printf(dev, "irq 0x%02x during 0x%02x\n", status,
+			    sc->ich_cmd);
 			bus_write_1(sc->io_res,
 			    ICH_HST_STA, (status & ~ok_bits));
 			continue;
@@ -539,6 +544,12 @@ ichsmb_device_intr(void *cookie)
 					    "not logging anymore\n");
 				}
 			}
+		}
+
+		/* Check for killed / aborted command */
+		if (status & ICH_HST_STA_FAILED) {
+			sc->smb_error = SMB_EABORT;
+			goto finished;
 		}
 
 		/* Check for bus error */
@@ -569,6 +580,18 @@ ichsmb_device_intr(void *cookie)
 				if (sc->block_index == 0) {
 					sc->block_count = bus_read_1(
 					    sc->io_res, ICH_D0);
+					if (sc->block_count < 1 ||
+					    sc->block_count > 32) {
+						device_printf(dev, "block read "
+						    "wrong length: %d\n",
+						    sc->block_count);
+						bus_write_1(sc->io_res,
+						    ICH_HST_CNT,
+						    ICH_HST_CNT_KILL |
+						    ICH_HST_CNT_INTREN);
+						sc->block_count = 0;
+						sc->killed = true;
+					}
 				}
 
 				/* Get next byte, if any */
@@ -579,15 +602,17 @@ ichsmb_device_intr(void *cookie)
 					    bus_read_1(sc->io_res,
 					      ICH_BLOCK_DB);
 
-					/* Set "LAST_BYTE" bit before reading
-					   the last byte of block data */
-					if (sc->block_index
-					    >= sc->block_count - 1) {
+					/*
+					 * Set "LAST_BYTE" bit before reading
+					 * the last byte of block data
+					 */
+					if (sc->block_index ==
+					    sc->block_count - 1) {
 						bus_write_1(sc->io_res,
 						    ICH_HST_CNT,
-						    ICH_HST_CNT_LAST_BYTE
-							| ICH_HST_CNT_INTREN
-							| sc->ich_cmd);
+						    ICH_HST_CNT_LAST_BYTE |
+						    ICH_HST_CNT_INTREN |
+						    sc->ich_cmd);
 					}
 				}
 			}
