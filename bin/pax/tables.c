@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
  * large archives. These database routines carefully combine memory usage and
  * temporary file storage in ways which will not significantly impact runtime
  * performance while allowing the largest possible archives to be handled.
- * Trying to force the fit to the POSIX databases routines was not considered
+ * Trying to force the fit to the POSIX database routines was not considered
  * time well spent.
  */
 
@@ -311,9 +311,9 @@ lnk_end(void)
  * are stored in a scratch file and indexed by an in memory hash table. The
  * hash table is indexed by hashing the file path. The nodes in the table store
  * the length of the filename and the lseek offset within the scratch file
- * where the actual name is stored. Since there are never any deletions to this
- * table, fragmentation of the scratch file is never an issue. Lookups seem to
- * not exhibit any locality at all (files in the database are rarely
+ * where the actual name is stored. Since there are never any deletions from
+ * this table, fragmentation of the scratch file is never an issue. Lookups
+ * seem to not exhibit any locality at all (files in the database are rarely
  * looked up more than once...). So caching is just a waste of memory. The
  * only limitation is the amount of scratch file space available to store the
  * path names.
@@ -880,14 +880,14 @@ map_dev(ARCHD *arcn, u_long dev_mask, u_long ino_mask)
 /*
  * directory access/mod time reset table routines (for directories READ by pax)
  *
- * The pax -t flag requires that access times of archive files to be the same
+ * The pax -t flag requires that access times of archive files be the same
  * before being read by pax. For regular files, access time is restored after
  * the file has been copied. This database provides the same functionality for
  * directories read during file tree traversal. Restoring directory access time
  * is more complex than files since directories may be read several times until
  * all the descendants in their subtree are visited by fts. Directory access
  * and modification times are stored during the fts pre-order visit (done
- * before any descendants in the subtree is visited) and restored after the
+ * before any descendants in the subtree are visited) and restored after the
  * fts post-order visit (after all the descendants have been visited). In the
  * case of premature exit from a subtree (like from the effects of -n), any
  * directory entries left in this database are reset during final cleanup
@@ -966,7 +966,7 @@ add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
 	 * return (the older entry always has the correct time). The only
 	 * way this will happen is when the same subtree can be traversed by
 	 * different args to pax and the -n option is aborting fts out of a
-	 * subtree before all the post-order visits have been made).
+	 * subtree before all the post-order visits have been made.
 	 */
 	indx = ((unsigned)ino) % A_TAB_SZ;
 	if ((pt = atab[indx]) != NULL) {
