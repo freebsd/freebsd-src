@@ -202,7 +202,7 @@ extract(void)
 
 		/*
 		 * with -u or -D only extract when the archive member is newer
-		 * than the file with the same name in the file system (nos
+		 * than the file with the same name in the file system (no
 		 * test of being the same type is required).
 		 * NOTE: this test is done BEFORE name modifications as
 		 * specified by pax. this operation can be confusing to the
@@ -387,7 +387,8 @@ wr_archive(ARCHD *arcn, int is_app)
 		return;
 
 	/*
-	 * if this not append, and there are no files, we do no write a trailer
+	 * if this is not append, and there are no files, we do not write a
+	 * trailer
 	 */
 	wr_one = is_app;
 

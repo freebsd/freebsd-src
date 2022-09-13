@@ -199,7 +199,7 @@ cp_start(void)
  *	A major problem is rewriting this last record. For archives stored
  *	on disk files, this is trivial. However, many devices are really picky
  *	about the conditions under which they will allow a write to occur.
- *	Often devices restrict the conditions where writes can be made writes,
+ *	Often devices restrict the conditions where writes can be made,
  *	so it may not be feasible to append archives stored on all types of
  *	devices.
  * Return:
