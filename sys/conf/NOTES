@@ -651,13 +651,13 @@ options 	INET6			#IPv6 communications protocols
 #
 # Note if you include INET/INET6 or both options
 # You *must* define at least one of the congestion control
-# options or the compile will fail. Generic defines
-# options CC_NEWRENO. You also will need to specify
-# a default or the compile of your kernel will fail
-# as well. The string in default is the name of the
+# options or the compile will fail. GENERIC defines
+# options CC_CUBIC. You may want to specify a default
+# if multiple congestion controls are compiled in.
+# The string in default is the name of the
 # cc module as it would appear in the sysctl for
-# setting the default. Generic defines newreno
-# as shown below.
+# setting the default. The code defines CUBIC
+# as default, or the sole cc_module compiled in.
 #
 options 	CC_CDG
 options 	CC_CHD
@@ -667,8 +667,8 @@ options 	CC_HD
 options 	CC_HTCP
 options 	CC_NEWRENO
 options 	CC_VEGAS
-options		CC_DEFAULT=\"newreno\"
-options		RATELIMIT		# TX rate limiting support
+options 	CC_DEFAULT=\"cubic\"
+options 	RATELIMIT		# TX rate limiting support
 
 options 	ROUTETABLES=2		# allocated fibs up to 65536. default is 1.
 					# but that would be a bad idea as they are large.

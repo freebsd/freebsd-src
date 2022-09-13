@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2021
+.Dd September 13, 2022
 .Dt CC_CUBIC 4
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Sh DESCRIPTION
 The CUBIC congestion control algorithm was designed to provide increased
 throughput in fast and long-distance networks.
+The CUBIC congestion control algorithm is the default for TCP.
 It attempts to maintain fairness when competing with legacy NewReno TCP in lower
 speed scenarios where NewReno is able to operate adequately.
 .Pp
