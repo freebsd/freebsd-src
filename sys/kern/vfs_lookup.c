@@ -689,16 +689,15 @@ namei(struct nameidata *ndp)
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			SDT_PROBE4(vfs, namei, lookup, return, error,
-			    (error == 0 ? ndp->ni_vp : NULL), false, ndp);
+			    ndp->ni_vp, false, ndp);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
 				cnp->cn_flags |= HASBUF;
 			nameicap_cleanup(ndp);
 			pwd_drop(pwd);
-			if (error == 0)
-				NDVALIDATE(ndp);
-			return (error);
+			NDVALIDATE(ndp);
+			return (0);
 		}
 		error = namei_follow_link(ndp);
 		if (error != 0)
