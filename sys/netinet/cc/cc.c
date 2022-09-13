@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * Have a sane default if no CC_DEFAULT is specified in the kernel config file.
  */
 #ifndef CC_DEFAULT
-#define CC_DEFAULT "newreno"
+#define CC_DEFAULT "cubic"
 #endif
 
 uint32_t hystart_minrtt_thresh = 4000;

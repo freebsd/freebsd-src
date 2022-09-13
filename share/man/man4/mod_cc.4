@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2019
+.Dd September 13, 2022
 .Dt MOD_CC 4
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@ using the
 .Xr kld 4
 facility.
 .Pp
-The default algorithm is NewReno, and all connections use the default unless
+The default algorithm is CUBIC, and all connections use the default unless
 explicitly overridden using the
 .Dv TCP_CONGESTION
 socket option (see
@@ -127,7 +127,7 @@ For further explanation please see the internet-draft.
 .Pp
 Each congestion control module may also expose other MIB variables
 to control their behaviour.
-Note that both newreno and cubic now support hystart++ based on the version 3 of the internet-draft.
+Note that both NewReno and CUBIC now support Hystart++ based on the version 3 of the internet-draft.
 .Sh Kernel Configuration
 All of the available congestion control modules may also be loaded
 via kernel configutation options.
@@ -138,10 +138,10 @@ Compilation of the kernel will fail if these two conditions are not met.
 The framework exposes the following kernel configuration options.
 .Bl -tag -width ".Va CC_NEWRENO"
 .It Va CC_NEWRENO
-This directive loads the newreno congestion control algorithm and is included
-in GENERIC by default.
+This directive loads the NewReno congestion control algorithm.
 .It Va CC_CUBIC
-This directive loads the cubic congestion control algorithm.
+This directive loads the CUBIC congestion control algorithm and is included
+in GENERIC by default.
 .It Va CC_VEGAS
 This directive loads the vegas congestion control algorithm, note that
 this algorithm also requires the TCP_HHOOK option as well.
@@ -160,7 +160,7 @@ this algorithm also requires the TCP_HHOOK option as well.
 This directive loads the htcp congestion control algorithm.
 .It Va CC_DEFAULT
 This directive specifies the string that represents the name of the system default algorithm, the GENERIC kernel
-defaults this to newreno.
+defaults this to CUBIC.
 .El
 .Sh SEE ALSO
 .Xr cc_cdg 4 ,
