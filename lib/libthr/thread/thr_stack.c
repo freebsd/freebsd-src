@@ -148,25 +148,13 @@ _thr_stack_fix_protection(struct pthread *thrd)
 static void
 singlethread_map_stacks_exec(void)
 {
-	int mib[2];
-	struct rlimit rlim;
-	u_long usrstack, stacksz;
-	size_t len;
+	char *usrstack;
+	size_t stacksz;
 
-	if (elf_aux_info(AT_USRSTACKBASE, &usrstack, sizeof(usrstack)) != 0) {
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_USRSTACK;
-		len = sizeof(usrstack);
-		if (sysctl(mib, nitems(mib), &usrstack, &len, NULL, 0) == -1)
-			return;
-	}
-	if (elf_aux_info(AT_USRSTACKLIM, &stacksz, sizeof(stacksz)) != 0) {
-		if (getrlimit(RLIMIT_STACK, &rlim) == -1)
-			return;
-		stacksz = rlim.rlim_cur;
-	}
-	mprotect((void *)(uintptr_t)(usrstack - stacksz), stacksz,
-	    _rtld_get_stack_prot());
+	if (!__thr_get_main_stack_base(&usrstack) ||
+	    !__thr_get_main_stack_lim(&stacksz))
+		return;
+	mprotect(usrstack - stacksz, stacksz, _rtld_get_stack_prot());
 }
 
 void
