@@ -1586,6 +1586,8 @@ dev/dc/pnphy.c			optional dc pci
 dev/dcons/dcons.c		optional dcons
 dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
+dev/dialog/da9063/da9063_if.m	optional da9063_pmic
+dev/dialog/da9063/da9063_iic.c	optional da9063_pmic iicbus fdt
 dev/dme/if_dme.c		optional dme
 dev/drm2/drm_agpsupport.c	optional drm2
 dev/drm2/drm_auth.c		optional drm2
