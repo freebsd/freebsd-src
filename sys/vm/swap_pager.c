@@ -213,7 +213,8 @@ swap_reserve_by_cred_rlimit(u_long pincr, struct ucred *cred, int oc)
 	    prev + pincr > lim_cur(curthread, RLIMIT_SWAP) &&
 	    priv_check(curthread, PRIV_VM_SWAP_NORLIMIT) != 0) {
 		prev = atomic_fetchadd_long(&uip->ui_vmsize, -pincr);
-		KASSERT(prev >= pincr, ("negative vmsize for uid = %d\n", uip->ui_uid));
+		KASSERT(prev >= pincr,
+		    ("negative vmsize for uid %d\n", uip->ui_uid));
 		return (false);
 	}
 	return (true);
@@ -231,7 +232,8 @@ swap_release_by_cred_rlimit(u_long pdecr, struct ucred *cred)
 
 #ifdef INVARIANTS
 	prev = atomic_fetchadd_long(&uip->ui_vmsize, -pdecr);
-	KASSERT(prev >= pdecr, ("negative vmsize for uid = %d\n", uip->ui_uid));
+	KASSERT(prev >= pdecr,
+	    ("negative vmsize for uid %d\n", uip->ui_uid));
 #else
 	atomic_subtract_long(&uip->ui_vmsize, pdecr);
 #endif
@@ -264,8 +266,8 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	static int curfail;
 	static struct timeval lastfail;
 
-	KASSERT((incr & PAGE_MASK) == 0, ("%s: incr: %ju & PAGE_MASK", __func__,
-	    (uintmax_t)incr));
+	KASSERT((incr & PAGE_MASK) == 0, ("%s: incr: %ju & PAGE_MASK",
+	    __func__, (uintmax_t)incr));
 
 #ifdef RACCT
 	if (RACCT_ENABLED()) {
@@ -289,13 +291,15 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	if ((oc & SWAP_RESERVE_FORCE_ON) != 0 && r > s &&
 	    priv_check(curthread, PRIV_VM_SWAP_NOQUOTA) != 0) {
 		prev = atomic_fetchadd_long(&swap_reserved, -pincr);
-		KASSERT(prev >= pincr, ("swap_reserved < incr on overcommit fail"));
+		KASSERT(prev >= pincr,
+		    ("swap_reserved < incr on overcommit fail"));
 		goto out_error;
 	}
 
 	if (!swap_reserve_by_cred_rlimit(pincr, cred, oc)) {
 		prev = atomic_fetchadd_long(&swap_reserved, -pincr);
-		KASSERT(prev >= pincr, ("swap_reserved < incr on overcommit fail"));
+		KASSERT(prev >= pincr,
+		    ("swap_reserved < incr on overcommit fail"));
 		goto out_error;
 	}
 
@@ -303,7 +307,8 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 
 out_error:
 	if (ppsratecheck(&lastfail, &curfail, 1)) {
-		printf("uid %d, pid %d: swap reservation for %jd bytes failed\n",
+		printf("uid %d, pid %d: swap reservation "
+		    "for %jd bytes failed\n",
 		    cred->cr_ruidinfo->ui_uid, curproc->p_pid, incr);
 	}
 #ifdef RACCT
@@ -322,8 +327,8 @@ swap_reserve_force(vm_ooffset_t incr)
 {
 	u_long pincr;
 
-	KASSERT((incr & PAGE_MASK) == 0, ("%s: incr: %ju & PAGE_MASK", __func__,
-	    (uintmax_t)incr));
+	KASSERT((incr & PAGE_MASK) == 0, ("%s: incr: %ju & PAGE_MASK",
+	    __func__, (uintmax_t)incr));
 
 #ifdef RACCT
 	if (RACCT_ENABLED()) {
@@ -356,8 +361,8 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 	u_long prev;
 #endif
 
-	KASSERT((decr & PAGE_MASK) == 0, ("%s: decr: %ju & PAGE_MASK", __func__,
-	    (uintmax_t)decr));
+	KASSERT((decr & PAGE_MASK) == 0, ("%s: decr: %ju & PAGE_MASK",
+	    __func__, (uintmax_t)decr));
 
 	pdecr = atop(decr);
 #ifdef INVARIANTS
