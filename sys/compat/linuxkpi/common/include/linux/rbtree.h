@@ -74,8 +74,11 @@ RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 #define RB_EMPTY_NODE(node)     (RB_PARENT(node, __entry) == node)
 #define RB_CLEAR_NODE(node)     RB_SET_PARENT(node, node, __entry)
 
-#define	rb_insert_color(node, root)					\
-	linux_root_RB_INSERT_COLOR((struct linux_root *)(root), (node))
+#define rb_insert_color(node, root) do {				\
+	if (rb_parent(node))						\
+		linux_root_RB_INSERT_COLOR((struct linux_root *)(root), \
+		    rb_parent(node), (node));				\
+} while (0)
 #define	rb_erase(node, root)						\
 	linux_root_RB_REMOVE((struct linux_root *)(root), (node))
 #define	rb_next(node)	RB_NEXT(linux_root, NULL, (node))
@@ -145,7 +148,9 @@ static inline void
 rb_insert_color_cached(struct rb_node *node, struct rb_root_cached *root,
     bool leftmost)
 {
-	linux_root_RB_INSERT_COLOR((struct linux_root *)&root->rb_root, node);
+	if (rb_parent(node))
+		linux_root_RB_INSERT_COLOR((struct linux_root *)&root->rb_root,
+		    rb_parent(node), node);
 	if (leftmost)
 		root->rb_leftmost = node;
 }
