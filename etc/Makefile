@@ -11,6 +11,7 @@ NLS_ALIASES=	POSIX C \
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
 
+SUBDIR+=termcap
 .if ${MK_SENDMAIL} != "no"
 SUBDIR+=sendmail
 .endif
