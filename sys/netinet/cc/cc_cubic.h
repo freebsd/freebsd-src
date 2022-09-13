@@ -89,7 +89,7 @@
 /* Kernel only bits */
 #ifdef _KERNEL
 struct cubic {
-	/* Cubic K in fixed point form with CUBIC_SHIFT worth of precision. */
+	/* CUBIC K in fixed point form with CUBIC_SHIFT worth of precision. */
 	int64_t		K;
 	/* Sum of RTT samples across an epoch in ticks. */
 	int64_t		sum_rtt_ticks;
