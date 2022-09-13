@@ -169,7 +169,7 @@ SYSCTL_PROC(_vm, OID_AUTO, swap_total, CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE
     &swap_total, 0, sysctl_page_shift, "A", 
     "Total amount of available swap storage.");
 
-int vm_overcommit = 0;
+int vm_overcommit __read_mostly = 0;
 SYSCTL_INT(_vm, VM_OVERCOMMIT, overcommit, CTLFLAG_RW, &vm_overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
