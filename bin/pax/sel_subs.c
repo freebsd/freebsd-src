@@ -134,11 +134,7 @@ usr_add(char *str)
 		}
 		uid = (uid_t)pw->pw_uid;
 	} else
-#		ifdef NET2_STAT
-		uid = (uid_t)atoi(str+1);
-#		else
 		uid = (uid_t)strtoul(str+1, NULL, 10);
-#		endif
 	endpwent();
 
 	/*
@@ -235,11 +231,7 @@ grp_add(char *str)
 		}
 		gid = gr->gr_gid;
 	} else
-#		ifdef NET2_STAT
-		gid = (gid_t)atoi(str+1);
-#		else
 		gid = (gid_t)strtoul(str+1, NULL, 10);
-#		endif
 	endgrent();
 
 	/*

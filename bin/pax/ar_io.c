@@ -386,13 +386,8 @@ ar_close(void)
 	 * could have written anything yet.
 	 */
 	if (frmt == NULL) {
-#	ifdef NET2_STAT
-		(void)fprintf(listf, "%s: unknown format, %lu bytes skipped.\n",
-		    argv0, rdcnt);
-#	else
 		(void)fprintf(listf, "%s: unknown format, %ju bytes skipped.\n",
 		    argv0, (uintmax_t)rdcnt);
-#	endif
 		(void)fflush(listf);
 		flcnt = 0;
 		return;
@@ -403,14 +398,9 @@ ar_close(void)
 		    (unsigned long long)((rdcnt ? rdcnt : wrcnt) / 5120));
 	else if (strcmp(NM_TAR, argv0) != 0)
 		(void)fprintf(listf,
-#	ifdef NET2_STAT
-		    "%s: %s vol %d, %lu files, %lu bytes read, %lu bytes written.\n",
-		    argv0, frmt->name, arvol-1, flcnt, rdcnt, wrcnt);
-#	else
 		    "%s: %s vol %d, %ju files, %ju bytes read, %ju bytes written.\n",
 		    argv0, frmt->name, arvol-1, (uintmax_t)flcnt,
 		    (uintmax_t)rdcnt, (uintmax_t)wrcnt);
-#	endif
 	(void)fflush(listf);
 	flcnt = 0;
 }
