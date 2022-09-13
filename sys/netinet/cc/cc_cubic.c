@@ -345,7 +345,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 }
 
 /*
- * This is a Cubic specific implementation of after_idle.
+ * This is a CUBIC specific implementation of after_idle.
  *   - Reset cwnd by calling New Reno implementation of after_idle.
  *   - Reset t_last_cong.
  */

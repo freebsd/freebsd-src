@@ -112,7 +112,7 @@ struct cc_var {
 #define	CCF_IPHDR_CE		0x0010	/* Does this packet set CE bit? */
 #define	CCF_TCPHDR_CWR		0x0020	/* Does this packet set CWR bit? */
 #define	CCF_MAX_CWND		0x0040	/* Have we reached maximum cwnd? */
-#define	CCF_CHG_MAX_CWND	0x0080	/* Cubic max_cwnd changed, for K */
+#define	CCF_CHG_MAX_CWND	0x0080	/* CUBIC max_cwnd changed, for K */
 #define	CCF_USR_IWND		0x0100	/* User specified initial window */
 #define	CCF_USR_IWND_INIT_NSEG	0x0200	/* Convert segs to bytes on conn init */
 #define CCF_HYSTART_ALLOWED	0x0400	/* If the CC supports it Hystart is allowed */
