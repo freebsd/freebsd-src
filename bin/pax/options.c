@@ -131,17 +131,18 @@ FSUB fsub[] = {
 };
 #define F_OCPIO	0	/* format when called as cpio -6 */
 #define F_ACPIO	1	/* format when called as cpio -c */
+#define F_SCPIO	2	/* format when called with -x sv4cpio */
 #define F_CPIO	3	/* format when called as cpio */
 #define F_OTAR	4	/* format when called as tar -o */
 #define F_TAR	5	/* format when called as tar */
-#define DEFLT	5	/* default write format from list above */
+#define DEFLT	F_TAR	/* default write format from list above */
 
 /*
  * ford is the archive search order used by get_arc() to determine what kind
  * of archive we are dealing with. This helps to properly id  archive formats
  * some formats may be subsets of others....
  */
-int ford[] = {5, 4, 3, 2, 1, 0, -1 };
+int ford[] = {F_TAR, F_OTAR, F_CPIO, F_SCPIO, F_ACPIO, F_OCPIO, -1 };
 
 /*
  * options()
