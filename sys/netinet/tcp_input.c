@@ -287,20 +287,6 @@ kmod_tcpstat_add(int statnum, int val)
 	counter_u64_add(VNET(tcpstat)[statnum], val);
 }
 
-/*
- * Make sure that we only start a SACK loss recovery when
- * receiving a duplicate ACK with a SACK block, and also
- * complete SACK loss recovery in case the other end
- * reneges.
- */
-static bool inline
-tcp_is_sack_recovery(struct tcpcb *tp, struct tcpopt *to)
-{
-	return ((tp->t_flags & TF_SACK_PERMIT) &&
-		((to->to_flags & TOF_SACK) ||
-		(!TAILQ_EMPTY(&tp->snd_holes))));
-}
-
 #ifdef TCP_HHOOK
 /*
  * Wrapper for the TCP established input helper hook.
@@ -2539,7 +2525,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_rcvacktoomuch);
 			goto dropafterack;
 		}
-		if (tcp_is_sack_recovery(tp, &to)) {
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
+		    ((to.to_flags & TOF_SACK) ||
+		     !TAILQ_EMPTY(&tp->snd_holes)))
 			sack_changed = tcp_sack_doack(tp, &to, th->th_ack);
 		else
 			/*
@@ -2609,7 +2597,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * duplicating packets or a possible DoS attack.
 				 */
 				if (th->th_ack != tp->snd_una ||
-				    (tcp_is_sack_recovery(tp, &to) &&
+				    ((tp->t_flags & TF_SACK_PERMIT) &&
+				    (to.to_flags & TOF_SACK) &&
 				    !sack_changed))
 					break;
 				else if (!tcp_timer_active(tp, TT_REXMT))
@@ -2621,7 +2610,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					if (V_tcp_do_prr &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						tcp_do_prr_ack(tp, th, &to);
-					} else if (tcp_is_sack_recovery(tp, &to) &&
+					} else if ((tp->t_flags & TF_SACK_PERMIT) &&
+					    (to.to_flags & TOF_SACK) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						int awnd;
 
@@ -2694,7 +2684,8 @@ enter_recovery:
 						 * snd_ssthresh is already updated by
 						 * cc_cong_signal.
 						 */
-						if (tcp_is_sack_recovery(tp, &to)) {
+						if ((tp->t_flags & TF_SACK_PERMIT) &&
+						    (to.to_flags & TOF_SACK)) {
 							tp->sackhint.prr_delivered =
 							    tp->sackhint.sacked_bytes;
 						} else {
@@ -2706,7 +2697,8 @@ enter_recovery:
 						tp->sackhint.recover_fs = max(1,
 						    tp->snd_nxt - tp->snd_una);
 					}
-					if (tcp_is_sack_recovery(tp, &to)) {
+					if ((tp->t_flags & TF_SACK_PERMIT) &&
+					    (to.to_flags & TOF_SACK)) {
 						TCPSTAT_INC(
 						    tcps_sack_recovery_episode);
 						tp->snd_recover = tp->snd_nxt;
@@ -2798,7 +2790,8 @@ enter_recovery:
 			 * from the left side. Such partial ACKs should not be
 			 * counted as dupacks here.
 			 */
-			if (tcp_is_sack_recovery(tp, &to) &&
+			if ((tp->t_flags & TF_SACK_PERMIT) &&
+			    (to.to_flags & TOF_SACK) &&
 			    sack_changed) {
 				tp->t_dupacks++;
 				/* limit overhead by setting maxseg last */
@@ -3980,7 +3973,8 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 	 * (del_data) and an estimate of how many bytes are in the
 	 * network.
 	 */
-	if (tcp_is_sack_recovery(tp, to) ||
+	if (((tp->t_flags & TF_SACK_PERMIT) &&
+	    (to->to_flags & TOF_SACK)) ||
 	    (IN_CONGRECOVERY(tp->t_flags) &&
 	     !IN_FASTRECOVERY(tp->t_flags))) {
 		del_data = tp->sackhint.delivered_data;
@@ -4024,7 +4018,8 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 	 * accordingly.
 	 */
 	if (IN_FASTRECOVERY(tp->t_flags)) {
-		if (tcp_is_sack_recovery(tp, to)) {
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
+		    (to->to_flags & TOF_SACK)) {
 			tp->snd_cwnd = tp->snd_nxt - tp->snd_recover +
 					    tp->sackhint.sack_bytes_rexmit +
 					    (snd_cnt * maxseg);
