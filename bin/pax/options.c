@@ -1434,13 +1434,8 @@ str_offt(char *val)
 	char *expr;
 	off_t num, t;
 
-#	ifdef NET2_STAT
-	num = strtol(val, &expr, 0);
-	if ((num == LONG_MAX) || (num <= 0) || (expr == val))
-#	else
 	num = strtoq(val, &expr, 0);
 	if ((num == QUAD_MAX) || (num <= 0) || (expr == val))
-#	endif
 		return(0);
 
 	switch(*expr) {

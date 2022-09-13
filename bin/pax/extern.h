@@ -169,10 +169,8 @@ void ls_tty(ARCHD *);
 int l_strncpy(char *, const char *, int);
 u_long asc_ul(char *, int, int);
 int ul_asc(u_long, char *, int, int);
-#ifndef NET2_STAT
 u_quad_t asc_uqd(char *, int, int);
 int uqd_asc(u_quad_t, char *, int, int);
-#endif
 
 /*
  * getoldopt.c
