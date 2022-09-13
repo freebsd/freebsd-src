@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2022
+.Dd September 13, 2022
 .Dt SETKEY 8
 .Os
 .\"
@@ -455,17 +455,18 @@ is expressed in one of the following three formats:
 .Pp
 The direction of a policy must be specified as
 one of:
-.Li out ,
-.Li in ,
+.Li out
+or
+.Li in .
+The direction is followed by one of the following policy levels:
 .Li discard ,
 .Li none ,
 or
 .Li ipsec .
 The
 .Li discard
-direction
-means that packets matching the supplied indices will be discarded
-while
+policylevel means that packets matching the supplied indices will
+be discarded while
 .Li none
 means that IPsec operations will not take place on the packet and
 .Li ipsec
