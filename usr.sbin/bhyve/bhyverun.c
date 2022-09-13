@@ -1244,7 +1244,6 @@ main(int argc, char *argv[])
 #ifdef BHYVE_SNAPSHOT
 	char *restore_file;
 	struct restore_state rstate;
-	int vcpu;
 
 	restore_file = NULL;
 #endif
