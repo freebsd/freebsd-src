@@ -57,6 +57,7 @@ device		uart_lowrisc	# lowRISC UART driver
 device		uart_ns8250	# ns8250-type UART driver
 
 # RTC
+device		da9063_rtc	# Dialog Semiconductor DA9063 RTC
 device		goldfish_rtc	# QEMU RTC
 
 # Ethernet drivers
@@ -68,6 +69,9 @@ device		axidma		# Xilinx AXI DMA Controller
 
 # SPI
 device		xilinx_spi	# Xilinx AXI Quad-SPI Controller
+
+# Power management controllers
+device		da9063_pmic	# Dialog Semiconductor DA9063 PMIC
 
 # SiFive device drivers
 device		fe310aon
