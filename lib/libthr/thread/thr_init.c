@@ -434,12 +434,43 @@ init_main_thread(struct pthread *thread)
 	/* Others cleared to zero by thr_alloc() */
 }
 
+bool
+__thr_get_main_stack_base(char **base)
+{
+	size_t len;
+	int mib[2];
+
+	if (elf_aux_info(AT_USRSTACKBASE, base, sizeof(*base)) == 0)
+		return (true);
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_USRSTACK;
+	len = sizeof(*base);
+	if (sysctl(mib, nitems(mib), base, &len, NULL, 0) == 0)
+		return (true);
+
+	return (false);
+}
+
+bool
+__thr_get_main_stack_lim(size_t *lim)
+{
+	struct rlimit rlim;
+
+	if (elf_aux_info(AT_USRSTACKLIM, lim, sizeof(*lim)) == 0)
+		return (true);
+
+	if (getrlimit(RLIMIT_STACK, &rlim) == 0) {
+		*lim = rlim.rlim_cur;
+		return (true);
+	}
+
+	return (false);
+}
+
 static void
 init_private(void)
 {
-	struct rlimit rlim;
-	size_t len;
-	int mib[2];
 	char *env, *env_bigstack, *env_splitstack;
 
 	_thr_umutex_init(&_mutex_static_lock);
@@ -465,24 +496,13 @@ init_private(void)
 		__thr_malloc_init();
 
 		/* Find the stack top */
-		if (elf_aux_info(AT_USRSTACKBASE, &_usrstack,
-		    sizeof(_usrstack)) != 0) {
-			mib[0] = CTL_KERN;
-			mib[1] = KERN_USRSTACK;
-			len = sizeof (_usrstack);
-			if (sysctl(mib, nitems(mib), &_usrstack, &len,
-			    NULL, 0) == -1)
-				PANIC("Cannot get kern.usrstack from sysctl");
-		}
+		if (!__thr_get_main_stack_base(&_usrstack))
+			PANIC("Cannot get kern.usrstack");
 		env_bigstack = getenv("LIBPTHREAD_BIGSTACK_MAIN");
 		env_splitstack = getenv("LIBPTHREAD_SPLITSTACK_MAIN");
 		if (env_bigstack != NULL || env_splitstack == NULL) {
-			if (elf_aux_info(AT_USRSTACKLIM, &_thr_stack_initial,
-			    sizeof(_thr_stack_initial)) != 0) {
-				if (getrlimit(RLIMIT_STACK, &rlim) == -1)
-					PANIC("Cannot get stack rlimit");
-				_thr_stack_initial = rlim.rlim_cur;
-			}
+			if (!__thr_get_main_stack_lim(&_thr_stack_initial))
+				PANIC("Cannot get stack rlimit");
 		}
 		_thr_is_smp = sysconf(_SC_NPROCESSORS_CONF);
 		if (_thr_is_smp == -1)
