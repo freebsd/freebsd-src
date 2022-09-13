@@ -149,7 +149,7 @@ com_rd(ARCHD *arcn)
 }
 
 /*
- * cpio_end_wr()
+ * cpio_endwr()
  *	write the special file with the name trailer in the proper format
  * Return:
  *	result of the write of the trailer from the cpio specific write func

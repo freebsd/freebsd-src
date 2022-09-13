@@ -89,7 +89,7 @@ sel_chk(ARCHD *arcn)
  * User/group selection routines
  *
  * Routines to handle user selection of files based on the file uid/gid. To
- * add an entry, the user supplies either then name or the uid/gid starting with
+ * add an entry, the user supplies either the name or the uid/gid starting with
  * a # on the command line. A \# will escape the #.
  */
 
@@ -520,7 +520,7 @@ trng_match(ARCHD *arcn)
 
 /*
  * str_sec()
- *	Convert a time string in the format of [yy[mm[dd[hh]]]]mm[.ss] to gmt
+ *	Convert a time string in the format of [[[[yy[mm[dd[hh]mm[.ss] to gmt
  *	seconds. Tval already has current time loaded into it at entry.
  * Return:
  *	0 if converted ok, -1 otherwise

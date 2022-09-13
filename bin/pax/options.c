@@ -87,7 +87,7 @@ char *chdname;
 
 #define GZIP_CMD	"gzip"		/* command to run as gzip */
 #define COMPRESS_CMD	"compress"	/* command to run as compress */
-#define BZIP2_CMD	"bzip2"		/* command to run as gzip */
+#define BZIP2_CMD	"bzip2"		/* command to run as bzip2 */
 
 /*
  *	Format specific routine table - MUST BE IN SORTED ORDER BY NAME
@@ -308,7 +308,7 @@ pax_options(int argc, char **argv)
 					break;
 				case 'p':
 					/*
-					 * preserver file mode bits
+					 * preserve file mode bits
 					 */
 					pmode = 1;
 					break;

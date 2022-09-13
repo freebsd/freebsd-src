@@ -206,7 +206,7 @@ ar_open(const char *name)
 	 * set default blksz on read. APPNDs writes rdblksz on the last volume
 	 * On all new archive volumes, we shift to wrblksz (if the user
 	 * specified one, otherwise we will continue to use rdblksz). We
-	 * must to set blocksize based on what kind of device the archive is
+	 * must set blocksize based on what kind of device the archive is
 	 * stored.
 	 */
 	switch(artyp) {
@@ -286,7 +286,7 @@ ar_open(const char *name)
 		break;
 	default:
 		/*
-		 * should never happen, worse case, slow...
+		 * should never happen, worst case, slow...
 		 */
 		blksz = rdblksz = BLKMULT;
 		break;
@@ -533,10 +533,10 @@ ar_read(char *buf, int cnt)
 			io_ok = 1;
 			if (res != rdblksz) {
 				/*
-				 * Record size changed. If this is happens on
+				 * Record size changed. If this happens on
 				 * any record after the first, we probably have
 				 * a tape drive which has a fixed record size
-				 * we are getting multiple records in a single
+				 * (we are getting multiple records in a single
 				 * read). Watch out for record blocking that
 				 * violates pax spec (must be a multiple of
 				 * BLKMULT).
@@ -716,7 +716,7 @@ ar_rdsync(void)
 	struct mtop mb;
 
 	/*
-	 * Fail resync attempts at user request (done) or this is going to be
+	 * Fail resync attempts at user request (done) or if this is going to be
 	 * an update/append to an existing archive. If last i/o hit media end,
 	 * we need to go to the next volume not try a resync.
 	 */
@@ -922,12 +922,12 @@ ar_rev(off_t sksz)
 		break;
 	case ISTAPE:
 		/*
-	 	 * Calculate and move the proper number of PHYSICAL tape
+		 * Calculate and move the proper number of PHYSICAL tape
 		 * blocks. If the sksz is not an even multiple of the physical
 		 * tape size, we cannot do the move (this should never happen).
-		 * (We also cannot handler trailers spread over two vols).
+		 * (We also cannot handle trailers spread over two vols).
 		 * get_phys() also makes sure we are in front of the filemark.
-	 	 */
+		 */
 		if ((phyblk = get_phys()) <= 0) {
 			lstrval = -1;
 			return(-1);

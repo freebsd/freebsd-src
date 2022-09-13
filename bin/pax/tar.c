@@ -553,12 +553,12 @@ tar_wr(ARCHD *arcn)
 	}
 
 	/*
-	 * copy the data out of the ARCHD into the tar header based on the type
-	 * of the file. Remember many tar readers want the unused fields to be
-	 * padded with zero. We set the linkflag field (type), the linkname
-	 * (or zero if not used),the size, and set the padding (if any) to be
-	 * added after the file data (0 for all other types, as they only have
-	 * a header)
+	 * Copy the data out of the ARCHD into the tar header based on the type
+	 * of the file. Remember, many tar readers want all fields to be
+	 * padded with zero so we zero the header first.  We then set the
+	 * linkflag field (type), the linkname, the size, and set the padding
+	 * (if any) to be added after the file data (0 for all other types,
+	 * as they only have a header).
 	 */
 	hd = &hdblk;
 	l_strncpy(hd->name, arcn->name, sizeof(hd->name) - 1);
