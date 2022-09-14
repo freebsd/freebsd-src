@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
- * Copyright © 2023 Elliott Mitchell
+ * Copyright © 2022-2023 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -297,6 +297,7 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	ie->ie_flags = flags;
 	ie->ie_irq = irq;
 	ie->ie_cpu = NOCPU;
+	/* ->ie_stray and ->ie_intrcnt handled by M_ZERO */
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
@@ -1358,9 +1359,18 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	intr_prof_stack_use(td, frame);
 #endif
 
-	/* An interrupt with no event or handlers is a stray interrupt. */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers))
+	/* An interrupt with no event is a stray interrupt. */
+	if (ie == NULL)
 		return (EINVAL);
+
+	/* Increment the interrupt counter. */
+	++ie->ie_intrcnt;
+
+	/* An interrupt with no handlers is a stray interrupt. */
+	if (CK_SLIST_EMPTY(&ie->ie_handlers)) {
+		++ie->ie_stray;
+		return (EINVAL);
+	}
 
 	/*
 	 * Execute fast interrupt handlers directly.
@@ -1454,8 +1464,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	td->td_intr_nesting_level--;
 #ifdef notyet
 	/* The interrupt is not aknowledged by any filter and has no ithread. */
-	if (!thread && !filter)
+	if (!thread && !filter) {
+		++ie->ie_stray;
 		return (EINVAL);
+	}
 #endif
 	return (0);
 }
