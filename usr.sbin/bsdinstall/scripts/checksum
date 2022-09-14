@@ -68,7 +68,7 @@ for dist in $DISTRIBUTIONS; do
 		case $(/bin/freebsd-version -u) in
 		*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
 			bsddialog --backtitle "$OSNAME Installer" --title "Error" \
-			    --msgbox "The checksum for $dist does not match. It may have become corrupted, or it may be from a newer version of FreeBSD. Please check for a newer snapshot." 0 0
+			    --msgbox "The checksum for $dist does not match. It may have become corrupted, or it may be from a newer version of $OSNAME. Please check for a newer snapshot." 0 0
 			;;
 		*)
 			bsddialog --backtitle "$OSNAME Installer" --title "Error" \

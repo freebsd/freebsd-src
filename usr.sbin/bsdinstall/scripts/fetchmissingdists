@@ -28,9 +28,12 @@
 # $FreeBSD$
 #
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 error()
 {
-	bsddialog --backtitle "FreeBSD Installer" --title "Error" --msgbox "$1" 0 0
+	bsddialog --backtitle "$OSNAME Installer" --title "Error" --msgbox "$1" 0 0
 	exit 1
 }
 
