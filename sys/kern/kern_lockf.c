@@ -764,14 +764,13 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 	 * sleeping waiting for locks on this vnode and then free all
 	 * the remaining locks.
 	 */
-	VI_LOCK(vp);
 	KASSERT(VN_IS_DOOMED(vp),
 	    ("lf_purgelocks: vp %p has not vgone yet", vp));
 	state = *statep;
 	if (state == NULL) {
-		VI_UNLOCK(vp);
 		return;
 	}
+	VI_LOCK(vp);
 	*statep = NULL;
 	if (LIST_EMPTY(&state->ls_active) && state->ls_threads == 0) {
 		KASSERT(LIST_EMPTY(&state->ls_pending),
