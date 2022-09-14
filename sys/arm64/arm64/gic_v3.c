@@ -456,6 +456,7 @@ static int
 gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct gic_v3_softc *sc;
+	struct gic_v3_devinfo *di;
 
 	sc = device_get_softc(dev);
 
@@ -480,6 +481,12 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		KASSERT(sc->gic_bus <= GIC_BUS_MAX,
 		    ("gic_v3_read_ivar: Invalid bus type %u", sc->gic_bus));
 		*result = sc->gic_bus;
+		return (0);
+	case GIC_IVAR_VGIC:
+		di = device_get_ivars(child);
+		if (di == NULL)
+			return (EINVAL);
+		*result = di->is_vgic;
 		return (0);
 	}
 
