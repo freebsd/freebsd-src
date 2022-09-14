@@ -1944,18 +1944,19 @@ delmntque(struct vnode *vp)
 	VNPASS((vp->v_mflag & VMP_LAZYLIST) == 0, vp);
 
 	mp = vp->v_mount;
-	if (mp == NULL)
-		return;
 	MNT_ILOCK(mp);
 	VI_LOCK(vp);
 	vp->v_mount = NULL;
-	VI_UNLOCK(vp);
 	VNASSERT(mp->mnt_nvnodelistsize > 0, vp,
 		("bad mount point vnode list size"));
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	mp->mnt_nvnodelistsize--;
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
+	/*
+	 * The caller expects the interlock to be still held.
+	 */
+	ASSERT_VI_LOCKED(vp, __func__);
 }
 
 static int
@@ -4110,17 +4111,23 @@ vgonel(struct vnode *vp)
 	/*
 	 * Clear the advisory locks and wake up waiting threads.
 	 */
-	(void)VOP_ADVLOCKPURGE(vp);
-	vp->v_lockf = NULL;
+	if (vp->v_lockf != NULL) {
+		(void)VOP_ADVLOCKPURGE(vp);
+		vp->v_lockf = NULL;
+	}
 	/*
 	 * Delete from old mount point vnode list.
 	 */
-	delmntque(vp);
+	if (vp->v_mount == NULL) {
+		VI_LOCK(vp);
+	} else {
+		delmntque(vp);
+		ASSERT_VI_LOCKED(vp, "vgonel 2");
+	}
 	/*
 	 * Done with purge, reset to the standard lock and invalidate
 	 * the vnode.
 	 */
-	VI_LOCK(vp);
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
 	vp->v_type = VBAD;
