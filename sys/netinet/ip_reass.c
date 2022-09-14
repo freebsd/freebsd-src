@@ -599,11 +599,11 @@ ipreass_callout(void *arg)
 
 	CURVNET_SET(bucket->vnet);
 	fp = TAILQ_LAST(&bucket->head, ipqhead);
-	KASSERT(fp != NULL && fp->ipq_expire >= time_uptime,
+	KASSERT(fp != NULL && fp->ipq_expire <= time_uptime,
 	    ("%s: stray callout on bucket %p, %ju < %ju", __func__, bucket,
 	    fp ? (uintmax_t)fp->ipq_expire : 0, (uintmax_t)time_uptime));
 
-	while (fp != NULL && fp->ipq_expire >= time_uptime) {
+	while (fp != NULL && fp->ipq_expire <= time_uptime) {
 		ipq_timeout(bucket, fp);
 		fp = TAILQ_LAST(&bucket->head, ipqhead);
 	}
