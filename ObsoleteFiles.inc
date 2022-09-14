@@ -52,6 +52,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220814: domain(9) updated
+OLD_FILES+=usr/share/man/man9/domain_init.9.gz
+OLD_FILES+=usr/share/man/man9/pfctlinput.9.gz
+OLD_FILES+=usr/share/man/man9/pffinddomain.9.gz
+OLD_FILES+=usr/share/man/man9/pffindproto.9.gz
+OLD_FILES+=usr/share/man/man9/pffindtype.9.gz
+
 # 20220825: awk tests moved to subdirs
 OLD_FILES+=usr/tests/usr.bin/awk/awk_test
 OLD_FILES+=usr/tests/usr.bin/awk/d_assign_NF.awk

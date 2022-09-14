@@ -1022,13 +1022,10 @@ MLINKS+=dnv.9 dnvlist.9 \
 	dnv.9 dnvlist_take_number.9 \
 	dnv.9 dnvlist_take_nvlist.9 \
 	dnv.9 dnvlist_take_string.9
-MLINKS+=domain.9 DOMAIN_SET.9 \
+MLINKS+=domain.9 protosw.9 \
 	domain.9 domain_add.9 \
-	domain.9 domain_init.9 \
-	domain.9 pfctlinput.9 \
-	domain.9 pffinddomain.9 \
-	domain.9 pffindproto.9 \
-	domain.9 pffindtype.9
+	domain.9 protosw_register.9 \
+	domain.9 protosw_unregister.9 \
 MLINKS+=drbr.9 drbr_free.9 \
 	drbr.9 drbr_enqueue.9 \
 	drbr.9 drbr_dequeue.9 \
