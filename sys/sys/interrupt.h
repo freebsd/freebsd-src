@@ -125,6 +125,8 @@ struct intr_event {
 	int		ie_cpu;		/* CPU this event is bound to. */
 	volatile int	ie_phase;	/* Switched to establish a barrier. */
 	volatile int	ie_active[2];	/* Filters in ISR context. */
+	u_long		ie_stray;	/* Stray interrupt counter */
+	u_long		ie_intrcnt;	/* Interrupt counter(s) */
 };
 
 /* Interrupt event flags kept in ie_flags. */
