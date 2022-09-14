@@ -74,7 +74,19 @@ $BSDDIALOG_OK)	# Install
 	trap true SIGINT	# Ignore cntrl-C here
 	bsdinstall
 	if [ $? -eq 0 ]; then
-		bsddialog --backtitle "FreeBSD Installer" --title "Complete" --yes-label "Reboot" --no-label "Live CD" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0 && reboot
+		bsddialog --backtitle "FreeBSD Installer" --title "Complete" --ok-label "Reboot" --extra-button --extra-label "Shutdown" --cancel-label "Live CD" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0
+
+		case $? in
+		$BSDDIALOG_OK)		# Reboot
+			reboot
+			;;
+		$BSDDIALOG_EXTRA)	# Shutdown
+			shutdown -p now
+			;;
+		$BSDDIALOG_CANCEL)	# Live CD
+			exit 0
+			;;
+		esac
 	else
 		. /etc/rc.local
 	fi
