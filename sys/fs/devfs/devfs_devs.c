@@ -397,11 +397,10 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int flags)
 	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
 	if (vp != NULL) {
-		VI_LOCK(vp);
+		vhold(vp);
 		mtx_unlock(&devfs_de_interlock);
-		vholdl(vp);
 		sx_unlock(&dm->dm_lock);
-		vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		vgone(vp);
 		VOP_UNLOCK(vp);
 		vdrop(vp);
