@@ -212,9 +212,10 @@ static int
 gic_v3_fdt_print_child(device_t bus, device_t child)
 {
 	struct gic_v3_ofw_devinfo *di = device_get_ivars(child);
-	struct resource_list *rl = &di->di_rl;
+	struct resource_list *rl;
 	int retval = 0;
 
+	rl = &di->di_rl;
 	retval += bus_print_child_header(bus, child);
 	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
 	retval += bus_print_child_footer(bus, child);
@@ -228,6 +229,8 @@ gic_v3_ofw_get_devinfo(device_t bus __unused, device_t child)
 	struct gic_v3_ofw_devinfo *di;
 
 	di = device_get_ivars(child);
+	if (di->di_gic_dinfo.is_vgic)
+		return (NULL);
 	return (&di->di_dinfo);
 }
 
@@ -349,6 +352,24 @@ gic_v3_ofw_bus_attach(device_t dev)
 
 			sc->gic_nchildren++;
 			device_set_ivars(child, di);
+		}
+	}
+
+	/*
+	 * If there is a vgic maintanance interupt add a virtual gic
+	 * child so we can use this in the vmm module for bhyve.
+	 */
+	if (OF_hasprop(parent, "interrupts")) {
+		child = device_add_child(dev, "vgic", -1);
+		if (child == NULL) {
+			device_printf(dev, "Could not add vgic child\n");
+		} else {
+			di = malloc(sizeof(*di), M_GIC_V3, M_WAITOK | M_ZERO);
+			resource_list_init(&di->di_rl);
+			di->di_gic_dinfo.gic_domain = -1;
+			di->di_gic_dinfo.is_vgic = 1;
+			device_set_ivars(child, di);
+			sc->gic_nchildren++;
 		}
 	}
 

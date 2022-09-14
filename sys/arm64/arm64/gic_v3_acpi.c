@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
+#define	GICV3_PRIV_VGIC		0x80000000
+#define	GICV3_PRIV_FLAGS	0x80000000
+
 struct gic_v3_acpi_devinfo {
 	struct gic_v3_devinfo	di_gic_dinfo;
 	struct resource_list	di_rl;
@@ -86,6 +89,7 @@ struct madt_table_data {
 	ACPI_MADT_GENERIC_DISTRIBUTOR *dist;
 	int count;
 	bool rdist_use_gicc;
+	bool have_vgic;
 };
 
 static void
@@ -152,6 +156,8 @@ rdist_map(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		BUS_SET_RESOURCE(madt_data->parent, madt_data->dev,
 		    SYS_RES_MEMORY, madt_data->count, intr->GicrBaseAddress,
 		    count);
+		if (intr->VgicInterrupt == 0)
+			madt_data->have_vgic = false;
 
 	default:
 		break;
@@ -164,6 +170,7 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 	struct madt_table_data madt_data;
 	ACPI_TABLE_MADT *madt;
 	vm_paddr_t physaddr;
+	uintptr_t private;
 	device_t dev;
 
 	physaddr = acpi_find_table(ACPI_SIG_MADT);
@@ -210,6 +217,7 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 
 	madt_data.dev = dev;
 	madt_data.rdist_use_gicc = false;
+	madt_data.have_vgic = true;
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    rdist_map, &madt_data);
 	if (madt_data.count == 0) {
@@ -222,7 +230,12 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 		    rdist_map, &madt_data);
 	}
 
-	acpi_set_private(dev, (void *)(uintptr_t)madt_data.dist->Version);
+	private = madt_data.dist->Version;
+	/* Flag that the VGIC is in use */
+	if (madt_data.have_vgic)
+		private |= GICV3_PRIV_VGIC;
+
+	acpi_set_private(dev, (void *)private);
 
 out:
 	acpi_unmap_table(madt);
@@ -232,7 +245,7 @@ static int
 gic_v3_acpi_probe(device_t dev)
 {
 
-	switch((uintptr_t)acpi_get_private(dev)) {
+	switch((uintptr_t)acpi_get_private(dev) & ~GICV3_PRIV_FLAGS) {
 	case ACPI_MADT_GIC_VERSION_V3:
 	case ACPI_MADT_GIC_VERSION_V4:
 		break;
@@ -390,8 +403,13 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 static void
 gic_v3_acpi_bus_attach(device_t dev)
 {
+	struct gic_v3_acpi_devinfo *di;
+	struct gic_v3_softc *sc;
 	ACPI_TABLE_MADT *madt;
+	device_t child;
 	vm_paddr_t physaddr;
+
+	sc = device_get_softc(dev);
 
 	physaddr = acpi_find_table(ACPI_SIG_MADT);
 	if (physaddr == 0)
@@ -405,6 +423,20 @@ gic_v3_acpi_bus_attach(device_t dev)
 
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    gic_v3_add_children, dev);
+	/* Add the vgic child if needed */
+	if (((uintptr_t)acpi_get_private(dev) & GICV3_PRIV_FLAGS) != 0) {
+		child = device_add_child(dev, "vgic", -1);
+		if (child == NULL) {
+			device_printf(dev, "Could not add vgic child\n");
+		} else {
+			di = malloc(sizeof(*di), M_GIC_V3, M_WAITOK | M_ZERO);
+			resource_list_init(&di->di_rl);
+			di->di_gic_dinfo.gic_domain = -1;
+			di->di_gic_dinfo.is_vgic = 1;
+			sc->gic_nchildren++;
+			device_set_ivars(child, di);
+		}
+	}
 
 	acpi_unmap_table(madt);
 
