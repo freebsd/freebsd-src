@@ -7121,7 +7121,7 @@ ipf_ipftune(ipf_main_softc_t *softc, ioctlcmd_t cmd, void *data)
 	case SIOCIPFSET :
 		/*
 		 * Search by name or by cookie value for a particular entry
-		 * in the tuning paramter table.
+		 * in the tuning parameter table.
 		 */
 		IPFERROR(77);
 		error = ESRCH;
