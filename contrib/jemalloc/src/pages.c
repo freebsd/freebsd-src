@@ -12,6 +12,7 @@
 #include <sys/sysctl.h>
 #ifdef __FreeBSD__
 #include <vm/vm_param.h>
+#include <vm/vm.h>
 #endif
 #endif
 
@@ -455,7 +456,10 @@ os_overcommits_sysctl(void) {
 	}
 #endif
 
-	return ((vm_overcommit & 0x3) == 0);
+#ifdef SWAP_RESERVE_FORCE_ON
+	return ((vm_overcommit & (SWAP_RESERVE_FORCE_ON |
+	    SWAP_RESERVE_RLIMIT_ON)) == 0);
+#endif
 }
 #endif
 
