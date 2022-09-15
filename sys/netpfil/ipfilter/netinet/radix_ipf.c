@@ -91,7 +91,7 @@ count_mask_bits(addrfamily_t *mask, u_32_t **lastp)
 /*                         associated with addr and mask.                   */
 /*                                                                          */
 /* Initialise the fields in a pair of radix tree nodes according to the     */
-/* data supplied in the paramters "addr" and "mask". It is expected that    */
+/* data supplied in the parameters "addr" and "mask". It is expected that    */
 /* "mask" will contain a consecutive string of bits set. Masks with gaps in */
 /* the middle are not handled by this implementation.                       */
 /* ------------------------------------------------------------------------ */
