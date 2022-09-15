@@ -3926,7 +3926,7 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	mtx_unlock(&prison0.pr_mtx);
 
 	/*
-	 * Create sysctls for the paramter, and the back-compat global
+	 * Create sysctls for the parameter, and the back-compat global
 	 * permission.
 	 */
 	parent = prefix
