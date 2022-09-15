@@ -6192,6 +6192,8 @@ static const struct auxfmt {
 	AUXFMT(AT_PS_STRINGS, "%p"),
 	AUXFMT(AT_FXRNG, "%p"),
 	AUXFMT(AT_KPRELOAD, "%p"),
+	AUXFMT(AT_USRSTACKBASE, "%#lx"),
+	AUXFMT(AT_USRSTACKLIM, "%#lx"),
 };
 
 static bool
