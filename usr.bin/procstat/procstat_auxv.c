@@ -246,6 +246,20 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 			    prefix, "AT_KPRELOAD", auxv[i].a_un.a_ptr);
 			break;
 #endif
+#ifdef AT_USRSTACKBASE
+		case AT_USRSTACKBASE:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}"
+			    "{:AT_USRSTACKBASE/%#lx}\n",
+			    prefix, "AT_USRSTACKBASE", auxv[i].a_un.a_val);
+			break;
+#endif
+#ifdef AT_USRSTACKLIM
+		case AT_USRSTACKLIM:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}"
+			    "{:AT_USRSTACKLIM/%#lx}\n",
+			    prefix, "AT_USRSTACKLIM", auxv[i].a_un.a_val);
+			break;
+#endif
 		default:
 			xo_emit("{dw:/%s}{Lw:/%16ld/%ld}{:UNKNOWN/%#lx}\n",
 			    prefix, auxv[i].a_type, auxv[i].a_un.a_val);
