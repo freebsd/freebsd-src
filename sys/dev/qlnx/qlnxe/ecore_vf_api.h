@@ -47,7 +47,7 @@ enum _ecore_status_t ecore_vf_read_bulletin(struct ecore_hwfn *p_hwfn,
 					    u8 *p_change);
 
 /**
- * @brief Get link paramters for VF from ecore
+ * @brief Get link parameters for VF from ecore
  *
  * @param p_hwfn
  * @param params - the link params structure to be filled for the VF
