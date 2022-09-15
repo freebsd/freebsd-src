@@ -1377,7 +1377,7 @@ safexcel_setkey_xts(const uint8_t *key, int klen, uint8_t *tweakkey)
 }
 
 /*
- * Populate a context record with paramters from a session.  Some consumers
+ * Populate a context record with parameters from a session.  Some consumers
  * specify per-request keys, in which case the context must be re-initialized
  * for each request.
  */
