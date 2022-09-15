@@ -200,10 +200,8 @@ intr_irq_init(void *dummy __unused)
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
 
 	/*
-	 * - 2 counters for each I/O interrupt.
 	 * - mp_maxid + 1 counters for each IPI counters for SMP.
 	 */
-	nintrcnt = intr_nirq * 2;
 #ifdef SMP
 	nintrcnt += INTR_IPI_COUNT * (mp_maxid + 1);
 #endif
@@ -227,102 +225,6 @@ intrcnt_setname(const char *name, int index)
 
 	snprintf(intrnames + INTRNAME_LEN * index, INTRNAME_LEN, "%-*s",
 	    INTRNAME_LEN - 1, name);
-}
-
-/*
- *  Update name for interrupt source with interrupt event.
- */
-static void
-intrcnt_updatename(struct intr_irqsrc *isrc)
-{
-
-	/* QQQ: What about stray counter name? */
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-	intrcnt_setname(isrc->isrc_event->ie_fullname, isrc->isrc_index);
-}
-
-/*
- *  Virtualization for interrupt source interrupt counter increment.
- */
-static inline void
-isrc_increment_count(struct intr_irqsrc *isrc)
-{
-
-	if (isrc->isrc_flags & INTR_ISRCF_PPI)
-		atomic_add_long(&isrc->isrc_count[0], 1);
-	else
-		isrc->isrc_count[0]++;
-}
-
-/*
- *  Virtualization for interrupt source interrupt stray counter increment.
- */
-static inline void
-isrc_increment_straycount(struct intr_irqsrc *isrc)
-{
-
-	isrc->isrc_count[1]++;
-}
-
-/*
- *  Virtualization for interrupt source interrupt name update.
- */
-static void
-isrc_update_name(struct intr_irqsrc *isrc, const char *name)
-{
-	char str[INTRNAME_LEN];
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	if (name != NULL) {
-		snprintf(str, INTRNAME_LEN, "%s: %s", isrc->isrc_name, name);
-		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s: %s", isrc->isrc_name,
-		    name);
-		intrcnt_setname(str, isrc->isrc_index + 1);
-	} else {
-		snprintf(str, INTRNAME_LEN, "%s:", isrc->isrc_name);
-		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s:", isrc->isrc_name);
-		intrcnt_setname(str, isrc->isrc_index + 1);
-	}
-}
-
-/*
- *  Virtualization for interrupt source interrupt counters setup.
- */
-static void
-isrc_setup_counters(struct intr_irqsrc *isrc)
-{
-	int index;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	/*
-	 * Allocate two counter values, the second tracking "stray" interrupts.
-	 */
-	bit_ffc_area(intrcnt_bitmap, nintrcnt, 2, &index);
-	if (index == -1)
-		panic("Failed to allocate 2 counters. Array exhausted?");
-	bit_nset(intrcnt_bitmap, index, index + 1);
-	if (index >= intrcnt_index)
-		intrcnt_index = index + 2;
-	isrc->isrc_index = index;
-	isrc->isrc_count = &intrcnt[index];
-	isrc_update_name(isrc, NULL);
-}
-
-/*
- *  Virtualization for interrupt source interrupt counters release.
- */
-static void
-isrc_release_counters(struct intr_irqsrc *isrc)
-{
-	int idx = isrc->isrc_index;
-
-	mtx_assert(&isrc_table_lock, MA_OWNED);
-
-	bit_nclear(intrcnt_bitmap, idx, idx + 1);
 }
 
 /*
@@ -394,9 +296,6 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
 
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_increment_count(isrc);
-
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		int error;
@@ -411,8 +310,6 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	}
 
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_increment_straycount(isrc);
 	return (EINVAL);
 }
 
@@ -516,19 +413,8 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 
 	mtx_lock(&isrc_table_lock);
 	error = isrc_alloc_irq(isrc);
-	if (error != 0) {
-		mtx_unlock(&isrc_table_lock);
-		return (error);
-	}
-	/*
-	 * Setup interrupt counters, but not for IPI sources. Those are setup
-	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
-	 * our counter pool.
-	 */
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_setup_counters(isrc);
 	mtx_unlock(&isrc_table_lock);
-	return (0);
+	return (error);
 }
 
 /*
@@ -540,8 +426,6 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	int error;
 
 	mtx_lock(&isrc_table_lock);
-	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
-		isrc_release_counters(isrc);
 	error = isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
 	return (error);
@@ -748,15 +632,8 @@ isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
 			return (error);
 	}
 
-	error = intr_event_add_handler(isrc->isrc_event, name, filter, handler,
-	    arg, intr_priority(flags), flags, cookiep);
-	if (error == 0) {
-		mtx_lock(&isrc_table_lock);
-		intrcnt_updatename(isrc);
-		mtx_unlock(&isrc_table_lock);
-	}
-
-	return (error);
+	return (intr_event_add_handler(isrc->isrc_event, name, filter, handler,
+	    arg, intr_priority(flags), flags, cookiep));
 }
 
 /*
@@ -1189,7 +1066,6 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		if (isrc->isrc_handlers == 0)
 			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
 		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
-		intrcnt_updatename(isrc);
 		mtx_unlock(&isrc_table_lock);
 	}
 	return (error);
@@ -1199,7 +1075,6 @@ int
 intr_describe_irq(device_t dev, struct resource *res, void *cookie,
     const char *descr)
 {
-	int error;
 	struct intr_irqsrc *isrc;
 	u_int res_id;
 
@@ -1221,13 +1096,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 		return (0);
 	}
 #endif
-	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
-	if (error == 0) {
-		mtx_lock(&isrc_table_lock);
-		intrcnt_updatename(isrc);
-		mtx_unlock(&isrc_table_lock);
-	}
-	return (error);
+	return (intr_event_describe_handler(isrc->isrc_event, cookie, descr));
 }
 
 #ifdef SMP
@@ -1604,7 +1473,7 @@ DB_SHOW_COMMAND_FLAGS(irqs, db_show_irqs, DB_CMD_MEMSAFE)
 		if (isrc == NULL)
 			continue;
 
-		num = isrc->isrc_count != NULL ? isrc->isrc_count[0] : 0;
+		num = isrc->isrc_event != NULL ? isrc->isrc_event->ie_intrcnt : 0;
 		db_printf("irq%-3u <%s>: cpu %02lx%s cnt %lu\n", i,
 		    isrc->isrc_name, isrc->isrc_cpu.__bits[0],
 		    isrc->isrc_flags & INTR_ISRCF_BOUND ? " (bound)" : "", num);
