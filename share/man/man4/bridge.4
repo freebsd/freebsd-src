@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2021
+.Dd September 7, 2022
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -127,7 +127,9 @@ in
 .Xr rc.conf 5 .
 .Pp
 The MTU of the first member interface to be added is used as the bridge MTU.
-All additional members are required to have exactly the same MTU value.
+All additional members will have their MTU changed to match.
+If the MTU of a bridge is changed after its creation, the MTU of all member
+interfaces is also changed to match.
 .Pp
 The TOE, TSO, TXCSUM and TXCSUM6 capabilities on all interfaces added to the
 bridge are disabled if any of the interfaces do not support/enable them.
@@ -511,4 +513,5 @@ Rapid Spanning Tree Protocol (RSTP) support was added by
 The
 .Nm
 driver currently supports only Ethernet and Ethernet-like (e.g., 802.11)
-network devices, with exactly the same interface MTU size as the bridge device.
+network devices, which can be configured with the same MTU size as the bridge
+device.
