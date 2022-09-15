@@ -642,6 +642,7 @@ short_pkt_head()
 {
 	atf_set descr 'Test overly short Ethernet packets'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 short_pkt_body()
