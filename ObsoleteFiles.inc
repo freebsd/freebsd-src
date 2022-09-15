@@ -52,7 +52,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20220814: domain(9) updated
+# 20220914: domain(9) updated
 OLD_FILES+=usr/share/man/man9/domain_init.9.gz
 OLD_FILES+=usr/share/man/man9/pfctlinput.9.gz
 OLD_FILES+=usr/share/man/man9/pffinddomain.9.gz
@@ -117,7 +117,7 @@ OLD_LIBS+=usr/lib/i18n/libmapper_serial.so.4
 OLD_LIBS+=usr/lib/i18n/libmapper_std.so.4
 OLD_LIBS+=usr/lib/i18n/libmapper_zone.so.4
 
-# 202208XX: raw socket layer removed
+# 20220811: raw socket layer removed
 OLD_FILES+=usr/include/net/raw_cb.h
 
 # 20220721: libnv version bumps
