@@ -105,7 +105,7 @@ LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 LDFLAGS+=	-Wl,--no-dynamic-linker
 .endif
 
-CLEANFILES+=	loader.efi
+CLEANFILES+=	${LOADER}.efi
 
 ${LOADER}.efi: ${PROG}
 	if ${NM} ${.ALLSRC} | grep ' U '; then \
