@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2019
+.Dd September 16, 2022
 .Dt ELF_AUX_INFO 3
 .Os
 .Sh NAME
@@ -79,6 +79,10 @@ Page size in bytes
 .It AT_TIMEKEEP
 Pointer to VDSO timehands (for library internal use,
 .Dv sizeof(void *)).
+.It AT_USRSTACKBASE
+Top of the user stack for main thread.
+.It AT_USRSTACKLIM
+Limit for grow of the user stack for main thread.
 .El
 .Sh RETURN VALUES
 Returns zero on success, or an error number on failure.
