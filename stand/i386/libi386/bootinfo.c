@@ -116,18 +116,18 @@ bi_copyenv(vm_offset_t addr)
     
     /* traverse the environment */
     for (ep = environ; ep != NULL; ep = ep->ev_next) {
-	i386_copyin(ep->ev_name, addr, strlen(ep->ev_name));
+	archsw.arch_copyin(ep->ev_name, addr, strlen(ep->ev_name));
 	addr += strlen(ep->ev_name);
-	i386_copyin("=", addr, 1);
+	archsw.arch_copyin("=", addr, 1);
 	addr++;
 	if (ep->ev_value != NULL) {
-	    i386_copyin(ep->ev_value, addr, strlen(ep->ev_value));
+	    archsw.arch_copyin(ep->ev_value, addr, strlen(ep->ev_value));
 	    addr += strlen(ep->ev_value);
 	}
-	i386_copyin("", addr, 1);
+	archsw.arch_copyin("", addr, 1);
 	addr++;
     }
-    i386_copyin("", addr, 1);
+    archsw.arch_copyin("", addr, 1);
     addr++;
     return(addr);
 }
