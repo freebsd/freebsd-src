@@ -64,9 +64,6 @@ __FBSDID("$FreeBSD$");
  */
 //#define	LOCK_PROFILING_DEBUG_SPIN
 
-SDT_PROVIDER_DEFINE(lock);
-SDT_PROBE_DEFINE1(lock, , , starvation, "u_int");
-
 CTASSERT(LOCK_CLASS_MAX == 15);
 
 struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
@@ -120,14 +117,6 @@ static SYSCTL_NODE(_debug_lock, OID_AUTO, delay,
     CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "lock delay");
 
-static u_int __read_mostly starvation_limit = 131072;
-SYSCTL_INT(_debug_lock_delay, OID_AUTO, starvation_limit, CTLFLAG_RW,
-    &starvation_limit, 0, "");
-
-static u_int __read_mostly restrict_starvation = 0;
-SYSCTL_INT(_debug_lock_delay, OID_AUTO, restrict_starvation, CTLFLAG_RW,
-    &restrict_starvation, 0, "");
-
 void
 lock_delay(struct lock_delay_arg *la)
 {
@@ -141,12 +130,6 @@ lock_delay(struct lock_delay_arg *la)
 	la->delay <<= 1;
 	if (__predict_false(la->delay > lc->max))
 		la->delay = lc->max;
-
-	if (__predict_false(la->spin_cnt > starvation_limit)) {
-		SDT_PROBE1(lock, , , starvation, la->delay);
-		if (restrict_starvation)
-			la->delay = lc->base;
-	}
 }
 
 static u_int
