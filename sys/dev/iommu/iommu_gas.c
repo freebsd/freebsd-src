@@ -580,7 +580,6 @@ void
 iommu_gas_free_region(struct iommu_map_entry *entry)
 {
 	struct iommu_domain *domain;
-	struct iommu_map_entry *next, *prev;
 
 	domain = entry->domain;
 	KASSERT((entry->flags & (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_RMRR |
@@ -588,15 +587,10 @@ iommu_gas_free_region(struct iommu_map_entry *entry)
 	    ("non-RMRR entry %p %p", domain, entry));
 
 	IOMMU_DOMAIN_LOCK(domain);
-	prev = RB_PREV(iommu_gas_entries_tree, &domain->rb_root, entry);
-	next = RB_NEXT(iommu_gas_entries_tree, &domain->rb_root, entry);
-	iommu_gas_rb_remove(domain, entry);
+	if (entry != domain->first_place &&
+	    entry != domain->last_place)
+		iommu_gas_rb_remove(domain, entry);
 	entry->flags &= ~IOMMU_MAP_ENTRY_RMRR;
-
-	if (prev == NULL)
-		iommu_gas_rb_insert(domain, domain->first_place);
-	if (next == NULL)
-		iommu_gas_rb_insert(domain, domain->last_place);
 	IOMMU_DOMAIN_UNLOCK(domain);
 }
 
@@ -608,7 +602,7 @@ iommu_gas_remove_clip_left(struct iommu_domain *domain, iommu_gaddr_t start,
 
 	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 	MPASS(start <= end);
-	MPASS(end <= domain->last_place->end);
+	MPASS(end <= domain->end);
 
 	/*
 	 * Find an entry which contains the supplied guest's address
