@@ -61,11 +61,6 @@ __FBSDID("$FreeBSD$");
 #include "geliboot.h"
 #endif
 
-/*
- * Align to a pointer / long
- */
-#define MOD_ALIGN(l)	roundup(l, sizeof(u_long))
-
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
 
@@ -168,36 +163,6 @@ bi_copyenv(vm_offset_t start)
 	if (archsw.arch_copyin("", last++, 1) != 1)
 		last = start;
 	return(last);
-}
-
-static vm_offset_t
-bi_copymodules(vm_offset_t addr)
-{
-	struct preloaded_file *fp;
-	struct file_metadata *md;
-	int c;
-	uint64_t v;
-
-	c = addr != 0;
-	/* Start with the first module on the list, should be the kernel. */
-	for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-		MOD_NAME(addr, fp->f_name, c); /* This must come first. */
-		MOD_TYPE(addr, fp->f_type, c);
-		if (fp->f_args)
-			MOD_ARGS(addr, fp->f_args, c);
-		v = fp->f_addr;
-#if defined(__arm__)
-		v -= __elfN(relocation_offset);
-#endif
-		MOD_ADDR(addr, v, c);
-		v = fp->f_size;
-		MOD_SIZE(addr, v, c);
-		for (md = fp->f_metadata; md != NULL; md = md->md_next)
-			if (!(md->md_type & MODINFOMD_NOCOPY))
-				MOD_METADATA(addr, md, c);
-	}
-	MOD_END(addr, c);
-	return(addr);
 }
 
 static EFI_STATUS
@@ -487,7 +452,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 	bi_load_efi_data(kfp, exit_bs);
 
-	size = bi_copymodules(0);
+	size = md_copymodules(0, true);
 	kernend = roundup(addr + size, PAGE_SIZE);
 	*kernendp = kernend;
 
@@ -512,7 +477,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 
 	/* Copy module list and metadata. */
-	(void)bi_copymodules(addr);
+	(void)md_copymodules(addr, true);
 
 	return (0);
 }

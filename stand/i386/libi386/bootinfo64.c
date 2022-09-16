@@ -46,40 +46,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * We have 8 byte alignment for 64-bit targets. This code is compiled as 64-bit
- * code...
- */
-#define MOD_ALIGN(l)	roundup(l, sizeof(uint64_t))
-
-static vm_offset_t
-bi_copymodules64(vm_offset_t addr)
-{
-    struct preloaded_file	*fp;
-    struct file_metadata	*md;
-    int				c;
-    uint64_t			v;
-
-    c = addr != 0;
-    /* start with the first module on the list, should be the kernel */
-    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-
-	MOD_NAME(addr, fp->f_name, c);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type, c);
-	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args, c);
-	v = fp->f_addr;
-	MOD_ADDR(addr, v, c);
-	v = fp->f_size;
-	MOD_SIZE(addr, v, c);
-	for (md = fp->f_metadata; md != NULL; md = md->md_next)
-	    if (!(md->md_type & MODINFOMD_NOCOPY))
-		MOD_METADATA(addr, md, c);
-    }
-    MOD_END(addr, c);
-    return(addr);
-}
-
-/*
  * Check to see if this CPU supports long mode.
  */
 static int
@@ -197,7 +163,7 @@ bi_load64(char *args, vm_offset_t *modulep,
 #endif
     bi_load_vbe_data(kfp);
 
-    size = bi_copymodules64(0);
+    size = md_copymodules(0, true);
 
     /* copy our environment */
     envp = roundup(addr + size, PAGE_SIZE);
@@ -216,7 +182,7 @@ bi_load64(char *args, vm_offset_t *modulep,
     bcopy(&envp, md->md_data, sizeof envp);
 
     /* copy module list and metadata */
-    (void)bi_copymodules64(*modulep);
+    (void)md_copymodules(*modulep, true);
 
     return(0);
 }
