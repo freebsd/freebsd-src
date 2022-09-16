@@ -58,6 +58,7 @@ static struct bootinfo  bi;
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
  */
+#define MOD_ALIGN(l)	roundup(l, sizeof(uint32_t))
 #define COPY32(v, a, c) {			\
     uint32_t	x = (v);			\
     if (c)					\
@@ -70,7 +71,7 @@ static struct bootinfo  bi;
     COPY32(strlen(s) + 1, a, c);		\
     if (c)					\
         archsw.arch_copyin(s, a, strlen(s) + 1);\
-    a += roundup(strlen(s) + 1, sizeof(uint32_t));\
+    a += MOD_ALIGN(strlen(s) + 1);		\
 }
 
 #define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -82,7 +83,7 @@ static struct bootinfo  bi;
     COPY32(sizeof(s), a, c);			\
     if (c)					\
         archsw.arch_copyin(&s, a, sizeof(s));	\
-    a += roundup(sizeof(s), sizeof(uint32_t));	\
+    a += MOD_ALIGN(sizeof(s));			\
 }
 
 #define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -93,7 +94,7 @@ static struct bootinfo  bi;
     COPY32(mm->md_size, a, c);			\
     if (c)					\
         archsw.arch_copyin(mm->md_data, a, mm->md_size);\
-    a += roundup(mm->md_size, sizeof(uint32_t));\
+    a += MOD_ALIGN(mm->md_size);		\
 }
 
 #define MOD_END(a, c) {				\
