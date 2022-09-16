@@ -12,6 +12,7 @@ device		mvebu_pinctrl		# Marvell Pinmux Controller
 
 # I2C
 device		a37x0_iic		# Armada 37x0 I2C controller
+device		tca64xx			# I2C gpio expander
 device		twsi			# Allwinner/Marvell I2C controller
 
 # Interrupt controllers
