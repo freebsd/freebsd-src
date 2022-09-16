@@ -213,11 +213,11 @@ scheduling policy.
 Creation of the new thread would exceed the
 .Dv RACCT_NTHR
 limit, see
-.Xr racct 2 .
+.Xr rctl_get_racct 2 .
 .It Bq Er EPROCLIM
 Creation of the new thread would exceed the
 .Dv kern.threads.max_threads_per_proc
-.Xr sysctl 2
+.Xr sysctl 8
 limit.
 .It Bq Er ENOMEM
 There was not enough kernel memory to allocate the new thread structures.
@@ -226,7 +226,7 @@ There was not enough kernel memory to allocate the new thread structures.
 .Xr ps 1 ,
 .Xr _umtx_op 2 ,
 .Xr execve 2 ,
-.Xr racct 2 ,
+.Xr rctl_get_racct 2 ,
 .Xr thr_exit 2 ,
 .Xr thr_kill 2 ,
 .Xr thr_kill2 2 ,
