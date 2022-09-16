@@ -2854,6 +2854,7 @@ in6m_mode_str(const int mode)
 static const char *in6m_statestrs[] = {
 	"not-member",
 	"silent",
+	"reporting",
 	"idle",
 	"lazy",
 	"sleeping",
@@ -2862,6 +2863,8 @@ static const char *in6m_statestrs[] = {
 	"sg-query-pending",
 	"leaving"
 };
+_Static_assert(nitems(in6m_statestrs) ==
+    MLD_LEAVING_MEMBER - MLD_NOT_MEMBER + 1, "Missing MLD group state");
 
 static const char *
 in6m_state_str(const int state)
