@@ -126,7 +126,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 
     /* copy our environment */
     envp = addr;
-    addr = bi_copyenv(addr);
+    addr = md_copyenv(addr);
 
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);

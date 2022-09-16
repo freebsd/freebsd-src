@@ -148,3 +148,42 @@ md_copymodules(vm_offset_t addr, bool kern64)
 	MOD_END(addr, c);
 	return(addr);
 }
+
+/*
+ * Copy the environment into the load area starting at (addr).
+ * Each variable is formatted as <name>=<value>, with a single nul
+ * separating each variable, and a double nul terminating the environment.
+ */
+vm_offset_t
+md_copyenv(vm_offset_t start)
+{
+	struct env_var *ep;
+	vm_offset_t addr, last;
+	size_t len;
+
+	addr = last = start;
+
+	/* Traverse the environment. */
+	for (ep = environ; ep != NULL; ep = ep->ev_next) {
+		len = strlen(ep->ev_name);
+		if ((size_t)archsw.arch_copyin(ep->ev_name, addr, len) != len)
+			break;
+		addr += len;
+		if (archsw.arch_copyin("=", addr, 1) != 1)
+			break;
+		addr++;
+		if (ep->ev_value != NULL) {
+			len = strlen(ep->ev_value);
+			if ((size_t)archsw.arch_copyin(ep->ev_value, addr, len) != len)
+				break;
+			addr += len;
+		}
+		if (archsw.arch_copyin("", addr, 1) != 1)
+			break;
+		last = ++addr;
+	}
+
+	if (archsw.arch_copyin("", last++, 1) != 1)
+		last = start;
+	return(last);
+}
