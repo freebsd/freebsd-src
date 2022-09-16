@@ -69,4 +69,6 @@
     COPY32(0, a, c);				\
 }
 
+vm_offset_t md_copymodules(vm_offset_t addr, bool kern64);
+
 #endif /* COMMON_MODINFO_H */

@@ -41,40 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "libuserboot.h"
 
 /*
- * We have 8 byte alignment for 64-bit targets. This code is compiled as 32-bit
- * code...
- */
-#define MOD_ALIGN(l)	roundup(l, sizeof(uint64_t))
-
-static vm_offset_t
-bi_copymodules64(vm_offset_t addr)
-{
-    struct preloaded_file	*fp;
-    struct file_metadata	*md;
-    int				c;
-    uint64_t			v;
-
-    c = addr != 0;
-    /* start with the first module on the list, should be the kernel */
-    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-
-	MOD_NAME(addr, fp->f_name, c);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type, c);
-	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args, c);
-	v = fp->f_addr;
-	MOD_ADDR(addr, v, c);
-	v = fp->f_size;
-	MOD_SIZE(addr, v, c);
-	for (md = fp->f_metadata; md != NULL; md = md->md_next)
-	    if (!(md->md_type & MODINFOMD_NOCOPY))
-		MOD_METADATA(addr, md, c);
-    }
-    MOD_END(addr, c);
-    return(addr);
-}
-
-/*
  * Check to see if this CPU supports long mode.
  */
 static int
@@ -190,7 +156,7 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 
     /* Figure out the size and location of the metadata */
     *modulep = addr;
-    size = bi_copymodules64(0);
+    size = md_copymodules(0, true);
     kernend = roundup(addr + size, PAGE_SIZE);
     *kernendp = kernend;
 
@@ -199,7 +165,7 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
     bcopy(&kernend, md->md_data, sizeof kernend);
 
     /* copy module list and metadata */
-    (void)bi_copymodules64(addr);
+    (void)md_copymodules(addr, true);
 
     return(0);
 }
