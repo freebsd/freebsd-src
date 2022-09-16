@@ -8,7 +8,7 @@ options		SOC_NXP_LS
 # I2C
 device		pca954x			# NPX I2C bus multiplexer / switches
 device		pcf8563			# NXP Real-time clock/calendar
-device		tca6408			# NXP I2C gpio expander
+device		tca64xx			# NXP I2C gpio expander
 device		pcf85063		# NXP Real-time clock
 
 # Serial (COM) ports
