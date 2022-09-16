@@ -66,34 +66,6 @@ md_getboothowto(char *kargs)
 }
 
 /*
- * Copy the environment into the load area starting at (addr).
- * Each variable is formatted as <name>=<value>, with a single nul
- * separating each variable, and a double nul terminating the environment.
- */
-static vm_offset_t
-md_copyenv(vm_offset_t addr)
-{
-    struct env_var	*ep;
-
-    /* traverse the environment */
-    for (ep = environ; ep != NULL; ep = ep->ev_next) {
-	archsw.arch_copyin(ep->ev_name, addr, strlen(ep->ev_name));
-	addr += strlen(ep->ev_name);
-	archsw.arch_copyin("=", addr, 1);
-	addr++;
-	if (ep->ev_value != NULL) {
-	    archsw.arch_copyin(ep->ev_value, addr, strlen(ep->ev_value));
-	    addr += strlen(ep->ev_value);
-	}
-	archsw.arch_copyin("", addr, 1);
-	addr++;
-    }
-    archsw.arch_copyin("", addr, 1);
-    addr++;
-    return(addr);
-}
-
-/*
  * Load the information expected by a kernel.
  *
  * - The 'boothowto' argument is constructed

@@ -126,45 +126,6 @@ bi_getboothowto(char *kargs)
 	return (howto);
 }
 
-/*
- * Copy the environment into the load area starting at (addr).
- * Each variable is formatted as <name>=<value>, with a single nul
- * separating each variable, and a double nul terminating the environment.
- */
-static vm_offset_t
-bi_copyenv(vm_offset_t start)
-{
-	struct env_var *ep;
-	vm_offset_t addr, last;
-	size_t len;
-
-	addr = last = start;
-
-	/* Traverse the environment. */
-	for (ep = environ; ep != NULL; ep = ep->ev_next) {
-		len = strlen(ep->ev_name);
-		if ((size_t)archsw.arch_copyin(ep->ev_name, addr, len) != len)
-			break;
-		addr += len;
-		if (archsw.arch_copyin("=", addr, 1) != 1)
-			break;
-		addr++;
-		if (ep->ev_value != NULL) {
-			len = strlen(ep->ev_value);
-			if ((size_t)archsw.arch_copyin(ep->ev_value, addr, len) != len)
-				break;
-			addr += len;
-		}
-		if (archsw.arch_copyin("", addr, 1) != 1)
-			break;
-		last = ++addr;
-	}
-
-	if (archsw.arch_copyin("", last++, 1) != 1)
-		last = start;
-	return(last);
-}
-
 static EFI_STATUS
 efi_do_vmap(EFI_MEMORY_DESCRIPTOR *mm, UINTN sz, UINTN mmsz, UINT32 mmver)
 {
@@ -408,7 +369,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 
 	/* Copy our environment. */
 	envp = addr;
-	addr = bi_copyenv(addr);
+	addr = md_copyenv(addr);
 
 	/* Pad to a page boundary. */
 	addr = roundup(addr, PAGE_SIZE);
