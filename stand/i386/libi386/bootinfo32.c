@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "geliboot.h"
 #endif
 
-static struct bootinfo  bi;
+static struct bootinfo  *bi;
 
 /*
  * Load the information expected by an i386 kernel.
@@ -91,11 +91,12 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* XXX - use a default bootdev of 0.  Is this ok??? */
     bootdevnr = 0;
 
+    bi = calloc(sizeof(*bi), 1);
     switch(rootdev->dd.d_dev->dv_type) {
     case DEVT_CD:
     case DEVT_DISK:
 	/* pass in the BIOS device number of the current disk */
-	bi.bi_bios_dev = bd_unit2bios(rootdev);
+	bi->bi_bios_dev = bd_unit2bios(rootdev);
 	bootdevnr = bd_getdev(rootdev);
 	break;
 
@@ -172,22 +173,22 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* legacy bootinfo structure */
     kernelname = getenv("kernelname");
     i386_getdev(NULL, kernelname, &kernelpath);
-    bi.bi_version = BOOTINFO_VERSION;
-    bi.bi_size = sizeof(bi);
-    bi.bi_memsizes_valid = 1;
-    bi.bi_basemem = bios_basemem / 1024;
-    bi.bi_extmem = bios_extmem / 1024;
-    bi.bi_envp = envp;
-    bi.bi_modulep = *modulep;
-    bi.bi_kernend = kernend;
-    bi.bi_kernelname = VTOP(kernelpath);
-    bi.bi_symtab = ssym;       /* XXX this is only the primary kernel symtab */
-    bi.bi_esymtab = esym;
+    bi->bi_version = BOOTINFO_VERSION;
+    bi->bi_size = sizeof(bi);
+    bi->bi_memsizes_valid = 1;
+    bi->bi_basemem = bios_basemem / 1024;
+    bi->bi_extmem = bios_extmem / 1024;
+    bi->bi_envp = envp;
+    bi->bi_modulep = *modulep;
+    bi->bi_kernend = kernend;
+    bi->bi_kernelname = VTOP(kernelpath);
+    bi->bi_symtab = ssym;       /* XXX this is only the primary kernel symtab */
+    bi->bi_esymtab = esym;
 
     /* legacy boot arguments */
     *howtop = howto | RB_BOOTINFO;
     *bootdevp = bootdevnr;
-    *bip = VTOP(&bi);
+    *bip = VTOP(bi);
 
     return(0);
 }
