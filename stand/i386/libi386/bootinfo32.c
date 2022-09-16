@@ -173,8 +173,6 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     kernelname = getenv("kernelname");
     i386_getdev(NULL, kernelname, &kernelpath);
     bi.bi_version = BOOTINFO_VERSION;
-    for (i = 0; i < N_BIOS_GEOM; i++)
-        bi.bi_bios_geom[i] = bd_getbigeom(i);
     bi.bi_size = sizeof(bi);
     bi.bi_memsizes_valid = 1;
     bi.bi_basemem = bios_basemem / 1024;

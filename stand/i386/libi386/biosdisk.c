@@ -1287,35 +1287,6 @@ bd_io(struct disk_devdesc *dev, bdinfo_t *bd, daddr_t dblk, int blks,
 }
 
 /*
- * Return the BIOS geometry of a given "fixed drive" in a format
- * suitable for the legacy bootinfo structure.  Since the kernel is
- * expecting raw int 0x13/0x8 values for N_BIOS_GEOM drives, we
- * prefer to get the information directly, rather than rely on being
- * able to put it together from information already maintained for
- * different purposes and for a probably different number of drives.
- *
- * For valid drives, the geometry is expected in the format (31..0)
- * "000000cc cccccccc hhhhhhhh 00ssssss"; and invalid drives are
- * indicated by returning the geometry of a "1.2M" PC-format floppy
- * disk.  And, incidentally, what is returned is not the geometry as
- * such but the highest valid cylinder, head, and sector numbers.
- */
-uint32_t
-bd_getbigeom(int bunit)
-{
-
-	v86.ctl = V86_FLAGS;
-	v86.addr = DISK_BIOS;
-	v86.eax = CMD_READ_PARAM;
-	v86.edx = 0x80 + bunit;
-	v86int();
-	if (V86_CY(v86.efl))
-		return (0x4f010f);
-	return (((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
-	    (v86.edx & 0xff00) | (v86.ecx & 0x3f));
-}
-
-/*
  * Return a suitable dev_t value for (dev).
  *
  * In the case where it looks like (dev) is a SCSI disk, we allow the number of
