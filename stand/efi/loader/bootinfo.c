@@ -180,6 +180,7 @@ bi_copyenv(vm_offset_t start)
  * MOD_SIZE	sizeof(size_t)		module size
  * MOD_METADATA	(variable)		type-specific metadata
  */
+#define MOD_ALIGN(l)	roundup(l, sizeof(u_long))
 #define	COPY32(v, a, c) {					\
 	uint32_t x = (v);					\
 	if (c)							\
@@ -192,7 +193,7 @@ bi_copyenv(vm_offset_t start)
 	COPY32(strlen(s) + 1, a, c);				\
 	if (c)							\
 		archsw.arch_copyin(s, a, strlen(s) + 1);	\
-	a += roundup(strlen(s) + 1, sizeof(u_long));		\
+	a += MOD_ALIGN(strlen(s) + 1);				\
 }
 
 #define	MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -204,7 +205,7 @@ bi_copyenv(vm_offset_t start)
 	COPY32(sizeof(s), a, c);				\
 	if (c)							\
 		archsw.arch_copyin(&s, a, sizeof(s));		\
-	a += roundup(sizeof(s), sizeof(u_long));		\
+	a += MOD_ALIGN(sizeof(s));				\
 }
 
 #define	MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -214,8 +215,8 @@ bi_copyenv(vm_offset_t start)
 	COPY32(MODINFO_METADATA | mm->md_type, a, c);		\
 	COPY32(mm->md_size, a, c);				\
 	if (c)							\
-		archsw.arch_copyin(mm->md_data, a, mm->md_size);	\
-	a += roundup(mm->md_size, sizeof(u_long));		\
+		archsw.arch_copyin(mm->md_data, a, mm->md_size); \
+	a += MOD_ALIGN(mm->md_size);				\
 }
 
 #define	MOD_END(a, c) {						\

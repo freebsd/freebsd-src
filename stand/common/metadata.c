@@ -111,6 +111,7 @@ md_copyenv(vm_offset_t addr)
 
 static int align;
 
+#define MOD_ALIGN(l)	roundup(l, align)
 #define COPY32(v, a, c) {			\
     uint32_t	x = (v);			\
     if (c)					\
@@ -123,7 +124,7 @@ static int align;
     COPY32(strlen(s) + 1, a, c)			\
     if (c)					\
         archsw.arch_copyin(s, a, strlen(s) + 1);\
-    a += roundup(strlen(s) + 1, align);		\
+    a += MOD_ALIGN(strlen(s) + 1);		\
 }
 
 #define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -135,7 +136,7 @@ static int align;
     COPY32(sizeof(s), a, c);			\
     if (c)					\
         archsw.arch_copyin(&s, a, sizeof(s));	\
-    a += roundup(sizeof(s), align);		\
+    a += MOD_ALIGN(sizeof(s));			\
 }
 
 #define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -146,7 +147,7 @@ static int align;
     COPY32(mm->md_size, a, c);			\
     if (c)					\
         archsw.arch_copyin(mm->md_data, a, mm->md_size);\
-    a += roundup(mm->md_size, align);		\
+    a += MOD_ALIGN(mm->md_size);		\
 }
 
 #define MOD_END(a, c) {				\
