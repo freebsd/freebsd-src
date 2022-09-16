@@ -313,7 +313,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_ALC257 &&
-	    (subid == LENOVO_L5AMD_SUBVENDOR)) {
+	    (subid == LENOVO_L5AMD_SUBVENDOR ||
+	    subid == LENOVO_L5INTEL_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
 			patch_str = "as=1 seq=0";
