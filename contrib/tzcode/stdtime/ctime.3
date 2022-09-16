@@ -30,7 +30,7 @@
 .\"     From: @(#)ctime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2022
+.Dd September 16, 2022
 .Dt CTIME 3
 .Os
 .Sh NAME
@@ -94,6 +94,10 @@ and returns a pointer to a
 (described below) which contains
 the broken-out time information for the value after adjusting for the current
 time zone (and any other factors such as Daylight Saving Time).
+When the specified time translates to a year that will not fit in an
+.Dv int ,
+.Fn localtime
+returns NULL.
 Time zone adjustments are performed as specified by the
 .Ev TZ
 environment variable (see
