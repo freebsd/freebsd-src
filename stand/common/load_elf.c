@@ -98,6 +98,7 @@ const char	*__elfN(moduletype) = "elf module";
 
 uint64_t	__elfN(relocation_offset) = 0;
 
+#ifdef __powerpc__
 extern void elf_wrong_field_size(void);
 #define CONVERT_FIELD(b, f, e)			\
 	switch (sizeof((b)->f)) {		\
@@ -203,7 +204,22 @@ static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
 }
 #undef CONVERT_SWITCH
 #undef CONVERT_FIELD
+#else
+static int elf_header_convert(Elf_Ehdr *ehdr)
+{
+	return (0);
+}
 
+static int elf_program_header_convert(const Elf_Ehdr *ehdr, Elf_Phdr *phdr)
+{
+	return (0);
+}
+
+static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
+{
+	return (0);
+}
+#endif
 
 #ifdef __amd64__
 static bool
