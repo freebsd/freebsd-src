@@ -183,7 +183,6 @@ ASSYM(BOOTINFO_SIZE, sizeof(struct bootinfo));
 ASSYM(BI_VERSION, offsetof(struct bootinfo, bi_version));
 ASSYM(BI_KERNELNAME, offsetof(struct bootinfo, bi_kernelname));
 ASSYM(BI_NFS_DISKLESS, offsetof(struct bootinfo, bi_nfs_diskless));
-ASSYM(BI_ENDCOMMON, offsetof(struct bootinfo, bi_endcommon));
 ASSYM(NFSDISKLESS_SIZE, sizeof(struct nfs_diskless));
 ASSYM(BI_SIZE, offsetof(struct bootinfo, bi_size));
 ASSYM(BI_SYMTAB, offsetof(struct bootinfo, bi_symtab));

@@ -44,15 +44,13 @@
 
 /*
  * A zero bootinfo field often means that there is no info available.
- * Flags are used to indicate the validity of fields where zero is a
- * normal value.
+ * Assumes booting with a boot loader from FreeBSD 2.1 or newer and
+ * that bi_size is always valid when bi_version == 1.
  */
 struct bootinfo {
-	u_int32_t	bi_version;
+	u_int32_t	bi_version;		/* Must be 1 */
 	u_int32_t	bi_kernelname;		/* represents a char * */
 	u_int32_t	bi_nfs_diskless;	/* struct nfs_diskless * */
-				/* End of fields that are always present. */
-#define	bi_endcommon	_was_bi_n_bios_used
 	u_int32_t	_was_bi_n_bios_used;
 	u_int32_t	_was_bi_bios_geom[_WAS_N_BIOS_GEOM];
 	u_int32_t	bi_size;
@@ -67,13 +65,6 @@ struct bootinfo {
 	u_int32_t	bi_kernend;		/* end of kernel space */
 	u_int32_t	bi_envp;		/* environment */
 	u_int32_t	bi_modulep;		/* preloaded modules */
-	uint32_t	_was_bi_memdesc_version;/* EFI memory desc version */
-	uint64_t	_was_bi_memdesc_size;	/* sizeof EFI memory desc */
-	uint64_t	_was_bi_memmap;		/* pa of EFI memory map */
-	uint64_t	_was_bi_memmap_size;	/* size of EFI memory map */
-	uint64_t	_was_bi_hcdp;		/* DIG64 HCDP table */
-	uint64_t	_was_bi_fpswa;		/* FPSWA interface */
-	uint64_t	_was_bi_systab;		/* pa of EFI system table */
 };
 
 #ifdef _KERNEL
