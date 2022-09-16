@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #define COPY32(v, a, c) {			\
     uint32_t	x = (v);			\
     if (c)					\
-	i386_copyin(&x, a, sizeof(x));		\
+	archsw.arch_copyin(&x, a, sizeof(x));	\
     a += sizeof(x);				\
 }
 
@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
     COPY32(t, a, c);				\
     COPY32(strlen(s) + 1, a, c);		\
     if (c)					\
-	i386_copyin(s, a, strlen(s) + 1);	\
+	archsw.arch_copyin(s, a, strlen(s) + 1); \
     a += roundup(strlen(s) + 1, sizeof(uint64_t));\
 }
 
@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
     COPY32(t, a, c);				\
     COPY32(sizeof(s), a, c);			\
     if (c)					\
-	i386_copyin(&s, a, sizeof(s));		\
+	archsw.arch_copyin(&s, a, sizeof(s));	\
     a += roundup(sizeof(s), sizeof(uint64_t));	\
 }
 
@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
     COPY32(MODINFO_METADATA | mm->md_type, a, c); \
     COPY32(mm->md_size, a, c);			\
     if (c)					\
-	i386_copyin(mm->md_data, a, mm->md_size); \
+	archsw.arch_copyin(mm->md_data, a, mm->md_size); \
     a += roundup(mm->md_size, sizeof(uint64_t));\
 }
 
