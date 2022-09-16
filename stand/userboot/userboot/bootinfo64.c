@@ -138,7 +138,7 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 
     /* copy our environment */
     envp = addr;
-    addr = bi_copyenv(addr);
+    addr = md_copyenv(addr);
 
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);

@@ -7,5 +7,6 @@
 #define COMMON_MODINFO_H
 
 vm_offset_t md_copymodules(vm_offset_t addr, bool kern64);
+vm_offset_t md_copyenv(vm_offset_t addr);
 
 #endif /* COMMON_MODINFO_H */
