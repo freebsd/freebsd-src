@@ -326,11 +326,9 @@ triggering compiler diagnostics.
 (The
 .Fn dlsym
 function
-returns a data pointer; in the C standard, conversions between
-data and function pointer types are undefined.
-Some compilers and
-.Xr lint 1
-utilities warn about such casts.)
+returns an object pointer; in the C standard, conversions between
+object and function pointer types are undefined.
+Some compilers and lint utilities warn about such casts.)
 The precise return type of
 .Fn dlfunc
 is unspecified; applications must cast it to an appropriate function pointer
