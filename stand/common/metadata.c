@@ -106,7 +106,6 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     };
 #endif
 
-    align = kern64 ? 8 : 4;
     howto = md_getboothowto(args);
 
     /*
