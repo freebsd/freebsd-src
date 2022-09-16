@@ -178,6 +178,9 @@ recover_bootinfo:
 	 *	 and always passed in as 0]
 	 *	[esym is also known as total in the boot code, and
 	 *	 was never properly supported by the FreeBSD boot code]
+	 *	This code from 1.x/2.x doesn't supply now-required metadata and
+	 *	likely will fail (we test for it to avoid dereferencing stack
+	 *	garbage here).
 	 *
 	 * Old diskless netboot code:
 	 *	(*btext)(0,0,0,0,&nfsdiskless,0,0,0);
@@ -195,9 +198,11 @@ recover_bootinfo:
 	 */
 
 	/*
-	 * The old style disk boot blocks fake a frame on the stack and
-	 * did an lret to get here.  The frame on the stack has a return
-	 * address of 0.
+	 * The old style disk boot blocks fake a frame on the stack and did an
+	 * lret to get here.  The frame on the stack has a return address of 0.
+	 * This style of boot (from 1.x / 2.x) almost certainly won't work,
+	 * since the kernel has required metadata since about 7.x or so and none
+	 * are present.
 	 */
 	cmpl	$0,4(%ebp)
 	je	olddiskboot
@@ -212,9 +217,9 @@ recover_bootinfo:
 	je	newboot
 
 	/*
-	 * Seems we have been loaded by the old diskless boot code, we
-	 * don't stand a chance of running as the diskless structure
-	 * changed considerably between the two, so just halt.
+	 * Seems we have been loaded by the old 1.x/2.x diskless boot code, we
+	 * don't stand a chance of running as the diskless structure changed
+	 * considerably between the two, so just halt.
 	 */
 	 hlt
 
@@ -228,6 +233,8 @@ newboot:
 	movl	BI_VERSION(%ebx),%eax
 	cmpl	$1,%eax			/* We only understand version 1 */
 	je	1f
+	testl   $RB_BOOTINFO,8(%ebp)    /* bi_size (and bootinfo) valid? */
+	jne	1f
 	movl	$1,%eax			/* Return status */
 	leave
 	/*
@@ -258,21 +265,12 @@ newboot:
 2:
 	/*
 	 * Determine the size of the boot loader's copy of the bootinfo
-	 * struct.  This is impossible to do properly because old versions
-	 * of the struct don't contain a size field and there are 2 old
-	 * versions with the same version number.
-	 */
-	movl	$BI_ENDCOMMON,%ecx	/* prepare for sizeless version */
-	testl	$RB_BOOTINFO,8(%ebp)	/* bi_size (and bootinfo) valid? */
-	je	got_bi_size		/* no, sizeless version */
-	movl	BI_SIZE(%ebx),%ecx
-got_bi_size:
-
-	/*
-	 * Copy the common part of the bootinfo struct
+	 * struct. Copy min(our size, loader's size) into our bootinfo.
+	 * Incompatible with really old boot loaders from FreeBSD 1.x and 2.0.
 	 */
 	movl	%ebx,%esi
 	movl	$bootinfo,%edi
+	movl	BI_SIZE(%ebx),%ecx
 	cmpl	$BOOTINFO_SIZE,%ecx
 	jbe	got_common_bi_size
 	movl	$BOOTINFO_SIZE,%ecx
