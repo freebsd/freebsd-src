@@ -45,37 +45,6 @@ __FBSDID("$FreeBSD$");
 static struct bootinfo  bi;
 
 /*
- * We have 4 byte alignment for 32-bit targets. This code is compiled as 32-bit
- * code...
- */
-#define MOD_ALIGN(l) roundup(l, sizeof(u_long))
-
-static vm_offset_t
-bi_copymodules32(vm_offset_t addr)
-{
-    struct preloaded_file	*fp;
-    struct file_metadata	*md;
-    int				c;
-
-    c = addr != 0;
-    /* start with the first module on the list, should be the kernel */
-    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-
-	MOD_NAME(addr, fp->f_name, c);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type, c);
-	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args, c);
-	MOD_ADDR(addr, fp->f_addr, c);
-	MOD_SIZE(addr, fp->f_size, c);
-	for (md = fp->f_metadata; md != NULL; md = md->md_next)
-	    if (!(md->md_type & MODINFOMD_NOCOPY))
-		MOD_METADATA(addr, md, c);
-    }
-    MOD_END(addr, c);
-    return(addr);
-}
-
-/*
  * Load the information expected by an i386 kernel.
  *
  * - The 'boothowto' argument is constructed
@@ -179,7 +148,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 
     /* Figure out the size and location of the metadata */
     *modulep = addr;
-    size = bi_copymodules32(0);
+    size = md_copymodules(0, false);
     kernend = roundup(addr + size, PAGE_SIZE);
     *kernendp = kernend;
 
@@ -188,7 +157,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     bcopy(&kernend, md->md_data, sizeof kernend);
 
     /* copy module list and metadata */
-    (void)bi_copymodules32(addr);
+    (void)md_copymodules(addr, false);
 
     ssym = esym = 0;
     md = file_findmetadata(kfp, MODINFOMD_SSYM);
