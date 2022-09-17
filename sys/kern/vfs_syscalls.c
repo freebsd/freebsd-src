@@ -1000,7 +1000,8 @@ sys_chroot(struct thread *td, struct chroot_args *uap)
 	    UIO_USERSPACE, uap->path);
 	error = namei(&nd);
 	if (error != 0)
-		goto error;
+		return (error);
+	NDFREE_NOTHING(&nd);
 	error = change_dir(nd.ni_vp, td);
 	if (error != 0)
 		goto e_vunlock;
@@ -1012,12 +1013,9 @@ sys_chroot(struct thread *td, struct chroot_args *uap)
 	VOP_UNLOCK(nd.ni_vp);
 	error = pwd_chroot(td, nd.ni_vp);
 	vrele(nd.ni_vp);
-	NDFREE_NOTHING(&nd);
 	return (error);
 e_vunlock:
 	vput(nd.ni_vp);
-error:
-	NDFREE_NOTHING(&nd);
 	return (error);
 }
 
