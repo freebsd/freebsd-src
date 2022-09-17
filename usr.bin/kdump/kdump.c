@@ -449,15 +449,15 @@ main(int argc, char *argv[])
 			ktr_header.ktr_type &= ~KTR_DROP;
 			if (!drop_logged && threads) {
 				printf(
-				    "%6jd %6jd %-8.*s Events dropped.\n",
-				    (intmax_t)ktr_header.ktr_pid,
+				    "%6d %6d %-8.*s Events dropped.\n",
+				    ktr_header.ktr_pid,
 				    ktr_header.ktr_tid > 0 ?
-				    (intmax_t)ktr_header.ktr_tid : 0,
+				    (lwpid_t)ktr_header.ktr_tid : 0,
 				    MAXCOMLEN, ktr_header.ktr_comm);
 				drop_logged = 1;
 			} else if (!drop_logged) {
-				printf("%6jd %-8.*s Events dropped.\n",
-				    (intmax_t)ktr_header.ktr_pid, MAXCOMLEN,
+				printf("%6d %-8.*s Events dropped.\n",
+				    ktr_header.ktr_pid, MAXCOMLEN,
 				    ktr_header.ktr_comm);
 				drop_logged = 1;
 			}
@@ -724,12 +724,11 @@ dumpheader(struct ktr_header *kth, u_int sv_flags)
 	 * negative tid's as 0.
 	 */
 	if (threads)
-		printf("%6jd %6jd %-8.*s ", (intmax_t)kth->ktr_pid,
-		    kth->ktr_tid > 0 ? (intmax_t)kth->ktr_tid : 0,
+		printf("%6d %6d %-8.*s ", kth->ktr_pid,
+		    kth->ktr_tid > 0 ? (lwpid_t)kth->ktr_tid : 0,
 		    MAXCOMLEN, kth->ktr_comm);
 	else
-		printf("%6jd %-8.*s ", (intmax_t)kth->ktr_pid, MAXCOMLEN,
-		    kth->ktr_comm);
+		printf("%6d %-8.*s ", kth->ktr_pid, MAXCOMLEN, kth->ktr_comm);
         if (timestamp) {
 		if (version == KTR_VERSION0)
 			dumptimeval((struct ktr_header_v0 *)kth);
