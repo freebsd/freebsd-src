@@ -76,10 +76,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef INVARIANTS
 static void NDVALIDATE_impl(struct nameidata *, int);
-#endif
-
 #define NDVALIDATE(ndp) NDVALIDATE_impl(ndp, __LINE__)
-
+#else
+#define NDVALIDATE(ndp)
+#endif
 
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
