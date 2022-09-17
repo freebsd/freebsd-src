@@ -1875,8 +1875,12 @@ vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 	 */
 	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
 	    mp->mnt_susp_owner != curthread) {
-		mflags = ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ?
-		    (flags & PCATCH) : 0) | (PUSER - 1);
+		mflags = 0;
+		if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
+			if (flags & PCATCH)
+				mflags |= PCATCH;
+		}
+		mflags |= (PUSER - 1);
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 			if (flags & V_NOWAIT) {
 				error = EWOULDBLOCK;
@@ -1944,7 +1948,7 @@ int
 vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
-	int error;
+	int error, mflags;
 
  retry:
 	if (vp != NULL) {
@@ -1986,9 +1990,13 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	/*
 	 * Wait for the suspension to finish.
 	 */
-	error = msleep(&mp->mnt_flag, MNT_MTX(mp), (PUSER - 1) | PDROP |
-	    ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ? (flags & PCATCH) : 0),
-	    "suspfs", 0);
+	mflags = 0;
+	if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
+		if (flags & PCATCH)
+			mflags |= PCATCH;
+	}
+	mflags |= (PUSER - 1) | PDROP;
+	error = msleep(&mp->mnt_flag, MNT_MTX(mp), mflags, "suspfs", 0);
 	vfs_rel(mp);
 	if (error == 0)
 		goto retry;
