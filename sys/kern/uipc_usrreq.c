@@ -611,7 +611,7 @@ restart:
 			error = EADDRINUSE;
 			goto error;
 		}
-		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
+		error = vn_start_write(NULL, &mp, V_XSLEEP | V_PCATCH);
 		if (error)
 			goto error;
 		goto restart;

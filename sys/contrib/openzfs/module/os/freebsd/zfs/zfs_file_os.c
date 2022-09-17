@@ -226,7 +226,7 @@ zfs_vop_fsync(vnode_t *vp)
 	struct mount *mp;
 	int error;
 
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
+	if ((error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_FSYNC(vp, MNT_WAIT, curthread);

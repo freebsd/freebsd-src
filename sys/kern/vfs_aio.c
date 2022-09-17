@@ -724,7 +724,7 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp, int op)
 	int error;
 
 	for (;;) {
-		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 		if (error != 0)
 			break;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);

@@ -8426,10 +8426,10 @@ tryagain2:
 	 * NFS mount and they are not suspendable at this time.
 	 */
 	if (ret == 0)
-		ret = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		ret = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 	if (ret == 0) {
 		tvmp = dvp->v_mount;
-		ret = vn_start_write(NULL, &tvmp, V_WAIT | PCATCH);
+		ret = vn_start_write(NULL, &tvmp, V_WAIT | V_PCATCH);
 	}
 
 	/*

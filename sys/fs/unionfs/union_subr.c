@@ -907,7 +907,7 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 		goto unionfs_mkshadowdir_abort;
 	}
 
-	if ((error = vn_start_write(udvp, &mp, V_WAIT | PCATCH)))
+	if ((error = vn_start_write(udvp, &mp, V_WAIT | V_PCATCH)))
 		goto unionfs_mkshadowdir_abort;
 	unionfs_create_uppervattr_core(ump, &lva, &va, td);
 
@@ -962,7 +962,7 @@ unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
 		return (EEXIST);
 	}
 
-	if ((error = vn_start_write(dvp, &mp, V_WAIT | PCATCH)))
+	if ((error = vn_start_write(dvp, &mp, V_WAIT | V_PCATCH)))
 		goto unionfs_mkwhiteout_free_out;
 	error = VOP_WHITEOUT(dvp, &nd.ni_cnd, CREATE);
 
@@ -1160,7 +1160,7 @@ unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred,
 	if (error != 0)
 		return (error);
 
-	if ((error = vn_start_write(udvp, &mp, V_WAIT | PCATCH)) != 0)
+	if ((error = vn_start_write(udvp, &mp, V_WAIT | V_PCATCH)) != 0)
 		return (error);
 	error = unionfs_vn_create_on_upper(&uvp, udvp, unp, &uva, td);
 	if (error != 0) {
