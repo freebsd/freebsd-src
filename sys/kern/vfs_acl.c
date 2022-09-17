@@ -236,7 +236,7 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	error = acl_copyin(aclp, inkernelacl, type);
 	if (error != 0)
 		goto out;
-	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 	if (error != 0)
 		goto out;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -300,7 +300,7 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 	int error;
 
 	AUDIT_ARG_VALUE(type);
-	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 	if (error != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);

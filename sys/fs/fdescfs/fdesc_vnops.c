@@ -516,7 +516,7 @@ fdesc_setattr(struct vop_setattr_args *ap)
 		return (error);
 	}
 	vp = fp->f_vnode;
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) == 0) {
+	if ((error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH)) == 0) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred);
 		VOP_UNLOCK(vp);

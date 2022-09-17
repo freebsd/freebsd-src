@@ -271,7 +271,7 @@ restart:
 				NDFREE_PNBUF(ndp);
 				vput(ndp->ni_dvp);
 				if ((error = vn_start_write(NULL, &mp,
-				    V_XSLEEP | PCATCH)) != 0)
+				    V_XSLEEP | V_PCATCH)) != 0)
 					return (error);
 				NDREINIT(ndp);
 				goto restart;
@@ -654,7 +654,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 		mp = NULL;
 		if (rw == UIO_WRITE) { 
 			if (vp->v_type != VCHR &&
-			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
+			    (error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH))
 			    != 0)
 				goto out;
 			lock_flags = vn_lktype_write(mp, vp);
@@ -1155,7 +1155,7 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	mp = NULL;
 	need_finished_write = false;
 	if (vp->v_type != VCHR) {
-		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 		if (error != 0)
 			goto unlock;
 		need_finished_write = true;
@@ -1619,7 +1619,7 @@ retry:
 	 * might happen partly before and partly after the truncation.
 	 */
 	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
-	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 	if (error)
 		goto out1;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -1877,7 +1877,7 @@ vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 	    mp->mnt_susp_owner != curthread) {
 		mflags = 0;
 		if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
-			if (flags & PCATCH)
+			if (flags & V_PCATCH)
 				mflags |= PCATCH;
 		}
 		mflags |= (PUSER - 1);
@@ -1907,6 +1907,9 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
 	int error;
+
+	KASSERT((flags & ~V_VALID_FLAGS) == 0,
+	    ("%s: invalid flags passed %d\n", __func__, flags));
 
 	error = 0;
 	/*
@@ -1950,6 +1953,9 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	struct mount *mp;
 	int error, mflags;
 
+	KASSERT((flags & ~V_VALID_FLAGS) == 0,
+	    ("%s: invalid flags passed %d\n", __func__, flags));
+
  retry:
 	if (vp != NULL) {
 		if ((error = VOP_GETWRITEMOUNT(vp, mpp)) != 0) {
@@ -1992,7 +1998,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	 */
 	mflags = 0;
 	if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
-		if (flags & PCATCH)
+		if (flags & V_PCATCH)
 			mflags |= PCATCH;
 	}
 	mflags |= (PUSER - 1) | PDROP;
@@ -3473,7 +3479,7 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 
 		bwillwrite();
 		mp = NULL;
-		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 		if (error != 0)
 			break;
 		error = vn_lock(vp, LK_EXCLUSIVE);
@@ -3541,7 +3547,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 		if ((ioflag & IO_NODELOCKED) == 0) {
 			bwillwrite();
 			if ((error = vn_start_write(vp, &mp,
-			    V_WAIT | PCATCH)) != 0)
+			    V_WAIT | V_PCATCH)) != 0)
 				goto out;
 			vn_lock(vp, vn_lktype_write(mp, vp) | LK_RETRY);
 		}

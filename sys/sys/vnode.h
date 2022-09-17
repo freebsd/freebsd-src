@@ -431,6 +431,8 @@ extern int		vttoif_tab[];
 #define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
 #define	V_XSLEEP	0x0004	/* vn_start_write: just return after sleep */
+#define	V_PCATCH	0x0008	/* vn_start_write: make the sleep interruptible */
+#define V_VALID_FLAGS (V_WAIT | V_NOWAIT | V_XSLEEP | V_PCATCH)
 
 #define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
 #define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
