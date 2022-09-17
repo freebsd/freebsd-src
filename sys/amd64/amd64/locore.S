@@ -119,8 +119,9 @@ l1:	movl	$(3<<3),%eax
 
 	movl	%edi,%cr3
 	movl	%edx,%cr0
+	jmp	1f
 
-	pushl	$(1<<3)
+1:	pushl	$(1<<3)
 	pushl	%ebx
 	lretl
 	.code64
