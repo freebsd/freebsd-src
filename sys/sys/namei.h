@@ -158,20 +158,9 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 
 /*
  * Namei parameter descriptors.
- *
- * SAVENAME may be set by either the callers of namei or by VOP_LOOKUP.
- * If the caller of namei sets the flag (for example execve wants to
- * know the name of the program that is being executed), then it must
- * free the buffer. If VOP_LOOKUP sets the flag, then the buffer must
- * be freed by either the commit routine or the VOP_ABORT routine.
- * SAVESTART is set only by the callers of namei. It implies SAVENAME
- * plus the addition of saving the parent directory that contains the
- * name in ni_startdir. It allows repeated calls to lookup for the
- * name being sought. The caller is responsible for releasing the
- * buffer and for vrele'ing ni_startdir.
  */
 #define	RDONLY		0x00000200 /* lookup with read-only semantics */
-#define	SAVENAME	0x00000400 /* save pathname buffer */
+/* UNUSED		0x00000400 */
 #define	SAVESTART	0x00000800 /* save starting directory */
 #define	ISWHITEOUT	0x00001000 /* found whiteout */
 #define	DOWHITEOUT	0x00002000 /* do whiteouts */
@@ -185,7 +174,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	OPENREAD	0x00200000 /* open for reading */
 #define	OPENWRITE	0x00400000 /* open for writing */
 #define	WANTIOCTLCAPS	0x00800000 /* leave ioctl caps for the caller */
-#define	HASBUF		0x01000000 /* has allocated pathname buffer */
+/* UNUSED		0x01000000 */
 #define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
 #define	MAKEENTRY	0x04000000 /* entry is to be added to name cache */
 #define	ISSYMLINK	0x08000000 /* symlink needs interpretation */
@@ -198,7 +187,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Flags which must not be passed in by callers.
  */
 #define NAMEI_INTERNAL_FLAGS	\
-	(HASBUF | NOEXECCHECK | MAKEENTRY | ISSYMLINK | ISLASTCN | ISDOTDOT | \
+	(NOEXECCHECK | MAKEENTRY | ISSYMLINK | ISLASTCN | ISDOTDOT | \
 	 TRAILINGSLASH)
 
 /*
@@ -293,14 +282,15 @@ do {										\
 	struct nameidata *_ndp = (ndp);						\
 	filecaps_free(&_ndp->ni_filecaps);					\
 } while (0)
-void NDFREE_PNBUF(struct nameidata *);
-void NDFREE(struct nameidata *, const u_int);
 
-#ifdef INVARIANTS
-void NDFREE_NOTHING(struct nameidata *);
-#else
-#define NDFREE_NOTHING(ndp)	do { } while (0)
-#endif
+#define	NDFREE_PNBUF(ndp) do {							\
+	struct nameidata *_ndp = (ndp);						\
+	MPASS(_ndp->ni_cnd.cn_pnbuf != NULL);					\
+	uma_zfree(namei_zone, _ndp->ni_cnd.cn_pnbuf);				\
+	_ndp->ni_cnd.cn_pnbuf = NULL;						\
+} while (0)
+
+void NDFREE(struct nameidata *, const u_int);
 
 int	namei(struct nameidata *ndp);
 int	vfs_lookup(struct nameidata *ndp);

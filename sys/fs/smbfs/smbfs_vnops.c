@@ -1241,8 +1241,6 @@ smbfs_lookup(ap)
 		   killit = 1;
 		else if (error == 0
 	     /*    && vattr.va_ctime.tv_sec == VTOSMB(vp)->n_ctime*/) {
-		     if (nameiop != LOOKUP && islastcn)
-			     cnp->cn_flags |= SAVENAME;
 		     SMBVDEBUG("use cached vnode\n");
 		     return (0);
 		}
@@ -1296,7 +1294,6 @@ smbfs_lookup(ap)
 			error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 			if (error)
 				goto out;
-			cnp->cn_flags |= SAVENAME;
 			error = EJUSTRETURN;
 			goto out;
 		}
@@ -1321,7 +1318,6 @@ smbfs_lookup(ap)
 		if (error)
 			goto out;
 		*vpp = vp;
-		cnp->cn_flags |= SAVENAME;
 		goto out;
 	}
 	if (nameiop == RENAME && islastcn) {
@@ -1336,7 +1332,6 @@ smbfs_lookup(ap)
 		if (error)
 			goto out;
 		*vpp = vp;
-		cnp->cn_flags |= SAVENAME;
 		goto out;
 	}
 	if (flags & ISDOTDOT) {

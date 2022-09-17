@@ -709,10 +709,6 @@ ext2_link(struct vop_link_args *ap)
 	struct inode *ip;
 	int error;
 
-#ifdef INVARIANTS
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ext2_link: no name");
-#endif
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= EXT4_LINK_MAX) {
 		error = EMLINK;
@@ -801,11 +797,6 @@ ext2_rename(struct vop_rename_args *ap)
 	int error = 0;
 	u_char namlen;
 
-#ifdef INVARIANTS
-	if ((tcnp->cn_flags & HASBUF) == 0 ||
-	    (fcnp->cn_flags & HASBUF) == 0)
-		panic("ext2_rename: no name");
-#endif
 	/*
 	 * Check for cross-device rename.
 	 */
@@ -1315,10 +1306,6 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	char *buf = NULL;
 	int error, dmode;
 
-#ifdef INVARIANTS
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ext2_mkdir: no name");
-#endif
 	dp = VTOI(dvp);
 	if ((nlink_t)dp->i_nlink >= EXT4_LINK_MAX &&
 	    !EXT2_HAS_RO_COMPAT_FEATURE(dp->i_e2fs, EXT2F_ROCOMPAT_DIR_NLINK)) {
@@ -1946,10 +1933,6 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	int error;
 
 	pdir = VTOI(dvp);
-#ifdef INVARIANTS
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ext2_makeinode: no name");
-#endif
 	*vpp = NULL;
 	if ((mode & IFMT) == 0)
 		mode |= IFREG;

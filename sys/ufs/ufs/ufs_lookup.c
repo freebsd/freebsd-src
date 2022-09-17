@@ -524,13 +524,10 @@ notfound:
 		 * We return ni_vp == NULL to indicate that the entry
 		 * does not currently exist; we leave a pointer to
 		 * the (locked) directory inode in ndp->ni_dvp.
-		 * The pathname buffer is saved so that the name
-		 * can be obtained later.
 		 *
 		 * NB - if the directory is unlocked, then this
 		 * information cannot be used.
 		 */
-		cnp->cn_flags |= SAVENAME;
 		return (EJUSTRETURN);
 	}
 	/*
@@ -670,7 +667,6 @@ found:
 #endif
 
 		*vpp = tdp;
-		cnp->cn_flags |= SAVENAME;
 		return (0);
 	}
 	if (dd_ino != NULL)
@@ -830,8 +826,6 @@ ufs_makedirentry(struct inode *ip, struct componentname *cnp,
 	u_int namelen;
 
 	namelen = (unsigned)cnp->cn_namelen;
-	KASSERT((cnp->cn_flags & SAVENAME) != 0,
-		("ufs_makedirentry: missing name"));
 	KASSERT(namelen <= UFS_MAXNAMLEN,
 		("ufs_makedirentry: name too long"));
 	newdirp->d_ino = ip->i_number;
