@@ -75,10 +75,11 @@ __FBSDID("$FreeBSD$");
 #undef NAMEI_DIAGNOSTIC
 
 #ifdef INVARIANTS
-static void NDVALIDATE(struct nameidata *);
-#else
-#define NDVALIDATE(ndp) do { } while (0)
+static void NDVALIDATE_impl(struct nameidata *, int);
 #endif
+
+#define NDVALIDATE(ndp) NDVALIDATE_impl(ndp, __LINE__)
+
 
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
@@ -260,10 +261,8 @@ namei_cleanup_cnp(struct componentname *cnp)
 {
 
 	uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
 	cnp->cn_pnbuf = NULL;
 	cnp->cn_nameptr = NULL;
-#endif
 }
 
 static int
@@ -439,7 +438,6 @@ namei_emptypath(struct nameidata *ndp)
 	ndp->ni_resflags |= NIRES_EMPTYPATH;
 	error = namei_setup(ndp, &dp, &pwd);
 	if (error != 0) {
-		namei_cleanup_cnp(cnp);
 		goto errout;
 	}
 
@@ -447,7 +445,6 @@ namei_emptypath(struct nameidata *ndp)
 	 * Usecount on dp already provided by namei_setup.
 	 */
 	ndp->ni_vp = dp;
-	namei_cleanup_cnp(cnp);
 	pwd_drop(pwd);
 	NDVALIDATE(ndp);
 	if ((cnp->cn_flags & LOCKLEAF) != 0) {
@@ -464,6 +461,7 @@ namei_emptypath(struct nameidata *ndp)
 
 errout:
 	SDT_PROBE4(vfs, namei, lookup, return, error, NULL, false, ndp);
+	namei_cleanup_cnp(cnp);
 	return (error);
 }
 
@@ -585,13 +583,6 @@ namei(struct nameidata *ndp)
 		    ("%s: FAILIFEXISTS must be passed with LOCKPARENT and without LOCKLEAF",
 		    __func__));
 	}
-	/*
-	 * For NDVALIDATE.
-	 *
-	 * While NDINIT may seem like a more natural place to do it, there are
-	 * callers which directly modify flags past invoking init.
-	 */
-	cnp->cn_origflags = cnp->cn_flags;
 #endif
 	ndp->ni_cnd.cn_cred = td->td_ucred;
 	KASSERT(ndp->ni_resflags == 0, ("%s: garbage in ni_resflags: %x\n",
@@ -689,10 +680,6 @@ namei(struct nameidata *ndp)
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			SDT_PROBE4(vfs, namei, lookup, return, error,
 			    ndp->ni_vp, false, ndp);
-			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
-				namei_cleanup_cnp(cnp);
-			} else
-				cnp->cn_flags |= HASBUF;
 			nameicap_cleanup(ndp);
 			pwd_drop(pwd);
 			NDVALIDATE(ndp);
@@ -996,9 +983,7 @@ dirloop:
 	 * Search a new directory.
 	 *
 	 * The last component of the filename is left accessible via
-	 * cnp->cn_nameptr for callers that need the name. Callers needing
-	 * the name set the SAVENAME flag. When done, they assume
-	 * responsibility for freeing the pathname buffer.
+	 * cnp->cn_nameptr. It has to be freed with a call to NDFREE*.
 	 *
 	 * Store / as a temporary sentinel so that we only have one character
 	 * to test for. Pathnames tend to be short so this should not be
@@ -1443,10 +1428,7 @@ vfs_relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	/*
 	 * Search a new directory.
 	 *
-	 * The last component of the filename is left accessible via
-	 * cnp->cn_nameptr for callers that need the name. Callers needing
-	 * the name set the SAVENAME flag. When done, they assume
-	 * responsibility for freeing the pathname buffer.
+	 * See a comment in vfs_lookup for cnp->cn_nameptr.
 	 */
 #ifdef NAMEI_DIAGNOSTIC
 	printf("{%s}: ", cnp->cn_nameptr);
@@ -1545,47 +1527,6 @@ bad:
 	return (error);
 }
 
-/*
- * Free data allocated by namei(); see namei(9) for details.
- */
-void
-NDFREE_PNBUF(struct nameidata *ndp)
-{
-
-	if ((ndp->ni_cnd.cn_flags & HASBUF) != 0) {
-		MPASS((ndp->ni_cnd.cn_flags & (SAVENAME | SAVESTART)) != 0);
-		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
-		ndp->ni_cnd.cn_flags &= ~HASBUF;
-	}
-}
-
-/*
- * NDFREE_PNBUF replacement for callers that know there is no buffer.
- *
- * This is a hack. Preferably the VFS layer would not produce anything more
- * than it was asked to do. Unfortunately several non-LOOKUP cases can add the
- * HASBUF flag to the result. Even then an interface could be implemented where
- * the caller specifies what they expected to see in the result and what they
- * are going to take care of.
- *
- * In the meantime provide this kludge as a trivial replacement for NDFREE_PNBUF
- * calls scattered throughout the kernel where we know for a fact the flag must not
- * be seen.
- */
-#ifdef INVARIANTS
-void
-NDFREE_NOTHING(struct nameidata *ndp)
-{
-	struct componentname *cnp;
-
-	cnp = &ndp->ni_cnd;
-	KASSERT(cnp->cn_nameiop == LOOKUP, ("%s: got non-LOOKUP op %d\n",
-	    __func__, cnp->cn_nameiop));
-	KASSERT((cnp->cn_flags & (SAVENAME | HASBUF)) == 0,
-	    ("%s: bad flags \%" PRIx64 "\n", __func__, cnp->cn_flags));
-}
-#endif
-
 void
 (NDFREE)(struct nameidata *ndp, const u_int flags)
 {
@@ -1636,63 +1577,17 @@ void
 #ifdef INVARIANTS
 /*
  * Validate the final state of ndp after the lookup.
- *
- * Historically filesystems were allowed to modify cn_flags. Most notably they
- * can add SAVENAME to the request, resulting in HASBUF and pushing subsequent
- * clean up to the consumer. In practice this seems to only concern != LOOKUP
- * operations.
- *
- * As a step towards stricter API contract this routine validates the state to
- * clean up. Note validation is a work in progress with the intent of becoming
- * stricter over time.
  */
-#define NDMODIFYINGFLAGS (LOCKLEAF | LOCKPARENT | WANTPARENT | SAVENAME | SAVESTART | HASBUF)
 static void
-NDVALIDATE(struct nameidata *ndp)
+NDVALIDATE_impl(struct nameidata *ndp, int line)
 {
 	struct componentname *cnp;
-	uint64_t used, orig;
 
 	cnp = &ndp->ni_cnd;
-	orig = cnp->cn_origflags;
-	used = cnp->cn_flags;
-	switch (cnp->cn_nameiop) {
-	case LOOKUP:
-		/*
-		 * For plain lookup we require strict conformance -- nothing
-		 * to clean up if it was not requested by the caller.
-		 */
-		orig &= NDMODIFYINGFLAGS;
-		used &= NDMODIFYINGFLAGS;
-		if ((orig & (SAVENAME | SAVESTART)) != 0)
-			orig |= HASBUF;
-		if (orig != used) {
-			goto out_mismatch;
-		}
-		break;
-	case CREATE:
-	case DELETE:
-	case RENAME:
-		/*
-		 * Some filesystems set SAVENAME to provoke HASBUF, accommodate
-		 * for it until it gets fixed.
-		 */
-		orig &= NDMODIFYINGFLAGS;
-		orig |= (SAVENAME | HASBUF);
-		used &= NDMODIFYINGFLAGS;
-		used |= (SAVENAME | HASBUF);
-		if (orig != used) {
-			goto out_mismatch;
-		}
-		break;
-	}
-	return;
-out_mismatch:
-	panic("%s: mismatched flags for op %d: added %" PRIx64 ", "
-	    "removed %" PRIx64" (%" PRIx64" != %" PRIx64"; stored %" PRIx64" != %" PRIx64")",
-	    __func__, cnp->cn_nameiop, used & ~orig, orig &~ used,
-	    orig, used, cnp->cn_origflags, cnp->cn_flags);
+	if (cnp->cn_pnbuf == NULL)
+		panic("%s: got no buf! called from %d", __func__, line);
 }
+
 #endif
 
 /*

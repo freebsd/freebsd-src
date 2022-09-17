@@ -941,7 +941,6 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 		if (error)
 			return (error);
-		cnp->cn_flags |= SAVENAME;
 		return (EJUSTRETURN);
 	}
 	return (ENOENT);
@@ -997,8 +996,6 @@ mqfs_create(struct vop_create_args *ap)
 	if (mq == NULL)
 		return (EAGAIN);
 	sx_xlock(&mqfs->mi_lock);
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("%s: no name", __func__);
 	pn = mqfs_create_file(pd, cnp->cn_nameptr, cnp->cn_namelen,
 		cnp->cn_cred, ap->a_vap->va_mode);
 	if (pn == NULL) {
@@ -1492,8 +1489,6 @@ mqfs_mkdir(struct vop_mkdir_args *ap)
 	if (pd->mn_type != mqfstype_root && pd->mn_type != mqfstype_dir)
 		return (ENOTDIR);
 	sx_xlock(&mqfs->mi_lock);
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("%s: no name", __func__);
 	pn = mqfs_create_dir(pd, cnp->cn_nameptr, cnp->cn_namelen,
 		ap->a_vap->cn_cred, ap->a_vap->va_mode);
 	if (pn != NULL)

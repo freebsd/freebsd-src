@@ -965,13 +965,17 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 		case RENAME:
 			if (error == ENOENT) {
 				error = EJUSTRETURN;
+#if __FreeBSD_version < 1400068
 				cnp->cn_flags |= SAVENAME;
+#endif
 				break;
 			}
 			zfs_fallthrough;
 		case DELETE:
+#if __FreeBSD_version < 1400068
 			if (error == 0)
 				cnp->cn_flags |= SAVENAME;
+#endif
 			break;
 		}
 	}
@@ -1318,7 +1322,10 @@ zfs_lookup_internal(znode_t *dzp, const char *name, vnode_t **vpp,
 	cnp->cn_nameptr = __DECONST(char *, name);
 	cnp->cn_namelen = strlen(name);
 	cnp->cn_nameiop = nameiop;
-	cnp->cn_flags = ISLASTCN | SAVENAME;
+	cnp->cn_flags = ISLASTCN;
+#if __FreeBSD_version < 1400068
+	cnp->cn_flags |= SAVENAME;
+#endif
 	cnp->cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	cnp->cn_cred = kcred;
 #if __FreeBSD_version < 1400037
@@ -4620,7 +4627,9 @@ zfs_freebsd_create(struct vop_create_args *ap)
 	znode_t *zp = NULL;
 	int rc, mode;
 
+#if __FreeBSD_version < 1400068
 	ASSERT(cnp->cn_flags & SAVENAME);
+#endif
 
 	vattr_init_mask(vap);
 	mode = vap->va_mode & ALLPERMS;
@@ -4650,7 +4659,9 @@ static int
 zfs_freebsd_remove(struct vop_remove_args *ap)
 {
 
+#if __FreeBSD_version < 1400068
 	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
+#endif
 
 	return (zfs_remove_(ap->a_dvp, ap->a_vp, ap->a_cnp->cn_nameptr,
 	    ap->a_cnp->cn_cred));
@@ -4672,7 +4683,9 @@ zfs_freebsd_mkdir(struct vop_mkdir_args *ap)
 	znode_t *zp = NULL;
 	int rc;
 
+#if __FreeBSD_version < 1400068
 	ASSERT(ap->a_cnp->cn_flags & SAVENAME);
+#endif
 
 	vattr_init_mask(vap);
 	*ap->a_vpp = NULL;
@@ -4698,7 +4711,9 @@ zfs_freebsd_rmdir(struct vop_rmdir_args *ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 
+#if __FreeBSD_version < 1400068
 	ASSERT(cnp->cn_flags & SAVENAME);
+#endif
 
 	return (zfs_rmdir_(ap->a_dvp, ap->a_vp, cnp->cn_nameptr, cnp->cn_cred));
 }
@@ -4952,8 +4967,10 @@ zfs_freebsd_rename(struct vop_rename_args *ap)
 	vnode_t *tvp = ap->a_tvp;
 	int error;
 
+#if __FreeBSD_version < 1400068
 	ASSERT(ap->a_fcnp->cn_flags & (SAVENAME|SAVESTART));
 	ASSERT(ap->a_tcnp->cn_flags & (SAVENAME|SAVESTART));
+#endif
 
 	error = zfs_do_rename(fdvp, &fvp, ap->a_fcnp, tdvp, &tvp,
 	    ap->a_tcnp, ap->a_fcnp->cn_cred);
@@ -4989,7 +5006,9 @@ zfs_freebsd_symlink(struct vop_symlink_args *ap)
 #endif
 	int rc;
 
+#if __FreeBSD_version < 1400068
 	ASSERT(cnp->cn_flags & SAVENAME);
+#endif
 
 	vap->va_type = VLNK;	/* FreeBSD: Syscall only sets va_mode. */
 	vattr_init_mask(vap);
@@ -5083,7 +5102,9 @@ zfs_freebsd_link(struct vop_link_args *ap)
 	if (tdvp->v_mount != vp->v_mount)
 		return (EXDEV);
 
+#if __FreeBSD_version < 1400068
 	ASSERT(cnp->cn_flags & SAVENAME);
+#endif
 
 	return (zfs_link(VTOZ(tdvp), VTOZ(vp),
 	    cnp->cn_nameptr, cnp->cn_cred, 0));

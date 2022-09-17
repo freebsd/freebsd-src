@@ -1360,7 +1360,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		case NFFIFO:
 			break;
 		case NFDIR:
-			cnflags = (LOCKPARENT | SAVENAME);
+			cnflags = LOCKPARENT;
 			break;
 		default:
 			nd->nd_repstat = NFSERR_BADTYPE;
@@ -1823,8 +1823,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 				NFSVOPUNLOCK(dp);
 		}
 	}
-	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
-	    LOCKPARENT | SAVENAME | NOCACHE);
+	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, LOCKPARENT | NOCACHE);
 	if (!nd->nd_repstat) {
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
@@ -2018,8 +2017,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
 	}
-	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
-	    LOCKPARENT | SAVENAME | NOCACHE);
+	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, LOCKPARENT | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error)

@@ -421,13 +421,10 @@ notfound:
 		 * We return ni_vp == NULL to indicate that the entry
 		 * does not currently exist; we leave a pointer to
 		 * the (locked) directory inode in ndp->ni_dvp.
-		 * The pathname buffer is saved so that the name
-		 * can be obtained later.
 		 *
 		 * NB - if the directory is unlocked, then this
 		 * information cannot be used.
 		 */
-		cnp->cn_flags |= SAVENAME;
 		return (EJUSTRETURN);
 	}
 #if 0
@@ -554,7 +551,6 @@ foundroot:
 		if ((error = msdosfs_lookup_checker(pmp, vdp, tdp, vpp))
 		    != 0)
 			return (error);
-		cnp->cn_flags |= SAVENAME;
 		return (0);
 	}
 

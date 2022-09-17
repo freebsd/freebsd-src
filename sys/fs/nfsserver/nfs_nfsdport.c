@@ -686,8 +686,6 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * termination occurs if no symlink encountered.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
-			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
-				nfsvno_relpathbuf(ndp);
 			if (ndp->ni_vp && !lockleaf)
 				NFSVOPUNLOCK(ndp->ni_vp);
 			break;
@@ -796,7 +794,7 @@ nfsvno_setpathbuf(struct nameidata *ndp, char **bufpp, u_long **hashpp)
 {
 	struct componentname *cnp = &ndp->ni_cnd;
 
-	cnp->cn_flags |= (NOMACCHECK | HASBUF);
+	cnp->cn_flags |= (NOMACCHECK);
 	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	if (hashpp != NULL)
 		*hashpp = NULL;
@@ -810,10 +808,8 @@ void
 nfsvno_relpathbuf(struct nameidata *ndp)
 {
 
-	if ((ndp->ni_cnd.cn_flags & HASBUF) == 0)
-		panic("nfsrelpath");
 	uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
-	ndp->ni_cnd.cn_flags &= ~HASBUF;
+	ndp->ni_cnd.cn_pnbuf = NULL;
 }
 
 /*
@@ -1478,8 +1474,7 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
-	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
-		nfsvno_relpathbuf(ndp);
+	nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1519,8 +1514,7 @@ out:
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
-	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
-		nfsvno_relpathbuf(ndp);
+	nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1939,8 +1933,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 			}
 		}
 	} else {
-		if (ndp->ni_cnd.cn_flags & HASBUF)
-			nfsvno_relpathbuf(ndp);
+		nfsvno_relpathbuf(ndp);
 		if (ndp->ni_startdir && create == NFSV4OPEN_CREATE) {
 			vrele(ndp->ni_startdir);
 			if (ndp->ni_dvp == ndp->ni_vp)
@@ -4578,7 +4571,7 @@ nfsrv_dsremove(struct vnode *dvp, char *fname, struct ucred *tcred,
 	named.ni_cnd.cn_nameiop = DELETE;
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
 	named.ni_cnd.cn_namelen = strlen(fname);
@@ -6351,7 +6344,7 @@ nfsrv_pnfslookupds(struct vnode *vp, struct vnode *dvp, struct pnfsdsfile *pf,
 	named.ni_cnd.cn_nameiop = LOOKUP;
 	named.ni_cnd.cn_lkflags = LK_SHARED | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
 	named.ni_cnd.cn_namelen = strlen(pf->dsf_filename);

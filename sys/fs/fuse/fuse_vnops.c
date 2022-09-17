@@ -1391,7 +1391,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 	int nameiop = cnp->cn_nameiop;
 	int flags = cnp->cn_flags;
-	int wantparent = flags & (LOCKPARENT | WANTPARENT);
 	int islastcn = flags & ISLASTCN;
 	struct mount *mp = vnode_mount(dvp);
 	struct fuse_data *data = fuse_get_mpdata(mp);
@@ -1533,13 +1532,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			else
 				err = 0;
 			if (!err) {
-				/*
-				 * Set the SAVENAME flag to hold onto the
-				 * pathname for use later in VOP_CREATE or
-				 * VOP_RENAME.
-				 */
-				cnp->cn_flags |= SAVENAME;
-
 				err = EJUSTRETURN;
 			}
 		} else {
@@ -1618,12 +1610,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 					err = EPERM;
 					goto out;
 				}
-			}
-
-			if (islastcn && (
-				(nameiop == DELETE) ||
-				(nameiop == RENAME && wantparent))) {
-				cnp->cn_flags |= SAVENAME;
 			}
 		}
 	}

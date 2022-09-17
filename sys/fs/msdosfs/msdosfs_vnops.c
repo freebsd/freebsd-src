@@ -161,10 +161,6 @@ msdosfs_create(struct vop_create_args *ap)
 	 * use the absence of the owner write bit to make the file
 	 * readonly.
 	 */
-#ifdef DIAGNOSTIC
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("msdosfs_create: no name");
-#endif
 	memset(&ndirent, 0, sizeof(ndirent));
 	error = uniqdosname(pdep, cnp, ndirent.de_Name);
 	if (error)
@@ -958,11 +954,6 @@ msdosfs_rename(struct vop_rename_args *ap)
 	fcnp = ap->a_fcnp;
 	pmp = VFSTOMSDOSFS(fdvp->v_mount);
 
-#ifdef DIAGNOSTIC
-	if ((tcnp->cn_flags & HASBUF) == 0 ||
-	    (fcnp->cn_flags & HASBUF) == 0)
-		panic("msdosfs_rename: no name");
-#endif
 	/*
 	 * Check for cross-device rename.
 	 */
@@ -1414,10 +1405,6 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	 * cluster.  This will be written to an empty slot in the parent
 	 * directory.
 	 */
-#ifdef DIAGNOSTIC
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("msdosfs_mkdir: no name");
-#endif
 	error = uniqdosname(pdep, cnp, ndirent.de_Name);
 	if (error)
 		goto bad;
