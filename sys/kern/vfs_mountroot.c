@@ -718,19 +718,19 @@ parse_directive(char **conf)
 	return (error);
 }
 
-static int
+static bool
 parse_mount_dev_present(const char *dev)
 {
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, dev);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, dev);
 	error = namei(&nd);
-	if (!error) {
-		vput(nd.ni_vp);
-		NDFREE_PNBUF(&nd);
-	}
-	return (error != 0) ? 0 : 1;
+	if (error != 0)
+		return (false);
+	vrele(nd.ni_vp);
+	NDFREE_PNBUF(&nd);
+	return (true);
 }
 
 #define	ERRMSGL	255
