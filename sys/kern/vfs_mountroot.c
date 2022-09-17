@@ -726,9 +726,10 @@ parse_mount_dev_present(const char *dev)
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, dev);
 	error = namei(&nd);
-	if (!error)
+	if (!error) {
 		vput(nd.ni_vp);
-	NDFREE_PNBUF(&nd);
+		NDFREE_PNBUF(&nd);
+	}
 	return (error != 0) ? 0 : 1;
 }
 
