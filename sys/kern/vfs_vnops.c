@@ -2361,6 +2361,23 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 	return (error);
 }
 
+static void
+vn_send_sigxfsz(struct proc *p)
+{
+	PROC_LOCK(p);
+	kern_psignal(p, SIGXFSZ);
+	PROC_UNLOCK(p);
+}
+
+int
+vn_rlimit_trunc(u_quad_t size, struct thread *td)
+{
+	if (size <= lim_cur(td, RLIMIT_FSIZE))
+		return (0);
+	vn_send_sigxfsz(td->td_proc);
+	return (EFBIG);
+}
+
 int
 vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
     struct thread *td)
@@ -2389,11 +2406,8 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	    (td->td_pflags2 & TDP2_ACCT) != 0)
 		return (0);
 
-	if (!ktr_write || ktr_filesize_limit_signal) {
-		PROC_LOCK(td->td_proc);
-		kern_psignal(td->td_proc, SIGXFSZ);
-		PROC_UNLOCK(td->td_proc);
-	}
+	if (!ktr_write || ktr_filesize_limit_signal)
+		vn_send_sigxfsz(td->td_proc);
 	return (EFBIG);
 }
 
