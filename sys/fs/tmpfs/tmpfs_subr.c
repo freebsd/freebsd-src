@@ -2120,6 +2120,10 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	if (node->tn_flags & (IMMUTABLE | APPEND))
 		return (EPERM);
 
+	error = vn_rlimit_trunc(size, td);
+	if (error != 0)
+		return (error);
+
 	error = tmpfs_truncate(vp, size);
 	/*
 	 * tmpfs_truncate will raise the NOTE_EXTEND and NOTE_ATTRIB kevents
