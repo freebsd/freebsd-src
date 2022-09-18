@@ -1034,8 +1034,9 @@ ncl_write(struct vop_write_args *ap)
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
 	 */
-	if (vn_rlimit_fsize(vp, uio, td))
-		return (EFBIG);
+	error = vn_rlimit_fsize(vp, uio, td);
+	if (error != 0)
+		return (error);
 
 	save2 = curthread_pflags2_set(TDP2_SBPAGES);
 	biosize = vp->v_bufobj.bo_bsize;
