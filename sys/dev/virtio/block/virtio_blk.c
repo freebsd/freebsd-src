@@ -62,6 +62,7 @@ struct vtblk_request {
 	struct virtio_blk_outhdr	 vbr_hdr;
 	struct bio			*vbr_bp;
 	uint8_t				 vbr_ack;
+	int				 vbr_error;
 	TAILQ_ENTRY(vtblk_request)	 vbr_link;
 };
 
@@ -161,7 +162,7 @@ static struct vtblk_request *
 		vtblk_request_next(struct vtblk_softc *);
 static struct vtblk_request *
 		vtblk_request_bio(struct vtblk_softc *);
-static int	vtblk_request_execute(struct vtblk_softc *,
+static void	vtblk_request_execute(struct vtblk_softc *,
 		    struct vtblk_request *);
 static int	vtblk_request_error(struct vtblk_request *);
 
@@ -931,7 +932,7 @@ vtblk_request_bio(struct vtblk_softc *sc)
 	return (req);
 }
 
-static int
+static void
 vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 {
 	struct virtqueue *vq;
@@ -951,11 +952,15 @@ vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 	 * to be the only one in flight.
 	 */
 	if ((sc->vtblk_flags & VTBLK_FLAG_BARRIER) == 0) {
-		if (sc->vtblk_req_ordered != NULL)
-			return (EBUSY);
+		if (sc->vtblk_req_ordered != NULL) {
+			error = EBUSY;
+			goto out;
+		}
 		if (bp->bio_flags & BIO_ORDERED) {
-			if (!virtqueue_empty(vq))
-				return (EBUSY);
+			if (!virtqueue_empty(vq)) {
+				error = EBUSY;
+				goto out;
+			}
 			ordered = 1;
 			req->vbr_hdr.type &= vtblk_gtoh32(sc,
 				~VIRTIO_BLK_T_BARRIER);
@@ -979,8 +984,10 @@ vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 		struct virtio_blk_discard_write_zeroes *discard;
 
 		discard = malloc(sizeof(*discard), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (discard == NULL)
-			return (ENOMEM);
+		if (discard == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
 
 		bp->bio_driver1 = discard;
 		discard->sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
@@ -1000,7 +1007,8 @@ vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 	if (error == 0 && ordered)
 		sc->vtblk_req_ordered = req;
 
-	return (error);
+out:
+	req->vbr_error = error;
 }
 
 static int
@@ -1125,7 +1133,8 @@ vtblk_startio(struct vtblk_softc *sc)
 		if (req == NULL)
 			break;
 
-		if (vtblk_request_execute(sc, req) != 0) {
+		vtblk_request_execute(sc, req);
+		if (req->vbr_error != 0) {
 			vtblk_request_requeue_ready(sc, req);
 			break;
 		}
@@ -1262,7 +1271,8 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	if (!virtqueue_empty(vq))
 		return (EBUSY);
 
-	error = vtblk_request_execute(sc, req);
+	vtblk_request_execute(sc, req);
+	error = req->vbr_error;
 	if (error)
 		return (error);
 
