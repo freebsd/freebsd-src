@@ -2378,37 +2378,105 @@ vn_rlimit_trunc(u_quad_t size, struct thread *td)
 	return (EFBIG);
 }
 
-int
-vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
-    struct thread *td)
+static int
+vn_rlimit_fsizex1(const struct vnode *vp, struct uio *uio, off_t maxfsz,
+    bool adj, struct thread *td)
 {
 	off_t lim;
 	bool ktr_write;
 
-	if (td == NULL)
+	if (vp->v_type != VREG)
 		return (0);
 
 	/*
-	 * There are conditions where the limit is to be ignored.
-	 * However, since it is almost never reached, check it first.
+	 * Handle file system maximum file size.
+	 */
+	if (maxfsz != 0 && uio->uio_offset + uio->uio_resid > maxfsz) {
+		if (!adj || uio->uio_offset >= maxfsz)
+			return (EFBIG);
+		uio->uio_resid = maxfsz - uio->uio_offset;
+	}
+
+	/*
+	 * This is kernel write (e.g. vnode_pager) or accounting
+	 * write, ignore limit.
+	 */
+	if (td == NULL || (td->td_pflags2 & TDP2_ACCT) != 0)
+		return (0);
+
+	/*
+	 * Calculate file size limit.
 	 */
 	ktr_write = (td->td_pflags & TDP_INKTRACE) != 0;
-	lim = lim_cur(td, RLIMIT_FSIZE);
-	if (__predict_false(ktr_write))
-		lim = td->td_ktr_io_lim;
+	lim = __predict_false(ktr_write) ? td->td_ktr_io_lim :
+	    lim_cur(td, RLIMIT_FSIZE);
+
+	/*
+	 * Is the limit reached?
+	 */
 	if (__predict_true((uoff_t)uio->uio_offset + uio->uio_resid <= lim))
 		return (0);
 
 	/*
-	 * The limit is reached.
+	 * Prepared filesystems can handle writes truncated to the
+	 * file size limit.
 	 */
-	if (vp->v_type != VREG ||
-	    (td->td_pflags2 & TDP2_ACCT) != 0)
+	if (adj && (uoff_t)uio->uio_offset < lim) {
+		uio->uio_resid = lim - (uoff_t)uio->uio_offset;
 		return (0);
+	}
 
 	if (!ktr_write || ktr_filesize_limit_signal)
 		vn_send_sigxfsz(td->td_proc);
 	return (EFBIG);
+}
+
+/*
+ * Helper for VOP_WRITE() implementations, the common code to
+ * handle maximum supported file size on the filesystem, and
+ * RLIMIT_FSIZE, except for special writes from accounting subsystem
+ * and ktrace.
+ *
+ * For maximum file size (maxfsz argument):
+ * - return EFBIG if uio_offset is beyond it
+ * - otherwise, clamp uio_resid if write would extend file beyond maxfsz.
+ *
+ * For RLIMIT_FSIZE:
+ * - return EFBIG and send SIGXFSZ if uio_offset is beyond the limit
+ * - otherwise, clamp uio_resid if write would extend file beyond limit.
+ *
+ * If clamping occured, the adjustment for uio_resid is stored in
+ * *resid_adj, to be re-applied by vn_rlimit_fsizex_res() on return
+ * from the VOP.
+ */
+int
+vn_rlimit_fsizex(const struct vnode *vp, struct uio *uio, off_t maxfsz,
+    ssize_t *resid_adj, struct thread *td)
+{
+	ssize_t resid_orig;
+	int error;
+	bool adj;
+
+	resid_orig = uio->uio_resid;
+	adj = resid_adj != NULL;
+	error = vn_rlimit_fsizex1(vp, uio, maxfsz, adj, td);
+	if (adj)
+		*resid_adj = resid_orig - uio->uio_resid;
+	return (error);
+}
+
+void
+vn_rlimit_fsizex_res(struct uio *uio, ssize_t resid_adj)
+{
+	uio->uio_resid += resid_adj;
+}
+
+int
+vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
+    struct thread *td)
+{
+	return (vn_rlimit_fsizex(vp, __DECONST(struct uio *, uio), 0, NULL,
+	    td));
 }
 
 int
