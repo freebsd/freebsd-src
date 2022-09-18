@@ -663,8 +663,9 @@ msdosfs_write(struct vop_write_args *ap)
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
-		return (EFBIG);
+	error = vn_rlimit_fsize(vp, uio, uio->uio_td);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of

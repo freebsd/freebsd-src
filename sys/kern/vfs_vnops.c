@@ -3220,8 +3220,6 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			io.uio_offset = *outoffp;
 			io.uio_resid = len;
 			error = vn_rlimit_fsize(outvp, &io, fsize_td);
-			if (error != 0)
-				error = EFBIG;
 		}
 		if (VOP_PATHCONF(outvp, _PC_MIN_HOLE_SIZE, &holeout) != 0)
 			holeout = 0;
