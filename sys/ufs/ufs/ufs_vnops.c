@@ -755,6 +755,9 @@ ufs_setattr(
 			 */
 			return (0);
 		}
+		error = vn_rlimit_trunc(vap->va_size, td);
+		if (error != 0)
+			return (error);
 		if ((error = UFS_TRUNCATE(vp, vap->va_size, IO_NORMAL |
 		    ((vap->va_vaflags & VA_SYNC) != 0 ? IO_SYNC : 0),
 		    cred)) != 0)
