@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "virtio_if.h"
 
 struct vtblk_request {
+	struct vtblk_softc		*vbr_sc;
+
+	/* Fields after this point are zeroed for each request. */
 	struct virtio_blk_outhdr	 vbr_hdr;
 	struct bio			*vbr_bp;
 	uint8_t				 vbr_ack;
@@ -163,8 +166,7 @@ static struct vtblk_request *
 		vtblk_request_next(struct vtblk_softc *);
 static struct vtblk_request *
 		vtblk_request_bio(struct vtblk_softc *);
-static void	vtblk_request_execute(struct vtblk_softc *,
-		    struct vtblk_request *);
+static void	vtblk_request_execute(struct vtblk_request *);
 static int	vtblk_request_error(struct vtblk_request *);
 
 static void	vtblk_queue_completed(struct vtblk_softc *,
@@ -806,6 +808,8 @@ vtblk_request_prealloc(struct vtblk_softc *sc)
 		if (req == NULL)
 			return (ENOMEM);
 
+		req->vbr_sc = sc;
+
 		MPASS(sglist_count(&req->vbr_hdr, sizeof(req->vbr_hdr)) == 1);
 		MPASS(sglist_count(&req->vbr_ack, sizeof(req->vbr_ack)) == 1);
 
@@ -840,7 +844,8 @@ vtblk_request_dequeue(struct vtblk_softc *sc)
 	req = TAILQ_FIRST(&sc->vtblk_req_free);
 	if (req != NULL) {
 		TAILQ_REMOVE(&sc->vtblk_req_free, req, vbr_link);
-		bzero(req, sizeof(struct vtblk_request));
+		bzero(&req->vbr_hdr, sizeof(struct vtblk_request) -
+		    offsetof(struct vtblk_request, vbr_hdr));
 	}
 
 	return (req);
@@ -934,13 +939,15 @@ vtblk_request_bio(struct vtblk_softc *sc)
 }
 
 static void
-vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
+vtblk_request_execute(struct vtblk_request *req)
 {
+	struct vtblk_softc *sc;
 	struct virtqueue *vq;
 	struct sglist *sg;
 	struct bio *bp;
 	int ordered, readable, writable, error;
 
+	sc = req->vbr_sc;
 	vq = sc->vtblk_vq;
 	sg = sc->vtblk_sglist;
 	bp = req->vbr_bp;
@@ -1137,7 +1144,7 @@ vtblk_startio(struct vtblk_softc *sc)
 			break;
 
 		req->vbr_requeue_on_error = 1;
-		vtblk_request_execute(sc, req);
+		vtblk_request_execute(req);
 		if (req->vbr_error != 0)
 			break;
 
@@ -1273,7 +1280,7 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	if (!virtqueue_empty(vq))
 		return (EBUSY);
 
-	vtblk_request_execute(sc, req);
+	vtblk_request_execute(req);
 	error = req->vbr_error;
 	if (error)
 		return (error);
