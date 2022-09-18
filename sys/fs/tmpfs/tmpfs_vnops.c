@@ -639,6 +639,7 @@ tmpfs_write(struct vop_write_args *v)
 	struct uio *uio;
 	struct tmpfs_node *node;
 	off_t oldsize;
+	ssize_t r;
 	int error, ioflag;
 	mode_t newmode;
 
@@ -655,12 +656,12 @@ tmpfs_write(struct vop_write_args *v)
 		return (0);
 	if (ioflag & IO_APPEND)
 		uio->uio_offset = node->tn_size;
-	if (uio->uio_offset + uio->uio_resid >
-	  VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
-		return (EFBIG);
-	error = vn_rlimit_fsize(vp, uio, uio->uio_td);
-	if (error != 0)
+	error = vn_rlimit_fsizex(vp, uio, VFS_TO_TMPFS(vp->v_mount)->
+	    tm_maxfilesize, &r, uio->uio_td);
+	if (error != 0) {
+		vn_rlimit_fsizex_res(uio, r);
 		return (error);
+	}
 
 	if (uio->uio_offset + uio->uio_resid > node->tn_size) {
 		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid,
@@ -687,6 +688,7 @@ out:
 	MPASS(IMPLIES(error == 0, uio->uio_resid == 0));
 	MPASS(IMPLIES(error != 0, oldsize == node->tn_size));
 
+	vn_rlimit_fsizex_res(uio, r);
 	return (error);
 }
 
