@@ -894,8 +894,9 @@ ffs_write(
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
 	 */
-	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
-		return (EFBIG);
+	error = vn_rlimit_fsize(vp, uio, uio->uio_td);
+	if (error != 0)
+		return (error);
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;

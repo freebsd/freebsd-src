@@ -338,8 +338,9 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	if (ioflag & IO_APPEND)
 		uio_setoffset(uio, filesize);
 
-	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
-		return (EFBIG);
+	err = vn_rlimit_fsize(vp, uio, uio->uio_td);
+	if (err != 0)
+		return (err);
 
 	fdisp_init(&fdi, 0);
 
@@ -493,8 +494,9 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	if (ioflag & IO_APPEND)
 		uio_setoffset(uio, filesize);
 
-	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
-		return (EFBIG);
+	err = vn_rlimit_fsize(vp, uio, uio->uio_td);
+	if (err != 0)
+		return (err);
 
 	do {
 		bool direct_append, extending;
