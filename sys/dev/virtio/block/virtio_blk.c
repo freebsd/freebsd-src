@@ -62,6 +62,7 @@ struct vtblk_request {
 	struct virtio_blk_outhdr	 vbr_hdr;
 	struct bio			*vbr_bp;
 	uint8_t				 vbr_ack;
+	uint8_t				 vbr_requeue_on_error;
 	int				 vbr_error;
 	TAILQ_ENTRY(vtblk_request)	 vbr_link;
 };
@@ -1008,6 +1009,8 @@ vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 		sc->vtblk_req_ordered = req;
 
 out:
+	if (error && req->vbr_requeue_on_error)
+		vtblk_request_requeue_ready(sc, req);
 	req->vbr_error = error;
 }
 
@@ -1133,11 +1136,10 @@ vtblk_startio(struct vtblk_softc *sc)
 		if (req == NULL)
 			break;
 
+		req->vbr_requeue_on_error = 1;
 		vtblk_request_execute(sc, req);
-		if (req->vbr_error != 0) {
-			vtblk_request_requeue_ready(sc, req);
+		if (req->vbr_error != 0)
 			break;
-		}
 
 		enq++;
 	}
