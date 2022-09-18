@@ -410,10 +410,6 @@ struct {								\
 	RB_SET_PARENT(elm, tmp, field);					\
 } while (/*CONSTCOND*/ 0)
 
-#if defined(_KERNEL) && defined(DIAGNOSTIC) && !defined(_RB_DIAGNOSTIC)
-#define _RB_DIAGNOSTIC 1
-#endif
-
 /* Generates prototypes and inline functions */
 #define	RB_PROTOTYPE(name, type, field, cmp)				\
 	RB_PROTOTYPE_INTERNAL(name, type, field, cmp,)
