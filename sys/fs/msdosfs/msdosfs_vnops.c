@@ -614,7 +614,7 @@ msdosfs_write(struct vop_write_args *ap)
 {
 	int n;
 	int croffset;
-	ssize_t resid;
+	ssize_t resid, r;
 	u_long osize;
 	int error = 0;
 	u_long count;
@@ -659,16 +659,15 @@ msdosfs_write(struct vop_write_args *ap)
 	/*
 	 * The caller is supposed to ensure that
 	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
-	 */
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > MSDOSFS_FILESIZE_MAX)
-		return (EFBIG);
-
-	/*
+	 *
 	 * If they've exceeded their filesize limit, tell them about it.
 	 */
-	error = vn_rlimit_fsize(vp, uio, uio->uio_td);
-	if (error != 0)
+	error = vn_rlimit_fsizex(vp, uio, MSDOSFS_FILESIZE_MAX, &r,
+	    uio->uio_td);
+	if (error != 0) {
+		vn_rlimit_fsizex_res(uio, r);
 		return (error);
+	}
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of
@@ -678,8 +677,10 @@ msdosfs_write(struct vop_write_args *ap)
 	 */
 	if (uio->uio_offset > dep->de_FileSize) {
 		error = deextend(dep, uio->uio_offset, cred);
-		if (error)
+		if (error != 0) {
+			vn_rlimit_fsizex_res(uio, r);
 			return (error);
+		}
 	}
 
 	/*
@@ -822,6 +823,7 @@ errexit:
 		}
 	} else if (ioflag & IO_SYNC)
 		error = deupdat(dep, 1);
+	vn_rlimit_fsizex_res(uio, r);
 	return (error);
 }
 
