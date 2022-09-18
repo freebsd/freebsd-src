@@ -456,6 +456,9 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 			 */
 			break;
 		}
+		error = vn_rlimit_trunc(vap->va_size, td);
+		if (error != 0)
+			return (error);
 		error = detrunc(dep, vap->va_size, 0, cred);
 		if (error)
 			return error;
