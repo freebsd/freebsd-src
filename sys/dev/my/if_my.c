@@ -116,17 +116,17 @@ static void     my_rxeof(struct my_softc *);
 static void     my_txeof(struct my_softc *);
 static void     my_txeoc(struct my_softc *);
 static void     my_intr(void *);
-static void     my_start(struct ifnet *);
-static void     my_start_locked(struct ifnet *);
-static int      my_ioctl(struct ifnet *, u_long, caddr_t);
+static void     my_start(if_t);
+static void     my_start_locked(if_t);
+static int      my_ioctl(if_t, u_long, caddr_t);
 static void     my_init(void *);
 static void     my_init_locked(struct my_softc *);
 static void     my_stop(struct my_softc *);
 static void     my_autoneg_timeout(void *);
 static void     my_watchdog(void *);
 static int      my_shutdown(device_t);
-static int      my_ifmedia_upd(struct ifnet *);
-static void     my_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int      my_ifmedia_upd(if_t);
+static void     my_ifmedia_sts(if_t, struct ifmediareq *);
 static u_int16_t my_phy_readreg(struct my_softc *, int);
 static void     my_phy_writereg(struct my_softc *, int, int);
 static void     my_autoneg_xmit(struct my_softc *);
@@ -319,7 +319,7 @@ my_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 my_setmulti(struct my_softc * sc)
 {
-	struct ifnet   *ifp;
+	if_t		ifp;
 	u_int32_t       hashes[2] = {0, 0};
 	u_int32_t       rxfilt;
 
@@ -329,7 +329,7 @@ my_setmulti(struct my_softc * sc)
 
 	rxfilt = CSR_READ_4(sc, MY_TCRRCR);
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
 		rxfilt |= MY_AM;
 		CSR_WRITE_4(sc, MY_TCRRCR, rxfilt);
 		CSR_WRITE_4(sc, MY_MAR0, 0xFFFFFFFF);
@@ -390,7 +390,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 {
 	u_int16_t       phy_sts = 0, media, advert, ability;
 	u_int16_t       ability2 = 0;
-	struct ifnet   *ifp;
+	if_t		ifp;
 	struct ifmedia *ifm;
 
 	MY_LOCK_ASSERT(sc);
@@ -555,7 +555,7 @@ static void
 my_getmode_mii(struct my_softc * sc)
 {
 	u_int16_t       bmsr;
-	struct ifnet   *ifp;
+	if_t		ifp;
 
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
@@ -587,7 +587,7 @@ my_getmode_mii(struct my_softc * sc)
 		if (bootverbose)
 			device_printf(sc->my_dev,
 			    "100Mbps half-duplex mode supported\n");
-		ifp->if_baudrate = 100000000;
+		if_setbaudrate(ifp, 100000000);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_TX, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_TX | IFM_HDX,
 			    0, NULL);
@@ -597,7 +597,7 @@ my_getmode_mii(struct my_softc * sc)
 		if (bootverbose)
 			device_printf(sc->my_dev,
 			    "100Mbps full-duplex mode supported\n");
-		ifp->if_baudrate = 100000000;
+		if_setbaudrate(ifp, 100000000);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_TX | IFM_FDX,
 		    0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_100_TX | IFM_FDX;
@@ -606,7 +606,7 @@ my_getmode_mii(struct my_softc * sc)
 	if (bmsr & PHY_BMSR_100BT4) {
 		if (bootverbose)
 			device_printf(sc->my_dev, "100baseT4 mode supported\n");
-		ifp->if_baudrate = 100000000;
+		if_setbaudrate(ifp, 100000000);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_100_T4, 0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_100_T4;
 #ifdef FORCE_AUTONEG_TFOUR
@@ -623,14 +623,14 @@ my_getmode_mii(struct my_softc * sc)
 			device_printf(sc->my_dev,
 			    "1000Mbps half-duplex mode supported\n");
 
-		ifp->if_baudrate = 1000000000;
+		if_setbaudrate(ifp, 1000000000);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T, 0, NULL);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T | IFM_HDX,
 		    0, NULL);
 		if (bootverbose)
 			device_printf(sc->my_dev,
 			    "1000Mbps full-duplex mode supported\n");
-		ifp->if_baudrate = 1000000000;
+		if_setbaudrate(ifp, 1000000000);
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_1000_T | IFM_FDX,
 		    0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_1000_T | IFM_FDX;
@@ -795,7 +795,7 @@ my_attach(device_t dev)
 	u_char          eaddr[ETHER_ADDR_LEN];
 	u_int32_t       iobase;
 	struct my_softc *sc;
-	struct ifnet   *ifp;
+	if_t		ifp;
 	int             media = IFM_ETHER | IFM_100_TX | IFM_FDX;
 	unsigned int    round;
 	caddr_t         roundptr;
@@ -881,16 +881,15 @@ my_attach(device_t dev)
 		error = ENOSPC;
 		goto free_ldata;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = my_ioctl;
-	ifp->if_start = my_start;
-	ifp->if_init = my_init;
-	ifp->if_baudrate = 10000000;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, my_ioctl);
+	if_setstartfn(ifp, my_start);
+	if_setinitfn(ifp, my_init);
+	if_setbaudrate(ifp, 10000000);
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 
 	if (sc->my_info->my_did == MTD803ID)
 		sc->my_pinfo = my_phys;
@@ -980,7 +979,7 @@ static int
 my_detach(device_t dev)
 {
 	struct my_softc *sc;
-	struct ifnet   *ifp;
+	if_t		ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->my_ifp;
@@ -1100,7 +1099,7 @@ my_rxeof(struct my_softc * sc)
 {
 	struct ether_header *eh;
 	struct mbuf    *m;
-	struct ifnet   *ifp;
+	if_t		ifp;
 	struct my_chain_onefrag *cur_rx;
 	int             total_len = 0;
 	u_int32_t       rxstat;
@@ -1155,10 +1154,10 @@ my_rxeof(struct my_softc * sc)
 		 * broadcast packet, multicast packet, matches our ethernet
 		 * address or the interface is in promiscuous mode.
 		 */
-		if (bpf_peers_present(ifp->if_bpf)) {
-			bpf_mtap(ifp->if_bpf, m);
-			if (ifp->if_flags & IFF_PROMISC &&
-			    (bcmp(eh->ether_dhost, IF_LLADDR(sc->my_ifp),
+		if (bpf_peers_present(if_getbpf(ifp))) {
+			bpf_mtap_if(ifp, m);
+			if (if_getflags(ifp) & IFF_PROMISC &&
+			    (bcmp(eh->ether_dhost, if_getlladdr(sc->my_ifp),
 				ETHER_ADDR_LEN) &&
 			     (eh->ether_dhost[0] & 1) == 0)) {
 				m_freem(m);
@@ -1167,7 +1166,7 @@ my_rxeof(struct my_softc * sc)
 		}
 #endif
 		MY_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		MY_LOCK(sc);
 	}
 	return;
@@ -1181,7 +1180,7 @@ static void
 my_txeof(struct my_softc * sc)
 {
 	struct my_chain *cur_tx;
-	struct ifnet   *ifp;
+	if_t		ifp;
 
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
@@ -1234,13 +1233,13 @@ my_txeof(struct my_softc * sc)
 static void
 my_txeoc(struct my_softc * sc)
 {
-	struct ifnet   *ifp;
+	if_t		ifp;
 
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
 	sc->my_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		sc->my_cdata.my_tx_tail = NULL;
 		if (sc->my_want_auto)
 			my_autoneg_mii(sc, MY_FLAG_SCHEDDELAY, 1);
@@ -1258,13 +1257,13 @@ static void
 my_intr(void *arg)
 {
 	struct my_softc *sc;
-	struct ifnet   *ifp;
+	if_t		ifp;
 	u_int32_t       status;
 
 	sc = arg;
 	MY_LOCK(sc);
 	ifp = sc->my_ifp;
-	if (!(ifp->if_flags & IFF_UP)) {
+	if (!(if_getflags(ifp) & IFF_UP)) {
 		MY_UNLOCK(sc);
 		return;
 	}
@@ -1308,7 +1307,7 @@ my_intr(void *arg)
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, MY_IMR, MY_INTRS);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		my_start_locked(ifp);
 	MY_UNLOCK(sc);
 	return;
@@ -1375,24 +1374,24 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
  * physical addresses.
  */
 static void
-my_start(struct ifnet * ifp)
+my_start(if_t ifp)
 {
 	struct my_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	MY_LOCK(sc);
 	my_start_locked(ifp);
 	MY_UNLOCK(sc);
 }
 
 static void
-my_start_locked(struct ifnet * ifp)
+my_start_locked(if_t ifp)
 {
 	struct my_softc *sc;
 	struct mbuf    *m_head = NULL;
 	struct my_chain *cur_tx = NULL, *start_tx;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	MY_LOCK_ASSERT(sc);
 	if (sc->my_autoneg) {
 		sc->my_tx_pend = 1;
@@ -1402,12 +1401,12 @@ my_start_locked(struct ifnet * ifp)
 	 * Check for an available queue slot. If there are none, punt.
 	 */
 	if (sc->my_cdata.my_tx_free->my_mbuf != NULL) {
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 		return;
 	}
 	start_tx = sc->my_cdata.my_tx_free;
 	while (sc->my_cdata.my_tx_free->my_mbuf == NULL) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
@@ -1468,7 +1467,7 @@ my_init(void *xsc)
 static void
 my_init_locked(struct my_softc *sc)
 {
-	struct ifnet   *ifp = sc->my_ifp;
+	if_t		ifp = sc->my_ifp;
 	u_int16_t       phy_bmcr = 0;
 
 	MY_LOCK_ASSERT(sc);
@@ -1510,7 +1509,7 @@ my_init_locked(struct my_softc *sc)
 	my_list_tx_init(sc);
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		MY_SETBIT(sc, MY_TCRRCR, MY_PROM);
 	else
 		MY_CLRBIT(sc, MY_TCRRCR, MY_PROM);
@@ -1518,7 +1517,7 @@ my_init_locked(struct my_softc *sc)
 	/*
 	 * Set capture broadcast bit to capture broadcast frames.
 	 */
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		MY_SETBIT(sc, MY_TCRRCR, MY_AB);
 	else
 		MY_CLRBIT(sc, MY_TCRRCR, MY_AB);
@@ -1549,8 +1548,8 @@ my_init_locked(struct my_softc *sc)
 	/* Restore state of BMCR */
 	if (sc->my_pinfo != NULL)
 		my_phy_writereg(sc, PHY_BMCR, phy_bmcr);
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	callout_reset(&sc->my_watchdog, hz, my_watchdog, sc);
 	return;
@@ -1561,12 +1560,12 @@ my_init_locked(struct my_softc *sc)
  */
 
 static int
-my_ifmedia_upd(struct ifnet * ifp)
+my_ifmedia_upd(if_t ifp)
 {
 	struct my_softc *sc;
 	struct ifmedia *ifm;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	MY_LOCK(sc);
 	ifm = &sc->ifmedia;
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER) {
@@ -1586,12 +1585,12 @@ my_ifmedia_upd(struct ifnet * ifp)
  */
 
 static void
-my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
+my_ifmedia_sts(if_t ifp, struct ifmediareq * ifmr)
 {
 	struct my_softc *sc;
 	u_int16_t advert = 0, ability = 0;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	MY_LOCK(sc);
 	ifmr->ifm_active = IFM_ETHER;
 	if (!(my_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
@@ -1643,18 +1642,18 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 }
 
 static int
-my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
+my_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct my_softc *sc = ifp->if_softc;
+	struct my_softc *sc = if_getsoftc(ifp);
 	struct ifreq   *ifr = (struct ifreq *) data;
 	int             error;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		MY_LOCK(sc);
-		if (ifp->if_flags & IFF_UP)
+		if (if_getflags(ifp) & IFF_UP)
 			my_init_locked(sc);
-		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			my_stop(sc);
 		MY_UNLOCK(sc);
 		error = 0;
@@ -1681,7 +1680,7 @@ static void
 my_watchdog(void *arg)
 {
 	struct my_softc *sc;
-	struct ifnet *ifp;
+	if_t		ifp;
 
 	sc = arg;
 	MY_LOCK_ASSERT(sc);
@@ -1697,7 +1696,7 @@ my_watchdog(void *arg)
 	my_stop(sc);
 	my_reset(sc);
 	my_init_locked(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		my_start_locked(ifp);
 }
 
@@ -1708,7 +1707,7 @@ static void
 my_stop(struct my_softc * sc)
 {
 	int    i;
-	struct ifnet   *ifp;
+	if_t   ifp;
 
 	MY_LOCK_ASSERT(sc);
 	ifp = sc->my_ifp;
@@ -1743,7 +1742,7 @@ my_stop(struct my_softc * sc)
 	}
 	bzero((char *)&sc->my_ldata->my_tx_list,
 	    sizeof(sc->my_ldata->my_tx_list));
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	return;
 }
 
