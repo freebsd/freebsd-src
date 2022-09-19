@@ -279,7 +279,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
     struct mlx5e_rq *rq, struct mbuf *mb,
     u32 cqe_bcnt)
 {
-	struct ifnet *ifp = rq->ifp;
+	if_t ifp = rq->ifp;
 	struct mlx5e_channel *c;
 	struct mbuf *mb_head;
 	int lro_num_seg;	/* HW LRO session aggregated packets counter */
@@ -375,7 +375,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 		} else {
 			rq->stats.csum_none++;
 		}
-	} else if (likely((ifp->if_capenable & (IFCAP_RXCSUM |
+	} else if (likely((if_getcapenable(ifp) & (IFCAP_RXCSUM |
 	    IFCAP_RXCSUM_IPV6)) != 0) &&
 	    ((cqe->hds_ip_ext & (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK)) ==
 	    (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK))) {
@@ -501,7 +501,7 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 	struct pfil_head *pfil;
 	int i, rv;
 
-	CURVNET_SET_QUIET(rq->ifp->if_vnet);
+	CURVNET_SET_QUIET(if_getvnet(rq->ifp));
 	pfil = rq->channel->priv->pfil;
 	for (i = 0; i < budget; i++) {
 		struct mlx5e_rx_wqe *wqe;
@@ -586,17 +586,17 @@ rx_common:
 		rq->stats.bytes += byte_cnt;
 		rq->stats.packets++;
 #ifdef NUMA
-		mb->m_pkthdr.numa_domain = rq->ifp->if_numa_domain;
+		mb->m_pkthdr.numa_domain = if_getnumadomain(rq->ifp);
 #endif
 
 #if !defined(HAVE_TCP_LRO_RX)
 		tcp_lro_queue_mbuf(&rq->lro, mb);
 #else
 		if (mb->m_pkthdr.csum_flags == 0 ||
-		    (rq->ifp->if_capenable & IFCAP_LRO) == 0 ||
+		    (if_getcapenable(rq->ifp) & IFCAP_LRO) == 0 ||
 		    rq->lro.lro_cnt == 0 ||
 		    tcp_lro_rx(&rq->lro, mb, 0) != 0) {
-			rq->ifp->if_input(rq->ifp, mb);
+			if_input(rq->ifp, mb);
 		}
 #endif
 wq_ll_pop:
@@ -632,7 +632,7 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 		mb->m_data[14] = rq->ix;
 		mb->m_pkthdr.rcvif = rq->ifp;
 		mb->m_pkthdr.leaf_rcvif = rq->ifp;
-		rq->ifp->if_input(rq->ifp, mb);
+		if_input(rq->ifp, mb);
 	}
 #endif
 	for (int j = 0; j != MLX5E_MAX_TX_NUM_TC; j++) {

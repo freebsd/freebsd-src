@@ -88,7 +88,7 @@ mlx5e_hash_init(void *arg)
 SYSINIT(mlx5e_hash_init, SI_SUB_RANDOM, SI_ORDER_ANY, &mlx5e_hash_init, NULL);
 
 static struct mlx5e_sq *
-mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
+mlx5e_select_queue_by_send_tag(if_t ifp, struct mbuf *mb)
 {
 	struct m_snd_tag *mb_tag;
 	struct mlx5e_sq *sq;
@@ -135,9 +135,9 @@ top:
 }
 
 static struct mlx5e_sq *
-mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
+mlx5e_select_queue(if_t ifp, struct mbuf *mb)
 {
-	struct mlx5e_priv *priv = ifp->if_softc;
+	struct mlx5e_priv *priv = if_getsoftc(ifp);
 	struct mlx5e_sq *sq;
 	u32 ch;
 	u32 tc;
@@ -689,7 +689,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	struct mlx5e_xmit_args args = {};
 	struct mlx5_wqe_data_seg *dseg;
 	struct mlx5e_tx_wqe *wqe;
-	struct ifnet *ifp;
+	if_t ifp;
 	int nsegs;
 	int err;
 	int x;
@@ -747,7 +747,7 @@ top:
 	mb = *mbp;
 
 	/* Send a copy of the frame to the BPF listener, if any */
-	if (ifp != NULL && ifp->if_bpf != NULL)
+	if (ifp != NULL && if_getbpf(ifp) != NULL)
 		ETHER_BPF_MTAP(ifp, mb);
 
 	if (mb->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO)) {
@@ -1101,11 +1101,11 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 }
 
 static int
-mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
+mlx5e_xmit_locked(if_t ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 {
 	int err = 0;
 
-	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
 	    READ_ONCE(sq->running) == 0)) {
 		m_freem(mb);
 		return (ENETDOWN);
@@ -1137,7 +1137,7 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 }
 
 int
-mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
+mlx5e_xmit(if_t ifp, struct mbuf *mb)
 {
 	struct mlx5e_sq *sq;
 	int ret;

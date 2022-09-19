@@ -722,7 +722,7 @@ add_main_vxlan_rules_out:
 
 static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 {
-	struct ifnet *ifp = priv->ifp;
+	if_t ifp = priv->ifp;
 	int max_list_size;
 	int list_size;
 	u16 *vlans;
@@ -914,7 +914,7 @@ mlx5e_enable_vlan_filter(struct mlx5e_priv *priv)
 {
 	if (priv->vlan.filter_disabled) {
 		priv->vlan.filter_disabled = false;
-		if (priv->ifp->if_flags & IFF_PROMISC)
+		if (if_getflags(priv->ifp) & IFF_PROMISC)
 			return;
 		if (test_bit(MLX5E_STATE_FLOW_RULES_READY, &priv->state))
 			mlx5e_del_any_vid_rules(priv);
@@ -926,7 +926,7 @@ mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
 {
 	if (!priv->vlan.filter_disabled) {
 		priv->vlan.filter_disabled = true;
-		if (priv->ifp->if_flags & IFF_PROMISC)
+		if (if_getflags(priv->ifp) & IFF_PROMISC)
 			return;
 		if (test_bit(MLX5E_STATE_FLOW_RULES_READY, &priv->state))
 			mlx5e_add_any_vid_rules(priv);
@@ -934,7 +934,7 @@ mlx5e_disable_vlan_filter(struct mlx5e_priv *priv)
 }
 
 void
-mlx5e_vlan_rx_add_vid(void *arg, struct ifnet *ifp, u16 vid)
+mlx5e_vlan_rx_add_vid(void *arg, if_t ifp, u16 vid)
 {
 	struct mlx5e_priv *priv = arg;
 
@@ -949,7 +949,7 @@ mlx5e_vlan_rx_add_vid(void *arg, struct ifnet *ifp, u16 vid)
 }
 
 void
-mlx5e_vlan_rx_kill_vid(void *arg, struct ifnet *ifp, u16 vid)
+mlx5e_vlan_rx_kill_vid(void *arg, if_t ifp, u16 vid)
 {
 	struct mlx5e_priv *priv = arg;
 
@@ -1087,7 +1087,7 @@ mlx5e_sync_ifp_addr(struct mlx5e_priv *priv)
 	struct mlx5e_eth_addr_hash_head head_uc;
 	struct mlx5e_eth_addr_hash_head head_mc;
 	struct mlx5e_eth_addr_hash_node *hn;
-	struct ifnet *ifp = priv->ifp;
+	if_t ifp = priv->ifp;
 	size_t x;
 	size_t num;
 
@@ -1110,8 +1110,7 @@ retry:
 	hn = mlx5e_move_hn(&head_free, &head_uc);
 	MPASS(hn != NULL);
 
-	ether_addr_copy(hn->ai.addr,
-	    LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
+	ether_addr_copy(hn->ai.addr, if_getlladdr(ifp));
 
 	ctx.free = &head_free;
 	ctx.fill = &head_uc;
@@ -1158,7 +1157,7 @@ static void mlx5e_fill_addr_array(struct mlx5e_priv *priv, int list_type,
 				  u8 addr_array[][ETH_ALEN], int size)
 {
 	bool is_uc = (list_type == MLX5_NIC_VPORT_LIST_TYPE_UC);
-	struct ifnet *ifp = priv->ifp;
+	if_t ifp = priv->ifp;
 	struct mlx5e_eth_addr_hash_node *hn;
 	struct mlx5e_eth_addr_hash_head *addr_list;
 	struct mlx5e_eth_addr_hash_node *tmp;
@@ -1168,12 +1167,12 @@ static void mlx5e_fill_addr_array(struct mlx5e_priv *priv, int list_type,
 	addr_list = is_uc ? priv->eth_addr.if_uc : priv->eth_addr.if_mc;
 
 	if (is_uc) /* Make sure our own address is pushed first */
-		ether_addr_copy(addr_array[i++], IF_LLADDR(ifp));
+		ether_addr_copy(addr_array[i++], if_getlladdr(ifp));
 	else if (priv->eth_addr.broadcast_enabled)
-		ether_addr_copy(addr_array[i++], ifp->if_broadcastaddr);
+		ether_addr_copy(addr_array[i++], if_getbroadcastaddr(ifp));
 
 	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi) {
-		if (ether_addr_equal(IF_LLADDR(ifp), hn->ai.addr))
+		if (ether_addr_equal(if_getlladdr(ifp), hn->ai.addr))
 			continue;
 		if (i >= size)
 			break;
@@ -1275,10 +1274,11 @@ static void
 mlx5e_set_rx_mode_core(struct mlx5e_priv *priv, bool rx_mode_enable)
 {
 	struct mlx5e_eth_addr_db *ea = &priv->eth_addr;
-	struct ifnet *ndev = priv->ifp;
+	if_t ndev = priv->ifp;
+	int ndev_flags = if_getflags(ndev);
 
-	bool promisc_enabled = rx_mode_enable && (ndev->if_flags & IFF_PROMISC);
-	bool allmulti_enabled = rx_mode_enable && (ndev->if_flags & IFF_ALLMULTI);
+	bool promisc_enabled = rx_mode_enable && (ndev_flags & IFF_PROMISC);
+	bool allmulti_enabled = rx_mode_enable && (ndev_flags & IFF_ALLMULTI);
 	bool broadcast_enabled = rx_mode_enable;
 
 	bool enable_promisc = !ea->promisc_enabled && promisc_enabled;
@@ -1290,7 +1290,7 @@ mlx5e_set_rx_mode_core(struct mlx5e_priv *priv, bool rx_mode_enable)
 
 	/* update broadcast address */
 	ether_addr_copy(priv->eth_addr.broadcast.addr,
-	    priv->ifp->if_broadcastaddr);
+	    if_getbroadcastaddr(priv->ifp));
 
 	if (enable_promisc) {
 		mlx5e_add_eth_addr_rule(priv, &ea->promisc, MLX5E_PROMISC);
@@ -1894,7 +1894,7 @@ mlx5e_add_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 	}
 	el = mlx5e_vxlan_alloc_db_el(priv, proto, port);
 
-	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+	if ((if_getcapenable(priv->ifp) & IFCAP_VXLAN_HWCSUM) != 0) {
 		err = mlx5e_add_vxlan_rule_from_db(priv, el);
 		if (err == 0)
 			el->installed = true;
@@ -2023,7 +2023,7 @@ mlx5e_del_vxlan_catchall_rule(struct mlx5e_priv *priv)
 }
 
 void
-mlx5e_vxlan_start(void *arg, struct ifnet *ifp __unused, sa_family_t family,
+mlx5e_vxlan_start(void *arg, if_t ifp __unused, sa_family_t family,
     u_int port)
 {
 	struct mlx5e_priv *priv = arg;
@@ -2037,7 +2037,7 @@ mlx5e_vxlan_start(void *arg, struct ifnet *ifp __unused, sa_family_t family,
 }
 
 void
-mlx5e_vxlan_stop(void *arg, struct ifnet *ifp __unused, sa_family_t family,
+mlx5e_vxlan_stop(void *arg, if_t ifp __unused, sa_family_t family,
     u_int port)
 {
 	struct mlx5e_priv *priv = arg;

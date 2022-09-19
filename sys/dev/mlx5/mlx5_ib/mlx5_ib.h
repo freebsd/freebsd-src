@@ -650,7 +650,7 @@ struct mlx5_roce {
 	 * netdev pointer
 	 */
 	rwlock_t		netdev_lock;
-	struct ifnet		*netdev;
+	if_t netdev;
 	struct notifier_block	nb;
 	atomic_t		next_port;
 };

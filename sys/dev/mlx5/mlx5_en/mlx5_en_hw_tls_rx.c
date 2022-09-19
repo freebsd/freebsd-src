@@ -654,7 +654,7 @@ CTASSERT(MLX5E_TLS_RX_ST_INIT == 0);
  * Returns zero on success else an error happened.
  */
 int
-mlx5e_tls_rx_snd_tag_alloc(struct ifnet *ifp,
+mlx5e_tls_rx_snd_tag_alloc(if_t ifp,
     union if_snd_tag_alloc_params *params,
     struct m_snd_tag **ppmt)
 {
@@ -666,7 +666,7 @@ mlx5e_tls_rx_snd_tag_alloc(struct ifnet *ifp,
 	uint32_t value;
 	int error;
 
-	priv = ifp->if_softc;
+	priv = if_getsoftc(ifp);
 
 	if (unlikely(priv->gone != 0 || priv->tls_rx.init == 0 ||
 	    params->hdr.flowtype == M_HASHTYPE_NONE))
@@ -801,7 +801,7 @@ mlx5e_tls_rx_snd_tag_alloc(struct ifnet *ifp,
 		goto cleanup;
 	}
 
-	if (ifp->if_pcp != IFNET_PCP_NONE || params->tls_rx.vlan_id != 0) {
+	if (if_getpcp(ifp) != IFNET_PCP_NONE || params->tls_rx.vlan_id != 0) {
 		/* create flow rule for TLS RX traffic (tagged) */
 		flow_rule = mlx5e_accel_fs_add_inpcb(priv, params->tls_rx.inp,
 		    ptag->tirn, MLX5_FS_DEFAULT_FLOW_TAG, params->tls_rx.vlan_id);
@@ -996,7 +996,7 @@ mlx5e_tls_rx_snd_tag_free(struct m_snd_tag *pmt)
 	ptag->state = MLX5E_TLS_RX_ST_RELEASE;
 	MLX5E_TLS_RX_TAG_UNLOCK(ptag);
 
-	priv = ptag->tag.ifp->if_softc;
+	priv = if_getsoftc(ptag->tag.ifp);
 	queue_work(priv->tls_rx.wq, &ptag->work);
 }
 
