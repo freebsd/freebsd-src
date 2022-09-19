@@ -246,17 +246,17 @@ static void dc_txeof(struct dc_softc *);
 static void dc_tick(void *);
 static void dc_tx_underrun(struct dc_softc *);
 static void dc_intr(void *);
-static void dc_start(struct ifnet *);
-static void dc_start_locked(struct ifnet *);
-static int dc_ioctl(struct ifnet *, u_long, caddr_t);
+static void dc_start(if_t);
+static void dc_start_locked(if_t);
+static int dc_ioctl(if_t, u_long, caddr_t);
 static void dc_init(void *);
 static void dc_init_locked(struct dc_softc *);
 static void dc_stop(struct dc_softc *);
 static void dc_watchdog(void *);
 static int dc_shutdown(device_t);
-static int dc_ifmedia_upd(struct ifnet *);
+static int dc_ifmedia_upd(if_t);
 static int dc_ifmedia_upd_locked(struct dc_softc *);
-static void dc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static void dc_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int dc_dma_alloc(struct dc_softc *);
 static void dc_dma_free(struct dc_softc *);
@@ -836,7 +836,7 @@ static void
 dc_miibus_statchg(device_t dev)
 {
 	struct dc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
 
@@ -845,7 +845,7 @@ dc_miibus_statchg(device_t dev)
 	mii = device_get_softc(sc->dc_miibus);
 	ifp = sc->dc_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	ifm = &mii->mii_media;
@@ -972,7 +972,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	uint16_t eaddr[(ETHER_ADDR_LEN+1)/2];
 	struct dc_desc *sframe;
 	uint32_t h, *sp;
-	struct ifnet *ifp;
+	if_t ifp;
 	int i;
 
 	ifp = sc->dc_ifp;
@@ -991,25 +991,25 @@ dc_setfilt_21143(struct dc_softc *sc)
 	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)sc->dc_cdata.dc_sbuf;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
 	if_foreach_llmaddr(ifp, dc_hash_maddr_21143, sp);
 
-	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
+	if (if_getflags(ifp) & IFF_BROADCAST) {
+		h = dc_mchash_le(sc, if_getbroadcastaddr(ifp));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
 	/* Set our MAC address. */
-	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
 	sp[39] = DC_SP_MAC(eaddr[0]);
 	sp[40] = DC_SP_MAC(eaddr[1]);
 	sp[41] = DC_SP_MAC(eaddr[2]);
@@ -1070,24 +1070,24 @@ static void
 dc_setfilt_admtek(struct dc_softc *sc)
 {
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_hash_maddr_admtek_le_ctx ctx = { sc, { 0, 0 }};
 
 	ifp = sc->dc_ifp;
 
 	/* Init our MAC address. */
-	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
 	CSR_WRITE_4(sc, DC_AL_PAR0, eaddr[3] << 24 | eaddr[2] << 16 |
 	    eaddr[1] << 8 | eaddr[0]);
 	CSR_WRITE_4(sc, DC_AL_PAR1, eaddr[5] << 8 | eaddr[4]);
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
@@ -1100,7 +1100,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 	 * If we're already in promisc or allmulti mode, we
 	 * don't have to bother programming the multicast filter.
 	 */
-	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI))
+	if (if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI))
 		return;
 
 	/* Now program new ones. */
@@ -1117,25 +1117,25 @@ static void
 dc_setfilt_asix(struct dc_softc *sc)
 {
 	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t hashes[2] = { 0, 0 };
 
 	ifp = sc->dc_ifp;
 
 	/* Init our MAC address. */
-	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR0);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA, eaddr[0]);
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_PAR1);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA, eaddr[1]);
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
@@ -1144,7 +1144,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 	 * The ASIX chip has a special bit to enable reception
 	 * of broadcast frames.
 	 */
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		DC_SETBIT(sc, DC_NETCFG, DC_AX_NETCFG_RX_BROAD);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_AX_NETCFG_RX_BROAD);
@@ -1159,7 +1159,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 	 * If we're already in promisc or allmulti mode, we
 	 * don't have to bother programming the multicast filter.
 	 */
-	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI))
+	if (if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI))
 		return;
 
 	/* now program new ones */
@@ -1191,7 +1191,7 @@ static void
 dc_setfilt_uli(struct dc_softc *sc)
 {
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_desc *sframe;
 	uint32_t filter, *sp;
 	int i, mcnt;
@@ -1212,7 +1212,7 @@ dc_setfilt_uli(struct dc_softc *sc)
 	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)sc->dc_cdata.dc_sbuf;
 
 	/* Set station address. */
-	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
 	*sp++ = DC_SP_MAC(eaddr[1] << 8 | eaddr[0]);
 	*sp++ = DC_SP_MAC(eaddr[3] << 8 | eaddr[2]);
 	*sp++ = DC_SP_MAC(eaddr[5] << 8 | eaddr[4]);
@@ -1241,9 +1241,9 @@ dc_setfilt_uli(struct dc_softc *sc)
 	if (filter & (DC_NETCFG_TX_ON | DC_NETCFG_RX_ON))
 		CSR_WRITE_4(sc, DC_NETCFG,
 		    filter & ~(DC_NETCFG_TX_ON | DC_NETCFG_RX_ON));
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		filter |= DC_NETCFG_RX_PROMISC | DC_NETCFG_RX_ALLMULTI;
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		filter |= DC_NETCFG_RX_ALLMULTI;
 	CSR_WRITE_4(sc, DC_NETCFG,
 	    filter & ~(DC_NETCFG_TX_ON | DC_NETCFG_RX_ON));
@@ -1279,7 +1279,7 @@ static void
 dc_setfilt_xircom(struct dc_softc *sc)
 {
 	uint16_t eaddr[(ETHER_ADDR_LEN+1)/2];
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_desc *sframe;
 	uint32_t h, *sp;
 	int i;
@@ -1301,25 +1301,25 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	sc->dc_cdata.dc_tx_chain[i] = (struct mbuf *)sc->dc_cdata.dc_sbuf;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_PROMISC);
 
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
 	if_foreach_llmaddr(ifp, dc_hash_maddr_xircom, &sp);
 
-	if (ifp->if_flags & IFF_BROADCAST) {
-		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
+	if (if_getflags(ifp) & IFF_BROADCAST) {
+		h = dc_mchash_le(sc, if_getbroadcastaddr(ifp));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
 
 	/* Set our MAC address. */
-	bcopy(IF_LLADDR(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->dc_ifp), eaddr, ETHER_ADDR_LEN);
 	sp[0] = DC_SP_MAC(eaddr[0]);
 	sp[1] = DC_SP_MAC(eaddr[1]);
 	sp[2] = DC_SP_MAC(eaddr[2]);
@@ -2028,7 +2028,7 @@ dc_attach(device_t dev)
 	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
 	uint32_t command;
 	struct dc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_mediainfo *m;
 	uint32_t reg, revision;
 	uint16_t *srom;
@@ -2387,15 +2387,14 @@ dc_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = dc_ioctl;
-	ifp->if_start = dc_start;
-	ifp->if_init = dc_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, DC_TX_LIST_CNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = DC_TX_LIST_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, dc_ioctl);
+	if_setstartfn(ifp, dc_start);
+	if_setinitfn(ifp, dc_init);
+	if_setsendqlen(ifp, DC_TX_LIST_CNT - 1);
+	if_setsendqready(ifp);
 
 	/*
 	 * Do MII setup. If this is a 21143, check for a PHY on the
@@ -2483,11 +2482,11 @@ dc_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 #ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
 
 	callout_init_mtx(&sc->dc_stat_ch, &sc->dc_mtx, 0);
@@ -2525,7 +2524,7 @@ static int
 dc_detach(device_t dev)
 {
 	struct dc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_mediainfo *m;
 
 	sc = device_get_softc(dev);
@@ -2534,7 +2533,7 @@ dc_detach(device_t dev)
 	ifp = sc->dc_ifp;
 
 #ifdef DEVICE_POLLING
-	if (ifp != NULL && ifp->if_capenable & IFCAP_POLLING)
+	if (ifp != NULL && if_getcapenable(ifp) & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
@@ -2858,7 +2857,7 @@ static int
 dc_rxeof(struct dc_softc *sc)
 {
 	struct mbuf *m;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_desc *cur_rx;
 	int i, total_len, rx_npkts;
 	uint32_t rxstat;
@@ -2871,10 +2870,10 @@ dc_rxeof(struct dc_softc *sc)
 	bus_dmamap_sync(sc->dc_rx_ltag, sc->dc_rx_lmap, BUS_DMASYNC_POSTREAD |
 	    BUS_DMASYNC_POSTWRITE);
 	for (i = sc->dc_cdata.dc_rx_prod;
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0;
 	    DC_INC(i, DC_RX_LIST_CNT)) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
+		if (if_getcapenable(ifp) & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -2921,7 +2920,7 @@ dc_rxeof(struct dc_softc *sc)
 				if (rxstat & DC_RXSTAT_CRCERR)
 					continue;
 				else {
-					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+					if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 					dc_init_locked(sc);
 					return (rx_npkts);
 				}
@@ -2964,7 +2963,7 @@ dc_rxeof(struct dc_softc *sc)
 
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		DC_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		DC_LOCK(sc);
 	}
 
@@ -2980,7 +2979,7 @@ static void
 dc_txeof(struct dc_softc *sc)
 {
 	struct dc_desc *cur_tx;
-	struct ifnet *ifp;
+	if_t ifp;
 	int idx, setup;
 	uint32_t ctl, txstat;
 
@@ -3059,7 +3058,7 @@ dc_txeof(struct dc_softc *sc)
 			if (txstat & DC_TXSTAT_LATECOLL)
 				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (!(txstat & DC_TXSTAT_UNDERRUN)) {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				dc_init_locked(sc);
 				return;
 			}
@@ -3076,7 +3075,7 @@ dc_txeof(struct dc_softc *sc)
 	sc->dc_cdata.dc_tx_cons = idx;
 
 	if (sc->dc_cdata.dc_tx_cnt <= DC_TX_LIST_CNT - DC_TX_LIST_RSVD) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if (sc->dc_cdata.dc_tx_cnt == 0)
 			sc->dc_wdog_timer = 0;
 	}
@@ -3090,7 +3089,7 @@ dc_tick(void *xsc)
 {
 	struct dc_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t r;
 
 	sc = xsc;
@@ -3152,7 +3151,7 @@ dc_tick(void *xsc)
 	 * that time, packets will stay in the send queue, and once the
 	 * link comes up, they will be flushed out to the wire.
 	 */
-	if (sc->dc_link != 0 && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (sc->dc_link != 0 && !if_sendq_empty(ifp))
 		dc_start_locked(ifp);
 
 	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)
@@ -3216,7 +3215,7 @@ dc_tx_underrun(struct dc_softc *sc)
 		if (DC_IS_INTEL(sc))
 			CSR_WRITE_4(sc, DC_NETCFG, netcfg | DC_NETCFG_TX_ON);
 	} else {
-		sc->dc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(sc->dc_ifp, 0, IFF_DRV_RUNNING);
 		dc_init_locked(sc);
 	}
 }
@@ -3225,14 +3224,14 @@ dc_tx_underrun(struct dc_softc *sc)
 static poll_handler_t dc_poll;
 
 static int
-dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+dc_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct dc_softc *sc = ifp->if_softc;
+	struct dc_softc *sc = if_getsoftc(ifp);
 	int rx_npkts = 0;
 
 	DC_LOCK(sc);
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		DC_UNLOCK(sc);
 		return (rx_npkts);
 	}
@@ -3240,8 +3239,8 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	rx_npkts = dc_rxeof(sc);
 	dc_txeof(sc);
-	if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
-	    !(ifp->if_drv_flags & IFF_DRV_OACTIVE))
+	if (!if_sendq_empty(ifp) &&
+	    !(if_getdrvflags(ifp) & IFF_DRV_OACTIVE))
 		dc_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -3274,7 +3273,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & DC_ISR_BUS_ERR) {
 			if_printf(ifp, "%s: bus error\n", __func__);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			dc_init_locked(sc);
 		}
 	}
@@ -3287,7 +3286,7 @@ static void
 dc_intr(void *arg)
 {
 	struct dc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t r, status;
 	int n;
 
@@ -3304,7 +3303,7 @@ dc_intr(void *arg)
 	}
 	ifp = sc->dc_ifp;
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(ifp) & IFCAP_POLLING) {
 		DC_UNLOCK(sc);
 		return;
 	}
@@ -3313,7 +3312,7 @@ dc_intr(void *arg)
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 
 	for (n = 16; n > 0; n--) {
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 		/* Ack interrupts. */
 		CSR_WRITE_4(sc, DC_ISR, status);
@@ -3349,11 +3348,11 @@ dc_intr(void *arg)
 			}
 		}
 
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			dc_start_locked(ifp);
 
 		if (status & DC_ISR_BUS_ERR) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			dc_init_locked(sc);
 			DC_UNLOCK(sc);
 			return;
@@ -3364,7 +3363,7 @@ dc_intr(void *arg)
 	}
 
 	/* Re-enable interrupts. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
 
 	DC_UNLOCK(sc);
@@ -3506,11 +3505,11 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 }
 
 static void
-dc_start(struct ifnet *ifp)
+dc_start(if_t ifp)
 {
 	struct dc_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	DC_LOCK(sc);
 	dc_start_locked(ifp);
 	DC_UNLOCK(sc);
@@ -3524,39 +3523,39 @@ dc_start(struct ifnet *ifp)
  * addresses.
  */
 static void
-dc_start_locked(struct ifnet *ifp)
+dc_start_locked(if_t ifp)
 {
 	struct dc_softc *sc;
 	struct mbuf *m_head;
 	int queued;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	DC_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || sc->dc_link == 0)
 		return;
 
 	sc->dc_cdata.dc_tx_first = sc->dc_cdata.dc_tx_prod;
 
-	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
+	for (queued = 0; !if_sendq_empty(ifp); ) {
 		/*
 		 * If there's no way we can send any packets, return now.
 		 */
 		if (sc->dc_cdata.dc_tx_cnt > DC_TX_LIST_CNT - DC_TX_LIST_RSVD) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
 		if (dc_encap(sc, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -3593,13 +3592,13 @@ dc_init(void *xsc)
 static void
 dc_init_locked(struct dc_softc *sc)
 {
-	struct ifnet *ifp = sc->dc_ifp;
+	if_t ifp = sc->dc_ifp;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
 
 	DC_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	mii = device_get_softc(sc->dc_miibus);
@@ -3723,7 +3722,7 @@ dc_init_locked(struct dc_softc *sc)
 	 * the case of polling. Some cards (e.g. fxp) turn interrupts on
 	 * after a reset.
 	 */
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (if_getcapenable(ifp) & IFCAP_POLLING)
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 	else
 #endif
@@ -3761,8 +3760,8 @@ dc_init_locked(struct dc_softc *sc)
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
 	CSR_WRITE_4(sc, DC_RXSTART, 0xFFFFFFFF);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	dc_ifmedia_upd_locked(sc);
 
@@ -3787,12 +3786,12 @@ dc_init_locked(struct dc_softc *sc)
  * Set media options.
  */
 static int
-dc_ifmedia_upd(struct ifnet *ifp)
+dc_ifmedia_upd(if_t ifp)
 {
 	struct dc_softc *sc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	DC_LOCK(sc);
 	error = dc_ifmedia_upd_locked(sc);
 	DC_UNLOCK(sc);
@@ -3827,13 +3826,13 @@ dc_ifmedia_upd_locked(struct dc_softc *sc)
  * Report current media status.
  */
 static void
-dc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+dc_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct dc_softc *sc;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = device_get_softc(sc->dc_miibus);
 	DC_LOCK(sc);
 	mii_pollstat(mii);
@@ -3852,9 +3851,9 @@ dc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+dc_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct dc_softc *sc = ifp->if_softc;
+	struct dc_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 	int error = 0;
@@ -3862,28 +3861,28 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		DC_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			int need_setfilt = (ifp->if_flags ^ sc->dc_if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			int need_setfilt = (if_getflags(ifp) ^ sc->dc_if_flags) &
 				(IFF_PROMISC | IFF_ALLMULTI);
 
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				if (need_setfilt)
 					dc_setfilt(sc);
 			} else {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				dc_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				dc_stop(sc);
 		}
-		sc->dc_if_flags = ifp->if_flags;
+		sc->dc_if_flags = if_getflags(ifp);
 		DC_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		DC_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			dc_setfilt(sc);
 		DC_UNLOCK(sc);
 		break;
@@ -3895,24 +3894,24 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 #ifdef DEVICE_POLLING
 		if (ifr->ifr_reqcap & IFCAP_POLLING &&
-		    !(ifp->if_capenable & IFCAP_POLLING)) {
+		    !(if_getcapenable(ifp) & IFCAP_POLLING)) {
 			error = ether_poll_register(dc_poll, ifp);
 			if (error)
 				return(error);
 			DC_LOCK(sc);
 			/* Disable interrupts */
 			CSR_WRITE_4(sc, DC_IMR, 0x00000000);
-			ifp->if_capenable |= IFCAP_POLLING;
+			if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 			DC_UNLOCK(sc);
 			return (error);
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
-		    ifp->if_capenable & IFCAP_POLLING) {
+		    if_getcapenable(ifp) & IFCAP_POLLING) {
 			error = ether_poll_deregister(ifp);
 			/* Enable interrupts. */
 			DC_LOCK(sc);
 			CSR_WRITE_4(sc, DC_IMR, DC_INTRS);
-			ifp->if_capenable &= ~IFCAP_POLLING;
+			if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 			DC_UNLOCK(sc);
 			return (error);
 		}
@@ -3930,7 +3929,7 @@ static void
 dc_watchdog(void *xsc)
 {
 	struct dc_softc *sc = xsc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	DC_LOCK_ASSERT(sc);
 
@@ -3943,10 +3942,10 @@ dc_watchdog(void *xsc)
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	device_printf(sc->dc_dev, "watchdog timeout\n");
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	dc_init_locked(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		dc_start_locked(ifp);
 }
 
@@ -3957,7 +3956,7 @@ dc_watchdog(void *xsc)
 static void
 dc_stop(struct dc_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct dc_list_data *ld;
 	struct dc_chain_data *cd;
 	int i;
@@ -3974,7 +3973,7 @@ dc_stop(struct dc_softc *sc)
 	sc->dc_wdog_timer = 0;
 	sc->dc_link = 0;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	netcfg = CSR_READ_4(sc, DC_NETCFG);
 	if (netcfg & (DC_NETCFG_RX_ON | DC_NETCFG_TX_ON))
@@ -4057,14 +4056,14 @@ static int
 dc_resume(device_t dev)
 {
 	struct dc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->dc_ifp;
 
 	/* reinitialize interface if necessary */
 	DC_LOCK(sc);
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		dc_init_locked(sc);
 
 	sc->suspended = 0;
