@@ -338,10 +338,10 @@ again:
 			len = ((int32_t)ulmin(cwin,
 			    SEQ_SUB(p->end, p->rxmit)));
 		}
-		off = SEQ_SUB(p->rxmit, tp->snd_una);
-		KASSERT(off >= 0,("%s: sack block to the left of una : %d",
-		    __func__, off));
 		if (len > 0) {
+			off = SEQ_SUB(p->rxmit, tp->snd_una);
+			KASSERT(off >= 0,("%s: sack block to the left of una : %d",
+			    __func__, off));
 			sack_rxmit = 1;
 			sendalot = 1;
 			TCPSTAT_INC(tcps_sack_rexmits);
