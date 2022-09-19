@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
 jobs:
   build:
     name: ${{ matrix.target_arch }} ${{ matrix.os }} (${{ matrix.compiler }})
