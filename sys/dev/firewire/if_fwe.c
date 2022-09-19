@@ -69,12 +69,12 @@
 #define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
 
 /* network interface */
-static void fwe_start (struct ifnet *);
-static int fwe_ioctl (struct ifnet *, u_long, caddr_t);
+static void fwe_start (if_t);
+static int fwe_ioctl (if_t, u_long, caddr_t);
 static void fwe_init (void *);
 
 static void fwe_output_callback (struct fw_xfer *);
-static void fwe_as_output (struct fwe_softc *, struct ifnet *);
+static void fwe_as_output (struct fwe_softc *, if_t);
 static void fwe_as_input (struct fw_xferq *);
 
 static int fwedebug = 0;
@@ -98,15 +98,15 @@ SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, rx_queue_len, CTLFLAG_RWTUN, &rx_queue_le
 static poll_handler_t fwe_poll;
 
 static int
-fwe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+fwe_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
 	struct fwe_softc *fwe;
 	struct firewire_comm *fc;
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 		return (0);
 
-	fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
+	fwe = ((struct fwe_eth_softc *)if_getsoftc(ifp))->fwe;
 	fc = fwe->fd.fc;
 	fc->poll(fc, (cmd == POLL_AND_CHECK_STATUS)?0:1, count);
 	return (0);
@@ -137,7 +137,7 @@ static int
 fwe_attach(device_t dev)
 {
 	struct fwe_softc *fwe;
-	struct ifnet *ifp;
+	if_t ifp;
 	int unit, s;
 	u_char eaddr[6];
 	struct fw_eui64 *eui;
@@ -184,23 +184,23 @@ fwe_attach(device_t dev)
 		device_printf(dev, "can not if_alloc()\n");
 		return (ENOSPC);
 	}
-	ifp->if_softc = &fwe->eth_softc;
+	if_setsoftc(ifp, &fwe->eth_softc);
 
 	if_initname(ifp, device_get_name(dev), unit);
-	ifp->if_init = fwe_init;
-	ifp->if_start = fwe_start;
-	ifp->if_ioctl = fwe_ioctl;
-	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
-	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
+	if_setinitfn(ifp, fwe_init);
+	if_setstartfn(ifp, fwe_start);
+	if_setioctlfn(ifp, fwe_ioctl);
+	if_setflags(ifp, (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST));
+	if_setsendqlen(ifp, TX_MAX_QUEUE);
 
 	s = splimp();
 	ether_ifattach(ifp, eaddr);
 	splx(s);
 
         /* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_POLLING;
-	ifp->if_capenable |= IFCAP_VLAN_MTU;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU | IFCAP_POLLING, 0);
+	if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 
 	FWEDEBUG(ifp, "interface created\n");
 	return 0;
@@ -211,7 +211,7 @@ fwe_stop(struct fwe_softc *fwe)
 {
 	struct firewire_comm *fc;
 	struct fw_xferq *xferq;
-	struct ifnet *ifp = fwe->eth_softc.ifp;
+	if_t ifp = fwe->eth_softc.ifp;
 	struct fw_xfer *xfer, *next;
 	int i;
 
@@ -242,21 +242,21 @@ fwe_stop(struct fwe_softc *fwe)
 		fwe->dma_ch = -1;
 	}
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 }
 
 static int
 fwe_detach(device_t dev)
 {
 	struct fwe_softc *fwe;
-	struct ifnet *ifp;
+	if_t ifp;
 	int s;
 
 	fwe = device_get_softc(dev);
 	ifp = fwe->eth_softc.ifp;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (if_getcapenable(ifp) & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 	s = splimp();
@@ -275,7 +275,7 @@ fwe_init(void *arg)
 {
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)arg)->fwe;
 	struct firewire_comm *fc;
-	struct ifnet *ifp = fwe->eth_softc.ifp;
+	if_t ifp = fwe->eth_softc.ifp;
 	struct fw_xferq *xferq;
 	struct fw_xfer *xfer;
 	struct mbuf *m;
@@ -284,7 +284,7 @@ fwe_init(void *arg)
 	FWEDEBUG(ifp, "initializing\n");
 
 	/* XXX keep promiscoud mode */
-	ifp->if_flags |= IFF_PROMISC;
+	if_setflagbits(ifp, IFF_PROMISC, 0);
 
 	fc = fwe->fd.fc;
 	if (fwe->dma_ch < 0) {
@@ -339,8 +339,8 @@ fwe_init(void *arg)
 	if ((xferq->flag & FWXFERQ_RUNNING) == 0)
 		fc->irx_enable(fc, fwe->dma_ch);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 #if 0
 	/* attempt to start output */
@@ -350,24 +350,24 @@ fwe_init(void *arg)
 
 
 static int
-fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+fwe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
+	struct fwe_softc *fwe = ((struct fwe_eth_softc *)if_getsoftc(ifp))->fwe;
 	struct ifstat *ifs = NULL;
 	int s, error;
 
 	switch (cmd) {
 		case SIOCSIFFLAGS:
 			s = splimp();
-			if (ifp->if_flags & IFF_UP) {
-				if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+			if (if_getflags(ifp) & IFF_UP) {
+				if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 					fwe_init(&fwe->eth_softc);
 			} else {
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 					fwe_stop(fwe);
 			}
 			/* XXX keep promiscoud mode */
-			ifp->if_flags |= IFF_PROMISC;
+			if_setflagbits(ifp, IFF_PROMISC, 0);
 			splx(s);
 			break;
 		case SIOCADDMULTI:
@@ -388,21 +388,21 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			struct firewire_comm *fc = fwe->fd.fc;
 
 			if (ifr->ifr_reqcap & IFCAP_POLLING &&
-			    !(ifp->if_capenable & IFCAP_POLLING)) {
+			    !(if_getcapenable(ifp) & IFCAP_POLLING)) {
 				error = ether_poll_register(fwe_poll, ifp);
 				if (error)
 					return (error);
 				/* Disable interrupts */
 				fc->set_intr(fc, 0);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				return (error);
 			}
 			if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
-			    ifp->if_capenable & IFCAP_POLLING) {
+			    if_getcapenable(ifp) & IFCAP_POLLING) {
 				error = ether_poll_deregister(ifp);
 				/* Enable interrupts. */
 				fc->set_intr(fc, 1);
-				ifp->if_capenable &= ~IFCAP_POLLING;
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				return (error);
 			}
 		    }
@@ -422,7 +422,7 @@ static void
 fwe_output_callback(struct fw_xfer *xfer)
 {
 	struct fwe_softc *fwe;
-	struct ifnet *ifp;
+	if_t ifp;
 	int s;
 
 	fwe = (struct fwe_softc *)xfer->sc;
@@ -441,14 +441,14 @@ fwe_output_callback(struct fw_xfer *xfer)
 	splx(s);
 
 	/* for queue full */
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!if_sendq_empty(ifp))
 		fwe_start(ifp);
 }
 
 static void
-fwe_start(struct ifnet *ifp)
+fwe_start(if_t ifp)
 {
-	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
+	struct fwe_softc *fwe = ((struct fwe_eth_softc *)if_getsoftc(ifp))->fwe;
 	int s;
 
 	FWEDEBUG(ifp, "starting\n");
@@ -460,7 +460,7 @@ fwe_start(struct ifnet *ifp)
 
 		s = splimp();
 		do {
-			IF_DEQUEUE(&ifp->if_snd, m);
+			m = if_dequeue(ifp);
 			if (m != NULL)
 				m_freem(m);
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
@@ -471,12 +471,12 @@ fwe_start(struct ifnet *ifp)
 	}
 
 	s = splimp();
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 
-	if (ifp->if_snd.ifq_len != 0)
+	if (!if_sendq_empty(ifp))
 		fwe_as_output(fwe, ifp);
 
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	splx(s);
 }
 
@@ -486,7 +486,7 @@ fwe_start(struct ifnet *ifp)
 #endif
 /* Async. stream output */
 static void
-fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
+fwe_as_output(struct fwe_softc *fwe, if_t ifp)
 {
 	struct mbuf *m;
 	struct fw_xfer *xfer;
@@ -497,7 +497,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 	xfer = NULL;
 	xferq = fwe->fd.fc->atq;
 	while ((xferq->queued < xferq->maxq - 1) &&
-			(ifp->if_snd.ifq_head != NULL)) {
+			!if_sendq_empty(ifp)) {
 		FWE_LOCK(fwe);
 		xfer = STAILQ_FIRST(&fwe->xferlist);
 		if (xfer == NULL) {
@@ -510,7 +510,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		STAILQ_REMOVE_HEAD(&fwe->xferlist, link);
 		FWE_UNLOCK(fwe);
 
-		IF_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL) {
 			FWE_LOCK(fwe);
 			STAILQ_INSERT_HEAD(&fwe->xferlist, xfer, link);
@@ -550,7 +550,7 @@ static void
 fwe_as_input(struct fw_xferq *xferq)
 {
 	struct mbuf *m, *m0;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct fwe_softc *fwe;
 	struct fw_bulkxfer *sxfer;
 	struct fw_pkt *fp;
@@ -605,7 +605,7 @@ fwe_as_input(struct fw_xferq *xferq)
 			 c[20], c[21], c[22], c[23]
 		);
 #endif
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 	if (STAILQ_FIRST(&xferq->stfree) != NULL)

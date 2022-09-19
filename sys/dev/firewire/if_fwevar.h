@@ -47,7 +47,7 @@ struct fwe_softc {
 	struct fw_pkt pkt_hdr;
 	STAILQ_HEAD(, fw_xfer) xferlist;
 	struct fwe_eth_softc {
-		struct ifnet *ifp;
+		if_t ifp;
 		struct fwe_softc *fwe;
 	} eth_softc;
 	struct mtx mtx;
