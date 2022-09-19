@@ -44,7 +44,7 @@ $FreeBSD$
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
 #else
-#define mxge_vlans_active(sc) (sc)->ifp->if_vlantrunk
+#define mxge_vlans_active(sc) if_getvlantrunk((sc)->ifp)
 #endif
 
 #ifndef VLAN_TAG_VALUE
@@ -193,7 +193,7 @@ struct mxge_slice_state {
 };
 
 struct mxge_softc {
-	struct ifnet* ifp;
+	if_t  ifp;
 	struct mxge_slice_state *ss;
 	int tx_boundary;		/* boundary transmits cannot cross*/
 	int lro_cnt;
