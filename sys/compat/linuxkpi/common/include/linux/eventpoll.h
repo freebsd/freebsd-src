@@ -1,9 +1,7 @@
 /*-
- * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2010 iX Systems, Inc.
- * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2022, Jake Freeland <jfree@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,25 +23,23 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-#ifndef	_LINUXKPI_LINUX_POLL_H_
-#define	_LINUXKPI_LINUX_POLL_H_
+
+#ifndef	_LINUXKPI_LINUX_EVENTPOLL_H_
+#define	_LINUXKPI_LINUX_EVENTPOLL_H_
 
 #include <sys/poll.h>
-#include <sys/fcntl.h>
 
-#include <linux/eventpoll.h>
-#include <linux/wait.h>
-#include <linux/file.h>
+#define EPOLLIN		POLLIN
+#define EPOLLPRI	POLLPRI
+#define EPOLLOUT	POLLOUT
+#define EPOLLERR	POLLERR
+#define EPOLLHUP	POLLHUP
+#define EPOLLNVAL	POLLNVAL
+#define EPOLLRDNORM	POLLRDNORM
+#define EPOLLRDBAND	POLLRDBAND
+#define EPOLLWRNORM	POLLWRNORM
+#define EPOLLWRBAND	POLLWRBAND
+#define EPOLLRDHUP	POLLRDHUP
 
-typedef struct poll_table_struct {
-} poll_table;
-
-extern void linux_poll_wait(struct linux_file *, wait_queue_head_t *, poll_table *);
-#define	poll_wait(...) linux_poll_wait(__VA_ARGS__)
-
-extern void linux_poll_wakeup(struct linux_file *);
-
-#endif	/* _LINUXKPI_LINUX_POLL_H_ */
+#endif	/* _LINUXKPI_LINUX_EVENTPOLL_H_ */
