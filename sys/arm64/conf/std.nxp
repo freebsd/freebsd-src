@@ -22,6 +22,7 @@ device		dwc3			# Synopsys DWC controller
 device		sdhci
 
 # Ethernet NICs
+device		dpaa2			# Data Path Acceleration Architecture (2nd Gen)
 device		enetc			# QorIQ LS1028A NIC
 
 options 	FDT
