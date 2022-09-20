@@ -46,6 +46,7 @@ struct rw_semaphore {
 #define	down_read(_rw)			sx_slock(&(_rw)->sx)
 #define	up_read(_rw)			sx_sunlock(&(_rw)->sx)
 #define	down_read_trylock(_rw)		!!sx_try_slock(&(_rw)->sx)
+#define	down_read_killable(_rw)		linux_down_read_killable(_rw)
 #define	down_write_trylock(_rw)		!!sx_try_xlock(&(_rw)->sx)
 #define	down_write_killable(_rw)	linux_down_write_killable(_rw)
 #define	downgrade_write(_rw)		sx_downgrade(&(_rw)->sx)
@@ -80,6 +81,7 @@ linux_init_rwsem(struct rw_semaphore *rw, const char *name)
 	sx_init_flags(&rw->sx, name, SX_NOWITNESS);
 }
 
+extern int linux_down_read_killable(struct rw_semaphore *);
 extern int linux_down_write_killable(struct rw_semaphore *);
 
 #endif					/* _LINUXKPI_LINUX_RWSEM_H_ */
