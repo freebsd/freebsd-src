@@ -865,6 +865,15 @@ struct devnames {
 
 struct clip_entry;
 
+#define CNT_CAL_INFO 3
+struct clock_sync {
+	uint64_t hw_cur;
+	uint64_t hw_prev;
+	uint64_t rt_cur;
+	uint64_t rt_prev;
+	uint32_t gen;
+};
+
 struct adapter {
 	SLIST_ENTRY(adapter) link;
 	device_t dev;
@@ -984,6 +993,11 @@ struct adapter {
 	struct mtx sfl_lock;	/* same cache-line as sc_lock? but that's ok */
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
+	struct callout cal_callout;
+	struct clock_sync cal_info[CNT_CAL_INFO];
+	int cal_current;
+	int cal_count;
+	uint32_t cal_gen;
 
 	/*
 	 * Driver code that can run when the adapter is suspended must use this

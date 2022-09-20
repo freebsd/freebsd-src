@@ -1520,15 +1520,73 @@ sort_before_lro(struct lro_ctrl *lro)
 }
 #endif
 
-static inline uint64_t
-last_flit_to_ns(struct adapter *sc, uint64_t lf)
-{
-	uint64_t n = be64toh(lf) & 0xfffffffffffffff;	/* 60b, not 64b. */
+#define CGBE_SHIFT_SCALE 10
 
-	if (n > UINT64_MAX / 1000000)
-		return (n / sc->params.vpd.cclk * 1000000);
-	else
-		return (n * 1000000 / sc->params.vpd.cclk);
+static inline uint64_t
+t4_tstmp_to_ns(struct adapter *sc, uint64_t lf)
+{
+	struct clock_sync *cur, dcur;
+	uint64_t tstmp_sec, tstmp_nsec;
+	uint64_t hw_clocks;
+	uint64_t rt_cur_to_prev, res_s, res_n, res_s_modulo, res;
+	uint64_t hw_clk_div, cclk;
+	uint64_t hw_tstmp = lf & 0xfffffffffffffffULL;	/* 60b, not 64b. */
+	uint32_t gen;
+
+	do {
+		cur = &sc->cal_info[sc->cal_current];
+		gen = atomic_load_acq_int(&cur->gen);
+		if (gen == 0)
+			return (0);
+		dcur = *cur;
+		atomic_thread_fence_acq();
+	} while (gen != dcur.gen);
+
+	/*
+	 * Our goal here is to have a result that is:
+	 *
+	 * (                             (cur_time - prev_time)   )
+	 * ((hw_tstmp - hw_prev) *  ----------------------------- ) + prev_time
+	 * (                             (hw_cur - hw_prev)       )
+	 *
+	 * With the constraints that we cannot use float and we
+	 * don't want to overflow the uint64_t numbers we are using.
+	 *
+	 * The plan is to take the clocking value of the hw timestamps
+	 * and split them into seconds and nanosecond equivalent portions.
+	 * Then we operate on the two portions seperately making sure to
+	 * bring back the carry over from the seconds when we divide.
+	 *
+	 * First up lets get the two divided into separate entities
+	 * i.e. the seconds. We use the clock frequency for this.
+	 * Note that vpd.cclk is in khz, we need it in raw hz so
+	 * convert to hz.
+	 */
+	cclk = sc->params.vpd.cclk * 1000;
+	hw_clocks = hw_tstmp - dcur.hw_prev;
+	tstmp_sec = hw_clocks / cclk;
+	tstmp_nsec = hw_clocks % cclk;
+	/* Now work with them separately */
+	rt_cur_to_prev = (dcur.rt_cur - dcur.rt_prev);
+	res_s = tstmp_sec * rt_cur_to_prev;
+	res_n = tstmp_nsec * rt_cur_to_prev;
+	/* Now lets get our divider */
+	hw_clk_div = dcur.hw_cur - dcur.hw_prev;
+	/* Make sure to save the remainder from the seconds divide */
+	res_s_modulo = res_s % hw_clk_div;
+	res_s /= hw_clk_div;
+	/* scale the remainder to where it should be */
+	res_s_modulo *= cclk;
+	/* Now add in the remainder */
+	res_n += res_s_modulo;
+	/* Now do the divide */
+	res_n /= hw_clk_div;
+	res_s *= cclk;
+	/* Recombine the two */
+	res = res_s + res_n;
+	/* And now add in the base time to get to the real timestamp */
+	res += dcur.rt_prev;
+	return (res);
 }
 
 static inline void
@@ -2077,17 +2135,13 @@ have_mbuf:
 
 	if (rxq->iq.flags & IQ_RX_TIMESTAMP) {
 		/*
-		 * Fill up rcv_tstmp but do not set M_TSTMP.
-		 * rcv_tstmp is not in the format that the
-		 * kernel expects and we don't want to mislead
-		 * it.  For now this is only for custom code
-		 * that knows how to interpret cxgbe's stamp.
+		 * Fill up rcv_tstmp but do not set M_TSTMP as
+		 * long as we get a non-zero back from t4_tstmp_to_ns().
 		 */
-		m0->m_pkthdr.rcv_tstmp =
-		    last_flit_to_ns(sc, d->rsp.u.last_flit);
-#ifdef notyet
-		m0->m_flags |= M_TSTMP;
-#endif
+		m0->m_pkthdr.rcv_tstmp = t4_tstmp_to_ns(sc,
+		    be64toh(d->rsp.u.last_flit));
+		if (m0->m_pkthdr.rcv_tstmp != 0)
+			m0->m_flags |= M_TSTMP;
 	}
 
 #ifdef NUMA

@@ -320,6 +320,18 @@ static int t4_nofldtxq = -NOFLDTXQ;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldtxq, CTLFLAG_RDTUN, &t4_nofldtxq, 0,
     "Number of offload TX queues per port");
 
+static int t4_clocksync_fast = 1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, csfast, CTLFLAG_RW | CTLFLAG_MPSAFE, &t4_clocksync_fast, 0,
+    "During initial clock sync how fast do we update in seconds");
+
+static int t4_clocksync_normal = 30;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, csnormal, CTLFLAG_RW | CTLFLAG_MPSAFE, &t4_clocksync_normal, 0,
+    "During normal clock sync how fast do we update in seconds");
+
+static int t4_fast_2_normal = 30;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, cscount, CTLFLAG_RW | CTLFLAG_MPSAFE, &t4_fast_2_normal, 0,
+    "How many clock syncs do we need to do to transition to slow");
+
 #define NOFLDRXQ 2
 static int t4_nofldrxq = -NOFLDRXQ;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldrxq, CTLFLAG_RDTUN, &t4_nofldrxq, 0,
@@ -1109,6 +1121,79 @@ t4_ifnet_unit(struct adapter *sc, struct port_info *pi)
 	return (-1);
 }
 
+static inline uint64_t
+t4_get_ns_timestamp(struct timespec *ts)
+{
+	return ((ts->tv_sec * 1000000000) + ts->tv_nsec);
+}
+
+static void
+t4_calibration(void *arg)
+{
+	struct adapter *sc;
+	struct timespec ts;
+	struct clock_sync *cur, *nex;
+	int next_up;
+
+	sc = (struct adapter *)arg;
+
+	cur = &sc->cal_info[sc->cal_current];
+	next_up = (sc->cal_current + 1) % CNT_CAL_INFO;
+       	nex = &sc->cal_info[next_up];
+	if (__predict_false(sc->cal_count == 0)) {
+		/* First time in, just get the values in */
+		cur->hw_cur = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
+		nanouptime(&ts);
+		cur->rt_cur = t4_get_ns_timestamp(&ts);
+		sc->cal_count++;
+		goto done;
+	}
+	nex->hw_prev = cur->hw_cur;
+	nex->rt_prev = cur->rt_cur;
+	KASSERT((hw_off_limits(sc) == 0), "hw_off_limits at t4_calibtration");
+	nex->hw_cur = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
+	nanouptime(&ts);	
+	nex->rt_cur = t4_get_ns_timestamp(&ts);
+	if ((nex->hw_cur - nex->hw_prev) == 0) {
+		/* The clock is not advancing? */
+		sc->cal_count = 0;
+		atomic_store_rel_int(&cur->gen, 0);
+		goto done;
+	}
+	atomic_store_rel_int(&cur->gen, 0);
+	sc->cal_current = next_up;
+	sc->cal_gen++;
+	atomic_store_rel_int(&nex->gen, sc->cal_gen);
+	if (sc->cal_count < t4_fast_2_normal)
+		sc->cal_count++;
+done:
+	callout_reset_sbt_curcpu(&sc->cal_callout,
+				 ((sc->cal_count < t4_fast_2_normal)  ?
+				 t4_clocksync_fast : t4_clocksync_normal) * SBT_1S, 0,
+				 t4_calibration, sc, C_DIRECT_EXEC);
+}
+
+
+
+static void
+t4_calibration_start(struct adapter *sc)
+{
+	/*
+	 * Here if we have not done a calibration
+	 * then do so otherwise start the appropriate
+	 * timer.
+	 */
+	int i;
+
+	for (i = 0; i < CNT_CAL_INFO; i++) {
+		sc->cal_info[i].gen = 0;
+	}
+	sc->cal_current = 0;
+	sc->cal_count = 0;
+	sc->cal_gen = 0;
+	t4_calibration(sc);
+}
+
 static int
 t4_attach(device_t dev)
 {
@@ -1176,6 +1261,8 @@ t4_attach(device_t dev)
 	rw_init(&sc->policy_lock, "connection offload policy");
 
 	callout_init(&sc->ktls_tick, 1);
+
+	callout_init(&sc->cal_callout, 1);
 
 	refcount_init(&sc->vxlan_refcount, 0);
 
@@ -1567,6 +1654,7 @@ t4_attach(device_t dev)
 		    "failed to attach all child ports: %d\n", rc);
 		goto done;
 	}
+	t4_calibration_start(sc);
 
 	device_printf(dev,
 	    "PCIe gen%d x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
@@ -1742,7 +1830,8 @@ t4_detach_common(device_t dev)
 			free(pi, M_CXGBE);
 		}
 	}
-
+	callout_stop(&sc->cal_callout);
+	callout_drain(&sc->cal_callout);
 	device_delete_children(dev);
 	sysctl_ctx_free(&sc->ctx);
 	adapter_full_uninit(sc);
@@ -1920,7 +2009,6 @@ t4_suspend(device_t dev)
 
 	/* No more DMA or interrupts. */
 	stop_adapter(sc);
-
 	/* Quiesce all activity. */
 	for_each_port(sc, i) {
 		pi = sc->port[i];
@@ -1992,6 +2080,10 @@ t4_suspend(device_t dev)
 		sc->sge.fwq.flags &= ~IQ_HW_ALLOCATED;
 		quiesce_iq_fl(sc, &sc->sge.fwq, NULL);
 	}
+
+	/* Stop calibration */
+	callout_stop(&sc->cal_callout);
+	callout_drain(&sc->cal_callout);
 
 	/* Mark the adapter totally off limits. */
 	mtx_lock(&sc->reg_lock);
@@ -2359,6 +2451,10 @@ t4_resume(device_t dev)
 			}
 		}
 	}
+
+	/* Reset all calibration */
+	t4_calibration_start(sc);	
+
 done:
 	if (rc == 0) {
 		sc->incarnation++;
