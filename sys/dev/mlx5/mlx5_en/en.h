@@ -1144,6 +1144,7 @@ struct mlx5e_priv {
 	int	clbr_curr;
 	struct mlx5e_clbr_point clbr_points[2];
 	u_int	clbr_gen;
+	uint64_t cclk;
 
 	struct mlx5e_dcbx dcbx;
 	bool	sw_is_port_buf_owner;
