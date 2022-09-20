@@ -32,10 +32,11 @@
 
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <sys/sbuf.h>
 
 #undef file
 #define inode vnode
+
+MALLOC_DECLARE(M_LSEQ);
 
 #define	DEFINE_SHOW_ATTRIBUTE(__name)					\
 static int __name ## _open(struct inode *inode, struct linux_file *file)	\
@@ -51,11 +52,8 @@ static const struct file_operations __name ## _fops = {			\
 	.release	= single_release,				\
 }
 
-struct seq_operations;
-
 struct seq_file {
-	struct sbuf	*buf;
-
+	struct sbuf *buf;
 	const struct seq_operations *op;
 	const struct linux_file *file;
 	void *private;
@@ -78,7 +76,8 @@ off_t seq_lseek(struct linux_file *file, off_t offset, int whence);
 int single_open(struct linux_file *, int (*)(struct seq_file *, void *), void *);
 int single_release(struct inode *, struct linux_file *);
 
-#define seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
+void seq_vprintf(struct seq_file *m, const char *fmt, va_list args);
+void seq_printf(struct seq_file *m, const char *fmt, ...);
 
 #define seq_puts(m, str)	sbuf_printf((m)->buf, str)
 #define seq_putc(m, str)	sbuf_putc((m)->buf, str)
