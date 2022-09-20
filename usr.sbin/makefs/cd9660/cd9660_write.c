@@ -316,7 +316,7 @@ cd9660_write_file(iso9660_disk *diskStructure, FILE *fd, cd9660node *writenode)
 		/*
 		 * Now loop over children, writing out their directory
 		 * records - beware of sector boundaries
-	 	 */
+		 */
 		TAILQ_FOREACH(temp, &writenode->cn_children, cn_next_child) {
 			/*
 			 * Copy the temporary record and adjust its size
