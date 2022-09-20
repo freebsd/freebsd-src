@@ -99,6 +99,15 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 }
 
 static inline char *
+strndup_user(const char __user *ustr, long n)
+{
+	if (n < 1)
+		return (ERR_PTR(-EINVAL));
+
+	return (memdup_user_nul(ustr, n - 1));
+}
+
+static inline char *
 kstrdup(const char *string, gfp_t gfp)
 {
 	char *retval;
