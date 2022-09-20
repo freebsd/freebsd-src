@@ -160,6 +160,19 @@ linux_mutex_lock_interruptible(mutex_t *m)
 }
 
 int
+linux_down_read_killable(struct rw_semaphore *rw)
+{
+	int error;
+
+	error = -sx_slock_sig(&rw->sx);
+	if (error != 0) {
+		linux_schedule_save_interrupt_value(current, error);
+		error = -EINTR;
+	}
+	return (error);
+}
+
+int
 linux_down_write_killable(struct rw_semaphore *rw)
 {
 	int error;
