@@ -1150,7 +1150,7 @@ t4_calibration(void *arg)
 	}
 	nex->hw_prev = cur->hw_cur;
 	nex->rt_prev = cur->rt_cur;
-	KASSERT((hw_off_limits(sc) == 0), "hw_off_limits at t4_calibtration");
+	KASSERT((hw_off_limits(sc) == 0), ("hw_off_limits at t4_calibtration"));
 	nex->hw_cur = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
 	nanouptime(&ts);	
 	nex->rt_cur = t4_get_ns_timestamp(&ts);
