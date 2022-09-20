@@ -100,7 +100,7 @@ main(int argc, char *argv[])
 	fstype_t	*fstype;
 	fsinfo_t	 fsoptions;
 	fsnode		*root;
-	int	 	 ch, i, len;
+	int		 ch, i, len;
 	const char	*subtree;
 	const char	*specfile;
 
