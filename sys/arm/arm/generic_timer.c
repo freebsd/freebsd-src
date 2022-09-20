@@ -507,11 +507,8 @@ static device_method_t arm_tmr_fdt_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t arm_tmr_fdt_driver = {
-	"generic_timer",
-	arm_tmr_fdt_methods,
-	sizeof(struct arm_tmr_softc),
-};
+static DEFINE_CLASS_0(generic_timer, arm_tmr_fdt_driver, arm_tmr_fdt_methods,
+    sizeof(struct arm_tmr_softc));
 
 static devclass_t arm_tmr_fdt_devclass;
 
@@ -529,11 +526,8 @@ static device_method_t arm_tmr_acpi_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t arm_tmr_acpi_driver = {
-	"generic_timer",
-	arm_tmr_acpi_methods,
-	sizeof(struct arm_tmr_softc),
-};
+static DEFINE_CLASS_0(generic_timer, arm_tmr_acpi_driver, arm_tmr_acpi_methods,
+    sizeof(struct arm_tmr_softc));
 
 static devclass_t arm_tmr_acpi_devclass;
 
