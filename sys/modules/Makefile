@@ -104,6 +104,7 @@ SUBDIR=	\
 	dc \
 	dcons \
 	dcons_crom \
+	${_dpaa2} \
 	${_dpdk_lpm4} \
 	${_dpdk_lpm6} \
 	${_dpms} \
@@ -663,6 +664,7 @@ _cxgb=		cxgb
 .if ${MACHINE_CPUARCH} == "aarch64"
 _allwinner=	allwinner
 _armv8crypto=	armv8crypto
+_dpaa2=		dpaa2
 _dwwdt=		dwwdt
 _em=		em
 _rockchip=	rockchip
