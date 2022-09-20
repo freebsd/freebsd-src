@@ -182,6 +182,25 @@ dev/axgbe/xgbe-phy-v1.c				optional axa
 
 dev/cpufreq/cpufreq_dt.c			optional cpufreq fdt
 
+dev/dpaa2/dpaa2_bp.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_cmd_if.m			optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_con.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_io.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_mac.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_mc.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_mc_acpi.c			optional soc_nxp_ls dpaa2 acpi
+dev/dpaa2/dpaa2_mc_fdt.c			optional soc_nxp_ls dpaa2 fdt
+dev/dpaa2/dpaa2_mc_if.m				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_mcp.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_ni.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_rc.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_swp.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_swp_if.m			optional soc_nxp_ls dpaa2
+dev/dpaa2/memac_mdio_acpi.c			optional soc_nxp_ls dpaa2 acpi
+dev/dpaa2/memac_mdio_common.c			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa2 fdt
+dev/dpaa2/memac_mdio_fdt.c			optional soc_nxp_ls dpaa2 fdt
+dev/dpaa2/memac_mdio_if.m			optional soc_nxp_ls dpaa2 acpi | soc_nxp_ls dpaa2 fdt
+
 dev/dwc/if_dwc.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_socfpga soc_intel_stratix10
 dev/dwc/if_dwc_if.m				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_socfpga soc_intel_stratix10
 
