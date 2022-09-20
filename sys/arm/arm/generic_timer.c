@@ -553,11 +553,8 @@ static device_method_t arm_tmr_fdt_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t arm_tmr_fdt_driver = {
-	"generic_timer",
-	arm_tmr_fdt_methods,
-	sizeof(struct arm_tmr_softc),
-};
+static DEFINE_CLASS_0(generic_timer, arm_tmr_fdt_driver, arm_tmr_fdt_methods,
+    sizeof(struct arm_tmr_softc));
 
 EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_fdt_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
@@ -573,11 +570,8 @@ static device_method_t arm_tmr_acpi_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t arm_tmr_acpi_driver = {
-	"generic_timer",
-	arm_tmr_acpi_methods,
-	sizeof(struct arm_tmr_softc),
-};
+static DEFINE_CLASS_0(generic_timer, arm_tmr_acpi_driver, arm_tmr_acpi_methods,
+    sizeof(struct arm_tmr_softc));
 
 EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
