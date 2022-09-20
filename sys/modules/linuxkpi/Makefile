@@ -21,10 +21,11 @@ SRCS=	linux_compat.c \
 	linux_pci.c \
 	linux_radix.c \
 	linux_rcu.c \
-	linux_seq_file.c \
 	linux_schedule.c \
+	linux_seq_file.c \
 	linux_shmemfs.c \
 	linux_shrinker.c \
+	linux_simple_attr.c \
 	linux_skbuff.c \
 	linux_slab.c \
 	linux_tasklet.c \

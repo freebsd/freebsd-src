@@ -31,21 +31,52 @@
 #define _LINUXKPI_LINUX_DEBUGFS_H_
 
 #include <linux/fs.h>
+#include <linux/module.h>
 #include <linux/seq_file.h>
-
 #include <linux/types.h>
 
-void debugfs_remove(struct dentry *dentry);
+MALLOC_DECLARE(M_DFSINT);
+
+struct debugfs_reg32 {
+	char *name;
+	unsigned long offset;
+};
+
+struct debugfs_regset32 {
+	const struct debugfs_reg32 *regs;
+	int nregs;
+};
 
 struct dentry *debugfs_create_file(const char *name, umode_t mode,
-				   struct dentry *parent, void *data,
-				   const struct file_operations *fops);
+    struct dentry *parent, void *data,
+    const struct file_operations *fops);
+
+struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
+    struct dentry *parent, void *data,
+    const struct file_operations *fops);
+
+struct dentry *debugfs_create_mode_unsafe(const char *name, umode_t mode,
+    struct dentry *parent, void *data,
+    const struct file_operations *fops,
+    const struct file_operations *fops_ro,
+    const struct file_operations *fops_wo);
 
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 
 struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
-				      const char *dest);
+    const char *dest);
+
+void debugfs_remove(struct dentry *dentry);
 
 void debugfs_remove_recursive(struct dentry *dentry);
 
-#endif
+#define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt) \
+	DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)
+
+void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
+    bool *value);
+
+void debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent,
+    unsigned long *value);
+
+#endif /* _LINUXKPI_LINUX_DEBUGFS_H_ */
