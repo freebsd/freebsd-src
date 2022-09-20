@@ -69,9 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
 #include <linux/compat.h>
+#include <linux/debugfs.h>
+#include <linux/fs.h>
 
 MALLOC_DEFINE(M_DFSINT, "debugfsint", "Linux debugfs internal");
 
@@ -118,27 +118,17 @@ debugfs_fill(PFS_FILL_ARGS)
 {
 	struct dentry_meta *d;
 	struct linux_file lf = {};
-	struct seq_file *sf;
 	struct vnode vn;
-	void *buf;
+	char *buf;
 	int rc;
-	size_t len;
-	off_t off;
-
-	d = pn->pn_data;
+	off_t off = 0;
 
 	if ((rc = linux_set_current_flags(curthread, M_NOWAIT)))
 		return (rc);
+
+	d = pn->pn_data;
 	vn.v_data = d->dm_data;
-	if (uio->uio_rw == UIO_READ) {
-		buf = uio->uio_iov[0].iov_base;
-		len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
-	} else {
-		sbuf_finish(sb);
-		buf = sbuf_data(sb);
-		len = sbuf_len(sb);
-	}
-	off = 0;
+
 	rc = d->dm_fops->open(&vn, &lf);
 	if (rc < 0) {
 #ifdef INVARIANTS
@@ -146,19 +136,23 @@ debugfs_fill(PFS_FILL_ARGS)
 #endif
 		return (-rc);
 	}
-	sf = lf.private_data;
-	sf->buf = sb;
-	if (uio->uio_rw == UIO_READ) {
-		if (d->dm_fops->read)
-			rc = d->dm_fops->read(&lf, NULL, len, &off);
-		else
-			rc = -ENODEV;
-	} else {
-		if (d->dm_fops->write)
-			rc = d->dm_fops->write(&lf, buf, len, &off);
-		else
-			rc = -ENODEV;
+
+	rc = -ENODEV;
+	if (uio->uio_rw == UIO_READ && d->dm_fops->read) {
+		rc = -ENOMEM;
+		buf = (char *) malloc(sb->s_size, M_DFSINT, M_ZERO | M_NOWAIT);
+		if (buf != NULL) {
+			rc = d->dm_fops->read(&lf, buf, sb->s_size, &off);
+			if (rc > 0)
+				sbuf_bcpy(sb, buf, strlen(buf));
+
+			free(buf, M_DFSINT);
+		}
+	} else if (uio->uio_rw == UIO_WRITE && d->dm_fops->write) {
+		sbuf_finish(sb);
+		rc = d->dm_fops->write(&lf, sbuf_data(sb), sbuf_len(sb), &off);
 	}
+
 	if (d->dm_fops->release)
 		d->dm_fops->release(&vn, &lf);
 	else
@@ -185,8 +179,8 @@ debugfs_fill_data(PFS_FILL_ARGS)
 
 struct dentry *
 debugfs_create_file(const char *name, umode_t mode,
-		    struct dentry *parent, void *data,
-		    const struct file_operations *fops)
+    struct dentry *parent, void *data,
+    const struct file_operations *fops)
 {
 	struct dentry_meta *dm;
 	struct dentry *dnode;
@@ -218,6 +212,43 @@ debugfs_create_file(const char *name, umode_t mode,
 	return (dnode);
 }
 
+/*
+ * NOTE: Files created with the _unsafe moniker will not be protected from
+ * debugfs core file removals. It is the responsibility of @fops to protect
+ * its file using debugfs_file_get() and debugfs_file_put().
+ *
+ * FreeBSD's LinuxKPI lindebugfs does not perform file removals at the time
+ * of writing. Therefore there is no difference between functions with _unsafe
+ * and functions without _unsafe when using lindebugfs. Functions with _unsafe
+ * exist only for Linux compatibility.
+ */
+struct dentry *
+debugfs_create_file_unsafe(const char *name, umode_t mode,
+    struct dentry *parent, void *data,
+    const struct file_operations *fops)
+{
+	return (debugfs_create_file(name, mode, parent, data, fops));
+}
+
+struct dentry *
+debugfs_create_mode_unsafe(const char *name, umode_t mode,
+    struct dentry *parent, void *data,
+    const struct file_operations *fops,
+    const struct file_operations *fops_ro,
+    const struct file_operations *fops_wo)
+{
+	umode_t read = mode & S_IRUGO;
+	umode_t write = mode & S_IWUGO;
+
+	if (read && !write)
+		return (debugfs_create_file_unsafe(name, mode, parent, data, fops_ro));
+
+	if (write && !read)
+		return (debugfs_create_file_unsafe(name, mode, parent, data, fops_wo));
+
+	return (debugfs_create_file_unsafe(name, mode, parent, data, fops));
+}
+
 struct dentry *
 debugfs_create_dir(const char *name, struct dentry *parent)
 {
@@ -247,7 +278,7 @@ debugfs_create_dir(const char *name, struct dentry *parent)
 
 struct dentry *
 debugfs_create_symlink(const char *name, struct dentry *parent,
-	const char *dest)
+    const char *dest)
 {
 	struct dentry_meta *dm;
 	struct dentry *dnode;
@@ -300,7 +331,71 @@ debugfs_remove_recursive(struct dentry *dnode)
 }
 
 static int
-debugfs_init(PFS_INIT_ARGS)
+debugfs_bool_get(void *data, uint64_t *ullval)
+{
+	bool *bval = data;
+
+	if (*bval)
+		*ullval = 1;
+	else
+		*ullval = 0;
+
+	return (0);
+}
+
+static int
+debugfs_bool_set(void *data, uint64_t ullval)
+{
+	bool *bval = data;
+
+	if (ullval)
+		*bval = 1;
+	else
+		*bval = 0;
+
+	return (0);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_bool, debugfs_bool_get, debugfs_bool_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_bool_ro, debugfs_bool_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_bool_wo, NULL, debugfs_bool_set, "%llu\n");
+
+void
+debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent, bool *value)
+{
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_bool,
+	    &fops_bool_ro, &fops_bool_wo);
+}
+
+static int
+debugfs_ulong_get(void *data, uint64_t *value)
+{
+	uint64_t *uldata = data;
+	*value = *uldata;
+	return (0);
+}
+
+static int
+debugfs_ulong_set(void *data, uint64_t value)
+{
+	uint64_t *uldata = data;
+	*uldata = value;
+	return (0);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong, debugfs_ulong_get, debugfs_ulong_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_ro, debugfs_ulong_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_ulong_wo, NULL, debugfs_ulong_set, "%llu\n");
+
+void
+debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent, unsigned long *value)
+{
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_ulong,
+	    &fops_ulong_ro, &fops_ulong_wo);
+}
+
+static int
+lindebugfs_init(PFS_INIT_ARGS)
 {
 
 	debugfs_root = pi->pi_root;
@@ -311,14 +406,10 @@ debugfs_init(PFS_INIT_ARGS)
 }
 
 static int
-debugfs_uninit(PFS_INIT_ARGS)
+lindebugfs_uninit(PFS_INIT_ARGS)
 {
 	return (0);
 }
 
-#ifdef PR_ALLOW_MOUNT_LINSYSFS
-PSEUDOFS(debugfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
-#else
-PSEUDOFS(debugfs, 1, VFCF_JAIL);
-#endif
+PSEUDOFS(lindebugfs, 1, VFCF_JAIL);
 MODULE_DEPEND(lindebugfs, linuxkpi, 1, 1, 1);

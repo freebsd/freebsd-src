@@ -45,6 +45,8 @@
 #include <linux/dcache.h>
 #include <linux/capability.h>
 #include <linux/wait_bit.h>
+#include <linux/kernel.h>
+#include <linux/mutex.h>
 
 struct module;
 struct kiocb;
@@ -250,6 +252,7 @@ nonseekable_open(struct inode *inode, struct file *filp)
 static inline int
 simple_open(struct inode *inode, struct file *filp)
 {
+	filp->private_data = inode->i_private;
 	return 0;
 }
 
@@ -298,6 +301,12 @@ no_llseek(struct file *file, loff_t offset, int whence)
 }
 
 static inline loff_t
+default_llseek(struct file *file, loff_t offset, int whence)
+{
+	return (no_llseek(file, offset, whence));
+}
+
+static inline loff_t
 noop_llseek(struct linux_file *file, loff_t offset, int whence)
 {
 
@@ -317,5 +326,74 @@ call_mmap(struct linux_file *file, struct vm_area_struct *vma)
 
 	return (file->f_op->mmap(file, vma));
 }
+
+static inline void
+i_size_write(struct inode *inode, loff_t i_size)
+{
+}
+
+/*
+ * simple_read_from_buffer: copy data from kernel-space origin
+ * buffer into user-space destination buffer
+ *
+ * @dest: destination buffer
+ * @read_size: number of bytes to be transferred
+ * @ppos: starting transfer position pointer
+ * @orig: origin buffer
+ * @buf_size: size of destination and origin buffers
+ *
+ * Return value:
+ * On success, total bytes copied with *ppos incremented accordingly.
+ * On failure, negative value.
+ */
+static inline ssize_t
+simple_read_from_buffer(void __user *dest, size_t read_size, loff_t *ppos,
+    void *orig, size_t buf_size)
+{
+	void *read_pos = ((char *) orig) + *ppos;
+	size_t buf_remain = buf_size - *ppos;
+	ssize_t num_read;
+
+	if (buf_remain < 0 || buf_remain > buf_size)
+		return -EINVAL;
+
+	if (read_size > buf_remain)
+		read_size = buf_remain;
+
+	/* copy_to_user returns number of bytes NOT read */
+	num_read = read_size - copy_to_user(dest, read_pos, read_size);
+	if (num_read == 0)
+		return -EFAULT;
+	*ppos += num_read;
+
+	return (num_read);
+}
+
+MALLOC_DECLARE(M_LSATTR);
+
+#define DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+static inline int							\
+__fops ## _open(struct inode *inode, struct file *filp)			\
+{									\
+	return (simple_attr_open(inode, filp, __get, __set, __fmt));	\
+}									\
+static const struct file_operations __fops = {				\
+	.owner	 = THIS_MODULE,						\
+	.open	 = __fops ## _open,					\
+	.release = simple_attr_release,					\
+	.read	 = simple_attr_read,					\
+	.write	 = simple_attr_write,					\
+	.llseek	 = no_llseek						\
+}
+
+int simple_attr_open(struct inode *inode, struct file *filp,
+    int (*get)(void *, uint64_t *), int (*set)(void *, uint64_t),
+    const char *fmt);
+
+int simple_attr_release(struct inode *inode, struct file *filp);
+
+ssize_t simple_attr_read(struct file *filp, char *buf, size_t read_size, loff_t *ppos);
+
+ssize_t simple_attr_write(struct file *filp, const char *buf, size_t write_size, loff_t *ppos);
 
 #endif /* _LINUXKPI_LINUX_FS_H_ */

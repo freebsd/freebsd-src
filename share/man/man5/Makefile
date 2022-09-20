@@ -32,6 +32,7 @@ MAN=	acct.5 \
 	hosts.lpd.5 \
 	intro.5 \
 	libmap.conf.5 \
+	lindebugfs.5 \
 	link.5 \
 	linprocfs.5 \
 	linsysfs.5 \

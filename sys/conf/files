@@ -4607,9 +4607,10 @@ compat/linuxkpi/common/src/linux_xarray.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/lkpi_iic_if.m	optional compat_linuxkpi
 
-compat/linuxkpi/common/src/linux_seq_file.c		optional compat_linuxkpi | lindebugfs \
+compat/linuxkpi/common/src/linux_seq_file.c	optional compat_linuxkpi | lindebugfs \
 	compile-with "${LINUXKPI_C}"
-
+compat/linuxkpi/common/src/linux_simple_attr.c	optional compat_linuxkpi | lindebugfs \
+	compile-with "${LINUXKPI_C}"
 compat/lindebugfs/lindebugfs.c			optional lindebugfs \
 	compile-with "${LINUXKPI_C}"
 
