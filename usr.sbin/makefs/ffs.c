@@ -907,7 +907,7 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 static void
 ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 {
-	int 	isfile, ffd;
+	int	isfile, ffd;
 	char	*fbuf, *p;
 	off_t	bufleft, chunk, offset;
 	ssize_t nread;
@@ -1097,7 +1097,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 static void
 ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 {
-	char 		*buf;
+	char		*buf;
 	struct ufs1_dinode *dp1;
 	struct ufs2_dinode *dp2, *dip;
 	struct cg	*cgp;
