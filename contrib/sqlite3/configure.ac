@@ -10,7 +10,7 @@
 #
 
 AC_PREREQ(2.61)
-AC_INIT(sqlite, 3.39.2, http://www.sqlite.org)
+AC_INIT(sqlite, 3.39.3, http://www.sqlite.org)
 AC_CONFIG_SRCDIR([sqlite3.c])
 AC_CONFIG_AUX_DIR([.])
 
