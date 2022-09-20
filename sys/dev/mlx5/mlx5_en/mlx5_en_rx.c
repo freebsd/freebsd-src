@@ -214,7 +214,10 @@ static uint64_t
 mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 {
 	struct mlx5e_clbr_point *cp, dcp;
-	uint64_t a1, a2, res;
+	uint64_t tstmp_sec, tstmp_nsec;
+	uint64_t hw_clocks;
+	uint64_t rt_cur_to_prev, res_s, res_n, res_s_modulo, res;
+	uint64_t hw_clk_div;
 	u_int gen;
 
 	do {
@@ -224,19 +227,49 @@ mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 			return (0);
 		dcp = *cp;
 		atomic_thread_fence_acq();
-	} while (gen != cp->clbr_gen);
-
-	a1 = (hw_tstmp - dcp.clbr_hw_prev) >> MLX5E_TSTMP_PREC;
-	a2 = (dcp.base_curr - dcp.base_prev) >> MLX5E_TSTMP_PREC;
-	res = (a1 * a2) << MLX5E_TSTMP_PREC;
-
+	} while (gen != dcp.clbr_gen);
 	/*
-	 * Divisor cannot be zero because calibration callback
-	 * checks for the condition and disables timestamping
-	 * if clock halted.
+	 * Our goal here is to have a result that is:
+	 *
+	 * (                             (cur_time - prev_time)   )
+	 * ((hw_tstmp - hw_prev) *  ----------------------------- ) + prev_time
+	 * (                             (hw_cur - hw_prev)       )
+	 *
+	 * With the constraints that we cannot use float and we
+	 * don't want to overflow the uint64_t numbers we are using.
+	 *
+	 * The plan is to take the clocking value of the hw timestamps
+	 * and split them into seconds and nanosecond equivalent portions.
+	 * Then we operate on the two portions seperately making sure to
+	 * bring back the carry over from the seconds when we divide.
+	 *
+	 * First up lets get the two divided into separate entities
+	 * i.e. the seconds. We use the clock frequency for this.
+	 * Note that priv->cclk was setup with the clock frequency
+	 * in hz so we are all set to go.
 	 */
-	res /= (dcp.clbr_hw_curr - dcp.clbr_hw_prev) >> MLX5E_TSTMP_PREC;
-
+	hw_clocks = hw_tstmp - dcp.clbr_hw_prev;
+	tstmp_sec = hw_clocks / priv->cclk;
+	tstmp_nsec = hw_clocks % priv->cclk;
+	/* Now work with them separately */
+	rt_cur_to_prev = (dcp.base_curr - dcp.base_prev);
+	res_s = tstmp_sec * rt_cur_to_prev;
+	res_n = tstmp_nsec * rt_cur_to_prev;
+	/* Now lets get our divider */
+	hw_clk_div = dcp.clbr_hw_curr - dcp.clbr_hw_prev;
+	/* Make sure to save the remainder from the seconds divide */
+	res_s_modulo = res_s % hw_clk_div;
+	res_s /= hw_clk_div;
+	/* scale the remainder to where it should be */
+	res_s_modulo *= priv->cclk;
+	/* Now add in the remainder */
+	res_n += res_s_modulo;
+	/* Now do the divide */
+	res_n /= hw_clk_div;
+	res_s *= priv->cclk;
+	/* Recombine the two */
+	res = res_s + res_n;
+	/* And now add in the base time to get to the real timestamp */
 	res += dcp.base_prev;
 	return (res);
 }
@@ -370,10 +403,11 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 			tstmp &= ~MLX5_CQE_TSTMP_PTP;
 			mb->m_flags |= M_TSTMP_HPREC;
 		}
-		mb->m_pkthdr.rcv_tstmp = tstmp;
-		mb->m_flags |= M_TSTMP;
+		if (tstmp != 0) {
+			mb->m_pkthdr.rcv_tstmp = tstmp;
+			mb->m_flags |= M_TSTMP;
+		}
 	}
-
 	switch (get_cqe_tls_offload(cqe)) {
 	case CQE_TLS_OFFLOAD_DECRYPTED:
 		/* set proper checksum flag for decrypted packets */
