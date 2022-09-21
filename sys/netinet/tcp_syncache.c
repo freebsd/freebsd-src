@@ -1040,7 +1040,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, TCPS_LISTEN);
 
 	if (!solisten_enqueue(so, SS_ISCONNECTED))
-		tp->t_flags |= TF_INCQUEUE;
+		tp->t_flags |= TF_SONOTCONN;
 
 	return (so);
 

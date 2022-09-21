@@ -2105,7 +2105,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 *        SYN-SENT -> SYN-RECEIVED
 			 *        SYN-SENT* -> SYN-RECEIVED*
 			 */
-			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
+			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN | TF_SONOTCONN);
 			tcp_timer_activate(tp, TT_REXMT, 0);
 			tcp_state_change(tp, TCPS_SYN_RECEIVED);
 		}
@@ -2433,8 +2433,17 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	case TCPS_SYN_RECEIVED:
 
 		TCPSTAT_INC(tcps_connects);
-		if (tp->t_flags & TF_INCQUEUE) {
-			tp->t_flags &= ~TF_INCQUEUE;
+		if (tp->t_flags & TF_SONOTCONN) {
+			/*
+			 * Usually SYN_RECEIVED had been created from a LISTEN,
+			 * and solisten_enqueue() has already marked the socket
+			 * layer as connected.  If it didn't, which can happen
+			 * only with an accept_filter(9), then the tp is marked
+			 * with TF_SONOTCONN.  The other reason for this mark
+			 * to be set is a simultaneous open, a SYN_RECEIVED
+			 * that had been created from SYN_SENT.
+			 */
+			tp->t_flags &= ~TF_SONOTCONN;
 			soisconnected(so);
 		}
 		/* Do window scaling? */
