@@ -670,11 +670,14 @@ poollist(int argc, char *argv[])
 	poolname = NULL;
 	role = IPL_LOGALL;
 
-	while ((c = getopt(argc, argv, "dm:M:N:o:t:v")) != -1)
+	while ((c = getopt(argc, argv, "dDm:M:N:o:t:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
 			opts |= OPT_DEBUG;
+			break;
+		case 'D' :
+			opts |= OPT_SAVEOUT;
 			break;
 		case 'm' :
 			poolname = optarg;
