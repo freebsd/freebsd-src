@@ -576,6 +576,7 @@ struct mac_address {
 struct ieee80211_reg_rule {
 	/* TODO FIXME */
 	uint32_t	flags;
+	int	dfs_cac_ms;
 	struct freq_range {
 		int	start_freq_khz;
 		int	end_freq_khz;
@@ -787,6 +788,12 @@ struct cfg80211_he_bss_color {
 
 struct ieee80211_he_obss_pd {
 	bool					enable;
+	uint8_t					min_offset;
+	uint8_t					max_offset;
+	uint8_t					non_srg_max_offset;
+	uint8_t					bss_color_bitmap;
+	uint8_t					partial_bssid_bitmap;
+	uint8_t					sr_ctrl;
 };
 
 struct ieee80211_sta_he_6ghz_capa {
