@@ -22,7 +22,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2021 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2022 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017      Tomasz Kłoczko <kloczek@fedoraproject.org>
 # Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
 # Licensed under the MIT license:
@@ -297,6 +297,7 @@ EXPAT_LARGE_SIZE = @EXPAT_LARGE_SIZE@
 EXPAT_MIN_SIZE = @EXPAT_MIN_SIZE@
 EXPAT_NS = @EXPAT_NS@
 FGREP = @FGREP@
+FILECMD = @FILECMD@
 FILEMAP = @FILEMAP@
 GREP = @GREP@
 INSTALL = @INSTALL@
@@ -435,8 +436,7 @@ EXTRA_DIST = \
     iasciitab.h \
     internal.h \
     latin1tab.h \
-    libexpat.def \
-    libexpatw.def \
+    libexpat.def.cmake \
     nametab.h \
     siphash.h \
     utf8tab.h \

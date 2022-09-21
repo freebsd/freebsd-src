@@ -2,6 +2,88 @@ NOTE: We are looking for help with a few things:
       https://github.com/libexpat/libexpat/labels/help%20wanted
       If you can help, please get in touch.  Thanks!
 
+Release 2.4.9 Tue September 20 2022
+        Security fixes:
+       #629 #640  CVE-2022-40674 -- Heap use-after-free vulnerability in
+                    function doContent. Expected impact is denial of service
+                    or potentially arbitrary code execution.
+
+        Bug fixes:
+            #634  MinGW: Fix mis-compilation for -D__USE_MINGW_ANSI_STDIO=0
+            #614  docs: Fix documentation on effect of switch XML_DTD on
+                    symbol visibility in doc/reference.html
+
+        Other changes:
+            #638  MinGW: Make fix-xmltest-log.sh drop more Wine bug output
+       #596 #625  Autotools: Sync CMake templates with CMake 3.22
+            #608  CMake: Migrate from use of CMAKE_*_POSTFIX to
+                    dedicated variables EXPAT_*_POSTFIX to stop affecting
+                    other projects
+       #597 #599  Windows|CMake: Add missing -DXML_STATIC to test runners
+                    and fuzzers
+       #512 #621  Windows|CMake: Render .def file from a template to fix
+                    linking with -DEXPAT_DTD=OFF and/or -DEXPAT_ATTR_INFO=ON
+       #611 #621  MinGW|CMake: Apply MSVC .def file when linking
+       #622 #624  MinGW|CMake: Sync library name with GNU Autotools,
+                    i.e. produce libexpat-1.dll rather than libexpat.dll
+                    by default.  Filename libexpat.dll.a is unaffected.
+            #632  MinGW|CMake: Set missing variable CMAKE_RC_COMPILER in
+                    toolchain file "cmake/mingw-toolchain.cmake" to avoid
+                    error "windres: Command not found" on e.g. Ubuntu 20.04
+       #597 #627  CMake: Unify inconsistent use of set() and option() in
+                    context of public build time options to take need for
+                    set(.. FORCE) in projects using Expat by means of
+                    add_subdirectory(..) off Expat's users' shoulders
+       #626 #641  Stop exporting API symbols when building a static library
+            #644  Resolve use of deprecated "fgrep" by "grep -F"
+            #620  CMake: Make documentation on variables a bit more consistent
+            #636  CMake: Drop leading whitespace from a #cmakedefine line in
+                    file expat_config.h.cmake
+            #594  xmlwf: Fix harmless variable mix-up in function nsattcmp
+  #592 #593 #610  Address Cppcheck warnings
+            #643  Address Clang 15 compiler warnings
+       #642 #644  Version info bumped from 9:8:8 to 9:9:8;
+                    see https://verbump.de/ for what these numbers do
+
+        Infrastructure:
+       #597 #598  CI: Windows: Start covering MSVC 2022
+            #619  CI: macOS: Migrate off deprecated macOS 10.15
+            #632  CI: Linux: Make migration off deprecated Ubuntu 18.04 work
+            #643  CI: Upgrade Clang from 14 to 15
+            #637  apply-clang-format.sh: Add support for BSD find
+            #633  coverage.sh: Exclude MinGW headers
+            #635  coverage.sh: Fix name collision for -funsigned-char
+
+        Special thanks to:
+            David Faure
+            Felix Wilhelm
+            Frank Bergmann
+            Rhodri James
+            Rosen Penev
+            Thijs Schreijer
+            Vincent Torri
+                 and
+            Google Project Zero
+
+Release 2.4.8 Mon March 28 2022
+        Other changes:
+            #587  pkg-config: Move "-lm" to section "Libs.private"
+            #587  CMake|MSVC: Fix pkg-config section "Libs"
+        #55 #582  CMake|macOS: Start using linker arguments
+                    "-compatibility_version <version>" and
+                    "-current_version <version>" in a way compatible with
+                    GNU Libtool
+       #590 #591  Version info bumped from 9:7:8 to 9:8:8;
+                    see https://verbump.de/ for what these numbers do
+
+        Infrastructure:
+            #589  CI: Upgrade Clang from 13 to 14
+
+        Special thanks to:
+            evpobr
+            Kai Pastor
+            Sam James
+
 Release 2.4.7 Fri March 4 2022
         Bug fixes:
        #572 #577  Relax fix to CVE-2022-25236 (introduced with release 2.4.5)
@@ -190,7 +272,7 @@ Release 2.4.2 Sun December 19 2021
             #498  Autotools: Include files with release archives:
                     - buildconf.sh
                     - fuzz/*.c
-       #507 #519  Autotools: Sync CMake templates
+       #507 #519  Autotools: Sync CMake templates with CMake 3.20
        #495 #524  CMake: MinGW: Fix pkg-config section "Libs" for
                     - non-release build types (e.g. -DCMAKE_BUILD_TYPE=Debug)
                     - multi-config CMake generators (e.g. Ninja Multi-Config)
@@ -264,6 +346,7 @@ Release 2.4.0 Sun May 23 2021
        #468 #469  xmlwf: Improve help output and the xmlwf man page
             #463  xmlwf: Improve maintainability through some refactoring
             #477  xmlwf: Fix man page DocBook validity
+            #456  Autotools: Sync CMake templates with CMake 3.18
        #458 #459  CMake: Support absolute paths for both CMAKE_INSTALL_LIBDIR
                     and CMAKE_INSTALL_INCLUDEDIR
        #471 #481  CMake: Add support for standard variable BUILD_SHARED_LIBS
