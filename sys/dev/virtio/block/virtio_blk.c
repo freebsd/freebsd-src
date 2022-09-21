@@ -60,12 +60,14 @@ __FBSDID("$FreeBSD$");
 
 struct vtblk_request {
 	struct vtblk_softc		*vbr_sc;
+	bus_dmamap_t			 vbr_mapp;
 
 	/* Fields after this point are zeroed for each request. */
 	struct virtio_blk_outhdr	 vbr_hdr;
 	struct bio			*vbr_bp;
 	uint8_t				 vbr_ack;
 	uint8_t				 vbr_requeue_on_error;
+	uint8_t				 vbr_busdma_wait;
 	int				 vbr_error;
 	TAILQ_ENTRY(vtblk_request)	 vbr_link;
 };
@@ -86,9 +88,12 @@ struct vtblk_softc {
 #define VTBLK_FLAG_SUSPEND	0x0004
 #define VTBLK_FLAG_BARRIER	0x0008
 #define VTBLK_FLAG_WCE_CONFIG	0x0010
+#define VTBLK_FLAG_BUSDMA_WAIT	0x0020
+#define VTBLK_FLAG_BUSDMA_ALIGN	0x0040
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
+	bus_dma_tag_t		 vtblk_dmat;
 	struct disk		*vtblk_disk;
 
 	struct bio_queue_head	 vtblk_bioq;
@@ -166,7 +171,9 @@ static struct vtblk_request *
 		vtblk_request_next(struct vtblk_softc *);
 static struct vtblk_request *
 		vtblk_request_bio(struct vtblk_softc *);
-static void	vtblk_request_execute(struct vtblk_request *);
+static int	vtblk_request_execute(struct vtblk_request *, int);
+static void	vtblk_request_execute_cb(void *,
+		    bus_dma_segment_t *, int, int);
 static int	vtblk_request_error(struct vtblk_request *);
 
 static void	vtblk_queue_completed(struct vtblk_softc *,
@@ -363,6 +370,33 @@ vtblk_attach(device_t dev)
 		goto fail;
 	}
 
+	/*
+	 * If vtblk_max_nsegs == VTBLK_MIN_SEGMENTS + 1, the device only
+	 * supports a single data segment; in that case we need busdma to
+	 * align to a page boundary so we can send a *contiguous* page size
+	 * request to the host.
+	 */
+	if (sc->vtblk_max_nsegs == VTBLK_MIN_SEGMENTS + 1)
+		sc->vtblk_flags |= VTBLK_FLAG_BUSDMA_ALIGN;
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),			/* parent */
+	    (sc->vtblk_flags & VTBLK_FLAG_BUSDMA_ALIGN) ? PAGE_SIZE : 1,
+	    0,						/* boundary */
+	    BUS_SPACE_MAXADDR,				/* lowaddr */
+	    BUS_SPACE_MAXADDR,				/* highaddr */
+	    NULL, NULL,					/* filter, filterarg */
+	    maxphys,					/* max request size */
+	    sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS,	/* max # segments */
+	    maxphys,					/* maxsegsize */
+	    0,						/* flags */
+	    busdma_lock_mutex,				/* lockfunc */
+	    &sc->vtblk_mtx,				/* lockarg */
+	    &sc->vtblk_dmat);
+	if (error) {
+		device_printf(dev, "cannot create bus dma tag\n");
+		goto fail;
+	}
+
 	error = vtblk_alloc_virtqueue(sc);
 	if (error) {
 		device_printf(dev, "cannot allocate virtqueue\n");
@@ -410,6 +444,11 @@ vtblk_detach(device_t dev)
 	if (sc->vtblk_disk != NULL) {
 		disk_destroy(sc->vtblk_disk);
 		sc->vtblk_disk = NULL;
+	}
+
+	if (sc->vtblk_dmat != NULL) {
+		bus_dma_tag_destroy(sc->vtblk_dmat);
+		sc->vtblk_dmat = NULL;
 	}
 
 	if (sc->vtblk_sglist != NULL) {
@@ -737,13 +776,14 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	 * which is typically greater than maxphys. Eventually we should
 	 * just advertise maxphys and split buffers that are too big.
 	 *
-	 * Note we must subtract one additional segment in case of non
-	 * page aligned buffers.
+	 * If we're not asking busdma to align data to page boundaries, the
+	 * maximum I/O size is reduced by PAGE_SIZE in order to accommodate
+	 * unaligned I/Os.
 	 */
-	dp->d_maxsize = (sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS - 1) *
+	dp->d_maxsize = (sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS) *
 	    PAGE_SIZE;
-	if (dp->d_maxsize < PAGE_SIZE)
-		dp->d_maxsize = PAGE_SIZE; /* XXX */
+	if ((sc->vtblk_flags & VTBLK_FLAG_BUSDMA_ALIGN) == 0)
+		dp->d_maxsize -= PAGE_SIZE;
 
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_GEOMETRY)) {
 		dp->d_fwsectors = blkcfg->geometry.sectors;
@@ -809,6 +849,10 @@ vtblk_request_prealloc(struct vtblk_softc *sc)
 			return (ENOMEM);
 
 		req->vbr_sc = sc;
+		if (bus_dmamap_create(sc->vtblk_dmat, 0, &req->vbr_mapp)) {
+			free(req, M_DEVBUF);
+			return (ENOMEM);
+		}
 
 		MPASS(sglist_count(&req->vbr_hdr, sizeof(req->vbr_hdr)) == 1);
 		MPASS(sglist_count(&req->vbr_ack, sizeof(req->vbr_ack)) == 1);
@@ -829,6 +873,7 @@ vtblk_request_free(struct vtblk_softc *sc)
 
 	while ((req = vtblk_request_dequeue(sc)) != NULL) {
 		sc->vtblk_request_count--;
+		bus_dmamap_destroy(sc->vtblk_dmat, req->vbr_mapp);
 		free(req, M_DEVBUF);
 	}
 
@@ -938,21 +983,63 @@ vtblk_request_bio(struct vtblk_softc *sc)
 	return (req);
 }
 
-static void
-vtblk_request_execute(struct vtblk_request *req)
+static int
+vtblk_request_execute(struct vtblk_request *req, int flags)
 {
+	struct vtblk_softc *sc = req->vbr_sc;
+	struct bio *bp = req->vbr_bp;
+	int error = 0;
+
+	/*
+	 * Call via bus_dmamap_load_bio or directly depending on whether we
+	 * have a buffer we need to map.
+	 */
+	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+		error = bus_dmamap_load_bio(sc->vtblk_dmat, req->vbr_mapp,
+		    req->vbr_bp, vtblk_request_execute_cb, req, flags);
+		if (error == EINPROGRESS) {
+			req->vbr_busdma_wait = 1;
+			sc->vtblk_flags |= VTBLK_FLAG_BUSDMA_WAIT;
+		}
+	} else {
+		vtblk_request_execute_cb(req, NULL, 0, 0);
+	}
+
+	return (error ? error : req->vbr_error);
+}
+
+static void
+vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
+    int nseg, int error)
+{
+	struct vtblk_request *req;
 	struct vtblk_softc *sc;
 	struct virtqueue *vq;
 	struct sglist *sg;
 	struct bio *bp;
-	int ordered, readable, writable, error;
+	int ordered, readable, writable, i;
 
+	req = (struct vtblk_request *)callback_arg;
 	sc = req->vbr_sc;
 	vq = sc->vtblk_vq;
 	sg = sc->vtblk_sglist;
 	bp = req->vbr_bp;
 	ordered = 0;
 	writable = 0;
+
+	/*
+	 * If we paused request queueing while we waited for busdma to call us
+	 * asynchronously, unpause it now; this request made it through so we
+	 * don't need to worry about others getting ahead of us.  (Note that we
+	 * hold the device mutex so nothing will happen until after we return
+	 * anyway.)
+	 */
+	if (req->vbr_busdma_wait)
+		sc->vtblk_flags &= ~VTBLK_FLAG_BUSDMA_WAIT;
+
+	/* Fail on errors from busdma. */
+	if (error)
+		goto out1;
 
 	/*
 	 * Some hosts (such as bhyve) do not implement the barrier feature,
@@ -979,10 +1066,18 @@ vtblk_request_execute(struct vtblk_request *req)
 	sglist_append(sg, &req->vbr_hdr, sizeof(struct virtio_blk_outhdr));
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
-		error = sglist_append_bio(sg, bp);
-		if (error || sg->sg_nseg == sg->sg_maxseg) {
-			panic("%s: bio %p data buffer too big %d",
-			    __func__, bp, error);
+		/*
+		 * We cast bus_addr_t to vm_paddr_t here; this isn't valid on
+		 * all platforms, but we believe it works on all platforms
+		 * which are supported by virtio.
+		 */
+		for (i = 0; i < nseg; i++) {
+			error = sglist_append_phys(sg,
+			    (vm_paddr_t)segs[i].ds_addr, segs[i].ds_len);
+			if (error || sg->sg_nseg == sg->sg_maxseg) {
+				panic("%s: bio %p data buffer too big %d",
+				    __func__, bp, error);
+			}
 		}
 
 		/* BIO_READ means the host writes into our buffer. */
@@ -1011,11 +1106,33 @@ vtblk_request_execute(struct vtblk_request *req)
 	sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
 	readable = sg->sg_nseg - writable;
 
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+		    BUS_DMASYNC_PREREAD);
+		break;
+	case BIO_WRITE:
+		bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+		    BUS_DMASYNC_PREWRITE);
+		break;
+	}
+
 	error = virtqueue_enqueue(vq, req, sg, readable, writable);
 	if (error == 0 && ordered)
 		sc->vtblk_req_ordered = req;
 
+	/*
+	 * If we were called asynchronously, we need to notify the queue that
+	 * we've added a new request, since the notification from startio was
+	 * performed already.
+	 */
+	if (error == 0 && req->vbr_busdma_wait)
+		virtqueue_notify(vq);
+
 out:
+	if (error)
+		bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
+out1:
 	if (error && req->vbr_requeue_on_error)
 		vtblk_request_requeue_ready(sc, req);
 	req->vbr_error = error;
@@ -1054,6 +1171,18 @@ vtblk_queue_completed(struct vtblk_softc *sc, struct bio_queue *queue)
 		}
 
 		bp = req->vbr_bp;
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
+			break;
+		case BIO_WRITE:
+			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
+			break;
+		}
 		bp->bio_error = vtblk_request_error(req);
 		TAILQ_INSERT_TAIL(queue, bp, bio_queue);
 
@@ -1135,7 +1264,7 @@ vtblk_startio(struct vtblk_softc *sc)
 	vq = sc->vtblk_vq;
 	enq = 0;
 
-	if (sc->vtblk_flags & VTBLK_FLAG_SUSPEND)
+	if (sc->vtblk_flags & (VTBLK_FLAG_SUSPEND | VTBLK_FLAG_BUSDMA_WAIT))
 		return;
 
 	while (!virtqueue_full(vq)) {
@@ -1144,8 +1273,7 @@ vtblk_startio(struct vtblk_softc *sc)
 			break;
 
 		req->vbr_requeue_on_error = 1;
-		vtblk_request_execute(req);
-		if (req->vbr_error != 0)
+		if (vtblk_request_execute(req, BUS_DMA_WAITOK))
 			break;
 
 		enq++;
@@ -1280,8 +1408,7 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	if (!virtqueue_empty(vq))
 		return (EBUSY);
 
-	vtblk_request_execute(req);
-	error = req->vbr_error;
+	error = vtblk_request_execute(req, BUS_DMA_NOWAIT);
 	if (error)
 		return (error);
 
