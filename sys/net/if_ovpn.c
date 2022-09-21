@@ -1557,8 +1557,6 @@ ovpn_decrypt_rx_cb(struct cryptop *crp)
 	return (0);
 }
 
-static uint8_t EMPTY_BUFFER[AES_BLOCK_LEN];
-
 static int
 ovpn_get_af(struct mbuf *m)
 {
@@ -1729,7 +1727,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	struct ovpn_softc *sc;
 	struct cryptop *crp;
 	uint32_t af, seq;
-	size_t len, real_len, ovpn_hdr_len;
+	size_t len, ovpn_hdr_len;
 	int tunnel_len;
 	int ret;
 
@@ -1752,19 +1750,12 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	if (af != 0)
 		BPF_MTAP2(ifp, &af, sizeof(af), m);
 
-	real_len = len = m->m_pkthdr.len;
-	MPASS(real_len <= ifp->if_mtu);
+	len = m->m_pkthdr.len;
+	MPASS(len <= ifp->if_mtu);
 
 	ovpn_hdr_len = sizeof(struct ovpn_wire_header);
 	if (key->encrypt->cipher == OVPN_CIPHER_ALG_NONE)
 		ovpn_hdr_len -= 16; /* No auth tag. */
-	else {
-		/* Round up the len to a multiple of our block size. */
-		len = roundup2(real_len, AES_BLOCK_LEN);
-
-		/* Now extend the mbuf. */
-		m_append(m, len - real_len, EMPTY_BUFFER);
-	}
 
 	M_PREPEND(m, ovpn_hdr_len, M_NOWAIT);
 	if (m == NULL) {
