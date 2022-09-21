@@ -478,7 +478,7 @@ dn_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		m = m_get(MT_DATA, M_NOWAIT);
+		m = m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			break;
 		clust = uma_zalloc(dn_zone_clust, M_NOWAIT);
@@ -621,7 +621,7 @@ debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize)
 	    NULL, UMA_ZONE_NOBUCKET);
 
 	while (nmbuf-- > 0) {
-		m = m_get(MT_DATA, M_WAITOK);
+		m = m_get(M_WAITOK, MT_DATA);
 		uma_zfree(dn_zone_mbuf, m);
 	}
 	while (nclust-- > 0) {
