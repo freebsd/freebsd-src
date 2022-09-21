@@ -433,9 +433,9 @@ void iounmap(void *addr);
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
 
 static inline void
-__iowrite32_copy(void *to, void *from, size_t count)
+__iowrite32_copy(void *to, const void *from, size_t count)
 {
-	uint32_t *src;
+	const uint32_t *src;
 	uint32_t *dst;
 	int i;
 
@@ -444,10 +444,10 @@ __iowrite32_copy(void *to, void *from, size_t count)
 }
 
 static inline void
-__iowrite64_copy(void *to, void *from, size_t count)
+__iowrite64_copy(void *to, const void *from, size_t count)
 {
 #ifdef __LP64__
-	uint64_t *src;
+	const uint64_t *src;
 	uint64_t *dst;
 	int i;
 
@@ -455,6 +455,32 @@ __iowrite64_copy(void *to, void *from, size_t count)
 		__raw_writeq(*src, dst);
 #else
 	__iowrite32_copy(to, from, count * 2);
+#endif
+}
+
+static inline void
+__ioread32_copy(void *to, const void *from, size_t count)
+{
+	const uint32_t *src;
+	uint32_t *dst;
+	int i;
+
+	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
+		*dst = __raw_readl(src);
+}
+
+static inline void
+__ioread64_copy(void *to, const void *from, size_t count)
+{
+#ifdef __LP64__
+	const uint64_t *src;
+	uint64_t *dst;
+	int i;
+
+	for (i = 0, src = from, dst = to; i < count; i++, src++, dst++)
+		*dst = __raw_readq(src);
+#else
+	__ioread32_copy(to, from, count * 2);
 #endif
 }
 
