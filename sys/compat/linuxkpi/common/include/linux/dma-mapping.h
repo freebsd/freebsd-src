@@ -95,6 +95,8 @@ int linux_dma_tag_init(struct device *, u64);
 int linux_dma_tag_init_coherent(struct device *, u64);
 void *linux_dma_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
+void *linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size,
+    dma_addr_t *dma_handle, gfp_t flag);
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
 void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);
 int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
@@ -157,6 +159,14 @@ dma_zalloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 {
 
 	return (dma_alloc_coherent(dev, size, dma_handle, flag | __GFP_ZERO));
+}
+
+static inline void *
+dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t flag)
+{
+
+	return (linuxkpi_dmam_alloc_coherent(dev, size, dma_handle, flag));
 }
 
 static inline void

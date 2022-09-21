@@ -1139,6 +1139,45 @@ linux_dma_alloc_coherent(struct device *dev, size_t size,
 	return (mem);
 }
 
+struct lkpi_devres_dmam_coherent {
+	size_t size;
+	dma_addr_t *handle;
+	void *mem;
+};
+
+static void
+lkpi_dmam_free_coherent(struct device *dev, void *p)
+{
+	struct lkpi_devres_dmam_coherent *dr;
+
+	dr = p;
+	dma_free_coherent(dev, dr->size, dr->mem, *dr->handle);
+}
+
+void *
+linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t flag)
+{
+	struct lkpi_devres_dmam_coherent *dr;
+
+	dr = lkpi_devres_alloc(lkpi_dmam_free_coherent,
+	   sizeof(*dr), GFP_KERNEL | __GFP_ZERO);
+
+	if (dr == NULL)
+		return (NULL);
+
+	dr->size = size;
+	dr->mem = linux_dma_alloc_coherent(dev, size, dma_handle, flag);
+	dr->handle = dma_handle;
+	if (dr->mem == NULL) {
+		lkpi_devres_free(dr);
+		return (NULL);
+	}
+
+	lkpi_devres_add(dev, dr);
+	return (dr->mem);
+}
+
 void
 linuxkpi_dma_sync(struct device *dev, dma_addr_t dma_addr, size_t size,
     bus_dmasync_op_t op)
