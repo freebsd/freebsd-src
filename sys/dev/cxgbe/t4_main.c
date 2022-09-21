@@ -314,12 +314,6 @@ static int t4_rsrv_noflowq = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, rsrv_noflowq, CTLFLAG_RDTUN, &t4_rsrv_noflowq,
     0, "Reserve TX queue 0 of each VI for non-flowid packets");
 
-#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
-#define NOFLDTXQ 8
-static int t4_nofldtxq = -NOFLDTXQ;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldtxq, CTLFLAG_RDTUN, &t4_nofldtxq, 0,
-    "Number of offload TX queues per port");
-
 static int t4_clocksync_fast = 1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, csfast, CTLFLAG_RW | CTLFLAG_MPSAFE, &t4_clocksync_fast, 0,
     "During initial clock sync how fast do we update in seconds");
@@ -331,6 +325,12 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, csnormal, CTLFLAG_RW | CTLFLAG_MPSAFE, &t4_clock
 static int t4_fast_2_normal = 30;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, cscount, CTLFLAG_RW | CTLFLAG_MPSAFE, &t4_fast_2_normal, 0,
     "How many clock syncs do we need to do to transition to slow");
+
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+#define NOFLDTXQ 8
+static int t4_nofldtxq = -NOFLDTXQ;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldtxq, CTLFLAG_RDTUN, &t4_nofldtxq, 0,
+    "Number of offload TX queues per port");
 
 #define NOFLDRXQ 2
 static int t4_nofldrxq = -NOFLDRXQ;
