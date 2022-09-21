@@ -17,6 +17,7 @@
    Copyright (c) 2020      Joe Orton <jorton@redhat.com>
    Copyright (c) 2020      Kleber Tarcísio <klebertarcisio@yahoo.com.br>
    Copyright (c) 2021      Tim Bray <tbray@textuality.com>
+   Copyright (c) 2022      Martin Ettl <ettl.martin78@googlemail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -217,7 +218,7 @@ nsattcmp(const void *p1, const void *p2) {
   const XML_Char *att1 = *(const XML_Char **)p1;
   const XML_Char *att2 = *(const XML_Char **)p2;
   int sep1 = (tcsrchr(att1, NSSEP) != 0);
-  int sep2 = (tcsrchr(att1, NSSEP) != 0);
+  int sep2 = (tcsrchr(att2, NSSEP) != 0);
   if (sep1 != sep2)
     return sep1 - sep2;
   return tcscmp(att1, att2);
