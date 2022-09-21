@@ -28,7 +28,7 @@
 .\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2008
+.Dd September 21, 2022
 .Dt TELNETD 8
 .Os
 .Sh NAME
@@ -47,6 +47,11 @@ protocol server
 .Op Fl p Ar loginprog
 .Op Fl u Ar len
 .Op Fl debug Op Ar port
+.SH DEPRECATION NOTICE
+.Nm
+is deprecated and may not be available in
+.Fx 14.0
+and later.
 .Sh DESCRIPTION
 The
 .Nm
