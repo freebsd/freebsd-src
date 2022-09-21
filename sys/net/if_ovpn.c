@@ -2421,6 +2421,8 @@ ovpn_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	if (unit != IF_DUNIT_NONE)
 		ifc_free_unit(ifc, unit);
 
+	NET_EPOCH_DRAIN_CALLBACKS();
+
 	return (0);
 }
 
