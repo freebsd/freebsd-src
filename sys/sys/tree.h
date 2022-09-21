@@ -365,9 +365,9 @@ struct {								\
  */
 #ifndef RB_AUGMENT_CHECK
 #ifndef RB_AUGMENT
-#define RB_AUGMENT_CHECK(x) false
+#define RB_AUGMENT_CHECK(x) 0
 #else
-#define RB_AUGMENT_CHECK(x) (RB_AUGMENT(x), true)
+#define RB_AUGMENT_CHECK(x) (RB_AUGMENT(x), 1)
 #endif
 #endif
 
@@ -475,7 +475,7 @@ struct {								\
 #ifndef RB_AUGMENT
 #define _RB_AUGMENT_VERIFY(x) RB_AUGMENT_CHECK(x)
 #else
-#define _RB_AUGMENT_VERIFY(x) false
+#define _RB_AUGMENT_VERIFY(x) 0
 #endif
 #define RB_GENERATE_RANK(name, type, field, attr)			\
 /*									\
