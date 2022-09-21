@@ -320,6 +320,7 @@ MLINKS+=	timeradd.3 timerclear.3 \
 		timeradd.3 timespecisset.3 \
 		timeradd.3 timespeccmp.3
 MLINKS+=	tree.3 RB_AUGMENT.3 \
+		tree.3 RB_AUGMENT_CHECK.3 \
 		tree.3 RB_EMPTY.3 \
 		tree.3 RB_ENTRY.3 \
 		tree.3 RB_FIND.3 \
