@@ -129,6 +129,7 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/channel_program/synctask_core/tst.snapshot_destroy.zcp \
 	functional/channel_program/synctask_core/tst.snapshot_neg.zcp \
 	functional/channel_program/synctask_core/tst.snapshot_recursive.zcp \
+	functional/channel_program/synctask_core/tst.snapshot_rename.zcp \
 	functional/channel_program/synctask_core/tst.snapshot_simple.zcp \
 	functional/checksum/default.cfg \
 	functional/clean_mirror/clean_mirror_common.kshlib \
@@ -536,6 +537,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/channel_program/synctask_core/tst.snapshot_destroy.ksh \
 	functional/channel_program/synctask_core/tst.snapshot_neg.ksh \
 	functional/channel_program/synctask_core/tst.snapshot_recursive.ksh \
+	functional/channel_program/synctask_core/tst.snapshot_rename.ksh \
 	functional/channel_program/synctask_core/tst.snapshot_simple.ksh \
 	functional/channel_program/synctask_core/tst.terminate_by_signal.ksh \
 	functional/chattr/chattr_001_pos.ksh \
@@ -1230,6 +1232,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_user/misc/arcstat_001_pos.ksh \
 	functional/cli_user/misc/arc_summary_001_pos.ksh \
 	functional/cli_user/misc/arc_summary_002_neg.ksh \
+	functional/cli_user/misc/zilstat_001_pos.ksh \
 	functional/cli_user/misc/cleanup.ksh \
 	functional/cli_user/misc/setup.ksh \
 	functional/cli_user/misc/zdb_001_neg.ksh \
@@ -1367,6 +1370,9 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/exec/exec_001_pos.ksh \
 	functional/exec/exec_002_neg.ksh \
 	functional/exec/setup.ksh \
+	functional/fadvise/cleanup.ksh \
+	functional/fadvise/fadvise_sequential.ksh \
+	functional/fadvise/setup.ksh \
 	functional/fallocate/cleanup.ksh \
 	functional/fallocate/fallocate_prealloc.ksh \
 	functional/fallocate/fallocate_punch-hole.ksh \

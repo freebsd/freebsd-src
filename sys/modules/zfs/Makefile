@@ -143,6 +143,7 @@ SRCS+= spl_atomic.c
 SRCS+=	abd_os.c \
 	crypto_os.c \
 	dmu_os.c \
+	event_os.c \
 	hkdf.c \
 	kmod_core.c \
 	spa_os.c \
@@ -242,7 +243,6 @@ SRCS+=	abd.c \
 	sha256.c \
 	skein_zfs.c \
 	spa.c \
-	spa_boot.c \
 	spa_checkpoint.c \
 	spa_config.c \
 	spa_errlog.c \

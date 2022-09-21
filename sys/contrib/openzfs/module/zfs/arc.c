@@ -4165,7 +4165,7 @@ arc_evict_state_impl(multilist_t *ml, int idx, arc_buf_hdr_t *marker,
 	 * this CPU are able to make progress, make a voluntary preemption
 	 * call here.
 	 */
-	cond_resched();
+	kpreempt(KPREEMPT_SYNC);
 
 	return (bytes_evicted);
 }
@@ -5051,10 +5051,11 @@ arc_reap_cb(void *arg, zthr_t *zthr)
 	 */
 	free_memory = arc_available_memory();
 
-	int64_t to_free =
-	    (arc_c >> arc_shrink_shift) - free_memory;
-	if (to_free > 0) {
-		arc_reduce_target_size(to_free);
+	int64_t can_free = arc_c - arc_c_min;
+	if (can_free > 0) {
+		int64_t to_free = (can_free >> arc_shrink_shift) - free_memory;
+		if (to_free > 0)
+			arc_reduce_target_size(to_free);
 	}
 	spl_fstrans_unmark(cookie);
 }
@@ -10334,7 +10335,7 @@ l2arc_rebuild(l2arc_dev_t *dev)
 		    !dev->l2ad_first)
 			goto out;
 
-		cond_resched();
+		kpreempt(KPREEMPT_SYNC);
 		for (;;) {
 			mutex_enter(&l2arc_rebuild_thr_lock);
 			if (dev->l2ad_rebuild_cancel) {

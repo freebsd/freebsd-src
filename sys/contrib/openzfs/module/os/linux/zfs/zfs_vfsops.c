@@ -56,7 +56,6 @@
 #include <sys/sunddi.h>
 #include <sys/dmu_objset.h>
 #include <sys/dsl_dir.h>
-#include <sys/spa_boot.h>
 #include <sys/objlist.h>
 #include <sys/zpl.h>
 #include <linux/vfs_compat.h>
@@ -274,8 +273,10 @@ zfs_sync(struct super_block *sb, int wait, cred_t *cr)
 		 * Sync a specific filesystem.
 		 */
 		dsl_pool_t *dp;
+		int error;
 
-		ZFS_ENTER(zfsvfs);
+		if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
+			return (error);
 		dp = dmu_objset_pool(zfsvfs->z_os);
 
 		/*
@@ -283,14 +284,14 @@ zfs_sync(struct super_block *sb, int wait, cred_t *cr)
 		 * filesystems which may exist on a suspended pool.
 		 */
 		if (spa_suspended(dp->dp_spa)) {
-			ZFS_EXIT(zfsvfs);
+			zfs_exit(zfsvfs, FTAG);
 			return (0);
 		}
 
 		if (zfsvfs->z_log != NULL)
 			zil_commit(zfsvfs->z_log, 0);
 
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 	} else {
 		/*
 		 * Sync all ZFS filesystems.  This is what happens when you
@@ -783,9 +784,7 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	}
 
 	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
-	if (error != 0) {
-		dmu_objset_disown(os, B_TRUE, zfsvfs);
-	}
+
 	return (error);
 }
 
@@ -825,6 +824,7 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
+		dmu_objset_disown(os, B_TRUE, zfsvfs);
 		*zfvp = NULL;
 		zfsvfs_free(zfsvfs);
 		return (error);
@@ -1093,7 +1093,8 @@ zfs_statvfs(struct inode *ip, struct kstatfs *statp)
 	uint64_t refdbytes, availbytes, usedobjs, availobjs;
 	int err = 0;
 
-	ZFS_ENTER(zfsvfs);
+	if ((err = zfs_enter(zfsvfs, FTAG)) != 0)
+		return (err);
 
 	dmu_objset_space(zfsvfs->z_os,
 	    &refdbytes, &availbytes, &usedobjs, &availobjs);
@@ -1154,7 +1155,7 @@ zfs_statvfs(struct inode *ip, struct kstatfs *statp)
 			err = zfs_statfs_project(zfsvfs, zp, statp, bshift);
 	}
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (err);
 }
 
@@ -1164,13 +1165,14 @@ zfs_root(zfsvfs_t *zfsvfs, struct inode **ipp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
+	if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0)
 		*ipp = ZTOI(rootzp);
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
 
@@ -1248,7 +1250,8 @@ zfs_prune(struct super_block *sb, unsigned long nr_to_scan, int *objects)
 		.gfp_mask = GFP_KERNEL,
 	};
 
-	ZFS_ENTER(zfsvfs);
+	if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 
 #if defined(HAVE_SPLIT_SHRINKER_CALLBACK) && \
 	defined(SHRINK_CONTROL_HAS_NID) && \
@@ -1289,7 +1292,7 @@ zfs_prune(struct super_block *sb, unsigned long nr_to_scan, int *objects)
 		*objects = zfs_prune_aliases(zfsvfs, nr_to_scan);
 #endif
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 
 	dprintf_ds(zfsvfs->z_os->os_dsl_dataset,
 	    "pruning, nr_to_scan=%lu objects=%d error=%d\n",
@@ -1746,7 +1749,8 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 		return (zfsctl_snapdir_vget(sb, objsetid, fid_gen, ipp));
 	}
 
-	ZFS_ENTER(zfsvfs);
+	if ((err = zfs_enter(zfsvfs, FTAG)) != 0)
+		return (err);
 	/* A zero fid_gen means we are in the .zfs control directories */
 	if (fid_gen == 0 &&
 	    (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) {
@@ -1762,7 +1766,7 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 			 */
 			VERIFY3P(igrab(*ipp), !=, NULL);
 		}
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (0);
 	}
 
@@ -1770,14 +1774,14 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 
 	dprintf("getting %llu [%llu mask %llx]\n", object, fid_gen, gen_mask);
 	if ((err = zfs_zget(zfsvfs, object, &zp))) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (err);
 	}
 
 	/* Don't export xattr stuff */
 	if (zp->z_pflags & ZFS_XATTR) {
 		zrele(zp);
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(ENOENT));
 	}
 
@@ -1792,7 +1796,7 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 		dprintf("znode gen (%llu) != fid gen (%llu)\n", zp_gen,
 		    fid_gen);
 		zrele(zp);
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(ENOENT));
 	}
 
@@ -1800,7 +1804,7 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 	if (*ipp)
 		zfs_znode_update_vfs(ITOZ(*ipp));
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (0);
 }
 

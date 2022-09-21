@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2022 by Delphix. All rights reserved.
  * Copyright Joyent, Inc.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2016, Intel Corporation.
@@ -151,6 +151,7 @@ typedef enum zfs_error {
 	EZFS_REBUILDING,	/* resilvering (sequential reconstrution) */
 	EZFS_VDEV_NOTSUP,	/* ops not supported for this type of vdev */
 	EZFS_NOT_USER_NAMESPACE,	/* a file is not a user namespace */
+	EZFS_CKSUM,		/* insufficient replicas */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -895,6 +896,7 @@ _LIBZFS_H int zfs_unshare(zfs_handle_t *zhp, const char *mountpoint,
 _LIBZFS_H int zfs_unshareall(zfs_handle_t *zhp,
     const enum sa_protocol *proto);
 _LIBZFS_H void zfs_commit_shares(const enum sa_protocol *proto);
+_LIBZFS_H void zfs_truncate_shares(const enum sa_protocol *proto);
 
 _LIBZFS_H int zfs_nicestrtonum(libzfs_handle_t *, const char *, uint64_t *);
 

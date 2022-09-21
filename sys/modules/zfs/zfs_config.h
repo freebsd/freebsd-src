@@ -296,6 +296,9 @@
 /* file_dentry() is available */
 /* #undef HAVE_FILE_DENTRY */
 
+/* fops->fadvise() exists */
+/* #undef HAVE_FILE_FADVISE */
+
 /* file_inode() is available */
 /* #undef HAVE_FILE_INODE */
 
@@ -310,6 +313,9 @@
 
 /* fops->fsync() without dentry */
 /* #undef HAVE_FSYNC_WITHOUT_DENTRY */
+
+/* yes */
+/* #undef HAVE_GENERIC_FADVISE */
 
 /* generic_fillattr requires struct user_namespace* */
 /* #undef HAVE_GENERIC_FILLATTR_USERNS */
@@ -802,6 +808,9 @@
 /* xattr_handler->get() wants both dentry and inode */
 /* #undef HAVE_XATTR_GET_DENTRY_INODE */
 
+/* xattr_handler->get() wants dentry and inode and flags */
+/* #undef HAVE_XATTR_GET_DENTRY_INODE_FLAGS */
+
 /* xattr_handler->get() wants xattr_handler */
 /* #undef HAVE_XATTR_GET_HANDLER */
 
@@ -940,7 +949,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_ga582d5299"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gc629f0bf6"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -970,7 +979,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_ga582d5299"
+#define ZFS_META_RELEASE "FreeBSD_gc629f0bf6"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
