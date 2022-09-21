@@ -1472,27 +1472,16 @@ pcim_iomap_table(struct pci_dev *pdev)
 }
 
 static inline int
-pcim_iomap_regions_request_all(struct pci_dev *pdev, uint32_t mask, char *name)
+pcim_iomap_regions(struct pci_dev *pdev, uint32_t mask, const char *name)
 {
 	struct pcim_iomap_devres *dr;
 	void *res;
-	uint32_t mappings, requests, req_mask;
-	int bar, error;
+	uint32_t mappings;
+	int bar;
 
 	dr = lkpi_pcim_iomap_devres_find(pdev);
 	if (dr == NULL)
 		return (-ENOMEM);
-
-	/* Request all the BARs ("regions") we do not iomap. */
-	req_mask = ((1 << (PCIR_MAX_BAR_0 + 1)) - 1) & ~mask;
-	for (bar = requests = 0; requests != req_mask; bar++) {
-		if ((req_mask & (1 << bar)) == 0)
-			continue;
-		error = pci_request_region(pdev, bar, name);
-		if (error != 0 && error != -ENODEV)
-			goto err;
-		requests |= (1 << bar);
-	}
 
 	/* Now iomap all the requested (by "mask") ones. */
 	for (bar = mappings = 0; mappings != mask; bar++) {
@@ -1516,7 +1505,6 @@ pcim_iomap_regions_request_all(struct pci_dev *pdev, uint32_t mask, char *name)
 	}
 
 	return (0);
-
 err:
 	for (bar = PCIR_MAX_BAR_0; bar >= 0; bar--) {
 		if ((mappings & (1 << bar)) != 0) {
@@ -1524,9 +1512,39 @@ err:
 			if (res == NULL)
 				continue;
 			pci_iounmap(pdev, res);
-		} else if ((requests & (1 << bar)) != 0) {
-			pci_release_region(pdev, bar);
 		}
+	}
+
+	return (-EINVAL);
+}
+
+static inline int
+pcim_iomap_regions_request_all(struct pci_dev *pdev, uint32_t mask, char *name)
+{
+	uint32_t requests, req_mask;
+	int bar, error;
+
+	/* Request all the BARs ("regions") we do not iomap. */
+	req_mask = ((1 << (PCIR_MAX_BAR_0 + 1)) - 1) & ~mask;
+	for (bar = requests = 0; requests != req_mask; bar++) {
+		if ((req_mask & (1 << bar)) == 0)
+			continue;
+		error = pci_request_region(pdev, bar, name);
+		if (error != 0 && error != -ENODEV)
+			goto err;
+		requests |= (1 << bar);
+	}
+
+	error = pcim_iomap_regions(pdev, mask, name);
+	if (error != 0)
+		goto err;
+
+	return (0);
+
+err:
+	for (bar = PCIR_MAX_BAR_0; bar >= 0; bar--) {
+		if ((requests & (1 << bar)) != 0)
+			pci_release_region(pdev, bar);
 	}
 
 	return (-EINVAL);
