@@ -31,7 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	RB_AUGMENT(entry) iommu_gas_augment_entry(entry)
+#define	RB_AUGMENT_CHECK(entry) iommu_gas_augment_entry(entry)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -139,27 +139,41 @@ iommu_gas_cmp_entries(struct iommu_map_entry *a, struct iommu_map_entry *b)
 	return (0);
 }
 
-static void
+/*
+ * Update augmentation data based on data from children.
+ * Return true if and only if the update changes the augmentation data.
+ */
+static bool
 iommu_gas_augment_entry(struct iommu_map_entry *entry)
 {
 	struct iommu_map_entry *child;
-	iommu_gaddr_t free_down;
+	iommu_gaddr_t bound, delta, free_down;
 
 	free_down = 0;
+	bound = entry->start;
 	if ((child = RB_LEFT(entry, rb_entry)) != NULL) {
-		free_down = MAX(free_down, child->free_down);
-		free_down = MAX(free_down, entry->start - child->last);
-		entry->first = child->first;
-	} else
-		entry->first = entry->start;
-	
+		free_down = MAX(child->free_down, bound - child->last);
+		bound = child->first;
+	}
+	delta = bound - entry->first;
+	entry->first = bound;
+	bound = entry->end;
 	if ((child = RB_RIGHT(entry, rb_entry)) != NULL) {
 		free_down = MAX(free_down, child->free_down);
-		free_down = MAX(free_down, child->first - entry->end);
-		entry->last = child->last;
-	} else
-		entry->last = entry->end;
+		free_down = MAX(free_down, child->first - bound);
+		bound = child->last;
+	}
+	delta += entry->last - bound;
+	if (delta == 0)
+		delta = entry->free_down - free_down;
+	entry->last = bound;
 	entry->free_down = free_down;
+
+	/*
+	 * Return true either if the value of last-first changed,
+	 * or if free_down changed.
+	 */
+	return (delta != 0);
 }
 
 RB_GENERATE(iommu_gas_entries_tree, iommu_map_entry, rb_entry,
@@ -228,15 +242,25 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 	KASSERT(RB_EMPTY(&domain->rb_root),
 	    ("non-empty entries %p", domain));
 
-	begin->start = 0;
-	begin->end = IOMMU_PAGE_SIZE;
-	begin->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
-	iommu_gas_rb_insert(domain, begin);
-
+	/*
+	 * The end entry must be inserted first because it has a zero-length gap
+	 * between start and end.  Initially, all augmentation data for a new
+	 * entry is zero.  Function iommu_gas_augment_entry will compute no
+	 * change in the value of (start-end) and no change in the value of
+	 * free_down, so it will return false to suggest that nothing changed in
+	 * the entry.  Thus, inserting the end entry second prevents
+	 * augmentation information to be propogated to the begin entry at the
+	 * tree root.  So it is inserted first.
+	 */
 	end->start = domain->end;
 	end->end = domain->end;
 	end->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	iommu_gas_rb_insert(domain, end);
+
+	begin->start = 0;
+	begin->end = IOMMU_PAGE_SIZE;
+	begin->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
+	iommu_gas_rb_insert(domain, begin);
 
 	domain->first_place = begin;
 	domain->last_place = end;
