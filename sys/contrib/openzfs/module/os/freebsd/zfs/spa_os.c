@@ -58,7 +58,6 @@
 #include <sys/fs/zfs.h>
 #include <sys/arc.h>
 #include <sys/callb.h>
-#include <sys/spa_boot.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/dsl_scan.h>
 #include <sys/dmu_send.h>
@@ -250,7 +249,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 		mutex_exit(&spa_namespace_lock);
 		fnvlist_free(config);
 		cmn_err(CE_NOTE, "Can not parse the config for pool '%s'",
-		    pname);
+		    name);
 		return (error);
 	}
 

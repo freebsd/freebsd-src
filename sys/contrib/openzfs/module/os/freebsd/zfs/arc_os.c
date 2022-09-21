@@ -27,6 +27,7 @@
 #include <sys/zio_checksum.h>
 #include <sys/zfs_context.h>
 #include <sys/arc.h>
+#include <sys/arc_os.h>
 #include <sys/zfs_refcount.h>
 #include <sys/vdev.h>
 #include <sys/vdev_trim.h>
@@ -72,31 +73,12 @@ SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
  * We don't have a tunable for arc_free_target due to the dependency on
  * pagedaemon initialisation.
  */
-static int
-sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS)
-{
-	uint_t val;
-	int err;
-
-	val = zfs_arc_free_target;
-	err = sysctl_handle_int(oidp, &val, 0, req);
-	if (err != 0 || req->newptr == NULL)
-		return (err);
-
-	if (val < minfree)
-		return (EINVAL);
-	if (val > vm_cnt.v_page_count)
-		return (EINVAL);
-
-	zfs_arc_free_target = val;
-
-	return (0);
-}
-SYSCTL_DECL(_vfs_zfs);
-SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_free_target,
-    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof (uint_t),
-    sysctl_vfs_zfs_arc_free_target, "IU",
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, free_target,
+    param_set_arc_free_target, 0, CTLFLAG_RW,
 	"Desired number of free pages below which ARC triggers reclaim");
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, no_grow_shift,
+    param_set_arc_no_grow_shift, 0, ZMOD_RW,
+	"log2(fraction of ARC which must be free to allow growing)");
 
 int64_t
 arc_available_memory(void)
@@ -159,6 +141,12 @@ arc_prune_task(void *arg)
 	int64_t nr_scan = (intptr_t)arg;
 
 	arc_reduce_target_size(ptob(nr_scan));
+
+#ifndef __ILP32__
+	if (nr_scan > INT_MAX)
+		nr_scan = INT_MAX;
+#endif
+
 #if __FreeBSD_version >= 1300139
 	sx_xlock(&arc_vnlru_lock);
 	vnlru_free_vfsops(nr_scan, &zfs_vfsops, arc_vnlru_marker);
@@ -221,7 +209,10 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	arc_warm = B_TRUE;
 	arc_growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
 	free_memory = arc_available_memory();
-	to_free = (arc_c >> arc_shrink_shift) - MIN(free_memory, 0);
+	int64_t can_free = arc_c - arc_c_min;
+	if (can_free <= 0)
+		return;
+	to_free = (can_free >> arc_shrink_shift) - MIN(free_memory, 0);
 	DTRACE_PROBE2(arc__needfree, int64_t, free_memory, int64_t, to_free);
 	arc_reduce_target_size(to_free);
 

@@ -21,6 +21,7 @@
 /*
  * Copyright (C) 2019 Romain Dolbeau
  *           <romain.dolbeau@european-processor-initiative.eu>
+ * Copyright (C) 2022 Tino Reichardt <milky-zfs@mcmilk.de>
  */
 
 /*
@@ -41,7 +42,9 @@
  * all relevant feature test functions should be called.
  *
  * Supported features:
- *	zfs_altivec_available()
+ *   zfs_altivec_available()
+ *   zfs_vsx_available()
+ *   zfs_isa207_available()
  */
 
 #ifndef _LINUX_SIMD_POWERPC_H
@@ -57,44 +60,37 @@
 #include <sys/types.h>
 #include <linux/version.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
+#include <asm/cpufeature.h>
+#else
+#include <asm/cputable.h>
+#endif
+
 #define	kfpu_allowed()			1
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
-#define	kfpu_end()				\
-	{					\
-		disable_kernel_vsx();		\
-		disable_kernel_altivec();	\
-		preempt_enable();		\
-	}
 #define	kfpu_begin()				\
 	{					\
 		preempt_disable();		\
 		enable_kernel_altivec();	\
 		enable_kernel_vsx();		\
+		enable_kernel_spe();		\
+	}
+#define	kfpu_end()				\
+	{					\
+		disable_kernel_spe();		\
+		disable_kernel_vsx();		\
+		disable_kernel_altivec();	\
+		preempt_enable();		\
 	}
 #else
 /* seems that before 4.5 no-one bothered */
 #define	kfpu_begin()
 #define	kfpu_end()		preempt_enable()
 #endif
+
 #define	kfpu_init()		0
 #define	kfpu_fini()		((void) 0)
-
-static inline boolean_t
-zfs_vsx_available(void)
-{
-	boolean_t res;
-#if defined(__powerpc64__)
-	u64 msr;
-#else
-	u32 msr;
-#endif
-	kfpu_begin();
-	__asm volatile("mfmsr %0" : "=r"(msr));
-	res = (msr & 0x800000) != 0;
-	kfpu_end();
-	return (res);
-}
 
 /*
  * Check if AltiVec instruction set is available
@@ -102,28 +98,27 @@ zfs_vsx_available(void)
 static inline boolean_t
 zfs_altivec_available(void)
 {
-	boolean_t res;
-	/* suggested by macallan at netbsd dot org */
-#if defined(__powerpc64__)
-	u64 msr;
-#else
-	u32 msr;
-#endif
-	kfpu_begin();
-	__asm volatile("mfmsr %0" : "=r"(msr));
-	/*
-	 * 64 bits -> need to check bit 38
-	 * Power ISA Version 3.0B
-	 * p944
-	 * 32 bits -> Need to check bit 6
-	 * AltiVec Technology Programming Environments Manual
-	 * p49 (2-9)
-	 * They are the same, as ppc counts 'backward' ...
-	 */
-	res = (msr & 0x2000000) != 0;
-	kfpu_end();
-	return (res);
+	return (cpu_has_feature(CPU_FTR_ALTIVEC));
 }
+
+/*
+ * Check if VSX is available
+ */
+static inline boolean_t
+zfs_vsx_available(void)
+{
+	return (cpu_has_feature(CPU_FTR_VSX));
+}
+
+/*
+ * Check if POWER ISA 2.07 is available (SHA2)
+ */
+static inline boolean_t
+zfs_isa207_available(void)
+{
+	return (cpu_has_feature(CPU_FTR_ARCH_207S));
+}
+
 #endif /* defined(__powerpc) */
 
 #endif /* _LINUX_SIMD_POWERPC_H */
