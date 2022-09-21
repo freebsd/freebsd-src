@@ -809,6 +809,8 @@ struct ieee80211_low_level_stats {
 
 enum ieee80211_offload_flags {
 	IEEE80211_OFFLOAD_ENCAP_4ADDR,
+	IEEE80211_OFFLOAD_ENCAP_ENABLED,
+	IEEE80211_OFFLOAD_DECAP_ENABLED,
 };
 
 struct ieee80211_ops {
@@ -2427,6 +2429,13 @@ ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
 {
         TODO();
         return;
+}
+
+static __inline void
+ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
+    uint64_t obss_color_bitmap)
+{
+	TODO();
 }
 
 #define	ieee80211_send_bar(_v, _r, _t, _s)				\

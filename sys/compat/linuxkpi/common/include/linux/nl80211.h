@@ -321,6 +321,12 @@ enum nl80211_he_gi {
 	NL80211_RATE_INFO_HE_GI_3_2,
 };
 
+enum nl80211_he_ltf {
+	NL80211_RATE_INFO_HE_1XLTF,
+	NL80211_RATE_INFO_HE_2XLTF,
+	NL80211_RATE_INFO_HE_4XLTF,
+};
+
 enum nl80211_dfs_regions {
 	NL80211_DFS_UNSET,
 	NL80211_DFS_FCC,
@@ -333,6 +339,7 @@ enum nl80211_sar_type {
 };
 
 #define	NL80211_VHT_NSS_MAX			8
+#define	NL80211_HE_NSS_MAX			8
 
 enum nl80211_tid_cfg_attr {
 	NL80211_TID_CONFIG_ATTR_NOACK,

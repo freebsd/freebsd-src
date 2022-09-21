@@ -424,6 +424,16 @@ struct ieee80211_hdr_3addr {	/* net80211::ieee80211_frame */
 	__le16		seq_ctrl;
 };
 
+struct ieee80211_qos_hdr {	/* net80211:ieee80211_qosframe */
+        __le16		frame_control;
+        __le16		duration_id;
+	uint8_t		addr1[ETH_ALEN];
+	uint8_t		addr2[ETH_ALEN];
+	uint8_t		addr3[ETH_ALEN];
+	__le16		seq_ctrl;
+	__le16		qos_ctrl;
+};
+
 struct ieee80211_vendor_ie {
 };
 
