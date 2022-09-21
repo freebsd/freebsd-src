@@ -37,7 +37,13 @@
 #define	TP_printk(...)
 
 #define	TRACE_EVENT(_name, _proto, _args, _struct, _assign, _printk)	\
-static void trace_ ## _name(_proto)					\
+static inline void trace_ ## _name(_proto)				\
+{									\
+}
+
+#define	DECLARE_EVENT_CLASS(...)
+#define	DEFINE_EVENT(_x, _name, _proto, _args)				\
+static inline void trace_ ## _name(_proto)				\
 {									\
 }
 
