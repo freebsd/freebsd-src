@@ -2978,8 +2978,8 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
 		comma = 1;
 	}
-	if (t_flags & TF_INCQUEUE) {
-		db_printf("%sTF_INCQUEUE", comma ? ", " : "");
+	if (t_flags & TF_SONOTCONN) {
+		db_printf("%sTF_SONOTCONN", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_LASTIDLE) {

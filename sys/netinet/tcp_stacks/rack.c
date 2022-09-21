@@ -11318,7 +11318,7 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * SYN-SENT -> SYN-RECEIVED SYN-SENT* -> SYN-RECEIVED* If
 		 * there was no CC option, clear cached CC value.
 		 */
-		tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
+		tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN | TF_SONOTCONN);
 		tcp_state_change(tp, TCPS_SYN_RECEIVED);
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -11507,7 +11507,10 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    tiwin, thflags, nxt_pkt));
 	}
 	KMOD_TCPSTAT_INC(tcps_connects);
-	soisconnected(so);
+	if (tp->t_flags & TF_SONOTCONN) {
+		tp->t_flags &= ~TF_SONOTCONN;
+		soisconnected(so);
+	}
 	/* Do window scaling? */
 	if ((tp->t_flags & (TF_RCVD_SCALE | TF_REQ_SCALE)) ==
 	    (TF_RCVD_SCALE | TF_REQ_SCALE)) {
