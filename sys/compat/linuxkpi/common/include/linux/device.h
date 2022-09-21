@@ -37,7 +37,6 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
-#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
