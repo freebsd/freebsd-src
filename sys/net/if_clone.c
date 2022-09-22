@@ -72,12 +72,14 @@ struct if_clone {
 	LIST_HEAD(, ifnet) ifc_iflist;	/* (i) List of cloned interfaces */
 	struct mtx ifc_mtx;		/* Mutex to protect members. */
 
-	enum { SIMPLE, ADVANCED } ifc_type; /* (c) */
+	ifc_match_f *ifc_match;		/* (c) Matcher function */
+	ifc_create_f *ifc_create;	/* (c) Creates new interface */
+	ifc_destroy_f *ifc_destroy;	/* (c) Destroys cloned interface */
 
+#ifdef CLONE_COMPAT_13
 	/* (c) Driver specific cloning functions.  Called with no locks held. */
 	union {
 		struct {	/* advanced cloner */
-			ifc_match_t	*_ifc_match;
 			ifc_create_t	*_ifc_create;
 			ifc_destroy_t	*_ifc_destroy;
 		} A;
@@ -88,23 +90,31 @@ struct if_clone {
 
 		} S;
 	} U;
-#define	ifc_match	U.A._ifc_match
-#define	ifc_create	U.A._ifc_create
-#define	ifc_destroy	U.A._ifc_destroy
+#define	ifca_create	U.A._ifc_create
+#define	ifca_destroy	U.A._ifc_destroy
 #define	ifcs_create	U.S._ifcs_create
 #define	ifcs_destroy	U.S._ifcs_destroy
 #define	ifcs_minifs	U.S._ifcs_minifs
+#endif
 
 	LIST_ENTRY(if_clone) ifc_list;	/* (e) On list of cloners */
 };
 
+
+
 static void	if_clone_free(struct if_clone *ifc);
 static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
-		    caddr_t params);
+		    struct ifc_data *ifd, struct ifnet **ifpp);
 
-static int     ifc_simple_match(struct if_clone *, const char *);
-static int     ifc_simple_create(struct if_clone *, char *, size_t, caddr_t);
-static int     ifc_simple_destroy(struct if_clone *, struct ifnet *);
+static int ifc_simple_match(struct if_clone *ifc, const char *name);
+static int ifc_handle_unit(struct if_clone *ifc, char *name, size_t len, int *punit);
+
+#ifdef CLONE_COMPAT_13
+static int ifc_simple_create_wrapper(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data *ifc_data, struct ifnet **ifpp);
+static int ifc_advanced_create_wrapper(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data *ifc_data, struct ifnet **ifpp);
+#endif
 
 static struct mtx if_cloners_mtx;
 MTX_SYSINIT(if_cloners_lock, &if_cloners_mtx, "if_cloners lock", MTX_DEF);
@@ -175,31 +185,25 @@ vnet_if_clone_init(void)
  * Lookup and create a clone network interface.
  */
 int
-if_clone_create(char *name, size_t len, caddr_t params)
+ifc_create_ifp(const char *name, struct ifc_data *ifd,
+    struct ifnet **ifpp)
 {
 	struct if_clone *ifc;
+	char ifname[IFNAMSIZ];
+	struct ifnet *ifp = NULL;
+	int error;
 
 	/* Try to find an applicable cloner for this request */
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-		if (ifc->ifc_type == SIMPLE) {
-			if (ifc_simple_match(ifc, name))
-				break;
-		} else {
-			if (ifc->ifc_match(ifc, name))
-				break;
-		}
+		if (ifc->ifc_match(ifc, name))
+			break;
 #ifdef VIMAGE
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
 		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-			if (ifc->ifc_type == SIMPLE) {
-				if (ifc_simple_match(ifc, name))
-					break;
-			} else {
-				if (ifc->ifc_match(ifc, name))
-					break;
-			}
+			if (ifc->ifc_match(ifc, name))
+				break;
 		CURVNET_RESTORE();
 	}
 #endif
@@ -208,7 +212,26 @@ if_clone_create(char *name, size_t len, caddr_t params)
 	if (ifc == NULL)
 		return (EINVAL);
 
-	return (if_clone_createif(ifc, name, len, params));
+	strlcpy(ifname, name, IFNAMSIZ);
+	error = if_clone_createif(ifc, ifname, IFNAMSIZ, ifd, &ifp);
+	if (ifpp != NULL)
+		*ifpp = ifp;
+
+	return (error);
+}
+
+int
+if_clone_create(char *name, size_t len, caddr_t params)
+{
+	struct ifc_data ifd = { .params = params };
+	struct ifnet *ifp;
+
+	int error = ifc_create_ifp(name, &ifd, &ifp);
+
+	if (error == 0)
+		strlcpy(name, if_name(ifp), len);
+
+	return (error);
 }
 
 void
@@ -227,26 +250,27 @@ if_clone_addif(struct if_clone *ifc, struct ifnet *ifp)
  * Create a clone network interface.
  */
 static int
-if_clone_createif(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+if_clone_createif(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
-	int err;
-	struct ifnet *ifp;
+	int err, unit = 0;
 
 	if (ifunit(name) != NULL)
 		return (EEXIST);
 
-	if (ifc->ifc_type == SIMPLE)
-		err = ifc_simple_create(ifc, name, len, params);
-	else
-		err = (*ifc->ifc_create)(ifc, name, len, params);
-
-	if (!err) {
-		ifp = ifunit(name);
-		if (ifp == NULL)
-			panic("%s: lookup failed for %s", __func__, name);
-
-		if_clone_addif(ifc, ifp);
+	if (ifc->ifc_flags & IFC_F_AUTOUNIT) {
+		if ((err = ifc_handle_unit(ifc, name, len, &unit)) != 0)
+			return (err);
+		ifd->unit = unit;
 	}
+	*ifpp = NULL;
+	err = (*ifc->ifc_create)(ifc, name, len, ifd, ifpp);
+
+	if (err == 0) {
+		MPASS(*ifpp != NULL);
+		if_clone_addif(ifc, *ifpp);
+	} else if (ifc->ifc_flags & IFC_F_AUTOUNIT)
+		ifc_free_unit(ifc, unit);
 
 	return (err);
 }
@@ -276,13 +300,8 @@ if_clone_destroy(const char *name)
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
 		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-			if (ifc->ifc_type == SIMPLE) {
-				if (ifc_simple_match(ifc, name))
-					break;
-			} else {
-				if (ifc->ifc_match(ifc, name))
-					break;
-			}
+			if (ifc->ifc_match(ifc, name))
+				break;
 		CURVNET_RESTORE();
 	}
 #endif
@@ -300,14 +319,11 @@ if_clone_destroy(const char *name)
 /*
  * Destroy a clone network interface.
  */
-int
-if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
+static int
+if_clone_destroyif_flags(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	int err;
 	struct ifnet *ifcifp;
-
-	if (ifc->ifc_type == ADVANCED && ifc->ifc_destroy == NULL)
-		return(EOPNOTSUPP);
 
 	/*
 	 * Given that the cloned ifnet might be attached to a different
@@ -328,24 +344,29 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 		CURVNET_RESTORE();
 		return (ENXIO);		/* ifp is not on the list. */
 	}
-	if ((ifc->ifc_flags & IFC_NOGROUP) == 0)
+	if ((ifc->ifc_flags & IFC_F_NOGROUP) == 0)
 		if_delgroup(ifp, ifc->ifc_name);
 
-	if (ifc->ifc_type == SIMPLE)
-		err = ifc_simple_destroy(ifc, ifp);
-	else
-		err = (*ifc->ifc_destroy)(ifc, ifp);
+	int unit = ifp->if_dunit;
+	err = (*ifc->ifc_destroy)(ifc, ifp, flags);
 
 	if (err != 0) {
-		if ((ifc->ifc_flags & IFC_NOGROUP) == 0)
+		if ((ifc->ifc_flags & IFC_F_NOGROUP) == 0)
 			if_addgroup(ifp, ifc->ifc_name);
 
 		IF_CLONE_LOCK(ifc);
 		IFC_IFLIST_INSERT(ifc, ifp);
 		IF_CLONE_UNLOCK(ifc);
-	}
+	} else if (ifc->ifc_flags & IFC_F_AUTOUNIT)
+		ifc_free_unit(ifc, unit);
 	CURVNET_RESTORE();
 	return (err);
+}
+
+int
+if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
+{
+	return (if_clone_destroyif_flags(ifc, ifp, 0));
 }
 
 static struct if_clone *
@@ -386,16 +407,18 @@ if_clone_attach(struct if_clone *ifc)
 }
 
 struct if_clone *
-if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
-	ifc_create_t create, ifc_destroy_t destroy)
+ifc_attach_cloner(const char *name, struct if_clone_addreq *req)
 {
-	struct if_clone *ifc;
+	if (req->create_f == NULL || req->destroy_f == NULL)
+		return (NULL);
+	if (strnlen(name, IFCLOSIZ) >= (IFCLOSIZ - 1))
+		return (NULL);
 
-	ifc = if_clone_alloc(name, maxunit);
-	ifc->ifc_type = ADVANCED;
-	ifc->ifc_match = match;
-	ifc->ifc_create = create;
-	ifc->ifc_destroy = destroy;
+	struct if_clone *ifc = if_clone_alloc(name, req->maxunit);
+	ifc->ifc_match = req->match_f != NULL ? req->match_f : ifc_simple_match;
+	ifc->ifc_create = req->create_f;
+	ifc->ifc_destroy = req->destroy_f;
+	ifc->ifc_flags = (req->flags & (IFC_F_AUTOUNIT | IFC_F_NOGROUP));
 
 	if (if_clone_attach(ifc) != 0)
 		return (NULL);
@@ -403,6 +426,78 @@ if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
 	EVENTHANDLER_INVOKE(if_clone_event, ifc);
 
 	return (ifc);
+}
+
+void
+ifc_detach_cloner(struct if_clone *ifc)
+{
+	if_clone_detach(ifc);
+}
+
+
+#ifdef CLONE_COMPAT_13
+
+static int
+ifc_advanced_create_wrapper(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data *ifc_data, struct ifnet **ifpp)
+{
+	int error = ifc->ifca_create(ifc, name, maxlen, ifc_data->params);
+
+	if (error == 0)
+		*ifpp = ifunit(name);
+	return (error);
+}
+
+static int
+ifc_advanced_destroy_wrapper(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
+{
+	if (ifc->ifca_destroy == NULL)
+		return (ENOTSUP);
+	return (ifc->ifca_destroy(ifc, ifp));
+}
+
+struct if_clone *
+if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
+	ifc_create_t create, ifc_destroy_t destroy)
+{
+	struct if_clone *ifc;
+
+	ifc = if_clone_alloc(name, maxunit);
+	ifc->ifc_match = match;
+	ifc->ifc_create = ifc_advanced_create_wrapper;
+	ifc->ifc_destroy = ifc_advanced_destroy_wrapper;
+	ifc->ifca_destroy = destroy;
+	ifc->ifca_create = create;
+
+	if (if_clone_attach(ifc) != 0)
+		return (NULL);
+
+	EVENTHANDLER_INVOKE(if_clone_event, ifc);
+
+	return (ifc);
+}
+
+static int
+ifc_simple_create_wrapper(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data *ifc_data, struct ifnet **ifpp)
+{
+	int unit = 0;
+
+	ifc_name2unit(name, &unit);
+	int error = ifc->ifcs_create(ifc, unit, ifc_data->params);
+	if (error == 0)
+		*ifpp = ifunit(name);
+	return (error);
+}
+
+static int
+ifc_simple_destroy_wrapper(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
+{
+	if (ifp->if_dunit < ifc->ifcs_minifs && (flags & IFC_F_FORCE) == 0)
+		return (EINVAL);
+
+	ifc->ifcs_destroy(ifp);
+	return (0);
 }
 
 struct if_clone *
@@ -413,10 +508,13 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 	u_int unit;
 
 	ifc = if_clone_alloc(name, 0);
-	ifc->ifc_type = SIMPLE;
+	ifc->ifc_match = ifc_simple_match;
+	ifc->ifc_create = ifc_simple_create_wrapper;
+	ifc->ifc_destroy = ifc_simple_destroy_wrapper;
 	ifc->ifcs_create = create;
 	ifc->ifcs_destroy = destroy;
 	ifc->ifcs_minifs = minifs;
+	ifc->ifc_flags = IFC_F_AUTOUNIT;
 
 	if (if_clone_attach(ifc) != 0)
 		return (NULL);
@@ -424,9 +522,11 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 	for (unit = 0; unit < minifs; unit++) {
 		char name[IFNAMSIZ];
 		int error __unused;
+		struct ifc_data ifd = {};
+		struct ifnet *ifp;
 
 		snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, unit);
-		error = if_clone_createif(ifc, name, IFNAMSIZ, NULL);
+		error = if_clone_createif(ifc, name, IFNAMSIZ, &ifd, &ifp);
 		KASSERT(error == 0,
 		    ("%s: failed to create required interface %s",
 		    __func__, name));
@@ -436,6 +536,7 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 
 	return (ifc);
 }
+#endif
 
 /*
  * Unregister a network interface cloner.
@@ -449,13 +550,9 @@ if_clone_detach(struct if_clone *ifc)
 	V_if_cloners_count--;
 	IF_CLONERS_UNLOCK();
 
-	/* Allow all simples to be destroyed */
-	if (ifc->ifc_type == SIMPLE)
-		ifc->ifcs_minifs = 0;
-
 	/* destroy all interfaces for this cloner */
 	while (!LIST_EMPTY(&ifc->ifc_iflist))
-		if_clone_destroyif(ifc, LIST_FIRST(&ifc->ifc_iflist));
+		if_clone_destroyif_flags(ifc, LIST_FIRST(&ifc->ifc_iflist), IFC_F_FORCE);
 
 	IF_CLONE_REMREF(ifc);
 }
@@ -687,7 +784,7 @@ ifc_simple_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-ifc_simple_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+ifc_handle_unit(struct if_clone *ifc, char *name, size_t len, int *punit)
 {
 	char *dp;
 	int wildcard;
@@ -704,12 +801,6 @@ ifc_simple_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	if (err != 0)
 		return (err);
 
-	err = ifc->ifcs_create(ifc, unit, params);
-	if (err != 0) {
-		ifc_free_unit(ifc, unit);
-		return (err);
-	}
-
 	/* In the wildcard case, we need to update the name. */
 	if (wildcard) {
 		for (dp = name; *dp != '\0'; dp++);
@@ -723,25 +814,22 @@ ifc_simple_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			panic("if_clone_create(): interface name too long");
 		}
 	}
+	*punit = unit;
 
 	return (0);
 }
 
-static int
-ifc_simple_destroy(struct if_clone *ifc, struct ifnet *ifp)
+int
+ifc_copyin(const struct ifc_data *ifd, void *target, size_t len)
 {
-	int unit;
-
-	unit = ifp->if_dunit;
-
-	if (unit < ifc->ifcs_minifs) 
+	if (ifd->params == NULL)
 		return (EINVAL);
 
-	ifc->ifcs_destroy(ifp);
-
-	ifc_free_unit(ifc, unit);
-
-	return (0);
+	if (ifd->flags & IFC_F_SYSSPACE) {
+		memcpy(target, ifd->params, len);
+		return (0);
+	} else
+		return (copyin(ifd->params, target, len));
 }
 
 const char *
