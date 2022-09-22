@@ -2291,7 +2291,8 @@ ovpn_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-ovpn_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+ovpn_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct ovpn_softc *sc;
 	struct ifnet *ifp;
@@ -2357,6 +2358,7 @@ ovpn_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(uint32_t));
+	*ifpp = ifp;
 
 	return (0);
 }
@@ -2380,7 +2382,7 @@ ovpn_clone_destroy_cb(struct epoch_context *ctx)
 }
 
 static int
-ovpn_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
+ovpn_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct ovpn_softc *sc;
 	int unit;
@@ -2429,8 +2431,12 @@ ovpn_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 static void
 vnet_ovpn_init(const void *unused __unused)
 {
-	V_ovpn_cloner = if_clone_advanced(ovpngroupname, 0, ovpn_clone_match,
-	    ovpn_clone_create, ovpn_clone_destroy);
+	struct if_clone_addreq req = {
+		.match_f = ovpn_clone_match,
+		.create_f = ovpn_clone_create,
+		.destroy_f = ovpn_clone_destroy,
+	};
+	V_ovpn_cloner = ifc_attach_cloner(ovpngroupname, &req);
 }
 VNET_SYSINIT(vnet_ovpn_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_ovpn_init, NULL);

@@ -91,8 +91,9 @@ static int	pflogoutput(struct ifnet *, struct mbuf *,
 static void	pflogattach(int);
 static int	pflogioctl(struct ifnet *, u_long, caddr_t);
 static void	pflogstart(struct ifnet *);
-static int	pflog_clone_create(struct if_clone *, int, caddr_t);
-static void	pflog_clone_destroy(struct ifnet *);
+static int	pflog_clone_create(struct if_clone *, char *, size_t,
+		    struct ifc_data *, struct ifnet **);
+static int	pflog_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
 
 static const char pflogname[] = "pflog";
 
@@ -108,23 +109,31 @@ pflogattach(int npflog __unused)
 	int	i;
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		V_pflogifs[i] = NULL;
-	V_pflog_cloner = if_clone_simple(pflogname, pflog_clone_create,
-	    pflog_clone_destroy, 1);
+
+	struct if_clone_addreq req = {
+		.create_f = pflog_clone_create,
+		.destroy_f = pflog_clone_destroy,
+		.flags = IFC_F_AUTOUNIT,
+	};
+	V_pflog_cloner = ifc_attach_cloner(pflogname, &req);
+	struct ifc_data ifd = { .unit = 0 };
+	ifc_create_ifp(pflogname, &ifd, NULL);
 }
 
 static int
-pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
+pflog_clone_create(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct ifnet *ifp;
 
-	if (unit >= PFLOGIFS_MAX)
+	if (ifd->unit >= PFLOGIFS_MAX)
 		return (EINVAL);
 
 	ifp = if_alloc(IFT_PFLOG);
 	if (ifp == NULL) {
 		return (ENOSPC);
 	}
-	if_initname(ifp, pflogname, unit);
+	if_initname(ifp, pflogname, ifd->unit);
 	ifp->if_mtu = PFLOGMTU;
 	ifp->if_ioctl = pflogioctl;
 	ifp->if_output = pflogoutput;
@@ -135,15 +144,19 @@ pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
 
-	V_pflogifs[unit] = ifp;
+	V_pflogifs[ifd->unit] = ifp;
+	*ifpp = ifp;
 
 	return (0);
 }
 
-static void
-pflog_clone_destroy(struct ifnet *ifp)
+static int
+pflog_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	int i;
+
+	if (ifp->if_dunit == 0 && (flags & IFC_F_FORCE) == 0)
+		return (EINVAL);
 
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		if (V_pflogifs[i] == ifp)
@@ -152,6 +165,8 @@ pflog_clone_destroy(struct ifnet *ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
+
+	return (0);
 }
 
 /*
@@ -278,7 +293,7 @@ static void
 vnet_pflog_uninit(const void *unused __unused)
 {
 
-	if_clone_detach(V_pflog_cloner);
+	ifc_detach_cloner(V_pflog_cloner);
 }
 /*
  * Detach after pf is gone; otherwise we might touch pflog memory
