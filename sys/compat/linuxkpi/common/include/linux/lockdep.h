@@ -48,6 +48,8 @@ struct pin_cookie {
 #define	lockdep_set_current_reclaim_state(g) do { } while (0)
 #define	lockdep_clear_current_reclaim_state() do { } while (0)
 #define	lockdep_init_map(_map, _name, _key, _x) do { } while(0)
+#define	lockdep_register_key(key) do { } while(0)
+#define	lockdep_unregister_key(key) do { } while(0)
 
 #ifdef INVARIANTS
 #define	lockdep_assert_not_held(m) do {					\
