@@ -385,6 +385,11 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 	return (error);
 }
 
+static void
+epair_qflush(struct ifnet *ifp __unused)
+{
+}
+
 static int
 epair_media_change(struct ifnet *ifp __unused)
 {
@@ -486,6 +491,126 @@ epair_clone_add(struct if_clone *ifc, struct epair_softc *scb)
 	if_clone_addif(ifc, ifp);
 }
 
+static struct epair_softc *
+epair_alloc_sc(struct if_clone *ifc)
+{
+	struct epair_softc *sc;
+
+	struct ifnet *ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL)
+		return (NULL);
+
+	sc = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
+	sc->ifp = ifp;
+	sc->num_queues = epair_tasks.tasks;
+	sc->queues = mallocarray(sc->num_queues, sizeof(struct epair_queue),
+	    M_EPAIR, M_WAITOK);
+	for (int i = 0; i < sc->num_queues; i++) {
+		struct epair_queue *q = &sc->queues[i];
+		q->id = i;
+		q->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
+		q->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
+		q->ridx = 0;
+		q->state = 0;
+		q->sc = sc;
+		NET_TASK_INIT(&q->tx_task, 0, epair_tx_start_deferred, q);
+	}
+
+	/* Initialise pseudo media types. */
+	ifmedia_init(&sc->media, 0, epair_media_change, epair_media_status);
+	ifmedia_add(&sc->media, IFM_ETHER | IFM_10G_T, 0, NULL);
+	ifmedia_set(&sc->media, IFM_ETHER | IFM_10G_T);
+
+	return (sc);
+}
+
+static void
+epair_setup_ifp(struct epair_softc *sc, char *name, int unit)
+{
+	struct ifnet *ifp = sc->ifp;
+
+	ifp->if_softc = sc;
+	strlcpy(ifp->if_xname, name, IFNAMSIZ);
+	ifp->if_dname = epairname;
+	ifp->if_dunit = unit;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags |= IFF_KNOWSEPOCH;
+	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	ifp->if_capenable = IFCAP_VLAN_MTU;
+	ifp->if_transmit = epair_transmit;
+	ifp->if_qflush = epair_qflush;
+	ifp->if_start = epair_start;
+	ifp->if_ioctl = epair_ioctl;
+	ifp->if_init  = epair_init;
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
+
+	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
+}
+
+static void
+epair_generate_mac(struct epair_softc *sc, uint8_t *eaddr)
+{
+	uint32_t key[3];
+	uint32_t hash;
+	uint64_t hostid;
+
+	EPAIR_LOCK();
+#ifdef SMP
+	/* Get an approximate distribution. */
+	hash = next_index % mp_ncpus;
+#else
+	hash = 0;
+#endif
+	EPAIR_UNLOCK();
+
+	/*
+	 * Calculate the etheraddr hashing the hostid and the
+	 * interface index. The result would be hopefully unique.
+	 * Note that the "a" component of an epair instance may get moved
+	 * to a different VNET after creation. In that case its index
+	 * will be freed and the index can get reused by new epair instance.
+	 * Make sure we do not create same etheraddr again.
+	 */
+	getcredhostid(curthread->td_ucred, (unsigned long *)&hostid);
+	if (hostid == 0)
+		arc4rand(&hostid, sizeof(hostid), 0);
+
+	struct ifnet *ifp = sc->ifp;
+	EPAIR_LOCK();
+	if (ifp->if_index > next_index)
+		next_index = ifp->if_index;
+	else
+		next_index++;
+
+	key[0] = (uint32_t)next_index;
+	EPAIR_UNLOCK();
+	key[1] = (uint32_t)(hostid & 0xffffffff);
+	key[2] = (uint32_t)((hostid >> 32) & 0xfffffffff);
+	hash = jenkins_hash32(key, 3, 0);
+
+	eaddr[0] = 0x02;
+	memcpy(&eaddr[1], &hash, 4);
+	eaddr[5] = 0x0a;
+}
+
+static void
+epair_free_sc(struct epair_softc *sc)
+{
+	if (sc == NULL)
+		return;
+
+	if_free(sc->ifp);
+	ifmedia_removeall(&sc->media);
+	for (int i = 0; i < sc->num_queues; i++) {
+		struct epair_queue *q = &sc->queues[i];
+		buf_ring_free(q->rxring[0], M_EPAIR);
+		buf_ring_free(q->rxring[1], M_EPAIR);
+	}
+	free(sc->queues, M_EPAIR);
+	free(sc, M_EPAIR);
+}
+
 static int
 epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
@@ -493,9 +618,6 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct ifnet *ifp;
 	char *dp;
 	int error, unit, wildcard;
-	uint64_t hostid;
-	uint32_t key[3];
-	uint32_t hash;
 	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	/* Try to see if a special unit was requested. */
@@ -539,48 +661,13 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		return (EEXIST);
 
 	/* Allocate memory for both [ab] interfaces */
-	sca = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
-	sca->ifp = if_alloc(IFT_ETHER);
-	sca->num_queues = epair_tasks.tasks;
-	if (sca->ifp == NULL) {
-		free(sca, M_EPAIR);
+	sca = epair_alloc_sc(ifc);
+	scb = epair_alloc_sc(ifc);
+	if (sca == NULL || scb == NULL) {
+		epair_free_sc(sca);
+		epair_free_sc(scb);
 		ifc_free_unit(ifc, unit);
 		return (ENOSPC);
-	}
-	sca->queues = mallocarray(sca->num_queues, sizeof(struct epair_queue),
-	    M_EPAIR, M_WAITOK);
-	for (int i = 0; i < sca->num_queues; i++) {
-		struct epair_queue *q = &sca->queues[i];
-		q->id = i;
-		q->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
-		q->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
-		q->ridx = 0;
-		q->state = 0;
-		q->sc = sca;
-		NET_TASK_INIT(&q->tx_task, 0, epair_tx_start_deferred, q);
-	}
-
-	scb = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
-	scb->ifp = if_alloc(IFT_ETHER);
-	scb->num_queues = epair_tasks.tasks;
-	if (scb->ifp == NULL) {
-		free(scb, M_EPAIR);
-		if_free(sca->ifp);
-		free(sca, M_EPAIR);
-		ifc_free_unit(ifc, unit);
-		return (ENOSPC);
-	}
-	scb->queues = mallocarray(scb->num_queues, sizeof(struct epair_queue),
-	    M_EPAIR, M_WAITOK);
-	for (int i = 0; i < scb->num_queues; i++) {
-		struct epair_queue *q = &scb->queues[i];
-		q->id = i;
-		q->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
-		q->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
-		q->ridx = 0;
-		q->state = 0;
-		q->sc = scb;
-		NET_TASK_INIT(&q->tx_task, 0, epair_tx_start_deferred, q);
 	}
 
 	/*
@@ -589,96 +676,25 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sca->oifp = scb->ifp;
 	scb->oifp = sca->ifp;
 
-	EPAIR_LOCK();
-#ifdef SMP
-	/* Get an approximate distribution. */
-	hash = next_index % mp_ncpus;
-#else
-	hash = 0;
-#endif
-	EPAIR_UNLOCK();
-
-	/* Initialise pseudo media types. */
-	ifmedia_init(&sca->media, 0, epair_media_change, epair_media_status);
-	ifmedia_add(&sca->media, IFM_ETHER | IFM_10G_T, 0, NULL);
-	ifmedia_set(&sca->media, IFM_ETHER | IFM_10G_T);
-	ifmedia_init(&scb->media, 0, epair_media_change, epair_media_status);
-	ifmedia_add(&scb->media, IFM_ETHER | IFM_10G_T, 0, NULL);
-	ifmedia_set(&scb->media, IFM_ETHER | IFM_10G_T);
-
 	/* Finish initialization of interface <n>a. */
 	ifp = sca->ifp;
-	ifp->if_softc = sca;
-	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = epairname;
-	ifp->if_dunit = unit;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_flags |= IFF_KNOWSEPOCH;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = IFCAP_VLAN_MTU;
-	ifp->if_start = epair_start;
-	ifp->if_ioctl = epair_ioctl;
-	ifp->if_init  = epair_init;
-	if_setsendqlen(ifp, ifqmaxlen);
-	if_setsendqready(ifp);
+	epair_setup_ifp(sca, name, unit);
+	epair_generate_mac(sca, eaddr);
 
-	/*
-	 * Calculate the etheraddr hashing the hostid and the
-	 * interface index. The result would be hopefully unique.
-	 * Note that the "a" component of an epair instance may get moved
-	 * to a different VNET after creation. In that case its index
-	 * will be freed and the index can get reused by new epair instance.
-	 * Make sure we do not create same etheraddr again.
-	 */
-	getcredhostid(curthread->td_ucred, (unsigned long *)&hostid);
-	if (hostid == 0) 
-		arc4rand(&hostid, sizeof(hostid), 0);
-
-	EPAIR_LOCK();
-	if (ifp->if_index > next_index)
-		next_index = ifp->if_index;
-	else
-		next_index++;
-
-	key[0] = (uint32_t)next_index;
-	EPAIR_UNLOCK();
-	key[1] = (uint32_t)(hostid & 0xffffffff);
-	key[2] = (uint32_t)((hostid >> 32) & 0xfffffffff);
-	hash = jenkins_hash32(key, 3, 0);
-
-	eaddr[0] = 0x02;
-	memcpy(&eaddr[1], &hash, 4);
-	eaddr[5] = 0x0a;
 	ether_ifattach(ifp, eaddr);
-	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
-	ifp->if_transmit = epair_transmit;
 
 	/* Swap the name and finish initialization of interface <n>b. */
 	*dp = 'b';
 
+	epair_setup_ifp(scb, name, unit);
+
 	ifp = scb->ifp;
-	ifp->if_softc = scb;
-	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = epairname;
-	ifp->if_dunit = unit;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_flags |= IFF_KNOWSEPOCH;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = IFCAP_VLAN_MTU;
-	ifp->if_start = epair_start;
-	ifp->if_ioctl = epair_ioctl;
-	ifp->if_init  = epair_init;
-	if_setsendqlen(ifp, ifqmaxlen);
-	if_setsendqready(ifp);
 	/* We need to play some tricks here for the second interface. */
 	strlcpy(name, epairname, len);
-
 	/* Correctly set the name for the cloner list. */
 	strlcpy(name, scb->ifp->if_xname, len);
-	epair_clone_add(ifc, scb);
 
-	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
-	ifp->if_transmit = epair_transmit;
+	epair_clone_add(ifc, scb);
 
 	/*
 	 * Restore name to <n>a as the ifp for this will go into the
@@ -751,27 +767,11 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	if (error)
 		panic("%s: if_clone_destroyif() for our 2nd iface failed: %d",
 		    __func__, error);
-	if_free(oifp);
-	ifmedia_removeall(&scb->media);
-	for (int i = 0; i < scb->num_queues; i++) {
-		struct epair_queue *q = &scb->queues[i];
-		buf_ring_free(q->rxring[0], M_EPAIR);
-		buf_ring_free(q->rxring[1], M_EPAIR);
-	}
-	free(scb->queues, M_EPAIR);
-	free(scb, M_EPAIR);
+	epair_free_sc(scb);
 	CURVNET_RESTORE();
 
 	epair_drain_rings(sca);
-	if_free(ifp);
-	ifmedia_removeall(&sca->media);
-	for (int i = 0; i < sca->num_queues; i++) {
-		struct epair_queue *q = &sca->queues[i];
-		buf_ring_free(q->rxring[0], M_EPAIR);
-		buf_ring_free(q->rxring[1], M_EPAIR);
-	}
-	free(sca->queues, M_EPAIR);
-	free(sca, M_EPAIR);
+	epair_free_sc(sca);
 
 	/* Last free the cloner unit. */
 	ifc_free_unit(ifc, unit);
