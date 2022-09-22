@@ -563,7 +563,6 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
     struct vnode **vp_res, struct shmfd **shmfd_res, off_t *obj_size,
     int *bsize)
 {
-	struct vattr va;
 	vm_object_t obj;
 	struct vnode *vp;
 	struct shmfd *shmfd;
@@ -602,10 +601,9 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 			VM_OBJECT_RLOCK(obj);
 			*obj_size = obj->un_pager.vnp.vnp_size;
 		} else {
-			error = VOP_GETATTR(vp, &va, td->td_ucred);
+			error = vn_getsize_locked(vp, obj_size, td->td_ucred);
 			if (error != 0)
 				goto out;
-			*obj_size = va.va_size;
 			VM_OBJECT_RLOCK(obj);
 		}
 	} else if (fp->f_type == DTYPE_SHM) {

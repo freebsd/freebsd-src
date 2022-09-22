@@ -6377,7 +6377,7 @@ static int
 filt_vfsread(struct knote *kn, long hint)
 {
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
-	struct vattr va;
+	off_t size;
 	int res;
 
 	/*
@@ -6391,11 +6391,11 @@ filt_vfsread(struct knote *kn, long hint)
 		return (1);
 	}
 
-	if (VOP_GETATTR(vp, &va, curthread->td_ucred))
+	if (vn_getsize_locked(vp, &size, curthread->td_ucred) != 0)
 		return (0);
 
 	VI_LOCK(vp);
-	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
+	kn->kn_data = size - kn->kn_fp->f_offset;
 	res = (kn->kn_sfflags & NOTE_FILE_POLL) != 0 || kn->kn_data != 0;
 	VI_UNLOCK(vp);
 	return (res);
@@ -7114,6 +7114,30 @@ vn_irflag_unset(struct vnode *vp, short tounset)
 	VI_LOCK(vp);
 	vn_irflag_unset_locked(vp, tounset);
 	VI_UNLOCK(vp);
+}
+
+int
+vn_getsize_locked(struct vnode *vp, off_t *size, struct ucred *cred)
+{
+	struct vattr vattr;
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+	error = VOP_GETATTR(vp, &vattr, cred);
+	if (__predict_true(error == 0))
+		*size = vattr.va_size;
+	return (error);
+}
+
+int
+vn_getsize(struct vnode *vp, off_t *size, struct ucred *cred)
+{
+	int error;
+
+	VOP_LOCK(vp, LK_SHARED);
+	error = vn_getsize_locked(vp, size, cred);
+	VOP_UNLOCK(vp);
+	return (error);
 }
 
 #ifdef INVARIANTS
