@@ -774,6 +774,8 @@ print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
 		else
 			printf(" on %s", r->ifname);
 	}
+	if (r->bridge_to[0])
+		printf(" bridge-to %s", r->bridge_to);
 	if (r->proto)
 		printf(" proto 0x%04x", r->proto);
 

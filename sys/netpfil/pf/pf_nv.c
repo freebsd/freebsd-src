@@ -1114,6 +1114,7 @@ pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *krule)
 	nvlist_add_number(nvl, "anchor_relative", krule->anchor_relative);
 	nvlist_add_number(nvl, "anchor_wildcard", krule->anchor_wildcard);
 
+	nvlist_add_string(nvl, "bridge_to", krule->bridge_to_name);
 	nvlist_add_number(nvl, "action", krule->action);
 
 	return (nvl);
@@ -1182,6 +1183,8 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 
 	PFNV_CHK(pf_nvuint16_opt(nvl, "dnpipe", &krule->dnpipe, 0));
 	PFNV_CHK(pf_nvuint32_opt(nvl, "dnflags", &krule->dnflags, 0));
+	PFNV_CHK(pf_nvstring(nvl, "bridge_to", krule->bridge_to_name,
+	    sizeof(krule->bridge_to_name)));
 
 	PFNV_CHK(pf_nvuint8(nvl, "action", &krule->action));
 

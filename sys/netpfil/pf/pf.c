@@ -3833,6 +3833,32 @@ pf_match_eth_tag(struct mbuf *m, struct pf_keth_rule *r, int *tag, int mtag)
 	    (r->match_tag_not && r->match_tag != *tag));
 }
 
+static void
+pf_bridge_to(struct pfi_kkif *kif, struct mbuf *m)
+{
+	struct ifnet *ifp = kif->pfik_ifp;
+
+	/* If we don't have the interface drop the packet. */
+	if (ifp == NULL) {
+		m_freem(m);
+		return;
+	}
+
+	switch (ifp->if_type) {
+	case IFT_ETHER:
+	case IFT_XETHER:
+	case IFT_L2VLAN:
+	case IFT_BRIDGE:
+	case IFT_IEEE8023ADLAG:
+		break;
+	default:
+		m_freem(m);
+		return;
+	}
+
+	kif->pfik_ifp->if_transmit(kif->pfik_ifp, m);
+}
+
 static int
 pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 {
@@ -4091,6 +4117,11 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	}
 
 	action = r->action;
+
+	if (action == PF_PASS && r->bridge_to) {
+		pf_bridge_to(r->bridge_to, *m0);
+		*m0 = NULL; /* We've eaten the packet. */
+	}
 
 	PF_RULES_RUNLOCK();
 

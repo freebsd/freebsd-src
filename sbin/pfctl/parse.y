@@ -351,7 +351,8 @@ void		 expand_label_nr(const char *, char *, size_t,
 void		 expand_eth_rule(struct pfctl_eth_rule *,
 		    struct node_if *, struct node_etherproto *,
 		    struct node_mac *, struct node_mac *,
-		    struct node_host *, struct node_host *, const char *);
+		    struct node_host *, struct node_host *, const char *,
+		    const char *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
@@ -432,6 +433,7 @@ typedef struct {
 		struct {
 			struct node_mac	*mac;
 		} etheraddr;
+		char			*bridge_to;
 		struct {
 			struct node_host	*host;
 			u_int8_t		 rt;
@@ -503,7 +505,7 @@ int	parseport(char *, struct range *r, int);
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
-%token	DIVERTTO DIVERTREPLY
+%token	DIVERTTO DIVERTREPLY BRIDGE_TO
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
@@ -563,6 +565,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.etherproto>		etherproto etherproto_list etherproto_item
 %type	<v.etherfromto>		etherfromto
 %type	<v.etheraddr>		etherfrom etherto
+%type	<v.bridge_to>		bridge
 %type	<v.mac>			xmac mac mac_list macspec
 %%
 
@@ -1195,7 +1198,7 @@ scrubaction	: no SCRUB {
 		}
 		;
 
-etherrule	: ETHER action dir quick interface etherproto etherfromto l3fromto etherfilter_opts
+etherrule	: ETHER action dir quick interface bridge etherproto etherfromto l3fromto etherfilter_opts
 		{
 			struct pfctl_eth_rule	r;
 
@@ -1207,23 +1210,23 @@ etherrule	: ETHER action dir quick interface etherproto etherfromto l3fromto eth
 			r.action = $2.b1;
 			r.direction = $3;
 			r.quick = $4.quick;
-			if ($9.tag != NULL)
-				memcpy(&r.tagname, $9.tag, sizeof(r.tagname));
-			if ($9.match_tag)
-				if (strlcpy(r.match_tagname, $9.match_tag,
+			if ($10.tag != NULL)
+				memcpy(&r.tagname, $10.tag, sizeof(r.tagname));
+			if ($10.match_tag)
+				if (strlcpy(r.match_tagname, $10.match_tag,
 				    PF_TAG_NAME_SIZE) >= PF_TAG_NAME_SIZE) {
 					yyerror("tag too long, max %u chars",
 					    PF_TAG_NAME_SIZE - 1);
 					YYERROR;
 				}
-			r.match_tag_not = $9.match_tag_not;
-			if ($9.queues.qname != NULL)
-				memcpy(&r.qname, $9.queues.qname, sizeof(r.qname));
-			r.dnpipe = $9.dnpipe;
-			r.dnflags = $9.free_flags;
+			r.match_tag_not = $10.match_tag_not;
+			if ($10.queues.qname != NULL)
+				memcpy(&r.qname, $10.queues.qname, sizeof(r.qname));
+			r.dnpipe = $10.dnpipe;
+			r.dnflags = $10.free_flags;
 
-			expand_eth_rule(&r, $5, $6, $7.src, $7.dst,
-			    $8.src.host, $8.dst.host, "");
+			expand_eth_rule(&r, $5, $7, $8.src, $8.dst,
+			    $9.src.host, $9.dst.host, $6, "");
 		}
 		;
 
@@ -1315,7 +1318,7 @@ etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfr
 			r.quick = $5.quick;
 
 			expand_eth_rule(&r, $6, $7, $8.src, $8.dst,
-			    $9.src.host, $9.dst.host,
+			    $9.src.host, $9.dst.host, NULL,
 			    pf->eastack[pf->asd + 1] ? pf->ealast->name : $3);
 
 			free($3);
@@ -1358,6 +1361,14 @@ etherfilter_opt	: etherqname	{
 		| DNQUEUE number {
 			filter_opts.dnpipe = $2;
 			filter_opts.free_flags |= PFRULE_DN_IS_QUEUE;
+		}
+		;
+
+bridge		:	/* empty */		{
+			$$ = NULL;
+		}
+		| BRIDGE_TO STRING {
+			$$ = strdup($2);
 		}
 		;
 
@@ -5801,7 +5812,8 @@ void
 expand_eth_rule(struct pfctl_eth_rule *r,
     struct node_if *interfaces, struct node_etherproto *protos,
     struct node_mac *srcs, struct node_mac *dsts,
-    struct node_host *ipsrcs, struct node_host *ipdsts, const char *anchor_call)
+    struct node_host *ipsrcs, struct node_host *ipdsts,
+    const char *bridge_to, const char *anchor_call)
 {
 	char tagname[PF_TAG_NAME_SIZE];
 	char match_tagname[PF_TAG_NAME_SIZE];
@@ -5851,6 +5863,9 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 			errx(1, "expand_eth_rule: r->match_tagname");
 		if (strlcpy(r->qname, qname, sizeof(r->qname)) >= sizeof(r->qname))
 			errx(1, "expand_eth_rule: r->qname");
+
+		if (bridge_to)
+			strlcpy(r->bridge_to, bridge_to, sizeof(r->bridge_to));
 
 		pfctl_append_eth_rule(pf, r, anchor_call);
 	))))));
@@ -6110,6 +6125,7 @@ lookup(char *s)
 		{ "bitmask",		BITMASK},
 		{ "block",		BLOCK},
 		{ "block-policy",	BLOCKPOLICY},
+		{ "bridge-to",		BRIDGE_TO},
 		{ "buckets",		BUCKETS},
 		{ "cbq",		CBQ},
 		{ "code",		CODE},

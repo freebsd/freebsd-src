@@ -110,6 +110,7 @@ struct pfctl_eth_rule {
 	char			 tagname[PF_TAG_NAME_SIZE];
 	uint16_t		 dnpipe;
 	uint32_t		 dnflags;
+	char			 bridge_to[IFNAMSIZ];
 	uint8_t			 action;
 
 	struct pfctl_eth_anchor	*anchor;

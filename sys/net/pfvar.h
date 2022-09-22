@@ -690,6 +690,8 @@ struct pf_keth_rule {
 	int			 qid;
 	char			 tagname[PF_TAG_NAME_SIZE];
 	uint16_t		 tag;
+	char			 bridge_to_name[IFNAMSIZ];
+	struct pfi_kkif		*bridge_to;
 	uint8_t			 action;
 	uint16_t		 dnpipe;
 	uint32_t		 dnflags;
