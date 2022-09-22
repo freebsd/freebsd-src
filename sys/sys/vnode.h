@@ -1135,6 +1135,8 @@ int vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
     struct thread *td);
 int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
     struct thread *td);
+int vn_getsize_locked(struct vnode *vp, off_t *size, struct ucred *active_cred);
+int vn_getsize(struct vnode *vp, off_t *size, struct ucred *active_cred);
 
 void vn_fsid(struct vnode *vp, struct vattr *va);
 
