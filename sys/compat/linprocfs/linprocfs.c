@@ -83,8 +83,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <net/if.h>
+#include <net/route.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
+
+#include <netinet/in.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -1546,6 +1549,105 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	return (0);
 }
 
+static int
+linux_route_print(struct rt_msghdr *rtm, struct sbuf *sb)
+{
+	char ifname[16];
+	struct ifnet *ifp;
+	struct sockaddr *sa;
+	struct sockaddr *addr[RTAX_MAX];
+	int i;
+	uint32_t dst, gw, mask;
+
+	sa = (struct sockaddr *)(rtm + 1);
+	for (i = 0; i < RTAX_MAX; i++) {
+		if (rtm->rtm_addrs & (1 << i)) {
+			addr[i] = sa;
+			sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
+		} else {
+			addr[i] = NULL;
+		}
+	}
+
+	/* XXX - build lookup table instead of loop */
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifp->if_index == rtm->rtm_index) {
+			linux_ifname(ifp, ifname, sizeof ifname);
+		}
+	}
+
+	dst = addr[RTAX_DST] ? satosin(addr[RTAX_DST])->sin_addr.s_addr : 0;
+	gw = addr[RTAX_GATEWAY] ? satosin(addr[RTAX_GATEWAY])->sin_addr.s_addr : 0;
+	mask = addr[RTAX_NETMASK] ? satosin(addr[RTAX_NETMASK])->sin_addr.s_addr : 0;
+
+	sbuf_printf(sb,
+		"%s\t%08X\t%08X\t%04X\t%d\t%u\t"
+		"%lu\t%08X\t%lu\t%u\t%u",
+		ifname,
+		dst, gw, (rtm->rtm_flags & 0xf),
+		0, 0, rtm->rtm_rmx.rmx_hopcount,
+		mask, rtm->rtm_rmx.rmx_mtu, 0, 0);
+
+	sbuf_printf(sb, "\n\n");
+
+	return (0);
+}
+
+/*
+ * Filler function for proc/net/route
+ */
+static int
+linprocfs_donetroute(PFS_FILL_ARGS)
+{
+	int mib[7];
+	int error;
+	char *buf, *next, *lim;
+	struct rt_msghdr *rtm;
+
+	size_t bufsz = 65536;	/* 64k for AF_INET route table */
+	int af = AF_INET;
+	uint32_t fibnum = curthread->td_proc->p_fibnum;
+
+	mib[0] = CTL_NET;
+	mib[1] = PF_ROUTE;
+	mib[2] = 0;
+	mib[3] = af;
+	mib[4] = NET_RT_DUMP;
+	mib[5] = 0;
+	mib[6] = fibnum;
+
+	buf = malloc(bufsz, M_TEMP, M_WAITOK | M_ZERO);
+
+	CURVNET_SET(TD_TO_VNET(curthread));  /* required for sysctl rtsock */
+	IFNET_RLOCK();
+
+	error = kernel_sysctl(curthread, mib, 7, buf, &bufsz, NULL, 0, 0, 0);
+	if (error != 0)
+		goto out;
+	lim  = buf + bufsz;
+
+	sbuf_printf(sb, "%-127s\n", "Iface\tDestination\tGateway "
+               "\tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU"
+               "\tWindow\tIRTT");
+
+	rtm = (struct rt_msghdr *)buf;
+	for (next = buf; next < lim; next += rtm->rtm_msglen) {
+		rtm = (struct rt_msghdr *)next;
+		if (rtm->rtm_msglen <= 0)
+			break;
+		if (rtm->rtm_version != RTM_VERSION)
+			continue;
+		linux_route_print(rtm, sb);
+	}
+
+	out:
+	free(buf, M_TEMP);
+	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
+
+	return (error);
+}
+
 /*
  * Filler function for proc/sys/kernel/osrelease
  */
@@ -2099,6 +2201,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	/* /proc/net/... */
 	dir = pfs_create_dir(root, "net", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "dev", &linprocfs_donetdev,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "route", &linprocfs_donetroute,
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/<pid>/... */
