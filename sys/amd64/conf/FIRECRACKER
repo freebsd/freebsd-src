@@ -1,0 +1,197 @@
+#
+# FIRECRACKER -- kernel configuration file for Firecracker VM
+#
+# This is largely a stripped-down version of the GENERIC kernel configuration
+# file, without drivers for hardware which will never appear inside the
+# Firecracker VM environment.  It adds support for the Virtio MMIO bus,
+# which Firecracker uses for exposing devices, and legacy mptable, which
+# Firecracker uses for exposing information about CPUs (since it doesn't
+# support ACPI).
+#
+# Since Firecracker loads the kernel directly via the PVH boot protocol,
+# it bypasses the boot loader; some environment variables are hard-coded
+# here which would normally be provided via device hints or loader.conf.
+#
+# For more information about the Firecracker VM, see:
+#
+#    https://firecracker-microvm.github.io/
+
+cpu		HAMMER
+ident		FIRECRACKER
+
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+
+options 	SCHED_ULE		# ULE scheduler
+options 	NUMA			# Non-Uniform Memory Architecture support
+options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options		ROUTE_MPATH		# Multipath routing support
+options		FIB_ALGO		# Modular fib lookups
+options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_BLACKBOX		# Enhanced TCP event logging
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options		TCP_RFC7413		# TCP Fast Open
+options 	SCTP_SUPPORT		# Allow kldload of SCTP
+options		KERN_TLS		# TLS transmit & receive offload
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
+options 	MD_ROOT			# MD is a potential root device
+options 	NFSCL			# Network Filesystem Client
+options 	NFSD			# Network Filesystem Server
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	TMPFS			# Efficient memory filesystem
+options 	GEOM_RAID		# Soft RAID functionality.
+options 	GEOM_LABEL		# Provides labelization
+options 	EFIRT			# EFI Runtime Services support
+options 	COMPAT_FREEBSD32	# Compatible with i386 binaries
+options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
+options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
+options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
+options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
+options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
+options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
+options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
+options 	RACCT			# Resource accounting framework
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	RCTL			# Resource limits
+
+# Debugging support.  Always need this:
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+options 	BUF_TRACKING		# Track buffer history
+options 	DDB			# Support DDB.
+options 	FULL_BUF_TRACKING	# Track more buffer history
+options 	GDB			# Support remote GDB.
+options 	DEADLKRES		# Enable the deadlock resolver
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	QUEUE_MACRO_DEBUG_TRASH	# Trash queue(2) internal pointers on invalidation
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+
+# Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	DEBUGNET		# debugnet networking
+options 	NETDUMP			# netdump(4) client support
+options 	NETGDB			# netgdb(4) client support
+
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
+options 	EARLY_AP_STARTUP
+
+# Pseudo devices.
+device		crypto			# core crypto support
+device		aesni			# AES-NI OpenCrypto module
+device		loop			# Network loopback
+device		rdrand_rng		# Intel Bull Mountain RNG
+device		ether			# Ethernet support
+device		vlan			# 802.1Q VLAN support
+device		tuntap			# Packet tunnel.
+device		md			# Memory "disks"
+device		gif			# IPv6 and IPv4 tunneling
+device		firmware		# firmware assist module
+device		xz			# lzma decompression
+device		bpf			# Berkeley packet filter
+
+# Serial (COM) ports
+device		uart			# Generic UART driver
+
+# VirtIO support
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_mmio		# VirtIO MMIO bus
+device		vtnet			# VirtIO Ethernet device
+device		virtio_blk		# VirtIO Block device
+
+# Linux KVM paravirtualization support
+device		kvm_clock		# KVM paravirtual clock driver
+
+# Netmap provides direct access to TX/RX rings on supported NICs
+device		netmap			# netmap(4) support
+
+# Firecracker exposes information via the legacy MP Table mechanism
+# rather than via ACPI (which it does not implement).
+device		mptable
+
+# Firecracker launches the FreeBSD kernel directly, via the PVH boot
+# protocol, rather than via the boot loader; as such, we need to bake
+# device hints into the kernel configuration rather than relying on
+# device.hints being loaded, and likewise have no loader.conf to place
+# other settings into.
+envvar	hint.uart.0.at="isa"
+envvar	hint.uart.0.port="0x3F8"
+envvar	hint.uart.0.flags="0x10"
+envvar	hint.uart.0.irq="0x4"
+envvar	hint.acpi.0.disabled="1"
+
+# Inside a VM, "power off" doesn't really yank the AC power, so there's
+# no need to worry about disks flushing caches before losing power.
+envvar	kern.shutdown.poweroff_delay="0"
+
+# Firecracker seems to have a bug in its UART emulation.  This works
+# around the problem.
+envvar	hw.broken_txfifo="1"
+
+# We don't have an early timecounter to calibrate the TSC against, so
+# skip that; later in the boot process we have other timecounters.
+envvar	machdep.disable_tsc_calibration="1"
+
+# Provide bug-for-bug compatiblity with Linux in MP Table searching
+# and parsing.  Firecracker relies on these bugs.
+options		MPTABLE_LINUX_BUG_COMPAT
+
+# Disable the automatic registration of a PCI bridge; we do in fact
+# not have one.
+options		NO_LEGACY_PCIB
+
+# Bus support.
+# Note that Firecracker provides neither ACPI nor PCI; but removing these
+# devices currently (2022-07-09) prevents the kernel from building.
+device		acpi
+device		pci
+
+# Xen HVM Guest Optimizations
+# NOTE: XENHVM depends on xenpci and xentimer.
+# They must be added or removed together.
+# NOTE: These are present in FIRECRACKER because the PVH boot method
+# originates from Xen; once that code is untangled these can be removed.
+options 	XENHVM			# Xen HVM kernel infrastructure
+device		xenpci			# Xen HVM Hypervisor services driver
+device		xentimer		# Xen x86 PV timer device
