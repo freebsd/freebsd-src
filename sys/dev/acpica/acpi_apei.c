@@ -787,8 +787,7 @@ apei_detach(device_t dev)
 			free(ge->copybuf, M_DEVBUF);
 		}
 		if (ge->buf) {
-			pmap_unmapdev((vm_offset_t)ge->buf,
-			    ge->v1.ErrorBlockLength);
+			pmap_unmapdev(ge->buf, ge->v1.ErrorBlockLength);
 		}
 		free(ge, M_DEVBUF);
 	}

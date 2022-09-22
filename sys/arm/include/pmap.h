@@ -47,7 +47,7 @@ void *pmap_kenter_temporary(vm_paddr_t, int);
 void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
-void pmap_unmapdev(vm_offset_t, vm_size_t);
+void pmap_unmapdev(void *, vm_size_t);
 
 static inline void *
 pmap_mapdev_attr(vm_paddr_t addr, vm_size_t size, int attr)

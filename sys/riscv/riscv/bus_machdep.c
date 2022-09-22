@@ -106,7 +106,7 @@ static void
 generic_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 
-	pmap_unmapdev(bsh, size);
+	pmap_unmapdev((void *)bsh, size);
 }
 
 static void

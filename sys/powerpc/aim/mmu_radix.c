@@ -489,7 +489,7 @@ static void mmu_radix_pinit0(pmap_t);
 
 static void *mmu_radix_mapdev(vm_paddr_t, vm_size_t);
 static void *mmu_radix_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
-static void mmu_radix_unmapdev(vm_offset_t, vm_size_t);
+static void mmu_radix_unmapdev(void *, vm_size_t);
 static void mmu_radix_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t ma);
 static boolean_t mmu_radix_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void mmu_radix_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
@@ -5900,12 +5900,14 @@ mmu_radix_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 }
 
 static void
-mmu_radix_unmapdev(vm_offset_t va, vm_size_t size)
+mmu_radix_unmapdev(void *p, vm_size_t size)
 {
-	vm_offset_t offset;
+	vm_offset_t offset, va;
 
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, size);
+	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, p, size);
+
 	/* If we gave a direct map region in pmap_mapdev, do nothing */
+	va = (vm_offset_t)p;
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
 		return;
 

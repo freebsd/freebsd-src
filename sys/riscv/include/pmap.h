@@ -169,8 +169,8 @@ bool	pmap_ps_enabled(pmap_t);
 
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
-void	pmap_unmapdev(vm_offset_t, vm_size_t);
-void	pmap_unmapbios(vm_offset_t, vm_size_t);
+void	pmap_unmapdev(void *, vm_size_t);
+void	pmap_unmapbios(void *, vm_size_t);
 
 boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);

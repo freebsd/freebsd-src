@@ -1305,7 +1305,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 			}
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
-				pmap_unmapdev(adp->va_buffer, vesa_vmem_max);
+				pmap_unmapdev((void *)adp->va_buffer,
+				    vesa_vmem_max);
 			/* 
 			 * Once (*prevvidsw->get_info)() succeeded, 
 			 * (*prevvidsw->set_mode)() below won't fail...
@@ -1350,7 +1351,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		adp->va_flags |= V_ADP_DAC8;
 
 	if (adp->va_info.vi_flags & V_INFO_LINEAR)
-		pmap_unmapdev(adp->va_buffer, vesa_vmem_max);
+		pmap_unmapdev((void *)adp->va_buffer, vesa_vmem_max);
 
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");

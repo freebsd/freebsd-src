@@ -504,8 +504,7 @@ ioat_dma_test(void *arg)
 	ioat_test_release_memory(test);
 out:
 	if (test->testkind == IOAT_TEST_RAW_DMA && !test->raw_is_virtual)
-		pmap_unmapdev((vm_offset_t)test->raw_vtarget,
-		    test->buffer_size);
+		pmap_unmapdev(test->raw_vtarget, test->buffer_size);
 	ioat_put_dmaengine(dmaengine);
 }
 

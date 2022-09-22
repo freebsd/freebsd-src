@@ -807,10 +807,10 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 }
 
 void
-pmap_unmapdev(vm_offset_t va, vm_size_t size)
+pmap_unmapdev(void *p, vm_size_t size)
 {
 
-	pmap_methods_ptr->pm_unmapdev(va, size);
+	pmap_methods_ptr->pm_unmapdev(p, size);
 }
 
 void

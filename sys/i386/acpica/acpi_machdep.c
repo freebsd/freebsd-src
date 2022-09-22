@@ -96,7 +96,7 @@ acpi_machdep_quirks(int *quirks)
 	/* BIOS address 0xffff5 contains the date in the format mm/dd/yy. */
 	va = pmap_mapbios(0xffff0, 16);
 	sscanf(va + 11, "%2d", &year);
-	pmap_unmapbios((vm_offset_t)va, 16);
+	pmap_unmapbios(va, 16);
 
 	/* 
 	 * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
@@ -121,17 +121,17 @@ map_table(vm_paddr_t pa, const char *sig)
 
 	header = pmap_mapbios(pa, sizeof(ACPI_TABLE_HEADER));
 	if (strncmp(header->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
-		pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
+		pmap_unmapbios(header, sizeof(ACPI_TABLE_HEADER));
 		return (NULL);
 	}
 	length = header->Length;
-	pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
+	pmap_unmapbios(header, sizeof(ACPI_TABLE_HEADER));
 	table = pmap_mapbios(pa, length);
 	if (ACPI_FAILURE(AcpiTbChecksum(table, length))) {
 		if (bootverbose)
 			printf("ACPI: Failed checksum for table %s\n", sig);
 #if (ACPI_CHECKSUM_ABORT)
-		pmap_unmapbios((vm_offset_t)table, length);
+		pmap_unmapbios(table, length);
 		return (NULL);
 #endif
 	}
@@ -150,7 +150,7 @@ probe_table(vm_paddr_t address, const char *sig)
 
 	table = pmap_mapbios(address, sizeof(ACPI_TABLE_HEADER));
 	ret = strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) == 0;
-	pmap_unmapbios((vm_offset_t)table, sizeof(ACPI_TABLE_HEADER));
+	pmap_unmapbios(table, sizeof(ACPI_TABLE_HEADER));
 	return (ret);
 }
 
@@ -172,7 +172,7 @@ acpi_unmap_table(void *table)
 	ACPI_TABLE_HEADER *header;
 
 	header = (ACPI_TABLE_HEADER *)table;
-	pmap_unmapbios((vm_offset_t)table, header->Length);
+	pmap_unmapbios(table, header->Length);
 }
 
 /*
@@ -253,7 +253,7 @@ acpi_find_table(const char *sig)
 			}
 		acpi_unmap_table(rsdt);
 	}
-	pmap_unmapbios((vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
+	pmap_unmapbios(rsdp, sizeof(ACPI_TABLE_RSDP));
 	if (addr == 0)
 		return (0);
 

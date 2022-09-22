@@ -124,7 +124,7 @@ smbios_identify (driver_t *driver, device_t parent)
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_MEMORY, rid, addr, length);
 		device_set_desc(child, "System Management BIOS");
-		pmap_unmapbios((vm_offset_t)eps, 0x1f);
+		pmap_unmapbios(eps, 0x1f);
 	}
 
 	return;

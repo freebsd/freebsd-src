@@ -269,7 +269,7 @@ nexus_deactivate_resource(device_t bus __unused, device_t child __unused,
 		bus_size_t psize;
 
 		psize = rman_get_size(r);
-		pmap_unmapdev((vm_offset_t)rman_get_virtual(r), psize);
+		pmap_unmapdev(rman_get_virtual(r), psize);
 	}
 
 	return (rman_deactivate_resource(r));
@@ -349,7 +349,7 @@ nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
 	 */
 	switch (type) {
 	case SYS_RES_MEMORY:
-		pmap_unmapdev((vm_offset_t)map->r_vaddr, map->r_size);
+		pmap_unmapdev(map->r_vaddr, map->r_size);
 		/* FALLTHROUGH */
 	case SYS_RES_IOPORT:
 		break;
