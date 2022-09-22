@@ -2739,14 +2739,14 @@ enter_recovery:
 					    maxseg;
 					/*
 					 * Only call tcp_output when there
-					 * is new data available to be sent.
-					 * Otherwise we would send pure ACKs.
+					 * is new data available to be sent
+					 * or we need to send an ACK.
 					 */
 					SOCKBUF_LOCK(&so->so_snd);
 					avail = sbavail(&so->so_snd) -
 					    (tp->snd_nxt - tp->snd_una);
 					SOCKBUF_UNLOCK(&so->so_snd);
-					if (avail > 0)
+					if (avail > 0 || tp->t_flags & TF_ACKNOW)
 						(void) tcp_output(tp);
 					sent = tp->snd_max - oldsndmax;
 					if (sent > maxseg) {
