@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 static int gic_v3_fdt_probe(device_t);
 static int gic_v3_fdt_attach(device_t);
 
-static struct resource *gic_v3_ofw_bus_alloc_res(device_t, device_t, int, int *,
-    rman_res_t, rman_res_t, rman_res_t, u_int);
 static const struct ofw_bus_devinfo *gic_v3_ofw_get_devinfo(device_t, device_t);
 static bus_get_resource_list_t gic_v3_fdt_get_resource_list;
 
@@ -65,8 +63,6 @@ static device_method_t gic_v3_fdt_methods[] = {
 	DEVMETHOD(device_attach,	gic_v3_fdt_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,		gic_v3_ofw_bus_alloc_res),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
 	DEVMETHOD(bus_get_resource_list,	gic_v3_fdt_get_resource_list),
 
 	/* ofw_bus interface */
@@ -219,51 +215,64 @@ gic_v3_ofw_get_devinfo(device_t bus __unused, device_t child)
 	return (&di->di_dinfo);
 }
 
-static struct resource *
-gic_v3_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
-    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+/* Helper functions */
+static int
+gic_v3_ofw_fill_ranges(phandle_t parent, struct gic_v3_softc *sc,
+    pcell_t *addr_cellsp, pcell_t *size_cellsp)
 {
-	struct resource_list_entry *rle;
-	struct resource_list *rl;
-	int ranges_len;
+	pcell_t addr_cells, host_cells, size_cells;
+	cell_t *base_ranges;
+	ssize_t nbase_ranges;
+	int i, j, k;
 
-	/* We only allocate memory */
-	if (type != SYS_RES_MEMORY)
-		return (NULL);
+	host_cells = 1;
+	OF_getencprop(OF_parent(parent), "#address-cells", &host_cells,
+	    sizeof(host_cells));
+	addr_cells = 2;
+	OF_getencprop(parent, "#address-cells", &addr_cells,
+	    sizeof(addr_cells));
+	size_cells = 2;
+	OF_getencprop(parent, "#size-cells", &size_cells,
+	    sizeof(size_cells));
 
-	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
-		rl = BUS_GET_RESOURCE_LIST(bus, child);
-		if (rl == NULL)
-			return (NULL);
+	*addr_cellsp = addr_cells;
+	*size_cellsp = size_cells;
 
-		/* Find defaults for this rid */
-		rle = resource_list_find(rl, type, *rid);
-		if (rle == NULL)
-			return (NULL);
+	nbase_ranges = OF_getproplen(parent, "ranges");
+	if (nbase_ranges < 0)
+		return (EINVAL);
 
-		start = rle->start;
-		end = rle->end;
-		count = rle->count;
-	}
-	/*
-	 * XXX: No ranges remap!
-	 *	Absolute address is expected.
-	 */
-	if (ofw_bus_has_prop(bus, "ranges")) {
-		ranges_len = OF_getproplen(ofw_bus_get_node(bus), "ranges");
-		if (ranges_len != 0) {
-			if (bootverbose) {
-				device_printf(child,
-				    "Ranges remap not supported\n");
-			}
-			return (NULL);
+	sc->nranges = nbase_ranges / sizeof(cell_t) /
+	    (addr_cells + host_cells + size_cells);
+	if (sc->nranges == 0)
+		return (0);
+
+	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]), M_GIC_V3,
+	    M_WAITOK);
+	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
+	OF_getencprop(parent, "ranges", base_ranges, nbase_ranges);
+
+	for (i = 0, j = 0; i < sc->nranges; i++) {
+		sc->ranges[i].bus = 0;
+		for (k = 0; k < addr_cells; k++) {
+			sc->ranges[i].bus <<= 32;
+			sc->ranges[i].bus |= base_ranges[j++];
+		}
+		sc->ranges[i].host = 0;
+		for (k = 0; k < host_cells; k++) {
+			sc->ranges[i].host <<= 32;
+			sc->ranges[i].host |= base_ranges[j++];
+		}
+		sc->ranges[i].size = 0;
+		for (k = 0; k < size_cells; k++) {
+			sc->ranges[i].size <<= 32;
+			sc->ranges[i].size |= base_ranges[j++];
 		}
 	}
-	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
-	    count, flags));
-}
 
-/* Helper functions */
+	free(base_ranges, M_DEVBUF);
+	return (0);
+}
 
 /*
  * Bus capability support for GICv3.
@@ -278,16 +287,16 @@ gic_v3_ofw_bus_attach(device_t dev)
 	device_t child;
 	phandle_t parent, node;
 	pcell_t addr_cells, size_cells;
+	int rv;
 
 	sc = device_get_softc(dev);
 	parent = ofw_bus_get_node(dev);
 	if (parent > 0) {
-		addr_cells = 2;
-		OF_getencprop(parent, "#address-cells", &addr_cells,
-		    sizeof(addr_cells));
-		size_cells = 2;
-		OF_getencprop(parent, "#size-cells", &size_cells,
-		    sizeof(size_cells));
+		rv = gic_v3_ofw_fill_ranges(parent, sc, &addr_cells,
+		    &size_cells);
+		if (rv != 0)
+			return (rv);
+
 		/* Iterate through all GIC subordinates */
 		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
 			/*
