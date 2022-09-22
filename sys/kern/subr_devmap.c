@@ -325,14 +325,15 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
  * Unmap device memory and free the kva space.
  */
 void
-pmap_unmapdev(vm_offset_t va, vm_size_t size)
+pmap_unmapdev(void *p, vm_size_t size)
 {
-	vm_offset_t offset;
+	vm_offset_t offset, va;
 
 	/* Nothing to do if we find the mapping in the static table. */
-	if (devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
+	if (devmap_vtop(p, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
 
+	va = (vm_offset_t)p;
 	offset = va & PAGE_MASK;
 	va = trunc_page(va);
 	size = round_page(size + offset);

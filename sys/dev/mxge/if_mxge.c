@@ -435,7 +435,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 	if (! (vendor_id == ivend && device_id == idev)) {
 		device_printf(sc->dev, "mapping failed: 0x%x:0x%x\n",
 			      vendor_id, device_id);
-		pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
+		pmap_unmapdev(va, PAGE_SIZE);
 		return;
 	}
 
@@ -444,11 +444,11 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 
 	if (val == 0xffffffff) {
 		device_printf(sc->dev, "extended mapping failed\n");
-		pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
+		pmap_unmapdev(va, PAGE_SIZE);
 		return;
 	}
 	*ptr32 = val | 0x40;
-	pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
+	pmap_unmapdev(va, PAGE_SIZE);
 	if (mxge_verbose)
 		device_printf(sc->dev,
 			      "Enabled ECRC on upstream Nvidia bridge "

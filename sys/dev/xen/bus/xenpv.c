@@ -144,12 +144,12 @@ static int
 xenpv_free_physmem(device_t dev, device_t child, int res_id, struct resource *res)
 {
 	vm_paddr_t phys_addr;
-	vm_offset_t virt_addr;
+	void *virt_addr;
 	size_t size;
 
 	phys_addr = rman_get_start(res);
 	size = rman_get_size(res);
-	virt_addr = (vm_offset_t)rman_get_virtual(res);
+	virt_addr = rman_get_virtual(res);
 
 	pmap_unmapdev(virt_addr, size);
 	vm_phys_fictitious_unreg_range(phys_addr, phys_addr + size);

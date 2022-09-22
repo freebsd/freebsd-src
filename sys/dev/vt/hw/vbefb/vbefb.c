@@ -159,5 +159,5 @@ vt_vbefb_fini(struct vt_device *vd, void *softc)
 	struct fb_info	*info = softc;
 
 	vt_fb_fini(vd, softc);
-	pmap_unmapdev(info->fb_vbase, info->fb_size);
+	pmap_unmapdev((void *)info->fb_vbase, info->fb_size);
 }

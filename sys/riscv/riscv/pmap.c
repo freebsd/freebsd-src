@@ -4455,7 +4455,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 }
 
 void
-pmap_unmapbios(vm_paddr_t pa, vm_size_t size)
+pmap_unmapbios(void *p, vm_size_t size)
 {
 }
 

@@ -399,7 +399,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 #ifdef FDT
 			bus_space_unmap(fdtbus_bs_tag, vaddr, psize);
 #else
-			pmap_unmapdev((vm_offset_t)vaddr, (vm_size_t)psize);
+			pmap_unmapdev((void *)vaddr, (vm_size_t)psize);
 #endif
 			rman_set_virtual(r, NULL);
 			rman_set_bushandle(r, 0);

@@ -129,6 +129,6 @@ void drm_core_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
 		vunmap(map->handle);
 	else
-		pmap_unmapdev((vm_offset_t)map->handle, map->size);
+		pmap_unmapdev(map->handle, map->size);
 }
 EXPORT_SYMBOL(drm_core_ioremapfree);

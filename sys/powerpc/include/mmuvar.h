@@ -38,7 +38,7 @@ typedef	void	(*pmap_kenter_attr_t)(vm_offset_t, vm_paddr_t, vm_memattr_t);
 typedef	void	(*pmap_kremove_t)(vm_offset_t);
 typedef	void	*(*pmap_mapdev_t)(vm_paddr_t, vm_size_t);
 typedef	void	*(*pmap_mapdev_attr_t)(vm_paddr_t, vm_size_t, vm_memattr_t);
-typedef	void	(*pmap_unmapdev_t)(vm_offset_t, vm_size_t);
+typedef	void	(*pmap_unmapdev_t)(void *, vm_size_t);
 typedef	void	(*pmap_page_set_memattr_t)(vm_page_t, vm_memattr_t);
 typedef	int	(*pmap_change_attr_t)(vm_offset_t, vm_size_t, vm_memattr_t);
 typedef	int	(*pmap_map_user_ptr_t)(pmap_t, volatile const void *,

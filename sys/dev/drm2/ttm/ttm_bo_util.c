@@ -224,7 +224,7 @@ void ttm_mem_reg_iounmap(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem,
 	man = &bdev->man[mem->mem_type];
 
 	if (virtual && mem->bus.addr == NULL)
-		pmap_unmapdev((vm_offset_t)virtual, mem->bus.size);
+		pmap_unmapdev(virtual, mem->bus.size);
 	(void) ttm_mem_io_lock(man, false);
 	ttm_mem_io_free(bdev, mem);
 	ttm_mem_io_unlock(man);
@@ -263,7 +263,7 @@ static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 
 	memcpy(dst, src, PAGE_SIZE);
 
-	pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
+	pmap_unmapdev(dst, PAGE_SIZE);
 
 	return 0;
 }
@@ -285,7 +285,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 
 	memcpy(dst, src, PAGE_SIZE);
 
-	pmap_unmapdev((vm_offset_t)src, PAGE_SIZE);
+	pmap_unmapdev(src, PAGE_SIZE);
 
 	return 0;
 }
@@ -570,7 +570,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 		return;
 	switch (map->bo_kmap_type) {
 	case ttm_bo_map_iomap:
-		pmap_unmapdev((vm_offset_t)map->virtual, map->size);
+		pmap_unmapdev(map->virtual, map->size);
 		break;
 	case ttm_bo_map_vmap:
 		pmap_qremove((vm_offset_t)(map->virtual), map->num_pages);

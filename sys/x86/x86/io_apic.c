@@ -613,7 +613,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 {
 	struct ioapic *io;
 	struct ioapic_intsrc *intpin;
-	volatile ioapic_t *apic;
+	ioapic_t *apic;
 	u_int numintr, i;
 	uint32_t value;
 
@@ -625,7 +625,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 
 	/* If it's version register doesn't seem to work, punt. */
 	if (value == 0xffffffff) {
-		pmap_unmapdev((vm_offset_t)apic, IOAPIC_MEM_REGION);
+		pmap_unmapdev(apic, IOAPIC_MEM_REGION);
 		return (NULL);
 	}
 

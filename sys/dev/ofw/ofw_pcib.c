@@ -622,7 +622,7 @@ ofw_pcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	}
 
 	psize = rman_get_size(res);
-	pmap_unmapdev((vm_offset_t)rman_get_virtual(res), psize);
+	pmap_unmapdev(rman_get_virtual(res), psize);
 
 	return (rman_deactivate_resource(res));
 }

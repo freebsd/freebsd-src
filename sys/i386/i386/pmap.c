@@ -5503,12 +5503,13 @@ __CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode,
 }
 
 static void
-__CONCAT(PMTYPE, unmapdev)(vm_offset_t va, vm_size_t size)
+__CONCAT(PMTYPE, unmapdev)(void *p, vm_size_t size)
 {
 	struct pmap_preinit_mapping *ppim;
-	vm_offset_t offset;
+	vm_offset_t offset, va;
 	int i;
 
+	va = (vm_offset_t)p;
 	if (va >= PMAP_MAP_LOW && va <= KERNBASE && va + size <= KERNBASE)
 		return;
 	offset = va & PAGE_MASK;

@@ -1976,7 +1976,7 @@ iounmap(void *addr)
 	if (vmmap == NULL)
 		return;
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__) || defined(__aarch64__) || defined(__riscv)
-	pmap_unmapdev((vm_offset_t)addr, vmmap->vm_size);
+	pmap_unmapdev(addr, vmmap->vm_size);
 #endif
 	kfree(vmmap);
 }

@@ -103,17 +103,17 @@ map_table(vm_paddr_t pa, const char *sig)
 
 	header = pmap_mapbios(pa, sizeof(ACPI_TABLE_HEADER));
 	if (strncmp(header->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
-		pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
+		pmap_unmapbios(header, sizeof(ACPI_TABLE_HEADER));
 		return (NULL);
 	}
 	length = header->Length;
-	pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
+	pmap_unmapbios(header, sizeof(ACPI_TABLE_HEADER));
 	table = pmap_mapbios(pa, length);
 	if (ACPI_FAILURE(AcpiTbChecksum(table, length))) {
 		if (bootverbose)
 			printf("ACPI: Failed checksum for table %s\n", sig);
 #if (ACPI_CHECKSUM_ABORT)
-		pmap_unmapbios((vm_offset_t)table, length);
+		pmap_unmapbios(table, length);
 		return (NULL);
 #endif
 	}
@@ -132,7 +132,7 @@ probe_table(vm_paddr_t address, const char *sig)
 
 	table = pmap_mapbios(address, sizeof(ACPI_TABLE_HEADER));
 	ret = strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) == 0;
-	pmap_unmapbios((vm_offset_t)table, sizeof(ACPI_TABLE_HEADER));
+	pmap_unmapbios(table, sizeof(ACPI_TABLE_HEADER));
 	return (ret);
 }
 
@@ -154,7 +154,7 @@ acpi_unmap_table(void *table)
 	ACPI_TABLE_HEADER *header;
 
 	header = (ACPI_TABLE_HEADER *)table;
-	pmap_unmapbios((vm_offset_t)table, header->Length);
+	pmap_unmapbios(table, header->Length);
 }
 
 /*
@@ -201,15 +201,13 @@ acpi_find_table(const char *sig)
 		 */
 		if (AcpiTbChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
 			printf("ACPI: RSDP failed extended checksum\n");
-			pmap_unmapbios((vm_offset_t)rsdp,
-			    sizeof(ACPI_TABLE_RSDP));
+			pmap_unmapbios(rsdp, sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
 			printf("ACPI: Failed to map XSDT\n");
-			pmap_unmapbios((vm_offset_t)rsdp,
-			    sizeof(ACPI_TABLE_RSDP));
+			pmap_unmapbios(rsdp, sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		count = (xsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
@@ -224,8 +222,7 @@ acpi_find_table(const char *sig)
 		rsdt = map_table(rsdp->RsdtPhysicalAddress, ACPI_SIG_RSDT);
 		if (rsdt == NULL) {
 			printf("ACPI: Failed to map RSDT\n");
-			pmap_unmapbios((vm_offset_t)rsdp,
-			    sizeof(ACPI_TABLE_RSDP));
+			pmap_unmapbios(rsdp, sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		count = (rsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
@@ -237,7 +234,7 @@ acpi_find_table(const char *sig)
 			}
 		acpi_unmap_table(rsdt);
 	}
-	pmap_unmapbios((vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
+	pmap_unmapbios(rsdp, sizeof(ACPI_TABLE_RSDP));
 	if (addr == 0)
 		return (0);
 

@@ -121,7 +121,7 @@ mv_axp_platform_mp_start_ap(platform_t plat)
 	    src++, dst++) {
 		*dst = *src;
 	}
-	pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
+	pmap_unmapdev(dst, PAGE_SIZE);
 	if (cputype == CPU_ID_MV88SV584X_V7) {
 		/* Core rev A0 */
 		div_val = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);

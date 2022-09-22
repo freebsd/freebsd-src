@@ -425,7 +425,7 @@ void moea64_activate(struct thread *);
 void moea64_deactivate(struct thread *);
 void *moea64_mapdev(vm_paddr_t, vm_size_t);
 void *moea64_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
-void moea64_unmapdev(vm_offset_t, vm_size_t);
+void moea64_unmapdev(void *, vm_size_t);
 vm_paddr_t moea64_kextract(vm_offset_t);
 void moea64_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void moea64_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t ma);
@@ -3206,10 +3206,11 @@ moea64_mapdev(vm_paddr_t pa, vm_size_t size)
 }
 
 void
-moea64_unmapdev(vm_offset_t va, vm_size_t size)
+moea64_unmapdev(void *p, vm_size_t size)
 {
-	vm_offset_t base, offset;
+	vm_offset_t base, offset, va;
 
+	va = (vm_offset_t)p;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);

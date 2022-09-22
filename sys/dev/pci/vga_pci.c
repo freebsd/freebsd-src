@@ -285,7 +285,7 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 #if defined(__amd64__) || defined(__i386__)
 	if (vga_pci_is_boot_display(dev)) {
 		/* We mapped the BIOS shadow copy located at 0xC0000. */
-		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
+		pmap_unmapdev(bios, VGA_PCI_BIOS_SHADOW_SIZE);
 
 		return;
 	}

@@ -135,7 +135,7 @@ ocotp_attach(device_t dev)
 
 	/* We're done with the temporary mapping now. */
 	if (ocotp_regs != NULL)
-		pmap_unmapdev((vm_offset_t)ocotp_regs, ocotp_size);
+		pmap_unmapdev(ocotp_regs, ocotp_size);
 
 	err = 0;
 
