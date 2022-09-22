@@ -319,8 +319,7 @@ smp_after_idle_runnable(void *arg __unused)
 
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		if (bootstacks[cpu] != NULL)
-			kmem_free((vm_offset_t)bootstacks[cpu],
-			    MP_BOOTSTACK_SIZE);
+			kmem_free(bootstacks[cpu], MP_BOOTSTACK_SIZE);
 	}
 }
 SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,
@@ -498,7 +497,6 @@ static bool
 start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 {
 	struct pcpu *pcpup;
-	vm_offset_t pcpu_mem;
 	vm_size_t size;
 	vm_paddr_t pa;
 	int err, naps;
@@ -514,11 +512,9 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 	KASSERT(cpuid < MAXCPU, ("Too many CPUs"));
 
 	size = round_page(sizeof(*pcpup) + DPCPU_SIZE);
-	pcpu_mem = kmem_malloc_domainset(DOMAINSET_PREF(domain), size,
+	pcpup = kmem_malloc_domainset(DOMAINSET_PREF(domain), size,
 	    M_WAITOK | M_ZERO);
-	pmap_disable_promotion(pcpu_mem, size);
-
-	pcpup = (struct pcpu *)pcpu_mem;
+	pmap_disable_promotion((vm_offset_t)pcpup, size);
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
 	pcpup->pc_mpidr_low = target_cpu & CPU_AFF_MASK;
 	pcpup->pc_mpidr_high = (target_cpu & CPU_AFF_MASK) >> 32;
@@ -526,8 +522,8 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 	dpcpu[cpuid - 1] = (void *)(pcpup + 1);
 	dpcpu_init(dpcpu[cpuid - 1], cpuid);
 
-	bootstacks[cpuid] = (void *)kmem_malloc_domainset(
-	    DOMAINSET_PREF(domain), MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
+	bootstacks[cpuid] = kmem_malloc_domainset(DOMAINSET_PREF(domain),
+	    MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
 
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;
@@ -548,8 +544,8 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 
 		pcpu_destroy(pcpup);
 		dpcpu[cpuid - 1] = NULL;
-		kmem_free((vm_offset_t)bootstacks[cpuid], MP_BOOTSTACK_SIZE);
-		kmem_free(pcpu_mem, size);
+		kmem_free(bootstacks[cpuid], MP_BOOTSTACK_SIZE);
+		kmem_free(pcpup, size);
 		bootstacks[cpuid] = NULL;
 		mp_ncpus--;
 		return (false);

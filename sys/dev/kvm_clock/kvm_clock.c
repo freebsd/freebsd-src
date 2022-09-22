@@ -148,7 +148,7 @@ kvm_clock_attach(device_t dev)
 	    (regs[0] & KVM_FEATURE_CLOCKSOURCE_STABLE_BIT) != 0;
 
 	/* Set up 'struct pvclock_vcpu_time_info' page(s): */
-	sc->timeinfos = (struct pvclock_vcpu_time_info *)kmem_malloc(mp_ncpus *
+	sc->timeinfos = kmem_malloc(mp_ncpus *
 	    sizeof(struct pvclock_vcpu_time_info), M_WAITOK | M_ZERO);
 	kvm_clock_system_time_enable(sc);
 

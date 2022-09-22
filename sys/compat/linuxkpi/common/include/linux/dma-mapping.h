@@ -175,7 +175,7 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 {
 
 	linux_dma_unmap(dev, dma_addr, size);
-	kmem_free((vm_offset_t)cpu_addr, size);
+	kmem_free(cpu_addr, size);
 }
 
 static inline dma_addr_t

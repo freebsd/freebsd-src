@@ -1154,8 +1154,7 @@ smp_after_idle_runnable(void *arg __unused)
 	    smp_no_rendezvous_barrier, NULL);
 
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		kmem_free((vm_offset_t)bootstacks[cpu], kstack_pages *
-		    PAGE_SIZE);
+		kmem_free(bootstacks[cpu], kstack_pages * PAGE_SIZE);
 	}
 }
 SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,

@@ -1947,7 +1947,7 @@ page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	void *p;	/* Returned page */
 
 	*pflag = UMA_SLAB_KERNEL;
-	p = (void *)kmem_malloc_domainset(DOMAINSET_FIXED(domain), bytes, wait);
+	p = kmem_malloc_domainset(DOMAINSET_FIXED(domain), bytes, wait);
 
 	return (p);
 }
@@ -2104,7 +2104,7 @@ page_free(void *mem, vm_size_t size, uint8_t flags)
 	KASSERT((flags & UMA_SLAB_KERNEL) != 0,
 	    ("UMA: page_free used with invalid flags %x", flags));
 
-	kmem_free((vm_offset_t)mem, size);
+	kmem_free(mem, size);
 }
 
 /*

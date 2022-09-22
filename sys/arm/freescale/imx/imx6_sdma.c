@@ -185,7 +185,7 @@ sdma_alloc(void)
 	chn = i;
 
 	/* Allocate area for buffer descriptors */
-	channel->bd = (void *)kmem_alloc_contig(PAGE_SIZE, M_ZERO, 0, ~0,
+	channel->bd = kmem_alloc_contig(PAGE_SIZE, M_ZERO, 0, ~0,
 	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 
 	return (chn);
@@ -202,7 +202,7 @@ sdma_free(int chn)
 	channel = &sc->channel[chn];
 	channel->in_use = 0;
 
-	kmem_free((vm_offset_t)channel->bd, PAGE_SIZE);
+	kmem_free(channel->bd, PAGE_SIZE);
 
 	return (0);
 }
@@ -396,7 +396,7 @@ boot_firmware(struct sdma_softc *sc)
 
 	sz = SDMA_N_CHANNELS * sizeof(struct sdma_channel_control) + \
 	    sizeof(struct sdma_context_data);
-	sc->ccb = (void *)kmem_alloc_contig(sz, M_ZERO, 0, ~0, PAGE_SIZE, 0,
+	sc->ccb = kmem_alloc_contig(sz, M_ZERO, 0, ~0, PAGE_SIZE, 0,
 	    VM_MEMATTR_UNCACHEABLE);
 	sc->ccb_phys = vtophys(sc->ccb);
 
@@ -415,7 +415,7 @@ boot_firmware(struct sdma_softc *sc)
 	/* Channel 0 is used for booting firmware */
 	chn = 0;
 
-	sc->bd0 = (void *)kmem_alloc_contig(PAGE_SIZE, M_ZERO, 0, ~0, PAGE_SIZE,
+	sc->bd0 = kmem_alloc_contig(PAGE_SIZE, M_ZERO, 0, ~0, PAGE_SIZE,
 	    0, VM_MEMATTR_UNCACHEABLE);
 	bd0 = sc->bd0;
 	sc->ccb[chn].base_bd_ptr = vtophys(bd0);

@@ -373,7 +373,7 @@ cpu_thread_clean(struct thread *td)
 	if (pcb->pcb_tssp != NULL) {
 		pmap_pti_remove_kva((vm_offset_t)pcb->pcb_tssp,
 		    (vm_offset_t)pcb->pcb_tssp + ctob(IOPAGES + 1));
-		kmem_free((vm_offset_t)pcb->pcb_tssp, ctob(IOPAGES + 1));
+		kmem_free(pcb->pcb_tssp, ctob(IOPAGES + 1));
 		pcb->pcb_tssp = NULL;
 	}
 }

@@ -510,7 +510,7 @@ dmar_init_qi(struct dmar_unit *unit)
 
 	DMAR_LOCK(unit);
 	dmar_write8(unit, DMAR_IQT_REG, 0);
-	iqa = pmap_kextract(unit->inv_queue);
+	iqa = pmap_kextract((uintptr_t)unit->inv_queue);
 	iqa |= qi_sz;
 	dmar_write8(unit, DMAR_IQA_REG, iqa);
 	dmar_enable_qi(unit);
@@ -552,7 +552,7 @@ dmar_fini_qi(struct dmar_unit *unit)
 	DMAR_UNLOCK(unit);
 
 	kmem_free(unit->inv_queue, unit->inv_queue_size);
-	unit->inv_queue = 0;
+	unit->inv_queue = NULL;
 	unit->inv_queue_size = 0;
 	unit->qi_enabled = 0;
 }

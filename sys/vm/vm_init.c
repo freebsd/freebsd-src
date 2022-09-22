@@ -150,8 +150,7 @@ vm_mem_init(void *dummy)
 void
 vm_ksubmap_init(struct kva_md_info *kmi)
 {
-	vm_offset_t firstaddr;
-	caddr_t v;
+	caddr_t firstaddr, v;
 	vm_size_t size = 0;
 	long physmem_est;
 	vm_offset_t minaddr;
@@ -170,9 +169,9 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 	 * needed and allocates it.  The second pass assigns virtual
 	 * addresses to the various data structures.
 	 */
-	firstaddr = 0;
+	firstaddr = NULL;
 again:
-	v = (caddr_t)firstaddr;
+	v = firstaddr;
 
 	/*
 	 * Discount the physical memory larger than the size of kernel_map
@@ -186,7 +185,7 @@ again:
 	/*
 	 * End of first pass, size has been calculated so allocate memory
 	 */
-	if (firstaddr == 0) {
+	if (firstaddr == NULL) {
 		size = (vm_size_t)v;
 #ifdef VM_FREELIST_DMA32
 		/*
@@ -195,10 +194,10 @@ again:
 		 */
 		firstaddr = kmem_alloc_attr(size, M_ZERO | M_NOWAIT,
 		    (vm_paddr_t)1 << 32, ~(vm_paddr_t)0, VM_MEMATTR_DEFAULT);
-		if (firstaddr == 0)
+		if (firstaddr == NULL)
 #endif
 			firstaddr = kmem_malloc(size, M_ZERO | M_WAITOK);
-		if (firstaddr == 0)
+		if (firstaddr == NULL)
 			panic("startup: no room for tables");
 		goto again;
 	}
@@ -206,15 +205,15 @@ again:
 	/*
 	 * End of second pass, addresses have been assigned
 	 */
-	if ((vm_size_t)((char *)v - firstaddr) != size)
+	if ((vm_size_t)(v - firstaddr) != size)
 		panic("startup: table size inconsistency");
 
 	/*
 	 * Allocate the clean map to hold all of I/O virtual memory.
 	 */
 	size = (long)nbuf * BKVASIZE + (long)bio_transient_maxcnt * maxphys;
-	kmi->clean_sva = firstaddr = kva_alloc(size);
-	kmi->clean_eva = firstaddr + size;
+	kmi->clean_sva = kva_alloc(size);
+	kmi->clean_eva = kmi->clean_sva + size;
 
 	/*
 	 * Allocate the buffer arena.
@@ -223,11 +222,10 @@ again:
 	 * avoids lock contention at the expense of some fragmentation.
 	 */
 	size = (long)nbuf * BKVASIZE;
-	kmi->buffer_sva = firstaddr;
+	kmi->buffer_sva = kmi->clean_sva;
 	kmi->buffer_eva = kmi->buffer_sva + size;
 	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
 	    PAGE_SIZE, (mp_ncpus > 4) ? BKVASIZE * 8 : 0, M_WAITOK);
-	firstaddr += size;
 
 	/*
 	 * And optionally transient bio space.
@@ -235,11 +233,8 @@ again:
 	if (bio_transient_maxcnt != 0) {
 		size = (long)bio_transient_maxcnt * maxphys;
 		vmem_init(transient_arena, "transient arena",
-		    firstaddr, size, PAGE_SIZE, 0, M_WAITOK);
-		firstaddr += size;
+		    kmi->buffer_eva, size, PAGE_SIZE, 0, M_WAITOK);
 	}
-	if (firstaddr != kmi->clean_eva)
-		panic("Clean map calculation incorrect");
 
 	/*
 	 * Allocate the pageable submaps.  We may cache an exec map entry per

@@ -1247,7 +1247,7 @@ pmap_init_asids(struct asid_set *set, int bits)
 	 * bit_alloc().
 	 */
 	set->asid_set_size = 1 << set->asid_bits;
-	set->asid_set = (bitstr_t *)kmem_malloc(bitstr_size(set->asid_set_size),
+	set->asid_set = kmem_malloc(bitstr_size(set->asid_set_size),
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < ASID_FIRST_AVAILABLE; i++)
 		bit_set(set->asid_set, i);
@@ -1326,7 +1326,7 @@ pmap_init(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
+	pv_table = kmem_malloc(s, M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 	TAILQ_INIT(&pv_dummy.pv_list);

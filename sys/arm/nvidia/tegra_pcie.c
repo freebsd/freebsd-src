@@ -1382,7 +1382,7 @@ tegra_pcib_attach_msi(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	sc->msi_page = kmem_alloc_contig(PAGE_SIZE, M_WAITOK, 0,
+	sc->msi_page = (uintptr_t)kmem_alloc_contig(PAGE_SIZE, M_WAITOK, 0,
 	    BUS_SPACE_MAXADDR, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 
 	/* MSI BAR */
