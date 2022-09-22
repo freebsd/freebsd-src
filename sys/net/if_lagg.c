@@ -117,8 +117,9 @@ VNET_DEFINE_STATIC(struct mtx, lagg_list_mtx);
 #define	LAGG_LIST_UNLOCK(x)		mtx_unlock(&V_lagg_list_mtx)
 eventhandler_tag	lagg_detach_cookie = NULL;
 
-static int	lagg_clone_create(struct if_clone *, int, caddr_t);
-static void	lagg_clone_destroy(struct ifnet *);
+static int	lagg_clone_create(struct if_clone *, char *, size_t,
+		    struct ifc_data *, struct ifnet **);
+static int	lagg_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
 VNET_DEFINE_STATIC(struct if_clone *, lagg_cloner);
 #define	V_lagg_cloner	VNET(lagg_cloner)
 static const char laggname[] = "lagg";
@@ -304,8 +305,12 @@ vnet_lagg_init(const void *unused __unused)
 
 	LAGG_LIST_LOCK_INIT();
 	SLIST_INIT(&V_lagg_list);
-	V_lagg_cloner = if_clone_simple(laggname, lagg_clone_create,
-	    lagg_clone_destroy, 0);
+	struct if_clone_addreq req = {
+		.create_f = lagg_clone_create,
+		.destroy_f = lagg_clone_destroy,
+		.flags = IFC_F_AUTOUNIT,
+	};
+	V_lagg_cloner = ifc_attach_cloner(laggname, &req);
 }
 VNET_SYSINIT(vnet_lagg_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_lagg_init, NULL);
@@ -314,7 +319,7 @@ static void
 vnet_lagg_uninit(const void *unused __unused)
 {
 
-	if_clone_detach(V_lagg_cloner);
+	ifc_detach_cloner(V_lagg_cloner);
 	LAGG_LIST_LOCK_DESTROY();
 }
 VNET_SYSUNINIT(vnet_lagg_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
@@ -504,7 +509,8 @@ lagg_unregister_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 }
 
 static int
-lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+lagg_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct iflaggparam iflp;
 	struct lagg_softc *sc;
@@ -513,8 +519,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	int error;
 	static const uint8_t eaddr[LAGG_ADDR_LEN];
 
-	if (params != NULL) {
-		error = copyin(params, &iflp, sizeof(iflp));
+	if (ifd->params != NULL) {
+		error = ifc_copyin(ifd, &iflp, sizeof(iflp));
 		if (error)
 			return (error);
 
@@ -565,11 +571,11 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		ifmedia_add(&sc->sc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 		ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
 
-		if_initname(ifp, laggname, unit);
+		if_initname(ifp, laggname, ifd->unit);
 		ifp->if_transmit = lagg_transmit_ethernet;
 		break;
 	case IFT_INFINIBAND:
-		if_initname(ifp, laggname, unit);
+		if_initname(ifp, laggname, ifd->unit);
 		ifp->if_transmit = lagg_transmit_infiniband;
 		break;
 	default:
@@ -612,12 +618,13 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	SLIST_INSERT_HEAD(&V_lagg_list, sc, sc_entries);
 	LAGG_LIST_UNLOCK();
 	LAGG_XUNLOCK(sc);
+	*ifpp = ifp;
 
 	return (0);
 }
 
-static void
-lagg_clone_destroy(struct ifnet *ifp)
+static int
+lagg_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
 	struct lagg_port *lp;
@@ -658,6 +665,8 @@ lagg_clone_destroy(struct ifnet *ifp)
 	mtx_destroy(&sc->sc_mtx);
 	LAGG_SX_DESTROY(sc);
 	free(sc, M_LAGG);
+
+	return (0);
 }
 
 static void

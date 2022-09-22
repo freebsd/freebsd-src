@@ -70,8 +70,9 @@ static void usbpf_init(void *);
 static void usbpf_uninit(void *);
 static int usbpf_ioctl(struct ifnet *, u_long, caddr_t);
 static int usbpf_clone_match(struct if_clone *, const char *);
-static int usbpf_clone_create(struct if_clone *, char *, size_t, caddr_t);
-static int usbpf_clone_destroy(struct if_clone *, struct ifnet *);
+static int usbpf_clone_create(struct if_clone *, char *, size_t,
+	    struct ifc_data *, struct ifnet **);
+static int usbpf_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
 static struct usb_bus *usbpf_ifname2ubus(const char *);
 static uint32_t usbpf_aggregate_xferflags(struct usb_xfer_flags *);
 static uint32_t usbpf_aggregate_status(struct usb_xfer_flags_int *);
@@ -87,9 +88,13 @@ SYSUNINIT(usbpf_uninit, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, usbpf_uninit, NULL);
 static void
 usbpf_init(void *arg)
 {
+	struct if_clone_addreq req = {
+		.match_f = usbpf_clone_match,
+		.create_f = usbpf_clone_create,
+		.destroy_f = usbpf_clone_destroy,
+	};
 
-	usbpf_cloner = if_clone_advanced(usbusname, 0, usbpf_clone_match,
-	    usbpf_clone_create, usbpf_clone_destroy);
+	usbpf_cloner = ifc_attach_cloner(usbusname, &req);
 }
 
 static void
@@ -113,7 +118,7 @@ usbpf_uninit(void *arg)
 	for (i = 0; i < devlcnt; i++) {
 		ubus = device_get_softc(devlp[i]);
 		if (ubus != NULL && ubus->ifp != NULL)
-			usbpf_clone_destroy(usbpf_cloner, ubus->ifp);
+			usbpf_clone_destroy(usbpf_cloner, ubus->ifp, 0);
 	}
 	free(devlp, M_TEMP);
 }
@@ -164,7 +169,8 @@ usbpf_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-usbpf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+usbpf_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	int error;
 	int unit;
@@ -210,12 +216,13 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	 * packets would be.
 	 */
 	bpfattach(ifp, DLT_USB, USBPF_HDR_LEN);
+	*ifpp = ifp;
 
 	return (0);
 }
 
 static int
-usbpf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
+usbpf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct usb_bus *ubus;
 	int unit;
@@ -251,7 +258,7 @@ usbpf_detach(struct usb_bus *ubus)
 {
 
 	if (ubus->ifp != NULL)
-		usbpf_clone_destroy(usbpf_cloner, ubus->ifp);
+		usbpf_clone_destroy(usbpf_cloner, ubus->ifp, 0);
 	if (bootverbose)
 		device_printf(ubus->parent, "usbpf: Detached\n");
 }

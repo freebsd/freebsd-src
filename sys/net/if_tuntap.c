@@ -235,8 +235,9 @@ static void	tunstart_l2(struct ifnet *);
 static int	tun_clone_match(struct if_clone *ifc, const char *name);
 static int	tap_clone_match(struct if_clone *ifc, const char *name);
 static int	vmnet_clone_match(struct if_clone *ifc, const char *name);
-static int	tun_clone_create(struct if_clone *, char *, size_t, caddr_t);
-static int	tun_clone_destroy(struct if_clone *, struct ifnet *);
+static int	tun_clone_create(struct if_clone *, char *, size_t,
+		    struct ifc_data *, struct ifnet **);
+static int	tun_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
 static void	tun_vnethdr_set(struct ifnet *ifp, int vhdrlen);
 
 static d_open_t		tunopen;
@@ -269,9 +270,9 @@ static struct tuntap_driver {
 	int			 ident_flags;
 	struct unrhdr		*unrhdr;
 	struct clonedevs	*clones;
-	ifc_match_t		*clone_match_fn;
-	ifc_create_t		*clone_create_fn;
-	ifc_destroy_t		*clone_destroy_fn;
+	ifc_match_f		*clone_match_fn;
+	ifc_create_f		*clone_create_fn;
+	ifc_destroy_f		*clone_destroy_fn;
 } tuntap_drivers[] = {
 	{
 		.ident_flags =	0,
@@ -514,7 +515,8 @@ vmnet_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-tun_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+tun_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct tuntap_driver *drv;
 	struct cdev *dev;
@@ -546,8 +548,11 @@ tun_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	/* No preexisting struct cdev *, create one */
 	if (i != 0)
 		i = tun_create_device(drv, unit, NULL, &dev, name);
-	if (i == 0)
+	if (i == 0) {
 		tuncreate(dev);
+		struct tuntap_softc *tp = dev->si_drv1;
+		*ifpp = tp->tun_ifp;
+	}
 
 	return (i);
 }
@@ -649,7 +654,7 @@ tun_destroy(struct tuntap_softc *tp)
 }
 
 static int
-tun_clone_destroy(struct if_clone *ifc __unused, struct ifnet *ifp)
+tun_clone_destroy(struct if_clone *ifc __unused, struct ifnet *ifp, uint32_t flags)
 {
 	struct tuntap_softc *tp = ifp->if_softc;
 
@@ -673,9 +678,12 @@ vnet_tun_init(const void *unused __unused)
 		drvc = malloc(sizeof(*drvc), M_TUN, M_WAITOK | M_ZERO);
 
 		drvc->drv = drv;
-		drvc->cloner = if_clone_advanced(drv->cdevsw.d_name, 0,
-		    drv->clone_match_fn, drv->clone_create_fn,
-		    drv->clone_destroy_fn);
+		struct if_clone_addreq req = {
+			.match_f = drv->clone_match_fn,
+			.create_f = drv->clone_create_fn,
+			.destroy_f = drv->clone_destroy_fn,
+		};
+		drvc->cloner = ifc_attach_cloner(drv->cdevsw.d_name, &req);
 		SLIST_INSERT_HEAD(&V_tuntap_driver_cloners, drvc, link);
 	};
 }

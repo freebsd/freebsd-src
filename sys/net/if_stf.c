@@ -214,9 +214,6 @@ static struct sockaddr_in *stf_getin4addr(struct stf_softc *,
 	struct sockaddr_in *, struct in6_addr, struct in6_addr);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
-static int stf_clone_match(struct if_clone *, const char *);
-static int stf_clone_create(struct if_clone *, char *, size_t, caddr_t);
-static int stf_clone_destroy(struct if_clone *, struct ifnet *);
 VNET_DEFINE_STATIC(struct if_clone *, stf_cloner);
 #define V_stf_cloner	VNET(stf_cloner)
 
@@ -242,7 +239,8 @@ stf_clone_match(struct if_clone *ifc, const char *name)
 }
 
 static int
-stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+stf_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	char *dp;
 	int err, unit, wildcard;
@@ -309,11 +307,13 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
+	*ifpp = ifp;
+
 	return (0);
 }
 
 static int
-stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
+stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct stf_softc *sc = ifp->if_softc;
 	int err __unused;
@@ -333,8 +333,12 @@ stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 static void
 vnet_stf_init(const void *unused __unused)
 {
-	V_stf_cloner = if_clone_advanced(stfname, 0, stf_clone_match,
-	    stf_clone_create, stf_clone_destroy);
+	struct if_clone_addreq req = {
+		.match_f = stf_clone_match,
+		.create_f = stf_clone_create,
+		.destroy_f = stf_clone_destroy,
+	};
+	V_stf_cloner = ifc_attach_cloner(stfname, &req);
 }
 VNET_SYSINIT(vnet_stf_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_stf_init, NULL);
 

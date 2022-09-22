@@ -84,10 +84,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/vnet.h>
 
-static int epair_clone_match(struct if_clone *, const char *);
-static int epair_clone_create(struct if_clone *, char *, size_t, caddr_t);
-static int epair_clone_destroy(struct if_clone *, struct ifnet *);
-
 static const char epairname[] = "epair";
 #define	RXRSIZE	4096	/* Probably overkill by 4-8x. */
 
@@ -612,7 +608,8 @@ epair_free_sc(struct epair_softc *sc)
 }
 
 static int
-epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
+epair_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct epair_softc *sca, *scb;
 	struct ifnet *ifp;
@@ -708,6 +705,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	if_link_state_change(scb->ifp, LINK_STATE_UP);
 
+	*ifpp = sca->ifp;
+
 	return (0);
 }
 
@@ -731,7 +730,7 @@ epair_drain_rings(struct epair_softc *sc)
 }
 
 static int
-epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
+epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct ifnet *oifp;
 	struct epair_softc *sca, *scb;
@@ -782,9 +781,12 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 static void
 vnet_epair_init(const void *unused __unused)
 {
-
-	V_epair_cloner = if_clone_advanced(epairname, 0,
-	    epair_clone_match, epair_clone_create, epair_clone_destroy);
+	struct if_clone_addreq req = {
+		.match_f = epair_clone_match,
+		.create_f = epair_clone_create,
+		.destroy_f = epair_clone_destroy,
+	};
+	V_epair_cloner = ifc_attach_cloner(epairname, &req);
 }
 VNET_SYSINIT(vnet_epair_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_epair_init, NULL);
@@ -793,7 +795,7 @@ static void
 vnet_epair_uninit(const void *unused __unused)
 {
 
-	if_clone_detach(V_epair_cloner);
+	ifc_detach_cloner(V_epair_cloner);
 }
 VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_epair_uninit, NULL);
