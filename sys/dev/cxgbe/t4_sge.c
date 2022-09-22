@@ -1562,7 +1562,7 @@ t4_tstmp_to_ns(struct adapter *sc, uint64_t lf)
 	 * Note that vpd.cclk is in khz, we need it in raw hz so
 	 * convert to hz.
 	 */
-	cclk = sc->params.vpd.cclk * 1000;
+	cclk = (uint64_t)sc->params.vpd.cclk * 1000;
 	hw_clocks = hw_tstmp - dcur.hw_prev;
 	tstmp_sec = hw_clocks / cclk;
 	tstmp_nsec = hw_clocks % cclk;
