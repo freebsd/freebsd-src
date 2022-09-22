@@ -39,9 +39,47 @@
 
 #include <sys/_eventhandler.h>
 
-#define IFC_NOGROUP 0x1
+#define	CLONE_COMPAT_13
 
 struct if_clone;
+
+/* Public KPI */
+struct ifc_data {
+	uint32_t	flags;
+	uint32_t	unit;	/* Selected unit when IFC_C_AUTOUNIT set */
+	void		*params;
+	struct vnet	*vnet;
+};
+
+typedef int ifc_match_f(struct if_clone *ifc, const char *name);
+typedef int ifc_create_f(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data *ifd, struct ifnet **ifpp);
+typedef int ifc_destroy_f(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags);
+
+struct if_clone_addreq {
+	uint16_t	version; /* Always 0 for now */
+	uint16_t	spare;
+	uint32_t	flags;
+	uint32_t	maxunit; /* Maximum allowed unit number */
+	ifc_match_f	*match_f;
+	ifc_create_f	*create_f;
+	ifc_destroy_f	*destroy_f;
+};
+
+#define	IFC_F_NOGROUP	0x01	/* Creation flag: don't add unit group */
+#define	IFC_F_AUTOUNIT	0x02	/* Creation flag: automatically select unit */
+#define	IFC_F_SYSSPACE	0x04	/* Cloner callback: params pointer is in kernel memory */
+#define	IFC_F_FORCE	0x08	/* Deletion flag: force interface deletion */
+
+#define	IFC_NOGROUP	IFC_F_NOGROUP
+
+struct if_clone	*ifc_attach_cloner(const char *name, struct if_clone_addreq *req);
+void ifc_detach_cloner(struct if_clone *ifc);
+int ifc_create_ifp(const char *name, struct ifc_data *ifd,
+    struct ifnet **ifpp);
+
+int ifc_copyin(const struct ifc_data *ifd, void *target, size_t len);
+#ifdef CLONE_COMPAT_13
 
 /* Methods. */
 typedef int	ifc_match_t(struct if_clone *, const char *);
@@ -58,6 +96,7 @@ struct if_clone *
 struct if_clone *
 	if_clone_simple(const char *, ifcs_create_t, ifcs_destroy_t, u_int);
 void	if_clone_detach(struct if_clone *);
+#endif
 
 /* Unit (de)allocating functions. */
 int	ifc_name2unit(const char *name, int *unit);
