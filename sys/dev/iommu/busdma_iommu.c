@@ -519,7 +519,7 @@ iommu_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    DOMAINSET_PREF(tag->common.domain), mflags);
 		map->flags |= BUS_DMAMAP_IOMMU_MALLOC;
 	} else {
-		*vaddr = (void *)kmem_alloc_attr_domainset(
+		*vaddr = kmem_alloc_attr_domainset(
 		    DOMAINSET_PREF(tag->common.domain), tag->common.maxsize,
 		    mflags, 0ul, BUS_SPACE_MAXADDR, attr);
 		map->flags |= BUS_DMAMAP_IOMMU_KMEM_ALLOC;
@@ -547,7 +547,7 @@ iommu_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map1)
 	} else {
 		KASSERT((map->flags & BUS_DMAMAP_IOMMU_KMEM_ALLOC) != 0,
 		    ("iommu_bus_dmamem_free for non alloced map %p", map));
-		kmem_free((vm_offset_t)vaddr, tag->common.maxsize);
+		kmem_free(vaddr, tag->common.maxsize);
 		map->flags &= ~BUS_DMAMAP_IOMMU_KMEM_ALLOC;
 	}
 

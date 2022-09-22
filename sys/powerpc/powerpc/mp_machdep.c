@@ -176,7 +176,7 @@ cpu_mp_start(void)
 			void *dpcpu;
 
 			pc = &__pcpu[cpu.cr_cpuid];
-			dpcpu = (void *)kmem_malloc_domainset(DOMAINSET_PREF(domain),
+			dpcpu = kmem_malloc_domainset(DOMAINSET_PREF(domain),
 			    DPCPU_SIZE, M_WAITOK | M_ZERO);
 			pcpu_init(pc, cpu.cr_cpuid, sizeof(*pc));
 			dpcpu_init(dpcpu, cpu.cr_cpuid);

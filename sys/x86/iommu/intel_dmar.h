@@ -158,7 +158,7 @@ struct dmar_unit {
 
 	/* QI */
 	int qi_enabled;
-	vm_offset_t inv_queue;
+	char *inv_queue;
 	vm_size_t inv_queue_size;
 	uint32_t inv_queue_avail;
 	uint32_t inv_queue_tail;

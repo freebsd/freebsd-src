@@ -313,8 +313,7 @@ smp_after_idle_runnable(void *arg __unused)
 
 	for (cpu = 1; cpu <= mp_maxid; cpu++) {
 		if (bootstacks[cpu] != NULL)
-			kmem_free((vm_offset_t)bootstacks[cpu],
-			    MP_BOOTSTACK_SIZE);
+			kmem_free(bootstacks[cpu], MP_BOOTSTACK_SIZE);
 	}
 }
 SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,
@@ -475,11 +474,10 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
 	pcpup->pc_hart = hart;
 
-	dpcpu[cpuid - 1] = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
+	dpcpu[cpuid - 1] = kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 	dpcpu_init(dpcpu[cpuid - 1], cpuid);
 
-	bootstacks[cpuid] = (void *)kmem_malloc(MP_BOOTSTACK_SIZE,
-	    M_WAITOK | M_ZERO);
+	bootstacks[cpuid] = kmem_malloc(MP_BOOTSTACK_SIZE, M_WAITOK | M_ZERO);
 
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + MP_BOOTSTACK_SIZE;

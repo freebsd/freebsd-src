@@ -423,17 +423,17 @@ start_all_aps(void)
 			domain = acpi_pxm_get_cpu_locality(apic_id);
 #endif
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
+		bootstacks[cpu] = kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc(DBLFAULT_STACK_SIZE,
+		doublefault_stack = kmem_malloc(DBLFAULT_STACK_SIZE,
 		    M_WAITOK | M_ZERO);
-		mce_stack = (char *)kmem_malloc(MCE_STACK_SIZE,
+		mce_stack = kmem_malloc(MCE_STACK_SIZE,
 		    M_WAITOK | M_ZERO);
-		nmi_stack = (char *)kmem_malloc_domainset(
+		nmi_stack = kmem_malloc_domainset(
 		    DOMAINSET_PREF(domain), NMI_STACK_SIZE, M_WAITOK | M_ZERO);
-		dbg_stack = (char *)kmem_malloc_domainset(
+		dbg_stack = kmem_malloc_domainset(
 		    DOMAINSET_PREF(domain), DBG_STACK_SIZE, M_WAITOK | M_ZERO);
-		dpcpu = (void *)kmem_malloc_domainset(DOMAINSET_PREF(domain),
+		dpcpu = kmem_malloc_domainset(DOMAINSET_PREF(domain),
 		    DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 		bootpcpu = &__pcpu[cpu];

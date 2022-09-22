@@ -342,9 +342,9 @@ dmar_init_irt(struct dmar_unit *unit)
 		return (0);
 	}
 	unit->irte_cnt = clp2(num_io_irqs);
-	unit->irt = (dmar_irte_t *)(uintptr_t)kmem_alloc_contig(
-	    unit->irte_cnt * sizeof(dmar_irte_t), M_ZERO | M_WAITOK, 0,
-	    dmar_high, PAGE_SIZE, 0, DMAR_IS_COHERENT(unit) ?
+	unit->irt = kmem_alloc_contig(unit->irte_cnt * sizeof(dmar_irte_t),
+	    M_ZERO | M_WAITOK, 0, dmar_high, PAGE_SIZE, 0,
+	    DMAR_IS_COHERENT(unit) ?
 	    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
 	if (unit->irt == NULL)
 		return (ENOMEM);
@@ -378,7 +378,6 @@ dmar_fini_irt(struct dmar_unit *unit)
 		dmar_disable_ir(unit);
 		dmar_qi_invalidate_iec_glob(unit);
 		vmem_destroy(unit->irtids);
-		kmem_free((vm_offset_t)unit->irt, unit->irte_cnt *
-		    sizeof(dmar_irte_t));
+		kmem_free(unit->irt, unit->irte_cnt * sizeof(dmar_irte_t));
 	}
 }

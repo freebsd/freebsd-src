@@ -229,7 +229,7 @@ kmem_alloc_contig_pages(vm_object_t object, vm_pindex_t pindex, int domain,
  *	necessarily physically contiguous.  If M_ZERO is specified through the
  *	given flags, then the pages are zeroed before they are mapped.
  */
-static vm_offset_t
+static void *
 kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
@@ -270,10 +270,10 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	}
 	VM_OBJECT_WUNLOCK(object);
 	kmem_alloc_san(addr, size, asize, flags);
-	return (addr);
+	return ((void *)addr);
 }
 
-vm_offset_t
+void *
 kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
     vm_memattr_t memattr)
 {
@@ -282,19 +282,19 @@ kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
 	    high, memattr));
 }
 
-vm_offset_t
+void *
 kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
-	vm_offset_t addr;
+	void *addr;
 	int domain;
 
 	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
 		addr = kmem_alloc_attr_domain(domain, size, flags, low, high,
 		    memattr);
-		if (addr != 0)
+		if (addr != NULL)
 			break;
 	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
@@ -309,7 +309,7 @@ kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
  *	through the given flags, then the pages are zeroed before they are
  *	mapped.
  */
-static vm_offset_t
+static void *
 kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
@@ -326,7 +326,7 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	asize = round_page(size);
 	vmem = vm_dom[domain].vmd_kernel_arena;
 	if (vmem_alloc(vmem, asize, flags | M_BESTFIT, &addr))
-		return (0);
+		return (NULL);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
 	npages = atop(asize);
@@ -336,7 +336,7 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		vmem_free(vmem, addr, asize);
-		return (0);
+		return (NULL);
 	}
 	KASSERT(vm_page_domain(m) == domain,
 	    ("kmem_alloc_contig_domain: Domain mismatch %d != %d",
@@ -353,10 +353,10 @@ kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 	}
 	VM_OBJECT_WUNLOCK(object);
 	kmem_alloc_san(addr, size, asize, flags);
-	return (addr);
+	return ((void *)addr);
 }
 
-vm_offset_t
+void *
 kmem_alloc_contig(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary, vm_memattr_t memattr)
 {
@@ -365,20 +365,20 @@ kmem_alloc_contig(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
 	    high, alignment, boundary, memattr));
 }
 
-vm_offset_t
+void *
 kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
 {
 	struct vm_domainset_iter di;
-	vm_offset_t addr;
+	void *addr;
 	int domain;
 
 	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
 		addr = kmem_alloc_contig_domain(domain, size, flags, low, high,
 		    alignment, boundary, memattr);
-		if (addr != 0)
+		if (addr != NULL)
 			break;
 	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
@@ -423,7 +423,7 @@ kmem_subinit(vm_map_t map, vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
  *
  *	Allocate wired-down pages in the kernel's address space.
  */
-static vm_offset_t
+static void *
 kmem_malloc_domain(int domain, vm_size_t size, int flags)
 {
 	vmem_t *arena;
@@ -445,27 +445,27 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 		return (0);
 	}
 	kasan_mark((void *)addr, size, asize, KASAN_KMEM_REDZONE);
-	return (addr);
+	return ((void *)addr);
 }
 
-vm_offset_t
+void *
 kmem_malloc(vm_size_t size, int flags)
 {
 
 	return (kmem_malloc_domainset(DOMAINSET_RR(), size, flags));
 }
 
-vm_offset_t
+void *
 kmem_malloc_domainset(struct domainset *ds, vm_size_t size, int flags)
 {
 	struct vm_domainset_iter di;
-	vm_offset_t addr;
+	void *addr;
 	int domain;
 
 	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
 		addr = kmem_malloc_domain(domain, size, flags);
-		if (addr != 0)
+		if (addr != NULL)
 			break;
 	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
@@ -631,15 +631,15 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
  *	original allocation.
  */
 void
-kmem_free(vm_offset_t addr, vm_size_t size)
+kmem_free(void *addr, vm_size_t size)
 {
 	struct vmem *arena;
 
 	size = round_page(size);
-	kasan_mark((void *)addr, size, size, 0);
-	arena = _kmem_unback(kernel_object, addr, size);
+	kasan_mark(addr, size, size, 0);
+	arena = _kmem_unback(kernel_object, (uintptr_t)addr, size);
 	if (arena != NULL)
-		vmem_free(arena, addr, size);
+		vmem_free(arena, (uintptr_t)addr, size);
 }
 
 /*

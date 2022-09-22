@@ -153,9 +153,8 @@ agp_alloc_gatt(device_t dev)
 		return 0;
 
 	gatt->ag_entries = entries;
-	gatt->ag_virtual = (void *)kmem_alloc_contig(entries *
-	    sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE, 0,
-	    VM_MEMATTR_WRITE_COMBINING);
+	gatt->ag_virtual = kmem_alloc_contig(entries * sizeof(uint32_t),
+	    M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_virtual) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
@@ -170,8 +169,7 @@ agp_alloc_gatt(device_t dev)
 void
 agp_free_gatt(struct agp_gatt *gatt)
 {
-	kmem_free((vm_offset_t)gatt->ag_virtual, gatt->ag_entries *
-	    sizeof(u_int32_t));
+	kmem_free(gatt->ag_virtual, gatt->ag_entries * sizeof(uint32_t));
 	free(gatt, M_AGP);
 }
 
