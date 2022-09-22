@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 9, 2022
+.Dd October 28, 2022
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -710,6 +710,9 @@ see the
 .Ic group
 keyword in
 .Xr ifconfig 8 .
+.It Ar bridge-to Aq interface
+Packets matching this rule will be sent out of the specified interface without
+futher processing.
 .It Ar proto Aq Ar protocol
 This rule applies only to packets of this protocol.
 Note that Ethernet protocol numbers are different from those used in
@@ -3076,8 +3079,9 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
                  [ "keepcounters" ] )
 
 ether-rule     = "ether" etheraction [ ( "in" | "out" ) ]
-                 [ "quick" ] [ "on" ifspec ] [ etherprotospec ]
-                 etherhosts [ "l3" hosts ] [ etherfilteropt-list ]
+                 [ "quick" ] [ "on" ifspec ] [ "bridge-to" interface-name ]
+                 [ etherprotospec ] etherhosts [ "l3" hosts ]
+                 [ etherfilteropt-list ]
 
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
