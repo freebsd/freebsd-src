@@ -318,7 +318,7 @@ extern ipf_dstnode_t *printdstlistnode(ipf_dstnode_t *, copyfunc_t,
 extern void printdstlistpolicy(ippool_policy_t);
 extern struct ip_pool_s *printpool(struct ip_pool_s *, copyfunc_t,
 					char *, int, wordtab_t *);
-extern struct ip_pool_s *printpool_live(struct ip_pool_s *, int,
+extern void printpool_live(struct ip_pool_s *, int,
 					     char *, int, wordtab_t *);
 extern void printpooldata(ip_pool_t *, int);
 extern void printpoolfield(void *, int, int);
