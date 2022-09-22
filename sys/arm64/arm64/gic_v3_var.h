@@ -84,6 +84,9 @@ struct gic_v3_softc {
 	device_t		*gic_children;
 	struct intr_pic		*gic_pic;
 	struct gic_v3_irqsrc	*gic_irqs;
+
+	int			nranges;
+	struct arm_gic_range *	ranges;
 };
 
 struct gic_v3_devinfo {

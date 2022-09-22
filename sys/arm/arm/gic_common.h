@@ -31,6 +31,12 @@
 #ifndef _GIC_COMMON_H_
 #define _GIC_COMMON_H_
 
+struct arm_gic_range {
+	uint64_t bus;
+	uint64_t host;
+	uint64_t size;
+};
+
 #define	GIC_IVAR_HW_REV		500
 #define	GIC_IVAR_BUS		501
 #define	GIC_IVAR_VGIC		502
