@@ -90,13 +90,11 @@ static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
 	struct intr_event *event;
-	long	*cntp;
 	void	*priv;		/* PIC-private data */
 	device_t pic;
 	u_int	irq;
 	u_int	intline;
 	u_int	vector;
-	u_int	cntindex;
 	int	fwcode;
 	int	ipi;
 	int	pi_domain;
@@ -170,7 +168,7 @@ intr_init_sources(void *arg __unused)
 
 	powerpc_intrs = mallocarray(num_io_irqs, sizeof(*powerpc_intrs),
 	    M_INTR, M_WAITOK | M_ZERO);
-	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
+	nintrcnt = 1 + mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
@@ -220,7 +218,6 @@ extern void kdb_backtrace(void);
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
-	char intrname[16];
 	struct powerpc_intr *i, *iscan;
 	int vector;
 
@@ -240,7 +237,6 @@ intr_lookup(u_int irq)
 	}
 
 	i->event = NULL;
-	i->cntp = NULL;
 	i->priv = NULL;
 	i->trig = INTR_TRIGGER_CONFORM;
 	i->pol = INTR_POLARITY_CONFORM;
@@ -268,10 +264,6 @@ intr_lookup(u_int irq)
 
 	if (iscan == NULL && i->vector != -1) {
 		powerpc_intrs[i->vector] = i;
-		i->cntindex = nintrcnt - 1;
-		i->cntp = &intrcnt[i->cntindex];
-		sprintf(intrname, "irq%u:", i->irq);
-		intrcnt_setname(intrname, i->cntindex);
 		nvectors++;
 	}
 	mtx_unlock(&intr_table_lock);
@@ -539,9 +531,6 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		CPU_ZERO(&i->pi_cpuset);
 		CPU_COPY(&cpuset_domain[domain], &i->pi_cpuset);
 	}
-	mtx_lock(&intr_table_lock);
-	intrcnt_setname(i->event->ie_fullname, i->cntindex);
-	mtx_unlock(&intr_table_lock);
 
 	if (!cold) {
 		error = powerpc_map_irq(i);
@@ -636,8 +625,6 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	i = powerpc_intrs[vector];
 	if (i == NULL)
 		goto stray;
-
-	(*i->cntp)++;
 
 	ie = i->event;
 	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
