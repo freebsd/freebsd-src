@@ -371,7 +371,7 @@ struct qlnx_host {
 	uint8_t			dev_unit;
 	uint16_t		device_id;
 
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			if_flags;
 	volatile int		link_up;
 	struct ifmedia		media;
@@ -512,7 +512,7 @@ typedef struct qlnx_host qlnx_host_t;
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
 #define QL_RUNNING(ifp) \
-		((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == \
+		((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == \
 			IFF_DRV_RUNNING)
 
 #define QLNX_MAX_MTU			9000
