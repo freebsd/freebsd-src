@@ -14,7 +14,7 @@ SRCS+=	irdma_ctrl.c irdma_hmc.c icrdma_hw.c irdma_pble.c irdma_puda.c irdma_uda.
 
 CFLAGS+= -I${ICE_DIR} -I${OFED_INC_DIR}
 CFLAGS+= -I${OFED_INC_DIR}/uapi
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM
 
 ice_rdma.h:
