@@ -311,7 +311,8 @@ NORMAL_CTFCONVERT=	@:
 .endif
 
 # Linux Kernel Programming Interface C-flags
-LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include
+LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include \
+			-I$S/compat/linuxkpi/dummy/include
 LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
 
 # Infiniband C flags.  Correct include paths and omit errors that linux
