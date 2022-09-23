@@ -432,8 +432,8 @@ gic_v3_acpi_bus_attach(device_t dev)
 			resource_list_init(&di->di_rl);
 			di->di_gic_dinfo.gic_domain = -1;
 			di->di_gic_dinfo.is_vgic = 1;
-			sc->gic_nchildren++;
 			device_set_ivars(child, di);
+			sc->gic_nchildren++;
 		}
 	}
 
