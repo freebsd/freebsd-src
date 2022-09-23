@@ -1282,9 +1282,10 @@ kick_other_cpu(int pri, int cpuid)
 	}
 #endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
 
-	ast_sched_locked(pcpu->pc_curthread, TDA_SCHED);
-	ipi_cpu(cpuid, IPI_AST);
-	return;
+	if (pcpu->pc_curthread->td_lock == &sched_lock) {
+		ast_sched_locked(pcpu->pc_curthread, TDA_SCHED);
+		ipi_cpu(cpuid, IPI_AST);
+	}
 }
 #endif /* SMP */
 
