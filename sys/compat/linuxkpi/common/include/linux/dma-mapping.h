@@ -288,11 +288,15 @@ dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
 {
 }
 
+#define	DMA_MAPPING_ERROR	(~(dma_addr_t)0)
+
 static inline int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 
-	return (dma_addr == 0);
+	if (dma_addr == 0 || dma_addr == DMA_MAPPING_ERROR)
+		return (-ENOMEM);
+	return (0);
 }
 
 static inline unsigned int dma_set_max_seg_size(struct device *dev,
