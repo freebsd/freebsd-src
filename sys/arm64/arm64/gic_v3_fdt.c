@@ -353,7 +353,7 @@ gic_v3_ofw_bus_attach(device_t dev)
 	}
 
 	/*
-	 * If there is a vgic maintanance interupt add a virtual gic
+	 * If there is a vgic maintanance interrupt add a virtual gic
 	 * child so we can use this in the vmm module for bhyve.
 	 */
 	if (OF_hasprop(parent, "interrupts")) {
