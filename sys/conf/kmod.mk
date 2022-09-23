@@ -108,6 +108,9 @@ LINUXKPI_GENSRCS+= \
 	opt_usb.h \
 	opt_stack.h
 
+LINUXKPI_INCLUDES+= \
+	-I${SYSDIR}/compat/linuxkpi/common/include
+
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE

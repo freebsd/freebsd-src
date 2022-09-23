@@ -24,6 +24,6 @@ SRCS+= bus_if.h device_if.h pci_if.h vnode_if.h
 
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include/common
-CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 
 .include <bsd.kmod.mk>

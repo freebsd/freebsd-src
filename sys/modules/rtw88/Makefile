@@ -36,7 +36,7 @@ SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h
 CFLAGS+=	-DKBUILD_MODNAME='"rtw88"'
 
 CFLAGS+=	-I${DEVRTW88DIR}
-CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DCONFIG_RTW88_DEBUG
 #CFLAGS+=	-DCONFIG_RTW88_DEBUGFS
 

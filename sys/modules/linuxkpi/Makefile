@@ -46,7 +46,7 @@ SRCS+=	opt_apic.h
 SRCS+=	opt_ddb.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
-CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 
 EXPORT_SYMS=	YES

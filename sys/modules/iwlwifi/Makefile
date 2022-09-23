@@ -35,7 +35,7 @@ SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 CFLAGS+=	-DKBUILD_MODNAME='"iwlwifi"'
 
 CFLAGS+=	-I${DEVIWLWIFIDIR}
-CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DCONFIG_IWLDVM=0
 CFLAGS+=	-DCONFIG_IWLMVM=1
 # Helpful after fresh imports.

@@ -13,7 +13,7 @@ SRCS+= qat_c4xxx/adf_c4xxx_pke_replay_stats.c qat_c4xxx/adf_c4xxx_ras.c qat_c4xx
 SRCS+= qat_c4xxx/adf_c4xxx_reset.c
 SRCS+= device_if.h bus_if.h vnode_if.h pci_if.h cryptodev_if.h
 
-CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include/common
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/include
