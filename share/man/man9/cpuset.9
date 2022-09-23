@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2019
+.Dd September 23, 2022
 .Dt CPUSET 9
 .Os
 .Sh NAME
@@ -110,9 +110,9 @@ Each CPU is represented by a single bit.
 The maximum number of CPUs representable by
 .Vt cpuset_t
 is
-.Va MAXCPU .
+.Va CPU_SETSIZE .
 Individual CPUs in cpusets are referenced with indices zero through
-.Fa MAXCPU - 1 .
+.Fa CPU_SETSIZE - 1 .
 .Pp
 The
 .Fn CPUSET_T_INITIALIZER
