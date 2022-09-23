@@ -40,7 +40,7 @@ SRCS+=	opt_acpi.h acpi_if.h linux_acpi.c linux_fpu.c
 SRCS+=	opt_ddb.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
-CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 
 EXPORT_SYMS=	YES

@@ -8,7 +8,7 @@ SRCS=	linux_80211.c \
 SRCS+=	opt_wlan.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
-CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= ${LINUXKPI_INCLUDES}
 
 EXPORT_SYMS=	YES
 
