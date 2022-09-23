@@ -109,7 +109,8 @@ LINUXKPI_GENSRCS+= \
 	opt_stack.h
 
 LINUXKPI_INCLUDES+= \
-	-I${SYSDIR}/compat/linuxkpi/common/include
+	-I${SYSDIR}/compat/linuxkpi/common/include \
+	-I${SYSDIR}/compat/linuxkpi/dummy/include
 
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
