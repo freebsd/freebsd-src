@@ -332,7 +332,7 @@ int qlnxr_ll2_start(struct qlnxr_dev *dev,
 
 	memset(&data, 0, sizeof(data));
 	data.input.conn_type = ECORE_LL2_TYPE_ROCE;
-	data.input.mtu = dev->ha->ifp->if_mtu;
+	data.input.mtu = if_getmtu(dev->ha->ifp);
 	data.input.rx_num_desc = 8 * 1024;
 	data.input.rx_drop_ttl0_flg = 1;
 	data.input.rx_vlan_removal_en = 0;

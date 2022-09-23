@@ -628,7 +628,7 @@ qlnxr_query_port(struct ib_device *ibdev, uint8_t port,
 	}
 
 	attr->max_mtu = IB_MTU_4096;
-	attr->active_mtu = iboe_get_mtu(dev->ha->ifp->if_mtu);
+	attr->active_mtu = iboe_get_mtu(if_getmtu(dev->ha->ifp));
 	attr->lid = 0;
 	attr->lmc = 0;
 	attr->sm_lid = 0;
@@ -3449,12 +3449,12 @@ qlnxr_modify_qp(struct ib_qp	*ibqp,
 			}
 			qp->mtu = min(ib_mtu_enum_to_int(attr->path_mtu),
 				      ib_mtu_enum_to_int(
-						iboe_get_mtu(dev->ha->ifp->if_mtu)));
+						iboe_get_mtu(if_getmtu(dev->ha->ifp))));
 		}
 
 		if (qp->mtu == 0) {
 			qp->mtu = ib_mtu_enum_to_int(
-					iboe_get_mtu(dev->ha->ifp->if_mtu));
+					iboe_get_mtu(if_getmtu(dev->ha->ifp)));
 			QL_DPRINT12(ha, "fixing zetoed MTU to qp->mtu = %d\n",
 				qp->mtu);
 		}
@@ -3502,7 +3502,7 @@ qlnxr_modify_qp(struct ib_qp	*ibqp,
 			qp_params.mtu = qp->mtu;
 		} else {
 			qp_params.mtu = ib_mtu_enum_to_int(
-						iboe_get_mtu(dev->ha->ifp->if_mtu));
+						iboe_get_mtu(if_getmtu(dev->ha->ifp)));
 		}
 	}
 
@@ -4269,7 +4269,7 @@ qlnxr_post_send(struct ib_qp *ibqp,
 	QL_DPRINT12(ha, "exit[ibqp, wr, bad_wr] = [%p, %p, %p]\n",
 		ibqp, wr, bad_wr);
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	if (qp->qp_type == IB_QPT_GSI)
@@ -4629,7 +4629,7 @@ qlnxr_post_recv(struct ib_qp *ibqp,
 
 	ha = dev->ha;
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	QL_DPRINT12(ha, "enter\n");
@@ -5224,7 +5224,7 @@ qlnxr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	QL_DPRINT12(ha, "enter\n");
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	if (cq->destroyed) {
@@ -5323,7 +5323,7 @@ qlnxr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 		"cp = %p cons = 0x%x cq_type = 0x%x\n", ibcq,
 		flags, cq, cq->cq_cons, cq->cq_type);
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	if (cq->destroyed) {
@@ -5899,7 +5899,7 @@ qlnxr_iw_mpa_reply(void *context,
 
 	QL_DPRINT12(ha, "enter\n");
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	bzero(&rtr_in, sizeof(struct ecore_iwarp_send_rtr_in));
@@ -6089,7 +6089,7 @@ qlnxr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	QL_DPRINT12(ha, "[cm_id, conn_param] = [%p, %p] "
 		"enter \n", cm_id, conn_param);
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	qp = idr_find(&dev->qpidr, conn_param->qpn);
@@ -6127,7 +6127,7 @@ qlnxr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	in_params.cm_info.remote_port = ntohs(raddr->sin_port);
 	in_params.cm_info.local_port = ntohs(laddr->sin_port);
 	in_params.cm_info.vlan = 0;
-	in_params.mss = dev->ha->ifp->if_mtu - 40;
+	in_params.mss = if_getmtu(dev->ha->ifp) - 40;
 
 	QL_DPRINT12(ha, "remote_ip = [%d.%d.%d.%d] "
 		"local_ip = [%d.%d.%d.%d] remote_port = %d local_port = %d "
@@ -6192,7 +6192,7 @@ qlnxr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	QL_DPRINT12(ha, "enter\n");
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	laddr = (struct sockaddr_in *)&cm_id->local_addr;
@@ -6284,7 +6284,7 @@ qlnxr_iw_accept(struct iw_cm_id *cm_id,
 
 	QL_DPRINT12(ha, "enter  qpid=%d\n", conn_param->qpn);
 
-	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ha->ifp) & IFF_DRV_RUNNING))
 		return -EINVAL;
 
 	qp = idr_find(&dev->qpidr, conn_param->qpn);

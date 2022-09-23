@@ -857,25 +857,34 @@ qlnxr_build_sgid_mac(union ib_gid *sgid, unsigned char *mac_addr,
 static bool
 qlnxr_add_sgid(struct qlnxr_dev *dev, union ib_gid *new_sgid);
 
-static void
-qlnxr_add_ip_based_gid(struct qlnxr_dev *dev, struct ifnet *ifp)
-{
-	struct ifaddr *ifa;
+struct qlnx_cb_s {
+	struct qlnxr_dev *dev;
 	union ib_gid gid;
+};
 
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-			QL_DPRINT12(dev->ha, "IP address : %x\n", ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr.s_addr);
-			ipv6_addr_set_v4mapped(
-				((struct sockaddr_in *) ifa->ifa_addr)->sin_addr.s_addr,
-				(struct in6_addr *)&gid);
-			QL_DPRINT12(dev->ha, "gid generated : %llx\n", gid);
+static u_int
+qlnxr_add_ip_based_gid_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct qlnx_cb_s *cba = arg;
 
-			qlnxr_add_sgid(dev, &gid);
-		}
-	}
+	QL_DPRINT12(cba->dev->ha, "IP address : %x\n", ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr.s_addr);
+	ipv6_addr_set_v4mapped(
+		((struct sockaddr_in *) ifa->ifa_addr)->sin_addr.s_addr,
+		(struct in6_addr *)&cba->gid);
+	QL_DPRINT12(cba->dev->ha, "gid generated : %llx\n", cba->gid);
+
+	qlnxr_add_sgid(cba->dev, &cba->gid);
+	return (1);
+}
+
+static void
+qlnxr_add_ip_based_gid(struct qlnxr_dev *dev, if_t ifp)
+{
+	struct qlnx_cb_s cba;
+
+	if_foreach_addr_type(ifp, AF_INET, qlnxr_add_ip_based_gid_cb, &cba);
 	for (int i = 0; i < 16; i++) {
-		QL_DPRINT12(dev->ha, "gid generated : %x\n", gid.raw[i]);
+		QL_DPRINT12(dev->ha, "gid generated : %x\n", cba.gid.raw[i]);
 	}
 }
 
@@ -981,7 +990,7 @@ qlnxr_add_default_sgid(struct qlnxr_dev *dev)
 
 static int qlnxr_addr_event (struct qlnxr_dev *dev,
 				unsigned long event,
-				struct ifnet *ifp,
+				if_t ifp,
 				union ib_gid *gid)
 {
 	bool is_vlan = false;
