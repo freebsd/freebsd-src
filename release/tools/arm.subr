@@ -78,7 +78,7 @@ arm_create_disk() {
 	if [ "${PART_SCHEME}" = "MBR" ]; then
 		chroot ${CHROOTDIR} gpart add -t '!12' -a 512k -s ${FAT_SIZE} ${mddev}
 		chroot ${CHROOTDIR} gpart set -a active -i 1 ${mddev}
-		chroot ${CHROOTDIR} newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
+		chroot ${CHROOTDIR} newfs_msdos -L efi -F ${FAT_TYPE} /dev/${mddev}s1
 		chroot ${CHROOTDIR} gpart add -t freebsd ${mddev}
 		chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
 		chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k -b 64k ${mddev}s2
@@ -189,7 +189,8 @@ arm_install_base() {
 		DESTDIR=${DESTDIR} KERNCONF=${KERNEL} \
 		${CONF_FILES} installworld installkernel distribution
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/efi
-	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/msdos
+	# Compatibility symlink to /boot/msdos for 13.1 and earlier
+	chroot ${CHROOTDIR} ln -s ${DESTDIR}/boot/efi ${DESTDIR}/boot/msdos
 
 	arm_create_user
 	arm_setup_usb_otg
@@ -209,7 +210,7 @@ arm_install_base() {
 	if [ "${PART_SCHEME}" = "MBR" ]; then
 		echo "/dev/ufs/rootfs		/		ufs	rw		1	1" \
 			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-		echo "/dev/msdosfs/MSDOSBOOT	/boot/msdos 	msdosfs	rw,noatime	0	0" \
+		echo "/dev/msdosfs/EFI		/boot/efi 	msdosfs	rw,noatime	0	0" \
 			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	fi
 	echo "tmpfs			/tmp		tmpfs	rw,mode=1777	0	0" \
