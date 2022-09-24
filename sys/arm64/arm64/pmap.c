@@ -5920,13 +5920,8 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		l1 = pmap_l0_to_l1(l0, sva);
 		if (pmap_load(l1) == 0)
 			continue;
-		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
-			KASSERT(va_next <= eva,
-			    ("partial update of non-transparent 1G page "
-			    "l1 %#lx sva %#lx eva %#lx va_next %#lx",
-			    pmap_load(l1), sva, eva, va_next));
+		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK)
 			continue;
-		}
 
 		va_next = (sva + L2_SIZE) & ~L2_OFFSET;
 		if (va_next < sva)
