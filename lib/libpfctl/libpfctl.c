@@ -224,6 +224,7 @@ pfctl_get_status(int dev)
 	status->hostid = ntohl(nvlist_get_number(nvl, "hostid"));
 	status->states = nvlist_get_number(nvl, "states");
 	status->src_nodes = nvlist_get_number(nvl, "src_nodes");
+	status->syncookies_active = nvlist_get_bool(nvl, "syncookies_active");
 
 	strlcpy(status->ifname, nvlist_get_string(nvl, "ifname"),
 	    IFNAMSIZ);
