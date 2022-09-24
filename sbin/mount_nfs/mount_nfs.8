@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2022
+.Dd September 24, 2022
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -466,7 +466,7 @@ Alias for
 .Cm timeout .
 .It Cm tls
 This option specifies that the connection to the server must use TLS
-per RFC NNNN.
+per RFC 9289.
 TLS is only supported for TCP connections and the
 .Xr rpc.tlsclntd 8
 daemon must be running for an NFS over TCP connection to use TLS.
