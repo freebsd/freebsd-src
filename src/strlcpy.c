@@ -18,6 +18,9 @@
 
 /* OPENBSD ORIGINAL: lib/libc/string/strlcpy.c */
 #include "file.h"
+#ifndef lint
+FILE_RCSID("@(#)$File: strlcpy.c,v 1.3 2022/09/13 18:46:07 christos Exp $")
+#endif
 
 #include <sys/types.h>
 #include <string.h>

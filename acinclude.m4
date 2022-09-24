@@ -35,7 +35,8 @@ if test "$ac_cv_struct_tm_isdst" = yes; then
 fi
 
 
-AC_CHECK_DECLS([daylight], , , [#include <time.h>])
+AC_CHECK_DECLS([daylight], , , [#include <time.h>
+#include <stdlib.h>])
 AC_CACHE_CHECK(for daylight, ac_cv_var_daylight,
 [AC_LINK_IFELSE(
 [AC_LANG_PROGRAM([#include <time.h>],
