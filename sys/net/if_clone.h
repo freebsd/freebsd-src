@@ -78,6 +78,9 @@ void ifc_detach_cloner(struct if_clone *ifc);
 int ifc_create_ifp(const char *name, struct ifc_data *ifd,
     struct ifnet **ifpp);
 
+void ifc_link_ifp(struct if_clone *ifc, struct ifnet *ifp);
+bool ifc_unlink_ifp(struct if_clone *ifc, struct ifnet *ifp);
+
 int ifc_copyin(const struct ifc_data *ifd, void *target, size_t len);
 #ifdef CLONE_COMPAT_13
 
