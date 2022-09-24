@@ -57,6 +57,7 @@ struct pfctl_status {
 	uint64_t	src_nodes;
 	char		ifname[IFNAMSIZ];
 	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
+	bool		syncookies_active;
 
 	struct pfctl_status_counters	 counters;
 	struct pfctl_status_counters	 lcounters;
