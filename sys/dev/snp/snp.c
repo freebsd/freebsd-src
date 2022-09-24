@@ -289,10 +289,13 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		tp = ss->snp_tty;
 		if (tp != NULL) {
 			tty_lock(tp);
-			*(int *)data = ttyoutq_bytesused(&ss->snp_outq);
+			if (tty_gone(tp))
+				*(int *)data = SNP_TTYCLOSE;
+			else
+				*(int *)data = ttyoutq_bytesused(&ss->snp_outq);
 			tty_unlock(tp);
 		} else {
-			*(int *)data = 0;
+			*(int *)data = SNP_DETACH;
 		}
 		return (0);
 	default:
