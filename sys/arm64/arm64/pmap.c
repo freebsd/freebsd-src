@@ -5804,10 +5804,6 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 			continue;
 		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
 			PMAP_ASSERT_L1_BLOCKS_SUPPORTED;
-			KASSERT(va_next <= eva,
-			    ("partial update of non-transparent 1G page "
-			    "l1 %#lx sva %#lx eva %#lx va_next %#lx",
-			    pmap_load(l1), sva, eva, va_next));
 			continue;
 		}
 
