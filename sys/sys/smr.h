@@ -122,8 +122,12 @@ smr_enter(smr_t smr)
 	 * Frees that are newer than this stored value will be
 	 * deferred until we call smr_exit().
 	 *
-	 * An acquire barrier is used to synchronize with smr_exit()
-	 * and smr_poll().
+	 * Subsequent loads must not be re-ordered with the store.  On
+	 * x86 platforms, any locked instruction will provide this
+	 * guarantee, so as an optimization we use a single operation to
+	 * both store the cached write sequence number and provide the
+	 * requisite barrier, taking advantage of the fact that
+	 * SMR_SEQ_INVALID is zero.
 	 *
 	 * It is possible that a long delay between loading the wr_seq
 	 * and storing the c_seq could create a situation where the
@@ -132,8 +136,12 @@ smr_enter(smr_t smr)
 	 * the load.  See smr_poll() for details on how this condition
 	 * is detected and handled there.
 	 */
-	/* This is an add because we do not have atomic_store_acq_int */
+#if defined(__amd64__) || defined(__i386__)
 	atomic_add_acq_int(&smr->c_seq, smr_shared_current(smr->c_shared));
+#else
+	atomic_store_int(&smr->c_seq, smr_shared_current(smr->c_shared));
+	atomic_thread_fence_seq_cst();
+#endif
 }
 
 /*
