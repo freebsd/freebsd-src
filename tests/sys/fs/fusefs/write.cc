@@ -52,10 +52,7 @@ using namespace testing;
 class Write: public FuseTest {
 
 public:
-static sig_atomic_t s_sigxfsz;
-
 void SetUp() {
-	s_sigxfsz = 0;
 	FuseTest::SetUp();
 }
 
@@ -117,8 +114,6 @@ void maybe_expect_write(uint64_t ino, uint64_t offset, uint64_t size,
 }
 
 };
-
-sig_atomic_t Write::s_sigxfsz = 0;
 
 class Write_7_8: public FuseTest {
 
@@ -211,8 +206,28 @@ virtual void SetUp() {
 class WriteEofDuringVnopStrategy: public Write, public WithParamInterface<int>
 {};
 
+class WriteRlimitFsize: public Write, public WithParamInterface<int> {
+public:
+static sig_atomic_t s_sigxfsz;
+struct rlimit	m_initial_limit;
+
+void SetUp() {
+	s_sigxfsz = 0;
+	getrlimit(RLIMIT_FSIZE, &m_initial_limit);
+	FuseTest::SetUp();
+}
+
+void TearDown() {
+	setrlimit(RLIMIT_FSIZE, &m_initial_limit);
+
+	FuseTest::TearDown();
+}
+};
+
+sig_atomic_t WriteRlimitFsize::s_sigxfsz = 0;
+
 void sigxfsz_handler(int __unused sig) {
-	Write::s_sigxfsz = 1;
+	WriteRlimitFsize::s_sigxfsz = 1;
 }
 
 /* AIO writes need to set the header's pid field correctly */
@@ -531,7 +546,7 @@ TEST_F(Write, direct_io_short_write_iov)
 }
 
 /* fusefs should respect RLIMIT_FSIZE */
-TEST_F(Write, rlimit_fsize)
+TEST_P(WriteRlimitFsize, rlimit_fsize)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -540,17 +555,19 @@ TEST_F(Write, rlimit_fsize)
 	ssize_t bufsize = strlen(CONTENTS);
 	off_t offset = 1'000'000'000;
 	uint64_t ino = 42;
-	int fd;
+	int fd, oflag;
+
+	oflag = GetParam();
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 
 	rl.rlim_cur = offset;
-	rl.rlim_max = 10 * offset;
+	rl.rlim_max = m_initial_limit.rlim_max;
 	ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &rl)) << strerror(errno);
 	ASSERT_NE(SIG_ERR, signal(SIGXFSZ, sigxfsz_handler)) << strerror(errno);
 
-	fd = open(FULLPATH, O_WRONLY);
+	fd = open(FULLPATH, O_WRONLY | oflag);
 
 	ASSERT_LE(0, fd) << strerror(errno);
 
@@ -559,6 +576,47 @@ TEST_F(Write, rlimit_fsize)
 	EXPECT_EQ(1, s_sigxfsz);
 	leak(fd);
 }
+
+/*
+ * When crossing the RLIMIT_FSIZE boundary, writes should be truncated, not
+ * aborted.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=164793
+ */
+TEST_P(WriteRlimitFsize, rlimit_fsize_truncate)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnopqrstuvwxyz";
+	struct rlimit rl;
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	off_t offset = 1 << 30;
+	off_t limit = offset + strlen(CONTENTS) / 2;
+	int fd, oflag;
+
+	oflag = GetParam();
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	expect_write(ino, offset, bufsize / 2, bufsize / 2, CONTENTS);
+
+	rl.rlim_cur = limit;
+	rl.rlim_max = m_initial_limit.rlim_max;
+	ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &rl)) << strerror(errno);
+	ASSERT_NE(SIG_ERR, signal(SIGXFSZ, sigxfsz_handler)) << strerror(errno);
+
+	fd = open(FULLPATH, O_WRONLY | oflag);
+
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize / 2, pwrite(fd, CONTENTS, bufsize, offset))
+		<< strerror(errno);
+	leak(fd);
+}
+
+INSTANTIATE_TEST_CASE_P(W, WriteRlimitFsize,
+	Values(0, O_DIRECT)
+);
 
 /* 
  * A short read indicates EOF.  Test that nothing bad happens if we get EOF
