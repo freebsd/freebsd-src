@@ -27,7 +27,7 @@ int main()
 	    {"Password:", 2, 0, "",          2, 10, 30, 50, NULL, H,  "desc 3"}
 	};
 
-	/* Optional, unless for unicode/multicolum charachters */
+	/* Optional, unless for unicode/multi-column characters */
 	setlocale(LC_ALL, "");
 
 	if (bsddialog_init() == BSDDIALOG_ERROR) {

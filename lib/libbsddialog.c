@@ -99,7 +99,9 @@ int bsddialog_end(void)
 
 int bsddialog_backtitle(struct bsddialog_conf *conf, const char *backtitle)
 {
-	mvaddstr(0, 1, backtitle);
+	move(0, 1);
+	clrtoeol();
+	addstr(backtitle);
 	if (conf->no_lines != true)
 		mvhline(1, 1, conf->ascii_lines ? '-' : ACS_HLINE,
 		    SCREENCOLS - 2);
