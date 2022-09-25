@@ -13218,6 +13218,7 @@ OLD_FILES+=usr/share/zoneinfo/SystemV/EST5
 OLD_FILES+=usr/share/zoneinfo/SystemV/AST4ADT
 OLD_FILES+=usr/share/zoneinfo/SystemV/CST6
 OLD_FILES+=usr/share/zoneinfo/SystemV/AST4
+OLD_DIRS+=usr/share/zoneinfo/SystemV
 OLD_FILES+=usr/share/doc/ntp/accopt.htm
 OLD_FILES+=usr/share/doc/ntp/assoc.htm
 OLD_FILES+=usr/share/doc/ntp/audio.htm
