@@ -44,22 +44,6 @@ using namespace testing;
 
 class CopyFileRange: public FuseTest {
 public:
-static sig_atomic_t s_sigxfsz;
-
-void SetUp() {
-	s_sigxfsz = 0;
-	FuseTest::SetUp();
-}
-
-void TearDown() {
-	struct sigaction sa;
-
-	bzero(&sa, sizeof(sa));
-	sa.sa_handler = SIG_DFL;
-	sigaction(SIGXFSZ, &sa, NULL);
-
-	FuseTest::TearDown();
-}
 
 void expect_maybe_lseek(uint64_t ino)
 {
@@ -114,12 +98,6 @@ void expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 
 };
 
-sig_atomic_t CopyFileRange::s_sigxfsz = 0;
-
-void sigxfsz_handler(int __unused sig) {
-	CopyFileRange::s_sigxfsz = 1;
-}
-
 
 class CopyFileRange_7_27: public CopyFileRange {
 public:
@@ -136,6 +114,37 @@ virtual void SetUp() {
 	CopyFileRange::SetUp();
 }
 };
+
+class CopyFileRangeRlimitFsize: public CopyFileRange {
+public:
+static sig_atomic_t s_sigxfsz;
+struct rlimit	m_initial_limit;
+
+virtual void SetUp() {
+	s_sigxfsz = 0;
+	getrlimit(RLIMIT_FSIZE, &m_initial_limit);
+	CopyFileRange::SetUp();
+}
+
+void TearDown() {
+	struct sigaction sa;
+
+	setrlimit(RLIMIT_FSIZE, &m_initial_limit);
+
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGXFSZ, &sa, NULL);
+
+	FuseTest::TearDown();
+}
+
+};
+
+sig_atomic_t CopyFileRangeRlimitFsize::s_sigxfsz = 0;
+
+void sigxfsz_handler(int __unused sig) {
+	CopyFileRangeRlimitFsize::s_sigxfsz = 1;
+}
 
 TEST_F(CopyFileRange, eio)
 {
@@ -313,8 +322,11 @@ TEST_F(CopyFileRange, fallback)
 	ASSERT_EQ(len, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
 }
 
-/* fusefs should respect RLIMIT_FSIZE */
-TEST_F(CopyFileRange, rlimit_fsize)
+/*
+ * copy_file_range should send SIGXFSZ and return EFBIG when the operation
+ * would exceed the limit imposed by RLIMIT_FSIZE.
+ */
+TEST_F(CopyFileRangeRlimitFsize, signal)
 {
 	const char FULLPATH1[] = "mountpoint/src.txt";
 	const char RELPATH1[] = "src.txt";
@@ -344,7 +356,7 @@ TEST_F(CopyFileRange, rlimit_fsize)
 	).Times(0);
 
 	rl.rlim_cur = fsize2;
-	rl.rlim_max = 10 * fsize2;
+	rl.rlim_max = m_initial_limit.rlim_max;
 	ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &rl)) << strerror(errno);
 	ASSERT_NE(SIG_ERR, signal(SIGXFSZ, sigxfsz_handler)) << strerror(errno);
 
@@ -353,6 +365,57 @@ TEST_F(CopyFileRange, rlimit_fsize)
 	ASSERT_EQ(-1, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
 	EXPECT_EQ(EFBIG, errno);
 	EXPECT_EQ(1, s_sigxfsz);
+}
+
+/*
+ * When crossing the RLIMIT_FSIZE boundary, writes should be truncated, not
+ * aborted.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=266611
+ */
+TEST_F(CopyFileRangeRlimitFsize, truncate)
+{
+	const char FULLPATH1[] = "mountpoint/src.txt";
+	const char RELPATH1[] = "src.txt";
+	const char FULLPATH2[] = "mountpoint/dst.txt";
+	const char RELPATH2[] = "dst.txt";
+	struct rlimit rl;
+	const uint64_t ino1 = 42;
+	const uint64_t ino2 = 43;
+	const uint64_t fh1 = 0xdeadbeef1a7ebabe;
+	const uint64_t fh2 = 0xdeadc0de88c0ffee;
+	off_t fsize1 = 1 << 20;		/* 1 MiB */
+	off_t fsize2 = 1 << 19;		/* 512 KiB */
+	off_t start1 = 1 << 18;
+	off_t start2 = fsize2;
+	ssize_t len = 65536;
+	off_t limit = start2 + len / 2;
+	int fd1, fd2;
+
+	expect_lookup(RELPATH1, ino1, S_IFREG | 0644, fsize1, 1);
+	expect_lookup(RELPATH2, ino2, S_IFREG | 0644, fsize2, 1);
+	expect_open(ino1, 0, 1, fh1);
+	expect_open(ino2, 0, 1, fh2);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_COPY_FILE_RANGE &&
+				(off_t)in.body.copy_file_range.off_out == start2 &&
+				in.body.copy_file_range.len == (size_t)len / 2
+			);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out.body.write.size = len / 2;
+	})));
+
+	rl.rlim_cur = limit;
+	rl.rlim_max = m_initial_limit.rlim_max;
+	ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &rl)) << strerror(errno);
+	ASSERT_NE(SIG_ERR, signal(SIGXFSZ, sigxfsz_handler)) << strerror(errno);
+
+	fd1 = open(FULLPATH1, O_RDONLY);
+	fd2 = open(FULLPATH2, O_WRONLY);
+	ASSERT_EQ(len / 2, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
 }
 
 TEST_F(CopyFileRange, ok)
