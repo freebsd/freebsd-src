@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.18 2022/05/31 17:38:36 christos Exp $
+# $File: ole2compounddocs,v 1.19 2022/09/11 20:52:40 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -235,6 +235,18 @@
 #!:mime	application/x-ole-storage
 !:mime	application/x-corel-gal
 !:ext	gal
+#
+# From:		Joerg Jenderek
+# URL:		https://archive.org/details/iPhoto-Plus-4
+#		https://filext.com/file-extension/TPL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/t/tpl-ulead.trid.xml
+# Note:		found in Template sub directory in program directory of software iPhoto Plus version 4
+# second, third and fourth directory entry name like TplHeader TplMainImage TplPreview
+>>>>128 	lestring16	TplHeader		: Ulead iPhoto Template
+#!:mime	application/x-ole-storage
+!:mime	image/x-ulead-tpl
+# https://www.file-extensions.org/tpl-file-extension-ulead-photo-express-template
+!:ext	tpl
 #
 # URL:	https://en.wikipedia.org/wiki/Hangul_(word_processor)
 # Note:	"HWP Document File" signature found in FileHeader

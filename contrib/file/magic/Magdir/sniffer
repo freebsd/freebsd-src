@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.31 2022/03/20 22:45:43 christos Exp $
+# $File: sniffer,v 1.32 2022/07/30 16:46:56 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -270,6 +270,11 @@
 >20	belong&0x03FFFFFF		288		(USB 2.0
 >20	belong&0x03FFFFFF		289		(ATSC ALP
 >20	belong&0x03FFFFFF		290		(Event Tracing for Windows
+>20	belong&0x03FFFFFF		291		(Hilscher netANALYZER NG pseudo-footer
+>20	belong&0x03FFFFFF		292		(ZBOSS NCP protocol with pseudo-header
+>20	belong&0x03FFFFFF		293		(Low-Speed USB 2.0/1.1/1.0
+>20	belong&0x03FFFFFF		294		(Full-Speed USB 2.0/1.1/1.0
+>20	belong&0x03FFFFFF		295		(High-Speed USB 2.0
 # print default match
 >20	default		x
 >>20	belong		x		(linktype#%u

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msooxml,v 1.17 2021/11/08 13:53:43 christos Exp $
+# $File: msooxml,v 1.18 2022/08/16 11:16:39 christos Exp $
 # msooxml:  file(1) magic for Microsoft Office XML
 # From: Ralf Brown <ralf.brown@gmail.com>
 
@@ -15,10 +15,13 @@
 0		name		msooxml
 >0		string		word/		Microsoft Word 2007+
 !:mime application/vnd.openxmlformats-officedocument.wordprocessingml.document
+!:ext	docx
 >0		string		ppt/		Microsoft PowerPoint 2007+
 !:mime application/vnd.openxmlformats-officedocument.presentationml.presentation
+!:ext	pptx
 >0		string		xl/		Microsoft Excel 2007+
 !:mime application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+!:ext	xlsx
 >0		string		visio/		Microsoft Visio 2013+
 !:mime application/vnd.ms-visio.drawing.main+xml
 >0		string		AppManifest.xaml	Microsoft Silverlight Application

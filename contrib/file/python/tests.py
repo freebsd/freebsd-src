@@ -8,7 +8,7 @@ import magic
 class MagicTestCase(unittest.TestCase):
 
     filename = 'magic.py'
-    expected_mime_type = 'text/x-python'
+    expected_mime_type = 'text/x-script.python'
     expected_encoding = 'us-ascii'
     expected_name = 'Python script, ASCII text executable'
 
@@ -22,11 +22,11 @@ class MagicTestCase(unittest.TestCase):
         self.assert_result(result)
 
     def test_detect_from_fobj(self):
-        with open(self.filename) as fobj:
+        with open(self.filename, "rb") as fobj:
             result = magic.detect_from_fobj(fobj)
         self.assert_result(result)
 
     def test_detect_from_content(self):
-        with open(self.filename) as fobj:
-            result = magic.detect_from_content(fobj.read(4096))
+        with open(self.filename, "rb") as fobj:
+            result = magic.detect_from_content(fobj.read(8192))
         self.assert_result(result)

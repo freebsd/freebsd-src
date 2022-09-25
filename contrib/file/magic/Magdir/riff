@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.44 2022/05/14 19:42:47 christos Exp $
+# $File: riff,v 1.45 2022/07/24 23:47:49 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -333,6 +333,27 @@
 #>>>0	use		corel-des
 #>>>0	use		corel-draw
 >8	string		NUNDROOT	\b, Steinberg CuBase
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/MIDI_Instrument_Definition_File
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/idf.trid.xml
+#		ftp://curscott.servebeer.com/Download/Apps/_Microsoft/
+#  		Visual%20Studio%206.0%20Professional%20MSDN/
+#		SAMPLES/VC98/SDK/GRAPHICS/AUDIO/IDFEDIT/GLOBALS.H 
+# Note:		called "MIDI Instrument Definition File" by TrID
+>8	string		IDF\ LIST	\b, MIDI Instrument Definition File
+!:mime	audio/x-idf
+!:ext	idf
+# 3rd chunk size like: 254 284 286 670
+#>>0x10	ulelong		x		\b, 3th SIZE %u
+# for debugging purpose display next chunk like: MMAPhdr
+#>>0x14	string		x		\b, 4th "%-8.8s"
+#>>0x1C	ulelong		x		\b, 4th SIZE 0x%x
+# probably MIDI instrument name like: "Universal-MIDI-Instrument" "instrument name" "General MIDI"
+>>0x30	string		x		"%s"
+# look for inst TAG
+>>0x31	search/256	inst		by
+# probably manufacture name like: "Unspecified Company" "NVidia Corporation"
+>>>&0x24	string	x		"%s"
 # AVI == Audio Video Interleave
 # Reference:	http://fileformats.archiveteam.org/wiki/AVI
 >8	string		AVI\040		\b, AVI

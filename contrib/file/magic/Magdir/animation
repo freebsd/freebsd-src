@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.88 2022/05/14 22:06:04 christos Exp $
+# $File: animation,v 1.90 2022/08/16 11:16:39 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -30,8 +30,6 @@
 #!:mime	image/x-quicktime
 4       string          pckg            Apple QuickTime compressed archive
 !:mime	application/x-quicktime-player
-4	string/W	jP		JPEG 2000 image
-!:mime	image/jp2
 
 #### MP4 ####
 # https://www.ftyps.com/ with local additions
@@ -168,6 +166,7 @@
 #	?/enc-isoff-generic
 >8	string		iso		\b, MP4 Base Media
 !:mime	video/mp4
+!:ext	mp4
 >>11	string		m 		v1 [ISO 14496-12:2003]
 >>11	string		2		v2 [ISO 14496-12:2005]
 >>11	string		4		v4
@@ -937,6 +936,7 @@
 0	belong&0xFF5FFF10	0x47400010
 >188	byte			0x47		MPEG transport stream data
 !:mime  video/MP2T
+!:ext	ts
 
 # DIF digital video file format <mpruett@sgi.com>
 0	belong&0xffffff00	0x1f070000      DIF

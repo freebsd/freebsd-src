@@ -4,7 +4,7 @@
  * The first column specifies the short name, if any, or 0 if none.
  * The second column specifies the long name.
  * The third column specifies whether it takes a parameter.
- * The fourth columns specifies whether is is marked as "default"
+ * The fourth column specifies whether is marked as "default"
  *      if POSIXLY_CORRECT is defined: 1,
  *      if POSIXLY_CORRECT is not defined: 2.
  * The fifth column is the documentation.

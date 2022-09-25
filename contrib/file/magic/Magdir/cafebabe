@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cafebabe,v 1.27 2021/04/26 15:56:00 christos Exp $
+# $File: cafebabe,v 1.28 2022/07/01 23:24:47 christos Exp $
 # Cafe Babes unite!
 #
 # Since Java bytecode and Mach-O universal binaries have the same magic number,
@@ -44,6 +44,12 @@
 >>4	belong		0x0038		(Java SE 12)
 >>4	belong		0x0039		(Java SE 13)
 >>4	belong		0x003A		(Java SE 14)
+>>4	belong		0x003B		(Java SE 15)
+>>4	belong		0x003C		(Java SE 16)
+>>4	belong		0x003D		(Java SE 17)
+>>4	belong		0x003E		(Java SE 18)
+>>4	belong		0x003F		(Java SE 19)
+>>4	belong		0x0040		(Java SE 20)
 # pool count unequal zero
 #>>8	beshort		x	        \b, pool count %#x
 # pool table

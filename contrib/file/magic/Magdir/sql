@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.23 2021/07/30 14:53:38 christos Exp $
+# $File: sql,v 1.24 2022/07/17 15:32:48 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -217,3 +217,9 @@
 
 # H2 Database from https://www.h2database.com/
 0	string		--\ H2\ 0.5/B\ --\ \n	H2 Database file
+
+# DuckDB database file from https://duckdb.org
+8	string	DUCK    DuckDB database file
+>12	lequad	x	\b, version %lld
+#>20	lequad	x	\b, flags %#llx
+#>28	lequad	x	\b, flags %#llx
