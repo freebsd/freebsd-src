@@ -1752,6 +1752,16 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 		goto err_fw;
 	}
 
+#if defined(__FreeBSD__)
+	/*
+	 * Wait until initilization is done before returning in order to
+	 * replicate FreeBSD's synchronous behaviour -- we cannot create
+	 * a vap before the com is fully created but if LinuxKPI "probe"
+	 * returned before it was all done that is what could happen.
+	 */
+	wait_for_completion(&drv->request_firmware_complete);
+#endif
+
 	return drv;
 
 err_fw:
