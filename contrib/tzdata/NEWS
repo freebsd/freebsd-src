@@ -1,5 +1,26 @@
 News for the tz database
 
+Release 2022d - 2022-09-23 12:02:57 -0700
+
+  Briefly:
+    Palestine transitions are now Saturdays at 02:00.
+    Simplify three Ukraine zones into one.
+
+  Changes to future timestamps
+
+    Palestine now springs forward and falls back at 02:00 on the
+    first Saturday on or after March 24 and October 24, respectively.
+    This means 2022 falls back 10-29 at 02:00, not 10-28 at 01:00.
+    (Thanks to Heba Hamad.)
+
+  Changes to past timestamps
+
+    Simplify three Ukraine zones to one, since the post-1970
+    differences seem to have been imaginary.  Move Europe/Uzhgorod and
+    Europe/Zaporozhye to 'backzone'; backward-compatibility links
+    still work, albeit with different timestamps before October 1991.
+
+
 Release 2022c - 2022-08-15 17:47:18 -0700
 
   Briefly:

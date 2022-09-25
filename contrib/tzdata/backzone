@@ -301,7 +301,7 @@ Zone	Africa/Freetown	-0:53:00 -	LMT	1882
 			-0:53:00 -	FMT	1913 Jul  1 # Freetown MT
 			-1:00	SL	%s	1939 Sep  5
 			-1:00	-	-01	1941 Dec  6 24:00
-			 0:00	SL	GMT/+01
+			 0:00	-	GMT
 
 # Botswana
 # From Paul Eggert (2013-02-21):
@@ -1480,6 +1480,27 @@ Zone	Europe/Tiraspol	1:58:32	-	LMT	1880
 			2:00	Russia	EE%sT	1992 Jan 19  2:00
 			3:00	Russia	MSK/MSD
 
+# Ukraine
+#
+# Although Shanks & Pottenger say Transcarpathia used CET 1990/1991,
+# this unreliable source contradicts contemporaneous government resolutions
+# (see the commentary for Ukraine in the 'europe' file)
+# so for now this dubious zone is in 'backzone'.
+# "Uzhhorod" is the transliteration of the Ukrainian spelling, but
+# "Uzhgorod" was a common English spelling when this dubious zone was
+# added to TZDB in 1999.
+Zone Europe/Uzhgorod	1:29:12 -	LMT	1890 Oct
+			1:00	-	CET	1940
+			1:00	C-Eur	CE%sT	1944 Oct
+			1:00	1:00	CEST	1944 Oct 26
+			1:00	-	CET	1945 Jun 29
+			3:00	Russia	MSK/MSD	1990
+			3:00	-	MSK	1990 Jul  1  2:00
+			1:00	-	CET	1991 Mar 31  3:00
+			2:00	-	EET	1992 Mar 20
+			2:00	C-Eur	EE%sT	1996 May 13
+			2:00	EU	EE%sT
+
 # Liechtenstein
 
 # From Paul Eggert (2022-07-21):
@@ -1501,6 +1522,25 @@ Zone	Europe/Zagreb	1:03:52	-	LMT	1884
 			1:00	1:00	CEST	1945 Sep 16  2:00s
 			1:00	-	CET	1982 Nov 27
 			1:00	EU	CE%sT
+
+# Ukraine
+
+# Although Shanks & Pottenger say Zaporizhzhia and eastern Lugansk
+# observed DST 1990/1991, this unreliable source contradicts contemporaneous
+# government resolutions (see the commentary for Ukraine in the 'europe' file)
+# so for now this dubious zone is in 'backzone'.
+# "Zaporizhzhia" is the transliteration of the Ukrainian name, but
+# "Zaporozhye" was a common English spelling when this dubious zone was
+# added to TZDB in 1999.
+Zone Europe/Zaporozhye	2:20:40 -	LMT	1880
+			2:20	-	+0220	1924 May  2
+			2:00	-	EET	1930 Jun 21
+			3:00	-	MSK	1941 Aug 25
+			1:00	C-Eur	CE%sT	1943 Oct 25
+			3:00	Russia	MSK/MSD	1991 Mar 31  2:00
+			2:00	E-Eur	EE%sT	1992 Mar 20
+			2:00	C-Eur	EE%sT	1996 May 13
+			2:00	EU	EE%sT
 
 # Madagascar
 Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
@@ -1633,7 +1673,7 @@ Zone Pacific/Majuro	 11:24:48 -	LMT	1901
 Zone Pacific/Midway	-11:49:28 -	LMT	1901
 			-11:00	-	-11	1956 Jun  3
 			-11:00	1:00	-10	1956 Sep  2
-			-11:00	-	-11
+			-11:00	-	SST	# S=Samoa
 
 # Micronesia
 # Also see Pacific/Chuuk and commentary for Micronesia in 'australasia'.
@@ -1648,10 +1688,20 @@ Zone Pacific/Pohnpei	-13:27:08 -	LMT	1844 Dec 31	# Kolonia
 Link Pacific/Pohnpei Pacific/Ponape
 
 # N Mariana Is
+#
+# From Paul Eggert (2022-08-16):
+# Although Shanks & Pottenger say Saipan used +09 and then switched
+# to Guam time in October 1969, this is surely wrong.
+# Saipan used Guam time in the late 1950s; see page 4 of the minutes on the
+# conference of the 12th Saipan Legislature and the Select Committee on
+# Saipan Mission, 5th Guam Legislature (1959-09-11):
+# http://www.nmhcouncil.org/nmhc_archives/U.S.%20Navy%20Civil%20Affairs%20Files%201944-1962/1959/1959%2009%2017%20letter,%20minutes%20of%20conference,%20Borja.pdf
+# For now, assume Saipan switched to Guam time after the Battle of Saipan.
+#
 Zone Pacific/Saipan	-14:17:00 -	LMT	1844 Dec 31
 			 9:43:00 -	LMT	1901
-			 9:00	-	+09	1969 Oct
-			10:00	-	+10	2000 Dec 23
+			 9:00	-	+09	1944 Jul  9
+			10:00	Guam	G%sT	2000 Dec 23
 			10:00	-	ChST	# Chamorro Standard Time
 
 
