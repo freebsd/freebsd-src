@@ -303,6 +303,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	struct fuse_write_out *fwo;
 	struct fuse_dispatcher fdi;
 	size_t chunksize;
+	ssize_t r;
 	void *fwi_data;
 	off_t as_written_offset;
 	int diff;
@@ -338,9 +339,11 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	if (ioflag & IO_APPEND)
 		uio_setoffset(uio, filesize);
 
-	err = vn_rlimit_fsize(vp, uio, uio->uio_td);
-	if (err != 0)
+	err = vn_rlimit_fsizex(vp, uio, 0, &r, uio->uio_td);
+	if (err != 0) {
+		vn_rlimit_fsizex_res(uio, r);
 		return (err);
+	}
 
 	fdisp_init(&fdi, 0);
 
@@ -456,6 +459,7 @@ retry:
 	if (wrote_anything)
 		fuse_vnode_undirty_cached_timestamps(vp, false);
 
+	vn_rlimit_fsizex_res(uio, r);
 	return (err);
 }
 
@@ -472,6 +476,7 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	struct buf *bp;
 	daddr_t lbn;
 	off_t filesize;
+	ssize_t r;
 	int bcount;
 	int n, on, seqcount, err = 0;
 
@@ -494,9 +499,11 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 	if (ioflag & IO_APPEND)
 		uio_setoffset(uio, filesize);
 
-	err = vn_rlimit_fsize(vp, uio, uio->uio_td);
-	if (err != 0)
+	err = vn_rlimit_fsizex(vp, uio, 0, &r, uio->uio_td);
+	if (err != 0) {
+		vn_rlimit_fsizex_res(uio, r);
 		return (err);
+	}
 
 	do {
 		bool direct_append, extending;
@@ -724,6 +731,7 @@ again:
 			break;
 	} while (uio->uio_resid > 0 && n > 0);
 
+	vn_rlimit_fsizex_res(uio, r);
 	return (err);
 }
 
