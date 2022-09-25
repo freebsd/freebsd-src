@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.234 2022/05/28 20:24:09 christos Exp $
+ * @(#)$File: file.h,v 1.237 2022/09/10 13:21:42 christos Exp $
  */
 
 #ifndef __file_h__
@@ -161,7 +161,7 @@
 #define MAXstring 128		/* max len of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	17
+#define VERSIONNO	18
 #define FILE_MAGICSIZE	376
 
 #define FILE_GUID_SIZE	sizeof("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
@@ -278,7 +278,8 @@ struct magic {
 #define				FILE_MSDOSTIME		56
 #define				FILE_LEMSDOSTIME	57
 #define				FILE_BEMSDOSTIME	58
-#define				FILE_NAMES_SIZE		59 /* size of array to contain all names */
+#define				FILE_OCTAL		59
+#define				FILE_NAMES_SIZE		60 /* size of array to contain all names */
 
 #define IS_STRING(t) \
 	((t) == FILE_STRING || \
@@ -289,7 +290,8 @@ struct magic {
 	 (t) == FILE_SEARCH || \
 	 (t) == FILE_INDIRECT || \
 	 (t) == FILE_NAME || \
-	 (t) == FILE_USE)
+	 (t) == FILE_USE || \
+	 (t) == FILE_OCTAL)
 
 #define FILE_FMT_NONE 0
 #define FILE_FMT_NUM  1 /* "cduxXi" */
@@ -508,8 +510,9 @@ struct stat;
 protected const char *file_fmtdatetime(char *, size_t, uint64_t, int);
 protected const char *file_fmtdate(char *, size_t, uint16_t);
 protected const char *file_fmttime(char *, size_t, uint16_t);
-protected const char *file_fmtvarint(const unsigned char *, int, char *,
-    size_t);
+protected const char *file_fmtvarint(char *, size_t, const unsigned char *,
+    int);
+protected const char *file_fmtnum(char *, size_t, const char *, int);
 protected struct magic_set *file_ms_alloc(int);
 protected void file_ms_free(struct magic_set *);
 protected int file_default(struct magic_set *, size_t);
@@ -575,7 +578,7 @@ protected size_t file_pstring_length_size(struct magic_set *,
     const struct magic *);
 protected size_t file_pstring_get_length(struct magic_set *,
     const struct magic *, const char *);
-public char * file_printable(struct magic_set *, char *, size_t,
+protected char * file_printable(struct magic_set *, char *, size_t,
     const char *, size_t);
 #ifdef __EMX__
 protected int file_os2_apptype(struct magic_set *, const char *, const void *,

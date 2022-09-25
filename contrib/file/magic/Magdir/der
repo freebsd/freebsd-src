@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: der,v 1.4 2021/03/14 17:12:04 christos Exp $
+# $File: der,v 1.5 2022/07/30 18:07:34 christos Exp $
 # der: file(1) magic for DER encoded files
 #
 
@@ -110,9 +110,9 @@
 >>>>&0	der	seq
 >>>>>&0	der	obj_id9=2a864886f70d010901
 >>>>>&0	der	ia5_str=x	\b, emailAddress=%s
->>&0	der	seq
->>>&0	der	utc_time=x	\b, utcTime=%s
->>>&0	der	utc_time=x	\b, utcTime=%s
+#>>&0	der	seq
+#>>>&0	der	utc_time=x	\b, utcTime=%s
+#>>>&0	der	utc_time=x	\b, utcTime=%s
 >>&0	use	certinfo
 
 0	der	seq
@@ -129,9 +129,9 @@
 >>>>&0	der	seq	
 >>>>>&0	der     obj_id3=550403
 >>>>>&0	der     utf8_str=x      \b, Issuer=%s
->>&0	der	seq
->>>&0	der	utc_time=x	\b, not-valid-before=%s
->>>&0	der	utc_time=x	\b, not-valid-after=%s
+#>>&0	der	seq
+#>>>&0	der	utc_time=x	\b, not-valid-before=%s
+#>>>&0	der	utc_time=x	\b, not-valid-after=%s
 >>&0	der	seq
 >>>&0	der	set
 >>>>&0	der	seq

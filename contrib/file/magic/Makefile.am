@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.178 2022/04/02 14:47:42 christos Exp $
+# $File: Makefile.am,v 1.182 2022/09/11 21:04:30 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -53,6 +53,7 @@ $(MAGIC_FRAGMENT_DIR)/bout \
 $(MAGIC_FRAGMENT_DIR)/bsdi \
 $(MAGIC_FRAGMENT_DIR)/bsi \
 $(MAGIC_FRAGMENT_DIR)/btsnoop \
+$(MAGIC_FRAGMENT_DIR)/burp \
 $(MAGIC_FRAGMENT_DIR)/bytecode \
 $(MAGIC_FRAGMENT_DIR)/c-lang \
 $(MAGIC_FRAGMENT_DIR)/c64 \
@@ -119,6 +120,7 @@ $(MAGIC_FRAGMENT_DIR)/fusecompress \
 $(MAGIC_FRAGMENT_DIR)/games \
 $(MAGIC_FRAGMENT_DIR)/gcc \
 $(MAGIC_FRAGMENT_DIR)/gconv \
+$(MAGIC_FRAGMENT_DIR)/gentoo \
 $(MAGIC_FRAGMENT_DIR)/geo \
 $(MAGIC_FRAGMENT_DIR)/geos \
 $(MAGIC_FRAGMENT_DIR)/gimp \
@@ -257,6 +259,7 @@ $(MAGIC_FRAGMENT_DIR)/pyramid \
 $(MAGIC_FRAGMENT_DIR)/python \
 $(MAGIC_FRAGMENT_DIR)/qt \
 $(MAGIC_FRAGMENT_DIR)/revision \
+$(MAGIC_FRAGMENT_DIR)/ringdove \
 $(MAGIC_FRAGMENT_DIR)/riff \
 $(MAGIC_FRAGMENT_DIR)/rpi \
 $(MAGIC_FRAGMENT_DIR)/rpm \
@@ -289,6 +292,7 @@ $(MAGIC_FRAGMENT_DIR)/sql \
 $(MAGIC_FRAGMENT_DIR)/ssh \
 $(MAGIC_FRAGMENT_DIR)/ssl \
 $(MAGIC_FRAGMENT_DIR)/statistics \
+$(MAGIC_FRAGMENT_DIR)/subtitle \
 $(MAGIC_FRAGMENT_DIR)/sun \
 $(MAGIC_FRAGMENT_DIR)/sylk \
 $(MAGIC_FRAGMENT_DIR)/symbos \

@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.90 2021/10/24 15:52:18 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.92 2022/09/10 13:21:42 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -200,7 +200,7 @@ file_mdump(struct magic *m)
 		case FILE_LEVARINT:
 		case FILE_BEVARINT:
 			(void)fprintf(stderr, "%s", file_fmtvarint(
-			    m->value.us, m->type, tbuf, sizeof(tbuf)));
+			    tbuf, sizeof(tbuf), m->value.us, m->type));
 			break;
 		case FILE_MSDOSDATE:
 		case FILE_BEMSDOSDATE:
@@ -213,6 +213,10 @@ file_mdump(struct magic *m)
 		case FILE_LEMSDOSTIME:
 			(void)fprintf(stderr, "%s,",
 			    file_fmttime(tbuf, sizeof(tbuf), m->value.h));
+			break;
+		case FILE_OCTAL:
+			(void)fprintf(stderr, "%s",
+			    file_fmtnum(tbuf, sizeof(tbuf), m->value.s, 8));
 			break;
 		case FILE_DEFAULT:
 			/* XXX - do anything here? */
@@ -257,7 +261,7 @@ file_magwarn(struct magic_set *ms, const char *f, ...)
 }
 
 protected const char *
-file_fmtvarint(const unsigned char *us, int t, char *buf, size_t blen)
+file_fmtvarint(char *buf, size_t blen, const unsigned char *us, int t)
 {
 	snprintf(buf, blen, "%jd", file_varint2uintmax_t(us, t, NULL));
 	return buf;
@@ -339,4 +343,22 @@ out:
 	strlcpy(buf, "*Invalid time*", bsize);
 	return buf;
 
+}
+
+protected const char *
+file_fmtnum(char *buf, size_t blen, const char *us, int base)
+{
+	char *endptr;
+	unsigned long long val;
+
+	errno = 0;
+	val = strtoull(us, &endptr, base);
+	if (*endptr || errno) {
+bad:		strlcpy(buf, "*Invalid number*", blen);
+		return buf;
+	}
+
+	if (snprintf(buf, blen, "%llu", val) < 0)
+		goto bad;
+	return buf;
 }

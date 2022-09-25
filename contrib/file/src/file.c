@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.196 2022/07/04 17:00:51 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.204 2022/09/13 18:46:07 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -59,6 +59,12 @@ FILE_RCSID("@(#)$File: file.c,v 1.196 2022/07/04 17:00:51 christos Exp $")
 #endif
 #ifdef HAVE_WCTYPE_H
 #include <wctype.h>
+#endif
+#if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH) && \
+   defined(HAVE_WCTYPE_H)
+#define FILE_WIDE_SUPPORT
+#else
+#include <ctype.h>
 #endif
 
 #if defined(HAVE_GETOPT_H) && defined(HAVE_STRUCT_OPTION)
@@ -507,7 +513,7 @@ unwrap(struct magic_set *ms, const char *fn)
 	int wid = 0, cwid;
 	int e = 0;
 	size_t fi = 0, fimax = 100;
-	char **flist = malloc(sizeof(*flist) * fimax);
+	char **flist = CAST(char **, malloc(sizeof(*flist) * fimax));
 
 	if (flist == NULL)
 out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
@@ -526,9 +532,11 @@ out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
 			line[len - 1] = '\0';
 		if (fi >= fimax) {
 			fimax += 100;
-			char **nf = realloc(flist, fimax * sizeof(*flist));
+			char **nf = CAST(char **,
+			    realloc(flist, fimax * sizeof(*flist)));
 			if (nf == NULL)
 				goto out;
+			flist = nf;
 		}
 		flist[fi++] = line;
 		cwid = file_mbswidth(ms, line);
@@ -550,6 +558,58 @@ out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
 	return e;
 }
 
+private void
+file_octal(unsigned char c)
+{
+	putc('\\', stdout);
+	putc(((c >> 6) & 7) + '0', stdout);
+	putc(((c >> 3) & 7) + '0', stdout);
+	putc(((c >> 0) & 7) + '0', stdout);
+}
+
+private void
+fname_print(const char *inname)
+{
+	size_t n = strlen(inname);
+#ifdef FILE_WIDE_SUPPORT
+	mbstate_t state;
+	wchar_t nextchar;
+	size_t bytesconsumed;
+
+
+	(void)memset(&state, 0, sizeof(state));
+	while (n > 0) {
+		bytesconsumed = mbrtowc(&nextchar, inname, n, &state);
+		if (bytesconsumed == CAST(size_t, -1) ||
+		    bytesconsumed == CAST(size_t, -2))  {
+			nextchar = *inname++;
+			n--;
+			(void)memset(&state, 0, sizeof(state));
+			file_octal(CAST(unsigned char, nextchar));
+			continue;
+		}
+		inname += bytesconsumed;
+		n -= bytesconsumed;
+		if (iswprint(nextchar)) {
+			printf("%lc", (wint_t)nextchar);
+			continue;
+		}
+		/* XXX: What if it is > 255? */
+		file_octal(CAST(unsigned char, nextchar));
+	}
+#else
+	size_t i;
+	for (i = 0; i < n; i++) {
+		unsigned char c = CAST(unsigned char, inname[i]);
+		if (isprint(c)) {
+			putc(c);
+			continue;
+		}
+		file_octal(c);
+	}
+#endif
+}
+
 /*
  * Called for each input file on the command line (or in a list of files)
  */
@@ -559,15 +619,13 @@ process(struct magic_set *ms, const char *inname, int wid)
 	const char *type, c = nulsep > 1 ? '\0' : '\n';
 	int std_in = strcmp(inname, "-") == 0;
 	int haderror = 0;
-	size_t plen = 4 * wid + 1;
-	char *pbuf, *pname;
-
-	if ((pbuf = CAST(char *, malloc(plen))) == NULL)
-	    file_err(EXIT_FAILURE, "Can't allocate %zu bytes", plen);
 
 	if (wid > 0 && !bflag) {
-		pname = file_printable(ms, pbuf, plen, inname, wid);
-		(void)printf("%s", std_in ? "/dev/stdin" : pname);
+		const char *pname = std_in ? "/dev/stdin" : inname;
+		if ((ms->flags & MAGIC_RAW) == 0)
+			fname_print(pname);
+		else
+			(void)printf("%s", pname);
 		if (nulsep)
 			(void)putc('\0', stdout);
 		if (nulsep < 2) {
@@ -586,7 +644,6 @@ process(struct magic_set *ms, const char *inname, int wid)
 	}
 	if (nobuffer)
 		haderror |= fflush(stdout) != 0;
-	free(pbuf);
 	return haderror || type == NULL;
 }
 
@@ -594,35 +651,37 @@ protected size_t
 file_mbswidth(struct magic_set *ms, const char *s)
 {
 	size_t width = 0;
-#if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH) && \
-   defined(HAVE_WCTYPE_H)
-	size_t bytesconsumed, old_n, n;
+#ifdef FILE_WIDE_SUPPORT
+	size_t bytesconsumed, n;
 	mbstate_t state;
 	wchar_t nextchar;
-	(void)memset(&state, 0, sizeof(mbstate_t));
-	old_n = n = strlen(s);
+
+	(void)memset(&state, 0, sizeof(state));
+	n = strlen(s);
 
 	while (n > 0) {
 		bytesconsumed = mbrtowc(&nextchar, s, n, &state);
 		if (bytesconsumed == CAST(size_t, -1) ||
 		    bytesconsumed == CAST(size_t, -2)) {
-			/* Something went wrong, return something reasonable */
-			return old_n;
+			nextchar = *s;
+			bytesconsumed = 1;
+			(void)memset(&state, 0, sizeof(state));
+			width += 4;
+		} else {
+			int w = wcwidth(nextchar);
+			width += ((ms->flags & MAGIC_RAW) != 0
+			    || iswprint(nextchar)) ? (w > 0 ? w : 1) : 4;
 		}
-		width += ((ms->flags & MAGIC_RAW) != 0
-		    || iswprint(nextchar)) ? wcwidth(nextchar) : 4;
 
 		s += bytesconsumed, n -= bytesconsumed;
 	}
-	return width;
 #else
-	while (*s) {
+	for (; *s; s++) {
 		width += (ms->flags & MAGIC_RAW) != 0
 		    || isprint(CAST(unsigned char, *s)) ? 1 : 4;
 	}
-
-	return strlen(s);
 #endif
+	return width;
 }
 
 private void

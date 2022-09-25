@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.180 2022/01/10 14:15:08 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.182 2022/07/31 16:01:01 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -62,6 +62,7 @@ private uint64_t getu64(int, uint64_t);
 
 #define MAX_PHNUM	128
 #define	MAX_SHNUM	32768
+#define MAX_SHSIZE	(64 * 1024 * 1024)
 #define SIZE_UNKNOWN	CAST(off_t, -1)
 
 private int
@@ -896,6 +897,13 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 					int adjust = 1;
 					if (prpsoffsets(k) >= prpsoffsets(i))
 						continue;
+					/*
+					 * pr_fname == pr_psargs - 16 &&
+					 * non-nul-terminated fname (qemu)
+					 */
+					if (prpsoffsets(k) ==
+					    prpsoffsets(i) - 16 && j == 16)
+						continue;
 					for (no = doff + prpsoffsets(k);
 					     no < doff + prpsoffsets(i); no++)
 						adjust = adjust
@@ -1441,6 +1449,12 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 				    CAST(uintmax_t, fsize)) == -1)
 					return -1;
 				return 0;
+			}
+			if (xsh_size > MAX_SHSIZE) {
+				file_error(ms, errno, "Note section size too "
+				    "big (%ju > %u)", (uintmax_t)xsh_size,
+				    MAX_SHSIZE);
+				return -1;
 			}
 			if ((nbuf = malloc(xsh_size)) == NULL) {
 				file_error(ms, errno, "Cannot allocate memory"

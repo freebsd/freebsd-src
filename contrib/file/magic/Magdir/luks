@@ -1,13 +1,126 @@
 
 #------------------------------------------------------------------------------
-# $File: luks,v 1.4 2009/09/19 16:28:10 christos Exp $
+# $File: luks,v 1.5 2022/09/07 11:23:44 christos Exp $
 # luks:  file(1) magic for Linux Unified Key Setup
-# URL:	http://luks.endorphin.org/spec
+# URL:		https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup
+#		http://fileformats.archiveteam.org/wiki/LUKS
 # From:	Anthon van der Neut <anthon@mnt.org>
+# Update:	Joerg Jenderek
+# Note:		verfied by command like `cryptsetup luksDump /dev/sda3`
 
 0	string		LUKS\xba\xbe	LUKS encrypted file,
+# https://reposcope.com/mimetype/application/x-raw-disk-image
+!:mime	application/x-raw-disk-image
+#!:mime	application/x-luks-volume
+# img is the generic extension; no suffix for partitions; luksVolumeHeaderBackUp via zuluCrypt
+!:ext	/luks/img/luksVolumeHeaderBackUp
+# version like: 1 2
 >6	beshort		x		ver %d
+# test for version 1 variant
+>6	beshort		1
+>>0			use		luks-v1
+# test for version 2 variant
+>6	beshort		>1
+>>0			use		luks-v2
+# Reference:	https://mirrors.edge.kernel.org/pub/linux/utils/cryptsetup/LUKS_docs/on-disk-format.pdf
+#		http://mark0.net/download/triddefs_xml.7z/defs/l/luks.trid.xml
+# display information about LUKS version 1
+0	name		luks-v1
+# cipher-name like: aes twofish
 >8	string		x		[%s,
+# cipher-mode like: xts-plain64 cbc-essiv
 >40	string		x		%s,
+# hash specification like: sha256 sha1 ripemd160
 >72	string		x		%s]
 >168	string		x		UUID: %s
+# NEW PART!
+# payload-offset; start offset of the bulk data
+>104	 ubelong	x		\b, at %#x data
+# key-bytes; number of key bytes; key-bytes*8=MK-bits
+>108	 ubelong	x		\b, %u key bytes
+# mk-digest[20]; master key checksum from PBKDF2
+>112	ubequad		x		\b, MK digest %#16.16llx
+>>120	ubequad		x		\b%16.16llx
+>>128	ubelong		x		\b%8.8x
+# mk-digest-salt[32]; salt parameter for master key PBKDF2
+>132	ubequad		x		\b, MK salt %#16.16llx
+>>140	ubequad		x		\b%16.16llx
+>>148	ubequad		x		\b%16.16llx
+>>156	ubequad		x		\b%16.16llx
+# mk-digest-iter; iterations parameter for master key PBKDF2
+>164	ubelong		x		\b, %u MK iterations
+# key slot 1
+>208	ubelong		=0x00AC71F3	\b; slot #0
+>>208			use		luks-slot
+# key slot 2
+>256	ubelong		=0x00AC71F3	\b; slot #1
+>>256			use		luks-slot
+# key slot 3
+>304	ubelong		=0x00AC71F3	\b; slot #2
+>>304			use		luks-slot
+# key slot 4
+>352	ubelong		=0x00AC71F3	\b; slot #3
+>>352			use		luks-slot
+# key slot 5
+>400	ubelong		=0x00AC71F3	\b; slot #4
+>>400			use		luks-slot
+# key slot 6
+>448	ubelong		=0x00AC71F3	\b; slot #5
+>>448			use		luks-slot
+# key slot 7
+>496	ubelong		=0x00AC71F3	\b; slot #6
+>>496			use		luks-slot
+# key slot 8
+>544	ubelong		=0x00AC71F3	\b; slot #7
+>>544			use		luks-slot
+# Reference:	https://gitlab.com/cryptsetup/LUKS2-docs/-/raw/master/luks2_doc_wip.pdf
+#		http://mark0.net/download/triddefs_xml.7z/defs/l/luks2.trid.xml
+# display information about LUKS version 2
+0	name		luks-v2
+# hdr_size; size including JSON area called Metadata area by cryptsetup with value like: 16384
+>8	ubequad		x		\b, header size %llu
+# possible check for MAGIC_2ND after header 
+#>(8.Q) 	 string		SKUL\xba\xbe	\b, 2nd_HEADER_OK
+# seqid; sequence ID, increased on update; called Epoch by cryptsetup with value like: 3 4 8 10
+>16	ubequad		x		\b, ID %llu
+# label[48]; optional ASCII label or empty; called Label by cryptsetup with value like: "LUKS2_EXT4_ROOT"
+>24	string		>\0		\b, label %s
+# csum_alg[32]; checksum algorithm like: sha256 sha1 sha512 wirlpool ripemd160
+>72	string		x		\b, algo %s
+# salt[64]; salt , unique for every header
+>104	ubequad		x		\b, salt %#llx...
+# uuid[40]; UID of device as string like: 242256c6-396e-4a35-af5f-5b70cb7af9a7
+>168	string		x		\b, UUID: %-.40s
+# subsystem[48]; optional owner subsystem label or empty
+>208	string		>\0		\b, sub label %-.48s
+# hdr_offset; offset from device start [ bytes ] like: 0
+>256	ubequad		!0		\b, offset %llx
+# char _padding [184]; must be zeroed
+#>264	ubequad		x		\b, padding %#16.16llx
+#>440	ubequad		x		\b...%16.16llx
+# csum[64]; header checksum
+>448	ubequad		x		\b, crc %#llx...
+# char _padding4096 [7*512];  Padding , must be zeroed
+#>512	ubequad		x		\b, more padding %#16.16llx
+#>4088	ubequad		x		\b...%16.16llx
+# JSON text data terminated by the zero character; unused remainder empty and filled with zeroes like:
+# {"keyslots":{"0":{"type":"luks2","key_size":64,"af":{"type":"luks1","stripes":4000,"hash":"sha256"},"area":{"type":"raw","offse"
+>0x1000	string		x		\b, at 0x1000 %s
+#>0x1000	indirect	x
+# display information (like active) about LUKS1 slot
+0	name		luks-slot
+# state of keyslot; 0x00AC71F3~active 0x0000DEAD~inactive
+#>0	ubelong		x		\b, status %#8.8x
+>0	ubelong		=0x00AC71F3	active
+>0	ubelong		=0x0000DEAD	inactive
+# iteration parameter for PBKDF2
+#>4	ubelong		x		\b, %u iterations
+# salt parameter for PBKDF2
+#>8	ubequad		x		\b, salt %#16.16llx
+#>>16	ubequad		x		\b%16.16llx
+#>>24	ubequad		x		\b%16.16llx
+#>>32	ubequad		x		\b%16.16llx
+# start sector of key material like: 8 0x200 0x3f8 0x5f0 0xdd0
+>40	ubelong		x		\b, %#x material offset
+# number of anti-forensic stripes like: 4000
+>44	ubelong		!4000		\b, %u stripes

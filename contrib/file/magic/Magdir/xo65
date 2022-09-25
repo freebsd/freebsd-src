@@ -1,6 +1,7 @@
 
 #------------------------------------------------------------------------------
-# $File: xo65,v 1.4 2009/09/19 16:28:13 christos Exp $
+# $File: xo65,v 1.5 2022/07/17 15:36:20 christos Exp $
+# https://cc65.github.io/doc/sim65.html
 # xo65 object files
 # From: "Ullrich von Bassewitz" <uz@cc65.org>
 #
@@ -28,3 +29,9 @@
 >6	leshort&0x0003	=0x0001			alignment 2
 >6	leshort&0x0003	=0x0002			alignment 4
 >6	leshort&0x0003	=0x0003			alignment 256
+
+# sim65 executable files
+0	string		\x73\x69\x6d\x36\x35	sim65 executable,
+>5	byte		x			version %d,
+>6	leshort&0x0000	=0x0000			6502
+>6	leshort&0x0001	=0x0001			65C02
