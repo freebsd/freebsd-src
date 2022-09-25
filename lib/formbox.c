@@ -424,40 +424,37 @@ menu_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 	} else
 		notext += *menurows;
 
-	/* cols autosize, rows autosize, rows fullscreen, menu particularity */
-	if (cols == BSDDIALOG_AUTOSIZE || rows <= BSDDIALOG_AUTOSIZE) {
-		if (text_size(conf, rows, cols, text, &bs, notext, linelen + 4,
-		    &htext, &wtext) != 0)
-			return (BSDDIALOG_ERROR);
-	}
+	if (text_size(conf, rows, cols, text, &bs, notext, linelen + 4, &htext,
+	    &wtext) != 0)
+		return (BSDDIALOG_ERROR);
 
 	if (cols == BSDDIALOG_AUTOSIZE)
 		*w = widget_min_width(conf, wtext, linelen + 4, &bs);
 
 	if (rows == BSDDIALOG_AUTOSIZE) {
-		if (*menurows == 0) {
+		if (*menurows == BSDDIALOG_AUTOSIZE) {
 			menusize = widget_max_height(conf) - HBORDERS -
 			     2 /*buttons*/ - htext;
 			menusize = MIN(menusize, nitems + 2);
 			*menurows = menusize - 2 < 0 ? 0 : menusize - 2;
-		}
-		else /* h autosize with fixed menurows */
+		} else /* h autosize with fixed menurows */
 			menusize = *menurows + 2;
 
 		*h = widget_min_height(conf, htext, menusize, true);
-		/*
-		 * avoid menurows overflow and
-		 * with rows=AUTOSIZE menurows!=0 becomes max-menurows
-		 */
-		*menurows = MIN(*h - 6 - htext, (int)*menurows);
-	} else {
-		if (*menurows == 0) {
+	} else { /* fixed rows */
+		if (*menurows == BSDDIALOG_AUTOSIZE) {
 			if (*h - 6 - htext <= 0)
 				*menurows = 0; /* form_checksize() will check */
 			else
 				*menurows = MIN(*h-6-htext, nitems);
 		}
 	}
+
+	/* avoid menurows overflow and menurows becomes at most menurows */
+	if (*h - 6 - htext <= 0)
+		*menurows = 0; /* form_checksize() will check */
+	else
+		*menurows = MIN(*h - 6 - htext, (int)*menurows);
 
 	return (0);
 }

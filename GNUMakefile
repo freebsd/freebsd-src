@@ -8,8 +8,8 @@ SOURCES= bsddialog.c util_theme.c
 OBJECTS= $(SOURCES:.c=.o)
 LIBPATH= ./lib
 LIBBSDDIALOG= $(LIBPATH)/libbsddialog.so
-CFLAGS= -Wall -Wextra -Wno-unused-parameter -I$(LIBPATH)
-LDFLAGS= -Wl,-rpath=$(LIBPATH) -L$(LIBPATH) -lbsddialog
+CFLAGS= -Wall -Wextra -I$(LIBPATH)
+LDFLAGS= -ltinfo -Wl,-rpath=$(LIBPATH) -L$(LIBPATH) -lbsddialog
 RM = rm -f
 
 all : $(OUTPUT)
