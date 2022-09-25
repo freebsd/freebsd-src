@@ -33,7 +33,6 @@
 .include <src.opts.mk>
 
 PACKAGE=	zoneinfo
-CLEANFILES+=	yearistype
 CLEANDIRS+=	builddir
 CONTRIBDIR=	${SRCTOP}/contrib/tzdata/
 .PATH:		${CONTRIBDIR}
@@ -51,7 +50,7 @@ LEAPFILE=
 
 TZFILES=	africa antarctica asia australasia etcetera europe \
 		factory northamerica southamerica
-TZFILES+=	backward systemv
+TZFILES+=	backward
 POSIXRULES=	America/New_York
 
 TZFILES:=	${TZFILES:S/^/${CONTRIBDIR}/}
@@ -71,8 +70,7 @@ TZBUILDSUBDIRS=	\
 		Etc \
 		Europe \
 		Indian \
-		Pacific \
-		SystemV
+		Pacific
 TZBUILDSUBDIRS+= US Mexico Chile Canada Brazil
 
 .if !defined(_SKIP_BUILD)
@@ -80,12 +78,12 @@ all: zoneinfo
 .endif
 META_TARGETS+=	zoneinfo install-zoneinfo
 
-zoneinfo: yearistype ${TDATA}
+zoneinfo: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
 	umask 022; cd ${.CURDIR}; \
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
-	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
+	    ${LEAPFILE} ${TZFILES}
 
 #
 # Sort TZS to ensure they are the same every build. find -s might
