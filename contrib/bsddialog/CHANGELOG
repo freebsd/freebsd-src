@@ -1,17 +1,68 @@
+2022-09-24 Version 0.4
+
+	Utility:
+	* add: --normal-screen to set normal mode.
+	* add: --alternate-screen to set alternate mode.
+	* add: --keep-tite as --alternate-screen alias.
+	* add: --and-dialog to build other dialogs.
+	* add: --and-widget as --and-dialog alias.
+	* add: --no-names (--no-tags becames its alias).
+	* add: --no-descriptions (--no-items becames its alias).
+	* add: --help-print-name (--help-tags becames its alias).
+	* add: --item-bottom-desc (--item-help becames its alias).
+	* add: --cr-wrap (was partially implemented) to keep '\n' with "\n".
+	* add: --text-unchanged to avoid default modification.
+	* add: --tab-escape enables "\t" in text.
+	* add: --clear-screen to clear the screen.
+	* add: --clear-dialog to clear the dialog (was --clear).
+	* add: --calendar dialog to select a date.
+	* add: DIAGNOSTICS messages for bad arguments number.
+	* add: DIAGNOSTICS messages for missing and unexpected options.
+	* change: --clear becames alias for --clear-screen.
+	* change: --print-maxsize format output.
+	* change: --menu, --radiolist, --checklist and --treeview output.
+	    - no printed items with Cancel or ESC.
+	    - --separator prints <sepstr> before each item except HELP.
+	    - --separator and --separate-output print <sepstr> after each item.
+	    - quoted item name/desc only when needed.
+	    - --menu avoids to print selected item after focused HELP item.
+	* change: text default modification.
+	    - without a "\n": '\t' -> space, '\n' -> '\n', trim spaces.
+	    - with a "\n": '\t' -> space, '\n' -> space, "\n" -> '\n', no trim.
+	    - delete '\n' after "\n" (also with --cr-wrap).
+	* change: --datebox input and output format yy/mm/dd -> dd/mm/yy.
+	* delete: --no-collapse (partially implemented).
+	* delete: --no-nl-expand (partially implemented).
+	* delete: --trim (partially implemented).
+
+	Library:
+	* add: bsddialog_msgbox() HOME, END, PPAGE and NPAGE keys.
+	* add: bsddialog_yesno() HOME, END, PPAGE and NPAGE keys.
+	* add: bsddialog_menu() SPACE key (equivalent to ENTER).
+	* add: bsddialog_calendar() to select a date.
+	* change: rename enum bsddialog_grouptype -> enum bsddialog_menutype.
+	* change: fixed-menurows becames at most menurows (depending on text).
+	* change: fixed-rows becames at most rows, min(rows, screenH - shadow).
+	* change: fixed-cols becames at most cols, min(cols, screenW - shadow).
+	* delete: undocumented internal bsddialog_menuitem.depth factor (was 2).
+
+
 2022-08-29 Version 0.3
 
 	Utility:
 	* add: --textbox accepts options for the first button.
-	* add: --columns-per-row option for text autosizing.
-	* add: --load-theme option to read and set a custom theme at runtime.
-	* add: --save-theme option to save current theme.
-	* add: --bikeshed option for random settings.
+	* add: --columns-per-row for text autosizing.
+	* add: --load-theme to read and set a custom theme at runtime.
+	* add: --save-theme to save current theme.
+	* add: --bikeshed for random settings.
 	* add: --switch-buttons enables focus switching: buttons / input
 	       components. Available for: --form, --inputbox, --mixedform,
 	       --passwordform, --passwordbox, --timebox and --datebox.
 	* change: rename --esc-cancelvalue to --esc-return-cancel.
 	* change: form field value is printed like multibyte charachter string,
 	          previously widechar string.
+	* change: --timebox output with zero padding.
+	* change: --datebox output mm and dd with zero padding.
 	* fix: --hline with empty string.
 	* fix: avoid to overlay the backtitle by setting a top margin.
 	* fix: avoid to overlay down shadow with menus and forms bottomdesc
@@ -25,8 +76,8 @@
 	* add: conf.text.cols_per_row to set a ratio for text autosizing.
 	* add: timebox and datebox arrows and focus background for boxes.
 	* add: timebox and datebox UP key to switch focus.
-	* add: bsddialog_init_notheme() in bsddialo_theme.h.
-	* add: bsddialog_hascolors() in bsddialo_theme.h.
+	* add: bsddialog_init_notheme() in bsddialog.h.
+	* add: bsddialog_hascolors() in bsddialog_theme.h.
 	* add: theme.form.bottomdesccolor and theme.menu.bottomdesccolor.
 	* add: conf.button.always_active to disable buttons/input-boxes switch.
 	* add: dynamic buttons margin.
@@ -60,8 +111,8 @@
 	    - add: formheight autosizing.
 	    - add: dynamic item position.
 	* fix: bsddialog_gauge() with fd < 0.
-	* fix: internal segmentation fault with disabled shadow.
 	* fix: bsddialog_gauge() refresh new text.
+	* fix: internal segmentation fault with disabled shadow.
 	* fix: center position without shadow.
 	* fix: bsddialog_infobox() with zero text length.
 	* fix: text wrapping with more than 1024 words.
@@ -92,7 +143,7 @@
 	* change: theme.button.[left|right]ch -> theme.button.[left|right]delim.
 	* change: theme.button.space -> theme.button.hmargin.
 	* change: theme.menu.arrowcolor -> theme.dialog.arrowcolor.
-	* change: default menu item depth 4 -> 2.
+	* change: internal bsddialog_menuitem.depth factor 4 -> 2.
 	* fix: disable HOME, PPAGE, END and NPAGE keys in bsddialog_form().
 	* fix: visible cursor for timebox.c and form.c in VM VirtualBox.
 	* fix: mixedlist, center position of separator with big pad.
@@ -106,7 +157,7 @@
 
 2022-01-27 Version 0.1
 
-	* Common-Options: --ascii-lines, --backtitle <backtitle>, --begin-x <x>,
+	* Options: --ascii-lines, --backtitle <backtitle>, --begin-x <x>,
 	  --begin-y <y>, --cancel-label <label>, --clear, --colors, --cr-wrap,
 	  --date-format <format>, --defaultno, --default-button <label>,
 	  --default-no, --default-item <name>, --disable-esc,
@@ -131,4 +182,3 @@
 	  --passwordbox, --passwordform, --pause, --radiolist, --rangebox,
 	  --textbox, --timebox, --treeview, --yesno.
 	* Manuals: bsddialog.1, bsddialog.3.
-

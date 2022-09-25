@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: CC0-1.0
 #
-# Written in 2021 by Alfonso Sabato Siciliano.
+# Written in 2022 by Alfonso Sabato Siciliano.
 #
 # To the extent possible under law, the author has dedicated all copyright
 # and related and neighboring rights to this software to the public domain
@@ -14,7 +14,8 @@
 : ${BSDDIALOG_CANCEL=1}
 : ${BSDDIALOG_ESC=5}
 
-TIME=$(./bsddialog --title " timebox " --timebox "Hello World!" 8 25 \
+DATE=$(./bsddialog --title " calendar " --date-format "%x" \
+	--calendar "Hello World!" 20 40 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in
@@ -28,6 +29,6 @@ case $? in
 		echo "[Cancel]"
 	;;
 	$BSDDIALOG_OK )
-		echo "[OK] $TIME"
+		echo "[OK] $DATE"
 	;;
 esac
