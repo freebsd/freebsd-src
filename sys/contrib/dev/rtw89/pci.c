@@ -3937,6 +3937,6 @@ MODULE_VERSION(rtw89_pci, 1);
 MODULE_DEPEND(rtw89_pci, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(rtw89_pci, linuxkpi_wlan, 1, 1, 1);
 #ifdef CONFIG_RTW89_DEBUGFS
-MODULE_DEPEND(rtw89_pci, debugfs, 1, 1, 1);
+MODULE_DEPEND(rtw89_pci, lindebugfs, 1, 1, 1);
 #endif
 #endif
