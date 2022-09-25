@@ -3236,12 +3236,11 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 {
 	struct vattr va, inva;
 	struct mount *mp;
-	struct uio io;
 	off_t startoff, endoff, xfer, xfer2;
 	u_long blksize;
 	int error, interrupted;
 	bool cantseek, readzeros, eof, lastblock, holetoeof;
-	ssize_t aresid;
+	ssize_t aresid, r = 0;
 	size_t copylen, len, rem, savlen;
 	char *dat;
 	long holein, holeout;
@@ -3270,13 +3269,20 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		error = vn_lock(outvp, LK_EXCLUSIVE);
 	if (error == 0) {
 		/*
-		 * If fsize_td != NULL, do a vn_rlimit_fsize() call,
+		 * If fsize_td != NULL, do a vn_rlimit_fsizex() call,
 		 * now that outvp is locked.
 		 */
 		if (fsize_td != NULL) {
+			struct uio io;
+
 			io.uio_offset = *outoffp;
 			io.uio_resid = len;
-			error = vn_rlimit_fsize(outvp, &io, fsize_td);
+			error = vn_rlimit_fsizex(outvp, &io, 0, &r, fsize_td);
+			len = savlen = io.uio_resid;
+			/*
+			 * No need to call vn_rlimit_fsizex_res before return,
+			 * since the uio is local.
+			 */
 		}
 		if (VOP_PATHCONF(outvp, _PC_MIN_HOLE_SIZE, &holeout) != 0)
 			holeout = 0;

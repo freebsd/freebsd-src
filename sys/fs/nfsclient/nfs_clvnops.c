@@ -3803,6 +3803,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct uio io;
 	struct nfsmount *nmp;
 	size_t len, len2;
+	ssize_t r;
 	int error, inattrflag, outattrflag, ret, ret2;
 	off_t inoff, outoff;
 	bool consecutive, must_commit, tryoutcred;
@@ -3862,7 +3863,12 @@ generic_copy:
 	 */
 	io.uio_offset = *ap->a_outoffp;
 	io.uio_resid = *ap->a_lenp;
-	error = vn_rlimit_fsize(outvp, &io, ap->a_fsizetd);
+	error = vn_rlimit_fsizex(outvp, &io, 0, &r, ap->a_fsizetd);
+	*ap->a_lenp = io.uio_resid;
+	/*
+	 * No need to call vn_rlimit_fsizex_res before return, since the uio is
+	 * local.
+	 */
 
 	/*
 	 * Flush the input file so that the data is up to date before
