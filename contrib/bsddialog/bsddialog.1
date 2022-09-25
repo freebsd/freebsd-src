@@ -1,4 +1,5 @@
 .\"
+.\"
 .\" Copyright (c) 2021-2022 Alfonso Sabato Siciliano
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 29, 2022
+.Dd September 23, 2022
 .Dt BSDDIALOG 1
 .Os
 .Sh NAME
@@ -34,12 +35,19 @@
 .Nm
 .Fl Fl version
 .Nm
-.Op Fl Fl common-option
+.Op Fl Fl option
 .Fl Fl dialog
 .Ar text
 .Ar rows
 .Ar cols
-.Op Ar dialog-parameter
+.Op Ar dialog-argument
+.Nm
+.Fl Fl dialog1
+.Ar ...
+.Oo Fl Fl and-dialog
+.Fl Fl dialog2
+.Ar ...
+.Oc ...
 .Sh DESCRIPTION
 The
 .Nm bsddialog
@@ -51,21 +59,24 @@ The options
 and
 .Fl Fl version
 print the list of options and the version, respectively, then exit.
+.Fl Fl and-dialog
+builds another dialog unless the previous one returns Error, ESC or Cancel.
 .Pp
-The following options are available for each dialog.
 .Ar text
-is a message printed inside the dialog, except for
-.Fl Fl textbox
-described later.
+is a message printed inside the dialog.
 .Ar rows
 and
 .Ar cols
 are the height and width, 0 for autosize and -1 for fullscreen.
+.Pp
 The possible input got from the user interface is printed to standard error.
-.Ss Common options
+.Ss Options
 The following options can change the default behavior of the utility and are
 common to some dialog.
 .Bl -tag -width Ds
+.It Fl Fl alternate-screen
+If available set alternate screen mode, see
+.Xr terminfo 5 .
 .It Fl Fl ascii-lines
 Ascii characters to draw lines.
 .It Fl Fl backtitle Ar backtitle
@@ -85,8 +96,10 @@ Zero padding with time or date output.
 Label for the
 .Dq Cancel
 button.
-.It Fl Fl clear
+.It Fl Fl clear-dialog
 Hide the dialog at exit.
+.It Fl Fl clear-screen
+Clear the screen, after the dialog exit if a dialog is built.
 .It Fl Fl colors
 Enable highlights for text, the following sequences are considered escapes:
 .Bl -column -compact
@@ -125,13 +138,19 @@ restore normal text.
 Try to set the number of columns for a row of text with autosizing; default
 .Dv 10 .
 .It Fl Fl cr-wrap
-Replace new line with a space in
-.Ar text .
+Keep new line in
+.Ar text
+also if it constains a
+.Dq \en ,
+see
+.Fl Fl text-unchanged .
 .It Fl Fl date-format Ar format
 String accepted by
 .Xr strftime 3
 to customize the output of
-.Fl Fl datebox .
+.Fl Fl datebox
+and
+.Fl Fl calendar
 .It Fl Fl default-button Ar label
 Focus on the button with
 .Ar label
@@ -146,18 +165,12 @@ Focus on
 or
 .Dq \&No
 button on startup.
-.It Fl Fl defaultno
-Equivalent to
-.Fl Fl default-no .
 .It Fl Fl disable-esc
 Disable ESC key to quit.
 .It Fl Fl esc-return-cancel
-Exits with the
+ESC key returns
 .Dq Cancel
-button value if the ESC key is pressed.
-.It Fl Fl exit-label Ar label
-Equivalent to
-.Fl Fl ok-label .
+button value.
 .It Fl Fl extra-button
 Add a button with
 .Dq Extra
@@ -184,14 +197,14 @@ Set
 for
 .Dq Help
 button.
+.It Fl Fl help-print-name
+Print the name of the focused item if the Help button is pressed also
+with
+.Fl Fl item-bottom-desc .
 .It Fl Fl help-status
 Print also the selected items if the
 .Dq Help
 button is pressed.
-.It Fl Fl help-tags
-Print the name of the focused item if the Help button is pressed also
-with
-.Fl Fl item-help .
 .It Fl Fl hfile Ar filename
 Open
 .Ar filename
@@ -208,11 +221,11 @@ Do not exit with unknown options.
 Print
 .Sq *
 to hide passwords while typing; whitespace otherwise.
+.It Fl Fl item-bottom-desc
+Set a help string for each item of a Checklist, Form, Menu, Mixedform,
+Passwordform, Radiolist and Treeview to display at the bottom screen side.
 .It Fl Fl item-depth
 Specify a margin for items, available for Checklist, Menu and Radiolist.
-.It Fl Fl item-help
-Set a help string for each element of a Checklist, Form, Menu, Mixedform,
-Passwordform, Radiolist and Treeview to display at the bottom screen side.
 .It Fl Fl item-prefix
 Set a string to prefix each item of a Checklist, Menu, Radiolist or Treeview.
 .It Fl Fl load-theme Ar file
@@ -228,59 +241,46 @@ default 2048.
 Do not show
 .Dq Cancel
 button.
-.It Fl Fl no-collapse
-Do not replace a TAB character with a space in
-.Ar text .
-.It Fl Fl no-items
+.It Fl Fl no-descriptions
 Do not display items desciption, for Checklist, Menu, Radiolist or Treeview.
-.It Fl Fl no-label Ar label
-Equivalent to
-.Fl Fl cancel-label .
 .It Fl Fl no-lines
 Do not draw borders and lines.
-.It Fl Fl no-nl-expand
-do not consider the sequence
-.Dq \en
-like new line.
+.It Fl Fl no-names
+Do not display items name, for Checklist, Menu and Radiolist.
 .It Fl Fl no-ok
 Do not draw
 .Dq OK
 button.
 .It Fl Fl no-shadow
 No not draw the shadow of the dialog.
-.It Fl Fl no-tags
-Do not display items name, for Checklist, Menu and Radiolist.
-.It Fl Fl nocancel
-Equivalent to
-.Fl Fl no-cancel .
-.It Fl Fl nook
-Equivalent to
-.Fl Fl no-ok .
 .It Fl Fl ok-label Ar label
 Set
 .Ar label
 for
 .Dq OK
 button.
+.It Fl Fl normal-screen
+If available set normal screen mode, see
+.Xr terminfo 5 .
 .It Fl Fl output-fd Ar fd
 Print input from user interface to the specified file descriptor.
 .It Fl Fl output-separator Ar sep
 Set a sepator for the items in output, default whitespace.
 .It Fl Fl print-maxsize
 Screen size.
+This option can be used without a dialog.
 .It Fl Fl print-size
 Print Dialog height and widget at exit.
 .It Fl Fl print-version
 Print version.
+This option can be used without a dialog.
 .It Fl Fl quoted
 Quote items in output, default only when necessary.
 .It Fl Fl save-theme Ar file
 Save the current theme.
+This option can be used without a dialog.
 .It Fl Fl separate-output
 Separate selected items with a new line and avoid to quote.
-.It Fl Fl separator Ar sep
-Equivalent to
-.Fl Fl output-separator .
 .It Fl Fl shadow
 Show a pseudo shadow for the dialog, enabled by default.
 .It Fl Fl single-quoted
@@ -302,12 +302,29 @@ Suitable for:
 .Fl Fl mixedform ,
 .Fl Fl passwordbox ,
 .Fl Fl passwordform ,
-.Fl Fl timebox
+.Fl Fl timebox ,
+.Fl Fl calendar
 and
 .Fl Fl datebox .
+.It Fl Fl tab-escape
+Replace
+.Dq \et
+with a tab in
+.Ar text .
 .It Fl Fl tab-len Ar spaces
 Number of spaces to print a TAB in
 .Ar text .
+.It Fl Fl text-unchanged
+By default the
+.Ar text
+is changed before to be printed.
+If it contains at least a
+.Dq \en
+each new line and TAB is converted to a space, subsequent spaces are merged.
+Otherwise new line characters are preserved and a TAB becomes a space.
+This option disable the
+.Ar text
+modification.
 .It Fl Fl theme Ar theme
 Set a graphical style: blackwhite, bsddialog, flat or dialog.
 .It Fl Fl time-format Ar format
@@ -317,16 +334,12 @@ to customize the output of
 .Fl Fl timebox .
 .It Fl Fl title Ar title
 Dialog title.
-.It Fl Fl trim
-remove consecutive spaces in
-.Ar text .
-.It Fl Fl yes-label Ar label
-Equivalent to
-.Fl Fl ok-label .
 .El
 .Ss Dialogs
 The following dialogs are available:
 .Bl -tag -width Ds
+.It Fl Fl calendar Ar text Ar rows Ar cols Op Ar day Ar month Ar year
+Dialog to select a date.
 .It Fl Fl checklist Ar text Ar rows Ar cols Ar menurows Oo Ar name Ar desc \
 Ar status Oc ...
 Checklist to select some item from a list via the SPACE key.
@@ -342,7 +355,7 @@ or
 The names of the selected items are printed to standard error.
 .Ar menurows
 is the graphical height of the list, 0 for autosize.
-.It Fl Fl datebox Ar text Ar rows Ar cols Op Ar year Ar month Ar day
+.It Fl Fl datebox Ar text Ar rows Ar cols Op Ar day Ar month Ar year
 Dialog to select a date.
 .It Fl Fl form Ar text Ar rows Ar cols Ar formrows Oo Ar label Ar ylabel \
 Ar xlabel Ar init Ar yfield Ar xfield Ar fieldlen Ar maxletters Oc ...
@@ -393,7 +406,7 @@ Dialog to get a string in input,
 .Ar init
 is the default value.
 .It Fl Fl menu Ar text Ar rows Ar cols Ar menurows Oo Ar name desc Oc ...
-Builds a menu to select an item from a list.
+Builds a menu to select an item from a list, Space key is equivalent to Enter.
 An item has a
 .Ar name
 and a
@@ -461,6 +474,7 @@ a blank line,
 Dialog to diplay a message without the
 .Dq Cancel
 button.
+UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to navigate the text.
 .It Fl Fl passwordbox Ar text Ar rows Ar cols Op Ar init
 Dialog to get a password,
 .Ar init
@@ -522,6 +536,7 @@ buttons are renamed
 .Dq Yes
 and
 .Dq \&No .
+UP, DOWN, HOME, END, PAGEUP and PAGEDOWN keys are availble to navigate the text.
 .El
 .Sh EXIT STATUS
 The
@@ -574,6 +589,10 @@ Checklist:
 Form:
 .Dl bsddialog --form Form 0 0 0 L1: 0 0 X 0 4 20 25 L2: 1 0 Y 1 4 20 25
 .Pp
+Multi-dialog:
+.Dl bsddialog --normal-screen --begin-y 1 --yesno Continue? 0 0  \e \
+--and-dialog --begin-y 10 --infobox Yes 0 0
+.Pp
 Bikeshed:
 .Dl bsddialog --bikeshed --inputbox Example 0 0
 .Pp
@@ -614,6 +633,27 @@ do
 	i=`expr $i + 1`
 done | bsddialog --title Gauge --gauge "Starting..." 10 70
 .Ed
+.Sh COMPATIBILITY
+Outdated options are retained for compatibility, properly equivalent options are
+used:
+.Bd -literal -offset indent -compact
+Obsolete                     Equivalent
+--and-widget                 --and-dialog
+--calendar <text> 2 <cols>   --calendar <text> 0 <cols>
+--clear                      --clear-screen
+--defaultno                  --default-no
+--exit-label                 --ok-label
+--help-tags                  --help-print-name
+--item-help                  --item-bottom-desc
+--keep-tite                  --alternate-screen
+--no-items                   --no-descriptions
+--no-label                   --cancel-label
+--no-tags                    --no-names
+--nocancel                   --no-cancel
+--nook                       --no-ok
+--separator                  --output-separator
+--yes-label                  --ok-label
+.Ed
 .Sh SEE ALSO
 .Xr bsddialog 3
 .Sh HISTORY
@@ -633,7 +673,8 @@ provides a subset of the functionality described in the
 manual.
 The following features were reimplemented:
 .Pp
-Common options:
+Options:
+.Fl Fl and-widget ,
 .Fl Fl ascii-lines ,
 .Fl Fl backtitle ,
 .Fl Fl cancel-label ,
@@ -658,14 +699,13 @@ Common options:
 .Fl Fl ignore ,
 .Fl Fl insecure ,
 .Fl Fl item-help ,
+.Fl Fl keep-tite ,
 .Fl Fl max-input ,
 .Fl Fl no-cancel ,
 .Fl Fl nocancel ,
-.Fl Fl no-collapse ,
 .Fl Fl no-items ,
 .Fl Fl no-label ,
 .Fl Fl no-lines ,
-.Fl Fl no-nl-expand ,
 .Fl Fl no-ok ,
 .Fl Fl nook ,
 .Fl Fl no-shadow ,
@@ -687,11 +727,11 @@ Common options:
 .Fl Fl tab-len ,
 .Fl Fl time-format ,
 .Fl Fl title ,
-.Fl Fl trim ,
 .Fl Fl version ,
 .Fl Fl yes-label .
 .Pp
 Dialogs:
+.Fl Fl calendar ,
 .Fl Fl checklist ,
 .Fl Fl form ,
 .Fl Fl gauge ,
@@ -715,8 +755,10 @@ Some feature differs in input, output, or behavior.
 Compatibility is not a priority for future development.
 .Sh THANKS TO
 .An Baptiste Daroussin
-.Aq Mt bapt@FreeBSD.org
-and
+.Aq Mt bapt@FreeBSD.org ,
 .An \&Ed Maste
 .Aq Mt emaste@FreeBSD.org
+and
+.An Juraj Lutter
+.Aq Mt otis@FreeBSD.org
 for suggestions, help, and testing.
