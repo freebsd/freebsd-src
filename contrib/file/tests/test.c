@@ -60,6 +60,8 @@ slurp(FILE *fp, size_t *final_len)
 		}
 		*s++ = c;
 	}
+	if (s != l && s[-1] == '\n')
+		s--;
 	if (s == l + len)
 		l = (char *)xrealloc(l, len + 1);
 	*s++ = '\0';

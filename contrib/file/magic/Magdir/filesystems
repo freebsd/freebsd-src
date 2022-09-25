@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.149 2022/05/21 22:50:28 christos Exp $
+# $File: filesystems,v 1.150 2022/07/04 16:40:33 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -2661,3 +2661,29 @@
 >>>&(0x107a.b*56)	use	bcachefs-uuid
 >>0x107b	byte		x	\b, %d devices
 >>0x1090	byte		^0x02	\b (unclean)
+
+# EROFS
+# https://kernel.googlesource.com/pub/scm/linux/kernel/git/xiang/erofs-utils/\
+# +/refs/heads/experimental/include/erofs_fs.h#12
+1024		lelong		0xE0F5E1E2	EROFS filesystem
+#>1028		lelong		x		\b, checksum=%#x
+>1032		lelong		>0		\b, compat:
+>>1032		lelong		&1		SB_CHKSUM
+>>1032		lelong		&2		MTIME
+>1036		byte		x		\b, blocksize=%u
+>1037		byte		x		\b, exslots=%u
+#>1038		leshort		x		\b, root_nid=%d
+#>1040		lequad		x		\b, inodes=%ld
+#>1048		leldate		x		\b, build_time=%s
+#>1056		lelong		x		\b.%d
+#>1060		lelong		x		\b, blocks=%d
+#>1064		lelong		x		\b, metadata@%#x
+#>1068		lelong		x		\b, xattr@%#x
+>1072		guid		x		\b, uuid=%s
+>1088		string		>0		\b, name=%s
+>1104		lelong		>0		\b, incompat:
+>>1104		lelong		&1		LZ4_0PADDING
+>>1104		lelong		&2		BIG_PCLUSTER
+>>1104		lelong		&4		CHUNKED_FILE
+>>1104		lelong		&8		DEVICE_TABLE
+>>1104		lelong		&16		ZTAILPACKING

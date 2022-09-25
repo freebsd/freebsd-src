@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: virtual,v 1.16 2022/01/18 14:08:15 christos Exp $
+# $File: virtual,v 1.17 2022/08/23 08:00:54 christos Exp $
 # From: James Nobis <quel@quelrod.net>
 # Microsoft hard disk images for:
 # Virtual Server
@@ -9,10 +9,10 @@
 # URL: http://fileformats.archiveteam.org/wiki/VHD_(Virtual_Hard_Disk)
 # Reference: https://download.microsoft.com/download/f/f/e/ffef50a5-07dd-4cf8-aaa3-442c0673a029/
 # Virtual%20Hard%20Disk%20Format%20Spec_10_18_06.doc
-0	string	connectix	Microsoft Disk Image, Virtual Server or Virtual PC
+0	string	conectix	Microsoft Disk Image, Virtual Server or Virtual PC
 # alternative shorter names
-#0	string	connectix	Microsoft Virtual Hard Disk image
-#0	string	connectix	Microsoft Virtual HD image
+#0	string	conectix	Microsoft Virtual Hard Disk image
+#0	string	conectix	Microsoft Virtual HD image
 !:mime	application/x-virtualbox-vhd
 !:ext   vhd
 # Features is a bit field used to indicate specific feature support
