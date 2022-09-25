@@ -6435,10 +6435,6 @@ OLD_FILES+=usr/include/crypto/skipjack.h
 # 20200511: Remove ubsec(4)
 OLD_FILES+=usr/share/man/man4/ubsec.4.gz
 
-# 20200506: GNU objdump 2.17.50 retired
-OLD_FILES+=usr/bin/objdump
-OLD_FILES+=usr/share/man/man1/objdump.1.gz
-
 # 20200428: route_var.h moved to net/route
 OLD_FILES+=usr/include/net/route_var.h
 
