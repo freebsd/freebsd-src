@@ -17,6 +17,10 @@ bcachefs.result \
 bcachefs.testfile \
 cl8m8ocofedso.result \
 cl8m8ocofedso.testfile \
+dsd64-dff.result \
+dsd64-dff.testfile \
+dsd64-dsf.result \
+dsd64-dsf.testfile \
 escapevel.result \
 escapevel.testfile \
 ext4.result \
@@ -25,6 +29,8 @@ fit-map-data.result \
 fit-map-data.testfile \
 gedcom.result \
 gedcom.testfile \
+gpkg-1-zst.result \
+gpkg-1-zst.testfile \
 hddrawcopytool.result \
 hddrawcopytool.testfile \
 issue311docx.result \
@@ -41,6 +47,14 @@ json4.result \
 json4.testfile \
 json5.result \
 json5.testfile \
+json6.result \
+json6.testfile \
+json7.result \
+json7.testfile \
+json8.result \
+json8.testfile \
+jsonlines1.testfile \
+jsonlines1.result \
 matilde.arm.result \
 matilde.arm.testfile \
 pcjr.result \
