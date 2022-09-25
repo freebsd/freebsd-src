@@ -2248,6 +2248,9 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		case VREG:
 			if (vfs_isrdonly(mp))
 				return (EROFS);
+			err = vn_rlimit_trunc(vap->va_size, td);
+			if (err)
+				return (err);
 			break;
 		default:
 			/*

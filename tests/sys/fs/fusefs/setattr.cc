@@ -31,10 +31,14 @@
  */
 
 extern "C" {
+#include <sys/types.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
 }
 
 #include "mockfs.hh"
@@ -42,11 +46,15 @@ extern "C" {
 
 using namespace testing;
 
-class Setattr : public FuseTest {};
+class Setattr : public FuseTest {
+public:
+static sig_atomic_t s_sigxfsz;
+};
 
 class RofsSetattr: public Setattr {
 public:
 virtual void SetUp() {
+	s_sigxfsz = 0;
 	m_ro = true;
 	Setattr::SetUp();
 }
@@ -60,6 +68,12 @@ virtual void SetUp() {
 }
 };
 
+
+sig_atomic_t Setattr::s_sigxfsz = 0;
+
+void sigxfsz_handler(int __unused sig) {
+	Setattr::s_sigxfsz = 1;
+}
 
 /*
  * If setattr returns a non-zero cache timeout, then subsequent VOP_GETATTRs
@@ -551,6 +565,34 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 	free(w0buf);
 
 	leak(fd);
+}
+
+/* truncate should fail if it would cause the file to exceed RLIMIT_FSIZE */
+TEST_F(Setattr, truncate_rlimit_rsize)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	struct rlimit rl;
+	const uint64_t ino = 42;
+	const uint64_t oldsize = 0;
+	const uint64_t newsize = 100'000'000;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = S_IFREG | 0644;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.size = oldsize;
+	})));
+
+	rl.rlim_cur = newsize / 2;
+	rl.rlim_max = 10 * newsize;
+	ASSERT_EQ(0, setrlimit(RLIMIT_FSIZE, &rl)) << strerror(errno);
+	ASSERT_NE(SIG_ERR, signal(SIGXFSZ, sigxfsz_handler)) << strerror(errno);
+
+	EXPECT_EQ(-1, truncate(FULLPATH, newsize));
+	EXPECT_EQ(EFBIG, errno);
+	EXPECT_EQ(1, s_sigxfsz);
 }
 
 /* Change a file's timestamps */
