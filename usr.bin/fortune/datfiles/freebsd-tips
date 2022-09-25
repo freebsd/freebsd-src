@@ -1,5 +1,6 @@
 Any user that is a member of the wheel group can use "su -" to simulate
-a root login. You can add a user to the wheel group by editing /etc/group.
+a root login. You can add a user to the wheel group with:
+pw groupmod -n wheel -m user_name 
 		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
 %
 By pressing "Scroll Lock" you can use the arrow keys to scroll backward
