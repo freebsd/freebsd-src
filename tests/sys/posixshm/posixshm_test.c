@@ -1476,6 +1476,8 @@ ATF_TC_BODY(largepage_madvise, tc)
 		ATF_REQUIRE_MSG(addr != MAP_FAILED,
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
 
+		memset(addr, 0, ps[i]);
+
 		/* Advice that requires clipping. */
 		largepage_madvise(addr, ps[0], MADV_NORMAL, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_NORMAL, 0);
