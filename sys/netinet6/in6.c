@@ -252,15 +252,15 @@ in6_control(struct socket *so, u_long cmd, void *data,
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
 	struct sockaddr_in6 *sa6;
-	int carp_attached = 0;
 	int error;
-	u_long ocmd = cmd;
 
 	/*
 	 * Compat to make pre-10.x ifconfig(8) operable.
 	 */
-	if (cmd == OSIOCAIFADDR_IN6)
+	if (cmd == OSIOCAIFADDR_IN6) {
 		cmd = SIOCAIFADDR_IN6;
+		ifra->ifra_vhid = 0;
+	}
 
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
@@ -560,142 +560,9 @@ in6_control(struct socket *so, u_long cmd, void *data,
 		break;
 
 	case SIOCAIFADDR_IN6:
-	{
-		struct nd_prefixctl pr0;
-		struct nd_prefix *pr;
-
-		/*
-		 * first, make or update the interface address structure,
-		 * and link it to the list.
-		 */
-		if ((error = in6_update_ifa(ifp, ifra, ia, 0)) != 0)
-			goto out;
-		if (ia != NULL) {
-			if (ia->ia_ifa.ifa_carp)
-				(*carp_detach_p)(&ia->ia_ifa, true);
-			ifa_free(&ia->ia_ifa);
-		}
-		if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr))
-		    == NULL) {
-			/*
-			 * this can happen when the user specify the 0 valid
-			 * lifetime.
-			 */
-			break;
-		}
-
-		if (cmd == ocmd && ifra->ifra_vhid > 0) {
-			if (carp_attach_p != NULL)
-				error = (*carp_attach_p)(&ia->ia_ifa,
-				    ifra->ifra_vhid);
-			else
-				error = EPROTONOSUPPORT;
-			if (error)
-				goto out;
-			else
-				carp_attached = 1;
-		}
-
-		/*
-		 * then, make the prefix on-link on the interface.
-		 * XXX: we'd rather create the prefix before the address, but
-		 * we need at least one address to install the corresponding
-		 * interface route, so we configure the address first.
-		 */
-
-		/*
-		 * convert mask to prefix length (prefixmask has already
-		 * been validated in in6_update_ifa().
-		 */
-		bzero(&pr0, sizeof(pr0));
-		pr0.ndpr_ifp = ifp;
-		pr0.ndpr_plen = in6_mask2len(&ifra->ifra_prefixmask.sin6_addr,
-		    NULL);
-		if (pr0.ndpr_plen == 128) {
-			/* we don't need to install a host route. */
-			goto aifaddr_out;
-		}
-		pr0.ndpr_prefix = ifra->ifra_addr;
-		/* apply the mask for safety. */
-		IN6_MASK_ADDR(&pr0.ndpr_prefix.sin6_addr,
-		    &ifra->ifra_prefixmask.sin6_addr);
-
-		/*
-		 * XXX: since we don't have an API to set prefix (not address)
-		 * lifetimes, we just use the same lifetimes as addresses.
-		 * The (temporarily) installed lifetimes can be overridden by
-		 * later advertised RAs (when accept_rtadv is non 0), which is
-		 * an intended behavior.
-		 */
-		pr0.ndpr_raf_onlink = 1; /* should be configurable? */
-		pr0.ndpr_raf_auto =
-		    ((ifra->ifra_flags & IN6_IFF_AUTOCONF) != 0);
-		pr0.ndpr_vltime = ifra->ifra_lifetime.ia6t_vltime;
-		pr0.ndpr_pltime = ifra->ifra_lifetime.ia6t_pltime;
-
-		/* add the prefix if not yet. */
-		if ((pr = nd6_prefix_lookup(&pr0)) == NULL) {
-			/*
-			 * nd6_prelist_add will install the corresponding
-			 * interface route.
-			 */
-			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
-				if (carp_attached)
-					(*carp_detach_p)(&ia->ia_ifa, false);
-				goto out;
-			}
-		}
-
-		/* relate the address to the prefix */
-		if (ia->ia6_ndpr == NULL) {
-			ia->ia6_ndpr = pr;
-			pr->ndpr_addrcnt++;
-
-			/*
-			 * If this is the first autoconf address from the
-			 * prefix, create a temporary address as well
-			 * (when required).
-			 */
-			if ((ia->ia6_flags & IN6_IFF_AUTOCONF) &&
-			    V_ip6_use_tempaddr && pr->ndpr_addrcnt == 1) {
-				int e;
-				if ((e = in6_tmpifadd(ia, 1, 0)) != 0) {
-					log(LOG_NOTICE, "in6_control: failed "
-					    "to create a temporary address, "
-					    "errno=%d\n", e);
-				}
-			}
-		}
-		nd6_prefix_rele(pr);
-
-		/*
-		 * this might affect the status of autoconfigured addresses,
-		 * that is, this address might make other addresses detached.
-		 */
-		pfxlist_onlink_check();
-
-aifaddr_out:
-		/*
-		 * Try to clear the flag when a new IPv6 address is added
-		 * onto an IFDISABLED interface and it succeeds.
-		 */
-		if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
-			struct in6_ndireq nd;
-
-			memset(&nd, 0, sizeof(nd));
-			nd.ndi.flags = ND_IFINFO(ifp)->flags;
-			nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
-			if (nd6_ioctl(SIOCSIFINFO_FLAGS, (caddr_t)&nd, ifp) < 0)
-				log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
-				    "SIOCSIFINFO_FLAGS for -ifdisabled "
-				    "failed.");
-			/*
-			 * Ignore failure of clearing the flag intentionally.
-			 * The failure means address duplication was detected.
-			 */
-		}
+		error = in6_addifaddr(ifp, ifra, ia);
+		ia = NULL;
 		break;
-	}
 
 	case SIOCDIFADDR_IN6:
 		in6_purgeifaddr(ia);
@@ -1322,6 +1189,151 @@ ifa_is_p2p(struct in6_ifaddr *ia)
 		return (true);
 
 	return (false);
+}
+
+int
+in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *ia)
+{
+	struct nd_prefixctl pr0;
+	struct nd_prefix *pr;
+	int carp_attached = 0;
+	int error;
+
+	/*
+	 * first, make or update the interface address structure,
+	 * and link it to the list.
+	 */
+	if ((error = in6_update_ifa(ifp, ifra, ia, 0)) != 0)
+		goto out;
+	if (ia != NULL) {
+		if (ia->ia_ifa.ifa_carp)
+			(*carp_detach_p)(&ia->ia_ifa, true);
+		ifa_free(&ia->ia_ifa);
+	}
+	if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr)) == NULL) {
+		/*
+		 * this can happen when the user specify the 0 valid
+		 * lifetime.
+		 */
+		return (0);
+	}
+
+	if (ifra->ifra_vhid > 0) {
+		if (carp_attach_p != NULL)
+			error = (*carp_attach_p)(&ia->ia_ifa,
+			    ifra->ifra_vhid);
+		else
+			error = EPROTONOSUPPORT;
+		if (error)
+			goto out;
+		else
+			carp_attached = 1;
+	}
+
+	/*
+	 * then, make the prefix on-link on the interface.
+	 * XXX: we'd rather create the prefix before the address, but
+	 * we need at least one address to install the corresponding
+	 * interface route, so we configure the address first.
+	 */
+
+	/*
+	 * convert mask to prefix length (prefixmask has already
+	 * been validated in in6_update_ifa().
+	 */
+	bzero(&pr0, sizeof(pr0));
+	pr0.ndpr_ifp = ifp;
+	pr0.ndpr_plen = in6_mask2len(&ifra->ifra_prefixmask.sin6_addr,
+	    NULL);
+	if (pr0.ndpr_plen == 128) {
+		/* we don't need to install a host route. */
+		goto aifaddr_out;
+	}
+	pr0.ndpr_prefix = ifra->ifra_addr;
+	/* apply the mask for safety. */
+	IN6_MASK_ADDR(&pr0.ndpr_prefix.sin6_addr,
+	    &ifra->ifra_prefixmask.sin6_addr);
+
+	/*
+	 * XXX: since we don't have an API to set prefix (not address)
+	 * lifetimes, we just use the same lifetimes as addresses.
+	 * The (temporarily) installed lifetimes can be overridden by
+	 * later advertised RAs (when accept_rtadv is non 0), which is
+	 * an intended behavior.
+	 */
+	pr0.ndpr_raf_onlink = 1; /* should be configurable? */
+	pr0.ndpr_raf_auto =
+	    ((ifra->ifra_flags & IN6_IFF_AUTOCONF) != 0);
+	pr0.ndpr_vltime = ifra->ifra_lifetime.ia6t_vltime;
+	pr0.ndpr_pltime = ifra->ifra_lifetime.ia6t_pltime;
+
+	/* add the prefix if not yet. */
+	if ((pr = nd6_prefix_lookup(&pr0)) == NULL) {
+		/*
+		 * nd6_prelist_add will install the corresponding
+		 * interface route.
+		 */
+		if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
+			if (carp_attached)
+				(*carp_detach_p)(&ia->ia_ifa, false);
+			goto out;
+		}
+	}
+
+	/* relate the address to the prefix */
+	if (ia->ia6_ndpr == NULL) {
+		ia->ia6_ndpr = pr;
+		pr->ndpr_addrcnt++;
+
+		/*
+		 * If this is the first autoconf address from the
+		 * prefix, create a temporary address as well
+		 * (when required).
+		 */
+		if ((ia->ia6_flags & IN6_IFF_AUTOCONF) &&
+		    V_ip6_use_tempaddr && pr->ndpr_addrcnt == 1) {
+			int e;
+			if ((e = in6_tmpifadd(ia, 1, 0)) != 0) {
+				log(LOG_NOTICE, "in6_control: failed "
+				    "to create a temporary address, "
+				    "errno=%d\n", e);
+			}
+		}
+	}
+	nd6_prefix_rele(pr);
+
+	/*
+	 * this might affect the status of autoconfigured addresses,
+	 * that is, this address might make other addresses detached.
+	 */
+	pfxlist_onlink_check();
+
+aifaddr_out:
+	/*
+	 * Try to clear the flag when a new IPv6 address is added
+	 * onto an IFDISABLED interface and it succeeds.
+	 */
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+		struct in6_ndireq nd;
+
+		memset(&nd, 0, sizeof(nd));
+		nd.ndi.flags = ND_IFINFO(ifp)->flags;
+		nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
+		if (nd6_ioctl(SIOCSIFINFO_FLAGS, (caddr_t)&nd, ifp) < 0)
+			log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
+			    "SIOCSIFINFO_FLAGS for -ifdisabled "
+			    "failed.");
+		/*
+		 * Ignore failure of clearing the flag intentionally.
+		 * The failure means address duplication was detected.
+		 */
+	}
+	error = 0;
+
+out:
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
+	return (error);
 }
 
 void
