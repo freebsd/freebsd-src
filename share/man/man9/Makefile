@@ -705,6 +705,14 @@ MLINKS+=bus_space.9 bus_space_alloc.9 \
 	bus_space.9 bus_space_copy_region_stream_8.9 \
 	bus_space.9 bus_space_free.9 \
 	bus_space.9 bus_space_map.9 \
+	bus_space.9 bus_space_peek_1.9 \
+	bus_space.9 bus_space_peek_2.9 \
+	bus_space.9 bus_space_peek_4.9 \
+	bus_space.9 bus_space_peek_8.9 \
+	bus_space.9 bus_space_poke_1.9 \
+	bus_space.9 bus_space_poke_2.9 \
+	bus_space.9 bus_space_poke_4.9 \
+	bus_space.9 bus_space_poke_8.9 \
 	bus_space.9 bus_space_read_1.9 \
 	bus_space.9 bus_space_read_2.9 \
 	bus_space.9 bus_space_read_4.9 \
