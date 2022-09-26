@@ -92,10 +92,6 @@
 #define	BUS_SPACE_BARRIER_READ	0x01
 #define	BUS_SPACE_BARRIER_WRITE	0x02
 
-#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
-#include <sys/bus_san.h>
-#else
-
 struct bus_space {
 	/* cookie */
 	void		*bs_cookie;
@@ -281,6 +277,10 @@ struct bus_space {
 	int		(*bs_poke_8)(void *, bus_space_handle_t,
 			   bus_size_t, uint64_t);
 };
+
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
+#include <sys/bus_san.h>
+#else
 
 /*
  * Utility macros; INTERNAL USE ONLY.
