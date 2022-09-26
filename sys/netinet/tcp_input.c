@@ -4060,9 +4060,13 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 int
 tcp_compute_pipe(struct tcpcb *tp)
 {
-	return (tp->snd_max - tp->snd_una +
-		tp->sackhint.sack_bytes_rexmit -
-		tp->sackhint.sacked_bytes);
+	if (tp->t_fb->tfb_compute_pipe == NULL) {
+		return (tp->snd_max - tp->snd_una +
+			tp->sackhint.sack_bytes_rexmit -
+			tp->sackhint.sacked_bytes);
+	} else {
+		return((*tp->t_fb->tfb_compute_pipe)(tp));
+	}
 }
 
 uint32_t
