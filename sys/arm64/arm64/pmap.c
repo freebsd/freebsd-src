@@ -1127,60 +1127,31 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 static vm_offset_t
 pmap_bootstrap_l2(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l2_start)
 {
-	vm_offset_t l2pt;
-	vm_paddr_t pa;
-	pd_entry_t *l1;
-	u_int l1_slot;
-
 	KASSERT((va & L1_OFFSET) == 0, ("Invalid virtual address"));
 
-	l1 = (pd_entry_t *)l1pt;
-	l1_slot = pmap_l1_index(va);
-	l2pt = l2_start;
+	/* Leave bs_state.pa as it's only needed to bootstrap blocks and pages*/
+	bs_state.va = va;
+	bs_state.freemempos = l2_start;
 
-	for (; va < VM_MAX_KERNEL_ADDRESS; l1_slot++, va += L1_SIZE) {
-		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
+	for (; bs_state.va < VM_MAX_KERNEL_ADDRESS; bs_state.va += L1_SIZE)
+		pmap_bootstrap_l1_table(&bs_state);
 
-		pa = pmap_early_vtophys(l2pt);
-		pmap_store(&l1[l1_slot],
-		    (pa & ~Ln_TABLE_MASK) | L1_TABLE);
-		l2pt += PAGE_SIZE;
-	}
-
-	/* Clean the L2 page table */
-	memset((void *)l2_start, 0, l2pt - l2_start);
-
-	return l2pt;
+	return (bs_state.freemempos);
 }
 
 static vm_offset_t
 pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 {
-	vm_offset_t l3pt;
-	vm_paddr_t pa;
-	pd_entry_t *l2;
-	u_int l2_slot;
-
 	KASSERT((va & L2_OFFSET) == 0, ("Invalid virtual address"));
 
-	l2 = pmap_l2(kernel_pmap, va);
-	l2 = (pd_entry_t *)rounddown2((uintptr_t)l2, PAGE_SIZE);
-	l2_slot = pmap_l2_index(va);
-	l3pt = l3_start;
+	/* Leave bs_state.pa as it's only needed to bootstrap blocks and pages*/
+	bs_state.va = va;
+	bs_state.freemempos = l3_start;
 
-	for (; va < VM_MAX_KERNEL_ADDRESS; l2_slot++, va += L2_SIZE) {
-		KASSERT(l2_slot < Ln_ENTRIES, ("Invalid L2 index"));
+	for (; bs_state.va < VM_MAX_KERNEL_ADDRESS; bs_state.va += L2_SIZE)
+		pmap_bootstrap_l2_table(&bs_state);
 
-		pa = pmap_early_vtophys(l3pt);
-		pmap_store(&l2[l2_slot],
-		    (pa & ~Ln_TABLE_MASK) | ATTR_S1_UXN | L2_TABLE);
-		l3pt += PAGE_SIZE;
-	}
-
-	/* Clean the L2 page table */
-	memset((void *)l3_start, 0, l3pt - l3_start);
-
-	return l3pt;
+	return (bs_state.freemempos);
 }
 
 /*
