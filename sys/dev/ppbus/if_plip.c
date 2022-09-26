@@ -175,8 +175,8 @@ static u_char *ctxmith;
 
 /* Functions for the lp# interface */
 static int lpinittables(void);
-static int lpioctl(struct ifnet *, u_long, caddr_t);
-static int lpoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
+static int lpioctl(if_t, u_long, caddr_t);
+static int lpoutput(if_t, struct mbuf *, const struct sockaddr *,
        struct route *);
 static void lpstop(struct lp_data *);
 static void lp_intr(void *);
@@ -234,7 +234,7 @@ static int
 lp_attach(device_t dev)
 {
 	struct lp_data *lp = DEVTOSOFTC(dev);
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, rid = 0;
 
 	lp->sc_dev = dev;
@@ -255,15 +255,13 @@ lp_attach(device_t dev)
 		return (ENOSPC);
 	}
 
-	ifp->if_softc = lp;
+	if_setsoftc(ifp, lp);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = LPMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
-	ifp->if_ioctl = lpioctl;
-	ifp->if_output = lpoutput;
-	ifp->if_hdrlen = 0;
-	ifp->if_addrlen = 0;
-	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	if_setmtu(ifp, LPMTU);
+	if_setflags(ifp, IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST);
+	if_setioctlfn(ifp, lpioctl);
+	if_setoutputfn(ifp, lpoutput);
+	if_setsendqlen(ifp, ifqmaxlen);
 	if_attach(ifp);
 
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
@@ -353,7 +351,7 @@ lpstop(struct lp_data *sc)
 
 	ppb_assert_locked(ppbus);
 	ppb_wctr(ppbus, 0x00);
-	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(sc->sc_ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	free(sc->sc_ifbuf, M_DEVBUF);
 	sc->sc_ifbuf = NULL;
 
@@ -362,9 +360,9 @@ lpstop(struct lp_data *sc)
 }
 
 static int
-lpinit_locked(struct ifnet *ifp)
+lpinit_locked(if_t ifp)
 {
-	struct lp_data *sc = ifp->if_softc;
+	struct lp_data *sc = if_getsoftc(ifp);
 	device_t dev = sc->sc_dev;
 	device_t ppbus = device_get_parent(dev);
 	int error;
@@ -382,7 +380,7 @@ lpinit_locked(struct ifnet *ifp)
 		return (ENOBUFS);
 	}
 
-	sc->sc_ifbuf = malloc(sc->sc_ifp->if_mtu + MLPIPHDRLEN,
+	sc->sc_ifbuf = malloc(if_getmtu(sc->sc_ifp) + MLPIPHDRLEN,
 	    M_DEVBUF, M_NOWAIT);
 	if (sc->sc_ifbuf == NULL) {
 		ppb_release_bus(ppbus, dev);
@@ -391,8 +389,8 @@ lpinit_locked(struct ifnet *ifp)
 
 	ppb_wctr(ppbus, IRQENABLE);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	return (0);
 }
 
@@ -400,9 +398,9 @@ lpinit_locked(struct ifnet *ifp)
  * Process an ioctl request.
  */
 static int
-lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+lpioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct lp_data *sc = ifp->if_softc;
+	struct lp_data *sc = if_getsoftc(ifp);
 	device_t dev = sc->sc_dev;
 	device_t ppbus = device_get_parent(dev);
 	struct ifaddr *ifa = (struct ifaddr *)data;
@@ -416,23 +414,23 @@ lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			return (EAFNOSUPPORT);
 
-		ifp->if_flags |= IFF_UP;
+		if_setflagbits(ifp, IFF_UP, 0);
 		/* FALLTHROUGH */
 	case SIOCSIFFLAGS:
 		error = 0;
 		ppb_lock(ppbus);
-		if ((!(ifp->if_flags & IFF_UP)) &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING))
+		if ((!(if_getflags(ifp) & IFF_UP)) &&
+		    (if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 			lpstop(sc);
-		else if (((ifp->if_flags & IFF_UP)) &&
-		    (!(ifp->if_drv_flags & IFF_DRV_RUNNING)))
+		else if (((if_getflags(ifp) & IFF_UP)) &&
+		    (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)))
 			error = lpinit_locked(ifp);
 		ppb_unlock(ppbus);
 		return (error);
 
 	case SIOCSIFMTU:
 		ppb_lock(ppbus);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			ptr = malloc(ifr->ifr_mtu + MLPIPHDRLEN, M_DEVBUF,
 			    M_NOWAIT);
 			if (ptr == NULL) {
@@ -443,12 +441,12 @@ lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				free(sc->sc_ifbuf, M_DEVBUF);
 			sc->sc_ifbuf = ptr;
 		}
-		sc->sc_ifp->if_mtu = ifr->ifr_mtu;
+		if_setmtu(ifp, ifr->ifr_mtu);
 		ppb_unlock(ppbus);
 		break;
 
 	case SIOCGIFMTU:
-		ifr->ifr_mtu = sc->sc_ifp->if_mtu;
+		ifr->ifr_mtu = if_getmtu(sc->sc_ifp);
 		break;
 
 	case SIOCADDMULTI:
@@ -518,11 +516,11 @@ clpinbyte(int spin, device_t ppbus)
 }
 
 static void
-lptap(struct ifnet *ifp, struct mbuf *m)
+lptap(if_t ifp, struct mbuf *m)
 {
 	u_int32_t af = AF_INET;
 
-	bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
+	bpf_mtap2_if(ifp, &af, sizeof(af), m);
 }
 
 static void
@@ -536,7 +534,7 @@ lp_intr(void *arg)
 	struct mbuf *top;
 
 	ppb_assert_locked(ppbus);
-	if (sc->sc_ifp->if_flags & IFF_LINK0) {
+	if (if_getflags(sc->sc_ifp) & IFF_LINK0) {
 		/* Ack. the request */
 		ppb_wdtr(ppbus, 0x01);
 
@@ -549,7 +547,7 @@ lp_intr(void *arg)
 		if (j == -1)
 			goto err;
 		len = len + (j << 8);
-		if (len > sc->sc_ifp->if_mtu + MLPIPHDRLEN)
+		if (len > if_getmtu(sc->sc_ifp) + MLPIPHDRLEN)
 			goto err;
 
 		bp = sc->sc_ifbuf;
@@ -581,10 +579,9 @@ lp_intr(void *arg)
 		    0);
 		if (top) {
 			ppb_unlock(ppbus);
-			if (bpf_peers_present(sc->sc_ifp->if_bpf))
-				lptap(sc->sc_ifp, top);
+			lptap(sc->sc_ifp, top);
 
-			M_SETFIB(top, sc->sc_ifp->if_fib);
+			M_SETFIB(top, if_getfib(sc->sc_ifp));
 
 			/* mbuf is free'd on failure. */
 			netisr_queue(NETISR_IP, top);
@@ -593,7 +590,7 @@ lp_intr(void *arg)
 		return;
 	}
 	while ((ppb_rstr(ppbus) & LPIP_SHAKE)) {
-		len = sc->sc_ifp->if_mtu + LPIPHDRLEN;
+		len = if_getmtu(sc->sc_ifp) + LPIPHDRLEN;
 		bp  = sc->sc_ifbuf;
 		while (len--) {
 			cl = ppb_rstr(ppbus);
@@ -634,10 +631,9 @@ lp_intr(void *arg)
 		    0);
 		if (top) {
 			ppb_unlock(ppbus);
-			if (bpf_peers_present(sc->sc_ifp->if_bpf))
-				lptap(sc->sc_ifp, top);
+			lptap(sc->sc_ifp, top);
 
-			M_SETFIB(top, sc->sc_ifp->if_fib);
+			M_SETFIB(top, if_getfib(sc->sc_ifp));
 
 			/* mbuf is free'd on failure. */
 			netisr_queue(NETISR_IP, top);
@@ -659,7 +655,7 @@ err:
 	if (sc->sc_iferrs > LPMAXERRS) {
 		if_printf(sc->sc_ifp, "Too many errors, Going off-line.\n");
 		ppb_wctr(ppbus, 0x00);
-		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(sc->sc_ifp, 0, IFF_DRV_RUNNING);
 		sc->sc_iferrs = 0;
 	}
 }
@@ -680,10 +676,10 @@ lpoutbyte(u_char byte, int spin, device_t ppbus)
 }
 
 static int
-lpoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+lpoutput(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
-	struct lp_data *sc = ifp->if_softc;
+	struct lp_data *sc = if_getsoftc(ifp);
 	device_t dev = sc->sc_dev;
 	device_t ppbus = device_get_parent(dev);
 	int err;
@@ -696,14 +692,14 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	/* We need a sensible value if we abort */
 	cp++;
 	ppb_lock(ppbus);
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 
 	err = 1;		/* assume we're aborting because of an error */
 
 	/* Suspend (on laptops) or receive-errors might have taken us offline */
 	ppb_wctr(ppbus, IRQENABLE);
 
-	if (ifp->if_flags & IFF_LINK0) {
+	if (if_getflags(ifp) & IFF_LINK0) {
 		if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
 			lprintf("&");
 			lp_intr(sc);
@@ -764,15 +760,14 @@ lpoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		err = 0;			/* No errors */
 
 	nend:
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if (err)  {			/* if we didn't timeout... */
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			lprintf("X");
 		} else {
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-			if (bpf_peers_present(ifp->if_bpf))
-				lptap(ifp, m);
+			lptap(ifp, m);
 		}
 
 		m_freem(m);
@@ -810,15 +805,14 @@ end:
 	--cp;
 	ppb_wdtr(ppbus, txmitl[*cp] ^ 0x17);
 
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	if (err)  {			/* if we didn't timeout... */
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		lprintf("X");
 	} else {
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-		if (bpf_peers_present(ifp->if_bpf))
-			lptap(ifp, m);
+		lptap(ifp, m);
 	}
 
 	m_freem(m);
