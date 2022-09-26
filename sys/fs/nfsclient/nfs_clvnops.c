@@ -3894,19 +3894,13 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	off_t inoff, outoff;
 	bool consecutive, must_commit, tryoutcred;
 
-	ret = ret2 = 0;
-	nmp = VFSTONFS(invp->v_mount);
-	mtx_lock(&nmp->nm_mtx);
 	/* NFSv4.2 Copy is not permitted for infile == outfile. */
-	if (!NFSHASNFSV4(nmp) || nmp->nm_minorvers < NFSV42_MINORVERSION ||
-	    (nmp->nm_privflag & NFSMNTP_NOCOPY) != 0 || invp == outvp) {
-		mtx_unlock(&nmp->nm_mtx);
-		error = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
-		    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
-		    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
-		return (error);
+	if (invp == outvp) {
+generic_copy:
+		return (vn_generic_copy_file_range(invp, ap->a_inoffp,
+		    outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
+		    ap->a_incred, ap->a_outcred, ap->a_fsizetd));
 	}
-	mtx_unlock(&nmp->nm_mtx);
 
 	/* Lock both vnodes, avoiding risk of deadlock. */
 	do {
@@ -3934,6 +3928,23 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 		return (error);
 
 	/*
+	 * More reasons to avoid nfs copy: not NFSv4.2, or explicitly
+	 * disabled.
+	 */
+	nmp = VFSTONFS(invp->v_mount);
+	mtx_lock(&nmp->nm_mtx);
+	if (!NFSHASNFSV4(nmp) || nmp->nm_minorvers < NFSV42_MINORVERSION ||
+	    (nmp->nm_privflag & NFSMNTP_NOCOPY) != 0) {
+		mtx_unlock(&nmp->nm_mtx);
+		VOP_UNLOCK(invp);
+		VOP_UNLOCK(outvp);
+		if (mp != NULL)
+			vn_finished_write(mp);
+		goto generic_copy;
+	}
+	mtx_unlock(&nmp->nm_mtx);
+
+	/*
 	 * Do the vn_rlimit_fsize() check.  Should this be above the VOP layer?
 	 */
 	io.uio_offset = *ap->a_outoffp;
@@ -3959,6 +3970,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 		error = ncl_flush(outvp, MNT_WAIT, curthread, 1, 0);
 
 	/* Do the actual NFSv4.2 RPC. */
+	ret = ret2 = 0;
 	len = *ap->a_lenp;
 	mtx_lock(&nmp->nm_mtx);
 	if ((nmp->nm_privflag & NFSMNTP_NOCONSECUTIVE) == 0)
