@@ -3893,6 +3893,8 @@ pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
 
 restart:
 	if (psind == 2) {
+		PMAP_ASSERT_L1_BLOCKS_SUPPORTED;
+
 		l0p = pmap_l0(pmap, va);
 		if ((pmap_load(l0p) & ATTR_DESCR_VALID) == 0) {
 			mp = _pmap_alloc_l3(pmap, pmap_l0_pindex(va), NULL);
@@ -3917,10 +3919,9 @@ restart:
 				mp->ref_count++;
 			}
 		}
-		KASSERT((origpte & ~ATTR_MASK) == (newpte & ~ATTR_MASK) ||
-		    (L1_BLOCKS_SUPPORTED &&
-		    (origpte & ATTR_DESCR_MASK) == L1_BLOCK &&
-		    (origpte & ATTR_DESCR_VALID) == 0),
+		KASSERT(((origpte & ~ATTR_MASK) == (newpte & ~ATTR_MASK) &&
+		    (origpte & ATTR_DESCR_MASK) == L1_BLOCK) ||
+		    (origpte & ATTR_DESCR_VALID) == 0,
 		    ("va %#lx changing 1G phys page l1 %#lx newpte %#lx",
 		    va, origpte, newpte));
 		pmap_store(l1p, newpte);
