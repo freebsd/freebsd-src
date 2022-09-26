@@ -99,10 +99,6 @@
 #endif
 #endif
 
-#ifdef BUS_SAN_PREFIX
-#include <sys/bus_san.h>
-#else
-
 struct bus_space {
 	/* cookie */
 	void		*bs_cookie;
@@ -288,6 +284,10 @@ struct bus_space {
 	int		(*bs_poke_8)(void *, bus_space_handle_t,
 			   bus_size_t, uint64_t);
 };
+
+#ifdef BUS_SAN_PREFIX
+#include <sys/bus_san.h>
+#else
 
 /*
  * Utility macros; INTERNAL USE ONLY.
