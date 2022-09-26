@@ -1572,7 +1572,7 @@ ovpn_get_af(struct mbuf *m)
 		return (AF_INET);
 
 	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6->ip6_vfc == IPV6_VERSION)
+	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) == IPV6_VERSION)
 		return (AF_INET6);
 
 	return (0);
