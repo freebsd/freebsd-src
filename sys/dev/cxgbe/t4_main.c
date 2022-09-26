@@ -1114,35 +1114,41 @@ t4_calibration(void *arg)
 {
 	struct adapter *sc;
 	struct clock_sync *cur, *nex;
+	uint64_t hw;
+	sbintime_t sbt;
 	int next_up;
 
 	sc = (struct adapter *)arg;
+
+	KASSERT((hw_off_limits(sc) == 0), ("hw_off_limits at t4_calibration"));
+	hw = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
+	sbt = sbinuptime();
 
 	cur = &sc->cal_info[sc->cal_current];
 	next_up = (sc->cal_current + 1) % CNT_CAL_INFO;
        	nex = &sc->cal_info[next_up];
 	if (__predict_false(sc->cal_count == 0)) {
 		/* First time in, just get the values in */
-		cur->hw_cur = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
-		cur->sbt_cur = sbinuptime();
+		cur->hw_cur = hw;
+		cur->sbt_cur = sbt;
 		sc->cal_count++;
 		goto done;
 	}
-	nex->hw_prev = cur->hw_cur;
-	nex->sbt_prev = cur->sbt_cur;
-	KASSERT((hw_off_limits(sc) == 0), ("hw_off_limits at t4_calibration"));
-	nex->hw_cur = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
-	nex->sbt_cur = sbinuptime();
-	if ((nex->hw_cur - nex->hw_prev) == 0) {
+
+	if (cur->hw_cur == hw) {
 		/* The clock is not advancing? */
 		sc->cal_count = 0;
 		atomic_store_rel_int(&cur->gen, 0);
 		goto done;
 	}
-	atomic_store_rel_int(&cur->gen, 0);
+
+	seqc_write_begin(&nex->gen);
+	nex->hw_prev = cur->hw_cur;
+	nex->sbt_prev = cur->sbt_cur;
+	nex->hw_cur = hw;
+	nex->sbt_cur = sbt;
+	seqc_write_end(&nex->gen);
 	sc->cal_current = next_up;
-	sc->cal_gen++;
-	atomic_store_rel_int(&nex->gen, sc->cal_gen);
 done:
 	callout_reset_sbt_curcpu(&sc->cal_callout, SBT_1S, 0, t4_calibration,
 	    sc, C_DIRECT_EXEC);

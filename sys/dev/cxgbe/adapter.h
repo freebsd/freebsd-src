@@ -41,6 +41,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
+#include <sys/seqc.h>
 #include <sys/sx.h>
 #include <sys/vmem.h>
 #include <vm/uma.h>
@@ -871,7 +872,7 @@ struct clock_sync {
 	uint64_t hw_prev;
 	sbintime_t sbt_cur;
 	sbintime_t sbt_prev;
-	uint32_t gen;
+	seqc_t gen;
 };
 
 struct adapter {

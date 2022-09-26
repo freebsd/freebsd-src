@@ -1530,16 +1530,17 @@ t4_tstmp_to_ns(struct adapter *sc, uint64_t lf)
 	uint64_t hw_clk_div;
 	sbintime_t sbt_cur_to_prev, sbt;
 	uint64_t hw_tstmp = lf & 0xfffffffffffffffULL;	/* 60b, not 64b. */
-	uint32_t gen;
+	seqc_t gen;
 
-	do {
+	for (;;) {
 		cur = &sc->cal_info[sc->cal_current];
-		gen = atomic_load_acq_int(&cur->gen);
+		gen = seqc_read(&cur->gen);
 		if (gen == 0)
 			return (0);
 		dcur = *cur;
-		atomic_thread_fence_acq();
-	} while (gen != dcur.gen);
+		if (seqc_consistent(&cur->gen, gen))
+			break;
+	}
 
 	/*
 	 * Our goal here is to have a result that is:
