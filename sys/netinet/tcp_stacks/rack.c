@@ -9397,6 +9397,20 @@ skip_dsack_round:
 	return (was_tlp);
 }
 
+static uint32_t
+do_rack_compute_pipe(struct tcpcb *tp, struct tcp_rack *rack, uint32_t snd_una)
+{
+	return (((tp->snd_max - snd_una) - rack->r_ctl.rc_sacked) + rack->r_ctl.rc_holes_rxt);
+}
+
+static int32_t
+rack_compute_pipe(struct tcpcb *tp)
+{
+	return ((int32_t)do_rack_compute_pipe(tp,
+					      (struct tcp_rack *)tp->t_fb_ptr,
+					      tp->snd_una));
+}
+
 static void
 rack_update_prr(struct tcpcb *tp, struct tcp_rack *rack, uint32_t changed, tcp_seq th_ack)
 {
@@ -9421,7 +9435,7 @@ rack_update_prr(struct tcpcb *tp, struct tcp_rack *rack, uint32_t changed, tcp_s
 	} else {
 		snd_una = th_ack;
 	}
-	pipe = ((tp->snd_max - snd_una) - rack->r_ctl.rc_sacked) + rack->r_ctl.rc_holes_rxt;
+	pipe = do_rack_compute_pipe(tp, rack, snd_una);
 	if (pipe > tp->snd_ssthresh) {
 		long sndcnt;
 
@@ -20317,6 +20331,7 @@ static struct tcp_function_block __tcp_rack = {
 	.tfb_tcp_mtu_chg = rack_mtu_change,
 	.tfb_pru_options = rack_pru_options,
 	.tfb_hwtls_change = rack_hw_tls_change,
+	.tfb_compute_pipe = rack_compute_pipe,
 	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
 };
 
