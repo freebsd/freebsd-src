@@ -99,7 +99,7 @@ static size_t	newreno_data_sz(void);
 
 VNET_DECLARE(uint32_t, newreno_beta);
 #define V_newreno_beta VNET(newreno_beta)
-VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
+VNET_DECLARE(uint32_t, newreno_beta_ecn);
 #define V_newreno_beta_ecn VNET(newreno_beta_ecn)
 
 struct cc_algo newreno_cc_algo = {

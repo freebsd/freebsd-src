@@ -106,6 +106,7 @@ VNET_DEFINE(struct cc_algo *, default_cc_ptr) = NULL;
 
 VNET_DEFINE(uint32_t, newreno_beta) = 50;
 #define V_newreno_beta VNET(newreno_beta)
+VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
 
 void
 cc_refer(struct cc_algo *algo)
