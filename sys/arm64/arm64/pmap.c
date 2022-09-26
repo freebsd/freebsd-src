@@ -823,6 +823,7 @@ struct pmap_bootstrap_state {
 	pt_entry_t	*l1;
 	pt_entry_t	*l2;
 	pt_entry_t	*l3;
+	pt_entry_t	table_attrs;
 	u_int		l0_slot;
 	u_int		l1_slot;
 	u_int		l2_slot;
@@ -936,7 +937,7 @@ pmap_bootstrap_l1_table(struct pmap_bootstrap_state *state)
 		l2_pa = pmap_early_vtophys((vm_offset_t)state->l2);
 		MPASS((l2_pa & Ln_TABLE_MASK) == 0);
 		MPASS(state->l1[l1_slot] == 0);
-		pmap_store(&state->l1[l1_slot], l2_pa | TATTR_PXN_TABLE |
+		pmap_store(&state->l1[l1_slot], l2_pa | state->table_attrs |
 		    L1_TABLE);
 	}
 	KASSERT(state->l2 != NULL, ("%s: NULL l2", __func__));
@@ -980,7 +981,7 @@ pmap_bootstrap_l2_table(struct pmap_bootstrap_state *state)
 		l3_pa = pmap_early_vtophys((vm_offset_t)state->l3);
 		MPASS((l3_pa & Ln_TABLE_MASK) == 0);
 		MPASS(state->l2[l2_slot] == 0);
-		pmap_store(&state->l2[l2_slot], l3_pa | TATTR_PXN_TABLE |
+		pmap_store(&state->l2[l2_slot], l3_pa | state->table_attrs |
 		    L2_TABLE);
 	}
 	KASSERT(state->l3 != NULL, ("%s: NULL l3", __func__));
@@ -1238,6 +1239,11 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	/* Create a direct map region early so we can use it for pa -> va */
 	freemempos = pmap_bootstrap_dmap(l1pt, min_pa, freemempos);
 	bs_state.dmap_valid = true;
+	/*
+	 * We only use PXN when we know nothing will be executed from it, e.g.
+	 * the DMAP region.
+	 */
+	bs_state.table_attrs &= ~TATTR_PXN_TABLE;
 
 	start_pa = pa = KERNBASE - kern_delta;
 
