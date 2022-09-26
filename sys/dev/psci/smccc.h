@@ -91,4 +91,29 @@ int arm_smccc_smc(register_t, register_t, register_t, register_t, register_t,
 int arm_smccc_hvc(register_t, register_t, register_t, register_t, register_t,
     register_t, register_t, register_t, struct arm_smccc_res *res);
 
+struct arm_smccc_1_2_regs {
+	register_t a0;
+	register_t a1;
+	register_t a2;
+	register_t a3;
+	register_t a4;
+	register_t a5;
+	register_t a6;
+	register_t a7;
+	register_t a8;
+	register_t a9;
+	register_t a10;
+	register_t a11;
+	register_t a12;
+	register_t a13;
+	register_t a14;
+	register_t a15;
+	register_t a16;
+	register_t a17;
+};
+
+int arm_smccc_1_2_hvc(const struct arm_smccc_1_2_regs *args,
+    struct arm_smccc_1_2_regs *res);
+int arm_smccc_1_2_smc(const struct arm_smccc_1_2_regs *args,
+    struct arm_smccc_1_2_regs *res);
 #endif /* _PSCI_SMCCC_H_ */
