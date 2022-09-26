@@ -4660,7 +4660,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp)
 {
 	pd_entry_t *pde;
-	pt_entry_t *l2, *l3, l3_val;
+	pt_entry_t *l1, *l2, *l3, l3_val;
 	vm_paddr_t pa;
 	int lvl;
 
@@ -4688,31 +4688,33 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			mpte->ref_count++;
 		} else {
 			/*
-			 * Get the l2 entry
-			 */
-			pde = pmap_pde(pmap, va, &lvl);
-
-			/*
 			 * If the page table page is mapped, we just increment
 			 * the hold count, and activate it.  Otherwise, we
-			 * attempt to allocate a page table page.  If this
-			 * attempt fails, we don't retry.  Instead, we give up.
+			 * attempt to allocate a page table page, passing NULL
+			 * instead of the PV list lock pointer because we don't
+			 * intend to sleep.  If this attempt fails, we don't
+			 * retry.  Instead, we give up.
 			 */
-			if (lvl == 1) {
-				l2 = pmap_l1_to_l2(pde, va);
-				if ((pmap_load(l2) & ATTR_DESCR_MASK) ==
-				    L2_BLOCK)
+			l1 = pmap_l1(pmap, va);
+			if (l1 != NULL && pmap_load(l1) != 0) {
+				if ((pmap_load(l1) & ATTR_DESCR_MASK) ==
+				    L1_BLOCK)
 					return (NULL);
-			}
-			if (lvl == 2 && pmap_load(pde) != 0) {
-				mpte =
-				    PHYS_TO_VM_PAGE(pmap_load(pde) & ~ATTR_MASK);
-				mpte->ref_count++;
+				l2 = pmap_l1_to_l2(l1, va);
+				if (pmap_load(l2) != 0) {
+					if ((pmap_load(l2) & ATTR_DESCR_MASK) ==
+					    L2_BLOCK)
+						return (NULL);
+					mpte = PHYS_TO_VM_PAGE(pmap_load(l2) &
+					    ~ATTR_MASK);
+					mpte->ref_count++;
+				} else {
+					mpte = _pmap_alloc_l3(pmap, l2pindex,
+					    NULL);
+					if (mpte == NULL)
+						return (mpte);
+				}
 			} else {
-				/*
-				 * Pass NULL instead of the PV list lock
-				 * pointer, because we don't intend to sleep.
-				 */
 				mpte = _pmap_alloc_l3(pmap, l2pindex, NULL);
 				if (mpte == NULL)
 					return (mpte);
