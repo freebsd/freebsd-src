@@ -659,6 +659,11 @@ doit(struct sockaddr *who)
 	int ptynum;
 
 	/*
+	 * Initialize the slc mapping table.
+	 */
+	get_slc_defaults();
+
+	/*
 	 * Find an available pty to use.
 	 */
 #ifndef	convex
@@ -740,11 +745,6 @@ telnet(int f, int p, char *host)
 	int if_fd = -1;
 	struct stat statbuf;
 	int nfd;
-
-	/*
-	 * Initialize the slc mapping table.
-	 */
-	get_slc_defaults();
 
 	/*
 	 * Do some tests where it is desireable to wait for a response.
