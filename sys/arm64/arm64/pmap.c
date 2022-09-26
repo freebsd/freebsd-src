@@ -827,6 +827,7 @@ struct pmap_bootstrap_state {
 	u_int		l1_slot;
 	u_int		l2_slot;
 	vm_offset_t	freemempos;
+	bool		dmap_valid;
 };
 
 /* The bootstrap state */
@@ -834,34 +835,55 @@ static struct pmap_bootstrap_state bs_state = {
 	.l1 = NULL,
 	.l2 = NULL,
 	.l3 = NULL,
+	.table_attrs = TATTR_PXN_TABLE,
 	.l0_slot = L0_ENTRIES,
 	.l1_slot = Ln_ENTRIES,
 	.l2_slot = Ln_ENTRIES,
+	.dmap_valid = false,
 };
 
 static void
 pmap_bootstrap_l0_table(struct pmap_bootstrap_state *state)
 {
 	vm_paddr_t l1_pa;
+	pd_entry_t l0e;
 	u_int l0_slot;
 
 	/* Link the level 0 table to a level 1 table */
 	l0_slot = pmap_l0_index(state->va);
 	if (l0_slot != state->l0_slot) {
+		/*
+		 * Make sure we move from a low address to high address
+		 * before the DMAP region is ready. This ensures we never
+		 * modify an existing mapping until we can map from a
+		 * physical address to a virtual address.
+		 */
 		MPASS(state->l0_slot < l0_slot ||
-		    state->l0_slot == L0_ENTRIES);
-
-		/* Create a new L0 table entry */
-		state->l0_slot = l0_slot;
-		state->l1 = (pt_entry_t *)state->freemempos;
-		memset(state->l1, 0, PAGE_SIZE);
-		state->freemempos += PAGE_SIZE;
+		    state->l0_slot == L0_ENTRIES ||
+		    state->dmap_valid);
 
 		/* Reset lower levels */
 		state->l2 = NULL;
 		state->l3 = NULL;
 		state->l1_slot = Ln_ENTRIES;
 		state->l2_slot = Ln_ENTRIES;
+
+		/* Check the existing L0 entry */
+		state->l0_slot = l0_slot;
+		if (state->dmap_valid) {
+			l0e = pagetable_l0_ttbr1[l0_slot];
+			if ((l0e & ATTR_DESCR_VALID) != 0) {
+				MPASS((l0e & ATTR_DESCR_MASK) == L0_TABLE);
+				l1_pa = l0e & ~ATTR_MASK;
+				state->l1 = (pt_entry_t *)PHYS_TO_DMAP(l1_pa);
+				return;
+			}
+		}
+
+		/* Create a new L0 table entry */
+		state->l1 = (pt_entry_t *)state->freemempos;
+		memset(state->l1, 0, PAGE_SIZE);
+		state->freemempos += PAGE_SIZE;
 
 		l1_pa = pmap_early_vtophys((vm_offset_t)state->l1);
 		MPASS((l1_pa & Ln_TABLE_MASK) == 0);
@@ -876,6 +898,7 @@ static void
 pmap_bootstrap_l1_table(struct pmap_bootstrap_state *state)
 {
 	vm_paddr_t l2_pa;
+	pd_entry_t l1e;
 	u_int l1_slot;
 
 	/* Make sure there is a valid L0 -> L1 table */
@@ -884,18 +907,31 @@ pmap_bootstrap_l1_table(struct pmap_bootstrap_state *state)
 	/* Link the level 1 table to a level 2 table */
 	l1_slot = pmap_l1_index(state->va);
 	if (l1_slot != state->l1_slot) {
+		/* See pmap_bootstrap_l0_table for a description */
 		MPASS(state->l1_slot < l1_slot ||
-		    state->l1_slot == Ln_ENTRIES);
-
-		/* Create a new L1 table entry */
-		state->l1_slot = l1_slot;
-		state->l2 = (pt_entry_t *)state->freemempos;
-		memset(state->l2, 0, PAGE_SIZE);
-		state->freemempos += PAGE_SIZE;
+		    state->l1_slot == Ln_ENTRIES ||
+		    state->dmap_valid);
 
 		/* Reset lower levels */
 		state->l3 = NULL;
 		state->l2_slot = Ln_ENTRIES;
+
+		/* Check the existing L1 entry */
+		state->l1_slot = l1_slot;
+		if (state->dmap_valid) {
+			l1e = state->l1[l1_slot];
+			if ((l1e & ATTR_DESCR_VALID) != 0) {
+				MPASS((l1e & ATTR_DESCR_MASK) == L1_TABLE);
+				l2_pa = l1e & ~ATTR_MASK;
+				state->l2 = (pt_entry_t *)PHYS_TO_DMAP(l2_pa);
+				return;
+			}
+		}
+
+		/* Create a new L1 table entry */
+		state->l2 = (pt_entry_t *)state->freemempos;
+		memset(state->l2, 0, PAGE_SIZE);
+		state->freemempos += PAGE_SIZE;
 
 		l2_pa = pmap_early_vtophys((vm_offset_t)state->l2);
 		MPASS((l2_pa & Ln_TABLE_MASK) == 0);
@@ -910,6 +946,7 @@ static void
 pmap_bootstrap_l2_table(struct pmap_bootstrap_state *state)
 {
 	vm_paddr_t l3_pa;
+	pd_entry_t l2e;
 	u_int l2_slot;
 
 	/* Make sure there is a valid L1 -> L2 table */
@@ -918,11 +955,24 @@ pmap_bootstrap_l2_table(struct pmap_bootstrap_state *state)
 	/* Link the level 2 table to a level 3 table */
 	l2_slot = pmap_l2_index(state->va);
 	if (l2_slot != state->l2_slot) {
+		/* See pmap_bootstrap_l0_table for a description */
 		MPASS(state->l2_slot < l2_slot ||
-		    state->l2_slot == Ln_ENTRIES);
+		    state->l2_slot == Ln_ENTRIES ||
+		    state->dmap_valid);
+
+		/* Check the existing L2 entry */
+		state->l2_slot = l2_slot;
+		if (state->dmap_valid) {
+			l2e = state->l2[l2_slot];
+			if ((l2e & ATTR_DESCR_VALID) != 0) {
+				MPASS((l2e & ATTR_DESCR_MASK) == L2_TABLE);
+				l3_pa = l2e & ~ATTR_MASK;
+				state->l3 = (pt_entry_t *)PHYS_TO_DMAP(l3_pa);
+				return;
+			}
+		}
 
 		/* Create a new L2 table entry */
-		state->l2_slot = l2_slot;
 		state->l3 = (pt_entry_t *)state->freemempos;
 		memset(state->l3, 0, PAGE_SIZE);
 		state->freemempos += PAGE_SIZE;
@@ -1187,6 +1237,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 
 	/* Create a direct map region early so we can use it for pa -> va */
 	freemempos = pmap_bootstrap_dmap(l1pt, min_pa, freemempos);
+	bs_state.dmap_valid = true;
 
 	start_pa = pa = KERNBASE - kern_delta;
 
