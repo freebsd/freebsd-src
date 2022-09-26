@@ -327,6 +327,7 @@ tcp_timer_2msl(void *xtp)
 	inp = tp->t_inpcb;
 	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
 	INP_WLOCK(inp);
+	tcp_log_end_status(tp, TCP_EI_STATUS_2MSL);
 	tcp_free_sackholes(tp);
 	if (callout_pending(&tp->t_timers->tt_2msl) ||
 	    !callout_active(&tp->t_timers->tt_2msl)) {
@@ -490,6 +491,7 @@ tcp_timer_keep(void *xtp)
 dropit:
 	TCPSTAT_INC(tcps_keepdrops);
 	NET_EPOCH_ENTER(et);
+	tcp_log_end_status(tp, TCP_EI_STATUS_KEEP_MAX);
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
@@ -550,6 +552,7 @@ tcp_timer_persist(void *xtp)
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		TCPSTAT_INC(tcps_persistdrop);
 		NET_EPOCH_ENTER(et);
+		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
@@ -563,6 +566,7 @@ tcp_timer_persist(void *xtp)
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		TCPSTAT_INC(tcps_persistdrop);
 		NET_EPOCH_ENTER(et);
+		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
@@ -631,6 +635,7 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		TCPSTAT_INC(tcps_timeoutdrop);
 		NET_EPOCH_ENTER(et);
+		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		NET_EPOCH_EXIT(et);
 		tcp_inpinfo_lock_del(inp, tp);
