@@ -818,16 +818,16 @@ pmap_early_vtophys(vm_offset_t va)
 
 /* State of the bootstrapped DMAP page tables */
 struct pmap_bootstrap_state {
-	vm_offset_t	va;
-	vm_paddr_t	pa;
 	pt_entry_t	*l1;
 	pt_entry_t	*l2;
 	pt_entry_t	*l3;
+	vm_offset_t	freemempos;
+	vm_offset_t	va;
+	vm_paddr_t	pa;
 	pt_entry_t	table_attrs;
 	u_int		l0_slot;
 	u_int		l1_slot;
 	u_int		l2_slot;
-	vm_offset_t	freemempos;
 	bool		dmap_valid;
 };
 
