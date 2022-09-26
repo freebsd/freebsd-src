@@ -383,6 +383,7 @@ atf_test_case "6in6" "cleanup"
 	sleep 10
 
 	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 2001:db8:1::1
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 -z 16 2001:db8:1::1
 }
 
 6in6_cleanup()
