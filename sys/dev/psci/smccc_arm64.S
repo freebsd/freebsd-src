@@ -51,3 +51,38 @@ END(arm_smccc_\insn)
  */
 arm_smccc_1_0	hvc
 arm_smccc_1_0	smc
+
+.macro arm_smccc_1_2	insn
+ENTRY(arm_smccc_1_2_\insn)
+	stp	x1, x19, [sp, #-16]!
+	mov	x19, x0
+	ldp	x0, x1, [x19, #16 * 0]
+	ldp	x2, x3, [x19, #16 * 1]
+	ldp	x4, x5, [x19, #16 * 2]
+	ldp	x6, x7, [x19, #16 * 3]
+	ldp	x8, x9, [x19, #16 * 4]
+	ldp	x10, x11, [x19, #16 * 5]
+	ldp	x12, x13, [x19, #16 * 6]
+	ldp	x14, x15, [x19, #16 * 7]
+	ldp	x16, x17, [x19, #16 * 8]
+	\insn	#0
+	ldr	x19, [sp]
+	cbz	x19, 1f
+	stp	x0, x1, [x19, #16 * 0]
+	stp	x2, x3, [x19, #16 * 1]
+	stp	x4, x5, [x19, #16 * 2]
+	stp	x6, x7, [x19, #16 * 3]
+	stp	x8, x9, [x19, #16 * 4]
+	stp	x10, x11, [x19, #16 * 5]
+	stp	x12, x13, [x19, #16 * 6]
+	stp	x14, x15, [x19, #16 * 7]
+	stp	x16, x17, [x19, #16 * 8]
+	ldp	xzr, x19, [sp], #16
+1:	ret
+END(arm_smccc_1_2\insn)
+.endm
+/* int arm_smccc_1_2_*(const struct arm_smccc_1_2_regs *args,
+ *     struct arm_smccc_1_2_regs *res)
+ */
+arm_smccc_1_2	hvc
+arm_smccc_1_2	smc
