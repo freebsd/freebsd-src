@@ -48,6 +48,7 @@
 #include <sys/terminal.h>
 #include <sys/sysctl.h>
 #include <sys/font.h>
+#include <sys/taskqueue.h>
 
 #include "opt_syscons.h"
 #include "opt_splash.h"
@@ -306,7 +307,7 @@ struct vt_window {
 	pid_t			 vw_pid;	/* Terminal holding process */
 	struct proc		*vw_proc;
 	struct vt_mode		 vw_smode;	/* switch mode */
-	struct callout		 vw_proc_dead_timer;
+	struct timeout_task	 vw_timeout_task_dead;
 	struct vt_window	*vw_switch_to;
 	int			 vw_bell_pitch;	/* (?) Bell pitch */
 	sbintime_t		 vw_bell_duration; /* (?) Bell duration */
