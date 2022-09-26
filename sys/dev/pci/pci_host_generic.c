@@ -420,7 +420,6 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 	struct generic_pcie_core_softc *sc;
 	struct resource *res;
 	struct rman *rm;
-	rman_res_t phys_start, phys_end;
 
 	sc = device_get_softc(dev);
 
@@ -435,16 +434,6 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 	if (rm == NULL)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
-
-	/* Translate the address from a PCI address to a physical address */
-	if (!generic_pcie_translate_resource(dev, type, start, end, &phys_start,
-	    &phys_end)) {
-		device_printf(dev,
-		    "Failed to translate resource %jx-%jx type %x for %s\n",
-		    (uintmax_t)start, (uintmax_t)end, type,
-		    device_get_nameunit(child));
-		return (NULL);
-	}
 
 	if (bootverbose) {
 		device_printf(dev,
