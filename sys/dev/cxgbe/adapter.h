@@ -869,8 +869,8 @@ struct clip_entry;
 struct clock_sync {
 	uint64_t hw_cur;
 	uint64_t hw_prev;
-	uint64_t rt_cur;
-	uint64_t rt_prev;
+	sbintime_t sbt_cur;
+	sbintime_t sbt_prev;
 	uint32_t gen;
 };
 
