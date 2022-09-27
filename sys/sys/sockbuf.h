@@ -71,6 +71,7 @@ struct ktls_session;
 struct mbuf;
 struct sockaddr;
 struct socket;
+struct sockopt;
 struct thread;
 struct selinfo;
 
@@ -227,7 +228,7 @@ void	sbflush(struct sockbuf *sb);
 void	sbflush_locked(struct sockbuf *sb);
 void	sbrelease(struct socket *, sb_which);
 void	sbrelease_locked(struct socket *, sb_which);
-int	sbsetopt(struct socket *so, int cmd, u_long cc);
+int	sbsetopt(struct socket *so, struct sockopt *);
 bool	sbreserve_locked(struct socket *so, sb_which which, u_long cc,
 	    struct thread *td);
 void	sbsndptr_adv(struct sockbuf *sb, struct mbuf *mb, u_int len);

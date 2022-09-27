@@ -3109,21 +3109,9 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:
 		case SO_RCVLOWAT:
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
+			error = so->so_proto->pr_setsbopt(so, sopt);
 			if (error)
 				goto bad;
-
-			/*
-			 * Values < 1 make no sense for any of these options,
-			 * so disallow them.
-			 */
-			if (optval < 1) {
-				error = EINVAL;
-				goto bad;
-			}
-
-			error = sbsetopt(so, sopt->sopt_name, optval);
 			break;
 
 		case SO_SNDTIMEO:
