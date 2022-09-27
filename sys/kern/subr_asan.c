@@ -257,6 +257,9 @@ kasan_mark(const void *addr, size_t size, size_t redzsize, uint8_t code)
 	size_t i, n, redz;
 	int8_t *shad;
 
+	if (__predict_false(!kasan_enabled))
+		return;
+
 	if ((vm_offset_t)addr >= DMAP_MIN_ADDRESS &&
 	    (vm_offset_t)addr < DMAP_MAX_ADDRESS)
 		return;
