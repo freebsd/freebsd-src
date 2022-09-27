@@ -356,29 +356,34 @@ sysctl_search_oid(struct sysctl_oid **nodes, struct sysctl_oid *needle)
 
 	SYSCTL_ASSERT_LOCKED();
 	indx = 0;
-	while (indx < CTL_MAXNAME && indx >= 0) {
-		if (nodes[indx] == NULL && indx == 0)
-			nodes[indx] = RB_MIN(sysctl_oid_list,
-			    &sysctl__children);
-		else if (nodes[indx] == NULL)
-			nodes[indx] = RB_MIN(sysctl_oid_list,
-			    &nodes[indx - 1]->oid_children);
-		else
-			nodes[indx] = RB_NEXT(sysctl_oid_list,
-			    &nodes[indx - 1]->oid_children, nodes[indx]);
-
+	/*
+	 * Do a depth-first search of the oid tree, looking for 'needle'. Start
+	 * with the first child of the root.
+	 */
+	nodes[indx] = RB_MIN(sysctl_oid_list, &sysctl__children);
+	for (;;) {
 		if (nodes[indx] == needle)
 			return (indx + 1);
 
 		if (nodes[indx] == NULL) {
-			indx--;
+			/* Node has no more siblings, so back up to parent. */
+			if (indx-- == 0) {
+				/* Retreat to root, so give up. */
+				break;
+			}
+		} else if ((nodes[indx]->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			/* Node has children. */
+			if (++indx == CTL_MAXNAME) {
+				/* Max search depth reached, so give up. */
+				break;
+			}
+			/* Start with the first child. */
+			nodes[indx] = RB_MIN(sysctl_oid_list,
+			    &nodes[indx - 1]->oid_children);
 			continue;
 		}
-
-		if ((nodes[indx]->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-			indx++;
-			continue;
-		}
+		/* Consider next sibling. */
+		nodes[indx] = RB_NEXT(sysctl_oid_list, NULL, nodes[indx]);
 	}
 	return (-1);
 }
