@@ -1888,11 +1888,21 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					    &tcp_savetcp, 0);
 #endif
 				TCP_PROBE3(debug__input, tp, th, m);
+				/*
+				 * Clear t_acktime if remote side has ACKd
+				 * all data in the socket buffer.
+				 * Otherwise, update t_acktime if we received
+				 * a sufficiently large ACK.
+				 */
+				if (sbavail(&so->so_snd) == 0)
+					tp->t_acktime = 0;
+				else if (acked > 1)
+					tp->t_acktime = ticks;
 				if (tp->snd_una == tp->snd_max)
 					tcp_timer_activate(tp, TT_REXMT, 0);
 				else if (!tcp_timer_active(tp, TT_PERSIST))
 					tcp_timer_activate(tp, TT_REXMT,
-						      tp->t_rxtcur);
+					    TP_RXTCUR(tp));
 				sowwakeup(so);
 				if (sbavail(&so->so_snd))
 					(void) tcp_output(tp);
@@ -2091,6 +2101,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			tp->t_starttime = ticks;
 			if (tp->t_flags & TF_NEEDFIN) {
+				tp->t_acktime = ticks;
 				tcp_state_change(tp, TCPS_FIN_WAIT_1);
 				tp->t_flags &= ~TF_NEEDFIN;
 				thflags &= ~TH_SYN;
@@ -2475,6 +2486,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_tfo_pending = NULL;
 		}
 		if (tp->t_flags & TF_NEEDFIN) {
+			tp->t_acktime = ticks;
 			tcp_state_change(tp, TCPS_FIN_WAIT_1);
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
@@ -2921,6 +2933,20 @@ process_ACK:
 			tcp_xmit_timer(tp, ticks - tp->t_rtttime);
 		}
 
+		SOCKBUF_LOCK(&so->so_snd);
+		/*
+		 * Clear t_acktime if remote side has ACKd all data in the
+		 * socket buffer and FIN (if applicable).
+		 * Otherwise, update t_acktime if we received a sufficiently
+		 * large ACK.
+		 */
+		if ((tp->t_state <= TCPS_CLOSE_WAIT &&
+		    acked == sbavail(&so->so_snd)) ||
+		    acked > sbavail(&so->so_snd))
+			tp->t_acktime = 0;
+		else if (acked > 1)
+			tp->t_acktime = ticks;
+
 		/*
 		 * If all outstanding data is acked, stop retransmit
 		 * timer and remember to restart (more output or persist).
@@ -2931,14 +2957,16 @@ process_ACK:
 			tcp_timer_activate(tp, TT_REXMT, 0);
 			needoutput = 1;
 		} else if (!tcp_timer_active(tp, TT_PERSIST))
-			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
+			tcp_timer_activate(tp, TT_REXMT, TP_RXTCUR(tp));
 
 		/*
 		 * If no data (only SYN) was ACK'd,
 		 *    skip rest of ACK processing.
 		 */
-		if (acked == 0)
+		if (acked == 0) {
+			SOCKBUF_UNLOCK(&so->so_snd);
 			goto step6;
+		}
 
 		/*
 		 * Let the congestion control algorithm update congestion
@@ -2947,7 +2975,6 @@ process_ACK:
 		 */
 		cc_ack_received(tp, th, nsegs, CC_ACK);
 
-		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > sbavail(&so->so_snd)) {
 			if (tp->snd_wnd >= sbavail(&so->so_snd))
 				tp->snd_wnd -= sbavail(&so->so_snd);
