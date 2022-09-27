@@ -479,10 +479,9 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	/*
 	 * Insert the OID into the parent's list sorted by OID number.
 	 */
-retry:
 	key.oid_number = oid_number;
-	p = RB_FIND(sysctl_oid_list, parent, &key);
-	if (p) {
+	p = RB_NFIND(sysctl_oid_list, parent, &key);
+	while (p != NULL && oid_number == p->oid_number) {
 		/* get the next valid OID number */
 		if (oid_number < CTL_AUTO_START ||
 		    oid_number == 0x7fffffff) {
@@ -491,10 +490,12 @@ retry:
 			/* don't loop forever */
 			if (!timeout--)
 				panic("sysctl: Out of OID numbers\n");
-			goto retry;
-		} else {
-			oid_number++;
+			key.oid_number = oid_number;
+			p = RB_NFIND(sysctl_oid_list, parent, &key);
+			continue;
 		}
+		p = RB_NEXT(sysctl_oid_list, NULL, p);
+		oid_number++;
 	}
 	/* check for non-auto OID number collision */
 	if (oidp->oid_number >= 0 && oidp->oid_number < CTL_AUTO_START &&
