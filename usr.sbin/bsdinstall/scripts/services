@@ -49,9 +49,9 @@ DAEMONS=$( bsddialog --backtitle "$OSNAME Installer" \
 	local_unbound "Local caching validating resolver" ${local_unbound:-off} \
 	sshd	"Secure shell daemon" ${sshd_enable:-off} \
 	moused	"PS/2 mouse pointer on console" ${moused_enable:-off} \
-	ntpdate	"Synchronize system and network time at bootime" \
-		${ntpdate_enable:-off} \
 	ntpd	"Synchronize system and network time" ${ntpd_enable:-off} \
+	ntpd_sync_on_start	"Sync time on ntpd startup, even if offset is high" \
+		${ntpd_sync_on_start:-off} \
 	powerd	"Adjust CPU frequency dynamically if supported" \
 		${powerd_enable:-off} \
 	dumpdev "Enable kernel crash dumps to /var/crash" ${dumpdev:-on} \
