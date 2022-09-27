@@ -231,6 +231,8 @@ void	sbrelease_locked(struct socket *, sb_which);
 int	sbsetopt(struct socket *so, struct sockopt *);
 bool	sbreserve_locked(struct socket *so, sb_which which, u_long cc,
 	    struct thread *td);
+bool	sbreserve_locked_limit(struct socket *so, sb_which which, u_long cc,
+	    u_long buf_max, struct thread *td);
 void	sbsndptr_adv(struct sockbuf *sb, struct mbuf *mb, u_int len);
 struct mbuf *
 	sbsndptr_noadv(struct sockbuf *sb, u_int off, u_int *moff);
