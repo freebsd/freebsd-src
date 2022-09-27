@@ -167,6 +167,12 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
 
+int	tcp_maxunacktime = TCPTV_MAXUNACKTIME;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxunacktime,
+    CTLTYPE_INT|CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &tcp_maxunacktime, 0, sysctl_msec_to_ticks, "I",
+    "Maximum time (in ms) that a session can linger without making progress");
+
 VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
     CTLFLAG_RW|CTLFLAG_VNET,
@@ -505,12 +511,38 @@ dropit:
 	CURVNET_RESTORE();
 }
 
+/*
+ * Has this session exceeded the maximum time without seeing a substantive
+ * acknowledgement? If so, return true; otherwise false.
+ */
+static bool
+tcp_maxunacktime_check(struct tcpcb *tp)
+{
+
+	/* Are we tracking this timer for this session? */
+	if (TP_MAXUNACKTIME(tp) == 0)
+		return false;
+
+	/* Do we have a current measurement. */
+	if (tp->t_acktime == 0)
+		return false;
+
+	/* Are we within the acceptable range? */
+	if (TSTMP_GT(TP_MAXUNACKTIME(tp) + tp->t_acktime, (u_int)ticks))
+		return false;
+
+	/* We exceeded the timer. */
+	TCPSTAT_INC(tcps_progdrops);
+	return true;
+}
+
 void
 tcp_timer_persist(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 	struct epoch_tracker et;
+	bool progdrop;
 	int outrv;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
@@ -546,11 +578,15 @@ tcp_timer_persist(void *xtp)
 	 * backoff, drop the connection if the idle time
 	 * (no responses to probes) reaches the maximum
 	 * backoff that we would use if retransmitting.
+	 * Also, drop the connection if we haven't been making
+	 * progress.
 	 */
-	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
+	progdrop = tcp_maxunacktime_check(tp);
+	if (progdrop || (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
-	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
-		TCPSTAT_INC(tcps_persistdrop);
+	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff))) {
+		if (!progdrop)
+			TCPSTAT_INC(tcps_persistdrop);
 		NET_EPOCH_ENTER(et);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
 		tp = tcp_drop(tp, ETIMEDOUT);
@@ -630,10 +666,15 @@ tcp_timer_rexmt(void * xtp)
 	 * Retransmission timer went off.  Message has not
 	 * been acked within retransmit interval.  Back off
 	 * to a longer retransmit interval and retransmit one segment.
+	 *
+	 * If we've either exceeded the maximum number of retransmissions,
+	 * or we've gone long enough without making progress, then drop
+	 * the session.
 	 */
-	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
+	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT || tcp_maxunacktime_check(tp)) {
+		if (tp->t_rxtshift > TCP_MAXRXTSHIFT)
+			TCPSTAT_INC(tcps_timeoutdrop);
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
-		TCPSTAT_INC(tcps_timeoutdrop);
 		NET_EPOCH_ENTER(et);
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
 		tp = tcp_drop(tp, ETIMEDOUT);

@@ -1116,6 +1116,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		}
 	}
 	if (!(flags & PRUS_OOB)) {
+		if (tp->t_acktime == 0)
+			tp->t_acktime = ticks;
 		sbappendstream(&so->so_snd, m, flags);
 		m = NULL;
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
@@ -1202,6 +1204,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		 * of data past the urgent section.
 		 * Otherwise, snd_up should be one lower.
 		 */
+		if (tp->t_acktime == 0)
+			tp->t_acktime = ticks;
 		sbappendstream_locked(&so->so_snd, m, flags);
 		SOCKBUF_UNLOCK(&so->so_snd);
 		m = NULL;
@@ -2375,7 +2379,7 @@ unlock_and_done:
 			error = ktls_enable_rx(so, &tls);
 			break;
 #endif
-
+		case TCP_MAXUNACKTIME:
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
 		case TCP_KEEPINIT:
@@ -2392,6 +2396,10 @@ unlock_and_done:
 
 			INP_WLOCK_RECHECK(inp);
 			switch (sopt->sopt_name) {
+			case TCP_MAXUNACKTIME:
+				tp->t_maxunacktime = ui;
+				break;
+
 			case TCP_KEEPIDLE:
 				tp->t_keepidle = ui;
 				/*
@@ -2658,11 +2666,15 @@ unhold:
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, buf, len + 1);
 			break;
+		case TCP_MAXUNACKTIME:
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
 		case TCP_KEEPINIT:
 		case TCP_KEEPCNT:
 			switch (sopt->sopt_name) {
+			case TCP_MAXUNACKTIME:
+				ui = TP_MAXUNACKTIME(tp) / hz;
+				break;
 			case TCP_KEEPIDLE:
 				ui = TP_KEEPIDLE(tp) / hz;
 				break;
@@ -2834,6 +2846,8 @@ tcp_usrclosed(struct tcpcb *tp)
 		tcp_state_change(tp, TCPS_LAST_ACK);
 		break;
 	}
+	if (tp->t_acktime == 0)
+		tp->t_acktime = ticks;
 	if (tp->t_state >= TCPS_FIN_WAIT_2) {
 		soisdisconnected(tp->t_inpcb->inp_socket);
 		/* Prevent the connection hanging in FIN_WAIT_2 forever. */

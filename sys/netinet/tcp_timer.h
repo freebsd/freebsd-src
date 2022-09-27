@@ -86,6 +86,7 @@
 #define	TCPTV_KEEP_IDLE	(120*60*hz)		/* dflt time before probing */
 #define	TCPTV_KEEPINTVL	( 75*hz)		/* default probe interval */
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
+#define	TCPTV_MAXUNACKTIME	0		/* max time without making progress */
 
 #define TCPTV_FINWAIT2_TIMEOUT (60*hz)         /* FIN_WAIT_2 timeout if no receiver */
 
@@ -183,6 +184,17 @@ struct tcp_timer {
 #define	TP_KEEPINTVL(tp) ((tp)->t_keepintvl ? (tp)->t_keepintvl : tcp_keepintvl)
 #define	TP_KEEPCNT(tp)	((tp)->t_keepcnt ? (tp)->t_keepcnt : tcp_keepcnt)
 #define	TP_MAXIDLE(tp)	(TP_KEEPCNT(tp) * TP_KEEPINTVL(tp))
+#define	TP_MAXUNACKTIME(tp)	\
+    ((tp)->t_maxunacktime ? (tp)->t_maxunacktime : tcp_maxunacktime)
+
+/*
+ * Obtain the time until the restransmit timer should fire.
+ * This macro ensures the restransmit timer fires at the earlier of the
+ * t_rxtcur value or the time the maxunacktime would be exceeded.
+ */
+#define	TP_RXTCUR(tp)							\
+    ((TP_MAXUNACKTIME(tp) == 0 || tp->t_acktime == 0) ? tp->t_rxtcur :	\
+    max(1, min(tp->t_rxtcur, tp->t_acktime + TP_MAXUNACKTIME(tp) - ticks)))
 
 extern int tcp_persmin;			/* minimum persist interval */
 extern int tcp_persmax;			/* maximum persist interval */
@@ -191,6 +203,7 @@ extern int tcp_keepidle;		/* time before keepalive probes begin */
 extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_keepcnt;			/* number of keepalives */
 extern int tcp_delacktime;		/* time before sending a delayed ACK */
+extern int tcp_maxunacktime;		/* max time without making progress */
 extern int tcp_maxpersistidle;
 extern int tcp_rexmit_initial;
 extern int tcp_rexmit_min;

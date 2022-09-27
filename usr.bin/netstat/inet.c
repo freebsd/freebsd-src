@@ -757,6 +757,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/keepalive probe%s sent}\n");
 	p(tcps_keepdrops, "\t\t{:connections-dropped-by-keepalives/%ju} "
 	    "{N:/connection%s dropped by keepalive}\n");
+	p(tcps_progdrops, "\t{:connections-dropped-due-to-progress-time/%ju} "
+	    "{N:/connection%s dropped due to exceeding progress time}\n");
 	p(tcps_predack, "\t{:ack-header-predictions/%ju} "
 	    "{N:/correct ACK header prediction%s}\n");
 	p(tcps_preddat, "\t{:data-packet-header-predictions/%ju} "

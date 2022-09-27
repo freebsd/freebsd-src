@@ -708,6 +708,7 @@ struct	tcpstat {
 	uint64_t tcps_keeptimeo;	/* keepalive timeouts */
 	uint64_t tcps_keepprobe;	/* keepalive probes sent */
 	uint64_t tcps_keepdrops;	/* connections dropped in keepalive */
+	uint64_t tcps_progdrops;	/* drops due to no progress */
 
 	uint64_t tcps_sndtotal;		/* total packets sent */
 	uint64_t tcps_sndpack;		/* data packets sent */

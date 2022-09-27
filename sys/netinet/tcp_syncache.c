@@ -1030,6 +1030,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	/*
 	 * Copy and activate timers.
 	 */
+	tp->t_maxunacktime = sototcpcb(lso)->t_maxunacktime;
 	tp->t_keepinit = sototcpcb(lso)->t_keepinit;
 	tp->t_keepidle = sototcpcb(lso)->t_keepidle;
 	tp->t_keepintvl = sototcpcb(lso)->t_keepintvl;

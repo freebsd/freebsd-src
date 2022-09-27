@@ -282,6 +282,7 @@ this packetization may cause significant delays.
 The boolean option
 .Dv TCP_NODELAY
 defeats this algorithm.
+
 .It Dv TCP_MAXSEG
 By default, a sender- and
 .No receiver- Ns Tn TCP
@@ -291,6 +292,17 @@ The
 .Dv TCP_MAXSEG
 option allows the user to determine the result of this negotiation,
 and to reduce it if desired.
+.It Dv TCP_MAXUNACKTIME
+This
+.Xr setsockopt 2
+option accepts an argument of
+.Vt "u_int"
+to set the per-socket interval, in seconds, in which the connection must
+make progress. Progress is defined by at least 1 byte being acknowledged within
+the set time period. If a connection fails to make progress, then the
+.Tn TCP
+stack will terminate the connection with a reset. Note that the default
+value for this is zero which indicates no progress checks should be made.
 .It Dv TCP_NOOPT
 .Tn TCP
 usually sends a number of options in each packet, corresponding to
