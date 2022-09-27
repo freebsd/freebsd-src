@@ -905,6 +905,9 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    NULL);							\
 })
 
+#define	SYSCTL_FOREACH(oidp, list) \
+	SLIST_FOREACH(oidp, list, oid_link)
+
 /*
  * A macro to generate a read-only sysctl to indicate the presence of optional
  * kernel features.
