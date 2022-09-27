@@ -651,18 +651,30 @@ sbreserve_locked(struct socket *so, sb_which which, u_long cc,
 }
 
 int
-sbsetopt(struct socket *so, int cmd, u_long cc)
+sbsetopt(struct socket *so, struct sockopt *sopt)
 {
 	struct sockbuf *sb;
 	sb_which wh;
 	short *flags;
-	u_int *hiwat, *lowat;
-	int error;
+	u_int cc, *hiwat, *lowat;
+	int error, optval;
+
+	error = sooptcopyin(sopt, &optval, sizeof optval, sizeof optval);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Values < 1 make no sense for any of these options,
+	 * so disallow them.
+	 */
+	if (optval < 1)
+		return (EINVAL);
+	cc = optval;
 
 	sb = NULL;
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
-		switch (cmd) {
+		switch (sopt->sopt_name) {
 			case SO_SNDLOWAT:
 			case SO_SNDBUF:
 				lowat = &so->sol_sbsnd_lowat;
@@ -677,7 +689,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 				break;
 		}
 	} else {
-		switch (cmd) {
+		switch (sopt->sopt_name) {
 			case SO_SNDLOWAT:
 			case SO_SNDBUF:
 				sb = &so->so_snd;
@@ -696,7 +708,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 	}
 
 	error = 0;
-	switch (cmd) {
+	switch (sopt->sopt_name) {
 	case SO_SNDBUF:
 	case SO_RCVBUF:
 		if (SOLISTENING(so)) {

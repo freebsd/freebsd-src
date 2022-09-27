@@ -62,6 +62,7 @@ struct uio;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
+typedef int	pr_setsbopt_t(struct socket *, struct sockopt *);
 typedef void	pr_abort_t(struct socket *);
 typedef int	pr_accept_t(struct socket *, struct sockaddr **);
 typedef int	pr_attach_t(struct socket *, int, struct thread *);
@@ -143,6 +144,7 @@ struct protosw {
 	pr_sense_t	*pr_sense;	/* stat(2) */
 	pr_flush_t	*pr_flush;	/* XXXGL: merge with pr_shutdown_t! */
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
+	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
 };
 /*#endif*/
 

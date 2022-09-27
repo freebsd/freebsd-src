@@ -201,6 +201,7 @@ pr_init(struct domain *dom, struct protosw *pr)
 	DEFAULT(pr_sosend, sosend_generic);
 	DEFAULT(pr_soreceive, soreceive_generic);
 	DEFAULT(pr_sopoll, sopoll_generic);
+	DEFAULT(pr_setsbopt, sbsetopt);
 
 #define NOTSUPP(foo)	if (pr->foo == NULL)  pr->foo = foo ## _notsupp
 	NOTSUPP(pr_accept);
