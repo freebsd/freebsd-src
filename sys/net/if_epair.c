@@ -184,39 +184,13 @@ epair_tx_start_deferred(void *arg, int pending)
 	if_rele(sc->ifp);
 }
 
-static int
-epair_menq(struct mbuf *m, struct epair_softc *osc)
+static struct epair_queue *
+epair_select_queue(struct epair_softc *sc, const struct mbuf *m)
 {
-	struct ifnet *ifp, *oifp;
-	int len, ret;
-	int ridx;
-	short mflags;
-	struct epair_queue *q = NULL;
 	uint32_t bucket;
 #ifdef RSS
 	struct ether_header *eh;
-#endif
 
-	/*
-	 * I know this looks weird. We pass the "other sc" as we need that one
-	 * and can get both ifps from it as well.
-	 */
-	oifp = osc->ifp;
-	ifp = osc->oifp;
-
-	M_ASSERTPKTHDR(m);
-	epair_clear_mbuf(m);
-	if_setrcvif(m, oifp);
-	M_SETFIB(m, oifp->if_fib);
-
-	/* Save values as once the mbuf is queued, it's not ours anymore. */
-	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
-
-	MPASS(m->m_nextpkt == NULL);
-	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
-
-#ifdef RSS
 	ret = rss_m2bucket(m, &bucket);
 	if (ret) {
 		/* Actually hash the packet. */
@@ -238,11 +212,47 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 			break;
 		}
 	}
-	bucket %= osc->num_queues;
+	bucket %= sc->num_queues;
 #else
 	bucket = 0;
 #endif
-	q = &osc->queues[bucket];
+	return (&sc->queues[bucket]);
+}
+
+static void
+epair_prepare_mbuf(struct mbuf *m, struct ifnet *src_ifp)
+{
+	M_ASSERTPKTHDR(m);
+	epair_clear_mbuf(m);
+	if_setrcvif(m, src_ifp);
+	M_SETFIB(m, src_ifp->if_fib);
+
+	MPASS(m->m_nextpkt == NULL);
+	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
+}
+
+static void
+epair_menq(struct mbuf *m, struct epair_softc *osc)
+{
+	struct ifnet *ifp, *oifp;
+	int len, ret;
+	int ridx;
+	short mflags;
+
+	/*
+	 * I know this looks weird. We pass the "other sc" as we need that one
+	 * and can get both ifps from it as well.
+	 */
+	oifp = osc->ifp;
+	ifp = osc->oifp;
+
+	epair_prepare_mbuf(m, oifp);
+
+	/* Save values as once the mbuf is queued, it's not ours anymore. */
+	len = m->m_pkthdr.len;
+	mflags = m->m_flags;
+
+	struct epair_queue *q = epair_select_queue(osc, m);
 
 	atomic_set_long(&q->state, (1 << BIT_MBUF_QUEUED));
 	ridx = atomic_load_int(&q->ridx);
@@ -251,7 +261,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 		/* Ring is full. */
 		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
-		return (0);
+		return;
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
@@ -267,9 +277,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
 
 	if (!atomic_testandset_long(&q->state, BIT_QUEUE_TASK))
-		taskqueue_enqueue(epair_tasks.tq[bucket], &q->tx_task);
-
-	return (0);
+		taskqueue_enqueue(epair_tasks.tq[q->id], &q->tx_task);
 }
 
 static void
@@ -304,7 +312,7 @@ epair_start(struct ifnet *ifp)
 			continue;
 		}
 
-		(void) epair_menq(m, sc);
+		epair_menq(m, sc);
 	}
 }
 
@@ -313,7 +321,6 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct epair_softc *sc;
 	struct ifnet *oifp;
-	int error;
 #ifdef ALTQ
 	int len;
 	short mflags;
@@ -358,6 +365,7 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 #ifdef ALTQ
 	len = m->m_pkthdr.len;
 	mflags = m->m_flags;
+	int error = 0;
 
 	/* Support ALTQ via the classic if_start() path. */
 	IF_LOCK(&ifp->if_snd);
@@ -377,8 +385,8 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 	IF_UNLOCK(&ifp->if_snd);
 #endif
 
-	error = epair_menq(m, oifp->if_softc);
-	return (error);
+	epair_menq(m, oifp->if_softc);
+	return (0);
 }
 
 static void
@@ -607,15 +615,23 @@ epair_free_sc(struct epair_softc *sc)
 	free(sc, M_EPAIR);
 }
 
-static int
-epair_clone_create(struct if_clone *ifc, char *name, size_t len,
-    struct ifc_data *ifd, struct ifnet **ifpp)
+static void
+epair_set_state(struct ifnet *ifp, bool running)
 {
-	struct epair_softc *sca, *scb;
-	struct ifnet *ifp;
+	if (running) {
+		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_link_state_change(ifp, LINK_STATE_UP);
+	} else {
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	}
+}
+
+static int
+epair_handle_unit(struct if_clone *ifc, char *name, size_t len, int *punit)
+{
+	int error = 0, unit, wildcard;
 	char *dp;
-	int error, unit, wildcard;
-	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	/* Try to see if a special unit was requested. */
 	error = ifc_name2unit(name, &unit);
@@ -633,29 +649,55 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len,
 	 */
 	for (dp = name; *dp != '\0'; dp++);
 	if (wildcard) {
-		error = snprintf(dp, len - (dp - name), "%d", unit);
-		if (error > len - (dp - name) - 1) {
+		int slen = snprintf(dp, len - (dp - name), "%d", unit);
+		if (slen > len - (dp - name) - 1) {
 			/* ifName too long. */
-			ifc_free_unit(ifc, unit);
-			return (ENOSPC);
+			error = ENOSPC;
+			goto done;
 		}
-		dp += error;
+		dp += slen;
 	}
 	if (len - (dp - name) - 1 < 1) {
 		/* No space left for our [ab] suffix. */
-		ifc_free_unit(ifc, unit);
-		return (ENOSPC);
+		error = ENOSPC;
+		goto done;
 	}
 	*dp = 'b';
 	/* Must not change dp so we can replace 'a' by 'b' later. */
 	*(dp+1) = '\0';
 
 	/* Check if 'a' and 'b' interfaces already exist. */ 
-	if (ifunit(name) != NULL)
-		return (EEXIST);
+	if (ifunit(name) != NULL) {
+		error = EEXIST;
+		goto done;
+	}
+
 	*dp = 'a';
-	if (ifunit(name) != NULL)
-		return (EEXIST);
+	if (ifunit(name) != NULL) {
+		error = EEXIST;
+		goto done;
+	}
+	*punit = unit;
+done:
+	if (error != 0)
+		ifc_free_unit(ifc, unit);
+
+	return (error);
+}
+
+static int
+epair_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
+{
+	struct epair_softc *sca, *scb;
+	struct ifnet *ifp;
+	char *dp;
+	int error, unit;
+	uint8_t eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
+
+	error = epair_handle_unit(ifc, name, len, &unit);
+	if (error != 0)
+		return (error);
 
 	/* Allocate memory for both [ab] interfaces */
 	sca = epair_alloc_sc(ifc);
@@ -681,6 +723,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ether_ifattach(ifp, eaddr);
 
 	/* Swap the name and finish initialization of interface <n>b. */
+	dp = name + strlen(name) - 1;
 	*dp = 'b';
 
 	epair_setup_ifp(scb, name, unit);
@@ -700,10 +743,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len,
 	strlcpy(name, sca->ifp->if_xname, len);
 
 	/* Tell the world, that we are ready to rock. */
-	sca->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	if_link_state_change(sca->ifp, LINK_STATE_UP);
-	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	if_link_state_change(scb->ifp, LINK_STATE_UP);
+	epair_set_state(sca->ifp, true);
+	epair_set_state(scb->ifp, true);
 
 	*ifpp = sca->ifp;
 
@@ -750,10 +791,8 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 	scb = oifp->if_softc;
 
 	/* Frist get the interfaces down and detached. */
-	if_link_state_change(ifp, LINK_STATE_DOWN);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	if_link_state_change(oifp, LINK_STATE_DOWN);
-	oifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	epair_set_state(ifp, false);
+	epair_set_state(oifp, false);
 
 	ether_ifdetach(ifp);
 	ether_ifdetach(oifp);
