@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/condvar.h>
 #include <sys/module.h>
+
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -245,7 +246,7 @@ awusbdrd_filt(bus_size_t o)
 static uint8_t
 awusbdrd_bs_r_1(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	switch (o) {
 	case MUSB2_REG_HWVERS:
@@ -273,7 +274,7 @@ awusbdrd_bs_r_1_noconf(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o)
 static uint16_t
 awusbdrd_bs_r_2(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	if (awusbdrd_filt(o) != 0)
 		return (0);
@@ -284,7 +285,7 @@ static void
 awusbdrd_bs_w_1(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o,
     uint8_t v)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	if (awusbdrd_filt(o) != 0)
 		return;
@@ -296,7 +297,7 @@ static void
 awusbdrd_bs_w_2(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o,
     uint16_t v)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	if (awusbdrd_filt(o) != 0)
 		return;
@@ -308,7 +309,7 @@ static void
 awusbdrd_bs_rm_1(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o,
     uint8_t *d, bus_size_t c)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	bus_space_read_multi_1(bs_parent_space(bs), h, awusbdrd_reg(o), d, c);
 }
@@ -317,7 +318,7 @@ static void
 awusbdrd_bs_rm_4(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o,
     uint32_t *d, bus_size_t c)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	bus_space_read_multi_4(bs_parent_space(bs), h, awusbdrd_reg(o), d, c);
 }
@@ -326,7 +327,7 @@ static void
 awusbdrd_bs_wm_1(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o,
     const uint8_t *d, bus_size_t c)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	if (awusbdrd_filt(o) != 0)
 		return;
@@ -338,7 +339,7 @@ static void
 awusbdrd_bs_wm_4(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o,
     const uint32_t *d, bus_size_t c)
 {
-	const struct bus_space *bs = t;
+	struct bus_space *bs = t;
 
 	if (awusbdrd_filt(o) != 0)
 		return;
