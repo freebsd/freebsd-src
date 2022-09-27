@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 
-# Demonstrate that a mapped SHARED file can be updated past past LIMIT_FSIZE
+# Demonstrate that a mapped SHARED file can be updated past LIMIT_FSIZE
 
 # Kostik wrote:
 # This one should be reproducible when you
