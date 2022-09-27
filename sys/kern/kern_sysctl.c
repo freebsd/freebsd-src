@@ -1326,17 +1326,11 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 {
 	struct sysctl_oid *oidp;
 	struct sysctl_oid_list *lsp = &sysctl__children;
-	char *p;
 
 	SYSCTL_ASSERT_LOCKED();
 
 	for (*len = 0; *len < CTL_MAXNAME;) {
-		p = strsep(&name, ".");
-
-		SYSCTL_FOREACH(oidp, lsp) {
-			if (strcmp(p, oidp->oid_name) == 0)
-				break;
-		}
+		oidp = sysctl_find_oidname(strsep(&name, "."), lsp);
 		if (oidp == NULL)
 			return (ENOENT);
 		*oid++ = oidp->oid_number;
