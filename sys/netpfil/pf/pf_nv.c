@@ -1067,6 +1067,7 @@ pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *krule)
 		return (NULL);
 	}
 	nvlist_add_nvlist(nvl, "src", addr);
+	nvlist_destroy(addr);
 
 	addr = pf_keth_rule_addr_to_nveth_rule_addr(&krule->dst);
 	if (addr == NULL) {
@@ -1074,6 +1075,7 @@ pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *krule)
 		return (NULL);
 	}
 	nvlist_add_nvlist(nvl, "dst", addr);
+	nvlist_destroy(addr);
 
 	addr = pf_rule_addr_to_nvrule_addr(&krule->ipsrc);
 	if (addr == NULL) {
