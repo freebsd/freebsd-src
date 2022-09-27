@@ -136,7 +136,7 @@ sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
 	struct sysctl_oid *oidp;
 
 	SYSCTL_ASSERT_LOCKED();
-	RB_FOREACH(oidp, sysctl_oid_list, list) {
+	SYSCTL_FOREACH(oidp, list) {
 		if (strcmp(oidp->oid_name, name) == 0) {
 			return (oidp);
 		}
@@ -1005,7 +1005,7 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 	struct sysctl_oid *oidp;
 
 	SYSCTL_ASSERT_LOCKED();
-	RB_FOREACH(oidp, sysctl_oid_list, l) {
+	SYSCTL_FOREACH(oidp, l) {
 		for (k=0; k<i; k++)
 			printf(" ");
 
@@ -1327,7 +1327,7 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 	for (*len = 0; *len < CTL_MAXNAME;) {
 		p = strsep(&name, ".");
 
-		RB_FOREACH(oidp, sysctl_oid_list, lsp) {
+		SYSCTL_FOREACH(oidp, lsp) {
 			if (strcmp(p, oidp->oid_name) == 0)
 				break;
 		}
