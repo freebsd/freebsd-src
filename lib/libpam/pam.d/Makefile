@@ -34,10 +34,4 @@ afterinstallconfig:
 	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}${CONFDIR}/ftpd ${DESTDIR}${CONFDIR}/ftp
 .endif
 
-.if ${MK_TELNET} != "no"
-CONFGROUPS+=	TELNET
-TELNET+=	telnetd
-TELNETPACKAGE=	telnet
-.endif
-
 .include <bsd.prog.mk>
