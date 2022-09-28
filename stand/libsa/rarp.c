@@ -161,7 +161,7 @@ rarprecv(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	if (n == -1 || n < sizeof(struct ether_arp)) {
 #ifdef RARP_DEBUG
 		if (debug)
-			printf("bad len=%d\n", n);
+			printf("bad len=%zd\n", n);
 #endif
 		free(ptr);
 		return (-1);
