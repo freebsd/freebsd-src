@@ -279,11 +279,12 @@ __END_DECLS
  * Netname manipulation routines.
  */
 __BEGIN_DECLS
-extern int getnetname(char *);
-extern int host2netname(char *, const char *, const char *);
-extern int user2netname(char *, const uid_t, const char *);
-extern int netname2user(char *, uid_t *, gid_t *, int *, gid_t *);
-extern int netname2host(char *, char *, const int);
+extern int getnetname(char [MAXNETNAMELEN + 1]);
+extern int host2netname(char [MAXNETNAMELEN + 1], const char *, const char *);
+extern int user2netname(char [MAXNETNAMELEN + 1], const uid_t, const char *);
+extern int netname2user(char [MAXNETNAMELEN + 1], uid_t *, gid_t *, int *,
+    gid_t *);
+extern int netname2host(char [MAXNETNAMELEN + 1], char *, const int);
 extern void passwd2des ( char *, char * );
 __END_DECLS
 
