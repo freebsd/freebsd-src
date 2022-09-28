@@ -128,7 +128,7 @@ mana_hwc_post_rx_wqe(const struct hwc_wq *hwc_rxq,
 	int err;
 
 	sge = &req->sge;
-	sge->address = (uint64_t)req->buf_sge_addr;
+	sge->address = (uintptr_t)req->buf_sge_addr;
 	sge->mem_key = hwc_rxq->msg_buf->gpa_mkey;
 	sge->size = req->buf_len;
 
@@ -616,7 +616,7 @@ mana_hwc_post_tx_wqe(const struct hwc_wq *hwc_txq,
 	tx_oob->vsq_id = hwc_txq->gdma_wq->id;
 
 	sge = &req->sge;
-	sge->address = (uint64_t)req->buf_sge_addr;
+	sge->address = (uintptr_t)req->buf_sge_addr;
 	sge->mem_key = hwc_txq->msg_buf->gpa_mkey;
 	sge->size = req->msg_size;
 

@@ -131,7 +131,7 @@ zfsdev_ioctl(struct cdev *dev, ulong_t zcmd, caddr_t arg, int flag,
 	len = IOCPARM_LEN(zcmd);
 	vecnum = zcmd & 0xff;
 	zp = (void *)arg;
-	uaddr = (void *)zp->zfs_cmd;
+	uaddr = (void *)(uintptr_t)zp->zfs_cmd;
 	error = 0;
 	zcl = NULL;
 
