@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0eea46fb1f83:
+	Removed telnetd.
+
 981ef32230b2,33721eb991d8:
 	These commits make the use of NFSv4.1/4.2 mounts with the "intr"
 	mount option fairly usable, although not 100% correct, so long as
