@@ -246,7 +246,7 @@ sysfs_unmerge_group(struct kobject *kobj, const struct attribute_group *grp)
 	struct attribute **attr;
 	struct sysctl_oid *oidp;
 
-	RB_FOREACH(oidp, sysctl_oid_list, SYSCTL_CHILDREN(kobj->oidp)) {
+	SYSCTL_FOREACH(oidp, SYSCTL_CHILDREN(kobj->oidp)) {
 		if (strcmp(oidp->oid_name, grp->name) != 0)
 			continue;
 		for (attr = grp->attrs; *attr != NULL; attr++) {
