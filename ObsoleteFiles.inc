@@ -52,6 +52,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220928: telnetd(8) removed
+OLD_FILES+=etc/pam.d/telnetd
+OLD_FILES+=usr/libexec/telnetd
+OLD_FILES+=usr/share/man/man8/telnetd.8.gz
+
 # 20220914: domain(9) updated
 OLD_FILES+=usr/share/man/man9/domain_init.9.gz
 OLD_FILES+=usr/share/man/man9/pfctlinput.9.gz
