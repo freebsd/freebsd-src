@@ -925,10 +925,10 @@ print_map_success(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar,
 {
 
 	device_printf(ntb->device,
-	    "Mapped BAR%d v:[%p-%p] p:[%p-%p] (0x%jx bytes) (%s)\n",
+	    "Mapped BAR%d v:[%p-%p] p:[0x%jx-0x%jx] (0x%jx bytes) (%s)\n",
 	    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 	    (char *)bar->vbase + bar->size - 1,
-	    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+	    (uintmax_t)bar->pbase, (uintmax_t)(bar->pbase + bar->size - 1),
 	    (uintmax_t)bar->size, kind);
 }
 
@@ -1012,19 +1012,21 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 	if (rc == 0) {
 		bar->map_mode = mapmode;
 		device_printf(ntb->device,
-		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "Marked BAR%d v:[%p-%p] p:[0x%jx-0x%jx] as "
 		    "%s.\n",
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
-		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+		    (uintmax_t)bar->pbase,
+		    (uintmax_t)(bar->pbase + bar->size - 1),
 		    intel_ntb_vm_memattr_to_str(mapmode));
 	} else
 		device_printf(ntb->device,
-		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "Unable to mark BAR%d v:[%p-%p] p:[0x%jx-0x%jx] as "
 		    "%s: %d\n",
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
-		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+		    (uintmax_t)bar->pbase,
+		    (uintmax_t)(bar->pbase + bar->size - 1),
 		    intel_ntb_vm_memattr_to_str(mapmode), rc);
 		/* Proceed anyway */
 	return (0);
