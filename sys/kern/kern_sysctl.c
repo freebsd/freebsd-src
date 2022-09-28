@@ -347,7 +347,7 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 /*
  * Locate the path to a given oid.  Returns the length of the resulting path,
  * or -1 if the oid was not found.  nodes must have room for CTL_MAXNAME
- * elements and be NULL initialized.
+ * elements.
  */
 static int
 sysctl_search_oid(struct sysctl_oid **nodes, struct sysctl_oid *needle)
@@ -401,7 +401,6 @@ sysctl_warn_reuse(const char *func, struct sysctl_oid *leaf)
 
 	sbuf_printf(&sb, "%s: can't re-use a leaf (", __func__);
 
-	memset(nodes, 0, sizeof(nodes));
 	rc = sysctl_search_oid(nodes, leaf);
 	if (rc > 0) {
 		for (i = 0; i < rc; i++)
