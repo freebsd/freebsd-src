@@ -114,6 +114,9 @@ CWARNFLAGS+=		-Wno-misleading-indentation
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 140000
 NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 110100
+NO_WARRAY_PARAMETER=	-Wno-array-parameter
+.endif
 .endif # WARNS
 
 .if defined(FORMAT_AUDIT)
