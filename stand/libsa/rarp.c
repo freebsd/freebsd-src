@@ -83,7 +83,7 @@ rarp_getipaddress(int sock)
 	}
 #ifdef RARP_DEBUG
  	if (debug)
-		printf("rarp: d=%x\n", (u_int)d);
+		printf("rarp: d=%lx\n", (long)d);
 #endif
 
 	bzero((char*)&wbuf.data, sizeof(wbuf.data));
