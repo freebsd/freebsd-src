@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
+ * Copyright © 2022 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +51,7 @@
 #include <sys/epoch.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/stdarg.h>
@@ -107,8 +109,8 @@ SYSCTL_INT(_hw, OID_AUTO, intr_hwpmc_waiting_report_threshold, CTLFLAG_RWTUN,
 #endif
 static TAILQ_HEAD(, intr_event) event_list =
     TAILQ_HEAD_INITIALIZER(event_list);
-static struct mtx event_lock;
-MTX_SYSINIT(intr_event_list, &event_lock, "intr event list", MTX_DEF);
+static struct rwlock event_lock;
+RW_SYSINIT(intr_event_list, &event_lock, "intr event list");
 
 static void	intr_event_update(struct intr_event *ie);
 static int	intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame);
@@ -303,9 +305,9 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
 	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
-	mtx_lock(&event_lock);
+	rw_wlock(&event_lock);
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
-	mtx_unlock(&event_lock);
+	rw_wunlock(&event_lock);
 	if (event != NULL)
 		*event = ie;
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
@@ -432,13 +434,13 @@ intr_lookup(int irq)
 {
 	struct intr_event *ie;
 
-	mtx_lock(&event_lock);
+	rw_rlock(&event_lock);
 	TAILQ_FOREACH(ie, &event_list, ie_list)
 		if (ie->ie_irq == irq &&
 		    (ie->ie_flags & IE_SOFT) == 0 &&
 		    CK_SLIST_FIRST(&ie->ie_handlers) != NULL)
 			break;
-	mtx_unlock(&event_lock);
+	rw_runlock(&event_lock);
 	return (ie);
 }
 
@@ -533,15 +535,15 @@ intr_event_destroy(struct intr_event *ie)
 	if (ie == NULL)
 		return (EINVAL);
 
-	mtx_lock(&event_lock);
+	rw_wlock(&event_lock);
 	mtx_lock(&ie->ie_lock);
 	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
 		mtx_unlock(&ie->ie_lock);
-		mtx_unlock(&event_lock);
+		rw_wunlock(&event_lock);
 		return (EBUSY);
 	}
 	TAILQ_REMOVE(&event_list, ie, ie_list);
-	mtx_unlock(&event_lock);
+	rw_wunlock(&event_lock);
 	if (ie->ie_thread != NULL)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
