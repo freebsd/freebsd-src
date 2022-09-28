@@ -23,4 +23,6 @@ LIBADD=	ssl crypto
 
 WARNS ?= 3
 
+CWARNFLAGS.sha2.c=	${NO_WARRAY_PARAMETER}
+
 .include <bsd.lib.mk>
