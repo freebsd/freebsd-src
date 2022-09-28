@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-static void adjust(char[], char *);
+static void adjust(char[HEXKEYBYTES + 1], char *);
 static void getseed(char *, int, unsigned char *);
 
 /*
