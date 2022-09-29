@@ -72,6 +72,7 @@ typedef enum device_property_type {
 	DEVICE_PROP_BUFFER = 1,
 	DEVICE_PROP_UINT32 = 2,
 	DEVICE_PROP_UINT64 = 3,
+	DEVICE_PROP_HANDLE = 4,
 } device_property_type_t;
 
 /**
