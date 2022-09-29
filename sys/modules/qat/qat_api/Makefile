@@ -62,7 +62,6 @@ CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/include/lac
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/include/dc
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/qat_direct/include
-CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/qat_kernel/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/qat_utils/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/common/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/common/compression/include
