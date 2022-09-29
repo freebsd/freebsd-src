@@ -253,6 +253,8 @@
                 amd64
                     arrays
                     ..
+                    kinst
+                    ..
                 ..
             ..
             zfsd
