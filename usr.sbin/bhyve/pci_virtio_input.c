@@ -159,15 +159,13 @@ static int pci_vtinput_cfgread(void *, int, int, uint32_t *);
 static int pci_vtinput_cfgwrite(void *, int, int, uint32_t);
 
 static struct virtio_consts vtinput_vi_consts = {
-	"vtinput",		       /* our name */
-	VTINPUT_MAXQ,		       /* we support 1 virtqueue */
-	sizeof(struct vtinput_config), /* config reg size */
-	pci_vtinput_reset,	       /* reset */
-	NULL,			       /* device-wide qnotify -- not used */
-	pci_vtinput_cfgread,	       /* read virtio config */
-	pci_vtinput_cfgwrite,	       /* write virtio config */
-	NULL,			       /* apply negotiated features */
-	0,			       /* our capabilities */
+	.vc_name =	"vtinput",
+	.vc_nvq =	VTINPUT_MAXQ,
+	.vc_cfgsize =	sizeof(struct vtinput_config),
+	.vc_reset =	pci_vtinput_reset,
+	.vc_cfgread =	pci_vtinput_cfgread,
+	.vc_cfgwrite =	pci_vtinput_cfgwrite,
+	.vc_hv_caps =	0,
 };
 
 static void
