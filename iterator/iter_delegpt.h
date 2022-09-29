@@ -101,6 +101,8 @@ struct delegpt_ns {
 	uint8_t* name;
 	/** length of name */
 	size_t namelen;
+	/** number of cache lookups for the name */
+	int cache_lookup_count;
 	/** 
 	 * If the name has been resolved. false if not queried for yet.
 	 * true if the A, AAAA queries have been generated.
