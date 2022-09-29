@@ -143,6 +143,7 @@ struct sdhci_fdt_softc {
 	struct resource	*mem_res[MAX_SLOTS];	/* Memory resource */
 
 	bool		wp_inverted;	/* WP pin is inverted */
+	bool		wp_disabled;	/* WP pin is not supported */
 	bool		no_18v;		/* No 1.8V support */
 
 	clk_t		clk_xin;	/* xin24m fixed clock */
@@ -433,6 +434,8 @@ sdhci_fdt_get_ro(device_t bus, device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(bus);
 
+	if (sc->wp_disabled)
+		return (false);
 	return (sdhci_generic_get_ro(bus, dev) ^ sc->wp_inverted);
 }
 
@@ -554,6 +557,8 @@ sdhci_fdt_probe(device_t dev)
 		sc->no_18v = true;
 	if (OF_hasprop(node, "wp-inverted"))
 		sc->wp_inverted = true;
+	if (OF_hasprop(node, "disable-wp"))
+		sc->wp_disabled = true;
 
 	return (0);
 }
