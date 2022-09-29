@@ -24,7 +24,11 @@ ENTRY(linux32_vdso_sigcode)
 	.cfi_offset	%ds, L_SC_DS
 	.cfi_offset	%cs, L_SC_CS
 	.cfi_offset	%ss, L_SC_SS
+#ifdef __clang__
 	.cfi_offset	%flags, L_SC_EFLAGS
+#else
+	.cfi_offset	%eflags, L_SC_EFLAGS
+#endif
 	.cfi_offset	%edi, L_SC_EDI
 	.cfi_offset	%esi, L_SC_ESI
 	.cfi_offset	%ebp, L_SC_EBP
@@ -56,7 +60,11 @@ ENTRY(linux32_vdso_rt_sigcode)
 	.cfi_offset	%ds, L_SC_DS
 	.cfi_offset	%cs, L_SC_CS
 	.cfi_offset	%ss, L_SC_SS
+#ifdef __clang__
 	.cfi_offset	%flags, L_SC_EFLAGS
+#else
+	.cfi_offset	%eflags, L_SC_EFLAGS
+#endif
 	.cfi_offset	%edi, L_SC_EDI
 	.cfi_offset	%esi, L_SC_ESI
 	.cfi_offset	%ebp, L_SC_EBP
