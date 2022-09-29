@@ -78,6 +78,7 @@ struct delegpt* delegpt_copy(struct delegpt* dp, struct regional* region)
 		if(!delegpt_add_ns(copy, region, ns->name, ns->lame,
 			ns->tls_auth_name, ns->port))
 			return NULL;
+		copy->nslist->cache_lookup_count = ns->cache_lookup_count;
 		copy->nslist->resolved = ns->resolved;
 		copy->nslist->got4 = ns->got4;
 		copy->nslist->got6 = ns->got6;
@@ -121,6 +122,7 @@ delegpt_add_ns(struct delegpt* dp, struct regional* region, uint8_t* name,
 	ns->namelen = len;
 	dp->nslist = ns;
 	ns->name = regional_alloc_init(region, name, ns->namelen);
+	ns->cache_lookup_count = 0;
 	ns->resolved = 0;
 	ns->got4 = 0;
 	ns->got6 = 0;
@@ -620,6 +622,7 @@ int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame,
 	}
 	ns->next = dp->nslist;
 	dp->nslist = ns;
+	ns->cache_lookup_count = 0;
 	ns->resolved = 0;
 	ns->got4 = 0;
 	ns->got6 = 0;

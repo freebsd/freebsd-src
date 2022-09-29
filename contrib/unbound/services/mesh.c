@@ -2240,3 +2240,10 @@ mesh_serve_expired_callback(void* arg)
 		mesh_do_callback(mstate, LDNS_RCODE_NOERROR, msg->rep, c, &tv);
 	}
 }
+
+int mesh_jostle_exceeded(struct mesh_area* mesh)
+{
+	if(mesh->all.count < mesh->max_reply_states)
+		return 0;
+	return 1;
+}
