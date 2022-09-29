@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_compat.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_internal.h>
@@ -1106,6 +1107,7 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 	error = found = 0;
 
 	switch(cmd){
+	case CAMGETPASSTHRU_0x19:
 	case CAMGETPASSTHRU:
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		xpt_setup_ccb(&ccb->ccb_h,
