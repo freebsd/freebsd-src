@@ -37,6 +37,7 @@
 #include "opt_platform.h"
 
 #include <sys/bus.h>
+#include <sys/malloc.h>
 
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
