@@ -474,7 +474,8 @@ send_get_tcb(struct adapter *sc, u_int tid)
 	struct cpl_get_tcb *cpl;
 	struct wrq_cookie cookie;
 
-	MPASS(tid < sc->tids.ntids);
+	MPASS(tid >= sc->tids.tid_base);
+	MPASS(tid - sc->tids.tid_base < sc->tids.ntids);
 
 	cpl = start_wrq_wr(&sc->sge.ctrlq[0], howmany(sizeof(*cpl), 16),
 	    &cookie);
@@ -527,7 +528,8 @@ add_tid_to_history(struct adapter *sc, u_int tid)
 	struct tom_data *td = sc->tom_softc;
 	int rc;
 
-	MPASS(tid < sc->tids.ntids);
+	MPASS(tid >= sc->tids.tid_base);
+	MPASS(tid - sc->tids.tid_base < sc->tids.ntids);
 
 	if (td->tcb_history == NULL)
 		return (ENXIO);
@@ -577,7 +579,8 @@ lookup_tcb_histent(struct adapter *sc, u_int tid, bool addrem)
 	struct tcb_histent *te;
 	struct tom_data *td = sc->tom_softc;
 
-	MPASS(tid < sc->tids.ntids);
+	MPASS(tid >= sc->tids.tid_base);
+	MPASS(tid - sc->tids.tid_base < sc->tids.ntids);
 
 	if (td->tcb_history == NULL)
 		return (NULL);
@@ -769,7 +772,8 @@ read_tcb_using_memwin(struct adapter *sc, u_int tid, uint64_t *buf)
 	uint32_t addr;
 	u_char *tcb, tmp;
 
-	MPASS(tid < sc->tids.ntids);
+	MPASS(tid >= sc->tids.tid_base);
+	MPASS(tid - sc->tids.tid_base < sc->tids.ntids);
 
 	addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) + tid * TCB_SIZE;
 	rc = read_via_memwin(sc, 2, addr, (uint32_t *)buf, TCB_SIZE);
