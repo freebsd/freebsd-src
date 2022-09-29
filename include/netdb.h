@@ -162,7 +162,7 @@ struct addrinfo {
  * Error return codes from gai_strerror(3), see RFC 3493.
  */
 #if 0
-/* Obsoleted on RFC 2553bis-02 */
+/* Obsoleted on RFC 3493 */
 #define	EAI_ADDRFAMILY	 1	/* address family for hostname not supported */
 #endif
 #define	EAI_AGAIN	 2	/* name could not be resolved at this time */
@@ -171,7 +171,7 @@ struct addrinfo {
 #define	EAI_FAMILY	 5	/* address family not recognized */
 #define	EAI_MEMORY	 6	/* memory allocation failure */
 #if 0
-/* Obsoleted on RFC 2553bis-02 */
+/* Obsoleted on RFC 3493 */
 #define	EAI_NODATA	 7	/* no address associated with hostname */
 #endif
 #define	EAI_NONAME	 8	/* name does not resolve */
