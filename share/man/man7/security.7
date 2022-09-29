@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2022
+.Dd September 29, 2022
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -97,9 +97,9 @@ It may not be able to take your machine down, but it can fill up your Internet
 pipe.
 .Pp
 A user account compromise is even more common than a DoS attack.
-Many
-sysadmins still run standard
-.Xr telnetd 8
+Some
+sysadmins still run
+.Nm telnetd
 and
 .Xr ftpd 8
 servers on their machines.
@@ -338,8 +338,8 @@ virtually every server ever run as root, including basic system servers.
 If you are running a machine through which people only log in via
 .Xr sshd 8
 and never log in via
-.Xr telnetd 8
-then turn off those services!
+.Nm telnetd
+then turn off this service!
 .Pp
 .Fx
 now defaults to running
