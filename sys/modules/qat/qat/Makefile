@@ -18,7 +18,12 @@ CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/qat_direct/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/firmware/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/common/crypto/sym/include
 
+.include <bsd.kmod.mk>
+
+.if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS.qat_ocf.c += -Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.qat_ocf_utils.c += -Wno-incompatible-pointer-types-discards-qualifiers
-
-.include <bsd.kmod.mk>
+.elif ${COMPILER_TYPE} == "gcc"
+CWARNFLAGS.qat_ocf.c += -Wno-discarded-qualifiers
+CWARNFLAGS.qat_ocf_utils.c += -Wno-discarded-qualifiers
+.endif
