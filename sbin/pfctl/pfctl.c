@@ -1020,8 +1020,8 @@ pfctl_print_eth_rule_counters(struct pfctl_eth_rule *rule, int opts)
 		char timestr[30];
 
 		if (rule->last_active_timestamp != 0) {
-			time_t last_active = rule->last_active_timestamp;
-			bcopy(ctime(&last_active), timestr, sizeof(timestr));
+			bcopy(ctime(&rule->last_active_timestamp), timestr,
+			    sizeof(timestr));
 			*strchr(timestr, '\n') = '\0';
 		} else {
 			snprintf(timestr, sizeof(timestr), "N/A");
@@ -1070,8 +1070,8 @@ pfctl_print_rule_counters(struct pfctl_rule *rule, int opts)
 	if (opts & PF_OPT_VERBOSE2) {
 		char timestr[30];
 		if (rule->last_active_timestamp != 0) {
-			time_t last_active = rule->last_active_timestamp;
-			bcopy(ctime(&last_active), timestr, sizeof(timestr));
+			bcopy(ctime(&rule->last_active_timestamp), timestr,
+			    sizeof(timestr));
 			*strchr(timestr, '\n') = '\0';
 		} else {
 			snprintf(timestr, sizeof(timestr), "N/A");
