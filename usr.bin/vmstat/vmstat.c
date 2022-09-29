@@ -604,18 +604,17 @@ fill_vmtotal(struct vmtotal *vmtp)
 }
 
 /* Determine how many cpu columns, and what index they are in kern.cp_times */
-static int
+static void
 getcpuinfo(u_long *maskp, int *maxidp)
 {
 	long *times;
 	u_long mask;
 	size_t size;
-	int empty, i, j, maxcpu, maxid, ncpus;
+	int empty, i, j, maxcpu, maxid;
 
 	if (kd != NULL)
 		xo_errx(1, "not implemented");
 	mask = 0;
-	ncpus = 0;
 	size = sizeof(maxcpu);
 	mysysctl("kern.smp.maxcpus", &maxcpu, &size);
 	if (size != sizeof(maxcpu))
@@ -632,16 +631,13 @@ getcpuinfo(u_long *maskp, int *maxidp)
 			if (times[i * CPUSTATES + j] != 0)
 				empty = 0;
 		}
-		if (!empty) {
+		if (!empty)
 			mask |= (1ul << i);
-			ncpus++;
-		}
 	}
 	if (maskp)
 		*maskp = mask;
 	if (maxidp)
 		*maxidp = maxid;
-	return (ncpus);
 }
 
 
@@ -670,12 +666,11 @@ dovmstat(unsigned int interval, int reps)
 	u_long cpumask;
 	size_t size;
 	time_t uptime, halfuptime;
-	int ncpus, maxid, rate_adj, retval;
+	int maxid, rate_adj, retval;
 
 	uptime = getuptime() / 1000000000LL;
 	halfuptime = uptime / 2;
 	rate_adj = 1;
-	ncpus = 1;
 	maxid = 0;
 	cpumask = 0;
 
@@ -714,7 +709,7 @@ dovmstat(unsigned int interval, int reps)
 	}
 
 	if (Pflag) {
-		ncpus = getcpuinfo(&cpumask, &maxid);
+		getcpuinfo(&cpumask, &maxid);
 		size_cp_times = sizeof(long) * (maxid + 1) * CPUSTATES;
 		cur_cp_times = calloc(1, size_cp_times);
 		last_cp_times = calloc(1, size_cp_times);
