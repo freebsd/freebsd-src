@@ -1209,6 +1209,9 @@ int iter_lookup_parent_glue_from_cache(struct module_env* env,
 	struct delegpt_ns* ns;
 	size_t num = delegpt_count_targets(dp);
 	for(ns = dp->nslist; ns; ns = ns->next) {
+		if(ns->cache_lookup_count > ITERATOR_NAME_CACHELOOKUP_MAX_PSIDE)
+			continue;
+		ns->cache_lookup_count++;
 		/* get cached parentside A */
 		akey = rrset_cache_lookup(env->rrset_cache, ns->name,
 			ns->namelen, LDNS_RR_TYPE_A, qinfo->qclass,
