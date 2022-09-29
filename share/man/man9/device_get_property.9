@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2022
+.Dd September 29, 2022
 .Dt DEVICE_GET_PROPERTY 9
 .Os
 .Sh NAME
@@ -54,6 +54,9 @@ Currently the following types are supported:
 The underlying property is a string of bytes.
 .It Dv DEVICE_PROP_ANY
 Wildcard property type.
+.It Dv DEVICE_PROP_HANDLE
+Following a reference the underlying property is a handle of the
+respective bus.
 .It Dv DEVICE_PROP_UINT32
 The underlying property is an array of unsigned 32 bit integers.
 The
