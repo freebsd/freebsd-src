@@ -145,19 +145,18 @@ static int pci_vtnet_snapshot(void *, struct vm_snapshot_meta *);
 #endif
 
 static struct virtio_consts vtnet_vi_consts = {
-	"vtnet",		/* our name */
-	VTNET_MAXQ - 1,		/* we currently support 2 virtqueues */
-	sizeof(struct virtio_net_config), /* config reg size */
-	pci_vtnet_reset,	/* reset */
-	NULL,			/* device-wide qnotify -- not used */
-	pci_vtnet_cfgread,	/* read PCI config */
-	pci_vtnet_cfgwrite,	/* write PCI config */
-	pci_vtnet_neg_features,	/* apply negotiated features */
-	VTNET_S_HOSTCAPS,	/* our capabilities */
+	.vc_name =	"vtnet",
+	.vc_nvq =	VTNET_MAXQ - 1,
+	.vc_cfgsize =	sizeof(struct virtio_net_config),
+	.vc_reset =	pci_vtnet_reset,
+	.vc_cfgread =	pci_vtnet_cfgread,
+	.vc_cfgwrite =	pci_vtnet_cfgwrite,
+	.vc_apply_features = pci_vtnet_neg_features,
+	.vc_hv_caps =	VTNET_S_HOSTCAPS,
 #ifdef BHYVE_SNAPSHOT
-	pci_vtnet_pause,	/* pause rx/tx threads */
-	pci_vtnet_resume,	/* resume rx/tx threads */
-	pci_vtnet_snapshot,	/* save / restore device state */
+	.vc_pause =	pci_vtnet_pause,
+	.vc_resume =	pci_vtnet_resume,
+	.vc_snapshot =	pci_vtnet_snapshot,
 #endif
 };
 

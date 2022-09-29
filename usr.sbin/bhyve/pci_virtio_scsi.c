@@ -248,15 +248,14 @@ static int  pci_vtscsi_init_queue(struct pci_vtscsi_softc *,
 static int pci_vtscsi_init(struct vmctx *, struct pci_devinst *, nvlist_t *);
 
 static struct virtio_consts vtscsi_vi_consts = {
-	"vtscsi",				/* our name */
-	VTSCSI_MAXQ,				/* we support 2+n virtqueues */
-	sizeof(struct pci_vtscsi_config),	/* config reg size */
-	pci_vtscsi_reset,			/* reset */
-	NULL,					/* device-wide qnotify */
-	pci_vtscsi_cfgread,			/* read virtio config */
-	pci_vtscsi_cfgwrite,			/* write virtio config */
-	pci_vtscsi_neg_features,		/* apply negotiated features */
-	0,					/* our capabilities */
+	.vc_name =	"vtscsi",
+	.vc_nvq =	VTSCSI_MAXQ,
+	.vc_cfgsize =	sizeof(struct pci_vtscsi_config),
+	.vc_reset =	pci_vtscsi_reset,
+	.vc_cfgread =	pci_vtscsi_cfgread,
+	.vc_cfgwrite =	pci_vtscsi_cfgwrite,
+	.vc_apply_features = pci_vtscsi_neg_features,
+	.vc_hv_caps =	0,
 };
 
 static void *
