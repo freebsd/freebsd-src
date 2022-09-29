@@ -603,8 +603,8 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 		 * so update augmentation for them.			\
 		 */							\
 		if (elm != child)					\
-			RB_AUGMENT_CHECK(elm);				\
-		RB_AUGMENT_CHECK(parent);				\
+			(void)RB_AUGMENT_CHECK(elm);			\
+		(void)RB_AUGMENT_CHECK(parent);				\
 		return (child);						\
 	} while ((parent = gpar) != NULL);				\
 	return (NULL);							\
@@ -734,7 +734,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 		 * augmentation for it.					\
 		 */							\
 		if (sib != elm)						\
-			RB_AUGMENT_CHECK(sib);				\
+			(void)RB_AUGMENT_CHECK(sib);			\
 		return (parent);					\
 	} while (elm = parent, (parent = gpar) != NULL);		\
 	return (NULL);							\
@@ -793,8 +793,8 @@ name##_RB_REMOVE(struct name *head, struct type *out)			\
 			 * changed subtrees, so update augmentation for	\
 			 * them if AUGMENT_WALK didn't.			\
 			 */						\
-			RB_AUGMENT_CHECK(opar);				\
-			RB_AUGMENT_CHECK(RB_PARENT(opar, field));	\
+			(void)RB_AUGMENT_CHECK(opar);			\
+			(void)RB_AUGMENT_CHECK(RB_PARENT(opar, field));	\
 		}							\
 	}								\
 	return (out);							\
@@ -830,7 +830,7 @@ name##_RB_INSERT(struct name *head, struct type *elm)			\
 		 * changed subtree, so update augmentation for it if	\
 		 * AUGMENT_WALK didn't.					\
 		 */							\
-		RB_AUGMENT_CHECK(tmp);					\
+		(void)RB_AUGMENT_CHECK(tmp);				\
 	return (NULL);							\
 }
 
