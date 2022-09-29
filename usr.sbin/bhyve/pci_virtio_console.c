@@ -169,17 +169,15 @@ static void pci_vtcon_announce_port(struct pci_vtcon_port *);
 static void pci_vtcon_open_port(struct pci_vtcon_port *, bool);
 
 static struct virtio_consts vtcon_vi_consts = {
-	"vtcon",		/* our name */
-	VTCON_MAXQ,		/* we support VTCON_MAXQ virtqueues */
-	sizeof(struct pci_vtcon_config), /* config reg size */
-	pci_vtcon_reset,	/* reset */
-	NULL,			/* device-wide qnotify */
-	pci_vtcon_cfgread,	/* read virtio config */
-	pci_vtcon_cfgwrite,	/* write virtio config */
-	pci_vtcon_neg_features,	/* apply negotiated features */
-	VTCON_S_HOSTCAPS,	/* our capabilities */
+	.vc_name =	"vtcon",
+	.vc_nvq =	VTCON_MAXQ,
+	.vc_cfgsize =	sizeof(struct pci_vtcon_config),
+	.vc_reset =	pci_vtcon_reset,
+	.vc_cfgread =	pci_vtcon_cfgread,
+	.vc_cfgwrite =	pci_vtcon_cfgwrite,
+	.vc_apply_features = pci_vtcon_neg_features,
+	.vc_hv_caps =	VTCON_S_HOSTCAPS,
 };
-
 
 static void
 pci_vtcon_reset(void *vsc)
