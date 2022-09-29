@@ -84,7 +84,7 @@ arm64/coresight/coresight_acpi.c		optional acpi
 arm64/coresight/coresight_fdt.c			optional fdt
 arm64/coresight/coresight_if.m			standard
 arm64/coresight/coresight_cmd.c			standard
-arm64/coresight/coresight_cpu_debug.c		standard
+arm64/coresight/coresight_cpu_debug.c		optional fdt
 arm64/coresight/coresight_etm4x.c		standard
 arm64/coresight/coresight_etm4x_acpi.c		optional acpi
 arm64/coresight/coresight_etm4x_fdt.c		optional fdt
