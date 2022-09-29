@@ -192,6 +192,7 @@ static struct so_name so_names[] = {
 	tcp_entry(TCP_REMOTE_UDP_ENCAPS_PORT),	/* int */
 	tcp_entry(TCP_MAXSEG),			/* int */
 	tcp_entry(TCP_TXTLS_MODE),		/* unsigned int */
+	tcp_entry(TCP_MAXUNACKTIME),		/* unsigned int */
 	tcp_entry(TCP_KEEPIDLE),		/* unsigned int */
 	tcp_entry(TCP_KEEPINTVL),		/* unsigned int */
 	tcp_entry(TCP_KEEPINIT),		/* unsigned int */
