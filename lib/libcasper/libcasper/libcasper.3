@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 15, 2021
+.Dd September 29, 2022
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -219,6 +219,8 @@ provides a
 compatible API
 .It system.net
 provides a libc compatible network API
+.It system.netdb
+provides libc compatible network proto API
 .It system.pwd
 provides a
 .Xr getpwent 3
@@ -273,6 +275,7 @@ functions always succeed.
 .Xr cap_dns 3 ,
 .Xr cap_grp 3 ,
 .Xr cap_net 3 ,
+.Xr cap_netdb 3 ,
 .Xr cap_pwd 3 ,
 .Xr cap_sysctl 3 ,
 .Xr cap_syslog 3 ,
