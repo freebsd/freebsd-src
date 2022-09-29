@@ -19,7 +19,7 @@ LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 	${BINDIR}/clang ${BINDIR}/clang-cpp
 MLINKS=	clang.1 clang++.1 \
 	clang.1 clang-cpp.1
-.if ${MK_CLANG_IS_CC} != "no"
+
 SCRIPTS=CC.sh
 SCRIPTSNAME=CC
 
@@ -30,7 +30,6 @@ MLINKS+= clang.1 cc.1 \
 	clang.1 c++.1 \
 	clang.1 CC.1 \
 	clang.1 cpp.1
-.endif
 
 LIBADD+=	z
 
