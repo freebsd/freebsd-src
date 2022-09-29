@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 TESTSDIR=	${TESTSBASE}/cddl/usr.sbin/dtrace/amd64
-TESTS_SUBDIRS+= arrays
+TESTS_SUBDIRS+= arrays \
+		kinst
 
 .PATH:		${.CURDIR:H:H:H:H:H}/tests
 KYUAFILE=	YES
