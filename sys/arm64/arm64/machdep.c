@@ -773,7 +773,9 @@ initarm(struct arm64_bootparams *abp)
 	update_special_regs(0);
 
 	link_elf_ireloc(kmdp);
+#ifdef FDT
 	try_load_dtb(kmdp);
+#endif
 
 	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
