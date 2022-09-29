@@ -34,8 +34,8 @@
 #include <sys/sysctl.h>
 #ifdef FDT
 #include <dev/ofw/ofw_bus.h>
-#endif
 #include "regnode_if.h"
+#endif
 
 SYSCTL_DECL(_hw_regulator);
 
