@@ -2683,6 +2683,7 @@ device_get_property(device_t dev, const char *prop, void *val, size_t sz,
 	switch (type) {
 	case DEVICE_PROP_ANY:
 	case DEVICE_PROP_BUFFER:
+	case DEVICE_PROP_HANDLE:	/* Size checks done in implementation. */
 		break;
 	case DEVICE_PROP_UINT32:
 		if (sz % 4 != 0)

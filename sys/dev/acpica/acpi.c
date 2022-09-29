@@ -1825,6 +1825,35 @@ acpi_find_dsd(struct acpi_device *ad)
 }
 
 static ssize_t
+acpi_bus_get_prop_handle(const ACPI_OBJECT *hobj, void *propvalue, size_t size)
+{
+	ACPI_OBJECT *pobj;
+	ACPI_HANDLE h;
+
+	if (hobj->Type != ACPI_TYPE_PACKAGE)
+		goto err;
+	if (hobj->Package.Count != 1)
+		goto err;
+
+	pobj = &hobj->Package.Elements[0];
+	if (pobj == NULL)
+		goto err;
+	if (pobj->Type != ACPI_TYPE_LOCAL_REFERENCE)
+		goto err;
+
+	h = acpi_GetReference(NULL, pobj);
+	if (h == NULL)
+		goto err;
+
+	if (propvalue != NULL && size >= sizeof(ACPI_HANDLE))
+		*(ACPI_HANDLE *)propvalue = h;
+	return (sizeof(ACPI_HANDLE));
+
+err:
+	return (-1);
+}
+
+static ssize_t
 acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
     void *propvalue, size_t size, device_property_type_t type)
 {
@@ -1842,6 +1871,8 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 	case DEVICE_PROP_UINT32:
 	case DEVICE_PROP_UINT64:
 		break;
+	case DEVICE_PROP_HANDLE:
+		return (acpi_bus_get_prop_handle(obj, propvalue, size));
 	default:
 		return (-1);
 	}
@@ -1873,6 +1904,22 @@ acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
 			    MIN(size, obj->Buffer.Length));
 		return (obj->Buffer.Length);
 
+	case ACPI_TYPE_PACKAGE:
+		if (propvalue != NULL && size >= sizeof(ACPI_OBJECT *)) {
+			*((ACPI_OBJECT **) propvalue) =
+			    __DECONST(ACPI_OBJECT *, obj);
+		}
+		return (sizeof(ACPI_OBJECT *));
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+		if (propvalue != NULL && size >= sizeof(ACPI_HANDLE)) {
+			ACPI_HANDLE h;
+
+			h = acpi_GetReference(NULL,
+			    __DECONST(ACPI_OBJECT *, obj));
+			memcpy(propvalue, h, sizeof(ACPI_HANDLE));
+		}
+		return (sizeof(ACPI_HANDLE));
 	default:
 		return (0);
 	}

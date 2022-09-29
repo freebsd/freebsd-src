@@ -359,7 +359,7 @@ static ssize_t
 simplebus_get_property(device_t bus, device_t child, const char *propname,
     void *propvalue, size_t size, device_property_type_t type)
 {
-	phandle_t node = ofw_bus_get_node(child);
+	phandle_t node, xref;
 	ssize_t ret, i;
 	uint32_t *buffer;
 	uint64_t val;
@@ -369,11 +369,13 @@ simplebus_get_property(device_t bus, device_t child, const char *propname,
 	case DEVICE_PROP_BUFFER:
 	case DEVICE_PROP_UINT32:
 	case DEVICE_PROP_UINT64:
+	case DEVICE_PROP_HANDLE:
 		break;
 	default:
 		return (-1);
 	}
 
+	node = ofw_bus_get_node(child);
 	if (propvalue == NULL || size == 0)
 		return (OF_getproplen(node, propname));
 
@@ -404,7 +406,20 @@ simplebus_get_property(device_t bus, device_t child, const char *propname,
 			((uint64_t *)buffer)[i / 2] = val;
 		}
 		return (ret);
-	 }
+	}
+
+	if (type == DEVICE_PROP_HANDLE) {
+		if (size < sizeof(node))
+			return (-1);
+		ret = OF_getencprop(node, propname, &xref, sizeof(xref));
+		if (ret <= 0)
+			return (ret);
+
+		node = OF_node_from_xref(xref);
+		if (propvalue != NULL)
+			*(uint32_t *)propvalue = node;
+		return (ret);
+	}
 
 	return (OF_getprop(node, propname, propvalue, size));
 }
