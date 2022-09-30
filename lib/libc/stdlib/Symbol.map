@@ -49,7 +49,6 @@ FBSD_1.0 {
 	lfind;
 	mergesort;
 	putenv;
-	qsort_r;
 	qsort;
 	radixsort;
 	sradixsort;
@@ -130,6 +129,7 @@ FBSD_1.6 {
 
 FBSD_1.7 {
 	clearenv;
+	qsort_r;
 };
 
 FBSDprivate_1.0 {

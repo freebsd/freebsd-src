@@ -63,7 +63,7 @@ typedef DECLARE_BLOCK(int, select_block, const struct dirent *);
 typedef DECLARE_BLOCK(int, dcomp_block, const struct dirent **,
     const struct dirent **);
 #else
-static int scandir_thunk_cmp(void *thunk, const void *p1, const void *p2);
+static int scandir_thunk_cmp(const void *p1, const void *p2, void *thunk);
 #endif
 
 static int
@@ -123,7 +123,7 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
 		qsort_b(names, numitems, sizeof(struct dirent *), (void*)dcomp);
 #else
 		qsort_r(names, numitems, sizeof(struct dirent *),
-		    &dcomp, scandir_thunk_cmp);
+		    scandir_thunk_cmp, &dcomp);
 #endif
 	*namelist = names;
 	return (numitems);
@@ -199,7 +199,7 @@ versionsort(const struct dirent **d1, const struct dirent **d2)
 }
 
 static int
-scandir_thunk_cmp(void *thunk, const void *p1, const void *p2)
+scandir_thunk_cmp(const void *p1, const void *p2, void *thunk)
 {
 	int (*dc)(const struct dirent **, const struct dirent **);
 

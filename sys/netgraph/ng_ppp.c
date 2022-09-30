@@ -322,7 +322,7 @@ static void	ng_ppp_frag_timeout(node_p node, hook_p hook, void *arg1,
 static void	ng_ppp_frag_checkstale(node_p node);
 static void	ng_ppp_frag_reset(node_p node);
 static void	ng_ppp_mp_strategy(node_p node, int len, int *distrib);
-static int	ng_ppp_intcmp(void *latency, const void *v1, const void *v2);
+static int	ng_ppp_intcmp(const void *v1, const void *v2, void *latency);
 static struct mbuf *ng_ppp_addproto(struct mbuf *m, uint16_t proto, int compOK);
 static struct mbuf *ng_ppp_cutproto(struct mbuf *m, uint16_t *proto);
 static struct mbuf *ng_ppp_prepend(struct mbuf *m, const void *buf, int len);
@@ -2316,8 +2316,8 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 	}
 
 	/* Sort active links by latency */
-	qsort_r(sortByLatency,
-	    priv->numActiveLinks, sizeof(*sortByLatency), latency, ng_ppp_intcmp);
+	qsort_r(sortByLatency, priv->numActiveLinks, sizeof(*sortByLatency),
+	    ng_ppp_intcmp, latency);
 
 	/* Find the interval we need (add links in sortByLatency[] order) */
 	for (numFragments = 1;
@@ -2401,7 +2401,7 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
  * Compare two integers
  */
 static int
-ng_ppp_intcmp(void *latency, const void *v1, const void *v2)
+ng_ppp_intcmp(const void *v1, const void *v2, void *latency)
 {
 	const int index1 = *((const int *) v1);
 	const int index2 = *((const int *) v2);

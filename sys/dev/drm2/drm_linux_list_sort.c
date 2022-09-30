@@ -37,7 +37,7 @@ struct drm_list_sort_thunk {
 };
 
 static int
-drm_le_cmp(void *priv, const void *d1, const void *d2)
+drm_le_cmp(const void *d1, const void *d2, void *priv)
 {
 	struct list_head *le1, *le2;
 	struct drm_list_sort_thunk *thunk;
@@ -68,7 +68,7 @@ drm_list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 		ar[i++] = le;
 	thunk.cmp = cmp;
 	thunk.priv = priv;
-	qsort_r(ar, count, sizeof(struct list_head *), &thunk, drm_le_cmp);
+	qsort_r(ar, count, sizeof(struct list_head *), drm_le_cmp, &thunk);
 	INIT_LIST_HEAD(head);
 	for (i = 0; i < count; i++)
 		list_add_tail(ar[i], head);

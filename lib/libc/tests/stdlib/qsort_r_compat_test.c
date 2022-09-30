@@ -26,7 +26,7 @@
  */
 
 /*
- * Test for qsort_r(3) routine.
+ * Test for historical qsort_r(3) routine.
  */
 
 #include <sys/cdefs.h>
@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #define	THUNK 42
 
 static int
-sorthelp_r(const void *a, const void *b, void *thunk)
+sorthelp_r(void *thunk, const void *a, const void *b)
 {
 	const int *oa, *ob;
 
@@ -56,8 +56,8 @@ sorthelp_r(const void *a, const void *b, void *thunk)
 	return (0);
 }
 
-ATF_TC_WITHOUT_HEAD(qsort_r_test);
-ATF_TC_BODY(qsort_r_test, tc)
+ATF_TC_WITHOUT_HEAD(qsort_r_compat_test);
+ATF_TC_BODY(qsort_r_compat_test, tc)
 {
 	int testvector[IVEC_LEN];
 	int sresvector[IVEC_LEN];
@@ -70,8 +70,8 @@ ATF_TC_BODY(qsort_r_test, tc)
 			testvector[i] = sresvector[i] = initvector[i];
 
 		/* Sort using qsort_r(3) */
-		qsort_r(testvector, j, sizeof(testvector[0]), sorthelp_r,
-		    &thunk);
+		qsort_r(testvector, j, sizeof(testvector[0]), &thunk,
+		    sorthelp_r);
 		/* Sort using reference slow sorting routine */
 		ssort(sresvector, j);
 
@@ -86,7 +86,7 @@ ATF_TC_BODY(qsort_r_test, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, qsort_r_test);
+	ATF_TP_ADD_TC(tp, qsort_r_compat_test);
 
 	return (atf_no_error());
 }
