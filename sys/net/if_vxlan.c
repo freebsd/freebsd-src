@@ -2560,6 +2560,12 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 
 	ifp = sc->vxl_ifp;
 	m = *m0;
+	if (m->m_len < ETHER_HDR_LEN &&
+	    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
+		*m0 = NULL;
+		error = ENOBUFS;
+		goto out;
+	}
 	eh = mtod(m, struct ether_header *);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
