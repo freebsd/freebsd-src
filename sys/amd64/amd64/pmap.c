@@ -1258,7 +1258,7 @@ static boolean_t pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde,
     vm_offset_t va, struct rwlock **lockp);
 static boolean_t pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
     vm_offset_t va);
-static bool	pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m,
+static int	pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_prot_t prot, struct rwlock **lockp);
 static int	pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde,
 		    u_int flags, vm_page_t m, struct rwlock **lockp);
@@ -7271,13 +7271,12 @@ out:
 }
 
 /*
- * Tries to create a read- and/or execute-only 2MB page mapping.  Returns true
- * if successful.  Returns false if (1) a page table page cannot be allocated
- * without sleeping, (2) a mapping already exists at the specified virtual
- * address, or (3) a PV entry cannot be allocated without reclaiming another
- * PV entry.
+ * Tries to create a read- and/or execute-only 2MB page mapping.  Returns
+ * KERN_SUCCESS if the mapping was created.  Otherwise, returns an error
+ * value.  See pmap_enter_pde() for the possible error values when "no sleep",
+ * "no replace", and "no reclaim" are specified.
  */
-static bool
+static int
 pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     struct rwlock **lockp)
 {
@@ -7295,8 +7294,7 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (va < VM_MAXUSER_ADDRESS)
 		newpde |= PG_U;
 	return (pmap_enter_pde(pmap, va, newpde, PMAP_ENTER_NOSLEEP |
-	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp) ==
-	    KERN_SUCCESS);
+	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp));
 }
 
 /*
@@ -7319,12 +7317,19 @@ pmap_every_pte_zero(vm_paddr_t pa)
 
 /*
  * Tries to create the specified 2MB page mapping.  Returns KERN_SUCCESS if
- * the mapping was created, and either KERN_FAILURE or KERN_RESOURCE_SHORTAGE
- * otherwise.  Returns KERN_FAILURE if PMAP_ENTER_NOREPLACE was specified and
- * a mapping already exists at the specified virtual address.  Returns
- * KERN_RESOURCE_SHORTAGE if PMAP_ENTER_NOSLEEP was specified and a page table
- * page allocation failed.  Returns KERN_RESOURCE_SHORTAGE if
- * PMAP_ENTER_NORECLAIM was specified and a PV entry allocation failed.
+ * the mapping was created, and one of KERN_FAILURE, KERN_NO_SPACE,
+ * KERN_PROTECTION_FAILURE, or KERN_RESOURCE_FAILURE otherwise.  Returns
+ * KERN_FAILURE if either (1) PMAP_ENTER_NOREPLACE was specified and a 4KB
+ * page mapping already exists within the 2MB virtual address range starting
+ * at the specified virtual address or (2) the requested 2MB page mapping is
+ * not supported due to hardware errata.  Returns KERN_NO_SPACE if
+ * PMAP_ENTER_NOREPLACE was specified and a 2MB page mapping already exists at
+ * the specified virtual address.  Returns KERN_PROTECTION_FAILURE if the PKRU
+ * settings are not the same across the 2MB virtual address range starting at
+ * the specified virtual address.  Returns KERN_RESOURCE_SHORTAGE if either
+ * (1) PMAP_ENTER_NOSLEEP was specified and a page table page allocation
+ * failed or (2) PMAP_ENTER_NORECLAIM was specified and a PV entry allocation
+ * failed.
  *
  * The parameter "m" is only used when creating a managed, writeable mapping.
  */
@@ -7380,14 +7385,23 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	if ((oldpde & PG_V) != 0) {
 		KASSERT(pdpg == NULL || pdpg->ref_count > 1,
 		    ("pmap_enter_pde: pdpg's reference count is too low"));
-		if ((flags & PMAP_ENTER_NOREPLACE) != 0 && (va <
-		    VM_MAXUSER_ADDRESS || (oldpde & PG_PS) != 0 ||
-		    !pmap_every_pte_zero(oldpde & PG_FRAME))) {
-			if (pdpg != NULL)
-				pdpg->ref_count--;
-			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
-			    " in pmap %p", va, pmap);
-			return (KERN_FAILURE);
+		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
+			if ((oldpde & PG_PS) != 0) {
+				if (pdpg != NULL)
+					pdpg->ref_count--;
+				CTR2(KTR_PMAP,
+				    "pmap_enter_pde: no space for va %#lx"
+				    " in pmap %p", va, pmap);
+				return (KERN_NO_SPACE);
+			} else if (va < VM_MAXUSER_ADDRESS ||
+			    !pmap_every_pte_zero(oldpde & PG_FRAME)) {
+				if (pdpg != NULL)
+					pdpg->ref_count--;
+				CTR2(KTR_PMAP,
+				    "pmap_enter_pde: failure for va %#lx"
+				    " in pmap %p", va, pmap);
+				return (KERN_FAILURE);
+			}
 		}
 		/* Break the existing mapping(s). */
 		SLIST_INIT(&free);
@@ -7482,6 +7496,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_offset_t va;
 	vm_page_t m, mpte;
 	vm_pindex_t diff, psize;
+	int rv;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
@@ -7494,7 +7509,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    m->psind == 1 && pmap_ps_enabled(pmap) &&
-		    pmap_enter_2mpage(pmap, va, m, prot, &lock))
+		    ((rv = pmap_enter_2mpage(pmap, va, m, prot, &lock)) ==
+		    KERN_SUCCESS || rv == KERN_NO_SPACE))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
 			mpte = pmap_enter_quick_locked(pmap, va, m, prot,
