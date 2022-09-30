@@ -268,6 +268,24 @@ recvfd(int sockfd, int *recv_fd, int flags)
 	    CMSG_SPACE(sizeof(int)), flags);
 }
 
+#if TEST_PROTO == SOCK_STREAM
+#define	LOCAL_SENDSPACE_SYSCTL	"net.local.stream.sendspace"
+#elif TEST_PROTO == SOCK_DGRAM
+#define	LOCAL_SENDSPACE_SYSCTL	"net.local.dgram.maxdgram"
+#endif
+
+static u_long
+getsendspace(void)
+{
+	u_long sendspace;
+
+	ATF_REQUIRE_MSG(sysctlbyname(LOCAL_SENDSPACE_SYSCTL, &sendspace,
+            &(size_t){sizeof(u_long)}, NULL, 0) != -1,
+	    "sysctl %s failed: %s", LOCAL_SENDSPACE_SYSCTL, strerror(errno));
+
+	return (sendspace);
+}
+
 /*
  * Put a temporary file into a UNIX domain socket, then take it out and make
  * sure it's the same file.  First time around, don't close the reference
@@ -530,12 +548,6 @@ ATF_TC_BODY(devfs_orphan, tc)
 	closesocketpair(fd);
 }
 
-#if TEST_PROTO == SOCK_STREAM
-#define	LOCAL_SENDSPACE_SYSCTL	"net.local.stream.sendspace"
-#elif TEST_PROTO == SOCK_DGRAM
-#define	LOCAL_SENDSPACE_SYSCTL	"net.local.dgram.maxdgram"
-#endif
-
 /*
  * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel prepends a
  * control message to the data. Sender sends large payload using a non-blocking
@@ -551,12 +563,7 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	void *buf;
 	int fd[2], getfd, putfd, rc;
 
-	len = sizeof(sendspace);
-	rc = sysctlbyname(LOCAL_SENDSPACE_SYSCTL, &sendspace,
-	    &len, NULL, 0);
-	ATF_REQUIRE_MSG(rc != -1,
-	    "sysctl %s failed: %s", LOCAL_SENDSPACE_SYSCTL, strerror(errno));
-
+	sendspace = getsendspace();
 	buf = calloc(1, sendspace);
 	ATF_REQUIRE(buf != NULL);
 
