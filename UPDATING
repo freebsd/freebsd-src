@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230803:
+	MAXCPU has been increased to 1024 in the amd64 GENERIC kernel config.
+	Out-of-tree kernel modules will need to be rebuilt.
+
 20230724:
 	CAM has been mechanically updated s/u_int(64|32|16|8)_t/uint\1_t/g
 	to move to the standard uintXX_t types from the old, traditional
