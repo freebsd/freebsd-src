@@ -159,7 +159,8 @@ dmar_count_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 
 int dmar_rmrr_enable = 1;
 
-static int dmar_enable = 0;
+static int dmar_enable = 1;
+
 static void
 dmar_identify(driver_t *driver, device_t parent)
 {
