@@ -151,7 +151,7 @@ main(int argc, char *argv[])
 
 	if (argc > 1)
 		first = e_atof(argv[0]);
-	
+
 	if (argc > 2) {
 		incr = e_atof(argv[1]);
 		/* Plan 9/GNU don't do zero */
