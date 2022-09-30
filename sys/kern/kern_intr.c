@@ -1519,11 +1519,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	}
 	critical_exit();
 	td->td_intr_nesting_level--;
-#ifdef notyet
+
 	/* The interrupt is not aknowledged by any filter and has no ithread. */
 	if (!thread && !filter)
 		return (++ie->ie_stray);
-#endif
 	return (0);
 }
 
