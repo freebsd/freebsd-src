@@ -1423,9 +1423,9 @@ intr_event_incr(struct intr_event *ie)
  *
  * Return value:
  * o 0:                         everything ok.
- * o EINVAL:                    stray interrupt.
+ * o non-0:                     stray interrupt, current count.
  */
-int
+u_long
 intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_handler *ih;
@@ -1443,16 +1443,14 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 
 	/* An interrupt with no event is a stray interrupt. */
 	if (ie == NULL)
-		return (EINVAL);
+		return (~0UL);
 
 	/* Increment the interrupt counter. */
 	intr_event_incr(ie);
 
 	/* An interrupt with no handlers is a stray interrupt. */
-	if (CK_SLIST_EMPTY(&ie->ie_handlers)) {
-		++ie->ie_stray;
-		return (EINVAL);
-	}
+	if (CK_SLIST_EMPTY(&ie->ie_handlers))
+		return (++ie->ie_stray);
 
 	/*
 	 * Execute fast interrupt handlers directly.
@@ -1548,7 +1546,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	/* The interrupt is not aknowledged by any filter and has no ithread. */
 	if (!thread && !filter) {
 		++ie->ie_stray;
-		return (EINVAL);
+		return (ie->ie_stray);
 	}
 #endif
 	return (0);

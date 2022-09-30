@@ -326,6 +326,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
 	struct intr_event *ie;
 	int vector;
+	u_long strays;
 
 	/*
 	 * We count software interrupts when we process them.  The
@@ -349,11 +350,11 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * For stray interrupts, mask and EOI the source, bump the
 	 * stray count, and log the condition.
 	 */
-	if (intr_event_handle(ie, frame) != 0) {
+	if ((strays = intr_event_handle(ie, frame)) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
-		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
+		if (strays < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
-		else if (*isrc->is_straycount == INTR_STRAY_LOG_MAX)
+		else if (strays == INTR_STRAY_LOG_MAX)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
