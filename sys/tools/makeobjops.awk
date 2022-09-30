@@ -466,6 +466,11 @@ for (file_i = 0; file_i < num_files; file_i++) {
 			debug("Included file: " incld);
 			printc("#include " incld);
 		}
+		else if (/^#[ 	]*if/ || /^#[   ]*else/ || /^#[   ]*elif/ ||
+		    /^#[   ]*endif/) {
+			printh($0);
+			printc($0);
+		}
 
 		sub(/#.*/, "");		# remove comments
 		sub(/^[	 ]+/, "");	# remove leading ...
