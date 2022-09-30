@@ -199,8 +199,12 @@ main(int argc, char *argv[])
 	 * loop held true due to a rounding error and we still need to print
 	 * 'last'.
 	 */
-	asprintf(&cur_print, fmt, cur);
-	asprintf(&last_print, fmt, last);
+	if (asprintf(&cur_print, fmt, cur) < 0) {
+		err(1, "asprintf");
+	}
+	if (asprintf(&last_print, fmt, last) < 0) {
+		err(1, "asprintf");
+	}
 	if (strcmp(cur_print, last_print) == 0 && cur != last_shown_value) {
 		fputs(last_print, stdout);
 		fputs(sep, stdout);
