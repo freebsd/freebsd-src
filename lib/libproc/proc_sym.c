@@ -105,7 +105,7 @@ struct symsort_thunk {
 };
 
 static int
-symvalcmp(void *_thunk, const void *a1, const void *a2)
+symvalcmp(const void *a1, const void *a2, void *_thunk)
 {
 	GElf_Sym sym1, sym2;
 	struct symsort_thunk *thunk;
@@ -192,7 +192,7 @@ load_symtab(Elf *e, struct symtab *symtab, u_long sh_type)
 
 	thunk.e = e;
 	thunk.symtab = symtab;
-	qsort_r(symtab->index, nsyms, sizeof(u_int), &thunk, symvalcmp);
+	qsort_r(symtab->index, nsyms, sizeof(u_int), symvalcmp, &thunk);
 
 	return (0);
 }

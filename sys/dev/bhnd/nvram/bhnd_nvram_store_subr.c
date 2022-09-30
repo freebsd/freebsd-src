@@ -59,8 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bhnd_nvram_storevar.h"
 
-static int			 bhnd_nvstore_idx_cmp(void *ctx,
-				     const void *lhs, const void *rhs);
+static int bhnd_nvstore_idx_cmp(const void *lhs, const void *rhs, void *ctx);
 
 /**
  * Allocate and initialize a new path instance.
@@ -198,7 +197,7 @@ bhnd_nvstore_index_append(struct bhnd_nvram_store *sc,
 
 /* sort function for bhnd_nvstore_index_prepare() */
 static int
-bhnd_nvstore_idx_cmp(void *ctx, const void *lhs, const void *rhs)
+bhnd_nvstore_idx_cmp(const void *lhs, const void *rhs, void *ctx)
 {
 	struct bhnd_nvram_store	*sc;
 	void			*l_cookiep, *r_cookiep;
@@ -259,8 +258,8 @@ bhnd_nvstore_index_prepare(struct bhnd_nvram_store *sc,
 	BHND_NVSTORE_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* Sort the index table */
-	qsort_r(index->cookiep, index->count, sizeof(index->cookiep[0]), sc,
-	    bhnd_nvstore_idx_cmp);
+	qsort_r(index->cookiep, index->count, sizeof(index->cookiep[0]),
+	    bhnd_nvstore_idx_cmp, sc);
 
 	return (0);
 }

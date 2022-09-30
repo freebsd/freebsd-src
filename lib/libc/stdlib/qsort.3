@@ -32,7 +32,7 @@
 .\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2020
+.Dd September 30, 2022
 .Dt QSORT 3
 .Os
 .Sh NAME
@@ -67,8 +67,8 @@
 .Fa "void *base"
 .Fa "size_t nmemb"
 .Fa "size_t size"
+.Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *, void *\*[rp]"
 .Fa "void *thunk"
-.Fa "int \*[lp]*compar\*[rp]\*[lp]void *, const void *, const void *\*[rp]"
 .Fc
 .Ft int
 .Fo heapsort
@@ -157,7 +157,7 @@ function behaves identically to
 .Fn qsort ,
 except that it takes an additional argument,
 .Fa thunk ,
-which is passed unchanged as the first argument to function pointed to
+which is passed unchanged as the last argument to function pointed to
 .Fa compar .
 This allows the comparison function to access additional
 data without using global variables, and thus
@@ -436,3 +436,9 @@ K.3.6.3.2.
 The variants of these functions that take blocks as arguments first appeared in
 Mac OS X.
 This implementation was created by David Chisnall.
+.Pp
+In
+.Fx 14.0 ,
+the prototype of
+.Fn qsort_r
+was updated to match POSIX.
