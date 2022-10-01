@@ -28,6 +28,7 @@
 #ifndef _NETLINK_NETLINK_MESSAGE_PARSER_H_
 #define _NETLINK_NETLINK_MESSAGE_PARSER_H_
 
+#ifdef _KERNEL
 /*
  * It is not meant to be included directly
  */
@@ -267,4 +268,5 @@ nl_parse_nlmsg(struct nlmsghdr *hdr, const struct nlhdr_parser *parser,
 	return (nl_parse_header(hdr + 1, hdr->nlmsg_len - sizeof(*hdr), parser, npt, target));
 }
 
+#endif
 #endif
