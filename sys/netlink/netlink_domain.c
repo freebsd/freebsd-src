@@ -98,8 +98,8 @@ static void
 nl_update_groups_locked(struct nlpcb *nlp, uint64_t nl_groups)
 {
 	/* Update group mask */
-	NL_LOG(LOG_DEBUG2, "socket %p, groups 0x%lX -> 0x%lX",
-	    nlp->nl_socket, nlp->nl_groups, nl_groups);
+	NL_LOG(LOG_DEBUG2, "socket %p, groups 0x%X -> 0x%X",
+	    nlp->nl_socket, (uint32_t)nlp->nl_groups, (uint32_t)nl_groups);
 	nlp->nl_groups = nl_groups;
 }
 
@@ -577,7 +577,8 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			}
 			group_mask = (uint64_t)1 << (optval - 1);
-			NL_LOG(LOG_DEBUG2, "ADD/DEL group %d mask (%lX)", optval, group_mask);
+			NL_LOG(LOG_DEBUG2, "ADD/DEL group %d mask (%X)",
+			    (uint32_t)optval, (uint32_t)group_mask);
 
 			NLCTL_WLOCK(ctl);
 			if (sopt->sopt_name == NETLINK_ADD_MEMBERSHIP)
