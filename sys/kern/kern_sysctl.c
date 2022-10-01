@@ -2765,12 +2765,12 @@ static void
 db_show_oid_name(int *oid, size_t nlen)
 {
 	struct sysctl_oid *oidp;
-	int qoid[CTL_MAXNAME+2];
+	int qoid[CTL_MAXNAME + 2];
 	int error;
 
-	qoid[0] = 0;
+	qoid[0] = CTL_SYSCTL;
+	qoid[1] = CTL_SYSCTL_NAME;
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
-	qoid[1] = 1;
 
 	error = sysctl_find_oid(qoid, nlen + 2, &oidp, NULL, NULL);
 	if (error)
@@ -2856,25 +2856,24 @@ static int
 db_show_sysctl_all(int *oid, size_t len, int flags)
 {
 	struct sysctl_oid *oidp;
-	int name1[CTL_MAXNAME + 2], name2[CTL_MAXNAME + 2];
-	size_t l1, l2;
+	int qoid[CTL_MAXNAME + 2], next[CTL_MAXNAME];
+	size_t nlen;
 
-	name1[0] = CTL_SYSCTL;
-	name1[1] = CTL_SYSCTL_NEXT;
-	l1 = 2;
+	qoid[0] = CTL_SYSCTL;
+	qoid[1] = CTL_SYSCTL_NEXT;
 	if (len) {
-		memcpy(name1 + 2, oid, len * sizeof(int));
-		l1 += len;
+		nlen = len;
+		memcpy(&qoid[2], oid, nlen * sizeof(int));
 	} else {
-		name1[2] = CTL_KERN;
-		l1++;
+		nlen = 1;
+		qoid[2] = CTL_KERN;
 	}
 	for (;;) {
-		int i, error;
+		int error;
+		size_t nextsize = sizeof(next);
 
-		l2 = sizeof(name2);
-		error = kernel_sysctl(kdb_thread, name1, l1,
-		    name2, &l2, NULL, 0, &l2, 0);
+		error = kernel_sysctl(kdb_thread, qoid, nlen + 2,
+		    next, &nextsize, NULL, 0, &nlen, 0);
 		if (error != 0) {
 			if (error == ENOENT)
 				return (0);
@@ -2882,27 +2881,25 @@ db_show_sysctl_all(int *oid, size_t len, int flags)
 				db_error("sysctl(next)");
 		}
 
-		l2 /= sizeof(int);
+		nlen /= sizeof(int);
 
-		if (l2 < (unsigned int)len)
+		if (nlen < (unsigned int)len)
 			return (0);
 
-		for (i = 0; i < len; i++)
-			if (name2[i] != oid[i])
-				return (0);
+		if (memcmp(&oid[0], &next[0], len * sizeof(int)) != 0)
+			return (0);
 
 		/* Find the OID in question */
-		error = sysctl_find_oid(name2, l2, &oidp, NULL, NULL);
+		error = sysctl_find_oid(next, nlen, &oidp, NULL, NULL);
 		if (error)
 			return (error);
 
-		i = db_show_oid(oidp, name2, l2, flags | DB_SYSCTL_SAFE_ONLY);
+		(void)db_show_oid(oidp, next, nlen, flags | DB_SYSCTL_SAFE_ONLY);
 
 		if (db_pager_quit)
 			return (0);
 
-		memcpy(name1+2, name2, l2 * sizeof(int));
-		l1 = 2 + l2;
+		memcpy(&qoid[2 + len], &next[len], (nlen - len) * sizeof(int));
 	}
 }
 
