@@ -3320,11 +3320,13 @@ nfs_advlockasync(struct vop_advlockasync_args *ap)
 	u_quad_t size;
 	int error;
 	
-	if (NFS_ISV4(vp))
-		return (EOPNOTSUPP);
 	error = NFSVOPLOCK(vp, LK_SHARED);
 	if (error)
 		return (error);
+	if (NFS_ISV4(vp)) {
+		NFSVOPUNLOCK(vp, 0);
+		return (EOPNOTSUPP);
+	}
 	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
 		size = VTONFS(vp)->n_size;
 		NFSVOPUNLOCK(vp, 0);
