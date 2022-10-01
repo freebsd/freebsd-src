@@ -31,6 +31,8 @@
 #ifndef _NETLINK_NETLINK_DEBUG_H_
 #define	_NETLINK_NETLINK_DEBUG_H_
 
+#ifdef _KERNEL
+
 #define	_DEBUG_SYSCTL_OID	_net_netlink_debug
 #include <net/route/route_debug.h>
 
@@ -79,4 +81,5 @@ SYSCTL_DECL(_net_netlink_debug);
 
 
 
+#endif
 #endif
