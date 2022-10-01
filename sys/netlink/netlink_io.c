@@ -282,8 +282,8 @@ nl_on_transmit(struct nlpcb *nlp)
 
 	struct socket *so = nlp->nl_socket;
 	if (__predict_false(nlp->nl_dropped_bytes > 0 && so != NULL)) {
-		uint64_t dropped_bytes = nlp->nl_dropped_bytes;
-		uint64_t dropped_messages = nlp->nl_dropped_messages;
+		unsigned long dropped_bytes = nlp->nl_dropped_bytes;
+		unsigned long dropped_messages = nlp->nl_dropped_messages;
 		nlp->nl_dropped_bytes = 0;
 		nlp->nl_dropped_messages = 0;
 
@@ -385,8 +385,8 @@ nl_send_one(struct mbuf *m, struct nlpcb *nlp, int num_messages, int io_flags)
 			nlp->nl_dropped_bytes += m_length(m, NULL);
 			nlp->nl_dropped_messages += num_messages;
 			NLP_LOG(LOG_DEBUG2, nlp, "RX oveflow: %lu m (+%d), %lu b (+%d)",
-			    nlp->nl_dropped_messages, num_messages,
-			    nlp->nl_dropped_bytes, m_length(m, NULL));
+			    (unsigned long)nlp->nl_dropped_messages, num_messages,
+			    (unsigned long)nlp->nl_dropped_bytes, m_length(m, NULL));
 			soroverflow(so);
 			m_freem(m);
 			result = false;
