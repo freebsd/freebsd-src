@@ -249,6 +249,7 @@ nl_parse_nested(struct nlattr *nla, const struct nlhdr_parser *parser,
 static inline void
 nl_verify_parsers(const struct nlhdr_parser **parser, int count)
 {
+#ifdef INVARIANTS
 	for (int i = 0; i < count; i++) {
 		const struct nlhdr_parser *p = parser[i];
 		int attr_type = 0;
@@ -257,6 +258,7 @@ nl_verify_parsers(const struct nlhdr_parser **parser, int count)
 			attr_type = p->np[j].type;
 		}
 	}
+#endif
 }
 void nl_verify_parsers(const struct nlhdr_parser **parser, int count);
 #define	NL_VERIFY_PARSERS(_p)	nl_verify_parsers((_p), NL_ARRAY_LEN(_p))
