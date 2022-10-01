@@ -37,6 +37,7 @@
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/proc.h>
 #include <sys/ck.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
