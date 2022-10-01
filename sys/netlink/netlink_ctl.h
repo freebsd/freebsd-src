@@ -28,6 +28,7 @@
 #ifndef _NETLINK_NETLINK_CTL_H_
 #define _NETLINK_NETLINK_CTL_H_
 
+#ifdef _KERNEL
 /*
  * This file provides headers for the public KPI of the netlink
  * subsystem
@@ -99,4 +100,5 @@ uint32_t genl_register_group(const char *family_name, const char *group_name);
 /* Debug */
 uint32_t nlp_get_pid(const struct nlpcb *nlp);
 
+#endif
 #endif

@@ -28,6 +28,8 @@
 #ifndef _NETLINK_NETLINK_VAR_H_
 #define _NETLINK_NETLINK_VAR_H_
 
+#ifdef _KERNEL
+
 #include <sys/ck.h>
 #include <sys/epoch.h>
 #include <sys/sysctl.h>
@@ -139,4 +141,5 @@ void nl_taskqueue_handler(void *_arg, int pending);
 int nl_receive_async(struct mbuf *m, struct socket *so);
 void nl_process_receive_locked(struct nlpcb *nlp);
 
+#endif
 #endif

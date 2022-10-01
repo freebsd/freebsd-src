@@ -31,6 +31,8 @@
 #ifndef _NETLINK_NETLINK_GENERIC_H_
 #define	_NETLINK_NETLINK_GENERIC_H_
 
+#include <netlink/netlink.h>
+
 /* Base header for all of the relevant messages */
 struct genlmsghdr {
 	uint8_t		cmd;		/* CTRL_CMD_ */

@@ -29,6 +29,7 @@
 #ifndef _NETLINK_NETLINK_MESSAGE_WRITER_H_
 #define _NETLINK_NETLINK_MESSAGE_WRITER_H_
 
+#ifdef _KERNEL
 /*
  * It is not meant to be included directly
  */
@@ -247,4 +248,5 @@ nlattr_add_string(struct nl_writer *nw, int attrtype, const char *str)
 }
 
 
+#endif
 #endif
