@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 #include <sys/types.h>
 #include <sys/ck.h>
 #include <sys/kernel.h>
@@ -268,10 +269,12 @@ nl_find_base_unhop(struct unhop_ctl *ctl, uint32_t uidx)
 static struct nhop_object *
 clone_unhop(const struct user_nhop *unhop, uint32_t fibnum, int family, int nh_flags)
 {
+#ifdef ROUTE_MPATH
 	const struct weightened_nhop *wn;
 	struct weightened_nhop *wn_new, wn_base[MAX_STACK_NHOPS];
-	struct nhop_object *nh = NULL;
 	uint32_t num_nhops;
+#endif
+	struct nhop_object *nh = NULL;
 	int error;
 
 	if (unhop->un_nhop_src != NULL) {
@@ -296,7 +299,7 @@ clone_unhop(const struct user_nhop *unhop, uint32_t fibnum, int family, int nh_f
 		nhop_set_pxtype_flag(nh, nh_flags);
 		return (nhop_get_nhop(nh, &error));
 	}
-
+#ifdef ROUTE_MPATH
 	wn = unhop->un_nhgrp_src;
 	num_nhops = unhop->un_nhgrp_count;
 
@@ -326,6 +329,7 @@ clone_unhop(const struct user_nhop *unhop, uint32_t fibnum, int family, int nh_f
 
 	if (wn_new != wn_base)
 		free(wn_new, M_TEMP);
+#endif
 	return (nh);
 }
 

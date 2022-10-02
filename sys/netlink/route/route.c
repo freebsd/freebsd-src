@@ -67,6 +67,7 @@ get_rtm_type(const struct nhop_object *nh)
 static uint8_t
 nl_get_rtm_protocol(const struct nhop_object *nh)
 {
+#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
 		const struct nhgrp_object *nhg = (const struct nhgrp_object *)nh;
 		uint8_t origin = nhgrp_get_origin(nhg);
@@ -74,6 +75,7 @@ nl_get_rtm_protocol(const struct nhop_object *nh)
 			return (origin);
 		nh = nhg->nhops[0];
 	}
+#endif
 	uint8_t origin = nhop_get_origin(nh);
 	if (origin != RTPROT_UNSPEC)
 		return (origin);
@@ -162,6 +164,7 @@ dump_rc_nhop_mtu(struct nl_writer *nw, const struct nhop_object *nh)
 	*((uint32_t *)(nla + 1)) = nh->nh_mtu;
 }
 
+#ifdef ROUTE_MPATH
 static void
 dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *rtm)
 {
@@ -201,15 +204,17 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 	}
 	nlattr_set_len(nw, off);
 }
+#endif
 
 static void
 dump_rc_nhop(struct nl_writer *nw, const struct nhop_object *nh, struct rtmsg *rtm)
 {
+#ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
 		dump_rc_nhg(nw, (const struct nhgrp_object *)nh, rtm);
 		return;
 	}
-
+#endif
 	uint32_t rtflags = nhop_get_rtflags(nh);
 
 	/*
@@ -279,6 +284,7 @@ dump_px(uint32_t fibnum, const struct nlmsghdr *hdr,
 	int plen = 0;
 	uint32_t scopeid = 0;
 	switch (family) {
+#ifdef INET
 	case AF_INET:
 		{
 			struct in_addr addr;
@@ -286,6 +292,8 @@ dump_px(uint32_t fibnum, const struct nlmsghdr *hdr,
 			nlattr_add(nw, NL_RTA_DST, 4, &addr);
 			break;
 		}
+#endif
+#ifdef INET6
 	case AF_INET6:
 		{
 			struct in6_addr addr;
@@ -293,6 +301,7 @@ dump_px(uint32_t fibnum, const struct nlmsghdr *hdr,
 			nlattr_add(nw, NL_RTA_DST, 16, &addr);
 			break;
 		}
+#endif
 	default:
 		FIB_LOG(LOG_NOTICE, fibnum, family, "unsupported rt family: %d", family);
 		error = EAFNOSUPPORT;
@@ -707,6 +716,7 @@ get_op_flags(int nlm_flags)
 	return (op_flags);
 }
 
+#ifdef ROUTE_MPATH
 static int
 create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
     struct nl_pstate *npt, struct nhop_object **pnh)
@@ -729,19 +739,20 @@ create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
 
 	return (error);
 }
+#endif
 
 static struct nhop_object *
 create_nexthop_from_attrs(struct nl_parsed_route *attrs,
     struct nl_pstate *npt, int *perror)
 {
-	struct nhop_object *nh;
+	struct nhop_object *nh = NULL;
 	int error = 0;
 
 	if (attrs->rta_multipath != NULL) {
+#ifdef ROUTE_MPATH
 		/* Multipath w/o explicit nexthops */
 		int num_nhops = attrs->rta_multipath->num_nhops;
 		struct weightened_nhop *wn = npt_alloc(npt, sizeof(*wn) * num_nhops);
-		nh = NULL;
 
 		for (int i = 0; i < num_nhops; i++) {
 			struct rta_mpath_nh *mpnh = &attrs->rta_multipath->nhops[i];
@@ -763,6 +774,9 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 			for (int i = 0; i < num_nhops; i++)
 				nhop_free(wn[i].nh);
 		}
+#else
+		error = ENOTSUP;
+#endif
 		*perror = error;
 	} else {
 		nh = nhop_alloc(attrs->rta_table, attrs->rtm_family);
