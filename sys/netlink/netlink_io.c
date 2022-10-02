@@ -29,10 +29,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mbuf.h>
 #include <sys/ck.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>

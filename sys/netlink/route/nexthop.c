@@ -30,10 +30,11 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include <sys/types.h>
+#include <sys/ck.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
-#include <sys/ck.h>
 
 #include <net/if.h>
 #include <net/route.h>
