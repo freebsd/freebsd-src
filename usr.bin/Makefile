@@ -106,9 +106,6 @@ SUBDIR=	alias \
 	nice \
 	nl \
 	nohup \
-	opieinfo \
-	opiekey \
-	opiepasswd \
 	pagesize \
 	passwd \
 	paste \
