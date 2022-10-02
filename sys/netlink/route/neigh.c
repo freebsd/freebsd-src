@@ -344,8 +344,8 @@ rtnl_handle_newneigh(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	int addrlen = attrs.nda_ifp->if_addrlen;
 	if (attrs.nda_lladdr->nla_len != sizeof(struct nlattr) + addrlen) {
 		NLMSG_REPORT_ERR_MSG(npt,
-		    "NDA_LLADDR address length (%ld) is different from expected (%d)",
-		    attrs.nda_lladdr->nla_len - sizeof(struct nlattr), addrlen);
+		    "NDA_LLADDR address length (%d) is different from expected (%d)",
+		    (int)attrs.nda_lladdr->nla_len - (int)sizeof(struct nlattr), addrlen);
 		return (EINVAL);
 	}
 
