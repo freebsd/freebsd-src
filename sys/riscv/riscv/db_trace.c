@@ -92,13 +92,18 @@ db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 				break;
 			}
 
-			if ((tf->tf_scause & SCAUSE_INTR) != 0)
+			if ((tf->tf_scause & SCAUSE_INTR) != 0) {
 				db_printf("--- interrupt %ld\n",
 				    tf->tf_scause & SCAUSE_CODE);
-			else
+			} else if (tf->tf_scause == SCAUSE_ECALL_USER) {
+				db_printf("--- syscall");
+				db_decode_syscall(td->td_sa.code, td);
+				db_printf("\n");
+			} else {
 				db_printf("--- exception %ld, tval = %#lx\n",
 				    tf->tf_scause & SCAUSE_CODE,
 				    tf->tf_stval);
+			}
 			frame->sp = tf->tf_sp;
 			frame->fp = tf->tf_s[0];
 			frame->pc = tf->tf_sepc;
