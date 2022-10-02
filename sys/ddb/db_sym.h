@@ -105,4 +105,6 @@ bool		X_db_sym_numargs(db_symtab_t *, c_db_sym_t, int *, char **);
 void		X_db_symbol_values(db_symtab_t *symtab, c_db_sym_t sym,
 		    const char **namep, db_expr_t *valuep);
 
+void		db_decode_syscall(int number, struct thread *td);
+
 #endif /* !_DDB_DB_SYM_H_ */
