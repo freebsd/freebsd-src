@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/reg.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
-#include <sys/sysent.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
@@ -126,7 +125,6 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static void db_print_stack_entry(const char *, db_addr_t, void *);
-static void decode_syscall(int, struct thread *);
 
 static void
 db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
@@ -137,28 +135,6 @@ db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
 	if (frame != NULL)
 		db_printf("/frame 0x%lx", (register_t)frame);
 	db_printf("\n");
-}
-
-static void
-decode_syscall(int number, struct thread *td)
-{
-	struct proc *p;
-	c_db_sym_t sym;
-	db_expr_t diff;
-	sy_call_t *f;
-	const char *symname;
-
-	db_printf(" (%d", number);
-	p = (td != NULL) ? td->td_proc : NULL;
-	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
-		f = p->p_sysent->sv_table[number].sy_call;
-		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
-		if (sym != DB_SYM_NULL && diff == 0) {
-			db_symbol_values(sym, &symname, NULL);
-			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
-		}
-	}
-	db_printf(")");
 }
 
 /*
@@ -242,7 +218,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			break;
 		case SYSCALL:
 			db_printf("--- syscall");
-			decode_syscall(tf->tf_rax, td);
+			db_decode_syscall(tf->tf_rax, td);
 			break;
 		case INTERRUPT:
 			db_printf("--- interrupt");

@@ -36,9 +36,11 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/pcpu.h>
-#include <sys/smp.h>
 #include <sys/systm.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/smp.h>
+#include <sys/sysent.h>
 
 #include <net/vnet.h>
 
@@ -480,4 +482,26 @@ bool
 db_sym_numargs(c_db_sym_t sym, int *nargp, char **argnames)
 {
 	return (X_db_sym_numargs(db_last_symtab, sym, nargp, argnames));
+}
+
+void
+db_decode_syscall(int number, struct thread *td)
+{
+	struct proc *p;
+	c_db_sym_t sym;
+	db_expr_t diff;
+	sy_call_t *f;
+	const char *symname;
+
+	db_printf(" (%d", number);
+	p = (td != NULL) ? td->td_proc : NULL;
+	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
+		f = p->p_sysent->sv_table[number].sy_call;
+		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
+		if (sym != DB_SYM_NULL && diff == 0) {
+			db_symbol_values(sym, &symname, NULL);
+			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
+		}
+	}
+	db_printf(")");
 }
