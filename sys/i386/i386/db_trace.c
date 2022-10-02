@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/proc.h>
 #include <sys/reg.h>
-#include <sys/sysent.h>
 
 #include <machine/cpu.h>
 #include <machine/frame.h>
@@ -196,7 +195,6 @@ static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
 static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t,
     void *);
-static void decode_syscall(int, struct thread *);
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
@@ -260,28 +258,6 @@ db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
 	if (frame != NULL)
 		db_printf("/frame 0x%r", (register_t)frame);
 	db_printf("\n");
-}
-
-static void
-decode_syscall(int number, struct thread *td)
-{
-	struct proc *p;
-	c_db_sym_t sym;
-	db_expr_t diff;
-	sy_call_t *f;
-	const char *symname;
-
-	db_printf(" (%d", number);
-	p = (td != NULL) ? td->td_proc : NULL;
-	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
-		f = p->p_sysent->sv_table[number].sy_call;
-		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
-		if (sym != DB_SYM_NULL && diff == 0) {
-			db_symbol_values(sym, &symname, NULL);
-			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
-		}
-	}
-	db_printf(")");
 }
 
 /*
@@ -396,7 +372,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		break;
 	case SYSCALL:
 		db_printf("--- syscall");
-		decode_syscall(tf->tf_eax, td);
+		db_decode_syscall(tf->tf_eax, td);
 		break;
 	case INTERRUPT:
 		db_printf("--- interrupt");
