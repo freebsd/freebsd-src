@@ -31,6 +31,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>

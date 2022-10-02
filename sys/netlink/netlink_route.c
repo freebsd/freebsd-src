@@ -28,9 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
+#include <sys/ck.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
-#include <sys/ck.h>
 
 #include <net/route.h>
 #include <net/route/route_ctl.h>

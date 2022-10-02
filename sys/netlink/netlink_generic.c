@@ -28,10 +28,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
+#include <sys/ck.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/socket.h>
-#include <sys/ck.h>
+#include <sys/sx.h>
 
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
