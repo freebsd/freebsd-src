@@ -159,116 +159,123 @@ sbttobt(sbintime_t _sbt)
 }
 
 /*
- * Decimal<->sbt conversions.  Multiplying or dividing by SBT_1NS results in
- * large roundoff errors which sbttons() and nstosbt() avoid.  Millisecond and
- * microsecond functions are also provided for completeness.
- *
- * These functions return the smallest sbt larger or equal to the
- * number of seconds requested so that sbttoX(Xtosbt(y)) == y.  Unlike
- * top of second computations below, which require that we tick at the
- * top of second, these need to be rounded up so we do whatever for at
- * least as long as requested.
- *
- * The naive computation we'd do is this
- *	((unit * 2^64 / SIFACTOR) + 2^32-1) >> 32
- * However, that overflows. Instead, we compute
- *	((unit * 2^63 / SIFACTOR) + 2^31-1) >> 32
- * and use pre-computed constants that are the ceil of the 2^63 / SIFACTOR
- * term to ensure we are using exactly the right constant. We use the lesser
- * evil of ull rather than a uint64_t cast to ensure we have well defined
- * right shift semantics. With these changes, we get all the ns, us and ms
- * conversions back and forth right.
- * Note: This file is used for both kernel and userland includes, so we can't
- * rely on KASSERT being defined, nor can we pollute the namespace by including
- * assert.h.
+ * Scaling functions for signed and unsigned 64-bit time using any
+ * 32-bit fraction:
  */
+
 static __inline int64_t
-sbttons(sbintime_t _sbt)
+__stime64_scale32_ceil(int64_t x, int32_t factor, int32_t divisor)
 {
-	uint64_t ns;
+	const int64_t rem = x % divisor;
 
-#ifdef KASSERT
-	KASSERT(_sbt >= 0, ("Negative values illegal for sbttons: %jx", _sbt));
-#endif
-	ns = _sbt;
-	if (ns >= SBT_1S)
-		ns = (ns >> 32) * 1000000000;
-	else
-		ns = 0;
-
-	return (ns + (1000000000 * (_sbt & 0xffffffffu) >> 32));
-}
-
-static __inline sbintime_t
-nstosbt(int64_t _ns)
-{
-	sbintime_t sb = 0;
-
-#ifdef KASSERT
-	KASSERT(_ns >= 0, ("Negative values illegal for nstosbt: %jd", _ns));
-#endif
-	if (_ns >= 1000000000) {
-		sb = (_ns / 1000000000) * SBT_1S;
-		_ns = _ns % 1000000000;
-	}
-	/* 9223372037 = ceil(2^63 / 1000000000) */
-	sb += ((_ns * 9223372037ull) + 0x7fffffff) >> 31;
-	return (sb);
+	return (x / divisor * factor + (rem * factor + divisor - 1) / divisor);
 }
 
 static __inline int64_t
-sbttous(sbintime_t _sbt)
+__stime64_scale32_floor(int64_t x, int32_t factor, int32_t divisor)
 {
+	const int64_t rem = x % divisor;
 
-#ifdef KASSERT
-	KASSERT(_sbt >= 0, ("Negative values illegal for sbttous: %jx", _sbt));
-#endif
-	return ((_sbt >> 32) * 1000000 +
-		(1000000 * (_sbt & 0xffffffffu) >> 32));
+	return (x / divisor * factor + (rem * factor) / divisor);
 }
 
-static __inline sbintime_t
-ustosbt(int64_t _us)
+static __inline uint64_t
+__utime64_scale32_ceil(uint64_t x, uint32_t factor, uint32_t divisor)
 {
-	sbintime_t sb = 0;
+	const uint64_t rem = x % divisor;
 
-#ifdef KASSERT
-	KASSERT(_us >= 0, ("Negative values illegal for ustosbt: %jd", _us));
-#endif
-	if (_us >= 1000000) {
-		sb = (_us / 1000000) * SBT_1S;
-		_us = _us % 1000000;
-	}
-	/* 9223372036855 = ceil(2^63 / 1000000) */
-	sb += ((_us * 9223372036855ull) + 0x7fffffff) >> 31;
-	return (sb);
+	return (x / divisor * factor + (rem * factor + divisor - 1) / divisor);
+}
+
+static __inline uint64_t
+__utime64_scale32_floor(uint64_t x, uint32_t factor, uint32_t divisor)
+{
+	const uint64_t rem = x % divisor;
+
+	return (x / divisor * factor + (rem * factor) / divisor);
+}
+
+/*
+ * This function finds the common divisor between the two arguments,
+ * in powers of two. Use a macro, so the compiler will output a
+ * warning if the value overflows!
+ *
+ * Detailed description:
+ *
+ * Create a variable with 1's at the positions of the leading 0's
+ * starting at the least significant bit, producing 0 if none (e.g.,
+ * 01011000 -> 0000 0111). Then these two variables are bitwise AND'ed
+ * together, to produce the greatest common power of two minus one. In
+ * the end add one to flip the value to the actual power of two (e.g.,
+ * 0000 0111 + 1 -> 0000 1000).
+ */
+#define	__common_powers_of_two(a, b) \
+	((~(a) & ((a) - 1) & ~(b) & ((b) - 1)) + 1)
+
+/*
+ * Scaling functions for signed and unsigned 64-bit time assuming
+ * reducable 64-bit fractions to 32-bit fractions:
+ */
+
+static __inline int64_t
+__stime64_scale64_ceil(int64_t x, int64_t factor, int64_t divisor)
+{
+	const int64_t gcd = __common_powers_of_two(factor, divisor);
+
+	return (__stime64_scale32_ceil(x, factor / gcd, divisor / gcd));
 }
 
 static __inline int64_t
-sbttoms(sbintime_t _sbt)
+__stime64_scale64_floor(int64_t x, int64_t factor, int64_t divisor)
 {
-#ifdef KASSERT
-	KASSERT(_sbt >= 0, ("Negative values illegal for sbttoms: %jx", _sbt));
-#endif
-	return ((_sbt >> 32) * 1000 + (1000 * (_sbt & 0xffffffffu) >> 32));
+	const int64_t gcd = __common_powers_of_two(factor, divisor);
+
+	return (__stime64_scale32_floor(x, factor / gcd, divisor / gcd));
 }
 
-static __inline sbintime_t
-mstosbt(int64_t _ms)
+static __inline uint64_t
+__utime64_scale64_ceil(uint64_t x, uint64_t factor, uint64_t divisor)
 {
-	sbintime_t sb = 0;
+	const uint64_t gcd = __common_powers_of_two(factor, divisor);
 
-#ifdef KASSERT
-	KASSERT(_ms >= 0, ("Negative values illegal for mstosbt: %jd", _ms));
-#endif
-	if (_ms >= 1000) {
-		sb = (_ms / 1000) * SBT_1S;
-		_ms = _ms % 1000;
-	}
-	/* 9223372036854776 = ceil(2^63 / 1000) */
-	sb += ((_ms * 9223372036854776ull) + 0x7fffffff) >> 31;
-	return (sb);
+	return (__utime64_scale32_ceil(x, factor / gcd, divisor / gcd));
 }
+
+static __inline uint64_t
+__utime64_scale64_floor(uint64_t x, uint64_t factor, uint64_t divisor)
+{
+	const uint64_t gcd = __common_powers_of_two(factor, divisor);
+
+	return (__utime64_scale32_floor(x, factor / gcd, divisor / gcd));
+}
+
+/*
+ * Decimal<->sbt conversions. Multiplying or dividing by SBT_1NS
+ * results in large roundoff errors which sbttons() and nstosbt()
+ * avoid. Millisecond and microsecond functions are also provided for
+ * completeness.
+ *
+ * When converting from sbt to another unit, the result is always
+ * rounded down. When converting back to sbt the result is always
+ * rounded up. This gives the property that sbttoX(Xtosbt(y)) == y .
+ *
+ * The conversion functions can also handle negative values.
+ */
+#define	SBT_DECLARE_CONVERSION_PAIR(name, units_per_second)	\
+static __inline int64_t \
+sbtto##name(sbintime_t sbt) \
+{ \
+	return (__stime64_scale64_floor(sbt, units_per_second, SBT_1S)); \
+} \
+static __inline sbintime_t \
+name##tosbt(int64_t name) \
+{ \
+	return (__stime64_scale64_ceil(name, SBT_1S, units_per_second)); \
+}
+
+SBT_DECLARE_CONVERSION_PAIR(ns, 1000000000)
+SBT_DECLARE_CONVERSION_PAIR(us, 1000000)
+SBT_DECLARE_CONVERSION_PAIR(ms, 1000)
 
 /*-
  * Background information:
@@ -289,8 +296,8 @@ bintime2timespec(const struct bintime *_bt, struct timespec *_ts)
 {
 
 	_ts->tv_sec = _bt->sec;
-	_ts->tv_nsec = ((uint64_t)1000000000 *
-	    (uint32_t)(_bt->frac >> 32)) >> 32;
+	_ts->tv_nsec = __utime64_scale64_floor(
+	    _bt->frac, 1000000000, 1ULL << 32) >> 32;
 }
 
 static __inline uint64_t
@@ -299,8 +306,8 @@ bintime2ns(const struct bintime *_bt)
 	uint64_t ret;
 
 	ret = (uint64_t)(_bt->sec) * (uint64_t)1000000000;
-	ret += (((uint64_t)1000000000 *
-		 (uint32_t)(_bt->frac >> 32)) >> 32);
+	ret += __utime64_scale64_floor(
+	    _bt->frac, 1000000000, 1ULL << 32) >> 32;
 	return (ret);
 }
 
@@ -309,8 +316,8 @@ timespec2bintime(const struct timespec *_ts, struct bintime *_bt)
 {
 
 	_bt->sec = _ts->tv_sec;
-	/* 18446744073 = int(2^64 / 1000000000) */
-	_bt->frac = _ts->tv_nsec * (uint64_t)18446744073LL;
+	_bt->frac = __utime64_scale64_floor(
+	    (uint64_t)_ts->tv_nsec << 32, 1ULL << 32, 1000000000);
 }
 
 static __inline void
@@ -318,7 +325,8 @@ bintime2timeval(const struct bintime *_bt, struct timeval *_tv)
 {
 
 	_tv->tv_sec = _bt->sec;
-	_tv->tv_usec = ((uint64_t)1000000 * (uint32_t)(_bt->frac >> 32)) >> 32;
+	_tv->tv_usec = __utime64_scale64_floor(
+	    _bt->frac, 1000000, 1ULL << 32) >> 32;
 }
 
 static __inline void
@@ -326,8 +334,8 @@ timeval2bintime(const struct timeval *_tv, struct bintime *_bt)
 {
 
 	_bt->sec = _tv->tv_sec;
-	/* 18446744073709 = int(2^64 / 1000000) */
-	_bt->frac = _tv->tv_usec * (uint64_t)18446744073709LL;
+	_bt->frac = __utime64_scale64_floor(
+	    (uint64_t)_tv->tv_usec << 32, 1ULL << 32, 1000000);
 }
 
 static __inline struct timespec
