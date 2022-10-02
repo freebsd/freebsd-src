@@ -19,6 +19,11 @@ _loaded=${_loaded:-/etc/profile}
 export _loaded
 for _dir in /etc /usr/local/etc ; do
 	for _file in "${_dir}"/profile "${_dir}"/profile.d/* ; do
+		case ${_file} in
+		*[~#]|*.OLD|*.bak|*.orig|*,v)
+			continue
+			;;
+		esac
 		if [ -f "${_file}" ] ; then
 			case :${_loaded}: in
 			*:"${_file}":*)
