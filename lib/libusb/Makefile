@@ -137,6 +137,7 @@ MLINKS += libusb.3 libusb_lock_events.3
 MLINKS += libusb.3 libusb_unlock_events.3
 MLINKS += libusb.3 libusb_event_handling_ok.3
 MLINKS += libusb.3 libusb_event_handler_active.3
+MLINKS += libusb.3 libusb_interrupt_event_handler.3
 MLINKS += libusb.3 libusb_lock_event_waiters.3
 MLINKS += libusb.3 libusb_unlock_event_waiters.3
 MLINKS += libusb.3 libusb_wait_for_event.3
