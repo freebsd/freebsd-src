@@ -16,10 +16,7 @@ YFLAGS=
 WARNS?=	2
 WFORMAT=0
 
-LIBADD=	crypt util
-
-# XXX Kluge! Conversation mechanism needs to be fixed.
-LIBADD+=	opie md
+LIBADD=	crypt md util
 
 .PATH:	${SRCTOP}/bin/ls
 SRCS+=	ls.c cmp.c print.c util.c

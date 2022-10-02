@@ -77,7 +77,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libnetmap \
 	libnv \
 	libopenbsd \
-	libopie \
 	libpam \
 	libpathconv \
 	libpcap \
@@ -132,8 +131,7 @@ SUBDIR_DEPEND_libgeom= libexpat libsbuf
 SUBDIR_DEPEND_librpcsec_gss= libgssapi
 SUBDIR_DEPEND_libmagic= libz
 SUBDIR_DEPEND_libmemstat= libkvm
-SUBDIR_DEPEND_libopie= libmd
-SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
+SUBDIR_DEPEND_libpam= libcrypt ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err}
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd

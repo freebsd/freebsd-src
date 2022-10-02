@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libmd \
-	lib/libopie \
 	lib/libthr \
 	lib/libutil \
 	lib/msun \

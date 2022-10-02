@@ -86,7 +86,6 @@ DIRDEPS = \
 	lib/libmt \
 	lib/libnetgraph \
 	lib/libngatm \
-	lib/libopie \
 	lib/libpam/libpam \
 	lib/libpcap \
 	lib/libpmc \

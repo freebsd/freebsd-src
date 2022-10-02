@@ -16,8 +16,6 @@ DIRDEPS = \
 	lib/libpam/modules/pam_lastlog \
 	lib/libpam/modules/pam_login_access \
 	lib/libpam/modules/pam_nologin \
-	lib/libpam/modules/pam_opie \
-	lib/libpam/modules/pam_opieaccess \
 	lib/libpam/modules/pam_passwdqc \
 	lib/libpam/modules/pam_permit \
 	lib/libpam/modules/pam_radius \

@@ -356,15 +356,6 @@ The login name must be in the password data base
 and not have a null password.
 In this case a password must be provided by the client before any
 file operations may be performed.
-If the user has an OPIE key, the response from a successful USER
-command will include an OPIE challenge.
-The client may choose to respond with a PASS command giving either
-a standard password or an OPIE one-time password.
-The server will automatically determine which type of
-password it has been given and attempt to authenticate accordingly.
-See
-.Xr opie 4
-for more information on OPIE authentication.
 .It
 The login name must not appear in the file
 .Pa /etc/ftpusers .
@@ -563,7 +554,6 @@ Recommended directory for the FTP root directory
 .Xr ftp 1 ,
 .Xr umask 2 ,
 .Xr getusershell 3 ,
-.Xr opie 4 ,
 .Xr ftpchroot 5 ,
 .Xr login.conf 5 ,
 .Xr inetd 8 ,

@@ -5,8 +5,6 @@
 #
 
 # auth
-auth		sufficient	pam_opie.so		no_warn no_fake_prompts
-auth		requisite	pam_opieaccess.so	no_warn allow_local
 #auth		sufficient	pam_krb5.so		no_warn try_first_pass
 #auth		sufficient	pam_ssh.so		no_warn try_first_pass
 auth		required	pam_unix.so		no_warn try_first_pass
