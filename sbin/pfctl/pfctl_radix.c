@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 extern int dev;
 
-static int	 pfr_next_token(char buf[], FILE *);
+static int	 pfr_next_token(char buf[BUF_SIZE], FILE *);
 
 static void
 pfr_report_error(struct pfr_table *tbl, struct pfioc_table *io,
