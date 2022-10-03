@@ -97,6 +97,8 @@
 .Nm RB_FOREACH_REVERSE_SAFE ,
 .Nm RB_INIT ,
 .Nm RB_INSERT ,
+.Nm RB_INSERT_NEXT ,
+.Nm RB_INSERT_PREV ,
 .Nm RB_REMOVE ,
 .Nm RB_REINSERT ,
 .Nm RB_AUGMENT
@@ -192,6 +194,10 @@
 .Fn RB_INIT "RB_HEAD *head"
 .Ft "struct TYPE *"
 .Fn RB_INSERT NAME "RB_HEAD *head" "struct TYPE *elm"
+.Ft "struct TYPE *"
+.Fn RB_INSERT_NEXT NAME "RB_HEAD *head" "struct TYPE *elm" "struct TYPE *next"
+.Ft "struct TYPE *"
+.Fn RB_INSERT_PREV NAME "RB_HEAD *head" "struct TYPE *elm" "struct TYPE *prev"
 .Ft "struct TYPE *"
 .Fn RB_REMOVE NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
@@ -513,6 +519,18 @@ The
 macro inserts the new element
 .Fa elm
 into the tree.
+.Pp
+The
+.Fn RB_INSERT_NEXT
+macro inserts the new element
+.Fa elm
+into the tree immediately after a given element.
+.Pp
+The
+.Fn RB_INSERT_PREV
+macro inserts the new element
+.Fa elm
+into the tree immediately before a given element.
 .Pp
 The
 .Fn RB_REMOVE
