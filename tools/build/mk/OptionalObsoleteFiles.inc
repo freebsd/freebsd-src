@@ -474,6 +474,7 @@ OLD_FILES+=usr/libexec/bsdinstall/runconsoles
 OLD_FILES+=usr/libexec/bsdinstall/script
 OLD_FILES+=usr/libexec/bsdinstall/scriptedpart
 OLD_FILES+=usr/libexec/bsdinstall/services
+OLD_FILES+=usr/libexec/bsdinstall/startbsdinstall
 OLD_FILES+=usr/libexec/bsdinstall/time
 OLD_FILES+=usr/libexec/bsdinstall/umount
 OLD_FILES+=usr/libexec/bsdinstall/wlanconfig
