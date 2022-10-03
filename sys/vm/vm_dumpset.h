@@ -92,7 +92,7 @@ vm_page_dump_index_to_pa(int bit)
 			    (dump_avail[i] & ~PAGE_MASK));
 		bit -= tot;
 	}
-	return ((vm_paddr_t)NULL);
+	return (0);
 }
 
 #define VM_PAGE_DUMP_FOREACH(bitset, pa)				\
