@@ -140,8 +140,8 @@ CRUNCH_LIBS+= -l80211 -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
 CRUNCH_LIBS+= -lavl -lpthread -luutil -lumem -ltpool -lspl
 CRUNCH_LIBS_zfs+=	${LIBBE} \
 			${LIBZPOOL} \
-			${LIBZUTIL} \
 			${LIBZFS} \
+			${LIBZUTIL} \
 			${LIBZFS_CORE} \
 			${LIBZFSBOOTENV} \
 			${LIBICP_RESCUE} \
