@@ -1743,10 +1743,42 @@ cpuset_check_capabilities(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	return (0);
 }
 
+#if defined(__powerpc__)
+/*
+ * TODO: At least powerpc64 and powerpc64le kernels panic with
+ * exception 0x480 (instruction segment exception) when copyin/copyout,
+ * are set as a function pointer in cpuset_copy_cb struct and called by
+ * an external module (like pfsync). Tip: copyin/copyout have an ifunc
+ * resolver function.
+ *
+ * Bisect of LLVM shows that the behavior changed on LLVM 10.0 with
+ * https://reviews.llvm.org/rGdc06b0bc9ad055d06535462d91bfc2a744b2f589
+ *
+ * This is a hack/workaround while problem is being discussed with LLVM
+ * community
+ */
+static int
+cpuset_copyin(const void *uaddr, void *kaddr, size_t len)
+{
+	return(copyin(uaddr, kaddr, len));
+}
+
+static int
+cpuset_copyout(const void *kaddr, void *uaddr, size_t len)
+{
+	return(copyout(kaddr, uaddr, len));
+}
+
 static const struct cpuset_copy_cb copy_set = {
-	.cpuset_copyin = copyin,
-	.cpuset_copyout = copyout
+	.cpuset_copyin = cpuset_copyin,
+	.cpuset_copyout = cpuset_copyout
 };
+#else
+static const struct cpuset_copy_cb copy_set = {
+        .cpuset_copyin = copyin,
+        .cpuset_copyout = copyout
+};
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_args {
