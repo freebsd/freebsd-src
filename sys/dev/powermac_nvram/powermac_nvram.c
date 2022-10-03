@@ -360,7 +360,7 @@ adler_checksum(uint8_t *data, int len)
 	high = 0;
 	for (i = 0; i < len; i++) {
 		if ((i % 5000) == 0) {
-			high %= 65521UL;
+			low %= 65521UL;
 			high %= 65521UL;
 		}
 		low += data[i];
