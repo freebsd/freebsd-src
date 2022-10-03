@@ -125,7 +125,6 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static void db_print_stack_entry(const char *, db_addr_t, void *);
-static void decode_syscall(int, struct thread *);
 
 static void
 db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
