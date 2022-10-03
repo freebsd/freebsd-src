@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 OSNAME?=	FreeBSD
-SUBDIR= distextract distfetch partedit scripts
+SUBDIR=	distextract distfetch partedit runconsoles scripts
 SUBDIR_PARALLEL=
 SCRIPTS= bsdinstall
 MAN= bsdinstall.8
