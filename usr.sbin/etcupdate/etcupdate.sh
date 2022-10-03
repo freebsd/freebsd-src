@@ -1321,7 +1321,7 @@ handle_added_file()
 # Build a new tree and save it in a tarball.
 build_cmd()
 {
-	local dir
+	local dir tartree
 
 	if [ $# -ne 1 ]; then
 		echo "Missing required tarball."
@@ -1342,7 +1342,12 @@ build_cmd()
 		remove_tree $dir
 		exit 1
 	fi
-	if ! tar cfj $1 -C $dir . >&3 2>&1; then
+	if [ -n "$noroot" ]; then
+		tartree=@METALOG
+	else
+		tartree=.
+	fi
+	if ! tar cfj $1 -C $dir $tartree >&3 2>&1; then
 		echo "Failed to create tarball."
 		remove_tree $dir
 		exit 1
