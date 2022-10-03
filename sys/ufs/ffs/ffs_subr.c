@@ -407,7 +407,7 @@ validate_sblock(struct fs *fs, int flags)
 		FCHK(powerof2(fs->fs_fsize), ==, 0, %jd);
 		FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 		FCHK(fs->fs_sbsize, <, (signed)sizeof(struct fs), %jd);
-		FCHK(fs->fs_sbsize % fs->fs_fsize, !=, 0, %jd);
+		FCHK(fs->fs_sbsize % dbtob(1), !=, 0, %jd);
 		FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
 		FCHK(fs->fs_ncg, <, 1, %jd);
 		FCHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
@@ -503,7 +503,7 @@ validate_sblock(struct fs *fs, int flags)
 	 */
 	if (error)
 		return (error);
-	FCHK(fs->fs_sbsize % fs->fs_fsize, !=, 0, %jd);
+	FCHK(fs->fs_sbsize % dbtob(1), !=, 0, %jd);
 	FCHK(fs->fs_ipg % fs->fs_inopb, !=, 0, %jd);
 	FCHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
