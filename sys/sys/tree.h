@@ -414,12 +414,15 @@ struct {								\
 	RB_PROTOTYPE_RANK(name, type, attr)				\
 	RB_PROTOTYPE_INSERT_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_REMOVE_COLOR(name, type, attr);			\
+	RB_PROTOTYPE_INSERT_FINISH(name, type, attr);			\
 	RB_PROTOTYPE_INSERT(name, type, attr);				\
 	RB_PROTOTYPE_REMOVE(name, type, attr);				\
 	RB_PROTOTYPE_FIND(name, type, attr);				\
 	RB_PROTOTYPE_NFIND(name, type, attr);				\
 	RB_PROTOTYPE_NEXT(name, type, attr);				\
+	RB_PROTOTYPE_INSERT_NEXT(name, type, attr);			\
 	RB_PROTOTYPE_PREV(name, type, attr);				\
+	RB_PROTOTYPE_INSERT_PREV(name, type, attr);			\
 	RB_PROTOTYPE_MINMAX(name, type, attr);				\
 	RB_PROTOTYPE_REINSERT(name, type, attr);
 #ifdef _RB_DIAGNOSTIC
@@ -436,6 +439,9 @@ struct {								\
 	    struct type *, struct type *)
 #define RB_PROTOTYPE_REMOVE(name, type, attr)				\
 	attr struct type *name##_RB_REMOVE(struct name *, struct type *)
+#define RB_PROTOTYPE_INSERT_FINISH(name, type, attr)			\
+	attr struct type *name##_RB_INSERT_FINISH(struct name *,	\
+	    struct type *, struct type **, struct type *)
 #define RB_PROTOTYPE_INSERT(name, type, attr)				\
 	attr struct type *name##_RB_INSERT(struct name *, struct type *)
 #define RB_PROTOTYPE_FIND(name, type, attr)				\
@@ -444,8 +450,14 @@ struct {								\
 	attr struct type *name##_RB_NFIND(struct name *, struct type *)
 #define RB_PROTOTYPE_NEXT(name, type, attr)				\
 	attr struct type *name##_RB_NEXT(struct type *)
+#define RB_PROTOTYPE_INSERT_NEXT(name, type, attr)			\
+	attr struct type *name##_RB_INSERT_NEXT(struct name *,		\
+	    struct type *, struct type *)
 #define RB_PROTOTYPE_PREV(name, type, attr)				\
 	attr struct type *name##_RB_PREV(struct type *)
+#define RB_PROTOTYPE_INSERT_PREV(name, type, attr)			\
+	attr struct type *name##_RB_INSERT_PREV(struct name *,		\
+	    struct type *, struct type *)
 #define RB_PROTOTYPE_MINMAX(name, type, attr)				\
 	attr struct type *name##_RB_MINMAX(struct name *, int)
 #define RB_PROTOTYPE_REINSERT(name, type, attr)			\
@@ -462,12 +474,15 @@ struct {								\
 	RB_GENERATE_RANK(name, type, field, attr)			\
 	RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
 	RB_GENERATE_REMOVE_COLOR(name, type, field, attr)		\
+	RB_GENERATE_INSERT_FINISH(name, type, field, attr)		\
 	RB_GENERATE_INSERT(name, type, field, cmp, attr)		\
 	RB_GENERATE_REMOVE(name, type, field, attr)			\
 	RB_GENERATE_FIND(name, type, field, cmp, attr)			\
 	RB_GENERATE_NFIND(name, type, field, cmp, attr)			\
 	RB_GENERATE_NEXT(name, type, field, attr)			\
+	RB_GENERATE_INSERT_NEXT(name, type, field, cmp, attr)		\
 	RB_GENERATE_PREV(name, type, field, attr)			\
+	RB_GENERATE_INSERT_PREV(name, type, field, cmp, attr)		\
 	RB_GENERATE_MINMAX(name, type, field, attr)			\
 	RB_GENERATE_REINSERT(name, type, field, cmp, attr)
 
@@ -556,7 +571,7 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 			 * other edge lengths based on the downward	\
 			 * edges from 'child'.				\
 			 *						\
-			 *	     par		 par		\ 
+			 *	     par		 par		\
 			 *	    /	\		/   \		\
 			 *	  elm	 z	       /     z		\
 			 *	 /  \		     child		\
@@ -587,7 +602,7 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 		 * 'parent' a child of 'child', then make both edges	\
 		 * of 'child' short to rebalance.			\
 		 *							\
-		 *	     par		 child			\ 
+		 *	     par		 child			\
 		 *	    /	\		/     \			\
 		 *	   /	 z	       x       par		\
 		 *	child			      /	  \		\
@@ -800,6 +815,29 @@ name##_RB_REMOVE(struct name *head, struct type *out)			\
 	return (out);							\
 }
 
+#define RB_GENERATE_INSERT_FINISH(name, type, field, attr)		\
+/* Inserts a node into the RB tree */					\
+attr struct type *							\
+name##_RB_INSERT_FINISH(struct name *head, struct type *parent,		\
+    struct type **pptr, struct type *elm)				\
+{									\
+	struct type *tmp = NULL;					\
+									\
+	RB_SET(elm, parent, field);					\
+	*pptr = elm;							\
+	if (parent != NULL)						\
+		tmp = name##_RB_INSERT_COLOR(head, parent, elm);	\
+	_RB_AUGMENT_WALK(elm, tmp, field);				\
+	if (tmp != NULL)						\
+		/*							\
+		 * An element rotated into the search path has a	\
+		 * changed subtree, so update augmentation for it if	\
+		 * AUGMENT_WALK didn't.					\
+		 */							\
+		(void)RB_AUGMENT_CHECK(tmp);				\
+	return (NULL);							\
+}
+
 #define RB_GENERATE_INSERT(name, type, field, cmp, attr)		\
 /* Inserts a node into the RB tree */					\
 attr struct type *							\
@@ -819,19 +857,7 @@ name##_RB_INSERT(struct name *head, struct type *elm)			\
 		else							\
 			return (parent);				\
 	}								\
-	RB_SET(elm, parent, field);					\
-	*tmpp = elm;							\
-	if (parent != NULL)						\
-		tmp = name##_RB_INSERT_COLOR(head, parent, elm);	\
-	_RB_AUGMENT_WALK(elm, tmp, field);				\
-	if (tmp != NULL)						\
-		/*							\
-		 * An element rotated into the search path has a	\
-		 * changed subtree, so update augmentation for it if	\
-		 * AUGMENT_WALK didn't.					\
-		 */							\
-		(void)RB_AUGMENT_CHECK(tmp);				\
-	return (NULL);							\
+	return (name##_RB_INSERT_FINISH(head, parent, tmpp, elm));	\
 }
 
 #define RB_GENERATE_FIND(name, type, field, cmp, attr)			\
@@ -893,6 +919,33 @@ name##_RB_NEXT(struct type *elm)					\
 	return (elm);							\
 }
 
+#if defined(_KERNEL) && defined(DIAGNOSTIC)
+#define _RB_ORDER_CHECK(lo, hi) do {					\
+	KASSERT(cmp(lo, hi) < 0, "out of order insertion");		\
+} while (0)
+#else
+#define _RB_ORDER_CHECK(elm, next) do {} while (0)
+#endif
+
+#define RB_GENERATE_INSERT_NEXT(name, type, field, cmp, attr)		\
+/* Inserts a node into the next position in the RB tree */		\
+attr struct type *							\
+name##_RB_INSERT_NEXT(struct name *head,				\
+    struct type *elm, struct type *next)				\
+{									\
+	struct type *tmp;						\
+	struct type **tmpp = &RB_RIGHT(elm, field);			\
+									\
+	_RB_ORDER_CHECK(elm, next);					\
+	if (name##_RB_NEXT(elm) != NULL)				\
+		_RB_ORDER_CHECK(next, name##_RB_NEXT(elm));		\
+	while ((tmp = *tmpp) != NULL) {					\
+		elm = tmp;						\
+		tmpp = &RB_LEFT(elm, field);				\
+	}								\
+	return (name##_RB_INSERT_FINISH(head, elm, tmpp, next));	\
+}
+
 #define RB_GENERATE_PREV(name, type, field, attr)			\
 /* ARGSUSED */								\
 attr struct type *							\
@@ -909,6 +962,25 @@ name##_RB_PREV(struct type *elm)					\
 		elm = RB_PARENT(elm, field);				\
 	}								\
 	return (elm);							\
+}
+
+#define RB_GENERATE_INSERT_PREV(name, type, field, cmp, attr)		\
+/* Inserts a node into the prev position in the RB tree */		\
+attr struct type *							\
+name##_RB_INSERT_PREV(struct name *head,				\
+    struct type *elm, struct type *prev)				\
+{									\
+	struct type *tmp;						\
+	struct type **tmpp = &RB_LEFT(elm, field);			\
+									\
+	_RB_ORDER_CHECK(prev, elm);					\
+	if (name##_RB_PREV(elm) != NULL)				\
+		_RB_ORDER_CHECK(name##_RB_PREV(elm), prev);		\
+	while ((tmp = *tmpp) != NULL) {					\
+		elm = tmp;						\
+		tmpp = &RB_RIGHT(elm, field);				\
+	}								\
+	return (name##_RB_INSERT_FINISH(head, elm, tmpp, prev));	\
 }
 
 #define RB_GENERATE_MINMAX(name, type, field, attr)			\
@@ -947,6 +1019,8 @@ name##_RB_REINSERT(struct name *head, struct type *elm)			\
 #define RB_INF	1
 
 #define RB_INSERT(name, x, y)	name##_RB_INSERT(x, y)
+#define RB_INSERT_NEXT(name, x, y, z)	name##_RB_INSERT_NEXT(x, y, z)
+#define RB_INSERT_PREV(name, x, y, z)	name##_RB_INSERT_PREV(x, y, z)
 #define RB_REMOVE(name, x, y)	name##_RB_REMOVE(x, y)
 #define RB_FIND(name, x, y)	name##_RB_FIND(x, y)
 #define RB_NFIND(name, x, y)	name##_RB_NFIND(x, y)
