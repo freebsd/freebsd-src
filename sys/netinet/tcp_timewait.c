@@ -464,13 +464,13 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 * are above the previous ones.
 	 * Allow UDP port number changes in this case.
 	 */
-	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
+	if (((thflags & (TH_SYN | TH_ACK)) == TH_SYN) &&
+	    SEQ_GT(th->th_seq, tw->rcv_nxt)) {
 		/*
 		 * In case we can't upgrade our lock just pretend we have
 		 * lost this packet.
 		 */
-		if (((thflags & (TH_SYN | TH_ACK)) == TH_SYN) &&
-		    INP_TRY_UPGRADE(inp) == 0)
+		if (INP_TRY_UPGRADE(inp) == 0)
 			goto drop;
 		tcp_twclose(tw, 0);
 		TCPSTAT_INC(tcps_tw_recycles);
