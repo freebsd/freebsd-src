@@ -286,6 +286,10 @@ CSTD=	c99
 
 CFLAGS+=	-g -DDEBUG=1
 
+# Pointer values are used as debugging "tags" to mark reference count
+# ownerships and in some cases the tag reference is dropped after an
+# object is freed.
+CFLAGS.dbuf.c=			${NO_WUSE_AFTER_FREE}
 CFLAGS.entropy_common.c=	-fno-tree-vectorize
 CFLAGS.entropy_common.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 CFLAGS.error_private.c=		-fno-tree-vectorize
