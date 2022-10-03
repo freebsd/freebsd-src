@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/sysent.h>
