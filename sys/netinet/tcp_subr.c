@@ -2280,8 +2280,20 @@ tcp_newtcpcb(struct inpcb *inp)
 	callout_init(&tp->t_timers->tt_2msl, 1);
 	callout_init(&tp->t_timers->tt_delack, 1);
 
-	if (V_tcp_do_rfc1323)
-		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
+	switch (V_tcp_do_rfc1323) {
+		case 0:
+			break;
+		default:
+		case 1:
+			tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
+			break;
+		case 2:
+			tp->t_flags = TF_REQ_SCALE;
+			break;
+		case 3:
+			tp->t_flags = TF_REQ_TSTMP;
+			break;
+	}
 	if (V_tcp_do_sack)
 		tp->t_flags |= TF_SACK_PERMIT;
 	TAILQ_INIT(&tp->snd_holes);
