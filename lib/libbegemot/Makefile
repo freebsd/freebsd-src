@@ -25,3 +25,5 @@ MLINKS=	rpoll.3 poll_register.3		\
 	rpoll.3 poll_dispatch.3
 
 .include <bsd.lib.mk>
+
+CWARNFLAGS+=	${NO_WUSE_AFTER_FREE}
