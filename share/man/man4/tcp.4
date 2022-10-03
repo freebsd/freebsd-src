@@ -892,7 +892,18 @@ minimum, which gives us an effective minimum of 200ms (similar to
 The initial value is used before an RTT measurement has been performed.
 .It Va rfc1323
 Implement the window scaling and timestamp options of RFC 1323/RFC 7323
-(default is true).
+(default is 1).
+Settings:
+.Bl -tag -compact
+.It 0
+Disable window scaling and timestamp option.
+.It 1
+Enable window scaling and timestamp option.
+.It 2
+Enable only window scaling.
+.It 3
+Enable only timestamp option.
+.El
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window
