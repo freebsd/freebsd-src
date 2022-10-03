@@ -185,11 +185,12 @@ epair_tx_start_deferred(void *arg, int pending)
 }
 
 static struct epair_queue *
-epair_select_queue(struct epair_softc *sc, const struct mbuf *m)
+epair_select_queue(struct epair_softc *sc, struct mbuf *m)
 {
 	uint32_t bucket;
 #ifdef RSS
 	struct ether_header *eh;
+	int ret;
 
 	ret = rss_m2bucket(m, &bucket);
 	if (ret) {
