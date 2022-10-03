@@ -695,7 +695,6 @@ netmap_init(struct net_backend *be, const char *devname,
 	if (priv->nmd == NULL) {
 		WPRINTF(("Unable to nm_open(): interface '%s', errno (%s)",
 			devname, strerror(errno)));
-		free(priv);
 		return (-1);
 	}
 
