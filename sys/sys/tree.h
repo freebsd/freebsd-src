@@ -920,11 +920,11 @@ name##_RB_NEXT(struct type *elm)					\
 }
 
 #if defined(_KERNEL) && defined(DIAGNOSTIC)
-#define _RB_ORDER_CHECK(lo, hi) do {					\
-	KASSERT(cmp(lo, hi) < 0, "out of order insertion");		\
+#define _RB_ORDER_CHECK(cmp, lo, hi) do {				\
+	KASSERT((cmp)(lo, hi) < 0, ("out of order insertion"));		\
 } while (0)
 #else
-#define _RB_ORDER_CHECK(elm, next) do {} while (0)
+#define _RB_ORDER_CHECK(cmp, lo, hi) do {} while (0)
 #endif
 
 #define RB_GENERATE_INSERT_NEXT(name, type, field, cmp, attr)		\
@@ -936,9 +936,9 @@ name##_RB_INSERT_NEXT(struct name *head,				\
 	struct type *tmp;						\
 	struct type **tmpp = &RB_RIGHT(elm, field);			\
 									\
-	_RB_ORDER_CHECK(elm, next);					\
+	_RB_ORDER_CHECK(cmp, elm, next);				\
 	if (name##_RB_NEXT(elm) != NULL)				\
-		_RB_ORDER_CHECK(next, name##_RB_NEXT(elm));		\
+		_RB_ORDER_CHECK(cmp, next, name##_RB_NEXT(elm));	\
 	while ((tmp = *tmpp) != NULL) {					\
 		elm = tmp;						\
 		tmpp = &RB_LEFT(elm, field);				\
@@ -973,9 +973,9 @@ name##_RB_INSERT_PREV(struct name *head,				\
 	struct type *tmp;						\
 	struct type **tmpp = &RB_LEFT(elm, field);			\
 									\
-	_RB_ORDER_CHECK(prev, elm);					\
+	_RB_ORDER_CHECK(cmp, prev, elm);				\
 	if (name##_RB_PREV(elm) != NULL)				\
-		_RB_ORDER_CHECK(name##_RB_PREV(elm), prev);		\
+		_RB_ORDER_CHECK(cmp, name##_RB_PREV(elm), prev);	\
 	while ((tmp = *tmpp) != NULL) {					\
 		elm = tmp;						\
 		tmpp = &RB_RIGHT(elm, field);				\
