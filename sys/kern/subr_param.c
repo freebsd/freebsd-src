@@ -111,6 +111,10 @@ u_long	sgrowsiz;			/* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &hz, 0,
     "Number of clock ticks per second");
+SYSCTL_INT(_kern, OID_AUTO, hz_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, HZ_MAXIMUM,
+    "Maximum hz value supported");
+SYSCTL_INT(_kern, OID_AUTO, hz_min, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, HZ_MINIMUM,
+    "Minimum hz value supported");
 SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nswbuf, 0,
@@ -173,6 +177,13 @@ init_param1(void)
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	if (hz == -1)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
+
+	/* range check the "hz" value */
+	if (__predict_false(hz < HZ_MINIMUM))
+		hz = HZ_MINIMUM;
+	else if (__predict_false(hz > HZ_MAXIMUM))
+		hz = HZ_MAXIMUM;
+
 	tick = 1000000 / hz;
 	tick_sbt = SBT_1S / hz;
 	tick_bt = sbttobt(tick_sbt);
