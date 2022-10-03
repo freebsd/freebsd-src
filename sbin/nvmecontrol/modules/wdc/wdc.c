@@ -783,7 +783,6 @@ static void
 print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	uint8_t	*walker, *end, *subpage;
-	int pages;
 	uint16_t len;
 	uint8_t subtype, res;
 
@@ -791,8 +790,7 @@ print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf
 	printf("===================\n");
 
 	walker = buf;
-	pages = *walker++;
-	walker++;
+	walker += 2;			/* Page count */
 	len = le16dec(walker);
 	walker += 2;
 	end = walker + len;		/* Length is exclusive of this header */
