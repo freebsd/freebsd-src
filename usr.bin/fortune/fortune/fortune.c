@@ -958,7 +958,7 @@ get_fort(void)
 	else {
 		choice = arc4random_uniform(100);
 		DPRINTF(1, (stderr, "choice = %d\n", choice));
-		for (fp = File_list; fp->percent != NO_PROB; fp = fp->next)
+		for (fp = File_list; fp->percent != NO_PROB; fp = fp->next) {
 			if (choice < fp->percent)
 				break;
 			else {
@@ -967,9 +967,10 @@ get_fort(void)
 					    "    skip \"%s\", %d%% (choice = %d)\n",
 					    fp->name, fp->percent, choice));
 			}
-			DPRINTF(1, (stderr,
-				    "using \"%s\", %d%% (choice = %d)\n",
-				    fp->name, fp->percent, choice));
+		}
+		DPRINTF(1, (stderr,
+			    "using \"%s\", %d%% (choice = %d)\n",
+			    fp->name, fp->percent, choice));
 	}
 	if (fp->percent != NO_PROB)
 		get_tbl(fp);
