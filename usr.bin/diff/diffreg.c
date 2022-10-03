@@ -980,7 +980,6 @@ ignoreline_pattern(char *line)
 	int ret;
 
 	ret = regexec(&ignore_re, line, 0, NULL, 0);
-	free(line);
 	return (ret == 0);	/* if it matched, it should be ignored. */
 }
 
@@ -988,13 +987,10 @@ static bool
 ignoreline(char *line, bool skip_blanks)
 {
 
-	if (ignore_pats != NULL && skip_blanks)
-		return (ignoreline_pattern(line) || *line == '\0');
-	if (ignore_pats != NULL)
-		return (ignoreline_pattern(line));
-	if (skip_blanks)
-		return (*line == '\0');
-	/* No ignore criteria specified */
+	if (skip_blanks && *line == '\0')
+		return (true);
+	if (ignore_pats != NULL && ignoreline_pattern(line))
+		return (true);
 	return (false);
 }
 
@@ -1013,7 +1009,7 @@ change(char *file1, FILE *f1, char *file2, FILE *f2, int a, int b, int c, int d,
 	long curpos;
 	int i, nc;
 	const char *walk;
-	bool skip_blanks;
+	bool skip_blanks, ignore;
 
 	skip_blanks = (*pflags & D_SKIPBLANKLINES);
 restart:
@@ -1030,7 +1026,9 @@ restart:
 			for (i = a; i <= b; i++) {
 				line = preadline(fileno(f1),
 				    ixold[i] - ixold[i - 1], ixold[i - 1]);
-				if (!ignoreline(line, skip_blanks))
+				ignore = ignoreline(line, skip_blanks);
+				free(line);
+				if (!ignore)
 					goto proceed;
 			}
 		}
@@ -1038,7 +1036,9 @@ restart:
 			for (i = c; i <= d; i++) {
 				line = preadline(fileno(f2),
 				    ixnew[i] - ixnew[i - 1], ixnew[i - 1]);
-				if (!ignoreline(line, skip_blanks))
+				ignore = ignoreline(line, skip_blanks);
+				free(line);
+				if (!ignore)
 					goto proceed;
 			}
 		}
