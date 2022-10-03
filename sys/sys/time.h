@@ -583,6 +583,13 @@ void	timevaladd(struct timeval *t1, const struct timeval *t2);
 void	timevalsub(struct timeval *t1, const struct timeval *t2);
 int	tvtohz(struct timeval *tv);
 
+/*
+ * The following HZ limits allow the tvtohz() function
+ * to only use integer computations.
+ */
+#define	HZ_MAXIMUM (INT_MAX / (1000000 >> 6)) /* 137kHz */
+#define	HZ_MINIMUM 8 /* hz */
+
 #define	TC_DEFAULTPERC		5
 
 #define	BT2FREQ(bt)                                                     \
