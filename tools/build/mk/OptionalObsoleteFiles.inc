@@ -470,6 +470,7 @@ OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
 OLD_FILES+=usr/libexec/bsdinstall/partedit
 OLD_FILES+=usr/libexec/bsdinstall/rootpass
+OLD_FILES+=usr/libexec/bsdinstall/runconsoles
 OLD_FILES+=usr/libexec/bsdinstall/script
 OLD_FILES+=usr/libexec/bsdinstall/scriptedpart
 OLD_FILES+=usr/libexec/bsdinstall/services
