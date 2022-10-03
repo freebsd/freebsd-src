@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)setvbuf.c	8.2 (Berkeley) 11/16/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -62,7 +63,7 @@ setvbuf(FILE * __restrict fp, char * __restrict buf, int mode, size_t size)
 	 * when setting _IONBF.
 	 */
 	if (mode != _IONBF)
-		if ((mode != _IOFBF && mode != _IOLBF) || (int)size < 0)
+		if ((mode != _IOFBF && mode != _IOLBF) || size > INT_MAX)
 			return (EOF);
 
 	FLOCKFILE_CANCELSAFE(fp);
