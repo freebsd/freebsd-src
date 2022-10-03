@@ -197,7 +197,7 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 		return (EINVAL);
 
 	wrmsr(regs[1], (init_type == XEN_HVM_INIT_EARLY)
-	    ? ((vm_paddr_t)&hypercall_page - KERNBASE)
+	    ? (vm_paddr_t)((uintptr_t)&hypercall_page - KERNBASE)
 	    : vtophys(&hypercall_page));
 
 	return (0);
