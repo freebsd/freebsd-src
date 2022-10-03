@@ -8,8 +8,6 @@
 : ${BSDDIALOG_ESC=5}
 : ${BSDDIALOG_ERROR=255}
 
-MACHINE=`uname -m`
-
 # resolv.conf from DHCP ends up in here, so make sure the directory exists
 mkdir /tmp/bsdinstall_etc
 
@@ -40,7 +38,6 @@ else
 	echo "   ansi     Standard ANSI terminal"
 	echo "   vt100    VT100 or compatible terminal"
 	echo "   xterm    xterm terminal emulator (or compatible)"
-	echo "   cons25w  cons25w terminal"
 	echo
 	echo -n "Console type [vt100]: "
 	read TERM
