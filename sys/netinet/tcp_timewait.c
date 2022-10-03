@@ -456,7 +456,8 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 * are above the previous ones.
 	 * Allow UDP port number changes in this case.
 	 */
-	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
+	if (((thflags & (TH_SYN | TH_ACK)) == TH_SYN) &&
+	    SEQ_GT(th->th_seq, tw->rcv_nxt)) {
 		tcp_twclose(tw, 0);
 		TCPSTAT_INC(tcps_tw_recycles);
 		return (1);
