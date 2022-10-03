@@ -146,6 +146,8 @@ f_dprintf "Began Installation at %s" "$( date )"
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
+[ -f /usr/libexec/bsdinstall/local.pre-everything ] && f_dprintf "Running local.pre-everything" && sh /usr/libexec/bsdinstall/local.pre-everything "$BSDINSTALL_CHROOT"
+
 trap true SIGINT	# This section is optional
 [ -z "$BSDINSTALL_SKIP_KEYMAP" ] && bsdinstall keymap
 
@@ -186,6 +188,8 @@ fi
 
 rm -f $PATH_FSTAB
 touch $PATH_FSTAB
+
+[ -f /usr/libexec/bsdinstall/local.pre-partition ] && f_dprintf "Running local.pre-partition" && sh /usr/libexec/bsdinstall/local.pre-partition "$BSDINSTALL_CHROOT"
 
 #
 # Try to detect known broken platforms and apply their workarounds
@@ -334,6 +338,8 @@ case "$PARTMODE" in
 	;;
 esac
 
+[ -f /usr/libexec/bsdinstall/local.pre-fetch ] && f_dprintf "Running local.pre-fetch" && sh /usr/libexec/bsdinstall/local.pre-fetch "$BSDINSTALL_CHROOT"
+
 if [ -n "$FETCH_DISTRIBUTIONS" ]; then
 	exec 3>&1
 	export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&3)
@@ -347,6 +353,8 @@ bsdinstall distextract || error "Distribution extract failed"
 
 # Set up boot loader
 bsdinstall bootconfig || error "Failed to configure bootloader"
+
+[ -f /usr/libexec/bsdinstall/local.pre-configure ] && f_dprintf "Running local.pre-configure" && sh /usr/libexec/bsdinstall/local.pre-configure "$BSDINSTALL_CHROOT"
 
 bsdinstall rootpass || error "Could not set root password"
 
@@ -424,6 +432,8 @@ bsdinstall config  || error "Failed to save config"
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 	rm -rf "$BSDINSTALL_FETCHDEST"
 fi
+
+[ -f /usr/libexec/bsdinstall/local.post-configure ] && f_dprintf "Running local.post-configure" && sh /usr/libexec/bsdinstall/local.post-configure "$BSDINSTALL_CHROOT"
 
 if [ -z "$BSDINSTALL_SKIP_MANUAL" ]; then
 	dialog --backtitle "$OSNAME Installer" --title "Manual Configuration" \
