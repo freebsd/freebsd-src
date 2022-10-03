@@ -535,7 +535,7 @@ slb_zone_init(void *dummy)
 struct slb **
 slb_alloc_user_cache(void)
 {
-	return (uma_zalloc(slb_cache_zone, M_ZERO));
+	return (uma_zalloc(slb_cache_zone, M_WAITOK | M_ZERO));
 }
 
 void
