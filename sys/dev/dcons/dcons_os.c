@@ -331,7 +331,7 @@ dcons_drv_init(int stage)
 #ifdef __amd64__
 		dg.buf = (struct dcons_buf *)(vm_offset_t)(KERNBASE + addr);
 #else /* __i386__ */
-		dg.buf = (struct dcons_buf *)((vm_offset_t)PMAP_MAP_LOW +
+		dg.buf = (struct dcons_buf *)(vm_offset_t)(PMAP_MAP_LOW +
 		    addr);
 #endif
 		dg.size = size;
