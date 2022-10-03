@@ -18,6 +18,5 @@ irdma_uk.c \
 LIBADD=		ibverbs pthread
 CFLAGS+=	-I${_spath} -I${SRCTOP}/contrib/ofed/libibverbs
 VERSION_MAP=	${_spath}/libirdma.map
-CFLAGS+= -ferror-limit=1000
 
 .include <bsd.lib.mk>
