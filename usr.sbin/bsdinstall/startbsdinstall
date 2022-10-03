@@ -45,7 +45,10 @@ export TERM
 resizewin -z
 
 if [ -f /etc/installerconfig ]; then
-	if bsdinstall script /etc/installerconfig; then
+	if [ "$1" != "primary" ]; then
+		bsddialog --backtitle "FreeBSD Installer" --title "Installing" --msgbox "FreeBSD is being installed from a script; please use the primary console." 0 0
+		. "$0"
+	elif bsdinstall script /etc/installerconfig; then
 		bsddialog --backtitle "FreeBSD Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of FreeBSD complete! Rebooting in 10 seconds" 10 30 10
 		reboot
 	else
