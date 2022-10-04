@@ -93,8 +93,8 @@ read_map(const char *filename, nvlist_t **allcfgs)
 		rc = gzread(fp, buf + bytes, block_size);
 		if ((rc < 0) || (rc == 0 && !gzeof(fp))) {
 			free(buf);
-			(void) gzclose(fp);
 			(void) gzerror(fp, &error);
+			(void) gzclose(fp);
 			return (error);
 		} else {
 			bytes += rc;
@@ -139,7 +139,7 @@ read_map_key(const char *filename, const char *key, nvlist_t **cfg)
 	if (error != 0)
 		return (error);
 
-	nvlist_lookup_nvlist(allcfgs, key, &foundcfg);
+	(void) nvlist_lookup_nvlist(allcfgs, key, &foundcfg);
 	if (foundcfg != NULL) {
 		nvlist_dup(foundcfg, cfg, KM_SLEEP);
 		error = 0;
@@ -375,7 +375,7 @@ dump_map_nv(const char *key, nvlist_t *cfg, int verbose)
 	map.dm_checksum = fnvlist_lookup_uint64(cfg, MAP_CHECKSUM);
 	map.dm_children = fnvlist_lookup_uint64(cfg, MAP_CHILDREN);
 	map.dm_nperms = fnvlist_lookup_uint64(cfg, MAP_NPERMS);
-	nvlist_lookup_uint8_array(cfg, MAP_PERMS, &map.dm_perms, &c);
+	map.dm_perms = fnvlist_lookup_uint8_array(cfg, MAP_PERMS, &c);
 
 	dump_map(&map, key, (double)worst_ratio / 1000.0,
 	    avg_ratio / 1000.0, verbose);
@@ -504,6 +504,8 @@ eval_resilver(draid_map_t *map, uint64_t groupwidth, uint64_t nspares,
 		ngroups++;
 
 	int *ios = calloc(map->dm_children, sizeof (uint64_t));
+
+	ASSERT3P(ios, !=, NULL);
 
 	/* Resilver all rows */
 	for (int i = 0; i < map->dm_nperms; i++) {
@@ -720,8 +722,11 @@ eval_maps(uint64_t children, int passes, uint64_t *map_seed,
 		 */
 		error = alloc_new_map(children, MAP_ROWS_DEFAULT,
 		    vdev_draid_rand(map_seed), &map);
-		if (error)
+		if (error) {
+			if (best_map != NULL)
+				free_map(best_map);
 			return (error);
+		}
 
 		/*
 		 * Consider maps with a lower worst_ratio to be of higher
@@ -767,7 +772,7 @@ static int
 draid_generate(int argc, char *argv[])
 {
 	char filename[MAXPATHLEN] = {0};
-	uint64_t map_seed;
+	uint64_t map_seed[2];
 	int c, fd, error, verbose = 0, passes = 1, continuous = 0;
 	int min_children = VDEV_DRAID_MIN_CHILDREN;
 	int max_children = VDEV_DRAID_MAX_CHILDREN;
@@ -825,7 +830,7 @@ draid_generate(int argc, char *argv[])
 	}
 
 	if (argc > optind)
-		strncpy(filename, argv[optind], MAXPATHLEN - 1);
+		strlcpy(filename, argv[optind], sizeof (filename));
 	else {
 		(void) fprintf(stderr, "A FILE must be specified.\n");
 		return (1);
@@ -844,11 +849,12 @@ restart:
 		ssize_t bytes_read = 0;
 
 		while (bytes_read < bytes) {
-			ssize_t rc = read(fd, ((char *)&map_seed) + bytes_read,
+			ssize_t rc = read(fd, ((char *)map_seed) + bytes_read,
 			    bytes - bytes_read);
 			if (rc < 0) {
 				printf("Unable to read /dev/urandom: %s\n:",
 				    strerror(errno));
+				close(fd);
 				return (1);
 			}
 			bytes_read += rc;
@@ -872,7 +878,7 @@ restart:
 		double worst_ratio = 1000.0;
 		double avg_ratio = 1000.0;
 
-		error = eval_maps(children, passes, &map_seed, &map,
+		error = eval_maps(children, passes, map_seed, &map,
 		    &worst_ratio, &avg_ratio);
 		if (error) {
 			printf("Error eval_maps(): %s\n", strerror(error));
@@ -956,9 +962,9 @@ draid_verify(int argc, char *argv[])
 			return (ENOMEM);
 
 		if (realpath(argv[optind], abspath) != NULL)
-			strncpy(filename, abspath, MAXPATHLEN - 1);
+			strlcpy(filename, abspath, sizeof (filename));
 		else
-			strncpy(filename, argv[optind], MAXPATHLEN - 1);
+			strlcpy(filename, argv[optind], sizeof (filename));
 
 		free(abspath);
 	} else {
@@ -1165,7 +1171,7 @@ draid_dump(int argc, char *argv[])
 	}
 
 	if (argc > optind)
-		strncpy(filename, argv[optind], MAXPATHLEN - 1);
+		strlcpy(filename, argv[optind], sizeof (filename));
 	else {
 		(void) fprintf(stderr, "A FILE must be specified.\n");
 		return (1);
@@ -1202,7 +1208,7 @@ draid_table(int argc, char *argv[])
 	int error;
 
 	if (argc > optind)
-		strncpy(filename, argv[optind], MAXPATHLEN - 1);
+		strlcpy(filename, argv[optind], sizeof (filename));
 	else {
 		(void) fprintf(stderr, "A FILE must be specified.\n");
 		return (1);
@@ -1336,7 +1342,7 @@ draid_merge(int argc, char *argv[])
 		return (1);
 	}
 
-	strncpy(filename, argv[optind], MAXPATHLEN - 1);
+	strlcpy(filename, argv[optind], sizeof (filename));
 	optind++;
 
 	error = read_map(filename, &allcfgs);
@@ -1351,7 +1357,7 @@ draid_merge(int argc, char *argv[])
 		char srcfilename[MAXPATHLEN] = {0};
 		int merged = 0;
 
-		strncpy(srcfilename, argv[optind], MAXPATHLEN - 1);
+		strlcpy(srcfilename, argv[optind], sizeof (srcfilename));
 
 		error = draid_merge_impl(allcfgs, srcfilename, &merged);
 		if (error) {

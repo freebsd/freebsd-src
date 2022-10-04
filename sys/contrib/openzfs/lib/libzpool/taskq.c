@@ -276,7 +276,7 @@ taskq_create(const char *name, int nthreads, pri_t pri,
 	cv_init(&tq->tq_dispatch_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tq->tq_wait_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tq->tq_maxalloc_cv, NULL, CV_DEFAULT, NULL);
-	(void) strncpy(tq->tq_name, name, TASKQ_NAMELEN);
+	(void) strlcpy(tq->tq_name, name, sizeof (tq->tq_name));
 	tq->tq_flags = flags | TASKQ_ACTIVE;
 	tq->tq_active = nthreads;
 	tq->tq_nthreads = nthreads;
@@ -319,7 +319,9 @@ taskq_destroy(taskq_t *tq)
 	tq->tq_minalloc = 0;
 	while (tq->tq_nalloc != 0) {
 		ASSERT(tq->tq_freelist != NULL);
-		task_free(tq, task_alloc(tq, KM_SLEEP));
+		taskq_ent_t *tqent_nexttq = tq->tq_freelist->tqent_next;
+		task_free(tq, tq->tq_freelist);
+		tq->tq_freelist = tqent_nexttq;
 	}
 
 	mutex_exit(&tq->tq_lock);

@@ -480,7 +480,8 @@ zfs_key_config_load(pam_handle_t *pamh, zfs_key_config_t *config,
 		} else if (strcmp(argv[c], "nounmount") == 0) {
 			config->unmount_and_unload = 0;
 		} else if (strcmp(argv[c], "prop_mountpoint") == 0) {
-			config->homedir = strdup(entry->pw_dir);
+			if (config->homedir == NULL)
+				config->homedir = strdup(entry->pw_dir);
 		}
 	}
 	return (0);
@@ -557,9 +558,8 @@ zfs_key_config_get_dataset(zfs_key_config_t *config)
 		return (NULL);
 	}
 	ret[0] = 0;
-	strcat(ret, config->homes_prefix);
-	strcat(ret, "/");
-	strcat(ret, config->username);
+	(void) snprintf(ret, len + 1, "%s/%s", config->homes_prefix,
+	    config->username);
 	return (ret);
 }
 
@@ -810,7 +810,9 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
 		return (PAM_SUCCESS);
 	}
 	zfs_key_config_t config;
-	zfs_key_config_load(pamh, &config, argc, argv);
+	if (zfs_key_config_load(pamh, &config, argc, argv) != 0) {
+		return (PAM_SESSION_ERR);
+	}
 	if (config.uid < 1000) {
 		zfs_key_config_free(&config);
 		return (PAM_SUCCESS);

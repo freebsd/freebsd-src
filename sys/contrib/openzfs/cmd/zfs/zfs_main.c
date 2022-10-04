@@ -2459,7 +2459,8 @@ upgrade_set_callback(zfs_handle_t *zhp, void *data)
 			cb->cb_numupgraded++;
 		else
 			cb->cb_numfailed++;
-		(void) strcpy(cb->cb_lastfs, zfs_get_name(zhp));
+		(void) strlcpy(cb->cb_lastfs, zfs_get_name(zhp),
+		    sizeof (cb->cb_lastfs));
 	} else if (version > cb->cb_version) {
 		/* can't downgrade */
 		(void) printf(gettext("%s: can not be downgraded; "
@@ -6357,8 +6358,8 @@ zfs_do_hold_rele_impl(int argc, char **argv, boolean_t holding)
 			++errors;
 			continue;
 		}
-		(void) strncpy(parent, path, delim - path);
-		parent[delim - path] = '\0';
+		(void) strlcpy(parent, path, MIN(sizeof (parent),
+		    delim - path + 1));
 
 		zhp = zfs_open(g_zfs, parent,
 		    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME);
@@ -7395,8 +7396,11 @@ unshare_unmount(int op, int argc, char **argv)
 		    ((tree = uu_avl_create(pool, NULL, UU_DEFAULT)) == NULL))
 			nomem();
 
-		if ((mnttab = fopen(MNTTAB, "re")) == NULL)
+		if ((mnttab = fopen(MNTTAB, "re")) == NULL) {
+			uu_avl_destroy(tree);
+			uu_avl_pool_destroy(pool);
 			return (ENOENT);
+		}
 
 		while (getmntent(mnttab, &entry) == 0) {
 

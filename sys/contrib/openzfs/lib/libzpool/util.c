@@ -174,12 +174,13 @@ set_global_var_parse_kv(const char *arg, char **k_out, u_longlong_t *v_out)
 		goto err_free;
 	}
 
-	*k_out = k;
+	*k_out = strdup(k);
 	*v_out = val;
+	free(d);
 	return (0);
 
 err_free:
-	free(k);
+	free(d);
 
 	return (err);
 }
@@ -349,7 +350,7 @@ pool_active(void *unused, const char *name, uint64_t guid,
 }
 #endif
 
-const pool_config_ops_t libzpool_config_ops = {
+pool_config_ops_t libzpool_config_ops = {
 	.pco_refresh_config = refresh_config,
 	.pco_pool_active = pool_active,
 };

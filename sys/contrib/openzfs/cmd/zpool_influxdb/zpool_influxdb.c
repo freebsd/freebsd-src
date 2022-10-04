@@ -265,7 +265,7 @@ get_vdev_name(nvlist_t *nvroot, const char *parent_name)
 	uint64_t vdev_id = 0;
 
 	char *vdev_type = (char *)"unknown";
-	nvlist_lookup_string(nvroot, ZPOOL_CONFIG_TYPE, &vdev_type);
+	(void) nvlist_lookup_string(nvroot, ZPOOL_CONFIG_TYPE, &vdev_type);
 
 	if (nvlist_lookup_uint64(
 	    nvroot, ZPOOL_CONFIG_ID, &vdev_id) != 0)
@@ -302,9 +302,9 @@ get_vdev_desc(nvlist_t *nvroot, const char *parent_name)
 	char *vdev_type = (char *)"unknown";
 	uint64_t vdev_id = UINT64_MAX;
 	char *vdev_path = NULL;
-	nvlist_lookup_string(nvroot, ZPOOL_CONFIG_TYPE, &vdev_type);
-	nvlist_lookup_uint64(nvroot, ZPOOL_CONFIG_ID, &vdev_id);
-	nvlist_lookup_string(nvroot, ZPOOL_CONFIG_PATH, &vdev_path);
+	(void) nvlist_lookup_string(nvroot, ZPOOL_CONFIG_TYPE, &vdev_type);
+	(void) nvlist_lookup_uint64(nvroot, ZPOOL_CONFIG_ID, &vdev_id);
+	(void) nvlist_lookup_string(nvroot, ZPOOL_CONFIG_PATH, &vdev_path);
 
 	if (parent_name == NULL) {
 		s = escape_string(vdev_type);
@@ -687,8 +687,10 @@ print_recursive_stats(stat_printer_f func, nvlist_t *nvroot,
 		    sizeof (vdev_name));
 
 		for (c = 0; c < children; c++) {
-			print_recursive_stats(func, child[c], pool_name,
+			err = print_recursive_stats(func, child[c], pool_name,
 			    vdev_name, descend);
+			if (err)
+				return (err);
 		}
 	}
 	return (0);

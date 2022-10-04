@@ -81,22 +81,22 @@
  * 1 << (spa_slop_shift + 1), on small pools the usable space may be reduced
  * (by more than 1<<spa_slop_shift) due to the embedded slog metaslab.
  */
-static int zfs_embedded_slog_min_ms = 64;
+static uint_t zfs_embedded_slog_min_ms = 64;
 
 /* default target for number of metaslabs per top-level vdev */
-static int zfs_vdev_default_ms_count = 200;
+static uint_t zfs_vdev_default_ms_count = 200;
 
 /* minimum number of metaslabs per top-level vdev */
-static int zfs_vdev_min_ms_count = 16;
+static uint_t zfs_vdev_min_ms_count = 16;
 
 /* practical upper limit of total metaslabs per top-level vdev */
-static int zfs_vdev_ms_count_limit = 1ULL << 17;
+static uint_t zfs_vdev_ms_count_limit = 1ULL << 17;
 
 /* lower limit for metaslab size (512M) */
-static int zfs_vdev_default_ms_shift = 29;
+static uint_t zfs_vdev_default_ms_shift = 29;
 
 /* upper limit for metaslab size (16G) */
-static const int zfs_vdev_max_ms_shift = 34;
+static const uint_t zfs_vdev_max_ms_shift = 34;
 
 int vdev_validate_skip = B_FALSE;
 
@@ -224,7 +224,7 @@ vdev_dbgmsg_print_tree(vdev_t *vd, int indent)
  * Virtual device management.
  */
 
-static const vdev_ops_t *const vdev_ops_table[] = {
+static vdev_ops_t *const vdev_ops_table[] = {
 	&vdev_root_ops,
 	&vdev_raidz_ops,
 	&vdev_draid_ops,
@@ -246,7 +246,7 @@ static const vdev_ops_t *const vdev_ops_table[] = {
 static vdev_ops_t *
 vdev_getops(const char *type)
 {
-	const vdev_ops_t *ops, *const *opspp;
+	vdev_ops_t *ops, *const *opspp;
 
 	for (opspp = vdev_ops_table; (ops = *opspp) != NULL; opspp++)
 		if (strcmp(ops->vdev_op_type, type) == 0)
@@ -1948,6 +1948,14 @@ vdev_open(vdev_t *vd)
 
 	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize,
 	    &logical_ashift, &physical_ashift);
+
+	/* Keep the device in removed state if unplugged */
+	if (error == ENOENT && vd->vdev_removed) {
+		vdev_set_state(vd, B_TRUE, VDEV_STATE_REMOVED,
+		    VDEV_AUX_NONE);
+		return (error);
+	}
+
 	/*
 	 * Physical volume size should never be larger than its max size, unless
 	 * the disk has shrunk while we were reading it or the device is buggy
@@ -3166,6 +3174,34 @@ vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 	mutex_exit(&vd->vdev_dtl_lock);
 }
 
+/*
+ * Iterate over all the vdevs except spare, and post kobj events
+ */
+void
+vdev_post_kobj_evt(vdev_t *vd)
+{
+	if (vd->vdev_ops->vdev_op_kobj_evt_post &&
+	    vd->vdev_kobj_flag == B_FALSE) {
+		vd->vdev_kobj_flag = B_TRUE;
+		vd->vdev_ops->vdev_op_kobj_evt_post(vd);
+	}
+
+	for (int c = 0; c < vd->vdev_children; c++)
+		vdev_post_kobj_evt(vd->vdev_child[c]);
+}
+
+/*
+ * Iterate over all the vdevs except spare, and clear kobj events
+ */
+void
+vdev_clear_kobj_evt(vdev_t *vd)
+{
+	vd->vdev_kobj_flag = B_FALSE;
+
+	for (int c = 0; c < vd->vdev_children; c++)
+		vdev_clear_kobj_evt(vd->vdev_child[c]);
+}
+
 int
 vdev_dtl_load(vdev_t *vd)
 {
@@ -3946,6 +3982,29 @@ vdev_degrade(spa_t *spa, uint64_t guid, vdev_aux_t aux)
 
 	return (spa_vdev_state_exit(spa, vd, 0));
 }
+
+int
+vdev_remove_wanted(spa_t *spa, uint64_t guid)
+{
+	vdev_t *vd;
+
+	spa_vdev_state_enter(spa, SCL_NONE);
+
+	if ((vd = spa_lookup_by_guid(spa, guid, B_TRUE)) == NULL)
+		return (spa_vdev_state_exit(spa, NULL, SET_ERROR(ENODEV)));
+
+	/*
+	 * If the vdev is already removed, then don't do anything.
+	 */
+	if (vd->vdev_removed)
+		return (spa_vdev_state_exit(spa, NULL, 0));
+
+	vd->vdev_remove_wanted = B_TRUE;
+	spa_async_request(spa, SPA_ASYNC_REMOVE);
+
+	return (spa_vdev_state_exit(spa, vd, 0));
+}
+
 
 /*
  * Online the given vdev.
@@ -6062,16 +6121,16 @@ EXPORT_SYMBOL(vdev_online);
 EXPORT_SYMBOL(vdev_offline);
 EXPORT_SYMBOL(vdev_clear);
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_count, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_count, UINT, ZMOD_RW,
 	"Target number of metaslabs per top-level vdev");
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_shift, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_shift, UINT, ZMOD_RW,
 	"Default limit for metaslab size");
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, min_ms_count, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, min_ms_count, UINT, ZMOD_RW,
 	"Minimum number of metaslabs per top-level vdev");
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, ms_count_limit, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, ms_count_limit, UINT, ZMOD_RW,
 	"Practical upper limit of total metaslabs per top-level vdev");
 
 ZFS_MODULE_PARAM(zfs, zfs_, slow_io_events_per_second, UINT, ZMOD_RW,
@@ -6092,7 +6151,7 @@ ZFS_MODULE_PARAM(zfs_vdev, vdev_, validate_skip, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, nocacheflush, INT, ZMOD_RW,
 	"Disable cache flushes");
 
-ZFS_MODULE_PARAM(zfs, zfs_, embedded_slog_min_ms, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, embedded_slog_min_ms, UINT, ZMOD_RW,
 	"Minimum number of metaslabs required to dedicate one for log blocks");
 
 /* BEGIN CSTYLED */

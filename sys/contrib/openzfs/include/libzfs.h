@@ -152,6 +152,7 @@ typedef enum zfs_error {
 	EZFS_VDEV_NOTSUP,	/* ops not supported for this type of vdev */
 	EZFS_NOT_USER_NAMESPACE,	/* a file is not a user namespace */
 	EZFS_CKSUM,		/* insufficient replicas */
+	EZFS_RESUME_EXISTS,	/* Resume on existing dataset without force */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -309,6 +310,7 @@ _LIBZFS_H int zpool_vdev_indirect_size(zpool_handle_t *, const char *,
     uint64_t *);
 _LIBZFS_H int zpool_vdev_split(zpool_handle_t *, char *, nvlist_t **,
     nvlist_t *, splitflags_t);
+_LIBZFS_H int zpool_vdev_remove_wanted(zpool_handle_t *, const char *);
 
 _LIBZFS_H int zpool_vdev_fault(zpool_handle_t *, uint64_t, vdev_aux_t);
 _LIBZFS_H int zpool_vdev_degrade(zpool_handle_t *, uint64_t, vdev_aux_t);
