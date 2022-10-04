@@ -746,53 +746,34 @@ udp_common_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip,
 	struct udphdr *uh;
 	struct inpcb *inp;
 
-	if (PRC_IS_REDIRECT(cmd)) {
-		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(pcbinfo, sin->sin_addr, EHOSTDOWN, udp_notify);
+	if (inetctlerrmap[cmd] == 0)
 		return;
-	}
 
-	/*
-	 * Hostdead is ugly because it goes linearly through all PCBs.
-	 *
-	 * XXX: We never get this from ICMP, otherwise it makes an excellent
-	 * DoS attack on machines with many connections.
-	 */
-	if (cmd == PRC_HOSTDEAD)
-		ip = NULL;
-	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
-		return;
-	if (ip != NULL) {
-		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+	uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+	inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport, ip->ip_src,
+	    uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
+	if (inp != NULL) {
+		INP_WLOCK_ASSERT(inp);
+		if (inp->inp_socket != NULL)
+			udp_notify(inp, inetctlerrmap[cmd]);
+		INP_WUNLOCK(inp);
+	} else {
 		inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport,
-		    ip->ip_src, uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
+		    ip->ip_src, uh->uh_sport,
+		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
 		if (inp != NULL) {
-			INP_WLOCK_ASSERT(inp);
-			if (inp->inp_socket != NULL) {
-				udp_notify(inp, inetctlerrmap[cmd]);
-			}
-			INP_WUNLOCK(inp);
-		} else {
-			inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport,
-					   ip->ip_src, uh->uh_sport,
-					   INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
-			if (inp != NULL) {
-				struct udpcb *up;
-				void *ctx;
-				udp_tun_icmp_t *func;
+			struct udpcb *up;
+			void *ctx;
+			udp_tun_icmp_t *func;
 
-				up = intoudpcb(inp);
-				ctx = up->u_tun_ctx;
-				func = up->u_icmp_func;
-				INP_RUNLOCK(inp);
-				if (func != NULL)
-					(*func)(cmd, (struct sockaddr *)sin,
-					    ip, ctx);
-			}
+			up = intoudpcb(inp);
+			ctx = up->u_tun_ctx;
+			func = up->u_icmp_func;
+			INP_RUNLOCK(inp);
+			if (func != NULL)
+				(*func)(cmd, (struct sockaddr *)sin, ip, ctx);
 		}
-	} else
-		in_pcbnotifyall(pcbinfo, sin->sin_addr, inetctlerrmap[cmd],
-		    udp_notify);
+	}
 }
 
 static void

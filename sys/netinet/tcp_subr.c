@@ -2866,39 +2866,27 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
 	tcp_seq icmp_tcp_seq;
 	int mtu;
 
-	if (cmd == PRC_MSGSIZE)
+	switch (cmd) {
+	case PRC_MSGSIZE:
 		notify = tcp_mtudisc_notify;
-	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
-		cmd == PRC_UNREACH_PORT || cmd == PRC_UNREACH_PROTOCOL ||
-		cmd == PRC_TIMXCEED_INTRANS) && ip)
-		notify = tcp_drop_syn_sent;
-
-	/*
-	 * Hostdead is ugly because it goes linearly through all PCBs.
-	 * XXX: We never get this from ICMP, otherwise it makes an
-	 * excellent DoS attack on machines with many connections.
-	 */
-	else if (cmd == PRC_HOSTDEAD)
-		ip = NULL;
-	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
-		return;
-
-	if (ip == NULL) {
-		in_pcbnotifyall(&V_tcbinfo, sin->sin_addr, inetctlerrmap[cmd],
-		    notify);
-		return;
+		break;
+	case PRC_UNREACH_PORT:
+	case PRC_UNREACH_PROTOCOL:
+	case PRC_TIMXCEED_INTRANS:
+	case PRC_UNREACH_ADMIN_PROHIB:
+		if (V_icmp_may_rst)
+			notify = tcp_drop_syn_sent;
+		break;
 	}
+
+	if (inetctlerrmap[cmd] == 0)
+		return;
 
 	icp = (struct icmp *)((caddr_t)ip - offsetof(struct icmp, icmp_ip));
 	th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+	icmp_tcp_seq = th->th_seq;
 	inp = in_pcblookup(&V_tcbinfo, sin->sin_addr, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
-	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
-		/* signal EHOSTDOWN, as it flushes the cached route */
-		inp = (*notify)(inp, EHOSTDOWN);
-		goto out;
-	}
-	icmp_tcp_seq = th->th_seq;
 	if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
@@ -3029,7 +3017,6 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct icmp6_hdr *icmp6;
-	const struct sockaddr_in6 *sa6_src = NULL;
 	struct in_conninfo inc;
 	struct tcp_ports {
 		uint16_t th_sport;
@@ -3039,44 +3026,27 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 	unsigned int mtu;
 	unsigned int off;
 
-	/* if the parameter is from icmp6, decode it. */
-	if (ip6cp != NULL) {
-		icmp6 = ip6cp->ip6c_icmp6;
-		m = ip6cp->ip6c_m;
-		ip6 = ip6cp->ip6c_ip6;
-		off = ip6cp->ip6c_off;
-		sa6_src = ip6cp->ip6c_src;
-		dst = ip6cp->ip6c_finaldst;
-	} else {
-		m = NULL;
-		ip6 = NULL;
-		off = 0;	/* fool gcc */
-		sa6_src = &sa6_any;
-		dst = NULL;
-	}
+	icmp6 = ip6cp->ip6c_icmp6;
+	m = ip6cp->ip6c_m;
+	ip6 = ip6cp->ip6c_ip6;
+	off = ip6cp->ip6c_off;
+	dst = ip6cp->ip6c_finaldst;
 
-	if (cmd == PRC_MSGSIZE)
+	switch (cmd) {
+	case PRC_MSGSIZE:
 		notify = tcp_mtudisc_notify;
-	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||
-		cmd == PRC_UNREACH_PORT || cmd == PRC_UNREACH_PROTOCOL ||
-		cmd == PRC_TIMXCEED_INTRANS) && ip6 != NULL)
-		notify = tcp_drop_syn_sent;
-
-	/*
-	 * Hostdead is ugly because it goes linearly through all PCBs.
-	 * XXX: We never get this from ICMP, otherwise it makes an
-	 * excellent DoS attack on machines with many connections.
-	 */
-	else if (cmd == PRC_HOSTDEAD)
-		ip6 = NULL;
-	else if ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0)
-		return;
-
-	if (ip6 == NULL) {
-		in6_pcbnotify(&V_tcbinfo, sin6, 0, sa6_src, 0, cmd, NULL,
-		    notify);
-		return;
+		break;
+	case PRC_UNREACH_ADMIN_PROHIB:
+	case PRC_UNREACH_PORT:
+	case PRC_UNREACH_PROTOCOL:
+	case PRC_TIMXCEED_INTRANS:
+		if (V_icmp_may_rst)
+			notify = tcp_drop_syn_sent;
+		break;
 	}
+
+	if (inet6ctlerrmap[cmd] == 0)
+		return;
 
 	/* Check if we can safely get the ports from the tcp hdr */
 	if (m == NULL ||
@@ -3088,11 +3058,6 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 	m_copydata(m, off, sizeof(struct tcp_ports), (caddr_t)&t_ports);
 	inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_dst, t_ports.th_dport,
 	    &ip6->ip6_src, t_ports.th_sport, INPLOOKUP_WLOCKPCB, NULL);
-	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
-		/* signal EHOSTDOWN, as it flushes the cached route */
-		inp = (*notify)(inp, EHOSTDOWN);
-		goto out;
-	}
 	off += sizeof(struct tcp_ports);
 	if (m->m_pkthdr.len < (int32_t) (off + sizeof(tcp_seq))) {
 		goto out;
