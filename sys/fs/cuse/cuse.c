@@ -866,7 +866,7 @@ cuse_server_ioctl_copy_locked(struct cuse_server *pcs,
 
 	cuse_server_unlock(pcs);
 
-	if (isread == false) {
+	if (!isread) {
 		error = copyin(
 		    (void *)pchk->local_ptr,
 		    pccmd->client->ioctl_buffer + offset,
@@ -961,7 +961,7 @@ cuse_server_data_copy_locked(struct cuse_server *pcs,
 
 	cuse_server_unlock(pcs);
 
-	if (isread == false) {
+	if (!isread) {
 		error = cuse_proc2proc_copy(
 		    curthread->td_proc, pchk->local_ptr,
 		    p_proc, pchk->peer_ptr,
