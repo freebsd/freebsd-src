@@ -311,10 +311,39 @@ tcp_timer_delack(void *xtp)
 	CURVNET_RESTORE();
 }
 
-void
-tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp)
+/*
+ * Call tcp_close() from a callout context.
+ */
+static void
+tcp_timer_close(struct tcpcb *tp)
 {
-	if (inp && tp != NULL)
+	struct epoch_tracker et;
+	struct inpcb *inp = tp->t_inpcb;
+
+	INP_WLOCK_ASSERT(inp);
+
+	NET_EPOCH_ENTER(et);
+	tp = tcp_close(tp);
+	NET_EPOCH_EXIT(et);
+	if (tp != NULL)
+		INP_WUNLOCK(inp);
+}
+
+/*
+ * Call tcp_drop() from a callout context.
+ */
+static void
+tcp_timer_drop(struct tcpcb *tp)
+{
+	struct epoch_tracker et;
+	struct inpcb *inp = tp->t_inpcb;
+
+	INP_WLOCK_ASSERT(inp);
+
+	NET_EPOCH_ENTER(et);
+	tp = tcp_drop(tp, ETIMEDOUT);
+	NET_EPOCH_EXIT(et);
+	if (tp != NULL)
 		INP_WUNLOCK(inp);
 }
 
@@ -323,7 +352,6 @@ tcp_timer_2msl(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
-	struct epoch_tracker et;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
@@ -363,34 +391,28 @@ tcp_timer_2msl(void *xtp)
 	    tp->t_inpcb && tp->t_inpcb->inp_socket &&
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		TCPSTAT_INC(tcps_finwait2_drops);
-		NET_EPOCH_ENTER(et);
-		tp = tcp_close(tp);
-		NET_EPOCH_EXIT(et);
-		tcp_inpinfo_lock_del(inp, tp);
-		goto out;
+		tcp_timer_close(tp);
+		CURVNET_RESTORE();
+		return;
 	} else {
 		if (ticks - tp->t_rcvtime <= TP_MAXIDLE(tp)) {
 			callout_reset(&tp->t_timers->tt_2msl,
 				      TP_KEEPINTVL(tp), tcp_timer_2msl, tp);
 		} else {
-			NET_EPOCH_ENTER(et);
-			tp = tcp_close(tp);
-			NET_EPOCH_EXIT(et);
-			tcp_inpinfo_lock_del(inp, tp);
-			goto out;
+			tcp_timer_close(tp);
+			CURVNET_RESTORE();
+			return;
 		}
 	}
 
 #ifdef TCPDEBUG
-	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 
-	if (tp != NULL)
-		INP_WUNLOCK(inp);
-out:
+	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
 }
 
@@ -507,7 +529,8 @@ dropit:
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	NET_EPOCH_EXIT(et);
-	tcp_inpinfo_lock_del(inp, tp);
+	if (tp != NULL)
+		INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
 }
 
@@ -587,12 +610,10 @@ tcp_timer_persist(void *xtp)
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff))) {
 		if (!progdrop)
 			TCPSTAT_INC(tcps_persistdrop);
-		NET_EPOCH_ENTER(et);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tp = tcp_drop(tp, ETIMEDOUT);
-		NET_EPOCH_EXIT(et);
-		tcp_inpinfo_lock_del(inp, tp);
-		goto out;
+		tcp_timer_drop(tp);
+		CURVNET_RESTORE();
+		return;
 	}
 	/*
 	 * If the user has closed the socket then drop a persisting
@@ -601,12 +622,10 @@ tcp_timer_persist(void *xtp)
 	if (tp->t_state > TCPS_CLOSE_WAIT &&
 	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		TCPSTAT_INC(tcps_persistdrop);
-		NET_EPOCH_ENTER(et);
 		tcp_log_end_status(tp, TCP_EI_STATUS_PERSIST_MAX);
-		tp = tcp_drop(tp, ETIMEDOUT);
-		NET_EPOCH_EXIT(et);
-		tcp_inpinfo_lock_del(inp, tp);
-		goto out;
+		tcp_timer_drop(tp);
+		CURVNET_RESTORE();
+		return;
 	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
@@ -621,7 +640,6 @@ tcp_timer_persist(void *xtp)
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	(void) tcp_unlock_or_drop(tp, outrv);
 	NET_EPOCH_EXIT(et);
-out:
 	CURVNET_RESTORE();
 }
 
@@ -675,12 +693,10 @@ tcp_timer_rexmt(void * xtp)
 		if (tp->t_rxtshift > TCP_MAXRXTSHIFT)
 			TCPSTAT_INC(tcps_timeoutdrop);
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
-		NET_EPOCH_ENTER(et);
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
-		tp = tcp_drop(tp, ETIMEDOUT);
-		NET_EPOCH_EXIT(et);
-		tcp_inpinfo_lock_del(inp, tp);
-		goto out;
+		tcp_timer_drop(tp);
+		CURVNET_RESTORE();
+		return;
 	}
 	if (tp->t_state == TCPS_SYN_SENT) {
 		/*
@@ -906,7 +922,6 @@ tcp_timer_rexmt(void * xtp)
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	(void) tcp_unlock_or_drop(tp, outrv);
 	NET_EPOCH_EXIT(et);
-out:
 	CURVNET_RESTORE();
 }
 
