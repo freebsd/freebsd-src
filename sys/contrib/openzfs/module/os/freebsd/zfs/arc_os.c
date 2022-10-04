@@ -161,6 +161,12 @@ arc_prune_task(void *arg)
 	int64_t nr_scan = (intptr_t)arg;
 
 	arc_reduce_target_size(ptob(nr_scan));
+
+#ifndef __ILP32__
+	if (nr_scan > INT_MAX)
+		nr_scan = INT_MAX;
+#endif
+
 #if __FreeBSD_version >= 1300139
 	sx_xlock(&arc_vnlru_lock);
 	vnlru_free_vfsops(nr_scan, &zfs_vfsops, arc_vnlru_marker);
@@ -223,7 +229,10 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	arc_warm = B_TRUE;
 	arc_growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
 	free_memory = arc_available_memory();
-	to_free = (arc_c >> arc_shrink_shift) - MIN(free_memory, 0);
+	int64_t can_free = arc_c - arc_c_min;
+	if (can_free <= 0)
+		return;
+	to_free = (can_free >> arc_shrink_shift) - MIN(free_memory, 0);
 	DTRACE_PROBE2(arc__needfree, int64_t, free_memory, int64_t, to_free);
 	arc_reduce_target_size(to_free);
 

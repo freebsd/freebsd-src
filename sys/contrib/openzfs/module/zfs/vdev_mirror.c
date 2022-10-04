@@ -35,6 +35,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/vdev_draid.h>
 #include <sys/zio.h>
+#include <sys/zio_checksum.h>
 #include <sys/abd.h>
 #include <sys/fs/zfs.h>
 
@@ -102,6 +103,7 @@ vdev_mirror_stat_fini(void)
  */
 typedef struct mirror_child {
 	vdev_t		*mc_vd;
+	abd_t		*mc_abd;
 	uint64_t	mc_offset;
 	int		mc_error;
 	int		mc_load;
@@ -407,8 +409,14 @@ vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
 		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
 		*logical_ashift = MAX(*logical_ashift, cvd->vdev_ashift);
-		*physical_ashift = MAX(*physical_ashift,
-		    cvd->vdev_physical_ashift);
+	}
+	for (int c = 0; c < vd->vdev_children; c++) {
+		vdev_t *cvd = vd->vdev_child[c];
+
+		if (cvd->vdev_open_error)
+			continue;
+		*physical_ashift = vdev_best_ashift(*logical_ashift,
+		    *physical_ashift, cvd->vdev_physical_ashift);
 	}
 
 	if (numerrors == vd->vdev_children) {
@@ -433,32 +441,6 @@ static void
 vdev_mirror_child_done(zio_t *zio)
 {
 	mirror_child_t *mc = zio->io_private;
-
-	mc->mc_error = zio->io_error;
-	mc->mc_tried = 1;
-	mc->mc_skipped = 0;
-}
-
-static void
-vdev_mirror_scrub_done(zio_t *zio)
-{
-	mirror_child_t *mc = zio->io_private;
-
-	if (zio->io_error == 0) {
-		zio_t *pio;
-		zio_link_t *zl = NULL;
-
-		mutex_enter(&zio->io_lock);
-		while ((pio = zio_walk_parents(zio, &zl)) != NULL) {
-			mutex_enter(&pio->io_lock);
-			ASSERT3U(zio->io_size, >=, pio->io_size);
-			abd_copy(pio->io_abd, zio->io_abd, pio->io_size);
-			mutex_exit(&pio->io_lock);
-		}
-		mutex_exit(&zio->io_lock);
-	}
-
-	abd_free(zio->io_abd);
 
 	mc->mc_error = zio->io_error;
 	mc->mc_tried = 1;
@@ -637,16 +619,15 @@ vdev_mirror_io_start(zio_t *zio)
 	}
 
 	if (zio->io_type == ZIO_TYPE_READ) {
-		if (zio->io_bp != NULL &&
-		    (zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_resilvering) {
+		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_resilvering) {
 			/*
-			 * For scrubbing reads (if we can verify the
-			 * checksum here, as indicated by io_bp being
-			 * non-NULL) we need to allocate a read buffer for
-			 * each child and issue reads to all children.  If
-			 * any child succeeds, it will copy its data into
-			 * zio->io_data in vdev_mirror_scrub_done.
+			 * For scrubbing reads we need to issue reads to all
+			 * children.  One child can reuse parent buffer, but
+			 * for others we have to allocate separate ones to
+			 * verify checksums if io_bp is non-NULL, or compare
+			 * them in vdev_mirror_io_done() otherwise.
 			 */
+			boolean_t first = B_TRUE;
 			for (c = 0; c < mm->mm_children; c++) {
 				mc = &mm->mm_child[c];
 
@@ -658,12 +639,15 @@ vdev_mirror_io_start(zio_t *zio)
 					continue;
 				}
 
-				zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
-				    mc->mc_vd, mc->mc_offset,
+				mc->mc_abd = first ? zio->io_abd :
 				    abd_alloc_sametype(zio->io_abd,
-				    zio->io_size), zio->io_size,
-				    zio->io_type, zio->io_priority, 0,
-				    vdev_mirror_scrub_done, mc));
+				    zio->io_size);
+				zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
+				    mc->mc_vd, mc->mc_offset, mc->mc_abd,
+				    zio->io_size, zio->io_type,
+				    zio->io_priority, 0,
+				    vdev_mirror_child_done, mc));
+				first = B_FALSE;
 			}
 			zio_execute(zio);
 			return;
@@ -731,6 +715,7 @@ vdev_mirror_io_done(zio_t *zio)
 	int c;
 	int good_copies = 0;
 	int unexpected_errors = 0;
+	int last_good_copy = -1;
 
 	if (mm == NULL)
 		return;
@@ -742,6 +727,7 @@ vdev_mirror_io_done(zio_t *zio)
 			if (!mc->mc_skipped)
 				unexpected_errors++;
 		} else if (mc->mc_tried) {
+			last_good_copy = c;
 			good_copies++;
 		}
 	}
@@ -755,7 +741,6 @@ vdev_mirror_io_done(zio_t *zio)
 		 * no non-degraded top-level vdevs left, and not update DTLs
 		 * if we intend to reallocate.
 		 */
-		/* XXPOLICY */
 		if (good_copies != mm->mm_children) {
 			/*
 			 * Always require at least one good copy.
@@ -782,7 +767,6 @@ vdev_mirror_io_done(zio_t *zio)
 	/*
 	 * If we don't have a good copy yet, keep trying other children.
 	 */
-	/* XXPOLICY */
 	if (good_copies == 0 && (c = vdev_mirror_child_select(zio)) != -1) {
 		ASSERT(c >= 0 && c < mm->mm_children);
 		mc = &mm->mm_child[c];
@@ -794,7 +778,80 @@ vdev_mirror_io_done(zio_t *zio)
 		return;
 	}
 
-	/* XXPOLICY */
+	if (zio->io_flags & ZIO_FLAG_SCRUB && !mm->mm_resilvering) {
+		abd_t *best_abd = NULL;
+		if (last_good_copy >= 0)
+			best_abd = mm->mm_child[last_good_copy].mc_abd;
+
+		/*
+		 * If we're scrubbing but don't have a BP available (because
+		 * this vdev is under a raidz or draid vdev) then the best we
+		 * can do is compare all of the copies read.  If they're not
+		 * identical then return a checksum error and the most likely
+		 * correct data.  The raidz code will issue a repair I/O if
+		 * possible.
+		 */
+		if (zio->io_bp == NULL) {
+			ASSERT(zio->io_vd->vdev_ops == &vdev_replacing_ops ||
+			    zio->io_vd->vdev_ops == &vdev_spare_ops);
+
+			abd_t *pref_abd = NULL;
+			for (c = 0; c < last_good_copy; c++) {
+				mc = &mm->mm_child[c];
+				if (mc->mc_error || !mc->mc_tried)
+					continue;
+
+				if (abd_cmp(mc->mc_abd, best_abd) != 0)
+					zio->io_error = SET_ERROR(ECKSUM);
+
+				/*
+				 * The distributed spare is always prefered
+				 * by vdev_mirror_child_select() so it's
+				 * considered to be the best candidate.
+				 */
+				if (pref_abd == NULL &&
+				    mc->mc_vd->vdev_ops ==
+				    &vdev_draid_spare_ops)
+					pref_abd = mc->mc_abd;
+
+				/*
+				 * In the absence of a preferred copy, use
+				 * the parent pointer to avoid a memory copy.
+				 */
+				if (mc->mc_abd == zio->io_abd)
+					best_abd = mc->mc_abd;
+			}
+			if (pref_abd)
+				best_abd = pref_abd;
+		} else {
+
+			/*
+			 * If we have a BP available, then checksums are
+			 * already verified and we just need a buffer
+			 * with valid data, preferring parent one to
+			 * avoid a memory copy.
+			 */
+			for (c = 0; c < last_good_copy; c++) {
+				mc = &mm->mm_child[c];
+				if (mc->mc_error || !mc->mc_tried)
+					continue;
+				if (mc->mc_abd == zio->io_abd) {
+					best_abd = mc->mc_abd;
+					break;
+				}
+			}
+		}
+
+		if (best_abd && best_abd != zio->io_abd)
+			abd_copy(zio->io_abd, best_abd, zio->io_size);
+		for (c = 0; c < mm->mm_children; c++) {
+			mc = &mm->mm_child[c];
+			if (mc->mc_abd != zio->io_abd)
+				abd_free(mc->mc_abd);
+			mc->mc_abd = NULL;
+		}
+	}
+
 	if (good_copies == 0) {
 		zio->io_error = vdev_mirror_worst_error(mm);
 		ASSERT(zio->io_error != 0);

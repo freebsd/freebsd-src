@@ -17,15 +17,15 @@ endif
 # Unconditionally enable debugging for libzpool
 AM_CPPFLAGS += -DDEBUG -UNDEBUG -DZFS_DEBUG
 
-# Suppress unused but set variable warnings often due to ASSERTs
-AM_CFLAGS += $(NO_UNUSED_BUT_SET_VARIABLE)
-
 # Includes kernel code generate warnings for large stack frames
 AM_CFLAGS += $(FRAME_LARGER_THAN)
 
 AM_CFLAGS += $(ZLIB_CFLAGS)
 
 AM_CFLAGS += -DLIB_ZPOOL_BUILD
+
+# See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=54020
+AM_CFLAGS += -no-suppress
 
 lib_LTLIBRARIES = libzpool.la
 

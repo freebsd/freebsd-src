@@ -136,7 +136,7 @@ typedef enum dmu_object_byteswap {
 #endif
 
 #define	DMU_OT_IS_METADATA(ot) (((ot) & DMU_OT_NEWTYPE) ? \
-	((ot) & DMU_OT_METADATA) : \
+	(((ot) & DMU_OT_METADATA) != 0) : \
 	DMU_OT_IS_METADATA_IMPL(ot))
 
 #define	DMU_OT_IS_DDT(ot) \
@@ -147,7 +147,7 @@ typedef enum dmu_object_byteswap {
 	((ot) == DMU_OT_PLAIN_FILE_CONTENTS || (ot) == DMU_OT_UINT64_OTHER)
 
 #define	DMU_OT_IS_ENCRYPTED(ot) (((ot) & DMU_OT_NEWTYPE) ? \
-	((ot) & DMU_OT_ENCRYPTED) : \
+	(((ot) & DMU_OT_ENCRYPTED) != 0) : \
 	DMU_OT_IS_ENCRYPTED_IMPL(ot))
 
 /*
@@ -1066,6 +1066,8 @@ int dmu_diff(const char *tosnap_name, const char *fromsnap_name,
 /* CRC64 table */
 #define	ZFS_CRC64_POLY	0xC96C5795D7870F42ULL	/* ECMA-182, reflected form */
 extern uint64_t zfs_crc64_table[256];
+
+extern int dmu_prefetch_max;
 
 #ifdef	__cplusplus
 }

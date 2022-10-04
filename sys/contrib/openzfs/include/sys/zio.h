@@ -108,23 +108,6 @@ enum zio_checksum {
 
 #define	ZIO_DEDUPCHECKSUM	ZIO_CHECKSUM_SHA256
 
-/* supported encryption algorithms */
-enum zio_encrypt {
-	ZIO_CRYPT_INHERIT = 0,
-	ZIO_CRYPT_ON,
-	ZIO_CRYPT_OFF,
-	ZIO_CRYPT_AES_128_CCM,
-	ZIO_CRYPT_AES_192_CCM,
-	ZIO_CRYPT_AES_256_CCM,
-	ZIO_CRYPT_AES_128_GCM,
-	ZIO_CRYPT_AES_192_GCM,
-	ZIO_CRYPT_AES_256_GCM,
-	ZIO_CRYPT_FUNCTIONS
-};
-
-#define	ZIO_CRYPT_ON_VALUE	ZIO_CRYPT_AES_256_GCM
-#define	ZIO_CRYPT_DEFAULT	ZIO_CRYPT_OFF
-
 /* macros defining encryption lengths */
 #define	ZIO_OBJSET_MAC_LEN		32
 #define	ZIO_DATA_IV_LEN			12
@@ -698,6 +681,8 @@ extern void spa_handle_ignored_writes(spa_t *spa);
 
 /* zbookmark_phys functions */
 boolean_t zbookmark_subtree_completed(const struct dnode_phys *dnp,
+    const zbookmark_phys_t *subtree_root, const zbookmark_phys_t *last_block);
+boolean_t zbookmark_subtree_tbd(const struct dnode_phys *dnp,
     const zbookmark_phys_t *subtree_root, const zbookmark_phys_t *last_block);
 int zbookmark_compare(uint16_t dbss1, uint8_t ibs1, uint16_t dbss2,
     uint8_t ibs2, const zbookmark_phys_t *zb1, const zbookmark_phys_t *zb2);

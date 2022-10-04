@@ -1426,8 +1426,14 @@ vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
 		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
 		*logical_ashift = MAX(*logical_ashift, cvd->vdev_ashift);
-		*physical_ashift = MAX(*physical_ashift,
-		    cvd->vdev_physical_ashift);
+	}
+	for (c = 0; c < vd->vdev_children; c++) {
+		vdev_t *cvd = vd->vdev_child[c];
+
+		if (cvd->vdev_open_error != 0)
+			continue;
+		*physical_ashift = vdev_best_ashift(*logical_ashift,
+		    *physical_ashift, cvd->vdev_physical_ashift);
 	}
 
 	*asize *= vd->vdev_children;
@@ -1721,8 +1727,9 @@ raidz_parity_verify(zio_t *zio, raidz_row_t *rr)
 		if (!rc->rc_tried || rc->rc_error != 0)
 			continue;
 
-		orig[c] = abd_alloc_sametype(rc->rc_abd, rc->rc_size);
-		abd_copy(orig[c], rc->rc_abd, rc->rc_size);
+		orig[c] = rc->rc_abd;
+		ASSERT3U(abd_get_size(rc->rc_abd), ==, rc->rc_size);
+		rc->rc_abd = abd_alloc_linear(rc->rc_size, B_FALSE);
 	}
 
 	/*
@@ -1791,6 +1798,9 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 		} else if (c < rr->rr_firstdatacol && !rc->rc_tried) {
 			parity_untried++;
 		}
+
+		if (rc->rc_force_repair)
+			unexpected_errors++;
 	}
 
 	/*
@@ -2155,9 +2165,20 @@ vdev_raidz_io_done_reconstruct_known_missing(zio_t *zio, raidz_map_t *rm,
 	for (int c = 0; c < rr->rr_cols; c++) {
 		raidz_col_t *rc = &rr->rr_col[c];
 
-		if (rc->rc_error) {
-			ASSERT(rc->rc_error != ECKSUM);	/* child has no bp */
+		/*
+		 * If scrubbing and a replacing/sparing child vdev determined
+		 * that not all of its children have an identical copy of the
+		 * data, then clear the error so the column is treated like
+		 * any other read and force a repair to correct the damage.
+		 */
+		if (rc->rc_error == ECKSUM) {
+			ASSERT(zio->io_flags & ZIO_FLAG_SCRUB);
+			vdev_raidz_checksum_error(zio, rc, rc->rc_abd);
+			rc->rc_force_repair = 1;
+			rc->rc_error = 0;
+		}
 
+		if (rc->rc_error) {
 			if (c < rr->rr_firstdatacol)
 				parity_errors++;
 			else

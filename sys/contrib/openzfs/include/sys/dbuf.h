@@ -321,15 +321,16 @@ typedef struct dmu_buf_impl {
 	uint8_t db_dirtycnt;
 } dmu_buf_impl_t;
 
-#define	DBUF_RWLOCKS 8192
-#define	DBUF_HASH_RWLOCK(h, idx) (&(h)->hash_rwlocks[(idx) & (DBUF_RWLOCKS-1)])
+/* Note: the dbuf hash table is exposed only for the mdb module */
+#define	DBUF_MUTEXES 2048
+#define	DBUF_HASH_MUTEX(h, idx) (&(h)->hash_mutexes[(idx) & (DBUF_MUTEXES-1)])
 typedef struct dbuf_hash_table {
 	uint64_t hash_table_mask;
 	dmu_buf_impl_t **hash_table;
-	krwlock_t hash_rwlocks[DBUF_RWLOCKS] ____cacheline_aligned;
+	kmutex_t hash_mutexes[DBUF_MUTEXES] ____cacheline_aligned;
 } dbuf_hash_table_t;
 
-typedef void (*dbuf_prefetch_fn)(void *, boolean_t);
+typedef void (*dbuf_prefetch_fn)(void *, uint64_t, uint64_t, boolean_t);
 
 uint64_t dbuf_whichblock(const struct dnode *di, const int64_t level,
     const uint64_t offset);
@@ -441,16 +442,7 @@ dbuf_find_dirty_eq(dmu_buf_impl_t *db, uint64_t txg)
 	(dbuf_is_metadata(_db) &&					\
 	((_db)->db_objset->os_primary_cache == ZFS_CACHE_METADATA)))
 
-#define	DBUF_IS_L2CACHEABLE(_db)					\
-	((_db)->db_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
-	(dbuf_is_metadata(_db) &&					\
-	((_db)->db_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
-
-#define	DNODE_LEVEL_IS_L2CACHEABLE(_dn, _level)				\
-	((_dn)->dn_objset->os_secondary_cache == ZFS_CACHE_ALL ||	\
-	(((_level) > 0 ||						\
-	DMU_OT_IS_METADATA((_dn)->dn_handle->dnh_dnode->dn_type)) &&	\
-	((_dn)->dn_objset->os_secondary_cache == ZFS_CACHE_METADATA)))
+boolean_t dbuf_is_l2cacheable(dmu_buf_impl_t *db);
 
 #ifdef ZFS_DEBUG
 

@@ -85,6 +85,9 @@
 #define HAVE_AVX512VL 1
 #endif
 
+/* bdevname() is available */
+/* #undef HAVE_BDEVNAME */
+
 /* bdev_check_media_change() exists */
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
@@ -162,6 +165,9 @@
 
 /* blk_alloc_queue_rh() expects request function */
 /* #undef HAVE_BLK_ALLOC_QUEUE_REQUEST_FN_RH */
+
+/* blk_cleanup_disk() exists */
+/* #undef HAVE_BLK_CLEANUP_DISK */
 
 /* blk queue backing_dev_info is dynamic */
 /* #undef HAVE_BLK_QUEUE_BDI_DYNAMIC */
@@ -341,6 +347,9 @@
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
 
+/* Define if compiler supports -Winfinite-recursion */
+/* #undef HAVE_INFINITE_RECURSION */
+
 /* yes */
 /* #undef HAVE_INODE_LOCK_SHARED */
 
@@ -500,9 +509,6 @@
 /* Noting that make_request_fn() returns void */
 /* #undef HAVE_MAKE_REQUEST_FN_RET_VOID */
 
-/* Define to 1 if you have the <memory.h> header file. */
-#define HAVE_MEMORY_H 1
-
 /* iops->mkdir() takes umode_t */
 /* #undef HAVE_MKDIR_UMODE_T */
 
@@ -565,6 +571,9 @@
 
 /* qat is enabled and existed */
 /* #undef HAVE_QAT */
+
+/* register_shrinker is vararg */
+/* #undef HAVE_REGISTER_SHRINKER_VARARG */
 
 /* iops->rename() wants flags */
 /* #undef HAVE_RENAME_WANTS_FLAGS */
@@ -666,6 +675,9 @@
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#define HAVE_STDIO_H 1
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -783,6 +795,9 @@
 
 /* xattr_handler->get() wants both dentry and inode */
 /* #undef HAVE_XATTR_GET_DENTRY_INODE */
+
+/* xattr_handler->get() wants dentry and inode and flags */
+/* #undef HAVE_XATTR_GET_DENTRY_INODE_FLAGS */
 
 /* xattr_handler->get() wants xattr_handler */
 /* #undef HAVE_XATTR_GET_HANDLER */
@@ -920,7 +935,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.5-FreeBSD_g6c3c5fcfb"
+#define ZFS_META_ALIAS "zfs-2.1.6-FreeBSD_g6a6bd4939"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -929,7 +944,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.18"
+#define ZFS_META_KVER_MAX "5.19"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -950,10 +965,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g6c3c5fcfb"
+#define ZFS_META_RELEASE "FreeBSD_g6a6bd4939"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.1.5"
+#define ZFS_META_VERSION "2.1.6"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
