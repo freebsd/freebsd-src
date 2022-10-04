@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2021
+.Dd October 4, 2022
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -572,6 +572,8 @@ MSI interrupts can be disabled by setting this tunable to 0.
 Enable support for extended Message Signalled Interrupts
 .Pq MSI-X .
 MSI-X interrupts can be disabled by setting this tunable to 0.
+.It Va hw.pci.enable_pcie_ei Pq Defaults to 0
+Enable support for PCI-express Electromechanical Interlock.
 .It Va hw.pci.enable_pcie_hp Pq Defaults to 1
 Enable support for native PCI-express HotPlug.
 .It Va hw.pci.honor_msi_blacklist Pq Defaults to 1
