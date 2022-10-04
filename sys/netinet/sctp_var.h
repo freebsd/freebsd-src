@@ -322,7 +322,7 @@ struct sctphdr;
 
 void sctp_close(struct socket *so);
 int sctp_disconnect(struct socket *so);
-void sctp_ctlinput(int, struct sockaddr_in *, struct ip *);
+ipproto_ctlinput_t sctp_ctlinput;
 int sctp_ctloutput(struct socket *, struct sockopt *);
 void sctp_input_with_port(struct mbuf *, int, uint16_t);
 int sctp_input(struct mbuf **, int *, int);

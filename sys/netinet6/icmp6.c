@@ -147,7 +147,7 @@ static int ni6_addrs(struct icmp6_nodeinfo *, struct mbuf *,
 			  struct ifnet **, struct in6_addr *);
 static int ni6_store_addrs(struct icmp6_nodeinfo *, struct icmp6_nodeinfo *,
 				struct ifnet *, int);
-static int icmp6_notify_error(struct mbuf **, int, int, int);
+static int icmp6_notify_error(struct mbuf **, int, int);
 
 /*
  * Kernel module interface for updating icmp6stat.  The argument is an index
@@ -390,6 +390,50 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	m_freem(m);
 }
 
+int
+icmp6_errmap(const struct icmp6_hdr *icmp6)
+{
+
+	switch (icmp6->icmp6_type) {
+	case ICMP6_DST_UNREACH:
+		switch (icmp6->icmp6_code) {
+		case ICMP6_DST_UNREACH_NOROUTE:
+		case ICMP6_DST_UNREACH_ADDR:
+			return (EHOSTUNREACH);
+		case ICMP6_DST_UNREACH_NOPORT:
+		case ICMP6_DST_UNREACH_ADMIN:
+			return (ECONNREFUSED);
+		case ICMP6_DST_UNREACH_BEYONDSCOPE:
+			return (ENOPROTOOPT);
+		default:
+			return (0);	/* Shouldn't happen. */
+		}
+	case ICMP6_PACKET_TOO_BIG:
+		return (EMSGSIZE);
+	case ICMP6_TIME_EXCEEDED:
+		switch (icmp6->icmp6_code) {
+		case ICMP6_TIME_EXCEED_TRANSIT:
+			return (EHOSTUNREACH);
+		case ICMP6_TIME_EXCEED_REASSEMBLY:
+			return (0);
+		default:
+			return (0);	/* Shouldn't happen. */
+		}
+	case ICMP6_PARAM_PROB:
+		switch (icmp6->icmp6_code) {
+		case ICMP6_PARAMPROB_NEXTHEADER:
+			return (ECONNREFUSED);
+		case ICMP6_PARAMPROB_HEADER:
+		case ICMP6_PARAMPROB_OPTION:
+			return (ENOPROTOOPT);
+		default:
+			return (0);	/* Shouldn't happen. */
+		}
+	default:
+		return (0);
+	}
+}
+
 /*
  * Process a received ICMP6 message.
  */
@@ -467,72 +511,43 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	case ICMP6_DST_UNREACH:
 		icmp6_ifstat_inc(ifp, ifs6_in_dstunreach);
 		switch (code) {
-		case ICMP6_DST_UNREACH_NOROUTE:
-		case ICMP6_DST_UNREACH_ADDR:	/* PRC_HOSTDEAD is a DOS */
-			code = PRC_UNREACH_NET;
-			break;
 		case ICMP6_DST_UNREACH_ADMIN:
 			icmp6_ifstat_inc(ifp, ifs6_in_adminprohib);
-			code = PRC_UNREACH_ADMIN_PROHIB;
-			break;
+		case ICMP6_DST_UNREACH_NOROUTE:
+		case ICMP6_DST_UNREACH_ADDR:
 		case ICMP6_DST_UNREACH_BEYONDSCOPE:
-			/* I mean "source address was incorrect." */
-			code = PRC_PARAMPROB;
-			break;
 		case ICMP6_DST_UNREACH_NOPORT:
-			code = PRC_UNREACH_PORT;
-			break;
+			goto deliver;
 		default:
 			goto badcode;
 		}
-		goto deliver;
-		break;
-
 	case ICMP6_PACKET_TOO_BIG:
 		icmp6_ifstat_inc(ifp, ifs6_in_pkttoobig);
-
-		/* validation is made in icmp6_mtudisc_update */
-
-		code = PRC_MSGSIZE;
-
 		/*
+		 * Validation is made in icmp6_mtudisc_update.
 		 * Updating the path MTU will be done after examining
 		 * intermediate extension headers.
 		 */
 		goto deliver;
-		break;
-
 	case ICMP6_TIME_EXCEEDED:
 		icmp6_ifstat_inc(ifp, ifs6_in_timeexceed);
 		switch (code) {
 		case ICMP6_TIME_EXCEED_TRANSIT:
-			code = PRC_TIMXCEED_INTRANS;
-			break;
 		case ICMP6_TIME_EXCEED_REASSEMBLY:
-			code = PRC_TIMXCEED_REASS;
-			break;
+			goto deliver;
 		default:
 			goto badcode;
 		}
-		goto deliver;
-		break;
-
 	case ICMP6_PARAM_PROB:
 		icmp6_ifstat_inc(ifp, ifs6_in_paramprob);
 		switch (code) {
 		case ICMP6_PARAMPROB_NEXTHEADER:
-			code = PRC_UNREACH_PROTOCOL;
-			break;
 		case ICMP6_PARAMPROB_HEADER:
 		case ICMP6_PARAMPROB_OPTION:
-			code = PRC_PARAMPROB;
-			break;
+			goto deliver;
 		default:
 			goto badcode;
 		}
-		goto deliver;
-		break;
-
 	case ICMP6_ECHO_REQUEST:
 		icmp6_ifstat_inc(ifp, ifs6_in_echo);
 		if (code != 0)
@@ -856,14 +871,13 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		    ifp ? ifp->if_index : 0));
 		if (icmp6->icmp6_type < ICMP6_ECHO_REQUEST) {
 			/* ICMPv6 error: MUST deliver it by spec... */
-			code = PRC_NCMDS;
-			/* deliver */
+			goto deliver;
 		} else {
 			/* ICMPv6 informational: MUST not deliver */
 			break;
 		}
 	deliver:
-		if (icmp6_notify_error(&m, off, icmp6len, code) != 0) {
+		if (icmp6_notify_error(&m, off, icmp6len) != 0) {
 			/* In this case, m should've been freed. */
 			*mp = NULL;
 			return (IPPROTO_DONE);
@@ -892,7 +906,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 }
 
 static int
-icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
+icmp6_notify_error(struct mbuf **mp, int off, int icmp6len)
 {
 	struct mbuf *m;
 	struct icmp6_hdr *icmp6;
@@ -1075,7 +1089,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		ip6cp.ip6c_icmp6 = icmp6;
 		ip6cp.ip6c_ip6 = (struct ip6_hdr *)(icmp6 + 1);
 		ip6cp.ip6c_off = eoff;
-		ip6cp.ip6c_finaldst = &icmp6dst.sin6_addr;
+		ip6cp.ip6c_finaldst = &icmp6dst;
 		ip6cp.ip6c_src = &icmp6src;
 		ip6cp.ip6c_nxt = nxt;
 
@@ -1086,7 +1100,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		}
 
 		if (ip6_ctlprotox[nxt] != NULL)
-			ip6_ctlprotox[nxt](code, &icmp6dst, &ip6cp);
+			ip6_ctlprotox[nxt](&ip6cp);
 	}
 	*mp = m;
 	return (0);
@@ -1100,7 +1114,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 void
 icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 {
-	struct in6_addr *dst = ip6cp->ip6c_finaldst;
+	struct in6_addr *dst = &ip6cp->ip6c_finaldst->sin6_addr;
 	struct icmp6_hdr *icmp6 = ip6cp->ip6c_icmp6;
 	struct mbuf *m = ip6cp->ip6c_m;	/* will be necessary for scope issue */
 	u_int mtu = ntohl(icmp6->icmp6_mtu);

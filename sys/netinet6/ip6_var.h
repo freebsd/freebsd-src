@@ -421,9 +421,9 @@ void in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset);
  * |    ip6c_icmp6
  * ip6c_m
  *
- * ip6c_finaldst usually points to ip6c_ip6->ip6_dst.  if the original
- * (internal) packet carries a routing header, it may point the final
- * destination address in the routing header.
+ * ip6c_finaldst's sin6_addr usually points to ip6c_ip6->ip6_dst.  If the
+ * original * (internal) packet carries a routing header, it may point the
+ * final * destination address in the routing header.
  *
  * ip6c_src: ip6c_ip6->ip6_src + scope info + flowlabel in ip6c_ip6
  *	(beware of flowlabel, if you try to compare it against others)
@@ -436,14 +436,13 @@ struct ip6ctlparam {
 	int ip6c_off;			/* offset of the target proto header */
 	struct sockaddr_in6 *ip6c_src;	/* srcaddr w/ additional info */
 	struct sockaddr_in6 *ip6c_dst;	/* (final) dstaddr w/ additional info */
-	struct in6_addr *ip6c_finaldst;	/* final destination address */
+	struct sockaddr_in6 *ip6c_finaldst;	/* final destination address */
 	void *ip6c_cmdarg;		/* control command dependent data */
 	u_int8_t ip6c_nxt;		/* final next header field */
 };
 
 typedef int	ip6proto_input_t(struct mbuf **, int *, int);
-typedef void	ip6proto_ctlinput_t(int, struct sockaddr_in6 *,
-		    struct ip6ctlparam *);
+typedef void	ip6proto_ctlinput_t(struct ip6ctlparam *);
 int	ip6proto_register(uint8_t, ip6proto_input_t, ip6proto_ctlinput_t);
 int	ip6proto_unregister(uint8_t);
 #define	IP6PROTO_REGISTER(prot, input, ctl)	do {			\

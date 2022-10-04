@@ -873,23 +873,6 @@ ipproto_unregister(uint8_t proto)
 		return (ENOENT);
 }
 
-/* (x) - issued by icmp_input() */
-u_char inetctlerrmap[PRC_NCMDS] = {
-	[PRC_MSGSIZE] = EMSGSIZE,			/* (x) */
-	[PRC_HOSTDEAD] = EHOSTDOWN,
-	[PRC_HOSTUNREACH] = EHOSTUNREACH,
-	[PRC_UNREACH_NET] = EHOSTUNREACH,		/* (x) */
-	[PRC_UNREACH_HOST] = EHOSTUNREACH,
-	[PRC_UNREACH_PROTOCOL] = ECONNREFUSED,		/* (x) */
-	[PRC_UNREACH_PORT] = ECONNREFUSED,		/* (x) */
-	[12] = EMSGSIZE,
-	[PRC_UNREACH_SRCFAIL] = EHOSTUNREACH,
-	[PRC_TIMXCEED_INTRANS] = EHOSTUNREACH,		/* (x) */
-	[PRC_TIMXCEED_REASS] = 0,			/* (x) */
-	[PRC_PARAMPROB] = ENOPROTOOPT,			/* (x) */
-	[PRC_UNREACH_ADMIN_PROHIB] = ECONNREFUSED,	/* (x) */
-};
-
 /*
  * Forward a packet.  If some error occurs return the sender
  * an icmp packet.  Note we can't always generate a meaningful

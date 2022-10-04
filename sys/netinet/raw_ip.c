@@ -804,17 +804,12 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 }
 
 void
-rip_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
+rip_ctlinput(struct icmp *icmp)
 {
-
-	switch (cmd) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
-	case PRC_MSGSIZE:
-		if (IPSEC_ENABLED(ipv4))
-			IPSEC_CTLINPUT(ipv4, cmd, (struct sockaddr *)sin, ip);
-		break;
+	if (IPSEC_ENABLED(ipv4))
+		IPSEC_CTLINPUT(ipv4, icmp);
 #endif
-	}
 }
 
 static int

@@ -260,23 +260,21 @@ sctp_notify(struct sctp_inpcb *inp,
 }
 
 void
-sctp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *inner_ip)
+sctp_ctlinput(struct icmp *icmp)
 {
-	struct ip *outer_ip;
+	struct ip *inner_ip, *outer_ip;
 	struct sctphdr *sh;
-	struct icmp *icmp;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
 	struct sctp_init_chunk *ch;
 	struct sockaddr_in src, dst;
 
-	if (inetctlerrmap[cmd] == 0)
+	if (icmp_errmap(icmp) == 0)
 		return;
 
-	icmp = (struct icmp *)((caddr_t)inner_ip -
-	    (sizeof(struct icmp) - sizeof(struct ip)));
 	outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
+	inner_ip = &icmp->icmp_ip;
 	sh = (struct sctphdr *)((caddr_t)inner_ip + (inner_ip->ip_hl << 2));
 	memset(&src, 0, sizeof(struct sockaddr_in));
 	src.sin_family = AF_INET;
