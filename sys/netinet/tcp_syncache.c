@@ -90,9 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_ecn.h>
-#ifdef INET6
-#include <netinet6/tcp6_var.h>
-#endif
 #ifdef TCP_OFFLOAD
 #include <netinet/toecore.h>
 #endif
