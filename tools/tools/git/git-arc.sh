@@ -193,7 +193,7 @@ title2diff()
 {
     local title
 
-    title=$1
+    title=$(echo $1 | sed 's/"/\\"/g')
     # arc list output always includes ANSI escape sequences, strip them.
     arc list | sed 's/\x1b\[[0-9;]*m//g' | \
         awk -F': ' '{
@@ -422,7 +422,8 @@ gitarc__list()
         # differently and keep the entire status.
         title=$(git show -s --format=%s "$commit")
         diff=$(echo "$openrevs" | \
-            awk -F'D[1-9][0-9]*:\.\\[m ' '{if ($2 == "'"$title"'") print $0}')
+            awk -F'D[1-9][0-9]*:\.\\[m ' \
+                '{if ($2 == "'"$(echo $title | sed 's/"/\\"/g')"'") print $0}')
         if [ -z "$diff" ]; then
             echo "No Review      : $title"
         elif [ "$(echo "$diff" | wc -l)" -ne 1 ]; then
