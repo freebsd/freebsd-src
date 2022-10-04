@@ -155,8 +155,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto_lowat, CTLFLAG_VNET | CTLFLAG_R
 	    tcp_timer_active((tp), TT_PERSIST),				\
 	    ("neither rexmt nor persist timer is set"))
 
-static void inline	cc_after_idle(struct tcpcb *tp);
-
 #ifdef TCP_HHOOK
 /*
  * Wrapper for the TCP established output helper hook.
@@ -183,7 +181,7 @@ hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
 /*
  * CC wrapper hook functions
  */
-static void inline
+void
 cc_after_idle(struct tcpcb *tp)
 {
 	INP_WLOCK_ASSERT(tp->t_inpcb);

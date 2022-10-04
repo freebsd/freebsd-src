@@ -1614,6 +1614,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * XXX: This should be done after segment
 	 * validation to ignore broken/spoofed segs.
 	 */
+	if  (tp->t_idle_reduce &&
+	     (tp->snd_max == tp->snd_una) &&
+	     ((ticks - tp->t_rcvtime) >= tp->t_rxtcur))
+		cc_after_idle(tp);
 	tp->t_rcvtime = ticks;
 
 	if (thflags & TH_FIN)
