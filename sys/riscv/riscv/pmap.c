@@ -2107,12 +2107,13 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	vm_offset_t va_last;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
-	KASSERT((va & L2_OFFSET) == 0,
-	    ("pmap_pv_promote_l2: misaligned va %#lx", va));
+	KASSERT((pa & L2_OFFSET) == 0,
+	    ("pmap_pv_promote_l2: misaligned pa %#lx", pa));
 
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 
 	m = PHYS_TO_VM_PAGE(pa);
+	va = va & ~L2_OFFSET;
 	pv = pmap_pvh_remove(&m->md, pmap, va);
 	KASSERT(pv != NULL, ("pmap_pv_promote_l2: pv for %#lx not found", va));
 	pvh = pa_to_pvh(pa);
@@ -2757,16 +2758,14 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 
 #if VM_NRESERVLEVEL > 0
 static void
-pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
+pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
     struct rwlock **lockp)
 {
 	pt_entry_t *firstl3, firstl3e, *l3, l3e;
 	vm_paddr_t pa;
-	vm_page_t ml3;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	va &= ~L2_OFFSET;
 	KASSERT((pmap_load(l2) & PTE_RWX) == 0,
 	    ("pmap_promote_l2: invalid l2 entry %p", l2));
 
@@ -2823,7 +2822,8 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		pa += PAGE_SIZE;
 	}
 
-	ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
+	if (ml3 == NULL)
+		ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 	KASSERT(ml3->pindex == pmap_l2_pindex(va),
 	    ("pmap_promote_l2: page table page's pindex is wrong"));
 	if (pmap_insert_pt_page(pmap, ml3, true)) {
@@ -3109,7 +3109,7 @@ validate:
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
-		pmap_promote_l2(pmap, l2, va, &lock);
+		pmap_promote_l2(pmap, l2, va, mpte, &lock);
 #endif
 
 	rv = KERN_SUCCESS;
