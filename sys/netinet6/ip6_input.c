@@ -131,9 +131,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 
-ipproto_input_t		*ip6_protox[IPPROTO_MAX] = {
+ip6proto_input_t	*ip6_protox[IPPROTO_MAX] = {
 			    [0 ... IPPROTO_MAX - 1] = rip6_input };
-ipproto_ctlinput_t	*ip6_ctlprotox[IPPROTO_MAX] = {
+ip6proto_ctlinput_t	*ip6_ctlprotox[IPPROTO_MAX] = {
 			    [0 ... IPPROTO_MAX - 1] = rip6_ctlinput };
 
 VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
@@ -308,7 +308,8 @@ ip6_init(void *arg __unused)
 SYSINIT(ip6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_init, NULL);
 
 int
-ip6proto_register(uint8_t proto, ipproto_input_t input, ipproto_ctlinput_t ctl)
+ip6proto_register(uint8_t proto, ip6proto_input_t input,
+    ip6proto_ctlinput_t ctl)
 {
 
 	MPASS(proto > 0);
