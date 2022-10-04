@@ -1093,6 +1093,11 @@ pcib_hotplug_present(struct pcib_softc *sc)
 	return (-1);
 }
 
+static int pci_enable_pcie_ei = 0;
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_pcie_ei, CTLFLAG_RWTUN,
+    &pci_enable_pcie_ei, 0,
+    "Enable support for PCI-express Electromechanical Interlock.");
+
 static void
 pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
     bool schedule_task)
@@ -1132,7 +1137,8 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 * process of detaching), disable the Electromechanical
 	 * Interlock.
 	 */
-	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP) {
+	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_EIP) &&
+	    pci_enable_pcie_ei) {
 		mask |= PCIEM_SLOT_CTL_EIC;
 		ei_engaged = (sc->pcie_slot_sta & PCIEM_SLOT_STA_EIS) != 0;
 		if (card_inserted != ei_engaged)
