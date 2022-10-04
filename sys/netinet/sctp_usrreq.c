@@ -260,10 +260,9 @@ sctp_notify(struct sctp_inpcb *inp,
 }
 
 void
-sctp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
+sctp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *inner_ip)
 {
 	struct ip *outer_ip;
-	struct ip *inner_ip;
 	struct sctphdr *sh;
 	struct icmp *icmp;
 	struct sctp_inpcb *inp;
@@ -272,91 +271,85 @@ sctp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
 	struct sctp_init_chunk *ch;
 	struct sockaddr_in src, dst;
 
-	if (PRC_IS_REDIRECT(cmd)) {
-		ip = NULL;
-	} else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0) {
+	if (inetctlerrmap[cmd] == 0)
 		return;
-	}
-	if (ip != NULL) {
-		inner_ip = ip;
-		icmp = (struct icmp *)((caddr_t)inner_ip -
-		    (sizeof(struct icmp) - sizeof(struct ip)));
-		outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
-		sh = (struct sctphdr *)((caddr_t)inner_ip + (inner_ip->ip_hl << 2));
-		memset(&src, 0, sizeof(struct sockaddr_in));
-		src.sin_family = AF_INET;
-		src.sin_len = sizeof(struct sockaddr_in);
-		src.sin_port = sh->src_port;
-		src.sin_addr = inner_ip->ip_src;
-		memset(&dst, 0, sizeof(struct sockaddr_in));
-		dst.sin_family = AF_INET;
-		dst.sin_len = sizeof(struct sockaddr_in);
-		dst.sin_port = sh->dest_port;
-		dst.sin_addr = inner_ip->ip_dst;
-		/*
-		 * 'dst' holds the dest of the packet that failed to be
-		 * sent. 'src' holds our local endpoint address. Thus we
-		 * reverse the dst and the src in the lookup.
-		 */
-		inp = NULL;
-		net = NULL;
-		stcb = sctp_findassociation_addr_sa((struct sockaddr *)&dst,
-		    (struct sockaddr *)&src,
-		    &inp, &net, 1,
-		    SCTP_DEFAULT_VRFID);
-		if ((stcb != NULL) &&
-		    (net != NULL) &&
-		    (inp != NULL)) {
-			/* Check the verification tag */
-			if (ntohl(sh->v_tag) != 0) {
+
+	icmp = (struct icmp *)((caddr_t)inner_ip -
+	    (sizeof(struct icmp) - sizeof(struct ip)));
+	outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
+	sh = (struct sctphdr *)((caddr_t)inner_ip + (inner_ip->ip_hl << 2));
+	memset(&src, 0, sizeof(struct sockaddr_in));
+	src.sin_family = AF_INET;
+	src.sin_len = sizeof(struct sockaddr_in);
+	src.sin_port = sh->src_port;
+	src.sin_addr = inner_ip->ip_src;
+	memset(&dst, 0, sizeof(struct sockaddr_in));
+	dst.sin_family = AF_INET;
+	dst.sin_len = sizeof(struct sockaddr_in);
+	dst.sin_port = sh->dest_port;
+	dst.sin_addr = inner_ip->ip_dst;
+	/*
+	 * 'dst' holds the dest of the packet that failed to be
+	 * sent. 'src' holds our local endpoint address. Thus we
+	 * reverse the dst and the src in the lookup.
+	 */
+	inp = NULL;
+	net = NULL;
+	stcb = sctp_findassociation_addr_sa((struct sockaddr *)&dst,
+	    (struct sockaddr *)&src,
+	    &inp, &net, 1,
+	    SCTP_DEFAULT_VRFID);
+	if ((stcb != NULL) &&
+	    (net != NULL) &&
+	    (inp != NULL)) {
+		/* Check the verification tag */
+		if (ntohl(sh->v_tag) != 0) {
+			/*
+			 * This must be the verification tag used
+			 * for sending out packets. We don't
+			 * consider packets reflecting the
+			 * verification tag.
+			 */
+			if (ntohl(sh->v_tag) != stcb->asoc.peer_vtag) {
+				SCTP_TCB_UNLOCK(stcb);
+				return;
+			}
+		} else {
+			if (ntohs(outer_ip->ip_len) >=
+			    sizeof(struct ip) +
+			    8 + (inner_ip->ip_hl << 2) + 20) {
 				/*
-				 * This must be the verification tag used
-				 * for sending out packets. We don't
-				 * consider packets reflecting the
-				 * verification tag.
+				 * In this case we can check if we
+				 * got an INIT chunk and if the
+				 * initiate tag matches.
 				 */
-				if (ntohl(sh->v_tag) != stcb->asoc.peer_vtag) {
+				ch = (struct sctp_init_chunk *)(sh + 1);
+				if ((ch->ch.chunk_type != SCTP_INITIATION) ||
+				    (ntohl(ch->init.initiate_tag) != stcb->asoc.my_vtag)) {
 					SCTP_TCB_UNLOCK(stcb);
 					return;
 				}
 			} else {
-				if (ntohs(outer_ip->ip_len) >=
-				    sizeof(struct ip) +
-				    8 + (inner_ip->ip_hl << 2) + 20) {
-					/*
-					 * In this case we can check if we
-					 * got an INIT chunk and if the
-					 * initiate tag matches.
-					 */
-					ch = (struct sctp_init_chunk *)(sh + 1);
-					if ((ch->ch.chunk_type != SCTP_INITIATION) ||
-					    (ntohl(ch->init.initiate_tag) != stcb->asoc.my_vtag)) {
-						SCTP_TCB_UNLOCK(stcb);
-						return;
-					}
-				} else {
-					SCTP_TCB_UNLOCK(stcb);
-					return;
-				}
-			}
-			sctp_notify(inp, stcb, net,
-			    icmp->icmp_type,
-			    icmp->icmp_code,
-			    ntohs(inner_ip->ip_len),
-			    (uint32_t)ntohs(icmp->icmp_nextmtu));
-		} else {
-			if ((stcb == NULL) && (inp != NULL)) {
-				/* reduce ref-count */
-				SCTP_INP_WLOCK(inp);
-				SCTP_INP_DECR_REF(inp);
-				SCTP_INP_WUNLOCK(inp);
-			}
-			if (stcb) {
 				SCTP_TCB_UNLOCK(stcb);
+				return;
 			}
 		}
+		sctp_notify(inp, stcb, net,
+		    icmp->icmp_type,
+		    icmp->icmp_code,
+		    ntohs(inner_ip->ip_len),
+		    (uint32_t)ntohs(icmp->icmp_nextmtu));
+	} else {
+		if ((stcb == NULL) && (inp != NULL)) {
+			/* reduce ref-count */
+			SCTP_INP_WLOCK(inp);
+			SCTP_INP_DECR_REF(inp);
+			SCTP_INP_WUNLOCK(inp);
+		}
+		if (stcb) {
+			SCTP_TCB_UNLOCK(stcb);
+		}
 	}
-	return;
 }
 #endif
 
