@@ -701,6 +701,7 @@ struct	rttimer;
 struct	in6_multi;
 # endif
 void	icmp6_paramerror(struct mbuf *, int);
+int	icmp6_errmap(const struct icmp6_hdr *);
 void	icmp6_error(struct mbuf *, int, int, int);
 void	icmp6_error2(struct mbuf *, int, int, int, struct ifnet *);
 int	icmp6_input(struct mbuf **, int *, int);

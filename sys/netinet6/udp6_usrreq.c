@@ -547,28 +547,24 @@ badunlocked:
 }
 
 static void
-udp6_common_ctlinput(int cmd, struct sockaddr_in6 *sin6,
-    struct ip6ctlparam *ip6cp, struct inpcbinfo *pcbinfo)
+udp6_common_ctlinput(struct ip6ctlparam *ip6cp, struct inpcbinfo *pcbinfo)
 {
 	struct udphdr uh;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	struct inpcb *inp;
-	int off = 0;
-	void *cmdarg;
-	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
+	int errno, off = 0;
 	struct udp_portonly {
 		u_int16_t uh_sport;
 		u_int16_t uh_dport;
 	} *uhp;
 
-	if (inet6ctlerrmap[cmd] == 0)
+	if ((errno = icmp6_errmap(ip6cp->ip6c_icmp6)) == 0)
 		return;
 
 	m = ip6cp->ip6c_m;
 	ip6 = ip6cp->ip6c_ip6;
 	off = ip6cp->ip6c_off;
-	cmdarg = ip6cp->ip6c_cmdarg;
 
 	/* Check if we can safely examine src and dst ports. */
 	if (m->m_pkthdr.len < off + sizeof(*uhp))
@@ -589,25 +585,25 @@ udp6_common_ctlinput(int cmd, struct sockaddr_in6 *sin6,
 		func = up->u_icmp_func;
 		INP_RUNLOCK(inp);
 		if (func != NULL)
-			func(cmd, (struct sockaddr *)ip6cp->ip6c_src, ip6cp,
-			    up->u_tun_ctx);
+			func(ip6cp);
 	}
-	in6_pcbnotify(pcbinfo, sin6, uh.uh_dport, ip6cp->ip6c_src,
-	    uh.uh_sport, cmd, cmdarg, notify);
+	in6_pcbnotify(pcbinfo, ip6cp->ip6c_finaldst, uh.uh_dport,
+	    ip6cp->ip6c_src, uh.uh_sport, errno, ip6cp->ip6c_cmdarg,
+	    udp_notify);
 }
 
 static void
-udp6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ctl)
+udp6_ctlinput(struct ip6ctlparam *ctl)
 {
 
-	return (udp6_common_ctlinput(cmd, sin6, ctl, &V_udbinfo));
+	return (udp6_common_ctlinput(ctl, &V_udbinfo));
 }
 
 static void
-udplite6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ctl)
+udplite6_ctlinput(struct ip6ctlparam *ctl)
 {
 
-	return (udp6_common_ctlinput(cmd, sin6, ctl, &V_ulitecbinfo));
+	return (udp6_common_ctlinput(ctl, &V_ulitecbinfo));
 }
 
 static int

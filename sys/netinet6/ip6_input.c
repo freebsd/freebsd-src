@@ -1707,23 +1707,3 @@ ip6_lasthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 		proto = *nxtp;
 	}
 }
-
-/*
- * System control for IP6
- * (x) - issued by icmp6_input()
- */
-u_char	inet6ctlerrmap[PRC_NCMDS] = {
-	[PRC_MSGSIZE]	= EMSGSIZE,			/* (x) */
-	[PRC_HOSTDEAD]	= EHOSTDOWN,
-	[PRC_HOSTUNREACH] = EHOSTUNREACH,
-	[PRC_UNREACH_NET] = EHOSTUNREACH,		/* (x) */
-	[PRC_UNREACH_HOST] = EHOSTUNREACH,
-	[PRC_UNREACH_PROTOCOL] = ECONNREFUSED,		/* (x) */
-	[PRC_UNREACH_PORT] = ECONNREFUSED,		/* (x) */
-	[12] = EMSGSIZE,
-	[PRC_UNREACH_SRCFAIL] = EHOSTUNREACH,
-	[PRC_TIMXCEED_INTRANS] = EHOSTUNREACH,		/* (x) */
-	[PRC_TIMXCEED_REASS] = 0,			/* (x) */
-	[PRC_PARAMPROB] = ENOPROTOOPT,			/* (x) */
-	[PRC_UNREACH_ADMIN_PROHIB] = ECONNREFUSED,	/* (x) */
-};

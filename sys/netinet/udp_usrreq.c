@@ -740,54 +740,52 @@ udp_notify(struct inpcb *inp, int errno)
 
 #ifdef INET
 static void
-udp_common_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip,
-    struct inpcbinfo *pcbinfo)
+udp_common_ctlinput(struct icmp *icmp, struct inpcbinfo *pcbinfo)
 {
+	struct ip *ip = &icmp->icmp_ip;
 	struct udphdr *uh;
 	struct inpcb *inp;
 
-	if (inetctlerrmap[cmd] == 0)
+	if (icmp_errmap(icmp) == 0)
 		return;
 
 	uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-	inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport, ip->ip_src,
+	inp = in_pcblookup(pcbinfo, ip->ip_dst, uh->uh_dport, ip->ip_src,
 	    uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL) {
 		INP_WLOCK_ASSERT(inp);
 		if (inp->inp_socket != NULL)
-			udp_notify(inp, inetctlerrmap[cmd]);
+			udp_notify(inp, icmp_errmap(icmp));
 		INP_WUNLOCK(inp);
 	} else {
-		inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport,
+		inp = in_pcblookup(pcbinfo, ip->ip_dst, uh->uh_dport,
 		    ip->ip_src, uh->uh_sport,
 		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
 		if (inp != NULL) {
 			struct udpcb *up;
-			void *ctx;
 			udp_tun_icmp_t *func;
 
 			up = intoudpcb(inp);
-			ctx = up->u_tun_ctx;
 			func = up->u_icmp_func;
 			INP_RUNLOCK(inp);
 			if (func != NULL)
-				(*func)(cmd, (struct sockaddr *)sin, ip, ctx);
+				func(icmp);
 		}
 	}
 }
 
 static void
-udp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
+udp_ctlinput(struct icmp *icmp)
 {
 
-	return (udp_common_ctlinput(cmd, sin, ip, &V_udbinfo));
+	return (udp_common_ctlinput(icmp, &V_udbinfo));
 }
 
 static void
-udplite_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
+udplite_ctlinput(struct icmp *icmp)
 {
 
-	return (udp_common_ctlinput(cmd, sin, ip, &V_ulitecbinfo));
+	return (udp_common_ctlinput(icmp, &V_ulitecbinfo));
 }
 #endif /* INET */
 

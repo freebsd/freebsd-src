@@ -2854,38 +2854,44 @@ tcp_next_pmtu(const struct icmp *icp, const struct ip *ip)
 }
 
 static void
-tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
-    uint16_t port)
+tcp_ctlinput_with_port(struct icmp *icp, uint16_t port)
 {
+	struct ip *ip;
 	struct tcphdr *th;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
-	struct icmp *icp;
+	struct inpcb *(*notify)(struct inpcb *, int);
 	struct in_conninfo inc;
 	tcp_seq icmp_tcp_seq;
-	int mtu;
+	int errno, mtu;
 
-	switch (cmd) {
-	case PRC_MSGSIZE:
+	errno = icmp_errmap(icp);
+	switch (errno) {
+	case 0:
+		return;
+	case EMSGSIZE:
 		notify = tcp_mtudisc_notify;
 		break;
-	case PRC_UNREACH_PORT:
-	case PRC_UNREACH_PROTOCOL:
-	case PRC_TIMXCEED_INTRANS:
-	case PRC_UNREACH_ADMIN_PROHIB:
+	case ECONNREFUSED:
 		if (V_icmp_may_rst)
 			notify = tcp_drop_syn_sent;
+		else
+			notify = tcp_notify;
 		break;
+	case EHOSTUNREACH:
+		if (V_icmp_may_rst && icp->icmp_type == ICMP_TIMXCEED)
+			notify = tcp_drop_syn_sent;
+		else
+			notify = tcp_notify;
+		break;
+	default:
+		notify = tcp_notify;
 	}
 
-	if (inetctlerrmap[cmd] == 0)
-		return;
-
-	icp = (struct icmp *)((caddr_t)ip - offsetof(struct icmp, icmp_ip));
+	ip = &icp->icmp_ip;
 	th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 	icmp_tcp_seq = th->th_seq;
-	inp = in_pcblookup(&V_tcbinfo, sin->sin_addr, th->th_dport, ip->ip_src,
+	inp = in_pcblookup(&V_tcbinfo, ip->ip_dst, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL)  {
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
@@ -2893,7 +2899,7 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
-			if (tp->t_flags & TF_TOE && cmd == PRC_MSGSIZE) {
+			if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
 				/*
 				 * MTU discovery for offloaded connections.  Let
 				 * the TOE driver verify seq# and process it.
@@ -2908,7 +2914,7 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
 			}
 			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
 			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
-				if (cmd == PRC_MSGSIZE) {
+				if (errno == EMSGSIZE) {
 					/*
 					 * MTU discovery: we got a needfrag and
 					 * will potentially try a lower MTU.
@@ -2922,22 +2928,21 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
 					if (mtu < tp->t_maxseg +
 					    sizeof(struct tcpiphdr)) {
 						bzero(&inc, sizeof(inc));
-						inc.inc_faddr = sin->sin_addr;
+						inc.inc_faddr = ip->ip_dst;
 						inc.inc_fibnum =
 						    inp->inp_inc.inc_fibnum;
 						tcp_hc_updatemtu(&inc, mtu);
 						inp = tcp_mtudisc(inp, mtu);
 					}
 				} else
-					inp = (*notify)(inp,
-					    inetctlerrmap[cmd]);
+					inp = (*notify)(inp, errno);
 			}
 		}
 	} else {
 		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th->th_dport;
 		inc.inc_lport = th->th_sport;
-		inc.inc_faddr = sin->sin_addr;
+		inc.inc_faddr = ip->ip_dst;
 		inc.inc_laddr = ip->ip_src;
 		syncache_unreach(&inc, icmp_tcp_seq, port);
 	}
@@ -2947,26 +2952,24 @@ out:
 }
 
 static void
-tcp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
+tcp_ctlinput(struct icmp *icmp)
 {
-	tcp_ctlinput_with_port(cmd, sin, ip, htons(0));
+	tcp_ctlinput_with_port(icmp, htons(0));
 }
 
 static void
-tcp_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *vip, void *unused)
+tcp_ctlinput_viaudp(udp_tun_icmp_param_t param)
 {
 	/* Its a tunneled TCP over UDP icmp */
+	struct icmp *icmp = param.icmp;
 	struct ip *outer_ip, *inner_ip;
-	struct icmp *icmp;
 	struct udphdr *udp;
 	struct tcphdr *th, ttemp;
 	int i_hlen, o_len;
 	uint16_t port;
 
-	inner_ip = (struct ip *)vip;
-	icmp = (struct icmp *)((caddr_t)inner_ip -
-	    (sizeof(struct icmp) - sizeof(struct ip)));
 	outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
+	inner_ip = &icmp->icmp_ip;
 	i_hlen = inner_ip->ip_hl << 2;
 	o_len = ntohs(outer_ip->ip_len);
 	if (o_len <
@@ -2987,7 +2990,7 @@ tcp_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *vip, void *unused)
 	o_len -= sizeof(struct udphdr);
 	outer_ip->ip_len = htons(o_len);
 	/* Now call in to the normal handling code */
-	tcp_ctlinput_with_port(cmd, (struct sockaddr_in *)sa, vip, port);
+	tcp_ctlinput_with_port(icmp, port);
 }
 #endif /* INET */
 
@@ -3007,11 +3010,10 @@ tcp6_next_pmtu(const struct icmp6_hdr *icmp6)
 }
 
 static void
-tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
-    struct ip6ctlparam *ip6cp, uint16_t port)
+tcp6_ctlinput_with_port(struct ip6ctlparam *ip6cp, uint16_t port)
 {
 	struct in6_addr *dst;
-	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
+	struct inpcb *(*notify)(struct inpcb *, int);
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	struct inpcb *inp;
@@ -3025,28 +3027,50 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 	tcp_seq icmp_tcp_seq;
 	unsigned int mtu;
 	unsigned int off;
+	int errno;
 
 	icmp6 = ip6cp->ip6c_icmp6;
 	m = ip6cp->ip6c_m;
 	ip6 = ip6cp->ip6c_ip6;
 	off = ip6cp->ip6c_off;
-	dst = ip6cp->ip6c_finaldst;
+	dst = &ip6cp->ip6c_finaldst->sin6_addr;
 
-	switch (cmd) {
-	case PRC_MSGSIZE:
+	errno = icmp6_errmap(icmp6);
+	switch (errno) {
+	case 0:
+		return;
+	case EMSGSIZE:
 		notify = tcp_mtudisc_notify;
 		break;
-	case PRC_UNREACH_ADMIN_PROHIB:
-	case PRC_UNREACH_PORT:
-	case PRC_UNREACH_PROTOCOL:
-	case PRC_TIMXCEED_INTRANS:
+	case ECONNREFUSED:
 		if (V_icmp_may_rst)
 			notify = tcp_drop_syn_sent;
+		else
+			notify = tcp_notify;
 		break;
+	case EHOSTUNREACH:
+		/*
+		 * There are only four ICMPs that may reset connection:
+		 * - administratively prohibited
+		 * - port unreachable
+		 * - time exceeded in transit
+		 * - unknown next header
+		 */
+		if (V_icmp_may_rst &&
+		    ((icmp6->icmp6_type == ICMP6_DST_UNREACH &&
+		     (icmp6->icmp6_code == ICMP6_DST_UNREACH_ADMIN ||
+		      icmp6->icmp6_code == ICMP6_DST_UNREACH_NOPORT)) ||
+		    (icmp6->icmp6_type == ICMP6_TIME_EXCEEDED &&
+		      icmp6->icmp6_code == ICMP6_TIME_EXCEED_TRANSIT) ||
+		    (icmp6->icmp6_type == ICMP6_PARAM_PROB &&
+		      icmp6->icmp6_code == ICMP6_PARAMPROB_NEXTHEADER)))
+			notify = tcp_drop_syn_sent;
+		else
+			notify = tcp_notify;
+		break;
+	default:
+		notify = tcp_notify;
 	}
-
-	if (inet6ctlerrmap[cmd] == 0)
-		return;
 
 	/* Check if we can safely get the ports from the tcp hdr */
 	if (m == NULL ||
@@ -3069,7 +3093,7 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
-			if (tp->t_flags & TF_TOE && cmd == PRC_MSGSIZE) {
+			if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
 				/* MTU discovery for offloaded connections. */
 				mtu = tcp6_next_pmtu(icmp6);
 				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
@@ -3081,7 +3105,7 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 			}
 			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
 			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
-				if (cmd == PRC_MSGSIZE) {
+				if (errno == EMSGSIZE) {
 					/*
 					 * MTU discovery:
 					 * If we got a needfrag set the MTU
@@ -3109,8 +3133,7 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
 						ICMP6STAT_INC(icp6s_pmtuchg);
 					}
 				} else
-					inp = (*notify)(inp,
-					    inet6ctlerrmap[cmd]);
+					inp = (*notify)(inp, errno);
 			}
 		}
 	} else {
@@ -3129,20 +3152,19 @@ out:
 }
 
 static void
-tcp6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ctl)
+tcp6_ctlinput(struct ip6ctlparam *ctl)
 {
-	tcp6_ctlinput_with_port(cmd, sin6, ctl, htons(0));
+	tcp6_ctlinput_with_port(ctl, htons(0));
 }
 
 static void
-tcp6_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *d, void *unused)
+tcp6_ctlinput_viaudp(udp_tun_icmp_param_t param)
 {
-	struct ip6ctlparam *ip6cp;
+	struct ip6ctlparam *ip6cp = param.ip6cp;
 	struct mbuf *m;
 	struct udphdr *udp;
 	uint16_t port;
 
-	ip6cp = (struct ip6ctlparam *)d;
 	m = m_pulldown(ip6cp->ip6c_m, ip6cp->ip6c_off, sizeof(struct udphdr), NULL);
 	if (m == NULL) {
 		return;
@@ -3157,7 +3179,7 @@ tcp6_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *d, void *unused)
 		ip6cp->ip6c_m->m_pkthdr.len -= sizeof(struct udphdr);
 	}
 	/* Now call in to the normal handling code */
-	tcp6_ctlinput_with_port(cmd, (struct sockaddr_in6 *)sa, ip6cp, port);
+	tcp6_ctlinput_with_port(ip6cp, port);
 }
 
 #endif /* INET6 */

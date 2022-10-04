@@ -279,23 +279,21 @@ ipsec4_input(struct mbuf *m, int offset, int proto)
 }
 
 int
-ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
+ipsec4_ctlinput(ipsec_ctlinput_param_t param)
 {
+	struct icmp *icp = param.icmp;
+	struct ip *ip = &icp->icmp_ip;
+	struct sockaddr_in icmpsrc = {
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_family = AF_INET,
+		.sin_addr = ip->ip_dst,
+	};
 	struct in_conninfo inc;
 	struct secasvar *sav;
-	struct icmp *icp;
-	struct ip *ip = v;
 	uint32_t pmtu, spi;
 	uint32_t max_pmtu;
 	uint8_t proto;
 
-	if (code != PRC_MSGSIZE || ip == NULL)
-		return (EINVAL);
-	if (sa->sa_family != AF_INET ||
-	    sa->sa_len != sizeof(struct sockaddr_in))
-		return (EAFNOSUPPORT);
-
-	icp = __containerof(ip, struct icmp, icmp_ip);
 	pmtu = ntohs(icp->icmp_nextmtu);
 
 	if (pmtu < V_ip4_ipsec_min_pmtu)
@@ -307,14 +305,14 @@ ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
 		return (EINVAL);
 
 	memcpy(&spi, (caddr_t)ip + (ip->ip_hl << 2), sizeof(spi));
-	sav = key_allocsa((union sockaddr_union *)sa, proto, spi);
+	sav = key_allocsa((union sockaddr_union *)&icmpsrc, proto, spi);
 	if (sav == NULL)
 		return (ENOENT);
 
 	key_freesav(&sav);
 
 	memset(&inc, 0, sizeof(inc));
-	inc.inc_faddr = satosin(sa)->sin_addr;
+	inc.inc_faddr = ip->ip_dst;
 
 	/* Update pmtu only if its smaller than the current one. */
 	max_pmtu = tcp_hc_getmtu(&inc);
@@ -568,7 +566,7 @@ ipsec6_input(struct mbuf *m, int offset, int proto)
 }
 
 int
-ipsec6_ctlinput(int code, struct sockaddr *sa, void *v)
+ipsec6_ctlinput(ipsec_ctlinput_param_t param)
 {
 	return (0);
 }

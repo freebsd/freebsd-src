@@ -680,10 +680,11 @@ inp_match6(const struct inpcb *inp, void *v __unused)
 
 	return ((inp->inp_vflag & INP_IPV6) != 0);
 }
+
 void
 in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
     u_int fport_arg, const struct sockaddr_in6 *src, u_int lport_arg,
-    int cmd, void *cmdarg,
+    int errno, void *cmdarg,
     struct inpcb *(*notify)(struct inpcb *, int))
 {
 	struct inpcb_iterator inpi = INP_ITERATOR(pcbinfo, INPLOOKUP_WLOCKPCB,
@@ -692,10 +693,6 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
 	struct sockaddr_in6 sa6_src;
 	u_short	fport = fport_arg, lport = lport_arg;
 	u_int32_t flowinfo;
-	int errno;
-
-	if ((unsigned)cmd >= PRC_NCMDS)
-		return;
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&sa6_dst->sin6_addr))
 		return;
@@ -706,23 +703,6 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
 	sa6_src = (src == NULL) ? sa6_any : *src;
 	flowinfo = sa6_src.sin6_flowinfo;
 
-	/*
-	 * Redirects go to all references to the destination,
-	 * and use in6_rtchange to invalidate the route cache.
-	 * Dead host indications: also use in6_rtchange to invalidate
-	 * the cache, and deliver the error to all the sockets.
-	 * Otherwise, if we have knowledge of the local port and address,
-	 * deliver only to that socket.
-	 */
-	if (PRC_IS_REDIRECT(cmd) || cmd == PRC_HOSTDEAD) {
-		fport = 0;
-		lport = 0;
-		bzero((caddr_t)&sa6_src.sin6_addr, sizeof(sa6_src.sin6_addr));
-
-		if (cmd != PRC_HOSTDEAD)
-			notify = in6_rtchange;
-	}
-	errno = inet6ctlerrmap[cmd];
 	while ((inp = inp_next(&inpi)) != NULL) {
 		INP_WLOCK_ASSERT(inp);
 		/*
@@ -731,7 +711,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
 		 * know the value, notify.
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
-		if (cmd == PRC_MSGSIZE && cmdarg != NULL)
+		if (errno == EMSGSIZE && cmdarg != NULL)
 			ip6_notify_pmtu(inp, sa6_dst, *(uint32_t *)cmdarg);
 
 		/*

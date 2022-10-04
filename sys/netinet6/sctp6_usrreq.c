@@ -248,7 +248,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 }
 
 void
-sctp6_ctlinput(int cmd, struct sockaddr_in6 *pktdst, struct ip6ctlparam *ip6cp)
+sctp6_ctlinput(struct ip6ctlparam *ip6cp)
 {
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
@@ -256,12 +256,8 @@ sctp6_ctlinput(int cmd, struct sockaddr_in6 *pktdst, struct ip6ctlparam *ip6cp)
 	struct sctphdr sh;
 	struct sockaddr_in6 src, dst;
 
-	if (inet6ctlerrmap[cmd] == 0)
+	if (icmp6_errmap(ip6cp->ip6c_icmp6) == 0)
 		return;
-
-	if (ip6cp->ip6c_m == NULL) {
-		return;
-	}
 
 	/*
 	 * Check if we can safely examine the ports and the

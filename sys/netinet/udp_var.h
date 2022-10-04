@@ -64,7 +64,11 @@ struct mbuf;
 #ifdef _KERNEL
 typedef bool	udp_tun_func_t(struct mbuf *, int, struct inpcb *,
 		    const struct sockaddr *, void *);
-typedef void	udp_tun_icmp_t(int, struct sockaddr *, void *, void *);
+typedef union {
+	struct icmp *icmp;
+	struct ip6ctlparam *ip6cp;
+} udp_tun_icmp_param_t __attribute__((__transparent_union__));
+typedef void	udp_tun_icmp_t(udp_tun_icmp_param_t);
 
 /*
  * UDP control block; one per udp.

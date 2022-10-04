@@ -238,7 +238,8 @@ extern void	(*ip_rsvp_force_done)(struct socket *);
 extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 
 typedef int	ipproto_input_t(struct mbuf **, int *, int);
-typedef void	ipproto_ctlinput_t(int, struct sockaddr_in *, struct ip *);
+struct icmp;
+typedef void	ipproto_ctlinput_t(struct icmp *);
 int	ipproto_register(uint8_t, ipproto_input_t, ipproto_ctlinput_t);
 int	ipproto_unregister(uint8_t);
 #define	IPPROTO_REGISTER(prot, input, ctl)	do {			\

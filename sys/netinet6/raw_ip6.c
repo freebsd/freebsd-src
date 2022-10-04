@@ -323,33 +323,14 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 }
 
 void
-rip6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ip6cp)
+rip6_ctlinput(struct ip6ctlparam *ip6cp)
 {
-	const struct sockaddr_in6 *sa6_src;
-	void *cmdarg;
-	struct inpcb *(*notify)(struct inpcb *, int) = in6_rtchange;
+	int errno;
 
-	if ((unsigned)cmd >= PRC_NCMDS)
-		return;
-	if (PRC_IS_REDIRECT(cmd))
-		notify = in6_rtchange, ip6cp = NULL;
-	else if (cmd == PRC_HOSTDEAD)
-		ip6cp = NULL;
-	else if (inet6ctlerrmap[cmd] == 0)
-		return;
-
-	/*
-	 * If the parameter is from icmp6, decode it.
-	 */
-	if (ip6cp != NULL) {
-		cmdarg = ip6cp->ip6c_cmdarg;
-		sa6_src = ip6cp->ip6c_src;
-	} else {
-		cmdarg = NULL;
-		sa6_src = &sa6_any;
-	}
-
-	in6_pcbnotify(&V_ripcbinfo, sin6, 0, sa6_src, 0, cmd, cmdarg, notify);
+	if ((errno = icmp6_errmap(ip6cp->ip6c_icmp6)) != 0)
+		in6_pcbnotify(&V_ripcbinfo, ip6cp->ip6c_finaldst, 0,
+		    ip6cp->ip6c_src, 0, errno, ip6cp->ip6c_cmdarg,
+		    in6_rtchange);
 }
 
 /*
