@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #define TCPSTATES		/* for logging */
 #include <netinet/tcp_var.h>
-#ifdef INET6
-#include <netinet6/tcp6_var.h>
-#endif
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_ratelimit.h>

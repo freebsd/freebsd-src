@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_hpts.h>
 #endif
-#include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
