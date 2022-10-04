@@ -546,6 +546,9 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		/* Discard ICMP's in response to multicast packets */
 		if (IN_MULTICAST(ntohl(icp->icmp_ip.ip_dst.s_addr)))
 			goto badcode;
+		/* Filter out responses to INADDR_ANY, protocols ignore it. */
+		if (icp->icmp_ip.ip_dst.s_addr == INADDR_ANY)
+			goto freeit;
 #ifdef ICMPPRINTFS
 		if (icmpprintfs)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);

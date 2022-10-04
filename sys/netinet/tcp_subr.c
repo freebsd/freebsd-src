@@ -2866,9 +2866,6 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
 	tcp_seq icmp_tcp_seq;
 	int mtu;
 
-	if (sin->sin_addr.s_addr == INADDR_ANY)
-		return;
-
 	if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc_notify;
 	else if (V_icmp_may_rst && (cmd == PRC_UNREACH_ADMIN_PROHIB ||

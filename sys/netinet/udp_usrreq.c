@@ -746,9 +746,6 @@ udp_common_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip,
 	struct udphdr *uh;
 	struct inpcb *inp;
 
-	if (sin->sin_addr.s_addr == INADDR_ANY)
-		return;
-
 	if (PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
 		in_pcbnotifyall(pcbinfo, sin->sin_addr, EHOSTDOWN, udp_notify);
