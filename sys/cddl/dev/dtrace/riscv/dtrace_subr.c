@@ -29,18 +29,16 @@
  * Use is subject to license terms.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/kmem.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
+#include <cddl/dev/dtrace/dtrace_cddl.h>
 #include <machine/vmparam.h>
 #include <machine/encoding.h>
 #include <machine/riscvreg.h>
@@ -68,14 +66,18 @@ dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 int
 dtrace_invop(uintptr_t addr, struct trapframe *frame)
 {
+	struct thread *td;
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
+	rval = 0;
+	td = curthread;
+	td->t_dtrace_trapframe = frame;
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
 		if ((rval = hdlr->dtih_func(addr, frame, 0)) != 0)
-			return (rval);
-
-	return (0);
+			break;
+	td->t_dtrace_trapframe = NULL;
+	return (rval);
 }
 
 void

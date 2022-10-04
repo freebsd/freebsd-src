@@ -3360,30 +3360,19 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 
 		return (mstate->dtms_arg[ndx]);
 
-#ifdef illumos
-	case DIF_VAR_UREGS: {
-		klwp_t *lwp;
-
-		if (!dtrace_priv_proc(state))
-			return (0);
-
-		if ((lwp = curthread->t_lwp) == NULL) {
-			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
-			cpu_core[curcpu].cpuc_dtrace_illval = NULL;
-			return (0);
-		}
-
-		return (dtrace_getreg(lwp->lwp_regs, ndx));
-		return (0);
-	}
-#else
+	case DIF_VAR_REGS:
 	case DIF_VAR_UREGS: {
 		struct trapframe *tframe;
 
 		if (!dtrace_priv_proc(state))
 			return (0);
 
-		if ((tframe = curthread->td_frame) == NULL) {
+		if (v == DIF_VAR_REGS)
+			tframe = curthread->t_dtrace_trapframe;
+		else
+			tframe = curthread->td_frame;
+
+		if (tframe == NULL) {
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 			cpu_core[curcpu].cpuc_dtrace_illval = 0;
 			return (0);
@@ -3391,7 +3380,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 
 		return (dtrace_getreg(tframe, ndx));
 	}
-#endif
 
 	case DIF_VAR_CURTHREAD:
 		if (!dtrace_priv_proc(state))
