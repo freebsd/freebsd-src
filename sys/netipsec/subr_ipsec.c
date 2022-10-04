@@ -367,8 +367,8 @@ IPSEC_KMOD_METHOD(int, ipsec_kmod_forward, sc,
 )
 
 IPSEC_KMOD_METHOD(int, ipsec_kmod_ctlinput, sc,
-    ctlinput, METHOD_DECL(struct ipsec_support * const sc, int code,
-        struct sockaddr *sa, void *v), METHOD_ARGS(code, sa, v)
+    ctlinput, METHOD_DECL(struct ipsec_support * const sc,
+	ipsec_ctlinput_param_t param), METHOD_ARGS(param)
 )
 
 IPSEC_KMOD_METHOD(int, ipsec_kmod_output, sc,
