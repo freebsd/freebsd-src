@@ -387,7 +387,7 @@ zap_fat_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 	 * header.
 	 */
 	prefixlen = zap_fat_write_prefixlen(zap, &l);
-	lblkcnt = 1 << prefixlen;
+	lblkcnt = (uint64_t)1 << prefixlen;
 	leafblks = ecalloc(lblkcnt, blksz);
 	for (unsigned int li = 0; li < lblkcnt; li++) {
 		l.l_phys = (zap_leaf_phys_t *)(leafblks + li * blksz);
