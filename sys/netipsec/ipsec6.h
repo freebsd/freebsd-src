@@ -66,14 +66,7 @@ struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
 
 void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
     union sockaddr_union *);
-int ipsec6_input(struct mbuf *, int, int);
-int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
-int ipsec6_forward(struct mbuf *);
-int ipsec6_pcbctl(struct inpcb *, struct sockopt *);
-int ipsec6_output(struct mbuf *, struct inpcb *);
-int ipsec6_capability(struct mbuf *, u_int);
 int ipsec6_common_input_cb(struct mbuf *, struct secasvar *, int, int);
-int ipsec6_ctlinput(int, struct sockaddr *, void *);
 int ipsec6_check_pmtu(struct mbuf *, struct secpolicy *, int);
 int ipsec6_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
 
