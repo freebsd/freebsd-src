@@ -62,16 +62,16 @@ struct inpcb;
 struct mbuf;
 
 #ifdef _KERNEL
-typedef bool(*udp_tun_func_t)(struct mbuf *, int, struct inpcb *,
-			      const struct sockaddr *, void *);
-typedef void(*udp_tun_icmp_t)(int, struct sockaddr *, void *, void *);
+typedef bool	udp_tun_func_t(struct mbuf *, int, struct inpcb *,
+		    const struct sockaddr *, void *);
+typedef void	udp_tun_icmp_t(int, struct sockaddr *, void *, void *);
 
 /*
  * UDP control block; one per udp.
  */
 struct udpcb {
-	udp_tun_func_t	u_tun_func;	/* UDP kernel tunneling callback. */
-	udp_tun_icmp_t  u_icmp_func;	/* UDP kernel tunneling icmp callback */
+	udp_tun_func_t	*u_tun_func;	/* UDP kernel tunneling callback. */
+	udp_tun_icmp_t  *u_icmp_func;	/* UDP kernel tunneling icmp callback */
 	u_int		u_flags;	/* Generic UDP flags. */
 	uint16_t	u_rxcslen;	/* Coverage for incoming datagrams. */
 	uint16_t	u_txcslen;	/* Coverage for outgoing datagrams. */

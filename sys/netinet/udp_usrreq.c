@@ -785,7 +785,7 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 			if (inp != NULL) {
 				struct udpcb *up;
 				void *ctx;
-				udp_tun_icmp_t func;
+				udp_tun_icmp_t *func;
 
 				up = intoudpcb(inp);
 				ctx = up->u_tun_ctx;
