@@ -17,9 +17,10 @@ INSTALL=@INSTALL@
 LDFLAGS=-L. @LDFLAGS@
 LDFLAGS_NOPIE=-L. -Lopenbsd-compat/ @LDFLAGS_NOPIE@
 
-OPENBSD=base64.o \
+OPENBSD=arc4random.o \
+	arc4random_uniform.o \
+	base64.o \
 	basename.o \
-	bcrypt_pbkdf.o \
 	bcrypt_pbkdf.o \
 	bindresvport.o \
 	blowfish.o \
@@ -65,12 +66,12 @@ OPENBSD=base64.o \
 	timingsafe_bcmp.o \
 	vis.o
 
-COMPAT=	arc4random.o \
-	bsd-asprintf.o \
+COMPAT= bsd-asprintf.o \
 	bsd-closefrom.o \
 	bsd-cygwin_util.o \
 	bsd-err.o \
 	bsd-flock.o \
+	bsd-getentropy.o \
 	bsd-getline.o \
 	bsd-getpagesize.o \
 	bsd-getpeereid.o \
@@ -84,6 +85,7 @@ COMPAT=	arc4random.o \
 	bsd-signal.o \
 	bsd-snprintf.o \
 	bsd-statvfs.o \
+	bsd-timegm.o \
 	bsd-waitpid.o \
 	fake-rfc2553.o \
 	getrrsetbyname-ldns.o \

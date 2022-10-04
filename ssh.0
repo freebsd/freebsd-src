@@ -67,7 +67,7 @@ DESCRIPTION
              gzip(1).  Compression is desirable on modem lines and other slow
              connections, but will only slow down things on fast networks.
              The default value can be set on a host-by-host basis in the
-             configuration files; see the Compression option.
+             configuration files; see the Compression option in ssh_config(5).
 
      -c cipher_spec
              Selects the cipher specification for encrypting the session.
@@ -209,7 +209,7 @@ DESCRIPTION
      -m mac_spec
              A comma-separated list of MAC (message authentication code)
              algorithms, specified in order of preference.  See the MACs
-             keyword for more information.
+             keyword in ssh_config(5) for more information.
 
      -N      Do not execute a remote command.  This is useful for just
              forwarding ports.  Refer to the description of SessionType in
@@ -313,6 +313,7 @@ DESCRIPTION
                    RemoteCommand
                    RemoteForward
                    RequestTTY
+                   RequiredRSASize
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
@@ -1013,4 +1014,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0
+OpenBSD 7.1                   September 17, 2022                   OpenBSD 7.1

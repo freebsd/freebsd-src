@@ -6,6 +6,20 @@
 
 set -ex
 
+# If we want to test hostbased auth, set up the host for it.
+if [ ! -z "$SUDO" ] && [ ! -z "$TEST_SSH_HOSTBASED_AUTH" ]; then
+    sshconf=/usr/local/etc
+    hostname | $SUDO tee $sshconf/shosts.equiv >/dev/null
+    echo "EnableSSHKeysign yes" | $SUDO tee $sshconf/ssh_config >/dev/null
+    $SUDO mkdir -p $sshconf
+    $SUDO cp -p /etc/ssh/ssh_host*key* $sshconf
+    $SUDO make install
+    for key in $sshconf/ssh_host*key*.pub; do
+        echo `hostname` `cat $key` | \
+            $SUDO tee -a $sshconf/ssh_known_hosts >/dev/null
+    done
+fi
+
 output_failed_logs() {
     for i in regress/failed*; do
         if [ -f "$i" ]; then

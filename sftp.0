@@ -5,7 +5,7 @@ NAME
 
 SYNOPSIS
      sftp [-46AaCfNpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
-          [-D sftp_server_path] [-F ssh_config] [-i identity_file]
+          [-D sftp_server_command] [-F ssh_config] [-i identity_file]
           [-J destination] [-l limit] [-o ssh_option] [-P port]
           [-R num_requests] [-S program] [-s subsystem | sftp_server]
           destination
@@ -75,9 +75,11 @@ DESCRIPTION
              Selects the cipher to use for encrypting the data transfers.
              This option is directly passed to ssh(1).
 
-     -D sftp_server_path
+     -D sftp_server_command
              Connect directly to a local sftp server (rather than via ssh(1)).
-             This option may be useful in debugging the client and server.
+             A command and arguments may be specified, for example
+             "/path/sftp-server -el debug3".  This option may be useful in
+             debugging the client and server.
 
      -F ssh_config
              Specifies an alternative per-user configuration file for ssh(1).
@@ -164,6 +166,7 @@ DESCRIPTION
                    PubkeyAcceptedAlgorithms
                    PubkeyAuthentication
                    RekeyLimit
+                   RequiredRSASize
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
@@ -417,4 +420,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0
+OpenBSD 7.1                   September 19, 2022                   OpenBSD 7.1

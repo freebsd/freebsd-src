@@ -498,7 +498,7 @@ DESCRIPTION
      IgnoreUserKnownHosts
              Specifies whether sshd(8) should ignore the user's
              ~/.ssh/known_hosts during HostbasedAuthentication and use only
-             the system-wide known hosts file /etc/ssh/known_hosts.  The
+             the system-wide known hosts file /etc/ssh/ssh_known_hosts.  The
              default is M-bM-^@M-^\noM-bM-^@M-^].
 
      Include
@@ -932,18 +932,24 @@ DESCRIPTION
              default is yes.
 
      RekeyLimit
-             Specifies the maximum amount of data that may be transmitted
-             before the session key is renegotiated, optionally followed by a
-             maximum amount of time that may pass before the session key is
-             renegotiated.  The first argument is specified in bytes and may
-             have a suffix of M-bM-^@M-^XKM-bM-^@M-^Y, M-bM-^@M-^XMM-bM-^@M-^Y, or M-bM-^@M-^XGM-bM-^@M-^Y to indicate Kilobytes,
-             Megabytes, or Gigabytes, respectively.  The default is between
-             M-bM-^@M-^X1GM-bM-^@M-^Y and M-bM-^@M-^X4GM-bM-^@M-^Y, depending on the cipher.  The optional second
-             value is specified in seconds and may use any of the units
+             Specifies the maximum amount of data that may be transmitted or
+             received before the session key is renegotiated, optionally
+             followed by a maximum amount of time that may pass before the
+             session key is renegotiated.  The first argument is specified in
+             bytes and may have a suffix of M-bM-^@M-^XKM-bM-^@M-^Y, M-bM-^@M-^XMM-bM-^@M-^Y, or M-bM-^@M-^XGM-bM-^@M-^Y to indicate
+             Kilobytes, Megabytes, or Gigabytes, respectively.  The default is
+             between M-bM-^@M-^X1GM-bM-^@M-^Y and M-bM-^@M-^X4GM-bM-^@M-^Y, depending on the cipher.  The optional
+             second value is specified in seconds and may use any of the units
              documented in the TIME FORMATS section.  The default value for
              RekeyLimit is default none, which means that rekeying is
              performed after the cipher's default amount of data has been sent
              or received and no time based rekeying is done.
+
+     RequiredRSASize
+             Specifies the minimum RSA key size (in bits) that sshd(8) will
+             accept.  User and host-based authentication keys smaller than
+             this limit will be refused.  The default is 1024 bits.  Note that
+             this limit may only be raised from the default.
 
      RevokedKeys
              Specifies revoked public keys file, or none to not use one.  Keys
@@ -1191,4 +1197,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0
+OpenBSD 7.1                   September 17, 2022                   OpenBSD 7.1

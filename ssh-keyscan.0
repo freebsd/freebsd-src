@@ -55,9 +55,10 @@ DESCRIPTION
 
      -t type
              Specify the type of the key to fetch from the scanned hosts.  The
-             possible values are M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
-             Multiple values may be specified by separating them with commas.
-             The default is to fetch M-bM-^@M-^\rsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], and M-bM-^@M-^\ed25519M-bM-^@M-^] keys.
+             possible values are M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^],
+             M-bM-^@M-^\ed25519-skM-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].  Multiple values may be specified by
+             separating them with commas.  The default is to fetch M-bM-^@M-^\rsaM-bM-^@M-^],
+             M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], and M-bM-^@M-^\ed25519-skM-bM-^@M-^] keys.
 
      -v      Verbose mode: print debugging messages about progress.
 
@@ -93,4 +94,4 @@ AUTHORS
      Davison <wayned@users.sourceforge.net> added support for protocol version
      2.
 
-OpenBSD 7.0                    November 30, 2019                   OpenBSD 7.0
+OpenBSD 7.1                      June 3, 2022                      OpenBSD 7.1

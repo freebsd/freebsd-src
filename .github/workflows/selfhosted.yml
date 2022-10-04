@@ -2,7 +2,8 @@ name: C/C++ CI self-hosted
 
 on:
   push:
-    branches: [ master, ci ]
+    branches: [ master, ci, V_9_0 ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', 'Makefile.in', 'configure.ac' ]
 
 jobs:
   selfhosted:
@@ -17,15 +18,15 @@ jobs:
       matrix:
         os:
           - aix51
+          - ARM
           - ARM64
           - alpine
-          - bbone
           - debian-i386
+          - debian-riscv64
           - dfly30
           - dfly48
           - dfly58
           - dfly60
-          - fbsd6
           - fbsd10
           - fbsd12
           - fbsd13
@@ -58,7 +59,6 @@ jobs:
           - { os: dfly48, configs: pam }
           - { os: dfly58, configs: pam }
           - { os: dfly60, configs: pam }
-          - { os: fbsd6,  configs: pam }
           - { os: fbsd10, configs: pam }
           - { os: fbsd12, configs: pam }
           - { os: fbsd13, configs: pam }
@@ -72,11 +72,11 @@ jobs:
           # - { os: sol11,  configs: sol64-pam }
           - { os: win10,  configs: cygwin-release }
     steps:
+    - name: shutdown VM if running
+      run: vmshutdown
     - uses: actions/checkout@v2
     - name: autoreconf
       run: autoreconf
-    - name: shutdown VM if running
-      run: vmshutdown
     - name: startup VM
       run: vmstartup
     - name: configure

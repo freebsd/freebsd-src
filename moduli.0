@@ -8,11 +8,12 @@ DESCRIPTION
      sshd(8) in the Diffie-Hellman Group Exchange key exchange method.
 
      New moduli may be generated with ssh-keygen(1) using a two-step process.
-     An initial candidate generation pass, using ssh-keygen -G, calculates
-     numbers that are likely to be useful.  A second primality testing pass,
-     using ssh-keygen -T, provides a high degree of assurance that the numbers
-     are prime and are safe for use in Diffie-Hellman operations by sshd(8).
-     This moduli format is used as the output from each pass.
+     An initial candidate generation pass, using ssh-keygen -M generate,
+     calculates numbers that are likely to be useful.  A second primality
+     testing pass, using ssh-keygen -M screen, provides a high degree of
+     assurance that the numbers are prime and are safe for use in Diffie-
+     Hellman operations by sshd(8).  This moduli format is used as the output
+     from each pass.
 
      The file consists of newline-separated records, one per modulus,
      containing seven space-separated fields.  These fields are as follows:
@@ -68,7 +69,6 @@ SEE ALSO
 
 STANDARDS
      M. Friedl, N. Provos, and W. Simpson, Diffie-Hellman Group Exchange for
-     the Secure Shell (SSH) Transport Layer Protocol, RFC 4419, March 2006,
-     2006.
+     the Secure Shell (SSH) Transport Layer Protocol, RFC 4419, March 2006.
 
-OpenBSD 7.0                   September 26, 2012                   OpenBSD 7.0
+OpenBSD 7.1                     April 16, 2022                     OpenBSD 7.1

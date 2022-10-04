@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-ptrace.sh,v 1.3 2015/09/11 04:55:01 djm Exp $
+#	$OpenBSD: agent-ptrace.sh,v 1.5 2022/04/22 05:08:43 anton Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent ptrace attach"

@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.146 2021/12/19 22:14:47 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.148 2022/09/17 10:33:18 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -124,10 +124,10 @@ typedef struct {
 	int	server_alive_interval;
 	int	server_alive_count_max;
 
-	int     num_send_env;
-	char   **send_env;
-	int     num_setenv;
-	char   **setenv;
+	u_int	num_send_env;
+	char	**send_env;
+	u_int	num_setenv;
+	char	**setenv;
 
 	char	*control_path;
 	int	control_master;
@@ -175,6 +175,8 @@ typedef struct {
 	char   *jump_extra;
 
 	char   *known_hosts_command;
+
+	int	required_rsa_size;	/* minimum size of RSA keys */
 
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;

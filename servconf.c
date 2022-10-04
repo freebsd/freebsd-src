@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.384 2022/03/18 04:04:11 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.386 2022/09/17 10:34:29 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -195,6 +195,7 @@ initialize_server_options(ServerOptions *options)
 	options->fingerprint_hash = -1;
 	options->disable_forwarding = -1;
 	options->expose_userauth_info = -1;
+	options->required_rsa_size = -1;
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -441,6 +442,8 @@ fill_default_server_options(ServerOptions *options)
 		options->expose_userauth_info = 0;
 	if (options->sk_provider == NULL)
 		options->sk_provider = xstrdup("internal");
+	if (options->required_rsa_size == -1)
+		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
 
 	assemble_algorithms(options);
 
@@ -517,6 +520,7 @@ typedef enum {
 	sStreamLocalBindMask, sStreamLocalBindUnlink,
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
 	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
+	sRequiredRSASize,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
 
@@ -676,6 +680,7 @@ static struct {
 	{ "rdomain", sRDomain, SSHCFG_ALL },
 	{ "casignaturealgorithms", sCASignatureAlgorithms, SSHCFG_ALL },
 	{ "securitykeyprovider", sSecurityKeyProvider, SSHCFG_GLOBAL },
+	{ "requiredrsasize", sRequiredRSASize, SSHCFG_ALL },
 	{ NULL, sBadOption, 0 }
 };
 
@@ -2033,6 +2038,12 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    filename, linenum);
 			if (!*activep || uvalue != 0)
 				continue;
+			if (lookup_setenv_in_list(arg, options->setenv,
+			    options->num_setenv) != NULL) {
+				debug2("%s line %d: ignoring duplicate env "
+				    "name \"%.64s\"", filename, linenum, arg);
+				continue;
+			}
 			opt_array_append(filename, linenum, keyword,
 			    &options->setenv, &options->num_setenv, arg);
 		}
@@ -2432,6 +2443,10 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			*charptr = xstrdup(arg);
 		break;
 
+	case sRequiredRSASize:
+		intptr = &options->required_rsa_size;
+		goto parse_int;
+
 	case sDeprecated:
 	case sIgnore:
 	case sUnsupported:
@@ -2604,6 +2619,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(rekey_limit);
 	M_CP_INTOPT(rekey_interval);
 	M_CP_INTOPT(log_level);
+	M_CP_INTOPT(required_rsa_size);
 
 	/*
 	 * The bind_mask is a mode_t that may be unsigned, so we can't use
@@ -2868,6 +2884,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_int(sMaxSessions, o->max_sessions);
 	dump_cfg_int(sClientAliveInterval, o->client_alive_interval);
 	dump_cfg_int(sClientAliveCountMax, o->client_alive_count_max);
+	dump_cfg_int(sRequiredRSASize, o->required_rsa_size);
 	dump_cfg_oct(sStreamLocalBindMask, o->fwd_opts.streamlocal_bind_mask);
 
 	/* formatted integer arguments */

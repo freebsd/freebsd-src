@@ -140,6 +140,7 @@ DESCRIPTION
                    PubkeyAcceptedAlgorithms
                    PubkeyAuthentication
                    RekeyLimit
+                   RequiredRSASize
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
@@ -199,7 +200,7 @@ HISTORY
      scp is based on the rcp program in BSD source code from the Regents of
      the University of California.
 
-     Since OpenSSH 8.8, scp has use the SFTP protocol for transfers by
+     Since OpenSSH 9.0, scp has used the SFTP protocol for transfers by
      default.
 
 AUTHORS
@@ -212,4 +213,4 @@ CAVEATS
      requires careful quoting of any characters that have special meaning to
      the remote shell, such as quote characters.
 
-OpenBSD 7.0                    February 23, 2022                   OpenBSD 7.0
+OpenBSD 7.1                   September 19, 2022                   OpenBSD 7.1

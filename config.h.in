@@ -276,6 +276,12 @@
 /* calloc(0, x) returns NULL */
 #undef HAVE_CALLOC
 
+/* Define if you have caph_cache_tzdata */
+#undef HAVE_CAPH_CACHE_TZDATA
+
+/* Define to 1 if you have the <capsicum_helpers.h> header file. */
+#undef HAVE_CAPSICUM_HELPERS_H
+
 /* Define to 1 if you have the `cap_rights_limit' function. */
 #undef HAVE_CAP_RIGHTS_LIMIT
 
@@ -330,6 +336,10 @@
 /* Define to 1 if you have the declaration of `ftruncate', and to 0 if you
    don't. */
 #undef HAVE_DECL_FTRUNCATE
+
+/* Define to 1 if you have the declaration of `getentropy', and to 0 if you
+   don't. */
+#undef HAVE_DECL_GETENTROPY
 
 /* Define to 1 if you have the declaration of `getpeereid', and to 0 if you
    don't. */
@@ -511,9 +521,6 @@
 /* Define to 1 if you have the `EVP_chacha20' function. */
 #undef HAVE_EVP_CHACHA20
 
-/* Define to 1 if you have the `EVP_CIPHER_CTX_ctrl' function. */
-#undef HAVE_EVP_CIPHER_CTX_CTRL
-
 /* Define to 1 if you have the `EVP_CIPHER_CTX_get_iv' function. */
 #undef HAVE_EVP_CIPHER_CTX_GET_IV
 
@@ -613,6 +620,9 @@
 /* Define to 1 if you have the `fido_dev_get_touch_status' function. */
 #undef HAVE_FIDO_DEV_GET_TOUCH_STATUS
 
+/* Define to 1 if you have the `fido_dev_is_winhello' function. */
+#undef HAVE_FIDO_DEV_IS_WINHELLO
+
 /* Define to 1 if you have the `fido_dev_supports_cred_prot' function. */
 #undef HAVE_FIDO_DEV_SUPPORTS_CRED_PROT
 
@@ -666,6 +676,9 @@
 
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
+
+/* Define to 1 if you have the `getentropy' function. */
+#undef HAVE_GETENTROPY
 
 /* Define to 1 if you have the `getgrouplist' function. */
 #undef HAVE_GETGROUPLIST
@@ -871,9 +884,6 @@
 /* Define to 1 if you have the `bsm' library (-lbsm). */
 #undef HAVE_LIBBSM
 
-/* Define to 1 if you have the `crypt' library (-lcrypt). */
-#undef HAVE_LIBCRYPT
-
 /* Define to 1 if you have the `dl' library (-ldl). */
 #undef HAVE_LIBDL
 
@@ -973,9 +983,6 @@
 
 /* Define to 1 if you have the `memmove' function. */
 #undef HAVE_MEMMOVE
-
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
 
 /* Define to 1 if you have the `memset_s' function. */
 #undef HAVE_MEMSET_S
@@ -1348,6 +1355,9 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
@@ -1584,6 +1594,9 @@
 
 /* Define to 1 if you have the `time' function. */
 #undef HAVE_TIME
+
+/* Define to 1 if you have the `timegm' function. */
+#undef HAVE_TIMEGM
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
@@ -1823,12 +1836,6 @@
 /* libcrypto has NID_secp521r1 */
 #undef OPENSSL_HAS_NISTP521
 
-/* libcrypto has EVP AES CTR */
-#undef OPENSSL_HAVE_EVPCTR
-
-/* libcrypto has EVP AES GCM */
-#undef OPENSSL_HAVE_EVPGCM
-
 /* libcrypto is missing AES 192 and 256 bit functions */
 #undef OPENSSL_LOBOTOMISED_AES
 
@@ -1969,7 +1976,9 @@
 /* Prepend the address family to IP tunnel traffic */
 #undef SSH_TUN_PREPEND_AF
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
 /* Define if you want a different $PATH for the superuser */
@@ -2068,11 +2077,6 @@
 
 /* Define if xauth is found in your path */
 #undef XAUTH_PATH
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

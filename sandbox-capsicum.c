@@ -29,6 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef HAVE_CAPSICUM_HELPERS_H
+#include <capsicum_helpers.h>
+#endif
 
 #include "log.h"
 #include "monitor.h"
@@ -68,6 +71,10 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 {
 	struct rlimit rl_zero;
 	cap_rights_t rights;
+
+#ifdef HAVE_CAPH_CACHE_TZDATA
+	caph_cache_tzdata();
+#endif
 
 	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
 

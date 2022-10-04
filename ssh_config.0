@@ -915,14 +915,14 @@ DESCRIPTION
              restricted ssh-agent(1) forwarding.
 
      RekeyLimit
-             Specifies the maximum amount of data that may be transmitted
-             before the session key is renegotiated, optionally followed by a
-             maximum amount of time that may pass before the session key is
-             renegotiated.  The first argument is specified in bytes and may
-             have a suffix of M-bM-^@M-^XKM-bM-^@M-^Y, M-bM-^@M-^XMM-bM-^@M-^Y, or M-bM-^@M-^XGM-bM-^@M-^Y to indicate Kilobytes,
-             Megabytes, or Gigabytes, respectively.  The default is between
-             M-bM-^@M-^X1GM-bM-^@M-^Y and M-bM-^@M-^X4GM-bM-^@M-^Y, depending on the cipher.  The optional second
-             value is specified in seconds and may use any of the units
+             Specifies the maximum amount of data that may be transmitted or
+             received before the session key is renegotiated, optionally
+             followed by a maximum amount of time that may pass before the
+             session key is renegotiated.  The first argument is specified in
+             bytes and may have a suffix of M-bM-^@M-^XKM-bM-^@M-^Y, M-bM-^@M-^XMM-bM-^@M-^Y, or M-bM-^@M-^XGM-bM-^@M-^Y to indicate
+             Kilobytes, Megabytes, or Gigabytes, respectively.  The default is
+             between M-bM-^@M-^X1GM-bM-^@M-^Y and M-bM-^@M-^X4GM-bM-^@M-^Y, depending on the cipher.  The optional
+             second value is specified in seconds and may use any of the units
              documented in the TIME FORMATS section of sshd_config(5).  The
              default value for RekeyLimit is default none, which means that
              rekeying is performed after the cipher's default amount of data
@@ -974,6 +974,13 @@ DESCRIPTION
              request a TTY when standard input is a TTY), force (always
              request a TTY) or auto (request a TTY when opening a login
              session).  This option mirrors the -t and -T flags for ssh(1).
+
+     RequiredRSASize
+             Specifies the minimum RSA key size (in bits) that ssh(1) will
+             accept.  User authentication keys smaller than this limit will be
+             ignored.  Servers that present host keys smaller than this limit
+             will cause the connection to be terminated.  The default is 1024
+             bits.  Note that this limit may only be raised from the default.
 
      RevokedHostKeys
              Specifies revoked host public keys.  Keys listed in this file
@@ -1271,7 +1278,7 @@ TOKENS
 
      LocalCommand accepts all tokens.
 
-     ProxyCommand accepts the tokens %%, %h, %n, %p, and %r.
+     ProxyCommand and ProxyJump accept the tokens %%, %h, %n, %p, and %r.
 
 ENVIRONMENT VARIABLES
      Arguments to some keywords can be expanded at runtime from environment
@@ -1308,4 +1315,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0
+OpenBSD 7.1                   September 17, 2022                   OpenBSD 7.1

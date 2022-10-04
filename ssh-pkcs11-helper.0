@@ -7,11 +7,10 @@ SYNOPSIS
      ssh-pkcs11-helper [-v]
 
 DESCRIPTION
-     ssh-pkcs11-helper is used by ssh-agent(1) to access keys provided by a
-     PKCS#11 token.
+     ssh-pkcs11-helper is used by ssh(1), ssh-agent(1), and ssh-keygen(1) to
+     access keys provided by a PKCS#11 token.
 
-     ssh-pkcs11-helper is not intended to be invoked by the user, but from
-     ssh-agent(1).
+     ssh-pkcs11-helper is not intended to be invoked directly by the user.
 
      A single option is supported:
 
@@ -20,11 +19,12 @@ DESCRIPTION
              problems.  Multiple -v options increase the verbosity.  The
              maximum is 3.
 
-             Note that ssh-agent(1) will automatically pass the -v flag to
-             ssh-pkcs11-helper when it has itself been placed in debug mode.
+             Note that ssh(1), ssh-agent(1), and ssh-keygen(1) will
+             automatically pass the -v flag to ssh-pkcs11-helper when they
+             have themselves been placed in debug mode.
 
 SEE ALSO
-     ssh(1), ssh-add(1), ssh-agent(1)
+     ssh(1), ssh-agent(1), ssh-keygen(1)
 
 HISTORY
      ssh-pkcs11-helper first appeared in OpenBSD 4.7.
@@ -32,4 +32,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 7.0                    November 30, 2019                   OpenBSD 7.0
+OpenBSD 7.1                     April 29, 2022                     OpenBSD 7.1
