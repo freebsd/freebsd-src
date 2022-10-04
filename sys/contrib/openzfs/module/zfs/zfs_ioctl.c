@@ -741,7 +741,7 @@ zfs_get_parent(const char *datasetname, char *parent, int parentsize)
 	/*
 	 * Remove the @bla or /bla from the end of the name to get the parent.
 	 */
-	(void) strncpy(parent, datasetname, parentsize);
+	(void) strlcpy(parent, datasetname, parentsize);
 	cp = strrchr(parent, '@');
 	if (cp != NULL) {
 		cp[0] = '\0';
@@ -1912,6 +1912,10 @@ zfs_ioc_vdev_set_state(zfs_cmd_t *zc)
 		error = vdev_degrade(spa, zc->zc_guid, zc->zc_obj);
 		break;
 
+	case VDEV_STATE_REMOVED:
+		error = vdev_remove_wanted(spa, zc->zc_guid);
+		break;
+
 	default:
 		error = SET_ERROR(EINVAL);
 	}
@@ -2928,7 +2932,7 @@ zfs_ioc_pool_set_props(zfs_cmd_t *zc)
 		mutex_enter(&spa_namespace_lock);
 		if ((spa = spa_lookup(zc->zc_name)) != NULL) {
 			spa_configfile_set(spa, props, B_FALSE);
-			spa_write_cachefile(spa, B_FALSE, B_TRUE);
+			spa_write_cachefile(spa, B_FALSE, B_TRUE, B_FALSE);
 		}
 		mutex_exit(&spa_namespace_lock);
 		if (spa != NULL) {
@@ -6355,7 +6359,7 @@ zfs_ioc_events_next(zfs_cmd_t *zc)
 static int
 zfs_ioc_events_clear(zfs_cmd_t *zc)
 {
-	int count;
+	uint_t count;
 
 	zfs_zevent_drain_all(&count);
 	zc->zc_cookie = count;

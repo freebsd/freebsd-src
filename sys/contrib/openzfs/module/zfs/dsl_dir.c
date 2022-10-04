@@ -270,7 +270,7 @@ dsl_dir_hold_obj(dsl_pool_t *dp, uint64_t ddobj,
 
 		if (dsl_dir_is_zapified(dd)) {
 			inode_timespec_t t = {0};
-			zap_lookup(dp->dp_meta_objset, ddobj,
+			(void) zap_lookup(dp->dp_meta_objset, ddobj,
 			    DD_FIELD_SNAPSHOTS_CHANGED,
 			    sizeof (uint64_t),
 			    sizeof (inode_timespec_t) / sizeof (uint64_t),
@@ -428,8 +428,7 @@ getcomponent(const char *path, char *component, const char **nextp)
 	} else if (p[0] == '/') {
 		if (p - path >= ZFS_MAX_DATASET_NAME_LEN)
 			return (SET_ERROR(ENAMETOOLONG));
-		(void) strncpy(component, path, p - path);
-		component[p - path] = '\0';
+		(void) strlcpy(component, path, p - path + 1);
 		p++;
 	} else if (p[0] == '@') {
 		/*
@@ -440,8 +439,7 @@ getcomponent(const char *path, char *component, const char **nextp)
 			return (SET_ERROR(EINVAL));
 		if (p - path >= ZFS_MAX_DATASET_NAME_LEN)
 			return (SET_ERROR(ENAMETOOLONG));
-		(void) strncpy(component, path, p - path);
-		component[p - path] = '\0';
+		(void) strlcpy(component, path, p - path + 1);
 	} else {
 		panic("invalid p=%p", (void *)p);
 	}

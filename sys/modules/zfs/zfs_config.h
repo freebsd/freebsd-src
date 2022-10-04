@@ -97,6 +97,9 @@
 /* bdev_*_io_acct() available */
 /* #undef HAVE_BDEV_IO_ACCT */
 
+/* bdev_kobj() exists */
+/* #undef HAVE_BDEV_KOBJ */
+
 /* bdev_max_discard_sectors() is available */
 /* #undef HAVE_BDEV_MAX_DISCARD_SECTORS */
 
@@ -536,6 +539,9 @@
 /* folio_wait_bit() exists */
 /* #undef HAVE_PAGEMAP_FOLIO_WAIT_BIT */
 
+/* part_to_dev() exists */
+/* #undef HAVE_PART_TO_DEV */
+
 /* iops->getattr() takes a path */
 /* #undef HAVE_PATH_IOPS_GETATTR */
 
@@ -949,7 +955,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gc629f0bf6"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gd62bafee9"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -979,7 +985,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gc629f0bf6"
+#define ZFS_META_RELEASE "FreeBSD_gd62bafee9"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

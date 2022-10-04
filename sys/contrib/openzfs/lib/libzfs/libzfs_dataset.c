@@ -717,8 +717,8 @@ zfs_open(libzfs_handle_t *hdl, const char *path, int types)
 		 * to get the parent dataset name only.
 		 */
 		assert(bookp - path < sizeof (dsname));
-		(void) strncpy(dsname, path, bookp - path);
-		dsname[bookp - path] = '\0';
+		(void) strlcpy(dsname, path,
+		    MIN(sizeof (dsname), bookp - path + 1));
 
 		/*
 		 * Create handle for the parent dataset.
@@ -2007,6 +2007,7 @@ zfs_prop_inherit(zfs_handle_t *zhp, const char *propname, boolean_t received)
 		goto error;
 
 	if ((ret = zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_INHERIT_PROP, &zc)) != 0) {
+		changelist_free(cl);
 		return (zfs_standard_error(hdl, errno, errbuf));
 	} else {
 
@@ -3453,8 +3454,8 @@ check_parents(libzfs_handle_t *hdl, const char *path, uint64_t *zoned,
 	/* check to see if the pool exists */
 	if ((slash = strchr(parent, '/')) == NULL)
 		slash = parent + strlen(parent);
-	(void) strncpy(zc.zc_name, parent, slash - parent);
-	zc.zc_name[slash - parent] = '\0';
+	(void) strlcpy(zc.zc_name, parent,
+	    MIN(sizeof (zc.zc_name), slash - parent + 1));
 	if (zfs_ioctl(hdl, ZFS_IOC_OBJSET_STATS, &zc) != 0 &&
 	    errno == ENOENT) {
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -4163,6 +4164,8 @@ zfs_snapshot_nvl(libzfs_handle_t *hdl, nvlist_t *snaps, nvlist_t *props)
 	 * same pool, as does lzc_snapshot (below).
 	 */
 	elem = nvlist_next_nvpair(snaps, NULL);
+	if (elem == NULL)
+		return (-1);
 	(void) strlcpy(pool, nvpair_name(elem), sizeof (pool));
 	pool[strcspn(pool, "/@")] = '\0';
 	zpool_hdl = zpool_open(hdl, pool);

@@ -909,7 +909,16 @@ spa_change_guid(spa_t *spa)
 	    spa_change_guid_sync, &guid, 5, ZFS_SPACE_CHECK_RESERVED);
 
 	if (error == 0) {
-		spa_write_cachefile(spa, B_FALSE, B_TRUE);
+		/*
+		 * Clear the kobj flag from all the vdevs to allow
+		 * vdev_cache_process_kobj_evt() to post events to all the
+		 * vdevs since GUID is updated.
+		 */
+		vdev_clear_kobj_evt(spa->spa_root_vdev);
+		for (int i = 0; i < spa->spa_l2cache.sav_count; i++)
+			vdev_clear_kobj_evt(spa->spa_l2cache.sav_vdevs[i]);
+
+		spa_write_cachefile(spa, B_FALSE, B_TRUE, B_TRUE);
 		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_REGUID);
 	}
 
@@ -2301,7 +2310,7 @@ spa_load_verify_done(zio_t *zio)
  * Maximum number of inflight bytes is the log2 fraction of the arc size.
  * By default, we set it to 1/16th of the arc.
  */
-static int spa_load_verify_shift = 4;
+static uint_t spa_load_verify_shift = 4;
 static int spa_load_verify_metadata = B_TRUE;
 static int spa_load_verify_data = B_TRUE;
 
@@ -5220,7 +5229,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 			 */
 			spa_unload(spa);
 			spa_deactivate(spa);
-			spa_write_cachefile(spa, B_TRUE, B_TRUE);
+			spa_write_cachefile(spa, B_TRUE, B_TRUE, B_FALSE);
 			spa_remove(spa);
 			if (locked)
 				mutex_exit(&spa_namespace_lock);
@@ -6044,7 +6053,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 
 	spa_spawn_aux_threads(spa);
 
-	spa_write_cachefile(spa, B_FALSE, B_TRUE);
+	spa_write_cachefile(spa, B_FALSE, B_TRUE, B_TRUE);
 
 	/*
 	 * Don't count references from objsets that are already closed
@@ -6107,7 +6116,7 @@ spa_import(char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 		if (props != NULL)
 			spa_configfile_set(spa, props, B_FALSE);
 
-		spa_write_cachefile(spa, B_FALSE, B_TRUE);
+		spa_write_cachefile(spa, B_FALSE, B_TRUE, B_FALSE);
 		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_IMPORT);
 		zfs_dbgmsg("spa_import: verbatim import of %s", pool);
 		mutex_exit(&spa_namespace_lock);
@@ -6427,6 +6436,7 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 	}
 
 	if (spa->spa_sync_on) {
+		vdev_t *rvd = spa->spa_root_vdev;
 		/*
 		 * A pool cannot be exported if it has an active shared spare.
 		 * This is to prevent other pools stealing the active spare
@@ -6446,13 +6456,10 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 		 * dirty data resulting from the initialization is
 		 * committed to disk before we unload the pool.
 		 */
-		if (spa->spa_root_vdev != NULL) {
-			vdev_t *rvd = spa->spa_root_vdev;
-			vdev_initialize_stop_all(rvd, VDEV_INITIALIZE_ACTIVE);
-			vdev_trim_stop_all(rvd, VDEV_TRIM_ACTIVE);
-			vdev_autotrim_stop_all(spa);
-			vdev_rebuild_stop_all(spa);
-		}
+		vdev_initialize_stop_all(rvd, VDEV_INITIALIZE_ACTIVE);
+		vdev_trim_stop_all(rvd, VDEV_TRIM_ACTIVE);
+		vdev_autotrim_stop_all(spa);
+		vdev_rebuild_stop_all(spa);
 
 		/*
 		 * We want this to be reflected on every label,
@@ -6462,7 +6469,7 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 		if (new_state != POOL_STATE_UNINITIALIZED && !hardforce) {
 			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 			spa->spa_state = new_state;
-			vdev_config_dirty(spa->spa_root_vdev);
+			vdev_config_dirty(rvd);
 			spa_config_exit(spa, SCL_ALL, FTAG);
 		}
 
@@ -6505,7 +6512,7 @@ export_spa:
 
 	if (new_state != POOL_STATE_UNINITIALIZED) {
 		if (!hardforce)
-			spa_write_cachefile(spa, B_TRUE, B_TRUE);
+			spa_write_cachefile(spa, B_TRUE, B_TRUE, B_FALSE);
 		spa_remove(spa);
 	} else {
 		/*
@@ -9988,7 +9995,7 @@ EXPORT_SYMBOL(spa_prop_clear_bootfs);
 EXPORT_SYMBOL(spa_event_notify);
 
 /* BEGIN CSTYLED */
-ZFS_MODULE_PARAM(zfs_spa, spa_, load_verify_shift, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_spa, spa_, load_verify_shift, UINT, ZMOD_RW,
 	"log2 fraction of arc that can be used by inflight I/Os when "
 	"verifying pool during import");
 /* END CSTYLED */

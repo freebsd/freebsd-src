@@ -100,6 +100,11 @@ typedef struct dbuf_stats {
 	 */
 	kstat_named_t hash_insert_race;
 	/*
+	 * Number of entries in the hash table dbuf and mutex arrays.
+	 */
+	kstat_named_t hash_table_count;
+	kstat_named_t hash_mutex_count;
+	/*
 	 * Statistics about the size of the metadata dbuf cache.
 	 */
 	kstat_named_t metadata_cache_count;
@@ -131,6 +136,8 @@ dbuf_stats_t dbuf_stats = {
 	{ "hash_chains",			KSTAT_DATA_UINT64 },
 	{ "hash_chain_max",			KSTAT_DATA_UINT64 },
 	{ "hash_insert_race",			KSTAT_DATA_UINT64 },
+	{ "hash_table_count",			KSTAT_DATA_UINT64 },
+	{ "hash_mutex_count",			KSTAT_DATA_UINT64 },
 	{ "metadata_cache_count",		KSTAT_DATA_UINT64 },
 	{ "metadata_cache_size_bytes",		KSTAT_DATA_UINT64 },
 	{ "metadata_cache_size_bytes_max",	KSTAT_DATA_UINT64 },
@@ -224,8 +231,11 @@ static unsigned long dbuf_cache_max_bytes = ULONG_MAX;
 static unsigned long dbuf_metadata_cache_max_bytes = ULONG_MAX;
 
 /* Set the default sizes of the caches to log2 fraction of arc size */
-static int dbuf_cache_shift = 5;
-static int dbuf_metadata_cache_shift = 6;
+static uint_t dbuf_cache_shift = 5;
+static uint_t dbuf_metadata_cache_shift = 6;
+
+/* Set the dbuf hash mutex count as log2 shift (dynamic by default) */
+static uint_t dbuf_mutex_cache_shift = 0;
 
 static unsigned long dbuf_cache_target_bytes(void);
 static unsigned long dbuf_metadata_cache_target_bytes(void);
@@ -339,18 +349,18 @@ dbuf_find(objset_t *os, uint64_t obj, uint8_t level, uint64_t blkid)
 	hv = dbuf_hash(os, obj, level, blkid);
 	idx = hv & h->hash_table_mask;
 
-	rw_enter(DBUF_HASH_RWLOCK(h, idx), RW_READER);
+	mutex_enter(DBUF_HASH_MUTEX(h, idx));
 	for (db = h->hash_table[idx]; db != NULL; db = db->db_hash_next) {
 		if (DBUF_EQUAL(db, os, obj, level, blkid)) {
 			mutex_enter(&db->db_mtx);
 			if (db->db_state != DB_EVICTING) {
-				rw_exit(DBUF_HASH_RWLOCK(h, idx));
+				mutex_exit(DBUF_HASH_MUTEX(h, idx));
 				return (db);
 			}
 			mutex_exit(&db->db_mtx);
 		}
 	}
-	rw_exit(DBUF_HASH_RWLOCK(h, idx));
+	mutex_exit(DBUF_HASH_MUTEX(h, idx));
 	return (NULL);
 }
 
@@ -393,13 +403,13 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 	hv = dbuf_hash(os, obj, level, blkid);
 	idx = hv & h->hash_table_mask;
 
-	rw_enter(DBUF_HASH_RWLOCK(h, idx), RW_WRITER);
+	mutex_enter(DBUF_HASH_MUTEX(h, idx));
 	for (dbf = h->hash_table[idx], i = 0; dbf != NULL;
 	    dbf = dbf->db_hash_next, i++) {
 		if (DBUF_EQUAL(dbf, os, obj, level, blkid)) {
 			mutex_enter(&dbf->db_mtx);
 			if (dbf->db_state != DB_EVICTING) {
-				rw_exit(DBUF_HASH_RWLOCK(h, idx));
+				mutex_exit(DBUF_HASH_MUTEX(h, idx));
 				return (dbf);
 			}
 			mutex_exit(&dbf->db_mtx);
@@ -417,7 +427,7 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 	mutex_enter(&db->db_mtx);
 	db->db_hash_next = h->hash_table[idx];
 	h->hash_table[idx] = db;
-	rw_exit(DBUF_HASH_RWLOCK(h, idx));
+	mutex_exit(DBUF_HASH_MUTEX(h, idx));
 	uint64_t he = atomic_inc_64_nv(&dbuf_stats.hash_elements.value.ui64);
 	DBUF_STAT_MAX(hash_elements_max, he);
 
@@ -474,13 +484,13 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 
 	/*
 	 * We mustn't hold db_mtx to maintain lock ordering:
-	 * DBUF_HASH_RWLOCK > db_mtx.
+	 * DBUF_HASH_MUTEX > db_mtx.
 	 */
 	ASSERT(zfs_refcount_is_zero(&db->db_holds));
 	ASSERT(db->db_state == DB_EVICTING);
 	ASSERT(!MUTEX_HELD(&db->db_mtx));
 
-	rw_enter(DBUF_HASH_RWLOCK(h, idx), RW_WRITER);
+	mutex_enter(DBUF_HASH_MUTEX(h, idx));
 	dbp = &h->hash_table[idx];
 	while ((dbf = *dbp) != db) {
 		dbp = &dbf->db_hash_next;
@@ -491,7 +501,7 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 	if (h->hash_table[idx] &&
 	    h->hash_table[idx]->db_hash_next == NULL)
 		DBUF_STAT_BUMPDOWN(hash_chains);
-	rw_exit(DBUF_HASH_RWLOCK(h, idx));
+	mutex_exit(DBUF_HASH_MUTEX(h, idx));
 	atomic_dec_64(&dbuf_stats.hash_elements.value.ui64);
 }
 
@@ -838,6 +848,7 @@ static int
 dbuf_kstat_update(kstat_t *ksp, int rw)
 {
 	dbuf_stats_t *ds = ksp->ks_data;
+	dbuf_hash_table_t *h = &dbuf_hash_table;
 
 	if (rw == KSTAT_WRITE)
 		return (SET_ERROR(EACCES));
@@ -867,6 +878,8 @@ dbuf_kstat_update(kstat_t *ksp, int rw)
 	    wmsum_value(&dbuf_sums.hash_chains);
 	ds->hash_insert_race.value.ui64 =
 	    wmsum_value(&dbuf_sums.hash_insert_race);
+	ds->hash_table_count.value.ui64 = h->hash_table_mask + 1;
+	ds->hash_mutex_count.value.ui64 = h->hash_mutex_mask + 1;
 	ds->metadata_cache_count.value.ui64 =
 	    wmsum_value(&dbuf_sums.metadata_cache_count);
 	ds->metadata_cache_size_bytes.value.ui64 = zfs_refcount_count(
@@ -879,9 +892,8 @@ dbuf_kstat_update(kstat_t *ksp, int rw)
 void
 dbuf_init(void)
 {
-	uint64_t hsize = 1ULL << 16;
+	uint64_t hmsize, hsize = 1ULL << 16;
 	dbuf_hash_table_t *h = &dbuf_hash_table;
-	int i;
 
 	/*
 	 * The hash table is big enough to fill one eighth of physical memory
@@ -892,30 +904,43 @@ dbuf_init(void)
 	while (hsize * zfs_arc_average_blocksize < arc_all_memory() / 8)
 		hsize <<= 1;
 
-retry:
-	h->hash_table_mask = hsize - 1;
-#if defined(_KERNEL)
+	h->hash_table = NULL;
+	while (h->hash_table == NULL) {
+		h->hash_table_mask = hsize - 1;
+
+		h->hash_table = vmem_zalloc(hsize * sizeof (void *), KM_SLEEP);
+		if (h->hash_table == NULL)
+			hsize >>= 1;
+
+		ASSERT3U(hsize, >=, 1ULL << 10);
+	}
+
 	/*
-	 * Large allocations which do not require contiguous pages
-	 * should be using vmem_alloc() in the linux kernel
+	 * The hash table buckets are protected by an array of mutexes where
+	 * each mutex is reponsible for protecting 128 buckets.  A minimum
+	 * array size of 8192 is targeted to avoid contention.
 	 */
-	h->hash_table = vmem_zalloc(hsize * sizeof (void *), KM_SLEEP);
-#else
-	h->hash_table = kmem_zalloc(hsize * sizeof (void *), KM_NOSLEEP);
-#endif
-	if (h->hash_table == NULL) {
-		/* XXX - we should really return an error instead of assert */
-		ASSERT(hsize > (1ULL << 10));
-		hsize >>= 1;
-		goto retry;
+	if (dbuf_mutex_cache_shift == 0)
+		hmsize = MAX(hsize >> 7, 1ULL << 13);
+	else
+		hmsize = 1ULL << MIN(dbuf_mutex_cache_shift, 24);
+
+	h->hash_mutexes = NULL;
+	while (h->hash_mutexes == NULL) {
+		h->hash_mutex_mask = hmsize - 1;
+
+		h->hash_mutexes = vmem_zalloc(hmsize * sizeof (kmutex_t),
+		    KM_SLEEP);
+		if (h->hash_mutexes == NULL)
+			hmsize >>= 1;
 	}
 
 	dbuf_kmem_cache = kmem_cache_create("dmu_buf_impl_t",
 	    sizeof (dmu_buf_impl_t),
 	    0, dbuf_cons, dbuf_dest, NULL, NULL, NULL, 0);
 
-	for (i = 0; i < DBUF_RWLOCKS; i++)
-		rw_init(&h->hash_rwlocks[i], NULL, RW_DEFAULT, NULL);
+	for (int i = 0; i < hmsize; i++)
+		mutex_init(&h->hash_mutexes[i], NULL, MUTEX_DEFAULT, NULL);
 
 	dbuf_stats_init(h);
 
@@ -941,7 +966,7 @@ retry:
 
 	wmsum_init(&dbuf_sums.cache_count, 0);
 	wmsum_init(&dbuf_sums.cache_total_evicts, 0);
-	for (i = 0; i < DN_MAX_LEVELS; i++) {
+	for (int i = 0; i < DN_MAX_LEVELS; i++) {
 		wmsum_init(&dbuf_sums.cache_levels[i], 0);
 		wmsum_init(&dbuf_sums.cache_levels_bytes[i], 0);
 	}
@@ -957,7 +982,7 @@ retry:
 	    KSTAT_TYPE_NAMED, sizeof (dbuf_stats) / sizeof (kstat_named_t),
 	    KSTAT_FLAG_VIRTUAL);
 	if (dbuf_ksp != NULL) {
-		for (i = 0; i < DN_MAX_LEVELS; i++) {
+		for (int i = 0; i < DN_MAX_LEVELS; i++) {
 			snprintf(dbuf_stats.cache_levels[i].name,
 			    KSTAT_STRLEN, "cache_level_%d", i);
 			dbuf_stats.cache_levels[i].data_type =
@@ -977,21 +1002,16 @@ void
 dbuf_fini(void)
 {
 	dbuf_hash_table_t *h = &dbuf_hash_table;
-	int i;
 
 	dbuf_stats_destroy();
 
-	for (i = 0; i < DBUF_RWLOCKS; i++)
-		rw_destroy(&h->hash_rwlocks[i]);
-#if defined(_KERNEL)
-	/*
-	 * Large allocations which do not require contiguous pages
-	 * should be using vmem_free() in the linux kernel
-	 */
+	for (int i = 0; i < (h->hash_mutex_mask + 1); i++)
+		mutex_destroy(&h->hash_mutexes[i]);
+
 	vmem_free(h->hash_table, (h->hash_table_mask + 1) * sizeof (void *));
-#else
-	kmem_free(h->hash_table, (h->hash_table_mask + 1) * sizeof (void *));
-#endif
+	vmem_free(h->hash_mutexes, (h->hash_mutex_mask + 1) *
+	    sizeof (kmutex_t));
+
 	kmem_cache_destroy(dbuf_kmem_cache);
 	taskq_destroy(dbu_evict_taskq);
 
@@ -1018,7 +1038,7 @@ dbuf_fini(void)
 
 	wmsum_fini(&dbuf_sums.cache_count);
 	wmsum_fini(&dbuf_sums.cache_total_evicts);
-	for (i = 0; i < DN_MAX_LEVELS; i++) {
+	for (int i = 0; i < DN_MAX_LEVELS; i++) {
 		wmsum_fini(&dbuf_sums.cache_levels[i]);
 		wmsum_fini(&dbuf_sums.cache_levels_bytes[i]);
 	}
@@ -5112,8 +5132,11 @@ ZFS_MODULE_PARAM(zfs_dbuf_cache, dbuf_cache_, lowater_pct, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, metadata_cache_max_bytes, ULONG, ZMOD_RW,
 	"Maximum size in bytes of dbuf metadata cache.");
 
-ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, cache_shift, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, cache_shift, UINT, ZMOD_RW,
 	"Set size of dbuf cache to log2 fraction of arc size.");
 
-ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, metadata_cache_shift, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, metadata_cache_shift, UINT, ZMOD_RW,
 	"Set size of dbuf metadata cache to log2 fraction of arc size.");
+
+ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, mutex_cache_shift, UINT, ZMOD_RD,
+	"Set size of dbuf cache mutex array as log2 shift.");

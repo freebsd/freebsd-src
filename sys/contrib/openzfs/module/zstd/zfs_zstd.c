@@ -51,7 +51,7 @@
 #include "lib/common/zstd_errors.h"
 
 #ifndef IN_LIBSA
-static int zstd_earlyabort_pass = 1;
+static uint_t zstd_earlyabort_pass = 1;
 static int zstd_cutoff_level = ZIO_ZSTD_LEVEL_3;
 static unsigned int zstd_abort_size = (128 * 1024);
 #endif
@@ -913,7 +913,7 @@ module_init(zstd_init);
 module_exit(zstd_fini);
 #endif
 
-ZFS_MODULE_PARAM(zfs, zstd_, earlyabort_pass, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zstd_, earlyabort_pass, UINT, ZMOD_RW,
 	"Enable early abort attempts when using zstd");
 ZFS_MODULE_PARAM(zfs, zstd_, abort_size, UINT, ZMOD_RW,
 	"Minimal size of block to attempt early abort");

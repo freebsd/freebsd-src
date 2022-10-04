@@ -321,12 +321,14 @@ typedef struct dmu_buf_impl {
 	uint8_t db_dirtycnt;
 } dmu_buf_impl_t;
 
-#define	DBUF_RWLOCKS 8192
-#define	DBUF_HASH_RWLOCK(h, idx) (&(h)->hash_rwlocks[(idx) & (DBUF_RWLOCKS-1)])
+#define	DBUF_HASH_MUTEX(h, idx) \
+	(&(h)->hash_mutexes[(idx) & ((h)->hash_mutex_mask)])
+
 typedef struct dbuf_hash_table {
 	uint64_t hash_table_mask;
+	uint64_t hash_mutex_mask;
 	dmu_buf_impl_t **hash_table;
-	krwlock_t hash_rwlocks[DBUF_RWLOCKS] ____cacheline_aligned;
+	kmutex_t *hash_mutexes;
 } dbuf_hash_table_t;
 
 typedef void (*dbuf_prefetch_fn)(void *, uint64_t, uint64_t, boolean_t);

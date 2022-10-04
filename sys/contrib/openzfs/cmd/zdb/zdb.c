@@ -117,10 +117,10 @@ zdb_ot_name(dmu_object_type_t type)
 extern int reference_tracking_enable;
 extern int zfs_recover;
 extern unsigned long zfs_arc_meta_min, zfs_arc_meta_limit;
-extern int zfs_vdev_async_read_max_active;
+extern uint_t zfs_vdev_async_read_max_active;
 extern boolean_t spa_load_verify_dryrun;
 extern boolean_t spa_mode_readable_spacemaps;
-extern int zfs_reconstruct_indirect_combinations_max;
+extern uint_t zfs_reconstruct_indirect_combinations_max;
 extern uint_t zfs_btree_verify_intensity;
 
 static const char cmdname[] = "zdb";
@@ -985,7 +985,7 @@ zdb_nicenum(uint64_t num, char *buf, size_t buflen)
 	if (dump_opt['P'])
 		(void) snprintf(buf, buflen, "%llu", (longlong_t)num);
 	else
-		nicenum(num, buf, sizeof (buf));
+		nicenum(num, buf, buflen);
 }
 
 static const char histo_stars[] = "****************************************";
@@ -1137,6 +1137,8 @@ dump_uint64(objset_t *os, uint64_t object, void *data, size_t size)
 	}
 
 	if (size == 0) {
+		if (data == NULL)
+			kmem_free(arr, oursize);
 		(void) printf("\t\t[]\n");
 		return;
 	}
@@ -4418,9 +4420,14 @@ dump_l2arc_log_blocks(int fd, l2arc_dev_hdr_phys_t l2dhdr,
 		default:
 			abd = abd_alloc_for_io(asize, B_TRUE);
 			abd_copy_from_buf_off(abd, &this_lb, 0, asize);
-			zio_decompress_data(L2BLK_GET_COMPRESS(
+			if (zio_decompress_data(L2BLK_GET_COMPRESS(
 			    (&lbps[0])->lbp_prop), abd, &this_lb,
-			    asize, sizeof (this_lb), NULL);
+			    asize, sizeof (this_lb), NULL) != 0) {
+				(void) printf("L2ARC block decompression "
+				    "failed\n");
+				abd_free(abd);
+				goto out;
+			}
 			abd_free(abd);
 			break;
 		}
@@ -4455,7 +4462,7 @@ dump_l2arc_log_blocks(int fd, l2arc_dev_hdr_phys_t l2dhdr,
 		lbps[0] = lbps[1];
 		lbps[1] = this_lb.lb_prev_lbp;
 	}
-
+out:
 	if (!dump_opt['q']) {
 		(void) printf("log_blk_count:\t %llu with valid cksum\n",
 		    (u_longlong_t)rebuild->dh_lb_count);
@@ -6203,10 +6210,10 @@ zdb_check_for_obsolete_leaks(vdev_t *vd, zdb_cb_t *zcb)
 		 */
 		for (uint64_t inner_offset = 0;
 		    inner_offset < DVA_GET_ASIZE(&vimep->vimep_dst);
-		    inner_offset += 1 << vd->vdev_ashift) {
+		    inner_offset += 1ULL << vd->vdev_ashift) {
 			if (range_tree_contains(msp->ms_allocatable,
-			    offset + inner_offset, 1 << vd->vdev_ashift)) {
-				obsolete_bytes += 1 << vd->vdev_ashift;
+			    offset + inner_offset, 1ULL << vd->vdev_ashift)) {
+				obsolete_bytes += 1ULL << vd->vdev_ashift;
 			}
 		}
 
@@ -7057,8 +7064,11 @@ import_checkpointed_state(char *target, nvlist_t *cfg, char **new_path)
 		freecfg = B_TRUE;
 	}
 
-	if (asprintf(&bogus_name, "%s%s", poolname, BOGUS_SUFFIX) == -1)
+	if (asprintf(&bogus_name, "%s%s", poolname, BOGUS_SUFFIX) == -1) {
+		if (target != poolname)
+			free(poolname);
 		return (NULL);
+	}
 	fnvlist_add_string(cfg, ZPOOL_CONFIG_POOL_NAME, bogus_name);
 
 	error = spa_import(bogus_name, cfg, NULL,
@@ -7073,6 +7083,7 @@ import_checkpointed_state(char *target, nvlist_t *cfg, char **new_path)
 
 	if (new_path != NULL && path_start != NULL) {
 		if (asprintf(new_path, "%s%s", bogus_name, path_start) == -1) {
+			free(bogus_name);
 			if (path_start != NULL)
 				free(poolname);
 			return (NULL);
@@ -7586,7 +7597,7 @@ dump_mos_leaks(spa_t *spa)
 		} else {
 			dmu_object_info_t doi;
 			const char *name;
-			dmu_object_info(mos, object, &doi);
+			VERIFY0(dmu_object_info(mos, object, &doi));
 			if (doi.doi_type & DMU_OT_NEWTYPE) {
 				dmu_object_byteswap_t bswap =
 				    DMU_OT_BYTESWAP(doi.doi_type);
@@ -8193,8 +8204,7 @@ zdb_read_block(char *thing, spa_t *spa)
 	vd = zdb_vdev_lookup(spa->spa_root_vdev, vdev);
 	if (vd == NULL) {
 		(void) printf("***Invalid vdev: %s\n", vdev);
-		free(dup);
-		return;
+		goto done;
 	} else {
 		if (vd->vdev_path)
 			(void) fprintf(stderr, "Found vdev: %s\n",
@@ -8698,6 +8708,8 @@ main(int argc, char **argv)
 			usage();
 		dump_opt['v'] = verbose;
 		error = dump_path(argv[0], argv[1], &object);
+		if (error != 0)
+			fatal("internal error: %s", strerror(error));
 	}
 
 	if (dump_opt['X'] || dump_opt['F'])

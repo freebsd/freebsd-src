@@ -88,4 +88,5 @@ zfs_isa207_available(void)
 {
 	return ((cpu_features2 & PPC_FEATURE2_ARCH_2_07) != 0);
 }
+
 #endif

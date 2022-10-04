@@ -66,14 +66,18 @@ normal_writer(void *filename)
 		err(1, "failed to open %s", file_path);
 	}
 
-	char buf;
+	char buf = 'z';
 	while (1) {
 		write_num = write(fd, &buf, 1);
 		if (write_num == 0) {
 			err(1, "write failed!");
 			break;
 		}
-		lseek(fd, page_size, SEEK_CUR);
+		if (lseek(fd, page_size, SEEK_CUR) == -1) {
+			err(1, "lseek failed on %s: %s", file_path,
+			    strerror(errno));
+			break;
+		}
 	}
 }
 
