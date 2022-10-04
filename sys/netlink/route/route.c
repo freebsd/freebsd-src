@@ -282,7 +282,9 @@ dump_px(uint32_t fibnum, const struct nlmsghdr *hdr,
 	nlattr_add_u32(nw, NL_RTA_TABLE, fibnum);
 
 	int plen = 0;
-	uint32_t scopeid = 0;
+#if defined(INET) || defined(INET6)
+	uint32_t scopeid;
+#endif
 	switch (family) {
 #ifdef INET
 	case AF_INET:
