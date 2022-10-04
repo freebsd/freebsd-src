@@ -75,10 +75,8 @@ nvlist_find_string(nvlist_t *nvl, const char *key, char **retp)
 	int error, len;
 
 	error = nvlist_find(nvl, key, DATA_TYPE_STRING, NULL, &str, &len);
-	if (error == 0) {
-		*retp = ecalloc(1, len + 1);
-		memcpy(*retp, str, len);
-	}
+	if (error == 0)
+		*retp = str;
 	return (error);
 }
 
