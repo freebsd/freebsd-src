@@ -239,6 +239,16 @@ extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
 extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 
+typedef int	ipproto_input_t(struct mbuf **, int *, int);
+typedef void	ipproto_ctlinput_t(int, struct sockaddr *, void *);
+int	ipproto_register(uint8_t, ipproto_input_t, ipproto_ctlinput_t);
+int	ipproto_unregister(uint8_t);
+#define	IPPROTO_REGISTER(prot, input, ctl)	do {			\
+	int error __diagused;						\
+	error = ipproto_register(prot, input, ctl);			\
+	MPASS(error == 0);						\
+} while (0)
+
 VNET_DECLARE(struct pfil_head *, inet_pfil_head);
 #define	V_inet_pfil_head	VNET(inet_pfil_head)
 #define	PFIL_INET_NAME		"inet"
