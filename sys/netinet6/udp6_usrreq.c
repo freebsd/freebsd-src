@@ -114,7 +114,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp_var.h>
 #include <netinet/udplite.h>
 
-#include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>

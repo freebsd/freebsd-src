@@ -98,7 +98,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
-#include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
