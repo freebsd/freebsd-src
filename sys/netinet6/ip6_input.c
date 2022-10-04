@@ -129,8 +129,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netipsec/ipsec_support.h>
 
-#include <netinet6/ip6protosw.h>
-
 ip6proto_input_t	*ip6_protox[IPPROTO_MAX] = {
 			    [0 ... IPPROTO_MAX - 1] = rip6_input };
 ip6proto_ctlinput_t	*ip6_ctlprotox[IPPROTO_MAX] = {

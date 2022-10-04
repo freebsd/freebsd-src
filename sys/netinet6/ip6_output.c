@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_crc32.h>
 #endif
 
-#include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
 
 extern int in6_mcast_loop;

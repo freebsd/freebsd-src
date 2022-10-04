@@ -119,8 +119,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/sctp6_var.h>
 #endif /* SCTP */
 
-#include <netinet6/ip6protosw.h>
-
 /* netinet6/raw_ip6.c */
 extern struct protosw rip6_protosw;
 /* netinet6/udp6_usrreq.c */

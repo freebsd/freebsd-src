@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221003: ip6protosw.h removed
+OLD_FILES+=usr/include/netinet6/ip6protosw.h
+
 # 20221001: deorbit opie
 OLD_FILES+=etc/opieaccess
 OLD_FILES+=etc/opiekeys
