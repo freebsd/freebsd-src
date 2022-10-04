@@ -30,6 +30,8 @@
 # $FreeBSD$
 #
 
+#include "opt_platform.h"
+
 #include <machine/bus.h>
 
 #ifdef FDT
