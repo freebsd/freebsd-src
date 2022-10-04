@@ -44,6 +44,28 @@ int ipsec_init_pcbpolicy(struct inpcb *);
 int ipsec_delete_pcbpolicy(struct inpcb *);
 int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
 
+#ifdef INET
+int udp_ipsec_input(struct mbuf *, int, int);
+int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec4_input(struct mbuf *, int, int);
+int ipsec4_forward(struct mbuf *);
+int ipsec4_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec4_output(struct mbuf *, struct inpcb *);
+int ipsec4_capability(struct mbuf *, u_int);
+int ipsec4_ctlinput(int, struct sockaddr *, void *);
+#endif /* INET */
+
+#ifdef INET6
+int ipsec6_input(struct mbuf *, int, int);
+int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec6_forward(struct mbuf *);
+int ipsec6_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec6_output(struct mbuf *, struct inpcb *);
+int ipsec6_capability(struct mbuf *, u_int);
+int ipsec6_ctlinput(int, struct sockaddr *, void *);
+#endif /* INET6 */
+
 struct ipsec_methods {
 	int	(*input)(struct mbuf *, int, int);
 	int	(*check_policy)(const struct mbuf *, struct inpcb *);
