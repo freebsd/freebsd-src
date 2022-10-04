@@ -196,21 +196,27 @@ dump_sa(struct nl_writer *nw, int attr, const struct sockaddr *sa)
 {
         uint32_t addr_len = 0;
         const void *addr_data = NULL;
+#ifdef INET6
         struct in6_addr addr6;
+#endif
 
         if (sa == NULL)
                 return (true);
 
         switch (sa->sa_family) {
+#ifdef INET
         case AF_INET:
                 addr_len = sizeof(struct in_addr);
                 addr_data = &((const struct sockaddr_in *)sa)->sin_addr;
                 break;
+#endif
+#ifdef INET6
         case AF_INET6:
                 in6_splitscope(&((const struct sockaddr_in6 *)sa)->sin6_addr, &addr6, &addr_len);
                 addr_len = sizeof(struct in6_addr);
                 addr_data = &addr6;
                 break;
+#endif
         case AF_LINK:
                 addr_len = ((const struct sockaddr_dl *)sa)->sdl_alen;
                 addr_data = LLADDR_CONST((const struct sockaddr_dl *)sa);
@@ -563,6 +569,7 @@ ifa_get_scope(const struct ifaddr *ifa)
 
         sa = ifa->ifa_addr;
         switch (sa->sa_family) {
+#ifdef INET
         case AF_INET:
                 {
                         struct in_addr addr;
@@ -573,6 +580,8 @@ ifa_get_scope(const struct ifaddr *ifa)
                                 addr_scope = RT_SCOPE_LINK;
                         break;
                 }
+#endif
+#ifdef INET6
         case AF_INET6:
                 {
                         const struct in6_addr *addr;
@@ -583,6 +592,7 @@ ifa_get_scope(const struct ifaddr *ifa)
                                 addr_scope = RT_SCOPE_LINK;
                         break;
                 }
+#endif
         }
 
         return (addr_scope);
@@ -599,20 +609,28 @@ inet6_get_plen(const struct in6_addr *addr)
 static uint8_t
 get_sa_plen(const struct sockaddr *sa)
 {
-        const struct in6_addr *paddr6;
+#ifdef INET
         const struct in_addr *paddr;
+#endif
+#ifdef INET6
+        const struct in6_addr *paddr6;
+#endif
 
         switch (sa->sa_family) {
+#ifdef INET
         case AF_INET:
                 if (sa == NULL)
                         return (32);
                 paddr = &(((const struct sockaddr_in *)sa)->sin_addr);
                 return bitcount32(paddr->s_addr);;
+#endif
+#ifdef INET6
         case AF_INET6:
                 if (sa == NULL)
                         return (128);
                 paddr6 = &(((const struct sockaddr_in6 *)sa)->sin6_addr);
                 return inet6_get_plen(paddr6);
+#endif
         }
 
         return (0);
@@ -718,12 +736,16 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 	uint32_t group = 0;
 
 	switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
 	case AF_INET:
 		group = RTNLGRP_IPV4_IFADDR;
 		break;
+#endif
+#ifdef INET6
 	case AF_INET6:
 		group = RTNLGRP_IPV6_IFADDR;
 		break;
+#endif
 	default:
 		NL_LOG(LOG_DEBUG2, "ifa notification for unknown AF: %d",
 		    ifa->ifa_addr->sa_family);
