@@ -740,21 +740,18 @@ udp_notify(struct inpcb *inp, int errno)
 
 #ifdef INET
 static void
-udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
+udp_common_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip,
     struct inpcbinfo *pcbinfo)
 {
-	struct ip *ip = vip;
 	struct udphdr *uh;
-	struct in_addr faddr;
 	struct inpcb *inp;
 
-	faddr = ((struct sockaddr_in *)sa)->sin_addr;
-	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+	if (sin->sin_addr.s_addr == INADDR_ANY)
 		return;
 
 	if (PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
-		in_pcbnotifyall(pcbinfo, faddr, EHOSTDOWN, udp_notify);
+		in_pcbnotifyall(pcbinfo, sin->sin_addr, EHOSTDOWN, udp_notify);
 		return;
 	}
 
@@ -770,7 +767,7 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 		return;
 	if (ip != NULL) {
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-		inp = in_pcblookup(pcbinfo, faddr, uh->uh_dport,
+		inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport,
 		    ip->ip_src, uh->uh_sport, INPLOOKUP_WLOCKPCB, NULL);
 		if (inp != NULL) {
 			INP_WLOCK_ASSERT(inp);
@@ -779,7 +776,7 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 			}
 			INP_WUNLOCK(inp);
 		} else {
-			inp = in_pcblookup(pcbinfo, faddr, uh->uh_dport,
+			inp = in_pcblookup(pcbinfo, sin->sin_addr, uh->uh_dport,
 					   ip->ip_src, uh->uh_sport,
 					   INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
 			if (inp != NULL) {
@@ -792,26 +789,27 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 				func = up->u_icmp_func;
 				INP_RUNLOCK(inp);
 				if (func != NULL)
-					(*func)(cmd, sa, vip, ctx);
+					(*func)(cmd, (struct sockaddr *)sin,
+					    ip, ctx);
 			}
 		}
 	} else
-		in_pcbnotifyall(pcbinfo, faddr, inetctlerrmap[cmd],
+		in_pcbnotifyall(pcbinfo, sin->sin_addr, inetctlerrmap[cmd],
 		    udp_notify);
 }
 
 static void
-udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+udp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
 {
 
-	return (udp_common_ctlinput(cmd, sa, vip, &V_udbinfo));
+	return (udp_common_ctlinput(cmd, sin, ip, &V_udbinfo));
 }
 
 static void
-udplite_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+udplite_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
 {
 
-	return (udp_common_ctlinput(cmd, sa, vip, &V_ulitecbinfo));
+	return (udp_common_ctlinput(cmd, sin, ip, &V_ulitecbinfo));
 }
 #endif /* INET */
 

@@ -109,9 +109,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/cc/cc.h>
-#ifdef INET6
-#include <netinet6/tcp6_var.h>
-#endif
 #include <netinet/tcpip.h>
 #include <netinet/tcp_fastopen.h>
 #ifdef TCPPCAP
@@ -125,6 +122,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#ifdef INET6
+#include <netinet6/tcp6_var.h>
+#endif
 
 #include <netipsec/ipsec_support.h>
 
@@ -132,6 +132,9 @@ __FBSDID("$FreeBSD$");
 #include <crypto/siphash/siphash.h>
 
 #include <security/mac/mac_framework.h>
+
+static ip6proto_ctlinput_t tcp6_ctlinput;
+static udp_tun_icmp_t tcp6_ctlinput_viaudp;
 
 VNET_DEFINE(int, tcp_mssdflt) = TCP_MSS;
 #ifdef INET6
@@ -372,6 +375,8 @@ static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    const void *ip4hdr, const void *ip6hdr);
+static ipproto_ctlinput_t	tcp_ctlinput;
+static udp_tun_icmp_t		tcp_ctlinput_viaudp;
 
 static struct tcp_function_block tcp_def_funcblk = {
 	.tfb_tcp_block_name = "freebsd",
@@ -2849,11 +2854,10 @@ tcp_next_pmtu(const struct icmp *icp, const struct ip *ip)
 }
 
 static void
-tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
+tcp_ctlinput_with_port(int cmd, struct sockaddr_in *sin, struct ip *ip,
+    uint16_t port)
 {
-	struct ip *ip = vip;
 	struct tcphdr *th;
-	struct in_addr faddr;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
@@ -2862,8 +2866,7 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 	tcp_seq icmp_tcp_seq;
 	int mtu;
 
-	faddr = ((struct sockaddr_in *)sa)->sin_addr;
-	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+	if (sin->sin_addr.s_addr == INADDR_ANY)
 		return;
 
 	if (cmd == PRC_MSGSIZE)
@@ -2884,13 +2887,14 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 		return;
 
 	if (ip == NULL) {
-		in_pcbnotifyall(&V_tcbinfo, faddr, inetctlerrmap[cmd], notify);
+		in_pcbnotifyall(&V_tcbinfo, sin->sin_addr, inetctlerrmap[cmd],
+		    notify);
 		return;
 	}
 
 	icp = (struct icmp *)((caddr_t)ip - offsetof(struct icmp, icmp_ip));
 	th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-	inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport, ip->ip_src,
+	inp = in_pcblookup(&V_tcbinfo, sin->sin_addr, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL && PRC_IS_REDIRECT(cmd)) {
 		/* signal EHOSTDOWN, as it flushes the cached route */
@@ -2933,7 +2937,7 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 					if (mtu < tp->t_maxseg +
 					    sizeof(struct tcpiphdr)) {
 						bzero(&inc, sizeof(inc));
-						inc.inc_faddr = faddr;
+						inc.inc_faddr = sin->sin_addr;
 						inc.inc_fibnum =
 						    inp->inp_inc.inc_fibnum;
 						tcp_hc_updatemtu(&inc, mtu);
@@ -2948,7 +2952,7 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 		bzero(&inc, sizeof(inc));
 		inc.inc_fport = th->th_dport;
 		inc.inc_lport = th->th_sport;
-		inc.inc_faddr = faddr;
+		inc.inc_faddr = sin->sin_addr;
 		inc.inc_laddr = ip->ip_src;
 		syncache_unreach(&inc, icmp_tcp_seq, port);
 	}
@@ -2957,13 +2961,13 @@ out:
 		INP_WUNLOCK(inp);
 }
 
-void
-tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+static void
+tcp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
 {
-	tcp_ctlinput_with_port(cmd, sa, vip, htons(0));
+	tcp_ctlinput_with_port(cmd, sin, ip, htons(0));
 }
 
-void
+static void
 tcp_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *vip, void *unused)
 {
 	/* Its a tunneled TCP over UDP icmp */
@@ -2998,7 +3002,7 @@ tcp_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *vip, void *unused)
 	o_len -= sizeof(struct udphdr);
 	outer_ip->ip_len = htons(o_len);
 	/* Now call in to the normal handling code */
-	tcp_ctlinput_with_port(cmd, sa, vip, port);
+	tcp_ctlinput_with_port(cmd, (struct sockaddr_in *)sa, vip, port);
 }
 #endif /* INET */
 
@@ -3018,7 +3022,8 @@ tcp6_next_pmtu(const struct icmp6_hdr *icmp6)
 }
 
 static void
-tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
+tcp6_ctlinput_with_port(int cmd, struct sockaddr_in6 *sin6,
+    struct ip6ctlparam *ip6cp, uint16_t port)
 {
 	struct in6_addr *dst;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
@@ -3027,7 +3032,6 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct icmp6_hdr *icmp6;
-	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	struct in_conninfo inc;
 	struct tcp_ports {
@@ -3038,13 +3042,8 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 	unsigned int mtu;
 	unsigned int off;
 
-	if (sa->sa_family != AF_INET6 ||
-	    sa->sa_len != sizeof(struct sockaddr_in6))
-		return;
-
 	/* if the parameter is from icmp6, decode it. */
-	if (d != NULL) {
-		ip6cp = (struct ip6ctlparam *)d;
+	if (ip6cp != NULL) {
 		icmp6 = ip6cp->ip6c_icmp6;
 		m = ip6cp->ip6c_m;
 		ip6 = ip6cp->ip6c_ip6;
@@ -3077,9 +3076,8 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 		return;
 
 	if (ip6 == NULL) {
-		in6_pcbnotify(&V_tcbinfo, sa, 0,
-			      (const struct sockaddr *)sa6_src,
-			      0, cmd, NULL, notify);
+		in6_pcbnotify(&V_tcbinfo, sin6, 0, sa6_src, 0, cmd, NULL,
+		    notify);
 		return;
 	}
 
@@ -3168,13 +3166,13 @@ out:
 		INP_WUNLOCK(inp);
 }
 
-void
-tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
+static void
+tcp6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ctl)
 {
-	tcp6_ctlinput_with_port(cmd, sa, d, htons(0));
+	tcp6_ctlinput_with_port(cmd, sin6, ctl, htons(0));
 }
 
-void
+static void
 tcp6_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *d, void *unused)
 {
 	struct ip6ctlparam *ip6cp;
@@ -3197,7 +3195,7 @@ tcp6_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *d, void *unused)
 		ip6cp->ip6c_m->m_pkthdr.len -= sizeof(struct udphdr);
 	}
 	/* Now call in to the normal handling code */
-	tcp6_ctlinput_with_port(cmd, sa, d, port);
+	tcp6_ctlinput_with_port(cmd, (struct sockaddr_in6 *)sa, ip6cp, port);
 }
 
 #endif /* INET6 */

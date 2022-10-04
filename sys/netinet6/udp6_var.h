@@ -68,10 +68,6 @@
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet6_udp6);
 
-extern struct pr_usrreqs	udp6_usrreqs;
-
-void	udp6_ctlinput(int, struct sockaddr *, void *);
-void	udplite6_ctlinput(int, struct sockaddr *, void *);
 int	udp6_input(struct mbuf **, int *, int);
 #endif
 

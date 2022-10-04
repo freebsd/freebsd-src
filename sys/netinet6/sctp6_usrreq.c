@@ -248,33 +248,21 @@ sctp6_notify(struct sctp_inpcb *inp,
 }
 
 void
-sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
+sctp6_ctlinput(int cmd, struct sockaddr_in6 *pktdst, struct ip6ctlparam *ip6cp)
 {
-	struct ip6ctlparam *ip6cp;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
 	struct sctphdr sh;
 	struct sockaddr_in6 src, dst;
 
-	if (pktdst->sa_family != AF_INET6 ||
-	    pktdst->sa_len != sizeof(struct sockaddr_in6)) {
-		return;
-	}
-
 	if ((unsigned)cmd >= PRC_NCMDS) {
 		return;
 	}
 	if (PRC_IS_REDIRECT(cmd)) {
-		d = NULL;
+		ip6cp = NULL;
 	} else if (inet6ctlerrmap[cmd] == 0) {
 		return;
-	}
-	/* If the parameter is from icmp6, decode it. */
-	if (d != NULL) {
-		ip6cp = (struct ip6ctlparam *)d;
-	} else {
-		ip6cp = (struct ip6ctlparam *)NULL;
 	}
 
 	if (ip6cp != NULL) {
