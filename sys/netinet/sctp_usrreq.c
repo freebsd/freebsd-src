@@ -272,9 +272,6 @@ sctp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
 	struct sctp_init_chunk *ch;
 	struct sockaddr_in src, dst;
 
-	if (sin->sin_addr.s_addr == INADDR_ANY) {
-		return;
-	}
 	if (PRC_IS_REDIRECT(cmd)) {
 		ip = NULL;
 	} else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0) {
