@@ -260,7 +260,7 @@ sctp_notify(struct sctp_inpcb *inp,
 }
 
 void
-sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+sctp_ctlinput(int cmd, struct sockaddr_in *sin, struct ip *ip)
 {
 	struct ip *outer_ip;
 	struct ip *inner_ip;
@@ -272,17 +272,16 @@ sctp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	struct sctp_init_chunk *ch;
 	struct sockaddr_in src, dst;
 
-	if (sa->sa_family != AF_INET ||
-	    ((struct sockaddr_in *)sa)->sin_addr.s_addr == INADDR_ANY) {
+	if (sin->sin_addr.s_addr == INADDR_ANY) {
 		return;
 	}
 	if (PRC_IS_REDIRECT(cmd)) {
-		vip = NULL;
+		ip = NULL;
 	} else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0) {
 		return;
 	}
-	if (vip != NULL) {
-		inner_ip = (struct ip *)vip;
+	if (ip != NULL) {
+		inner_ip = ip;
 		icmp = (struct icmp *)((caddr_t)inner_ip -
 		    (sizeof(struct icmp) - sizeof(struct ip)));
 		outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));

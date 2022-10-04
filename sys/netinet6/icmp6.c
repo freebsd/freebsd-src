@@ -113,7 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/send.h>
 
-extern ipproto_ctlinput_t	*ip6_ctlprotox[];
+extern ip6proto_ctlinput_t	*ip6_ctlprotox[];
 
 VNET_PCPUSTAT_DEFINE(struct icmp6stat, icmp6stat);
 VNET_PCPUSTAT_SYSINIT(icmp6stat);
@@ -1086,8 +1086,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		}
 
 		if (ip6_ctlprotox[nxt] != NULL)
-			ip6_ctlprotox[nxt](code, (struct sockaddr *)&icmp6dst,
-			    &ip6cp);
+			ip6_ctlprotox[nxt](code, &icmp6dst, &ip6cp);
 	}
 	*mp = m;
 	return (0);

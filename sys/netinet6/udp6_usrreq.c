@@ -547,14 +547,13 @@ badunlocked:
 }
 
 static void
-udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
-    struct inpcbinfo *pcbinfo)
+udp6_common_ctlinput(int cmd, struct sockaddr_in6 *sin6,
+    struct ip6ctlparam *ip6cp, struct inpcbinfo *pcbinfo)
 {
 	struct udphdr uh;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	int off = 0;
-	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	void *cmdarg;
 	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
@@ -563,22 +562,17 @@ udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
 		u_int16_t uh_dport;
 	} *uhp;
 
-	if (sa->sa_family != AF_INET6 ||
-	    sa->sa_len != sizeof(struct sockaddr_in6))
-		return;
-
 	if ((unsigned)cmd >= PRC_NCMDS)
 		return;
 	if (PRC_IS_REDIRECT(cmd))
-		notify = in6_rtchange, d = NULL;
+		notify = in6_rtchange, ip6cp = NULL;
 	else if (cmd == PRC_HOSTDEAD)
-		d = NULL;
+		ip6cp = NULL;
 	else if (inet6ctlerrmap[cmd] == 0)
 		return;
 
 	/* if the parameter is from icmp6, decode it. */
-	if (d != NULL) {
-		ip6cp = (struct ip6ctlparam *)d;
+	if (ip6cp != NULL) {
 		m = ip6cp->ip6c_m;
 		ip6 = ip6cp->ip6c_ip6;
 		off = ip6cp->ip6c_off;
@@ -619,7 +613,7 @@ udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
 					/* Yes it is. */
 					INP_RUNLOCK(inp);
 					(*up->u_icmp_func)(cmd, (struct sockaddr *)ip6cp->ip6c_src,
-					      d, up->u_tun_ctx);
+					      ip6cp, up->u_tun_ctx);
 					return;
 				} else {
 					/* Can't find it. */
@@ -627,26 +621,25 @@ udp6_common_ctlinput(int cmd, struct sockaddr *sa, void *d,
 				}
 			}
 		}
-		(void)in6_pcbnotify(pcbinfo, sa, uh.uh_dport,
-		    (struct sockaddr *)ip6cp->ip6c_src, uh.uh_sport, cmd,
-		    cmdarg, notify);
+		in6_pcbnotify(pcbinfo, sin6, uh.uh_dport, ip6cp->ip6c_src,
+		    uh.uh_sport, cmd, cmdarg, notify);
 	} else
-		(void)in6_pcbnotify(pcbinfo, sa, 0,
-		    (const struct sockaddr *)sa6_src, 0, cmd, cmdarg, notify);
+		in6_pcbnotify(pcbinfo, sin6, 0, sa6_src, 0, cmd, cmdarg,
+		    notify);
 }
 
-void
-udp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
+static void
+udp6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ctl)
 {
 
-	return (udp6_common_ctlinput(cmd, sa, d, &V_udbinfo));
+	return (udp6_common_ctlinput(cmd, sin6, ctl, &V_udbinfo));
 }
 
-void
-udplite6_ctlinput(int cmd, struct sockaddr *sa, void *d)
+static void
+udplite6_ctlinput(int cmd, struct sockaddr_in6 *sin6, struct ip6ctlparam *ctl)
 {
 
-	return (udp6_common_ctlinput(cmd, sa, d, &V_ulitecbinfo));
+	return (udp6_common_ctlinput(cmd, sin6, ctl, &V_ulitecbinfo));
 }
 
 static int

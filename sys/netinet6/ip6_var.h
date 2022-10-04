@@ -394,8 +394,6 @@ int	frag6_input(struct mbuf **, int *, int);
 void	frag6_drain(void);
 
 void	rip6_init(void);
-int	rip6_input(struct mbuf **, int *, int);
-void	rip6_ctlinput(int, struct sockaddr *, void *);
 int	rip6_ctloutput(struct socket *, struct sockopt *);
 int	rip6_usrreq(struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *, struct thread *);
@@ -444,7 +442,8 @@ struct ip6ctlparam {
 };
 
 typedef int	ip6proto_input_t(struct mbuf **, int *, int);
-typedef void	ip6proto_ctlinput_t(int, struct sockaddr *, void *);
+typedef void	ip6proto_ctlinput_t(int, struct sockaddr_in6 *,
+		    struct ip6ctlparam *);
 int	ip6proto_register(uint8_t, ip6proto_input_t, ip6proto_ctlinput_t);
 int	ip6proto_unregister(uint8_t);
 #define	IP6PROTO_REGISTER(prot, input, ctl)	do {			\
@@ -452,6 +451,10 @@ int	ip6proto_unregister(uint8_t);
 	error = ip6proto_register(prot, input, ctl);			\
 	MPASS(error == 0);						\
 } while (0)
+
+ip6proto_input_t	rip6_input;
+ip6proto_ctlinput_t	rip6_ctlinput;
+
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IP6_VAR_H_ */

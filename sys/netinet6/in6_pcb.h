@@ -94,8 +94,8 @@ struct	inpcb *
 	in6_pcblookup_mbuf(struct inpcbinfo *, struct in6_addr *,
 			   u_int, struct in6_addr *, u_int, int,
 			   struct ifnet *ifp, struct mbuf *);
-void	in6_pcbnotify(struct inpcbinfo *, struct sockaddr *,
-			   u_int, const struct sockaddr *, u_int, int, void *,
+void	in6_pcbnotify(struct inpcbinfo *, struct sockaddr_in6 *, u_int,
+			   const struct sockaddr_in6 *, u_int, int, void *,
 			   struct inpcb *(*)(struct inpcb *, int));
 struct inpcb *
 	in6_rtchange(struct inpcb *, int);

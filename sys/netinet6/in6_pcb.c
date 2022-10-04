@@ -681,30 +681,29 @@ inp_match6(const struct inpcb *inp, void *v __unused)
 	return ((inp->inp_vflag & INP_IPV6) != 0);
 }
 void
-in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
-    u_int fport_arg, const struct sockaddr *src, u_int lport_arg,
+in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
+    u_int fport_arg, const struct sockaddr_in6 *src, u_int lport_arg,
     int cmd, void *cmdarg,
     struct inpcb *(*notify)(struct inpcb *, int))
 {
 	struct inpcb_iterator inpi = INP_ITERATOR(pcbinfo, INPLOOKUP_WLOCKPCB,
 	    inp_match6, NULL);
 	struct inpcb *inp;
-	struct sockaddr_in6 sa6_src, *sa6_dst;
+	struct sockaddr_in6 sa6_src;
 	u_short	fport = fport_arg, lport = lport_arg;
 	u_int32_t flowinfo;
 	int errno;
 
-	if ((unsigned)cmd >= PRC_NCMDS || dst->sa_family != AF_INET6)
+	if ((unsigned)cmd >= PRC_NCMDS)
 		return;
 
-	sa6_dst = (struct sockaddr_in6 *)dst;
 	if (IN6_IS_ADDR_UNSPECIFIED(&sa6_dst->sin6_addr))
 		return;
 
 	/*
 	 * note that src can be NULL when we get notify by local fragmentation.
 	 */
-	sa6_src = (src == NULL) ? sa6_any : *(const struct sockaddr_in6 *)src;
+	sa6_src = (src == NULL) ? sa6_any : *src;
 	flowinfo = sa6_src.sin6_flowinfo;
 
 	/*
@@ -733,8 +732,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
 		if (cmd == PRC_MSGSIZE && cmdarg != NULL)
-			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
-					*(u_int32_t *)cmdarg);
+			ip6_notify_pmtu(inp, sa6_dst, *(uint32_t *)cmdarg);
 
 		/*
 		 * Detect if we should notify the error. If no source and

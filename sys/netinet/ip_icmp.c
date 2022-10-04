@@ -573,8 +573,8 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 *   ICMP_ADVLENPREF. See its definition in ip_icmp.h.
 		 */
 		if (ip_ctlprotox[icp->icmp_ip.ip_p] != NULL)
-			ip_ctlprotox[icp->icmp_ip.ip_p](code,
-			    (struct sockaddr *)&icmpsrc, &icp->icmp_ip);
+			ip_ctlprotox[icp->icmp_ip.ip_p](code, &icmpsrc,
+			    &icp->icmp_ip);
 		break;
 
 	badcode:
