@@ -7318,7 +7318,7 @@ pmap_every_pte_zero(vm_paddr_t pa)
 /*
  * Tries to create the specified 2MB page mapping.  Returns KERN_SUCCESS if
  * the mapping was created, and one of KERN_FAILURE, KERN_NO_SPACE,
- * KERN_PROTECTION_FAILURE, or KERN_RESOURCE_FAILURE otherwise.  Returns
+ * KERN_PROTECTION_FAILURE, or KERN_RESOURCE_SHORTAGE otherwise.  Returns
  * KERN_FAILURE if either (1) PMAP_ENTER_NOREPLACE was specified and a 4KB
  * page mapping already exists within the 2MB virtual address range starting
  * at the specified virtual address or (2) the requested 2MB page mapping is
