@@ -937,7 +937,7 @@ main(int argc, char *argv[])
 		    strerror(errno));
 		exit(1);
 	}
-	cap_rights_init(&rights, CAP_RECV);
+	cap_rights_init(&rights, CAP_RECV, CAP_EVENT);
 	if (caph_rights_limit(rcvsock, &rights) < 0) {
 		fprintf(stderr, "caph_rights_limit rcvsock: %s\n",
 		    strerror(errno));
@@ -1039,7 +1039,8 @@ wait_for_reply(int sock, struct msghdr *mhdr)
 	pfd[0].events = POLLIN;
 	pfd[0].revents = 0;
 
-	if (poll(pfd, 1, waittime * 1000) > 0)
+	if (poll(pfd, 1, waittime * 1000) > 0 &&
+	    pfd[0].revents & POLLIN)
 		cc = recvmsg(rcvsock, mhdr, 0);
 
 	return (cc);
