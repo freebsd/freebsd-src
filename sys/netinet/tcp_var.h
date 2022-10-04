@@ -1206,6 +1206,7 @@ void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
 uint32_t tcp_hc_getmtu(struct in_conninfo *);
 void	 tcp_hc_updatemtu(struct in_conninfo *, uint32_t);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
+void 	 cc_after_idle(struct tcpcb *tp);
 
 extern	struct protosw tcp_protosw;		/* shared for TOE */
 extern	struct protosw tcp6_protosw;		/* shared for TOE */
