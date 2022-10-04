@@ -133,8 +133,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef INET6
 static ip6proto_ctlinput_t tcp6_ctlinput;
 static udp_tun_icmp_t tcp6_ctlinput_viaudp;
+#endif
 
 VNET_DEFINE(int, tcp_mssdflt) = TCP_MSS;
 #ifdef INET6
