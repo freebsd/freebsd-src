@@ -84,9 +84,9 @@
 #  4.  `make installkernel KERNCONF=YOUR_KERNEL_HERE'   (default is GENERIC).
 #       [steps 3. & 4. can be combined by using the "kernel" target]
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
-#  6.  `mergemaster -p'
+#  6.  `etcupdate -p'
 #  7.  `make installworld'
-#  8.  `mergemaster'            (you may wish to use -i, along with -U or -F).
+#  8.  `etcupdate -B'
 #  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
