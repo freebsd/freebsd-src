@@ -33,12 +33,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
+#include <cddl/dev/dtrace/dtrace_cddl.h>
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -65,15 +66,20 @@ dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 int
 dtrace_invop(uintptr_t addr, struct trapframe *frame, void **scratch)
 {
+	struct thread *td;
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
+	td = curthread;
+	td->t_dtrace_trapframe = frame;
+	rval = 0;
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next) {
 		rval = hdlr->dtih_func(addr, frame, (uintptr_t)scratch);
 		if (rval != 0)
-			return (rval);
+			break;
 	}
-	return (0);
+	td->t_dtrace_trapframe = NULL;
+	return (rval);
 }
 
 void
