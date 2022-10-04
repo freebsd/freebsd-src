@@ -193,8 +193,7 @@ int ipsec_kmod_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
 int ipsec_kmod_capability(struct ipsec_support * const, struct mbuf *, u_int);
 size_t ipsec_kmod_hdrsize(struct ipsec_support * const, struct inpcb *);
-int ipsec_kmod_ctlinput(struct ipsec_support * const, int,
-    struct sockaddr *, void *);
+int ipsec_kmod_ctlinput(struct ipsec_support *, ipsec_ctlinput_param_t);
 int ipsec_kmod_udp_input(struct ipsec_support * const, struct mbuf *, int, int);
 int ipsec_kmod_udp_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
