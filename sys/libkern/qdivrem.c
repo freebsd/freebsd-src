@@ -91,7 +91,7 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 	/*
 	 * Take care of special cases: divide by zero, and u < v.
 	 */
-	if (vq == 0) {
+	if (__predict_false(vq == 0)) {
 		/* divide by zero. */
 		static volatile const unsigned int zero = 0;
 
