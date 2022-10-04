@@ -127,10 +127,12 @@ dump_lle_locked(struct llentry *lle, void *arg)
 	struct nlmsghdr *hdr = &wa->hdr;
 	struct nl_writer *nw = wa->nw;
 	struct ndmsg *ndm;
+#if defined(INET) || defined(INET6)
 	union {
 		struct in_addr	in;
 		struct in6_addr	in6;
 	} addr;
+#endif
 
 	IF_DEBUG_LEVEL(LOG_DEBUG2) {
 		char llebuf[NHOP_PRINT_BUFSIZE];
