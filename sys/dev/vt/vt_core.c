@@ -2191,7 +2191,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 
 		vd->vd_mx = x;
 		vd->vd_my = y;
-		if (vd->vd_mstate & MOUSE_BUTTON1DOWN)
+		if (vd->vd_mstate & (MOUSE_BUTTON1DOWN | VT_MOUSE_EXTENDBUTTON))
 			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
 			    vd->vd_mx / vf->vf_width,
 			    vd->vd_my / vf->vf_height);
