@@ -515,11 +515,11 @@ Do the search recursively from the
 .Pa /usr/src/sys/arm
 directory
 .Pp
-.Dl $ grep -H -R FIXME --include=*.h /usr/src/sys/arm/
+.Dl $ grep -H -R FIXME --include="*.h" /usr/src/sys/arm/
 .It
 Same as above but show only the name of the matching file:
 .Pp
-.Dl $ grep -l -R FIXME --include=*.h /usr/src/sys/arm/
+.Dl $ grep -l -R FIXME --include="*.h" /usr/src/sys/arm/
 .It
 Show lines containing the text
 .Sq foo .
