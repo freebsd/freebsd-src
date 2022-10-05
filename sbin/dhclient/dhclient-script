@@ -173,6 +173,10 @@ add_new_routes() {
 			if [ "$new_ip_address" = "$router" ]; then
 				route add default -iface $router >/dev/null 2>&1
 			else
+				if [ "$new_subnet_mask" = "255.255.255.255" ]; then
+					route add "$router" -iface "$interface" >/dev/null 2>&1
+				fi
+
 				route add default $router >/dev/null 2>&1
 			fi
 		fi
