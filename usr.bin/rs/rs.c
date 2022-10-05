@@ -114,10 +114,11 @@ main(int argc, char *argv[])
 static void
 getfile(void)
 {
-	char *p;
+	char *p, *sp;
 	char *endp;
 	char **ep;
 	int c;
+	int len;
 	int multisep = (flags & ONEISEPONLY ? 0 : 1);
 	int nullpad = flags & NULLPAD;
 	char **padto;
@@ -159,11 +160,13 @@ getfile(void)
 				*ep = blank;
 			else			/* store column entry */
 				*ep = p;
+			sp = p;
 			while (p < endp && *p != isep)
 				p++;		/* find end of entry */
 			*p = '\0';		/* mark end of entry */
-			if (maxlen < p - *ep)	/* update maxlen */
-				maxlen = p - *ep;
+			len = p - sp;
+			if (maxlen < len)	/* update maxlen */
+				maxlen = len;
 			INCR(ep);		/* prepare for next entry */
 		}
 		irows++;			/* update row count */
