@@ -4297,11 +4297,11 @@ msk_stop(struct msk_if_softc *sc_if)
  * lower 16 bits should be the last operation.
  */
 #define	MSK_READ_MIB32(x, y)					\
-	(((uint32_t)GMAC_READ_2(sc, x, (y) + 4)) << 16) +	\
-	(uint32_t)GMAC_READ_2(sc, x, y)
+	((((uint32_t)GMAC_READ_2(sc, x, (y) + 4)) << 16) +	\
+	(uint32_t)GMAC_READ_2(sc, x, y))
 #define	MSK_READ_MIB64(x, y)					\
-	(((uint64_t)MSK_READ_MIB32(x, (y) + 8)) << 32) +	\
-	(uint64_t)MSK_READ_MIB32(x, y)
+	((((uint64_t)MSK_READ_MIB32(x, (y) + 8)) << 32) +	\
+	(uint64_t)MSK_READ_MIB32(x, y))
 
 static void
 msk_stats_clear(struct msk_if_softc *sc_if)
@@ -4318,7 +4318,7 @@ msk_stats_clear(struct msk_if_softc *sc_if)
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
 	/* Read all MIB Counters with Clear Mode set. */
 	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i += sizeof(uint32_t))
-		MSK_READ_MIB32(sc_if->msk_port, i);
+		(void)MSK_READ_MIB32(sc_if->msk_port, i);
 	/* Clear MIB Clear Counter Mode. */
 	gmac &= ~GM_PAR_MIB_CLR;
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac);
