@@ -239,7 +239,7 @@ void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
 int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
-void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
+void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz, int mark);
 #endif
 
 #define	VTB_MARK_NONE		0
