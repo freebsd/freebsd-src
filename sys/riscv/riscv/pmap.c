@@ -3147,6 +3147,24 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 }
 
 /*
+ * Returns true if every page table entry in the specified page table is
+ * zero.
+ */
+static bool
+pmap_every_pte_zero(vm_paddr_t pa)
+{
+	pt_entry_t *pt_end, *pte;
+
+	KASSERT((pa & PAGE_MASK) == 0, ("pa is misaligned"));
+	pte = (pt_entry_t *)PHYS_TO_DMAP(pa);
+	for (pt_end = pte + Ln_ENTRIES; pte < pt_end; pte++) {
+		if (*pte != 0)
+			return (false);
+	}
+	return (true);
+}
+
+/*
  * Tries to create the specified 2MB page mapping.  Returns KERN_SUCCESS if
  * the mapping was created, and one of KERN_FAILURE, KERN_NO_SPACE, or
  * KERN_RESOURCE_SHORTAGE otherwise.  Returns KERN_FAILURE if
@@ -3190,7 +3208,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				    "pmap_enter_l2: no space for va %#lx"
 				    " in pmap %p", va, pmap);
 				return (KERN_NO_SPACE);
-			} else {
+			} else if (va < VM_MAXUSER_ADDRESS ||
+			    !pmap_every_pte_zero(L2PTE_TO_PHYS(oldl2))) {
 				l2pg->ref_count--;
 				CTR2(KTR_PMAP, "pmap_enter_l2:"
 				    " failed to replace existing mapping"
