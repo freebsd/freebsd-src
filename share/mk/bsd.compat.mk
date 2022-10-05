@@ -66,6 +66,12 @@ LIB32WMAKEFLAGS+= OBJCOPY="${XOBJCOPY}"
 LIB32CFLAGS=	-DCOMPAT_32BIT
 LIB32DTRACE=	${DTRACE} -32
 LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
+LIB32_MACHINE_ABI=	${MACHINE_ABI:N*64} long32 ptr32
+.if ${COMPAT_ARCH} == "amd64"
+LIB32_MACHINE_ABI+=	time32
+.else
+LIB32_MACHINE_ABI+=	time64
+.endif
 
 # -------------------------------------------------------------------
 # In the program linking case, select LIBCOMPAT
@@ -95,7 +101,7 @@ _LIBCOMPAT:=	${WANT_COMPAT}
 # Set defaults based on type.
 libcompat=	${_LIBCOMPAT:tl}
 _LIBCOMPAT_MAKEVARS=	_OBJTOP TMP CPUFLAGS CFLAGS CXXFLAGS LDFLAGS \
-			_MACHINE _MACHINE_ARCH \
+			_MACHINE _MACHINE_ARCH _MACHINE_ABI \
 			WMAKEENV WMAKEFLAGS WMAKE WORLDTMP
 .for _var in ${_LIBCOMPAT_MAKEVARS}
 .if !empty(LIB${_LIBCOMPAT}${_var})
