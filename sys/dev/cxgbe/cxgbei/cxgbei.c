@@ -167,21 +167,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 		return (rc);
 	}
 
-	r = t4_read_reg(sc, A_ULP_RX_ISCSI_TAGMASK);
-	r &= V_ISCSITAGMASK(M_ISCSITAGMASK);
-	if (r != pr->pr_tag_mask) {
-		/*
-		 * Recent firmwares are supposed to set up the iSCSI tagmask
-		 * but we'll do it ourselves it the computed value doesn't match
-		 * what's in the register.
-		 */
-		device_printf(sc->dev,
-		    "tagmask 0x%08x does not match computed mask 0x%08x.\n", r,
-		    pr->pr_tag_mask);
-		t4_set_reg_field(sc, A_ULP_RX_ISCSI_TAGMASK,
-		    V_ISCSITAGMASK(M_ISCSITAGMASK), pr->pr_tag_mask);
-	}
-
 	read_pdu_limits(sc, &ci->max_tx_data_len, &ci->max_rx_data_len, pr);
 
 	sysctl_ctx_init(&ci->ctx);
