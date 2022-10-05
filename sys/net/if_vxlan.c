@@ -2607,6 +2607,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 	m->m_pkthdr.rcvif = ifp;
 	M_SETFIB(m, ifp->if_fib);
 
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	error = netisr_queue_src(NETISR_ETHER, 0, m);
 	*m0 = NULL;
 
