@@ -3383,6 +3383,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * attempt fails, we don't retry.  Instead, we give up.
 			 */
 			if (l2 != NULL && pmap_load(l2) != 0) {
+				if ((pmap_load(l2) & PTE_RWX) != 0)
+					return (NULL);
 				phys = PTE_TO_PHYS(pmap_load(l2));
 				mpte = PHYS_TO_VM_PAGE(phys);
 				mpte->ref_count++;
