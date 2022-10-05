@@ -132,15 +132,15 @@ _TARGET_CPUTYPE=dummy
 .endif
 .if ${TARGET} == "arm"
 .if ${TARGET_ARCH:Marmv[67]*} != "" && ${TARGET_CPUTYPE:M*soft*} == ""
-TARGET_ABI=	gnueabihf
+TARGET_TRIPLE_ABI=	gnueabihf
 .else
-TARGET_ABI=	gnueabi
+TARGET_TRIPLE_ABI=	gnueabi
 .endif
 .endif
-MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/sf$//}-${MACHINE_ABI}-freebsd${OS_REVISION}
-TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/sf$//}-${TARGET_ABI}-freebsd${OS_REVISION}
+MACHINE_TRIPLE_ABI?=	unknown
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/sf$//}-${MACHINE_TRIPLE_ABI}-freebsd${OS_REVISION}
+TARGET_TRIPLE_ABI?=	unknown
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/sf$//}-${TARGET_TRIPLE_ABI}-freebsd${OS_REVISION}
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		armv6/arm \
