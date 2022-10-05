@@ -193,13 +193,8 @@ devmap_bootstrap(vm_offset_t l1pt, const struct devmap_entry *table)
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 #if defined(__arm__)
-#if __ARM_ARCH >= 6
 		pmap_preboot_map_attr(pd->pd_pa, pd->pd_va, pd->pd_size,
 		    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
-#else
-		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
-		    VM_PROT_READ | VM_PROT_WRITE, PTE_DEVICE);
-#endif
 #elif defined(__aarch64__) || defined(__riscv)
 		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
 #endif
