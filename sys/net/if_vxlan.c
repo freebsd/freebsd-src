@@ -2894,6 +2894,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 		m->m_pkthdr.csum_data = 0;
 	}
 
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	(*ifp->if_input)(ifp, m);
 	*m0 = NULL;
 	error = 0;
