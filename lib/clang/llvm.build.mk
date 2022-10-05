@@ -36,15 +36,15 @@ BUILD_ARCH?=	${MACHINE_ARCH}
 # arm (for armv4 and armv5 CPUs) always uses the soft float ABI.
 # For all other targets, we stick with 'unknown'.
 .if ${MACHINE_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
-TARGET_ABI=	-gnueabihf
+TARGET_TRIPLE_ABI=	-gnueabihf
 .elif ${MACHINE_ARCH:Marm*}
-TARGET_ABI=	-gnueabi
+TARGET_TRIPLE_ABI=	-gnueabi
 .else
-TARGET_ABI=
+TARGET_TRIPLE_ABI=
 .endif
 VENDOR=		unknown
 
-LLVM_TARGET_TRIPLE?=	${MACHINE_ARCH:C/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${VENDOR}-freebsd${OS_REVISION}${TARGET_ABI}
+LLVM_TARGET_TRIPLE?=	${MACHINE_ARCH:C/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${VENDOR}-freebsd${OS_REVISION}${TARGET_TRIPLE_ABI}
 LLVM_BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${VENDOR}-freebsd${OS_REVISION}
 
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${LLVM_TARGET_TRIPLE}\"
