@@ -2515,15 +2515,10 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREEN	0xfffffffffffffffful
 #define	PC_FREEL	((1ul << (_NPCPV % 64)) - 1)
 
-static const uint64_t pc_freemask[] = { PC_FREEN, PC_FREEN,
-#if _NPCM > 3
-    PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN, PC_FREEN,
-    PC_FREEN,
-#endif
-    PC_FREEL
+static const uint64_t pc_freemask[_NPCM] = {
+	[0 ... _NPCM - 2] = PC_FREEN,
+	[_NPCM - 1] = PC_FREEL
 };
-
-CTASSERT(nitems(pc_freemask) == _NPCM);
 
 static __inline bool
 pc_is_full(struct pv_chunk *pc)
