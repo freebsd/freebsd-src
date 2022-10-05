@@ -4354,7 +4354,6 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_MC_OK);
 	stats->rx_crc_errs +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_FCS_ERR);
-	MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE1);
 	stats->rx_good_octets +=
 	    MSK_READ_MIB64(sc_if->msk_port, GM_RXO_OK_LO);
 	stats->rx_bad_octets +=
@@ -4381,10 +4380,8 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_LNG_ERR);
 	stats->rx_pkts_jabbers +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_JAB_PKT);
-	MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE2);
 	stats->rx_fifo_oflows +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXE_FIFO_OV);
-	MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE3);
 
 	/* Tx stats. */
 	stats->tx_ucast_frames +=
@@ -4411,7 +4408,6 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_1518B);
 	stats->tx_pkts_1519_max +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_MAX_SZ);
-	MSK_READ_MIB32(sc_if->msk_port, GM_TXF_SPARE1);
 	stats->tx_colls +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_COL);
 	stats->tx_late_colls +=
