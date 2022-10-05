@@ -582,7 +582,7 @@ arm64/rockchip/rk_pinctrl.c			optional fdt rk_pinctrl soc_rockchip_rk3328 | fdt 
 arm64/rockchip/rk_gpio.c			optional fdt rk_gpio soc_rockchip_rk3328 | fdt rk_gpio soc_rockchip_rk3399
 arm64/rockchip/rk_iodomain.c			optional fdt rk_iodomain
 arm64/rockchip/rk_spi.c				optional fdt rk_spi
-arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | soc_rockchip_rk3399
+arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | fdt rk_usb2phy soc_rockchip_rk3399
 arm64/rockchip/rk_typec_phy.c			optional fdt rk_typec_phy soc_rockchip_rk3399
 arm64/rockchip/if_dwc_rk.c			optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
 arm64/rockchip/rk_tsadc_if.m			optional fdt soc_rockchip_rk3399
