@@ -2237,7 +2237,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 			if (!(vd->vd_mstate & MOUSE_BUTTON1DOWN))
 				mark = VTB_MARK_EXTEND;
 			else
-				mark = 0;
+				mark = VTB_MARK_NONE;
 			break;
 		default:
 			mark = VTB_MARK_EXTEND;
