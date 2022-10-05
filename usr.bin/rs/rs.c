@@ -38,6 +38,7 @@
 #include <err.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -365,13 +366,15 @@ static char **
 getptrs(char **sp)
 {
 	char **p;
+	ptrdiff_t offset;
 
+	offset = sp - elem;
 	allocsize += allocsize;
 	p = (char **)realloc(elem, allocsize * sizeof(char *));
 	if (p == NULL)
 		err(1, "no memory");
 
-	sp += (p - elem);
+	sp = p + offset;
 	endelem = (elem = p) + allocsize;
 	return(sp);
 }
