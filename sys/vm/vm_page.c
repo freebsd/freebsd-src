@@ -4120,7 +4120,12 @@ vm_page_mvqueue(vm_page_t m, const uint8_t nqueue, const uint16_t nflag)
 		if (nqueue == PQ_ACTIVE)
 			new.act_count = max(old.act_count, ACT_INIT);
 		if (old.queue == nqueue) {
-			if (nqueue != PQ_ACTIVE)
+			/*
+			 * There is no need to requeue pages already in the
+			 * active queue.
+			 */
+			if (nqueue != PQ_ACTIVE ||
+			    (old.flags & PGA_ENQUEUED) == 0)
 				new.flags |= nflag;
 		} else {
 			new.flags |= nflag;
@@ -4217,7 +4222,8 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 		 * referenced and avoid any queue operations.
 		 */
 		new.flags &= ~PGA_QUEUE_OP_MASK;
-		if (nflag != PGA_REQUEUE_HEAD && old.queue == PQ_ACTIVE)
+		if (nflag != PGA_REQUEUE_HEAD && old.queue == PQ_ACTIVE &&
+		    (old.flags & PGA_ENQUEUED) != 0)
 			new.flags |= PGA_REFERENCED;
 		else {
 			new.flags |= nflag;
