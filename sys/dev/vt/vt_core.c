@@ -2227,6 +2227,10 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 			break;
 		default:
 			vt_mouse_paste();
+			/* clear paste buffer selection after paste */
+			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_START,
+			    vd->vd_mx / vf->vf_width,
+			    vd->vd_my / vf->vf_height);
 			break;
 		}
 		return; /* Done */
