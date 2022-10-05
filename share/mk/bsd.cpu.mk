@@ -362,3 +362,41 @@ CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
 CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}
 
+#
+# MACHINE_ABI is a list of properties about the ABI used for MACHINE_ARCH.
+# The following properties are indicated with one of the follow values:
+#
+# Byte order:			big-endian, little-endian
+# Floating point ABI:		soft-float, hard-float
+# Size of long (size_t, etc):	long32, long64
+# Pointer type:			ptr32, ptr64
+# Size of time_t:		time32, time64
+#
+.if (${MACHINE} == "arm" && (defined(CPUTYPE) && ${CPUTYPE:M*soft*})) || \
+    (${MACHINE_ARCH} == "powerpc" && (defined(CPUTYPE) && ${CPUTYPE} == "e500")) || \
+    ${MACHINE_ARCH:Mriscv*sf*}
+MACHINE_ABI+=	soft-float
+.else
+MACHINE_ABI+=	hard-float
+.endif
+# Currently all 64-bit architectures include 64 in their name (see arch(7)).
+.if ${MACHINE_ARCH:M*64*}
+MACHINE_ABI+=  long64
+.else
+MACHINE_ABI+=  long32
+.endif
+.if ${MACHINE_ABI:Mlong64}
+MACHINE_ABI+=  ptr64
+.else
+MACHINE_ABI+=  ptr32
+.endif
+.if ${MACHINE_ARCH} == "i386"
+MACHINE_ABI+=  time32
+.else
+MACHINE_ABI+=  time64
+.endif
+.if ${MACHINE_ARCH:Mpowerpc*} && !${MACHINE_ARCH:M*le}
+MACHINE_ABI+=	big-endian
+.else
+MACHINE_ABI+=	little-endian
+.endif
