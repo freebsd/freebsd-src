@@ -204,6 +204,8 @@ typedef int pci_power_t;
 
 #define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
 
+extern const char *pci_power_names[6];
+
 #define	PCI_ERR_ROOT_COMMAND		PCIR_AER_ROOTERR_CMD
 #define	PCI_ERR_ROOT_ERR_SRC		PCIR_AER_COR_SOURCE_ID
 
@@ -307,6 +309,7 @@ struct pci_dev {
 	struct list_head	links;
 	struct pci_driver	*pdrv;
 	struct pci_bus		*bus;
+	pci_power_t		current_state;
 	uint16_t		device;
 	uint16_t		vendor;
 	uint16_t		subsystem_vendor;
@@ -1598,6 +1601,17 @@ pci_platform_rom(struct pci_dev *pdev, size_t *size)
 static inline void
 pci_ignore_hotplug(struct pci_dev *pdev)
 {
+}
+
+static inline const char *
+pci_power_name(pci_power_t state)
+{
+	int pstate = state + 1;
+
+	if (pstate >= 0 && pstate < nitems(pci_power_names))
+		return (pci_power_names[pstate]);
+	else
+		return (pci_power_names[0]);
 }
 
 static inline int

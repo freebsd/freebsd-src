@@ -127,6 +127,8 @@ struct device {
 
 	spinlock_t	devres_lock;
 	struct list_head devres_head;
+
+	struct dev_pm_info	power;
 };
 
 extern struct device linux_root_device;
