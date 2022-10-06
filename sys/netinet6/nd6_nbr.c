@@ -465,6 +465,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			goto bad;
 	}
 	if (nonce == NULL) {
+		char ip6buf[INET6_ADDRSTRLEN];
 		struct ifaddr *ifa = NULL;
 
 		/*
@@ -480,14 +481,9 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		 * (saddr6), if saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform the source address selection as usual.
 		 */
-
 		if (saddr6 != NULL)
 			ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, saddr6);
-		if (ifa != NULL) {
-			/* ip6_src set already. */
-			ip6->ip6_src = *saddr6;
-			ifa_free(ifa);
-		} else {
+		if (ifa == NULL) {
 			int error;
 			struct in6_addr dst6, src6;
 			uint32_t scopeid;
@@ -496,7 +492,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			error = in6_selectsrc_addr(fibnum, &dst6,
 			    scopeid, ifp, &src6, NULL);
 			if (error) {
-				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG, "%s: source can't be "
 				    "determined: dst=%s, error=%d\n", __func__,
 				    ip6_sprintf(ip6buf, &dst6),
@@ -504,7 +499,31 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 				goto bad;
 			}
 			ip6->ip6_src = src6;
+		} else
+			ip6->ip6_src = *saddr6;
+
+		if (ifp->if_carp != NULL) {
+			/*
+			 * Check that selected source address belongs to
+			 * CARP addresses.
+			 */
+			if (ifa == NULL)
+				ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+				    &ip6->ip6_src);
+			/*
+			 * Do not send NS for CARP address if we are not
+			 * the CARP master.
+			 */
+			if (ifa != NULL && !(*carp_master_p)(ifa)) {
+				log(LOG_DEBUG,
+				    "nd6_ns_output: NS from BACKUP CARP address %s\n",
+				    ip6_sprintf(ip6buf, &ip6->ip6_src));
+				ifa_free(ifa);
+				goto bad;
+			}
 		}
+		if (ifa != NULL)
+			ifa_free(ifa);
 	} else {
 		/*
 		 * Source address for DAD packet must always be IPv6
@@ -714,15 +733,20 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
 	}
 
-	/*
-	 * This effectively disables the DAD check on a non-master CARP
-	 * address.
-	 */
-	if (ifp->if_carp)
-		ifa = (*carp_iamatch6_p)(ifp, &taddr6);
-	else
-		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
-
+	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
+	if (ifa != NULL && ifa->ifa_carp != NULL) {
+		/*
+		 * Silently ignore NAs for CARP addresses if we are not
+		 * the CARP master.
+		 */
+		if (!(*carp_master_p)(ifa)) {
+			log(LOG_DEBUG,
+			    "nd6_na_input: NA for BACKUP CARP address %s\n",
+			    ip6_sprintf(ip6bufs, &taddr6));
+			ifa_free(ifa);
+			goto freeit;
+		}
+	}
 	/*
 	 * Target address matches one of my interface address.
 	 *
