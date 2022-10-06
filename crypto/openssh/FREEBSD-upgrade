@@ -6,36 +6,36 @@
     src/freebsd/vendor/.  In addition, this assumes there is a "freebsd"
     origin pointing to git(repo).freebsd.org/src.git.
 
-00) Make sure your mail spool has plenty of free space.  It'll fill up
+01) Make sure your mail spool has plenty of free space.  It'll fill up
     pretty fast once you're done with this checklist.
 
-01) Download the latest OpenSSH-portable tarball and signature from
+02) Download the latest OpenSSH-portable tarball and signature from
     OpenBSD (https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
 
-02) Verify the signature:
+03) Verify the signature:
 
     $ gpg --verify openssh-X.YpZ.tar.gz.asc
 
-03) Unpack the tarball in a suitable directory:
+04) Unpack the tarball in a suitable directory:
 
     $ tar xf openssh-X.YpZ.tar.gz
 
-04) Copy to a vendor branch:
+05) Copy to a vendor branch:
 
     $ cd src/freebsd/main
     $ git worktree add ../vendor/openssh freebsd/vendor/openssh
     $ cd ../vendor/openssh
     $ rsync --archive --delete --exclude=.git /path/to/openssh-X.YpZ/ ./
 
-05) Take care of added / deleted files:
+06) Take care of added / deleted files:
 
     $ git add -A
 
-06) Commit:
+07) Commit:
 
     $ git commit -m "Vendor import of OpenSSH X.YpZ"
 
-07) Tag:
+08) Tag:
 
     $ git tag -a -m "Tag OpenSSH X.YpZ" vendor/openssh/X.YpZ
 
@@ -56,12 +56,6 @@
     The update and tag could instead be pushed later, along with the merge
     to main, but pushing now allows others to collaborate.
 
-08) Check out head and run the pre-merge script, which strips our RCS
-    tags from files that have them:
-
-    $ cd src/freebsd/main/crypto/openssh
-    $ sh freebsd-pre-merge.sh
-
 09) Merge from the vendor branch:
 
     $ git subtree merge -P crypto/openssh vendor/openssh
@@ -71,11 +65,11 @@
     git prompts for these deleted files during the merge, choose 'd'
     (leaving them deleted).
 
-0A) Resolve conflicts.  Remember to bump the version addendum in
+10) Resolve conflicts.  Remember to bump the version addendum in
     version.h, and update the default value in ssh{,d}_config and
     ssh{,d}_config.5.
 
-0B) Diff against the vendor branch:
+11) Diff against the vendor branch:
 
     $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
 
@@ -84,40 +78,32 @@
     FreeBSD=%H and be listed in the 'keywords' file created by the
     pre-merge script.
 
-0C) Run the post-merge script, which re-adds RCS tags to files that
-    need them:
-
-    $ sh freebsd-post-merge.sh
-
-    These tags are not used with git, but we will leave them in place as
-    long as svn-based FreeBSD 12.x is supported.
-
-0D) Run the configure script:
+12) Run the configure script:
 
     $ sh freebsd-configure.sh
 
-0E) Review changes to config.h very carefully.
+13) Review changes to config.h very carefully.
 
     Note that libwrap should not be defined in config.h; as of
     r311585 (233932cc2a60) it is conditional on MK_TCP_WRAPPERS.
 
-0F) If source files have been added or removed, update the appropriate
+14) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
 
-10) Update ssh_namespace.h:
+15) Update ssh_namespace.h:
 
     $ sh freebsd-namespace.sh
 
-11) Build and install world, reboot, test.  Pay particular attention
+16) Build and install world, reboot, test.  Pay particular attention
     to pam_ssh(8), which gropes inside libssh and will break if
     something significant changes or if ssh_namespace.h is out of
     whack.
 
-12) Check for references to obsolete configuration options
+17) Check for references to obsolete configuration options
     (e.g., ChallengeResponseAuthentication in sshd_config) which
     may exist in release/ scripts.
 
-13) Commit, and hunker down for the inevitable storm of complaints.
+18) Commit, and hunker down for the inevitable storm of complaints.
 
 
 
