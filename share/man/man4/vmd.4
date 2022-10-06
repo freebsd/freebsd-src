@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2021
+.Dd October 6, 2022
 .Dt VMD 4
 .Os
 .Sh NAME
@@ -57,6 +57,11 @@ The following tunables are settable via
 or
 .Xr sysctl 8 :
 .Bl -tag -width indent
+.It Va hw.vmd.bypass_msi
+By default all VMD devices remap children MSI/MSI-X interrupts into their
+own.  It creates additional isolation, but also complicates things due to
+sharing, etc.  Fortunately some VMD devices can bypass the remapping.
+Defaults to 1.
 .It Va hw.vmd.max_msi
 Limits number of Message Signaled Interrupt (MSI) vectors allowed to each
 child device.
