@@ -5309,11 +5309,17 @@ device_get_path(device_t dev, const char *locator, char **rvp)
 {
 	struct sbuf *sb;
 	char *s;
+	device_t parent;
 	ssize_t len;
 	int error;
 
+	parent = device_get_parent(dev);
+	if (parent == NULL) {
+		*rvp = strdup_flags("/", M_BUS, M_NOWAIT);
+		return (*rvp == NULL ? ENOMEM : 0);
+	}
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
-	error = BUS_GET_DEVICE_PATH(device_get_parent(dev), dev, locator, sb);
+	error = BUS_GET_DEVICE_PATH(parent, dev, locator, sb);
 	sbuf_finish(sb);	/* Note: errors checked with sbuf_len() below */
 	if (error == 0) {
 		len = sbuf_len(sb);
