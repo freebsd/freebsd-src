@@ -435,7 +435,7 @@ foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb)
 	 * Boot Services API.
 	 */
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
 
 	if (efihdr->descriptor_size == 0)
 		return;
