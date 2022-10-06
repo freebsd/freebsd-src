@@ -514,7 +514,7 @@ syncache_timer(void *xsch)
 			continue;
 		}
 		if (sc->sc_rxmits > V_tcp_ecn_maxretries) {
-			sc->sc_flags &= ~SCF_ECN;
+			sc->sc_flags &= ~SCF_ECN_MASK;
 		}
 		if (sc->sc_rxmits > V_tcp_syncache.rexmt_limit) {
 			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
@@ -1564,11 +1564,12 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		else
 			sc->sc_flags &= ~SCF_TIMESTAMP;
 		/*
-		 * Disable ECN if needed.
+		 * Adjust ECN response if needed, e.g. different
+		 * IP ECN field, or a fallback by the remote host.
 		 */
-		if ((sc->sc_flags & SCF_ECN) &&
-		    ((tcp_get_flags(th) & (TH_ECE|TH_CWR)) != (TH_ECE|TH_CWR))) {
-			sc->sc_flags &= ~SCF_ECN;
+		if (sc->sc_flags & SCF_ECN_MASK) {
+			sc->sc_flags &= ~SCF_ECN_MASK;
+			sc->sc_flags = tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
 		}
 #ifdef MAC
 		/*
