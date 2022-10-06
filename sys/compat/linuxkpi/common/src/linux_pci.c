@@ -117,6 +117,10 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD_END
 };
 
+const char *pci_power_names[] = {
+	"UNKNOWN", "D0", "D1", "D2", "D3hot", "D3cold"
+};
+
 struct linux_dma_priv {
 	uint64_t	dma_mask;
 	bus_dma_tag_t	dmat;
