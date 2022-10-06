@@ -78,6 +78,17 @@ $BSDDIALOG_OK)	# Install
 			;;
 		$BSDDIALOG_EXTRA)	# Shutdown
 			shutdown -p now
+			# shutdown(8) daemonizes, with the actual signal to
+			# init(8) happening in the child, but if we exit the
+			# script then runconsoles will clean up its children
+			# thinking we're trying to go multiuser (and if the
+			# user has disabled multiple console support we'll
+			# still start trying to go multi-user, which gives
+			# confusing output on the console if the daemon is slow
+			# to run). Thus we spin while the daemon runs.
+			while true; do
+				sleep 1
+			done
 			;;
 		$BSDDIALOG_CANCEL)	# Live CD
 			exit 0
