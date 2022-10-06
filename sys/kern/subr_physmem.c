@@ -483,6 +483,20 @@ physmem_avail(vm_paddr_t *avail, size_t maxavail)
 	return (regions_to_avail(avail, EXFLAG_NOALLOC, maxavail, 0, NULL, NULL));
 }
 
+bool
+physmem_excluded(vm_paddr_t pa, vm_size_t sz)
+{
+	const struct region *exp;
+	size_t exi;
+
+	for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
+		if (pa < exp->addr || pa + sz > exp->addr + exp->size)
+			continue;
+		return (true);
+	}
+	return (false);
+}
+
 #ifdef _KERNEL
 /*
  * Process all the regions added earlier into the global avail lists.
