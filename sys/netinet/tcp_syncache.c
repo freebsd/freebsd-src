@@ -1679,12 +1679,12 @@ skip_alloc:
 		 * A timestamp received in a SYN makes
 		 * it ok to send timestamp requests and replies.
 		 */
-		if (to->to_flags & TOF_TS) {
+		if ((to->to_flags & TOF_TS) && (V_tcp_do_rfc1323 != 2)) {
 			sc->sc_tsreflect = to->to_tsval;
 			sc->sc_flags |= SCF_TIMESTAMP;
 			sc->sc_tsoff = tcp_new_ts_offset(inc);
 		}
-		if (to->to_flags & TOF_SCALE) {
+		if ((to->to_flags & TOF_SCALE) && (V_tcp_do_rfc1323 != 3)) {
 			int wscale = 0;
 
 			/*
