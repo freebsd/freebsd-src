@@ -1378,6 +1378,7 @@ ovpn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 ovpn_encrypt_tx_cb(struct cryptop *crp)
 {
+	struct epoch_tracker et;
 	struct ovpn_kpeer *peer = crp->crp_opaque;
 	struct ovpn_softc *sc = peer->sc;
 	struct mbuf *m = crp->crp_buf.cb_mbuf;
@@ -1391,6 +1392,7 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 		return (0);
 	}
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(sc->ifp->if_vnet);
 
 	MPASS(crp->crp_buf.cb_type == CRYPTO_BUF_MBUF);
@@ -1403,6 +1405,7 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 	}
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	crypto_freereq(crp);
 	ovpn_peer_release_ref(peer, false);
@@ -1419,6 +1422,7 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 	int ret __diagused;
 
 	OVPN_RASSERT(sc);
+	NET_EPOCH_ASSERT();
 
 	/* Replay protection. */
 	if (V_replay_protection && ! ovpn_check_replay(key->decrypt, seq)) {
@@ -1488,6 +1492,7 @@ ovpn_find_key(struct ovpn_softc *sc, struct ovpn_kpeer *peer,
 static int
 ovpn_decrypt_rx_cb(struct cryptop *crp)
 {
+	struct epoch_tracker et;
 	struct ovpn_softc *sc = crp->crp_opaque;
 	struct mbuf *m = crp->crp_buf.cb_mbuf;
 	struct ovpn_kkey *key;
@@ -1546,7 +1551,9 @@ ovpn_decrypt_rx_cb(struct cryptop *crp)
 	m_adj_decap(m, sizeof(struct udphdr) +
 	    sizeof(struct ovpn_wire_header));
 
+	NET_EPOCH_ENTER(et);
 	ovpn_finish_rx(sc, m, peer, key, ntohl(ohdr->seq), _ovpn_lock_trackerp);
+	NET_EPOCH_EXIT(et);
 	OVPN_UNLOCK_ASSERT(sc);
 
 	CURVNET_RESTORE();
