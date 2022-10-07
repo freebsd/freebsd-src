@@ -5092,24 +5092,10 @@ pmap_growkernel(vm_offset_t addr)
  * page management routines.
  ***************************************************/
 
-CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
-CTASSERT(_NPCM == 3);
-CTASSERT(_NPCPV == 168);
-
-static __inline struct pv_chunk *
-pv_to_chunk(pv_entry_t pv)
-{
-
-	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
-}
-
-#define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
-
-#define	PC_FREE0	0xfffffffffffffffful
-#define	PC_FREE1	0xfffffffffffffffful
-#define	PC_FREE2	((1ul << (_NPCPV % 64)) - 1)
-
-static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
+static const uint64_t pc_freemask[_NPCM] = {
+	[0 ... _NPCM - 2] = PC_FREEN,
+	[_NPCM - 1] = PC_FREEL
+};
 
 #ifdef PV_STATS
 
@@ -5321,8 +5307,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 		PV_STAT(counter_u64_add(pv_entry_spare, freed));
 		PV_STAT(counter_u64_add(pv_entry_count, -freed));
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-		if (pc->pc_map[0] == PC_FREE0 && pc->pc_map[1] == PC_FREE1 &&
-		    pc->pc_map[2] == PC_FREE2) {
+		if (pc_is_free(pc)) {
 			PV_STAT(counter_u64_add(pv_entry_spare, -_NPCPV));
 			PV_STAT(counter_u64_add(pc_chunk_count, -1));
 			PV_STAT(counter_u64_add(pc_chunk_frees, 1));
@@ -5406,8 +5391,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	field = idx / 64;
 	bit = idx % 64;
 	pc->pc_map[field] |= 1ul << bit;
-	if (pc->pc_map[0] != PC_FREE0 || pc->pc_map[1] != PC_FREE1 ||
-	    pc->pc_map[2] != PC_FREE2) {
+	if (!pc_is_free(pc)) {
 		/* 98% of the time, pc is already at the head of the list. */
 		if (__predict_false(pc != TAILQ_FIRST(&pmap->pm_pvchunk))) {
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
@@ -5532,9 +5516,9 @@ retry:
 	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
-	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
-	pc->pc_map[1] = PC_FREE1;
-	pc->pc_map[2] = PC_FREE2;
+	pc->pc_map[0] = PC_FREEN & ~1ul;	/* preallocated bit 0 */
+	pc->pc_map[1] = PC_FREEN;
+	pc->pc_map[2] = PC_FREEL;
 	pvc = &pv_chunks[vm_page_domain(m)];
 	mtx_lock(&pvc->pvc_lock);
 	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_lru);
@@ -5632,9 +5616,9 @@ retry:
 		dump_add_page(m->phys_addr);
 		pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 		pc->pc_pmap = pmap;
-		pc->pc_map[0] = PC_FREE0;
-		pc->pc_map[1] = PC_FREE1;
-		pc->pc_map[2] = PC_FREE2;
+		pc->pc_map[0] = PC_FREEN;
+		pc->pc_map[1] = PC_FREEN;
+		pc->pc_map[2] = PC_FREEL;
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 		TAILQ_INSERT_TAIL(&new_tail[vm_page_domain(m)], pc, pc_lru);
 		PV_STAT(counter_u64_add(pv_entry_spare, _NPCPV));

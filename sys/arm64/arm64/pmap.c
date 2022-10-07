@@ -2501,42 +2501,10 @@ pmap_growkernel(vm_offset_t addr)
  * page management routines.
  ***************************************************/
 
-CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
-
-static __inline struct pv_chunk *
-pv_to_chunk(pv_entry_t pv)
-{
-
-	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
-}
-
-#define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
-
-#define	PC_FREEN	0xfffffffffffffffful
-#define	PC_FREEL	((1ul << (_NPCPV % 64)) - 1)
-
 static const uint64_t pc_freemask[_NPCM] = {
 	[0 ... _NPCM - 2] = PC_FREEN,
 	[_NPCM - 1] = PC_FREEL
 };
-
-static __inline bool
-pc_is_full(struct pv_chunk *pc)
-{
-	for (u_int i = 0; i < _NPCM; i++)
-		if (pc->pc_map[i] != 0)
-			return (false);
-	return (true);
-}
-
-static __inline bool
-pc_is_free(struct pv_chunk *pc)
-{
-	for (u_int i = 0; i < _NPCM - 1; i++)
-		if (pc->pc_map[i] != PC_FREEN)
-			return (false);
-	return (pc->pc_map[_NPCM - 1] == PC_FREEL);
-}
 
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
