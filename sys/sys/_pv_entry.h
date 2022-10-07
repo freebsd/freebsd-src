@@ -77,6 +77,11 @@ typedef struct pv_entry {
 #error Unsupported page size
 #endif
 
+/* Support clang < 14 */
+#ifndef __LONG_WIDTH__
+#define	__LONG_WIDTH__	(__CHAR_BIT__ * __SIZEOF_LONG__)
+#endif
+
 #define	_NPCM		howmany(_NPCPV, __LONG_WIDTH__)
 #define	PC_FREEN	~0ul
 #define	PC_FREEL	((1ul << (_NPCPV % __LONG_WIDTH__)) - 1)
