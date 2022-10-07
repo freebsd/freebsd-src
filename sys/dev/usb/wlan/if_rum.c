@@ -1076,7 +1076,7 @@ rum_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct rum_tx_data *data;
 	struct mbuf *m;
 	struct usb_page_cache *pc;
-	unsigned int len;
+	unsigned len;
 	int actlen, sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
@@ -2490,7 +2490,7 @@ rum_read_eeprom(struct rum_softc *sc)
 static int
 rum_bbp_wakeup(struct rum_softc *sc)
 {
-	unsigned int ntries;
+	unsigned ntries;
 
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (rum_read(sc, RT2573_MAC_CSR12) & 8)

@@ -759,7 +759,7 @@ u3g_sael_m460_init(struct usb_device *udev)
 		}
 		if (err) {
 			DPRINTFN(1, "request %u failed\n",
-			    (unsigned int)n);
+			    (unsigned)n);
 			/*
 			 * Some of the requests will fail. Stop doing
 			 * requests when we are getting timeouts so

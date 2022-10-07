@@ -104,7 +104,7 @@ struct usb_ether {
 #define	uether_do_request(ue,req,data,timo) \
     usbd_do_request_proc((ue)->ue_udev,&(ue)->ue_tq,req,data,0,NULL,timo)
 
-uint8_t		uether_pause(struct usb_ether *, unsigned int);
+uint8_t		uether_pause(struct usb_ether *, unsigned);
 struct ifnet	*uether_getifp(struct usb_ether *);
 struct mii_data *uether_getmii(struct usb_ether *);
 void		*uether_getsc(struct usb_ether *);
@@ -116,10 +116,10 @@ void		uether_init(void *);
 int		uether_ioctl(struct ifnet *, u_long, caddr_t);
 struct mbuf	*uether_newbuf(void);
 int		uether_rxmbuf(struct usb_ether *, struct mbuf *, 
-		    unsigned int);
+		    unsigned);
 int		uether_rxbuf(struct usb_ether *,
 		    struct usb_page_cache *, 
-		    unsigned int, unsigned int);
+		    unsigned, unsigned);
 void		uether_rxflush(struct usb_ether *);
 uint8_t		uether_is_gone(struct usb_ether *);
 void		uether_start(struct ifnet *);

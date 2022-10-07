@@ -135,7 +135,7 @@ static void	axge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int	axge_ioctl(struct ifnet *, u_long, caddr_t);
 static void	axge_rx_frame(struct usb_ether *, struct usb_page_cache *, int);
 static void	axge_rxeof(struct usb_ether *, struct usb_page_cache *,
-		    unsigned int, unsigned int, uint32_t);
+		    unsigned, unsigned, uint32_t);
 static void	axge_csum_cfg(struct usb_ether *);
 
 #define	AXGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
@@ -997,8 +997,8 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 }
 
 static void
-axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
-    unsigned int len, uint32_t status)
+axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned offset,
+    unsigned len, uint32_t status)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;

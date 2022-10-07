@@ -1590,7 +1590,7 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 		 * parts a time.
 		 */
 		DPRINTFN(0, "Too many frames: %u\n",
-		    (unsigned int)xfer->nframes);
+		    (unsigned)xfer->nframes);
 		goto error;
 	}
 
