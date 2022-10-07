@@ -5304,27 +5304,33 @@ device_do_deferred_actions(void)
 	bus_data_generation_update();
 }
 
-static char *
-device_get_path(device_t dev, const char *locator)
+static int
+device_get_path(device_t dev, const char *locator, char **rvp)
 {
 	struct sbuf *sb;
+	char *s;
 	ssize_t len;
-	char *rv = NULL;
 	int error;
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 	error = BUS_GET_DEVICE_PATH(device_get_parent(dev), dev, locator, sb);
 	sbuf_finish(sb);	/* Note: errors checked with sbuf_len() below */
-	if (error != 0)
-		goto out;
-	len = sbuf_len(sb);
-	if (len <= 1)
-		goto out;
-	rv = malloc(len, M_BUS, M_NOWAIT);
-	memcpy(rv, sbuf_data(sb), len);
-out:
+	if (error == 0) {
+		len = sbuf_len(sb);
+		if (len <= 1) {
+			error = EIO;
+		} else {
+			s = malloc(len, M_BUS, M_NOWAIT);
+			if (s == NULL) {
+				error = ENOMEM;
+			} else {
+				memcpy(s, sbuf_data(sb), len);
+				*rvp = s;
+			}
+		}
+	}
 	sbuf_delete(sb);
-	return (rv);
+	return (error);
 }
 
 static int
@@ -5595,11 +5601,9 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		    sizeof(locator), NULL);
 		if (error != 0)
 			break;
-		path = device_get_path(dev, locator);
-		if (path == NULL) {
-			error = ENOMEM;
+		error = device_get_path(dev, locator, &path);
+		if (error != 0)
 			break;
-		}
 		len = strlen(path) + 1;
 		if (req->dr_buffer.length < len) {
 			error = ENAMETOOLONG;
@@ -5702,9 +5706,10 @@ bool
 dev_wired_cache_match(device_location_cache_t *dcp, device_t dev,
     const char *at)
 {
-	const char *cp, *path;
+	const char *cp;
+	char *path;
 	char locator[32];
-	int len;
+	int error, len;
 	struct device_location_node *res;
 
 	cp = strchr(at, ':');
@@ -5717,13 +5722,15 @@ dev_wired_cache_match(device_location_cache_t *dcp, device_t dev,
 	locator[len] = '\0';
 	cp++;
 
+	error = 0;
 	/* maybe cache this inside device_t and look that up, but not yet */
 	res = dev_wired_cache_lookup(dcp, locator);
 	if (res == NULL) {
-		path = device_get_path(dev, locator);
-		res = dev_wired_cache_add(dcp, locator, path);
+		error = device_get_path(dev, locator, &path);
+		if (error == 0)
+			res = dev_wired_cache_add(dcp, locator, path);
 	}
-	if (res == NULL || res->dln_path == NULL)
+	if (error != 0 || res == NULL || res->dln_path == NULL)
 		return (false);
 
 	return (strcmp(res->dln_path, cp) == 0);
