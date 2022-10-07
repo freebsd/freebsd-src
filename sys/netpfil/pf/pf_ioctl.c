@@ -2595,16 +2595,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
-			int cpu;
-
 			hook_pf();
 			if (! TAILQ_EMPTY(V_pf_keth->active.rules))
 				hook_pf_eth();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
-
-			CPU_FOREACH(cpu)
-				V_pf_stateid[cpu] = time_second;
+			new_unrhdr64(&V_pf_stateid, time_second);
 
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}

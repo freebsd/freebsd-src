@@ -249,12 +249,7 @@ uma_zone_t		pf_mtag_z;
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
-VNET_DEFINE(uint64_t, pf_stateid[MAXCPU]);
-#define	PFID_CPUBITS	8
-#define	PFID_CPUSHIFT	(sizeof(uint64_t) * NBBY - PFID_CPUBITS)
-#define	PFID_CPUMASK	((uint64_t)((1 << PFID_CPUBITS) - 1) <<	PFID_CPUSHIFT)
-#define	PFID_MAXID	(~PFID_CPUMASK)
-CTASSERT((1 << PFID_CPUBITS) >= MAXCPU);
+VNET_DEFINE(struct unrhdr64, pf_stateid);
 
 static void		 pf_src_tree_remove_state(struct pf_kstate *);
 static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
@@ -1416,10 +1411,7 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 	s->orig_kif = orig_kif;
 
 	if (s->id == 0 && s->creatorid == 0) {
-		/* XXX: should be atomic, but probability of collision low */
-		if ((s->id = V_pf_stateid[curcpu]++) == PFID_MAXID)
-			V_pf_stateid[curcpu] = 1;
-		s->id |= (uint64_t )curcpu << PFID_CPUSHIFT;
+		s->id = alloc_unr64(&V_pf_stateid);
 		s->id = htobe64(s->id);
 		s->creatorid = V_pf_status.hostid;
 	}
