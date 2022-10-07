@@ -2739,27 +2739,9 @@ pmap_unuse_pt2(pmap_t pmap, vm_offset_t va, struct spglist *free)
  *
  *************************************/
 
-CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
-CTASSERT(_NPCM == 11);
-CTASSERT(_NPCPV == 336);
-
-static __inline struct pv_chunk *
-pv_to_chunk(pv_entry_t pv)
-{
-
-	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
-}
-
-#define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
-
-#define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
-#define	PC_FREE10	((1ul << (_NPCPV % 32)) - 1)	/* Free values for index 10 */
-
 static const uint32_t pc_freemask[_NPCM] = {
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE10
+	[0 ... _NPCM - 2] = PC_FREEN,
+	[_NPCM - 1] = PC_FREEL
 };
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,

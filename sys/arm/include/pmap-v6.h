@@ -52,6 +52,7 @@
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pv_entry.h>
 
 typedef	uint32_t	pt1_entry_t;		/* L1 table entry */
 typedef	uint32_t	pt2_entry_t;		/* L2 table entry */
@@ -93,9 +94,6 @@ typedef uint32_t	ttb_entry_t;		/* TTB entry */
 /*
  * Pmap stuff
  */
-struct	pv_entry;
-struct	pv_chunk;
-
 struct	md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 	uint16_t		pt2_wirecount[4];
@@ -128,33 +126,7 @@ extern struct pmap	        kernel_pmap_store;
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
-#endif
 
-/*
- * For each vm_page_t, there is a list of all currently valid virtual
- * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
- */
-typedef struct pv_entry {
-	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
-} *pv_entry_t;
-
-/*
- * pv_entries are allocated in chunks per-process.  This avoids the
- * need to track per-pmap assignments.
- */
-#define	_NPCPV	336
-#define	_NPCM	howmany(_NPCPV, 32)
-
-struct pv_chunk {
-	pmap_t			pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	uint32_t		pc_map[_NPCM];	/* bitmap; 1 = free */
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-	struct pv_entry		pc_pventry[_NPCPV];
-};
-
-#ifdef _KERNEL
 extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
 
 #define	pmap_page_get_memattr(m)	((m)->md.pat_mode)

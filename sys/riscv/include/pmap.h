@@ -44,6 +44,7 @@
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pv_entry.h>
 
 #include <vm/_vm_radix.h>
 
@@ -86,26 +87,6 @@ struct pmap {
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
 	struct vm_radix		pm_root;
-};
-
-typedef struct pv_entry {
-	vm_offset_t		pv_va;	/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
-} *pv_entry_t;
-
-/*
- * pv_entries are allocated in chunks per-process.  This avoids the
- * need to track per-pmap assignments.
- */
-#define	_NPCPV	168
-#define	_NPCM	howmany(_NPCPV, 64)
-
-struct pv_chunk {
-	struct pmap *		pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	uint64_t		pc_map[_NPCM];  /* bitmap; 1 = free */
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-	struct pv_entry		pc_pventry[_NPCPV];
 };
 
 typedef struct pmap *pmap_t;

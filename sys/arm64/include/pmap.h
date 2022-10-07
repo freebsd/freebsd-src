@@ -43,6 +43,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pv_entry.h>
 
 #include <vm/_vm_radix.h>
 
@@ -96,42 +97,6 @@ struct pmap {
 	int			pm_levels;
 };
 typedef struct pmap *pmap_t;
-
-typedef struct pv_entry {
-	vm_offset_t		pv_va;	/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
-} *pv_entry_t;
-
-/*
- * pv_entries are allocated in chunks per-process.  This avoids the
- * need to track per-pmap assignments.
- */
-#if PAGE_SIZE == PAGE_SIZE_4K
-#define	_NPCPV	168
-#define	_NPAD	0
-#elif PAGE_SIZE == PAGE_SIZE_16K
-#define	_NPCPV	677
-#define	_NPAD	1
-#else
-#error Unsupported page size
-#endif
-#define	_NPCM	howmany(_NPCPV, 64)
-
-#define	PV_CHUNK_HEADER							\
-	pmap_t			pc_pmap;				\
-	TAILQ_ENTRY(pv_chunk)	pc_list;				\
-	uint64_t		pc_map[_NPCM];	/* bitmap; 1 = free */	\
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-
-struct pv_chunk_header {
-	PV_CHUNK_HEADER
-};
-
-struct pv_chunk {
-	PV_CHUNK_HEADER
-	struct pv_entry		pc_pventry[_NPCPV];
-	uint64_t		pc_pad[_NPAD];
-};
 
 struct thread;
 
