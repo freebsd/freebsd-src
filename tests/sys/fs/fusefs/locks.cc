@@ -278,12 +278,24 @@ TEST_F(Getlk, no_locks)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = 0;
+	fl.l_pid = 42;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
-	fl.l_sysid = 0;
+	fl.l_sysid = 42;
 	ASSERT_NE(-1, fcntl(fd, F_GETLK, &fl)) << strerror(errno);
+
+	/*
+	 * If no lock is found that would prevent this lock from being created,
+	 * the structure is left unchanged by this system call except for the
+	 * lock type which is set to F_UNLCK.
+	 */
 	ASSERT_EQ(F_UNLCK, fl.l_type);
+	ASSERT_EQ(fl.l_pid, 42);
+	ASSERT_EQ(fl.l_start, 10);
+	ASSERT_EQ(fl.l_len, 1000);
+	ASSERT_EQ(fl.l_whence, SEEK_SET);
+	ASSERT_EQ(fl.l_sysid, 42);
+
 	leak(fd);
 }
 
