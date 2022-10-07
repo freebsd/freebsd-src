@@ -229,8 +229,6 @@ VNET_DECLARE(int, tcp_msl);
 
 void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
-struct tcptw *
-	tcp_tw_2msl_scan(int reuse);	/* XXX temporary? */
 void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);

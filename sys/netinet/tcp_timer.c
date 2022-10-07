@@ -236,41 +236,6 @@ inp_to_cpuid(struct inpcb *inp)
 	}
 }
 
-/*
- * Legacy TCP global callout routine called every 500 ms.
- * Used to cleanup timewait states, which lack their own callouts.
- */
-static struct callout tcpslow_callout;
-static void
-tcp_slowtimo(void *arg __unused)
-{
-	struct epoch_tracker et;
-	VNET_ITERATOR_DECL(vnet_iter);
-
-	NET_EPOCH_ENTER(et);
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		(void) tcp_tw_2msl_scan(0);
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
-	NET_EPOCH_EXIT(et);
-
-	callout_reset_sbt(&tcpslow_callout, SBT_1MS * 500, SBT_1MS * 10,
-	    tcp_slowtimo, NULL, 0);
-}
-
-static void
-tcp_slowtimo_init(void *arg __unused)
-{
-
-        callout_init(&tcpslow_callout, 1);
-	callout_reset_sbt(&tcpslow_callout, SBT_1MS * 500, SBT_1MS * 10,
-	    tcp_slowtimo, NULL, 0);
-}
-SYSINIT(tcp_timer, SI_SUB_VNET_DONE, SI_ORDER_ANY, tcp_slowtimo_init, NULL);
-
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 512, 512, 512 };
 
@@ -387,8 +352,12 @@ tcp_timer_2msl(void *xtp)
 	 * there's no point in hanging onto FIN_WAIT_2 socket. Just close it.
 	 * Ignore fact that there were recent incoming segments.
 	 */
-	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
-	    tp->t_inpcb && tp->t_inpcb->inp_socket &&
+	if (tp->t_state == TCPS_TIME_WAIT) {
+		tcp_timer_close(tp);
+		CURVNET_RESTORE();
+		return;
+	} else if (tp->t_state == TCPS_FIN_WAIT_2 &&
+	    tcp_fast_finwait2_recycle && tp->t_inpcb->inp_socket &&
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		TCPSTAT_INC(tcps_finwait2_drops);
 		tcp_timer_close(tp);
