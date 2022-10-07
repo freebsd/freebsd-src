@@ -416,7 +416,7 @@ usb_bus_explore(struct usb_proc_msg *pm)
 #endif
 
 	/* Nice the enumeration a bit, to avoid looping too fast. */
-	usb_pause_mtx(&bus->bus_mtx, USB_MS_TO_TICKS(16));
+	usb_pause_mtx(&bus->bus_mtx, USB_MS_TO_TICKS(usb_enum_nice_time));
 }
 
 /*------------------------------------------------------------------------*
