@@ -390,6 +390,9 @@ main(int argc, char *argv[])
 	argwidth = ttywidth - WUSED;
 	if (argwidth < 4)
 		argwidth = 8;
+	/* Don't truncate if we're outputting json or XML. */
+	if (xo_get_style(NULL) != XO_STYLE_TEXT)
+		argwidth = ARG_MAX;
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		if (ep->kp == NULL) {
 			ep->args = strdup("-");
