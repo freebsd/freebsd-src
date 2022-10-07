@@ -1930,7 +1930,7 @@ upgt_detach(device_t dev)
 {
 	struct upgt_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	unsigned int x;
+	unsigned x;
 
 	/*
 	 * Prevent further allocations from RX/TX/CMD

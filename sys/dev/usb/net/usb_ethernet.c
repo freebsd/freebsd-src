@@ -91,7 +91,7 @@ static void	ue_watchdog(void *);
  * Else: device has been detached
  */
 uint8_t
-uether_pause(struct usb_ether *ue, unsigned int _ticks)
+uether_pause(struct usb_ether *ue, unsigned _ticks)
 {
 	if (usb_proc_is_gone(&ue->ue_tq)) {
 		/* nothing to do */
@@ -596,7 +596,7 @@ uether_newbuf(void)
 
 int
 uether_rxmbuf(struct usb_ether *ue, struct mbuf *m, 
-    unsigned int len)
+    unsigned len)
 {
 	struct ifnet *ifp = ue->ue_ifp;
 
@@ -614,7 +614,7 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 
 int
 uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc, 
-    unsigned int offset, unsigned int len)
+    unsigned offset, unsigned len)
 {
 	struct ifnet *ifp = ue->ue_ifp;
 	struct mbuf *m;

@@ -929,8 +929,8 @@ urtw_detach(device_t dev)
 {
 	struct urtw_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	unsigned int x;
-	unsigned int n_xfers;
+	unsigned x;
+	unsigned n_xfers;
 
 	/* Prevent further ioctls */
 	URTW_LOCK(sc);
@@ -1964,7 +1964,7 @@ fail:
 static uint16_t
 urtw_rtl2rate(uint32_t rate)
 {
-	unsigned int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(urtw_ratetable); i++) {
 		if (rate == urtw_ratetable[i].val)
@@ -2487,7 +2487,7 @@ fail:
 static usb_error_t
 urtw_8225_rf_init(struct urtw_softc *sc)
 {
-	unsigned int i;
+	unsigned i;
 	uint16_t data;
 	usb_error_t error;
 
@@ -2867,7 +2867,7 @@ fail:
 static usb_error_t
 urtw_8225v2_rf_init(struct urtw_softc *sc)
 {
-	unsigned int i;
+	unsigned i;
 	uint16_t data;
 	uint32_t data32;
 	usb_error_t error;
@@ -3201,7 +3201,7 @@ urtw_8225v2b_rf_init(struct urtw_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	const uint8_t *macaddr;
-	unsigned int i;
+	unsigned i;
 	uint8_t data8;
 	usb_error_t error;
 

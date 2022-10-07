@@ -217,7 +217,7 @@ static int	axe_get_phyno(struct axe_softc *, int);
 static int	axe_ioctl(struct ifnet *, u_long, caddr_t);
 static int	axe_rx_frame(struct usb_ether *, struct usb_page_cache *, int);
 static int	axe_rxeof(struct usb_ether *, struct usb_page_cache *,
-		    unsigned int offset, unsigned int, struct axe_csum_hdr *);
+		    unsigned offset, unsigned, struct axe_csum_hdr *);
 static void	axe_csum_cfg(struct usb_ether *);
 
 static const struct usb_config axe_config[AXE_N_TRANSFER] = {
@@ -1103,8 +1103,8 @@ axe_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 }
 
 static int
-axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
-    unsigned int len, struct axe_csum_hdr *csum_hdr)
+axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned offset,
+    unsigned len, struct axe_csum_hdr *csum_hdr)
 {
 	struct ifnet *ifp = ue->ue_ifp;
 	struct mbuf *m;
