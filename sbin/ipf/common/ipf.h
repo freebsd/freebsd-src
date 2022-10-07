@@ -47,6 +47,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -173,13 +174,7 @@ typedef	struct	proxyrule {
 } proxyrule_t;
 
 
-#if defined(__NetBSD__) || defined(__FreeBSD__) || \
-	SOLARIS
-# include <stdarg.h>
 typedef	int	(* ioctlfunc_t)(int, ioctlcmd_t, ...);
-#else
-typedef	int	(* ioctlfunc_t)(dev_t, ioctlcmd_t, void *);
-#endif
 typedef	int	(* addfunc_t)(int, ioctlfunc_t, void *);
 typedef	int	(* copyfunc_t)(void *, void *, size_t);
 
