@@ -708,6 +708,7 @@ int	icmp6_input(struct mbuf **, int *, int);
 void	icmp6_prepare(struct mbuf *);
 void	icmp6_redirect_input(struct mbuf *, int);
 void	icmp6_redirect_output(struct mbuf *, struct nhop_object *);
+int	icmp6_ratelimit(const struct in6_addr *, const int, const int);
 
 struct	ip6ctlparam;
 void	icmp6_mtudisc_update(struct ip6ctlparam *, int);

@@ -3048,6 +3048,22 @@ pf_match_ieee8021q_pcp(u_int8_t prio, struct mbuf *m)
 	return (mpcp == prio);
 }
 
+static int
+pf_icmp_to_bandlim(uint8_t type)
+{
+	switch (type) {
+		case ICMP_ECHO:
+		case ICMP_ECHOREPLY:
+			return (BANDLIM_ICMP_ECHO);
+		case ICMP_TSTAMP:
+		case ICMP_TSTAMPREPLY:
+			return (BANDLIM_ICMP_TSTAMP);
+		case ICMP_UNREACH:
+		default:
+			return (BANDLIM_ICMP_UNREACH);
+	}
+}
+
 static void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
     struct pf_krule *r)
@@ -3055,6 +3071,16 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	struct pf_send_entry *pfse;
 	struct mbuf *m0;
 	struct pf_mtag *pf_mtag;
+
+	/* ICMP packet rate limitation. */
+	if (af == AF_INET6) {
+		if (icmp6_ratelimit(NULL, type, code))
+			return;
+	} else {
+		MPASS(af == AF_INET);
+		if (badport_bandlim(pf_icmp_to_bandlim(type)) != 0)
+			return;
+	}
 
 	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
 	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
