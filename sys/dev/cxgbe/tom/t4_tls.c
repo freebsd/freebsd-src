@@ -894,7 +894,7 @@ do_tls_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: payload length mismatch", __func__));
 
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
 		    __func__, tid, len, inp->inp_flags);
 		INP_WUNLOCK(inp);
@@ -964,7 +964,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: payload length mismatch", __func__));
 
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
 		    __func__, tid, len, inp->inp_flags);
 		INP_WUNLOCK(inp);

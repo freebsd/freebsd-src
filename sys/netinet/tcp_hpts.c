@@ -501,7 +501,7 @@ inp_hpts_insert(struct inpcb *inp, struct tcp_hpts_entry *hpts)
 	INP_WLOCK_ASSERT(inp);
 	HPTS_MTX_ASSERT(hpts);
 	MPASS(hpts->p_cpu == inp->inp_hpts_cpu);
-	MPASS(!(inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)));
+	MPASS(!(inp->inp_flags & INP_DROPPED));
 
 	hptsh = &hpts->p_hptss[inp->inp_hptsslot];
 
@@ -811,7 +811,7 @@ tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts
 
 	INP_WLOCK_ASSERT(inp);
 	MPASS(!tcp_in_hpts(inp));
-	MPASS(!(inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)));
+	MPASS(!(inp->inp_flags & INP_DROPPED));
 
 	/*
 	 * We now return the next-slot the hpts will be on, beyond its
@@ -1279,7 +1279,7 @@ again:
 			}
 
 			MPASS(inp->inp_in_hpts == IHPTS_ONQUEUE);
-			MPASS(!(inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)));
+			MPASS(!(inp->inp_flags & INP_DROPPED));
 			KASSERT(runningslot == inp->inp_hptsslot,
 				("Hpts:%p inp:%p slot mis-aligned %u vs %u",
 				 hpts, inp, runningslot, inp->inp_hptsslot));

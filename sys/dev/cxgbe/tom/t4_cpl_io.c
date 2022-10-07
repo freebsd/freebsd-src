@@ -288,7 +288,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	 * XXX: What's the correct way to tell that the inp hasn't been detached
 	 * from its socket?  Should I even be flushing the snd buffer here?
 	 */
-	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+	if ((inp->inp_flags & INP_DROPPED) == 0) {
 		struct socket *so = inp->inp_socket;
 
 		if (so != NULL)	/* because I'm not sure.  See comment above */
@@ -1611,7 +1611,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+	if ((inp->inp_flags & INP_DROPPED) == 0) {
 		struct socket *so = inp->inp_socket;
 
 		if (so != NULL)
@@ -1701,7 +1701,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	len = m->m_pkthdr.len;
 
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
 		    __func__, tid, len, inp->inp_flags);
 		INP_WUNLOCK(inp);
@@ -1874,7 +1874,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		return (0);
 	}
 
-	KASSERT((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0,
+	KASSERT((inp->inp_flags & INP_DROPPED) == 0,
 	    ("%s: inp_flags 0x%x", __func__, inp->inp_flags));
 
 	tp = intotcpcb(inp);
@@ -2290,7 +2290,7 @@ sendanother:
 
 	inp = toep->inp;
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		SOCK_IO_SEND_UNLOCK(so);
 		error = ECONNRESET;

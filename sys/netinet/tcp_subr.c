@@ -1373,8 +1373,6 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 			while ((inp = inp_next(&inpi)) != NULL) {
-				if (inp->inp_flags & INP_TIMEWAIT)
-					continue;
 				tp = intotcpcb(inp);
 				if (tp == NULL || tp->t_fb != blk)
 					continue;
@@ -1434,8 +1432,6 @@ tcp_drain(void)
 	 *	useful.
 	 */
 		while ((inpb = inp_next(&inpi)) != NULL) {
-			if (inpb->inp_flags & INP_TIMEWAIT)
-				continue;
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
@@ -2596,8 +2592,7 @@ tcp_notify(struct inpcb *inp, int error)
 
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_flags & INP_TIMEWAIT) ||
-	    (inp->inp_flags & INP_DROPPED))
+	if (inp->inp_flags & INP_DROPPED)
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -2879,8 +2874,7 @@ tcp_ctlinput_with_port(struct icmp *icp, uint16_t port)
 	inp = in_pcblookup(&V_tcbinfo, ip->ip_dst, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL)  {
-		if (!(inp->inp_flags & INP_TIMEWAIT) &&
-		    !(inp->inp_flags & INP_DROPPED) &&
+		if (!(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
@@ -3073,8 +3067,7 @@ tcp6_ctlinput_with_port(struct ip6ctlparam *ip6cp, uint16_t port)
 	}
 	m_copydata(m, off, sizeof(tcp_seq), (caddr_t)&icmp_tcp_seq);
 	if (inp != NULL)  {
-		if (!(inp->inp_flags & INP_TIMEWAIT) &&
-		    !(inp->inp_flags & INP_DROPPED) &&
+		if (!(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
@@ -3324,8 +3317,7 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
-	if ((inp->inp_flags & INP_TIMEWAIT) ||
-	    (inp->inp_flags & INP_DROPPED))
+	if (inp->inp_flags & INP_DROPPED)
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -3362,8 +3354,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	struct socket *so;
 
 	INP_WLOCK_ASSERT(inp);
-	if ((inp->inp_flags & INP_TIMEWAIT) ||
-	    (inp->inp_flags & INP_DROPPED))
+	if (inp->inp_flags & INP_DROPPED)
 		return (inp);
 
 	tp = intotcpcb(inp);
@@ -3822,7 +3813,7 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 	}
 	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
-		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) != 0 ||
+		if ((inp->inp_flags & INP_DROPPED) != 0 ||
 		    inp->inp_socket == NULL) {
 			error = ECONNRESET;
 			INP_WUNLOCK(inp);

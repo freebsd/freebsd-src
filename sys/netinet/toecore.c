@@ -220,7 +220,7 @@ toe_listen_start(struct inpcb *inp, void *arg)
 	KASSERT(inp->inp_pcbinfo == &V_tcbinfo,
 	    ("%s: inp is not a TCP inp", __func__));
 
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))
+	if (inp->inp_flags & INP_DROPPED)
 		return;
 
 	tp = intotcpcb(inp);

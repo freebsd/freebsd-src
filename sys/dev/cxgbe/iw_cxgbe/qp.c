@@ -1316,7 +1316,7 @@ creds(struct toepcb *toep, struct inpcb *inp, size_t wrsize)
 
 	CTR3(KTR_IW_CXGBE, "%s:creB  %p %u", __func__, toep , wrsize);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) != 0) {
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
 		INP_WUNLOCK(inp);
 		return (EINVAL);
 	}
