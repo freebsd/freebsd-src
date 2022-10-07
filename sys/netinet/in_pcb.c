@@ -1031,7 +1031,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		laddr = sin->sin_addr;
 		if (lport) {
 			struct inpcb *t;
-			struct tcptw *tw;
 
 			/* GROSS */
 			if (ntohs(lport) <= V_ipport_reservedhigh &&
@@ -1070,24 +1069,9 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, lookupflags, cred);
-			if (t && (t->inp_flags & INP_TIMEWAIT)) {
-				/*
-				 * XXXRW: If an incpb has had its timewait
-				 * state recycled, we treat the address as
-				 * being in use (for now).  This is better
-				 * than a panic, but not desirable.
-				 */
-				tw = intotw(t);
-				if (tw == NULL ||
-				    ((reuseport & tw->tw_so_options) == 0 &&
-					(reuseport_lb &
-				            tw->tw_so_options) == 0)) {
-					return (EADDRINUSE);
-				}
-			} else if (t &&
-				   ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
-				   (reuseport & inp_so_options(t)) == 0 &&
-				   (reuseport_lb & inp_so_options(t)) == 0) {
+			if (t && ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
+			    (reuseport & inp_so_options(t)) == 0 &&
+			    (reuseport_lb & inp_so_options(t)) == 0) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||

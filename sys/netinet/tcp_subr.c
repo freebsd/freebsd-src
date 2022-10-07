@@ -1485,7 +1485,6 @@ tcp_vnet_init(void *arg __unused)
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
 	uma_zone_set_warning(V_tcpcb_zone, "kern.ipc.maxsockets limit reached");
 
-	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
 
@@ -1647,7 +1646,6 @@ tcp_destroy(void *unused __unused)
 	}
 	tcp_hc_destroy();
 	syncache_destroy();
-	tcp_tw_destroy();
 	in_pcbinfo_destroy(&V_tcbinfo);
 	/* tcp_discardcb() clears the sack_holes up. */
 	uma_zdestroy(V_sack_hole_zone);
@@ -2678,33 +2676,17 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	while ((inp = inp_next(&inpi)) != NULL) {
-		if (inp->inp_gencnt <= xig.xig_gen) {
-			int crerr;
+		if (inp->inp_gencnt <= xig.xig_gen &&
+		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
+			struct xtcpcb xt;
 
-			/*
-			 * XXX: This use of cr_cansee(), introduced with
-			 * TCP state changes, is not quite right, but for
-			 * now, better than nothing.
-			 */
-			if (inp->inp_flags & INP_TIMEWAIT) {
-				if (intotw(inp) != NULL)
-					crerr = cr_cansee(req->td->td_ucred,
-					    intotw(inp)->tw_cred);
-				else
-					crerr = EINVAL;	/* Skip this inp. */
+			tcp_inptoxtp(inp, &xt);
+			error = SYSCTL_OUT(req, &xt, sizeof xt);
+			if (error) {
+				INP_RUNLOCK(inp);
+				break;
 			} else
-				crerr = cr_canseeinpcb(req->td->td_ucred, inp);
-			if (crerr == 0) {
-				struct xtcpcb xt;
-
-				tcp_inptoxtp(inp, &xt);
-				error = SYSCTL_OUT(req, &xt, sizeof xt);
-				if (error) {
-					INP_RUNLOCK(inp);
-					break;
-				} else
-					continue;
-			}
+				continue;
 		}
 	}
 
@@ -3639,7 +3621,6 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct sockaddr_storage addrs[2];
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct tcptw *tw;
 #ifdef INET
 	struct sockaddr_in *fin = NULL, *lin = NULL;
 #endif
@@ -3721,19 +3702,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 #endif
 	}
 	if (inp != NULL) {
-		if (inp->inp_flags & INP_TIMEWAIT) {
-			/*
-			 * XXXRW: There currently exists a state where an
-			 * inpcb is present, but its timewait state has been
-			 * discarded.  For now, don't allow dropping of this
-			 * type of inpcb.
-			 */
-			tw = intotw(inp);
-			if (tw != NULL)
-				tcp_twclose(tw, 0);
-			else
-				INP_WUNLOCK(inp);
-		} else if ((inp->inp_flags & INP_DROPPED) == 0 &&
+		if ((inp->inp_flags & INP_DROPPED) == 0 &&
 		    !SOLISTENING(inp->inp_socket)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);
@@ -4027,56 +3996,49 @@ void
 tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 {
 	struct tcpcb *tp = intotcpcb(inp);
-	struct tcptw *tw = intotw(inp);
 	sbintime_t now;
 
 	bzero(xt, sizeof(*xt));
-	if (inp->inp_flags & INP_TIMEWAIT) {
-		xt->t_state = TCPS_TIME_WAIT;
-		xt->xt_encaps_port = tw->t_port;
-	} else {
-		xt->t_state = tp->t_state;
-		xt->t_logstate = tp->t_logstate;
-		xt->t_flags = tp->t_flags;
-		xt->t_sndzerowin = tp->t_sndzerowin;
-		xt->t_sndrexmitpack = tp->t_sndrexmitpack;
-		xt->t_rcvoopack = tp->t_rcvoopack;
-		xt->t_rcv_wnd = tp->rcv_wnd;
-		xt->t_snd_wnd = tp->snd_wnd;
-		xt->t_snd_cwnd = tp->snd_cwnd;
-		xt->t_snd_ssthresh = tp->snd_ssthresh;
-		xt->t_dsack_bytes = tp->t_dsack_bytes;
-		xt->t_dsack_tlp_bytes = tp->t_dsack_tlp_bytes;
-		xt->t_dsack_pack = tp->t_dsack_pack;
-		xt->t_maxseg = tp->t_maxseg;
-		xt->xt_ecn = (tp->t_flags2 & TF2_ECN_PERMIT) ? 1 : 0 +
-			     (tp->t_flags2 & TF2_ACE_PERMIT) ? 2 : 0;
+	xt->t_state = tp->t_state;
+	xt->t_logstate = tp->t_logstate;
+	xt->t_flags = tp->t_flags;
+	xt->t_sndzerowin = tp->t_sndzerowin;
+	xt->t_sndrexmitpack = tp->t_sndrexmitpack;
+	xt->t_rcvoopack = tp->t_rcvoopack;
+	xt->t_rcv_wnd = tp->rcv_wnd;
+	xt->t_snd_wnd = tp->snd_wnd;
+	xt->t_snd_cwnd = tp->snd_cwnd;
+	xt->t_snd_ssthresh = tp->snd_ssthresh;
+	xt->t_dsack_bytes = tp->t_dsack_bytes;
+	xt->t_dsack_tlp_bytes = tp->t_dsack_tlp_bytes;
+	xt->t_dsack_pack = tp->t_dsack_pack;
+	xt->t_maxseg = tp->t_maxseg;
+	xt->xt_ecn = (tp->t_flags2 & TF2_ECN_PERMIT) ? 1 : 0 +
+		     (tp->t_flags2 & TF2_ACE_PERMIT) ? 2 : 0;
 
-		now = getsbinuptime();
-#define	COPYTIMER(ttt)	do {						\
-		if (callout_active(&tp->t_timers->ttt))			\
-			xt->ttt = (tp->t_timers->ttt.c_time - now) /	\
-			    SBT_1MS;					\
-		else							\
-			xt->ttt = 0;					\
+	now = getsbinuptime();
+#define	COPYTIMER(ttt)	do {					\
+	if (callout_active(&tp->t_timers->ttt))			\
+		xt->ttt = (tp->t_timers->ttt.c_time - now) /	\
+		    SBT_1MS;					\
+	else							\
+		xt->ttt = 0;					\
 } while (0)
-		COPYTIMER(tt_delack);
-		COPYTIMER(tt_rexmt);
-		COPYTIMER(tt_persist);
-		COPYTIMER(tt_keep);
-		COPYTIMER(tt_2msl);
+	COPYTIMER(tt_delack);
+	COPYTIMER(tt_rexmt);
+	COPYTIMER(tt_persist);
+	COPYTIMER(tt_keep);
+	COPYTIMER(tt_2msl);
 #undef COPYTIMER
-		xt->t_rcvtime = 1000 * (ticks - tp->t_rcvtime) / hz;
+	xt->t_rcvtime = 1000 * (ticks - tp->t_rcvtime) / hz;
 
-		xt->xt_encaps_port = tp->t_port;
-		bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
-		    TCP_FUNCTION_NAME_LEN_MAX);
-		bcopy(CC_ALGO(tp)->name, xt->xt_cc,
-		    TCP_CA_NAME_MAX);
+	xt->xt_encaps_port = tp->t_port;
+	bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
+	    TCP_FUNCTION_NAME_LEN_MAX);
+	bcopy(CC_ALGO(tp)->name, xt->xt_cc, TCP_CA_NAME_MAX);
 #ifdef TCP_BLACKBOX
-		(void)tcp_log_get_id(tp, xt->xt_logid);
+	(void)tcp_log_get_id(tp, xt->xt_logid);
 #endif
-	}
 
 	xt->xt_len = sizeof(struct xtcpcb);
 	in_pcbtoxinpcb(inp, &xt->xt_inp);

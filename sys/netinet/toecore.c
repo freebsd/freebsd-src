@@ -386,6 +386,7 @@ int
 toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 {
 	struct inpcb *inp;
+	struct tcpcb *tp;
 
 	if (inc->inc_flags & INC_ISIPV6) {
 		inp = in6_pcblookup(&V_tcbinfo, &inc->inc6_faddr,
@@ -398,7 +399,8 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 	if (inp != NULL) {
 		INP_RLOCK_ASSERT(inp);
 
-		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
+		tp = intotcpcb(inp);
+		if (tp->t_state == TCPS_TIME_WAIT && th != NULL) {
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {

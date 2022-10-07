@@ -631,24 +631,7 @@ struct tcp_ifcap {
 struct in_conninfo;
 #endif /* _NETINET_IN_PCB_H_ */
 
-struct tcptw {
-	struct inpcb	*tw_inpcb;	/* XXX back pointer to internet pcb */
-	uint32_t  t_port:16,		/* UDP port number if TCPoUDP */
-		t_unused:16;
-	tcp_seq		snd_nxt;
-	tcp_seq		rcv_nxt;
-	u_short		last_win;	/* cached window value */
-	short		tw_so_options;	/* copy of so_options */
-	struct ucred	*tw_cred;	/* user credentials */
-	u_int32_t	t_recent;
-	u_int32_t	ts_offset;	/* our timestamp offset */
-	int		tw_time;
-	TAILQ_ENTRY(tcptw) tw_2msl;
-	u_int		tw_flags;	/* tcpcb t_flags */
-};
-
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
-#define	intotw(ip)	((struct tcptw *)(ip)->inp_ppcb)
 #define	sototcpcb(so)	(intotcpcb(sotoinpcb(so)))
 
 /*
@@ -1083,7 +1066,6 @@ struct tcpcb *
 void	 tcp_discardcb(struct tcpcb *);
 bool	 tcp_freecb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
-void	 tcp_twclose(struct tcptw *, int);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 void	 tcp_fini(void *);
 char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, const void *,
@@ -1176,12 +1158,7 @@ int	 tcp_default_output(struct tcpcb *);
 void	 tcp_state_change(struct tcpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
-void	 tcp_tw_init(void);
-#ifdef VIMAGE
-void	 tcp_tw_destroy(void);
-#endif
-void	 tcp_tw_zone_change(void);
-int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
+bool	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
 void	 tcp_record_dsack(struct tcpcb *tp, tcp_seq start, tcp_seq end, int tlp);
