@@ -462,7 +462,7 @@ t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 
 	inp = params->tls.inp;
 	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		error = ECONNRESET;
 		goto failed;
@@ -504,7 +504,7 @@ t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		goto failed;
 	}
 
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		error = ECONNRESET;
 		goto failed;

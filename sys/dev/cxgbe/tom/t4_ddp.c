@@ -504,7 +504,7 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	db = &toep->ddp.db[db_idx];
 	job = db->job;
 
-	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 		/*
 		 * This can happen due to an administrative tcpdrop(8).
 		 * Just fail the request with ECONNRESET.

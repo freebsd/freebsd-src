@@ -1047,7 +1047,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	 */
 				if (t &&
 				    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
-				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
@@ -2865,7 +2864,7 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 	}
 	while ((inp = inp_next(&inpi)) != NULL)
 		if (inp->inp_gencnt == params->sop_id) {
-			if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+			if (inp->inp_flags & INP_DROPPED) {
 				INP_WUNLOCK(inp);
 				return (ECONNRESET);
 			}
@@ -3014,10 +3013,6 @@ db_print_inpflags(int inp_flags)
 	if (inp_flags & IN6P_AUTOFLOWLABEL) {
 		db_printf("%sIN6P_AUTOFLOWLABEL", comma ? ", " : "");
 		comma = 1;
-	}
-	if (inp_flags & INP_TIMEWAIT) {
-		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
-		comma  = 1;
 	}
 	if (inp_flags & INP_ONESBCAST) {
 		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
@@ -3234,7 +3229,7 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 	 * down, allocating a new send tag is not allowed. Else send
 	 * tags may leak.
 	 */
-	if (*st != NULL || (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) != 0)
+	if (*st != NULL || (inp->inp_flags & INP_DROPPED) != 0)
 		return (EINVAL);
 
 	error = m_snd_tag_alloc(ifp, &params, st);

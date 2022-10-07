@@ -205,9 +205,8 @@ struct in_conninfo {
  * to a field, a write lock must generally be held.
  *
  * netinet/netinet6-layer code should not assume that the inp_socket pointer
- * is safe to dereference without inp_lock being held, even for protocols
- * other than TCP (where the inpcb persists during TIMEWAIT even after the
- * socket has been freed), or there may be close(2)-related races.
+ * is safe to dereference without inp_lock being held, there may be
+ * close(2)-related races.
  *
  * The inp_vflag field is overloaded, and would otherwise ideally be (c).
  */
@@ -641,7 +640,7 @@ int	inp_so_options(const struct inpcb *inp);
 #define	IN6P_RTHDRDSTOPTS	0x00200000 /* receive dstoptions before rthdr */
 #define	IN6P_TCLASS		0x00400000 /* receive traffic class value */
 #define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
-#define	INP_TIMEWAIT		0x01000000 /* in TIMEWAIT, ppcb is tcptw */
+/* was	INP_TIMEWAIT		0x01000000 */
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
 #define	INP_DROPPED		0x04000000 /* protocol drop flag */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */

@@ -896,10 +896,9 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	/*
 	 * If we can't find the TCP control block (happens occasionaly for a
-	 * packet sent during the shutdown phase of a TCP connection),
-	 * or we're in the timewait state, bail
+	 * packet sent during the shutdown phase of a TCP connection), bail
 	 */
-	if (tp == NULL || inp->inp_flags & INP_TIMEWAIT) {
+	if (tp == NULL) {
 		if (dir == PFIL_IN)
 			ss->nskip_in_tcpcb++;
 		else
@@ -1081,10 +1080,9 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	/*
 	 * If we can't find the TCP control block (happens occasionaly for a
-	 * packet sent during the shutdown phase of a TCP connection),
-	 * or we're in the timewait state, bail.
+	 * packet sent during the shutdown phase of a TCP connection), bail
 	 */
-	if (tp == NULL || inp->inp_flags & INP_TIMEWAIT) {
+	if (tp == NULL) {
 		if (dir == PFIL_IN)
 			ss->nskip_in_tcpcb++;
 		else

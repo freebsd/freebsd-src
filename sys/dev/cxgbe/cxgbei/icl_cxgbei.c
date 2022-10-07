@@ -478,8 +478,7 @@ icl_cxgbei_tx_main(void *arg)
 		INP_WLOCK(inp);
 
 		ICL_CONN_UNLOCK(ic);
-		if (__predict_false(inp->inp_flags & (INP_DROPPED |
-		    INP_TIMEWAIT)) ||
+		if (__predict_false(inp->inp_flags & INP_DROPPED) ||
 		    __predict_false((toep->flags & TPF_ATTACHED) == 0)) {
 			mbufq_drain(&mq);
 		} else {
@@ -1007,7 +1006,7 @@ find_offload_adapter(struct adapter *sc, void *arg)
 
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+	if ((inp->inp_flags & INP_DROPPED) == 0) {
 		tp = intotcpcb(inp);
 		if (tp->t_flags & TF_TOE && tp->tod == &td->tod)
 			fa->sc = sc;	/* Found. */
@@ -1164,7 +1163,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		error = ENOTCONN;
 		goto out;
@@ -1506,7 +1505,7 @@ no_ddp:
 	 */
 	inp = sotoinpcb(ic->ic_socket);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) != 0) {
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
 		INP_WUNLOCK(inp);
 		mbufq_drain(&mq);
 		t4_free_page_pods(prsv);
@@ -1683,7 +1682,7 @@ no_ddp:
 		inp = sotoinpcb(ic->ic_socket);
 		INP_WLOCK(inp);
 		ICL_CONN_UNLOCK(ic);
-		if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) != 0) {
+		if ((inp->inp_flags & INP_DROPPED) != 0) {
 			INP_WUNLOCK(inp);
 			mbufq_drain(&mq);
 			t4_free_page_pods(prsv);

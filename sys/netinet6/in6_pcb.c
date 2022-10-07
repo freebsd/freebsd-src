@@ -255,7 +255,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 				    INPLOOKUP_WILDCARD, cred);
 				if (t &&
 				    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
-				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
 				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
@@ -286,8 +285,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 					    INPLOOKUP_WILDCARD, cred);
 					if (t &&
 					    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
-					    ((t->inp_flags &
-					      INP_TIMEWAIT) == 0) &&
 					    (so->so_type != SOCK_STREAM ||
 					     ntohl(t->inp_faddr.s_addr) ==
 					      INADDR_ANY) &&

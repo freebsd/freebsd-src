@@ -865,7 +865,7 @@ ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 
 	inp = so->so_pcb;
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -916,7 +916,7 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	int error;
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -1016,7 +1016,7 @@ ktls_alloc_rcv_tag(struct inpcb *inp, struct ktls_session *tls,
 		return (ENXIO);
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -1463,7 +1463,7 @@ ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq)
 		INP_RUNLOCK(inp);
 		return (EINVAL);
 	}
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -1625,7 +1625,7 @@ ktls_reset_receive_tag(void *context, int pending)
 	ifp = NULL;
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		goto out;
 	}
@@ -1746,8 +1746,7 @@ ktls_reset_send_tag(void *context, int pending)
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
 		if (!in_pcbrele_wlocked(inp)) {
-			if (!(inp->inp_flags & INP_TIMEWAIT) &&
-			    !(inp->inp_flags & INP_DROPPED)) {
+			if (!(inp->inp_flags & INP_DROPPED)) {
 				tp = intotcpcb(inp);
 				CURVNET_SET(tp->t_vnet);
 				tp = tcp_drop(tp, ECONNABORTED);
@@ -2288,7 +2287,7 @@ ktls_resync_ifnet(struct socket *so, uint32_t tls_len, uint64_t tls_rcd_num)
 		return (EINVAL);
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -3178,7 +3177,7 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	INP_WLOCK(inp);
 	so = inp->inp_socket;
 	MPASS(so != NULL);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		goto out;
 	}
 
@@ -3189,7 +3188,7 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	if (err == 0) {
 		counter_u64_add(ktls_ifnet_disable_ok, 1);
 		/* ktls_set_tx_mode() drops inp wlock, so recheck flags */
-		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0 &&
+		if ((inp->inp_flags & INP_DROPPED) == 0 &&
 		    (tp = intotcpcb(inp)) != NULL &&
 		    tp->t_fb->tfb_hwtls_change != NULL)
 			(*tp->t_fb->tfb_hwtls_change)(tp, 0);

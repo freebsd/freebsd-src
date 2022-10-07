@@ -1359,8 +1359,7 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	tp = intotcpcb(inp);
 
 	/* Check if the inp is dead, Jim. */
-	if (tp == NULL ||
-	    (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+	if (tp == NULL || (inp->inp_flags & INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		return (TCP_LRO_CANNOT);
 	}

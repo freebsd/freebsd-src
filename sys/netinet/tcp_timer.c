@@ -335,7 +335,7 @@ tcp_timer_2msl(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_2msl);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -408,7 +408,7 @@ tcp_timer_keep(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_keep);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -552,7 +552,7 @@ tcp_timer_persist(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_persist);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
@@ -636,7 +636,7 @@ tcp_timer_rexmt(void * xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_rexmt);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;

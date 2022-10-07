@@ -485,7 +485,7 @@ tcp_log_remove_id_node(struct inpcb *inp, struct tcpcb *tp,
 }
 
 #define	RECHECK_INP_CLEAN(cleanup)	do {			\
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {	\
+	if (inp->inp_flags & INP_DROPPED) {			\
 		rv = ECONNRESET;				\
 		cleanup;					\
 		goto done;					\
@@ -2037,7 +2037,7 @@ tcp_log_getlogbuf(struct sockopt *sopt, struct tcpcb *tp)
 	if (error) {
 		/* Restore list */
 		INP_WLOCK(inp);
-		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0) {
+		if ((inp->inp_flags & INP_DROPPED) == 0) {
 			tp = intotcpcb(inp);
 
 			/* Merge the two lists. */
@@ -2211,7 +2211,7 @@ tcp_log_dump_tp_logbuf(struct tcpcb *tp, char *reason, int how, bool force)
 		 * may end up dropping some entries. That seems like a
 		 * small price to pay for safety.
 		 */
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		if (inp->inp_flags & INP_DROPPED) {
 			free(entry, M_TCPLOGDEV);
 #ifdef TCPLOG_DEBUG_COUNTERS
 			counter_u64_add(tcp_log_que_fail2, 1);
