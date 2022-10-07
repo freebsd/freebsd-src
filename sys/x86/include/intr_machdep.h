@@ -143,9 +143,6 @@ void	intr_add_cpu(u_int cpu);
 int	intr_add_handler(const char *name, int vector, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep,
     int domain);
-#ifdef SMP
-int	intr_bind(u_int vector, u_char cpu);
-#endif
 int	intr_config_intr(int vector, enum intr_trigger trig,
     enum intr_polarity pol);
 int	intr_describe(u_int vector, void *ih, const char *descr);
