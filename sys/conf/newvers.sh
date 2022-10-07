@@ -48,8 +48,8 @@
 # upper case variables starting in column 1 are on one line w/o continuation.
 
 TYPE="FreeBSD"
-REVISION="12.3"
-BRANCH="STABLE"
+REVISION="12.4"
+BRANCH="PRERELEASE"
 if [ -n "${BRANCH_OVERRIDE}" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
