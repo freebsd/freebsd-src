@@ -216,58 +216,13 @@ tcp_usr_detach(struct socket *so)
 
 	tp = intotcpcb(inp);
 
-	if (inp->inp_flags & INP_TIMEWAIT) {
-		/*
-		 * There are two cases to handle: one in which the time wait
-		 * state is being discarded (INP_DROPPED), and one in which
-		 * this connection will remain in timewait.  In the former,
-		 * it is time to discard all state (except tcptw, which has
-		 * already been discarded by the timewait close code, which
-		 * should be further up the call stack somewhere).  In the
-		 * latter case, we detach from the socket, but leave the pcb
-		 * present until timewait ends.
-		 *
-		 * XXXRW: Would it be cleaner to free the tcptw here?
-		 *
-		 * Astute question indeed, from twtcp perspective there are
-		 * four cases to consider:
-		 *
-		 * #1 tcp_usr_detach is called at tcptw creation time by
-		 *  tcp_twstart, then do not discard the newly created tcptw
-		 *  and leave inpcb present until timewait ends
-		 * #2 tcp_usr_detach is called at tcptw creation time by
-		 *  tcp_twstart, but connection is local and tw will be
-		 *  discarded immediately
-		 * #3 tcp_usr_detach is called at timewait end (or reuse) by
-		 *  tcp_twclose, then the tcptw has already been discarded
-		 *  (or reused) and inpcb is freed here
-		 * #4 tcp_usr_detach is called() after timewait ends (or reuse)
-		 *  (e.g. by soclose), then tcptw has already been discarded
-		 *  (or reused) and inpcb is freed here
-		 *
-		 *  In all three cases the tcptw should not be freed here.
-		 */
-		if (inp->inp_flags & INP_DROPPED) {
-			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
-			    "INP_DROPPED && tp != NULL"));
-			in_pcbdetach(inp);
-			in_pcbfree(inp);
-		} else {
-			in_pcbdetach(inp);
-			INP_WUNLOCK(inp);
-		}
-	} else {
-		/*
-		 * If the connection is not in timewait, it must be either
-		 * dropped or embryonic.
-		 */
-		KASSERT(inp->inp_flags & INP_DROPPED ||
-		    tp->t_state < TCPS_SYN_SENT,
-		    ("%s: inp %p not dropped or embryonic", __func__, inp));
-		tcp_discardcb(tp);
-		in_pcbdetach(inp);
-		in_pcbfree(inp);
-	}
+	KASSERT(inp->inp_flags & INP_DROPPED ||
+	    tp->t_state < TCPS_SYN_SENT,
+	    ("%s: inp %p not dropped or embryonic", __func__, inp));
+
+	tcp_discardcb(tp);
+	in_pcbdetach(inp);
+	in_pcbfree(inp);
 }
 
 #ifdef INET
