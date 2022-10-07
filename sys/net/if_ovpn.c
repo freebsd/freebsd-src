@@ -1419,7 +1419,6 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
     struct rm_priotracker *_ovpn_lock_trackerp)
 {
 	uint32_t af;
-	int ret __diagused;
 
 	OVPN_RASSERT(sc);
 	NET_EPOCH_ASSERT();
@@ -1461,9 +1460,7 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 	af = ovpn_get_af(m);
 	if (af != 0) {
 		BPF_MTAP2(sc->ifp, &af, sizeof(af), m);
-		ret = netisr_dispatch(af == AF_INET ? NETISR_IP : NETISR_IPV6,
-		    m);
-		MPASS(ret == 0);
+		netisr_dispatch(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
 	} else {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
 		m_freem(m);
