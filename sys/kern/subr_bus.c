@@ -5591,8 +5591,9 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		char *path;
 		ssize_t len;
 
-		error = copyinstr(req->dr_buffer.buffer, locator, sizeof(locator), NULL);
-		if (error)
+		error = copyinstr(req->dr_buffer.buffer, locator,
+		    sizeof(locator), NULL);
+		if (error != 0)
 			break;
 		path = device_get_path(dev, locator);
 		if (path == NULL) {
@@ -5698,7 +5699,8 @@ dev_wired_cache_add(device_location_cache_t *dcp, const char *locator, const cha
 }
 
 bool
-dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at)
+dev_wired_cache_match(device_location_cache_t *dcp, device_t dev,
+    const char *at)
 {
 	const char *cp, *path;
 	char locator[32];
