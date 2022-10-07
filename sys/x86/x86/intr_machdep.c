@@ -630,18 +630,6 @@ intr_next_cpu(int domain)
 	return (apic_id);
 }
 
-/* Attempt to bind the specified IRQ to the specified CPU. */
-int
-intr_bind(u_int vector, u_char cpu)
-{
-	struct intsrc *isrc;
-
-	isrc = intr_lookup_source(vector);
-	if (isrc == NULL)
-		return (EINVAL);
-	return (intr_event_bind(isrc->is_event, cpu));
-}
-
 /*
  * Add a CPU to our mask of valid CPUs that can be destinations of
  * interrupts.
