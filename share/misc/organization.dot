@@ -29,8 +29,9 @@ core [label="Core Team\ncore@FreeBSD.org\nbapt, bcr, emaste,\ngrog, jhb, lwhsu,\
 coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\nbofh"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\nbcr, gabor, gjb, hrs,\nblackend, ryusuke, wblock"]
+pkgmgr [label="Package Management Team\npkgmgr@FreeBSD.org\nantoine, bdrewery"]
 portscommitters [label="Ports Committers\nports-committers@FreeBSD.org"]
-portmgr [label="Port Management Team\nportmgr@FreeBSD.org\nantoine, bapt, bdrewery, mat\npizzamig, rene, swills, tcberner"]
+portmgr [label="Port Management Team\nportmgr@FreeBSD.org\nbapt, mat, pizzamig\nrene, swills, tcberner"]
 portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\nrene"]
 re [label="Primary Release Engineering Team\nre@FreeBSD.org\ngjb, kib\n, blackend, delphij, cperciva"]
 secteam [label="Security Team\nsecteam@FreeBSD.org\ndelphij,\ndes, markj,\nemaste,\ngjb, gordon,\noshogbo, philip"]
@@ -86,6 +87,7 @@ core -> srccommitters
 
 doceng -> doccommitters
 
+portmgr -> pkgmgr
 portmgr -> portmgrsecretary
 portmgr -> portscommitters
 
