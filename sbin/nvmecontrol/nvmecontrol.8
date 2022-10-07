@@ -44,6 +44,7 @@
 .Sh SYNOPSIS
 .Nm
 .Ic devlist
+.Op Fl h
 .Nm
 .Ic identify
 .Op Fl v
@@ -209,6 +210,13 @@
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
+.Ss devlist
+List all NVMe controllers and namespaces along with their device nodes.
+With the
+.Fl h
+argument, use unit suffixes: Byte, Kibibyte, Mebibyte, Gibibyte, Tebibyte
+and Pebibyte (based on powers of 1024) when showing the disk space.
+By default, uses Mebibyte.
 .Ss identify
 The identify commands reports information from the drive's
 .Dv IDENTIFY_CONTROLLER
