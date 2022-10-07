@@ -169,7 +169,7 @@ main(int argc, char *argv[])
 
 	rval = 0;
 	for (; argc > 0; argc--, argv++) {
-		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
+		if ((fd = open(*argv, O_RDONLY | O_VERIFY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
 			continue;
