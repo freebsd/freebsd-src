@@ -171,7 +171,7 @@ lpc_uart_intr_assert(void *arg)
 }
 
 static void
-lpc_uart_intr_deassert(void *arg)
+lpc_uart_intr_deassert(void *arg __unused)
 {
 	/*
 	 * The COM devices on the LPC bus generate edge triggered interrupts,
@@ -180,8 +180,8 @@ lpc_uart_intr_deassert(void *arg)
 }
 
 static int
-lpc_uart_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-		    uint32_t *eax, void *arg)
+lpc_uart_io_handler(struct vmctx *ctx __unused, int vcpu __unused, int in,
+    int port, int bytes, uint32_t *eax, void *arg)
 {
 	int offset;
 	struct lpc_uart_softc *sc = arg;
@@ -398,8 +398,8 @@ pci_lpc_uart_dsdt(void)
 LPC_DSDT(pci_lpc_uart_dsdt);
 
 static int
-pci_lpc_cfgwrite(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-		  int coff, int bytes, uint32_t val)
+pci_lpc_cfgwrite(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
+    int coff, int bytes, uint32_t val)
 {
 	int pirq_pin;
 
@@ -419,14 +419,16 @@ pci_lpc_cfgwrite(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 }
 
 static void
-pci_lpc_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-	       int baridx, uint64_t offset, int size, uint64_t value)
+pci_lpc_write(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi __unused, int baridx __unused,
+    uint64_t offset __unused, int size __unused, uint64_t value __unused)
 {
 }
 
 static uint64_t
-pci_lpc_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-	      int baridx, uint64_t offset, int size)
+pci_lpc_read(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi __unused, int baridx __unused, uint64_t offset __unused,
+    int size __unused)
 {
 	return (0);
 }
@@ -435,9 +437,8 @@ pci_lpc_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 #define	LPC_VENDOR	0x8086
 
 static int
-pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl __unused)
 {
-
 	/*
 	 * Do not allow more than one LPC bridge to be configured.
 	 */

@@ -399,7 +399,7 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
  * an entire ethernet frame + rx header.
  */
 static void
-pci_vtnet_rx_callback(int fd, enum ev_type type, void *param)
+pci_vtnet_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 {
 	struct pci_vtnet_softc *sc = param;
 
@@ -560,7 +560,8 @@ pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 #endif
 
 static int
-pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtnet_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
+    nvlist_t *nvl)
 {
 	struct pci_vtnet_softc *sc;
 	const char *value;

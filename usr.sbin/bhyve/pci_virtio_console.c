@@ -210,9 +210,9 @@ pci_vtcon_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 }
 
 static int
-pci_vtcon_cfgwrite(void *vsc, int offset, int size, uint32_t val)
+pci_vtcon_cfgwrite(void *vsc __unused, int offset __unused, int size __unused,
+    uint32_t val __unused)
 {
-
 	return (0);
 }
 
@@ -464,8 +464,8 @@ close:
 }
 
 static void
-pci_vtcon_sock_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
-    int niov)
+pci_vtcon_sock_tx(struct pci_vtcon_port *port __unused, void *arg __unused,
+    struct iovec *iov, int niov)
 {
 	struct pci_vtcon_sock *sock;
 	int i, ret;
@@ -490,8 +490,8 @@ pci_vtcon_sock_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
 }
 
 static void
-pci_vtcon_control_tx(struct pci_vtcon_port *port, void *arg, struct iovec *iov,
-    int niov)
+pci_vtcon_control_tx(struct pci_vtcon_port *port, void *arg __unused,
+    struct iovec *iov, int niov)
 {
 	struct pci_vtcon_softc *sc;
 	struct pci_vtcon_port *tmp;
@@ -684,7 +684,8 @@ pci_vtcon_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtcon_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
+    nvlist_t *nvl)
 {
 	struct pci_vtcon_softc *sc;
 	nvlist_t *ports_nvl;

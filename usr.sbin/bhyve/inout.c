@@ -66,8 +66,8 @@ static struct {
 } inout_handlers[MAX_IOPORTS];
 
 static int
-default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-              uint32_t *eax, void *arg)
+default_inout(struct vmctx *ctx __unused, int vcpu __unused, int in,
+    int port __unused, int bytes, uint32_t *eax, void *arg __unused)
 {
 	if (in) {
 		switch (bytes) {

@@ -342,9 +342,9 @@ pci_vtscsi_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 }
 
 static int
-pci_vtscsi_cfgwrite(void *vsc, int offset, int size, uint32_t val)
+pci_vtscsi_cfgwrite(void *vsc __unused, int offset __unused, int size __unused,
+    uint32_t val __unused)
 {
-
 	return (0);
 }
 
@@ -459,10 +459,9 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 }
 
 static int
-pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc,
-    struct pci_vtscsi_ctrl_an *an)
+pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc __unused,
+    struct pci_vtscsi_ctrl_an *an __unused)
 {
-
 	return (0);
 }
 
@@ -604,9 +603,8 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 }
 
 static void
-pci_vtscsi_eventq_notify(void *vsc, struct vqueue_info *vq)
+pci_vtscsi_eventq_notify(void *vsc __unused, struct vqueue_info *vq)
 {
-
 	vq_kick_disable(vq);
 }
 
@@ -698,7 +696,8 @@ pci_vtscsi_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtscsi_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
+    nvlist_t *nvl)
 {
 	struct pci_vtscsi_softc *sc;
 	const char *devname, *value;

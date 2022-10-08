@@ -178,7 +178,7 @@ pci_vtinput_reset(void *vsc)
 }
 
 static void
-pci_vtinput_notify_eventq(void *vsc, struct vqueue_info *vq)
+pci_vtinput_notify_eventq(void *vsc __unused, struct vqueue_info *vq __unused)
 {
 	DPRINTF(("%s", __func__));
 }
@@ -639,7 +639,8 @@ pci_vtinput_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vtinput_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtinput_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
+    nvlist_t *nvl)
 {
 	struct pci_vtinput_softc *sc;
 

@@ -178,8 +178,8 @@ fail:
 }
 
 static int
-pctestdev_debugexit_io(struct vmctx *ctx, int vcpu, int in, int port,
-    int bytes, uint32_t *eax, void *arg)
+pctestdev_debugexit_io(struct vmctx *ctx __unused, int vcpu __unused, int in,
+    int port __unused, int bytes __unused, uint32_t *eax, void *arg __unused)
 {
 	if (in)
 		*eax = 0;
@@ -190,8 +190,9 @@ pctestdev_debugexit_io(struct vmctx *ctx, int vcpu, int in, int port,
 }
 
 static int
-pctestdev_iomem_io(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
-    int size, uint64_t *val, void *arg1, long arg2)
+pctestdev_iomem_io(struct vmctx *ctx __unused, int vcpu __unused, int dir,
+    uint64_t addr, int size, uint64_t *val, void *arg1 __unused,
+    long arg2 __unused)
 {
 	uint64_t offset;
 
@@ -210,8 +211,8 @@ pctestdev_iomem_io(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 }
 
 static int
-pctestdev_ioport_io(struct vmctx *ctx, int vcpu, int in, int port,
-    int bytes, uint32_t *eax, void *arg)
+pctestdev_ioport_io(struct vmctx *ctx __unused, int vcpu __unused, int in,
+    int port, int bytes, uint32_t *eax, void *arg __unused)
 {
 	uint32_t mask;
 	int lsb;
@@ -233,8 +234,8 @@ pctestdev_ioport_io(struct vmctx *ctx, int vcpu, int in, int port,
 }
 
 static int
-pctestdev_irq_io(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-    uint32_t *eax, void *arg)
+pctestdev_irq_io(struct vmctx *ctx, int vcpu __unused, int in, int port,
+    int bytes, uint32_t *eax, void *arg __unused)
 {
 	int irq;
 
