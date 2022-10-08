@@ -624,8 +624,7 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 static int
 emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-	     mem_region_read_t memread, mem_region_write_t memwrite,
-	     void *arg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused, void *arg)
 {
 	int error, size;
 	enum vm_reg_name reg;
@@ -712,9 +711,9 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
  * Helper function to calculate and validate a linear address.
  */
 static int
-get_gla(void *vm, int vcpuid, struct vie *vie, struct vm_guest_paging *paging,
-    int opsize, int addrsize, int prot, enum vm_reg_name seg,
-    enum vm_reg_name gpr, uint64_t *gla, int *fault)
+get_gla(void *vm, int vcpuid, struct vie *vie __unused,
+    struct vm_guest_paging *paging, int opsize, int addrsize, int prot,
+    enum vm_reg_name seg, enum vm_reg_name gpr, uint64_t *gla, int *fault)
 {
 	struct seg_desc desc;
 	uint64_t cr0, val, rflags;
@@ -948,7 +947,7 @@ done:
 
 static int
 emulate_stos(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-    struct vm_guest_paging *paging, mem_region_read_t memread,
+    struct vm_guest_paging *paging __unused, mem_region_read_t memread __unused,
     mem_region_write_t memwrite, void *arg)
 {
 	int error, opsize, repeat;
@@ -1186,7 +1185,7 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 static int
 emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused, void *arg)
 {
 	int error, size;
 	uint64_t regop, memop, op1, op2, rflags, rflags2;
@@ -1278,7 +1277,7 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 static int
 emulate_test(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused, void *arg)
 {
 	int error, size;
 	uint64_t op1, rflags, rflags2;
@@ -1328,7 +1327,7 @@ emulate_test(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 static int
 emulate_bextr(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
-    mem_region_write_t memwrite, void *arg)
+    mem_region_write_t memwrite __unused, void *arg)
 {
 	uint64_t src1, src2, dst, rflags;
 	unsigned start, len;
@@ -1404,7 +1403,7 @@ done:
 
 static int
 emulate_add(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused, void *arg)
 {
 	int error, size;
 	uint64_t nval, rflags, rflags2, val1, val2;
@@ -1460,7 +1459,7 @@ emulate_add(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 static int
 emulate_sub(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused, void *arg)
 {
 	int error, size;
 	uint64_t nval, rflags, rflags2, val1, val2;
@@ -1660,7 +1659,7 @@ emulate_pop(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 
 static int
 emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-    struct vm_guest_paging *paging, mem_region_read_t memread,
+    struct vm_guest_paging *paging __unused, mem_region_read_t memread,
     mem_region_write_t memwrite, void *memarg)
 {
 	int error;
@@ -1688,7 +1687,8 @@ emulate_group1(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 static int
 emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused,
+    void *memarg)
 {
 	uint64_t val, rflags;
 	int error, bitmask, bitoff;
@@ -1730,7 +1730,8 @@ emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 static int
 emulate_twob_group15(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+    mem_region_read_t memread, mem_region_write_t memwrite __unused,
+    void *memarg)
 {
 	int error;
 	uint64_t buf;

@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
  * Returns the current RTC time as number of seconds since 00:00:00 Jan 1, 1970
  */
 static time_t
-rtc_time(struct vmctx *ctx)
+rtc_time(void)
 {
 	struct tm tm;
 	time_t t;
@@ -102,7 +102,7 @@ rtc_init(struct vmctx *ctx)
 	err = vm_rtc_write(ctx, RTC_HMEM_MSB, himem >> 16);
 	assert(err == 0);
 
-	err = vm_rtc_settime(ctx, rtc_time(ctx));
+	err = vm_rtc_settime(ctx, rtc_time());
 	assert(err == 0);
 }
 

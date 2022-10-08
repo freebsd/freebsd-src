@@ -318,13 +318,12 @@ rfb_send_extended_keyevent_update_msg(struct rfb_softc *rc, int cfd)
 }
 
 static void
-rfb_recv_set_pixfmt_msg(struct rfb_softc *rc, int cfd)
+rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 {
 	struct rfb_pixfmt_msg pixfmt_msg;
 
 	(void)stream_read(cfd, ((void *)&pixfmt_msg)+1, sizeof(pixfmt_msg)-1);
 }
-
 
 static void
 rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
@@ -379,7 +378,7 @@ fast_crc32(void *buf, int len, uint32_t crcval)
 }
 
 static int
-rfb_send_update_header(struct rfb_softc *rc, int cfd, int numrects)
+rfb_send_update_header(struct rfb_softc *rc __unused, int cfd, int numrects)
 {
 	struct rfb_srvr_updt_msg supdt_msg;
 
@@ -778,7 +777,7 @@ rfb_recv_ptr_msg(struct rfb_softc *rc, int cfd)
 }
 
 static void
-rfb_recv_cuttext_msg(struct rfb_softc *rc, int cfd)
+rfb_recv_cuttext_msg(struct rfb_softc *rc __unused, int cfd)
 {
 	struct rfb_cuttext_msg ct_msg;
 	unsigned char buf[32];

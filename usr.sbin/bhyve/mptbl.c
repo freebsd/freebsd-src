@@ -213,8 +213,8 @@ mpt_count_ioint_entries(void)
 }
 
 static void
-mpt_generate_pci_int(int bus, int slot, int pin, int pirq_pin, int ioapic_irq,
-    void *arg)
+mpt_generate_pci_int(int bus, int slot, int pin, int pirq_pin __unused,
+    int ioapic_irq, void *arg)
 {
 	int_entry_ptr *mpiep, mpie;
 

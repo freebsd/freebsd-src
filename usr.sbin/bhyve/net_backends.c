@@ -220,7 +220,7 @@ tap_cleanup(struct net_backend *be)
 
 static int
 tap_init(struct net_backend *be, const char *devname,
-	 nvlist_t *nvl, net_be_rxeof_t cb, void *param)
+    nvlist_t *nvl __unused, net_be_rxeof_t cb, void *param)
 {
 	struct tap_priv *priv = (struct tap_priv *)be->opaque;
 	char tbuf[80];
@@ -395,15 +395,15 @@ tap_recv_disable(struct net_backend *be)
 }
 
 static uint64_t
-tap_get_cap(struct net_backend *be)
+tap_get_cap(struct net_backend *be __unused)
 {
 
 	return (0); /* no capabilities for now */
 }
 
 static int
-tap_set_cap(struct net_backend *be, uint64_t features,
-		unsigned vnet_hdr_len)
+tap_set_cap(struct net_backend *be __unused, uint64_t features,
+    unsigned vnet_hdr_len)
 {
 
 	return ((features || vnet_hdr_len) ? -1 : 0);
@@ -450,7 +450,7 @@ DATA_SET(net_backend_set, vmnet_backend);
 #define NG_SBUF_MAX_SIZE (4 * 1024 * 1024)
 
 static int
-ng_init(struct net_backend *be, const char *devname,
+ng_init(struct net_backend *be, const char *devname __unused,
 	 nvlist_t *nvl, net_be_rxeof_t cb, void *param)
 {
 	struct tap_priv *p = (struct tap_priv *)be->opaque;
@@ -675,8 +675,8 @@ netmap_get_cap(struct net_backend *be)
 }
 
 static int
-netmap_set_cap(struct net_backend *be, uint64_t features,
-	       unsigned vnet_hdr_len)
+netmap_set_cap(struct net_backend *be, uint64_t features __unused,
+    unsigned vnet_hdr_len)
 {
 
 	return (netmap_set_vnet_hdr_len(be, vnet_hdr_len));
@@ -684,7 +684,7 @@ netmap_set_cap(struct net_backend *be, uint64_t features,
 
 static int
 netmap_init(struct net_backend *be, const char *devname,
-	    nvlist_t *nvl, net_be_rxeof_t cb, void *param)
+    nvlist_t *nvl __unused, net_be_rxeof_t cb, void *param)
 {
 	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
 

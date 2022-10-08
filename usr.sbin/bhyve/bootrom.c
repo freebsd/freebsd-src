@@ -84,8 +84,9 @@ static struct bootrom_var_state {
  * that the Firmware Volume area is writable and persistent.
  */
 static int
-bootrom_var_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
-    int size, uint64_t *val, void *arg1, long arg2)
+bootrom_var_mem_handler(struct vmctx *ctx __unused, int vcpu __unused, int dir,
+    uint64_t addr, int size, uint64_t *val, void *arg1 __unused,
+    long arg2 __unused)
 {
 	off_t offset;
 

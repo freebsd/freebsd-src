@@ -134,7 +134,7 @@ pci_irq_use(int irq)
 }
 
 void
-pci_irq_init(struct vmctx *ctx)
+pci_irq_init(struct vmctx *ctx __unused)
 {
 	int i;
 

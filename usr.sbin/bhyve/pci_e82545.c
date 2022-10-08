@@ -407,15 +407,15 @@ e82545_init_eeprom(struct e82545_softc *sc)
 }
 
 static void
-e82545_write_mdi(struct e82545_softc *sc, uint8_t reg_addr,
-			uint8_t phy_addr, uint32_t data)
+e82545_write_mdi(struct e82545_softc *sc __unused, uint8_t reg_addr,
+    uint8_t phy_addr, uint32_t data)
 {
 	DPRINTF("Write mdi reg:0x%x phy:0x%x data: 0x%x", reg_addr, phy_addr, data);
 }
 
 static uint32_t
-e82545_read_mdi(struct e82545_softc *sc, uint8_t reg_addr,
-			uint8_t phy_addr)
+e82545_read_mdi(struct e82545_softc *sc __unused, uint8_t reg_addr,
+    uint8_t phy_addr)
 {
 	//DPRINTF("Read mdi reg:0x%x phy:0x%x", reg_addr, phy_addr);
 	switch (reg_addr) {
@@ -554,7 +554,7 @@ e82545_eecd_strobe(struct e82545_softc *sc)
 }
 
 static void
-e82545_itr_callback(int fd, enum ev_type type, void *param)
+e82545_itr_callback(int fd __unused, enum ev_type type __unused, void *param)
 {
 	uint32_t new;
 	struct e82545_softc *sc = param;
@@ -830,7 +830,7 @@ e82545_bufsz(uint32_t rctl)
 
 /* XXX one packet at a time until this is debugged */
 static void
-e82545_rx_callback(int fd, enum ev_type type, void *param)
+e82545_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 {
 	struct e82545_softc *sc = param;
 	struct e1000_rx_desc *rxd;
@@ -2110,8 +2110,9 @@ e82545_read_register(struct e82545_softc *sc, uint32_t offset)
 }
 
 static void
-e82545_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
-	     uint64_t offset, int size, uint64_t value)
+e82545_write(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+    uint64_t value)
 {
 	struct e82545_softc *sc;
 
@@ -2160,8 +2161,8 @@ e82545_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 }
 
 static uint64_t
-e82545_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
-	    uint64_t offset, int size)
+e82545_read(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct e82545_softc *sc;
 	uint64_t retval;

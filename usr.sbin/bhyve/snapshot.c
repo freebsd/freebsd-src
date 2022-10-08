@@ -601,7 +601,7 @@ lookup_guest_ncpus(struct restore_state *rstate)
 }
 
 static void
-winch_handler(int signal)
+winch_handler(int signal __unused)
 {
 #ifdef TIOCGWINSZ
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsize);

@@ -890,7 +890,7 @@ hda_get_offset_stream(uint8_t stream_ind)
 }
 
 static void
-hda_set_gctl(struct hda_softc *sc, uint32_t offset, uint32_t old)
+hda_set_gctl(struct hda_softc *sc, uint32_t offset, uint32_t old __unused)
 {
 	uint32_t value = hda_get_reg_by_offset(sc, offset);
 
@@ -913,7 +913,8 @@ hda_set_statests(struct hda_softc *sc, uint32_t offset, uint32_t old)
 }
 
 static void
-hda_set_corbwp(struct hda_softc *sc, uint32_t offset, uint32_t old)
+hda_set_corbwp(struct hda_softc *sc, uint32_t offset __unused,
+    uint32_t old __unused)
 {
 	hda_corb_run(sc);
 }
@@ -939,7 +940,7 @@ hda_set_corbctl(struct hda_softc *sc, uint32_t offset, uint32_t old)
 }
 
 static void
-hda_set_rirbctl(struct hda_softc *sc, uint32_t offset, uint32_t old)
+hda_set_rirbctl(struct hda_softc *sc, uint32_t offset, uint32_t old __unused)
 {
 	uint32_t value = hda_get_reg_by_offset(sc, offset);
 	int err;
@@ -1025,7 +1026,7 @@ hda_set_sdctl(struct hda_softc *sc, uint32_t offset, uint32_t old)
 }
 
 static void
-hda_set_sdctl2(struct hda_softc *sc, uint32_t offset, uint32_t old)
+hda_set_sdctl2(struct hda_softc *sc, uint32_t offset, uint32_t old __unused)
 {
 	uint32_t value = hda_get_reg_by_offset(sc, offset);
 
@@ -1256,8 +1257,9 @@ pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 }
 
 static void
-pci_hda_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size, uint64_t value)
+pci_hda_write(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+    uint64_t value)
 {
 	struct hda_softc *sc = pi->pi_arg;
 	int err;
@@ -1273,8 +1275,8 @@ pci_hda_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 }
 
 static uint64_t
-pci_hda_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size)
+pci_hda_read(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct hda_softc *sc = pi->pi_arg;
 	uint64_t value = 0;
