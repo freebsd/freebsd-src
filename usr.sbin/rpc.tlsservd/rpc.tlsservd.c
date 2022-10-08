@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <err.h>
 #include <getopt.h>
 #include <libutil.h>
@@ -106,8 +107,12 @@ static char		*rpctls_dnsname;
 static const char	*rpctls_cnuseroid = "1.3.6.1.4.1.2238.1.1.1";
 static const char	*rpctls_ciphers = NULL;
 static int		rpctls_mintls = TLS1_3_VERSION;
+static int		rpctls_procs = 1;
+static char		*rpctls_sockname[RPCTLS_SRV_MAXNPROCS];
+static pid_t		rpctls_workers[RPCTLS_SRV_MAXNPROCS - 1];
+static bool		rpctls_im_a_worker = false;
 
-static void		rpctlssd_terminate(int);
+static void		rpctls_cleanup_term(int sig);
 static SSL_CTX		*rpctls_setup_ssl(const char *certdir);
 static SSL		*rpctls_server(SSL_CTX *ctx, int s,
 			    uint32_t *flags, uint32_t *uidp,
@@ -127,6 +132,7 @@ static struct option longopts[] = {
 	{ "checkhost",		no_argument,		NULL,	'h' },
 	{ "verifylocs",		required_argument,	NULL,	'l' },
 	{ "mutualverf",		no_argument,		NULL,	'm' },
+	{ "numdaemons",		required_argument,	NULL,	'N' },
 	{ "domain",		required_argument,	NULL,	'n' },
 	{ "verifydir",		required_argument,	NULL,	'p' },
 	{ "crl",		required_argument,	NULL,	'r' },
@@ -146,7 +152,7 @@ main(int argc, char **argv)
 	 * TLS handshake.
 	 */
 	struct sockaddr_un sun;
-	int ch, fd, oldmask;
+	int ch, fd, i, mypos, oldmask;
 	SVCXPRT *xprt;
 	struct timeval tm;
 	struct timezone tz;
@@ -154,6 +160,7 @@ main(int argc, char **argv)
 	pid_t otherpid;
 	bool tls_enable;
 	size_t tls_enable_len;
+	sigset_t signew;
 
 	/* Check that another rpctlssd isn't already running. */
 	rpctls_pfh = pidfile_open(_PATH_RPCTLSSDPID, 0600, &otherpid);
@@ -181,8 +188,15 @@ main(int argc, char **argv)
 		rpctls_dnsname = hostname;
 	}
 
+	/* Initialize socket names. */
+	for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
+		asprintf(&rpctls_sockname[i], "%s.%d", _PATH_RPCTLSSDSOCK, i);
+		if (rpctls_sockname[i] == NULL)
+			errx(1, "Cannot malloc socknames");
+	}
+
 	rpctls_verbose = false;
-	while ((ch = getopt_long(argc, argv, "2C:D:dhl:n:mp:r:uvWw", longopts,
+	while ((ch = getopt_long(argc, argv, "2C:D:dhl:N:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
 		switch (ch) {
 		case '2':
@@ -205,6 +219,13 @@ main(int argc, char **argv)
 			break;
 		case 'm':
 			rpctls_do_mutual = true;
+			break;
+		case 'N':
+			rpctls_procs = atoi(optarg);
+			if (rpctls_procs < 1 ||
+			    rpctls_procs > RPCTLS_SRV_MAXNPROCS)
+				errx(1, "numdaemons/-N must be between 1 and "
+				    "%d", RPCTLS_SRV_MAXNPROCS);
 			break;
 		case 'n':
 			hostname[0] = '@';
@@ -242,6 +263,7 @@ main(int argc, char **argv)
 			    "[-D/--certdir certdir] [-d/--debuglevel] "
 			    "[-h/--checkhost] "
 			    "[-l/--verifylocs CAfile] [-m/--mutualverf] "
+			    "[-N/--numdaemons num] "
 			    "[-n/--domain domain_name] "
 			    "[-p/--verifydir CApath] [-r/--crl CRLfile] "
 			    "[-u/--certuser] [-v/--verbose] [-W/--multiwild] "
@@ -271,23 +293,60 @@ main(int argc, char **argv)
 			errx(1, "Kernel RPC is not available");
 	}
 
+	for (i = 0; i < rpctls_procs - 1; i++)
+		rpctls_workers[i] = -1;
+	mypos = 0;
+
 	if (rpctls_debug_level == 0) {
+		/*
+		 * Temporarily block SIGTERM and SIGCHLD, so workers[] can't
+		 * end up bogus.
+		 */
+		sigemptyset(&signew);
+		sigaddset(&signew, SIGTERM);
+		sigaddset(&signew, SIGCHLD);
+		sigprocmask(SIG_BLOCK, &signew, NULL);
+
 		if (daemon(0, 0) != 0)
 			err(1, "Can't daemonize");
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
-		signal(SIGHUP, SIG_IGN);
 	}
-	signal(SIGTERM, rpctlssd_terminate);
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, rpctls_huphandler);
+	signal(SIGTERM, rpctls_cleanup_term);
+	signal(SIGCHLD, rpctls_cleanup_term);
 
 	pidfile_write(rpctls_pfh);
 
+	rpctls_syscall(RPCTLS_SYSC_SRVSTARTUP, "");
+
+	if (rpctls_debug_level == 0) {
+		/* Fork off the worker daemons. */
+		for (i = 0; i < rpctls_procs - 1; i++) {
+			rpctls_workers[i] = fork();
+			if (rpctls_workers[i] == 0) {
+				rpctls_im_a_worker = true;
+				mypos = i + 1;
+				setproctitle("server");
+				break;
+			} else if (rpctls_workers[i] < 0) {
+				syslog(LOG_ERR, "fork: %m");
+			}
+		}
+
+		if (!rpctls_im_a_worker && rpctls_procs > 1)
+			setproctitle("master");
+	}
+	sigemptyset(&signew);
+	sigaddset(&signew, SIGTERM);
+	sigaddset(&signew, SIGCHLD);
+	sigprocmask(SIG_UNBLOCK, &signew, NULL);
+
 	memset(&sun, 0, sizeof sun);
 	sun.sun_family = AF_LOCAL;
-	unlink(_PATH_RPCTLSSDSOCK);
-	strcpy(sun.sun_path, _PATH_RPCTLSSDSOCK);
+	unlink(rpctls_sockname[mypos]);
+	strcpy(sun.sun_path, rpctls_sockname[mypos]);
 	sun.sun_len = SUN_LEN(&sun);
 	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -343,11 +402,9 @@ main(int argc, char **argv)
 	rpctls_gothup = false;
 	LIST_INIT(&rpctls_ssllist);
 
-	rpctls_syscall(RPCTLS_SYSC_SRVSETPATH, _PATH_RPCTLSSDSOCK);
+	rpctls_syscall(RPCTLS_SYSC_SRVSETPATH, rpctls_sockname[mypos]);
 
 	rpctls_svc_run();
-
-	rpctls_syscall(RPCTLS_SYSC_SRVSHUTDOWN, "");
 
 	SSL_CTX_free(rpctls_ctx);
 	EVP_cleanup();
@@ -529,16 +586,43 @@ rpctlssd_1_freeresult(__unused SVCXPRT *transp, xdrproc_t xdr_result,
 	return (TRUE);
 }
 
+/*
+ * cleanup_term() called via SIGTERM (or SIGCHLD if a child dies).
+ */
 static void
-rpctlssd_terminate(int sig __unused)
+rpctls_cleanup_term(int sig)
 {
 	struct ssl_entry *slp;
+	int i, cnt;
+
+	if (rpctls_im_a_worker && sig == SIGCHLD)
+		return;
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		shutdown(slp->s, SHUT_RD);
+	SSL_CTX_free(rpctls_ctx);
+	EVP_cleanup();
+
+	if (rpctls_im_a_worker)
+		exit(0);
+
+	/* I'm the server, so terminate the workers. */
+	cnt = 0;
+	for (i = 0; i < rpctls_procs - 1; i++) {
+		if (rpctls_workers[i] != -1) {
+			cnt++;
+			kill(rpctls_workers[i], SIGTERM);
+		}
+	}
+
+	/*
+	 * Wait for them to die.
+	 */
+	for (i = 0; i < cnt; i++)
+		wait3(NULL, 0, NULL);
 
 	rpctls_syscall(RPCTLS_SYSC_SRVSHUTDOWN, "");
 	pidfile_remove(rpctls_pfh);
 
-	LIST_FOREACH(slp, &rpctls_ssllist, next)
-		shutdown(slp->s, SHUT_RD);
 	exit(0);
 }
 
