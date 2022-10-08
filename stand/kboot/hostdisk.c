@@ -127,6 +127,12 @@ hostdisk_ioctl(struct open_file *f, u_long cmd, void *data)
 static int
 hostdisk_print(int verbose)
 {
-	return (0);
-}
+	char line[80];
 
+	printf("%s devices:", hostdisk.dv_name);
+	if (pager_output("\n") != 0)
+		return (1);
+
+	snprintf(line, sizeof(line), "    /dev%d:   Host disk\n", 0);
+	return (pager_output(line));
+}
