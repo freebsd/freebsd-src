@@ -694,6 +694,8 @@ blockif_register_resize_callback(struct blockif_ctxt *bc, blockif_resize_cb *cb,
 	if (cb == NULL)
 		return (EINVAL);
 
+	err = 0;
+
 	pthread_mutex_lock(&bc->bc_mtx);
 	if (bc->bc_resize_cb != NULL) {
 		err = EBUSY;
