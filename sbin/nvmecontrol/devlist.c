@@ -143,7 +143,7 @@ devlist(const struct cmd *f, int argc, char *argv[])
 				printf("  %10s (%s)\n", name, buf);
 
 			} else {
-				printf("  %10s (%luMB)\n", name, size / 1024 / 1024);
+				printf("  %10s (%juMB)\n", name, (uintmax_t)size / 1024 / 1024);
 			}
 		}
 
