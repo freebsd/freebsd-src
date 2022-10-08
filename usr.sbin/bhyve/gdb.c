@@ -1704,7 +1704,7 @@ check_command(int fd)
 }
 
 static void
-gdb_readable(int fd, enum ev_type event, void *arg)
+gdb_readable(int fd, enum ev_type event __unused, void *arg __unused)
 {
 	ssize_t nread;
 	int pending;
@@ -1743,14 +1743,14 @@ gdb_readable(int fd, enum ev_type event, void *arg)
 }
 
 static void
-gdb_writable(int fd, enum ev_type event, void *arg)
+gdb_writable(int fd, enum ev_type event __unused, void *arg __unused)
 {
 
 	send_pending_data(fd);
 }
 
 static void
-new_connection(int fd, enum ev_type event, void *arg)
+new_connection(int fd, enum ev_type event __unused, void *arg)
 {
 	int optval, s;
 

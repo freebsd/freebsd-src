@@ -297,7 +297,7 @@ umouse_event(uint8_t button, int x, int y, void *arg)
 }
 
 static void *
-umouse_init(struct usb_hci *hci, nvlist_t *nvl)
+umouse_init(struct usb_hci *hci, nvlist_t *nvl __unused)
 {
 	struct umouse_softc *sc;
 
@@ -774,16 +774,14 @@ umouse_reset(void *scarg)
 }
 
 static int
-umouse_remove(void *scarg)
+umouse_remove(void *scarg __unused)
 {
-
 	return (0);
 }
 
 static int
-umouse_stop(void *scarg)
+umouse_stop(void *scarg __unused)
 {
-
 	return (0);
 }
 

@@ -99,7 +99,7 @@ mevent_qunlock(void)
 }
 
 static void
-mevent_pipe_read(int fd, enum ev_type type, void *param)
+mevent_pipe_read(int fd, enum ev_type type __unused, void *param __unused)
 {
 	char buf[MEVENT_MAX];
 	int status;

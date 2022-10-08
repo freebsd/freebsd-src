@@ -1627,9 +1627,9 @@ pci_xhci_xfer_complete(struct pci_xhci_softc *sc, struct usb_data_xfer *xfer,
 }
 
 static void
-pci_xhci_update_ep_ring(struct pci_xhci_softc *sc, struct pci_xhci_dev_emu *dev,
-    struct pci_xhci_dev_ep *devep, struct xhci_endp_ctx *ep_ctx,
-    uint32_t streamid, uint64_t ringaddr, int ccs)
+pci_xhci_update_ep_ring(struct pci_xhci_softc *sc,
+    struct pci_xhci_dev_emu *dev __unused, struct pci_xhci_dev_ep *devep,
+    struct xhci_endp_ctx *ep_ctx, uint32_t streamid, uint64_t ringaddr, int ccs)
 {
 
 	if (devep->ep_MaxPStreams != 0) {
@@ -2248,8 +2248,9 @@ pci_xhci_hostop_write(struct pci_xhci_softc *sc, uint64_t offset,
 
 
 static void
-pci_xhci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-                int baridx, uint64_t offset, int size, uint64_t value)
+pci_xhci_write(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size __unused,
+    uint64_t value)
 {
 	struct pci_xhci_softc *sc;
 
@@ -2382,9 +2383,9 @@ pci_xhci_hostop_read(struct pci_xhci_softc *sc, uint64_t offset)
 }
 
 static uint64_t
-pci_xhci_dbregs_read(struct pci_xhci_softc *sc, uint64_t offset)
+pci_xhci_dbregs_read(struct pci_xhci_softc *sc __unused,
+    uint64_t offset __unused)
 {
-
 	/* read doorbell always returns 0 */
 	return (0);
 }
@@ -2469,8 +2470,8 @@ pci_xhci_xecp_read(struct pci_xhci_softc *sc, uint64_t offset)
 
 
 static uint64_t
-pci_xhci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
-    uint64_t offset, int size)
+pci_xhci_read(struct vmctx *ctx __unused, int vcpu __unused,
+    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_xhci_softc *sc;
 	uint32_t	value;
@@ -2642,9 +2643,9 @@ done:
 }
 
 static int
-pci_xhci_dev_event(struct usb_hci *hci, enum hci_usbev evid, void *param)
+pci_xhci_dev_event(struct usb_hci *hci, enum hci_usbev evid __unused,
+    void *param __unused)
 {
-
 	DPRINTF(("xhci device event port %d", hci->hci_port));
 	return (0);
 }
@@ -2838,7 +2839,7 @@ bad:
 }
 
 static int
-pci_xhci_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_xhci_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_xhci_softc *sc;
 	int	error;
@@ -2952,8 +2953,8 @@ pci_xhci_map_devs_slots(struct pci_xhci_softc *sc, int maps[])
 }
 
 static int
-pci_xhci_snapshot_ep(struct pci_xhci_softc *sc, struct pci_xhci_dev_emu *dev,
-		     int idx, struct vm_snapshot_meta *meta)
+pci_xhci_snapshot_ep(struct pci_xhci_softc *sc __unused,
+    struct pci_xhci_dev_emu *dev, int idx, struct vm_snapshot_meta *meta)
 {
 	int k;
 	int ret;

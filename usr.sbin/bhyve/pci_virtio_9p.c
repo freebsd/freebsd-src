@@ -147,7 +147,7 @@ pci_vt9p_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 
 static int
 pci_vt9p_get_buffer(struct l9p_request *req, struct iovec *iov, size_t *niov,
-    void *arg)
+    void *arg __unused)
 {
 	struct pci_vt9p_request *preq = req->lr_aux;
 	size_t n = preq->vsr_niov - preq->vsr_respidx;
@@ -159,8 +159,8 @@ pci_vt9p_get_buffer(struct l9p_request *req, struct iovec *iov, size_t *niov,
 }
 
 static int
-pci_vt9p_send(struct l9p_request *req, const struct iovec *iov,
-    const size_t niov, const size_t iolen, void *arg)
+pci_vt9p_send(struct l9p_request *req, const struct iovec *iov __unused,
+    const size_t niov __unused, const size_t iolen, void *arg __unused)
 {
 	struct pci_vt9p_request *preq = req->lr_aux;
 	struct pci_vt9p_softc *sc = preq->vsr_sc;
@@ -176,8 +176,8 @@ pci_vt9p_send(struct l9p_request *req, const struct iovec *iov,
 }
 
 static void
-pci_vt9p_drop(struct l9p_request *req, const struct iovec *iov, size_t niov,
-    void *arg)
+pci_vt9p_drop(struct l9p_request *req, const struct iovec *iov __unused,
+    size_t niov __unused, void *arg __unused)
 {
 	struct pci_vt9p_request *preq = req->lr_aux;
 	struct pci_vt9p_softc *sc = preq->vsr_sc;
@@ -248,7 +248,7 @@ pci_vt9p_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vt9p_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vt9p_softc *sc;
 	const char *value;
