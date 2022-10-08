@@ -1370,9 +1370,10 @@ EVENTHANDLER_DEFINE(ifnet_event, in_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 static void
 in_purgemaddrs(struct ifnet *ifp)
 {
+	struct epoch_tracker	 et;
 	struct in_multi_head purgeinms;
 	struct in_multi		*inm;
-	struct ifmultiaddr	*ifma, *next;
+	struct ifmultiaddr	*ifma;
 
 	SLIST_INIT(&purgeinms);
 	IN_MULTI_LIST_LOCK();
@@ -1384,18 +1385,14 @@ in_purgemaddrs(struct ifnet *ifp)
 	 * by code further down.
 	 */
 	IF_ADDR_WLOCK(ifp);
- restart:
-	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
-		if (ifma->ifma_addr->sa_family != AF_INET ||
-		    ifma->ifma_protospec == NULL)
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		inm = inm_ifmultiaddr_get_inm(ifma);
+		if (inm == NULL)
 			continue;
-		inm = (struct in_multi *)ifma->ifma_protospec;
 		inm_rele_locked(&purgeinms, inm);
-		if (__predict_false(ifma_restart)) {
-			ifma_restart = true;
-			goto restart;
-		}
 	}
+	NET_EPOCH_EXIT(et);
 	IF_ADDR_WUNLOCK(ifp);
 
 	inm_release_list_deferred(&purgeinms);
