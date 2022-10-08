@@ -6771,19 +6771,36 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
 
 	/*
 	 * Examine the first PTE in the specified PTP.  Abort if this PTE is
-	 * either invalid, unused, or does not map the first 4KB physical page
-	 * within a 2MB page. 
+	 * ineligible for promotion due to hardware errata, invalid, or does
+	 * not map the first 4KB physical page within a 2MB page.
 	 */
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
 	newpde = *firstpte;
-	if ((newpde & ((PG_FRAME & PDRMASK) | PG_A | PG_V)) != (PG_A | PG_V) ||
-	    !pmap_allow_2m_x_page(pmap, pmap_pde_ept_executable(pmap,
-	    newpde))) {
+	if (!pmap_allow_2m_x_page(pmap, pmap_pde_ept_executable(pmap, newpde)))
+		return;
+	if ((newpde & ((PG_FRAME & PDRMASK) | PG_V)) != PG_V) {
 		counter_u64_add(pmap_pde_p_failures, 1);
 		CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
 		    " in pmap %p", va, pmap);
 		return;
 	}
+
+	/*
+	 * Both here and in the below "for" loop, to allow for repromotion
+	 * after MADV_FREE, conditionally write protect a clean PTE before
+	 * possibly aborting the promotion due to other PTE attributes.  Why?
+	 * Suppose that MADV_FREE is applied to a part of a superpage, the
+	 * address range [S, E).  pmap_advise() will demote the superpage
+	 * mapping, destroy the 4KB page mapping at the end of [S, E), and
+	 * clear PG_M and PG_A in the PTEs for the rest of [S, E).  Later,
+	 * imagine that the memory in [S, E) is recycled, but the last 4KB
+	 * page in [S, E) is not the last to be rewritten, or simply accessed.
+	 * In other words, there is still a 4KB page in [S, E), call it P,
+	 * that is writeable but PG_M and PG_A are clear in P's PTE.  Unless
+	 * we write protect P before aborting the promotion, if and when P is
+	 * finally rewritten, there won't be a page fault to trigger
+	 * repromotion.
+	 */
 setpde:
 	if ((newpde & (PG_M | PG_RW)) == PG_RW) {
 		/*
@@ -6794,16 +6811,22 @@ setpde:
 			goto setpde;
 		newpde &= ~PG_RW;
 	}
+	if ((newpde & PG_A) == 0) {
+		counter_u64_add(pmap_pde_p_failures, 1);
+		CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
+		    " in pmap %p", va, pmap);
+		return;
+	}
 
 	/*
 	 * Examine each of the other PTEs in the specified PTP.  Abort if this
 	 * PTE maps an unexpected 4KB physical page or does not have identical
 	 * characteristics to the first PTE.
 	 */
-	pa = (newpde & (PG_PS_FRAME | PG_A | PG_V)) + NBPDR - PAGE_SIZE;
+	pa = (newpde & (PG_PS_FRAME | PG_V)) + NBPDR - PAGE_SIZE;
 	for (pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
 		oldpte = *pte;
-		if ((oldpte & (PG_FRAME | PG_A | PG_V)) != pa) {
+		if ((oldpte & (PG_FRAME | PG_V)) != pa) {
 			counter_u64_add(pmap_pde_p_failures, 1);
 			CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);
