@@ -28,7 +28,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2022
+.Dd February 11, 2021
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -205,8 +205,6 @@ is greater than
 if the sysctl
 .Va debug.iosize_max_clamp
 is non-zero).
-.It Bq Er EINVAL
-The current file offset is not a multiple of the block size.
 .It Bq Er EINTEGRITY
 The backing store for
 .Fa fd
