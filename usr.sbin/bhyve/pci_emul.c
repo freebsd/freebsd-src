@@ -116,8 +116,9 @@ struct pci_bar_allocation {
 	enum pcibar_type type;
 	uint64_t size;
 };
-TAILQ_HEAD(pci_bar_list, pci_bar_allocation) pci_bars = TAILQ_HEAD_INITIALIZER(
-    pci_bars);
+
+static TAILQ_HEAD(pci_bar_list, pci_bar_allocation) pci_bars =
+    TAILQ_HEAD_INITIALIZER(pci_bars);
 
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
