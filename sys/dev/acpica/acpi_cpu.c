@@ -153,6 +153,9 @@ static struct sysctl_ctx_list cpu_sysctl_ctx;
 static struct sysctl_oid *cpu_sysctl_tree;
 static int		 cpu_cx_generic;
 static int		 cpu_cx_lowest_lim;
+#if defined(__i386__) || defined(__amd64__)
+static bool		 cppc_notify;
+#endif
 
 static struct acpi_cpu_softc **cpu_softc;
 ACPI_SERIAL_DECL(cpu, "ACPI CPU");
@@ -379,6 +382,14 @@ acpi_cpu_attach(device_t dev)
 	cpu_sysctl_tree = SYSCTL_ADD_NODE(&cpu_sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "cpu",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "node for CPU children");
+
+#if defined(__i386__) || defined(__amd64__)
+	/* Add sysctl handler to control registering for CPPC notifications */
+	cppc_notify = 1;
+	SYSCTL_ADD_BOOL(&cpu_sysctl_ctx, SYSCTL_CHILDREN(cpu_sysctl_tree),
+	    OID_AUTO, "cppc_notify", CTLFLAG_RDTUN | CTLFLAG_MPSAFE,
+	    &cppc_notify, 0, "Register for CPPC Notifications");
+#endif
     }
 
     /*
@@ -397,6 +408,13 @@ acpi_cpu_attach(device_t dev)
      */
     if (!acpi_disabled("mwait") && cpu_mwait_usable())
 	sc->cpu_features |= ACPI_CAP_SMP_C1_NATIVE | ACPI_CAP_SMP_C3_NATIVE;
+
+    /*
+     * Work around a lingering SMM bug which leads to freezes when handling
+     * CPPC notifications. Tell the SMM we will handle any CPPC notifications.
+     */
+    if ((cpu_power_eax & CPUTPM1_HWP_NOTIFICATION) && cppc_notify)
+	    sc->cpu_features |= ACPI_CAP_INTR_CPPC;
 #endif
 
     if (devclass_get_drivers(acpi_cpu_devclass, &drivers, &drv_count) == 0) {
