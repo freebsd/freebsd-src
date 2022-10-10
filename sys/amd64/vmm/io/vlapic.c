@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #define	PRIO(x)			((x) >> 4)
 
-#define VLAPIC_VERSION		(16)
+#define VLAPIC_VERSION		(0x14)
 
 #define	x2apic(vlapic)	(((vlapic)->msr_apicbase & APICBASE_X2APIC) ? 1 : 0)
 
