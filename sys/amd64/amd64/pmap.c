@@ -529,6 +529,12 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 int invpcid_works = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
     "Is the invpcid instruction available ?");
+int pmap_pcid_invlpg_workaround = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_invlpg_workaround,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pmap_pcid_invlpg_workaround, 0,
+    "Enable small core PCID/INVLPG workaround");
+int pmap_pcid_invlpg_workaround_uena = 1;
 
 int __read_frequently pti = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pti, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
@@ -2560,6 +2566,9 @@ pmap_init(void)
 			    VM_PAGE_TO_PHYS(m);
 		}
 	}
+
+	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
+	    &pmap_pcid_invlpg_workaround_uena);
 }
 
 SYSCTL_UINT(_vm_pmap, OID_AUTO, large_map_pml4_entries,
@@ -2791,7 +2800,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 
 	if ((newpde & PG_PS) == 0)
 		/* Demotion: flush a specific 2MB page mapping. */
-		invlpg(va);
+		pmap_invlpg(pmap, va);
 	else if ((newpde & PG_G) == 0)
 		/*
 		 * Promotion: flush every 4KB page mapping from the TLB
@@ -3130,7 +3139,7 @@ pmap_invalidate_page_curcpu_cb(pmap_t pmap, vm_offset_t va,
     vm_offset_t addr2 __unused)
 {
 	if (pmap == kernel_pmap) {
-		invlpg(va);
+		pmap_invlpg(kernel_pmap, va);
 	} else if (pmap == PCPU_GET(curpmap)) {
 		invlpg(va);
 		pmap_invalidate_page_cb(pmap, va);
@@ -3221,8 +3230,14 @@ pmap_invalidate_range_curcpu_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 
 	if (pmap == kernel_pmap) {
-		for (addr = sva; addr < eva; addr += PAGE_SIZE)
-			invlpg(addr);
+		if (PCPU_GET(pcid_invlpg_workaround)) {
+			struct invpcid_descr d = { 0 };
+
+			invpcid(&d, INVPCID_CTXGLOB);
+		} else {
+			for (addr = sva; addr < eva; addr += PAGE_SIZE)
+				invlpg(addr);
+		}
 	} else if (pmap == PCPU_GET(curpmap)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
@@ -3760,7 +3775,7 @@ pmap_flush_cache_phys_range(vm_paddr_t spa, vm_paddr_t epa, vm_memattr_t mattr)
 	for (; spa < epa; spa += PAGE_SIZE) {
 		sched_pin();
 		pte_store(pte, spa | pte_bits);
-		invlpg(vaddr);
+		pmap_invlpg(kernel_pmap, vaddr);
 		/* XXXKIB atomic inside flush_cache_range are excessive */
 		pmap_flush_cache_range(vaddr, vaddr + PAGE_SIZE);
 		sched_unpin();
@@ -7668,7 +7683,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
 	pmap_kenter(va, pa);
-	invlpg(va);
+	pmap_invlpg(kernel_pmap, va);
 	return ((void *)crashdumpmap);
 }
 
@@ -10371,7 +10386,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 				    page[i]->md.pat_mode, 0);
 				pte_store(pte, paddr | X86_PG_RW | X86_PG_V |
 				    cache_bits);
-				invlpg(vaddr[i]);
+				pmap_invlpg(kernel_pmap, vaddr[i]);
 			}
 		}
 	}
@@ -10420,7 +10435,14 @@ pmap_quick_remove_page(vm_offset_t addr)
 	if (addr != qframe)
 		return;
 	pte_store(vtopte(qframe), 0);
+
+	/*
+	 * Since qframe is exclusively mapped by
+	 * pmap_quick_enter_page() and that function doesn't set PG_G,
+	 * we can use INVLPG here.
+	 */
 	invlpg(qframe);
+
 	mtx_unlock_spin(&qframe_mtx);
 }
 
