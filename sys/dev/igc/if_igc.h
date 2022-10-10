@@ -372,7 +372,6 @@ struct igc_adapter {
 	/* Task for FAST handling */
 	struct grouptask link_task;
 
-	u16	        num_vlans;
         u32		txd_cmd;
 
         u32             tx_process_limit;
@@ -384,14 +383,6 @@ struct igc_adapter {
 
 	/* Multicast array memory */
 	u8		*mta;
-
-	/*
-	** Shadow VFTA table, this is needed because
-	** the real vlan filter table gets cleared during
-	** a soft reset and the driver needs to be able
-	** to repopulate it.
-	*/
-	u32		shadow_vfta[IGC_VFTA_SIZE];
 
 	/* Info about the interface */
 	u16		link_active;
