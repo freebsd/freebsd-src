@@ -324,6 +324,11 @@ initializecpu(void)
 		if ((r[0] & CPUID_HYBRID_CORE_MASK) ==
 		    CPUID_HYBRID_SMALL_CORE) {
 			PCPU_SET(small_core, 1);
+			if (pmap_pcid_enabled &&
+			    pmap_pcid_invlpg_workaround_uena) {
+				PCPU_SET(pcid_invlpg_workaround, 1);
+				pmap_pcid_invlpg_workaround = 1;
+			}
 		}
 	}
 }
