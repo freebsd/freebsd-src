@@ -99,6 +99,7 @@ static const char rcsid[] =
 #define	RESOURCE_RC		"daemon"
 #define	RESOURCE_WINDOW		"default"
 #define	RESOURCE_GETTY		"default"
+#define SCRIPT_ARGV_SIZE 3 /* size of argv passed to execute_script, can be increased if needed */
 
 static void handle(sig_t, ...);
 static void delset(sigset_t *, ...);
@@ -1044,8 +1045,9 @@ static void
 execute_script(char *argv[])
 {
 	struct sigaction sa;
+	char* sh_argv[3 + SCRIPT_ARGV_SIZE];
 	const char *shell, *script;
-	int error;
+	int error, sh_argv_len, i;
 
 	bzero(&sa, sizeof(sa));
 	sigemptyset(&sa.sa_mask);
@@ -1066,17 +1068,28 @@ execute_script(char *argv[])
 	 * to sh(1).  Don't complain if it fails because of
 	 * the missing execute bit.
 	 */
-	script = argv[1];
+	script = argv[0];
 	error = access(script, X_OK);
 	if (error == 0) {
-		execv(script, argv + 1);
+		execv(script, argv);
 		warning("can't directly exec %s: %m", script);
 	} else if (errno != EACCES) {
 		warning("can't access %s: %m", script);
 	}
 
 	shell = get_shell();
-	execv(shell, argv);
+	sh_argv[0] = __DECONST(char*, shell);
+	sh_argv_len = 1;
+#ifdef SECURE
+	if (strcmp(shell, _PATH_BSHELL) == 0) {
+		sh_argv[1] = __DECONST(char*, "-o");
+		sh_argv[2] = __DECONST(char*, "verify");
+		sh_argv_len = 3;
+	}
+#endif
+	for (i = 0; i != SCRIPT_ARGV_SIZE; ++i)
+		sh_argv[i + sh_argv_len] = argv[i];
+	execv(shell, sh_argv);
 	stall("can't exec %s for %s: %m", shell, script);
 }
 
@@ -1086,12 +1099,10 @@ execute_script(char *argv[])
 static void
 replace_init(char *path)
 {
-	char *argv[3];
-	char sh[] = "sh";
+	char *argv[SCRIPT_ARGV_SIZE];
 
-	argv[0] = sh;
-	argv[1] = path;
-	argv[2] = NULL;
+	argv[0] = path;
+	argv[1] = NULL;
 
 	execute_script(argv);
 }
@@ -1108,20 +1119,18 @@ run_script(const char *script)
 {
 	pid_t pid, wpid;
 	int status;
-	char *argv[4];
+	char *argv[SCRIPT_ARGV_SIZE];
 	const char *shell;
 
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) {
 
-		char _sh[]		= "sh";
-		char _autoboot[]	= "autoboot";
+		char _autoboot[] = "autoboot";
 
-		argv[0] = _sh;
-		argv[1] = __DECONST(char *, script);
-		argv[2] = runcom_mode == AUTOBOOT ? _autoboot : 0;
-		argv[3] = NULL;
+		argv[0] = __DECONST(char *, script);
+		argv[1] = runcom_mode == AUTOBOOT ? _autoboot : NULL;
+		argv[2] = NULL;
 
 		execute_script(argv);
 		sleep(STALL_TIMEOUT);
@@ -1957,7 +1966,7 @@ runshutdown(void)
 	int status;
 	int shutdowntimeout;
 	size_t len;
-	char *argv[4];
+	char *argv[SCRIPT_ARGV_SIZE];
 	struct stat sb;
 
 	BOOTTRACE("init(8): start rc.shutdown");
@@ -1972,16 +1981,14 @@ runshutdown(void)
 		return 0;
 
 	if ((pid = fork()) == 0) {
-		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";
 		char _single[]	= "single";
 		char _path_rundown[] = _PATH_RUNDOWN;
 
-		argv[0] = _sh;
-		argv[1] = _path_rundown;
-		argv[2] = Reboot ? _reboot : _single;
-		argv[3] = NULL;
-		
+		argv[0] = _path_rundown;
+		argv[1] = Reboot ? _reboot : _single;
+		argv[2] = NULL;
+
 		execute_script(argv);
 		_exit(1);	/* force single user mode */
 	}
