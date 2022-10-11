@@ -18,6 +18,7 @@ SUBDIR+=	fasttrap fbt systrace_linux
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+=	systrace_linux32
+SUBDIR+=	kinst
 .endif
 .if ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "aarch64" || \
