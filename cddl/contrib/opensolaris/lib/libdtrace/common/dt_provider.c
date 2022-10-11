@@ -48,6 +48,7 @@
 #include <dt_list.h>
 #include <dt_pid.h>
 #include <dtrace.h>
+#include <kinst.h>
 
 static dt_provider_t *
 dt_provider_insert(dtrace_hdl_t *dtp, dt_provider_t *pvp, uint_t h)
@@ -699,6 +700,34 @@ dt_probe_info(dtrace_hdl_t *dtp,
 			prp = idp->di_data;
 		else if (pdp->dtpd_id != DTRACE_IDNONE)
 			prp = dt_probe_discover(pvp, pdp);
+
+		if (strcmp(pvp->pv_desc.dtvd_name, "kinst") == 0) {
+			dtrace_kinst_probedesc_t pd;
+
+			if (dtp->dt_kinstfd == -1) {
+				int fd;
+
+				fd = open("/dev/dtrace/kinst", O_WRONLY);
+				if (fd < 0) {
+					(void) dt_set_errno(dtp, errno);
+					return (NULL);
+				}
+				dtp->dt_kinstfd = fd;
+			}
+			memset(&pd, 0, sizeof(pd));
+			strlcpy(pd.kpd_func, pdp->dtpd_func,
+			    sizeof (pd.kpd_func));
+
+			if (n_is_glob)
+				pd.kpd_off = -1;
+			else
+				pd.kpd_off = strtol(pdp->dtpd_name, NULL, 10);
+			if (ioctl(dtp->dt_kinstfd, KINSTIOC_MAKEPROBE, &pd) !=
+			    0) {
+				(void) dt_set_errno(dtp, errno);
+				return (NULL);
+			}
+		}
 	}
 
 	/*

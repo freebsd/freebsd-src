@@ -1173,6 +1173,7 @@ alloc:
 	dtp->dt_version = version;
 	dtp->dt_fd = dtfd;
 	dtp->dt_ftfd = ftfd;
+	dtp->dt_kinstfd = -1;
 	dtp->dt_fterr = fterr;
 	dtp->dt_cdefs_fd = -1;
 	dtp->dt_ddefs_fd = -1;
@@ -1681,6 +1682,8 @@ dtrace_close(dtrace_hdl_t *dtp)
 		(void) close(dtp->dt_fd);
 	if (dtp->dt_ftfd != -1)
 		(void) close(dtp->dt_ftfd);
+	if (dtp->dt_kinstfd != -1)
+		(void) close(dtp->dt_kinstfd);
 	if (dtp->dt_cdefs_fd != -1)
 		(void) close(dtp->dt_cdefs_fd);
 	if (dtp->dt_ddefs_fd != -1)

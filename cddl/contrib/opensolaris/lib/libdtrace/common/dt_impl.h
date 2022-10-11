@@ -323,6 +323,7 @@ struct dtrace_hdl {
 #endif
 	int dt_fd;		/* file descriptor for dtrace pseudo-device */
 	int dt_ftfd;		/* file descriptor for fasttrap pseudo-device */
+	int dt_kinstfd;		/* file descriptor for kinst pseudo-device */
 	int dt_fterr;		/* saved errno from failed open of dt_ftfd */
 	int dt_cdefs_fd;	/* file descriptor for C CTF debugging cache */
 	int dt_ddefs_fd;	/* file descriptor for D CTF debugging cache */
