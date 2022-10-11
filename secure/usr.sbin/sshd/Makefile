@@ -44,7 +44,7 @@ LIBADD+=	bsm
 .endif
 
 .if ${MK_BLACKLIST_SUPPORT} != "no"
-CFLAGS+= -DUSE_BLACKLIST=1 -I${SRCTOP}/contrib/blacklist/include
+CFLAGS+= -DUSE_BLACKLIST=1 -I${SRCTOP}/contrib/blocklist/include
 SRCS+=	blacklist.c
 LIBADD+= blacklist
 LDFLAGS+=-L${LIBBLACKLISTDIR}
