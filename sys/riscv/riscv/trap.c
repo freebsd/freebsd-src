@@ -302,6 +302,13 @@ do_trap_supervisor(struct trapframe *frame)
 		dump_regs(frame);
 		panic("Memory access exception at 0x%016lx\n", frame->tf_sepc);
 		break;
+	case SCAUSE_LOAD_MISALIGNED:
+	case SCAUSE_STORE_MISALIGNED:
+	case SCAUSE_INST_MISALIGNED:
+		dump_regs(frame);
+		panic("Misaligned address exception at %#016lx: %#016lx\n",
+		    frame->tf_sepc, frame->tf_stval);
+		break;
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
 	case SCAUSE_INST_PAGE_FAULT:
@@ -367,6 +374,13 @@ do_trap_user(struct trapframe *frame)
 	case SCAUSE_STORE_ACCESS_FAULT:
 	case SCAUSE_INST_ACCESS_FAULT:
 		call_trapsignal(td, SIGBUS, BUS_ADRERR, (void *)frame->tf_sepc,
+		    exception);
+		userret(td, frame);
+		break;
+	case SCAUSE_LOAD_MISALIGNED:
+	case SCAUSE_STORE_MISALIGNED:
+	case SCAUSE_INST_MISALIGNED:
+		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_sepc,
 		    exception);
 		userret(td, frame);
 		break;
