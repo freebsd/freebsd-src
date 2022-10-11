@@ -190,7 +190,7 @@ arm_install_base() {
 		${CONF_FILES} installworld installkernel distribution
 	chroot ${CHROOTDIR} mkdir -p ${DESTDIR}/boot/efi
 	# Compatibility symlink to /boot/msdos for 13.1 and earlier
-	chroot ${CHROOTDIR} ln -s ${DESTDIR}/boot/efi ${DESTDIR}/boot/msdos
+	chroot ${CHROOTDIR} ln -s efi ${DESTDIR}/boot/msdos
 
 	arm_create_user
 	arm_setup_usb_otg
