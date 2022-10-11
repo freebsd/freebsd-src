@@ -34,9 +34,12 @@
 # "panic: softdep_update_inodeblock inconsistent ip ..." seen:
 # https://people.freebsd.org/~pho/stress/log/log0184.txt
 
+# Watchdog fired: https://people.freebsd.org/~pho/stress/log/log0374.txt
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
 
+set -u
 log=/tmp/force7.sh.log
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
@@ -46,22 +49,22 @@ flags=$newfs_flags
 echo "newfs $flags md$mdstart"
 newfs $flags md$mdstart > /dev/null 2>&1
 
+# Exclude rename  for now due to log0374.txt
 export TESTPROGS=`cd ..; find testcases/ -perm -1 -type f | \
-    egrep -Ev "/run/|/badcode/|/pty/|/shm/|/socket/|sysctl|tcp|thr|udp"`
+    egrep -Ev "/run/|/badcode/|/pty/|/shm/|/socket/|sysctl|tcp|thr|udp|rename"`
 export runRUNTIME=3m
 export RUNDIR=$mntpoint/stressX
+export CTRLDIR=$mntpoint/stressX.control
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt $((15 * 60)) ]; do
 	mount /dev/md$mdstart $mntpoint
 	rm -fr $mntpoint/lost+found
 	chmod 777 $mntpoint
 
-	echo "Start tests"
 	su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS' > \
 	    /dev/null 2>&1 &
 
 	sleep `jot -r 1 60 180`
-	echo "Force destroy MD disk"
 	while mdconfig -l | grep -q md$mdstart; do
 		mdconfig -d -u $mdstart -o force || sleep 1
 	done
@@ -74,9 +77,17 @@ while [ $((`date +%s` - start)) -lt $((15 * 60)) ]; do
 		[ $((n += 1)) -gt 300 ] && { echo FAIL; exit 1; }
 	done
 	mdconfig -a -t vnode -f $diskimage -u $mdstart
-	fsck_ffs -fyR /dev/md$mdstart > $log 2>&1; s=$?
+	c=0
+	# Run fsck minimum two times
+	for i in `jot 5`; do
+		fsck_ffs -fy /dev/md$mdstart > $log 2>&1; s=$?
+		grep -q CLEAN $log && grep -q "MODIFIED" $log && c=$((c+=1))
+		grep -Eq "FILE SYSTEM WAS MODIFIED" $log || break
+	done
+	[ $c -gt 1 ] &&
+	    { echo "Note: FS marked clean+modified $c times out of $i fsck runs"; s=101; }
 	[ $s -ne 0 ] && break
-	grep -Eq "IS CLEAN|MARKED CLEAN" $log || { s=100; break; }
+	grep -Eq "IS CLEAN|MARKED CLEAN" $log || { s=102; break; }
 done
 if [ $s -eq 0 ]; then
 	mount /dev/md$mdstart $mntpoint
@@ -87,6 +98,6 @@ if [ $s -eq 0 ]; then
 	mdconfig -d -u $mdstart
 	rm -f $diskimage $log
 else
-	cat $log
+	tail -10 $log
 fi
 exit $s
