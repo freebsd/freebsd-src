@@ -537,6 +537,7 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	if (err == 0 && op == FUSE_GETLK) {
 		flo = fdi.answ;
 		fl->l_type = flo->lk.type;
+		fl->l_whence = SEEK_SET;
 		if (flo->lk.type != F_UNLCK) {
 			fl->l_pid = flo->lk.pid;
 			fl->l_start = flo->lk.start;

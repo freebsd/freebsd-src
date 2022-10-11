@@ -47,9 +47,9 @@ using namespace testing;
 class Fallback: public FuseTest {
 public:
 
-void expect_lookup(const char *relpath, uint64_t ino)
+void expect_lookup(const char *relpath, uint64_t ino, uint64_t size = 0)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, size, 1);
 }
 
 };
@@ -352,6 +352,71 @@ TEST_F(Getlk, lock_exists)
 	EXPECT_EQ(F_WRLCK, fl.l_type);
 	EXPECT_EQ(SEEK_SET, fl.l_whence);
 	EXPECT_EQ(0, fl.l_sysid);
+	leak(fd);
+}
+
+/*
+ * F_GETLK with SEEK_CUR
+ */
+TEST_F(Getlk, seek_cur)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	struct flock fl;
+	int fd;
+	pid_t pid = getpid();
+
+	expect_lookup(RELPATH, ino, 1024);
+	expect_open(ino, 0, 1);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_GETLK &&
+				in.header.nodeid == ino &&
+				in.body.getlk.fh == FH &&
+				/*
+				 * Though it seems useless, libfuse expects the
+				 * owner and pid fields to be set during
+				 * FUSE_GETLK.
+				 */
+				in.body.getlk.owner == (uint32_t)pid &&
+				in.body.getlk.lk.pid == (uint64_t)pid &&
+				in.body.getlk.lk.start == 500 &&
+				in.body.getlk.lk.end == 509 &&
+				in.body.getlk.lk.type == F_RDLCK);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, getlk);
+		out.body.getlk.lk.start = 400;
+		out.body.getlk.lk.end = 499;
+		out.body.getlk.lk.type = F_WRLCK;
+		out.body.getlk.lk.pid = (uint32_t)pid + 1;
+	})));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_NE(-1, lseek(fd, 500, SEEK_SET));
+
+	fl.l_start = 0;
+	fl.l_len = 10;
+	fl.l_pid = 42;
+	fl.l_type = F_RDLCK;
+	fl.l_whence = SEEK_CUR;
+	fl.l_sysid = 0;
+	ASSERT_NE(-1, fcntl(fd, F_GETLK, &fl)) << strerror(errno);
+
+	/*
+	 * After a successful F_GETLK request, the value of l_whence is
+	 * SEEK_SET.
+	 */
+	EXPECT_EQ(F_WRLCK, fl.l_type);
+	EXPECT_EQ(fl.l_pid, pid + 1);
+	EXPECT_EQ(fl.l_start, 400);
+	EXPECT_EQ(fl.l_len, 100);
+	EXPECT_EQ(fl.l_whence, SEEK_SET);
+	ASSERT_EQ(fl.l_sysid, 0);
+
 	leak(fd);
 }
 
