@@ -6,6 +6,7 @@
  * Copyright (c) 2002-2005, K A Fraser
  * Copyright (c) 2005, Intel Corporation <xiaofeng.ling@intel.com>
  * Copyright (c) 2012, Spectra Logic Corporation
+ * Copyright © 2021-2023, Elliott Mitchell
  *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
@@ -420,6 +421,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		}
 	}
 	isrc->xi_port = local_port;
+	isrc->xi_close = 0;
 	xen_intr_port_to_isrc[local_port] = isrc;
 	refcount_init(&isrc->xi_refcount, 1);
 	mtx_unlock(&xen_intr_isrc_lock);
