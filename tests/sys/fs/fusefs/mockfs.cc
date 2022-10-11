@@ -229,6 +229,18 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 		case FUSE_FSYNCDIR:
 			printf(" flags=%#x", in.body.fsyncdir.fsync_flags);
 			break;
+		case FUSE_GETLK:
+			printf(" fh=%#" PRIx64
+				" type=%u pid=%u",
+				in.body.getlk.fh,
+				in.body.getlk.lk.type,
+				in.body.getlk.lk.pid);
+			if (verbosity >= 2) {
+				printf(" range=[%" PRIi64 ":%" PRIi64 "]",
+					in.body.getlk.lk.start,
+					in.body.getlk.lk.end);
+			}
+			break;
 		case FUSE_INTERRUPT:
 			printf(" unique=%" PRIu64, in.body.interrupt.unique);
 			break;
@@ -338,7 +350,7 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 				in.body.setlk.lk.type,
 				in.body.setlk.lk.pid);
 			if (verbosity >= 2) {
-				printf(" range=[%" PRIu64 "-%" PRIu64 "]",
+				printf(" range=[%" PRIi64 ":%" PRIi64 "]",
 					in.body.setlk.lk.start,
 					in.body.setlk.lk.end);
 			}
