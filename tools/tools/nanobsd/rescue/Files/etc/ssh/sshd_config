@@ -1,5 +1,4 @@
 #	$OpenBSD: sshd_config,v 1.104 2021/07/02 05:11:21 dtucker Exp $
-#	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -58,6 +57,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #IgnoreRhosts yes
 
 # Change to yes to enable built-in password authentication.
+# Note that passwords may also be accepted via KbdInteractiveAuthentication.
 #PasswordAuthentication no
 #PermitEmptyPasswords no
 
@@ -79,7 +79,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 # be allowed through the KbdInteractiveAuthentication and
 # PasswordAuthentication.  Depending on your PAM configuration,
 # PAM authentication via KbdInteractiveAuthentication may bypass
-# the setting of "PermitRootLogin without-password".
+# the setting of "PermitRootLogin prohibit-password".
 # If you just want the PAM account and session checks to run without
 # PAM authentication, then enable this but set PasswordAuthentication
 # and KbdInteractiveAuthentication to 'no'.
@@ -105,7 +105,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #PermitTunnel no
 #ChrootDirectory none
 #UseBlacklist no
-#VersionAddendum FreeBSD-20220413
+#VersionAddendum FreeBSD-20220415
 
 # no default banner path
 #Banner none
