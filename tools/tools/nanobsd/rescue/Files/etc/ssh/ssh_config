@@ -1,5 +1,4 @@
 #	$OpenBSD: ssh_config,v 1.35 2020/07/17 03:43:42 dtucker Exp $
-#	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -46,4 +45,3 @@
 #   RekeyLimit 1G 1h
 #   UserKnownHostsFile ~/.ssh/known_hosts.d/%k
 #   VerifyHostKeyDNS yes
-#   VersionAddendum FreeBSD-20220413
