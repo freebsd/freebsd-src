@@ -36,6 +36,8 @@
 #ifndef __SYS__PV_ENTRY_H__
 #define	__SYS__PV_ENTRY_H__
 
+#include <sys/param.h>
+
 struct pmap;
 
 /*
