@@ -1,0 +1,89 @@
+.\" Copyright (c) 2022 Christos Margiolis <christos@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 01, 2022
+.Dt DTRACE_KINST 4
+.Os
+.Sh NAME
+.Nm dtrace_kinst
+.Nd a DTrace provider for tracing arbitrary instructions in a given kernel
+function.
+.Sh SYNOPSIS
+kinst::<function>:<instruction>
+.Sh DESCRIPTION
+.Pp
+The DTrace
+.Nm kinst
+provider allows the user to trace any instruction in a given kernel function.
+<function> corresponds to the function to be traced, and <instruction> is the
+offset to the specific instruction, and can be obtained from the function's
+disassembly using
+.Xr kgdb 1 .
+.Pp
+.Nm kinst
+creates probes on-demand, meaning it searches for and parses the function's
+instructions each time
+.Xr dtrace 1
+is run, and not at module load time. This is in contrast to FBT's load-time
+parsing, since
+.Nm kinst
+can potentially create thousands of probes for just a single function, instead
+of up to two (entry and return) in the case of FBT.
+.Sh EXAMPLES
+.Pp
+Find the offset to the third instruction in
+.Fn vm_fault
+and trace it:
+.Bd -literal -offset indent
+# kgdb
+(kgdb) disas /r vm_fault
+Dump of assembler code for function vm_fault:
+   0xffffffff80876df0 <+0>:     55      push   %rbp
+   0xffffffff80876df1 <+1>:     48 89 e5        mov    %rsp,%rbp
+   0xffffffff80876df4 <+4>:     41 57   push   %r15
+
+# dtrace -n 'kinst::vm_fault:4'
+.Ed
+.Pp
+Trace all instructions in
+.Fn amd64_syscall :
+.Bd -literal -offset indent
+# dtrace -n 'kinst::amd64_syscall:'
+.Ed
+.Sh IMPLEMENTATION NOTES
+The provider is currently implemented only for amd64.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr kgdb 1
+.Sh HISTORY
+The
+.Nm kinst
+provider first appeared in
+.Fx
+14.0.
+.Sh AUTHORS
+This manual page was written by
+.An Christos Margiolis Aq Mt christos@FreeBSD.org .
