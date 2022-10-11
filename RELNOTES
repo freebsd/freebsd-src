@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+f0bc4ed144fc:
+	A new DTrace provider, kinst, is introduced and documented in
+	dtrace_kinst(4).  The provider allows kernel instructions to be traced,
+	similar to the FBT (function boundary tracing) provider except that all
+	instructions may be probed instead of logical entry and return
+	instructions.  The provider is currently amd64-only.
+
 0eea46fb1f83:
 	Removed telnetd.
 
