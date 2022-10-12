@@ -123,7 +123,7 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 		return 0;
 
 	if (errno != ENOTCONN) {
-		(*lfun)(LOG_ERR, "getpeername failed (%m)"); 
+		(*lfun)(LOG_ERR, "getpeername failed (%m)");
 		return -1;
 	}
 
@@ -141,13 +141,13 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 		break;
 	default:
 		(*lfun)(LOG_ERR, "bad client passed socket family %u",
-		    (unsigned)bi->bi_ss.ss_family); 
+		    (unsigned)bi->bi_ss.ss_family);
 		return -1;
 	}
 
 	if (*rsl != bi->bi_slen) {
 		(*lfun)(LOG_ERR, "bad client passed socket length %u != %u",
-		    (unsigned)*rsl, (unsigned)bi->bi_slen); 
+		    (unsigned)*rsl, (unsigned)bi->bi_slen);
 		return -1;
 	}
 
@@ -157,7 +157,7 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 	if (*rsl != rss->ss_len) {
 		(*lfun)(LOG_ERR,
 		    "bad client passed socket internal length %u != %u",
-		    (unsigned)*rsl, (unsigned)rss->ss_len); 
+		    (unsigned)*rsl, (unsigned)rss->ss_len);
 		return -1;
 	}
 #endif
@@ -176,12 +176,12 @@ process(bl_t bl)
 	struct timespec ts;
 
 	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-		(*lfun)(LOG_ERR, "clock_gettime failed (%m)"); 
+		(*lfun)(LOG_ERR, "clock_gettime failed (%m)");
 		return;
 	}
 
 	if ((bi = bl_recv(bl)) == NULL) {
-		(*lfun)(LOG_ERR, "no message (%m)"); 
+		(*lfun)(LOG_ERR, "no message (%m)");
 		return;
 	}
 
@@ -251,7 +251,6 @@ process(bl_t bl)
 			(*lfun)(LOG_INFO,
 			    "blocked %s/%d:%d for %d seconds",
 			    rbuf, c.c_lmask, c.c_port, c.c_duration);
-				
 		}
 		break;
 	case BL_DELETE:
@@ -264,7 +263,7 @@ process(bl_t bl)
 		/* ignore for now */
 		break;
 	default:
-		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type); 
+		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type);
 	}
 	state_put(state, &c, &dbi);
 
@@ -306,7 +305,7 @@ update(void)
 	void *ss = &c.c_ss;
 
 	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-		(*lfun)(LOG_ERR, "clock_gettime failed (%m)"); 
+		(*lfun)(LOG_ERR, "clock_gettime failed (%m)");
 		return;
 	}
 
