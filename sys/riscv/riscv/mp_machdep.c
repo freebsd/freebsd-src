@@ -73,8 +73,6 @@ __FBSDID("$FreeBSD$");
 
 #define	MP_BOOTSTACK_SIZE	(kstack_pages * PAGE_SIZE)
 
-boolean_t ofw_cpu_reg(phandle_t node, u_int, cell_t *);
-
 uint32_t __riscv_boot_ap[MAXCPU];
 
 static enum {
