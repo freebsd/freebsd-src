@@ -496,12 +496,12 @@ bl_recv(bl_t b)
 	}
 
 	if (got != (GOT_CRED|GOT_FD)) {
-		bl_log(b->b_fun, LOG_ERR, "message missing %s %s", 
+		bl_log(b->b_fun, LOG_ERR, "message missing %s %s",
 #if GOT_CRED != 0
 		    (got & GOT_CRED) == 0 ? "cred" :
 #endif
 		    "", (got & GOT_FD) == 0 ? "fd" : "");
-			
+
 		return NULL;
 	}
 
