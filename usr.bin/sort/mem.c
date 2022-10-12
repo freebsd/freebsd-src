@@ -36,6 +36,16 @@ __FBSDID("$FreeBSD$");
 
 #include "mem.h"
 
+void*
+sort_calloc(size_t nb, size_t size)
+{
+	void *ptr;
+
+	if ((ptr = calloc(nb, size)) == NULL)
+		err(2, NULL);
+	return (ptr);
+}
+
 /*
  * malloc() wrapper.
  */
