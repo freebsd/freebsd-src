@@ -174,9 +174,9 @@ again:
 			}
 			break;
 		}
-	} else	
+	} else
 		tot = im;
-			
+
 	if (e == 0) {
 		c->c_duration = (int)tot;
 		return 0;
@@ -215,7 +215,7 @@ static int
 conf_getmask(const char *f, size_t l, bool local, const char **p, int *mask)
 {
 	char *d;
-	const char *s = *p; 
+	const char *s = *p;
 
 	if ((d = strchr(s, ':')) != NULL) {
 		*d++ = '\0';
@@ -266,7 +266,7 @@ conf_gethostport(const char *f, size_t l, bool local, struct conf *c,
 			sin6->sin6_len = sizeof(*sin6);
 #endif
 			port = &sin6->sin6_port;
-		} 
+		}
 	} else if (pstr != p || strchr(p, '.') || conf_is_interface(p)) {
 		if (pstr == p)
 			pstr = "*";
@@ -368,7 +368,7 @@ conf_getname(const char *f, size_t l, bool local, struct conf *c,
 {
 	if (conf_getmask(f, l, local, &p, &c->c_rmask) == -1)
 		return -1;
-		
+
 	if (strcmp(p, "*") == 0) {
 		strlcpy(c->c_name, rulename, CONFNAMESZ);
 		return 0;
@@ -475,7 +475,7 @@ conf_amask_eq(const void *v1, const void *v2, size_t len, int mask)
 			return 1;
 		goto out;
 	case FEQUAL:
-		
+
 		(*lfun)(LOG_CRIT, "%s: Internal error: bad mask %d", __func__,
 		    mask);
 		abort();
@@ -689,7 +689,7 @@ conf_addr_eq(const struct sockaddr_storage *s1,
 static int
 conf_eq(const struct conf *c1, const struct conf *c2)
 {
-		
+
 	if (!conf_addr_eq(&c1->c_ss, &c2->c_ss, c2->c_lmask))
 		return 0;
 
@@ -746,7 +746,7 @@ fmtport(char *b, size_t l, int port)
 	if (port == FSTAR)
 		return;
 
-	if (b[0] == '\0' || strcmp(b, "*") == 0) 
+	if (b[0] == '\0' || strcmp(b, "*") == 0)
 		snprintf(b, l, "%d", port);
 	else {
 		snprintf(buf, sizeof(buf), ":%d", port);
@@ -822,7 +822,7 @@ conf_print(char *buf, size_t len, const char *pref, const char *delim,
 
 	fmtmask(ha, sizeof(ha), c->c_family, c->c_lmask);
 	fmtport(ha, sizeof(ha), c->c_port);
-	
+
 	sp = *delim == '\t' ? 20 : -1;
 	hb[0] = '\0';
 	if (*delim)
@@ -880,7 +880,7 @@ conf_merge(struct conf *c, const struct conf *sc)
 		(*lfun)(LOG_DEBUG, "%s: %s", __func__,
 		    conf_print(buf, sizeof(buf), "to:\t", "", c));
 	}
-	
+
 	if (sc->c_name[0])
 		memcpy(c->c_name, sc->c_name, CONFNAMESZ);
 	if (sc->c_uid != FEQUAL)
@@ -1014,13 +1014,13 @@ conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
 	slen = sizeof(lss);
 	memset(&lss, 0, slen);
 	if (getsockname(fd, (void *)&lss, &slen) == -1) {
-		(*lfun)(LOG_ERR, "getsockname failed (%m)"); 
+		(*lfun)(LOG_ERR, "getsockname failed (%m)");
 		return NULL;
 	}
 
 	slen = sizeof(proto);
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &proto, &slen) == -1) {
-		(*lfun)(LOG_ERR, "getsockopt failed (%m)"); 
+		(*lfun)(LOG_ERR, "getsockopt failed (%m)");
 		return NULL;
 	}
 
@@ -1037,7 +1037,7 @@ conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
 		cr->c_proto = IPPROTO_UDP;
 		break;
 	default:
-		(*lfun)(LOG_ERR, "unsupported protocol %d", proto); 
+		(*lfun)(LOG_ERR, "unsupported protocol %d", proto);
 		return NULL;
 	}
 
@@ -1049,7 +1049,7 @@ conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
 		cr->c_port = ntohs(((struct sockaddr_in6 *)&lss)->sin6_port);
 		break;
 	default:
-		(*lfun)(LOG_ERR, "unsupported family %d", lss.ss_family); 
+		(*lfun)(LOG_ERR, "unsupported family %d", lss.ss_family);
 		return NULL;
 	}
 
@@ -1134,7 +1134,7 @@ conf_parse(const char *f)
 	fclose(fp);
 	confset_sort(&lc);
 	confset_sort(&rc);
-	
+
 	confset_replace(&rconf, &rc);
 	confset_replace(&lconf, &lc);
 

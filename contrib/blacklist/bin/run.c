@@ -75,7 +75,7 @@ run(const char *cmd, const char *name, ...)
 	    (argv[i] = va_arg(ap, char *)) != NULL; i++)
 		continue;
 	va_end(ap);
-		
+
 	if (debug) {
 		size_t z;
 		int r;
