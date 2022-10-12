@@ -139,12 +139,6 @@ Instead,
 .Fa handler
 will be executed the next time that the software interrupt thread runs after
 being scheduled by another event.
-Attaching a handler to the clock software interrupt thread and using this flag
-when scheduling a software interrupt handler can be used to implement the
-functionality performed by
-.Fn setdelayed
-in earlier versions of
-.Fx .
 .It Dv SWI_FROMNMI
 Specifies that
 .Fn swi_sched
@@ -163,11 +157,9 @@ clock software interrupts, respectively.
 .Va tty_intr_event
 is used to hang tty software interrupt handlers off of the same thread.
 .Va clk_intr_event
-is used to hang delayed handlers off of the clock software interrupt thread so
-that the functionality of
-.Fn setdelayed
-can be obtained in conjunction with
-.Dv SWI_DELAY .
+is used to hang delayed handlers off of the clock interrupt, and is invoked
+directly by
+.Xr hardclock 9 .
 .Sh RETURN VALUES
 The
 .Fn swi_add
@@ -222,6 +214,7 @@ is
 .Dv NULL .
 .El
 .Sh SEE ALSO
+.Xr hardclock 9 ,
 .Xr ithread 9 ,
 .Xr taskqueue 9
 .Sh HISTORY
