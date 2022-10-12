@@ -723,6 +723,8 @@ pw_user_next(int argc, char **argv, char *name __unused)
 		case 'q':
 			quiet = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -785,6 +787,8 @@ pw_user_show(int argc, char **argv, char *arg1)
 		case '7':
 			v7 = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -866,6 +870,8 @@ pw_user_del(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -1003,6 +1009,8 @@ pw_user_lock(int argc, char **argv, char *arg1)
 		case 'q':
 			/* compatibility */
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -1020,6 +1028,8 @@ pw_user_unlock(int argc, char **argv, char *arg1)
 		case 'q':
 			/* compatibility */
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -1287,6 +1297,8 @@ pw_user_add(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -1595,6 +1607,8 @@ pw_user_mod(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
