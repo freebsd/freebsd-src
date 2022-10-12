@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221012: remove nls support from sort
+OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/sort.cat
+
 # 20221003: ip6protosw.h removed
 OLD_FILES+=usr/include/netinet6/ip6protosw.h
 

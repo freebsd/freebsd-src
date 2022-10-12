@@ -55,11 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "file.h"
 #include "sort.h"
 
-#ifndef WITHOUT_NLS
-#include <nl_types.h>
-nl_catd catalog = (nl_catd)-1;
-#endif
-
 #define	OPTIONS	"bcCdfghik:Mmno:RrsS:t:T:uVz"
 
 static bool need_random;
@@ -67,8 +62,7 @@ static bool need_random;
 MD5_CTX md5_ctx;
 
 /*
- * Default messages to use when NLS is disabled or no catalogue
- * is found.
+ * Default messages to use
  */
 const char *nlsstr[] = { "",
 /* 1*/"mutually exclusive flags",
@@ -1011,10 +1005,6 @@ main(int argc, char **argv)
 	set_tmpdir();
 	set_sort_opts();
 
-#ifndef WITHOUT_NLS
-	catalog = catopen("sort", NL_CAT_LOCALE);
-#endif
-
 	fix_obsolete_keys(&argc, argv);
 
 	while (((c = getopt_long(argc, argv, OPTIONS, long_options, NULL))
@@ -1338,11 +1328,6 @@ main(int argc, char **argv)
 	}
 
 	sort_free(outfile);
-
-#ifndef WITHOUT_NLS
-	if (catalog != (nl_catd)-1)
-		catclose(catalog);
-#endif
 
 	return (result);
 }
