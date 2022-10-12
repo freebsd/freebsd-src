@@ -615,8 +615,7 @@ file_reader_init(const char *fsrc)
 	if (fsrc == NULL)
 		fsrc = "-";
 
-	ret = sort_malloc(sizeof(struct file_reader));
-	memset(ret, 0, sizeof(struct file_reader));
+	ret = sort_calloc(1, sizeof(struct file_reader));
 
 	ret->elsymb = '\n';
 	if (sort_opts_vals.zflag)

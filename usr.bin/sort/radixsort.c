@@ -225,8 +225,7 @@ add_to_sublevel(struct sort_level *sl, struct sort_list_item *item, size_t indx)
 	ssl = sl->sublevels[indx];
 
 	if (ssl == NULL) {
-		ssl = sort_malloc(sizeof(struct sort_level));
-		memset(ssl, 0, sizeof(struct sort_level));
+		ssl = sort_calloc(1, sizeof(struct sort_level));
 
 		ssl->level = sl->level + 1;
 		sl->sublevels[indx] = ssl;
@@ -416,8 +415,7 @@ run_sort_level_next(struct sort_level *sl)
 	}
 
 	sl->sln = 256;
-	sl->sublevels = sort_malloc(slsz);
-	memset(sl->sublevels, 0, slsz);
+	sl->sublevels = sort_calloc(1, slsz);
 
 	sl->real_sln = 0;
 
@@ -569,8 +567,7 @@ run_top_sort_level(struct sort_level *sl)
 
 	sl->start_position = 0;
 	sl->sln = 256;
-	sl->sublevels = sort_malloc(slsz);
-	memset(sl->sublevels, 0, slsz);
+	sl->sublevels = sort_calloc(1, slsz);
 
 	for (size_t i = 0; i < sl->tosort_num; ++i)
 		place_item(sl, i);
@@ -696,8 +693,7 @@ run_sort(struct sort_list_item **base, size_t nmemb)
 	}
 #endif
 
-	sl = sort_malloc(sizeof(struct sort_level));
-	memset(sl, 0, sizeof(struct sort_level));
+	sl = sort_calloc(1, sizeof(struct sort_level));
 
 	sl->tosort = base;
 	sl->tosort_num = nmemb;
