@@ -28,7 +28,7 @@
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2022
+.Dd April 14, 2020
 .Dt LISTEN 2
 .Os
 .Sh NAME
@@ -106,13 +106,10 @@ specifies a hard limit on
 .Fa backlog ;
 if a value greater than
 .Va kern.ipc.soacceptqueue
-is specified,
+or less than zero is specified,
 .Fa backlog
 is silently forced to
 .Va kern.ipc.soacceptqueue .
-If a negative value is used,
-.Fa backlog
-is silently forced to 0.
 .Pp
 If the listen queue overflows, the kernel will emit a LOG_DEBUG syslog message.
 The
@@ -194,8 +191,3 @@ The original
 is still available but hidden from a
 .Xr sysctl 3
 -a output so that existing applications and scripts continue to work.
-To improve POSIX compliance, a negative
-.Fa backlog
-argument is handled the same as 0.
-This was introduced in
-.Fx 14.0 .

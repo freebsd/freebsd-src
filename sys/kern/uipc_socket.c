@@ -1075,9 +1075,7 @@ solisten_proto(struct socket *so, int backlog)
 	so->so_options |= SO_ACCEPTCONN;
 
 listening:
-	if (backlog < 0)
-		backlog = 0;
-	if (backlog > somaxconn)
+	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
 	so->sol_qlimit = backlog;
 
