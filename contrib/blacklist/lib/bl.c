@@ -501,7 +501,6 @@ bl_recv(bl_t b)
 		    (got & GOT_CRED) == 0 ? "cred" :
 #endif
 		    "", (got & GOT_FD) == 0 ? "fd" : "");
-
 		return NULL;
 	}
 

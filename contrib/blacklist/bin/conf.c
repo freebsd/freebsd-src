@@ -371,6 +371,7 @@ getname(const char *f, size_t l, bool local, struct conf *c,
 		strlcpy(c->c_name, rulename, CONFNAMESZ);
 		return 0;
 	}
+
 	if (strcmp(p, "=") == 0) {
 		if (local)
 			goto out;
@@ -473,7 +474,6 @@ conf_amask_eq(const void *v1, const void *v2, size_t len, int mask)
 			return 1;
 		goto out;
 	case FEQUAL:
-
 		(*lfun)(LOG_CRIT, "%s: Internal error: bad mask %d", __func__,
 		    mask);
 		abort();
