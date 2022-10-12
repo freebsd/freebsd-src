@@ -276,6 +276,8 @@ pw_group_next(int argc, char **argv, char *arg1 __unused)
 		case 'q':
 			quiet = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -333,6 +335,8 @@ pw_group_show(int argc, char **argv, char *arg1)
 		case 'a':
 			all = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -390,6 +394,8 @@ pw_group_del(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -548,6 +554,8 @@ pw_group_add(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -640,6 +648,8 @@ pw_group_mod(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 	if (quiet)
