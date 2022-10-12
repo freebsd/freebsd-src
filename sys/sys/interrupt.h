@@ -153,7 +153,6 @@ struct intr_event {
 struct proc;
 
 extern struct	intr_event *clk_intr_event;
-extern struct	intr_event *tty_intr_event;
 
 /* Counts and names for statistics (defined in MD code). */
 extern u_long 	*intrcnt;	/* counts for each device and stray */

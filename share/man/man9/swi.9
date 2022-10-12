@@ -35,7 +35,6 @@
 .In sys/param.h
 .In sys/bus.h
 .In sys/interrupt.h
-.Vt "extern struct intr_event *tty_intr_event" ;
 .Vt "extern struct intr_event *clk_intr_event" ;
 .Ft int
 .Fo swi_add
@@ -148,16 +147,10 @@ On platforms allowing IPI sending from NMI context it immediately wakes
 via the IPI, otherwise it works just like SWI_DELAY.
 .El
 .Pp
-The
-.Va tty_intr_event
-and
 .Va clk_intr_event
-variables contain pointers to the software interrupt handlers for the tty and
-clock software interrupts, respectively.
-.Va tty_intr_event
-is used to hang tty software interrupt handlers off of the same thread.
-.Va clk_intr_event
-is used to hang delayed handlers off of the clock interrupt, and is invoked
+is a pointer to the
+.Vt struct intr_event
+used to hang delayed handlers off of the clock interrupt, and is invoked
 directly by
 .Xr hardclock 9 .
 .Sh RETURN VALUES
