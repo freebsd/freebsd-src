@@ -6361,7 +6361,6 @@ OLD_DIRS+=usr/share/nls/hu_HU.ISO8859-2
 OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/ee.cat
 OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/grep.cat
 OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/libc.cat
-OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/sort.cat
 OLD_DIRS+=usr/share/nls/hr_HR.UTF-8
 OLD_DIRS+=usr/share/nls/hu_HU.UTF-8
 OLD_DIRS+=usr/share/nls/hy_AM.ARMSCII-8

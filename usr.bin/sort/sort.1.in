@@ -527,8 +527,6 @@ Used as a last resort to determine different kinds of locale-specific
 behavior if neither the respective environment variable, nor
 .Ev LC_ALL
 are set.
-%%NLS%%.It Ev NLSPATH
-%%NLS%%Path to NLS catalogs.
 .It Ev TMPDIR
 Path to the directory in which temporary files will be stored.
 Note that
