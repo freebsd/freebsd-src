@@ -1,4 +1,4 @@
-.\" $NetBSD: libblacklist.3,v 1.8 2017/10/22 10:31:57 abhinav Exp $
+.\" $NetBSD: libblacklist.3,v 1.10 2020/03/30 15:47:15 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 5, 2017
+.Dd March 30, 2020
 .Dt LIBBLACKLIST 3
 .Os
 .Sh NAME
@@ -96,11 +96,13 @@ There was an unsuccessful authentication attempt.
 A user successfully authenticated.
 .It Va BLACKLIST_ABUSIVE_BEHAVIOR
 The sending daemon has detected abusive behavior
-from the remote system.  The remote address should
+from the remote system.
+The remote address should
 be blocked as soon as possible.
 .It Va BLACKLIST_BAD_USER
 The sending daemon has determined the username
-presented for authentication is invalid.  The
+presented for authentication is invalid.
+The
 .Xr blacklistd 8
 daemon compares the username to a configured list of forbidden
 usernames and
@@ -121,6 +123,14 @@ and
 functions can be used with unconnected sockets, where
 .Xr getpeername 2
 will not work, the server will pass the peer name in the message.
+.Pp
+In all cases the file descriptor passed in the
+.Fa fd
+argument must be pointing to a valid socket so that
+.Xr blacklistd 8
+can establish ownership of the local endpoint
+using
+.Xr getsockname 2 .
 .Pp
 By default,
 .Xr syslogd 8
