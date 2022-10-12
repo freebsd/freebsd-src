@@ -195,15 +195,15 @@ file_is_tmp(const char* fn)
 char *
 new_tmp_file_name(void)
 {
-	static size_t tfcounter = 0;
-	static const char *fn = ".bsdsort.";
 	char *ret;
-	size_t sz;
+	int fd;
 
-	sz = strlen(tmpdir) + 1 + strlen(fn) + 32 + 1;
-	ret = sort_malloc(sz);
+	if (asprintf(&ret, "%s/.bsdsort.XXXXXXXXXX", tmpdir) == -1)
+		err(2, "asprintf()");
+	if ((fd = mkstemp(ret)) == -1)
+		err(2, "mkstemp()");
+	close(fd);
 
-	sprintf(ret, "%s/%s%d.%lu", tmpdir, fn, (int) getpid(), (unsigned long)(tfcounter++));
 	tmp_file_atexit(ret);
 	return (ret);
 }
