@@ -1082,6 +1082,45 @@ ovpn_set_peer(struct ifnet *ifp, const nvlist_t *nvl)
 }
 
 static int
+ovpn_set_ifmode(struct ifnet *ifp, const nvlist_t *nvl)
+{
+	struct ovpn_softc *sc = ifp->if_softc;
+	int ifmode;
+
+	if (nvl == NULL)
+		return (EINVAL);
+
+	if (! nvlist_exists_number(nvl, "ifmode") )
+		return (EINVAL);
+
+	ifmode = nvlist_get_number(nvl, "ifmode");
+
+	OVPN_WLOCK(sc);
+
+	/* deny this if UP */
+	if (ifp->if_flags & IFF_UP) {
+		OVPN_WUNLOCK(sc);
+		return (EBUSY);
+	}
+
+	switch (ifmode & ~IFF_MULTICAST) {
+	case IFF_POINTOPOINT:
+	case IFF_BROADCAST:
+		ifp->if_flags &=
+		    ~(IFF_BROADCAST|IFF_POINTOPOINT|IFF_MULTICAST);
+		ifp->if_flags |= ifmode;
+		break;
+	default:
+		OVPN_WUNLOCK(sc);
+		return (EINVAL);
+	}
+
+	OVPN_WUNLOCK(sc);
+
+	return (0);
+}
+
+static int
 ovpn_ioctl_set(struct ifnet *ifp, struct ifdrv *ifd)
 {
 	struct ovpn_softc *sc = ifp->if_softc;
@@ -1134,6 +1173,9 @@ ovpn_ioctl_set(struct ifnet *ifp, struct ifdrv *ifd)
 		break;
 	case OVPN_SET_PEER:
 		ret = ovpn_set_peer(ifp, nvl);
+		break;
+	case OVPN_SET_IFMODE:
+		ret = ovpn_set_ifmode(ifp, nvl);
 		break;
 	default:
 		ret = ENOTSUP;
