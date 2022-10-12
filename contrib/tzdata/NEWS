@@ -1,5 +1,27 @@
 News for the tz database
 
+Release 2022e - 2022-10-11 11:13:02 -0700
+
+  Briefly:
+    Jordan and Syria switch from +02/+03 with DST to year-round +03.
+
+  Changes to future timestamps
+
+    Jordan and Syria are abandoning the DST regime and are changing to
+    permanent +03, so they will not fall back from +03 to +02 on
+    2022-10-28.  (Thanks to Steffen Thorsen and Issam Al-Zuwairi.)
+
+  Changes to past timestamps
+
+    On 1922-01-01 Tijuana adopted standard time at 00:00, not 01:00.
+
+  Changes to past time zone abbreviations and DST flags
+
+    The temporary advancement of clocks in central Mexico in summer
+    1931 is now treated as daylight saving time, instead of as two
+    changes to standard time.
+
+
 Release 2022d - 2022-09-23 12:02:57 -0700
 
   Briefly:
