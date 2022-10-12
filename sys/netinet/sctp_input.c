@@ -412,7 +412,10 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    &nat_friendly, &cookie_found);
 	if (abort_flag) {
 		/* Send an abort and notify peer */
-		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, false, SCTP_SO_NOT_LOCKED);
+		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
+		    src, dst, sh, op_err,
+		    mflowtype, mflowid,
+		    vrf_id, net->port);
 		*abort_no_unlock = 1;
 		return (-1);
 	}
