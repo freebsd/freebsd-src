@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2020
+.Dd October 12, 2022
 .Dt REFCOUNT 9
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@
 .Fn refcount_init "volatile u_int *count" "u_int value"
 .Ft u_int
 .Fn refcount_load "volatile u_int *count"
-.Ft void
+.Ft u_int
 .Fn refcount_acquire "volatile u_int *count"
 .Ft bool
 .Fn refcount_acquire_checked "volatile u_int *count"
@@ -91,6 +91,7 @@ qualifier.
 The
 .Fn refcount_acquire
 function is used to acquire a new reference.
+It returns the counter value before the new reference was acquired.
 The caller is responsible for ensuring that it holds a valid reference
 while obtaining a new reference.
 For example,
