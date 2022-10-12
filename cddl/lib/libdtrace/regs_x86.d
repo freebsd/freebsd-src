@@ -80,11 +80,11 @@ inline int R_R0 = R_EAX;
 inline int R_R1 = R_EBX;
 #pragma D binding "1.0" R_R1
 
-inline int R_RSP = 18 + 1 + 20;
+inline int R_RSP = 18 + 1 + 24;
 #pragma D binding "1.0" R_RSP
-inline int R_RFL = 18 + 1 + 19;
+inline int R_RFL = 18 + 1 + 23;
 #pragma D binding "1.0" R_RFL
-inline int R_RIP = 18 + 1 + 17;
+inline int R_RIP = 18 + 1 + 21;
 #pragma D binding "1.0" R_RIP
 inline int R_RAX = 18 + 1 + 14;
 #pragma D binding "1.0" R_RAX
