@@ -61,7 +61,7 @@ usage(int c)
 {
 	if (c == 0)
 		warnx("Missing/unknown command");
-	else
+	else if (c != '?')
 		warnx("Unknown option `%c'", (char)c);
 	fprintf(stderr, "Usage: %s dump [-abdnrw]\n", getprogname());
 	exit(EXIT_FAILURE);
@@ -123,7 +123,6 @@ main(int argc, char *argv[])
 			break;
 		default:
 			usage(o);
-			break;
 		}
 
 	db = state_open(dbname, O_RDONLY, 0);

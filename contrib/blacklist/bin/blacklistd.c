@@ -105,7 +105,7 @@ sigdone(int n __unused)
 static __dead void
 usage(int c)
 {
-	if (c)
+	if (c != '?')
 		warnx("Unknown option `%c'", (char)c);
 	fprintf(stderr, "Usage: %s [-vdfr] [-c <config>] [-R <rulename>] "
 	    "[-P <sockpathsfile>] [-C <controlprog>] [-D <dbfile>] "
@@ -480,7 +480,7 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	if (argc)
-		usage(0);
+		usage('?');
 
 	signal(SIGHUP, sighup);
 	signal(SIGINT, sigdone);
