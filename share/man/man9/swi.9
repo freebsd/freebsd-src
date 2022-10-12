@@ -37,7 +37,6 @@
 .In sys/interrupt.h
 .Vt "extern struct intr_event *tty_intr_event" ;
 .Vt "extern struct intr_event *clk_intr_event" ;
-.Vt "extern void *vm_ih" ;
 .Ft int
 .Fo swi_add
 .Fa "struct intr_event **eventp"
@@ -169,10 +168,6 @@ that the functionality of
 .Fn setdelayed
 can be obtained in conjunction with
 .Dv SWI_DELAY .
-The
-.Va vm_ih
-handler cookie is used to schedule software interrupt threads to run for the
-VM subsystem.
 .Sh RETURN VALUES
 The
 .Fn swi_add
