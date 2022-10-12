@@ -75,7 +75,7 @@ struct file_reader
 	struct reader_buffer	 rb;
 	FILE			*file;
 	char			*fname;
-	unsigned char		*buffer;
+	char			*buffer;
 	unsigned char		*mmapaddr;
 	unsigned char		*mmapptr;
 	size_t			 bsz;
@@ -713,7 +713,7 @@ file_reader_readline(struct file_reader *fr)
 		}
 
 	} else if (fr->file != stdin) {
-		unsigned char *strend;
+		char *strend;
 		size_t bsz1, remsz, search_start;
 
 		search_start = 0;
@@ -785,10 +785,16 @@ file_reader_readline(struct file_reader *fr)
 		fr->strbeg = (strend - fr->buffer) + 1;
 
 	} else {
-		size_t len = 0;
-
-		ret = bwsfgetln(fr->file, &len, sort_opts_vals.zflag,
-		    &(fr->rb));
+		int delim = sort_opts_vals.zflag ? '\0' : '\n';
+		ssize_t len = getdelim(&fr->buffer, &fr->bsz, delim, fr->file);
+		if (len < 0) {
+			if (!feof(fr->file))
+				err(2, NULL);
+			return (NULL);
+		}
+		if (len > 0 && fr->buffer[len - 1] == delim)
+			len--;
+		ret = bwscsbdup(fr->buffer, len);
 	}
 
 	return (ret);
