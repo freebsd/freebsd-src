@@ -73,8 +73,7 @@ keys_array_alloc(void)
 	size_t sz;
 
 	sz = keys_array_size();
-	ka = sort_malloc(sz);
-	memset(ka, 0, sz);
+	ka = sort_calloc(1, sz);
 
 	return (ka);
 }
@@ -157,8 +156,7 @@ sort_list_item_alloc(void)
 	size_t sz;
 
 	sz = sizeof(struct sort_list_item) + keys_array_size();
-	si = sort_malloc(sz);
-	memset(si, 0, sz);
+	si = sort_calloc(1, sz);
 
 	return (si);
 }
