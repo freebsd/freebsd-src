@@ -46,6 +46,7 @@ __RCSID("$NetBSD: conf.c,v 1.24 2016/04/04 15:52:56 christos Exp $");
 #include <ctype.h>
 #include <inttypes.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <pwd.h>
 #include <syslog.h>
 #include <errno.h>
@@ -55,6 +56,7 @@ __RCSID("$NetBSD: conf.c,v 1.24 2016/04/04 15:52:56 christos Exp $");
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <sys/socket.h>
 
 #include "bl.h"
@@ -1000,11 +1002,93 @@ confset_match(const struct confset *cs, struct conf *c,
 	return i;
 }
 
+#ifdef AF_ROUTE
+static int
+conf_route_perm(int fd) {
+#if defined(RTM_IFANNOUNCE) && defined(SA_SIZE)
+	/*
+	 * Send a routing message that is not supported to check for access
+	 * We expect EOPNOTSUPP for having access, since we are sending a
+	 * request the system does not understand and EACCES if we don't have
+	 * access.
+	 */
+	static struct sockaddr_in sin = {
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
+		.sin_len = sizeof(sin),
+#endif
+		.sin_family = AF_INET,
+	};
+	char buf[4096];
+	struct rt_msghdr *rtm = (void *)buf;
+	char *cp = (char *)(rtm + 1);
+	size_t l;
+
+#define NEXTADDR(s) \
+	l = SA_SIZE(sizeof(*s)); memmove(cp, s, l); cp += l;
+	memset(buf, 0, sizeof(buf));
+	rtm->rtm_type = RTM_IFANNOUNCE;
+	rtm->rtm_flags = 0;
+	rtm->rtm_addrs = RTA_DST|RTA_GATEWAY;
+	rtm->rtm_version = RTM_VERSION;
+	rtm->rtm_seq = 666;
+	NEXTADDR(&sin);
+	NEXTADDR(&sin);
+	rtm->rtm_msglen = (u_short)((char *)cp - (char *)rtm);
+	if (write(fd, rtm, rtm->rtm_msglen) != -1) {
+		(*lfun)(LOG_ERR, "Writing to routing socket succeeded!");
+		return 0;
+	}
+	switch (errno) {
+	case EACCES:
+		return 0;
+	case EOPNOTSUPP:
+		return 1;
+	default:
+		(*lfun)(LOG_ERR,
+		    "Unexpected error writing to routing socket (%m)");
+		return 0;
+	}
+#else
+	return 0;
+#endif
+}
+#endif
+
+static int
+conf_handle_inet(int fd, const void *lss, struct conf *cr)
+{
+	char buf[BUFSIZ];
+	int proto;
+	socklen_t slen = sizeof(proto);
+
+	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &proto, &slen) == -1) {
+		(*lfun)(LOG_ERR, "getsockopt failed (%m)");
+		return -1;
+	}
+
+	if (debug) {
+		sockaddr_snprintf(buf, sizeof(buf), "%a:%p", lss);
+		(*lfun)(LOG_DEBUG, "listening socket: %s", buf);
+	}
+
+	switch (proto) {
+	case SOCK_STREAM:
+		cr->c_proto = IPPROTO_TCP;
+		break;
+	case SOCK_DGRAM:
+		cr->c_proto = IPPROTO_UDP;
+		break;
+	default:
+		(*lfun)(LOG_ERR, "unsupported protocol %d", proto);
+		return -1;
+	}
+	return 0;
+}
+
 const struct conf *
 conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
     struct conf *cr)
 {
-	int proto;
 	socklen_t slen;
 	struct sockaddr_storage lss;
 	size_t i;
@@ -1018,36 +1102,29 @@ conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
 		return NULL;
 	}
 
-	slen = sizeof(proto);
-	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &proto, &slen) == -1) {
-		(*lfun)(LOG_ERR, "getsockopt failed (%m)");
-		return NULL;
-	}
-
-	if (debug) {
-		sockaddr_snprintf(buf, sizeof(buf), "%a:%p", (void *)&lss);
-		(*lfun)(LOG_DEBUG, "listening socket: %s", buf);
-	}
-
-	switch (proto) {
-	case SOCK_STREAM:
-		cr->c_proto = IPPROTO_TCP;
-		break;
-	case SOCK_DGRAM:
-		cr->c_proto = IPPROTO_UDP;
-		break;
-	default:
-		(*lfun)(LOG_ERR, "unsupported protocol %d", proto);
-		return NULL;
-	}
-
 	switch (lss.ss_family) {
 	case AF_INET:
 		cr->c_port = ntohs(((struct sockaddr_in *)&lss)->sin_port);
+		if (conf_handle_inet(fd, &lss, cr) == -1)
+			return NULL;
 		break;
 	case AF_INET6:
 		cr->c_port = ntohs(((struct sockaddr_in6 *)&lss)->sin6_port);
+		if (conf_handle_inet(fd, &lss, cr) == -1)
+			return NULL;
 		break;
+#ifdef AF_ROUTE
+	case AF_ROUTE:
+		if (!conf_route_perm(fd)) {
+			(*lfun)(LOG_ERR,
+			    "permission denied to routing socket (%m)");
+			return NULL;
+		}
+		cr->c_proto = FSTAR;
+		cr->c_port = FSTAR;
+		memcpy(&lss, rss, sizeof(lss));
+		break;
+#endif
 	default:
 		(*lfun)(LOG_ERR, "unsupported family %d", lss.ss_family);
 		return NULL;
