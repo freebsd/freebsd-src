@@ -61,7 +61,7 @@ int
 blacklist_sa_r(struct blacklist *bl, int action, int rfd,
 	const struct sockaddr *sa, socklen_t slen, const char *msg)
 {
-	int internal_action;
+	bl_type_t internal_action;
 
 	/* internal values are not the same as user application values */
 	switch (action) {
