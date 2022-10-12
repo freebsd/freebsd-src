@@ -89,7 +89,6 @@ struct	intr_entropy {
 };
 
 struct	intr_event *clk_intr_event;
-struct	intr_event *tty_intr_event;
 struct proc *intrproc;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
