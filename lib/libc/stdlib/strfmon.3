@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2012
+.Dd October 26, 2022
 .Dt STRFMON 3
 .Os
 .Sh NAME
@@ -98,7 +98,13 @@ By default, there is no minimum width.
 A
 .Sq Cm #
 sign followed by a decimal number specifying the maximum
-expected number of digits after the radix character.
+expected number of digits before the radix character.
+When this option is used, values that do not exceed the
+specified number of digits are formatted so they will be
+correctly aligned with other values printed using the same
+format.
+This includes always leaving space for a possible sign
+indicator, even if none is needed for a particular value.
 .It
 A
 .Sq Cm \&.
