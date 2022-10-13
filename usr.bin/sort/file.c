@@ -574,19 +574,17 @@ openfile(const char *fn, const char *mode)
 void
 closefile(FILE *f, const char *fn)
 {
-	if (f == NULL) {
-		;
-	} else if (f == stdin) {
-		;
-	} else if (f == stdout) {
+	if (f == NULL || f = stdin)
+		return;
+	if (f == stdout) {
 		fflush(f);
-	} else {
-		if (file_is_tmp(fn) && compress_program != NULL) {
-			if(pclose(f)<0)
-				err(2,NULL);
-		} else
-			fclose(f);
+		return;
 	}
+	if (file_is_tmp(fn) && compress_program != NULL) {
+		if(pclose(f)<0)
+			err(2,NULL);
+	} else
+		fclose(f);
 }
 
 /*
