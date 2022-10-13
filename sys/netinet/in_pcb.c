@@ -258,6 +258,8 @@ in_pcbhashseed_init(void)
 VNET_SYSINIT(in_pcbhashseed_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     in_pcbhashseed_init, 0);
 
+static void in_pcbremhash(struct inpcb *);
+
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
  *
@@ -1839,22 +1841,8 @@ in_pcbfree(struct inpcb *inp)
 	CK_LIST_REMOVE(inp, inp_list);
 	INP_INFO_WUNLOCK(pcbinfo);
 
-	if (inp->inp_flags & INP_INHASHLIST) {
-		struct inpcbport *phd = inp->inp_phd;
-
-		INP_HASH_WLOCK(pcbinfo);
-		/* XXX: Only do if SO_REUSEPORT_LB set? */
-		in_pcbremlbgrouphash(inp);
-
-		CK_LIST_REMOVE(inp, inp_hash);
-		CK_LIST_REMOVE(inp, inp_portlist);
-		if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
-			CK_LIST_REMOVE(phd, phd_hash);
-			uma_zfree_smr(pcbinfo->ipi_portzone, phd);
-		}
-		INP_HASH_WUNLOCK(pcbinfo);
-		inp->inp_flags &= ~INP_INHASHLIST;
-	}
+	if (inp->inp_flags & INP_INHASHLIST)
+		in_pcbremhash(inp);
 
 	RO_INVALIDATE_CACHE(&inp->inp_route);
 #ifdef MAC
@@ -1936,25 +1924,9 @@ in_pcbdrop(struct inpcb *inp)
 		MPASS(inp->inp_refcount > 1);
 #endif
 
-	/*
-	 * XXXRW: Possibly we should protect the setting of INP_DROPPED with
-	 * the hash lock...?
-	 */
 	inp->inp_flags |= INP_DROPPED;
-	if (inp->inp_flags & INP_INHASHLIST) {
-		struct inpcbport *phd = inp->inp_phd;
-
-		INP_HASH_WLOCK(inp->inp_pcbinfo);
-		in_pcbremlbgrouphash(inp);
-		CK_LIST_REMOVE(inp, inp_hash);
-		CK_LIST_REMOVE(inp, inp_portlist);
-		if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
-			CK_LIST_REMOVE(phd, phd_hash);
-			uma_zfree_smr(inp->inp_pcbinfo->ipi_portzone, phd);
-		}
-		INP_HASH_WUNLOCK(inp->inp_pcbinfo);
-		inp->inp_flags &= ~INP_INHASHLIST;
-	}
+	if (inp->inp_flags & INP_INHASHLIST)
+		in_pcbremhash(inp);
 }
 
 #ifdef INET
@@ -2532,6 +2504,27 @@ in_pcbinshash(struct inpcb *inp)
 	inp->inp_flags |= INP_INHASHLIST;
 
 	return (0);
+}
+
+static void
+in_pcbremhash(struct inpcb *inp)
+{
+	struct inpcbport *phd = inp->inp_phd;
+
+	INP_WLOCK_ASSERT(inp);
+	MPASS(inp->inp_flags & INP_INHASHLIST);
+
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
+	/* XXX: Only do if SO_REUSEPORT_LB set? */
+	in_pcbremlbgrouphash(inp);
+	CK_LIST_REMOVE(inp, inp_hash);
+	CK_LIST_REMOVE(inp, inp_portlist);
+	if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
+		CK_LIST_REMOVE(phd, phd_hash);
+		uma_zfree_smr(inp->inp_pcbinfo->ipi_portzone, phd);
+	}
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
+	inp->inp_flags &= ~INP_INHASHLIST;
 }
 
 /*
