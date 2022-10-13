@@ -538,28 +538,26 @@ openfile(const char *fn, const char *mode)
 		    S_IRGRP | S_IROTH);
 
 	if (is_tmp && (compress_program != NULL)) {
+		int r;
 		char *cmd;
-		size_t cmdsz;
-
-		cmdsz = strlen(fn) + 128;
-		cmd = sort_malloc(cmdsz);
 
 		fflush(stdout);
 
 		if (mode[0] == 'r')
-			snprintf(cmd, cmdsz - 1, "cat %s | %s -d",
+			r = asprintf(&cmd, "cat %s | %s -d",
 			    fn, compress_program);
 		else if (mode[0] == 'w')
-			snprintf(cmd, cmdsz - 1, "%s > %s",
+			r = asprintf(&cmd, "%s > %s",
 			    compress_program, fn);
 		else
 			err(2, "%s", getstr(7));
 
+		if (r == -1)
+			err(2, "aspritnf()");
+
 		if ((file = popen(cmd, mode)) == NULL)
 			err(2, NULL);
-
-		sort_free(cmd);
-
+		free(cmd);
 	} else
 		if ((file = fopen(fn, mode)) == NULL)
 			err(2, NULL);
