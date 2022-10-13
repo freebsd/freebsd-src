@@ -216,9 +216,7 @@ file_list_init(struct file_list *fl, bool tmp)
 {
 
 	if (fl) {
-		fl->count = 0;
-		fl->sz = 0;
-		fl->fns = NULL;
+		memset(fl, 0, sizeof(*fl));
 		fl->tmp = tmp;
 	}
 }
@@ -293,10 +291,8 @@ sort_list_init(struct sort_list *l)
 {
 
 	if (l) {
-		l->count = 0;
-		l->size = 0;
+		memset(l, 0, sizeof(*l));
 		l->memsize = sizeof(struct sort_list);
-		l->list = NULL;
 	}
 }
 
