@@ -97,8 +97,6 @@ struct bwstring *bwsdup(const struct bwstring *s);
 struct bwstring *bwssbdup(const wchar_t *str, size_t size);
 struct bwstring *bwscsbdup(const unsigned char *str, size_t size);
 void bwsfree(const struct bwstring *s);
-size_t bwscpy(struct bwstring *dst, const struct bwstring *src);
-struct bwstring *bwsncpy(struct bwstring *dst, const struct bwstring *src, size_t size);
 struct bwstring *bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset, size_t size);
 int bwscmp(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset);
 int bwsncmp(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset, size_t len);
