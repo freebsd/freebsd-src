@@ -574,7 +574,7 @@ openfile(const char *fn, const char *mode)
 void
 closefile(FILE *f, const char *fn)
 {
-	if (f == NULL || f = stdin)
+	if (f == NULL || f == stdin)
 		return;
 	if (f == stdout) {
 		fflush(f);
@@ -699,25 +699,18 @@ static void
 file_reader_clean(struct file_reader *fr)
 {
 
-	if (fr) {
-		if (fr->mmapaddr)
-			munmap(fr->mmapaddr, fr->mmapsize);
+	if (fr == NULL)
+		return;
 
-		if (fr->fd)
-			close(fr->fd);
+	if (fr->mmapaddr)
+		munmap(fr->mmapaddr, fr->mmapsize);
+	if (fr->fd)
+		close(fr->fd);
 
-		if (fr->buffer)
-			sort_free(fr->buffer);
-
-		if (fr->file)
-			if (fr->file != stdin)
-				closefile(fr->file, fr->fname);
-
-		if(fr->fname)
-			sort_free(fr->fname);
-
-		memset(fr, 0, sizeof(struct file_reader));
-	}
+	free(fr->buffer);
+	closefile(fr->file, fr->fname);
+	free(fr->fname);
+	memset(fr, 0, sizeof(struct file_reader));
 }
 
 void
