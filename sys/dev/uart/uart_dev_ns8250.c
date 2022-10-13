@@ -210,6 +210,8 @@ static void
 ns8250_flush(struct uart_bas *bas, int what)
 {
 	uint8_t fcr;
+	uint8_t lsr;
+	int drain = 0;
 
 	fcr = FCR_ENABLE;
 #ifdef CPU_XBURST
@@ -221,6 +223,23 @@ ns8250_flush(struct uart_bas *bas, int what)
 		fcr |= FCR_RCV_RST;
 	uart_setreg(bas, REG_FCR, fcr);
 	uart_barrier(bas);
+
+	/*
+	 * Detect and work around emulated UARTs which don't implement the
+	 * FCR register; on these systems we need to drain the FIFO since
+	 * the flush we request doesn't happen.  One such system is the
+	 * Firecracker VMM, aka. the rust-vmm/vm-superio emulation code:
+	 * https://github.com/rust-vmm/vm-superio/issues/83
+	 */
+	lsr = uart_getreg(bas, REG_LSR);
+	if ((lsr & LSR_TEMT) && (what & UART_FLUSH_TRANSMITTER))
+		drain |= UART_DRAIN_TRANSMITTER;
+	if ((lsr & LSR_RXRDY) && (what & UART_FLUSH_RECEIVER))
+		drain |= UART_DRAIN_RECEIVER;
+	if (drain != 0) {
+		printf("ns8250: UART FCR is broken\n");
+		ns8250_drain(bas, drain);
+	}
 }
 
 static int
