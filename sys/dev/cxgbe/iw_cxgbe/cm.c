@@ -933,7 +933,7 @@ err:
 	return;
 }
 
-static inline int c4iw_zero_addr(struct sockaddr *addr)
+static inline bool c4iw_zero_addr(struct sockaddr *addr)
 {
 	struct in6_addr *ip6;
 
@@ -946,19 +946,29 @@ static inline int c4iw_zero_addr(struct sockaddr *addr)
 	}
 }
 
-static inline int c4iw_loopback_addr(struct sockaddr *addr)
+#define _IN_LOOPBACK(i)	(((in_addr_t)(i) & 0xff000000) == 0x7f000000)
+static inline bool c4iw_loopback_addr(struct sockaddr *addr, struct vnet *vnet)
 {
-	if (addr->sa_family == AF_INET)
-		return IN_LOOPBACK(
-			ntohl(((struct sockaddr_in *) addr)->sin_addr.s_addr));
-	else
-		return IN6_IS_ADDR_LOOPBACK(
-				&((struct sockaddr_in6 *) addr)->sin6_addr);
-}
+	bool ret;
 
-static inline int c4iw_any_addr(struct sockaddr *addr)
+	if (addr->sa_family == AF_INET) {
+		if (vnet == NULL)
+			ret = _IN_LOOPBACK(ntohl(((struct sockaddr_in *) addr)->sin_addr.s_addr));
+		else {
+			CURVNET_SET_QUIET(vnet);
+			ret = IN_LOOPBACK(ntohl(((struct sockaddr_in *) addr)->sin_addr.s_addr));
+			CURVNET_RESTORE();
+		}
+	} else {
+		ret = IN6_IS_ADDR_LOOPBACK(&((struct sockaddr_in6 *) addr)->sin6_addr);
+	}
+	return (ret);
+}
+#undef _IN_LOOPBACK
+
+static inline bool c4iw_any_addr(struct sockaddr *addr, struct vnet *vnet)
 {
-	return c4iw_zero_addr(addr) || c4iw_loopback_addr(addr);
+	return c4iw_zero_addr(addr) || c4iw_loopback_addr(addr, vnet);
 }
 
 static void
@@ -971,7 +981,8 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 
 	MPASS(new_so != NULL);
 
-	if (c4iw_any_addr((struct sockaddr *)&master_lep->com.local_addr)) {
+	if (c4iw_any_addr((struct sockaddr *)&master_lep->com.local_addr,
+	    new_so->so_vnet)) {
 		/* Here we need to find the 'real_lep' that belongs to the
 		 * incomming socket's network interface, such that the newly
 		 * created 'ep' can be attached to the real 'lep'.
@@ -2734,7 +2745,7 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	 * invoke solisten() as first listener callback has already created
 	 * listeners for all other devices(via solisten).
 	 */
-	if (c4iw_any_addr((struct sockaddr *)&lep->com.local_addr)) {
+	if (c4iw_any_addr((struct sockaddr *)&lep->com.local_addr, NULL)) {
 		port_info = add_ep_to_listenlist(lep);
 		/* skip solisten() if refcnt > 1, as the listeners were
 		 * already created by 'Master lep'
@@ -2788,7 +2799,8 @@ c4iw_destroy_listen(struct iw_cm_id *cm_id)
 	    states[lep->com.state]);
 
 	lep->com.state = DEAD;
-	if (c4iw_any_addr((struct sockaddr *)&lep->com.local_addr)) {
+	if (c4iw_any_addr((struct sockaddr *)&lep->com.local_addr,
+	    lep->com.so->so_vnet)) {
 		/* if no refcount then close listen socket */
 		if (!rem_ep_from_listenlist(lep))
 			close_socket(lep->com.so);
