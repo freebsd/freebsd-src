@@ -527,46 +527,45 @@ openfile(const char *fn, const char *mode)
 {
 	FILE *file;
 
-	if (strcmp(fn, "-") == 0) {
+	if (strcmp(fn, "-") == 0)
 		return ((mode && mode[0] == 'r') ? stdin : stdout);
-	} else {
-		mode_t orig_file_mask = 0;
-		int is_tmp = file_is_tmp(fn);
 
-		if (is_tmp && (mode[0] == 'w'))
-			orig_file_mask = umask(S_IWGRP | S_IWOTH |
-			    S_IRGRP | S_IROTH);
+	mode_t orig_file_mask = 0;
+	int is_tmp = file_is_tmp(fn);
 
-		if (is_tmp && (compress_program != NULL)) {
-			char *cmd;
-			size_t cmdsz;
+	if (is_tmp && (mode[0] == 'w'))
+		orig_file_mask = umask(S_IWGRP | S_IWOTH |
+		    S_IRGRP | S_IROTH);
 
-			cmdsz = strlen(fn) + 128;
-			cmd = sort_malloc(cmdsz);
+	if (is_tmp && (compress_program != NULL)) {
+		char *cmd;
+		size_t cmdsz;
 
-			fflush(stdout);
+		cmdsz = strlen(fn) + 128;
+		cmd = sort_malloc(cmdsz);
 
-			if (mode[0] == 'r')
-				snprintf(cmd, cmdsz - 1, "cat %s | %s -d",
-				    fn, compress_program);
-			else if (mode[0] == 'w')
-				snprintf(cmd, cmdsz - 1, "%s > %s",
-				    compress_program, fn);
-			else
-				err(2, "%s", getstr(7));
+		fflush(stdout);
 
-			if ((file = popen(cmd, mode)) == NULL)
-				err(2, NULL);
+		if (mode[0] == 'r')
+			snprintf(cmd, cmdsz - 1, "cat %s | %s -d",
+			    fn, compress_program);
+		else if (mode[0] == 'w')
+			snprintf(cmd, cmdsz - 1, "%s > %s",
+			    compress_program, fn);
+		else
+			err(2, "%s", getstr(7));
 
-			sort_free(cmd);
+		if ((file = popen(cmd, mode)) == NULL)
+			err(2, NULL);
 
-		} else
-			if ((file = fopen(fn, mode)) == NULL)
-				err(2, NULL);
+		sort_free(cmd);
 
-		if (is_tmp && (mode[0] == 'w'))
-			umask(orig_file_mask);
-	}
+	} else
+		if ((file = fopen(fn, mode)) == NULL)
+			err(2, NULL);
+
+	if (is_tmp && (mode[0] == 'w'))
+		umask(orig_file_mask);
 
 	return (file);
 }
