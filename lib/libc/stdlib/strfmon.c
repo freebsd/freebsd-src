@@ -224,7 +224,7 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 
 		/* Conversion Characters */
 		switch (*fmt++) {
-			case 'i':	/* use internaltion currency format */
+			case 'i':	/* use international currency format */
 				flags |= USE_INTL_CURRENCY;
 				break;
 			case 'n':	/* use national currency format */
@@ -439,7 +439,7 @@ __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
 		*signstr = lc->positive_sign;
 	}
 
-	/* Set defult values for unspecified information. */
+	/* Set default values for unspecified information. */
 	if (*cs_precedes != 0)
 		*cs_precedes = 1;
 	if (*sep_by_space == CHAR_MAX)
