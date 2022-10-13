@@ -239,8 +239,9 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 			free(currency_symbol);
 		if (flags & USE_INTL_CURRENCY) {
 			currency_symbol = strdup(lc->int_curr_symbol);
-			if (currency_symbol != NULL)
-				space_char = *(currency_symbol+3);
+			if (currency_symbol != NULL &&
+			    strlen(currency_symbol) > 3)
+				space_char = currency_symbol[3];
 		} else
 			currency_symbol = strdup(lc->currency_symbol);
 
