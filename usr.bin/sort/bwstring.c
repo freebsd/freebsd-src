@@ -323,63 +323,6 @@ bwsfree(const struct bwstring *s)
 }
 
 /*
- * Copy content of src binary string to dst.
- * If the capacity of the dst string is not sufficient,
- * then the data is truncated.
- */
-size_t
-bwscpy(struct bwstring *dst, const struct bwstring *src)
-{
-	size_t nums = BWSLEN(src);
-
-	if (nums > BWSLEN(dst))
-		nums = BWSLEN(dst);
-
-	if (mb_cur_max == 1) {
-		memcpy(dst->cdata.str, src->cdata.str, nums);
-		dst->cdata.len = nums;
-		dst->cdata.str[dst->cdata.len] = '\0';
-	} else {
-		memcpy(dst->wdata.str, src->wdata.str,
-		    SIZEOF_WCHAR_STRING(nums));
-		dst->wdata.len = nums;
-		dst->wdata.str[nums] = L'\0';
-	}
-
-	return (nums);
-}
-
-/*
- * Copy content of src binary string to dst,
- * with specified number of symbols to be copied.
- * If the capacity of the dst string is not sufficient,
- * then the data is truncated.
- */
-struct bwstring *
-bwsncpy(struct bwstring *dst, const struct bwstring *src, size_t size)
-{
-	size_t nums = BWSLEN(src);
-
-	if (nums > BWSLEN(dst))
-		nums = BWSLEN(dst);
-	if (nums > size)
-		nums = size;
-
-	if (mb_cur_max == 1) {
-		memcpy(dst->cdata.str, src->cdata.str, nums);
-		dst->cdata.len = nums;
-		dst->cdata.str[nums] = '\0';
-	} else {
-		memcpy(dst->wdata.str, src->wdata.str,
-		    SIZEOF_WCHAR_STRING(nums));
-		dst->wdata.len = nums;
-		dst->wdata.str[nums] = L'\0';
-	}
-
-	return (dst);
-}
-
-/*
  * Copy content of src binary string to dst,
  * with specified number of symbols to be copied.
  * An offset value can be specified, from the start of src string.
