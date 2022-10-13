@@ -32,11 +32,6 @@
  * We can have 4KB/32B = 128 trampolines per chunk.
  */
 #define KINST_TRAMPS_PER_CHUNK	(KINST_TRAMPCHUNK_SIZE / KINST_TRAMP_SIZE)
-/*
- * Set the object size to 2GB, since we know that the object will only ever be
- * used to allocate pages in the range [KERNBASE, 0xfffffffffffff000].
- */
-#define KINST_VMOBJ_SIZE	(VM_MAX_ADDRESS - KERNBASE)
 
 struct trampchunk {
 	TAILQ_ENTRY(trampchunk) next;
