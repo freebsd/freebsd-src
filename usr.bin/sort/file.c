@@ -605,10 +605,7 @@ file_reader_init(const char *fsrc)
 
 	ret = sort_calloc(1, sizeof(struct file_reader));
 
-	ret->elsymb = '\n';
-	if (sort_opts_vals.zflag)
-		ret->elsymb = 0;
-
+	ret->elsymb = sort_opts_vals.zflag ? '\0' : '\n';
 	ret->fname = sort_strdup(fsrc);
 
 	if (strcmp(fsrc, "-") && (compress_program == NULL) && use_mmap) {
@@ -687,14 +684,15 @@ file_reader_readline(struct file_reader *fr)
 			}
 		}
 	} else {
-		int delim = sort_opts_vals.zflag ? '\0' : '\n';
-		ssize_t len = getdelim(&fr->buffer, &fr->bsz, delim, fr->file);
+		ssize_t len;
+
+		len = getdelim(&fr->buffer, &fr->bsz, fr->elsymb, fr->file);
 		if (len < 0) {
 			if (!feof(fr->file))
 				err(2, NULL);
 			return (NULL);
 		}
-		if (len > 0 && fr->buffer[len - 1] == delim)
+		if (len > 0 && fr->buffer[len - 1] == fr->elsymb)
 			len--;
 		ret = bwscsbdup(fr->buffer, len);
 	}
