@@ -717,10 +717,10 @@ void
 file_reader_free(struct file_reader *fr)
 {
 
-	if (fr) {
-		file_reader_clean(fr);
-		sort_free(fr);
-	}
+	if (fr == NULL)
+		return;
+	file_reader_clean(fr);
+	free(fr);
 }
 
 int
@@ -820,10 +820,8 @@ file_header_close(struct file_header **fh)
 {
 
 	if (fh && *fh) {
-		if ((*fh)->fr) {
-			file_reader_free((*fh)->fr);
-			(*fh)->fr = NULL;
-		}
+		file_reader_free((*fh)->fr);
+		(*fh)->fr = NULL;
 		if ((*fh)->si) {
 			sort_list_item_clean((*fh)->si);
 			sort_free((*fh)->si);
