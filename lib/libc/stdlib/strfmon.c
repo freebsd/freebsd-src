@@ -373,8 +373,12 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 			PRINTS(signstr);
 		}
 
-		if (sign_posn == 0 && (flags & IS_NEGATIVE))
-			PRINT(')');
+		if (sign_posn == 0) {
+			if (flags & IS_NEGATIVE)
+				PRINT(')');
+			else if (left_prec >= 0)
+				PRINT(' ');
+		}
 
 		if (dst - tmpptr < width) {
 			if (flags & LEFT_JUSTIFY) {
@@ -466,6 +470,10 @@ __calc_left_pad(int flags, char *cur_symb)
 	}
 
 	switch (sign_posn) {
+		case 0:
+			if (flags & IS_NEGATIVE)
+				left_chars++;
+			break;
 		case 1:
 			left_chars += strlen(signstr);
 			break;
