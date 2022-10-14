@@ -58,10 +58,11 @@ kinst_trampchunk_alloc(void)
 
 	/*
 	 * Allocate virtual memory for the trampoline chunk. The returned
-	 * address is saved in "trampaddr".
-	 *
-	 * Setting "trampaddr" to KERNBASE causes vm_map_find() to return an
-	 * address above KERNBASE, so this satisfies both requirements.
+	 * address is saved in "trampaddr".  To simplify population of
+	 * trampolines, we follow the amd64 kernel's code model and allocate
+	 * them above KERNBASE, i.e., in the top 2GB of the kernel's virtual
+	 * address space.  Trampolines must be executable so max_prot must
+	 * include VM_PROT_EXECUTE.
 	 */
 	trampaddr = KERNBASE;
 	error = vm_map_find(kernel_map, NULL, 0, &trampaddr,
