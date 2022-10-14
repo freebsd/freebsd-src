@@ -1262,9 +1262,8 @@ __elfN(lookup_symbol)(elf_file_t ef, const char* name, Elf_Sym *symp,
 		strp = strdupout((vm_offset_t)(ef->strtab + sym.st_name));
 		if (strcmp(name, strp) == 0) {
 			free(strp);
-			if (sym.st_shndx != SHN_UNDEF ||
-			    (sym.st_value != 0 &&
-			    ELF_ST_TYPE(sym.st_info) == type)) {
+			if (sym.st_shndx != SHN_UNDEF && sym.st_value != 0 &&
+			    ELF_ST_TYPE(sym.st_info) == type) {
 				*symp = sym;
 				return 0;
 			}
