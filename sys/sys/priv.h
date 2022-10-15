@@ -348,6 +348,7 @@
 #define	PRIV_NET_VXLAN		420	/* Administer vxlan. */
 #define	PRIV_NET_SETLANPCP	421	/* Set LAN priority. */
 #define	PRIV_NET_SETVLANPCP	PRIV_NET_SETLANPCP /* Alias Set VLAN priority */
+#define	PRIV_NET_ME		423	/* Administer ME interface. */
 #define	PRIV_NET_WG		424	/* Administer WireGuard interface. */
 
 /*
