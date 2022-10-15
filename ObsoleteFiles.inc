@@ -52,6 +52,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221015: update the ithread(9) man page
+OLD_FILES+=usr/share/man/man9/ithread.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_add_handler.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_create.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_destroy.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_priority.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_remove_handler.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_schedule.9.gz
+
 # 20221012: remove nls support from sort
 OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/sort.cat
 
