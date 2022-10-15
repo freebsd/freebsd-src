@@ -3073,14 +3073,18 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	struct pf_mtag *pf_mtag;
 
 	/* ICMP packet rate limitation. */
+#ifdef INET6
 	if (af == AF_INET6) {
 		if (icmp6_ratelimit(NULL, type, code))
 			return;
-	} else {
-		MPASS(af == AF_INET);
+	}
+#endif
+#ifdef INET
+	if (af == AF_INET) {
 		if (badport_bandlim(pf_icmp_to_bandlim(type)) != 0)
 			return;
 	}
+#endif
 
 	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
 	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
