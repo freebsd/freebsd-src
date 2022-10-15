@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2018
+.Dd September 6, 2022
 .Dt SOCKET 9
 .Os
 .Sh NAME
@@ -171,8 +171,7 @@ are only useful for protocol implementors.
 .Pp
 Except where otherwise indicated,
 .Nm
-functions may sleep, and are not appropriate for use in an
-.Xr ithread 9
+functions may sleep, and are not appropriate for use in an interrupt thread
 context or while holding non-sleepable kernel locks.
 .Ss Creating and Destroying Sockets
 A new socket may be created using
@@ -461,10 +460,8 @@ argument, and use the same flag name space as the
 .Xr sendmsg 2
 system call.
 .Pp
-Kernel callers running in
-.Xr ithread 9
-context, or with a mutex held, will wish to use non-blocking sockets and pass
-the
+Kernel callers running in an interrupt thread context, or with a mutex held,
+will wish to use non-blocking sockets and pass the
 .Dv MSG_DONTWAIT
 flag in order to prevent these functions from sleeping.
 .Pp
@@ -593,7 +590,7 @@ data between user and kernel code.
 .Xr shutdown 2 ,
 .Xr socket 2 ,
 .Xr ng_ksocket 4 ,
-.Xr ithread 9 ,
+.Xr intr_event 9 ,
 .Xr msleep 9 ,
 .Xr ucred 9
 .Sh HISTORY
