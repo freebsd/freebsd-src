@@ -68,20 +68,66 @@
 .Ft u_char
 .Fn intr_priority "enum intr_type flags"
 .Sh DESCRIPTION
-Interrupt threads are kernel threads that run a list of handlers when
-triggered by either a hardware or software interrupt.
-Each interrupt handler has a name, handler function, handler argument,
-priority, and various flags.
-Each interrupt thread maintains a list of handlers sorted by priority.
-This results in higher priority handlers being executed prior to lower
-priority handlers.
-Each thread assumes the priority of its highest priority handler for its
-process priority, or
-.Dv PRIO_MAX
-if it has no handlers.
-Interrupt threads are also associated with a single interrupt source,
-represented as a vector number.
+The interrupt event API provides methods to manage the registration and
+execution of interrupt handlers and their associated thread contexts.
 .Pp
+Each interrupt event in the system corresponds to a single hardware or software
+interrupt source.
+Each interrupt event maintains a list of interrupt handlers, sorted by
+priority, which will be invoked when handling the event.
+An interrupt event will typically, but not always, have an associated
+.Xr kthread 9 ,
+known as the interrupt thread.
+Finally, each event contains optional callback functions which will be
+invoked before and after the handler functions themselves.
+.Pp
+An interrupt handler contains two distinct handler functions:
+the
+.Em filter
+and the thread
+.Em handler .
+The
+.Em filter
+function is run from interrupt context and is intended to perform quick
+handling such as acknowledging or masking a hardware interrupt,
+and queueing work for the ensuing thread
+.Em handler .
+Both functions are optional; each interrupt handler may choose to register a
+filter, a thread handler, or both.
+Each interrupt handler also consists of a name,
+a set of flags,
+and an opaque argument which will be passed to both the
+.Em filter
+and
+.Em handler
+functions.
+.Ss Handler Constraints
+The
+.Em filter
+function is executed inside a
+.Xr critical 9
+section.
+Therefore, filters may not yield the CPU for any reason, and may only use spin
+locks to access shared data.
+Allocating memory within a filter is not permitted.
+.Pp
+The
+.Em handler
+function executes from the context of the associated interrupt kernel thread.
+Sleeping is not permitted, but the interrupt thread may be preempted by higher
+priority threads.
+Thus, threaded handler functions may obtain non-sleepable locks, as described
+in
+.Xr locking 9 .
+Any memory or zone allocations in an interrupt thread must specify the
+.Dv M_NOWAIT
+flag, and any allocation errors must be handled.
+.Pp
+The exception to these constraints is software interrupt threads, which are
+allowed to sleep but should be allocated and scheduled using the
+.Xr swi 9
+interface.
+.Ss Function Descriptions
 The
 .Fn intr_event_create
 function creates a new interrupt thread.
@@ -180,12 +226,6 @@ from the handler's source triggers.
 Presently, the
 .Dv INTR_ENTROPY
 flag is not valid for software interrupt handlers.
-.Pp
-It is not permitted to sleep in an interrupt thread; hence, any memory
-or zone allocations in an interrupt thread should be specified with the
-.Dv M_NOWAIT
-flag set.
-Any allocation errors must be handled thereafter.
 .Sh RETURN VALUES
 The
 .Fn intr_event_add_handler ,
@@ -305,6 +345,7 @@ argument is
 .El
 .Sh SEE ALSO
 .Xr kthread 9 ,
+.Xr locking 9 ,
 .Xr malloc 9 ,
 .Xr swi 9 ,
 .Xr uma 9
