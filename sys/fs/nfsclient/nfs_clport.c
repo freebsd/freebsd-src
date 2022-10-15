@@ -1014,18 +1014,18 @@ nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 		NET_EPOCH_ENTER(et);
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		nh = fib4_lookup(fibnum, sin->sin_addr, 0, NHR_NONE, 0);
-		CURVNET_RESTORE();
-		if (nh != NULL)
+		if (nh != NULL) {
 			addr = IA_SIN(ifatoia(nh->nh_ifa))->sin_addr;
+			if (IN_LOOPBACK(ntohl(addr.s_addr))) {
+				/* Ignore loopback addresses */
+				nh = NULL;
+			}
+		}
+		CURVNET_RESTORE();
 		NET_EPOCH_EXIT(et);
+
 		if (nh == NULL)
 			return (NULL);
-
-		if (IN_LOOPBACK(ntohl(addr.s_addr))) {
-			/* Ignore loopback addresses */
-			return (NULL);
-		}
-
 		*isinet6p = 0;
 		*((struct in_addr *)paddr) = addr;
 
