@@ -130,12 +130,20 @@ interface.
 .Ss Function Descriptions
 The
 .Fn intr_event_create
-function creates a new interrupt thread.
+function creates a new interrupt event.
+The
+.Fa event
+argument points to a
+.Vt struct intr_event
+pointer that will reference the newly created event upon success.
 The
 .Fa source
-argument points to a
-.Vt struct intr_event event
-pointer that will point to the newly created thread upon success.
+argument is an opaque pointer which will be passed to the
+.Fa pre_ithread ,
+.Fa post_ithread ,
+and
+.Fa post_filter
+callbacks.
 The
 .Fa flags
 argument is a mask of properties of this thread.
@@ -150,9 +158,31 @@ and
 .Fa disable
 arguments specify optional functions used to enable and disable this
 interrupt thread's interrupt source.
-The functions receive the vector corresponding to the thread's interrupt
-source as their only argument.
-The remaining arguments form a
+The
+.Fa irq
+argument is the unique interrupt vector number corresponding to the event.
+The
+.Fa pre_ithread ,
+.Fa post_ithread ,
+and
+.Fa post_filter
+arguments are callback functions that are invoked at different
+points while handling an interrupt.
+This is described in more detail in the
+.Sx Handler Callbacks
+section, below.
+They may be
+.Va NULL
+to specify no callback.
+The
+.Fa assign_cpu
+argument points to a callback function that will be invoked when binding
+an interrupt to a particular CPU.
+It may be
+.Va NULL
+if binding is unsupported.
+The
+remaining arguments form a
 .Xr printf 9
 argument list that is used to build the base name of the new interrupt thread.
 The full name of an interrupt thread is formed by concatenating the base
@@ -160,29 +190,41 @@ name of the interrupt thread with the names of all of its interrupt handlers.
 .Pp
 The
 .Fn intr_event_destroy
-function destroys a previously created interrupt thread by releasing its
-resources and arranging for the backing kernel thread to terminate.
-An interrupt thread can only be destroyed if it has no handlers remaining.
+function destroys a previously created interrupt event by releasing its
+resources.
+.\" The following is not true (yet):
+.\"and arranging for the backing kernel thread to terminate.
+An interrupt event can only be destroyed if it has no handlers remaining.
 .Pp
 The
 .Fn intr_event_add_handler
-function adds a new handler to an existing interrupt thread specified by
-.Fa ithread .
+function adds a new handler to an existing interrupt event specified by
+.Fa ie .
 The
 .Fa name
 argument specifies a name for this handler.
 The
+.Fa filter
+argument provide the filter function to execute.
+The
 .Fa handler
-and
+argument provides the handler function to be executed from the
+event's interrupt thread.
+The
 .Fa arg
-arguments provide the function to execute for this handler and an argument
-to pass to it.
+argument will be passed to the
+.Fa filter
+and
+.Fa handler
+functions when they are invoked.
 The
 .Fa pri
-argument specifies the priority of this handler and is used both in sorting
-it in relation to the other handlers for this thread and to specify the
-priority of the backing kernel thread.
-The
+argument specifies the priority of this handler,
+corresponding to the values defined in
+.In sys/priority.h .
+It determines the order this handler is called relative to the other handlers
+for this event, as well as the scheduling priority of of the backing kernel
+thread.
 .Fa flags
 argument can be used to specify properties of this handler as defined in
 .In sys/bus.h .
@@ -195,10 +237,13 @@ handler.
 .Pp
 The
 .Fn intr_event_remove_handler
-removes a handler from an interrupt thread.
+function removes an interrupt handler from the interrupt event specified by
+.Fa ie .
 The
 .Fa cookie
-argument specifies the handler to remove from its thread.
+argument, obtained from
+.Fn intr_event_add_handler ,
+identifies the handler to remove.
 .Pp
 The
 .Fn intr_priority
@@ -226,6 +271,37 @@ from the handler's source triggers.
 Presently, the
 .Dv INTR_ENTROPY
 flag is not valid for software interrupt handlers.
+.Ss Handler Callbacks
+Each
+.Vt struct intr_event
+is assigned three optional callback functions when it is created:
+.Fa pre_ithread ,
+.Fa post_ithread ,
+and
+.Fa post_filter .
+These callbacks are intended to be defined by the interrupt controller driver,
+to allow for actions such as masking and unmasking hardware interrupt signals.
+.Pp
+When an interrupt is triggered, all filters are run to determine if any
+threaded interrupt handlers should be scheduled for execution by the associated
+interrupt thread. If no threaded handlers are scheduled, the
+.Fa post_filter
+callback is invoked which should acknowledge the interrupt and permit it to
+trigger in the future.
+If any threaded handlers are scheduled, the
+.Fa pre_ithread
+callback is invoked instead.
+This handler should acknowledge the interrupt, but it should also ensure that
+the interrupt will not fire continuously until after the threaded handlers have
+executed.
+Typically this callback masks level-triggered interrupts in an interrupt
+controller while leaving edge-triggered interrupts alone.
+Once all threaded handlers have executed,
+the
+.Fa post_ithread
+callback is invoked from the interrupt thread to enable future interrupts.
+Typically this callback unmasks level-triggered interrupts in an interrupt
+controller.
 .Sh RETURN VALUES
 The
 .Fn intr_event_add_handler ,
