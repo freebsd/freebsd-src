@@ -322,7 +322,7 @@ me_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifr->ifr_fib = sc->me_fibnum;
 		break;
 	case SIOCSTUNFIB:
-		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
+		if ((error = priv_check(curthread, PRIV_NET_ME)) != 0)
 			break;
 		if (ifr->ifr_fib >= rt_numfibs)
 			error = EINVAL;
