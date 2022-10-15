@@ -200,39 +200,40 @@ function returns a process priority corresponding to the passed in interrupt
 flags.
 .Sh EXAMPLES
 The
-.Fn swi_add
+.Xr swi_add 9
 function demonstrates the use of
 .Fn intr_event_create
 and
 .Fn intr_event_add_handler .
 .Bd -literal -offset indent
 int
-swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler,
-	    void *arg, int pri, enum intr_type flags, void **cookiep)
+swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
+    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
-	struct proc *p;
-	struct ithd *ithd;
-	int error;
+	struct intr_event *ie;
+	int error = 0;
 
 	if (flags & INTR_ENTROPY)
 		return (EINVAL);
 
-	ithd = (ithdp != NULL) ? *ithdp : NULL;
+	ie = (eventp != NULL) ? *eventp : NULL;
 
-	if (ithd != NULL) {
-		if ((ithd->it_flags & IT_SOFT) == 0)
-			return(EINVAL);
+	if (ie != NULL) {
+		if (!(ie->ie_flags & IE_SOFT))
+			return (EINVAL);
 	} else {
-		error = ithread_create(&ithd, pri, IT_SOFT, NULL, NULL,
-		    "swi%d:", pri);
+		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
+		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
 		if (error)
 			return (error);
-
-		if (ithdp != NULL)
-			*ithdp = ithd;
+		if (eventp != NULL)
+			*eventp = ie;
 	}
-	return (ithread_add_handler(ithd, name, handler, arg, pri + PI_SOFT,
-		    flags, cookiep));
+	if (handler != NULL) {
+		error = intr_event_add_handler(ie, name, NULL, handler, arg,
+		    PI_SWI(pri), flags, cookiep);
+	}
+	return (error);
 }
 .Ed
 .Sh ERRORS
