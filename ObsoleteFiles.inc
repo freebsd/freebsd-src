@@ -52,6 +52,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221015: update the ithread(9) man page
+OLD_FILES+=usr/share/man/man9/ithread.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_add_handler.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_create.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_destroy.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_priority.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_remove_handler.9.gz
+OLD_FILES+=usr/share/man/man9/ithread_schedule.9.gz
+
 # 20220615: new clang import which bumps version from 14.0.4 to 14.0.5
 OLD_FILES+=usr/lib/clang/14.0.4/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/14.0.4/include/cuda_wrappers/complex
