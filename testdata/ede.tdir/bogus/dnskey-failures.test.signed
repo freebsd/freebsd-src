@@ -1,0 +1,7 @@
+dnskey-failures.test.	3600	IN	SOA	ns.dnskey-failures.test. hostmaster.dnskey-failures.test. 1 14400 1800 2419200 300
+dnskey-failures.test.	3600	IN	RRSIG	SOA 13 2 3600 20010201000000 20001230000000 45928 dnskey-failures.test. NKixvGKa0WHSI8oE5THI1hjm5nExVkryUmW15VoNZ3pwqUYexGWLIlfuYsTaDE5GVEtPpSKbA+PlYDk19EsLNQ==
+dnskey-failures.test.	3600	IN	A	192.0.2.1
+dnskey-failures.test.	3600	IN	RRSIG	A 13 2 3600 20010201000000 20001230000000 45928 dnskey-failures.test. FCEvbVL3TkzO7jWeOz7E/A3Q64QkpegVazS4OL+ybxN2o8OzXdCJN3QbCGdFP26/Rbj089ThDCZ0+OormAk1dw==
+dnskey-failures.test.	3600	IN	RRSIG	DNSKEY 13 2 3600 20010201000000 20001230000000 45928 dnskey-failures.test. pEjWVsJbFiQBvwNGV3v0nVirMJDOYKXqC4IX9dFuRTnoWSb95anvB08pgaZ1ie+thk6YC1fX2fUTRKRFr3vHnA==
+dnskey-failures.test.	300	IN	NSEC	dnskey-failures.test. A SOA RRSIG NSEC DNSKEY 
+dnskey-failures.test.	300	IN	RRSIG	NSEC 13 2 300 20010201000000 20001230000000 45928 dnskey-failures.test. /vAazBDetA5+np+fE7V6f9W+faEQT3ETGueNNhFPjUsPF1dU9Gglu4PZ15fWOxsk0DPWHNmTMF70ZCGQJ2k+fw==

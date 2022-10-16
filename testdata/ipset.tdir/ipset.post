@@ -7,7 +7,6 @@
 # do your teardown here
 . ../common.sh
 PRE="../.."
-if grep "define USE_IPSET 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
 kill_pid $FWD_PID
 kill_pid $UNBOUND_PID
 cat unbound.log

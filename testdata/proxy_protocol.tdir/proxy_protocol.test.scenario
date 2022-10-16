@@ -1,0 +1,193 @@
+# #-- proxy_protocol.test.scenario --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+ip addr add 127.0.0.1 dev lo
+ip link set lo up
+
+ip link add $INTERFACE_ALLOW type dummy
+ip addr add $INTERFACE_ALLOW_ADDR dev $INTERFACE_ALLOW
+ip link set $INTERFACE_ALLOW up
+
+ip link add $INTERFACE_REFUSE type dummy
+ip addr add $INTERFACE_REFUSE_ADDR dev $INTERFACE_REFUSE
+ip link set $INTERFACE_REFUSE up
+
+# start forwarder in the background
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT proxy_protocol.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+wait_ldns_testns_up fwd.log
+wait_unbound_up unbound.log
+
+# call streamtcp and check return value
+do_streamtcp () {
+	$PRE/streamtcp $* A IN >outfile 2>&1
+	if test "$?" -ne 0; then
+		echo "exit status not OK"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+}
+
+send_query () {
+	server=$1
+	client=$2
+	prot=$3
+	query=$4
+	echo -n "> query $query to $server"
+	port=$UNBOUND_PORT
+	if test ! -z "$client"; then
+		port=$PROXY_PORT
+	fi
+	case $prot in
+		-u)
+			echo -n " (over UDP)"
+			;;
+		-s)
+			echo -n " (over TLS)"
+			port=$PROXY_TLS_PORT
+			;;
+		*)
+			echo -n " (over TCP)"
+	esac
+	if test ! -z "$client"; then
+		echo -n " ($client proxied)"
+	fi
+	echo
+	do_streamtcp $prot -f $server@$port $client $query
+	#cat outfile
+}
+
+expect_answer () {
+	#query=$1
+	#answer=$2
+	if grep "$query" outfile | grep "$answer"; then
+		echo "content OK"
+		echo
+	else
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "result contents not OK"
+		exit 1
+	fi
+}
+
+expect_refuse () {
+	if grep "rcode: REFUSE" outfile; then
+		echo "content OK"
+		echo
+	else
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "result contents not OK"
+		exit 1
+	fi
+}
+
+# Start the test
+
+# Query without PROXYv2
+# Client localhost
+# Expect the result back
+server=127.0.0.1
+client=""
+query="two.example.net."
+answer="2.2.2.2"
+for prot in "-u" ""; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_answer
+done
+
+# Query with PROXYv2
+# Client $CLIENT_ADDR_ALLOW should be allowed
+# Expect the result back
+server=127.0.0.1
+client="-p $CLIENT_ADDR_ALLOW@1234"
+query="one.example.net."
+answer="1.1.1.1"
+for prot in "-u" "" "-s"; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_answer
+done
+
+# Query with PROXYv2
+# Client $CLIENT_ADDR_ALLOW6 should be allowed
+# Expect the result back
+server=127.0.0.1
+client="-p $CLIENT_ADDR_ALLOW6@1234"
+query="one.example.net."
+answer="1.1.1.1"
+for prot in "-u" "" "-s"; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_answer
+done
+
+# Query with PROXYv2
+# Client $CLIENT_ADDR_REFUSE should be refused
+# Expect the REFUSE back
+server=127.0.0.1
+client="-p $CLIENT_ADDR_REFUSE"
+query="one.example.net."
+answer=""
+for prot in "-u" "" "-s"; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_refuse
+done
+
+# Query with PROXYv2
+# Client $CLIENT_ADDR_REFUSE6 should be refused
+# Expect the REFUSE back
+server=127.0.0.1
+client="-p $CLIENT_ADDR_REFUSE6"
+query="one.example.net."
+answer=""
+for prot in "-u" "" "-s"; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_refuse
+done
+
+# Query with PROXYv2
+# Client $CLIENT_ADDR_ALLOW should be allowed; proxy source address should be allowed
+# Expect the result back
+server=$INTERFACE_ALLOW_ADDR
+client="-p $CLIENT_ADDR_ALLOW@1234"
+query="one.example.net."
+answer="1.1.1.1"
+for prot in "-u" "" "-s"; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_answer
+done
+
+# Query with PROXYv2
+# Client $CLIENT_ADDR_ALLOW should be allowed; proxy source address should be refused
+# Expect the REFUSE back
+server=$INTERFACE_REFUSE_ADDR
+client="-p $CLIENT_ADDR_ALLOW@1234"
+query="one.example.net."
+answer=""
+for prot in "-u" "" "-s"; do
+	send_query "$server" "$client" "$prot" "$query"
+	expect_refuse
+done
+
+echo "OK"
+exit 0
+

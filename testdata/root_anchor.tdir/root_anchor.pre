@@ -1,0 +1,11 @@
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+# only do this test if the network is up.
+if dig @k.root-servers.net . SOA 2>&1 | grep NOERROR ; then
+	:
+else
+	skip_test "network is not up"
+fi

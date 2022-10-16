@@ -6,13 +6,6 @@
 
 PRE="../.."
 
-if uname | grep "MINGW" >/dev/null; then
-	# no chroot, no need to test.
-	# (test fails on / en \ comparisons, by the way).
-	echo "no chroot on windows, end test"
-	exit 0
-fi
-
 # create config file
 cwd=`pwd -P`
 subdir=$cwd/subdir

@@ -1,0 +1,4 @@
+rrsig-failures.test.	3600	IN	SOA	ns.rrsig-failures.test. hostmaster.rrsig-failures.test. 1 14400 1800 2419200 300
+rrsig-failures.test.	3600	IN	A	192.0.2.1
+rrsig-failures.test.	3600	IN	DNSKEY	257 3 13 rIMJ4/qnOb91GuxKzAYiCdPNdEtUhyt+mi1Jz+NPP0rJQdGOhXr37LpctEiKK4isabCXcwYlVtFdDPopa4RufA== ;{id = 13838 (ksk), size = 256b}
+rrsig-failures.test.	300	IN	NSEC	rrsig-failures.test. A SOA RRSIG NSEC DNSKEY 

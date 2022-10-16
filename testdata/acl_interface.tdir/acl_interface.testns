@@ -1,0 +1,26 @@
+; nameserver test file
+$ORIGIN external.
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+www	IN	A
+SECTION ANSWER
+www	IN	A	1.2.3.4
+ENTRY_END
+
+$ORIGIN local.
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+@	IN	A
+SECTION ANSWER
+@	IN	A	127.0.0.1
+ENTRY_END

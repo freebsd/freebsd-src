@@ -6,7 +6,6 @@
 
 PRE="../.."
 . ../common.sh
-if grep "define HAVE_NGHTTP2 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
 get_make
 (cd $PRE; $MAKE dohclient)
 

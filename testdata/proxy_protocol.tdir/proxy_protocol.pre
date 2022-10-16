@@ -1,0 +1,66 @@
+# #-- proxy_protocol.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+# This test uses the unshare utility
+if test ! -x "`which unshare 2>&1`"; then
+	skip_test "no unshare (from util-linux package) available, skip test"
+fi
+
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+get_random_port 4
+UNBOUND_PORT=$RND_PORT
+FWD_PORT=$(($RND_PORT + 1))
+PROXY_PORT=$(($RND_PORT + 2))
+PROXY_TLS_PORT=$(($RND_PORT + 3))
+
+INTERFACE_ALLOW=eth123
+INTERFACE_ALLOW_ADDR=10.1.2.3
+INTERFACE_REFUSE=eth234
+INTERFACE_REFUSE_ADDR=10.2.3.4
+
+CLIENT_ADDR_ALLOW=1.2.3.4
+CLIENT_ADDR_ALLOW6=2001:db8::cafe:cafe
+CLIENT_ADDR_REFUSE=5.6.7.8
+CLIENT_ADDR_REFUSE6=2001:db8::dead:beef
+
+# make config file
+sed \
+	-e 's/@PORT\@/'$UNBOUND_PORT'/' \
+	-e 's/@TOPORT\@/'$FWD_PORT'/' \
+	-e 's/@PROXYPORT\@/'$PROXY_PORT'/' \
+	-e 's/@PROXYTLSPORT\@/'$PROXY_TLS_PORT'/' \
+	-e 's/@INTERFACE_ALLOW_ADDR\@/'$INTERFACE_ALLOW_ADDR'/' \
+	-e 's/@INTERFACE_REFUSE_ADDR\@/'$INTERFACE_REFUSE_ADDR'/' \
+	-e 's/@CLIENT_ADDR_ALLOW\@/'$CLIENT_ADDR_ALLOW'/' \
+	-e 's/@CLIENT_ADDR_ALLOW6\@/'$CLIENT_ADDR_ALLOW6'/' \
+	-e 's/@CLIENT_ADDR_REFUSE\@/'$CLIENT_ADDR_REFUSE'/' \
+	-e 's/@CLIENT_ADDR_REFUSE6\@/'$CLIENT_ADDR_REFUSE6'/' \
+	< proxy_protocol.conf > ub.conf
+
+if test -x "`which bash`"; then
+	shell="bash"
+else
+	shell="sh"
+fi
+
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+echo "PROXY_PORT=$PROXY_PORT" >> .tpkg.var.test
+echo "PROXY_TLS_PORT=$PROXY_TLS_PORT" >> .tpkg.var.test
+echo "INTERFACE_ALLOW=$INTERFACE_ALLOW" >> .tpkg.var.test
+echo "INTERFACE_ALLOW_ADDR=$INTERFACE_ALLOW_ADDR" >> .tpkg.var.test
+echo "INTERFACE_REFUSE=$INTERFACE_REFUSE" >> .tpkg.var.test
+echo "INTERFACE_REFUSE_ADDR=$INTERFACE_REFUSE_ADDR" >> .tpkg.var.test
+echo "CLIENT_ADDR_ALLOW=$CLIENT_ADDR_ALLOW" >> .tpkg.var.test
+echo "CLIENT_ADDR_ALLOW6=$CLIENT_ADDR_ALLOW6" >> .tpkg.var.test
+echo "CLIENT_ADDR_REFUSE=$CLIENT_ADDR_REFUSE" >> .tpkg.var.test
+echo "CLIENT_ADDR_REFUSE6=$CLIENT_ADDR_REFUSE6" >> .tpkg.var.test
+echo "shell=$shell" >> .tpkg.var.test

@@ -164,11 +164,11 @@ a.gtld-servers.net.	IN 	A	192.5.6.30
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode qname
+MATCH opcode subdomain
 ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-ns.example.org. IN A
+example.org. IN A
 SECTION AUTHORITY
 example.org. NS ns.example.net.
 example.org. NS ns.example.org.

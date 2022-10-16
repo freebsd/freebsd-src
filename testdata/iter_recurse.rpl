@@ -216,14 +216,7 @@ example.com.	IN NS	ns.example.net.
 ;ns.example.net 	IN A 	1.2.3.44
 ENTRY_END
 
-; due to ordering of answer packets, this is still outstanding, remove it
-STEP 21 CHECK_OUT_QUERY
-ENTRY_BEGIN
-ADJUST copy_id
-MATCH qname qtype
-REPLY QR
-SECTION QUESTION
-ns.example.net IN AAAA
-ENTRY_END
+; let (possible) outstanding queries finish resolving
+STEP 21 TRAFFIC
 
 SCENARIO_END

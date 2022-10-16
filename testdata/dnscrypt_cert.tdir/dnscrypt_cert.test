@@ -7,9 +7,6 @@
 PRE="../.."
 . ../common.sh
 
-# Check if we can run the test.
-. ./precheck.sh
-
 # do the test
 
 # Query plain request over DNSCrypt channel get closed

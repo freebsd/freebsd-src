@@ -6,8 +6,7 @@
 . ../common.sh
 
 if test `hostname`"" = "dicht.nlnetlabs.nl"; then
-	echo "In jail, no ::1, skip test"
-	exit 0
+	skip_test "In jail, no ::1, skip test"
 fi
 
 get_random_port 2
@@ -38,7 +37,6 @@ wait_ldns_testns_up fwd.log
 # string 'Start of service' in log.
 wait_server_up_or_fail unbound.log "start of service" "disable interface-automatic"
 if fgrep "disable interface-automatic" unbound.log; then
-	echo "skip test"
-	exit 1
+	skip_test "skip test"
 fi
 

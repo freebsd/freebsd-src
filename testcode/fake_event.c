@@ -384,8 +384,8 @@ answer_callback_from_entry(struct replay_runtime* runtime,
 	fill_buffer_with_reply(c.buffer, entry, pend->pkt, pend->pkt_len,
 		pend->tcp_pkt_counter);
 	repinfo.c = &c;
-	repinfo.addrlen = pend->addrlen;
-	memcpy(&repinfo.addr, &pend->addr, pend->addrlen);
+	repinfo.remote_addrlen = pend->addrlen;
+	memcpy(&repinfo.remote_addr, &pend->addr, pend->addrlen);
 	if(!pend->serviced) {
 		if(entry && entry->reply_list->next &&
 			pend->tcp_pkt_counter < count_reply_packets(entry)) {
@@ -415,7 +415,7 @@ answer_check_it(struct replay_runtime* runtime)
 			tr = transport_udp;
 		if((runtime->now->addrlen == 0 || sockaddr_cmp(
 			&runtime->now->addr, runtime->now->addrlen,
-			&ans->repinfo.addr, ans->repinfo.addrlen) == 0) &&
+			&ans->repinfo.remote_addr, ans->repinfo.remote_addrlen) == 0) &&
 			find_match(runtime->now->match, ans->pkt,
 				ans->pkt_len, tr)) {
 			log_info("testbound matched event entry from line %d",
@@ -453,10 +453,12 @@ fake_front_query(struct replay_runtime* runtime, struct replay_moment *todo)
 	repinfo.c = (struct comm_point*)calloc(1, sizeof(struct comm_point));
 	if(!repinfo.c)
 		fatal_exit("out of memory in fake_front_query");
-	repinfo.addrlen = (socklen_t)sizeof(struct sockaddr_in);
+	repinfo.remote_addrlen = (socklen_t)sizeof(struct sockaddr_in);
 	if(todo->addrlen != 0) {
-		repinfo.addrlen = todo->addrlen;
-		memcpy(&repinfo.addr, &todo->addr, todo->addrlen);
+		repinfo.remote_addrlen = todo->addrlen;
+		memcpy(&repinfo.remote_addr, &todo->addr, todo->addrlen);
+		repinfo.client_addrlen = todo->addrlen;
+		memcpy(&repinfo.client_addr, &todo->addr, todo->addrlen);
 	}
 	repinfo.c->fd = -1;
 	repinfo.c->ev = (struct internal_event*)runtime;
@@ -510,8 +512,8 @@ fake_pending_callback(struct replay_runtime* runtime,
 			p->pkt_len, p->tcp_pkt_counter);
 	}
 	repinfo.c = &c;
-	repinfo.addrlen = p->addrlen;
-	memcpy(&repinfo.addr, &p->addr, p->addrlen);
+	repinfo.remote_addrlen = p->addrlen;
+	memcpy(&repinfo.remote_addr, &p->addr, p->addrlen);
 	if(!p->serviced) {
 		if(todo->match && todo->match->reply_list->next && !error &&
 			p->tcp_pkt_counter < count_reply_packets(todo->match)) {
@@ -1344,7 +1346,7 @@ struct listen_port* listening_ports_open(struct config_file* ATTR_UNUSED(cfg),
 	char** ATTR_UNUSED(ifs), int ATTR_UNUSED(num_ifs),
 	int* ATTR_UNUSED(reuseport))
 {
-	return calloc(1, 1);
+	return calloc(1, sizeof(struct listen_port));
 }
 
 void listening_ports_free(struct listen_port* list)
@@ -1663,6 +1665,7 @@ int create_udp_sock(int ATTR_UNUSED(family), int ATTR_UNUSED(socktype),
 
 struct comm_point* comm_point_create_udp(struct comm_base *ATTR_UNUSED(base),
 	int ATTR_UNUSED(fd), sldns_buffer* ATTR_UNUSED(buffer),
+	int ATTR_UNUSED(pp2_enabled),
 	comm_point_callback_type* ATTR_UNUSED(callback),
 	void* ATTR_UNUSED(callback_arg),
 	struct unbound_socket* ATTR_UNUSED(socket))

@@ -1,0 +1,21 @@
+# #-- clang-analysis.pre --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+# common functions
+. ../common.sh
+
+PRE="../.."
+if test ! -x "`which clang 2>&1`"; then
+	skip_test "No clang in path"
+fi
+#echo "have clang"
+# test if assertions are enabled
+if grep "^#define UNBOUND_DEBUG" $PRE/config.h >/dev/null; then
+	:
+else
+	skip_test "UNBOUND_DEBUG is not enabled, skip test"
+	# no unbound debug means no assertions, and clang analyzer uses
+	# the assertions to make inferences.
+fi

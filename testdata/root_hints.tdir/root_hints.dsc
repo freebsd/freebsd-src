@@ -8,7 +8,7 @@ Component:
 CmdDepends: 
 Depends: 
 Help:
-Pre:
+Pre: root_hints.pre
 Post:
 Test: root_hints.test
 AuxFiles: 

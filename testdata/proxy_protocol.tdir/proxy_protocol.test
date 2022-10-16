@@ -1,0 +1,12 @@
+# #-- proxy_protocol.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+# Run the scenario in an unshared namespace
+unshare -rUn $shell proxy_protocol.test.scenario
+exit $?

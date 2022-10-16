@@ -8,7 +8,7 @@ Component:
 CmdDepends: 
 Depends: 
 Help:
-Pre:
+Pre: nss_compile.pre
 Post:
 Test: nss_compile.test
 AuxFiles: 

@@ -1,0 +1,205 @@
+# #-- acl_interface.test.scenario --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+PRE="../.."
+. ../common.sh
+
+ip addr add $IPV4_ADDR dev lo
+ip addr add $IPV6_ADDR dev lo
+ip link set lo up
+
+ip link add $INTERFACE type dummy
+ip addr add $INTERFACE_ADDR_1 dev $INTERFACE
+ip addr add $INTERFACE_ADDR_2 dev $INTERFACE
+ip addr add $INTERFACE_ADDR_3 dev $INTERFACE
+ip addr add $INTERFACE_ADDR_4 dev $INTERFACE
+ip link set $INTERFACE up
+
+# start the forwarder in the background
+get_ldns_testns
+$LDNS_TESTNS -p $FORWARD_PORT acl_interface.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# start the stub in the background
+$LDNS_TESTNS -p $STUB_PORT acl_interface.testns2 >fwd2.log 2>&1 &
+STUB_PID=$!
+echo "STUB_PID=$STUB_PID" >> .tpkg.var.test
+
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_ldns_testns_up fwd.log
+wait_ldns_testns_up fwd2.log
+wait_unbound_up unbound.log
+
+end () {
+	echo "> cat logfiles"
+	cat fwd.log
+	cat fwd2.log
+	cat unbound.log
+	exit $1
+}
+
+# Query for the given domain to the given port
+# $1: address family [4, 6]
+# $2: port
+# $3: dname
+query () {
+	addr=$IPV4_ADDR
+	if test "$1" -eq 6; then
+		addr=$IPV6_ADDR
+	fi
+	echo "> dig -p $2 $3"
+	dig @"$addr" -p $2 $3 | tee outfile
+}
+
+# Query for the given domain to the given port
+# $1: address
+# $2: port
+# $3: dname
+query_addr () {
+	echo "> dig @$1 -p $2 $3"
+	dig @"$1" -p $2 $3 | tee outfile
+}
+
+expect_refused () {
+	echo "> check answer for REFUSED"
+	if grep "REFUSED" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+expect_external_answer () {
+	echo "> check external answer"
+	if grep "1.2.3.4" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+expect_internal_answer () {
+	echo "> check internal answer"
+	if grep "10.20.30.40" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+expect_tag_one_answer () {
+	echo "> check tag 'one' answer"
+	if grep "1.1.1.1" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+expect_tag_two_answer () {
+	echo "> check tag 'two' answer"
+	if grep "2.2.2.2" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+# do the test
+
+for i in 4 6; do
+	query $i $PORT_REFUSE "www.external"
+	expect_refused
+
+	query $i $PORT_REFUSE "www.internal"
+	expect_refused
+
+	query $i $PORT_ALLOW "www.external"
+	expect_external_answer
+
+	query $i $PORT_ALLOW "www.internal"
+	expect_internal_answer
+
+	query $i $PORT_TAG_1 "local"
+	expect_tag_one_answer
+
+	query $i $PORT_TAG_2 "local"
+	expect_tag_two_answer
+
+	query $i $PORT_TAG_3 "local"
+	expect_refused
+
+	query $i $PORT_VIEW_INT "www.internal"
+	expect_internal_answer
+
+	query $i $PORT_VIEW_INT "www.external"
+	expect_refused
+
+	query $i $PORT_VIEW_EXT "www.internal"
+	expect_refused
+
+	query $i $PORT_VIEW_EXT "www.external"
+	expect_external_answer
+
+	query $i $PORT_VIEW_INTEXT "www.internal"
+	expect_internal_answer
+
+	query $i $PORT_VIEW_INTEXT "www.external"
+	expect_external_answer
+done
+
+for addr in $INTERFACE_ADDR_1 $INTERFACE_ADDR_2 $INTERFACE_ADDR_3 $INTERFACE_ADDR_4; do
+	query_addr $addr $PORT_REFUSE "www.external"
+	expect_refused
+
+	query_addr $addr $PORT_REFUSE "www.internal"
+	expect_refused
+
+	query_addr $addr $PORT_ALLOW "www.external"
+	expect_external_answer
+
+	query_addr $addr $PORT_ALLOW "www.internal"
+	expect_internal_answer
+
+	query_addr $addr $PORT_TAG_1 "local"
+	expect_tag_one_answer
+
+	query_addr $addr $PORT_TAG_2 "local"
+	expect_tag_two_answer
+
+	query_addr $addr $PORT_TAG_3 "local"
+	expect_refused
+
+	query_addr $addr $PORT_VIEW_INT "www.internal"
+	expect_internal_answer
+
+	query_addr $addr $PORT_VIEW_INT "www.external"
+	expect_refused
+
+	query_addr $addr $PORT_VIEW_EXT "www.internal"
+	expect_refused
+
+	query_addr $addr $PORT_VIEW_EXT "www.external"
+	expect_external_answer
+
+	query_addr $addr $PORT_VIEW_INTEXT "www.internal"
+	expect_internal_answer
+
+	query_addr $addr $PORT_VIEW_INTEXT "www.external"
+	expect_external_answer
+done
+
+end 0

@@ -7,7 +7,7 @@ Category:
 Component:
 Depends:
 Help:
-Pre:
+Pre: clang-analysis.pre
 Post:
 Test: clang-analysis.test
 AuxFiles:

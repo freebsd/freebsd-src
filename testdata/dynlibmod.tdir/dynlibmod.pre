@@ -7,7 +7,7 @@
 . ../common.sh
 
 PRE="../.."
-if grep "define WITH_DYNLIBMODULE 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+if grep "define WITH_DYNLIBMODULE 1" $PRE/config.h; then echo test enabled; else skip_test "test skipped"; fi
 
 get_random_port 3
 UNBOUND_PORT=$RND_PORT

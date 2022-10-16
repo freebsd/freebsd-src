@@ -6,7 +6,7 @@
 
 PRE="../.."
 . ../common.sh
-if grep "define HAVE_NGHTTP2 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+if grep "define HAVE_NGHTTP2 1" $PRE/config.h; then echo test enabled; else skip_test "test skipped"; fi
 get_random_port 1
 UNBOUND_PORT=$RND_PORT
 echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test

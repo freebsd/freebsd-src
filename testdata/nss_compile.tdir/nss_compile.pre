@@ -1,0 +1,13 @@
+# #-- nss_compile.pre --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+if test "`hostname`" = "open.nlnetlabs.nl"; then
+	echo "on open, continue test"
+else
+	skip_test "not on open, no test, do this explicitly"
+fi
+exit 0

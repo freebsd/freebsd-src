@@ -27,6 +27,7 @@
 # wait_petal_up		: wait for petal to come up.
 # wait_nsd_up		: wait for nsd to come up.
 # wait_server_up_or_fail: wait for server to come up or print a failure string
+# skip_test x		: print message and skip test (must be called in .pre)
 # kill_pid		: kill a server, make sure and wait for it to go down.
 
 
@@ -107,6 +108,13 @@ skip_if_in_list () {
 			SKIP=1;
 		fi
 	fi
+}
+
+# Print a message and skip the test. Must be called in the .pre file.
+# $1: message to print.
+skip_test () {
+	echo "$1"
+	exit 3
 }
 
 # function to get a number of random port numbers.

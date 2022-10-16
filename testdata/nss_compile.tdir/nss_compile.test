@@ -4,13 +4,6 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-if test "`hostname`" = "open.nlnetlabs.nl"; then
-	echo "on open, continue test"
-else
-	echo "not on open, no test, do this explicitly"
-	exit 0
-fi
-
 . ../common.sh
 get_make
 PRE="../.."

@@ -609,9 +609,9 @@ struct mesh_reply {
    struct comm_reply query_reply;
 };
 
-%rename(_addr) comm_reply::addr;
+%rename(_addr) comm_reply::client_addr;
 struct comm_reply {
-   struct sockaddr_storage addr;
+   struct sockaddr_storage client_addr;
 };
 
 %extend comm_reply {

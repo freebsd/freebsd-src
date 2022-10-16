@@ -10,8 +10,7 @@ PRE="../.."
 if grep "define WITH_PYTHONMODULE 1" $PRE/config.h; then
 	echo "have python module"
 else
-	echo "no python module"
-	exit 0
+	skip_test "no python module"
 fi
 # get module python local
 cp $PRE/pythonmod/unboundmodule.py .

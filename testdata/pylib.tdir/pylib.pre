@@ -10,8 +10,7 @@ PRE="../.."
 if grep "define WITH_PYUNBOUND 1" $PRE/config.h; then
 	echo "have pyunbound"
 else
-	echo "no pyunbound"
-	exit 0
+	skip_test "no pyunbound"
 fi
 
 # Copy the required libraries

@@ -4,7 +4,16 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
+PRE="../.."
 . ../common.sh
+
+if grep FORK $PRE/config.h | grep "define" >/dev/null 2>&1; then
+	# nothing
+	:
+else
+	skip_test "forking is not available; test skipped."
+fi
+
 get_random_port 2
 FWD_PORT=$(($RND_PORT + 1))
 echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test

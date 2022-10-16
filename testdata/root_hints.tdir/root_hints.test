@@ -1,17 +1,10 @@
-# #-- 06-ianaports.test --#
+# #-- root_hints.test --#
 # source the master var file when it's there
 [ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 PRE="../.."
-
-# dig 9 ?
-digv=`dig -v 2>&1 | wc -l`
-if test $digv -ne 1; then
-	echo "Dig too old. skip test"
-	exit 0
-fi
 
 eval `grep ^srcdir= $PRE/Makefile`
 echo "srcdir="$srcdir

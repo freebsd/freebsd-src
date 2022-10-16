@@ -8,10 +8,5 @@
 PRE="../.."
 . ../common.sh
 
-# Check if we can run the test.
-. ./precheck.sh
-
 kill_pid $FWD_PID
-if [ $xchacha20 -ne 0 ]; then
-    kill_pid $UNBOUND_PID
-fi
+kill_pid $UNBOUND_PID

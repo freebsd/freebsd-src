@@ -1,0 +1,25 @@
+dnssec-failures.test.	3600	IN	SOA	ns.dnssec-failures.test. hostmaster.dnssec-failures.test. 1 14400 1800 2419200 300
+dnssec-failures.test.	3600	IN	RRSIG	SOA 13 2 3600 20010201000000 20001230000000 53876 dnssec-failures.test. K37BIR/jLR4tN1JtTx3MwzgozslvnFtwUquCSfiBykCcKIv6wErSI9Gnw/tjH0tXrLI1eoLa5oWkgtxy0KKybg==
+dnssec-failures.test.	3600	IN	NS	ns.dnssec-failures.test.
+dnssec-failures.test.	3600	IN	RRSIG	NS 13 2 3600 20010201000000 20001230000000 53876 dnssec-failures.test. JP6mYQORwnwwv+2q9UxpeeaVs5/171y3lyc1FKAY3FHmFqjd4Uo0byW8jgk/BrJyVkaDeZbjvuZq+BED0codpw==
+dnssec-failures.test.	3600	IN	DNSKEY	257 3 13 mx6xe39HZrYCpyC+9YmquHIf1WdWYaDqOfcpXg2Gtv5VJGS/WSO14txlUoKjYCldyRwcg9wT6JAwikpkzWS6UQ== ;{id = 53876 (ksk), size = 256b}
+dnssec-failures.test.	3600	IN	RRSIG	DNSKEY 13 2 3600 20010201000000 20001230000000 53876 dnssec-failures.test. F760TrogHIBkenX7nGr6LEvocTcGAZamfAaiftIkwprBp21/LZ+qotGsFu9YWsxlGqB3KAINXYATjS6AEJfGEQ==
+dnssec-failures.test.	300	IN	NSEC	expired.dnssec-failures.test. NS SOA RRSIG NSEC DNSKEY 
+dnssec-failures.test.	300	IN	RRSIG	NSEC 13 2 300 20010201000000 20001230000000 53876 dnssec-failures.test. Zk+RW0mbLSzwvSYuNQJhNdd4XmtQv47CiLtHbqOyS8/xt5Pt87T0v1UxnCkZAlA+VTEWbJkasq06ER1wMuTetA==
+expired.dnssec-failures.test.	300	IN	RRSIG	NSEC 13 3 300 20010201000000 20001230000000 53876 dnssec-failures.test. UAhzOVumQZ2PVspwJS5NyOjZypIaQXfHMiXGEUYaZ161IfQdB3coBx2vF8MHdqbePOl6Z4oa51ltITMlBL+Stw==
+missingrrsigs.dnssec-failures.test.	3600	IN	TXT	"Signatures missing"
+missingrrsigs.dnssec-failures.test.	300	IN	NSEC	notyetincepted.dnssec-failures.test. TXT RRSIG NSEC 
+missingrrsigs.dnssec-failures.test.	300	IN	RRSIG	NSEC 13 3 300 20010201000000 20001230000000 53876 dnssec-failures.test. 4phKld6eMt4cxA4w6I1i29uAbdfbwFrkpRGLBWwerUgDbOdDwUm1de6t4QhBys7DtoZb3wIS+DLJYjBNbz7Sig==
+notyetincepted.dnssec-failures.test.	300	IN	RRSIG	NSEC 13 3 300 20010201000000 20001230000000 53876 dnssec-failures.test. ix6Gg9uUZ0A56IQXbDJuBQ3vIm6QipuvzQTKd2wF6kZuEW/53wuy4ROBDIQ4IgnQD17vG8tJNeDOCfj0hh8+dQ==
+ns.dnssec-failures.test.	3600	IN	A	192.0.2.1
+ns.dnssec-failures.test.	3600	IN	RRSIG	A 13 3 3600 20010201000000 20001230000000 53876 dnssec-failures.test. PbcykgJEHG218vCkj9pD8W5JVqyCD9VRNOy3SHqCTvWGVAApasdZ7n5wzNVpHdKrqlTpyLwf6z6vv4NMYbEQdw==
+ns.dnssec-failures.test.	300	IN	NSEC	sigsinvalid.dnssec-failures.test. A RRSIG NSEC 
+ns.dnssec-failures.test.	300	IN	RRSIG	NSEC 13 3 300 20010201000000 20001230000000 53876 dnssec-failures.test. SEO+C116gcmI0sY4lnIM4DQrUxqyaGIIqlvhxyGrzF9jJopRZB8gflQcYPy5qhIwGZJoEMB+SO4er4LCaS8NwA==
+sigsinvalid.dnssec-failures.test.	3600	IN	TXT	"Signatures INVALID"
+sigsinvalid.dnssec-failures.test.	3600	IN	RRSIG	TXT 13 3 3600 20010201000000 20001230000000 53876 dnssec-failures.test. 3XFjjPt+UyY4ZIj8PAINTtOTh7sk4OIAO5akFDQhqgB/Wv6f7dWdqvl8Y2RIqdh0WQz+nGPRMktS8exA3FKW4Q==
+sigsinvalid.dnssec-failures.test.	300	IN	NSEC	dnssec-failures.test. TXT RRSIG NSEC 
+sigsinvalid.dnssec-failures.test.	300	IN	RRSIG	NSEC 13 3 300 20010201000000 20001230000000 53876 dnssec-failures.test. gmft6HYmqZalLwmdnuWBqJod3JD5fRoGqiwYXVFxySm2bHPvz8J9xSe7RdTSONXPUc+7mE8IHYff/gGW7gctqw==
+expired.dnssec-failures.test.	3600	IN	TXT	"Expired"
+expired.dnssec-failures.test.	3600	IN	RRSIG	TXT 13 3 3600 20001230000000 20001201000000 53876 dnssec-failures.test. 8zosYGmmGGcGcBuWaf3oL3TE/hpKDrddtm7ZQGndjmqkZ8CVg6RwFb+8YLqcG5du3Si0rmTuZId+qBOV/pnViA==
+notyetincepted.dnssec-failures.test.	3600	IN	TXT	"Not yet incepted"
+notyetincepted.dnssec-failures.test.	3600	IN	RRSIG	TXT 13 3 3600 20010201000000 20010103000000 53876 dnssec-failures.test. lmk0+oEdnnKa1oujIsMeimuElrKvrUSlBknsfSNqOo07VxJxT2R4qkKc95oiEmeSWHcVTOrXxEhtl4kAAactPg==

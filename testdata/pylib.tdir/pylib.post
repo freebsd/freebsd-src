@@ -8,13 +8,6 @@
 
 PRE="../.."
 . ../common.sh
-# if no python; exit
-if grep "define WITH_PYUNBOUND 1" $PRE/config.h; then
-	echo "have pyunbound"
-else
-	echo "no pyunbound"
-	exit 0
-fi
 
 # kill fwder
 kill_pid $FWD_PID

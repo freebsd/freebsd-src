@@ -5,15 +5,6 @@
 
 PRE="../.."
 
-# only do this test if the network is up.
-echo "is the net up?"
-if dig @k.root-servers.net . SOA 2>&1 | grep NOERROR ; then
-	echo yes
-else
-	echo no
-	exit 0
-fi
-
 # test that unbound-anchor, its builtin DNSKEY, works.
 # so the https is disabled (go to 127.0.0.1@10099).
 $PRE/unbound-anchor -u "127.0.0.1" -P 10099 -a test.ds -v

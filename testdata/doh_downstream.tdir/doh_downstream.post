@@ -6,7 +6,6 @@
 #
 # do your teardown here
 PRE="../.."
-if grep "define HAVE_NGHTTP2 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
 . ../common.sh
 kill_pid $FWD_PID
 kill_pid $UNBOUND_PID

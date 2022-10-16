@@ -1,0 +1,13 @@
+# #-- 07-confroot.pre --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+
+if uname | grep "MINGW" >/dev/null; then
+	# no chroot, no need to test.
+	# (test fails on / and \ comparisons, by the way).
+	skip_test "no chroot on windows, end test"
+fi

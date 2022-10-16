@@ -28,6 +28,12 @@ if grep "define UB_ON_WINDOWS 1" ../../config.h; then
 else
 	onwin=0
 fi
+# detect dnscrypt
+if grep "define USE_DNSCRYPT 1" ../../config.h; then
+	with_dnscrypt=1
+else
+	with_dnscrypt=0
+fi
 
 # test check of config files.
 for f in bad.*; do
@@ -35,6 +41,10 @@ for f in bad.*; do
 	echo $PRE/unbound-checkconf $f
 	if test $f = "bad.user" -a $onwin -eq 1; then
 		echo "skipped on windows"
+		continue
+	fi
+	if test $f = "bad.proxy-and-dnscrypt" -a $with_dnscrypt -eq 0; then
+		echo "skipped; no DNSCRYPT support"
 		continue
 	fi
 

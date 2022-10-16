@@ -172,14 +172,14 @@ int createResponse(struct module_qstate* qstate, sldns_buffer* pkt)
 }
 
 
-/* Convert reply->addr to string */
+/* Convert reply->client_addr to string */
 void reply_addr2str(struct comm_reply* reply, char* dest, int maxlen)
 {
-	int af = (int)((struct sockaddr_in*) &(reply->addr))->sin_family;
-	void* sinaddr = &((struct sockaddr_in*) &(reply->addr))->sin_addr;
+	int af = (int)((struct sockaddr_in*) &(reply->client_addr))->sin_family;
+	void* sinaddr = &((struct sockaddr_in*) &(reply->client_addr))->sin_addr;
 
 	if(af == AF_INET6)
-		sinaddr = &((struct sockaddr_in6*)&(reply->addr))->sin6_addr;
+		sinaddr = &((struct sockaddr_in6*)&(reply->client_addr))->sin6_addr;
 	dest[0] = 0;
 	if (inet_ntop(af, sinaddr, dest, (socklen_t)maxlen) == 0)
 		return;

@@ -8,7 +8,7 @@ Component:
 CmdDepends: 
 Depends: 
 Help:
-Pre:
+Pre: 07-confroot.pre
 Post:
 Test: 07-confroot.test
 AuxFiles: 

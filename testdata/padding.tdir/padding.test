@@ -8,7 +8,6 @@ echo There we go...
 
 PRE="../.."
 . ../common.sh
-if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
 
 echo "> query www.example.com. A"
 dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile

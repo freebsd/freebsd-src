@@ -6,7 +6,6 @@
 
 . ../common.sh
 PRE="../.."
-if grep "define USE_IPSET 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
 
 # Make all the queries. They need to succeed by the way.
 echo "> dig www.example.net."

@@ -8,7 +8,11 @@ PRE="../.."
 . ../common.sh
 
 # Check if we can run the test.
-. ./precheck.sh
+if grep "define USE_DNSCRYPT 1" $PRE/config.h; then
+        echo "have dnscrypt"
+else
+        skip_test "no dnscrypt"
+fi
 
 get_random_port 3
 UNBOUND_PORT=$RND_PORT

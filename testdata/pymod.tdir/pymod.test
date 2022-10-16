@@ -5,12 +5,6 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 PRE="../.."
-if grep "define WITH_PYTHONMODULE 1" $PRE/config.h; then
-	echo "have python module"
-else
-	echo "no python module"
-	exit 0
-fi
 
 if test "`uname 2>&1`" = "Darwin"; then
         ldnsdir=`grep ldnsdir= ../../Makefile | sed -e 's/ldnsdir=//'`

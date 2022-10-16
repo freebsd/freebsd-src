@@ -1,0 +1,7 @@
+nsec-failures.test.	3600	IN	SOA	ns.nsec-failures.test. hostmaster.nsec-failures.test. 1 14400 1800 2419200 300
+nsec-failures.test.	3600	IN	RRSIG	SOA 13 2 3600 20010201000000 20001230000000 12342 nsec-failures.test. ZdnRF2uI0IDJsHTXsd4TclX9gUEkxjp19LykHuI3DaCKe3bY8uTETta8i73hlKWJWeRjmgQojIsi9tBlivOwjQ==
+nsec-failures.test.	3600	IN	A	192.0.2.1
+nsec-failures.test.	3600	IN	RRSIG	A 13 2 3600 20010201000000 20001230000000 12342 nsec-failures.test. /JccCtWkuQgSF81gv6DPsxaicmlJoGAhVpCpR4JGgVz3tZMhIp+iXUGeI+CkBofw9G/MK66Hk937JRmMh9UTvQ==
+nsec-failures.test.	3600	IN	DNSKEY	257 3 13 41tJnzHY0o3WKid0ZsIo6S5SJdC1JiW0H/KizsAD2phHdi1AIDiBclL+nG2lKvPjMoX2hcMfd8h9DfU99HR3kg== ;{id = 12342 (ksk), size = 256b}
+nsec-failures.test.	3600	IN	RRSIG	DNSKEY 13 2 3600 20010201000000 20001230000000 12342 nsec-failures.test. Y23xTzxdqQBjFsWLlqCRgPKT7raPcP0lAy2tR8trW5+vUAhBePXdVixp4AjoxEqXsLLalAtnJnc4QgH7+HO6PA==
+nsec-failures.test.	300	IN	RRSIG	NSEC 13 2 300 20010201000000 20001230000000 12342 nsec-failures.test. KfpncqGIzIPNB2ExkH22/z0jAPmq8jTTjDkLte29iKqR9t3bSZlcS0MQ2QB7Z6tgks8fo7Zpc9+BvaDq7Y6ONg==

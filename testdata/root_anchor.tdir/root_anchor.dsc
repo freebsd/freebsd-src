@@ -8,7 +8,7 @@ Component:
 CmdDepends: 
 Depends: 
 Help:
-Pre:
+Pre: root_anchor.pre
 Post:
 Test: root_anchor.test
 AuxFiles: 

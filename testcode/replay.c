@@ -179,7 +179,8 @@ replay_range_read(char* remain, FILE* in, const char* name,
 			while(isspace((unsigned char)*parse))
 				parse++;
 			strip_end_white(parse);
-			if(!extstrtoaddr(parse, &rng->addr, &rng->addrlen)) {
+			if(!extstrtoaddr(parse, &rng->addr, &rng->addrlen,
+				UNBOUND_DNS_PORT)) {
 				log_err("Line %d: could not read ADDRESS: %s", 
 					pstate->lineno, parse);
 				free(rng);
@@ -287,7 +288,8 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 	} else if(parse_keyword(&remain, "QUERY")) {
 		mom->evt_type = repevt_front_query;
 		readentry = 1;
-		if(!extstrtoaddr("127.0.0.1", &mom->addr, &mom->addrlen))
+		if(!extstrtoaddr("127.0.0.1", &mom->addr, &mom->addrlen,
+			UNBOUND_DNS_PORT))
 			fatal_exit("internal error");
 	} else if(parse_keyword(&remain, "CHECK_ANSWER")) {
 		mom->evt_type = repevt_front_reply;
@@ -354,7 +356,7 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 		m++;
 		while(isspace((unsigned char)*m))
 			m++;
-		if(!extstrtoaddr(s, &mom->addr, &mom->addrlen))
+		if(!extstrtoaddr(s, &mom->addr, &mom->addrlen, UNBOUND_DNS_PORT))
 			fatal_exit("bad infra_rtt address %s", s);
 		strip_end_white(m);
 		mom->variable = strdup(remain);
@@ -372,7 +374,8 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 		while(isspace((unsigned char)*remain))
 			remain++;
 		strip_end_white(remain);
-		if(!extstrtoaddr(remain, &mom->addr, &mom->addrlen)) {
+		if(!extstrtoaddr(remain, &mom->addr, &mom->addrlen,
+			UNBOUND_DNS_PORT)) {
 			log_err("line %d: could not parse ADDRESS: %s", 
 				pstate->lineno, remain);
 			free(mom);

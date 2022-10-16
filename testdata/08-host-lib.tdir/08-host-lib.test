@@ -7,14 +7,6 @@
 PRE="../.."
 . ../common.sh
 
-if grep FORK $PRE/config.h | grep "define" >/dev/null 2>&1; then
-	# nothing
-	:
-else
-	echo "forking is not available; test skipped."
-	exit 0
-fi
-
 # test if fwder is up
 echo "> dig @127.0.0.1 -p $FWD_PORT www.example.com | tee outfile"
 dig @127.0.0.1 -p $FWD_PORT www.example.com | tee outfile

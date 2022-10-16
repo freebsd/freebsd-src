@@ -618,7 +618,7 @@ int main(int argc, char* argv[])
 		printf("error: pass server IP address on commandline.\n");
 		usage(nm);
 	}
-	if(!extstrtoaddr(argv[0], &info.dest, &info.destlen)) {
+	if(!extstrtoaddr(argv[0], &info.dest, &info.destlen, UNBOUND_DNS_PORT)) {
 		printf("Could not parse ip: %s\n", argv[0]);
 		exit(1);
 	}

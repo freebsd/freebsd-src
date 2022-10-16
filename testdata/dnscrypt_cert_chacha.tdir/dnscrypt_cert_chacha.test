@@ -6,16 +6,8 @@
 
 PRE="../.."
 . ../common.sh
-# Check if we can run the test.
-. ./precheck.sh
 
 # do the test
-
-if [ $xchacha20 -eq 0 ]; then
-    # Unbound would exit before we can attempt any tests.
-    echo "OK"
-    exit 0
-fi
 
 # Query plain request over DNSCrypt channel get closed
 # We use TCP to avoid hanging on waiting for UDP.
@@ -104,7 +96,7 @@ do
     echo "> check answer"
     grep -F 'DNSC\000\002\000\000\1716\226\255*\244\002L\177g\025_\127tR\151\246R\203\178\153\248\006\137\"\138\173|G/,\160\152\015\010\172\184\220`\175\217\255,\162\018\178-d\007\246k0\003I[\205w\026)\204B\002\161\010\245\243W\191\189Z\216\210x\025\204\247\173\227t\138\018\162~\152\253\211\031z\\\002m5\008\254\2244\246\243W\191\189Z\216\210Y\160\2158Y\160\2158u\210\219\184' outfile
     cert_found=$?
-    if [ \( $cert_found -eq 0 -a $xchacha20 -eq 1 \)  -o \( $cert_found -ne 0 -a $xchacha20 -eq 0 \) ]; then
+    if [ \( $cert_found -eq 0 \) ]; then
         echo "OK"
     else
         echo "Not OK"

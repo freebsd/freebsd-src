@@ -6,11 +6,6 @@
 #
 # do your teardown here
 . ../common.sh
-if test `hostname`"" = "dicht.nlnetlabs.nl"; then
-	echo "In jail, no ::1, skip test"
-	exit 0
-fi
-
 kill_pid $FWD_PID
 if fgrep "service stopped" unbound.log; then
 	exit 0
