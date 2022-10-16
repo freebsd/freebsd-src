@@ -96,9 +96,6 @@
 #ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
 #endif
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
-#endif
 
 /** How many quit requests happened. */
 static int sig_record_quit = 0;
@@ -274,17 +271,8 @@ daemon_init(void)
 		free(daemon);
 		return NULL;
 	}
-	daemon->acl_interface = acl_list_create();
-	if(!daemon->acl_interface) {
-		acl_list_delete(daemon->acl);
-		edns_known_options_delete(daemon->env);
-		free(daemon->env);
-		free(daemon);
-		return NULL;
-	}
 	daemon->tcl = tcl_list_create();
 	if(!daemon->tcl) {
-		acl_list_delete(daemon->acl_interface);
 		acl_list_delete(daemon->acl);
 		edns_known_options_delete(daemon->env);
 		free(daemon->env);
@@ -296,7 +284,6 @@ daemon_init(void)
 		log_err("gettimeofday: %s", strerror(errno));
 	daemon->time_last_stat = daemon->time_boot;
 	if((daemon->env->auth_zones = auth_zones_create()) == 0) {
-		acl_list_delete(daemon->acl_interface);
 		acl_list_delete(daemon->acl);
 		tcl_list_delete(daemon->tcl);
 		edns_known_options_delete(daemon->env);
@@ -306,7 +293,6 @@ daemon_init(void)
 	}
 	if(!(daemon->env->edns_strings = edns_strings_create())) {
 		auth_zones_delete(daemon->env->auth_zones);
-		acl_list_delete(daemon->acl_interface);
 		acl_list_delete(daemon->acl);
 		tcl_list_delete(daemon->tcl);
 		edns_known_options_delete(daemon->env);
@@ -315,29 +301,6 @@ daemon_init(void)
 		return NULL;
 	}
 	return daemon;	
-}
-
-static int setup_acl_for_ports(struct acl_list* list,
-	struct listen_port* port_list)
-{
-	struct acl_addr* acl_node;
-	struct addrinfo* addr;
-	for(; port_list; port_list=port_list->next) {
-		if(!port_list->socket) {
-			/* This is mainly for testbound where port_list is
-			 * empty. */
-			continue;
-		}
-		addr = port_list->socket->addr;
-		if(!(acl_node = acl_interface_insert(list,
-			(struct sockaddr_storage*)addr->ai_addr,
-			(socklen_t)addr->ai_addrlen,
-			acl_refuse))) {
-			return 0;
-		}
-		port_list->socket->acl = acl_node;
-	}
-	return 1;
 }
 
 int 
@@ -357,8 +320,6 @@ daemon_open_shared_ports(struct daemon* daemon)
 			free(daemon->ports);
 			daemon->ports = NULL;
 		}
-		/* clean acl_interface */
-		acl_interface_init(daemon->acl_interface);
 		if(!resolve_interface_names(daemon->cfg->ifs,
 			daemon->cfg->num_ifs, NULL, &resif, &num_resif))
 			return 0;
@@ -368,8 +329,7 @@ daemon_open_shared_ports(struct daemon* daemon)
 			daemon->reuseport = 1;
 #endif
 		/* try to use reuseport */
-		p0 = listening_ports_open(daemon->cfg, resif, num_resif,
-			&daemon->reuseport);
+		p0 = listening_ports_open(daemon->cfg, resif, num_resif, &daemon->reuseport);
 		if(!p0) {
 			listening_ports_free(p0);
 			config_del_strarray(resif, num_resif);
@@ -390,12 +350,6 @@ daemon_open_shared_ports(struct daemon* daemon)
 			return 0;
 		}
 		daemon->ports[0] = p0;
-		if(!setup_acl_for_ports(daemon->acl_interface,
-		    daemon->ports[0])) {
-			listening_ports_free(p0);
-			config_del_strarray(resif, num_resif);
-			return 0;
-		}
 		if(daemon->reuseport) {
 			/* continue to use reuseport */
 			for(i=1; i<daemon->num_ports; i++) {
@@ -404,15 +358,6 @@ daemon_open_shared_ports(struct daemon* daemon)
 						resif, num_resif,
 						&daemon->reuseport))
 					|| !daemon->reuseport ) {
-					for(i=0; i<daemon->num_ports; i++)
-						listening_ports_free(daemon->ports[i]);
-					free(daemon->ports);
-					daemon->ports = NULL;
-					config_del_strarray(resif, num_resif);
-					return 0;
-				}
-				if(!setup_acl_for_ports(daemon->acl_interface,
-					daemon->ports[i])) {
 					for(i=0; i<daemon->num_ports; i++)
 						listening_ports_free(daemon->ports[i]);
 					free(daemon->ports);
@@ -659,9 +604,6 @@ daemon_fork(struct daemon* daemon)
 
 	if(!acl_list_apply_cfg(daemon->acl, daemon->cfg, daemon->views))
 		fatal_exit("Could not setup access control list");
-	if(!acl_interface_apply_cfg(daemon->acl_interface, daemon->cfg,
-		daemon->views))
-		fatal_exit("Could not setup interface control list");
 	if(!tcl_list_apply_cfg(daemon->tcl, daemon->cfg))
 		fatal_exit("Could not setup TCP connection limits");
 	if(daemon->cfg->dnscrypt) {
@@ -838,7 +780,6 @@ daemon_delete(struct daemon* daemon)
 	ub_randfree(daemon->rand);
 	alloc_clear(&daemon->superalloc);
 	acl_list_delete(daemon->acl);
-	acl_list_delete(daemon->acl_interface);
 	tcl_list_delete(daemon->tcl);
 	listen_desetup_locks();
 	free(daemon->chroot);

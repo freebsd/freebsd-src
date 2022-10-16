@@ -494,8 +494,8 @@ int remote_accept_callback(struct comm_point* c, void* arg, int err,
 	n->c->do_not_close = 0;
 	comm_point_stop_listening(n->c);
 	comm_point_start_listening(n->c, -1, REMOTE_CONTROL_TCP_TIMEOUT);
-	memcpy(&n->c->repinfo.remote_addr, &addr, addrlen);
-	n->c->repinfo.remote_addrlen = addrlen;
+	memcpy(&n->c->repinfo.addr, &addr, addrlen);
+	n->c->repinfo.addrlen = addrlen;
 	if(rc->use_cert) {
 		n->shake_state = rc_hs_read;
 		n->ssl = SSL_new(rc->ctx);
@@ -3304,7 +3304,7 @@ remote_handshake_later(struct daemon_remote* rc, struct rc_state* s,
 		if(r == 0)
 			log_err("remote control connection closed prematurely");
 		log_addr(VERB_OPS, "failed connection from",
-			&s->c->repinfo.remote_addr, s->c->repinfo.remote_addrlen);
+			&s->c->repinfo.addr, s->c->repinfo.addrlen);
 		log_crypto_err("remote control failed ssl");
 		clean_point(rc, s);
 	}

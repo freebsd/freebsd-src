@@ -52,7 +52,6 @@ int ub_c_lex(void);
 void ub_c_error(const char *message);
 
 static void validate_respip_action(const char* action);
-static void validate_acl_action(const char* action);
 
 /* these need to be global, otherwise they cannot be used inside yacc */
 extern struct config_parser_state* cfg_parser;
@@ -191,9 +190,6 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_EDNS_CLIENT_STRING_OPCODE VAR_NSID
 %token VAR_ZONEMD_PERMISSIVE_MODE VAR_ZONEMD_CHECK VAR_ZONEMD_REJECT_ABSENCE
 %token VAR_RPZ_SIGNAL_NXDOMAIN_RA VAR_INTERFACE_AUTOMATIC_PORTS VAR_EDE
-%token VAR_INTERFACE_ACTION VAR_INTERFACE_VIEW VAR_INTERFACE_TAG
-%token VAR_INTERFACE_TAG_ACTION VAR_INTERFACE_TAG_DATA
-%token VAR_PROXY_PROTOCOL_PORT
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -208,14 +204,12 @@ toplevelvar: serverstart contents_server | stubstart contents_stub |
 force_toplevel: VAR_FORCE_TOPLEVEL
 	{
 		OUTYY(("\nP(force-toplevel)\n"));
-		cfg_parser->started_toplevel = 0;
 	}
 	;
 /* server: declaration */
 serverstart: VAR_SERVER
 	{
 		OUTYY(("\nP(server:)\n"));
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_server: contents_server content_server
@@ -293,8 +287,6 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_disable_dnssec_lame_check | server_access_control_tag |
 	server_local_zone_override | server_access_control_tag_action |
 	server_access_control_tag_data | server_access_control_view |
-	server_interface_action | server_interface_view | server_interface_tag |
-	server_interface_tag_action | server_interface_tag_data |
 	server_qname_minimisation_strict |
 	server_pad_responses | server_pad_responses_block_size |
 	server_pad_queries | server_pad_queries_block_size |
@@ -321,14 +313,13 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_edns_client_string_opcode | server_nsid |
 	server_zonemd_permissive_mode | server_max_reuse_tcp_queries |
 	server_tcp_reuse_timeout | server_tcp_auth_query_timeout |
-	server_interface_automatic_ports | server_ede |
-	server_proxy_protocol_port
+	server_interface_automatic_ports | server_ede
+
 	;
 stubstart: VAR_STUB_ZONE
 	{
 		struct config_stub* s;
 		OUTYY(("\nP(stub_zone:)\n"));
-		cfg_parser->started_toplevel = 1;
 		s = (struct config_stub*)calloc(1, sizeof(struct config_stub));
 		if(s) {
 			s->next = cfg_parser->cfg->stubs;
@@ -347,7 +338,6 @@ forwardstart: VAR_FORWARD_ZONE
 	{
 		struct config_stub* s;
 		OUTYY(("\nP(forward_zone:)\n"));
-		cfg_parser->started_toplevel = 1;
 		s = (struct config_stub*)calloc(1, sizeof(struct config_stub));
 		if(s) {
 			s->next = cfg_parser->cfg->forwards;
@@ -366,7 +356,6 @@ viewstart: VAR_VIEW
 	{
 		struct config_view* s;
 		OUTYY(("\nP(view:)\n"));
-		cfg_parser->started_toplevel = 1;
 		s = (struct config_view*)calloc(1, sizeof(struct config_view));
 		if(s) {
 			s->next = cfg_parser->cfg->views;
@@ -387,7 +376,6 @@ authstart: VAR_AUTH_ZONE
 	{
 		struct config_auth* s;
 		OUTYY(("\nP(auth_zone:)\n"));
-		cfg_parser->started_toplevel = 1;
 		s = (struct config_auth*)calloc(1, sizeof(struct config_auth));
 		if(s) {
 			s->next = cfg_parser->cfg->auths;
@@ -486,7 +474,6 @@ rpzstart: VAR_RPZ
 	{
 		struct config_auth* s;
 		OUTYY(("\nP(rpz:)\n")); 
-		cfg_parser->started_toplevel = 1;
 		s = (struct config_auth*)calloc(1, sizeof(struct config_auth));
 		if(s) {
 			s->next = cfg_parser->cfg->auths;
@@ -1855,18 +1842,21 @@ server_do_not_query_localhost: VAR_DO_NOT_QUERY_LOCALHOST STRING_ARG
 server_access_control: VAR_ACCESS_CONTROL STRING_ARG STRING_ARG
 	{
 		OUTYY(("P(server_access_control:%s %s)\n", $2, $3));
-		validate_acl_action($3);
-		if(!cfg_str2list_insert(&cfg_parser->cfg->acls, $2, $3))
-			fatal_exit("out of memory adding acl");
-	}
-	;
-server_interface_action: VAR_INTERFACE_ACTION STRING_ARG STRING_ARG
-	{
-		OUTYY(("P(server_interface_action:%s %s)\n", $2, $3));
-		validate_acl_action($3);
-		if(!cfg_str2list_insert(
-			&cfg_parser->cfg->interface_actions, $2, $3))
-			fatal_exit("out of memory adding acl");
+		if(strcmp($3, "deny")!=0 && strcmp($3, "refuse")!=0 &&
+			strcmp($3, "deny_non_local")!=0 &&
+			strcmp($3, "refuse_non_local")!=0 &&
+			strcmp($3, "allow_setrd")!=0 &&
+			strcmp($3, "allow")!=0 &&
+			strcmp($3, "allow_snoop")!=0) {
+			yyerror("expected deny, refuse, deny_non_local, "
+				"refuse_non_local, allow, allow_setrd or "
+				"allow_snoop in access control action");
+			free($2);
+			free($3);
+		} else {
+			if(!cfg_str2list_insert(&cfg_parser->cfg->acls, $2, $3))
+				fatal_exit("out of memory adding acl");
+		}
 	}
 	;
 server_module_conf: VAR_MODULE_CONF STRING_ARG
@@ -2424,60 +2414,6 @@ server_access_control_view: VAR_ACCESS_CONTROL_VIEW STRING_ARG STRING_ARG
 		}
 	}
 	;
-server_interface_tag: VAR_INTERFACE_TAG STRING_ARG STRING_ARG
-	{
-		size_t len = 0;
-		uint8_t* bitlist = config_parse_taglist(cfg_parser->cfg, $3,
-			&len);
-		free($3);
-		OUTYY(("P(server_interface_tag:%s)\n", $2));
-		if(!bitlist) {
-			yyerror("could not parse tags, (define-tag them first)");
-			free($2);
-		}
-		if(bitlist) {
-			if(!cfg_strbytelist_insert(
-				&cfg_parser->cfg->interface_tags,
-				$2, bitlist, len)) {
-				yyerror("out of memory");
-				free($2);
-			}
-		}
-	}
-	;
-server_interface_tag_action: VAR_INTERFACE_TAG_ACTION STRING_ARG STRING_ARG STRING_ARG
-	{
-		OUTYY(("P(server_interface_tag_action:%s %s %s)\n", $2, $3, $4));
-		if(!cfg_str3list_insert(&cfg_parser->cfg->interface_tag_actions,
-			$2, $3, $4)) {
-			yyerror("out of memory");
-			free($2);
-			free($3);
-			free($4);
-		}
-	}
-	;
-server_interface_tag_data: VAR_INTERFACE_TAG_DATA STRING_ARG STRING_ARG STRING_ARG
-	{
-		OUTYY(("P(server_interface_tag_data:%s %s %s)\n", $2, $3, $4));
-		if(!cfg_str3list_insert(&cfg_parser->cfg->interface_tag_datas,
-			$2, $3, $4)) {
-			yyerror("out of memory");
-			free($2);
-			free($3);
-			free($4);
-		}
-	}
-	;
-server_interface_view: VAR_INTERFACE_VIEW STRING_ARG STRING_ARG
-	{
-		OUTYY(("P(server_interface_view:%s %s)\n", $2, $3));
-		if(!cfg_str2list_insert(&cfg_parser->cfg->interface_view,
-			$2, $3)) {
-			yyerror("out of memory");
-		}
-	}
-	;
 server_response_ip_tag: VAR_RESPONSE_IP_TAG STRING_ARG STRING_ARG
 	{
 		size_t len = 0;
@@ -2825,13 +2761,6 @@ server_ede: VAR_EDE STRING_ARG
 		free($2);
 	}
 	;
-server_proxy_protocol_port: VAR_PROXY_PROTOCOL_PORT STRING_ARG
-	{
-		OUTYY(("P(server_proxy_protocol_port:%s)\n", $2));
-		if(!cfg_strlist_insert(&cfg_parser->cfg->proxy_protocol_port, $2))
-			yyerror("out of memory");
-	}
-	;
 stub_name: VAR_NAME STRING_ARG
 	{
 		OUTYY(("P(name:%s)\n", $2));
@@ -3174,7 +3103,6 @@ view_first: VAR_VIEW_FIRST STRING_ARG
 rcstart: VAR_REMOTE_CONTROL
 	{
 		OUTYY(("\nP(remote-control:)\n"));
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_rc: contents_rc content_rc
@@ -3247,7 +3175,6 @@ rc_control_cert_file: VAR_CONTROL_CERT_FILE STRING_ARG
 dtstart: VAR_DNSTAP
 	{
 		OUTYY(("\nP(dnstap:)\n"));
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_dt: contents_dt content_dt
@@ -3430,7 +3357,6 @@ dt_dnstap_log_forwarder_response_messages: VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MES
 pythonstart: VAR_PYTHON
 	{
 		OUTYY(("\nP(python:)\n"));
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_py: contents_py content_py
@@ -3446,7 +3372,6 @@ py_script: VAR_PYTHON_SCRIPT STRING_ARG
 dynlibstart: VAR_DYNLIB
 	{ 
 		OUTYY(("\nP(dynlib:)\n")); 
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_dl: contents_dl content_dl
@@ -3496,7 +3421,6 @@ server_response_ip_data: VAR_RESPONSE_IP_DATA STRING_ARG STRING_ARG
 dnscstart: VAR_DNSCRYPT
 	{
 		OUTYY(("\nP(dnscrypt:)\n"));
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_dnsc: contents_dnsc content_dnsc
@@ -3606,7 +3530,6 @@ dnsc_dnscrypt_nonce_cache_slabs: VAR_DNSCRYPT_NONCE_CACHE_SLABS STRING_ARG
 cachedbstart: VAR_CACHEDB
 	{
 		OUTYY(("\nP(cachedb:)\n"));
-		cfg_parser->started_toplevel = 1;
 	}
 	;
 contents_cachedb: contents_cachedb content_cachedb
@@ -3706,7 +3629,6 @@ server_tcp_connection_limit: VAR_TCP_CONNECTION_LIMIT STRING_ARG STRING_ARG
 	ipsetstart: VAR_IPSET
 		{
 			OUTYY(("\nP(ipset:)\n"));
-			cfg_parser->started_toplevel = 1;
 		}
 		;
 	contents_ipset: contents_ipset content_ipset
@@ -3763,19 +3685,4 @@ validate_respip_action(const char* action)
 	}
 }
 
-static void
-validate_acl_action(const char* action)
-{
-	if(strcmp(action, "deny")!=0 &&
-		strcmp(action, "refuse")!=0 &&
-		strcmp(action, "deny_non_local")!=0 &&
-		strcmp(action, "refuse_non_local")!=0 &&
-		strcmp(action, "allow_setrd")!=0 &&
-		strcmp(action, "allow")!=0 &&
-		strcmp(action, "allow_snoop")!=0)
-	{
-		yyerror("expected deny, refuse, deny_non_local, "
-			"refuse_non_local, allow, allow_setrd or "
-			"allow_snoop as access control action");
-	}
-}
+

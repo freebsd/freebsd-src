@@ -55,7 +55,6 @@
 #include "util/config_file.h"
 #include "util/data/msgreply.h"
 #include "sldns/sbuffer.h"
-#include "sldns/wire2str.h"
 #include "iterator/iter_utils.h"
 
 /** externally called */
@@ -332,7 +331,6 @@ update_cache(struct module_qstate *qstate, int id)
 	struct slabhash *subnet_msg_cache = sne->subnet_msg_cache;
 	struct ecs_data *edns = &sq->ecs_client_in;
 	size_t i;
-	int only_match_scope_zero;
 
 	/* We already calculated hash upon lookup (lookup_and_reply) if we were
 	 * allowed to look in the ECS cache */
@@ -394,12 +392,9 @@ update_cache(struct module_qstate *qstate, int id)
 	reply_info_set_ttls(rep, *qstate->env->now);
 	rep->flags |= (BIT_RA | BIT_QR); /* fix flags to be sensible for */
 	rep->flags &= ~(BIT_AA | BIT_CD);/* a reply based on the cache   */
-	if(edns->subnet_source_mask == 0 && edns->subnet_scope_mask == 0)
-		only_match_scope_zero = 1;
-	else only_match_scope_zero = 0;
 	addrtree_insert(tree, (addrkey_t*)edns->subnet_addr, 
 		edns->subnet_source_mask, sq->max_scope, rep,
-		rep->ttl, *qstate->env->now, only_match_scope_zero);
+		rep->ttl, *qstate->env->now);
 
 	lock_rw_unlock(&lru_entry->lock);
 	if (need_to_insert) {
@@ -679,24 +674,6 @@ ecs_query_response(struct module_qstate* qstate, struct dns_msg* response,
 	return 1;
 }
 
-/** verbose print edns subnet option in pretty print */
-static void
-subnet_log_print(const char* s, struct edns_option* ecs_opt)
-{
-	if(verbosity >= VERB_ALGO) {
-		char buf[256];
-		char* str = buf;
-		size_t str_len = sizeof(buf);
-		if(!ecs_opt) {
-			verbose(VERB_ALGO, "%s (null)", s);
-			return;
-		}
-		(void)sldns_wire2str_edns_subnet_print(&str, &str_len,
-			ecs_opt->opt_data, ecs_opt->opt_len);
-		verbose(VERB_ALGO, "%s %s", s, buf);
-	}
-}
-
 int
 ecs_edns_back_parsed(struct module_qstate* qstate, int id,
 	void* ATTR_UNUSED(cbargs))
@@ -711,7 +688,6 @@ ecs_edns_back_parsed(struct module_qstate* qstate, int id,
 		qstate->env->cfg->client_subnet_opcode)) &&
 		parse_subnet_option(ecs_opt, &sq->ecs_server_in) &&
 		sq->subnet_sent && sq->ecs_server_in.subnet_validdata) {
-			subnet_log_print("answer has edns subnet", ecs_opt);
 			/* Only skip global cache store if we sent an ECS option
 			 * and received one back. Answers from non-whitelisted
 			 * servers will end up in global cache. Answers for
@@ -760,12 +736,11 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 				qstate->ext_state[id] = module_finished;
 				return;
 			}
-			subnet_log_print("query has edns subnet", ecs_opt);
 			sq->subnet_downstream = 1;
 		}
 		else if(qstate->mesh_info->reply_list) {
 			subnet_option_from_ss(
-				&qstate->mesh_info->reply_list->query_reply.client_addr,
+				&qstate->mesh_info->reply_list->query_reply.addr,
 				&sq->ecs_client_in, qstate->env->cfg);
 		}
 		
@@ -800,13 +775,6 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 				subnet_ecs_opt_list_append(&sq->ecs_client_out,
 					&qstate->edns_opts_front_out, qstate,
 					qstate->region);
-				if(verbosity >= VERB_ALGO) {
-					subnet_log_print("reply has edns subnet",
-						edns_opt_list_find(
-						qstate->edns_opts_front_out,
-						qstate->env->cfg->
-						client_subnet_opcode));
-				}
 				return;
 			}
 			lock_rw_unlock(&sne->biglock);
@@ -855,13 +823,6 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 			subnet_ecs_opt_list_append(&sq->ecs_client_out,
 				&qstate->edns_opts_front_out, qstate,
 				qstate->region);
-			if(verbosity >= VERB_ALGO) {
-				subnet_log_print("reply has edns subnet",
-					edns_opt_list_find(
-					qstate->edns_opts_front_out,
-					qstate->env->cfg->
-					client_subnet_opcode));
-			}
 		}
 		qstate->no_cache_store = sq->started_no_cache_store;
 		qstate->no_cache_lookup = sq->started_no_cache_lookup;

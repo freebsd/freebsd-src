@@ -71,14 +71,6 @@ int addr_tree_compare(const void* k1, const void* k2)
         return 0;
 }
 
-int addr_tree_addrport_compare(const void* k1, const void* k2)
-{
-	struct addr_tree_node* n1 = (struct addr_tree_node*)k1;
-	struct addr_tree_node* n2 = (struct addr_tree_node*)k2;
-	return sockaddr_cmp(&n1->addr, n1->addrlen, &n2->addr,
-		n2->addrlen);
-}
-
 void name_tree_init(rbtree_type* tree)
 {
 	rbtree_init(tree, &name_tree_compare);
@@ -87,11 +79,6 @@ void name_tree_init(rbtree_type* tree)
 void addr_tree_init(rbtree_type* tree)
 {
 	rbtree_init(tree, &addr_tree_compare);
-}
-
-void addr_tree_addrport_init(rbtree_type* tree)
-{
-	rbtree_init(tree, &addr_tree_addrport_compare);
 }
 
 int name_tree_insert(rbtree_type* tree, struct name_tree_node* node, 

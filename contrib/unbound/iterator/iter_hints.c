@@ -100,7 +100,7 @@ ah(struct delegpt* dp, const char* sv, const char* ip)
 		return 0;
 	}
 	if(!delegpt_add_ns_mlc(dp, dname, 0, NULL, UNBOUND_DNS_PORT) ||
-	   !extstrtoaddr(ip, &addr, &addrlen, UNBOUND_DNS_PORT) ||
+	   !extstrtoaddr(ip, &addr, &addrlen) ||
 	   !delegpt_add_target_mlc(dp, dname, dname_len,
 		&addr, addrlen, 0, 0)) {
 		free(dname);

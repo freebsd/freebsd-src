@@ -3699,7 +3699,7 @@ addr_matches_master(struct auth_master* master, struct sockaddr_storage* addr,
 	/* compare address (but not port number, that is the destination
 	 * port of the master, the port number of the received notify is
 	 * allowed to by any port on that master) */
-	if(extstrtoaddr(master->host, &a, &alen, UNBOUND_DNS_PORT) &&
+	if(extstrtoaddr(master->host, &a, &alen) &&
 		sockaddr_cmp_addr(addr, addrlen, &a, alen)==0) {
 		*fromhost = master;
 		return 1;
@@ -5381,7 +5381,7 @@ xfr_transfer_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	struct edns_data edns;
 	sldns_buffer* buf = env->scratch_buffer;
 	if(!master) return 0;
-	if(extstrtoaddr(master->host, &addr, &addrlen, UNBOUND_DNS_PORT)) {
+	if(extstrtoaddr(master->host, &addr, &addrlen)) {
 		/* not needed, host is in IP addr format */
 		return 0;
 	}
@@ -6572,7 +6572,7 @@ xfr_probe_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	struct edns_data edns;
 	sldns_buffer* buf = env->scratch_buffer;
 	if(!master) return 0;
-	if(extstrtoaddr(master->host, &addr, &addrlen, UNBOUND_DNS_PORT)) {
+	if(extstrtoaddr(master->host, &addr, &addrlen)) {
 		/* not needed, host is in IP addr format */
 		return 0;
 	}

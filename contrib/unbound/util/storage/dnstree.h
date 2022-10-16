@@ -154,13 +154,6 @@ int name_tree_next_root(rbtree_type* tree, uint16_t* dclass);
 void addr_tree_init(rbtree_type* tree);
 
 /**
- * Init addr tree to be empty.
- * The comparison function to be used is addr_tree_addrport_compare.
- * @param tree: to init.
- */
-void addr_tree_addrport_init(rbtree_type* tree);
-
-/**
  * insert element into addr tree.
  * @param tree: addr tree
  * @param node: node element (at start of a structure that caller
@@ -213,8 +206,5 @@ int name_tree_compare(const void* k1, const void* k2);
 
 /** compare addr tree nodes */
 int addr_tree_compare(const void* k1, const void* k2);
-
-/** compare addr tree nodes (address and port only) */
-int addr_tree_addrport_compare(const void* k1, const void* k2);
 
 #endif /* UTIL_STORAGE_DNSTREE_H */

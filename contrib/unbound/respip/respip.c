@@ -1290,7 +1290,7 @@ respip_set_is_empty(const struct respip_set* set)
 void
 respip_inform_print(struct respip_action_info* respip_actinfo, uint8_t* qname,
 	uint16_t qtype, uint16_t qclass, struct local_rrset* local_alias,
-	struct sockaddr_storage* addr, socklen_t addrlen)
+	struct comm_reply* repinfo)
 {
 	char srcip[128], respip[128], txt[512];
 	unsigned port;
@@ -1300,10 +1300,10 @@ respip_inform_print(struct respip_action_info* respip_actinfo, uint8_t* qname,
 
 	if(local_alias)
 		qname = local_alias->rrset->rk.dname;
-	port = (unsigned)((addr->ss_family == AF_INET) ?
-		ntohs(((struct sockaddr_in*)addr)->sin_port) :
-		ntohs(((struct sockaddr_in6*)addr)->sin6_port));
-	addr_to_str(addr, addrlen, srcip, sizeof(srcip));
+	port = (unsigned)((repinfo->addr.ss_family == AF_INET) ?
+		ntohs(((struct sockaddr_in*)&repinfo->addr)->sin_port) :
+		ntohs(((struct sockaddr_in6*)&repinfo->addr)->sin6_port));
+	addr_to_str(&repinfo->addr, repinfo->addrlen, srcip, sizeof(srcip));
 	addr_to_str(&respip_addr->addr, respip_addr->addrlen,
 		respip, sizeof(respip));
 	if(respip_actinfo->rpz_log) {

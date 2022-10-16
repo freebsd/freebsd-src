@@ -130,7 +130,7 @@ util/fptr_wlist.c util/locks.c util/log.c util/mini_event.c util/module.c \
 util/netevent.c util/net_help.c util/random.c util/rbtree.c util/regional.c \
 util/rtt.c util/edns.c util/storage/dnstree.c util/storage/lookup3.c \
 util/storage/lruhash.c util/storage/slabhash.c util/tcp_conn_limit.c \
-util/timehist.c util/tube.c util/proxy_protocol.c \
+util/timehist.c util/tube.c \
 util/ub_event.c util/ub_event_pluggable.c util/winsock_event.c \
 validator/autotrust.c validator/val_anchor.c validator/validator.c \
 validator/val_kcache.c validator/val_kentry.c validator/val_neg.c \
@@ -148,7 +148,7 @@ outbound_list.lo alloc.lo config_file.lo configlexer.lo configparser.lo \
 fptr_wlist.lo edns.lo locks.lo log.lo mini_event.lo module.lo net_help.lo \
 random.lo rbtree.lo regional.lo rtt.lo dnstree.lo lookup3.lo lruhash.lo \
 slabhash.lo tcp_conn_limit.lo timehist.lo tube.lo winsock_event.lo \
-autotrust.lo val_anchor.lo rpz.lo proxy_protocol.lo \
+autotrust.lo val_anchor.lo rpz.lo \
 validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo \
 val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo $(CACHEDB_OBJ) authzone.lo \
 $(SUBNET_OBJ) $(PYTHONMOD_OBJ) $(CHECKLOCK_OBJ) $(DNSTAP_OBJ) $(DNSCRYPT_OBJ) \
@@ -984,8 +984,6 @@ netevent.lo netevent.o: $(srcdir)/util/netevent.c config.h $(srcdir)/util/neteve
  $(srcdir)/sldns/sbuffer.h $(srcdir)/util/config_file.h $(srcdir)/services/authzone.h $(srcdir)/daemon/stats.h \
  $(srcdir)/util/timehist.h $(srcdir)/libunbound/unbound.h $(srcdir)/respip/respip.h $(srcdir)/sldns/str2wire.h \
  $(srcdir)/dnstap/dnstap.h  $(srcdir)/services/listen_dnsport.h
-proxy_protocol.lo proxy_protocol.o: $(srcdir)/util/proxy_protocol.c config.h \
- $(srcdir)/util/proxy_protocol.h $(srcdir)/sldns/sbuffer.h
 net_help.lo net_help.o: $(srcdir)/util/net_help.c config.h $(srcdir)/util/net_help.h $(srcdir)/util/log.h \
  $(srcdir)/util/data/dname.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/module.h \
  $(srcdir)/util/data/msgreply.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgparse.h \
@@ -1514,7 +1512,7 @@ asynclook.lo asynclook.o: $(srcdir)/testcode/asynclook.c config.h $(srcdir)/libu
  $(srcdir)/services/modstack.h $(srcdir)/libunbound/unbound-event.h $(srcdir)/util/data/packed_rrset.h \
  $(srcdir)/util/storage/lruhash.h $(srcdir)/sldns/rrdef.h
 streamtcp.lo streamtcp.o: $(srcdir)/testcode/streamtcp.c config.h $(srcdir)/util/locks.h $(srcdir)/util/log.h \
- $(srcdir)/util/net_help.h $(srcdir)/util/proxy_protocol.h $(srcdir)/util/data/msgencode.h $(srcdir)/util/data/msgparse.h \
+ $(srcdir)/util/net_help.h $(srcdir)/util/data/msgencode.h $(srcdir)/util/data/msgparse.h \
  $(srcdir)/util/storage/lruhash.h $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/data/msgreply.h \
  $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/dname.h $(srcdir)/sldns/sbuffer.h \
  $(srcdir)/sldns/str2wire.h $(srcdir)/sldns/wire2str.h

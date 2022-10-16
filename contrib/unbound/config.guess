@@ -4,7 +4,7 @@
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2022-09-17'
+timestamp='2022-08-01'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -965,12 +965,6 @@ EOF
 	GNU_SYS=`echo "$UNAME_SYSTEM" | sed 's,^[^/]*/,,' | tr "[:upper:]" "[:lower:]"`
 	GNU_REL=`echo "$UNAME_RELEASE" | sed -e 's/[-(].*//'`
 	GUESS=$UNAME_MACHINE-unknown-$GNU_SYS$GNU_REL-$LIBC
-	;;
-    x86_64:[Mm]anagarm:*:*|i?86:[Mm]anagarm:*:*)
-	GUESS="$UNAME_MACHINE-pc-managarm-mlibc"
-	;;
-    *:[Mm]anagarm:*:*)
-	GUESS="$UNAME_MACHINE-unknown-managarm-mlibc"
 	;;
     *:Minix:*:*)
 	GUESS=$UNAME_MACHINE-unknown-minix
