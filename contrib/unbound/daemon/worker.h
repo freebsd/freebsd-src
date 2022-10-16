@@ -86,6 +86,10 @@ struct worker {
 	struct daemon* daemon;
 	/** thread id */
 	ub_thread_type thr_id;
+#ifdef HAVE_GETTID
+	/** thread tid, the LWP id. */
+	pid_t thread_tid;
+#endif
 	/** pipe, for commands for this worker */
 	struct tube* cmd;
 	/** the event base this worker works with */
