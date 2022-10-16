@@ -86,10 +86,6 @@ static void serviced_tcp_initiate(struct serviced_query* sq, sldns_buffer* buff)
 static int randomize_and_send_udp(struct pending* pend, sldns_buffer* packet,
 	int timeout);
 
-/** remove waiting tcp from the outnet waiting list */
-static void waiting_list_remove(struct outside_network* outnet,
-	struct waiting_tcp* w);
-
 /** select a DNS ID for a TCP stream */
 static uint16_t tcp_select_id(struct outside_network* outnet,
 	struct reuse_tcp* reuse);
@@ -372,7 +368,8 @@ log_reuse_tcp(enum verbosity_value v, const char* msg, struct reuse_tcp* reuse)
 }
 
 /** pop the first element from the writewait list */
-static struct waiting_tcp* reuse_write_wait_pop(struct reuse_tcp* reuse)
+struct waiting_tcp*
+reuse_write_wait_pop(struct reuse_tcp* reuse)
 {
 	struct waiting_tcp* w = reuse->write_wait_first;
 	if(!w)
@@ -390,8 +387,8 @@ static struct waiting_tcp* reuse_write_wait_pop(struct reuse_tcp* reuse)
 }
 
 /** remove the element from the writewait list */
-static void reuse_write_wait_remove(struct reuse_tcp* reuse,
-	struct waiting_tcp* w)
+void
+reuse_write_wait_remove(struct reuse_tcp* reuse, struct waiting_tcp* w)
 {
 	log_assert(w);
 	log_assert(w->write_wait_queued);
@@ -415,8 +412,8 @@ static void reuse_write_wait_remove(struct reuse_tcp* reuse,
 }
 
 /** push the element after the last on the writewait list */
-static void reuse_write_wait_push_back(struct reuse_tcp* reuse,
-	struct waiting_tcp* w)
+void
+reuse_write_wait_push_back(struct reuse_tcp* reuse, struct waiting_tcp* w)
 {
 	if(!w) return;
 	log_assert(!w->write_wait_queued);
@@ -427,7 +424,9 @@ static void reuse_write_wait_push_back(struct reuse_tcp* reuse,
 		w->write_wait_prev = reuse->write_wait_last;
 	} else {
 		reuse->write_wait_first = w;
+		w->write_wait_prev = NULL;
 	}
+	w->write_wait_next = NULL;
 	reuse->write_wait_last = w;
 	w->write_wait_queued = 1;
 }
@@ -721,12 +720,12 @@ outnet_tcp_take_into_use(struct waiting_tcp* w)
 	pend->next_free = NULL;
 	pend->query = w;
 	pend->reuse.outnet = w->outnet;
-	pend->c->repinfo.addrlen = w->addrlen;
+	pend->c->repinfo.remote_addrlen = w->addrlen;
 	pend->c->tcp_more_read_again = &pend->reuse.cp_more_read_again;
 	pend->c->tcp_more_write_again = &pend->reuse.cp_more_write_again;
 	pend->reuse.cp_more_read_again = 0;
 	pend->reuse.cp_more_write_again = 0;
-	memcpy(&pend->c->repinfo.addr, &w->addr, w->addrlen);
+	memcpy(&pend->c->repinfo.remote_addr, &w->addr, w->addrlen);
 	pend->reuse.pending = pend;
 
 	/* Remove from tree in case the is_ssl will be different and causes the
@@ -810,20 +809,50 @@ reuse_tcp_lru_snip(struct outside_network* outnet)
 	return reuse;
 }
 
-/** call callback on waiting_tcp, if not NULL */
-static void
-waiting_tcp_callback(struct waiting_tcp* w, struct comm_point* c, int error,
-	struct comm_reply* reply_info)
+/** remove waiting tcp from the outnet waiting list */
+void
+outnet_waiting_tcp_list_remove(struct outside_network* outnet, struct waiting_tcp* w)
 {
-	if(w && w->cb) {
-		fptr_ok(fptr_whitelist_pending_tcp(w->cb));
-		(void)(*w->cb)(c, w->cb_arg, error, reply_info);
+	struct waiting_tcp* p = outnet->tcp_wait_first, *prev = NULL;
+	w->on_tcp_waiting_list = 0;
+	while(p) {
+		if(p == w) {
+			/* remove w */
+			if(prev)
+				prev->next_waiting = w->next_waiting;
+			else	outnet->tcp_wait_first = w->next_waiting;
+			if(outnet->tcp_wait_last == w)
+				outnet->tcp_wait_last = prev;
+			w->next_waiting = NULL;
+			return;
+		}
+		prev = p;
+		p = p->next_waiting;
 	}
+	/* outnet_waiting_tcp_list_remove is currently called only with items
+	 * that are already in the waiting list. */
+	log_assert(0);
+}
+
+/** pop the first waiting tcp from the outnet waiting list */
+struct waiting_tcp*
+outnet_waiting_tcp_list_pop(struct outside_network* outnet)
+{
+	struct waiting_tcp* w = outnet->tcp_wait_first;
+	if(!outnet->tcp_wait_first) return NULL;
+	log_assert(w->on_tcp_waiting_list);
+	outnet->tcp_wait_first = w->next_waiting;
+	if(outnet->tcp_wait_last == w)
+		outnet->tcp_wait_last = NULL;
+	w->on_tcp_waiting_list = 0;
+	w->next_waiting = NULL;
+	return w;
 }
 
 /** add waiting_tcp element to the outnet tcp waiting list */
-static void
-outnet_add_tcp_waiting(struct outside_network* outnet, struct waiting_tcp* w)
+void
+outnet_waiting_tcp_list_add(struct outside_network* outnet,
+	struct waiting_tcp* w, int set_timer)
 {
 	struct timeval tv;
 	log_assert(!w->on_tcp_waiting_list);
@@ -835,16 +864,18 @@ outnet_add_tcp_waiting(struct outside_network* outnet, struct waiting_tcp* w)
 	else	outnet->tcp_wait_first = w;
 	outnet->tcp_wait_last = w;
 	w->on_tcp_waiting_list = 1;
+	if(set_timer) {
 #ifndef S_SPLINT_S
-	tv.tv_sec = w->timeout/1000;
-	tv.tv_usec = (w->timeout%1000)*1000;
+		tv.tv_sec = w->timeout/1000;
+		tv.tv_usec = (w->timeout%1000)*1000;
 #endif
-	comm_timer_set(w->timer, &tv);
+		comm_timer_set(w->timer, &tv);
+	}
 }
 
 /** add waiting_tcp element as first to the outnet tcp waiting list */
-static void
-outnet_add_tcp_waiting_first(struct outside_network* outnet,
+void
+outnet_waiting_tcp_list_add_first(struct outside_network* outnet,
 	struct waiting_tcp* w, int reset_timer)
 {
 	struct timeval tv;
@@ -869,6 +900,17 @@ outnet_add_tcp_waiting_first(struct outside_network* outnet,
 		(outnet->tcp_reuse_first && outnet->tcp_reuse_last));
 }
 
+/** call callback on waiting_tcp, if not NULL */
+static void
+waiting_tcp_callback(struct waiting_tcp* w, struct comm_point* c, int error,
+	struct comm_reply* reply_info)
+{
+	if(w && w->cb) {
+		fptr_ok(fptr_whitelist_pending_tcp(w->cb));
+		(void)(*w->cb)(c, w->cb_arg, error, reply_info);
+	}
+}
+
 /** see if buffers can be used to service TCP queries */
 static void
 use_free_buffer(struct outside_network* outnet)
@@ -879,15 +921,10 @@ use_free_buffer(struct outside_network* outnet)
 		struct pending_tcp* pend_tcp = NULL;
 #endif
 		struct reuse_tcp* reuse = NULL;
-		w = outnet->tcp_wait_first;
-		log_assert(w->on_tcp_waiting_list);
-		outnet->tcp_wait_first = w->next_waiting;
-		if(outnet->tcp_wait_last == w)
-			outnet->tcp_wait_last = NULL;
+		w = outnet_waiting_tcp_list_pop(outnet);
 		log_assert(
 			(!outnet->tcp_reuse_first && !outnet->tcp_reuse_last) ||
 			(outnet->tcp_reuse_first && outnet->tcp_reuse_last));
-		w->on_tcp_waiting_list = 0;
 		reuse = reuse_tcp_find(outnet, &w->addr, w->addrlen,
 			w->ssl_upstream);
 		/* re-select an ID when moving to a new TCP buffer */
@@ -934,7 +971,7 @@ use_free_buffer(struct outside_network* outnet)
 #endif
 		} else {
 			/* no reuse and no free buffer, put back at the start */
-			outnet_add_tcp_waiting_first(outnet, w, 0);
+			outnet_waiting_tcp_list_add_first(outnet, w, 0);
 			break;
 		}
 #ifdef USE_DNSTAP
@@ -1008,7 +1045,7 @@ reuse_move_writewait_away(struct outside_network* outnet,
 		 * fail the query */
 		w->error_count ++;
 		reuse_tree_by_id_delete(&pend->reuse, w);
-		outnet_add_tcp_waiting(outnet, w);
+		outnet_waiting_tcp_list_add(outnet, w, 1);
 	}
 	while((w = reuse_write_wait_pop(&pend->reuse)) != NULL) {
 		if(verbosity >= VERB_CLIENT && w->pkt_len > 12+2+2 &&
@@ -1019,7 +1056,7 @@ reuse_move_writewait_away(struct outside_network* outnet,
 			verbose(VERB_CLIENT, "reuse_move_writewait_away item %s", buf);
 		}
 		reuse_tree_by_id_delete(&pend->reuse, w);
-		outnet_add_tcp_waiting(outnet, w);
+		outnet_waiting_tcp_list_add(outnet, w, 1);
 	}
 }
 
@@ -1417,11 +1454,11 @@ outnet_udp_cb(struct comm_point* c, void* arg, int error,
 
 	/* setup lookup key */
 	key.id = (unsigned)LDNS_ID_WIRE(sldns_buffer_begin(c->buffer));
-	memcpy(&key.addr, &reply_info->addr, reply_info->addrlen);
-	key.addrlen = reply_info->addrlen;
+	memcpy(&key.addr, &reply_info->remote_addr, reply_info->remote_addrlen);
+	key.addrlen = reply_info->remote_addrlen;
 	verbose(VERB_ALGO, "Incoming reply id = %4.4x", key.id);
 	log_addr(VERB_ALGO, "Incoming reply addr =", 
-		&reply_info->addr, reply_info->addrlen);
+		&reply_info->remote_addr, reply_info->remote_addrlen);
 
 	/* find it, see if this thing is a valid query response */
 	verbose(VERB_ALGO, "lookup size is %d entries", (int)outnet->pending->count);
@@ -1690,7 +1727,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 			return NULL;
 		}
 		pc->cp = comm_point_create_udp(outnet->base, -1, 
-			outnet->udp_buff, outnet_udp_cb, outnet, NULL);
+			outnet->udp_buff, 0, outnet_udp_cb, outnet, NULL);
 		if(!pc->cp) {
 			log_err("malloc failed");
 			free(pc);
@@ -2237,7 +2274,7 @@ outnet_tcptimer(void* arg)
 	verbose(VERB_CLIENT, "outnet_tcptimer");
 	if(w->on_tcp_waiting_list) {
 		/* it is on the waiting list */
-		waiting_list_remove(outnet, w);
+		outnet_waiting_tcp_list_remove(outnet, w);
 		waiting_tcp_callback(w, NULL, NETEVENT_TIMEOUT, NULL);
 		waiting_tcp_delete(w);
 	} else {
@@ -2464,7 +2501,7 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 #ifdef USE_DNSTAP
 		w->sq = sq;
 #endif
-		outnet_add_tcp_waiting(sq->outnet, w);
+		outnet_waiting_tcp_list_add(sq->outnet, w, 1);
 	}
 	return w;
 }
@@ -2545,8 +2582,10 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 #ifdef UNBOUND_DEBUG
 	rbnode_type* ins;
 #endif
-	if(!sq) 
+	if(!sq) {
+		alloc_reg_release(alloc, region);
 		return NULL;
+	}
 	sq->node.key = sq;
 	sq->alloc = alloc;
 	sq->region = region;
@@ -2608,30 +2647,6 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	rbtree_insert(outnet->serviced, &sq->node);
 	log_assert(ins != NULL); /* must not be already present */
 	return sq;
-}
-
-/** remove waiting tcp from the outnet waiting list */
-static void
-waiting_list_remove(struct outside_network* outnet, struct waiting_tcp* w)
-{
-	struct waiting_tcp* p = outnet->tcp_wait_first, *prev = NULL;
-	w->on_tcp_waiting_list = 0;
-	while(p) {
-		if(p == w) {
-			/* remove w */
-			if(prev)
-				prev->next_waiting = w->next_waiting;
-			else	outnet->tcp_wait_first = w->next_waiting;
-			if(outnet->tcp_wait_last == w)
-				outnet->tcp_wait_last = prev;
-			return;
-		}
-		prev = p;
-		p = p->next_waiting;
-	}
-	/* waiting_list_remove is currently called only with items that are
-	 * already in the waiting list. */
-	log_assert(0);
 }
 
 /** reuse tcp stream, remove serviced query from stream,
@@ -2728,7 +2743,7 @@ serviced_delete(struct serviced_query* sq)
 				sq->pending = NULL;
 			} else {
 				verbose(VERB_CLIENT, "serviced_delete: tcpwait");
-				waiting_list_remove(sq->outnet, w);
+				outnet_waiting_tcp_list_remove(sq->outnet, w);
 				if(!w->in_cb_and_decommission)
 					waiting_tcp_delete(w);
 			}
@@ -3101,8 +3116,8 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 		rep = &r2;
 		r2.c = c;
 	}
-	memcpy(&rep->addr, &sq->addr, sq->addrlen);
-	rep->addrlen = sq->addrlen;
+	memcpy(&rep->remote_addr, &sq->addr, sq->addrlen);
+	rep->remote_addrlen = sq->addrlen;
 	serviced_callbacks(sq, error, c, rep);
 	return 0;
 }
@@ -3432,7 +3447,6 @@ outnet_serviced_query(struct outside_network* outnet,
 				infra_ratelimit_dec(env->infra_cache,
 					zone, zonelen, timenow);
 			}
-			alloc_reg_release(env->alloc, region);
 			return NULL;
 		}
 		if(!(cb = (struct service_callback*)regional_alloc(
@@ -3581,7 +3595,7 @@ outnet_comm_point_for_udp(struct outside_network* outnet,
 	if(fd == -1) {
 		return NULL;
 	}
-	cp = comm_point_create_udp(outnet->base, fd, outnet->udp_buff,
+	cp = comm_point_create_udp(outnet->base, fd, outnet->udp_buff, 0,
 		cb, cb_arg, NULL);
 	if(!cp) {
 		log_err("malloc failure");
@@ -3669,8 +3683,8 @@ outnet_comm_point_for_tcp(struct outside_network* outnet,
 		close(fd);
 		return 0;
 	}
-	cp->repinfo.addrlen = to_addrlen;
-	memcpy(&cp->repinfo.addr, to_addr, to_addrlen);
+	cp->repinfo.remote_addrlen = to_addrlen;
+	memcpy(&cp->repinfo.remote_addr, to_addr, to_addrlen);
 
 	/* setup for SSL (if needed) */
 	if(ssl) {
@@ -3745,8 +3759,8 @@ outnet_comm_point_for_http(struct outside_network* outnet,
 		close(fd);
 		return 0;
 	}
-	cp->repinfo.addrlen = to_addrlen;
-	memcpy(&cp->repinfo.addr, to_addr, to_addrlen);
+	cp->repinfo.remote_addrlen = to_addrlen;
+	memcpy(&cp->repinfo.remote_addr, to_addr, to_addrlen);
 
 	/* setup for SSL (if needed) */
 	if(ssl) {

@@ -298,6 +298,9 @@
 /* Define to 1 if you have the `getrlimit' function. */
 #undef HAVE_GETRLIMIT
 
+/* Define to 1 if you have the `gettid' function. */
+#undef HAVE_GETTID
+
 /* Define to 1 if you have the `glob' function. */
 #undef HAVE_GLOB
 
@@ -456,6 +459,12 @@
 
 /* Define to 1 if you have the `OSSL_PARAM_BLD_new' function. */
 #undef HAVE_OSSL_PARAM_BLD_NEW
+
+/* Define to 1 if you have the `poll' function. */
+#undef HAVE_POLL
+
+/* Define to 1 if you have the <poll.h> header file. */
+#undef HAVE_POLL_H
 
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
@@ -800,11 +809,17 @@
 /* Shared data */
 #undef SHARE_DIR
 
+/* The size of `pthread_t', as computed by sizeof. */
+#undef SIZEOF_PTHREAD_T
+
 /* The size of `size_t', as computed by sizeof. */
 #undef SIZEOF_SIZE_T
 
 /* The size of `time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
+
+/* The size of `unsigned long', as computed by sizeof. */
+#undef SIZEOF_UNSIGNED_LONG
 
 /* define if (v)snprintf does not return length needed, (but length used) */
 #undef SNPRINTF_RET_BROKEN
