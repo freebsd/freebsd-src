@@ -601,7 +601,7 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 			struct sockaddr_storage addr2;
 			socklen_t addrlen2;
 			if(extstrtoaddr(cfg->control_ifs.first->str, &addr2,
-				&addrlen2)) {
+				&addrlen2, UNBOUND_DNS_PORT)) {
 				svr = cfg->control_ifs.first->str;
 			} else {
 				if(!resolve_interface_names(NULL, 0,
@@ -629,7 +629,7 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 			svr = "::1";
 	}
 	if(strchr(svr, '@')) {
-		if(!extstrtoaddr(svr, &addr, &addrlen))
+		if(!extstrtoaddr(svr, &addr, &addrlen, UNBOUND_DNS_PORT))
 			fatal_exit("could not parse IP@port: %s", svr);
 #ifdef HAVE_SYS_UN_H
 	} else if(svr[0] == '/') {

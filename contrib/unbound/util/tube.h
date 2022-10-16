@@ -205,6 +205,14 @@ int tube_poll(struct tube* tube);
 int tube_wait(struct tube* tube);
 
 /**
+ * Wait for data to be ready with a timeout.
+ * @param tube: the tube to wait on.
+ * @param msec: timeout in milliseconds.
+ * @return 1 if there is something to read within timeout, readability.
+ * 	0 on a timeout. On failures -1, like errors. */
+int tube_wait_timeout(struct tube* tube, int msec);
+
+/**
  * Get FD that is readable when new information arrives.
  * @param tube
  * @return file descriptor.

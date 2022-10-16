@@ -951,7 +951,7 @@ ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr)
 	lock_basic_unlock(&ctx->cfglock);
 
 	/* check syntax for addr */
-	if(!extstrtoaddr(addr, &storage, &stlen)) {
+	if(!extstrtoaddr(addr, &storage, &stlen, UNBOUND_DNS_PORT)) {
 		errno=EINVAL;
 		return UB_SYNTAX;
 	}
@@ -1031,7 +1031,7 @@ int ub_ctx_set_stub(struct ub_ctx* ctx, const char* zone, const char* addr,
 	if(addr) {
 		struct sockaddr_storage storage;
 		socklen_t stlen;
-		if(!extstrtoaddr(addr, &storage, &stlen)) {
+		if(!extstrtoaddr(addr, &storage, &stlen, UNBOUND_DNS_PORT)) {
 			errno=EINVAL;
 			return UB_SYNTAX;
 		}
