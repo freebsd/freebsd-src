@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include <locale.h>
 #include <monetary.h>
 #include <stdio.h>
@@ -64,8 +66,157 @@ ATF_TC_BODY(strfmon_locale_thousands, tc)
 	ATF_CHECK_STREQ(expected, actual);
 }
 
+ATF_TC_WITHOUT_HEAD(strfmon_examples);
+ATF_TC_BODY(strfmon_examples, tc)
+{
+	const struct {
+		const char *format;
+		const char *expected;
+	} tests[] = {
+	    { "%n", "[$123.45] [-$123.45] [$3,456.78]" },
+	    { "%11n", "[    $123.45] [       -$123.45] [  $3,456.78]" }, /* XXX */
+	    { "%#5n", "[ $   123.45] [-$   123.45] [ $ 3,456.78]" },
+	    { "%=*#5n", "[ $***123.45] [-$***123.45] [ $*3,456.78]" },
+	    { "%=0#5n", "[ $000123.45] [-$000123.45] [ $03,456.78]" },
+	    { "%^#5n", "[ $  123.45] [-$  123.45] [ $ 3456.78]" },
+	    { "%^#5.0n", "[ $  123] [-$  123] [ $ 3457]" },
+	    { "%^#5.4n", "[ $  123.4500] [-$  123.4500] [ $ 3456.7810]" },
+	    { "%(#5n", "[$   123.45] [($   123.45)] [$ 3,456.78]" }, /* XXX */
+	    { "%!(#5n", "[   123.45] [(   123.45)] [ 3,456.78]" }, /* XXX */
+	    { "%-14#5.4n", "[ $   123.4500 ] [-$   123.4500 ] [ $ 3,456.7810 ]" },
+	    { "%14#5.4n", "[  $   123.4500] [ -$   123.4500] [  $ 3,456.7810]" },
+	};
+	size_t i;
+	char actual[100], format[50];
+
+	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL)
+		atf_tc_skip("unable to setlocale()");
+
+	for (i = 0; i < nitems(tests); ++i) {
+		snprintf(format, sizeof(format), "[%s] [%s] [%s]",
+		    tests[i].format, tests[i].format, tests[i].format);
+		strfmon(actual, sizeof(actual), format,
+		    123.45, -123.45, 3456.781);
+		ATF_CHECK_STREQ_MSG(tests[i].expected, actual,
+		    "[%s]", tests[i].format);
+	}
+}
+
+ATF_TC(strfmon_cs_precedes_0);
+ATF_TC_HEAD(strfmon_cs_precedes_0, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "sep_by_space x sign_posn when cs_precedes = 0");
+}
+ATF_TC_BODY(strfmon_cs_precedes_0, tc)
+{
+	const struct {
+		const char *expected;
+	} tests[] = {
+	    /* sep_by_space x sign_posn */
+	    { "[(123.00$)] [-123.00$] [123.00$-] [123.00-$] [123.00$-]" },
+	    { "[(123.00 $)] [-123.00 $] [123.00 $-] [123.00 -$] [123.00 $-]" },
+	    { "[(123.00$)] [-123.00$] [123.00$ -] [123.00- $] [123.00$ -]" }, /* XXX */
+	};
+	size_t i, j;
+	struct lconv *lc;
+	char actual[100], buf[100];
+
+	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL)
+		atf_tc_skip("unable to setlocale()");
+
+	lc = localeconv();
+	lc->n_cs_precedes = 0;
+
+	for (i = 0; i < nitems(tests); ++i) {
+		actual[0] = '\0';
+		lc->n_sep_by_space = i;
+
+		for (j = 0; j < 5; ++j) {
+			lc->n_sign_posn = j;
+
+			strfmon(buf, sizeof(buf), "[%n] ", -123.0);
+			strlcat(actual, buf, sizeof(actual));
+		}
+
+		actual[strlen(actual) - 1] = '\0';
+		ATF_CHECK_STREQ_MSG(tests[i].expected, actual,
+		    "sep_by_space = %zu", i);
+	}
+}
+
+ATF_TC(strfmon_cs_precedes_1);
+ATF_TC_HEAD(strfmon_cs_precedes_1, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "sep_by_space x sign_posn when cs_precedes = 1");
+}
+ATF_TC_BODY(strfmon_cs_precedes_1, tc)
+{
+	const struct {
+		const char *expected;
+	} tests[] = {
+	    /* sep_by_space x sign_posn */
+	    { "[($123.00)] [-$123.00] [$123.00-] [-$123.00] [$-123.00]" },
+	    { "[($ 123.00)] [-$ 123.00] [$ 123.00-] [-$ 123.00] [$- 123.00]" },
+	    { "[($123.00)] [- $123.00] [$123.00 -] [- $123.00] [$ -123.00]" },
+	};
+	size_t i, j;
+	struct lconv *lc;
+	char actual[100], buf[100];
+
+	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL)
+		atf_tc_skip("unable to setlocale()");
+
+	lc = localeconv();
+	lc->n_cs_precedes = 1;
+
+	for (i = 0; i < nitems(tests); ++i) {
+		actual[0] = '\0';
+		lc->n_sep_by_space = i;
+
+		for (j = 0; j < 5; ++j) {
+			lc->n_sign_posn = j;
+
+			strfmon(buf, sizeof(buf), "[%n] ", -123.0);
+			strlcat(actual, buf, sizeof(actual));
+		}
+
+		actual[strlen(actual) - 1] = '\0';
+		ATF_CHECK_STREQ_MSG(tests[i].expected, actual,
+		    "sep_by_space = %zu", i);
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(strfmon_international_currency_code);
+ATF_TC_BODY(strfmon_international_currency_code, tc)
+{
+	const struct {
+		const char *locale;
+		const char *expected;
+	} tests[] = {
+	    { "en_US.UTF-8", "[USD 123.45]" }, /* XXX */
+	    { "de_DE.UTF-8", "[123,45 EUR ]" }, /* XXX */
+	    { "C", "[123.45]" }, /* XXX OOB access */
+	};
+	size_t i;
+	char actual[100];
+
+	for (i = 0; i < nitems(tests); ++i) {
+		if (setlocale(LC_MONETARY, tests[i].locale) == NULL)
+			atf_tc_skip("unable to setlocale()");
+
+		strfmon(actual, sizeof(actual), "[%i]", 123.45);
+		ATF_CHECK_STREQ(tests[i].expected, actual);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, strfmon_locale_thousands);
+	ATF_TP_ADD_TC(tp, strfmon_examples);
+	ATF_TP_ADD_TC(tp, strfmon_cs_precedes_0);
+	ATF_TP_ADD_TC(tp, strfmon_cs_precedes_1);
+	ATF_TP_ADD_TC(tp, strfmon_international_currency_code);
 	return (atf_no_error());
 }
