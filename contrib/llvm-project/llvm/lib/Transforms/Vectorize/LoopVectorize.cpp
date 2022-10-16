@@ -8149,9 +8149,15 @@ VPRecipeBase *VPRecipeBuilder::tryToOptimizeInductionPHI(
                                        *PSE.getSE(), *OrigLoop, Range);
 
   // Check if this is pointer induction. If so, build the recipe for it.
-  if (auto *II = Legal->getPointerInductionDescriptor(Phi))
-    return new VPWidenPointerInductionRecipe(Phi, Operands[0], *II,
-                                             *PSE.getSE());
+  if (auto *II = Legal->getPointerInductionDescriptor(Phi)) {
+    return new VPWidenPointerInductionRecipe(
+        Phi, Operands[0], *II, *PSE.getSE(),
+        LoopVectorizationPlanner::getDecisionAndClampRange(
+            [&](ElementCount VF) {
+              return CM.isScalarAfterVectorization(Phi, VF);
+            },
+            Range));
+  }
   return nullptr;
 }
 
