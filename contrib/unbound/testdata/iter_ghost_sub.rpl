@@ -1,0 +1,309 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	minimal-responses: no
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test ghost subdomain of another subdomain.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. 86400 IN NS
+SECTION ANSWER
+. 86400 IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	86400 IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION AUTHORITY
+com.	86400 IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	86400 IN 	A	192.5.6.30
+ENTRY_END
+
+RANGE_END
+
+; a.gtld-servers.net.
+; this is the one where example.com is delegated.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	86400 IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	86400 IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com. IN A 1.2.3.4
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+; this is the one where example.com is no longer delegated.
+RANGE_BEGIN 100 200
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	86400 IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	86400 IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NXDOMAIN
+SECTION QUESTION
+example.com. IN NS
+SECTION AUTHORITY
+com.	86400 IN SOA a. b. 1 2 3 4 5
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com. IN A	1.2.3.4
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com. IN A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com 	IN A 	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+s.example.com. IN A
+SECTION ANSWER
+s.example.com. IN A	1.2.3.4
+SECTION AUTHORITY
+s.example.com.	IN NS	s.example.com.
+SECTION ADDITIONAL
+s.example.com 	IN A 	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+s.s.example.com. IN A
+SECTION ANSWER
+s.s.example.com. IN A	1.2.3.4
+SECTION AUTHORITY
+s.s.example.com.	IN NS	s.s.example.com.
+SECTION ADDITIONAL
+s.s.example.com 	IN A 	1.2.3.4
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; get the delegation in cache
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com 	IN A 	1.2.3.4
+ENTRY_END
+
+; time passes
+STEP 25 TIME_PASSES ELAPSE 1800
+
+; get another delegation in cache
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+s.example.com. IN A
+ENTRY_END
+
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+s.example.com. IN A
+SECTION ANSWER
+s.example.com. IN A	1.2.3.4
+SECTION AUTHORITY
+s.example.com.	IN NS	s.example.com.
+ENTRY_END
+
+; time passes, 1800 + 1000 = 2800 of 3600 TTL on NS of s.example.com. and
+; example.com.
+STEP 45 TIME_PASSES ELAPSE 1000
+
+; get another delegation in cache
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+s.s.example.com. IN A
+ENTRY_END
+
+STEP 60 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+s.s.example.com. IN A
+SECTION ANSWER
+s.s.example.com. IN A	1.2.3.4
+SECTION AUTHORITY
+s.s.example.com.	IN NS	s.s.example.com.
+ENTRY_END
+
+
+; time passes, 1800 + 2000 = 3800 of 3600 TTL on NS of s.example.com. and
+; example.com.
+STEP 75 TIME_PASSES ELAPSE 1000
+
+; domain no longer delegated
+; is the domain still up?
+
+STEP 100 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.s.example.com. IN A
+ENTRY_END
+
+STEP 110 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+www.s.example.com. IN A
+SECTION AUTHORITY
+com.	86400 IN SOA a. b. 1 2 3 4 5
+ENTRY_END
+
+STEP 120 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.s.s.example.com. IN A
+ENTRY_END
+
+STEP 130 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+www.s.s.example.com. IN A
+SECTION AUTHORITY
+com.	86400 IN SOA a. b. 1 2 3 4 5
+ENTRY_END
+
+STEP 140 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+STEP 150 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+www.example.com. IN A
+SECTION AUTHORITY
+com.	86400 IN SOA a. b. 1 2 3 4 5
+ENTRY_END
+
+SCENARIO_END

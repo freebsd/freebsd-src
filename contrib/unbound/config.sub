@@ -4,7 +4,7 @@
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2022-09-17'
+timestamp='2022-08-01'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -145,7 +145,7 @@ case $1 in
 			nto-qnx* | linux-* | uclinux-uclibc* \
 			| uclinux-gnu* | kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* \
 			| netbsd*-eabi* | kopensolaris*-gnu* | cloudabi*-eabi* \
-			| storm-chaos* | os2-emx* | rtmk-nova* | managarm-*)
+			| storm-chaos* | os2-emx* | rtmk-nova*)
 				basic_machine=$field1
 				basic_os=$maybe_os
 				;;
@@ -1341,10 +1341,6 @@ EOF
 		kernel=linux
 		os=`echo "$basic_os" | sed -e 's|linux|gnu|'`
 		;;
-	managarm*)
-		kernel=managarm
-		os=`echo "$basic_os" | sed -e 's|managarm|mlibc|'`
-		;;
 	*)
 		kernel=
 		os=$basic_os
@@ -1758,16 +1754,13 @@ case $os in
 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
-	     | fiwix* | mlibc* )
+	     | fiwix* )
 		;;
 	# This one is extra strict with allowed versions
 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
 		# Don't forget version if it is 3.2v4 or newer.
 		;;
 	none)
-		;;
-	kernel* )
-		# Restricted further below
 		;;
 	*)
 		echo Invalid configuration \`"$1"\': OS \`"$os"\' not recognized 1>&2
@@ -1779,24 +1772,14 @@ esac
 # (given a valid OS), if there is a kernel.
 case $kernel-$os in
 	linux-gnu* | linux-dietlibc* | linux-android* | linux-newlib* \
-		   | linux-musl* | linux-relibc* | linux-uclibc* | linux-mlibc* )
+		   | linux-musl* | linux-relibc* | linux-uclibc* )
 		;;
 	uclinux-uclibc* )
 		;;
-	managarm-mlibc* | managarm-kernel* )
-		;;
-	-dietlibc* | -newlib* | -musl* | -relibc* | -uclibc* | -mlibc* )
+	-dietlibc* | -newlib* | -musl* | -relibc* | -uclibc* )
 		# These are just libc implementations, not actual OSes, and thus
 		# require a kernel.
 		echo "Invalid configuration \`$1': libc \`$os' needs explicit kernel." 1>&2
-		exit 1
-		;;
-	-kernel* )
-		echo "Invalid configuration \`$1': \`$os' needs explicit kernel." 1>&2
-		exit 1
-		;;
-	*-kernel* )
-		echo "Invalid configuration \`$1': \`$kernel' does not support \`$os'." 1>&2
 		exit 1
 		;;
 	kfreebsd*-gnu* | kopensolaris*-gnu*)

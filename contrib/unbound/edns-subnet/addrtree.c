@@ -97,7 +97,6 @@ node_create(struct addrtree *tree, void *elem, addrlen_t scope,
 	tree->node_count++;
 	node->scope = scope;
 	node->ttl = ttl;
-	node->only_match_scope_zero = 0;
 	node->edge[0] = NULL;
 	node->edge[1] = NULL;
 	node->parent_edge = NULL;
@@ -156,7 +155,6 @@ clean_node(struct addrtree *tree, struct addrnode *node)
 	if (!node->elem) return;
 	tree->size_bytes -= tree->sizefunc(node->elem);
 	tree->delfunc(tree->env, node->elem);
-	node->only_match_scope_zero = 0;
 	node->elem = NULL;
 }
 
@@ -360,7 +358,7 @@ issub(const addrkey_t *s1, addrlen_t l1,
 void
 addrtree_insert(struct addrtree *tree, const addrkey_t *addr, 
 	addrlen_t sourcemask, addrlen_t scope, void *elem, time_t ttl, 
-	time_t now, int only_match_scope_zero)
+	time_t now)
 {
 	struct addrnode *newnode, *node;
 	struct addredge *edge;
@@ -383,7 +381,6 @@ addrtree_insert(struct addrtree *tree, const addrkey_t *addr,
 			/* update this node's scope and data */
 			clean_node(tree, node);
 			node->ttl = ttl;
-			node->only_match_scope_zero = only_match_scope_zero;
 			node->elem = elem;
 			node->scope = scope;
 			tree->size_bytes += tree->sizefunc(elem);
@@ -450,7 +447,6 @@ addrtree_insert(struct addrtree *tree, const addrkey_t *addr,
 			newnode->elem = elem;
 			newnode->scope = scope;
 			newnode->ttl = ttl;
-			newnode->only_match_scope_zero = only_match_scope_zero;
 		} 
 		
 		tree->size_bytes += node_size(tree, newnode);
@@ -487,8 +483,7 @@ addrtree_find(struct addrtree *tree, const addrkey_t *addr,
 		/* Current node more specific then question. */
 		log_assert(depth <= sourcemask);
 		/* does this node have data? if yes, see if we have a match */
-		if (node->elem && node->ttl >= now &&
-			!(sourcemask != 0 && node->only_match_scope_zero)) {
+		if (node->elem && node->ttl >= now) {
 			/* saved at wrong depth */;
 			log_assert(node->scope >= depth);
 			if (depth == node->scope ||

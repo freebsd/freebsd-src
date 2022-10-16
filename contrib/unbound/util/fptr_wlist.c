@@ -221,7 +221,6 @@ fptr_whitelist_rbtree_cmp(int (*fptr) (const void *, const void *))
 	if(fptr == &mesh_state_compare) return 1;
 	else if(fptr == &mesh_state_ref_compare) return 1;
 	else if(fptr == &addr_tree_compare) return 1;
-	else if(fptr == &addr_tree_addrport_compare) return 1;
 	else if(fptr == &local_zone_cmp) return 1;
 	else if(fptr == &local_data_cmp) return 1;
 	else if(fptr == &fwd_cmp) return 1;

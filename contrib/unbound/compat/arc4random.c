@@ -57,8 +57,6 @@
 #define BLOCKSZ	64
 #define RSBUFSZ	(16*BLOCKSZ)
 
-#define REKEY_BASE	(1024*1024) /* NB. should be a power of 2 */
-
 /* Marked MAP_INHERIT_ZERO, so zero'd out in fork children. */
 static struct {
 	size_t		rs_have;	/* valid bytes at end of rs_buf */
@@ -181,7 +179,6 @@ static void
 _rs_stir(void)
 {
 	u_char rnd[KEYSZ + IVSZ];
-	uint32_t rekey_fuzz = 0;
 
 	if (getentropy(rnd, sizeof rnd) == -1) {
 		if(errno != ENOSYS ||
@@ -204,10 +201,7 @@ _rs_stir(void)
 	rs->rs_have = 0;
 	memset(rsx->rs_buf, 0, sizeof(rsx->rs_buf));
 
-	/* rekey interval should not be predictable */
-	chacha_encrypt_bytes(&rsx->rs_chacha, (uint8_t *)&rekey_fuzz,
-	    (uint8_t *)&rekey_fuzz, sizeof(rekey_fuzz));
-	rs->rs_count = REKEY_BASE + (rekey_fuzz % REKEY_BASE);
+	rs->rs_count = 1600000;
 }
 
 static inline void

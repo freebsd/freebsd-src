@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Oct 13, 2022" "NLnet Labs" "unbound 1.17.0"
+.TH "unbound.conf" "5" "Sep 21, 2022" "NLnet Labs" "unbound 1.16.3"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -118,7 +118,7 @@ The number of threads to create to serve clients. Use 1 for no threading.
 .B port: \fI<port number>
 The port number, default 53, on which the server responds to queries.
 .TP
-.B interface: \fI<ip address or interface name [@port]>
+.B interface: \fI<ip address[@port]>
 Interface to use to connect to the network. This interface is listened to
 for queries from clients, and answers to clients are given from it.
 Can be given multiple times to work on several interfaces. If none are
@@ -129,7 +129,7 @@ A port number can be specified with @port (without spaces between
 interface and port number), if not specified the default port (from
 \fBport\fR) is used.
 .TP
-.B ip\-address: \fI<ip address or interface name [@port]>
+.B ip\-address: \fI<ip address[@port]>
 Same as interface: (for ease of compatibility with nsd.conf).
 .TP
 .B interface\-automatic: \fI<yes or no>
@@ -656,17 +656,6 @@ Ignored if the option is not available. Default is yes.
 Disable use of TLS for the downstream DNS-over-HTTP connections.  Useful for
 local back end servers.  Default is no.
 .TP
-.B proxy\-protocol\-port: \fI<portnr>
-List port numbers as proxy\-protocol\-port, and when interfaces are defined,
-eg. with the @port suffix, as this port number, they support and expect PROXYv2.
-In this case the proxy address will only be used for the network communication
-and initial ACL (check if the proxy itself is denied/refused by configuration).
-The proxied address (if any) will then be used as the true client address and
-will be used where applicable for logging, ACL, DNSTAP, RPZ and IP ratelimiting.
-PROXYv2 is supported for UDP and TCP/TLS listening interfaces.
-There is no support for PROXYv2 on a DoH or DNSCrypt listening interface.
-Can list multiple, each on a new statement.
-.TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
 Default is no.
@@ -686,7 +675,7 @@ The netblock is given as an IP4 or IP6 address with /size appended for a
 classless network block. The action can be \fIdeny\fR, \fIrefuse\fR,
 \fIallow\fR, \fIallow_setrd\fR, \fIallow_snoop\fR, \fIdeny_non_local\fR or
 \fIrefuse_non_local\fR.
-The most specific netblock match is used, if none match \fIrefuse\fR is used.
+The most specific netblock match is used, if none match \fIdeny\fR is used.
 The order of the access\-control statements therefore does not matter.
 .IP
 The action \fIdeny\fR stops queries from hosts from that netblock.
@@ -751,46 +740,6 @@ Set redirect data for particular tag for given access control element.
 .TP
 .B access\-control\-view: \fI<IP netblock> <view name>
 Set view for given access control element.
-.TP
-.B interface\-action: \fI<ip address or interface name [@port]> <action>
-Similar to \fBaccess\-control:\fR but for interfaces.
-.IP
-The action is the same as the ones defined under \fBaccess\-control:\fR.
-Interfaces are \fIrefuse\fRd by default.
-By default only localhost (the IP netblock, not the loopback interface) is
-\fIallow\fRed through the default \fBaccess\-control:\fR behavior.
-.IP
-Note that the interface needs to be already specified with \fBinterface:\fR
-and that any \fBaccess-control*:\fR setting overrides all \fBinterface-*:\fR
-settings for targeted clients.
-.TP
-.B interface\-tag: \fI<ip address or interface name [@port]> <"list of tags">
-Similar to \fBaccess\-control-tag:\fR but for interfaces.
-.IP
-Note that the interface needs to be already specified with \fBinterface:\fR
-and that any \fBaccess-control*:\fR setting overrides all \fBinterface-*:\fR
-settings for targeted clients.
-.TP
-.B interface\-tag\-action: \fI<ip address or interface name [@port]> <tag> <action>
-Similar to \fBaccess\-control-tag-action:\fR but for interfaces.
-.IP
-Note that the interface needs to be already specified with \fBinterface:\fR
-and that any \fBaccess-control*:\fR setting overrides all \fBinterface-*:\fR
-settings for targeted clients.
-.TP
-.B interface\-tag\-data: \fI<ip address or interface name [@port]> <tag> <"resource record string">
-Similar to \fBaccess\-control-tag-data:\fR but for interfaces.
-.IP
-Note that the interface needs to be already specified with \fBinterface:\fR
-and that any \fBaccess-control*:\fR setting overrides all \fBinterface-*:\fR
-settings for targeted clients.
-.TP
-.B interface\-view: \fI<ip address or interface name [@port]> <view name>
-Similar to \fBaccess\-control-view:\fR but for interfaces.
-.IP
-Note that the interface needs to be already specified with \fBinterface:\fR
-and that any \fBaccess-control*:\fR setting overrides all \fBinterface-*:\fR
-settings for targeted clients.
 .TP
 .B chroot: \fI<directory>
 If chroot is enabled, you should pass the configfile (from the
@@ -1874,11 +1823,9 @@ section for options.  To setup the correct self\-signed certificates use the
 The option is used to enable remote control, default is "no".
 If turned off, the server does not listen for control commands.
 .TP 5
-.B control\-interface: \fI<ip address or interface name or path>
+.B control\-interface: \fI<ip address or path>
 Give IPv4 or IPv6 addresses or local socket path to listen on for
 control commands.
-If an interface name is used instead of an ip address, the list of ip addresses
-on that interface are used.
 By default localhost (127.0.0.1 and ::1) is listened to.
 Use 0.0.0.0 and ::0 to listen to all interfaces.
 If you change this and permissions have been dropped, you must restart

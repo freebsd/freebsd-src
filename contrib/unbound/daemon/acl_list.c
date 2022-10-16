@@ -46,10 +46,9 @@
 #include "util/config_file.h"
 #include "util/net_help.h"
 #include "services/localzone.h"
-#include "services/listen_dnsport.h"
 #include "sldns/str2wire.h"
 
-struct acl_list*
+struct acl_list* 
 acl_list_create(void)
 {
 	struct acl_list* acl = (struct acl_list*)calloc(1,
@@ -64,10 +63,10 @@ acl_list_create(void)
 	return acl;
 }
 
-void
+void 
 acl_list_delete(struct acl_list* acl)
 {
-	if(!acl)
+	if(!acl) 
 		return;
 	regional_destroy(acl->region);
 	free(acl);
@@ -75,8 +74,8 @@ acl_list_delete(struct acl_list* acl)
 
 /** insert new address into acl_list structure */
 static struct acl_addr*
-acl_list_insert(struct acl_list* acl, struct sockaddr_storage* addr,
-	socklen_t addrlen, int net, enum acl_access control,
+acl_list_insert(struct acl_list* acl, struct sockaddr_storage* addr, 
+	socklen_t addrlen, int net, enum acl_access control, 
 	int complain_duplicates)
 {
 	struct acl_addr* node = regional_alloc_zero(acl->region,
@@ -91,31 +90,6 @@ acl_list_insert(struct acl_list* acl, struct sockaddr_storage* addr,
 	return node;
 }
 
-/** parse str to acl_access enum */
-static int
-parse_acl_access(const char* str, enum acl_access* control)
-{
-	if(strcmp(str, "allow") == 0)
-		*control = acl_allow;
-	else if(strcmp(str, "deny") == 0)
-		*control = acl_deny;
-	else if(strcmp(str, "refuse") == 0)
-		*control = acl_refuse;
-	else if(strcmp(str, "deny_non_local") == 0)
-		*control = acl_deny_non_local;
-	else if(strcmp(str, "refuse_non_local") == 0)
-		*control = acl_refuse_non_local;
-	else if(strcmp(str, "allow_snoop") == 0)
-		*control = acl_allow_snoop;
-	else if(strcmp(str, "allow_setrd") == 0)
-		*control = acl_allow_setrd;
-	else {
-		log_err("access control type %s unknown", str);
-		return 0;
-	}
-	return 1;
-}
-
 /** apply acl_list string */
 static int
 acl_list_str_cfg(struct acl_list* acl, const char* str, const char* s2,
@@ -125,14 +99,29 @@ acl_list_str_cfg(struct acl_list* acl, const char* str, const char* s2,
 	int net;
 	socklen_t addrlen;
 	enum acl_access control;
-	if(!parse_acl_access(s2, &control)) {
+	if(strcmp(s2, "allow") == 0)
+		control = acl_allow;
+	else if(strcmp(s2, "deny") == 0)
+		control = acl_deny;
+	else if(strcmp(s2, "refuse") == 0)
+		control = acl_refuse;
+	else if(strcmp(s2, "deny_non_local") == 0)
+		control = acl_deny_non_local;
+	else if(strcmp(s2, "refuse_non_local") == 0)
+		control = acl_refuse_non_local;
+	else if(strcmp(s2, "allow_snoop") == 0)
+		control = acl_allow_snoop;
+	else if(strcmp(s2, "allow_setrd") == 0)
+		control = acl_allow_setrd;
+	else {
+		log_err("access control type %s unknown", str);
 		return 0;
 	}
 	if(!netblockstrtoaddr(str, UNBOUND_DNS_PORT, &addr, &addrlen, &net)) {
 		log_err("cannot parse access control: %s %s", str, s2);
 		return 0;
 	}
-	if(!acl_list_insert(acl, &addr, addrlen, net, control,
+	if(!acl_list_insert(acl, &addr, addrlen, net, control, 
 		complain_duplicates)) {
 		log_err("out of memory");
 		return 0;
@@ -142,27 +131,19 @@ acl_list_str_cfg(struct acl_list* acl, const char* str, const char* s2,
 
 /** find or create node (NULL on parse or error) */
 static struct acl_addr*
-acl_find_or_create_str2addr(struct acl_list* acl, const char* str,
-	int is_interface, int port)
+acl_find_or_create(struct acl_list* acl, const char* str)
 {
 	struct acl_addr* node;
 	struct sockaddr_storage addr;
+	int net;
 	socklen_t addrlen;
-	int net = (str_is_ip6(str)?128:32);
-	if(is_interface) {
-		if(!extstrtoaddr(str, &addr, &addrlen, port)) {
-			log_err("cannot parse interface: %s", str);
-			return NULL;
-		}
-	} else {
-		if(!netblockstrtoaddr(str, UNBOUND_DNS_PORT, &addr, &addrlen, &net)) {
-			log_err("cannot parse netblock: %s", str);
-			return NULL;
-		}
+	if(!netblockstrtoaddr(str, UNBOUND_DNS_PORT, &addr, &addrlen, &net)) {
+		log_err("cannot parse netblock: %s", str);
+		return NULL;
 	}
 	/* find or create node */
 	if(!(node=(struct acl_addr*)addr_tree_find(&acl->tree, &addr,
-		addrlen, net)) && !is_interface) {
+		addrlen, net))) {
 		/* create node, type 'allow' since otherwise tags are
 		 * pointless, can override with specific access-control: cfg */
 		if(!(node=(struct acl_addr*)acl_list_insert(acl, &addr,
@@ -174,65 +155,14 @@ acl_find_or_create_str2addr(struct acl_list* acl, const char* str,
 	return node;
 }
 
-/** find or create node (NULL on error) */
-static struct acl_addr*
-acl_find_or_create(struct acl_list* acl, struct sockaddr_storage* addr,
-	socklen_t addrlen, enum acl_access control)
-{
-	struct acl_addr* node;
-	int net = (addr_is_ip6(addr, addrlen)?128:32);
-	/* find or create node */
-	if(!(node=(struct acl_addr*)addr_tree_find(&acl->tree, addr,
-		addrlen, net))) {
-		/* create node;
-		 * can override with specific access-control: cfg */
-		if(!(node=(struct acl_addr*)acl_list_insert(acl, addr,
-			addrlen, net, control, 1))) {
-			log_err("out of memory");
-			return NULL;
-		}
-	}
-	return node;
-}
-
-/** apply acl_interface string */
-static int
-acl_interface_str_cfg(struct acl_list* acl_interface, const char* iface,
-	const char* s2, int port)
-{
-	struct acl_addr* node;
-	enum acl_access control;
-	if(!parse_acl_access(s2, &control)) {
-		return 0;
-	}
-	if(!(node=acl_find_or_create_str2addr(acl_interface, iface, 1, port))) {
-		log_err("cannot update ACL on non-configured interface: %s %d",
-			iface, port);
-		return 0;
-	}
-	node->control = control;
-	return 1;
-}
-
-struct acl_addr*
-acl_interface_insert(struct acl_list* acl_interface,
-	struct sockaddr_storage* addr, socklen_t addrlen,
-	enum acl_access control)
-{
-	return acl_find_or_create(acl_interface, addr, addrlen, control);
-}
-
 /** apply acl_tag string */
 static int
 acl_list_tags_cfg(struct acl_list* acl, const char* str, uint8_t* bitmap,
-	size_t bitmaplen, int is_interface, int port)
+	size_t bitmaplen)
 {
 	struct acl_addr* node;
-	if(!(node=acl_find_or_create_str2addr(acl, str, is_interface, port))) {
-		if(is_interface)
-			log_err("non-configured interface: %s", str);
+	if(!(node=acl_find_or_create(acl, str)))
 		return 0;
-	}
 	node->taglen = bitmaplen;
 	node->taglist = regional_alloc_init(acl->region, bitmap, bitmaplen);
 	if(!node->taglist) {
@@ -245,14 +175,11 @@ acl_list_tags_cfg(struct acl_list* acl, const char* str, uint8_t* bitmap,
 /** apply acl_view string */
 static int
 acl_list_view_cfg(struct acl_list* acl, const char* str, const char* str2,
-	struct views* vs, int is_interface, int port)
+	struct views* vs)
 {
 	struct acl_addr* node;
-	if(!(node=acl_find_or_create_str2addr(acl, str, is_interface, port))) {
-		if(is_interface)
-			log_err("non-configured interface: %s", str);
+	if(!(node=acl_find_or_create(acl, str)))
 		return 0;
-	}
 	node->view = views_find_view(vs, str2, 0 /* get read lock*/);
 	if(!node->view) {
 		log_err("no view with name: %s", str2);
@@ -265,17 +192,13 @@ acl_list_view_cfg(struct acl_list* acl, const char* str, const char* str2,
 /** apply acl_tag_action string */
 static int
 acl_list_tag_action_cfg(struct acl_list* acl, struct config_file* cfg,
-	const char* str, const char* tag, const char* action,
-	int is_interface, int port)
+	const char* str, const char* tag, const char* action)
 {
 	struct acl_addr* node;
 	int tagid;
 	enum localzone_type t;
-	if(!(node=acl_find_or_create_str2addr(acl, str, is_interface, port))) {
-		if(is_interface)
-			log_err("non-configured interface: %s", str);
+	if(!(node=acl_find_or_create(acl, str)))
 		return 0;
-	}
 	/* allocate array if not yet */
 	if(!node->tag_actions) {
 		node->tag_actions = (uint8_t*)regional_alloc_zero(acl->region,
@@ -358,17 +281,13 @@ check_data(const char* data, const struct config_strlist* head)
 /** apply acl_tag_data string */
 static int
 acl_list_tag_data_cfg(struct acl_list* acl, struct config_file* cfg,
-	const char* str, const char* tag, const char* data,
-	int is_interface, int port)
+	const char* str, const char* tag, const char* data)
 {
 	struct acl_addr* node;
 	int tagid;
 	char* dupdata;
-	if(!(node=acl_find_or_create_str2addr(acl, str, is_interface, port))) {
-		if(is_interface)
-			log_err("non-configured interface: %s", str);
+	if(!(node=acl_find_or_create(acl, str)))
 		return 0;
-	}
 	/* allocate array if not yet */
 	if(!node->tag_datas) {
 		node->tag_datas = (struct config_strlist**)regional_alloc_zero(
@@ -410,11 +329,11 @@ acl_list_tag_data_cfg(struct acl_list* acl, struct config_file* cfg,
 }
 
 /** read acl_list config */
-static int
-read_acl_list(struct acl_list* acl, struct config_str2list* acls)
+static int 
+read_acl_list(struct acl_list* acl, struct config_file* cfg)
 {
 	struct config_str2list* p;
-	for(p = acls; p; p = p->next) {
+	for(p = cfg->acls; p; p = p->next) {
 		log_assert(p->str && p->str2);
 		if(!acl_list_str_cfg(acl, p->str, p->str2, 1))
 			return 0;
@@ -422,38 +341,15 @@ read_acl_list(struct acl_list* acl, struct config_str2list* acls)
 	return 1;
 }
 
-/** read acl view config */
-static int
-read_acl_view(struct acl_list* acl, struct config_str2list** acl_view,
-	struct views* v)
-{
-	struct config_str2list* np, *p = *acl_view;
-	*acl_view = NULL;
-	while(p) {
-		log_assert(p->str && p->str2);
-		if(!acl_list_view_cfg(acl, p->str, p->str2, v, 0, 0)) {
-			config_deldblstrlist(p);
-			return 0;
-		}
-		/* free the items as we go to free up memory */
-		np = p->next;
-		free(p->str);
-		free(p->str2);
-		free(p);
-		p = np;
-	}
-	return 1;
-}
-
 /** read acl tags config */
-static int
-read_acl_tags(struct acl_list* acl, struct config_strbytelist** acl_tags)
+static int 
+read_acl_tags(struct acl_list* acl, struct config_file* cfg)
 {
-	struct config_strbytelist* np, *p = *acl_tags;
-	*acl_tags = NULL;
+	struct config_strbytelist* np, *p = cfg->acl_tags;
+	cfg->acl_tags = NULL;
 	while(p) {
 		log_assert(p->str && p->str2);
-		if(!acl_list_tags_cfg(acl, p->str, p->str2, p->str2len, 0, 0)) {
+		if(!acl_list_tags_cfg(acl, p->str, p->str2, p->str2len)) {
 			config_del_strbytelist(p);
 			return 0;
 		}
@@ -467,18 +363,38 @@ read_acl_tags(struct acl_list* acl, struct config_strbytelist** acl_tags)
 	return 1;
 }
 
+/** read acl view config */
+static int 
+read_acl_view(struct acl_list* acl, struct config_file* cfg, struct views* v)
+{
+	struct config_str2list* np, *p = cfg->acl_view;
+	cfg->acl_view = NULL;
+	while(p) {
+		log_assert(p->str && p->str2);
+		if(!acl_list_view_cfg(acl, p->str, p->str2, v)) {
+			return 0;
+		}
+		/* free the items as we go to free up memory */
+		np = p->next;
+		free(p->str);
+		free(p->str2);
+		free(p);
+		p = np;
+	}
+	return 1;
+}
+
 /** read acl tag actions config */
-static int
-read_acl_tag_actions(struct acl_list* acl, struct config_file* cfg,
-	struct config_str3list** acl_tag_actions)
+static int 
+read_acl_tag_actions(struct acl_list* acl, struct config_file* cfg)
 {
 	struct config_str3list* p, *np;
-	p = *acl_tag_actions;
-	*acl_tag_actions = NULL;
+	p = cfg->acl_tag_actions;
+	cfg->acl_tag_actions = NULL;
 	while(p) {
 		log_assert(p->str && p->str2 && p->str3);
 		if(!acl_list_tag_action_cfg(acl, cfg, p->str, p->str2,
-			p->str3, 0, 0)) {
+			p->str3)) {
 			config_deltrplstrlist(p);
 			return 0;
 		}
@@ -494,17 +410,15 @@ read_acl_tag_actions(struct acl_list* acl, struct config_file* cfg,
 }
 
 /** read acl tag datas config */
-static int
-read_acl_tag_datas(struct acl_list* acl, struct config_file* cfg,
-	struct config_str3list** acl_tag_datas)
+static int 
+read_acl_tag_datas(struct acl_list* acl, struct config_file* cfg)
 {
 	struct config_str3list* p, *np;
-	p = *acl_tag_datas;
-	*acl_tag_datas = NULL;
+	p = cfg->acl_tag_datas;
+	cfg->acl_tag_datas = NULL;
 	while(p) {
 		log_assert(p->str && p->str2 && p->str3);
-		if(!acl_list_tag_data_cfg(acl, cfg, p->str, p->str2, p->str3,
-			0, 0)) {
+		if(!acl_list_tag_data_cfg(acl, cfg, p->str, p->str2, p->str3)) {
 			config_deltrplstrlist(p);
 			return 0;
 		}
@@ -519,27 +433,30 @@ read_acl_tag_datas(struct acl_list* acl, struct config_file* cfg,
 	return 1;
 }
 
-int
+int 
 acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
 	struct views* v)
 {
 	regional_free_all(acl->region);
 	addr_tree_init(&acl->tree);
-	if(!read_acl_list(acl, cfg->acls))
+	if(!read_acl_list(acl, cfg))
 		return 0;
-	if(!read_acl_view(acl, &cfg->acl_view, v))
+	if(!read_acl_view(acl, cfg, v))
 		return 0;
-	if(!read_acl_tags(acl, &cfg->acl_tags))
+	if(!read_acl_tags(acl, cfg))
 		return 0;
-	if(!read_acl_tag_actions(acl, cfg, &cfg->acl_tag_actions))
+	if(!read_acl_tag_actions(acl, cfg))
 		return 0;
-	if(!read_acl_tag_datas(acl, cfg, &cfg->acl_tag_datas))
+	if(!read_acl_tag_datas(acl, cfg))
 		return 0;
 	/* insert defaults, with '0' to ignore them if they are duplicates */
-	/* the 'refuse' defaults for /0 are now done per interface instead */
+	if(!acl_list_str_cfg(acl, "0.0.0.0/0", "refuse", 0))
+		return 0;
 	if(!acl_list_str_cfg(acl, "127.0.0.0/8", "allow", 0))
 		return 0;
 	if(cfg->do_ip6) {
+		if(!acl_list_str_cfg(acl, "::0/0", "refuse", 0))
+			return 0;
 		if(!acl_list_str_cfg(acl, "::1", "allow", 0))
 			return 0;
 		if(!acl_list_str_cfg(acl, "::ffff:127.0.0.1", "allow", 0))
@@ -549,223 +466,7 @@ acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
 	return 1;
 }
 
-int
-acl_interface_compare(const void* k1, const void* k2)
-{
-	struct addr_tree_node* n1 = (struct addr_tree_node*)k1;
-	struct addr_tree_node* n2 = (struct addr_tree_node*)k2;
-	return sockaddr_cmp(&n1->addr, n1->addrlen, &n2->addr,
-		n2->addrlen);
-	/* We don't care about comparing node->net. All addresses in the
-	 * acl_interface tree have either 32 (ipv4) or 128 (ipv6). */
-}
-
-void
-acl_interface_init(struct acl_list* acl_interface)
-{
-	regional_free_all(acl_interface->region);
-	/* We want comparison in the tree to include only address and port.
-	 * We don't care about comparing node->net. All addresses in the
-	 * acl_interface->tree should have either 32 (ipv4) or 128 (ipv6).
-	 * Initialise with the appropriate compare function but keep treating
-	 * it as an addr_tree. */
-	addr_tree_addrport_init(&acl_interface->tree);
-}
-
-static int
-read_acl_interface_action(struct acl_list* acl_interface,
-	struct config_str2list* acls, int port)
-{
-	struct config_str2list* p;
-	for(p = acls; p; p = p->next) {
-		char** resif = NULL;
-		int num_resif = 0;
-		int i;
-		log_assert(p->str && p->str2);
-		if(!resolve_interface_names(&p->str, 1, NULL, &resif, &num_resif))
-			return 0;
-		for(i = 0; i<num_resif; i++) {
-			if(!acl_interface_str_cfg(acl_interface, resif[i], p->str2, port)){
-				config_del_strarray(resif, num_resif);
-				return 0;
-			}
-		}
-		config_del_strarray(resif, num_resif);
-	}
-	return 1;
-}
-
-/** read acl view config for interface */
-static int
-read_acl_interface_view(struct acl_list* acl_interface,
-	struct config_str2list** acl_view,
-	struct views* v, int port)
-{
-	struct config_str2list* np, *p = *acl_view;
-	*acl_view = NULL;
-	while(p) {
-		char** resif = NULL;
-		int num_resif = 0;
-		int i;
-		log_assert(p->str && p->str2);
-		if(!resolve_interface_names(&p->str, 1, NULL, &resif, &num_resif)) {
-			config_deldblstrlist(p);
-			return 0;
-		}
-		for(i = 0; i<num_resif; i++) {
-			if(!acl_list_view_cfg(acl_interface, resif[i], p->str2,
-				v, 1, port)) {
-				config_del_strarray(resif, num_resif);
-				config_deldblstrlist(p);
-				return 0;
-			}
-		}
-		config_del_strarray(resif, num_resif);
-		/* free the items as we go to free up memory */
-		np = p->next;
-		free(p->str);
-		free(p->str2);
-		free(p);
-		p = np;
-	}
-	return 1;
-}
-
-/** read acl tags config for interface */
-static int
-read_acl_interface_tags(struct acl_list* acl_interface,
-	struct config_strbytelist** acl_tags, int port)
-{
-	struct config_strbytelist* np, *p = *acl_tags;
-	*acl_tags = NULL;
-	while(p) {
-		char** resif = NULL;
-		int num_resif = 0;
-		int i;
-		log_assert(p->str && p->str2);
-		if(!resolve_interface_names(&p->str, 1, NULL, &resif, &num_resif)) {
-			config_del_strbytelist(p);
-			return 0;
-		}
-		for(i = 0; i<num_resif; i++) {
-			if(!acl_list_tags_cfg(acl_interface, resif[i], p->str2,
-				p->str2len, 1, port)) {
-				config_del_strbytelist(p);
-				config_del_strarray(resif, num_resif);
-				return 0;
-			}
-		}
-		config_del_strarray(resif, num_resif);
-		/* free the items as we go to free up memory */
-		np = p->next;
-		free(p->str);
-		free(p->str2);
-		free(p);
-		p = np;
-	}
-	return 1;
-}
-
-/** read acl tag actions config for interface*/
-static int
-read_acl_interface_tag_actions(struct acl_list* acl_interface,
-	struct config_file* cfg,
-	struct config_str3list** acl_tag_actions, int port)
-{
-	struct config_str3list* p, *np;
-	p = *acl_tag_actions;
-	*acl_tag_actions = NULL;
-	while(p) {
-		char** resif = NULL;
-		int num_resif = 0;
-		int i;
-		log_assert(p->str && p->str2 && p->str3);
-		if(!resolve_interface_names(&p->str, 1, NULL, &resif, &num_resif)) {
-			config_deltrplstrlist(p);
-			return 0;
-		}
-		for(i = 0; i<num_resif; i++) {
-			if(!acl_list_tag_action_cfg(acl_interface, cfg,
-				resif[i], p->str2, p->str3, 1, port)) {
-				config_deltrplstrlist(p);
-				config_del_strarray(resif, num_resif);
-				return 0;
-			}
-		}
-		config_del_strarray(resif, num_resif);
-		/* free the items as we go to free up memory */
-		np = p->next;
-		free(p->str);
-		free(p->str2);
-		free(p->str3);
-		free(p);
-		p = np;
-	}
-	return 1;
-}
-
-/** read acl tag datas config for interface */
-static int
-read_acl_interface_tag_datas(struct acl_list* acl_interface,
-	struct config_file* cfg,
-	struct config_str3list** acl_tag_datas, int port)
-{
-	struct config_str3list* p, *np;
-	p = *acl_tag_datas;
-	*acl_tag_datas = NULL;
-	while(p) {
-		char** resif = NULL;
-		int num_resif = 0;
-		int i;
-		log_assert(p->str && p->str2 && p->str3);
-		if(!resolve_interface_names(&p->str, 1, NULL, &resif, &num_resif)) {
-			config_deltrplstrlist(p);
-			return 0;
-		}
-		for(i = 0; i<num_resif; i++) {
-			if(!acl_list_tag_data_cfg(acl_interface, cfg,
-				resif[i], p->str2, p->str3, 1, port)) {
-				config_deltrplstrlist(p);
-				config_del_strarray(resif, num_resif);
-				return 0;
-			}
-		}
-		config_del_strarray(resif, num_resif);
-		/* free the items as we go to free up memory */
-		np = p->next;
-		free(p->str);
-		free(p->str2);
-		free(p->str3);
-		free(p);
-		p = np;
-	}
-	return 1;
-}
-
-int
-acl_interface_apply_cfg(struct acl_list* acl_interface, struct config_file* cfg,
-	struct views* v)
-{
-	if(!read_acl_interface_action(acl_interface, cfg->interface_actions,
-		cfg->port))
-		return 0;
-	if(!read_acl_interface_view(acl_interface, &cfg->interface_view, v,
-		cfg->port))
-		return 0;
-	if(!read_acl_interface_tags(acl_interface, &cfg->interface_tags,
-		cfg->port))
-		return 0;
-	if(!read_acl_interface_tag_actions(acl_interface, cfg,
-		&cfg->interface_tag_actions, cfg->port))
-		return 0;
-	if(!read_acl_interface_tag_datas(acl_interface, cfg,
-		&cfg->interface_tag_datas, cfg->port))
-		return 0;
-	addr_tree_init_parents(&acl_interface->tree);
-	return 1;
-}
-
-enum acl_access
+enum acl_access 
 acl_get_control(struct acl_addr* acl)
 {
 	if(acl) return acl->control;
@@ -780,7 +481,7 @@ acl_addr_lookup(struct acl_list* acl, struct sockaddr_storage* addr,
 		addr, addrlen);
 }
 
-size_t
+size_t 
 acl_list_get_mem(struct acl_list* acl)
 {
 	if(!acl) return 0;

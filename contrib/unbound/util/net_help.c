@@ -233,11 +233,12 @@ log_addr(enum verbosity_value v, const char* str,
 	else	verbose(v, "%s %s port %d", str, dest, (int)port);
 }
 
-int
+int 
 extstrtoaddr(const char* str, struct sockaddr_storage* addr,
-	socklen_t* addrlen, int port)
+	socklen_t* addrlen)
 {
 	char* s;
+	int port = UNBOUND_DNS_PORT;
 	if((s=strchr(str, '@'))) {
 		char buf[MAX_ADDR_STRLEN];
 		if(s-str >= MAX_ADDR_STRLEN) {
@@ -253,6 +254,7 @@ extstrtoaddr(const char* str, struct sockaddr_storage* addr,
 	}
 	return ipstrtoaddr(str, port, addr, addrlen);
 }
+
 
 int 
 ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,

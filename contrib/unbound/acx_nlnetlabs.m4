@@ -2,8 +2,7 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 44
-# 2022-09-01 fix checking if nonblocking sockets work on OpenBSD.
+# Version 43
 # 2021-08-17 fix sed script in ssldir split handling.
 # 2021-08-17 fix for openssl to detect split version, with ssldir_include
 # 	     and ssldir_lib output directories.
@@ -963,9 +962,6 @@ AC_LANG_SOURCE([[
 #include <errno.h>
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SELECT_H
-#include <sys/select.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>

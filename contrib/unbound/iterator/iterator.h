@@ -324,7 +324,7 @@ struct iter_qstate {
 	/** the number of times this query has been restarted. */
 	int query_restart_count;
 
-	/** the number of times this query has followed a referral. */
+	/** the number of times this query as followed a referral. */
 	int referral_count;
 
 	/** number of queries fired off */

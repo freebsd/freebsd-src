@@ -806,7 +806,7 @@ static void mesh_schedule_prefetch_subnet(struct mesh_area* mesh,
 		/* Fake the ECS data from the client's IP */
 		struct ecs_data ecs;
 		memset(&ecs, 0, sizeof(ecs));
-		subnet_option_from_ss(&rep->client_addr, &ecs, mesh->env->cfg);
+		subnet_option_from_ss(&rep->addr, &ecs, mesh->env->cfg);
 		if(ecs.subnet_validdata == 0) {
 			log_err("prefetch_subnet subnet_option_from_ss: invalid data");
 			return;
@@ -1488,9 +1488,8 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
 	}
 	/* Log reply sent */
 	if(m->s.env->cfg->log_replies) {
-		log_reply_info(NO_VERBOSE, &m->s.qinfo,
-			&r->query_reply.client_addr,
-			r->query_reply.client_addrlen, duration, 0, r_buffer);
+		log_reply_info(NO_VERBOSE, &m->s.qinfo, &r->query_reply.addr,
+			r->query_reply.addrlen, duration, 0, r_buffer);
 	}
 }
 
@@ -1531,8 +1530,7 @@ void mesh_query_done(struct mesh_state* mstate)
 			respip_inform_print(mstate->s.respip_action_info,
 				r->qname, mstate->s.qinfo.qtype,
 				mstate->s.qinfo.qclass, r->local_alias,
-				&r->query_reply.client_addr,
-				r->query_reply.client_addrlen);
+				&r->query_reply);
 			if(mstate->s.env->cfg->stat_extended &&
 				mstate->s.respip_action_info->rpz_used) {
 				if(mstate->s.respip_action_info->rpz_disabled)
@@ -2182,8 +2180,7 @@ mesh_serve_expired_callback(void* arg)
 		if(actinfo.addrinfo) {
 			respip_inform_print(&actinfo, r->qname,
 				qstate->qinfo.qtype, qstate->qinfo.qclass,
-				r->local_alias, &r->query_reply.client_addr,
-				r->query_reply.client_addrlen);
+				r->local_alias, &r->query_reply);
 
 			if(qstate->env->cfg->stat_extended && actinfo.rpz_used) {
 				if(actinfo.rpz_disabled)

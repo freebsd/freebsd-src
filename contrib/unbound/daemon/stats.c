@@ -70,9 +70,6 @@
 #include <openssl/ssl.h>
 #endif
 
-/** How long to wait for threads to transmit statistics, in msec. */
-#define STATS_THREAD_WAIT 60000
-
 /** add timers and the values do not overflow or become negative */
 static void
 stats_timeval_add(long long* d_sec, long long* d_usec, long long add_sec, long long add_usec)
@@ -383,28 +380,6 @@ void server_stats_obtain(struct worker* worker, struct worker* who,
 		worker_send_cmd(who, worker_cmd_stats);
 	else 	worker_send_cmd(who, worker_cmd_stats_noreset);
 	verbose(VERB_ALGO, "wait for stats reply");
-	if(tube_wait_timeout(worker->cmd, STATS_THREAD_WAIT) == 0) {
-		verbose(VERB_OPS, "no response from thread %d"
-#ifdef HAVE_GETTID
-			" LWP %u"
-#endif
-#if defined(HAVE_PTHREAD) && defined(SIZEOF_PTHREAD_T) && defined(SIZEOF_UNSIGNED_LONG)
-#  if SIZEOF_PTHREAD_T == SIZEOF_UNSIGNED_LONG
-			" pthread 0x%lx"
-#  endif
-#endif
-			,
-			who->thread_num
-#ifdef HAVE_GETTID
-			, (unsigned)who->thread_tid
-#endif
-#if defined(HAVE_PTHREAD) && defined(SIZEOF_PTHREAD_T) && defined(SIZEOF_UNSIGNED_LONG)
-#  if SIZEOF_PTHREAD_T == SIZEOF_UNSIGNED_LONG
-			, (unsigned long)*((unsigned long*)&who->thr_id)
-#  endif
-#endif
-			);
-	}
 	if(!tube_read_msg(worker->cmd, &reply, &len, 0))
 		fatal_exit("failed to read stats over cmd channel");
 	if(len != (uint32_t)sizeof(*s))
@@ -521,7 +496,7 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 				stats->qhttps++;
 		}
 	}
-	if(repinfo && addr_is_ip6(&repinfo->remote_addr, repinfo->remote_addrlen))
+	if(repinfo && addr_is_ip6(&repinfo->addr, repinfo->addrlen))
 		stats->qipv6++;
 	if( (flags&BIT_QR) )
 		stats->qbit_QR++;

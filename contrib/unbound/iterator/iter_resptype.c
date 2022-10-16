@@ -113,11 +113,7 @@ response_type_from_server(int rdset,
 
 	if(!msg || !request)
 		return RESPONSE_TYPE_THROWAWAY;
-	/* If the TC flag is set, the response is incomplete. Too large to
-	 * fit even in TCP or so. Discard it, it cannot be retrieved here. */
-	if((msg->rep->flags & BIT_TC))
-		return RESPONSE_TYPE_THROWAWAY;
-
+	
 	/* If the message is NXDOMAIN, then it answers the question. */
 	if(FLAGS_GET_RCODE(msg->rep->flags) == LDNS_RCODE_NXDOMAIN) {
 		/* make sure its not recursive when we don't want it to */

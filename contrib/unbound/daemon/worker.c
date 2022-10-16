@@ -547,8 +547,7 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 static int
 apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	struct respip_client_info* cinfo, struct reply_info* rep,
-	struct sockaddr_storage* addr, socklen_t addrlen,
-	struct ub_packed_rrset_key** alias_rrset,
+	struct comm_reply* repinfo, struct ub_packed_rrset_key** alias_rrset,
 	struct reply_info** encode_repp, struct auth_zones* az)
 {
 	struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};
@@ -575,7 +574,7 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	if(actinfo.addrinfo) {
 		respip_inform_print(&actinfo, qinfo->qname,
 			qinfo->qtype, qinfo->qclass, qinfo->local_alias,
-			addr, addrlen);
+			repinfo);
 
 		if(worker->stats.extended && actinfo.rpz_used) {
 			if(actinfo.rpz_disabled)
@@ -704,7 +703,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	*alias_rrset = NULL; /* avoid confusion if caller set it to non-NULL */
 	if((worker->daemon->use_response_ip || worker->daemon->use_rpz) &&
 		!partial_rep && !apply_respip_action(worker, qinfo, cinfo, rep,
-		&repinfo->client_addr, repinfo->client_addrlen, alias_rrset,
+		repinfo, alias_rrset,
 		&encode_rep, worker->env.auth_zones)) {
 		goto bail_out;
 	} else if(partial_rep &&
@@ -992,14 +991,12 @@ answer_chaos(struct worker* w, struct query_info* qinfo,
  * @param w: worker
  * @param qinfo: query info. Pointer into packet buffer.
  * @param edns: edns info from query.
- * @param addr: client address.
- * @param addrlen: client address length.
+ * @param repinfo: reply info with source address.
  * @param pkt: packet buffer.
  */
 static void
-answer_notify(struct worker* w, struct query_info* qinfo,
-	struct edns_data* edns, sldns_buffer* pkt,
-	struct sockaddr_storage* addr, socklen_t addrlen)
+answer_notify(struct worker* w, struct query_info* qinfo, 
+	struct edns_data* edns, sldns_buffer* pkt, struct comm_reply* repinfo)
 {
 	int refused = 0;
 	int rcode = LDNS_RCODE_NOERROR;
@@ -1008,8 +1005,8 @@ answer_notify(struct worker* w, struct query_info* qinfo,
 	if(!w->env.auth_zones) return;
 	has_serial = auth_zone_parse_notify_serial(pkt, &serial);
 	if(auth_zones_notify(w->env.auth_zones, &w->env, qinfo->qname,
-		qinfo->qname_len, qinfo->qclass, addr,
-		addrlen, has_serial, serial, &refused)) {
+		qinfo->qname_len, qinfo->qclass, &repinfo->addr,
+		repinfo->addrlen, has_serial, serial, &refused)) {
 		rcode = LDNS_RCODE_NOERROR;
 	} else {
 		if(refused)
@@ -1034,7 +1031,7 @@ answer_notify(struct worker* w, struct query_info* qinfo,
 				"servfail for NOTIFY %sfor %s from", sr, zname);
 		else	snprintf(buf, sizeof(buf),
 				"received NOTIFY %sfor %s from", sr, zname);
-		log_addr(VERB_DETAIL, buf, addr, addrlen);
+		log_addr(VERB_DETAIL, buf, &repinfo->addr, repinfo->addrlen);
 	}
 	edns->edns_version = EDNS_ADVERTISED_VERSION;
 	edns->udp_size = EDNS_ADVERTISED_SIZE;
@@ -1054,8 +1051,8 @@ deny_refuse(struct comm_point* c, enum acl_access acl,
 {
 	if(acl == deny) {
 		if(verbosity >= VERB_ALGO) {
-			log_acl_action("dropped", &repinfo->client_addr,
-				repinfo->client_addrlen, acl, acladdr);
+			log_acl_action("dropped", &repinfo->addr,
+				repinfo->addrlen, acl, acladdr);
 			log_buf(VERB_ALGO, "dropped", c->buffer);
 		}
 		comm_point_drop_reply(repinfo);
@@ -1066,8 +1063,8 @@ deny_refuse(struct comm_point* c, enum acl_access acl,
 		size_t opt_rr_mark;
 
 		if(verbosity >= VERB_ALGO) {
-			log_acl_action("refused", &repinfo->client_addr,
-				repinfo->client_addrlen, acl, acladdr);
+			log_acl_action("refused", &repinfo->addr,
+				repinfo->addrlen, acl, acladdr);
 			log_buf(VERB_ALGO, "refuse", c->buffer);
 		}
 
@@ -1227,24 +1224,12 @@ deny_refuse(struct comm_point* c, enum acl_access acl,
 }
 
 static int
-deny_refuse_all(struct comm_point* c, enum acl_access* acl,
+deny_refuse_all(struct comm_point* c, enum acl_access acl,
 	struct worker* worker, struct comm_reply* repinfo,
-	struct acl_addr** acladdr, int ede, int check_proxy)
+	struct acl_addr* acladdr, int ede)
 {
-	if(check_proxy) {
-		*acladdr = acl_addr_lookup(worker->daemon->acl,
-			&repinfo->remote_addr, repinfo->remote_addrlen);
-	} else {
-		*acladdr = acl_addr_lookup(worker->daemon->acl,
-			&repinfo->client_addr, repinfo->client_addrlen);
-	}
-	/* If there is no ACL based on client IP use the interface ACL. */
-	if(!(*acladdr) && c->socket) {
-		*acladdr = c->socket->acl;
-	}
-	*acl = acl_get_control(*acladdr);
-	return deny_refuse(c, *acl, acl_deny, acl_refuse, worker, repinfo,
-		*acladdr, ede);
+	return deny_refuse(c, acl, acl_deny, acl_refuse, worker, repinfo,
+		acladdr, ede);
 }
 
 static int
@@ -1256,7 +1241,7 @@ deny_refuse_non_local(struct comm_point* c, enum acl_access acl,
 		worker, repinfo, acladdr, ede);
 }
 
-int
+int 
 worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct comm_reply* repinfo)
 {
@@ -1301,16 +1286,16 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		if(worker_check_request(c->buffer, worker) != 0) {
 			verbose(VERB_ALGO,
 				"dnscrypt: worker check request: bad query.");
-			log_addr(VERB_CLIENT,"from",&repinfo->client_addr,
-				repinfo->client_addrlen);
+			log_addr(VERB_CLIENT,"from",&repinfo->addr,
+				repinfo->addrlen);
 			comm_point_drop_reply(repinfo);
 			return 0;
 		}
 		if(!query_info_parse(&qinfo, c->buffer)) {
 			verbose(VERB_ALGO,
 				"dnscrypt: worker parse request: formerror.");
-			log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-				repinfo->client_addrlen);
+			log_addr(VERB_CLIENT, "from", &repinfo->addr,
+				repinfo->addrlen);
 			comm_point_drop_reply(repinfo);
 			return 0;
 		}
@@ -1338,30 +1323,25 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	 * sending src (client)/dst (local service) addresses over DNSTAP from incoming request handler
 	 */
 	if(worker->dtenv.log_client_query_messages) {
-		log_addr(VERB_ALGO, "request from client", &repinfo->client_addr, repinfo->client_addrlen);
+		log_addr(VERB_ALGO, "request from client", &repinfo->addr, repinfo->addrlen);
 		log_addr(VERB_ALGO, "to local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
-		dt_msg_send_client_query(&worker->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
+		dt_msg_send_client_query(&worker->dtenv, &repinfo->addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
 	}
 #endif
-	/* Check deny/refuse ACLs */
-	if(repinfo->is_proxied) {
-		if((ret=deny_refuse_all(c, &acl, worker, repinfo, &acladdr,
-			worker->env.cfg->ede, 1)) != -1) {
-			if(ret == 1)
-				goto send_reply;
-			return ret;
-		}
-	}
-	if((ret=deny_refuse_all(c, &acl, worker, repinfo, &acladdr,
-		worker->env.cfg->ede, 0)) != -1) {
+	acladdr = acl_addr_lookup(worker->daemon->acl, &repinfo->addr, 
+		repinfo->addrlen);
+	acl = acl_get_control(acladdr);
+
+	if((ret=deny_refuse_all(c, acl, worker, repinfo, acladdr,
+		worker->env.cfg->ede)) != -1)
+	{
 		if(ret == 1)
 			goto send_reply;
 		return ret;
 	}
-
 	if((ret=worker_check_request(c->buffer, worker)) != 0) {
 		verbose(VERB_ALGO, "worker check request: bad query.");
-		log_addr(VERB_CLIENT,"from",&repinfo->client_addr, repinfo->client_addrlen);
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 		if(ret != -1) {
 			LDNS_QR_SET(sldns_buffer_begin(c->buffer));
 			LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), ret);
@@ -1373,24 +1353,20 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 
 	worker->stats.num_queries++;
 
-	/* check if this query should be dropped based on source ip rate limiting
-	 * NOTE: we always check the repinfo->client_address. IP ratelimiting is
-	 *       implicitly disabled for proxies. */
-	if(!infra_ip_ratelimit_inc(worker->env.infra_cache,
-			&repinfo->client_addr, repinfo->client_addrlen,
+	/* check if this query should be dropped based on source ip rate limiting */
+	if(!infra_ip_ratelimit_inc(worker->env.infra_cache, repinfo,
 			*worker->env.now,
 			worker->env.cfg->ip_ratelimit_backoff, c->buffer)) {
 		/* See if we are passed through with slip factor */
 		if(worker->env.cfg->ip_ratelimit_factor != 0 &&
 			ub_random_max(worker->env.rnd,
-			worker->env.cfg->ip_ratelimit_factor) == 0) {
+						  worker->env.cfg->ip_ratelimit_factor) == 0) {
+
 			char addrbuf[128];
-			addr_to_str(&repinfo->client_addr,
-				repinfo->client_addrlen, addrbuf,
-				sizeof(addrbuf));
-			verbose(VERB_QUERY, "ip_ratelimit allowed through for "
-				"ip address %s because of slip in "
-				"ip_ratelimit_factor", addrbuf);
+			addr_to_str(&repinfo->addr, repinfo->addrlen,
+						addrbuf, sizeof(addrbuf));
+		  verbose(VERB_QUERY, "ip_ratelimit allowed through for ip address %s because of slip in ip_ratelimit_factor",
+				  addrbuf);
 		} else {
 			worker->stats.num_queries_ip_ratelimited++;
 			comm_point_drop_reply(repinfo);
@@ -1401,8 +1377,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	/* see if query is in the cache */
 	if(!query_info_parse(&qinfo, c->buffer)) {
 		verbose(VERB_ALGO, "worker parse request: formerror.");
-		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-			repinfo->client_addrlen);
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 		memset(&qinfo, 0, sizeof(qinfo)); /* zero qinfo.qname */
 		if(worker_err_ratelimit(worker, LDNS_RCODE_FORMERR) == -1) {
 			comm_point_drop_reply(repinfo);
@@ -1416,14 +1391,13 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	}
 	if(worker->env.cfg->log_queries) {
 		char ip[128];
-		addr_to_str(&repinfo->client_addr, repinfo->client_addrlen, ip, sizeof(ip));
+		addr_to_str(&repinfo->addr, repinfo->addrlen, ip, sizeof(ip));
 		log_query_in(ip, qinfo.qname, qinfo.qtype, qinfo.qclass);
 	}
 	if(qinfo.qtype == LDNS_RR_TYPE_AXFR || 
 		qinfo.qtype == LDNS_RR_TYPE_IXFR) {
 		verbose(VERB_ALGO, "worker request: refused zone transfer.");
-		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-			repinfo->client_addrlen);
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 		sldns_buffer_rewind(c->buffer);
 		LDNS_QR_SET(sldns_buffer_begin(c->buffer));
 		LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), 
@@ -1440,8 +1414,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		qinfo.qtype == LDNS_RR_TYPE_MAILB ||
 		(qinfo.qtype >= 128 && qinfo.qtype <= 248)) {
 		verbose(VERB_ALGO, "worker request: formerror for meta-type.");
-		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-			repinfo->client_addrlen);
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 		if(worker_err_ratelimit(worker, LDNS_RCODE_FORMERR) == -1) {
 			comm_point_drop_reply(repinfo);
 			return 0;
@@ -1459,8 +1432,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 					worker->scratchpad)) != 0) {
 		struct edns_data reply_edns;
 		verbose(VERB_ALGO, "worker parse edns: formerror.");
-		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-			repinfo->client_addrlen);
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 		memset(&reply_edns, 0, sizeof(reply_edns));
 		reply_edns.edns_present = 1;
 		reply_edns.udp_size = EDNS_ADVERTISED_SIZE;
@@ -1482,8 +1454,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			edns.opt_list_inplace_cb_out = NULL;
 			edns.padding_block_size = 0;
 			verbose(VERB_ALGO, "query with bad edns version.");
-			log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-				repinfo->client_addrlen);
+			log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 			error_encode(c->buffer, EDNS_RCODE_BADVERS&0xf, &qinfo,
 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 				sldns_buffer_read_u16_at(c->buffer, 2), NULL);
@@ -1497,8 +1468,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		   worker->daemon->cfg->harden_short_bufsize) {
 			verbose(VERB_QUERY, "worker request: EDNS bufsize %d ignored",
 				(int)edns.udp_size);
-			log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-				repinfo->client_addrlen);
+			log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 			edns.udp_size = NORMAL_UDP_SIZE;
 		}
 	}
@@ -1507,14 +1477,12 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		verbose(VERB_QUERY,
 			"worker request: max UDP reply size modified"
 			" (%d to max-udp-size)", (int)edns.udp_size);
-		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-			repinfo->client_addrlen);
+		log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 		edns.udp_size = worker->daemon->cfg->max_udp_size;
 	}
 	if(edns.udp_size < LDNS_HEADER_SIZE) {
 		verbose(VERB_ALGO, "worker request: edns is too small.");
-		log_addr(VERB_CLIENT, "from", &repinfo->client_addr,
-			repinfo->client_addrlen);
+		log_addr(VERB_CLIENT, "from", &repinfo->addr, repinfo->addrlen);
 		LDNS_QR_SET(sldns_buffer_begin(c->buffer));
 		LDNS_TC_SET(sldns_buffer_begin(c->buffer));
 		LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), 
@@ -1538,8 +1506,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	}
 	if(LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) ==
 		LDNS_PACKET_NOTIFY) {
-		answer_notify(worker, &qinfo, &edns, c->buffer,
-			&repinfo->client_addr, repinfo->client_addrlen);
+		answer_notify(worker, &qinfo, &edns, c->buffer, repinfo);
 		regional_free_all(worker->scratchpad);
 		goto send_reply;
 	}
@@ -1615,7 +1582,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			sldns_buffer_read_u16_at(c->buffer, 2), &edns);
 		regional_free_all(worker->scratchpad);
 		log_addr(VERB_ALGO, "refused nonrec (cache snoop) query from",
-			&repinfo->client_addr, repinfo->client_addrlen);
+			&repinfo->addr, repinfo->addrlen);
 
 		goto send_reply;
 	}
@@ -1755,9 +1722,9 @@ lookup_cache:
 	if(verbosity >= VERB_CLIENT) {
 		if(c->type == comm_udp)
 			log_addr(VERB_CLIENT, "udp request from",
-				&repinfo->client_addr, repinfo->client_addrlen);
+				&repinfo->addr, repinfo->addrlen);
 		else	log_addr(VERB_CLIENT, "tcp request from",
-				&repinfo->client_addr, repinfo->client_addrlen);
+				&repinfo->addr, repinfo->addrlen);
 	}
 
 	/* grab a work request structure for this new request */
@@ -1789,8 +1756,8 @@ send_reply_rc:
 	 */
 	if(worker->dtenv.log_client_response_messages) {
 		log_addr(VERB_ALGO, "from local addr", (void*)repinfo->c->socket->addr->ai_addr, repinfo->c->socket->addr->ai_addrlen);
-		log_addr(VERB_ALGO, "response to client", &repinfo->client_addr, repinfo->client_addrlen);
-		dt_msg_send_client_response(&worker->dtenv, &repinfo->client_addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
+                log_addr(VERB_ALGO, "response to client", &repinfo->addr, repinfo->addrlen);
+		dt_msg_send_client_response(&worker->dtenv, &repinfo->addr, (void*)repinfo->c->socket->addr->ai_addr, c->type, c->buffer);
 	}
 #endif
 	if(worker->env.cfg->log_replies)
@@ -1802,12 +1769,10 @@ send_reply_rc:
 			/* log original qname, before the local alias was
 			 * used to resolve that CNAME to something else */
 			qinfo.qname = qinfo.local_alias->rrset->rk.dname;
-			log_reply_info(NO_VERBOSE, &qinfo,
-				&repinfo->client_addr, repinfo->client_addrlen,
+			log_reply_info(NO_VERBOSE, &qinfo, &repinfo->addr, repinfo->addrlen,
 				tv, 1, c->buffer);
 		} else {
-			log_reply_info(NO_VERBOSE, &qinfo,
-				&repinfo->client_addr, repinfo->client_addrlen,
+			log_reply_info(NO_VERBOSE, &qinfo, &repinfo->addr, repinfo->addrlen,
 				tv, 1, c->buffer);
 		}
 	}
@@ -1938,9 +1903,6 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	struct dt_env* dtenv = &worker->dtenv;
 #else
 	void* dtenv = NULL;
-#endif
-#ifdef HAVE_GETTID
-	worker->thread_tid = gettid();
 #endif
 	worker->need_to_exit = 0;
 	worker->base = comm_base_create(do_sigs);

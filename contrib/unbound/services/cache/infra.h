@@ -416,16 +416,15 @@ int infra_find_ratelimit(struct infra_cache* infra, uint8_t* name,
 /** Update query ratelimit hash and decide
  *  whether or not a query should be dropped.
  *  @param infra: infra cache
- *  @param addr: client address
- *  @param addrlen: client address length
+ *  @param repinfo: information about client
  *  @param timenow: what time it is now.
  *  @param backoff: if backoff is enabled.
  *  @param buffer: with query for logging.
  *  @return 1 if it could be incremented. 0 if the increment overshot the
  *  ratelimit and the query should be dropped. */
 int infra_ip_ratelimit_inc(struct infra_cache* infra,
-	struct sockaddr_storage* addr, socklen_t addrlen, time_t timenow,
-	int backoff, struct sldns_buffer* buffer);
+	struct comm_reply* repinfo, time_t timenow, int backoff,
+	struct sldns_buffer* buffer);
 
 /**
  * Get memory used by the infra cache.
