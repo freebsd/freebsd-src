@@ -113,6 +113,8 @@ struct daemon {
 	struct module_stack mods;
 	/** access control, which client IPs are allowed to connect */
 	struct acl_list* acl;
+	/** access control, which interfaces are allowed to connect */
+	struct acl_list* acl_interface;
 	/** TCP connection limit, limit connections from client IPs */
 	struct tcl_list* tcl;
 	/** local authority zones */
