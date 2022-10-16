@@ -1392,11 +1392,13 @@ log_rpz_apply(char* trigger, uint8_t* dname, struct addr_tree_node* addrnode,
 		dnamestr[0]=0;
 	}
 	if(repinfo) {
-		addr_to_str(&repinfo->addr, repinfo->addrlen, ip, sizeof(ip));
-		port = ntohs(((struct sockaddr_in*)&repinfo->addr)->sin_port);
+		addr_to_str(&repinfo->client_addr, repinfo->client_addrlen, ip, sizeof(ip));
+		port = ntohs(((struct sockaddr_in*)&repinfo->client_addr)->sin_port);
 	} else if(ms && ms->mesh_info && ms->mesh_info->reply_list) {
-		addr_to_str(&ms->mesh_info->reply_list->query_reply.addr, ms->mesh_info->reply_list->query_reply.addrlen, ip, sizeof(ip));
-		port = ntohs(((struct sockaddr_in*)&ms->mesh_info->reply_list->query_reply.addr)->sin_port);
+		addr_to_str(&ms->mesh_info->reply_list->query_reply.client_addr,
+			ms->mesh_info->reply_list->query_reply.client_addrlen,
+			ip, sizeof(ip));
+		port = ntohs(((struct sockaddr_in*)&ms->mesh_info->reply_list->query_reply.client_addr)->sin_port);
 	} else {
 		ip[0]=0;
 		port = 0;
@@ -1468,7 +1470,9 @@ rpz_resolve_client_action_and_zone(struct auth_zones* az, struct query_info* qin
 		}
 		z = rpz_find_zone(r->local_zones, qinfo->qname, qinfo->qname_len,
 			qinfo->qclass, 0, 0, 0);
-		node = rpz_ipbased_trigger_lookup(r->client_set, &repinfo->addr, repinfo->addrlen, "clientip");
+		node = rpz_ipbased_trigger_lookup(r->client_set,
+			&repinfo->client_addr, repinfo->client_addrlen,
+			"clientip");
 		if((z || node) && r->action_override == RPZ_DISABLED_ACTION) {
 			if(r->log)
 				log_rpz_apply((node?"clientip":"qname"),
@@ -2164,18 +2168,16 @@ rpz_callback_from_iterator_module(struct module_qstate* ms, struct iter_qstate* 
 
 	lock_rw_unlock(&az->rpz_lock);
 
-	if(raddr == NULL && z == NULL) { return NULL; }
-	else if(raddr != NULL) {
+	if(raddr == NULL && z == NULL)
+		return NULL;
+
+	if(raddr != NULL) {
 		if(z) {
 			lock_rw_unlock(&z->lock);
 		}
 		return rpz_apply_nsip_trigger(ms, r, raddr, a);
-	} else if(z != NULL) {
-		if(raddr) {
-			lock_rw_unlock(&raddr->lock);
-		}
-		return rpz_apply_nsdname_trigger(ms, r, z, &match, a);
-	} else { return NULL; }
+	}
+	return rpz_apply_nsdname_trigger(ms, r, z, &match, a);
 }
 
 struct dns_msg* rpz_callback_from_iterator_cname(struct module_qstate* ms,

@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.16.3.
+# See unbound.conf(5) man page, version 1.17.0.
 #
 # this is a comment.
 
@@ -17,7 +17,7 @@ server:
 	# whitespace is not necessary, but looks cleaner.
 
 	# verbosity number, 0 is least verbose. 1 is default.
-	verbosity: 1
+	# verbosity: 1
 
 	# print statistics to the log (for every thread) every N seconds.
 	# Set to "" or 0 to disable. Default is disabled.
@@ -50,6 +50,7 @@ server:
 	# interface: 192.0.2.154
 	# interface: 192.0.2.154@5003
 	# interface: 2001:DB8::5
+	# interface: eth0@5003
 
 	# enable this feature to copy the source address of queries to reply.
 	# Socket options are not supported on all platforms. experimental.
@@ -217,7 +218,8 @@ server:
 	# the maximum number of hosts that are cached (roundtrip, EDNS, lame).
 	# infra-cache-numhosts: 10000
 
-	# define a number of tags here, use with local-zone, access-control.
+	# define a number of tags here, use with local-zone, access-control,
+	# interface-*.
 	# repeat the define-tag statement to add additional tags.
 	# define-tag: "tag1 tag2 tag3"
 
@@ -273,9 +275,7 @@ server:
 	# allow_snoop (recursive and nonrecursive ok)
 	# deny_non_local (drop queries unless can be answered from local-data)
 	# refuse_non_local (like deny_non_local but polite error reply).
-	# access-control: 0.0.0.0/0 refuse
 	# access-control: 127.0.0.0/8 allow
-	# access-control: ::0/0 refuse
 	# access-control: ::1 allow
 	# access-control: ::ffff:127.0.0.1 allow
 
@@ -284,7 +284,7 @@ server:
 	# are tagged with one of these tags.
 	# access-control-tag: 192.0.2.0/24 "tag2 tag3"
 
-	# set action for particular tag for given access control element
+	# set action for particular tag for given access control element.
 	# if you have multiple tag values, the tag used to lookup the action
 	# is the first tag match between access-control-tag and local-zone-tag
 	# where "first" comes from the order of the define-tag values.
@@ -295,6 +295,58 @@ server:
 
 	# Set view for access control element
 	# access-control-view: 192.0.2.0/24 viewname
+
+	# Similar to 'access-control:' but for interfaces.
+	# Control which listening interfaces are allowed to accept (recursive)
+	# queries for this server.
+	# The specified interfaces should be the same as the ones specified in
+	# 'interface:' followed by the action.
+	# The actions are the same as 'access-control:' above.
+	# By default all the interfaces configured are refused.
+	# Note: any 'access-control*:' setting overrides all 'interface-*:'
+	# settings for targeted clients.
+	# interface-action: 192.0.2.153 allow
+	# interface-action: 192.0.2.154 allow
+	# interface-action: 192.0.2.154@5003 allow
+	# interface-action: 2001:DB8::5 allow
+	# interface-action: eth0@5003 allow
+
+	# Similar to 'access-control-tag:' but for interfaces.
+	# Tag interfaces with a list of tags (in "" with spaces between).
+	# Interfaces using these tags use localzones that are tagged with one
+	# of these tags.
+	# The specified interfaces should be the same as the ones specified in
+	# 'interface:' followed by the list of tags.
+	# Note: any 'access-control*:' setting overrides all 'interface-*:'
+	# settings for targeted clients.
+	# interface-tag: eth0@5003 "tag2 tag3"
+
+	# Similar to 'access-control-tag-action:' but for interfaces.
+	# Set action for particular tag for a given interface element.
+	# If you have multiple tag values, the tag used to lookup the action
+	# is the first tag match between interface-tag and local-zone-tag
+	# where "first" comes from the order of the define-tag values.
+	# The specified interfaces should be the same as the ones specified in
+	# 'interface:' followed by the tag and action.
+	# Note: any 'access-control*:' setting overrides all 'interface-*:'
+	# settings for targeted clients.
+	# interface-tag-action: eth0@5003 tag3 refuse
+
+	# Similar to 'access-control-tag-data:' but for interfaces.
+	# Set redirect data for a particular tag for an interface element.
+	# The specified interfaces should be the same as the ones specified in
+	# 'interface:' followed by the tag and the redirect data.
+	# Note: any 'access-control*:' setting overrides all 'interface-*:'
+	# settings for targeted clients.
+	# interface-tag-data: eth0@5003 tag2 "A 127.0.0.1"
+
+	# Similar to 'access-control-view:' but for interfaces.
+	# Set view for an interface element.
+	# The specified interfaces should be the same as the ones specified in
+	# 'interface:' followed by the view name.
+	# Note: any 'access-control*:' setting overrides all 'interface-*:'
+	# settings for targeted clients.
+	# interface-view: eth0@5003 viewname
 
 	# if given, a chroot(2) is done to the given directory.
 	# i.e. you can chroot to the working directory, for example,
@@ -849,6 +901,10 @@ server:
 
 	# Disable TLS for DNS-over-HTTP downstream service.
 	# http-notls-downstream: no
+
+	# The interfaces that use these listed port numbers will support and
+	# expect PROXYv2. For UDP and TCP/TLS interfaces.
+	# proxy-protocol-port: portno for each of the port numbers.
 
 	# DNS64 prefix. Must be specified when DNS64 is use.
 	# Enable dns64 in module-config.  Used to synthesize IPv6 from IPv4.

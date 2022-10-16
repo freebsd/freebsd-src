@@ -1,9 +1,116 @@
+11 October 2022: George
+	- Fix PROXYv2 header read for TCP connections when no proxied addresses
+	  are provided.
+
+7 October 2022: George
+	- Fix to stop possible loops in the tcp reuse code (write_wait list
+	  and tcp_wait list). Based on analysis and patch from Prad Seniappan
+	  and Karthik Umashankar.
+	- Fix unit test to properly test the reuse_write_wait_pop function.
+
+6 October 2022: Wouter
+	- Fix to stop responses with TC flag from resulting in partial
+	  responses. It retries to fetch the data elsewhere, or fails the
+	  query and in depth fix removes the TC flag from the cached item.
+	- Fix proxy length debug output printout typecasts.
+
+5 October 2022: Wouter
+	- Fix dnscrypt compile for proxy protocol code changes.
+
+5 October 2022: George
+	- Use DEBUG_TDIR from environment in mini_tdir.sh for debugging.
+	- Fix string comparison in mini_tdir.sh.
+	- Make ede.tdir test more predictable by using static data.
+	- Fix checkconf test for dnscrypt and proxy port.
+
+4 October 2022: George
+	- Merge #764: Leniency for target discovery when under load (for
+	  NRDelegation changes).
+
+4 October 2022: Wouter
+	- Fix static analysis report to remove dead code from the
+	  rpz_callback_from_iterator_module function.
+	- Fix to clean up after the acl_interface unit test.
+
+3 October 2022: George
+	- Merge #760: PROXYv2 downstream support. (New proxy-protocol-port
+	  configuration option).
+
+3 October 2022: Wouter
+	- Fix to remove erroneous TC flag from TCP upstream.
+	- Fix test tdir skip report printout.
+	- Fix windows compile, the identifier interface is defined in headers.
+	- Fix to close errno block in comm_point_tcp_handle_read outside of
+	  ifdef.
+
+26 September 2022: George
+	- Better output for skipped tdir tests.
+
 21 September 2022: Wouter
 	- Patch for CVE-2022-3204 Non-Responsive Delegation Attack.
+	- This patch was released in 1.16.3, the code repository continues
+	  with the previous features and fixes for 1.17.0.
+	- Fix doxygen warning in respip.h.
+
+20 September 2022: George
+	- Convert tdir tests to use the new skip_test functionality.
+	- Remove unused testcode/mini_tpkg.sh file.
+
+16 September 2022: George
+	- Merge #753: ACL per interface. (New interface-* configuration
+	  options).
+
+2 September 2022: Wouter
+	- Remove include that was there for debug purposes.
+	- Fix to check pthread_t size after pthread has been detected.
+
+1 September 2022: Wouter
+	- Fix to update config tests to fix checking if nonblocking sockets
+	  work on OpenBSD.
+	- Slow down log frequency of write wait failures.
+	- Fix to set out of file descriptor warning to operational verbosity.
+	- Fix to log a verbose message at operational notice level if a
+	  thread is not responding, to stats requests. It is logged with
+	  thread identifiers.
+
+31 August 2022: Wouter
+	- Fix to avoid process wide fcntl calls mixed with nonblocking
+	  operations after a blocked write.
+	- Patch from Vadim Fedorenko that adds MSG_DONTWAIT to receive
+	  operations, so that instruction reordering does not cause mistakenly
+	  blocking socket operations.
+	- Fix to wait for blocked write on UDP sockets, with a timeout if it
+	  takes too long the packet is dropped.
+	- Fix for wait for udp send to stop when packet is successfully sent.
+
+22 August 2022: Wouter
+	- Fix #741: systemd socket activation fails on IPv6.
+
+12 August 2022: Wouter
+	- Fix to log accept error ENFILE and EMFILE errno, but slowly, once
+	  per 10 seconds. Also log accept failures when no slow down is used.
+
+5 August 2022: Wouter
+	- Fix #734 [FR] enable unbound-checkconf to detect more (basic)
+	  errors.
+
+4 August 2022: Wouter
+	- Fix ratelimit inconsistency, for ip-ratelimits the value is the
+	  amount allowed, like for ratelimits.
+
+2 August 2022: Wouter
+	- Fix edns subnet so that scope 0 answers only match sourcemask 0
+	  queries for answers from cache if from a query with sourcemask 0.
+	- Fix unittest for edns subnet change.
+	- Merge #730 from luisdallos: Fix startup failure on Windows 8.1 due
+	  to unsupported IPV6_USER_MTU socket option being set.
 
 1 August 2022: Wouter
 	- Fix the novel ghost domain issues CVE-2022-30698 and CVE-2022-30699.
 	- Tests for ghost domain fixes.
+	- Tag for 1.16.2 release. The code repo continues with 1.16.3.
+	- Fix #728: alloc_reg_obtain() core dump. Stop double
+	  alloc_reg_release when serviced_create fails.
 
 19 July 2022: George
 	- Update documentation for 'outbound-msg-retry:'.

@@ -718,6 +718,30 @@ struct reuse_tcp* reuse_tcp_lru_snip(struct outside_network* outnet);
 /** delete readwait waiting_tcp elements, deletes the elements in the list */
 void reuse_del_readwait(rbtree_type* tree_by_id);
 
+/** remove waiting tcp from the outnet waiting list */
+void outnet_waiting_tcp_list_remove(struct outside_network* outnet,
+	struct waiting_tcp* w);
+
+/** pop the first waiting tcp from the outnet waiting list */
+struct waiting_tcp* outnet_waiting_tcp_list_pop(struct outside_network* outnet);
+
+/** add waiting_tcp element to the outnet tcp waiting list */
+void outnet_waiting_tcp_list_add(struct outside_network* outnet,
+	struct waiting_tcp* w, int set_timer);
+
+/** add waiting_tcp element as first to the outnet tcp waiting list */
+void outnet_waiting_tcp_list_add_first(struct outside_network* outnet,
+	struct waiting_tcp* w, int reset_timer);
+
+/** pop the first element from the writewait list */
+struct waiting_tcp* reuse_write_wait_pop(struct reuse_tcp* reuse);
+
+/** remove the element from the writewait list */
+void reuse_write_wait_remove(struct reuse_tcp* reuse, struct waiting_tcp* w);
+
+/** push the element after the last on the writewait list */
+void reuse_write_wait_push_back(struct reuse_tcp* reuse, struct waiting_tcp* w);
+
 /** get TCP file descriptor for address, returns -1 on failure,
  * tcp_mss is 0 or maxseg size to set for TCP packets. */
 int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen,
