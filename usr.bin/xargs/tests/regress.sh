@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo 1..16
+echo 1..20
 
 REGRESSION_START($1)
 
@@ -20,5 +20,10 @@ REGRESSION_TEST(`0J', `xargs -0 -J% echo The % again. <${SRCDIR}/regress.0.in')
 REGRESSION_TEST(`0L', `xargs -0 -L2 echo <${SRCDIR}/regress.0.in')
 REGRESSION_TEST(`0P1', `xargs -0 -P1 echo <${SRCDIR}/regress.0.in')
 REGRESSION_TEST(`quotes', `xargs -n1 echo <${SRCDIR}/regress.quotes.in')
+
+REGRESSION_TEST_FREEFORM(`parallel1', `echo /var/empty       /var/empty       | xargs -n1 -P2 test -d; [ $? = 0 ]')
+REGRESSION_TEST_FREEFORM(`parallel2', `echo /var/empty       /var/empty/nodir | xargs -n1 -P2 test -d; [ $? = 1 ]')
+REGRESSION_TEST_FREEFORM(`parallel3', `echo /var/empty/nodir /var/empty       | xargs -n1 -P2 test -d; [ $? = 1 ]')
+REGRESSION_TEST_FREEFORM(`parallel4', `echo /var/empty/nodir /var/empty/nodir | xargs -n1 -P2 test -d; [ $? = 1 ]')
 
 REGRESSION_END()
