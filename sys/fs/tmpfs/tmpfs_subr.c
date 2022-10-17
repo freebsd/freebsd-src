@@ -350,17 +350,17 @@ tmpfs_pages_used(struct tmpfs_mount *tmp)
 	return (meta_pages + tmp->tm_pages_used);
 }
 
-static size_t
+static bool
 tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
 {
 	if (tmpfs_mem_avail() < req_pages)
-		return (0);
+		return (false);
 
 	if (tmp->tm_pages_max != ULONG_MAX &&
 	    tmp->tm_pages_max < req_pages + tmpfs_pages_used(tmp))
-			return (0);
+		return (false);
 
-	return (1);
+	return (true);
 }
 
 static int
@@ -468,7 +468,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 
 	if (tmp->tm_nodes_inuse >= tmp->tm_nodes_max)
 		return (ENOSPC);
-	if (tmpfs_pages_check_avail(tmp, 1) == 0)
+	if (!tmpfs_pages_check_avail(tmp, 1))
 		return (ENOSPC);
 
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
@@ -1737,7 +1737,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	}
 
 	if (newpages > oldpages &&
-	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
+	    !tmpfs_pages_check_avail(tmp, newpages - oldpages))
 		return (ENOSPC);
 
 	VM_OBJECT_WLOCK(uobj);
