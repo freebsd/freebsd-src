@@ -407,6 +407,7 @@ timeout_client_body()
 
 	vnet_mkjail a ${l}a
 	jexec a ifconfig ${l}a 192.0.2.1/24 up
+	jexec a ifconfig lo0 127.0.0.1/8 up
 	vnet_mkjail b ${l}b
 	jexec b ifconfig ${l}b 192.0.2.2/24 up
 
@@ -434,6 +435,8 @@ timeout_client_body()
 		topology subnet
 
 		keepalive 2 10
+
+		management 192.0.2.1 1234
 	"
 	ovpn_start b "
 		dev tun0
@@ -449,8 +452,7 @@ timeout_client_body()
 		key $(atf_get_srcdir)/client.key
 		dh $(atf_get_srcdir)/dh.pem
 
-		ping 2
-		ping-exit 10
+		keepalive 2 10
 	"
 
 	# Give the tunnel time to come up
@@ -458,16 +460,16 @@ timeout_client_body()
 
 	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
 
-	# Kill the server
-	jexec a killall openvpn
+	# Kill the client
+	jexec b killall openvpn
 
-	# Now wait for the client to notice
-	sleep 20
+	# Now wait for the server to notice
+	sleep 15
 
-	if [ jexec b pgrep openvpn ]; then
-		jexec b ps auxf
-		atf_fail "OpenVPN client still running?"
-	fi
+	while echo "status" | jexec a nc -N 192.0.2.1 1234 | grep 192.0.2.2; do
+		echo "Client disconnect not discovered"
+		sleep 1
+	done
 }
 
 timeout_client_cleanup()
