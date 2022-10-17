@@ -1634,6 +1634,10 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		*retval = 64;
 		break;
 
+	case _PC_MIN_HOLE_SIZE:
+		*retval = PAGE_SIZE;
+		break;
+
 	default:
 		error = vop_stdpathconf(v);
 	}
