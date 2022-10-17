@@ -186,7 +186,7 @@ ksched_setscheduler(struct ksched *ksched, struct thread *td, int policy,
 			    RTP_PRIO_REALTIME;
 			rtp_to_pri(&rtp, td);
 		} else {
-			e = EPERM;
+			e = EINVAL;
 		}
 		break;
 	case SCHED_OTHER:
