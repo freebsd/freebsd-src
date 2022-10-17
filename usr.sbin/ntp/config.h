@@ -1586,10 +1586,6 @@
 #define STR_SYSTEM "powerpc64-undermydesk-freebsd"
 #elif defined(__powerpc__)
 #define STR_SYSTEM "powerpc-undermydesk-freebsd"
-#elif defined(__mips64)
-#define STR_SYSTEM "mips64-undermydesk-freebsd"
-#elif defined(__mips__)
-#define STR_SYSTEM "mips-undermydesk-freebsd"
 #elif defined(__aarch64__)
 #define STR_SYSTEM "arm64-undermydesk-freebsd"
 #elif defined(__arm__)
