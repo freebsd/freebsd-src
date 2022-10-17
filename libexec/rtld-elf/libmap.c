@@ -75,7 +75,7 @@ lm_init(const char *libmap_override)
 
 	if (libmap_override != NULL) {
 		/*
-		 * Do some character replacement to make $LDLIBMAP look
+		 * Do some character replacement to make $LD_LIBMAP look
 		 * like a text file, then parse it.
 		 */
 		l = xstrdup(libmap_override);
