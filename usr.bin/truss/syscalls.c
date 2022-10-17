@@ -1557,17 +1557,12 @@ print_sysctl(FILE *fp, int *oid, size_t len)
 }
 
 /*
- * Convert a 32-bit user-space pointer to psaddr_t. Currently, this
- * sign-extends on MIPS and zero-extends on all other architectures.
+ * Convert a 32-bit user-space pointer to psaddr_t by zero-extending.
  */
 static psaddr_t
 user_ptr32_to_psaddr(int32_t user_pointer)
 {
-#if defined(__mips__)
-	return ((psaddr_t)(intptr_t)user_pointer);
-#else
 	return ((psaddr_t)(uintptr_t)user_pointer);
-#endif
 }
 
 /*
