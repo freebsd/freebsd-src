@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2018
+.Dd October 17, 2022
 .Dt PTHREAD_SCHEDPARAM 3
 .Os
 .Sh NAME
@@ -75,6 +75,8 @@ Invalid value for
 .Fa policy .
 .It Bq Er ENOTSUP
 Invalid value for scheduling parameters.
+.It Bq Er EPERM
+The calling thread does not have sufficient privilege to perform the operation.
 .It Bq Er ESRCH
 Non-existent thread
 .Fa thread .
