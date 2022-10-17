@@ -52,11 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
+#include <sys/smr.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/smr.h>
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
