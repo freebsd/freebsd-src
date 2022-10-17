@@ -235,6 +235,18 @@ VNET_DEFINE_STATIC(int, replay_protection) = 0;
 SYSCTL_INT(_net_link_openvpn, OID_AUTO, replay_protection, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(replay_protection), 0, "Validate sequence numbers");
 
+VNET_DEFINE_STATIC(int, async_crypto);
+#define	V_async_crypto		VNET(async_crypto)
+SYSCTL_INT(_net_link_openvpn, OID_AUTO, async_crypto,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(async_crypto), 0,
+	"Use asynchronous mode to parallelize crypto jobs.");
+
+VNET_DEFINE_STATIC(int, netisr_queue);
+#define	V_netisr_queue		VNET(netisr_queue)
+SYSCTL_INT(_net_link_openvpn, OID_AUTO, netisr_queue,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(netisr_queue), 0,
+	"Use netisr_queue() rather than netisr_dispatch().");
+
 static struct ovpn_kpeer *
 ovpn_find_peer(struct ovpn_softc *sc, uint32_t peerid)
 {
@@ -1503,7 +1515,10 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 	af = ovpn_get_af(m);
 	if (af != 0) {
 		BPF_MTAP2(sc->ifp, &af, sizeof(af), m);
-		netisr_dispatch(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
+		if (V_netisr_queue)
+			netisr_queue(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
+		else
+			netisr_dispatch(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
 	} else {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
 		m_freem(m);
@@ -1869,7 +1884,10 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	atomic_add_int(&peer->refcount, 1);
 	if (_ovpn_lock_trackerp != NULL)
 		OVPN_RUNLOCK(sc);
-	ret = crypto_dispatch(crp);
+	if (V_async_crypto)
+		ret = crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED);
+	else
+		ret = crypto_dispatch(crp);
 	if (ret) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
 	}
@@ -2266,7 +2284,10 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 
 	atomic_add_int(&sc->refcount, 1);
 	OVPN_RUNLOCK(sc);
-	ret = crypto_dispatch(crp);
+	if (V_async_crypto)
+		ret = crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED);
+	else
+		ret = crypto_dispatch(crp);
 	if (ret != 0) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
 	}
