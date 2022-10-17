@@ -2565,7 +2565,7 @@ vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off, struct ucred *cred)
 	if (error != 0)
 		goto unlock;
 	noff = *off;
-	if (noff >= va.va_size) {
+	if (noff < 0 || noff >= va.va_size) {
 		error = ENXIO;
 		goto unlock;
 	}
