@@ -210,6 +210,7 @@ struct iflib_ctx {
 #define isc_rxd_flush ifc_txrx.ift_rxd_flush
 #define isc_legacy_intr ifc_txrx.ift_legacy_intr
 #define isc_txq_select ifc_txrx.ift_txq_select
+#define isc_txq_select_v2 ifc_txrx.ift_txq_select_v2
 	eventhandler_tag ifc_vlan_attach_event;
 	eventhandler_tag ifc_vlan_detach_event;
 	struct ether_addr ifc_mac;
@@ -3195,12 +3196,154 @@ print_pkt(if_pkt_info_t pi)
 #define IS_TSO6(pi) ((pi)->ipi_csum_flags & CSUM_IP6_TSO)
 #define IS_TX_OFFLOAD6(pi) ((pi)->ipi_csum_flags & (CSUM_IP6_TCP | CSUM_IP6_TSO))
 
+/**
+ * Parses out ethernet header information in the given mbuf.
+ * Returns in pi: ipi_etype (EtherType) and ipi_ehdrlen (Ethernet header length)
+ *
+ * This will account for the VLAN header if present.
+ *
+ * XXX: This doesn't handle QinQ, which could prevent TX offloads for those
+ * types of packets.
+ */
+static int
+iflib_parse_ether_header(if_pkt_info_t pi, struct mbuf **mp, uint64_t *pullups)
+{
+	struct ether_vlan_header *eh;
+	struct mbuf *m;
+
+	m = *mp;
+	if (__predict_false(m->m_len < sizeof(*eh))) {
+		(*pullups)++;
+		if (__predict_false((m = m_pullup(m, sizeof(*eh))) == NULL))
+			return (ENOMEM);
+	}
+	eh = mtod(m, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		pi->ipi_etype = ntohs(eh->evl_proto);
+		pi->ipi_ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		pi->ipi_etype = ntohs(eh->evl_encap_proto);
+		pi->ipi_ehdrlen = ETHER_HDR_LEN;
+	}
+	*mp = m;
+
+	return (0);
+}
+
+/**
+ * Parse up to the L3 header and extract IPv4/IPv6 header information into pi.
+ * Currently this information includes: IP ToS value, IP header version/presence
+ *
+ * This is missing some checks and doesn't edit the packet content as it goes,
+ * unlike iflib_parse_header(), in order to keep the amount of code here minimal.
+ */
+static int
+iflib_parse_header_partial(if_pkt_info_t pi, struct mbuf **mp, uint64_t *pullups)
+{
+	struct mbuf *m;
+	int err;
+
+	*pullups = 0;
+	m = *mp;
+	if (!M_WRITABLE(m)) {
+		if ((m = m_dup(m, M_NOWAIT)) == NULL) {
+			return (ENOMEM);
+		} else {
+			m_freem(*mp);
+			DBG_COUNTER_INC(tx_frees);
+			*mp = m;
+		}
+	}
+
+	/* Fills out pi->ipi_etype */
+	err = iflib_parse_ether_header(pi, mp, pullups);
+	if (err)
+		return (err);
+	m = *mp;
+
+	switch (pi->ipi_etype) {
+#ifdef INET
+	case ETHERTYPE_IP:
+	{
+		struct mbuf *n;
+		struct ip *ip = NULL;
+		int miniplen;
+
+		miniplen = min(m->m_pkthdr.len, pi->ipi_ehdrlen + sizeof(*ip));
+		if (__predict_false(m->m_len < miniplen)) {
+			/*
+			 * Check for common case where the first mbuf only contains
+			 * the Ethernet header
+			 */
+			if (m->m_len == pi->ipi_ehdrlen) {
+				n = m->m_next;
+				MPASS(n);
+				/* If next mbuf contains at least the minimal IP header, then stop */
+				if (n->m_len >= sizeof(*ip)) {
+					ip = (struct ip *)n->m_data;
+				} else {
+					(*pullups)++;
+					if (__predict_false((m = m_pullup(m, miniplen)) == NULL))
+						return (ENOMEM);
+					ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+				}
+			} else {
+				(*pullups)++;
+				if (__predict_false((m = m_pullup(m, miniplen)) == NULL))
+					return (ENOMEM);
+				ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+			}
+		} else {
+			ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+		}
+
+		/* Have the IPv4 header w/ no options here */
+		pi->ipi_ip_hlen = ip->ip_hl << 2;
+		pi->ipi_ipproto = ip->ip_p;
+		pi->ipi_ip_tos = ip->ip_tos;
+		pi->ipi_flags |= IPI_TX_IPV4;
+
+		break;
+	}
+#endif
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+	{
+		struct ip6_hdr *ip6;
+
+		if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr))) {
+			(*pullups)++;
+			if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr))) == NULL))
+				return (ENOMEM);
+		}
+		ip6 = (struct ip6_hdr *)(m->m_data + pi->ipi_ehdrlen);
+
+		/* Have the IPv6 fixed header here */
+		pi->ipi_ip_hlen = sizeof(struct ip6_hdr);
+		pi->ipi_ipproto = ip6->ip6_nxt;
+		pi->ipi_ip_tos = IPV6_TRAFFIC_CLASS(ip6);
+		pi->ipi_flags |= IPI_TX_IPV6;
+
+		break;
+	}
+#endif
+	default:
+		pi->ipi_csum_flags &= ~CSUM_OFFLOAD;
+		pi->ipi_ip_hlen = 0;
+		break;
+	}
+	*mp = m;
+
+	return (0);
+
+}
+
 static int
 iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 {
 	if_shared_ctx_t sctx = txq->ift_ctx->ifc_sctx;
-	struct ether_vlan_header *eh;
 	struct mbuf *m;
+	int err;
 
 	m = *mp;
 	if ((sctx->isc_flags & IFLIB_NEED_SCRATCH) &&
@@ -3214,24 +3357,11 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		}
 	}
 
-	/*
-	 * Determine where frame payload starts.
-	 * Jump over vlan headers if already present,
-	 * helpful for QinQ too.
-	 */
-	if (__predict_false(m->m_len < sizeof(*eh))) {
-		txq->ift_pullups++;
-		if (__predict_false((m = m_pullup(m, sizeof(*eh))) == NULL))
-			return (ENOMEM);
-	}
-	eh = mtod(m, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		pi->ipi_etype = ntohs(eh->evl_proto);
-		pi->ipi_ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	} else {
-		pi->ipi_etype = ntohs(eh->evl_encap_proto);
-		pi->ipi_ehdrlen = ETHER_HDR_LEN;
-	}
+	/* Fills out pi->ipi_etype */
+	err = iflib_parse_ether_header(pi, mp, &txq->ift_pullups);
+	if (__predict_false(err))
+		return (err);
+	m = *mp;
 
 	switch (pi->ipi_etype) {
 #ifdef INET
@@ -3276,6 +3406,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		}
 		pi->ipi_ip_hlen = ip->ip_hl << 2;
 		pi->ipi_ipproto = ip->ip_p;
+		pi->ipi_ip_tos = ip->ip_tos;
 		pi->ipi_flags |= IPI_TX_IPV4;
 
 		/* TCP checksum offload may require TCP header length */
@@ -3329,6 +3460,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 
 		/* XXX-BZ this will go badly in case of ext hdrs. */
 		pi->ipi_ipproto = ip6->ip6_nxt;
+		pi->ipi_ip_tos = IPV6_TRAFFIC_CLASS(ip6);
 		pi->ipi_flags |= IPI_TX_IPV6;
 
 		/* TCP checksum offload may require TCP header length */
@@ -4146,11 +4278,10 @@ iflib_if_init(void *arg)
 static int
 iflib_if_transmit(if_t ifp, struct mbuf *m)
 {
-	if_ctx_t	ctx = if_getsoftc(ifp);
-
+	if_ctx_t ctx = if_getsoftc(ifp);
 	iflib_txq_t txq;
 	int err, qidx;
-	int abdicate = ctx->ifc_sysctl_tx_abdicate;
+	int abdicate;
 
 	if (__predict_false((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || !LINK_ACTIVE(ctx))) {
 		DBG_COUNTER_INC(tx_frees);
@@ -4162,7 +4293,24 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	/* ALTQ-enabled interfaces always use queue 0. */
 	qidx = 0;
 	/* Use driver-supplied queue selection method if it exists */
-	if (ctx->isc_txq_select)
+	if (ctx->isc_txq_select_v2) {
+		struct if_pkt_info pi;
+		uint64_t early_pullups = 0;
+		pkt_info_zero(&pi);
+
+		err = iflib_parse_header_partial(&pi, &m, &early_pullups);
+		if (__predict_false(err != 0)) {
+			/* Assign pullups for bad pkts to default queue */
+			ctx->ifc_txqs[0].ift_pullups += early_pullups;
+			DBG_COUNTER_INC(encap_txd_encap_fail);
+			return (err);
+		}
+		/* Let driver make queueing decision */
+		qidx = ctx->isc_txq_select_v2(ctx->ifc_softc, m, &pi);
+		ctx->ifc_txqs[qidx].ift_pullups += early_pullups;
+	}
+	/* Backwards compatibility w/ simpler queue select */
+	else if (ctx->isc_txq_select)
 		qidx = ctx->isc_txq_select(ctx->ifc_softc, m);
 	/* If not, use iflib's standard method */
 	else if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m) && !ALTQ_IS_ENABLED(&ifp->if_snd))
@@ -4207,6 +4355,8 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	}
 #endif
 	DBG_COUNTER_INC(tx_seen);
+	abdicate = ctx->ifc_sysctl_tx_abdicate;
+
 	err = ifmp_ring_enqueue(txq->ift_br, (void **)&m, 1, TX_BATCH_SIZE, abdicate);
 
 	if (abdicate)
