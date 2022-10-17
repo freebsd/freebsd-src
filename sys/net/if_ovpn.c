@@ -1382,6 +1382,7 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 	struct ovpn_kpeer *peer = crp->crp_opaque;
 	struct ovpn_softc *sc = peer->sc;
 	struct mbuf *m = crp->crp_buf.cb_mbuf;
+	int tunnel_len;
 	int ret;
 
 	if (crp->crp_etype != 0) {
@@ -1397,11 +1398,11 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 
 	MPASS(crp->crp_buf.cb_type == CRYPTO_BUF_MBUF);
 
+	tunnel_len = m->m_pkthdr.len - sizeof(struct ovpn_wire_header);
 	ret = ovpn_encap(sc, peer->peerid, m);
 	if (ret == 0) {
 		OVPN_COUNTER_ADD(sc, sent_data_pkts, 1);
-		OVPN_COUNTER_ADD(sc, tunnel_bytes_sent, m->m_pkthdr.len -
-		    sizeof(struct ovpn_wire_header));
+		OVPN_COUNTER_ADD(sc, tunnel_bytes_sent, tunnel_len);
 	}
 
 	CURVNET_RESTORE();
