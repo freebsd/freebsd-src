@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 #include <sys/limits.h>
 #include <sys/lockf.h>
 #include <sys/lock.h>
@@ -63,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/swap_pager.h>
 
 #include <fs/tmpfs/tmpfs_vnops.h>
 #include <fs/tmpfs/tmpfs.h>
@@ -1820,6 +1824,131 @@ restart_locked:
 	return (ENOENT);
 }
 
+static off_t
+tmpfs_seek_data_locked(vm_object_t obj, off_t noff)
+{
+	vm_page_t m;
+	vm_pindex_t p, p_m, p_swp;
+
+	p = OFF_TO_IDX(noff);
+	m = vm_page_find_least(obj, p);
+
+	/*
+	 * Microoptimize the most common case for SEEK_DATA, where
+	 * there is no hole and the page is resident.
+	 */
+	if (m != NULL && vm_page_any_valid(m) && m->pindex == p)
+		return (noff);
+
+	p_swp = swap_pager_find_least(obj, p);
+	if (p_swp == p)
+		return (noff);
+
+	p_m = m == NULL ? obj->size : m->pindex;
+	return (IDX_TO_OFF(MIN(p_m, p_swp)));
+}
+
+static off_t
+tmpfs_seek_next(off_t noff)
+{
+	return (noff + PAGE_SIZE - (noff & PAGE_MASK));
+}
+
+static int
+tmpfs_seek_clamp(struct tmpfs_node *tn, off_t *noff, bool seekdata)
+{
+	if (*noff < tn->tn_size)
+		return (0);
+	if (seekdata)
+		return (ENXIO);
+	*noff = tn->tn_size;
+	return (0);
+}
+
+static off_t
+tmpfs_seek_hole_locked(vm_object_t obj, off_t noff)
+{
+	vm_page_t m;
+	vm_pindex_t p, p_swp;
+
+	for (;; noff = tmpfs_seek_next(noff)) {
+		/*
+		 * Walk over the largest sequential run of the valid pages.
+		 */
+		for (m = vm_page_lookup(obj, OFF_TO_IDX(noff));
+		    m != NULL && vm_page_any_valid(m);
+		    m = vm_page_next(m), noff = tmpfs_seek_next(noff))
+			;
+
+		/*
+		 * Found a hole in the object's page queue.  Check if
+		 * there is a hole in the swap at the same place.
+		 */
+		p = OFF_TO_IDX(noff);
+		p_swp = swap_pager_find_least(obj, p);
+		if (p_swp != p) {
+			noff = IDX_TO_OFF(p);
+			break;
+		}
+	}
+	return (noff);
+}
+
+static int
+tmpfs_seek_datahole(struct vnode *vp, off_t *off, bool seekdata)
+{
+	struct tmpfs_node *tn;
+	vm_object_t obj;
+	off_t noff;
+	int error;
+
+	if (vp->v_type != VREG)
+		return (ENOTTY);
+	tn = VP_TO_TMPFS_NODE(vp);
+	noff = *off;
+	if (noff < 0)
+		return (ENXIO);
+	error = tmpfs_seek_clamp(tn, &noff, seekdata);
+	if (error != 0)
+		return (error);
+	obj = tn->tn_reg.tn_aobj;
+
+	VM_OBJECT_RLOCK(obj);
+	noff = seekdata ? tmpfs_seek_data_locked(obj, noff) :
+	    tmpfs_seek_hole_locked(obj, noff);
+	VM_OBJECT_RUNLOCK(obj);
+
+	error = tmpfs_seek_clamp(tn, &noff, seekdata);
+	if (error == 0)
+		*off = noff;
+	return (error);
+}
+
+static int
+tmpfs_ioctl(struct vop_ioctl_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	int error = 0;
+
+	switch (ap->a_command) {
+	case FIOSEEKDATA:
+	case FIOSEEKHOLE:
+		error = vn_lock(vp, LK_SHARED);
+		if (error != 0) {
+			error = EBADF;
+			break;
+		}
+		error = tmpfs_seek_datahole(vp, (off_t *)ap->a_data,
+		    ap->a_command == FIOSEEKDATA);
+		VOP_UNLOCK(vp);
+		break;
+	default:
+		error = ENOTTY;
+		break;
+	}
+	return (error);
+}
+
 /*
  * Vnode operations vector used for files stored in a tmpfs file system.
  */
@@ -1863,6 +1992,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_unlock = 			vop_unlock,
 	.vop_islocked = 		vop_islocked,
 	.vop_add_writecount =		vop_stdadd_writecount_nomsync,
+	.vop_ioctl =			tmpfs_ioctl,
 };
 VFS_VOP_VECTOR_REGISTER(tmpfs_vnodeop_entries);
 
