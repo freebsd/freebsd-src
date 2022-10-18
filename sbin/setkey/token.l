@@ -147,6 +147,7 @@ tcp		{ yylval.num = 0; return(PR_TCP); }
 
 	/* authentication alogorithm */
 {hyphen}A	{ BEGIN S_AUTHALG; return(F_AUTH); }
+<S_AUTHALG>chacha20-poly1305 { yylval.num = SADB_X_AALG_CHACHA20POLY1305; BEGIN INITIAL; return(ALG_AUTH); }
 <S_AUTHALG>hmac-sha1	{ yylval.num = SADB_AALG_SHA1HMAC; BEGIN INITIAL; return(ALG_AUTH); }
 <S_AUTHALG>hmac-sha2-256 { yylval.num = SADB_X_AALG_SHA2_256; BEGIN INITIAL; return(ALG_AUTH); }
 <S_AUTHALG>hmac-sha2-384 { yylval.num = SADB_X_AALG_SHA2_384; BEGIN INITIAL; return(ALG_AUTH); }
@@ -163,6 +164,7 @@ tcp		{ yylval.num = 0; return(PR_TCP); }
 <S_ENCALG>aes-cbc	{ yylval.num = SADB_X_EALG_AESCBC; BEGIN INITIAL; return(ALG_ENC); }
 <S_ENCALG>aes-ctr	{ yylval.num = SADB_X_EALG_AESCTR; BEGIN INITIAL; return(ALG_ENC_SALT); }
 <S_ENCALG>aes-gcm-16	{ yylval.num = SADB_X_EALG_AESGCM16; BEGIN INITIAL; return(ALG_ENC_SALT); }
+<S_ENCALG>chacha20-poly1305 { yylval.num = SADB_X_EALG_CHACHA20POLY1305; BEGIN INITIAL; return(ALG_ENC_SALT); }
 
 	/* compression algorithms */
 {hyphen}C	{ return(F_COMP); }

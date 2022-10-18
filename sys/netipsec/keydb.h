@@ -200,6 +200,8 @@ struct secasvar {
 			(_sav)->alg_enc == SADB_X_EALG_AESGCM12 ||	\
 			(_sav)->alg_enc == SADB_X_EALG_AESGCM16)
 #define	SAV_ISCTR(_sav) ((_sav)->alg_enc == SADB_X_EALG_AESCTR)
+#define	SAV_ISCHACHA(_sav)	\
+    ((_sav)->alg_enc == SADB_X_EALG_CHACHA20POLY1305)
 #define SAV_ISCTRORGCM(_sav)	(SAV_ISCTR((_sav)) || SAV_ISGCM((_sav)))
 
 #define	IPSEC_SEQH_SHIFT	32
