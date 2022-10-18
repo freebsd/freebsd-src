@@ -761,6 +761,7 @@ void	bus_data_generation_update(void);
 #define BUS_LOCATOR_ACPI	"ACPI"
 #define BUS_LOCATOR_FREEBSD	"FreeBSD"
 #define BUS_LOCATOR_UEFI	"UEFI"
+#define BUS_LOCATOR_OFW		"OFW"
 
 extern int bus_current_pass;
 
