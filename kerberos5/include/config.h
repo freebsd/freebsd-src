@@ -1290,7 +1290,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE___PROGNAME 1
 
 /* have __sync_add_and_fetch */
-#if defined(__FreeBSD__) && (defined(__arm__) || defined(__mips__))
+#if defined(__FreeBSD__) && defined(__arm__)
 #undef HAVE___SYNC_ADD_AND_FETCH	/* Not supported on FreeBSD/arm */
 #else
 #define HAVE___SYNC_ADD_AND_FETCH 1
