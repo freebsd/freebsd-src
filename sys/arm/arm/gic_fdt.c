@@ -90,6 +90,7 @@ static device_method_t gic_fdt_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_get_resource_list,gic_fdt_get_resource_list),
+	DEVMETHOD(bus_get_device_path, ofw_bus_gen_get_device_path),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	gic_ofw_get_devinfo),

@@ -94,6 +94,7 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(bus_get_resource_list, simplebus_get_resource_list),
 	DEVMETHOD(bus_get_property,	simplebus_get_property),
+	DEVMETHOD(bus_get_device_path,  ofw_bus_gen_get_device_path),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	simplebus_get_devinfo),
