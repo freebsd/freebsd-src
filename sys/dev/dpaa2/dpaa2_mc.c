@@ -742,11 +742,13 @@ dpaa2_mc_get_xref(device_t mcdev, device_t child)
 {
 	struct dpaa2_mc_softc *sc = device_get_softc(mcdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(child);
-	phandle_t msi_parent;
 #ifdef DEV_ACPI
 	u_int xref, devid;
 #endif
+#ifdef FDT
+	phandle_t msi_parent;
 	int error;
+#endif
 
 	if (sc && dinfo) {
 #ifdef DEV_ACPI
