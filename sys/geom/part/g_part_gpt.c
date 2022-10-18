@@ -85,6 +85,7 @@ enum gpt_state {
 	GPT_STATE_MISSING,	/* No signature found. */
 	GPT_STATE_CORRUPT,	/* Checksum mismatch. */
 	GPT_STATE_INVALID,	/* Nonconformant/invalid. */
+	GPT_STATE_UNSUPPORTED,  /* Not supported. */
 	GPT_STATE_OK		/* Perfectly fine. */
 };
 
@@ -147,6 +148,8 @@ static kobj_method_t g_part_gpt_methods[] = {
 	KOBJMETHOD(g_part_write,	g_part_gpt_write),
 	{ 0, 0 }
 };
+
+#define MAXENTSIZE 1024
 
 static struct g_part_scheme g_part_gpt_scheme = {
 	"GPT",
@@ -548,6 +551,11 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 
 	if (hdr == NULL)
 		return (NULL);
+	if (hdr->hdr_entries > g_part_gpt_scheme.gps_maxent ||
+	    hdr->hdr_entsz > MAXENTSIZE) {
+		table->state[elt] = GPT_STATE_UNSUPPORTED;
+		return (NULL);
+	}
 
 	pp = cp->provider;
 	table->lba[elt] = hdr->hdr_lba_table;
@@ -961,10 +969,25 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	/* Fail if we haven't got any good tables at all. */
 	if (table->state[GPT_ELT_PRITBL] != GPT_STATE_OK &&
 	    table->state[GPT_ELT_SECTBL] != GPT_STATE_OK) {
-		printf("GEOM: %s: corrupt or invalid GPT detected.\n",
-		    pp->name);
-		printf("GEOM: %s: GPT rejected -- may not be recoverable.\n",
-		    pp->name);
+		if (table->state[GPT_ELT_PRITBL] == GPT_STATE_UNSUPPORTED &&
+		    table->state[GPT_ELT_SECTBL] == GPT_STATE_UNSUPPORTED &&
+		    gpt_matched_hdrs(prihdr, sechdr)) {
+			printf("GEOM: %s: unsupported GPT detected.\n",
+			    pp->name);
+			printf(
+		    "GEOM: %s: number of GPT entries: %u, entry size: %uB.\n",
+			    pp->name, prihdr->hdr_entries, prihdr->hdr_entsz);
+			printf(
+    "GEOM: %s: maximum supported number of GPT entries: %u, entry size: %uB.\n",
+			    pp->name, g_part_gpt_scheme.gps_maxent, MAXENTSIZE);
+			printf("GEOM: %s: GPT rejected.\n", pp->name);
+		} else {
+			printf("GEOM: %s: corrupt or invalid GPT detected.\n",
+			    pp->name);
+			printf(
+		    "GEOM: %s: GPT rejected -- may not be recoverable.\n",
+			    pp->name);
+		}
 		if (prihdr != NULL)
 			g_free(prihdr);
 		if (pritbl != NULL)
