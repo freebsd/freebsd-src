@@ -9,7 +9,7 @@ MAN=	mailwrapper.8
 LIBADD=	util
 .endif
 
-.if ${MK_MAILWRAPPER} != "no" || ${MK_SENDMAIL} != "no"
+.if ${MK_MAILWRAPPER} != "no" || ${MK_SENDMAIL} != "no" || ${MK_DMAGENT} != "no"
 SYMLINKS=	../sbin/mailwrapper /usr/bin/mailq \
 		../sbin/mailwrapper /usr/bin/newaliases \
 		mailwrapper /usr/sbin/hoststat \
@@ -18,6 +18,8 @@ SYMLINKS=	../sbin/mailwrapper /usr/bin/mailq \
 
 .if ${MK_MAILWRAPPER} == "no" && ${MK_SENDMAIL} != "no"
 SYMLINKS+=	../libexec/sendmail/sendmail ${BINDIR}/mailwrapper
+.elif ${MK_MAILWRAPPER} == "no" && ${MK_SENDMAIL} == "no" && ${MK_DMAGENT} != "no"
+SYMLINKS+=	../libexec/dma ${BINDIR}/mailwrapper
 .endif
 .endif
 
