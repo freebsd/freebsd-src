@@ -12,7 +12,8 @@ ATF_TESTS_SH+=	empty \
 		aesni_aes_cbc_128_hmac_sha1 \
 		aesni_aes_cbc_256_hmac_sha2_256 \
 		aesni_aes_gcm_128 \
-		aesni_aes_gcm_256
+		aesni_aes_gcm_256 \
+		chacha20_poly1305
 
 ${PACKAGE}FILES+=	utils.subr
 
