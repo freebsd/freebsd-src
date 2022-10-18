@@ -131,6 +131,7 @@ xform_ah_authsize(const struct auth_hash *esph)
 		alen = esph->hashsize / 2;	/* RFC4868 2.3 */
 		break;
 
+	case CRYPTO_POLY1305:
 	case CRYPTO_AES_NIST_GMAC:
 		alen = esph->hashsize;
 		break;

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2022
+.Dd October 19, 2022
 .Dt SETKEY 8
 .Os
 .\"
@@ -598,6 +598,7 @@ hmac-sha2-512	512		ah/esp: 256bit ICV (RFC4868)
 aes-xcbc-mac	128		ah/esp: 96bit ICV (RFC3566)
 		128		ah-old/esp-old: 128bit ICV (no document)
 tcp-md5		8 to 640	tcp: rfc2385
+chacha20-poly1305	256	ah/esp: 128bit ICV (RFC7634)
 .Ed
 .Ss Encryption Algorithms
 The following encryption algorithms can be used as the
@@ -613,6 +614,7 @@ null		0 to 2048	rfc2410
 aes-cbc		128/192/256	rfc3602
 aes-ctr		160/224/288	rfc3686
 aes-gcm-16	160/224/288	AEAD; rfc4106
+chacha20-poly1305	256	rfc7634
 .Ed
 .Pp
 Note that the first 128/192/256 bits of a key for
