@@ -2259,6 +2259,7 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	int i;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
+	MPASS((object->flags & OBJ_SWAP) != 0);
 
 	if (pctrie_is_empty(&object->un_pager.swp.swp_blks))
 		return (object->size);
