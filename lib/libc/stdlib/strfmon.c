@@ -296,7 +296,8 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		 *       non-negative value
 		 * = 1 - space separates the symbol from the value
 		 * = 2 - space separates the symbol and the sign string,
-		 *       if adjacent.
+		 *       if adjacent; otherwise, a space separates
+		 *       the sign string from the value
 		 *
 		 * p_sign_posn & n_sign_posn
 		 *
@@ -338,8 +339,11 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 				} else if (sep_by_space == 1)
 					PRINT(space_char);
 			}
-		} else if (sign_posn == 1)
+		} else if (sign_posn == 1) {
 			PRINTS(signstr);
+			if (sep_by_space == 2)
+				PRINT(' ');
+		}
 
 		PRINTS(asciivalue);
 
