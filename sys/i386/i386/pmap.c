@@ -2847,7 +2847,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * If the page table page is not leftover from an earlier promotion,
 	 * initialize it.
 	 */
-	if (mpte->valid == 0)
+	if (vm_page_none_valid(mpte))
 		pmap_fill_ptp(firstpte, newpte);
 
 	KASSERT((*firstpte & PG_FRAME) == (newpte & PG_FRAME),
@@ -2922,7 +2922,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * If this page table page was unmapped by a promotion, then it
 	 * contains valid mappings.  Zero it to invalidate those mappings.
 	 */
-	if (mpte->valid != 0)
+	if (vm_page_any_valid(mpte))
 		pagezero((void *)&KPTmap[i386_btop(trunc_4mpage(va))]);
 
 	/*
@@ -2986,7 +2986,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	} else {
 		mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
-			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_all_valid(mpte),
 			    ("pmap_remove_pde: pte page not promoted"));
 			pmap->pm_stats.resident_count--;
 			KASSERT(mpte->ref_count == NPTEPG,
@@ -4209,7 +4209,7 @@ __CONCAT(PMTYPE, object_init_pt)(pmap_t pmap, vm_offset_t addr,
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
 		p = vm_page_lookup(object, pindex);
-		KASSERT(p->valid == VM_PAGE_BITS_ALL,
+		KASSERT(vm_page_all_valid(p),
 		    ("pmap_object_init_pt: invalid page %p", p));
 		pat_mode = p->md.pat_mode;
 
@@ -4229,7 +4229,7 @@ __CONCAT(PMTYPE, object_init_pt)(pmap_t pmap, vm_offset_t addr,
 		p = TAILQ_NEXT(p, listq);
 		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
 		    pa += PAGE_SIZE) {
-			KASSERT(p->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_all_valid(p),
 			    ("pmap_object_init_pt: invalid page %p", p));
 			if (pa != VM_PAGE_TO_PHYS(p) ||
 			    pat_mode != p->md.pat_mode)
@@ -4837,7 +4837,7 @@ __CONCAT(PMTYPE, remove_pages)(pmap_t pmap)
 					}
 					mpte = pmap_remove_pt_page(pmap, pv->pv_va);
 					if (mpte != NULL) {
-						KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+						KASSERT(vm_page_all_valid(mpte),
 						    ("pmap_remove_pages: pte page not promoted"));
 						pmap->pm_stats.resident_count--;
 						KASSERT(mpte->ref_count == NPTEPG,

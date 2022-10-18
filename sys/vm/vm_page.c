@@ -2548,7 +2548,7 @@ vm_page_alloc_check(vm_page_t m)
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
 	    ("page %p has unexpected memattr %d",
 	    m, pmap_page_get_memattr(m)));
-	KASSERT(m->valid == 0, ("free page %p is valid", m));
+	KASSERT(vm_page_none_valid(m), ("free page %p is valid", m));
 	pmap_vm_page_alloc_check(m);
 }
 
@@ -4226,7 +4226,7 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 	 * If we were asked to not cache the page, place it near the head of the
 	 * inactive queue so that is reclaimed sooner.
 	 */
-	if (noreuse || m->valid == 0) {
+	if (noreuse || vm_page_none_valid(m)) {
 		nqueue = PQ_INACTIVE;
 		nflag = PGA_REQUEUE_HEAD;
 	} else {
@@ -4704,7 +4704,8 @@ retrylookup:
 		ma[0] = m;
 		for (i = 1; i < after; i++) {
 			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
-				if (ma[i]->valid || !vm_page_tryxbusy(ma[i]))
+				if (vm_page_any_valid(ma[i]) ||
+				    !vm_page_tryxbusy(ma[i]))
 					break;
 			} else {
 				ma[i] = vm_page_alloc(object, m->pindex + i,
@@ -5392,7 +5393,7 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 	vm_page_bits_t bits;
 
 	bits = vm_page_bits(base, size);
-	return (m->valid != 0 && (m->valid & bits) == bits);
+	return (vm_page_any_valid(m) && (m->valid & bits) == bits);
 }
 
 /*
