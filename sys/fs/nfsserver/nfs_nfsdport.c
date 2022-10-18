@@ -101,6 +101,7 @@ struct callout nfsd_callout;
 
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
+static void nfsvno_updateds(struct vnode *, struct ucred *, struct thread *);
 
 int nfsrv_enable_crossmntpt = 1;
 static int nfs_commit_blks;
@@ -6776,14 +6777,55 @@ nfsvno_setxattr(struct vnode *vp, char *name, int len, struct mbuf *m,
 	if (error == 0) {
 		error = VOP_SETEXTATTR(vp, EXTATTR_NAMESPACE_USER, name, uiop,
 		    cred, p);
-		if (error == 0)
+		if (error == 0) {
+			if (vp->v_type == VREG && nfsrv_devidcnt != 0)
+				nfsvno_updateds(vp, cred, p);
 			error = VOP_FSYNC(vp, MNT_WAIT, p);
+		}
 		free(iv, M_TEMP);
 	}
 
 out:
 	NFSEXITCODE(error);
 	return (error);
+}
+
+/*
+ * For a pNFS server, the DS file's ctime and
+ * va_filerev (TimeMetadata and Change) needs to
+ * be updated.  This is a hack, but works by
+ * flipping the S_ISGID bit in va_mode and then
+ * flipping it back.
+ * It does result in two MDS->DS RPCs, but creating
+ * a custom RPC just to do this seems overkill, since
+ * Setxattr/Rmxattr will not be done that frequently.
+ * If it fails part way through, that is not too
+ * serious, since the DS file is never executed.
+ */
+static void
+nfsvno_updateds(struct vnode *vp, struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsvattr nva;
+	int ret;
+	u_short tmode;
+
+	ret = VOP_GETATTR(vp, &nva.na_vattr, cred);
+	if (ret == 0) {
+		tmode = nva.na_mode;
+		NFSVNO_ATTRINIT(&nva);
+		tmode ^= S_ISGID;
+		NFSVNO_SETATTRVAL(&nva, mode, tmode);
+		ret = nfsrv_proxyds(vp, 0, 0, cred, p,
+		    NFSPROC_SETATTR, NULL, NULL, NULL, &nva,
+		    NULL, NULL, 0, NULL);
+		if (ret == 0) {
+			tmode ^= S_ISGID;
+			NFSVNO_SETATTRVAL(&nva, mode, tmode);
+			ret = nfsrv_proxyds(vp, 0, 0, cred, p,
+			    NFSPROC_SETATTR, NULL, NULL, NULL,
+			    &nva, NULL, NULL, 0, NULL);
+		}
+	}
 }
 
 /*
@@ -6813,8 +6855,11 @@ nfsvno_rmxattr(struct nfsrv_descript *nd, struct vnode *vp, char *name,
 	if (error == EOPNOTSUPP)
 		error = VOP_SETEXTATTR(vp, EXTATTR_NAMESPACE_USER, name, NULL,
 		    cred, p);
-	if (error == 0)
+	if (error == 0) {
+		if (vp->v_type == VREG && nfsrv_devidcnt != 0)
+			nfsvno_updateds(vp, cred, p);
 		error = VOP_FSYNC(vp, MNT_WAIT, p);
+	}
 out:
 	NFSEXITCODE(error);
 	return (error);
