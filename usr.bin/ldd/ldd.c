@@ -335,6 +335,10 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			warnx("%s: header too short", fname);
 			return (0);
 		}
+		if (hdr.elf32.e_phentsize != sizeof(phdr32)) {
+			warnx("%s: corrupt header", fname);
+			return (0);
+		}
 		for (i = 0; i < hdr.elf32.e_phnum; i++) {
 			if (read(fd, &phdr32, hdr.elf32.e_phentsize) !=
 			    sizeof(phdr32)) {
@@ -401,6 +405,10 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 
 		if (lseek(fd, hdr.elf.e_phoff, SEEK_SET) == -1) {
 			warnx("%s: header too short", fname);
+			return (0);
+		}
+		if (hdr.elf.e_phentsize != sizeof(phdr)) {
+			warnx("%s: corrupt header", fname);
 			return (0);
 		}
 		for (i = 0; i < hdr.elf.e_phnum; i++) {
