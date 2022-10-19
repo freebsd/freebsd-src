@@ -1989,7 +1989,7 @@ t4_tom_deactivate(struct adapter *sc)
 static int
 t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 {
-	struct tcpcb *tp = so_sototcpcb(so);
+	struct tcpcb *tp = sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	int error;
 

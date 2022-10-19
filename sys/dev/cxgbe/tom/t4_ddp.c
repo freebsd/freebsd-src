@@ -2137,7 +2137,7 @@ static void
 t4_aio_cancel_active(struct kaiocb *job)
 {
 	struct socket *so = job->fd_file->f_data;
-	struct tcpcb *tp = so_sototcpcb(so);
+	struct tcpcb *tp = sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	struct adapter *sc = td_adapter(toep->td);
 	uint64_t valid_flag;
@@ -2178,7 +2178,7 @@ static void
 t4_aio_cancel_queued(struct kaiocb *job)
 {
 	struct socket *so = job->fd_file->f_data;
-	struct tcpcb *tp = so_sototcpcb(so);
+	struct tcpcb *tp = sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 
 	DDP_LOCK(toep);
@@ -2197,7 +2197,7 @@ t4_aio_cancel_queued(struct kaiocb *job)
 int
 t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 {
-	struct tcpcb *tp = so_sototcpcb(so);
+	struct tcpcb *tp = sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 
 

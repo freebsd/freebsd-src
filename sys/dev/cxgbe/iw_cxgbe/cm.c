@@ -68,7 +68,7 @@ struct cpl_set_tcb_rpl;
 #include "offload.h"
 #include "tom/t4_tom.h"
 
-#define TOEPCB(so)  ((struct toepcb *)(so_sototcpcb((so))->t_toe))
+#define TOEPCB(so)  ((struct toepcb *)(sototcpcb((so))->t_toe))
 
 #include "iw_cxgbe.h"
 #include <linux/module.h>
