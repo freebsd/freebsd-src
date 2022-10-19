@@ -50,7 +50,7 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Ed
 .Ft uma_zone_t
 .Fo uma_zcreate
-.Fa "char *name" "int size"
+.Fa "char *name" "size_t size"
 .Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init zinit" "uma_fini zfini"
 .Fa "int align" "uint16_t flags"
 .Fc
