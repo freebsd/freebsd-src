@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.340 2022/03/31 17:58:44 naddy Exp $
-.Dd $Mdocdate: March 31 2022 $
+.\" $OpenBSD: sshd_config.5,v 1.343 2022/09/17 10:34:29 djm Exp $
+.Dd $Mdocdate: September 17 2022 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -817,7 +817,7 @@ should ignore the user's
 during
 .Cm HostbasedAuthentication
 and use only the system-wide known hosts file
-.Pa /etc/ssh/known_hosts .
+.Pa /etc/ssh/ssh_known_hosts .
 The default is
 .Dq no .
 .It Cm Include
@@ -1583,9 +1583,9 @@ Specifies whether public key authentication is allowed.
 The default is
 .Cm yes .
 .It Cm RekeyLimit
-Specifies the maximum amount of data that may be transmitted before the
-session key is renegotiated, optionally followed by a maximum amount of
-time that may pass before the session key is renegotiated.
+Specifies the maximum amount of data that may be transmitted or received
+before the session key is renegotiated, optionally followed by a maximum
+amount of time that may pass before the session key is renegotiated.
 The first argument is specified in bytes and may have a suffix of
 .Sq K ,
 .Sq M ,
@@ -1607,6 +1607,16 @@ is
 .Cm default none ,
 which means that rekeying is performed after the cipher's default amount
 of data has been sent or received and no time based rekeying is done.
+.It Cm RequiredRSASize
+Specifies the minimum RSA key size (in bits) that
+.Xr sshd 8
+will accept.
+User and host-based authentication keys smaller than this limit will be
+refused.
+The default is
+.Cm 1024
+bits.
+Note that this limit may only be raised from the default.
 .It Cm RevokedKeys
 Specifies revoked public keys file, or
 .Cm none
@@ -1807,7 +1817,7 @@ The default is
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Qq FreeBSD-20220415 .
+.Qq FreeBSD-20221019 .
 The value
 .Cm none
 may be used to disable this.

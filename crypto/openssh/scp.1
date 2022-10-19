@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.108 2022/02/23 21:21:16 djm Exp $
+.\" $OpenBSD: scp.1,v 1.110 2022/09/19 21:39:16 djm Exp $
 .\"
-.Dd $Mdocdate: February 23 2022 $
+.Dd $Mdocdate: September 19 2022 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -212,6 +212,7 @@ For full details of the options listed below, and their possible values, see
 .It PubkeyAcceptedAlgorithms
 .It PubkeyAuthentication
 .It RekeyLimit
+.It RequiredRSASize
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
@@ -297,7 +298,7 @@ source code from the Regents of the University of California.
 .Pp
 Since OpenSSH 9.0,
 .Nm
-has use the SFTP protocol for transfers by default.
+has used the SFTP protocol for transfers by default.
 .Sh AUTHORS
 .An Timo Rinne Aq Mt tri@iki.fi
 .An Tatu Ylonen Aq Mt ylo@cs.hut.fi

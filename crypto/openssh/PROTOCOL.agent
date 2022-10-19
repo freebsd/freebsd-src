@@ -1,7 +1,7 @@
 The SSH agent protocol is described in
 https://tools.ietf.org/html/draft-miller-ssh-agent-04
 
-This file document's OpenSSH's extensions to the agent protocol.
+This file documents OpenSSH's extensions to the agent protocol.
 
 1. session-bind@openssh.com extension
 
@@ -54,7 +54,7 @@ Where a constraint consists of:
 	string		to_hostname
 	keyspec[]	to_hostkeys
 
-An a keyspec consists of:
+And a keyspec consists of:
 
 	string		keyblob
 	bool		is_ca
@@ -81,4 +81,4 @@ the constraint is:
 
 This option is only valid for XMSS keys.
 
-$OpenBSD: PROTOCOL.agent,v 1.16 2022/01/01 01:55:30 jsg Exp $
+$OpenBSD: PROTOCOL.agent,v 1.18 2022/09/21 22:26:50 dtucker Exp $

@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.318 2022/03/31 17:27:27 naddy Exp $
-.Dd $Mdocdate: March 31 2022 $
+.\" $OpenBSD: sshd.8,v 1.321 2022/09/11 06:38:11 jmc Exp $
+.Dd $Mdocdate: September 11 2022 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -217,7 +217,7 @@ reliably as configuration options may change.
 .It Fl u Ar len
 This option is used to specify the size of the field
 in the
-.Li utmp
+.Vt utmp
 structure that holds the remote host name.
 If the resolved host name is longer than
 .Ar len ,
@@ -534,8 +534,9 @@ controlled via the
 option.
 .It Cm expiry-time="timespec"
 Specifies a time after which the key will not be accepted.
-The time may be specified as a YYYYMMDD date or a YYYYMMDDHHMM[SS] time
-in the system time-zone.
+The time may be specified as a YYYYMMDD[Z] date or a YYYYMMDDHHMM[SS][Z] time.
+Dates and times will be interpreted in the system time zone unless suffixed
+by a Z character, in which case they will be interpreted in the UTC time zone.
 .It Cm from="pattern-list"
 Specifies that in addition to public key authentication, either the canonical
 name of the remote host or its IP address must be present in the
@@ -813,7 +814,6 @@ names to their hashed representations.
 An example ssh_known_hosts file:
 .Bd -literal -offset 3n
 # Comments allowed at start of line
-closenet,...,192.0.2.53 1024 37 159...93 closenet.example.net
 cvs.example.net,192.0.2.10 ssh-rsa AAAA1234.....=
 # A hashed hostname
 |1|JfKTdBh7rNbXkVAQCRp4OQoPfmI=|USECr3SWf1JUPsms5AqfD5QfxkM= ssh-rsa

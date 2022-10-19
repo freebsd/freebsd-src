@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.102 2021/12/19 22:12:07 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.106 2022/06/15 16:08:25 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -29,6 +29,7 @@
 #define AUTH_H
 
 #include <signal.h>
+#include <stdio.h>
 
 #ifdef HAVE_LOGIN_CAP
 #include <login_cap.h>
@@ -44,6 +45,7 @@ struct passwd;
 struct ssh;
 struct sshbuf;
 struct sshkey;
+struct sshkey_cert;
 struct sshauthopt;
 
 typedef struct Authctxt Authctxt;
@@ -133,8 +135,8 @@ int      auth_password(struct ssh *, const char *);
 
 int	 hostbased_key_allowed(struct ssh *, struct passwd *,
 	    const char *, char *, struct sshkey *);
-int	 user_key_allowed(struct ssh *, struct passwd *, struct sshkey *, int,
-    struct sshauthopt **);
+int	 user_key_allowed(struct ssh *ssh, struct passwd *, struct sshkey *,
+    int, struct sshauthopt **);
 int	 auth2_key_already_used(Authctxt *, const struct sshkey *);
 
 /*
@@ -191,8 +193,6 @@ struct passwd * getpwnamallow(struct ssh *, const char *user);
 char	*expand_authorized_keys(const char *, struct passwd *pw);
 char	*authorized_principals_file(struct passwd *);
 
-FILE	*auth_openkeyfile(const char *, struct passwd *, int);
-FILE	*auth_openprincipals(const char *, struct passwd *, int);
 int	 auth_key_is_revoked(struct sshkey *);
 
 const char	*auth_get_canonical_hostname(struct ssh *, int);
@@ -214,8 +214,6 @@ int	 sshd_hostkey_sign(struct ssh *, struct sshkey *, struct sshkey *,
 const struct sshauthopt *auth_options(struct ssh *);
 int	 auth_activate_options(struct ssh *, struct sshauthopt *);
 void	 auth_restrict_session(struct ssh *);
-int	 auth_authorise_keyopts(struct ssh *, struct passwd *pw,
-    struct sshauthopt *, int, const char *);
 void	 auth_log_authopts(const char *, const struct sshauthopt *, int);
 
 /* debug messages during authentication */
@@ -225,6 +223,20 @@ void	 auth_debug_send(struct ssh *);
 void	 auth_debug_reset(void);
 
 struct passwd *fakepw(void);
+
+/* auth2-pubkeyfile.c */
+int	 auth_authorise_keyopts(struct passwd *, struct sshauthopt *, int,
+    const char *, const char *, const char *);
+int	 auth_check_principals_line(char *, const struct sshkey_cert *,
+    const char *, struct sshauthopt **);
+int	 auth_process_principals(FILE *, const char *,
+    const struct sshkey_cert *, struct sshauthopt **);
+int	 auth_check_authkey_line(struct passwd *, struct sshkey *,
+    char *, const char *, const char *, const char *, struct sshauthopt **);
+int	 auth_check_authkeys_file(struct passwd *, FILE *, char *,
+    struct sshkey *, const char *, const char *, struct sshauthopt **);
+FILE	*auth_openkeyfile(const char *, struct passwd *, int);
+FILE	*auth_openprincipals(const char *, struct passwd *, int);
 
 int	 sys_auth_passwd(struct ssh *, const char *);
 
