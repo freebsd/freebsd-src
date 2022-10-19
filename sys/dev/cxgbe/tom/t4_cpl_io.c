@@ -2053,7 +2053,7 @@ t4_uninit_cpl_io_handlers(void)
 #define	aio_refs	backend4
 
 #define	jobtotid(job)							\
-	(((struct toepcb *)(so_sototcpcb((job)->fd_file->f_data)->t_toe))->tid)
+	(((struct toepcb *)(sototcpcb((job)->fd_file->f_data)->t_toe))->tid)
 
 static void
 aiotx_free_job(struct kaiocb *job)
@@ -2415,7 +2415,7 @@ t4_aiotx_cancel(struct kaiocb *job)
 	struct toepcb *toep;
 
 	so = job->fd_file->f_data;
-	tp = so_sototcpcb(so);
+	tp = sototcpcb(so);
 	toep = tp->t_toe;
 	MPASS(job->uaiocb.aio_lio_opcode == LIO_WRITE);
 	sb = &so->so_snd;
@@ -2432,7 +2432,7 @@ t4_aiotx_cancel(struct kaiocb *job)
 int
 t4_aio_queue_aiotx(struct socket *so, struct kaiocb *job)
 {
-	struct tcpcb *tp = so_sototcpcb(so);
+	struct tcpcb *tp = sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	struct adapter *sc = td_adapter(toep->td);
 
