@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 	caph_cache_catpages();
 	caph_cache_tzdata();
 	if (nsock == 0) {
-		if (caph_enter() < 0)
+		if (caph_enter_casper() < 0)
 			err(1, "Unable to enter capability mode");
 	}
 	capsyslog = cap_service_open(capcas, "system.syslog");
