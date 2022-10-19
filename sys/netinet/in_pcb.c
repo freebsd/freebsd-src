@@ -2694,9 +2694,10 @@ inp_unlock_assert(struct inpcb *inp)
 #endif
 
 void
-inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
+inp_apply_all(struct inpcbinfo *pcbinfo,
+    void (*func)(struct inpcb *, void *), void *arg)
 {
-	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+	struct inpcb_iterator inpi = INP_ALL_ITERATOR(pcbinfo,
 	    INPLOOKUP_WLOCKPCB);
 	struct inpcb *inp;
 

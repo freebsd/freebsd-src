@@ -546,7 +546,8 @@ void inp_unlock_assert(struct inpcb *);
 #define	inp_unlock_assert(inp)	do {} while (0)
 #endif
 
-void	inp_apply_all(void (*func)(struct inpcb *, void *), void *arg);
+void	inp_apply_all(struct inpcbinfo *, void (*func)(struct inpcb *, void *),
+	    void *arg);
 int 	inp_ip_tos_get(const struct inpcb *inp);
 void 	inp_ip_tos_set(struct inpcb *inp, int val);
 struct socket *
