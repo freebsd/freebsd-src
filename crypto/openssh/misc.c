@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.175 2022/03/20 08:51:21 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.177 2022/08/11 01:56:51 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -2399,15 +2399,26 @@ parse_absolute_time(const char *s, uint64_t *tp)
 	struct tm tm;
 	time_t tt;
 	char buf[32], *fmt;
+	const char *cp;
+	size_t l;
+	int is_utc = 0;
 
 	*tp = 0;
 
+	l = strlen(s);
+	if (l > 1 && strcasecmp(s + l - 1, "Z") == 0) {
+		is_utc = 1;
+		l--;
+	} else if (l > 3 && strcasecmp(s + l - 3, "UTC") == 0) {
+		is_utc = 1;
+		l -= 3;
+	}
 	/*
 	 * POSIX strptime says "The application shall ensure that there
 	 * is white-space or other non-alphanumeric characters between
 	 * any two conversion specifications" so arrange things this way.
 	 */
-	switch (strlen(s)) {
+	switch (l) {
 	case 8: /* YYYYMMDD */
 		fmt = "%Y-%m-%d";
 		snprintf(buf, sizeof(buf), "%.4s-%.2s-%.2s", s, s + 4, s + 6);
@@ -2427,10 +2438,15 @@ parse_absolute_time(const char *s, uint64_t *tp)
 	}
 
 	memset(&tm, 0, sizeof(tm));
-	if (strptime(buf, fmt, &tm) == NULL)
+	if ((cp = strptime(buf, fmt, &tm)) == NULL || *cp != '\0')
 		return SSH_ERR_INVALID_FORMAT;
-	if ((tt = mktime(&tm)) < 0)
-		return SSH_ERR_INVALID_FORMAT;
+	if (is_utc) {
+		if ((tt = timegm(&tm)) < 0)
+			return SSH_ERR_INVALID_FORMAT;
+	} else {
+		if ((tt = mktime(&tm)) < 0)
+			return SSH_ERR_INVALID_FORMAT;
+	}
 	/* success */
 	*tp = (uint64_t)tt;
 	return 0;
@@ -2792,4 +2808,21 @@ lookup_env_in_list(const char *env, char * const *envs, size_t nenvs)
 		}
 	}
 	return NULL;
+}
+
+const char *
+lookup_setenv_in_list(const char *env, char * const *envs, size_t nenvs)
+{
+	char *name, *cp;
+	const char *ret;
+
+	name = xstrdup(env);
+	if ((cp = strchr(name, '=')) == NULL) {
+		free(name);
+		return NULL; /* not env=val */
+	}
+	*cp = '\0';
+	ret = lookup_env_in_list(name, envs, nenvs);
+	free(name);
+	return ret;
 }

@@ -1,4 +1,4 @@
-#	$OpenBSD: forward-control.sh,v 1.8 2021/05/07 09:23:40 dtucker Exp $
+#	$OpenBSD: forward-control.sh,v 1.11 2022/04/21 01:36:46 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="sshd control of local and remote forwarding"
@@ -6,19 +6,7 @@ tid="sshd control of local and remote forwarding"
 LFWD_PORT=3320
 RFWD_PORT=3321
 CTL=$OBJ/ctl-sock
-READY=$OBJ/ready
-
-wait_for_file_to_appear() {
-	_path=$1
-	_n=0
-	while test ! -f $_path ; do
-		test $_n -eq 1 && trace "waiting for $_path to appear"
-		_n=`expr $_n + 1`
-		test $_n -ge 20 && return 1
-		sleep 1
-	done
-	return 0
-}
+WAIT_SECONDS=20
 
 wait_for_process_to_exit() {
 	_pid=$1
@@ -26,29 +14,35 @@ wait_for_process_to_exit() {
 	while kill -0 $_pid 2>/dev/null ; do
 		test $_n -eq 1 && trace "waiting for $_pid to exit"
 		_n=`expr $_n + 1`
-		test $_n -ge 20 && return 1
+		test $_n -ge $WAIT_SECONDS && return 1
 		sleep 1
 	done
 	return 0
+}
+
+mux_cmd() {
+	${SSH} -F $OBJ/ssh_proxy -S $CTL -O $1 host 2>&1
+}
+
+controlmaster_pid() {
+	mux_cmd check | cut -f2 -d= | cut -f1 -d')'
 }
 
 # usage: check_lfwd Y|N message
 check_lfwd() {
 	_expected=$1
 	_message=$2
-	rm -f $READY
 	${SSH} -F $OBJ/ssh_proxy \
 	    -L$LFWD_PORT:127.0.0.1:$PORT \
 	    -o ExitOnForwardFailure=yes \
-	    -n host exec sh -c \'"sleep 60 & echo \$! > $READY ; wait "\' \
-	    >/dev/null 2>&1 &
-	_sshpid=$!
-	wait_for_file_to_appear $READY || \
-		fatal "check_lfwd ssh fail: $_message"
+	    -MS $CTL -o ControlPersist=yes \
+	    -f host true
+	mux_cmd check >/dev/null || fatal "check_lfwd ssh fail: $_message"
 	${SSH} -F $OBJ/ssh_config -p $LFWD_PORT \
 	    -oConnectionAttempts=10 host true >/dev/null 2>&1
 	_result=$?
-	kill $_sshpid `cat $READY` 2>/dev/null
+	_sshpid=`controlmaster_pid`
+	mux_cmd exit >/dev/null
 	wait_for_process_to_exit $_sshpid
 	if test "x$_expected" = "xY" -a $_result -ne 0 ; then
 		fail "check_lfwd failed (expecting success): $_message"
@@ -65,20 +59,19 @@ check_lfwd() {
 check_rfwd() {
 	_expected=$1
 	_message=$2
-	rm -f $READY
 	${SSH} -F $OBJ/ssh_proxy \
 	    -R127.0.0.1:$RFWD_PORT:127.0.0.1:$PORT \
 	    -o ExitOnForwardFailure=yes \
-	    -n host exec sh -c \'"sleep 60 & echo \$! > $READY ; wait "\' \
-	    >/dev/null 2>&1 &
-	_sshpid=$!
-	wait_for_file_to_appear $READY
+	    -MS $CTL -o ControlPersist=yes \
+	    -f host true
+	mux_cmd check >/dev/null
 	_result=$?
-	if test $_result -eq 0 ; then
+	_sshpid=`controlmaster_pid`
+	if test $_result -eq 0; then
 		${SSH} -F $OBJ/ssh_config -p $RFWD_PORT \
 		    -oConnectionAttempts=10 host true >/dev/null 2>&1
 		_result=$?
-		kill $_sshpid `cat $READY` 2>/dev/null
+		mux_cmd exit >/dev/null
 		wait_for_process_to_exit $_sshpid
 	fi
 	if test "x$_expected" = "xY" -a $_result -ne 0 ; then

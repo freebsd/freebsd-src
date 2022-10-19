@@ -23,17 +23,20 @@
  * E.g.
  *   auditctl -a task,always -F uid=<privsep uid>
  */
-/* #define SANDBOX_SECCOMP_FILTER_DEBUG 1 */
+#define SANDBOX_SECCOMP_FILTER_DEBUG 1
 
-/* XXX it should be possible to do logging via the log socket safely */
-
+#if 0
+/*
+ * For older toolchains, it may be necessary to use the kernel
+ * headers directly.
+ */
 #ifdef SANDBOX_SECCOMP_FILTER_DEBUG
-/* Use the kernel headers in case of an older toolchain. */
 # include <asm/siginfo.h>
 # define __have_siginfo_t 1
 # define __have_sigval_t 1
 # define __have_sigevent_t 1
 #endif /* SANDBOX_SECCOMP_FILTER_DEBUG */
+#endif
 
 #include "includes.h"
 
@@ -362,7 +365,7 @@ ssh_sandbox_init(struct monitor *monitor)
 
 #ifdef SANDBOX_SECCOMP_FILTER_DEBUG
 extern struct monitor *pmonitor;
-void mm_log_handler(LogLevel level, const char *msg, void *ctx);
+void mm_log_handler(LogLevel level, int forced, const char *msg, void *ctx);
 
 static void
 ssh_sandbox_violation(int signum, siginfo_t *info, void *void_context)
@@ -372,7 +375,7 @@ ssh_sandbox_violation(int signum, siginfo_t *info, void *void_context)
 	snprintf(msg, sizeof(msg),
 	    "%s: unexpected system call (arch:0x%x,syscall:%d @ %p)",
 	    __func__, info->si_arch, info->si_syscall, info->si_call_addr);
-	mm_log_handler(SYSLOG_LEVEL_FATAL, msg, pmonitor);
+	mm_log_handler(SYSLOG_LEVEL_FATAL, 0, msg, pmonitor);
 	_exit(1);
 }
 

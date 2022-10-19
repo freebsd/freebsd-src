@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519.c,v 1.9 2020/10/18 11:32:02 djm Exp $ */
+/* $OpenBSD: ssh-ed25519.c,v 1.10 2022/08/26 08:12:56 djm Exp $ */
 /*
  * Copyright (c) 2013 Markus Friedl <markus@openbsd.org>
  *
@@ -83,7 +83,7 @@ ssh_ed25519_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
 	r = 0;
  out:
 	sshbuf_free(b);
-	if (sig != NULL) 
+	if (sig != NULL)
 		freezero(sig, slen);
 
 	return r;
@@ -150,9 +150,9 @@ ssh_ed25519_verify(const struct sshkey *key,
 	/* success */
 	r = 0;
  out:
-	if (sm != NULL) 
+	if (sm != NULL)
 		freezero(sm, smlen);
-	if (m != NULL) 
+	if (m != NULL)
 		freezero(m, smlen); /* NB mlen may be invalid if r != 0 */
 	sshbuf_free(b);
 	free(ktype);

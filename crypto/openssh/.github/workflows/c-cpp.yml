@@ -2,9 +2,11 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ master, ci ]
+    branches: [ master, ci, V_9_0 ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', 'Makefile.in', 'configure.ac' ]
   pull_request:
     branches: [ master ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', 'Makefile.in', 'configure.ac' ]
 
 jobs:
   ci:
@@ -13,11 +15,13 @@ jobs:
       fail-fast: false
       matrix:
         # First we test all OSes in the default configuration.
-        os: [ubuntu-20.04, ubuntu-18.04, macos-10.15, macos-11.0]
+        os: [ubuntu-20.04, ubuntu-22.04, macos-11, macos-12, windows-2019, windows-2022]
         configs: [default]
         # Then we include any extra configs we want to test for specific VMs.
         # Valgrind slows things down quite a bit, so start them first.
         include:
+          - { os: windows-2019, configs: cygwin-release }
+          - { os: windows-2022, configs: cygwin-release }
           - { os: ubuntu-20.04, configs: valgrind-1 }
           - { os: ubuntu-20.04, configs: valgrind-2 }
           - { os: ubuntu-20.04, configs: valgrind-3 }
@@ -30,6 +34,10 @@ jobs:
           - { os: ubuntu-20.04, configs: clang-10 }
           - { os: ubuntu-20.04, configs: clang-11 }
           - { os: ubuntu-20.04, configs: clang-12-Werror }
+          - { os: ubuntu-20.04, configs: clang-sanitize-address }
+          - { os: ubuntu-20.04, configs: clang-sanitize-undefined }
+          - { os: ubuntu-20.04, configs: gcc-sanitize-address }
+          - { os: ubuntu-20.04, configs: gcc-sanitize-undefined }
           - { os: ubuntu-20.04, configs: gcc-7 }
           - { os: ubuntu-20.04, configs: gcc-8 }
           - { os: ubuntu-20.04, configs: gcc-10 }
@@ -44,9 +52,9 @@ jobs:
           - { os: ubuntu-latest, configs: libressl-2.8.3 }
           - { os: ubuntu-latest, configs: libressl-3.0.2 }
           - { os: ubuntu-latest, configs: libressl-3.2.6 }
-          - { os: ubuntu-latest, configs: libressl-3.3.4 }
-          - { os: ubuntu-latest, configs: libressl-3.4.1 }
-          - { os: ubuntu-latest, configs: libressl-3.5.0 }
+          - { os: ubuntu-latest, configs: libressl-3.3.6 }
+          - { os: ubuntu-latest, configs: libressl-3.4.3 }
+          - { os: ubuntu-latest, configs: libressl-3.5.3 }
           - { os: ubuntu-latest, configs: openssl-master }
           - { os: ubuntu-latest, configs: openssl-noec }
           - { os: ubuntu-latest, configs: openssl-1.0.1 }
@@ -55,30 +63,37 @@ jobs:
           - { os: ubuntu-latest, configs: openssl-1.1.0h }
           - { os: ubuntu-latest, configs: openssl-1.1.1 }
           - { os: ubuntu-latest, configs: openssl-1.1.1k }
-          - { os: ubuntu-latest, configs: openssl-1.1.1m }
+          - { os: ubuntu-latest, configs: openssl-1.1.1n }
+          - { os: ubuntu-latest, configs: openssl-1.1.1p }
           - { os: ubuntu-latest, configs: openssl-3.0.0 }
-          - { os: ubuntu-latest, configs: openssl-3.0.1 }
+          - { os: ubuntu-latest, configs: openssl-3.0.5 }
           - { os: ubuntu-latest, configs: openssl-1.1.1_stable } # stable branch
           - { os: ubuntu-latest, configs: openssl-3.0 }          # stable branch
-          - { os: ubuntu-18.04, configs: pam }
-          - { os: ubuntu-18.04, configs: krb5 }
-          - { os: ubuntu-18.04, configs: heimdal }
-          - { os: ubuntu-18.04, configs: libedit }
-          - { os: ubuntu-18.04, configs: sk }
-          - { os: ubuntu-18.04, configs: selinux }
-          - { os: ubuntu-18.04, configs: kitchensink }
-          - { os: ubuntu-18.04, configs: without-openssl }
-          - { os: macos-10.15,  configs: pam }
-          - { os: macos-11.0,   configs: pam }
+          - { os: ubuntu-22.04, configs: pam }
+          - { os: ubuntu-22.04, configs: krb5 }
+          - { os: ubuntu-22.04, configs: heimdal }
+          - { os: ubuntu-22.04, configs: libedit }
+          - { os: ubuntu-22.04, configs: sk }
+          - { os: ubuntu-22.04, configs: selinux }
+          - { os: ubuntu-22.04, configs: kitchensink }
+          - { os: ubuntu-22.04, configs: without-openssl }
+          - { os: macos-11, configs: pam }
+          - { os: macos-12, configs: pam }
     runs-on: ${{ matrix.os }}
     steps:
+    - name: set cygwin git params
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      run: git config --global core.autocrlf input
+    - name: install cygwin
+      if: ${{ startsWith(matrix.os, 'windows') }}
+      uses: cygwin/cygwin-install-action@master
     - uses: actions/checkout@v2
     - name: setup CI system
-      run: ./.github/setup_ci.sh ${{ matrix.configs }}
+      run: sh ./.github/setup_ci.sh ${{ matrix.configs }}
     - name: autoreconf
-      run: autoreconf
+      run: sh -c autoreconf
     - name: configure
-      run: ./.github/configure.sh ${{ matrix.configs }}
+      run: sh ./.github/configure.sh ${{ matrix.configs }}
     - name: save config
       uses: actions/upload-artifact@v2
       with:
@@ -89,9 +104,10 @@ jobs:
     - name: make
       run: make -j2
     - name: make tests
-      run: ./.github/run_test.sh ${{ matrix.configs }}
+      run: sh ./.github/run_test.sh ${{ matrix.configs }}
       env:
         TEST_SSH_UNSAFE_PERMISSIONS: 1
+        TEST_SSH_HOSTBASED_AUTH: yes
     - name: save logs
       if: failure()
       uses: actions/upload-artifact@v2
@@ -102,3 +118,5 @@ jobs:
           config.log
           regress/*.log
           regress/valgrind-out/
+          regress/asan.log.*
+          regress/msan.log.*

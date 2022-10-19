@@ -184,7 +184,6 @@
 #define channel_update_permission		Fssh_channel_update_permission
 #define check_hostkeys_by_key_or_type		Fssh_check_hostkeys_by_key_or_type
 #define check_key_in_hostkeys			Fssh_check_key_in_hostkeys
-#define check_rsa_length			Fssh_check_rsa_length
 #define child_set_env				Fssh_child_set_env
 #define choose_dh				Fssh_choose_dh
 #define choose_t				Fssh_choose_t
@@ -414,6 +413,7 @@
 #define lookup_env_in_list			Fssh_lookup_env_in_list
 #define lookup_key_in_hostkeys_by_type		Fssh_lookup_key_in_hostkeys_by_type
 #define lookup_marker_in_hostkeys		Fssh_lookup_marker_in_hostkeys
+#define lookup_setenv_in_list			Fssh_lookup_setenv_in_list
 #define lowercase				Fssh_lowercase
 #define mac_alg_list				Fssh_mac_alg_list
 #define mac_check				Fssh_mac_check
@@ -791,6 +791,7 @@
 #define sshkey_certify_custom			Fssh_sshkey_certify_custom
 #define sshkey_check_cert_sigtype		Fssh_sshkey_check_cert_sigtype
 #define sshkey_check_revoked			Fssh_sshkey_check_revoked
+#define sshkey_check_rsa_length			Fssh_sshkey_check_rsa_length
 #define sshkey_check_sigtype			Fssh_sshkey_check_sigtype
 #define sshkey_curve_name_to_nid		Fssh_sshkey_curve_name_to_nid
 #define sshkey_curve_nid_to_bits		Fssh_sshkey_curve_nid_to_bits

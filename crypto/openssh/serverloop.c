@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.231 2022/01/22 00:49:34 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.232 2022/04/20 04:19:11 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -392,8 +392,7 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 			cleanup_exit(255);
 		}
 
-		if (!ssh_packet_is_rekeying(ssh))
-			channel_after_poll(ssh, pfd, npfd_active);
+		channel_after_poll(ssh, pfd, npfd_active);
 		if (conn_in_ready &&
 		    process_input(ssh, connection_in) < 0)
 			break;

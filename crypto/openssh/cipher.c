@@ -94,12 +94,10 @@ static const struct sshcipher ciphers[] = {
 	{ "aes128-ctr",		16, 16, 0, 0, 0, EVP_aes_128_ctr },
 	{ "aes192-ctr",		16, 24, 0, 0, 0, EVP_aes_192_ctr },
 	{ "aes256-ctr",		16, 32, 0, 0, 0, EVP_aes_256_ctr },
-# ifdef OPENSSL_HAVE_EVPGCM
 	{ "aes128-gcm@openssh.com",
 				16, 16, 12, 16, 0, EVP_aes_128_gcm },
 	{ "aes256-gcm@openssh.com",
 				16, 32, 12, 16, 0, EVP_aes_256_gcm },
-# endif /* OPENSSL_HAVE_EVPGCM */
 #else
 	{ "aes128-ctr",		16, 16, 0, 0, CFLAG_AESCTR, NULL },
 	{ "aes192-ctr",		16, 24, 0, 0, CFLAG_AESCTR, NULL },
@@ -487,11 +485,6 @@ cipher_get_keyiv(struct sshcipher_ctx *cc, u_char *iv, size_t len)
 		return SSH_ERR_LIBCRYPTO_ERROR;
 	if ((size_t)evplen != len)
 		return SSH_ERR_INVALID_ARGUMENT;
-#ifndef OPENSSL_HAVE_EVPCTR
-	if (c->evptype == evp_aes_128_ctr)
-		ssh_aes_ctr_iv(cc->evp, 0, iv, len);
-	else
-#endif
 	if (cipher_authlen(c)) {
 		if (!EVP_CIPHER_CTX_ctrl(cc->evp, EVP_CTRL_GCM_IV_GEN,
 		    len, iv))
@@ -521,12 +514,6 @@ cipher_set_keyiv(struct sshcipher_ctx *cc, const u_char *iv, size_t len)
 		return SSH_ERR_LIBCRYPTO_ERROR;
 	if ((size_t)evplen != len)
 		return SSH_ERR_INVALID_ARGUMENT;
-#ifndef OPENSSL_HAVE_EVPCTR
-	/* XXX iv arg is const, but ssh_aes_ctr_iv isn't */
-	if (c->evptype == evp_aes_128_ctr)
-		ssh_aes_ctr_iv(cc->evp, 1, (u_char *)iv, evplen);
-	else
-#endif
 	if (cipher_authlen(c)) {
 		/* XXX iv arg is const, but EVP_CIPHER_CTX_ctrl isn't */
 		if (!EVP_CIPHER_CTX_ctrl(cc->evp,

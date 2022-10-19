@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.99 2021/11/13 21:14:13 deraadt Exp $ */
+/* $OpenBSD: misc.h,v 1.100 2022/06/03 04:30:47 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -178,6 +178,8 @@ void mktemp_proto(char *, size_t);
 void	 child_set_env(char ***envp, u_int *envsizep, const char *name,
 	    const char *value);
 const char *lookup_env_in_list(const char *env,
+	    char * const *envs, size_t nenvs);
+const char *lookup_setenv_in_list(const char *env,
 	    char * const *envs, size_t nenvs);
 
 int	 argv_split(const char *, int *, char ***, int);

@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-sk-helper.8,v 1.3 2019/12/21 20:22:34 naddy Exp $
+.\" $OpenBSD: ssh-sk-helper.8,v 1.4 2022/04/29 03:24:30 djm Exp $
 .\"
 .\" Copyright (c) 2010 Markus Friedl.  All rights reserved.
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 21 2019 $
+.Dd $Mdocdate: April 29 2022 $
 .Dt SSH-SK-HELPER 8
 .Os
 .Sh NAME
@@ -26,12 +26,14 @@
 .Sh DESCRIPTION
 .Nm
 is used by
-.Xr ssh-agent 1
+.Xr ssh 1 ,
+.Xr ssh-agent 1 ,
+and
+.Xr ssh-keygen 1
 to access keys provided by a FIDO authenticator.
 .Pp
 .Nm
-is not intended to be invoked by the user, but from
-.Xr ssh-agent 1 .
+is not intended to be invoked directly by the user.
 .Pp
 A single option is supported:
 .Bl -tag -width Ds
@@ -47,17 +49,20 @@ options increase the verbosity.
 The maximum is 3.
 .Pp
 Note that
-.Xr ssh-agent 1
+.Xr ssh 1 ,
+.Xr ssh-agent 1 ,
+and
+.Xr ssh-keygen 1
 will automatically pass the
 .Fl v
 flag to
 .Nm
-when it has itself been placed in debug mode.
+when they have themselves been placed in debug mode.
 .El
 .Sh SEE ALSO
 .Xr ssh 1 ,
-.Xr ssh-add 1 ,
-.Xr ssh-agent 1
+.Xr ssh-agent 1 ,
+.Xr ssh-keygen 1
 .Sh HISTORY
 .Nm
 first appeared in

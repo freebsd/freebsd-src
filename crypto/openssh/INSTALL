@@ -1,9 +1,10 @@
 1. Prerequisites
 ----------------
 
-A C compiler.  Any C89 or better compiler should work.  Where supported,
-configure will attempt to enable the compiler's run-time integrity checking
-options.  Some notes about specific compilers:
+A C compiler.  Any C89 or better compiler that supports variadic macros
+should work.  Where supported, configure will attempt to enable the
+compiler's run-time integrity checking options.  Some notes about
+specific compilers:
  - clang: -ftrapv and -sanitize=integer require the compiler-rt runtime
   (CC=clang LDFLAGS=--rtlib=compiler-rt ./configure)
 

@@ -68,31 +68,6 @@ void ssh_libcrypto_init(void);
 # endif
 #endif
 
-#ifndef OPENSSL_HAVE_EVPCTR
-# define EVP_aes_128_ctr evp_aes_128_ctr
-# define EVP_aes_192_ctr evp_aes_128_ctr
-# define EVP_aes_256_ctr evp_aes_128_ctr
-const EVP_CIPHER *evp_aes_128_ctr(void);
-void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
-#endif
-
-/* Avoid some #ifdef. Code that uses these is unreachable without GCM */
-#if !defined(OPENSSL_HAVE_EVPGCM) && !defined(EVP_CTRL_GCM_SET_IV_FIXED)
-# define EVP_CTRL_GCM_SET_IV_FIXED -1
-# define EVP_CTRL_GCM_IV_GEN -1
-# define EVP_CTRL_GCM_SET_TAG -1
-# define EVP_CTRL_GCM_GET_TAG -1
-#endif
-
-/* Replace missing EVP_CIPHER_CTX_ctrl() with something that returns failure */
-#ifndef HAVE_EVP_CIPHER_CTX_CTRL
-# ifdef OPENSSL_HAVE_EVPGCM
-#  error AES-GCM enabled without EVP_CIPHER_CTX_ctrl /* shouldn't happen */
-# else
-# define EVP_CIPHER_CTX_ctrl(a,b,c,d) (0)
-# endif
-#endif
-
 /* LibreSSL/OpenSSL 1.1x API compat */
 #ifndef HAVE_DSA_GET0_PQG
 void DSA_get0_pqg(const DSA *d, const BIGNUM **p, const BIGNUM **q,

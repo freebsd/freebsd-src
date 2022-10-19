@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.13 2021/08/10 03:35:45 djm Exp $
+#	$OpenBSD: scp.sh,v 1.14 2022/05/15 23:48:07 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
@@ -46,6 +46,31 @@ for mode in scp sftp ; do
 
 	verbose "$tag: simple copy remote file to local file"
 	scpclean
+	$SCP $scpopts somehost:${DATA} ${COPY} || fail "copy failed"
+	cmp ${DATA} ${COPY} || fail "corrupted copy"
+
+	verbose "$tag: copy local file to remote file in place"
+	scpclean
+	cp ${DATA} ${COPY}
+	$SCP $scpopts ${COPY} somehost:${COPY} || fail "copy failed"
+	cmp ${DATA} ${COPY} || fail "corrupted copy"
+
+	verbose "$tag: copy remote file to local file in place"
+	scpclean
+	cp ${DATA} ${COPY}
+	$SCP $scpopts somehost:${COPY} ${COPY} || fail "copy failed"
+	cmp ${DATA} ${COPY} || fail "corrupted copy"
+
+	verbose "$tag: copy local file to remote file clobber"
+	scpclean
+	cat ${DATA} ${DATA} > ${COPY}
+	$SCP $scpopts ${DATA} somehost:${COPY} || fail "copy failed"
+	ls -l $DATA $COPY
+	cmp ${DATA} ${COPY} || fail "corrupted copy"
+
+	verbose "$tag: copy remote file to local file clobber"
+	scpclean
+	cat ${DATA} ${DATA} > ${COPY}
 	$SCP $scpopts somehost:${DATA} ${COPY} || fail "copy failed"
 	cmp ${DATA} ${COPY} || fail "corrupted copy"
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.140 2022/03/31 03:05:49 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.144 2022/09/19 10:41:58 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -37,6 +37,7 @@
 #include <poll.h>
 #endif
 #include <pwd.h>
+#include <grp.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -121,6 +122,8 @@ static void process_extended_lsetstat(u_int32_t id);
 static void process_extended_limits(u_int32_t id);
 static void process_extended_expand(u_int32_t id);
 static void process_extended_copy_data(u_int32_t id);
+static void process_extended_home_directory(u_int32_t id);
+static void process_extended_get_users_groups_by_id(u_int32_t id);
 static void process_extended(u_int32_t id);
 
 struct sftp_handler {
@@ -167,6 +170,10 @@ static const struct sftp_handler extended_handlers[] = {
 	{ "expand-path", "expand-path@openssh.com", 0,
 	    process_extended_expand, 0 },
 	{ "copy-data", "copy-data", 0, process_extended_copy_data, 1 },
+	{ "home-directory", "home-directory", 0,
+	    process_extended_home_directory, 0 },
+	{ "users-groups-by-id", "users-groups-by-id@openssh.com", 0,
+	    process_extended_get_users_groups_by_id, 0 },
 	{ NULL, NULL, 0, NULL, 0 }
 };
 
@@ -724,6 +731,8 @@ process_init(void)
 	compose_extension(msg, "limits@openssh.com", "1");
 	compose_extension(msg, "expand-path@openssh.com", "1");
 	compose_extension(msg, "copy-data", "1");
+	compose_extension(msg, "home-directory", "1");
+	compose_extension(msg, "users-groups-by-id@openssh.com", "1");
 
 	send_msg(msg);
 	sshbuf_free(msg);
@@ -1152,7 +1161,8 @@ process_readdir(u_int32_t id)
 				continue;
 			stat_to_attrib(&st, &(stats[count].attrib));
 			stats[count].name = xstrdup(dp->d_name);
-			stats[count].long_name = ls_file(dp->d_name, &st, 0, 0);
+			stats[count].long_name = ls_file(dp->d_name, &st,
+			    0, 0, NULL, NULL);
 			count++;
 			/* send up to 100 entries in one message */
 			/* XXX check packet size instead */
@@ -1682,6 +1692,86 @@ process_extended_copy_data(u_int32_t id)
 
  out:
 	send_status(id, status);
+}
+
+static void
+process_extended_home_directory(u_int32_t id)
+{
+	char *username;
+	struct passwd *user_pw;
+	int r;
+	Stat s;
+
+	if ((r = sshbuf_get_cstring(iqueue, &username, NULL)) != 0)
+		fatal_fr(r, "parse");
+
+	debug3("request %u: home-directory \"%s\"", id, username);
+	if ((user_pw = getpwnam(username)) == NULL) {
+		send_status(id, SSH2_FX_FAILURE);
+		goto out;
+	}
+
+	verbose("home-directory \"%s\"", pw->pw_dir);
+	attrib_clear(&s.attrib);
+	s.name = s.long_name = pw->pw_dir;
+	send_names(id, 1, &s);
+ out:
+	free(username);
+}
+
+static void
+process_extended_get_users_groups_by_id(u_int32_t id)
+{
+	struct passwd *user_pw;
+	struct group *gr;
+	struct sshbuf *uids, *gids, *usernames, *groupnames, *msg;
+	int r;
+	u_int n, nusers = 0, ngroups = 0;
+	const char *name;
+
+	if ((usernames = sshbuf_new()) == NULL ||
+	    (groupnames = sshbuf_new()) == NULL ||
+	    (msg = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+	if ((r = sshbuf_froms(iqueue, &uids)) != 0 ||
+	    (r = sshbuf_froms(iqueue, &gids)) != 0)
+		fatal_fr(r, "parse");
+	debug_f("uids len = %zu, gids len = %zu",
+	    sshbuf_len(uids), sshbuf_len(gids));
+	while (sshbuf_len(uids) != 0) {
+		if ((r = sshbuf_get_u32(uids, &n)) != 0)
+			fatal_fr(r, "parse inner uid");
+		user_pw = getpwuid((uid_t)n);
+		name = user_pw == NULL ? "" : user_pw->pw_name;
+		debug3_f("uid %u => \"%s\"", n, name);
+		if ((r = sshbuf_put_cstring(usernames, name)) != 0)
+			fatal_fr(r, "assemble gid reply");
+		nusers++;
+	}
+	while (sshbuf_len(gids) != 0) {
+		if ((r = sshbuf_get_u32(gids, &n)) != 0)
+			fatal_fr(r, "parse inner gid");
+		gr = getgrgid((gid_t)n);
+		name = gr == NULL ? "" : gr->gr_name;
+		debug3_f("gid %u => \"%s\"", n, name);
+		if ((r = sshbuf_put_cstring(groupnames, name)) != 0)
+			fatal_fr(r, "assemble gid reply");
+		nusers++;
+	}
+	verbose("users-groups-by-id: %u users, %u groups", nusers, ngroups);
+
+	if ((r = sshbuf_put_u8(msg, SSH2_FXP_EXTENDED_REPLY)) != 0 ||
+	    (r = sshbuf_put_u32(msg, id)) != 0 ||
+	    (r = sshbuf_put_stringb(msg, usernames)) != 0 ||
+	    (r = sshbuf_put_stringb(msg, groupnames)) != 0)
+		fatal_fr(r, "compose");
+	send_msg(msg);
+
+	sshbuf_free(uids);
+	sshbuf_free(gids);
+	sshbuf_free(usernames);
+	sshbuf_free(groupnames);
+	sshbuf_free(msg);
 }
 
 static void

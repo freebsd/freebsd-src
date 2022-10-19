@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.585 2022/03/18 04:04:11 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.591 2022/09/17 10:34:29 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1324,8 +1324,12 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 				continue;
 			}
 #endif /* LIBWRAP */
-			if (unset_nonblock(*newsock) == -1 ||
-			    pipe(startup_p) == -1) {
+			if (unset_nonblock(*newsock) == -1) {
+				close(*newsock);
+				continue;
+			}
+			if (pipe(startup_p) == -1) {
+				error_f("pipe(startup_p): %s", strerror(errno));
 				close(*newsock);
 				continue;
 			}
@@ -1923,6 +1927,13 @@ main(int ac, char **av)
 				fatal_r(r, "Could not demote key: \"%s\"",
 				    options.host_key_files[i]);
 		}
+		if (pubkey != NULL && (r = sshkey_check_rsa_length(pubkey,
+		    options.required_rsa_size)) != 0) {
+			error_fr(r, "Host key %s", options.host_key_files[i]);
+			sshkey_free(pubkey);
+			sshkey_free(key);
+			continue;
+		}
 		sensitive_data.host_keys[i] = key;
 		sensitive_data.host_pubkeys[i] = pubkey;
 
@@ -2463,14 +2474,14 @@ do_ssh2_kex(struct ssh *ssh)
 {
 	char *myproposal[PROPOSAL_MAX] = { KEX_SERVER };
 	struct kex *kex;
+	char *prop_kex = NULL, *prop_enc = NULL, *prop_hostkey = NULL;
 	int r;
 
-	myproposal[PROPOSAL_KEX_ALGS] = compat_kex_proposal(ssh,
+	myproposal[PROPOSAL_KEX_ALGS] = prop_kex = compat_kex_proposal(ssh,
 	    options.kex_algorithms);
-	myproposal[PROPOSAL_ENC_ALGS_CTOS] = compat_cipher_proposal(ssh,
-	    options.ciphers);
-	myproposal[PROPOSAL_ENC_ALGS_STOC] = compat_cipher_proposal(ssh,
-	    options.ciphers);
+	myproposal[PROPOSAL_ENC_ALGS_CTOS] =
+	    myproposal[PROPOSAL_ENC_ALGS_STOC] = prop_enc =
+	    compat_cipher_proposal(ssh, options.ciphers);
 	myproposal[PROPOSAL_MAC_ALGS_CTOS] =
 	    myproposal[PROPOSAL_MAC_ALGS_STOC] = options.macs;
 
@@ -2483,8 +2494,8 @@ do_ssh2_kex(struct ssh *ssh)
 		ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
 		    options.rekey_interval);
 
-	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = compat_pkalg_proposal(
-	    ssh, list_hostkey_types());
+	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = prop_hostkey =
+	   compat_pkalg_proposal(ssh, list_hostkey_types());
 
 	/* start key exchange */
 	if ((r = kex_setup(ssh, myproposal)) != 0)
@@ -2519,6 +2530,9 @@ do_ssh2_kex(struct ssh *ssh)
 	    (r = ssh_packet_write_wait(ssh)) != 0)
 		fatal_fr(r, "send test");
 #endif
+	free(prop_kex);
+	free(prop_enc);
+	free(prop_hostkey);
 	debug("KEX done");
 }
 

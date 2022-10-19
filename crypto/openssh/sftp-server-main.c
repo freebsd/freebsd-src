@@ -42,8 +42,6 @@ main(int argc, char **argv)
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
-	seed_rng();
-
 	if ((user_pw = getpwuid(getuid())) == NULL) {
 		fprintf(stderr, "No user found for uid %lu\n",
 		    (u_long)getuid());

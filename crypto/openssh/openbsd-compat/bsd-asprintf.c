@@ -32,6 +32,7 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define INIT_SZ	128
