@@ -33,7 +33,7 @@
 .\"	@(#)pax.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2018
+.Dd October 19, 2022
 .Dt PAX 1
 .Os
 .Sh NAME
@@ -933,28 +933,31 @@ changed during a specified time range will be archived).
 A time range is made up of six different fields and each field must contain two
 digits.
 The format is:
-.Dl [yy[mm[dd[hh]]]]mm[.ss]
+.Pp
+.Dl [[[[[cc]yy]mm]dd]HH]MM[.SS]
+.Pp
 Where
-.Cm yy
+.Ar cc
+is the first two digits of the year (the century),
+.Ar yy
 is the last two digits of the year,
 the first
-.Cm mm
+.Ar mm
 is the month (from 01 to 12),
-.Cm dd
+.Ar dd
 is the day of the month (from 01 to 31),
-.Cm hh
+.Ar HH
 is the hour of the day (from 00 to 23),
-the second
-.Cm mm
+.Ar MM
 is the minute (from 00 to 59),
 and
-.Cm ss
+.Ar SS
 is the seconds (from 00 to 59).
 The minute field
-.Cm mm
+.Ar MM
 is required, while the other fields are optional and must be added in the
 following order:
-.Dl Cm hh , dd , mm , yy .
+.Ar HH , dd , mm , yy , cc .
 The
 .Cm ss
 field may be added independently of the other fields.
