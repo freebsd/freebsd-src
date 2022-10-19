@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
+#include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
 
 #include "common/common.h"
