@@ -322,7 +322,7 @@ register_toedev(struct toedev *tod)
 	registered_toedevs++;
 	mtx_unlock(&toedev_lock);
 
-	inp_apply_all(toe_listen_start, tod);
+	inp_apply_all(&V_tcbinfo, toe_listen_start, tod);
 
 	return (0);
 }
