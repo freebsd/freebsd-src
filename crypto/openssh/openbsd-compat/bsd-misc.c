@@ -446,3 +446,15 @@ localtime_r(const time_t *timep, struct tm *result)
 	return result;
 }
 #endif
+
+#ifdef ASAN_OPTIONS
+const char *__asan_default_options(void) {
+	return ASAN_OPTIONS;
+}
+#endif
+
+#ifdef MSAN_OPTIONS
+const char *__msan_default_options(void) {
+	return MSAN_OPTIONS;
+}
+#endif

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.220 2022/02/06 00:29:03 jsg Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.226 2022/09/10 08:50:53 jsg Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: February 6 2022 $
+.Dd $Mdocdate: September 10 2022 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -271,9 +271,9 @@ should be placed to be activated.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl A
-For each of the key types (rsa, dsa, ecdsa and ed25519)
-for which host keys
-do not exist, generate the host keys with the default key file path,
+Generate host keys of all default key types (rsa, ecdsa, and
+ed25519) if they do not already exist.
+The host keys are generated with the default key file path,
 an empty passphrase, default bits for the key type, and default comment.
 If
 .Fl f
@@ -396,6 +396,9 @@ Public and private key files will be written to the current directory for
 each downloaded key.
 If multiple FIDO authenticators are attached, keys will be downloaded from
 the first touched authenticator.
+See the
+.Sx FIDO AUTHENTICATOR
+section for more information.
 .It Fl k
 Generate a KRL file.
 In this mode,
@@ -487,56 +490,9 @@ listed in the
 .Sx MODULI GENERATION
 section may be specified.
 .Pp
-When generating a key that will be hosted on a FIDO authenticator,
-this flag may be used to specify key-specific options.
-Those supported at present are:
-.Bl -tag -width Ds
-.It Cm application
-Override the default FIDO application/origin string of
-.Dq ssh: .
-This may be useful when generating host or domain-specific resident keys.
-The specified application string must begin with
-.Dq ssh: .
-.It Cm challenge Ns = Ns Ar path
-Specifies a path to a challenge string that will be passed to the
-FIDO token during key generation.
-The challenge string may be used as part of an out-of-band
-protocol for key enrollment
-(a random challenge is used by default).
-.It Cm device
-Explicitly specify a
-.Xr fido 4
-device to use, rather than letting the token middleware select one.
-.It Cm no-touch-required
-Indicate that the generated private key should not require touch
-events (user presence) when making signatures.
-Note that
-.Xr sshd 8
-will refuse such signatures by default, unless overridden via
-an authorized_keys option.
-.It Cm resident
-Indicate that the key should be stored on the FIDO authenticator itself.
-Resident keys may be supported on FIDO2 tokens and typically require that
-a PIN be set on the token prior to generation.
-Resident keys may be loaded off the token using
-.Xr ssh-add 1 .
-.It Cm user
-A username to be associated with a resident key,
-overriding the empty default username.
-Specifying a username may be useful when generating multiple resident keys
-for the same application name.
-.It Cm verify-required
-Indicate that this private key should require user verification for
-each signature.
-Not all FIDO tokens support this option.
-Currently PIN authentication is the only supported verification method,
-but other methods may be supported in the future.
-.It Cm write-attestation Ns = Ns Ar path
-May be used at key generation time to record the attestation data
-returned from FIDO tokens during key generation.
-This information is potentially sensitive.
-By default, this information is discarded.
-.El
+When generating FIDO authenticator-backed keys, the options listed in the
+.Sx FIDO AUTHENTICATOR
+section may be specified.
 .Pp
 When performing signature-related options using the
 .Fl Y
@@ -555,8 +511,11 @@ Print the full public key to standard output after signature verification.
 .It Cm verify-time Ns = Ns Ar timestamp
 Specifies a time to use when validating signatures instead of the current
 time.
-The time may be specified as a date in YYYYMMDD format or a time
-in YYYYMMDDHHMM[SS] format.
+The time may be specified as a date or time in the YYYYMMDD[Z] or
+in YYYYMMDDHHMM[SS][Z] formats.
+Dates and times will be interpreted in the current system time zone unless
+suffixed with a Z character, which causes them to be interpreted in the
+UTC time zone.
 .El
 .Pp
 The
@@ -627,7 +586,9 @@ and
 (the default).
 .It Fl U
 When used in combination with
-.Fl s ,
+.Fl s
+or
+.Fl Y Cm sign ,
 this option indicates that a CA key resides in a
 .Xr ssh-agent 1 .
 See the
@@ -645,31 +606,67 @@ A validity interval may consist of a single time, indicating that the
 certificate is valid beginning now and expiring at that time, or may consist
 of two times separated by a colon to indicate an explicit time interval.
 .Pp
-The start time may be specified as the string
+The start time may be specified as:
+.Bl -bullet -compact
+.It
+The string
 .Dq always
-to indicate the certificate has no specified start time,
-a date in YYYYMMDD format, a time in YYYYMMDDHHMM[SS] format,
-a relative time (to the current time) consisting of a minus sign followed by
-an interval in the format described in the
+to indicate the certificate has no specified start time.
+.It
+A date or time in the system time zone formatted as YYYYMMDD or
+YYYYMMDDHHMM[SS].
+.It
+A date or time in the UTC time zone as YYYYMMDDZ or YYYYMMDDHHMM[SS]Z.
+.It
+A relative time before the current system time consisting of a minus sign
+followed by an interval in the format described in the
 TIME FORMATS section of
 .Xr sshd_config 5 .
+.It
+A raw seconds since epoch (Jan 1 1970 00:00:00 UTC) as a hexadecimal
+number beginning with
+.Dq 0x .
+.El
 .Pp
-The end time may be specified as a YYYYMMDD date, a YYYYMMDDHHMM[SS] time,
-a relative time starting with a plus character or the string
+The end time may be specified similarly to the start time:
+.Bl -bullet -compact
+.It
+The string
 .Dq forever
-to indicate that the certificate has no expiry date.
+to indicate the certificate has no specified end time.
+.It
+A date or time in the system time zone formatted as YYYYMMDD or
+YYYYMMDDHHMM[SS].
+.It
+A date or time in the UTC time zone as YYYYMMDDZ or YYYYMMDDHHMM[SS]Z.
+.It
+A relative time after the current system time consisting of a plus sign
+followed by an interval in the format described in the
+TIME FORMATS section of
+.Xr sshd_config 5 .
+.It
+A raw seconds since epoch (Jan 1 1970 00:00:00 UTC) as a hexadecimal
+number beginning with
+.Dq 0x .
+.El
 .Pp
 For example:
-.Dq +52w1d
-(valid from now to 52 weeks and one day from now),
-.Dq -4w:+4w
-(valid from four weeks ago to four weeks from now),
-.Dq 20100101123000:20110101123000
-(valid from 12:30 PM, January 1st, 2010 to 12:30 PM, January 1st, 2011),
-.Dq -1d:20110101
-(valid from yesterday to midnight, January 1st, 2011),
-.Dq -1m:forever
-(valid from one minute ago and never expiring).
+.Bl -tag -width Ds
+.It +52w1d
+Valid from now to 52 weeks and one day from now.
+.It -4w:+4w
+Valid from four weeks ago to four weeks from now.
+.It 20100101123000:20110101123000
+Valid from 12:30 PM, January 1st, 2010 to 12:30 PM, January 1st, 2011.
+.It 20100101123000Z:20110101123000Z
+Similar, but interpreted in the UTC time zone rather than the system time zone.
+.It -1d:20110101
+Valid from yesterday to midnight, January 1st, 2011.
+.It 0x1:0x2000000000
+Valid from roughly early 1970 to May 2033.
+.It -1m:forever
+Valid from one minute ago and never expiring.
+.El
 .It Fl v
 Verbose mode.
 Causes
@@ -1060,6 +1057,76 @@ public key must be trusted by
 or
 .Xr ssh 1 .
 Refer to those manual pages for details.
+.Sh FIDO AUTHENTICATOR
+.Nm
+is able to generate FIDO authenticator-backed keys, after which
+they may be used much like any other key type supported by OpenSSH, so
+long as the hardware authenticator is attached when the keys are used.
+FIDO authenticators generally require the user to explicitly authorise
+operations by touching or tapping them.
+FIDO keys consist of two parts: a key handle part stored in the
+private key file on disk, and a per-device private key that is unique
+to each FIDO authenticator and that cannot be exported from the
+authenticator hardware.
+These are combined by the hardware at authentication time to derive
+the real key that is used to sign authentication challenges.
+Supported key types are
+.Cm ecdsa-sk
+and
+.Cm ed25519-sk .
+.Pp
+The options that are valid for FIDO keys are:
+.Bl -tag -width Ds
+.It Cm application
+Override the default FIDO application/origin string of
+.Dq ssh: .
+This may be useful when generating host or domain-specific resident keys.
+The specified application string must begin with
+.Dq ssh: .
+.It Cm challenge Ns = Ns Ar path
+Specifies a path to a challenge string that will be passed to the
+FIDO authenticator during key generation.
+The challenge string may be used as part of an out-of-band
+protocol for key enrollment
+(a random challenge is used by default).
+.It Cm device
+Explicitly specify a
+.Xr fido 4
+device to use, rather than letting the authenticator middleware select one.
+.It Cm no-touch-required
+Indicate that the generated private key should not require touch
+events (user presence) when making signatures.
+Note that
+.Xr sshd 8
+will refuse such signatures by default, unless overridden via
+an authorized_keys option.
+.It Cm resident
+Indicate that the key handle should be stored on the FIDO
+authenticator itself.
+This makes it easier to use the authenticator on multiple computers.
+Resident keys may be supported on FIDO2 authenticators and typically
+require that a PIN be set on the authenticator prior to generation.
+Resident keys may be loaded off the authenticator using
+.Xr ssh-add 1 .
+Storing both parts of a key on a FIDO authenticator increases the likelihood
+of an attacker being able to use a stolen authenticator device.
+.It Cm user
+A username to be associated with a resident key,
+overriding the empty default username.
+Specifying a username may be useful when generating multiple resident keys
+for the same application name.
+.It Cm verify-required
+Indicate that this private key should require user verification for
+each signature.
+Not all FIDO authenticators support this option.
+Currently PIN authentication is the only supported verification method,
+but other methods may be supported in the future.
+.It Cm write-attestation Ns = Ns Ar path
+May be used at key generation time to record the attestation data
+returned from FIDO authenticators during key generation.
+This information is potentially sensitive.
+By default, this information is discarded.
+.El
 .Sh KEY REVOCATION LISTS
 .Nm
 is able to manage OpenSSH format Key Revocation Lists (KRLs).
@@ -1178,7 +1245,10 @@ signature object and presented on the verification command-line must
 match the specified list before the key will be considered acceptable.
 .It Cm valid-after Ns = Ns "timestamp"
 Indicates that the key is valid for use at or after the specified timestamp,
-which may be a date in YYYYMMDD format or a time in YYYYMMDDHHMM[SS] format.
+which may be a date or time in the YYYYMMDD[Z] or YYYYMMDDHHMM[SS][Z] formats.
+Dates and times will be interpreted in the current system time zone unless
+suffixed with a Z character, which causes them to be interpreted in the UTC
+time zone.
 .It Cm valid-before Ns = Ns "timestamp"
 Indicates that the key is valid for use at or before the specified timestamp.
 .El
