@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.307 2022/01/22 00:49:34 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.308 2022/08/31 02:56:40 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -987,7 +987,7 @@ ssh_packet_need_rekeying(struct ssh *ssh, u_int outbound_packet_len)
 		return 1;
 
 	/*
-	 * Always rekey when MAX_PACKETS sent in either direction 
+	 * Always rekey when MAX_PACKETS sent in either direction
 	 * As per RFC4344 section 3.1 we do this after 2^31 packets.
 	 */
 	if (state->p_send.packets > MAX_PACKETS ||

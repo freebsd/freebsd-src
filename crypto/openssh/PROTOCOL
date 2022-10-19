@@ -102,6 +102,8 @@ OpenSSH supports the use of ECDH in Curve25519 for key exchange as
 described at:
 http://git.libssh.org/users/aris/libssh.git/plain/doc/curve25519-sha256@libssh.org.txt?h=curve25519
 
+This is identical to curve25519-sha256 as later published in RFC8731.
+
 2. Connection protocol changes
 
 2.1. connection: Channel write close extension "eow@openssh.com"
@@ -613,6 +615,67 @@ This request is identical to the "copy-data" request documented in:
 
 https://tools.ietf.org/html/draft-ietf-secsh-filexfer-extensions-00#section-7
 
+4.11. sftp: Extension request "home-directory"
+
+This request asks the server to expand the specified user's home directory.
+An empty username implies the current user.  This can be used by the client
+to expand ~/ type paths locally.
+
+	byte		SSH_FXP_EXTENDED
+	uint32		id
+	string		"home-directory"
+	string		username
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+This provides similar information as the "expand-path@openssh.com" extension.
+
+This request is identical to the "home-directory" request documented in:
+
+https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#section-5
+
+4.12. sftp: Extension request "users-groups-by-id@openssh.com"
+
+This request asks the server to returns user and/or group names that
+correspond to one or more IDs (e.g. as returned from a SSH_FXP_STAT
+request). This may be used by the client to provide usernames in
+directory listings.
+
+	byte		SSH_FXP_EXTENDED
+	uint32		id
+	string		"users-groups-by-id@openssh.com"
+	string		uids
+	string		gids
+
+Where "uids" and "gids" consists of one or more integer user or group
+identifiers:
+
+	uint32		id-0
+	...
+
+The server will reply with a SSH_FXP_EXTENDED_REPLY:
+
+	byte		SSH_FXP_EXTENDED_REPLY
+	string		usernames
+	string		groupnames
+
+Where "username" and "groupnames" consists of names in identical request
+order to "uids" and "gids" respectively:
+
+	string		name-0
+	...
+
+If a name cannot be identified for a given user or group ID, an empty
+string will be returned in its place.
+
+It is acceptable for either "uids" or "gids" to be an empty set, in
+which case the respective "usernames" or "groupnames" list will also
+be empty.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
 5. Miscellaneous changes
 
 5.1 Public key format
@@ -649,4 +712,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.44 2022/03/31 03:05:49 djm Exp $
+$OpenBSD: PROTOCOL,v 1.47 2022/09/19 10:40:52 djm Exp $
