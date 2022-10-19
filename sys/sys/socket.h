@@ -722,7 +722,6 @@ __END_DECLS
 #ifdef _KERNEL
 struct socket;
 
-struct tcpcb *so_sototcpcb(struct socket *so);
 struct inpcb *so_sotoinpcb(struct socket *so);
 struct sockbuf *so_sockbuf_snd(struct socket *);
 struct sockbuf *so_sockbuf_rcv(struct socket *);

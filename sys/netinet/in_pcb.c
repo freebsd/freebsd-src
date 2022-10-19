@@ -2753,13 +2753,6 @@ so_sotoinpcb(struct socket *so)
 	return (sotoinpcb(so));
 }
 
-struct tcpcb *
-so_sototcpcb(struct socket *so)
-{
-
-	return (sototcpcb(so));
-}
-
 /*
  * Create an external-format (``xinpcb'') structure using the information in
  * the kernel-format in_pcb structure pointed to by inp.  This is done to
