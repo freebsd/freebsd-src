@@ -1,9 +1,9 @@
-#	$OpenBSD: test-exec.sh,v 1.89 2022/01/06 22:14:25 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.92 2022/07/25 07:12:45 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
 
-if [ ! -x "$TEST_SSH_ELAPSED_TIMES" ]; then
+if [ ! -z "$TEST_SSH_ELAPSED_TIMES" ]; then
 	STARTTIME=`date '+%s'`
 fi
 
@@ -250,6 +250,30 @@ if [ "x$TEST_REGRESS_LOGFILE" = "x" ]; then
 	TEST_REGRESS_LOGFILE=$OBJ/regress.log
 fi
 
+# If set, keep track of successful tests and skip them them if we've
+# previously completed that test.
+if [ "x$TEST_REGRESS_CACHE_DIR" != "x" ]; then
+	if [ ! -d "$TEST_REGRESS_CACHE_DIR" ]; then
+		mkdir -p "$TEST_REGRESS_CACHE_DIR"
+	fi
+	TEST="`basename $SCRIPT .sh`"
+	CACHE="${TEST_REGRESS_CACHE_DIR}/${TEST}.cache"
+	for i in ${SSH} ${SSHD} ${SSHAGENT} ${SSHADD} ${SSHKEYGEN} ${SCP} \
+	    ${SFTP} ${SFTPSERVER} ${SSHKEYSCAN}; do
+		case $i in
+		/*)	bin="$i" ;;
+		*)	bin="`which $i`" ;;
+		esac
+		if [ "$bin" -nt "$CACHE" ]; then
+			rm -f "$CACHE"
+		fi
+	done
+	if [ -f "$CACHE" ]; then
+		echo ok cached $CACHE
+		exit 0
+	fi
+fi
+
 # truncate logfiles
 >$TEST_SSH_LOGFILE
 >$TEST_SSHD_LOGFILE
@@ -296,7 +320,7 @@ export SSH_PKCS11_HELPER SSH_SK_HELPER
 #echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER $SCP
 
 # Portable specific functions
-have_prog()
+which()
 {
 	saved_IFS="$IFS"
 	IFS=":"
@@ -304,11 +328,19 @@ have_prog()
 	do
 		if [ -x $i/$1 ]; then
 			IFS="$saved_IFS"
+			echo "$i/$1"
 			return 0
 		fi
 	done
 	IFS="$saved_IFS"
+	echo "$i/$1"
 	return 1
+}
+
+have_prog()
+{
+	which "$1" >/dev/null 2>&1
+	return $?
 }
 
 jot() {
@@ -763,6 +795,9 @@ fi
 
 if [ $RESULT -eq 0 ]; then
 	verbose ok $tid
+	if [ "x$CACHE" != "x" ]; then
+		touch "$CACHE"
+	fi
 else
 	echo failed $tid
 fi

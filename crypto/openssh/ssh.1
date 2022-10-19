@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.430 2022/03/31 17:27:27 naddy Exp $
+.\" $OpenBSD: ssh.1,v 1.432 2022/09/17 10:33:18 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: March 31 2022 $
+.Dd $Mdocdate: September 17 2022 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -160,7 +160,8 @@ slow connections, but will only slow down things on fast networks.
 The default value can be set on a host-by-host basis in the
 configuration files; see the
 .Cm Compression
-option.
+option in
+.Xr ssh_config 5 .
 .Pp
 .It Fl c Ar cipher_spec
 Selects the cipher specification for encrypting the session.
@@ -435,7 +436,9 @@ A comma-separated list of MAC (message authentication code) algorithms,
 specified in order of preference.
 See the
 .Cm MACs
-keyword for more information.
+keyword in
+.Xr ssh_config 5
+for more information.
 .Pp
 .It Fl N
 Do not execute a remote command.
@@ -569,6 +572,7 @@ For full details of the options listed below, and their possible values, see
 .It RemoteCommand
 .It RemoteForward
 .It RequestTTY
+.It RequiredRSASize
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax

@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.378 2022/01/22 00:49:34 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.380 2022/06/03 04:30:46 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1348,9 +1348,8 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 		if (quit_pending)
 			break;
 
-		/* Do channel operations unless rekeying in progress. */
-		if (!ssh_packet_is_rekeying(ssh))
-			channel_after_poll(ssh, pfd, npfd_active);
+		/* Do channel operations. */
+		channel_after_poll(ssh, pfd, npfd_active);
 
 		/* Buffer input from the connection.  */
 		if (conn_in_ready)
@@ -2468,7 +2467,8 @@ client_session2_setup(struct ssh *ssh, int id, int want_tty, int want_subsystem,
     const char *term, struct termios *tiop, int in_fd, struct sshbuf *cmd,
     char **env)
 {
-	int i, j, matched, len, r;
+	size_t i, j, len;
+	int matched, r;
 	char *name, *val;
 	Channel *c = NULL;
 
@@ -2551,13 +2551,13 @@ client_session2_setup(struct ssh *ssh, int id, int want_tty, int want_subsystem,
 			len = 900;
 		if (want_subsystem) {
 			debug("Sending subsystem: %.*s",
-			    len, (const u_char*)sshbuf_ptr(cmd));
+			    (int)len, (const u_char*)sshbuf_ptr(cmd));
 			channel_request_start(ssh, id, "subsystem", 1);
 			client_expect_confirm(ssh, id, "subsystem",
 			    CONFIRM_CLOSE);
 		} else {
 			debug("Sending command: %.*s",
-			    len, (const u_char*)sshbuf_ptr(cmd));
+			    (int)len, (const u_char*)sshbuf_ptr(cmd));
 			channel_request_start(ssh, id, "exec", 1);
 			client_expect_confirm(ssh, id, "exec", CONFIRM_CLOSE);
 		}

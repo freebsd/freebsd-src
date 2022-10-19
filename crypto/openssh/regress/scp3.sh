@@ -9,6 +9,12 @@ COPY2=${OBJ}/copy2
 DIR=${COPY}.dd
 DIR2=${COPY}.dd2
 
+$SSH -F $OBJ/ssh_proxy somehost \
+    'IFS=":"; for i in $PATH;do [ -x "$i/scp" ] && exit 0; done; exit 1'
+if [ $? -eq 1 ]; then
+	skip "No scp on remote path."
+fi
+
 SRC=`dirname ${SCRIPT}`
 cp ${SRC}/scp-ssh-wrapper.sh ${OBJ}/scp-ssh-wrapper.scp
 chmod 755 ${OBJ}/scp-ssh-wrapper.scp

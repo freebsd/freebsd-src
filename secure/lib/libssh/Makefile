@@ -11,7 +11,7 @@ SRCS=	ssh_api.c ssherr.c \
 	sshbuf-misc.c sshbuf-getput-crypto.c krl.c bitmap.c
 SRCS+=	authfd.c authfile.c \
 	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
-	cipher-ctr.c cleanup.c \
+	cleanup.c \
 	compat.c fatal.c hostfile.c \
 	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addr.c addrmatch.c \

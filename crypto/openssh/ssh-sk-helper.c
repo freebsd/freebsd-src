@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-helper.c,v 1.12 2021/10/28 02:54:18 djm Exp $ */
+/* $OpenBSD: ssh-sk-helper.c,v 1.13 2022/04/29 03:16:48 dtucker Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -265,6 +265,7 @@ process_load_resident(struct sshbuf *req)
 	sshsk_free_resident_keys(srks, nsrks);
 	sshbuf_free(kbuf);
 	free(provider);
+	free(device);
 	if (pin != NULL)
 		freezero(pin, strlen(pin));
 	return resp;

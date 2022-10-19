@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.156 2022/03/18 04:04:11 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.157 2022/09/17 10:34:29 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -229,6 +229,7 @@ typedef struct {
 	int	expose_userauth_info;
 	u_int64_t timing_secret;
 	char   *sk_provider;
+	int	required_rsa_size;	/* minimum size of RSA keys */
 	int	use_blacklist;
 }       ServerOptions;
 
