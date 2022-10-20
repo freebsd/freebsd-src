@@ -404,6 +404,20 @@ cpu_mp_probe(void)
 
 #ifdef FDT
 static boolean_t
+cpu_check_mmu(u_int id __unused, phandle_t node, u_int addr_size __unused,
+    pcell_t *reg __unused)
+{
+	char type[32];
+
+	/* Check if this hart supports MMU. */
+	if (OF_getprop(node, "mmu-type", (void *)type, sizeof(type)) == -1 ||
+	    strncmp(type, "riscv,none", 10) == 0)
+		return (0);
+
+	return (1);
+}
+
+static boolean_t
 cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	struct pcpu *pcpup;
@@ -413,8 +427,7 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	int naps;
 	int error;
 
-	/* Check if this hart supports MMU. */
-	if (OF_getproplen(node, "mmu-type") < 0)
+	if (!cpu_check_mmu(id, node, addr_size, reg))
 		return (0);
 
 	KASSERT(id < MAXCPU, ("Too many CPUs"));
@@ -519,17 +532,6 @@ cpu_mp_start(void)
 void
 cpu_mp_announce(void)
 {
-}
-
-static boolean_t
-cpu_check_mmu(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
-{
-
-	/* Check if this hart supports MMU. */
-	if (OF_getproplen(node, "mmu-type") < 0)
-		return (0);
-
-	return (1);
 }
 
 void
