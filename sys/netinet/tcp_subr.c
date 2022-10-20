@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_ecn.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_hpts.h>
@@ -1778,7 +1779,7 @@ tcpip_maketemplate(struct inpcb *inp)
  */
 void
 tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
-    tcp_seq ack, tcp_seq seq, int flags)
+    tcp_seq ack, tcp_seq seq, uint16_t flags)
 {
 	struct tcpopt to;
 	struct inpcb *inp;
@@ -1793,6 +1794,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	int isipv6;
 #endif /* INET6 */
 	int optlen, tlen, win, ulen;
+	int ect = 0;
 	bool incl_opts;
 	uint16_t port;
 	int output_ret;
@@ -1980,6 +1982,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	m->m_len = tlen;
 	to.to_flags = 0;
 	if (incl_opts) {
+		ect = tcp_ecn_output_established(tp, &flags, 0, false);
 		/* Make sure we have room. */
 		if (M_TRAILINGSPACE(m) < TCP_MAXOLEN) {
 			m->m_next = m_get(M_NOWAIT, MT_DATA);
@@ -2018,7 +2021,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			ulen = tlen - sizeof(struct ip6_hdr);
 			uh->uh_ulen = htons(ulen);
 		}
-		ip6->ip6_flow = 0;
+		ip6->ip6_flow = htonl(ect << 20);
 		ip6->ip6_vfc = IPV6_VERSION;
 		if (port)
 			ip6->ip6_nxt = IPPROTO_UDP;
@@ -2036,6 +2039,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			ulen = tlen - sizeof(struct ip);
 			uh->uh_ulen = htons(ulen);
 		}
+		ip->ip_tos = ect;
 		ip->ip_len = htons(tlen);
 		ip->ip_ttl = V_ip_defttl;
 		if (port) {
