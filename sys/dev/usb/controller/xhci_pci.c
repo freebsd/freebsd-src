@@ -402,7 +402,7 @@ xhci_pci_attach(device_t self)
 		break;
 	}
 
-	if (sc->sc_irq_res != NULL) {
+	if (sc->sc_irq_res != NULL && xhci_use_polling() == 0) {
 		err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
 		if (err != 0) {
