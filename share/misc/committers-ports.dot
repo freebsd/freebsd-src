@@ -243,6 +243,7 @@ rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 robak [label="Bartek Rutkowski\nrobak@FreeBSD.org\n2014/06/10"]
 rodrigo [label="Rodrigo Osorio\nrodrigo@FreeBSD.org\n2014/01/15"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
+ronald [label="Ronald Klop\nronald@FreeBSD.org\n2022/10/06"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2014/07/15"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
 salvadore [label="Lorenzo Salvadore\nsalvadore@FreeBSD.org\n2020/02/21"]
@@ -692,6 +693,8 @@ pi -> tz
 
 pizzamig -> tagattie
 
+pkubaj -> ronald
+
 rafan -> chinsan
 
 rakuco -> adridg
@@ -707,6 +710,7 @@ rene -> jmd
 rene -> joneum
 rene -> ler
 rene -> olivierd
+rene -> ronald
 
 rm -> koobs
 rm -> vg
