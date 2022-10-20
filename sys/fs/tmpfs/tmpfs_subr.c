@@ -113,7 +113,7 @@ tmpfs_pager_writecount_recalc(vm_object_t object, vm_offset_t old,
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	vp = object->un_pager.swp.swp_tmpfs;
+	vp = VM_TO_TMPFS_VP(object);
 
 	/*
 	 * Forced unmount?
@@ -194,15 +194,14 @@ tmpfs_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 
 	/*
 	 * Tmpfs VREG node, which was reclaimed, has tmpfs_pager_type
-	 * type, but not OBJ_TMPFS flag.  In this case there is no
-	 * v_writecount to adjust.
+	 * type.  In this case there is no v_writecount to adjust.
 	 */
 	if (vp_heldp != NULL)
 		VM_OBJECT_RLOCK(object);
 	else
 		VM_OBJECT_ASSERT_LOCKED(object);
 	if ((object->flags & OBJ_TMPFS) != 0) {
-		vp = object->un_pager.swp.swp_tmpfs;
+		vp = VM_TO_TMPFS_VP(object);
 		if (vp != NULL) {
 			*vpp = vp;
 			if (vp_heldp != NULL) {
@@ -572,9 +571,10 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	case VREG:
 		nnode->tn_reg.tn_aobj =
 		    vm_pager_allocate(tmpfs_pager_type, NULL, 0,
-			VM_PROT_DEFAULT, 0,
-			NULL /* XXXKIB - tmpfs needs swap reservation */);
-		/* OBJ_TMPFS is set together with the setting of vp->v_object */
+		    VM_PROT_DEFAULT, 0,
+		    NULL /* XXXKIB - tmpfs needs swap reservation */);
+		nnode->tn_reg.tn_aobj->un_pager.swp.swp_priv = nnode;
+		vm_object_set_flag(nnode->tn_reg.tn_aobj, OBJ_TMPFS);
 		nnode->tn_reg.tn_tmp = tmp;
 		break;
 
@@ -667,14 +667,9 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		uobj = node->tn_reg.tn_aobj;
 		if (uobj != NULL && uobj->size != 0)
 			atomic_subtract_long(&tmp->tm_pages_used, uobj->size);
-
 		tmpfs_free_tmp(tmp);
-
-		if (uobj != NULL) {
-			KASSERT((uobj->flags & OBJ_TMPFS) == 0,
-			    ("leaked OBJ_TMPFS node %p vm_obj %p", node, uobj));
+		if (uobj != NULL)
 			vm_object_deallocate(uobj);
-		}
 		break;
 	case VLNK:
 		tmpfs_free_tmp(tmp);
@@ -816,8 +811,6 @@ tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 		want_vrele = true;
 	}
 
-	vm_object_clear_flag(obj, OBJ_TMPFS);
-	obj->un_pager.swp.swp_tmpfs = NULL;
 	if (vp->v_writecount < 0)
 		vp->v_writecount = 0;
 	VI_UNLOCK(vp);
@@ -955,8 +948,6 @@ loop:
 		VI_LOCK(vp);
 		KASSERT(vp->v_object == NULL, ("Not NULL v_object in tmpfs"));
 		vp->v_object = object;
-		object->un_pager.swp.swp_tmpfs = vp;
-		vm_object_set_flag(object, OBJ_TMPFS);
 		vn_irflag_set_locked(vp, VIRF_PGREAD | VIRF_TEXT_REF);
 		VI_UNLOCK(vp);
 		VM_OBJECT_WUNLOCK(object);

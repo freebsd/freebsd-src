@@ -156,20 +156,13 @@ struct vm_object {
 		/*
 		 * Swap pager
 		 *
-		 *	swp_tmpfs - back-pointer to the tmpfs vnode,
-		 *		     if any, which uses the vm object
-		 *		     as backing store.  The handle
-		 *		     cannot be reused for linking,
-		 *		     because the vnode can be
-		 *		     reclaimed and recreated, making
-		 *		     the handle changed and hash-chain
-		 *		     invalid.
-		 *
-		 *	swp_blks -   pc-trie of the allocated swap blocks.
+		 *	swp_priv - pager-private.
+		 *	swp_blks - pc-trie of the allocated swap blocks.
+		 *	writemappings - count of bytes mapped for write
 		 *
 		 */
 		struct {
-			void *swp_tmpfs;
+			void *swp_priv;
 			struct pctrie swp_blks;
 			vm_ooffset_t writemappings;
 		} swp;
