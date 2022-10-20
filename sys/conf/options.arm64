@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-ARM64				opt_global.h
+ARM64				opt_global.h		# for cpu ARM64 to work
 INTRNG				opt_global.h
 SOCDEV_PA			opt_global.h
 THUNDERX_PASS_1_1_ERRATA	opt_global.h
