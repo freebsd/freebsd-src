@@ -557,7 +557,11 @@ tmpfs_free_tmp(struct tmpfs_mount *tmp)
 	TMPFS_UNLOCK(tmp);
 
 	mtx_destroy(&tmp->tm_allnode_lock);
-	MPASS(tmp->tm_pages_used == 0);
+	/*
+	 * We cannot assert that tmp->tm_pages_used == 0 there,
+	 * because tmpfs vm_objects might be still mapped by some
+	 * process and outlive the mount due to reference counting.
+	 */
 	MPASS(tmp->tm_nodes_inuse == 0);
 
 	free(tmp, M_TMPFSMNT);
