@@ -397,6 +397,7 @@ static const struct {
 	{ HDA_CODEC_INTELALLK, 0,	"Intel Alder Lake" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
+	{ HDA_CODEC_VMWARE, 0,		"VMware" },
 	/* Unknown CODECs */
 	{ HDA_CODEC_ADXXXX, 0,		"Analog Devices" },
 	{ HDA_CODEC_AGEREXXXX, 0,	"Lucent/Agere Systems" },
@@ -414,6 +415,7 @@ static const struct {
 	{ HDA_CODEC_NVIDIAXXXX, 0,	"NVIDIA" },
 	{ HDA_CODEC_SIIXXXX, 0,		"Silicon Image" },
 	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel" },
+	{ HDA_CODEC_VMWAREXXXX, 0,	"VMware" },
 	{ HDA_CODEC_VTXXXX, 0,		"VIA" },
 };
 

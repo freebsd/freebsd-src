@@ -200,6 +200,7 @@ static const struct {
 	{ HDA_AMD_HUDSON2,   "AMD Hudson-2",	0, 0 },
 	{ HDA_RDC_M3010,     "RDC M3010",	0, 0 },
 	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A",0, 0 },
+	{ HDA_VMWARE,        "VMware",		0, 0 },
 	{ HDA_SIS_966,       "SiS 966/968",	0, 0 },
 	{ HDA_ULI_M5461,     "ULI M5461",	0, 0 },
 	/* Unknown */
@@ -209,6 +210,7 @@ static const struct {
 	{ HDA_AMD_ALL,    "AMD",		0, 0 },
 	{ HDA_CREATIVE_ALL,    "Creative",	0, 0 },
 	{ HDA_VIA_ALL,    "VIA",		0, 0 },
+	{ HDA_VMWARE_ALL, "VMware",		0, 0 },
 	{ HDA_SIS_ALL,    "SiS",		0, 0 },
 	{ HDA_ULI_ALL,    "ULI",		0, 0 },
 };
