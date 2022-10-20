@@ -69,6 +69,8 @@ typedef void pgo_getvp_t(vm_object_t object, struct vnode **vpp,
     bool *vp_heldp);
 typedef void pgo_freespace_t(vm_object_t object, vm_pindex_t start,
     vm_size_t size);
+typedef void pgo_page_inserted_t(vm_object_t object, vm_page_t m);
+typedef void pgo_page_removed_t(vm_object_t object, vm_page_t m);
 
 struct pagerops {
 	int			pgo_kvme_type;
@@ -87,6 +89,8 @@ struct pagerops {
 	pgo_mightbedirty_t	*pgo_mightbedirty;
 	pgo_getvp_t		*pgo_getvp;
 	pgo_freespace_t		*pgo_freespace;
+	pgo_page_inserted_t	*pgo_page_inserted;
+	pgo_page_removed_t	*pgo_page_removed;
 };
 
 extern const struct pagerops defaultpagerops;
@@ -247,6 +251,26 @@ vm_pager_freespace(vm_object_t object, vm_pindex_t start,
 	method = pagertab[object->type]->pgo_freespace;
 	if (method != NULL)
 		method(object, start, size);
+}
+
+static __inline void
+vm_pager_page_inserted(vm_object_t object, vm_page_t m)
+{
+	pgo_page_inserted_t *method;
+
+	method = pagertab[object->type]->pgo_page_inserted;
+	if (method != NULL)
+		method(object, m);
+}
+
+static __inline void
+vm_pager_page_removed(vm_object_t object, vm_page_t m)
+{
+	pgo_page_removed_t *method;
+
+	method = pagertab[object->type]->pgo_page_removed;
+	if (method != NULL)
+		method(object, m);
 }
 
 int vm_pager_alloc_dyn_type(struct pagerops *ops, int base_type);
