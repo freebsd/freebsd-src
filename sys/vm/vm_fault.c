@@ -1212,6 +1212,10 @@ vm_fault_allocate(struct faultstate *fs)
 #if VM_NRESERVLEVEL > 0
 		vm_object_color(fs->object, atop(fs->vaddr) - fs->pindex);
 #endif
+		if (!vm_pager_can_alloc_page(fs->object, fs->pindex)) {
+			unlock_and_deallocate(fs);
+			return (FAULT_FAILURE);
+		}
 		fs->m = vm_page_alloc(fs->object, fs->pindex,
 		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0);
 	}
