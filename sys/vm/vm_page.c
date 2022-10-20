@@ -2029,6 +2029,8 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 
 	flags = 0;
 	m = NULL;
+	if (!vm_pager_can_alloc_page(object, pindex))
+		return (NULL);
 	pool = object != NULL ? VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT;
 again:
 #if VM_NRESERVLEVEL > 0
@@ -4676,6 +4678,8 @@ retrylookup:
 		*mp = NULL;
 		return (VM_PAGER_FAIL);
 	} else if ((m = vm_page_alloc(object, pindex, pflags)) == NULL) {
+		if (!vm_pager_can_alloc_page(object, pindex))
+			return (VM_PAGER_AGAIN);
 		goto retrylookup;
 	}
 
