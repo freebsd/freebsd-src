@@ -422,6 +422,8 @@ vm_pager_alloc_dyn_type(struct pagerops *ops, int base_type)
 		FIX(mightbedirty);
 		FIX(getvp);
 		FIX(freespace);
+		FIX(page_inserted);
+		FIX(page_removed);
 #undef FIX
 	}
 	pagertab[res] = ops;	/* XXXKIB should be rel, but acq is too much */
