@@ -9259,7 +9259,7 @@ bbr_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		ctf_challenge_ack(m, th, tp, &ret_val);
+		ctf_challenge_ack(m, th, tp, iptos, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -9355,7 +9355,7 @@ bbr_do_close_wait(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		ctf_challenge_ack(m, th, tp, &ret_val);
+		ctf_challenge_ack(m, th, tp, iptos, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -9476,7 +9476,7 @@ bbr_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		ctf_challenge_ack(m, th, tp, &ret_val);
+		ctf_challenge_ack(m, th, tp, iptos, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -9600,7 +9600,7 @@ bbr_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		ctf_challenge_ack(m, th, tp, &ret_val);
+		ctf_challenge_ack(m, th, tp, iptos, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -9710,7 +9710,7 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		ctf_challenge_ack(m, th, tp, &ret_val);
+		ctf_challenge_ack(m, th, tp, iptos, &ret_val);
 		return (ret_val);
 	}
 	/*
@@ -9822,7 +9822,7 @@ bbr_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * synchronized state.
 	 */
 	if (thflags & TH_SYN) {
-		ctf_challenge_ack(m, th, tp, &ret_val);
+		ctf_challenge_ack(m, th, tp, iptos, &ret_val);
 		return (ret_val);
 	}
 	INP_WLOCK_ASSERT(tp->t_inpcb);

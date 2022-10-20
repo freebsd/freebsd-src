@@ -2243,6 +2243,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp = tcp_drop(tp, ECONNRESET);
 			rstreason = BANDLIM_UNLIMITED;
 		} else {
+			tcp_ecn_input_syn_sent(tp, thflags, iptos);
 			/* Send challenge ACK. */
 			tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
 			    tp->snd_nxt, TH_ACK);

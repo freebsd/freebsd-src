@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/tcp_ecn.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/cc/cc.h>
@@ -860,7 +861,7 @@ __ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
  * and valid.
  */
 void
-ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
+ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, uint8_t iptos, int32_t * ret_val)
 {
 
 	NET_EPOCH_ASSERT();
@@ -873,6 +874,7 @@ ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t *
 		*ret_val = 1;
 		ctf_do_drop(m, tp);
 	} else {
+		tcp_ecn_input_syn_sent(tp, tcp_get_flags(th), iptos);
 		/* Send challenge ACK. */
 		tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
 		    tp->snd_nxt, TH_ACK);
