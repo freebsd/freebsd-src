@@ -246,7 +246,7 @@ again:
 				VM_OBJECT_RUNLOCK(object);
 				continue;
 			}
-			vp = object->un_pager.swp.swp_tmpfs;
+			vp = VM_TO_TMPFS_VP(object);
 			if (vp->v_mount != mp) {
 				VM_OBJECT_RUNLOCK(object);
 				continue;

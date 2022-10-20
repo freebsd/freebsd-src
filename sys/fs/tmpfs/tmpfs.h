@@ -528,6 +528,23 @@ extern int tmpfs_pager_type;
  * specific ones.
  */
 
+static inline struct vnode *
+VM_TO_TMPFS_VP(vm_object_t obj)
+{
+	struct tmpfs_node *node;
+
+	MPASS((obj->flags & OBJ_TMPFS) != 0);
+
+	/*
+	 * swp_priv is the back-pointer to the tmpfs node, if any,
+	 * which uses the vm object as backing store.  The object
+	 * handle is not used to avoid locking sw_alloc_sx on tmpfs
+	 * node instantiation/destroy.
+	 */
+	node = obj->un_pager.swp.swp_priv;
+	return (node->tn_vnode);
+}
+
 static inline struct tmpfs_mount *
 VFS_TO_TMPFS(struct mount *mp)
 {
