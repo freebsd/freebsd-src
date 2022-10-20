@@ -1222,47 +1222,6 @@ good:
 	dp = ndp->ni_vp;
 
 	/*
-	 * Check to see if the vnode has been mounted on;
-	 * if so find the root of the mounted filesystem.
-	 */
-	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
-	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
-		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
-		crosslkflags = compute_cn_lkflags(mp, cnp->cn_lkflags,
-		    cnp->cn_flags);
-		if (__predict_false(crosslock) &&
-		    (crosslkflags & LK_EXCLUSIVE) != 0 &&
-		    VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
-			vn_lock(dp, LK_UPGRADE | LK_RETRY);
-			if (VN_IS_DOOMED(dp)) {
-				error = ENOENT;
-				goto bad2;
-			}
-		}
-		if (vfs_busy(mp, 0))
-			continue;
-		if (__predict_true(!crosslock))
-			vput(dp);
-		if (dp != ndp->ni_dvp)
-			vput(ndp->ni_dvp);
-		else
-			vrele(ndp->ni_dvp);
-		vrefact(vp_crossmp);
-		ndp->ni_dvp = vp_crossmp;
-		error = VFS_ROOT(mp, crosslkflags, &tdp);
-		vfs_unbusy(mp);
-		if (__predict_false(crosslock))
-			vput(dp);
-		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
-			panic("vp_crossmp exclusively locked or reclaimed");
-		if (error) {
-			dpunlocked = 1;
-			goto bad2;
-		}
-		ndp->ni_vp = dp = tdp;
-	}
-
-	/*
 	 * Check for symbolic link
 	 */
 	if ((dp->v_type == VLNK) &&
@@ -1289,7 +1248,54 @@ good:
 			ni_dvp_unlocked = 1;
 		}
 		goto success;
-	}
+	} else if ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0) {
+		if ((cnp->cn_flags & NOCROSSMOUNT) != 0)
+			goto nextname;
+	} else
+		goto nextname;
+
+	/*
+	 * Check to see if the vnode has been mounted on;
+	 * if so find the root of the mounted filesystem.
+	 */
+	do {
+		mp = dp->v_mountedhere;
+		KASSERT(mp != NULL,
+		    ("%s: NULL mountpoint for VIRF_MOUNTPOINT vnode", __func__));
+		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
+		crosslkflags = compute_cn_lkflags(mp, cnp->cn_lkflags,
+		    cnp->cn_flags);
+		if (__predict_false(crosslock) &&
+		    (crosslkflags & LK_EXCLUSIVE) != 0 &&
+		    VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
+			vn_lock(dp, LK_UPGRADE | LK_RETRY);
+			if (VN_IS_DOOMED(dp)) {
+				error = ENOENT;
+				goto bad2;
+			}
+		}
+		if (vfs_busy(mp, 0) != 0)
+			continue;
+		if (__predict_true(!crosslock))
+			vput(dp);
+		if (dp != ndp->ni_dvp)
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
+		vrefact(vp_crossmp);
+		ndp->ni_dvp = vp_crossmp;
+		error = VFS_ROOT(mp, crosslkflags, &tdp);
+		vfs_unbusy(mp);
+		if (__predict_false(crosslock))
+			vput(dp);
+		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
+			panic("vp_crossmp exclusively locked or reclaimed");
+		if (error != 0) {
+			dpunlocked = 1;
+			goto bad2;
+		}
+		ndp->ni_vp = dp = tdp;
+	} while ((vn_irflag_read(dp) & VIRF_MOUNTPOINT) != 0);
 
 nextname:
 	/*
