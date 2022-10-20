@@ -505,6 +505,7 @@ extern volatile time_t	time_second;
 extern volatile time_t	time_uptime;
 extern struct bintime tc_tick_bt;
 extern sbintime_t tc_tick_sbt;
+extern time_t tick_seconds_max;
 extern struct bintime tick_bt;
 extern sbintime_t tick_sbt;
 extern int tc_precexp;

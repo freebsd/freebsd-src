@@ -556,60 +556,81 @@ hardclock_sync(int cpu)
 }
 
 /*
- * Compute number of ticks in the specified amount of time.
+ * Regular integer scaling formula without loosing precision:
+ */
+#define	TIME_INT_SCALE(value, mul, div) \
+	(((value) / (div)) * (mul) + (((value) % (div)) * (mul)) / (div))
+
+/*
+ * Macro for converting seconds and microseconds into actual ticks,
+ * based on the given hz value:
+ */
+#define	TIME_TO_TICKS(sec, usec, hz) \
+	((sec) * (hz) + TIME_INT_SCALE(usec, hz, 1 << 6) / (1000000 >> 6))
+
+#define	TIME_ASSERT_VALID_HZ(hz)	\
+	_Static_assert(TIME_TO_TICKS(INT_MAX / (hz) - 1, 999999, hz) >= 0 && \
+		       TIME_TO_TICKS(INT_MAX / (hz) - 1, 999999, hz) < INT_MAX,	\
+		       "tvtohz() can overflow the regular integer type")
+
+/*
+ * Compile time assert the maximum and minimum values to fit into a
+ * regular integer when computing TIME_TO_TICKS():
+ */
+TIME_ASSERT_VALID_HZ(HZ_MAXIMUM);
+TIME_ASSERT_VALID_HZ(HZ_MINIMUM);
+
+/*
+ * The forumla is mostly linear, but test some more common values just
+ * in case:
+ */
+TIME_ASSERT_VALID_HZ(1024);
+TIME_ASSERT_VALID_HZ(1000);
+TIME_ASSERT_VALID_HZ(128);
+TIME_ASSERT_VALID_HZ(100);
+
+/*
+ * Compute number of ticks representing the specified amount of time.
+ * If the specified time is negative, a value of 1 is returned. This
+ * function returns a value from 1 up to and including INT_MAX.
  */
 int
 tvtohz(struct timeval *tv)
 {
-	unsigned long ticks;
-	long sec, usec;
+	int retval;
 
 	/*
-	 * If the number of usecs in the whole seconds part of the time
-	 * difference fits in a long, then the total number of usecs will
-	 * fit in an unsigned long.  Compute the total and convert it to
-	 * ticks, rounding up and adding 1 to allow for the current tick
-	 * to expire.  Rounding also depends on unsigned long arithmetic
-	 * to avoid overflow.
-	 *
-	 * Otherwise, if the number of ticks in the whole seconds part of
-	 * the time difference fits in a long, then convert the parts to
-	 * ticks separately and add, using similar rounding methods and
-	 * overflow avoidance.  This method would work in the previous
-	 * case but it is slightly slower and assumes that hz is integral.
-	 *
-	 * Otherwise, round the time difference down to the maximum
-	 * representable value.
-	 *
-	 * If ints have 32 bits, then the maximum value for any timeout in
-	 * 10ms ticks is 248 days.
+	 * The values passed here may come from user-space and these
+	 * checks ensure "tv_usec" is within its allowed range:
 	 */
-	sec = tv->tv_sec;
-	usec = tv->tv_usec;
-	if (usec < 0) {
-		sec--;
-		usec += 1000000;
-	}
-	if (sec < 0) {
-#ifdef DIAGNOSTIC
-		if (usec > 0) {
-			sec++;
-			usec -= 1000000;
+
+	/* check for tv_usec underflow */
+	if (__predict_false(tv->tv_usec < 0)) {
+		tv->tv_sec += tv->tv_usec / 1000000;
+		tv->tv_usec = tv->tv_usec % 1000000;
+		/* convert tv_usec to a positive value */
+		if (__predict_true(tv->tv_usec < 0)) {
+			tv->tv_usec += 1000000;
+			tv->tv_sec -= 1;
 		}
-		printf("tvotohz: negative time difference %ld sec %ld usec\n",
-		       sec, usec);
-#endif
-		ticks = 1;
-	} else if (sec <= LONG_MAX / 1000000)
-		ticks = howmany(sec * 1000000 + (unsigned long)usec, tick) + 1;
-	else if (sec <= LONG_MAX / hz)
-		ticks = sec * hz
-			+ howmany((unsigned long)usec, tick) + 1;
-	else
-		ticks = LONG_MAX;
-	if (ticks > INT_MAX)
-		ticks = INT_MAX;
-	return ((int)ticks);
+	/* check for tv_usec overflow */
+	} else if (__predict_false(tv->tv_usec >= 1000000)) {
+		tv->tv_sec += tv->tv_usec / 1000000;
+		tv->tv_usec = tv->tv_usec % 1000000;
+	}
+
+	/* check for tv_sec underflow */
+	if (__predict_false(tv->tv_sec < 0))
+		return (1);
+	/* check for tv_sec overflow (including room for the tv_usec part) */
+	else if (__predict_false(tv->tv_sec >= tick_seconds_max))
+		return (INT_MAX);
+
+	/* cast to "int" to avoid platform differences */
+	retval = TIME_TO_TICKS((int)tv->tv_sec, (int)tv->tv_usec, hz);
+
+	/* add one additional tick */
+	return (retval + 1);
 }
 
 /*
