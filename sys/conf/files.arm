@@ -77,7 +77,6 @@ arm/arm/undefined.c		standard
 arm/arm/unwind.c		optional	ddb | kdtrace_hooks | stack
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
-cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional !armv7 !armv6 zfs | !armv7 !armv6 dtrace compile-with "${CDDL_C}"
 cddl/dev/dtrace/arm/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
@@ -89,8 +88,7 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hdmi/hdmi_if.m		optional	hdmi
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
-dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
-dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv7
+dev/hwpmc/hwpmc_armv7.c		optional	hwpmc
 dev/iicbus/twsi/twsi.c		optional	twsi
 dev/ofw/ofw_pcib.c		optional	fdt pci
 dev/pci/pci_host_generic.c	optional	pci_host_generic pci
@@ -112,7 +110,6 @@ kern/subr_physmem.c		standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
 libkern/arm/divsi3.S		standard
-libkern/arm/ffs.S		optional	!armv7 !armv6
 libkern/arm/ldivmod.S		standard
 libkern/arm/ldivmod_helper.c	standard
 libkern/arm/memclr.S		standard
@@ -122,11 +119,6 @@ libkern/arm/muldi3.c		standard
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
 libkern/divdi3.c		standard
-libkern/ffsl.c			optional	!armv7 !armv6
-libkern/ffsll.c			optional	!armv7 !armv6
-libkern/fls.c			optional	!armv7 !armv6
-libkern/flsl.c			optional	!armv7 !armv6
-libkern/flsll.c			optional	!armv7 !armv6
 libkern/lshrdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
