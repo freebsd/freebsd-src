@@ -84,6 +84,7 @@ static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
 int	hz;				/* system clock's frequency */
 int	tick;				/* usec per tick (1000000 / hz) */
+time_t	tick_seconds_max;		/* max hz * seconds an integer can hold */
 struct bintime tick_bt;			/* bintime per tick (1s / hz) */
 sbintime_t tick_sbt;
 int	maxusers;			/* base tunable */
@@ -187,6 +188,7 @@ init_param1(void)
 	tick = 1000000 / hz;
 	tick_sbt = SBT_1S / hz;
 	tick_bt = sbttobt(tick_sbt);
+	tick_seconds_max = INT_MAX / hz;
 
 	/*
 	 * Arrange for ticks to wrap 10 minutes after boot to help catch
