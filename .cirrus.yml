@@ -46,6 +46,14 @@ task:
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
   - sh tools/boot/ci-qemu-test.sh
+  installworld_script:
+  - make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes installworld
+  test_strfmon_script:
+  - kyua test -k /usr/tests/Kyuafile lib/libc/stdlib/strfmon_test
+  always:
+    test_strfmon_report_script:
+    - cd /usr/tests
+    - kyua report --results-file=LATEST --results-filter=failed --verbose
   post_script:
   - df -m
   - du -m -s /usr/obj
