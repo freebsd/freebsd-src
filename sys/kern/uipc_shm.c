@@ -225,7 +225,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 			printf("uiomove_object: vm_obj %p idx %jd "
 			    "pager error %d\n", obj, idx, rv);
 		}
-		return (EIO);
+		return (rv == VM_PAGER_AGAIN ? ENOSPC : EIO);
 	}
 	VM_OBJECT_WUNLOCK(obj);
 

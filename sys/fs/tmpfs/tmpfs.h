@@ -148,6 +148,7 @@ RB_HEAD(tmpfs_dir, tmpfs_dirent);
  * (i)  tn_interlock
  * (m)  tmpfs_mount tm_allnode_lock
  * (c)  stable after creation
+ * (v)  tn_reg.tn_aobj vm_object lock
  */
 struct tmpfs_node {
 	/*
@@ -299,6 +300,7 @@ struct tmpfs_node {
 			 */
 			vm_object_t		tn_aobj;	/* (c) */
 			struct tmpfs_mount	*tn_tmp;	/* (c) */
+			vm_pindex_t		tn_pages;	/* (v) */
 		} tn_reg;
 	} tn_spec;	/* (v) */
 };
@@ -532,7 +534,8 @@ VM_TO_TMPFS_VP(vm_object_t obj)
 {
 	struct tmpfs_node *node;
 
-	MPASS((obj->flags & OBJ_TMPFS) != 0);
+	if ((obj->flags & OBJ_TMPFS) == 0)
+		return (NULL);
 
 	/*
 	 * swp_priv is the back-pointer to the tmpfs node, if any,
@@ -542,6 +545,19 @@ VM_TO_TMPFS_VP(vm_object_t obj)
 	 */
 	node = obj->un_pager.swp.swp_priv;
 	return (node->tn_vnode);
+}
+
+static inline struct tmpfs_mount *
+VM_TO_TMPFS_MP(vm_object_t obj)
+{
+	struct tmpfs_node *node;
+
+	if ((obj->flags & OBJ_TMPFS) == 0)
+		return (NULL);
+
+	node = obj->un_pager.swp.swp_priv;
+	MPASS(node->tn_type == VREG);
+	return (node->tn_reg.tn_tmp);
 }
 
 static inline struct tmpfs_mount *
