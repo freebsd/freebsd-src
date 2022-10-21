@@ -135,7 +135,6 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 	fmt = format;
 	asciivalue = NULL;
 	currency_symbol = NULL;
-	pad_size = 0;
 
 	while (*fmt) {
 		/* pass nonformating characters AS IS */
@@ -155,6 +154,7 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		/* set up initial values */
 		flags = (NEED_GROUPING|LOCALE_POSN);
 		pad_char = ' ';		/* padding character is "space" */
+		pad_size = 0;		/* no padding initially */
 		left_prec = -1;		/* no left precision specified */
 		right_prec = -1;	/* no right precision specified */
 		width = -1;		/* no width specified */
