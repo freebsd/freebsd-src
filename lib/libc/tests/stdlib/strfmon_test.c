@@ -195,8 +195,8 @@ ATF_TC_BODY(strfmon_international_currency_code, tc)
 		const char *locale;
 		const char *expected;
 	} tests[] = {
-	    { "en_US.UTF-8", "[USD 123.45]" }, /* XXX */
-	    { "de_DE.UTF-8", "[123,45 EUR ]" }, /* XXX */
+	    { "en_US.UTF-8", "[USD123.45]" },
+	    { "de_DE.UTF-8", "[123,45 EUR]" },
 	    { "C", "[123.45]" },
 	};
 	size_t i;

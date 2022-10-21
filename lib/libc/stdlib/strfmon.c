@@ -240,8 +240,10 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		if (flags & USE_INTL_CURRENCY) {
 			currency_symbol = strdup(lc->int_curr_symbol);
 			if (currency_symbol != NULL &&
-			    strlen(currency_symbol) > 3)
+			    strlen(currency_symbol) > 3) {
 				space_char = currency_symbol[3];
+				currency_symbol[3] = '\0';
+			}
 		} else
 			currency_symbol = strdup(lc->currency_symbol);
 
