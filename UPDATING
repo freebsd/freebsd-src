@@ -1,4 +1,4 @@
- Updating Information for FreeBSD stable/12 users.
+Updating Information for FreeBSD releng/12.4 users.
 
 This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
@@ -16,6 +16,9 @@ NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
 from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
+
+20221020:
+	releng/12.4 branched from stable/12.
 
 20220222:
 	Kernel-loadable random(4) modules are supported again, but are no
