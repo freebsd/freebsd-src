@@ -111,8 +111,10 @@ vmbus_setup_intr1(struct vmbus_softc *sc)
 {
 	int err;
 	struct intr_map_data_acpi *irq_data;
+	device_t dev;
 
-	sc->ires = bus_alloc_resource_any(device_get_parent(sc->vmbus_dev),
+	dev =  devclass_get_device(devclass_find("vmbus_res"), 0);
+	sc->ires = bus_alloc_resource_any(dev,
 	    SYS_RES_IRQ, &sc->vector, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->ires == NULL) {
 		device_printf(sc->vmbus_dev, "bus_alloc_resouce_any failed\n");
