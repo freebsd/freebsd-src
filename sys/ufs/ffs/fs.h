@@ -806,7 +806,6 @@ lbn_offset(struct fs *fs, int level)
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
 #define	SUJ_MIN		(4 * 1024 * 1024)	/* Minimum journal size */
-#define	SUJ_MAX		(32 * 1024 * 1024)	/* Maximum journal size */
 #define	SUJ_FILE	".sujournal"		/* Journal file name */
 
 /*
