@@ -976,7 +976,6 @@ journal_alloc(int64_t size)
 	 */
 	if (size == 0) {
 		size = (sblock.fs_size * sblock.fs_bsize) / 1024;
-		size = MIN(SUJ_MAX, size);
 		if (size / sblock.fs_fsize > sblock.fs_fpg)
 			size = sblock.fs_fpg * sblock.fs_fsize;
 		size = MAX(SUJ_MIN, size);
