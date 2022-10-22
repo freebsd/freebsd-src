@@ -138,7 +138,7 @@ static sig_t old_winch_handler;
  _a < _b ? _a : _b;       	\
  })
 
-const struct vm_snapshot_dev_info snapshot_devs[] = {
+static const struct vm_snapshot_dev_info snapshot_devs[] = {
 	{ "atkbdc",	atkbdc_snapshot,	NULL,		NULL		},
 	{ "virtio-net",	pci_snapshot,		pci_pause,	pci_resume	},
 	{ "virtio-blk",	pci_snapshot,		pci_pause,	pci_resume	},
@@ -152,7 +152,7 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 	{ "ahci-cd",	pci_snapshot,		pci_pause,	pci_resume	},
 };
 
-const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
+static const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
 	{ "vhpet",	STRUCT_VHPET	},
 	{ "vm",		STRUCT_VM	},
 	{ "vmx",	STRUCT_VMX	},
@@ -298,13 +298,14 @@ err_load_kdata:
 static int
 load_metadata_file(const char *filename, struct restore_state *rstate)
 {
-	const ucl_object_t *obj;
+	ucl_object_t *obj;
 	struct ucl_parser *parser;
 	int err;
 
 	parser = ucl_parser_new(UCL_PARSER_DEFAULT);
 	if (parser == NULL) {
 		fprintf(stderr, "Failed to initialize UCL parser.\n");
+		err = -1;
 		goto err_load_metadata;
 	}
 
@@ -430,7 +431,7 @@ lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
 		return (NULL);
 	}
 
-	if (ucl_object_type((ucl_object_t *)structs) != UCL_ARRAY) {
+	if (ucl_object_type(structs) != UCL_ARRAY) {
 		fprintf(stderr, "Object '%s' is not an array.\n",
 		JSON_STRUCT_ARR_KEY);
 		return (NULL);
@@ -502,7 +503,7 @@ lookup_dev(const char *dev_name, struct restore_state *rstate,
 		return (NULL);
 	}
 
-	if (ucl_object_type((ucl_object_t *)devs) != UCL_ARRAY) {
+	if (ucl_object_type(devs) != UCL_ARRAY) {
 		fprintf(stderr, "Object '%s' is not an array.\n",
 			JSON_DEV_ARR_KEY);
 		return (NULL);
@@ -530,7 +531,7 @@ lookup_basic_metadata_object(struct restore_state *rstate)
 		return (NULL);
 	}
 
-	if (ucl_object_type((ucl_object_t *)basic_meta_obj) != UCL_OBJECT) {
+	if (ucl_object_type(basic_meta_obj) != UCL_OBJECT) {
 		fprintf(stderr, "Object '%s' is not a JSON object.\n",
 		JSON_BASIC_METADATA_KEY);
 		return (NULL);
@@ -620,7 +621,7 @@ print_progress(size_t crtval, const size_t maxval)
 	static const size_t len = sizeof(prog_buf);
 
 	static size_t div;
-	static char *div_str;
+	static const char *div_str;
 
 	static char wip_bar[] = { '/', '-', '\\', '|' };
 	static int wip_idx = 0;
@@ -777,7 +778,7 @@ vm_snapshot_mem_part(const int snapfd, const size_t foff, void *src,
 			return (-1);
 		}
 
-		src += done;
+		src = (uint8_t *)src + done;
 		part_done += done;
 		rem -= done;
 	}
@@ -912,8 +913,8 @@ done:
 int
 vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate)
 {
+	size_t i;
 	int ret;
-	int i;
 
 	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
 		ret = vm_restore_kern_struct(ctx, rstate,
@@ -925,7 +926,7 @@ vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate)
 	return (0);
 }
 
-int
+static int
 vm_restore_user_dev(struct vmctx *ctx, struct restore_state *rstate,
 		    const struct vm_snapshot_dev_info *info)
 {
@@ -975,8 +976,8 @@ vm_restore_user_dev(struct vmctx *ctx, struct restore_state *rstate,
 int
 vm_restore_user_devs(struct vmctx *ctx, struct restore_state *rstate)
 {
+	size_t i;
 	int ret;
-	int i;
 
 	for (i = 0; i < nitems(snapshot_devs); i++) {
 		ret = vm_restore_user_dev(ctx, rstate, &snapshot_devs[i]);
@@ -991,8 +992,8 @@ int
 vm_pause_user_devs(struct vmctx *ctx)
 {
 	const struct vm_snapshot_dev_info *info;
+	size_t i;
 	int ret;
-	int i;
 
 	for (i = 0; i < nitems(snapshot_devs); i++) {
 		info = &snapshot_devs[i];
@@ -1011,8 +1012,8 @@ int
 vm_resume_user_devs(struct vmctx *ctx)
 {
 	const struct vm_snapshot_dev_info *info;
+	size_t i;
 	int ret;
-	int i;
 
 	for (i = 0; i < nitems(snapshot_devs); i++) {
 		info = &snapshot_devs[i];
@@ -1070,8 +1071,8 @@ done:
 static int
 vm_snapshot_kern_structs(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 {
-	int ret, i, error;
-	size_t offset, buf_size;
+	int ret, error;
+	size_t buf_size, i, offset;
 	char *buffer;
 	struct vm_snapshot_meta *meta;
 
@@ -1185,10 +1186,10 @@ vm_snapshot_user_dev(const struct vm_snapshot_dev_info *info,
 static int
 vm_snapshot_user_devs(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 {
-	int ret, i;
+	int ret;
 	off_t offset;
 	void *buffer;
-	size_t buf_size;
+	size_t buf_size, i;
 	struct vm_snapshot_meta *meta;
 
 	buf_size = SNAPSHOT_BUFFER_SIZE;
