@@ -585,8 +585,8 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 
 	memcpy(iov.iov_base, ctrl, sizeof(struct pci_vtcon_control));
 	if (payload != NULL && len > 0)
-		memcpy(iov.iov_base + sizeof(struct pci_vtcon_control),
-		     payload, len);
+		memcpy((uint8_t *)iov.iov_base +
+		    sizeof(struct pci_vtcon_control), payload, len);
 
 	vq_relchain(vq, req.idx, sizeof(struct pci_vtcon_control) + len);
 	vq_endchains(vq, 1);
