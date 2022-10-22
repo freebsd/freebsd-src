@@ -130,6 +130,29 @@ seq_open(struct linux_file *f, const struct seq_operations *op)
 	return (0);
 }
 
+void *
+__seq_open_private(struct linux_file *f, const struct seq_operations *op, int size)
+{
+	struct seq_file *seq_file;
+	void *private;
+	int error;
+
+	private = malloc(size, M_LSEQ, M_NOWAIT|M_ZERO);
+	if (private == NULL)
+		return (NULL);
+
+	error = seq_open(f, op);
+	if (error < 0) {
+		free(private, M_LSEQ);
+		return (NULL);
+	}
+
+	seq_file = (struct seq_file *)f->private_data;
+	seq_file->private = private;
+
+	return (private);
+}
+
 int
 single_open(struct linux_file *f, int (*show)(struct seq_file *, void *), void *d)
 {
@@ -164,6 +187,16 @@ seq_release(struct inode *inode __unused, struct linux_file *file)
 	free(m, M_LSEQ);
 
 	return (0);
+}
+
+int
+seq_release_private(struct inode *inode __unused, struct linux_file *f)
+{
+	struct seq_file *seq;
+
+	seq = (struct seq_file *)f->private_data;
+	free(seq->private, M_LSEQ);
+	return (seq_release(inode, f));
 }
 
 int
