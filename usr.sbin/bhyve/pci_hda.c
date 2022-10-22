@@ -201,7 +201,7 @@ static int hda_signal_state_change(struct hda_codec_inst *hci);
 static int hda_response(struct hda_codec_inst *hci, uint32_t response,
     uint8_t unsol);
 static int hda_transfer(struct hda_codec_inst *hci, uint8_t stream,
-    uint8_t dir, void *buf, size_t count);
+    uint8_t dir, uint8_t *buf, size_t count);
 
 static void hda_set_pib(struct hda_softc *sc, uint8_t stream_ind, uint32_t pib);
 static uint64_t hda_get_clock_ns(void);
@@ -793,8 +793,8 @@ hda_corb_run(struct hda_softc *sc)
 		corb->rp++;
 		corb->rp %= corb->size;
 
-		verb = hda_dma_ld_dword(corb->dma_vaddr +		\
-				HDA_CORB_ENTRY_LEN * corb->rp);
+		verb = hda_dma_ld_dword((uint8_t *)corb->dma_vaddr +
+		    HDA_CORB_ENTRY_LEN * corb->rp);
 
 		err = hda_send_command(sc, verb);
 		assert(!err);
@@ -1088,10 +1088,10 @@ hda_response(struct hda_codec_inst *hci, uint32_t response, uint8_t unsol)
 		rirb->wp++;
 		rirb->wp %= rirb->size;
 
-		hda_dma_st_dword(rirb->dma_vaddr + HDA_RIRB_ENTRY_LEN *	\
-				rirb->wp, response);
-		hda_dma_st_dword(rirb->dma_vaddr + HDA_RIRB_ENTRY_LEN *	\
-				rirb->wp + 0x04, response_ex);
+		hda_dma_st_dword((uint8_t *)rirb->dma_vaddr +
+		    HDA_RIRB_ENTRY_LEN * rirb->wp, response);
+		hda_dma_st_dword((uint8_t *)rirb->dma_vaddr +
+		    HDA_RIRB_ENTRY_LEN * rirb->wp + 0x04, response_ex);
 
 		hda_set_reg_by_offset(sc, HDAC_RIRBWP, rirb->wp);
 
@@ -1107,7 +1107,7 @@ hda_response(struct hda_codec_inst *hci, uint32_t response, uint8_t unsol)
 
 static int
 hda_transfer(struct hda_codec_inst *hci, uint8_t stream, uint8_t dir,
-    void *buf, size_t count)
+    uint8_t *buf, size_t count)
 {
 	struct hda_softc *sc = NULL;
 	struct hda_stream_desc *st = NULL;
@@ -1161,11 +1161,11 @@ hda_transfer(struct hda_codec_inst *hci, uint8_t stream, uint8_t dir,
 		bdle_desc = &bdl[st->be];
 
 		if (dir)
-			*(uint32_t *)buf =				\
-			    hda_dma_ld_dword(bdle_desc->addr + st->bp);
+			*(uint32_t *)buf = hda_dma_ld_dword(
+			    (uint8_t *)bdle_desc->addr + st->bp);
 		else
-			hda_dma_st_dword(bdle_desc->addr + st->bp,
-					*(uint32_t *)buf);
+			hda_dma_st_dword((uint8_t *)bdle_desc->addr +
+			    st->bp, *(uint32_t *)buf);
 
 		buf += HDA_DMA_ACCESS_LEN;
 		st->bp += HDA_DMA_ACCESS_LEN;
@@ -1205,8 +1205,8 @@ hda_set_pib(struct hda_softc *sc, uint8_t stream_ind, uint32_t pib)
 	/* LPIB Alias */
 	hda_set_reg_by_offset(sc, 0x2000 + off + HDAC_SDLPIB, pib);
 	if (sc->dma_pib_vaddr)
-		*(uint32_t *)(sc->dma_pib_vaddr + stream_ind *	\
-				HDA_DMA_PIB_ENTRY_LEN) = pib;
+		*(uint32_t *)((uint8_t *)sc->dma_pib_vaddr + stream_ind *
+		    HDA_DMA_PIB_ENTRY_LEN) = pib;
 }
 
 static uint64_t hda_get_clock_ns(void)

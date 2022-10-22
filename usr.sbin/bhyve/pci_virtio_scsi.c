@@ -590,7 +590,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
-		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
+		buf_to_iov((uint8_t *)buf + bufsize - iolen, iolen, iov, n,
 		    bufsize - iolen);
 
 		/*
