@@ -69,6 +69,9 @@ struct seq_operations {
 ssize_t seq_read(struct linux_file *, char *, size_t, off_t *);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 
+void *__seq_open_private(struct linux_file *, const struct seq_operations *, int);
+int seq_release_private(struct inode *, struct linux_file *);
+
 int seq_open(struct linux_file *f, const struct seq_operations *op);
 int seq_release(struct inode *inode, struct linux_file *file);
 
