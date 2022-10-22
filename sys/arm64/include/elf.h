@@ -86,7 +86,7 @@ __ElfType(Auxinfo);
 #endif
 
 #if __ELF_WORD_SIZE == 32
-#define	ET_DYN_LOAD_ADDR 0x12000
+#define	ET_DYN_LOAD_ADDR 0x01001000
 #else
 #define	ET_DYN_LOAD_ADDR 0x100000
 #endif
