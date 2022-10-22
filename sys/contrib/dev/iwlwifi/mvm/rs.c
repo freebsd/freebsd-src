@@ -38,6 +38,19 @@
 
 #include "mvm.h"
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void
+iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
+{
+
+}
+
+void
+iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm)
+{
+
+}
+#endif
 
 int
 iwl_mvm_rate_control_register(void)

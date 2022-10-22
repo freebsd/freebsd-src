@@ -41,6 +41,9 @@ MODULE_LICENSE("BSD");
 MODULE_VERSION(if_iwlwifi, 1);
 MODULE_DEPEND(if_iwlwifi, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(if_iwlwifi, linuxkpi_wlan, 1, 1, 1);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+MODULE_DEPEND(if_iwlwifi, lindebugfs, 1, 1, 1);
+#endif
 #endif
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 
