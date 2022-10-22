@@ -28,9 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <stdarg.h>
-#include "bootstrap.h"
 #include "host_syscall.h"
-#include "disk.h"
+#include "kboot.h"
 
 static int hostdisk_init(void);
 static int hostdisk_strategy(void *devdata, int flag, daddr_t dblk,
@@ -39,10 +38,11 @@ static int hostdisk_open(struct open_file *f, ...);
 static int hostdisk_close(struct open_file *f);
 static int hostdisk_ioctl(struct open_file *f, u_long cmd, void *data);
 static int hostdisk_print(int verbose);
+static char *hostdisk_fmtdev(struct devdesc *vdev);
 
 struct devsw hostdisk = {
 	.dv_name = "/dev",
-	.dv_type = DEVT_DISK,
+	.dv_type = DEVT_HOSTDISK,
 	.dv_init = hostdisk_init,
 	.dv_strategy = hostdisk_strategy,
 	.dv_open = hostdisk_open,
@@ -50,7 +50,7 @@ struct devsw hostdisk = {
 	.dv_ioctl = hostdisk_ioctl,
 	.dv_print = hostdisk_print,
 	.dv_cleanup = nullsys,
-	.dv_fmtdev = disk_fmtdev,
+	.dv_fmtdev = hostdisk_fmtdev,
 };
 
 static int
@@ -135,4 +135,10 @@ hostdisk_print(int verbose)
 
 	snprintf(line, sizeof(line), "    /dev%d:   Host disk\n", 0);
 	return (pager_output(line));
+}
+
+static char *
+hostdisk_fmtdev(struct devdesc *vdev)
+{
+	return (vdev->d_opendata);
 }
