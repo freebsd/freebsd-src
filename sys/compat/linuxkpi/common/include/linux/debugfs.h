@@ -47,6 +47,11 @@ struct debugfs_regset32 {
 	int nregs;
 };
 
+struct debugfs_blob_wrapper {
+	void			*data;
+	size_t			size;
+};
+
 struct dentry *debugfs_create_file(const char *name, umode_t mode,
     struct dentry *parent, void *data,
     const struct file_operations *fops);
@@ -75,8 +80,12 @@ void debugfs_remove_recursive(struct dentry *dentry);
 
 void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
     bool *value);
-
+void debugfs_create_u8(const char *name, umode_t mode, struct dentry *parent,
+    uint8_t *value);
 void debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent,
     unsigned long *value);
+
+struct dentry *debugfs_create_blob(const char *name, umode_t mode,
+    struct dentry *parent, struct debugfs_blob_wrapper *value);
 
 #endif /* _LINUXKPI_LINUX_DEBUGFS_H_ */

@@ -367,6 +367,35 @@ debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent, bool 
 	    &fops_bool_ro, &fops_bool_wo);
 }
 
+
+static int
+debugfs_u8_get(void *data, uint64_t *value)
+{
+	uint8_t *u8data = data;
+	*value = *u8data;
+	return (0);
+}
+
+static int
+debugfs_u8_set(void *data, uint64_t value)
+{
+	uint8_t *u8data = data;
+	*u8data = (uint8_t)value;
+	return (0);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u8, debugfs_u8_get, debugfs_u8_set, "%u\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u8_ro, debugfs_u8_get, NULL, "%u\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_u8_wo, NULL, debugfs_u8_set, "%u\n");
+
+void
+debugfs_create_u8(const char *name, umode_t mode, struct dentry *parent, uint8_t *value)
+{
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_u8,
+	    &fops_u8_ro, &fops_u8_wo);
+}
+
+
 static int
 debugfs_ulong_get(void *data, uint64_t *value)
 {
@@ -393,6 +422,43 @@ debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent, unsi
 	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_ulong,
 	    &fops_ulong_ro, &fops_ulong_wo);
 }
+
+
+static ssize_t
+fops_blob_read(struct file *filp, char __user *ubuf, size_t read_size, loff_t *ppos)
+{
+	struct debugfs_blob_wrapper *blob;
+
+	blob = filp->private_data;
+	if (blob == NULL)
+		return (-EINVAL);
+	if (blob->size == 0 || blob->data == NULL)
+		return (-EINVAL);
+
+	return (simple_read_from_buffer(ubuf, read_size, ppos, blob->data, blob->size));
+}
+
+static int
+fops_blob_open(struct inode *inode, struct file *filp)
+{
+	return (simple_open(inode, filp));
+}
+
+static const struct file_operations __fops_blob_ro = {
+	.owner = THIS_MODULE,
+	.open = fops_blob_open,
+	.read = fops_blob_read,
+	.llseek = no_llseek
+};
+
+struct dentry *
+debugfs_create_blob(const char *name, umode_t mode, struct dentry *parent,
+    struct debugfs_blob_wrapper *value)
+{
+	/* Blobs are read-only. */
+	return (debugfs_create_file(name, mode & 0444, parent, value, &__fops_blob_ro));
+}
+
 
 static int
 lindebugfs_init(PFS_INIT_ARGS)
