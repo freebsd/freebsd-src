@@ -2622,7 +2622,7 @@ pci_emul_dior(struct vmctx *ctx __unused, int vcpu __unused,
 }
 
 #ifdef BHYVE_SNAPSHOT
-int
+static int
 pci_emul_snapshot(struct vm_snapshot_meta *meta __unused)
 {
 	return (0);
