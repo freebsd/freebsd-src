@@ -32,14 +32,11 @@
 #define	_MACHINE_ELF_H_ 1
 
 #if defined(__i386__) || defined(_MACHINE_ELF_WANT_32BIT)
-
-/*
- * ELF definitions for the i386 architecture.
- */
-
+/* ELF definitions for the i386 architecture. */
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
 #if defined(__ELF_WORD_SIZE) && __ELF_WORD_SIZE == 64
-#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+/* Definitions common to all 64 bit architectures. */
+#include <sys/elf64.h>
 #endif
 
 #ifndef __ELF_WORD_SIZE
