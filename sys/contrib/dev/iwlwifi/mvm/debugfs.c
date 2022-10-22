@@ -704,7 +704,11 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
 			 mvm->fwrt.trans->name);
 	pos += scnprintf(pos, endpos - pos, "Bus: %s\n",
+#if defined(__linux__)
 			 mvm->fwrt.dev->bus->name);
+#elif defined(__FreeBSD__)
+			"<bus>");
+#endif
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos - buff);
 	kfree(buff);
@@ -1933,6 +1937,7 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	debugfs_create_file("mem", 0600, mvm->debugfs_dir, mvm,
 			    &iwl_dbgfs_mem_ops);
 
+#if defined(__linux__)
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211
 	 * exists (before the opmode exists which removes the target.)
@@ -1944,4 +1949,5 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 		debugfs_create_symlink("iwlwifi", mvm->hw->wiphy->debugfsdir,
 				       buf);
 	}
+#endif
 }
