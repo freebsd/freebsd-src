@@ -63,9 +63,7 @@ devopen(struct open_file *f, const char *fname, const char **file)
 	 * pw if needed), this will attach the geli code to the open_file by
 	 * replacing f->f_dev and f_devdata with pointers to a geli_devdesc.
 	 */
-	if (f->f_dev->dv_type == DEVT_DISK) {
-		geli_probe_and_attach(f);
-	}
+	geli_probe_and_attach(f);
 #endif
 
 	return (0);
