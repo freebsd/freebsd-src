@@ -941,13 +941,13 @@ vmexit_breakpoint(struct vmctx *ctx __unused, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
-vmexit_ipi(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+vmexit_ipi(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu __unused)
 {
 	int error = -1;
 	int i;
-	switch (vmexit->u.ipi.mode) {
+	switch (vme->u.ipi.mode) {
 	case APIC_DELMODE_INIT:
-		CPU_FOREACH_ISSET (i, &vmexit->u.ipi.dmask) {
+		CPU_FOREACH_ISSET(i, &vme->u.ipi.dmask) {
 			error = vm_suspend_cpu(ctx, i);
 			if (error) {
 				warnx("%s: failed to suspend cpu %d\n",
@@ -957,8 +957,8 @@ vmexit_ipi(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		}
 		break;
 	case APIC_DELMODE_STARTUP:
-		CPU_FOREACH_ISSET (i, &vmexit->u.ipi.dmask) {
-			spinup_ap(ctx, i, vmexit->u.ipi.vector << PAGE_SHIFT);
+		CPU_FOREACH_ISSET(i, &vme->u.ipi.dmask) {
+			spinup_ap(ctx, i, vme->u.ipi.vector << PAGE_SHIFT);
 		}
 		error = 0;
 		break;
