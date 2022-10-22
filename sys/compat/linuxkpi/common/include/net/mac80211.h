@@ -41,6 +41,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
+#include <linux/dcache.h>
 #include <net/cfg80211.h>
 
 #define	ARPHRD_IEEE80211_RADIOTAP		__LINE__ /* XXX TODO brcmfmac */
@@ -212,6 +213,17 @@ struct mac80211_fils_discovery {
 	uint32_t				max_interval;
 };
 
+struct ieee80211_chanctx_conf {
+	/* TODO FIXME */
+	int		rx_chains_dynamic, rx_chains_static;
+	bool					radar_enabled;
+	struct cfg80211_chan_def		def;
+	struct cfg80211_chan_def		min_def;
+
+	/* Must stay last. */
+	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
+};
+
 #define	WLAN_MEMBERSHIP_LEN			(8)
 #define	WLAN_USER_POSITION_LEN			(16)
 
@@ -256,6 +268,7 @@ struct ieee80211_bss_conf {
 	int					mcast_rate[NUM_NL80211_BANDS];
 	struct cfg80211_bitrate_mask		beacon_tx_rate;
 	struct mac80211_fils_discovery		fils_discovery;
+	struct ieee80211_chanctx_conf		*chanctx_conf;
 
 	int		ack_enabled, bssid_index, bssid_indicator, cqm_rssi_hyst, cqm_rssi_thold, ema_ap, frame_time_rts_th, ftm_responder;
 	int		htc_trig_based_pkt_ext;
@@ -265,17 +278,6 @@ struct ieee80211_bss_conf {
 	int		assoc_capability, enable_beacon, hidden_ssid, ibss_joined, twt_protected;
 	int		 he_oper, twt_responder, unsol_bcast_probe_resp_interval;
 	int		color_change_active;
-};
-
-struct ieee80211_chanctx_conf {
-	/* TODO FIXME */
-	int		rx_chains_dynamic, rx_chains_static;
-	bool					radar_enabled;
-	struct cfg80211_chan_def		def;
-	struct cfg80211_chan_def		min_def;
-
-	/* Must stay last. */
-	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
 };
 
 struct ieee80211_channel_switch {
@@ -434,6 +436,7 @@ struct ieee80211_hw {
 	uint16_t			uapsd_queues;
 	uint16_t			max_tx_fragments;
 	uint16_t			max_listen_interval;
+	uint32_t			extra_beacon_tailroom;
 	netdev_features_t		netdev_features;
 	unsigned long			flags[BITS_TO_LONGS(NUM_IEEE80211_HW_FLAGS)];
 	struct ieee80211_conf		conf;
@@ -691,6 +694,10 @@ struct ieee80211_vif {
 	struct ieee80211_bss_conf	bss_conf;
 	uint8_t				hw_queue[IEEE80211_NUM_ACS];
 
+/* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change structure depending on compile-time option. */
+	struct dentry			*debugfs_dir;
+/* #endif */
+
 	/* Must stay last. */
 	uint8_t				drv_priv[0] __aligned(CACHE_LINE_SIZE);
 };
@@ -938,6 +945,10 @@ struct ieee80211_ops {
 
 	void (*add_twt_setup)(struct ieee80211_hw *, struct ieee80211_sta *, struct ieee80211_twt_setup *);
 	void (*twt_teardown_request)(struct ieee80211_hw *, struct ieee80211_sta *, u8);
+
+/* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
+	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
+/* #endif */
 };
 
 
