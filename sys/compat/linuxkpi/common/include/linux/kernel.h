@@ -437,19 +437,8 @@ kstrtou16(const char *cp, unsigned int base, u16 *res)
 static inline int
 kstrtou32(const char *cp, unsigned int base, u32 *res)
 {
-	char *end;
-	unsigned long temp;
 
-	*res = temp = strtoul(cp, &end, base);
-
-	/* skip newline character, if any */
-	if (*end == '\n')
-		end++;
-	if (*cp == 0 || *end != 0)
-		return (-EINVAL);
-	if (temp != (u32)temp)
-		return (-ERANGE);
-	return (0);
+	return (kstrtouint(cp, base, res));
 }
 
 static inline int
@@ -530,7 +519,7 @@ kstrtoint_from_user(const char __user *s, size_t count, unsigned int base,
 
 static inline int
 kstrtouint_from_user(const char __user *s, size_t count, unsigned int base,
-    int *p)
+    unsigned int *p)
 {
 	char buf[36] = {};
 
@@ -541,6 +530,14 @@ kstrtouint_from_user(const char __user *s, size_t count, unsigned int base,
 		return (-EFAULT);
 
 	return (kstrtouint(buf, base, p));
+}
+
+static inline int
+kstrtou32_from_user(const char __user *s, size_t count, unsigned int base,
+    unsigned int *p)
+{
+
+	return (kstrtouint_from_user(s, count, base, p));
 }
 
 static inline int
@@ -716,6 +713,48 @@ hex2bin(uint8_t *bindst, const char *hexsrc, size_t binlen)
 	}
 
 	return (0);
+}
+
+static inline bool
+mac_pton(const char *macin, uint8_t *macout)
+{
+	const char *s, *d;
+	uint8_t mac[6], hx, lx;;
+	int i;
+
+	if (strlen(macin) < (3 * 6 - 1))
+		return (false);
+
+	i = 0;
+	s = macin;
+	do {
+		/* Should we also support '-'-delimiters? */
+		d = strchrnul(s, ':');
+		hx = lx = 0;
+		while (s < d) {
+			/* Fail on abc:123:xxx:... */
+			if ((d - s) > 2)
+				return (false);
+			/* We do support non-well-formed strings: 3:45:6:... */
+			if ((d - s) > 1) {
+				hx = _h2b(*s);
+				if (hx < 0)
+					return (false);
+				s++;
+			}
+			lx = _h2b(*s);
+			if (lx < 0)
+				return (false);
+			s++;
+		}
+		mac[i] = (hx << 4) | lx;
+		i++;
+		if (i >= 6)
+			return (false);
+	} while (d != NULL && *d != '\0');
+
+	memcpy(macout, mac, 6);
+	return (true);
 }
 
 #define	DECLARE_FLEX_ARRAY(_t, _n)					\
