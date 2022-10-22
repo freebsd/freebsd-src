@@ -1007,7 +1007,7 @@ e82545_iov_checksum(struct iovec *iov, int iovcnt, int off, int len)
 	odd = 0;
 	while (len > 0 && iovcnt > 0) {
 		now = MIN(len, iov->iov_len - off);
-		s = e82545_buf_checksum(iov->iov_base + off, now);
+		s = e82545_buf_checksum((uint8_t *)iov->iov_base + off, now);
 		sum += odd ? (s << 8) : s;
 		odd ^= (now & 1);
 		len -= now;
@@ -1320,7 +1320,7 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 		    left -= now, hdrp += now) {
 			now = MIN(left, iov->iov_len);
 			memcpy(hdrp, iov->iov_base, now);
-			iov->iov_base += now;
+			iov->iov_base = (uint8_t *)iov->iov_base + now;
 			iov->iov_len -= now;
 			if (iov->iov_len == 0) {
 				iov++;

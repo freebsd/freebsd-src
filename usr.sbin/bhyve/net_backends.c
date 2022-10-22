@@ -754,8 +754,8 @@ netmap_send(struct net_backend *be, const struct iovec *iov,
 	nm_buf_len = 0;
 
 	for (j = 0; j < iovcnt; j++) {
+		uint8_t *iov_frag_buf = iov[j].iov_base;
 		int iov_frag_size = iov[j].iov_len;
-		void *iov_frag_buf = iov[j].iov_base;
 
 		totlen += iov_frag_size;
 
@@ -836,7 +836,7 @@ netmap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 	struct netmap_priv *priv = NET_BE_PRIV(be);
 	struct netmap_slot *slot = NULL;
 	struct netmap_ring *ring;
-	void *iov_frag_buf;
+	uint8_t *iov_frag_buf;
 	int iov_frag_size;
 	ssize_t totlen = 0;
 	uint32_t head;
@@ -849,8 +849,8 @@ netmap_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 	iov_frag_size = iov->iov_len;
 
 	do {
+		uint8_t *nm_buf;
 		int nm_buf_len;
-		void *nm_buf;
 
 		if (head == ring->tail) {
 			return (0);

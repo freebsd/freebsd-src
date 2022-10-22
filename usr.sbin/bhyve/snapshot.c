@@ -452,7 +452,7 @@ lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
 			assert(file_offset + size <= rstate->kdata_len);
 
 			*struct_size = (size_t)size;
-			return (rstate->kdata_map + file_offset);
+			return ((uint8_t *)rstate->kdata_map + file_offset);
 		}
 	}
 
@@ -481,7 +481,7 @@ lookup_check_dev(const char *dev_name, struct restore_state *rstate,
 		assert(file_offset + size <= rstate->kdata_len);
 
 		*data_size = (size_t)size;
-		return (rstate->kdata_map + file_offset);
+		return ((uint8_t *)rstate->kdata_map + file_offset);
 	}
 
 	return (NULL);

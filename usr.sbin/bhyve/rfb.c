@@ -322,7 +322,8 @@ rfb_recv_set_pixfmt_msg(struct rfb_softc *rc __unused, int cfd)
 {
 	struct rfb_pixfmt_msg pixfmt_msg;
 
-	(void)stream_read(cfd, ((void *)&pixfmt_msg)+1, sizeof(pixfmt_msg)-1);
+	(void)stream_read(cfd, (uint8_t *)&pixfmt_msg + 1,
+	    sizeof(pixfmt_msg) - 1);
 }
 
 static void
@@ -332,7 +333,7 @@ rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 	int i;
 	uint32_t encoding;
 
-	(void)stream_read(cfd, ((void *)&enc_msg)+1, sizeof(enc_msg)-1);
+	(void)stream_read(cfd, (uint8_t *)&enc_msg + 1, sizeof(enc_msg) - 1);
 
 	for (i = 0; i < htons(enc_msg.numencs); i++) {
 		(void)stream_read(cfd, &encoding, sizeof(encoding));
@@ -727,7 +728,7 @@ rfb_recv_update_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_updt_msg updt_msg;
 
-	(void)stream_read(cfd, ((void *)&updt_msg) + 1 , sizeof(updt_msg) - 1);
+	(void)stream_read(cfd, (uint8_t *)&updt_msg + 1 , sizeof(updt_msg) - 1);
 
 	if (rc->enc_extkeyevent_ok && (!rc->enc_extkeyevent_send)) {
 		rfb_send_extended_keyevent_update_msg(rc, cfd);
@@ -744,7 +745,7 @@ rfb_recv_key_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_key_msg key_msg;
 
-	(void)stream_read(cfd, ((void *)&key_msg) + 1, sizeof(key_msg) - 1);
+	(void)stream_read(cfd, (uint8_t *)&key_msg + 1, sizeof(key_msg) - 1);
 
 	console_key_event(key_msg.down, htonl(key_msg.sym), htonl(0));
 	rc->input_detected = true;
@@ -756,10 +757,12 @@ rfb_recv_client_msg(struct rfb_softc *rc, int cfd)
 	struct rfb_client_msg client_msg;
 	struct rfb_extended_key_msg extkey_msg;
 
-	(void)stream_read(cfd, ((void *)&client_msg) + 1, sizeof(client_msg) - 1);
+	(void)stream_read(cfd, (uint8_t *)&client_msg + 1,
+	    sizeof(client_msg) - 1);
 
-	if (client_msg.subtype == RFB_CLIENTMSG_EXT_KEYEVENT ) {
-		(void)stream_read(cfd, ((void *)&extkey_msg) + 2, sizeof(extkey_msg) - 2);
+	if (client_msg.subtype == RFB_CLIENTMSG_EXT_KEYEVENT) {
+		(void)stream_read(cfd, (uint8_t *)&extkey_msg + 2,
+		    sizeof(extkey_msg) - 2);
 		console_key_event((int)extkey_msg.down, htonl(extkey_msg.sym), htonl(extkey_msg.code));
 		rc->input_detected = true;
 	}
@@ -770,7 +773,7 @@ rfb_recv_ptr_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_ptr_msg ptr_msg;
 
-	(void)stream_read(cfd, ((void *)&ptr_msg) + 1, sizeof(ptr_msg) - 1);
+	(void)stream_read(cfd, (uint8_t *)&ptr_msg + 1, sizeof(ptr_msg) - 1);
 
 	console_ptr_event(ptr_msg.button, htons(ptr_msg.x), htons(ptr_msg.y));
 	rc->input_detected = true;
@@ -783,7 +786,7 @@ rfb_recv_cuttext_msg(struct rfb_softc *rc __unused, int cfd)
 	unsigned char buf[32];
 	int len;
 
-	len = stream_read(cfd, ((void *)&ct_msg) + 1, sizeof(ct_msg) - 1);
+	len = stream_read(cfd, (uint8_t *)&ct_msg + 1, sizeof(ct_msg) - 1);
 	ct_msg.length = htonl(ct_msg.length);
 	while (ct_msg.length > 0) {
 		len = stream_read(cfd, buf, ct_msg.length > sizeof(buf) ?
