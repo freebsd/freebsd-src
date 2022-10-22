@@ -307,6 +307,12 @@ default_llseek(struct file *file, loff_t offset, int whence)
 }
 
 static inline loff_t
+generic_file_llseek(struct file *file, loff_t offset, int whence)
+{
+	return (no_llseek(file, offset, whence));
+}
+
+static inline loff_t
 noop_llseek(struct linux_file *file, loff_t offset, int whence)
 {
 
