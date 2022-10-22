@@ -2575,10 +2575,6 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
     }
 }
 
-#ifndef FPTR_TARGET
-#define FPTR_TARGET(f)	((Elf_Addr) (f))
-#endif
-
 static void
 free_needed_filtees(Needed_Entry *n, RtldLockState *lockstate)
 {
