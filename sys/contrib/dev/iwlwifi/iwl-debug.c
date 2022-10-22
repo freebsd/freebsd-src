@@ -115,7 +115,11 @@ iwl_have_debug_level(enum iwl_dl level)
 /* Passing the iwl_drv * in seems pointless. */
 void
 iwl_print_hex_dump(void *drv __unused, enum iwl_dl level,
+#if defined(__linux__)
     const char *prefix, uint8_t *data, size_t len)
+#elif defined(__FreeBSD__)
+    const char *prefix, const uint8_t *data, size_t len)
+#endif
 {
 
 	/* Given we have a level, check for it. */
