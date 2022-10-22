@@ -34,7 +34,7 @@
 #include <sys/nv.h>
 
 struct ipc_command {
-	char *name;
+	const char *name;
 	int (*handler)(struct vmctx *ctx, const nvlist_t *nvl);
 };
 
