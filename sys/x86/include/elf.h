@@ -89,7 +89,7 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_MACH	EM_386
 #define	ELF_TARG_VER	1
 
-#define	ET_DYN_LOAD_ADDR 0x01001000
+#define	ET_DYN_LOAD_ADDR 0x00002000
 
 #elif defined(__amd64__)
 
@@ -150,7 +150,7 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_VER	1
 
 #if __ELF_WORD_SIZE == 32
-#define	ET_DYN_LOAD_ADDR 0x01001000
+#define	ET_DYN_LOAD_ADDR 0x00002000
 #else
 #define	ET_DYN_LOAD_ADDR 0x01021000
 #endif
