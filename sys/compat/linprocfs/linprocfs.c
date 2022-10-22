@@ -41,6 +41,8 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  */
 
+#include "opt_inet.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -85,6 +87,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
+
+#include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/route_ctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -1546,6 +1552,77 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	return (0);
 }
 
+struct walkarg {
+	struct sbuf *sb;
+};
+
+static int
+linux_route_print(struct rtentry *rt, void *vw)
+{
+#ifdef INET
+	struct walkarg *w = vw;
+	struct route_nhop_data rnd;
+	struct in_addr dst, mask;
+	struct nhop_object *nh;
+	char ifname[16];
+	uint32_t scopeid = 0;
+	uint32_t gw = 0;
+	uint32_t linux_flags = 0;
+
+	rt_get_inet_prefix_pmask(rt, &dst, &mask, &scopeid);
+
+	rt_get_rnd(rt, &rnd);
+
+	/* select only first route in case of multipath */
+	nh = nhop_select_func(rnd.rnd_nhop, 0);
+
+	linux_ifname(nh->nh_ifp, ifname, sizeof(ifname));
+
+	gw = (nh->nh_flags & NHF_GATEWAY)
+		? nh->gw4_sa.sin_addr.s_addr : 0;
+
+	linux_flags = RTF_UP |
+		(nhop_get_rtflags(nh) & (RTF_GATEWAY | RTF_HOST));
+
+	sbuf_printf(w->sb,
+		"%s\t"
+		"%08X\t%08X\t%04X\t"
+		"%d\t%u\t%d\t"
+		"%08X\t%d\t%u\t%u",
+		ifname,
+		dst.s_addr, gw, linux_flags,
+		0, 0, rnd.rnd_weight,
+		mask.s_addr, nh->nh_mtu, 0, 0);
+
+	sbuf_printf(w->sb, "\n\n");
+#endif
+	return (0);
+}
+
+/*
+ * Filler function for proc/net/route
+ */
+static int
+linprocfs_donetroute(PFS_FILL_ARGS)
+{
+	struct walkarg w = {
+		.sb = sb
+	};
+	uint32_t fibnum = curthread->td_proc->p_fibnum;
+
+	sbuf_printf(w.sb, "%-127s\n", "Iface\tDestination\tGateway "
+               "\tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU"
+               "\tWindow\tIRTT");
+
+	CURVNET_SET(TD_TO_VNET(curthread));
+	IFNET_RLOCK();
+	rib_walk(fibnum, AF_INET, false, linux_route_print, &w);
+	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
+
+	return (0);
+}
+
 /*
  * Filler function for proc/sys/kernel/osrelease
  */
@@ -2099,6 +2176,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	/* /proc/net/... */
 	dir = pfs_create_dir(root, "net", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "dev", &linprocfs_donetdev,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "route", &linprocfs_donetroute,
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/<pid>/... */
