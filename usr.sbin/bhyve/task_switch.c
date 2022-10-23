@@ -774,7 +774,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		minlimit = 0;
 
 	assert(minlimit > 0);
-	if (nt.limit < minlimit) {
+	if (nt.limit < (unsigned int)minlimit) {
 		sel_exception(ctx, vcpu, IDT_TS, nt_sel, ext);
 		goto done;
 	}

@@ -1330,8 +1330,8 @@ emulate_bextr(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     mem_region_write_t memwrite __unused, void *arg)
 {
 	uint64_t src1, src2, dst, rflags;
-	unsigned start, len;
-	int error, size;
+	unsigned start, len, size;
+	int error;
 
 	size = vie->opsize;
 	error = EINVAL;

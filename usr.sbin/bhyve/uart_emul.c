@@ -616,7 +616,7 @@ int
 uart_legacy_alloc(int which, int *baseaddr, int *irq)
 {
 
-	if (which < 0 || which >= UART_NLDEVS || uart_lres[which].inuse)
+	if (which < 0 || which >= (int)UART_NLDEVS || uart_lres[which].inuse)
 		return (-1);
 
 	uart_lres[which].inuse = true;

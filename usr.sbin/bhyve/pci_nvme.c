@@ -3272,7 +3272,7 @@ pci_nvme_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
 
 	STAILQ_INIT(&sc->ioreqs_free);
 	sc->ioreqs = calloc(sc->ioslots, sizeof(struct pci_nvme_ioreq));
-	for (int i = 0; i < sc->ioslots; i++) {
+	for (uint32_t i = 0; i < sc->ioslots; i++) {
 		STAILQ_INSERT_TAIL(&sc->ioreqs_free, &sc->ioreqs[i], link);
 	}
 

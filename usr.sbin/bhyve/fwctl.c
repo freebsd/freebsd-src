@@ -95,7 +95,7 @@ fwctl_send_rest(uint32_t *data, size_t len)
 		uint32_t w;
 	} u;
 	uint8_t *cdata;
-	int i;
+	size_t i;
 
 	cdata = (uint8_t *) data;
 	u.w = 0;
@@ -427,7 +427,7 @@ fwctl_response(uint32_t *retval)
 		remlen = rinfo.resp_size - rinfo.resp_off;
 		dp = (uint32_t *)
 		    ((uint8_t *)rinfo.resp_biov->iov_base + rinfo.resp_off);
-		if (remlen >= sizeof(uint32_t)) {
+		if (remlen >= (ssize_t)sizeof(uint32_t)) {
 			*retval = *dp;
 		} else if (remlen > 0) {
 			*retval = fwctl_send_rest(dp, remlen);

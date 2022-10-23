@@ -2442,7 +2442,7 @@ e82545_snapshot(struct vm_snapshot_meta *meta)
 		true, meta, ret, done);
 
 	/* L2 frame acceptance */
-	for (i = 0; i < nitems(sc->esc_uni); i++) {
+	for (i = 0; i < (int)nitems(sc->esc_uni); i++) {
 		SNAPSHOT_VAR_OR_LEAVE(sc->esc_uni[i].eu_valid, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(sc->esc_uni[i].eu_addrsel, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(sc->esc_uni[i].eu_eth, meta, ret, done);

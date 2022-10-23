@@ -615,7 +615,6 @@ hda_stream_start(struct hda_softc *sc, uint8_t stream_ind)
 	uint32_t sdctl = 0;
 	uint8_t strm = 0;
 	uint8_t dir = 0;
-	int i;
 
 	assert(!st->run);
 
@@ -640,7 +639,7 @@ hda_stream_start(struct hda_softc *sc, uint8_t stream_ind)
 	st->bdl_cnt = bdl_cnt;
 
 	bdle = (struct hda_bdle *)bdl_vaddr;
-	for (i = 0; i < bdl_cnt; i++, bdle++) {
+	for (size_t i = 0; i < bdl_cnt; i++, bdle++) {
 		bdle_sz = bdle->len;
 		assert(!(bdle_sz % HDA_DMA_ACCESS_LEN));
 
@@ -659,7 +658,7 @@ hda_stream_start(struct hda_softc *sc, uint8_t stream_ind)
 		bdle_desc->len = bdle_sz;
 		bdle_desc->ioc = bdle->ioc;
 
-		DPRINTF("bdle: 0x%x bdle_sz: 0x%x", i, bdle_sz);
+		DPRINTF("bdle: 0x%zx bdle_sz: 0x%x", i, bdle_sz);
 	}
 
 	sdctl = hda_get_reg_by_offset(sc, off + HDAC_SDCTL0);
