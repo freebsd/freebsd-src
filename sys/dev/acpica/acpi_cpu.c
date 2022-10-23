@@ -381,6 +381,14 @@ acpi_cpu_attach(device_t dev)
 	cpu_sysctl_tree = SYSCTL_ADD_NODE(&cpu_sysctl_ctx,
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO, "cpu",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "node for CPU children");
+
+#if defined(__i386__) || defined(__amd64__)
+	/* Add sysctl handler to control registering for CPPC notifications */
+	cppc_notify = 1;
+	SYSCTL_ADD_BOOL(&cpu_sysctl_ctx, SYSCTL_CHILDREN(cpu_sysctl_tree),
+	    OID_AUTO, "cppc_notify", CTLFLAG_RDTUN | CTLFLAG_MPSAFE,
+	    &cppc_notify, 0, "Register for CPPC Notifications");
+#endif
     }
 
     /*
@@ -986,14 +994,6 @@ acpi_cpu_startup(void *arg)
 	OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	NULL, 0, acpi_cpu_global_cx_lowest_sysctl, "A",
 	"Global lowest Cx sleep state to use");
-
-#if defined(__i386__) || defined(__amd64__)
-    /* Add sysctl handler to control registering for CPPC notifications */
-    cppc_notify = 1;
-    SYSCTL_ADD_BOOL(&cpu_sysctl_ctx, SYSCTL_CHILDREN(cpu_sysctl_tree),
-	OID_AUTO, "cppc_notify", CTLFLAG_RDTUN | CTLFLAG_MPSAFE,
-	&cppc_notify, 0, "Register for CPPC Notifications");
-#endif
 
     /* Take over idling from cpu_idle_default(). */
     cpu_cx_lowest_lim = 0;
