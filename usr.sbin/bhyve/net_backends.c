@@ -227,7 +227,7 @@ tap_init(struct net_backend *be, const char *devname,
 	int opt = 1;
 #if defined(INET6) || defined(INET)
 	struct ifreq ifrq;
-	int i, s;
+	int s;
 #endif
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
@@ -268,7 +268,7 @@ tap_init(struct net_backend *be, const char *devname,
 	}
 
 	s = -1;
-	for (i = 0; s == -1 && i < nitems(pf_list); i++)
+	for (size_t i = 0; s == -1 && i < nitems(pf_list); i++)
 		s = socket(pf_list[i], SOCK_DGRAM, 0);
 	if (s == -1) {
 		WPRINTF(("Could open socket"));
@@ -649,7 +649,7 @@ netmap_set_vnet_hdr_len(struct net_backend *be, int vnet_hdr_len)
 static int
 netmap_has_vnet_hdr_len(struct net_backend *be, unsigned vnet_hdr_len)
 {
-	int prev_hdr_len = be->be_vnet_hdr_len;
+	unsigned prev_hdr_len = be->be_vnet_hdr_len;
 	int ret;
 
 	if (vnet_hdr_len == prev_hdr_len) {

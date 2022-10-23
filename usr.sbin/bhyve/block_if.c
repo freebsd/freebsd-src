@@ -916,10 +916,10 @@ blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h, uint8_t *s)
 	sectors = bc->bc_size / bc->bc_sectsz;
 
 	/* Clamp the size to the largest possible with CHS */
-	if (sectors > 65535UL*16*255)
-		sectors = 65535UL*16*255;
+	if (sectors > 65535L * 16 * 255)
+		sectors = 65535L * 16 * 255;
 
-	if (sectors >= 65536UL*16*63) {
+	if (sectors >= 65536L * 16 * 63) {
 		secpt = 255;
 		heads = 16;
 		hcyl = sectors / secpt;

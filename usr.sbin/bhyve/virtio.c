@@ -773,7 +773,7 @@ bad:
 		vs->vs_curq = value;
 		break;
 	case VIRTIO_PCI_QUEUE_NOTIFY:
-		if (value >= vc->vc_nvq) {
+		if (value >= (unsigned int)vc->vc_nvq) {
 			EPRINTLN("%s: queue %d notify out of range",
 				name, (int)value);
 			goto done;

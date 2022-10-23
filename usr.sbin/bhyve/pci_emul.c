@@ -455,10 +455,13 @@ pci_emul_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	uint64_t offset;
 	int i;
 
+	assert(port >= 0);
+
 	for (i = 0; i <= PCI_BARMAX; i++) {
 		if (pdi->pi_bar[i].type == PCIBAR_IO &&
-		    port >= pdi->pi_bar[i].addr &&
-		    port + bytes <= pdi->pi_bar[i].addr + pdi->pi_bar[i].size) {
+		    (uint64_t)port >= pdi->pi_bar[i].addr &&
+		    (uint64_t)port + bytes <=
+		    pdi->pi_bar[i].addr + pdi->pi_bar[i].size) {
 			offset = port - pdi->pi_bar[i].addr;
 			if (in)
 				*eax = (*pe->pe_barread)(ctx, vcpu, pdi, i,
@@ -2298,7 +2301,7 @@ pci_snapshot_pci_dev(struct vm_snapshot_meta *meta)
 	SNAPSHOT_BUF_OR_LEAVE(pi->pi_cfgdata, sizeof(pi->pi_cfgdata),
 			      meta, ret, done);
 
-	for (i = 0; i < nitems(pi->pi_bar); i++) {
+	for (i = 0; i < (int)nitems(pi->pi_bar); i++) {
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].type, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].size, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(pi->pi_bar[i].addr, meta, ret, done);

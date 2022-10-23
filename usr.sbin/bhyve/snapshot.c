@@ -450,7 +450,8 @@ lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
 			JSON_GET_INT_OR_RETURN(JSON_FILE_OFFSET_KEY, obj,
 					       &file_offset, NULL);
 			assert(file_offset >= 0);
-			assert(file_offset + size <= rstate->kdata_len);
+			assert((uint64_t)file_offset + size <=
+			    rstate->kdata_len);
 
 			*struct_size = (size_t)size;
 			return ((uint8_t *)rstate->kdata_map + file_offset);
@@ -479,7 +480,7 @@ lookup_check_dev(const char *dev_name, struct restore_state *rstate,
 		JSON_GET_INT_OR_RETURN(JSON_FILE_OFFSET_KEY, obj,
 				       &file_offset, NULL);
 		assert(file_offset >= 0);
-		assert(file_offset + size <= rstate->kdata_len);
+		assert((uint64_t)file_offset + size <= rstate->kdata_len);
 
 		*data_size = (size_t)size;
 		return ((uint8_t *)rstate->kdata_map + file_offset);
@@ -1046,8 +1047,9 @@ vm_snapshot_kern_struct(int data_fd, xo_handle_t *xop, const char *array_key,
 
 	data_size = vm_get_snapshot_size(meta);
 
+	/* XXX-MJ no handling for short writes. */
 	write_cnt = write(data_fd, meta->buffer.buf_start, data_size);
-	if (write_cnt != data_size) {
+	if (write_cnt < 0 || (size_t)write_cnt != data_size) {
 		perror("Failed to write all snapshotted data.");
 		ret = -1;
 		goto done;
@@ -1138,13 +1140,14 @@ static int
 vm_snapshot_dev_write_data(int data_fd, xo_handle_t *xop, const char *array_key,
 			   struct vm_snapshot_meta *meta, off_t *offset)
 {
-	int ret;
+	ssize_t ret;
 	size_t data_size;
 
 	data_size = vm_get_snapshot_size(meta);
 
+	/* XXX-MJ no handling for short writes. */
 	ret = write(data_fd, meta->buffer.buf_start, data_size);
-	if (ret != data_size) {
+	if (ret < 0 || (size_t)ret != data_size) {
 		perror("Failed to write all snapshotted data.");
 		return (-1);
 	}
