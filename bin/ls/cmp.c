@@ -65,6 +65,20 @@ revnamecmp(const FTSENT *a, const FTSENT *b)
 }
 
 int
+verscmp(const FTSENT *a, const FTSENT *b)
+{
+
+	return (strverscmp(a->fts_name, b->fts_name));
+}
+
+int
+revverscmp(const FTSENT *a, const FTSENT *b)
+{
+
+	return (strverscmp(b->fts_name, a->fts_name));
+}
+
+int
 modcmp(const FTSENT *a, const FTSENT *b)
 {
 
