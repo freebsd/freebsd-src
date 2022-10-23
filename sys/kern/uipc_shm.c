@@ -225,8 +225,10 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	    VM_ALLOC_NORMAL | VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY);
 	if (rv != VM_PAGER_OK) {
 		VM_OBJECT_WUNLOCK(obj);
-		printf("uiomove_object: vm_obj %p idx %jd pager error %d\n",
-		    obj, idx, rv);
+		if (bootverbose) {
+			printf("uiomove_object: vm_obj %p idx %jd "
+			    "pager error %d\n", obj, idx, rv);
+		}
 		return (EIO);
 	}
 	VM_OBJECT_WUNLOCK(obj);
