@@ -846,6 +846,20 @@ u_flag_body()
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
 }
 
+atf_test_case v_flag
+v_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -v sorts based on strverscmp(3)"
+}
+
+v_flag_body()
+{
+	create_test_dir
+
+	atf_check -e empty -o empty -s exit:0 touch 000 00 01 010 09 0 1 9 10
+	atf_check -e empty -o match:"000.00.01.010.09.0.1.9.10" -s exit:0 sh -c 'ls -Cv'
+}
+
 atf_test_case x_flag
 x_flag_head()
 {
@@ -960,6 +974,7 @@ atf_init_test_cases()
 	atf_add_test_case s_flag
 	atf_add_test_case t_flag
 	atf_add_test_case u_flag
+	atf_add_test_case v_flag
 	atf_add_test_case x_flag
 	atf_add_test_case y_flag
 	atf_add_test_case 1_flag
