@@ -346,9 +346,6 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 	return (0);
 }
 
-
-extern void vga_render(struct bhyvegc *gc, void *arg);
-
 static void
 pci_fbuf_render(struct bhyvegc *gc, void *arg)
 {
