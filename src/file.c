@@ -85,8 +85,8 @@ int getopt_long(int, char * const *, const char *,
 # define IFLNK_L ""
 #endif
 
-#define FILE_FLAGS	"bcCdE" IFLNK_h "ik" IFLNK_L "lNnprsSvzZ0"
-#define OPTSTRING	"bcCde:Ef:F:hiklLm:nNpP:rsSvzZ0"
+#define FILE_FLAGS	"bcCdE" IFLNK_h "Iik" IFLNK_L "lNnprsSvzZ0"
+#define OPTSTRING	"bcCde:Ef:F:hiIklLm:nNpP:rsSvzZ0"
 
 # define USAGE  \
     "Usage: %s [-" FILE_FLAGS "] [--apple] [--extension] [--mime-encoding]\n" \
@@ -177,7 +177,7 @@ __dead
 #endif
 private void help(void);
 
-private int unwrap(struct magic_set *, const char *);
+private int unwrap(struct magic_set *, const char *, int);
 private int process(struct magic_set *ms, const char *, int);
 private struct magic_set *load(const char *, int);
 private void setparam(const char *);
@@ -198,7 +198,7 @@ main(int argc, char *argv[])
 	int sandbox = 1;
 #endif
 	struct magic_set *magic = NULL;
-	int longindex;
+	int longindex, immed = 0;
 	const char *magicfile = NULL;		/* where the magic is	*/
 	char *progname;
 
@@ -278,7 +278,7 @@ main(int argc, char *argv[])
 				if ((magic = load(magicfile, flags)) == NULL)
 					return 1;
 			applyparam(magic);
-			e |= unwrap(magic, optarg);
+			e |= unwrap(magic, optarg, immed);
 			++didsomefiles;
 			break;
 		case 'F':
@@ -286,6 +286,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			flags |= MAGIC_MIME;
+			break;
+		case 'I':
+			immed = 1;
 			break;
 		case 'k':
 			flags |= MAGIC_CONTINUE;
@@ -504,7 +507,7 @@ load(const char *magicfile, int flags)
  * unwrap -- read a file of filenames, do each one.
  */
 private int
-unwrap(struct magic_set *ms, const char *fn)
+unwrap(struct magic_set *ms, const char *fn, int immed)
 {
 	FILE *f;
 	ssize_t len;
@@ -512,11 +515,8 @@ unwrap(struct magic_set *ms, const char *fn)
 	size_t llen = 0;
 	int wid = 0, cwid;
 	int e = 0;
-	size_t fi = 0, fimax = 100;
-	char **flist = CAST(char **, malloc(sizeof(*flist) * fimax));
-
-	if (flist == NULL)
-out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
+	size_t fi = 0, fimax = 0;
+	char **flist = NULL;
 
 	if (strcmp("-", fn) == 0)
 		f = stdin;
@@ -530,26 +530,37 @@ out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
 	while ((len = getline(&line, &llen, f)) > 0) {
 		if (line[len - 1] == '\n')
 			line[len - 1] = '\0';
+		cwid = file_mbswidth(ms, line);
+		if (cwid > wid)
+			wid = cwid;
+		if (immed) {
+			e |= process(ms, line, wid);
+			free(line);
+			line = NULL;
+			llen = 0;
+			continue;
+		}
 		if (fi >= fimax) {
 			fimax += 100;
 			char **nf = CAST(char **,
 			    realloc(flist, fimax * sizeof(*flist)));
-			if (nf == NULL)
-				goto out;
+			if (nf == NULL) {
+				file_err(EXIT_FAILURE,
+				    "Cannot allocate memory for file list");
+			}
 			flist = nf;
 		}
 		flist[fi++] = line;
-		cwid = file_mbswidth(ms, line);
-		if (cwid > wid)
-			wid = cwid;
 		line = NULL;
 		llen = 0;
 	}
 
-	fimax = fi;
-	for (fi = 0; fi < fimax; fi++) {
-		e |= process(ms, flist[fi], wid);
-		free(flist[fi]);
+	if (!immed) {
+		fimax = fi;
+		for (fi = 0; fi < fimax; fi++) {
+			e |= process(ms, flist[fi], wid);
+			free(flist[fi]);
+		}
 	}
 	free(flist);
 
