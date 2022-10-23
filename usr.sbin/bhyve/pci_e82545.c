@@ -364,7 +364,7 @@ static void e82545_tx_start(struct e82545_softc *sc);
 static void e82545_tx_enable(struct e82545_softc *sc);
 static void e82545_tx_disable(struct e82545_softc *sc);
 
-static inline int
+static inline int __unused
 e82545_size_stat_index(uint32_t size)
 {
 	if (size <= 64) {
