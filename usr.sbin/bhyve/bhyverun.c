@@ -372,7 +372,7 @@ calc_topology(void)
 		    (uintmax_t)ncpus);
 
 	if (explicit_cpus) {
-		if (guest_ncpus != ncpus)
+		if (guest_ncpus != (int)ncpus)
 			errx(4, "Topology (%d sockets, %d cores, %d threads) "
 			    "does not match %d vCPUs",
 			    cpu_sockets, cpu_cores, cpu_threads,

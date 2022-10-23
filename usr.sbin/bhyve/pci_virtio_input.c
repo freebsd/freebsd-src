@@ -421,7 +421,7 @@ pci_vtinput_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 	struct pci_vtinput_softc *sc = vsc;
 
 	/* check for valid offset and size */
-	if (offset + size > sizeof(struct vtinput_config)) {
+	if (offset + size > (int)sizeof(struct vtinput_config)) {
 		WPRINTF(("%s: read to invalid offset/size %d/%d", __func__,
 		    offset, size));
 		memset(retval, 0, size);

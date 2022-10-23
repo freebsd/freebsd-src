@@ -183,7 +183,7 @@ write_config(const struct pcisel *sel, long reg, int width, uint32_t data)
 static int
 passthru_add_msicap(struct pci_devinst *pi, int msgnum, int nextptr)
 {
-	int capoff, i;
+	int capoff;
 	struct msicap msicap;
 	u_char *capdata;
 
@@ -197,7 +197,7 @@ passthru_add_msicap(struct pci_devinst *pi, int msgnum, int nextptr)
 	 */
 	capoff = 256 - roundup(sizeof(msicap), 4);
 	capdata = (u_char *)&msicap;
-	for (i = 0; i < sizeof(msicap); i++)
+	for (size_t i = 0; i < sizeof(msicap); i++)
 		pci_set_cfgdata8(pi, capoff + i, capdata[i]);
 
 	return (capoff);
