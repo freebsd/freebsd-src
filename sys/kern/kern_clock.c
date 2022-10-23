@@ -556,7 +556,7 @@ hardclock_sync(int cpu)
 }
 
 /*
- * Regular integer scaling formula without loosing precision:
+ * Regular integer scaling formula without losing precision:
  */
 #define	TIME_INT_SCALE(value, mul, div) \
 	(((value) / (div)) * (mul) + (((value) % (div)) * (mul)) / (div))
@@ -581,7 +581,7 @@ TIME_ASSERT_VALID_HZ(HZ_MAXIMUM);
 TIME_ASSERT_VALID_HZ(HZ_MINIMUM);
 
 /*
- * The forumla is mostly linear, but test some more common values just
+ * The formula is mostly linear, but test some more common values just
  * in case:
  */
 TIME_ASSERT_VALID_HZ(1024);
