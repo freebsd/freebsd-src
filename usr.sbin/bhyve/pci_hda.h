@@ -65,7 +65,7 @@ struct hda_codec_inst {
 	uint8_t cad;
 	struct hda_codec_class *codec;
 	struct hda_softc *hda;
-	struct hda_ops *hops;
+	const struct hda_ops *hops;
 	void *priv;
 };
 

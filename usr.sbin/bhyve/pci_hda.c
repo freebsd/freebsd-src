@@ -264,7 +264,7 @@ static const uint16_t hda_rirb_sizes[] = {
 	[HDAC_RIRBSIZE_RIRBSIZE_MASK]	= 0,
 };
 
-static struct hda_ops hops = {
+static const struct hda_ops hops = {
 	.signal		= hda_signal_state_change,
 	.response	= hda_response,
 	.transfer	= hda_transfer,
