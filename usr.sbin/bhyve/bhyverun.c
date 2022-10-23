@@ -183,7 +183,6 @@ static const char * const vmx_exit_reason_desc[] = {
 };
 
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
-extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
 
 int guest_ncpus;
 uint16_t cores, maxcpus, sockets, threads;
