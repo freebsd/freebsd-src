@@ -42,6 +42,26 @@
 #ifndef _LKPI_SRC_LINUX_80211_H
 #define _LKPI_SRC_LINUX_80211_H
 
+/* #define	LINUXKPI_DEBUG_80211 */
+
+#ifndef	D80211_TODO
+#define	D80211_TODO		0x1
+#endif
+#ifndef D80211_IMPROVE
+#define	D80211_IMPROVE		0x2
+#endif
+#define	D80211_TRACE		0x10
+#define	D80211_TRACEOK		0x20
+#define	D80211_TRACE_TX		0x100
+#define	D80211_TRACE_TX_DUMP	0x200
+#define	D80211_TRACE_RX		0x1000
+#define	D80211_TRACE_RX_DUMP	0x2000
+#define	D80211_TRACE_RX_BEACONS	0x4000
+#define	D80211_TRACEX		(D80211_TRACE_TX|D80211_TRACE_RX)
+#define	D80211_TRACEX_DUMP	(D80211_TRACE_TX_DUMP|D80211_TRACE_RX_DUMP)
+#define	D80211_TRACE_STA	0x10000
+#define	D80211_TRACE_MO		0x100000
+
 struct lkpi_radiotap_tx_hdr {
 	struct ieee80211_radiotap_header wt_ihdr;
 	uint8_t		wt_flags;
