@@ -316,6 +316,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
+	bool is64;
 #if defined(LOADER_FDT_SUPPORT)
 	vm_offset_t dtbp;
 	int dtb_size;
@@ -334,6 +335,11 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	    MODINFOMD_DTBP
 #endif
 	};
+#endif
+#ifdef __LP64__
+	is64 = true;
+#else
+	is64 = false;
 #endif
 
 	howto = bi_getboothowto(args);
@@ -413,7 +419,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 	bi_load_efi_data(kfp, exit_bs);
 
-	size = md_copymodules(0, true);
+	size = md_copymodules(0, is64);
 	kernend = roundup(addr + size, PAGE_SIZE);
 	*kernendp = kernend;
 
@@ -438,7 +444,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 
 	/* Copy module list and metadata. */
-	(void)md_copymodules(addr, true);
+	(void)md_copymodules(addr, is64);
 
 	return (0);
 }
