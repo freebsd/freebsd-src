@@ -316,7 +316,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
-	bool is64;
+	bool is64 = sizeof(long) == 8;
 #if defined(LOADER_FDT_SUPPORT)
 	vm_offset_t dtbp;
 	int dtb_size;
@@ -336,12 +336,6 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 	};
 #endif
-#ifdef __LP64__
-	is64 = true;
-#else
-	is64 = false;
-#endif
-
 	howto = bi_getboothowto(args);
 
 	/*
