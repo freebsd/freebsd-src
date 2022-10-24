@@ -472,8 +472,9 @@ tmpfs_stat(struct vop_stat_args *v)
 	if (vp->v_type == VREG) {
 		obj = node->tn_reg.tn_aobj;
 		sb->st_blocks = (u_quad_t)obj->resident_page_count * PAGE_SIZE;
-	} else
+	} else {
 		sb->st_blocks = node->tn_size;
+	}
 	sb->st_blocks /= S_BLKSIZE;
 	return (vop_stat_helper_post(v, error));
 }
@@ -506,12 +507,13 @@ tmpfs_getattr(struct vop_getattr_args *v)
 	vap->va_gen = node->tn_gen;
 	vap->va_flags = node->tn_flags;
 	vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
-		node->tn_rdev : NODEV;
+	    node->tn_rdev : NODEV;
 	if (vp->v_type == VREG) {
 		obj = node->tn_reg.tn_aobj;
 		vap->va_bytes = (u_quad_t)obj->resident_page_count * PAGE_SIZE;
-	} else
+	} else {
 		vap->va_bytes = node->tn_size;
+	}
 	vap->va_filerev = 0;
 
 	return (0);
