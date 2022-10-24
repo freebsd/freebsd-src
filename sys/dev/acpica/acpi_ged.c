@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 
 /* Hooks for the ACPI CA debugging infrastructure */
-#define _COMPONENT ACPI_GED
+#define _COMPONENT ACPI_BUS
 ACPI_MODULE_NAME("GED")
 
 static MALLOC_DEFINE(M_ACPIGED, "acpiged", "ACPI Generic event data");
