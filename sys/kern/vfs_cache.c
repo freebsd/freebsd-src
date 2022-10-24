@@ -2998,6 +2998,15 @@ cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	}
 	mtx_unlock(blp);
 }
+
+void
+cache_assert_no_entries(struct vnode *vp)
+{
+
+	VNPASS(TAILQ_EMPTY(&vp->v_cache_dst), vp);
+	VNPASS(LIST_EMPTY(&vp->v_cache_src), vp);
+	VNPASS(vp->v_cache_dd == NULL, vp);
+}
 #endif
 
 /*

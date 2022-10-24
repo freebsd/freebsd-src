@@ -676,9 +676,15 @@ void	cache_vop_rmdir(struct vnode *dvp, struct vnode *vp);
 #ifdef INVARIANTS
 void	cache_validate(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
+void	cache_assert_no_entries(struct vnode *vp);
 #else
 static inline void
 cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+}
+
+static inline void
+cache_assert_no_entries(struct vnode *vp)
 {
 }
 #endif
