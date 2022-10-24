@@ -531,15 +531,15 @@ unwrap(struct magic_set *ms, const char *fn, int immed)
 		if (line[len - 1] == '\n')
 			line[len - 1] = '\0';
 		cwid = file_mbswidth(ms, line);
-		if (cwid > wid)
-			wid = cwid;
 		if (immed) {
-			e |= process(ms, line, wid);
+			e |= process(ms, line, cwid);
 			free(line);
 			line = NULL;
 			llen = 0;
 			continue;
 		}
+		if (cwid > wid)
+			wid = cwid;
 		if (fi >= fimax) {
 			fimax += 100;
 			char **nf = CAST(char **,
