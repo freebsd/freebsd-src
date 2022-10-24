@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
+#include <netinet/tcp_fsm.h>
 #include <netinet/udp.h>
 #include <netinet6/ip6_var.h>
 
@@ -1359,7 +1360,9 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	tp = intotcpcb(inp);
 
 	/* Check if the inp is dead, Jim. */
-	if (tp == NULL || (inp->inp_flags & INP_DROPPED)) {
+	if (tp == NULL ||
+	    (inp->inp_flags & INP_DROPPED) ||
+	    (tp->t_state == TCPS_TIME_WAIT)) {
 		INP_WUNLOCK(inp);
 		return (TCP_LRO_CANNOT);
 	}
