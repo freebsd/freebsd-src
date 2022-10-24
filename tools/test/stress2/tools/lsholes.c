@@ -40,7 +40,8 @@ main(int argc, char *argv[])
 {
 	struct stat st;
 	off_t data, hole, pos;
-	long mx;
+	long mn;
+	intmax_t siz;
 	int fd, n;
 	char *name;
 
@@ -54,33 +55,47 @@ main(int argc, char *argv[])
                 err(1, "open(%s)", name);
         if (fstat(fd, &st))
                 err(1, "fstat()");
-	if ((mx = fpathconf(fd, _PC_MIN_HOLE_SIZE)) == -1)
+	if ((mn = fpathconf(fd, _PC_MIN_HOLE_SIZE)) == -1)
 		err(1, "fpathconf()");
-	fprintf(stderr, "file \"%s\" size = %jd, _PC_MIN_HOLE_SIZE = %ld\n",
-	    name, (intmax_t)st.st_size, mx);
+	fprintf(stderr, "Min hole size is %ld, file size is %jd.\n",
+	    mn, (intmax_t)st.st_size);
 	n = 1;
 	pos = 0;
+
 	while (pos < st.st_size) {
-		if ((hole = lseek(fd, pos, SEEK_HOLE)) == -1)
+		hole = lseek(fd, pos, SEEK_HOLE);
+		if (hole == -1 && errno != ENXIO)
 			err(1, "lseek(SEEK_HOLE)");
-		if ((data = lseek(fd, hole, SEEK_DATA)) == -1) {
-			if (errno == ENXIO) {
-				if (hole == st.st_size)
-					break;
-				fprintf(stderr,
-				    "No data after hole @ %jd\n",
-				    (intmax_t)hole);
-				break;
-			}
-			err(1, "lseek(SEEK_DATA)");
+		data = lseek(fd, pos, SEEK_DATA);
+		if (data == -1 && errno != ENXIO)
+			err(1, "lseek(SEEK_data)");
+
+		if (hole >= 0 && data >= 0 && hole > data) {
+			siz = hole - data;
+			printf("data #%d @ %ld, size=%jd)\n",
+			    n, (intmax_t)data, siz);
+			n++;
+			pos += siz;
 		}
-		pos = data;
-		printf("hole #%d @ %jd (0x%jx), size=%jd (0x%jx)\n",
-		    n, (intmax_t)hole, (intmax_t)hole, (intmax_t)(data - hole),
-		    (intmax_t)(data - hole));
-		n++;
+		if (hole >= 0 && data >= 0 && hole < data) {
+			siz = data - hole;
+			printf("hole #%d @ %ld, size=%jd\n",
+			    n, (intmax_t)hole, siz);
+			n++;
+			pos += siz;
+		}
+		if (hole >= 0 && data == -1) {
+			siz = st.st_size - hole;
+			printf("hole #%d @ %ld, size=%jd\n",
+			    n, (intmax_t)hole, siz);
+			n++;
+			pos += siz;
+		}
         }
+	if (hole == st.st_size) {
+		/* EOF */
+		printf("hole #%d @ %ld, size=%jd\n",
+		    n, (intmax_t)hole, 0L);
+	}
         close(fd);
-	if (hole != st.st_size)
-		errx(1, "No implicit hole at EOF");
 }
