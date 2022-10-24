@@ -1103,11 +1103,6 @@ do_open(const char *vmname)
 	struct vmctx *ctx;
 	int error;
 	bool reinit, romboot;
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-	const cap_ioctl_t *cmds;
-	size_t ncmds;
-#endif
 
 	reinit = romboot = false;
 
@@ -1147,16 +1142,8 @@ do_open(const char *vmname)
 	}
 
 #ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_IOCTL, CAP_MMAP_RW);
-	if (caph_rights_limit(vm_get_device_fd(ctx), &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	vm_get_ioctls(&ncmds);
-	cmds = vm_get_ioctls(NULL);
-	if (cmds == NULL)
-		errx(EX_OSERR, "out of memory");
-	if (caph_ioctls_limit(vm_get_device_fd(ctx), cmds, ncmds) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	free((cap_ioctl_t *)cmds);
+	if (vm_limit_rights(ctx) != 0)
+		err(EX_OSERR, "vm_limit_rights");
 #endif
 
 	if (reinit) {
