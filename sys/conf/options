@@ -718,7 +718,7 @@ IOMMU			opt_iommu.h
 
 # ISA support
 DEV_ISA			opt_isa.h
-ISAPNP			opt_isa.h
+ISAPNP			opt_dontuse.h
 
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
