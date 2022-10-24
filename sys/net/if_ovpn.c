@@ -241,10 +241,10 @@ SYSCTL_INT(_net_link_openvpn, OID_AUTO, async_crypto,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(async_crypto), 0,
 	"Use asynchronous mode to parallelize crypto jobs.");
 
-VNET_DEFINE_STATIC(int, netisr_queue);
-#define	V_netisr_queue		VNET(netisr_queue)
+VNET_DEFINE_STATIC(int, async_netisr_queue);
+#define	V_async_netisr_queue		VNET(async_netisr_queue)
 SYSCTL_INT(_net_link_openvpn, OID_AUTO, netisr_queue,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(netisr_queue), 0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(async_netisr_queue), 0,
 	"Use netisr_queue() rather than netisr_dispatch().");
 
 static struct ovpn_kpeer *
@@ -1515,7 +1515,7 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 	af = ovpn_get_af(m);
 	if (af != 0) {
 		BPF_MTAP2(sc->ifp, &af, sizeof(af), m);
-		if (V_netisr_queue)
+		if (V_async_netisr_queue)
 			netisr_queue(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
 		else
 			netisr_dispatch(af == AF_INET ? NETISR_IP : NETISR_IPV6, m);
