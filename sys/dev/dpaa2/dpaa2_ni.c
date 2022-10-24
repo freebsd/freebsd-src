@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 #include "miibus_if.h"
-#include "mdio_if.h"
 #include "memac_mdio_if.h"
 
 #include "dpaa2_types.h"
