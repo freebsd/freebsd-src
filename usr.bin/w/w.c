@@ -481,14 +481,13 @@ main(int argc, char *argv[])
 static void
 pr_header(time_t *nowp, int nusers)
 {
+	char buf[64];
+	struct sbuf upbuf;
 	double avenrun[3];
-	time_t uptime;
 	struct timespec tp;
-	int days, hrs, i, mins, secs;
-	char buf[256];
-	struct sbuf *upbuf;
+	unsigned long days, hrs, mins, secs;
+	unsigned int i;
 
-	upbuf = sbuf_new_auto();
 	/*
 	 * Print time of day.
 	 */
@@ -498,39 +497,49 @@ pr_header(time_t *nowp, int nusers)
 	/*
 	 * Print how long system has been up.
 	 */
+	(void)sbuf_new(&upbuf, buf, sizeof(buf), SBUF_FIXEDLEN);
 	if (clock_gettime(CLOCK_UPTIME, &tp) != -1) {
-		uptime = tp.tv_sec;
-		if (uptime > 60)
-			uptime += 30;
-		days = uptime / 86400;
-		uptime %= 86400;
-		hrs = uptime / 3600;
-		uptime %= 3600;
-		mins = uptime / 60;
-		secs = uptime % 60;
 		xo_emit(" up");
-		xo_emit("{e:uptime/%lu}", (unsigned long)tp.tv_sec);
-		xo_emit("{e:days/%d}{e:hours/%d}{e:minutes/%d}{e:seconds/%d}",
+		secs = tp.tv_sec;
+		xo_emit("{e:uptime/%lu}", secs);
+		mins = secs / 60;
+		secs %= 60;
+		hrs = mins / 60;
+		mins %= 60;
+		days = hrs / 24;
+		hrs %= 24;
+		xo_emit("{e:days/%ld}{e:hours/%ld}{e:minutes/%ld}{e:seconds/%ld}",
 		    days, hrs, mins, secs);
 
+		/* If we've been up longer than 60 s, round to nearest min */
+		if (tp.tv_sec > 60) {
+			secs = tp.tv_sec + 30;
+			mins = secs / 60;
+			secs = 0;
+			hrs = mins / 60;
+			mins %= 60;
+			days = hrs / 24;
+			hrs %= 24;
+		}
+
 		if (days > 0)
-			sbuf_printf(upbuf, " %d day%s,",
+			sbuf_printf(&upbuf, " %ld day%s,",
 				days, days > 1 ? "s" : "");
 		if (hrs > 0 && mins > 0)
-			sbuf_printf(upbuf, " %2d:%02d,", hrs, mins);
+			sbuf_printf(&upbuf, " %2ld:%02ld,", hrs, mins);
 		else if (hrs > 0)
-			sbuf_printf(upbuf, " %d hr%s,",
+			sbuf_printf(&upbuf, " %ld hr%s,",
 				hrs, hrs > 1 ? "s" : "");
 		else if (mins > 0)
-			sbuf_printf(upbuf, " %d min%s,",
+			sbuf_printf(&upbuf, " %ld min%s,",
 				mins, mins > 1 ? "s" : "");
 		else
-			sbuf_printf(upbuf, " %d sec%s,",
+			sbuf_printf(&upbuf, " %ld sec%s,",
 				secs, secs > 1 ? "s" : "");
-		if (sbuf_finish(upbuf) != 0)
+		if (sbuf_finish(&upbuf) != 0)
 			xo_err(1, "Could not generate output");
-		xo_emit("{:uptime-human/%s}", sbuf_data(upbuf));
-		sbuf_delete(upbuf);
+		xo_emit("{:uptime-human/%s}", sbuf_data(&upbuf));
+		sbuf_delete(&upbuf);
 	}
 
 	/* Print number of users logged in to system */
@@ -548,7 +557,7 @@ pr_header(time_t *nowp, int nusers)
 		    " {:load-average-15/%.2f}",
 		};
 		xo_emit(", load averages:");
-		for (i = 0; i < (int)(nitems(avenrun)); i++) {
+		for (i = 0; i < nitems(avenrun); i++) {
 			if (use_comma && i > 0)
 				xo_emit(",");
 			xo_emit(format[i], avenrun[i]);
