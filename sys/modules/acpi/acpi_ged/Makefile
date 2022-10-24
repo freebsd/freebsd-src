@@ -1,7 +1,7 @@
 #	$FreeBSD$
 
 .PATH:	${SRCTOP}/sys/dev/acpica
-.if ${TARGET_ARCH} == aarch64
+.if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS += -DINTRNG
 .endif
 KMOD=	acpi_ged
