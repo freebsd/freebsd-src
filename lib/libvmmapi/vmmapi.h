@@ -118,10 +118,10 @@ int	vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid,
 int	vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
 
 int	vm_create(const char *name);
-int	vm_get_device_fd(struct vmctx *ctx);
 struct vmctx *vm_open(const char *name);
 void	vm_close(struct vmctx *ctx);
 void	vm_destroy(struct vmctx *ctx);
+int	vm_limit_rights(struct vmctx *ctx);
 int	vm_parse_memsize(const char *optarg, size_t *memsize);
 int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
@@ -195,8 +195,6 @@ int	vm_disable_pptdev_msix(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *i1, uint64_t *i2);
 int	vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t exit_intinfo);
 
-const cap_ioctl_t *vm_get_ioctls(size_t *len);
-
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.
  */
@@ -266,6 +264,13 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
  */
 int	vm_snapshot_req(struct vm_snapshot_meta *meta);
 int	vm_restore_time(struct vmctx *ctx);
+
+/*
+ * Deprecated interfaces, do not use them in new code.
+ */
+int	vm_get_device_fd(struct vmctx *ctx);
+const cap_ioctl_t *vm_get_ioctls(size_t *len);
+
 __END_DECLS
 
 #endif	/* _VMMAPI_H_ */
