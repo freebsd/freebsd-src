@@ -99,11 +99,15 @@ const struct auth_hash auth_hash_null = {
 static void
 null_crypt(void *key, const uint8_t *in, uint8_t *out)
 {
+	if (in != out)
+		memcpy(out, in, NULL_BLOCK_LEN);
 }
 
 static void
 null_crypt_multi(void *key, const uint8_t *in, uint8_t *out, size_t len)
 {
+	if (in != out)
+		memcpy(out, in, len);
 }
 
 static int
@@ -129,7 +133,7 @@ null_reinit(void *ctx, const uint8_t *buf, u_int len)
 static int
 null_update(void *ctx, const void *buf, u_int len)
 {
-	return 0;
+	return (0);
 }
 
 static void
