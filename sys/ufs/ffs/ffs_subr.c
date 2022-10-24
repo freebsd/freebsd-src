@@ -546,8 +546,8 @@ validate_sblock(struct fs *fs, int flags)
 	 * and ends in the data area of the same cylinder group.
 	 */
 	FCHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
-	FCHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
-	FCHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, <=, ((int64_t)fs->fs_ncg - 1) * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, >, (int64_t)fs->fs_ncg * fs->fs_fpg, %jd);
 	/*
 	 * If we are not requested to read in the csum data stop here
 	 * as the correctness of the remaining values is only important
