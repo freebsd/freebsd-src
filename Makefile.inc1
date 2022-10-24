@@ -3195,7 +3195,7 @@ specific library."
 .if !defined(BATCH_DELETE_OLD_FILES)
 RM_I=-i
 .else
-RM_I=-v
+RM_I=-fv
 .endif
 
 list-old-files: .PHONY
