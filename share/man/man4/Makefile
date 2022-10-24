@@ -15,6 +15,7 @@ MAN=	aac.4 \
 	${_acpi_panasonic.4} \
 	${_acpi_rapidstart.4} \
 	${_acpi_sony.4} \
+	acpi_ged.4 \
 	acpi_thermal.4 \
 	acpi_battery.4 \
 	${_acpi_toshiba.4} \
