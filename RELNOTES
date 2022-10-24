@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+22893e584032:
+	L3 filtering on if_bridge will do surprising things which aren't
+	fail-safe, so net.link.bridge.pfil_member and
+	net.link.bridge.pfil_bridge now default to zero.
+
 f0bc4ed144fc:
 	A new DTrace provider, kinst, is introduced and documented in
 	dtrace_kinst(4).  The provider allows kernel instructions to be traced,
