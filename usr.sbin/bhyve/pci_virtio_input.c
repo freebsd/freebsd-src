@@ -474,15 +474,14 @@ vtinput_eventqueue_add_event(
 	if (queue->idx >= queue->size) {
 		/* alloc new elements for queue */
 		const uint32_t newSize = queue->idx;
-		const void *newPtr = realloc(queue->events,
+		void *newPtr = realloc(queue->events,
 		    queue->size * sizeof(struct vtinput_event_elem));
 		if (newPtr == NULL) {
 			WPRINTF(("%s: realloc memory for eventqueue failed!",
 			    __func__));
 			return (1);
 		}
-		/* save new size and eventqueue */
-		queue->events = (struct vtinput_event_elem *)newPtr;
+		queue->events = newPtr;
 		queue->size = newSize;
 	}
 
