@@ -2194,7 +2194,7 @@ mesh_parse_meshpeering_action(struct ieee80211_node *ni,
 		sendclose = 1;
 		IEEE80211_DISCARD(vap,
 		    IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
-		    wh, NULL, "%s", "configuration missmatch");
+		    wh, NULL, "%s", "configuration mismatch");
 	}
 
 	if (sendclose) {
