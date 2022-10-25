@@ -45,8 +45,7 @@ __FBSDID("$FreeBSD$");
 #define	CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
 
 clock_t
-times(tp)
-	struct tms *tp;
+times(struct tms *tp)
 {
 	struct rusage ru;
 	struct timespec t;
