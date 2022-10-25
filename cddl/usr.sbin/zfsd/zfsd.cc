@@ -274,7 +274,7 @@ ZfsDaemon::RescanSystem()
 	result = geom_gettree(&mesh);
 	if (result != 0) {
 		syslog(LOG_ERR, "ZfsDaemon::RescanSystem: "
-		       "geom_gettree faild with error %d\n", result);
+		       "geom_gettree failed with error %d\n", result);
 		return;
 	}
 
