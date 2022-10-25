@@ -733,7 +733,10 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 {
 	struct mbuf *mbuf;
 	struct ifnet *ifp;
-	int processed_cqe, work_done = 0, tx_done = 0;
+	int processed_cqe, tx_done = 0;
+#ifdef DEBUG
+	int work_done = 0;
+#endif
 	int cqe_count, cqe_head;
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
@@ -780,7 +783,9 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 				 */
 				goto done;
 			}
+#ifdef DEBUG
 			work_done++;
+#endif
 			break;
 		case CQE_TYPE_SEND:
 			nicvf_snd_pkt_handler(nic, cq, (void *)cq_desc,
