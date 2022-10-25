@@ -332,7 +332,7 @@ parse_int_value(const char *key, const char *value, int minval, int maxval)
  * vm_set_topology().  vmm.ko may enforce tighter limits.
  */
 static void
-calc_topolopgy(void)
+calc_topology(void)
 {
 	const char *value;
 	bool explicit_cpus;
@@ -1423,7 +1423,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	calc_topolopgy();
+	calc_topology();
 	build_vcpumaps();
 
 	value = get_config_value("memory.size");
