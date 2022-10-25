@@ -31,6 +31,10 @@
 #ifndef	_SYS_PHYSMEM_H_
 #define	_SYS_PHYSMEM_H_
 
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
 /*
  * Routines to help configure physical ram.
  *
