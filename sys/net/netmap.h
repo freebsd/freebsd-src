@@ -783,7 +783,7 @@ struct nmreq_pools_info {
  */
 struct nmreq_sync_kloop_start {
 	/* Sleeping is the default synchronization method for the kloop.
-	 * The 'sleep_us' field specifies how many microsconds to sleep for
+	 * The 'sleep_us' field specifies how many microseconds to sleep for
 	 * when there is no work to do, before doing another kloop iteration.
 	 */
 	uint32_t	sleep_us;
