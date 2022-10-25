@@ -8677,7 +8677,7 @@ sli_fc_rq_set_alloc(sli4_t *sli4, uint32_t num_rq_pairs,
 	}
 
 	if (sli_bmbx_command(sli4)){
-		ocs_log_crit(sli4->os, "bootstrap mailbox write faild RQSet\n");
+		ocs_log_crit(sli4->os, "bootstrap mailbox write failed RQSet\n");
 		goto error;
 	}
 
