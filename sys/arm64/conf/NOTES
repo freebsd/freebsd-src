@@ -29,7 +29,6 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	VFP			# Floating-point support
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
-options 	INTRNG
 
 # SoC support
 options 	SOC_ALLWINNER_A64

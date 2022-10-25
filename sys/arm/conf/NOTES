@@ -11,7 +11,6 @@ makeoptions	CONF_CFLAGS+="-march=armv7a"
 
 options 	FDT			# Flattened device tree support
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
-options 	INTRNG			# Include INTRNG framework
 options 	LINUX_BOOT_ABI		# Process metadata passed from U-Boot
 options 	PLATFORM		# Include platform_if support
 options 	SMP			# Nearly all v7 SoCs are multicore
