@@ -266,7 +266,7 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			do {
 				clen = MIN(len - boff, br->br_iov[i].iov_len -
 				    voff);
-				memcpy(br->br_iov[i].iov_base + voff,
+				memcpy((uint8_t *)br->br_iov[i].iov_base + voff,
 				    buf + boff, clen);
 				if (clen < br->br_iov[i].iov_len - voff)
 					voff += clen;
@@ -302,7 +302,8 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 				clen = MIN(len - boff, br->br_iov[i].iov_len -
 				    voff);
 				memcpy(buf + boff,
-				    br->br_iov[i].iov_base + voff, clen);
+				    (uint8_t *)br->br_iov[i].iov_base + voff,
+				    clen);
 				if (clen < br->br_iov[i].iov_len - voff)
 					voff += clen;
 				else {
