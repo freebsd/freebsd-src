@@ -738,7 +738,7 @@ netmap_send(struct net_backend *be, const struct iovec *iov,
 	int nm_buf_size;
 	int nm_buf_len;
 	uint32_t head;
-	void *nm_buf;
+	uint8_t *nm_buf;
 	int j;
 
 	ring = priv->tx;

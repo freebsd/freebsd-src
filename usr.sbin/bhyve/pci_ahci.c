@@ -785,12 +785,11 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 }
 
 static inline void
-read_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
-		void *buf, int size)
+read_prdt(struct ahci_port *p, int slot, uint8_t *cfis, void *buf, int size)
 {
 	struct ahci_cmd_hdr *hdr;
 	struct ahci_prdt_entry *prdt;
-	void *to;
+	uint8_t *to;
 	int i, len;
 
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
@@ -899,12 +898,11 @@ next:
 }
 
 static inline void
-write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
-		void *buf, int size)
+write_prdt(struct ahci_port *p, int slot, uint8_t *cfis, void *buf, int size)
 {
 	struct ahci_cmd_hdr *hdr;
 	struct ahci_prdt_entry *prdt;
-	void *from;
+	uint8_t *from;
 	int i, len;
 
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
