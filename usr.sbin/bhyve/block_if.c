@@ -233,35 +233,39 @@ blockif_flush_bc(struct blockif_ctxt *bc)
 static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
+	struct spacectl_range range;
 	struct blockif_req *br;
 	off_t arg[2];
-	ssize_t clen, len, off, boff, voff;
+	ssize_t n;
+	size_t clen, len, off, boff, voff;
 	int i, err;
-	struct spacectl_range range;
 
 	br = be->be_req;
+	assert(br->br_resid >= 0);
+
 	if (br->br_iovcnt <= 1)
 		buf = NULL;
 	err = 0;
 	switch (be->be_op) {
 	case BOP_READ:
 		if (buf == NULL) {
-			if ((len = preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
-				   br->br_offset)) < 0)
+			if ((n = preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
+			    br->br_offset)) < 0)
 				err = errno;
 			else
-				br->br_resid -= len;
+				br->br_resid -= n;
 			break;
 		}
 		i = 0;
 		off = voff = 0;
 		while (br->br_resid > 0) {
 			len = MIN(br->br_resid, MAXPHYS);
-			if (pread(bc->bc_fd, buf, len, br->br_offset +
-			    off) < 0) {
+			n = pread(bc->bc_fd, buf, len, br->br_offset + off);
+			if (n < 0) {
 				err = errno;
 				break;
 			}
+			len = (size_t)n;
 			boff = 0;
 			do {
 				clen = MIN(len - boff, br->br_iov[i].iov_len -
@@ -286,11 +290,11 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			break;
 		}
 		if (buf == NULL) {
-			if ((len = pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
-				    br->br_offset)) < 0)
+			if ((n = pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
+			    br->br_offset)) < 0)
 				err = errno;
 			else
-				br->br_resid -= len;
+				br->br_resid -= n;
 			break;
 		}
 		i = 0;
@@ -312,13 +316,14 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 				}
 				boff += clen;
 			} while (boff < len);
-			if (pwrite(bc->bc_fd, buf, len, br->br_offset +
-			    off) < 0) {
+
+			n = pwrite(bc->bc_fd, buf, len, br->br_offset + off);
+			if (n < 0) {
 				err = errno;
 				break;
 			}
-			off += len;
-			br->br_resid -= len;
+			off += n;
+			br->br_resid -= n;
 		}
 		break;
 	case BOP_FLUSH:
