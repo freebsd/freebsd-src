@@ -790,6 +790,8 @@ print_loadopt_str(uint8_t *data, size_t datalen)
 	 */
 	indent = 1;
 	while (dp < edp) {
+		if (efidp_size(dp) == 0)
+			break;
 		efidp_format_device_path(buf, sizeof(buf), dp,
 		    (intptr_t)(void *)edp - (intptr_t)(void *)dp);
 		printf("%*s%s\n", indent, "", buf);
