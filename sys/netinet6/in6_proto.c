@@ -85,17 +85,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
+#include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
+#include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
-
-#ifdef SCTP
-#include <netinet/in_pcb.h>
-#include <netinet/sctp_pcb.h>
-#include <netinet/sctp.h>
-#include <netinet/sctp_var.h>
-#include <netinet6/sctp6_var.h>
-#endif /* SCTP */
 
 /* netinet6/raw_ip6.c */
 extern struct protosw rip6_protosw;
@@ -103,6 +101,8 @@ extern struct protosw rip6_protosw;
 extern struct protosw udp6_protosw, udplite6_protosw;
 /* netinet/tcp_usrreq.c */
 extern struct protosw tcp6_protosw;
+/* netinet/sctp6_usrreq.c */
+extern struct protosw sctp6_seqpacket_protosw, sctp6_stream_protosw;
 
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.

@@ -51,7 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
+#include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 
 /*
  * While this file provides the domain and protocol switch tables for IPv4, it
@@ -60,20 +63,14 @@ __FBSDID("$FreeBSD$");
  * support compile out everything but these sysctl nodes.
  */
 #ifdef INET
-
-#ifdef SCTP
-#include <netinet/in_pcb.h>
-#include <netinet/sctp_pcb.h>
-#include <netinet/sctp.h>
-#include <netinet/sctp_var.h>
-#endif
-
 /* netinet/raw_ip.c */
 extern struct protosw rip_protosw;
 /* netinet/udp_usrreq.c */
 extern struct protosw udp_protosw, udplite_protosw;
 /* netinet/tcp_usrreq.c */
 extern struct protosw tcp_protosw;
+/* netinet/sctp_usrreq.c */
+extern struct protosw sctp_seqpacket_protosw, sctp_stream_protosw;
 
 FEATURE(inet, "Internet Protocol version 4");
 
