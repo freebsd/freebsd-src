@@ -1012,7 +1012,7 @@ gen_start_locked(struct gen_softc *sc)
 {
 	struct mbuf *m;
 	if_t ifp;
-	int cnt, err;
+	int err;
 
 	GEN_ASSERT_LOCKED(sc);
 
@@ -1025,7 +1025,7 @@ gen_start_locked(struct gen_softc *sc)
 	    IFF_DRV_RUNNING)
 		return;
 
-	for (cnt = 0; ; cnt++) {
+	while (true) {
 		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
