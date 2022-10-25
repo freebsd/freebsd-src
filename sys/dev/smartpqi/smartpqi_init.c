@@ -858,7 +858,7 @@ pqisrc_force_sis(pqisrc_softstate_t *softs)
 	int ret = PQI_STATUS_SUCCESS;
 
 	if (SIS_IS_KERNEL_PANIC(softs)) {
-		DBG_INIT("Controller FW is not runnning");
+		DBG_INIT("Controller FW is not running");
 		return PQI_STATUS_FAILURE;
 	}
 
