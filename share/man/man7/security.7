@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2022
+.Dd March 30, 2023
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -537,7 +537,10 @@ kernel modules (see
 may not be loaded or unloaded.
 The kernel debugger may not be entered using the
 .Va debug.kdb.enter
-sysctl.
+sysctl unless a
+.Xr MAC 9
+policy grants access, for example using
+.Xr mac_ddb 4 .
 A panic or trap cannot be forced using the
 .Va debug.kdb.panic ,
 .Va debug.kdb.panic_str
