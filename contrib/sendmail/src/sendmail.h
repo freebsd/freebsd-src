@@ -706,7 +706,7 @@ extern bool	filesys_free __P((long));
 # define SASL_IS_AUTH	2		/* authenticated */
 
 /* SASL options */
-# define SASL_AUTH_AUTH	0x1000		/* use auth= only if authenticated */
+# define SASL_AUTH_AUTH	0x10000		/* use auth= only if authenticated */
 # if SASL >= 20101
 #  define SASL_SEC_MASK	SASL_SEC_MAXIMUM /* mask for SASL_SEC_* values: sasl.h */
 # else /* SASL >= 20101 */
@@ -721,6 +721,9 @@ ERROR: change SASL_SEC_MASK_ notify sendmail.org!
 #  endif /* SASL_SEC_NOPLAINTEXT & SASL_SEC_MASK) == 0 ... */
 # endif /* SASL >= 20101 */
 # define MAXOUTLEN 8192	/* length of output buffer, should be 2^n */
+# if (SASL_AUTH_AUTH & SASL_SEC_MASK) != 0
+#  ERROR "change SASL_AUTH_AUTH notify sendmail.org!"
+# endif
 
 /* functions */
 extern char	*intersect __P((char *, char *, SM_RPOOL_T *));
