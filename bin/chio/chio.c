@@ -427,7 +427,7 @@ do_position(const char *cname, int argc, char **argv)
 
 /* ARGSUSED */
 static int
-do_params(const char *cname, int argc, char **argv)
+do_params(const char *cname, int argc, char **argv __unused)
 {
 	struct changer_params data;
 	int picker;
@@ -470,7 +470,7 @@ do_params(const char *cname, int argc, char **argv)
 
 /* ARGSUSED */
 static int
-do_getpicker(const char *cname, int argc, char **argv)
+do_getpicker(const char *cname, int argc, char **argv __unused)
 {
 	int picker;
 
