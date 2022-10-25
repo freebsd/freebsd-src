@@ -40,6 +40,15 @@
 #include <security/mac/mac_policy.h>
 
 int
+mac_kdb_grant_backend(struct kdb_dbbe *be)
+{
+	int error = 0;
+
+	MAC_POLICY_GRANT_NOSLEEP(kdb_check_backend, be);
+	return (error);
+}
+
+int
 mac_kdb_check_backend(struct kdb_dbbe *be)
 {
 	int error = 0;

@@ -77,6 +77,7 @@ struct trapframe *kdb_frame = NULL;
 
 static int	kdb_break_to_debugger = KDB_BREAK_TO_DEBUGGER;
 static int	kdb_alt_break_to_debugger = KDB_ALT_BREAK_TO_DEBUGGER;
+static int	kdb_enter_securelevel = 0;
 
 KDB_BACKEND(null, NULL, NULL, NULL, NULL);
 
@@ -103,7 +104,7 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, current,
     "currently selected KDB backend");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, enter,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     kdb_sysctl_enter, "I",
     "set to enter the debugger");
 
@@ -133,12 +134,17 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, stack_overflow,
     "set to cause a stack overflow");
 
 SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+    CTLFLAG_RWTUN,
     &kdb_break_to_debugger, 0, "Enable break to debugger");
 
 SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+    CTLFLAG_RWTUN,
     &kdb_alt_break_to_debugger, 0, "Enable alternative break to debugger");
+
+SYSCTL_INT(_debug_kdb, OID_AUTO, enter_securelevel,
+    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+    &kdb_enter_securelevel, 0,
+    "Maximum securelevel to enter a KDB backend");
 
 /*
  * Flag to indicate to debuggers why the debugger was entered.
@@ -489,6 +495,34 @@ kdb_dbbe_select(const char *name)
 	return (EINVAL);
 }
 
+static bool
+kdb_backend_permitted(struct kdb_dbbe *be, struct ucred *cred)
+{
+	int error;
+
+	error = securelevel_gt(cred, kdb_enter_securelevel);
+#ifdef MAC
+	/*
+	 * Give MAC a chance to weigh in on the policy: if the securelevel is
+	 * not raised, then MAC may veto the backend, otherwise MAC may
+	 * explicitly grant access.
+	 */
+	if (error == 0) {
+		error = mac_kdb_check_backend(be);
+		if (error != 0) {
+			printf("MAC prevented execution of KDB backend: %s\n",
+			    be->dbbe_name);
+			return (false);
+		}
+	} else if (mac_kdb_grant_backend(be) == 0) {
+		error = 0;
+	}
+#endif
+	if (error != 0)
+		printf("refusing to enter KDB with elevated securelevel\n");
+	return (error == 0);
+}
+
 /*
  * Enter the currently selected debugger. If a message has been provided,
  * it is printed first. If the debugger does not support the enter method,
@@ -733,15 +767,11 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	cngrab();
 
 	for (;;) {
-#ifdef MAC
-		if (mac_kdb_check_backend(be) != 0) {
-			printf("MAC prevented execution of KDB backend: %s\n",
-			    be->dbbe_name);
+		if (!kdb_backend_permitted(be, curthread->td_ucred)) {
 			/* Unhandled breakpoint traps are fatal. */
 			handled = 1;
 			break;
 		}
-#endif
 		handled = be->dbbe_trap(type, code);
 		if (be == kdb_dbbe)
 			break;

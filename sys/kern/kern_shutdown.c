@@ -129,18 +129,18 @@ int debugger_on_panic = 0;
 int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
-    &debugger_on_panic, 0, "Run debugger on kernel panic");
+    CTLFLAG_RWTUN, &debugger_on_panic, 0,
+    "Run debugger on kernel panic");
 
 static bool debugger_on_recursive_panic = false;
 SYSCTL_BOOL(_debug, OID_AUTO, debugger_on_recursive_panic,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
-    &debugger_on_recursive_panic, 0, "Run debugger on recursive kernel panic");
+    CTLFLAG_RWTUN, &debugger_on_recursive_panic, 0,
+    "Run debugger on recursive kernel panic");
 
 int debugger_on_trap = 0;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_trap,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
-    &debugger_on_trap, 0, "Run debugger on kernel trap before panic");
+    CTLFLAG_RWTUN, &debugger_on_trap, 0,
+    "Run debugger on kernel trap before panic");
 
 #ifdef KDB_TRACE
 static int trace_on_panic = 1;
