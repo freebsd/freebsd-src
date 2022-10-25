@@ -835,7 +835,8 @@ e82545_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 	struct e82545_softc *sc = param;
 	struct e1000_rx_desc *rxd;
 	struct iovec vec[64];
-	int left, len, lim, maxpktsz, maxpktdesc, bufsz, i, n, size;
+	ssize_t len;
+	int left, lim, maxpktsz, maxpktdesc, bufsz, i, n, size;
 	uint32_t cause = 0;
 	uint16_t *tp, tag, head;
 
@@ -877,7 +878,7 @@ e82545_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 		}
 		len = netbe_recv(sc->esc_be, vec, maxpktdesc);
 		if (len <= 0) {
-			DPRINTF("netbe_recv() returned %d", len);
+			DPRINTF("netbe_recv() returned %zd", len);
 			goto done;
 		}
 
@@ -892,7 +893,7 @@ e82545_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 			len += ETHER_CRC_LEN;
 		n = (len + bufsz - 1) / bufsz;
 
-		DPRINTF("packet read %d bytes, %d segs, head %d",
+		DPRINTF("packet read %zd bytes, %d segs, head %d",
 		    len, n, head);
 
 		/* Apply VLAN filter. */
@@ -929,7 +930,7 @@ e82545_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 		    E1000_RXD_STAT_EOP | E1000_RXD_STAT_DD;
 
 		/* Schedule receive interrupts. */
-		if (len <= sc->esc_RSRPD) {
+		if ((uint32_t)len <= sc->esc_RSRPD) {
 			cause |= E1000_ICR_SRPD | E1000_ICR_RXT0;
 		} else {
 			/* XXX: RDRT and RADV timers should be here. */
@@ -976,7 +977,7 @@ e82545_buf_checksum(uint8_t *buf, int len)
 	uint32_t sum = 0;
 
 	/* Checksum all the pairs of bytes first... */
-	for (i = 0; i < (len & ~1U); i += 2)
+	for (i = 0; i < (len & ~1); i += 2)
 		sum += *((u_int16_t *)(buf + i));
 
 	/*
@@ -991,9 +992,10 @@ e82545_buf_checksum(uint8_t *buf, int len)
 }
 
 static uint16_t
-e82545_iov_checksum(struct iovec *iov, int iovcnt, int off, int len)
+e82545_iov_checksum(struct iovec *iov, int iovcnt, unsigned int off,
+    unsigned int len)
 {
-	int now, odd;
+	unsigned int now, odd;
 	uint32_t sum = 0, s;
 
 	/* Skip completely unneeded vectors. */
@@ -1039,11 +1041,11 @@ static void
 e82545_transmit_checksum(struct iovec *iov, int iovcnt, struct ck_info *ck)
 {
 	uint16_t cksum;
-	int cklen;
+	unsigned int cklen;
 
 	DPRINTF("tx cksum: iovcnt/s/off/len %d/%d/%d/%d",
 	    iovcnt, ck->ck_start, ck->ck_off, ck->ck_len);
-	cklen = ck->ck_len ? ck->ck_len - ck->ck_start + 1 : INT_MAX;
+	cklen = ck->ck_len ? ck->ck_len - ck->ck_start + 1 : UINT_MAX;
 	cksum = e82545_iov_checksum(iov, iovcnt, ck->ck_start, cklen);
 	*(uint16_t *)((uint8_t *)iov[0].iov_base + ck->ck_off) = ~cksum;
 }
@@ -1084,9 +1086,8 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	struct ck_info ckinfo[2];
 	struct iovec *iov;
 	union  e1000_tx_udesc *dsc;
-	int desc, dtype, len, ntype, iovcnt, tcp, tso;
-	int mss, paylen, seg, tiovcnt, left, now, nleft, nnow, pv, pvoff;
-	unsigned hdrlen, vlen, pktlen;
+	int desc, dtype, ntype, iovcnt, tcp, tso, paylen, seg, tiovcnt, pv;
+	unsigned hdrlen, vlen, pktlen, len, left, mss, now, nnow, nleft, pvoff;
 	uint32_t tcpsum, tcpseq;
 	uint16_t ipcs, tcpcs, ipid, ohead;
 	bool invalid;
@@ -1371,7 +1372,7 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	tcp = (sc->esc_txctx.cmd_and_length & E1000_TXD_CMD_TCP) != 0;
 	mss = sc->esc_txctx.tcp_seg_setup.fields.mss;
 	paylen = (sc->esc_txctx.cmd_and_length & 0x000fffff);
-	DPRINTF("tx %s segmentation offload %d+%d/%d bytes %d iovs",
+	DPRINTF("tx %s segmentation offload %d+%d/%u bytes %d iovs",
 	    tcp ? "TCP" : "UDP", hdrlen, paylen, mss, iovcnt);
 	ipid = ntohs(*(uint16_t *)&hdr[ckinfo[0].ck_start + 4]);
 	tcpseq = 0;
