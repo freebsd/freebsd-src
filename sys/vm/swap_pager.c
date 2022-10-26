@@ -436,7 +436,7 @@ static void	swap_pager_update_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
 static void	swap_pager_release_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
-static void	swap_pager_freespace(vm_object_t object, vm_pindex_t start,
+static void	swap_pager_freespace_pgo(vm_object_t object, vm_pindex_t start,
     vm_size_t size);
 
 const struct pagerops swappagerops = {
@@ -451,7 +451,7 @@ const struct pagerops swappagerops = {
 	.pgo_pageunswapped = swap_pager_unswapped, /* remove swap related to page */
 	.pgo_update_writecount = swap_pager_update_writecount,
 	.pgo_release_writecount = swap_pager_release_writecount,
-	.pgo_freespace = swap_pager_freespace,
+	.pgo_freespace = swap_pager_freespace_pgo,
 };
 
 /*
@@ -483,9 +483,10 @@ static daddr_t	swp_pager_getswapspace(int *npages);
  * Metadata functions
  */
 static daddr_t swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
-static void swp_pager_meta_free(vm_object_t, vm_pindex_t, vm_pindex_t);
+static void swp_pager_meta_free(vm_object_t, vm_pindex_t, vm_size_t,
+    vm_size_t *);
 static void swp_pager_meta_transfer(vm_object_t src, vm_object_t dst,
-    vm_pindex_t pindex, vm_pindex_t count);
+    vm_pindex_t pindex, vm_pindex_t count, vm_size_t *freed);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_lookup(vm_object_t, vm_pindex_t);
 
@@ -960,11 +961,21 @@ sysctl_swap_fragmentation(SYSCTL_HANDLER_ARGS)
  *
  *	The object must be locked.
  */
-static void
-swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
+void
+swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size,
+    vm_size_t *freed)
 {
+	MPASS((object->flags & OBJ_SWAP) != 0);
 
-	swp_pager_meta_free(object, start, size);
+	swp_pager_meta_free(object, start, size, freed);
+}
+
+static void
+swap_pager_freespace_pgo(vm_object_t object, vm_pindex_t start, vm_size_t size)
+{
+	MPASS((object->flags & OBJ_SWAP) != 0);
+
+	swp_pager_meta_free(object, start, size, NULL);
 }
 
 /*
@@ -988,7 +999,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_pindex_t size)
 		n = MIN(size - i, INT_MAX);
 		blk = swp_pager_getswapspace(&n);
 		if (blk == SWAPBLK_NONE) {
-			swp_pager_meta_free(object, start, i);
+			swp_pager_meta_free(object, start, i, NULL);
 			VM_OBJECT_WUNLOCK(object);
 			return (-1);
 		}
@@ -1077,7 +1088,8 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 	/*
 	 * Transfer source to destination.
 	 */
-	swp_pager_meta_transfer(srcobject, dstobject, offset, dstobject->size);
+	swp_pager_meta_transfer(srcobject, dstobject, offset, dstobject->size,
+	    NULL);
 
 	/*
 	 * Free left over swap blocks in source.
@@ -2150,16 +2162,22 @@ allocated:
  */
 static void
 swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
-    vm_pindex_t pindex, vm_pindex_t count)
+    vm_pindex_t pindex, vm_pindex_t count, vm_size_t *moved)
 {
 	struct swblk *sb;
+	vm_page_t m;
 	daddr_t n_free, s_free;
 	vm_pindex_t offset, last;
+	vm_size_t mc;
 	int i, limit, start;
 
 	VM_OBJECT_ASSERT_WLOCKED(srcobject);
+	MPASS(moved == NULL || dstobject == NULL);
+
+	mc = 0;
+	m = NULL;
 	if ((srcobject->flags & OBJ_SWAP) == 0 || count == 0)
-		return;
+		goto out;
 
 	swp_pager_init_freerange(&s_free, &n_free);
 	offset = pindex;
@@ -2181,6 +2199,14 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 				swp_pager_update_freerange(&s_free, &n_free,
 				    sb->d[i]);
 			}
+			if (moved != NULL) {
+				if (m != NULL && m->pindex != pindex + i - 1)
+					m = NULL;
+				m = m != NULL ? vm_page_next(m) :
+				    vm_page_lookup(srcobject, pindex + i);
+				if (m == NULL || vm_page_none_valid(m))
+					mc++;
+			}
 			sb->d[i] = SWAPBLK_NONE;
 		}
 		pindex = sb->p + SWAP_META_PAGES;
@@ -2192,6 +2218,9 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
 		}
 	}
 	swp_pager_freeswapspace(s_free, n_free);
+out:
+	if (moved != NULL)
+		*moved = mc;
 }
 
 /*
@@ -2205,9 +2234,10 @@ swp_pager_meta_transfer(vm_object_t srcobject, vm_object_t dstobject,
  *	with resident pages.
  */
 static void
-swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count)
+swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count,
+    vm_size_t *freed)
 {
-	swp_pager_meta_transfer(object, NULL, pindex, count);
+	swp_pager_meta_transfer(object, NULL, pindex, count, freed);
 }
 
 /*
