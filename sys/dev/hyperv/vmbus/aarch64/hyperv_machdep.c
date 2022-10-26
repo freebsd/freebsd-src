@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/aarch64/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/aarch64/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
+#include <dev/hyperv/vmbus/hyperv_common_reg.h>
 #include <dev/psci/smccc.h>
 
 #define HVCALL_SET_VP_REGISTERS 0x0051
