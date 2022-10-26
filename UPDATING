@@ -28,7 +28,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20221026:
-	Some programs have been moved into spearate packages. It is recommended
+	Some programs have been moved into separate packages. It is recommended
 	for pkgbase users to do:
 
 	pkg install FreeBSD-dhclient FreeBSD-geom FreeBSD-resolvconf \
