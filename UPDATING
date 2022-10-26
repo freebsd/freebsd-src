@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20221026:
+	It is recommended for pkgbase user to do:
+	pkg install FreeBSD-dhclient FreeBSD-geom FreeBSD-resolvconf FreeBSD-devd \
+	  FreeBSD-devmatch
+	after upgrading to restore all the component that were previously installed.
+
 20220610:
 	LinuxKPI pm.h changes require an update to the latest drm-kmod version
 	before re-compiling to avoid errors.
