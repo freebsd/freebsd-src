@@ -45,10 +45,6 @@ OPT('F', "separator", 1, 0,
 OPT('i', "mime", 0, 0,
     "                 output MIME type strings (--mime-type and\n"
     "                               --mime-encoding)\n")
-OPT('I', "immediate", 0, 0,
-    "            when reading filenames from stdin, process them\n"
-    "                               immediately, don't collect them to compute their\n"
-    "                               maximum name length\n")
 OPT_LONGONLY("apple", 0, 0,
     "                output the Apple CREATOR/TYPE\n", OPT_APPLE)
 OPT_LONGONLY("extension", 0, 0,

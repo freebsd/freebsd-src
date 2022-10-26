@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.145 2022/10/23 14:22:53 christos Exp $
-.Dd October 23, 2022
+.\" $File: file.man,v 1.146 2022/10/26 16:56:14 christos Exp $
+.Dd October 26, 2022
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl bcdEhIiklLNnprsSvzZ0
+.Op Fl bcdEhiklLNnprsSvzZ0
 .Op Fl Fl apple
 .Op Fl Fl exclude-quiet
 .Op Fl Fl extension
@@ -277,9 +277,6 @@ This option causes symlinks not to be followed
 This is the default if the environment variable
 .Dv POSIXLY_CORRECT
 is not defined.
-.It Fl I , Fl Fl immediate
-When processing filenames from stdin, don't collect their names first in order
-to compute their maximum namelength first, process them immediately.
 .It Fl i , Fl Fl mime
 Causes the
 .Nm

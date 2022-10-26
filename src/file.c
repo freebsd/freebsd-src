@@ -85,8 +85,8 @@ int getopt_long(int, char * const *, const char *,
 # define IFLNK_L ""
 #endif
 
-#define FILE_FLAGS	"bcCdE" IFLNK_h "Iik" IFLNK_L "lNnprsSvzZ0"
-#define OPTSTRING	"bcCde:Ef:F:hiIklLm:nNpP:rsSvzZ0"
+#define FILE_FLAGS	"bcCdE" IFLNK_h "ik" IFLNK_L "lNnprsSvzZ0"
+#define OPTSTRING	"bcCde:Ef:F:hiklLm:nNpP:rsSvzZ0"
 
 # define USAGE  \
     "Usage: %s [-" FILE_FLAGS "] [--apple] [--extension] [--mime-encoding]\n" \
@@ -177,7 +177,7 @@ __dead
 #endif
 private void help(void);
 
-private int unwrap(struct magic_set *, const char *, int);
+private int unwrap(struct magic_set *, const char *);
 private int process(struct magic_set *ms, const char *, int);
 private struct magic_set *load(const char *, int);
 private void setparam(const char *);
@@ -198,7 +198,7 @@ main(int argc, char *argv[])
 	int sandbox = 1;
 #endif
 	struct magic_set *magic = NULL;
-	int longindex, immed = 0;
+	int longindex;
 	const char *magicfile = NULL;		/* where the magic is	*/
 	char *progname;
 
@@ -278,7 +278,7 @@ main(int argc, char *argv[])
 				if ((magic = load(magicfile, flags)) == NULL)
 					return 1;
 			applyparam(magic);
-			e |= unwrap(magic, optarg, immed);
+			e |= unwrap(magic, optarg);
 			++didsomefiles;
 			break;
 		case 'F':
@@ -286,9 +286,6 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			flags |= MAGIC_MIME;
-			break;
-		case 'I':
-			immed = 1;
 			break;
 		case 'k':
 			flags |= MAGIC_CONTINUE;
@@ -507,7 +504,7 @@ load(const char *magicfile, int flags)
  * unwrap -- read a file of filenames, do each one.
  */
 private int
-unwrap(struct magic_set *ms, const char *fn, int immed)
+unwrap(struct magic_set *ms, const char *fn)
 {
 	FILE *f;
 	ssize_t len;
@@ -531,7 +528,7 @@ unwrap(struct magic_set *ms, const char *fn, int immed)
 		if (line[len - 1] == '\n')
 			line[len - 1] = '\0';
 		cwid = file_mbswidth(ms, line);
-		if (immed) {
+		if (nobuffer) {
 			e |= process(ms, line, cwid);
 			free(line);
 			line = NULL;
@@ -555,7 +552,7 @@ unwrap(struct magic_set *ms, const char *fn, int immed)
 		llen = 0;
 	}
 
-	if (!immed) {
+	if (!nobuffer) {
 		fimax = fi;
 		for (fi = 0; fi < fimax; fi++) {
 			e |= process(ms, flist[fi], wid);
