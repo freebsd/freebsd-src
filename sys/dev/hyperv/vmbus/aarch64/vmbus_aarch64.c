@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/vmbus_chanvar.h>
 #include <dev/hyperv/vmbus/aarch64/hyperv_machdep.h>
 #include <dev/hyperv/vmbus/aarch64/hyperv_reg.h>
+#include <dev/hyperv/vmbus/hyperv_common_reg.h>
 #include "acpi_if.h"
 #include "pcib_if.h"
 #include "vmbus_if.h"
