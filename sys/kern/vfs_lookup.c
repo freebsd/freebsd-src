@@ -1265,14 +1265,28 @@ good:
 		crosslock = (dp->v_vflag & VV_CROSSLOCK) != 0;
 		crosslkflags = compute_cn_lkflags(mp, cnp->cn_lkflags,
 		    cnp->cn_flags);
-		if (__predict_false(crosslock) &&
-		    (crosslkflags & LK_EXCLUSIVE) != 0 &&
-		    VOP_ISLOCKED(dp) != LK_EXCLUSIVE) {
-			vn_lock(dp, LK_UPGRADE | LK_RETRY);
-			if (VN_IS_DOOMED(dp)) {
-				error = ENOENT;
-				goto bad2;
-			}
+		if (__predict_false(crosslock)) {
+			/*
+			 * We are going to be holding the vnode lock, which
+			 * in this case is shared by the root vnode of the
+			 * filesystem mounted at mp, across the call to
+			 * VFS_ROOT().  Make the situation clear to the
+			 * filesystem by passing LK_CANRECURSE if the
+			 * lock is held exclusive, or by clearinng
+			 * LK_NODDLKTREAT to allow recursion on the shared
+			 * lock in the presence of an exclusive waiter.
+			 */
+			if (VOP_ISLOCKED(dp) == LK_EXCLUSIVE) {
+				crosslkflags &= ~LK_SHARED;
+				crosslkflags |= LK_EXCLUSIVE | LK_CANRECURSE;
+			} else if ((crosslkflags & LK_EXCLUSIVE) != 0) {
+				vn_lock(dp, LK_UPGRADE | LK_RETRY);
+				if (VN_IS_DOOMED(dp)) {
+					error = ENOENT;
+					goto bad2;
+				}
+			} else
+				crosslkflags &= ~LK_NODDLKTREAT;
 		}
 		if (vfs_busy(mp, 0) != 0)
 			continue;
