@@ -1119,20 +1119,61 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 
 		break;
 	case APIC_DELMODE_INIT:
-		CPU_FOREACH_ISSET(i, &dmask) {
+		if (!vlapic->ipi_exit) {
+			if (!phys)
+				break;
+
+			i = vm_apicid2vcpuid(vlapic->vm, dest);
+			if (i >= vm_get_maxcpus(vlapic->vm) ||
+			    i == vlapic->vcpuid)
+				break;
+
 			/*
-			 * Userland which doesn't support the IPI exit requires
-			 * that the boot state is set to SIPI here.
+			 * Userland which doesn't support the IPI exit
+			 * requires that the boot state is set to SIPI
+			 * here.
 			 */
 			vlapic2 = vm_lapic(vlapic->vm, i);
 			vlapic2->boot_state = BS_SIPI;
-			CPU_SET(i, &ipimask);
+			break;
 		}
 
+		CPU_COPY(&dmask, &ipimask);
 		break;
 	case APIC_DELMODE_STARTUP:
+		if (!vlapic->ipi_exit) {
+			if (!phys)
+				break;
+
+			/*
+			 * Old bhyve versions don't support the IPI
+			 * exit. Translate it into the old style.
+			 */
+			i = vm_apicid2vcpuid(vlapic->vm, dest);
+			if (i >= vm_get_maxcpus(vlapic->vm) ||
+			    i == vlapic->vcpuid)
+				break;
+
+			/*
+			 * Ignore SIPIs in any state other than wait-for-SIPI
+			 */
+			vlapic2 = vm_lapic(vlapic->vm, i);
+			if (vlapic2->boot_state != BS_SIPI)
+				break;
+			vlapic2->boot_state = BS_RUNNING;
+
+			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
+			vmexit->u.spinup_ap.vcpu = i;
+			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
+
+			*retu = true;
+			break;
+		}
+
 		CPU_FOREACH_ISSET(i, &dmask) {
 			vlapic2 = vm_lapic(vlapic->vm, i);
+
 			/*
 			 * Ignore SIPIs in any state other than wait-for-SIPI
 			 */
@@ -1155,20 +1196,6 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 		vmexit->u.ipi.dmask = dmask;
 
 		*retu = true;
-
-		/*
-		 * Old bhyve versions don't support the IPI exit. Translate it
-		 * into the old style.
-		 */
-		if (!vlapic->ipi_exit) {
-			if (mode == APIC_DELMODE_STARTUP) {
-				vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
-				vmexit->u.spinup_ap.vcpu = CPU_FFS(&ipimask) - 1;
-				vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
-			} else {
-				*retu = false;
-			}
-		}
 	}
 
 	return (0);
