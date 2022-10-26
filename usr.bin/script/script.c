@@ -73,8 +73,8 @@ struct stamp {
 
 struct buf_elm {
 	TAILQ_ENTRY(buf_elm) link;
-	int rpos;
-	int len;
+	size_t rpos;
+	size_t len;
 	char ibuf[];
 };
 
@@ -107,7 +107,6 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int cc;
 	struct termios rtt, stt;
 	struct winsize win;
 	struct timeval tv, *tvp;
@@ -116,6 +115,7 @@ main(int argc, char *argv[])
 	char ibuf[BUFSIZ];
 	fd_set rfd, wfd;
 	struct buf_elm *be;
+	ssize_t cc;
 	int aflg, Fflg, kflg, pflg, ch, k, n, fcm;
 	int flushtime, readstdin;
 	int fm_fd, fm_log;
@@ -366,7 +366,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: script [-adfkpqr] [-t time] [file [command ...]]\n");
+	    "usage: script [-aeFfkpqr] [-t time] [file [command ...]]\n");
+	(void)fprintf(stderr,
+	    "       script -p [-deq] [-T fmt] [file]\n");
 	exit(1);
 }
 
@@ -550,6 +552,8 @@ playback(FILE *fp)
 		tclock = stamp.scr_sec;
 		tso.tv_sec = stamp.scr_sec;
 		tso.tv_nsec = stamp.scr_usec * 1000;
+		if (nread == 0)
+			tsi = tso;
 
 		switch (stamp.scr_direction) {
 		case 's':

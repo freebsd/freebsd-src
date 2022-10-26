@@ -28,7 +28,7 @@
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2022
+.Dd October 26, 2022
 .Dt SCRIPT 1
 .Os
 .Sh NAME
@@ -36,8 +36,7 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl aefkqr
-.Op Fl F Ar pipe
+.Op Fl aeFfkqr
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
 .Nm
@@ -88,7 +87,7 @@ Accepted for compatibility with
 .Nm .
 The child command exit status is always the exit status of
 .Nm .
-.It Fl F Ar pipe
+.It Fl F
 Immediately flush output after each write.
 This will allow a user to create a named pipe using
 .Xr mkfifo 1
