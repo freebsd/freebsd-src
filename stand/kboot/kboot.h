@@ -10,6 +10,10 @@
 #define DEVT_HOSTDISK 1234
 
 void do_init(void);
+
+/* Per-platform fdt fixup */
+void fdt_arch_fixups(void *fdtp);
+
 uint64_t kboot_get_phys_load_segment(void);
 uint8_t kboot_get_kernel_machine_bits(void);
 

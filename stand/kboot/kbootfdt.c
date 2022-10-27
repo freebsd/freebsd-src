@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <libfdt.h>
 #include "bootstrap.h"
 #include "host_syscall.h"
+#include "kboot.h"
 
 static void
 add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
@@ -88,66 +89,6 @@ add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
 	host_close(fd);
 }
 
-/* Fix up wrong values added to the device tree by prom_init() in Linux */
-
-static void
-fdt_linux_fixups(void *fdtp)
-{
-	int offset, len;
-	const void *prop;
-
-	/*
-	 * Remove /memory/available properties, which reflect long-gone OF
-	 * state
-	 */
-
-	offset = fdt_path_offset(fdtp, "/memory@0");
-	if (offset > 0)
-		fdt_delprop(fdtp, offset, "available");
-
-	/*
-	 * Add reservations for OPAL and RTAS state if present
-	 */
-
-	offset = fdt_path_offset(fdtp, "/ibm,opal");
-	if (offset > 0) {
-		const uint64_t *base, *size;
-		base = fdt_getprop(fdtp, offset, "opal-base-address",
-		    &len);
-		size = fdt_getprop(fdtp, offset, "opal-runtime-size",
-		    &len);
-		if (base != NULL && size != NULL)
-			fdt_add_mem_rsv(fdtp, fdt64_to_cpu(*base),
-			    fdt64_to_cpu(*size));
-	}
-	offset = fdt_path_offset(fdtp, "/rtas");
-	if (offset > 0) {
-		const uint32_t *base, *size;
-		base = fdt_getprop(fdtp, offset, "linux,rtas-base", &len);
-		size = fdt_getprop(fdtp, offset, "rtas-size", &len);
-		if (base != NULL && size != NULL)
-			fdt_add_mem_rsv(fdtp, fdt32_to_cpu(*base),
-			    fdt32_to_cpu(*size));
-	}
-
-	/*
-	 * Patch up /chosen nodes so that the stored handles mean something,
-	 * where possible.
-	 */
-	offset = fdt_path_offset(fdtp, "/chosen");
-	if (offset > 0) {
-		fdt_delprop(fdtp, offset, "cpu"); /* This node not meaningful */
-
-		offset = fdt_path_offset(fdtp, "/chosen");
-		prop = fdt_getprop(fdtp, offset, "linux,stdout-package", &len);
-		if (prop != NULL) {
-			fdt_setprop(fdtp, offset, "stdout", prop, len);
-			offset = fdt_path_offset(fdtp, "/chosen");
-			fdt_setprop(fdtp, offset, "stdin", prop, len);
-		}
-	}
-}
-
 int
 fdt_platform_load_dtb(void)
 {
@@ -158,7 +99,7 @@ fdt_platform_load_dtb(void)
 	fdt_create_empty_tree(buffer, buflen);
 	add_node_to_fdt(buffer, "/proc/device-tree",
 	    fdt_path_offset(buffer, "/"));
-	fdt_linux_fixups(buffer);
+	fdt_arch_fixups(buffer);
 
 	fdt_pack(buffer);
 
