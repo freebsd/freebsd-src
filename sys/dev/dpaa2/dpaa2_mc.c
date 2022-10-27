@@ -747,8 +747,8 @@ dpaa2_mc_get_xref(device_t mcdev, device_t child)
 #endif
 #ifdef FDT
 	phandle_t msi_parent;
-	int error;
 #endif
+	int error;
 
 	if (sc && dinfo) {
 #ifdef DEV_ACPI
