@@ -1201,10 +1201,16 @@ vfs_domount_first(
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 
+	/*
+	 * VIRF_MOUNTPOINT and v_mountedhere need to be set under the
+	 * vp lock to satisfy vfs_lookup() requirements.
+	 */
+	VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 	VI_LOCK(vp);
 	vn_irflag_set_locked(vp, VIRF_MOUNTPOINT);
 	vp->v_mountedhere = mp;
 	VI_UNLOCK(vp);
+	VOP_UNLOCK(vp);
 	cache_purge(vp);
 
 	/*
