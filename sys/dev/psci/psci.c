@@ -146,6 +146,7 @@ psci_init(void *dummy)
 	}
 
 	psci_callfn = new_callfn;
+	psci_present = true;
 }
 /* This needs to be before cpu_mp at SI_SUB_CPU, SI_ORDER_THIRD */
 SYSINIT(psci_start, SI_SUB_CPU, SI_ORDER_FIRST, psci_init, NULL);
@@ -344,7 +345,6 @@ psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 		return (ENXIO);
 
 	psci_softc = sc;
-	psci_present = true;
 
 	return (0);
 }
