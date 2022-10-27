@@ -278,7 +278,7 @@ split2(void)
 		err(EX_NOINPUT, "fdopen");
 
 	/* Process input one line at a time */
-	while ((len = getline(&buf, &bufsize, infp)) > 0) {
+	while ((errno = 0, len = getline(&buf, &bufsize, infp)) > 0) {
 		/* Check if we need to start a new file */
 		if (pflag) {
 			regmatch_t pmatch;
