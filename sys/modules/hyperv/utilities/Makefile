@@ -5,7 +5,6 @@
 KMOD=	hv_utils
 SRCS=	vmbus_ic.c
 SRCS+=	hv_kvp.c
-SRCS+=	hv_snapshot.c
 SRCS+=	vmbus_heartbeat.c
 SRCS+=	vmbus_shutdown.c
 SRCS+=	vmbus_timesync.c
