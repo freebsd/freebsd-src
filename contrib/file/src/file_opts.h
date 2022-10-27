@@ -37,7 +37,7 @@ OPT('e', "exclude", 1, 0,
     "                               performed for file. Valid tests are:\n"
     "                               %e\n")
 OPT_LONGONLY("exclude-quiet", 1, 0,
-    " TEST         like exclude, but ignore unknown tests\n", OPT_EXCLUDE_QUIET)
+    " TEST   like exclude, but ignore unknown tests\n", OPT_EXCLUDE_QUIET)
 OPT('f', "files-from", 1, 0,
     " FILE      read the filenames to be examined from FILE\n")
 OPT('F', "separator", 1, 0,
