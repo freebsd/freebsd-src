@@ -2218,8 +2218,8 @@ pci_nvme_out_of_range(struct pci_nvme_blockstore *nvstore, uint64_t slba,
 }
 
 static int
-pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
-	uint64_t gpaddr, size_t size, int do_write, uint64_t offset)
+pci_nvme_append_iov_req(struct pci_nvme_softc *sc __unused,
+    struct pci_nvme_ioreq *req, uint64_t gpaddr, size_t size, uint64_t offset)
 {
 	int iovidx;
 	bool range_is_contiguous;
@@ -2450,8 +2450,7 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 	uint16_t status = NVME_NO_STATUS;
 
 	size = MIN(PAGE_SIZE - (prp1 % PAGE_SIZE), bytes);
-	if (pci_nvme_append_iov_req(sc, req, prp1,
-	    size, is_write, offset)) {
+	if (pci_nvme_append_iov_req(sc, req, prp1, size, offset)) {
 		err = -1;
 		goto out;
 	}
@@ -2463,8 +2462,7 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 		;
 	} else if (bytes <= PAGE_SIZE) {
 		size = bytes;
-		if (pci_nvme_append_iov_req(sc, req, prp2,
-		    size, is_write, offset)) {
+		if (pci_nvme_append_iov_req(sc, req, prp2, size, offset)) {
 			err = -1;
 			goto out;
 		}
@@ -2490,8 +2488,8 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 
 			size = MIN(bytes, PAGE_SIZE);
 
-			if (pci_nvme_append_iov_req(sc, req, *prp_list,
-			    size, is_write, offset)) {
+			if (pci_nvme_append_iov_req(sc, req, *prp_list, size,
+			    offset)) {
 				err = -1;
 				goto out;
 			}
