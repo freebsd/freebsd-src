@@ -1033,7 +1033,6 @@ AslLogNewError (
         exit(1);
     }
 
-    AslGbl_ExceptionCount[ASL_ERROR] = 0;
     return;
 }
 

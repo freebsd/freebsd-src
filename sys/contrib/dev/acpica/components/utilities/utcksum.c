@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acconfig.h - Global configuration constants
+ * Module Name: utcksum - Support generating table checksums
  *
  *****************************************************************************/
 
@@ -149,230 +149,187 @@
  *
  *****************************************************************************/
 
-#ifndef _ACCONFIG_H
-#define _ACCONFIG_H
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
+#include <contrib/dev/acpica/include/acutils.h>
 
 
-/******************************************************************************
+/* This module used for application-level code only */
+
+#define _COMPONENT          ACPI_CA_DISASSEMBLER
+        ACPI_MODULE_NAME    ("utcksum")
+
+
+/*******************************************************************************
  *
- * Configuration options
+ * FUNCTION:    AcpiUtVerifyChecksum
  *
- *****************************************************************************/
-
-/*
- * ACPI_DEBUG_OUTPUT    - This switch enables all the debug facilities of the
- *                        ACPI subsystem. This includes the DEBUG_PRINT output
- *                        statements. When disabled, all DEBUG_PRINT
- *                        statements are compiled out.
+ * PARAMETERS:  Table               - ACPI table to verify
+ *              Length              - Length of entire table
  *
- * ACPI_APPLICATION     - Use this switch if the subsystem is going to be run
- *                        at the application level.
+ * RETURN:      Status
  *
- */
+ * DESCRIPTION: Verifies that the table checksums to zero. Optionally returns
+ *              exception on bad checksum.
+ *              Note: We don't have to check for a CDAT here, since CDAT is 
+ *              not in the RSDT/XSDT, and the CDAT table is never installed
+ *              via ACPICA.
+ *
+ ******************************************************************************/
 
-/*
- * OS name, used for the _OS object. The _OS object is essentially obsolete,
- * but there is a large base of ASL/AML code in existing machines that check
- * for the string below. The use of this string usually guarantees that
- * the ASL will execute down the most tested code path. Also, there is some
- * code that will not execute the _OSI method unless _OS matches the string
- * below. Therefore, change this string at your own risk.
- */
-#define ACPI_OS_NAME                    "Microsoft Windows NT"
+ACPI_STATUS
+AcpiUtVerifyChecksum (
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  Length)
+{
+    UINT8                   Checksum;
 
-/* Maximum objects in the various object caches */
 
-#define ACPI_MAX_STATE_CACHE_DEPTH      96          /* State objects */
-#define ACPI_MAX_PARSE_CACHE_DEPTH      96          /* Parse tree objects */
-#define ACPI_MAX_EXTPARSE_CACHE_DEPTH   96          /* Parse tree objects */
-#define ACPI_MAX_OBJECT_CACHE_DEPTH     96          /* Interpreter operand objects */
-#define ACPI_MAX_NAMESPACE_CACHE_DEPTH  96          /* Namespace objects */
-#define ACPI_MAX_COMMENT_CACHE_DEPTH    96          /* Comments for the -ca option */
+    /*
+     * FACS/S3PT:
+     * They are the odd tables, have no standard ACPI header and no checksum
+     */
+    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_S3PT) ||
+        ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_FACS))
+    {
+        return (AE_OK);
+    }
 
-/*
- * Should the subsystem abort the loading of an ACPI table if the
- * table checksum is incorrect?
- */
-#ifndef ACPI_CHECKSUM_ABORT
-#define ACPI_CHECKSUM_ABORT             FALSE
+    /* Compute the checksum on the table */
+
+    Length = Table->Length;
+    Checksum = AcpiUtGenerateChecksum (ACPI_CAST_PTR (UINT8, Table), Length, Table->Checksum);
+
+    /* Computed checksum matches table? */
+
+    if (Checksum != Table->Checksum)
+    {
+        ACPI_BIOS_WARNING ((AE_INFO,
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+            "should be 0x%2.2X",
+            Table->Signature, Table->Checksum,
+            Table->Checksum - Checksum));
+
+#if (ACPI_CHECKSUM_ABORT)
+        return (AE_BAD_CHECKSUM);
 #endif
+    }
 
-/*
- * Generate a version of ACPICA that only supports "reduced hardware"
- * platforms (as defined in ACPI 5.0). Set to TRUE to generate a specialized
- * version of ACPICA that ONLY supports the ACPI 5.0 "reduced hardware"
- * model. In other words, no ACPI hardware is supported.
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
  *
- * If TRUE, this means no support for the following:
- *      PM Event and Control registers
- *      SCI interrupt (and handler)
- *      Fixed Events
- *      General Purpose Events (GPEs)
- *      Global Lock
- *      ACPI PM timer
- *      FACS table (Waking vectors and Global Lock)
- */
-#ifndef ACPI_REDUCED_HARDWARE
-#define ACPI_REDUCED_HARDWARE           FALSE
+ * FUNCTION:    AcpiUtVerifyCdatChecksum
+ *
+ * PARAMETERS:  Table               - CDAT ACPI table to verify
+ *              Length              - Length of entire table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Verifies that the CDAT table checksums to zero. Optionally
+ *              returns an exception on bad checksum.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiUtVerifyCdatChecksum (
+    ACPI_TABLE_CDAT         *CdatTable,
+    UINT32                  Length)
+{
+    UINT8                   Checksum;
+
+
+    /* Compute the checksum on the table */
+
+    Checksum = AcpiUtGenerateChecksum (ACPI_CAST_PTR (UINT8, CdatTable),
+                    CdatTable->Length, CdatTable->Checksum);
+
+    /* Computed checksum matches table? */
+
+    if (Checksum != CdatTable->Checksum)
+    {
+        ACPI_BIOS_WARNING ((AE_INFO,
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+            "should be 0x%2.2X",
+            AcpiGbl_CDAT, CdatTable->Checksum, Checksum));
+
+#if (ACPI_CHECKSUM_ABORT)
+        return (AE_BAD_CHECKSUM);
 #endif
+    }
+
+    CdatTable->Checksum = Checksum;
+    return (AE_OK);
+}
 
 
-/******************************************************************************
+/*******************************************************************************
  *
- * Subsystem Constants
+ * FUNCTION:    AcpiUtGenerateChecksum
  *
- *****************************************************************************/
-
-/* Version of ACPI supported */
-
-#define ACPI_CA_SUPPORT_LEVEL           5
-
-/* Maximum count for a semaphore object */
-
-#define ACPI_MAX_SEMAPHORE_COUNT        256
-
-/* Maximum object reference count (detects object deletion issues) */
-
-#define ACPI_MAX_REFERENCE_COUNT        0x4000
-
-/* Default page size for use in mapping memory for operation regions */
-
-#define ACPI_DEFAULT_PAGE_SIZE          4096    /* Must be power of 2 */
-
-/* OwnerId tracking. 128 entries allows for 4095 OwnerIds */
-
-#define ACPI_NUM_OWNERID_MASKS          128
-
-/* Size of the root table array is increased by this increment */
-
-#define ACPI_ROOT_TABLE_SIZE_INCREMENT  4
-
-/* Maximum sleep allowed via Sleep() operator */
-
-#define ACPI_MAX_SLEEP                  2000    /* 2000 millisec == two seconds */
-
-/* Address Range lists are per-SpaceId (Memory and I/O only) */
-
-#define ACPI_ADDRESS_RANGE_MAX          2
-
-/* Maximum time (default 30s) of While() loops before abort */
-
-#define ACPI_MAX_LOOP_TIMEOUT           30
-
-
-/******************************************************************************
+ * PARAMETERS:  Table               - Pointer to table to be checksummed
+ *              Length              - Length of the table
+ *              OriginalChecksum    - Value of the checksum field
  *
- * ACPI Specification constants (Do not change unless the specification changes)
+ * RETURN:      8 bit checksum of buffer
  *
- *****************************************************************************/
-
-/* Method info (in WALK_STATE), containing local variables and arguments */
-
-#define ACPI_METHOD_NUM_LOCALS          8
-#define ACPI_METHOD_MAX_LOCAL           7
-
-#define ACPI_METHOD_NUM_ARGS            7
-#define ACPI_METHOD_MAX_ARG             6
-
-/*
- * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG
- */
-#define ACPI_OBJ_NUM_OPERANDS           8
-#define ACPI_OBJ_MAX_OPERAND            7
-
-/* Number of elements in the Result Stack frame, can be an arbitrary value */
-
-#define ACPI_RESULTS_FRAME_OBJ_NUM      8
-
-/*
- * Maximal number of elements the Result Stack can contain,
- * it may be an arbitrary value not exceeding the types of
- * ResultSize and ResultCount (now UINT8).
- */
-#define ACPI_RESULTS_OBJ_NUM_MAX        255
-
-/* Constants used in searching for the RSDP in low memory */
-
-#define ACPI_EBDA_PTR_LOCATION          0x0000040E     /* Physical Address */
-#define ACPI_EBDA_PTR_LENGTH            2
-#define ACPI_EBDA_WINDOW_SIZE           1024
-#define ACPI_HI_RSDP_WINDOW_BASE        0x000E0000     /* Physical Address */
-#define ACPI_HI_RSDP_WINDOW_SIZE        0x00020000
-#define ACPI_RSDP_SCAN_STEP             16
-
-/* Operation regions */
-
-#define ACPI_USER_REGION_BEGIN          0x80
-
-/* Maximum SpaceIds for Operation Regions */
-
-#define ACPI_MAX_ADDRESS_SPACE          255
-#define ACPI_NUM_DEFAULT_SPACES         4
-
-/* Array sizes. Used for range checking also */
-
-#define ACPI_MAX_MATCH_OPCODE           5
-
-/* RSDP checksums */
-
-#define ACPI_RSDP_CHECKSUM_LENGTH       20
-#define ACPI_RSDP_XCHECKSUM_LENGTH      36
-
-/*
- * SMBus, GSBus and IPMI buffer sizes. All have a 2-byte header,
- * containing both Status and Length.
- */
-#define ACPI_SERIAL_HEADER_SIZE         2   /* Common for below. Status and Length fields */
-
-#define ACPI_SMBUS_DATA_SIZE            32
-#define ACPI_SMBUS_BUFFER_SIZE          ACPI_SERIAL_HEADER_SIZE + ACPI_SMBUS_DATA_SIZE
-
-#define ACPI_IPMI_DATA_SIZE             64
-#define ACPI_IPMI_BUFFER_SIZE           ACPI_SERIAL_HEADER_SIZE + ACPI_IPMI_DATA_SIZE
-
-#define ACPI_MAX_GSBUS_DATA_SIZE        255
-#define ACPI_MAX_GSBUS_BUFFER_SIZE      ACPI_SERIAL_HEADER_SIZE + ACPI_MAX_GSBUS_DATA_SIZE
-
-#define ACPI_PRM_INPUT_BUFFER_SIZE      26
-
-#define ACPI_FFH_INPUT_BUFFER_SIZE      256
-
-/* _SxD and _SxW control methods */
-
-#define ACPI_NUM_SxD_METHODS            4
-#define ACPI_NUM_SxW_METHODS            5
-
-
-/******************************************************************************
+ * DESCRIPTION: Computes an 8 bit checksum of the table.
  *
- * Miscellaneous constants
+ ******************************************************************************/
+
+UINT8
+AcpiUtGenerateChecksum (
+    void                    *Table,
+    UINT32                  Length,
+    UINT8                   OriginalChecksum)
+{
+    UINT8                   Checksum;
+
+
+    /* Sum the entire table as-is */
+
+    Checksum = AcpiUtChecksum ((UINT8 *) Table, Length);
+
+    /* Subtract off the existing checksum value in the table */
+
+    Checksum = (UINT8) (Checksum - OriginalChecksum);
+
+    /* Compute and return the final checksum */
+
+    Checksum = (UINT8) (0 - Checksum);
+    return (Checksum);
+}
+
+
+/*******************************************************************************
  *
- *****************************************************************************/
-
-/* UUID constants */
-
-#define UUID_BUFFER_LENGTH          16 /* Length of UUID in memory */
-#define UUID_STRING_LENGTH          36 /* Total length of a UUID string */
-
-/* Positions for required hyphens (dashes) in UUID strings */
-
-#define UUID_HYPHEN1_OFFSET         8
-#define UUID_HYPHEN2_OFFSET         13
-#define UUID_HYPHEN3_OFFSET         18
-#define UUID_HYPHEN4_OFFSET         23
-
-
-/******************************************************************************
+ * FUNCTION:    AcpiUtChecksum
  *
- * ACPI AML Debugger
+ * PARAMETERS:  Buffer          - Pointer to memory region to be checked
+ *              Length          - Length of this memory region
  *
- *****************************************************************************/
+ * RETURN:      Checksum (UINT8)
+ *
+ * DESCRIPTION: Calculates circular checksum of memory region.
+ *
+ ******************************************************************************/
 
-#define ACPI_DEBUGGER_MAX_ARGS          ACPI_METHOD_NUM_ARGS + 4 /* Max command line arguments */
-#define ACPI_DB_LINE_BUFFER_SIZE        512
+UINT8
+AcpiUtChecksum (
+    UINT8                   *Buffer,
+    UINT32                  Length)
+{
+    UINT8                   Sum = 0;
+    UINT8                   *End = Buffer + Length;
 
-#define ACPI_DEBUGGER_COMMAND_PROMPT    '-'
-#define ACPI_DEBUGGER_EXECUTE_PROMPT    '%'
 
+    while (Buffer < End)
+    {
+        Sum = (UINT8) (Sum + *(Buffer++));
+    }
 
-#endif /* _ACCONFIG_H */
+    return (Sum);
+}

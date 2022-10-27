@@ -825,6 +825,7 @@ DtCompileNhlt (
     ACPI_NHLT_FORMATS_CONFIG            *FormatsConfig;
     ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_D  *ConfigSpecific;
     ACPI_NHLT_DEVICE_INFO_COUNT         *DeviceInfo;
+    ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_B  *Terminator;
 
 
     /* Main table */
@@ -1088,7 +1089,7 @@ DtCompileNhlt (
              * some non documeneted structure(s) yet to be processed. First, get
              * the count of such structure(s).
              */
-            if (*PFieldList && (strcmp ((const char *) (*PFieldList)->Name, "Descriptor Length")))
+            if (*PFieldList && !(strcmp ((const char *) (*PFieldList)->Name, "Device Info struct count")))
             {
                 /* Get the count of non documented structures */
 
@@ -1124,9 +1125,8 @@ DtCompileNhlt (
                     DtInsertSubtable (ParentTable, Subtable);
                 } /* for (j = 0; j < LinuxSpecificCount; j++) */
 
-
                 /* Undocumented data at the end of endpoint */
-                if (*PFieldList && (strcmp ((const char *) (*PFieldList)->Name, "Descriptor Length")))
+                if (*PFieldList && !(strcmp ((const char *) (*PFieldList)->Name, "Bytes")))
                 {
                     Status = DtCompileTable (PFieldList, AcpiDmTableInfoNhlt7b,
                         &Subtable);
@@ -1148,7 +1148,7 @@ DtCompileNhlt (
          * All Endpoint Descriptors are completed.
          * Do the table terminator specific config (not in NHLT spec, optional)
          */
-        if (*PFieldList && (strcmp ((const char *) (*PFieldList)->Name, "Descriptor Length")))
+        if (*PFieldList && !(strcmp ((const char *) (*PFieldList)->Name, "Capabilities Size")))
         {
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoNhlt5b,
                 &Subtable);
@@ -1160,15 +1160,20 @@ DtCompileNhlt (
             ParentTable = DtPeekSubtable ();
             DtInsertSubtable (ParentTable, Subtable);
 
-            Status = DtCompileTable (PFieldList, AcpiDmTableInfoNhlt3a,
-                &Subtable);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
+            Terminator = ACPI_CAST_PTR (ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_B, Subtable->Buffer);
 
-            ParentTable = DtPeekSubtable ();
-            DtInsertSubtable (ParentTable, Subtable);
+            if (Terminator->CapabilitiesSize)
+            {
+                Status = DtCompileTable (PFieldList, AcpiDmTableInfoNhlt3a,
+                    &Subtable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
+
+                ParentTable = DtPeekSubtable ();
+                DtInsertSubtable (ParentTable, Subtable);
+            }
         }
 
         return (AE_OK);
@@ -1369,18 +1374,29 @@ DtCompilePhat (
     ACPI_PHAT_HEADER        *PhatHeader;
     ACPI_DMTABLE_INFO       *Info;
     ACPI_PHAT_VERSION_DATA  *VersionData;
+    UINT32                  DeviceDataLength;
     UINT32                  RecordCount;
+    DT_FIELD                *DataOffsetField;
+    DT_FIELD                *DevicePathField;
+    UINT32                  TableOffset = 0;
+    UINT32                  DataOffsetValue;
+    UINT32                  i;
 
 
-    /* The table consist of subtables */
+    /* The table consists of subtables */
 
     while (*PFieldList)
     {
+        /* Compile the common subtable header */
+
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoPhatHdr, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
+
+        TableOffset += Subtable->Length;
+        DbgPrint (ASL_DEBUG_OUTPUT, "0 Subtable->Length: %X\n", Subtable->Length);
 
         ParentTable = DtPeekSubtable ();
         DtInsertSubtable (ParentTable, Subtable);
@@ -1392,11 +1408,65 @@ DtCompilePhat (
         {
         case ACPI_PHAT_TYPE_FW_VERSION_DATA:
 
+            /* Compile the middle portion of the Firmware Version Data */
+
             Info = AcpiDmTableInfoPhat0;
             PhatHeader->Length = sizeof (ACPI_PHAT_VERSION_DATA);
+            DataOffsetField = NULL;
             break;
 
         case ACPI_PHAT_TYPE_FW_HEALTH_DATA:
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "1 Offset: %X, Name: \"%s\" Length: %X\n",
+                (*PFieldList)->TableOffset, (*PFieldList)->Name, Subtable->Length);
+
+            DataOffsetField = *PFieldList;
+
+            /* Walk the field list to get to the "Device-specific data Offset" field */
+
+            TableOffset = sizeof (ACPI_PHAT_HEALTH_DATA);
+            for (i = 0; i < 3; i++)
+            {
+                DataOffsetField = DataOffsetField->Next;
+                DbgPrint (ASL_DEBUG_OUTPUT, "2 Offset: %X, Name: \"%s\" Length: %X Value: %s:\n",
+                    TableOffset, DataOffsetField->Name, DataOffsetField->StringLength, DataOffsetField->Value);
+            }
+
+            /* Convert DataOffsetField->Value (a char * string) to an integer value */
+
+            sscanf (DataOffsetField->Value, "%X", &DataOffsetValue);
+
+            /*
+             * Get the next field (Device Path):
+             * DataOffsetField points to "Device-Specific Offset", next field is
+             * "Device Path".
+             */
+            DevicePathField = DataOffsetField->Next;
+
+            /* Compute the size of the input ASCII string as a unicode string (*2 + 2) */
+
+            DevicePathField->StringLength = (strlen ((const char *) DevicePathField->Value) * 2) + 2;
+            TableOffset += DevicePathField->StringLength;
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "3 Offset: %X, Length: %X devicepathLength: %X\n",
+                TableOffset, Subtable->Length, DevicePathField->StringLength);
+
+            /* Set the DataOffsetField to the current TableOffset */
+            /* Must set the DataOffsetField here (not later) */
+
+            if (DataOffsetValue != 0)
+            {
+                snprintf (DataOffsetField->Value, Subtable->Length, "%X", TableOffset);
+            }
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "4 Offset: %X, Length: %X\n", TableOffset, Subtable->Length);
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "5 TableOffset: %X, DataOffsetField->StringLength: "
+                "%X DevicePathField Length: %X DevicePathField->Value: %s, DataOffsetField->Value: %s DataOffsetField->ByteOffset %X\n",
+                TableOffset, DataOffsetField->StringLength, DevicePathField->StringLength,
+                DevicePathField->Value, DataOffsetField->Value, DataOffsetField->ByteOffset);
+
+            /* Compile the middle portion of the Health Data Record */
 
             Info = AcpiDmTableInfoPhat1;
             PhatHeader->Length = sizeof (ACPI_PHAT_HEALTH_DATA);
@@ -1406,15 +1476,18 @@ DtCompilePhat (
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, *PFieldList, "PHAT");
             return (AE_ERROR);
-
-            break;
         }
+
+        /* Compile either the Version Data or the Health Data */
 
         Status = DtCompileTable (PFieldList, Info, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
+
+        DbgPrint (ASL_DEBUG_OUTPUT, "6 Offset: %X, Name: \"%s\" SubtableLength: %X\n",
+            TableOffset /* - StartTableOffset*/, (*PFieldList)->Name, Subtable->Length);
 
         ParentTable = DtPeekSubtable ();
         DtInsertSubtable (ParentTable, Subtable);
@@ -1427,6 +1500,8 @@ DtCompilePhat (
                 (Subtable->Buffer - sizeof (ACPI_PHAT_HEADER)));
             RecordCount = VersionData->ElementCount;
 
+            /* Compile all of the Version Elements */
+
             while (RecordCount)
             {
                 Status = DtCompileTable (PFieldList, AcpiDmTableInfoPhat0a,
@@ -1435,17 +1510,29 @@ DtCompilePhat (
                 {
                     return (Status);
                 }
+
                 ParentTable = DtPeekSubtable ();
                 DtInsertSubtable (ParentTable, Subtable);
 
+                TableOffset += Subtable->Length;
                 RecordCount--;
                 PhatHeader->Length += sizeof (ACPI_PHAT_VERSION_ELEMENT);
             }
+
+            DtPopSubtable ();
             break;
 
         case ACPI_PHAT_TYPE_FW_HEALTH_DATA:
 
-            /* Compile device path */
+            /* Compile the Device Path */
+
+            DeviceDataLength = Subtable->Length;
+            TableOffset += Subtable->Length;
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "7 Device Path Length: %X FieldName: \"%s\" FieldLength: "
+                "%s FieldValue: %s SubtableLength: %X TableOffset: %X\n", DeviceDataLength,
+                (*PFieldList)->Name, DataOffsetField->Value, (*PFieldList)->Value,
+                Subtable->Length, TableOffset);
 
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoPhat1a, &Subtable);
             if (ACPI_FAILURE (Status))
@@ -1455,20 +1542,58 @@ DtCompilePhat (
             ParentTable = DtPeekSubtable ();
             DtInsertSubtable (ParentTable, Subtable);
 
-            PhatHeader->Length += (UINT16) Subtable->Length;
+            /* *PFieldList will be null if previous field was at the end-of-ParseTree (EOF) */
 
-            /* Compile vendor specific data */
-
-            Status = DtCompileTable (PFieldList, AcpiDmTableInfoPhat1b, &Subtable);
-            if (ACPI_FAILURE (Status))
+            if (!*PFieldList)
             {
-                return (Status);
+                DbgPrint (ASL_DEBUG_OUTPUT, "8 Exit on end-of-ParseTree\n");
+                return (AE_OK);
             }
-            ParentTable = DtPeekSubtable ();
-            DtInsertSubtable (ParentTable, Subtable);
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "9 Device Data Length: %X FieldName: \"%s"
+                " TableOffset: %X FieldLength: %X Field Value: %s SubtableLength: %X\n",
+                DeviceDataLength, (*PFieldList)->Name, TableOffset,
+                (*PFieldList)->StringLength, (*PFieldList)->Value, Subtable->Length);
 
             PhatHeader->Length += (UINT16) Subtable->Length;
 
+            /* Convert DataOffsetField->Value (a hex char * string) to an integer value */
+
+            sscanf (DataOffsetField->Value, "%X", &DataOffsetValue);
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "10 Device-Specific Offset: %X Table Offset: %X\n",
+                DataOffsetValue, TableOffset);
+            if (DataOffsetValue != 0)
+            {
+                /* Compile Device-Specific Data - only if the Data Offset is non-zero */
+
+                Status = DtCompileTable (PFieldList, AcpiDmTableInfoPhat1b, &Subtable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
+
+                DbgPrint (ASL_DEBUG_OUTPUT, "11 Subtable: %p Table Offset: %X\n",
+                    Subtable, TableOffset);
+                if (Subtable)
+                {
+                    DbgPrint (ASL_DEBUG_OUTPUT, "12 Device Specific Offset: "
+                        "%X FieldName \"%s\" SubtableLength %X\n",
+                        DeviceDataLength, DataOffsetField->Name, Subtable->Length);
+
+                    DeviceDataLength += Subtable->Length;
+
+                    ParentTable = DtPeekSubtable ();
+                    DtInsertSubtable (ParentTable, Subtable);
+
+                    PhatHeader->Length += (UINT16) Subtable->Length;
+                }
+            }
+
+            DtPopSubtable ();
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "13 FieldName: \"%s\" FieldLength: %X Field Value: %s\n",
+                DataOffsetField->Name, DataOffsetField->StringLength, DataOffsetField->Value);
             break;
 
         default:

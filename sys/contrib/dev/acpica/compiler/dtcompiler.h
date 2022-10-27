@@ -578,6 +578,14 @@ DtCompileAsf (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileCdat (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileCedt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileCpep (
     void                    **PFieldList);
 
@@ -773,6 +781,8 @@ extern const unsigned char  TemplateBoot[];
 extern const unsigned char  TemplateBdat[];
 extern const unsigned char  TemplateBert[];
 extern const unsigned char  TemplateBgrt[];
+extern const unsigned char  TemplateCcel[];
+extern const unsigned char  TemplateCdat[];
 extern const unsigned char  TemplateCedt[];
 extern const unsigned char  TemplateCpep[];
 extern const unsigned char  TemplateCsrt[];

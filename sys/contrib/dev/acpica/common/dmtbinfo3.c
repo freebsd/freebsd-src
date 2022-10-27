@@ -192,6 +192,23 @@
 
 /*******************************************************************************
  *
+ * CCEL - CC-Event Log Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoCcel[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_CCEL_OFFSET (CCType),                  "CC Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_CCEL_OFFSET (CCSubType),               "CC Sub Type", 0},
+    {ACPI_DMT_UINT32,   ACPI_CCEL_OFFSET (Reserved),                "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_CCEL_OFFSET (LogAreaMinimumLength),    "Log Area Minimum Length", 0},
+    {ACPI_DMT_UINT64,   ACPI_CCEL_OFFSET (LogAreaStartAddress),     "Log Area Start Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
  * SLIC - Software Licensing Description Table. This table contains the standard
  * ACPI header followed by proprietary data structures
  *

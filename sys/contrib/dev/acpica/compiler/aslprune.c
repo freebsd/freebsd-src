@@ -166,9 +166,17 @@ PrTreePruneWalk (
     void                    *Context);
 
 static void
+<<<<<<< HEAD:sys/contrib/dev/acpica/compiler/aslprune.c
 PrPrintObjectAtLevel (
     UINT32                  Level,
     const char              *ObjectName);
+=======
+AhDisplayUsage (
+    void);
+
+#define AH_UTILITY_NAME             "ACPI Help Utility"
+#define AH_SUPPORTED_OPTIONS        "adeghikmopstuv^x"
+>>>>>>> a799bdd9d50e (Import ACPICA 20221020):source/tools/acpihelp/ahmain.c
 
 
 /* Structure used for the pruning parse tree walk */

@@ -657,6 +657,133 @@ DtCompileAsf (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileCdat
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile CDAT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileCdat (
+    void                    **List)
+{
+    ACPI_STATUS             Status = AE_OK;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    ACPI_CDAT_HEADER        *CdatHeader;
+    ACPI_DMTABLE_INFO       *InfoTable = NULL;
+    DT_FIELD                *SubtableStart;
+
+
+    /* Walk the parse tree.
+     *
+     * Note: Main table consists of only the CDAT table header
+     * (This is not the standard ACPI table header, however)--
+     * Followed by some number of subtables.
+     */
+    while (*PFieldList)
+    {
+        SubtableStart = *PFieldList;
+
+        /* Compile the expected CDAT Subtable header */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoCdatHeader,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPushSubtable (Subtable);
+
+        CdatHeader = ACPI_CAST_PTR (ACPI_CDAT_HEADER, Subtable->Buffer);
+
+        /* Decode the subtable by type */
+
+        switch (CdatHeader->Type)
+        {
+        case ACPI_CDAT_TYPE_DSMAS:
+            InfoTable = AcpiDmTableInfoCdat0;
+            break;
+
+        case ACPI_CDAT_TYPE_DSLBIS:
+            InfoTable = AcpiDmTableInfoCdat1;
+            break;
+
+        case ACPI_CDAT_TYPE_DSMSCIS:
+            InfoTable = AcpiDmTableInfoCdat2;
+            break;
+
+        case ACPI_CDAT_TYPE_DSIS:
+            InfoTable = AcpiDmTableInfoCdat3;
+            break;
+
+        case ACPI_CDAT_TYPE_DSEMTS:
+            InfoTable = AcpiDmTableInfoCdat4;
+            break;
+
+        case ACPI_CDAT_TYPE_SSLBIS:
+            InfoTable = AcpiDmTableInfoCdat5;
+            break;
+
+        default:
+            DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "CDAT");
+        }
+
+        /* Compile the CDAT subtable */
+
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+        switch (CdatHeader->Type)
+        {
+        /* Multiple entries supported for this type */
+
+        case ACPI_CDAT_TYPE_SSLBIS:
+
+            /*
+             * Check for multiple SSLBEs
+             */
+            while (*PFieldList && !AcpiUtStricmp ((*PFieldList)->Name, "Port X ID"))
+            {
+                Status = DtCompileTable (PFieldList, AcpiDmTableInfoCdatEntries, &Subtable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
+                ParentTable = DtPeekSubtable ();
+                DtInsertSubtable (ParentTable, Subtable);
+            }
+            break;
+
+        default:
+             break;
+        }
+
+        /* Pop off the CDAT Subtable header subtree */
+
+        DtPopSubtable ();
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileCedt
  *
  * PARAMETERS:  List                - Current field list pointer
@@ -2592,7 +2719,6 @@ DtCompileIvrs (
 
             DtInsertSubtable (MainSubtable, Subtable);
             DtPushSubtable (Subtable);
-            ParentTable = MainSubtable;
             break;
 
         case ACPI_IVRS_TYPE_HID:

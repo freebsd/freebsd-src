@@ -296,7 +296,7 @@ AdCreateTableHeader (
 
     AcpiOsPrintf ("\n *     Checksum         0x%2.2X",        Table->Checksum);
 
-    Checksum = AcpiTbChecksum (ACPI_CAST_PTR (UINT8, Table), Table->Length);
+    Checksum = AcpiUtChecksum (ACPI_CAST_PTR (UINT8, Table), Table->Length);
     if (Checksum)
     {
         AcpiOsPrintf (" **** Incorrect checksum, should be 0x%2.2X",

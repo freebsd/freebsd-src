@@ -601,6 +601,7 @@ DtGetFieldLength (
     case ACPI_DMT_AEST_XFACE:
     case ACPI_DMT_AEST_XRUPT:
     case ACPI_DMT_ASF:
+    case ACPI_DMT_CDAT:
     case ACPI_DMT_HESTNTYP:
     case ACPI_DMT_FADTPM:
     case ACPI_DMT_EINJACT:
@@ -800,7 +801,7 @@ DtSum (
     UINT8                   *Sum = ReturnValue;
 
 
-    Checksum = AcpiTbChecksum (Subtable->Buffer, Subtable->Length);
+    Checksum = AcpiUtChecksum (Subtable->Buffer, Subtable->Length);
     *Sum = (UINT8) (*Sum + Checksum);
 }
 
