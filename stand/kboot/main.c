@@ -120,8 +120,10 @@ main(int argc, const char **argv)
 		bootdev = argv[1];
 	else
 		bootdev = "";
+	if (argc > 2)
+		hostfs_root = argv[2];
 
-	printf("Boot device: %s\n", bootdev);
+	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
 
 	archsw.arch_getdev = kboot_getdev;
 	archsw.arch_copyin = kboot_copyin;

@@ -25,6 +25,7 @@ SRCS=	\
 		host_syscalls.c \
 		hostcons.c \
 		hostdisk.c \
+		hostfs.c \
 		init.c \
 		kbootfdt.c \
 		main.c \
