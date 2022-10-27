@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern struct devsw hostdisk;
+extern struct devsw host_dev;
 
 /*
  * We could use linker sets for some or all of these, but
@@ -53,8 +54,11 @@ struct devsw *devsw[] = {
 #if defined(LOADER_NET_SUPPORT)
     &netdev,
 #endif
+    &host_dev,
     NULL
 };
+
+extern struct fs_ops hostfs_fsops;
 
 struct fs_ops *file_system[] = {
 #if defined(LOADER_UFS_SUPPORT)
@@ -79,6 +83,7 @@ struct fs_ops *file_system[] = {
     &bzipfs_fsops,
 #endif
     &dosfs_fsops,
+    &hostfs_fsops,
     NULL
 };
 
