@@ -981,7 +981,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 static const struct nlhdr_parser *all_parsers[] = {&mpath_parser, &metrics_parser, &rtm_parser};
 
 void
-rtnl_routes_init()
+rtnl_routes_init(void)
 {
 	NL_VERIFY_PARSERS(all_parsers);
 	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));

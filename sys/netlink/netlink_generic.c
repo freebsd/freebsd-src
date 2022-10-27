@@ -440,7 +440,7 @@ static const struct genl_cmd nlctrl_cmds[] = {
 };
 
 static void
-genl_nlctrl_init()
+genl_nlctrl_init(void)
 {
 	ctrl_family_id = genl_register_family(CTRL_FAMILY_NAME, 0, 2, CTRL_ATTR_MAX);
 	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, NL_ARRAY_LEN(nlctrl_cmds));
@@ -448,7 +448,7 @@ genl_nlctrl_init()
 }
 
 static void
-genl_nlctrl_destroy()
+genl_nlctrl_destroy(void)
 {
 	genl_unregister_family(CTRL_FAMILY_NAME);
 }
