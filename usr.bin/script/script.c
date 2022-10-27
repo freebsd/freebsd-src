@@ -73,8 +73,8 @@ struct stamp {
 
 struct buf_elm {
 	TAILQ_ENTRY(buf_elm) link;
-	int rpos;
-	int len;
+	size_t rpos;
+	size_t len;
 	char ibuf[];
 };
 
@@ -107,7 +107,6 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int cc;
 	struct termios rtt, stt;
 	struct winsize win;
 	struct timeval tv, *tvp;
@@ -116,6 +115,7 @@ main(int argc, char *argv[])
 	char ibuf[BUFSIZ];
 	fd_set rfd, wfd;
 	struct buf_elm *be;
+	ssize_t cc;
 	int aflg, Fflg, kflg, pflg, ch, k, n, fcm;
 	int flushtime, readstdin;
 	int fm_fd, fm_log;
