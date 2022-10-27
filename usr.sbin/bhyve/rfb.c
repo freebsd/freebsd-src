@@ -885,9 +885,12 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 
 	/* 1b. Read client version */
 	len = stream_read(cfd, buf, VERSION_LENGTH);
-	if (len == VERSION_LENGTH && !strncmp(vbuf, buf, VERSION_LENGTH - 2)) {
-		client_ver = buf[VERSION_LENGTH - 2];
+	if (len != VERSION_LENGTH ||
+	    strncmp(vbuf, buf, VERSION_LENGTH - 2) != 0) {
+		goto done;
 	}
+
+	client_ver = buf[VERSION_LENGTH - 2];
 	if (client_ver != CVERS_3_8 && client_ver != CVERS_3_7) {
 		/* only recognize 3.3, 3.7 & 3.8. Others dflt to 3.3 */
 		client_ver = CVERS_3_3;
