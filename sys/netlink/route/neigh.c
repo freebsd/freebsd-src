@@ -559,7 +559,7 @@ rtnl_lle_event(void *arg __unused, struct llentry *lle, int evt)
 static const struct nlhdr_parser *all_parsers[] = { &ndmsg_parser };
 
 void
-rtnl_neighs_init()
+rtnl_neighs_init(void)
 {
 	NL_VERIFY_PARSERS(all_parsers);
 	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
@@ -568,7 +568,7 @@ rtnl_neighs_init()
 }
 
 void
-rtnl_neighs_destroy()
+rtnl_neighs_destroy(void)
 {
 	EVENTHANDLER_DEREGISTER(lle_event, lle_event_p);
 }
