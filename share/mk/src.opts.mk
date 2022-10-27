@@ -332,8 +332,7 @@ BROKEN_OPTIONS+=CXGBETOOL
 BROKEN_OPTIONS+=MLX5TOOL
 .endif
 
-# HyperV is currently x86-only
-.if ${__T} != "amd64" && ${__T} != "i386"
+.if ${__T} != "amd64" && ${__T} != "i386" && ${__T} != "aarch64"
 BROKEN_OPTIONS+=HYPERV
 .endif
 

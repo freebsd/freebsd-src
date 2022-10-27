@@ -132,6 +132,8 @@ dev/hyperv/utilities/vmbus_ic.c				optional	hyperv
 dev/hyperv/utilities/vmbus_shutdown.c			optional	hyperv
 dev/hyperv/utilities/vmbus_timesync.c			optional	hyperv
 dev/hyperv/vmbus/hyperv.c				optional	hyperv
+dev/hyperv/vmbus/x86/hyperv_x86.c		optional    hyperv
+dev/hyperv/vmbus/x86/vmbus_x86.c		optional    hyperv
 dev/hyperv/vmbus/hyperv_busdma.c			optional	hyperv
 dev/hyperv/vmbus/vmbus.c				optional	hyperv pci
 dev/hyperv/vmbus/vmbus_br.c				optional	hyperv

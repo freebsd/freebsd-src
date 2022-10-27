@@ -107,3 +107,6 @@ device		mmcsd			# mmc/sd flash cards
 # HID support
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
+
+#hyper-v support
+device		hyperv

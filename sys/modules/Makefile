@@ -652,6 +652,7 @@ _rockchip=	rockchip
 _sdhci_fdt=	sdhci_fdt
 _e6000sw=	e6000sw
 _neta=		neta
+_hyperv=  hyperv
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"

@@ -86,6 +86,11 @@ typedef uint64_t			(*hyperv_tc64_t)(void);
 int			hyperv_guid2str(const struct hyperv_guid *, char *,
 			    size_t);
 
+void	hyperv_init_tc(void);
+int		hypercall_page_setup(vm_paddr_t);
+void	hypercall_disable(void);
+bool	hyperv_identify_features(void);
+
 /*
  * hyperv_tc64 could be NULL, if there were no suitable Hyper-V
  * specific timecounter.
