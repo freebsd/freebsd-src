@@ -1,6 +1,6 @@
 CFLAGS+=	-mcpu=powerpc64
 
-SRCS+=		ppc64_elf_freebsd.c host_syscall.S kerneltramp.S load_addr.c
+SRCS+=		ppc64_elf_freebsd.c host_syscall.S kerneltramp.S load_addr.c fdt_arch.c
 SRCS+=		ucmpdi2.c
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/arch/${MACHINE_ARCH}/ldscript.powerpc
