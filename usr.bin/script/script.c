@@ -366,9 +366,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: script [-adFfkpqr] [-t time] [file [command ...]]\n");
+	    "usage: script [-aeFfkpqr] [-t time] [file [command ...]]\n");
 	(void)fprintf(stderr,
-	    "       script -p [-deq] [file]\n");
+	    "       script -p [-deq] [-T fmt] [file]\n");
 	exit(1);
 }
 
