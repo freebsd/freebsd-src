@@ -117,6 +117,7 @@ emulate_rdmsr(struct vmctx *ctx __unused, int vcpu __unused, uint32_t num,
 		case MSR_PP0_ENERGY_STATUS:
 		case MSR_PP1_ENERGY_STATUS:
 		case MSR_DRAM_ENERGY_STATUS:
+		case MSR_MISC_FEATURE_ENABLES:
 			*val = 0;
 			break;
 		case MSR_RAPL_POWER_UNIT:
