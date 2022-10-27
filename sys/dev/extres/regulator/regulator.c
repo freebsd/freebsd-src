@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <dev/extres/regulator/regulator.h>
 
+#ifdef FDT
 #include "regdev_if.h"
+#endif
 
 SYSCTL_NODE(_hw, OID_AUTO, regulator, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Regulators");
