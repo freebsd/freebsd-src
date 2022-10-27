@@ -512,11 +512,8 @@ unwrap(struct magic_set *ms, const char *fn)
 	size_t llen = 0;
 	int wid = 0, cwid;
 	int e = 0;
-	size_t fi = 0, fimax = 100;
-	char **flist = CAST(char **, malloc(sizeof(*flist) * fimax));
-
-	if (flist == NULL)
-out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
+	size_t fi = 0, fimax = 0;
+	char **flist = NULL;
 
 	if (strcmp("-", fn) == 0)
 		f = stdin;
@@ -530,26 +527,37 @@ out:		file_err(EXIT_FAILURE, "Cannot allocate memory for file list");
 	while ((len = getline(&line, &llen, f)) > 0) {
 		if (line[len - 1] == '\n')
 			line[len - 1] = '\0';
+		cwid = file_mbswidth(ms, line);
+		if (nobuffer) {
+			e |= process(ms, line, cwid);
+			free(line);
+			line = NULL;
+			llen = 0;
+			continue;
+		}
+		if (cwid > wid)
+			wid = cwid;
 		if (fi >= fimax) {
 			fimax += 100;
 			char **nf = CAST(char **,
 			    realloc(flist, fimax * sizeof(*flist)));
-			if (nf == NULL)
-				goto out;
+			if (nf == NULL) {
+				file_err(EXIT_FAILURE,
+				    "Cannot allocate memory for file list");
+			}
 			flist = nf;
 		}
 		flist[fi++] = line;
-		cwid = file_mbswidth(ms, line);
-		if (cwid > wid)
-			wid = cwid;
 		line = NULL;
 		llen = 0;
 	}
 
-	fimax = fi;
-	for (fi = 0; fi < fimax; fi++) {
-		e |= process(ms, flist[fi], wid);
-		free(flist[fi]);
+	if (!nobuffer) {
+		fimax = fi;
+		for (fi = 0; fi < fimax; fi++) {
+			e |= process(ms, flist[fi], wid);
+			free(flist[fi]);
+		}
 	}
 	free(flist);
 
