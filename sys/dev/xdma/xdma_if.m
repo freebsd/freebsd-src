@@ -32,6 +32,8 @@
 
 #include "opt_platform.h"
 
+#include <sys/malloc.h>
+
 #include <machine/bus.h>
 
 #ifdef FDT
@@ -81,6 +83,7 @@ METHOD int channel_submit_sg {
 	uint32_t			sg_n;
 };
 
+#ifdef FDT
 #
 # Notify driver we have machine-dependend data.
 #
@@ -90,6 +93,7 @@ METHOD int ofw_md_data {
 	int ncells;
 	void **data;
 };
+#endif
 
 #
 # Allocate both virtual and harware channels.
