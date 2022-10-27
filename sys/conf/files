@@ -1741,8 +1741,8 @@ dev/extres/hwreset/hwreset_if.m	optional hwreset fdt
 dev/extres/nvmem/nvmem.c	optional nvmem fdt
 dev/extres/nvmem/nvmem_if.m	optional nvmem fdt
 dev/extres/regulator/regdev_if.m	optional regulator fdt
-dev/extres/regulator/regnode_if.m	optional regulator fdt
-dev/extres/regulator/regulator.c	optional regulator fdt
+dev/extres/regulator/regnode_if.m	optional regulator
+dev/extres/regulator/regulator.c	optional regulator
 dev/extres/regulator/regulator_bus.c	optional regulator fdt
 dev/extres/regulator/regulator_fixed.c	optional regulator fdt
 dev/extres/syscon/syscon.c		optional syscon
