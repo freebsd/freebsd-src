@@ -174,7 +174,8 @@ nlp_has_priv(struct nlpcb *nlp, int priv)
 }
 
 static uint32_t
-nl_find_port() {
+nl_find_port(void)
+{
 	/*
 	 * app can open multiple netlink sockets.
 	 * Start with current pid, if already taken,

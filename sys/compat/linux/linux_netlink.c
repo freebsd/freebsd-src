@@ -561,13 +561,13 @@ static struct linux_netlink_provider linux_netlink_v1 = {
 };
 
 void
-linux_netlink_register()
+linux_netlink_register(void)
 {
 	linux_netlink_p = &linux_netlink_v1;
 }
 
 void
-linux_netlink_deregister()
+linux_netlink_deregister(void)
 {
 	linux_netlink_p = NULL;
 }
