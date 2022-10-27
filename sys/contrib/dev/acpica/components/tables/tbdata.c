@@ -724,7 +724,7 @@ AcpiTbVerifyTempTable (
     {
         /* Verify the checksum */
 
-        Status = AcpiTbVerifyChecksum (TableDesc->Pointer, TableDesc->Length);
+        Status = AcpiUtVerifyChecksum (TableDesc->Pointer, TableDesc->Length);
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, AE_NO_MEMORY,

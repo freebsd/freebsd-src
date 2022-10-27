@@ -412,6 +412,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoIort4[] =
     {ACPI_DMT_FLAG0,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "COHACC Override", 0},
     {ACPI_DMT_FLAG1,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "HTTU Override", 0},
     {ACPI_DMT_FLAG3,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "Proximity Domain Valid", 0},
+    {ACPI_DMT_FLAG4,    ACPI_IORT4_FLAG_OFFSET (Flags, 0),          "DeviceID Valid", 0},
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (Reserved),               "Reserved", 0},
     {ACPI_DMT_UINT64,   ACPI_IORT4_OFFSET (VatosAddress),           "VATOS Address", 0},
     {ACPI_DMT_UINT32,   ACPI_IORT4_OFFSET (Model),                  "Model", 0},
@@ -1652,11 +1653,13 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPdtt0[] =
  *
  ******************************************************************************/
 
+/* Common subtable header */
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPhatHdr[] =
 {
-    {ACPI_DMT_PHAT,     ACPI_PHATH_OFFSET (Type),                 "Subtable Type", 0},
-    {ACPI_DMT_UINT16,   ACPI_PHATH_OFFSET (Length),               "Length", 0},
-    {ACPI_DMT_UINT8,    ACPI_PHATH_OFFSET (Revision),             "Revision", 0},
+    {ACPI_DMT_PHAT,     ACPI_PHATH_OFFSET (Type),                   "Subtable Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_PHATH_OFFSET (Length),                 "Length", DT_LENGTH},
+    {ACPI_DMT_UINT8,    ACPI_PHATH_OFFSET (Revision),               "Revision", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -1664,16 +1667,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPhatHdr[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPhat0[] =
 {
-    {ACPI_DMT_UINT24,   ACPI_PHAT0_OFFSET (Reserved),             "Reserved", 0},
-    {ACPI_DMT_UINT32,   ACPI_PHAT0_OFFSET (ElementCount),         "Element Count", 0},
+    {ACPI_DMT_UINT24,   ACPI_PHAT0_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_PHAT0_OFFSET (ElementCount),           "Element Count", 0},
     ACPI_DMT_TERMINATOR
 };
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPhat0a[] =
 {
-    {ACPI_DMT_UUID,     ACPI_PHAT0A_OFFSET (Guid),                "GUID", 0},
-    {ACPI_DMT_UINT64,   ACPI_PHAT0A_OFFSET (VersionValue),        "Version Value", 0},
-    {ACPI_DMT_UINT32,   ACPI_PHAT0A_OFFSET (ProducerId),          "Producer ID", 0},
+    {ACPI_DMT_UUID,     ACPI_PHAT0A_OFFSET (Guid),                  "GUID", 0},
+    {ACPI_DMT_UINT64,   ACPI_PHAT0A_OFFSET (VersionValue),          "Version Value", 0},
+    {ACPI_DMT_UINT32,   ACPI_PHAT0A_OFFSET (ProducerId),            "Producer ID", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -1681,22 +1684,22 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPhat0a[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPhat1[] =
 {
-    {ACPI_DMT_UINT16,   ACPI_PHAT1_OFFSET (Reserved),             "Reserved", 0},
-    {ACPI_DMT_UINT8,    ACPI_PHAT1_OFFSET (Health),               "Health", 0},
-    {ACPI_DMT_UUID,     ACPI_PHAT1_OFFSET (DeviceGuid),           "Device GUID", 0},
-    {ACPI_DMT_UINT32,   ACPI_PHAT1_OFFSET (DeviceSpecificOffset), "Device specific offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_PHAT1_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_PHAT1_OFFSET (Health),                 "Health", 0},
+    {ACPI_DMT_UUID,     ACPI_PHAT1_OFFSET (DeviceGuid),             "Device GUID", 0},
+    {ACPI_DMT_UINT32,   ACPI_PHAT1_OFFSET (DeviceSpecificOffset),   "Device-Specific Offset", 0},
     ACPI_DMT_TERMINATOR
 };
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPhat1a[] =
 {
-    {ACPI_DMT_STRING,   0,                                          "Namepath", 0},
+    {ACPI_DMT_UNICODE, 0,                                           "Device Path", 0},
     ACPI_DMT_TERMINATOR
 };
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPhat1b[] =
 {
-    {ACPI_DMT_RAW_BUFFER, 0,                                        "Vendor Data", 0},
+    {ACPI_DMT_RAW_BUFFER, 0,                                        "Device-Specific Data", DT_OPTIONAL},
     ACPI_DMT_TERMINATOR
 };
 
@@ -1895,7 +1898,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPrmtHandler[] =
     {ACPI_DMT_UINT16,   ACPI_PRMT1_OFFSET (Length),                 "Length", 0},
     {ACPI_DMT_UUID,     ACPI_PRMT1_OFFSET (HandlerGuid[0]),         "Handler GUID", 0},
     {ACPI_DMT_UINT64,   ACPI_PRMT1_OFFSET (HandlerAddress),         "Handler address", 0},
-    {ACPI_DMT_UINT64,   ACPI_PRMT1_OFFSET (StaticDataBufferAddress),"Satic Data Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_PRMT1_OFFSET (StaticDataBufferAddress),"Static Data Address", 0},
     {ACPI_DMT_UINT64,   ACPI_PRMT1_OFFSET (AcpiParamBufferAddress), "ACPI Parameter Address", 0},
     ACPI_DMT_NEW_LINE,
     ACPI_DMT_TERMINATOR

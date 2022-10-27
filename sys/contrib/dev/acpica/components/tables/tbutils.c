@@ -471,7 +471,7 @@ AcpiTbParseRootTable (
 
     /* Validate the root table checksum */
 
-    Status = AcpiTbVerifyChecksum (Table, Length);
+    Status = AcpiUtVerifyChecksum (Table, Length);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsUnmapMemory (Table, Length);

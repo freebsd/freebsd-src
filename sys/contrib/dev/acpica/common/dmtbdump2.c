@@ -149,6 +149,7 @@
  *
  *****************************************************************************/
 
+#include <wchar.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
@@ -2104,9 +2105,12 @@ AcpiDmDumpPhat (
     UINT32                  RecordCount;
     UINT32                  Length = Table->Length;
     UINT32                  Offset = sizeof (ACPI_TABLE_PHAT);
+    UINT32                  OriginalOffset;
     UINT32                  SubtableLength;
     UINT32                  PathLength;
     UINT32                  VendorLength;
+    UINT16                  RecordType;
+    const wchar_t           *WideString;
 
 
     Subtable = ACPI_ADD_PTR (ACPI_PHAT_HEADER, Table, sizeof (ACPI_TABLE_PHAT));
@@ -2116,58 +2120,93 @@ AcpiDmDumpPhat (
         /* Common subtable header */
 
         AcpiOsPrintf ("\n");
-        Status = AcpiDmDumpTable (Length, 0, Subtable,
+        Status = AcpiDmDumpTable (Length, Offset, Subtable,
             sizeof (ACPI_PHAT_HEADER), AcpiDmTableInfoPhatHdr);
         if (ACPI_FAILURE (Status))
         {
             return;
         }
 
+        DbgPrint (ASL_DEBUG_OUTPUT, "\n/* %u, Subtable->Type %X */\n",
+            __LINE__, Subtable->Type);
+
         switch (Subtable->Type)
         {
         case ACPI_PHAT_TYPE_FW_VERSION_DATA:
 
             InfoTable = AcpiDmTableInfoPhat0;
-            SubtableLength = sizeof (ACPI_PHAT_VERSION_DATA);
+            SubtableLength = Offset += sizeof (ACPI_PHAT_VERSION_DATA);
             break;
 
         case ACPI_PHAT_TYPE_FW_HEALTH_DATA:
 
             InfoTable = AcpiDmTableInfoPhat1;
-            SubtableLength = sizeof (ACPI_PHAT_HEALTH_DATA);
+            SubtableLength = Offset += sizeof (ACPI_PHAT_TYPE_FW_HEALTH_DATA);
             break;
 
         default:
 
-            AcpiOsPrintf ("\n**** Unknown PHAT subtable type 0x%X\n\n",
+            DbgPrint (ASL_DEBUG_OUTPUT, "\n**** Unknown PHAT subtable type 0x%X\n\n",
                 Subtable->Type);
 
             return;
         }
 
-        Status = AcpiDmDumpTable (Length, 0, Subtable,
+        Status = AcpiDmDumpTable (Length, SubtableLength, Subtable,
             SubtableLength, InfoTable);
         if (ACPI_FAILURE (Status))
         {
             return;
         }
 
+        OriginalOffset = Offset;
         switch (Subtable->Type)
         {
         case ACPI_PHAT_TYPE_FW_VERSION_DATA:
 
             VersionData = ACPI_CAST_PTR (ACPI_PHAT_VERSION_DATA, Subtable);
             RecordCount = VersionData->ElementCount;
-            while (RecordCount)
+            RecordType = *ACPI_CAST_PTR (UINT8, Subtable);
+
+            /*
+             * Skip past a zero-valued block (not part of the ACPI PHAT specification).
+             * First, check for a zero length record and a zero element count
+             */
+            if (!VersionData->Header.Length && !VersionData->ElementCount)
             {
-                Status = AcpiDmDumpTable (Length, Offset,
-                    ACPI_ADD_PTR (ACPI_PHAT_HEADER, Subtable, sizeof (ACPI_PHAT_VERSION_DATA)),
+                while (RecordType == 0)
+                {
+                    Subtable = ACPI_ADD_PTR (ACPI_PHAT_HEADER, Table, Offset);
+                    RecordType = *ACPI_CAST_PTR (UINT8, Subtable);
+                    RecordCount = VersionData->ElementCount;
+                    Offset += 1;
+                }
+
+                Offset -= 1;
+                AcpiOsPrintf ("\n/* Warning: Block of zeros found above starting at Offset %X Length %X */\n"
+                    "/* (not compliant to PHAT specification -- ignoring block) */\n",
+                    OriginalOffset - 12, Offset - OriginalOffset + 12);
+            }
+
+            DbgPrint (ASL_DEBUG_OUTPUT, "/* %u, RecordCount: %X, Offset %X, SubtableLength %X */\n",
+                __LINE__, RecordCount, Offset, SubtableLength);
+
+            /* Emit each of the version elements */
+
+            while (RecordCount && VersionData->Header.Length)
+            {
+                AcpiOsPrintf ("\n/* Version Element #%Xh Offset %Xh */\n\n",
+                    VersionData->ElementCount - RecordCount + 1, Offset);
+
+                Subtable = ACPI_ADD_PTR (ACPI_PHAT_HEADER, Table, Offset);
+                Status = AcpiDmDumpTable (Length, Offset, Subtable,
                     sizeof (ACPI_PHAT_VERSION_ELEMENT), AcpiDmTableInfoPhat0a);
                 if (ACPI_FAILURE (Status))
                 {
                     return;
                 }
 
+                Offset += sizeof (ACPI_PHAT_VERSION_ELEMENT);
                 RecordCount--;
             }
 
@@ -2175,24 +2214,48 @@ AcpiDmDumpPhat (
 
         case ACPI_PHAT_TYPE_FW_HEALTH_DATA:
 
-            /* account for the null terminator */
+            /*
+             * Get the length of the Device Path (UEFI wide string).
+             * Include the wide null terminator (+2),
+             */
+            WideString = ACPI_ADD_PTR (wchar_t, Subtable,
+                sizeof (ACPI_PHAT_HEALTH_DATA));
 
-            PathLength = strlen (ACPI_ADD_PTR (char, Subtable, sizeof (ACPI_PHAT_HEALTH_DATA))) + 1;
+            PathLength = (wcslen (WideString) * 2) + 2;
+            DbgPrint (ASL_DEBUG_OUTPUT, "/* %u, PathLength %X, Offset %X, Table->Length %X */\n",
+                __LINE__, PathLength, Offset, Length);
+
             Status = AcpiDmDumpTable (Length, Offset,
                 ACPI_ADD_PTR (ACPI_PHAT_HEADER, Subtable, sizeof (ACPI_PHAT_HEALTH_DATA)),
                 PathLength, AcpiDmTableInfoPhat1a);
+            Offset += PathLength;
             if (ACPI_FAILURE (Status))
             {
                 return;
             }
 
-            /* Get vendor data - data length is the remaining subtable length */
+            /* Get Device-Specific Data - length of which is the remaining subtable length. */
 
             VendorLength =
                 Subtable->Length - sizeof (ACPI_PHAT_HEALTH_DATA) - PathLength;
-            Status = AcpiDmDumpTable (Length, 0,
-                ACPI_ADD_PTR (ACPI_PHAT_HEADER, Subtable, sizeof (ACPI_PHAT_HEALTH_DATA) + PathLength),
-                VendorLength, AcpiDmTableInfoPhat1b);
+            DbgPrint (ASL_DEBUG_OUTPUT, "%u, Subtable->Length %X, VendorLength %X, Offset %X PathLength: %X\n",
+                __LINE__, Subtable->Length, VendorLength, Offset, PathLength);
+
+            if (VendorLength)
+            {
+                /* Point past the Device Path, Compile the Device-Specific Data */
+
+                Status = AcpiDmDumpTable (Length, Offset,
+                    ACPI_ADD_PTR (ACPI_PHAT_HEADER, Subtable, sizeof (ACPI_PHAT_HEALTH_DATA) + PathLength),
+                    VendorLength, AcpiDmTableInfoPhat1b);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
+                Offset += VendorLength;
+            }
+
             if (ACPI_FAILURE (Status))
             {
                 return;
@@ -2208,9 +2271,12 @@ AcpiDmDumpPhat (
 
         /* Next subtable */
 
-        Offset += Subtable->Length;
-        Subtable = ACPI_ADD_PTR (ACPI_PHAT_HEADER, Subtable,
-            Subtable->Length);
+        DbgPrint (ASL_DEBUG_OUTPUT, "/* %u, Bottom of main loop: Offset %X, "
+            "Subtable->Length %X, Table->Length %X */\n",
+            __LINE__, Offset, Subtable->Length, Table->Length);
+
+        Subtable = ACPI_ADD_PTR (ACPI_PHAT_HEADER, Table,
+            Offset);
     }
 }
 

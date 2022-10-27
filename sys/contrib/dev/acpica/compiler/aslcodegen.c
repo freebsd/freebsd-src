@@ -153,6 +153,7 @@
 #include "aslcompiler.y.h"
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acconvert.h>
+#include <contrib/dev/acpica/include/actbinfo.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcodegen")
@@ -181,6 +182,10 @@ static void
 CgUpdateHeader (
     ACPI_PARSE_OBJECT       *Op);
 
+static void
+CgUpdateCdatHeader (
+    ACPI_PARSE_OBJECT       *Op);
+
 
 /*******************************************************************************
  *
@@ -207,7 +212,14 @@ CgGenerateAmlOutput (
         CgAmlWriteWalk, NULL, NULL);
 
     DbgPrint (ASL_TREE_OUTPUT, ASL_PARSE_TREE_HEADER2);
-    CgUpdateHeader (AslGbl_CurrentDB);
+    if (AcpiGbl_CDAT)
+    {
+        CgUpdateCdatHeader (AslGbl_CurrentDB);
+    }
+    else
+    {
+        CgUpdateHeader (AslGbl_CurrentDB);
+    }
 }
 
 
@@ -655,6 +667,67 @@ CgWriteTableHeader (
     memset (&AslGbl_TableHeader, 0, sizeof (ACPI_TABLE_HEADER));
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    CgUpdateCdatHeader
+ *
+ * PARAMETERS:  Op                  - Op for the Definition Block
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Complete the ACPI table by calculating the checksum and
+ *              re-writing the header for the input definition block
+ *
+ ******************************************************************************/
+
+static void
+CgUpdateCdatHeader (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    signed char             Sum;
+    UINT32                  i;
+    UINT32                  Length;
+    UINT8                   FileByte;
+    UINT8                   Checksum;
+
+
+    /* Calculate the checksum over the entire definition block */
+
+    Sum = 0;
+    Length = sizeof (ACPI_TABLE_CDAT) + Op->Asl.AmlSubtreeLength;
+    FlSeekFile (ASL_FILE_AML_OUTPUT, Op->Asl.FinalAmlOffset);
+
+    for (i = 0; i < Length; i++)
+    {
+        if (FlReadFile (ASL_FILE_AML_OUTPUT, &FileByte, 1) != AE_OK)
+        {
+            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, NULL,
+                "Table length is greater than size of the input file");
+            return;
+        }
+
+        Sum = (signed char) (Sum + FileByte);
+    }
+
+    Checksum = (UINT8) (0 - Sum);
+
+    DbgPrint (ASL_DEBUG_OUTPUT, "Computed checksum = %X\n", Checksum);
+
+    /* Re-write the checksum byte */
+
+    FlSeekFile (ASL_FILE_AML_OUTPUT, Op->Asl.FinalAmlOffset +
+        ACPI_CDAT_OFFSET (Checksum));
+
+    FlWriteFile (ASL_FILE_AML_OUTPUT, &Checksum, 1);
+
+    /*
+     * Seek to the end of the file. This is done to support multiple file
+     * compilation. Doing this simplifies other parts of the codebase because
+     * it eliminates the need to seek for a different starting place.
+     */
+    FlSeekFile (ASL_FILE_AML_OUTPUT, Op->Asl.FinalAmlOffset + Length);
+}
 
 /*******************************************************************************
  *
