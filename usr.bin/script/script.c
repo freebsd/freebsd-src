@@ -552,6 +552,8 @@ playback(FILE *fp)
 		tclock = stamp.scr_sec;
 		tso.tv_sec = stamp.scr_sec;
 		tso.tv_nsec = stamp.scr_usec * 1000;
+		if (nread == 0)
+			tsi = tso;
 
 		switch (stamp.scr_direction) {
 		case 's':
