@@ -1183,8 +1183,7 @@ done:
 
 static uint32_t
 pci_xhci_find_stream(struct pci_xhci_softc *sc, struct xhci_endp_ctx *ep,
-    struct pci_xhci_dev_ep *devep, uint32_t streamid,
-    struct xhci_stream_ctx **osctx)
+    struct pci_xhci_dev_ep *devep, uint32_t streamid)
 {
 	struct xhci_stream_ctx *sctx;
 
@@ -1203,11 +1202,10 @@ pci_xhci_find_stream(struct pci_xhci_softc *sc, struct xhci_endp_ctx *ep,
 	if (streamid > devep->ep_MaxPStreams)
 		return (XHCI_TRB_ERROR_STREAM_TYPE);
 
-	sctx = XHCI_GADDR(sc, ep->qwEpCtx2 & ~0xFUL) + streamid;
+	sctx = (struct xhci_stream_ctx *)XHCI_GADDR(sc, ep->qwEpCtx2 & ~0xFUL) +
+	    streamid;
 	if (!XHCI_SCTX_0_SCT_GET(sctx->qwSctx0))
 		return (XHCI_TRB_ERROR_STREAM_TYPE);
-
-	*osctx = sctx;
 
 	return (XHCI_TRB_ERROR_SUCCESS);
 }
@@ -1263,12 +1261,8 @@ pci_xhci_cmd_set_tr(struct pci_xhci_softc *sc, uint32_t slot,
 
 	streamid = XHCI_TRB_2_STREAM_GET(trb->dwTrb2);
 	if (devep->ep_MaxPStreams > 0) {
-		struct xhci_stream_ctx *sctx;
-
-		sctx = NULL;
-		cmderr = pci_xhci_find_stream(sc, ep_ctx, devep, streamid,
-		    &sctx);
-		if (sctx != NULL) {
+		cmderr = pci_xhci_find_stream(sc, ep_ctx, devep, streamid);
+		if (cmderr == XHCI_TRB_ERROR_SUCCESS) {
 			assert(devep->ep_sctx != NULL);
 
 			devep->ep_sctx[streamid].qwSctx0 = trb->qwTrb0;
@@ -1910,6 +1904,7 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 	struct xhci_trb	*trb;
 	uint64_t	ringaddr;
 	uint32_t	ccs;
+	int		error;
 
 	DPRINTF(("pci_xhci doorbell slot %u epid %u stream %u",
 	    slot, epid, streamid));
@@ -1949,8 +1944,6 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 
 	/* get next trb work item */
 	if (devep->ep_MaxPStreams != 0) {
-		struct xhci_stream_ctx *sctx;
-
 		/*
 		 * Stream IDs of 0, 65535 (any stream), and 65534
 		 * (prime) are invalid.
@@ -1960,10 +1953,10 @@ pci_xhci_device_doorbell(struct pci_xhci_softc *sc, uint32_t slot,
 			return;
 		}
 
-		sctx = NULL;
-		pci_xhci_find_stream(sc, ep_ctx, devep, streamid, &sctx);
-		if (sctx == NULL) {
-			DPRINTF(("pci_xhci: invalid stream %u", streamid));
+		error = pci_xhci_find_stream(sc, ep_ctx, devep, streamid);
+		if (error != XHCI_TRB_ERROR_SUCCESS) {
+			DPRINTF(("pci_xhci: invalid stream %u: %d",
+			    streamid, error));
 			return;
 		}
 		sctx_tr = &devep->ep_sctx_trbs[streamid];
