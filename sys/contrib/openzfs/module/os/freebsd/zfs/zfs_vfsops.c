@@ -1846,7 +1846,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 	}
 
 	if (fidp->fid_len == LONG_FID_LEN && setgen != 0) {
-		zfs_exit(zfsvfs, FTAG);
+		ZFS_EXIT(zfsvfs);
 		dprintf("snapdir fid: fid_gen (%llu) and setgen (%llu)\n",
 		    (u_longlong_t)fid_gen, (u_longlong_t)setgen);
 		return (SET_ERROR(EINVAL));
