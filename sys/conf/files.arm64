@@ -170,15 +170,15 @@ dev/sound/fdt/simple_amplifier.c		optional sound fdt
 ## Device drivers
 ##
 
-dev/axgbe/if_axgbe.c				optional axa
-dev/axgbe/xgbe-desc.c				optional axa
-dev/axgbe/xgbe-dev.c				optional axa
-dev/axgbe/xgbe-drv.c				optional axa
-dev/axgbe/xgbe-mdio.c				optional axa
-dev/axgbe/xgbe-sysctl.c				optional axa
-dev/axgbe/xgbe-txrx.c				optional axa
-dev/axgbe/xgbe_osdep.c				optional axa
-dev/axgbe/xgbe-phy-v1.c				optional axa
+dev/axgbe/if_axgbe.c				optional axa fdt
+dev/axgbe/xgbe-desc.c				optional axa fdt
+dev/axgbe/xgbe-dev.c				optional axa fdt
+dev/axgbe/xgbe-drv.c				optional axa fdt
+dev/axgbe/xgbe-mdio.c				optional axa fdt
+dev/axgbe/xgbe-sysctl.c				optional axa fdt
+dev/axgbe/xgbe-txrx.c				optional axa fdt
+dev/axgbe/xgbe_osdep.c				optional axa fdt
+dev/axgbe/xgbe-phy-v1.c				optional axa fdt
 
 dev/cpufreq/cpufreq_dt.c			optional cpufreq fdt
 
@@ -321,7 +321,7 @@ dev/sdhci/sdhci_xenon_acpi.c			optional sdhci_xenon sdhci acpi
 dev/sdhci/sdhci_xenon_fdt.c			optional sdhci_xenon sdhci fdt
 
 dev/uart/uart_cpu_arm64.c			optional uart
-dev/uart/uart_dev_mu.c				optional uart uart_mu
+dev/uart/uart_dev_mu.c				optional uart uart_mu fdt
 dev/uart/uart_dev_pl011.c			optional uart pl011
 
 dev/usb/controller/dwc_otg_hisi.c		optional dwcotg fdt soc_hisi_hi6220
@@ -354,8 +354,8 @@ dev/vnic/lmac_if.m				optional inet | inet6 | vnic
 
 # Allwinner common files
 arm/allwinner/a10_timer.c			optional a10_timer fdt
-arm/allwinner/a10_codec.c			optional sound a10_codec
-arm/allwinner/a31_dmac.c			optional a31_dmac
+arm/allwinner/a10_codec.c			optional sound a10_codec fdt
+arm/allwinner/a31_dmac.c			optional a31_dmac fdt
 arm/allwinner/a33_codec.c			optional fdt sound a33_codec
 arm/allwinner/a64/sun50i_a64_acodec.c		optional fdt sound a64_codec
 arm/allwinner/sunxi_dma_if.m			optional a31_dmac
@@ -448,7 +448,7 @@ arm/broadcom/bcm2835/bcm2836.c				optional soc_brcm_bcm2837 fdt | soc_brcm_bcm28
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c			optional dwcotg fdt soc_brcm_bcm2837 | dwcotg fdt soc_brcm_bcm2838
 arm/broadcom/bcm2835/bcm2838_pci.c			optional soc_brcm_bcm2838 fdt pci
 arm/broadcom/bcm2835/bcm2838_xhci.c			optional soc_brcm_bcm2838 fdt pci xhci
-arm/broadcom/bcm2835/raspberrypi_gpio.c			optional soc_brcm_bcm2837 gpio | soc_brcm_bcm2838 gpio
+arm/broadcom/bcm2835/raspberrypi_gpio.c			optional soc_brcm_bcm2837 gpio fdt | soc_brcm_bcm2838 gpio fdt
 contrib/vchiq/interface/compat/vchi_bsd.c		optional vchiq soc_brcm_bcm2837 \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq soc_brcm_bcm2837 \
@@ -623,7 +623,7 @@ arm64/rockchip/clk/rk3399_cru.c			optional fdt soc_rockchip_rk3399
 arm64/rockchip/clk/rk3399_pmucru.c		optional fdt soc_rockchip_rk3399
 
 # Xilinx
-arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
+arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq fdt
 
 # Microsoft Hyper-V
 dev/hyperv/vmbus/hyperv.c		optional	hyperv

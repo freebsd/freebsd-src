@@ -1711,7 +1711,7 @@ dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
-dev/etherswitch/e6000sw/e6000sw.c	optional e6000sw
+dev/etherswitch/e6000sw/e6000sw.c	optional e6000sw fdt
 dev/etherswitch/e6000sw/e6060sw.c	optional e6060sw
 dev/etherswitch/infineon/adm6996fc.c	optional adm6996fc
 dev/etherswitch/micrel/ksz8995ma.c	optional ksz8995ma
@@ -3223,7 +3223,7 @@ dev/uart/uart_cpu_acpi.c	optional uart acpi
 dev/uart/uart_dbg.c		optional uart gdb
 dev/uart/uart_dev_imx.c		optional uart uart_imx fdt
 dev/uart/uart_dev_msm.c		optional uart uart_msm fdt
-dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu
+dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu fdt
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
@@ -3494,7 +3494,7 @@ wpi.fw			optional wpifw					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"wpi.fw"
-dev/xdma/controller/pl330.c	optional xdma pl330
+dev/xdma/controller/pl330.c	optional xdma pl330 fdt
 dev/xdma/xdma.c			optional xdma
 dev/xdma/xdma_bank.c		optional xdma
 dev/xdma/xdma_bio.c		optional xdma
