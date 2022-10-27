@@ -40,6 +40,7 @@ OBJECTS = \
 	$(OBJDIR)/tbxfroot.o\
 	$(OBJDIR)/utascii.o\
 	$(OBJDIR)/utbuffer.o\
+	$(OBJDIR)/utcksum.o\
 	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utexcep.o\
 	$(OBJDIR)/utglobal.o\

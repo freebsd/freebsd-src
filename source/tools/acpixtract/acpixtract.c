@@ -561,7 +561,7 @@ AxListAllTables (
     FILE                    *InputFile;
     unsigned char           Header[48];
     UINT32                  ByteCount = 0;
-    UINT32                  ThisLineByteCount;
+    INT32                   ThisLineByteCount;
     unsigned int            State = AX_STATE_FIND_HEADER;
 
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acfreebsd.h - OS specific defines, etc.
+ * Module Name: utcksum - Support generating table checksums
  *
  *****************************************************************************/
 
@@ -149,81 +149,187 @@
  *
  *****************************************************************************/
 
-#ifndef __ACFREEBSD_H__
-#define __ACFREEBSD_H__
+#include "acpi.h"
+#include "accommon.h"
+#include "acdisasm.h"
+#include "acutils.h"
 
 
-#include <sys/types.h>
+/* This module used for application-level code only */
 
-#ifdef __LP64__
-#define ACPI_MACHINE_WIDTH      64
-#else
-#define ACPI_MACHINE_WIDTH      32
+#define _COMPONENT          ACPI_CA_DISASSEMBLER
+        ACPI_MODULE_NAME    ("utcksum")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtVerifyChecksum
+ *
+ * PARAMETERS:  Table               - ACPI table to verify
+ *              Length              - Length of entire table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Verifies that the table checksums to zero. Optionally returns
+ *              exception on bad checksum.
+ *              Note: We don't have to check for a CDAT here, since CDAT is 
+ *              not in the RSDT/XSDT, and the CDAT table is never installed
+ *              via ACPICA.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiUtVerifyChecksum (
+    ACPI_TABLE_HEADER       *Table,
+    UINT32                  Length)
+{
+    UINT8                   Checksum;
+
+
+    /*
+     * FACS/S3PT:
+     * They are the odd tables, have no standard ACPI header and no checksum
+     */
+    if (ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_S3PT) ||
+        ACPI_COMPARE_NAMESEG (Table->Signature, ACPI_SIG_FACS))
+    {
+        return (AE_OK);
+    }
+
+    /* Compute the checksum on the table */
+
+    Length = Table->Length;
+    Checksum = AcpiUtGenerateChecksum (ACPI_CAST_PTR (UINT8, Table), Length, Table->Checksum);
+
+    /* Computed checksum matches table? */
+
+    if (Checksum != Table->Checksum)
+    {
+        ACPI_BIOS_WARNING ((AE_INFO,
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+            "should be 0x%2.2X",
+            Table->Signature, Table->Checksum,
+            Table->Checksum - Checksum));
+
+#if (ACPI_CHECKSUM_ABORT)
+        return (AE_BAD_CHECKSUM);
 #endif
+    }
 
-#define COMPILER_DEPENDENT_INT64        int64_t
-#define COMPILER_DEPENDENT_UINT64       uint64_t
+    return (AE_OK);
+}
 
-#define ACPI_UINTPTR_T      uintptr_t
 
-#define ACPI_TO_INTEGER(p)  ((uintptr_t)(p))
-#define ACPI_OFFSET(d, f)   __offsetof(d, f)
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtVerifyCdatChecksum
+ *
+ * PARAMETERS:  Table               - CDAT ACPI table to verify
+ *              Length              - Length of entire table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Verifies that the CDAT table checksums to zero. Optionally
+ *              returns an exception on bad checksum.
+ *
+ ******************************************************************************/
 
-#define ACPI_USE_DO_WHILE_0
-#define ACPI_USE_LOCAL_CACHE
-#define ACPI_USE_NATIVE_DIVIDE
-#define ACPI_USE_NATIVE_MATH64
-#define ACPI_USE_SYSTEM_CLIBRARY
+ACPI_STATUS
+AcpiUtVerifyCdatChecksum (
+    ACPI_TABLE_CDAT         *CdatTable,
+    UINT32                  Length)
+{
+    UINT8                   Checksum;
 
-#ifdef _KERNEL
 
-#include <sys/ctype.h>
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/libkern.h>
-#include <machine/acpica_machdep.h>
-#include <machine/stdarg.h>
+    /* Compute the checksum on the table */
 
-#include "opt_acpi.h"
+    Checksum = AcpiUtGenerateChecksum (ACPI_CAST_PTR (UINT8, CdatTable),
+                    CdatTable->Length, CdatTable->Checksum);
 
-#define ACPI_MUTEX_TYPE     ACPI_OSL_MUTEX
+    /* Computed checksum matches table? */
 
-#ifdef ACPI_DEBUG
-#define ACPI_DEBUG_OUTPUT   /* for backward compatibility */
-#define ACPI_DISASSEMBLER
+    if (Checksum != CdatTable->Checksum)
+    {
+        ACPI_BIOS_WARNING ((AE_INFO,
+            "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+            "should be 0x%2.2X",
+            AcpiGbl_CDAT, CdatTable->Checksum, Checksum));
+
+#if (ACPI_CHECKSUM_ABORT)
+        return (AE_BAD_CHECKSUM);
 #endif
+    }
 
-#ifdef ACPI_DEBUG_OUTPUT
-#include "opt_ddb.h"
-#ifdef DDB
-#define ACPI_DEBUGGER
-#endif /* DDB */
-#endif /* ACPI_DEBUG_OUTPUT */
+    CdatTable->Checksum = Checksum;
+    return (AE_OK);
+}
 
-#ifdef DEBUGGER_THREADING
-#undef DEBUGGER_THREADING
-#endif /* DEBUGGER_THREADING */
 
-#define DEBUGGER_THREADING  0   /* integrated with DDB */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtGenerateChecksum
+ *
+ * PARAMETERS:  Table               - Pointer to table to be checksummed
+ *              Length              - Length of the table
+ *              OriginalChecksum    - Value of the checksum field
+ *
+ * RETURN:      8 bit checksum of buffer
+ *
+ * DESCRIPTION: Computes an 8 bit checksum of the table.
+ *
+ ******************************************************************************/
 
-#ifdef INVARIANTS
-#define ACPI_MUTEX_DEBUG
-#endif
+UINT8
+AcpiUtGenerateChecksum (
+    void                    *Table,
+    UINT32                  Length,
+    UINT8                   OriginalChecksum)
+{
+    UINT8                   Checksum;
 
-#else /* _KERNEL */
 
-#if __STDC_HOSTED__
-#include <ctype.h>
-#include <unistd.h>
-#endif
+    /* Sum the entire table as-is */
 
-#define ACPI_CAST_PTHREAD_T(pthread)    ((ACPI_THREAD_ID) ACPI_TO_INTEGER (pthread))
+    Checksum = AcpiUtChecksum ((UINT8 *) Table, Length);
 
-#define ACPI_USE_STANDARD_HEADERS
+    /* Subtract off the existing checksum value in the table */
 
-#define ACPI_FLUSH_CPU_CACHE()
-#define __cdecl
+    Checksum = (UINT8) (Checksum - OriginalChecksum);
 
-#endif /* _KERNEL */
+    /* Compute and return the final checksum */
 
-#endif /* __ACFREEBSD_H__ */
+    Checksum = (UINT8) (0 - Checksum);
+    return (Checksum);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtChecksum
+ *
+ * PARAMETERS:  Buffer          - Pointer to memory region to be checked
+ *              Length          - Length of this memory region
+ *
+ * RETURN:      Checksum (UINT8)
+ *
+ * DESCRIPTION: Calculates circular checksum of memory region.
+ *
+ ******************************************************************************/
+
+UINT8
+AcpiUtChecksum (
+    UINT8                   *Buffer,
+    UINT32                  Length)
+{
+    UINT8                   Sum = 0;
+    UINT8                   *End = Buffer + Length;
+
+
+    while (Buffer < End)
+    {
+        Sum = (UINT8) (Sum + *(Buffer++));
+    }
+
+    return (Sum);
+}

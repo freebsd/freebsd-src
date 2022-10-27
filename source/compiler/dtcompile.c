@@ -452,6 +452,48 @@ DtCompileDataTable (
     }
 
     /*
+     * If the first field is named "CDAT Table Length" (not "Signature"),
+     * assume that we have a CDAT table (whose table header does not have
+     * a signature). Instead, the TableLength field is where the
+     * signature would (normally) be.
+     */
+    else if (!strcmp ((*FieldList)->Name, "CDAT Table Length"))
+    {
+        /* No longer true: (However, use this technique in the disassembler)
+         * We are assuming that there
+         * should be at least one non-ASCII byte in the 4-character
+         * Signature field, (At least the high-order byte should be zero).
+         */
+        Status = DtCompileTable (FieldList, AcpiDmTableInfoCdatTableHdr,
+            &AslGbl_RootTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Compile the CDAT */
+
+        DtPushSubtable (AslGbl_RootTable);
+        Status = DtCompileCdat ((void **) FieldList);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /*
+         * Set the overall table length and the table checksum.
+         * The entire compiled table (including the CDAT table header with
+         * the table length and checksum) is in AslGbl_RootTable->Buffer.
+         */
+        DtSetTableLength ();
+        DtSetTableChecksum (&ACPI_CAST_PTR (ACPI_TABLE_CDAT, AslGbl_RootTable->Buffer)->Checksum);
+
+        DtDumpFieldList (RootField);
+        DtDumpSubtableList ();
+        return (AE_OK);
+    }
+
+    /*
      * All other tables must use the common ACPI table header. Insert the
      * current iASL IDs (name, version), and compile the header now.
      */

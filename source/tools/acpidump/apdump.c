@@ -234,7 +234,9 @@ ApIsValidChecksum (
     }
     else
     {
-        Status = AcpiTbVerifyChecksum (Table, Table->Length);
+        /* We don't have to check for a CDAT here, since CDAT is not in the RSDT/XSDT */
+
+        Status = AcpiUtVerifyChecksum (Table, Table->Length);
     }
 
     if (ACPI_FAILURE (Status))

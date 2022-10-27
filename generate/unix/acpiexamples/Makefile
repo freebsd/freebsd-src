@@ -135,6 +135,7 @@ OBJECTS = \
 	$(OBJDIR)/utascii.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
+	$(OBJDIR)/utcksum.o\
 	$(OBJDIR)/utcopy.o\
 	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utdecode.o\

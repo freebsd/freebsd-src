@@ -315,19 +315,19 @@ ExInitializeAcpiTables (
     /* Set new checksums for the modified tables */
 
     Rsdp->Checksum = 0;
-    Rsdp->Checksum = (UINT8) -AcpiTbChecksum (
+    Rsdp->Checksum = (UINT8) -AcpiUtChecksum (
         (void *) RsdpCode, ACPI_RSDP_CHECKSUM_LENGTH);
 
     Rsdt->Header.Checksum = 0;
-    Rsdt->Header.Checksum = (UINT8) -AcpiTbChecksum (
+    Rsdt->Header.Checksum = (UINT8) -AcpiUtChecksum (
         (void *) Rsdt, Rsdt->Header.Length);
 
     Xsdt->Header.Checksum = 0;
-    Xsdt->Header.Checksum =  (UINT8) -AcpiTbChecksum (
+    Xsdt->Header.Checksum =  (UINT8) -AcpiUtChecksum (
         (void *) Xsdt, Xsdt->Header.Length);
 
     Fadt->Header.Checksum = 0;
-    Fadt->Header.Checksum =  (UINT8) -AcpiTbChecksum (
+    Fadt->Header.Checksum =  (UINT8) -AcpiUtChecksum (
         (void *) Fadt, Fadt->Header.Length);
 }
 
