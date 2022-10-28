@@ -20,7 +20,6 @@
 
 #include "crypto.h"
 #include "wg_noise.h"
-#include "support.h"
 
 /* Protocol string constants */
 #define NOISE_HANDSHAKE_NAME	"Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s"

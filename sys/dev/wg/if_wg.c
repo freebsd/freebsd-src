@@ -48,7 +48,6 @@
 #include <netinet/udp_var.h>
 #include <netinet6/nd6.h>
 
-#include "support.h"
 #include "wg_noise.h"
 #include "wg_cookie.h"
 #include "version.h"
