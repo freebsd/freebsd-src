@@ -86,7 +86,6 @@ CONFS=	DAEMON \
 	random \
 	rarpd \
 	rctl \
-	resolv \
 	root \
 	route6d \
 	routing \
@@ -126,6 +125,10 @@ DEVMATCHPACKAGE=	devmatch
 CONFGROUPS+=		DHCLIENT
 DHCLIENT=		dhclient
 DHCLIENTPACKAGE=	dhclient
+
+CONFGROUPS+=		RESOLVCONF
+RESOLVCONF=		resolv
+RESOLVCONFPACKAGE=	resolvconf
 
 .if ${MK_NIS} != "no"
 CONFS+=	ypbind \
