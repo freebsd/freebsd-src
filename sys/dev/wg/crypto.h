@@ -8,6 +8,9 @@
 #define _WG_CRYPTO
 
 #include <sys/param.h>
+#include <sys/endian.h>
+#include <crypto/chacha20_poly1305.h>
+#include <crypto/curve25519.h>
 
 struct mbuf;
 
@@ -19,36 +22,6 @@ enum chacha20poly1305_lengths {
 	CHACHA20POLY1305_KEY_SIZE = 32,
 	CHACHA20POLY1305_AUTHTAG_SIZE = 16
 };
-
-#ifdef COMPAT_NEED_CHACHA20POLY1305
-void
-chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
-			 const uint8_t *ad, const size_t ad_len,
-			 const uint64_t nonce,
-			 const uint8_t key[CHACHA20POLY1305_KEY_SIZE]);
-
-bool
-chacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
-			 const uint8_t *ad, const size_t ad_len,
-			 const uint64_t nonce,
-			 const uint8_t key[CHACHA20POLY1305_KEY_SIZE]);
-
-void
-xchacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src,
-			  const size_t src_len, const uint8_t *ad,
-			  const size_t ad_len,
-			  const uint8_t nonce[XCHACHA20POLY1305_NONCE_SIZE],
-			  const uint8_t key[CHACHA20POLY1305_KEY_SIZE]);
-
-bool
-xchacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src,
-			  const size_t src_len,  const uint8_t *ad,
-			  const size_t ad_len,
-			  const uint8_t nonce[XCHACHA20POLY1305_NONCE_SIZE],
-			  const uint8_t key[CHACHA20POLY1305_KEY_SIZE]);
-#else
-#include <sys/endian.h>
-#include <crypto/chacha20_poly1305.h>
 
 static inline void
 chacha20poly1305_encrypt(uint8_t *dst, const uint8_t *src, const size_t src_len,
@@ -95,7 +68,6 @@ xchacha20poly1305_decrypt(uint8_t *dst, const uint8_t *src,
 {
 	return (xchacha20_poly1305_decrypt(dst, src, src_len, ad, ad_len, nonce, key));
 }
-#endif
 
 int
 chacha20poly1305_encrypt_mbuf(struct mbuf *, const uint64_t nonce,
@@ -144,39 +116,6 @@ static inline void blake2s(uint8_t *out, const uint8_t *in, const uint8_t *key,
 	blake2s_update(&state, in, inlen);
 	blake2s_final(&state, out);
 }
-#endif
-
-#ifdef COMPAT_NEED_CURVE25519
-enum curve25519_lengths {
-        CURVE25519_KEY_SIZE = 32
-};
-
-bool curve25519(uint8_t mypublic[static CURVE25519_KEY_SIZE],
-		const uint8_t secret[static CURVE25519_KEY_SIZE],
-		const uint8_t basepoint[static CURVE25519_KEY_SIZE]);
-
-static inline bool
-curve25519_generate_public(uint8_t pub[static CURVE25519_KEY_SIZE],
-			   const uint8_t secret[static CURVE25519_KEY_SIZE])
-{
-	static const uint8_t basepoint[CURVE25519_KEY_SIZE] = { 9 };
-
-	return curve25519(pub, secret, basepoint);
-}
-
-static inline void curve25519_clamp_secret(uint8_t secret[static CURVE25519_KEY_SIZE])
-{
-        secret[0] &= 248;
-        secret[31] = (secret[31] & 127) | 64;
-}
-
-static inline void curve25519_generate_secret(uint8_t secret[CURVE25519_KEY_SIZE])
-{
-	arc4random_buf(secret, CURVE25519_KEY_SIZE);
-	curve25519_clamp_secret(secret);
-}
-#else
-#include <crypto/curve25519.h>
 #endif
 
 #endif
