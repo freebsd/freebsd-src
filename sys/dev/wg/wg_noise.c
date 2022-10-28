@@ -564,16 +564,16 @@ noise_remote_keypairs_clear(struct noise_remote *r)
 	struct noise_keypair *kp;
 
 	mtx_lock(&r->r_keypair_mtx);
-	kp = ck_pr_load_ptr(&r->r_next);
-	ck_pr_store_ptr(&r->r_next, NULL);
+	kp = atomic_load_ptr(&r->r_next);
+	atomic_store_ptr(&r->r_next, NULL);
 	noise_keypair_drop(kp);
 
-	kp = ck_pr_load_ptr(&r->r_current);
-	ck_pr_store_ptr(&r->r_current, NULL);
+	kp = atomic_load_ptr(&r->r_current);
+	atomic_store_ptr(&r->r_current, NULL);
 	noise_keypair_drop(kp);
 
-	kp = ck_pr_load_ptr(&r->r_previous);
-	ck_pr_store_ptr(&r->r_previous, NULL);
+	kp = atomic_load_ptr(&r->r_previous);
+	atomic_store_ptr(&r->r_previous, NULL);
 	noise_keypair_drop(kp);
 	mtx_unlock(&r->r_keypair_mtx);
 }
@@ -587,12 +587,12 @@ noise_remote_expire_current(struct noise_remote *r)
 	noise_remote_handshake_clear(r);
 
 	NET_EPOCH_ENTER(et);
-	kp = ck_pr_load_ptr(&r->r_next);
+	kp = atomic_load_ptr(&r->r_next);
 	if (kp != NULL)
-		ck_pr_store_bool(&kp->kp_can_send, false);
-	kp = ck_pr_load_ptr(&r->r_current);
+		atomic_store_bool(&kp->kp_can_send, false);
+	kp = atomic_load_ptr(&r->r_current);
 	if (kp != NULL)
-		ck_pr_store_bool(&kp->kp_can_send, false);
+		atomic_store_bool(&kp->kp_can_send, false);
 	NET_EPOCH_EXIT(et);
 }
 
@@ -606,24 +606,24 @@ noise_add_new_keypair(struct noise_local *l, struct noise_remote *r,
 
 	/* Insert into the keypair table */
 	mtx_lock(&r->r_keypair_mtx);
-	next = ck_pr_load_ptr(&r->r_next);
-	current = ck_pr_load_ptr(&r->r_current);
-	previous = ck_pr_load_ptr(&r->r_previous);
+	next = atomic_load_ptr(&r->r_next);
+	current = atomic_load_ptr(&r->r_current);
+	previous = atomic_load_ptr(&r->r_previous);
 
 	if (kp->kp_is_initiator) {
 		if (next != NULL) {
-			ck_pr_store_ptr(&r->r_next, NULL);
-			ck_pr_store_ptr(&r->r_previous, next);
+			atomic_store_ptr(&r->r_next, NULL);
+			atomic_store_ptr(&r->r_previous, next);
 			noise_keypair_drop(current);
 		} else {
-			ck_pr_store_ptr(&r->r_previous, current);
+			atomic_store_ptr(&r->r_previous, current);
 		}
 		noise_keypair_drop(previous);
-		ck_pr_store_ptr(&r->r_current, kp);
+		atomic_store_ptr(&r->r_current, kp);
 	} else {
-		ck_pr_store_ptr(&r->r_next, kp);
+		atomic_store_ptr(&r->r_next, kp);
 		noise_keypair_drop(next);
-		ck_pr_store_ptr(&r->r_previous, NULL);
+		atomic_store_ptr(&r->r_previous, NULL);
 		noise_keypair_drop(previous);
 
 	}
@@ -704,10 +704,10 @@ noise_keypair_current(struct noise_remote *r)
 	struct noise_keypair *kp, *ret = NULL;
 
 	NET_EPOCH_ENTER(et);
-	kp = ck_pr_load_ptr(&r->r_current);
-	if (kp != NULL && ck_pr_load_bool(&kp->kp_can_send)) {
+	kp = atomic_load_ptr(&r->r_current);
+	if (kp != NULL && atomic_load_bool(&kp->kp_can_send)) {
 		if (noise_timer_expired(kp->kp_birthdate, REJECT_AFTER_TIME, 0))
-			ck_pr_store_bool(&kp->kp_can_send, false);
+			atomic_store_bool(&kp->kp_can_send, false);
 		else if (refcount_acquire_if_not_zero(&kp->kp_refcnt))
 			ret = kp;
 	}
@@ -728,20 +728,20 @@ noise_keypair_received_with(struct noise_keypair *kp)
 	struct noise_keypair *old;
 	struct noise_remote *r = kp->kp_remote;
 
-	if (kp != ck_pr_load_ptr(&r->r_next))
+	if (kp != atomic_load_ptr(&r->r_next))
 		return (0);
 
 	mtx_lock(&r->r_keypair_mtx);
-	if (kp != ck_pr_load_ptr(&r->r_next)) {
+	if (kp != atomic_load_ptr(&r->r_next)) {
 		mtx_unlock(&r->r_keypair_mtx);
 		return (0);
 	}
 
-	old = ck_pr_load_ptr(&r->r_previous);
-	ck_pr_store_ptr(&r->r_previous, ck_pr_load_ptr(&r->r_current));
+	old = atomic_load_ptr(&r->r_previous);
+	atomic_store_ptr(&r->r_previous, atomic_load_ptr(&r->r_current));
 	noise_keypair_drop(old);
-	ck_pr_store_ptr(&r->r_current, kp);
-	ck_pr_store_ptr(&r->r_next, NULL);
+	atomic_store_ptr(&r->r_current, kp);
+	atomic_store_ptr(&r->r_next, NULL);
 	mtx_unlock(&r->r_keypair_mtx);
 
 	return (ECONNRESET);
@@ -793,11 +793,11 @@ noise_keypair_remote(struct noise_keypair *kp)
 int
 noise_keypair_nonce_next(struct noise_keypair *kp, uint64_t *send)
 {
-	if (!ck_pr_load_bool(&kp->kp_can_send))
+	if (!atomic_load_bool(&kp->kp_can_send))
 		return (EINVAL);
 
 #ifdef __LP64__
-	*send = ck_pr_faa_64(&kp->kp_nonce_send, 1);
+	*send = atomic_fetchadd_64(&kp->kp_nonce_send, 1);
 #else
 	rw_wlock(&kp->kp_nonce_lock);
 	*send = kp->kp_nonce_send++;
@@ -805,7 +805,7 @@ noise_keypair_nonce_next(struct noise_keypair *kp, uint64_t *send)
 #endif
 	if (*send < REJECT_AFTER_MESSAGES)
 		return (0);
-	ck_pr_store_bool(&kp->kp_can_send, false);
+	atomic_store_bool(&kp->kp_can_send, false);
 	return (EINVAL);
 }
 
@@ -836,7 +836,7 @@ noise_keypair_nonce_check(struct noise_keypair *kp, uint64_t recv)
 			    (i + index_current) &
 				((COUNTER_BITS_TOTAL / COUNTER_BITS) - 1)] = 0;
 #ifdef __LP64__
-		ck_pr_store_64(&kp->kp_nonce_recv, recv);
+		atomic_store_64(&kp->kp_nonce_recv, recv);
 #else
 		kp->kp_nonce_recv = recv;
 #endif
@@ -863,12 +863,12 @@ noise_keep_key_fresh_send(struct noise_remote *r)
 	uint64_t nonce;
 
 	NET_EPOCH_ENTER(et);
-	current = ck_pr_load_ptr(&r->r_current);
-	keep_key_fresh = current != NULL && ck_pr_load_bool(&current->kp_can_send);
+	current = atomic_load_ptr(&r->r_current);
+	keep_key_fresh = current != NULL && atomic_load_bool(&current->kp_can_send);
 	if (!keep_key_fresh)
 		goto out;
 #ifdef __LP64__
-	nonce = ck_pr_load_64(&current->kp_nonce_send);
+	nonce = atomic_load_64(&current->kp_nonce_send);
 #else
 	rw_rlock(&current->kp_nonce_lock);
 	nonce = current->kp_nonce_send;
@@ -892,8 +892,8 @@ noise_keep_key_fresh_recv(struct noise_remote *r)
 	int keep_key_fresh;
 
 	NET_EPOCH_ENTER(et);
-	current = ck_pr_load_ptr(&r->r_current);
-	keep_key_fresh = current != NULL && ck_pr_load_bool(&current->kp_can_send) &&
+	current = atomic_load_ptr(&r->r_current);
+	keep_key_fresh = current != NULL && atomic_load_bool(&current->kp_can_send) &&
 	    current->kp_is_initiator && noise_timer_expired(current->kp_birthdate,
 	    REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - REKEY_TIMEOUT, 0);
 	NET_EPOCH_EXIT(et);
@@ -921,7 +921,7 @@ noise_keypair_decrypt(struct noise_keypair *kp, uint64_t nonce, struct mbuf *m)
 	int ret;
 
 #ifdef __LP64__
-	cur_nonce = ck_pr_load_64(&kp->kp_nonce_recv);
+	cur_nonce = atomic_load_64(&kp->kp_nonce_recv);
 #else
 	rw_rlock(&kp->kp_nonce_lock);
 	cur_nonce = kp->kp_nonce_recv;
