@@ -417,10 +417,8 @@ _autofs=	autofs
 .endif
 
 .if ${MK_DTRACE} != "no" || defined(ALL_MODULES)
-.if ${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv[67]*} != ""
 .if ${KERN_OPTS:MKDTRACE_HOOKS}
 SUBDIR+=	dtrace
-.endif
 .endif
 SUBDIR+=	opensolaris
 .endif
@@ -848,7 +846,7 @@ _nvram+=	powermac_nvram
 
 .endif
 
-.if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=  bcm283x_pwm
 .endif
