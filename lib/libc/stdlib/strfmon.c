@@ -324,7 +324,7 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		if (cs_precedes == 1) {
 			if (sign_posn == 1 || sign_posn == 3) {
 				PRINTS(signstr);
-				if (sep_by_space == 2)		/* XXX: ? */
+				if (sep_by_space == 2)
 					PRINT(' ');
 			}
 
@@ -363,7 +363,7 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 				    || sign_posn == 2
 				    || sign_posn == 4)))
 					PRINT(space_char);
-				PRINTS(currency_symbol); /* XXX: len */
+				PRINTS(currency_symbol);
 				if (sign_posn == 4) {
 					if (sep_by_space == 2)
 						PRINT(' ');
@@ -597,7 +597,7 @@ __format_grouped_double(double value, int *flags,
 	}
 
 	if ((*flags & NEED_GROUPING) &&
-	    thousands_sep_size > 0 &&	/* XXX: need investigation */
+	    thousands_sep_size > 0 &&
 	    *grouping != CHAR_MAX &&
 	    *grouping > 0) {
 		while (avalue_size > (int)*grouping) {
