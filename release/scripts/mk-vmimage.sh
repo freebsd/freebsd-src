@@ -41,7 +41,7 @@ usage() {
 main() {
 	local arg
 	VMCONFIG="/dev/null"
-	while getopts "C:c:d:f:i:o:s:S:" arg; do
+	while getopts "C:c:d:F:f:i:o:s:S:" arg; do
 		case "${arg}" in
 			C)
 				VMBUILDCONF="${OPTARG}"
@@ -51,6 +51,9 @@ main() {
 				;;
 			d)
 				DESTDIR="${OPTARG}"
+				;;
+			F)
+				VMFS="${OPTARG}"
 				;;
 			f)
 				VMFORMAT="${OPTARG}"
@@ -77,7 +80,8 @@ main() {
 		-z "${WORLDDIR}" -o \
 		-z "${DESTDIR}" -o \
 		-z "${VMSIZE}" -o \
-		-z "${VMIMAGE}" ];
+		-z "${VMIMAGE}" -o \
+		-z "${VMFS}" ];
 	then
 		usage || exit 0
 	fi

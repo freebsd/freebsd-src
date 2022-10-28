@@ -39,8 +39,6 @@ cleanup() {
 }
 
 vm_create_base() {
-	# Creates the UFS root filesystem for the virtual machine disk,
-	# written to the formatted disk image with mkimg(1).
 
 	mkdir -p ${DESTDIR}
 
@@ -70,8 +68,10 @@ vm_install_base() {
 
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
-	echo "/dev/${ROOTLABEL}/rootfs   /       ufs     rw      1       1" \
-		>> ${DESTDIR}/etc/fstab
+	if [ "${VMFS}" != zfs ]; then
+		echo "/dev/${ROOTLABEL}/rootfs   /       ${VMFS}   rw      1       1" \
+			>> ${DESTDIR}/etc/fstab
+	fi
 	if [ -z "${NOSWAP}" ]; then
 		echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
 			>> ${DESTDIR}/etc/fstab
@@ -80,6 +80,10 @@ vm_install_base() {
 	local hostname
 	hostname="$(echo $(uname -o) | tr '[:upper:]' '[:lower:]')"
 	echo "hostname=\"${hostname}\"" >> ${DESTDIR}/etc/rc.conf
+	if [ "${VMFS}" = zfs ]; then
+		echo "zfs_enable=\"YES\"" >> ${DESTDIR}/etc/rc.conf
+		echo "zpool_reguid=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
+	fi
 
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		export EMULATOR=/qemu
@@ -93,6 +97,11 @@ vm_install_base() {
 	umount_loop ${DESTDIR}/dev
 
 	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
+
+        if [ "${VMFS}" = zfs ]; then
+		echo "kern.geom.label.disk_ident.enable=0" >> ${DESTDIR}/boot/loader.conf
+		echo "zfs_load=YES" >> ${DESTDIR}/boot/loader.conf
+        fi
 
 	return 0
 }
@@ -169,6 +178,40 @@ vm_extra_pkg_rmcache() {
 	return 0
 }
 
+buildfs() {
+	local md tmppool
+
+	case "${VMFS}" in
+	ufs)
+		makefs ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
+			${VMBASE} ${DESTDIR}
+		;;
+	zfs)
+		makefs -t zfs ${MAKEFSARGS} \
+			-o poolname=zroot -o bootfs=zroot/ROOT/default -o rootpath=/ \
+			-o fs=zroot\;mountpoint=none \
+			-o fs=zroot/ROOT\;mountpoint=none \
+			-o fs=zroot/ROOT/default\;mountpoint=/ \
+			-o fs=zroot/tmp\;mountpoint=/tmp\;exec=on\;setuid=off \
+			-o fs=zroot/usr\;mountpoint=/usr\;canmount=off \
+			-o fs=zroot/usr/home \
+			-o fs=zroot/usr/ports\;setuid=off \
+			-o fs=zroot/usr/src \
+			-o fs=zroot/usr/obj \
+			-o fs=zroot/var\;mountpoint=/var\;canmount=off \
+			-o fs=zroot/var/audit\;setuid=off\;exec=off \
+			-o fs=zroot/var/log\;setuid=off\;exec=off \
+			-o fs=zroot/var/mail\;atime=on \
+			-o fs=zroot/var/tmp\;setuid=off \
+			${VMBASE} ${DESTDIR}
+		;;
+	*)
+		echo "Unexpected VMFS value '${VMFS}'"
+		exit 1
+		;;
+	esac
+}
+
 umount_loop() {
 	DIR=$1
 	i=0
@@ -188,8 +231,7 @@ umount_loop() {
 }
 
 vm_create_disk() {
-	echo "Creating image...  Please wait."
-	echo
+	local BOOTFILES BOOTPARTSOFFSET FSPARTTYPE X86GPTBOOTFILE
 
 	if [ -z "${NOSWAP}" ]; then
 		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
@@ -199,34 +241,52 @@ vm_create_disk() {
 		BOOTPARTSOFFSET=":${VM_BOOTPARTSOFFSET}"
 	fi
 
+	case "${VMFS}" in
+	ufs)
+		FSPARTTYPE=freebsd-ufs
+		X86GPTBOOTFILE=i386/gptboot/gptboot
+		;;
+	zfs)
+		FSPARTTYPE=freebsd-zfs
+		X86GPTBOOTFILE=i386/gptzfsboot/gptzfsboot
+		;;
+	*)
+		echo "Unexpected VMFS value '${VMFS}'"
+		return 1
+		;;
+	esac
+
+	echo "Creating image...  Please wait."
+	echo
 
 	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		WITH_UNIFIED_OBJDIR=yes \
 		make -C ${WORLDDIR}/stand -V .OBJDIR)"
 	BOOTFILES="$(realpath ${BOOTFILES})"
+	MAKEFSARGS="-s ${VMSIZE}"
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
 			ESP=yes
 			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
-				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot${BOOTPARTSOFFSET}"
-			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
-			MAKEFSARGS="-B little"
+				   -p freebsd-boot/bootfs:=${BOOTFILES}/${X86GPTBOOTFILE}${BOOTPARTSOFFSET}"
+			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}"
+			MAKEFSARGS="$MAKEFSARGS -B little"
 			;;
 		arm64:aarch64 | riscv:riscv64*)
 			ESP=yes
 			BOOTPARTS=
-			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
-			MAKEFSARGS="-B little"
+			ROOTFSPART="-p ${FSPARTTYPE}/rootfs:=${VMBASE}"
+			MAKEFSARGS="$MAKEFSARGS -B little"
 			;;
 		powerpc:powerpc*)
 			ESP=no
 			BOOTPARTS="-p prepboot:=${BOOTFILES}/powerpc/boot1.chrp/boot1.elf -a 1"
 			ROOTFSPART="-p freebsd:=${VMBASE}"
 			if [ ${TARGET_ARCH} = powerpc64le ]; then
-				MAKEFSARGS="-B little"
+				MAKEFSARGS="$MAKEFSARGS -B little"
 			else
-				MAKEFSARGS="-B big"
+				MAKEFSARGS="$MAKEFSARGS -B big"
 			fi
 			;;
 		*)
@@ -248,8 +308,7 @@ vm_create_disk() {
 	fi
 
 	echo "Building filesystem...  Please wait."
-	makefs ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
-	    -s ${VMSIZE} ${VMBASE} ${DESTDIR}
+	buildfs
 
 	echo "Building final disk image...  Please wait."
 	mkimg -s ${PARTSCHEME} -f ${VMFORMAT} \
