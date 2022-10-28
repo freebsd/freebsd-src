@@ -211,6 +211,38 @@ ATF_TC_BODY(strfmon_international_currency_code, tc)
 	}
 }
 
+ATF_TC(strfmon_l);
+ATF_TC_HEAD(strfmon_l, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "checks strfmon_l under different locales");
+}
+ATF_TC_BODY(strfmon_l, tc)
+{
+	const struct {
+		const char *locale;
+		const char *expected;
+	} tests[] = {
+	    { "C", "[ **1234.57 ] [ **1234.57 ]" },
+	    { "de_DE.UTF-8", "[ €**1234.57 ] [ EUR**1234.57 ]" }, /* XXX */
+	    { "en_GB.UTF-8", "[ £**1234.57 ] [ GBP**1234.57 ]" }, /* XXX */
+	};
+	locale_t loc;
+	size_t i;
+	char buf[100];
+
+	for (i = 0; i < nitems(tests); ++i) {
+		loc = newlocale(LC_MONETARY_MASK, tests[i].locale, NULL);
+		ATF_REQUIRE(loc != NULL);
+
+		strfmon_l(buf, sizeof(buf) - 1, loc, "[%^=*#6n] [%=*#6i]",
+		    1234.567, 1234.567);
+		ATF_REQUIRE_STREQ(tests[i].expected, buf);
+
+		freelocale(loc);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, strfmon_locale_thousands);
@@ -218,5 +250,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strfmon_cs_precedes_0);
 	ATF_TP_ADD_TC(tp, strfmon_cs_precedes_1);
 	ATF_TP_ADD_TC(tp, strfmon_international_currency_code);
+	ATF_TP_ADD_TC(tp, strfmon_l);
 	return (atf_no_error());
 }
