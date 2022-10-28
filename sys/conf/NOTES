@@ -961,6 +961,9 @@ device		enc
 # Link aggregation interface.
 device		lagg
 
+# WireGuard interface.
+device		wg
+
 #
 # Internet family options:
 #
