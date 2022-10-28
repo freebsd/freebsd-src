@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2022
+.Dd October 28, 2022
 .Dt STRFMON 3
 .Os
 .Sh NAME
-.Nm strfmon
+.Nm strfmon ,
+.Nm strfmon_l
 .Nd convert monetary value to string
 .Sh LIBRARY
 .Lb libc
@@ -161,7 +162,8 @@ The format string is invalid.
 Not enough memory for temporary buffers.
 .El
 .Sh SEE ALSO
-.Xr localeconv 3
+.Xr localeconv 3 ,
+.Xr xlocale 3
 .Sh STANDARDS
 The
 .Fn strfmon
