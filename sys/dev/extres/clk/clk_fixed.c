@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
@@ -40,8 +41,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#ifdef FDT
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include <dev/extres/clk/clk_fixed.h>
 
 #define	CLK_TYPE_FIXED		1
