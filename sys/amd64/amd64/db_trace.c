@@ -218,7 +218,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 			break;
 		case SYSCALL:
 			db_printf("--- syscall");
-			db_decode_syscall(tf->tf_rax, td);
+			db_decode_syscall(td, tf->tf_rax);
 			break;
 		case INTERRUPT:
 			db_printf("--- interrupt");
