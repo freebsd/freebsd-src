@@ -224,8 +224,8 @@ ATF_TC_BODY(strfmon_l, tc)
 		const char *expected;
 	} tests[] = {
 	    { "C", "[ **1234.57 ] [ **1234.57 ]" },
-	    { "de_DE.UTF-8", "[ €**1234.57 ] [ EUR**1234.57 ]" }, /* XXX */
-	    { "en_GB.UTF-8", "[ £**1234.57 ] [ GBP**1234.57 ]" }, /* XXX */
+	    { "de_DE.UTF-8", "[ **1234,57 €] [ **1.234,57 EUR]" },
+	    { "en_GB.UTF-8", "[ £**1234.57] [ GBP**1,234.57]" },
 	};
 	locale_t loc;
 	size_t i;
