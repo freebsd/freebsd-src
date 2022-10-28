@@ -75,8 +75,10 @@ nvlist_find_string(nvlist_t *nvl, const char *key, char **retp)
 	int error, len;
 
 	error = nvlist_find(nvl, key, DATA_TYPE_STRING, NULL, &str, &len);
-	if (error == 0)
-		*retp = str;
+	if (error == 0) {
+		*retp = ecalloc(1, len + 1);
+		memcpy(*retp, str, len);
+	}
 	return (error);
 }
 
@@ -97,16 +99,11 @@ char *
 dsl_dir_get_mountpoint(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 {
 	zfs_dsl_dir_t *pdir;
-	char *mountpoint, *origmountpoint;
+	char *mountpoint;
 
 	if (nvlist_find_string(dir->propsnv, "mountpoint", &mountpoint) == 0) {
 		if (strcmp(mountpoint, "none") == 0)
 			return (NULL);
-
-		/*
-		 * nvlist_find_string() does not make a copy.
-		 */
-		mountpoint = estrdup(mountpoint);
 	} else {
 		/*
 		 * If we don't have a mountpoint, it's inherited from one of our
@@ -114,14 +111,18 @@ dsl_dir_get_mountpoint(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 		 * up our mountpoint along the way.  The mountpoint property is
 		 * always set for the root dataset.
 		 */
-		for (pdir = dir->parent, mountpoint = estrdup(dir->name);;) {
+		for (pdir = dir->parent, mountpoint = estrdup(dir->name);;
+		    pdir = pdir->parent) {
+			char *origmountpoint, *tmp;
+
 			origmountpoint = mountpoint;
 
 			if (nvlist_find_string(pdir->propsnv, "mountpoint",
-			    &mountpoint) == 0) {
-				easprintf(&mountpoint, "%s%s%s", mountpoint,
-				    mountpoint[strlen(mountpoint) - 1] == '/' ?
-				    "" : "/", origmountpoint);
+			    &tmp) == 0) {
+				easprintf(&mountpoint, "%s%s%s", tmp,
+				    tmp[strlen(tmp) - 1] == '/' ?  "" : "/",
+				    origmountpoint);
+				free(tmp);
 				free(origmountpoint);
 				break;
 			}
@@ -129,7 +130,6 @@ dsl_dir_get_mountpoint(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 			easprintf(&mountpoint, "%s/%s", pdir->name,
 			    origmountpoint);
 			free(origmountpoint);
-			pdir = pdir->parent;
 		}
 	}
 	assert(mountpoint[0] == '/');
