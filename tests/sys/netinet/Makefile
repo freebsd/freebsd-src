@@ -14,7 +14,16 @@ ATF_TESTS_C=	ip_reass_test \
 		tcp_connect_port_test \
 		tcp_md5_getsockopt
 
-ATF_TESTS_SH=	carp fibs fibs_test redirect divert forward output lpm arp
+ATF_TESTS_SH=	arp \
+		carp \
+		divert \
+		fibs \
+		fibs_test \
+		forward \
+		lpm \
+		output \
+		redirect
+
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.tcp6_v4mapped_bind_test+=	is_exclusive="true"
 
