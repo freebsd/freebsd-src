@@ -82,7 +82,6 @@ CONFS=	DAEMON \
 	random \
 	rarpd \
 	rctl \
-	resolv \
 	root \
 	route6d \
 	routing \
@@ -129,6 +128,10 @@ GGATEDPACKAGE=		ggate
 CONFGROUPS+=		GROWFS
 GROWFS=			growfs growfs_fstab
 GROWFSPACKAGE=		ufs
+
+CONFGROUPS+=		RESOLVCONF
+RESOLVCONF=		resolv
+RESOLVCONFPACKAGE=	resolvconf
 
 .if ${MK_NIS} != "no"
 CONFS+=	ypbind \
