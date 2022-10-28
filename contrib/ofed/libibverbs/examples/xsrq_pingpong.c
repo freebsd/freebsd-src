@@ -596,7 +596,7 @@ static int pp_server_connect(int port)
 	int sockfd = -1, connfd;
 	struct addrinfo hints = {
 		.ai_flags    = AI_PASSIVE,
-		.ai_family   = AF_INET,
+		.ai_family   = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM
 	};
 
