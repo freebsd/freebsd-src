@@ -46,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/extres/regulator/regulator_fixed.h>
 
+#ifdef FDT
 #include "regdev_if.h"
+#endif
 
 MALLOC_DEFINE(M_FIXEDREGULATOR, "fixedregulator", "Fixed regulator");
 
