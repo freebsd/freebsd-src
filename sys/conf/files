@@ -750,8 +750,8 @@ crypto/sha2/sha256c.c		optional crypto | ekcd | geom_bde | \
 crypto/sha2/sha512c.c		optional crypto | geom_bde | zfs
 crypto/skein/skein.c		optional crypto | zfs
 crypto/skein/skein_block.c	optional crypto | zfs
-crypto/siphash/siphash.c	optional inet | inet6
-crypto/siphash/siphash_test.c	optional inet | inet6
+crypto/siphash/siphash.c	optional inet | inet6 | wg
+crypto/siphash/siphash_test.c	optional inet | inet6 | wg
 ddb/db_access.c			optional ddb
 ddb/db_break.c			optional ddb
 ddb/db_capture.c		optional ddb
@@ -3480,6 +3480,14 @@ dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/watchdog/watchdog.c		standard
+dev/wg/if_wg.c			optional wg				\
+	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
+dev/wg/wg_cookie.c		optional wg				\
+	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
+dev/wg/wg_crypto.c		optional wg				\
+	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
+dev/wg/wg_noise.c		optional wg				\
+	compile-with "${NORMAL_C} -include $S/dev/wg/compat.h"
 dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:153229 -mwpi -c${.TARGET}" \

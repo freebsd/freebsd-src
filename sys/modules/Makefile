@@ -164,6 +164,7 @@ SUBDIR=	\
 	if_tuntap \
 	if_vlan \
 	if_vxlan \
+	${_if_wg} \
 	iflib \
 	${_igc} \
 	imgact_binmisc \
@@ -449,6 +450,9 @@ _toecore=	toecore
 _if_enc=	if_enc
 _if_gif=	if_gif
 _if_gre=	if_gre
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_if_wg=		if_wg
+.endif
 _ipfw_pmod=	ipfw_pmod
 .if ${KERN_OPTS:MIPSEC_SUPPORT} && !${KERN_OPTS:MIPSEC}
 _ipsec=		ipsec

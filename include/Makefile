@@ -49,7 +49,7 @@ LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
-	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd \
+	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/wg \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -225,6 +225,10 @@ NVPAIRDIR=	${INCLUDEDIR}/sys
 MLX5=		mlx5io.h
 MLX5DIR=	${INCLUDEDIR}/dev/mlx5
 
+.PATH: ${SRCTOP}/sys/dev/wg
+WG=		if_wg.h
+WGDIR=		${INCLUDEDIR}/dev/wg
+
 INCSGROUPS=	INCS \
 		ACPICA \
 		AGP \
@@ -244,7 +248,8 @@ INCSGROUPS=	INCS \
 		RPC \
 		SECAUDIT \
 		TEKEN \
-		VERIEXEC
+		VERIEXEC \
+		WG
 
 .if ${MK_IPFILTER} != "no"
 INCSGROUPS+=	IPFILTER

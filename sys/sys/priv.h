@@ -350,6 +350,7 @@
 #define	PRIV_NET_SETVLANPCP	PRIV_NET_SETLANPCP /* Alias Set VLAN priority */
 #define	PRIV_NET_OVPN		422	/* Administer OpenVPN DCO. */
 #define	PRIV_NET_ME		423	/* Administer ME interface. */
+#define	PRIV_NET_WG		424	/* Administer WireGuard interface. */
 
 /*
  * 802.11-related privileges.
