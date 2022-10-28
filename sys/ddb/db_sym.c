@@ -485,23 +485,15 @@ db_sym_numargs(c_db_sym_t sym, int *nargp, char **argnames)
 }
 
 void
-db_decode_syscall(int number, struct thread *td)
+db_decode_syscall(struct thread *td, u_int number)
 {
 	struct proc *p;
-	c_db_sym_t sym;
-	db_expr_t diff;
-	sy_call_t *f;
-	const char *symname;
 
-	db_printf(" (%d", number);
+	db_printf(" (%u", number);
 	p = (td != NULL) ? td->td_proc : NULL;
-	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
-		f = p->p_sysent->sv_table[number].sy_call;
-		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
-		if (sym != DB_SYM_NULL && diff == 0) {
-			db_symbol_values(sym, &symname, NULL);
-			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
-		}
+	if (p != NULL) {
+		db_printf(", %s, %s", p->p_sysent->sv_name,
+		    syscallname(p, number));
 	}
 	db_printf(")");
 }
