@@ -97,7 +97,7 @@ db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 				    tf->tf_scause & SCAUSE_CODE);
 			} else if (tf->tf_scause == SCAUSE_ECALL_USER) {
 				db_printf("--- syscall");
-				db_decode_syscall(td->td_sa.code, td);
+				db_decode_syscall(td, td->td_sa.code);
 				db_printf("\n");
 			} else {
 				db_printf("--- exception %ld, tval = %#lx\n",
