@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/phy/phy_usb.h>
 #include <dev/extres/phy/phy_internal.h>
 
-#include "phydev_if.h"
-
 /*
  * USB phy controller methods.
  */

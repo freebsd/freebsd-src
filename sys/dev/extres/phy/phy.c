@@ -45,7 +45,9 @@ __FBSDID("$FreeBSD$");
 #include  <dev/extres/phy/phy.h>
 #include  <dev/extres/phy/phy_internal.h>
 
+#ifdef FDT
 #include "phydev_if.h"
+#endif
 
 MALLOC_DEFINE(M_PHY, "phy", "Phy framework");
 
