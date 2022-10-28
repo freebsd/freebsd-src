@@ -71,9 +71,9 @@ __FBSDID("$FreeBSD$");
 		PRINT(*tmps++);					\
 } while (0)
 
-#define	GET_NUMBER(VAR) do {					\
+#define	GET_NUMBER(VAR, LOC) do {					\
 	VAR = 0;						\
-	while (isdigit((unsigned char)*fmt)) {			\
+	while (isdigit_l((unsigned char)*fmt, LOC)) {			\
 		if (VAR > INT_MAX / 10)				\
 			goto e2big_error;			\
 		VAR *= 10;					\
@@ -98,9 +98,10 @@ __FBSDID("$FreeBSD$");
 	groups++;						\
 } while (0)
 
-static void __setup_vars(int, char *, char *, char *, char **);
-static int __calc_left_pad(int, char *);
-static char *__format_grouped_double(double, int *, int, int, int);
+static void __setup_vars(int, char *, char *, char *, char **, struct lconv *);
+static int __calc_left_pad(int, char *, struct lconv *);
+static char *__format_grouped_double(double, int *, int, int, int,
+    struct lconv *, locale_t);
 
 static ssize_t
 vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
@@ -194,8 +195,8 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		}
 
 		/* field Width */
-		if (isdigit((unsigned char)*fmt)) {
-			GET_NUMBER(width);
+		if (isdigit_l((unsigned char)*fmt, loc)) {
+			GET_NUMBER(width, loc);
 			/* Do we have enough space to put number with
 			 * required width ?
 			 */
@@ -205,18 +206,18 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 
 		/* Left precision */
 		if (*fmt == '#') {
-			if (!isdigit((unsigned char)*++fmt))
+			if (!isdigit_l((unsigned char)*++fmt, loc))
 				goto format_error;
-			GET_NUMBER(left_prec);
+			GET_NUMBER(left_prec, loc);
 			if ((unsigned int)left_prec >= maxsize - (dst - s))
 				goto e2big_error;
 		}
 
 		/* Right precision */
 		if (*fmt == '.') {
-			if (!isdigit((unsigned char)*++fmt))
+			if (!isdigit_l((unsigned char)*++fmt, loc))
 				goto format_error;
-			GET_NUMBER(right_prec);
+			GET_NUMBER(right_prec, loc);
 			if ((unsigned int)right_prec >= maxsize - (dst - s) -
 			    left_prec)
 				goto e2big_error;
@@ -262,8 +263,8 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		/* fill left_prec with amount of padding chars */
 		if (left_prec >= 0) {
 			pad_size = __calc_left_pad((flags ^ IS_NEGATIVE),
-							currency_symbol) -
-				   __calc_left_pad(flags, currency_symbol);
+			    currency_symbol, lc) -
+			    __calc_left_pad(flags, currency_symbol, lc);
 			if (pad_size < 0)
 				pad_size = 0;
 		}
@@ -271,14 +272,14 @@ vstrfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
 		if (asciivalue != NULL)
 			free(asciivalue);
 		asciivalue = __format_grouped_double(value, &flags,
-				left_prec, right_prec, pad_char);
+		    left_prec, right_prec, pad_char, lc, loc);
 		if (asciivalue == NULL)
 			goto end_error;		/* errno already set     */
 						/* to ENOMEM by malloc() */
 
 		/* set some variables for later use */
 		__setup_vars(flags, &cs_precedes, &sep_by_space,
-				&sign_posn, &signstr);
+		    &sign_posn, &signstr, lc);
 
 		/*
 		 * Description of some LC_MONETARY's values:
@@ -422,10 +423,8 @@ end_error:
 
 static void
 __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
-    char *sign_posn, char **signstr)
+    char *sign_posn, char **signstr, struct lconv *lc)
 {
-	struct lconv *lc = localeconv();
-
 	if ((flags & IS_NEGATIVE) && (flags & USE_INTL_CURRENCY)) {
 		*cs_precedes = lc->int_n_cs_precedes;
 		*sep_by_space = lc->int_n_sep_by_space;
@@ -460,12 +459,13 @@ __setup_vars(int flags, char *cs_precedes, char *sep_by_space,
 }
 
 static int
-__calc_left_pad(int flags, char *cur_symb)
+__calc_left_pad(int flags, char *cur_symb, struct lconv *lc)
 {
 	char cs_precedes, sep_by_space, sign_posn, *signstr;
 	int left_chars = 0;
 
-	__setup_vars(flags, &cs_precedes, &sep_by_space, &sign_posn, &signstr);
+	__setup_vars(flags, &cs_precedes, &sep_by_space, &sign_posn,
+	    &signstr, lc);
 
 	if (cs_precedes != 0) {
 		left_chars += strlen(cur_symb);
@@ -515,7 +515,7 @@ get_groups(int size, char *grouping)
 /* convert double to locale-encoded string */
 static char *
 __format_grouped_double(double value, int *flags,
-    int left_prec, int right_prec, int pad_char)
+    int left_prec, int right_prec, int pad_char, struct lconv *lc, locale_t loc)
 {
 
 	char		*rslt;
@@ -527,7 +527,6 @@ __format_grouped_double(double value, int *flags,
 
 	int		padded;
 
-	struct lconv	*lc = localeconv();
 	char		*grouping;
 	const char	*decimal_point;
 	const char	*thousands_sep;
@@ -566,8 +565,8 @@ __format_grouped_double(double value, int *flags,
 		left_prec += get_groups(left_prec, grouping);
 
 	/* convert to string */
-	avalue_size = asprintf(&avalue, "%*.*f", left_prec + right_prec + 1,
-	    right_prec, value);
+	avalue_size = asprintf_l(&avalue, loc, "%*.*f",
+	    left_prec + right_prec + 1, right_prec, value);
 	if (avalue_size < 0)
 		return (NULL);
 
