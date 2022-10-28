@@ -2452,8 +2452,7 @@ out_locked:
 	sx_xunlock(&sc->sc_lock);
 	nvlist_destroy(nvl);
 out:
-	explicit_bzero(nvlpacked, wgd->wgd_size);
-	free(nvlpacked, M_TEMP);
+	zfree(nvlpacked, M_TEMP);
 	return (err);
 }
 
@@ -2577,8 +2576,7 @@ wgc_get(struct wg_softc *sc, struct wg_data_io *wgd)
 	wgd->wgd_size = size;
 
 out:
-	explicit_bzero(packed, size);
-	free(packed, M_NVLIST);
+	zfree(packed, M_NVLIST);
 err:
 	nvlist_destroy(nvl);
 	return (err);
