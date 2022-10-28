@@ -232,7 +232,7 @@ ns8250_flush(struct uart_bas *bas, int what)
 	 * https://github.com/rust-vmm/vm-superio/issues/83
 	 */
 	lsr = uart_getreg(bas, REG_LSR);
-	if ((lsr & LSR_TEMT) && (what & UART_FLUSH_TRANSMITTER))
+	if (((lsr & LSR_TEMT) == 0) && (what & UART_FLUSH_TRANSMITTER))
 		drain |= UART_DRAIN_TRANSMITTER;
 	if ((lsr & LSR_RXRDY) && (what & UART_FLUSH_RECEIVER))
 		drain |= UART_DRAIN_RECEIVER;
