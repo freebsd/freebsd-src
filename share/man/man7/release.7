@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2022
+.Dd October 28, 2022
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -365,6 +365,14 @@ is used, the resulting files compressed with
 .Xr xz 1
 compress to roughly the same size, regardless of the specified disk image
 size.
+.It Va VMFS
+Set to specify the file system type to use.
+Valid values are
+.Va ufs
+and
+.Va zfs .
+The default value is
+.Va ufs .
 .It Va VMFORMATS
 Set to the target virtual disk image format(s) to create.
 By default, the
