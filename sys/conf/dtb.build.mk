@@ -38,12 +38,10 @@ DTBO=${DTSO:T:R:S/$/.dtbo/}
 .export DTC ECHO
 
 .dts.dtb:	${OP_META}
-	@${ECHO} Generating ${.TARGET} from ${.IMPSRC}
-	@${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${.IMPSRC} ${.OBJDIR}
+	${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${.IMPSRC} ${.OBJDIR}
 
 .dtso.dtbo:	${OP_META}
-	@${ECHO} Generating ${.TARGET} from ${.IMPSRC}
-	@${SYSDIR}/tools/fdt/make_dtbo.sh ${SYSDIR} ${.IMPSRC} ${.OBJDIR}
+	${SYSDIR}/tools/fdt/make_dtbo.sh ${SYSDIR} ${.IMPSRC} ${.OBJDIR}
 
 # Add dependencies on the source file so that out-of-tree things can be included
 # without any .PATH additions.
