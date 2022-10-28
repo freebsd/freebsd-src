@@ -643,6 +643,7 @@ _cxgb=		cxgb
 _armv8crypto=	armv8crypto
 _dpaa2=		dpaa2
 _em=		em
+_hyperv=  hyperv
 
 .if !empty(OPT_FDT)
 _allwinner=	allwinner
@@ -659,9 +660,6 @@ _sdhci_fdt=	sdhci_fdt
 .endif
 _e6000sw=	e6000sw
 _neta=		neta
-.endif
-.if ${MACHINE_CPUARCH} == "aarch64"
-_hyperv=  hyperv
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
