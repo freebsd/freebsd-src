@@ -23,7 +23,6 @@ CONFS=	DAEMON \
 	ddb \
 	defaultroute \
 	devfs \
-	devmatch \
 	dhclient \
 	dmesg \
 	dumpon \
@@ -118,6 +117,10 @@ CONFS=	DAEMON \
 CONFGROUPS+=		DEVD
 DEVD=			devd
 DEVDPACKAGE=		devd
+
+CONFGROUPS+=		DEVMATCH
+DEVMATCH=		devmatch
+DEVMATCHPACKAGE=	devmatch
 
 .if ${MK_NIS} != "no"
 CONFS+=	ypbind \
