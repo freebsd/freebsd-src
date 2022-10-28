@@ -223,8 +223,7 @@ noise_local_put(struct noise_local *l)
 		rw_destroy(&l->l_identity_lock);
 		mtx_destroy(&l->l_remote_mtx);
 		mtx_destroy(&l->l_index_mtx);
-		explicit_bzero(l, sizeof(*l));
-		free(l, M_NOISE);
+		zfree(l, M_NOISE);
 	}
 }
 
@@ -472,8 +471,7 @@ noise_remote_smr_free(struct epoch_context *smr)
 	noise_local_put(r->r_local);
 	rw_destroy(&r->r_handshake_lock);
 	mtx_destroy(&r->r_keypair_mtx);
-	explicit_bzero(r, sizeof(*r));
-	free(r, M_NOISE);
+	zfree(r, M_NOISE);
 }
 
 void
@@ -754,8 +752,7 @@ noise_keypair_smr_free(struct epoch_context *smr)
 	kp = __containerof(smr, struct noise_keypair, kp_smr);
 	noise_remote_put(kp->kp_remote);
 	rw_destroy(&kp->kp_nonce_lock);
-	explicit_bzero(kp, sizeof(*kp));
-	free(kp, M_NOISE);
+	zfree(kp, M_NOISE);
 }
 
 void
