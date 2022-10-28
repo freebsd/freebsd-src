@@ -66,12 +66,12 @@ SRCS+=	tbdata.c tbfadt.c tbinstal.c tbprint.c tbutils.c	\
 
 # components/utilities
 SRCS+=	utaddress.c utalloc.c utascii.c utbuffer.c utcache.c	\
-	utcopy.c utdebug.c utdecode.c utdelete.c uterror.c	\
-	utexcep.c utglobal.c uthex.c utinit.c utlock.c utmath.c	\
-	utmisc.c utmutex.c utnonansi.c utobject.c utownerid.c	\
-	utpredef.c utresdecode.c utresrc.c utstate.c utstring.c	\
-	utstrsuppt.c utstrtoul64.c utuuid.c utxface.c		\
-	utxferror.c
+	utcksum.c utcopy.c utdebug.c utdecode.c utdelete.c	\
+	uterror.c utexcep.c utglobal.c uthex.c utinit.c		\
+	utlock.c utmath.c utmisc.c utmutex.c utnonansi.c	\
+	utobject.c utownerid.c utpredef.c utresdecode.c		\
+	utresrc.c utstate.c utstring.c utstrsuppt.c		\
+	utstrtoul64.c utuuid.c utxface.c utxferror.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c

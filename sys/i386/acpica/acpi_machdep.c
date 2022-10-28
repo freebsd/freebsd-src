@@ -127,7 +127,7 @@ map_table(vm_paddr_t pa, const char *sig)
 	length = header->Length;
 	pmap_unmapbios(header, sizeof(ACPI_TABLE_HEADER));
 	table = pmap_mapbios(pa, length);
-	if (ACPI_FAILURE(AcpiTbChecksum(table, length))) {
+	if (ACPI_FAILURE(AcpiUtChecksum(table, length))) {
 		if (bootverbose)
 			printf("ACPI: Failed checksum for table %s\n", sig);
 #if (ACPI_CHECKSUM_ABORT)
@@ -218,7 +218,7 @@ acpi_find_table(const char *sig)
 		 * the version 1.0 portion of the RSDP.  Version 2.0 has
 		 * an additional checksum that we verify first.
 		 */
-		if (AcpiTbChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
+		if (AcpiUtChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
 			if (bootverbose)
 				printf("ACPI: RSDP failed extended checksum\n");
 			return (0);
