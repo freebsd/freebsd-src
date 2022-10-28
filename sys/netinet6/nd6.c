@@ -284,8 +284,8 @@ nd6_ifattach(struct ifnet *ifp)
 	 * default regardless of the V_ip6_auto_linklocal configuration to
 	 * give a reasonable default behavior.
 	 */
-	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) ||
-	    (ifp->if_flags & IFF_LOOPBACK))
+	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE &&
+	    ifp->if_type != IFT_WIREGUARD) || (ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
 	/*
 	 * A loopback interface does not need to accept RTADV.
