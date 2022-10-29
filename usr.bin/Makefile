@@ -177,6 +177,7 @@ SUBDIR=	alias \
 	w \
 	wall \
 	wc \
+	wg \
 	what \
 	whereis \
 	which \
