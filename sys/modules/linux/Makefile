@@ -11,14 +11,34 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .endif
 
 KMOD=	linux
-SRCS=	linux_fork.c linux${SFX}_dummy_machdep.c linux_file.c linux_event.c \
-	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
-	linux${SFX}_machdep.c linux_misc.c linux_signal.c \
-	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
-	linux${SFX}_sysvec.c linux_uid16.c linux_time.c \
-	linux_timer.c linux_vdso.c linux_rseq.c \
-	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
-	device_if.h bus_if.h
+SRCS=	linux${SFX}_dummy_machdep.c \
+	linux_event.c \
+	linux_file.c \
+	linux_fork.c \
+	linux_futex.c \
+	linux_getcwd.c \
+	linux_ioctl.c \
+	linux_ipc.c \
+	linux${SFX}_machdep.c \
+	linux_misc.c \
+	linux_rseq.c \
+	linux_signal.c \
+	linux_socket.c \
+	linux_stats.c \
+	linux_sysctl.c \
+	linux${SFX}_sysent.c \
+	linux${SFX}_sysvec.c \
+	linux_time.c \
+	linux_timer.c \
+	linux_uid16.c \
+	linux_vdso.c \
+	opt_compat.h \
+	opt_inet6.h \
+	opt_posix.h \
+	opt_usb.h \
+	bus_if.h \
+	device_if.h \
+	vnode_if.h
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
 VDSODEPS=linux_vdso_gettc_x86.inc
@@ -34,15 +54,23 @@ DPSRCS=	assym.inc linux${SFX}_genassym.c
 # XXX: for assym.inc
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	opt_apic.h
+SRCS+=	opt_apic.h opt_cpu.h
 .endif
 
 OBJS=	linux${SFX}_vdso.so
 
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	linux_ptrace_machdep.c imgact_linux.c linux_util.c linux_mib.c \
-	linux_mmap.c linux_dummy.c linux_emul.c linux_errno.c opt_cpu.h linux.c \
-	linux_x86.c linux_vdso_selector_x86.c
+SRCS+=	imgact_linux.c \
+	linux.c \
+	linux_dummy.c \
+	linux_emul.c \
+	linux_errno.c \
+	linux_mib.c \
+	linux_mmap.c \
+	linux_ptrace_machdep.c \
+	linux_util.c \
+	linux_vdso_selector_x86.c \
+	linux_x86.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
