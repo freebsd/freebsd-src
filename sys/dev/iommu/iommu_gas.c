@@ -274,7 +274,7 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 void
 iommu_gas_fini_domain(struct iommu_domain *domain)
 {
-	struct iommu_map_entry *entry, *entry1;
+	struct iommu_map_entry *entry;
 
 	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 	KASSERT(domain->entries_cnt == 2,
@@ -297,14 +297,6 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 	    ("end entry flags %p", domain));
 	iommu_gas_rb_remove(domain, entry);
 	iommu_gas_free_entry(entry);
-
-	RB_FOREACH_SAFE(entry, iommu_gas_entries_tree, &domain->rb_root,
-	    entry1) {
-		KASSERT((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0,
-		    ("non-RMRR entry left %p", domain));
-		iommu_gas_rb_remove(domain, entry);
-		iommu_gas_free_entry(entry);
-	}
 }
 
 struct iommu_gas_match_args {
@@ -409,9 +401,9 @@ iommu_gas_next(struct iommu_map_entry *curr, iommu_gaddr_t min_free)
 /*
  * Address-ordered first-fit search of 'domain' for free space satisfying the
  * conditions of 'a'.  The space allocated is at least one page big, and is
- * bounded by guard pages to left and right.  The allocated space for 'domain'
- * is described by an rb-tree of map entries at domain->rb_root, and
- * domain->start_gap points a map entry less than or adjacent to the first
+ * bounded by guard pages to the left and right.  The allocated space for
+ * 'domain' is described by an rb-tree of map entries at domain->rb_root, and
+ * domain->start_gap points to a map entry less than or adjacent to the first
  * free-space of size at least 3 pages.
  */
 static int
