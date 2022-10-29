@@ -209,7 +209,18 @@ iommu_gas_check_free(struct iommu_domain *domain)
 static void
 iommu_gas_rb_remove(struct iommu_domain *domain, struct iommu_map_entry *entry)
 {
+	struct iommu_map_entry *nbr;
 
+	/* Removing entry may open a new free gap before domain->start_gap. */
+	if (entry->end <= domain->start_gap->end) {
+		if (RB_RIGHT(entry, rb_entry) != NULL)
+			nbr = iommu_gas_entries_tree_RB_NEXT(entry);
+		else if (RB_LEFT(entry, rb_entry) != NULL)
+			nbr = RB_LEFT(entry, rb_entry);
+		else
+			nbr = RB_PARENT(entry, rb_entry);
+		domain->start_gap = nbr;
+	}
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
 }
 
@@ -253,6 +264,7 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 	begin->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	RB_INSERT_PREV(iommu_gas_entries_tree, &domain->rb_root, end, begin);
 
+	domain->start_gap = end;
 	domain->first_place = begin;
 	domain->last_place = end;
 	domain->flags |= IOMMU_DOMAIN_GAS_INITED;
@@ -296,7 +308,6 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 }
 
 struct iommu_gas_match_args {
-	struct iommu_domain *domain;
 	iommu_gaddr_t size;
 	int offset;
 	const struct bus_dma_tag_common *common;
@@ -395,16 +406,44 @@ iommu_gas_next(struct iommu_map_entry *curr, iommu_gaddr_t min_free)
 	return (curr);
 }
 
+/*
+ * Address-ordered first-fit search of 'domain' for free space satisfying the
+ * conditions of 'a'.  The space allocated is at least one page big, and is
+ * bounded by guard pages to left and right.  The allocated space for 'domain'
+ * is described by an rb-tree of map entries at domain->rb_root, and
+ * domain->start_gap points a map entry less than or adjacent to the first
+ * free-space of size at least 3 pages.
+ */
 static int
-iommu_gas_find_space(struct iommu_gas_match_args *a)
+iommu_gas_find_space(struct iommu_domain *domain,
+    struct iommu_gas_match_args *a)
 {
-	struct iommu_domain *domain;
 	struct iommu_map_entry *curr, *first;
 	iommu_gaddr_t addr, min_free;
 
-	IOMMU_DOMAIN_ASSERT_LOCKED(a->domain);
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 	KASSERT(a->entry->flags == 0,
-	    ("dirty entry %p %p", a->domain, a->entry));
+	    ("dirty entry %p %p", domain, a->entry));
+
+	/*
+	 * start_gap may point to an entry adjacent to gaps too small for any
+	 * new allocation.  In that case, advance start_gap to the first free
+	 * space big enough for a minimum allocation plus two guard pages.
+	 */
+	min_free = 3 * IOMMU_PAGE_SIZE;
+	first = domain->start_gap;
+	while (first != NULL && first->free_down < min_free)
+		first = RB_PARENT(first, rb_entry);
+	for (curr = first; curr != NULL;
+	    curr = iommu_gas_next(curr, min_free)) {
+		if ((first = RB_LEFT(curr, rb_entry)) != NULL &&
+		    first->last + min_free <= curr->start)
+			break;
+		if ((first = RB_RIGHT(curr, rb_entry)) != NULL &&
+		    curr->end + min_free <= first->first)
+			break;
+	}
+	domain->start_gap = curr;
 
 	/*
 	 * If the subtree doesn't have free space for the requested allocation
@@ -413,20 +452,13 @@ iommu_gas_find_space(struct iommu_gas_match_args *a)
 	min_free = 2 * IOMMU_PAGE_SIZE +
 	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE);
 
-	/*
-	 * Find the first entry in the lower region that could abut a big-enough
-	 * range.
-	 */
-	domain = a->domain;
-	curr = RB_ROOT(&domain->rb_root);
-	first = NULL;
-	while (curr != NULL && curr->free_down >= min_free) {
-		first = curr;
-		curr = RB_LEFT(curr, rb_entry);
-	}
+	/* Climb to find a node in the subtree of big-enough ranges. */
+	first = curr;
+	while (first != NULL && first->free_down < min_free)
+		first = RB_PARENT(first, rb_entry);
 
 	/*
-	 * Walk the big-enough ranges until one satisfies alignment
+	 * Walk the big-enough ranges tree until one satisfies alignment
 	 * requirements, or violates lowaddr address requirement.
 	 */
 	addr = a->common->lowaddr + 1;
@@ -746,7 +778,6 @@ iommu_gas_map(struct iommu_domain *domain,
 	KASSERT((flags & ~(IOMMU_MF_CANWAIT | IOMMU_MF_CANSPLIT)) == 0,
 	    ("invalid flags 0x%x", flags));
 
-	a.domain = domain;
 	a.size = size;
 	a.offset = offset;
 	a.common = common;
@@ -757,7 +788,7 @@ iommu_gas_map(struct iommu_domain *domain,
 		return (ENOMEM);
 	a.entry = entry;
 	IOMMU_DOMAIN_LOCK(domain);
-	error = iommu_gas_find_space(&a);
+	error = iommu_gas_find_space(domain, &a);
 	if (error == ENOMEM) {
 		IOMMU_DOMAIN_UNLOCK(domain);
 		iommu_gas_free_entry(entry);
