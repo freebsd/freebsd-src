@@ -520,6 +520,9 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 		return (atomic_testandset_##name(ptr, val)); 		\
 	}
 
+_CSAN_ATOMIC_FUNC_LOAD(bool, bool)
+_CSAN_ATOMIC_FUNC_STORE(bool, bool)
+
 CSAN_ATOMIC_FUNC_ADD(8, uint8_t)
 CSAN_ATOMIC_FUNC_CLEAR(8, uint8_t)
 CSAN_ATOMIC_FUNC_CMPSET(8, uint8_t)
