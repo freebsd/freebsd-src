@@ -848,8 +848,6 @@ _nvram=		opal_nvram
 _nvram+=	powermac_nvram
 .endif
 
-.endif
-
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=  bcm283x_pwm
@@ -866,6 +864,8 @@ SUBDIR+=${MODULES_EXTRA}
 .for reject in ${WITHOUT_MODULES}
 SUBDIR:= ${SUBDIR:N${reject}}
 .endfor
+
+.endif # MODULES_OVERRIDE -- Keep last
 
 # Calling kldxref(8) for each module is expensive.
 .if !defined(NO_XREF)
