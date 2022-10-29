@@ -210,7 +210,8 @@ LDLIBS=
 #  -DHAVE_DECL_ENVIRON if <unistd.h> declares 'environ'
 #  -DHAVE_DIRECT_H if mkdir needs <direct.h> (MS-Windows)
 #  -DHAVE_GENERIC=0 if _Generic does not work
-#  -DHAVE_GETTEXT if 'gettext' works (e.g., GNU/Linux, FreeBSD, Solaris)
+#  -DHAVE_GETRANDOM if getgrandom works (e.g., GNU/Linux)*
+#  -DHAVE_GETTEXT if 'gettext' works (e.g., GNU/Linux, FreeBSD, Solaris)*
 #  -DHAVE_INCOMPATIBLE_CTIME_R if your system's time.h declares
 #	ctime_r and asctime_r incompatibly with the POSIX standard
 #	(Solaris when _POSIX_PTHREAD_SEMANTICS is not defined).
@@ -222,16 +223,17 @@ LDLIBS=
 #  -DHAVE_MALLOC_ERRNO=0 if malloc etc. do not set errno on failure.
 #  -DHAVE_POSIX_DECLS=0 if your system's include files do not declare
 #	functions like 'link' or variables like 'tzname' required by POSIX
+#  -DHAVE_SETENV=0 if your system lacks the setenv function
 #  -DHAVE_SNPRINTF=0 if your system lacks the snprintf function
-#  -DHAVE_STDBOOL_H if you have a non-C99 compiler with <stdbool.h>
-#  -DHAVE_STDINT_H if you have a non-C99 compiler with <stdint.h>
+#  -DHAVE_STDINT_H if you have a non-C99 compiler with <stdint.h>*
 #  -DHAVE_STRFTIME_L if <time.h> declares locale_t and strftime_l
 #  -DHAVE_STRDUP=0 if your system lacks the strdup function
 #  -DHAVE_STRTOLL=0 if your system lacks the strtoll function
 #  -DHAVE_SYMLINK=0 if your system lacks the symlink function
-#  -DHAVE_SYS_STAT_H=0 if your compiler lacks a <sys/stat.h>
+#  -DHAVE_SYS_STAT_H=0 if your compiler lacks a <sys/stat.h>*
 #  -DHAVE_TZSET=0 if your system lacks a tzset function
-#  -DHAVE_UNISTD_H=0 if your compiler lacks a <unistd.h>
+#  -DHAVE_UNISTD_H=0 if your compiler lacks a <unistd.h>*
+#  -DHAVE_UTMPX_H=0 if your compiler lacks a <utmpx.h>*
 #  -Dlocale_t=XXX if your system uses XXX instead of locale_t
 #  -DRESERVE_STD_EXT_IDS if your platform reserves standard identifiers
 #	with external linkage, e.g., applications cannot define 'localtime'.
@@ -254,14 +256,17 @@ LDLIBS=
 #	Also set TZDOBJS=zdump.o and CHECK_TIME_T_ALTERNATIVES= below.
 #  -DZIC_BLOAT_DEFAULT=\"fat\" to default zic's -b option to "fat", and
 #	similarly for "slim".  Fat TZif files work around incompatibilities
-#	and bugs in some TZif readers, notably readers that mishandle 64-bit
-#	data in TZif files.  Slim TZif files are more efficient and do not
-#	work around these incompatibilities and bugs.  If not given, the
-#	default is "slim".
+#	and bugs in some TZif readers, notably older ones that
+#	ignore or otherwise mishandle 64-bit data in TZif files;
+#	however, fat TZif files may trigger bugs in newer TZif readers.
+#	Slim TZif files are more efficient, and are the default.
 #  -DZIC_MAX_ABBR_LEN_WO_WARN=3
 #	(or some other number) to set the maximum time zone abbreviation length
 #	that zic will accept without a warning (the default is 6)
 #  $(GCC_DEBUG_FLAGS) if you are using recent GCC and want lots of checking
+#
+# * Options marked "*" can be omitted if your compiler is C23 compatible.
+#
 # Select instrumentation via "make GCC_INSTRUMENT='whatever'".
 GCC_INSTRUMENT = \
   -fsanitize=undefined -fsanitize-address-use-after-scope \
@@ -397,8 +402,9 @@ ZIC=		$(zic) $(ZFLAGS)
 
 # To shrink the size of installed TZif files,
 # append "-r @N" to omit data before N-seconds-after-the-Epoch.
-# To grow the files and work around older application bugs, append "-b fat";
-# see ZIC_BLOAT_DEFAULT above.
+# To grow the files and work around bugs in older applications,
+# possibly at the expense of introducing bugs in newer ones,
+# append "-b fat"; see ZIC_BLOAT_DEFAULT above.
 # See the zic man page for more about -b and -r.
 ZFLAGS=
 
@@ -818,13 +824,19 @@ check_slashed_abbrs: $(TDATA_TO_CHECK)
 CHECK_CC_LIST = { n = split($$1,a,/,/); for (i=2; i<=n; i++) print a[1], a[i]; }
 
 check_sorted: backward backzone iso3166.tab zone.tab zone1970.tab
-		$(AWK) '/^Link/ {print $$3}' backward | LC_ALL=C sort -cu
+		$(AWK) '/^Link/ {printf "%.5d %s\n", g, $$3} /^$$/ {g++}' \
+		  backward | LC_ALL=C sort -cu
 		$(AWK) '/^Zone/ {print $$2}' backzone | LC_ALL=C sort -cu
 		touch $@
 
 check_links:	checklinks.awk $(TDATA_TO_CHECK) tzdata.zi
-		$(AWK) -f checklinks.awk $(TDATA_TO_CHECK)
-		$(AWK) -f checklinks.awk tzdata.zi
+		$(AWK) \
+		  -v DATAFORM=$(DATAFORM) \
+		  -v backcheck=backward \
+		  -f checklinks.awk $(TDATA_TO_CHECK)
+		$(AWK) \
+		  -v DATAFORM=$(DATAFORM) \
+		  -f checklinks.awk tzdata.zi
 		touch $@
 
 check_tables:	checktab.awk $(YDATA) backward $(ZONETABLES)

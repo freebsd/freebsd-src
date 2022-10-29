@@ -739,6 +739,17 @@ Zone	America/Nassau	-5:09:30 -	LMT	1912 Mar 2
 			-5:00	Bahamas	E%sT	1976
 			-5:00	US	E%sT
 
+# Canada
+# From Chris Walton (2022-10-15):
+# I would also like to see America/Nipigon and America/Rainy_River converted
+# into link entries because I have zero faith in the current Shanks based data.
+# From Paul Eggert (2022-10-15):
+# These are now links in the primary data.  Also see America/Thunder_Bay.
+Zone America/Nipigon	-5:53:04 -	LMT	1895
+			-5:00	Canada	E%sT	1940 Sep 29
+			-5:00	1:00	EDT	1942 Feb  9  2:00s
+			-5:00	Canada	E%sT
+
 # United States
 #
 # From Paul Eggert (2018-03-18):
@@ -768,6 +779,17 @@ Zone America/Port_of_Spain -4:06:04 -	LMT	1912 Mar 2
 			-4:00	-	AST
 Link America/Port_of_Spain America/Marigot
 Link America/Port_of_Spain America/St_Barthelemy
+
+# Canada
+# From Chris Walton (2022-10-15):
+# I would also like to see America/Nipigon and America/Rainy_River converted
+# into link entries because I have zero faith in the current Shanks based data.
+# From Paul Eggert (2022-10-15):
+# These are now links in the primary data.  Also see America/Thunder_Bay.
+Zone America/Rainy_River -6:18:16 -	LMT	1895
+			-6:00	Canada	C%sT	1940 Sep 29
+			-6:00	1:00	CDT	1942 Feb  9  2:00s
+			-6:00	Canada	C%sT
 
 # Argentina
 # This entry was intended for the following areas, but has been superseded by
@@ -801,6 +823,53 @@ Link America/St_Thomas America/Virgin
 Zone America/St_Vincent	-4:04:56 -	LMT	1890 # Kingstown
 			-4:04:56 -	KMT	1912 # Kingstown Mean Time
 			-4:00	-	AST
+
+# Canada
+#
+# From Paul Eggert (2003-07-27):
+# Willett (1914-03) writes (p. 17) "In the Cities of Fort William, and
+# Port Arthur, Ontario, the principle of the Bill has been in
+# operation for the past three years, and in the City of Moose Jaw,
+# Saskatchewan, for one year."
+#
+# From David Bryan via Tory Tronrud, Director/Curator,
+# Thunder Bay Museum (2003-11-12):
+# There is some suggestion, however, that, by-law or not, daylight
+# savings time was being practiced in Fort William and Port Arthur
+# before 1909.... [I]n 1910, the line between the Eastern and Central
+# Time Zones was permanently moved about two hundred miles west to
+# include the Thunder Bay area....  When Canada adopted daylight
+# savings time in 1916, Fort William and Port Arthur, having done so
+# already, did not change their clocks....  During the Second World
+# War,... [t]he cities agreed to implement DST during the summer
+# months for the remainder of the war years.
+#
+# From Jeffery Nichols (2020-02-06):
+# According to the [Shanks] atlas, those western Ontario zones are huge,
+# covering most of Ontario northwest of Sault Ste Marie and Timmins.
+# The zones seem to include towns bigger than the ones they're named after,
+# like Dryden in America/Rainy_River and Wawa (and maybe Attawapiskat) in
+# America/Nipigon.  I assume it's too much trouble to change the name of the
+# zone (like when you found out that America/Glace_Bay includes Sydney, Nova
+# Scotia)....
+#
+# From Chris Walton (2022-10-15):
+# The TZ database currently shows that Thunder Bay has observed daylight
+# saving every year from 1970 onwards with the exception of 1973.
+# Back in July I raised some doubts on this mailing list about the 1973 data.
+# I now have more proof that it is wrong.
+# [attached Chronicle-Journal front pages, 1973-04-28 and 1973-10-27]
+#
+# From Paul Eggert (2022-10-15):
+# This is now a link in the primary data.  The following entry is
+# from Shanks & Pottenger, with corrections as noted above.
+#
+Zone America/Thunder_Bay -5:57:00 -	LMT	1895
+			-6:00	-	CST	1910
+			-5:00	-	EST	1942
+			-5:00	Canada	E%sT	1970
+			-5:00	Toronto	E%sT	1974
+			-5:00	Canada	E%sT
 
 # British Virgin Is
 Zone America/Tortola	-4:18:28 -	LMT	1911 Jul # Road Town
