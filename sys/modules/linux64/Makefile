@@ -30,6 +30,7 @@ SRCS=	linux_dummy_machdep.c \
 	linux_vdso.c \
 	linux_timer.c \
 	opt_compat.h \
+	opt_ktrace.h \
 	opt_inet6.h \
 	opt_posix.h \
 	opt_usb.h \
