@@ -22,6 +22,7 @@ SRCS=	linux_dummy_machdep.c \
 	linux_signal.c \
 	linux_socket.c \
 	linux_stats.c \
+	linux_syscalls.c \
 	linux_sysctl.c \
 	linux_sysent.c \
 	linux_sysvec.c \

@@ -25,6 +25,7 @@ SRCS=	linux${SFX}_dummy_machdep.c \
 	linux_signal.c \
 	linux_socket.c \
 	linux_stats.c \
+	linux${SFX}_syscalls.c \
 	linux_sysctl.c \
 	linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c \
