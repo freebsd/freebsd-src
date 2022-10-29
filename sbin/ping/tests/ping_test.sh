@@ -153,6 +153,56 @@ ping6_46_body()
 	    ping6 -4 -6 localhost
 }
 
+atf_test_case "inject_opts" "cleanup"
+inject_opts_head()
+{
+	atf_set "descr" "Inject an ECHO REPLY with IP options"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "python3" "scapy"
+}
+inject_opts_body()
+{
+	atf_check -s exit:0 -o match:"wrong total length" -o match:"NOP" python3 $(atf_get_srcdir)/injection.py opts
+}
+inject_opts_cleanup()
+{
+	ifconfig `cat tun.txt` destroy
+}
+
+atf_test_case "inject_pip" "cleanup"
+inject_pip_head()
+{
+	atf_set "descr" "Inject an ICMP error with a quoted packet with IP options"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "python3" "scapy"
+}
+inject_pip_body()
+{
+	atf_check -s exit:2 -o match:"Destination Host Unreachable" -o not-match:"01010101" python3 $(atf_get_srcdir)/injection.py pip
+}
+inject_pip_cleanup()
+{
+	ifconfig `cat tun.txt` destroy
+}
+
+# This is redundant with the ping_ tests, but it serves to ensure that scapy.py
+# is working correctly.
+atf_test_case "inject_reply" "cleanup"
+inject_reply_head()
+{
+	atf_set "descr" "Basic ping test with packet injection"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "python3" "scapy"
+}
+inject_reply_body()
+{
+	atf_check -s exit:0 -o match:"1 packets transmitted, 1 packets received" python3 $(atf_get_srcdir)/injection.py reply
+}
+inject_reply_cleanup()
+{
+	ifconfig `cat tun.txt` destroy
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case ping_c1_s56_t1
@@ -164,6 +214,9 @@ atf_init_test_cases()
 	atf_add_test_case ping6_c1t4
 	atf_add_test_case ping_46
 	atf_add_test_case ping6_46
+	atf_add_test_case inject_opts
+	atf_add_test_case inject_pip
+	atf_add_test_case inject_reply
 }
 
 check_ping_statistics()
