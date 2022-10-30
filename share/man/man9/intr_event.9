@@ -29,13 +29,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 2022
+.Dd October 30, 2022
 .Dt INTR_EVENT 9
 .Os
 .Sh NAME
 .Nm intr_event_add_handler ,
 .Nm intr_event_create ,
 .Nm intr_event_destroy ,
+.Nm intr_event handle ,
 .Nm intr_event_remove_handler ,
 .Nm intr_priority
 .Nd "kernel interrupt handler and thread API"
@@ -69,6 +70,8 @@
 .Fc
 .Ft int
 .Fn intr_event_destroy "struct intr_event *ie"
+.Ft int
+.Fn intr_event_handle "struct intr_event *ie" "struct trapframe *frame"
 .Ft int
 .Fn intr_event_remove_handler "void *cookie"
 .Ft u_char
@@ -242,6 +245,23 @@ then it will be assigned a cookie that can be used later to remove this
 handler.
 .Pp
 The
+.Fn intr_event_handle
+function is the main entry point into the interrupt handling code.
+It must be called from an interrupt context.
+The function will execute all filter handlers associated with the interrupt
+event
+.Fa ie ,
+and schedule the associated interrupt thread to run, if applicable.
+The
+.Fa frame
+argument is used to pass a pointer to the
+.Vt struct trapframe
+containing the machine state at the time of the interrupt.
+The main body of this function runs within a
+.Xr critical 9
+section.
+.Pp
+The
 .Fn intr_event_remove_handler
 function removes an interrupt handler from the interrupt event specified by
 .Fa ie .
@@ -313,6 +333,7 @@ The
 .Fn intr_event_add_handler ,
 .Fn intr_event_create ,
 .Fn intr_event_destroy ,
+.Fn intr_event_handle ,
 and
 .Fn intr_event_remove_handler
 functions return zero on success and non-zero on failure.
@@ -416,6 +437,23 @@ has at least one handler which has not been removed with
 .El
 .Pp
 The
+.Fn intr_event_handle
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa ie
+argument is
+.Dv NULL .
+.It Bq Er EINVAL
+There are no interrupt handlers assigned to
+.Fa ie .
+.It Bq Er EINVAL
+The interrupt was not acknowledged by any filter and has no associated thread
+handler.
+.El
+.Pp
+The
 .Fn intr_event_remove_handler
 function will fail if:
 .Bl -tag -width Er
@@ -426,6 +464,7 @@ argument is
 .Dv NULL .
 .El
 .Sh SEE ALSO
+.Xr critical 9 ,
 .Xr kthread 9 ,
 .Xr locking 9 ,
 .Xr malloc 9 ,
