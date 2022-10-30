@@ -85,7 +85,10 @@ tasklet_handler(void *arg)
 				/* reset executing state */
 				TASKLET_ST_SET(ts, TASKLET_ST_EXEC);
 
-				ts->func(ts->data);
+				if (ts->use_callback)
+					ts->callback(ts);
+				else
+					ts->func(ts->data);
 
 			} while (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC,
 			        TASKLET_ST_IDLE) == 0);
@@ -149,9 +152,24 @@ tasklet_init(struct tasklet_struct *ts,
 	ts->entry.tqe_prev = NULL;
 	ts->entry.tqe_next = NULL;
 	ts->func = func;
+	ts->callback = NULL;
 	ts->data = data;
 	atomic_set_int(&ts->tasklet_state, TASKLET_ST_IDLE);
 	atomic_set(&ts->count, 0);
+	ts->use_callback = false;
+}
+
+void
+tasklet_setup(struct tasklet_struct *ts, tasklet_callback_t *c)
+{
+	ts->entry.tqe_prev = NULL;
+	ts->entry.tqe_next = NULL;
+	ts->func = NULL;
+	ts->callback = c;
+	ts->data = 0;
+	atomic_set_int(&ts->tasklet_state, TASKLET_ST_IDLE);
+	atomic_set(&ts->count, 0);
+	ts->use_callback = true;
 }
 
 void

@@ -134,7 +134,9 @@ irq_set_affinity_hint(int vector, cpumask_t *mask)
 /*
  * LinuxKPI tasklet support
  */
+struct tasklet_struct;
 typedef void tasklet_func_t(unsigned long);
+typedef void tasklet_callback_t(struct tasklet_struct *);
 
 struct tasklet_struct {
 	TAILQ_ENTRY(tasklet_struct) entry;
@@ -143,6 +145,8 @@ struct tasklet_struct {
 	volatile u_int tasklet_state;
 	atomic_t count;
 	unsigned long data;
+	tasklet_callback_t *callback;
+	bool use_callback;
 };
 
 #define	DECLARE_TASKLET(_name, _func, _data)	\
@@ -150,6 +154,11 @@ struct tasklet_struct _name = { .func = (_func), .data = (_data) }
 
 #define	tasklet_hi_schedule(t)	tasklet_schedule(t)
 
+/* Some other compat code in the tree has this defined as well. */
+#define	from_tasklet(_dev, _t, _field)		\
+    container_of(_t, typeof(*(_dev)), _field)
+
+void tasklet_setup(struct tasklet_struct *, tasklet_callback_t *);
 extern void tasklet_schedule(struct tasklet_struct *);
 extern void tasklet_kill(struct tasklet_struct *);
 extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,

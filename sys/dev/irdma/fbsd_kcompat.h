@@ -44,8 +44,10 @@
 	tasklet_init((tasklet), (TASKLET_FUNC_TYPE)(callback),		\
 		      (TASKLET_DATA_TYPE)(tasklet))
 
+#ifndef from_tasklet
 #define from_tasklet(var, callback_tasklet, tasklet_fieldname) \
 	container_of(callback_tasklet, typeof(*var), tasklet_fieldname)
+#endif
 
 #define IRDMA_SET_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)    \
 	(sizeof(struct drv_struct) +                              \
