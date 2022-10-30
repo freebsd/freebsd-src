@@ -1,3 +1,5 @@
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
 .\" Copyright (c) 2020 Gordon Bergling <gbe@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2022
+.Dd October 30, 2022
 .Dt WG 4
 .Os
 .Sh NAME
 .Nm wg
-.Nd "WireGuard - pseudo-device"
+.Nd "WireGuard protocol driver"
 .Sh SYNOPSIS
 To load the driver as a module at boot time, place the following line in
 .Xr loader.conf 5 :
@@ -44,7 +46,7 @@ protocol.
 .Pp
 A
 .Nm
-interface recognises one or more peers, establishes a secure tunnel with
+interface recognizes one or more peers, establishes a secure tunnel with
 each on demand, and tracks each peer's UDP endpoint for exchanging encrypted
 traffic with.
 .Pp
@@ -72,17 +74,17 @@ interface with its own private key and with the public keys of its peers.
 In addition to the public keys, each peer pair may be configured with a
 unique pre-shared symmetric key.
 This is used in their handshake to guard against future compromise of the
-peers' encrypted tunnel if a quantum-computational attack on their
+peers' encrypted tunnel if an attack on their
 Diffie-Hellman exchange becomes feasible.
 It is optional, but recommended.
-.It Allowed IPs
+.It Allowed IP addresses
 A single
 .Nm
 interface may maintain concurrent tunnels connecting diverse networks.
 The interface therefore implements rudimentary routing and reverse-path
 filtering functions for its tunneled traffic.
-These functions reference a set of allowed IP ranges configured against
-each peer.
+These functions reference a set of allowed IP address ranges configured
+against each peer.
 .Pp
 The interface will route outbound tunneled traffic to the peer configured
 with the most specific matching allowed IP address range, or drop it
@@ -95,11 +97,11 @@ That is, tunneled traffic routed to a given peer cannot return through
 another peer of the same
 .Nm
 interface.
-This ensures that peers cannot spoof another's traffic.
+This ensures that peers cannot spoof one another's traffic.
 .It Handshake
 Two peers handshake to mutually authenticate each other and to
 establish a shared series of secret ephemeral encryption keys.
-Any peer may initiate a handshake.
+Either peer may initiate a handshake.
 Handshakes occur only when there is traffic to send, and recur every
 two minutes during transfers.
 .It Connectionless
@@ -181,7 +183,9 @@ is not assigned to the allowed IPs of Peer X.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr ip 4 ,
+.Xr ipsec 4 ,
 .Xr netintro 4 ,
+.Xr ovpn 4 ,
 .Xr ipf 5 ,
 .Xr pf.conf 5 ,
 .Xr ifconfig 8 ,
@@ -197,9 +201,10 @@ The
 device driver first appeared in
 .Fx 14.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
-device driver written by
+device driver was written by
 .An Jason A. Donenfeld Aq Mt Jason@zx2c4.com ,
 .An Matt Dunwoodie Aq Mt ncon@nconroy.net ,
 and
