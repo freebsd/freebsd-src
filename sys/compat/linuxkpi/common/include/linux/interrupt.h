@@ -71,6 +71,14 @@ request_threaded_irq(int irq, irq_handler_t handler,
 }
 
 static inline int
+devm_request_irq(struct device *dev, int irq,
+    irq_handler_t handler, unsigned long flags, const char *name, void *arg)
+{
+
+	return (lkpi_request_irq(dev, irq, handler, NULL, flags, name, arg));
+}
+
+static inline int
 devm_request_threaded_irq(struct device *dev, int irq,
     irq_handler_t handler, irq_handler_t thread_handler,
     unsigned long flags, const char *name, void *arg)
