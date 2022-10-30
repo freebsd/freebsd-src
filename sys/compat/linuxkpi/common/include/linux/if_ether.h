@@ -71,6 +71,4 @@ struct ethhdr {
 	uint16_t	h_proto;
 } __packed;
 
-#define	ETH_GSTRING_LEN	(2 * IF_NAMESIZE)	/* Increase if not large enough */
-
 #endif	/* _LINUXKPI_LINUX_IF_ETHER_H_ */
