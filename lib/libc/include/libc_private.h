@@ -255,6 +255,12 @@ enum {
 int _yp_check(char **);
 #endif
 
+void __libc_start1(int, char *[], char *[],
+    void (*)(void), int (*)(int, char *[], char *[])) __dead2;
+void __libc_start1_gcrt(int, char *[], char *[],
+    void (*)(void), int (*)(int, char *[], char *[]),
+    int *, int *) __dead2;
+
 /*
  * Initialise TLS for static programs
  */

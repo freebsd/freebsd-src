@@ -1,0 +1,4 @@
+#
+
+CFLAGS+=	-DCRT_IRELOC_RELA \
+		-DINIT_IRELOCS=""

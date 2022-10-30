@@ -1,12 +1,8 @@
-/* LINTLIBRARY */
 /*-
- * Copyright 1996-1998 John D. Polstra.
- * Copyright 2014 Andrew Turner.
- * Copyright 2014-2015 The FreeBSD Foundation.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Portions of this software were developed by Andrew Turner
- * under sponsorship from the FreeBSD Foundation.
+ * Copyright 1996-1998 John D. Polstra.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,22 +25,26 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifdef _CSU_COMMON_H_
 
-#include "libc_private.h"
-#include "csu_common.h"
-
-void __start(int, char **, char **, void (*)(void)) __dead2;
-
-/* The entry function. */
-void
-__start(int argc, char *argv[], char *env[], void (*cleanup)(void))
-{
-#ifdef GCRT
-	__libc_start1_gcrt(argc, argv, env, cleanup, main, &eprol, &etext);
-__asm__("eprol:");
+/*
+ * This file includes both definitions and declarations, it can be
+ * included only into one compilation unit for csu objects.  We cannot
+ * practically check this, but at least guard against
+ * double-inclusion.
+ */
+#error "Include this file only once"
 #else
-	__libc_start1(argc, argv, env, cleanup, main);
+#define _CSU_COMMON_H_
+
+char **environ;
+const char *__progname = "";
+
+#ifdef GCRT
+extern int eprol;
+extern int etext;
 #endif
-}
+
+int main(int, char **, char **);
+
+#endif	/* _CSU_COMMON_H_ */
