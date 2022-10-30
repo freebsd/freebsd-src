@@ -23,6 +23,32 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+static uint32_t cpu_features;
+static uint32_t cpu_features2;
+
+static void
+init_cpu_features(char **env)
+{
+	const Elf_Auxinfo *aux;
+
+	/* Find the auxiliary vector on the stack. */
+	while (*env++ != 0)	/* Skip over environment, and NULL terminator */
+		;
+	aux = (const Elf_Auxinfo *)env;
+
+	/* Digest the auxiliary vector. */
+	for (;  aux->a_type != AT_NULL; aux++) {
+		switch (aux->a_type) {
+		case AT_HWCAP:
+			cpu_features = (uint32_t)aux->a_un.a_val;
+			break;
+		case AT_HWCAP2:
+			cpu_features2 = (uint32_t)aux->a_un.a_val;
+			break;
+		}
+	}
+}
+
 static void
 crt1_handle_rela(const Elf_Rela *r)
 {

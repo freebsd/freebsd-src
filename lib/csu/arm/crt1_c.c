@@ -46,50 +46,33 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/elf_common.h>
-#include <stdlib.h>
 
 #include "libc_private.h"
-#include "ignore_init.c"
+#include "csu_common.h"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-extern void _start(int, char **, char **, const struct Struct_Obj_Entry *,
-    void (*)(void), struct ps_strings *);
-
-#ifdef GCRT
-extern void _mcleanup(void);
-extern void monstartup(void *, void *);
-extern int eprol;
-extern int etext;
-#endif
+void _start(int, char **, char **, const struct Struct_Obj_Entry *,
+    void (*)(void), struct ps_strings *) __dead2;
 
 struct ps_strings *__ps_strings;
 
 void __start(int, char **, char **, struct ps_strings *,
-    const struct Struct_Obj_Entry *, void (*)(void));
+    const struct Struct_Obj_Entry *, void (*)(void)) __dead2;
 
-/* ARGSUSED */
 void
 __start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
     const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void))
 {
-
-	handle_argv(argc, argv, env);
-
 	if (ps_strings != (struct ps_strings *)0)
 		__ps_strings = ps_strings;
 
-	if (&_DYNAMIC != NULL)
-		atexit(cleanup);
-	else
-		_init_tls();
 #ifdef GCRT
-	atexit(_mcleanup);
-	monstartup(&eprol, &etext);
+	__libc_start1_gcrt(argc, argv, env, cleanup, main, &eprol, &etext);
+#else
+	__libc_start1(argc, argv, env, cleanup, main);
 #endif
-	handle_static_init(argc, argv, env);
-	exit(main(argc, argv, env));
 }
 
 #ifdef GCRT
