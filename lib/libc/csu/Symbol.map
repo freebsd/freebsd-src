@@ -1,0 +1,4 @@
+FBSD_1.7 {
+	__libc_start1;
+	__libc_start1_gcrt;
+};
