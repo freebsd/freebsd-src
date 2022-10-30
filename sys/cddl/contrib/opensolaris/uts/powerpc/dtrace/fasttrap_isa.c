@@ -486,6 +486,10 @@ fasttrap_pid_probe(struct trapframe *frame)
 			rp->lr = rp->pc + 4;
 		break;
 	case FASTTRAP_T_COMMON:
+		curthread->t_dtrace_pc = pc;
+		curthread->t_dtrace_npc = pc + 4;
+		curthread->t_dtrace_on = 1;
+		new_pc = pc;
 		break;
 	};
 done:
