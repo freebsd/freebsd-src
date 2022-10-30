@@ -1326,6 +1326,7 @@ MLINKS+=insmntque.9 insmntque1.9
 MLINKS+=intr_event.9 intr_event_add_handler.9 \
 	intr_event.9 intr_event_create.9 \
 	intr_event.9 intr_event_destroy.9 \
+	intr_event.9 intr_event_handle.9 \
 	intr_event.9 intr_event_remove_handler.9 \
 	intr_event.9 intr_priority.9
 MLINKS+=kernacc.9 useracc.9
