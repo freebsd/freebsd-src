@@ -375,6 +375,22 @@ pass5(void)
 	if (cursnapshot == 0 &&
 	    memcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal) != 0
 	    && dofix(&idesc[0], "SUMMARY BLK COUNT(S) WRONG IN SUPERBLK")) {
+		if (debug) {
+			printf("cstotal is currently: %jd dirs, %jd blks free, "
+			    "%jd frags free, %jd inos free, %jd clusters\n",
+			    (intmax_t)fs->fs_cstotal.cs_ndir,
+			    (intmax_t)fs->fs_cstotal.cs_nbfree,
+			    (intmax_t)fs->fs_cstotal.cs_nffree,
+			    (intmax_t)fs->fs_cstotal.cs_nifree,
+			    (intmax_t)fs->fs_cstotal.cs_numclusters);
+			printf("cstotal ought to be:  %jd dirs, %jd blks free, "
+			    "%jd frags free, %jd inos free, %jd clusters\n",
+			    (intmax_t)cstotal.cs_ndir,
+			    (intmax_t)cstotal.cs_nbfree,
+			    (intmax_t)cstotal.cs_nffree,
+			    (intmax_t)cstotal.cs_nifree,
+			    (intmax_t)cstotal.cs_numclusters);
+		}
 		memmove(&fs->fs_cstotal, &cstotal, sizeof cstotal);
 		fs->fs_ronly = 0;
 		fs->fs_fmod = 0;
