@@ -161,6 +161,11 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	PCI_EXP_LNKCTL2_ENTER_COMP	0x0010	/* Enter Compliance */
 #define	PCI_EXP_LNKCTL2_TX_MARGIN	0x0380	/* Transmit Margin */
 
+#define	PCI_MSI_ADDRESS_LO	PCIR_MSI_ADDR
+#define	PCI_MSI_ADDRESS_HI	PCIR_MSI_ADDR_HIGH
+#define	PCI_MSI_FLAGS		PCIR_MSI_CTRL
+#define	PCI_MSI_FLAGS_ENABLE	PCIM_MSICTRL_MSI_ENABLE
+
 #define PCI_EXP_LNKCAP_CLKPM	0x00040000
 #define PCI_EXP_DEVSTA_TRPND	0x0020
 
@@ -1606,6 +1611,14 @@ pcie_get_readrq(struct pci_dev *dev)
 		return (-EINVAL);
 
 	return (128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12));
+}
+
+static inline bool
+pci_is_enabled(struct pci_dev *pdev)
+{
+
+	return ((pci_read_config(pdev->dev.bsddev, PCIR_COMMAND, 2) &
+	    PCIM_CMD_BUSMASTEREN) != 0);
 }
 
 #endif	/* _LINUXKPI_LINUX_PCI_H_ */
