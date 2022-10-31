@@ -753,23 +753,6 @@ A value of 2 results in any
 packets to closed ports being logged.
 Any value not listed above disables the logging
 (default is 0, i.e., the logging is disabled).
-.It Va maxtcptw
-When a TCP connection enters the
-.Dv TIME_WAIT
-state, its associated socket structure is freed, since it is of
-negligible size and use, and a new structure is allocated to contain a
-minimal amount of information necessary for sustaining a connection in
-this state, called the compressed TCP
-.Dv TIME_WAIT
-state.
-Since this structure is smaller than a socket structure, it can save
-a significant amount of system memory.
-The
-.Va net.inet.tcp.maxtcptw
-MIB variable controls the maximum number of these structures allocated.
-By default, it is initialized to
-.Va kern.ipc.maxsockets
-/ 5.
 .It Va minmss
 Minimum TCP Maximum Segment Size; used to prevent a denial of service attack
 from an unreasonably low MSS.
@@ -786,7 +769,7 @@ application limited and the network bandwidth is not utilized completely.
 That prevents self-inflicted packet losses once the application starts to
 transmit data at a higher speed.
 .It Va nolocaltimewait
-Suppress creation of compressed TCP
+Suppress creation of TCP
 .Dv TIME_WAIT
 states for connections in
 which both endpoints are local.
