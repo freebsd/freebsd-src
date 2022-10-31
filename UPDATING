@@ -12,6 +12,29 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20221101:
+	13.1-RELEASE-p3	FreeBSD-EN-22:21.zfs
+			FreeBSD-EN-22:22.tzdata
+			FreeBSD-EN-22:23.vm
+			FreeBSD-EN-22:24.zfs
+			FreeBSD-EN-22:25.tcp
+			FreeBSD-EN-22:26.cam
+			FreeBSD-EN-22:27.loader
+
+	ZFS B-Tree use-after-free [EN-22:21.zfs]
+
+	Timezone database information update [EN-22:22.tzdata]
+
+	Memory pages become unreclaimable [EN-22:23.vm]
+
+	ZFS snapshot directories not accessible over NFS [EN-22:24.zfs]
+
+	Possible data corruption with TCP SACK retransmissions [EN-22:25.tcp]
+
+	CAM ioctl(2) compatibility breakage [EN-22:26.cam]
+
+	UEFI loader failing to boot older amd64 kernels [EN-22:27.loader]
+
 20220830:
 	13.1-RELEASE-p2	FreeBSD-SA-22:13.zlib
 			FreeBSD-EN-22:20.tzdata
