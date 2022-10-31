@@ -5253,10 +5253,6 @@ OLD_FILES+=usr/include/crypto/xform_auth.h
 OLD_FILES+=usr/include/crypto/xform_comp.h
 OLD_FILES+=usr/include/crypto/xform_enc.h
 
-# 20210315: if_wg(4) removed
-OLD_FILES+=usr/share/man/man4/if_wg.4.gz
-OLD_FILES+=usr/share/man/man4/wg.4.gz
-
 # 20210305: removed Poly1305_* symbols
 OLD_FILES+=usr/include/crypto/xform_poly1305.h
 
