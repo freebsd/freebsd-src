@@ -435,7 +435,7 @@ static const struct genl_cmd nlctrl_cmds[] = {
 		.cmd_num = CTRL_CMD_GETFAMILY,
 		.cmd_name = "GETFAMILY",
 		.cmd_cb = nlctrl_handle_getfamily,
-		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP, GENL_CMD_CAP_HASPOL,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 	},
 };
 
