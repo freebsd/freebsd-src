@@ -1099,7 +1099,6 @@ int	 tcp_input(struct mbuf **, int *, int);
 int	 tcp_autorcvbuf(struct mbuf *, struct tcphdr *, struct socket *,
 	    struct tcpcb *, int);
 int	 tcp_input_with_port(struct mbuf **, int *, int, uint16_t);
-void	 tcp_handle_wakeup(struct tcpcb *, struct socket *);
 void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
 			struct socket *, struct tcpcb *, int, int, uint8_t);
 

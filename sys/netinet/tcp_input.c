@@ -1520,22 +1520,15 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	return(tcp_input_with_port(mp, offp, proto, 0));
 }
 
-void
-tcp_handle_wakeup(struct tcpcb *tp, struct socket *so)
+static void
+tcp_handle_wakeup(struct tcpcb *tp)
 {
-	/*
-	 * Since tp might be gone if the session entered
-	 * the TIME_WAIT state before coming here, we need
-	 * to check if the socket is still connected.
-	 */
-	if (tp == NULL) {
-		return;
-	}
-	if (so == NULL) {
-		return;
-	}
-	INP_LOCK_ASSERT(tp->t_inpcb);
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
 	if (tp->t_flags & TF_WAKESOR) {
+		struct socket *so = tp->t_inpcb->inp_socket;
+
 		tp->t_flags &= ~TF_WAKESOR;
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		sorwakeup_locked(so);
@@ -2521,7 +2514,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (tlen == 0 && (thflags & TH_FIN) == 0) {
 			(void) tcp_reass(tp, (struct tcphdr *)0, NULL, 0,
 			    (struct mbuf *)0);
-			tcp_handle_wakeup(tp, so);
+			tcp_handle_wakeup(tp);
 		}
 		tp->snd_wl1 = th->th_seq - 1;
 		/* FALLTHROUGH */
@@ -3258,7 +3251,7 @@ dodata:							/* XXX */
 				    save_start + tlen);
 			}
 		}
-		tcp_handle_wakeup(tp, so);
+		tcp_handle_wakeup(tp);
 #if 0
 		/*
 		 * Note the amount of data that peer has sent into
