@@ -28,7 +28,7 @@
 .\" From: $OpenBSD: mktemp.1,v 1.8 1998/03/19 06:13:37 millert Exp $
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2005
+.Dd August 4, 2022
 .Dt MKTEMP 1
 .Os
 .Sh NAME
@@ -132,9 +132,9 @@ be used instead.
 .Sh OPTIONS
 The available options are as follows:
 .Bl -tag -width indent
-.It Fl d
+.It Fl d , Fl -directory
 Make a directory instead of a file.
-.It Fl q
+.It Fl q , Fl -quiet
 Fail silently if an error occurs.
 This is useful if
 a script does not want error output to go to standard error.
@@ -144,7 +144,7 @@ Generate a template (using the supplied
 and
 .Ev TMPDIR
 if set) to create a filename template.
-.It Fl u
+.It Fl u , Fl -dry-run
 Operate in
 .Dq unsafe
 mode.
