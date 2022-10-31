@@ -37,12 +37,14 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl p Ar tmpdir
 .Op Fl q
 .Op Fl t Ar prefix
 .Op Fl u
 .Ar template ...
 .Nm
 .Op Fl d
+.Op Fl p Ar tmpdir
 .Op Fl q
 .Op Fl u
 .Fl t Ar prefix
@@ -91,10 +93,20 @@ will generate a template string based on the
 and the
 .Ev TMPDIR
 environment variable if set.
-The default location if
+If the
+.Fl p
+option is set, then the given
+.Ar tmpdir
+will be used if the
 .Ev TMPDIR
-is not set is
-.Pa /tmp .
+environment variable is not set.
+Finally,
+.Pa /tmp
+will be used if neither
+.Ev TMPDIR
+or
+.Fl p
+are set and used.
 Care should
 be taken to ensure that it is appropriate to use an environment variable
 potentially supplied by the user.
@@ -134,6 +146,23 @@ The available options are as follows:
 .Bl -tag -width indent
 .It Fl d , Fl -directory
 Make a directory instead of a file.
+.It Fl p Ar tmpdir , Fl -tmpdir Ns Oo = Ns Ar tmpdir Oc
+Use
+.Ar tmpdir
+for the
+.Fl t
+flag if the
+.Ev TMPDIR
+environment variable is not set.
+Additionally, any provided
+.Ar template
+arguments will be interpreted relative to the path specified as
+.Ar tmpdir .
+If
+.Ar tmpdir
+is either empty or omitted, then the
+.Ev TMPDIR
+environment variable will be used.
 .It Fl q , Fl -quiet
 Fail silently if an error occurs.
 This is useful if

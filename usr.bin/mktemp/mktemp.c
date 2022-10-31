@@ -39,6 +39,7 @@
 #include <err.h>
 #include <getopt.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,7 @@ static void usage(void);
 
 static const struct option long_opts[] = {
 	{"directory",	no_argument,	NULL,	'd'},
+	{"tmpdir",	optional_argument,	NULL,	'p'},
 	{"quiet",	no_argument,	NULL,	'q'},
 	{"dry-run",	no_argument,	NULL,	'u'},
 	{NULL,		no_argument,	NULL,	0},
@@ -62,19 +64,27 @@ int
 main(int argc, char **argv)
 {
 	int c, fd, ret;
-	char *tmpdir;
-	const char *prefix;
+	const char *prefix, *tmpdir;
 	char *name;
 	int dflag, qflag, tflag, uflag;
+	bool prefer_tmpdir;
 
 	ret = dflag = qflag = tflag = uflag = 0;
+	prefer_tmpdir = true;
 	prefix = "mktemp";
 	name = NULL;
+	tmpdir = NULL;
 
-	while ((c = getopt_long(argc, argv, "dqt:u", long_opts, NULL)) != -1)
+	while ((c = getopt_long(argc, argv, "dp:qt:u", long_opts, NULL)) != -1)
 		switch (c) {
 		case 'd':
 			dflag++;
+			break;
+
+		case 'p':
+			tmpdir = optarg;
+			if (tmpdir == NULL || *tmpdir == '\0')
+				tmpdir = getenv("TMPDIR");
 			break;
 
 		case 'q':
@@ -100,10 +110,26 @@ main(int argc, char **argv)
 	if (!tflag && argc < 1) {
 		tflag = 1;
 		prefix = "tmp";
+
+		/*
+		 * For this implied -t mode, we actually want to swap the usual
+		 * order of precedence: -p, then TMPDIR, then /tmp.
+		 */
+		prefer_tmpdir = false;
 	}
 
 	if (tflag) {
-		tmpdir = getenv("TMPDIR");
+		const char *envtmp;
+
+		envtmp = NULL;
+
+		/*
+		 * $TMPDIR preferred over `-p` if specified, for compatibility.
+		 */
+		if (prefer_tmpdir || tmpdir == NULL)
+			envtmp = getenv("TMPDIR");
+		if (envtmp != NULL)
+			tmpdir = envtmp;
 		if (tmpdir == NULL)
 			asprintf(&name, "%s%s.XXXXXXXXXX", _PATH_TMP, prefix);
 		else
@@ -120,7 +146,12 @@ main(int argc, char **argv)
 	/* generate all requested files */
 	while (name != NULL || argc > 0) {
 		if (name == NULL) {
-			name = strdup(argv[0]);
+			if (!tflag && tmpdir != NULL)
+				asprintf(&name, "%s/%s", tmpdir, argv[0]);
+			else
+				name = strdup(argv[0]);
+			if (name == NULL)
+				err(1, "%s", argv[0]);
 			argv++;
 			argc--;
 		}
@@ -159,8 +190,9 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"usage: mktemp [-d] [-q] [-t prefix] [-u] template ...\n");
+		"usage: mktemp [-d] [-p tmpdir] [-q] [-t prefix] [-u] template "
+		"...\n");
 	fprintf(stderr,
-		"       mktemp [-d] [-q] [-u] -t prefix \n");
+		"       mktemp [-d] [-p tmpdir] [-q] [-u] -t prefix \n");
 	exit (1);
 }
