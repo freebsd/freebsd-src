@@ -623,13 +623,16 @@ struct ieee80211_link_sta {
 #define	IEEE80211_NUM_TIDS			16	/* net80211::WME_NUM_TID */
 struct ieee80211_sta {
 	/* TODO FIXME */
-	int		max_amsdu_len, max_amsdu_subframes, max_rc_amsdu_len, max_sp;
-	int		mfp, smps_mode, tdls, tdls_initiator, uapsd_queues, wme;
+	int		max_amsdu_len, max_amsdu_subframes, max_rc_amsdu_len;
+	int		mfp, smps_mode, tdls, tdls_initiator;
 	struct ieee80211_txq			*txq[IEEE80211_NUM_TIDS + 1];	/* iwlwifi: 8 and adds +1 to tid_data, net80211::IEEE80211_TID_SIZE */
 	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */
 	uint32_t				max_tid_amsdu_len[IEEE80211_NUM_TIDS];
 	uint8_t					addr[ETH_ALEN];
 	uint16_t				aid;
+	bool					wme;
+	uint8_t					max_sp;
+	uint8_t					uapsd_queues;
 
 	struct ieee80211_link_sta		deflink;
 
