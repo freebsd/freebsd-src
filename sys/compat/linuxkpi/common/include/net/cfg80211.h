@@ -173,9 +173,9 @@ struct ieee80211_rate {
 };
 
 struct ieee80211_sta_ht_cap {
-		/* TODO FIXME */
-	int	ampdu_density, ampdu_factor;
 	bool					ht_supported;
+	uint8_t					ampdu_density;
+	uint8_t					ampdu_factor;
 	uint16_t				cap;
 	struct ieee80211_mcs_info		mcs;
 };
