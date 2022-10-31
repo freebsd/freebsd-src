@@ -453,21 +453,6 @@ In scenarios such as benchmarking, this behavior may be undesirable.
 In these cases,
 .Va net.inet.ip.portrange.randomized
 can be used to toggle randomization off.
-If more than
-.Va net.inet.ip.portrange.randomcps
-ports have been allocated in the last second, then return to sequential
-port allocation.
-Return to random allocation only once the current port allocation rate
-drops below
-.Va net.inet.ip.portrange.randomcps
-for at least
-.Va net.inet.ip.portrange.randomtime
-seconds.
-The default values for
-.Va net.inet.ip.portrange.randomcps
-and
-.Va net.inet.ip.portrange.randomtime
-are 10 port allocations per second and 45 seconds correspondingly.
 .Ss "Multicast Options"
 .Tn IP
 multicasting is supported only on
