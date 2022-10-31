@@ -378,12 +378,24 @@ static const struct nlfield_parser nlf_p_generic[] = {
 };
 
 static struct nlattr_parser nla_p_generic[] = {
-	{ .type = CTRL_ATTR_FAMILY_ID , .off = _OUT(family_id), .cb = nlattr_get_uint32 },
-	{ .type = CTRL_ATTR_FAMILY_NAME , .off = _OUT(family_id), .cb = nlattr_get_string },
+	{ .type = CTRL_ATTR_FAMILY_ID , .off = _OUT(family_id), .cb = nlattr_get_uint16 },
+	{ .type = CTRL_ATTR_FAMILY_NAME , .off = _OUT(family_name), .cb = nlattr_get_string },
 };
 #undef _IN
 #undef _OUT
 NL_DECLARE_PARSER(genl_parser, struct genlmsghdr, nlf_p_generic, nla_p_generic);
+
+static bool
+match_family(const struct genl_family *gf, const struct nl_parsed_family *attrs)
+{
+	if (gf->family_name == NULL)
+		return (false);
+	if (attrs->family_id != 0 && attrs->family_id != gf->family_id)
+		return (false);
+	if (attrs->family_name != NULL && strcmp(attrs->family_name, gf->family_name))
+		return (false);
+	return (true);
+}
 
 static int
 nlctrl_handle_getfamily(struct nlmsghdr *hdr, struct nl_pstate *npt)
@@ -399,18 +411,32 @@ nlctrl_handle_getfamily(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		.cmd = CTRL_CMD_NEWFAMILY,
 	};
 
+	if (attrs.family_id != 0 || attrs.family_name != NULL) {
+		/* Resolve request */
+		for (int i = 0; i < MAX_FAMILIES; i++) {
+			struct genl_family *gf = &families[i];
+			if (match_family(gf, &attrs)) {
+				error = dump_family(hdr, &ghdr, gf, npt->nw);
+				return (error);
+			}
+		}
+		return (ENOENT);
+	}
+
+	hdr->nlmsg_flags = hdr->nlmsg_flags | NLM_F_MULTI;
 	for (int i = 0; i < MAX_FAMILIES; i++) {
 		struct genl_family *gf = &families[i];
-		if (gf->family_name == NULL)
-			continue;
-		if (attrs.family_id != 0 && attrs.family_id != gf->family_id)
-			continue;
-		if (attrs.family_name != NULL && strcmp(attrs.family_name, gf->family_name))
-			continue;
-		error = dump_family(hdr, &ghdr, &families[i], npt->nw);
-		if (error != 0)
-			break;
+		if (match_family(gf, &attrs)) {
+			error = dump_family(hdr, &ghdr, gf, npt->nw);
+			if (error != 0)
+				break;
+		}
 	}
+
+	if (!nlmsg_end_dump(npt->nw, error, hdr)) {
+                NL_LOG(LOG_DEBUG, "Unable to finalize the dump");
+                return (ENOMEM);
+        }
 
 	return (error);
 }
