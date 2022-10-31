@@ -139,6 +139,12 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 	if (kp == NULL)
 		return (0);
 
+	/*
+	 * Report the address of the breakpoint for the benefit of consumers
+	 * fetching register values with regs[].
+	 */
+	frame->tf_rip--;
+
 	DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 	cpu->cpu_dtrace_caller = stack[0];
 	DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
@@ -162,7 +168,7 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 
 			if (kpmd->reg1 == -1 && kpmd->reg2 == -1) {
 				/* rip-relative */
-				rval = frame->tf_rip - 1 + kpmd->instlen;
+				rval = frame->tf_rip + kpmd->instlen;
 			} else {
 				/* indirect */
 				rval = kinst_regval(frame, kpmd->reg1) +

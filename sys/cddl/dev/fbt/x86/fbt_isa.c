@@ -84,6 +84,12 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch __unused)
 		if ((uintptr_t)fbt->fbtp_patchpoint != addr)
 			continue;
 		fbtrval = fbt->fbtp_rval;
+
+		/*
+		 * Report the address of the breakpoint for the benefit
+		 * of consumers fetching register values with regs[].
+		 */
+		frame->tf_rip--;
 		for (; fbt != NULL; fbt = fbt->fbtp_tracenext) {
 			ASSERT(fbt->fbtp_rval == fbtrval);
 			if (fbt->fbtp_roffset == 0) {
@@ -143,6 +149,8 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch __unused)
 				cpu->cpu_dtrace_caller = 0;
 			}
 		}
+		/* Advance to the instruction following the breakpoint. */
+		frame->tf_rip++;
 		return (fbtrval);
 	}
 
