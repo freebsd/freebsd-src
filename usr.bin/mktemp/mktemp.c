@@ -37,6 +37,7 @@
  */
 
 #include <err.h>
+#include <getopt.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +50,13 @@ static const char rcsid[] =
 #endif /* not lint */
 
 static void usage(void);
+
+static const struct option long_opts[] = {
+	{"directory",	no_argument,	NULL,	'd'},
+	{"quiet",	no_argument,	NULL,	'q'},
+	{"dry-run",	no_argument,	NULL,	'u'},
+	{NULL,		no_argument,	NULL,	0},
+};
 
 int
 main(int argc, char **argv)
@@ -63,7 +71,7 @@ main(int argc, char **argv)
 	prefix = "mktemp";
 	name = NULL;
 
-	while ((c = getopt(argc, argv, "dqt:u")) != -1)
+	while ((c = getopt_long(argc, argv, "dqt:u", long_opts, NULL)) != -1)
 		switch (c) {
 		case 'd':
 			dflag++;
