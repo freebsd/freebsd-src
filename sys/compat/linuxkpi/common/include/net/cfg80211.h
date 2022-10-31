@@ -531,7 +531,7 @@ struct station_info {
 	int     assoc_req_ies_len, connected_time;
 	int	generation, inactive_time, rx_bytes, rx_dropped_misc, rx_packets, signal, tx_bytes, tx_packets;
 	int     filled, rx_beacon, rx_beacon_signal_avg, signal_avg;
-	int	rx_duration, tx_failed, tx_retries;
+	int	rx_duration, tx_duration, tx_failed, tx_retries;
 
 	int					chains;
 	uint8_t					chain_signal[IEEE80211_MAX_CHAINS];
@@ -652,7 +652,6 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN		0x08
 #define	IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP		0x10
 #define	IEEE80211_HE_6GHZ_CAP_SM_PS			0x20
-#define	IEEE80211_HE_6GHZ_MAX_AMPDU_FACTOR		0x40
 
 #define	IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G		0x1
 #define	IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G	0x2
@@ -756,6 +755,14 @@ struct linuxkpi_ieee80211_regdomain {
 
 #define	IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF		0x1
 
+#define	IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x1
+#define	IEEE80211_HE_OPERATION_BSS_COLOR_OFFSET			0x2
+
+#define	IEEE80211_HE_SPR_HESIGA_SR_VAL15_ALLOWED		0x01
+#define	IEEE80211_HE_SPR_NON_SRG_OBSS_PD_SR_DISALLOWED		0x02
+#define	IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT			0x04
+#define	IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT		0x08
+
 #define	VENDOR_CMD_RAW_DATA	(void *)(uintptr_t)(-ENOENT)
 
 struct ieee80211_he_cap_elem {
@@ -791,9 +798,9 @@ struct ieee80211_he_obss_pd {
 	uint8_t					min_offset;
 	uint8_t					max_offset;
 	uint8_t					non_srg_max_offset;
-	uint8_t					bss_color_bitmap;
-	uint8_t					partial_bssid_bitmap;
 	uint8_t					sr_ctrl;
+	uint8_t					bss_color_bitmap[8];
+	uint8_t					partial_bssid_bitmap[8];
 };
 
 struct ieee80211_sta_he_6ghz_capa {
@@ -931,6 +938,7 @@ struct regulatory_request {
 		/* XXX TODO */
 	uint8_t					alpha2[2];
 	int	initiator, dfs_region;
+	int	user_reg_hint_type;
 };
 
 enum wiphy_vendor_cmd_need_flags {

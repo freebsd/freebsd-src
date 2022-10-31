@@ -334,6 +334,10 @@ enum nl80211_dfs_regions {
 	NL80211_DFS_JP,
 };
 
+enum nl80211_dfs_state {
+	NL80211_DFS_USABLE,
+};
+
 enum nl80211_sar_type {
 	NL80211_SAR_TYPE_POWER,
 };
@@ -371,6 +375,10 @@ enum nl80211_probe_resp_offload_support {
 	NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2,
 	NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS,
 	NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P,
+};
+
+enum nl80211_user_reg_hint_type {
+	NL80211_USER_REG_HINT_USER,
 };
 
 #define	NL80211_KCK_LEN				16
