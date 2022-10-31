@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/callout.h>
 #include <sys/eventhandler.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
@@ -117,8 +116,6 @@ __FBSDID("$FreeBSD$");
 #define	INPCBLBGROUP_SIZMAX	256
 #define	INP_FREED	0x00000200	/* See in_pcb.h. */
 
-static struct callout	ipport_tick_callout;
-
 /*
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
@@ -138,15 +135,8 @@ VNET_DEFINE(int, ipport_hilastauto) = IPPORT_HILASTAUTO;	/* 65535 */
 VNET_DEFINE(int, ipport_reservedhigh) = IPPORT_RESERVED - 1;	/* 1023 */
 VNET_DEFINE(int, ipport_reservedlow);
 
-/* Variables dealing with random ephemeral port allocation. */
-VNET_DEFINE(int, ipport_randomized) = 1;	/* user controlled via sysctl */
-VNET_DEFINE(int, ipport_randomcps) = 10;	/* user controlled via sysctl */
-VNET_DEFINE(int, ipport_randomtime) = 45;	/* user controlled via sysctl */
-VNET_DEFINE(int, ipport_stoprandom);		/* toggled by ipport_tick */
-VNET_DEFINE(int, ipport_tcpallocs);
-VNET_DEFINE_STATIC(int, ipport_tcplastcount);
-
-#define	V_ipport_tcplastcount		VNET(ipport_tcplastcount)
+/* Enable random ephemeral port allocation by default. */
+VNET_DEFINE(int, ipport_randomized) = 1;
 
 #ifdef INET
 static struct inpcb	*in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
@@ -214,15 +204,6 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
 SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized,
 	CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ipport_randomized), 0, "Enable random port allocation");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomcps,
-	CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(ipport_randomcps), 0, "Maximum number of random port "
-	"allocations before switching to a sequential one");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime,
-	CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(ipport_randomtime), 0,
-	"Minimum time to keep sequential port "
-	"allocation before switching to a random one");
 
 #ifdef RATELIMIT
 counter_u64_t rate_limit_new;
@@ -730,7 +711,7 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 	struct inpcbinfo *pcbinfo;
 	struct inpcb *tmpinp;
 	unsigned short *lastport;
-	int count, dorandom, error;
+	int count, error;
 	u_short aux, first, last, lport;
 #ifdef INET
 	struct in_addr laddr, faddr;
@@ -764,27 +745,7 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 		last  = V_ipport_lastauto;
 		lastport = &pcbinfo->ipi_lastport;
 	}
-	/*
-	 * For UDP(-Lite), use random port allocation as long as the user
-	 * allows it.  For TCP (and as of yet unknown) connections,
-	 * use random port allocation only if the user allows it AND
-	 * ipport_tick() allows it.
-	 */
-	if (V_ipport_randomized &&
-		(!V_ipport_stoprandom || pcbinfo == &V_udbinfo ||
-		pcbinfo == &V_ulitecbinfo))
-		dorandom = 1;
-	else
-		dorandom = 0;
-	/*
-	 * It makes no sense to do random port allocation if
-	 * we have the only port available.
-	 */
-	if (first == last)
-		dorandom = 0;
-	/* Make sure to not include UDP(-Lite) packets in the count. */
-	if (pcbinfo != &V_udbinfo && pcbinfo != &V_ulitecbinfo)
-		V_ipport_tcpallocs++;
+
 	/*
 	 * Instead of having two loops further down counting up or down
 	 * make sure that first is always <= last and go with only one
@@ -818,7 +779,7 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 	tmpinp = NULL;
 	lport = *lportp;
 
-	if (dorandom)
+	if (V_ipport_randomized)
 		*lastport = first + (arc4random() % (last - first));
 
 	count = last - first;
@@ -2596,58 +2557,6 @@ in_pcbsosetlabel(struct socket *so)
 	INP_WUNLOCK(inp);
 #endif
 }
-
-/*
- * ipport_tick runs once per second, determining if random port allocation
- * should be continued.  If more than ipport_randomcps ports have been
- * allocated in the last second, then we return to sequential port
- * allocation. We return to random allocation only once we drop below
- * ipport_randomcps for at least ipport_randomtime seconds.
- */
-static void
-ipport_tick(void *xtp)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);	/* XXX appease INVARIANTS here */
-		if (V_ipport_tcpallocs - V_ipport_tcplastcount <=
-		    V_ipport_randomcps) {
-			if (V_ipport_stoprandom > 0)
-				V_ipport_stoprandom--;
-		} else
-			V_ipport_stoprandom = V_ipport_randomtime;
-		V_ipport_tcplastcount = V_ipport_tcpallocs;
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
-	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
-}
-
-static void
-ip_fini(void *xtp)
-{
-
-	callout_stop(&ipport_tick_callout);
-}
-
-/*
- * The ipport_callout should start running at about the time we attach the
- * inet or inet6 domains.
- */
-static void
-ipport_tick_init(const void *unused __unused)
-{
-
-	/* Start ipport_tick. */
-	callout_init(&ipport_tick_callout, 1);
-	callout_reset(&ipport_tick_callout, 1, ipport_tick, NULL);
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, ip_fini, NULL,
-		SHUTDOWN_PRI_DEFAULT);
-}
-SYSINIT(ipport_tick_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    ipport_tick_init, NULL);
 
 void
 inp_wlock(struct inpcb *inp)
