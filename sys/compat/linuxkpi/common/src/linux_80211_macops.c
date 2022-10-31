@@ -377,14 +377,14 @@ out:
 
 int
 lkpi_80211_mo_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    struct ieee80211_sta *sta, enum ieee80211_sta_state nstate)
+    struct lkpi_sta *lsta, enum ieee80211_sta_state nstate)
 {
 	struct lkpi_hw *lhw;
-	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
 	int error;
 
 	lhw = HW_TO_LHW(hw);
-	lsta = STA_TO_LSTA(sta);
+	sta = LSTA_TO_STA(lsta);
 	if (lhw->ops->sta_state != NULL) {
 		LKPI_80211_TRACE_MO("hw %p vif %p sta %p nstate %d", hw, vif, sta, nstate);
 		error = lhw->ops->sta_state(hw, vif, sta, lsta->state, nstate);
