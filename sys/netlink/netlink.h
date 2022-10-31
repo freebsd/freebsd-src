@@ -205,7 +205,7 @@ enum nlmsgerr_attrs {
 #define NLMSG_ALIGN(_len)		NL_ITEM_ALIGN(_len)
 #define NLMSG_HDRLEN			((int)sizeof(struct nlmsghdr))
 #define NLMSG_LENGTH(_len)		((_len) + NLMSG_HDRLEN)
-#define NLMSG_SPACE(len)		NLMSG_ALIGN(NLMSG_LENGTH(_len))
+#define NLMSG_SPACE(_len)		NLMSG_ALIGN(NLMSG_LENGTH(_len))
 #define NLMSG_DATA(_hdr)		NL_ITEM_DATA(_hdr, NLMSG_HDRLEN)
 #define	_NLMSG_LEN(_hdr)		((int)(_hdr)->nlmsg_len)
 #define	_NLMSG_ALIGNED_LEN(_hdr)	NLMSG_ALIGN(_NLMSG_LEN(_hdr))
