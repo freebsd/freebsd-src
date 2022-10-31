@@ -240,6 +240,10 @@ struct ieee80211_bss_conf {
 		uint8_t membership[WLAN_MEMBERSHIP_LEN];
 		uint8_t position[WLAN_USER_POSITION_LEN];
 	}  mu_group;
+	struct {
+		uint32_t			params;
+		/* single field struct? */
+	} he_oper;
 	struct cfg80211_he_bss_color		he_bss_color;
 	struct ieee80211_he_obss_pd		he_obss_pd;
 	size_t					ssid_len;
@@ -276,7 +280,7 @@ struct ieee80211_bss_conf {
 	int		profile_periodicity;
 	int		twt_requester, uora_exists, uora_ocw_range;
 	int		assoc_capability, enable_beacon, hidden_ssid, ibss_joined, twt_protected;
-	int		 he_oper, twt_responder, unsol_bcast_probe_resp_interval;
+	int		twt_responder, unsol_bcast_probe_resp_interval;
 	int		color_change_active;
 };
 
@@ -458,6 +462,7 @@ enum ieee802111_key_flag {
 	IEEE80211_KEY_FLAG_SW_MGMT_TX		= BIT(5),
 	IEEE80211_KEY_FLAG_GENERATE_IV_MGMT	= BIT(6),
 	IEEE80211_KEY_FLAG_GENERATE_MMIE	= BIT(7),
+	IEEE80211_KEY_FLAG_RESERVE_TAILROOM	= BIT(8),
 };
 
 struct ieee80211_key_conf {
@@ -1457,6 +1462,13 @@ ieee80211_rx_ni(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 static __inline void
 ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+
+	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL);
+}
+
+static __inline void
+ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 
 	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL);
