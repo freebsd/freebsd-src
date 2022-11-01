@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_INIT_CRYPTO 3"
-.TH OPENSSL_INIT_CRYPTO 3 "2022-07-05" "1.1.1q" "OpenSSL"
+.TH OPENSSL_INIT_CRYPTO 3 "2022-11-01" "1.1.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -208,7 +208,7 @@ calls to \fBOPENSSL_init_crypto()\fR with the option
 With this option the library will automatically load and make available all
 libcrypto digests. This option is a default option. Once selected subsequent
 calls to \fBOPENSSL_init_crypto()\fR with the option
-\&\fB\s-1OPENSSL_INIT_NO_ADD_ALL_CIPHERS\s0\fR will be ignored.
+\&\fB\s-1OPENSSL_INIT_NO_ADD_ALL_DIGESTS\s0\fR will be ignored.
 .IP "\s-1OPENSSL_INIT_NO_ADD_ALL_CIPHERS\s0" 4
 .IX Item "OPENSSL_INIT_NO_ADD_ALL_CIPHERS"
 With this option the library will suppress automatic loading of libcrypto
@@ -371,7 +371,7 @@ The \fBOPENSSL_init_crypto()\fR, \fBOPENSSL_cleanup()\fR, \fBOPENSSL_atexit()\fR
 and \fBOPENSSL_INIT_free()\fR functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

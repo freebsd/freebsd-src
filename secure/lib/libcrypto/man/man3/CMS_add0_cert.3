@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_ADD0_CERT 3"
-.TH CMS_ADD0_CERT 3 "2022-07-05" "1.1.1q" "OpenSSL"
+.TH CMS_ADD0_CERT 3 "2022-11-01" "1.1.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -155,24 +155,32 @@ CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_ge
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBCMS_add0_cert()\fR and \fBCMS_add1_cert()\fR add certificate \fBcert\fR to \fBcms\fR.
-must be of type signed data or enveloped data.
+\&\fBCMS_add0_cert()\fR and \fBCMS_add1_cert()\fR add certificate \fIcert\fR to \fIcms\fR.
+\&\fIcms\fR must be of type signed data or (authenticated) enveloped data.
+For signed data, such a certificate can be used when signing or verifying
+to fill in the signer certificate or to provide an extra \s-1CA\s0 certificate
+that may be needed for chain building in certificate validation.
 .PP
-\&\fBCMS_get1_certs()\fR returns all certificates in \fBcms\fR.
+\&\fBCMS_get1_certs()\fR returns all certificates in \fIcms\fR.
 .PP
-\&\fBCMS_add0_crl()\fR and \fBCMS_add1_crl()\fR add \s-1CRL\s0 \fBcrl\fR to \fBcms\fR. \fBCMS_get1_crls()\fR
-returns any CRLs in \fBcms\fR.
+\&\fBCMS_add0_crl()\fR and \fBCMS_add1_crl()\fR add \s-1CRL\s0 \fIcrl\fR to \fIcms\fR.
+\&\fIcms\fR must be of type signed data or (authenticated) enveloped data.
+For signed data, such a \s-1CRL\s0 may be used in certificate validation.
+It may be given both for inclusion when signing a \s-1CMS\s0 message
+and when verifying a signed \s-1CMS\s0 message.
+.PP
+\&\fBCMS_get1_crls()\fR returns all CRLs in \fIcms\fR.
 .SH "NOTES"
 .IX Header "NOTES"
-The CMS_ContentInfo structure \fBcms\fR must be of type signed data or enveloped
+The CMS_ContentInfo structure \fIcms\fR must be of type signed data or enveloped
 data or an error will be returned.
 .PP
-For signed data certificates and CRLs are added to the \fBcertificates\fR and
-\&\fBcrls\fR fields of SignedData structure. For enveloped data they are added to
+For signed data certificates and CRLs are added to the \fIcertificates\fR and
+\&\fIcrls\fR fields of SignedData structure. For enveloped data they are added to
 \&\fBOriginatorInfo\fR.
 .PP
-As the \fB0\fR implies \fBCMS_add0_cert()\fR adds \fBcert\fR internally to \fBcms\fR and it
-must not be freed up after the call as opposed to \fBCMS_add1_cert()\fR where \fBcert\fR
+As the \fI0\fR implies \fBCMS_add0_cert()\fR adds \fIcert\fR internally to \fIcms\fR and it
+must not be freed up after the call as opposed to \fBCMS_add1_cert()\fR where \fIcert\fR
 must be freed up.
 .PP
 The same certificate or \s-1CRL\s0 must not be added to the same cms structure more
@@ -184,7 +192,7 @@ than once.
 .PP
 \&\fBCMS_get1_certs()\fR and \fBCMS_get1_crls()\fR return the \s-1STACK\s0 of certificates or CRLs
 or \s-1NULL\s0 if there are none or an error occurs. The only error which will occur
-in practice is if the \fBcms\fR type is invalid.
+in practice is if the \fIcms\fR type is invalid.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3),
@@ -192,7 +200,7 @@ in practice is if the \fBcms\fR type is invalid.
 \&\fBCMS_encrypt\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
