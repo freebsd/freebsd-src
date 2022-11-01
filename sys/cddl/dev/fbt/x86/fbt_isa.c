@@ -89,7 +89,11 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch __unused)
 		 * Report the address of the breakpoint for the benefit
 		 * of consumers fetching register values with regs[].
 		 */
+#ifdef __i386__
+		frame->tf_eip--;
+#else
 		frame->tf_rip--;
+#endif
 		for (; fbt != NULL; fbt = fbt->fbtp_tracenext) {
 			ASSERT(fbt->fbtp_rval == fbtrval);
 			if (fbt->fbtp_roffset == 0) {
@@ -150,7 +154,11 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch __unused)
 			}
 		}
 		/* Advance to the instruction following the breakpoint. */
+#ifdef __i386__
+		frame->tf_eip++;
+#else
 		frame->tf_rip++;
+#endif
 		return (fbtrval);
 	}
 
