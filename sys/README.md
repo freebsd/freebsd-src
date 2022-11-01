@@ -4,6 +4,11 @@ FreeBSD Kernel Source:
 This directory contains the source files and build glue that make up the FreeBSD
 kernel and its modules, including both original and contributed software.
 
+Kernel configuration files are located in the `conf/` subdirectory of each
+architecture. `GENERIC` is the configuration used in release builds. `NOTES`
+contains documentation of all possible entries. `LINT` is a compile-only
+configuration used to maximize build coverage and detect regressions.
+
 Source Roadmap:
 ---------------
 | Directory | Description |
