@@ -50,11 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/vmbus/aarch64/hyperv_reg.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/hyperv_common_reg.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 void hyperv_init_tc(void);
 int hypercall_page_setup(vm_paddr_t);
 void hypercall_disable(void);
 bool hyperv_identify_features(void);
+
+static bool is_hyperv(void);
 
 u_int hyperv_ver_major;
 u_int hyperv_features;
@@ -80,12 +83,49 @@ hypercall_disable(void)
 	return;
 }
 
+/*
+ * This function verifies if the platform is Hyper-V or not.
+ * To do that we are using ACPI FADT and for that, acpi
+ * fadt is mapped first.
+ */
+static bool
+is_hyperv(void)
+{
+	ACPI_TABLE_FADT *fadt;
+	vm_paddr_t physaddr;
+	uint64_t hypervid;
+	bool ret;
+
+	physaddr = acpi_find_table(ACPI_SIG_FADT);
+	if (physaddr == 0)
+		return (false);
+
+	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
+	if (fadt == NULL) {
+		printf("hyperv: Unable to map the FADT\n");
+		return (false);
+	}
+
+	hypervid = fadt->HypervisorId;
+	acpi_unmap_table(fadt);
+	ret = strncmp((char *)&hypervid, "MsHyperV", 8) == 0 ? true : false;
+	return (ret);
+}
+
 bool
 hyperv_identify_features(void)
 {
 	struct hv_get_vp_registers_output result;
-	vm_guest = VM_GUEST_HV;
 
+	if (resource_disabled("acpi", 0))
+		return (false);
+	if (!is_hyperv())
+		return (false);
+
+	vm_guest = VM_GUEST_HV;
+	/* use MSRs to get the hyperv specific
+	 * attributes.
+	 */
 	hv_get_vpreg_128(CPUID_LEAF_HV_FEATURES, &result);
 	hyperv_features = result.as32.a;
 	hv_get_vpreg_128(CPUID_LEAF_HV_IDENTITY, &result);
