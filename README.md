@@ -32,7 +32,7 @@ Source Roadmap:
 | secure | Cryptographic libraries and commands. |
 | share | Shared resources. |
 | stand | Boot loader sources. |
-| sys | Kernel sources. |
+| sys | Kernel sources (see [sys/README.md](sys/README.md)). |
 | sys/`arch`/conf | Kernel configuration files. GENERIC is the configuration used in release builds. NOTES contains documentation of all possible entries. |
 | tests | Regression tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
 | tools | Utilities for regression testing and miscellaneous tasks. |
