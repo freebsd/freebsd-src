@@ -12,6 +12,9 @@ Additional copyright information also exists for some sources in this tree - ple
 The Makefile in this directory supports a number of targets for building components (or all) of the FreeBSD source tree.
 See build(7), config(8), [FreeBSD handbook on building userland](https://docs.freebsd.org/en/books/handbook/cutting-edge/#makeworld), and [Handbook for kernels](https://docs.freebsd.org/en/books/handbook/kernelconfig/) for more information, including setting make(1) variables.
 
+For information on the CPU architectures and platforms supported by FreeBSD, see the [FreeBSD
+website's Platforms page](https://www.freebsd.org/platforms/).
+
 Source Roadmap:
 ---------------
 | Directory | Description |
