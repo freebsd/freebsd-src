@@ -29,13 +29,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/cpufunc.h>
 
+static uint32_t cpu_feature, cpu_feature2;
+static uint32_t cpu_stdext_feature, cpu_stdext_feature2;
+
 static void
-crt1_handle_rela(const Elf_Rela *r)
+init_cpu_features(void)
 {
-	Elf_Addr *ptr, *where, target;
 	u_int p[4];
-	uint32_t cpu_feature, cpu_feature2;
-	uint32_t cpu_stdext_feature, cpu_stdext_feature2;
 
 	do_cpuid(1, p);
 	cpu_feature = p[3];
@@ -49,6 +49,12 @@ crt1_handle_rela(const Elf_Rela *r)
 		cpu_stdext_feature = 0;
 		cpu_stdext_feature2 = 0;
 	}
+}
+
+static void
+crt1_handle_rela(const Elf_Rela *r)
+{
+	Elf_Addr *ptr, *where, target;
 
 	switch (ELF_R_TYPE(r->r_info)) {
 	case R_X86_64_IRELATIVE:
