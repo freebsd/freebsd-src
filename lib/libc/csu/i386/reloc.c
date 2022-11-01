@@ -29,13 +29,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/cpufunc.h>
 
+static uint32_t cpu_feature, cpu_feature2;
+static uint32_t cpu_stdext_feature, cpu_stdext_feature2;
+
 static void
-crt1_handle_rel(const Elf_Rel *r)
+init_cpu_features(void)
 {
-	Elf_Addr *where, target;
 	u_int cpuid_supported, p[4];
-	uint32_t cpu_feature, cpu_feature2;
-	uint32_t cpu_stdext_feature, cpu_stdext_feature2;
 
 	__asm __volatile(
 	    "	pushfl\n"
@@ -72,6 +72,12 @@ crt1_handle_rel(const Elf_Rel *r)
 		cpu_stdext_feature = 0;
 		cpu_stdext_feature2 = 0;
 	}
+}
+
+static void
+crt1_handle_rel(const Elf_Rel *r)
+{
+	Elf_Addr *where, target;
 
 	switch (ELF_R_TYPE(r->r_info)) {
 	case R_386_IRELATIVE:
