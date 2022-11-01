@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7_SIGN 3"
-.TH PKCS7_SIGN 3 "2022-07-05" "1.1.1q" "OpenSSL"
+.TH PKCS7_SIGN 3 "2022-11-01" "1.1.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,28 +150,26 @@ PKCS7_sign \- create a PKCS#7 signedData structure
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBPKCS7_sign()\fR creates and returns a PKCS#7 signedData structure. \fBsigncert\fR is
-the certificate to sign with, \fBpkey\fR is the corresponding private key.
-\&\fBcerts\fR is an optional additional set of certificates to include in the PKCS#7
-structure (for example any intermediate CAs in the chain).
+\&\fBPKCS7_sign()\fR creates and returns a PKCS#7 signedData structure.
+\&\fIsigncert\fR is the certificate to sign with, \fIpkey\fR is the corresponding
+private key. \fIcerts\fR is an optional set of extra certificates to include
+in the PKCS#7 structure (for example any intermediate CAs in the chain).
 .PP
-The data to be signed is read from \s-1BIO\s0 \fBdata\fR.
+The data to be signed is read from \s-1BIO\s0 \fIdata\fR.
 .PP
-\&\fBflags\fR is an optional set of flags.
-.SH "NOTES"
-.IX Header "NOTES"
-Any of the following flags (ored together) can be passed in the \fBflags\fR
-parameter.
+\&\fIflags\fR is an optional set of flags.
+.PP
+Any of the following flags (ored together) can be passed in the \fIflags\fR
 .PP
 Many S/MIME clients expect the signed content to include valid \s-1MIME\s0 headers. If
-the \fB\s-1PKCS7_TEXT\s0\fR flag is set \s-1MIME\s0 headers for type \fBtext/plain\fR are prepended
+the \fB\s-1PKCS7_TEXT\s0\fR flag is set \s-1MIME\s0 headers for type \f(CW\*(C`text/plain\*(C'\fR are prepended
 to the data.
 .PP
-If \fB\s-1PKCS7_NOCERTS\s0\fR is set the signer's certificate will not be included in the
-\&\s-1PKCS7\s0 structure, the signer's certificate must still be supplied in the
-\&\fBsigncert\fR parameter though. This can reduce the size of the signature if the
-signers certificate can be obtained by other means: for example a previously
-signed message.
+If \fB\s-1PKCS7_NOCERTS\s0\fR is set the signer's certificate and the extra \fIcerts\fR
+will not be included in the \s-1PKCS7\s0 structure.
+The signer's certificate must still be supplied in the \fIsigncert\fR parameter
+though. This can reduce the size of the signatures if the signer's certificates
+can be obtained by other means: for example a previously signed message.
 .PP
 The data being signed is included in the \s-1PKCS7\s0 structure, unless
 \&\fB\s-1PKCS7_DETACHED\s0\fR is set in which case it is omitted. This is used for \s-1PKCS7\s0
@@ -195,7 +193,7 @@ these algorithms is disabled then it will not be included.
 .PP
 If the flags \fB\s-1PKCS7_STREAM\s0\fR is set then the returned \fB\s-1PKCS7\s0\fR structure is
 just initialized ready to perform the signing operation. The signing is however
-\&\fBnot\fR performed and the data to be signed is not read from the \fBdata\fR
+\&\fBnot\fR performed and the data to be signed is not read from the \fIdata\fR
 parameter. Signing is deferred until after the data has been written. In this
 way data can be signed in a single pass.
 .PP
@@ -215,17 +213,17 @@ can be performed by obtaining the streaming \s-1ASN1\s0 \fB\s-1BIO\s0\fR directl
 If a signer is specified it will use the default digest for the signing
 algorithm. This is \fB\s-1SHA1\s0\fR for both \s-1RSA\s0 and \s-1DSA\s0 keys.
 .PP
-The \fBcerts\fR, \fBsigncert\fR and \fBpkey\fR parameters can all be
-\&\fB\s-1NULL\s0\fR if the \fB\s-1PKCS7_PARTIAL\s0\fR flag is set. One or more signers can be added
+The \fIcerts\fR, \fIsigncert\fR and \fIpkey\fR parameters can all be
+\&\s-1NULL\s0 if the \fB\s-1PKCS7_PARTIAL\s0\fR flag is set. One or more signers can be added
 using the function \fBPKCS7_sign_add_signer()\fR. \fBPKCS7_final()\fR must also be
 called to finalize the structure if streaming is not enabled. Alternative
 signing digests can also be specified using this method.
 .PP
-If \fBsigncert\fR and \fBpkey\fR are \s-1NULL\s0 then a certificates only
+If \fIsigncert\fR and \fIpkey\fR are \s-1NULL\s0 then a certificates only
 PKCS#7 structure is output.
 .PP
-In versions of OpenSSL before 1.0.0 the \fBsigncert\fR and \fBpkey\fR parameters must
-\&\fB\s-1NOT\s0\fR be \s-1NULL.\s0
+In versions of OpenSSL before 1.0.0 the \fIsigncert\fR and \fIpkey\fR parameters must
+not be \s-1NULL.\s0
 .SH "BUGS"
 .IX Header "BUGS"
 Some advanced attributes such as counter signatures are not supported.
@@ -238,13 +236,13 @@ occurred.  The error can be obtained from \fBERR_get_error\fR\|(3).
 \&\fBERR_get_error\fR\|(3), \fBPKCS7_verify\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \fB\s-1PKCS7_PARTIAL\s0\fR flag, and the ability for \fBcerts\fR, \fBsigncert\fR,
-and \fBpkey\fR parameters to be \fB\s-1NULL\s0\fR were added in OpenSSL 1.0.0.
+The \fB\s-1PKCS7_PARTIAL\s0\fR flag, and the ability for \fIcerts\fR, \fIsigncert\fR,
+and \fIpkey\fR parameters to be \s-1NULL\s0 were added in OpenSSL 1.0.0.
 .PP
 The \fB\s-1PKCS7_STREAM\s0\fR flag was added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_NEW 3"
-.TH X509_STORE_CTX_NEW 3 "2022-07-05" "1.1.1q" "OpenSSL"
+.TH X509_STORE_CTX_NEW 3 "2022-11-01" "1.1.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -301,14 +301,18 @@ It should not normally be necessary for end user applications to call
 \&\fBX509_STORE_CTX_purpose_inherit()\fR directly. Typically applications should call
 \&\fBX509_STORE_CTX_set_purpose()\fR or \fBX509_STORE_CTX_set_trust()\fR instead. Using this
 function it is possible to set the purpose and trust values for the \fIctx\fR at
-the same time. The \fIdef_purpose\fR and \fIpurpose\fR arguments can have the same
+the same time.
+Both \fIctx\fR and its internal verification parameter pointer must not be \s-1NULL.\s0
+The \fIdef_purpose\fR and \fIpurpose\fR arguments can have the same
 purpose values as described for \fBX509_STORE_CTX_set_purpose()\fR above. The \fItrust\fR
 argument can have the same trust values as described in
 \&\fBX509_STORE_CTX_set_trust()\fR above. Any of the \fIdef_purpose\fR, \fIpurpose\fR or
 \&\fItrust\fR values may also have the value 0 to indicate that the supplied
 parameter should be ignored. After calling this function the purpose to be used
-for verification is set from the \fIpurpose\fR argument, and the trust is set from
-the \fItrust\fR argument. If \fItrust\fR is 0 then the trust value will be set from
+for verification is set from the \fIpurpose\fR argument unless the purpose was
+already set in \fIctx\fR before, and the trust is set from the \fItrust\fR argument
+unless the trust was already set in \fIctx\fR before.
+If \fItrust\fR is 0 then the trust value will be set from
 the default trust value for \fIpurpose\fR. If the default trust value for the
 purpose is \fIX509_TRUST_DEFAULT\fR and \fItrust\fR is 0 then the default trust value
 associated with the \fIdef_purpose\fR value is used for the trust setting instead.
