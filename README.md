@@ -33,6 +33,7 @@ Source Roadmap:
 | share | Shared resources. |
 | stand | Boot loader sources. |
 | sys | Kernel sources (see [sys/README.md](sys/README.md)). |
+| targets | Support for experimental `DIRDEPS_BUILD` |
 | tests | Regression tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
 | tools | Utilities for regression testing and miscellaneous tasks. |
 | usr.bin | User commands. |
