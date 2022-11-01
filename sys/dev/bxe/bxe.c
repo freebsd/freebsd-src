@@ -4157,7 +4157,7 @@ bxe_disable_close_the_gate(struct bxe_softc *sc)
 
 /*
  * Cleans the object that have internal lists without sending
- * ramrods. Should be run when interrutps are disabled.
+ * ramrods. Should be run when interrupts are disabled.
  */
 static void
 bxe_squeeze_objects(struct bxe_softc *sc)
