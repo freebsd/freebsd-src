@@ -5310,7 +5310,7 @@ device_get_path(device_t dev, const char *locator, struct sbuf *sb)
 	device_t parent;
 	int error;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+	KASSERT(sb != NULL, ("sb is NULL"));
 	parent = device_get_parent(dev);
 	if (parent == NULL) {
 		error = sbuf_printf(sb, "/");
@@ -5663,8 +5663,6 @@ dev_wired_cache_fini(device_location_cache_t *dcp)
 	struct device_location_node *dln, *tdln;
 
 	TAILQ_FOREACH_SAFE(dln, &dcp->dlc_list, dln_link, tdln) {
-		/* Note: one allocation for both node and locator, but not path */
-		free(__DECONST(void *, dln->dln_path), M_BUS);
 		free(dln, M_BUS);
 	}
 	free(dcp, M_BUS);
@@ -5687,12 +5685,15 @@ static struct device_location_node *
 dev_wired_cache_add(device_location_cache_t *dcp, const char *locator, const char *path)
 {
 	struct device_location_node *dln;
-	char *l;
+	size_t loclen, pathlen;
 
-	dln = malloc(sizeof(*dln) + strlen(locator) + 1, M_BUS, M_WAITOK | M_ZERO);
-	dln->dln_locator = l = (char *)(dln + 1);
-	memcpy(l, locator, strlen(locator) + 1);
-	dln->dln_path = path;
+	loclen = strlen(locator) + 1;
+	pathlen = strlen(path) + 1;
+	dln = malloc(sizeof(*dln) + loclen + pathlen, M_BUS, M_WAITOK | M_ZERO);
+	dln->dln_locator = (char *)(dln + 1);
+	memcpy(__DECONST(char *, dln->dln_locator), locator, loclen);
+	dln->dln_path = dln->dln_locator + loclen;
+	memcpy(__DECONST(char *, dln->dln_path), path, pathlen);
 	TAILQ_INSERT_HEAD(&dcp->dlc_list, dln, dln_link);
 
 	return (dln);
