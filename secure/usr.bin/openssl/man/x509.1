@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509 1"
-.TH X509 1 "2022-07-05" "1.1.1q" "OpenSSL"
+.TH X509 1 "2022-11-01" "1.1.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -496,21 +496,25 @@ the \s-1CA\s0 certificate file.
 .IX Item "-CAserial filename"
 Sets the \s-1CA\s0 serial number file to use.
 .Sp
-When the \fB\-CA\fR option is used to sign a certificate it uses a serial
-number specified in a file. This file consists of one line containing
-an even number of hex digits with the serial number to use. After each
-use the serial number is incremented and written out to the file again.
+When creating a certificate with this option, and with the \fB\-CA\fR option,
+the certificate serial number is stored in the given file.
+This file consists of one line containing
+an even number of hex digits with the serial number used last time.
+After reading this number, it is incremented and used, and the file is updated.
 .Sp
 The default filename consists of the \s-1CA\s0 certificate file base name with
 \&\*(L".srl\*(R" appended. For example if the \s-1CA\s0 certificate file is called
 \&\*(L"mycacert.pem\*(R" it expects to find a serial number file called \*(L"mycacert.srl\*(R".
+.Sp
+If the \fB\-CA\fR option is specified and neither <\-CAserial> or <\-CAcreateserial>
+is given and the default serial number file does not exist,
+a random number is generated; this is the recommended practice.
 .IP "\fB\-CAcreateserial\fR" 4
 .IX Item "-CAcreateserial"
-With this option the \s-1CA\s0 serial number file is created if it does not exist:
-it will contain the serial number \*(L"02\*(R" and the certificate being signed will
-have the 1 as its serial number. If the \fB\-CA\fR option is specified
-and the serial number file does not exist a random number is generated;
-this is the recommended practice.
+With this option and the \fB\-CA\fR option
+the \s-1CA\s0 serial number file is created if it does not exist.
+A random number is generated, used for the certificate,
+and saved into the serial number file determined as described above.
 .IP "\fB\-extfile filename\fR" 4
 .IX Item "-extfile filename"
 File containing certificate extensions to use. If not specified then
@@ -947,7 +951,7 @@ canonical version of the \s-1DN\s0 using \s-1SHA1.\s0 This means that any direct
 the old form must have their links rebuilt using \fBc_rehash\fR or similar.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
