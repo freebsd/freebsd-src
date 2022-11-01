@@ -314,7 +314,7 @@ SCI_STATUS scic_sds_port_set_phy(
 {
    // Check to see if we can add this phy to a port
    // that means that the phy is not part of a port and that the port does
-   // not already have a phy assinged to the phy index.
+   // not already have a phy assigned to the phy index.
    if (
          (port->phy_table[phy->phy_index] == SCI_INVALID_HANDLE)
       && (scic_sds_phy_get_port(phy) == SCI_INVALID_HANDLE)
@@ -335,7 +335,7 @@ SCI_STATUS scic_sds_port_set_phy(
 
 /**
  * This method will clear the phy assigned to this port.  This method fails
- * if this phy is not currently assinged to this port.
+ * if this phy is not currently assigned to this port.
  *
  * @param[in, out] port The port from which the phy is being cleared.
  * @param[in, out] phy The phy being cleared from the port.
