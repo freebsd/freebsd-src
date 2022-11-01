@@ -29,7 +29,7 @@ _use_sanitizers=	yes
 
 # For libraries we only instrument the shared and PIE libraries by setting
 # SHARED_CFLAGS instead of CFLAGS. We do this since static executables are not
-# compatible with the santizers (interceptors do not work).
+# compatible with the sanitizers (interceptors do not work).
 .if ${_use_sanitizers} != "no"
 .include "../../lib/libclang_rt/compiler-rt-vars.mk"
 .if target(__<bsd.lib.mk>__)
