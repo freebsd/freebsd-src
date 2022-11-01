@@ -10,6 +10,7 @@ NO_PIC=
 # -fpic on some platforms, -fPIC on others.
 CFLAGS+=${PICFLAG} -DPIC -fvisibility=hidden
 
+PACKAGE= clibs
 LIB=	c_nonshared
 
 LIBC_NONSHARED_SRCS=
