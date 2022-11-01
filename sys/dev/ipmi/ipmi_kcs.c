@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/condvar.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
@@ -490,7 +491,21 @@ kcs_startup(struct ipmi_softc *sc)
 }
 
 static int
-kcs_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+kcs_driver_request_queue(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+{
+	int error;
+
+	IPMI_LOCK(sc);
+	ipmi_polled_enqueue_request_highpri(sc, req);
+	error = msleep(req, &sc->ipmi_requests_lock, 0, "ipmireq", timo);
+	if (error == 0)
+		error = req->ir_error;
+	IPMI_UNLOCK(sc);
+	return (error);
+}
+
+static int
+kcs_driver_request_poll(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 	int i, ok;
 
@@ -503,6 +518,17 @@ kcs_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
 		req->ir_error = EIO;
 	return (req->ir_error);
 }
+
+static int
+kcs_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+{
+
+	if (KERNEL_PANICKED() || dumping)
+		return (kcs_driver_request_poll(sc, req));
+	else
+		return (kcs_driver_request_queue(sc, req, timo));
+}
+
 
 int
 ipmi_kcs_attach(struct ipmi_softc *sc)
