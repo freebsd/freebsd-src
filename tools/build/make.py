@@ -267,5 +267,13 @@ if __name__ == "__main__":
         shlex.quote(s) for s in [str(bmake_binary)] + bmake_args)
     debug("Running `env ", env_cmd_str, " ", make_cmd_str, "`", sep="")
     os.environ.update(new_env_vars)
+
+    # Fedora defines bash function wrapper for some shell commands and this
+    # makes 'which <command>' return the function's source code instead of
+    # the binary path. Undefine it to restore the original behavior.
+    os.unsetenv("BASH_FUNC_which%%")
+    os.unsetenv("BASH_FUNC_ml%%")
+    os.unsetenv("BASH_FUNC_module%%")
+
     os.chdir(str(source_root))
     os.execv(str(bmake_binary), [str(bmake_binary)] + bmake_args)
