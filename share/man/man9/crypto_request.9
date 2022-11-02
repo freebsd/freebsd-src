@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2022
+.Dd November 2, 2022
 .Dt CRYPTO_REQUEST 9
 .Os
 .Sh NAME
@@ -441,17 +441,12 @@ the callback is invoked synchronously if the request was processed by a
 software driver or asynchronously if the request was processed by a
 hardware driver.
 .Pp
-If a request was scheduled to the taskqueue via
-.Dv CRYPTO_F_ASYNC ,
+If a request was scheduled to the taskqueue with
+.Dv CRYPTO_ASYNC_ORDERED ,
 callbacks are always invoked asynchronously ignoring
 .Dv CRYPTO_F_CBIMM
 and
 .Dv CRYPTO_F_CBIFSYNC .
-In this case,
-.Dv CRYPTO_F_ASYNC_KEEPORDER
-may be set to ensure that callbacks for requests on a given session are
-invoked in the same order that requests were queued to the session via
-.Fn crypto_dispatch .
 This flag is used by IPsec to ensure that decrypted network packets are
 passed up the network stack in roughly the same order they were received.
 .Ss Other Request Fields
