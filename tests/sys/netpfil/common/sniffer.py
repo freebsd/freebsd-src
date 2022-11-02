@@ -34,6 +34,7 @@ class Sniffer(threading.Thread):
 	def __init__(self, args, check_function, recvif=None, timeout=3):
 		threading.Thread.__init__(self)
 
+		self._sem = threading.Semaphore(0)
 		self._args = args
 		self._timeout = timeout
 		if recvif is not None:
@@ -44,6 +45,8 @@ class Sniffer(threading.Thread):
 		self.foundCorrectPacket = False
 
 		self.start()
+		if not self._sem.acquire(timeout=30):
+			raise Exception("Failed to start sniffer")
 
 	def _checkPacket(self, packet):
 		ret = self._check_function(self._args, packet)
@@ -51,10 +54,14 @@ class Sniffer(threading.Thread):
 			self.foundCorrectPacket = True
 		return ret
 
+	def _startedCb(self):
+		self._sem.release()
+
 	def run(self):
 		self.packets = []
 		try:
 			self.packets = sp.sniff(iface=self._recvif,
-					stop_filter=self._checkPacket, timeout=self._timeout)
+					stop_filter=self._checkPacket, timeout=self._timeout,
+					started_callback=self._startedCb)
 		except Exception as e:
 			print(e, file=sys.stderr)
