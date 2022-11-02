@@ -2404,7 +2404,6 @@ in_pcbinshash(struct inpcb *inp)
 	struct inpcbporthead *pcbporthash;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbport *phd;
-	int so_options;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
@@ -2428,13 +2427,10 @@ in_pcbinshash(struct inpcb *inp)
 	 * Add entry to load balance group.
 	 * Only do this if SO_REUSEPORT_LB is set.
 	 */
-	so_options = inp_so_options(inp);
-	if (so_options & SO_REUSEPORT_LB) {
-		int ret = in_pcbinslbgrouphash(inp, M_NODOM);
-		if (ret) {
-			/* pcb lb group malloc fail (ret=ENOBUFS). */
-			return (ret);
-		}
+	if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0) {
+		int error = in_pcbinslbgrouphash(inp, M_NODOM);
+		if (error != 0)
+			return (error);
 	}
 
 	/*
@@ -2444,13 +2440,16 @@ in_pcbinshash(struct inpcb *inp)
 		if (phd->phd_port == inp->inp_lport)
 			break;
 	}
+
 	/*
 	 * If none exists, malloc one and tack it on.
 	 */
 	if (phd == NULL) {
 		phd = uma_zalloc_smr(pcbinfo->ipi_portzone, M_NOWAIT);
 		if (phd == NULL) {
-			return (ENOBUFS); /* XXX */
+			if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0)
+				in_pcbremlbgrouphash(inp);
+			return (ENOMEM);
 		}
 		phd->phd_port = inp->inp_lport;
 		CK_LIST_INIT(&phd->phd_pcblist);
