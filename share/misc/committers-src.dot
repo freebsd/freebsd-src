@@ -382,6 +382,7 @@ yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
 yuripv [label="Yuri Pankov\nyuripv@FreeBSD.org\n2018/10/09"]
 zbb [label="Zbigniew Bodek\nzbb@FreeBSD.org\n2013/09/02"]
 zec [label="Marko Zec\nzec@FreeBSD.org\n2008/06/22"]
+zlei [label="Zhenlei Huang\nzlei@FreeBSD.org\n2022/11/02"]
 zml [label="Zachary Loafman\nzml@FreeBSD.org\n2009/05/27"]
 zont [label="Andrey Zonov\nzont@FreeBSD.org\n2012/08/21"]
 
@@ -720,6 +721,7 @@ kmacy -> lstewart
 
 kp -> donner
 kp -> nick
+kp -> zlei
 
 lwhsu -> khng
 
@@ -749,6 +751,8 @@ mav -> ram
 mdf -> gleb
 
 mdodd -> jake
+
+melifaro -> zlei
 
 mike -> das
 
