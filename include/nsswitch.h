@@ -53,6 +53,7 @@
 #define	NS_NOTFOUND	(1<<2)		/* source responded 'no such entry' */
 #define	NS_TRYAGAIN	(1<<3)		/* source busy, may respond to retry */
 #define NS_RETURN	(1<<4)		/* stop search, e.g. for ERANGE */
+#define NS_ADDRFAMILY	(1<<5)		/* no addr for fam, getaddrinfo only */
 #define NS_TERMINATE	(NS_SUCCESS|NS_RETURN) /* flags that end search */
 #define	NS_STATUSMASK	0x000000ff	/* bitmask to get the status flags */
 
