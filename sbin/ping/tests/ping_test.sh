@@ -129,20 +129,28 @@ ping6_c1t4_body()
 
 ping_46_head()
 {
-	atf_set "descr" "-4 and -6 may not be used together"
+	atf_set "descr" "-4 and -6 cannot be used simultaneously"
 }
 ping_46_body()
 {
-	atf_check -s exit:1 -e ignore ping -4 -6
+	require_ipv4
+	require_ipv6
+	atf_check -s exit:1 \
+	    -e match:"-4 and -6 cannot be used simultaneously" \
+	    ping -4 -6 localhost
 }
 
 ping6_46_head()
 {
-	atf_set "descr" "-4 and -6 may not be used together"
+	atf_set "descr" "-4 and -6 cannot be used simultaneously"
 }
 ping6_46_body()
 {
-	atf_check -s exit:1 -e ignore ping6 -4 -6
+	require_ipv4
+	require_ipv6
+	atf_check -s exit:1 \
+	    -e match:"-4 and -6 cannot be used simultaneously" \
+	    ping6 -4 -6 localhost
 }
 
 atf_init_test_cases()
