@@ -109,10 +109,24 @@ tmpdir_pflag_noarg_body()
 	atf_check -o match:"^$tmpdir/foo\..+$" cat tmpname
 }
 
+atf_test_case tmpdir_tflag_oneslash
+tmpdir_tflag_oneslash_body()
+{
+
+	tmpdir="$PWD"
+
+	# Provided a trailing slash, we shouldn't end up with two trailing
+	# slashes.
+	atf_check -o save:tmpname \
+	    env TMPDIR="$tmpdir/" mktemp -t foo
+	atf_check -o match:"^$tmpdir/foo\..+$" cat tmpname
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case tmpdir_env
 	atf_add_test_case tmpdir_pflag
 	atf_add_test_case tmpdir_pflag_dir
 	atf_add_test_case tmpdir_pflag_noarg
+	atf_add_test_case tmpdir_tflag_oneslash
 }
