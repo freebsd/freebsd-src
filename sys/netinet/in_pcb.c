@@ -1154,11 +1154,12 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 	NET_EPOCH_ASSERT();
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
+
 	/*
 	 * Bypass source address selection and use the primary jail IP
 	 * if requested.
 	 */
-	if (cred != NULL && !prison_saddrsel_ip4(cred, laddr))
+	if (!prison_saddrsel_ip4(cred, laddr))
 		return (0);
 
 	error = 0;
@@ -1203,7 +1204,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			goto done;
 		}
 
-		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
+		if (!prison_flag(cred, PR_IP4)) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
 		}
@@ -1244,7 +1245,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		struct ifnet *ifp;
 
 		/* If not jailed, use the default returned. */
-		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
+		if (!prison_flag(cred, PR_IP4)) {
 			ia = (struct in_ifaddr *)nh->nh_ifa;
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
@@ -1305,7 +1306,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		if (ia == NULL)
 			ia = ifatoia(ifa_ifwithaddr(sintosa(&dst)));
 
-		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
+		if (!prison_flag(cred, PR_IP4)) {
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;
@@ -1421,8 +1422,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			faddr =
 			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-			if (cred != NULL &&
-			    (error = prison_get_ip4(cred, &faddr)) != 0)
+			if ((error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
 			IN_IFADDR_RLOCK(&in_ifa_tracker);
@@ -1450,10 +1450,9 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 				ifp = imo->imo_multicast_ifp;
 				IN_IFADDR_RLOCK(&in_ifa_tracker);
 				CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-					if ((ia->ia_ifp == ifp) &&
-					    (cred == NULL ||
+					if (ia->ia_ifp == ifp &&
 					    prison_check_ip4(cred,
-					    &ia->ia_addr.sin_addr) == 0))
+					    &ia->ia_addr.sin_addr) == 0)
 						break;
 				}
 				if (ia == NULL)
@@ -2006,9 +2005,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				/*
 				 * Found?
 				 */
-				if (cred == NULL ||
-				    prison_equal_ip4(cred->cr_prison,
-					inp->inp_cred->cr_prison))
+				if (prison_equal_ip4(cred->cr_prison,
+				    inp->inp_cred->cr_prison))
 					return (inp);
 			}
 		}
@@ -2039,9 +2037,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 			 */
 			CK_LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
-				if (cred != NULL &&
-				    !prison_equal_ip4(inp->inp_cred->cr_prison,
-					cred->cr_prison))
+				if (!prison_equal_ip4(inp->inp_cred->cr_prison,
+				    cred->cr_prison))
 					continue;
 #ifdef INET6
 				/* XXX inp locking */
