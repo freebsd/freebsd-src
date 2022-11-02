@@ -500,9 +500,10 @@ SYSUNINIT(prot##_inpcbstorage_uninit, SI_SUB_PROTO_DOMAIN,		\
 struct inpcblbgroup {
 	CK_LIST_ENTRY(inpcblbgroup) il_list;
 	struct epoch_context il_epoch_ctx;
+	struct ucred	*il_cred;
 	uint16_t	il_lport;			/* (c) */
 	u_char		il_vflag;			/* (c) */
-	u_int8_t		il_numa_domain;
+	uint8_t		il_numa_domain;
 	uint32_t	il_pad2;
 	union in_dependaddr il_dependladdr;		/* (c) */
 #define	il_laddr	il_dependladdr.id46_addr.ia46_addr4
