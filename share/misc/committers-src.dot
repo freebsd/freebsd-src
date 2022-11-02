@@ -144,6 +144,7 @@ cem [label="Conrad Meyer\ncem@FreeBSD.org\n2015/07/05"]
 chuck [label="Chuck Tuffli\nchuck@FreeBSD.org\n2017/09/06"]
 cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
+corvink [label="Corvin Köhne\ncorvink@FreeBSD.org\n2022/11/02"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
 cy [label="Cy Schubert\ncy@FreeBSD.org\n2013/04/23"]
@@ -725,6 +726,7 @@ kp -> zlei
 
 lwhsu -> khng
 
+manu -> corvink
 manu -> oh
 
 marcel -> allanjude
