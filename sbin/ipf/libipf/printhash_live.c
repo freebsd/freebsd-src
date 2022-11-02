@@ -26,7 +26,9 @@ printhash_live(iphtable_t *hp, int fd, char *name, int opts, wordtab_t *fields)
 	if ((hp->iph_flags & IPHASH_DELETE) != 0)
 		PRINTF("# ");
 
-	if ((opts & OPT_DEBUG) == 0)
+	if (opts & OPT_SAVEOUT)
+		PRINTF("{\n");
+	else if ((opts & OPT_DEBUG) == 0)
 		PRINTF("\t{");
 
 	obj.ipfo_rev = IPFILTER_VERSION;
@@ -50,6 +52,8 @@ printhash_live(iphtable_t *hp, int fd, char *name, int opts, wordtab_t *fields)
 			last = 1;
 		if (bcmp(&zero, &entry, sizeof(zero)) == 0)
 			break;
+		if (opts & OPT_SAVEOUT)
+			PRINTF("\t");
 		(void) printhashnode(hp, &entry, bcopywrap, opts, fields);
 		printed++;
 	}
@@ -59,7 +63,7 @@ printhash_live(iphtable_t *hp, int fd, char *name, int opts, wordtab_t *fields)
 	if (printed == 0)
 		putchar(';');
 
-	if ((opts & OPT_DEBUG) == 0)
+	if ((opts & OPT_DEBUG) == 0 || (opts & OPT_SAVEOUT))
 		PRINTF(" };\n");
 
 	(void) ioctl(fd,SIOCIPFDELTOK, &iter.ili_key);
