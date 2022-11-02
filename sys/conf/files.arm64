@@ -212,7 +212,7 @@ dev/etherswitch/felix/felix.c			optional enetc etherswitch fdt felix pci soc_nxp
 dev/gpio/pl061.c				optional pl061 gpio
 dev/gpio/pl061_acpi.c				optional pl061 gpio acpi
 dev/gpio/pl061_fdt.c				optional pl061 gpio fdt
-dev/gpio/qoriq_gpio.c				optional SOC_NXP_LS gpio fdt
+dev/gpio/qoriq_gpio.c				optional soc_nxp_ls gpio fdt
 
 dev/hwpmc/hwpmc_arm64.c				optional hwpmc
 dev/hwpmc/hwpmc_arm64_md.c			optional hwpmc
@@ -424,7 +424,7 @@ arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
 arm64/broadcom/brcmmdio/mdio_mux_iproc.c		optional soc_brcm_ns2 fdt
 arm64/broadcom/brcmmdio/mdio_nexus_iproc.c		optional soc_brcm_ns2 fdt
 arm64/broadcom/brcmmdio/mdio_ns2_pcie_phy.c		optional soc_brcm_ns2 fdt pci
-arm64/broadcom/genet/if_genet.c				optional SOC_BRCM_BCM2838 fdt genet
+arm64/broadcom/genet/if_genet.c				optional soc_brcm_bcm2838 fdt genet
 arm/broadcom/bcm2835/bcm2835_audio.c			optional sound vchiq fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 arm/broadcom/bcm2835/bcm2835_bsc.c			optional bcm2835_bsc fdt
@@ -499,13 +499,13 @@ arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
 arm/mv/gpio.c					optional mv_gpio fdt
 arm/mv/mvebu_gpio.c				optional mv_gpio fdt
 arm/mv/mvebu_pinctrl.c				optional mvebu_pinctrl fdt
-arm/mv/mv_ap806_clock.c				optional SOC_MARVELL_8K fdt
+arm/mv/mv_ap806_clock.c				optional soc_marvell_8k fdt
 arm/mv/mv_ap806_gicp.c				optional mv_ap806_gicp fdt
 arm/mv/mv_ap806_sei.c				optional mv_ap806_sei fdt
-arm/mv/mv_cp110_clock.c				optional SOC_MARVELL_8K fdt
+arm/mv/mv_cp110_clock.c				optional soc_marvell_8k fdt
 arm/mv/mv_cp110_icu.c				optional mv_cp110_icu fdt
 arm/mv/mv_cp110_icu_bus.c			optional mv_cp110_icu fdt
-arm/mv/mv_thermal.c				optional SOC_MARVELL_8K mv_thermal fdt
+arm/mv/mv_thermal.c				optional soc_marvell_8k mv_thermal fdt
 arm/mv/clk/a37x0_tbg_pll.c			optional a37x0_tbg clk fdt syscon
 arm/mv/clk/a37x0_periph_clk_driver.c		optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
 arm/mv/clk/a37x0_nb_periph_clk_driver.c		optional a37x0_nb_periph clk fdt syscon
@@ -566,20 +566,20 @@ tegra210_xusb.fw				optional tegra210_xusb_fw	\
 	clean		"tegra210_xusb.fw"
 
 # NXP
-arm/freescale/vybrid/vf_i2c.c			optional vf_i2c iicbus SOC_NXP_LS
-arm64/qoriq/qoriq_dw_pci.c			optional pci fdt SOC_NXP_LS
-arm64/qoriq/qoriq_gpio_pic.c			optional gpio fdt SOC_NXP_LS
-arm64/qoriq/qoriq_therm.c			optional pci fdt SOC_NXP_LS
-arm64/qoriq/qoriq_therm_if.m			optional pci fdt SOC_NXP_LS
-arm64/qoriq/clk/ls1028a_clkgen.c		optional clk SOC_NXP_LS
-arm64/qoriq/clk/ls1028a_flexspi_clk.c		optional clk SOC_NXP_LS
-arm64/qoriq/clk/ls1046a_clkgen.c		optional clk SOC_NXP_LS
-arm64/qoriq/clk/ls1088a_clkgen.c		optional clk SOC_NXP_LS
-arm64/qoriq/clk/lx2160a_clkgen.c		optional clk SOC_NXP_LS
-arm64/qoriq/clk/qoriq_clk_pll.c			optional clk SOC_NXP_LS
-arm64/qoriq/clk/qoriq_clkgen.c			optional clk SOC_NXP_LS
-dev/ahci/ahci_fsl_fdt.c				optional SOC_NXP_LS ahci fdt
-dev/flash/flexspi/flex_spi.c    		optional clk flex_spi SOC_NXP_LS fdt
+arm/freescale/vybrid/vf_i2c.c			optional vf_i2c iicbus soc_nxp_ls
+arm64/qoriq/qoriq_dw_pci.c			optional pci fdt soc_nxp_ls
+arm64/qoriq/qoriq_gpio_pic.c			optional gpio fdt soc_nxp_ls
+arm64/qoriq/qoriq_therm.c			optional pci fdt soc_nxp_ls
+arm64/qoriq/qoriq_therm_if.m			optional pci fdt soc_nxp_ls
+arm64/qoriq/clk/ls1028a_clkgen.c		optional clk soc_nxp_ls
+arm64/qoriq/clk/ls1028a_flexspi_clk.c		optional clk soc_nxp_ls
+arm64/qoriq/clk/ls1046a_clkgen.c		optional clk soc_nxp_ls
+arm64/qoriq/clk/ls1088a_clkgen.c		optional clk soc_nxp_ls
+arm64/qoriq/clk/lx2160a_clkgen.c		optional clk soc_nxp_ls
+arm64/qoriq/clk/qoriq_clk_pll.c			optional clk soc_nxp_ls
+arm64/qoriq/clk/qoriq_clkgen.c			optional clk soc_nxp_ls
+dev/ahci/ahci_fsl_fdt.c				optional soc_nxp_ls ahci fdt
+dev/flash/flexspi/flex_spi.c    		optional clk flex_spi soc_nxp_ls fdt
 
 # Qualcomm
 arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
