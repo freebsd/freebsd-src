@@ -9,6 +9,7 @@ DIRDEPS = \
 	lib/liblzma \
 	lib/libthr \
 	lib/libz \
+	lib/libzstd \
 
 
 .include <dirdeps.mk>

@@ -5,13 +5,15 @@
 PROG=		gzip
 MAN=		gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1
 
-LIBADD=		z lzma
+LIBADD=		z lzma zstd
 
 .if ${MK_BZIP2_SUPPORT} != "no"
 LIBADD+=	bz2
 .else
 CFLAGS+=	-DNO_BZIP2_SUPPORT
 .endif
+
+CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
 
 SCRIPTS=	gzexe zdiff zforce zmore znew
 
