@@ -272,7 +272,6 @@ span_head()
 
 span_body()
 {
-	set -x
 	vnet_init
 
 	epair=$(vnet_mkepair)
