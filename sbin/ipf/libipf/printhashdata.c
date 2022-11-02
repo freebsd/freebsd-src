@@ -37,6 +37,8 @@ printhashdata(iphtable_t *hp, int opts)
 		}
 		PRINTF(" role=");
 	} else {
+		if ((hp->iph_flags & IPHASH_DELETE) == IPHASH_DELETE)
+			PRINTF("# ");
 		PRINTF("Hash Table %s: %s",
 			ISDIGIT(*hp->iph_name) ? "Number" : "Name",
 			hp->iph_name);
