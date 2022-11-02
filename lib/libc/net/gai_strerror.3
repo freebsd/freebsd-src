@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2018
+.Dd November 2, 2022
 .Dt GAI_STRERROR 3
 .Os
 .Sh NAME
@@ -42,7 +42,9 @@ or
 The following error codes and their meaning are defined in
 .In netdb.h :
 .Pp
-.Bl -tag -width ".Dv EAI_BADFLAGS" -offset indent -compact
+.Bl -tag -width ".Dv EAI_ADDRFAMILY" -offset indent -compact
+.It Dv EAI_ADDRFAMILY
+Address family for hostname not supported
 .It Dv EAI_AGAIN
 Name could not be resolved at this time
 .It Dv EAI_BADFLAGS
@@ -56,6 +58,8 @@ Non-recoverable failure in name resolution
 Address family was not recognized
 .It Dv EAI_MEMORY
 Memory allocation failure
+.It Dv EAI_NODATA
+No address associated with hostname
 .It Dv EAI_NONAME
 Name does not resolve
 .It Dv EAI_OVERFLOW
@@ -83,7 +87,14 @@ is out of range, an implementation-specific error message string is returned.
 .Xr getaddrinfo 3 ,
 .Xr getnameinfo 3
 .Sh STANDARDS
-.Bl -tag -width ".It RFC 2743"
+.Bl -tag -width ".It RFC 3493"
 .It RFC 3493
 Basic Socket Interface Extensions for IPv6
 .El
+.Pp
+EAI_ADDRFAMILY and EAI_NODATA were in previous RFCs, but not in RFC 3493.
+They are not in POSIX (IEEE Std 1003.1-2017).
+They were in
+.Fx
+before 5.2, and were re-added for 14.0.
+EAI_BADHINTS, EAI_OVERFLOW, and EAI_PROTOCOL are not in RFC 3493 or POSIX.
