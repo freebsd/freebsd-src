@@ -214,14 +214,14 @@ This option permits multiple instances of a program to each
 receive UDP/IP multicast or broadcast datagrams destined for the bound port.
 .Pp
 .Dv SO_REUSEPORT_LB
-allows completely duplicate bindings by multiple processes
+allows completely duplicate bindings by multiple sockets
 if they all set
 .Dv SO_REUSEPORT_LB
 before binding the port.
-Incoming TCP and UDP connections are distributed among the sharing
-processes based on a hash function of local port number, foreign IP
+Incoming TCP and UDP connections are distributed among the participating
+listening sockets based on a hash function of local port number, and foreign IP
 address and port number.
-A maximum of 256 processes can share one socket.
+A maximum of 256 sockets can be bound to the same load-balancing group.
 .Pp
 .Dv SO_KEEPALIVE
 enables the
