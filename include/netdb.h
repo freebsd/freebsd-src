@@ -161,8 +161,8 @@ struct addrinfo {
 /*
  * Error return codes from gai_strerror(3), see RFC 3493.
  */
-#if 0
-/* Obsoleted on RFC 3493 */
+#if __BSD_VISIBLE	/* not in POSIX */
+/* EAI_ADDRFAMILY was obsoleted by RFC 3493, used as extension */
 #define	EAI_ADDRFAMILY	 1	/* address family for hostname not supported */
 #endif
 #define	EAI_AGAIN	 2	/* name could not be resolved at this time */
@@ -170,17 +170,20 @@ struct addrinfo {
 #define	EAI_FAIL	 4	/* non-recoverable failure in name resolution */
 #define	EAI_FAMILY	 5	/* address family not recognized */
 #define	EAI_MEMORY	 6	/* memory allocation failure */
-#if 0
-/* Obsoleted on RFC 3493 */
+#if __BSD_VISIBLE	/* not in POSIX */
+/* EAI_NODATA was obsoleted by RFC 3493, retained here as extension */
 #define	EAI_NODATA	 7	/* no address associated with hostname */
 #endif
 #define	EAI_NONAME	 8	/* name does not resolve */
 #define	EAI_SERVICE	 9	/* service not recognized for socket type */
 #define	EAI_SOCKTYPE	10	/* intended socket type was not recognized */
 #define	EAI_SYSTEM	11	/* system error returned in errno */
+#if __BSD_VISIBLE	/* not in POSIX */
+/* The following 3 are not in RFC 3493 or POSIX, retained for compatibility */
 #define	EAI_BADHINTS	12	/* invalid value for hints */
 #define	EAI_PROTOCOL	13	/* resolved protocol is unknown */
 #define	EAI_OVERFLOW	14	/* argument buffer overflow */
+#endif
 #define	EAI_MAX		15
 
 /*
