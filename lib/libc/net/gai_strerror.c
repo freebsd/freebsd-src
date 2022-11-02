@@ -44,17 +44,19 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "un-namespace.h"
 
-/* Entries EAI_ADDRFAMILY (1) and EAI_NODATA (7) are obsoleted, but left */
-/* for backwards compatibility with userland code prior to RFC2553bis-02 */
+/*
+ * Entries EAI_ADDRFAMILY (1) and EAI_NODATA (7) were omitted from RFC 3493,
+ * but are or may be used as extensions or in old code.
+ */
 static const char *ai_errlist[] = {
 	"Success",					/* 0 */
-	"Address family for hostname not supported",	/* 1: Obsolete */
+	"Address family for hostname not supported",	/* EAI_ADDRFAMILY */
 	"Name could not be resolved at this time",	/* EAI_AGAIN */
 	"Flags parameter had an invalid value",		/* EAI_BADFLAGS */
 	"Non-recoverable failure in name resolution",	/* EAI_FAIL */
 	"Address family not recognized",		/* EAI_FAMILY */
 	"Memory allocation failure", 			/* EAI_MEMORY */
-	"No address associated with hostname",		/* 7: Obsolete*/
+	"No address associated with hostname",		/* EAI_NODATA*/
 	"Name does not resolve",			/* EAI_NONAME */
 	"Service was not recognized for socket type",	/* EAI_SERVICE */
 	"Intended socket type was not recognized",	/* EAI_SOCKTYPE */
