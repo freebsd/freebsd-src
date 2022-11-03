@@ -483,7 +483,7 @@ arm64/freescale/imx/clk/imx_clk_sscg_pll.c	optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_frac_pll.c	optional fdt soc_freescale_imx8
 
 # iMX drivers
-arm/freescale/imx/imx_gpio.c			optional gpio soc_freescale_imx8
+arm/freescale/imx/imx_gpio.c			optional gpio soc_freescale_imx8 fdt
 arm/freescale/imx/imx_i2c.c			optional fsliic
 arm/freescale/imx/imx_machdep.c			optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx7gpc.c			optional fdt soc_freescale_imx8
@@ -571,13 +571,13 @@ arm64/qoriq/qoriq_dw_pci.c			optional pci fdt soc_nxp_ls
 arm64/qoriq/qoriq_gpio_pic.c			optional gpio fdt soc_nxp_ls
 arm64/qoriq/qoriq_therm.c			optional pci fdt soc_nxp_ls
 arm64/qoriq/qoriq_therm_if.m			optional pci fdt soc_nxp_ls
-arm64/qoriq/clk/ls1028a_clkgen.c		optional clk soc_nxp_ls
-arm64/qoriq/clk/ls1028a_flexspi_clk.c		optional clk soc_nxp_ls
-arm64/qoriq/clk/ls1046a_clkgen.c		optional clk soc_nxp_ls
-arm64/qoriq/clk/ls1088a_clkgen.c		optional clk soc_nxp_ls
-arm64/qoriq/clk/lx2160a_clkgen.c		optional clk soc_nxp_ls
+arm64/qoriq/clk/ls1028a_clkgen.c		optional clk soc_nxp_ls fdt
+arm64/qoriq/clk/ls1028a_flexspi_clk.c		optional clk soc_nxp_ls fdt
+arm64/qoriq/clk/ls1046a_clkgen.c		optional clk soc_nxp_ls fdt
+arm64/qoriq/clk/ls1088a_clkgen.c		optional clk soc_nxp_ls fdt
+arm64/qoriq/clk/lx2160a_clkgen.c		optional clk soc_nxp_ls fdt
 arm64/qoriq/clk/qoriq_clk_pll.c			optional clk soc_nxp_ls
-arm64/qoriq/clk/qoriq_clkgen.c			optional clk soc_nxp_ls
+arm64/qoriq/clk/qoriq_clkgen.c			optional clk soc_nxp_ls fdt
 dev/ahci/ahci_fsl_fdt.c				optional soc_nxp_ls ahci fdt
 dev/flash/flexspi/flex_spi.c    		optional clk flex_spi soc_nxp_ls fdt
 
