@@ -47,9 +47,11 @@ struct nl_io_queue {
 	int			hiwat;
 };
 
+#define	NLP_MAX_GROUPS		128
+
 struct nlpcb {
         struct socket           *nl_socket;
-	uint64_t	        nl_groups;
+	uint64_t	        nl_groups[NLP_MAX_GROUPS / 64];
 	uint32_t                nl_port;
 	uint32_t	        nl_flags;
 	uint32_t	        nl_process_id;
