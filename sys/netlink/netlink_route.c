@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/ck.h>
+#include <sys/epoch.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
@@ -37,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route/route_ctl.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
-#include <netlink/netlink_var.h>
 #include <netlink/netlink_route.h>
 #include <netlink/route/route_var.h>
 
