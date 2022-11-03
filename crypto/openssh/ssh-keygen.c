@@ -1975,7 +1975,7 @@ parse_cert_times(char *timespec)
 		cert_valid_to = parse_relative_time(to, now);
 	else if (strcmp(to, "forever") == 0)
 		cert_valid_to = ~(u_int64_t)0;
-	else if (strncmp(from, "0x", 2) == 0)
+	else if (strncmp(to, "0x", 2) == 0)
 		parse_hex_u64(to, &cert_valid_to);
 	else if (parse_absolute_time(to, &cert_valid_to) != 0)
 		fatal("Invalid to time \"%s\"", to);
