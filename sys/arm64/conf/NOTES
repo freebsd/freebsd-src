@@ -68,6 +68,9 @@ device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# Microsoft Hyper-V
+device		hyperv
+
 # CPU frequency control
 device		cpufreq
 
