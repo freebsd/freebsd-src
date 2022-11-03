@@ -617,14 +617,14 @@ escape_glob(const char *s)
 }
 
 static char *
-make_absolute_pwd_glob(const char *p, const char *pwd)
+make_absolute_pwd_glob(char *p, const char *pwd)
 {
 	char *ret, *escpwd;
 
 	escpwd = escape_glob(pwd);
 	if (p == NULL)
 		return escpwd;
-	ret = make_absolute(xstrdup(p), escpwd);
+	ret = make_absolute(p, escpwd);
 	free(escpwd);
 	return ret;
 }
@@ -637,7 +637,7 @@ process_get(struct sftp_conn *conn, const char *src, const char *dst,
 	glob_t g;
 	int i, r, err = 0;
 
-	abs_src = make_absolute_pwd_glob(src, pwd);
+	abs_src = make_absolute_pwd_glob(xstrdup(src), pwd);
 	memset(&g, 0, sizeof(g));
 
 	debug3("Looking up %s", abs_src);
@@ -1997,9 +1997,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 
 	memset(&g, 0, sizeof(g));
 	if (remote != LOCAL) {
-		tmp2 = make_absolute_pwd_glob(tmp, remote_path);
-		free(tmp);
-		tmp = tmp2;
+		tmp = make_absolute_pwd_glob(tmp, remote_path);
 		remote_glob(conn, tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
 	} else
 		glob(tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
