@@ -39,11 +39,11 @@
 # DESCRIPTION: 
 # 'zpool add' with hot spares will fail
 # while the hot spares belong to the following cases:
-#	- nonexist device,
+#	- nonexistent device,
 #	- part of an active pool,
 #	- currently mounted,
-#	- devices in /etc/vfstab,
-#	- specified as the dedicated dump device,
+#	- a swap device,
+#	- a dump device,
 #	- identical with the basic or spares vdev within the pool,
 #	- belong to a exported or potentially active ZFS pool,
 #	- a volume device that belong to the given pool,
@@ -72,15 +72,9 @@ function cleanup
 	poolexists "$TESTPOOL1" && \
 		destroy_pool "$TESTPOOL1"
 
-	if [[ -n $saved_dump_dev ]]; then
-		if [[ -n $DUMPADM ]]; then
-			log_must $DUMPADM -u -d $saved_dump_dev
-		fi
-	fi
-
-	if [[ -n $DUMPADM ]]; then
-		cleanup_devices $dump_dev
-	fi
+	log_onfail $UMOUNT $TMPDIR/mounted_dir
+	log_onfail $SWAPOFF $swap_dev
+	log_onfail $DUMPON -r $dump_dev
 
 	partition_cleanup
 }
@@ -91,11 +85,10 @@ log_onexit cleanup
 
 set_devs
 
-mnttab_dev=$(find_mnttab_dev)
-vfstab_dev=$(find_vfstab_dev)
-saved_dump_dev=$(save_dump_dev)
-dump_dev=${disk}s0
-nonexist_dev=${disk}sbad_slice_num
+mounted_dev=${DISK0}
+swap_dev=${DISK1}
+dump_dev=${DISK2}
+nonexist_dev=${DISK2}bad_slice_num
 
 create_pool "$TESTPOOL" "${pooldevs[0]}"
 log_must poolexists "$TESTPOOL"
@@ -103,19 +96,25 @@ log_must poolexists "$TESTPOOL"
 create_pool "$TESTPOOL1" "${pooldevs[1]}"
 log_must poolexists "$TESTPOOL1"
 
-[[ -n $mnttab_dev ]] || log_note "No mnttab devices found"
-[[ -n $vfstab_dev ]] || log_note "No vfstab devices found"
-#	- nonexist device,
+log_must $MKDIR $TMPDIR/mounted_dir
+log_must $NEWFS $mounted_dev
+log_must $MOUNT $mounted_dev $TMPDIR/mounted_dir
+
+log_must $SWAPON $swap_dev
+
+log_must $DUMPON $dump_dev
+
+#	- nonexistent device,
 #	- part of an active pool,
 #	- currently mounted,
-#	- devices in /etc/vfstab,
+#	- a swap device,
 #	- identical with the basic or spares vdev within the pool,
 
 set -A arg "$nonexist_dev" \
 	"${pooldevs[0]}" \
 	"${pooldevs[1]}" \
-	"$mnttab_dev" \
-	"$vfstab_dev"
+	"$mounted_dev" \
+	"$swap_dev"
 
 typeset -i i=0
 while (( i < ${#arg[*]} )); do
@@ -126,14 +125,13 @@ while (( i < ${#arg[*]} )); do
 	(( i = i + 1 ))
 done
 
-#	- specified as the dedicated dump device,
-# This part of the test can only be run on platforms for which DUMPADM is
-# defined; ie Solaris
-if [[ -n $DUMPADM ]]; then
-	log_must $DUMPADM -u -d /dev/$dump_dev
-	log_mustnot $ZPOOL add "$TESTPOOL" spare $dump_dev
-	log_mustnot $ZPOOL add -f "$TESTPOOL" spare $dump_dev
-fi
+#	- a dump device,
+# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=241070
+# When that bug is fixed, add $dump_dev to $arg and remove this block.
+log_must $ZPOOL add $TESTPOOL spare ${dump_dev}
+log_must $ZPOOL remove $TESTPOOL ${dump_dev}
+log_must $ZPOOL add -f $TESTPOOL spare ${dump_dev}
+log_must $ZPOOL remove $TESTPOOL ${dump_dev}
 
 #	- belong to a exported or potentially active ZFS pool,
 
