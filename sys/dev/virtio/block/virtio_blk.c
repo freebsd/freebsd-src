@@ -992,9 +992,12 @@ vtblk_request_execute(struct vtblk_request *req, int flags)
 
 	/*
 	 * Call via bus_dmamap_load_bio or directly depending on whether we
-	 * have a buffer we need to map.
+	 * have a buffer we need to map.  If we don't have a busdma map,
+	 * try to perform the I/O directly and hope that it works (this will
+	 * happen when dumping).
 	 */
-	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+	if ((req->vbr_mapp != NULL) &&
+	    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
 		error = bus_dmamap_load_bio(sc->vtblk_dmat, req->vbr_mapp,
 		    req->vbr_bp, vtblk_request_execute_cb, req, flags);
 		if (error == EINPROGRESS) {
@@ -1080,6 +1083,15 @@ vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
 			}
 		}
 
+		/* Special handling for dump, which bypasses busdma. */
+		if (req->vbr_mapp == NULL) {
+			error = sglist_append_bio(sg, bp);
+			if (error || sg->sg_nseg == sg->sg_maxseg) {
+				panic("%s: bio %p data buffer too big %d",
+				    __func__, bp, error);
+			}
+		}
+
 		/* BIO_READ means the host writes into our buffer. */
 		if (bp->bio_cmd == BIO_READ)
 			writable = sg->sg_nseg - 1;
@@ -1130,7 +1142,7 @@ vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
 		virtqueue_notify(vq);
 
 out:
-	if (error)
+	if (error && (req->vbr_mapp != NULL))
 		bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
 out1:
 	if (error && req->vbr_requeue_on_error)
@@ -1505,6 +1517,7 @@ vtblk_dump_write(struct vtblk_softc *sc, void *virtual, off_t offset,
 	struct vtblk_request *req;
 
 	req = &sc->vtblk_dump_request;
+	req->vbr_sc = sc;
 	req->vbr_ack = -1;
 	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
 	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
@@ -1527,6 +1540,7 @@ vtblk_dump_flush(struct vtblk_softc *sc)
 	struct vtblk_request *req;
 
 	req = &sc->vtblk_dump_request;
+	req->vbr_sc = sc;
 	req->vbr_ack = -1;
 	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
 	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
