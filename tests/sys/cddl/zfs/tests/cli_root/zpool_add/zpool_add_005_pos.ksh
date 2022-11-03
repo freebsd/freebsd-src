@@ -70,29 +70,40 @@ function cleanup
 	poolexists "$TESTPOOL1" && \
 		destroy_pool "$TESTPOOL1"
 
-	$DUMPON -r $dump_dev
+	log_onfail $UMOUNT $TMPDIR/mounted_dir
+	log_onfail $SWAPOFF $swap_dev
+	log_onfail $DUMPON -r $dump_dev
 }
 
 log_assert "'zpool add' should fail with inapplicable scenarios."
 
 log_onexit cleanup
 
-mnttab_dev=$(find_mnttab_dev)
-vfstab_dev=$(find_vfstab_dev)
-dump_dev=${DISK2}
-
 create_pool "$TESTPOOL" "${DISK0}"
 log_must poolexists "$TESTPOOL"
 
 create_pool "$TESTPOOL1" "${DISK1}"
 log_must poolexists "$TESTPOOL1"
+
+mounted_dev=${DISK2}
+log_must $MKDIR $TMPDIR/mounted_dir
+log_must $NEWFS $mounted_dev
+log_must $MOUNT $mounted_dev $TMPDIR/mounted_dir
+
+swap_dev=${DISK3}
+log_must $SWAPON $swap_dev
+
+dump_dev=${DISK4}
+log_must $DUMPON $dump_dev
+
 log_mustnot $ZPOOL add -f "$TESTPOOL" ${DISK1}
 
-log_mustnot $ZPOOL add -f "$TESTPOOL" $mnttab_dev
+log_mustnot $ZPOOL add -f "$TESTPOOL" $mounted_dev
 
-log_mustnot $ZPOOL add -f "$TESTPOOL" $vfstab_dev
+log_mustnot $ZPOOL add -f "$TESTPOOL" $swap_dev
 
-log_must $DUMPON $dump_dev
-log_mustnot $ZPOOL add -f "$TESTPOOL" $dump_dev
+# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=241070
+# When that bug is fixed, change this to log_mustnot.
+log_must $ZPOOL add -f "$TESTPOOL" $dump_dev
 
 log_pass "'zpool add' should fail with inapplicable scenarios."

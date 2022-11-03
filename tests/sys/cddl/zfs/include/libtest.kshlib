@@ -1856,7 +1856,7 @@ function cleanup_devices #vdevs
 		$ZPOOL labelclear -f $device
 		# Only wipe partition tables for arguments that are disks,
 		# as opposed to slices (which are valid arguments here).
-		if camcontrol inquiry $device >/dev/null 2>&1; then
+		if geom disk list | grep -qx "Geom name: ${device#/dev/}"; then
 			wipe_partition_table $device
 		fi
 	done
