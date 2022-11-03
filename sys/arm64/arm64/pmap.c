@@ -402,6 +402,8 @@ SYSCTL_INT(_vm_pmap_vmid, OID_AUTO, epoch, CTLFLAG_RD, &vmids.asid_epoch, 0,
 
 void (*pmap_clean_stage2_tlbi)(void);
 void (*pmap_invalidate_vpipt_icache)(void);
+void (*pmap_stage2_invalidate_range)(uint64_t, vm_offset_t, vm_offset_t, bool);
+void (*pmap_stage2_invalidate_all)(uint64_t);
 
 /*
  * A pmap's cookie encodes an ASID and epoch number.  Cookies for reserved
@@ -1549,6 +1551,24 @@ pmap_s1_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
 	isb();
 }
 
+static __inline void
+pmap_s2_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
+{
+	PMAP_ASSERT_STAGE2(pmap);
+	MPASS(pmap_stage2_invalidate_range != NULL);
+	pmap_stage2_invalidate_range(pmap_to_ttbr0(pmap), va, va + PAGE_SIZE,
+	    final_only);
+}
+
+static __inline void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va, bool final_only)
+{
+	if (pmap->pm_stage == PM_STAGE1)
+		pmap_s1_invalidate_page(pmap, va, final_only);
+	else
+		pmap_s2_invalidate_page(pmap, va, final_only);
+}
+
 /*
  * Invalidates any cached final- and optionally intermediate-level TLB entries
  * for the specified virtual address range in the given virtual address space.
@@ -1578,6 +1598,25 @@ pmap_s1_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	isb();
 }
 
+static __inline void
+pmap_s2_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    bool final_only)
+{
+	PMAP_ASSERT_STAGE2(pmap);
+	MPASS(pmap_stage2_invalidate_range != NULL);
+	pmap_stage2_invalidate_range(pmap_to_ttbr0(pmap), sva, eva, final_only);
+}
+
+static __inline void
+pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    bool final_only)
+{
+	if (pmap->pm_stage == PM_STAGE1)
+		pmap_s1_invalidate_range(pmap, sva, eva, final_only);
+	else
+		pmap_s2_invalidate_range(pmap, sva, eva, final_only);
+}
+
 /*
  * Invalidates all cached intermediate- and final-level TLB entries for the
  * given virtual address space.
@@ -1598,6 +1637,23 @@ pmap_s1_invalidate_all(pmap_t pmap)
 	}
 	dsb(ish);
 	isb();
+}
+
+static __inline void
+pmap_s2_invalidate_all(pmap_t pmap)
+{
+	PMAP_ASSERT_STAGE2(pmap);
+	MPASS(pmap_stage2_invalidate_all != NULL);
+	pmap_stage2_invalidate_all(pmap_to_ttbr0(pmap));
+}
+
+static __inline void
+pmap_invalidate_all(pmap_t pmap)
+{
+	if (pmap->pm_stage == PM_STAGE1)
+		pmap_s1_invalidate_all(pmap);
+	else
+		pmap_s2_invalidate_all(pmap);
 }
 
 /*
@@ -2046,7 +2102,7 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		l1pg = PHYS_TO_VM_PAGE(tl0 & ~ATTR_MASK);
 		pmap_unwire_l3(pmap, va, l1pg, free);
 	}
-	pmap_s1_invalidate_page(pmap, va, false);
+	pmap_invalidate_page(pmap, va, false);
 
 	/*
 	 * Put page on a list so that it is released after
@@ -3347,7 +3403,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 	for (l3 = pmap_l2_to_l3(&l2e, sva); sva != eva; l3++, sva += L3_SIZE) {
 		if (!pmap_l3_valid(pmap_load(l3))) {
 			if (va != eva) {
-				pmap_s1_invalidate_range(pmap, va, sva, true);
+				pmap_invalidate_range(pmap, va, sva, true);
 				va = eva;
 			}
 			continue;
@@ -3374,7 +3430,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 					 * still provides access to that page. 
 					 */
 					if (va != eva) {
-						pmap_s1_invalidate_range(pmap, va,
+						pmap_invalidate_range(pmap, va,
 						    sva, true);
 						va = eva;
 					}
@@ -3405,7 +3461,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 			va = sva;
 	}
 	if (va != eva)
-		pmap_s1_invalidate_range(pmap, va, sva, true);
+		pmap_invalidate_range(pmap, va, sva, true);
 }
 
 /*
@@ -4312,12 +4368,6 @@ havel3:
 	 */
 	if (pmap_l3_valid(orig_l3)) {
 		/*
-		 * Only allow adding new entries on stage 2 tables for now.
-		 * This simplifies cache invalidation as we may need to call
-		 * into EL2 to perform such actions.
-		 */
-		PMAP_ASSERT_STAGE1(pmap);
-		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
 		 * are valid mappings in them. Hence, if a user page is wired,
@@ -4371,7 +4421,7 @@ havel3:
 			if (pmap_pte_dirty(pmap, orig_l3))
 				vm_page_dirty(om);
 			if ((orig_l3 & ATTR_AF) != 0) {
-				pmap_s1_invalidate_page(pmap, va, true);
+				pmap_invalidate_page(pmap, va, true);
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			}
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
@@ -4386,7 +4436,7 @@ havel3:
 		} else {
 			KASSERT((orig_l3 & ATTR_AF) != 0,
 			    ("pmap_enter: unmanaged mapping lacks ATTR_AF"));
-			pmap_s1_invalidate_page(pmap, va, true);
+			pmap_invalidate_page(pmap, va, true);
 		}
 		orig_l3 = 0;
 	} else {
@@ -4439,12 +4489,11 @@ validate:
 	 * Update the L3 entry
 	 */
 	if (pmap_l3_valid(orig_l3)) {
-		PMAP_ASSERT_STAGE1(pmap);
 		KASSERT(opa == pa, ("pmap_enter: invalid update"));
 		if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
 			/* same PA, different attributes */
 			orig_l3 = pmap_load_store(l3, new_l3);
-			pmap_s1_invalidate_page(pmap, va, true);
+			pmap_invalidate_page(pmap, va, true);
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0 &&
 			    pmap_pte_dirty(pmap, orig_l3))
 				vm_page_dirty(m);
@@ -5588,7 +5637,7 @@ pmap_remove_pages(pmap_t pmap)
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
-	pmap_s1_invalidate_all(pmap);
+	pmap_invalidate_all(pmap);
 	free_pv_chunk_batch(free_chunks);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, true);
@@ -5913,7 +5962,7 @@ retry:
 			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
 			    (tpte & ATTR_SW_WIRED) == 0) {
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_s1_invalidate_page(pmap, va, true);
+				pmap_invalidate_page(pmap, va, true);
 				cleared++;
 			} else
 				not_cleared++;
@@ -5954,7 +6003,7 @@ small_mappings:
 		if ((tpte & ATTR_AF) != 0) {
 			if ((tpte & ATTR_SW_WIRED) == 0) {
 				pmap_clear_bits(pte, ATTR_AF);
-				pmap_s1_invalidate_page(pmap, pv->pv_va, true);
+				pmap_invalidate_page(pmap, pv->pv_va, true);
 				cleared++;
 			} else
 				not_cleared++;
