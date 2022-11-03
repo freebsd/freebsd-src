@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 _DECLARE_DEBUG(LOG_DEBUG3);
 
 #define	MAX_FAMILIES	20
-#define	MAX_GROUPS	20
+#define	MAX_GROUPS	64
 
 #define	MIN_GROUP_NUM	48
 
