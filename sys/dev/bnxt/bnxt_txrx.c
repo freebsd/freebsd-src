@@ -257,7 +257,7 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 	uint16_t type;
 	uint16_t i;
 	uint16_t rxqid;
-	uint16_t count, len;
+	uint16_t count;
 	uint32_t pidx;
 	uint8_t flid;
 	uint64_t *paddrs;
@@ -265,7 +265,6 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 
 	rxqid = iru->iru_qsidx;
 	count = iru->iru_count;
-	len = iru->iru_buf_size;
 	pidx = iru->iru_pidx;
 	flid = iru->iru_flidx;
 	paddrs = iru->iru_paddrs;
@@ -283,7 +282,7 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 
 	for (i=0; i<count; i++) {
 		rxbd[pidx].flags_type = htole16(type);
-		rxbd[pidx].len = htole16(len);
+		rxbd[pidx].len = htole16(softc->scctx->isc_max_frame_size);
 		/* No need to byte-swap the opaque value */
 		rxbd[pidx].opaque = (((rxqid & 0xff) << 24) | (flid << 16)
 		    | (frag_idxs[i]));
