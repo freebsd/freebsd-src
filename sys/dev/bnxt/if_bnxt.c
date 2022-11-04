@@ -1514,6 +1514,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 	/* Initialize the vlan list */
 	SLIST_INIT(&softc->vnic_info.vlan_tags);
 	softc->vnic_info.vlan_tag_list.idi_vaddr = NULL;
+	softc->state_bv = bit_alloc(BNXT_STATE_MAX, M_DEVBUF,
+			M_WAITOK|M_ZERO);
 
 	return (rc);
 
@@ -1609,6 +1611,7 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
 
+	free(softc->state_bv, M_DEVBUF);
 	pci_disable_busmaster(softc->dev);
 	bnxt_pci_mapping_free(softc);
 
@@ -1746,11 +1749,6 @@ bnxt_init(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 skip_def_cp_ring:
-	/* And now set the default CP ring as the async CP ring */
-	rc = bnxt_cfg_async_cr(softc);
-	if (rc)
-		goto fail;
-
 	for (i = 0; i < softc->nrxqsets; i++) {
 		/* Allocate the statistics context */
 		rc = bnxt_hwrm_stat_ctx_alloc(softc, &softc->rx_cp_rings[i],
@@ -1812,6 +1810,11 @@ skip_def_cp_ring:
 		if (rc)
 			goto fail;
 	}
+
+	/* And now set the default CP / NQ ring for the async */
+	rc = bnxt_cfg_async_cr(softc);
+	if (rc)
+		goto fail;
 
 	/* Allocate the VNIC RSS context */
 	rc = bnxt_hwrm_vnic_ctx_alloc(softc, &softc->vnic_info.rss_id);
@@ -2138,10 +2141,20 @@ bnxt_update_admin_status(if_ctx_t ctx)
 
 	/*
 	 * When SR-IOV is enabled, avoid each VF sending this HWRM
-         * request every sec with which firmware timeouts can happen
-         */
-	if (BNXT_PF(softc)) {
-		bnxt_hwrm_port_qstats(softc);
+	 * request every sec with which firmware timeouts can happen
+	 */
+	if (!BNXT_PF(softc))
+		return;
+
+	bnxt_hwrm_port_qstats(softc);
+
+	if (BNXT_CHIP_P5(softc)) {
+		struct ifmediareq ifmr;
+
+		if (bit_test(softc->state_bv, BNXT_STATE_LINK_CHANGE)) {
+			bit_clear(softc->state_bv, BNXT_STATE_LINK_CHANGE);
+			bnxt_media_status(softc->ctx, &ifmr);
+		}
 	}
 
 	return;
@@ -2155,7 +2168,7 @@ bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 	uint64_t ticks_now = ticks;
 
         /* Schedule bnxt_update_admin_status() once per sec */
-        if (ticks_now - softc->admin_ticks >= hz) {
+	if (ticks_now - softc->admin_ticks >= hz) {
 		softc->admin_ticks = ticks_now;
 		iflib_admin_intr_deferred(ctx);
 	}
@@ -2223,6 +2236,34 @@ bnxt_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 }
 
 static void
+bnxt_process_cmd_cmpl(struct bnxt_softc *softc, hwrm_cmpl_t *cmd_cmpl)
+{
+	device_printf(softc->dev, "cmd sequence number %d\n",
+			cmd_cmpl->sequence_id);
+	return;
+}
+
+static void
+bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
+{
+	struct bnxt_softc *softc = cpr->ring.softc;
+	uint16_t type = cmpl->flags_type & TX_CMPL_TYPE_MASK;
+
+	switch (type) {
+	case HWRM_CMPL_TYPE_HWRM_DONE:
+		bnxt_process_cmd_cmpl(softc, (hwrm_cmpl_t *)cmpl);
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT:
+		bnxt_handle_async_event(softc, (cmpl_base_t *) cmpl);
+		break;
+	default:
+		device_printf(softc->dev, "%s:%d Unhandled async message %x\n",
+				__FUNCTION__, __LINE__, type);
+		break;
+	}
+}
+
+static void
 process_nq(struct bnxt_softc *softc, uint16_t nqid)
 {
 	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
@@ -2235,14 +2276,13 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 		if (!NQ_VALID(&cmp[cons], v_bit))
 			goto done;
 
-		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
-		nqe_cnt++;
-
 		nq_type = NQ_CN_TYPE_MASK & cmp[cons].type;
 
-		/* TBD - Handle Async events */
 		if (nq_type != NQ_CN_TYPE_CQ_NOTIFICATION)
-			device_printf(softc->dev, "%s: %d nq_type  0x%x\n", __FUNCTION__, __LINE__, nq_type);
+			 bnxt_process_async_msg(cpr, (tx_cmpl_t *)&cmp[cons]);
+
+		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
+		nqe_cnt++;
 	}
 done:
 	if (nqe_cnt) {
@@ -3110,7 +3150,10 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE:
-		bnxt_media_status(softc->ctx, &ifmr);
+		if (BNXT_CHIP_P5(softc))
+			bit_set(softc->state_bv, BNXT_STATE_LINK_CHANGE);
+		else
+			bnxt_media_status(softc->ctx, &ifmr);
 		break;
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_MTU_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE:
