@@ -1016,6 +1016,64 @@ ecap_sriov(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 		print_bar(fd, p, "iov bar  ", ptr + PCIR_SRIOV_BAR(i));
 }
 
+static const char *
+check_avail_and_state(u_int cap, u_int capbit, u_int ctl, u_int ctlbit)
+{
+
+	if (cap & capbit)
+		return (ctl & ctlbit ? "enabled" : "disabled");
+	else
+		return "unavailable";
+}
+
+static void
+ecap_acs(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	uint16_t acs_cap, acs_ctl;
+	static const char *const acc[] = { "access enabled", "blocking enabled",
+		"redirect enabled", "reserved" };
+
+	printf("ACS %d ", ver);
+	if (ver != 1) {
+		printf("\n");
+		return;
+	}
+
+#define	CHECK_AVAIL_STATE(bit) \
+	check_avail_and_state(acs_cap, bit, acs_ctl, bit##_ENABLE)
+
+	acs_cap = read_config(fd, &p->pc_sel, ptr + PCIR_ACS_CAP, 2);
+	acs_ctl = read_config(fd, &p->pc_sel, ptr + PCIR_ACS_CTL, 2);
+	printf("Source Validation %s, Translation Blocking %s\n",
+	    CHECK_AVAIL_STATE(PCIM_ACS_SOURCE_VALIDATION),
+	    CHECK_AVAIL_STATE(PCIM_ACS_TRANSLATION_BLOCKING));
+
+	printf("                     ");
+	printf("P2P Req Redirect %s, P2P Cmpl Redirect %s\n",
+	    CHECK_AVAIL_STATE(PCIM_ACS_P2P_REQ_REDIRECT),
+	    CHECK_AVAIL_STATE(PCIM_ACS_P2P_CMP_REDIRECT));
+	printf("                     ");
+	printf("P2P Upstream Forwarding %s, P2P Egress Control %s\n",
+	    CHECK_AVAIL_STATE(PCIM_ACS_P2P_UPSTREAM_FORWARDING),
+	    CHECK_AVAIL_STATE(PCIM_ACS_P2P_EGRESS_CTL));
+	printf("                     ");
+	printf("P2P Direct Translated %s, Enhanced Capability %s\n",
+	    CHECK_AVAIL_STATE(PCIM_ACS_P2P_DIRECT_TRANSLATED),
+	    acs_ctl & PCIM_ACS_ENHANCED_CAP ? "available" : "unavailable");
+#undef	CHECK_AVAIL_STATE
+
+	if (acs_cap & PCIM_ACS_ENHANCED_CAP) {
+		printf("                     ");
+		printf("I/O Req Blocking %s, Unclaimed Req Redirect Control %s\n",
+		    check_enabled(acs_ctl & PCIM_ACS_IO_REQ_BLOCKING_ENABLE),
+		    check_enabled(acs_ctl & PCIM_ACS_UNCLAIMED_REQ_REDIRECT_CTL));
+		printf("                     ");
+		printf("DSP BAR %s, USP BAR %s\n",
+		    acc[(acs_cap & PCIM_ACS_DSP_MEM_TGT_ACC_CTL) >> 8],
+		    acc[(acs_cap & PCIM_ACS_USP_MEM_TGT_ACC_CTL) >> 10]);
+	}
+}
+
 static struct {
 	uint16_t id;
 	const char *name;
@@ -1098,6 +1156,9 @@ list_ecaps(int fd, struct pci_conf *p)
 			break;
 		case PCIZ_SRIOV:
 			ecap_sriov(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
+		case PCIZ_ACS:
+			ecap_acs(fd, p, ptr, PCI_EXTCAP_VER(ecap));
 			break;
 		default:
 			name = "unknown";
