@@ -42,8 +42,7 @@ __FBSDID("$FreeBSD$");
 int bnxt_alloc_hwrm_dma_mem(struct bnxt_softc *softc);
 void bnxt_free_hwrm_dma_mem(struct bnxt_softc *softc);
 int bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
-    struct bnxt_ring *ring, uint16_t cmpl_ring_id, uint32_t stat_ctx_id,
-    bool irq);
+		struct bnxt_ring *ring);
 int bnxt_hwrm_ver_get(struct bnxt_softc *softc);
 int bnxt_hwrm_queue_qportcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc);
@@ -52,7 +51,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
 int bnxt_hwrm_func_qcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_reset(struct bnxt_softc *softc);
 int bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
-    bool set_eee, bool set_link); 
+    bool set_eee, bool set_link);
 int bnxt_hwrm_set_pause(struct bnxt_softc *softc);
 int bnxt_hwrm_vnic_ctx_alloc(struct bnxt_softc *softc, uint16_t *ctx_id);
 int bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
@@ -112,4 +111,10 @@ int bnxt_hwrm_free_wol_fltr(struct bnxt_softc *softc);
 int bnxt_hwrm_set_coal(struct bnxt_softc *softc);
 int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bmap,
                                      int bmap_size);
+int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc);
+int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t);
+int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all);
+int bnxt_hwrm_reserve_pf_rings (struct bnxt_softc *softc);
+void bnxt_hwrm_ring_info_get(struct bnxt_softc *softc, uint8_t ring_type,
+                             uint32_t ring_id,  uint32_t *prod, uint32_t *);
 #endif
