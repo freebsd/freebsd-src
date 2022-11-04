@@ -714,6 +714,7 @@ struct bnxt_softc {
 	struct bnxt_grp_info	*grp_info;
 	struct iflib_dma_info	rx_stats[BNXT_MAX_NUM_QUEUES];
 	int			nrxqsets;
+	uint16_t		rx_buf_size;
 
 	struct bnxt_cp_ring	def_cp_ring;
 	struct bnxt_cp_ring	def_nq_ring;
