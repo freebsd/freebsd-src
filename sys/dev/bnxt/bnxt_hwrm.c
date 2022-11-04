@@ -868,6 +868,9 @@ bnxt_hwrm_set_pause_common(struct bnxt_softc *softc,
 			    HWRM_PORT_PHY_CFG_INPUT_FORCE_PAUSE_TX;
 		req->enables |=
 			htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_FORCE_PAUSE);
+		req->auto_pause = req->force_pause;
+		req->enables |=
+		    htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_AUTO_PAUSE);
 	}
 }
 
