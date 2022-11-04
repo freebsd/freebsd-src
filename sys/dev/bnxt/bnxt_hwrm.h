@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #define BNXT_AUTO_PAUSE_AUTONEG_PAUSE  				\
         (HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_PAUSE_AUTONEG_PAUSE)
 #define BNXT_HWRM_SHORT_REQ_LEN	sizeof(struct hwrm_short_input)
+#define BNXT_BACKING_STORE_CFG_LEGACY_LEN       256
 
 /* HWRM Function Prototypes */
 int bnxt_alloc_hwrm_dma_mem(struct bnxt_softc *softc);
