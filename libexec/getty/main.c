@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -100,10 +101,7 @@ static char	name[MAXLOGNAME*3];
 static char	ttyn[32];
 
 #define	OBUFSIZ		128
-#define	TABBUFSIZ	512
 
-static char	defent[TABBUFSIZ];
-static char	tabent[TABBUFSIZ];
 static const char	*tname;
 
 static char	*env[128];
@@ -191,7 +189,7 @@ main(int argc, char *argv[])
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
 	if (hostname[0] == '\0')
-		strcpy(hostname, "Amnesiac");
+		snprintf(hostname, sizeof(hostname), "Amnesiac");
 
 	/*
 	 * Limit running time to deal with broken or dead lines.
@@ -201,7 +199,7 @@ main(int argc, char *argv[])
 	limit.rlim_cur = GETTY_TIMEOUT;
 	(void)setrlimit(RLIMIT_CPU, &limit);
 
-	gettable("default", defent);
+	gettable("default");
 	gendefaults();
 	tname = "default";
 	if (argc > 1)
@@ -214,83 +212,87 @@ main(int argc, char *argv[])
 	 * that the file descriptors are already set up for us.
 	 * J. Gettys - MIT Project Athena.
 	 */
-	if (argc <= 2 || strcmp(argv[2], "-") == 0)
-	    strcpy(ttyn, ttyname(STDIN_FILENO));
-	else {
-	    strcpy(ttyn, _PATH_DEV);
-	    strlcat(ttyn, argv[2], sizeof(ttyn));
-	    if (strcmp(argv[0], "+") != 0) {
-		chown(ttyn, 0, 0);
-		chmod(ttyn, 0600);
-		revoke(ttyn);
-
-		/*
-		 * Do the first scan through gettytab.
-		 * Terminal mode parameters will be wrong until
-		 * defttymode() called, but they're irrelevant for
-		 * the initial setup of the terminal device.
-		 */
-		dogettytab();
-
-		/*
-		 * Init or answer modem sequence has been specified.
-		 */
-		if (IC || AC) {
-			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
-				exit(1);
-			defttymode();
-			setttymode(1);
+	if (argc <= 2 || strcmp(argv[2], "-") == 0) {
+		char *n = ttyname(STDIN_FILENO);
+		if (n == NULL) {
+			syslog(LOG_ERR, "ttyname: %m");
+			exit(1);
 		}
+		snprintf(ttyn, sizeof(ttyn), "%s", n);
+	} else {
+		snprintf(ttyn, sizeof(ttyn), "%s%s", _PATH_DEV, argv[2]);
+		if (strcmp(argv[0], "+") != 0) {
+			chown(ttyn, 0, 0);
+			chmod(ttyn, 0600);
+			revoke(ttyn);
 
-		if (IC) {
-			if (getty_chat(IC, CT, DC) > 0) {
-				syslog(LOG_ERR, "modem init problem on %s", ttyn);
-				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
-				exit(1);
+			/*
+			 * Do the first scan through gettytab.
+			 * Terminal mode parameters will be wrong until
+			 * defttymode() called, but they're irrelevant for
+			 * the initial setup of the terminal device.
+			 */
+			dogettytab();
+
+			/*
+			 * Init or answer modem sequence has been specified.
+			 */
+			if (IC || AC) {
+				if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
+					exit(1);
+				defttymode();
+				setttymode(1);
+			}
+
+			if (IC) {
+				if (getty_chat(IC, CT, DC) > 0) {
+					syslog(LOG_ERR, "modem init problem on %s", ttyn);
+					(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+					exit(1);
+				}
+			}
+
+			if (AC) {
+				fd_set rfds;
+				struct timeval to;
+				int i;
+
+				FD_ZERO(&rfds);
+				FD_SET(0, &rfds);
+				to.tv_sec = RT;
+				to.tv_usec = 0;
+				i = select(32, &rfds, NULL, NULL, RT ? &to : NULL);
+				if (i < 0) {
+					syslog(LOG_ERR, "select %s: %m", ttyn);
+				} else if (i == 0) {
+					syslog(LOG_NOTICE, "recycle tty %s", ttyn);
+					(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+					exit(0);  /* recycle for init */
+				}
+				i = getty_chat(AC, CT, DC);
+				if (i > 0) {
+					syslog(LOG_ERR, "modem answer problem on %s", ttyn);
+					(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+					exit(1);
+				}
+			} else { /* maybe blocking open */
+				if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
+					exit(1);
 			}
 		}
-
-		if (AC) {
-			fd_set rfds;
-			struct timeval to;
-			int i;
-
-			FD_ZERO(&rfds);
-			FD_SET(0, &rfds);
-        		to.tv_sec = RT;
-        		to.tv_usec = 0;
-			i = select(32, &rfds, NULL, NULL, RT ? &to : NULL);
-        		if (i < 0) {
-				syslog(LOG_ERR, "select %s: %m", ttyn);
-			} else if (i == 0) {
-				syslog(LOG_NOTICE, "recycle tty %s", ttyn);
-				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
-				exit(0);  /* recycle for init */
-			}
-			i = getty_chat(AC, CT, DC);
-			if (i > 0) {
-				syslog(LOG_ERR, "modem answer problem on %s", ttyn);
-				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
-				exit(1);
-			}
-		} else { /* maybe blocking open */
-			if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
-				exit(1);
-		}
-	    }
 	}
 
 	defttymode();
 	for (;;) {
 
 		/*
-		 * if a delay was specified then sleep for that 
+		 * if a delay was specified then sleep for that
 		 * number of seconds before writing the initial prompt
 		 */
 		if (first_sleep && DE) {
-		    sleep(DE);
-		    /* remove any noise */
-		    (void)tcflush(STDIN_FILENO, TCIOFLUSH);
+			sleep(DE);
+			/* remove any noise */
+			(void)tcflush(STDIN_FILENO, TCIOFLUSH);
 		}
 		first_sleep = 0;
 
@@ -318,7 +320,7 @@ main(int argc, char *argv[])
 				char * cp;
 
 				while ((cp = get_line(fd)) != NULL) {
-					  putf(cp);
+					putf(cp);
 				}
 				close(fd);
 			}
@@ -439,7 +441,7 @@ opentty(const char *tty, int flags)
 			return 0;
 		sleep(60);
 	}
-	if (login_tty(i) < 0) { 
+	if (login_tty(i) < 0) {
 		if (daemon(0,0) < 0) {
 			syslog(LOG_ERR,"daemon: %m");
 			close(i);
@@ -555,7 +557,7 @@ getname(void)
 		   See RFC1662.
 		   Derived from code from Michael Hancock, <michaelh@cet.co.jp>
 		   and Erik 'PPP' Olson, <eriko@wrq.com>
-		 */
+		*/
 
 		if (PP && (cs == PPP_FRAME)) {
 			ppp_state = 1;
@@ -564,7 +566,7 @@ getname(void)
 		} else if (ppp_state == 2 && cs == PPP_ESCAPE) {
 			ppp_state = 3;
 		} else if ((ppp_state == 2 && cs == PPP_CONTROL)
-			|| (ppp_state == 3 && cs == PPP_CONTROL_ESCAPED)) {
+		    || (ppp_state == 3 && cs == PPP_CONTROL_ESCAPED)) {
 			ppp_state = 4;
 		} else if (ppp_state == 4 && cs == PPP_LCP_HI) {
 			ppp_state = 5;
@@ -761,7 +763,7 @@ putf(const char *cp)
 			puts(editedhost);
 			break;
 
-		case 'd': {
+		case 'd':
 			t = (time_t)0;
 			(void)time(&t);
 			if (Lo)
@@ -785,7 +787,6 @@ putf(const char *cp)
 		case 'v':
 			puts(kerninfo.version);
 			break;
-		}
 
 		case '%':
 			putchr('%');
@@ -801,9 +802,9 @@ putf(const char *cp)
 static void
 dogettytab(void)
 {
-	
+
 	/* Read the database entry. */
-	gettable(tname, tabent);
+	gettable(tname);
 
 	/*
 	 * Avoid inheriting the parity values from the default entry

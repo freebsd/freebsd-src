@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)from: subr.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+    "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -60,8 +60,9 @@ static const char rcsid[] =
  * Get a table entry.
  */
 void
-gettable(const char *name, char *buf)
+gettable(const char *name)
 {
+	char *buf = NULL;
 	struct gettystrs *sp;
 	struct gettynums *np;
 	struct gettyflags *fp;
@@ -155,6 +156,7 @@ gettable(const char *name, char *buf)
 			fp->value = 1 ^ fp->invrt;
 		}
 	}
+	free(buf);
 }
 
 void
@@ -186,8 +188,8 @@ setdefaults(void)
 
 	for (sp = gettystrs; sp->field; sp++)
 		if (!sp->value)
-			sp->value = !sp->defalt ? sp->defalt
-						: strdup(sp->defalt);
+			sp->value = !sp->defalt ?
+			    sp->defalt : strdup(sp->defalt);
 	for (np = gettynums; np->field; np++)
 		if (!np->set)
 			np->value = np->defalt;
@@ -202,13 +204,15 @@ charnames[] = {
 	&SU, &DS, &RP, &FL, &WE, &LN, 0
 };
 
+#define CV(a) (char *)(&tmode.c_cc[a])
+
 static char *
 charvars[] = {
-	&tmode.c_cc[VERASE], &tmode.c_cc[VKILL], &tmode.c_cc[VINTR],
-	&tmode.c_cc[VQUIT], &tmode.c_cc[VSTART], &tmode.c_cc[VSTOP],
-	&tmode.c_cc[VEOF], &tmode.c_cc[VEOL], &tmode.c_cc[VSUSP],
-	&tmode.c_cc[VDSUSP], &tmode.c_cc[VREPRINT], &tmode.c_cc[VDISCARD],
-	&tmode.c_cc[VWERASE], &tmode.c_cc[VLNEXT], 0
+	CV(VERASE), CV(VKILL), CV(VINTR),
+	CV(VQUIT), CV(VSTART), CV(VSTOP),
+	CV(VEOF), CV(VEOL), CV(VSUSP),
+	CV(VDSUSP), CV(VREPRINT), CV(VDISCARD),
+	CV(VWERASE), CV(VLNEXT), 0
 };
 
 void
@@ -505,7 +509,7 @@ edithost(const char *pattern)
 	 * In case of any errors, or if the pattern did not match, pass
 	 * the original hostname as is.
 	 */
- copyasis:
+copyasis:
 	strlcpy(editedhost, HN, sizeof(editedhost));
 }
 
