@@ -212,9 +212,14 @@ main(int argc, char *argv[])
 	 * that the file descriptors are already set up for us.
 	 * J. Gettys - MIT Project Athena.
 	 */
-	if (argc <= 2 || strcmp(argv[2], "-") == 0)
-		snprintf(ttyn, sizeof(ttyn), "%s", ttyname(STDIN_FILENO));
-	else {
+	if (argc <= 2 || strcmp(argv[2], "-") == 0) {
+		char *n = ttyname(STDIN_FILENO);
+		if (n == NULL) {
+			syslog(LOG_ERR, "ttyname: %m");
+			exit(1);
+		}
+		snprintf(ttyn, sizeof(ttyn), "%s", n);
+	} else {
 		snprintf(ttyn, sizeof(ttyn), "%s%s", _PATH_DEV, argv[2]);
 		if (strcmp(argv[0], "+") != 0) {
 			chown(ttyn, 0, 0);
