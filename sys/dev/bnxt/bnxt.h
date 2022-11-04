@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/bitstring.h>
 
 #include <machine/bus.h>
 
@@ -666,6 +667,9 @@ struct bnxt_softc {
 #define BNXT_FLAG_CHIP_P5 	0x0020
 #define BNXT_FLAG_TPA	 	0x0040
 	uint32_t		flags;
+#define BNXT_STATE_LINK_CHANGE  (0)
+#define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)
+	bitstr_t 		*state_bv;
 	uint32_t		total_msix;
 
 	struct bnxt_func_info	func;

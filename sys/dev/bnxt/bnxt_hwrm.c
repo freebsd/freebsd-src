@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
-#include <sys/bitstring.h>
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
@@ -1511,28 +1510,22 @@ int
 bnxt_cfg_async_cr(struct bnxt_softc *softc)
 {
 	int rc = 0;
+	struct hwrm_func_cfg_input req = {0};
 
-	if (BNXT_PF(softc)) {
-		struct hwrm_func_cfg_input req = {0};
+	if (!BNXT_PF(softc))
+		return 0;
 
-		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
-		req.fid = htole16(0xffff);
-		req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+	req.fid = htole16(0xffff);
+	req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
+	if (BNXT_CHIP_P5(softc))
+		req.async_event_cr = htole16(softc->nq_rings[0].ring.phys_id);
+	else
 		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
 
-		rc = hwrm_send_message(softc, &req, sizeof(req));
-	}
-	else {
-		struct hwrm_func_vf_cfg_input req = {0};
+	rc = hwrm_send_message(softc, &req, sizeof(req));
 
-		bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_VF_CFG);
-
-		req.enables = htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
-
-		rc = hwrm_send_message(softc, &req, sizeof(req));
-	}
 	return rc;
 }
 
