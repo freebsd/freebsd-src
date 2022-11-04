@@ -688,6 +688,7 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc,
 static void
 pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 {
+	__uint128_t power_cycles = 1;
 
 	memset(&sc->err_log, 0, sizeof(sc->err_log));
 	memset(&sc->health_log, 0, sizeof(sc->health_log));
@@ -707,6 +708,9 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 	sc->fw_log.afi = (1 << NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT);
 	memcpy(&sc->fw_log.revision[0], sc->ctrldata.fr,
 	    sizeof(sc->fw_log.revision[0]));
+
+	memcpy(&sc->health_log.power_cycles, &power_cycles,
+	    sizeof(sc->health_log.power_cycles));
 }
 
 static void
