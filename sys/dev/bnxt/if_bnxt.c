@@ -1749,7 +1749,11 @@ bnxt_init(if_ctx_t ctx)
 		rc = bnxt_hwrm_func_reset(softc);
 		if (rc)
 			return;
+	} else if (softc->is_dev_init) {
+		bnxt_stop(ctx);
 	}
+
+	softc->is_dev_init = true;
 	bnxt_clear_ids(softc);
 
 	// TBD -- Check if it is needed for Thor as well
@@ -1909,8 +1913,8 @@ bnxt_stop(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
+	softc->is_dev_init = false;
 	bnxt_do_disable_intr(&softc->def_cp_ring);
-	bnxt_hwrm_func_reset(softc);
 	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
 	return;
