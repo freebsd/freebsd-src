@@ -186,8 +186,8 @@ bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr)
 	    "discard_pkts", CTLFLAG_RD,
 	    &tx_stats[txr].tx_discard_pkts, "discarded transmit packets");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "drop_pkts", CTLFLAG_RD, &tx_stats[txr].tx_drop_pkts,
-	    "dropped transmit packets");
+	    "error_pkts", CTLFLAG_RD, &tx_stats[txr].tx_error_pkts,
+	    "Error transmit packets");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "ucast_bytes", CTLFLAG_RD, &tx_stats[txr].tx_ucast_bytes,
 	    "unicast bytes sent");
@@ -237,7 +237,7 @@ bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 	    "Transmitted 512b 1023b frames");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "tx_1024b_1518_frames", CTLFLAG_RD,
- 	    &softc->tx_port_stats->tx_1024b_1518_frames, 
+	    &softc->tx_port_stats->tx_1024b_1518b_frames,
 	    "Transmitted 1024b 1518 frames");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "tx_good_vlan_frames", CTLFLAG_RD,
@@ -245,7 +245,7 @@ bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 	    "Transmitted good vlan frames");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "tx_1519b_2047_frames", CTLFLAG_RD,
- 	    &softc->tx_port_stats->tx_1519b_2047_frames, 
+	    &softc->tx_port_stats->tx_1519b_2047b_frames,
 	    "Transmitted 1519b 2047 frames");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "tx_2048b_4095b_frames", CTLFLAG_RD,
@@ -421,7 +421,7 @@ bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 	    "Received 512b 1023b frames");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "rx_1024b_1518_frames", CTLFLAG_RD,
- 	    &softc->rx_port_stats->rx_1024b_1518_frames, 
+	    &softc->rx_port_stats->rx_1024b_1518b_frames,
 	    "Received 1024b 1518 frames");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "rx_good_vlan_frames", CTLFLAG_RD,
@@ -679,8 +679,8 @@ bnxt_create_rx_sysctls(struct bnxt_softc *softc, int rxr)
 	    "discard_pkts", CTLFLAG_RD,
 	    &rx_stats[rxr].rx_discard_pkts, "discarded receive packets");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "drop_pkts", CTLFLAG_RD, &rx_stats[rxr].rx_drop_pkts,
-	    "dropped receive packets");
+	    "error_pkts", CTLFLAG_RD, &rx_stats->rx_error_pkts,
+	    "Error receive packets");
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "ucast_bytes", CTLFLAG_RD, &rx_stats[rxr].rx_ucast_bytes,
 	    "unicast bytes received");
