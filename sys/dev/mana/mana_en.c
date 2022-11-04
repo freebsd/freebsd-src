@@ -1054,10 +1054,8 @@ mana_cfg_vport(struct mana_port_context *apc, uint32_t protection_dom_id,
 	apc->tx_shortform_allowed = resp.short_form_allowed;
 	apc->tx_vp_offset = resp.tx_vport_offset;
 
-#if defined(__amd64__)
-	if_printf(apc->ndev, "Configured vPort %lu PD %u DB %u\n",
+	if_printf(apc->ndev, "Configured vPort %ju PD %u DB %u\n",
 	    apc->port_handle, protection_dom_id, doorbell_pg_id);
-#endif
 
 out:
 	if (err)
@@ -1127,10 +1125,8 @@ mana_cfg_vport_steering(struct mana_port_context *apc,
 		err = EPROTO;
 	}
 
-#if defined(__amd64__)
-	if_printf(ndev, "Configured steering vPort %lu entries %u\n",
+	if_printf(ndev, "Configured steering vPort %ju entries %u\n",
 	    apc->port_handle, num_entries);
-#endif
 
 out:
 	free(req, M_DEVBUF);
@@ -1694,13 +1690,8 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 
 	if (pktlen == 0) {
 		/* data packets should never have packetlength of zero */
-#if defined(__amd64__)
-		if_printf(ndev, "RX pkt len=0, rq=%u, cq=%u, rxobj=0x%lx\n",
+		if_printf(ndev, "RX pkt len=0, rq=%u, cq=%u, rxobj=0x%jx\n",
 		    rxq->gdma_id, cq->gdma_id, rxq->rxobj);
-#else
-		if_printf(ndev, "RX pkt len=0, rq=%u, cq=%u, rxobj=0x%llx\n",
-		    rxq->gdma_id, cq->gdma_id, rxq->rxobj);
-#endif
 		return;
 	}
 
