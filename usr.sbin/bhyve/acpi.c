@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/stat.h>
 
+#include <err.h>
 #include <paths.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -838,17 +839,25 @@ static int
 basl_load(struct vmctx *ctx, int fd, uint64_t off)
 {
 	struct stat sb;
-	void *gaddr;
+	void *addr;
 
 	if (fstat(fd, &sb) < 0)
 		return (errno);
-		
-	gaddr = paddr_guest2host(ctx, basl_acpi_base + off, sb.st_size);
-	if (gaddr == NULL)
+
+	addr = calloc(1, sb.st_size);
+	if (addr == NULL)
 		return (EFAULT);
 
-	if (read(fd, gaddr, sb.st_size) < 0)
+	if (read(fd, addr, sb.st_size) < 0)
 		return (errno);
+
+	struct basl_table *table;
+
+	uint8_t name[ACPI_NAMESEG_SIZE + 1] = { 0 };
+	memcpy(name, addr, sizeof(name) - 1 /* last char is '\0' */);
+	BASL_EXEC(
+	    basl_table_create(&table, ctx, name, BASL_TABLE_ALIGNMENT, off));
+	BASL_EXEC(basl_table_append_bytes(table, addr, sb.st_size));
 
 	return (0);
 }
@@ -968,30 +977,25 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	if (getenv("BHYVE_ACPI_KEEPTMPS"))
 		basl_keep_temps = 1;
 
-	err = basl_make_templates();
+	BASL_EXEC(basl_init());
+
+	BASL_EXEC(basl_make_templates());
 
 	/*
 	 * Run through all the ASL files, compiling them and
 	 * copying them into guest memory
 	 */
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_rsdp, 0);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_rsdt, RSDT_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_xsdt, XSDT_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_madt, MADT_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_mcfg, MCFG_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_facs, FACS_OFFSET);
-	if (err == 0)
-		err = basl_compile(ctx, basl_fwrite_dsdt, DSDT_OFFSET);
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_rsdp, 0));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_rsdt, RSDT_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_xsdt, XSDT_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_madt, MADT_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_mcfg, MCFG_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_facs, FACS_OFFSET));
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_dsdt, DSDT_OFFSET));
 
-	return (err);
+	BASL_EXEC(basl_finish());
+
+	return (0);
 }
