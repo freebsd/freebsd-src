@@ -125,7 +125,7 @@ vmbus_setup_intr1(struct vmbus_softc *sc)
 		    (uint64_t)rman_get_start(sc->ires), sc->vector,
 		    (uint64_t)rman_get_end(sc->ires));
 	}
-	err = bus_setup_intr(sc->vmbus_dev, sc->ires, INTR_TYPE_MISC,
+	err = bus_setup_intr(sc->vmbus_dev, sc->ires, INTR_TYPE_MISC | INTR_MPSAFE,
 	    vmbus_handle_intr_new, NULL, sc, &sc->icookie);
 	if (err) {
 		device_printf(sc->vmbus_dev, "failed to setup IRQ %d\n", err);
