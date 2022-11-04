@@ -389,8 +389,17 @@ struct tcp_info {
 	u_int32_t	tcpi_rcv_ooopack;	/* Out-of-order packets */
 	u_int32_t	tcpi_snd_zerowin;	/* Zero-sized windows sent */
 
+	/* Accurate ECN counters. */
+	u_int32_t	__tcpi_received_ce;		/* # of CE marks received */
+	u_int32_t	__tcpi_delivered_e1_bytes;
+	u_int32_t	__tcpi_delivered_e0_bytes;
+	u_int32_t	__tcpi_delivered_ce_bytes;
+	u_int32_t	__tcpi_received_e1_bytes;
+	u_int32_t	__tcpi_received_e0_bytes;
+	u_int32_t	__tcpi_received_ce_bytes;
+
 	/* Padding to grow without breaking ABI. */
-	u_int32_t	__tcpi_pad[26];		/* Padding. */
+	u_int32_t	__tcpi_pad[19];		/* Padding. */
 };
 
 /*
