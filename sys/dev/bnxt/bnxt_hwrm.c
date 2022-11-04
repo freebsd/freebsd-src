@@ -394,7 +394,7 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 	struct hwrm_func_backing_store_cfg_input req = {0};
 	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
 	struct bnxt_ctx_pg_info *ctx_pg;
-	uint32_t *num_entries;
+	uint32_t *num_entries, req_len = sizeof(req);
 	uint64_t *pg_dir;
 	uint8_t *pg_attr;
 	int i, rc;
@@ -481,7 +481,11 @@ int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t enables)
 		*num_entries = htole32(ctx_pg->entries);
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
-	rc = hwrm_send_message(softc, &req, sizeof(req));
+
+	if (req_len > softc->hwrm_max_ext_req_len)
+		req_len = BNXT_BACKING_STORE_CFG_LEGACY_LEN;
+
+	rc = hwrm_send_message(softc, &req, req_len);
 	if (rc)
 		rc = -EIO;
 	return rc;
