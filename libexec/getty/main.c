@@ -213,81 +213,81 @@ main(int argc, char *argv[])
 	 * J. Gettys - MIT Project Athena.
 	 */
 	if (argc <= 2 || strcmp(argv[2], "-") == 0)
-	    snprintf(ttyn, sizeof(ttyn), "%s", ttyname(STDIN_FILENO));
+		snprintf(ttyn, sizeof(ttyn), "%s", ttyname(STDIN_FILENO));
 	else {
-	    snprintf(ttyn, sizeof(ttyn), "%s%s", _PATH_DEV, argv[2]);
-	    if (strcmp(argv[0], "+") != 0) {
-		chown(ttyn, 0, 0);
-		chmod(ttyn, 0600);
-		revoke(ttyn);
+		snprintf(ttyn, sizeof(ttyn), "%s%s", _PATH_DEV, argv[2]);
+		if (strcmp(argv[0], "+") != 0) {
+			chown(ttyn, 0, 0);
+			chmod(ttyn, 0600);
+			revoke(ttyn);
 
-		/*
-		 * Do the first scan through gettytab.
-		 * Terminal mode parameters will be wrong until
-		 * defttymode() called, but they're irrelevant for
-		 * the initial setup of the terminal device.
-		 */
-		dogettytab();
+			/*
+			 * Do the first scan through gettytab.
+			 * Terminal mode parameters will be wrong until
+			 * defttymode() called, but they're irrelevant for
+			 * the initial setup of the terminal device.
+			 */
+			dogettytab();
 
-		/*
-		 * Init or answer modem sequence has been specified.
-		 */
-		if (IC || AC) {
-			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
-				exit(1);
-			defttymode();
-			setttymode(1);
-		}
+			/*
+			 * Init or answer modem sequence has been specified.
+			 */
+			if (IC || AC) {
+				if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
+					exit(1);
+				defttymode();
+				setttymode(1);
+			}
 
-		if (IC) {
-			if (getty_chat(IC, CT, DC) > 0) {
-				syslog(LOG_ERR, "modem init problem on %s", ttyn);
-				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
-				exit(1);
+			if (IC) {
+				if (getty_chat(IC, CT, DC) > 0) {
+					syslog(LOG_ERR, "modem init problem on %s", ttyn);
+					(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+					exit(1);
+				}
+			}
+
+			if (AC) {
+				fd_set rfds;
+				struct timeval to;
+				int i;
+
+				FD_ZERO(&rfds);
+				FD_SET(0, &rfds);
+				to.tv_sec = RT;
+				to.tv_usec = 0;
+				i = select(32, &rfds, NULL, NULL, RT ? &to : NULL);
+				if (i < 0) {
+					syslog(LOG_ERR, "select %s: %m", ttyn);
+				} else if (i == 0) {
+					syslog(LOG_NOTICE, "recycle tty %s", ttyn);
+					(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+					exit(0);  /* recycle for init */
+				}
+				i = getty_chat(AC, CT, DC);
+				if (i > 0) {
+					syslog(LOG_ERR, "modem answer problem on %s", ttyn);
+					(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
+					exit(1);
+				}
+			} else { /* maybe blocking open */
+				if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
+					exit(1);
 			}
 		}
-
-		if (AC) {
-			fd_set rfds;
-			struct timeval to;
-			int i;
-
-			FD_ZERO(&rfds);
-			FD_SET(0, &rfds);
-        		to.tv_sec = RT;
-        		to.tv_usec = 0;
-			i = select(32, &rfds, NULL, NULL, RT ? &to : NULL);
-        		if (i < 0) {
-				syslog(LOG_ERR, "select %s: %m", ttyn);
-			} else if (i == 0) {
-				syslog(LOG_NOTICE, "recycle tty %s", ttyn);
-				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
-				exit(0);  /* recycle for init */
-			}
-			i = getty_chat(AC, CT, DC);
-			if (i > 0) {
-				syslog(LOG_ERR, "modem answer problem on %s", ttyn);
-				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
-				exit(1);
-			}
-		} else { /* maybe blocking open */
-			if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
-				exit(1);
-		}
-	    }
 	}
 
 	defttymode();
 	for (;;) {
 
 		/*
-		 * if a delay was specified then sleep for that 
+		 * if a delay was specified then sleep for that
 		 * number of seconds before writing the initial prompt
 		 */
 		if (first_sleep && DE) {
-		    sleep(DE);
-		    /* remove any noise */
-		    (void)tcflush(STDIN_FILENO, TCIOFLUSH);
+			sleep(DE);
+			/* remove any noise */
+			(void)tcflush(STDIN_FILENO, TCIOFLUSH);
 		}
 		first_sleep = 0;
 
@@ -315,7 +315,7 @@ main(int argc, char *argv[])
 				char * cp;
 
 				while ((cp = get_line(fd)) != NULL) {
-					  putf(cp);
+					putf(cp);
 				}
 				close(fd);
 			}
@@ -436,7 +436,7 @@ opentty(const char *tty, int flags)
 			return 0;
 		sleep(60);
 	}
-	if (login_tty(i) < 0) { 
+	if (login_tty(i) < 0) {
 		if (daemon(0,0) < 0) {
 			syslog(LOG_ERR,"daemon: %m");
 			close(i);
@@ -552,7 +552,7 @@ getname(void)
 		   See RFC1662.
 		   Derived from code from Michael Hancock, <michaelh@cet.co.jp>
 		   and Erik 'PPP' Olson, <eriko@wrq.com>
-		 */
+		*/
 
 		if (PP && (cs == PPP_FRAME)) {
 			ppp_state = 1;
@@ -561,7 +561,7 @@ getname(void)
 		} else if (ppp_state == 2 && cs == PPP_ESCAPE) {
 			ppp_state = 3;
 		} else if ((ppp_state == 2 && cs == PPP_CONTROL)
-			|| (ppp_state == 3 && cs == PPP_CONTROL_ESCAPED)) {
+		    || (ppp_state == 3 && cs == PPP_CONTROL_ESCAPED)) {
 			ppp_state = 4;
 		} else if (ppp_state == 4 && cs == PPP_LCP_HI) {
 			ppp_state = 5;
@@ -798,7 +798,7 @@ putf(const char *cp)
 static void
 dogettytab(void)
 {
-	
+
 	/* Read the database entry. */
 	gettable(tname);
 
