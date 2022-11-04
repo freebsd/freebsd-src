@@ -59,10 +59,10 @@ static volatile int alarmed = 0;
 
 static void   chat_alrm(int);
 static int    chat_unalarm(void);
-static int    getdigit(unsigned char **, int, int);
+static int    getdigit(char **, int, int);
 static char   **read_chat(char **);
 static char   *cleanchr(char **, unsigned char);
-static const char *cleanstr(const unsigned char *, int);
+static const char *cleanstr(const char *, int);
 static const char *result(int);
 static int    chat_expect(const char *);
 static int    chat_send(char const *);
@@ -104,7 +104,7 @@ chat_unalarm(void)
  */
 
 static int
-getdigit(unsigned char **ptr, int base, int max)
+getdigit(char **ptr, int base, int max)
 {
 	int i, val = 0;
 	char * q;
@@ -149,10 +149,10 @@ read_chat(char **chatstr)
 			     p != NULL;
 			     p = strtok(NULL, ws))
 			{
-				unsigned char *q, *r;
+				char *q, *r;
 
 				/* Read escapes */
-				for (q = r = (unsigned char *)p; *r; ++q)
+				for (q = r = p; *r; ++q)
 				{
 					if (*q == '\\')
 					{
@@ -271,9 +271,9 @@ cleanchr(char **buf, unsigned char ch)
  */
 
 static const char *
-cleanstr(const unsigned char *s, int l)
+cleanstr(const char *s, int l)
 {
-	static unsigned char * tmp = NULL;
+	static char * tmp = NULL;
 	static int tmplen = 0;
 
 	if (tmplen < l * 4 + 1)

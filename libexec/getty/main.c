@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -100,10 +101,7 @@ static char	name[MAXLOGNAME*3];
 static char	ttyn[32];
 
 #define	OBUFSIZ		128
-#define	TABBUFSIZ	512
 
-static char	defent[TABBUFSIZ];
-static char	tabent[TABBUFSIZ];
 static const char	*tname;
 
 static char	*env[128];
@@ -191,7 +189,7 @@ main(int argc, char *argv[])
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
 	if (hostname[0] == '\0')
-		strcpy(hostname, "Amnesiac");
+		snprintf(hostname, sizeof(hostname), "Amnesiac");
 
 	/*
 	 * Limit running time to deal with broken or dead lines.
@@ -201,7 +199,7 @@ main(int argc, char *argv[])
 	limit.rlim_cur = GETTY_TIMEOUT;
 	(void)setrlimit(RLIMIT_CPU, &limit);
 
-	gettable("default", defent);
+	gettable("default");
 	gendefaults();
 	tname = "default";
 	if (argc > 1)
@@ -215,10 +213,9 @@ main(int argc, char *argv[])
 	 * J. Gettys - MIT Project Athena.
 	 */
 	if (argc <= 2 || strcmp(argv[2], "-") == 0)
-	    strcpy(ttyn, ttyname(STDIN_FILENO));
+	    snprintf(ttyn, sizeof(ttyn), "%s", ttyname(STDIN_FILENO));
 	else {
-	    strcpy(ttyn, _PATH_DEV);
-	    strlcat(ttyn, argv[2], sizeof(ttyn));
+	    snprintf(ttyn, sizeof(ttyn), "%s%s", _PATH_DEV, argv[2]);
 	    if (strcmp(argv[0], "+") != 0) {
 		chown(ttyn, 0, 0);
 		chmod(ttyn, 0600);
@@ -762,7 +759,7 @@ putf(const char *cp)
 			puts(editedhost);
 			break;
 
-		case 'd': {
+		case 'd':
 			t = (time_t)0;
 			(void)time(&t);
 			if (Lo)
@@ -786,7 +783,6 @@ putf(const char *cp)
 		case 'v':
 			puts(kerninfo.version);
 			break;
-		}
 
 		case '%':
 			putchr('%');
@@ -804,7 +800,7 @@ dogettytab(void)
 {
 	
 	/* Read the database entry. */
-	gettable(tname, tabent);
+	gettable(tname);
 
 	/*
 	 * Avoid inheriting the parity values from the default entry
