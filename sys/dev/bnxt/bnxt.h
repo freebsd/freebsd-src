@@ -471,6 +471,8 @@ struct bnxt_full_tpa_start {
 /* All the version information for the part */
 #define BNXT_VERSTR_SIZE	(3*3+2+1)	/* ie: "255.255.255\0" */
 #define BNXT_NAME_SIZE		17
+#define FW_VER_STR_LEN          32
+#define BC_HWRM_STR_LEN         21
 struct bnxt_ver_info {
 	uint8_t		hwrm_if_major;
 	uint8_t		hwrm_if_minor;
@@ -481,6 +483,7 @@ struct bnxt_ver_info {
 	char		mgmt_fw_ver[BNXT_VERSTR_SIZE];
 	char		netctrl_fw_ver[BNXT_VERSTR_SIZE];
 	char		roce_fw_ver[BNXT_VERSTR_SIZE];
+	char		fw_ver_str[FW_VER_STR_LEN];
 	char		phy_ver[BNXT_VERSTR_SIZE];
 	char		pkg_ver[64];
 
