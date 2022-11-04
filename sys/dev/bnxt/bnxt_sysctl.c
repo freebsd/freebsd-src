@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "bnxt_hwrm.h"
 #include "bnxt_sysctl.h"
 
-static int bnxt_vlan_only_sysctl(SYSCTL_HANDLER_ARGS);
 /*
  * We want to create:
  * dev.bnxt.0.hwstats.txq0
@@ -1388,45 +1387,10 @@ bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc)
 
 	return 0;
 }
-static int
-bnxt_vlan_only_sysctl(SYSCTL_HANDLER_ARGS) {
-	struct bnxt_softc *softc = arg1;
-	int rc;
-	int val;
-
-	if (softc == NULL)
-		return EBUSY;
-
-	val = softc->vnic_info.vlan_only;
-	rc = sysctl_handle_int(oidp, &val, 0, req);
-	if (rc || !req->newptr)
-		return rc;
-
-	if (val)
-		val = 1;
-
-	if (val != softc->vnic_info.vlan_only) {
-		softc->vnic_info.vlan_only = val;
-		if (if_getdrvflags(iflib_get_ifp(softc->ctx)) & IFF_DRV_RUNNING)
-			rc = bnxt_hwrm_cfa_l2_set_rx_mask(softc,
-			    &softc->vnic_info);
-	}
-
-	return rc;
-}
 
 int
 bnxt_create_config_sysctls_post(struct bnxt_softc *softc)
 {
-	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(softc->dev);
-	struct sysctl_oid_list *children;
-
-	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "vlan_only",
-	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
-	    bnxt_vlan_only_sysctl, "I",
-	    "require vlan tag on received packets when vlan is enabled");
-
+	/* Nothing for now, meant for future expansion */
 	return 0;
 }

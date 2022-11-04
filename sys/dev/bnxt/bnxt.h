@@ -408,7 +408,6 @@ struct bnxt_vnic_info {
 	uint16_t	mru;
 
 	uint32_t	rx_mask;
-	bool		vlan_only;
 	struct iflib_dma_info mc_list;
 	int		mc_list_count;
 #define BNXT_MAX_MC_ADDRS		16
