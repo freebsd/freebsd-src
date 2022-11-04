@@ -1560,6 +1560,8 @@ bnxt_attach_post(if_ctx_t ctx)
 	softc->scctx->isc_max_frame_size = ifp->if_mtu + ETHER_HDR_LEN +
 	    ETHER_CRC_LEN;
 
+	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
+
 failed:
 	return rc;
 }
@@ -1612,6 +1614,108 @@ bnxt_detach(if_ctx_t ctx)
 
 	return 0;
 }
+
+static void
+bnxt_hwrm_resource_free(struct bnxt_softc *softc)
+{
+	int i, rc = 0;
+
+	rc = bnxt_hwrm_ring_free(softc,
+			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+			&softc->def_cp_ring.ring,
+			(uint16_t)HWRM_NA_SIGNATURE);
+	if (rc)
+		goto fail;
+
+	for (i = 0; i < softc->ntxqsets; i++) {
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX,
+				&softc->tx_rings[i],
+				softc->tx_cp_rings[i].ring.phys_id);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+				&softc->tx_cp_rings[i].ring,
+				(uint16_t)HWRM_NA_SIGNATURE);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_stat_ctx_free(softc, &softc->tx_cp_rings[i]);
+		if (rc)
+			goto fail;
+	}
+	rc = bnxt_hwrm_free_filter(softc, &softc->vnic_info);
+	if (rc)
+		goto fail;
+
+	rc = bnxt_hwrm_vnic_free(softc, &softc->vnic_info);
+	if (rc)
+		goto fail;
+
+	rc = bnxt_hwrm_vnic_ctx_free(softc, softc->vnic_info.rss_id);
+	if (rc)
+		goto fail;
+
+	for (i = 0; i < softc->nrxqsets; i++) {
+		rc = bnxt_hwrm_ring_grp_free(softc, &softc->grp_info[i]);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
+				&softc->ag_rings[i],
+				(uint16_t)HWRM_NA_SIGNATURE);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX,
+				&softc->rx_rings[i],
+				softc->rx_cp_rings[i].ring.phys_id);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+				&softc->rx_cp_rings[i].ring,
+				(uint16_t)HWRM_NA_SIGNATURE);
+		if (rc)
+			goto fail;
+
+		if (BNXT_CHIP_P5(softc)) {
+			rc = bnxt_hwrm_ring_free(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ,
+					&softc->nq_rings[i].ring,
+					(uint16_t)HWRM_NA_SIGNATURE);
+			if (rc)
+				goto fail;
+		}
+
+		rc = bnxt_hwrm_stat_ctx_free(softc, &softc->rx_cp_rings[i]);
+		if (rc)
+			goto fail;
+	}
+
+fail:
+	return;
+}
+
+
+static void
+bnxt_func_reset(struct bnxt_softc *softc)
+{
+
+	if (!BNXT_CHIP_P5(softc)) {
+		bnxt_hwrm_func_reset(softc);
+		return;
+	}
+
+	bnxt_hwrm_resource_free(softc);
+	return;
+}
+
 
 /* Device configuration */
 static void
@@ -1689,8 +1793,6 @@ skip_def_cp_ring:
 			goto fail;
 		softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
 
-		if (!(softc->flags & BNXT_FLAG_TPA))
-			goto skip_agg_rings;
 		/* Allocate the AG ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
@@ -1698,7 +1800,6 @@ skip_def_cp_ring:
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
-skip_agg_rings:
 
 		/* Allocate the ring group */
 		softc->grp_info[i].stats_ctx =
@@ -1724,6 +1825,9 @@ skip_agg_rings:
 	if (rc)
 		goto fail;
 	rc = bnxt_hwrm_vnic_cfg(softc, &softc->vnic_info);
+	if (rc)
+		goto fail;
+	rc = bnxt_hwrm_vnic_set_hds(softc, &softc->vnic_info);
 	if (rc)
 		goto fail;
 	rc = bnxt_hwrm_set_filter(softc, &softc->vnic_info);
@@ -1783,7 +1887,7 @@ skip_agg_rings:
 	return;
 
 fail:
-	bnxt_hwrm_func_reset(softc);
+	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
 	return;
 }
@@ -1795,8 +1899,7 @@ bnxt_stop(if_ctx_t ctx)
 
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_hwrm_func_reset(softc);
-	if (!BNXT_CHIP_P5(softc))
-		bnxt_hwrm_func_reset(softc);
+	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
 	return;
 }
@@ -1853,6 +1956,7 @@ bnxt_mtu_set(if_ctx_t ctx, uint32_t mtu)
 		return EINVAL;
 
 	softc->scctx->isc_max_frame_size = mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
 	return 0;
 }
 
