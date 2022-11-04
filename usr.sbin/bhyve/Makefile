@@ -18,6 +18,7 @@ SRCS=	\
 	atkbdc.c		\
 	acpi.c			\
 	audio.c			\
+	basl.c			\
 	bhyvegc.c		\
 	bhyverun.c		\
 	block_if.c		\
