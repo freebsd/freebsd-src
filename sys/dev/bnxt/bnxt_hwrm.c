@@ -546,6 +546,7 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	const char nastr[] = "<not installed>";
 	const char naver[] = "<N/A>";
 	uint32_t dev_caps_cfg;
+	uint16_t fw_maj, fw_min, fw_bld, fw_rsv, len;
 
 	softc->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
 	softc->hwrm_cmd_timeo = 1000;
@@ -620,6 +621,32 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 		strlcpy(softc->ver_info->roce_fw_name, resp->roce_fw_name,
 		    BNXT_NAME_SIZE);
 	}
+
+	fw_maj = le32toh(resp->hwrm_fw_major);
+	if (softc->hwrm_spec_code > 0x10803 && fw_maj) {
+		fw_min = le16toh(resp->hwrm_fw_minor);
+		fw_bld = le16toh(resp->hwrm_fw_build);
+		fw_rsv = le16toh(resp->hwrm_fw_patch);
+		len = FW_VER_STR_LEN;
+	} else {
+		fw_maj = resp->hwrm_fw_maj_8b;
+		fw_min = resp->hwrm_fw_min_8b;
+		fw_bld = resp->hwrm_fw_bld_8b;
+		fw_rsv = resp->hwrm_fw_rsvd_8b;
+		len = BC_HWRM_STR_LEN;
+	}
+
+	snprintf (softc->ver_info->fw_ver_str, len, "%d.%d.%d.%d",
+			fw_maj, fw_min, fw_bld, fw_rsv);
+
+	if (strlen(resp->active_pkg_name)) {
+		int fw_ver_len = strlen (softc->ver_info->fw_ver_str);
+
+		snprintf(softc->ver_info->fw_ver_str + fw_ver_len,
+				FW_VER_STR_LEN - fw_ver_len - 1, "/pkg %s",
+				resp->active_pkg_name);
+	}
+
 	softc->ver_info->chip_num = le16toh(resp->chip_num);
 	softc->ver_info->chip_rev = resp->chip_rev;
 	softc->ver_info->chip_metal = resp->chip_metal;
@@ -1470,6 +1497,7 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 	/* TBD */
 	if (BNXT_CHIP_P5(softc))
 		return 0;
+
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_RSS_CFG);
 
 	req.hash_type = htole32(hash_type);
