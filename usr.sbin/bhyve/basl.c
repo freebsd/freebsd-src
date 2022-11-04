@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <libutil.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <vmmapi.h>
@@ -31,6 +32,41 @@ struct basl_table {
 };
 static STAILQ_HEAD(basl_table_list, basl_table) basl_tables = STAILQ_HEAD_INITIALIZER(
     basl_tables);
+
+static int
+basl_dump_table(const struct basl_table *const table, const bool mem)
+{
+	const ACPI_TABLE_HEADER *const header = table->data;
+	const uint8_t *data;
+
+	if (!mem) {
+		data = table->data;
+	} else {
+		data = vm_map_gpa(table->ctx, BHYVE_ACPI_BASE + table->off,
+		    table->len);
+		if (data == NULL) {
+			return (ENOMEM);
+		}
+	}
+
+	printf("%.4s @ %8x (%s)\n", header->Signature,
+	    BHYVE_ACPI_BASE + table->off, mem ? "Memory" : "FwCfg");
+	hexdump(data, table->len, NULL, 0);
+
+	return (0);
+}
+
+static int
+basl_dump(const bool mem)
+{
+	struct basl_table *table;
+
+	STAILQ_FOREACH(table, &basl_tables, chain) {
+		BASL_EXEC(basl_dump_table(table, mem));
+	}
+
+	return (0);
+}
 
 static int
 basl_finish_install_guest_tables(struct basl_table *const table)
