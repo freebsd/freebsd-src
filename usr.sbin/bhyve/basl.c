@@ -157,6 +157,22 @@ basl_table_append_bytes(struct basl_table *const table, const void *const bytes,
 }
 
 int
+basl_table_append_gas(struct basl_table *const table, const uint8_t space_id,
+    const uint8_t bit_width, const uint8_t bit_offset,
+    const uint8_t access_width, const uint64_t address)
+{
+	ACPI_GENERIC_ADDRESS gas_le = {
+		.SpaceId = space_id,
+		.BitWidth = bit_width,
+		.BitOffset = bit_offset,
+		.AccessWidth = access_width,
+		.Address = htole64(address),
+	};
+
+	return (basl_table_append_bytes(table, &gas_le, sizeof(gas_le)));
+}
+
+int
 basl_table_append_int(struct basl_table *const table, const uint64_t val,
     const uint8_t size)
 {
