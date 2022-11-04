@@ -914,6 +914,29 @@ bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
 }
 
 int
+bnxt_hwrm_vnic_set_hds(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
+{
+        struct hwrm_vnic_plcmodes_cfg_input req = {0};
+
+	if (!BNXT_CHIP_P5(softc))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_PLCMODES_CFG);
+
+	/*
+	 * TBD -- Explore these flags
+	 * 	1. VNIC_PLCMODES_CFG_REQ_FLAGS_HDS_IPV4
+	 * 	2. VNIC_PLCMODES_CFG_REQ_FLAGS_HDS_IPV6
+	 * 	3. req.jumbo_thresh
+	 * 	4. req.hds_threshold
+	 */
+        req.flags = htole32(HWRM_VNIC_PLCMODES_CFG_INPUT_FLAGS_JUMBO_PLACEMENT);
+	req.vnic_id = htole16(vnic->id);
+
+	return hwrm_send_message(softc, &req, sizeof(req));
+}
+
+int
 bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 {
 	struct hwrm_vnic_cfg_input req = {0};
@@ -951,6 +974,29 @@ bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 }
 
 int
+bnxt_hwrm_vnic_free(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
+{
+	struct hwrm_vnic_free_input req = {0};
+	int rc = 0;
+
+	if (vnic->id == (uint16_t)HWRM_NA_SIGNATURE)
+		return rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_FREE);
+
+	req.vnic_id = htole32(vnic->id);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc)
+		goto fail;
+
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+	return (rc);
+}
+
+int
 bnxt_hwrm_vnic_alloc(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 {
 	struct hwrm_vnic_alloc_input req = {0};
@@ -979,6 +1025,27 @@ bnxt_hwrm_vnic_alloc(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 fail:
 	BNXT_HWRM_UNLOCK(softc);
 	return (rc);
+}
+
+int
+bnxt_hwrm_vnic_ctx_free(struct bnxt_softc *softc, uint16_t ctx_id)
+{
+	struct hwrm_vnic_rss_cos_lb_ctx_free_input req = {0};
+	int rc = 0;
+
+	if (ctx_id == (uint16_t)HWRM_NA_SIGNATURE)
+		return rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_RSS_COS_LB_CTX_FREE);
+	req.rss_cos_lb_ctx_id = htole16(ctx_id);
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc)
+		goto fail;
+
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+	return rc;
 }
 
 int
@@ -1044,6 +1111,64 @@ fail:
 	return rc;
 }
 
+int
+bnxt_hwrm_ring_grp_free(struct bnxt_softc *softc, struct bnxt_grp_info *grp)
+{
+	struct hwrm_ring_grp_free_input req = {0};
+	int rc = 0;
+
+	if (grp->grp_id == (uint16_t)HWRM_NA_SIGNATURE)
+		return 0;
+
+	if (BNXT_CHIP_P5 (softc))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_RING_GRP_FREE);
+
+	req.ring_group_id = htole32(grp->grp_id);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc)
+		goto fail;
+
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+	return rc;
+}
+
+int bnxt_hwrm_ring_free(struct bnxt_softc *softc, uint32_t ring_type,
+		struct bnxt_ring *ring, int cmpl_ring_id)
+{
+        struct hwrm_ring_free_input req = {0};
+	struct hwrm_ring_free_output *resp;
+	int rc = 0;
+        uint16_t error_code;
+
+	if (ring->phys_id == (uint16_t)HWRM_NA_SIGNATURE)
+		return 0;
+
+	resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_RING_FREE);
+	req.cmpl_ring = htole16(cmpl_ring_id);
+        req.ring_type = ring_type;
+        req.ring_id = htole16(ring->phys_id);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+        error_code = le16toh(resp->error_code);
+
+	if (rc || error_code) {
+		device_printf(softc->dev, "hwrm_ring_free type %d failed. "
+				"rc:%x err:%x\n", ring_type, rc, error_code);
+		if (!rc)
+			rc = -EIO;
+	}
+
+	BNXT_HWRM_UNLOCK(softc);
+	return rc;
+}
+
 /*
  * Ring allocation message to the firmware
  */
@@ -1091,8 +1216,7 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 		cp_ring = &softc->rx_cp_rings[idx];
 
                 req.stat_ctx_id = htole32(cp_ring->stats_ctx_id);
-		req.rx_buf_size = htole16(
-			softc->scctx->isc_max_frame_size);
+		req.rx_buf_size = htole16(softc->rx_buf_size);
                 req.enables |= htole32(
 			HWRM_RING_ALLOC_INPUT_ENABLES_RX_BUF_SIZE_VALID |
 			HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
@@ -1107,8 +1231,7 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 
                 req.rx_ring_id = htole16(softc->rx_rings[idx].phys_id);
 		req.stat_ctx_id = htole32(cp_ring->stats_ctx_id);
-		req.rx_buf_size = htole16(
-			softc->scctx->isc_max_frame_size);
+		req.rx_buf_size = htole16(softc->rx_buf_size);
                 req.enables |= htole32(
                             HWRM_RING_ALLOC_INPUT_ENABLES_RX_RING_ID_VALID |
                             HWRM_RING_ALLOC_INPUT_ENABLES_RX_BUF_SIZE_VALID |
@@ -1142,6 +1265,29 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 
 fail:
 	BNXT_HWRM_UNLOCK(softc);
+	return rc;
+}
+
+int
+bnxt_hwrm_stat_ctx_free(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr)
+{
+	struct hwrm_stat_ctx_free_input req = {0};
+	int rc = 0;
+
+	if (cpr->stats_ctx_id == HWRM_NA_SIGNATURE)
+		return rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_STAT_CTX_FREE);
+
+	req.stat_ctx_id = htole16(cpr->stats_ctx_id);
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc)
+		goto fail;
+
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+
 	return rc;
 }
 
@@ -1251,6 +1397,29 @@ bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
 	req.vlan_tag_tbl_addr = htole64(vnic->vlan_tag_list.idi_paddr);
 	req.num_vlan_tags = htole32(num_vlan_tags);
 	return hwrm_send_message(softc, &req, sizeof(req));
+}
+
+int
+bnxt_hwrm_free_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
+{
+	struct hwrm_cfa_l2_filter_free_input	req = {0};
+	int rc = 0;
+
+	if (vnic->filter_id == -1)
+		return rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_CFA_L2_FILTER_FREE);
+
+	req.l2_filter_id = htole64(vnic->filter_id);
+
+	BNXT_HWRM_LOCK(softc);
+	rc = _hwrm_send_message(softc, &req, sizeof(req));
+	if (rc)
+		goto fail;
+
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+	return (rc);
 }
 
 int
@@ -1403,12 +1572,12 @@ bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc)
 			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_ENCAP_TPA |
 			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_ECN |
 			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_SAME_GRE_SEQ;
-		
+
         	if (softc->hw_lro.is_mode_gro)
 			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_GRO;
 		else
 			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_RSC_WND_UPDATE;
-			
+
 		req.flags = htole32(flags);
 
 		req.enables = htole32(HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_SEGS |
