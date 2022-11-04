@@ -1719,6 +1719,23 @@ bnxt_func_reset(struct bnxt_softc *softc)
 	return;
 }
 
+static void
+bnxt_rss_grp_tbl_init(struct bnxt_softc *softc)
+{
+	uint16_t *rgt = (uint16_t *) softc->vnic_info.rss_grp_tbl.idi_vaddr;
+	int i, j;
+
+	for (i = 0, j = 0; i < HW_HASH_INDEX_SIZE; i++) {
+		if (BNXT_CHIP_P5(softc)) {
+			rgt[i++] = htole16(softc->rx_rings[j].phys_id);
+			rgt[i] = htole16(softc->rx_cp_rings[j].ring.phys_id);
+		} else {
+			rgt[i] = htole16(softc->grp_info[j].grp_id);
+		}
+		if (++j == softc->nrxqsets)
+			j = 0;
+	}
+}
 
 /* Device configuration */
 static void
@@ -1726,7 +1743,7 @@ bnxt_init(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct ifmediareq ifmr;
-	int i, j;
+	int i;
 	int rc;
 
 	if (!BNXT_CHIP_P5(softc)) {
@@ -1837,14 +1854,7 @@ skip_def_cp_ring:
 	if (rc)
 		goto fail;
 
-	/* Enable RSS on the VNICs */
-	for (i = 0, j = 0; i < HW_HASH_INDEX_SIZE; i++) {
-		((uint16_t *)
-		    softc->vnic_info.rss_grp_tbl.idi_vaddr)[i] =
-		    htole16(softc->grp_info[j].grp_id);
-		if (++j == softc->nrxqsets)
-			j = 0;
-	}
+	bnxt_rss_grp_tbl_init(softc);
 
 	rc = bnxt_hwrm_rss_cfg(softc, &softc->vnic_info,
 	    softc->vnic_info.rss_hash_type);
