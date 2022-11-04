@@ -1379,64 +1379,29 @@ bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
     struct bnxt_vnic_info *vnic)
 {
 	struct hwrm_cfa_l2_set_rx_mask_input req = {0};
-	struct bnxt_vlan_tag *tag;
-	uint32_t *tags;
-	uint32_t num_vlan_tags = 0;
-	uint32_t i;
 	uint32_t mask = vnic->rx_mask;
-	int rc;
 
-	SLIST_FOREACH(tag, &vnic->vlan_tags, next)
-		num_vlan_tags++;
-
-	if (num_vlan_tags) {
-		if (!(mask &
-		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN)) {
-			if (!vnic->vlan_only)
-				mask |= HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_VLAN_NONVLAN;
-			else
-				mask |=
-				    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_VLANONLY;
-		}
-		if (vnic->vlan_tag_list.idi_vaddr) {
-			iflib_dma_free(&vnic->vlan_tag_list);
-			vnic->vlan_tag_list.idi_vaddr = NULL;
-		}
-		rc = iflib_dma_alloc(softc->ctx, 4 * num_vlan_tags,
-		    &vnic->vlan_tag_list, BUS_DMA_NOWAIT);
-		if (rc)
-			return rc;
-		tags = (uint32_t *)vnic->vlan_tag_list.idi_vaddr;
-
-		i = 0;
-		SLIST_FOREACH(tag, &vnic->vlan_tags, next) {
-			tags[i] = htole32((tag->tpid << 16) | tag->tag);
-			i++;
-		}
-	}
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_CFA_L2_SET_RX_MASK);
 
 	req.vnic_id = htole32(vnic->id);
 	req.mask = htole32(mask);
 	req.mc_tbl_addr = htole64(vnic->mc_list.idi_paddr);
 	req.num_mc_entries = htole32(vnic->mc_list_count);
-	req.vlan_tag_tbl_addr = htole64(vnic->vlan_tag_list.idi_paddr);
-	req.num_vlan_tags = htole32(num_vlan_tags);
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
 int
-bnxt_hwrm_free_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
+bnxt_hwrm_l2_filter_free(struct bnxt_softc *softc, uint64_t filter_id)
 {
 	struct hwrm_cfa_l2_filter_free_input	req = {0};
 	int rc = 0;
 
-	if (vnic->filter_id == -1)
+	if (filter_id == -1)
 		return rc;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_CFA_L2_FILTER_FREE);
 
-	req.l2_filter_id = htole64(vnic->filter_id);
+	req.l2_filter_id = htole64(filter_id);
 
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
@@ -1449,16 +1414,40 @@ fail:
 }
 
 int
-bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
+bnxt_hwrm_free_filter(struct bnxt_softc *softc)
+{
+	struct bnxt_vnic_info *vnic = &softc->vnic_info;
+	struct bnxt_vlan_tag *tag;
+	int rc = 0;
+
+	rc = bnxt_hwrm_l2_filter_free(softc, softc->vnic_info.filter_id);
+	if (rc)
+		goto end;
+
+	SLIST_FOREACH(tag, &vnic->vlan_tags, next) {
+		rc = bnxt_hwrm_l2_filter_free(softc, tag->filter_id);
+		if (rc)
+			goto end;
+		tag->filter_id = -1;
+	}
+
+end:
+	return rc;
+}
+
+int
+bnxt_hwrm_l2_filter_alloc(struct bnxt_softc *softc, uint16_t vlan_tag,
+		uint64_t *filter_id)
 {
 	struct hwrm_cfa_l2_filter_alloc_input	req = {0};
 	struct hwrm_cfa_l2_filter_alloc_output	*resp;
+	struct bnxt_vnic_info *vnic = &softc->vnic_info;
 	uint32_t enables = 0;
 	int rc = 0;
 
-	if (vnic->filter_id != -1) {
-		device_printf(softc->dev,
-		    "Attempt to re-allocate l2 ctx filter\n");
+	if (*filter_id != -1) {
+		device_printf(softc->dev, "Attempt to re-allocate l2 ctx "
+				"filter (fid: 0x%lx)\n", *filter_id);
 		return EDOOFUS;
 	}
 
@@ -1469,6 +1458,17 @@ bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 	enables = HWRM_CFA_L2_FILTER_ALLOC_INPUT_ENABLES_L2_ADDR
 	    | HWRM_CFA_L2_FILTER_ALLOC_INPUT_ENABLES_L2_ADDR_MASK
 	    | HWRM_CFA_L2_FILTER_ALLOC_INPUT_ENABLES_DST_ID;
+
+	if (vlan_tag != 0xffff) {
+		enables |=
+			HWRM_CFA_L2_FILTER_ALLOC_INPUT_ENABLES_L2_IVLAN |
+			HWRM_CFA_L2_FILTER_ALLOC_INPUT_ENABLES_L2_IVLAN_MASK |
+			HWRM_CFA_L2_FILTER_ALLOC_INPUT_ENABLES_NUM_VLANS;
+		req.l2_ivlan_mask = 0xffff;
+		req.l2_ivlan = vlan_tag;
+		req.num_vlans = 1;
+	}
+
 	req.enables = htole32(enables);
 	req.dst_id = htole16(vnic->id);
 	memcpy(req.l2_addr, if_getlladdr(iflib_get_ifp(softc->ctx)),
@@ -1480,12 +1480,32 @@ bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 	if (rc)
 		goto fail;
 
-	vnic->filter_id = le64toh(resp->l2_filter_id);
-	vnic->flow_id = le64toh(resp->flow_id);
-
+	*filter_id = le64toh(resp->l2_filter_id);
 fail:
 	BNXT_HWRM_UNLOCK(softc);
 	return (rc);
+}
+
+int
+bnxt_hwrm_set_filter(struct bnxt_softc *softc)
+{
+	struct bnxt_vnic_info *vnic = &softc->vnic_info;
+	struct bnxt_vlan_tag *tag;
+	int rc = 0;
+
+	rc = bnxt_hwrm_l2_filter_alloc(softc, 0xffff, &vnic->filter_id);
+	if (rc)
+		goto end;
+
+	SLIST_FOREACH(tag, &vnic->vlan_tags, next) {
+		rc = bnxt_hwrm_l2_filter_alloc(softc, tag->tag,
+				&tag->filter_id);
+		if (rc)
+			goto end;
+	}
+
+end:
+	return rc;
 }
 
 int

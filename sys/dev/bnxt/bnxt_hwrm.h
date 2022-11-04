@@ -70,8 +70,11 @@ int bnxt_hwrm_ring_grp_alloc(struct bnxt_softc *softc,
 int bnxt_hwrm_ring_grp_free(struct bnxt_softc *softc, struct bnxt_grp_info *gr);
 int bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
     struct bnxt_vnic_info *vnic);
-int bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
-int bnxt_hwrm_free_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnc);
+int bnxt_hwrm_set_filter(struct bnxt_softc *softc);
+int bnxt_hwrm_free_filter(struct bnxt_softc *softc);
+int bnxt_hwrm_l2_filter_alloc(struct bnxt_softc *softc, uint16_t vlan_tag,
+		uint64_t *filter_id);
+int bnxt_hwrm_l2_filter_free(struct bnxt_softc *softc, uint64_t filter_id);
 int bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
     uint32_t hash_type);
 int bnxt_cfg_async_cr(struct bnxt_softc *softc);
