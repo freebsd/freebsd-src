@@ -286,31 +286,31 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 		goto fail;
 
 	snprintf(softc->ver_info->hwrm_if_ver, BNXT_VERSTR_SIZE, "%d.%d.%d",
-	    resp->hwrm_intf_maj, resp->hwrm_intf_min, resp->hwrm_intf_upd);
-	softc->ver_info->hwrm_if_major = resp->hwrm_intf_maj;
-	softc->ver_info->hwrm_if_minor = resp->hwrm_intf_min;
-	softc->ver_info->hwrm_if_update = resp->hwrm_intf_upd;
+	    resp->hwrm_intf_maj_8b, resp->hwrm_intf_min_8b, resp->hwrm_intf_upd_8b);
+	softc->ver_info->hwrm_if_major = resp->hwrm_intf_maj_8b;
+	softc->ver_info->hwrm_if_minor = resp->hwrm_intf_min_8b;
+	softc->ver_info->hwrm_if_update = resp->hwrm_intf_upd_8b;
 	snprintf(softc->ver_info->hwrm_fw_ver, BNXT_VERSTR_SIZE, "%d.%d.%d",
-	    resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld);
+	    resp->hwrm_fw_major, resp->hwrm_fw_minor, resp->hwrm_fw_build);
 	strlcpy(softc->ver_info->driver_hwrm_if_ver, HWRM_VERSION_STR,
 	    BNXT_VERSTR_SIZE);
 	strlcpy(softc->ver_info->hwrm_fw_name, resp->hwrm_fw_name,
 	    BNXT_NAME_SIZE);
 
-	if (resp->mgmt_fw_maj == 0 && resp->mgmt_fw_min == 0 &&
-	    resp->mgmt_fw_bld == 0) {
+	if (resp->mgmt_fw_major == 0 && resp->mgmt_fw_minor == 0 &&
+	    resp->mgmt_fw_build == 0) {
 		strlcpy(softc->ver_info->mgmt_fw_ver, naver, BNXT_VERSTR_SIZE);
 		strlcpy(softc->ver_info->mgmt_fw_name, nastr, BNXT_NAME_SIZE);
 	}
 	else {
 		snprintf(softc->ver_info->mgmt_fw_ver, BNXT_VERSTR_SIZE,
-		    "%d.%d.%d", resp->mgmt_fw_maj, resp->mgmt_fw_min,
-		    resp->mgmt_fw_bld);
+		    "%d.%d.%d", resp->mgmt_fw_major, resp->mgmt_fw_minor,
+		    resp->mgmt_fw_build);
 		strlcpy(softc->ver_info->mgmt_fw_name, resp->mgmt_fw_name,
 		    BNXT_NAME_SIZE);
 	}
-	if (resp->netctrl_fw_maj == 0 && resp->netctrl_fw_min == 0 &&
-	    resp->netctrl_fw_bld == 0) {
+	if (resp->netctrl_fw_major == 0 && resp->netctrl_fw_minor == 0 &&
+	    resp->netctrl_fw_build == 0) {
 		strlcpy(softc->ver_info->netctrl_fw_ver, naver,
 		    BNXT_VERSTR_SIZE);
 		strlcpy(softc->ver_info->netctrl_fw_name, nastr,
@@ -318,20 +318,20 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	}
 	else {
 		snprintf(softc->ver_info->netctrl_fw_ver, BNXT_VERSTR_SIZE,
-		    "%d.%d.%d", resp->netctrl_fw_maj, resp->netctrl_fw_min,
-		    resp->netctrl_fw_bld);
+		    "%d.%d.%d", resp->netctrl_fw_major, resp->netctrl_fw_minor,
+		    resp->netctrl_fw_build);
 		strlcpy(softc->ver_info->netctrl_fw_name, resp->netctrl_fw_name,
 		    BNXT_NAME_SIZE);
 	}
-	if (resp->roce_fw_maj == 0 && resp->roce_fw_min == 0 &&
-	    resp->roce_fw_bld == 0) {
+	if (resp->roce_fw_major == 0 && resp->roce_fw_minor == 0 &&
+	    resp->roce_fw_build == 0) {
 		strlcpy(softc->ver_info->roce_fw_ver, naver, BNXT_VERSTR_SIZE);
 		strlcpy(softc->ver_info->roce_fw_name, nastr, BNXT_NAME_SIZE);
 	}
 	else {
 		snprintf(softc->ver_info->roce_fw_ver, BNXT_VERSTR_SIZE,
-		    "%d.%d.%d", resp->roce_fw_maj, resp->roce_fw_min,
-		    resp->roce_fw_bld);
+		    "%d.%d.%d", resp->roce_fw_major, resp->roce_fw_minor,
+		    resp->roce_fw_build);
 		strlcpy(softc->ver_info->roce_fw_name, resp->roce_fw_name,
 		    BNXT_NAME_SIZE);
 	}
