@@ -97,11 +97,6 @@ struct disk_devdesc {
 	uint64_t	d_offset;
 };
 
-enum disk_ioctl {
-	IOCTL_GET_BLOCKS,
-	IOCTL_GET_BLOCK_SIZE
-};
-
 /*
  * Parse disk metadata and initialise dev->d_offset.
  */
