@@ -129,4 +129,6 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all);
 int bnxt_hwrm_reserve_pf_rings (struct bnxt_softc *softc);
 void bnxt_hwrm_ring_info_get(struct bnxt_softc *softc, uint8_t ring_type,
                              uint32_t ring_id,  uint32_t *prod, uint32_t *);
+int bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
+			  void *resp, uint32_t resp_len, uint32_t timeout);
 #endif

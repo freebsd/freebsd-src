@@ -541,6 +541,37 @@ hwrm_func_resc_qcaps_exit:
 }
 
 int
+bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
+		void *resp, uint32_t resp_len, uint32_t app_timeout)
+{
+	int rc = 0;
+	void *output = (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct input *input = req;
+	uint32_t old_timeo;
+
+	input->resp_addr = htole64(softc->hwrm_cmd_resp.idi_paddr);
+	BNXT_HWRM_LOCK(softc);
+	old_timeo = softc->hwrm_cmd_timeo;
+	if (input->req_type == HWRM_NVM_INSTALL_UPDATE) 
+		softc->hwrm_cmd_timeo = BNXT_NVM_TIMEO;
+	else
+		softc->hwrm_cmd_timeo = max(app_timeout, softc->hwrm_cmd_timeo);
+	rc = _hwrm_send_message(softc, req, req_len);
+	softc->hwrm_cmd_timeo = old_timeo;
+	if (rc) {
+		device_printf(softc->dev, "%s: %s command failed with rc: 0x%x\n",
+			      __FUNCTION__, GET_HWRM_REQ_TYPE(input->req_type), rc);
+		goto fail;
+	}
+
+	memcpy(resp, output, resp_len);
+fail:
+	BNXT_HWRM_UNLOCK(softc);
+	return rc;
+}
+
+
+int
 bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 {
 	struct hwrm_ver_get_input	req = {0};
@@ -657,7 +688,6 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	softc->ver_info->chip_bond_id = resp->chip_bond_id;
 	softc->ver_info->chip_type = resp->chip_platform_type;
 
-
 	if (resp->hwrm_intf_maj_8b >= 1) {
 		softc->hwrm_max_req_len = le16toh(resp->max_req_win_len);
 		softc->hwrm_max_ext_req_len = le16toh(resp->max_ext_req_len);
@@ -666,8 +696,7 @@ bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 	softc->hwrm_cmd_timeo = le16toh(resp->def_req_timeout);
 	if (!softc->hwrm_cmd_timeo)
 		softc->hwrm_cmd_timeo = DFLT_HWRM_CMD_TIMEOUT;
-
-
+	
 	dev_caps_cfg = le32toh(resp->dev_caps_cfg);
 	if ((dev_caps_cfg & HWRM_VER_GET_OUTPUT_DEV_CAPS_CFG_SHORT_CMD_SUPPORTED) &&
 	    (dev_caps_cfg & HWRM_VER_GET_OUTPUT_DEV_CAPS_CFG_SHORT_CMD_REQUIRED))
