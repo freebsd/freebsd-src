@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "bnxt_ioctl.h"
 #include "bnxt_sysctl.h"
 #include "hsi_struct_def.h"
+#include "bnxt_mgmt.h"
 
 /*
  * PCI Device ID Table
@@ -158,6 +159,9 @@ static pci_vendor_info_t bnxt_vendor_info_array[] =
 /*
  * Function prototypes
  */
+
+SLIST_HEAD(softc_list, bnxt_softc_list) pf_list;
+int bnxt_num_pfs = 0;
 
 static void *bnxt_register(device_t dev);
 
@@ -297,7 +301,7 @@ static driver_t bnxt_iflib_driver = {
  * iflib shared context
  */
 
-#define BNXT_DRIVER_VERSION	"1.0.0.2"
+#define BNXT_DRIVER_VERSION	"2.20.0.1"
 char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
@@ -1203,6 +1207,28 @@ static void bnxt_thor_db_nq(void *db_ptr, bool enable_irq)
 			BUS_SPACE_BARRIER_WRITE);
 }
 
+struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn, char *dev_name)
+{
+	struct bnxt_softc_list *sc = NULL;
+
+	SLIST_FOREACH(sc, &pf_list, next) {
+		/* get the softc reference based on device name */
+		if (dev_name && !strncmp(dev_name, iflib_get_ifp(sc->softc->ctx)->if_xname, BNXT_MAX_STR)) {
+			return sc->softc;
+		}
+		/* get the softc reference based on domain,bus,device,function */
+		if (!dev_name &&
+		    (domain == sc->softc->domain) &&
+		    (bus == sc->softc->bus) &&
+		    (dev_fn == sc->softc->dev_fn)) {
+			return sc->softc;
+
+		}
+	}
+
+	return NULL;
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -1241,6 +1267,19 @@ bnxt_attach_pre(if_ctx_t ctx)
 		softc->flags |= BNXT_FLAG_VF;
 		break;
 	}
+
+#define PCI_DEVFN(device, func) ((((device) & 0x1f) << 3) | ((func) & 0x07))
+	softc->domain = pci_get_domain(softc->dev);
+	softc->bus = pci_get_bus(softc->dev);
+	softc->slot = pci_get_slot(softc->dev);
+	softc->function = pci_get_function(softc->dev);
+	softc->dev_fn = PCI_DEVFN(softc->slot, softc->function);
+
+	if (bnxt_num_pfs == 0)
+		  SLIST_INIT(&pf_list);
+	bnxt_num_pfs++;
+	softc->list.softc = softc;
+	SLIST_INSERT_HEAD(&pf_list, &softc->list, next);
 
 	pci_enable_busmaster(softc->dev);
 
@@ -1575,6 +1614,8 @@ bnxt_detach(if_ctx_t ctx)
 	struct bnxt_vlan_tag *tmp;
 	int i;
 
+	SLIST_REMOVE(&pf_list, &softc->list, bnxt_softc_list, next);
+	bnxt_num_pfs--;
 	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_free_sysctl_ctx(softc);

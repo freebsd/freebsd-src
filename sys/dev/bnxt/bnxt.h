@@ -208,6 +208,7 @@ __FBSDID("$FreeBSD$");
 
 #define BNXT_MIN_FRAME_SIZE	52	/* Frames must be padded to this size for some A0 chips */
 
+extern char bnxt_driver_version[];
 typedef void (*bnxt_doorbell_tx)(void *, uint16_t idx);
 typedef void (*bnxt_doorbell_rx)(void *, uint16_t idx);
 typedef void (*bnxt_doorbell_rx_cq)(void *, bool);
@@ -648,14 +649,25 @@ struct bnxt_hw_resc {
 
 #define BNXT_HWRM_MAX_REQ_LEN		(softc->hwrm_max_req_len)
 
+struct bnxt_softc_list {
+	SLIST_ENTRY(bnxt_softc_list) next;
+	struct bnxt_softc *softc;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
 	if_softc_ctx_t	scctx;
 	if_shared_ctx_t	sctx;
+	uint32_t	domain;
+	uint32_t	bus;
+	uint32_t	slot;
+	uint32_t	function;
+	uint32_t	dev_fn;
 	struct ifmedia	*media;
 	struct bnxt_ctx_mem_info *ctx_mem;
 	struct bnxt_hw_resc hw_resc;
+	struct bnxt_softc_list list;
 
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
@@ -788,5 +800,6 @@ struct bnxt_filter_info {
 /* Function declarations */
 void bnxt_report_link(struct bnxt_softc *softc);
 bool bnxt_check_hwrm_version(struct bnxt_softc *softc);
+struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn, char *name);
 
 #endif /* _BNXT_H */
