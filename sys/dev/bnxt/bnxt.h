@@ -127,87 +127,6 @@ __FBSDID("$FreeBSD$");
 	    (CACHE_LINE_SIZE / sizeof(struct cmpl_base))) &		    \
 	    ((cpr)->ring.ring_size - 1)])
 
-/*
- * If we update the index, a write barrier is needed after the write to ensure
- * the completion ring has space before the RX/TX ring does.  Since we can't
- * make the RX and AG doorbells covered by the same barrier without remapping
- * MSI-X vectors, we create the barrier over the enture doorbell bar.
- * TODO: Remap the MSI-X vectors to allow a barrier to only cover the doorbells
- *       for a single ring group.
- *
- * A barrier of just the size of the write is used to ensure the ordering
- * remains correct and no writes are lost.
- */
-#define BNXT_CP_DISABLE_DB(ring) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL | CMPL_DOORBELL_MASK));	    \
-} while (0)
-
-#define BNXT_CP_ENABLE_DB(ring) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL));				    \
-} while (0)
-
-#define BNXT_CP_IDX_ENABLE_DB(ring, cons) do {				    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL | CMPL_DOORBELL_IDX_VALID |	    \
-	    (cons)));							    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-} while (0)
-
-#define BNXT_CP_IDX_DISABLE_DB(ring, cons) do {				    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL | CMPL_DOORBELL_IDX_VALID |	    \
-	    CMPL_DOORBELL_MASK | (cons)));				    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-} while (0)
-
-#define BNXT_TX_DB(ring, idx) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4(						    \
-	    (ring)->softc->doorbell_bar.tag,				    \
-	    (ring)->softc->doorbell_bar.handle,				    \
-	    (ring)->doorbell, htole32(TX_DOORBELL_KEY_TX | (idx)));	    \
-} while (0)
-
-#define BNXT_RX_DB(ring, idx) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4(						    \
-	    (ring)->softc->doorbell_bar.tag,				    \
-	    (ring)->softc->doorbell_bar.handle,				    \
-	    (ring)->doorbell, htole32(RX_DOORBELL_KEY_RX | (idx)));	    \
-} while (0)
-
 /* Lock macros */
 #define BNXT_HWRM_LOCK_INIT(_softc, _name) \
     mtx_init(&(_softc)->hwrm_lock, _name, "BNXT HWRM Lock", MTX_DEF)
@@ -243,6 +162,19 @@ __FBSDID("$FreeBSD$");
 
 #define BNXT_MIN_FRAME_SIZE	52	/* Frames must be padded to this size for some A0 chips */
 
+typedef void (*bnxt_doorbell_tx)(void *, uint16_t idx);
+typedef void (*bnxt_doorbell_rx)(void *, uint16_t idx);
+typedef void (*bnxt_doorbell_rx_cq)(void *, bool);
+typedef void (*bnxt_doorbell_tx_cq)(void *, bool);
+typedef void (*bnxt_doorbell_nq)(void *, bool);
+
+typedef struct bnxt_doorbell_ops {
+        bnxt_doorbell_tx bnxt_db_tx;
+        bnxt_doorbell_rx bnxt_db_rx;
+        bnxt_doorbell_rx_cq bnxt_db_rx_cq;
+        bnxt_doorbell_tx_cq bnxt_db_tx_cq;
+        bnxt_doorbell_nq bnxt_db_nq;
+} bnxt_dooorbell_ops_t;
 /* NVRAM access */
 enum bnxt_nvm_directory_type {
 	BNX_DIR_TYPE_UNUSED = 0,
@@ -611,6 +543,7 @@ struct bnxt_softc {
 	struct bnxt_cp_ring	def_cp_ring;
 	struct iflib_dma_info	def_cp_ring_mem;
 	struct grouptask	def_cp_task;
+	struct bnxt_doorbell_ops db_ops;
 
 	struct sysctl_ctx_list	hw_stats;
 	struct sysctl_oid	*hw_stats_oid;
