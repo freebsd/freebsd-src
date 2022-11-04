@@ -738,6 +738,7 @@ struct bnxt_softc {
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
+	bool is_dev_init;
 	struct bnxt_hw_lro	hw_lro;
 	uint8_t wol_filter_id;
 	uint16_t		rx_coal_usecs;
