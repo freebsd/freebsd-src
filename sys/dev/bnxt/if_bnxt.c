@@ -661,6 +661,55 @@ static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt_softc *softc)
 	return rc;
 }
 
+/*
+ * If we update the index, a write barrier is needed after the write to ensure
+ * the completion ring has space before the RX/TX ring does.  Since we can't
+ * make the RX and AG doorbells covered by the same barrier without remapping
+ * MSI-X vectors, we create the barrier over the enture doorbell bar.
+ * TODO: Remap the MSI-X vectors to allow a barrier to only cover the doorbells
+ *       for a single ring group.
+ *
+ * A barrier of just the size of the write is used to ensure the ordering
+ * remains correct and no writes are lost.
+ */
+
+static void bnxt_cuw_db_rx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 4,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_4(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole32(RX_DOORBELL_KEY_RX | idx));
+}
+
+static void bnxt_cuw_db_tx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 4,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_4(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole32(TX_DOORBELL_KEY_TX | idx));
+}
+
+static void bnxt_cuw_db_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 4,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_4(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole32(CMPL_DOORBELL_KEY_CMPL |
+				((cpr->cons == UINT32_MAX) ? 0 :
+				 (cpr->cons | CMPL_DOORBELL_IDX_VALID)) |
+				((enable_irq) ? 0 : CMPL_DOORBELL_MASK)));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -753,6 +802,11 @@ bnxt_attach_pre(if_ctx_t ctx)
 		    &softc->nvm_info->size, &softc->nvm_info->reserved_size,
 		    &softc->nvm_info->available_size);
 	}
+
+	softc->db_ops.bnxt_db_tx = bnxt_cuw_db_tx;
+	softc->db_ops.bnxt_db_rx = bnxt_cuw_db_rx;
+	softc->db_ops.bnxt_db_rx_cq = bnxt_cuw_db_cq;
+	softc->db_ops.bnxt_db_tx_cq = bnxt_cuw_db_cq;
 
 	/* Register the driver with the FW */
 	rc = bnxt_hwrm_func_drv_rgtr(softc);
@@ -1067,9 +1121,7 @@ bnxt_init(if_ctx_t ctx)
 		    HWRM_NA_SIGNATURE, false);
 		if (rc)
 			goto fail;
-		BNXT_RX_DB(&softc->rx_rings[i], 0);
-		/* TODO: Cumulus+ doesn't need the double doorbell */
-		BNXT_RX_DB(&softc->rx_rings[i], 0);
+		softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
 
 		/* Allocate the AG ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
@@ -1078,9 +1130,7 @@ bnxt_init(if_ctx_t ctx)
 		    HWRM_NA_SIGNATURE, false);
 		if (rc)
 			goto fail;
-		BNXT_RX_DB(&softc->rx_rings[i], 0);
-		/* TODO: Cumulus+ doesn't need the double doorbell */
-		BNXT_RX_DB(&softc->ag_rings[i], 0);
+		softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
 
 		/* Allocate the ring group */
 		softc->grp_info[i].stats_ctx =
@@ -1156,9 +1206,7 @@ bnxt_init(if_ctx_t ctx)
 		    softc->tx_cp_rings[i].stats_ctx_id, false);
 		if (rc)
 			goto fail;
-		BNXT_TX_DB(&softc->tx_rings[i], 0);
-		/* TODO: Cumulus+ doesn't need the double doorbell */
-		BNXT_TX_DB(&softc->tx_rings[i], 0);
+		softc->db_ops.bnxt_db_tx(&softc->tx_rings[i], 0);
 	}
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
@@ -1444,20 +1492,20 @@ bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 static void inline
 bnxt_do_enable_intr(struct bnxt_cp_ring *cpr)
 {
+	struct bnxt_softc *softc = cpr->ring.softc;
+
 	if (cpr->ring.phys_id != (uint16_t)HWRM_NA_SIGNATURE) {
-		/* First time enabling, do not set index */
-		if (cpr->cons == UINT32_MAX)
-			BNXT_CP_ENABLE_DB(&cpr->ring);
-		else
-			BNXT_CP_IDX_ENABLE_DB(&cpr->ring, cpr->cons);
+		softc->db_ops.bnxt_db_rx_cq(cpr, 1);
 	}
 }
 
 static void inline
 bnxt_do_disable_intr(struct bnxt_cp_ring *cpr)
 {
+	struct bnxt_softc *softc = cpr->ring.softc;
+
 	if (cpr->ring.phys_id != (uint16_t)HWRM_NA_SIGNATURE)
-		BNXT_CP_DISABLE_DB(&cpr->ring);
+		softc->db_ops.bnxt_db_rx_cq(cpr, 0);
 }
 
 /* Enable all interrupts */
@@ -1469,7 +1517,7 @@ bnxt_intr_enable(if_ctx_t ctx)
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
 	for (i = 0; i < softc->nrxqsets; i++)
-		bnxt_do_enable_intr(&softc->rx_cp_rings[i]);
+		softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
 
 	return;
 }
@@ -2246,9 +2294,10 @@ static int
 bnxt_handle_rx_cp(void *arg)
 {
 	struct bnxt_cp_ring *cpr = arg;
+	struct bnxt_softc *softc = cpr->ring.softc;
 
 	/* Disable further interrupts for this queue */
-	BNXT_CP_DISABLE_DB(&cpr->ring);
+	softc->db_ops.bnxt_db_rx_cq(cpr, 0);
 	return FILTER_SCHEDULE_THREAD;
 }
 
@@ -2257,7 +2306,7 @@ bnxt_handle_def_cp(void *arg)
 {
 	struct bnxt_softc *softc = arg;
 
-	BNXT_CP_DISABLE_DB(&softc->def_cp_ring.ring);
+	softc->db_ops.bnxt_db_rx_cq(&softc->def_cp_ring, 0);
 	GROUPTASK_ENQUEUE(&softc->def_cp_task);
 	return FILTER_HANDLED;
 }
@@ -2391,7 +2440,7 @@ bnxt_def_cp_task(void *context)
 
 	cpr->cons = last_cons;
 	cpr->v_bit = last_v_bit;
-	BNXT_CP_IDX_ENABLE_DB(&cpr->ring, cpr->cons);
+	softc->db_ops.bnxt_db_rx_cq(cpr, 1);
 }
 
 static uint8_t

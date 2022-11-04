@@ -180,9 +180,7 @@ bnxt_isc_txd_flush(void *sc, uint16_t txqid, qidx_t pidx)
 	struct bnxt_ring *tx_ring = &softc->tx_rings[txqid];
 
 	/* pidx is what we last set ipi_new_pidx to */
-	BNXT_TX_DB(tx_ring, pidx);
-	/* TODO: Cumulus+ doesn't need the double doorbell */
-	BNXT_TX_DB(tx_ring, pidx);
+	softc->db_ops.bnxt_db_tx(tx_ring, pidx);
 	return;
 }
 
@@ -244,7 +242,7 @@ done:
 	if (clear && avail) {
 		cpr->cons = last_cons;
 		cpr->v_bit = last_v_bit;
-		BNXT_CP_IDX_DISABLE_DB(&cpr->ring, cpr->cons);
+		softc->db_ops.bnxt_db_tx_cq(cpr, 0);
 	}
 
 	return avail;
@@ -313,12 +311,8 @@ bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
 	 * or we will overrun the completion ring and the device will wedge for
 	 * RX.
 	 */
-	if (softc->rx_cp_rings[rxqid].cons != UINT32_MAX)
-		BNXT_CP_IDX_DISABLE_DB(&softc->rx_cp_rings[rxqid].ring,
-		    softc->rx_cp_rings[rxqid].cons);
-	BNXT_RX_DB(rx_ring, pidx);
-	/* TODO: Cumulus+ doesn't need the double doorbell */
-	BNXT_RX_DB(rx_ring, pidx);
+	softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[rxqid], 0);
+	softc->db_ops.bnxt_db_rx(rx_ring, pidx);
 	return;
 }
 
