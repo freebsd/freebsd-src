@@ -23,10 +23,6 @@
 
 #ifdef _KERNEL
 
-#ifndef _SYS_CONF_H_
-#include <sys/conf.h>	/* XXX: temporary to avoid breakage */
-#endif
-
 void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 
 #endif
