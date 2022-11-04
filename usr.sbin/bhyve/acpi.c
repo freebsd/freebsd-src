@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bhyverun.h"
 #include "acpi.h"
+#include "basl.h"
 #include "pci_emul.h"
 #include "vmgenc.h"
 
@@ -80,7 +81,6 @@ __FBSDID("$FreeBSD$");
  * Define the base address of the ACPI tables, the sizes of some tables, 
  * and the offsets to the individual tables,
  */
-#define BHYVE_ACPI_BASE		0xf2400
 #define RSDT_OFFSET		0x040
 #define XSDT_OFFSET		0x080
 #define MADT_OFFSET		0x100
