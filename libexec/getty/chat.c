@@ -248,7 +248,7 @@ cleanchr(char **buf, unsigned char ch)
 		l = 2;
 		ch &= 0x7f;
 	} else
-	l = 0;
+		l = 0;
 
 	if (ch < 32) {
 		tmp[l++] = '^';
@@ -344,7 +344,7 @@ chat_expect(const char *str)
 
 						if (chat_debug & CHATDEBUG_RECEIVE)
 							syslog(LOG_DEBUG, "chat_recv '%s' m=%d",
-								cleanchr(NULL, ch), i);
+							    cleanchr(NULL, ch), i);
 
 						if (ch == str[i])
 							got[i++] = ch;
@@ -365,9 +365,9 @@ chat_expect(const char *str)
 				}
 			}
 			alarm(0);
-        		chat_unalarm();
-        		alarmed = 0;
-        		free(got);
+			chat_unalarm();
+			alarmed = 0;
+			free(got);
 		}
 	}
 
@@ -399,13 +399,13 @@ chat_send(char const *str)
                         unsigned char ch = (unsigned char)*str++;
 
                         if (alarmed)
-        			r = 3;
+				r = 3;
                         else if (ch == PAUSE_CH)
 				usleep(500000); /* 1/2 second */
 			else  {
 				usleep(10000);	/* be kind to modem */
                                 if (write(STDOUT_FILENO, &ch, 1) != 1)
-        		  		r = alarmed ? 3 : 2;
+					r = alarmed ? 3 : 2;
                         }
                 }
                 alarm(0);
@@ -414,7 +414,7 @@ chat_send(char const *str)
 	}
 
         if (chat_debug & CHATDEBUG_SEND)
-          syslog(LOG_DEBUG, "chat_send %s", result(r));
+		syslog(LOG_DEBUG, "chat_send %s", result(r));
 
         return r;
 }
@@ -481,7 +481,7 @@ getty_chat(char *scrstr, int timeout, int debug)
                 }
 
                 if (chat_debug & CHATDEBUG_MISC)
-                  syslog(LOG_DEBUG, "getty_chat %s", result(r));
+			syslog(LOG_DEBUG, "getty_chat %s", result(r));
 
         }
         return r;

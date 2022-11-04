@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)from: init.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+    "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -123,7 +123,7 @@ struct	gettynums gettynums[] = {
 	{ "dc", 0, 0, 0 },		/* debug chat script value */
 	{ NULL, 0, 0, 0 }
 };
-  
+
 
 struct	gettyflags gettyflags[] = {
 	{ "ht",	0, 0, 0, 0 },		/* has tabs */

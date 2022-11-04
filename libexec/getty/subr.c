@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)from: subr.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+    "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -188,8 +188,8 @@ setdefaults(void)
 
 	for (sp = gettystrs; sp->field; sp++)
 		if (!sp->value)
-			sp->value = !sp->defalt ? sp->defalt
-						: strdup(sp->defalt);
+			sp->value = !sp->defalt ?
+			    sp->defalt : strdup(sp->defalt);
 	for (np = gettynums; np->field; np++)
 		if (!np->set)
 			np->value = np->defalt;
@@ -509,7 +509,7 @@ edithost(const char *pattern)
 	 * In case of any errors, or if the pattern did not match, pass
 	 * the original hostname as is.
 	 */
- copyasis:
+copyasis:
 	strlcpy(editedhost, HN, sizeof(editedhost));
 }
 
