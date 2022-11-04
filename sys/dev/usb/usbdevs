@@ -1337,6 +1337,7 @@ product AZUREWAVE RTL8192SU_5	0x3325	RTL8192SU
 
 /* Baltech products */
 product BALTECH CARDREADER	0x9999	Card reader
+product BALTECH SMARTCARDREADER	0xf019	SmartCard reader
 
 /* Bayer products */
 product BAYER CONTOUR_CABLE	0x6001	FTDI compatible adapter
