@@ -1494,16 +1494,17 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 {
 	struct hwrm_vnic_rss_cfg_input	req = {0};
 
-	/* TBD */
-	if (BNXT_CHIP_P5(softc))
-		return 0;
-
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_RSS_CFG);
 
 	req.hash_type = htole32(hash_type);
 	req.ring_grp_tbl_addr = htole64(vnic->rss_grp_tbl.idi_paddr);
 	req.hash_key_tbl_addr = htole64(vnic->rss_hash_key_tbl.idi_paddr);
 	req.rss_ctx_idx = htole16(vnic->rss_id);
+	req.hash_mode_flags = HWRM_FUNC_SPD_CFG_INPUT_HASH_MODE_FLAGS_DEFAULT;
+	if (BNXT_CHIP_P5(softc)) {
+		req.vnic_id = htole16(vnic->id);
+		req.ring_table_pair_index = 0x0;
+	}
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
