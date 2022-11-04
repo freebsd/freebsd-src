@@ -33,6 +33,17 @@ struct basl_table {
 static STAILQ_HEAD(basl_table_list, basl_table) basl_tables = STAILQ_HEAD_INITIALIZER(
     basl_tables);
 
+static __inline void
+basl_le_enc(void *pp, uint64_t val, size_t len)
+{
+	char buf[8];
+
+	assert(len <= 8);
+
+	le64enc(buf, val);
+	memcpy(pp, buf, len);
+}
+
 static int
 basl_dump_table(const struct basl_table *const table, const bool mem)
 {
@@ -143,6 +154,18 @@ basl_table_append_bytes(struct basl_table *const table, const void *const bytes,
 	memcpy(end, bytes, len);
 
 	return (0);
+}
+
+int
+basl_table_append_int(struct basl_table *const table, const uint64_t val,
+    const uint8_t size)
+{
+	char buf[8];
+
+	assert(size <= sizeof(val));
+
+	basl_le_enc(buf, val, size);
+	return (basl_table_append_bytes(table, buf, size));
 }
 
 int
