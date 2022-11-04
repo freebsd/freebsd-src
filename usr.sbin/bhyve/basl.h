@@ -32,5 +32,6 @@ int basl_finish(void);
 int basl_init(void);
 int basl_table_append_bytes(struct basl_table *table, const void *bytes,
     uint32_t len);
+int basl_table_append_int(struct basl_table *table, uint64_t val, uint8_t size);
 int basl_table_create(struct basl_table **table, struct vmctx *ctx,
     const uint8_t *name, uint32_t alignment, uint32_t off);
