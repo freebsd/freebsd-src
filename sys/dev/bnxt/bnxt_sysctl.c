@@ -835,6 +835,9 @@ bnxt_create_ver_sysctls(struct bnxt_softc *softc)
 	    "roce_fw", CTLFLAG_RD, vi->roce_fw_ver, 0,
 	    "RoCE firmware version");
 	SYSCTL_ADD_STRING(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "fw_ver", CTLFLAG_RD, vi->fw_ver_str, 0,
+	    "Firmware version");
+	SYSCTL_ADD_STRING(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "phy", CTLFLAG_RD, vi->phy_ver, 0,
 	    "PHY version");
 	SYSCTL_ADD_STRING(&vi->ver_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
