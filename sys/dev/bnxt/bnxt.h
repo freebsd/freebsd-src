@@ -396,7 +396,7 @@ struct bnxt_vf_info {
 
 struct bnxt_vlan_tag {
 	SLIST_ENTRY(bnxt_vlan_tag) next;
-	uint16_t	tpid;
+	uint64_t	filter_id;
 	uint16_t	tag;
 };
 
@@ -419,7 +419,6 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_FLAG_VLAN_STRIP	0x04
 
 	uint64_t	filter_id;
-	uint32_t	flow_id;
 
 	uint16_t	rss_id;
 	uint32_t	rss_hash_type;

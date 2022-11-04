@@ -653,7 +653,6 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 
 	/* And finally, the VNIC */
 	softc->vnic_info.id = (uint16_t)HWRM_NA_SIGNATURE;
-	softc->vnic_info.flow_id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.filter_id = -1;
 	softc->vnic_info.def_ring_grp = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.cos_rule = (uint16_t)HWRM_NA_SIGNATURE;
@@ -1649,7 +1648,7 @@ bnxt_hwrm_resource_free(struct bnxt_softc *softc)
 		if (rc)
 			goto fail;
 	}
-	rc = bnxt_hwrm_free_filter(softc, &softc->vnic_info);
+	rc = bnxt_hwrm_free_filter(softc);
 	if (rc)
 		goto fail;
 
@@ -1850,7 +1849,7 @@ skip_def_cp_ring:
 	rc = bnxt_hwrm_vnic_set_hds(softc, &softc->vnic_info);
 	if (rc)
 		goto fail;
-	rc = bnxt_hwrm_set_filter(softc, &softc->vnic_info);
+	rc = bnxt_hwrm_set_filter(softc);
 	if (rc)
 		goto fail;
 
@@ -2406,7 +2405,7 @@ bnxt_vlan_register(if_ctx_t ctx, uint16_t vtag)
 	if (new_tag == NULL)
 		return;
 	new_tag->tag = vtag;
-	new_tag->tpid = 8100;
+	new_tag->filter_id = -1;
 	SLIST_INSERT_HEAD(&softc->vnic_info.vlan_tags, new_tag, next);
 };
 
