@@ -35,7 +35,4 @@ CWARNFLAGS.curve25519.c+=	-Wno-shadow
 CWARNFLAGS.config.c+=	-Wno-cast-align
 CWARNFLAGS.ipc.c+=	-Wno-cast-align
 
-# qsort comparator
-CWARNFLAGS.show.c+=	-Wno-cast-qual
-
 .include <bsd.prog.mk>
