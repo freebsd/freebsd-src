@@ -1483,7 +1483,7 @@ bnxt_hwrm_l2_filter_alloc(struct bnxt_softc *softc, uint16_t vlan_tag,
 
 	if (*filter_id != -1) {
 		device_printf(softc->dev, "Attempt to re-allocate l2 ctx "
-				"filter (fid: 0x%lx)\n", *filter_id);
+		    "filter (fid: 0x%jx)\n", (uintmax_t)*filter_id);
 		return EDOOFUS;
 	}
 
