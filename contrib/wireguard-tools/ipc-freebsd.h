@@ -4,6 +4,7 @@
  *
  */
 
+#include <assert.h>
 #include <sys/nv.h>
 #include <sys/sockio.h>
 #include <dev/wg/if_wg.h>
@@ -118,7 +119,7 @@ static int kernel_get_device(struct wgdevice **device, const char *ifname)
 		goto skip_peers;
 	for (i = 0; i < peer_count; ++i) {
 		struct wgpeer *peer;
-		struct wgallowedip *aip;
+		struct wgallowedip *aip = NULL;
 		const nvlist_t *const *nvl_aips;
 		size_t aip_count, j;
 
@@ -169,11 +170,13 @@ static int kernel_get_device(struct wgdevice **device, const char *ifname)
 		if (!aip_count || !nvl_aips)
 			goto skip_allowed_ips;
 		for (j = 0; j < aip_count; ++j) {
+			if (!nvlist_exists_number(nvl_aips[j], "cidr"))
+				continue;
+			if (!nvlist_exists_binary(nvl_aips[j], "ipv4") && !nvlist_exists_binary(nvl_aips[j], "ipv6"))
+				continue;
 			aip = calloc(1, sizeof(*aip));
 			if (!aip)
 				goto err_allowed_ips;
-			if (!nvlist_exists_number(nvl_aips[j], "cidr"))
-				continue;
 			number = nvlist_get_number(nvl_aips[j], "cidr");
 			if (nvlist_exists_binary(nvl_aips[j], "ipv4")) {
 				binary = nvlist_get_binary(nvl_aips[j], "ipv4", &size);
@@ -184,7 +187,8 @@ static int kernel_get_device(struct wgdevice **device, const char *ifname)
 				aip->family = AF_INET;
 				aip->cidr = number;
 				memcpy(&aip->ip4, binary, sizeof(aip->ip4));
-			} else if (nvlist_exists_binary(nvl_aips[j], "ipv6")) {
+			} else {
+				assert(nvlist_exists_binary(nvl_aips[j], "ipv6"));
 				binary = nvlist_get_binary(nvl_aips[j], "ipv6", &size);
 				if (!binary || number > 128) {
 					ret = EINVAL;
@@ -193,14 +197,14 @@ static int kernel_get_device(struct wgdevice **device, const char *ifname)
 				aip->family = AF_INET6;
 				aip->cidr = number;
 				memcpy(&aip->ip6, binary, sizeof(aip->ip6));
-			} else
-				continue;
+			}
 
 			if (!peer->first_allowedip)
 				peer->first_allowedip = aip;
 			else
 				peer->last_allowedip->next_allowedip = aip;
 			peer->last_allowedip = aip;
+			aip = NULL;
 			continue;
 
 		err_allowed_ips:
@@ -209,6 +213,9 @@ static int kernel_get_device(struct wgdevice **device, const char *ifname)
 			free(aip);
 			goto err_peer;
 		}
+
+		/* Nothing leaked, hopefully -- ownership transferred or aip freed. */
+		assert(aip == NULL);
 	skip_allowed_ips:
 		if (!dev->first_peer)
 			dev->first_peer = peer;
@@ -322,6 +329,7 @@ static int kernel_set_device(struct wgdevice *dev)
 			nvlist_destroy(nvl_aips[j]);
 		free(nvl_aips);
 		nvlist_destroy(nvl_peers[i]);
+		nvl_peers[i] = NULL;
 		goto err;
 	}
 	if (i) {
@@ -329,9 +337,11 @@ static int kernel_set_device(struct wgdevice *dev)
 		for (i = 0; i < peer_count; ++i)
 			nvlist_destroy(nvl_peers[i]);
 		free(nvl_peers);
+		nvl_peers = NULL;
 	}
 	wgd.wgd_data = nvlist_pack(nvl_device, &wgd.wgd_size);
 	nvlist_destroy(nvl_device);
+	nvl_device = NULL;
 	if (!wgd.wgd_data)
 		goto err;
 	s = get_dgram_socket();
