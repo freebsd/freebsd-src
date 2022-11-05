@@ -170,9 +170,14 @@ extern struct devsw netdev;
 extern int errno;
 
 /*
- * Generic device specifier; architecture-dependent
- * versions may be larger, but should be allowed to
- * overlap.
+ * Generic device specifier; architecture-dependent versions may be larger, but
+ * should be allowed to overlap. The larger device specifiers store more data
+ * than can fit in the generic one that's gleaned after parsing the device
+ * string, or used in some cases to indicate wildcards that match a variety of
+ * situations based on what's on the drive itself rather than what the progammer
+ * might know in advance. Information about open files is stored in d_opendata,
+ * though what's passed into the open routine may differ from what's present
+ * after the open on some configurations.
  */
 struct devdesc {
     struct devsw	*d_dev;
