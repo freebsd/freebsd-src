@@ -425,8 +425,7 @@ SUBDIR+=	opensolaris
 .endif
 
 # Requires bus_space_read_8
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "aarch64" || \
-	${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc64le"
+.if ${MACHINE_ARCH} != "i386"
 _bnxt=		bnxt
 .endif
 
