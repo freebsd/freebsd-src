@@ -885,4 +885,9 @@ options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
-
+
+#####################################################################
+# Items broken on i386 that are generally available elsewhere
+
+# Device uses bus_read_8 and friends, so can't work. Remove it from lint.
+nodevice	bnxt
