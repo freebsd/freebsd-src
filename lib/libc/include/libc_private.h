@@ -39,6 +39,8 @@
 #include <sys/_types.h>
 #include <sys/_pthreadtypes.h>
 
+extern char **environ;
+
 /*
  * The kernel doesn't expose PID_MAX to the user space. Save it here
  * to allow to run a newer world on a pre-1400079 kernel.
