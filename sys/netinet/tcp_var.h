@@ -490,6 +490,13 @@ tcp_unlock_or_drop(struct tcpcb *tp, int tcp_output_retval)
 	return (tcp_output_retval);
 }
 #endif	/* _NETINET_IN_PCB_H_ */
+
+static int inline
+tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
+{
+	return ((ack - tp->snd_una) / tp->t_maxseg +
+		((((ack - tp->snd_una) % tp->t_maxseg) != 0) ? 1 : 0));
+}
 #endif	/* _KERNEL */
 
 /*
@@ -551,12 +558,6 @@ tcp_unlock_or_drop(struct tcpcb *tp, int tcp_output_retval)
 #endif
 
 #define	BYTES_THIS_ACK(tp, th)	(th->th_ack - tp->snd_una)
-static int inline
-tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
-{
-	return ((ack - tp->snd_una) / tp->t_maxseg +
-		((((ack - tp->snd_una) % tp->t_maxseg) != 0) ? 1 : 0));
-}
 
 /*
  * Flags for the t_oobflags field.
