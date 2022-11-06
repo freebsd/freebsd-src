@@ -287,9 +287,9 @@ sctp_ctlinput(struct icmp *icmp)
 	dst.sin_port = sh->dest_port;
 	dst.sin_addr = inner_ip->ip_dst;
 	/*
-	 * 'dst' holds the dest of the packet that failed to be
-	 * sent. 'src' holds our local endpoint address. Thus we
-	 * reverse the dst and the src in the lookup.
+	 * 'dst' holds the dest of the packet that failed to be sent. 'src'
+	 * holds our local endpoint address. Thus we reverse the dst and the
+	 * src in the lookup.
 	 */
 	inp = NULL;
 	net = NULL;
@@ -303,10 +303,9 @@ sctp_ctlinput(struct icmp *icmp)
 		/* Check the verification tag */
 		if (ntohl(sh->v_tag) != 0) {
 			/*
-			 * This must be the verification tag used
-			 * for sending out packets. We don't
-			 * consider packets reflecting the
-			 * verification tag.
+			 * This must be the verification tag used for
+			 * sending out packets. We don't consider packets
+			 * reflecting the verification tag.
 			 */
 			if (ntohl(sh->v_tag) != stcb->asoc.peer_vtag) {
 				SCTP_TCB_UNLOCK(stcb);
@@ -317,9 +316,9 @@ sctp_ctlinput(struct icmp *icmp)
 			    sizeof(struct ip) +
 			    8 + (inner_ip->ip_hl << 2) + 20) {
 				/*
-				 * In this case we can check if we
-				 * got an INIT chunk and if the
-				 * initiate tag matches.
+				 * In this case we can check if we got an
+				 * INIT chunk and if the initiate tag
+				 * matches.
 				 */
 				ch = (struct sctp_init_chunk *)(sh + 1);
 				if ((ch->ch.chunk_type != SCTP_INITIATION) ||
@@ -7536,14 +7535,14 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 	.pr_soreceive =	sctp_soreceive				\
 
 struct protosw sctp_seqpacket_protosw = {
-	.pr_type =	SOCK_SEQPACKET,
-	.pr_flags =	PR_WANTRCVD,
+	.pr_type = SOCK_SEQPACKET,
+	.pr_flags = PR_WANTRCVD,
 	SCTP_PROTOSW
 };
 
 struct protosw sctp_stream_protosw = {
-	.pr_type =      SOCK_STREAM,
-	.pr_flags =	PR_CONNREQUIRED | PR_WANTRCVD,
+	.pr_type = SOCK_STREAM,
+	.pr_flags = PR_CONNREQUIRED | PR_WANTRCVD,
 	SCTP_PROTOSW
 };
 #endif
