@@ -473,7 +473,7 @@ fman_attach(device_t dev)
 	sc->fm_handle = fman_init(sc, &cfg);
 	if (sc->fm_handle == NULL) {
 		device_printf(dev, "could not be configured\n");
-		return (ENXIO);
+		goto err;
 	}
 
 	return (bus_generic_attach(dev));
