@@ -1640,6 +1640,19 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 		tcp_offload_tcp_info(tp, ti);
 	}
 #endif
+	/*
+	 * AccECN related counters.
+	 */
+	if ((tp->t_flags2 & (TF2_ECN_PERMIT | TF2_ACE_PERMIT)) ==
+	    (TF2_ECN_PERMIT | TF2_ACE_PERMIT))
+		/*
+		 * Internal counter starts at 5 for AccECN
+		 * but 0 for RFC3168 ECN.
+		 */
+		ti->tcpi_delivered_ce = tp->t_scep - 5;
+	else
+		ti->tcpi_delivered_ce = tp->t_scep;
+	ti->tcpi_received_ce = tp->t_rcep;
 }
 
 /*
