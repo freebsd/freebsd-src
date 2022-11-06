@@ -13528,8 +13528,10 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			rack_cc_after_idle(rack, tp);
 		}
 		tp->t_rcvtime = ticks;
-		/* Now what about ECN? */
-		if (tcp_ecn_input_segment(tp, ae->flags, ae->codepoint))
+		/* Now what about ECN of a chain of pure ACKs? */
+		if (tcp_ecn_input_segment(tp, ae->flags, 0,
+			tcp_packets_this_ack(tp, ae->ack),
+			ae->codepoint))
 			rack_cong_signal(tp, CC_ECN, ae->ack, __LINE__);
 #ifdef TCP_ACCOUNTING
 		/* Count for the specific type of ack in */
@@ -14320,7 +14322,9 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * TCP ECN processing. XXXJTL: If we ever use ECN, we need to move
 	 * this to occur after we've validated the segment.
 	 */
-	if (tcp_ecn_input_segment(tp, thflags, iptos))
+	if (tcp_ecn_input_segment(tp, thflags, tlen,
+	    tcp_packets_this_ack(tp, th->th_ack),
+	    iptos))
 		rack_cong_signal(tp, CC_ECN, th->th_ack, __LINE__);
 
 	/*
