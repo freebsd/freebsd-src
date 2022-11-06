@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-extern char **environ;
-
 static const char execvPe_err_preamble[] = "execvP: ";
 static const char execvPe_err_trailer[] = ": path too long\n";
 
