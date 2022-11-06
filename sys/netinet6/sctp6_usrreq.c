@@ -256,12 +256,13 @@ sctp6_ctlinput(struct ip6ctlparam *ip6cp)
 	struct sctphdr sh;
 	struct sockaddr_in6 src, dst;
 
-	if (icmp6_errmap(ip6cp->ip6c_icmp6) == 0)
+	if (icmp6_errmap(ip6cp->ip6c_icmp6) == 0) {
 		return;
+	}
 
 	/*
-	 * Check if we can safely examine the ports and the
-	 * verification tag of the SCTP common header.
+	 * Check if we can safely examine the ports and the verification tag
+	 * of the SCTP common header.
 	 */
 	if (ip6cp->ip6c_m->m_pkthdr.len <
 	    (int32_t)(ip6cp->ip6c_off + offsetof(struct sctphdr, checksum))) {
@@ -301,10 +302,9 @@ sctp6_ctlinput(struct ip6ctlparam *ip6cp)
 		/* Check the verification tag */
 		if (ntohl(sh.v_tag) != 0) {
 			/*
-			 * This must be the verification tag used
-			 * for sending out packets. We don't
-			 * consider packets reflecting the
-			 * verification tag.
+			 * This must be the verification tag used for
+			 * sending out packets. We don't consider packets
+			 * reflecting the verification tag.
 			 */
 			if (ntohl(sh.v_tag) != stcb->asoc.peer_vtag) {
 				SCTP_TCB_UNLOCK(stcb);
@@ -316,9 +316,9 @@ sctp6_ctlinput(struct ip6ctlparam *ip6cp)
 			    sizeof(struct sctp_chunkhdr) +
 			    offsetof(struct sctp_init, a_rwnd)) {
 				/*
-				 * In this case we can check if we
-				 * got an INIT chunk and if the
-				 * initiate tag matches.
+				 * In this case we can check if we got an
+				 * INIT chunk and if the initiate tag
+				 * matches.
 				 */
 				uint32_t initiate_tag;
 				uint8_t chunk_type;
@@ -1194,14 +1194,14 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	.pr_soreceive =	sctp_soreceive
 
 struct protosw sctp6_seqpacket_protosw = {
-	.pr_type =	SOCK_SEQPACKET,
-	.pr_flags =	PR_WANTRCVD,
+	.pr_type = SOCK_SEQPACKET,
+	.pr_flags = PR_WANTRCVD,
 	SCTP6_PROTOSW
 };
 
 struct protosw sctp6_stream_protosw = {
-	.pr_type =	SOCK_STREAM,
-	.pr_flags =	PR_CONNREQUIRED | PR_WANTRCVD,
+	.pr_type = SOCK_STREAM,
+	.pr_flags = PR_CONNREQUIRED | PR_WANTRCVD,
 	SCTP6_PROTOSW
 };
 #endif
