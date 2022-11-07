@@ -1647,8 +1647,11 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
  * Walks the page tables to translate a kernel virtual address to a
  * physical address. Returns true if the kva is valid and stores the
  * physical address in pa if it is not NULL.
+ *
+ * See the comment above data_abort() for the rationale for specifying
+ * NO_PERTHREAD_SSP here.
  */
-bool
+bool NO_PERTHREAD_SSP
 pmap_klookup(vm_offset_t va, vm_paddr_t *pa)
 {
 	pt_entry_t *pte, tpte;
@@ -7052,10 +7055,6 @@ pmap_switch(struct thread *new)
 
 	/* Store the new curthread */
 	PCPU_SET(curthread, new);
-#if defined(PERTHREAD_SSP)
-	/* Set the new threads SSP canary */
-	__asm("msr	sp_el0, %0" :: "r"(&new->td_md.md_canary));
-#endif
 
 	/* And the new pcb */
 	pcb = new->td_pcb;
