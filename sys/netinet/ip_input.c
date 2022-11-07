@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bootp.h"
+#include "opt_inet.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
