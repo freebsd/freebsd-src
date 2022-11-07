@@ -31,6 +31,13 @@
 #ifndef _LINUXKPI_ASM_IO_H_
 #define _LINUXKPI_ASM_IO_H_
 
+#include <sys/param.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <linux/io.h>
+
+#define	virt_to_phys(x)		vtophys(x)
 
 #endif	/* _LINUXKPI_ASM_IO_H_ */
