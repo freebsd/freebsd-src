@@ -64,6 +64,17 @@ but in other respects it is indistinguishable from the original.
 .Pp
 The
 .Nm
+utility supports mounting both directories and single files.
+Both
+.Ar target
+and
+.Ar mount_point
+must be the same type.
+Mounting directories to files or files to
+directories is not supported.
+.Pp
+The
+.Nm
 file system differs from a traditional
 loopback file system in two respects: it is implemented using
 a stackable layers techniques, and its
