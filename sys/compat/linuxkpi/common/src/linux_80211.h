@@ -187,6 +187,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	int				scan_ie_len;	/* Length of common per-band scan IEs. */
 
 	bool				update_mc;
+	bool				update_wme;
 
 	/* Must be last! */
 	struct ieee80211_hw		hw __aligned(CACHE_LINE_SIZE);
