@@ -1041,8 +1041,7 @@ loop:
 		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
-		VOP_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 	}
 
 	/*
