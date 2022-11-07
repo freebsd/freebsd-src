@@ -83,6 +83,7 @@ vm_install_base() {
 	if [ "${VMFS}" = zfs ]; then
 		echo "zfs_enable=\"YES\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_reguid=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
+		echo "zpool_upgrade=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
 	fi
 
 	if ! [ -z "${QEMUSTATIC}" ]; then
