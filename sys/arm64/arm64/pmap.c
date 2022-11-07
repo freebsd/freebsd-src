@@ -601,8 +601,15 @@ pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
 }
 
 bool
-pmap_ps_enabled(pmap_t pmap __unused)
+pmap_ps_enabled(pmap_t pmap)
 {
+	/*
+	 * Promotion requires a hypervisor call when the kernel is running
+	 * in EL1. To stop this disable superpage support on non-stage 1
+	 * pmaps for now.
+	 */
+	if (pmap->pm_stage != PM_STAGE1)
+		return (false);
 
 	return (superpages_enabled != 0);
 }
