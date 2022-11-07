@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 12, 2022
+.Dd November 7, 2022
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Ar commit Ns | Ns Ar commit-range
 .Nm
 .Cm update
+.Op Fl m Ar message
 .Op Ar commit Ns | Ns Ar commit-range
 .Sh DESCRIPTION
 The
@@ -105,6 +106,15 @@ Synchronize the Differential Revisions associated with the
 specified commits.
 Currently only the diff is updated; the review description and other
 metadata are not synchronized.
+If a message is specified with
+.Fl m ,
+that message is added as a note to the Differential Revision.
+If no message is supplied,
+the user's editor will be opened to provide an update message for
+each revision.
+If an empty message is supplied via
+.Fl m ,
+then no notes will be added when updating Differential Revisions.
 .El
 .Sh CONFIGURATION
 These are manipulated by
