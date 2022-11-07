@@ -557,6 +557,7 @@ MAN=	aac.4 \
 	targ.4 \
 	tcp.4 \
 	tcp_bbr.4 \
+	tcp_rack.4 \
 	tdfx.4 \
 	terasic_mtl.4 \
 	termios.4 \
