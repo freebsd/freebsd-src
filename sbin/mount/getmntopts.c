@@ -139,6 +139,20 @@ checkpath(const char *path, char *resolved)
 	return (0);
 }
 
+int
+checkpath_allow_file(const char *path, char *resolved)
+{
+	struct stat sb;
+
+	if (realpath(path, resolved) == NULL || stat(resolved, &sb) != 0)
+		return (1);
+	if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode)) {
+		errno = ENOTDIR;
+		return (1);
+	}
+	return (0);
+}
+
 void
 build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val,
 	    size_t len)

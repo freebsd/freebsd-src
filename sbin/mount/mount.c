@@ -89,6 +89,7 @@ struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
+int	allow_file_mount(const char *);
 void	mangle(char *, struct cpa *);
 char   *update_options(char *, char *, int);
 int	mountfs(const char *, const char *, const char *,
@@ -528,6 +529,15 @@ isremountable(const char *vfsname)
 }
 
 int
+allow_file_mount(const char *vfsname)
+{
+
+	if (strcmp(vfsname, "nullfs") == 0)
+		return (1);
+	return (0);
+}
+
+int
 hasopt(const char *mntopts, const char *option)
 {
 	int negative, found;
@@ -573,9 +583,16 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	static struct cpa mnt_argv;
 
 	/* resolve the mountpoint with realpath(3) */
-	if (checkpath(name, mntpath) != 0) {
-		xo_warn("%s", mntpath);
-		return (1);
+	if (allow_file_mount(vfstype)) {
+		if (checkpath_allow_file(name, mntpath) != 0) {
+			xo_warn("%s", mntpath);
+			return (1);
+		}
+	} else {
+		if (checkpath(name, mntpath) != 0) {
+			xo_warn("%s", mntpath);
+			return (1);
+		}
 	}
 	name = mntpath;
 
