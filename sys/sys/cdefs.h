@@ -896,6 +896,16 @@
 #define __nosanitizethread
 #endif
 
+/*
+ * Make it possible to opt out of stack smashing protection.
+ */
+#if __has_attribute(no_stack_protector)
+#define	__nostackprotector	__attribute__((no_stack_protector))
+#else
+#define	__nostackprotector	\
+	__attribute__((__optimize__("-fno-stack-protector")))
+#endif
+
 /* Guard variables and structure members by lock. */
 #define	__guarded_by(x)		__lock_annotate(guarded_by(x))
 #define	__pt_guarded_by(x)	__lock_annotate(pt_guarded_by(x))

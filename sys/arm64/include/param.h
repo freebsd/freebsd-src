@@ -105,6 +105,12 @@
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define	PCPU_PAGES		1
 
+#ifdef PERTHREAD_SSP
+#define	NO_PERTHREAD_SSP	__nostackprotector
+#else
+#define	NO_PERTHREAD_SSP
+#endif
+
 /*
  * Mach derived conversion macros
  */
