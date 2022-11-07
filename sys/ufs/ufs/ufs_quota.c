@@ -615,13 +615,11 @@ again:
 			goto again;
 		}
 		if (vp->v_type == VNON || vp->v_writecount <= 0) {
-			VOP_UNLOCK(vp);
-			vrele(vp);
+			vput(vp);
 			continue;
 		}
 		error = getinoquota(VTOI(vp));
-		VOP_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 		if (error) {
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			break;
@@ -684,8 +682,7 @@ again:
 		dq = ip->i_dquot[type];
 		ip->i_dquot[type] = NODQUOT;
 		dqrele(vp, dq);
-		VOP_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 	}
 
 	error = dqflush(qvp);
