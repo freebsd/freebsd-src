@@ -330,6 +330,7 @@ struct tcp_log_dev_log_queue {
  * len indicates the length of the packet. If no packet, use 0.
  * stackinfo is optional; if present, it will appear in the record.
  */
+struct tcpcb;
 #ifdef TCP_LOG_FORCEVERBOSE
 #define	TCP_LOG_EVENT	TCP_LOG_EVENT_VERBOSE
 #else
