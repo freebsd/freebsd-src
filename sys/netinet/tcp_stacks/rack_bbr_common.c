@@ -403,7 +403,10 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	uint16_t drop_hdrlen;
 	uint8_t iptos, no_vn=0;
 
+	inp = tptoinpcb(tp);
+	INP_WLOCK_ASSERT(inp);
 	NET_EPOCH_ASSERT();
+
 	if (m)
 		ifp = m_rcvif(m);
 	else
@@ -480,8 +483,8 @@ skip_vnet:
 			 * been compressed. We assert the inp has
 			 * the flag set to enable this!
 			 */
-			KASSERT((tp->t_inpcb->inp_flags2 & INP_MBUF_ACKCMP),
-				("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, tp->t_inpcb));
+			KASSERT((inp->inp_flags2 & INP_MBUF_ACKCMP),
+			    ("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, inp));
 			tlen = 0;
 			drop_hdrlen = 0;
 			th = NULL;
@@ -496,8 +499,6 @@ skip_vnet:
 			KMOD_TCPSTAT_INC(tcps_rcvtotal);
 		else
 			KMOD_TCPSTAT_ADD(tcps_rcvtotal, (m->m_len / sizeof(struct tcp_ackent)));
-		inp = tp->t_inpcb;
-		INP_WLOCK_ASSERT(inp);
 		retval = (*tp->t_fb->tfb_do_segment_nounlock)(m, th, so, tp, drop_hdrlen, tlen,
 							      iptos, nxt_pkt, &tv);
 		if (retval) {
@@ -571,7 +572,7 @@ ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 {
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tptoinpcb(tp));
 	} else
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 }
@@ -759,7 +760,7 @@ ctf_do_drop(struct mbuf *m, struct tcpcb *tp)
 	 * Drop space held by incoming segment and return.
 	 */
 	if (tp != NULL)
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tptoinpcb(tp));
 	if (m)
 		m_freem(m);
 }
@@ -974,7 +975,7 @@ ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 	tcp_dropwithreset(m, th, tp, tlen, rstreason);
 	tp = tcp_drop(tp, ETIMEDOUT);
 	if (tp)
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tptoinpcb(tp));
 }
 
 uint32_t
@@ -1010,8 +1011,8 @@ ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_bl
 			log.u_bbr.pkts_out = sack_blocks[3].end;
 		}
 		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
 		    TCP_SACK_FILTER_RES, 0,
 		    0, &log, false, &tv);
 	}

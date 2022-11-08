@@ -3225,7 +3225,7 @@ ktls_disable_ifnet(void *arg)
 	struct ktls_session *tls;
 
 	tp = arg;
-	inp = tp->t_inpcb;
+	inp = tptoinpcb(tp);
 	INP_WLOCK_ASSERT(inp);
 	so = inp->inp_socket;
 	SOCK_LOCK(so);

@@ -392,6 +392,11 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 struct tcpcb * tcp_drop(struct tcpcb *, int);
 
 #ifdef _NETINET_IN_PCB_H_
+#define	intotcpcb(inp)	((struct tcpcb *)(inp)->inp_ppcb)
+#define	sototcpcb(so)	intotcpcb(sotoinpcb(so))
+#define	tptoinpcb(tp)	tp->t_inpcb
+#define	tptosocket(tp)	tp->t_inpcb->inp_socket
+
 /*
  * tcp_output()
  * Handles tcp_drop request from advanced stacks and reports that inpcb is
@@ -401,9 +406,10 @@ struct tcpcb * tcp_drop(struct tcpcb *, int);
 static inline int
 tcp_output(struct tcpcb *tp)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	int rv;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 	rv = tp->t_fb->tfb_tcp_output(tp);
 	if (rv < 0) {
@@ -412,7 +418,7 @@ tcp_output(struct tcpcb *tp)
 		    tp->t_fb->tfb_tcp_block_name, tp));
 		tp = tcp_drop(tp, -rv);
 		if (tp)
-			INP_WUNLOCK(tp->t_inpcb);
+			INP_WUNLOCK(inp);
 	}
 
 	return (rv);
@@ -426,9 +432,10 @@ tcp_output(struct tcpcb *tp)
 static inline int
 tcp_output_unlock(struct tcpcb *tp)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	int rv;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 	rv = tp->t_fb->tfb_tcp_output(tp);
 	if (rv < 0) {
@@ -438,9 +445,9 @@ tcp_output_unlock(struct tcpcb *tp)
 		rv = -rv;
 		tp = tcp_drop(tp, rv);
 		if (tp)
-			INP_WUNLOCK(tp->t_inpcb);
+			INP_WUNLOCK(inp);
 	} else
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 
 	return (rv);
 }
@@ -460,7 +467,7 @@ tcp_output_nodrop(struct tcpcb *tp)
 {
 	int rv;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	rv = tp->t_fb->tfb_tcp_output(tp);
 	KASSERT(rv >= 0 || tp->t_fb->tfb_flags & TCP_FUNC_OUTPUT_CANDROP,
@@ -477,15 +484,16 @@ tcp_output_nodrop(struct tcpcb *tp)
 static inline int
 tcp_unlock_or_drop(struct tcpcb *tp, int tcp_output_retval)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
         if (tcp_output_retval < 0) {
                 tcp_output_retval = -tcp_output_retval;
                 if (tcp_drop(tp, tcp_output_retval) != NULL)
-                        INP_WUNLOCK(tp->t_inpcb);
+                        INP_WUNLOCK(inp);
         } else
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 
 	return (tcp_output_retval);
 }
@@ -639,9 +647,6 @@ struct tcp_ifcap {
 #ifndef _NETINET_IN_PCB_H_
 struct in_conninfo;
 #endif /* _NETINET_IN_PCB_H_ */
-
-#define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
-#define	sototcpcb(so)	(intotcpcb(sotoinpcb(so)))
 
 /*
  * The smoothed round-trip time and estimated variance

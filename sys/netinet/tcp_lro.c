@@ -718,11 +718,9 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
 			log.u_bbr.inhpts = 1;
 		else
 			log.u_bbr.inhpts = 0;
-		TCP_LOG_EVENTP(tp, NULL,
-			       &tp->t_inpcb->inp_socket->so_rcv,
-			       &tp->t_inpcb->inp_socket->so_snd,
-			       TCP_LOG_LRO, 0,
-			       0, &log, false, &tv);
+		TCP_LOG_EVENTP(tp, NULL, &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
+		    TCP_LOG_LRO, 0, 0, &log, false, &tv);
 	}
 }
 #endif

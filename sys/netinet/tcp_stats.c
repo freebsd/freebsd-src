@@ -199,7 +199,7 @@ tcp_stats_sample_rollthedice(struct tcpcb *tp, void *seed_bytes,
 		rm_runlock(&tcp_stats_tpl_sampling_lock, &tracker);
 
 		if (tpl >= 0) {
-			INP_WLOCK_ASSERT(tp->t_inpcb);
+			INP_WLOCK_ASSERT(tptoinpcb(tp));
 			if (tp->t_stats != NULL)
 				stats_blob_destroy(tp->t_stats);
 			tp->t_stats = stats_blob_alloc(tpl, 0);

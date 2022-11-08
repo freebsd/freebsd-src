@@ -114,7 +114,7 @@ void
 tcp_offload_listen_start(struct tcpcb *tp)
 {
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	EVENTHANDLER_INVOKE(tcp_offload_listen_start, tp);
 }
@@ -123,7 +123,7 @@ void
 tcp_offload_listen_stop(struct tcpcb *tp)
 {
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	EVENTHANDLER_INVOKE(tcp_offload_listen_stop, tp);
 }
@@ -134,7 +134,7 @@ tcp_offload_input(struct tcpcb *tp, struct mbuf *m)
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_input(tod, tp, m);
 }
@@ -146,7 +146,7 @@ tcp_offload_output(struct tcpcb *tp)
 	int error, flags;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	flags = tcp_outflags[tp->t_state];
 
@@ -170,7 +170,7 @@ tcp_offload_rcvd(struct tcpcb *tp)
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_rcvd(tod, tp);
 }
@@ -181,7 +181,7 @@ tcp_offload_ctloutput(struct tcpcb *tp, int sopt_dir, int sopt_name)
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_ctloutput(tod, tp, sopt_dir, sopt_name);
 }
@@ -192,7 +192,7 @@ tcp_offload_tcp_info(struct tcpcb *tp, struct tcp_info *ti)
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_tcp_info(tod, tp, ti);
 }
@@ -204,7 +204,7 @@ tcp_offload_alloc_tls_session(struct tcpcb *tp, struct ktls_session *tls,
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	return (tod->tod_alloc_tls_session(tod, tp, tls, direction));
 }
@@ -215,7 +215,7 @@ tcp_offload_detach(struct tcpcb *tp)
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_pcb_detach(tod, tp);
 }
@@ -226,7 +226,7 @@ tcp_offload_pmtu_update(struct tcpcb *tp, tcp_seq seq, int mtu)
 	struct toedev *tod = tp->tod;
 
 	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	tod->tod_pmtu_update(tod, tp, seq, mtu);
 }

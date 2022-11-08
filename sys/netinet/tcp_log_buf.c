@@ -499,7 +499,7 @@ static void
 tcp_log_grow_tlb(char *tlb_id, struct tcpcb *tp)
 {
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 #ifdef STATS
 	if (V_tcp_perconn_stats_enable == 2 && tp->t_stats == NULL)
@@ -522,20 +522,21 @@ tcp_log_increment_reqcnt(struct tcp_log_id_bucket *tlb)
 int
 tcp_log_set_tag(struct tcpcb *tp, char *tag)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_log_id_bucket *tlb;
 	int tree_locked;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 	tree_locked = TREE_UNLOCKED;
 	tlb = tp->t_lib;
 	if (tlb == NULL) {
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 		return (EOPNOTSUPP);
 	}
 
 	TCPID_BUCKET_REF(tlb);
-	INP_WUNLOCK(tp->t_inpcb);
+	INP_WUNLOCK(inp);
 	TCPID_BUCKET_LOCK(tlb);
 	strlcpy(tlb->tlb_tag, tag, TCP_LOG_TAG_LEN);
 	if (!tcp_log_unref_bucket(tlb, &tree_locked, NULL))
@@ -562,13 +563,12 @@ tcp_log_set_id(struct tcpcb *tp, char *id)
 {
 	struct tcp_log_id_bucket *tlb, *tmp_tlb;
 	struct tcp_log_id_node *tln;
-	struct inpcb *inp;
+	struct inpcb *inp = tptoinpcb(tp);
 	int tree_locked, rv;
 	bool bucket_locked;
 
 	tlb = NULL;
 	tln = NULL;
-	inp = tp->t_inpcb;
 	tree_locked = TREE_UNLOCKED;
 	bucket_locked = false;
 
@@ -922,7 +922,7 @@ tcp_log_get_id(struct tcpcb *tp, char *buf)
 {
 	size_t len;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_LOCK_ASSERT(tptoinpcb(tp));
 	if (tp->t_lib != NULL) {
 		len = strlcpy(buf, tp->t_lib->tlb_id, TCP_LOG_ID_LEN);
 		KASSERT(len < TCP_LOG_ID_LEN,
@@ -944,18 +944,19 @@ tcp_log_get_id(struct tcpcb *tp, char *buf)
 size_t
 tcp_log_get_tag(struct tcpcb *tp, char *buf)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_log_id_bucket *tlb;
 	size_t len;
 	int tree_locked;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 	tree_locked = TREE_UNLOCKED;
 	tlb = tp->t_lib;
 
 	if (tlb != NULL) {
 		TCPID_BUCKET_REF(tlb);
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 		TCPID_BUCKET_LOCK(tlb);
 		len = strlcpy(buf, tlb->tlb_tag, TCP_LOG_TAG_LEN);
 		KASSERT(len < TCP_LOG_TAG_LEN,
@@ -973,7 +974,7 @@ tcp_log_get_tag(struct tcpcb *tp, char *buf)
 		} else
 			TCPID_TREE_UNLOCK_ASSERT();
 	} else {
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 		*buf = '\0';
 		len = 0;
 	}
@@ -990,7 +991,7 @@ u_int
 tcp_log_get_id_cnt(struct tcpcb *tp)
 {
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	return ((tp->t_lib == NULL) ? 0 : tp->t_lib->tlb_refcnt);
 }
 
@@ -1298,11 +1299,12 @@ tcp_log_expire(void *unused __unused)
 static void
 tcp_log_move_tp_to_node(struct tcpcb *tp, struct tcp_log_id_node *tln)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
-	tln->tln_ie = tp->t_inpcb->inp_inc.inc_ie;
-	if (tp->t_inpcb->inp_inc.inc_flags & INC_ISIPV6)
+	tln->tln_ie = inp->inp_inc.inc_ie;
+	if (inp->inp_inc.inc_flags & INC_ISIPV6)
 		tln->tln_af = AF_INET6;
 	else
 		tln->tln_af = AF_INET;
@@ -1323,7 +1325,7 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 	struct tcp_log_mem *log_entry;
 	sbintime_t callouttime;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	TCP_LOG_EVENT(tp, NULL, NULL, NULL, TCP_LOG_CONNEND, 0, 0, NULL, false);
 
@@ -1383,11 +1385,13 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 	 */
 
 	if (tp->t_lin != NULL) {
+		struct inpcb *inp = tptoinpcb(tp);
+
 		/* Copy the relevant information to the log entry. */
 		tln = tp->t_lin;
-		KASSERT(tln->tln_inp == tp->t_inpcb,
-		    ("%s: Mismatched inp (tln->tln_inp=%p, tp->t_inpcb=%p)",
-		    __func__, tln->tln_inp, tp->t_inpcb));
+		KASSERT(tln->tln_inp == inp,
+		    ("%s: Mismatched inp (tln->tln_inp=%p, tp inpcb=%p)",
+		    __func__, tln->tln_inp, inp));
 		tcp_log_move_tp_to_node(tp, tln);
 
 		/* Clear information from the PCB. */
@@ -1401,7 +1405,7 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 		 * racing to lock this node when we move it to the expire
 		 * queue.
 		 */
-		in_pcbref(tp->t_inpcb);
+		in_pcbref(inp);
 
 		/*
 		 * Store the entry on the expiry list. The exact behavior
@@ -1496,10 +1500,8 @@ static void
 tcp_log_purge_tp_logbuf(struct tcpcb *tp)
 {
 	struct tcp_log_mem *log_entry;
-	struct inpcb *inp __diagused;
 
-	inp = tp->t_inpcb;
-	INP_WLOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	if (tp->t_lognum == 0)
 		return;
 
@@ -1533,7 +1535,7 @@ tcp_log_event_(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
 	    ("%s called with inconsistent func (%p) and line (%d) arguments",
 		__func__, func, line));
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	if (tcp_disable_all_bb_logs) {
 		/*
 		 * The global shutdown logging
@@ -1748,7 +1750,7 @@ tcp_log_state_change(struct tcpcb *tp, int state)
 {
 	struct tcp_log_mem *log_entry;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	switch(state) {
 	case TCP_LOG_STATE_CLEAR:
 		while ((log_entry = STAILQ_FIRST(&tp->t_logs)) != NULL)
@@ -1786,7 +1788,7 @@ tcp_log_drain(struct tcpcb *tp)
 	struct tcp_log_mem *log_entry, *next;
 	int target, skip;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	if ((target = tp->t_lognum / 2) == 0)
 		return;
 
@@ -1930,12 +1932,11 @@ tcp_log_getlogbuf(struct sockopt *sopt, struct tcpcb *tp)
 	struct tcp_log_stailq log_tailq;
 	struct tcp_log_mem *log_entry, *log_next;
 	struct tcp_log_buffer *out_entry;
-	struct inpcb *inp;
+	struct inpcb *inp = tptoinpcb(tp);
 	size_t outsize, entrysize;
 	int error, outnum;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
-	inp = tp->t_inpcb;
+	INP_WLOCK_ASSERT(inp);
 
 	/*
 	 * Determine which log entries will fit in the buffer. As an
@@ -2153,12 +2154,11 @@ int
 tcp_log_dump_tp_logbuf(struct tcpcb *tp, char *reason, int how, bool force)
 {
 	struct tcp_log_dev_log_queue *entry;
-	struct inpcb *inp;
+	struct inpcb *inp = tptoinpcb(tp);
 #ifdef TCPLOG_DEBUG_COUNTERS
 	int num_entries;
 #endif
 
-	inp = tp->t_inpcb;
 	INP_WLOCK_ASSERT(inp);
 
 	/* If there are no log entries, there is nothing to do. */
@@ -2586,11 +2586,12 @@ done:
 void
 tcp_log_dump_tp_bucket_logbufs(struct tcpcb *tp, char *reason)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_log_id_bucket *tlb;
 	int tree_locked;
 
 	/* Figure out our bucket and lock it. */
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 	tlb = tp->t_lib;
 	if (tlb == NULL) {
 		/*
@@ -2598,11 +2599,11 @@ tcp_log_dump_tp_bucket_logbufs(struct tcpcb *tp, char *reason)
 		 * session's traces.
 		 */
 		(void)tcp_log_dump_tp_logbuf(tp, reason, M_WAITOK, true);
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 		return;
 	}
 	TCPID_BUCKET_REF(tlb);
-	INP_WUNLOCK(tp->t_inpcb);
+	INP_WUNLOCK(inp);
 	TCPID_BUCKET_LOCK(tlb);
 
 	/* If we are the last reference, we have nothing more to do here. */
@@ -2632,7 +2633,7 @@ void
 tcp_log_flowend(struct tcpcb *tp)
 {
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
-		struct socket *so = tp->t_inpcb->inp_socket;
+		struct socket *so = tptosocket(tp);
 		TCP_LOG_EVENT(tp, NULL, &so->so_rcv, &so->so_snd,
 				TCP_LOG_FLOWEND, 0, 0, NULL, false);
 	}

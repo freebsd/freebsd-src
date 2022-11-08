@@ -463,8 +463,8 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 	log.u_bbr.pkt_epoch = hpts->p_runningslot;
 	log.u_bbr.use_lt_bw = 1;
 	TCP_LOG_EVENTP(tp, NULL,
-		       &tp->t_inpcb->inp_socket->so_rcv,
-		       &tp->t_inpcb->inp_socket->so_snd,
+		       &tptosocket(tp)->so_rcv,
+		       &tptosocket(tp)->so_snd,
 		       BBR_LOG_HPTSDIAG, 0,
 		       0, &log, false, tv);
 }
