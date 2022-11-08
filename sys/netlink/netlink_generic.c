@@ -134,6 +134,22 @@ free_family(struct genl_family *gf)
 }
 
 /*
+ * unregister groups of a given family
+ */
+static void
+unregister_groups(const struct genl_family *gf)
+{
+
+	for (int i = 0; i < MAX_GROUPS; i++) {
+		struct genl_group *gg = &groups[i];
+		if (gg->group_family == gf && gg->group_name != NULL) {
+			gg->group_family = NULL;
+			gg->group_name = NULL;
+		}
+	}
+}
+
+/*
  * Can sleep, I guess
  */
 bool
@@ -148,6 +164,7 @@ genl_unregister_family(const char *family_name)
 
 	if (gf != NULL) {
 		found = true;
+		unregister_groups(gf);
 		/* TODO: zero pointer first */
 		free_family(gf);
 		bzero(gf, sizeof(*gf));
