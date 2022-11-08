@@ -88,17 +88,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_pcb_var.h>
+#include <netinet/tcp.h>
 #ifdef INET
 #include <netinet/in_var.h>
 #include <netinet/in_fib.h>
 #endif
 #include <netinet/ip_var.h>
-#include <netinet/tcp_var.h>
-#ifdef TCPHPTS
-#include <netinet/tcp_hpts.h>
-#endif
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
