@@ -4687,7 +4687,7 @@ go_for_it:
 send:
 	if (bbr->r_ctl.rc_tlp_seg_send_cnt > bbr_tlp_max_resend) {
 		/*
-		 * Can't [re]/transmit a segment we have retranmitted the
+		 * Can't [re]/transmit a segment we have retransmitted the
 		 * max times. We need the retransmit timer to take over.
 		 */
 restore:
