@@ -181,7 +181,6 @@ struct tcpcb {
 	struct mbuf *t_in_pkt;
 	struct mbuf *t_tail_pkt;
 	struct tcp_timer *t_timers;	/* All the TCP timers in one struct */
-	struct	vnet *t_vnet;		/* back pointer to parent vnet */
 	uint32_t snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
