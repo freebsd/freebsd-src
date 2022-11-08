@@ -156,7 +156,9 @@ main(int argc, char **argv)
     if (argc == 0)
 	usage(1);
 
-    for (i = 0; i < argc; ++i)
-	lookup(argv[i]);
+    for (i = 0; i < argc; ++i) {
+        if (argv[i][0]) /* Quiet lint */
+            lookup(argv[i]);
+    }
     return 0;
 }
