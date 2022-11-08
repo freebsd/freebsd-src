@@ -2596,9 +2596,6 @@ tcp_notify(struct inpcb *inp, int error)
 
 	INP_WLOCK_ASSERT(inp);
 
-	if (inp->inp_flags & INP_DROPPED)
-		return (inp);
-
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_notify: tp == NULL"));
 
@@ -3319,9 +3316,6 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
-	if (inp->inp_flags & INP_DROPPED)
-		return (inp);
-
 	tp = intotcpcb(inp);
 	if (tp->t_state != TCPS_SYN_SENT)
 		return (inp);
@@ -3356,8 +3350,6 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	struct socket *so;
 
 	INP_WLOCK_ASSERT(inp);
-	if (inp->inp_flags & INP_DROPPED)
-		return (inp);
 
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
