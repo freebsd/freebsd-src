@@ -2260,9 +2260,6 @@ tcp_newtcpcb(struct inpcb *inp)
 	}
 #endif
 
-#ifdef VIMAGE
-	tp->t_vnet = inp->inp_vnet;
-#endif
 	tp->t_timers = &tm->tt;
 	TAILQ_INIT(&tp->t_segq);
 	tp->t_maxseg =

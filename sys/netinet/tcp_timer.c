@@ -254,9 +254,9 @@ tcp_timer_delack(void *xtp)
 	struct inpcb *inp = tptoinpcb(tp);
 #endif
 
-	CURVNET_SET(tp->t_vnet);
-
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
+
 	if (callout_pending(&tp->t_timers->tt_delack) ||
 	    !callout_active(&tp->t_timers->tt_delack)) {
 		INP_WUNLOCK(inp);
@@ -318,7 +318,6 @@ tcp_timer_2msl(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp = tptoinpcb(tp);
-	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -326,6 +325,8 @@ tcp_timer_2msl(void *xtp)
 #endif
 
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
+
 	tcp_log_end_status(tp, TCP_EI_STATUS_2MSL);
 	tcp_free_sackholes(tp);
 	if (callout_pending(&tp->t_timers->tt_2msl) ||
@@ -394,7 +395,6 @@ tcp_timer_keep(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp = tptoinpcb(tp);
 	struct tcptemp *t_template;
-	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -402,6 +402,8 @@ tcp_timer_keep(void *xtp)
 #endif
 
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
+
 	if (callout_pending(&tp->t_timers->tt_keep) ||
 	    !callout_active(&tp->t_timers->tt_keep)) {
 		INP_WUNLOCK(inp);
@@ -539,7 +541,6 @@ tcp_timer_persist(void *xtp)
 #endif
 	bool progdrop;
 	int outrv;
-	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -547,6 +548,8 @@ tcp_timer_persist(void *xtp)
 #endif
 
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
+
 	if (callout_pending(&tp->t_timers->tt_persist) ||
 	    !callout_active(&tp->t_timers->tt_persist)) {
 		INP_WUNLOCK(inp);
@@ -619,7 +622,6 @@ tcp_timer_rexmt(void * xtp)
 {
 	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
-	CURVNET_SET(tp->t_vnet);
 	struct inpcb *inp = tptoinpcb(tp);
 	int rexmt, outrv;
 	bool isipv6;
@@ -630,6 +632,8 @@ tcp_timer_rexmt(void * xtp)
 #endif
 
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
+
 	if (callout_pending(&tp->t_timers->tt_rexmt) ||
 	    !callout_active(&tp->t_timers->tt_rexmt)) {
 		INP_WUNLOCK(inp);
@@ -1090,8 +1094,8 @@ tcp_timer_discard(void *ptp)
 	struct tcpcb *tp = (struct tcpcb *)ptp;
 	struct inpcb *inp = tptoinpcb(tp);
 
-	CURVNET_SET(tp->t_vnet);
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
 	NET_EPOCH_ENTER(et);
 
 	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
