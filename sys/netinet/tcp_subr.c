@@ -2878,8 +2878,7 @@ tcp_ctlinput_with_port(struct icmp *icp, uint16_t port)
 	inp = in_pcblookup(&V_tcbinfo, ip->ip_dst, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL)  {
-		if (!(inp->inp_flags & INP_DROPPED) &&
-		    !(inp->inp_socket == NULL)) {
+		if (inp->inp_socket != NULL) {
 			tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
 			if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
@@ -3071,8 +3070,7 @@ tcp6_ctlinput_with_port(struct ip6ctlparam *ip6cp, uint16_t port)
 	}
 	m_copydata(m, off, sizeof(tcp_seq), (caddr_t)&icmp_tcp_seq);
 	if (inp != NULL)  {
-		if (!(inp->inp_flags & INP_DROPPED) &&
-		    !(inp->inp_socket == NULL)) {
+		if (inp->inp_socket != NULL) {
 			tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
 			if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
@@ -3697,8 +3695,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 #endif
 	}
 	if (inp != NULL) {
-		if ((inp->inp_flags & INP_DROPPED) == 0 &&
-		    !SOLISTENING(inp->inp_socket)) {
+		if (!SOLISTENING(inp->inp_socket)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);
 			if (tp != NULL)
@@ -3817,8 +3814,7 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 	}
 	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
-		if ((inp->inp_flags & INP_DROPPED) != 0 ||
-		    inp->inp_socket == NULL) {
+		if (inp->inp_socket == NULL) {
 			error = ECONNRESET;
 			INP_WUNLOCK(inp);
 		} else {

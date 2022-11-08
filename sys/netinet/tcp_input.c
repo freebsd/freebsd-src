@@ -937,16 +937,7 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_LOCK_ASSERT(inp);
-	/*
-	 * While waiting for inp lock during the lookup, another thread
-	 * can have dropped the inpcb, in which case we need to loop back
-	 * and try to find a new inpcb to deliver to.
-	 */
-	if (inp->inp_flags & INP_DROPPED) {
-		INP_UNLOCK(inp);
-		inp = NULL;
-		goto findpcb;
-	}
+
 	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
 	    (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) &&
 	    ((inp->inp_socket == NULL) || !SOLISTENING(inp->inp_socket))) {
