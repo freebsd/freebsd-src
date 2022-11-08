@@ -931,7 +931,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 	if (error != 0)
 		return (EFAULT);
 
-	return (copyout(&head, args->head, sizeof(head)));
+	return (copyout(&head, args->head, sizeof(l_uintptr_t)));
 }
 
 static int
