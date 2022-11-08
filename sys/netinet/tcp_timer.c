@@ -351,6 +351,8 @@ tcp_timer_2msl(void *xtp)
 	 * If fastrecycle of FIN_WAIT_2, in FIN_WAIT_2 and receiver has closed,
 	 * there's no point in hanging onto FIN_WAIT_2 socket. Just close it.
 	 * Ignore fact that there were recent incoming segments.
+	 *
+	 * XXXGL: check if inp_socket shall always be !NULL here?
 	 */
 	if (tp->t_state == TCPS_TIME_WAIT) {
 		tcp_timer_close(tp);
