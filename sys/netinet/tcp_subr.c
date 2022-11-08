@@ -2730,8 +2730,6 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	    addrs[0].sin_addr, addrs[0].sin_port, INPLOOKUP_RLOCKPCB, NULL);
 	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
-		if (inp->inp_socket == NULL)
-			error = ENOENT;
 		if (error == 0)
 			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
@@ -2798,8 +2796,6 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			INPLOOKUP_RLOCKPCB, NULL);
 	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
-		if (inp->inp_socket == NULL)
-			error = ENOENT;
 		if (error == 0)
 			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
@@ -2875,47 +2871,44 @@ tcp_ctlinput_with_port(struct icmp *icp, uint16_t port)
 	inp = in_pcblookup(&V_tcbinfo, ip->ip_dst, th->th_dport, ip->ip_src,
 	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 	if (inp != NULL)  {
-		if (inp->inp_socket != NULL) {
-			tp = intotcpcb(inp);
+		tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
-			if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
+		if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
+			/*
+			 * MTU discovery for offloaded connections.  Let
+			 * the TOE driver verify seq# and process it.
+			 */
+			mtu = tcp_next_pmtu(icp, ip);
+			tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
+			goto out;
+		}
+#endif
+		if (tp->t_port != port)
+			goto out;
+		if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
+		    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
+			if (errno == EMSGSIZE) {
 				/*
-				 * MTU discovery for offloaded connections.  Let
-				 * the TOE driver verify seq# and process it.
+				 * MTU discovery: we got a needfrag and
+				 * will potentially try a lower MTU.
 				 */
 				mtu = tcp_next_pmtu(icp, ip);
-				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
-				goto out;
-			}
-#endif
-			if (tp->t_port != port) {
-				goto out;
-			}
-			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
-			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
-				if (errno == EMSGSIZE) {
-					/*
-					 * MTU discovery: we got a needfrag and
-					 * will potentially try a lower MTU.
-					 */
-					mtu = tcp_next_pmtu(icp, ip);
 
-					/*
-					 * Only process the offered MTU if it
-					 * is smaller than the current one.
-					 */
-					if (mtu < tp->t_maxseg +
-					    sizeof(struct tcpiphdr)) {
-						bzero(&inc, sizeof(inc));
-						inc.inc_faddr = ip->ip_dst;
-						inc.inc_fibnum =
-						    inp->inp_inc.inc_fibnum;
-						tcp_hc_updatemtu(&inc, mtu);
-						inp = tcp_mtudisc(inp, mtu);
-					}
-				} else
-					inp = (*notify)(inp, errno);
-			}
+				/*
+				 * Only process the offered MTU if it
+				 * is smaller than the current one.
+				 */
+				if (mtu < tp->t_maxseg +
+				    sizeof(struct tcpiphdr)) {
+					bzero(&inc, sizeof(inc));
+					inc.inc_faddr = ip->ip_dst;
+					inc.inc_fibnum =
+					    inp->inp_inc.inc_fibnum;
+					tcp_hc_updatemtu(&inc, mtu);
+					inp = tcp_mtudisc(inp, mtu);
+				}
+			} else
+				inp = (*notify)(inp, errno);
 		}
 	} else {
 		bzero(&inc, sizeof(inc));
@@ -3067,51 +3060,48 @@ tcp6_ctlinput_with_port(struct ip6ctlparam *ip6cp, uint16_t port)
 	}
 	m_copydata(m, off, sizeof(tcp_seq), (caddr_t)&icmp_tcp_seq);
 	if (inp != NULL)  {
-		if (inp->inp_socket != NULL) {
-			tp = intotcpcb(inp);
+		tp = intotcpcb(inp);
 #ifdef TCP_OFFLOAD
-			if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
-				/* MTU discovery for offloaded connections. */
-				mtu = tcp6_next_pmtu(icmp6);
-				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
-				goto out;
-			}
+		if (tp->t_flags & TF_TOE && errno == EMSGSIZE) {
+			/* MTU discovery for offloaded connections. */
+			mtu = tcp6_next_pmtu(icmp6);
+			tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
+			goto out;
+		}
 #endif
-			if (tp->t_port != port) {
-				goto out;
-			}
-			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
-			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
-				if (errno == EMSGSIZE) {
-					/*
-					 * MTU discovery:
-					 * If we got a needfrag set the MTU
-					 * in the route to the suggested new
-					 * value (if given) and then notify.
-					 */
-					mtu = tcp6_next_pmtu(icmp6);
+		if (tp->t_port != port)
+			goto out;
+		if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
+		    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
+			if (errno == EMSGSIZE) {
+				/*
+				 * MTU discovery:
+				 * If we got a needfrag set the MTU
+				 * in the route to the suggested new
+				 * value (if given) and then notify.
+				 */
+				mtu = tcp6_next_pmtu(icmp6);
 
-					bzero(&inc, sizeof(inc));
-					inc.inc_fibnum = M_GETFIB(m);
-					inc.inc_flags |= INC_ISIPV6;
-					inc.inc6_faddr = *dst;
-					if (in6_setscope(&inc.inc6_faddr,
-						m->m_pkthdr.rcvif, NULL))
-						goto out;
-					/*
-					 * Only process the offered MTU if it
-					 * is smaller than the current one.
-					 */
-					if (mtu < tp->t_maxseg +
-					    sizeof (struct tcphdr) +
-					    sizeof (struct ip6_hdr)) {
-						tcp_hc_updatemtu(&inc, mtu);
-						tcp_mtudisc(inp, mtu);
-						ICMP6STAT_INC(icp6s_pmtuchg);
-					}
-				} else
-					inp = (*notify)(inp, errno);
-			}
+				bzero(&inc, sizeof(inc));
+				inc.inc_fibnum = M_GETFIB(m);
+				inc.inc_flags |= INC_ISIPV6;
+				inc.inc6_faddr = *dst;
+				if (in6_setscope(&inc.inc6_faddr,
+					m->m_pkthdr.rcvif, NULL))
+					goto out;
+				/*
+				 * Only process the offered MTU if it
+				 * is smaller than the current one.
+				 */
+				if (mtu < tp->t_maxseg +
+				    sizeof (struct tcphdr) +
+				    sizeof (struct ip6_hdr)) {
+					tcp_hc_updatemtu(&inc, mtu);
+					tcp_mtudisc(inp, mtu);
+					ICMP6STAT_INC(icp6s_pmtuchg);
+				}
+			} else
+				inp = (*notify)(inp, errno);
 		}
 	} else {
 		bzero(&inc, sizeof(inc));
@@ -3806,19 +3796,14 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 	}
 	NET_EPOCH_EXIT(et);
 	if (inp != NULL) {
-		if (inp->inp_socket == NULL) {
-			error = ECONNRESET;
-			INP_WUNLOCK(inp);
-		} else {
-			struct socket *so;
+		struct socket *so;
 
-			so = inp->inp_socket;
-			soref(so);
-			error = ktls_set_tx_mode(so,
-			    arg2 == 0 ? TCP_TLS_MODE_SW : TCP_TLS_MODE_IFNET);
-			INP_WUNLOCK(inp);
-			sorele(so);
-		}
+		so = inp->inp_socket;
+		soref(so);
+		error = ktls_set_tx_mode(so,
+		    arg2 == 0 ? TCP_TLS_MODE_SW : TCP_TLS_MODE_IFNET);
+		INP_WUNLOCK(inp);
+		sorele(so);
 	} else
 		error = ESRCH;
 	return (error);
@@ -4025,8 +4010,6 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 
 	xt->xt_len = sizeof(struct xtcpcb);
 	in_pcbtoxinpcb(inp, &xt->xt_inp);
-	if (inp->inp_socket == NULL)
-		xt->xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
 }
 
 void

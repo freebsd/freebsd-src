@@ -940,7 +940,7 @@ findpcb:
 
 	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
 	    (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) &&
-	    ((inp->inp_socket == NULL) || !SOLISTENING(inp->inp_socket))) {
+	    !SOLISTENING(inp->inp_socket)) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
