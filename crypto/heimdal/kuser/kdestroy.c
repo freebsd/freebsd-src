@@ -90,7 +90,9 @@ main (int argc, char **argv)
     }
 
     argc -= optidx;
+#ifndef __clang_analyzer__
     argv += optidx;
+#endif
 
     if (argc != 0)
 	usage (1);

@@ -720,7 +720,6 @@ mdb_remove(krb5_context context, HDB *db, krb5_const_principal principal)
     krb5_error_code code;
     krb5_data key;
 
-    mdb_principal2key(context, principal, &key);
     code = db->hdb__del(context, db, key);
     krb5_data_free(&key);
     return code;

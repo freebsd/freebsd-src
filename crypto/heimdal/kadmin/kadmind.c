@@ -116,7 +116,11 @@ main(int argc, char **argv)
     }
 
     argc -= optidx;
+#ifndef __clang_analyzer__
     argv += optidx;
+#endif
+    if (argc != 0)
+        usage(1);
 
     if (config_file == NULL) {
 	asprintf(&config_file, "%s/kdc.conf", hdb_db_dir(context));

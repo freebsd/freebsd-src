@@ -52,6 +52,8 @@ from_file(const char *fn, const char *target_domain,
 	    continue;
 	str = NULL;
 	d = strtok_r(buf, ":", &str);
+	if (!d)
+	    continue;
 	if (d && strcasecmp(target_domain, d) != 0)
 	    continue;
 	u = strtok_r(NULL, ":", &str);

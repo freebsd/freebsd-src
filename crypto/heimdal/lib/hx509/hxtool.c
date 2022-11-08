@@ -1288,6 +1288,7 @@ request_create(struct request_create_options *opt, int argc, char **argv)
     const char *outfile = argv[0];
 
     memset(&key, 0, sizeof(key));
+    memset(&signer, 0, sizeof(signer));
 
     get_key(opt->key_string,
 	    opt->generate_key_string,

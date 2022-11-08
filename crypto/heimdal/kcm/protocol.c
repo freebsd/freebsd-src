@@ -423,7 +423,7 @@ kcm_op_get_principal(krb5_context context,
     free(name);
     kcm_release_ccache(context, ccache);
 
-    return 0;
+    return ret;
 }
 
 /*

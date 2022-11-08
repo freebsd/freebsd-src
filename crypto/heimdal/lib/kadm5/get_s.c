@@ -246,7 +246,7 @@ kadm5_s_get_principal(void *server_handle,
 	    ret = hdb_entry_get_password(context->context,
 					 context->db, &ent.entry, &pw);
 	    if (ret == 0) {
-		ret = add_tl_data(out, KRB5_TL_PASSWORD, pw, strlen(pw) + 1);
+		(void) add_tl_data(out, KRB5_TL_PASSWORD, pw, strlen(pw) + 1);
 		free(pw);
 	    }
 	    krb5_clear_error_message(context->context);

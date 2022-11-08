@@ -217,7 +217,6 @@ kt_change (struct change_options *opt, int argc, char **argv)
     krb5_kt_end_seq_get(context, keytab, &cursor);
 
     if (ret == KRB5_KT_END) {
-	ret = 0;
 	for (i = 0; i < j; i++) {
 	    if (verbose_flag) {
 		char *client_name;

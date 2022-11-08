@@ -325,15 +325,13 @@ krb5_keytab_key_proc (krb5_context context,
 
     ret = krb5_kt_get_entry (context, real_keytab, principal,
 			     0, enctype, &entry);
+    if (ret == 0) {
+        ret = krb5_copy_keyblock (context, &entry.keyblock, key);
+        krb5_kt_free_entry(context, &entry);
+    }
 
     if (keytab == NULL)
 	krb5_kt_close (context, real_keytab);
-
-    if (ret)
-	return ret;
-
-    ret = krb5_copy_keyblock (context, &entry.keyblock, key);
-    krb5_kt_free_entry(context, &entry);
     return ret;
 }
 

@@ -1467,6 +1467,10 @@ _kdc_do_digest(krb5_context context,
     ret = krb5_encrypt_EncryptedData(context, crypto, KRB5_KU_DIGEST_ENCRYPT,
 				     buf.data, buf.length, 0,
 				     &rep.innerRep);
+    if (ret) {
+        krb5_prepend_error_message(context, ret, "Failed to encrypt digest: ");
+        goto out;
+    }
 
     ASN1_MALLOC_ENCODE(DigestREP, reply->data, reply->length, &rep, &size, ret);
     if (ret) {

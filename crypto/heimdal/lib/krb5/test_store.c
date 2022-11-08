@@ -64,7 +64,7 @@ test_int16(krb5_context context, krb5_storage *sp)
     krb5_error_code ret;
     int i;
     int16_t val[] = {
-	0, 1, -1, 32768, -32767
+	0, 1, -1, 32767, -32768
     }, v;
 
     krb5_storage_truncate(sp, 0);

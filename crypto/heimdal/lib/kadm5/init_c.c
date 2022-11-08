@@ -567,7 +567,7 @@ kadm5_c_init_with_context(krb5_context context,
 			  void **server_handle)
 {
     kadm5_ret_t ret;
-    kadm5_client_context *ctx;
+    kadm5_client_context *ctx = NULL;
     krb5_ccache cc;
 
     ret = _kadm5_c_init_context(&ctx, realm_params, context);

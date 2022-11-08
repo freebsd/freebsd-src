@@ -89,8 +89,6 @@ v5_to_kt(krb5_creds *cred, uid_t uid, struct kafs_token *kt, int local524)
 	    return ENOMEM;
 	kt->ticket_len = cred->ticket.length;
 	memcpy(kt->ticket, cred->ticket.data, kt->ticket_len);
-
-	ret = 0;
     }
 
 

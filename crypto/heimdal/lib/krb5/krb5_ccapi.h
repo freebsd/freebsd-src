@@ -38,7 +38,7 @@
 
 #include <krb5-types.h>
 
- #ifdef __APPLE__
+#ifdef __APPLE__
 #pragma pack(push,2)
 #endif
 

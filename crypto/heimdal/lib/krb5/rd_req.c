@@ -802,11 +802,10 @@ get_key_from_keytab(krb5_context context,
 			     kvno,
 			     ap_req->ticket.enc_part.etype,
 			     &entry);
-    if(ret)
-	goto out;
-    ret = krb5_copy_keyblock(context, &entry.keyblock, out_key);
-    krb5_kt_free_entry (context, &entry);
-out:
+    if(ret == 0) {
+        ret = krb5_copy_keyblock(context, &entry.keyblock, out_key);
+        krb5_kt_free_entry(context, &entry);
+    }
     if(keytab == NULL)
 	krb5_kt_close(context, real_keytab);
 

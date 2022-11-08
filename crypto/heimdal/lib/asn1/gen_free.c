@@ -61,6 +61,13 @@ free_type (const char *name, const Type *t, int preserve)
     case TNull:
     case TGeneralizedTime:
     case TUTCTime:
+        /*
+         * This doesn't do much, but it leaves zeros where garbage might
+         * otherwise have been found.  Gets us closer to having the equivalent
+         * of a memset()-to-zero data structure after calling the free
+         * functions.
+         */
+        fprintf(codefile, "*%s = 0;\n", name);
 	break;
     case TBitString:
 	if (ASN1_TAILQ_EMPTY(t->members))

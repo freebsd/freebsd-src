@@ -755,7 +755,10 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
 	    rtbl_add_column_entry(tbl, SLAVE_STATUS, "Up");
 
 	ret = krb5_format_time(context, slaves->seen, str, sizeof(str), TRUE);
-	rtbl_add_column_entry(tbl, SLAVE_SEEN, str);
+        if (ret)
+            rtbl_add_column_entry(tbl, SLAVE_SEEN, "<error-formatting-time>");
+        else
+            rtbl_add_column_entry(tbl, SLAVE_SEEN, str);
 
 	slaves = slaves->next;
     }
