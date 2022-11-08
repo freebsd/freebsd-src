@@ -149,6 +149,31 @@ The
 .Fn strfmon_l
 function returns the same values as
 .Fn strfmon .
+.Sh EXAMPLES
+The following example will format the value
+.Dq Li 1234567.89
+to the string
+.Dq Li $1,234,567.89 :
+.Bd -literal -offset indent
+#include <stdio.h>
+#include <monetary.h>
+#include <xlocale.h>
+
+int
+main()
+{
+	char string[100];
+	double money = 1234567.89;
+
+	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL) {
+		fprintf(stderr, "Unable to setlocale().\\n");
+		return (1);
+	}
+
+	strfmon(string, sizeof(string) - 1, "%n", money);
+	printf("%s\\n", string);
+}
+.Ed
 .Sh ERRORS
 The
 .Fn strfmon
