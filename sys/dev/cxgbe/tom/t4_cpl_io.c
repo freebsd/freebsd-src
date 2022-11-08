@@ -2052,8 +2052,20 @@ t4_uninit_cpl_io_handlers(void)
 #define	aio_sent	backend3
 #define	aio_refs	backend4
 
-#define	jobtotid(job)							\
-	(((struct toepcb *)(sototcpcb((job)->fd_file->f_data)->t_toe))->tid)
+#ifdef VERBOSE_TRACES
+static int
+jobtotid(struct kaiocb *job)
+{
+	struct socket *so;
+	struct tcpcb *tp;
+	struct toepcb *toep;
+
+	so = job->fd_file->f_data;
+	tp = sototcpcb(so);
+	toep = tp->t_toe;
+	return (toep->tid);
+}
+#endif
 
 static void
 aiotx_free_job(struct kaiocb *job)
