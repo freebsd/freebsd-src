@@ -103,7 +103,10 @@ stash(struct stash_options *opt, int argc, char **argv)
 	    }
 	}
 	ret = krb5_string_to_key_salt(context, enctype, buf, salt, &key);
-	ret = hdb_add_master_key(context, &key, &mkey);
+        if (ret == 0)
+            ret = hdb_add_master_key(context, &key, &mkey);
+        if (ret)
+            krb5_warn(context, errno, "setting master key");
 	krb5_free_keyblock_contents(context, &key);
     }
 

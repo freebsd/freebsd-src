@@ -249,7 +249,6 @@ generate_dh_keyblock(krb5_context context,
 	    memset(dh_gen_key, 0, size);
 	}
 
-	ret = 0;
 #ifdef HAVE_OPENSSL
     } else if (client_params->keyex == USE_ECDH) {
 
