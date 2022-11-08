@@ -184,6 +184,8 @@ main(int argc, char **argv)
 	    unsigned int tag2;
 	    ret = der_get_tag (r.data, r.length,
 			       &cl, &ty, &tag2, NULL);
+            if (ret)
+                krb5_err(context, 1, ret, "Could not decode replay data");
 	    if (MAKE_TAG(cl, ty, 0) != clty)
 		krb5_errx(context, 1, "class|type mismatch: %d != %d",
 			  (int)MAKE_TAG(cl, ty, 0), (int)clty);

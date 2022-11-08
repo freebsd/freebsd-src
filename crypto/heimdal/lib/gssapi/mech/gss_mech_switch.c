@@ -137,6 +137,8 @@ _gss_string_to_oid(const char* s, gss_OID oid)
 				}
 			}
 		}
+                if (byte_count == 0)
+                    return EINVAL;
 		if (!res) {
 			res = malloc(byte_count);
 			if (!res)
