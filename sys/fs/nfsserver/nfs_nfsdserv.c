@@ -417,7 +417,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (!nd->nd_repstat && (nd->nd_flag & ND_NFSV4)) {
 	    /*
-	     * For V4, try setting the attrbutes in sets, so that the
+	     * For V4, try setting the attributes in sets, so that the
 	     * reply bitmap will be correct for an error case.
 	     */
 	    if (NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_OWNER) ||
