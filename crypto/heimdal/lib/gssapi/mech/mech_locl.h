@@ -51,6 +51,7 @@
 
 #include <roken.h>
 
+#include <krb5.h>
 #include <gssapi.h>
 #include <gssapi_mech.h>
 #include <gssapi_krb5.h>

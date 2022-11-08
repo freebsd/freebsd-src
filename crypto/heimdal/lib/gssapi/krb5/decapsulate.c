@@ -54,6 +54,8 @@ _gsskrb5_get_mech (const u_char *ptr,
     e = der_get_length (p, total_len - 1, &len, &len_len);
     if (e || 1 + len_len + len != total_len)
 	return -1;
+    if (total_len < 1 + len_len + 1)
+	return -1;
     p += len_len;
     if (*p++ != 0x06)
 	return -1;
@@ -79,6 +81,10 @@ _gssapi_verify_mech_header(u_char **str,
 	return GSS_S_DEFECTIVE_TOKEN;
 
     if (mech_len != mech->length)
+	return GSS_S_BAD_MECH;
+    if (mech_len > total_len)
+	return GSS_S_BAD_MECH;
+    if (p - *str > total_len - mech_len)
 	return GSS_S_BAD_MECH;
     if (ct_memcmp(p,
 		  mech->elements,
@@ -190,13 +196,13 @@ _gssapi_verify_pad(gss_buffer_t wrapped_token,
     size_t padlength;
     int i;
 
-    pad = (u_char *)wrapped_token->value + wrapped_token->length - 1;
-    padlength = *pad;
+    pad = (u_char *)wrapped_token->value + wrapped_token->length;
+    padlength = pad[-1];
 
     if (padlength > datalen)
 	return GSS_S_BAD_MECH;
 
-    for (i = padlength; i > 0 && *pad == padlength; i--, pad--)
+    for (i = padlength; i > 0 && *--pad == padlength; i--)
 	;
     if (i != 0)
 	return GSS_S_BAD_MIC;
