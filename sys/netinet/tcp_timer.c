@@ -250,9 +250,7 @@ tcp_timer_delack(void *xtp)
 {
 	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
-#if defined(INVARIANTS) || defined(VIMAGE)
 	struct inpcb *inp = tptoinpcb(tp);
-#endif
 
 	INP_WLOCK(inp);
 	CURVNET_SET(inp->inp_vnet);
@@ -536,9 +534,7 @@ tcp_timer_persist(void *xtp)
 {
 	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
-#if defined(INVARIANTS) || defined(VIMAGE)
 	struct inpcb *inp = tptoinpcb(tp);
-#endif
 	bool progdrop;
 	int outrv;
 #ifdef TCPDEBUG
