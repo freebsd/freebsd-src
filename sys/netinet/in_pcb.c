@@ -639,13 +639,6 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	 * to be cleaned up.
 	 */
 	inp->inp_route.ro_flags = RT_LLE_CACHE;
-#ifdef TCPHPTS
-	/*
-	 * If using hpts lets drop a random number in so
-	 * not all new connections fall on the same CPU.
-	 */
-	inp->inp_hpts_cpu = hpts_random_cpu(inp);
-#endif
 	refcount_init(&inp->inp_refcount, 1);   /* Reference from socket. */
 	INP_WLOCK(inp);
 	INP_INFO_WLOCK(pcbinfo);

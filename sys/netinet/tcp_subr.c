@@ -2315,6 +2315,13 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
 	inp->inp_ppcb = tp;
+#ifdef TCPHPTS
+	/*
+	 * If using hpts lets drop a random number in so
+	 * not all new connections fall on the same CPU.
+	 */
+	inp->inp_hpts_cpu = hpts_random_cpu(inp);
+#endif
 #ifdef TCPPCAP
 	/*
 	 * Init the TCP PCAP queues.
