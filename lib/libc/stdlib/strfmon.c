@@ -645,7 +645,7 @@ ssize_t
 strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
     ...)
 {
-	size_t ret;
+	ssize_t ret;
 	va_list ap;
 
 	va_start(ap, format);
@@ -659,7 +659,7 @@ ssize_t
 strfmon_l(char * __restrict s, size_t maxsize, locale_t loc,
     const char * __restrict format, ...)
 {
-	size_t ret;
+	ssize_t ret;
 	va_list ap;
 
 	va_start(ap, format);
