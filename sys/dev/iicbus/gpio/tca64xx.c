@@ -416,7 +416,7 @@ tca64xx_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		goto fail;
 
 	addr = TCA64XX_REG_ADDR(pin, sc->polarity_inv_reg);
-	error = tca64xx_write(dev, addr, val);
+	error = tca64xx_write(dev, addr, inv_val);
 
 fail:
 	mtx_unlock(&sc->mtx);
