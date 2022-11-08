@@ -160,8 +160,8 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 		log.u_bbr.delivered = nreno->css_lowrtt_fas;
 		log.u_bbr.pkt_epoch = ccv->flags;
 		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
 		    TCP_HYSTART, 0,
 		    0, &log, false, &tv);
 	}
@@ -178,7 +178,7 @@ newreno_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct newreno *nreno;
 
-	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
 	if (ptr == NULL) {
 		ccv->cc_data = malloc(sizeof(struct newreno), M_CC_MEM, M_NOWAIT);
 		if (ccv->cc_data == NULL)

@@ -306,7 +306,7 @@ static void
 assign_rxopt(struct tcpcb *tp, uint16_t opt)
 {
 	struct toepcb *toep = tp->t_toe;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct adapter *sc = td_adapter(toep->td);
 
 	INP_LOCK_ASSERT(inp);
@@ -442,7 +442,7 @@ void
 t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 {
 	struct adapter *sc = tod->tod_softc;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_rcv;
 	struct toepcb *toep = tp->t_toe;
@@ -466,7 +466,7 @@ t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 void
 t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_rcv;
 
@@ -1276,7 +1276,7 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 {
 	struct adapter *sc = tod->tod_softc;
 #ifdef INVARIANTS
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 #endif
 	struct toepcb *toep = tp->t_toe;
 
@@ -1295,7 +1295,7 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 {
 	struct adapter *sc = tod->tod_softc;
 #ifdef INVARIANTS
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 #endif
 	struct toepcb *toep = tp->t_toe;
 
@@ -1316,7 +1316,7 @@ t4_send_rst(struct toedev *tod, struct tcpcb *tp)
 {
 	struct adapter *sc = tod->tod_softc;
 #if defined(INVARIANTS)
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 #endif
 	struct toepcb *toep = tp->t_toe;
 

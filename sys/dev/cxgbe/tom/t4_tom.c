@@ -366,7 +366,7 @@ static void
 t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 {
 #if defined(KTR) || defined(INVARIANTS)
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 #endif
 	struct toepcb *toep = tp->t_toe;
 
@@ -820,7 +820,7 @@ t4_tcp_info(struct toedev *tod, struct tcpcb *tp, struct tcp_info *ti)
 	struct adapter *sc = tod->tod_softc;
 	struct toepcb *toep = tp->t_toe;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	MPASS(ti != NULL);
 
 	fill_tcp_info(sc, toep->tid, ti);
@@ -833,7 +833,7 @@ t4_alloc_tls_session(struct toedev *tod, struct tcpcb *tp,
 {
 	struct toepcb *toep = tp->t_toe;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	MPASS(tls != NULL);
 
 	return (tls_alloc_ktls(toep, tls, direction));
@@ -918,7 +918,7 @@ t4_pmtu_update(struct toedev *tod, struct tcpcb *tp, tcp_seq seq, int mtu)
 	struct ulp_txpkt *ulpmc;
 	int idx, len;
 	struct wrq_cookie cookie;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct toepcb *toep = tp->t_toe;
 	struct adapter *sc = td_adapter(toep->td);
 	unsigned short *mtus = &sc->params.mtus[0];

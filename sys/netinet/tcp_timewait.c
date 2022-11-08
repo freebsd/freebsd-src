@@ -115,7 +115,7 @@ SYSCTL_BOOL(_net_inet_tcp, OID_AUTO, nolocaltimewait,
 void
 tcp_twstart(struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 #ifdef INET6
 	bool isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
 #endif

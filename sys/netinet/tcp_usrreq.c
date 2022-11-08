@@ -1476,8 +1476,8 @@ struct protosw tcp6_protosw = {
 static int
 tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp = tp->t_inpcb, *oinp;
-	struct socket *so = inp->inp_socket;
+	struct inpcb *inp = tptoinpcb(tp), *oinp;
+	struct socket *so = tptosocket(tp);
 	struct in_addr laddr;
 	u_short lport;
 	int error;
@@ -1549,7 +1549,7 @@ out:
 static int
 tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
@@ -1597,7 +1597,7 @@ static void
 tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 {
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	bzero(ti, sizeof(*ti));
 
 	ti->tcpi_state = tp->t_state;
@@ -1815,7 +1815,7 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		}
 #ifdef TCPHPTS
 		/* Assure that we are not on any hpts */
-		tcp_hpts_remove(tp->t_inpcb);
+		tcp_hpts_remove(tptoinpcb(tp));
 #endif
 		if (blk->tfb_tcp_fb_init) {
 			error = (*blk->tfb_tcp_fb_init)(tp);
@@ -2726,8 +2726,8 @@ unhold:
 static void
 tcp_disconnect(struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
-	struct socket *so = inp->inp_socket;
+	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
@@ -2770,7 +2770,7 @@ tcp_usrclosed(struct tcpcb *tp)
 {
 
 	NET_EPOCH_ASSERT();
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	switch (tp->t_state) {
 	case TCPS_LISTEN:
@@ -2805,7 +2805,7 @@ tcp_usrclosed(struct tcpcb *tp)
 	if (tp->t_acktime == 0)
 		tp->t_acktime = ticks;
 	if (tp->t_state >= TCPS_FIN_WAIT_2) {
-		soisdisconnected(tp->t_inpcb->inp_socket);
+		soisdisconnected(tptosocket(tp));
 		/* Prevent the connection hanging in FIN_WAIT_2 forever. */
 		if (tp->t_state == TCPS_FIN_WAIT_2) {
 			int timeout;

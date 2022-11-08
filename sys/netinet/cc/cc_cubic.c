@@ -150,8 +150,8 @@ cubic_log_hystart_event(struct cc_var *ccv, struct cubic *cubicd, uint8_t mod, u
 		log.u_bbr.delivered = cubicd->css_lowrtt_fas;
 		log.u_bbr.pkt_epoch = ccv->flags;
 		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
 		    TCP_HYSTART, 0,
 		    0, &log, false, &tv);
 	}
@@ -387,7 +387,7 @@ cubic_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct cubic *cubic_data;
 
-	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
 	if (ptr == NULL) {
 		cubic_data = malloc(sizeof(struct cubic), M_CC_MEM, M_NOWAIT|M_ZERO);
 		if (cubic_data == NULL)

@@ -184,7 +184,7 @@ hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
 void
 cc_after_idle(struct tcpcb *tp)
 {
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	if (CC_ALGO(tp)->after_idle != NULL)
 		CC_ALGO(tp)->after_idle(tp->ccv);
@@ -196,7 +196,8 @@ cc_after_idle(struct tcpcb *tp)
 int
 tcp_default_output(struct tcpcb *tp)
 {
-	struct socket *so = tp->t_inpcb->inp_socket;
+	struct socket *so = tptosocket(tp);
+	struct inpcb *inp = tptoinpcb(tp);
 	int32_t len;
 	uint32_t recwin, sendwin;
 	uint16_t flags;
@@ -230,7 +231,7 @@ tcp_default_output(struct tcpcb *tp)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 
-	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
+	isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif
 #ifdef KERN_TLS
 	const bool hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
@@ -239,7 +240,7 @@ tcp_default_output(struct tcpcb *tp)
 #endif
 
 	NET_EPOCH_ASSERT();
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
@@ -542,23 +543,23 @@ after_sack_rexmit:
 	 */
 #ifdef INET6
 	if (isipv6 && IPSEC_ENABLED(ipv6))
-		ipsec_optlen = IPSEC_HDRSIZE(ipv6, tp->t_inpcb);
+		ipsec_optlen = IPSEC_HDRSIZE(ipv6, inp);
 #ifdef INET
 	else
 #endif
 #endif /* INET6 */
 #ifdef INET
 	if (IPSEC_ENABLED(ipv4))
-		ipsec_optlen = IPSEC_HDRSIZE(ipv4, tp->t_inpcb);
+		ipsec_optlen = IPSEC_HDRSIZE(ipv4, inp);
 #endif /* INET */
 #endif /* IPSEC */
 #ifdef INET6
 	if (isipv6)
-		ipoptlen = ip6_optlen(tp->t_inpcb);
+		ipoptlen = ip6_optlen(inp);
 	else
 #endif
-	if (tp->t_inpcb->inp_options)
-		ipoptlen = tp->t_inpcb->inp_options->m_len -
+	if (inp->inp_options)
+		ipoptlen = inp->inp_options->m_len -
 				offsetof(struct ipoption, ipopt_list);
 	else
 		ipoptlen = 0;
@@ -809,7 +810,7 @@ send:
 	if ((tp->t_flags & TF_NOOPT) == 0) {
 		/* Maximum segment size. */
 		if (flags & TH_SYN) {
-			to.to_mss = tcp_mssopt(&tp->t_inpcb->inp_inc);
+			to.to_mss = tcp_mssopt(&inp->inp_inc);
 			if (tp->t_port)
 				to.to_mss -= V_tcp_udp_tunneling_overhead;
 			to.to_flags |= TOF_MSS;
@@ -1154,7 +1155,7 @@ send:
 	SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
-	mac_inpcb_create_mbuf(tp->t_inpcb, m);
+	mac_inpcb_create_mbuf(inp, m);
 #endif
 #ifdef INET6
 	if (isipv6) {
@@ -1169,7 +1170,7 @@ send:
 		} else {
 			th = (struct tcphdr *)(ip6 + 1);
 		}
-		tcpip_fillheaders(tp->t_inpcb, tp->t_port, ip6, th);
+		tcpip_fillheaders(inp, tp->t_port, ip6, th);
 	} else
 #endif /* INET6 */
 	{
@@ -1186,7 +1187,7 @@ send:
 			th = (struct tcphdr *)(udp + 1);
 		} else
 			th = (struct tcphdr *)(ip + 1);
-		tcpip_fillheaders(tp->t_inpcb, tp->t_port, ip, th);
+		tcpip_fillheaders(inp, tp->t_port, ip, th);
 	}
 
 	/*
@@ -1467,7 +1468,7 @@ send:
 		 * Also, desired default hop limit might be changed via
 		 * Neighbor Discovery.
 		 */
-		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
+		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
 
 		/*
 		 * Set the packet size here for the benefit of DTrace probes.
@@ -1492,13 +1493,12 @@ send:
 #endif
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
-		error = ip6_output(m, tp->t_inpcb->in6p_outputopts,
-		    &tp->t_inpcb->inp_route6,
+		error = ip6_output(m, inp->in6p_outputopts, &inp->inp_route6,
 		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
-		    NULL, NULL, tp->t_inpcb);
+		    NULL, NULL, inp);
 
-		if (error == EMSGSIZE && tp->t_inpcb->inp_route6.ro_nh != NULL)
-			mtu = tp->t_inpcb->inp_route6.ro_nh->nh_mtu;
+		if (error == EMSGSIZE && inp->inp_route6.ro_nh != NULL)
+			mtu = inp->inp_route6.ro_nh->nh_mtu;
 	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
@@ -1508,8 +1508,8 @@ send:
     {
 	ip->ip_len = htons(m->m_pkthdr.len);
 #ifdef INET6
-	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
-		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
+	if (inp->inp_vflag & INP_IPV6PROTO)
+		ip->ip_ttl = in6_selecthlim(inp, NULL);
 #endif /* INET6 */
 	/*
 	 * If we do path MTU discovery, then we set DF on every packet.
@@ -1538,12 +1538,11 @@ send:
 	tcp_pcap_add(th, m, &(tp->t_outpkts));
 #endif
 
-	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
-	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
-	    tp->t_inpcb);
+	error = ip_output(m, inp->inp_options, &inp->inp_route,
+	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0, inp);
 
-	if (error == EMSGSIZE && tp->t_inpcb->inp_route.ro_nh != NULL)
-		mtu = tp->t_inpcb->inp_route.ro_nh->nh_mtu;
+	if (error == EMSGSIZE && inp->inp_route.ro_nh != NULL)
+		mtu = inp->inp_route.ro_nh->nh_mtu;
     }
 #endif /* INET */
 

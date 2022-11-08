@@ -324,7 +324,7 @@ chd_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct chd *chd_data;
 
-	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
 	if (ptr == NULL) {
 		chd_data = malloc(sizeof(struct chd), M_CC_MEM, M_NOWAIT);
 		if (chd_data == NULL)

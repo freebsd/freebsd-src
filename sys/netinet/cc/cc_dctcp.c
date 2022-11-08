@@ -204,7 +204,7 @@ dctcp_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct dctcp *dctcp_data;
 
-	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
 	if (ptr == NULL) {
 		dctcp_data = malloc(sizeof(struct dctcp), M_CC_MEM, M_NOWAIT|M_ZERO);
 		if (dctcp_data == NULL)

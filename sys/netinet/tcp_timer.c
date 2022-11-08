@@ -250,11 +250,12 @@ tcp_timer_delack(void *xtp)
 {
 	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
-	struct inpcb *inp;
+#if defined(INVARIANTS) || defined(VIMAGE)
+	struct inpcb *inp = tptoinpcb(tp);
+#endif
+
 	CURVNET_SET(tp->t_vnet);
 
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
 	INP_WLOCK(inp);
 	if (callout_pending(&tp->t_timers->tt_delack) ||
 	    !callout_active(&tp->t_timers->tt_delack)) {
@@ -283,7 +284,7 @@ static void
 tcp_timer_close(struct tcpcb *tp)
 {
 	struct epoch_tracker et;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -301,7 +302,7 @@ static void
 tcp_timer_drop(struct tcpcb *tp)
 {
 	struct epoch_tracker et;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -316,21 +317,20 @@ void
 tcp_timer_2msl(void *xtp)
 {
 	struct tcpcb *tp = xtp;
-	struct inpcb *inp;
+	struct inpcb *inp = tptoinpcb(tp);
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
+
 	INP_WLOCK(inp);
 	tcp_log_end_status(tp, TCP_EI_STATUS_2MSL);
 	tcp_free_sackholes(tp);
 	if (callout_pending(&tp->t_timers->tt_2msl) ||
 	    !callout_active(&tp->t_timers->tt_2msl)) {
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
@@ -359,8 +359,8 @@ tcp_timer_2msl(void *xtp)
 		CURVNET_RESTORE();
 		return;
 	} else if (tp->t_state == TCPS_FIN_WAIT_2 &&
-	    tcp_fast_finwait2_recycle && tp->t_inpcb->inp_socket &&
-	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
+	    tcp_fast_finwait2_recycle && inp->inp_socket &&
+	    (inp->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		TCPSTAT_INC(tcps_finwait2_drops);
 		tcp_timer_close(tp);
 		CURVNET_RESTORE();
@@ -377,7 +377,7 @@ tcp_timer_2msl(void *xtp)
 	}
 
 #ifdef TCPDEBUG
-	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+	if (tptosocket(tp)->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
@@ -390,18 +390,17 @@ tcp_timer_2msl(void *xtp)
 void
 tcp_timer_keep(void *xtp)
 {
-	struct tcpcb *tp = xtp;
-	struct tcptemp *t_template;
-	struct inpcb *inp;
 	struct epoch_tracker et;
+	struct tcpcb *tp = xtp;
+	struct inpcb *inp = tptoinpcb(tp);
+	struct tcptemp *t_template;
 	CURVNET_SET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
+
 	INP_WLOCK(inp);
 	if (callout_pending(&tp->t_timers->tt_keep) ||
 	    !callout_active(&tp->t_timers->tt_keep)) {
@@ -494,7 +493,7 @@ dropit:
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
-	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp != NULL && (tptosocket(tp)->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
@@ -533,9 +532,11 @@ tcp_maxunacktime_check(struct tcpcb *tp)
 void
 tcp_timer_persist(void *xtp)
 {
-	struct tcpcb *tp = xtp;
-	struct inpcb *inp;
 	struct epoch_tracker et;
+	struct tcpcb *tp = xtp;
+#if defined(INVARIANTS) || defined(VIMAGE)
+	struct inpcb *inp = tptoinpcb(tp);
+#endif
 	bool progdrop;
 	int outrv;
 	CURVNET_SET(tp->t_vnet);
@@ -544,8 +545,7 @@ tcp_timer_persist(void *xtp)
 
 	ostate = tp->t_state;
 #endif
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
+
 	INP_WLOCK(inp);
 	if (callout_pending(&tp->t_timers->tt_persist) ||
 	    !callout_active(&tp->t_timers->tt_persist)) {
@@ -605,7 +605,7 @@ tcp_timer_persist(void *xtp)
 	tp->t_flags &= ~TF_FORCEDATA;
 
 #ifdef TCPDEBUG
-	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
+	if (tp != NULL && tptosocket(tp)->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
@@ -617,19 +617,18 @@ tcp_timer_persist(void *xtp)
 void
 tcp_timer_rexmt(void * xtp)
 {
+	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
 	CURVNET_SET(tp->t_vnet);
+	struct inpcb *inp = tptoinpcb(tp);
 	int rexmt, outrv;
-	struct inpcb *inp;
-	struct epoch_tracker et;
 	bool isipv6;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
+
 	INP_WLOCK(inp);
 	if (callout_pending(&tp->t_timers->tt_rexmt) ||
 	    !callout_active(&tp->t_timers->tt_rexmt)) {
@@ -722,7 +721,7 @@ tcp_timer_rexmt(void * xtp)
 	 * ESTABLISHED state.
 	 */
 #ifdef INET6
-	isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) ? true : false;
+	isipv6 = (inp->inp_vflag & INP_IPV6) ? true : false;
 #else
 	isipv6 = false;
 #endif
@@ -865,11 +864,11 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	if (tp->t_rxtshift > TCP_RTT_INVALIDATE) {
 #ifdef INET6
-		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
-			in6_losing(tp->t_inpcb);
+		if ((inp->inp_vflag & INP_IPV6) != 0)
+			in6_losing(inp);
 		else
 #endif
-			in_losing(tp->t_inpcb);
+			in_losing(inp);
 	}
 	tp->snd_nxt = tp->snd_una;
 	tp->snd_recover = tp->snd_max;
@@ -886,7 +885,7 @@ tcp_timer_rexmt(void * xtp)
 	NET_EPOCH_ENTER(et);
 	outrv = tcp_output_nodrop(tp);
 #ifdef TCPDEBUG
-	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+	if (tp != NULL && (tptosocket(tp)->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
@@ -901,7 +900,7 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 {
 	struct callout *t_callout;
 	callout_func_t *f_callout;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	int cpu = inp_to_cpuid(inp);
 
 #ifdef TCP_OFFLOAD
@@ -1066,10 +1065,12 @@ tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 			break;
 		case TT_2MSL:
 			if (tp->t_timers->tt_flags &= TT_2MSL_SUS) {
+				struct socket *so = tptosocket(tp);
+
 				tp->t_timers->tt_flags &= ~TT_2MSL_SUS;
 				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
-				    ((tp->t_inpcb->inp_socket == NULL) ||
-				     (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE))) {
+				    (so == NULL ||	/* XXXGL: needed? */
+				    (so->so_rcv.sb_state & SBS_CANTRCVMORE))) {
 					/* Star the 2MSL timer */
 					tcp_timer_activate(tp, TT_2MSL,
 					    (tcp_fast_finwait2_recycle) ?
@@ -1085,17 +1086,14 @@ tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 static void
 tcp_timer_discard(void *ptp)
 {
-	struct inpcb *inp;
-	struct tcpcb *tp;
 	struct epoch_tracker et;
+	struct tcpcb *tp = (struct tcpcb *)ptp;
+	struct inpcb *inp = tptoinpcb(tp);
 
-	tp = (struct tcpcb *)ptp;
 	CURVNET_SET(tp->t_vnet);
-	NET_EPOCH_ENTER(et);
-	inp = tp->t_inpcb;
-	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL",
-		__func__, tp));
 	INP_WLOCK(inp);
+	NET_EPOCH_ENTER(et);
+
 	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
 		("%s: tcpcb has to be stopped here", __func__));
 	if (--tp->t_timers->tt_draincnt > 0 ||

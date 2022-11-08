@@ -1044,10 +1044,9 @@ tcp_default_handoff_ok(struct tcpcb *tp)
 static int
 tcp_default_fb_init(struct tcpcb *tp)
 {
+	struct socket *so = tptosocket(tp);
 
-	struct socket *so;
-
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	KASSERT(tp->t_state >= 0 && tp->t_state < TCPS_TIME_WAIT,
 	    ("%s: connection %p in unexpected state %d", __func__, tp,
@@ -1064,7 +1063,6 @@ tcp_default_fb_init(struct tcpcb *tp)
 	 * Make sure some kind of transmission timer is set if there is
 	 * outstanding data.
 	 */
-	so = tp->t_inpcb->inp_socket;
 	if ((!TCPS_HAVEESTABLISHED(tp->t_state) || sbavail(&so->so_snd) ||
 	    tp->snd_una != tp->snd_max) && !(tcp_timer_active(tp, TT_REXMT) ||
 	    tcp_timer_active(tp, TT_PERSIST))) {
@@ -1110,8 +1108,7 @@ static void
 tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged)
 {
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
-	return;
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 }
 
 /*
@@ -1812,8 +1809,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	ip = ipgen;
 
 	if (tp != NULL) {
-		inp = tp->t_inpcb;
-		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
+		inp = tptoinpcb(tp);
 		INP_LOCK_ASSERT(inp);
 	} else
 		inp = NULL;
@@ -2102,8 +2098,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth->th_sum = in6_cksum_pseudo(ip6,
 			    tlen - sizeof(struct ip6_hdr), IPPROTO_TCP, 0);
 		}
-		ip6->ip6_hlim = in6_selecthlim(tp != NULL ? tp->t_inpcb :
-		    NULL, NULL);
+		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
 	}
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
@@ -2139,7 +2134,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			struct timeval tv;
 
 			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-			log.u_bbr.inhpts = tp->t_inpcb->inp_in_hpts;
+			log.u_bbr.inhpts = inp->inp_in_hpts;
 			log.u_bbr.flex8 = 4;
 			log.u_bbr.pkts_out = tp->t_maxseg;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
@@ -2356,10 +2351,10 @@ tcp_newtcpcb(struct inpcb *inp)
 struct tcpcb *
 tcp_drop(struct tcpcb *tp, int errno)
 {
-	struct socket *so = tp->t_inpcb->inp_socket;
+	struct socket *so = tptosocket(tp);
 
 	NET_EPOCH_ASSERT();
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tcp_state_change(tp, TCPS_CLOSED);
@@ -2377,7 +2372,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 void
 tcp_discardcb(struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -2452,8 +2447,8 @@ tcp_discardcb(struct tcpcb *tp)
 bool
 tcp_freecb(struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
-	struct socket *so = inp->inp_socket;
+	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
 #ifdef INET6
 	bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif
@@ -2544,8 +2539,8 @@ tcp_freecb(struct tcpcb *tp)
 struct tcpcb *
 tcp_close(struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
-	struct socket *so;
+	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -2570,7 +2565,6 @@ tcp_close(struct tcpcb *tp)
 	if (tp->t_state != TCPS_CLOSED)
 		tcp_state_change(tp, TCPS_CLOSED);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
-	so = inp->inp_socket;
 	soisdisconnected(so);
 	if (inp->inp_flags & INP_SOCKREF) {
 		inp->inp_flags &= ~INP_SOCKREF;
@@ -3463,7 +3457,7 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 void
 tcp6_use_min_mtu(struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 
 	INP_WLOCK_ASSERT(inp);
 	/*
