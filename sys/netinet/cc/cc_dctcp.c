@@ -68,6 +68,8 @@ VNET_DEFINE_STATIC(uint32_t, dctcp_shift_g) = 4;
 #define	V_dctcp_shift_g	    VNET(dctcp_shift_g)
 VNET_DEFINE_STATIC(uint32_t, dctcp_slowstart) = 0;
 #define	V_dctcp_slowstart   VNET(dctcp_slowstart)
+VNET_DEFINE_STATIC(uint32_t, dctcp_ect1) = 0;
+#define	V_dctcp_ect1	    VNET(dctcp_ect1)
 
 struct dctcp {
 	uint32_t bytes_ecn;	  /* # of marked bytes during a RTT */
@@ -313,8 +315,11 @@ dctcp_conn_init(struct cc_var *ccv)
 
 	dctcp_data = ccv->cc_data;
 
-	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT)
+	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT) {
 		dctcp_data->save_sndnxt = CCV(ccv, snd_nxt);
+		if (V_dctcp_ect1)
+			CCV(ccv, t_flags2) |= TF2_ECN_USE_ECT1;
+	}
 }
 
 /*
@@ -477,6 +482,11 @@ SYSCTL_PROC(_net_inet_tcp_cc_dctcp, OID_AUTO, slowstart,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &VNET_NAME(dctcp_slowstart), 0, &dctcp_slowstart_handler, "IU",
     "half CWND reduction after the first slow start");
+
+SYSCTL_UINT(_net_inet_tcp_cc_dctcp, OID_AUTO, ect1,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    &VNET_NAME(dctcp_ect1), 0,
+    "Send DCTCP segments with ÍP ECT(0) or ECT(1)");
 
 DECLARE_CC_MODULE(dctcp, &dctcp_cc_algo);
 MODULE_VERSION(dctcp, 2);
