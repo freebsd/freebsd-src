@@ -2247,7 +2247,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				*retcmpp = NFSERR_ATTRNOTSUPP;
 			/*
 			 * and get out of the loop, since we can't parse
-			 * the unknown attrbute data.
+			 * the unknown attribute data.
 			 */
 			bitpos = NFSATTRBIT_MAX;
 			break;
