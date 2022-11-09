@@ -321,7 +321,7 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 	 * To be certain we're not freeing a reallocated block we lookup
 	 * this block in the blk hash and see if there is an allocation
 	 * journal record that overlaps with any fragments in the block
-	 * we're concerned with.  If any fragments have ben reallocated
+	 * we're concerned with.  If any fragments have been reallocated
 	 * the block has already been freed and re-used for another purpose.
 	 */
 	mask = 0;
@@ -379,6 +379,50 @@ blk_isindir(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn)
 }
 
 /*
+ * Check to see if the requested block is available.
+ * We can just check in the cylinder-group maps as
+ * they will only have usable blocks in them.
+ */
+ufs2_daddr_t
+suj_checkblkavail(blkno, frags)
+	ufs2_daddr_t blkno;
+	long frags;
+{
+	struct bufarea *cgbp;
+	struct cg *cgp;
+	ufs2_daddr_t j, k, baseblk;
+	long cg;
+
+	cg = dtog(&sblock, blkno);
+	cgbp = cglookup(cg);
+	cgp = cgbp->b_un.b_cg;
+	if (!check_cgmagic(cg, cgbp, 0))
+		return (-((cg + 1) * sblock.fs_fpg - sblock.fs_frag));
+	baseblk = dtogd(&sblock, blkno);
+	for (j = 0; j <= sblock.fs_frag - frags; j++) {
+		if (!isset(cg_blksfree(cgp), baseblk + j))
+			continue;
+		for (k = 1; k < frags; k++)
+			if (!isset(cg_blksfree(cgp), baseblk + j + k))
+				break;
+		if (k < frags) {
+			j += k;
+			continue;
+		}
+		for (k = 0; k < frags; k++)
+			clrbit(cg_blksfree(cgp), baseblk + j + k);
+		n_blks += frags;
+		if (frags == sblock.fs_frag)
+			cgp->cg_cs.cs_nbfree--;
+		else
+			cgp->cg_cs.cs_nffree -= frags;
+		cgdirty(cgbp);
+		return ((cg * sblock.fs_fpg) + baseblk + j);
+	}
+	return (0);
+}
+
+/*
  * Clear an inode from the cg bitmap.  If the inode was already clear return
  * 0 so the caller knows it does not have to check the inode contents.
  */
@@ -420,7 +464,7 @@ ino_free(ino_t ino, int mode)
  * set in the mask.
  */
 static void
-blk_free(ufs2_daddr_t bno, int mask, int frags)
+blk_free(ino_t ino, ufs2_daddr_t bno, int mask, int frags)
 {
 	ufs1_daddr_t fragno, cgbno;
 	struct suj_cg *sc;
@@ -431,6 +475,13 @@ blk_free(ufs2_daddr_t bno, int mask, int frags)
 	if (debug)
 		printf("Freeing %d frags at blk %jd mask 0x%x\n",
 		    frags, bno, mask);
+	/*
+	 * Check to see if the block needs to be claimed by a snapshot.
+	 * If wanted, the snapshot references it. Otherwise we free it.
+	 */
+	if (snapblkfree(fs, bno, lfragtosize(fs, frags), ino,
+	    suj_checkblkavail))
+		return;
 	cg = dtog(fs, bno);
 	sc = cg_lookup(cg);
 	cgp = sc->sc_cgp;
@@ -846,7 +897,7 @@ static void
 blk_free_visit(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 {
 
-	blk_free(blk, blk_freemask(blk, ino, lbn, frags), frags);
+	blk_free(ino, blk, blk_freemask(blk, ino, lbn, frags), frags);
 }
 
 /*
@@ -865,7 +916,7 @@ blk_free_lbn(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags, int follow)
 	if (lbn <= -UFS_NDADDR && follow && mask == 0)
 		indir_visit(ino, lbn, blk, &resid, blk_free_visit, VISIT_INDIR);
 	else
-		blk_free(blk, mask, frags);
+		blk_free(ino, blk, mask, frags);
 }
 
 static void
@@ -997,6 +1048,8 @@ ino_reclaim(struct inode *ip, ino_t ino, int mode)
 	if ((DIP(dp, di_mode) & IFMT) == IFDIR)
 		ino_visit(dp, ino, ino_free_children, 0);
 	DIP_SET(dp, di_nlink, 0);
+	if ((DIP(dp, di_flags) & SF_SNAPSHOT) != 0)
+		snapremove(ino);
 	ino_visit(dp, ino, blk_free_visit, VISIT_EXT | VISIT_INDIR);
 	/* Here we have to clear the inode and release any blocks it holds. */
 	gen = DIP(dp, di_gen);
@@ -1209,7 +1262,7 @@ indir_trunc(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, ufs_lbn_t lastlbn,
 				continue;
 		}
 		isdirty = 1;
-		blk_free(nblk, 0, fs->fs_frag);
+		blk_free(ino, nblk, 0, fs->fs_frag);
 		IBLK_SET(bp, i, 0);
 	}
 	if (isdirty)
@@ -1245,6 +1298,11 @@ ino_trunc(ino_t ino, off_t size)
 	dp = ip.i_dp;
 	mode = DIP(dp, di_mode) & IFMT;
 	cursize = DIP(dp, di_size);
+	/* If no size change, nothing to do */
+	if (size == cursize) {
+		irelse(&ip);
+		return;
+	}
 	if (debug)
 		printf("Truncating ino %ju, mode %o to size %jd from size %jd\n",
 		    (uintmax_t)ino, mode, size, cursize);
@@ -1264,13 +1322,14 @@ ino_trunc(ino_t ino, off_t size)
 		if (size > 0)
 			err_suj("Partial truncation of ino %ju snapshot file\n",
 			    (uintmax_t)ino);
+		snapremove(ino);
 	}
 	lastlbn = lblkno(fs, blkroundup(fs, size));
 	for (i = lastlbn; i < UFS_NDADDR; i++) {
 		if ((bn = DIP(dp, di_db[i])) == 0)
 			continue;
 		blksize = sblksize(fs, cursize, i);
-		blk_free(bn, 0, numfrags(fs, blksize));
+		blk_free(ino, bn, 0, numfrags(fs, blksize));
 		DIP_SET(dp, di_db[i], 0);
 	}
 	/*
@@ -1283,13 +1342,13 @@ ino_trunc(ino_t ino, off_t size)
 		/* If we're not freeing any in this indirect range skip it. */
 		if (lastlbn >= nextlbn)
 			continue;
-		if (DIP(dp, di_ib[i]) == 0)
-			continue;
-		indir_trunc(ino, -lbn - i, DIP(dp, di_ib[i]), lastlbn, dp);
-		/* If we freed everything in this indirect free the indir. */
-		if (lastlbn > lbn)
-			continue;
-		blk_free(DIP(dp, di_ib[i]), 0, fs->fs_frag);
+		if ((bn = DIP(dp, di_ib[i])) == 0)
+  			continue;
+		indir_trunc(ino, -lbn - i, bn, lastlbn, dp);
+  		/* If we freed everything in this indirect free the indir. */
+  		if (lastlbn > lbn)
+  			continue;
+		blk_free(ino, bn, 0, fs->fs_frag);
 		DIP_SET(dp, di_ib[i], 0);
 	}
 	/*
@@ -1319,7 +1378,7 @@ ino_trunc(ino_t ino, off_t size)
 		if (oldspace != newspace) {
 			bn += numfrags(fs, newspace);
 			frags = numfrags(fs, oldspace - newspace);
-			blk_free(bn, 0, frags);
+			blk_free(ino, bn, 0, frags);
 			totalfrags -= frags;
 		}
 	}
@@ -1468,7 +1527,7 @@ blk_check(struct suj_blk *sblk)
 			mask >>= frags;
 			blk += frags;
 			frags = brec->jb_frags - frags;
-			blk_free(blk, mask, frags);
+			blk_free(brec->jb_ino, blk, mask, frags);
 			continue;
 		}
 		/*
@@ -2406,6 +2465,13 @@ suj_check(const char *filesys)
 	}
 	if (preen == 0 && (jrecs > 0 || jbytes > 0) && reply("WRITE CHANGES") == 0)
 		return (0);
+	/*
+	 * Check block counts of snapshot inodes and
+	 * make copies of any needed snapshot blocks.
+	 */
+	for (i = 0; i < snapcnt; i++)
+		check_blkcnt(&snaplist[i]);
+	snapflush(suj_checkblkavail);
 	/*
 	 * Recompute the fs summary info from correct cs summaries.
 	 */
