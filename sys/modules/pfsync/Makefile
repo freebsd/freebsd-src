@@ -3,7 +3,7 @@
 .PATH: ${SRCTOP}/sys/netpfil/pf
 
 KMOD=	pfsync
-SRCS=	if_pfsync.c \
+SRCS=	if_pfsync.c pfsync_nv.c \
 	opt_pf.h opt_inet.h opt_inet6.h opt_global.h
 SRCS+=	bus_if.h device_if.h
 
