@@ -62,9 +62,10 @@ g_label_ext2fs_taste(struct g_consumer *cp, char *label, size_t size)
 	pp = cp->provider;
 	label[0] = '\0';
 
-	if ((EXT2FS_SB_OFFSET % pp->sectorsize) != 0)
-		return;
+	KASSERT(pp->sectorsize != 0, ("Tasting a disk with 0 sectorsize"));
 	if (pp->sectorsize < sizeof(*fs))
+		return;
+	if ((EXT2FS_SB_OFFSET % pp->sectorsize) != 0)
 		return;
 
 	fs = g_read_data(cp, EXT2FS_SB_OFFSET, pp->sectorsize, NULL);

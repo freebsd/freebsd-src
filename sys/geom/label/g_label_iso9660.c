@@ -52,9 +52,10 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 	pp = cp->provider;
 	label[0] = '\0';
 
-	if ((ISO9660_OFFSET % pp->sectorsize) != 0)
-		return;
+	KASSERT(pp->sectorsize != 0, ("Tasting a disk with 0 sectorsize"));
 	if (pp->sectorsize < 0x28 + VOLUME_LEN)
+		return;
+	if ((ISO9660_OFFSET % pp->sectorsize) != 0)
 		return;
 	sector = g_read_data(cp, ISO9660_OFFSET, pp->sectorsize, NULL);
 	if (sector == NULL)
