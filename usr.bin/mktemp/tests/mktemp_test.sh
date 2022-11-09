@@ -69,7 +69,7 @@ tmpdir_pflag_body()
 	# Finally, combined -p -t
 	atf_check -o match:"^$pflag/foo\..+$" \
 	    env -u TMPDIR mktemp -p "$pflag" -t foo
-	atf_check -o match:"^$tmpdir/foo\..+$" \
+	atf_check -o match:"^$pflag/foo\..+$" \
 	    env TMPDIR="$tmpdir" mktemp -p "$pflag" -t foo
 }
 

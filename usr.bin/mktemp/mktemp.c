@@ -85,6 +85,12 @@ main(int argc, char **argv)
 			tmpdir = optarg;
 			if (tmpdir == NULL || *tmpdir == '\0')
 				tmpdir = getenv("TMPDIR");
+
+			/*
+			 * We've already done the necessary environment
+			 * fallback, skip the later one.
+			 */
+			prefer_tmpdir = false;
 			break;
 
 		case 'q':
