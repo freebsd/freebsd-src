@@ -4200,7 +4200,8 @@ void
 vm_page_unswappable(vm_page_t m)
 {
 
-	KASSERT(!vm_page_wired(m) && (m->oflags & VPO_UNMANAGED) == 0,
+	VM_OBJECT_ASSERT_LOCKED(m->object);
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p already unswappable", m));
 
 	vm_page_dequeue(m);
