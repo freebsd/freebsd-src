@@ -1,0 +1,194 @@
+.\" Copyright (c) 2011-2014 The DragonFly Project.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to The DragonFly Project
+.\" by Matthew Dillon <dillon@backplane.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 18, 2022
+.Dt NEWFS_HAMMER2 8
+.Os
+.Sh NAME
+.Nm newfs_hammer2
+.Nd construct a new HAMMER2 file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar bootsize
+.Op Fl r Ar auxsize
+.Op Fl V Ar version
+.Op Fl L Ar label ...
+.Ar special ...
+.Sh DESCRIPTION
+The
+.Nm
+utility prepares a
+.Nm HAMMER2
+volume on the specified block device.
+.Nm HAMMER2
+volumes can contain any number of named PFSs (Pseudo FileSystems).
+.Pp
+The
+.Nm
+program always creates a PFS called "LOCAL" which may be used for
+device-specific configuration.  This PFS should never be used for generic
+data.
+.Pp
+If no
+.Fl L
+option is specified,
+.Nm
+will create "DATA".
+.Pp
+You can override the default PFS name by specifying one or more
+.Fl L
+options.
+.Pp
+You can specify
+.Fl L Ar none
+if you do not want
+.Nm
+to create any PFSs other than "LOCAL".
+.Pp
+.Nm HAMMER2
+file systems are sector-size agnostic, however the
+.Dx
+implementation requires the sector size to be no larger than 16K.
+.Nm HAMMER2
+file systems start at a relative offset of 0 and leave no room for
+in-band disklabels (old, traditional BSD labels).
+They may only be created using out-of-band disk labels, which is the
+default on
+.Dx
+via
+.Po
+.Xr disklabel 5
+or
+.Xr gpt 8
+labels
+.Pc ,
+or with
+old style disklabels as long as
+the partition does not overlap the label area (have a starting sector
+greater than 16).
+.Pp
+.Nm HAMMER2
+file systems are designed for large storage systems, up to 1 Exabyte, and
+may not operate efficiently on small storage systems.
+The minimum recommended file system size is 50GB.
+In addition,
+.Nm HAMMER2
+file systems operating normally, with automatic snapshots, do not
+immediately reclaim space when files are deleted.
+A regular system maintenance job runs once a day by
+.Xr periodic 8
+to handle reclamation.
+.Pp
+.Nm HAMMER2
+works best when the machine's normal workload would not otherwise fill
+the file system up in the course of 60 days of operation.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl b Ar bootsize
+Specify a fixed area in which a boot related kernel and data can be stored.
+The
+.Ar bootsize
+is specified in bytes.
+By default a boot area of approximately 64MB will be created.
+This area is not currently used for booting and may be repurposed in the
+future.
+.It Fl r Ar auxsize
+Specify a fixed area in which an aux related kernel and data can be stored.
+The
+.Ar auxsize
+is specified in bytes.
+By default an aux area of approximately 256MB will be created.
+This area is not currently used and may be repurposed in the
+future.
+.It Fl V Ar version
+Specify the
+.Nm HAMMER2
+file system version to format.
+By default
+.Nm
+formats the file system using the highest production version number
+supported by the
+.Nm HAMMER2
+VFS by checking the
+.Va vfs.hammer2.supported_version
+sysctl.
+If you need to maintain compatibility with an older version of
+.Nm HAMMER2
+you may specify the version with this option.
+.It Fl L Ar label
+By default
+.Nm
+always creates a local master PFSs on the new volume called "LOCAL"
+and "DATA".
+.Pp
+If you specify one or more label options to create your own named local
+PFSs,
+.Nm
+will not create any conditional PFSs.
+However, "LOCAL" is still always created and should not be
+specified with this option.
+If you don't want any PFSs to be created (other than "LOCAL"), use
+.Fl L Ar none .
+.El
+.Pp
+The
+.Ar bootsize
+and
+.Ar auxsize
+must be given with a suffix of
+.Cm K , M , G
+or
+.Cm T
+meaning kilobyte, megabyte, gigabyte and terabyte.
+Lower case can also be used for suffix.
+These options create reserved blocks of space on the target volume
+but are not currently used by the filesystem for anything.
+.Sh SEE ALSO
+.Xr hammer2 8 ,
+.Xr mount_hammer2 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Dx 3.1
+but was not enabled unconditionally until
+.Dx 4.9 .
+.Sh AUTHORS
+.An Matthew Dillon Aq Mt dillon@backplane.com
+.Pp
+The
+.Nm
+utility was ported to
+.Fx
+by
+.An Tomohiro Kusumi Aq Mt tkusumi@netbsd.org .

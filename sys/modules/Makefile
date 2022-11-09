@@ -131,6 +131,7 @@ SUBDIR=	\
 	${_glxiic} \
 	${_glxsb} \
 	gpio \
+	hammer2 \
 	hid \
 	hifn \
 	${_hpt27xx} \

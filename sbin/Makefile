@@ -20,6 +20,7 @@ SUBDIR=adjkerntz \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
+	fsck_hammer2 \
 	fsck_msdosfs \
 	fsdb \
 	fsirand \
@@ -28,6 +29,7 @@ SUBDIR=adjkerntz \
 	ggate \
 	growfs \
 	gvinum \
+	hammer2 \
 	ifconfig \
 	init \
 	kldconfig \
@@ -43,12 +45,14 @@ SUBDIR=adjkerntz \
 	mount \
 	mount_cd9660 \
 	mount_fusefs \
+	mount_hammer2 \
 	mount_msdosfs \
 	mount_nfs \
 	mount_nullfs \
 	mount_udf \
 	mount_unionfs \
 	newfs \
+	newfs_hammer2 \
 	newfs_msdos \
 	nfsiod \
 	nos-tun \

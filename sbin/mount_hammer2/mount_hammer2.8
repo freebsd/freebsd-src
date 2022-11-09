@@ -1,0 +1,104 @@
+.\" Copyright (c) 2017 The DragonFly Project.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 18, 2022
+.Dt MOUNT_HAMMER2 8
+.Os
+.Sh NAME
+.Nm mount_hammer2
+.Nd mount a HAMMER2 file system
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar options
+.Ar special Ns Op Cm @ Ns Ar label
+.Ar node
+.Nm
+.Op Fl o Ar options
+.Cm @ Ns Ar label
+.Ar node
+.Sh DESCRIPTION
+The
+.Nm
+utility mounts a
+.Nm HAMMER2
+file system backed by
+.Ar special
+file at mount point
+.Ar node .
+PFS
+.Ar label
+is mounted.
+.Pp
+.Cm @ Ns Ar label
+(no
+.Ar special )
+is a short form, which mounts
+.Ar label
+from an already mounted
+.Nm HAMMER2
+filesystem.
+If there are multiple mounts with the same
+.Ar label ,
+the first one mounted takes precedence over others.
+.Pp
+.Nm HAMMER2
+file system on
+.Fx
+is currently read-only regardless of the options specified.
+.Nm HAMMER2
+file system only supports host-endian.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o Ar options
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Sh SEE ALSO
+.Xr hammer2 8 ,
+.Xr newfs_hammer2 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Dx 3.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Thomas Nikolajsen .
+.Pp
+The
+.Nm
+utility was ported to
+.Fx
+by
+.An Tomohiro Kusumi Aq Mt tkusumi@netbsd.org .

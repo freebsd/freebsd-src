@@ -1,0 +1,137 @@
+.\" Copyright (c) 2015-2019 The DragonFly Project.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to The DragonFly Project
+.\" by Matthew Dillon <dillon@backplane.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the
+.\"    distribution.
+.\" 3. Neither the name of The DragonFly Project nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific, prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+.\" FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING,
+.\" BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+.\" AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+.\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 18, 2022
+.Dt HAMMER2 8
+.Os
+.Sh NAME
+.Nm hammer2
+.Nd hammer2 file system utility
+.Sh SYNOPSIS
+.Nm
+.Fl h
+.Nm
+.Op Fl s Ar path
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+utility provides miscellaneous support functions for a
+read-only HAMMER2 file system.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl s Ar path
+Specify the path to a mounted HAMMER2 filesystem.
+At least one PFS on a HAMMER2 filesystem must be mounted for the system
+to act on all PFSs managed by it.
+Every HAMMER2 filesystem typically has a PFS called "LOCAL" for this purpose.
+.El
+.Pp
+.Nm
+directives are as shown below.
+Note that most directives require you to either be CD'd into a hammer2
+filesystem, specify a path to a mounted hammer2 filesystem via the
+.Fl s
+option, or specify a path after the directive.
+It depends on the directive.
+All hammer2 filesystem have a PFS called "LOCAL" which is typically mounted
+locally on the host in order to be able to issue commands for other PFSs
+on the filesystem.
+The mount also enables PFS configuration scanning for that filesystem.
+.Bl -tag -width indent
+.\" ==== pfs-list ====
+.It Cm pfs-list Op path...
+List all PFSs associated with all mounted hammer2 storage devices.
+The list may be restricted to a particular filesystem using
+.Fl s Ar mount .
+.Pp
+Note that hammer2 PFSs associated with storage devices which have not been
+mounted in any fashion will not be listed.
+At least one hammer2 label must be mounted for the PFSs on that device to be
+visible.
+.\" ==== pfs-clid ====
+.It Cm pfs-clid Ar label
+Print the cluster id for a PFS specified by name.
+.\" ==== pfs-fsid ====
+.It Cm pfs-fsid Ar label
+Print the unique filesystem id for a PFS specified by name.
+.\" ==== stat ====
+.It Cm stat Op path...
+Print the inode statistics, compression, and other meta-data associated
+with a list of paths.
+.\" ==== show ====
+.It Cm show Ar devpath
+Dump the radix tree for the HAMMER2 filesystem by scanning a
+block device directly.
+No mount is required.
+.\" ==== freemap ====
+.It Cm freemap Ar devpath
+Dump the freemap tree for the HAMMER2 filesystem by scanning a
+block device directly.
+No mount is required.
+.\" ==== volhdr ====
+.It Cm volhdr Ar devpath
+Dump the volume header for the HAMMER2 filesystem by scanning a
+block device directly.
+No mount is required.
+.\" ==== volume-list ====
+.It Cm volume-list Op path...
+List all volumes associated with all mounted hammer2 storage devices.
+The list may be restricted to a particular filesystem using
+.Fl s Ar mount .
+.Pp
+Note that hammer2 volumes associated with storage devices which have not been
+mounted in any fashion will not be listed.
+At least one hammer2 label must be mounted for the volumes on that device to be
+visible.
+.\" ==== printinode ====
+.It Cm printinode Ar path
+Dump inode.
+.Sh SEE ALSO
+.Xr mount_hammer2 8 ,
+.Xr newfs_hammer2 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Dx 4.1 .
+.Sh AUTHORS
+.An Matthew Dillon Aq Mt dillon@backplane.com
+.Pp
+The
+.Nm
+utility was ported to
+.Fx
+by
+.An Tomohiro Kusumi Aq Mt tkusumi@netbsd.org .
