@@ -53,7 +53,6 @@ rc.bsdextended	- startup policy for the mac_bsdextended(4) security module.
 rc.firewall	- ipfw(8) setup script with basic rulesets
 rc.initdiskless	- configuration file to boot a diskless machine
 rc.resume	- sample run command file for APM Resume Event
-rc.sendmail	- script for sendmail(8) startup
 rc.shutdown	- system shutdown script (see init(8))
 rc.subr		- script with functions used by various rc scripts
 rc.suspend	- sample run command file for APM Resume Event

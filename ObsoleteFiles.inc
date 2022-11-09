@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221109: remove rc.sendmail(8)
+OLD_FILES=etc/rc.sendmail
+
 # 20221015: update the ithread(9) man page
 OLD_FILES+=usr/share/man/man9/ithread.9.gz
 OLD_FILES+=usr/share/man/man9/ithread_add_handler.9.gz

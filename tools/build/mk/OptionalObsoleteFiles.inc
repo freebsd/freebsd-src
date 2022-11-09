@@ -1749,7 +1749,6 @@ OLD_FILES+=usr/share/examples/etc/login.access
 OLD_FILES+=usr/share/examples/etc/make.conf
 OLD_FILES+=usr/share/examples/etc/rc.bsdextended
 OLD_FILES+=usr/share/examples/etc/rc.firewall
-OLD_FILES+=usr/share/examples/etc/rc.sendmail
 OLD_FILES+=usr/share/examples/etc/termcap.small
 OLD_FILES+=usr/share/examples/etc/wpa_supplicant.conf
 OLD_FILES+=usr/share/examples/find_interface/Makefile
