@@ -631,6 +631,7 @@ bsd_set_freq(void *priv, struct hostapd_freq_params *freq)
 		mode = IFM_IEEE80211_11B;
 	} else {
 		mode =
+			freq->vht_enabled ? IFM_IEEE80211_VHT5G :
 			freq->ht_enabled ? IFM_IEEE80211_11NA :
 			IFM_IEEE80211_11A;
 	}
