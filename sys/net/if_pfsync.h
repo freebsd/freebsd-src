@@ -247,8 +247,23 @@ struct pfsyncreq {
 	int		 pfsyncr_defer;
 };
 
+struct pfsync_kstatus {
+	char		 	syncdev[IFNAMSIZ];
+	struct sockaddr_storage	syncpeer;
+	int		 	maxupdates;
+	int		 	flags;
+};
+
+struct pfsyncioc_nv {
+	void            *data;
+	size_t           len;   /* The length of the nvlist data. */
+	size_t           size;  /* The total size of the data buffer. */
+};
+
 #define	SIOCSETPFSYNC   _IOW('i', 247, struct ifreq)
 #define	SIOCGETPFSYNC   _IOWR('i', 248, struct ifreq)
+#define	SIOCSETPFSYNCNV _IOW('i', 249, struct ifreq)
+#define	SIOCGETPFSYNCNV _IOWR('i', 250, struct ifreq)
 
 #ifdef _KERNEL
 
