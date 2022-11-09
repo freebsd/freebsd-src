@@ -368,7 +368,7 @@ ProxyEncodeTcpStream(struct alias_link *lnk,
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
-	tc->th_x2 = 1;
+	tc->th_x2 = (TH_RES1 >> 8);
 #else
 	tc->th_sum = TcpChecksum(pip);
 #endif
