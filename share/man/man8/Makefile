@@ -10,7 +10,6 @@ MAN=	\
 	intro.8 \
 	nanobsd.8 \
 	rc.8 \
-	rc.sendmail.8 \
 	rc.subr.8 \
 	rescue.8 \
 	${_uefi.8} \
