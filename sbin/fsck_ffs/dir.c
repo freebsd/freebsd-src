@@ -679,14 +679,17 @@ expanddir(struct inode *ip, char *name)
 	struct bufarea *bp, *nbp;
 	struct inodesc idesc;
 	union dinode *dp;
-	int indiralloced;
+	long cg, indiralloced;
 	char *cp;
 
 	nbp = NULL;
 	indiralloced = newblk = indirblk = 0;
+	memset(&idesc, 0, sizeof(struct inodesc));
+	idesc.id_type = ADDR;
 	pwarn("NO SPACE LEFT IN %s", name);
 	if (!preen && reply("EXPAND") == 0)
 		return (0);
+	cg = ino_to_cg(&sblock, ip->i_number);
 	dp = ip->i_dp;
 	filesize = DIP(dp, di_size);
 	lastlbn = lblkno(&sblock, filesize);
@@ -705,7 +708,8 @@ expanddir(struct inode *ip, char *name)
 		bp = getdirblk(oldblk, lastlbnsize);
 		if (bp->b_errs)
 			goto bad;
-		if ((newblk = allocblk(sblock.fs_frag)) == 0)
+		newblk = allocblk(cg, sblock.fs_frag, std_checkblkavail);
+		if (newblk == 0)
 			goto bad;
 		nbp = getdatablk(newblk, sblock.fs_bsize, BT_DIRDATA);
 		if (nbp->b_errs)
@@ -724,6 +728,7 @@ expanddir(struct inode *ip, char *name)
 			memmove(cp, &emptydir, sizeof emptydir);
 		dirty(nbp);
 		brelse(nbp);
+		binval(bp);
 		idesc.id_blkno = oldblk;
 		idesc.id_numfrags = numfrags(&sblock, lastlbnsize);
 		(void)freeblock(&idesc);
@@ -731,7 +736,7 @@ expanddir(struct inode *ip, char *name)
 			printf(" (EXPANDED)\n");
 		return (1);
 	}
-	if ((newblk = allocblk(sblock.fs_frag)) == 0)
+	if ((newblk = allocblk(cg, sblock.fs_frag, std_checkblkavail)) == 0)
 		goto bad;
 	bp = getdirblk(newblk, sblock.fs_bsize);
 	if (bp->b_errs)
@@ -749,8 +754,12 @@ expanddir(struct inode *ip, char *name)
 		 * Allocate indirect block if needed.
 		 */
 		if ((indirblk = DIP(dp, di_ib[0])) == 0) {
-			if ((indirblk = allocblk(sblock.fs_frag)) == 0)
+			indirblk = allocblk(cg, sblock.fs_frag,
+			    std_checkblkavail);
+			if (indirblk == 0) {
+				binval(bp);
 				goto bad;
+			}
 			indiralloced = 1;
 		}
 		nbp = getdatablk(indirblk, sblock.fs_bsize, BT_LEVEL1);
@@ -774,8 +783,10 @@ expanddir(struct inode *ip, char *name)
 	return (1);
 bad:
 	pfatal(" (EXPANSION FAILED)\n");
-	if (nbp != NULL)
+	if (nbp != NULL) {
+		binval(bp);
 		brelse(nbp);
+	}
 	if (newblk != 0) {
 		idesc.id_blkno = newblk;
 		idesc.id_numfrags = sblock.fs_frag;

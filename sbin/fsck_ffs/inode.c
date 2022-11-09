@@ -38,6 +38,7 @@ static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
 
@@ -58,6 +59,9 @@ struct bufarea *icachebp;	/* inode cache buffer */
 static int iblock(struct inodesc *, off_t isize, int type);
 static ufs2_daddr_t indir_blkatoff(ufs2_daddr_t, ino_t, ufs_lbn_t, ufs_lbn_t,
     struct bufarea **);
+static int snapclean(struct inodesc *idesc);
+static void chkcopyonwrite(struct fs *, ufs2_daddr_t,
+    ufs2_daddr_t (*checkblkavail)(long, long));
 
 int
 ckinode(union dinode *dp, struct inodesc *idesc)
@@ -378,8 +382,12 @@ chkrange(ufs2_daddr_t blk, int cnt)
 	int c;
 
 	if (cnt <= 0 || blk <= 0 || blk > maxfsblock ||
-	    cnt - 1 > maxfsblock - blk)
+	    cnt - 1 > maxfsblock - blk) {
+		if (debug)
+			printf("out of range: blk %ld, offset %i, size %d\n",
+			    (long)blk, (int)fragnum(&sblock, blk), cnt);
 		return (1);
+	}
 	if (cnt > sblock.fs_frag ||
 	    fragnum(&sblock, blk) + cnt > sblock.fs_frag) {
 		if (debug)
@@ -650,11 +658,21 @@ int
 freeblock(struct inodesc *idesc)
 {
 	struct dups *dlp;
+	struct bufarea *cgbp;
+	struct cg *cgp;
 	ufs2_daddr_t blkno;
-	long nfrags, res;
+	long size, nfrags, res;
 
 	res = KEEPON;
 	blkno = idesc->id_blkno;
+	if (idesc->id_type == SNAP) {
+		pfatal("clearing a snapshot dinode\n");
+		return (STOP);
+	}
+	size = lfragtosize(&sblock, idesc->id_numfrags);
+	if (snapblkfree(&sblock, blkno, size, idesc->id_number,
+	    std_checkblkavail))
+		return (res);
 	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
 		if (chkrange(blkno, 1)) {
 			res = SKIP;
@@ -674,12 +692,407 @@ freeblock(struct inodesc *idesc)
 			}
 		}
 	}
+	/*
+	 * If all successfully returned, account for them.
+	 */
+	if (nfrags == 0) {
+		cgbp = cglookup(dtog(&sblock, idesc->id_blkno));
+		cgp = cgbp->b_un.b_cg;
+		if (idesc->id_numfrags == sblock.fs_frag)
+			cgp->cg_cs.cs_nbfree++;
+		else
+			cgp->cg_cs.cs_nffree += idesc->id_numfrags;
+		cgdirty(cgbp);
+	}
 	return (res);
+}
+
+/*
+ * Prepare a snapshot file for being removed.
+ */
+void
+snapremove(ino_t inum)
+{
+	struct inodesc idesc;
+	struct inode ip;
+	int i;
+
+	for (i = 0; i < snapcnt; i++)
+		if (snaplist[i].i_number == inum)
+			break;
+	if (i == snapcnt)
+		ginode(inum, &ip);
+	else
+		ip = snaplist[i];
+	if ((DIP(ip.i_dp, di_flags) & SF_SNAPSHOT) == 0) {
+		printf("snapremove: inode %jd is not a snapshot\n",
+		    (intmax_t)inum);
+		if (i == snapcnt)
+			irelse(&ip);
+		return;
+	}
+	if (debug)
+		printf("snapremove: remove %sactive snapshot %jd\n",
+		    i == snapcnt ? "in" : "", (intmax_t)inum);
+	/*
+	 * If on active snapshot list, remove it.
+	 */
+	if (i < snapcnt) {
+		for (i++; i < FSMAXSNAP; i++) {
+			if (sblock.fs_snapinum[i] == 0)
+				break;
+			snaplist[i - 1] = snaplist[i];
+			sblock.fs_snapinum[i - 1] = sblock.fs_snapinum[i];
+		}
+		sblock.fs_snapinum[i - 1] = 0;
+		bzero(&snaplist[i - 1], sizeof(struct inode));
+		snapcnt--;
+	}
+	idesc.id_type = SNAP;
+	idesc.id_func = snapclean;
+	idesc.id_number = inum;
+	(void)ckinode(ip.i_dp, &idesc);
+	DIP_SET(ip.i_dp, di_flags, DIP(ip.i_dp, di_flags) & ~SF_SNAPSHOT);
+	inodirty(&ip);
+	irelse(&ip);
+}
+
+static int
+snapclean(struct inodesc *idesc)
+{
+	ufs2_daddr_t blkno;
+	struct bufarea *bp;
+	union dinode *dp;
+
+	blkno = idesc->id_blkno;
+	if (blkno == 0)
+		return (KEEPON);
+
+	bp = idesc->id_bp;
+	dp = idesc->id_dp;
+	if (blkno == BLK_NOCOPY || blkno == BLK_SNAP) {
+		if (idesc->id_lbn < UFS_NDADDR)
+			DIP_SET(dp, di_db[idesc->id_lbn], 0);
+		else
+			IBLK_SET(bp, bp->b_index, 0);
+		dirty(bp);
+	}
+	return (KEEPON);
+}
+
+/*
+ * Notification that a block is being freed. Return zero if the free
+ * should be allowed to proceed. Return non-zero if the snapshot file
+ * wants to claim the block. The block will be claimed if it is an
+ * uncopied part of one of the snapshots. It will be freed if it is
+ * either a BLK_NOCOPY or has already been copied in all of the snapshots.
+ * If a fragment is being freed, then all snapshots that care about
+ * it must make a copy since a snapshot file can only claim full sized
+ * blocks. Note that if more than one snapshot file maps the block,
+ * we can pick one at random to claim it. Since none of the snapshots
+ * can change, we are assurred that they will all see the same unmodified
+ * image. When deleting a snapshot file (see ino_trunc above), we
+ * must push any of these claimed blocks to one of the other snapshots
+ * that maps it. These claimed blocks are easily identified as they will
+ * have a block number equal to their logical block number within the
+ * snapshot. A copied block can never have this property because they
+ * must always have been allocated from a BLK_NOCOPY location.
+ */
+int
+snapblkfree(fs, bno, size, inum, checkblkavail)
+	struct fs *fs;
+	ufs2_daddr_t bno;
+	long size;
+	ino_t inum;
+	ufs2_daddr_t (*checkblkavail)(long cg, long frags);
+{
+	union dinode *dp;
+	struct inode ip;
+	struct bufarea *snapbp;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t blkno, relblkno;
+	int i, frags, claimedblk, copydone;
+
+	/* If no snapshots, nothing to do */
+	if (snapcnt == 0)
+		return (0);
+	if (debug)
+		printf("snapblkfree: in ino %ld free blkno %ld, size %ld\n",
+		    inum, bno, size);
+	relblkno = blknum(fs, bno);
+	lbn = fragstoblks(fs, relblkno);
+	/* Direct blocks are always pre-copied */
+	if (lbn < UFS_NDADDR)
+		return (0);
+	copydone = 0;
+	claimedblk = 0;
+	for (i = 0; i < snapcnt; i++) {
+		/*
+		 * Lookup block being freed.
+		 */
+		ip = snaplist[i];
+		dp = ip.i_dp;
+		blkno = ino_blkatoff(dp, inum != 0 ? inum : ip.i_number,
+		    lbn, &frags, &snapbp);
+		/*
+		 * Check to see if block needs to be copied.
+		 */
+		if (blkno == 0) {
+			/*
+			 * A block that we map is being freed. If it has not
+			 * been claimed yet, we will claim or copy it (below).
+			 */
+			claimedblk = 1;
+		} else if (blkno == BLK_SNAP) {
+			/*
+			 * No previous snapshot claimed the block,
+			 * so it will be freed and become a BLK_NOCOPY
+			 * (don't care) for us.
+			 */
+			if (claimedblk)
+				pfatal("snapblkfree: inconsistent block type");
+			IBLK_SET(snapbp, snapbp->b_index, BLK_NOCOPY);
+			dirty(snapbp);
+			brelse(snapbp);
+			continue;
+		} else /* BLK_NOCOPY or default */ {
+			/*
+			 * If the snapshot has already copied the block
+			 * (default), or does not care about the block,
+			 * it is not needed.
+			 */
+			brelse(snapbp);
+			continue;
+		}
+		/*
+		 * If this is a full size block, we will just grab it
+		 * and assign it to the snapshot inode. Otherwise we
+		 * will proceed to copy it. See explanation for this
+		 * routine as to why only a single snapshot needs to
+		 * claim this block.
+		 */
+		if (size == fs->fs_bsize) {
+			if (debug)
+				printf("Grabonremove snapshot %ju lbn %jd "
+				    "from inum %ju\n", (intmax_t)ip.i_number,
+				    (intmax_t)lbn, (uintmax_t)inum);
+			IBLK_SET(snapbp, snapbp->b_index, relblkno);
+			dirty(snapbp);
+			brelse(snapbp);
+			DIP_SET(dp, di_blocks,
+			    DIP(dp, di_blocks) + btodb(size));
+			inodirty(&ip);
+			return (1);
+		}
+
+		/* First time through, read the contents of the old block. */
+		if (copydone == 0) {
+			copydone = 1;
+			if (blread(fsreadfd, copybuf, fsbtodb(fs, relblkno),
+			    fs->fs_bsize) != 0) {
+				pfatal("Could not read snapshot %ju block "
+				    "%jd\n", (intmax_t)ip.i_number,
+				    (intmax_t)relblkno);
+				continue;
+			}
+		}
+		/*
+		 * This allocation will never require any additional
+		 * allocations for the snapshot inode.
+		 */
+		blkno = allocblk(dtog(fs, relblkno), fs->fs_frag,
+		    checkblkavail);
+		if (blkno == 0) {
+			pfatal("Could not allocate block for snapshot %ju\n",
+			    (intmax_t)ip.i_number);
+			continue;
+		}
+		if (debug)
+			printf("Copyonremove: snapino %jd lbn %jd for inum %ju "
+			    "size %ld new blkno %jd\n", (intmax_t)ip.i_number,
+			    (intmax_t)lbn, (uintmax_t)inum, size,
+			    (intmax_t)blkno);
+		blwrite(fswritefd, copybuf, fsbtodb(fs, blkno), fs->fs_bsize);
+		IBLK_SET(snapbp, snapbp->b_index, blkno);
+		dirty(snapbp);
+		brelse(snapbp);
+		DIP_SET(dp, di_blocks,
+		    DIP(dp, di_blocks) + btodb(fs->fs_bsize));
+		inodirty(&ip);
+	}
+	return (0);
+}
+
+/*
+ * Notification that a block is being written. Return if the block
+ * is part of a snapshot as snapshots never track other snapshots.
+ * The block will be copied in all of the snapshots that are tracking
+ * it and have not yet copied it. Some buffers may hold more than one
+ * block. Here we need to check each block in the buffer.
+ */
+void
+copyonwrite(fs, bp, checkblkavail)
+	struct fs *fs;
+	struct bufarea *bp;
+	ufs2_daddr_t (*checkblkavail)(long cg, long frags);
+{
+	ufs2_daddr_t copyblkno;
+	long i, numblks;
+
+	/* If no snapshots, nothing to do. */
+	if (snapcnt == 0)
+		return;
+	numblks = blkroundup(fs, bp->b_size) / fs->fs_bsize;
+	if (debug)
+		prtbuf(bp, "copyonwrite: checking %jd block%s in buffer",
+		    numblks, numblks > 1 ? "s" : "");
+	copyblkno = blknum(fs, dbtofsb(fs, bp->b_bno));
+	for (i = 0; i < numblks; i++) {
+		chkcopyonwrite(fs, copyblkno, checkblkavail);
+		copyblkno += fs->fs_frag;
+	}
+}
+
+static void
+chkcopyonwrite(fs, copyblkno, checkblkavail)
+	struct fs *fs;
+	ufs2_daddr_t copyblkno;
+	ufs2_daddr_t (*checkblkavail)(long cg, long frags);
+{
+	struct inode ip;
+	union dinode *dp;
+	struct bufarea *snapbp;
+	ufs2_daddr_t blkno;
+	int i, frags, copydone;
+	ufs_lbn_t lbn;
+
+	lbn = fragstoblks(fs, copyblkno);
+	/* Direct blocks are always pre-copied */
+	if (lbn < UFS_NDADDR)
+		return;
+	copydone = 0;
+	for (i = 0; i < snapcnt; i++) {
+		/*
+		 * Lookup block being freed.
+		 */
+		ip = snaplist[i];
+		dp = ip.i_dp;
+		blkno = ino_blkatoff(dp, ip.i_number, lbn, &frags, &snapbp);
+		/*
+		 * Check to see if block needs to be copied.
+		 */
+		if (blkno != 0) {
+			/*
+			 * A block that we have already copied or don't track.
+			 */
+			brelse(snapbp);
+			continue;
+		}
+		/* First time through, read the contents of the old block. */
+		if (copydone == 0) {
+			copydone = 1;
+			if (blread(fsreadfd, copybuf, fsbtodb(fs, copyblkno),
+			    fs->fs_bsize) != 0) {
+				pfatal("Could not read snapshot %ju block "
+				    "%jd\n", (intmax_t)ip.i_number,
+				    (intmax_t)copyblkno);
+				continue;
+			}
+		}
+		/*
+		 * This allocation will never require any additional
+		 * allocations for the snapshot inode.
+		 */
+		if ((blkno = allocblk(dtog(fs, copyblkno), fs->fs_frag,
+		    checkblkavail)) == 0) {
+			pfatal("Could not allocate block for snapshot %ju\n",
+			    (intmax_t)ip.i_number);
+			continue;
+		}
+		if (debug)
+			prtbuf(snapbp, "Copyonwrite: snapino %jd lbn %jd using "
+			    "blkno %ju setting in buffer",
+			    (intmax_t)ip.i_number, (intmax_t)lbn,
+			    (intmax_t)blkno);
+		blwrite(fswritefd, copybuf, fsbtodb(fs, blkno), fs->fs_bsize);
+		IBLK_SET(snapbp, snapbp->b_index, blkno);
+		dirty(snapbp);
+		brelse(snapbp);
+		DIP_SET(dp, di_blocks,
+		    DIP(dp, di_blocks) + btodb(fs->fs_bsize));
+		inodirty(&ip);
+	}
+	return;
+}
+
+/*
+ * Traverse an inode and check that its block count is correct
+ * fixing it if necessary.
+ */
+void
+check_blkcnt(struct inode *ip)
+{
+	struct inodesc idesc;
+	union dinode *dp;
+	ufs2_daddr_t ndb;
+	int j, ret, offset;
+
+	dp = ip->i_dp;
+	memset(&idesc, 0, sizeof(struct inodesc));
+	idesc.id_func = pass1check;
+	idesc.id_number = ip->i_number;
+	idesc.id_type = (DIP(dp, di_flags) & SF_SNAPSHOT) == 0 ? ADDR : SNAP;
+	(void)ckinode(dp, &idesc);
+	if (sblock.fs_magic == FS_UFS2_MAGIC && dp->dp2.di_extsize > 0) {
+		ndb = howmany(dp->dp2.di_extsize, sblock.fs_bsize);
+		for (j = 0; j < UFS_NXADDR; j++) {
+			if (--ndb == 0 &&
+			    (offset = blkoff(&sblock, dp->dp2.di_extsize)) != 0)
+				idesc.id_numfrags = numfrags(&sblock,
+				    fragroundup(&sblock, offset));
+			else
+				idesc.id_numfrags = sblock.fs_frag;
+			if (dp->dp2.di_extb[j] == 0)
+				continue;
+			idesc.id_blkno = dp->dp2.di_extb[j];
+			ret = (*idesc.id_func)(&idesc);
+			if (ret & STOP)
+				break;
+		}
+	}
+	idesc.id_entryno *= btodb(sblock.fs_fsize);
+	if (DIP(dp, di_blocks) != idesc.id_entryno) {
+		if (!(sujrecovery && preen)) {
+			pwarn("INCORRECT BLOCK COUNT I=%lu (%ju should be %ju)",
+			    (u_long)idesc.id_number,
+			    (uintmax_t)DIP(dp, di_blocks),
+			    (uintmax_t)idesc.id_entryno);
+			if (preen)
+				printf(" (CORRECTED)\n");
+			else if (reply("CORRECT") == 0)
+				return;
+		}
+		if (bkgrdflag == 0) {
+			DIP_SET(dp, di_blocks, idesc.id_entryno);
+			inodirty(ip);
+		} else {
+			cmd.value = idesc.id_number;
+			cmd.size = idesc.id_entryno - DIP(dp, di_blocks);
+			if (debug)
+				printf("adjblkcnt ino %ju amount %lld\n",
+				    (uintmax_t)cmd.value, (long long)cmd.size);
+			if (sysctl(adjblkcnt, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);
+		}
+	}
 }
 
 void
 freeinodebuf(void)
 {
+	struct bufarea *bp;
+	int i;
 
 	/*
 	 * Flush old contents in case they have been updated.
@@ -689,6 +1102,14 @@ freeinodebuf(void)
 		free((char *)inobuf.b_un.b_buf);
 	inobuf.b_un.b_buf = NULL;
 	firstinum = lastinum = 0;
+	/*
+	 * Reload the snapshot inodes in case any of them changed.
+	 */
+	for (i = 0; i < snapcnt; i++) {
+		bp = snaplist[i].i_bp;
+		bp->b_errs = blread(fsreadfd, bp->b_un.b_buf, bp->b_bno,
+		    bp->b_size);
+	}
 }
 
 /*
@@ -720,6 +1141,7 @@ cacheino(union dinode *dp, ino_t inumber)
 	inpp = &inphead[inumber % dirhash];
 	inp->i_nexthash = *inpp;
 	*inpp = inp;
+	inp->i_flags = 0;
 	inp->i_parent = inumber == UFS_ROOTINO ? UFS_ROOTINO : (ino_t)0;
 	inp->i_dotdot = (ino_t)0;
 	inp->i_number = inumber;
@@ -803,6 +1225,10 @@ clri(struct inodesc *idesc, const char *type, int flag)
 			printf(" (CLEARED)\n");
 		n_files--;
 		if (bkgrdflag == 0) {
+			if (idesc->id_type == SNAP) {
+				snapremove(idesc->id_number);
+				idesc->id_type = ADDR;
+			}
 			(void)ckinode(dp, idesc);
 			inoinfo(idesc->id_number)->ino_state = USTATE;
 			clearinode(dp);
@@ -967,7 +1393,8 @@ retry:
 	cgdirty(cgbp);
 	ginode(ino, &ip);
 	dp = ip.i_dp;
-	DIP_SET(dp, di_db[0], allocblk((long)1));
+	DIP_SET(dp, di_db[0], allocblk(ino_to_cg(&sblock, ino), (long)1,
+	    std_checkblkavail));
 	if (DIP(dp, di_db[0]) == 0) {
 		inoinfo(ino)->ino_state = USTATE;
 		irelse(&ip);

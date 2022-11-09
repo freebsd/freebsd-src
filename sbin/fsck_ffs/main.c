@@ -491,6 +491,7 @@ checkfilesys(char *filesys)
 	 */
 	if (preen == 0)
 		printf("** Phase 5 - Check Cyl groups\n");
+	snapflush(std_checkblkavail);
 	pass5();
 	IOstats("Pass5");
 
