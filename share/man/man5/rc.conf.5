@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2022
+.Dd November 9, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3557,13 +3557,8 @@ This variable specifies the full path to the script to run to start
 a mail transfer agent.
 The default is
 .Pa /etc/rc.sendmail .
-The
-.Va sendmail_*
-variables which
-.Pa /etc/rc.sendmail
-uses are documented in the
-.Xr rc.sendmail 8
-manual page.
+Note that it only executes a script if the value is set to something
+different than the default.
 .It Va dumpdev
 .Pq Vt str
 Indicates the device (usually a swap partition) to which a crash dump
@@ -4800,7 +4795,6 @@ The default is 10.
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
 .Xr rc 8 ,
-.Xr rc.sendmail 8 ,
 .Xr rc.subr 8 ,
 .Xr rcorder 8 ,
 .Xr rfcomm_pppd 8 ,
