@@ -560,13 +560,17 @@ ieee80211_crypto_get_txkey(struct ieee80211_node *ni, struct mbuf *m)
 
 	/*
 	 * Multicast traffic always uses the multicast key.
-	 * Otherwise if a unicast key is set we use that and
-	 * it is always key index 0.  When no unicast key is
-	 * set we fall back to the default transmit key.
+	 *
+	 * Historically we would fall back to the default
+	 * transmit key if there was no unicast key.  This
+	 * behaviour was documented up to IEEE Std 802.11-2016,
+	 * 12.9.2.2 Per-MSDU/Per-A-MSDU Tx pseudocode, in the
+	 * 'else' case but is no longer in later versions of
+	 * the standard.  Additionally falling back to the
+	 * group key for unicast was a security risk.
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		if (vap->iv_def_txkey == IEEE80211_KEYIX_NONE) {
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO,
 			    wh->i_addr1,
@@ -578,6 +582,8 @@ ieee80211_crypto_get_txkey(struct ieee80211_node *ni, struct mbuf *m)
 		return &vap->iv_nw_keys[vap->iv_def_txkey];
 	}
 
+	if (IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey))
+		return NULL;
 	return &ni->ni_ucastkey;
 }
 
