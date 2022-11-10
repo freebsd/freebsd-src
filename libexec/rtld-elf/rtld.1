@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2021
+.Dd November 10, 2022
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -76,6 +76,14 @@ Translated to the name of the operating system implementation.
 Translated to the release level of the operating system.
 .It Pa $PLATFORM
 Translated to the machine hardware platform.
+.It Pa $LIB
+Translated to the system library path component on the platform.
+It is
+.Pa lib
+for native binaries, and typically
+.Pa lib32
+for compat32 binaries.
+Other translations might exist for other ABIs supported on the platform.
 .El
 .Pp
 The

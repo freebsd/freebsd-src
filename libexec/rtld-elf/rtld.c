@@ -1200,6 +1200,8 @@ static const struct {
 	{ .kw = "${OSREL}", .pass_obj = false, .subst = uts.release },
 	{ .kw = "$PLATFORM", .pass_obj = false, .subst = uts.machine },
 	{ .kw = "${PLATFORM}", .pass_obj = false, .subst = uts.machine },
+	{ .kw = "$LIB", .pass_obj = false, .subst = TOKEN_LIB },
+	{ .kw = "${LIB}", .pass_obj = false, .subst = TOKEN_LIB },
 };
 
 static char *
