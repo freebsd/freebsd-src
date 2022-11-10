@@ -469,7 +469,7 @@ int		ckinode(union dinode *dp, struct inodesc *);
 void		clri(struct inodesc *, const char *type, int flag);
 int		clearentry(struct inodesc *);
 void		copyonwrite(struct fs *, struct bufarea *,
-		    ufs2_daddr_t (*checkblkavail)(long, long));
+		    ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t, long));
 void		direrror(ino_t ino, const char *errmesg);
 int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
@@ -525,7 +525,7 @@ int		setup(char *dev);
 int		snapblkfree(struct fs *, ufs2_daddr_t, long, ino_t,
 		    ufs2_daddr_t (*)(ufs2_daddr_t, long));
 void		snapremove(ino_t);
-void		snapflush(ufs2_daddr_t (*checkblkavail)(long, long));
+void		snapflush(ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t, long));
 ufs2_daddr_t	std_checkblkavail(ufs2_daddr_t blkno, long frags);
 ufs2_daddr_t	suj_checkblkavail(ufs2_daddr_t, long);
 int		suj_check(const char *filesys);
