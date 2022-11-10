@@ -49,9 +49,12 @@ u2=$((mdstart + 1))
 mp1=${mntpoint}$u1
 mp2=${mntpoint}$u2
 mkdir -p $mp1 $mp2
-log=$mp1/fsck.sh.log
-diskimage=$mp1/fsck.sh.diskimage
+
 backup=/tmp/fsck.sh.diskimage.`date +%Y%m%dT%H%M%S`.gz
+core=/tmp/fsck.sh.core.`date +%Y%m%dT%H%M%S`
+diskimage=$mp1/fsck.sh.diskimage
+log=$mp1/fsck.sh.log
+
 asbs=0
 cleans=0
 reruns=0
@@ -71,6 +74,7 @@ mount /dev/md$u1 $mp1
 [ -c /dev/md$u2 ] && mdconfig -d -u $u2
 dd if=/dev/zero of=$diskimage bs=$max count=1 status=none
 mdconfig -a -t vnode -f $diskimage -u $u2
+[ "$newfs_flags" = "-U" ] && [ `jot -r 1 0 1` -eq 1 ] && newfs_flags="-j"
 backups=`newfs -N $newfs_flags md$u2 | grep -A1 "super-block backups" | \
     tail -1 | sed 's/,//g'`
 newfs $newfs_flags md$u2 > /dev/null
@@ -144,7 +148,8 @@ while [ $((`date +%s` - start)) -lt 60 ]; do
 	break
 done
 mount | grep -q "on $mp2 " && umount $mp2
-mdconfig -d -u $u2 || exit 1
+mdconfig -l | grep -q "md$u2" &&
+   mdconfig -d -u $u2
 
 echo "$cleans cleans, $reruns reruns, $asbs alternate SBs."
 if [ $clean -ne 1 ]; then
@@ -153,8 +158,9 @@ if [ $clean -ne 1 ]; then
 	cp -v $log /tmp
 	[ $s -eq 0 ] && s=106
 fi
-echo * | grep -q core && { ls -l *.core; cp $log /tmp; exit 106; } ||
-    rm -f $backup
+[ -f fsck_ffs.core ] &&
+    mv fsck_ffs.core $core
+[ $s -eq 0 ] && rm -f $backup
 cd /tmp
 umount $mp1
 mdconfig -d -u $u1
