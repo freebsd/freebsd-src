@@ -410,6 +410,8 @@ ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 {
 	struct ovpn_softc *sc;
 
+	CURVNET_ASSERT_SET();
+
 	atomic_add_int(&peer->refcount, -1);
 
 	if (atomic_load_int(&peer->refcount) > 0)
@@ -426,6 +428,8 @@ ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 			return;
 		}
 	}
+
+	OVPN_ASSERT(sc);
 
 	/* The peer should have been removed from the list already. */
 	MPASS(ovpn_find_peer(sc, peer->peerid) == NULL);
@@ -633,6 +637,7 @@ _ovpn_del_peer(struct ovpn_softc *sc, uint32_t peerid)
 	int i;
 
 	OVPN_WASSERT(sc);
+	CURVNET_ASSERT_SET();
 
 	for (i = 0; i < OVPN_MAX_PEERS; i++) {
 		if (sc->peers[i] == NULL)
@@ -1441,16 +1446,18 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 	int tunnel_len;
 	int ret;
 
+	CURVNET_SET(sc->ifp->if_vnet);
+	NET_EPOCH_ENTER(et);
+
 	if (crp->crp_etype != 0) {
 		crypto_freereq(crp);
 		ovpn_peer_release_ref(peer, false);
+		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
 		m_freem(m);
 		return (0);
 	}
-
-	NET_EPOCH_ENTER(et);
-	CURVNET_SET(sc->ifp->if_vnet);
 
 	MPASS(crp->crp_buf.cb_type == CRYPTO_BUF_MBUF);
 
@@ -1461,11 +1468,11 @@ ovpn_encrypt_tx_cb(struct cryptop *crp)
 		OVPN_COUNTER_ADD(sc, tunnel_bytes_sent, tunnel_len);
 	}
 
-	CURVNET_RESTORE();
-	NET_EPOCH_EXIT(et);
-
 	crypto_freereq(crp);
 	ovpn_peer_release_ref(peer, false);
+
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
 
 	return (0);
 }
