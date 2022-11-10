@@ -172,19 +172,14 @@ and
 .Xr xl 4 .
 .Pp
 The
-.Xr tun 4
+.Xr tun 4 ,
+.Xr if_bridge 4 ,
+.Xr if_vlan 4 ,
 and
 .Xr ng_iface 4
 pseudo drivers also do support
 .Nm .
 .Pp
-The
-.Xr vlan 4
-driver does not directly support
-.Nm ,
-but as packets (mbufs) are passed to the underlying interface, a queue
-can be defined for the underlying interface, and any packets directed
-to the queue will be processed at the interface level.
 An example:
 .Bd -literal -offset indent
 altq on igb0 cbq queue { def aq }
