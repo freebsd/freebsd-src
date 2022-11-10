@@ -817,8 +817,8 @@ snapblkfree(fs, bno, size, inum, checkblkavail)
 	if (snapcnt == 0)
 		return (0);
 	if (debug)
-		printf("snapblkfree: in ino %ld free blkno %ld, size %ld\n",
-		    inum, bno, size);
+		printf("snapblkfree: in ino %jd free blkno %jd, size %jd\n",
+		    (intmax_t)inum, (intmax_t)bno, (intmax_t)size);
 	relblkno = blknum(fs, bno);
 	lbn = fragstoblks(fs, relblkno);
 	/* Direct blocks are always pre-copied */
@@ -945,7 +945,7 @@ copyonwrite(fs, bp, checkblkavail)
 	numblks = blkroundup(fs, bp->b_size) / fs->fs_bsize;
 	if (debug)
 		prtbuf(bp, "copyonwrite: checking %jd block%s in buffer",
-		    numblks, numblks > 1 ? "s" : "");
+		    (intmax_t)numblks, numblks > 1 ? "s" : "");
 	copyblkno = blknum(fs, dbtofsb(fs, bp->b_bno));
 	for (i = 0; i < numblks; i++) {
 		chkcopyonwrite(fs, copyblkno, checkblkavail);
