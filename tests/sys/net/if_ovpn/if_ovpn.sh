@@ -480,7 +480,7 @@ timeout_client_cleanup()
 atf_test_case "explicit_exit" "cleanup"
 explicit_exit_head()
 {
-	atf_set descr 'Text explicit exit notification'
+	atf_set descr 'Test explicit exit notification'
 	atf_set require.user root
 	atf_set require.progs openvpn
 }
