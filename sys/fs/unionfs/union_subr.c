@@ -662,6 +662,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
     char *path, int pathlen, u_long nameiop)
 {
 	int error;
+	bool refstart;
 
 	cn->cn_namelen = pathlen;
 	cn->cn_pnbuf = path;
@@ -671,17 +672,20 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	cn->cn_cred = cnp->cn_cred;
 	cn->cn_nameptr = cn->cn_pnbuf;
 
-	if (nameiop == DELETE)
-		cn->cn_flags |= (cnp->cn_flags & (DOWHITEOUT | SAVESTART));
-	else if (RENAME == nameiop)
-		cn->cn_flags |= (cnp->cn_flags & SAVESTART);
-	else if (nameiop == CREATE)
+	refstart = false;
+	if (nameiop == DELETE) {
+		cn->cn_flags |= (cnp->cn_flags & DOWHITEOUT);
+		refstart = (cnp->cn_flags & SAVESTART) != 0;
+	} else if (RENAME == nameiop) {
+		refstart = (cnp->cn_flags & SAVESTART) != 0;
+	} else if (nameiop == CREATE) {
 		cn->cn_flags |= NOCACHE;
+	}
 
 	vref(dvp);
 	VOP_UNLOCK(dvp);
 
-	if ((error = vfs_relookup(dvp, vpp, cn))) {
+	if ((error = vfs_relookup(dvp, vpp, cn, refstart))) {
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 	} else
 		vrele(dvp);
@@ -1017,7 +1021,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	NDPREINIT(&nd);
 
 	vref(udvp);
-	if ((error = vfs_relookup(udvp, &vp, &nd.ni_cnd)) != 0)
+	if ((error = vfs_relookup(udvp, &vp, &nd.ni_cnd, false)) != 0)
 		goto unionfs_vn_create_on_upper_free_out2;
 	vrele(udvp);
 

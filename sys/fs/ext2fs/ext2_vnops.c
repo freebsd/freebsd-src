@@ -910,7 +910,7 @@ abortit:
 		if (error)
 			goto out;
 		VREF(tdvp);
-		error = vfs_relookup(tdvp, &tvp, tcnp);
+		error = vfs_relookup(tdvp, &tvp, tcnp, true);
 		if (error)
 			goto out;
 		vrele(tdvp);
@@ -1036,7 +1036,7 @@ abortit:
 	fcnp->cn_flags &= ~MODMASK;
 	fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
 	VREF(fdvp);
-	error = vfs_relookup(fdvp, &fvp, fcnp);
+	error = vfs_relookup(fdvp, &fvp, fcnp, true);
 	if (error == 0)
 		vrele(fdvp);
 	if (fvp != NULL) {
