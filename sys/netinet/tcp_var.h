@@ -787,9 +787,9 @@ struct	tcpstat {
 	uint64_t tcps_sack_sboverflow;	    /* times scoreboard overflowed */
 
 	/* ECN related stats */
-	uint64_t tcps_ecn_ce;		/* ECN Congestion Experienced */
-	uint64_t tcps_ecn_ect0;		/* ECN Capable Transport */
-	uint64_t tcps_ecn_ect1;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_rcvce;		/* ECN Congestion Experienced */
+	uint64_t tcps_ecn_rcvect0;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_rcvect1;		/* ECN Capable Transport */
 	uint64_t tcps_ecn_shs;		/* ECN successful handshakes */
 	uint64_t tcps_ecn_rcwnd;	/* # times ECN reduced the cwnd */
 
@@ -824,7 +824,11 @@ struct	tcpstat {
 	uint64_t tcps_ace_ect0;		/* ACE SYN packet with ECT0 */
 	uint64_t tcps_ace_ce;		/* ACE SYN packet with CE */
 
-	uint64_t _pad[6];		/* 6 TBD placeholder for STABLE */
+	/* ECN related stats */
+	uint64_t tcps_ecn_sndect0;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_sndect1;		/* ECN Capable Transport */
+
+	uint64_t _pad[4];		/* 4 TBD placeholder for STABLE */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */

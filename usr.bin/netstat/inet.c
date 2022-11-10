@@ -818,12 +818,16 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	xo_close_container("sack");
 	xo_open_container("ecn");
 
-	p(tcps_ecn_ce, "\t{:ce-packets/%ju} "
-	    "{N:/packet%s with ECN CE bit set}\n");
-	p(tcps_ecn_ect0, "\t{:ect0-packets/%ju} "
-	    "{N:/packet%s with ECN ECT(0) bit set}\n");
-	p(tcps_ecn_ect1, "\t{:ect1-packets/%ju} "
-	    "{N:/packet%s with ECN ECT(1) bit set}\n");
+	p(tcps_ecn_rcvce, "\t{:received-ce-packets/%ju} "
+	    "{N:/packet%s received with ECN CE bit set}\n");
+	p(tcps_ecn_rcvect0, "\t{:received-ect0-packets/%ju} "
+	    "{N:/packet%s received with ECN ECT(0) bit set}\n");
+	p(tcps_ecn_rcvect1, "\t{:received-ect1-packets/%ju} "
+	    "{N:/packet%s received with ECN ECT(1) bit set}\n");
+	p(tcps_ecn_sndect0, "\t{:sent-ect0-packets/%ju} "
+	    "{N:/packet%s sent with ECN ECT(0) bit set}\n");
+	p(tcps_ecn_sndect1, "\t{:sent-ect1-packets/%ju} "
+	    "{N:/packet%s sent with ECN ECT(1) bit set}\n");
 	p(tcps_ecn_shs, "\t{:handshakes/%ju} "
 	    "{N:/successful ECN handshake%s}\n");
 	p(tcps_ecn_rcwnd, "\t{:congestion-reductions/%ju} "
