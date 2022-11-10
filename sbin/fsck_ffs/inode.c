@@ -61,7 +61,7 @@ static ufs2_daddr_t indir_blkatoff(ufs2_daddr_t, ino_t, ufs_lbn_t, ufs_lbn_t,
     struct bufarea **);
 static int snapclean(struct inodesc *idesc);
 static void chkcopyonwrite(struct fs *, ufs2_daddr_t,
-    ufs2_daddr_t (*checkblkavail)(long, long));
+    ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t, long));
 
 int
 ckinode(union dinode *dp, struct inodesc *idesc)
@@ -804,7 +804,7 @@ snapblkfree(fs, bno, size, inum, checkblkavail)
 	ufs2_daddr_t bno;
 	long size;
 	ino_t inum;
-	ufs2_daddr_t (*checkblkavail)(long cg, long frags);
+	ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t blkno, long frags);
 {
 	union dinode *dp;
 	struct inode ip;
@@ -934,7 +934,7 @@ void
 copyonwrite(fs, bp, checkblkavail)
 	struct fs *fs;
 	struct bufarea *bp;
-	ufs2_daddr_t (*checkblkavail)(long cg, long frags);
+	ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t blkno, long frags);
 {
 	ufs2_daddr_t copyblkno;
 	long i, numblks;
@@ -957,7 +957,7 @@ static void
 chkcopyonwrite(fs, copyblkno, checkblkavail)
 	struct fs *fs;
 	ufs2_daddr_t copyblkno;
-	ufs2_daddr_t (*checkblkavail)(long cg, long frags);
+	ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t blkno, long frags);
 {
 	struct inode ip;
 	union dinode *dp;

@@ -522,7 +522,7 @@ flush(int fd, struct bufarea *bp)
  * the snapshots, no further snapshot copies will need to be done.
  */
 void
-snapflush(ufs2_daddr_t (*checkblkavail)(long, long))
+snapflush(ufs2_daddr_t (*checkblkavail)(ufs2_daddr_t, long))
 {
 	struct bufarea *bp;
 	int cnt;
