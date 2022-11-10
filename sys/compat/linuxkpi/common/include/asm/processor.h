@@ -39,9 +39,9 @@ struct cpuinfo_x86 {
 	uint16_t	x86_max_cores;
 };
 
-#define	cpu_relax()	cpu_spinwait()
-
 extern struct cpuinfo_x86	boot_cpu_data;
 #endif
+
+#define	cpu_relax()	cpu_spinwait()
 
 #endif	/* _LINUXKPI_ASM_PROCESSOR_H_ */
