@@ -1585,8 +1585,12 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	 * - fragmented packets count,
 	 * - oversized packets count,
 	 * - jabber count.
+	 *
+	 * Ignore XEC errors for 82599 to workaround errata about
+	 * UDP frames with zero checksum.
 	 */
-	IXGBE_SET_IERRORS(sc, stats->crcerrs + stats->illerrc + stats->xec +
+	IXGBE_SET_IERRORS(sc, stats->crcerrs + stats->illerrc +
+	    (hw->mac.type != ixgbe_mac_82599EB ? stats->xec : 0) +
 	    stats->mpc[0] + stats->rlec + stats->ruc + stats->rfc + stats->roc +
 	    stats->rjc);
 } /* ixgbe_update_stats_counters */
