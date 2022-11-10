@@ -293,7 +293,7 @@ do {										\
 int	namei(struct nameidata *ndp);
 int	vfs_lookup(struct nameidata *ndp);
 int	vfs_relookup(struct vnode *dvp, struct vnode **vpp,
-	    struct componentname *cnp);
+	    struct componentname *cnp, bool refstart);
 #endif
 
 /*
