@@ -45,6 +45,7 @@
 #define	_BASENAME_RTLD		_COMPAT32_BASENAME_RTLD
 #define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
 #define	LD_			"LD_32_"
+#define	TOKEN_LIB		"lib32"
 #endif
 
 #ifndef _PATH_ELF_HINTS
@@ -80,6 +81,10 @@
 #define	_PATH_SOFT_RTLD		"/libexec/ld-elf.so.1"
 #define	SOFT_STANDARD_LIBRARY_PATH "/usr/libsoft"
 #define	LD_SOFT_		"LD_SOFT_"
+
+#ifndef TOKEN_LIB
+#define	TOKEN_LIB		"lib"
+#endif
 
 #ifdef IN_RTLD
 extern const char *ld_elf_hints_default;
