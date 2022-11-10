@@ -611,7 +611,7 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
-	    LOCKLEAF | SAVESTART);
+	    LOCKLEAF);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error) {
@@ -636,8 +636,6 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 			nfsrv_postopattr(nd, dattr_ret, &dattr);
 		goto out;
 	}
-	if (named.ni_startdir)
-		vrele(named.ni_startdir);
 	nfsvno_relpathbuf(&named);
 	vp = named.ni_vp;
 	if ((nd->nd_flag & ND_NFSV4) != 0 && !NFSVNO_EXPORTED(exp) &&
@@ -1160,7 +1158,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
-	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
+	    LOCKPARENT | LOCKLEAF | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error)
@@ -1325,7 +1323,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	struct thread *p = curthread;
 
 	NFSVNO_ATTRINIT(&nva);
-	cnflags = (LOCKPARENT | SAVESTART);
+	cnflags = LOCKPARENT;
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
@@ -1633,7 +1631,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		fdirfor_ret = nfsvno_getattr(dp, &fdirfor, nd, p, 1, NULL);
 	tond.ni_cnd.cn_nameiop = 0;
 	tond.ni_startdir = NULL;
-	NFSNAMEICNDSET(&fromnd.ni_cnd, nd->nd_cred, DELETE, WANTPARENT | SAVESTART);
+	NFSNAMEICNDSET(&fromnd.ni_cnd, nd->nd_cred, DELETE, WANTPARENT);
 	nfsvno_setpathbuf(&fromnd, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &fromnd.ni_pathlen);
 	if (error) {
@@ -1694,7 +1692,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			}
 		}
 	}
-	NFSNAMEICNDSET(&tond.ni_cnd, nd->nd_cred, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART);
+	NFSNAMEICNDSET(&tond.ni_cnd, nd->nd_cred, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE);
 	nfsvno_setpathbuf(&tond, &tbufp, &hashp);
 	if (!nd->nd_repstat) {
 		error = nfsrv_parsename(nd, tbufp, hashp, &tond.ni_pathlen);
@@ -1900,7 +1898,7 @@ nfsrvd_symlink(struct nfsrv_descript *nd, __unused int isdgram,
 		*vpp = NULL;
 	NFSVNO_ATTRINIT(&nva);
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
-	    LOCKPARENT | SAVESTART | NOCACHE);
+	    LOCKPARENT | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (!error && !nd->nd_repstat)
@@ -3018,10 +3016,10 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 		if (create == NFSV4OPEN_CREATE)
 		    NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE,
-			LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
+			LOCKPARENT | LOCKLEAF | NOCACHE);
 		else
 		    NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
-			LOCKLEAF | SAVESTART);
+			LOCKLEAF);
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 		if (error) {
@@ -3687,7 +3685,7 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	 * All this just to get the export flags for the name.
 	 */
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
-	    LOCKLEAF | SAVESTART);
+	    LOCKLEAF);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error) {
@@ -3705,7 +3703,6 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 		vrele(dirp);
 	if (nd->nd_repstat)
 		goto out;
-	vrele(named.ni_startdir);
 	nfsvno_relpathbuf(&named);
 	fh.nfsrvfh_len = NFSX_MYFH;
 	vp = named.ni_vp;
@@ -3826,7 +3823,7 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 			goto nfsmout;
 		}
 		NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
-		    LOCKLEAF | SAVESTART);
+		    LOCKLEAF);
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 		if (error != 0) {
@@ -3840,7 +3837,6 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 			vput(dp);
 		if (dirp != NULL)
 			vrele(dirp);
-		vrele(named.ni_startdir);
 		nfsvno_relpathbuf(&named);
 		vp = named.ni_vp;
 		break;
