@@ -214,10 +214,9 @@ vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
  * descriptor.
  */
 static inline void
-_vq_record(int i, volatile struct vring_desc *vd,
-	   struct vmctx *ctx, struct iovec *iov, int n_iov,
-	   struct vi_req *reqp) {
-
+_vq_record(int i, struct vring_desc *vd, struct vmctx *ctx, struct iovec *iov,
+    int n_iov, struct vi_req *reqp)
+{
 	if (i >= n_iov)
 		return;
 	iov[i].iov_base = paddr_guest2host(ctx, vd->addr, vd->len);
@@ -271,7 +270,7 @@ vq_getchain(struct vqueue_info *vq, struct iovec *iov, int niov,
 	u_int ndesc, n_indir;
 	u_int idx, next;
 	struct vi_req req;
-	volatile struct vring_desc *vdir, *vindir, *vp;
+	struct vring_desc *vdir, *vindir, *vp;
 	struct vmctx *ctx;
 	struct virtio_softc *vs;
 	const char *name;
@@ -409,8 +408,8 @@ vq_retchains(struct vqueue_info *vq, uint16_t n_chains)
 void
 vq_relchain_prepare(struct vqueue_info *vq, uint16_t idx, uint32_t iolen)
 {
-	volatile struct vring_used *vuh;
-	volatile struct vring_used_elem *vue;
+	struct vring_used *vuh;
+	struct vring_used_elem *vue;
 	uint16_t mask;
 
 	/*
