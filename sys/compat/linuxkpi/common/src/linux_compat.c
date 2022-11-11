@@ -834,6 +834,18 @@ zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 	return (0);
 }
 
+void
+vma_set_file(struct vm_area_struct *vma, struct linux_file *file)
+{
+	struct linux_file *tmp;
+
+	/* Changing an anonymous vma with this is illegal */
+	get_file(file);
+	tmp = vma->vm_file;
+	vma->vm_file = file;
+	fput(tmp);
+}
+
 static struct file_operations dummy_ldev_ops = {
 	/* XXXKIB */
 };
