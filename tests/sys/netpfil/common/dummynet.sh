@@ -163,6 +163,46 @@ pipe_v6_cleanup()
 	firewall_cleanup $1
 }
 
+codel_head()
+{
+	atf_set descr 'FQ_CODEL basic test'
+	atf_set require.user root
+}
+
+codel_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.2
+
+	jexec alcatraz dnctl pipe 1 config  bw 10Mb queue 100 droptail
+	jexec alcatraz dnctl sched 1 config pipe 1 type fq_codel target 0ms interval 0ms quantum 1514 limit 10240 flows 1024 ecn
+	jexec alcatraz dnctl queue 1 config pipe 1 droptail
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 queue 1 ip from any to any" \
+		"pf"	\
+			"pass dnqueue 1"
+
+	# single ping succeeds just fine
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+codel_cleanup()
+{
+	firewall_cleanup $1
+}
+
 queue_head()
 {
 	atf_set descr 'Basic queue test'
@@ -433,6 +473,9 @@ setup_tests		\
 		ipfw	\
 		pf	\
 	pipe_v6		\
+		ipfw	\
+		pf	\
+	codel		\
 		ipfw	\
 		pf	\
 	queue		\
