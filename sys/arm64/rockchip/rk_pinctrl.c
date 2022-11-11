@@ -929,7 +929,14 @@ static uint32_t
 rk3568_get_pd_offset(struct rk_pinctrl_softc *sc, uint32_t bank)
 {
 
-	return (0);
+	if (bank == 0)
+		return (0x20);
+
+	/*
+	 * Registers start at 0x80, but bank index starts at 1. Return 0x70
+	 * so later calculations get the correct offset.
+	 */
+	return (0x70);
 }
 
 static struct syscon *
