@@ -63,6 +63,8 @@
 #include <contrib/xen/event_channel.h>
 #include <contrib/xen/hvm/params.h>
 
+#include "pic_if.h"
+
 int
 xen_dt_probe(void)
 {
@@ -195,6 +197,9 @@ xen_attach(device_t dev)
 static device_method_t xen_methods[] = {
 	DEVMETHOD(device_probe,		xen_probe),
 	DEVMETHOD(device_attach,	xen_attach),
+
+	/* Interrupt controller interface */
+
 	DEVMETHOD_END
 };
 
