@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2021
+.Dd November 10, 2022
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ representation, define:
 .Ed
 .Pp
 To enable the
-.Xr gdb 1 Pq Pa ports/devel/gdb
+.Xr gdb 4
 backend, so that remote debugging with
 .Xr kgdb 1 Pq Pa ports/devel/gdb
 is possible, include:
@@ -182,11 +182,8 @@ command line editing capabilities.
 In addition to
 the
 .Nm emacs
-control keys, the usual
-.Tn ANSI
-arrow keys may be used to
-browse through the history buffer, and move the cursor within the
-current line.
+control keys, the usual ANSI arrow keys may be used to browse through the
+history buffer, and move the cursor within the current line.
 .Sh COMMANDS
 .Ss COMMON DEBUGGER COMMANDS
 .Bl -tag -width indent -compact
@@ -246,8 +243,8 @@ The location is also displayed in hex at the beginning of each line.
 .It Cm i
 display as a disassembled instruction
 .It Cm I
-display as an disassembled instruction with possible alternate formats depending on the
-machine.
+display as a disassembled instruction with possible alternate formats
+depending on the machine.
 On i386, this selects the alternate format for the instruction decoding
 (16 bits in a 32-bit code segment and vice versa).
 .It Cm S
@@ -548,11 +545,9 @@ otherwise.
 .Ic findstack
 .Ar addr
 .Xc
-Prints the thread address for a thread kernel-mode stack of which contains the
-specified address.
-If the thread is not found, search the thread stack cache and prints the
-cached stack address.
-Otherwise, prints nothing.
+Prints the address of the thread whose kernel-mode stack contains
+.Ar addr ,
+if any.
 .Pp
 .It Ic show Cm all procs Ns Op Li / Ns Cm a
 .It Ic ps Ns Op Li / Ns Cm a
@@ -640,19 +635,18 @@ present at
 .Ar addr .
 .\"
 .Pp
-.It Ic show Cm cbstat
-Show brief information about the TTY subsystem.
-.\"
-.Pp
-.It Ic show Cm cdev
-Without argument, show the list of all created cdev's, consisting of devfs
-node name and struct cdev address.
-When address of cdev is supplied, show some internal devfs state of the cdev.
+.It Ic show Cm cdev Op Ar addr
+Show the internal devfs state of the cdev structure located at
+.Ar addr .
+If no argument is provided, show the list of all created cdevs, consisting of
+the devfs node name and the
+.Vt struct cdev
+address.
 .\"
 .Pp
 .It Ic show Cm conifhk
 Lists hooks currently waiting for completion in
-run_interrupt_driven_config_hooks().
+.Fn run_interrupt_driven_config_hooks .
 .\"
 .Pp
 .It Ic show Cm cpusets
@@ -756,15 +750,6 @@ Dump the interrupt statistics.
 Show interrupt lines and their respective kernel threads.
 .\"
 .Pp
-.It Ic show Cm jails
-Show the list of
-.Xr jail 8
-instances.
-In addition to what
-.Xr jls 8
-shows, also list kernel internal details.
-.\"
-.Pp
 .It Ic show Cm lapic
 Show information from the local APIC registers for this CPU.
 .\"
@@ -773,24 +758,24 @@ Show information from the local APIC registers for this CPU.
 Show lock structure.
 The output format is as follows:
 .Bl -tag -width "flags"
-.It Ic class:
+.It Ic class :
 Class of the lock.
 Possible types include
 .Xr mutex 9 ,
 .Xr rmlock 9 ,
 .Xr rwlock 9 ,
 .Xr sx 9 .
-.It Ic name:
+.It Ic name :
 Name of the lock.
-.It Ic flags:
+.It Ic flags :
 Flags passed to the lock initialization function.
 .Em flags
 values are lock class specific.
-.It Ic state:
+.It Ic state :
 Current state of a lock.
 .Em state
 values are lock class specific.
-.It Ic owner:
+.It Ic owner :
 Lock owner.
 .El
 .\"
@@ -870,11 +855,14 @@ It is useful if you got a kernel panic, attached a serial cable
 to the machine and want to get the boot messages from before the
 system hang.
 .\"
-.It Ic show Cm mount
-Displays short info about all currently mounted file systems.
 .Pp
-.It Ic show Cm mount Ar addr
-Displays details about the given mount point.
+.It Ic show Cm mount Op Ar addr
+Displays details about the mount point located at
+.Ar addr .
+If no
+.Ar addr
+is specified,
+displays short info about all currently mounted file systems.
 .\"
 .Pp
 .It Ic show Cm object Ns Oo Li / Ns Cm f Oc Ar addr
@@ -932,16 +920,24 @@ Names of spin locks held.
 Dump process groups present within the system.
 .\"
 .Pp
-.It Ic show Cm proc Op Ar addr
-If no
-.Op Ar addr
-is specified, print information about the current process.
-Otherwise, show information about the process at address
+.It Ic show Cm prison Op Ar addr
+Show the prison structure located at
 .Ar addr .
+If no
+.Ar addr
+argument is specified, show information about all prisons in the system.
 .\"
 .Pp
-.It Ic show Cm procvm
-Show process virtual memory layout.
+.It Ic show Cm proc Op Ar addr
+Show information about the process structure located at address
+.Ar addr ,
+or the current process if no argument is specified.
+.\"
+.Pp
+.It Ic show Cm procvm Op Ar addr
+Show process virtual memory layout for the process located at
+.Ar addr ,
+or the current process if no argument is specified.
 .\"
 .Pp
 .It Ic show Cm protosw Ar addr
@@ -994,36 +990,26 @@ Now an alias for
 .Ic show Cm lockchain .
 .\"
 .Pp
-.It Ic show Cm sleepq
-.It Ic show Cm sleepqueue
-Both commands provide the same functionality.
-They show sleepqueue
-.Vt struct sleepqueue
-structure.
-Sleepqueues are used within the
-.Fx
-kernel to implement sleepable
-synchronization primitives (thread holding a lock might sleep or
-be context switched), which at the time of writing are:
-.Xr condvar 9 ,
-.Xr sx 9
-and standard
-.Xr msleep 9
-interface.
+.It Ic show Cm sleepq Ar addr
+.It Ic show Cm sleepqueue Ar addr
+Show the
+.Xr sleepqueue 9
+structure located at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm sockbuf Ar addr
-.It Ic show Cm socket Ar addr
-Those commands print
-.Vt struct sockbuf
-and
-.Vt struct socket
-objects placed at
+Show the socket buffer
+.Va struct sockbuf
+located at
 .Ar addr .
-Output consists of all values present in structures mentioned.
-For exact interpretation and more details, visit
-.Pa sys/socket.h
-header file.
+.\"
+.Pp
+.It Ic show Cm socket Ar addr
+Show the socket object
+.Vt struct socket
+located at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm sysregs
@@ -1141,11 +1127,8 @@ and none have zero ref counts.
 .\"
 .Pp
 .It Ic show Cm vmopag
-This is supposed to show physical addresses consumed by a
-VM object.
-Currently, it is not possible to use this command when
-.Xr witness 4
-is compiled in the kernel.
+Walk the list of VM objects in the system, printing the indices and physical
+addresses of the VM pages belonging to each object.
 .\"
 .Pp
 .It Ic show Cm vnet Ar addr
@@ -1155,11 +1138,11 @@ structure present at the address
 .Ar addr .
 .\"
 .Pp
-.It Ic show Cm vnode Op Ar addr
+.It Ic show Cm vnode Ar addr
 Prints vnode
 .Vt struct vnode
 structure lying at
-.Op Ar addr .
+.Ar addr .
 For the exact interpretation of the output, look at the
 .Pa sys/vnode.h
 header file.
@@ -1552,8 +1535,8 @@ CR TILDE CTRL-R causes an immediate reboot.
 In all these sequences, CR represents Carriage Return and is usually
 sent by pressing the Enter or Return key.
 TILDE is the ASCII tilde character (~).
-CTRL-x is Control x, send by pressing the Control key, then x, then releasing both.
-and then releasing both.
+CTRL-x is Control x, sent by pressing the Control key, then x, then releasing
+both.
 .Pp
 The break-to-debugger behavior can be enabled by setting
 .Xr sysctl 8
@@ -1602,6 +1585,7 @@ directory.
 .Xr kgdb 1 Pq Pa ports/devel/gdb ,
 .Xr acpi 4 ,
 .Xr CAM 4 ,
+.Xr gdb 4 ,
 .Xr mac_ddb 4 ,
 .Xr mac_test 4 ,
 .Xr netgraph 4 ,
