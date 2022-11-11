@@ -90,7 +90,7 @@ enum {
 #define	XHCI_PAGE_SIZE			4096	/* bytes */
 
 struct xhci_slot_ctx {
-	volatile uint32_t	dwSctx0;
+	uint32_t	dwSctx0;
 #define	XHCI_SCTX_0_ROUTE_SET(x)		((x) & 0xFFFFF)
 #define	XHCI_SCTX_0_ROUTE_GET(x)		((x) & 0xFFFFF)
 #define	XHCI_SCTX_0_SPEED_SET(x)		(((x) & 0xF) << 20)
@@ -101,14 +101,14 @@ struct xhci_slot_ctx {
 #define	XHCI_SCTX_0_HUB_GET(x)			(((x) >> 26) & 0x1)
 #define	XHCI_SCTX_0_CTX_NUM_SET(x)		(((x) & 0x1F) << 27)
 #define	XHCI_SCTX_0_CTX_NUM_GET(x)		(((x) >> 27) & 0x1F)
-	volatile uint32_t	dwSctx1;
+	uint32_t	dwSctx1;
 #define	XHCI_SCTX_1_MAX_EL_SET(x)		((x) & 0xFFFF)
 #define	XHCI_SCTX_1_MAX_EL_GET(x)		((x) & 0xFFFF)
 #define	XHCI_SCTX_1_RH_PORT_SET(x)		(((x) & 0xFF) << 16)
 #define	XHCI_SCTX_1_RH_PORT_GET(x)		(((x) >> 16) & 0xFF)
 #define	XHCI_SCTX_1_NUM_PORTS_SET(x)		(((x) & 0xFF) << 24)
 #define	XHCI_SCTX_1_NUM_PORTS_GET(x)		(((x) >> 24) & 0xFF)
-	volatile uint32_t	dwSctx2;
+	uint32_t	dwSctx2;
 #define	XHCI_SCTX_2_TT_HUB_SID_SET(x)		((x) & 0xFF)
 #define	XHCI_SCTX_2_TT_HUB_SID_GET(x)		((x) & 0xFF)
 #define	XHCI_SCTX_2_TT_PORT_NUM_SET(x)		(((x) & 0xFF) << 8)
@@ -117,19 +117,19 @@ struct xhci_slot_ctx {
 #define	XHCI_SCTX_2_TT_THINK_TIME_GET(x)	(((x) >> 16) & 0x3)
 #define	XHCI_SCTX_2_IRQ_TARGET_SET(x)		(((x) & 0x3FF) << 22)
 #define	XHCI_SCTX_2_IRQ_TARGET_GET(x)		(((x) >> 22) & 0x3FF)
-	volatile uint32_t	dwSctx3;
+	uint32_t	dwSctx3;
 #define	XHCI_SCTX_3_DEV_ADDR_SET(x)		((x) & 0xFF)
 #define	XHCI_SCTX_3_DEV_ADDR_GET(x)		((x) & 0xFF)
 #define	XHCI_SCTX_3_SLOT_STATE_SET(x)		(((x) & 0x1F) << 27)
 #define	XHCI_SCTX_3_SLOT_STATE_GET(x)		(((x) >> 27) & 0x1F)
-	volatile uint32_t	dwSctx4;
-	volatile uint32_t	dwSctx5;
-	volatile uint32_t	dwSctx6;
-	volatile uint32_t	dwSctx7;
+	uint32_t	dwSctx4;
+	uint32_t	dwSctx5;
+	uint32_t	dwSctx6;
+	uint32_t	dwSctx7;
 };
 
 struct xhci_endp_ctx {
-	volatile uint32_t	dwEpCtx0;
+	uint32_t	dwEpCtx0;
 #define	XHCI_EPCTX_0_EPSTATE_SET(x)		((x) & 0x7)
 #define	XHCI_EPCTX_0_EPSTATE_GET(x)		((x) & 0x7)
 #define	XHCI_EPCTX_0_MULT_SET(x)		(((x) & 0x3) << 8)
@@ -140,7 +140,7 @@ struct xhci_endp_ctx {
 #define	XHCI_EPCTX_0_LSA_GET(x)			(((x) >> 15) & 0x1)
 #define	XHCI_EPCTX_0_IVAL_SET(x)		(((x) & 0xFF) << 16)
 #define	XHCI_EPCTX_0_IVAL_GET(x)		(((x) >> 16) & 0xFF)
-	volatile uint32_t	dwEpCtx1;
+	uint32_t	dwEpCtx1;
 #define	XHCI_EPCTX_1_CERR_SET(x)		(((x) & 0x3) << 1)
 #define	XHCI_EPCTX_1_CERR_GET(x)		(((x) >> 1) & 0x3)
 #define	XHCI_EPCTX_1_EPTYPE_SET(x)		(((x) & 0x7) << 3)
@@ -151,32 +151,32 @@ struct xhci_endp_ctx {
 #define	XHCI_EPCTX_1_MAXB_GET(x)		(((x) >> 8) & 0xFF)
 #define	XHCI_EPCTX_1_MAXP_SIZE_SET(x)		(((x) & 0xFFFF) << 16)
 #define	XHCI_EPCTX_1_MAXP_SIZE_GET(x)		(((x) >> 16) & 0xFFFF)
-	volatile uint64_t	qwEpCtx2;
+	uint64_t	qwEpCtx2;
 #define	XHCI_EPCTX_2_DCS_SET(x)			((x) & 0x1)
 #define	XHCI_EPCTX_2_DCS_GET(x)			((x) & 0x1)
 #define	XHCI_EPCTX_2_TR_DQ_PTR_MASK		0xFFFFFFFFFFFFFFF0U
-	volatile uint32_t	dwEpCtx4;
+	uint32_t	dwEpCtx4;
 #define	XHCI_EPCTX_4_AVG_TRB_LEN_SET(x)		((x) & 0xFFFF)
 #define	XHCI_EPCTX_4_AVG_TRB_LEN_GET(x)		((x) & 0xFFFF)
 #define	XHCI_EPCTX_4_MAX_ESIT_PAYLOAD_SET(x)	(((x) & 0xFFFF) << 16)
 #define	XHCI_EPCTX_4_MAX_ESIT_PAYLOAD_GET(x)	(((x) >> 16) & 0xFFFF)
-	volatile uint32_t	dwEpCtx5;
-	volatile uint32_t	dwEpCtx6;
-	volatile uint32_t	dwEpCtx7;
+	uint32_t	dwEpCtx5;
+	uint32_t	dwEpCtx6;
+	uint32_t	dwEpCtx7;
 };
 
 struct xhci_input_ctx {
 #define	XHCI_INCTX_NON_CTRL_MASK	0xFFFFFFFCU
-	volatile uint32_t	dwInCtx0;
+	uint32_t	dwInCtx0;
 #define	XHCI_INCTX_0_DROP_MASK(n)	(1U << (n))
-	volatile uint32_t	dwInCtx1;
+	uint32_t	dwInCtx1;
 #define	XHCI_INCTX_1_ADD_MASK(n)	(1U << (n))
-	volatile uint32_t	dwInCtx2;
-	volatile uint32_t	dwInCtx3;
-	volatile uint32_t	dwInCtx4;
-	volatile uint32_t	dwInCtx5;
-	volatile uint32_t	dwInCtx6;
-	volatile uint32_t	dwInCtx7;
+	uint32_t	dwInCtx2;
+	uint32_t	dwInCtx3;
+	uint32_t	dwInCtx4;
+	uint32_t	dwInCtx5;
+	uint32_t	dwInCtx6;
+	uint32_t	dwInCtx7;
 };
 
 struct xhci_input_dev_ctx {
@@ -197,7 +197,7 @@ struct xhci_dev_ctx {
 #define	ctx_ep		ctx_dev_slep.u_ep
 
 struct xhci_stream_ctx {
-	volatile uint64_t	qwSctx0;
+	uint64_t	qwSctx0;
 #define	XHCI_SCTX_0_DCS_GET(x)		((x) & 0x1)
 #define	XHCI_SCTX_0_DCS_SET(x)		((x) & 0x1)
 #define	XHCI_SCTX_0_SCT_SET(x)		(((x) & 0x7) << 1)
@@ -211,15 +211,15 @@ struct xhci_stream_ctx {
 #define	XHCI_SCTX_0_SCT_PRIM_SSA_128	0x6
 #define	XHCI_SCTX_0_SCT_PRIM_SSA_256	0x7
 #define	XHCI_SCTX_0_TR_DQ_PTR_MASK	0xFFFFFFFFFFFFFFF0U
-	volatile uint32_t	dwSctx2;
-	volatile uint32_t	dwSctx3;
+	uint32_t	dwSctx2;
+	uint32_t	dwSctx3;
 };
 
 struct xhci_trb {
-	volatile uint64_t	qwTrb0;
+	uint64_t	qwTrb0;
 #define	XHCI_TRB_0_DIR_IN_MASK		(0x80ULL << 0)
 #define	XHCI_TRB_0_WLENGTH_MASK		(0xFFFFULL << 48)
-	volatile uint32_t	dwTrb2;
+	uint32_t	dwTrb2;
 #define	XHCI_TRB_2_ERROR_GET(x)		(((x) >> 24) & 0xFF)
 #define	XHCI_TRB_2_ERROR_SET(x)		(((x) & 0xFF) << 24)
 #define	XHCI_TRB_2_TDSZ_GET(x)		(((x) >> 17) & 0x1F)
@@ -233,7 +233,7 @@ struct xhci_trb {
 #define	XHCI_TRB_2_STREAM_GET(x)	(((x) >> 16) & 0xFFFF)
 #define	XHCI_TRB_2_STREAM_SET(x)	(((x) & 0xFFFF) << 16)
 
-	volatile uint32_t	dwTrb3;
+	uint32_t	dwTrb3;
 #define	XHCI_TRB_3_TYPE_GET(x)		(((x) >> 10) & 0x3F)
 #define	XHCI_TRB_3_TYPE_SET(x)		(((x) & 0x3F) << 10)
 #define	XHCI_TRB_3_CYCLE_BIT		(1U << 0)
@@ -347,9 +347,9 @@ struct xhci_dev_endpoint_trbs {
 };
 
 struct xhci_event_ring_seg {
-	volatile uint64_t	qwEvrsTablePtr;
-	volatile uint32_t	dwEvrsTableSize;
-	volatile uint32_t	dwEvrsReserved;
+	uint64_t	qwEvrsTablePtr;
+	uint32_t	dwEvrsTableSize;
+	uint32_t	dwEvrsReserved;
 };
 
 #endif /* _PCI_XHCI_H_ */
