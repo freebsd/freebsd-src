@@ -35,6 +35,7 @@
 #endif
 
 typedef struct hwreset *hwreset_t;
+typedef struct hwreset_array *hwreset_array_t;
 
 /*
  * Provider interface
@@ -62,6 +63,13 @@ int hwreset_get_by_ofw_idx(device_t consumer_dev, phandle_t node, int idx,
     hwreset_t *rst);
 #endif
 
+void hwreset_array_release(hwreset_array_t rsts);
+int hwreset_array_assert(hwreset_array_t rsts);
+int hwreset_array_deassert(hwreset_array_t rsts);
+#ifdef FDT
+int hwreset_array_get_ofw(device_t consumer_dev, phandle_t cnode,
+    hwreset_array_t *rsts);
+#endif
 
 
 #endif /* DEV_EXTRES_HWRESET_HWRESET_H */

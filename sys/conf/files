@@ -1739,6 +1739,7 @@ dev/extres/phy/phynode_if.m	optional phy
 dev/extres/phy/phy_usb.c	optional phy
 dev/extres/phy/phynode_usb_if.m	optional phy
 dev/extres/hwreset/hwreset.c	optional hwreset
+dev/extres/hwreset/hwreset_array.c	optional hwreset
 dev/extres/hwreset/hwreset_if.m	optional hwreset
 dev/extres/nvmem/nvmem.c	optional nvmem fdt
 dev/extres/nvmem/nvmem_if.m	optional nvmem
