@@ -178,6 +178,16 @@ krealloc(void *ptr, size_t size, gfp_t flags)
 	return (realloc(ptr, size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
+static inline void *
+krealloc_array(void *ptr, size_t n, size_t size, gfp_t flags)
+{
+	if (WOULD_OVERFLOW(n, size)) {
+		return NULL;
+	}
+
+	return (realloc(ptr, n * size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
 extern void linux_kfree_async(void *);
 
 static inline void
