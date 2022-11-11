@@ -1625,8 +1625,7 @@ vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op)
 }
 
 int
-vm_snapshot_buf(volatile void *data, size_t data_size,
-		struct vm_snapshot_meta *meta)
+vm_snapshot_buf(void *data, size_t data_size, struct vm_snapshot_meta *meta)
 {
 	struct vm_snapshot_buffer *buffer;
 	int op;
@@ -1640,9 +1639,9 @@ vm_snapshot_buf(volatile void *data, size_t data_size,
 	}
 
 	if (op == VM_SNAPSHOT_SAVE)
-		memcpy(buffer->buf, (uint8_t *) data, data_size);
+		memcpy(buffer->buf, data, data_size);
 	else if (op == VM_SNAPSHOT_RESTORE)
-		memcpy((uint8_t *) data, buffer->buf, data_size);
+		memcpy(data, buffer->buf, data_size);
 	else
 		return (EINVAL);
 
@@ -1708,8 +1707,7 @@ done:
 }
 
 int
-vm_snapshot_buf_cmp(volatile void *data, size_t data_size,
-		    struct vm_snapshot_meta *meta)
+vm_snapshot_buf_cmp(void *data, size_t data_size, struct vm_snapshot_meta *meta)
 {
 	struct vm_snapshot_buffer *buffer;
 	int op;
@@ -1726,9 +1724,9 @@ vm_snapshot_buf_cmp(volatile void *data, size_t data_size,
 
 	if (op == VM_SNAPSHOT_SAVE) {
 		ret = 0;
-		memcpy(buffer->buf, (uint8_t *) data, data_size);
+		memcpy(buffer->buf, data, data_size);
 	} else if (op == VM_SNAPSHOT_RESTORE) {
-		ret = memcmp((uint8_t *) data, buffer->buf, data_size);
+		ret = memcmp(data, buffer->buf, data_size);
 	} else {
 		ret = EINVAL;
 		goto done;
