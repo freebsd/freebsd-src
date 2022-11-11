@@ -489,12 +489,54 @@ cpu_mp_probe(void)
 	return (1);
 }
 
+static int
+enable_cpu_psci(uint64_t target_cpu, vm_paddr_t entry, u_int cpuid)
+{
+	int err;
+
+	err = psci_cpu_on(target_cpu, entry, cpuid);
+	if (err != PSCI_RETVAL_SUCCESS) {
+		/*
+		 * Panic here if INVARIANTS are enabled and PSCI failed to
+		 * start the requested CPU.  psci_cpu_on() returns PSCI_MISSING
+		 * to indicate we are unable to use it to start the given CPU.
+		 */
+		KASSERT(err == PSCI_MISSING ||
+		    (mp_quirks & MP_QUIRK_CPULIST) == MP_QUIRK_CPULIST,
+		    ("Failed to start CPU %u (%lx), error %d\n",
+		    cpuid, target_cpu, err));
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+enable_cpu_spin(uint64_t cpu, vm_paddr_t entry, vm_paddr_t release_paddr)
+{
+	vm_paddr_t *release_addr;
+
+	release_addr = pmap_mapdev(release_paddr, sizeof(*release_addr));
+	if (release_addr == NULL)
+		return (ENOMEM);
+
+	*release_addr = entry;
+	pmap_unmapdev(release_addr, sizeof(*release_addr));
+
+	__asm __volatile(
+	    "dsb sy	\n"
+	    "sev	\n"
+	    ::: "memory");
+
+	return (0);
+}
+
 /*
  * Starts a given CPU. If the CPU is already running, i.e. it is the boot CPU,
  * do nothing. Returns true if the CPU is present and running.
  */
 static bool
-start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
+start_cpu(u_int cpuid, uint64_t target_cpu, int domain, vm_paddr_t release_addr)
 {
 	struct pcpu *pcpup;
 	vm_size_t size;
@@ -530,18 +572,19 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 
 	printf("Starting CPU %u (%lx)\n", cpuid, target_cpu);
 	pa = pmap_extract(kernel_pmap, (vm_offset_t)mpentry);
-	err = psci_cpu_on(target_cpu, pa, cpuid);
-	if (err != PSCI_RETVAL_SUCCESS) {
-		/*
-		 * Panic here if INVARIANTS are enabled and PSCI failed to
-		 * start the requested CPU.  psci_cpu_on() returns PSCI_MISSING
-		 * to indicate we are unable to use it to start the given CPU.
-		 */
-		KASSERT(err == PSCI_MISSING ||
-		    (mp_quirks & MP_QUIRK_CPULIST) == MP_QUIRK_CPULIST,
-		    ("Failed to start CPU %u (%lx), error %d\n",
-		    cpuid, target_cpu, err));
 
+	/*
+	 * A limited set of hardware we support can only do spintables and
+	 * remain useful, due to lack of EL3.  Thus, we'll usually fall into the
+	 * PSCI branch here.
+	 */
+	MPASS(release_addr == 0 || !psci_present);
+	if (release_addr != 0)
+		err = enable_cpu_spin(target_cpu, pa, release_addr);
+	else
+		err = enable_cpu_psci(target_cpu, pa, cpuid);
+
+	if (err != 0) {
 		pcpu_destroy(pcpup);
 		dpcpu[cpuid - 1] = NULL;
 		kmem_free(bootstacks[cpuid], MP_BOOTSTACK_SIZE);
@@ -583,7 +626,7 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		if (vm_ndomains > 1)
 			domain = acpi_pxm_get_cpu_locality(intr->Uid);
 #endif
-		if (start_cpu(id, intr->ArmMpidr, domain)) {
+		if (start_cpu(id, intr->ArmMpidr, domain, 0)) {
 			MPASS(cpuid_to_pcpu[id] != NULL);
 			cpuid_to_pcpu[id]->pc_acpi_id = intr->Uid;
 			/*
@@ -630,10 +673,27 @@ cpu_init_acpi(void)
 #endif
 
 #ifdef FDT
+/*
+ * Failure is indicated by failing to populate *release_addr.
+ */
+static void
+populate_release_addr(phandle_t node, vm_paddr_t *release_addr)
+{
+	pcell_t buf[2];
+
+	if (OF_getencprop(node, "cpu-release-addr", buf, sizeof(buf)) !=
+	    sizeof(buf))
+		return;
+
+	*release_addr = (((uintptr_t)buf[0] << 32) | buf[1]);
+}
+
 static boolean_t
 start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	uint64_t target_cpu;
+	vm_paddr_t release_addr;
+	char *enable_method;
 	int domain;
 	int cpuid;
 
@@ -648,7 +708,32 @@ start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	else
 		cpuid = fdt_cpuid;
 
-	if (!start_cpu(cpuid, target_cpu, 0))
+	/*
+	 * If PSCI is present, we'll always use that -- the cpu_on method is
+	 * mandated in both v0.1 and v0.2.  We'll check the enable-method if
+	 * we don't have PSCI and use spin table if it's provided.
+	 */
+	release_addr = 0;
+	if (!psci_present && cpuid != 0) {
+		if (OF_getprop_alloc(node, "enable-method",
+		    (void **)&enable_method) <= 0)
+			return (FALSE);
+
+		if (strcmp(enable_method, "spin-table") != 0) {
+			OF_prop_free(enable_method);
+			return (FALSE);
+		}
+
+		OF_prop_free(enable_method);
+		populate_release_addr(node, &release_addr);
+		if (release_addr == 0) {
+			printf("Failed to fetch release address for CPU %u",
+			    cpuid);
+			return (FALSE);
+		}
+	}
+
+	if (!start_cpu(cpuid, target_cpu, 0, release_addr))
 		return (FALSE);
 
 	/*
