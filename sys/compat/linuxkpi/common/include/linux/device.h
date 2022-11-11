@@ -204,6 +204,14 @@ show_class_attr_string(struct class *class,
 	}					\
 } while (0)
 
+#define	dev_warn_once(dev, ...) do {		\
+	static bool __dev_warn_once;		\
+	if (!__dev_warn_once) {			\
+		__dev_warn_once = 1;		\
+		dev_warn(dev, __VA_ARGS__);	\
+	}					\
+} while (0)
+
 #define	dev_err_once(dev, ...) do {		\
 	static bool __dev_err_once;		\
 	if (!__dev_err_once) {			\
