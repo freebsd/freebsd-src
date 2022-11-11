@@ -65,7 +65,17 @@ _lookup_config_node(nvlist_t *parent, const char *path, bool create)
 			break;
 		}
 		if (nvlist_exists_nvlist(nvl, name))
-			nvl = (nvlist_t *)nvlist_get_nvlist(nvl, name);
+			/*
+			 * XXX-MJ it is incorrect to cast away the const
+			 * qualifier like this since the contract with nvlist
+			 * says that values are immuatable, and some consumers
+			 * will indeed add nodes to the returned nvlist.  In
+			 * practice, however, it appears to be harmless with the
+			 * current nvlist implementation, so we just live with
+			 * it until the implementation is reworked.
+			 */
+			nvl = __DECONST(nvlist_t *,
+			    nvlist_get_nvlist(nvl, name));
 		else if (nvlist_exists(nvl, name)) {
 			for (copy = tofree; copy < name; copy++)
 				if (*copy == '\0')
@@ -76,6 +86,10 @@ _lookup_config_node(nvlist_t *parent, const char *path, bool create)
 			nvl = NULL;
 			break;
 		} else if (create) {
+			/*
+			 * XXX-MJ as with the case above, "new_nvl" shouldn't be
+			 * mutated after its ownership is given to "nvl".
+			 */
 			new_nvl = nvlist_create(0);
 			if (new_nvl == NULL)
 				errx(4, "Failed to allocate memory");
