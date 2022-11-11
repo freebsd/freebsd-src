@@ -2821,8 +2821,6 @@ DB_SHOW_COMMAND_FLAGS(vmopag, vm_object_print_pages, DB_CMD_MEMSAFE)
 		fidx = 0;
 		pa = -1;
 		TAILQ_FOREACH(m, &object->memq, listq) {
-			if (m->pindex > 128)
-				break;
 			if ((prev_m = TAILQ_PREV(m, pglist, listq)) != NULL &&
 			    prev_m->pindex + 1 != m->pindex) {
 				if (rcount) {
