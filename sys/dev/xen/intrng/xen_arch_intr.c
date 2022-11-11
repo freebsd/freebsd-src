@@ -334,13 +334,8 @@ xen_arch_intr_alloc(void)
 	if (!(isrc = malloc(sizeof(struct xenisrc), M_XENINTR, M_WAITOK | M_ZERO)))
 		return (NULL);
 
-	error = intr_event_create(&isrc->xi_arch, isrc, 0,
-	    0 /* we're a software PIC */,
-	    xen_intr_arch_disable_source /* mask */,
-	    xen_intr_arch_enable_source /* unmask */,
-	    xen_intr_arch_eoi_source /* EOI */,
-	    xen_intr_arch_assign_cpu /* cpu assign */,
-	    "xen%u:", ++counter);
+	error = intr_isrc_register(&isrc->xi_arch, xen_sc->dev, 0, "xen%u:",
+	    ++counter);
 
 	if (error) {
 		free(isrc, M_XENINTR);
@@ -353,13 +348,17 @@ xen_arch_intr_alloc(void)
 void
 xen_arch_intr_release(struct xenisrc *isrc)
 {
+	int error;
 
-	KASSERT(CK_SLIST_EMPTY(&isrc->xi_arch->ie_handlers),
+	KASSERT(isrc->xi_arch.isrc_event == NULL ||
+	    CK_SLIST_EMPTY(&isrc->xi_arch.isrc_event->ie_handlers),
 	    ("Release called, but xenisrc still in use"));
 
-	intr_event_destroy(isrc->xi_arch);
-
-	free(isrc, M_XENINTR);
+	if ((error = intr_isrc_deregister(&isrc->xi_arch)) != 0)
+		printf("%s(): leaking isrc due to failure during release: %d",
+		    __func__, error);
+	else
+		free(isrc, M_XENINTR);
 }
 
 u_long
