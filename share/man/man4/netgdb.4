@@ -24,18 +24,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2019
+.Dd November 10, 2022
 .Dt NETGDB 4
 .Os
 .Sh NAME
 .Nm netgdb
 .Nd protocol for debugging the kernel with GDB over the network
 .Sh SYNOPSIS
-NetGDB support is compiled by default, if DDB, GDB, and INET are enabled.
-To build a kernel without it, add the following line to your kernel
-configuration file:
+To compile NetGDB support into the kernel, place the following lines in your
+kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "nooptions NETGDB"
+.Cd "options DDB"
+.Cd "options GDB"
+.Cd "options INET"
+.Cd "options DEBUGNET"
+.Cd "options NETGDB"
 .Ed
 .Sh DESCRIPTION
 .Nm
