@@ -127,7 +127,7 @@ struct tsadc_softc {
 
 	clk_t			tsadc_clk;
 	clk_t			apb_pclk_clk;
-	hwreset_t		hwreset;
+	hwreset_array_t		hwreset;
 	struct syscon		*grf;
 
 	struct tsadc_conf	*conf;
@@ -646,9 +646,9 @@ tsadc_attach(device_t dev)
 	}
 
 	/* FDT resources */
-	rv = hwreset_get_by_ofw_name(dev, 0, "tsadc-apb", &sc->hwreset);
+	rv = hwreset_array_get_ofw(dev, 0, &sc->hwreset);
 	if (rv != 0) {
-		device_printf(dev, "Cannot get 'tsadc-apb' reset\n");
+		device_printf(dev, "Cannot get resets\n");
 		goto fail;
 	}
 	rv = clk_get_by_ofw_name(dev, 0, "tsadc", &sc->tsadc_clk);
@@ -685,7 +685,7 @@ tsadc_attach(device_t dev)
 		sc->shutdown_pol = sc->conf->shutdown_pol;
 
 	/* Wakeup controller */
-	rv = hwreset_assert(sc->hwreset);
+	rv = hwreset_array_assert(sc->hwreset);
 	if (rv != 0) {
 		device_printf(dev, "Cannot assert reset\n");
 		goto fail;
@@ -708,7 +708,7 @@ tsadc_attach(device_t dev)
 		device_printf(dev, "Cannot enable 'apb_pclk' clock: %d\n", rv);
 		goto fail;
 	}
-	rv = hwreset_deassert(sc->hwreset);
+	rv = hwreset_array_deassert(sc->hwreset);
 	if (rv != 0) {
 		device_printf(dev, "Cannot deassert reset\n");
 		goto fail;
@@ -742,7 +742,7 @@ fail:
 	if (sc->apb_pclk_clk != NULL)
 		clk_release(sc->apb_pclk_clk);
 	if (sc->hwreset != NULL)
-		hwreset_release(sc->hwreset);
+		hwreset_array_release(sc->hwreset);
 	if (sc->irq_res != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->mem_res != NULL)
@@ -765,7 +765,7 @@ tsadc_detach(device_t dev)
 	if (sc->apb_pclk_clk != NULL)
 		clk_release(sc->apb_pclk_clk);
 	if (sc->hwreset != NULL)
-		hwreset_release(sc->hwreset);
+		hwreset_array_release(sc->hwreset);
 	if (sc->irq_res != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->mem_res != NULL)
