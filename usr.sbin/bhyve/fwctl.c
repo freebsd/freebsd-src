@@ -88,20 +88,17 @@ static struct op_info *ops[OP_MAX+1];
 
 /* Return 0-padded uint32_t */
 static uint32_t
-fwctl_send_rest(uint32_t *data, size_t len)
+fwctl_send_rest(uint8_t *data, size_t len)
 {
 	union {
 		uint8_t c[4];
 		uint32_t w;
 	} u;
-	uint8_t *cdata;
 	size_t i;
 
-	cdata = (uint8_t *) data;
 	u.w = 0;
-
-	for (i = 0, u.w = 0; i < len; i++)
-		u.c[i] = *cdata++;
+	for (i = 0; i < len; i++)
+		u.c[i] = *data++;
 
 	return (u.w);
 }
@@ -203,7 +200,7 @@ static void
 fget_data(uint32_t data, uint32_t len __unused)
 {
 
-	*((uint32_t *) &fget_str[fget_cnt]) = data;
+	memcpy(&fget_str[fget_cnt], &data, sizeof(data));
 	fget_cnt += sizeof(uint32_t);
 }
 
@@ -401,7 +398,7 @@ fwctl_request(uint32_t value)
 static int
 fwctl_response(uint32_t *retval)
 {
-	uint32_t *dp;
+	uint8_t *dp;
 	ssize_t remlen;
 
 	switch(rinfo.resp_count) {
@@ -425,10 +422,9 @@ fwctl_response(uint32_t *retval)
 		break;
 	default:
 		remlen = rinfo.resp_size - rinfo.resp_off;
-		dp = (uint32_t *)
-		    ((uint8_t *)rinfo.resp_biov->iov_base + rinfo.resp_off);
+		dp = (uint8_t *)rinfo.resp_biov->iov_base + rinfo.resp_off;
 		if (remlen >= (ssize_t)sizeof(uint32_t)) {
-			*retval = *dp;
+			memcpy(retval, dp, sizeof(uint32_t));
 		} else if (remlen > 0) {
 			*retval = fwctl_send_rest(dp, remlen);
 		}
