@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2017 Mark Johnston <markj@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2022 Jean-Sébastien Pédron <dumbbell@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -22,32 +24,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _LINUXKPI_LINUX_SMP_H_
-#define	_LINUXKPI_LINUX_SMP_H_
-
-#include <asm/smp.h>
+#ifndef _LINUX_MMAN_H
+#define _LINUX_MMAN_H
 
 /*
- * Important note about the use of the function provided below:
- *
- * The callback function passed to on_each_cpu() is called from a
- * so-called critical section, and if you need a mutex you will have
- * to rewrite the code to use native FreeBSD mtx spinlocks instead of
- * the spinlocks provided by the LinuxKPI! Be very careful to not call
- * any LinuxKPI functions inside the on_each_cpu()'s callback
- * function, because they may sleep, unlike in native Linux.
- *
- * Enabling witness(4) when testing, can catch such issues.
+ * In Linux, <linux/mman.h> includes <linux/percpu_counter.h>, which includes
+ * <linux/smp.h>.
  */
-#define	on_each_cpu(cb, data, wait) ({				\
-	CTASSERT(wait);						\
-	linux_on_each_cpu(cb, data);				\
-})
+#include <linux/smp.h>
 
-extern int	linux_on_each_cpu(void (*)(void *), void *);
-
-#endif /* _LINUXKPI_LINUX_SMP_H_ */
+#endif /* _LINUX_MMAN_H */
