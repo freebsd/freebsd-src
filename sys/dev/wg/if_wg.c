@@ -863,13 +863,13 @@ wg_send(struct wg_softc *sc, struct wg_endpoint *e, struct mbuf *m)
 		if (e->e_local.l_in.s_addr != INADDR_ANY)
 			control = sbcreatecontrol((caddr_t)&e->e_local.l_in,
 			    sizeof(struct in_addr), IP_SENDSRCADDR,
-			    IPPROTO_IP, M_NOWAIT);
+			    IPPROTO_IP);
 #ifdef INET6
 	} else if (e->e_remote.r_sa.sa_family == AF_INET6) {
 		if (!IN6_IS_ADDR_UNSPECIFIED(&e->e_local.l_in6))
 			control = sbcreatecontrol((caddr_t)&e->e_local.l_pktinfo6,
 			    sizeof(struct in6_pktinfo), IPV6_PKTINFO,
-			    IPPROTO_IPV6, M_NOWAIT);
+			    IPPROTO_IPV6);
 #endif
 	} else {
 		m_freem(m);
