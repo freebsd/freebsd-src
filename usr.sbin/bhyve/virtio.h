@@ -314,14 +314,14 @@ struct vqueue_info {
 
 	uint32_t vq_pfn;	/* PFN of virt queue (not shifted!) */
 
-	volatile struct vring_desc *vq_desc;	/* descriptor array */
-	volatile struct vring_avail *vq_avail;	/* the "avail" ring */
-	volatile struct vring_used *vq_used;	/* the "used" ring */
+	struct vring_desc *vq_desc;	/* descriptor array */
+	struct vring_avail *vq_avail;	/* the "avail" ring */
+	struct vring_used *vq_used;	/* the "used" ring */
 
 };
 /* as noted above, these are sort of backwards, name-wise */
 #define VQ_AVAIL_EVENT_IDX(vq) \
-	(*(volatile uint16_t *)&(vq)->vq_used->ring[(vq)->vq_qsize])
+	(*(uint16_t *)&(vq)->vq_used->ring[(vq)->vq_qsize])
 #define VQ_USED_EVENT_IDX(vq) \
 	((vq)->vq_avail->ring[(vq)->vq_qsize])
 
