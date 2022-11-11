@@ -538,6 +538,14 @@ Switch the debugger to the thread with ID
 if the argument is a decimal number, or address
 .Ar addr ,
 otherwise.
+.Pp
+.It Ic watchdog Op Ar exp
+Program the
+.Xr watchdog 4
+timer to fire in
+.Pf 2^ Ar exp
+seconds.
+If no argument is provided, the watchdog timer is disabled.
 .El
 .Ss SPECIALIZED HELPER COMMANDS
 .Bl -tag -width indent -compact
@@ -548,6 +556,10 @@ otherwise.
 Prints the address of the thread whose kernel-mode stack contains
 .Ar addr ,
 if any.
+.Pp
+.It Ic show Cm active trace
+.It acttrace
+Show a stack trace for every thread running on a CPU.
 .Pp
 .It Ic show Cm all procs Ns Op Li / Ns Cm a
 .It Ic ps Ns Op Li / Ns Cm a
@@ -600,6 +612,15 @@ addresses, and Resource IDs.
 .Pp
 .It Ic show Cm apic
 Dump data about APIC IDT vector mappings.
+.\"
+.Pp
+.It Ic show Cm badstacks
+Walk the
+.Xr witness 4
+graph and print any lock-order violations.
+This command is only available if
+.Xr witness 4
+is included in the kernel.
 .\"
 .Pp
 .It Ic show Cm breaks
@@ -723,6 +744,13 @@ present at
 .Ar addr .
 .\"
 .Pp
+.It Ic show Cm iosched Ar addr
+Show information about the I/O scheduler
+.Vt struct cam_iosched_softc
+located at
+.Ar addr .
+.\"
+.Pp
 .It Ic show Cm inodedeps Op Ar addr
 Show brief information about each inodedep structure.
 If
@@ -748,6 +776,22 @@ Dump the interrupt statistics.
 .Pp
 .It Ic show Cm irqs
 Show interrupt lines and their respective kernel threads.
+.\"
+.Pp
+.It Ic show Cm ktr Ns Op Li / Ns Cm a Ns Cm v Ns Cm V
+Print the contents of the
+.Xr ktr 4
+trace buffer.
+The
+.Cm v
+modifier will request fully verbose output, causing the file, line number, and
+timestamp to be printed for each trace entry.
+The
+.Cm V
+modifier will request only the timestamps to be printed.
+The
+.Cm a
+modifier will request that the output be unpaginated.
 .\"
 .Pp
 .It Ic show Cm lapic
@@ -1172,6 +1216,10 @@ subsystem.
 .Pp
 .Ss OFFLINE DEBUGGING COMMANDS
 .Bl -tag -width indent -compact
+.It Ic dump
+Initiate a kernel core dump to the device(s) configured by
+.Xr dumpon 8 .
+.Pp
 .It Ic gdb
 Switches to remote GDB mode.
 In remote GDB mode, another machine is required that runs
