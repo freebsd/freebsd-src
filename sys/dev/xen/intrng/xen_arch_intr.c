@@ -143,6 +143,8 @@ struct xen_softc {
 	struct resource		*intr;
 	void			*cookie;
 	int			rid;
+	device_t		dev;
+	struct intr_pic		*pic;
 };
 
 struct xen_softc *xen_sc = NULL;
@@ -170,6 +172,13 @@ xen_attach(device_t dev)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
+
+	sc->dev = dev;
+
+	sc->pic = intr_pic_register(dev,
+	    OF_xref_from_node(ofw_bus_get_node(dev)));
+	if (sc->pic == NULL)
+		return (ENXIO);
 
 	/* setup vCPU #0 so events work on first processor */
 	xen_setup_vcpu_info();
