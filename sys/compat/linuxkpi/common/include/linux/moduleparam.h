@@ -90,6 +90,12 @@
 	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
 	LINUXKPI_PARAM_DESC(name)))
 
+#define	LINUXKPI_PARAM_hexint(name, var, perm)				\
+	extern const char LINUXKPI_PARAM_DESC(name)[];			\
+	LINUXKPI_PARAM_PASS(SYSCTL_UINT(LINUXKPI_PARAM_PARENT, OID_AUTO, \
+	LINUXKPI_PARAM_NAME(name), LINUXKPI_PARAM_PERM(perm), &(var), 0, \
+	LINUXKPI_PARAM_DESC(name)))
+
 #define	LINUXKPI_PARAM_long(name, var, perm)				\
 	extern const char LINUXKPI_PARAM_DESC(name)[];			\
 	LINUXKPI_PARAM_PASS(SYSCTL_LONG(LINUXKPI_PARAM_PARENT, OID_AUTO, \
