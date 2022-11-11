@@ -203,11 +203,51 @@ xen_attach(device_t dev)
 	return (0);
 }
 
+static void
+xen_intrng_intr_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	xen_intr_disable_intr((struct xenisrc *)isrc);
+}
+
+static void
+xen_intrng_intr_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	xen_intr_enable_intr((struct xenisrc *)isrc);
+}
+
+static void
+xen_intrng_intr_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	/* should only clear the port now, but oh well for the moment */
+}
+
+static void
+xen_intrng_intr_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	xen_intr_disable_source((struct xenisrc *)isrc);
+}
+
+static void
+xen_intrng_intr_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+
+	xen_intr_enable_source((struct xenisrc *)isrc);
+}
+
 static device_method_t xen_methods[] = {
 	DEVMETHOD(device_probe,		xen_probe),
 	DEVMETHOD(device_attach,	xen_attach),
 
 	/* Interrupt controller interface */
+	DEVMETHOD(pic_disable_intr,	xen_intrng_intr_disable_intr),
+	DEVMETHOD(pic_enable_intr,	xen_intrng_intr_enable_intr),
+	DEVMETHOD(pic_post_filter,	xen_intrng_intr_post_filter),
+	DEVMETHOD(pic_pre_ithread,	xen_intrng_intr_pre_ithread),
+	DEVMETHOD(pic_post_ithread,	xen_intrng_intr_post_ithread),
 
 	DEVMETHOD_END
 };
