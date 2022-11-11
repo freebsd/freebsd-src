@@ -1759,6 +1759,7 @@ dev/extres/phy/phy_usb.c	optional phy fdt
 dev/extres/phy/phynode_usb_if.m	optional phy fdt
 dev/extres/hwreset/hwreset.c	optional hwreset fdt
 dev/extres/hwreset/hwreset_if.m	optional hwreset fdt
+dev/extres/hwreset/hwreset_array.c	optional hwreset
 dev/extres/nvmem/nvmem.c	optional nvmem fdt
 dev/extres/nvmem/nvmem_if.m	optional nvmem fdt
 dev/extres/regulator/regdev_if.m	optional regulator fdt
