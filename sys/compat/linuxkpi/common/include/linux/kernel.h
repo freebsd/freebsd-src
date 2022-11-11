@@ -577,6 +577,8 @@ kstrtou8_from_user(const char __user *s, size_t count, unsigned int base,
 #define offsetofend(t, m)	\
         (offsetof(t, m) + sizeof((((t *)0)->m)))
 
+#define	typeof_member(s, e)	typeof(((s *)0)->e)
+
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp(x, lo, hi)		min( max(x,lo), hi)
 #define	clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
