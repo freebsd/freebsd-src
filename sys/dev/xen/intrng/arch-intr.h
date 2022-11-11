@@ -31,7 +31,7 @@
 
 #include <sys/intr.h>
 
-typedef struct intr_event *xen_arch_isrc_t;
+typedef struct intr_irqsrc xen_arch_isrc_t;
 
 #include <dev/xen/bus/intr-internal.h>
 
