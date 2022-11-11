@@ -965,6 +965,13 @@ lkpi_pci_restore_state(struct pci_dev *pdev)
 #define pci_save_state(dev)	lkpi_pci_save_state(dev)
 #define pci_restore_state(dev)	lkpi_pci_restore_state(dev)
 
+static inline int
+pci_reset_function(struct pci_dev *pdev)
+{
+
+	return (-ENOSYS);
+}
+
 #define DEFINE_PCI_DEVICE_TABLE(_table) \
 	const struct pci_device_id _table[] __devinitdata
 
