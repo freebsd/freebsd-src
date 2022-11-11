@@ -82,7 +82,7 @@ static inline int
 xen_arch_intr_event_bind(struct xenisrc *_Nonnull isrc, u_int cpu)
 {
 
-	return (intr_event_bind(isrc->xi_arch, cpu));
+	return (intr_event_bind(isrc->xi_arch.isrc_event, cpu));
 }
 
 #endif	/* _MACHINE__XEN_ARCH_INTR_H_ */
