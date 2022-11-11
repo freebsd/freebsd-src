@@ -694,7 +694,9 @@ ovpn_create_kkey_dir(struct ovpn_kkey_dir **kdirp,
 
 	if (strcmp(ciphername, "none") == 0)
 		cipher = OVPN_CIPHER_ALG_NONE;
-	else if (strcmp(ciphername, "AES-256-GCM") == 0)
+	else if (strcmp(ciphername, "AES-256-GCM") == 0 ||
+	    strcmp(ciphername, "AES-192-GCM") == 0 ||
+	    strcmp(ciphername, "AES-128-GCM") == 0)
 		cipher = OVPN_CIPHER_ALG_AES_GCM;
 	else if (strcmp(ciphername, "CHACHA20-POLY1305") == 0)
 		cipher = OVPN_CIPHER_ALG_CHACHA20_POLY1305;
