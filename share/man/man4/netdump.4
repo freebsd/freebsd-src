@@ -24,16 +24,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2020
+.Dd November 10, 2022
 .Dt NETDUMP 4
 .Os
 .Sh NAME
 .Nm netdump
 .Nd protocol for transmitting kernel dumps to a remote server
 .Sh SYNOPSIS
-To compile netdump client support into the kernel, place the following line in
+To compile netdump client support into the kernel, place the following lines in
 your kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "options INET"
+.Cd "options DEBUGNET"
 .Cd "options NETDUMP"
 .Ed
 .Sh DESCRIPTION
