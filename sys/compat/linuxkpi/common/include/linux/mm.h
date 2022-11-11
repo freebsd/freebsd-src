@@ -311,4 +311,6 @@ void lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
 
 #define PAGE_ALIGNED(p)	__is_aligned(p, PAGE_SIZE)
 
+void vma_set_file(struct vm_area_struct *vma, struct linux_file *file);
+
 #endif					/* _LINUXKPI_LINUX_MM_H_ */
