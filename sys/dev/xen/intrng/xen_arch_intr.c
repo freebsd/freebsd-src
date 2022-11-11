@@ -366,7 +366,7 @@ xen_arch_intr_execute_handlers(struct xenisrc *isrc, struct trapframe *frame)
 {
 	u_long strays;
 
-	strays = intr_event_handle(isrc->xi_arch, frame);
+	strays = intr_isrc_dispatch(&isrc->xi_arch, frame);
 	if (strays != 0) {
 		xen_intr_disable_source(isrc);
 		if (strays < INTR_STRAY_LOG_MAX)
