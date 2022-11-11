@@ -36,6 +36,7 @@
 struct cpuinfo_x86 {
 	uint8_t		x86;
 	uint16_t	x86_clflush_size;
+	uint16_t	x86_max_cores;
 };
 
 extern struct cpuinfo_x86	boot_cpu_data;
