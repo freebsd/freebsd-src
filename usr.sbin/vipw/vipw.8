@@ -28,7 +28,7 @@
 .\"     @(#)vipw.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2012
+.Dd November 12, 2022
 .Dt VIPW 8
 .Os
 .Sh NAME
@@ -97,6 +97,19 @@ password file.
 .It Ev PW_SCAN_BIG_IDS
 See
 .Xr pwd_mkdb 8 .
+.El
+.Sh FILES
+.Bl -tag -width "/etc/master.passwdXXX" -compact
+.It Pa /etc/master.passwd
+Current password file.
+.It Pa /etc/passwd
+Legacy password file.
+.It Pa /etc/ptmp
+Password lock file.
+.It Pa /etc/pwd.db
+Insecure password database file.
+.It Pa /etc/spwd.db
+Secure password database file.
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,
