@@ -682,7 +682,7 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	return (0);
 
 out:
-	ktls_cleanup(tls);
+	ktls_free(tls);
 	return (error);
 }
 
@@ -1099,7 +1099,7 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 		error = ktls_try_sw(so, tls, KTLS_RX);
 
 	if (error) {
-		ktls_cleanup(tls);
+		ktls_free(tls);
 		return (error);
 	}
 
@@ -1170,13 +1170,13 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 		error = ktls_try_sw(so, tls, KTLS_TX);
 
 	if (error) {
-		ktls_cleanup(tls);
+		ktls_free(tls);
 		return (error);
 	}
 
 	error = SOCK_IO_SEND_LOCK(so, SBL_WAIT);
 	if (error) {
-		ktls_cleanup(tls);
+		ktls_free(tls);
 		return (error);
 	}
 
