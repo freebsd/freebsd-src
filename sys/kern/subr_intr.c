@@ -500,24 +500,23 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	return (error);
 }
 
-#ifdef notyet
 /*
  *  Destroy interrupt event for interrupt source.
  */
-static void
+static int
 isrc_event_destroy(struct intr_irqsrc *isrc)
 {
-	struct intr_event *ie;
+	int rc;
 
-	mtx_lock(&isrc_table_lock);
-	ie = isrc->isrc_event;
-	isrc->isrc_event = NULL;
-	mtx_unlock(&isrc_table_lock);
+	MPASS(isrc->isrc_event != NULL);
+	MPASS(isrc->isrc_event->ie_irq >= intr_nirq);
 
-	if (ie != NULL)
-		intr_event_destroy(ie);
+	rc = intr_event_destroy(isrc->isrc_event);
+	if (rc == 0)
+		isrc->isrc_event = NULL;
+
+	return (rc);
 }
-#endif
 
 /*
  *  Alloc unique interrupt number (resource handle) for interrupt source.
@@ -657,7 +656,11 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 		isrc_release_counters(isrc);
 	error = isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
-	return (error);
+
+	if (error != 0)
+		return (error);
+
+	return (isrc_event_destroy(isrc));
 }
 
 #ifdef SMP
