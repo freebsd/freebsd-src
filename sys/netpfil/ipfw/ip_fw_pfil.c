@@ -139,7 +139,7 @@ again:
 		args.rule = *((struct ipfw_rule_ref *)(tag+1));
 		m_tag_delete(*m0, tag);
 		if (args.rule.info & IPFW_ONEPASS)
-			return (0);
+			return (PFIL_PASS);
 		args.flags |= IPFW_ARGS_REF;
 	}
 
@@ -213,7 +213,7 @@ again:
 		if ((args.flags & IPFW_ARGS_NH6) == 0)
 			bcopy(psa, tag + 1, len);
 		m_tag_prepend(*m0, tag);
-		ret = 0;
+		ret = PFIL_PASS;
 #ifdef INET6
 		/* IPv6 next hop needs additional handling */
 		if (args.flags & (IPFW_ARGS_NH6 | IPFW_ARGS_NH6PTR)) {
