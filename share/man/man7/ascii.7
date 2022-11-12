@@ -28,7 +28,7 @@
 .\"	@(#)ascii.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2019
+.Dd November 12, 2022
 .Dt ASCII 7
 .Os
 .Sh NAME
@@ -141,6 +141,44 @@ ESC      ;      [      {     11011
  GS      =      ]      }     11101
  RS      >      ^      -     11110
  US      ?      _    DEL     11111
+.Ed
+.Pp
+The full
+.Nm names
+of the control character set:
+.Bd -literal -offset left
+NUL      NULl
+SOH      Start Of Heading
+STX      Start Of Text
+ETX      End Of Text
+EOT      End Of Transmission
+ENQ      ENQuiry
+ACK      ACKnowledge
+BEL      BELl
+ BS      BackSpace
+ HT      Horizontal Tab
+ LF      Line Feed (new line)
+ VT      Vertical Tab
+ FF      new page Form Feed
+ CR      Carriage Return
+ SO      Shift Out
+ SI      Shift In
+DLE      Data Link Escape
+DC1      Device Control 1
+DC2      Device Control 2
+DC3      Device Control 3
+DC4      Device Control 4
+NAK      Negative AcKnowledge
+SYN      SYNchronous idle
+ETB      End of Transmission Block
+CAN      CANcel
+ EM      End of Medium
+SUB      SUBstitute
+ESC      ESCape
+ FS      File Separator
+ GS      Group Separator
+ RS      Record Separator
+ US      Unit Separator
 .Ed
 .Sh FILES
 .Bl -tag -width /usr/share/misc/ascii -compact
