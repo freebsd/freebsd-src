@@ -47,6 +47,7 @@ sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
 snap8.sh		https://people.freebsd.org/~pho/stress/log/log0123.txt		20211008
+suj19.sh		https://people.freebsd.org/~pho/stress/log/log0378.txt		20221113
 swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
 swapoff3.sh		Excessive OOM killing						20220403
 swapoff5.sh		log0005.txt, known issue					20210111
@@ -72,19 +73,6 @@ marcus3.sh		OK, but runs for a long time
 statfs.sh		Not very interesting
 vunref.sh		No problems ever seen
 vunref2.sh		No problems ever seen
-
-# Snapshots has been disabled on SU+J
-suj15.sh
-suj16.sh
-suj19.sh
-suj20.sh
-suj21.sh
-suj22.sh
-suj24.sh
-suj25.sh
-suj26.sh
-suj27.sh
-suj28.sh
 
 # Exclude NFS loopback tests
 nfs2.sh			panic: wrong diroffset						20140219
