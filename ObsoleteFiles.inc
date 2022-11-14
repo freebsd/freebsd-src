@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221114: remove othermta
+OLD_FILES+=etc/rc.d/othermta
+
 # 20221109: remove rc.sendmail(8)
 OLD_FILES+=etc/rc.sendmail
 OLD_FILES+=share/man/man8/rc.sendmail.8.gz
