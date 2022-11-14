@@ -18,17 +18,17 @@ jobs:
         include:
           # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
           - os: ubuntu-20.04
-            compiler: clang-12
-            cross-bindir: /usr/lib/llvm-12/bin
-            pkgs: bmake libarchive-dev clang-12 lld-12
-          - os: ubuntu-22.04
-            compiler: clang-14
-            cross-bindir: /usr/lib/llvm-14/bin
-            pkgs: bmake libarchive-dev clang-14 lld-14
-          - os: macos-latest
             compiler: clang-13
-            cross-bindir: /usr/local/opt/llvm@13/bin
-            pkgs: bmake libarchive llvm@13
+            cross-bindir: /usr/lib/llvm-13/bin
+            pkgs: bmake libarchive-dev clang-13 lld-13
+          - os: ubuntu-22.04
+            compiler: clang-15
+            cross-bindir: /usr/lib/llvm-15/bin
+            pkgs: bmake libarchive-dev clang-15 lld-15
+          - os: macos-latest
+            compiler: clang-14
+            cross-bindir: /usr/local/opt/llvm@14/bin
+            pkgs: bmake libarchive llvm@14
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
