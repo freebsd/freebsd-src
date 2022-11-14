@@ -1758,6 +1758,7 @@ nvme_feature_temperature(struct pci_nvme_softc *sc,
 	uint8_t		tmpsel; /* Threshold Temperature Select */
 	uint8_t		thsel;  /* Threshold Type Select */
 	bool		set_crit = false;
+	bool		report_crit;
 
 	tmpth  = command->cdw11 & 0xffff;
 	tmpsel = (command->cdw11 >> 16) & 0xf;
@@ -1785,10 +1786,12 @@ nvme_feature_temperature(struct pci_nvme_softc *sc,
 		    ~NVME_CRIT_WARN_ST_TEMPERATURE;
 	pthread_mutex_unlock(&sc->mtx);
 
-	if (set_crit)
+	report_crit = sc->feat[NVME_FEAT_ASYNC_EVENT_CONFIGURATION].cdw11 &
+	    NVME_CRIT_WARN_ST_TEMPERATURE;
+
+	if (set_crit && report_crit)
 		pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_SMART,
 		    sc->health_log.critical_warning);
-
 
 	DPRINTF("%s: set_crit=%c critical_warning=%#x status=%#x", __func__, set_crit ? 'T':'F', sc->health_log.critical_warning, compl->status);
 }
