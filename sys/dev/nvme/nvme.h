@@ -563,8 +563,24 @@ enum nvme_critical_warning_state {
 #define	NVME_SS_PAGE_SSTAT_GDE_SHIFT			(8)
 #define	NVME_SS_PAGE_SSTAT_GDE_MASK			(0x1)
 
+/* Features */
+/* Get Features */
+#define NVME_FEAT_GET_SEL_SHIFT				(8)
+#define NVME_FEAT_GET_SEL_MASK				(0x7)
+#define NVME_FEAT_GET_FID_SHIFT				(0)
+#define NVME_FEAT_GET_FID_MASK				(0xff)
+
+/* Set Features */
+#define NVME_FEAT_SET_SV_SHIFT				(31)
+#define NVME_FEAT_SET_SV_MASK				(0x1)
+#define NVME_FEAT_SET_FID_SHIFT				(0)
+#define NVME_FEAT_SET_FID_MASK				(0xff)
+
 /* Helper macro to combine *_MASK and *_SHIFT defines */
 #define NVMEB(name)	(name##_MASK << name##_SHIFT)
+
+/* Helper macro to extract value from x */
+#define NVMEV(name, x)  (((x) >> name##_SHIFT) & name##_MASK)
 
 /* CC register SHN field values */
 enum shn_value {

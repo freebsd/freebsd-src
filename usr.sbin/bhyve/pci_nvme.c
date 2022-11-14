@@ -1820,7 +1820,8 @@ nvme_opc_set_features(struct pci_nvme_softc *sc, struct nvme_command *command,
 {
 	struct nvme_feature_obj *feat;
 	uint32_t nsid = command->nsid;
-	uint8_t fid = command->cdw10 & 0xFF;
+	uint8_t fid = NVMEV(NVME_FEAT_SET_FID, command->cdw10);
+	bool sv = NVMEV(NVME_FEAT_SET_SV, command->cdw10);
 
 	DPRINTF("%s: Feature ID 0x%x (%s)", __func__, fid, nvme_fid_to_name(fid));
 
@@ -1829,6 +1830,13 @@ nvme_opc_set_features(struct pci_nvme_softc *sc, struct nvme_command *command,
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 		return (1);
 	}
+
+	if (sv) {
+		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_FEATURE_NOT_SAVEABLE);
+		return (1);
+	}
+
 	feat = &sc->feat[fid];
 
 	if (feat->namespace_specific && (nsid == NVME_GLOBAL_NAMESPACE_TAG)) {
