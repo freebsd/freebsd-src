@@ -113,7 +113,6 @@
 
       - UsePAM defaults to "yes".
       - PermitRootLogin defaults to "no".
-      - X11Forwarding defaults to "yes".
       - PasswordAuthentication defaults to "no".
       - VersionAddendum defaults to "FreeBSD-YYYYMMDD".
       - UseDNS defaults to "yes".

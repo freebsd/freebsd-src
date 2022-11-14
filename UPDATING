@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230206:
+	sshd now defaults to having X11Forwarding disabled, following upstream.
+	Administrators who wish to enable X11Forwarding should add
+	`X11Forwarding yes` to /etc/ssh/sshd_config.
+
 20230130:
 	As of commit 7c40e2d5f685, the dependency on netlink(4) has been added
 	to the linux_common(4) module. Users relying on linux_common may need
