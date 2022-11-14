@@ -7,6 +7,7 @@ backingstore3.sh	g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111230
 dd.sh			CAM stuck in vmwait						20200116
 force4.sh		https://people.freebsd.org/~pho/stress/log/log0082.txt		20210328
 force7.sh		https://people.freebsd.org/~pho/stress/log/log0266.txt		20220207
+force13.sh		https://people.freebsd.org/~pho/stress/log/log0376.txt		20221113
 fsync.sh		panic: Journal overflow						20190208
 fuse.sh			Memory corruption seen in log file kostik734.txt		20141114
 fuse2.sh		Deadlock seen							20121129
@@ -20,6 +21,7 @@ gjournal4.sh		CAM stuck in vmwait						20180517
 gnop7.sh		Waiting for patch commit					20190820
 gnop8.sh		Waiting for patch commit					20201214
 gnop9.sh		Waiting for patch commit					20201214
+gnop13.sh		https://people.freebsd.org/~pho/stress/log/log0386.txt		20221113
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 ifconfig.sh		Bug 253824							20210322
@@ -48,6 +50,8 @@ sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
 snap8.sh		https://people.freebsd.org/~pho/stress/log/log0123.txt		20211008
 suj19.sh		https://people.freebsd.org/~pho/stress/log/log0378.txt		20221113
+suj27.sh		https://people.freebsd.org/~pho/stress/log/log0387.txt		20221113
+suj36.sh		https://people.freebsd.org/~pho/stress/log/log0392.txt		20221114
 swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
 swapoff3.sh		Excessive OOM killing						20220403
 swapoff5.sh		log0005.txt, known issue					20210111
