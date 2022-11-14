@@ -129,16 +129,19 @@
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
 #define	CPU_VAR(midr)	(((midr) >> 20) & 0xf)
+#define	CPU_ARCH(midr)	(((midr) >> 16) & 0xf)
 #define	CPU_REV(midr)	(((midr) >> 0) & 0xf)
 
 #define	CPU_IMPL_TO_MIDR(val)	(((val) & 0xff) << 24)
 #define	CPU_PART_TO_MIDR(val)	(((val) & 0xfff) << 4)
 #define	CPU_VAR_TO_MIDR(val)	(((val) & 0xf) << 20)
+#define	CPU_ARCH_TO_MIDR(val)	(((val) & 0xf) << 16)
 #define	CPU_REV_TO_MIDR(val)	(((val) & 0xf) << 0)
 
 #define	CPU_IMPL_MASK	(0xff << 24)
 #define	CPU_PART_MASK	(0xfff << 4)
 #define	CPU_VAR_MASK	(0xf << 20)
+#define	CPU_ARCH_MASK	(0xf << 16)
 #define	CPU_REV_MASK	(0xf << 0)
 
 #define	CPU_ID_RAW(impl, part, var, rev)		\
