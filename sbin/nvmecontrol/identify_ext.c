@@ -204,16 +204,8 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	}
 	printf("Abort Command Limit:         %d\n", cdata->acl+1);
 	printf("Async Event Request Limit:   %d\n", cdata->aerl+1);
-	printf("Number of Firmware Slots:    ");
-	if (fw != 0)
-		printf("%d\n", fw_num_slots);
-	else
-		printf("N/A\n");
-	printf("Firmware Slot 1 Read-Only:   ");
-	if (fw != 0)
-		printf("%s\n", fw_slot1_ro ? "Yes" : "No");
-	else
-		printf("N/A\n");
+	printf("Number of Firmware Slots:    %d\n", fw_num_slots);
+	printf("Firmware Slot 1 Read-Only:   %s\n", fw_slot1_ro ? "Yes" : "No");
 	printf("Per-Namespace SMART Log:     %s\n",
 		ns_smart ? "Yes" : "No");
 	printf("Error Log Page Entries:      %d\n", cdata->elpe+1);
