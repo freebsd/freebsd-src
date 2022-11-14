@@ -1848,6 +1848,11 @@ nvme_opc_set_features(struct pci_nvme_softc *sc, struct nvme_command *command,
 
 	if (feat->set)
 		feat->set(sc, feat, command, compl);
+	else {
+		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_FEATURE_NOT_CHANGEABLE);
+		return (1);
+	}
 
 	DPRINTF("%s: status=%#x cdw11=%#x", __func__, compl->status, command->cdw11);
 	if (compl->status == NVME_SC_SUCCESS) {
