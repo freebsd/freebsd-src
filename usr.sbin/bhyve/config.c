@@ -68,7 +68,7 @@ _lookup_config_node(nvlist_t *parent, const char *path, bool create)
 			/*
 			 * XXX-MJ it is incorrect to cast away the const
 			 * qualifier like this since the contract with nvlist
-			 * says that values are immuatable, and some consumers
+			 * says that values are immutable, and some consumers
 			 * will indeed add nodes to the returned nvlist.  In
 			 * practice, however, it appears to be harmless with the
 			 * current nvlist implementation, so we just live with
