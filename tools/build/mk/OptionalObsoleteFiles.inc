@@ -5684,7 +5684,6 @@ OLD_FILES+=etc/mail.rc
 OLD_FILES+=etc/mail/aliases
 OLD_FILES+=etc/mail/mailer.conf
 OLD_FILES+=etc/periodic/daily/130.clean-msgs
-OLD_FILES+=etc/rc.d/othermta
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
 OLD_FILES+=usr/bin/from

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2022
+.Dd November 14, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3551,14 +3551,6 @@ program.
 The default is
 .Dq Li -d ,
 which causes missing directories to be created.
-.It Va mta_start_script
-.Pq Vt str
-This variable specifies the full path to the script to run to start
-a mail transfer agent.
-The default is
-.Pa /etc/rc.sendmail .
-Note that it only executes a script if the value is set to something
-different than the default.
 .It Va dumpdev
 .Pq Vt str
 Indicates the device (usually a swap partition) to which a crash dump
