@@ -1726,7 +1726,7 @@ pci_xhci_handle_transfer(struct pci_xhci_softc *sc,
 	DPRINTF(("pci_xhci handle_transfer slot %u", slot));
 
 retry:
-	err = 0;
+	err = XHCI_TRB_ERROR_INVALID;
 	do_retry = 0;
 	do_intr = 0;
 	setup_trb = NULL;
@@ -1850,24 +1850,26 @@ retry:
 		goto errout;
 
 	if (epid == 1) {
-		err = USB_ERR_NOT_STARTED;
+		int usberr;
+
 		if (dev->dev_ue->ue_request != NULL)
-			err = dev->dev_ue->ue_request(dev->dev_sc, xfer);
-		setup_trb = NULL;
+			usberr = dev->dev_ue->ue_request(dev->dev_sc, xfer);
+		else
+			usberr = USB_ERR_NOT_STARTED;
+		err = USB_TO_XHCI_ERR(usberr);
+		if (err == XHCI_TRB_ERROR_SUCCESS ||
+		    err == XHCI_TRB_ERROR_STALL ||
+		    err == XHCI_TRB_ERROR_SHORT_PKT) {
+			err = pci_xhci_xfer_complete(sc, xfer, slot, epid,
+			    &do_intr);
+			if (err != XHCI_TRB_ERROR_SUCCESS)
+				do_retry = 0;
+		}
+
 	} else {
 		/* handle data transfer */
 		pci_xhci_try_usb_xfer(sc, dev, devep, ep_ctx, slot, epid);
 		err = XHCI_TRB_ERROR_SUCCESS;
-		goto errout;
-	}
-
-	err = USB_TO_XHCI_ERR(err);
-	if ((err == XHCI_TRB_ERROR_SUCCESS) ||
-	    (err == XHCI_TRB_ERROR_STALL) ||
-	    (err == XHCI_TRB_ERROR_SHORT_PKT)) {
-		err = pci_xhci_xfer_complete(sc, xfer, slot, epid, &do_intr);
-		if (err != XHCI_TRB_ERROR_SUCCESS)
-			do_retry = 0;
 	}
 
 errout:
