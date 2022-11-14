@@ -22,6 +22,7 @@
 #include <sys/module.h>
 #include <sys/nv.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
 #include <sys/rwlock.h>
