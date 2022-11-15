@@ -28,13 +28,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 #include <netinet/in.h>
-#include <arpa/tftp.h>
 #include <arpa/inet.h>
+#include <arpa/tftp.h>
 
 #include <assert.h>
 #include <errno.h>

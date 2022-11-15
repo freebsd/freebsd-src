@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <arpa/tftp.h>
