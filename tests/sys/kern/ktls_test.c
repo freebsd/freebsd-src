@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/event.h>
 #include <sys/ktls.h>
@@ -675,6 +675,22 @@ tls_trailer_len(struct tls_enable *en)
 	if (en->tls_vminor == TLS_MINOR_VER_THREE)
 		len++;
 	return (len);
+}
+
+/* Minimum valid record payload size for a given cipher suite. */
+static size_t
+tls_minimum_record_payload(struct tls_enable *en)
+{
+	size_t len;
+
+	len = tls_header_len(en);
+	if (en->cipher_algorithm == CRYPTO_AES_CBC)
+		len += roundup2(tls_mac_len(en) + 1, AES_BLOCK_LEN);
+	else
+		len += tls_mac_len(en);
+	if (en->tls_vminor == TLS_MINOR_VER_THREE)
+		len++;
+	return (len - sizeof(struct tls_record_layer));
 }
 
 /* 'len' is the length of the payload application data. */
@@ -1471,6 +1487,329 @@ test_ktls_receive_app_data(const atf_tc_t *tc, struct tls_enable *en,
 	ATF_REQUIRE(close(kq) == 0);
 }
 
+static void
+ktls_receive_tls_error(int fd, int expected_error)
+{
+	struct msghdr msg;
+	struct tls_get_record *tgr;
+	char cbuf[CMSG_SPACE(sizeof(*tgr))];
+	char buf[64];
+	struct iovec iov;
+
+	memset(&msg, 0, sizeof(msg));
+
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
+
+	iov.iov_base = buf;
+	iov.iov_len = sizeof(buf);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	ATF_REQUIRE(recvmsg(fd, &msg, 0) == -1);
+	if (expected_error != 0)
+		ATF_REQUIRE(errno == expected_error);
+}
+
+static void
+test_ktls_receive_corrupted_record(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len, ssize_t offset)
+{
+	char *plaintext, *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
+
+	plaintext = alloc_buffer(len);
+	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(en, TLS_RLTYPE_APP, seqno,
+	    plaintext, len, outbuf, outbuf_cap, 0);
+
+	/* A negative offset is an offset from the end. */
+	if (offset < 0)
+		offset += outbuf_len;
+	outbuf[offset] ^= 0x01;
+
+	rv = write(sockets[1], outbuf, outbuf_len);
+	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+
+	ktls_receive_tls_error(sockets[0], EBADMSG);
+
+	free(outbuf);
+	free(plaintext);
+
+	close_sockets(sockets);
+}
+
+static void
+test_ktls_receive_corrupted_iv(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	ATF_REQUIRE(tls_header_len(en) > sizeof(struct tls_record_layer));
+
+	/* Corrupt the first byte of the explicit IV after the header. */
+	test_ktls_receive_corrupted_record(tc, en, seqno, len,
+	    sizeof(struct tls_record_layer));
+}
+
+static void
+test_ktls_receive_corrupted_data(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	ATF_REQUIRE(len > 0);
+
+	/* Corrupt the first ciphertext byte after the header. */
+	test_ktls_receive_corrupted_record(tc, en, seqno, len,
+	    tls_header_len(en));
+}
+
+static void
+test_ktls_receive_corrupted_mac(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	size_t offset;
+
+	/* Corrupt the first byte of the MAC. */
+	if (en->cipher_algorithm == CRYPTO_AES_CBC)
+		offset = tls_header_len(en) + len;
+	else
+		offset = -tls_mac_len(en);
+	test_ktls_receive_corrupted_record(tc, en, seqno, len, offset);
+}
+
+static void
+test_ktls_receive_corrupted_padding(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	ATF_REQUIRE(en->cipher_algorithm == CRYPTO_AES_CBC);
+
+	/* Corrupt the last byte of the padding. */
+	test_ktls_receive_corrupted_record(tc, en, seqno, len, -1);
+}
+
+static void
+test_ktls_receive_truncated_record(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	char *plaintext, *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
+
+	plaintext = alloc_buffer(len);
+	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(en, TLS_RLTYPE_APP, seqno,
+	    plaintext, len, outbuf, outbuf_cap, 0);
+
+	rv = write(sockets[1], outbuf, outbuf_len / 2);
+	ATF_REQUIRE(rv == (ssize_t)(outbuf_len / 2));
+
+	ATF_REQUIRE(shutdown(sockets[1], SHUT_WR) == 0);
+
+	ktls_receive_tls_error(sockets[0], EMSGSIZE);
+
+	free(outbuf);
+	free(plaintext);
+
+	close_sockets(sockets);
+}
+
+static void
+test_ktls_receive_bad_major(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	struct tls_record_layer *hdr;
+	char *plaintext, *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
+
+	plaintext = alloc_buffer(len);
+	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(en, TLS_RLTYPE_APP, seqno,
+	    plaintext, len, outbuf, outbuf_cap, 0);
+
+	hdr = (void *)outbuf;
+	hdr->tls_vmajor++;
+
+	rv = write(sockets[1], outbuf, outbuf_len);
+	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+
+	ktls_receive_tls_error(sockets[0], EINVAL);
+
+	free(outbuf);
+	free(plaintext);
+
+	close_sockets(sockets);
+}
+
+static void
+test_ktls_receive_bad_minor(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	struct tls_record_layer *hdr;
+	char *plaintext, *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
+
+	plaintext = alloc_buffer(len);
+	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(en, TLS_RLTYPE_APP, seqno,
+	    plaintext, len, outbuf, outbuf_cap, 0);
+
+	hdr = (void *)outbuf;
+	hdr->tls_vminor++;
+
+	rv = write(sockets[1], outbuf, outbuf_len);
+	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+
+	ktls_receive_tls_error(sockets[0], EINVAL);
+
+	free(outbuf);
+	free(plaintext);
+
+	close_sockets(sockets);
+}
+
+static void
+test_ktls_receive_bad_type(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	struct tls_record_layer *hdr;
+	char *plaintext, *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
+	ATF_REQUIRE(en->tls_vminor == TLS_MINOR_VER_THREE);
+
+	plaintext = alloc_buffer(len);
+	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(en, 0x21 /* Alert */, seqno,
+	    plaintext, len, outbuf, outbuf_cap, 0);
+
+	hdr = (void *)outbuf;
+	hdr->tls_type = TLS_RLTYPE_APP + 1;
+
+	rv = write(sockets[1], outbuf, outbuf_len);
+	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+
+	ktls_receive_tls_error(sockets[0], EINVAL);
+
+	free(outbuf);
+	free(plaintext);
+
+	close_sockets(sockets);
+}
+
+static void
+test_ktls_receive_bad_size(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
+{
+	struct tls_record_layer *hdr;
+	char *outbuf;
+	size_t outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	outbuf_len = sizeof(*hdr) + len;
+	outbuf = calloc(1, outbuf_len);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	hdr = (void *)outbuf;
+	hdr->tls_vmajor = en->tls_vmajor;
+	if (en->tls_vminor == TLS_MINOR_VER_THREE)
+		hdr->tls_vminor = TLS_MINOR_VER_TWO;
+	else
+		hdr->tls_vminor = en->tls_vminor;
+	hdr->tls_type = TLS_RLTYPE_APP;
+	hdr->tls_length = htons(len);
+
+	rv = write(sockets[1], outbuf, outbuf_len);
+	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+
+	ATF_REQUIRE(shutdown(sockets[1], SHUT_WR) == 0);
+
+	ktls_receive_tls_error(sockets[0], EMSGSIZE);
+
+	free(outbuf);
+
+	close_sockets(sockets);
+}
+
 #define	TLS_10_TESTS(M)							\
 	M(aes128_cbc_1_0_sha1, CRYPTO_AES_CBC, 128 / 8,			\
 	    CRYPTO_SHA1_HMAC, TLS_MINOR_VER_ZERO)			\
@@ -1507,11 +1846,14 @@ test_ktls_receive_app_data(const atf_tc_t *tc, struct tls_enable *en,
 	TLS_10_TESTS(M)							\
 	AES_CBC_NONZERO_TESTS(M)
 
-#define AES_GCM_TESTS(M)						\
+#define AES_GCM_12_TESTS(M)						\
 	M(aes128_gcm_1_2, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,		\
 	    TLS_MINOR_VER_TWO)						\
 	M(aes256_gcm_1_2, CRYPTO_AES_NIST_GCM_16, 256 / 8, 0,		\
-	    TLS_MINOR_VER_TWO)						\
+	    TLS_MINOR_VER_TWO)
+
+#define AES_GCM_TESTS(M)						\
+	AES_GCM_12_TESTS(M)						\
 	M(aes128_gcm_1_3, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,		\
 	    TLS_MINOR_VER_THREE)					\
 	M(aes256_gcm_1_3, CRYPTO_AES_NIST_GCM_16, 256 / 8, 0,		\
@@ -1789,28 +2131,191 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	    auth_alg, minor, name)					\
 	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_##name);
 
+#define GEN_RECEIVE_BAD_DATA_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_data);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_data, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_corrupted_data(tc, &en, seqno, len);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_DATA_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_data);
+
+#define GEN_RECEIVE_BAD_MAC_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_mac);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_mac, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_corrupted_mac(tc, &en, seqno, len);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_MAC_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_mac);
+
+#define GEN_RECEIVE_TRUNCATED_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_truncated_record);	\
+ATF_TC_BODY(ktls_receive_##cipher_name##_truncated_record, tc)		\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_truncated_record(tc, &en, seqno, len);	\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_TRUNCATED_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_truncated_record);
+
+#define GEN_RECEIVE_BAD_MAJOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_major);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_major, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_bad_major(tc, &en, seqno, len);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_MAJOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_major);
+
+#define GEN_RECEIVE_BAD_MINOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_minor);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_minor, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_bad_minor(tc, &en, seqno, len);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_MINOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_minor);
+
+#define GEN_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, name, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_##name);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_bad_size(tc, &en, seqno, (len));		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, name)					\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_##name);
+
 #define GEN_RECEIVE_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, short, 64, 0)				\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, long, 64 * 1024, 0)
+	    auth_alg, minor, long, 64 * 1024, 0)			\
+	GEN_RECEIVE_BAD_DATA_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_BAD_MAC_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_TRUNCATED_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_BAD_MAJOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_BAD_MINOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, small_record,				\
+	    tls_minimum_record_payload(&en) - 1)			\
+	GEN_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, oversized_record,				\
+	    TLS_MAX_MSG_SIZE_V10_2 * 2)
 
 #define ADD_RECEIVE_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
 	ADD_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, short)					\
 	ADD_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, long)
+	    auth_alg, minor, long)					\
+	ADD_RECEIVE_BAD_DATA_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_BAD_MAC_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_TRUNCATED_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_BAD_MAJOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_BAD_MINOR_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, small_record)				\
+	ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, oversized_record)
 
 /*
- * For each supported cipher suite, run two receive tests:
+ * For each supported cipher suite, run several receive tests:
  *
  * - a short test which sends 64 bytes of application data (likely as
  *   a single TLS record)
  *
  * - a long test which sends 64KB of application data (split across
  *   multiple TLS records)
+ *
+ * - a test with corrupted payload data in a single TLS record
+ *
+ * - a test with a corrupted MAC in a single TLS record
+ *
+ * - a test with a truncated TLS record
+ *
+ * - tests with invalid TLS major and minor versions
+ *
+ * - a tests with a record whose is one less than the smallest valid
+ *   size
+ *
+ * - a test with an oversized TLS record
  */
 AES_CBC_NONZERO_TESTS(GEN_RECEIVE_TESTS);
 AES_GCM_TESTS(GEN_RECEIVE_TESTS);
@@ -1894,6 +2399,45 @@ CHACHA20_TESTS(GEN_RECEIVE_TESTS);
 	ADD_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, padding_32_extra)
 
+#define GEN_RECEIVE_BAD_PADDING_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_padding);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_padding, tc)		\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_corrupted_padding(tc, &en, seqno, len);	\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_PADDING_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_padding);
+
+#define	GEN_RECEIVE_MTE_TESTS(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	GEN_RECEIVE_MTE_PADDING_TESTS(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor)					\
+	GEN_RECEIVE_BAD_PADDING_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)					\
+	GEN_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, non_block_size,				\
+	    tls_minimum_record_payload(&en) + 1)
+
+#define	ADD_RECEIVE_MTE_TESTS(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_MTE_PADDING_TESTS(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor)					\
+	ADD_RECEIVE_BAD_PADDING_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, non_block_size)
+
 /*
  * For AES-CBC MTE cipher suites using padding, add tests of messages
  * with each possible padding size.  Note that the padding_<N> tests
@@ -1904,28 +2448,101 @@ CHACHA20_TESTS(GEN_RECEIVE_TESTS);
  *
  * Two additional tests check for additional padding with an extra
  * 16 or 32 bytes beyond the normal padding.
+ *
+ * Another test checks for corrupted padding.
+ *
+ * Another test checks for a record whose payload is not a multiple of
+ * the AES block size.
  */
-AES_CBC_NONZERO_TESTS(GEN_RECEIVE_MTE_PADDING_TESTS);
+AES_CBC_NONZERO_TESTS(GEN_RECEIVE_MTE_TESTS);
 
-#define GEN_RECEIVE_TLS13_PADDING_TESTS(cipher_name, cipher_alg,	\
+#define GEN_RECEIVE_BAD_IV_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_iv);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_iv, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_corrupted_iv(tc, &en, seqno, 64);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_IV_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_iv);
+
+#define	GEN_RECEIVE_EXPLICIT_IV_TESTS(cipher_name, cipher_alg,		\
 	    key_size, auth_alg, minor)					\
+	GEN_RECEIVE_BAD_IV_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	GEN_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, short_header,				\
+	    sizeof(struct tls_record_layer) + 1)
+
+#define	ADD_RECEIVE_EXPLICIT_IV_TESTS(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor)					\
+	ADD_RECEIVE_BAD_IV_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, short_header)
+
+/*
+ * For cipher suites with an explicit IV, run a receive test where the
+ * explicit IV has been corrupted.  Also run a receive test that sends
+ * a short record without a complete IV.
+ */
+AES_CBC_NONZERO_TESTS(GEN_RECEIVE_EXPLICIT_IV_TESTS);
+AES_GCM_12_TESTS(GEN_RECEIVE_EXPLICIT_IV_TESTS);
+
+#define GEN_RECEIVE_BAD_TYPE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, len)					\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_bad_type);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_bad_type, tc)			\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
+	test_ktls_receive_bad_type(tc, &en, seqno, len);		\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_BAD_TYPE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_bad_type);
+
+#define GEN_RECEIVE_TLS13_TESTS(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, short_padded, 64, 16)			\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, long_padded, 64 * 1024, 15)
+	    auth_alg, minor, long_padded, 64 * 1024, 15)		\
+	GEN_RECEIVE_BAD_TYPE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor, 64)
 
-#define ADD_RECEIVE_TLS13_PADDING_TESTS(cipher_name, cipher_alg,	\
-	    key_size, auth_alg, minor)					\
+#define ADD_RECEIVE_TLS13_TESTS(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)						\
 	ADD_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, short_padded)				\
 	ADD_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, long_padded)
+	    auth_alg, minor, long_padded)				\
+	ADD_RECEIVE_BAD_TYPE_TEST(cipher_name, cipher_alg, key_size,	\
+	    auth_alg, minor)
 
 /*
  * For TLS 1.3 cipher suites, run two additional receive tests which
- * use add padding to each record.
+ * use add padding to each record.  Also run a test that uses an
+ * invalid "outer" record type.
  */
-TLS_13_TESTS(GEN_RECEIVE_TLS13_PADDING_TESTS);
+TLS_13_TESTS(GEN_RECEIVE_TLS13_TESTS);
 
 static void
 test_ktls_invalid_receive_cipher_suite(const atf_tc_t *tc,
@@ -2064,8 +2681,10 @@ ATF_TP_ADD_TCS(tp)
 	AES_CBC_NONZERO_TESTS(ADD_RECEIVE_TESTS);
 	AES_GCM_TESTS(ADD_RECEIVE_TESTS);
 	CHACHA20_TESTS(ADD_RECEIVE_TESTS);
-	AES_CBC_NONZERO_TESTS(ADD_RECEIVE_MTE_PADDING_TESTS);
-	TLS_13_TESTS(ADD_RECEIVE_TLS13_PADDING_TESTS);
+	AES_CBC_NONZERO_TESTS(ADD_RECEIVE_MTE_TESTS);
+	AES_CBC_NONZERO_TESTS(ADD_RECEIVE_EXPLICIT_IV_TESTS);
+	AES_GCM_12_TESTS(ADD_RECEIVE_EXPLICIT_IV_TESTS);
+	TLS_13_TESTS(ADD_RECEIVE_TLS13_TESTS);
 	INVALID_CIPHER_SUITES(ADD_INVALID_RECEIVE_TEST);
 
 	/* Miscellaneous */
