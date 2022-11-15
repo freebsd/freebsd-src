@@ -34,17 +34,38 @@
 #include <sodium/crypto_aead_chacha20poly1305.h>
 #include <sodium/crypto_aead_xchacha20poly1305.h>
 
+/*
+ * libsodium's chacha20poly1305 AEAD cipher does not construct the
+ * Poly1305 digest in the same method as the IETF AEAD construct.
+ * Specifically, libsodium does not pad the AAD and cipher text with
+ * zeroes to a 16 byte boundary, and libsodium inserts the AAD and
+ * cipher text lengths as inputs into the digest after each data
+ * segment rather than appending both data lengths after the padded
+ * cipher text.
+ *
+ * Instead, always use libsodium's chacha20poly1305 IETF AEAD cipher.
+ * This cipher uses a 96-bit nonce with a 32-bit counter.  The data
+ * encrypted here should never be large enough to overflow the counter
+ * to the second word, so just pass zeros as the first word of the
+ * nonce to mimic a 64-bit nonce and 64-bit counter.
+ */
 void
 chacha20_poly1305_encrypt(uint8_t *dst, const uint8_t *src,
     const size_t src_len, const uint8_t *aad, const size_t aad_len,
     const uint8_t *nonce, const size_t nonce_len, const uint8_t *key)
 {
+	char local_nonce[12];
+
+	MPASS(aad_len + src_len <=
+	    crypto_aead_chacha20poly1305_ietf_MESSAGEBYTES_MAX);
 	if (nonce_len == crypto_aead_chacha20poly1305_ietf_NPUBBYTES)
-		crypto_aead_chacha20poly1305_ietf_encrypt(dst, NULL, src,
-		    src_len, aad, aad_len, NULL, nonce, key);
-	else
-		crypto_aead_chacha20poly1305_encrypt(dst, NULL, src,
-		    src_len, aad, aad_len, NULL, nonce, key);
+		memcpy(local_nonce, nonce, sizeof(local_nonce));
+	else {
+		memset(local_nonce, 0, 4);
+		memcpy(local_nonce + 4, nonce, 8);
+	}
+	crypto_aead_chacha20poly1305_ietf_encrypt(dst, NULL, src, src_len,
+	    aad, aad_len, NULL, local_nonce, key);
 }
 
 bool
@@ -52,14 +73,19 @@ chacha20_poly1305_decrypt(uint8_t *dst, const uint8_t *src,
     const size_t src_len, const uint8_t *aad, const size_t aad_len,
     const uint8_t *nonce, const size_t nonce_len, const uint8_t *key)
 {
+	char local_nonce[12];
 	int ret;
 
+	MPASS(aad_len + src_len <=
+	    crypto_aead_chacha20poly1305_ietf_MESSAGEBYTES_MAX);
 	if (nonce_len == crypto_aead_chacha20poly1305_ietf_NPUBBYTES)
-		ret = crypto_aead_chacha20poly1305_ietf_decrypt(dst, NULL,
-		    NULL, src, src_len, aad, aad_len, nonce, key);
-	else
-		ret = crypto_aead_chacha20poly1305_decrypt(dst, NULL,
-		    NULL, src, src_len, aad, aad_len, nonce, key);
+		memcpy(local_nonce, nonce, sizeof(local_nonce));
+	else {
+		memset(local_nonce, 0, 4);
+		memcpy(local_nonce + 4, nonce, 8);
+	}
+	ret = crypto_aead_chacha20poly1305_ietf_decrypt(dst, NULL, NULL,
+	    src, src_len, aad, aad_len, local_nonce, key);
 	return (ret == 0);
 }
 
