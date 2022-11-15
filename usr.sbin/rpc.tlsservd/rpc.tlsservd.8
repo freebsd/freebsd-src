@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Modified from gssd.8 for rpc.tlsservd.8 by Rick Macklem.
-.Dd September 23, 2022
+.Dd November 10, 2022
 .Dt RPC.TLSSERVD 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Fl h
 .Op Fl l Ar CAfile
 .Op Fl m
+.Op Fl N Ar num_servers
 .Op Fl n Ar domain
 .Op Fl p Ar CApath
 .Op Fl r Ar CRLfile
@@ -237,6 +238,16 @@ may be used to require a client to provide a certificate
 that verifies.
 See
 .Xr exports 5 .
+.It Fl N Ar num_servers , Fl Fl numdaemons= Ns Ar num_servers
+For a server with a large number of NFS-over-TLS client mounts,
+this daemon might get overloaded after a reboot, when many
+clients attempt to do a TLS handshake at the same time.
+This option may be used to specify that
+.Dq num_servers
+daemons are to be run instead of a single daemon.
+When this is done, the TLS handshakes are spread across the
+.Dq num_servers
+daemons in a round robin fashion to spread out the load.
 .It Fl n Ar domain , Fl Fl domain= Ns Ar domain
 This option specifies what the
 .Dq domain
