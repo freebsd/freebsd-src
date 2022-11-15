@@ -458,12 +458,19 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	error = phy_get_by_ofw_name(dev, node, "usb3-phy", &usb3_phy);
 	if (error == 0 && usb3_phy != NULL)
 		phy_enable(usb3_phy);
-	else {
-		reg = DWC3_READ(sc, DWC3_GUCTL1);
-		if (bootverbose)
-			device_printf(dev, "Forcing USB2 clock only\n");
-		reg |= DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
-		DWC3_WRITE(sc, DWC3_GUCTL1, reg);
+	if (sc->snpsversion == DWC3_IP_ID) {
+		if (sc->snpsrevision >= 0x290A) {
+			uint32_t hwparams3;
+
+			hwparams3 = DWC3_READ(sc, DWC3_GHWPARAMS3);
+			if (DWC3_HWPARAMS3_SSPHY(hwparams3) == DWC3_HWPARAMS3_SSPHY_DISABLE) {
+				reg = DWC3_READ(sc, DWC3_GUCTL1);
+				if (bootverbose)
+					device_printf(dev, "Forcing USB2 clock only\n");
+				reg |= DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
+				DWC3_WRITE(sc, DWC3_GUCTL1, reg);
+			}
+		}
 	}
 	snps_dwc3_configure_phy(sc, node);
 skip_phys:
