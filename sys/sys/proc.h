@@ -157,7 +157,6 @@ struct pargs {
  *	k*- only accessed by curthread and from an interrupt
  *	kx- only accessed by curthread and by debugger
  *      l - the attaching proc or attaching proc parent
- *      m - Giant
  *      n - not locked, lazy
  *      o - ktrace lock
  *      q - td_contested lock
@@ -169,7 +168,6 @@ struct pargs {
  *      x - created at fork, only changes during single threading in exec
  *      y - created at first aio, doesn't change until exit or exec at which
  *          point we are single-threaded and only curthread changes it
- *      z - zombie threads lock
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
  * either lock is sufficient for read access, but both locks must be held
