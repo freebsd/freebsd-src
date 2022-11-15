@@ -238,6 +238,27 @@ xen_intrng_intr_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 	xen_intr_enable_source((struct xenisrc *)isrc);
 }
 
+static int
+xen_intrng_intr_bind(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct xenisrc *xsrc = (struct xenisrc *)isrc;
+	u_int cpu;
+
+	/* distinctly inspired by sys/arm64/arm64/gic_v3.c:gic_v3_bind_intr() */
+	if (CPU_EMPTY(&isrc->isrc_cpu)) {
+		cpu = xen_arch_intr_next_cpu(xsrc);
+		CPU_SETOF(cpu, &isrc->isrc_cpu);
+	} else {
+		/*
+		 * We can only bind to a single CPU so select
+		 * the first CPU found.
+		 */
+		cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
+	}
+
+	return (xen_intr_assign_cpu(xsrc, cpu));
+}
+
 static device_method_t xen_methods[] = {
 	DEVMETHOD(device_probe,		xen_probe),
 	DEVMETHOD(device_attach,	xen_attach),
@@ -248,6 +269,7 @@ static device_method_t xen_methods[] = {
 	DEVMETHOD(pic_post_filter,	xen_intrng_intr_post_filter),
 	DEVMETHOD(pic_pre_ithread,	xen_intrng_intr_pre_ithread),
 	DEVMETHOD(pic_post_ithread,	xen_intrng_intr_post_ithread),
+	DEVMETHOD(pic_bind_intr,	xen_intrng_intr_bind),
 
 	DEVMETHOD_END
 };
