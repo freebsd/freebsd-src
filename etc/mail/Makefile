@@ -101,7 +101,7 @@ SENDMAIL_CF_DIR?=	/usr/src/contrib/sendmail/cf
 #
 # The sendmail startup script
 #
-SENDMAIL_START_SCRIPT?=	/etc/rc.sendmail
+SENDMAIL_START_SCRIPT?=	/etc/rc.d/sendmail
 
 #
 # Some useful programs we need.
