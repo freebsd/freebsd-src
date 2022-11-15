@@ -159,7 +159,7 @@ struct pmap;
 enum snapshot_req;
 
 struct vm_eventinfo {
-	void	*rptr;		/* rendezvous cookie */
+	cpuset_t *rptr;		/* rendezvous cookie */
 	int	*sptr;		/* suspend cookie */
 	int	*iptr;		/* reqidle cookie */
 };
@@ -331,10 +331,16 @@ void vm_await_start(struct vm *vm, const cpuset_t *waiting);
 #endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
-vcpu_rendezvous_pending(struct vm_eventinfo *info)
+vcpu_rendezvous_pending(struct vcpu *vcpu, struct vm_eventinfo *info)
 {
-
-	return (*((uintptr_t *)(info->rptr)) != 0);
+	/*
+	 * This check isn't done with atomic operations or under a lock because
+	 * there's no need to. If the vcpuid bit is set, the vcpu is part of a
+	 * rendezvous and the bit won't be cleared until the vcpu enters the
+	 * rendezvous. On rendezvous exit, the cpuset is cleared and the vcpu
+	 * will see an empty cpuset. So, the races are harmless.
+	 */
+	return (CPU_ISSET(vcpu_vcpuid(vcpu), info->rptr));
 }
 
 static __inline int
