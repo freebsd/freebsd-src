@@ -98,10 +98,6 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 		nparams = 8;
 	else
 		nparams = 6;
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		nparams++;
-	if (toep->tls.fcplenmax != 0)
-		nparams++;
 	if (toep->params.tc_idx != -1) {
 		MPASS(toep->params.tc_idx >= 0 &&
 		    toep->params.tc_idx < sc->params.nsched_cls);
@@ -148,10 +144,6 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 	    __func__, toep->tid, toep->params.emss, toep->params.sndbuf,
 	    tp ? tp->snd_nxt : 0, tp ? tp->rcv_nxt : 0);
 
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		FLOWC_PARAM(ULP_MODE, ulp_mode(toep));
-	if (toep->tls.fcplenmax != 0)
-		FLOWC_PARAM(TXDATAPLEN_MAX, toep->tls.fcplenmax);
 	if (toep->params.tc_idx != -1)
 		FLOWC_PARAM(SCHEDCLASS, toep->params.tc_idx);
 #undef FLOWC_PARAM
@@ -395,9 +387,6 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 	send_flowc_wr(toep, tp);
 
 	soisconnected(so);
-
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		tls_establish(toep);
 }
 
 int
@@ -422,23 +411,6 @@ send_rx_credits(struct adapter *sc, struct toepcb *toep, int credits)
 }
 
 void
-send_rx_modulate(struct adapter *sc, struct toepcb *toep)
-{
-	struct wrqe *wr;
-	struct cpl_rx_data_ack *req;
-
-	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
-	if (wr == NULL)
-		return;
-	req = wrtod(wr);
-
-	INIT_TP_WR_MIT_CPL(req, CPL_RX_DATA_ACK, toep->tid);
-	req->credit_dack = htobe32(F_RX_MODULATE_RX);
-
-	t4_wrq_tx(sc, wr);
-}
-
-void
 t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 {
 	struct adapter *sc = tod->tod_softc;
@@ -459,8 +431,7 @@ t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 		rx_credits = send_rx_credits(sc, toep, rx_credits);
 		tp->rcv_wnd += rx_credits;
 		tp->rcv_adv += rx_credits;
-	} else if (toep->flags & TPF_FORCE_CREDITS)
-		send_rx_modulate(sc, toep);
+	}
 }
 
 void
@@ -1823,6 +1794,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    tid);
 		ddp_queue_toep(toep);
 	}
+	if (toep->flags & TPF_TLS_STARTING)
+		tls_received_starting_data(sc, toep, sb, len);
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP)

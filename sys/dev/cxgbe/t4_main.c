@@ -414,11 +414,6 @@ SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 14, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[14], 0, "");
 SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 15, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[15], 0, "");
-
-static int t4_toe_tls_rx_timeout = 5;
-SYSCTL_INT(_hw_cxgbe_toe, OID_AUTO, tls_rx_timeout, CTLFLAG_RDTUN,
-    &t4_toe_tls_rx_timeout, 0,
-    "Timeout in seconds to downgrade TLS sockets to plain TOE");
 #endif
 
 #ifdef DEV_NETMAP
@@ -833,8 +828,6 @@ static int sysctl_cpus(SYSCTL_HANDLER_ARGS);
 static int sysctl_reset(SYSCTL_HANDLER_ARGS);
 #ifdef TCP_OFFLOAD
 static int sysctl_tls(SYSCTL_HANDLER_ARGS);
-static int sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS);
-static int sysctl_tls_rx_timeout(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
@@ -1867,7 +1860,6 @@ t4_detach_common(device_t dev)
 	free(sc->tids.hpftid_tab, M_CXGBE);
 	free_hftid_hash(&sc->tids);
 	free(sc->tids.tid_tab, M_CXGBE);
-	free(sc->tt.tls_rx_ports, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 
 	callout_drain(&sc->ktls_tick);
@@ -5743,10 +5735,9 @@ set_params__post_init(struct adapter *sc)
 	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
 	    sc->toecaps & FW_CAPS_CONFIG_TOE) {
 		/*
-		 * Limit TOE connections to 2 reassembly "islands".  This is
-		 * required for TOE TLS connections to downgrade to plain TOE
-		 * connections if an unsupported TLS version or ciphersuite is
-		 * used.
+		 * Limit TOE connections to 2 reassembly "islands".
+		 * This is required to permit migrating TOE
+		 * connections to UPL_MODE_TLS.
 		 */
 		t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
 		    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
@@ -7682,17 +7673,6 @@ t4_sysctls(struct adapter *sc)
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls", CTLTYPE_INT |
 		    CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0, sysctl_tls, "I",
 		    "Inline TLS allowed");
-
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls_rx_ports",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
-		    sysctl_tls_rx_ports, "I",
-		    "TCP ports that use inline TLS+TOE RX");
-
-		sc->tt.tls_rx_timeout = t4_toe_tls_rx_timeout;
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls_rx_timeout",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
-		    sysctl_tls_rx_timeout, "I",
-		    "Timeout in seconds to downgrade TLS sockets to plain TOE");
 
 		sc->tt.tx_align = -1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
@@ -11287,97 +11267,6 @@ sysctl_tls(SYSCTL_HANDLER_ARGS)
 
 }
 
-static int
-sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *sc = arg1;
-	int *old_ports, *new_ports;
-	int i, new_count, rc;
-
-	if (req->newptr == NULL && req->oldptr == NULL)
-		return (SYSCTL_OUT(req, NULL, imax(sc->tt.num_tls_rx_ports, 1) *
-		    sizeof(sc->tt.tls_rx_ports[0])));
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4tlsrx");
-	if (rc)
-		return (rc);
-
-	if (hw_off_limits(sc)) {
-		rc = ENXIO;
-		goto done;
-	}
-
-	if (sc->tt.num_tls_rx_ports == 0) {
-		i = -1;
-		rc = SYSCTL_OUT(req, &i, sizeof(i));
-	} else
-		rc = SYSCTL_OUT(req, sc->tt.tls_rx_ports,
-		    sc->tt.num_tls_rx_ports * sizeof(sc->tt.tls_rx_ports[0]));
-	if (rc == 0 && req->newptr != NULL) {
-		new_count = req->newlen / sizeof(new_ports[0]);
-		new_ports = malloc(new_count * sizeof(new_ports[0]), M_CXGBE,
-		    M_WAITOK);
-		rc = SYSCTL_IN(req, new_ports, new_count *
-		    sizeof(new_ports[0]));
-		if (rc)
-			goto err;
-
-		/* Allow setting to a single '-1' to clear the list. */
-		if (new_count == 1 && new_ports[0] == -1) {
-			ADAPTER_LOCK(sc);
-			old_ports = sc->tt.tls_rx_ports;
-			sc->tt.tls_rx_ports = NULL;
-			sc->tt.num_tls_rx_ports = 0;
-			ADAPTER_UNLOCK(sc);
-			free(old_ports, M_CXGBE);
-		} else {
-			for (i = 0; i < new_count; i++) {
-				if (new_ports[i] < 1 ||
-				    new_ports[i] > IPPORT_MAX) {
-					rc = EINVAL;
-					goto err;
-				}
-			}
-
-			ADAPTER_LOCK(sc);
-			old_ports = sc->tt.tls_rx_ports;
-			sc->tt.tls_rx_ports = new_ports;
-			sc->tt.num_tls_rx_ports = new_count;
-			ADAPTER_UNLOCK(sc);
-			free(old_ports, M_CXGBE);
-			new_ports = NULL;
-		}
-	err:
-		free(new_ports, M_CXGBE);
-	}
-done:
-	end_synchronized_op(sc, 0);
-	return (rc);
-}
-
-static int
-sysctl_tls_rx_timeout(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *sc = arg1;
-	int v, rc;
-
-	v = sc->tt.tls_rx_timeout;
-	rc = sysctl_handle_int(oidp, &v, 0, req);
-	if (rc != 0 || req->newptr == NULL)
-		return (rc);
-
-	if (v < 0)
-		return (EINVAL);
-
-	if (v != 0 && !(sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS))
-		return (ENOTSUP);
-
-	sc->tt.tls_rx_timeout = v;
-
-	return (0);
-
-}
-
 static void
 unit_conv(char *buf, size_t len, u_int val, u_int factor)
 {
@@ -12869,9 +12758,6 @@ tweak_tunables(void)
 
 	if (t4_pktc_idx_ofld < -1 || t4_pktc_idx_ofld >= SGE_NCOUNTERS)
 		t4_pktc_idx_ofld = PKTC_IDX_OFLD;
-
-	if (t4_toe_tls_rx_timeout < 0)
-		t4_toe_tls_rx_timeout = 0;
 #else
 	if (t4_rdmacaps_allowed == -1)
 		t4_rdmacaps_allowed = 0;

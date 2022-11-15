@@ -389,9 +389,6 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 	}
 #endif
 
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		tls_detach(toep);
-
 	tp->tod = NULL;
 	tp->t_toe = NULL;
 	tp->t_flags &= ~TF_TOE;
@@ -1019,8 +1016,6 @@ final_cpl_received(struct toepcb *toep)
 
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		release_ddp_resources(toep);
-	else if (ulp_mode(toep) == ULP_MODE_TLS)
-		tls_detach(toep);
 	toep->inp = NULL;
 	need_wakeup = (toep->flags & TPF_WAITING_FOR_FINAL) != 0;
 	toep->flags &= ~(TPF_CPL_PENDING | TPF_WAITING_FOR_FINAL);
@@ -1259,26 +1254,6 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 		return (htobe64(V_FILTER_TUPLE(ntuple)));
 }
 
-static int
-is_tls_sock(struct socket *so, struct adapter *sc)
-{
-	struct inpcb *inp = sotoinpcb(so);
-	int i, rc;
-
-	/* XXX: Eventually add a SO_WANT_TLS socket option perhaps? */
-	rc = 0;
-	ADAPTER_LOCK(sc);
-	for (i = 0; i < sc->tt.num_tls_rx_ports; i++) {
-		if (inp->inp_lport == htons(sc->tt.tls_rx_ports[i]) ||
-		    inp->inp_fport == htons(sc->tt.tls_rx_ports[i])) {
-			rc = 1;
-			break;
-		}
-	}
-	ADAPTER_UNLOCK(sc);
-	return (rc);
-}
-
 /*
  * Initialize various connection parameters.
  */
@@ -1350,10 +1325,7 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 		cp->tx_align = 0;
 
 	/* ULP mode. */
-	if (can_tls_offload(sc) &&
-	    (s->tls > 0 || (s->tls < 0 && is_tls_sock(so, sc))))
-		cp->ulp_mode = ULP_MODE_TLS;
-	else if (s->ddp > 0 ||
+	if (s->ddp > 0 ||
 	    (s->ddp < 0 && sc->tt.ddp && (so_options_get(so) & SO_NO_DDP) == 0))
 		cp->ulp_mode = ULP_MODE_TCPDDP;
 	else
@@ -1362,8 +1334,6 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 	/* Rx coalescing. */
 	if (s->rx_coalesce >= 0)
 		cp->rx_coalesce = s->rx_coalesce > 0 ? 1 : 0;
-	else if (cp->ulp_mode == ULP_MODE_TLS)
-		cp->rx_coalesce = 0;
 	else if (tt->rx_coalesce >= 0)
 		cp->rx_coalesce = tt->rx_coalesce > 0 ? 1 : 0;
 	else
