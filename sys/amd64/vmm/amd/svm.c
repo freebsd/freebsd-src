@@ -2053,7 +2053,7 @@ svm_run(void *vcpui, register_t rip, pmap_t pmap, struct vm_eventinfo *evinfo)
 			break;
 		}
 
-		if (vcpu_rendezvous_pending(evinfo)) {
+		if (vcpu_rendezvous_pending(vcpu->vcpu, evinfo)) {
 			enable_gintr();
 			vm_exit_rendezvous(vcpu->vcpu, state->rip);
 			break;
