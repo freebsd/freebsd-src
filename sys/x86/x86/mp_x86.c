@@ -47,9 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>	/* cngetc() */
 #include <sys/cpuset.h>
 #include <sys/csan.h>
-#ifdef GPROF 
-#include <sys/gmon.h>
-#endif
 #include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>

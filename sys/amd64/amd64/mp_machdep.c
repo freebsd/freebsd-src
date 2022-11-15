@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/domainset.h>
-#ifdef GPROF 
-#include <sys/gmon.h>
-#endif
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
