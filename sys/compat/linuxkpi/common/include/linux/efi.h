@@ -29,6 +29,7 @@
 #define	_LINUXKPI_LINUX_EFI_H_
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/linker.h>
 #include <sys/systm.h>
 
