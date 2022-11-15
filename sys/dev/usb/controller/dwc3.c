@@ -86,6 +86,11 @@ struct snps_dwc3_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	uint32_t		snpsid;
+#ifdef FDT
+	clk_t			clk_ref;
+	clk_t			clk_suspend;
+	clk_t			clk_bus;
+#endif
 };
 
 #define	DWC3_WRITE(_sc, _off, _val)		\
@@ -394,9 +399,32 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	if (!is_fdt)
 		goto skip_phys;
 
-	/* Get the phys */
 	node = ofw_bus_get_node(dev);
 
+	/* Get the clocks if any */
+	if (ofw_bus_is_compatible(dev, "rockchip,rk3328-dwc3") == 1) {
+		if (clk_get_by_ofw_name(dev, node, "ref_clk", &sc->clk_ref) != 0)
+			device_printf(dev, "Cannot get ref_clk\n");
+		if (clk_get_by_ofw_name(dev, node, "suspend_clk", &sc->clk_suspend) != 0)
+			device_printf(dev, "Cannot get suspend_clk\n");
+		if (clk_get_by_ofw_name(dev, node, "bus_clk", &sc->clk_bus) != 0)
+			device_printf(dev, "Cannot get bus_clk\n");
+	}
+
+	if (sc->clk_ref != NULL) {
+		if (clk_enable(sc->clk_ref) != 0)
+			device_printf(dev, "Cannot enable ref_clk\n");
+	}
+	if (sc->clk_suspend != NULL) {
+		if (clk_enable(sc->clk_suspend) != 0)
+			device_printf(dev, "Cannot enable suspend_clk\n");
+	}
+	if (sc->clk_bus != NULL) {
+		if (clk_enable(sc->clk_bus) != 0)
+			device_printf(dev, "Cannot enable bus_clk\n");
+	}
+
+	/* Get the phys */
 	usb2_phy = usb3_phy = NULL;
 	error = phy_get_by_ofw_name(dev, node, "usb2-phy", &usb2_phy);
 	if (error == 0 && usb2_phy != NULL)
@@ -427,6 +455,16 @@ skip_phys:
 	snsp_dwc3_dump_regs(sc, "Post XHCI init");
 #endif
 
+#ifdef FDT
+	if (error) {
+		if (sc->clk_ref != NULL)
+			clk_disable(sc->clk_ref);
+		if (sc->clk_suspend != NULL)
+			clk_disable(sc->clk_suspend);
+		if (sc->clk_bus != NULL)
+			clk_disable(sc->clk_bus);
+	}
+#endif
 	return (error);
 }
 
