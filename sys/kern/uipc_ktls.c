@@ -149,7 +149,7 @@ SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, enable, CTLFLAG_RWTUN,
 static bool ktls_cbc_enable = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, cbc_enable, CTLFLAG_RWTUN,
     &ktls_cbc_enable, 1,
-    "Enable Support of AES-CBC crypto for kernel TLS");
+    "Enable support of AES-CBC crypto for kernel TLS");
 
 static bool ktls_sw_buffer_cache = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, sw_buffer_cache, CTLFLAG_RDTUN,
@@ -2444,8 +2444,10 @@ ktls_decrypt(struct socket *so)
 			sb->sb_ccc -= tls_len;
 			sb->sb_tlsdcc = 0;
 
+			if (error != EMSGSIZE)
+				error = EBADMSG;
 			CURVNET_SET(so->so_vnet);
-			so->so_error = EBADMSG;
+			so->so_error = error;
 			sorwakeup_locked(so);
 			CURVNET_RESTORE();
 
