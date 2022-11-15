@@ -28,10 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/sysctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #include <arpa/tftp.h>
@@ -91,7 +91,7 @@ option_tsize(int peer __unused, struct tftphdr *tp __unused, int mode,
 
 	if (mode == RRQ) 
 		asprintf(&options[OPT_TSIZE].o_reply,
-			"%ju", stbuf->st_size);
+			"%ju", (uintmax_t)stbuf->st_size);
 	else
 		/* XXX Allows writes of all sizes. */
 		options[OPT_TSIZE].o_reply =
