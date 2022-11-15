@@ -199,6 +199,7 @@
 /* VTTBR_EL2 - Virtualization Translation Table Base Register */
 #define	VTTBR_VMID_MASK		0xffff000000000000
 #define	VTTBR_VMID_SHIFT	48
+/* Assumed to be 0 by locore.S */
 #define	VTTBR_HOST		0x0000000000000000
 
 #endif /* !_MACHINE_HYPERVISOR_H_ */
