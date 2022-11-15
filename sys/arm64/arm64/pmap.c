@@ -5804,7 +5804,7 @@ pmap_remove_write(vm_page_t m)
 	pmap_t pmap;
 	struct rwlock *lock;
 	pv_entry_t next_pv, pv;
-	pt_entry_t oldpte, *pte;
+	pt_entry_t oldpte, *pte, set, clear, mask, val;
 	vm_offset_t va;
 	int md_gen, pvh_gen;
 
@@ -5842,7 +5842,6 @@ retry:
 	}
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
-		PMAP_ASSERT_STAGE1(pmap);
 		if (!PMAP_TRYLOCK(pmap)) {
 			pvh_gen = pvh->pv_gen;
 			md_gen = m->md.pv_gen;
@@ -5858,13 +5857,25 @@ retry:
 		pte = pmap_pte_exists(pmap, pv->pv_va, 3, __func__);
 		oldpte = pmap_load(pte);
 		if ((oldpte & ATTR_SW_DBM) != 0) {
+			if (pmap->pm_stage == PM_STAGE1) {
+				set = ATTR_S1_AP_RW_BIT;
+				clear = 0;
+				mask = ATTR_S1_AP_RW_BIT;
+				val = ATTR_S1_AP(ATTR_S1_AP_RW);
+			} else {
+				set = 0;
+				clear = ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE);
+				mask = ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE);
+				val = ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE);
+			}
+			clear |= ATTR_SW_DBM;
 			while (!atomic_fcmpset_64(pte, &oldpte,
-			    (oldpte | ATTR_S1_AP_RW_BIT) & ~ATTR_SW_DBM))
+			    (oldpte | set) & ~clear))
 				cpu_spinwait();
-			if ((oldpte & ATTR_S1_AP_RW_BIT) ==
-			    ATTR_S1_AP(ATTR_S1_AP_RW))
+
+			if ((oldpte & mask) == val)
 				vm_page_dirty(m);
-			pmap_s1_invalidate_page(pmap, pv->pv_va, true);
+			pmap_invalidate_page(pmap, pv->pv_va, true);
 		}
 		PMAP_UNLOCK(pmap);
 	}
