@@ -2248,12 +2248,6 @@ lomac_thread_userret(struct thread *td)
 		dodrop = 0;
 		mtx_unlock(&subj->mtx);
 		newcred = crget();
-		/*
-		 * Prevent a lock order reversal in mac_proc_vm_revoke;
-		 * ideally, the other user of subj->mtx wouldn't be holding
-		 * Giant.
-		 */
-		mtx_lock(&Giant);
 		PROC_LOCK(p);
 		mtx_lock(&subj->mtx);
 		/*
@@ -2275,7 +2269,6 @@ lomac_thread_userret(struct thread *td)
 		PROC_UNLOCK(p);
 		if (dodrop)
 			mac_proc_vm_revoke(curthread);
-		mtx_unlock(&Giant);
 	} else {
 		mtx_unlock(&subj->mtx);
 	}
