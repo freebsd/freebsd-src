@@ -86,14 +86,14 @@ tls_tx_key(struct toepcb *toep)
 	return (tls_ofld->tx_key_addr >= 0);
 }
 
-/* Set TLS Key-Id in TCB */
+/* Set TF_RX_QUIESCE to pause receive. */
 static void
-t4_set_tls_keyid(struct toepcb *toep, unsigned int key_id)
+t4_set_rx_quiesce(struct toepcb *toep)
 {
+	struct adapter *sc = td_adapter(toep->td);
 
-	t4_set_tls_tcb_field(toep, W_TCB_RX_TLS_KEY_TAG,
-			 V_TCB_RX_TLS_KEY_TAG(M_TCB_RX_TLS_BUF_TAG),
-			 V_TCB_RX_TLS_KEY_TAG(key_id));
+	t4_set_tcb_field(sc, &toep->ofld_txq->wrq, toep, W_TCB_T_FLAGS,
+	    V_TF_RX_QUIESCE(1), V_TF_RX_QUIESCE(1), 1, CPL_COOKIE_TOM);
 }
 
 /* Clear TF_RX_QUIESCE to re-enable receive. */
@@ -102,27 +102,6 @@ t4_clear_rx_quiesce(struct toepcb *toep)
 {
 
 	t4_set_tls_tcb_field(toep, W_TCB_T_FLAGS, V_TF_RX_QUIESCE(1), 0);
-}
-
-static void
-tls_clr_ofld_mode(struct toepcb *toep)
-{
-
-	tls_stop_handshake_timer(toep);
-
-	KASSERT(toep->tls.rx_key_addr == -1,
-	    ("%s: tid %d has RX key", __func__, toep->tid));
-
-	/* Switch to plain TOE mode. */
-	t4_set_tls_tcb_field(toep, W_TCB_ULP_RAW,
-	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)),
-	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(0)));
-	t4_set_tls_tcb_field(toep, W_TCB_ULP_TYPE,
-	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE), V_TCB_ULP_TYPE(ULP_MODE_NONE));
-	t4_clear_rx_quiesce(toep);
-
-	toep->flags &= ~(TPF_FORCE_CREDITS | TPF_TLS_ESTABLISHED);
-	toep->params.ulp_mode = ULP_MODE_NONE;
 }
 
 /* TLS/DTLS content type  for CPL SFO */
@@ -226,88 +205,29 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 	return (0);
 }
 
-/*
- * In some cases a client connection can hang without sending the
- * ServerHelloDone message from the NIC to the host.  Send a dummy
- * RX_DATA_ACK with RX_MODULATE to unstick the connection.
- */
-static void
-tls_send_handshake_ack(void *arg)
-{
-	struct toepcb *toep = arg;
-	struct tls_ofld_info *tls_ofld = &toep->tls;
-	struct adapter *sc = td_adapter(toep->td);
-
-	/* Bail without rescheduling if the connection has closed. */
-	if ((toep->flags & (TPF_FIN_SENT | TPF_ABORT_SHUTDOWN)) != 0)
-		return;
-
-	/*
-	 * If this connection has timed out without receiving more
-	 * data, downgrade to plain TOE mode and don't re-arm the
-	 * timer.
-	 */
-	if (sc->tt.tls_rx_timeout != 0) {
-		struct inpcb *inp;
-		struct tcpcb *tp;
-
-		inp = toep->inp;
-		tp = intotcpcb(inp);
-		if ((ticks - tp->t_rcvtime) >= sc->tt.tls_rx_timeout) {
-			CTR2(KTR_CXGBE, "%s: tid %d clr_ofld_mode", __func__,
-			    toep->tid);
-			tls_clr_ofld_mode(toep);
-			return;
-		}
-	}
-
-	/*
-	 * XXX: Does not have the t4_get_tcb() checks to refine the
-	 * workaround.
-	 */
-	callout_schedule(&tls_ofld->handshake_timer, TLS_SRV_HELLO_RD_TM * hz);
-
-	CTR2(KTR_CXGBE, "%s: tid %d sending RX_DATA_ACK", __func__, toep->tid);
-	send_rx_modulate(sc, toep);
-}
-
-static void
-tls_start_handshake_timer(struct toepcb *toep)
-{
-	struct tls_ofld_info *tls_ofld = &toep->tls;
-
-	INP_WLOCK_ASSERT(toep->inp);
-	callout_reset(&tls_ofld->handshake_timer, TLS_SRV_HELLO_BKOFF_TM * hz,
-	    tls_send_handshake_ack, toep);
-}
-
-void
-tls_stop_handshake_timer(struct toepcb *toep)
-{
-	struct tls_ofld_info *tls_ofld = &toep->tls;
-
-	INP_WLOCK_ASSERT(toep->inp);
-	callout_stop(&tls_ofld->handshake_timer);
-}
-
 int
 tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 {
 	struct adapter *sc = td_adapter(toep->td);
-	int error, explicit_iv_size, key_offset, mac_first;
+	int error, explicit_iv_size, mac_first;
 
-	if (!can_tls_offload(td_adapter(toep->td)))
+	if (!can_tls_offload(sc))
 		return (EINVAL);
-	switch (ulp_mode(toep)) {
-	case ULP_MODE_TLS:
-		break;
-	case ULP_MODE_NONE:
-	case ULP_MODE_TCPDDP:
-		if (direction != KTLS_TX)
+
+	if (direction == KTLS_RX) {
+		if (ulp_mode(toep) != ULP_MODE_NONE)
 			return (EINVAL);
-		break;
-	default:
-		return (EINVAL);
+		if ((toep->flags & TPF_TLS_STARTING) != 0)
+			return (EINVAL);
+	} else {
+		switch (ulp_mode(toep)) {
+		case ULP_MODE_NONE:
+		case ULP_MODE_TLS:
+		case ULP_MODE_TCPDDP:
+			break;
+		default:
+			return (EINVAL);
+		}
 	}
 
 	switch (tls->params.cipher_algorithm) {
@@ -319,8 +239,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		case 256 / 8:
 			break;
 		default:
-			error = EINVAL;
-			goto clr_ofld;
+			return (EINVAL);
 		}
 		switch (tls->params.auth_algorithm) {
 		case CRYPTO_SHA1_HMAC:
@@ -328,16 +247,14 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		case CRYPTO_SHA2_384_HMAC:
 			break;
 		default:
-			error = EPROTONOSUPPORT;
-			goto clr_ofld;
+			return (EPROTONOSUPPORT);
 		}
 		explicit_iv_size = AES_BLOCK_LEN;
 		mac_first = 1;
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 		if (tls->params.iv_len != SALT_SIZE) {
-			error = EINVAL;
-			goto clr_ofld;
+			return (EINVAL);
 		}
 		switch (tls->params.cipher_key_len) {
 		case 128 / 8:
@@ -345,23 +262,20 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		case 256 / 8:
 			break;
 		default:
-			error = EINVAL;
-			goto clr_ofld;
+			return (EINVAL);
 		}
 		explicit_iv_size = 8;
 		mac_first = 0;
 		break;
 	default:
-		error = EPROTONOSUPPORT;
-		goto clr_ofld;
+		return (EPROTONOSUPPORT);
 	}
 
 	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
 	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
 	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
 	    tls->params.tls_vminor > TLS_MINOR_VER_TWO) {
-		error = EPROTONOSUPPORT;
-		goto clr_ofld;
+		return (EPROTONOSUPPORT);
 	}
 
 	/* Bail if we already have a key. */
@@ -374,11 +288,8 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 	}
 
 	error = tls_program_key_id(toep, tls, direction);
-	if (error) {
-		if (direction == KTLS_RX)
-			goto clr_ofld;
+	if (error)
 		return (error);
-	}
 
 	if (direction == KTLS_TX) {
 		toep->tls.scmd0.seqno_numivs =
@@ -406,42 +317,16 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		    tls->params.max_frame_len;
 		toep->tls.tx_key_info_size = t4_tls_key_info_size(tls);
 	} else {
-		/* Stop timer on handshake completion */
-		tls_stop_handshake_timer(toep);
-
-		toep->flags &= ~TPF_FORCE_CREDITS;
-		toep->flags |= TPF_TLS_RECEIVE;
+		toep->flags |= TPF_TLS_STARTING | TPF_TLS_RX_QUIESCED;
 		toep->tls.rx_version = tls->params.tls_vmajor << 8 |
 		    tls->params.tls_vminor;
 
-		/*
-		 * RX key tags are an index into the key portion of MA
-		 * memory stored as an offset from the base address in
-		 * units of 64 bytes.
-		 */
-		key_offset = toep->tls.rx_key_addr - sc->vres.key.start;
-		t4_set_tls_keyid(toep, key_offset / 64);
-		t4_set_tls_tcb_field(toep, W_TCB_ULP_RAW,
-				 V_TCB_ULP_RAW(M_TCB_ULP_RAW),
-				 V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) |
-						V_TF_TLS_CONTROL(1) |
-						V_TF_TLS_ACTIVE(1) |
-						V_TF_TLS_ENABLE(1))));
-		t4_set_tls_tcb_field(toep, W_TCB_TLS_SEQ,
-				 V_TCB_TLS_SEQ(M_TCB_TLS_SEQ),
-				 V_TCB_TLS_SEQ(0));
-		t4_clear_rx_quiesce(toep);
+		CTR2(KTR_CXGBE, "%s: tid %d setting RX_QUIESCE", __func__,
+		    toep->tid);
+		t4_set_rx_quiesce(toep);
 	}
 
 	return (0);
-
-clr_ofld:
-	if (ulp_mode(toep) == ULP_MODE_TLS) {
-		CTR2(KTR_CXGBE, "%s: tid %d clr_ofld_mode", __func__,
-		    toep->tid);
-		tls_clr_ofld_mode(toep);
-	}
-	return (error);
 }
 
 void
@@ -454,41 +339,9 @@ tls_init_toep(struct toepcb *toep)
 }
 
 void
-tls_establish(struct toepcb *toep)
-{
-
-	/*
-	 * Enable PDU extraction.
-	 *
-	 * XXX: Supposedly this should be done by the firmware when
-	 * the ULP_MODE FLOWC parameter is set in send_flowc_wr(), but
-	 * in practice this seems to be required.
-	 */
-	CTR2(KTR_CXGBE, "%s: tid %d setting TLS_ENABLE", __func__, toep->tid);
-	t4_set_tls_tcb_field(toep, W_TCB_ULP_RAW, V_TCB_ULP_RAW(M_TCB_ULP_RAW),
-	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)));
-
-	toep->flags |= TPF_FORCE_CREDITS | TPF_TLS_ESTABLISHED;
-
-	callout_init_rw(&toep->tls.handshake_timer, &toep->inp->inp_lock, 0);
-	tls_start_handshake_timer(toep);
-}
-
-void
-tls_detach(struct toepcb *toep)
-{
-
-	if (toep->flags & TPF_TLS_ESTABLISHED) {
-		tls_stop_handshake_timer(toep);
-		toep->flags &= ~TPF_TLS_ESTABLISHED;
-	}
-}
-
-void
 tls_uninit_toep(struct toepcb *toep)
 {
 
-	MPASS((toep->flags & TPF_TLS_ESTABLISHED) == 0);
 	clear_tls_keyid(toep);
 }
 
@@ -943,7 +796,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct mbuf *tls_data;
 	struct tls_get_record *tgr;
 	struct mbuf *control;
-	int pdu_length, rx_credits;
+	int pdu_length, rx_credits, trailer_len;
 #if defined(KTR) || defined(INVARIANTS)
 	int len;
 #endif
@@ -1005,6 +858,9 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* Report decryption errors as EBADMSG. */
 	if ((tls_hdr_pkt->res_to_mac_error & M_TLSRX_HDR_PKT_ERROR) != 0) {
+		CTR4(KTR_CXGBE, "%s: tid %u TLS error %#x ddp_vld %#x",
+		    __func__, toep->tid, tls_hdr_pkt->res_to_mac_error,
+		    be32toh(cpl->ddp_valid));
 		m_freem(m);
 		m_freem(tls_data);
 
@@ -1018,49 +874,16 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		return (0);
 	}
 
-	/* Allocate the control message mbuf. */
-	control = sbcreatecontrol(NULL, sizeof(*tgr), TLS_GET_RECORD,
-	    IPPROTO_TCP, M_NOWAIT);
-	if (control == NULL) {
-		m_freem(m);
-		m_freem(tls_data);
-
-		CURVNET_SET(toep->vnet);
-		so->so_error = ENOBUFS;
-		sorwakeup(so);
-
-		INP_WUNLOCK(inp);
-		CURVNET_RESTORE();
-
-		return (0);
-	}
-
-	tgr = (struct tls_get_record *)
-	    CMSG_DATA(mtod(control, struct cmsghdr *));
-	memset(tgr, 0, sizeof(*tgr));
-	tgr->tls_type = tls_hdr_pkt->type;
-	tgr->tls_vmajor = be16toh(tls_hdr_pkt->version) >> 8;
-	tgr->tls_vminor = be16toh(tls_hdr_pkt->version) & 0xff;
-
-	m_freem(m);
-
-	if (tls_data != NULL) {
-		m_last(tls_data)->m_flags |= M_EOR;
-		tgr->tls_length = htobe16(tls_data->m_pkthdr.len);
-	} else
-		tgr->tls_length = 0;
-	m = tls_data;
-
+	/* Handle data received after the socket is closed. */
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
-
 	if (__predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
 		struct epoch_tracker et;
 
 		CTR3(KTR_CXGBE, "%s: tid %u, excess rx (%d bytes)",
 		    __func__, tid, pdu_length);
 		m_freem(m);
-		m_freem(control);
+		m_freem(tls_data);
 		SOCKBUF_UNLOCK(sb);
 		INP_WUNLOCK(inp);
 
@@ -1068,7 +891,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
-		if (tp)
+		if (tp != NULL)
 			INP_WUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
@@ -1077,10 +900,63 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/*
-	 * Not all of the bytes on the wire are included in the socket buffer
-	 * (e.g. the MAC of the TLS record).  However, those bytes are included
-	 * in the TCP sequence space.
+	 * If there is any data in the 'sb_mtls' chain of the socket
+	 * or we aren't able to allocate the control mbuf, append the
+	 * record as a CSUM_TLS_DECRYPTED packet to 'sb_mtls' rather
+	 * than as a decrypted record to 'sb_m'.
 	 */
+	if (sb->sb_mtls != NULL)
+		control = NULL;
+	else
+		control = sbcreatecontrol(NULL, sizeof(*tgr), TLS_GET_RECORD,
+		    IPPROTO_TCP, M_NOWAIT);
+
+	if (control != NULL) {
+		tgr = (struct tls_get_record *)
+		    CMSG_DATA(mtod(control, struct cmsghdr *));
+		memset(tgr, 0, sizeof(*tgr));
+		tgr->tls_type = tls_hdr_pkt->type;
+		tgr->tls_vmajor = be16toh(tls_hdr_pkt->version) >> 8;
+		tgr->tls_vminor = be16toh(tls_hdr_pkt->version) & 0xff;
+		if (tls_data != NULL) {
+			m_last(tls_data)->m_flags |= M_EOR;
+			tgr->tls_length = htobe16(tls_data->m_pkthdr.len);
+		} else
+			tgr->tls_length = 0;
+
+		m_freem(m);
+		m = tls_data;
+	} else {
+		M_ASSERTPKTHDR(m);
+
+		/* It's ok that any explicit IV is missing. */
+		m->m_len = sb->sb_tls_info->params.tls_hlen;
+		m->m_pkthdr.csum_flags |= CSUM_TLS_DECRYPTED;
+		m->m_pkthdr.len = m->m_len;
+		if (tls_data != NULL) {
+			m->m_pkthdr.len += tls_data->m_pkthdr.len;
+			m_demote_pkthdr(tls_data);
+			m->m_next = tls_data;
+		}
+
+		/*
+		 * Grow the chain by the trailer, but without
+		 * contents.  The trailer will be thrown away by
+		 * ktls_decrypt.  Note that ktls_decrypt assumes the
+		 * trailer is tls_tlen bytes long, so append that many
+		 * bytes not the actual trailer size computed from
+		 * pdu_length.
+		 */
+		trailer_len = sb->sb_tls_info->params.tls_tlen;
+		if (tls_data != NULL) {
+			m_last(tls_data)->m_len += trailer_len;
+			tls_data = NULL;
+		} else
+			m->m_len += trailer_len;
+		m->m_pkthdr.len += trailer_len;
+		tls_hdr_pkt->length = htobe16(m->m_pkthdr.len -
+		    sizeof(struct tls_record_layer));
+	}
 
 	/* receive buffer autosize */
 	MPASS(toep->vnet == so->so_vnet);
@@ -1097,7 +973,10 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			sb->sb_flags &= ~SB_AUTOSIZE;
 	}
 
-	sbappendcontrol_locked(sb, m, control, 0);
+	if (control != NULL)
+		sbappendcontrol_locked(sb, m, control, 0);
+	else
+		sbappendstream_locked(sb, m, 0);
 	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
 #ifdef VERBOSE_TRACES
 	CTR4(KTR_CXGBE, "%s: tid %u rx_credits %u rcv_wnd %u",
@@ -1223,12 +1102,242 @@ out:
 	m_freem(m);
 }
 
+/* SET_TCB_FIELD sent as a ULP command looks like this */
+#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
+    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
+
+static inline void *
+mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, struct toepcb *toep,
+    uint64_t word, uint64_t mask, uint64_t val)
+{
+	struct ulptx_idata *ulpsc;
+	struct cpl_set_tcb_field_core *req;
+
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
+
+	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	ulpsc->len = htobe32(sizeof(*req));
+
+	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
+	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, toep->tid));
+	req->reply_ctrl = htobe16(V_NO_REPLY(1) |
+	    V_QUEUENO(toep->ofld_rxq->iq.abs_id));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	ulpsc = (struct ulptx_idata *)(req + 1);
+	if (LEN__SET_TCB_FIELD_ULP % 16) {
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
+		ulpsc->len = htobe32(0);
+		return (ulpsc + 1);
+	}
+	return (ulpsc);
+}
+
+/*
+ * Send a work request setting multiple TCB fields to enable
+ * ULP_MODE_TLS.
+ */
+static void
+tls_update_tcb(struct adapter *sc, struct toepcb *toep, uint64_t seqno)
+{
+	struct wrqe *wr;
+	struct work_request_hdr *wrh;
+	struct ulp_txpkt *ulpmc;
+	int fields, key_offset, len;
+
+	KASSERT(ulp_mode(toep) == ULP_MODE_NONE,
+	    ("%s: tid %d already ULP_MODE_TLS", __func__, toep->tid));
+
+	fields = 0;
+
+	/* 2 writes for the overlay region */
+	fields += 2;
+
+	/* W_TCB_TLS_SEQ */
+	fields++;
+
+	/* W_TCB_ULP_RAW */
+	fields++;
+
+	/* W_TCB_ULP_TYPE */
+	fields ++;
+
+	/* W_TCB_T_FLAGS */
+	fields++;
+
+	len = sizeof(*wrh) + fields * roundup2(LEN__SET_TCB_FIELD_ULP, 16);
+	KASSERT(len <= SGE_MAX_WR_LEN,
+	    ("%s: WR with %d TCB field updates too large", __func__, fields));
+
+	wr = alloc_wrqe(len, toep->ctrlq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: out of memory", __func__);
+	}
+
+	wrh = wrtod(wr);
+	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
+	ulpmc = (struct ulp_txpkt *)(wrh + 1);
+
+	/*
+	 * Clear the TLS overlay region: 1023:832.
+	 *
+	 * Words 26/27 are always set to zero.  Words 28/29
+	 * contain seqno and are set when enabling TLS
+	 * decryption.  Word 30 is zero and Word 31 contains
+	 * the keyid.
+	 */
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 26,
+	    0xffffffffffffffff, 0);
+
+	/*
+	 * RX key tags are an index into the key portion of MA
+	 * memory stored as an offset from the base address in
+	 * units of 64 bytes.
+	 */
+	key_offset = toep->tls.rx_key_addr - sc->vres.key.start;
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 30,
+	    0xffffffffffffffff,
+	    (uint64_t)V_TCB_RX_TLS_KEY_TAG(key_offset / 64) << 32);
+
+	CTR3(KTR_CXGBE, "%s: tid %d enable TLS seqno %lu", __func__,
+	    toep->tid, seqno);
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_TLS_SEQ,
+	    V_TCB_TLS_SEQ(M_TCB_TLS_SEQ), V_TCB_TLS_SEQ(seqno));
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_ULP_RAW,
+	    V_TCB_ULP_RAW(M_TCB_ULP_RAW),
+	    V_TCB_ULP_RAW((V_TF_TLS_KEY_SIZE(3) | V_TF_TLS_CONTROL(1) |
+	    V_TF_TLS_ACTIVE(1) | V_TF_TLS_ENABLE(1))));
+
+	toep->flags &= ~TPF_TLS_STARTING;
+	toep->flags |= TPF_TLS_RECEIVE;
+
+	/* Set the ULP mode to ULP_MODE_TLS. */
+	toep->params.ulp_mode = ULP_MODE_TLS;
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_ULP_TYPE,
+	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE),
+	    V_TCB_ULP_TYPE(ULP_MODE_TLS));
+
+	/* Clear TF_RX_QUIESCE. */
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_T_FLAGS,
+	    V_TF_RX_QUIESCE(1), 0);
+
+	t4_wrq_tx(sc, wr);
+}
+
+/*
+ * Examine the pending data in the socket buffer and either enable TLS
+ * RX or request more encrypted data.
+ */
+static void
+tls_check_rx_sockbuf(struct adapter *sc, struct toepcb *toep,
+    struct sockbuf *sb)
+{
+	uint64_t seqno;
+	size_t resid;
+	bool have_header;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+	MPASS(toep->tls.rx_resid == 0);
+
+	have_header = ktls_pending_rx_info(sb, &seqno, &resid);
+	CTR5(KTR_CXGBE, "%s: tid %d have_header %d seqno %lu resid %zu",
+	    __func__, toep->tid, have_header, seqno, resid);
+
+	/*
+	 * If we have a partial header or we need fewer bytes than the
+	 * size of a TLS record, re-enable receive and pause again once
+	 * we get more data to try again.
+	 */
+	if (!have_header || resid != 0) {
+		CTR(KTR_CXGBE, "%s: tid %d waiting for more data", __func__,
+		    toep->tid);
+		toep->flags &= ~TPF_TLS_RX_QUIESCED;
+		t4_clear_rx_quiesce(toep);
+		return;
+	}
+
+	tls_update_tcb(sc, toep, seqno);
+}
+
+void
+tls_received_starting_data(struct adapter *sc, struct toepcb *toep,
+    struct sockbuf *sb, int len)
+{
+	MPASS(toep->flags & TPF_TLS_STARTING);
+
+	/*
+	 * A previous call to tls_check_rx_sockbuf needed more data.
+	 * Now that more data has arrived, quiesce receive again and
+	 * check the state once the quiesce has completed.
+	 */
+	if ((toep->flags & TPF_TLS_RX_QUIESCED) == 0) {
+		CTR(KTR_CXGBE, "%s: tid %d quiescing", __func__, toep->tid);
+		toep->flags |= TPF_TLS_RX_QUIESCED;
+		t4_set_rx_quiesce(toep);
+		return;
+	}
+
+	KASSERT(len <= toep->tls.rx_resid,
+	    ("%s: received excess bytes %d (waiting for %zu)", __func__, len,
+	    toep->tls.rx_resid));
+	toep->tls.rx_resid -= len;
+	if (toep->tls.rx_resid != 0)
+		return;
+
+	tls_check_rx_sockbuf(sc, toep, sb);
+}
+
+static int
+do_tls_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_set_tcb_rpl *cpl = (const void *)(rss + 1);
+	unsigned int tid = GET_TID(cpl);
+	struct toepcb *toep;
+	struct inpcb *inp;
+	struct socket *so;
+	struct sockbuf *sb;
+
+	if (cpl->status != CPL_ERR_NONE)
+		panic("XXX: tcp_rpl failed: %d", cpl->status);
+
+	toep = lookup_tid(sc, tid);
+	inp = toep->inp;
+	switch (cpl->cookie) {
+	case V_WORD(W_TCB_T_FLAGS) | V_COOKIE(CPL_COOKIE_TOM):
+		INP_WLOCK(inp);
+		if ((toep->flags & TPF_TLS_STARTING) == 0)
+			panic("%s: connection is not starting TLS RX\n",
+			    __func__);
+
+		so = inp->inp_socket;
+		sb = &so->so_rcv;
+		SOCKBUF_LOCK(sb);
+		tls_check_rx_sockbuf(sc, toep, sb);
+		SOCKBUF_UNLOCK(sb);
+		INP_WUNLOCK(inp);
+		break;
+	default:
+		panic("XXX: unknown tcb_rpl offset %#x, cookie %#x",
+		    G_WORD(cpl->cookie), G_COOKIE(cpl->cookie));
+	}
+
+	return (0);
+}
+
 void
 t4_tls_mod_load(void)
 {
 
 	t4_register_cpl_handler(CPL_TLS_DATA, do_tls_data);
 	t4_register_cpl_handler(CPL_RX_TLS_CMP, do_rx_tls_cmp);
+	t4_register_shared_cpl_handler(CPL_SET_TCB_RPL, do_tls_tcb_rpl,
+	    CPL_COOKIE_TOM);
 }
 
 void
@@ -1237,6 +1346,7 @@ t4_tls_mod_unload(void)
 
 	t4_register_cpl_handler(CPL_TLS_DATA, NULL);
 	t4_register_cpl_handler(CPL_RX_TLS_CMP, NULL);
+	t4_register_shared_cpl_handler(CPL_SET_TCB_RPL, NULL, CPL_COOKIE_TOM);
 }
 #endif	/* TCP_OFFLOAD */
 #endif	/* KERN_TLS */
