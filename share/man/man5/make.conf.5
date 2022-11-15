@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2021
+.Dd November 15, 2022
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -573,11 +573,7 @@ The script used by
 to start, stop, and restart
 .Xr sendmail 8 .
 The default value is
-.Pa /etc/rc.sendmail .
-This value should match the
-.Dq Li mta_start_script
-setting in
-.Xr rc.conf 5 .
+.Pa /etc/rc.d/sendmail .
 .It Va SENDMAIL_SUBMIT_MC
 .Pq Vt str
 The default
