@@ -153,6 +153,13 @@ static void
 kinst_enable(void *arg, dtrace_id_t id, void *parg)
 {
 	struct kinst_probe *kp = parg;
+	static bool warned = false;
+
+	if (!warned) {
+		KINST_LOG(
+		    "kinst: This provider is experimental, exercise caution");
+		warned = true;
+	}
 
 	kinst_patch_tracepoint(kp, kp->kp_patchval);
 }
@@ -208,8 +215,6 @@ kinst_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		KINST_LOG(
-		    "kinst: This provider is experimental, exercise caution");
 		break;
 	case MOD_UNLOAD:
 		break;
