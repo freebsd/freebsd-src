@@ -470,7 +470,7 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 		udb += (nm_txq->cntxt_id >> s_qpp) << PAGE_SHIFT;
 		nm_txq->udb_qid = nm_txq->cntxt_id & mask;
 		if (nm_txq->udb_qid >= PAGE_SIZE / UDBS_SEG_SIZE)
-	    		clrbit(&nm_txq->doorbells, DOORBELL_WCWR);
+			clrbit(&nm_txq->doorbells, DOORBELL_WCWR);
 		else {
 			udb += nm_txq->udb_qid << UDBS_SEG_SHIFT;
 			nm_txq->udb_qid = 0;
@@ -1437,7 +1437,7 @@ service_nm_rxq(struct sge_nm_rxq *nm_rxq)
 	} else if (nframes > 0)
 		netmap_rx_irq(ifp, nm_rxq->nid, &work);
 
-    	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndesc) |
+	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndesc) |
 	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
 	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 }

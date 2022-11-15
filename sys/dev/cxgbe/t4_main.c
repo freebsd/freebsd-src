@@ -112,8 +112,8 @@ static device_method_t t4_methods[] = {
 	DEVMETHOD(device_resume,	t4_resume),
 
 	DEVMETHOD(bus_child_location,	t4_child_location),
-	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
-	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+	DEVMETHOD(bus_reset_prepare,	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post,	t4_reset_post),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
 	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
@@ -177,8 +177,8 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_resume,	t4_resume),
 
 	DEVMETHOD(bus_child_location,	t4_child_location),
-	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
-	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+	DEVMETHOD(bus_reset_prepare,	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post,	t4_reset_post),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
 	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
@@ -216,8 +216,8 @@ static device_method_t t6_methods[] = {
 	DEVMETHOD(device_resume,	t4_resume),
 
 	DEVMETHOD(bus_child_location,	t4_child_location),
-	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
-	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+	DEVMETHOD(bus_reset_prepare,	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post,	t4_reset_post),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
 	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
@@ -1126,7 +1126,7 @@ t4_calibration(void *arg)
 
 	cur = &sc->cal_info[sc->cal_current];
 	next_up = (sc->cal_current + 1) % CNT_CAL_INFO;
-       	nex = &sc->cal_info[next_up];
+	nex = &sc->cal_info[next_up];
 	if (__predict_false(sc->cal_count == 0)) {
 		/* First time in, just get the values in */
 		cur->hw_cur = hw;
@@ -1988,6 +1988,7 @@ t4_suspend(device_t dev)
 
 	/* No more DMA or interrupts. */
 	stop_adapter(sc);
+
 	/* Quiesce all activity. */
 	for_each_port(sc, i) {
 		pi = sc->port[i];
@@ -2432,7 +2433,7 @@ t4_resume(device_t dev)
 	}
 
 	/* Reset all calibration */
-	t4_calibration_start(sc);	
+	t4_calibration_start(sc);
 
 done:
 	if (rc == 0) {
@@ -9134,7 +9135,7 @@ dump_cimla(struct adapter *sc)
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
 			log(LOG_DEBUG, "%s: CIM LA dump follows.\n%s\n",
-		    		device_get_nameunit(sc->dev), sbuf_data(&sb));
+			    device_get_nameunit(sc->dev), sbuf_data(&sb));
 		}
 	}
 	sbuf_delete(&sb);
@@ -9575,7 +9576,7 @@ dump_devlog(struct adapter *sc)
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
 			log(LOG_DEBUG, "%s: device log follows.\n%s",
-		    		device_get_nameunit(sc->dev), sbuf_data(&sb));
+			    device_get_nameunit(sc->dev), sbuf_data(&sb));
 		}
 	}
 	sbuf_delete(&sb);
@@ -13079,7 +13080,7 @@ DB_FUNC(tcb, db_show_t4tcb, db_t4_table, CS_OWN, NULL)
 			tid = db_tok_number;
 			valid = true;
 		}
-	}	
+	}
 	db_radix = radix;
 	db_skip_to_eol();
 	if (!valid) {
