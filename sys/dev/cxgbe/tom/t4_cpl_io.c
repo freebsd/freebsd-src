@@ -1412,7 +1412,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	switch (tp->t_state) {
 	case TCPS_SYN_RECEIVED:
 		tp->t_starttime = ticks;
-		/* FALLTHROUGH */ 
+		/* FALLTHROUGH */
 
 	case TCPS_ESTABLISHED:
 		tcp_state_change(tp, TCPS_CLOSE_WAIT);
