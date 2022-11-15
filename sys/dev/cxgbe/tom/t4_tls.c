@@ -494,7 +494,7 @@ tls_uninit_toep(struct toepcb *toep)
 
 #define MAX_OFLD_TX_CREDITS (SGE_MAX_WR_LEN / 16)
 #define	MIN_OFLD_TLSTX_CREDITS(toep)					\
-	(howmany(sizeof(struct fw_tlstx_data_wr) + 			\
+	(howmany(sizeof(struct fw_tlstx_data_wr) +			\
 	    sizeof(struct cpl_tx_tls_sfo) + sizeof(struct ulptx_idata) + \
 	    sizeof(struct ulptx_sc_memrd) +				\
 	    AES_BLOCK_LEN + 1, 16))
@@ -524,7 +524,7 @@ write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
 	    V_FW_TLSTX_DATA_WR_ADJUSTEDPLEN(tls_ofld->adjusted_plen));
 	txwr->expinplenmax_pkd = htobe16(
 	    V_FW_TLSTX_DATA_WR_EXPINPLENMAX(tls_ofld->expn_per_ulp));
-	txwr->pdusinplenmax_pkd = 
+	txwr->pdusinplenmax_pkd =
 	    V_FW_TLSTX_DATA_WR_PDUSINPLENMAX(tls_ofld->pdus_per_ulp);
 }
 
@@ -760,7 +760,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 			toep->flags |= TPF_TX_SUSPENDED;
 			return;
 		}
-	
+
 		/* Shove if there is no additional data pending. */
 		shove = ((m->m_next == NULL ||
 		    (m->m_next->m_flags & M_NOTAVAIL) != 0)) &&
