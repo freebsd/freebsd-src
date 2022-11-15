@@ -86,6 +86,9 @@ struct snps_dwc3_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	uint32_t		snpsid;
+	uint32_t		snpsversion;
+	uint32_t		snpsrevision;
+	uint32_t		snpsversion_type;
 #ifdef FDT
 	clk_t			clk_ref;
 	clk_t			clk_suspend;
@@ -389,8 +392,31 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
 	sc->snpsid = DWC3_READ(sc, DWC3_GSNPSID);
-	if (bootverbose)
-		device_printf(sc->dev, "snps id: %#012x\n", sc->snpsid);
+	sc->snpsversion = DWC3_VERSION(sc->snpsid);
+	sc->snpsrevision = DWC3_REVISION(sc->snpsid);
+	if (sc->snpsversion == DWC3_1_IP_ID ||
+	    sc->snpsversion == DWC3_2_IP_ID) {
+		sc->snpsrevision = DWC3_READ(sc, DWC3_1_VER_NUMBER);
+		sc->snpsversion_type = DWC3_READ(sc, DWC3_1_VER_TYPE);
+	}
+	if (bootverbose) {
+		switch (sc->snpsversion) {
+		case DWC3_IP_ID:
+			device_printf(sc->dev, "SNPS Version: DWC3 (%x %x)\n",
+			    sc->snpsversion, sc->snpsrevision);
+			break;
+		case DWC3_1_IP_ID:
+			device_printf(sc->dev, "SNPS Version: DWC3.1 (%x %x %x)\n",
+			    sc->snpsversion, sc->snpsrevision,
+			    sc->snpsversion_type);
+			break;
+		case DWC3_2_IP_ID:
+			device_printf(sc->dev, "SNPS Version: DWC3.2 (%x %x %x)\n",
+			    sc->snpsversion, sc->snpsrevision,
+			    sc->snpsversion_type);
+			break;
+		}
+	}
 #ifdef DWC3_DEBUG
 	snps_dwc3_dump_ctrlparams(sc);
 #endif
