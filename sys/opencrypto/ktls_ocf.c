@@ -458,12 +458,18 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 	struct ocf_session *os;
 	struct ocf_operation oo;
 	int error;
-	uint16_t tls_comp_len;
+	uint16_t tls_comp_len, tls_len;
 
 	os = tls->cipher;
 
 	oo.os = os;
 	oo.done = false;
+
+	/* Ensure record contains at least an explicit IV and tag. */
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len + sizeof(*hdr) < tls->params.tls_hlen +
+	    tls->params.tls_tlen)
+		return (EMSGSIZE);
 
 	crypto_initreq(&crp, os->sid);
 
@@ -484,10 +490,10 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 
 	/* Setup the AAD. */
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-		tls_comp_len = ntohs(hdr->tls_length) -
+		tls_comp_len = tls_len -
 		    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
 	else
-		tls_comp_len = ntohs(hdr->tls_length) - POLY1305_HASH_LEN;
+		tls_comp_len = tls_len - POLY1305_HASH_LEN;
 	ad.seq = htobe64(seqno);
 	ad.type = hdr->tls_type;
 	ad.tls_vmajor = hdr->tls_vmajor;
@@ -619,14 +625,16 @@ ktls_ocf_tls13_aead_decrypt(struct ktls_session *tls,
 	struct ocf_session *os;
 	int error;
 	u_int tag_len;
+	uint16_t tls_len;
 
 	os = tls->cipher;
 
 	tag_len = tls->params.tls_tlen - 1;
 
 	/* Payload must contain at least one byte for the record type. */
-	if (ntohs(hdr->tls_length) < tag_len + 1)
-		return (EBADMSG);
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len < tag_len + 1)
+		return (EMSGSIZE);
 
 	crypto_initreq(&crp, os->sid);
 
@@ -643,7 +651,7 @@ ktls_ocf_tls13_aead_decrypt(struct ktls_session *tls,
 	crp.crp_aad_length = sizeof(ad);
 
 	crp.crp_payload_start = tls->params.tls_hlen;
-	crp.crp_payload_length = ntohs(hdr->tls_length) - tag_len;
+	crp.crp_payload_length = tls_len - tag_len;
 	crp.crp_digest_start = crp.crp_payload_start + crp.crp_payload_length;
 
 	crp.crp_op = CRYPTO_OP_DECRYPT | CRYPTO_OP_VERIFY_DIGEST;
