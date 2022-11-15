@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#ifdef GPROF
-#include <sys/gmon.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -1179,14 +1176,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		bzero(segbase + segs[i]->p_filesz,
 		    segs[i]->p_memsz - segs[i]->p_filesz);
 	}
-
-#ifdef GPROF
-	/* Update profiling information with the new text segment. */
-	mtx_lock(&Giant);
-	kmupetext((uintfptr_t)(mapbase + segs[0]->p_vaddr - base_vaddr +
-	    segs[0]->p_memsz));
-	mtx_unlock(&Giant);
-#endif
 
 	ef->dynamic = (Elf_Dyn *) (mapbase + phdyn->p_vaddr - base_vaddr);
 

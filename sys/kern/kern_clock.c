@@ -74,10 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/timetc.h>
 
-#ifdef GPROF
-#include <sys/gmon.h>
-#endif
-
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 PMC_SOFT_DEFINE( , , clock, hard);
@@ -775,10 +771,6 @@ void
 profclock(int cnt, int usermode, uintfptr_t pc)
 {
 	struct thread *td;
-#ifdef GPROF
-	struct gmonparam *g;
-	uintfptr_t i;
-#endif
 
 	td = curthread;
 	if (usermode) {
@@ -791,20 +783,6 @@ profclock(int cnt, int usermode, uintfptr_t pc)
 		if (td->td_proc->p_flag & P_PROFIL)
 			addupc_intr(td, pc, cnt);
 	}
-#ifdef GPROF
-	else {
-		/*
-		 * Kernel statistics are just like addupc_intr, only easier.
-		 */
-		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
-			i = PC_TO_I(g, pc);
-			if (i < g->textsize) {
-				KCOUNT(g, i) += cnt;
-			}
-		}
-	}
-#endif
 #ifdef HWPMC_HOOKS
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, prof, td->td_intr_frame);
