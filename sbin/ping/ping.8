@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2020
+.Dd November 20, 2022
 .Dt PING 8
 .Os
 .Sh NAME
@@ -666,13 +666,9 @@ specification recommends setting the
 TTL
 field for
 IP
-packets to 64, but many systems use smaller values
-.Bx ( 4.3
-uses 30,
-.Bx 4.2
-used 15).
+packets to 64.
 .Pp
-The maximum possible value of this field is 255, and most
+The maximum possible value of this field is 255, and some
 .Ux
 systems set
 the
@@ -706,12 +702,12 @@ TTL
 value in the received packet will be 255 minus the
 number of routers in the round-trip path.
 .It
-Set it to 255; this is what current
-.Bx
+Set it to 64; this is what current
+.Fx
 systems do.
 In this case the
 TTL
-value in the received packet will be 255 minus the
+value in the received packet will be 64 minus the
 number of routers in the path
 .Em from
 the remote system
