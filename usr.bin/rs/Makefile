@@ -3,7 +3,7 @@
 
 .include <src.opts.mk>
 
-PROG=	rs
+PROG_CXX=	rs
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
