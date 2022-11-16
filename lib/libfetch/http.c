@@ -1281,9 +1281,10 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 	DigestCalcHA1(c->algo, parms->user, c->realm,
 		      parms->password, c->nonce, cnonce, HA1);
 	DEBUGF("HA1: [%s]\n", HA1);
-	HASHHEX digest;
+	HASHHEX digest, null;
+	memset(null, 0, sizeof(null));
 	DigestCalcResponse(HA1, c->nonce, noncecount, cnonce, c->qop,
-			   "GET", url->doc, "", digest);
+			   "GET", url->doc, null, digest);
 
 	if (c->qop[0]) {
 		r = http_cmd(conn, "%s: Digest username=\"%s\",realm=\"%s\","
