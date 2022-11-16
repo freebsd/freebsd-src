@@ -17,6 +17,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20221116:
+	12.4-RC2-p1 FreeBSD-SA-22:14.heimdal
+
+	Multiple vulnerabilities in Heimdal [SA-22:14.heimdal]
+
 20221020:
 	releng/12.4 branched from stable/12.
 
