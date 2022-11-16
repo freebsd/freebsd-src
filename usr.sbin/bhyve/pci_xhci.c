@@ -2131,6 +2131,7 @@ pci_xhci_rtsregs_write(struct pci_xhci_softc *sc, uint64_t offset,
 static uint64_t
 pci_xhci_portregs_read(struct pci_xhci_softc *sc, uint64_t offset)
 {
+	struct pci_xhci_portregs *portregs;
 	int port;
 	uint32_t *p;
 
@@ -2149,7 +2150,8 @@ pci_xhci_portregs_read(struct pci_xhci_softc *sc, uint64_t offset)
 
 	offset = (offset - 0x3F0) % 0x10;
 
-	p = &sc->portregs[port].portsc;
+	portregs = XHCI_PORTREG_PTR(sc, port);
+	p = &portregs->portsc;
 	p += offset / sizeof(uint32_t);
 
 	DPRINTF(("pci_xhci: portregs read offset 0x%lx port %u -> 0x%x",
