@@ -380,6 +380,9 @@ MK_KERBEROS_SUPPORT:=	no
 
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
+MK_LLD:=	no
+MK_LLDB:=	no
+MK_LLVM_BINUTILS:= no
 MK_GOOGLETEST:=	no
 MK_OFED:=	no
 MK_OPENMP:=	no
