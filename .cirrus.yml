@@ -44,6 +44,8 @@ task:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
   - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  package_check_script:
+  - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
   - sh tools/boot/ci-qemu-test.sh
