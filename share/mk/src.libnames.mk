@@ -325,9 +325,7 @@ _DP_radius=	crypto
 .endif
 _DP_rtld_db=	elf procstat
 _DP_procstat=	kvm util elf
-.if ${MK_CXX} == "yes"
 _DP_proc=	cxxrt
-.endif
 .if ${MK_CDDL} != "no"
 _DP_proc+=	ctf
 .endif

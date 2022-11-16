@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Do not build C++ headers and runtime libraries.
-It also prevents building binaries and libraries written in C++, including
-.Xr devd 8 .
