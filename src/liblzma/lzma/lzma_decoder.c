@@ -238,6 +238,11 @@ typedef struct {
 	/// payload marker is expected.
 	lzma_vli uncompressed_size;
 
+	/// True if end of payload marker (EOPM) is allowed even when
+	/// uncompressed_size is known; false if EOPM must not be present.
+	/// This is ignored if uncompressed_size == LZMA_VLI_UNKNOWN.
+	bool allow_eopm;
+
 	////////////////////////////////
 	// State of incomplete symbol //
 	////////////////////////////////
@@ -343,12 +348,24 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	lzma_ret ret = LZMA_OK;
 
-	// If uncompressed size is known, there must be no end of payload
-	// marker.
-	const bool no_eopm = coder->uncompressed_size
-			!= LZMA_VLI_UNKNOWN;
-	if (no_eopm && coder->uncompressed_size < dict.limit - dict.pos)
+	// This is true when the next LZMA symbol is allowed to be EOPM.
+	// That is, if this is false, then EOPM is considered
+	// an invalid symbol and we will return LZMA_DATA_ERROR.
+	//
+	// EOPM is always required (not just allowed) when
+	// the uncompressed size isn't known. When uncompressed size
+	// is known, eopm_is_valid may be set to true later.
+	bool eopm_is_valid = coder->uncompressed_size == LZMA_VLI_UNKNOWN;
+
+	// If uncompressed size is known and there is enough output space
+	// to decode all the data, limit the available buffer space so that
+	// the main loop won't try to decode past the end of the stream.
+	bool might_finish_without_eopm = false;
+	if (coder->uncompressed_size != LZMA_VLI_UNKNOWN
+			&& coder->uncompressed_size <= dict.limit - dict.pos) {
 		dict.limit = dict.pos + (size_t)(coder->uncompressed_size);
+		might_finish_without_eopm = true;
+	}
 
 	// The main decoder loop. The "switch" is used to restart the decoder at
 	// correct location. Once restarted, the "switch" is no longer used.
@@ -361,8 +378,32 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 	case SEQ_NORMALIZE:
 	case SEQ_IS_MATCH:
-		if (unlikely(no_eopm && dict.pos == dict.limit))
-			break;
+		if (unlikely(might_finish_without_eopm
+				&& dict.pos == dict.limit)) {
+			// In rare cases there is a useless byte that needs
+			// to be read anyway.
+			rc_normalize(SEQ_NORMALIZE);
+
+			// If the range decoder state is such that we can
+			// be at the end of the LZMA stream, then the
+			// decoding is finished.
+			if (rc_is_finished(rc)) {
+				ret = LZMA_STREAM_END;
+				goto out;
+			}
+
+			// If the caller hasn't allowed EOPM to be present
+			// together with known uncompressed size, then the
+			// LZMA stream is corrupt.
+			if (!coder->allow_eopm) {
+				ret = LZMA_DATA_ERROR;
+				goto out;
+			}
+
+			// Otherwise continue decoding with the expectation
+			// that the next LZMA symbol is EOPM.
+			eopm_is_valid = true;
+		}
 
 		rc_if_0(coder->is_match[state][pos_state], SEQ_IS_MATCH) {
 			rc_update_0(coder->is_match[state][pos_state]);
@@ -658,11 +699,18 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 
 					if (rep0 == UINT32_MAX) {
 						// End of payload marker was
-						// found. It must not be
-						// present if uncompressed
-						// size is known.
-						if (coder->uncompressed_size
-						!= LZMA_VLI_UNKNOWN) {
+						// found. It may only be
+						// present if
+						//   - uncompressed size is
+						//     unknown or
+						//   - after known uncompressed
+						//     size amount of bytes has
+						//     been decompressed and
+						//     caller has indicated
+						//     that EOPM might be used
+						//     (it's not allowed in
+						//     LZMA2).
+						if (!eopm_is_valid) {
 							ret = LZMA_DATA_ERROR;
 							goto out;
 						}
@@ -671,7 +719,9 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 						// LZMA1 stream with
 						// end-of-payload marker.
 						rc_normalize(SEQ_EOPM);
-						ret = LZMA_STREAM_END;
+						ret = rc_is_finished(rc)
+							? LZMA_STREAM_END
+							: LZMA_DATA_ERROR;
 						goto out;
 					}
 				}
@@ -793,9 +843,6 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
 		}
 	}
 
-	rc_normalize(SEQ_NORMALIZE);
-	coder->sequence = SEQ_IS_MATCH;
-
 out:
 	// Save state
 
@@ -822,24 +869,21 @@ out:
 	if (coder->uncompressed_size != LZMA_VLI_UNKNOWN) {
 		coder->uncompressed_size -= dict.pos - dict_start;
 
-		// Since there cannot be end of payload marker if the
-		// uncompressed size was known, we check here if we
-		// finished decoding.
+		// If we have gotten all the output but the decoder wants
+		// to write more output, the file is corrupt. There are
+		// three SEQ values where output is produced.
 		if (coder->uncompressed_size == 0 && ret == LZMA_OK
-				&& coder->sequence != SEQ_NORMALIZE)
-			ret = coder->sequence == SEQ_IS_MATCH
-					? LZMA_STREAM_END : LZMA_DATA_ERROR;
+				&& (coder->sequence == SEQ_LITERAL_WRITE
+					|| coder->sequence == SEQ_SHORTREP
+					|| coder->sequence == SEQ_COPY))
+			ret = LZMA_DATA_ERROR;
 	}
 
-	// We can do an additional check in the range decoder to catch some
-	// corrupted files.
 	if (ret == LZMA_STREAM_END) {
-		if (!rc_is_finished(coder->rc))
-			ret = LZMA_DATA_ERROR;
-
 		// Reset the range decoder so that it is ready to reinitialize
 		// for a new LZMA2 chunk.
 		rc_reset(coder->rc);
+		coder->sequence = SEQ_IS_MATCH;
 	}
 
 	return ret;
@@ -848,10 +892,12 @@ out:
 
 
 static void
-lzma_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size)
+lzma_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size,
+		bool allow_eopm)
 {
 	lzma_lzma1_decoder *coder = coder_ptr;
 	coder->uncompressed_size = uncompressed_size;
+	coder->allow_eopm = allow_eopm;
 }
 
 
@@ -977,7 +1023,7 @@ lzma_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
 			lz, allocator, options, lz_options));
 
 	lzma_decoder_reset(lz->coder, options);
-	lzma_decoder_uncompressed(lz->coder, LZMA_VLI_UNKNOWN);
+	lzma_decoder_uncompressed(lz->coder, LZMA_VLI_UNKNOWN, true);
 
 	return LZMA_OK;
 }

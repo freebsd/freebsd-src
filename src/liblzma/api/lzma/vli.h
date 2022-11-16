@@ -159,6 +159,8 @@ extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *vli, size_t *vli_pos,
 /**
  * \brief       Get the number of bytes required to encode a VLI
  *
+ * \param       vli       Integer whose encoded size is to be determined
+ *
  * \return      Number of bytes on success (1-9). If vli isn't valid,
  *              zero is returned.
  */

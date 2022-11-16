@@ -91,7 +91,13 @@ hardware_memlimit_set(uint64_t new_memlimit,
 		// Use a value less than SIZE_MAX so that there's some room
 		// for the xz program and so on. Don't use 4000 MiB because
 		// it could look like someone mixed up base-2 and base-10.
+#ifdef __mips__
+		// For MIPS32, due to architectural pecularities,
+		// the limit is even lower.
+		const uint64_t limit_max = UINT64_C(2000) << 20;
+#else
 		const uint64_t limit_max = UINT64_C(4020) << 20;
+#endif
 
 		// UINT64_MAX is a special case for the string "max" so
 		// that has to be handled specially.

@@ -86,8 +86,8 @@ auto_decode(void *coder_ptr, const lzma_allocator *allocator,
 	// Fall through
 
 	case SEQ_FINISH:
-		// When LZMA_DECODE_CONCATENATED was used and we were decoding
-		// LZMA_Alone file, we need to check check that there is no
+		// When LZMA_CONCATENATED was used and we were decoding
+		// a LZMA_Alone file, we need to check that there is no
 		// trailing garbage and wait for LZMA_FINISH.
 		if (*in_pos < in_size)
 			return LZMA_DATA_ERROR;

@@ -658,6 +658,9 @@ lzma_lzma_lclppb_encode(const lzma_options_lzma *options, uint8_t *byte)
 extern lzma_ret
 lzma_lzma_props_encode(const void *options, uint8_t *out)
 {
+	if (options == NULL)
+		return LZMA_PROG_ERROR;
+
 	const lzma_options_lzma *const opt = options;
 
 	if (lzma_lzma_lclppb_encode(opt, out))

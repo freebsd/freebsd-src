@@ -1,3 +1,2123 @@
+commit 5476089d9c42b9b04e92b80e1800b384a98265cb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-13 19:58:47 +0200
+
+    Bump version and soname for 5.2.8.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit f9994f395d04d37b75e879f90397258b86b466cc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-13 19:57:26 +0200
+
+    Add NEWS for 5.2.8.
+
+ NEWS | 79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
+
+commit cdf14b28993ef2f3168821372467e3aa7cf1e973
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-11 17:16:03 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 454f567e58bbadea5cff4f31ef450c1305e9853d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-11 17:15:25 +0200
+
+    liblzma: Fix building with Intel ICC (the classic compiler).
+    
+    It claims __GNUC__ >= 10 but doesn't support __symver__ attribute.
+    
+    Thanks to Stephen Sachs.
+
+ src/liblzma/common/common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 2f01169f5a81e21e7a7e5f799c32472c6277b1d5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-11 14:35:58 +0200
+
+    liblzma: Fix incorrect #ifdef for x86 SSE2 support.
+    
+    __SSE2__ is the correct macro for SSE2 support with GCC, Clang,
+    and ICC. __SSE2_MATH__ means doing floating point math with SSE2
+    instead of 387. Often the latter macro is defined if the first
+    one is but it was still a bug.
+
+ src/liblzma/common/memcmplen.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+commit fc1358679ed3994f67e5e8c869c281be82370a32
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-11 12:23:58 +0200
+
+    Scripts: Ignore warnings from xz.
+    
+    In practice this means making the scripts work when
+    the input files have an unsupported check type which
+    isn't a problem in practice unless support for
+    some check types has been disabled at build time.
+
+ src/scripts/xzdiff.in | 5 +++--
+ src/scripts/xzgrep.in | 2 +-
+ src/scripts/xzless.in | 4 ++--
+ src/scripts/xzmore.in | 4 ++--
+ 4 files changed, 8 insertions(+), 7 deletions(-)
+
+commit a08be1c420501b1c75770a8f6103e3959486c895
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-09 14:10:52 +0200
+
+    xz: Add comments about stdin and src_st.st_size.
+    
+    "xz -v < regular_file > out.xz" doesn't display the percentage
+    and estimated remaining time because it doesn't even try to
+    check the input file size when input is read from stdin.
+    This could be improved but for now there's just a comment
+    to remind about it.
+
+ src/xz/coder.c   | 9 +++++++++
+ src/xz/file_io.c | 4 ++++
+ 2 files changed, 13 insertions(+)
+
+commit 3ee411cd1cd636bdced6ecede4651394bb4f9cb1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-09 12:48:22 +0200
+
+    xz: Fix displaying of file sizes in progress indicator in passthru mode.
+    
+    It worked for one input file since the counters are zero when
+    xz starts but they weren't reset when starting a new file in
+    passthru mode. For example, if files A, B, and C are one byte each,
+    then "xz -dcvf A B C" would show file sizes as 1, 2, and 3 bytes
+    instead of 1, 1, and 1 byte.
+
+ src/xz/coder.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+commit aa7fa9d960df4bb21f7727bbf7ce0503f3d211b4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-09 11:27:20 +0200
+
+    xz: Add a comment why --to-stdout is not in --help.
+    
+    It is on the man page still.
+
+ src/xz/message.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit ff49ff84a4ba3fab25ffb6d65af321dee36c1273
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-08 22:26:54 +0200
+
+    Docs: Update faq.txt a little.
+
+ doc/faq.txt | 66 ++++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 43 insertions(+), 23 deletions(-)
+
+commit 3489565b75b45ee514cf0a6785bb721c7dc624f3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-08 14:13:03 +0200
+
+    liblzma: Update API docs about decoder flags.
+
+ src/liblzma/api/lzma/container.h | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)
+
+commit e4937710805c4b660fc629c15d9a6164b2d97822
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-08 14:00:58 +0200
+
+    liblzma: Fix a comment in auto_decoder.c.
+
+ src/liblzma/common/auto_decoder.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit d4674dfbb7d1df1feb841f5dbce6ae1f0b026879
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-11-07 16:24:14 +0200
+
+    xz: Avoid a compiler warning in progress_speed() in message.c.
+    
+    This should be smaller too since it avoids the string constants.
+
+ src/xz/message.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+commit 4ed56d32a91ff8ff21c71db4082a54a72ae08b3d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-31 16:26:05 +0200
+
+    Build: Clarify comment in configure.ac about SSE2.
+
+ configure.ac | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+commit f930638797f1fec05b272367c052d4fc9de35896
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-31 16:16:37 +0200
+
+    Build: Remove obsolete commented-out lines from configure.ac.
+
+ configure.ac | 4 ----
+ 1 file changed, 4 deletions(-)
+
+commit 6930f14733757592a4f8d92513f642a5dcc9ec9c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-31 13:31:58 +0200
+
+    Windows: Fix mythread_once() macro with Vista threads.
+    
+    Don't call InitOnceComplete() if initialization was already done.
+    
+    So far mythread_once() has been needed only when building
+    with --enable-small. windows/build.bash does this together
+    with --disable-threads so the Vista-specific mythread_once()
+    is never needed by those builds. VS project files or
+    CMake-builds don't support HAVE_SMALL builds at all.
+
+ src/common/mythread.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+commit 1c8cbb5be3a97bf22e933777369c4cc28ef9ed5f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-31 11:49:47 +0200
+
+    CMake: Sync tuklib_cpucores.cmake with tuklib_cpucores.m4.
+    
+    This was forgotten from commit 2611c4d90535652d3eb7ef4a026a6691276fab43.
+
+ cmake/tuklib_cpucores.cmake | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+commit fa9efb729b1827b25ec71aefcf32f3aceeaf9597
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-25 23:45:03 +0300
+
+    Build: Use AC_CONFIG_HEADERS instead of the ancient AC_CONFIG_HEADER.
+    
+    We require Autoconf >= 2.69 and that has AC_CONFIG_HEADERS.
+    
+    There is a warning about AC_PROG_CC_C99 being obsolete but
+    it cannot be removed because it is needed with Autoconf 2.69.
+
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit b10ba4bf39edd9c9fef42cade3e64fc3b9e3fd19
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-25 23:31:44 +0300
+
+    Build: Update m4/ax_pthread.m4 from Autoconf Archive.
+
+ m4/ax_pthread.m4 | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)
+
+commit 01744b280c6e35d331b9dc4cc64716b82bc8b3db
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-25 23:09:11 +0300
+
+    xz: Fix --single-stream with an empty .xz Stream.
+    
+    Example:
+    
+        $ xz -dc --single-stream good-0-empty.xz
+        xz: good-0-empty.xz: Internal error (bug)
+    
+    The code, that is tries to catch some input file issues early,
+    didn't anticipate LZMA_STREAM_END which is possible in that
+    code only when --single-stream is used.
+
+ src/xz/coder.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+commit a3e4606134058241bf1c396243bebcec42c2a780
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-25 19:07:17 +0300
+
+    xz: Fix decompressor behavior if input uses an unsupported check type.
+    
+    Now files with unsupported check will make xz display
+    a warning, set the exit status to 2 (unless --no-warn is used),
+    and then decompress the file normally. This is how it was
+    supposed to work since the beginning but this was broken by
+    the commit 231c3c7098f1099a56abb8afece76fc9b8699f05, that is,
+    a little before 5.0.0 was released. The buggy behavior displayed
+    a message, set exit status 1 (error), and xz didn't attempt to
+    to decompress the file.
+    
+    This doesn't matter today except for special builds that disable
+    CRC64 or SHA-256 at build time (but such builds should be used
+    in special situations only). The bug matters if new check type
+    is added in the future and an old xz version is used to decompress
+    such a file; however, it's likely that such files would use a new
+    filter too and an old xz wouldn't be able to decompress the file
+    anyway.
+    
+    The first hunk in the commit is the actual fix. The second hunk
+    is a cleanup since LZMA_TELL_ANY_CHECK isn't used in xz.
+    
+    There is a test file for unsupported check type but it wasn't
+    used by test_files.sh, perhaps due to different behavior between
+    xz and the simpler xzdec.
+
+ src/xz/coder.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+commit 0b5e8c7e073bce07c59112af1e8a7495e3576e6c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-25 18:36:19 +0300
+
+    xz: Clarify the man page: input file isn't removed if an error occurs.
+
+ src/xz/xz.1 | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+commit 23b7416d5ba0e3579265467bd546865d2ea4cef0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-25 18:23:54 +0300
+
+    xz: If input file cannot be removed, treat it as a warning, not error.
+    
+    Treating it as a warning (message + exit status 2) matches gzip
+    and it seems more logical as at that point the output file has
+    already been successfully closed. When it's a warning it is
+    possible to suppress it with --no-warn.
+
+ src/xz/file_io.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 5daa40454b63c4eb04ab5caeb339eddc95c94bb1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-10-20 20:22:50 +0300
+
+    tuklib_cpucores: Use HW_NCPUONLINE on OpenBSD.
+    
+    On OpenBSD the number of cores online is often less
+    than what HW_NCPU would return because OpenBSD disables
+    simultaneous multi-threading (SMT) by default.
+    
+    Thanks to Christian Weisgerber.
+
+ m4/tuklib_cpucores.m4        | 5 +++++
+ src/common/tuklib_cpucores.c | 9 +++++++++
+ 2 files changed, 14 insertions(+)
+
+commit 0af861050f375678eafc4e1136ca589ae47d31c0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-11 13:25:02 +0200
+
+    NEWS: Omit the extra copy of 5.2.5 NEWS.
+    
+    It was a copy-paste error.
+
+ NEWS | 105 -------------------------------------------------------------------
+ 1 file changed, 105 deletions(-)
+
+commit f0c6a66701afed12c5926c0499b150ecd5b0a63c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-10 12:34:43 +0200
+
+    Translations: Rename poa4/fr_FR.po to po4a/fr.po.
+    
+    That's how it is preferred at the Translation Project.
+    On my system /usr/share/man/fr_FR doesn't contain any
+    other man pages than XZ Utils while /usr/share/man/fr
+    has quite a few, so this will fix that too.
+    
+    Thanks to Benno Schulenberg from the Translation Project.
+
+ po4a/{fr_FR.po => fr.po} | 0
+ po4a/po4a.conf           | 2 +-
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+
+commit 6bf8b1f870870a1a0c3f555c34decc9ffb9f8d7a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-08 16:57:17 +0200
+
+    Translations: Update Turkish translation.
+
+ po/tr.po | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 9f8e9d3c8189d8c6f587c99b0da1cf83f72330c2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-08 14:55:32 +0200
+
+    Translations: Update Croatian translation.
+
+ po/hr.po | 190 ++++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 96 insertions(+), 94 deletions(-)
+
+commit d24a57b7fc7e5e9267b84367cb0788d3acf7f569
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-30 16:41:03 +0300
+
+    Bump version and soname for 5.2.7.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit d2003362dd42004355a5550ee7a60ace3b3ea2d8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-30 16:40:39 +0300
+
+    Add NEWS for 5.2.7.
+
+ NEWS | 74 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 74 insertions(+)
+
+commit 369afb51991e91a5c3a23c4ae3872329a403eb31
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-30 12:06:13 +0300
+
+    liblzma: Add API doc note about the .xz decoder LZMA_MEMLIMIT_ERROR bug.
+    
+    The bug was fixed in 660739f99ab211edec4071de98889fb32ed04e98.
+
+ src/liblzma/api/lzma/base.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+commit 166431e9951613481b8136f52b570d7bc30b5a03
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-09-21 16:15:50 +0800
+
+    liblzma: Add dest and src NULL checks to lzma_index_cat.
+    
+    The documentation states LZMA_PROG_ERROR can be returned from
+    lzma_index_cat. Previously, lzma_index_cat could not return
+    LZMA_PROG_ERROR. Now, the validation is similar to
+    lzma_index_append, which does a NULL check on the index
+    parameter.
+
+ src/liblzma/common/index.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 5e53a6c28b87a0bb9b0cfeaf708cc99ef8e9bc66
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-09-21 20:29:28 +0800
+
+    Tests: Create a test for the lzma_index_cat bug.
+
+ tests/test_index.c | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 42 insertions(+), 1 deletion(-)
+
+commit 4ed5fd54c676b735e3f58158f214af68755d59b5
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-09-21 19:28:53 +0800
+
+    liblzma: Fix copying of check type statistics in lzma_index_cat().
+    
+    The check type of the last Stream in dest was never copied to
+    dest->checks (the code tried to copy it but it was done too late).
+    This meant that the value returned by lzma_index_checks() would
+    only include the check type of the last Stream when multiple
+    lzma_indexes had been concatenated.
+    
+    In xz --list this meant that the summary would only list the
+    check type of the last Stream, so in this sense this was only
+    a visual bug. However, it's possible that some applications
+    use this information for purposes other than merely showing
+    it to the users in an informational message. I'm not aware of
+    such applications though and it's quite possible that such
+    applications don't exist.
+    
+    Regular streamed decompression in xz or any other application
+    doesn't use lzma_index_cat() and so this bug cannot affect them.
+
+ src/liblzma/common/index.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+commit c4476f695291a2d7376d5fa406d32e354f858858
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-28 12:20:41 +0300
+
+    tuklib_physmem: Fix Unicode builds on Windows.
+    
+    Thanks to ArSaCiA Game.
+
+ src/common/tuklib_physmem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 976f897bbba9890a99f01a8d59c6d59c230142e6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-28 11:05:15 +0300
+
+    liblzma: Stream decoder: Fix restarting after LZMA_MEMLIMIT_ERROR.
+    
+    If lzma_code() returns LZMA_MEMLIMIT_ERROR it is now possible
+    to use lzma_memlimit_set() to increase the limit and continue
+    decoding. This was supposed to work from the beginning but
+    there was a bug. With other decoders (.lzma or threaded .xz)
+    this already worked correctly.
+
+ src/liblzma/common/stream_decoder.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+commit 2caa9580e5f7c5cc6668e9427a2c21f3f63bb684
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-28 11:00:23 +0300
+
+    liblzma: Stream decoder: Fix comments.
+
+ src/liblzma/common/stream_decoder.c | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+commit 51882fec5b96cf7760389b670d86c1e7a5a0ced2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-16 14:09:07 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 974186f7cd839f1dbf937b98e112dff670d2bd5c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-16 14:07:03 +0300
+
+    xzgrep: Fix compatibility with old shells.
+    
+    Running the current xzgrep on Slackware 10.1 with GNU bash 3.00.15:
+    
+        xzgrep: line 231: syntax error near unexpected token `;;'
+    
+    On SCO OpenServer 5.0.7 with Korn Shell 93r:
+    
+        syntax error at line 231 : `;;' unexpected
+    
+    Turns out that some old shells don't like apostrophes (') inside
+    command substitutions. For example, the following fails:
+    
+        x=$(echo foo
+        # asdf'zxcv
+        echo bar)
+        printf '%s\n' "$x"
+    
+    The problem was introduced by commits
+    69d1b3fc29677af8ade8dc15dba83f0589cb63d6 (2022-03-29),
+    bd7b290f3fe4faeceb7d3497ed9bf2e6ed5e7dc5 (2022-07-18), and
+    a648978b20495b7aa4a8b029c5a810b5ad9d08ff (2022-07-19).
+    5.2.6 is the only stable release that included
+    this problem.
+    
+    Thanks to Kevin R. Bulgrien for reporting the problem
+    on SCO OpenServer 5.0.7 and for providing the fix.
+
+ src/scripts/xzgrep.in | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit f94da15120c3d3c363ca12c2262ac6cb9f321f4f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-09 13:51:57 +0300
+
+    liblzma: lzma_filters_copy: Keep dest[] unmodified if an error occurs.
+    
+    lzma_stream_encoder() and lzma_stream_encoder_mt() always assumed
+    this. Before this patch, failing lzma_filters_copy() could result
+    in free(invalid_pointer) or invalid memory reads in stream_encoder.c
+    or stream_encoder_mt.c.
+    
+    To trigger this, allocating memory for a filter options structure
+    has to fail. These are tiny allocations so in practice they very
+    rarely fail.
+    
+    Certain badness in the filter chain array could also make
+    lzma_filters_copy() fail but both stream_encoder.c and
+    stream_encoder_mt.c validate the filter chain before
+    trying to copy it, so the crash cannot occur this way.
+
+ src/liblzma/api/lzma/filter.h      |  4 +++-
+ src/liblzma/common/filter_common.c | 18 ++++++++++++------
+ 2 files changed, 15 insertions(+), 7 deletions(-)
+
+commit ea57b9aa2c3e1cdb667f8dd698314b1c36047018
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-16 17:08:53 +0300
+
+    Tests: Add a test file for lzma_index_append() integer overflow bug.
+    
+    This test fails before commit 18d7facd3802b55c287581405c4d49c98708c136.
+    
+    test_files.sh now runs xz -l for bad-3-index-uncomp-overflow.xz
+    because only then the previously-buggy code path gets tested.
+    Normal decompression doesn't use lzma_index_append() at all.
+    Instead, lzma_index_hash functions are used and those already
+    did the overflow check.
+
+ tests/files/README                         |  10 ++++++++++
+ tests/files/bad-3-index-uncomp-overflow.xz | Bin 0 -> 132 bytes
+ tests/test_files.sh                        |   8 ++++++++
+ 3 files changed, 18 insertions(+)
+
+commit 72e1645a439a999638a63ec9abb7210671ea5415
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-09-02 20:18:55 +0800
+
+    liblzma: lzma_index_append: Add missing integer overflow check.
+    
+    The documentation in src/liblzma/api/lzma/index.h suggests that
+    both the unpadded (compressed) size and the uncompressed size
+    are checked for overflow, but only the unpadded size was checked.
+    The uncompressed check is done first since that is more likely to
+    occur than the unpadded or index field size overflows.
+
+ src/liblzma/common/index.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 20d82bc90781aa9d2373efe872d90ba64dc7dc62
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-08 15:11:08 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 31d80c6b261b24220776dfaeb8a04f80f80e0a24
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-04 23:23:00 +0300
+
+    liblzma: Vaccinate against an ill patch from RHEL/CentOS 7.
+    
+    RHEL/CentOS 7 shipped with 5.1.2alpha, including the threaded
+    encoder that is behind #ifdef LZMA_UNSTABLE in the API headers.
+    In 5.1.2alpha these symbols are under XZ_5.1.2alpha in liblzma.map.
+    API/ABI compatibility tracking isn't done between development
+    releases so newer releases didn't have XZ_5.1.2alpha anymore.
+    
+    Later RHEL/CentOS 7 updated xz to 5.2.2 but they wanted to keep
+    the exported symbols compatible with 5.1.2alpha. After checking
+    the ABI changes it turned out that >= 5.2.0 ABI is backward
+    compatible with the threaded encoder functions from 5.1.2alpha
+    (but not vice versa as fixes and extensions to these functions
+    were made between 5.1.2alpha and 5.2.0).
+    
+    In RHEL/CentOS 7, XZ Utils 5.2.2 was patched with
+    xz-5.2.2-compat-libs.patch to modify liblzma.map:
+    
+      - XZ_5.1.2alpha was added with lzma_stream_encoder_mt and
+        lzma_stream_encoder_mt_memusage. This matched XZ Utils 5.1.2alpha.
+    
+      - XZ_5.2 was replaced with XZ_5.2.2. It is clear that this was
+        an error; the intention was to keep using XZ_5.2 (XZ_5.2.2
+        has never been used in XZ Utils). So XZ_5.2.2 lists all
+        symbols that were listed under XZ_5.2 before the patch.
+        lzma_stream_encoder_mt and _mt_memusage are included too so
+        they are listed both here and under XZ_5.1.2alpha.
+    
+    The patch didn't add any __asm__(".symver ...") lines to the .c
+    files. Thus the resulting liblzma.so exports the threaded encoder
+    functions under XZ_5.1.2alpha only. Listing the two functions
+    also under XZ_5.2.2 in liblzma.map has no effect without
+    matching .symver lines.
+    
+    The lack of XZ_5.2 in RHEL/CentOS 7 means that binaries linked
+    against unpatched XZ Utils 5.2.x won't run on RHEL/CentOS 7.
+    This is unfortunate but this alone isn't too bad as the problem
+    is contained within RHEL/CentOS 7 and doesn't affect users
+    of other distributions. It could also be fixed internally in
+    RHEL/CentOS 7.
+    
+    The second problem is more serious: In XZ Utils 5.2.2 the API
+    headers don't have #ifdef LZMA_UNSTABLE for obvious reasons.
+    This is true in RHEL/CentOS 7 version too. Thus now programs
+    using new APIs can be compiled without an extra #define. However,
+    the programs end up depending on symbol version XZ_5.1.2alpha
+    (and possibly also XZ_5.2.2) instead of XZ_5.2 as they would
+    with an unpatched XZ Utils 5.2.2. This means that such binaries
+    won't run on other distributions shipping XZ Utils >= 5.2.0 as
+    they don't provide XZ_5.1.2alpha or XZ_5.2.2; they only provide
+    XZ_5.2 (and XZ_5.0). (This includes RHEL/CentOS 8 as the patch
+    luckily isn't included there anymore with XZ Utils 5.2.4.)
+    
+    Binaries built by RHEL/CentOS 7 users get distributed and then
+    people wonder why they don't run on some other distribution.
+    Seems that people have found out about the patch and been copying
+    it to some build scripts, seemingly curing the symptoms but
+    actually spreading the illness further and outside RHEL/CentOS 7.
+    
+    The ill patch seems to be from late 2016 (RHEL 7.3) and in 2017 it
+    had spread at least to EasyBuild. I heard about the events only
+    recently. :-(
+    
+    This commit splits liblzma.map into two versions: one for
+    GNU/Linux and another for other OSes that can use symbol versioning
+    (FreeBSD, Solaris, maybe others). The Linux-specific file and the
+    matching additions to .c files add full compatibility with binaries
+    that have been built against a RHEL/CentOS-patched liblzma. Builds
+    for OSes other than GNU/Linux won't get the vaccine as they should
+    be immune to the problem (I really hope that no build script uses
+    the RHEL/CentOS 7 patch outside GNU/Linux).
+    
+    The RHEL/CentOS compatibility symbols XZ_5.1.2alpha and XZ_5.2.2
+    are intentionally put *after* XZ_5.2 in liblzma_linux.map. This way
+    if one forgets to #define HAVE_SYMBOL_VERSIONS_LINUX when building,
+    the resulting liblzma.so.5 will have lzma_stream_encoder_mt@@XZ_5.2
+    since XZ_5.2 {...} is the first one that lists that function.
+    Without HAVE_SYMBOL_VERSIONS_LINUX @XZ_5.1.2alpha and @XZ_5.2.2
+    will be missing but that's still a minor problem compared to
+    only having lzma_stream_encoder_mt@@XZ_5.1.2alpha!
+    
+    The "local: *;" line was moved to XZ_5.0 so that it doesn't need
+    to be moved around. It doesn't matter where it is put.
+    
+    Having two similar liblzma_*.map files is a bit silly as it is,
+    at least for now, easily possible to generate the generic one
+    from the Linux-specific file. But that adds extra steps and
+    increases the risk of mistakes when supporting more than one
+    build system. So I rather maintain two files in parallel and let
+    validate_map.sh check that they are in sync when "make mydist"
+    is run.
+    
+    This adds .symver lines for lzma_stream_encoder_mt@XZ_5.2.2 and
+    lzma_stream_encoder_mt_memusage@XZ_5.2.2 even though these
+    weren't exported by RHEL/CentOS 7 (only @@XZ_5.1.2alpha was
+    for these two). I added these anyway because someone might
+    misunderstand the RHEL/CentOS 7 patch and think that @XZ_5.2.2
+    (@@XZ_5.2.2) versions were exported too.
+    
+    At glance one could suggest using __typeof__ to copy the function
+    prototypes when making aliases. However, this doesn't work trivially
+    because __typeof__ won't copy attributes (lzma_nothrow, lzma_pure)
+    and it won't change symbol visibility from hidden to default (done
+    by LZMA_API()). Attributes could be copied with __copy__ attribute
+    but that needs GCC 9 and a fallback method would be needed anyway.
+    
+    This uses __symver__ attribute with GCC >= 10 and
+    __asm__(".symver ...") with everything else. The attribute method
+    is required for LTO (-flto) support with GCC. Using -flto with
+    GCC older than 10 is now broken on GNU/Linux and will not be fixed
+    (can silently result in a broken liblzma build that has dangerously
+    incorrect symbol versions). LTO builds with Clang seem to work
+    with the traditional __asm__(".symver ...") method.
+    
+    Thanks to Boud Roukema for reporting the problem and discussing
+    the details and testing the fix.
+
+ configure.ac                                     |  23 ++++-
+ src/liblzma/Makefile.am                          |  10 +-
+ src/liblzma/common/block_buffer_encoder.c        |  18 ++++
+ src/liblzma/common/common.c                      |  14 +++
+ src/liblzma/common/common.h                      |  28 ++++++
+ src/liblzma/common/hardware_cputhreads.c         |  12 +++
+ src/liblzma/common/stream_encoder_mt.c           |  42 ++++++++
+ src/liblzma/{liblzma.map => liblzma_generic.map} |   6 +-
+ src/liblzma/liblzma_linux.map                    | 123 +++++++++++++++++++++++
+ src/liblzma/validate_map.sh                      | 113 +++++++++++++++++++--
+ 10 files changed, 374 insertions(+), 15 deletions(-)
+
+commit e7a7ac744eb0f890ef52388de838596ef566c73f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-09-08 15:07:00 +0300
+
+    CMake: Clarify a comment about Windows symlinks without file extension.
+
+ CMakeLists.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+commit a273a0cb77c6000e4da627b07f28c5af41f0908c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-08 15:02:41 +0300
+
+    CMake: Update for liblzma_*.map files and fix wrong common_w32res.rc dep.
+    
+    The previous commit split liblzma.map into liblzma_linux.map and
+    liblzma_generic.map. This commit updates the CMake build for those.
+    
+    common_w32res.rc dependency was listed under Linux/FreeBSD while
+    obviously it belongs to Windows when building a DLL.
+
+ CMakeLists.txt | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
+
+commit 5875a45be0ab399e37acc31165725a9b5291f67e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-31 16:42:04 +0300
+
+    CMake: Add xz symlinks.
+    
+    These are a minor thing especially since the xz build has
+    some real problems still like lack of large file support
+    on 32-bit systems but I'll commit this since the code exists.
+    
+    Thanks to Jia Tan.
+
+ CMakeLists.txt | 38 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)
+
+commit 3523b6ebb56c447f21736f01bfe91602741aa3e7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-31 16:29:38 +0300
+
+    CMake: Put xz man page install under if(UNIX) like is for xzdec.
+    
+    Thanks to Jia Tan.
+
+ CMakeLists.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+commit 5af9e8759f748a11a408bfc5aef829df3811fc23
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-09-16 15:10:07 +0300
+
+    Translations: Add Turkish translation.
+
+ po/LINGUAS |   1 +
+ po/tr.po   | 977 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 978 insertions(+)
+
+commit f05a69685e9c7f7157d751abfbd2d8ea6e3bacc7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-18 17:49:16 +0300
+
+    Build: Include the CMake files in the distribution.
+    
+    This was supposed to be done in 2020 with 5.2.5 release
+    already but it was noticed only today. 5.2.5 and 5.2.6
+    even mention experiemental CMake support in the NEWS entries.
+    
+    Thanks to Olivier B. for reporting the problem.
+
+ Makefile.am | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit ad5ef6d3c30bb749113c51aa0bbe8bcb5e193fbe
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-18 17:38:05 +0300
+
+    Windows: Fix broken liblzma.dll build with Visual Studio project files.
+    
+    The bug was introduced in 352ba2d69af2136bc814aa1df1a132559d445616
+    "Windows: Fix building of resource files when config.h isn't used."
+    
+    That commit fixed liblzma.dll build with CMake while keeping it
+    working with Autotools on Windows but the VS project files were
+    forgotten.
+    
+    I haven't tested these changes.
+    
+    Thanks to Olivier B. for reporting the bug and for the initial patch.
+
+ windows/vs2013/liblzma_dll.vcxproj | 6 ++++++
+ windows/vs2017/liblzma_dll.vcxproj | 6 ++++++
+ windows/vs2019/liblzma_dll.vcxproj | 6 ++++++
+ 3 files changed, 18 insertions(+)
+
+commit 8dfed05bdaa4873833ba24279f02ad2db25effea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-12 14:30:13 +0300
+
+    Bump version and soname for 5.2.6.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 09b4af4e04def5777b06124200b64b0b941eea7f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-12 14:29:28 +0300
+
+    Add NEWS for 5.2.6.
+
+ NEWS | 226 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 226 insertions(+)
+
+commit 692de534fae6c38f92416793addcf5f60ffe2bf6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-08-12 14:28:41 +0300
+
+    Add Jia Tan to AUTHORS.
+
+ AUTHORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 275de376a645f406be7c453bb68427aa9466cf83
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-25 19:11:05 +0300
+
+    Translations: Change the copyright comment string to use with po4a.
+    
+    This affects the second line in po4a/xz-man.pot. The man pages of
+    xzdiff, xzgrep, and xzmore are from GNU gzip and under GNU GPLv2+
+    while the rest of the man pages are in the public domain.
+
+ po4a/update-po | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 76a5a752b8467ff591dd028deb61e9bf2c274c7e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-07-25 18:30:05 +0300
+
+    liblzma: Refactor lzma_mf_is_supported() to use a switch-statement.
+
+ src/liblzma/lz/lz_encoder.c | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)
+
+commit 749b86c2c18ab61a07f19ec8fefc67325da97397
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-07-25 18:20:01 +0300
+
+    Build: Don't allow empty LIST in --enable-match-finders=LIST.
+    
+    It's enforced only when a match finder is needed, that is,
+    when LZMA1 or LZMA2 encoder is enabled.
+
+ configure.ac | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 63e3cdef805a4d9ea94c76c36cbabe4dc76abe36
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-11 23:41:16 +0200
+
+    xz: Make --keep accept symlinks, hardlinks, and setuid/setgid/sticky.
+    
+    Previously this required using --force but that has other
+    effects too which might be undesirable. Changing the behavior
+    of --keep has a small risk of breaking existing scripts but
+    since this is a fairly special corner case I expect the
+    likehood of breakage to be low enough.
+    
+    I think the new behavior is more logical. The only reason for
+    the old behavior was to be consistent with gzip and bzip2.
+    
+    Thanks to Vincent Lefevre and Sebastian Andrzej Siewior.
+
+ src/xz/file_io.c |  9 +++++----
+ src/xz/xz.1      | 16 +++++++++++++++-
+ 2 files changed, 20 insertions(+), 5 deletions(-)
+
+commit 9055584be0ae47032b7fb3ba8531aa56b9ed572a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-19 23:19:49 +0300
+
+    xzgrep man page: Document exit statuses.
+
+ src/scripts/xzgrep.1 | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+commit 57e1ccbb7ce30e5298ea7ec3934e462fa8d32237
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-19 23:13:24 +0300
+
+    xzgrep: Improve error handling, especially signals.
+    
+    xzgrep wouldn't exit on SIGPIPE or SIGQUIT when it clearly
+    should have. It's quite possible that it's not perfect still
+    but at least it's much better.
+    
+    If multiple exit statuses compete, now it tries to pick
+    the largest of value.
+    
+    Some comments were added.
+    
+    The exit status handling of signals is still broken if the shell
+    uses values larger than 255 in $? to indicate that a process
+    died due to a signal ***and*** their "exit" command doesn't take
+    this into account. This seems to work well with the ksh and yash
+    versions I tried. However, there is a report in gzip/zgrep that
+    OpenSolaris 5.11 (not 5.10) has a problem with "exit" truncating
+    the argument to 8 bits:
+    
+        https://debbugs.gnu.org/cgi/bugreport.cgi?bug=22900#25
+    
+    Such a bug would break xzgrep but I didn't add a workaround
+    at least for now. 5.11 is old and I don't know if the problem
+    exists in modern descendants, or if the problem exists in other
+    ksh implementations in use.
+
+ src/scripts/xzgrep.in | 72 +++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 53 insertions(+), 19 deletions(-)
+
+commit 6351ea1afb261ec9be95f808bcbe724e0da4ae09
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-19 00:10:55 +0300
+
+    xzgrep: Make the fix for ZDI-CAN-16587 more robust.
+    
+    I don't know if this can make a difference in the real world
+    but it looked kind of suspicious (what happens with sed
+    implementations that cannot process very long lines?).
+    At least this commit shouldn't make it worse.
+
+ src/scripts/xzgrep.in | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+commit 2c1ff2ed6b9f17b3913866a15d776ebbbeb824d2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-18 21:52:31 +0300
+
+    xzgrep: Use grep -H --label when available (GNU, *BSDs).
+    
+    It avoids the use of sed for prefixing filenames to output lines.
+    Using sed for that is slower and prone to security bugs so now
+    the sed method is only used as a fallback.
+    
+    This also fixes an actual bug: When grepping a binary file,
+    GNU grep nowadays prints its diagnostics to stderr instead of
+    stdout and thus the sed-method for prefixing the filename doesn't
+    work. So with this commit grepping binary files gives reasonable
+    output with GNU grep now.
+    
+    This was inspired by zgrep but the implementation is different.
+
+ src/scripts/xzgrep.in | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+commit 8b0be38a795fa1cdffdada64341a34209e630060
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-18 21:10:25 +0300
+
+    xzgrep: Use -e to specify the pattern to grep.
+    
+    Now we don't need the separate test for adding the -q option
+    as it can be added directly in the two places where it's needed.
+
+ src/scripts/xzgrep.in | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+commit 4a61867a874c60b31448d2d4f3c276efba85a243
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-18 19:18:48 +0300
+
+    Scripts: Use printf instead of echo in a few places.
+    
+    It's a good habbit as echo has some portability corner cases
+    when the string contents can be anything.
+
+ src/scripts/xzdiff.in | 6 +++---
+ src/scripts/xzgrep.in | 4 ++--
+ src/scripts/xzless.in | 4 ++--
+ src/scripts/xzmore.in | 8 ++++----
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+
+commit 0e222bf7d79a9792025c5ffeaa66c8e14eb47615
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-17 21:36:25 +0300
+
+    xzgrep: Add more LC_ALL=C to avoid bugs with multibyte characters.
+    
+    Also replace one use of expr with printf.
+    
+    The rationale for LC_ALL=C was already mentioned in
+    69d1b3fc29677af8ade8dc15dba83f0589cb63d6 that fixed a security
+    issue. However, unrelated uses weren't changed in that commit yet.
+    
+    POSIX says that with sed and such tools one should use LC_ALL=C
+    to ensure predictable behavior when strings contain byte sequences
+    that aren't valid multibyte characters in the current locale. See
+    under "Application usage" in here:
+    
+    https://pubs.opengroup.org/onlinepubs/9699919799/utilities/sed.html
+    
+    With GNU sed invalid multibyte strings would work without this;
+    it's documented in its Texinfo manual. Some other implementations
+    aren't so forgiving.
+
+ src/scripts/xzgrep.in | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+commit 62c1d2bc2da66e182c52bb1e3aa791f6d8a9e099
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-17 20:55:16 +0300
+
+    xzgrep: Fix parsing of certain options.
+    
+    Fix handling of "xzgrep -25 foo" (in GNU grep "grep -25 foo" is
+    an alias for "grep -C25 foo"). xzgrep would treat "foo" as filename
+    instead of as a pattern. This bug was fixed in zgrep in gzip in 2012.
+    
+    Add -E, -F, -G, and -P to the "no argument required" list.
+    
+    Add -X to "argument required" list. It is an
+    intentionally-undocumented GNU grep option so this isn't
+    an important option for xzgrep but it seems that other grep
+    implementations (well, those that I checked) don't support -X
+    so I hope this change is an improvement still.
+    
+    grep -d (grep --directories=ACTION) requires an argument. In
+    contrast to zgrep, I kept -d in the "no argument required" list
+    because it's not supported in xzgrep (or zgrep). This way
+    "xzgrep -d" gives an error about option being unsupported instead
+    of telling that it requires an argument. Both zgrep and xzgrep
+    tell that it's unsupported if an argument is specified.
+    
+    Add comments.
+
+ src/scripts/xzgrep.in | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+commit 372a0d12c95fad5e5477b4f79646bf66d28e0c31
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-14 20:33:05 +0300
+
+    Tests: Add the .lzma files to test_files.sh.
+
+ tests/test_files.sh | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+commit b8e3d0c45b62c81dfc6b350556d77cf2c7401edd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-14 19:37:42 +0300
+
+    Tests: Add .lzma test files.
+
+ tests/files/README                                 |  63 ++++++++++++++++-----
+ tests/files/bad-too_big_size-with_eopm.lzma        | Bin 0 -> 37 bytes
+ tests/files/bad-too_small_size-without_eopm-1.lzma | Bin 0 -> 31 bytes
+ tests/files/bad-too_small_size-without_eopm-2.lzma | Bin 0 -> 31 bytes
+ tests/files/bad-too_small_size-without_eopm-3.lzma | Bin 0 -> 36 bytes
+ tests/files/bad-unknown_size-without_eopm.lzma     | Bin 0 -> 31 bytes
+ tests/files/good-known_size-with_eopm.lzma         | Bin 0 -> 37 bytes
+ tests/files/good-known_size-without_eopm.lzma      | Bin 0 -> 31 bytes
+ tests/files/good-unknown_size-with_eopm.lzma       | Bin 0 -> 37 bytes
+ 9 files changed, 50 insertions(+), 13 deletions(-)
+
+commit e96bdf7189916bffec0dcc933cd809fac898587c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-14 18:12:38 +0300
+
+    liblzma: Rename a variable and improve a comment.
+
+ src/liblzma/lzma/lzma_decoder.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+commit 2d54fdf58e80bb2b0852633838576fd1ae7961c5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-13 22:24:41 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit ff54b557fe3b06b59a24e4028c1464c35dd5b142
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-13 22:24:07 +0300
+
+    liblzma: Add optional autodetection of LZMA end marker.
+    
+    Turns out that this is needed for .lzma files as the spec in
+    LZMA SDK says that end marker may be present even if the size
+    is stored in the header. Such files are rare but exist in the
+    real world. The code in liblzma is so old that the spec didn't
+    exist in LZMA SDK back then and I had understood that such
+    files weren't possible (the lzma tool in LZMA SDK didn't
+    create such files).
+    
+    This modifies the internal API so that LZMA decoder can be told
+    if EOPM is allowed even when the uncompressed size is known.
+    It's allowed with .lzma and not with other uses.
+    
+    Thanks to Karl Beldan for reporting the problem.
+
+ doc/lzma-file-format.txt           | 11 ++++-
+ src/liblzma/common/alone_decoder.c |  2 +-
+ src/liblzma/lz/lz_decoder.c        | 10 +++-
+ src/liblzma/lz/lz_decoder.h        |  8 +--
+ src/liblzma/lzma/lzma2_decoder.c   |  2 +-
+ src/liblzma/lzma/lzma_decoder.c    | 99 +++++++++++++++++++++++++++-----------
+ 6 files changed, 94 insertions(+), 38 deletions(-)
+
+commit bb795fe835cf2b3ae7ed68b155784fbfc14e2faf
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-14 17:20:49 +0300
+
+    Tests: Add test file good-1-empty-bcj-lzma2.xz.
+    
+    This is from test_bcj_exact_size.c.
+    It's good to have it as a standalone file.
+
+ tests/files/README                    |   5 +++++
+ tests/files/good-1-empty-bcj-lzma2.xz | Bin 0 -> 52 bytes
+ 2 files changed, 5 insertions(+)
+
+commit dbd8b0bf45c10f991635f585a2ea59fb5ae28ff3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-03-31 00:05:07 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit bb66a98ded39c40df202da17cb2055356dcd4168
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-03-29 19:19:12 +0300
+
+    xzgrep: Fix escaping of malicious filenames (ZDI-CAN-16587).
+    
+    Malicious filenames can make xzgrep to write to arbitrary files
+    or (with a GNU sed extension) lead to arbitrary code execution.
+    
+    xzgrep from XZ Utils versions up to and including 5.2.5 are
+    affected. 5.3.1alpha and 5.3.2alpha are affected as well.
+    This patch works for all of them.
+    
+    This bug was inherited from gzip's zgrep. gzip 1.12 includes
+    a fix for zgrep.
+    
+    The issue with the old sed script is that with multiple newlines,
+    the N-command will read the second line of input, then the
+    s-commands will be skipped because it's not the end of the
+    file yet, then a new sed cycle starts and the pattern space
+    is printed and emptied. So only the last line or two get escaped.
+    
+    One way to fix this would be to read all lines into the pattern
+    space first. However, the included fix is even simpler: All lines
+    except the last line get a backslash appended at the end. To ensure
+    that shell command substitution doesn't eat a possible trailing
+    newline, a colon is appended to the filename before escaping.
+    The colon is later used to separate the filename from the grep
+    output so it is fine to add it here instead of a few lines later.
+    
+    The old code also wasn't POSIX compliant as it used \n in the
+    replacement section of the s-command. Using \<newline> is the
+    POSIX compatible method.
+    
+    LC_ALL=C was added to the two critical sed commands. POSIX sed
+    manual recommends it when using sed to manipulate pathnames
+    because in other locales invalid multibyte sequences might
+    cause issues with some sed implementations. In case of GNU sed,
+    these particular sed scripts wouldn't have such problems but some
+    other scripts could have, see:
+    
+        info '(sed)Locale Considerations'
+    
+    This vulnerability was discovered by:
+    cleemy desu wayo working with Trend Micro Zero Day Initiative
+    
+    Thanks to Jim Meyering and Paul Eggert discussing the different
+    ways to fix this and for coordinating the patch release schedule
+    with gzip.
+
+ src/scripts/xzgrep.in | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
+
+commit fa3af4e4c6a8f692785b87ba0f165f34d154ae0f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-03-23 16:34:00 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit f12ce0f23a0496daebc77e8359309bf724ad5e8a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-03-06 16:54:23 +0200
+
+    liblzma: Fix docs: lzma_block_decoder() cannot return LZMA_UNSUPPORTED_CHECK.
+    
+    If Check is unsupported, it will be silently ignored.
+    It's the caller's job to handle it.
+
+ src/liblzma/api/lzma/block.h | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 412566731111edc28f0b68bc966d01ab24d17082
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-03-06 15:18:58 +0200
+
+    liblzma: Index hash: Change return value type of hash_append() to void.
+
+ src/liblzma/common/index_hash.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+commit 7c3ce02df001701a26c2fa41b2dc8b530743f454
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-22 03:42:57 +0200
+
+    liblzma: Minor addition to lzma_vli_size() API doc.
+    
+    Thanks to Jia Tan.
+
+ src/liblzma/api/lzma/vli.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit b8f667fe0c3e17fd2c559901d2aaf19b1dfd51f2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-22 02:04:18 +0200
+
+    liblzma: Check the return value of lzma_index_append() in threaded encoder.
+    
+    If lzma_index_append() failed (most likely memory allocation failure)
+    it could have gone unnoticed and the resulting .xz file would have
+    an incorrect Index. Decompressing such a file would produce the
+    correct uncompressed data but then an error would occur when
+    verifying the Index field.
+
+ src/liblzma/common/stream_encoder_mt.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit 2356d53edd8f44ff8f411972ca62d63079ff59af
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-22 01:37:39 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 748ef0833821f1ea4ff5d57abc3cab1ae76266d3
+Author: Ed Maste <emaste@FreeBSD.org>
+Date:   2022-02-11 15:25:46 +0000
+
+    liblzma: Use non-executable stack on FreeBSD as on Linux
+
+ src/liblzma/check/crc32_x86.S | 4 ++--
+ src/liblzma/check/crc64_x86.S | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+commit 068a6e3286c9ca7d67f13f4c78646c4f4a3c3c5b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-20 20:36:27 +0200
+
+    liblzma: Make Block decoder catch certain types of errors better.
+    
+    Now it limits the input and output buffer sizes that are
+    passed to a raw decoder. This way there's no need to check
+    if the sizes can grow too big or overflow when updating
+    Compressed Size and Uncompressed Size counts. This also means
+    that a corrupt file cannot cause the raw decoder to process
+    useless extra input or output that would exceed the size info
+    in Block Header (and thus cause LZMA_DATA_ERROR anyway).
+    
+    More importantly, now the size information is verified more
+    carefully in case raw decoder returns LZMA_OK. This doesn't
+    really matter with the current single-threaded .xz decoder
+    as the errors would be detected slightly later anyway. But
+    this helps avoiding corner cases in the upcoming threaded
+    decompressor, and it might help other Block decoder uses
+    outside liblzma too.
+    
+    The test files bad-1-lzma2-{9,10,11}.xz test these conditions.
+    With the single-threaded .xz decoder the only difference is
+    that LZMA_DATA_ERROR is detected in a difference place now.
+
+ src/liblzma/common/block_decoder.c | 79 ++++++++++++++++++++++++++------------
+ 1 file changed, 54 insertions(+), 25 deletions(-)
+
+commit 766df4f62c165ba96d60af8fadbada51349fd140
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-20 19:38:55 +0200
+
+    Tests: Add bad-1-lzma2-11.xz.
+
+ tests/files/README            |   5 +++++
+ tests/files/bad-1-lzma2-11.xz | Bin 0 -> 64 bytes
+ 2 files changed, 5 insertions(+)
+
+commit 12a6d6ce2a9850e32140e542decfd9c8a33c87fc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-18 18:51:10 +0200
+
+    Translations: Fix po4a failure with the French man page translations.
+    
+    Thanks to Mario Blättermann for the patch.
+
+ po4a/fr_FR.po | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit 00e6aad836cf301e95575ea53790f5ab96fe8ed6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-02-07 01:14:37 +0200
+
+    Translations: Add French translation of man pages.
+    
+    This matches xz-utils 5.2.5-2 in Debian.
+    
+    The translation was done by "bubu", proofread by the debian-l10n-french
+    mailing list contributors, and submitted to me on the xz-devel mailing
+    list by Jean-Pierre Giraud. Thanks to everyone!
+
+ po4a/fr_FR.po  | 3541 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po4a/po4a.conf |    2 +-
+ 2 files changed, 3542 insertions(+), 1 deletion(-)
+
+commit e20ce2b12251a246c50fb5b7fa2204c11611b407
+Author: jiat75 <jiat0218@gmail.com>
+Date:   2022-01-28 20:47:55 +0800
+
+    liblzma: Add NULL checks to LZMA and LZMA2 properties encoders.
+    
+    Previously lzma_lzma_props_encode() and lzma_lzma2_props_encode()
+    assumed that the options pointers must be non-NULL because the
+    with these filters the API says it must never be NULL. It is
+    good to do these checks anyway.
+
+ src/liblzma/lzma/lzma2_encoder.c | 3 +++
+ src/liblzma/lzma/lzma_encoder.c  | 3 +++
+ 2 files changed, 6 insertions(+)
+
+commit feb80ace866c3033cefbc39f6b07ada83e316e6a
+Author: huangqinjin <huangqinjin@gmail.com>
+Date:   2021-12-13 20:49:21 +0800
+
+    CMake: Keep compatible with Windows 95 for 32-bit build.
+
+ CMakeLists.txt | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+commit 725f2e0522c4ef8dc5fdd69b5017bac6322ebce2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-11-13 21:04:05 +0200
+
+    xzgrep: Update man page timestamp.
+
+ src/scripts/xzgrep.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 7955669d423724e69a7f2dae1173dae248f7a596
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-11-13 18:23:24 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 671673a7a209e6131491e6a424758bbc13fb7aa1
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   2021-11-13 10:11:57 +0200
+
+    xzgrep: use `grep -E/-F` instead of `egrep` and `fgrep`
+    
+    `egrep` and `fgrep` have been deprecated in GNU grep since 2007, and in
+    current post 3.7 Git they have been made to emit obsolescence warnings:
+    https://git.savannah.gnu.org/cgit/grep.git/commit/?id=a9515624709865d480e3142fd959bccd1c9372d1
+
+ src/scripts/xzgrep.1  | 8 ++++----
+ src/scripts/xzgrep.in | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+commit 45e538257e85050f67a6d363961e31b71e3ec565
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-10-27 23:27:48 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit ca21733d24a4f65b46a5efa124a89c859ac5592e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-10-27 23:23:11 +0300
+
+    xz: Change the coding style of the previous commit.
+    
+    It isn't any better now but it's consistent with
+    the rest of the code base.
+
+ src/xz/file_io.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+commit 906b990b151b93750958371e39ad00e8d1daada9
+Author: Alexander Bluhm <alexander.bluhm@gmx.net>
+Date:   2021-10-05 23:33:16 +0200
+
+    xz: Avoid fchown(2) failure.
+    
+    OpenBSD does not allow to change the group of a file if the user
+    does not belong to this group.  In contrast to Linux, OpenBSD also
+    fails if the new group is the same as the old one.  Do not call
+    fchown(2) in this case, it would change nothing anyway.
+    
+    This fixes an issue with Perl Alien::Build module.
+    https://github.com/PerlAlien/Alien-Build/issues/62
+
+ src/xz/file_io.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+commit ca83df96c48371ce0094c73c6f4582899ae4b62b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-09-09 22:21:07 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit d8b294af03840c7c47d6b7b0d4c0d6d2f6357dfa
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-09-09 21:41:51 +0300
+
+    liblzma: Use _MSVC_LANG to detect when "noexcept" can be used with MSVC.
+    
+    By default, MSVC always sets __cplusplus to 199711L. The real
+    C++ standard version is available in _MSVC_LANG (or one could
+    use /Zc:__cplusplus to set __cplusplus correctly).
+    
+    Fixes <https://sourceforge.net/p/lzmautils/discussion/708858/thread/f6bc3b108a/>.
+    
+    Thanks to Dan Weiss.
+
+ src/liblzma/api/lzma.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit c2fde22befe1f5256ad3d7c4cb35794aa8e64c67
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-06-04 19:02:38 +0300
+
+    xzdiff: Update the man page about the exit status.
+    
+    This was forgotten from 194029ffaf74282a81f0c299c07f73caca3232ca.
+
+ src/scripts/xzdiff.1 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 8d0fd42fbedd01fd3c847b56d19841e603500dea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-06-04 18:52:48 +0300
+
+    xzless: Fix less(1) version detection when it contains a dot.
+    
+    Sometimes the version number from "less -V" contains a dot,
+    sometimes not. xzless failed detect the version number when
+    it does contain a dot. This fixes it.
+    
+    Thanks to nick87720z for reporting this. Apparently it had been
+    reported here <https://bugs.gentoo.org/489362> in 2013.
+
+ src/scripts/xzless.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 6e2cab8579fc6f832b5954510b27fd7e74563436
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-12 18:53:04 +0300
+
+    xz: Document the special memlimit case of 2000 MiB on MIPS32.
+    
+    See commit 95806a8a52ae57bddf6c77dfd19cf7938a92e040.
+
+ src/xz/xz.1 | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+commit 38b311462bd8974888ba3cd9312de132c76ec2e0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-04-11 19:58:10 +0300
+
+    Update THANKS.
+
+ THANKS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 95806a8a52ae57bddf6c77dfd19cf7938a92e040
+Author: Ivan A. Melnikov <iv@altlinux.org>
+Date:   2021-04-09 11:45:10 +0300
+
+    Reduce maximum possible memory limit on MIPS32
+    
+    Due to architectural limitations, address space available to a single
+    userspace process on MIPS32 is limited to 2 GiB, not 4, even on systems
+    that have more physical RAM -- e.g. 64-bit systems with 32-bit
+    userspace, or systems that use XPA (an extension similar to x86's PAE).
+    
+    So, for MIPS32, we have to impose stronger memory limits. I've chosen
+    2000MiB to give the process some headroom.
+
+ src/xz/hardware.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit a79bd30a6fbfe614f47ad77498c46e218dbe2b1d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-02-13 23:31:27 +0200
+
+    CMake: Use interface library for better FindLibLZMA compatibility.
+    
+    https://www.mail-archive.com/xz-devel@tukaani.org/msg00446.html
+    
+    Thanks to Markus Rickert.
+
+ CMakeLists.txt | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+commit 64d98147616c48f2df37fb46b49350f3d5febd34
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-30 18:36:04 +0200
+
+    CMake: Try to improve compatibility with the FindLibLZMA module.
+    
+    The naming conflict with FindLibLZMA module gets worse.
+    Not avoiding it in the first place was stupid.
+    
+    Normally find_package(LibLZMA) will use the module and
+    find_package(liblzma 5.2.5 REQUIRED CONFIG) will use the config
+    file even with a case insensitive file system. However, if
+    CMAKE_FIND_PACKAGE_PREFER_CONFIG is TRUE and the file system
+    is case insensitive, find_package(LibLZMA) will find our liblzma
+    config file instead of using FindLibLZMA module.
+    
+    One big problem with this is that FindLibLZMA uses
+    LibLZMA::LibLZMA and we use liblzma::liblzma as the target
+    name. With target names CMake happens to be case sensitive.
+    To workaround this, this commit adds
+    
+        add_library(LibLZMA::LibLZMA ALIAS liblzma::liblzma)
+    
+    to the config file. Then both spellings work.
+    
+    To make the behavior consistent between case sensitive and
+    insensitive file systems, the config and related files are
+    renamed from liblzmaConfig.cmake to liblzma-config.cmake style.
+    With this style CMake looks for lowercase version of the package
+    name so find_package(LiBLzmA 5.2.5 REQUIRED CONFIG) will work
+    to find our config file.
+    
+    There are other differences between our config file and
+    FindLibLZMA so it's still possible that things break for
+    reasons other than the spelling of the target name. Hopefully
+    those situations aren't too common.
+    
+    When the config file is available, it should always give as good or
+    better results as FindLibLZMA so this commit doesn't affect the
+    recommendation to use find_package(liblzma 5.2.5 REQUIRED CONFIG)
+    which explicitly avoids FindLibLZMA.
+    
+    Thanks to Markus Rickert.
+
+ CMakeLists.txt | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+commit 9e2f9e2d0841dd0417125ca3c7a05418541fb230
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-24 22:32:41 +0200
+
+    Tests: Add bad-1-lzma2-10.xz and also modify -9.xz.
+
+ tests/files/README            |  11 +++++++++--
+ tests/files/bad-1-lzma2-10.xz | Bin 0 -> 60 bytes
+ tests/files/bad-1-lzma2-9.xz  | Bin 72 -> 72 bytes
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+commit 00a4c69bbbf302dd6323fd6970890ee22ddd4f96
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-24 18:51:51 +0200
+
+    Tests: Add bad-1-lzma2-9.xz.
+
+ tests/files/README           |   4 ++++
+ tests/files/bad-1-lzma2-9.xz | Bin 0 -> 72 bytes
+ 2 files changed, 4 insertions(+)
+
+commit 1da2269b2e9b952d165ad7bec823de9dfe9a9e9e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-24 17:02:00 +0200
+
+    Tests: Add bad-1-check-crc32-2.xz.
+
+ tests/files/README                 |   7 +++++++
+ tests/files/bad-1-check-crc32-2.xz | Bin 0 -> 72 bytes
+ 2 files changed, 7 insertions(+)
+
+commit 11ceecb5e2999ff96989915120e63a2e7e130057
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-11 23:57:11 +0200
+
+    Scripts: Add zstd support to xzdiff.
+
+ src/scripts/xzdiff.1  |  6 ++++--
+ src/scripts/xzdiff.in | 16 +++++++++++-----
+ 2 files changed, 15 insertions(+), 7 deletions(-)
+
+commit d655b8c9cb5a4e596c0fa2290fa91e995b734f97
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-11 23:28:52 +0200
+
+    Scripts: Fix exit status of xzgrep.
+    
+    Omit the -q option from xz, gzip, and bzip2. With xz this shouldn't
+    matter. With gzip it's important because -q makes gzip replace SIGPIPE
+    with exit status 2. With bzip2 it's important because with -q bzip2
+    is completely silent if input is corrupt while other decompressors
+    still give an error message.
+    
+    Avoiding exit status 2 from gzip is important because bzip2 uses
+    exit status 2 to indicate corrupt input. Before this commit xzgrep
+    didn't recognize corrupt .bz2 files because xzgrep was treating
+    exit status 2 as SIGPIPE for gzip compatibility.
+    
+    zstd still needs -q because otherwise it is noisy in normal
+    operation.
+    
+    The code to detect real SIGPIPE didn't check if the exit status
+    was due to a signal (>= 128) and so could ignore some other exit
+    status too.
+
+ src/scripts/xzgrep.in | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+commit 09c331b03c801414d547fc25711daf099cef6fb5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2021-01-11 22:01:51 +0200
+
+    Scripts: Fix exit status of xzdiff/xzcmp.
+    
+    This is a minor fix since this affects only the situation when
+    the files differ and the exit status is something else than 0.
+    In such case there could be SIGPIPE from a decompression tool
+    and that would result in exit status of 2 from xzdiff/xzcmp
+    while the correct behavior would be to return 1 or whatever
+    else diff or cmp may have returned.
+    
+    This commit omits the -q option from xz/gzip/bzip2/lzop arguments.
+    I'm not sure why the -q was used in the first place, perhaps it
+    hides warnings in some situation that I cannot see at the moment.
+    Hopefully the removal won't introduce a new bug.
+    
+    With gzip the -q option was harmful because it made gzip return 2
+    instead of >= 128 with SIGPIPE. Ignoring exit status 2 (warning
+    from gzip) isn't practical because bzip2 uses exit status 2 to
+    indicate corrupt input file. It's better if SIGPIPE results in
+    exit status >= 128.
+    
+    With bzip2 the removal of -q seems to be good because with -q
+    it prints nothing if input is corrupt. The other tools aren't
+    silent in this situation even with -q. On the other hand, if
+    zstd support is added, it will need -q since otherwise it's
+    noisy in normal situations.
+    
+    Thanks to Étienne Mollier and Sebastian Andrzej Siewior.
+
+ src/scripts/xzdiff.in | 35 +++++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 14 deletions(-)
+
+commit b33a345cbab90e18b601d26cc3a0dea083b7d8d9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-12-23 17:15:49 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit c01e29a933baba737217a3549eaaced7e499edf5
+Author: H.J. Lu <hjl.tools@gmail.com>
+Date:   2020-12-23 06:49:04 -0800
+
+    liblzma: Enable Intel CET in x86 CRC assembly codes
+    
+    When Intel CET is enabled, we need to include <cet.h> in assembly codes
+    to mark Intel CET support and add _CET_ENDBR to indirect jump targets.
+    
+    Tested on Intel Tiger Lake under CET enabled Linux.
+
+ src/liblzma/check/crc32_x86.S | 9 +++++++++
+ src/liblzma/check/crc64_x86.S | 9 +++++++++
+ 2 files changed, 18 insertions(+)
+
+commit 0983682f87ae1a9efcbe4e45579d53c9bca16500
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-12-16 18:33:29 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 880596e4b8731b24f6c19cb737ed7d06fe92dda2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-12-16 18:30:14 +0200
+
+    Build: Don't build bundles on Apple OSes.
+    
+    Thanks to Daniel Packard.
+
+ CMakeLists.txt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 29050c79f1f83bf73714146a44dfbb4d26e27920
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-12-05 22:44:03 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 94fd72474973978f8369be7c23f77c3b741953a6
+Author: Adam Borowski <kilobyte@angband.pl>
+Date:   2020-09-25 03:35:18 +0200
+
+    Scripts: Add zstd support to xzgrep.
+    
+    Thanks to Adam Borowski.
+
+ src/scripts/xzgrep.1  | 9 ++++++---
+ src/scripts/xzgrep.in | 1 +
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+commit 13c58ac13e1a84c30de24191931af425286d0550
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-11-17 20:51:48 +0200
+
+    CMake: Fix compatibility with CMake 3.13.
+    
+    The syntax "if(DEFINED CACHE{FOO})" requires CMake 3.14.
+    In some other places the code treats the cache variables
+    like normal variables already (${FOO} or if(FOO) is used,
+    not ${CACHE{FOO}).
+    
+    Thanks to ygrek for reporting the bug on IRC.
+
+ CMakeLists.txt              | 2 +-
+ cmake/tuklib_cpucores.cmake | 4 ++--
+ cmake/tuklib_physmem.cmake  | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+commit 8f7d3345a7c31a20a544dc04232715b1bcdc91f7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-11-01 22:56:43 +0200
+
+    Update THANKS.
+
+ THANKS | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+commit ca7bcdb30f14e7cd66fe357d10046442eee648a0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-11-01 22:34:25 +0200
+
+    xz: Avoid unneeded \f escapes on the man page.
+    
+    I don't want to use \c in macro arguments but groff_man(7)
+    suggests that \f has better portability. \f would be needed
+    for the .TP strings for portability reasons anyway.
+    
+    Thanks to Bjarni Ingi Gislason.
+
+ src/xz/xz.1 | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)
+
+commit 3b40a0792ee5ba0dd4d9ab129b4443585bbfdd14
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-11-01 19:09:53 +0200
+
+    xz: Use non-breaking spaces when intentionally using more than one space.
+    
+    This silences some style checker warnings. Seems that spaces
+    in the beginning of a line don't need this treatment.
+    
+    Thanks to Bjarni Ingi Gislason.
+
+ src/xz/xz.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit d85699c36df5f839b82800a6e63151eff25677eb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-11-01 18:49:37 +0200
+
+    xz: Protect the ellipsis (...) on the man page with \&.
+    
+    This does it only when ... appears outside macro calls.
+    
+    Thanks to Bjarni Ingi Gislason.
+
+ src/xz/xz.1 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit d996ae66176206de9b4d485b250a88b2d9ded151
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-11-01 18:41:21 +0200
+
+    xz: Avoid the abbreviation "e.g." on the man page.
+    
+    A few are simply omitted, most are converted to "for example"
+    and surrounded with commas. Sounds like that this is better
+    style, for example, man-pages(7) recommends avoiding such
+    abbreviations except in parenthesis.
+    
+    Thanks to Bjarni Ingi Gislason.
+
+ src/xz/xz.1 | 66 ++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 33 insertions(+), 33 deletions(-)
+
+commit d16d0d198ade6820ed9d39ba6a7068b55b8bf6dc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-07-12 23:10:03 +0300
+
+    xz man page: Change \- (minus) to \(en (en-dash) for a numeric range.
+    
+    Docs of ancient troff/nroff mention \(em (em-dash) but not \(en
+    and \- was used for both minus and en-dash. I don't know how
+    portable \(en is nowadays but it can be changed back if someone
+    complains. At least GNU groff and OpenBSD's mandoc support it.
+    
+    Thanks to Bjarni Ingi Gislason for the patch.
+
+ src/xz/xz.1 | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+commit 3acf1adfc768c7d2290e138bcb1109145e4d8160
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-07-12 20:46:24 +0300
+
+    Windows: Fix building of resource files when config.h isn't used.
+    
+    Now CMake + Visual Studio works for building liblzma.dll.
+    
+    Thanks to Markus Rickert.
+
+ src/common/common_w32res.rc | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+commit adba06e649875b45b5b671f5ab45f694144938d4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-04-06 19:31:50 +0300
+
+    src/scripts/xzgrep.1: Filenames to xzgrep are optional.
+    
+    xzgrep --help was correct already.
+
+ src/scripts/xzgrep.1 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 7be1dcf8585e150bffb57a6ad499a63edd0d3494
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-12 17:59:41 +0300
+
+    Translations: Add Portuguese translation.
+    
+    Jia Tan made white-space changes and also changed "Language: pt_BR\n"
+    to pt. The translator wasn't reached so I'm hoping these changes
+    are OK and will commit it without translator's approval.
+    
+    Thanks to Pedro Albuquerque and Jia Tan.
+
+ po/LINGUAS |    1 +
+ po/pt.po   | 1001 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1002 insertions(+)
+
+commit 3f94d2a568290bf770a762ee69403955fdb0a228
+Author: Bjarni Ingi Gislason <bjarniig@rhi.hi.is>
+Date:   2020-03-26 22:17:31 +0000
+
+    src/script/xzgrep.1: Remove superfluous '.RB'
+    
+    Output is from: test-groff -b -e -mandoc -T utf8 -rF0 -t -w w -z
+    
+      [ "test-groff" is a developmental version of "groff" ]
+    
+    Input file is ./src/scripts/xzgrep.1
+    
+    <src/scripts/xzgrep.1>:20 (macro RB): only 1 argument, but more are expected
+    <src/scripts/xzgrep.1>:23 (macro RB): only 1 argument, but more are expected
+    <src/scripts/xzgrep.1>:26 (macro RB): only 1 argument, but more are expected
+    <src/scripts/xzgrep.1>:29 (macro RB): only 1 argument, but more are expected
+    <src/scripts/xzgrep.1>:32 (macro RB): only 1 argument, but more are expected
+    
+     "abc..." does not mean the same as "abc ...".
+    
+      The output from nroff and troff is unchanged except for the space
+    between "file" and "...".
+    
+    Signed-off-by: Bjarni Ingi Gislason <bjarniig@rhi.hi.is>
+
+ src/scripts/xzgrep.1 | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+commit 725d9791c90b7cef19a3ab4d7469b567101c2a87
+Author: Bjarni Ingi Gislason <bjarniig@rhi.hi.is>
+Date:   2020-03-30 21:56:36 +0000
+
+    xzgrep.1: Delete superfluous '.PP'
+    
+    Summary:
+    
+    mandoc -T lint xzgrep.1 :
+    mandoc: xzgrep.1:79:2: WARNING: skipping paragraph macro: PP empty
+    
+      There is no change in the output of "nroff" and "troff".
+    
+    Signed-off-by: Bjarni Ingi Gislason <bjarniig@rhi.hi.is>
+
+ src/scripts/xzgrep.1 | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 55c2555c5d420e9251a97828022e5c8c4d786dac
+Author: Bjarni Ingi Gislason <bjarniig@rhi.hi.is>
+Date:   2020-03-26 21:16:18 +0000
+
+    src/xz/xz.1: Correct misused two-fonts macros
+    
+    Output is from: test-groff -b -e -mandoc -T utf8 -rF0 -t -w w -z
+    
+      [ "test-groff" is a developmental version of "groff" ]
+    
+    Input file is ./src/xz/xz.1
+    
+    <src/xz/xz.1>:408 (macro BR): only 1 argument, but more are expected
+    <src/xz/xz.1>:1009 (macro BR): only 1 argument, but more are expected
+    <src/xz/xz.1>:1743 (macro BR): only 1 argument, but more are expected
+    <src/xz/xz.1>:1920 (macro BR): only 1 argument, but more are expected
+    <src/xz/xz.1>:2213 (macro BR): only 1 argument, but more are expected
+    
+      Output from nroff and troff is unchanged, except for a font change of a
+    full stop (.).
+    
+    Signed-off-by: Bjarni Ingi Gislason <bjarniig@rhi.hi.is>
+
+ src/xz/xz.1 | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+commit 55e3a8e0e437279223c108085dccddc60b06036c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-10 21:16:40 +0300
+
+    Translations: Add Serbian translation.
+    
+    Quite a few white-space changes were made by Jia Tan to make
+    this look good. Contacting the translator didn't succeed so
+    I'm committing this without getting translator's approval.
+    
+    Thanks to Мирослав Николић (Miroslav Nikolic) and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/sr.po   | 987 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 988 insertions(+)
+
+commit 4e04279cbe8c1af25dde42ebf740722deded27a0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-04 23:51:36 +0300
+
+    Translations: Add Swedish translation.
+    
+    Thanks to Sebastian Rasmussen and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/sv.po   | 983 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 984 insertions(+)
+
+commit 27f55e96b0cdae3fc51b409663b6c017a88ea8bc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-04 23:40:27 +0300
+
+    Translations: Add Esperanto translation.
+    
+    Thanks to Keith Bowes and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/eo.po   | 984 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 985 insertions(+)
+
+commit be31be9e8f12cf6fce4be1ab822660ad411e803b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-07-01 00:22:33 +0300
+
+    Translations: Add Catalan translation.
+    
+    Thanks to Jordi Mas and Jia Tan.
+
+ po/LINGUAS |    1 +
+ po/ca.po   | 1076 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1077 insertions(+)
+
+commit 30e3ad040f4e7ba1a0e97179d6fd62a1201c863b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-30 17:47:08 +0300
+
+    Translations: Add Ukrainian translation.
+    
+    Thanks to Yuri Chornoivan and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/uk.po   | 996 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 997 insertions(+)
+
+commit f2e2cce49f7b07e8985ba6add4b4ca79b22eddd0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-30 17:45:26 +0300
+
+    Translators: Add Romanian translation.
+    
+    Thanks to Remus-Gabriel Chelu and Jia Tan.
+
+ po/LINGUAS |    1 +
+ po/ro.po   | 1016 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 1017 insertions(+)
+
+commit a12fd5bad2aa922c9b4cf96d16632696f3e0584e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-29 18:33:32 +0300
+
+    Translations: Update Brazilian Portuguese translation.
+    
+    One msgstr was changed. The diff is long due to changes
+    in the source code line numbers in the comments.
+    
+    Thanks to Rafael Fontenelle.
+
+ po/pt_BR.po | 186 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 92 insertions(+), 94 deletions(-)
+
+commit dd713288d27a0d64426d74effe9187087496333c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-29 18:04:44 +0300
+
+    Translations: Add Croatian translation.
+    
+    Thanks to Božidar Putanec and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/hr.po   | 987 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 988 insertions(+)
+
+commit 016980f26974623a4bcd889b6ba5a0caa4b2f57f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-29 17:58:48 +0300
+
+    Translations: Add Spanish translation.
+    
+    Thanks to Cristian Othón Martínez Vera and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/es.po   | 984 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 985 insertions(+)
+
+commit 4fe9578c3aab21e6ceb8f0ea470bc87821f5907f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-06-29 17:49:43 +0300
+
+    Translations: Add Korean translation.
+    
+    Thanks to Seong-ho Cho and Jia Tan.
+
+ po/LINGUAS |   1 +
+ po/ko.po   | 972 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 973 insertions(+)
+
+commit cf1ec5518e6e3d89f57685ac83b81ab228e48bcd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-23 18:09:40 +0200
+
+    v5.2-specific typo fix from fossies.org.
+
+ README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 968bbfea09447a4f52e856bb97301aca80e40dcb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2020-03-23 18:07:50 +0200
+
+    Typo fixes from fossies.org.
+    
+    https://fossies.org/linux/misc/xz-5.2.5.tar.xz/codespell.html
+
+ Makefile.am                     | 2 +-
+ doc/examples/01_compress_easy.c | 2 +-
+ src/liblzma/api/lzma/base.h     | 2 +-
+ src/liblzma/check/crc32_x86.S   | 2 +-
+ src/liblzma/common/index.c      | 2 +-
+ src/xz/xz.1                     | 4 ++--
+ 6 files changed, 7 insertions(+), 7 deletions(-)
+
 commit 2327a461e1afce862c22269b80d3517801103c1b
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2020-03-17 16:27:42 +0200

@@ -355,11 +355,8 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 	if (elapsed < 3000)
 		return "";
 
-	static const char unit[][8] = {
-		"KiB/s",
-		"MiB/s",
-		"GiB/s",
-	};
+	// The first character of KiB/s, MiB/s, or GiB/s:
+	static const char unit[] = { 'K', 'M', 'G' };
 
 	size_t unit_index = 0;
 
@@ -381,7 +378,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 	//  - 999 KiB/s
 	// Use big enough buffer to hold e.g. a multibyte decimal point.
 	static char buf[16];
-	snprintf(buf, sizeof(buf), "%.*f %s",
+	snprintf(buf, sizeof(buf), "%.*f %ciB/s",
 			speed > 9.9 ? 0 : 1, speed, unit[unit_index]);
 	return buf;
 }
@@ -1116,6 +1113,9 @@ message_help(bool long_help)
 "  -k, --keep          keep (don't delete) input files\n"
 "  -f, --force         force overwrite of output file and (de)compress links\n"
 "  -c, --stdout        write to standard output and don't delete input files"));
+	// NOTE: --to-stdout isn't included above because it's not
+	// the recommended spelling. It was copied from gzip but other
+	// compressors with gzip-like syntax don't support it.
 
 	if (long_help) {
 		puts(_(

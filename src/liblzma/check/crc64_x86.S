@@ -41,6 +41,14 @@ init_table(void)
  * extern uint64_t lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc);
  */
 
+/* When Intel CET is enabled, include <cet.h> in assembly code to mark
+   Intel CET support.  */
+#ifdef __CET__
+# include <cet.h>
+#else
+# define _CET_ENDBR
+#endif
+
 /*
  * On some systems, the functions need to be prefixed. The prefix is
  * usually an underscore.
@@ -73,6 +81,7 @@ init_table(void)
 
 	ALIGN(4, 16)
 LZMA_CRC64:
+	_CET_ENDBR
 	/*
 	 * Register usage:
 	 * %eax crc LSB
@@ -279,9 +288,9 @@ LZMA_CRC64:
 
 /*
  * This is needed to support non-executable stack. It's ugly to
- * use __linux__ here, but I don't know a way to detect when
+ * use __FreeBSD__ and __linux__ here, but I don't know a way to detect when
  * we are using GNU assembler.
  */
-#if defined(__ELF__) && defined(__linux__)
+#if defined(__ELF__) && (defined(__FreeBSD__) || defined(__linux__))
 	.section	.note.GNU-stack,"",@progbits
 #endif

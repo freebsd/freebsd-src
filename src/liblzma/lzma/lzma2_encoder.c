@@ -378,6 +378,9 @@ lzma_lzma2_encoder_memusage(const void *options)
 extern lzma_ret
 lzma_lzma2_props_encode(const void *options, uint8_t *out)
 {
+	if (options == NULL)
+		return LZMA_PROG_ERROR;
+
 	const lzma_options_lzma *const opt = options;
 	uint32_t d = my_max(opt->dict_size, LZMA_DICT_SIZE_MIN);
 

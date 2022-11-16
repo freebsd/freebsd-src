@@ -122,11 +122,15 @@ static const struct {
 
 
 extern LZMA_API(lzma_ret)
-lzma_filters_copy(const lzma_filter *src, lzma_filter *dest,
+lzma_filters_copy(const lzma_filter *src, lzma_filter *real_dest,
 		const lzma_allocator *allocator)
 {
-	if (src == NULL || dest == NULL)
+	if (src == NULL || real_dest == NULL)
 		return LZMA_PROG_ERROR;
+
+	// Use a temporary destination so that the real destination
+	// will never be modied if an error occurs.
+	lzma_filter dest[LZMA_FILTERS_MAX + 1];
 
 	lzma_ret ret;
 	size_t i;
@@ -173,18 +177,20 @@ lzma_filters_copy(const lzma_filter *src, lzma_filter *dest,
 	}
 
 	// Terminate the filter array.
-	assert(i <= LZMA_FILTERS_MAX + 1);
+	assert(i < LZMA_FILTERS_MAX + 1);
 	dest[i].id = LZMA_VLI_UNKNOWN;
 	dest[i].options = NULL;
+
+	// Copy it to the caller-supplied array now that we know that
+	// no errors occurred.
+	memcpy(real_dest, dest, (i + 1) * sizeof(lzma_filter));
 
 	return LZMA_OK;
 
 error:
 	// Free the options which we have already allocated.
-	while (i-- > 0) {
+	while (i-- > 0)
 		lzma_free(dest[i].options, allocator);
-		dest[i].options = NULL;
-	}
 
 	return ret;
 }
