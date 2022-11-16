@@ -51,12 +51,12 @@
  * operation, we will try to write this amount of data to each disk before
  * moving on to the next top-level vdev.
  */
-static unsigned long metaslab_aliquot = 1024 * 1024;
+static uint64_t metaslab_aliquot = 1024 * 1024;
 
 /*
  * For testing, make some blocks above a certain size be gang blocks.
  */
-unsigned long metaslab_force_ganging = SPA_MAXBLOCKSIZE + 1;
+uint64_t metaslab_force_ganging = SPA_MAXBLOCKSIZE + 1;
 
 /*
  * In pools where the log space map feature is not enabled we touch
@@ -286,7 +286,7 @@ static const int max_disabled_ms = 3;
  * Time (in seconds) to respect ms_max_size when the metaslab is not loaded.
  * To avoid 64-bit overflow, don't set above UINT32_MAX.
  */
-static unsigned long zfs_metaslab_max_size_cache_sec = 1 * 60 * 60; /* 1 hour */
+static uint64_t zfs_metaslab_max_size_cache_sec = 1 * 60 * 60; /* 1 hour */
 
 /*
  * Maximum percentage of memory to use on storing loaded metaslabs. If loading
@@ -5131,8 +5131,7 @@ metaslab_alloc_dva(spa_t *spa, metaslab_class_t *mc, uint64_t psize,
 		if (vd != NULL && vd->vdev_mg != NULL) {
 			mg = vdev_get_mg(vd, mc);
 
-			if (flags & METASLAB_HINTBP_AVOID &&
-			    mg->mg_next != NULL)
+			if (flags & METASLAB_HINTBP_AVOID)
 				mg = mg->mg_next;
 		} else {
 			mg = mca->mca_rotor;
@@ -5201,12 +5200,11 @@ top:
 		ASSERT(mg->mg_initialized);
 
 		/*
-		 * Avoid writing single-copy data to a failing,
+		 * Avoid writing single-copy data to an unhealthy,
 		 * non-redundant vdev, unless we've already tried all
 		 * other vdevs.
 		 */
-		if ((vd->vdev_stat.vs_write_errors > 0 ||
-		    vd->vdev_state < VDEV_STATE_HEALTHY) &&
+		if (vd->vdev_state < VDEV_STATE_HEALTHY &&
 		    d == 0 && !try_hard && vd->vdev_children == 0) {
 			metaslab_trace_add(zal, mg, NULL, psize, d,
 			    TRACE_VDEV_ERROR, allocator);
@@ -6203,7 +6201,7 @@ metaslab_unflushed_txg(metaslab_t *ms)
 	return (ms->ms_unflushed_txg);
 }
 
-ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, aliquot, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, aliquot, U64, ZMOD_RW,
 	"Allocation granularity (a.k.a. stripe size)");
 
 ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, debug_load, INT, ZMOD_RW,
@@ -6251,7 +6249,7 @@ ZFS_MODULE_PARAM(zfs_metaslab, zfs_metaslab_, segment_weight_enabled, INT,
 ZFS_MODULE_PARAM(zfs_metaslab, zfs_metaslab_, switch_threshold, INT, ZMOD_RW,
 	"Segment-based metaslab selection maximum buckets before switching");
 
-ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, force_ganging, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, force_ganging, U64, ZMOD_RW,
 	"Blocks larger than this size are forced to be gang blocks");
 
 ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, df_max_search, UINT, ZMOD_RW,
@@ -6260,7 +6258,7 @@ ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, df_max_search, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_metaslab, metaslab_, df_use_largest_segment, INT, ZMOD_RW,
 	"When looking in size tree, use largest segment instead of exact fit");
 
-ZFS_MODULE_PARAM(zfs_metaslab, zfs_metaslab_, max_size_cache_sec, ULONG,
+ZFS_MODULE_PARAM(zfs_metaslab, zfs_metaslab_, max_size_cache_sec, U64,
 	ZMOD_RW, "How long to trust the cached max chunk size of a metaslab");
 
 ZFS_MODULE_PARAM(zfs_metaslab, zfs_metaslab_, mem_limit, UINT, ZMOD_RW,

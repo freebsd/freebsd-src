@@ -132,7 +132,7 @@ static int zil_nocacheflush = 0;
  * Any writes above that will be executed with lower (asynchronous) priority
  * to limit potential SLOG device abuse by single active ZIL writer.
  */
-static unsigned long zil_slog_bulk = 768 * 1024;
+static uint64_t zil_slog_bulk = 768 * 1024;
 
 static kmem_cache_t *zil_lwb_cache;
 static kmem_cache_t *zil_zcw_cache;
@@ -237,7 +237,7 @@ static int
 zil_read_log_block(zilog_t *zilog, boolean_t decrypt, const blkptr_t *bp,
     blkptr_t *nbp, void *dst, char **end)
 {
-	enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
+	zio_flag_t zio_flags = ZIO_FLAG_CANFAIL;
 	arc_flags_t aflags = ARC_FLAG_WAIT;
 	arc_buf_t *abuf = NULL;
 	zbookmark_phys_t zb;
@@ -315,7 +315,7 @@ zil_read_log_block(zilog_t *zilog, boolean_t decrypt, const blkptr_t *bp,
 static int
 zil_read_log_data(zilog_t *zilog, const lr_write_t *lr, void *wbuf)
 {
-	enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
+	zio_flag_t zio_flags = ZIO_FLAG_CANFAIL;
 	const blkptr_t *bp = &lr->lr_blkptr;
 	arc_flags_t aflags = ARC_FLAG_WAIT;
 	arc_buf_t *abuf = NULL;
@@ -339,6 +339,7 @@ zil_read_log_data(zilog_t *zilog, const lr_write_t *lr, void *wbuf)
 	if (wbuf == NULL)
 		zio_flags |= ZIO_FLAG_RAW;
 
+	ASSERT3U(BP_GET_LSIZE(bp), !=, 0);
 	SET_BOOKMARK(&zb, dmu_objset_id(zilog->zl_os), lr->lr_foid,
 	    ZB_ZIL_LEVEL, lr->lr_offset / BP_GET_LSIZE(bp));
 
@@ -479,8 +480,18 @@ zil_parse(zilog_t *zilog, zil_parse_blk_func_t *parse_blk_func,
 
 		error = zil_read_log_block(zilog, decrypt, &blk, &next_blk,
 		    lrbuf, &end);
-		if (error != 0)
+		if (error != 0) {
+			if (claimed) {
+				char name[ZFS_MAX_DATASET_NAME_LEN];
+
+				dmu_objset_name(zilog->zl_os, name);
+
+				cmn_err(CE_WARN, "ZFS read log block error %d, "
+				    "dataset %s, seq 0x%llx\n", error, name,
+				    (u_longlong_t)blk_seq);
+			}
 			break;
+		}
 
 		for (lrp = lrbuf; lrp < end; lrp += reclen) {
 			lr_t *lr = (lr_t *)lrp;
@@ -503,10 +514,6 @@ done:
 	zilog->zl_parse_lr_seq = max_lr_seq;
 	zilog->zl_parse_blk_count = blk_count;
 	zilog->zl_parse_lr_count = lr_count;
-
-	ASSERT(!claimed || !(zh->zh_flags & ZIL_CLAIM_LR_SEQ_VALID) ||
-	    (max_blk_seq == claim_blk_seq && max_lr_seq == claim_lr_seq) ||
-	    (decrypt && error == EIO));
 
 	zil_bp_tree_fini(zilog);
 	zio_buf_free(lrbuf, SPA_OLD_MAXBLOCKSIZE);
@@ -758,11 +765,9 @@ zil_commit_activate_saxattr_feature(zilog_t *zilog)
 	uint64_t txg = 0;
 	dmu_tx_t *tx = NULL;
 
-	if (spa_feature_is_enabled(zilog->zl_spa,
-	    SPA_FEATURE_ZILSAXATTR) &&
+	if (spa_feature_is_enabled(zilog->zl_spa, SPA_FEATURE_ZILSAXATTR) &&
 	    dmu_objset_type(zilog->zl_os) != DMU_OST_ZVOL &&
-	    !dsl_dataset_feature_is_active(ds,
-	    SPA_FEATURE_ZILSAXATTR)) {
+	    !dsl_dataset_feature_is_active(ds, SPA_FEATURE_ZILSAXATTR)) {
 		tx = dmu_tx_create(zilog->zl_os);
 		VERIFY0(dmu_tx_assign(tx, TXG_WAIT));
 		dsl_dataset_dirty(ds, tx);
@@ -882,8 +887,9 @@ zil_create(zilog_t *zilog)
  * txg_wait_synced() here either when keep_first is set, because both
  * zil_create() and zil_destroy() will wait for any in-progress destroys
  * to complete.
+ * Return B_TRUE if there were any entries to replay.
  */
-void
+boolean_t
 zil_destroy(zilog_t *zilog, boolean_t keep_first)
 {
 	const zil_header_t *zh = zilog->zl_header;
@@ -899,7 +905,7 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 	zilog->zl_old_header = *zh;		/* debugging aid */
 
 	if (BP_IS_HOLE(&zh->zh_log))
-		return;
+		return (B_FALSE);
 
 	tx = dmu_tx_create(zilog->zl_os);
 	VERIFY0(dmu_tx_assign(tx, TXG_WAIT));
@@ -932,6 +938,8 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 	mutex_exit(&zilog->zl_lock);
 
 	dmu_tx_commit(tx);
+
+	return (B_TRUE);
 }
 
 void
@@ -3844,8 +3852,9 @@ zil_incr_blks(zilog_t *zilog, const blkptr_t *bp, void *arg, uint64_t claim_txg)
 
 /*
  * If this dataset has a non-empty intent log, replay it and destroy it.
+ * Return B_TRUE if there were any entries to replay.
  */
-void
+boolean_t
 zil_replay(objset_t *os, void *arg,
     zil_replay_func_t *const replay_func[TX_MAX_TYPE])
 {
@@ -3854,8 +3863,7 @@ zil_replay(objset_t *os, void *arg,
 	zil_replay_arg_t zr;
 
 	if ((zh->zh_flags & ZIL_REPLAY_NEEDED) == 0) {
-		zil_destroy(zilog, B_TRUE);
-		return;
+		return (zil_destroy(zilog, B_TRUE));
 	}
 
 	zr.zr_replay = replay_func;
@@ -3878,6 +3886,8 @@ zil_replay(objset_t *os, void *arg,
 	zil_destroy(zilog, B_FALSE);
 	txg_wait_synced(zilog->zl_dmu_pool, zilog->zl_destroy_txg);
 	zilog->zl_replay = B_FALSE;
+
+	return (B_TRUE);
 }
 
 boolean_t
@@ -3945,7 +3955,7 @@ ZFS_MODULE_PARAM(zfs_zil, zil_, replay_disable, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_zil, zil_, nocacheflush, INT, ZMOD_RW,
 	"Disable ZIL cache flushes");
 
-ZFS_MODULE_PARAM(zfs_zil, zil_, slog_bulk, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_zil, zil_, slog_bulk, U64, ZMOD_RW,
 	"Limit in bytes slog sync writes per commit");
 
 ZFS_MODULE_PARAM(zfs_zil, zil_, maxblocksize, UINT, ZMOD_RW,

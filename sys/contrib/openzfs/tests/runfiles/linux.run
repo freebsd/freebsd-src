@@ -157,6 +157,10 @@ tags = ['functional', 'projectquota']
 tests = ['read_dos_attrs_001', 'write_dos_attrs_001']
 tags = ['functional', 'dos_attributes']
 
+[tests/functional/renameat2:Linux]
+tests = ['renameat2_noreplace', 'renameat2_exchange', 'renameat2_whiteout']
+tags = ['functional', 'renameat2']
+
 [tests/functional/rsend:Linux]
 tests = ['send_realloc_dnode_size', 'send_encrypted_files']
 tags = ['functional', 'rsend']
@@ -194,3 +198,7 @@ tags = ['functional', 'userquota']
 tests = ['zvol_misc_fua']
 tags = ['functional', 'zvol', 'zvol_misc']
 
+[tests/functional/idmap_mount:Linux]
+tests = ['idmap_mount_001', 'idmap_mount_002', 'idmap_mount_003',
+    'idmap_mount_004', 'idmap_mount_005']
+tags = ['functional', 'idmap_mount']

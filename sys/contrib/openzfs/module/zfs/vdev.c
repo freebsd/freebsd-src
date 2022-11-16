@@ -144,8 +144,8 @@ int zfs_nocacheflush = 0;
  * be forced by vdev logical ashift or by user via ashift property, but won't
  * be set automatically as a performance optimization.
  */
-uint64_t zfs_vdev_max_auto_ashift = 14;
-uint64_t zfs_vdev_min_auto_ashift = ASHIFT_MIN;
+uint_t zfs_vdev_max_auto_ashift = 14;
+uint_t zfs_vdev_min_auto_ashift = ASHIFT_MIN;
 
 void
 vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
@@ -3563,6 +3563,26 @@ vdev_load(vdev_t *vd)
 		}
 	}
 
+	if (vd == vd->vdev_top && vd->vdev_top_zap != 0) {
+		spa_t *spa = vd->vdev_spa;
+		uint64_t failfast;
+
+		error = zap_lookup(spa->spa_meta_objset, vd->vdev_top_zap,
+		    vdev_prop_to_name(VDEV_PROP_FAILFAST), sizeof (failfast),
+		    1, &failfast);
+		if (error == 0) {
+			vd->vdev_failfast = failfast & 1;
+		} else if (error == ENOENT) {
+			vd->vdev_failfast = vdev_prop_default_numeric(
+			    VDEV_PROP_FAILFAST);
+		} else {
+			vdev_dbgmsg(vd,
+			    "vdev_load: zap_lookup(top_zap=%llu) "
+			    "failed [error=%d]",
+			    (u_longlong_t)vd->vdev_top_zap, error);
+		}
+	}
+
 	/*
 	 * Load any rebuild state from the top-level vdev zap.
 	 */
@@ -5648,7 +5668,7 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 	nvpair_t *elem = NULL;
 	uint64_t vdev_guid;
 	nvlist_t *nvprops;
-	int error;
+	int error = 0;
 
 	ASSERT(vd != NULL);
 
@@ -5708,6 +5728,13 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				error = spa_vdev_noalloc(spa, vdev_guid);
 			else
 				error = spa_vdev_alloc(spa, vdev_guid);
+			break;
+		case VDEV_PROP_FAILFAST:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_failfast = intval & 1;
 			break;
 		default:
 			/* Most processing is done in vdev_props_set_sync */
@@ -6022,6 +6049,25 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				vdev_prop_add_list(outnvl, propname, strval,
 				    intval, src);
 				break;
+			case VDEV_PROP_FAILFAST:
+				src = ZPROP_SRC_LOCAL;
+				strval = NULL;
+
+				err = zap_lookup(mos, objid, nvpair_name(elem),
+				    sizeof (uint64_t), 1, &intval);
+				if (err == ENOENT) {
+					intval = vdev_prop_default_numeric(
+					    prop);
+					err = 0;
+				} else if (err) {
+					break;
+				}
+				if (intval == vdev_prop_default_numeric(prop))
+					src = ZPROP_SRC_DEFAULT;
+
+				vdev_prop_add_list(outnvl, propname, strval,
+				    intval, src);
+				break;
 			/* Text Properties */
 			case VDEV_PROP_COMMENT:
 				/* Exists in the ZAP below */
@@ -6078,7 +6124,6 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 			strval = NULL;
 			zprop_source_t src = ZPROP_SRC_DEFAULT;
 			propname = za.za_name;
-			prop = vdev_name_to_prop(propname);
 
 			switch (za.za_integer_length) {
 			case 8:
@@ -6156,11 +6201,11 @@ ZFS_MODULE_PARAM(zfs, zfs_, embedded_slog_min_ms, UINT, ZMOD_RW,
 
 /* BEGIN CSTYLED */
 ZFS_MODULE_PARAM_CALL(zfs_vdev, zfs_vdev_, min_auto_ashift,
-	param_set_min_auto_ashift, param_get_ulong, ZMOD_RW,
+	param_set_min_auto_ashift, param_get_uint, ZMOD_RW,
 	"Minimum ashift used when creating new top-level vdevs");
 
 ZFS_MODULE_PARAM_CALL(zfs_vdev, zfs_vdev_, max_auto_ashift,
-	param_set_max_auto_ashift, param_get_ulong, ZMOD_RW,
+	param_set_max_auto_ashift, param_get_uint, ZMOD_RW,
 	"Maximum ashift used when optimizing for logical -> physical sector "
 	"size on new top-level vdevs");
 /* END CSTYLED */

@@ -299,6 +299,7 @@ struct vdev {
 	uint64_t	vdev_islog;	/* is an intent log device	*/
 	uint64_t	vdev_noalloc;	/* device is passivated?	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
+	uint64_t	vdev_failfast;	/* device failfast setting	*/
 	boolean_t	vdev_ishole;	/* is a hole in the namespace	*/
 	uint64_t	vdev_top_zap;
 	vdev_alloc_bias_t vdev_alloc_bias; /* metaslab allocation bias	*/
@@ -649,8 +650,8 @@ uint64_t vdev_best_ashift(uint64_t logical, uint64_t a, uint64_t b);
 /*
  * Vdev ashift optimization tunables
  */
-extern uint64_t zfs_vdev_min_auto_ashift;
-extern uint64_t zfs_vdev_max_auto_ashift;
+extern uint_t zfs_vdev_min_auto_ashift;
+extern uint_t zfs_vdev_max_auto_ashift;
 int param_set_min_auto_ashift(ZFS_MODULE_PARAM_ARGS);
 int param_set_max_auto_ashift(ZFS_MODULE_PARAM_ARGS);
 

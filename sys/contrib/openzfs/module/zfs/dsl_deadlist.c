@@ -92,7 +92,7 @@
  * will be loaded into memory and shouldn't take up an inordinate amount of
  * space. We settled on ~500000 entries, corresponding to roughly 128M.
  */
-unsigned long zfs_livelist_max_entries = 500000;
+uint64_t zfs_livelist_max_entries = 500000;
 
 /*
  * We can approximate how much of a performance gain a livelist will give us
@@ -542,6 +542,7 @@ dsl_deadlist_remove_key(dsl_deadlist_t *dl, uint64_t mintxg, dmu_tx_t *tx)
 	dle = avl_find(&dl->dl_tree, &dle_tofind, NULL);
 	ASSERT3P(dle, !=, NULL);
 	dle_prev = AVL_PREV(&dl->dl_tree, dle);
+	ASSERT3P(dle_prev, !=, NULL);
 
 	dle_enqueue_subobj(dl, dle_prev, dle->dle_bpobj.bpo_object, tx);
 
@@ -1039,7 +1040,7 @@ dsl_process_sub_livelist(bpobj_t *bpobj, bplist_t *to_free, zthr_t *t,
 	return (err);
 }
 
-ZFS_MODULE_PARAM(zfs_livelist, zfs_livelist_, max_entries, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_livelist, zfs_livelist_, max_entries, U64, ZMOD_RW,
 	"Size to start the next sub-livelist in a livelist");
 
 ZFS_MODULE_PARAM(zfs_livelist, zfs_livelist_, min_percent_shared, INT, ZMOD_RW,

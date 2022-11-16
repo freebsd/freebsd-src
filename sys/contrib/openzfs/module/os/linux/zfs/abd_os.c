@@ -132,7 +132,7 @@ static abd_stats_t abd_stats = {
 	{ "scatter_sg_table_retry",		KSTAT_DATA_UINT64 },
 };
 
-struct {
+static struct {
 	wmsum_t abdstat_struct_size;
 	wmsum_t abdstat_linear_cnt;
 	wmsum_t abdstat_linear_data_size;
@@ -597,10 +597,8 @@ abd_free_chunks(abd_t *abd)
 	struct scatterlist *sg;
 
 	abd_for_each_sg(abd, sg, n, i) {
-		for (int j = 0; j < sg->length; j += PAGESIZE) {
-			struct page *p = nth_page(sg_page(sg), j >> PAGE_SHIFT);
-			umem_free(p, PAGESIZE);
-		}
+		struct page *p = nth_page(sg_page(sg), 0);
+		umem_free_aligned(p, PAGESIZE);
 	}
 	abd_free_sg_table(abd);
 }
@@ -706,7 +704,7 @@ abd_free_zero_scatter(void)
 	__free_page(abd_zero_page);
 #endif /* HAVE_ZERO_PAGE_GPL_ONLY */
 #else
-	umem_free(abd_zero_page, PAGESIZE);
+	umem_free_aligned(abd_zero_page, PAGESIZE);
 #endif /* _KERNEL */
 }
 

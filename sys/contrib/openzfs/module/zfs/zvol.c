@@ -514,6 +514,8 @@ zil_replay_func_t *const zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* TX_MKDIR_ACL_ATTR */
 	zvol_replay_err,	/* TX_WRITE2 */
 	zvol_replay_err,	/* TX_SETSAXATTR */
+	zvol_replay_err,	/* TX_RENAME_EXCHANGE */
+	zvol_replay_err,	/* TX_RENAME_WHITEOUT */
 };
 
 /*
@@ -1026,8 +1028,7 @@ zvol_add_clones(const char *dsname, list_t *minors_list)
 out:
 	if (dd != NULL)
 		dsl_dir_rele(dd, FTAG);
-	if (dp != NULL)
-		dsl_pool_rele(dp, FTAG);
+	dsl_pool_rele(dp, FTAG);
 }
 
 /*

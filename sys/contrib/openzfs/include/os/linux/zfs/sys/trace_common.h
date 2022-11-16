@@ -39,10 +39,10 @@
 		__field(hrtime_t,		zio_timestamp)		\
 		__field(hrtime_t,		zio_delta)		\
 		__field(uint64_t,		zio_delay)		\
-		__field(enum zio_flag,		zio_flags)		\
+		__field(zio_flag_t,		zio_flags)		\
 		__field(enum zio_stage,		zio_stage)		\
 		__field(enum zio_stage,		zio_pipeline)		\
-		__field(enum zio_flag,		zio_orig_flags)		\
+		__field(zio_flag_t,		zio_orig_flags)		\
 		__field(enum zio_stage,		zio_orig_stage)		\
 		__field(enum zio_stage,		zio_orig_pipeline)	\
 		__field(uint8_t,		zio_reexecute)		\
@@ -92,7 +92,7 @@
 #define	ZIO_TP_PRINTK_FMT						\
 	"zio { type %u cmd %i prio %u size %llu orig_size %llu "	\
 	"offset %llu timestamp %llu delta %llu delay %llu "		\
-	"flags 0x%x stage 0x%x pipeline 0x%x orig_flags 0x%x "		\
+	"flags 0x%llx stage 0x%x pipeline 0x%x orig_flags 0x%llx "	\
 	"orig_stage 0x%x orig_pipeline 0x%x reexecute %u "		\
 	"txg %llu error %d ena %llu prop { checksum %u compress %u "	\
 	"type %u level %u copies %u dedup %u dedup_verify %u nopwrite %u } }"

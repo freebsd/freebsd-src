@@ -252,7 +252,7 @@ static const ztest_shared_opts_t ztest_opts_defaults = {
 
 extern uint64_t metaslab_force_ganging;
 extern uint64_t metaslab_df_alloc_threshold;
-extern unsigned long zfs_deadman_synctime_ms;
+extern uint64_t zfs_deadman_synctime_ms;
 extern uint_t metaslab_preload_limit;
 extern int zfs_compressed_arc_enabled;
 extern int zfs_abd_scatter_enabled;
@@ -423,11 +423,11 @@ ztest_func_t ztest_fletcher;
 ztest_func_t ztest_fletcher_incr;
 ztest_func_t ztest_verify_dnode_bt;
 
-uint64_t zopt_always = 0ULL * NANOSEC;		/* all the time */
-uint64_t zopt_incessant = 1ULL * NANOSEC / 10;	/* every 1/10 second */
-uint64_t zopt_often = 1ULL * NANOSEC;		/* every second */
-uint64_t zopt_sometimes = 10ULL * NANOSEC;	/* every 10 seconds */
-uint64_t zopt_rarely = 60ULL * NANOSEC;		/* every 60 seconds */
+static uint64_t zopt_always = 0ULL * NANOSEC;		/* all the time */
+static uint64_t zopt_incessant = 1ULL * NANOSEC / 10;	/* every 1/10 second */
+static uint64_t zopt_often = 1ULL * NANOSEC;		/* every second */
+static uint64_t zopt_sometimes = 10ULL * NANOSEC;	/* every 10 seconds */
+static uint64_t zopt_rarely = 60ULL * NANOSEC;		/* every 60 seconds */
 
 #define	ZTI_INIT(func, iters, interval) \
 	{   .zi_func = (func), \
@@ -435,7 +435,7 @@ uint64_t zopt_rarely = 60ULL * NANOSEC;		/* every 60 seconds */
 	    .zi_interval = (interval), \
 	    .zi_funcname = # func }
 
-ztest_info_t ztest_info[] = {
+static ztest_info_t ztest_info[] = {
 	ZTI_INIT(ztest_dmu_read_write, 1, &zopt_always),
 	ZTI_INIT(ztest_dmu_write_parallel, 10, &zopt_always),
 	ZTI_INIT(ztest_dmu_object_alloc_free, 1, &zopt_always),
@@ -515,7 +515,7 @@ typedef struct ztest_shared {
 
 static char ztest_dev_template[] = "%s/%s.%llua";
 static char ztest_aux_template[] = "%s/%s.%s.%llu";
-ztest_shared_t *ztest_shared;
+static ztest_shared_t *ztest_shared;
 
 static spa_t *ztest_spa = NULL;
 static ztest_ds_t *ztest_ds;
@@ -2177,6 +2177,7 @@ ztest_replay_write(void *arg1, void *arg2, boolean_t byteswap)
 		 * but not always, because we also want to verify correct
 		 * behavior when the data was not recently read into cache.
 		 */
+		ASSERT(doi.doi_data_block_size);
 		ASSERT0(offset % doi.doi_data_block_size);
 		if (ztest_random(4) != 0) {
 			int prefetch = ztest_random(2) ?
@@ -2346,7 +2347,7 @@ ztest_replay_setattr(void *arg1, void *arg2, boolean_t byteswap)
 	return (0);
 }
 
-zil_replay_func_t *ztest_replay_vector[TX_MAX_TYPE] = {
+static zil_replay_func_t *ztest_replay_vector[TX_MAX_TYPE] = {
 	NULL,			/* 0 no such transaction type */
 	ztest_replay_create,	/* TX_CREATE */
 	NULL,			/* TX_MKDIR */
@@ -2368,6 +2369,8 @@ zil_replay_func_t *ztest_replay_vector[TX_MAX_TYPE] = {
 	NULL,			/* TX_MKDIR_ACL_ATTR */
 	NULL,			/* TX_WRITE2 */
 	NULL,			/* TX_SETSAXATTR */
+	NULL,			/* TX_RENAME_EXCHANGE */
+	NULL,			/* TX_RENAME_WHITEOUT */
 };
 
 /*
@@ -3512,7 +3515,8 @@ ztest_split_pool(ztest_ds_t *zd, uint64_t id)
 	VERIFY0(nvlist_lookup_nvlist_array(tree, ZPOOL_CONFIG_CHILDREN,
 	    &child, &children));
 
-	schild = malloc(rvd->vdev_children * sizeof (nvlist_t *));
+	schild = umem_alloc(rvd->vdev_children * sizeof (nvlist_t *),
+	    UMEM_NOFAIL);
 	for (c = 0; c < children; c++) {
 		vdev_t *tvd = rvd->vdev_child[c];
 		nvlist_t **mchild;
@@ -3546,7 +3550,7 @@ ztest_split_pool(ztest_ds_t *zd, uint64_t id)
 
 	for (c = 0; c < schildren; c++)
 		fnvlist_free(schild[c]);
-	free(schild);
+	umem_free(schild, rvd->vdev_children * sizeof (nvlist_t *));
 	fnvlist_free(split);
 
 	spa_config_exit(spa, SCL_VDEV, FTAG);
@@ -6663,7 +6667,7 @@ join_strings(char **strings, const char *sep)
 	}
 
 	size_t buflen = totallen + 1;
-	char *o = malloc(buflen); /* trailing 0 byte */
+	char *o = umem_alloc(buflen, UMEM_NOFAIL); /* trailing 0 byte */
 	o[0] = '\0';
 	for (char **sp = strings; *sp != NULL; sp++) {
 		size_t would;
@@ -6925,7 +6929,7 @@ ztest_run_zdb(const char *pool)
 	    pool);
 	ASSERT3U(would, <, len);
 
-	free(set_gvars_args_joined);
+	umem_free(set_gvars_args_joined, strlen(set_gvars_args_joined) + 1);
 
 	if (ztest_opts.zo_verbose >= 5)
 		(void) printf("Executing %s\n", zdb);
@@ -7118,9 +7122,9 @@ ztest_deadman_thread(void *arg)
 		 */
 		if (spa_suspended(spa) || spa->spa_root_vdev == NULL) {
 			fatal(B_FALSE,
-			    "aborting test after %lu seconds because "
+			    "aborting test after %llu seconds because "
 			    "pool has transitioned to a suspended state.",
-			    zfs_deadman_synctime_ms / 1000);
+			    (u_longlong_t)zfs_deadman_synctime_ms / 1000);
 		}
 		vdev_deadman(spa->spa_root_vdev, FTAG);
 
@@ -7471,8 +7475,12 @@ ztest_import_impl(void)
 	args.path = searchdirs;
 	args.can_be_active = B_FALSE;
 
-	VERIFY0(zpool_find_config(NULL, ztest_opts.zo_pool, &cfg, &args,
-	    &libzpool_config_ops));
+	libpc_handle_t lpch = {
+		.lpc_lib_handle = NULL,
+		.lpc_ops = &libzpool_config_ops,
+		.lpc_printerr = B_TRUE
+	};
+	VERIFY0(zpool_find_config(&lpch, ztest_opts.zo_pool, &cfg, &args));
 	VERIFY0(spa_import(ztest_opts.zo_pool, cfg, NULL, flags));
 	fnvlist_free(cfg);
 }

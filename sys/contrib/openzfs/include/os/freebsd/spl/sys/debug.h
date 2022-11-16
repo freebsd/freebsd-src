@@ -54,6 +54,9 @@
 /*
  * Common DEBUG functionality.
  */
+#if defined(__COVERITY__) || defined(__clang_analyzer__)
+__attribute__((__noreturn__))
+#endif
 extern void spl_panic(const char *file, const char *func, int line,
     const char *fmt, ...) __attribute__((__noreturn__));
 extern void spl_dumpstack(void);
@@ -128,7 +131,7 @@ spl_assert(const char *buf, const char *file, const char *func, int line)
 		const int64_t _verify3_right = (int64_t)(RIGHT);	\
 		if (unlikely(!(_verify3_left == _verify3_right)))	\
 		    spl_panic(__FILE__, __FUNCTION__, __LINE__,		\
-		    "VERIFY3(0 == " #RIGHT ") "				\
+		    "VERIFY0(0 == " #RIGHT ") "				\
 		    "failed (0 == %lld)\n",				\
 		    (long long) (_verify3_right));			\
 	} while (0)

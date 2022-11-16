@@ -133,6 +133,11 @@ zfs_unavail_pool(zpool_handle_t *zhp, void *data)
 	if (zfs_toplevel_state(zhp) < VDEV_STATE_DEGRADED) {
 		unavailpool_t *uap;
 		uap = malloc(sizeof (unavailpool_t));
+		if (uap == NULL) {
+			perror("malloc");
+			exit(EXIT_FAILURE);
+		}
+
 		uap->uap_zhp = zhp;
 		list_insert_tail((list_t *)data, uap);
 	} else {
@@ -411,6 +416,11 @@ zfs_process_add(zpool_handle_t *zhp, nvlist_t *vdev, boolean_t labeled)
 		 * completed.
 		 */
 		device = malloc(sizeof (pendingdev_t));
+		if (device == NULL) {
+			perror("malloc");
+			exit(EXIT_FAILURE);
+		}
+
 		(void) strlcpy(device->pd_physpath, physpath,
 		    sizeof (device->pd_physpath));
 		list_insert_tail(&g_device_list, device);
@@ -938,14 +948,13 @@ vdev_whole_disk_from_config(zpool_handle_t *zhp, const char *vdev_path)
 {
 	nvlist_t *nvl = NULL;
 	boolean_t avail_spare, l2cache, log;
-	uint64_t wholedisk;
+	uint64_t wholedisk = 0;
 
 	nvl = zpool_find_vdev(zhp, vdev_path, &avail_spare, &l2cache, &log);
 	if (!nvl)
 		return (0);
 
-	verify(nvlist_lookup_uint64(nvl, ZPOOL_CONFIG_WHOLE_DISK,
-	    &wholedisk) == 0);
+	(void) nvlist_lookup_uint64(nvl, ZPOOL_CONFIG_WHOLE_DISK, &wholedisk);
 
 	return (wholedisk);
 }
@@ -984,7 +993,7 @@ zfsdle_vdev_online(zpool_handle_t *zhp, void *data)
 	if ((tgt = zpool_find_vdev_by_physpath(zhp, devname,
 	    &avail_spare, &l2cache, NULL)) != NULL) {
 		char *path, fullpath[MAXPATHLEN];
-		uint64_t wholedisk;
+		uint64_t wholedisk = 0;
 
 		error = nvlist_lookup_string(tgt, ZPOOL_CONFIG_PATH, &path);
 		if (error) {
@@ -992,10 +1001,8 @@ zfsdle_vdev_online(zpool_handle_t *zhp, void *data)
 			return (0);
 		}
 
-		error = nvlist_lookup_uint64(tgt, ZPOOL_CONFIG_WHOLE_DISK,
+		(void) nvlist_lookup_uint64(tgt, ZPOOL_CONFIG_WHOLE_DISK,
 		    &wholedisk);
-		if (error)
-			wholedisk = 0;
 
 		if (wholedisk) {
 			path = strrchr(path, '/');
@@ -1125,6 +1132,7 @@ zfs_deliver_dle(nvlist_t *nvl)
 		strlcpy(name, devname, MAXPATHLEN);
 		zfs_append_partition(name, MAXPATHLEN);
 	} else {
+		sprintf(name, "unknown");
 		zed_log_msg(LOG_INFO, "zfs_deliver_dle: no guid or physpath");
 	}
 

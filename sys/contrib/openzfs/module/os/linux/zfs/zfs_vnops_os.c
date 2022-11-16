@@ -476,7 +476,7 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags, cred_t *cr,
 		 */
 
 		if ((error = zfs_zaccess(*zpp, ACE_EXECUTE, 0,
-		    B_TRUE, cr))) {
+		    B_TRUE, cr, kcred->user_ns))) {
 			zrele(*zpp);
 			*zpp = NULL;
 		}
@@ -494,7 +494,8 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags, cred_t *cr,
 	 * Check accessibility of directory.
 	 */
 
-	if ((error = zfs_zaccess(zdp, ACE_EXECUTE, 0, B_FALSE, cr))) {
+	if ((error = zfs_zaccess(zdp, ACE_EXECUTE, 0, B_FALSE, cr,
+	    kcred->user_ns))) {
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
@@ -526,6 +527,7 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags, cred_t *cr,
  *		cr	- credentials of caller.
  *		flag	- file flag.
  *		vsecp	- ACL to be set
+ *		mnt_ns	- user namespace of the mount
  *
  *	OUT:	zpp	- znode of created or trunc'd entry.
  *
@@ -537,7 +539,8 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags, cred_t *cr,
  */
 int
 zfs_create(znode_t *dzp, char *name, vattr_t *vap, int excl,
-    int mode, znode_t **zpp, cred_t *cr, int flag, vsecattr_t *vsecp)
+    int mode, znode_t **zpp, cred_t *cr, int flag, vsecattr_t *vsecp,
+    zuserns_t *mnt_ns)
 {
 	znode_t		*zp;
 	zfsvfs_t	*zfsvfs = ZTOZSB(dzp);
@@ -624,7 +627,8 @@ top:
 		 * Create a new file object and update the directory
 		 * to reference it.
 		 */
-		if ((error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr))) {
+		if ((error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr,
+		    mnt_ns))) {
 			if (have_acl)
 				zfs_acl_ids_free(&acl_ids);
 			goto out;
@@ -643,7 +647,7 @@ top:
 		}
 
 		if (!have_acl && (error = zfs_acl_ids_create(dzp, 0, vap,
-		    cr, vsecp, &acl_ids)) != 0)
+		    cr, vsecp, &acl_ids, mnt_ns)) != 0)
 			goto out;
 		have_acl = B_TRUE;
 
@@ -738,7 +742,8 @@ top:
 		/*
 		 * Verify requested access to file.
 		 */
-		if (mode && (error = zfs_zaccess_rwx(zp, mode, aflags, cr))) {
+		if (mode && (error = zfs_zaccess_rwx(zp, mode, aflags, cr,
+		    mnt_ns))) {
 			goto out;
 		}
 
@@ -782,7 +787,8 @@ out:
 
 int
 zfs_tmpfile(struct inode *dip, vattr_t *vap, int excl,
-    int mode, struct inode **ipp, cred_t *cr, int flag, vsecattr_t *vsecp)
+    int mode, struct inode **ipp, cred_t *cr, int flag, vsecattr_t *vsecp,
+    zuserns_t *mnt_ns)
 {
 	(void) excl, (void) mode, (void) flag;
 	znode_t		*zp = NULL, *dzp = ITOZ(dip);
@@ -829,14 +835,14 @@ top:
 	 * Create a new file object and update the directory
 	 * to reference it.
 	 */
-	if ((error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr))) {
+	if ((error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr, mnt_ns))) {
 		if (have_acl)
 			zfs_acl_ids_free(&acl_ids);
 		goto out;
 	}
 
 	if (!have_acl && (error = zfs_acl_ids_create(dzp, 0, vap,
-	    cr, vsecp, &acl_ids)) != 0)
+	    cr, vsecp, &acl_ids, mnt_ns)) != 0)
 		goto out;
 	have_acl = B_TRUE;
 
@@ -967,7 +973,7 @@ top:
 		return (error);
 	}
 
-	if ((error = zfs_zaccess_delete(dzp, zp, cr))) {
+	if ((error = zfs_zaccess_delete(dzp, zp, cr, kcred->user_ns))) {
 		goto out;
 	}
 
@@ -1147,6 +1153,7 @@ out:
  *		cr	- credentials of caller.
  *		flags	- case flags.
  *		vsecp	- ACL to be set
+ *		mnt_ns	- user namespace of the mount
  *
  *	OUT:	zpp	- znode of created directory.
  *
@@ -1159,7 +1166,7 @@ out:
  */
 int
 zfs_mkdir(znode_t *dzp, char *dirname, vattr_t *vap, znode_t **zpp,
-    cred_t *cr, int flags, vsecattr_t *vsecp)
+    cred_t *cr, int flags, vsecattr_t *vsecp, zuserns_t *mnt_ns)
 {
 	znode_t		*zp;
 	zfsvfs_t	*zfsvfs = ZTOZSB(dzp);
@@ -1216,7 +1223,7 @@ zfs_mkdir(znode_t *dzp, char *dirname, vattr_t *vap, znode_t **zpp,
 	}
 
 	if ((error = zfs_acl_ids_create(dzp, 0, vap, cr,
-	    vsecp, &acl_ids)) != 0) {
+	    vsecp, &acl_ids, mnt_ns)) != 0) {
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
@@ -1237,7 +1244,8 @@ top:
 		return (error);
 	}
 
-	if ((error = zfs_zaccess(dzp, ACE_ADD_SUBDIRECTORY, 0, B_FALSE, cr))) {
+	if ((error = zfs_zaccess(dzp, ACE_ADD_SUBDIRECTORY, 0, B_FALSE, cr,
+	    mnt_ns))) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
 		zfs_exit(zfsvfs, FTAG);
@@ -1379,7 +1387,7 @@ top:
 		return (error);
 	}
 
-	if ((error = zfs_zaccess_delete(dzp, zp, cr))) {
+	if ((error = zfs_zaccess_delete(dzp, zp, cr, kcred->user_ns))) {
 		goto out;
 	}
 
@@ -1811,6 +1819,7 @@ next:
  *		flags	- ATTR_UTIME set if non-default time values provided.
  *			- ATTR_NOACLCHECK (CIFS context only).
  *		cr	- credentials of caller.
+ *		mnt_ns	- user namespace of the mount
  *
  *	RETURN:	0 if success
  *		error code if failure
@@ -1819,7 +1828,7 @@ next:
  *	ip - ctime updated, mtime updated if size changed.
  */
 int
-zfs_setattr(znode_t *zp, vattr_t *vap, int flags, cred_t *cr)
+zfs_setattr(znode_t *zp, vattr_t *vap, int flags, cred_t *cr, zuserns_t *mnt_ns)
 {
 	struct inode	*ip;
 	zfsvfs_t	*zfsvfs = ZTOZSB(zp);
@@ -1968,7 +1977,8 @@ top:
 	 */
 
 	if (mask & ATTR_SIZE) {
-		err = zfs_zaccess(zp, ACE_WRITE_DATA, 0, skipaclchk, cr);
+		err = zfs_zaccess(zp, ACE_WRITE_DATA, 0, skipaclchk, cr,
+		    mnt_ns);
 		if (err)
 			goto out3;
 
@@ -1993,13 +2003,15 @@ top:
 	    XVA_ISSET_REQ(xvap, XAT_CREATETIME) ||
 	    XVA_ISSET_REQ(xvap, XAT_SYSTEM)))) {
 		need_policy = zfs_zaccess(zp, ACE_WRITE_ATTRIBUTES, 0,
-		    skipaclchk, cr);
+		    skipaclchk, cr, mnt_ns);
 	}
 
 	if (mask & (ATTR_UID|ATTR_GID)) {
 		int	idmask = (mask & (ATTR_UID|ATTR_GID));
 		int	take_owner;
 		int	take_group;
+		uid_t	uid;
+		gid_t	gid;
 
 		/*
 		 * NOTE: even if a new mode is being set,
@@ -2013,9 +2025,13 @@ top:
 		 * Take ownership or chgrp to group we are a member of
 		 */
 
-		take_owner = (mask & ATTR_UID) && (vap->va_uid == crgetuid(cr));
+		uid = zfs_uid_to_vfsuid((struct user_namespace *)mnt_ns,
+		    zfs_i_user_ns(ip), vap->va_uid);
+		gid = zfs_gid_to_vfsgid((struct user_namespace *)mnt_ns,
+		    zfs_i_user_ns(ip), vap->va_gid);
+		take_owner = (mask & ATTR_UID) && (uid == crgetuid(cr));
 		take_group = (mask & ATTR_GID) &&
-		    zfs_groupmember(zfsvfs, vap->va_gid, cr);
+		    zfs_groupmember(zfsvfs, gid, cr);
 
 		/*
 		 * If both ATTR_UID and ATTR_GID are set then take_owner and
@@ -2031,7 +2047,7 @@ top:
 		    ((idmask == ATTR_UID) && take_owner) ||
 		    ((idmask == ATTR_GID) && take_group)) {
 			if (zfs_zaccess(zp, ACE_WRITE_OWNER, 0,
-			    skipaclchk, cr) == 0) {
+			    skipaclchk, cr, mnt_ns) == 0) {
 				/*
 				 * Remove setuid/setgid for non-privileged users
 				 */
@@ -2144,12 +2160,12 @@ top:
 	mutex_exit(&zp->z_lock);
 
 	if (mask & ATTR_MODE) {
-		if (zfs_zaccess(zp, ACE_WRITE_ACL, 0, skipaclchk, cr) == 0) {
+		if (zfs_zaccess(zp, ACE_WRITE_ACL, 0, skipaclchk, cr,
+		    mnt_ns) == 0) {
 			err = secpolicy_setid_setsticky_clear(ip, vap,
-			    &oldva, cr);
+			    &oldva, cr, mnt_ns, zfs_i_user_ns(ip));
 			if (err)
 				goto out3;
-
 			trim_mask |= ATTR_MODE;
 		} else {
 			need_policy = TRUE;
@@ -2640,6 +2656,9 @@ zfs_rename_lock(znode_t *szp, znode_t *tdzp, znode_t *sdzp, zfs_zlock_t **zlpp)
  *		tnm	- New entry name.
  *		cr	- credentials of caller.
  *		flags	- case flags
+ *		rflags  - RENAME_* flags
+ *		wa_vap  - attributes for RENAME_WHITEOUT (must be a char 0:0).
+ *		mnt_ns	- user namespace of the mount
  *
  *	RETURN:	0 on success, error code on failure.
  *
@@ -2648,7 +2667,7 @@ zfs_rename_lock(znode_t *szp, znode_t *tdzp, znode_t *sdzp, zfs_zlock_t **zlpp)
  */
 int
 zfs_rename(znode_t *sdzp, char *snm, znode_t *tdzp, char *tnm,
-    cred_t *cr, int flags)
+    cred_t *cr, int flags, uint64_t rflags, vattr_t *wo_vap, zuserns_t *mnt_ns)
 {
 	znode_t		*szp, *tzp;
 	zfsvfs_t	*zfsvfs = ZTOZSB(sdzp);
@@ -2660,9 +2679,32 @@ zfs_rename(znode_t *sdzp, char *snm, znode_t *tdzp, char *tnm,
 	int		error = 0;
 	int		zflg = 0;
 	boolean_t	waited = B_FALSE;
+	/* Needed for whiteout inode creation. */
+	boolean_t	fuid_dirtied;
+	zfs_acl_ids_t	acl_ids;
+	boolean_t	have_acl = B_FALSE;
+	znode_t		*wzp = NULL;
+
 
 	if (snm == NULL || tnm == NULL)
 		return (SET_ERROR(EINVAL));
+
+	if (rflags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
+		return (SET_ERROR(EINVAL));
+
+	/* Already checked by Linux VFS, but just to make sure. */
+	if (rflags & RENAME_EXCHANGE &&
+	    (rflags & (RENAME_NOREPLACE | RENAME_WHITEOUT)))
+		return (SET_ERROR(EINVAL));
+
+	/*
+	 * Make sure we only get wo_vap iff. RENAME_WHITEOUT and that it's the
+	 * right kind of vattr_t for the whiteout file. These are set
+	 * internally by ZFS so should never be incorrect.
+	 */
+	VERIFY_EQUIV(rflags & RENAME_WHITEOUT, wo_vap != NULL);
+	VERIFY_IMPLY(wo_vap, wo_vap->va_mode == S_IFCHR);
+	VERIFY_IMPLY(wo_vap, wo_vap->va_rdev == makedevice(0, 0));
 
 	if ((error = zfs_enter_verify_zp(zfsvfs, sdzp, FTAG)) != 0)
 		return (error);
@@ -2840,8 +2882,7 @@ top:
 	 * Note that if target and source are the same, this can be
 	 * done in a single check.
 	 */
-
-	if ((error = zfs_zaccess_rename(sdzp, szp, tdzp, tzp, cr)))
+	if ((error = zfs_zaccess_rename(sdzp, szp, tdzp, tzp, cr, mnt_ns)))
 		goto out;
 
 	if (S_ISDIR(ZTOI(szp)->i_mode)) {
@@ -2857,17 +2898,19 @@ top:
 	 * Does target exist?
 	 */
 	if (tzp) {
+		if (rflags & RENAME_NOREPLACE) {
+			error = SET_ERROR(EEXIST);
+			goto out;
+		}
 		/*
-		 * Source and target must be the same type.
+		 * Source and target must be the same type (unless exchanging).
 		 */
-		if (S_ISDIR(ZTOI(szp)->i_mode)) {
-			if (!S_ISDIR(ZTOI(tzp)->i_mode)) {
-				error = SET_ERROR(ENOTDIR);
-				goto out;
-			}
-		} else {
-			if (S_ISDIR(ZTOI(tzp)->i_mode)) {
-				error = SET_ERROR(EISDIR);
+		if (!(rflags & RENAME_EXCHANGE)) {
+			boolean_t s_is_dir = S_ISDIR(ZTOI(szp)->i_mode) != 0;
+			boolean_t t_is_dir = S_ISDIR(ZTOI(tzp)->i_mode) != 0;
+
+			if (s_is_dir != t_is_dir) {
+				error = SET_ERROR(s_is_dir ? ENOTDIR : EISDIR);
 				goto out;
 			}
 		}
@@ -2880,12 +2923,43 @@ top:
 			error = 0;
 			goto out;
 		}
+	} else if (rflags & RENAME_EXCHANGE) {
+		/* Target must exist for RENAME_EXCHANGE. */
+		error = SET_ERROR(ENOENT);
+		goto out;
+	}
+
+	/* Set up inode creation for RENAME_WHITEOUT. */
+	if (rflags & RENAME_WHITEOUT) {
+		/*
+		 * Whiteout files are not regular files or directories, so to
+		 * match zfs_create() we do not inherit the project id.
+		 */
+		uint64_t wo_projid = ZFS_DEFAULT_PROJID;
+
+		error = zfs_zaccess(sdzp, ACE_ADD_FILE, 0, B_FALSE, cr, mnt_ns);
+		if (error)
+			goto out;
+
+		if (!have_acl) {
+			error = zfs_acl_ids_create(sdzp, 0, wo_vap, cr, NULL,
+			    &acl_ids, mnt_ns);
+			if (error)
+				goto out;
+			have_acl = B_TRUE;
+		}
+
+		if (zfs_acl_ids_overquota(zfsvfs, &acl_ids, wo_projid)) {
+			error = SET_ERROR(EDQUOT);
+			goto out;
+		}
 	}
 
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, szp->z_sa_hdl, B_FALSE);
 	dmu_tx_hold_sa(tx, sdzp->z_sa_hdl, B_FALSE);
-	dmu_tx_hold_zap(tx, sdzp->z_id, FALSE, snm);
+	dmu_tx_hold_zap(tx, sdzp->z_id,
+	    (rflags & RENAME_EXCHANGE) ? TRUE : FALSE, snm);
 	dmu_tx_hold_zap(tx, tdzp->z_id, TRUE, tnm);
 	if (sdzp != tdzp) {
 		dmu_tx_hold_sa(tx, tdzp->z_sa_hdl, B_FALSE);
@@ -2895,7 +2969,21 @@ top:
 		dmu_tx_hold_sa(tx, tzp->z_sa_hdl, B_FALSE);
 		zfs_sa_upgrade_txholds(tx, tzp);
 	}
+	if (rflags & RENAME_WHITEOUT) {
+		dmu_tx_hold_sa_create(tx, acl_ids.z_aclp->z_acl_bytes +
+		    ZFS_SA_BASE_ATTR_SIZE);
 
+		dmu_tx_hold_zap(tx, sdzp->z_id, TRUE, snm);
+		dmu_tx_hold_sa(tx, sdzp->z_sa_hdl, B_FALSE);
+		if (!zfsvfs->z_use_sa &&
+		    acl_ids.z_aclp->z_acl_bytes > ZFS_ACE_SPACE) {
+			dmu_tx_hold_write(tx, DMU_NEW_OBJECT,
+			    0, acl_ids.z_aclp->z_acl_bytes);
+		}
+	}
+	fuid_dirtied = zfsvfs->z_fuid_dirty;
+	if (fuid_dirtied)
+		zfs_fuid_txhold(zfsvfs, tx);
 	zfs_sa_upgrade_txholds(tx, szp);
 	dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
 	error = dmu_tx_assign(tx, (waited ? TXG_NOTHROTTLE : 0) | TXG_NOWAIT);
@@ -2925,58 +3013,110 @@ top:
 		return (error);
 	}
 
-	if (tzp)	/* Attempt to remove the existing target */
-		error = zfs_link_destroy(tdl, tzp, tx, zflg, NULL);
+	/*
+	 * Unlink the source.
+	 */
+	szp->z_pflags |= ZFS_AV_MODIFIED;
+	if (tdzp->z_pflags & ZFS_PROJINHERIT)
+		szp->z_pflags |= ZFS_PROJINHERIT;
 
-	if (error == 0) {
-		error = zfs_link_create(tdl, szp, tx, ZRENAMING);
-		if (error == 0) {
-			szp->z_pflags |= ZFS_AV_MODIFIED;
-			if (tdzp->z_pflags & ZFS_PROJINHERIT)
-				szp->z_pflags |= ZFS_PROJINHERIT;
+	error = sa_update(szp->z_sa_hdl, SA_ZPL_FLAGS(zfsvfs),
+	    (void *)&szp->z_pflags, sizeof (uint64_t), tx);
+	VERIFY0(error);
 
-			error = sa_update(szp->z_sa_hdl, SA_ZPL_FLAGS(zfsvfs),
-			    (void *)&szp->z_pflags, sizeof (uint64_t), tx);
+	error = zfs_link_destroy(sdl, szp, tx, ZRENAMING, NULL);
+	if (error)
+		goto commit;
+
+	/*
+	 * Unlink the target.
+	 */
+	if (tzp) {
+		int tzflg = zflg;
+
+		if (rflags & RENAME_EXCHANGE) {
+			/* This inode will be re-linked soon. */
+			tzflg |= ZRENAMING;
+
+			tzp->z_pflags |= ZFS_AV_MODIFIED;
+			if (sdzp->z_pflags & ZFS_PROJINHERIT)
+				tzp->z_pflags |= ZFS_PROJINHERIT;
+
+			error = sa_update(tzp->z_sa_hdl, SA_ZPL_FLAGS(zfsvfs),
+			    (void *)&tzp->z_pflags, sizeof (uint64_t), tx);
 			ASSERT0(error);
-
-			error = zfs_link_destroy(sdl, szp, tx, ZRENAMING, NULL);
-			if (error == 0) {
-				zfs_log_rename(zilog, tx, TX_RENAME |
-				    (flags & FIGNORECASE ? TX_CI : 0), sdzp,
-				    sdl->dl_name, tdzp, tdl->dl_name, szp);
-			} else {
-				/*
-				 * At this point, we have successfully created
-				 * the target name, but have failed to remove
-				 * the source name.  Since the create was done
-				 * with the ZRENAMING flag, there are
-				 * complications; for one, the link count is
-				 * wrong.  The easiest way to deal with this
-				 * is to remove the newly created target, and
-				 * return the original error.  This must
-				 * succeed; fortunately, it is very unlikely to
-				 * fail, since we just created it.
-				 */
-				VERIFY3U(zfs_link_destroy(tdl, szp, tx,
-				    ZRENAMING, NULL), ==, 0);
-			}
-		} else {
-			/*
-			 * If we had removed the existing target, subsequent
-			 * call to zfs_link_create() to add back the same entry
-			 * but, the new dnode (szp) should not fail.
-			 */
-			ASSERT(tzp == NULL);
 		}
+		error = zfs_link_destroy(tdl, tzp, tx, tzflg, NULL);
+		if (error)
+			goto commit_link_szp;
 	}
 
+	/*
+	 * Create the new target links:
+	 *   * We always link the target.
+	 *   * RENAME_EXCHANGE: Link the old target to the source.
+	 *   * RENAME_WHITEOUT: Create a whiteout inode in-place of the source.
+	 */
+	error = zfs_link_create(tdl, szp, tx, ZRENAMING);
+	if (error) {
+		/*
+		 * If we have removed the existing target, a subsequent call to
+		 * zfs_link_create() to add back the same entry, but with a new
+		 * dnode (szp), should not fail.
+		 */
+		ASSERT3P(tzp, ==, NULL);
+		goto commit_link_tzp;
+	}
+
+	switch (rflags & (RENAME_EXCHANGE | RENAME_WHITEOUT)) {
+	case RENAME_EXCHANGE:
+		error = zfs_link_create(sdl, tzp, tx, ZRENAMING);
+		/*
+		 * The same argument as zfs_link_create() failing for
+		 * szp applies here, since the source directory must
+		 * have had an entry we are replacing.
+		 */
+		ASSERT0(error);
+		if (error)
+			goto commit_unlink_td_szp;
+		break;
+	case RENAME_WHITEOUT:
+		zfs_mknode(sdzp, wo_vap, tx, cr, 0, &wzp, &acl_ids);
+		error = zfs_link_create(sdl, wzp, tx, ZNEW);
+		if (error) {
+			zfs_znode_delete(wzp, tx);
+			remove_inode_hash(ZTOI(wzp));
+			goto commit_unlink_td_szp;
+		}
+		break;
+	}
+
+	if (fuid_dirtied)
+		zfs_fuid_sync(zfsvfs, tx);
+
+	switch (rflags & (RENAME_EXCHANGE | RENAME_WHITEOUT)) {
+	case RENAME_EXCHANGE:
+		zfs_log_rename_exchange(zilog, tx,
+		    (flags & FIGNORECASE ? TX_CI : 0), sdzp, sdl->dl_name,
+		    tdzp, tdl->dl_name, szp);
+		break;
+	case RENAME_WHITEOUT:
+		zfs_log_rename_whiteout(zilog, tx,
+		    (flags & FIGNORECASE ? TX_CI : 0), sdzp, sdl->dl_name,
+		    tdzp, tdl->dl_name, szp, wzp);
+		break;
+	default:
+		ASSERT0(rflags & ~RENAME_NOREPLACE);
+		zfs_log_rename(zilog, tx, (flags & FIGNORECASE ? TX_CI : 0),
+		    sdzp, sdl->dl_name, tdzp, tdl->dl_name, szp);
+		break;
+	}
+
+commit:
 	dmu_tx_commit(tx);
 out:
-	if (zl != NULL)
-		zfs_rename_unlock(&zl);
-
-	zfs_dirent_unlock(sdl);
-	zfs_dirent_unlock(tdl);
+	if (have_acl)
+		zfs_acl_ids_free(&acl_ids);
 
 	zfs_znode_update_vfs(sdzp);
 	if (sdzp == tdzp)
@@ -2987,16 +3127,57 @@ out:
 
 	zfs_znode_update_vfs(szp);
 	zrele(szp);
+	if (wzp) {
+		zfs_znode_update_vfs(wzp);
+		zrele(wzp);
+	}
 	if (tzp) {
 		zfs_znode_update_vfs(tzp);
 		zrele(tzp);
 	}
+
+	if (zl != NULL)
+		zfs_rename_unlock(&zl);
+
+	zfs_dirent_unlock(sdl);
+	zfs_dirent_unlock(tdl);
 
 	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
 		zil_commit(zilog, 0);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
+
+	/*
+	 * Clean-up path for broken link state.
+	 *
+	 * At this point we are in a (very) bad state, so we need to do our
+	 * best to correct the state. In particular, all of the nlinks are
+	 * wrong because we were destroying and creating links with ZRENAMING.
+	 *
+	 * In some form, all of these operations have to resolve the state:
+	 *
+	 *  * link_destroy() *must* succeed. Fortunately, this is very likely
+	 *    since we only just created it.
+	 *
+	 *  * link_create()s are allowed to fail (though they shouldn't because
+	 *    we only just unlinked them and are putting the entries back
+	 *    during clean-up). But if they fail, we can just forcefully drop
+	 *    the nlink value to (at the very least) avoid broken nlink values
+	 *    -- though in the case of non-empty directories we will have to
+	 *    panic (otherwise we'd have a leaked directory with a broken ..).
+	 */
+commit_unlink_td_szp:
+	VERIFY0(zfs_link_destroy(tdl, szp, tx, ZRENAMING, NULL));
+commit_link_tzp:
+	if (tzp) {
+		if (zfs_link_create(tdl, tzp, tx, ZRENAMING))
+			VERIFY0(zfs_drop_nlink(tzp, tx, NULL));
+	}
+commit_link_szp:
+	if (zfs_link_create(sdl, szp, tx, ZRENAMING))
+		VERIFY0(zfs_drop_nlink(szp, tx, NULL));
+	goto commit;
 }
 
 /*
@@ -3008,6 +3189,7 @@ out:
  *		link	- Name for new symlink entry.
  *		cr	- credentials of caller.
  *		flags	- case flags
+ *		mnt_ns	- user namespace of the mount
  *
  *	OUT:	zpp	- Znode for new symbolic link.
  *
@@ -3018,7 +3200,7 @@ out:
  */
 int
 zfs_symlink(znode_t *dzp, char *name, vattr_t *vap, char *link,
-    znode_t **zpp, cred_t *cr, int flags)
+    znode_t **zpp, cred_t *cr, int flags, zuserns_t *mnt_ns)
 {
 	znode_t		*zp;
 	zfs_dirlock_t	*dl;
@@ -3056,7 +3238,7 @@ zfs_symlink(znode_t *dzp, char *name, vattr_t *vap, char *link,
 	}
 
 	if ((error = zfs_acl_ids_create(dzp, 0,
-	    vap, cr, NULL, &acl_ids)) != 0) {
+	    vap, cr, NULL, &acl_ids, mnt_ns)) != 0) {
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
@@ -3073,7 +3255,7 @@ top:
 		return (error);
 	}
 
-	if ((error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr))) {
+	if ((error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr, mnt_ns))) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
 		zfs_exit(zfsvfs, FTAG);
@@ -3325,7 +3507,8 @@ zfs_link(znode_t *tdzp, znode_t *szp, char *name, cred_t *cr,
 		return (SET_ERROR(EPERM));
 	}
 
-	if ((error = zfs_zaccess(tdzp, ACE_ADD_FILE, 0, B_FALSE, cr))) {
+	if ((error = zfs_zaccess(tdzp, ACE_ADD_FILE, 0, B_FALSE, cr,
+	    kcred->user_ns))) {
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
@@ -3951,7 +4134,8 @@ zfs_space(znode_t *zp, int cmd, flock64_t *bfp, int flag,
 	 * On Linux we can get here through truncate_range() which
 	 * operates directly on inodes, so we need to check access rights.
 	 */
-	if ((error = zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr))) {
+	if ((error = zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr,
+	    kcred->user_ns))) {
 		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}

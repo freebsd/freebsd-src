@@ -97,6 +97,9 @@
 #if defined(__x86_64__) && defined(HAVE_AVX) && \
     defined(HAVE_AES) && defined(HAVE_PCLMULQDQ)
 
+#define _ASM
+#include <sys/asm_linkage.h>
+
 .text
 
 .globl	gcm_gmult_clmul
@@ -104,6 +107,7 @@
 .align	16
 gcm_gmult_clmul:
 .cfi_startproc
+	ENDBR
 .L_gmult_clmul:
 	movdqu	(%rdi),%xmm0
 	movdqa	.Lbswap_mask(%rip),%xmm5
@@ -149,7 +153,7 @@ gcm_gmult_clmul:
 	pxor	%xmm1,%xmm0
 .byte	102,15,56,0,197
 	movdqu	%xmm0,(%rdi)
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	gcm_gmult_clmul,.-gcm_gmult_clmul
 
@@ -158,6 +162,7 @@ gcm_gmult_clmul:
 .align	32
 gcm_init_htab_avx:
 .cfi_startproc
+	ENDBR
 	vzeroupper
 
 	vmovdqu	(%rsi),%xmm2
@@ -262,7 +267,7 @@ gcm_init_htab_avx:
 	vmovdqu	%xmm5,-16(%rdi)
 
 	vzeroupper
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	gcm_init_htab_avx,.-gcm_init_htab_avx
 
@@ -271,6 +276,7 @@ gcm_init_htab_avx:
 .align	32
 gcm_gmult_avx:
 .cfi_startproc
+	ENDBR
 	jmp	.L_gmult_clmul
 .cfi_endproc
 .size	gcm_gmult_avx,.-gcm_gmult_avx
@@ -279,6 +285,7 @@ gcm_gmult_avx:
 .align	32
 gcm_ghash_avx:
 .cfi_startproc
+	ENDBR
 	vzeroupper
 
 	vmovdqu	(%rdi),%xmm10
@@ -649,9 +656,11 @@ gcm_ghash_avx:
 	vpshufb	%xmm13,%xmm10,%xmm10
 	vmovdqu	%xmm10,(%rdi)
 	vzeroupper
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	gcm_ghash_avx,.-gcm_ghash_avx
+
+.pushsection .rodata
 .align	64
 .Lbswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -705,6 +714,7 @@ gcm_ghash_avx:
 
 .byte	71,72,65,83,72,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	64
+.popsection
 
 /* Mark the stack non-executable. */
 #if defined(__linux__) && defined(__ELF__)

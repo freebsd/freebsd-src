@@ -60,9 +60,9 @@
 static boolean_t zpool_vdev_is_interior(const char *name);
 
 typedef struct prop_flags {
-	int create:1;	/* Validate property on creation */
-	int import:1;	/* Validate property on import */
-	int vdevprop:1;	/* Validate property as a VDEV property */
+	unsigned int create:1;	/* Validate property on creation */
+	unsigned int import:1;	/* Validate property on import */
+	unsigned int vdevprop:1; /* Validate property as a VDEV property */
 } prop_flags_t;
 
 /*
@@ -2214,7 +2214,6 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 			    ((policy.zlp_rewind & ZPOOL_TRY_REWIND) != 0), nv);
 		}
 		nvlist_free(nv);
-		return (0);
 	}
 
 	return (ret);
@@ -2679,7 +2678,7 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 			if (zfs_strcmp_pathname(srchval, val, wholedisk) == 0)
 				return (nv);
 
-		} else if (strcmp(srchkey, ZPOOL_CONFIG_TYPE) == 0 && val) {
+		} else if (strcmp(srchkey, ZPOOL_CONFIG_TYPE) == 0) {
 			char *type, *idx, *end, *p;
 			uint64_t id, vdev_id;
 

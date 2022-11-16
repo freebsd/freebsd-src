@@ -419,12 +419,12 @@ boolean_t arc_warm;
 /*
  * These tunables are for performance analysis.
  */
-unsigned long zfs_arc_max = 0;
-unsigned long zfs_arc_min = 0;
-unsigned long zfs_arc_meta_limit = 0;
-unsigned long zfs_arc_meta_min = 0;
-static unsigned long zfs_arc_dnode_limit = 0;
-static unsigned long zfs_arc_dnode_reduce_percent = 10;
+uint64_t zfs_arc_max = 0;
+uint64_t zfs_arc_min = 0;
+uint64_t zfs_arc_meta_limit = 0;
+uint64_t zfs_arc_meta_min = 0;
+static uint64_t zfs_arc_dnode_limit = 0;
+static uint_t zfs_arc_dnode_reduce_percent = 10;
 static uint_t zfs_arc_grow_retry = 0;
 static uint_t zfs_arc_shrink_shift = 0;
 static uint_t zfs_arc_p_min_shift = 0;
@@ -449,17 +449,17 @@ int zfs_compressed_arc_enabled = B_TRUE;
  * ARC will evict meta buffers that exceed arc_meta_limit. This
  * tunable make arc_meta_limit adjustable for different workloads.
  */
-static unsigned long zfs_arc_meta_limit_percent = 75;
+static uint64_t zfs_arc_meta_limit_percent = 75;
 
 /*
  * Percentage that can be consumed by dnodes of ARC meta buffers.
  */
-static unsigned long zfs_arc_dnode_limit_percent = 10;
+static uint_t zfs_arc_dnode_limit_percent = 10;
 
 /*
  * These tunables are Linux-specific
  */
-static unsigned long zfs_arc_sys_free = 0;
+static uint64_t zfs_arc_sys_free = 0;
 static uint_t zfs_arc_min_prefetch_ms = 0;
 static uint_t zfs_arc_min_prescient_prefetch_ms = 0;
 static int zfs_arc_p_dampener_disable = 1;
@@ -781,12 +781,12 @@ uint64_t zfs_crc64_table[256];
 #define	L2ARC_FEED_TYPES	4
 
 /* L2ARC Performance Tunables */
-unsigned long l2arc_write_max = L2ARC_WRITE_SIZE;	/* def max write size */
-unsigned long l2arc_write_boost = L2ARC_WRITE_SIZE;	/* extra warmup write */
-unsigned long l2arc_headroom = L2ARC_HEADROOM;		/* # of dev writes */
-unsigned long l2arc_headroom_boost = L2ARC_HEADROOM_BOOST;
-unsigned long l2arc_feed_secs = L2ARC_FEED_SECS;	/* interval seconds */
-unsigned long l2arc_feed_min_ms = L2ARC_FEED_MIN_MS;	/* min interval msecs */
+uint64_t l2arc_write_max = L2ARC_WRITE_SIZE;	/* def max write size */
+uint64_t l2arc_write_boost = L2ARC_WRITE_SIZE;	/* extra warmup write */
+uint64_t l2arc_headroom = L2ARC_HEADROOM;	/* # of dev writes */
+uint64_t l2arc_headroom_boost = L2ARC_HEADROOM_BOOST;
+uint64_t l2arc_feed_secs = L2ARC_FEED_SECS;	/* interval seconds */
+uint64_t l2arc_feed_min_ms = L2ARC_FEED_MIN_MS;	/* min interval msecs */
 int l2arc_noprefetch = B_TRUE;			/* don't cache prefetch bufs */
 int l2arc_feed_again = B_TRUE;			/* turbo warmup */
 int l2arc_norw = B_FALSE;			/* no reads during writes */
@@ -909,7 +909,7 @@ static int l2arc_mfuonly = 0;
  * 		will vary depending of how well the specific device handles
  * 		these commands.
  */
-static unsigned long l2arc_trim_ahead = 0;
+static uint64_t l2arc_trim_ahead = 0;
 
 /*
  * Performance tuning of L2ARC persistence:
@@ -925,7 +925,7 @@ static unsigned long l2arc_trim_ahead = 0;
  * 		not to waste space.
  */
 static int l2arc_rebuild_enabled = B_TRUE;
-static unsigned long l2arc_rebuild_blocks_min_l2size = 1024 * 1024 * 1024;
+static uint64_t l2arc_rebuild_blocks_min_l2size = 1024 * 1024 * 1024;
 
 /* L2ARC persistence rebuild control routines. */
 void l2arc_rebuild_vdev(vdev_t *vd, boolean_t reopen);
@@ -3939,7 +3939,7 @@ arc_evict_hdr(arc_buf_hdr_t *hdr, kmutex_t *hash_lock, uint64_t *real_evicted)
 			 * dropping from L1+L2 cached to L2-only,
 			 * realloc to remove the L1 header.
 			 */
-			hdr = arc_hdr_realloc(hdr, hdr_full_cache,
+			(void) arc_hdr_realloc(hdr, hdr_full_cache,
 			    hdr_l2only_cache);
 			*real_evicted += HDR_FULL_SIZE - HDR_L2ONLY_SIZE;
 		} else {
@@ -4469,7 +4469,7 @@ restart:
 	 * meta buffers.  Requests to the upper layers will be made with
 	 * increasingly large scan sizes until the ARC is below the limit.
 	 */
-	if (meta_used > arc_meta_limit) {
+	if (meta_used > arc_meta_limit || arc_available_memory() < 0) {
 		if (type == ARC_BUFC_DATA) {
 			type = ARC_BUFC_METADATA;
 		} else {
@@ -5136,7 +5136,7 @@ arc_adapt(int bytes, arc_state_t *state)
 		if (!zfs_arc_p_dampener_disable)
 			mult = MIN(mult, 10); /* avoid wild arc_p adjustment */
 
-		arc_p = MIN(arc_c - arc_p_min, arc_p + bytes * mult);
+		arc_p = MIN(arc_c - arc_p_min, arc_p + (uint64_t)bytes * mult);
 	} else if (state == arc_mfu_ghost) {
 		uint64_t delta;
 
@@ -5173,7 +5173,7 @@ arc_adapt(int bytes, arc_state_t *state)
 		atomic_add_64(&arc_c, (int64_t)bytes);
 		if (arc_c > arc_c_max)
 			arc_c = arc_c_max;
-		else if (state == arc_anon)
+		else if (state == arc_anon && arc_p < arc_c >> 1)
 			atomic_add_64(&arc_p, (int64_t)bytes);
 		if (arc_p > arc_c)
 			arc_p = arc_c;
@@ -5386,7 +5386,8 @@ arc_get_data_impl(arc_buf_hdr_t *hdr, uint64_t size, const void *tag,
 		if (aggsum_upper_bound(&arc_sums.arcstat_size) < arc_c &&
 		    hdr->b_l1hdr.b_state == arc_anon &&
 		    (zfs_refcount_count(&arc_anon->arcs_size) +
-		    zfs_refcount_count(&arc_mru->arcs_size) > arc_p))
+		    zfs_refcount_count(&arc_mru->arcs_size) > arc_p &&
+		    arc_p < arc_c >> 1))
 			arc_p = MIN(arc_c, arc_p + size);
 	}
 }
@@ -8539,6 +8540,7 @@ l2arc_dev_get_next(void)
 		else if (next == first)
 			break;
 
+		ASSERT3P(next, !=, NULL);
 	} while (vdev_is_dead(next->l2ad_vdev) || next->l2ad_rebuild ||
 	    next->l2ad_trim_all);
 
@@ -11076,20 +11078,20 @@ EXPORT_SYMBOL(arc_add_prune_callback);
 EXPORT_SYMBOL(arc_remove_prune_callback);
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, min, param_set_arc_min,
-	param_get_ulong, ZMOD_RW, "Minimum ARC size in bytes");
+	spl_param_get_u64, ZMOD_RW, "Minimum ARC size in bytes");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, max, param_set_arc_max,
-	param_get_ulong, ZMOD_RW, "Maximum ARC size in bytes");
+	spl_param_get_u64, ZMOD_RW, "Maximum ARC size in bytes");
 
-ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_limit, param_set_arc_long,
-	param_get_ulong, ZMOD_RW, "Metadata limit for ARC size in bytes");
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_limit, param_set_arc_u64,
+	spl_param_get_u64, ZMOD_RW, "Metadata limit for ARC size in bytes");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_limit_percent,
-    param_set_arc_long, param_get_ulong, ZMOD_RW,
+    param_set_arc_int, param_get_uint, ZMOD_RW,
 	"Percent of ARC size for ARC meta limit");
 
-ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_min, param_set_arc_long,
-	param_get_ulong, ZMOD_RW, "Minimum ARC metadata size in bytes");
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_min, param_set_arc_u64,
+	spl_param_get_u64, ZMOD_RW, "Minimum ARC metadata size in bytes");
 
 ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, meta_prune, INT, ZMOD_RW,
 	"Meta objects to scan for prune");
@@ -11128,25 +11130,25 @@ ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, min_prescient_prefetch_ms,
     param_set_arc_int, param_get_uint, ZMOD_RW,
 	"Min life of prescient prefetched block in ms");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, write_max, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, write_max, U64, ZMOD_RW,
 	"Max write bytes per interval");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, write_boost, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, write_boost, U64, ZMOD_RW,
 	"Extra write bytes during device warmup");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, headroom, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, headroom, U64, ZMOD_RW,
 	"Number of max device writes to precache");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, headroom_boost, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, headroom_boost, U64, ZMOD_RW,
 	"Compressed l2arc_headroom multiplier");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, trim_ahead, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, trim_ahead, U64, ZMOD_RW,
 	"TRIM ahead L2ARC write size multiplier");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, feed_secs, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, feed_secs, U64, ZMOD_RW,
 	"Seconds between L2ARC writing");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, feed_min_ms, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, feed_min_ms, U64, ZMOD_RW,
 	"Min feed interval in milliseconds");
 
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, noprefetch, INT, ZMOD_RW,
@@ -11164,7 +11166,7 @@ ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, meta_percent, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, rebuild_enabled, INT, ZMOD_RW,
 	"Rebuild the L2ARC when importing a pool");
 
-ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, rebuild_blocks_min_l2size, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, rebuild_blocks_min_l2size, U64, ZMOD_RW,
 	"Min size in bytes to write rebuild log blocks in L2ARC");
 
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, mfuonly, INT, ZMOD_RW,
@@ -11176,17 +11178,17 @@ ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, exclude_special, INT, ZMOD_RW,
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, lotsfree_percent, param_set_arc_int,
 	param_get_uint, ZMOD_RW, "System free memory I/O throttle in bytes");
 
-ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, sys_free, param_set_arc_long,
-	param_get_ulong, ZMOD_RW, "System free memory target size in bytes");
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, sys_free, param_set_arc_u64,
+	spl_param_get_u64, ZMOD_RW, "System free memory target size in bytes");
 
-ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, dnode_limit, param_set_arc_long,
-	param_get_ulong, ZMOD_RW, "Minimum bytes of dnodes in ARC");
+ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, dnode_limit, param_set_arc_u64,
+	spl_param_get_u64, ZMOD_RW, "Minimum bytes of dnodes in ARC");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, dnode_limit_percent,
-    param_set_arc_long, param_get_ulong, ZMOD_RW,
+    param_set_arc_int, param_get_uint, ZMOD_RW,
 	"Percent of ARC meta buffers for dnodes");
 
-ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, dnode_reduce_percent, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, dnode_reduce_percent, UINT, ZMOD_RW,
 	"Percentage of excess dnodes to try to unpin");
 
 ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, eviction_pct, UINT, ZMOD_RW,

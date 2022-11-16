@@ -646,7 +646,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		 * so add the DS_HOLD_FLAG_DECRYPT flag only if we are dealing
 		 * with a dataset we may encrypt.
 		 */
-		if (drba->drba_dcp != NULL &&
+		if (drba->drba_dcp == NULL ||
 		    drba->drba_dcp->cp_crypt != ZIO_CRYPT_OFF) {
 			dsflags |= DS_HOLD_FLAG_DECRYPT;
 		}
@@ -1344,7 +1344,7 @@ do_corrective_recv(struct receive_writer_arg *rwa, struct drr_write *drrw,
 	dnode_t *dn;
 	abd_t *abd = rrd->abd;
 	zio_cksum_t bp_cksum = bp->blk_cksum;
-	enum zio_flag flags = ZIO_FLAG_SPECULATIVE |
+	zio_flag_t flags = ZIO_FLAG_SPECULATIVE |
 	    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_RETRY | ZIO_FLAG_CANFAIL;
 
 	if (rwa->raw)
@@ -2186,7 +2186,7 @@ flush_write_batch_impl(struct receive_writer_arg *rwa)
 			zio_prop_t zp;
 			dmu_write_policy(rwa->os, dn, 0, 0, &zp);
 
-			enum zio_flag zio_flags = 0;
+			zio_flag_t zio_flags = 0;
 
 			if (rwa->raw) {
 				zp.zp_encrypt = B_TRUE;

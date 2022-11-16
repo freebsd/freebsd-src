@@ -229,13 +229,14 @@ set_global_var(char const *arg)
 		fprintf(stderr, "Failed to open libzpool.so to set global "
 		    "variable\n");
 		ret = EIO;
-		goto out_dlclose;
+		goto out_free;
 	}
 
 	ret = 0;
 
 out_dlclose:
 	dlclose(zpoolhdl);
+out_free:
 	free(varname);
 out_ret:
 	return (ret);
@@ -260,7 +261,9 @@ pool_active(void *unused, const char *name, uint64_t guid, boolean_t *isactive)
 	(void) unused, (void) guid;
 	zfs_iocparm_t zp;
 	zfs_cmd_t *zc = NULL;
+#ifdef ZFS_LEGACY_SUPPORT
 	zfs_cmd_legacy_t *zcl = NULL;
+#endif
 	unsigned long request;
 	int ret;
 
@@ -295,6 +298,7 @@ pool_active(void *unused, const char *name, uint64_t guid, boolean_t *isactive)
 		umem_free(zc, sizeof (zfs_cmd_t));
 
 		break;
+#ifdef ZFS_LEGACY_SUPPORT
 	case ZFS_IOCVER_LEGACY:
 		zcl = umem_zalloc(sizeof (zfs_cmd_legacy_t), UMEM_NOFAIL);
 
@@ -310,6 +314,7 @@ pool_active(void *unused, const char *name, uint64_t guid, boolean_t *isactive)
 		umem_free(zcl, sizeof (zfs_cmd_legacy_t));
 
 		break;
+#endif
 	default:
 		fprintf(stderr, "unrecognized zfs ioctl version %d", ver);
 		exit(1);
