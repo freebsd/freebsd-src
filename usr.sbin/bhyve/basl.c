@@ -439,6 +439,17 @@ basl_table_append_checksum(struct basl_table *const table, const uint32_t start,
 }
 
 int
+basl_table_append_content(struct basl_table *table, void *data, uint32_t len)
+{
+	assert(data != NULL);
+	assert(len >= sizeof(ACPI_TABLE_HEADER));
+
+	return (basl_table_append_bytes(table,
+	    (void *)((uintptr_t)(data) + sizeof(ACPI_TABLE_HEADER)),
+	    len - sizeof(ACPI_TABLE_HEADER)));
+}
+
+int
 basl_table_append_gas(struct basl_table *const table, const uint8_t space_id,
     const uint8_t bit_width, const uint8_t bit_offset,
     const uint8_t access_width, const uint64_t address)
