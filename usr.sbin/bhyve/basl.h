@@ -42,6 +42,13 @@ struct basl_table;
 
 int basl_finish(void);
 int basl_init(void);
+int basl_table_add_checksum(struct basl_table *const table, const uint32_t off,
+    const uint32_t start, const uint32_t len);
+int basl_table_add_length(struct basl_table *const table, const uint32_t off,
+    const uint8_t size);
+int basl_table_add_pointer(struct basl_table *const table,
+    const uint8_t src_signature[ACPI_NAMESEG_SIZE], const uint32_t off,
+    const uint8_t size);
 int basl_table_append_bytes(struct basl_table *table, const void *bytes,
     uint32_t len);
 int basl_table_append_checksum(struct basl_table *table, uint32_t start,
