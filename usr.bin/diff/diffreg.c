@@ -1338,6 +1338,7 @@ readhash(FILE *f, int flags, unsigned *hash)
 		case '\0':
 			if ((flags & D_FORCEASCII) == 0)
 				return (RH_BINARY);
+			goto hashchar;
 		case '\r':
 			if (flags & D_STRIPCR) {
 				t = getc(f);
@@ -1356,6 +1357,7 @@ readhash(FILE *f, int flags, unsigned *hash)
 			}
 			/* FALLTHROUGH */
 		default:
+		hashchar:
 			if (space && (flags & D_IGNOREBLANKS) == 0) {
 				i++;
 				space = 0;
