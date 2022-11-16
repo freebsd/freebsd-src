@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20221116:
+	13.1-RELEASE-p4	FreeBSD-SA-22:14.heimdal
+
+	Multiple vulnerabilities in Heimdal [SA-22:14.heimdal]
+
 20221101:
 	13.1-RELEASE-p3	FreeBSD-EN-22:21.zfs
 			FreeBSD-EN-22:22.tzdata
