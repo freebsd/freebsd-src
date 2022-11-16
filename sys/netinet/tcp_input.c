@@ -410,7 +410,6 @@ cc_conn_init(struct tcpcb *tp)
 
 	if (tp->t_srtt == 0 && (rtt = metrics.rmx_rtt)) {
 		tp->t_srtt = rtt;
-		tp->t_rttbest = tp->t_srtt + TCP_RTT_SCALE;
 		TCPSTAT_INC(tcps_usedrtt);
 		if (metrics.rmx_rttvar) {
 			tp->t_rttvar = metrics.rmx_rttvar;
@@ -3642,8 +3641,6 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 		delta -= tp->t_rttvar >> (TCP_RTTVAR_SHIFT - TCP_DELTA_SHIFT);
 		if ((tp->t_rttvar += delta) <= 0)
 			tp->t_rttvar = 1;
-		if (tp->t_rttbest > tp->t_srtt + tp->t_rttvar)
-		    tp->t_rttbest = tp->t_srtt + tp->t_rttvar;
 	} else {
 		/*
 		 * No rtt measurement yet - use the unsmoothed rtt.
@@ -3652,7 +3649,6 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 		 */
 		tp->t_srtt = rtt << TCP_RTT_SHIFT;
 		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
-		tp->t_rttbest = tp->t_srtt + tp->t_rttvar;
 	}
 	tp->t_rtttime = 0;
 	tp->t_rxtshift = 0;

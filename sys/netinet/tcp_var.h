@@ -212,8 +212,6 @@ struct tcpcb {
 	int	t_blackhole_exit;	/* when to exit blackhole detection */
 	u_int	t_rttmin;		/* minimum rtt allowed */
 
-	u_int	t_rttbest;		/* best rtt we've seen */
-
 	int	t_softerror;		/* possible error not yet reported */
 	uint32_t  max_sndwnd;		/* largest window peer has offered */
 	/* Cache line 5 */
