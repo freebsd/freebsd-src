@@ -121,6 +121,20 @@ basl_dump(const bool mem)
 	return (0);
 }
 
+void
+basl_fill_gas(ACPI_GENERIC_ADDRESS *const gas, const uint8_t space_id,
+    const uint8_t bit_width, const uint8_t bit_offset,
+    const uint8_t access_width, const uint64_t address)
+{
+	assert(gas != NULL);
+
+	gas->SpaceId = space_id;
+	gas->BitWidth = bit_width;
+	gas->BitOffset = bit_offset;
+	gas->AccessWidth = access_width;
+	gas->Address = htole64(address);
+}
+
 static int
 basl_finish_install_guest_tables(struct basl_table *const table)
 {
