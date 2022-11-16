@@ -257,6 +257,7 @@ end
 --- @param verbose boolean
 --- @param w_notagdirs boolean turn on to also check directories
 function Analysis_session(metalog, verbose, w_notagdirs)
+	local stage_root = {}
 	local files = {} -- map<string, MetalogRow[]>
 	-- set is map<elem, bool>. if bool is true then elem exists
 	local pkgs = {} -- map<string, set<string>>
@@ -418,17 +419,14 @@ function Analysis_session(metalog, verbose, w_notagdirs)
 			if files[filename][1].attrs.type ~= 'file' then
 				goto continue
 			end
-			-- make ./xxx become /xxx so that we can stat
-			filename = filename:sub(2)
-			local fs = attributes(filename)
+			local fs = attributes(stage_root .. filename)
 			if fs == nil then
 				unstatables[#unstatables+1] = filename
 				goto continue
 			end
 			local inode = fs.ino
 			inm[inode] = inm[inode] or {}
-			-- add back the dot prefix
-			table.insert(inm[inode], '.'..filename)
+			table.insert(inm[inode], filename)
 			::continue::
 		end
 
@@ -461,6 +459,9 @@ function Analysis_session(metalog, verbose, w_notagdirs)
 
 		return table.concat(warn, ''), table.concat(errs, '')
 	end
+
+	-- The METALOG file is assumed to be at the top of the stage directory.
+	stage_root = string.gsub(metalog, '/[^/]*$', '/')
 
 	do
 	local fp, errmsg, errcode = io.open(metalog, 'r')
