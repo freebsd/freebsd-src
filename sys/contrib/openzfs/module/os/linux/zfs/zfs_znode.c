@@ -422,7 +422,12 @@ zfs_inode_set_ops(zfsvfs_t *zfsvfs, struct inode *ip)
 		break;
 
 	case S_IFDIR:
+#ifdef HAVE_RENAME2_OPERATIONS_WRAPPER
+		ip->i_flags |= S_IOPS_WRAPPER;
+		ip->i_op = &zpl_dir_inode_operations.ops;
+#else
 		ip->i_op = &zpl_dir_inode_operations;
+#endif
 		ip->i_fop = &zpl_dir_file_operations;
 		ITOZ(ip)->z_zn_prefetch = B_TRUE;
 		break;
@@ -552,7 +557,6 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	zp->z_atime_dirty = B_FALSE;
 	zp->z_is_mapped = B_FALSE;
 	zp->z_is_ctldir = B_FALSE;
-	zp->z_is_stale = B_FALSE;
 	zp->z_suspended = B_FALSE;
 	zp->z_sa_hdl = NULL;
 	zp->z_mapcnt = 0;
@@ -1960,7 +1964,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	}
 
 	VERIFY(0 == zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr,
-	    cr, NULL, &acl_ids));
+	    cr, NULL, &acl_ids, kcred->user_ns));
 	zfs_mknode(rootzp, &vattr, tx, cr, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, rootzp);
 	error = zap_add(os, moid, ZFS_ROOT_OBJ, 8, 1, &rootzp->z_id, tx);
@@ -2136,7 +2140,6 @@ zfs_obj_to_path_impl(objset_t *osp, uint64_t obj, sa_handle_t *hdl,
 	} else if (error != ENOENT) {
 		return (error);
 	}
-	error = 0;
 
 	for (;;) {
 		uint64_t pobj = 0;

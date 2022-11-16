@@ -39,13 +39,18 @@
 
 /* zpl_inode.c */
 extern void zpl_vap_init(vattr_t *vap, struct inode *dir,
-    umode_t mode, cred_t *cr);
+    umode_t mode, cred_t *cr, zuserns_t *mnt_ns);
 
 extern const struct inode_operations zpl_inode_operations;
+#ifdef HAVE_RENAME2_OPERATIONS_WRAPPER
+extern const struct inode_operations_wrapper zpl_dir_inode_operations;
+#else
 extern const struct inode_operations zpl_dir_inode_operations;
+#endif
 extern const struct inode_operations zpl_symlink_inode_operations;
 extern const struct inode_operations zpl_special_inode_operations;
-extern dentry_operations_t zpl_dentry_operations;
+
+/* zpl_file.c */
 extern const struct address_space_operations zpl_address_space_operations;
 extern const struct file_operations zpl_file_operations;
 extern const struct file_operations zpl_dir_file_operations;

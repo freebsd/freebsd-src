@@ -218,7 +218,7 @@ static int		spa_load_print_vdev_tree = B_FALSE;
  * there are also risks of performing an inadvertent rewind as we might be
  * missing all the vdevs with the latest uberblocks.
  */
-unsigned long	zfs_max_missing_tvds = 0;
+uint64_t	zfs_max_missing_tvds = 0;
 
 /*
  * The parameters below are similar to zfs_max_missing_tvds but are only
@@ -5267,7 +5267,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 	 * If we've recovered the pool, pass back any information we
 	 * gathered while doing the load.
 	 */
-	if (state == SPA_LOAD_RECOVER) {
+	if (state == SPA_LOAD_RECOVER && config != NULL) {
 		fnvlist_add_nvlist(*config, ZPOOL_CONFIG_LOAD_INFO,
 		    spa->spa_load_info);
 	}
@@ -6803,8 +6803,8 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 
 	pvd = oldvd->vdev_parent;
 
-	if ((error = spa_config_parse(spa, &newrootvd, nvroot, NULL, 0,
-	    VDEV_ALLOC_ATTACH)) != 0)
+	if (spa_config_parse(spa, &newrootvd, nvroot, NULL, 0,
+	    VDEV_ALLOC_ATTACH) != 0)
 		return (spa_vdev_exit(spa, NULL, txg, EINVAL));
 
 	if (newrootvd->vdev_children != 1)
@@ -6819,10 +6819,12 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		return (spa_vdev_exit(spa, newrootvd, txg, error));
 
 	/*
-	 * Spares can't replace logs
+	 * log, dedup and special vdevs should not be replaced by spares.
 	 */
-	if (oldvd->vdev_top->vdev_islog && newvd->vdev_isspare)
+	if ((oldvd->vdev_top->vdev_alloc_bias != VDEV_BIAS_NONE ||
+	    oldvd->vdev_top->vdev_islog) && newvd->vdev_isspare) {
 		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
+	}
 
 	/*
 	 * A dRAID spare can only replace a child of its parent dRAID vdev.
@@ -7160,7 +7162,7 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 	 * it may be that the unwritability of the disk is the reason
 	 * it's being detached!
 	 */
-	error = vdev_label_init(vd, 0, VDEV_LABEL_REMOVE);
+	(void) vdev_label_init(vd, 0, VDEV_LABEL_REMOVE);
 
 	/*
 	 * Remove vd from its parent and compact the parent's children.
@@ -8867,36 +8869,36 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 				spa_history_log_internal(spa, "set", tx,
 				    "%s=%lld", nvpair_name(elem),
 				    (longlong_t)intval);
+
+				switch (prop) {
+				case ZPOOL_PROP_DELEGATION:
+					spa->spa_delegation = intval;
+					break;
+				case ZPOOL_PROP_BOOTFS:
+					spa->spa_bootfs = intval;
+					break;
+				case ZPOOL_PROP_FAILUREMODE:
+					spa->spa_failmode = intval;
+					break;
+				case ZPOOL_PROP_AUTOTRIM:
+					spa->spa_autotrim = intval;
+					spa_async_request(spa,
+					    SPA_ASYNC_AUTOTRIM_RESTART);
+					break;
+				case ZPOOL_PROP_AUTOEXPAND:
+					spa->spa_autoexpand = intval;
+					if (tx->tx_txg != TXG_INITIAL)
+						spa_async_request(spa,
+						    SPA_ASYNC_AUTOEXPAND);
+					break;
+				case ZPOOL_PROP_MULTIHOST:
+					spa->spa_multihost = intval;
+					break;
+				default:
+					break;
+				}
 			} else {
 				ASSERT(0); /* not allowed */
-			}
-
-			switch (prop) {
-			case ZPOOL_PROP_DELEGATION:
-				spa->spa_delegation = intval;
-				break;
-			case ZPOOL_PROP_BOOTFS:
-				spa->spa_bootfs = intval;
-				break;
-			case ZPOOL_PROP_FAILUREMODE:
-				spa->spa_failmode = intval;
-				break;
-			case ZPOOL_PROP_AUTOTRIM:
-				spa->spa_autotrim = intval;
-				spa_async_request(spa,
-				    SPA_ASYNC_AUTOTRIM_RESTART);
-				break;
-			case ZPOOL_PROP_AUTOEXPAND:
-				spa->spa_autoexpand = intval;
-				if (tx->tx_txg != TXG_INITIAL)
-					spa_async_request(spa,
-					    SPA_ASYNC_AUTOEXPAND);
-				break;
-			case ZPOOL_PROP_MULTIHOST:
-				spa->spa_multihost = intval;
-				break;
-			default:
-				break;
 			}
 		}
 
@@ -10016,7 +10018,7 @@ ZFS_MODULE_PARAM(zfs_zio, zio_, taskq_batch_tpq, UINT, ZMOD_RD,
 	"Number of threads per IO worker taskqueue");
 
 /* BEGIN CSTYLED */
-ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds, U64, ZMOD_RW,
 	"Allow importing pool with up to this number of missing top-level "
 	"vdevs (in read-only mode)");
 /* END CSTYLED */

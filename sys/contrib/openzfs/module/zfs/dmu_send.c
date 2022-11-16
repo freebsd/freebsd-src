@@ -934,7 +934,7 @@ do_dump(dmu_send_cookie_t *dscp, struct send_range *range)
 		ASSERT3U(range->start_blkid + 1, ==, range->end_blkid);
 		if (BP_GET_TYPE(bp) == DMU_OT_SA) {
 			arc_flags_t aflags = ARC_FLAG_WAIT;
-			enum zio_flag zioflags = ZIO_FLAG_CANFAIL;
+			zio_flag_t zioflags = ZIO_FLAG_CANFAIL;
 
 			if (dscp->dsc_featureflags & DMU_BACKUP_FEATURE_RAW) {
 				ASSERT(BP_IS_PROTECTED(bp));
@@ -1654,7 +1654,7 @@ issue_data_read(struct send_reader_thread_arg *srta, struct send_range *range)
 	    !split_large_blocks && !BP_SHOULD_BYTESWAP(bp) &&
 	    !BP_IS_EMBEDDED(bp) && !DMU_OT_IS_METADATA(BP_GET_TYPE(bp));
 
-	enum zio_flag zioflags = ZIO_FLAG_CANFAIL;
+	zio_flag_t zioflags = ZIO_FLAG_CANFAIL;
 
 	if (srta->featureflags & DMU_BACKUP_FEATURE_RAW) {
 		zioflags |= ZIO_FLAG_RAW;
@@ -2511,8 +2511,7 @@ dmu_send_impl(struct dmu_send_params *dspp)
 	}
 
 	if (featureflags & DMU_BACKUP_FEATURE_RAW) {
-		uint64_t ivset_guid = (ancestor_zb != NULL) ?
-		    ancestor_zb->zbm_ivset_guid : 0;
+		uint64_t ivset_guid = ancestor_zb->zbm_ivset_guid;
 		nvlist_t *keynvl = NULL;
 		ASSERT(os->os_encrypted);
 
@@ -2716,6 +2715,10 @@ dmu_send_obj(const char *pool, uint64_t tosnap, uint64_t fromsnap,
 		dspp.numfromredactsnaps = NUM_SNAPS_NOT_REDACTED;
 		err = dmu_send_impl(&dspp);
 	}
+	if (dspp.fromredactsnaps)
+		kmem_free(dspp.fromredactsnaps,
+		    dspp.numfromredactsnaps * sizeof (uint64_t));
+
 	dsl_dataset_rele(dspp.to_ds, FTAG);
 	return (err);
 }
@@ -2924,6 +2927,10 @@ dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 			/* dmu_send_impl will call dsl_pool_rele for us. */
 			err = dmu_send_impl(&dspp);
 		} else {
+			if (dspp.fromredactsnaps)
+				kmem_free(dspp.fromredactsnaps,
+				    dspp.numfromredactsnaps *
+				    sizeof (uint64_t));
 			dsl_pool_rele(dspp.dp, FTAG);
 		}
 	} else {

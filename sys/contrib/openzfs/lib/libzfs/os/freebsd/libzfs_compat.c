@@ -204,6 +204,8 @@ libzfs_error_init(int error)
 	if (modfind("zfs") < 0) {
 		size_t len = snprintf(msg, msglen, dgettext(TEXT_DOMAIN,
 		    "Failed to load %s module: "), ZFS_KMOD);
+		if (len >= msglen)
+			len = msglen - 1;
 		msg += len;
 		msglen -= len;
 	}

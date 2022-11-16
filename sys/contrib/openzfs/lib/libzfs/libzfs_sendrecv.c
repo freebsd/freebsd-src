@@ -2117,9 +2117,9 @@ send_prelim_records(zfs_handle_t *zhp, const char *from, int fd,
 			fnvlist_add_boolean(hdrnv, "raw");
 		}
 
-		if ((err = gather_nvlist(zhp->zfs_hdl, tofs,
+		if (gather_nvlist(zhp->zfs_hdl, tofs,
 		    from, tosnap, recursive, raw, doall, replicate, skipmissing,
-		    verbose, backup, holds, props, &fss, fsavlp)) != 0) {
+		    verbose, backup, holds, props, &fss, fsavlp) != 0) {
 			return (zfs_error(zhp->zfs_hdl, EZFS_BADBACKUP,
 			    errbuf));
 		}
@@ -4387,7 +4387,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 			 * prepend a path separator.
 			 */
 			int len = strlen(drrb->drr_toname);
-			cp = malloc(len + 2);
+			cp = umem_alloc(len + 2, UMEM_NOFAIL);
 			cp[0] = '/';
 			(void) strcpy(&cp[1], drrb->drr_toname);
 			chopprefix = cp;
@@ -4440,7 +4440,8 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	 */
 	(void) strlcpy(destsnap, tosnap, sizeof (destsnap));
 	(void) strlcat(destsnap, chopprefix, sizeof (destsnap));
-	free(cp);
+	if (cp != NULL)
+		umem_free(cp, strlen(cp) + 1);
 	if (!zfs_name_valid(destsnap, ZFS_TYPE_SNAPSHOT)) {
 		err = zfs_error(hdl, EZFS_INVALIDNAME, errbuf);
 		goto out;

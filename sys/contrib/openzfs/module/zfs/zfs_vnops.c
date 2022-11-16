@@ -64,7 +64,7 @@ zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
 	int error = 0;
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 
-	(void) tsd_set(zfs_fsyncer_key, (void *)zfs_fsync_sync_cnt);
+	(void) tsd_set(zfs_fsyncer_key, (void *)(uintptr_t)zfs_fsync_sync_cnt);
 
 	if (zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
 		if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
@@ -168,15 +168,25 @@ zfs_access(znode_t *zp, int mode, int flag, cred_t *cr)
 		return (error);
 
 	if (flag & V_ACE_MASK)
-		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr);
+#if defined(__linux__)
+		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr,
+		    kcred->user_ns);
+#else
+		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr,
+		    NULL);
+#endif
 	else
-		error = zfs_zaccess_rwx(zp, mode, flag, cr);
+#if defined(__linux__)
+		error = zfs_zaccess_rwx(zp, mode, flag, cr, kcred->user_ns);
+#else
+		error = zfs_zaccess_rwx(zp, mode, flag, cr, NULL);
+#endif
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
 
-static unsigned long zfs_vnops_read_chunk_size = 1024 * 1024; /* Tunable */
+static uint64_t zfs_vnops_read_chunk_size = 1024 * 1024; /* Tunable */
 
 /*
  * Read bytes from specified file into supplied buffer.
@@ -991,5 +1001,5 @@ EXPORT_SYMBOL(zfs_write);
 EXPORT_SYMBOL(zfs_getsecattr);
 EXPORT_SYMBOL(zfs_setsecattr);
 
-ZFS_MODULE_PARAM(zfs_vnops, zfs_vnops_, read_chunk_size, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vnops, zfs_vnops_, read_chunk_size, U64, ZMOD_RW,
 	"Bytes to read per chunk");

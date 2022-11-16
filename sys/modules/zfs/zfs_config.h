@@ -254,6 +254,9 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
+/* dentry aliases are in d_u member */
+/* #undef HAVE_DENTRY_D_U_ALIASES */
+
 /* dequeue_signal() takes 4 arguments */
 /* #undef HAVE_DEQUEUE_SIGNAL_4ARG */
 
@@ -359,8 +362,14 @@
 /* has_capability() is available */
 /* #undef HAVE_HAS_CAPABILITY */
 
+/* iattr->ia_vfsuid and iattr->ia_vfsgid exist */
+/* #undef HAVE_IATTR_VFSID */
+
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
+
+/* APIs for idmapped mount are present */
+/* #undef HAVE_IDMAP_MNT_API */
 
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_INFINITE_RECURSION */
@@ -589,6 +598,12 @@
 
 /* register_shrinker is vararg */
 /* #undef HAVE_REGISTER_SHRINKER_VARARG */
+
+/* iops->rename2() exists */
+/* #undef HAVE_RENAME2 */
+
+/* struct inode_operations_wrapper takes .rename2() */
+/* #undef HAVE_RENAME2_OPERATIONS_WRAPPER */
 
 /* iops->rename() wants flags */
 /* #undef HAVE_RENAME_WANTS_FLAGS */
@@ -955,7 +970,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gd62bafee9"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g2163cde45"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -985,7 +1000,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gd62bafee9"
+#define ZFS_META_RELEASE "FreeBSD_g2163cde45"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

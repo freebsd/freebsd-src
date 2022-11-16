@@ -22,6 +22,7 @@
  *
  * Copyright (c) 2018, Intel Corporation.
  * Copyright (c) 2020 by Lawrence Livermore National Security, LLC.
+ * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
  */
 
 #include <sys/vdev_impl.h>
@@ -103,7 +104,7 @@
  * Size of rebuild reads; defaults to 1MiB per data disk and is capped at
  * SPA_MAXBLOCKSIZE.
  */
-static unsigned long zfs_rebuild_max_segment = 1024 * 1024;
+static uint64_t zfs_rebuild_max_segment = 1024 * 1024;
 
 /*
  * Maximum number of parallelly executed bytes per leaf vdev caused by a
@@ -121,7 +122,7 @@ static unsigned long zfs_rebuild_max_segment = 1024 * 1024;
  * With a value of 32MB the sequential resilver write rate was measured at
  * 800MB/s sustained while rebuilding to a distributed spare.
  */
-static unsigned long zfs_rebuild_vdev_limit = 32 << 20;
+static uint64_t zfs_rebuild_vdev_limit = 32 << 20;
 
 /*
  * Automatically start a pool scrub when the last active sequential resilver
@@ -134,6 +135,7 @@ static int zfs_rebuild_scrub_enabled = 1;
  * For vdev_rebuild_initiate_sync() and vdev_rebuild_reset_sync().
  */
 static __attribute__((noreturn)) void vdev_rebuild_thread(void *arg);
+static void vdev_rebuild_reset_sync(void *arg, dmu_tx_t *tx);
 
 /*
  * Clear the per-vdev rebuild bytes value for a vdev tree.
@@ -307,6 +309,17 @@ vdev_rebuild_complete_sync(void *arg, dmu_tx_t *tx)
 	vdev_rebuild_phys_t *vrp = &vr->vr_rebuild_phys;
 
 	mutex_enter(&vd->vdev_rebuild_lock);
+
+	/*
+	 * Handle a second device failure if it occurs after all rebuild I/O
+	 * has completed but before this sync task has been executed.
+	 */
+	if (vd->vdev_rebuild_reset_wanted) {
+		mutex_exit(&vd->vdev_rebuild_lock);
+		vdev_rebuild_reset_sync(arg, tx);
+		return;
+	}
+
 	vrp->vrp_rebuild_state = VDEV_REBUILD_COMPLETE;
 	vrp->vrp_end_time = gethrestime_sec();
 
@@ -760,7 +773,6 @@ vdev_rebuild_thread(void *arg)
 	ASSERT(vd->vdev_rebuilding);
 	ASSERT(spa_feature_is_active(spa, SPA_FEATURE_DEVICE_REBUILD));
 	ASSERT3B(vd->vdev_rebuild_cancel_wanted, ==, B_FALSE);
-	ASSERT3B(vd->vdev_rebuild_reset_wanted, ==, B_FALSE);
 
 	vdev_rebuild_t *vr = &vd->vdev_rebuild_config;
 	vdev_rebuild_phys_t *vrp = &vr->vr_rebuild_phys;
@@ -1138,10 +1150,10 @@ vdev_rebuild_get_stats(vdev_t *tvd, vdev_rebuild_stat_t *vrs)
 	return (error);
 }
 
-ZFS_MODULE_PARAM(zfs, zfs_, rebuild_max_segment, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, rebuild_max_segment, U64, ZMOD_RW,
 	"Max segment size in bytes of rebuild reads");
 
-ZFS_MODULE_PARAM(zfs, zfs_, rebuild_vdev_limit, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, rebuild_vdev_limit, U64, ZMOD_RW,
 	"Max bytes in flight per leaf vdev for sequential resilvers");
 
 ZFS_MODULE_PARAM(zfs, zfs_, rebuild_scrub_enabled, INT, ZMOD_RW,

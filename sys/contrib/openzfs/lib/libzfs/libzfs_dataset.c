@@ -2006,7 +2006,7 @@ zfs_prop_inherit(zfs_handle_t *zhp, const char *propname, boolean_t received)
 	if ((ret = changelist_prefix(cl)) != 0)
 		goto error;
 
-	if ((ret = zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_INHERIT_PROP, &zc)) != 0) {
+	if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_INHERIT_PROP, &zc) != 0) {
 		changelist_free(cl);
 		return (zfs_standard_error(hdl, errno, errbuf));
 	} else {
@@ -2087,16 +2087,16 @@ zfs_is_recvd_props_mode(zfs_handle_t *zhp)
 }
 
 static void
-zfs_set_recvd_props_mode(zfs_handle_t *zhp, uint64_t *cookie)
+zfs_set_recvd_props_mode(zfs_handle_t *zhp, uintptr_t *cookie)
 {
-	*cookie = (uint64_t)(uintptr_t)zhp->zfs_props;
+	*cookie = (uintptr_t)zhp->zfs_props;
 	zhp->zfs_props = zhp->zfs_recvd_props;
 }
 
 static void
-zfs_unset_recvd_props_mode(zfs_handle_t *zhp, uint64_t *cookie)
+zfs_unset_recvd_props_mode(zfs_handle_t *zhp, uintptr_t *cookie)
 {
-	zhp->zfs_props = (nvlist_t *)(uintptr_t)*cookie;
+	zhp->zfs_props = (nvlist_t *)*cookie;
 	*cookie = 0;
 }
 
@@ -2373,7 +2373,7 @@ zfs_prop_get_recvd(zfs_handle_t *zhp, const char *propname, char *propbuf,
 	prop = zfs_name_to_prop(propname);
 
 	if (prop != ZPROP_USERPROP) {
-		uint64_t cookie;
+		uintptr_t cookie;
 		if (!nvlist_exists(zhp->zfs_recvd_props, propname))
 			return (-1);
 		zfs_set_recvd_props_mode(zhp, &cookie);

@@ -47,6 +47,9 @@
 #if defined(__x86_64__) && defined(HAVE_AVX) && \
     defined(HAVE_AES) && defined(HAVE_PCLMULQDQ)
 
+#define _ASM
+#include <sys/asm_linkage.h>
+
 .extern gcm_avx_can_use_movbe
 
 .text
@@ -56,6 +59,7 @@
 .align	32
 _aesni_ctr32_ghash_6x:
 .cfi_startproc
+	ENDBR
 	vmovdqu	32(%r11),%xmm2
 	subq	$6,%rdx
 	vpxor	%xmm4,%xmm4,%xmm4
@@ -363,7 +367,7 @@ _aesni_ctr32_ghash_6x:
 	vpxor	16+8(%rsp),%xmm8,%xmm8
 	vpxor	%xmm4,%xmm8,%xmm8
 
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	_aesni_ctr32_ghash_6x,.-_aesni_ctr32_ghash_6x
 #endif /* ifdef HAVE_MOVBE */
@@ -372,6 +376,7 @@ _aesni_ctr32_ghash_6x:
 .align	32
 _aesni_ctr32_ghash_no_movbe_6x:
 .cfi_startproc
+	ENDBR
 	vmovdqu	32(%r11),%xmm2
 	subq	$6,%rdx
 	vpxor	%xmm4,%xmm4,%xmm4
@@ -691,7 +696,7 @@ _aesni_ctr32_ghash_no_movbe_6x:
 	vpxor	16+8(%rsp),%xmm8,%xmm8
 	vpxor	%xmm4,%xmm8,%xmm8
 
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	_aesni_ctr32_ghash_no_movbe_6x,.-_aesni_ctr32_ghash_no_movbe_6x
 
@@ -700,6 +705,7 @@ _aesni_ctr32_ghash_no_movbe_6x:
 .align	32
 aesni_gcm_decrypt:
 .cfi_startproc
+	ENDBR
 	xorq	%r10,%r10
 	cmpq	$0x60,%rdx
 	jb	.Lgcm_dec_abort
@@ -810,13 +816,14 @@ aesni_gcm_decrypt:
 .cfi_def_cfa_register	%rsp
 .Lgcm_dec_abort:
 	movq	%r10,%rax
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	aesni_gcm_decrypt,.-aesni_gcm_decrypt
 .type	_aesni_ctr32_6x,@function
 .align	32
 _aesni_ctr32_6x:
 .cfi_startproc
+	ENDBR
 	vmovdqu	0-128(%rcx),%xmm4
 	vmovdqu	32(%r11),%xmm2
 	leaq	-2(%rbp),%r13	// ICP uses 10,12,14 not 9,11,13 for rounds.
@@ -880,7 +887,7 @@ _aesni_ctr32_6x:
 	vmovups	%xmm14,80(%rsi)
 	leaq	96(%rsi),%rsi
 
-	.byte	0xf3,0xc3
+	RET
 .align	32
 .Lhandle_ctr32_2:
 	vpshufb	%xmm0,%xmm1,%xmm6
@@ -911,6 +918,7 @@ _aesni_ctr32_6x:
 .align	32
 aesni_gcm_encrypt:
 .cfi_startproc
+	ENDBR
 	xorq	%r10,%r10
 	cmpq	$288,%rdx
 	jb	.Lgcm_enc_abort
@@ -1186,7 +1194,7 @@ aesni_gcm_encrypt:
 .cfi_def_cfa_register	%rsp
 .Lgcm_enc_abort:
 	movq	%r10,%rax
-	.byte	0xf3,0xc3
+	RET
 .cfi_endproc
 .size	aesni_gcm_encrypt,.-aesni_gcm_encrypt
 
@@ -1239,6 +1247,7 @@ atomic_toggle_boolean_nv:
 	RET
 .size	atomic_toggle_boolean_nv,.-atomic_toggle_boolean_nv
 
+.pushsection .rodata
 .align	64
 .Lbswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -1252,6 +1261,7 @@ atomic_toggle_boolean_nv:
 .byte	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 .byte	65,69,83,45,78,73,32,71,67,77,32,109,111,100,117,108,101,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	64
+.popsection
 
 /* Mark the stack non-executable. */
 #if defined(__linux__) && defined(__ELF__)
