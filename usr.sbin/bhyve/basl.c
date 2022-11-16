@@ -323,11 +323,13 @@ basl_init(void)
 	return (0);
 }
 
-static int
+int
 basl_table_add_checksum(struct basl_table *const table, const uint32_t off,
     const uint32_t start, const uint32_t len)
 {
 	struct basl_table_checksum *checksum;
+
+	assert(table != NULL);
 
 	checksum = calloc(1, sizeof(struct basl_table_checksum));
 	if (checksum == NULL) {
@@ -344,11 +346,14 @@ basl_table_add_checksum(struct basl_table *const table, const uint32_t off,
 	return (0);
 }
 
-static int
+int
 basl_table_add_length(struct basl_table *const table, const uint32_t off,
     const uint8_t size)
 {
 	struct basl_table_length *length;
+
+	assert(table != NULL);
+	assert(size == 4 || size == 8);
 
 	length = calloc(1, sizeof(struct basl_table_length));
 	if (length == NULL) {
@@ -364,12 +369,15 @@ basl_table_add_length(struct basl_table *const table, const uint32_t off,
 	return (0);
 }
 
-static int
+int
 basl_table_add_pointer(struct basl_table *const table,
     const uint8_t src_signature[ACPI_NAMESEG_SIZE], const uint32_t off,
     const uint8_t size)
 {
 	struct basl_table_pointer *pointer;
+
+	assert(table != NULL);
+	assert(size == 4 || size == 8);
 
 	pointer = calloc(1, sizeof(struct basl_table_pointer));
 	if (pointer == NULL) {
