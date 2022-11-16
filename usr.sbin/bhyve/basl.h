@@ -37,6 +37,9 @@
 
 struct basl_table;
 
+void basl_fill_gas(ACPI_GENERIC_ADDRESS *gas, uint8_t space_id,
+    uint8_t bit_width, uint8_t bit_offset, uint8_t access_width,
+    uint64_t address);
 int basl_finish(void);
 int basl_init(void);
 int basl_table_add_checksum(struct basl_table *const table, const uint32_t off,
