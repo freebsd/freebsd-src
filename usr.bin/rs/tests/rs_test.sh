@@ -100,7 +100,7 @@ k_flag_head()
 
 k_flag_body()
 {
-	atf_check -s exit:0 -o empty rs -k < /dev/null
+	atf_check -s exit:0 -o empty rs -k 1 < /dev/null
 }
 
 atf_test_case K_flag
@@ -112,7 +112,7 @@ K_flag_head()
 K_flag_body()
 {
 	atf_check -s exit:0 -o inline:"
-" rs -K < /dev/null
+" rs -K 1 < /dev/null
 }
 
 atf_test_case g_flag
@@ -123,7 +123,7 @@ g_flag_head()
 
 g_flag_body()
 {
-	atf_check -s exit:0 -o empty rs -g < /dev/null
+	atf_check -s exit:0 -o empty rs -g 1 < /dev/null
 }
 
 atf_test_case G_flag
@@ -134,7 +134,7 @@ G_flag_head()
 
 G_flag_body()
 {
-	atf_check -s exit:0 -o empty rs -G < /dev/null
+	atf_check -s exit:0 -o empty rs -G 10 < /dev/null
 }
 
 atf_test_case e_flag
@@ -237,7 +237,8 @@ invalid_usage_head()
 
 invalid_usage_body()
 {
-	atf_check -s not-exit:0 -e inline:"rs: width must be a positive integer
+	atf_check -s not-exit:0 -e inline:"rs: option requires an argument -- w
+usage: rs [-[csCS][x][kKgGw][N]tTeEnyjhHmz] [rows [cols]]
 " rs -w
 }
 
