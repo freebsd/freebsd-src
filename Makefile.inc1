@@ -2922,18 +2922,14 @@ _prereq_libs+=	lib/libclang_rt/ubsan_standalone_cxx
 _startup_libs=	lib/csu
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
-.if ${MK_CXX} != "no"
 _startup_libs+=	lib/libcxxrt
-.endif
 
 _prereq_libs+=	lib/libgcc_eh lib/libgcc_s
 _startup_libs+=	lib/libgcc_eh lib/libgcc_s
 
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
-.if ${MK_CXX} != "no"
 lib/libcxxrt__L: lib/libgcc_s__L
-.endif
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhdb} \
@@ -2945,6 +2941,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
+		lib/libc++ \
 		lib/libelf lib/libexpat \
 		lib/libfigpar \
 		${_lib_libgssapi} \
@@ -2980,10 +2977,6 @@ gnu/lib/libdialog__L: lib/msun__L lib/ncurses/tinfo__L lib/ncurses/ncurses__L
 
 .if ${MK_GOOGLETEST} != "no"
 _prebuild_libs+= lib/libregex
-.endif
-
-.if ${MK_CXX} != "no"
-_prebuild_libs+= lib/libc++
 .endif
 
 lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
@@ -3150,10 +3143,8 @@ lib/libradius__L: lib/libmd__L
 .endif
 
 lib/libproc__L: \
-    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
-.if ${MK_CXX} != "no"
-lib/libproc__L: lib/libcxxrt__L
-.endif
+    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} \
+    lib/libelf__L lib/librtld_db__L lib/libutil__L lib/libcxxrt__L
 
 .for _lib in ${_prereq_libs}
 ${_lib}__PL: .PHONY .MAKE

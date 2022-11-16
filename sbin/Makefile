@@ -9,6 +9,7 @@ SUBDIR=adjkerntz \
 	comcontrol \
 	conscontrol \
 	ddb \
+	devd \
 	devfs \
 	devmatch \
 	dhclient \
@@ -72,7 +73,6 @@ SUBDIR+=	ping
 .endif
 
 SUBDIR.${MK_CCD}+=	ccdconfig
-SUBDIR.${MK_CXX}+=	devd
 SUBDIR.${MK_HAST}+=	hastctl
 SUBDIR.${MK_HAST}+=	hastd
 SUBDIR.${MK_INET6}+=	rtsol

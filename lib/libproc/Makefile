@@ -15,13 +15,7 @@ INCS=	libproc.h
 
 CFLAGS+=	-I${.CURDIR}
 
-.if ${MK_CXX} == "no"
-CFLAGS+=	-DNO_CXA_DEMANGLE
-.else
-LIBADD+=		cxxrt
-.endif
-
-LIBADD+=	elf procstat rtld_db util z
+LIBADD+=	cxxrt elf procstat rtld_db util z
 
 .if ${MK_CDDL} != "no"
 LIBADD+=	ctf
