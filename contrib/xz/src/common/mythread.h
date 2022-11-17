@@ -370,10 +370,11 @@ typedef struct {
 		BOOL pending_; \
 		if (!InitOnceBeginInitialize(&once_, 0, &pending_, NULL)) \
 			abort(); \
-		if (pending_) \
+		if (pending_) { \
 			func(); \
-		if (!InitOnceComplete(&once, 0, NULL)) \
-			abort(); \
+			if (!InitOnceComplete(&once, 0, NULL)) \
+				abort(); \
+		} \
 	} while (0)
 #endif
 

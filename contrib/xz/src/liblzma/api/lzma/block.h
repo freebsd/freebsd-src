@@ -464,9 +464,6 @@ extern LZMA_API(lzma_ret) lzma_block_encoder(
  * LZMA_FINISH is not required. It is supported only for convenience.
  *
  * \return      - LZMA_OK: All good, continue with lzma_code().
- *              - LZMA_UNSUPPORTED_CHECK: Initialization was successful, but
- *                the given Check ID is not supported, thus Check will be
- *                ignored.
  *              - LZMA_PROG_ERROR
  *              - LZMA_MEM_ERROR
  */
