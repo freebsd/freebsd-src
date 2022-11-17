@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221117: remove typo'd man page link
+OLD_FILES+=usr/share/man/man9/vm_map_wire_mapped.9.gz
+
 # 20221114: remove othermta
 OLD_FILES+=etc/rc.d/othermta
 
