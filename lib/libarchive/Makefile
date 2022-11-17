@@ -404,6 +404,7 @@ MLINKS+=	archive_write_filter.3 archive_write_add_filter_lzma.3
 MLINKS+=	archive_write_filter.3 archive_write_add_filter_none.3
 MLINKS+=	archive_write_filter.3 archive_write_add_filter_program.3
 MLINKS+=	archive_write_filter.3 archive_write_add_filter_xz.3
+MLINKS+=	archive_write_filter.3 archive_write_add_filter_zstd.3
 MLINKS+=	archive_write_format.3 archive_write_set_format_cpio.3
 MLINKS+=	archive_write_format.3 archive_write_set_format_pax.3
 MLINKS+=	archive_write_format.3 archive_write_set_format_pax_restricted.3
