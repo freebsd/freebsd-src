@@ -96,7 +96,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 		struct sockaddr_storage from;
 
 		/* Tell the other side what we want to do */
-		if (debug&DEBUG_SIMPLE)
+		if (debug & DEBUG_SIMPLE)
 			printf("Sending %s\n", name);
 
 		n = send_wrq(peer, name, mode);
@@ -196,7 +196,7 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		struct sockaddr_storage from;
 
 		/* Tell the other side what we want to do */
-		if (debug&DEBUG_SIMPLE)
+		if (debug & DEBUG_SIMPLE)
 			printf("Requesting %s\n", name);
 
 		n = send_rrq(peer, name, mode);

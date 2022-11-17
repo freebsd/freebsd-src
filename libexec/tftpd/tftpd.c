@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 		request_set(&req, RQ_DAEMON, "tftpd", 0);
 
 		if (hosts_access(&req) == 0) {
-			if (debug&DEBUG_ACCESS)
+			if (debug & DEBUG_ACCESS)
 				tftp_log(LOG_WARNING,
 				    "Access denied by 'tftpd' entry "
 				    "in /etc/hosts.allow");
@@ -321,7 +321,7 @@ main(int argc, char *argv[])
 				exit(1);
 			}
 
-			if (debug&DEBUG_ACCESS) {
+			if (debug & DEBUG_ACCESS) {
 				if (allow_ro)
 					tftp_log(LOG_WARNING,
 					    "But allowed readonly access "
@@ -332,7 +332,7 @@ main(int argc, char *argv[])
 					    "via 'tftpd-wo' entry");
 			}
 		} else
-			if (debug&DEBUG_ACCESS)
+			if (debug & DEBUG_ACCESS)
 				tftp_log(LOG_WARNING,
 				    "Full access allowed"
 				    "in /etc/hosts.allow");
@@ -597,13 +597,13 @@ tftp_rrq(int peer, char *recvbuffer, ssize_t size)
 			n = receive_packet(peer, lrecvbuffer, MAXPKTSIZE,
 				NULL, timeoutpacket);
 			if (n < 0) {
-				if (debug&DEBUG_SIMPLE)
+				if (debug & DEBUG_SIMPLE)
 					tftp_log(LOG_DEBUG, "Aborting: %s",
 					    rp_strerror(n));
 				return;
 			}
 			if (rp->th_opcode != ACK) {
-				if (debug&DEBUG_SIMPLE)
+				if (debug & DEBUG_SIMPLE)
 					tftp_log(LOG_DEBUG,
 					    "Expected ACK, got %s on OACK",
 					    packettype(rp->th_opcode));
@@ -668,7 +668,7 @@ find_next_name(char *filename, int *fd)
 	for (i = 0; i < 100; i++) {
 		sprintf(newname, "%s.%s.%02d", filename, yyyymmdd, i);
 		*fd = open(newname,
-		    O_WRONLY | O_CREAT | O_EXCL, 
+		    O_WRONLY | O_CREAT | O_EXCL,
 		    S_IRUSR | S_IWUSR | S_IRGRP |
 		    S_IWGRP | S_IROTH | S_IWOTH);
 		if (*fd > 0)
@@ -789,8 +789,8 @@ validate_access(int peer, char **filep, int mode)
 					return (error + 100);
 			} else
 				fd = open(filename,
-				    O_WRONLY | O_TRUNC | O_CREAT, 
-				    S_IRUSR | S_IWUSR | S_IRGRP | 
+				    O_WRONLY | O_TRUNC | O_CREAT,
+				    S_IRUSR | S_IWUSR | S_IRGRP |
 				    S_IWGRP | S_IROTH | S_IWOTH );
 		} else
 			fd = open(filename, O_WRONLY | O_TRUNC);
@@ -814,14 +814,14 @@ tftp_xmitfile(int peer, const char *mode)
 
 	memset(&ts, 0, sizeof(ts));
 	now = time(NULL);
-	if (debug&DEBUG_SIMPLE)
+	if (debug & DEBUG_SIMPLE)
 		tftp_log(LOG_DEBUG, "Transmitting file");
 
 	read_init(0, file, mode);
 	block = 1;
 	tftp_send(peer, &block, &ts);
 	read_close();
-	if (debug&DEBUG_SIMPLE)
+	if (debug & DEBUG_SIMPLE)
 		tftp_log(LOG_INFO, "Sent %jd bytes in %jd seconds",
 		    (intmax_t)ts.amount, (intmax_t)time(NULL) - now);
 }
@@ -834,7 +834,7 @@ tftp_recvfile(int peer, const char *mode)
 	struct tftp_stats ts;
 
 	gettimeofday(&now1, NULL);
-	if (debug&DEBUG_SIMPLE)
+	if (debug & DEBUG_SIMPLE)
 		tftp_log(LOG_DEBUG, "Receiving file");
 
 	write_init(0, file, mode);
@@ -844,7 +844,7 @@ tftp_recvfile(int peer, const char *mode)
 
 	gettimeofday(&now2, NULL);
 
-	if (debug&DEBUG_SIMPLE) {
+	if (debug & DEBUG_SIMPLE) {
 		double f;
 		if (now1.tv_usec > now2.tv_usec) {
 			now2.tv_usec += 1000000;

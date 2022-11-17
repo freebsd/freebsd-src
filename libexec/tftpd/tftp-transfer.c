@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -76,7 +76,7 @@ tftp_send(int peer, uint16_t *block, struct tftp_stats *ts)
 	acktry = 0;
 	do {
 read_block:
-		if (debug&DEBUG_SIMPLE)
+		if (debug & DEBUG_SIMPLE)
 			tftp_log(LOG_DEBUG, "Sending block %d (window block %d)",
 			    *block, windowblock);
 
@@ -138,7 +138,7 @@ read_block:
 				}
 
 				/* Either read failure or ERROR packet */
-				if (debug&DEBUG_SIMPLE)
+				if (debug & DEBUG_SIMPLE)
 					tftp_log(LOG_ERR, "Aborting: %s",
 					    rp_strerror(n_ack));
 				goto abort;
@@ -155,7 +155,7 @@ read_block:
 
 				if (i == windowblock) {
 					/* Did not recognize ACK. */
-					if (debug&DEBUG_SIMPLE)
+					if (debug & DEBUG_SIMPLE)
 						tftp_log(LOG_DEBUG,
 						    "ACK %d out of window",
 						    rp->th_block);
@@ -180,7 +180,7 @@ read_block:
 				/* ACKed at least some data. */
 				acktry = 0;
 				for (j = 0; j <= i; j++) {
-					if (debug&DEBUG_SIMPLE)
+					if (debug & DEBUG_SIMPLE)
 						tftp_log(LOG_DEBUG,
 						    "ACKed block %d",
 						    window[j].block);
@@ -193,7 +193,7 @@ read_block:
 				 * un-ACKed block.
 				 */
 				if (i + 1 != windowblock) {
-					if (debug&DEBUG_SIMPLE)
+					if (debug & DEBUG_SIMPLE)
 						tftp_log(LOG_DEBUG,
 						    "Partial ACK");
 					if (seek_file(window[i + 1].offset) !=
@@ -307,7 +307,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 		}
 
 		for (retry = 0; ; retry++) {
-			if (debug&DEBUG_SIMPLE)
+			if (debug & DEBUG_SIMPLE)
 				tftp_log(LOG_DEBUG,
 				    "Receiving DATA block %d (window block %d)",
 				    *block, windowblock);
@@ -331,7 +331,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 				}
 
 				/* Either read failure or ERROR packet */
-				if (debug&DEBUG_SIMPLE)
+				if (debug & DEBUG_SIMPLE)
 					tftp_log(LOG_DEBUG, "Aborting: %s",
 					    rp_strerror(n_data));
 				goto abort;
@@ -357,7 +357,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					windowstart = 0;
 				if (rp->th_block > windowstart &&
 				    rp->th_block < *block) {
-					if (debug&DEBUG_SIMPLE)
+					if (debug & DEBUG_SIMPLE)
 						tftp_log(LOG_DEBUG,
 					    "Ignoring duplicate DATA block %d",
 						    rp->th_block);
@@ -365,7 +365,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					retry = 0;
 					continue;
 				}
-						
+
 				tftp_log(LOG_WARNING,
 				    "Expected DATA block %d, got block %d",
 				    *block, rp->th_block);
@@ -423,7 +423,7 @@ send_ack:
 				continue;
 			}
 
-			if (debug&DEBUG_SIMPLE)
+			if (debug & DEBUG_SIMPLE)
 				tftp_log(LOG_DEBUG, "Sent ACK for %d", *block);
 			windowblock = 0;
 			break;

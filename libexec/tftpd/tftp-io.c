@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -120,7 +120,7 @@ send_packet(int peer, uint16_t block, char *pkt, int size)
 			return (0);
 		}
 		tftp_log(LOG_ERR,
-		    "%s block %d, attempt %d failed (Error %d: %s)", 
+		    "%s block %d, attempt %d failed (Error %d: %s)",
 		    packettype(ntohs(((struct tftphdr *)(pkt))->th_opcode)),
 		    block, i, errno, strerror(errno));
 		sleep(t);
@@ -145,7 +145,7 @@ send_error(int peer, int error)
 	struct errmsg *pe;
 	char buf[MAXPKTSIZE];
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending ERROR %d", error);
 
 	DROPPACKET("send_error");
@@ -165,7 +165,7 @@ send_error(int peer, int error)
 	tp->th_msg[length] = '\0';
 	length += 5;
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending ERROR %d: %s", error, tp->th_msg);
 
 	if (sendto(peer, buf, length, 0,
@@ -185,7 +185,7 @@ send_wrq(int peer, char *filename, char *mode)
 	char buf[MAXPKTSIZE];
 	int size;
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending WRQ: filename: '%s', mode '%s'",
 			filename, mode
 		);
@@ -233,7 +233,7 @@ send_rrq(int peer, char *filename, char *mode)
 	char buf[MAXPKTSIZE];
 	int size;
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending RRQ: filename: '%s', mode '%s'",
 			filename, mode
 		);
@@ -282,7 +282,7 @@ send_oack(int peer)
 	char *bp;
 	char buf[MAXPKTSIZE];
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending OACK");
 
 	DROPPACKETn("send_oack", 0);
@@ -328,7 +328,7 @@ send_ack(int fp, uint16_t block)
 	int size;
 	char buf[MAXPKTSIZE];
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending ACK for block %d", block);
 
 	DROPPACKETn("send_ack", 0);
@@ -358,7 +358,7 @@ send_data(int peer, uint16_t block, char *data, int size)
 	struct tftphdr *pkt;
 	int n;
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Sending DATA packet %d of %d bytes",
 			block, size);
 
@@ -399,7 +399,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	int n;
 	static int timed_out;
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG,
 		    "Waiting %d seconds for packet", timeoutpacket);
 
@@ -462,7 +462,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 		return (RP_ERROR);
 	}
 
-	if (debug&DEBUG_PACKETS)
+	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG, "Received %d bytes in a %s packet",
 			n, packettype(pkt->th_opcode));
 
