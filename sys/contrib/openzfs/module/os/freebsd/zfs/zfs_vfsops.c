@@ -1328,7 +1328,15 @@ zfs_mount(vfs_t *vfsp)
 	}
 
 	fetch_osname_options(osname, &checkpointrewind);
-	isctlsnap = (zfsctl_is_node(mvp) && strchr(osname, '@') != NULL);
+
+	/*
+         * TBD: Mounting ZFS as root causes a panic in zfsctl_is_node()
+         * add temporary workaround until issue is resolved
+         */
+	if ((vfsp->vfs_flag & MNT_ROOTFS) != 0 &&
+	    (vfsp->vfs_flag & MNT_UPDATE) == 0) {
+		isctlsnap = (zfsctl_is_node(mvp) && strchr(osname, '@') != NULL);
+	}
 
 	/*
 	 * Check for mount privilege?
