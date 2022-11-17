@@ -371,7 +371,7 @@ SYSCTL_PROC(_vfs, OID_AUTO, wantfreevnodes,
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Old name for vfs.wantfreevnodes (legacy)");
 static int vnlru_nowhere;
-SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW | CTLFLAG_STATS,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
 
 static int
