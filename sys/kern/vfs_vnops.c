@@ -3266,7 +3266,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	int error, interrupted;
 	bool cantseek, readzeros, eof, lastblock, holetoeof;
 	ssize_t aresid, r = 0;
-	size_t copylen, len, rem, savlen;
+	size_t copylen, len, savlen;
 	char *dat;
 	long holein, holeout;
 	struct timespec curts, endts;
@@ -3338,31 +3338,38 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (error != 0)
 		goto out;
 
-	/*
-	 * Set the blksize to the larger of the hole sizes for invp and outvp.
-	 * If hole sizes aren't available, set the blksize to the larger 
-	 * f_iosize of invp and outvp.
-	 * This code expects the hole sizes and f_iosizes to be powers of 2.
-	 * This value is clipped at 4Kbytes and 1Mbyte.
-	 */
-	blksize = MAX(holein, holeout);
-
-	/* Clip len to end at an exact multiple of hole size. */
-	if (blksize > 1) {
-		rem = *inoffp % blksize;
-		if (rem > 0)
-			rem = blksize - rem;
-		if (len > rem && len - rem > blksize)
-			len = savlen = rounddown(len - rem, blksize) + rem;
-	}
-
-	if (blksize <= 1)
+	if (holein == 0 && holeout > 0) {
+		/*
+		 * For this special case, the input data will be scanned
+		 * for blocks of all 0 bytes.  For these blocks, the
+		 * write can be skipped for the output file to create
+		 * an unallocated region.
+		 * Therefore, use the appropriate size for the output file.
+		 */
+		blksize = holeout;
+		if (blksize <= 512) {
+			/*
+			 * Use f_iosize, since ZFS reports a _PC_MIN_HOLE_SIZE
+			 * of 512, although it actually only creates
+			 * unallocated regions for blocks >= f_iosize.
+			 */
+			blksize = outvp->v_mount->mnt_stat.f_iosize;
+		}
+	} else {
+		/*
+		 * Use the larger of the two f_iosize values.  If they are
+		 * not the same size, one will normally be an exact multiple of
+		 * the other, since they are both likely to be a power of 2.
+		 */
 		blksize = MAX(invp->v_mount->mnt_stat.f_iosize,
 		    outvp->v_mount->mnt_stat.f_iosize);
+	}
+
+	/* Clip to sane limits. */
 	if (blksize < 4096)
 		blksize = 4096;
-	else if (blksize > 1024 * 1024)
-		blksize = 1024 * 1024;
+	else if (blksize > maxphys)
+		blksize = maxphys;
 	dat = malloc(blksize, M_TEMP, M_WAITOK);
 
 	/*
