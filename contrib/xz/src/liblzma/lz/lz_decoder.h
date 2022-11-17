@@ -62,8 +62,10 @@ typedef struct {
 
 	void (*reset)(void *coder, const void *options);
 
-	/// Set the uncompressed size
-	void (*set_uncompressed)(void *coder, lzma_vli uncompressed_size);
+	/// Set the uncompressed size. If uncompressed_size == LZMA_VLI_UNKNOWN
+	/// then allow_eopm will always be true.
+	void (*set_uncompressed)(void *coder, lzma_vli uncompressed_size,
+			bool allow_eopm);
 
 	/// Free allocated resources
 	void (*end)(void *coder, const lzma_allocator *allocator);
@@ -91,7 +93,7 @@ extern lzma_ret lzma_lz_decoder_init(lzma_next_coder *next,
 extern uint64_t lzma_lz_decoder_memusage(size_t dictionary_size);
 
 extern void lzma_lz_decoder_uncompressed(
-		void *coder, lzma_vli uncompressed_size);
+		void *coder, lzma_vli uncompressed_size, bool allow_eopm);
 
 
 //////////////////////

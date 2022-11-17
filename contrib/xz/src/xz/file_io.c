@@ -330,14 +330,14 @@ io_unlink(const char *name, const struct stat *known_st)
 		// it is possible that the user has put a new file in place
 		// of the original file, and in that case it obviously
 		// shouldn't be removed.
-		message_error(_("%s: File seems to have been moved, "
+		message_warning(_("%s: File seems to have been moved, "
 				"not removing"), name);
 	else
 #endif
 		// There's a race condition between lstat() and unlink()
 		// but at least we have tried to avoid removing wrong file.
 		if (unlink(name))
-			message_error(_("%s: Cannot remove: %s"),
+			message_warning(_("%s: Cannot remove: %s"),
 					name, strerror(errno));
 
 	return;
@@ -368,7 +368,14 @@ io_copy_attrs(const file_pair *pair)
 
 	mode_t mode;
 
-	if (fchown(pair->dest_fd, (uid_t)(-1), pair->src_st.st_gid)) {
+	// With BSD semantics the new dest file may have a group that
+	// does not belong to the user. If the src file has the same gid
+	// nothing has to be done. Nevertheless OpenBSD fchown(2) fails
+	// in this case which seems to be POSIX compliant. As there is
+	// nothing to do, skip the system call.
+	if (pair->dest_st.st_gid != pair->src_st.st_gid
+			&& fchown(pair->dest_fd, (uid_t)(-1),
+				pair->src_st.st_gid)) {
 		message_warning(_("%s: Cannot set the file group: %s"),
 				pair->dest_name, strerror(errno));
 		// We can still safely copy some additional permissions:
@@ -536,8 +543,9 @@ io_open_src_real(file_pair *pair)
 	}
 
 	// Symlinks are not followed unless writing to stdout or --force
-	// was used.
-	const bool follow_symlinks = opt_stdout || opt_force;
+	// or --keep was used.
+	const bool follow_symlinks
+			= opt_stdout || opt_force || opt_keep_original;
 
 	// We accept only regular files if we are writing the output
 	// to disk too. bzip2 allows overriding this with --force but
@@ -674,7 +682,7 @@ io_open_src_real(file_pair *pair)
 	}
 
 #ifndef TUKLIB_DOSLIKE
-	if (reg_files_only && !opt_force) {
+	if (reg_files_only && !opt_force && !opt_keep_original) {
 		if (pair->src_st.st_mode & (S_ISUID | S_ISGID)) {
 			// gzip rejects setuid and setgid files even
 			// when --force was used. bzip2 doesn't check
@@ -683,7 +691,7 @@ io_open_src_real(file_pair *pair)
 			// and setgid bits there.
 			//
 			// We accept setuid and setgid files if
-			// --force was used. We drop these bits
+			// --force or --keep was used. We drop these bits
 			// explicitly in io_copy_attr().
 			message_warning(_("%s: File has setuid or "
 					"setgid bit set, skipping"),
@@ -747,6 +755,10 @@ io_open_src(const char *src_name)
 	// a statically allocated structure.
 	static file_pair pair;
 
+	// This implicitly also initializes src_st.st_size to zero
+	// which is expected to be <= 0 by default. fstat() isn't
+	// called when reading from standard input but src_st.st_size
+	// is still read.
 	pair = (file_pair){
 		.src_name = src_name,
 		.dest_name = NULL,

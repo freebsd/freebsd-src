@@ -84,7 +84,7 @@ tuklib_physmem(void)
 		// supports reporting values greater than 4 GiB. To keep the
 		// code working also on older Windows versions, use
 		// GlobalMemoryStatusEx() conditionally.
-		HMODULE kernel32 = GetModuleHandle("kernel32.dll");
+		HMODULE kernel32 = GetModuleHandle(TEXT("kernel32.dll"));
 		if (kernel32 != NULL) {
 			typedef BOOL (WINAPI *gmse_type)(LPMEMORYSTATUSEX);
 			gmse_type gmse = (gmse_type)GetProcAddress(

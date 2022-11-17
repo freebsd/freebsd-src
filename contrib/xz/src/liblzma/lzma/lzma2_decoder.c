@@ -139,7 +139,7 @@ lzma2_decode(void *coder_ptr, lzma_dict *restrict dict,
 		coder->uncompressed_size += in[(*in_pos)++] + 1U;
 		coder->sequence = SEQ_COMPRESSED_0;
 		coder->lzma.set_uncompressed(coder->lzma.coder,
-				coder->uncompressed_size);
+				coder->uncompressed_size, false);
 		break;
 
 	case SEQ_COMPRESSED_0:
