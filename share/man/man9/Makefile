@@ -2454,7 +2454,6 @@ MLINKS+=superio.9 superio_devid.9 \
 	superio.9 superio_dev_enable.9 \
 	superio.9 superio_dev_enabled.9 \
 	superio.9 superio_find_dev.9 \
-	superio.9 superio_find_dev.9 \
 	superio.9 superio_get_dma.9 \
 	superio.9 superio_get_iobase.9 \
 	superio.9 superio_get_irq.9 \
