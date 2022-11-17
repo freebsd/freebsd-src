@@ -504,6 +504,18 @@ interpret:
 				imgp->execpath = args->fname;
 			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		}
+	} else if (imgp->interpreter_vp) {
+		/*
+		 * An image activator has already provided an open vnode
+		 */
+		newtextvp = imgp->interpreter_vp;
+		imgp->interpreter_vp = NULL;
+		if (vn_fullpath(newtextvp, &imgp->execpath,
+		    &imgp->freepath) != 0)
+			imgp->execpath = args->fname;
+		vn_lock(newtextvp, LK_SHARED | LK_RETRY);
+		AUDIT_ARG_VNODE1(newtextvp);
+		imgp->vp = newtextvp;
 	} else {
 		AUDIT_ARG_FD(args->fd);
 
@@ -702,7 +714,11 @@ interpret:
 		free(imgp->freepath, M_TEMP);
 		imgp->freepath = NULL;
 		/* set new name to that of the interpreter */
-		args->fname = imgp->interpreter_name;
+		if (imgp->interpreter_vp) {
+			args->fname = NULL;
+		} else {
+			args->fname = imgp->interpreter_name;
+		}
 		goto interpret;
 	}
 
