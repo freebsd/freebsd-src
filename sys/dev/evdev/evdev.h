@@ -154,6 +154,7 @@ void evdev_set_repeat_params(struct evdev_dev *, uint16_t, int);
 int evdev_set_report_size(struct evdev_dev *, size_t);
 void evdev_set_flag(struct evdev_dev *, uint16_t);
 void *evdev_get_softc(struct evdev_dev *);
+bool evdev_is_grabbed(struct evdev_dev *);
 
 /* Multitouch related functions: */
 int evdev_get_mt_slot_by_tracking_id(struct evdev_dev *, int32_t);

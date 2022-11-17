@@ -875,6 +875,10 @@ ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy,
 {
 	uint8_t buf[8];
 
+#ifdef EVDEV_SUPPORT
+	if (evdev_is_grabbed(sc->sc_evdev))
+		return;
+#endif
 	if (1) {
 		if (dx > 254)
 			dx = 254;
