@@ -1696,8 +1696,6 @@ vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip)
 {
 	struct vm_exit *vmexit;
 
-	KASSERT(vm->rendezvous_func != NULL, ("rendezvous not in progress"));
-
 	vmexit = vm_exitinfo(vm, vcpuid);
 	vmexit->rip = rip;
 	vmexit->inst_length = 0;
