@@ -387,6 +387,7 @@ function Analysis_session(metalog, verbose, w_notagdirs)
 			local iseq, offby = metalogrows_all_equal(rows)
 			if iseq then -- repeated line, just a warning
 				warn[#warn+1] = 'warning: '..filename
+					.. ' ' .. rows[1].attrs.type
 					..' repeated with same meta: line '
 					..table.concat(
 						table_map(rows, function(e) return e.linenum end), ',')
