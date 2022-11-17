@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -89,7 +89,7 @@ option_tsize(int peer __unused, struct tftphdr *tp __unused, int mode,
 	if (options[OPT_TSIZE].o_request == NULL)
 		return (0);
 
-	if (mode == RRQ) 
+	if (mode == RRQ)
 		asprintf(&options[OPT_TSIZE].o_reply,
 			"%ju", (uintmax_t)stbuf->st_size);
 	else
@@ -124,7 +124,7 @@ option_timeout(int peer)
 	}
 	settimeouts(timeoutpacket, timeoutnetwork, maxtimeouts);
 
-	if (debug&DEBUG_OPTIONS)
+	if (debug & DEBUG_OPTIONS)
 		tftp_log(LOG_DEBUG, "Setting timeout to '%s'",
 			options[OPT_TIMEOUT].o_reply);
 
@@ -154,7 +154,7 @@ option_rollover(int peer)
 	options[OPT_ROLLOVER].o_reply =
 		strdup(options[OPT_ROLLOVER].o_request);
 
-	if (debug&DEBUG_OPTIONS)
+	if (debug & DEBUG_OPTIONS)
 		tftp_log(LOG_DEBUG, "Setting rollover to '%s'",
 			options[OPT_ROLLOVER].o_reply);
 
@@ -215,7 +215,7 @@ option_blksize(int peer)
 	asprintf(&options[OPT_BLKSIZE].o_reply, "%d", size);
 	segsize = size;
 	pktsize = size + 4;
-	if (debug&DEBUG_OPTIONS)
+	if (debug & DEBUG_OPTIONS)
 		tftp_log(LOG_DEBUG, "Setting blksize to '%s'",
 		    options[OPT_BLKSIZE].o_reply);
 
@@ -269,7 +269,7 @@ option_blksize2(int peer __unused)
 	asprintf(&options[OPT_BLKSIZE2].o_reply, "%d", size);
 	segsize = size;
 	pktsize = size + 4;
-	if (debug&DEBUG_OPTIONS)
+	if (debug & DEBUG_OPTIONS)
 		tftp_log(LOG_DEBUG, "Setting blksize2 to '%s'",
 		    options[OPT_BLKSIZE2].o_reply);
 
@@ -304,7 +304,7 @@ option_windowsize(int peer)
 	asprintf(&options[OPT_WINDOWSIZE].o_reply, "%d", size);
 	windowsize = size;
 
-	if (debug&DEBUG_OPTIONS)
+	if (debug & DEBUG_OPTIONS)
 		tftp_log(LOG_DEBUG, "Setting windowsize to '%s'",
 		    options[OPT_WINDOWSIZE].o_reply);
 
@@ -368,7 +368,7 @@ parse_options(int peer, char *buffer, uint16_t size)
 
 	/* Parse the options */
 	cp = buffer;
-	options_failed = 0;	
+	options_failed = 0;
 	while (size > 0) {
 		option = cp;
 		i = get_field(peer, cp, size);
@@ -381,7 +381,7 @@ parse_options(int peer, char *buffer, uint16_t size)
 		/* We are at the end */
 		if (*option == '\0') break;
 
-		if (debug&DEBUG_OPTIONS)
+		if (debug & DEBUG_OPTIONS)
 			tftp_log(LOG_DEBUG,
 			    "option: '%s' value: '%s'", option, value);
 
