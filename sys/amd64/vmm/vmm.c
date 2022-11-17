@@ -1800,9 +1800,6 @@ vm_exit_rendezvous(struct vcpu *vcpu, uint64_t rip)
 {
 	struct vm_exit *vmexit;
 
-	KASSERT(vcpu->vm->rendezvous_func != NULL,
-	    ("rendezvous not in progress"));
-
 	vmexit = vm_exitinfo(vcpu);
 	vmexit->rip = rip;
 	vmexit->inst_length = 0;
