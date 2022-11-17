@@ -369,7 +369,8 @@ kern___mac_get_path(struct thread *td, const char *path_p, struct mac *mac_p,
 	mac_vnode_copy_label(nd.ni_vp->v_label, intlabel);
 	error = mac_vnode_externalize_label(intlabel, elements, buffer,
 	    mac.m_buflen);
-	NDFREE(&nd, 0);
+	vput(nd.ni_vp);
+	NDFREE_PNBUF(&nd);
 	mac_vnode_label_free(intlabel);
 
 	if (error == 0)
@@ -542,9 +543,9 @@ kern___mac_set_path(struct thread *td, const char *path_p, struct mac *mac_p,
 			    td->td_ucred);
 			vn_finished_write(mp);
 		}
+		vput(nd.ni_vp);
+		NDFREE_PNBUF(&nd);
 	}
-
-	NDFREE(&nd, 0);
 out:
 	mac_vnode_label_free(intlabel);
 	return (error);
