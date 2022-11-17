@@ -380,7 +380,8 @@ kern___acl_get_path(struct thread *td, const char *path, acl_type_t type,
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_get_acl(td, nd.ni_vp, type, aclp);
-		NDFREE(&nd, 0);
+		vrele(nd.ni_vp);
+		NDFREE_PNBUF(&nd);
 	}
 	return (error);
 }
@@ -418,7 +419,8 @@ kern___acl_set_path(struct thread *td, const char *path,
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_set_acl(td, nd.ni_vp, type, aclp);
-		NDFREE(&nd, 0);
+		vrele(nd.ni_vp);
+		NDFREE_PNBUF(&nd);
 	}
 	return (error);
 }
@@ -494,7 +496,8 @@ kern___acl_delete_path(struct thread *td, const char *path,
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_delete(td, nd.ni_vp, type);
-		NDFREE(&nd, 0);
+		vrele(nd.ni_vp);
+		NDFREE_PNBUF(&nd);
 	}
 	return (error);
 }
@@ -551,7 +554,7 @@ kern___acl_aclcheck_path(struct thread *td, const char *path, acl_type_t type,
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_aclcheck(td, nd.ni_vp, type, aclp);
-		NDFREE(&nd, 0);
+		NDFREE_PNBUF(&nd);
 	}
 	return (error);
 }
