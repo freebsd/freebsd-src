@@ -3,7 +3,7 @@ Authors of XZ Utils
 ===================
 
     XZ Utils is developed and maintained by Lasse Collin
-    <lasse.collin@tukaani.org>.
+    <lasse.collin@tukaani.org> and Jia Tan <jiat0218@gmail.com>.
 
     Major parts of liblzma are based on code written by Igor Pavlov,
     specifically the LZMA SDK <http://7-zip.org/sdk.html>. Without

@@ -526,7 +526,8 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
  *                          had been specified.
  * \param       flags       Bitwise-or of zero or more of the decoder flags:
  *                          LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
- *                          LZMA_TELL_ANY_CHECK, LZMA_CONCATENATED
+ *                          LZMA_TELL_ANY_CHECK, LZMA_IGNORE_CHECK,
+ *                          LZMA_CONCATENATED
  *
  * \return      - LZMA_OK: Initialization was successful.
  *              - LZMA_MEM_ERROR: Cannot allocate memory.
@@ -545,13 +546,23 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder(
  * calls lzma_stream_decoder() or lzma_alone_decoder() once the type
  * of the input file has been detected.
  *
+ * If the flag LZMA_CONCATENATED is used and the input is a .lzma file:
+ * For historical reasons concatenated .lzma files aren't supported.
+ * If there is trailing data after one .lzma stream, lzma_code() will
+ * return LZMA_DATA_ERROR. (lzma_alone_decoder() doesn't have such a check
+ * as it doesn't support any decoder flags. It will return LZMA_STREAM_END
+ * after one .lzma stream.)
+ *
  * \param       strm        Pointer to properly prepared lzma_stream
  * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
  *                          to effectively disable the limiter. liblzma
  *                          5.2.3 and earlier don't allow 0 here and return
  *                          LZMA_PROG_ERROR; later versions treat 0 as if 1
  *                          had been specified.
- * \param       flags       Bitwise-or of flags, or zero for no flags.
+ * \param       flags       Bitwise-or of zero or more of the decoder flags:
+ *                          LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
+ *                          LZMA_TELL_ANY_CHECK, LZMA_IGNORE_CHECK,
+ *                          LZMA_CONCATENATED
  *
  * \return      - LZMA_OK: Initialization was successful.
  *              - LZMA_MEM_ERROR: Cannot allocate memory.
@@ -595,8 +606,9 @@ extern LZMA_API(lzma_ret) lzma_alone_decoder(
  *                          returned.
  * \param       flags       Bitwise-or of zero or more of the decoder flags:
  *                          LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
- *                          LZMA_CONCATENATED. Note that LZMA_TELL_ANY_CHECK
- *                          is not allowed and will return LZMA_PROG_ERROR.
+ *                          LZMA_IGNORE_CHECK, LZMA_CONCATENATED. Note that
+ *                          LZMA_TELL_ANY_CHECK is not allowed and will
+ *                          return LZMA_PROG_ERROR.
  * \param       allocator   lzma_allocator for custom allocator functions.
  *                          Set to NULL to use malloc() and free().
  * \param       in          Beginning of the input buffer

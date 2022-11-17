@@ -146,7 +146,7 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
 
 		// Use a hack to set the uncompressed size.
 		lzma_lz_decoder_uncompressed(coder->next.coder,
-				coder->uncompressed_size);
+				coder->uncompressed_size, true);
 
 		coder->sequence = SEQ_CODE;
 		break;

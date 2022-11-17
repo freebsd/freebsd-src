@@ -304,8 +304,14 @@ lzma_lz_decoder_memusage(size_t dictionary_size)
 
 
 extern void
-lzma_lz_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size)
+lzma_lz_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size,
+		bool allow_eopm)
 {
 	lzma_coder *coder = coder_ptr;
-	coder->lz.set_uncompressed(coder->lz.coder, uncompressed_size);
+
+	if (uncompressed_size == LZMA_VLI_UNKNOWN)
+		allow_eopm = true;
+
+	coder->lz.set_uncompressed(coder->lz.coder, uncompressed_size,
+			allow_eopm);
 }

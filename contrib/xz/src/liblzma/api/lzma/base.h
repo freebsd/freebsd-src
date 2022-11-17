@@ -145,6 +145,12 @@ typedef enum {
 		 * specified memory usage limit. To continue decoding,
 		 * the memory usage limit has to be increased with
 		 * lzma_memlimit_set().
+		 *
+		 * liblzma 5.2.6 and earlier had a bug in single-threaded .xz
+		 * decoder (lzma_stream_decoder()) which made it impossible
+		 * to continue decoding after LZMA_MEMLIMIT_ERROR even if
+		 * the limit was increased using lzma_memlimit_set().
+		 * Other decoders worked correctly.
 		 */
 
 	LZMA_FORMAT_ERROR       = 7,
@@ -447,7 +453,7 @@ typedef struct lzma_internal_s lzma_internal;
  *
  * The lzma_stream structure is used for
  *  - passing pointers to input and output buffers to liblzma;
- *  - defining custom memory hander functions; and
+ *  - defining custom memory handler functions; and
  *  - holding a pointer to coder-specific internal data structures.
  *
  * Typical usage:
@@ -648,6 +654,11 @@ extern LZMA_API(uint64_t) lzma_memlimit_get(const lzma_stream *strm)
  * this function to do nothing (leaving the limit unchanged) and still
  * return LZMA_OK. Later versions treat 0 as if 1 had been specified (so
  * lzma_memlimit_get() will return 1 even if you specify 0 here).
+ *
+ * liblzma 5.2.6 and earlier had a bug in single-threaded .xz decoder
+ * (lzma_stream_decoder()) which made it impossible to continue decoding
+ * after LZMA_MEMLIMIT_ERROR even if the limit was increased using
+ * lzma_memlimit_set(). Other decoders worked correctly.
  *
  * \return      - LZMA_OK: New memory usage limit successfully set.
  *              - LZMA_MEMLIMIT_ERROR: The new limit is too small.

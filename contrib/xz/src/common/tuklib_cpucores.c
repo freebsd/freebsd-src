@@ -72,7 +72,16 @@ tuklib_cpucores(void)
 	}
 
 #elif defined(TUKLIB_CPUCORES_SYSCTL)
+	// On OpenBSD HW_NCPUONLINE tells the number of processor cores that
+	// are online so it is preferred over HW_NCPU which also counts cores
+	// that aren't currently available. The number of cores online is
+	// often less than HW_NCPU because OpenBSD disables simultaneous
+	// multi-threading (SMT) by default.
+#	ifdef HW_NCPUONLINE
+	int name[2] = { CTL_HW, HW_NCPUONLINE };
+#	else
 	int name[2] = { CTL_HW, HW_NCPU };
+#	endif
 	int cpus;
 	size_t cpus_size = sizeof(cpus);
 	if (sysctl(name, 2, &cpus, &cpus_size, NULL, 0) != -1

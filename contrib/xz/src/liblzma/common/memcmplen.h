@@ -80,8 +80,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 
 #elif defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
 		&& defined(HAVE__MM_MOVEMASK_EPI8) \
-		&& ((defined(__GNUC__) && defined(__SSE2_MATH__)) \
-			|| (defined(__INTEL_COMPILER) && defined(__SSE2__)) \
+		&& (defined(__SSE2__) \
 			|| (defined(_MSC_VER) && defined(_M_IX86_FP) \
 				&& _M_IX86_FP >= 2))
 	// NOTE: Like above, this will use 128-bit unaligned access which

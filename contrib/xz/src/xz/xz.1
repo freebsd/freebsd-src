@@ -5,7 +5,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2020-02-01" "Tukaani" "XZ Utils"
+.TH XZ 1 "2022-10-25" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -183,7 +183,8 @@ is removed unless
 was specified.
 The source
 .I file
-is never removed if the output is written to standard output.
+is never removed if the output is written to standard output
+or if an error occurs.
 .PP
 Sending
 .B SIGINFO
@@ -221,7 +222,7 @@ To prevent uncomfortable surprises,
 has a built-in memory usage limiter, which is disabled by default.
 While some operating systems provide ways to limit
 the memory usage of processes, relying on it
-wasn't deemed to be flexible enough (e.g. using
+wasn't deemed to be flexible enough (for example, using
 .BR ulimit (1)
 to limit virtual memory tends to cripple
 .BR mmap (2)).
@@ -231,19 +232,21 @@ the command line option \fB\-\-memlimit=\fIlimit\fR.
 Often it is more convenient to enable the limiter
 by default by setting the environment variable
 .BR XZ_DEFAULTS ,
-e.g.\&
+for example,
 .BR XZ_DEFAULTS=\-\-memlimit=150MiB .
 It is possible to set the limits separately
-for compression and decompression
-by using \fB\-\-memlimit\-compress=\fIlimit\fR and
-\fB\-\-memlimit\-decompress=\fIlimit\fR.
+for compression and decompression by using
+.BI \-\-memlimit\-compress= limit
+and \fB\-\-memlimit\-decompress=\fIlimit\fR.
 Using these two options outside
 .B XZ_DEFAULTS
 is rarely useful because a single run of
 .B xz
 cannot do both compression and decompression and
 .BI \-\-memlimit= limit
-(or \fB\-M\fR \fIlimit\fR)
+(or
+.B \-M
+.IR limit )
 is shorter to type on the command line.
 .PP
 If the specified memory usage limit is exceeded when decompressing,
@@ -252,11 +255,13 @@ will display an error and decompressing the file will fail.
 If the limit is exceeded when compressing,
 .B xz
 will try to scale the settings down so that the limit
-is no longer exceeded (except when using \fB\-\-format=raw\fR
-or \fB\-\-no\-adjust\fR).
+is no longer exceeded (except when using
+.B \-\-format=raw
+or
+.BR \-\-no\-adjust ).
 This way the operation won't fail unless the limit is very small.
 The scaling of the settings is done in steps that don't
-match the compression level presets, e.g. if the limit is
+match the compression level presets, for example, if the limit is
 only slightly less than the amount required for
 .BR "xz \-9" ,
 the settings will be scaled down only a little,
@@ -276,7 +281,7 @@ It is possible to insert padding between the concatenated parts
 or after the last part.
 The padding must consist of null bytes and the size
 of the padding must be a multiple of four bytes.
-This can be useful e.g. if the
+This can be useful, for example, if the
 .B .xz
 file is stored on a medium that measures file sizes
 in 512-byte blocks.
@@ -373,7 +378,7 @@ For even more information, use
 twice, but note that this may be slow, because getting all the extra
 information requires many seeks.
 The width of verbose output exceeds
-80 characters, so piping the output to e.g.\&
+80 characters, so piping the output to, for example,
 .B "less\ \-S"
 may be convenient if the terminal isn't wide enough.
 .IP ""
@@ -388,6 +393,20 @@ should be used.
 .TP
 .BR \-k ", " \-\-keep
 Don't delete the input files.
+.IP ""
+Since
+.B xz
+5.2.6,
+this option also makes
+.B xz
+compress or decompress even if the input is
+a symbolic link to a regular file,
+has more than one hard link,
+or has the setuid, setgid, or sticky bit set.
+The setuid, setgid, and sticky bits are not copied
+to the target file.
+In earlier versions this was only done with
+.BR \-\-force .
 .TP
 .BR \-f ", " \-\-force
 This option has several effects:
@@ -405,7 +424,7 @@ to the target file.
 .IP \(bu 3
 When used with
 .B \-\-decompress
-.BR \-\-stdout
+.B \-\-stdout
 and
 .B xz
 cannot recognize the type of the source file,
@@ -670,7 +689,7 @@ Good to very good compression while keeping
 decompressor memory usage reasonable even for old systems.
 .B \-6
 is the default, which is usually a good choice
-e.g. for distributing files that need to be decompressible
+for distributing files that need to be decompressible
 even on systems with only 16\ MiB RAM.
 .RB ( \-5e
 or
@@ -840,7 +859,7 @@ The default
 .I size
 is three times the LZMA2 dictionary size or 1 MiB,
 whichever is more.
-Typically a good value is 2\-4 times
+Typically a good value is 2\(en4 times
 the size of the LZMA2 dictionary or at least 1 MiB.
 Using
 .I size
@@ -1006,7 +1025,7 @@ until the details have been decided.
 .RE
 .IP ""
 For 32-bit
-.BR xz
+.B xz
 there is a special case: if the
 .I limit
 would be over
@@ -1015,6 +1034,9 @@ the
 .I limit
 is set to
 .BR "4020\ MiB" .
+On MIPS32
+.B "2000\ MiB"
+is used instead.
 (The values
 .B 0
 and
@@ -1022,7 +1044,8 @@ and
 aren't affected by this.
 A similar feature doesn't exist for decompression.)
 This can be helpful when a 32-bit executable has access
-to 4\ GiB address space while hopefully doing no harm in other situations.
+to 4\ GiB address space (2 GiB on MIPS32)
+while hopefully doing no harm in other situations.
 .IP ""
 See also the section
 .BR "Memory usage" .
@@ -1042,7 +1065,8 @@ for possible ways to specify the
 .IR limit .
 .TP
 \fB\-M\fR \fIlimit\fR, \fB\-\-memlimit=\fIlimit\fR, \fB\-\-memory=\fIlimit
-This is equivalent to specifying \fB\-\-memlimit\-compress=\fIlimit
+This is equivalent to specifying
+.BI \-\-memlimit\-compress= limit
 \fB\-\-memlimit\-decompress=\fIlimit\fR.
 .TP
 .B \-\-no\-adjust
@@ -1088,7 +1112,12 @@ A custom filter chain allows specifying
 the compression settings in detail instead of relying on
 the settings associated to the presets.
 When a custom filter chain is specified,
-preset options (\fB\-0\fR ... \fB\-9\fR and \fB\-\-extreme\fR)
+preset options
+.RB ( \-0
+\&...\&
+.B \-9
+and
+.BR \-\-extreme )
 earlier on the command line are forgotten.
 If a preset option is specified
 after one or more custom filter chain options,
@@ -1172,7 +1201,10 @@ The integer can be from
 .B 0
 to
 .BR 9 ,
-matching the command line options \fB\-0\fR ... \fB\-9\fR.
+matching the command line options
+.B \-0
+\&...\&
+.BR \-9 .
 The only supported modifier is currently
 .BR e ,
 which matches
@@ -1253,7 +1285,7 @@ The literal coding makes an assumption that the highest
 .I lc
 bits of the previous uncompressed byte correlate
 with the next byte.
-E.g. in typical English text, an upper-case letter is
+For example, in typical English text, an upper-case letter is
 often followed by a lower-case letter, and a lower-case
 letter is usually followed by another lower-case letter.
 In the US-ASCII character set, the highest three bits are 010
@@ -1268,7 +1300,7 @@ If you want maximum compression, test
 .BR lc=4 .
 Sometimes it helps a little, and
 sometimes it makes compression worse.
-If it makes it worse, test e.g.\&
+If it makes it worse, test
 .B lc=2
 too.
 .TP
@@ -1294,10 +1326,10 @@ The default means four-byte alignment
 .RI (2^ pb =2^2=4),
 which is often a good choice when there's no better guess.
 .IP ""
-When the aligment is known, setting
+When the alignment is known, setting
 .I pb
 accordingly may reduce the file size a little.
-E.g. with text files having one-byte
+For example, with text files having one-byte
 alignment (US-ASCII, ISO-8859-*, UTF-8), setting
 .B pb=0
 can improve compression slightly.
@@ -1325,7 +1357,7 @@ The default depends on the
 .IR preset :
 0 uses
 .BR hc3 ,
-1\-3
+1\(en3
 use
 .BR hc4 ,
 and the rest use
@@ -1441,11 +1473,11 @@ The default is
 .B fast
 for
 .I presets
-0\-3 and
+0\(en3 and
 .B normal
 for
 .I presets
-4\-9.
+4\(en9.
 .IP ""
 Usually
 .B fast
@@ -1464,7 +1496,7 @@ bytes is found, the algorithm stops
 looking for possibly better matches.
 .IP ""
 .I Nice
-can be 2\-273 bytes.
+can be 2\(en273 bytes.
 Higher values tend to give better compression ratio
 at the expense of speed.
 The default depends on the
@@ -1482,7 +1514,7 @@ and
 .IP ""
 Reasonable
 .I depth
-for Hash Chains is 4\-100 and 16\-1000 for Binary Trees.
+for Hash Chains is 4\(en100 and 16\(en1000 for Binary Trees.
 Using very high values for
 .I depth
 can make the encoder extremely slow with some files.
@@ -1523,7 +1555,7 @@ A BCJ filter converts relative addresses in
 the machine code to their absolute counterparts.
 This doesn't change the size of the data,
 but it increases redundancy,
-which can help LZMA2 to produce 0\-15\ % smaller
+which can help LZMA2 to produce 0\(en15\ % smaller
 .B .xz
 file.
 The BCJ filters are always reversible,
@@ -1551,7 +1583,7 @@ the compression ratio:
 .RS
 .IP \(bu 3
 Some types of files containing executable code
-(e.g. object files, static libraries, and Linux kernel modules)
+(for example, object files, static libraries, and Linux kernel modules)
 have the addresses in the instructions filled with filler values.
 These BCJ filters will still do the address conversion,
 which will make the compression worse with these files.
@@ -1625,12 +1657,12 @@ The Delta filter can be only used as a non-last filter
 in the filter chain.
 .IP ""
 Currently only simple byte-wise delta calculation is supported.
-It can be useful when compressing e.g. uncompressed bitmap images
+It can be useful when compressing, for example, uncompressed bitmap images
 or uncompressed PCM audio.
 However, special purpose algorithms may give significantly better
 results than Delta + LZMA2.
 This is true especially with audio,
-which compresses faster and better e.g. with
+which compresses faster and better, for example, with
 .BR flac (1).
 .IP ""
 Supported
@@ -1642,7 +1674,7 @@ Specify the
 .I distance
 of the delta calculation in bytes.
 .I distance
-must be 1\-256.
+must be 1\(en256.
 The default is 1.
 .IP ""
 For example, with
@@ -1701,7 +1733,7 @@ known and a couple of seconds have already passed since
 .B xz
 started processing the file.
 The time is shown in a less precise format which
-never has any colons, e.g. 2 min 30 s.
+never has any colons, for example, 2 min 30 s.
 .RE
 .IP ""
 When standard error is not a terminal,
@@ -1714,7 +1746,7 @@ on a single line to standard error after compressing or
 decompressing the file.
 The speed and elapsed time are included only when
 the operation took at least a few seconds.
-If the operation didn't finish, e.g. due to user interruption,
+If the operation didn't finish, for example, due to user interruption,
 also the completion percentage is printed
 if the size of the input file is known.
 .TP
@@ -1740,7 +1772,7 @@ See the section
 .B "ROBOT MODE"
 for details.
 .TP
-.BR \-\-info\-memory
+.B \-\-info\-memory
 Display, in human-readable format, how much physical memory (RAM)
 .B xz
 thinks the system has and the memory usage limits for compression
@@ -1916,8 +1948,8 @@ Compressed size of the file
 .IP 5. 4
 Uncompressed size of the file
 .IP 6. 4
-Compression ratio, for example
-.BR 0.123.
+Compression ratio, for example,
+.BR 0.123 .
 If ratio is over 9.999, three dashes
 .RB ( \-\-\- )
 are displayed instead of the ratio.
@@ -2168,9 +2200,9 @@ This is for passing options to
 when it is not possible to set the options directly on the
 .B xz
 command line.
-This is the case e.g. when
+This is the case when
 .B xz
-is run by a script or tool, e.g. GNU
+is run by a script or tool, for example, GNU
 .BR tar (1):
 .RS
 .RS
@@ -2184,11 +2216,12 @@ XZ_OPT=\-2v tar caf foo.tar.xz foo
 .RE
 .IP ""
 Scripts may use
-.B XZ_OPT
-e.g. to set script-specific default compression options.
+.BR XZ_OPT ,
+for example, to set script-specific default compression options.
 It is still recommended to allow users to override
 .B XZ_OPT
-if that is reasonable, e.g. in
+if that is reasonable.
+For example, in
 .BR sh (1)
 scripts one may use something like this:
 .RS
@@ -2210,7 +2243,7 @@ is practically a superset of
 .BR lzma ,
 .BR unlzma ,
 and
-.BR lzcat
+.B lzcat
 as found from LZMA Utils 4.32.x.
 In most cases, it is possible to replace
 LZMA Utils with XZ Utils without breaking existing scripts.
@@ -2284,7 +2317,7 @@ The alternative is to mark that uncompressed size is unknown
 and use end-of-payload marker to indicate
 where the decompressor should stop.
 LZMA Utils uses this method when uncompressed size isn't known,
-which is the case for example in pipes.
+which is the case, for example, in pipes.
 .PP
 .B xz
 supports decompressing
@@ -2480,7 +2513,7 @@ Create
 with the preset
 .B \-4e
 .RB ( "\-4 \-\-extreme" ),
-which is slower than e.g. the default
+which is slower than the default
 .BR \-6 ,
 but needs less memory for compression and decompression (48\ MiB
 and 5\ MiB, respectively):
@@ -2590,7 +2623,7 @@ but if a limit has already been set, don't increase it:
 .PP
 .nf
 .ft CW
-NEWLIM=$((123 << 20))  # 123 MiB
+NEWLIM=$((123 << 20))\ \ # 123 MiB
 OLDLIM=$(xz \-\-robot \-\-info\-memory | cut \-f3)
 if [ $OLDLIM \-eq 0 \-o $OLDLIM \-gt $NEWLIM ]; then
     XZ_OPT="$XZ_OPT \-\-memlimit\-decompress=$NEWLIM"
@@ -2634,10 +2667,10 @@ Preset;CompCPU
 .RE
 .PP
 If you know that a file requires
-somewhat big dictionary (e.g. 32 MiB) to compress well,
+somewhat big dictionary (for example, 32\ MiB) to compress well,
 but you want to compress it quicker than
 .B "xz \-8"
-would do, a preset with a low CompCPU value (e.g. 1)
+would do, a preset with a low CompCPU value (for example, 1)
 can be modified to use a bigger dictionary:
 .RS
 .PP
@@ -2687,9 +2720,8 @@ the size of the uncompressed file is waste of memory,
 so the above command isn't useful for small files.
 .PP
 Sometimes the compression time doesn't matter,
-but the decompressor memory usage has to be kept low
-e.g. to make it possible to decompress the file on
-an embedded system.
+but the decompressor memory usage has to be kept low, for example,
+to make it possible to decompress the file on an embedded system.
 The following command uses
 .B \-6e
 .RB ( "\-6 \-\-extreme" )
@@ -2720,7 +2752,7 @@ might help too, but usually
 and
 .I pb
 are more important.
-E.g. a source code archive contains mostly US-ASCII text,
+For example, a source code archive contains mostly US-ASCII text,
 so something like the following might give
 slightly (like 0.1\ %) smaller file than
 .B "xz \-6e"
@@ -2737,7 +2769,7 @@ xz \-\-lzma2=preset=6e,pb=0,lc=4 source_code.tar
 .PP
 Using another filter together with LZMA2 can improve
 compression with certain file types.
-E.g. to compress a x86-32 or x86-64 shared library
+For example, to compress a x86-32 or x86-64 shared library
 using the x86 BCJ filter:
 .RS
 .PP
@@ -2766,10 +2798,10 @@ which has a few more advanced filters than simple
 delta but uses Deflate for the actual compression.
 .PP
 The image has to be saved in uncompressed format,
-e.g. as uncompressed TIFF.
+for example, as uncompressed TIFF.
 The distance parameter of the Delta filter is set
 to match the number of bytes per pixel in the image.
-E.g. 24-bit RGB bitmap needs
+For example, 24-bit RGB bitmap needs
 .BR dist=3 ,
 and it is also good to pass
 .B pb=0
@@ -2783,7 +2815,7 @@ xz \-\-delta=dist=3 \-\-lzma2=pb=0 foo.tiff
 .fi
 .RE
 .PP
-If multiple images have been put into a single archive (e.g.\&
+If multiple images have been put into a single archive (for example,
 .BR .tar ),
 the Delta filter will work on that too as long as all images
 have the same number of bytes per pixel.

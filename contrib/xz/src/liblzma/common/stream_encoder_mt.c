@@ -715,6 +715,10 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 				ret = lzma_index_append(coder->index,
 						allocator, unpadded_size,
 						uncompressed_size);
+				if (ret != LZMA_OK) {
+					threads_stop(coder, false);
+					return ret;
+				}
 
 				// If we didn't fill the output buffer yet,
 				// try to read more data. Maybe the next
@@ -724,8 +728,7 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 			}
 
 			if (ret != LZMA_OK) {
-				// coder->thread_error was set or
-				// lzma_index_append() failed.
+				// coder->thread_error was set.
 				threads_stop(coder, false);
 				return ret;
 			}
@@ -1075,6 +1078,31 @@ stream_encoder_mt_init(lzma_next_coder *next, const lzma_allocator *allocator,
 }
 
 
+#ifdef HAVE_SYMBOL_VERSIONS_LINUX
+// These are for compatibility with binaries linked against liblzma that
+// has been patched with xz-5.2.2-compat-libs.patch from RHEL/CentOS 7.
+// Actually that patch didn't create lzma_stream_encoder_mt@XZ_5.2.2
+// but it has been added here anyway since someone might misread the
+// RHEL patch and think both @XZ_5.1.2alpha and @XZ_5.2.2 exist.
+LZMA_SYMVER_API("lzma_stream_encoder_mt@XZ_5.1.2alpha",
+	lzma_ret, lzma_stream_encoder_mt_512a)(
+		lzma_stream *strm, const lzma_mt *options)
+		lzma_nothrow lzma_attr_warn_unused_result
+		__attribute__((__alias__("lzma_stream_encoder_mt_52")));
+
+LZMA_SYMVER_API("lzma_stream_encoder_mt@XZ_5.2.2",
+	lzma_ret, lzma_stream_encoder_mt_522)(
+		lzma_stream *strm, const lzma_mt *options)
+		lzma_nothrow lzma_attr_warn_unused_result
+		__attribute__((__alias__("lzma_stream_encoder_mt_52")));
+
+LZMA_SYMVER_API("lzma_stream_encoder_mt@@XZ_5.2",
+	lzma_ret, lzma_stream_encoder_mt_52)(
+		lzma_stream *strm, const lzma_mt *options)
+		lzma_nothrow lzma_attr_warn_unused_result;
+
+#define lzma_stream_encoder_mt lzma_stream_encoder_mt_52
+#endif
 extern LZMA_API(lzma_ret)
 lzma_stream_encoder_mt(lzma_stream *strm, const lzma_mt *options)
 {
@@ -1090,6 +1118,23 @@ lzma_stream_encoder_mt(lzma_stream *strm, const lzma_mt *options)
 }
 
 
+#ifdef HAVE_SYMBOL_VERSIONS_LINUX
+LZMA_SYMVER_API("lzma_stream_encoder_mt_memusage@XZ_5.1.2alpha",
+	uint64_t, lzma_stream_encoder_mt_memusage_512a)(
+	const lzma_mt *options) lzma_nothrow lzma_attr_pure
+	__attribute__((__alias__("lzma_stream_encoder_mt_memusage_52")));
+
+LZMA_SYMVER_API("lzma_stream_encoder_mt_memusage@XZ_5.2.2",
+	uint64_t, lzma_stream_encoder_mt_memusage_522)(
+	const lzma_mt *options) lzma_nothrow lzma_attr_pure
+	__attribute__((__alias__("lzma_stream_encoder_mt_memusage_52")));
+
+LZMA_SYMVER_API("lzma_stream_encoder_mt_memusage@@XZ_5.2",
+	uint64_t, lzma_stream_encoder_mt_memusage_52)(
+	const lzma_mt *options) lzma_nothrow lzma_attr_pure;
+
+#define lzma_stream_encoder_mt_memusage lzma_stream_encoder_mt_memusage_52
+#endif
 // This function name is a monster but it's consistent with the older
 // monster names. :-( 31 chars is the max that C99 requires so in that
 // sense it's not too long. ;-)
