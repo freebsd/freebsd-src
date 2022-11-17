@@ -513,8 +513,12 @@ coder_init(file_pair *pair)
 			// is needed, because we don't want to do use
 			// passthru mode with --test.
 			if (opt_mode == MODE_DECOMPRESS
-					&& opt_stdout && opt_force)
+					&& opt_stdout && opt_force) {
+				// These are needed for progress info.
+				strm.total_in = 0;
+				strm.total_out = 0;
 				return CODER_INIT_PASSTHRU;
+			}
 
 			ret = LZMA_FORMAT_ERROR;
 			break;
@@ -542,10 +546,30 @@ coder_init(file_pair *pair)
 		// memory usage limit in case it happens in the first
 		// Block of the first Stream, which is where it very
 		// probably will happen if it is going to happen.
+		//
+		// This will also catch unsupported check type which
+		// we treat as a warning only. If there are empty
+		// concatenated Streams with unsupported check type then
+		// the message can be shown more than once here. The loop
+		// is used in case there is first a warning about
+		// unsupported check type and then the first Block
+		// would exceed the memlimit.
 		if (ret == LZMA_OK && init_format != FORMAT_RAW) {
 			strm.next_out = NULL;
 			strm.avail_out = 0;
-			ret = lzma_code(&strm, LZMA_RUN);
+			while ((ret = lzma_code(&strm, LZMA_RUN))
+					== LZMA_UNSUPPORTED_CHECK)
+				message_warning("%s: %s", pair->src_name,
+						message_strm(ret));
+
+			// With --single-stream lzma_code won't wait for
+			// LZMA_FINISH and thus it can return LZMA_STREAM_END
+			// if the file has no uncompressed data inside.
+			// So treat LZMA_STREAM_END as LZMA_OK here.
+			// When lzma_code() is called again in coder_normal()
+			// it will return LZMA_STREAM_END again.
+			if (ret == LZMA_STREAM_END)
+				ret = LZMA_OK;
 		}
 #endif
 	}
@@ -756,9 +780,9 @@ coder_normal(file_pair *pair)
 
 		} else if (ret != LZMA_OK) {
 			// Determine if the return value indicates that we
-			// won't continue coding.
-			const bool stop = ret != LZMA_NO_CHECK
-					&& ret != LZMA_UNSUPPORTED_CHECK;
+			// won't continue coding. LZMA_NO_CHECK would be
+			// here too if LZMA_TELL_ANY_CHECK was used.
+			const bool stop = ret != LZMA_UNSUPPORTED_CHECK;
 
 			if (stop) {
 				// Write the remaining bytes even if something
@@ -907,6 +931,15 @@ coder_run(const char *filename)
 				mytime_set_start_time();
 
 				// Initialize the progress indicator.
+				//
+				// NOTE: When reading from stdin, fstat()
+				// isn't called on it and thus src_st.st_size
+				// is zero. If stdin pointed to a regular
+				// file, it would still be possible to know
+				// the file size but then we would also need
+				// to take into account the current reading
+				// position since with stdin it isn't
+				// necessarily at the beginning of the file.
 				const bool is_passthru = init_ret
 						== CODER_INIT_PASSTHRU;
 				const uint64_t in_size

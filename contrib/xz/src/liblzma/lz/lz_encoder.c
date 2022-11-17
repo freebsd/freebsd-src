@@ -585,32 +585,28 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 extern LZMA_API(lzma_bool)
 lzma_mf_is_supported(lzma_match_finder mf)
 {
-	bool ret = false;
-
+	switch (mf) {
 #ifdef HAVE_MF_HC3
-	if (mf == LZMA_MF_HC3)
-		ret = true;
+	case LZMA_MF_HC3:
+		return true;
 #endif
-
 #ifdef HAVE_MF_HC4
-	if (mf == LZMA_MF_HC4)
-		ret = true;
+	case LZMA_MF_HC4:
+		return true;
 #endif
-
 #ifdef HAVE_MF_BT2
-	if (mf == LZMA_MF_BT2)
-		ret = true;
+	case LZMA_MF_BT2:
+		return true;
 #endif
-
 #ifdef HAVE_MF_BT3
-	if (mf == LZMA_MF_BT3)
-		ret = true;
+	case LZMA_MF_BT3:
+		return true;
 #endif
-
 #ifdef HAVE_MF_BT4
-	if (mf == LZMA_MF_BT4)
-		ret = true;
+	case LZMA_MF_BT4:
+		return true;
 #endif
-
-	return ret;
+	default:
+		return false;
+	}
 }
