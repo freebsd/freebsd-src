@@ -947,6 +947,9 @@ main(int argc, char *const *argv)
 				warn("recvmsg");
 				continue;
 			}
+			/* If we have a 0 byte read from recvfrom continue */
+			if (cc == 0)
+				continue;
 #ifdef SO_TIMESTAMP
 			if (cmsg != NULL &&
 			    cmsg->cmsg_level == SOL_SOCKET &&
@@ -1128,8 +1131,10 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	struct icmp icp;
 	struct ip ip;
 	const u_char *icmp_data_raw;
+	ssize_t icmp_data_raw_len;
 	double triptime;
-	int dupflag, hlen, i, j, recv_len;
+	int dupflag, i, j, recv_len;
+	uint8_t hlen;
 	uint16_t seq;
 	static int old_rrlen;
 	static char old_rr[MAX_IPOPTLEN];
@@ -1139,15 +1144,27 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	const u_char *oicmp_raw;
 
 	/*
-	 * Get size of IP header of the received packet. The
-	 * information is contained in the lower four bits of the
-	 * first byte.
+	 * Get size of IP header of the received packet.
+	 * The header length is contained in the lower four bits of the first
+	 * byte and represents the number of 4 byte octets the header takes up.
+	 *
+	 * The IHL minimum value is 5 (20 bytes) and its maximum value is 15
+	 * (60 bytes).
 	 */
 	memcpy(&l, buf, sizeof(l));
 	hlen = (l & 0x0f) << 2;
-	memcpy(&ip, buf, hlen);
 
-	/* Check the IP header */
+	/* Reject IP packets with a short header */
+	if (hlen < sizeof(struct ip)) {
+		if (options & F_VERBOSE)
+			warn("IHL too short (%d bytes) from %s", hlen,
+			     inet_ntoa(from->sin_addr));
+		return;
+	}
+
+	memcpy(&ip, buf, sizeof(struct ip));
+
+	/* Check packet has enough data to carry a valid ICMP header */
 	recv_len = cc;
 	if (cc < hlen + ICMP_MINLEN) {
 		if (options & F_VERBOSE)
@@ -1159,6 +1176,7 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 #ifndef icmp_data
 	icmp_data_raw = buf + hlen + offsetof(struct icmp, icmp_ip);
 #else
+	icmp_data_raw_len = cc - (hlen + offsetof(struct icmp, icmp_data));
 	icmp_data_raw = buf + hlen + offsetof(struct icmp, icmp_data);
 #endif
 
@@ -1288,12 +1306,45 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 		 * as root to avoid leaking information not normally
 		 * available to those not running as root.
 		 */
+
+		/*
+		 * If we don't have enough bytes for a quoted IP header and an
+		 * ICMP header then stop.
+		 */
+		if (icmp_data_raw_len <
+				(ssize_t)(sizeof(struct ip) + sizeof(struct icmp))) {
+			if (options & F_VERBOSE)
+				warnx("quoted data too short (%zd bytes) from %s",
+					icmp_data_raw_len, inet_ntoa(from->sin_addr));
+			return;
+		}
+
 		memcpy(&oip_header_len, icmp_data_raw, sizeof(oip_header_len));
 		oip_header_len = (oip_header_len & 0x0f) << 2;
-		memcpy(&oip, icmp_data_raw, oip_header_len);
+
+		/* Reject IP packets with a short header */
+		if (oip_header_len < sizeof(struct ip)) {
+			if (options & F_VERBOSE)
+				warnx("inner IHL too short (%d bytes) from %s",
+					oip_header_len, inet_ntoa(from->sin_addr));
+			return;
+		}
+
+		/*
+		 * Check against the actual IHL length, to protect against
+		 * quoated packets carrying IP options.
+		 */
+		if (icmp_data_raw_len <
+				(ssize_t)(oip_header_len + sizeof(struct icmp))) {
+			if (options & F_VERBOSE)
+				warnx("inner packet too short (%zd bytes) from %s",
+				     icmp_data_raw_len, inet_ntoa(from->sin_addr));
+			return;
+		}
+
+		memcpy(&oip, icmp_data_raw, sizeof(struct ip));
 		oicmp_raw = icmp_data_raw + oip_header_len;
-		memcpy(&oicmp, oicmp_raw, offsetof(struct icmp, icmp_id) +
-		    sizeof(oicmp.icmp_id));
+		memcpy(&oicmp, oicmp_raw, sizeof(struct icmp));
 
 		if (((options & F_VERBOSE) && uid == 0) ||
 		    (!(options & F_QUIET2) &&
