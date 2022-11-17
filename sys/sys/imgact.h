@@ -94,6 +94,7 @@ struct image_params {
 	u_int map_flags;
 #define IMGP_ASLR_SHARED_PAGE	0x1
 	uint32_t imgp_flags;
+	struct vnode *interpreter_vp;	/* vnode of the interpreter */
 };
 
 #ifdef _KERNEL

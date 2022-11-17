@@ -46,6 +46,7 @@
 .Op Fl -mask Ar mask
 .Op Fl -offset Ar offset
 .Op Fl -set-enabled
+.Op Fl -pre-open
 .Nm
 .Cm disable
 .Ar name
@@ -87,6 +88,7 @@ Operation must be one of the following:
 .Op Fl -mask Ar mask
 .Op Fl -offset Ar offset
 .Op Fl -set-enabled
+.Op Fl -pre-open
 .Xc
 Add a new activator entry in the kernel.
 You must specify a
@@ -123,6 +125,12 @@ To enable the activator entry the
 .Fl -set-enabled
 option is used.
 The activator default state is disabled.
+.Pp
+To make the interpreter automatically available in jails and chroots,
+use the
+.Fl -pre-open
+option to allow the kernel to open the binary at configuration time
+rather then lazily when the the interpreted program is started.
 .Pp
 The interpreter
 .Ar path
