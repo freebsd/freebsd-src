@@ -290,8 +290,6 @@ do {										\
 	_ndp->ni_cnd.cn_pnbuf = NULL;						\
 } while (0)
 
-void NDFREE(struct nameidata *, const u_int);
-
 int	namei(struct nameidata *ndp);
 int	vfs_lookup(struct nameidata *ndp);
 int	vfs_relookup(struct vnode *dvp, struct vnode **vpp,

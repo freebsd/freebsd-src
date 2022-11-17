@@ -1556,53 +1556,6 @@ bad:
 	return (error);
 }
 
-void
-(NDFREE)(struct nameidata *ndp, const u_int flags)
-{
-	int unlock_dvp;
-	int unlock_vp;
-
-	unlock_dvp = 0;
-	unlock_vp = 0;
-
-	if (!(flags & NDF_NO_FREE_PNBUF)) {
-		NDFREE_PNBUF(ndp);
-	}
-	if (!(flags & NDF_NO_VP_UNLOCK) &&
-	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
-		unlock_vp = 1;
-	if (!(flags & NDF_NO_DVP_UNLOCK) &&
-	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
-	    ndp->ni_dvp != ndp->ni_vp)
-		unlock_dvp = 1;
-	if (!(flags & NDF_NO_VP_RELE) && ndp->ni_vp) {
-		if (unlock_vp) {
-			vput(ndp->ni_vp);
-			unlock_vp = 0;
-		} else
-			vrele(ndp->ni_vp);
-		ndp->ni_vp = NULL;
-	}
-	if (unlock_vp)
-		VOP_UNLOCK(ndp->ni_vp);
-	if (!(flags & NDF_NO_DVP_RELE) &&
-	    (ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {
-		if (unlock_dvp) {
-			vput(ndp->ni_dvp);
-			unlock_dvp = 0;
-		} else
-			vrele(ndp->ni_dvp);
-		ndp->ni_dvp = NULL;
-	}
-	if (unlock_dvp)
-		VOP_UNLOCK(ndp->ni_dvp);
-	if (!(flags & NDF_NO_STARTDIR_RELE) &&
-	    (ndp->ni_cnd.cn_flags & SAVESTART)) {
-		vrele(ndp->ni_startdir);
-		ndp->ni_startdir = NULL;
-	}
-}
-
 #ifdef INVARIANTS
 /*
  * Validate the final state of ndp after the lookup.
