@@ -445,7 +445,7 @@ put(int argc, char *argv[])
 {
 	int	fd;
 	int	n;
-	char	*cp, *targ;
+	char	*cp, *targ, *path;
 	char	line[MAXLINE];
 	struct stat sb;
 
@@ -507,26 +507,32 @@ put(int argc, char *argv[])
 	}
 				/* this assumes the target is a directory */
 				/* on a remote unix system.  hmmmm.  */
-	cp = strchr(targ, '\0');
-	*cp++ = '/';
 	for (n = 1; n < argc - 1; n++) {
-		strcpy(cp, tail(argv[n]));
+		if (asprintf(&path, "%s/%s", targ, tail(argv[n])) < 0)
+			err(1, "malloc");
+
 		fd = open(argv[n], O_RDONLY);
 		if (fd < 0) {
 			warn("%s", argv[n]);
+			free(path);
 			continue;
 		}
 
 		if (fstat(fd, &sb) < 0) {
 			warn("%s", argv[n]);
+			close(fd);
+			free(path);
 			continue;
 		}
 		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
 
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
-			    argv[n], hostname, targ, mode);
-		xmitfile(peer, port, fd, targ, mode);
+			    argv[n], hostname, path, mode);
+		xmitfile(peer, port, fd, path, mode);
+		close(fd);
+
+		free(path);
 	}
 }
 
