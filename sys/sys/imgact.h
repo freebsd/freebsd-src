@@ -93,6 +93,7 @@ struct image_params {
 	bool opened;			/* we have opened executable vnode */
 	bool textset;
 	u_int map_flags;
+	struct vnode *interpreter_vp;	/* vnode of the interpreter */
 };
 
 #ifdef _KERNEL
