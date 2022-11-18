@@ -66,7 +66,7 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 	if (vector < 16 || vector > 255)
 		return (EINVAL);
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vm_vcpu(vm, cpu));
 	if (vlapic_set_intr_ready(vlapic, vector, level))
 		vcpu_notify_event(vm, cpu, true);
 	return (0);
@@ -88,7 +88,7 @@ lapic_set_local_intr(struct vm *vm, int cpu, int vector)
 		CPU_SETOF(cpu, &dmask);
 	error = 0;
 	CPU_FOREACH_ISSET(cpu, &dmask) {
-		vlapic = vm_lapic(vm, cpu);
+		vlapic = vm_lapic(vm_vcpu(vm, cpu));
 		error = vlapic_trigger_lvt(vlapic, vector);
 		if (error)
 			break;
@@ -162,7 +162,7 @@ lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
 	u_int offset;
 	struct vlapic *vlapic;
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vm_vcpu(vm, cpu));
 
 	if (msr == MSR_APICBASE) {
 		*rval = vlapic_get_apicbase(vlapic);
@@ -182,7 +182,7 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
 	u_int offset;
 	struct vlapic *vlapic;
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vm_vcpu(vm, cpu));
 
 	if (msr == MSR_APICBASE) {
 		error = vlapic_set_apicbase(vlapic, val);
@@ -195,7 +195,7 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
 }
 
 int
-lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
+lapic_mmio_write(struct vcpu *vcpu, uint64_t gpa, uint64_t wval, int size,
 		 void *arg)
 {
 	int error;
@@ -211,13 +211,13 @@ lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
 	if (size != 4 || off & 0xf)
 		return (EINVAL);
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 	error = vlapic_write(vlapic, 1, off, wval, arg);
 	return (error);
 }
 
 int
-lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
+lapic_mmio_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval, int size,
 		void *arg)
 {
 	int error;
@@ -235,7 +235,7 @@ lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
 	if (off & 0xf)
 		return (EINVAL);
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 	error = vlapic_read(vlapic, 1, off, rval, arg);
 	return (error);
 }

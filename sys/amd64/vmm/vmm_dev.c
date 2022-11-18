@@ -140,7 +140,7 @@ vcpu_unlock_one(struct vmmdev_softc *sc, int vcpu)
 {
 	enum vcpu_state state;
 
-	state = vcpu_get_state(sc->vm, vcpu, NULL);
+	state = vcpu_get_state(vm_vcpu(sc->vm, vcpu), NULL);
 	if (state != VCPU_FROZEN) {
 		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
 		    vcpu, state);
@@ -218,6 +218,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	vm_paddr_t gpa, maxaddr;
 	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
+	struct vcpu *vcpu;
 	uint16_t lastcpu;
 
 	error = vmm_priv_check(curthread->td_ucred);
@@ -235,6 +236,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	error = vcpu_lock_one(sc, lastcpu);
 	if (error)
 		return (error);
+	vcpu = vm_vcpu(sc->vm, lastcpu);
 
 	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
 	maxaddr = vmm_sysmem_maxaddr(sc->vm);
@@ -251,8 +253,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 * Since this device does not support lseek(2), dd(1) will
 		 * read(2) blocks of data to simulate the lseek(2).
 		 */
-		hpa = vm_gpa_hold(sc->vm, lastcpu, gpa, c,
-		    prot, &cookie);
+		hpa = vm_gpa_hold(vcpu, gpa, c, prot, &cookie);
 		if (hpa == NULL) {
 			if (uio->uio_rw == UIO_READ && gpa < maxaddr)
 				error = uiomove(__DECONST(void *, zero_region),
@@ -336,14 +337,14 @@ done:
 }
 
 static int
-vm_get_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
+vm_get_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
     uint64_t *regval)
 {
 	int error, i;
 
 	error = 0;
 	for (i = 0; i < count; i++) {
-		error = vm_get_register(vm, vcpu, regnum[i], &regval[i]);
+		error = vm_get_register(vcpu, regnum[i], &regval[i]);
 		if (error)
 			break;
 	}
@@ -351,14 +352,14 @@ vm_get_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
 }
 
 static int
-vm_set_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
+vm_set_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
     uint64_t *regval)
 {
 	int error, i;
 
 	error = 0;
 	for (i = 0; i < count; i++) {
-		error = vm_set_register(vm, vcpu, regnum[i], regval[i]);
+		error = vm_set_register(vcpu, regnum[i], regval[i]);
 		if (error)
 			break;
 	}
@@ -369,9 +370,10 @@ static int
 vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
-	int error, vcpu, state_changed, size;
+	int error, vcpuid, state_changed, size;
 	cpuset_t *cpuset;
 	struct vmmdev_softc *sc;
+	struct vcpu *vcpu;
 	struct vm_register *vmreg;
 	struct vm_seg_desc *vmsegdesc;
 	struct vm_register_set *vmregset;
@@ -420,7 +422,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	if (sc == NULL)
 		return (ENXIO);
 
-	vcpu = -1;
+	vcpuid = -1;
+	vcpu = NULL;
 	state_changed = 0;
 
 	/*
@@ -450,11 +453,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
 		 */
-		vcpu = *(int *)data;
-		error = vcpu_lock_one(sc, vcpu);
+		vcpuid = *(int *)data;
+		error = vcpu_lock_one(sc, vcpuid);
 		if (error)
 			goto done;
 		state_changed = 1;
+		vcpu = vm_vcpu(sc->vm, vcpuid);
 		break;
 
 	case VM_MAP_PPTDEV_MMIO:
@@ -487,8 +491,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 * Lock a vcpu to make sure that the memory map cannot be
 		 * modified while it is being inspected.
 		 */
-		vcpu = vm_get_maxcpus(sc->vm) - 1;
-		error = vcpu_lock_one(sc, vcpu);
+		vcpuid = vm_get_maxcpus(sc->vm) - 1;
+		error = vcpu_lock_one(sc, vcpuid);
 		if (error)
 			goto done;
 		state_changed = 1;
@@ -577,7 +581,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_INJECT_EXCEPTION:
 		vmexc = (struct vm_exception *)data;
-		error = vm_inject_exception(sc->vm, vmexc->cpuid,
+		error = vm_inject_exception(vcpu,
 		    vmexc->vector, vmexc->error_code_valid, vmexc->error_code,
 		    vmexc->restart_instruction);
 		break;
@@ -641,10 +645,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		}
 
 		if (cmd == VM_SET_KERNEMU_DEV)
-			error = mwrite(sc->vm, kernemu->vcpuid, kernemu->gpa,
+			error = mwrite(vcpu, kernemu->gpa,
 			    kernemu->value, size, &arg);
 		else
-			error = mread(sc->vm, kernemu->vcpuid, kernemu->gpa,
+			error = mread(vcpu, kernemu->gpa,
 			    &kernemu->value, size, &arg);
 		break;
 		}
@@ -709,13 +713,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_REGISTER:
 		vmreg = (struct vm_register *)data;
-		error = vm_get_register(sc->vm, vmreg->cpuid, vmreg->regnum,
-					&vmreg->regval);
+		error = vm_get_register(vcpu, vmreg->regnum, &vmreg->regval);
 		break;
 	case VM_SET_REGISTER:
 		vmreg = (struct vm_register *)data;
-		error = vm_set_register(sc->vm, vmreg->cpuid, vmreg->regnum,
-					vmreg->regval);
+		error = vm_set_register(vcpu, vmreg->regnum, vmreg->regval);
 		break;
 	case VM_SET_SEGMENT_DESCRIPTOR:
 		vmsegdesc = (struct vm_seg_desc *)data;
@@ -725,7 +727,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_SEGMENT_DESCRIPTOR:
 		vmsegdesc = (struct vm_seg_desc *)data;
-		error = vm_get_seg_desc(sc->vm, vmsegdesc->cpuid,
+		error = vm_get_seg_desc(vcpu,
 					vmsegdesc->regnum,
 					&vmsegdesc->desc);
 		break;
@@ -742,7 +744,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
 		    vmregset->count);
 		if (error == 0)
-			error = vm_get_register_set(sc->vm, vmregset->cpuid,
+			error = vm_get_register_set(vcpu,
 			    vmregset->count, regnums, regvals);
 		if (error == 0)
 			error = copyout(regvals, vmregset->regvals,
@@ -766,7 +768,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = copyin(vmregset->regvals, regvals,
 			    sizeof(regvals[0]) * vmregset->count);
 		if (error == 0)
-			error = vm_set_register_set(sc->vm, vmregset->cpuid,
+			error = vm_set_register_set(vcpu,
 			    vmregset->count, regnums, regvals);
 		free(regvals, M_VMMDEV);
 		free(regnums, M_VMMDEV);
@@ -807,7 +809,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
 		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
 		gg = (struct vm_gla2gpa *)data;
-		error = vm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
+		error = vm_gla2gpa(vcpu, &gg->paging, gg->gla,
 		    gg->prot, &gg->gpa, &gg->fault);
 		KASSERT(error == 0 || error == EFAULT,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
@@ -815,8 +817,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 	case VM_GLA2GPA_NOFAULT:
 		gg = (struct vm_gla2gpa *)data;
-		error = vm_gla2gpa_nofault(sc->vm, gg->vcpuid, &gg->paging,
-		    gg->gla, gg->prot, &gg->gpa, &gg->fault);
+		error = vm_gla2gpa_nofault(vcpu, &gg->paging, gg->gla,
+		    gg->prot, &gg->gpa, &gg->fault);
 		KASSERT(error == 0 || error == EFAULT,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
 		break;
@@ -882,7 +884,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		rtctime->secs = vrtc_get_time(sc->vm);
 		break;
 	case VM_RESTART_INSTRUCTION:
-		error = vm_restart_instruction(sc->vm, vcpu);
+		error = vm_restart_instruction(vcpu);
 		break;
 	case VM_SET_TOPOLOGY:
 		topology = (struct vm_cpu_topology *)data;
@@ -910,7 +912,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 
 	if (state_changed == 1)
-		vcpu_unlock_one(sc, vcpu);
+		vcpu_unlock_one(sc, vcpuid);
 	else if (state_changed == 2)
 		vcpu_unlock_all(sc);
 

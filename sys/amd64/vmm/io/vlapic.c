@@ -867,7 +867,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 		CPU_ZERO(dmask);
 		amask = vm_active_cpus(vm);
 		CPU_FOREACH_ISSET(vcpuid, &amask) {
-			vlapic = vm_lapic(vm, vcpuid);
+			vlapic = vm_lapic(vm_vcpu(vm, vcpuid));
 			dfr = vlapic->apic_page->dfr;
 			ldr = vlapic->apic_page->ldr;
 
@@ -935,7 +935,7 @@ vlapic_set_cr8(struct vlapic *vlapic, uint64_t val)
 	uint8_t tpr;
 
 	if (val & ~0xf) {
-		vm_inject_gp(vlapic->vm, vlapic->vcpuid);
+		vm_inject_gp(vlapic->vcpu);
 		return;
 	}
 
@@ -1131,7 +1131,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			 * requires that the boot state is set to SIPI
 			 * here.
 			 */
-			vlapic2 = vm_lapic(vlapic->vm, i);
+			vlapic2 = vm_lapic(vm_vcpu(vlapic->vm, i));
 			vlapic2->boot_state = BS_SIPI;
 			break;
 		}
@@ -1155,7 +1155,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			/*
 			 * Ignore SIPIs in any state other than wait-for-SIPI
 			 */
-			vlapic2 = vm_lapic(vlapic->vm, i);
+			vlapic2 = vm_lapic(vm_vcpu(vlapic->vm, i));
 			if (vlapic2->boot_state != BS_SIPI)
 				break;
 			vlapic2->boot_state = BS_RUNNING;
@@ -1170,7 +1170,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 		}
 
 		CPU_FOREACH_ISSET(i, &dmask) {
-			vlapic2 = vm_lapic(vlapic->vm, i);
+			vlapic2 = vm_lapic(vm_vcpu(vlapic->vm, i));
 
 			/*
 			 * Ignore SIPIs in any state other than wait-for-SIPI
@@ -1202,7 +1202,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 static void
 vlapic_handle_init(struct vm *vm, int vcpuid, void *arg)
 {
-	struct vlapic *vlapic = vm_lapic(vm, vcpuid);
+	struct vlapic *vlapic = vm_lapic(vm_vcpu(vm, vcpuid));
 
 	vlapic_reset(vlapic);
 
@@ -1659,12 +1659,12 @@ vlapic_set_apicbase(struct vlapic *vlapic, uint64_t new)
 }
 
 void
-vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
+vlapic_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state)
 {
 	struct vlapic *vlapic;
 	struct LAPIC *lapic;
 
-	vlapic = vm_lapic(vm, vcpuid);
+	vlapic = vm_lapic(vcpu);
 
 	if (state == X2APIC_DISABLED)
 		vlapic->msr_apicbase &= ~APICBASE_X2APIC;
@@ -1866,7 +1866,7 @@ vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
 
 	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vlapic = vm_lapic(vm, i);
+		vlapic = vm_lapic(vm_vcpu(vm, i));
 
 		/* snapshot the page first; timer period depends on icr_timer */
 		lapic = vlapic->apic_page;

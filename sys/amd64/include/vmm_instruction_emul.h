@@ -34,12 +34,25 @@
 #include <sys/mman.h>
 
 /*
+ * Allow for different arguments to identify vCPUs in userspace vs the
+ * kernel.  Eventually we should add struct vcpu in userland and
+ * always use the kernel arguments removing these macros.
+ */
+#ifdef _KERNEL
+#define	VCPU_DECL	struct vcpu *vcpu
+#define	VCPU_ARGS	vcpu
+#else
+#define	VCPU_DECL	void *vm, int vcpuid
+#define	VCPU_ARGS	vm, vcpuid
+#endif
+
+/*
  * Callback functions to read and write memory regions.
  */
-typedef int (*mem_region_read_t)(void *vm, int cpuid, uint64_t gpa,
+typedef int (*mem_region_read_t)(VCPU_DECL, uint64_t gpa,
 				 uint64_t *rval, int rsize, void *arg);
 
-typedef int (*mem_region_write_t)(void *vm, int cpuid, uint64_t gpa,
+typedef int (*mem_region_write_t)(VCPU_DECL, uint64_t gpa,
 				  uint64_t wval, int wsize, void *arg);
 
 /*
@@ -53,11 +66,11 @@ typedef int (*mem_region_write_t)(void *vm, int cpuid, uint64_t gpa,
  * 'struct vmctx *' when called from user context.
  * s
  */
-int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
+int vmm_emulate_instruction(VCPU_DECL, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t mrr,
     mem_region_write_t mrw, void *mrarg);
 
-int vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
+int vie_update_register(VCPU_DECL, enum vm_reg_name reg,
     uint64_t val, int size);
 
 /*
@@ -81,7 +94,7 @@ int vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
  *
  * 'vie' must be initialized before calling 'vmm_fetch_instruction()'
  */
-int vmm_fetch_instruction(struct vm *vm, int cpuid,
+int vmm_fetch_instruction(struct vcpu *vcpu,
 			  struct vm_guest_paging *guest_paging,
 			  uint64_t rip, int inst_length, struct vie *vie,
 			  int *is_fault);
@@ -94,14 +107,14 @@ int vmm_fetch_instruction(struct vm *vm, int cpuid,
  *   0		   1		An exception was injected into the guest
  * EFAULT	  N/A		An unrecoverable hypervisor error occurred
  */
-int vm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+int vm_gla2gpa(struct vcpu *vcpu, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa, int *is_fault);
 
 /*
  * Like vm_gla2gpa, but no exceptions are injected into the guest and
  * PTEs are not changed.
  */
-int vm_gla2gpa_nofault(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+int vm_gla2gpa_nofault(struct vcpu *vcpu, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa, int *is_fault);
 #endif /* _KERNEL */
 
@@ -121,7 +134,7 @@ void vie_init(struct vie *vie, const char *inst_bytes, int inst_length);
  */
 #ifdef _KERNEL
 #define	VIE_INVALID_GLA		(1UL << 63)	/* a non-canonical address */
-int vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
+int vmm_decode_instruction(struct vcpu *vcpu, uint64_t gla,
 			   enum vm_cpu_mode cpu_mode, int csd, struct vie *vie);
 #else /* !_KERNEL */
 /*

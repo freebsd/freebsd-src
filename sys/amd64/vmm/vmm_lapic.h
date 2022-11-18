@@ -39,9 +39,9 @@ int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval,
 int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval,
 	    bool *retu);
 
-int	lapic_mmio_read(void *vm, int cpu, uint64_t gpa,
+int	lapic_mmio_read(struct vcpu *vcpu, uint64_t gpa,
 			uint64_t *rval, int size, void *arg);
-int	lapic_mmio_write(void *vm, int cpu, uint64_t gpa,
+int	lapic_mmio_write(struct vcpu *vcpu, uint64_t gpa,
 			 uint64_t wval, int size, void *arg);
 
 /*

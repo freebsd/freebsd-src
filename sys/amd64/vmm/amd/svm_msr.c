@@ -125,7 +125,7 @@ svm_rdmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num,
 	case MSR_MTRR64kBase:
 	case MSR_MTRRVarBase ... MSR_MTRRVarBase + (VMM_MTRR_VAR_MAX * 2) - 1:
 		if (vm_rdmtrr(&vcpu->mtrr, num, result) != 0) {
-			vm_inject_gp(sc->vm, vcpu->vcpuid);
+			vm_inject_gp(vcpu->vcpu);
 		}
 		break;
 	case MSR_SYSCFG:
@@ -158,7 +158,7 @@ svm_wrmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num, uint64_t val,
 	case MSR_MTRR64kBase:
 	case MSR_MTRRVarBase ... MSR_MTRRVarBase + (VMM_MTRR_VAR_MAX * 2) - 1:
 		if (vm_wrmtrr(&vcpu->mtrr, num, val) != 0) {
-			vm_inject_gp(sc->vm, vcpu->vcpuid);
+			vm_inject_gp(vcpu->vcpu);
 		}
 		break;
 	case MSR_SYSCFG:
