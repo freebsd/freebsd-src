@@ -67,6 +67,21 @@ struct svm_softc {
 	struct vm	*vm;
 };
 
+#define	SVM_CTR0(vcpu, format)						\
+	VCPU_CTR0((vcpu)->sc->vm, (vcpu)->vcpuid, format)
+
+#define	SVM_CTR1(vcpu, format, p1)					\
+	VCPU_CTR1((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1)
+
+#define	SVM_CTR2(vcpu, format, p1, p2)					\
+	VCPU_CTR2((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1, p2)
+
+#define	SVM_CTR3(vcpu, format, p1, p2, p3)				\
+	VCPU_CTR3((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1, p2, p3)
+
+#define	SVM_CTR4(vcpu, format, p1, p2, p3, p4)				\
+	VCPU_CTR4((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1, p2, p3, p4)
+
 static __inline struct vmcb *
 svm_get_vmcb(struct svm_vcpu *vcpu)
 {
