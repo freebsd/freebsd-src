@@ -173,6 +173,7 @@ struct vm {
 	struct vrtc	*vrtc;			/* (o) virtual RTC */
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	volatile cpuset_t debug_cpus;		/* (i) vcpus stopped for debug */
+	cpuset_t	startup_cpus;		/* (i) [r] waiting for startup */
 	int		suspend;		/* (i) stop VM execution */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
@@ -486,6 +487,7 @@ vm_init(struct vm *vm, bool create)
 
 	CPU_ZERO(&vm->active_cpus);
 	CPU_ZERO(&vm->debug_cpus);
+	CPU_ZERO(&vm->startup_cpus);
 
 	vm->suspend = 0;
 	CPU_ZERO(&vm->suspended_cpus);
@@ -2421,6 +2423,30 @@ vm_suspended_cpus(struct vm *vm)
 	return (vm->suspended_cpus);
 }
 
+/*
+ * Returns the subset of vCPUs in tostart that are awaiting startup.
+ * These vCPUs are also marked as no longer awaiting startup.
+ */
+cpuset_t
+vm_start_cpus(struct vm *vm, const cpuset_t *tostart)
+{
+	cpuset_t set;
+
+	mtx_lock(&vm->rendezvous_mtx);
+	CPU_AND(&set, &vm->startup_cpus, tostart);
+	CPU_ANDNOT(&vm->startup_cpus, &vm->startup_cpus, &set);
+	mtx_unlock(&vm->rendezvous_mtx);
+	return (set);
+}
+
+void
+vm_await_start(struct vm *vm, const cpuset_t *waiting)
+{
+	mtx_lock(&vm->rendezvous_mtx);
+	CPU_OR(&vm->startup_cpus, &vm->startup_cpus, waiting);
+	mtx_unlock(&vm->rendezvous_mtx);
+}
+
 void *
 vcpu_stats(struct vcpu *vcpu)
 {
@@ -2769,6 +2795,7 @@ vm_snapshot_vm(struct vm *vm, struct vm_snapshot_meta *meta)
 	if (ret != 0)
 		goto done;
 
+	SNAPSHOT_VAR_OR_LEAVE(vm->startup_cpus, meta, ret, done);
 done:
 	return (ret);
 }
