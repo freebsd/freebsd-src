@@ -122,24 +122,25 @@ enum {
 	GUEST_MSR_NUM		/* must be the last enumeration */
 };
 
+struct vmx_vcpu {
+	struct vmcs	*vmcs;
+	struct apic_page *apic_page;
+	struct pir_desc	*pir_desc;
+	uint64_t	guest_msrs[GUEST_MSR_NUM];
+	struct vmxctx	ctx;
+	struct vmxcap	cap;
+	struct vmxstate	state;
+	struct vm_mtrr  mtrr;
+};
+
 /* virtual machine softc */
 struct vmx {
-	struct vmcs	vmcs[VM_MAXCPU];	/* one vmcs per virtual cpu */
-	struct apic_page apic_page[VM_MAXCPU];	/* one apic page per vcpu */
-	char		msr_bitmap[PAGE_SIZE];
-	struct pir_desc	pir_desc[VM_MAXCPU];
-	uint64_t	guest_msrs[VM_MAXCPU][GUEST_MSR_NUM];
-	struct vmxctx	ctx[VM_MAXCPU];
-	struct vmxcap	cap[VM_MAXCPU];
-	struct vmxstate	state[VM_MAXCPU];
+	struct vmx_vcpu vcpus[VM_MAXCPU];
+	char		*msr_bitmap;
 	uint64_t	eptp;
 	struct vm	*vm;
 	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
-	struct vm_mtrr  mtrr[VM_MAXCPU];
 };
-CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);
-CTASSERT((offsetof(struct vmx, msr_bitmap) & PAGE_MASK) == 0);
-CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
 
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
@@ -166,7 +167,7 @@ vmx_have_msr_tsc_aux(struct vmx *vmx)
 	 * in vmx_init()), just always use vCPU-zero's capability set and
 	 * remove the need to require a vcpuid argument.
 	 */
-	return ((vmx->cap[0].set & rdpid_rdtscp_bits) != 0);
+	return ((vmx->vcpus[0].cap.set & rdpid_rdtscp_bits) != 0);
 }
 
 #endif
