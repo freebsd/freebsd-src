@@ -180,8 +180,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
+#define __pvused
 #else
 #define PV_STAT(x)	do { } while (0)
+#define __pvused	__unused
 #endif
 
 #define	pmap_l0_pindex(v)	(NUL2E + NUL1E + ((v) >> L0_SHIFT))
@@ -5405,7 +5407,8 @@ pmap_remove_pages(pmap_t pmap)
 	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
-	int allfree, field, freed, i, idx, lvl;
+	int allfree, field, i, idx, lvl;
+	int freed __pvused;
 	vm_paddr_t pa;
 
 	lock = NULL;
