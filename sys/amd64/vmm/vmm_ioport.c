@@ -122,8 +122,8 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 		val = vmexit->u.inout.eax & mask;
 	}
 
-	error = (*handler)(vm, vcpuid, vmexit->u.inout.in,
-	    vmexit->u.inout.port, vmexit->u.inout.bytes, &val);
+	error = (*handler)(vm, vmexit->u.inout.in, vmexit->u.inout.port,
+	    vmexit->u.inout.bytes, &val);
 	if (error) {
 		/*
 		 * The value returned by this function is also the return value

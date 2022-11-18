@@ -712,7 +712,7 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 }
 
 int
-vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_master_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -732,7 +732,7 @@ vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_slave_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -752,7 +752,7 @@ vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_elc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_elc_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
