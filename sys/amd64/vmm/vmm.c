@@ -965,8 +965,8 @@ vm_iommu_modify(struct vm *vm, bool map)
 
 		gpa = mm->gpa;
 		while (gpa < mm->gpa + mm->len) {
-			vp = vm_gpa_hold(vm, -1, gpa, PAGE_SIZE, VM_PROT_WRITE,
-					 &cookie);
+			vp = vm_gpa_hold_global(vm, gpa, PAGE_SIZE,
+			    VM_PROT_WRITE, &cookie);
 			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
 			    vm_name(vm), gpa));
 
@@ -1032,30 +1032,14 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	return (error);
 }
 
-void *
-vm_gpa_hold(struct vm *vm, int vcpuid, vm_paddr_t gpa, size_t len, int reqprot,
-	    void **cookie)
+static void *
+_vm_gpa_hold(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
+    void **cookie)
 {
 	int i, count, pageoff;
 	struct mem_map *mm;
 	vm_page_t m;
-#ifdef INVARIANTS
-	/*
-	 * All vcpus are frozen by ioctls that modify the memory map
-	 * (e.g. VM_MMAP_MEMSEG). Therefore 'vm->memmap[]' stability is
-	 * guaranteed if at least one vcpu is in the VCPU_FROZEN state.
-	 */
-	int state;
-	KASSERT(vcpuid >= -1 && vcpuid < vm->maxcpus, ("%s: invalid vcpuid %d",
-	    __func__, vcpuid));
-	for (i = 0; i < vm->maxcpus; i++) {
-		if (vcpuid != -1 && vcpuid != i)
-			continue;
-		state = vcpu_get_state(vm, i, NULL);
-		KASSERT(state == VCPU_FROZEN, ("%s: invalid vcpu state %d",
-		    __func__, state));
-	}
-#endif
+
 	pageoff = gpa & PAGE_MASK;
 	if (len > PAGE_SIZE - pageoff)
 		panic("vm_gpa_hold: invalid gpa/len: 0x%016lx/%lu", gpa, len);
@@ -1077,6 +1061,42 @@ vm_gpa_hold(struct vm *vm, int vcpuid, vm_paddr_t gpa, size_t len, int reqprot,
 		*cookie = NULL;
 		return (NULL);
 	}
+}
+
+void *
+vm_gpa_hold(struct vm *vm, int vcpuid, vm_paddr_t gpa, size_t len, int reqprot,
+    void **cookie)
+{
+#ifdef INVARIANTS
+	/*
+	 * The current vcpu should be frozen to ensure 'vm_memmap[]'
+	 * stability.
+	 */
+	int state = vcpu_get_state(vm, vcpuid, NULL);
+	KASSERT(state == VCPU_FROZEN, ("%s: invalid vcpu state %d",
+	    __func__, state));
+#endif
+	return (_vm_gpa_hold(vm, gpa, len, reqprot, cookie));
+}
+
+void *
+vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
+    void **cookie)
+{
+#ifdef INVARIANTS
+	/*
+	 * All vcpus are frozen by ioctls that modify the memory map
+	 * (e.g. VM_MMAP_MEMSEG). Therefore 'vm->memmap[]' stability is
+	 * guaranteed if at least one vcpu is in the VCPU_FROZEN state.
+	 */
+	int state;
+	for (int i = 0; i < vm->maxcpus; i++) {
+		state = vcpu_get_state(vm, i, NULL);
+		KASSERT(state == VCPU_FROZEN, ("%s: invalid vcpu state %d",
+		    __func__, state));
+	}
+#endif
+	return (_vm_gpa_hold(vm, gpa, len, reqprot, cookie));
 }
 
 void
