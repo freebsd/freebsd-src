@@ -219,6 +219,10 @@ extern const struct vmm_ops vmm_ops_intel;
 extern const struct vmm_ops vmm_ops_amd;
 
 int vm_create(const char *name, struct vm **retvm);
+struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
+void vm_disable_vcpu_creation(struct vm *vm);
+void vm_slock_vcpus(struct vm *vm);
+void vm_unlock_vcpus(struct vm *vm);
 void vm_destroy(struct vm *vm);
 int vm_reinit(struct vm *vm);
 const char *vm_name(struct vm *vm);
