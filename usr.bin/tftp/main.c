@@ -496,7 +496,7 @@ put(int argc, char *argv[])
 			close(fd);
 			return;
 		}
-		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
+		options_set_request(OPT_TSIZE, "%ju", (uintmax_t)sb.st_size);
 
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
@@ -524,7 +524,7 @@ put(int argc, char *argv[])
 			free(path);
 			continue;
 		}
-		asprintf(&options[OPT_TSIZE].o_request, "%ju", sb.st_size);
+		options_set_request(OPT_TSIZE, "%ju", (uintmax_t)sb.st_size);
 
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
@@ -926,16 +926,13 @@ setrollover(int argc, char *argv[])
 	if (argc == 2) {
 		if (strcasecmp(argv[1], "never") == 0 ||
 		    strcasecmp(argv[1], "none") == 0) {
-			free(options[OPT_ROLLOVER].o_request);
-			options[OPT_ROLLOVER].o_request = NULL;
+			options_set_request(OPT_ROLLOVER, NULL);
 		}
 		if (strcasecmp(argv[1], "1") == 0) {
-			free(options[OPT_ROLLOVER].o_request);
-			options[OPT_ROLLOVER].o_request = strdup("1");
+			options_set_request(OPT_ROLLOVER, "1");
 		}
 		if (strcasecmp(argv[1], "0") == 0) {
-			free(options[OPT_ROLLOVER].o_request);
-			options[OPT_ROLLOVER].o_request = strdup("0");
+			options_set_request(OPT_ROLLOVER, "0");
 		}
 	}
 	printf("Support for the rollover options is %s.\n",
@@ -1001,10 +998,9 @@ setblocksize(int argc, char *argv[])
 			printf("Blocksize can't be bigger than %ld bytes due "
 			    "to the net.inet.udp.maxdgram sysctl limitation.\n",
 			    maxdgram - 4);
-			asprintf(&options[OPT_BLKSIZE].o_request,
-			    "%ld", maxdgram - 4);
+			options_set_request(OPT_BLKSIZE, "%ld", maxdgram - 4);
 		} else {
-			asprintf(&options[OPT_BLKSIZE].o_request, "%d", size);
+			options_set_request(OPT_BLKSIZE, "%d", size);
 		}
 	}
 	printf("Blocksize is now %s bytes.\n", options[OPT_BLKSIZE].o_request);
@@ -1057,10 +1053,9 @@ setblocksize2(int argc, char *argv[])
 			for (i = 0; sizes[i+1] != 0; i++) {
 				if ((int)maxdgram < sizes[i+1]) break;
 			}
-			asprintf(&options[OPT_BLKSIZE2].o_request,
-			    "%d", sizes[i]);
+			options_set_request(OPT_BLKSIZE2, "%d", sizes[i]);
 		} else {
-			asprintf(&options[OPT_BLKSIZE2].o_request, "%d", size);
+			options_set_request(OPT_BLKSIZE2, "%d", size);
 		}
 	}
 	printf("Blocksize2 is now %s bytes.\n",
@@ -1094,8 +1089,7 @@ setwindowsize(int argc, char *argv[])
 			    "blocks.\n", WINDOWSIZE_MIN, WINDOWSIZE_MAX);
 			return;
 		} else {
-			asprintf(&options[OPT_WINDOWSIZE].o_request, "%d",
-			    size);
+			options_set_request(OPT_WINDOWSIZE, "%d", size);
 		}
 	}
 	printf("Windowsize is now %s blocks.\n",
