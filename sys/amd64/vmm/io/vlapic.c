@@ -1840,6 +1840,7 @@ int
 vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
 {
 	int ret;
+	struct vcpu *vcpu;
 	struct vlapic *vlapic;
 	struct LAPIC *lapic;
 	uint32_t ccr;
@@ -1851,7 +1852,10 @@ vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
 
 	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vlapic = vm_lapic(vm_vcpu(vm, i));
+		vcpu = vm_vcpu(vm, i);
+		if (vcpu == NULL)
+			continue;
+		vlapic = vm_lapic(vcpu);
 
 		/* snapshot the page first; timer period depends on icr_timer */
 		lapic = vlapic->apic_page;
