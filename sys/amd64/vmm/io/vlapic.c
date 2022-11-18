@@ -1641,6 +1641,7 @@ vlapic_cleanup(struct vlapic *vlapic)
 {
 
 	callout_drain(&vlapic->callout);
+	mtx_destroy(&vlapic->timer_mtx);
 }
 
 uint64_t
