@@ -66,7 +66,7 @@
  */
 #define CPUID_0000_0001_FEAT0_VMX	(1<<5)
 
-int x86_emulate_cpuid(struct vm *vm, int vcpu_id, uint64_t *rax, uint64_t *rbx,
+int x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
     uint64_t *rcx, uint64_t *rdx);
 
 enum vm_cpuid_capability {
@@ -81,7 +81,7 @@ enum vm_cpuid_capability {
  * Return 'true' if the capability 'cap' is enabled in this virtual cpu
  * and 'false' otherwise.
  */
-bool vm_cpuid_capability(struct vm *vm, int vcpuid, enum vm_cpuid_capability);
+bool vm_cpuid_capability(struct vcpu *vcpu, enum vm_cpuid_capability);
 
 #define VMM_MTRR_VAR_MAX 10
 #define VMM_MTRR_DEF_MASK \

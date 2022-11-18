@@ -31,13 +31,12 @@
 #ifndef _VMM_LAPIC_H_
 #define	_VMM_LAPIC_H_
 
+struct vcpu;
 struct vm;
 
 bool	lapic_msr(u_int num);
-int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval,
-	    bool *retu);
-int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval,
-	    bool *retu);
+int	lapic_rdmsr(struct vcpu *vcpu, u_int msr, uint64_t *rval, bool *retu);
+int	lapic_wrmsr(struct vcpu *vcpu, u_int msr, uint64_t wval, bool *retu);
 
 int	lapic_mmio_read(struct vcpu *vcpu, uint64_t gpa,
 			uint64_t *rval, int size, void *arg);

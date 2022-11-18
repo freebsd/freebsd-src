@@ -857,7 +857,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_SET_INTINFO:
 		vmii = (struct vm_intinfo *)data;
-		error = vm_exit_intinfo(sc->vm, vmii->vcpuid, vmii->info1);
+		error = vm_exit_intinfo(vcpu, vmii->info1);
 		break;
 	case VM_GET_INTINFO:
 		vmii = (struct vm_intinfo *)data;
