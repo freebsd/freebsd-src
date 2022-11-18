@@ -167,27 +167,29 @@ typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
-typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
+typedef int	(*vmi_run_func_t)(void *vmi, void *vcpui, register_t rip,
 		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
+typedef void *	(*vmi_vcpu_init_func_t)(void *vmi, int vcpu_id);
+typedef void	(*vmi_vcpu_cleanup_func_t)(void *vmi, void *vcpui);
+typedef int	(*vmi_get_register_t)(void *vmi, void *vcpui, int num,
 				      uint64_t *retval);
-typedef int	(*vmi_set_register_t)(void *vmi, int vcpu, int num,
+typedef int	(*vmi_set_register_t)(void *vmi, void *vcpui, int num,
 				      uint64_t val);
-typedef int	(*vmi_get_desc_t)(void *vmi, int vcpu, int num,
+typedef int	(*vmi_get_desc_t)(void *vmi, void *vcpui, int num,
 				  struct seg_desc *desc);
-typedef int	(*vmi_set_desc_t)(void *vmi, int vcpu, int num,
+typedef int	(*vmi_set_desc_t)(void *vmi, void *vcpui, int num,
 				  struct seg_desc *desc);
-typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
-typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
+typedef int	(*vmi_get_cap_t)(void *vmi, void *vcpui, int num, int *retval);
+typedef int	(*vmi_set_cap_t)(void *vmi, void *vcpui, int num, int val);
 typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
 typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
-typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
+typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, void *vcpui);
 typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
 typedef int	(*vmi_snapshot_t)(void *vmi, struct vm_snapshot_meta *meta);
 typedef int	(*vmi_snapshot_vcpu_t)(void *vmi, struct vm_snapshot_meta *meta,
-				       int vcpu);
-typedef int	(*vmi_restore_tsc_t)(void *vmi, int vcpuid, uint64_t now);
+				       void *vcpui);
+typedef int	(*vmi_restore_tsc_t)(void *vmi, void *vcpui, uint64_t now);
 
 struct vmm_ops {
 	vmm_init_func_t		modinit;	/* module wide initialization */
@@ -197,6 +199,8 @@ struct vmm_ops {
 	vmi_init_func_t		init;		/* vm-specific initialization */
 	vmi_run_func_t		run;
 	vmi_cleanup_func_t	cleanup;
+	vmi_vcpu_init_func_t	vcpu_init;
+	vmi_vcpu_cleanup_func_t	vcpu_cleanup;
 	vmi_get_register_t	getreg;
 	vmi_set_register_t	setreg;
 	vmi_get_desc_t		getdesc;

@@ -31,6 +31,9 @@
 #ifndef _VMX_H_
 #define	_VMX_H_
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include "vmcs.h"
 #include "x86.h"
 
@@ -131,15 +134,17 @@ struct vmx_vcpu {
 	struct vmxcap	cap;
 	struct vmxstate	state;
 	struct vm_mtrr  mtrr;
+	int		vcpuid;
 };
 
 /* virtual machine softc */
 struct vmx {
-	struct vmx_vcpu vcpus[VM_MAXCPU];
+	struct vm	*vm;
 	char		*msr_bitmap;
 	uint64_t	eptp;
-	struct vm	*vm;
 	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
+	pmap_t		pmap;
+	uint16_t	vpids[VM_MAXCPU];
 };
 
 extern bool vmx_have_msr_tsc_aux;
@@ -153,7 +158,8 @@ void	vmx_call_isr(uintptr_t entry);
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);
 
-int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
+int	vmx_set_tsc_offset(struct vmx *vmx, struct vmx_vcpu *vcpu,
+    uint64_t offset);
 
 extern char	vmx_exit_guest[];
 extern char	vmx_exit_guest_flush_rsb[];

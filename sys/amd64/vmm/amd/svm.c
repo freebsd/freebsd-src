@@ -132,8 +132,8 @@ static VMM_STAT_AMD(VCPU_EXITINTINFO, "VM exits during event delivery");
 static VMM_STAT_AMD(VCPU_INTINFO_INJECTED, "Events pending at VM entry");
 static VMM_STAT_AMD(VMEXIT_VINTR, "VM exits due to interrupt window");
 
-static int svm_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
-static int svm_setreg(void *arg, int vcpu, int ident, uint64_t val);
+static int svm_getdesc(void *arg, void *vcpui, int reg, struct seg_desc *desc);
+static int svm_setreg(void *arg, void *vcpui, int ident, uint64_t val);
 
 static __inline int
 flush_by_asid(void)
@@ -283,18 +283,18 @@ svm_modresume(void)
 
 #ifdef BHYVE_SNAPSHOT
 int
-svm_set_tsc_offset(struct svm_softc *sc, int vcpu, uint64_t offset)
+svm_set_tsc_offset(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t offset)
 {
 	int error;
 	struct vmcb_ctrl *ctrl;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 	ctrl->tsc_offset = offset;
 
-	svm_set_dirty(sc, vcpu, VMCB_CACHE_I);
-	VCPU_CTR1(sc->vm, vcpu, "tsc offset changed to %#lx", offset);
+	svm_set_dirty(vcpu, VMCB_CACHE_I);
+	VCPU_CTR1(sc->vm, vcpu->vcpuid, "tsc offset changed to %#lx", offset);
 
-	error = vm_set_tsc_offset(sc->vm, vcpu, offset);
+	error = vm_set_tsc_offset(sc->vm, vcpu->vcpuid, offset);
 
 	return (error);
 }
@@ -382,26 +382,27 @@ svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
 }
 
 static __inline int
-svm_get_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask)
+svm_get_intercept(struct svm_softc *sc, struct svm_vcpu *vcpu, int idx,
+    uint32_t bitmask)
 {
 	struct vmcb_ctrl *ctrl;
 
 	KASSERT(idx >=0 && idx < 5, ("invalid intercept index %d", idx));
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 	return (ctrl->intercept[idx] & bitmask ? 1 : 0);
 }
 
 static __inline void
-svm_set_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask,
-    int enabled)
+svm_set_intercept(struct svm_softc *sc, struct svm_vcpu *vcpu, int idx,
+    uint32_t bitmask, int enabled)
 {
 	struct vmcb_ctrl *ctrl;
 	uint32_t oldval;
 
 	KASSERT(idx >=0 && idx < 5, ("invalid intercept index %d", idx));
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 	oldval = ctrl->intercept[idx];
 
 	if (enabled)
@@ -410,28 +411,30 @@ svm_set_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask,
 		ctrl->intercept[idx] &= ~bitmask;
 
 	if (ctrl->intercept[idx] != oldval) {
-		svm_set_dirty(sc, vcpu, VMCB_CACHE_I);
-		VCPU_CTR3(sc->vm, vcpu, "intercept[%d] modified "
+		svm_set_dirty(vcpu, VMCB_CACHE_I);
+		VCPU_CTR3(sc->vm, vcpu->vcpuid, "intercept[%d] modified "
 		    "from %#x to %#x", idx, oldval, ctrl->intercept[idx]);
 	}
 }
 
 static __inline void
-svm_disable_intercept(struct svm_softc *sc, int vcpu, int off, uint32_t bitmask)
+svm_disable_intercept(struct svm_softc *sc, struct svm_vcpu *vcpu, int off,
+    uint32_t bitmask)
 {
 
 	svm_set_intercept(sc, vcpu, off, bitmask, 0);
 }
 
 static __inline void
-svm_enable_intercept(struct svm_softc *sc, int vcpu, int off, uint32_t bitmask)
+svm_enable_intercept(struct svm_softc *sc, struct svm_vcpu *vcpu, int off,
+    uint32_t bitmask)
 {
 
 	svm_set_intercept(sc, vcpu, off, bitmask, 1);
 }
 
 static void
-vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
+vmcb_init(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t iopm_base_pa,
     uint64_t msrpm_base_pa, uint64_t np_pml4)
 {
 	struct vmcb_ctrl *ctrl;
@@ -439,8 +442,8 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	uint32_t mask;
 	int n;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
-	state = svm_get_vmcb_state(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
+	state = svm_get_vmcb_state(vcpu);
 
 	ctrl->iopm_base_pa = iopm_base_pa;
 	ctrl->msrpm_base_pa = msrpm_base_pa;
@@ -465,7 +468,7 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	 * Intercept everything when tracing guest exceptions otherwise
 	 * just intercept machine check exception.
 	 */
-	if (vcpu_trace_exceptions(sc->vm, vcpu)) {
+	if (vcpu_trace_exceptions(sc->vm, vcpu->vcpuid)) {
 		for (n = 0; n < 32; n++) {
 			/*
 			 * Skip unimplemented vectors in the exception bitmap.
@@ -506,7 +509,7 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_CLGI);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_SKINIT);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_ICEBP);
-	if (vcpu_trap_wbinvd(sc->vm, vcpu)) {
+	if (vcpu_trap_wbinvd(sc->vm, vcpu->vcpuid)) {
 		svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT,
 		    VMCB_INTCPT_WBINVD);
 	}
@@ -559,10 +562,6 @@ static void *
 svm_init(struct vm *vm, pmap_t pmap)
 {
 	struct svm_softc *svm_sc;
-	struct svm_vcpu *vcpu;
-	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;
-	int i;
-	uint16_t maxcpus;
 
 	svm_sc = malloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO);
 
@@ -576,7 +575,7 @@ svm_init(struct vm *vm, pmap_t pmap)
 		panic("contigmalloc of SVM IO bitmap failed");
 
 	svm_sc->vm = vm;
-	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pmltop);
+	svm_sc->nptp = vtophys(pmap->pm_pmltop);
 
 	/*
 	 * Intercept read and write accesses to all MSRs.
@@ -611,21 +610,26 @@ svm_init(struct vm *vm, pmap_t pmap)
 	/* Intercept access to all I/O ports. */
 	memset(svm_sc->iopm_bitmap, 0xFF, SVM_IO_BITMAP_SIZE);
 
-	iopm_pa = vtophys(svm_sc->iopm_bitmap);
-	msrpm_pa = vtophys(svm_sc->msr_bitmap);
-	pml4_pa = svm_sc->nptp;
-	maxcpus = vm_get_maxcpus(svm_sc->vm);
-	for (i = 0; i < maxcpus; i++) {
-		vcpu = svm_get_vcpu(svm_sc, i);
-		vcpu->vmcb = malloc_aligned(sizeof(struct vmcb), PAGE_SIZE,
-		    M_SVM, M_WAITOK | M_ZERO);
-		vcpu->nextrip = ~0;
-		vcpu->lastcpu = NOCPU;
-		vcpu->vmcb_pa = vtophys(vcpu->vmcb);
-		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
-		svm_msr_guest_init(svm_sc, i);
-	}
 	return (svm_sc);
+}
+
+static void *
+svm_vcpu_init(void *arg, int vcpuid)
+{
+	struct svm_softc *sc = arg;
+	struct svm_vcpu *vcpu;
+
+	vcpu = malloc(sizeof(*vcpu), M_SVM, M_WAITOK | M_ZERO);
+	vcpu->vcpuid = vcpuid;
+	vcpu->vmcb = malloc_aligned(sizeof(struct vmcb), PAGE_SIZE, M_SVM,
+	    M_WAITOK | M_ZERO);
+	vcpu->nextrip = ~0;
+	vcpu->lastcpu = NOCPU;
+	vcpu->vmcb_pa = vtophys(vcpu->vmcb);
+	vmcb_init(sc, vcpu, vtophys(sc->iopm_bitmap), vtophys(sc->msr_bitmap),
+	    sc->nptp);
+	svm_msr_guest_init(sc, vcpu);
+	return (vcpu);
 }
 
 /*
@@ -720,8 +724,8 @@ svm_inout_str_count(struct svm_regctx *regs, int rep)
 }
 
 static void
-svm_inout_str_seginfo(struct svm_softc *svm_sc, int vcpu, int64_t info1,
-    int in, struct vm_inout_str *vis)
+svm_inout_str_seginfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
+    int64_t info1, int in, struct vm_inout_str *vis)
 {
 	int error __diagused, s;
 
@@ -774,7 +778,8 @@ svm_paging_info(struct vmcb *vmcb, struct vm_guest_paging *paging)
  * Handle guest I/O intercept.
  */
 static int
-svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
+svm_handle_io(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
+    struct vm_exit *vmexit)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
@@ -783,9 +788,9 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	uint64_t info1;
 	int inout_string;
 
-	state = svm_get_vmcb_state(svm_sc, vcpu);
-	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	regs  = svm_get_guest_regctx(svm_sc, vcpu);
+	state = svm_get_vmcb_state(vcpu);
+	ctrl  = svm_get_vmcb_ctrl(vcpu);
+	regs  = svm_get_guest_regctx(vcpu);
 
 	info1 = ctrl->exitinfo1;
 	inout_string = info1 & BIT(2) ? 1 : 0;
@@ -811,7 +816,7 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	if (inout_string) {
 		vmexit->exitcode = VM_EXITCODE_INOUT_STR;
 		vis = &vmexit->u.inout_str;
-		svm_paging_info(svm_get_vmcb(svm_sc, vcpu), &vis->paging);
+		svm_paging_info(svm_get_vmcb(vcpu), &vis->paging);
 		vis->rflags = state->rflags;
 		vis->cr0 = state->cr0;
 		vis->index = svm_inout_str_index(regs, vmexit->u.inout.in);
@@ -932,12 +937,12 @@ intrtype_to_str(int intr_type)
  * Inject an event to vcpu as described in section 15.20, "Event injection".
  */
 static void
-svm_eventinject(struct svm_softc *sc, int vcpu, int intr_type, int vector,
-		 uint32_t error, bool ec_valid)
+svm_eventinject(struct svm_softc *sc, struct svm_vcpu *vcpu, int intr_type,
+    int vector, uint32_t error, bool ec_valid)
 {
 	struct vmcb_ctrl *ctrl;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 
 	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0,
 	    ("%s: event already pending %#lx", __func__, ctrl->eventinj));
@@ -962,24 +967,25 @@ svm_eventinject(struct svm_softc *sc, int vcpu, int intr_type, int vector,
 	if (ec_valid) {
 		ctrl->eventinj |= VMCB_EVENTINJ_EC_VALID;
 		ctrl->eventinj |= (uint64_t)error << 32;
-		VCPU_CTR3(sc->vm, vcpu, "Injecting %s at vector %d errcode %#x",
+		VCPU_CTR3(sc->vm, vcpu->vcpuid,
+		    "Injecting %s at vector %d errcode %#x",
 		    intrtype_to_str(intr_type), vector, error);
 	} else {
-		VCPU_CTR2(sc->vm, vcpu, "Injecting %s at vector %d",
+		VCPU_CTR2(sc->vm, vcpu->vcpuid, "Injecting %s at vector %d",
 		    intrtype_to_str(intr_type), vector);
 	}
 }
 
 static void
-svm_update_virqinfo(struct svm_softc *sc, int vcpu)
+svm_update_virqinfo(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 	struct vm *vm;
 	struct vlapic *vlapic;
 	struct vmcb_ctrl *ctrl;
 
 	vm = sc->vm;
-	vlapic = vm_lapic(vm, vcpu);
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	vlapic = vm_lapic(vm, vcpu->vcpuid);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 
 	/* Update %cr8 in the emulated vlapic */
 	vlapic_set_cr8(vlapic, ctrl->v_tpr);
@@ -990,12 +996,14 @@ svm_update_virqinfo(struct svm_softc *sc, int vcpu)
 }
 
 static void
-svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
+svm_save_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 {
 	struct vmcb_ctrl *ctrl;
 	uint64_t intinfo;
+	int vcpuid;
 
-	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
+	vcpuid = vcpu->vcpuid;
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 	intinfo = ctrl->exitintinfo;	
 	if (!VMCB_EXITINTINFO_VALID(intinfo))
 		return;
@@ -1006,15 +1014,15 @@ svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
 	 * If a #VMEXIT happened during event delivery then record the event
 	 * that was being delivered.
 	 */
-	VCPU_CTR2(svm_sc->vm, vcpu, "SVM:Pending INTINFO(0x%lx), vector=%d.\n",
+	VCPU_CTR2(svm_sc->vm, vcpuid, "SVM:Pending INTINFO(0x%lx), vector=%d.\n",
 		intinfo, VMCB_EXITINTINFO_VECTOR(intinfo));
-	vmm_stat_incr(svm_sc->vm, vcpu, VCPU_EXITINTINFO, 1);
-	vm_exit_intinfo(svm_sc->vm, vcpu, intinfo);
+	vmm_stat_incr(svm_sc->vm, vcpuid, VCPU_EXITINTINFO, 1);
+	vm_exit_intinfo(svm_sc->vm, vcpuid, intinfo);
 }
 
 #ifdef INVARIANTS
 static __inline int
-vintr_intercept_enabled(struct svm_softc *sc, int vcpu)
+vintr_intercept_enabled(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 
 	return (svm_get_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
@@ -1023,11 +1031,11 @@ vintr_intercept_enabled(struct svm_softc *sc, int vcpu)
 #endif
 
 static __inline void
-enable_intr_window_exiting(struct svm_softc *sc, int vcpu)
+enable_intr_window_exiting(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 	struct vmcb_ctrl *ctrl;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 
 	if (ctrl->v_irq && ctrl->v_intr_vector == 0) {
 		KASSERT(ctrl->v_ign_tpr, ("%s: invalid v_ign_tpr", __func__));
@@ -1036,20 +1044,20 @@ enable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 		return;
 	}
 
-	VCPU_CTR0(sc->vm, vcpu, "Enable intr window exiting");
+	VCPU_CTR0(sc->vm, vcpu->vcpuid, "Enable intr window exiting");
 	ctrl->v_irq = 1;
 	ctrl->v_ign_tpr = 1;
 	ctrl->v_intr_vector = 0;
-	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+	svm_set_dirty(vcpu, VMCB_CACHE_TPR);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_VINTR);
 }
 
 static __inline void
-disable_intr_window_exiting(struct svm_softc *sc, int vcpu)
+disable_intr_window_exiting(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 	struct vmcb_ctrl *ctrl;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 
 	if (!ctrl->v_irq && ctrl->v_intr_vector == 0) {
 		KASSERT(!vintr_intercept_enabled(sc, vcpu),
@@ -1057,35 +1065,36 @@ disable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 		return;
 	}
 
-	VCPU_CTR0(sc->vm, vcpu, "Disable intr window exiting");
+	VCPU_CTR0(sc->vm, vcpu->vcpuid, "Disable intr window exiting");
 	ctrl->v_irq = 0;
 	ctrl->v_intr_vector = 0;
-	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+	svm_set_dirty(vcpu, VMCB_CACHE_TPR);
 	svm_disable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_VINTR);
 }
 
 static int
-svm_modify_intr_shadow(struct svm_softc *sc, int vcpu, uint64_t val)
+svm_modify_intr_shadow(struct svm_softc *sc, struct svm_vcpu *vcpu,
+    uint64_t val)
 {
 	struct vmcb_ctrl *ctrl;
 	int oldval, newval;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 	oldval = ctrl->intr_shadow;
 	newval = val ? 1 : 0;
 	if (newval != oldval) {
 		ctrl->intr_shadow = newval;
-		VCPU_CTR1(sc->vm, vcpu, "Setting intr_shadow to %d", newval);
+		VCPU_CTR1(sc->vm, vcpu->vcpuid, "Setting intr_shadow to %d", newval);
 	}
 	return (0);
 }
 
 static int
-svm_get_intr_shadow(struct svm_softc *sc, int vcpu, uint64_t *val)
+svm_get_intr_shadow(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t *val)
 {
 	struct vmcb_ctrl *ctrl;
 
-	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 	*val = ctrl->intr_shadow;
 	return (0);
 }
@@ -1096,7 +1105,7 @@ svm_get_intr_shadow(struct svm_softc *sc, int vcpu, uint64_t *val)
  * to track when the vcpu is done handling the NMI.
  */
 static int
-nmi_blocked(struct svm_softc *sc, int vcpu)
+nmi_blocked(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 	int blocked;
 
@@ -1106,21 +1115,21 @@ nmi_blocked(struct svm_softc *sc, int vcpu)
 }
 
 static void
-enable_nmi_blocking(struct svm_softc *sc, int vcpu)
+enable_nmi_blocking(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 
 	KASSERT(!nmi_blocked(sc, vcpu), ("vNMI already blocked"));
-	VCPU_CTR0(sc->vm, vcpu, "vNMI blocking enabled");
+	VCPU_CTR0(sc->vm, vcpu->vcpuid, "vNMI blocking enabled");
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IRET);
 }
 
 static void
-clear_nmi_blocking(struct svm_softc *sc, int vcpu)
+clear_nmi_blocking(struct svm_softc *sc, struct svm_vcpu *vcpu)
 {
 	int error __diagused;
 
 	KASSERT(nmi_blocked(sc, vcpu), ("vNMI already unblocked"));
-	VCPU_CTR0(sc->vm, vcpu, "vNMI blocking cleared");
+	VCPU_CTR0(sc->vm, vcpu->vcpuid, "vNMI blocking cleared");
 	/*
 	 * When the IRET intercept is cleared the vcpu will attempt to execute
 	 * the "iret" when it runs next. However, it is possible to inject
@@ -1145,17 +1154,19 @@ clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 #define	EFER_MBZ_BITS	0xFFFFFFFFFFFF0200UL
 
 static int
-svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
+svm_write_efer(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t newval,
+    bool *retu)
 {
 	struct vm_exit *vme;
 	struct vmcb_state *state;
 	uint64_t changed, lma, oldval;
-	int error __diagused;
+	int error __diagused, vcpuid;
 
-	state = svm_get_vmcb_state(sc, vcpu);
+	state = svm_get_vmcb_state(vcpu);
+	vcpuid = vcpu->vcpuid;
 
 	oldval = state->efer;
-	VCPU_CTR2(sc->vm, vcpu, "wrmsr(efer) %#lx/%#lx", oldval, newval);
+	VCPU_CTR2(sc->vm, vcpuid, "wrmsr(efer) %#lx/%#lx", oldval, newval);
 
 	newval &= ~0xFE;		/* clear the Read-As-Zero (RAZ) bits */
 	changed = oldval ^ newval;
@@ -1179,7 +1190,7 @@ svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
 		goto gpf;
 
 	if (newval & EFER_NXE) {
-		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_NO_EXECUTE))
+		if (!vm_cpuid_capability(sc->vm, vcpuid, VCC_NO_EXECUTE))
 			goto gpf;
 	}
 
@@ -1188,19 +1199,19 @@ svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
 	 * this is fixed flag guest attempt to set EFER_LMSLE as an error.
 	 */
 	if (newval & EFER_LMSLE) {
-		vme = vm_exitinfo(sc->vm, vcpu);
+		vme = vm_exitinfo(sc->vm, vcpuid);
 		vm_exit_svm(vme, VMCB_EXIT_MSR, 1, 0);
 		*retu = true;
 		return (0);
 	}
 
 	if (newval & EFER_FFXSR) {
-		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_FFXSR))
+		if (!vm_cpuid_capability(sc->vm, vcpuid, VCC_FFXSR))
 			goto gpf;
 	}
 
 	if (newval & EFER_TCE) {
-		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_TCE))
+		if (!vm_cpuid_capability(sc->vm, vcpuid, VCC_TCE))
 			goto gpf;
 	}
 
@@ -1208,18 +1219,18 @@ svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
 	KASSERT(error == 0, ("%s: error %d updating efer", __func__, error));
 	return (0);
 gpf:
-	vm_inject_gp(sc->vm, vcpu);
+	vm_inject_gp(sc->vm, vcpuid);
 	return (0);
 }
 
 static int
-emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
-    bool *retu)
+emulate_wrmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num,
+    uint64_t val, bool *retu)
 {
 	int error;
 
 	if (lapic_msr(num))
-		error = lapic_wrmsr(sc->vm, vcpu, num, val, retu);
+		error = lapic_wrmsr(sc->vm, vcpu->vcpuid, num, val, retu);
 	else if (num == MSR_EFER)
 		error = svm_write_efer(sc, vcpu, val, retu);
 	else
@@ -1229,7 +1240,8 @@ emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
 }
 
 static int
-emulate_rdmsr(struct svm_softc *sc, int vcpu, u_int num, bool *retu)
+emulate_rdmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num,
+    bool *retu)
 {
 	struct vmcb_state *state;
 	struct svm_regctx *ctx;
@@ -1237,13 +1249,13 @@ emulate_rdmsr(struct svm_softc *sc, int vcpu, u_int num, bool *retu)
 	int error;
 
 	if (lapic_msr(num))
-		error = lapic_rdmsr(sc->vm, vcpu, num, &result, retu);
+		error = lapic_rdmsr(sc->vm, vcpu->vcpuid, num, &result, retu);
 	else
 		error = svm_rdmsr(sc, vcpu, num, &result, retu);
 
 	if (error == 0) {
-		state = svm_get_vmcb_state(sc, vcpu);
-		ctx = svm_get_guest_regctx(sc, vcpu);
+		state = svm_get_vmcb_state(vcpu);
+		ctx = svm_get_guest_regctx(vcpu);
 		state->rax = result & 0xffffffff;
 		ctx->sctx_rdx = result >> 32;
 	}
@@ -1324,7 +1336,8 @@ nrip_valid(uint64_t exitcode)
 }
 
 static int
-svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
+svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
+    struct vm_exit *vmexit)
 {
 	struct vmcb *vmcb;
 	struct vmcb_state *state;
@@ -1333,12 +1346,14 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
 	int error __diagused, errcode_valid, handled, idtvec, reflect;
+	int vcpuid;
 	bool retu;
 
-	ctx = svm_get_guest_regctx(svm_sc, vcpu);
-	vmcb = svm_get_vmcb(svm_sc, vcpu);
+	ctx = svm_get_guest_regctx(vcpu);
+	vmcb = svm_get_vmcb(vcpu);
 	state = &vmcb->state;
 	ctrl = &vmcb->ctrl;
+	vcpuid = vcpu->vcpuid;
 
 	handled = 0;
 	code = ctrl->exitcode;
@@ -1349,7 +1364,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	vmexit->rip = state->rip;
 	vmexit->inst_length = nrip_valid(code) ? ctrl->nrip - state->rip : 0;
 
-	vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_COUNT, 1);
+	vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_COUNT, 1);
 
 	/*
 	 * #VMEXIT(INVALID) needs to be handled early because the VMCB is
@@ -1381,18 +1396,18 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		handled = 1;
 		break;
 	case VMCB_EXIT_VINTR:	/* interrupt window exiting */
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_VINTR, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_VINTR, 1);
 		handled = 1;
 		break;
 	case VMCB_EXIT_INTR:	/* external interrupt */
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXTINT, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_EXTINT, 1);
 		handled = 1;
 		break;
 	case VMCB_EXIT_NMI:	/* external NMI */
 		handled = 1;
 		break;
 	case 0x40 ... 0x5F:
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXCEPTION, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_EXCEPTION, 1);
 		reflect = 1;
 		idtvec = code - 0x40;
 		switch (idtvec) {
@@ -1402,7 +1417,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			 * reflect the machine check back into the guest.
 			 */
 			reflect = 0;
-			VCPU_CTR0(svm_sc->vm, vcpu, "Vectoring to MCE handler");
+			VCPU_CTR0(svm_sc->vm, vcpuid, "Vectoring to MCE handler");
 			__asm __volatile("int $18");
 			break;
 		case IDT_PF:
@@ -1436,7 +1451,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			 * event injection is identical to what it was when
 			 * the exception originally happened.
 			 */
-			VCPU_CTR2(svm_sc->vm, vcpu, "Reset inst_length from %d "
+			VCPU_CTR2(svm_sc->vm, vcpuid, "Reset inst_length from %d "
 			    "to zero before injecting exception %d",
 			    vmexit->inst_length, idtvec);
 			vmexit->inst_length = 0;
@@ -1452,9 +1467,9 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 		if (reflect) {
 			/* Reflect the exception back into the guest */
-			VCPU_CTR2(svm_sc->vm, vcpu, "Reflecting exception "
+			VCPU_CTR2(svm_sc->vm, vcpuid, "Reflecting exception "
 			    "%d/%#x into the guest", idtvec, (int)info1);
-			error = vm_inject_exception(svm_sc->vm, vcpu, idtvec,
+			error = vm_inject_exception(svm_sc->vm, vcpuid, idtvec,
 			    errcode_valid, info1, 0);
 			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 			    __func__, error));
@@ -1468,9 +1483,9 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		retu = false;	
 
 		if (info1) {
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_WRMSR, 1);
+			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_WRMSR, 1);
 			val = (uint64_t)edx << 32 | eax;
-			VCPU_CTR2(svm_sc->vm, vcpu, "wrmsr %#x val %#lx",
+			VCPU_CTR2(svm_sc->vm, vcpuid, "wrmsr %#x val %#lx",
 			    ecx, val);
 			if (emulate_wrmsr(svm_sc, vcpu, ecx, val, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_WRMSR;
@@ -1483,8 +1498,8 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 				    ("emulate_wrmsr retu with bogus exitcode"));
 			}
 		} else {
-			VCPU_CTR1(svm_sc->vm, vcpu, "rdmsr %#x", ecx);
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_RDMSR, 1);
+			VCPU_CTR1(svm_sc->vm, vcpuid, "rdmsr %#x", ecx);
+			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_RDMSR, 1);
 			if (emulate_rdmsr(svm_sc, vcpu, ecx, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_RDMSR;
 				vmexit->u.msr.code = ecx;
@@ -1498,40 +1513,40 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		break;
 	case VMCB_EXIT_IO:
 		handled = svm_handle_io(svm_sc, vcpu, vmexit);
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INOUT, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_INOUT, 1);
 		break;
 	case VMCB_EXIT_CPUID:
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_CPUID, 1);
-		handled = x86_emulate_cpuid(svm_sc->vm, vcpu, &state->rax,
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_CPUID, 1);
+		handled = x86_emulate_cpuid(svm_sc->vm, vcpuid, &state->rax,
 		    &ctx->sctx_rbx, &ctx->sctx_rcx, &ctx->sctx_rdx);
 		break;
 	case VMCB_EXIT_HLT:
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_HLT, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_HLT, 1);
 		vmexit->exitcode = VM_EXITCODE_HLT;
 		vmexit->u.hlt.rflags = state->rflags;
 		break;
 	case VMCB_EXIT_PAUSE:
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_PAUSE, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_PAUSE, 1);
 		break;
 	case VMCB_EXIT_NPF:
 		/* EXITINFO2 contains the faulting guest physical address */
 		if (info1 & VMCB_NPF_INFO1_RSV) {
-			VCPU_CTR2(svm_sc->vm, vcpu, "nested page fault with "
+			VCPU_CTR2(svm_sc->vm, vcpuid, "nested page fault with "
 			    "reserved bits set: info1(%#lx) info2(%#lx)",
 			    info1, info2);
-		} else if (vm_mem_allocated(svm_sc->vm, vcpu, info2)) {
+		} else if (vm_mem_allocated(svm_sc->vm, vcpuid, info2)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = npf_fault_type(info1);
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
-			VCPU_CTR3(svm_sc->vm, vcpu, "nested page fault "
+			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_NESTED_FAULT, 1);
+			VCPU_CTR3(svm_sc->vm, vcpuid, "nested page fault "
 			    "on gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		} else if (svm_npf_emul_fault(info1)) {
 			svm_handle_inst_emul(vmcb, info2, vmexit);
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INST_EMUL, 1);
-			VCPU_CTR3(svm_sc->vm, vcpu, "inst_emul fault "
+			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_INST_EMUL, 1);
+			VCPU_CTR3(svm_sc->vm, vcpuid, "inst_emul fault "
 			    "for gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		}
@@ -1552,7 +1567,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	case VMCB_EXIT_SKINIT:
 	case VMCB_EXIT_ICEBP:
 	case VMCB_EXIT_INVLPGA:
-		vm_inject_ud(svm_sc->vm, vcpu);
+		vm_inject_ud(svm_sc->vm, vcpuid);
 		handled = 1;
 		break;
 	case VMCB_EXIT_INVD:
@@ -1561,11 +1576,11 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		handled = 1;
 		break;
 	default:
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
+		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_UNKNOWN, 1);
 		break;
 	}	
 
-	VCPU_CTR4(svm_sc->vm, vcpu, "%s %s vmexit at %#lx/%d",
+	VCPU_CTR4(svm_sc->vm, vcpuid, "%s %s vmexit at %#lx/%d",
 	    handled ? "handled" : "unhandled", exit_reason_to_str(code),
 	    vmexit->rip, vmexit->inst_length);
 
@@ -1591,11 +1606,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 }
 
 static void
-svm_inj_intinfo(struct svm_softc *svm_sc, int vcpu)
+svm_inj_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 {
 	uint64_t intinfo;
+	int vcpuid = vcpu->vcpuid;
 
-	if (!vm_entry_intinfo(svm_sc->vm, vcpu, &intinfo))
+	if (!vm_entry_intinfo(svm_sc->vm, vcpuid, &intinfo))
 		return;
 
 	KASSERT(VMCB_EXITINTINFO_VALID(intinfo), ("%s: entry intinfo is not "
@@ -1605,34 +1621,34 @@ svm_inj_intinfo(struct svm_softc *svm_sc, int vcpu)
 		VMCB_EXITINTINFO_VECTOR(intinfo),
 		VMCB_EXITINTINFO_EC(intinfo),
 		VMCB_EXITINTINFO_EC_VALID(intinfo));
-	vmm_stat_incr(svm_sc->vm, vcpu, VCPU_INTINFO_INJECTED, 1);
-	VCPU_CTR1(svm_sc->vm, vcpu, "Injected entry intinfo: %#lx", intinfo);
+	vmm_stat_incr(svm_sc->vm, vcpuid, VCPU_INTINFO_INJECTED, 1);
+	VCPU_CTR1(svm_sc->vm, vcpuid, "Injected entry intinfo: %#lx", intinfo);
 }
 
 /*
  * Inject event to virtual cpu.
  */
 static void
-svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
+svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
+    struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
-	struct svm_vcpu *vcpustate;
 	uint8_t v_tpr;
 	int vector, need_intr_window;
 	int extint_pending;
+	int vcpuid = vcpu->vcpuid;
 
-	state = svm_get_vmcb_state(sc, vcpu);
-	ctrl  = svm_get_vmcb_ctrl(sc, vcpu);
-	vcpustate = svm_get_vcpu(sc, vcpu);
+	state = svm_get_vmcb_state(vcpu);
+	ctrl  = svm_get_vmcb_ctrl(vcpu);
 
 	need_intr_window = 0;
 
-	if (vcpustate->nextrip != state->rip) {
+	if (vcpu->nextrip != state->rip) {
 		ctrl->intr_shadow = 0;
-		VCPU_CTR2(sc->vm, vcpu, "Guest interrupt blocking "
+		VCPU_CTR2(sc->vm, vcpuid, "Guest interrupt blocking "
 		    "cleared due to rip change: %#lx/%#lx",
-		    vcpustate->nextrip, state->rip);
+		    vcpu->nextrip, state->rip);
 	}
 
 	/*
@@ -1647,19 +1663,19 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 	svm_inj_intinfo(sc, vcpu);
 
 	/* NMI event has priority over interrupts. */
-	if (vm_nmi_pending(sc->vm, vcpu)) {
+	if (vm_nmi_pending(sc->vm, vcpuid)) {
 		if (nmi_blocked(sc, vcpu)) {
 			/*
 			 * Can't inject another NMI if the guest has not
 			 * yet executed an "iret" after the last NMI.
 			 */
-			VCPU_CTR0(sc->vm, vcpu, "Cannot inject NMI due "
+			VCPU_CTR0(sc->vm, vcpuid, "Cannot inject NMI due "
 			    "to NMI-blocking");
 		} else if (ctrl->intr_shadow) {
 			/*
 			 * Can't inject an NMI if the vcpu is in an intr_shadow.
 			 */
-			VCPU_CTR0(sc->vm, vcpu, "Cannot inject NMI due to "
+			VCPU_CTR0(sc->vm, vcpuid, "Cannot inject NMI due to "
 			    "interrupt shadow");
 			need_intr_window = 1;
 			goto done;
@@ -1668,7 +1684,7 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 			 * If there is already an exception/interrupt pending
 			 * then defer the NMI until after that.
 			 */
-			VCPU_CTR1(sc->vm, vcpu, "Cannot inject NMI due to "
+			VCPU_CTR1(sc->vm, vcpuid, "Cannot inject NMI due to "
 			    "eventinj %#lx", ctrl->eventinj);
 
 			/*
@@ -1683,7 +1699,7 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 			 */
 			ipi_cpu(curcpu, IPI_AST);	/* XXX vmm_ipinum? */
 		} else {
-			vm_nmi_clear(sc->vm, vcpu);
+			vm_nmi_clear(sc->vm, vcpuid);
 
 			/* Inject NMI, vector number is not used */
 			svm_eventinject(sc, vcpu, VMCB_EVENTINJ_TYPE_NMI,
@@ -1692,11 +1708,11 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 			/* virtual NMI blocking is now in effect */
 			enable_nmi_blocking(sc, vcpu);
 
-			VCPU_CTR0(sc->vm, vcpu, "Injecting vNMI");
+			VCPU_CTR0(sc->vm, vcpuid, "Injecting vNMI");
 		}
 	}
 
-	extint_pending = vm_extint_pending(sc->vm, vcpu);
+	extint_pending = vm_extint_pending(sc->vm, vcpuid);
 	if (!extint_pending) {
 		if (!vlapic_pending_intr(vlapic, &vector))
 			goto done;
@@ -1714,21 +1730,21 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 	 * then we cannot inject the pending interrupt.
 	 */
 	if ((state->rflags & PSL_I) == 0) {
-		VCPU_CTR2(sc->vm, vcpu, "Cannot inject vector %d due to "
+		VCPU_CTR2(sc->vm, vcpuid, "Cannot inject vector %d due to "
 		    "rflags %#lx", vector, state->rflags);
 		need_intr_window = 1;
 		goto done;
 	}
 
 	if (ctrl->intr_shadow) {
-		VCPU_CTR1(sc->vm, vcpu, "Cannot inject vector %d due to "
+		VCPU_CTR1(sc->vm, vcpuid, "Cannot inject vector %d due to "
 		    "interrupt shadow", vector);
 		need_intr_window = 1;
 		goto done;
 	}
 
 	if (ctrl->eventinj & VMCB_EVENTINJ_VALID) {
-		VCPU_CTR2(sc->vm, vcpu, "Cannot inject vector %d due to "
+		VCPU_CTR2(sc->vm, vcpuid, "Cannot inject vector %d due to "
 		    "eventinj %#lx", vector, ctrl->eventinj);
 		need_intr_window = 1;
 		goto done;
@@ -1739,7 +1755,7 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 	if (!extint_pending) {
 		vlapic_intr_accepted(vlapic, vector);
 	} else {
-		vm_extint_clear(sc->vm, vcpu);
+		vm_extint_clear(sc->vm, vcpuid);
 		vatpic_intr_accepted(sc->vm, vector);
 	}
 
@@ -1765,10 +1781,10 @@ done:
 	v_tpr = vlapic_get_cr8(vlapic);
 	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
-		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
+		VCPU_CTR2(sc->vm, vcpuid, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
 		ctrl->v_tpr = v_tpr;
-		svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+		svm_set_dirty(vcpu, VMCB_CACHE_TPR);
 	}
 
 	if (need_intr_window) {
@@ -1810,9 +1826,8 @@ restore_host_tss(void)
 }
 
 static void
-svm_pmap_activate(struct svm_softc *sc, int vcpuid, pmap_t pmap)
+svm_pmap_activate(struct svm_softc *sc, struct svm_vcpu *vcpu, pmap_t pmap)
 {
-	struct svm_vcpu *vcpustate;
 	struct vmcb_ctrl *ctrl;
 	long eptgen;
 	int cpu;
@@ -1822,8 +1837,7 @@ svm_pmap_activate(struct svm_softc *sc, int vcpuid, pmap_t pmap)
 	CPU_SET_ATOMIC(cpu, &pmap->pm_active);
 	smr_enter(pmap->pm_eptsmr);
 
-	vcpustate = svm_get_vcpu(sc, vcpuid);
-	ctrl = svm_get_vmcb_ctrl(sc, vcpuid);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
 
 	/*
 	 * The TLB entries associated with the vcpu's ASID are not valid
@@ -1864,9 +1878,9 @@ svm_pmap_activate(struct svm_softc *sc, int vcpuid, pmap_t pmap)
 	eptgen = atomic_load_long(&pmap->pm_eptgen);
 	ctrl->tlb_ctrl = VMCB_TLB_FLUSH_NOTHING;
 
-	if (vcpustate->asid.gen != asid[cpu].gen) {
+	if (vcpu->asid.gen != asid[cpu].gen) {
 		alloc_asid = true;	/* (c) and (d) */
-	} else if (vcpustate->eptgen != eptgen) {
+	} else if (vcpu->eptgen != eptgen) {
 		if (flush_by_asid())
 			ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;	/* (b1) */
 		else
@@ -1894,11 +1908,11 @@ svm_pmap_activate(struct svm_softc *sc, int vcpuid, pmap_t pmap)
 			if (!flush_by_asid())
 				ctrl->tlb_ctrl = VMCB_TLB_FLUSH_ALL;
 		}
-		vcpustate->asid.gen = asid[cpu].gen;
-		vcpustate->asid.num = asid[cpu].num;
+		vcpu->asid.gen = asid[cpu].gen;
+		vcpu->asid.num = asid[cpu].num;
 
-		ctrl->asid = vcpustate->asid.num;
-		svm_set_dirty(sc, vcpuid, VMCB_CACHE_ASID);
+		ctrl->asid = vcpu->asid.num;
+		svm_set_dirty(vcpu, VMCB_CACHE_ASID);
 		/*
 		 * If this cpu supports "flush-by-asid" then the TLB
 		 * was not flushed after the generation bump. The TLB
@@ -1907,11 +1921,11 @@ svm_pmap_activate(struct svm_softc *sc, int vcpuid, pmap_t pmap)
 		if (flush_by_asid())
 			ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;
 	}
-	vcpustate->eptgen = eptgen;
+	vcpu->eptgen = eptgen;
 
 	KASSERT(ctrl->asid != 0, ("Guest ASID must be non-zero"));
-	KASSERT(ctrl->asid == vcpustate->asid.num,
-	    ("ASID mismatch: %u/%u", ctrl->asid, vcpustate->asid.num));
+	KASSERT(ctrl->asid == vcpu->asid.num,
+	    ("ASID mismatch: %u/%u", ctrl->asid, vcpu->asid.num));
 }
 
 static void
@@ -1993,47 +2007,48 @@ svm_dr_leave_guest(struct svm_regctx *gctx)
  * Start vcpu with specified RIP.
  */
 static int
-svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
+svm_run(void *arg, void *vcpui, register_t rip, pmap_t pmap,
 	struct vm_eventinfo *evinfo)
 {
 	struct svm_regctx *gctx;
 	struct svm_softc *svm_sc;
-	struct svm_vcpu *vcpustate;
+	struct svm_vcpu *vcpu;
 	struct vmcb_state *state;
 	struct vmcb_ctrl *ctrl;
 	struct vm_exit *vmexit;
 	struct vlapic *vlapic;
 	struct vm *vm;
 	uint64_t vmcb_pa;
-	int handled;
+	int handled, vcpuid;
 	uint16_t ldt_sel;
 
 	svm_sc = arg;
 	vm = svm_sc->vm;
 
-	vcpustate = svm_get_vcpu(svm_sc, vcpu);
-	state = svm_get_vmcb_state(svm_sc, vcpu);
-	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	vmexit = vm_exitinfo(vm, vcpu);
-	vlapic = vm_lapic(vm, vcpu);
+	vcpu = vcpui;
+	vcpuid = vcpu->vcpuid;
+	state = svm_get_vmcb_state(vcpu);
+	ctrl = svm_get_vmcb_ctrl(vcpu);
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vlapic = vm_lapic(vm, vcpuid);
 
-	gctx = svm_get_guest_regctx(svm_sc, vcpu);
-	vmcb_pa = svm_sc->vcpu[vcpu].vmcb_pa;
+	gctx = svm_get_guest_regctx(vcpu);
+	vmcb_pa = vcpu->vmcb_pa;
 
-	if (vcpustate->lastcpu != curcpu) {
+	if (vcpu->lastcpu != curcpu) {
 		/*
 		 * Force new ASID allocation by invalidating the generation.
 		 */
-		vcpustate->asid.gen = 0;
+		vcpu->asid.gen = 0;
 
 		/*
 		 * Invalidate the VMCB state cache by marking all fields dirty.
 		 */
-		svm_set_dirty(svm_sc, vcpu, 0xffffffff);
+		svm_set_dirty(vcpu, 0xffffffff);
 
 		/*
 		 * XXX
-		 * Setting 'vcpustate->lastcpu' here is bit premature because
+		 * Setting 'vcpu->lastcpu' here is bit premature because
 		 * we may return from this function without actually executing
 		 * the VMRUN  instruction. This could happen if a rendezvous
 		 * or an AST is pending on the first time through the loop.
@@ -2041,8 +2056,8 @@ svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 * This works for now but any new side-effects of vcpu
 		 * migration should take this case into account.
 		 */
-		vcpustate->lastcpu = curcpu;
-		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
+		vcpu->lastcpu = curcpu;
+		vmm_stat_incr(vm, vcpuid, VCPU_MIGRATIONS, 1);
 	}
 
 	svm_msr_guest_enter(svm_sc, vcpu);
@@ -2062,32 +2077,32 @@ svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		if (vcpu_suspended(evinfo)) {
 			enable_gintr();
-			vm_exit_suspended(vm, vcpu, state->rip);
+			vm_exit_suspended(vm, vcpuid, state->rip);
 			break;
 		}
 
 		if (vcpu_rendezvous_pending(evinfo)) {
 			enable_gintr();
-			vm_exit_rendezvous(vm, vcpu, state->rip);
+			vm_exit_rendezvous(vm, vcpuid, state->rip);
 			break;
 		}
 
 		if (vcpu_reqidle(evinfo)) {
 			enable_gintr();
-			vm_exit_reqidle(vm, vcpu, state->rip);
+			vm_exit_reqidle(vm, vcpuid, state->rip);
 			break;
 		}
 
 		/* We are asked to give the cpu by scheduler. */
-		if (vcpu_should_yield(vm, vcpu)) {
+		if (vcpu_should_yield(vm, vcpuid)) {
 			enable_gintr();
-			vm_exit_astpending(vm, vcpu, state->rip);
+			vm_exit_astpending(vm, vcpuid, state->rip);
 			break;
 		}
 
-		if (vcpu_debugged(vm, vcpu)) {
+		if (vcpu_debugged(vm, vcpuid)) {
 			enable_gintr();
-			vm_exit_debug(vm, vcpu, state->rip);
+			vm_exit_debug(vm, vcpuid, state->rip);
 			break;
 		}
 
@@ -2108,12 +2123,12 @@ svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */
 		svm_pmap_activate(svm_sc, vcpu, pmap);
 
-		ctrl->vmcb_clean = vmcb_clean & ~vcpustate->dirty;
-		vcpustate->dirty = 0;
-		VCPU_CTR1(vm, vcpu, "vmcb clean %#x", ctrl->vmcb_clean);
+		ctrl->vmcb_clean = vmcb_clean & ~vcpu->dirty;
+		vcpu->dirty = 0;
+		VCPU_CTR1(vm, vcpuid, "vmcb clean %#x", ctrl->vmcb_clean);
 
 		/* Launch Virtual Machine. */
-		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
+		VCPU_CTR1(vm, vcpuid, "Resume execution at %#lx", state->rip);
 		svm_dr_enter_guest(gctx);
 		svm_launch(vmcb_pa, gctx, get_pcpu());
 		svm_dr_leave_guest(gctx);
@@ -2134,7 +2149,7 @@ svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		enable_gintr();
 
 		/* Update 'nextrip' */
-		vcpustate->nextrip = state->rip;
+		vcpu->nextrip = state->rip;
 
 		/* Handle #VMEXIT and if required return to user space. */
 		handled = svm_vmexit(svm_sc, vcpu, vmexit);
@@ -2146,17 +2161,19 @@ svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 }
 
 static void
+svm_vcpu_cleanup(void *arg, void *vcpui)
+{
+	struct svm_vcpu *vcpu = vcpui;
+
+	free(vcpu->vmcb, M_SVM);
+	free(vcpu, M_SVM);
+}
+
+static void
 svm_cleanup(void *arg)
 {
 	struct svm_softc *sc = arg;
-	struct svm_vcpu *vcpu;
-	uint16_t i, maxcpus;
 
-	maxcpus = vm_get_maxcpus(sc->vm);
-	for (i = 0; i < maxcpus; i++) {
-		vcpu = svm_get_vcpu(sc, i);
-		free(vcpu->vmcb, M_SVM);
-	}
 	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
 	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
 	free(sc, M_SVM);
@@ -2209,12 +2226,14 @@ swctx_regptr(struct svm_regctx *regctx, int reg)
 }
 
 static int
-svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
+svm_getreg(void *arg, void *vcpui, int ident, uint64_t *val)
 {
 	struct svm_softc *svm_sc;
+	struct svm_vcpu *vcpu;
 	register_t *reg;
 
 	svm_sc = arg;
+	vcpu = vcpui;
 
 	if (ident == VM_REG_GUEST_INTR_SHADOW) {
 		return (svm_get_intr_shadow(svm_sc, vcpu, val));
@@ -2224,24 +2243,27 @@ svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
 		return (0);
 	}
 
-	reg = swctx_regptr(svm_get_guest_regctx(svm_sc, vcpu), ident);
+	reg = swctx_regptr(svm_get_guest_regctx(vcpu), ident);
 
 	if (reg != NULL) {
 		*val = *reg;
 		return (0);
 	}
 
-	VCPU_CTR1(svm_sc->vm, vcpu, "svm_getreg: unknown register %#x", ident);
+	VCPU_CTR1(svm_sc->vm, vcpu->vcpuid, "svm_getreg: unknown register %#x",
+	    ident);
 	return (EINVAL);
 }
 
 static int
-svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
+svm_setreg(void *arg, void *vcpui, int ident, uint64_t val)
 {
 	struct svm_softc *svm_sc;
+	struct svm_vcpu *vcpu;
 	register_t *reg;
 
 	svm_sc = arg;
+	vcpu = vcpui;
 
 	if (ident == VM_REG_GUEST_INTR_SHADOW) {
 		return (svm_modify_intr_shadow(svm_sc, vcpu, val));
@@ -2254,7 +2276,7 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 		}
 	}
 
-	reg = swctx_regptr(svm_get_guest_regctx(svm_sc, vcpu), ident);
+	reg = swctx_regptr(svm_get_guest_regctx(vcpu), ident);
 
 	if (reg != NULL) {
 		*reg = val;
@@ -2272,32 +2294,33 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 	 * whether 'running' is true/false.
 	 */
 
-	VCPU_CTR1(svm_sc->vm, vcpu, "svm_setreg: unknown register %#x", ident);
+	VCPU_CTR1(svm_sc->vm, vcpu->vcpuid, "svm_setreg: unknown register %#x",
+	    ident);
 	return (EINVAL);
 }
 
 static int
-svm_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
+svm_getdesc(void *arg, void *vcpui, int reg, struct seg_desc *desc)
 {
-	return (vmcb_getdesc(arg, vcpu, reg, desc));
+	return (vmcb_getdesc(arg, vcpui, reg, desc));
 }
 
 static int
-svm_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
+svm_setdesc(void *arg, void *vcpui, int reg, struct seg_desc *desc)
 {
-	return (vmcb_setdesc(arg, vcpu, reg, desc));
+	return (vmcb_setdesc(arg, vcpui, reg, desc));
 }
 
 #ifdef BHYVE_SNAPSHOT
 static int
-svm_snapshot_reg(void *arg, int vcpu, int ident,
+svm_snapshot_reg(void *arg, void *vcpui, int ident,
 		 struct vm_snapshot_meta *meta)
 {
 	int ret;
 	uint64_t val;
 
 	if (meta->op == VM_SNAPSHOT_SAVE) {
-		ret = svm_getreg(arg, vcpu, ident, &val);
+		ret = svm_getreg(arg, vcpui, ident, &val);
 		if (ret != 0)
 			goto done;
 
@@ -2305,7 +2328,7 @@ svm_snapshot_reg(void *arg, int vcpu, int ident,
 	} else if (meta->op == VM_SNAPSHOT_RESTORE) {
 		SNAPSHOT_VAR_OR_LEAVE(val, meta, ret, done);
 
-		ret = svm_setreg(arg, vcpu, ident, val);
+		ret = svm_setreg(arg, vcpui, ident, val);
 		if (ret != 0)
 			goto done;
 	} else {
@@ -2319,13 +2342,15 @@ done:
 #endif
 
 static int
-svm_setcap(void *arg, int vcpu, int type, int val)
+svm_setcap(void *arg, void *vcpui, int type, int val)
 {
 	struct svm_softc *sc;
+	struct svm_vcpu *vcpu;
 	struct vlapic *vlapic;
 	int error;
 
 	sc = arg;
+	vcpu = vcpui;
 	error = 0;
 	switch (type) {
 	case VM_CAP_HALT_EXIT:
@@ -2342,7 +2367,7 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 			error = EINVAL;
 		break;
 	case VM_CAP_IPI_EXIT:
-		vlapic = vm_lapic(sc->vm, vcpu);
+		vlapic = vm_lapic(sc->vm, vcpu->vcpuid);
 		vlapic->ipi_exit = val;
 		break;
 	default:
@@ -2353,13 +2378,15 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 }
 
 static int
-svm_getcap(void *arg, int vcpu, int type, int *retval)
+svm_getcap(void *arg, void *vcpui, int type, int *retval)
 {
 	struct svm_softc *sc;
+	struct svm_vcpu *vcpu;
 	struct vlapic *vlapic;
 	int error;
 
 	sc = arg;
+	vcpu = vcpui;
 	error = 0;
 
 	switch (type) {
@@ -2375,7 +2402,7 @@ svm_getcap(void *arg, int vcpu, int type, int *retval)
 		*retval = 1;	/* unrestricted guest is always enabled */
 		break;
 	case VM_CAP_IPI_EXIT:
-		vlapic = vm_lapic(sc->vm, vcpu);
+		vlapic = vm_lapic(sc->vm, vcpu->vcpuid);
 		*retval = vlapic->ipi_exit;
 		break;
 	default:
@@ -2398,15 +2425,17 @@ svm_vmspace_free(struct vmspace *vmspace)
 }
 
 static struct vlapic *
-svm_vlapic_init(void *arg, int vcpuid)
+svm_vlapic_init(void *arg, void *vcpui)
 {
 	struct svm_softc *svm_sc;
+	struct svm_vcpu *vcpu;
 	struct vlapic *vlapic;
 
 	svm_sc = arg;
+	vcpu = vcpui;
 	vlapic = malloc(sizeof(struct vlapic), M_SVM_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = svm_sc->vm;
-	vlapic->vcpuid = vcpuid;
+	vlapic->vcpuid = vcpu->vcpuid;
 	vlapic->apic_page = malloc_aligned(PAGE_SIZE, PAGE_SIZE, M_SVM_VLAPIC,
 	    M_WAITOK | M_ZERO);
 
@@ -2435,163 +2464,163 @@ svm_snapshot(void *arg, struct vm_snapshot_meta *meta)
 }
 
 static int
-svm_vcpu_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpuid)
+svm_vcpu_snapshot(void *arg, struct vm_snapshot_meta *meta, void *vcpui)
 {
 	struct svm_softc *sc;
 	struct svm_vcpu *vcpu;
 	int err, running, hostcpu;
 
 	sc = (struct svm_softc *)arg;
-	vcpu = &sc->vcpu[vcpuid];
+	vcpu = vcpui;
 	err = 0;
 
 	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
 
-	running = vcpu_is_running(sc->vm, vcpuid, &hostcpu);
+	running = vcpu_is_running(sc->vm, vcpu->vcpuid, &hostcpu);
 	if (running && hostcpu != curcpu) {
 		printf("%s: %s%d is running", __func__, vm_name(sc->vm),
-		    vcpuid);
+		    vcpu->vcpuid);
 		return (EINVAL);
 	}
 
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_CR0, meta);
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_CR2, meta);
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_CR3, meta);
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_CR4, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_CR0, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_CR2, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_CR3, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_CR4, meta);
 
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_DR6, meta);
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_DR7, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_DR6, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_DR7, meta);
 
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_RAX, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_RAX, meta);
 
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_RSP, meta);
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_RIP, meta);
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_RFLAGS, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_RSP, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_RIP, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_RFLAGS, meta);
 
 	/* Guest segments */
 	/* ES */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_ES, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_ES, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_ES, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_ES, meta);
 
 	/* CS */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_CS, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_CS, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_CS, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_CS, meta);
 
 	/* SS */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_SS, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_SS, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_SS, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_SS, meta);
 
 	/* DS */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_DS, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_DS, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_DS, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_DS, meta);
 
 	/* FS */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_FS, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_FS, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_FS, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_FS, meta);
 
 	/* GS */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_GS, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_GS, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_GS, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_GS, meta);
 
 	/* TR */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_TR, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_TR, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_TR, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_TR, meta);
 
 	/* LDTR */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_LDTR, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_LDTR, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_LDTR, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_LDTR, meta);
 
 	/* EFER */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_EFER, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_EFER, meta);
 
 	/* IDTR and GDTR */
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_IDTR, meta);
-	err += vmcb_snapshot_desc(sc, vcpuid, VM_REG_GUEST_GDTR, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_IDTR, meta);
+	err += vmcb_snapshot_desc(sc, vcpu, VM_REG_GUEST_GDTR, meta);
 
 	/* Specific AMD registers */
-	err += svm_snapshot_reg(sc, vcpuid, VM_REG_GUEST_INTR_SHADOW, meta);
+	err += svm_snapshot_reg(sc, vcpu, VM_REG_GUEST_INTR_SHADOW, meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_CR_INTERCEPT, 4), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_DR_INTERCEPT, 4), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_EXC_INTERCEPT, 4), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_INST1_INTERCEPT, 4), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_INST2_INTERCEPT, 4), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_PAUSE_FILTHRESH, 2), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_PAUSE_FILCNT, 2), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_ASID, 4), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_TLB_CTRL, 4), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_VIRQ, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_EXIT_REASON, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_EXITINFO1, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_EXITINFO2, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_EXITINTINFO, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_NP_ENABLE, 1), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_AVIC_BAR, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_AVIC_PAGE, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_AVIC_LT, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_AVIC_PT, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_CPL, 1), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_STAR, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_LSTAR, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_CSTAR, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SFMASK, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_KERNELGBASE, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_CS, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_ESP, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_SYSENTER_EIP, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_GUEST_PAT, 8), meta);
 
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_DBGCTL, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_BR_FROM, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_BR_TO, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_INT_FROM, 8), meta);
-	err += vmcb_snapshot_any(sc, vcpuid,
+	err += vmcb_snapshot_any(sc, vcpu,
 				VMCB_ACCESS(VMCB_OFF_INT_TO, 8), meta);
 	if (err != 0)
 		goto done;
@@ -2633,17 +2662,18 @@ svm_vcpu_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpuid)
 
 	/* Set all caches dirty */
 	if (meta->op == VM_SNAPSHOT_RESTORE)
-		svm_set_dirty(sc, vcpuid, 0xffffffff);
+		svm_set_dirty(vcpu, 0xffffffff);
+
 done:
 	return (err);
 }
 
 static int
-svm_restore_tsc(void *arg, int vcpu, uint64_t offset)
+svm_restore_tsc(void *arg, void *vcpui, uint64_t offset)
 {
 	int err;
 
-	err = svm_set_tsc_offset(arg, vcpu, offset);
+	err = svm_set_tsc_offset(arg, vcpui, offset);
 
 	return (err);
 }
@@ -2656,6 +2686,8 @@ const struct vmm_ops vmm_ops_amd = {
 	.init		= svm_init,
 	.run		= svm_run,
 	.cleanup	= svm_cleanup,
+	.vcpu_init	= svm_vcpu_init,
+	.vcpu_cleanup	= svm_vcpu_cleanup,
 	.getreg		= svm_getreg,
 	.setreg		= svm_setreg,
 	.getdesc	= svm_getdesc,

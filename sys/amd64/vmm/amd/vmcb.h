@@ -234,6 +234,7 @@
 #ifdef _KERNEL
 
 struct svm_softc;
+struct svm_vcpu;
 struct vm_snapshot_meta;
 
 /* VMCB save state area segment format */
@@ -353,17 +354,23 @@ struct vmcb {
 CTASSERT(sizeof(struct vmcb) == PAGE_SIZE);
 CTASSERT(offsetof(struct vmcb, state) == 0x400);
 
-int	vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval);
-int	vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
-int	vmcb_setdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
-int	vmcb_getdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
+int	vmcb_read(struct svm_softc *sc, struct svm_vcpu *vcpu, int ident,
+    uint64_t *retval);
+int	vmcb_write(struct svm_softc *sc, struct svm_vcpu *vcpu, int ident,
+    uint64_t val);
+int	vmcb_setdesc(struct svm_softc *sc, struct svm_vcpu *vcpu, int ident,
+    struct seg_desc *desc);
+int	vmcb_getdesc(struct svm_softc *sc, struct svm_vcpu *vcpu, int ident,
+    struct seg_desc *desc);
 int	vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg);
 #ifdef BHYVE_SNAPSHOT
-int	vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val);
-int	vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
-int	vmcb_snapshot_desc(void *arg, int vcpu, int reg,
+int	vmcb_getany(struct svm_softc *sc, struct svm_vcpu *vcpu, int ident,
+    uint64_t *val);
+int	vmcb_setany(struct svm_softc *sc, struct svm_vcpu *vcpu, int ident,
+    uint64_t val);
+int	vmcb_snapshot_desc(struct svm_softc *sc, struct svm_vcpu *vcpu, int reg,
 			   struct vm_snapshot_meta *meta);
-int	vmcb_snapshot_any(struct svm_softc *sc, int vcpu, int ident,
+int	vmcb_snapshot_any(struct svm_softc *sc, struct svm_vcpu*vcpu, int ident,
 			  struct vm_snapshot_meta *meta);
 #endif
 

@@ -51,62 +51,52 @@ struct svm_vcpu {
 	long		eptgen;	 /* pmap->pm_eptgen when the vcpu last ran */
 	struct asid	asid;
 	struct vm_mtrr  mtrr;
+	int		vcpuid;
 };
 
 /*
  * SVM softc, one per virtual machine.
  */
 struct svm_softc {
-	struct svm_vcpu vcpu[VM_MAXCPU];
-	vm_offset_t 	nptp;			    /* nested page table */
+	vm_paddr_t 	nptp;			    /* nested page table */
 	uint8_t		*iopm_bitmap;    /* shared by all vcpus */
 	uint8_t		*msr_bitmap;    /* shared by all vcpus */
 	struct vm	*vm;
 };
 
-static __inline struct svm_vcpu *
-svm_get_vcpu(struct svm_softc *sc, int vcpu)
-{
-
-	return (&(sc->vcpu[vcpu]));
-}
-
 static __inline struct vmcb *
-svm_get_vmcb(struct svm_softc *sc, int vcpu)
+svm_get_vmcb(struct svm_vcpu *vcpu)
 {
 
-	return ((sc->vcpu[vcpu].vmcb));
+	return (vcpu->vmcb);
 }
 
 static __inline struct vmcb_state *
-svm_get_vmcb_state(struct svm_softc *sc, int vcpu)
+svm_get_vmcb_state(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb->state));
+	return (&vcpu->vmcb->state);
 }
 
 static __inline struct vmcb_ctrl *
-svm_get_vmcb_ctrl(struct svm_softc *sc, int vcpu)
+svm_get_vmcb_ctrl(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb->ctrl));
+	return (&vcpu->vmcb->ctrl);
 }
 
 static __inline struct svm_regctx *
-svm_get_guest_regctx(struct svm_softc *sc, int vcpu)
+svm_get_guest_regctx(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].swctx));
+	return (&vcpu->swctx);
 }
 
 static __inline void
-svm_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
+svm_set_dirty(struct svm_vcpu *vcpu, uint32_t dirtybits)
 {
-        struct svm_vcpu *vcpustate;
 
-        vcpustate = svm_get_vcpu(sc, vcpu);
-
-        vcpustate->dirty |= dirtybits;
+        vcpu->dirty |= dirtybits;
 }
 
 #endif /* _SVM_SOFTC_H_ */
