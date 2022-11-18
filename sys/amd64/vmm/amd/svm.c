@@ -609,13 +609,14 @@ svm_init(struct vm *vm, pmap_t pmap)
 }
 
 static void *
-svm_vcpu_init(void *vmi, int vcpuid)
+svm_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 {
 	struct svm_softc *sc = vmi;
 	struct svm_vcpu *vcpu;
 
 	vcpu = malloc(sizeof(*vcpu), M_SVM, M_WAITOK | M_ZERO);
 	vcpu->sc = sc;
+	vcpu->vcpu = vcpu1;
 	vcpu->vcpuid = vcpuid;
 	vcpu->vmcb = malloc_aligned(sizeof(struct vmcb), PAGE_SIZE, M_SVM,
 	    M_WAITOK | M_ZERO);
@@ -2409,6 +2410,7 @@ svm_vlapic_init(void *vcpui)
 	vcpu = vcpui;
 	vlapic = malloc(sizeof(struct vlapic), M_SVM_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = vcpu->sc->vm;
+	vlapic->vcpu = vcpu->vcpu;
 	vlapic->vcpuid = vcpu->vcpuid;
 	vlapic->apic_page = malloc_aligned(PAGE_SIZE, PAGE_SIZE, M_SVM_VLAPIC,
 	    M_WAITOK | M_ZERO);

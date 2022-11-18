@@ -45,6 +45,7 @@ struct asid {
 
 struct svm_vcpu {
 	struct svm_softc *sc;
+	struct vcpu	*vcpu;
 	struct vmcb	*vmcb;	 /* hardware saved vcpu context */
 	struct svm_regctx swctx; /* software saved vcpu context */
 	uint64_t	vmcb_pa; /* VMCB physical address */

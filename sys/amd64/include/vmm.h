@@ -143,6 +143,7 @@ enum x2apic_state {
 #ifdef _KERNEL
 CTASSERT(VM_MAX_NAMELEN >= VM_MIN_NAMELEN);
 
+struct vcpu;
 struct vm;
 struct vm_exception;
 struct seg_desc;
@@ -170,7 +171,8 @@ typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vcpui, register_t rip,
 		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef void *	(*vmi_vcpu_init_func_t)(void *vmi, int vcpu_id);
+typedef void *	(*vmi_vcpu_init_func_t)(void *vmi, struct vcpu *vcpu,
+		    int vcpu_id);
 typedef void	(*vmi_vcpu_cleanup_func_t)(void *vcpui);
 typedef int	(*vmi_get_register_t)(void *vcpui, int num, uint64_t *retval);
 typedef int	(*vmi_set_register_t)(void *vcpui, int num, uint64_t val);
@@ -268,6 +270,9 @@ void vm_nmi_clear(struct vm *vm, int vcpuid);
 int vm_inject_extint(struct vm *vm, int vcpu);
 int vm_extint_pending(struct vm *vm, int vcpuid);
 void vm_extint_clear(struct vm *vm, int vcpuid);
+int vcpu_vcpuid(struct vcpu *vcpu);
+struct vm *vcpu_vm(struct vcpu *vcpu);
+struct vcpu *vm_vcpu(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);

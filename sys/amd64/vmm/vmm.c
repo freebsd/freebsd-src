@@ -104,8 +104,10 @@ struct vlapic;
 struct vcpu {
 	struct mtx 	mtx;		/* (o) protects 'state' and 'hostcpu' */
 	enum vcpu_state	state;		/* (o) vcpu state */
+	int		vcpuid;		/* (o) */
 	int		hostcpu;	/* (o) vcpu's host cpu */
 	int		reqidle;	/* (i) request vcpu to idle */
+	struct vm	*vm;		/* (o) */
 	void		*cookie;	/* (i) cpu-specific data */
 	struct vlapic	*vlapic;	/* (i) APIC device model */
 	enum x2apic_state x2apic_state;	/* (i) APIC mode */
@@ -184,6 +186,21 @@ struct vm {
 	uint16_t	maxcpus;		/* (o) max pluggable cpus */
 };
 
+#define	VMM_CTR0(vcpu, format)						\
+	VCPU_CTR0((vcpu)->vm, (vcpu)->vcpuid, format)
+
+#define	VMM_CTR1(vcpu, format, p1)					\
+	VCPU_CTR1((vcpu)->vm, (vcpu)->vcpuid, format, p1)
+
+#define	VMM_CTR2(vcpu, format, p1, p2)					\
+	VCPU_CTR2((vcpu)->vm, (vcpu)->vcpuid, format, p1, p2)
+
+#define	VMM_CTR3(vcpu, format, p1, p2, p3)				\
+	VCPU_CTR3((vcpu)->vm, (vcpu)->vcpuid, format, p1, p2, p3)
+
+#define	VMM_CTR4(vcpu, format, p1, p2, p3, p4)				\
+	VCPU_CTR4((vcpu)->vm, (vcpu)->vcpuid, format, p1, p2, p3, p4)
+
 static int vmm_initialized;
 
 static void	vmmops_panic(void);
@@ -212,7 +229,8 @@ DEFINE_VMMOPS_IFUNC(void *, init, (struct vm *vm, struct pmap *pmap))
 DEFINE_VMMOPS_IFUNC(int, run, (void *vcpui, register_t rip, struct pmap *pmap,
     struct vm_eventinfo *info))
 DEFINE_VMMOPS_IFUNC(void, cleanup, (void *vmi))
-DEFINE_VMMOPS_IFUNC(void *, vcpu_init, (void *vmi, int vcpu_id))
+DEFINE_VMMOPS_IFUNC(void *, vcpu_init, (void *vmi, struct vcpu *vcpu,
+    int vcpu_id))
 DEFINE_VMMOPS_IFUNC(void, vcpu_cleanup, (void *vcpui))
 DEFINE_VMMOPS_IFUNC(int, getreg, (void *vcpui, int num, uint64_t *retval))
 DEFINE_VMMOPS_IFUNC(int, setreg, (void *vcpui, int num, uint64_t val))
@@ -327,12 +345,14 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 		vcpu_lock_init(vcpu);
 		vcpu->state = VCPU_IDLE;
 		vcpu->hostcpu = NOCPU;
+		vcpu->vcpuid = vcpu_id;
+		vcpu->vm = vm;
 		vcpu->guestfpu = fpu_save_area_alloc();
 		vcpu->stats = vmm_stat_alloc();
 		vcpu->tsc_offset = 0;
 	}
 
-	vcpu->cookie = vmmops_vcpu_init(vm->cookie, vcpu_id);
+	vcpu->cookie = vmmops_vcpu_init(vm->cookie, vcpu, vcpu_id);
 	vcpu->vlapic = vmmops_vlapic_init(vcpu->cookie);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
 	vcpu->reqidle = 0;
@@ -2298,6 +2318,24 @@ vm_set_capability(struct vm *vm, int vcpu, int type, int val)
 		return (EINVAL);
 
 	return (vmmops_setcap(vcpu_cookie(vm, vcpu), type, val));
+}
+
+struct vm *
+vcpu_vm(struct vcpu *vcpu)
+{
+	return (vcpu->vm);
+}
+
+int
+vcpu_vcpuid(struct vcpu *vcpu)
+{
+	return (vcpu->vcpuid);
+}
+
+struct vcpu *
+vm_vcpu(struct vm *vm, int vcpuid)
+{
+	return (&vm->vcpu[vcpuid]);
 }
 
 struct vlapic *
