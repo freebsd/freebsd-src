@@ -231,6 +231,9 @@ int vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
 /*
  * APIs that modify the guest memory map require all vcpus to be frozen.
  */
+void vm_slock_memsegs(struct vm *vm);
+void vm_xlock_memsegs(struct vm *vm);
+void vm_unlock_memsegs(struct vm *vm);
 int vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t off,
     size_t len, int prot, int flags);
 int vm_munmap_memseg(struct vm *vm, vm_paddr_t gpa, size_t len);
