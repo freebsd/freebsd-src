@@ -264,14 +264,14 @@ int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
 int vm_get_seg_desc(struct vcpu *vcpu, int reg,
 		    struct seg_desc *ret_desc);
-int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
+int vm_set_seg_desc(struct vcpu *vcpu, int reg,
 		    struct seg_desc *desc);
-int vm_run(struct vm *vm, struct vm_run *vmrun);
+int vm_run(struct vcpu *vcpu, struct vm_exit *vme_user);
 int vm_suspend(struct vm *vm, enum vm_suspend_how how);
-int vm_inject_nmi(struct vm *vm, int vcpu);
+int vm_inject_nmi(struct vcpu *vcpu);
 int vm_nmi_pending(struct vcpu *vcpu);
 void vm_nmi_clear(struct vcpu *vcpu);
-int vm_inject_extint(struct vm *vm, int vcpu);
+int vm_inject_extint(struct vcpu *vcpu);
 int vm_extint_pending(struct vcpu *vcpu);
 void vm_extint_clear(struct vcpu *vcpu);
 int vcpu_vcpuid(struct vcpu *vcpu);
@@ -280,14 +280,14 @@ struct vcpu *vm_vcpu(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vcpu *vcpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);
-int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
-int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
-int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
-int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
+int vm_get_capability(struct vcpu *vcpu, int type, int *val);
+int vm_set_capability(struct vcpu *vcpu, int type, int val);
+int vm_get_x2apic_state(struct vcpu *vcpu, enum x2apic_state *state);
+int vm_set_x2apic_state(struct vcpu *vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
-int vm_activate_cpu(struct vm *vm, int vcpu);
-int vm_suspend_cpu(struct vm *vm, int vcpu);
-int vm_resume_cpu(struct vm *vm, int vcpu);
+int vm_activate_cpu(struct vcpu *vcpu);
+int vm_suspend_cpu(struct vm *vm, struct vcpu *vcpu);
+int vm_resume_cpu(struct vm *vm, struct vcpu *vcpu);
 int vm_restart_instruction(struct vcpu *vcpu);
 struct vm_exit *vm_exitinfo(struct vcpu *vcpu);
 void vm_exit_suspended(struct vcpu *vcpu, uint64_t rip);
@@ -361,8 +361,7 @@ enum vcpu_state {
 	VCPU_SLEEPING,
 };
 
-int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
-    bool from_idle);
+int vcpu_set_state(struct vcpu *vcpu, enum vcpu_state state, bool from_idle);
 enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
 
 static int __inline
@@ -383,7 +382,7 @@ vcpu_should_yield(struct vcpu *vcpu)
 #endif
 
 void *vcpu_stats(struct vcpu *vcpu);
-void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
+void vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
@@ -429,7 +428,7 @@ int vm_exit_intinfo(struct vcpu *vcpu, uint64_t intinfo);
  */
 int vm_entry_intinfo(struct vcpu *vcpu, uint64_t *info);
 
-int vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2);
+int vm_get_intinfo(struct vcpu *vcpu, uint64_t *info1, uint64_t *info2);
 
 /*
  * Function used to keep track of the guest's TSC offset. The
