@@ -238,6 +238,7 @@ int	vm_debug_cpus(struct vmctx *ctx, cpuset_t *cpus);
 int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
 int	vm_suspend_cpu(struct vmctx *ctx, int vcpu);
 int	vm_resume_cpu(struct vmctx *ctx, int vcpu);
+int	vm_restart_instruction(struct vmctx *vmctx, int vcpu);
 
 /* CPU topology */
 int	vm_set_topology(struct vmctx *ctx, uint16_t sockets, uint16_t cores,

@@ -423,7 +423,7 @@ vmx_rdmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t *val,
 	case MSR_MTRR64kBase:
 	case MSR_MTRRVarBase ... MSR_MTRRVarBase + (VMM_MTRR_VAR_MAX * 2) - 1:
 		if (vm_rdmtrr(&vcpu->mtrr, num, val) != 0) {
-			vm_inject_gp(vmx->vm, vcpu->vcpuid);
+			vm_inject_gp(vcpu->vcpu);
 		}
 		break;
 	case MSR_IA32_MISC_ENABLE:
@@ -466,7 +466,7 @@ vmx_wrmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t val,
 	case MSR_MTRR64kBase:
 	case MSR_MTRRVarBase ... MSR_MTRRVarBase + (VMM_MTRR_VAR_MAX * 2) - 1:
 		if (vm_wrmtrr(&vcpu->mtrr, num, val) != 0) {
-			vm_inject_gp(vmx->vm, vcpu->vcpuid);
+			vm_inject_gp(vcpu->vcpu);
 		}
 		break;
 	case MSR_IA32_MISC_ENABLE:
@@ -493,7 +493,7 @@ vmx_wrmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t val,
 		if (pat_valid(val))
 			vcpu->guest_msrs[IDX_MSR_PAT] = val;
 		else
-			vm_inject_gp(vmx->vm, vcpu->vcpuid);
+			vm_inject_gp(vcpu->vcpu);
 		break;
 	case MSR_TSC:
 		error = vmx_set_tsc_offset(vmx, vcpu, val - rdtsc());
@@ -507,7 +507,7 @@ vmx_wrmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t val,
 			 */
 			vcpu->guest_msrs[IDX_MSR_TSC_AUX] = val;
 		else
-			vm_inject_gp(vmx->vm, vcpu->vcpuid);
+			vm_inject_gp(vcpu->vcpu);
 		break;
 	default:
 		error = EINVAL;
