@@ -10,6 +10,9 @@
 #ifndef XZ_CONFIG_H
 #define XZ_CONFIG_H
 
+/* Uncomment to enable building of xz_dec_catrun(). */
+/* #define XZ_DEC_CONCATENATED */
+
 /* Uncomment to enable CRC64 support. */
 /* #define XZ_USE_CRC64 */
 
