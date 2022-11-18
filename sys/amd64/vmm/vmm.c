@@ -209,32 +209,27 @@ DEFINE_VMMOPS_IFUNC(int, modinit, (int ipinum))
 DEFINE_VMMOPS_IFUNC(int, modcleanup, (void))
 DEFINE_VMMOPS_IFUNC(void, modresume, (void))
 DEFINE_VMMOPS_IFUNC(void *, init, (struct vm *vm, struct pmap *pmap))
-DEFINE_VMMOPS_IFUNC(int, run, (void *vmi, void *vcpui, register_t rip,
-    struct pmap *pmap, struct vm_eventinfo *info))
+DEFINE_VMMOPS_IFUNC(int, run, (void *vcpui, register_t rip, struct pmap *pmap,
+    struct vm_eventinfo *info))
 DEFINE_VMMOPS_IFUNC(void, cleanup, (void *vmi))
 DEFINE_VMMOPS_IFUNC(void *, vcpu_init, (void *vmi, int vcpu_id))
-DEFINE_VMMOPS_IFUNC(void, vcpu_cleanup, (void *vmi, void *vcpui))
-DEFINE_VMMOPS_IFUNC(int, getreg, (void *vmi, void *vcpui, int num,
-    uint64_t *retval))
-DEFINE_VMMOPS_IFUNC(int, setreg, (void *vmi, void *vcpui, int num,
-    uint64_t val))
-DEFINE_VMMOPS_IFUNC(int, getdesc, (void *vmi, void *vcpui, int num,
-    struct seg_desc *desc))
-DEFINE_VMMOPS_IFUNC(int, setdesc, (void *vmi, void *vcpui, int num,
-    struct seg_desc *desc))
-DEFINE_VMMOPS_IFUNC(int, getcap, (void *vmi, void *vcpui, int num, int *retval))
-DEFINE_VMMOPS_IFUNC(int, setcap, (void *vmi, void *vcpui, int num, int val))
+DEFINE_VMMOPS_IFUNC(void, vcpu_cleanup, (void *vcpui))
+DEFINE_VMMOPS_IFUNC(int, getreg, (void *vcpui, int num, uint64_t *retval))
+DEFINE_VMMOPS_IFUNC(int, setreg, (void *vcpui, int num, uint64_t val))
+DEFINE_VMMOPS_IFUNC(int, getdesc, (void *vcpui, int num, struct seg_desc *desc))
+DEFINE_VMMOPS_IFUNC(int, setdesc, (void *vcpui, int num, struct seg_desc *desc))
+DEFINE_VMMOPS_IFUNC(int, getcap, (void *vcpui, int num, int *retval))
+DEFINE_VMMOPS_IFUNC(int, setcap, (void *vcpui, int num, int val))
 DEFINE_VMMOPS_IFUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
     vm_offset_t max))
 DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
-DEFINE_VMMOPS_IFUNC(struct vlapic *, vlapic_init, (void *vmi, void *vcpui))
-DEFINE_VMMOPS_IFUNC(void, vlapic_cleanup, (void *vmi, struct vlapic *vlapic))
+DEFINE_VMMOPS_IFUNC(struct vlapic *, vlapic_init, (void *vcpui))
+DEFINE_VMMOPS_IFUNC(void, vlapic_cleanup, (struct vlapic *vlapic))
 #ifdef BHYVE_SNAPSHOT
-DEFINE_VMMOPS_IFUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta
-    *meta))
-DEFINE_VMMOPS_IFUNC(int, vcpu_snapshot, (void *vmi, struct vm_snapshot_meta
-    *meta, void *vcpui))
-DEFINE_VMMOPS_IFUNC(int, restore_tsc, (void *vmi, void *vcpui, uint64_t now))
+DEFINE_VMMOPS_IFUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta *meta))
+DEFINE_VMMOPS_IFUNC(int, vcpu_snapshot, (void *vcpui,
+    struct vm_snapshot_meta *meta))
+DEFINE_VMMOPS_IFUNC(int, restore_tsc, (void *vcpui, uint64_t now))
 #endif
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
@@ -307,8 +302,8 @@ vcpu_cleanup(struct vm *vm, int i, bool destroy)
 {
 	struct vcpu *vcpu = &vm->vcpu[i];
 
-	vmmops_vlapic_cleanup(vm->cookie, vcpu->vlapic);
-	vmmops_vcpu_cleanup(vm->cookie, vcpu->cookie);
+	vmmops_vlapic_cleanup(vcpu->vlapic);
+	vmmops_vcpu_cleanup(vcpu->cookie);
 	vcpu->cookie = NULL;
 	if (destroy) {
 		vmm_stat_free(vcpu->stats);	
@@ -338,7 +333,7 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 	}
 
 	vcpu->cookie = vmmops_vcpu_init(vm->cookie, vcpu_id);
-	vcpu->vlapic = vmmops_vlapic_init(vm->cookie, vcpu->cookie);
+	vcpu->vlapic = vmmops_vlapic_init(vcpu->cookie);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
 	vcpu->reqidle = 0;
 	vcpu->exitintinfo = 0;
@@ -1082,8 +1077,7 @@ vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval)
 	if (reg >= VM_REG_LAST)
 		return (EINVAL);
 
-	return (vmmops_getreg(vm->cookie, vcpu_cookie(vm, vcpu), reg,
-	    retval));
+	return (vmmops_getreg(vcpu_cookie(vm, vcpu), reg, retval));
 }
 
 int
@@ -1099,7 +1093,7 @@ vm_set_register(struct vm *vm, int vcpuid, int reg, uint64_t val)
 		return (EINVAL);
 
 	vcpu = &vm->vcpu[vcpuid];
-	error = vmmops_setreg(vm->cookie, vcpu->cookie, reg, val);
+	error = vmmops_setreg(vcpu->cookie, reg, val);
 	if (error || reg != VM_REG_GUEST_RIP)
 		return (error);
 
@@ -1152,7 +1146,7 @@ vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 	if (!is_segment_register(reg) && !is_descriptor_table(reg))
 		return (EINVAL);
 
-	return (vmmops_getdesc(vm->cookie, vcpu_cookie(vm, vcpu), reg, desc));
+	return (vmmops_getdesc(vcpu_cookie(vm, vcpu), reg, desc));
 }
 
 int
@@ -1165,7 +1159,7 @@ vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 	if (!is_segment_register(reg) && !is_descriptor_table(reg))
 		return (EINVAL);
 
-	return (vmmops_setdesc(vm->cookie, vcpu_cookie(vm, vcpu), reg, desc));
+	return (vmmops_setdesc(vcpu_cookie(vm, vcpu), reg, desc));
 }
 
 static void
@@ -1785,8 +1779,7 @@ restart:
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
-	error = vmmops_run(vm->cookie, vcpu->cookie, vcpu->nextrip, pmap,
-	    &evinfo);
+	error = vmmops_run(vcpu->cookie, vcpu->nextrip, pmap, &evinfo);
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
@@ -2292,7 +2285,7 @@ vm_get_capability(struct vm *vm, int vcpu, int type, int *retval)
 	if (type < 0 || type >= VM_CAP_MAX)
 		return (EINVAL);
 
-	return (vmmops_getcap(vm->cookie, vcpu_cookie(vm, vcpu), type, retval));
+	return (vmmops_getcap(vcpu_cookie(vm, vcpu), type, retval));
 }
 
 int
@@ -2304,7 +2297,7 @@ vm_set_capability(struct vm *vm, int vcpu, int type, int val)
 	if (type < 0 || type >= VM_CAP_MAX)
 		return (EINVAL);
 
-	return (vmmops_setcap(vm->cookie, vcpu_cookie(vm, vcpu), type, val));
+	return (vmmops_setcap(vcpu_cookie(vm, vcpu), type, val));
 }
 
 struct vlapic *
@@ -2877,7 +2870,7 @@ vm_snapshot_vcpu(struct vm *vm, struct vm_snapshot_meta *meta)
 	for (i = 0; i < maxcpus; i++) {
 		vcpu = &vm->vcpu[i];
 
-		error = vmmops_vcpu_snapshot(vm->cookie, meta, vcpu->cookie);
+		error = vmmops_vcpu_snapshot(vcpu->cookie, meta);
 		if (error != 0) {
 			printf("%s: failed to snapshot vmcs/vmcb data for "
 			       "vCPU: %d; error: %d\n", __func__, i, error);
@@ -2968,7 +2961,7 @@ vm_restore_time(struct vm *vm)
 	for (i = 0; i < maxcpus; i++) {
 		vcpu = &vm->vcpu[i];
 
-		error = vmmops_restore_tsc(vm->cookie, vcpu->cookie,
+		error = vmmops_restore_tsc(vcpu->cookie,
 		    vcpu->tsc_offset - now);
 		if (error)
 			return (error);
