@@ -125,24 +125,16 @@ vmm_priv_check(struct ucred *ucred)
 }
 
 static int
-vcpu_lock_one(struct vmmdev_softc *sc, int vcpu)
+vcpu_lock_one(struct vcpu *vcpu)
 {
-	int error;
-
-	if (vcpu < 0 || vcpu >= vm_get_maxcpus(sc->vm))
-		return (EINVAL);
-
-	error = vcpu_set_state(vm_vcpu(sc->vm, vcpu), VCPU_FROZEN, true);
-	return (error);
+	return (vcpu_set_state(vcpu, VCPU_FROZEN, true));
 }
 
 static void
-vcpu_unlock_one(struct vmmdev_softc *sc, int vcpuid)
+vcpu_unlock_one(struct vmmdev_softc *sc, int vcpuid, struct vcpu *vcpu)
 {
-	struct vcpu *vcpu;
 	enum vcpu_state state;
 
-	vcpu = vm_vcpu(sc->vm, vcpuid);
 	state = vcpu_get_state(vcpu, NULL);
 	if (state != VCPU_FROZEN) {
 		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
@@ -155,19 +147,29 @@ vcpu_unlock_one(struct vmmdev_softc *sc, int vcpuid)
 static int
 vcpu_lock_all(struct vmmdev_softc *sc)
 {
-	int error, vcpu;
-	uint16_t maxcpus;
+	struct vcpu *vcpu;
+	int error;
+	uint16_t i, maxcpus;
 
+	vm_slock_vcpus(sc->vm);
 	maxcpus = vm_get_maxcpus(sc->vm);
-	for (vcpu = 0; vcpu < maxcpus; vcpu++) {
-		error = vcpu_lock_one(sc, vcpu);
+	for (i = 0; i < maxcpus; i++) {
+		vcpu = vm_vcpu(sc->vm, i);
+		if (vcpu == NULL)
+			continue;
+		error = vcpu_lock_one(vcpu);
 		if (error)
 			break;
 	}
 
 	if (error) {
-		while (--vcpu >= 0)
-			vcpu_unlock_one(sc, vcpu);
+		while (--i >= 0) {
+			vcpu = vm_vcpu(sc->vm, i);
+			if (vcpu == NULL)
+				continue;
+			vcpu_unlock_one(sc, i, vcpu);
+		}
+		vm_unlock_vcpus(sc->vm);
 	}
 
 	return (error);
@@ -176,12 +178,17 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 static void
 vcpu_unlock_all(struct vmmdev_softc *sc)
 {
-	int vcpu;
-	uint16_t maxcpus;
+	struct vcpu *vcpu;
+	uint16_t i, maxcpus;
 
 	maxcpus = vm_get_maxcpus(sc->vm);
-	for (vcpu = 0; vcpu < maxcpus; vcpu++)
-		vcpu_unlock_one(sc, vcpu);
+	for (i = 0; i < maxcpus; i++) {
+		vcpu = vm_vcpu(sc->vm, i);
+		if (vcpu == NULL)
+			continue;
+		vcpu_unlock_one(sc, i, vcpu);
+	}
+	vm_unlock_vcpus(sc->vm);
 }
 
 static struct vmmdev_softc *
@@ -363,20 +370,11 @@ vm_set_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
 	return (error);
 }
 
-static struct vcpu *
-lookup_vcpu(struct vm *vm, int vcpuid)
-{
-	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
-		return (NULL);
-
-	return (vm_vcpu(vm, vcpuid));
-}
-
 static int
 vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
-	int error, vcpuid, state_changed, size;
+	int error, vcpuid, size;
 	cpuset_t *cpuset;
 	struct vmmdev_softc *sc;
 	struct vcpu *vcpu;
@@ -414,6 +412,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_readwrite_kernemu_device *kernemu;
 	uint64_t *regvals;
 	int *regnums;
+	enum { NONE, SINGLE, ALL } vcpus_locked;
 	bool memsegs_locked;
 #ifdef BHYVE_SNAPSHOT
 	struct vm_snapshot_meta *snapshot_meta;
@@ -429,7 +428,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 
 	vcpuid = -1;
 	vcpu = NULL;
-	state_changed = 0;
+	vcpus_locked = NONE;
 	memsegs_locked = false;
 
 	/*
@@ -465,11 +464,15 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 * ioctls that can operate only on vcpus that are not running.
 		 */
 		vcpuid = *(int *)data;
-		error = vcpu_lock_one(sc, vcpuid);
+		vcpu = vm_alloc_vcpu(sc->vm, vcpuid);
+		if (vcpu == NULL) {
+			error = EINVAL;
+			goto done;
+		}
+		error = vcpu_lock_one(vcpu);
 		if (error)
 			goto done;
-		state_changed = 1;
-		vcpu = vm_vcpu(sc->vm, vcpuid);
+		vcpus_locked = SINGLE;
 		break;
 
 #ifdef COMPAT_FREEBSD12
@@ -501,7 +504,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vcpu_lock_all(sc);
 		if (error)
 			goto done;
-		state_changed = 2;
+		vcpus_locked = ALL;
 		break;
 
 #ifdef COMPAT_FREEBSD12
@@ -528,7 +531,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 * a specific vCPU.
 		 */
 		vcpuid = *(int *)data;
-		vcpu = lookup_vcpu(sc->vm, vcpuid);
+		vcpu = vm_alloc_vcpu(sc->vm, vcpuid);
 		if (vcpu == NULL) {
 			error = EINVAL;
 			goto done;
@@ -545,7 +548,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vcpuid = *(int *)data;
 		if (vcpuid == -1)
 			break;
-		vcpu = lookup_vcpu(sc->vm, vcpuid);
+		vcpu = vm_alloc_vcpu(sc->vm, vcpuid);
 		if (vcpu == NULL) {
 			error = EINVAL;
 			goto done;
@@ -957,9 +960,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	}
 
-	if (state_changed == 1)
-		vcpu_unlock_one(sc, vcpuid);
-	else if (state_changed == 2)
+	if (vcpus_locked == SINGLE)
+		vcpu_unlock_one(sc, vcpuid, vcpu);
+	else if (vcpus_locked == ALL)
 		vcpu_unlock_all(sc);
 	if (memsegs_locked)
 		vm_unlock_memsegs(sc->vm);
@@ -1041,8 +1044,10 @@ vmmdev_destroy(void *arg)
 	struct devmem_softc *dsc;
 	int error __diagused;
 
+	vm_disable_vcpu_creation(sc->vm);
 	error = vcpu_lock_all(sc);
 	KASSERT(error == 0, ("%s: error %d freezing vcpus", __func__, error));
+	vm_unlock_vcpus(sc->vm);
 
 	while ((dsc = SLIST_FIRST(&sc->devmem)) != NULL) {
 		KASSERT(dsc->cdev == NULL, ("%s: devmem not free", __func__));

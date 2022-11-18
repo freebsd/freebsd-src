@@ -127,7 +127,6 @@ struct vcpu {
 	uint64_t	tsc_offset;	/* (o) TSC offsetting */
 };
 
-#define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock_destroy(v)	mtx_destroy(&((v)->mtx))
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
@@ -175,6 +174,7 @@ struct vm {
 	volatile cpuset_t debug_cpus;		/* (i) vcpus stopped for debug */
 	cpuset_t	startup_cpus;		/* (i) [r] waiting for startup */
 	int		suspend;		/* (i) stop VM execution */
+	bool		dying;			/* (o) is dying */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
 	cpuset_t	rendezvous_req_cpus;	/* (x) [r] rendezvous requested */
@@ -186,13 +186,14 @@ struct vm {
 	struct mem_seg	mem_segs[VM_MAX_MEMSEGS]; /* (o) [m+v] guest memory regions */
 	struct vmspace	*vmspace;		/* (o) guest's address space */
 	char		name[VM_MAX_NAMELEN+1];	/* (o) virtual machine name */
-	struct vcpu	vcpu[VM_MAXCPU];	/* (i) guest vcpus */
+	struct vcpu	*vcpu[VM_MAXCPU];	/* (x) guest vcpus */
 	/* The following describe the vm cpu topology */
 	uint16_t	sockets;		/* (o) num of sockets */
 	uint16_t	cores;			/* (o) num of cores/socket */
 	uint16_t	threads;		/* (o) num of threads/core */
 	uint16_t	maxcpus;		/* (o) max pluggable cpus */
 	struct sx	mem_segs_lock;		/* (o) */
+	struct sx	vcpus_init_lock;	/* (o) */
 };
 
 #define	VMM_CTR0(vcpu, format)						\
@@ -319,10 +320,8 @@ vcpu_state2str(enum vcpu_state state)
 #endif
 
 static void
-vcpu_cleanup(struct vm *vm, int i, bool destroy)
+vcpu_cleanup(struct vcpu *vcpu, bool destroy)
 {
-	struct vcpu *vcpu = &vm->vcpu[i];
-
 	vmmops_vlapic_cleanup(vcpu->vlapic);
 	vmmops_vcpu_cleanup(vcpu->cookie);
 	vcpu->cookie = NULL;
@@ -333,30 +332,30 @@ vcpu_cleanup(struct vm *vm, int i, bool destroy)
 	}
 }
 
-static void
-vcpu_init(struct vm *vm, int vcpu_id, bool create)
+static struct vcpu *
+vcpu_alloc(struct vm *vm, int vcpu_id)
 {
 	struct vcpu *vcpu;
 
 	KASSERT(vcpu_id >= 0 && vcpu_id < vm->maxcpus,
 	    ("vcpu_init: invalid vcpu %d", vcpu_id));
-	  
-	vcpu = &vm->vcpu[vcpu_id];
 
-	if (create) {
-		KASSERT(!vcpu_lock_initialized(vcpu), ("vcpu %d already "
-		    "initialized", vcpu_id));
-		vcpu_lock_init(vcpu);
-		vcpu->state = VCPU_IDLE;
-		vcpu->hostcpu = NOCPU;
-		vcpu->vcpuid = vcpu_id;
-		vcpu->vm = vm;
-		vcpu->guestfpu = fpu_save_area_alloc();
-		vcpu->stats = vmm_stat_alloc();
-		vcpu->tsc_offset = 0;
-	}
+	vcpu = malloc(sizeof(*vcpu), M_VM, M_WAITOK | M_ZERO);
+	vcpu_lock_init(vcpu);
+	vcpu->state = VCPU_IDLE;
+	vcpu->hostcpu = NOCPU;
+	vcpu->vcpuid = vcpu_id;
+	vcpu->vm = vm;
+	vcpu->guestfpu = fpu_save_area_alloc();
+	vcpu->stats = vmm_stat_alloc();
+	vcpu->tsc_offset = 0;
+	return (vcpu);
+}
 
-	vcpu->cookie = vmmops_vcpu_init(vm->cookie, vcpu, vcpu_id);
+static void
+vcpu_init(struct vcpu *vcpu)
+{
+	vcpu->cookie = vmmops_vcpu_init(vcpu->vm->cookie, vcpu, vcpu->vcpuid);
 	vcpu->vlapic = vmmops_vlapic_init(vcpu->cookie);
 	vm_set_x2apic_state(vcpu, X2APIC_DISABLED);
 	vcpu->reqidle = 0;
@@ -473,8 +472,6 @@ MODULE_VERSION(vmm, 1);
 static void
 vm_init(struct vm *vm, bool create)
 {
-	int i;
-
 	vm->cookie = vmmops_init(vm, vmspace_pmap(vm->vmspace));
 	vm->iommu = NULL;
 	vm->vioapic = vioapic_init(vm);
@@ -492,8 +489,61 @@ vm_init(struct vm *vm, bool create)
 	vm->suspend = 0;
 	CPU_ZERO(&vm->suspended_cpus);
 
-	for (i = 0; i < vm->maxcpus; i++)
-		vcpu_init(vm, i, create);
+	if (!create) {
+		for (int i = 0; i < vm->maxcpus; i++) {
+			if (vm->vcpu[i] != NULL)
+				vcpu_init(vm->vcpu[i]);
+		}
+	}
+}
+
+void
+vm_disable_vcpu_creation(struct vm *vm)
+{
+	sx_xlock(&vm->vcpus_init_lock);
+	vm->dying = true;
+	sx_xunlock(&vm->vcpus_init_lock);
+}
+
+struct vcpu *
+vm_alloc_vcpu(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
+		return (NULL);
+
+	vcpu = atomic_load_ptr(&vm->vcpu[vcpuid]);
+	if (__predict_true(vcpu != NULL))
+		return (vcpu);
+
+	sx_xlock(&vm->vcpus_init_lock);
+	vcpu = vm->vcpu[vcpuid];
+	if (vcpu == NULL && !vm->dying) {
+		vcpu = vcpu_alloc(vm, vcpuid);
+		vcpu_init(vcpu);
+
+		/*
+		 * Ensure vCPU is fully created before updating pointer
+		 * to permit unlocked reads above.
+		 */
+		atomic_store_rel_ptr((uintptr_t *)&vm->vcpu[vcpuid],
+		    (uintptr_t)vcpu);
+	}
+	sx_xunlock(&vm->vcpus_init_lock);
+	return (vcpu);
+}
+
+void
+vm_slock_vcpus(struct vm *vm)
+{
+	sx_slock(&vm->vcpus_init_lock);
+}
+
+void
+vm_unlock_vcpus(struct vm *vm)
+{
+	sx_unlock(&vm->vcpus_init_lock);
 }
 
 /*
@@ -528,6 +578,7 @@ vm_create(const char *name, struct vm **retvm)
 	vm->vmspace = vmspace;
 	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
 	sx_init(&vm->mem_segs_lock, "vm mem_segs");
+	sx_init(&vm->vcpus_init_lock, "vm vcpus");
 
 	vm->sockets = 1;
 	vm->cores = cores_per_package;	/* XXX backwards compatibility */
@@ -558,17 +609,14 @@ vm_get_maxcpus(struct vm *vm)
 
 int
 vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
-    uint16_t threads, uint16_t maxcpus)
+    uint16_t threads, uint16_t maxcpus __unused)
 {
-	if (maxcpus != 0)
-		return (EINVAL);	/* XXX remove when supported */
+	/* Ignore maxcpus. */
 	if ((sockets * cores * threads) > vm->maxcpus)
 		return (EINVAL);
-	/* XXX need to check sockets * cores * threads == vCPU, how? */
 	vm->sockets = sockets;
 	vm->cores = cores;
 	vm->threads = threads;
-	vm->maxcpus = VM_MAXCPU;	/* XXX temp to keep code working */
 	return(0);
 }
 
@@ -593,8 +641,10 @@ vm_cleanup(struct vm *vm, bool destroy)
 	vatpic_cleanup(vm->vatpic);
 	vioapic_cleanup(vm->vioapic);
 
-	for (i = 0; i < vm->maxcpus; i++)
-		vcpu_cleanup(vm, i, destroy);
+	for (i = 0; i < vm->maxcpus; i++) {
+		if (vm->vcpu[i] != NULL)
+			vcpu_cleanup(vm->vcpu[i], destroy);
+	}
 
 	vmmops_cleanup(vm->cookie);
 
@@ -619,6 +669,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;
 
+		sx_destroy(&vm->vcpus_init_lock);
 		sx_destroy(&vm->mem_segs_lock);
 		mtx_destroy(&vm->rendezvous_mtx);
 	}
@@ -2250,7 +2301,7 @@ vcpu_vcpuid(struct vcpu *vcpu)
 struct vcpu *
 vm_vcpu(struct vm *vm, int vcpuid)
 {
-	return (&vm->vcpu[vcpuid]);
+	return (vm->vcpu[vcpuid]);
 }
 
 struct vlapic *
@@ -2761,7 +2812,9 @@ vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
 	now = rdtsc();
 	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vcpu = &vm->vcpu[i];
+		vcpu = vm->vcpu[i];
+		if (vcpu == NULL)
+			continue;
 
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->x2apic_state, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->exitintinfo, meta, ret, done);
@@ -2811,7 +2864,9 @@ vm_snapshot_vcpu(struct vm *vm, struct vm_snapshot_meta *meta)
 
 	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vcpu = &vm->vcpu[i];
+		vcpu = vm->vcpu[i];
+		if (vcpu == NULL)
+			continue;
 
 		error = vmmops_vcpu_snapshot(vcpu->cookie, meta);
 		if (error != 0) {
@@ -2894,7 +2949,9 @@ vm_restore_time(struct vm *vm)
 
 	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		vcpu = &vm->vcpu[i];
+		vcpu = vm->vcpu[i];
+		if (vcpu == NULL)
+			continue;
 
 		error = vmmops_restore_tsc(vcpu->cookie,
 		    vcpu->tsc_offset - now);
