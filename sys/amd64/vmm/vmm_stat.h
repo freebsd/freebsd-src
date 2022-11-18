@@ -45,7 +45,7 @@ enum vmm_stat_scope {
 };
 
 struct vmm_stat_type;
-typedef void (*vmm_stat_func_t)(struct vm *vm, int vcpu,
+typedef void (*vmm_stat_func_t)(struct vcpu *vcpu,
     struct vmm_stat_type *stat);
 
 struct vmm_stat_type {
@@ -87,7 +87,7 @@ void	*vmm_stat_alloc(void);
 void	vmm_stat_init(void *vp);
 void 	vmm_stat_free(void *vp);
 
-int	vmm_stat_copy(struct vm *vm, int vcpu, int index, int count,
+int	vmm_stat_copy(struct vcpu *vcpu, int index, int count,
 	    int *num_stats, uint64_t *buf);
 int	vmm_stat_desc_copy(int index, char *buf, int buflen);
 

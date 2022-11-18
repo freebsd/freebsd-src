@@ -100,8 +100,7 @@ inout_instruction(struct vm_exit *vmexit)
 #endif	/* KTR */
 
 static int
-emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
-    bool *retu)
+emulate_inout_port(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 {
 	ioport_handler_func_t handler;
 	uint32_t mask, val;
@@ -122,8 +121,8 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 		val = vmexit->u.inout.eax & mask;
 	}
 
-	error = (*handler)(vm, vmexit->u.inout.in, vmexit->u.inout.port,
-	    vmexit->u.inout.bytes, &val);
+	error = (*handler)(vcpu_vm(vcpu), vmexit->u.inout.in,
+	    vmexit->u.inout.port, vmexit->u.inout.bytes, &val);
 	if (error) {
 		/*
 		 * The value returned by this function is also the return value
@@ -138,7 +137,7 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 	if (vmexit->u.inout.in) {
 		vmexit->u.inout.eax &= ~mask;
 		vmexit->u.inout.eax |= val & mask;
-		error = vm_set_register(vm_vcpu(vm, vcpuid), VM_REG_GUEST_RAX,
+		error = vm_set_register(vcpu, VM_REG_GUEST_RAX,
 		    vmexit->u.inout.eax);
 		KASSERT(error == 0, ("emulate_ioport: error %d setting guest "
 		    "rax register", error));
@@ -148,14 +147,14 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 }
 
 static int
-emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
+emulate_inout_str(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 {
 	*retu = true;
 	return (0);	/* Return to userspace to finish emulation */
 }
 
 int
-vm_handle_inout(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
+vm_handle_inout(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 {
 	int bytes __diagused, error;
 
@@ -164,11 +163,11 @@ vm_handle_inout(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 	    ("vm_handle_inout: invalid operand size %d", bytes));
 
 	if (vmexit->u.inout.string)
-		error = emulate_inout_str(vm, vcpuid, vmexit, retu);
+		error = emulate_inout_str(vcpu, vmexit, retu);
 	else
-		error = emulate_inout_port(vm, vcpuid, vmexit, retu);
+		error = emulate_inout_port(vcpu, vmexit, retu);
 
-	VCPU_CTR4(vm, vcpuid, "%s%s 0x%04x: %s",
+	VCPU_CTR4(vcpu_vm(vcpu), vcpu_vcpuid(vcpu), "%s%s 0x%04x: %s",
 	    vmexit->u.inout.rep ? "rep " : "",
 	    inout_instruction(vmexit),
 	    vmexit->u.inout.port,

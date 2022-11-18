@@ -131,22 +131,24 @@ vcpu_lock_one(struct vmmdev_softc *sc, int vcpu)
 	if (vcpu < 0 || vcpu >= vm_get_maxcpus(sc->vm))
 		return (EINVAL);
 
-	error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
+	error = vcpu_set_state(vm_vcpu(sc->vm, vcpu), VCPU_FROZEN, true);
 	return (error);
 }
 
 static void
-vcpu_unlock_one(struct vmmdev_softc *sc, int vcpu)
+vcpu_unlock_one(struct vmmdev_softc *sc, int vcpuid)
 {
+	struct vcpu *vcpu;
 	enum vcpu_state state;
 
-	state = vcpu_get_state(vm_vcpu(sc->vm, vcpu), NULL);
+	vcpu = vm_vcpu(sc->vm, vcpuid);
+	state = vcpu_get_state(vcpu, NULL);
 	if (state != VCPU_FROZEN) {
 		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
-		    vcpu, state);
+		    vcpuid, state);
 	}
 
-	vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
+	vcpu_set_state(vcpu, VCPU_IDLE, false);
 }
 
 static int
@@ -366,6 +368,15 @@ vm_set_register_set(struct vcpu *vcpu, unsigned int count, int *regnum,
 	return (error);
 }
 
+static struct vcpu *
+lookup_vcpu(struct vm *vm, int vcpuid)
+{
+	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
+		return (NULL);
+
+	return (vm_vcpu(vm, vcpuid));
+}
+
 static int
 vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
@@ -389,7 +400,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_pptdev_mmio *pptmmio;
 	struct vm_pptdev_msi *pptmsi;
 	struct vm_pptdev_msix *pptmsix;
-	struct vm_nmi *vmnmi;
 #ifdef COMPAT_FREEBSD13
 	struct vm_stats_old *vmstats_old;
 #endif
@@ -399,7 +409,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_gpa_pte *gpapte;
 	struct vm_suspend *vmsuspend;
 	struct vm_gla2gpa *gg;
-	struct vm_activate_cpu *vac;
 	struct vm_cpuset *vm_cpuset;
 	struct vm_intinfo *vmii;
 	struct vm_rtc_time *rtctime;
@@ -427,7 +436,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	state_changed = 0;
 
 	/*
-	 * Some VMM ioctls can operate only on vcpus that are not running.
+	 * For VMM ioctls that operate on a single vCPU, lookup the
+	 * vcpu.  For VMM ioctls which require one or more vCPUs to
+	 * not be running, lock necessary vCPUs.
+	 *
+	 * XXX fragile, handle with care
+	 * Most of these assume that the first field of the ioctl data
+	 * is the vcpuid.
 	 */
 	switch (cmd) {
 	case VM_RUN:
@@ -450,8 +465,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_GET_INTINFO:
 	case VM_RESTART_INSTRUCTION:
 		/*
-		 * XXX fragile, handle with care
-		 * Assumes that the first field of the ioctl data is the vcpu.
+		 * ioctls that can operate only on vcpus that are not running.
 		 */
 		vcpuid = *(int *)data;
 		error = vcpu_lock_one(sc, vcpuid);
@@ -498,6 +512,42 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		state_changed = 1;
 		break;
 
+#ifdef COMPAT_FREEBSD13
+	case VM_STATS_OLD:
+#endif
+	case VM_STATS:
+	case VM_INJECT_NMI:
+	case VM_LAPIC_IRQ:
+	case VM_GET_X2APIC_STATE:
+		/*
+		 * These do not need the vCPU locked but do operate on
+		 * a specific vCPU.
+		 */
+		vcpuid = *(int *)data;
+		vcpu = lookup_vcpu(sc->vm, vcpuid);
+		if (vcpu == NULL) {
+			error = EINVAL;
+			goto done;
+		}
+		break;
+
+	case VM_LAPIC_LOCAL_IRQ:
+	case VM_SUSPEND_CPU:
+	case VM_RESUME_CPU:
+		/*
+		 * These can either operate on all CPUs via a vcpuid of
+		 * -1 or on a specific vCPU.
+		 */
+		vcpuid = *(int *)data;
+		if (vcpuid == -1)
+			break;
+		vcpu = lookup_vcpu(sc->vm, vcpuid);
+		if (vcpu == NULL) {
+			error = EINVAL;
+			goto done;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -505,7 +555,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	switch(cmd) {
 	case VM_RUN:
 		vmrun = (struct vm_run *)data;
-		error = vm_run(sc->vm, vmrun);
+		error = vm_run(vcpu, &vmrun->vm_exit);
 		break;
 	case VM_SUSPEND:
 		vmsuspend = (struct vm_suspend *)data;
@@ -524,7 +574,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_STATS_OLD:
 		vmstats_old = (struct vm_stats_old *)data;
 		getmicrotime(&vmstats_old->tv);
-		error = vmm_stat_copy(sc->vm, vmstats_old->cpuid, 0,
+		error = vmm_stat_copy(vcpu, 0,
 				      nitems(vmstats_old->statbuf),
 				      &vmstats_old->num_entries,
 				      vmstats_old->statbuf);
@@ -533,7 +583,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_STATS: {
 		vmstats = (struct vm_stats *)data;
 		getmicrotime(&vmstats->tv);
-		error = vmm_stat_copy(sc->vm, vmstats->cpuid, vmstats->index,
+		error = vmm_stat_copy(vcpu, vmstats->index,
 				      nitems(vmstats->statbuf),
 				      &vmstats->num_entries, vmstats->statbuf);
 		break;
@@ -586,17 +636,15 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		    vmexc->restart_instruction);
 		break;
 	case VM_INJECT_NMI:
-		vmnmi = (struct vm_nmi *)data;
-		error = vm_inject_nmi(sc->vm, vmnmi->cpuid);
+		error = vm_inject_nmi(vcpu);
 		break;
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
-		error = lapic_intr_edge(sc->vm, vmirq->cpuid, vmirq->vector);
+		error = lapic_intr_edge(vcpu, vmirq->vector);
 		break;
 	case VM_LAPIC_LOCAL_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
-		error = lapic_set_local_intr(sc->vm, vmirq->cpuid,
-		    vmirq->vector);
+		error = lapic_set_local_intr(sc->vm, vcpu, vmirq->vector);
 		break;
 	case VM_LAPIC_MSI:
 		vmmsi = (struct vm_lapic_msi *)data;
@@ -721,7 +769,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_SET_SEGMENT_DESCRIPTOR:
 		vmsegdesc = (struct vm_seg_desc *)data;
-		error = vm_set_seg_desc(sc->vm, vmsegdesc->cpuid,
+		error = vm_set_seg_desc(vcpu,
 					vmsegdesc->regnum,
 					&vmsegdesc->desc);
 		break;
@@ -775,25 +823,23 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_CAPABILITY:
 		vmcap = (struct vm_capability *)data;
-		error = vm_get_capability(sc->vm, vmcap->cpuid,
+		error = vm_get_capability(vcpu,
 					  vmcap->captype,
 					  &vmcap->capval);
 		break;
 	case VM_SET_CAPABILITY:
 		vmcap = (struct vm_capability *)data;
-		error = vm_set_capability(sc->vm, vmcap->cpuid,
+		error = vm_set_capability(vcpu,
 					  vmcap->captype,
 					  vmcap->capval);
 		break;
 	case VM_SET_X2APIC_STATE:
 		x2apic = (struct vm_x2apic *)data;
-		error = vm_set_x2apic_state(sc->vm,
-					    x2apic->cpuid, x2apic->state);
+		error = vm_set_x2apic_state(vcpu, x2apic->state);
 		break;
 	case VM_GET_X2APIC_STATE:
 		x2apic = (struct vm_x2apic *)data;
-		error = vm_get_x2apic_state(sc->vm,
-					    x2apic->cpuid, &x2apic->state);
+		error = vm_get_x2apic_state(vcpu, &x2apic->state);
 		break;
 	case VM_GET_GPA_PMAP:
 		gpapte = (struct vm_gpa_pte *)data;
@@ -823,8 +869,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		    ("%s: vm_gla2gpa unknown error %d", __func__, error));
 		break;
 	case VM_ACTIVATE_CPU:
-		vac = (struct vm_activate_cpu *)data;
-		error = vm_activate_cpu(sc->vm, vac->vcpuid);
+		error = vm_activate_cpu(vcpu);
 		break;
 	case VM_GET_CPUS:
 		error = 0;
@@ -848,12 +893,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		free(cpuset, M_TEMP);
 		break;
 	case VM_SUSPEND_CPU:
-		vac = (struct vm_activate_cpu *)data;
-		error = vm_suspend_cpu(sc->vm, vac->vcpuid);
+		error = vm_suspend_cpu(sc->vm, vcpu);
 		break;
 	case VM_RESUME_CPU:
-		vac = (struct vm_activate_cpu *)data;
-		error = vm_resume_cpu(sc->vm, vac->vcpuid);
+		error = vm_resume_cpu(sc->vm, vcpu);
 		break;
 	case VM_SET_INTINFO:
 		vmii = (struct vm_intinfo *)data;
@@ -861,8 +904,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_INTINFO:
 		vmii = (struct vm_intinfo *)data;
-		error = vm_get_intinfo(sc->vm, vmii->vcpuid, &vmii->info1,
-		    &vmii->info2);
+		error = vm_get_intinfo(vcpu, &vmii->info1, &vmii->info2);
 		break;
 	case VM_RTC_WRITE:
 		rtcdata = (struct vm_rtc_data *)data;
