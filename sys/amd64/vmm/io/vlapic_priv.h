@@ -138,6 +138,7 @@ enum boot_state {
 
 #define VLAPIC_MAXLVT_INDEX	APIC_LVT_CMCI
 
+struct vcpu;
 struct vlapic;
 
 struct vlapic_ops {
@@ -151,6 +152,7 @@ struct vlapic_ops {
 
 struct vlapic {
 	struct vm		*vm;
+	struct vcpu		*vcpu;
 	int			vcpuid;
 	struct LAPIC		*apic_page;
 	struct vlapic_ops	ops;

@@ -128,6 +128,7 @@ enum {
 
 struct vmx_vcpu {
 	struct vmx	*vmx;
+	struct vcpu	*vcpu;
 	struct vmcs	*vmcs;
 	struct apic_page *apic_page;
 	struct pir_desc	*pir_desc;
