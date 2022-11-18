@@ -128,6 +128,7 @@ struct vcpu {
 
 #define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
+#define	vcpu_lock_destroy(v)	mtx_destroy(&((v)->mtx))
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
 #define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
 #define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
@@ -320,6 +321,7 @@ vcpu_cleanup(struct vm *vm, int i, bool destroy)
 	if (destroy) {
 		vmm_stat_free(vcpu->stats);	
 		fpu_save_area_free(vcpu->guestfpu);
+		vcpu_lock_destroy(vcpu);
 	}
 }
 
@@ -606,6 +608,8 @@ vm_cleanup(struct vm *vm, bool destroy)
 
 		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;
+
+		mtx_destroy(&vm->rendezvous_mtx);
 	}
 }
 

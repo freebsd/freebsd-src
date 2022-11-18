@@ -508,6 +508,7 @@ void
 vioapic_cleanup(struct vioapic *vioapic)
 {
 
+	mtx_destroy(&vioapic->mtx);
 	free(vioapic, M_VIOAPIC);
 }
 

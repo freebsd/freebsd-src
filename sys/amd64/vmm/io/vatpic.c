@@ -809,6 +809,7 @@ vatpic_init(struct vm *vm)
 void
 vatpic_cleanup(struct vatpic *vatpic)
 {
+	mtx_destroy(&vatpic->mtx);
 	free(vatpic, M_VATPIC);
 }
 

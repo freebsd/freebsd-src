@@ -103,6 +103,7 @@ static SLIST_HEAD(, vmmdev_softc) head;
 
 static unsigned pr_allow_flag;
 static struct mtx vmmdev_mtx;
+MTX_SYSINIT(vmmdev_mtx, &vmmdev_mtx, "vmm device mutex", MTX_DEF);
 
 static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
 
@@ -1216,7 +1217,6 @@ SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
 void
 vmmdev_init(void)
 {
-	mtx_init(&vmmdev_mtx, "vmm device mutex", NULL, MTX_DEF);
 	pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
 	    "Allow use of vmm in a jail.");
 }
