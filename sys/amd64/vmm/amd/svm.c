@@ -973,12 +973,10 @@ svm_eventinject(struct svm_vcpu *vcpu, int intr_type, int vector,
 static void
 svm_update_virqinfo(struct svm_vcpu *vcpu)
 {
-	struct vm *vm;
 	struct vlapic *vlapic;
 	struct vmcb_ctrl *ctrl;
 
-	vm = vcpu->sc->vm;
-	vlapic = vm_lapic(vm, vcpu->vcpuid);
+	vlapic = vm_lapic(vcpu->vcpu);
 	ctrl = svm_get_vmcb_ctrl(vcpu);
 
 	/* Update %cr8 in the emulated vlapic */
@@ -1210,7 +1208,7 @@ svm_write_efer(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t newval,
 	KASSERT(error == 0, ("%s: error %d updating efer", __func__, error));
 	return (0);
 gpf:
-	vm_inject_gp(sc->vm, vcpuid);
+	vm_inject_gp(vcpu->vcpu);
 	return (0);
 }
 
@@ -1459,7 +1457,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			/* Reflect the exception back into the guest */
 			SVM_CTR2(vcpu, "Reflecting exception "
 			    "%d/%#x into the guest", idtvec, (int)info1);
-			error = vm_inject_exception(svm_sc->vm, vcpuid, idtvec,
+			error = vm_inject_exception(vcpu->vcpu, idtvec,
 			    errcode_valid, info1, 0);
 			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 			    __func__, error));
@@ -1556,7 +1554,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 	case VMCB_EXIT_SKINIT:
 	case VMCB_EXIT_ICEBP:
 	case VMCB_EXIT_INVLPGA:
-		vm_inject_ud(svm_sc->vm, vcpuid);
+		vm_inject_ud(vcpu->vcpu);
 		handled = 1;
 		break;
 	case VMCB_EXIT_INVD:
@@ -2017,7 +2015,7 @@ svm_run(void *vcpui, register_t rip, pmap_t pmap, struct vm_eventinfo *evinfo)
 	state = svm_get_vmcb_state(vcpu);
 	ctrl = svm_get_vmcb_ctrl(vcpu);
 	vmexit = vm_exitinfo(vm, vcpuid);
-	vlapic = vm_lapic(vm, vcpuid);
+	vlapic = vm_lapic(vcpu->vcpu);
 
 	gctx = svm_get_guest_regctx(vcpu);
 	vmcb_pa = vcpu->vmcb_pa;
@@ -2346,7 +2344,7 @@ svm_setcap(void *vcpui, int type, int val)
 			error = EINVAL;
 		break;
 	case VM_CAP_IPI_EXIT:
-		vlapic = vm_lapic(vcpu->sc->vm, vcpu->vcpuid);
+		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
 		break;
 	default:
@@ -2379,7 +2377,7 @@ svm_getcap(void *vcpui, int type, int *retval)
 		*retval = 1;	/* unrestricted guest is always enabled */
 		break;
 	case VM_CAP_IPI_EXIT:
-		vlapic = vm_lapic(vcpu->sc->vm, vcpu->vcpuid);
+		vlapic = vm_lapic(vcpu->vcpu);
 		*retval = vlapic->ipi_exit;
 		break;
 	default:

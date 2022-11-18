@@ -40,9 +40,9 @@ struct vm_snapshot_meta;
 
 struct vhpet *vhpet_init(struct vm *vm);
 void 	vhpet_cleanup(struct vhpet *vhpet);
-int	vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val,
+int	vhpet_mmio_write(struct vcpu *vcpu, uint64_t gpa, uint64_t val,
 	    int size, void *arg);
-int	vhpet_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *val,
+int	vhpet_mmio_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *val,
 	    int size, void *arg);
 int	vhpet_getcap(struct vm_hpet_cap *cap);
 #ifdef BHYVE_SNAPSHOT

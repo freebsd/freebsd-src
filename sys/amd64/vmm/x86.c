@@ -349,7 +349,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id, uint64_t *rax, uint64_t *rbx,
 			 */
 			regs[2] &= ~CPUID2_OSXSAVE;
 			if (regs[2] & CPUID2_XSAVE) {
-				error = vm_get_register(vm, vcpu_id,
+				error = vm_get_register(vm_vcpu(vm, vcpu_id),
 				    VM_REG_GUEST_CR4, &cr4);
 				if (error)
 					panic("x86_emulate_cpuid: error %d "

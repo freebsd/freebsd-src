@@ -251,16 +251,18 @@ int vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
 int vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
     struct vm_object **objptr);
 vm_paddr_t vmm_sysmem_maxaddr(struct vm *vm);
-void *vm_gpa_hold(struct vm *, int vcpuid, vm_paddr_t gpa, size_t len,
+void *vm_gpa_hold(struct vcpu *vcpu, vm_paddr_t gpa, size_t len,
+    int prot, void **cookie);
+void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
     int prot, void **cookie);
 void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
     int prot, void **cookie);
 void vm_gpa_release(void *cookie);
 bool vm_mem_allocated(struct vm *vm, int vcpuid, vm_paddr_t gpa);
 
-int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
-int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
-int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
+int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
+int vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
+int vm_get_seg_desc(struct vcpu *vcpu, int reg,
 		    struct seg_desc *ret_desc);
 int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *desc);
@@ -275,7 +277,7 @@ void vm_extint_clear(struct vm *vm, int vcpuid);
 int vcpu_vcpuid(struct vcpu *vcpu);
 struct vm *vcpu_vm(struct vcpu *vcpu);
 struct vcpu *vm_vcpu(struct vm *vm, int cpu);
-struct vlapic *vm_lapic(struct vm *vm, int cpu);
+struct vlapic *vm_lapic(struct vcpu *vcpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
@@ -286,6 +288,7 @@ int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
 int vm_suspend_cpu(struct vm *vm, int vcpu);
 int vm_resume_cpu(struct vm *vm, int vcpu);
+int vm_restart_instruction(struct vcpu *vcpu);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_debug(struct vm *vm, int vcpuid, uint64_t rip);
@@ -360,12 +363,12 @@ enum vcpu_state {
 
 int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
     bool from_idle);
-enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
+enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
 
 static int __inline
 vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 {
-	return (vcpu_get_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
+	return (vcpu_get_state(vm_vcpu(vm, vcpu), hostcpu) == VCPU_RUNNING);
 }
 
 #ifdef _SYS_PROC_H_
@@ -398,7 +401,7 @@ struct vrtc *vm_rtc(struct vm *vm);
  * This function should only be called in the context of the thread that is
  * executing this vcpu.
  */
-int vm_inject_exception(struct vm *vm, int vcpuid, int vector, int err_valid,
+int vm_inject_exception(struct vcpu *vcpu, int vector, int err_valid,
     uint32_t errcode, int restart_instruction);
 
 /*
@@ -460,7 +463,7 @@ struct vm_copyinfo {
  * the return value is 0. The 'copyinfo[]' resources should be freed by calling
  * 'vm_copy_teardown()' after the copy is done.
  */
-int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+int vm_copy_setup(struct vcpu *vcpu, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
     int num_copyinfo, int *is_fault);
 void vm_copy_teardown(struct vm_copyinfo *copyinfo, int num_copyinfo);
@@ -753,6 +756,36 @@ struct vm_exit {
 };
 
 /* APIs to inject faults into the guest */
+#ifdef _KERNEL
+void vm_inject_fault(struct vcpu *vcpu, int vector, int errcode_valid,
+    int errcode);
+
+static __inline void
+vm_inject_ud(struct vcpu *vcpu)
+{
+	vm_inject_fault(vcpu, IDT_UD, 0, 0);
+}
+
+static __inline void
+vm_inject_gp(struct vcpu *vcpu)
+{
+	vm_inject_fault(vcpu, IDT_GP, 1, 0);
+}
+
+static __inline void
+vm_inject_ac(struct vcpu *vcpu, int errcode)
+{
+	vm_inject_fault(vcpu, IDT_AC, 1, errcode);
+}
+
+static __inline void
+vm_inject_ss(struct vcpu *vcpu, int errcode)
+{
+	vm_inject_fault(vcpu, IDT_SS, 1, errcode);
+}
+
+void vm_inject_pf(struct vcpu *vcpu, int error_code, uint64_t cr2);
+#else
 void vm_inject_fault(void *vm, int vcpuid, int vector, int errcode_valid,
     int errcode);
 
@@ -781,7 +814,6 @@ vm_inject_ss(void *vm, int vcpuid, int errcode)
 }
 
 void vm_inject_pf(void *vm, int vcpuid, int error_code, uint64_t cr2);
-
-int vm_restart_instruction(void *vm, int vcpuid);
+#endif
 
 #endif	/* _VMM_H_ */
