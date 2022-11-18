@@ -2478,17 +2478,8 @@ svm_snapshot(void *arg, struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->asid.num, meta, ret, done);
 
 		/* Set all caches dirty */
-		if (meta->op == VM_SNAPSHOT_RESTORE) {
-			svm_set_dirty(sc, i, VMCB_CACHE_ASID);
-			svm_set_dirty(sc, i, VMCB_CACHE_IOPM);
-			svm_set_dirty(sc, i, VMCB_CACHE_I);
-			svm_set_dirty(sc, i, VMCB_CACHE_TPR);
-			svm_set_dirty(sc, i, VMCB_CACHE_CR2);
-			svm_set_dirty(sc, i, VMCB_CACHE_CR);
-			svm_set_dirty(sc, i, VMCB_CACHE_DT);
-			svm_set_dirty(sc, i, VMCB_CACHE_SEG);
-			svm_set_dirty(sc, i, VMCB_CACHE_NP);
-		}
+		if (meta->op == VM_SNAPSHOT_RESTORE)
+			svm_set_dirty(sc, i, 0xffffffff);
 	}
 
 	if (meta->op == VM_SNAPSHOT_RESTORE)
