@@ -133,13 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7_SIGN_ADD_SIGNER 3"
-.TH PKCS7_SIGN_ADD_SIGNER 3 "2022-07-05" "1.1.1q" "OpenSSL"
+.TH PKCS7_SIGN_ADD_SIGNER 3 "2022-11-01" "1.1.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-PKCS7_sign_add_signer \- add a signer PKCS7 signed data structure
+PKCS7_sign_add_signer, PKCS7_add_certificate, PKCS7_add_crl \- add information to PKCS7 structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,21 +147,22 @@ PKCS7_sign_add_signer \- add a signer PKCS7 signed data structure
 \&
 \& PKCS7_SIGNER_INFO *PKCS7_sign_add_signer(PKCS7 *p7, X509 *signcert,
 \&                                          EVP_PKEY *pkey, const EVP_MD *md, int flags);
+\& int PKCS7_add_certificate(PKCS7 *p7, X509 *cert);
+\& int PKCS7_add_crl(PKCS7 *p7, X509_CRL *crl);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBPKCS7_sign_add_signer()\fR adds a signer with certificate \fBsigncert\fR and private
-key \fBpkey\fR using message digest \fBmd\fR to a \s-1PKCS7\s0 signed data structure
-\&\fBp7\fR.
+\&\fBPKCS7_sign_add_signer()\fR adds a signer with certificate \fIsigncert\fR and private
+key \fIpkey\fR using message digest \fImd\fR to a \s-1PKCS7\s0 signed data structure \fIp7\fR.
 .PP
-The \s-1PKCS7\s0 structure should be obtained from an initial call to \fBPKCS7_sign()\fR
-with the flag \fB\s-1PKCS7_PARTIAL\s0\fR set or in the case or re-signing a valid \s-1PKCS7\s0
+The \fB\s-1PKCS7\s0\fR structure should be obtained from an initial call to \fBPKCS7_sign()\fR
+with the flag \fB\s-1PKCS7_PARTIAL\s0\fR set or in the case or re-signing a valid PKCS#7
 signed data structure.
 .PP
-If the \fBmd\fR parameter is \fB\s-1NULL\s0\fR then the default digest for the public
+If the \fImd\fR parameter is \s-1NULL\s0 then the default digest for the public
 key algorithm will be used.
 .PP
-Unless the \fB\s-1PKCS7_REUSE_DIGEST\s0\fR flag is set the returned \s-1PKCS7\s0 structure
+Unless the \fB\s-1PKCS7_REUSE_DIGEST\s0\fR flag is set the returned \fB\s-1PKCS7\s0\fR structure
 is not complete and must be finalized either by streaming (if applicable) or
 a call to \fBPKCS7_final()\fR.
 .SH "NOTES"
@@ -171,13 +172,13 @@ signed data structure where the simpler \fBPKCS7_sign()\fR function defaults are
 not appropriate. For example if multiple signers or non default digest
 algorithms are needed.
 .PP
-Any of the following flags (ored together) can be passed in the \fBflags\fR
+Any of the following flags (ored together) can be passed in the \fIflags\fR
 parameter.
 .PP
 If \fB\s-1PKCS7_REUSE_DIGEST\s0\fR is set then an attempt is made to copy the content
-digest value from the \s-1PKCS7\s0 structure: to add a signer to an existing structure.
+digest value from the \fB\s-1PKCS7\s0\fR structure: to add a signer to an existing structure.
 An error occurs if a matching digest value cannot be found to copy. The
-returned \s-1PKCS7\s0 structure will be valid and finalized when this flag is set.
+returned \fB\s-1PKCS7\s0\fR structure will be valid and finalized when this flag is set.
 .PP
 If \fB\s-1PKCS7_PARTIAL\s0\fR is set in addition to \fB\s-1PKCS7_REUSE_DIGEST\s0\fR then the
 \&\fB\s-1PKCS7_SIGNER_INO\s0\fR structure will not be finalized so additional attributes
@@ -185,8 +186,8 @@ can be added. In this case an explicit call to \fBPKCS7_SIGNER_INFO_sign()\fR is
 needed to finalize it.
 .PP
 If \fB\s-1PKCS7_NOCERTS\s0\fR is set the signer's certificate will not be included in the
-\&\s-1PKCS7\s0 structure, the signer's certificate must still be supplied in the
-\&\fBsigncert\fR parameter though. This can reduce the size of the signature if the
+\&\fB\s-1PKCS7\s0\fR structure, the signer's certificate must still be supplied in the
+\&\fIsigncert\fR parameter though. This can reduce the size of the signature if the
 signers certificate can be obtained by other means: for example a previously
 signed message.
 .PP
@@ -200,23 +201,36 @@ If present the SMIMECapabilities attribute indicates support for the following
 algorithms: triple \s-1DES, 128\s0 bit \s-1RC2, 64\s0 bit \s-1RC2, DES\s0 and 40 bit \s-1RC2.\s0 If any of
 these algorithms is disabled then it will not be included.
 .PP
-\&\fBPKCS7_sign_add_signers()\fR returns an internal pointer to the \s-1PKCS7_SIGNER_INFO\s0
-structure just added, this can be used to set additional attributes
+\&\fBPKCS7_sign_add_signers()\fR returns an internal pointer to the \fB\s-1PKCS7_SIGNER_INFO\s0\fR
+structure just added, which can be used to set additional attributes
 before it is finalized.
+.PP
+\&\fBPKCS7_add_certificate()\fR adds to the \fB\s-1PKCS7\s0\fR structure \fIp7\fR the certificate
+\&\fIcert\fR, which may be an end-entity (signer) certificate
+or a \s-1CA\s0 certificate useful for chain building.
+This is done internally by \fBPKCS7_sign_ex\fR\|(3) and similar signing functions.
+It may have to be used before calling \fBPKCS7_verify\fR\|(3)
+in order to provide any missing certificate(s) needed for verification.
+.PP
+\&\fBPKCS7_add_crl()\fR adds the \s-1CRL\s0 \fIcrl\fR to the \fB\s-1PKCS7\s0\fR structure \fIp7\fR.
+This may be called to provide certificate status information
+to be included when signing or to use when verifying the \fB\s-1PKCS7\s0\fR structure.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBPKCS7_sign_add_signers()\fR returns an internal pointer to the \s-1PKCS7_SIGNER_INFO\s0
+\&\fBPKCS7_sign_add_signers()\fR returns an internal pointer to the \fB\s-1PKCS7_SIGNER_INFO\s0\fR
 structure just added or \s-1NULL\s0 if an error occurs.
+.PP
+\&\fBPKCS7_add_certificate()\fR and \fBPKCS7_add_crl()\fR return 1 on success, 0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBERR_get_error\fR\|(3), \fBPKCS7_sign\fR\|(3),
-\&\fBPKCS7_final\fR\|(3),
+\&\fBERR_get_error\fR\|(3), \fBPKCS7_sign_ex\fR\|(3),
+\&\fBPKCS7_final\fR\|(3), \fBPKCS7_verify\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fBPPKCS7_sign_add_signer()\fR function was added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2007\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
