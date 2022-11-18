@@ -3703,15 +3703,15 @@ struct vlapic_vtx {
 
 #define VPR_PRIO_BIT(vpr)	(1 << ((vpr) >> 4))
 
-#define	VMX_CTR_PIR(vm, vcpuid, pir_desc, notify, vector, level, msg)	\
+#define	VMX_CTR_PIR(vlapic, pir_desc, notify, vector, level, msg)	\
 do {									\
-	VCPU_CTR2(vm, vcpuid, msg " assert %s-triggered vector %d",	\
+	VLAPIC_CTR2(vlapic, msg " assert %s-triggered vector %d",	\
 	    level ? "level" : "edge", vector);				\
-	VCPU_CTR1(vm, vcpuid, msg " pir0 0x%016lx", pir_desc->pir[0]);	\
-	VCPU_CTR1(vm, vcpuid, msg " pir1 0x%016lx", pir_desc->pir[1]);	\
-	VCPU_CTR1(vm, vcpuid, msg " pir2 0x%016lx", pir_desc->pir[2]);	\
-	VCPU_CTR1(vm, vcpuid, msg " pir3 0x%016lx", pir_desc->pir[3]);	\
-	VCPU_CTR1(vm, vcpuid, msg " notify: %s", notify ? "yes" : "no");\
+	VLAPIC_CTR1(vlapic, msg " pir0 0x%016lx", pir_desc->pir[0]);	\
+	VLAPIC_CTR1(vlapic, msg " pir1 0x%016lx", pir_desc->pir[1]);	\
+	VLAPIC_CTR1(vlapic, msg " pir2 0x%016lx", pir_desc->pir[2]);	\
+	VLAPIC_CTR1(vlapic, msg " pir3 0x%016lx", pir_desc->pir[3]);	\
+	VLAPIC_CTR1(vlapic, msg " notify: %s", notify ? "yes" : "no");	\
 } while (0)
 
 /*
@@ -3769,8 +3769,8 @@ vmx_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 		}
 	}
 
-	VMX_CTR_PIR(vlapic->vm, vlapic->vcpuid, pir_desc, notify, vector,
-	    level, "vmx_set_intr_ready");
+	VMX_CTR_PIR(vlapic, pir_desc, notify, vector, level,
+	    "vmx_set_intr_ready");
 	return (notify);
 }
 
@@ -3830,8 +3830,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	if (ppr == 0)
 		return (1);
 
-	VCPU_CTR1(vlapic->vm, vlapic->vcpuid, "HLT with non-zero PPR %d",
-	    lapic->ppr);
+	VLAPIC_CTR1(vlapic, "HLT with non-zero PPR %d", lapic->ppr);
 
 	vpr = 0;
 	for (i = 3; i >= 0; i--) {
@@ -3985,7 +3984,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
 	pir_desc = vlapic_vtx->pir_desc;
 	if (atomic_cmpset_long(&pir_desc->pending, 1, 0) == 0) {
-		VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "vmx_inject_pir: "
+		VLAPIC_CTR0(vlapic, "vmx_inject_pir: "
 		    "no posted interrupt pending");
 		return;
 	}
@@ -4055,7 +4054,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 		intr_status_new = (intr_status_old & 0xFF00) | rvi;
 		if (intr_status_new > intr_status_old) {
 			vmcs_write(VMCS_GUEST_INTR_STATUS, intr_status_new);
-			VCPU_CTR2(vlapic->vm, vlapic->vcpuid, "vmx_inject_pir: "
+			VLAPIC_CTR2(vlapic, "vmx_inject_pir: "
 			    "guest_intr_status changed from 0x%04x to 0x%04x",
 			    intr_status_old, intr_status_new);
 		}

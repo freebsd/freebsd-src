@@ -588,8 +588,7 @@ vlapic_process_eoi(struct vlapic *vlapic)
 			}
 			isrptr[idx] &= ~(1 << bitpos);
 			vector = i * 32 + bitpos;
-			VCPU_CTR1(vlapic->vm, vlapic->vcpuid, "EOI vector %d",
-			    vector);
+			VLAPIC_CTR1(vlapic, "EOI vector %d", vector);
 			VLAPIC_CTR_ISR(vlapic, "vlapic_process_eoi");
 			vlapic->isrvec_stk_top--;
 			vlapic_update_ppr(vlapic);
@@ -600,7 +599,7 @@ vlapic_process_eoi(struct vlapic *vlapic)
 			return;
 		}
 	}
-	VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "Gratuitous EOI");
+	VLAPIC_CTR0(vlapic, "Gratuitous EOI");
 	vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_GRATUITOUS_EOI, 1);
 }
 
@@ -915,8 +914,8 @@ vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
 	struct LAPIC *lapic = vlapic->apic_page;
 
 	if (lapic->tpr != val) {
-		VCPU_CTR2(vlapic->vm, vlapic->vcpuid, "vlapic TPR changed "
-		    "from %#x to %#x", lapic->tpr, val);
+		VLAPIC_CTR2(vlapic, "vlapic TPR changed from %#x to %#x",
+		    lapic->tpr, val);
 		lapic->tpr = val;
 		vlapic_update_ppr(vlapic);
 	}
