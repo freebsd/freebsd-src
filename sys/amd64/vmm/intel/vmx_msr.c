@@ -316,9 +316,7 @@ vmx_msr_init(void)
 void
 vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 {
-	uint64_t *guest_msrs;
-
-	guest_msrs = vmx->guest_msrs[vcpuid];
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
 
 	/*
 	 * The permissions bitmap is shared between all vcpus so initialize it
@@ -335,7 +333,7 @@ vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 	/*
 	 * Initialize guest IA32_PAT MSR with default value after reset.
 	 */
-	guest_msrs[IDX_MSR_PAT] = PAT_VALUE(0, PAT_WRITE_BACK) |
+	vmx_vcpu->guest_msrs[IDX_MSR_PAT] = PAT_VALUE(0, PAT_WRITE_BACK) |
 	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
 	    PAT_VALUE(2, PAT_UNCACHED)		|
 	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
@@ -350,21 +348,22 @@ vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 void
 vmx_msr_guest_enter(struct vmx *vmx, int vcpuid)
 {
-	uint64_t *guest_msrs = vmx->guest_msrs[vcpuid];
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
 
 	/* Save host MSRs (in particular, KGSBASE) and restore guest MSRs */
 	update_pcb_bases(curpcb);
-	wrmsr(MSR_LSTAR, guest_msrs[IDX_MSR_LSTAR]);
-	wrmsr(MSR_CSTAR, guest_msrs[IDX_MSR_CSTAR]);
-	wrmsr(MSR_STAR, guest_msrs[IDX_MSR_STAR]);
-	wrmsr(MSR_SF_MASK, guest_msrs[IDX_MSR_SF_MASK]);
-	wrmsr(MSR_KGSBASE, guest_msrs[IDX_MSR_KGSBASE]);
+	wrmsr(MSR_LSTAR, vmx_vcpu->guest_msrs[IDX_MSR_LSTAR]);
+	wrmsr(MSR_CSTAR, vmx_vcpu->guest_msrs[IDX_MSR_CSTAR]);
+	wrmsr(MSR_STAR, vmx_vcpu->guest_msrs[IDX_MSR_STAR]);
+	wrmsr(MSR_SF_MASK, vmx_vcpu->guest_msrs[IDX_MSR_SF_MASK]);
+	wrmsr(MSR_KGSBASE, vmx_vcpu->guest_msrs[IDX_MSR_KGSBASE]);
 }
 
 void
 vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, int vcpuid)
 {
-	uint64_t guest_tsc_aux = vmx->guest_msrs[vcpuid][IDX_MSR_TSC_AUX];
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
+	uint64_t guest_tsc_aux = vmx_vcpu->guest_msrs[IDX_MSR_TSC_AUX];
 	uint32_t host_aux = cpu_auxmsr();
 
 	if (vmx_have_msr_tsc_aux(vmx) && guest_tsc_aux != host_aux)
@@ -374,14 +373,14 @@ vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, int vcpuid)
 void
 vmx_msr_guest_exit(struct vmx *vmx, int vcpuid)
 {
-	uint64_t *guest_msrs = vmx->guest_msrs[vcpuid];
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
 
 	/* Save guest MSRs */
-	guest_msrs[IDX_MSR_LSTAR] = rdmsr(MSR_LSTAR);
-	guest_msrs[IDX_MSR_CSTAR] = rdmsr(MSR_CSTAR);
-	guest_msrs[IDX_MSR_STAR] = rdmsr(MSR_STAR);
-	guest_msrs[IDX_MSR_SF_MASK] = rdmsr(MSR_SF_MASK);
-	guest_msrs[IDX_MSR_KGSBASE] = rdmsr(MSR_KGSBASE);
+	vmx_vcpu->guest_msrs[IDX_MSR_LSTAR] = rdmsr(MSR_LSTAR);
+	vmx_vcpu->guest_msrs[IDX_MSR_CSTAR] = rdmsr(MSR_CSTAR);
+	vmx_vcpu->guest_msrs[IDX_MSR_STAR] = rdmsr(MSR_STAR);
+	vmx_vcpu->guest_msrs[IDX_MSR_SF_MASK] = rdmsr(MSR_SF_MASK);
+	vmx_vcpu->guest_msrs[IDX_MSR_KGSBASE] = rdmsr(MSR_KGSBASE);
 
 	/* Restore host MSRs */
 	wrmsr(MSR_LSTAR, host_msrs[IDX_MSR_LSTAR]);
@@ -395,7 +394,8 @@ vmx_msr_guest_exit(struct vmx *vmx, int vcpuid)
 void
 vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, int vcpuid)
 {
-	uint64_t guest_tsc_aux = vmx->guest_msrs[vcpuid][IDX_MSR_TSC_AUX];
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
+	uint64_t guest_tsc_aux = vmx_vcpu->guest_msrs[IDX_MSR_TSC_AUX];
 	uint32_t host_aux = cpu_auxmsr();
 
 	if (vmx_have_msr_tsc_aux(vmx) && guest_tsc_aux != host_aux)
@@ -412,10 +412,9 @@ vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, int vcpuid)
 int
 vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 {
-	const uint64_t *guest_msrs;
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
 	int error;
 
-	guest_msrs = vmx->guest_msrs[vcpuid];
 	error = 0;
 
 	switch (num) {
@@ -429,7 +428,7 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
 	case MSR_MTRR64kBase:
 	case MSR_MTRRVarBase ... MSR_MTRRVarBase + (VMM_MTRR_VAR_MAX * 2) - 1:
-		if (vm_rdmtrr(&vmx->mtrr[vcpuid], num, val) != 0) {
+		if (vm_rdmtrr(&vmx_vcpu->mtrr, num, val) != 0) {
 			vm_inject_gp(vmx->vm, vcpuid);
 		}
 		break;
@@ -444,7 +443,7 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 		*val = turbo_ratio_limit;
 		break;
 	case MSR_PAT:
-		*val = guest_msrs[IDX_MSR_PAT];
+		*val = vmx_vcpu->guest_msrs[IDX_MSR_PAT];
 		break;
 	default:
 		error = EINVAL;
@@ -456,11 +455,10 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 int
 vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 {
-	uint64_t *guest_msrs;
+	struct vmx_vcpu *vmx_vcpu = &vmx->vcpus[vcpuid];
 	uint64_t changed;
 	int error;
 
-	guest_msrs = vmx->guest_msrs[vcpuid];
 	error = 0;
 
 	switch (num) {
@@ -473,7 +471,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
 	case MSR_MTRR64kBase:
 	case MSR_MTRRVarBase ... MSR_MTRRVarBase + (VMM_MTRR_VAR_MAX * 2) - 1:
-		if (vm_wrmtrr(&vmx->mtrr[vcpuid], num, val) != 0) {
+		if (vm_wrmtrr(&vmx_vcpu->mtrr, num, val) != 0) {
 			vm_inject_gp(vmx->vm, vcpuid);
 		}
 		break;
@@ -499,7 +497,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 		break;
 	case MSR_PAT:
 		if (pat_valid(val))
-			guest_msrs[IDX_MSR_PAT] = val;
+			vmx_vcpu->guest_msrs[IDX_MSR_PAT] = val;
 		else
 			vm_inject_gp(vmx->vm, vcpuid);
 		break;
@@ -513,7 +511,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 			 * value when it is called immediately before guest
 			 * entry.
 			 */
-			guest_msrs[IDX_MSR_TSC_AUX] = val;
+			vmx_vcpu->guest_msrs[IDX_MSR_TSC_AUX] = val;
 		else
 			vm_inject_gp(vmx->vm, vcpuid);
 		break;
