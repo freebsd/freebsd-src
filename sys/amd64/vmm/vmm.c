@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/sx.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -155,6 +156,11 @@ struct mem_map {
  * (o) initialized the first time the VM is created
  * (i) initialized when VM is created and when it is reinitialized
  * (x) initialized before use
+ *
+ * Locking:
+ * [m] mem_segs_lock
+ * [r] rendezvous_mtx
+ * [v] reads require one frozen vcpu, writes require freezing all vcpus
  */
 struct vm {
 	void		*cookie;		/* (i) cpu-specific data */
@@ -170,13 +176,13 @@ struct vm {
 	int		suspend;		/* (i) stop VM execution */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
-	cpuset_t	rendezvous_req_cpus;	/* (x) rendezvous requested */
-	cpuset_t	rendezvous_done_cpus;	/* (x) rendezvous finished */
-	void		*rendezvous_arg;	/* (x) rendezvous func/arg */
+	cpuset_t	rendezvous_req_cpus;	/* (x) [r] rendezvous requested */
+	cpuset_t	rendezvous_done_cpus;	/* (x) [r] rendezvous finished */
+	void		*rendezvous_arg;	/* (x) [r] rendezvous func/arg */
 	vm_rendezvous_func_t rendezvous_func;
 	struct mtx	rendezvous_mtx;		/* (o) rendezvous lock */
-	struct mem_map	mem_maps[VM_MAX_MEMMAPS]; /* (i) guest address space */
-	struct mem_seg	mem_segs[VM_MAX_MEMSEGS]; /* (o) guest memory regions */
+	struct mem_map	mem_maps[VM_MAX_MEMMAPS]; /* (i) [m+v] guest address space */
+	struct mem_seg	mem_segs[VM_MAX_MEMSEGS]; /* (o) [m+v] guest memory regions */
 	struct vmspace	*vmspace;		/* (o) guest's address space */
 	char		name[VM_MAX_NAMELEN+1];	/* (o) virtual machine name */
 	struct vcpu	vcpu[VM_MAXCPU];	/* (i) guest vcpus */
@@ -185,6 +191,7 @@ struct vm {
 	uint16_t	cores;			/* (o) num of cores/socket */
 	uint16_t	threads;		/* (o) num of threads/core */
 	uint16_t	maxcpus;		/* (o) max pluggable cpus */
+	struct sx	mem_segs_lock;		/* (o) */
 };
 
 #define	VMM_CTR0(vcpu, format)						\
@@ -518,6 +525,7 @@ vm_create(const char *name, struct vm **retvm)
 	strcpy(vm->name, name);
 	vm->vmspace = vmspace;
 	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
+	sx_init(&vm->mem_segs_lock, "vm mem_segs");
 
 	vm->sockets = 1;
 	vm->cores = cores_per_package;	/* XXX backwards compatibility */
@@ -609,6 +617,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;
 
+		sx_destroy(&vm->mem_segs_lock);
 		mtx_destroy(&vm->rendezvous_mtx);
 	}
 }
@@ -643,6 +652,24 @@ const char *
 vm_name(struct vm *vm)
 {
 	return (vm->name);
+}
+
+void
+vm_slock_memsegs(struct vm *vm)
+{
+	sx_slock(&vm->mem_segs_lock);
+}
+
+void
+vm_xlock_memsegs(struct vm *vm)
+{
+	sx_xlock(&vm->mem_segs_lock);
+}
+
+void
+vm_unlock_memsegs(struct vm *vm)
+{
+	sx_unlock(&vm->mem_segs_lock);
 }
 
 int
@@ -702,6 +729,8 @@ vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem)
 	struct mem_seg *seg;
 	vm_object_t obj;
 
+	sx_assert(&vm->mem_segs_lock, SX_XLOCKED);
+
 	if (ident < 0 || ident >= VM_MAX_MEMSEGS)
 		return (EINVAL);
 
@@ -731,6 +760,8 @@ vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
     vm_object_t *objptr)
 {
 	struct mem_seg *seg;
+
+	sx_assert(&vm->mem_segs_lock, SX_LOCKED);
 
 	if (ident < 0 || ident >= VM_MAX_MEMSEGS)
 		return (EINVAL);
@@ -1075,19 +1106,7 @@ void *
 vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
     void **cookie)
 {
-#ifdef INVARIANTS
-	/*
-	 * All vcpus are frozen by ioctls that modify the memory map
-	 * (e.g. VM_MMAP_MEMSEG). Therefore 'vm->memmap[]' stability is
-	 * guaranteed if at least one vcpu is in the VCPU_FROZEN state.
-	 */
-	int state;
-	for (int i = 0; i < vm->maxcpus; i++) {
-		state = vcpu_get_state(vm_vcpu(vm, i), NULL);
-		KASSERT(state == VCPU_FROZEN, ("%s: invalid vcpu state %d",
-		    __func__, state));
-	}
-#endif
+	sx_assert(&vm->mem_segs_lock, SX_LOCKED);
 	return (_vm_gpa_hold(vm, gpa, len, reqprot, cookie));
 }
 
