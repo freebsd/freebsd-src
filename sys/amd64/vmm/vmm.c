@@ -229,7 +229,7 @@ DEFINE_VMMOPS_IFUNC(void, vlapic_cleanup, (void *vmi, struct vlapic *vlapic))
 #ifdef BHYVE_SNAPSHOT
 DEFINE_VMMOPS_IFUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta
     *meta))
-DEFINE_VMMOPS_IFUNC(int, vmcx_snapshot, (void *vmi, struct vm_snapshot_meta
+DEFINE_VMMOPS_IFUNC(int, vcpu_snapshot, (void *vmi, struct vm_snapshot_meta
     *meta, int vcpu))
 DEFINE_VMMOPS_IFUNC(int, restore_tsc, (void *vmi, int vcpuid, uint64_t now))
 #endif
@@ -2860,7 +2860,7 @@ vm_snapshot_vmcx(struct vm *vm, struct vm_snapshot_meta *meta)
 
 	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
-		error = vmmops_vmcx_snapshot(vm->cookie, meta, i);
+		error = vmmops_vcpu_snapshot(vm->cookie, meta, i);
 		if (error != 0) {
 			printf("%s: failed to snapshot vmcs/vmcb data for "
 			       "vCPU: %d; error: %d\n", __func__, i, error);
