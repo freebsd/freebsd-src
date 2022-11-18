@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2007
+.Dd November 21, 2022
 .Dt ACPI_THERMAL 4
 .Os
 .Sh NAME
@@ -83,6 +83,9 @@ These are bit-masked values.
 Current temperature for this zone.
 .It Va hw.acpi.thermal.tz%d._PSV
 Temperature to start passive cooling by throttling down CPU, etc.
+This value can be overridden by the user.
+.It Va hw.acpi.thermal.tz%d._CR3
+Temperature to start critical suspend to RAM (S3).
 This value can be overridden by the user.
 .It Va hw.acpi.thermal.tz%d._HOT
 Temperature to start critical suspend to disk (S4).
