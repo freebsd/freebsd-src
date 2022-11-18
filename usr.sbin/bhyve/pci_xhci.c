@@ -568,6 +568,10 @@ pci_xhci_portregs_write(struct pci_xhci_softc *sc, uint64_t offset,
 		 */
 		p->porthlpmc = value;
 		break;
+	default:
+		DPRINTF(("pci_xhci: unaligned portreg write offset %#lx",
+		    offset));
+		break;
 	}
 }
 
@@ -2132,12 +2136,13 @@ pci_xhci_portregs_read(struct pci_xhci_softc *sc, uint64_t offset)
 {
 	struct pci_xhci_portregs *portregs;
 	int port;
-	uint32_t *p;
+	uint32_t reg;
 
 	if (sc->portregs == NULL)
 		return (0);
 
-	port = (offset - 0x3F0) / 0x10;
+	port = (offset - XHCI_PORTREGS_PORT0) / XHCI_PORTREGS_SETSZ;
+	offset = (offset - XHCI_PORTREGS_PORT0) % XHCI_PORTREGS_SETSZ;
 
 	if (port > XHCI_MAX_DEVS) {
 		DPRINTF(("pci_xhci: portregs_read port %d >= XHCI_MAX_DEVS",
@@ -2147,16 +2152,31 @@ pci_xhci_portregs_read(struct pci_xhci_softc *sc, uint64_t offset)
 		return (XHCI_PS_SPEED_SET(3));
 	}
 
-	offset = (offset - 0x3F0) % 0x10;
-
 	portregs = XHCI_PORTREG_PTR(sc, port);
-	p = &portregs->portsc;
-	p += offset / sizeof(uint32_t);
+	switch (offset) {
+	case 0:
+		reg = portregs->portsc;
+		break;
+	case 4:
+		reg = portregs->portpmsc;
+		break;
+	case 8:
+		reg = portregs->portli;
+		break;
+	case 12:
+		reg = portregs->porthlpmc;
+		break;
+	default:
+		DPRINTF(("pci_xhci: unaligned portregs read offset %#lx",
+		    offset));
+		reg = 0xffffffff;
+		break;
+	}
 
 	DPRINTF(("pci_xhci: portregs read offset 0x%lx port %u -> 0x%x",
-	        offset, port, *p));
+	        offset, port, reg));
 
-	return (*p);
+	return (reg);
 }
 
 static void
