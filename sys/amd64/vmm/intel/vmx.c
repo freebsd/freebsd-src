@@ -1020,7 +1020,7 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 static void *
 vmx_init(struct vm *vm, pmap_t pmap)
 {
-	int error;
+	int error __diagused;
 	struct vmx *vmx;
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
