@@ -2806,11 +2806,12 @@ vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
 {
 	uint64_t tsc, now;
 	int ret;
-	int i;
 	struct vcpu *vcpu;
+	uint16_t i, maxcpus;
 
 	now = rdtsc();
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(vm);
+	for (i = 0; i < maxcpus; i++) {
 		vcpu = &vm->vcpu[i];
 
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->x2apic_state, meta, ret, done);
@@ -2852,11 +2853,13 @@ done:
 static int
 vm_snapshot_vmcx(struct vm *vm, struct vm_snapshot_meta *meta)
 {
-	int i, error;
+	int error;
+	uint16_t i, maxcpus;
 
 	error = 0;
 
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(vm);
+	for (i = 0; i < maxcpus; i++) {
 		error = vmmops_vmcx_snapshot(vm->cookie, meta, i);
 		if (error != 0) {
 			printf("%s: failed to snapshot vmcs/vmcb data for "
@@ -2921,7 +2924,7 @@ vm_set_tsc_offset(struct vm *vm, int vcpuid, uint64_t offset)
 {
 	struct vcpu *vcpu;
 
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
 		return (EINVAL);
 
 	vcpu = &vm->vcpu[vcpuid];
@@ -2933,9 +2936,10 @@ vm_set_tsc_offset(struct vm *vm, int vcpuid, uint64_t offset)
 int
 vm_restore_time(struct vm *vm)
 {
-	int error, i;
+	int error;
 	uint64_t now;
 	struct vcpu *vcpu;
+	uint16_t i, maxcpus;
 
 	now = rdtsc();
 
@@ -2943,7 +2947,8 @@ vm_restore_time(struct vm *vm)
 	if (error)
 		return (error);
 
-	for (i = 0; i < nitems(vm->vcpu); i++) {
+	maxcpus = vm_get_maxcpus(vm);
+	for (i = 0; i < maxcpus; i++) {
 		vcpu = &vm->vcpu[i];
 
 		error = vmmops_restore_tsc(vm->cookie, i, vcpu->tsc_offset -
