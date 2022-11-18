@@ -1262,15 +1262,13 @@ devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,
 	KASSERT(error == 0 && !sysmem && *objp != NULL,
 	    ("%s: invalid devmem segment %d", __func__, dsc->segid));
 
+	if (seglen >= last)
+		vm_object_reference(*objp);
+	else
+		error = EINVAL;
 
 	vm_unlock_memsegs(dsc->sc->vm);
-
-	if (seglen >= last) {
-		vm_object_reference(*objp);
-		return (0);
-	} else {
-		return (EINVAL);
-	}
+	return (error);
 }
 
 static struct cdevsw devmemsw = {
