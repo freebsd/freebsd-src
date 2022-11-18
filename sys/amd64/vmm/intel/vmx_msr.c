@@ -344,7 +344,7 @@ vmx_msr_guest_init(struct vmx *vmx, struct vmx_vcpu *vcpu)
 }
 
 void
-vmx_msr_guest_enter(struct vmx *vmx, struct vmx_vcpu *vcpu)
+vmx_msr_guest_enter(struct vmx_vcpu *vcpu)
 {
 
 	/* Save host MSRs (in particular, KGSBASE) and restore guest MSRs */
@@ -367,7 +367,7 @@ vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu)
 }
 
 void
-vmx_msr_guest_exit(struct vmx *vmx, struct vmx_vcpu *vcpu)
+vmx_msr_guest_exit(struct vmx_vcpu *vcpu)
 {
 
 	/* Save guest MSRs */
@@ -404,8 +404,7 @@ vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu)
 }
 
 int
-vmx_rdmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t *val,
-    bool *retu)
+vmx_rdmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t *val, bool *retu)
 {
 	int error;
 
@@ -447,8 +446,7 @@ vmx_rdmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t *val,
 }
 
 int
-vmx_wrmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t val,
-    bool *retu)
+vmx_wrmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t val, bool *retu)
 {
 	uint64_t changed;
 	int error;
@@ -496,7 +494,7 @@ vmx_wrmsr(struct vmx *vmx, struct vmx_vcpu *vcpu, u_int num, uint64_t val,
 			vm_inject_gp(vcpu->vcpu);
 		break;
 	case MSR_TSC:
-		error = vmx_set_tsc_offset(vmx, vcpu, val - rdtsc());
+		error = vmx_set_tsc_offset(vcpu, val - rdtsc());
 		break;
 	case MSR_TSC_AUX:
 		if (vmx_have_msr_tsc_aux)

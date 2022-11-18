@@ -156,13 +156,13 @@ lapic_msr(u_int msr)
 }
 
 int
-lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
+lapic_rdmsr(struct vcpu *vcpu, u_int msr, uint64_t *rval, bool *retu)
 {
 	int error;
 	u_int offset;
 	struct vlapic *vlapic;
 
-	vlapic = vm_lapic(vm_vcpu(vm, cpu));
+	vlapic = vm_lapic(vcpu);
 
 	if (msr == MSR_APICBASE) {
 		*rval = vlapic_get_apicbase(vlapic);
@@ -176,13 +176,13 @@ lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
 }
 
 int
-lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
+lapic_wrmsr(struct vcpu *vcpu, u_int msr, uint64_t val, bool *retu)
 {
 	int error;
 	u_int offset;
 	struct vlapic *vlapic;
 
-	vlapic = vm_lapic(vm_vcpu(vm, cpu));
+	vlapic = vm_lapic(vcpu);
 
 	if (msr == MSR_APICBASE) {
 		error = vlapic_set_apicbase(vlapic, val);

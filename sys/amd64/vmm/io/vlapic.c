@@ -1160,7 +1160,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 				break;
 			vlapic2->boot_state = BS_RUNNING;
 
-			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+			vmexit = vm_exitinfo(vlapic->vcpu);
 			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
 			vmexit->u.spinup_ap.vcpu = i;
 			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
@@ -1187,7 +1187,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	}
 
 	if (!CPU_EMPTY(&ipimask)) {
-		vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+		vmexit = vm_exitinfo(vlapic->vcpu);
 		vmexit->exitcode = VM_EXITCODE_IPI;
 		vmexit->u.ipi.mode = mode;
 		vmexit->u.ipi.vector = vec;

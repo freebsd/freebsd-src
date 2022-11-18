@@ -86,7 +86,7 @@ svm_msr_guest_init(struct svm_softc *sc, struct svm_vcpu *vcpu)
 }
 
 void
-svm_msr_guest_enter(struct svm_softc *sc, struct svm_vcpu *vcpu)
+svm_msr_guest_enter(struct svm_vcpu *vcpu)
 {
 	/*
 	 * Save host MSRs (if any) and restore guest MSRs (if any).
@@ -94,7 +94,7 @@ svm_msr_guest_enter(struct svm_softc *sc, struct svm_vcpu *vcpu)
 }
 
 void
-svm_msr_guest_exit(struct svm_softc *sc, struct svm_vcpu *vcpu)
+svm_msr_guest_exit(struct svm_vcpu *vcpu)
 {
 	/*
 	 * Save guest MSRs (if any) and restore host MSRs.
@@ -108,8 +108,7 @@ svm_msr_guest_exit(struct svm_softc *sc, struct svm_vcpu *vcpu)
 }
 
 int
-svm_rdmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num,
-    uint64_t *result, bool *retu)
+svm_rdmsr(struct svm_vcpu *vcpu, u_int num, uint64_t *result, bool *retu)
 {
 	int error = 0;
 
@@ -142,8 +141,7 @@ svm_rdmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num,
 }
 
 int
-svm_wrmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num, uint64_t val,
-    bool *retu)
+svm_wrmsr(struct svm_vcpu *vcpu, u_int num, uint64_t val, bool *retu)
 {
 	int error = 0;
 
@@ -175,7 +173,7 @@ svm_wrmsr(struct svm_softc *sc, struct svm_vcpu *vcpu, u_int num, uint64_t val,
 		break;
 #ifdef BHYVE_SNAPSHOT
 	case MSR_TSC:
-		error = svm_set_tsc_offset(sc, vcpu, val - rdtsc());
+		svm_set_tsc_offset(vcpu, val - rdtsc());
 		break;
 #endif
 	case MSR_EXTFEATURES:

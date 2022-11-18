@@ -36,13 +36,11 @@ struct vmx;
 void vmx_msr_init(void);
 void vmx_msr_guest_init(struct vmx *vmx, struct vmx_vcpu *vcpu);
 void vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu);
-void vmx_msr_guest_enter(struct vmx *vmx, struct vmx_vcpu *vcpu);
-void vmx_msr_guest_exit(struct vmx *vmx, struct vmx_vcpu *vcpu);
+void vmx_msr_guest_enter(struct vmx_vcpu *vcpu);
+void vmx_msr_guest_exit(struct vmx_vcpu *vcpu);
 void vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, struct vmx_vcpu *vcpu);
-int vmx_rdmsr(struct vmx *, struct vmx_vcpu *vcpu, u_int num, uint64_t *val,
-    bool *retu);
-int vmx_wrmsr(struct vmx *, struct vmx_vcpu *vcpu, u_int num, uint64_t val,
-    bool *retu);
+int vmx_rdmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t *val, bool *retu);
+int vmx_wrmsr(struct vmx_vcpu *vcpu, u_int num, uint64_t val, bool *retu);
 
 uint32_t vmx_revision(void);
 

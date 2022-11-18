@@ -258,7 +258,7 @@ void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
 void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
     int prot, void **cookie);
 void vm_gpa_release(void *cookie);
-bool vm_mem_allocated(struct vm *vm, int vcpuid, vm_paddr_t gpa);
+bool vm_mem_allocated(struct vcpu *vcpu, vm_paddr_t gpa);
 
 int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
@@ -269,11 +269,11 @@ int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 int vm_run(struct vm *vm, struct vm_run *vmrun);
 int vm_suspend(struct vm *vm, enum vm_suspend_how how);
 int vm_inject_nmi(struct vm *vm, int vcpu);
-int vm_nmi_pending(struct vm *vm, int vcpuid);
-void vm_nmi_clear(struct vm *vm, int vcpuid);
+int vm_nmi_pending(struct vcpu *vcpu);
+void vm_nmi_clear(struct vcpu *vcpu);
 int vm_inject_extint(struct vm *vm, int vcpu);
-int vm_extint_pending(struct vm *vm, int vcpuid);
-void vm_extint_clear(struct vm *vm, int vcpuid);
+int vm_extint_pending(struct vcpu *vcpu);
+void vm_extint_clear(struct vcpu *vcpu);
 int vcpu_vcpuid(struct vcpu *vcpu);
 struct vm *vcpu_vm(struct vcpu *vcpu);
 struct vcpu *vm_vcpu(struct vm *vm, int cpu);
@@ -289,12 +289,12 @@ int vm_activate_cpu(struct vm *vm, int vcpu);
 int vm_suspend_cpu(struct vm *vm, int vcpu);
 int vm_resume_cpu(struct vm *vm, int vcpu);
 int vm_restart_instruction(struct vcpu *vcpu);
-struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
-void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
-void vm_exit_debug(struct vm *vm, int vcpuid, uint64_t rip);
-void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
-void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
-void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
+struct vm_exit *vm_exitinfo(struct vcpu *vcpu);
+void vm_exit_suspended(struct vcpu *vcpu, uint64_t rip);
+void vm_exit_debug(struct vcpu *vcpu, uint64_t rip);
+void vm_exit_rendezvous(struct vcpu *vcpu, uint64_t rip);
+void vm_exit_astpending(struct vcpu *vcpu, uint64_t rip);
+void vm_exit_reqidle(struct vcpu *vcpu, uint64_t rip);
 int vm_snapshot_req(struct vm *vm, struct vm_snapshot_meta *meta);
 int vm_restore_time(struct vm *vm);
 
@@ -342,7 +342,7 @@ vcpu_reqidle(struct vm_eventinfo *info)
 	return (*info->iptr);
 }
 
-int vcpu_debugged(struct vm *vm, int vcpuid);
+int vcpu_debugged(struct vcpu *vcpu);
 
 /*
  * Return true if device indicated by bus/slot/func is supposed to be a
@@ -366,14 +366,14 @@ int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
 enum vcpu_state vcpu_get_state(struct vcpu *vcpu, int *hostcpu);
 
 static int __inline
-vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
+vcpu_is_running(struct vcpu *vcpu, int *hostcpu)
 {
-	return (vcpu_get_state(vm_vcpu(vm, vcpu), hostcpu) == VCPU_RUNNING);
+	return (vcpu_get_state(vcpu, hostcpu) == VCPU_RUNNING);
 }
 
 #ifdef _SYS_PROC_H_
 static int __inline
-vcpu_should_yield(struct vm *vm, int vcpu)
+vcpu_should_yield(struct vcpu *vcpu)
 {
 	struct thread *td;
 
@@ -417,7 +417,7 @@ int vm_inject_exception(struct vcpu *vcpu, int vector, int err_valid,
  *
  * Return value is 0 on success and non-zero on failure.
  */
-int vm_exit_intinfo(struct vm *vm, int vcpuid, uint64_t intinfo);
+int vm_exit_intinfo(struct vcpu *vcpu, uint64_t intinfo);
 
 /*
  * This function is called before every VM-entry to retrieve a pending
@@ -427,7 +427,7 @@ int vm_exit_intinfo(struct vm *vm, int vcpuid, uint64_t intinfo);
  * Returns 0 if there are no events that need to be injected into the guest
  * and non-zero otherwise.
  */
-int vm_entry_intinfo(struct vm *vm, int vcpuid, uint64_t *info);
+int vm_entry_intinfo(struct vcpu *vcpu, uint64_t *info);
 
 int vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2);
 
@@ -435,10 +435,8 @@ int vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2);
  * Function used to keep track of the guest's TSC offset. The
  * offset is used by the virutalization extensions to provide a consistent
  * value for the Time Stamp Counter to the guest.
- *
- * Return value is 0 on success and non-zero on failure.
  */
-int vm_set_tsc_offset(struct vm *vm, int vcpu_id, uint64_t offset);
+void vm_set_tsc_offset(struct vcpu *vcpu, uint64_t offset);
 
 enum vm_reg_name vm_segment_name(int seg_encoding);
 
@@ -470,8 +468,8 @@ void vm_copy_teardown(struct vm_copyinfo *copyinfo, int num_copyinfo);
 void vm_copyin(struct vm_copyinfo *copyinfo, void *kaddr, size_t len);
 void vm_copyout(const void *kaddr, struct vm_copyinfo *copyinfo, size_t len);
 
-int vcpu_trace_exceptions(struct vm *vm, int vcpuid);
-int vcpu_trap_wbinvd(struct vm *vm, int vcpuid);
+int vcpu_trace_exceptions(struct vcpu *vcpu);
+int vcpu_trap_wbinvd(struct vcpu *vcpu);
 #endif	/* KERNEL */
 
 #ifdef _KERNEL
@@ -790,27 +788,27 @@ void vm_inject_fault(void *vm, int vcpuid, int vector, int errcode_valid,
     int errcode);
 
 static __inline void
-vm_inject_ud(void *vm, int vcpuid)
+vm_inject_ud(struct vcpu *vcpu)
 {
-	vm_inject_fault(vm, vcpuid, IDT_UD, 0, 0);
+	vm_inject_fault(vcpu, IDT_UD, 0, 0);
 }
 
 static __inline void
-vm_inject_gp(void *vm, int vcpuid)
+vm_inject_gp(struct vcpu *vcpu)
 {
-	vm_inject_fault(vm, vcpuid, IDT_GP, 1, 0);
+	vm_inject_fault(vcpu, IDT_GP, 1, 0);
 }
 
 static __inline void
-vm_inject_ac(void *vm, int vcpuid, int errcode)
+vm_inject_ac(struct vcpu *vcpu, int errcode)
 {
-	vm_inject_fault(vm, vcpuid, IDT_AC, 1, errcode);
+	vm_inject_fault(vcpu, IDT_AC, 1, errcode);
 }
 
 static __inline void
-vm_inject_ss(void *vm, int vcpuid, int errcode)
+vm_inject_ss(struct vcpu *vcpu, int errcode)
 {
-	vm_inject_fault(vm, vcpuid, IDT_SS, 1, errcode);
+	vm_inject_fault(vcpu, IDT_SS, 1, errcode);
 }
 
 void vm_inject_pf(void *vm, int vcpuid, int error_code, uint64_t cr2);
