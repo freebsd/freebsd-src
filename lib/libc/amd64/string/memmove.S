@@ -306,3 +306,5 @@ ENTRY(memcpy)
 	MEMMOVE erms=0 overlap=1 begin=MEMMOVE_BEGIN end=MEMMOVE_END
 END(memcpy)
 #endif
+
+	.section .note.GNU-stack,"",%progbits
