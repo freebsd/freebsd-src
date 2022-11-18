@@ -835,8 +835,8 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		/*
 		 * case (2): read from system memory and write to mmio.
 		 */
-		vm_copyin(vm, vcpuid, copyinfo, &val, opsize);
-		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+		vm_copyin(copyinfo, &val, opsize);
+		vm_copy_teardown(copyinfo, nitems(copyinfo));
 		error = memwrite(vm, vcpuid, gpa, val, opsize, arg);
 		if (error)
 			goto done;
@@ -871,8 +871,8 @@ emulate_movs(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			if (error)
 				goto done;
 
-			vm_copyout(vm, vcpuid, &val, copyinfo, opsize);
-			vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+			vm_copyout(&val, copyinfo, opsize);
+			vm_copy_teardown(copyinfo, nitems(copyinfo));
 		} else {
 			/*
 			 * Case (4): read from and write to mmio.
@@ -1599,13 +1599,13 @@ emulate_stack_op(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 	if (pushop) {
 		error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
 		if (error == 0)
-			vm_copyout(vm, vcpuid, &val, copyinfo, size);
+			vm_copyout(&val, copyinfo, size);
 	} else {
-		vm_copyin(vm, vcpuid, copyinfo, &val, size);
+		vm_copyin(copyinfo, &val, size);
 		error = memwrite(vm, vcpuid, mmio_gpa, val, size, arg);
 		rsp += size;
 	}
-	vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+	vm_copy_teardown(copyinfo, nitems(copyinfo));
 
 	if (error == 0) {
 		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RSP, rsp,
@@ -2300,8 +2300,8 @@ vmm_fetch_instruction(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 	if (error || *faultptr)
 		return (error);
 
-	vm_copyin(vm, vcpuid, copyinfo, vie->inst, inst_length);
-	vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+	vm_copyin(copyinfo, vie->inst, inst_length);
+	vm_copy_teardown(copyinfo, nitems(copyinfo));
 	vie->num_valid = inst_length;
 	return (0);
 }

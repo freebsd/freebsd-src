@@ -43,7 +43,7 @@
  * API version for out-of-tree consumers like grub-bhyve for making compile
  * time decisions.
  */
-#define	VMMAPI_VERSION	0103	/* 2 digit major followed by 2 digit minor */
+#define	VMMAPI_VERSION	0104	/* 2 digit major followed by 2 digit minor */
 
 struct iovec;
 struct vmctx;
@@ -219,12 +219,9 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
 	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
 	    int *fault);
-void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
-	    void *host_dst, size_t len);
-void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
-	    struct iovec *guest_iov, size_t len);
-void	vm_copy_teardown(struct vmctx *ctx, int vcpu, struct iovec *iov,
-	    int iovcnt);
+void	vm_copyin(struct iovec *guest_iov, void *host_dst, size_t len);
+void	vm_copyout(const void *host_src, struct iovec *guest_iov, size_t len);
+void	vm_copy_teardown(struct iovec *iov, int iovcnt);
 
 /* RTC */
 int	vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value);

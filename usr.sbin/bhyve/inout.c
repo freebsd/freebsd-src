@@ -184,14 +184,14 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 
 			val = 0;
 			if (!in)
-				vm_copyin(ctx, vcpu, iov, &val, bytes);
+				vm_copyin(iov, &val, bytes);
 
 			retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
 			if (retval != 0)
 				break;
 
 			if (in)
-				vm_copyout(ctx, vcpu, &val, iov, bytes);
+				vm_copyout(&val, iov, bytes);
 
 			/* Update index */
 			if (vis->rflags & PSL_D)
