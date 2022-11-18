@@ -1226,28 +1226,22 @@ vmx_handle_cpuid(struct vmx_vcpu *vcpu, struct vmxctx *vmxctx)
 static __inline void
 vmx_run_trace(struct vmx_vcpu *vcpu)
 {
-#ifdef KTR
 	VMX_CTR1(vcpu, "Resume execution at %#lx", vmcs_guest_rip());
-#endif
 }
 
 static __inline void
 vmx_exit_trace(struct vmx_vcpu *vcpu, uint64_t rip, uint32_t exit_reason,
     int handled)
 {
-#ifdef KTR
 	VMX_CTR3(vcpu, "%s %s vmexit at 0x%0lx",
 		 handled ? "handled" : "unhandled",
 		 exit_reason_to_str(exit_reason), rip);
-#endif
 }
 
 static __inline void
 vmx_astpending_trace(struct vmx_vcpu *vcpu, uint64_t rip)
 {
-#ifdef KTR
 	VMX_CTR1(vcpu, "astpending vmexit at 0x%0lx", rip);
-#endif
 }
 
 static VMM_STAT_INTEL(VCPU_INVVPID_SAVED, "Number of vpid invalidations saved");
