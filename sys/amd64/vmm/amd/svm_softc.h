@@ -36,12 +36,15 @@
 #define SVM_IO_BITMAP_SIZE	(3 * PAGE_SIZE)
 #define SVM_MSR_BITMAP_SIZE	(2 * PAGE_SIZE)
 
+struct svm_softc;
+
 struct asid {
 	uint64_t	gen;	/* range is [1, ~0UL] */
 	uint32_t	num;	/* range is [1, nasid - 1] */
 };
 
 struct svm_vcpu {
+	struct svm_softc *sc;
 	struct vmcb	*vmcb;	 /* hardware saved vcpu context */
 	struct svm_regctx swctx; /* software saved vcpu context */
 	uint64_t	vmcb_pa; /* VMCB physical address */
