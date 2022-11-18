@@ -600,7 +600,7 @@ vlapic_process_eoi(struct vlapic *vlapic)
 		}
 	}
 	VLAPIC_CTR0(vlapic, "Gratuitous EOI");
-	vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_GRATUITOUS_EOI, 1);
+	vmm_stat_incr(vlapic->vcpu, VLAPIC_GRATUITOUS_EOI, 1);
 }
 
 static __inline int
@@ -636,7 +636,7 @@ vlapic_set_error(struct vlapic *vlapic, uint32_t mask, bool lvt_error)
 		return;
 
 	if (vlapic_fire_lvt(vlapic, APIC_LVT_ERROR)) {
-		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_ERROR, 1);
+		vmm_stat_incr(vlapic->vcpu, VLAPIC_INTR_ERROR, 1);
 	}
 }
 
@@ -650,7 +650,7 @@ vlapic_fire_timer(struct vlapic *vlapic)
 
 	if (vlapic_fire_lvt(vlapic, APIC_LVT_TIMER)) {
 		VLAPIC_CTR0(vlapic, "vlapic timer fired");
-		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
+		vmm_stat_incr(vlapic->vcpu, VLAPIC_INTR_TIMER, 1);
 	}
 }
 
@@ -662,7 +662,7 @@ vlapic_fire_cmci(struct vlapic *vlapic)
 {
 
 	if (vlapic_fire_lvt(vlapic, APIC_LVT_CMCI)) {
-		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_CMC, 1);
+		vmm_stat_incr(vlapic->vcpu, VLAPIC_INTR_CMC, 1);
 	}
 }
 
@@ -701,8 +701,8 @@ vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 	case APIC_LVT_THERMAL:
 	case APIC_LVT_CMCI:
 		if (vlapic_fire_lvt(vlapic, vector)) {
-			vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
-			    LVTS_TRIGGERRED, vector, 1);
+			vmm_stat_array_incr(vlapic->vcpu, LVTS_TRIGGERRED,
+			    vector, 1);
 		}
 		break;
 	default:
@@ -1102,8 +1102,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 
 		CPU_FOREACH_ISSET(i, &dmask) {
 			lapic_intr_edge(vlapic->vm, i, vec);
-			vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
-			    IPIS_SENT, i, 1);
+			vmm_stat_array_incr(vlapic->vcpu, IPIS_SENT, i, 1);
 			VLAPIC_CTR2(vlapic,
 			    "vlapic sending ipi %d to vcpuid %d", vec, i);
 		}
@@ -1238,8 +1237,7 @@ vlapic_self_ipi_handler(struct vlapic *vlapic, uint64_t val)
 
 	vec = val & 0xff;
 	lapic_intr_edge(vlapic->vm, vlapic->vcpuid, vec);
-	vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid, IPIS_SENT,
-	    vlapic->vcpuid, 1);
+	vmm_stat_array_incr(vlapic->vcpu, IPIS_SENT, vlapic->vcpuid, 1);
 	VLAPIC_CTR1(vlapic, "vlapic self-ipi %d", vec);
 }
 

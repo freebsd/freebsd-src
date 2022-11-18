@@ -1314,7 +1314,7 @@ vmx_invvpid(struct vmx *vmx, struct vmx_vcpu *vcpu, pmap_t pmap, int running)
 		invvpid_desc.vpid = vmxstate->vpid;
 		invvpid_desc.linear_addr = 0;
 		invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
-		vmm_stat_incr(vmx->vm, vcpu->vcpuid, VCPU_INVVPID_DONE, 1);
+		vmm_stat_incr(vcpu->vcpu, VCPU_INVVPID_DONE, 1);
 	} else {
 		/*
 		 * The invvpid can be skipped if an invept is going to
@@ -1322,7 +1322,7 @@ vmx_invvpid(struct vmx *vmx, struct vmx_vcpu *vcpu, pmap_t pmap, int running)
 		 * will invalidate combined mappings tagged with
 		 * 'vmx->eptp' for all vpids.
 		 */
-		vmm_stat_incr(vmx->vm, vcpu->vcpuid, VCPU_INVVPID_SAVED, 1);
+		vmm_stat_incr(vcpu->vcpu, VCPU_INVVPID_SAVED, 1);
 	}
 }
 
@@ -1337,7 +1337,7 @@ vmx_set_pcpu_defaults(struct vmx *vmx, struct vmx_vcpu *vcpu, pmap_t pmap)
 
 	vmxstate->lastcpu = curcpu;
 
-	vmm_stat_incr(vmx->vm, vcpu->vcpuid, VCPU_MIGRATIONS, 1);
+	vmm_stat_incr(vcpu->vcpu, VCPU_MIGRATIONS, 1);
 
 	vmcs_write(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
 	vmcs_write(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
@@ -2384,7 +2384,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 	reason = vmexit->u.vmx.exit_reason;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
-	vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_COUNT, 1);
+	vmm_stat_incr(vcpu->vcpu, VMEXIT_COUNT, 1);
 	SDT_PROBE3(vmm, vmx, exit, entry, vmx, vcpuid, vmexit);
 
 	/*
@@ -2495,7 +2495,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		    ((uint64_t)ts->errcode << 32) | ts->errcode_valid);
 		break;
 	case EXIT_REASON_CR_ACCESS:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_CR_ACCESS, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_CR_ACCESS, 1);
 		SDT_PROBE4(vmm, vmx, exit, craccess, vmx, vcpuid, vmexit, qual);
 		switch (qual & 0xf) {
 		case 0:
@@ -2510,7 +2510,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		}
 		break;
 	case EXIT_REASON_RDMSR:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_RDMSR, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_RDMSR, 1);
 		retu = false;
 		ecx = vmxctx->guest_rcx;
 		VMX_CTR1(vcpu, "rdmsr 0x%08x", ecx);
@@ -2528,7 +2528,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		}
 		break;
 	case EXIT_REASON_WRMSR:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_WRMSR, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_WRMSR, 1);
 		retu = false;
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
@@ -2552,7 +2552,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		}
 		break;
 	case EXIT_REASON_HLT:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_HLT, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_HLT, 1);
 		SDT_PROBE3(vmm, vmx, exit, halt, vmx, vcpuid, vmexit);
 		vmexit->exitcode = VM_EXITCODE_HLT;
 		vmexit->u.hlt.rflags = vmcs_read(VMCS_GUEST_RFLAGS);
@@ -2563,18 +2563,18 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 			vmexit->u.hlt.intr_status = 0;
 		break;
 	case EXIT_REASON_MTF:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_MTRAP, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_MTRAP, 1);
 		SDT_PROBE3(vmm, vmx, exit, mtrap, vmx, vcpuid, vmexit);
 		vmexit->exitcode = VM_EXITCODE_MTRAP;
 		vmexit->inst_length = 0;
 		break;
 	case EXIT_REASON_PAUSE:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_PAUSE, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_PAUSE, 1);
 		SDT_PROBE3(vmm, vmx, exit, pause, vmx, vcpuid, vmexit);
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
 		break;
 	case EXIT_REASON_INTR_WINDOW:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_INTR_WINDOW, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_INTR_WINDOW, 1);
 		SDT_PROBE3(vmm, vmx, exit, intrwindow, vmx, vcpuid, vmexit);
 		vmx_clear_int_window_exiting(vcpu);
 		return (1);
@@ -2607,7 +2607,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		 * This is special. We want to treat this as an 'handled'
 		 * VM-exit but not increment the instruction pointer.
 		 */
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_EXTINT, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_EXTINT, 1);
 		return (1);
 	case EXIT_REASON_NMI_WINDOW:
 		SDT_PROBE3(vmm, vmx, exit, nmiwindow, vmx, vcpuid, vmexit);
@@ -2615,10 +2615,10 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		if (vm_nmi_pending(vmx->vm, vcpuid))
 			vmx_inject_nmi(vmx, vcpu);
 		vmx_clear_nmi_window_exiting(vcpu);
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_NMI_WINDOW, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_NMI_WINDOW, 1);
 		return (1);
 	case EXIT_REASON_INOUT:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_INOUT, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_INOUT, 1);
 		vmexit->exitcode = VM_EXITCODE_INOUT;
 		vmexit->u.inout.bytes = (qual & 0x7) + 1;
 		vmexit->u.inout.in = in = (qual & 0x8) ? 1 : 0;
@@ -2641,12 +2641,12 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		SDT_PROBE3(vmm, vmx, exit, inout, vmx, vcpuid, vmexit);
 		break;
 	case EXIT_REASON_CPUID:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_CPUID, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_CPUID, 1);
 		SDT_PROBE3(vmm, vmx, exit, cpuid, vmx, vcpuid, vmexit);
 		handled = vmx_handle_cpuid(vmx->vm, vcpuid, vmxctx);
 		break;
 	case EXIT_REASON_EXCEPTION:
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_EXCEPTION, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_EXCEPTION, 1);
 		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
 		KASSERT((intr_info & VMCS_INTR_VALID) != 0,
 		    ("VM exit interruption info invalid: %#x", intr_info));
@@ -2740,12 +2740,12 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 			vmexit->inst_length = 0;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
-			vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_NESTED_FAULT, 1);
+			vmm_stat_incr(vcpu->vcpu, VMEXIT_NESTED_FAULT, 1);
 			SDT_PROBE5(vmm, vmx, exit, nestedfault,
 			    vmx, vcpuid, vmexit, gpa, qual);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit_inst_emul(vmexit, gpa, vmcs_gla());
-			vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_INST_EMUL, 1);
+			vmm_stat_incr(vcpu->vcpu, VMEXIT_INST_EMUL, 1);
 			SDT_PROBE4(vmm, vmx, exit, mmiofault,
 			    vmx, vcpuid, vmexit, gpa);
 		}
@@ -2821,7 +2821,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 	default:
 		SDT_PROBE4(vmm, vmx, exit, unknown,
 		    vmx, vcpuid, vmexit, reason);
-		vmm_stat_incr(vmx->vm, vcpuid, VMEXIT_UNKNOWN, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}
 
