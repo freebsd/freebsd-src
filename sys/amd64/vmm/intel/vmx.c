@@ -4102,67 +4102,29 @@ vmx_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 static int
 vmx_snapshot(void *arg, struct vm_snapshot_meta *meta)
 {
-	struct vmx *vmx;
-	struct vmx_vcpu *vcpu;
-	struct vmxctx *vmxctx;
-	int ret;
-	uint16_t i, maxcpus;
-
-	vmx = arg;
-
-	KASSERT(vmx != NULL, ("%s: arg was NULL", __func__));
-
-	maxcpus = vm_get_maxcpus(vmx->vm);
-	for (i = 0; i < maxcpus; i++) {
-		vcpu = &vmx->vcpus[i];
-
-		SNAPSHOT_BUF_OR_LEAVE(vcpu->guest_msrs,
-		      sizeof(vcpu->guest_msrs), meta, ret, done);
-
-		vmxctx = &vcpu->ctx;
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdi, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rsi, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdx, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rcx, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r8, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r9, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rax, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rbx, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rbp, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r10, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r11, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r12, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r13, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r14, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r15, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_cr2, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr0, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr1, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr2, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr3, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr6, meta, ret, done);
-	}
-
-done:
-	return (ret);
+	return (0);
 }
 
 static int
-vmx_vmcx_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpu)
+vmx_vcpu_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpuid)
 {
 	struct vmcs *vmcs;
 	struct vmx *vmx;
+	struct vmx_vcpu *vcpu;
+	struct vmxctx *vmxctx;
 	int err, run, hostcpu;
 
 	vmx = (struct vmx *)arg;
 	err = 0;
 
 	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
-	vmcs = vmx->vcpus[vcpu].vmcs;
+	vcpu = &vmx->vcpus[vcpuid];
+	vmcs = vcpu->vmcs;
 
-	run = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	run = vcpu_is_running(vmx->vm, vcpuid, &hostcpu);
 	if (run && hostcpu != curcpu) {
-		printf("%s: %s%d is running", __func__, vm_name(vmx->vm), vcpu);
+		printf("%s: %s%d is running", __func__, vm_name(vmx->vm),
+		    vcpuid);
 		return (EINVAL);
 	}
 
@@ -4218,7 +4180,36 @@ vmx_vmcx_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpu)
 	err += vmcs_snapshot_any(vmcs, run, VMCS_GUEST_ACTIVITY, meta);
 	err += vmcs_snapshot_any(vmcs, run, VMCS_ENTRY_CTLS, meta);
 	err += vmcs_snapshot_any(vmcs, run, VMCS_EXIT_CTLS, meta);
+	if (err != 0)
+		goto done;
 
+	SNAPSHOT_BUF_OR_LEAVE(vcpu->guest_msrs,
+	    sizeof(vcpu->guest_msrs), meta, err, done);
+
+	vmxctx = &vcpu->ctx;
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdi, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rsi, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdx, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rcx, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r8, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r9, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rax, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rbx, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rbp, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r10, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r11, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r12, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r13, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r14, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_r15, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_cr2, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr0, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr1, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr2, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr3, meta, err, done);
+	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_dr6, meta, err, done);
+
+done:
 	return (err);
 }
 
@@ -4268,7 +4259,7 @@ const struct vmm_ops vmm_ops_intel = {
 	.vlapic_cleanup	= vmx_vlapic_cleanup,
 #ifdef BHYVE_SNAPSHOT
 	.snapshot	= vmx_snapshot,
-	.vmcx_snapshot	= vmx_vmcx_snapshot,
+	.vcpu_snapshot	= vmx_vcpu_snapshot,
 	.restore_tsc	= vmx_restore_tsc,
 #endif
 };
