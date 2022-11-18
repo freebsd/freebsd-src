@@ -394,6 +394,8 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && sc->sc_evdev != NULL)
 		evdev_push_event(sc->sc_evdev, EV_KEY,
 		    evdev_hid2key(KEY_INDEX(key)), !(key & KEY_RELEASE));
+	if (sc->sc_evdev != NULL && evdev_is_grabbed(sc->sc_evdev))
+		return;
 #endif
 
 	if (sc->sc_inputs < UKBD_IN_BUF_SIZE) {
@@ -562,6 +564,8 @@ ukbd_interrupt(struct ukbd_softc *sc)
 #ifdef EVDEV_SUPPORT
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && sc->sc_evdev != NULL)
 		evdev_sync(sc->sc_evdev);
+	if (sc->sc_evdev != NULL && evdev_is_grabbed(sc->sc_evdev))
+		return;
 #endif
 
 	/* wakeup keyboard system */

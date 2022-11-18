@@ -194,6 +194,10 @@ gpiokeys_key_event(struct gpiokeys_softc *sc, struct gpiokey *key, int pressed)
 		evdev_push_key(sc->sc_evdev, key->evcode, pressed);
 		evdev_sync(sc->sc_evdev);
 	}
+	if (evdev_is_grabbed(sc->sc_evdev)) {
+		GPIOKEYS_UNLOCK(sc);
+		return;
+	}
 #endif
 	if (key->keycode != GPIOKEY_NONE) {
 		code = key->keycode & SCAN_KEYCODE_MASK;
