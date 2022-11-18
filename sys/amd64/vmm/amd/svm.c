@@ -292,7 +292,7 @@ svm_set_tsc_offset(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t offset)
 	ctrl->tsc_offset = offset;
 
 	svm_set_dirty(vcpu, VMCB_CACHE_I);
-	VCPU_CTR1(sc->vm, vcpu->vcpuid, "tsc offset changed to %#lx", offset);
+	SVM_CTR1(vcpu, "tsc offset changed to %#lx", offset);
 
 	error = vm_set_tsc_offset(sc->vm, vcpu->vcpuid, offset);
 
@@ -410,8 +410,8 @@ svm_set_intercept(struct svm_vcpu *vcpu, int idx, uint32_t bitmask, int enabled)
 
 	if (ctrl->intercept[idx] != oldval) {
 		svm_set_dirty(vcpu, VMCB_CACHE_I);
-		VCPU_CTR3(vcpu->sc->vm, vcpu->vcpuid, "intercept[%d] modified "
-		    "from %#x to %#x", idx, oldval, ctrl->intercept[idx]);
+		SVM_CTR3(vcpu, "intercept[%d] modified from %#x to %#x", idx,
+		    oldval, ctrl->intercept[idx]);
 	}
 }
 
@@ -961,12 +961,10 @@ svm_eventinject(struct svm_vcpu *vcpu, int intr_type, int vector,
 	if (ec_valid) {
 		ctrl->eventinj |= VMCB_EVENTINJ_EC_VALID;
 		ctrl->eventinj |= (uint64_t)error << 32;
-		VCPU_CTR3(vcpu->sc->vm, vcpu->vcpuid,
-		    "Injecting %s at vector %d errcode %#x",
+		SVM_CTR3(vcpu, "Injecting %s at vector %d errcode %#x",
 		    intrtype_to_str(intr_type), vector, error);
 	} else {
-		VCPU_CTR2(vcpu->sc->vm, vcpu->vcpuid,
-		    "Injecting %s at vector %d",
+		SVM_CTR2(vcpu, "Injecting %s at vector %d",
 		    intrtype_to_str(intr_type), vector);
 	}
 }
@@ -1009,8 +1007,8 @@ svm_save_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 	 * If a #VMEXIT happened during event delivery then record the event
 	 * that was being delivered.
 	 */
-	VCPU_CTR2(svm_sc->vm, vcpuid, "SVM:Pending INTINFO(0x%lx), vector=%d.\n",
-		intinfo, VMCB_EXITINTINFO_VECTOR(intinfo));
+	SVM_CTR2(vcpu, "SVM:Pending INTINFO(0x%lx), vector=%d.\n", intinfo,
+	    VMCB_EXITINTINFO_VECTOR(intinfo));
 	vmm_stat_incr(svm_sc->vm, vcpuid, VCPU_EXITINTINFO, 1);
 	vm_exit_intinfo(svm_sc->vm, vcpuid, intinfo);
 }
@@ -1038,7 +1036,7 @@ enable_intr_window_exiting(struct svm_vcpu *vcpu)
 		return;
 	}
 
-	VCPU_CTR0(vcpu->sc->vm, vcpu->vcpuid, "Enable intr window exiting");
+	SVM_CTR0(vcpu, "Enable intr window exiting");
 	ctrl->v_irq = 1;
 	ctrl->v_ign_tpr = 1;
 	ctrl->v_intr_vector = 0;
@@ -1059,7 +1057,7 @@ disable_intr_window_exiting(struct svm_vcpu *vcpu)
 		return;
 	}
 
-	VCPU_CTR0(vcpu->sc->vm, vcpu->vcpuid, "Disable intr window exiting");
+	SVM_CTR0(vcpu, "Disable intr window exiting");
 	ctrl->v_irq = 0;
 	ctrl->v_intr_vector = 0;
 	svm_set_dirty(vcpu, VMCB_CACHE_TPR);
@@ -1077,8 +1075,7 @@ svm_modify_intr_shadow(struct svm_vcpu *vcpu, uint64_t val)
 	newval = val ? 1 : 0;
 	if (newval != oldval) {
 		ctrl->intr_shadow = newval;
-		VCPU_CTR1(vcpu->sc->vm, vcpu->vcpuid,
-		    "Setting intr_shadow to %d", newval);
+		SVM_CTR1(vcpu, "Setting intr_shadow to %d", newval);
 	}
 	return (0);
 }
@@ -1112,7 +1109,7 @@ enable_nmi_blocking(struct svm_vcpu *vcpu)
 {
 
 	KASSERT(!nmi_blocked(vcpu), ("vNMI already blocked"));
-	VCPU_CTR0(vcpu->sc->vm, vcpu->vcpuid, "vNMI blocking enabled");
+	SVM_CTR0(vcpu, "vNMI blocking enabled");
 	svm_enable_intercept(vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IRET);
 }
 
@@ -1122,7 +1119,7 @@ clear_nmi_blocking(struct svm_vcpu *vcpu)
 	int error __diagused;
 
 	KASSERT(nmi_blocked(vcpu), ("vNMI already unblocked"));
-	VCPU_CTR0(vcpu->sc->vm, vcpu->vcpuid, "vNMI blocking cleared");
+	SVM_CTR0(vcpu, "vNMI blocking cleared");
 	/*
 	 * When the IRET intercept is cleared the vcpu will attempt to execute
 	 * the "iret" when it runs next. However, it is possible to inject
@@ -1159,7 +1156,7 @@ svm_write_efer(struct svm_softc *sc, struct svm_vcpu *vcpu, uint64_t newval,
 	vcpuid = vcpu->vcpuid;
 
 	oldval = state->efer;
-	VCPU_CTR2(sc->vm, vcpuid, "wrmsr(efer) %#lx/%#lx", oldval, newval);
+	SVM_CTR2(vcpu, "wrmsr(efer) %#lx/%#lx", oldval, newval);
 
 	newval &= ~0xFE;		/* clear the Read-As-Zero (RAZ) bits */
 	changed = oldval ^ newval;
@@ -1410,7 +1407,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			 * reflect the machine check back into the guest.
 			 */
 			reflect = 0;
-			VCPU_CTR0(svm_sc->vm, vcpuid, "Vectoring to MCE handler");
+			SVM_CTR0(vcpu, "Vectoring to MCE handler");
 			__asm __volatile("int $18");
 			break;
 		case IDT_PF:
@@ -1443,7 +1440,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			 * event injection is identical to what it was when
 			 * the exception originally happened.
 			 */
-			VCPU_CTR2(svm_sc->vm, vcpuid, "Reset inst_length from %d "
+			SVM_CTR2(vcpu, "Reset inst_length from %d "
 			    "to zero before injecting exception %d",
 			    vmexit->inst_length, idtvec);
 			vmexit->inst_length = 0;
@@ -1459,7 +1456,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 
 		if (reflect) {
 			/* Reflect the exception back into the guest */
-			VCPU_CTR2(svm_sc->vm, vcpuid, "Reflecting exception "
+			SVM_CTR2(vcpu, "Reflecting exception "
 			    "%d/%#x into the guest", idtvec, (int)info1);
 			error = vm_inject_exception(svm_sc->vm, vcpuid, idtvec,
 			    errcode_valid, info1, 0);
@@ -1477,8 +1474,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		if (info1) {
 			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_WRMSR, 1);
 			val = (uint64_t)edx << 32 | eax;
-			VCPU_CTR2(svm_sc->vm, vcpuid, "wrmsr %#x val %#lx",
-			    ecx, val);
+			SVM_CTR2(vcpu, "wrmsr %#x val %#lx", ecx, val);
 			if (emulate_wrmsr(svm_sc, vcpu, ecx, val, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_WRMSR;
 				vmexit->u.msr.code = ecx;
@@ -1490,7 +1486,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 				    ("emulate_wrmsr retu with bogus exitcode"));
 			}
 		} else {
-			VCPU_CTR1(svm_sc->vm, vcpuid, "rdmsr %#x", ecx);
+			SVM_CTR1(vcpu, "rdmsr %#x", ecx);
 			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_RDMSR, 1);
 			if (emulate_rdmsr(svm_sc, vcpu, ecx, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_RDMSR;
@@ -1524,7 +1520,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 	case VMCB_EXIT_NPF:
 		/* EXITINFO2 contains the faulting guest physical address */
 		if (info1 & VMCB_NPF_INFO1_RSV) {
-			VCPU_CTR2(svm_sc->vm, vcpuid, "nested page fault with "
+			SVM_CTR2(vcpu, "nested page fault with "
 			    "reserved bits set: info1(%#lx) info2(%#lx)",
 			    info1, info2);
 		} else if (vm_mem_allocated(svm_sc->vm, vcpuid, info2)) {
@@ -1532,13 +1528,13 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = npf_fault_type(info1);
 			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_NESTED_FAULT, 1);
-			VCPU_CTR3(svm_sc->vm, vcpuid, "nested page fault "
+			SVM_CTR3(vcpu, "nested page fault "
 			    "on gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		} else if (svm_npf_emul_fault(info1)) {
 			svm_handle_inst_emul(vmcb, info2, vmexit);
 			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_INST_EMUL, 1);
-			VCPU_CTR3(svm_sc->vm, vcpuid, "inst_emul fault "
+			SVM_CTR3(vcpu, "inst_emul fault "
 			    "for gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		}
@@ -1572,7 +1568,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		break;
 	}	
 
-	VCPU_CTR4(svm_sc->vm, vcpuid, "%s %s vmexit at %#lx/%d",
+	SVM_CTR4(vcpu, "%s %s vmexit at %#lx/%d",
 	    handled ? "handled" : "unhandled", exit_reason_to_str(code),
 	    vmexit->rip, vmexit->inst_length);
 
@@ -1614,7 +1610,7 @@ svm_inj_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 		VMCB_EXITINTINFO_EC(intinfo),
 		VMCB_EXITINTINFO_EC_VALID(intinfo));
 	vmm_stat_incr(svm_sc->vm, vcpuid, VCPU_INTINFO_INJECTED, 1);
-	VCPU_CTR1(svm_sc->vm, vcpuid, "Injected entry intinfo: %#lx", intinfo);
+	SVM_CTR1(vcpu, "Injected entry intinfo: %#lx", intinfo);
 }
 
 /*
@@ -1638,7 +1634,7 @@ svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
 
 	if (vcpu->nextrip != state->rip) {
 		ctrl->intr_shadow = 0;
-		VCPU_CTR2(sc->vm, vcpuid, "Guest interrupt blocking "
+		SVM_CTR2(vcpu, "Guest interrupt blocking "
 		    "cleared due to rip change: %#lx/%#lx",
 		    vcpu->nextrip, state->rip);
 	}
@@ -1661,13 +1657,13 @@ svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
 			 * Can't inject another NMI if the guest has not
 			 * yet executed an "iret" after the last NMI.
 			 */
-			VCPU_CTR0(sc->vm, vcpuid, "Cannot inject NMI due "
+			SVM_CTR0(vcpu, "Cannot inject NMI due "
 			    "to NMI-blocking");
 		} else if (ctrl->intr_shadow) {
 			/*
 			 * Can't inject an NMI if the vcpu is in an intr_shadow.
 			 */
-			VCPU_CTR0(sc->vm, vcpuid, "Cannot inject NMI due to "
+			SVM_CTR0(vcpu, "Cannot inject NMI due to "
 			    "interrupt shadow");
 			need_intr_window = 1;
 			goto done;
@@ -1676,7 +1672,7 @@ svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
 			 * If there is already an exception/interrupt pending
 			 * then defer the NMI until after that.
 			 */
-			VCPU_CTR1(sc->vm, vcpuid, "Cannot inject NMI due to "
+			SVM_CTR1(vcpu, "Cannot inject NMI due to "
 			    "eventinj %#lx", ctrl->eventinj);
 
 			/*
@@ -1700,7 +1696,7 @@ svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
 			/* virtual NMI blocking is now in effect */
 			enable_nmi_blocking(vcpu);
 
-			VCPU_CTR0(sc->vm, vcpuid, "Injecting vNMI");
+			SVM_CTR0(vcpu, "Injecting vNMI");
 		}
 	}
 
@@ -1722,21 +1718,21 @@ svm_inj_interrupts(struct svm_softc *sc, struct svm_vcpu *vcpu,
 	 * then we cannot inject the pending interrupt.
 	 */
 	if ((state->rflags & PSL_I) == 0) {
-		VCPU_CTR2(sc->vm, vcpuid, "Cannot inject vector %d due to "
+		SVM_CTR2(vcpu, "Cannot inject vector %d due to "
 		    "rflags %#lx", vector, state->rflags);
 		need_intr_window = 1;
 		goto done;
 	}
 
 	if (ctrl->intr_shadow) {
-		VCPU_CTR1(sc->vm, vcpuid, "Cannot inject vector %d due to "
+		SVM_CTR1(vcpu, "Cannot inject vector %d due to "
 		    "interrupt shadow", vector);
 		need_intr_window = 1;
 		goto done;
 	}
 
 	if (ctrl->eventinj & VMCB_EVENTINJ_VALID) {
-		VCPU_CTR2(sc->vm, vcpuid, "Cannot inject vector %d due to "
+		SVM_CTR2(vcpu, "Cannot inject vector %d due to "
 		    "eventinj %#lx", vector, ctrl->eventinj);
 		need_intr_window = 1;
 		goto done;
@@ -1773,7 +1769,7 @@ done:
 	v_tpr = vlapic_get_cr8(vlapic);
 	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
-		VCPU_CTR2(sc->vm, vcpuid, "VMCB V_TPR changed from %#x to %#x",
+		SVM_CTR2(vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
 		ctrl->v_tpr = v_tpr;
 		svm_set_dirty(vcpu, VMCB_CACHE_TPR);
@@ -2115,10 +2111,10 @@ svm_run(void *vcpui, register_t rip, pmap_t pmap, struct vm_eventinfo *evinfo)
 
 		ctrl->vmcb_clean = vmcb_clean & ~vcpu->dirty;
 		vcpu->dirty = 0;
-		VCPU_CTR1(vm, vcpuid, "vmcb clean %#x", ctrl->vmcb_clean);
+		SVM_CTR1(vcpu, "vmcb clean %#x", ctrl->vmcb_clean);
 
 		/* Launch Virtual Machine. */
-		VCPU_CTR1(vm, vcpuid, "Resume execution at %#lx", state->rip);
+		SVM_CTR1(vcpu, "Resume execution at %#lx", state->rip);
 		svm_dr_enter_guest(gctx);
 		svm_launch(vmcb_pa, gctx, get_pcpu());
 		svm_dr_leave_guest(gctx);
@@ -2238,8 +2234,7 @@ svm_getreg(void *vcpui, int ident, uint64_t *val)
 		return (0);
 	}
 
-	VCPU_CTR1(vcpu->sc->vm, vcpu->vcpuid,
-	    "svm_getreg: unknown register %#x", ident);
+	SVM_CTR1(vcpu, "svm_getreg: unknown register %#x", ident);
 	return (EINVAL);
 }
 
@@ -2280,8 +2275,7 @@ svm_setreg(void *vcpui, int ident, uint64_t val)
 	 * whether 'running' is true/false.
 	 */
 
-	VCPU_CTR1(vcpu->sc->vm, vcpu->vcpuid,
-	    "svm_setreg: unknown register %#x", ident);
+	SVM_CTR1(vcpu, "svm_setreg: unknown register %#x", ident);
 	return (EINVAL);
 }
 
