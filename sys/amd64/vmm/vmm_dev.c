@@ -540,14 +540,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 	case VM_PPTDEV_MSI:
 		pptmsi = (struct vm_pptdev_msi *)data;
-		error = ppt_setup_msi(sc->vm, pptmsi->vcpu,
+		error = ppt_setup_msi(sc->vm,
 				      pptmsi->bus, pptmsi->slot, pptmsi->func,
 				      pptmsi->addr, pptmsi->msg,
 				      pptmsi->numvec);
 		break;
 	case VM_PPTDEV_MSIX:
 		pptmsix = (struct vm_pptdev_msix *)data;
-		error = ppt_setup_msix(sc->vm, pptmsix->vcpu,
+		error = ppt_setup_msix(sc->vm,
 				       pptmsix->bus, pptmsix->slot, 
 				       pptmsix->func, pptmsix->idx,
 				       pptmsix->addr, pptmsix->msg,
