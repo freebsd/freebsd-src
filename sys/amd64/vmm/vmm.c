@@ -2804,10 +2804,12 @@ VMM_STAT_FUNC(VMM_MEM_WIRED, "Wired memory", vm_get_wiredcnt);
 static int
 vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
 {
+	uint64_t tsc, now;
 	int ret;
 	int i;
 	struct vcpu *vcpu;
 
+	now = rdtsc();
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = &vm->vcpu[i];
 
@@ -2819,13 +2821,15 @@ vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->guest_xcr0, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->exitinfo, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(vcpu->nextrip, meta, ret, done);
-		/* XXX we're cheating here, since the value of tsc_offset as
-		 * saved here is actually the value of the guest's TSC value.
+
+		/*
+		 * Save the absolute TSC value by adding now to tsc_offset.
 		 *
 		 * It will be turned turned back into an actual offset when the
 		 * TSC restore function is called
 		 */
-		SNAPSHOT_VAR_OR_LEAVE(vcpu->tsc_offset, meta, ret, done);
+		tsc = now + vcpu->tsc_offset;
+		SNAPSHOT_VAR_OR_LEAVE(tsc, meta, ret, done);
 	}
 
 done:
@@ -2836,33 +2840,10 @@ static int
 vm_snapshot_vm(struct vm *vm, struct vm_snapshot_meta *meta)
 {
 	int ret;
-	int i;
-	uint64_t now;
-
-	ret = 0;
-	now = rdtsc();
-
-	if (meta->op == VM_SNAPSHOT_SAVE) {
-		/* XXX make tsc_offset take the value TSC proper as seen by the
-		 * guest
-		 */
-		for (i = 0; i < VM_MAXCPU; i++)
-			vm->vcpu[i].tsc_offset += now;
-	}
 
 	ret = vm_snapshot_vcpus(vm, meta);
-	if (ret != 0) {
-		printf("%s: failed to copy vm data to user buffer", __func__);
+	if (ret != 0)
 		goto done;
-	}
-
-	if (meta->op == VM_SNAPSHOT_SAVE) {
-		/* XXX turn tsc_offset back into an offset; actual value is only
-		 * required for restore; using it otherwise would be wrong
-		 */
-		for (i = 0; i < VM_MAXCPU; i++)
-			vm->vcpu[i].tsc_offset -= now;
-	}
 
 done:
 	return (ret);
