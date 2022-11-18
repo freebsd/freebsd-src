@@ -70,6 +70,9 @@ vmm_stat_register(void *arg)
 	if (vst->scope == VMM_STAT_SCOPE_AMD && !vmm_is_svm())
 		return;
 
+	if (vst->nelems == VMM_STAT_NELEMS_VCPU)
+		vst->nelems = VM_MAXCPU;
+
 	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
 		printf("Cannot accommodate vmm stat type \"%s\"!\n", vst->desc);
 		return;
