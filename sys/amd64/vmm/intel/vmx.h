@@ -147,7 +147,6 @@ struct vmx {
 	uint64_t	eptp;
 	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
 	pmap_t		pmap;
-	uint16_t	vpids[VM_MAXCPU];
 };
 
 extern bool vmx_have_msr_tsc_aux;
