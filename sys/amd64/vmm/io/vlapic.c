@@ -1857,16 +1857,18 @@ vlapic_reset_callout(struct vlapic *vlapic, uint32_t ccr)
 int
 vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
 {
-	int i, ret;
+	int ret;
 	struct vlapic *vlapic;
 	struct LAPIC *lapic;
 	uint32_t ccr;
+	uint16_t i, maxcpus;
 
 	KASSERT(vm != NULL, ("%s: arg was NULL", __func__));
 
 	ret = 0;
 
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(vm);
+	for (i = 0; i < maxcpus; i++) {
 		vlapic = vm_lapic(vm, i);
 
 		/* snapshot the page first; timer period depends on icr_timer */

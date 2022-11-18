@@ -1029,12 +1029,12 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 static void *
 vmx_init(struct vm *vm, pmap_t pmap)
 {
-	uint16_t vpid[VM_MAXCPU];
 	int i, error;
 	struct vmx *vmx;
 	struct vmcs *vmcs;
 	uint32_t exc_bitmap;
-	uint16_t maxcpus;
+	uint16_t maxcpus = vm_get_maxcpus(vm);
+	uint16_t vpid[maxcpus];
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
 	if ((uintptr_t)vmx & PAGE_MASK) {
@@ -1097,7 +1097,7 @@ vmx_init(struct vm *vm, pmap_t pmap)
 	    ((cap_rdpid || cap_rdtscp) && guest_msr_ro(vmx, MSR_TSC_AUX)))
 		panic("vmx_init: error setting guest msr access");
 
-	vpid_alloc(vpid, VM_MAXCPU);
+	vpid_alloc(vpid, maxcpus);
 
 	if (virtual_interrupt_delivery) {
 		error = vm_map_mmio(vm, DEFAULT_APIC_BASE, PAGE_SIZE,
@@ -1106,7 +1106,6 @@ vmx_init(struct vm *vm, pmap_t pmap)
 		KASSERT(error == 0, ("vm_map_mmio(apicbase) error %d", error));
 	}
 
-	maxcpus = vm_get_maxcpus(vm);
 	for (i = 0; i < maxcpus; i++) {
 		vmcs = &vmx->vmcs[i];
 		vmcs->identifier = vmx_revision();
@@ -4074,14 +4073,15 @@ vmx_snapshot(void *arg, struct vm_snapshot_meta *meta)
 {
 	struct vmx *vmx;
 	struct vmxctx *vmxctx;
-	int i;
 	int ret;
+	uint16_t i, maxcpus;
 
 	vmx = arg;
 
 	KASSERT(vmx != NULL, ("%s: arg was NULL", __func__));
 
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(vmx->vm);
+	for (i = 0; i < maxcpus; i++) {
 		SNAPSHOT_BUF_OR_LEAVE(vmx->guest_msrs[i],
 		      sizeof(vmx->guest_msrs[i]), meta, ret, done);
 

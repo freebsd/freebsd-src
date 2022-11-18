@@ -463,7 +463,7 @@ vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val)
 {
 	int error = 0;
 
-	if (vcpu < 0 || vcpu >= VM_MAXCPU) {
+	if (vcpu < 0 || vcpu >= vm_get_maxcpus(sc->vm)) {
 		error = EINVAL;
 		goto err;
 	}
@@ -484,7 +484,7 @@ vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 {
 	int error = 0;
 
-	if (vcpu < 0 || vcpu >= VM_MAXCPU) {
+	if (vcpu < 0 || vcpu >= vm_get_maxcpus(sc->vm)) {
 		error = EINVAL;
 		goto err;
 	}
