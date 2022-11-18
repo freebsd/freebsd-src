@@ -1110,7 +1110,7 @@ vmx_init(struct vm *vm, pmap_t pmap)
 }
 
 static void *
-vmx_vcpu_init(void *vmi, int vcpuid)
+vmx_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 {
 	struct vmx *vmx = vmi;
 	struct vmcs *vmcs;
@@ -1120,6 +1120,7 @@ vmx_vcpu_init(void *vmi, int vcpuid)
 
 	vcpu = malloc(sizeof(*vcpu), M_VMX, M_WAITOK | M_ZERO);
 	vcpu->vmx = vmx;
+	vcpu->vcpu = vcpu1;
 	vcpu->vcpuid = vcpuid;
 	vcpu->vmcs = malloc_aligned(sizeof(*vmcs), PAGE_SIZE, M_VMX,
 	    M_WAITOK | M_ZERO);
@@ -4074,6 +4075,7 @@ vmx_vlapic_init(void *vcpui)
 
 	vlapic = malloc(sizeof(struct vlapic_vtx), M_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = vmx->vm;
+	vlapic->vcpu = vcpu->vcpu;
 	vlapic->vcpuid = vcpu->vcpuid;
 	vlapic->apic_page = (struct LAPIC *)vcpu->apic_page;
 
