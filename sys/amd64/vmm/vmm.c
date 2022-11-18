@@ -2721,8 +2721,7 @@ vm_segment_name(int seg)
 }
 
 void
-vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
-    int num_copyinfo)
+vm_copy_teardown(struct vm_copyinfo *copyinfo, int num_copyinfo)
 {
 	int idx;
 
@@ -2771,7 +2770,7 @@ vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 	}
 
 	if (idx != nused) {
-		vm_copy_teardown(vm, vcpuid, copyinfo, num_copyinfo);
+		vm_copy_teardown(copyinfo, num_copyinfo);
 		return (EFAULT);
 	} else {
 		*fault = 0;
@@ -2780,8 +2779,7 @@ vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 }
 
 void
-vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo, void *kaddr,
-    size_t len)
+vm_copyin(struct vm_copyinfo *copyinfo, void *kaddr, size_t len)
 {
 	char *dst;
 	int idx;
@@ -2797,8 +2795,7 @@ vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo, void *kaddr,
 }
 
 void
-vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
-    struct vm_copyinfo *copyinfo, size_t len)
+vm_copyout(const void *kaddr, struct vm_copyinfo *copyinfo, size_t len)
 {
 	const char *src;
 	int idx;
