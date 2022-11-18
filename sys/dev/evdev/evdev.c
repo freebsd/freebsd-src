@@ -1097,6 +1097,8 @@ evdev_release_client(struct evdev_dev *evdev, struct evdev_client *client)
 bool
 evdev_is_grabbed(struct evdev_dev *evdev)
 {
+	if (kdb_active || SCHEDULER_STOPPED())
+		return (false);
 	/*
 	 * The function is intended to be called from evdev-unrelated parts of
 	 * code like syscons-compatible parts of mouse and keyboard drivers.

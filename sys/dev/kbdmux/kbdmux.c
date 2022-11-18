@@ -715,6 +715,9 @@ next_code:
 			evdev_sync(state->ks_evdev);
 		}
 	}
+
+	if (state->ks_evdev != NULL && evdev_is_grabbed(state->ks_evdev))
+		return (NOKEY);
 #endif
 
 	/* return the byte as is for the K_RAW mode */

@@ -340,6 +340,8 @@ next_code:
 			evdev_sync(sc->ks_evdev);
 		}
 	}
+	if (sc->ks_evdev != NULL && evdev_is_grabbed(sc->ks_evdev))
+		return (NOKEY);
 #endif
 	++kbd->kb_count;
 	DEBUG_HVKBD(kbd, "read scan: 0x%x\n", scancode);
