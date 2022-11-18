@@ -145,8 +145,7 @@ vmcb_access(struct svm_vcpu *vcpu, int write, int ident, uint64_t *val)
 			memcpy(val, ptr + off, bytes);
 		break;
 	default:
-		VCPU_CTR1(vcpu->sc->vm, vcpu->vcpuid,
-		    "Invalid size %d for VMCB access: %d", bytes);
+		SVM_CTR1(vcpu, "Invalid size %d for VMCB access: %d", bytes);
 		return (EINVAL);
 	}
 
@@ -392,9 +391,8 @@ vmcb_setdesc(struct svm_vcpu *vcpu, int reg, struct seg_desc *desc)
 		seg->attrib = attrib;
 	}
 
-	VCPU_CTR4(vcpu->sc->vm, vcpu->vcpuid, "Setting desc %d: base (%#lx), "
-	    "limit (%#x), attrib (%#x)", reg, seg->base, seg->limit,
-	    seg->attrib);
+	SVM_CTR4(vcpu, "Setting desc %d: base (%#lx), limit (%#x), "
+	    "attrib (%#x)", reg, seg->base, seg->limit, seg->attrib);
 
 	switch (reg) {
 	case VM_REG_GUEST_CS:
