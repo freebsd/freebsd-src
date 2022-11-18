@@ -32,10 +32,11 @@
 #ifndef _VIOAPIC_H_
 #define	_VIOAPIC_H_
 
-struct vm_snapshot_meta;
-
 #define	VIOAPIC_BASE	0xFEC00000
 #define	VIOAPIC_SIZE	4096
+
+#ifdef _KERNEL
+struct vm_snapshot_meta;
 
 struct vioapic *vioapic_init(struct vm *vm);
 void	vioapic_cleanup(struct vioapic *vioapic);
@@ -56,4 +57,6 @@ int	vioapic_snapshot(struct vioapic *vioapic,
 			 struct vm_snapshot_meta *meta);
 #endif
 
-#endif
+#endif /* _KERNEL */
+
+#endif /* _VIOAPIC_H_ */
