@@ -2422,14 +2422,15 @@ svm_snapshot(void *arg, struct vm_snapshot_meta *meta)
 	/* struct svm_softc is AMD's representation for SVM softc */
 	struct svm_softc *sc;
 	struct svm_vcpu *vcpu;
-	int i;
 	int ret;
+	uint16_t i, maxcpus;
 
 	sc = arg;
 
 	KASSERT(sc != NULL, ("%s: arg was NULL", __func__));
 
-	for (i = 0; i < VM_MAXCPU; i++) {
+	maxcpus = vm_get_maxcpus(sc->vm);
+	for (i = 0; i < maxcpus; i++) {
 		vcpu = &sc->vcpu[i];
 
 		/* Snapshot swctx for virtual cpu i */
