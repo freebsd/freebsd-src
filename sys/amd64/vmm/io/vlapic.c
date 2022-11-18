@@ -593,8 +593,7 @@ vlapic_process_eoi(struct vlapic *vlapic)
 			vlapic->isrvec_stk_top--;
 			vlapic_update_ppr(vlapic);
 			if ((tmrptr[idx] & (1 << bitpos)) != 0) {
-				vioapic_process_eoi(vlapic->vm, vlapic->vcpuid,
-				    vector);
+				vioapic_process_eoi(vlapic->vm, vector);
 			}
 			return;
 		}

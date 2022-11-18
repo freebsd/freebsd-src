@@ -1813,8 +1813,7 @@ restart:
 			error = vm_handle_suspend(vm, vcpuid, &retu);
 			break;
 		case VM_EXITCODE_IOAPIC_EOI:
-			vioapic_process_eoi(vm, vcpuid,
-			    vme->u.ioapic_eoi.vector);
+			vioapic_process_eoi(vm, vme->u.ioapic_eoi.vector);
 			break;
 		case VM_EXITCODE_RENDEZVOUS:
 			error = vm_handle_rendezvous(vcpu);

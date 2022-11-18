@@ -51,7 +51,7 @@ int	vioapic_mmio_read(struct vcpu *vcpu, uint64_t gpa,
 	    uint64_t *rval, int size, void *arg);
 
 int	vioapic_pincount(struct vm *vm);
-void	vioapic_process_eoi(struct vm *vm, int vcpuid, int vector);
+void	vioapic_process_eoi(struct vm *vm, int vector);
 #ifdef BHYVE_SNAPSHOT
 int	vioapic_snapshot(struct vioapic *vioapic,
 			 struct vm_snapshot_meta *meta);

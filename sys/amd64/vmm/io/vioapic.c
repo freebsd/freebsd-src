@@ -455,7 +455,7 @@ vioapic_mmio_write(struct vcpu *vcpu, uint64_t gpa, uint64_t wval,
 }
 
 void
-vioapic_process_eoi(struct vm *vm, int vcpuid, int vector)
+vioapic_process_eoi(struct vm *vm, int vector)
 {
 	struct vioapic *vioapic;
 	int pin;
