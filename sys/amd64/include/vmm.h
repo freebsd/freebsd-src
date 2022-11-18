@@ -218,6 +218,8 @@ struct vmm_ops {
 extern const struct vmm_ops vmm_ops_intel;
 extern const struct vmm_ops vmm_ops_amd;
 
+extern u_int vm_maxcpu;			/* maximum virtual cpus */
+
 int vm_create(const char *name, struct vm **retvm);
 struct vcpu *vm_alloc_vcpu(struct vm *vm, int vcpuid);
 void vm_disable_vcpu_creation(struct vm *vm);
@@ -480,10 +482,6 @@ void vm_copyout(const void *kaddr, struct vm_copyinfo *copyinfo, size_t len);
 int vcpu_trace_exceptions(struct vcpu *vcpu);
 int vcpu_trap_wbinvd(struct vcpu *vcpu);
 #endif	/* KERNEL */
-
-#ifdef _KERNEL
-#define	VM_MAXCPU	16			/* maximum virtual cpus */
-#endif
 
 /*
  * Identifiers for optional vmm capabilities

@@ -186,7 +186,7 @@ struct vm {
 	struct mem_seg	mem_segs[VM_MAX_MEMSEGS]; /* (o) [m+v] guest memory regions */
 	struct vmspace	*vmspace;		/* (o) guest's address space */
 	char		name[VM_MAX_NAMELEN+1];	/* (o) virtual machine name */
-	struct vcpu	*vcpu[VM_MAXCPU];	/* (x) guest vcpus */
+	struct vcpu	**vcpu;			/* (o) guest vcpus */
 	/* The following describe the vm cpu topology */
 	uint16_t	sockets;		/* (o) num of sockets */
 	uint16_t	cores;			/* (o) num of cores/socket */
@@ -295,9 +295,21 @@ static int trap_wbinvd;
 SYSCTL_INT(_hw_vmm, OID_AUTO, trap_wbinvd, CTLFLAG_RDTUN, &trap_wbinvd, 0,
     "WBINVD triggers a VM-exit");
 
+u_int vm_maxcpu;
+SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &vm_maxcpu, 0, "Maximum number of vCPUs");
+
 static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr);
+
+/*
+ * Upper limit on vm_maxcpu.  Limited by use of uint16_t types for CPU
+ * counts as well as range of vpid values for VT-x and by the capacity
+ * of cpuset_t masks.  The call to new_unrhdr() in vpid_init() in
+ * vmx.c requires 'vm_maxcpu + 1 <= 0xffff', hence the '- 1' below.
+ */
+#define	VM_MAXCPU	MIN(0xffff - 1, CPU_SETSIZE)
 
 #ifdef KTR
 static const char *
@@ -394,6 +406,16 @@ vmm_init(void)
 
 	if (!vmm_is_hw_supported())
 		return (ENXIO);
+
+	vm_maxcpu = mp_ncpus;
+	TUNABLE_INT_FETCH("hw.vmm.maxcpu", &vm_maxcpu);
+
+	if (vm_maxcpu > VM_MAXCPU) {
+		printf("vmm: vm_maxcpu clamped to %u\n", VM_MAXCPU);
+		vm_maxcpu = VM_MAXCPU;
+	}
+	if (vm_maxcpu == 0)
+		vm_maxcpu = 1;
 
 	vmm_host_state_init();
 
@@ -579,11 +601,13 @@ vm_create(const char *name, struct vm **retvm)
 	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
 	sx_init(&vm->mem_segs_lock, "vm mem_segs");
 	sx_init(&vm->vcpus_init_lock, "vm vcpus");
+	vm->vcpu = malloc(sizeof(*vm->vcpu) * vm_maxcpu, M_VM, M_WAITOK |
+	    M_ZERO);
 
 	vm->sockets = 1;
 	vm->cores = cores_per_package;	/* XXX backwards compatibility */
 	vm->threads = threads_per_core;	/* XXX backwards compatibility */
-	vm->maxcpus = VM_MAXCPU;	/* XXX temp to keep code working */
+	vm->maxcpus = vm_maxcpu;
 
 	vm_init(vm, true);
 
@@ -669,6 +693,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;
 
+		free(vm->vcpu, M_VM);
 		sx_destroy(&vm->vcpus_init_lock);
 		sx_destroy(&vm->mem_segs_lock);
 		mtx_destroy(&vm->rendezvous_mtx);
