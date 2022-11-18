@@ -151,6 +151,21 @@ struct vmx {
 
 extern bool vmx_have_msr_tsc_aux;
 
+#define	VMX_CTR0(vcpu, format)						\
+	VCPU_CTR0((vcpu)->vmx->vm, (vcpu)->vcpuid, format)
+
+#define	VMX_CTR1(vcpu, format, p1)					\
+	VCPU_CTR1((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1)
+
+#define	VMX_CTR2(vcpu, format, p1, p2)					\
+	VCPU_CTR2((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1, p2)
+
+#define	VMX_CTR3(vcpu, format, p1, p2, p3)				\
+	VCPU_CTR3((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1, p2, p3)
+
+#define	VMX_CTR4(vcpu, format, p1, p2, p3, p4)				\
+	VCPU_CTR4((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1, p2, p3, p4)
+
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
 #define	VMX_VMLAUNCH_ERROR	2
