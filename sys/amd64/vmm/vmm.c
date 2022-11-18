@@ -1319,21 +1319,13 @@ vcpu_require_state_locked(struct vm *vm, int vcpuid, enum vcpu_state newstate)
 		panic("Error %d setting state to %d", error, newstate);
 }
 
-#define	RENDEZVOUS_CTR0(vm, vcpuid, fmt)				\
-	do {								\
-		if (vcpuid >= 0)					\
-			VCPU_CTR0(vm, vcpuid, fmt);			\
-		else							\
-			VM_CTR0(vm, fmt);				\
-	} while (0)
-
 static int
 vm_handle_rendezvous(struct vm *vm, int vcpuid)
 {
 	struct thread *td;
 	int error;
 
-	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < vm->maxcpus),
+	KASSERT(vcpuid >= 0 && vcpuid < vm->maxcpus,
 	    ("vm_handle_rendezvous: invalid vcpuid %d", vcpuid));
 
 	error = 0;
@@ -1343,8 +1335,7 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 		/* 'rendezvous_req_cpus' must be a subset of 'active_cpus' */
 		CPU_AND(&vm->rendezvous_req_cpus, &vm->rendezvous_req_cpus, &vm->active_cpus);
 
-		if (vcpuid != -1 &&
-		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus) &&
+		if (CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus) &&
 		    !CPU_ISSET(vcpuid, &vm->rendezvous_done_cpus)) {
 			VCPU_CTR0(vm, vcpuid, "Calling rendezvous func");
 			(*vm->rendezvous_func)(vm, vcpuid, vm->rendezvous_arg);
@@ -1357,7 +1348,7 @@ vm_handle_rendezvous(struct vm *vm, int vcpuid)
 			wakeup(&vm->rendezvous_func);
 			break;
 		}
-		RENDEZVOUS_CTR0(vm, vcpuid, "Wait for rendezvous completion");
+		VCPU_CTR0(vm, vcpuid, "Wait for rendezvous completion");
 		mtx_sleep(&vm->rendezvous_func, &vm->rendezvous_mtx, 0,
 		    "vmrndv", hz);
 		if (td_ast_pending(td, TDA_SUSPEND)) {
@@ -2582,7 +2573,7 @@ vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
 	 * Enforce that this function is called without any locks
 	 */
 	WITNESS_WARN(WARN_PANIC, NULL, "vm_smp_rendezvous");
-	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < vm->maxcpus),
+	KASSERT(vcpuid >= 0 && vcpuid < vm->maxcpus,
 	    ("vm_smp_rendezvous: invalid vcpuid %d", vcpuid));
 
 restart:
@@ -2593,7 +2584,7 @@ restart:
 		 * call the rendezvous handler in case this 'vcpuid' is one
 		 * of the targets of the rendezvous.
 		 */
-		RENDEZVOUS_CTR0(vm, vcpuid, "Rendezvous already in progress");
+		VCPU_CTR0(vm, vcpuid, "Rendezvous already in progress");
 		mtx_unlock(&vm->rendezvous_mtx);
 		error = vm_handle_rendezvous(vm, vcpuid);
 		if (error != 0)
@@ -2603,7 +2594,7 @@ restart:
 	KASSERT(vm->rendezvous_func == NULL, ("vm_smp_rendezvous: previous "
 	    "rendezvous is still in progress"));
 
-	RENDEZVOUS_CTR0(vm, vcpuid, "Initiating rendezvous");
+	VCPU_CTR0(vm, vcpuid, "Initiating rendezvous");
 	vm->rendezvous_req_cpus = dest;
 	CPU_ZERO(&vm->rendezvous_done_cpus);
 	vm->rendezvous_arg = arg;
