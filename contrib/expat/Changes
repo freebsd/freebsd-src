@@ -2,6 +2,40 @@ NOTE: We are looking for help with a few things:
       https://github.com/libexpat/libexpat/labels/help%20wanted
       If you can help, please get in touch.  Thanks!
 
+Release 2.5.0 Tue October 25 2022
+        Security fixes:
+  #616 #649 #650  CVE-2022-43680 -- Fix heap use-after-free after overeager
+                    destruction of a shared DTD in function
+                    XML_ExternalEntityParserCreate in out-of-memory situations.
+                    Expected impact is denial of service or potentially
+                    arbitrary code execution.
+
+        Bug fixes:
+       #612 #645  Fix curruption from undefined entities
+       #613 #654  Fix case when parsing was suspended while processing nested
+                    entities
+  #616 #652 #653  Stop leaking opening tag bindings after a closing tag
+                    mismatch error where a parser is reset through
+                    XML_ParserReset and then reused to parse
+            #656  CMake: Fix generation of pkg-config file
+            #658  MinGW|CMake: Fix static library name
+
+        Other changes:
+            #663  Protect header expat_config.h from multiple inclusion
+            #666  examples: Make use of XML_GetBuffer and be more
+                    consistent across examples
+            #648  Address compiler warnings
+       #667 #668  Version info bumped from 9:9:8 to 9:10:8;
+                    see https://verbump.de/ for what these numbers do
+
+        Special thanks to:
+            Jann Horn
+            Mark Brand
+            Osyotr
+            Rhodri James
+                 and
+            Google Project Zero
+
 Release 2.4.9 Tue September 20 2022
         Security fixes:
        #629 #640  CVE-2022-40674 -- Heap use-after-free vulnerability in
