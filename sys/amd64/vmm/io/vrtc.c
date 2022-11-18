@@ -1018,6 +1018,7 @@ vrtc_cleanup(struct vrtc *vrtc)
 {
 
 	callout_drain(&vrtc->callout);
+	mtx_destroy(&vrtc->mtx);
 	free(vrtc, M_VRTC);
 }
 

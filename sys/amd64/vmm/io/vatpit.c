@@ -470,6 +470,7 @@ vatpit_cleanup(struct vatpit *vatpit)
 	for (i = 0; i < 3; i++)
 		callout_drain(&vatpit->channel[i].callout);
 
+	mtx_destroy(&vatpit->mtx);
 	free(vatpit, M_VATPIT);
 }
 
