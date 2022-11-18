@@ -905,7 +905,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 	}
 }
 
-static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
+static VMM_STAT_ARRAY(IPIS_SENT, VMM_STAT_NELEMS_VCPU, "ipis sent to vcpu");
 
 static void
 vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
