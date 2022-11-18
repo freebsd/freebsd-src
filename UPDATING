@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230404:
+	llvm-objump is now always installed as objdump.  Previously there was
+	no /usr/bin/objdump unless the WITH_LLVM_BINUTILS knob was used.
+
+	Some LLVM objdump options have a different output format compared to
+	GNU objdump; readelf is available for inspecting ELF files, and GNU
+	objdump is available from the devel/binutils port or package.
+
 20230217:
 	Bump __FreeBSD_verion after various changes to LinuxKPI pci and 802.11
 	in order to help out-of-tree consumers to deal accordingly.
