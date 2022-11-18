@@ -319,9 +319,12 @@ int vm_restore_time(struct vm *vm);
 typedef void (*vm_rendezvous_func_t)(struct vcpu *vcpu, void *arg);
 int vm_smp_rendezvous(struct vcpu *vcpu, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
+
 cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_debug_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
+cpuset_t vm_start_cpus(struct vm *vm, const cpuset_t *tostart);
+void vm_await_start(struct vm *vm, const cpuset_t *waiting);
 #endif	/* _SYS__CPUSET_H_ */
 
 static __inline int

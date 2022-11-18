@@ -1039,7 +1039,6 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	cpuset_t dmask, ipimask;
 	uint64_t icrval;
 	uint32_t dest, vec, mode, shorthand;
-	struct vlapic *vlapic2;
 	struct vcpu *vcpu;
 	struct vm_exit *vmexit;
 	struct LAPIC *lapic;
@@ -1128,14 +1127,9 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			    i == vlapic->vcpuid)
 				break;
 
-			/*
-			 * Userland which doesn't support the IPI exit
-			 * requires that the boot state is set to SIPI
-			 * here.
-			 */
-			vcpu = vm_vcpu(vlapic->vm, i);
-			vlapic2 = vm_lapic(vcpu);
-			vlapic2->boot_state = BS_SIPI;
+			/* vCPU i is waiting for SIPI. */
+			CPU_SETOF(i, &dmask);
+			vm_await_start(vlapic->vm, &dmask);
 			break;
 		}
 
@@ -1158,11 +1152,10 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			/*
 			 * Ignore SIPIs in any state other than wait-for-SIPI
 			 */
-			vcpu = vm_vcpu(vlapic->vm, i);
-			vlapic2 = vm_lapic(vcpu);
-			if (vlapic2->boot_state != BS_SIPI)
+			CPU_SETOF(i, &dmask);
+			dmask = vm_start_cpus(vlapic->vm, &dmask);
+			if (CPU_EMPTY(&dmask))
 				break;
-			vlapic2->boot_state = BS_RUNNING;
 
 			vmexit = vm_exitinfo(vlapic->vcpu);
 			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
@@ -1173,19 +1166,10 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			break;
 		}
 
-		CPU_FOREACH_ISSET(i, &dmask) {
-			vcpu = vm_vcpu(vlapic->vm, i);
-			vlapic2 = vm_lapic(vcpu);
-
-			/*
-			 * Ignore SIPIs in any state other than wait-for-SIPI
-			 */
-			if (vlapic2->boot_state != BS_SIPI)
-				continue;
-			vlapic2->boot_state = BS_RUNNING;
-			CPU_SET(i, &ipimask);
-		}
-
+		/*
+		 * Ignore SIPIs in any state other than wait-for-SIPI
+		 */
+		ipimask = vm_start_cpus(vlapic->vm, &dmask);
 		break;
 	default:
 		return (1);
@@ -1210,9 +1194,6 @@ vlapic_handle_init(struct vcpu *vcpu, void *arg)
 	struct vlapic *vlapic = vm_lapic(vcpu);
 
 	vlapic_reset(vlapic);
-
-	/* vlapic_reset modifies the boot state. */
-	vlapic->boot_state = BS_SIPI;
 }
 
 int
@@ -1223,6 +1204,7 @@ vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 	case APIC_DELMODE_INIT:
 		vm_smp_rendezvous(vcpu, vme->u.ipi.dmask, vlapic_handle_init,
 		    NULL);
+		vm_await_start(vcpu_vm(vcpu), &vme->u.ipi.dmask);
 		break;
 	case APIC_DELMODE_STARTUP:
 		break;
@@ -1598,11 +1580,6 @@ vlapic_reset(struct vlapic *vlapic)
 	lapic->dcr_timer = 0;
 	vlapic_dcr_write_handler(vlapic);
 
-	if (vlapic->vcpuid == 0)
-		vlapic->boot_state = BS_RUNNING;	/* BSP */
-	else
-		vlapic->boot_state = BS_INIT;		/* AP */
-
 	vlapic->svr_last = lapic->svr;
 }
 
@@ -1900,7 +1877,6 @@ vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta)
 				      sizeof(vlapic->isrvec_stk),
 				      meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(vlapic->isrvec_stk_top, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(vlapic->boot_state, meta, ret, done);
 
 		SNAPSHOT_BUF_OR_LEAVE(vlapic->lvt_last,
 				      sizeof(vlapic->lvt_last),
