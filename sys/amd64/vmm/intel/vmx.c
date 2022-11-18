@@ -527,36 +527,25 @@ vpid_free(int vpid)
 		free_unr(vpid_unr, vpid);
 }
 
-static void
-vpid_alloc(uint16_t *vpid, int num)
+static uint16_t
+vpid_alloc(int vcpuid)
 {
-	int i, x;
-
-	if (num <= 0 || num > VM_MAXCPU)
-		panic("invalid number of vpids requested: %d", num);
+	int x;
 
 	/*
 	 * If the "enable vpid" execution control is not enabled then the
 	 * VPID is required to be 0 for all vcpus.
 	 */
-	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) == 0) {
-		for (i = 0; i < num; i++)
-			vpid[i] = 0;
-		return;
-	}
+	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) == 0)
+		return (0);
 
 	/*
-	 * Allocate a unique VPID for each vcpu from the unit number allocator.
+	 * Try to allocate a unique VPID for each from the unit number
+	 * allocator.
 	 */
-	for (i = 0; i < num; i++) {
-		x = alloc_unr(vpid_unr);
-		if (x == -1)
-			break;
-		else
-			vpid[i] = x;
-	}
+	x = alloc_unr(vpid_unr);
 
-	if (i < num) {
+	if (x == -1) {
 		atomic_add_int(&vpid_alloc_failed, 1);
 
 		/*
@@ -570,12 +559,10 @@ vpid_alloc(uint16_t *vpid, int num)
 		 * It is still sub-optimal because the invvpid will invalidate
 		 * combined mappings for a particular VPID across all EP4TAs.
 		 */
-		while (i-- > 0)
-			vpid_free(vpid[i]);
-
-		for (i = 0; i < num; i++)
-			vpid[i] = i + 1;
+		return (vcpuid + 1);
 	}
+
+	return (x);
 }
 
 static void
@@ -1035,7 +1022,6 @@ vmx_init(struct vm *vm, pmap_t pmap)
 {
 	int error;
 	struct vmx *vmx;
-	uint16_t maxcpus = vm_get_maxcpus(vm);
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
 	vmx->vm = vm;
@@ -1096,8 +1082,6 @@ vmx_init(struct vm *vm, pmap_t pmap)
 	    ((cap_rdpid || cap_rdtscp) && guest_msr_ro(vmx, MSR_TSC_AUX)))
 		panic("vmx_init: error setting guest msr access");
 
-	vpid_alloc(vmx->vpids, maxcpus);
-
 	if (virtual_interrupt_delivery) {
 		error = vm_map_mmio(vm, DEFAULT_APIC_BASE, PAGE_SIZE,
 		    APIC_ACCESS_ADDRESS);
@@ -1116,7 +1100,10 @@ vmx_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	struct vmcs *vmcs;
 	struct vmx_vcpu *vcpu;
 	uint32_t exc_bitmap;
+	uint16_t vpid;
 	int error;
+
+	vpid = vpid_alloc(vcpuid);
 
 	vcpu = malloc(sizeof(*vcpu), M_VMX, M_WAITOK | M_ZERO);
 	vcpu->vmx = vmx;
@@ -1156,7 +1143,7 @@ vmx_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	error += vmwrite(VMCS_EXIT_CTLS, exit_ctls);
 	error += vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
 	error += vmwrite(VMCS_MSR_BITMAP, vtophys(vmx->msr_bitmap));
-	error += vmwrite(VMCS_VPID, vmx->vpids[vcpuid]);
+	error += vmwrite(VMCS_VPID, vpid);
 
 	if (guest_l1d_flush && !guest_l1d_flush_sw) {
 		vmcs_write(VMCS_ENTRY_MSR_LOAD, pmap_kextract(
@@ -1204,7 +1191,7 @@ vmx_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 
 	vcpu->state.nextrip = ~0;
 	vcpu->state.lastcpu = NOCPU;
-	vcpu->state.vpid = vmx->vpids[vcpuid];
+	vcpu->state.vpid = vpid;
 
 	/*
 	 * Set up the CR0/4 shadows, and init the read shadow
