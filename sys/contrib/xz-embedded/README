@@ -84,6 +84,21 @@ Embedding into userspace applications
     environment. Probably you should at least skim through it even if the
     default file works as is.
 
+Supporting concatenated .xz files
+
+    Regular .xz files can be concatenated as is and the xz command line
+    tool will decompress all streams from a concatenated file (a few
+    other popular formats and tools support this too). This kind of .xz
+    files aren't as uncommon as one might think because pxz, an early
+    threaded XZ compressor, created this kind of .xz files.
+
+    The xz_dec_run() function will stop after decompressing one stream.
+    This is good when XZ data is stored inside some other file format.
+    However, if one is decompressing regular standalone .xz files, one
+    will want to decompress all streams in the file. This is easy with
+    xz_dec_catrun(). To include support for xz_dec_catrun(), you need
+    to #define XZ_DEC_CONCATENATED in xz_config.h or in compiler flags.
+
 Integrity check support
 
     XZ Embedded always supports the integrity check types None and

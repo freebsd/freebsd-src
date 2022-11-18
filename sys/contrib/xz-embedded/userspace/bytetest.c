@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 	size_t uncomp_size;
 
 	if (argc != 2) {
-		fputs("Give uncompressed size as the argument", stderr);
+		fputs("Give uncompressed size as the argument\n", stderr);
 		return 1;
 	}
 
