@@ -41,12 +41,8 @@ struct asid {
 	uint32_t	num;	/* range is [1, nasid - 1] */
 };
 
-/*
- * XXX separate out 'struct vmcb' from 'svm_vcpu' to avoid wasting space
- * due to VMCB alignment requirements.
- */
 struct svm_vcpu {
-	struct vmcb	vmcb;	 /* hardware saved vcpu context */
+	struct vmcb	*vmcb;	 /* hardware saved vcpu context */
 	struct svm_regctx swctx; /* software saved vcpu context */
 	uint64_t	vmcb_pa; /* VMCB physical address */
 	uint64_t	nextrip; /* next instruction to be executed by guest */
@@ -54,22 +50,19 @@ struct svm_vcpu {
 	uint32_t	dirty;	 /* state cache bits that must be cleared */
 	long		eptgen;	 /* pmap->pm_eptgen when the vcpu last ran */
 	struct asid	asid;
-} __aligned(PAGE_SIZE);
+	struct vm_mtrr  mtrr;
+};
 
 /*
  * SVM softc, one per virtual machine.
  */
 struct svm_softc {
-	uint8_t apic_page[VM_MAXCPU][PAGE_SIZE];
 	struct svm_vcpu vcpu[VM_MAXCPU];
 	vm_offset_t 	nptp;			    /* nested page table */
 	uint8_t		*iopm_bitmap;    /* shared by all vcpus */
 	uint8_t		*msr_bitmap;    /* shared by all vcpus */
 	struct vm	*vm;
-	struct vm_mtrr  mtrr[VM_MAXCPU];
 };
-
-CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);
 
 static __inline struct svm_vcpu *
 svm_get_vcpu(struct svm_softc *sc, int vcpu)
@@ -82,21 +75,21 @@ static __inline struct vmcb *
 svm_get_vmcb(struct svm_softc *sc, int vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb));
+	return ((sc->vcpu[vcpu].vmcb));
 }
 
 static __inline struct vmcb_state *
 svm_get_vmcb_state(struct svm_softc *sc, int vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb.state));
+	return (&(sc->vcpu[vcpu].vmcb->state));
 }
 
 static __inline struct vmcb_ctrl *
 svm_get_vmcb_ctrl(struct svm_softc *sc, int vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb.ctrl));
+	return (&(sc->vcpu[vcpu].vmcb->ctrl));
 }
 
 static __inline struct svm_regctx *

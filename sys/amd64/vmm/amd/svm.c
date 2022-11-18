@@ -565,8 +565,6 @@ svm_init(struct vm *vm, pmap_t pmap)
 	uint16_t maxcpus;
 
 	svm_sc = malloc(sizeof (*svm_sc), M_SVM, M_WAITOK | M_ZERO);
-	if (((uintptr_t)svm_sc & PAGE_MASK) != 0)
-		panic("malloc of svm_softc not aligned on page boundary");
 
 	svm_sc->msr_bitmap = contigmalloc(SVM_MSR_BITMAP_SIZE, M_SVM,
 	    M_WAITOK, 0, ~(vm_paddr_t)0, PAGE_SIZE, 0);
@@ -619,9 +617,11 @@ svm_init(struct vm *vm, pmap_t pmap)
 	maxcpus = vm_get_maxcpus(svm_sc->vm);
 	for (i = 0; i < maxcpus; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
+		vcpu->vmcb = malloc_aligned(sizeof(struct vmcb), PAGE_SIZE,
+		    M_SVM, M_WAITOK | M_ZERO);
 		vcpu->nextrip = ~0;
 		vcpu->lastcpu = NOCPU;
-		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
+		vcpu->vmcb_pa = vtophys(vcpu->vmcb);
 		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
 		svm_msr_guest_init(svm_sc, i);
 	}
@@ -2149,7 +2149,14 @@ static void
 svm_cleanup(void *arg)
 {
 	struct svm_softc *sc = arg;
+	struct svm_vcpu *vcpu;
+	uint16_t i, maxcpus;
 
+	maxcpus = vm_get_maxcpus(sc->vm);
+	for (i = 0; i < maxcpus; i++) {
+		vcpu = svm_get_vcpu(sc, i);
+		free(vcpu->vmcb, M_SVM);
+	}
 	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
 	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
 	free(sc, M_SVM);
@@ -2400,7 +2407,8 @@ svm_vlapic_init(void *arg, int vcpuid)
 	vlapic = malloc(sizeof(struct vlapic), M_SVM_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = svm_sc->vm;
 	vlapic->vcpuid = vcpuid;
-	vlapic->apic_page = (struct LAPIC *)&svm_sc->apic_page[vcpuid];
+	vlapic->apic_page = malloc_aligned(PAGE_SIZE, PAGE_SIZE, M_SVM_VLAPIC,
+	    M_WAITOK | M_ZERO);
 
 	vlapic_init(vlapic);
 
@@ -2412,6 +2420,7 @@ svm_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 {
 
         vlapic_cleanup(vlapic);
+	free(vlapic->apic_page, M_SVM_VLAPIC);
         free(vlapic, M_SVM_VLAPIC);
 }
 
