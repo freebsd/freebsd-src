@@ -142,6 +142,8 @@ struct vmx {
 	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
 };
 
+extern bool vmx_have_msr_tsc_aux;
+
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
 #define	VMX_VMLAUNCH_ERROR	2
@@ -155,19 +157,5 @@ int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
 
 extern char	vmx_exit_guest[];
 extern char	vmx_exit_guest_flush_rsb[];
-
-static inline bool
-vmx_have_msr_tsc_aux(struct vmx *vmx)
-{
-	int rdpid_rdtscp_bits = ((1 << VM_CAP_RDPID) | (1 << VM_CAP_RDTSCP));
-
-	/*
-	 * Since the values of these bits are uniform across all vCPUs
-	 * (see discussion in vmx_modinit() and initialization of these bits
-	 * in vmx_init()), just always use vCPU-zero's capability set and
-	 * remove the need to require a vcpuid argument.
-	 */
-	return ((vmx->vcpus[0].cap.set & rdpid_rdtscp_bits) != 0);
-}
 
 #endif

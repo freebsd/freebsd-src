@@ -366,7 +366,7 @@ vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, int vcpuid)
 	uint64_t guest_tsc_aux = vmx_vcpu->guest_msrs[IDX_MSR_TSC_AUX];
 	uint32_t host_aux = cpu_auxmsr();
 
-	if (vmx_have_msr_tsc_aux(vmx) && guest_tsc_aux != host_aux)
+	if (vmx_have_msr_tsc_aux && guest_tsc_aux != host_aux)
 		wrmsr(MSR_TSC_AUX, guest_tsc_aux);
 }
 
@@ -398,7 +398,7 @@ vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, int vcpuid)
 	uint64_t guest_tsc_aux = vmx_vcpu->guest_msrs[IDX_MSR_TSC_AUX];
 	uint32_t host_aux = cpu_auxmsr();
 
-	if (vmx_have_msr_tsc_aux(vmx) && guest_tsc_aux != host_aux)
+	if (vmx_have_msr_tsc_aux && guest_tsc_aux != host_aux)
 		/*
 		 * Note that it is not necessary to save the guest value
 		 * here; vmx->guest_msrs[vcpuid][IDX_MSR_TSC_AUX] always
@@ -505,7 +505,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 		error = vmx_set_tsc_offset(vmx, vcpuid, val - rdtsc());
 		break;
 	case MSR_TSC_AUX:
-		if (vmx_have_msr_tsc_aux(vmx))
+		if (vmx_have_msr_tsc_aux)
 			/*
 			 * vmx_msr_guest_enter_tsc_aux() will apply this
 			 * value when it is called immediately before guest

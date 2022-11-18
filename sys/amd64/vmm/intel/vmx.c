@@ -127,6 +127,8 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_VMX, "vmx", "vmx");
 static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 
+bool vmx_have_msr_tsc_aux;
+
 SYSCTL_DECL(_hw_vmm);
 SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     NULL);
@@ -821,8 +823,10 @@ vmx_modinit(int ipinum)
 			       PROCBASED2_ENABLE_RDTSCP, 0, &tmp);
 	cap_rdpid = error == 0 && host_has_rdpid();
 	cap_rdtscp = error == 0 && host_has_rdtscp();
-	if (cap_rdpid || cap_rdtscp)
+	if (cap_rdpid || cap_rdtscp) {
 		procbased_ctls2 |= PROCBASED2_ENABLE_RDTSCP;
+		vmx_have_msr_tsc_aux = true;
+	}
 
 	cap_unrestricted_guest = (vmx_set_ctlreg(MSR_VMX_PROCBASED_CTLS2,
 					MSR_VMX_PROCBASED_CTLS2,
