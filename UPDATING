@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20221212:
+	llvm-objump is now always installed as objdump.  Previously there was
+	no /usr/bin/objdump unless the WITH_LLVM_BINUTILS knob was used.
+
+	Some LLVM objdump options have a different output format compared to
+	GNU objdump; readelf is available for inspecting ELF files, and GNU
+	objdump is available from the devel/binutils port or package.
+
 20221205:
 	dma(8) has replaced sendmail(8) as the default mta.  For people willing
 	to reenable sendmail(8):
