@@ -519,11 +519,11 @@ vpid_free(int vpid)
 		panic("vpid_free: invalid vpid %d", vpid);
 
 	/*
-	 * VPIDs [0,VM_MAXCPU] are special and are not allocated from
+	 * VPIDs [0,vm_maxcpu] are special and are not allocated from
 	 * the unit number allocator.
 	 */
 
-	if (vpid > VM_MAXCPU)
+	if (vpid > vm_maxcpu)
 		free_unr(vpid_unr, vpid);
 }
 
@@ -550,7 +550,7 @@ vpid_alloc(int vcpuid)
 
 		/*
 		 * If the unit number allocator does not have enough unique
-		 * VPIDs then we need to allocate from the [1,VM_MAXCPU] range.
+		 * VPIDs then we need to allocate from the [1,vm_maxcpu] range.
 		 *
 		 * These VPIDs are not be unique across VMs but this does not
 		 * affect correctness because the combined mappings are also
@@ -572,13 +572,13 @@ vpid_init(void)
 	 * VPID 0 is required when the "enable VPID" execution control is
 	 * disabled.
 	 *
-	 * VPIDs [1,VM_MAXCPU] are used as the "overflow namespace" when the
+	 * VPIDs [1,vm_maxcpu] are used as the "overflow namespace" when the
 	 * unit number allocator does not have sufficient unique VPIDs to
 	 * satisfy the allocation.
 	 *
 	 * The remaining VPIDs are managed by the unit number allocator.
 	 */
-	vpid_unr = new_unrhdr(VM_MAXCPU + 1, 0xffff, NULL);
+	vpid_unr = new_unrhdr(vm_maxcpu + 1, 0xffff, NULL);
 }
 
 static void

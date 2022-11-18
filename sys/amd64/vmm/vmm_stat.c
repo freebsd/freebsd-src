@@ -71,7 +71,7 @@ vmm_stat_register(void *arg)
 		return;
 
 	if (vst->nelems == VMM_STAT_NELEMS_VCPU)
-		vst->nelems = VM_MAXCPU;
+		vst->nelems = vm_maxcpu;
 
 	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
 		printf("Cannot accommodate vmm stat type \"%s\"!\n", vst->desc);
