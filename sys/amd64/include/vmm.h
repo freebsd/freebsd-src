@@ -313,8 +313,8 @@ int vm_restore_time(struct vm *vm);
  * by 'dest' to be stalled. The caller should not rely on any vcpus making
  * forward progress when the rendezvous is in progress.
  */
-typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
-int vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
+typedef void (*vm_rendezvous_func_t)(struct vcpu *vcpu, void *arg);
+int vm_smp_rendezvous(struct vcpu *vcpu, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
 cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_debug_cpus(struct vm *vm);
