@@ -1200,9 +1200,9 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 }
 
 static void
-vlapic_handle_init(struct vm *vm, int vcpuid, void *arg)
+vlapic_handle_init(struct vcpu *vcpu, void *arg)
 {
-	struct vlapic *vlapic = vm_lapic(vm_vcpu(vm, vcpuid));
+	struct vlapic *vlapic = vm_lapic(vcpu);
 
 	vlapic_reset(vlapic);
 
@@ -1211,13 +1211,13 @@ vlapic_handle_init(struct vm *vm, int vcpuid, void *arg)
 }
 
 int
-vm_handle_ipi(struct vm *vm, int vcpuid, struct vm_exit *vme, bool *retu)
+vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 {
 	*retu = true;
 	switch (vme->u.ipi.mode) {
 	case APIC_DELMODE_INIT:
-		vm_smp_rendezvous(vm, vcpuid, vme->u.ipi.dmask,
-		    vlapic_handle_init, NULL);
+		vm_smp_rendezvous(vcpu, vme->u.ipi.dmask, vlapic_handle_init,
+		    NULL);
 		break;
 	case APIC_DELMODE_STARTUP:
 		break;

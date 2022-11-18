@@ -237,7 +237,7 @@ vioapic_pulse_irq(struct vm *vm, int irq)
  * configuration.
  */
 static void
-vioapic_update_tmr(struct vm *vm, int vcpuid, void *arg)
+vioapic_update_tmr(struct vcpu *vcpu, void *arg)
 {
 	struct vioapic *vioapic;
 	struct vlapic *vlapic;
@@ -245,8 +245,8 @@ vioapic_update_tmr(struct vm *vm, int vcpuid, void *arg)
 	int delmode, pin, vector;
 	bool level, phys;
 
-	vlapic = vm_lapic(vm_vcpu(vm, vcpuid));
-	vioapic = vm_ioapic(vm);
+	vlapic = vm_lapic(vcpu);
+	vioapic = vm_ioapic(vcpu_vm(vcpu));
 
 	VIOAPIC_LOCK(vioapic);
 	/*
@@ -317,10 +317,9 @@ vioapic_write(struct vioapic *vioapic, struct vcpu *vcpu, uint32_t addr,
 {
 	uint64_t data64, mask64;
 	uint64_t last, changed;
-	int regnum, pin, lshift, vcpuid;
+	int regnum, pin, lshift;
 	cpuset_t allvcpus;
 
-	vcpuid = vcpu_vcpuid(vcpu);
 	regnum = addr & 0xff;
 	switch (regnum) {
 	case IOAPIC_ID:
@@ -374,7 +373,7 @@ vioapic_write(struct vioapic *vioapic, struct vcpu *vcpu, uint32_t addr,
 			    "vlapic trigger-mode register", pin);
 			VIOAPIC_UNLOCK(vioapic);
 			allvcpus = vm_active_cpus(vioapic->vm);
-			(void)vm_smp_rendezvous(vioapic->vm, vcpuid, allvcpus,
+			(void)vm_smp_rendezvous(vcpu, allvcpus,
 			    vioapic_update_tmr, NULL);
 			VIOAPIC_LOCK(vioapic);
 		}
