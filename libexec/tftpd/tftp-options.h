@@ -64,3 +64,8 @@ enum opt_enum {
 	OPT_ROLLOVER,
 	OPT_WINDOWSIZE,
 };
+
+int	options_set_request(enum opt_enum, const char *, ...)
+	__printflike(2, 3);
+int	options_set_reply(enum opt_enum, const char *, ...)
+	__printflike(2, 3);

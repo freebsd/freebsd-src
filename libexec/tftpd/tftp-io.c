@@ -258,7 +258,7 @@ send_rrq(int peer, char *filename, char *mode)
 	size += strlen(mode) + 1;
 
 	if (options_rfc_enabled) {
-		options[OPT_TSIZE].o_request = strdup("0");
+		options_set_request(OPT_TSIZE, "0");
 		size += make_options(peer, bp, sizeof(buf) - size);
 	}
 

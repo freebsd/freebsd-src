@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/tftp.h>
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +65,62 @@ struct options options[] = {
 int options_rfc_enabled = 1;
 int options_extra_enabled = 1;
 
+int
+options_set_request(enum opt_enum opt, const char *fmt, ...)
+{
+	va_list ap;
+	char *str;
+	int ret;
+
+	if (fmt == NULL) {
+		str = NULL;
+	} else {
+		va_start(ap, fmt);
+		ret = vasprintf(&str, fmt, ap);
+		va_end(ap);
+		if (ret < 0)
+			return (ret);
+	}
+	if (options[opt].o_request != NULL &&
+	    options[opt].o_request != options[opt].o_reply)
+		free(options[opt].o_request);
+	options[opt].o_request = str;
+	return (0);
+}
+
+int
+options_set_reply(enum opt_enum opt, const char *fmt, ...)
+{
+	va_list ap;
+	char *str;
+	int ret;
+
+	if (fmt == NULL) {
+		str = NULL;
+	} else {
+		va_start(ap, fmt);
+		ret = vasprintf(&str, fmt, ap);
+		va_end(ap);
+		if (ret < 0)
+			return (ret);
+	}
+	if (options[opt].o_reply != NULL &&
+	    options[opt].o_reply != options[opt].o_request)
+		free(options[opt].o_reply);
+	options[opt].o_reply = str;
+	return (0);
+}
+
+static void
+options_set_reply_equal_request(enum opt_enum opt)
+{
+
+	if (options[opt].o_reply != NULL &&
+	    options[opt].o_reply != options[opt].o_request)
+		free(options[opt].o_reply);
+	options[opt].o_reply = options[opt].o_request;
+}
+
 /*
  * Rules for the option handlers:
  * - If there is no o_request, there will be no processing.
@@ -90,12 +147,10 @@ option_tsize(int peer __unused, struct tftphdr *tp __unused, int mode,
 		return (0);
 
 	if (mode == RRQ)
-		asprintf(&options[OPT_TSIZE].o_reply,
-			"%ju", (uintmax_t)stbuf->st_size);
+		options_set_reply(OPT_TSIZE, "%ju", stbuf->st_size);
 	else
 		/* XXX Allows writes of all sizes. */
-		options[OPT_TSIZE].o_reply =
-			strdup(options[OPT_TSIZE].o_request);
+		options_set_reply_equal_request(OPT_TSIZE);
 	return (0);
 }
 
@@ -119,8 +174,7 @@ option_timeout(int peer)
 		exit(1);
 	} else {
 		timeoutpacket = to;
-		options[OPT_TIMEOUT].o_reply =
-			strdup(options[OPT_TIMEOUT].o_request);
+		options_set_reply_equal_request(OPT_TIMEOUT);
 	}
 	settimeouts(timeoutpacket, timeoutnetwork, maxtimeouts);
 
@@ -151,8 +205,7 @@ option_rollover(int peer)
 		}
 		return (0);
 	}
-	options[OPT_ROLLOVER].o_reply =
-		strdup(options[OPT_ROLLOVER].o_request);
+	options_set_reply_equal_request(OPT_ROLLOVER);
 
 	if (debug & DEBUG_OPTIONS)
 		tftp_log(LOG_DEBUG, "Setting rollover to '%s'",
@@ -212,7 +265,7 @@ option_blksize(int peer)
 		}
 	}
 
-	asprintf(&options[OPT_BLKSIZE].o_reply, "%d", size);
+	options_set_reply(OPT_BLKSIZE, "%d", size);
 	segsize = size;
 	pktsize = size + 4;
 	if (debug & DEBUG_OPTIONS)
@@ -266,7 +319,7 @@ option_blksize2(int peer __unused)
 		/* No need to return */
 	}
 
-	asprintf(&options[OPT_BLKSIZE2].o_reply, "%d", size);
+	options_set_reply(OPT_BLKSIZE2, "%d", size);
 	segsize = size;
 	pktsize = size + 4;
 	if (debug & DEBUG_OPTIONS)
@@ -301,7 +354,7 @@ option_windowsize(int peer)
 	}
 
 	/* XXX: Should force a windowsize of 1 for non-seekable files. */
-	asprintf(&options[OPT_WINDOWSIZE].o_reply, "%d", size);
+	options_set_reply(OPT_WINDOWSIZE, "%d", size);
 	windowsize = size;
 
 	if (debug & DEBUG_OPTIONS)
@@ -391,7 +444,7 @@ parse_options(int peer, char *buffer, uint16_t size)
 		for (i = 0; options[i].o_type != NULL; i++) {
 			if (strcmp(option, options[i].o_type) == 0) {
 				if (!acting_as_client)
-					options[i].o_request = value;
+					options_set_request(i, "%s", value);
 				if (!options_extra_enabled && !options[i].rfc) {
 					tftp_log(LOG_INFO,
 					    "Option '%s' with value '%s' found "
@@ -422,5 +475,5 @@ void
 init_options(void)
 {
 
-	options[OPT_ROLLOVER].o_request = strdup("0");
+	options_set_request(OPT_ROLLOVER, "0");
 }
