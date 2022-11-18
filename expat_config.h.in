@@ -1,5 +1,8 @@
 /* expat_config.h.in.  Generated from configure.ac by autoheader.  */
 
+#ifndef EXPAT_CONFIG_H
+#define EXPAT_CONFIG_H 1
+
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
@@ -132,3 +135,5 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
+
+#endif // ndef EXPAT_CONFIG_H

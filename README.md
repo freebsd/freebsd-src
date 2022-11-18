@@ -5,7 +5,7 @@
 [![Downloads GitHub](https://img.shields.io/github/downloads/libexpat/libexpat/total?label=Downloads%20GitHub)](https://github.com/libexpat/libexpat/releases)
 
 
-# Expat, Release 2.4.9
+# Expat, Release 2.5.0
 
 This is Expat, a C library for parsing XML, started by
 [James Clark](https://en.wikipedia.org/wiki/James_Clark_%28programmer%29) in 1997.
