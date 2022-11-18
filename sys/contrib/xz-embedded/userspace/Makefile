@@ -7,11 +7,14 @@
 # You can do whatever you want with this file.
 #
 
+# gcc -std=gnu89 is used because Linux uses it. It is fine to omit it as
+# the code is also C99/C11 compatible. With clang you may wish to omit
+# either -std=gnu89 or -pedantic as having both gives quite a few warnings.
 CC = gcc -std=gnu89
 BCJ_CPPFLAGS = -DXZ_DEC_X86 -DXZ_DEC_POWERPC -DXZ_DEC_IA64 \
 		-DXZ_DEC_ARM -DXZ_DEC_ARMTHUMB -DXZ_DEC_SPARC
-CPPFLAGS = -DXZ_USE_CRC64 -DXZ_DEC_ANY_CHECK
-CFLAGS = -ggdb3 -O2 -pedantic -Wall -Wextra
+CPPFLAGS = -DXZ_USE_CRC64 -DXZ_DEC_ANY_CHECK -DXZ_DEC_CONCATENATED
+CFLAGS = -ggdb3 -O2 -pedantic -Wall -Wextra -Wno-long-long
 RM = rm -f
 VPATH = ../linux/include/linux ../linux/lib/xz
 COMMON_SRCS = xz_crc32.c xz_crc64.c xz_dec_stream.c xz_dec_lzma2.c xz_dec_bcj.c
@@ -44,5 +47,5 @@ boottest: $(BOOTTEST_OBJS) $(COMMON_SRCS)
 
 .PHONY: clean
 clean:
-	-$(RM) $(COMMON_OBJS) $(XZMINIDEC_OBJS) $(BUFTEST_OBJS) \
-		$(BOOTTEST_OBJS) $(PROGRAMS)
+	-$(RM) $(COMMON_OBJS) $(XZMINIDEC_OBJS) $(BYTETEST_OBJS) \
+		$(BUFTEST_OBJS) $(BOOTTEST_OBJS) $(PROGRAMS)
