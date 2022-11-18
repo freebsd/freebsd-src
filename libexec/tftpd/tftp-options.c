@@ -147,7 +147,7 @@ option_tsize(int peer __unused, struct tftphdr *tp __unused, int mode,
 		return (0);
 
 	if (mode == RRQ)
-		options_set_reply(OPT_TSIZE, "%ju", stbuf->st_size);
+		options_set_reply(OPT_TSIZE, "%ju", (uintmax_t)stbuf->st_size);
 	else
 		/* XXX Allows writes of all sizes. */
 		options_set_reply_equal_request(OPT_TSIZE);
