@@ -115,7 +115,7 @@ main(void)
 	 */
 	bios_getmem();
 
-#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT) || \
+#if defined(LOADER_BZIP2_SUPPORT) || \
     defined(LOADER_GPT_SUPPORT) || defined(LOADER_ZFS_SUPPORT)
 	if (high_heap_size > 0) {
 		heap_top = PTOV(high_heap_base + high_heap_size);
