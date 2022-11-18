@@ -92,13 +92,13 @@ int	vmm_stat_copy(struct vm *vm, int vcpu, int index, int count,
 int	vmm_stat_desc_copy(int index, char *buf, int buflen);
 
 static void __inline
-vmm_stat_array_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
-		    int statidx, uint64_t x)
+vmm_stat_array_incr(struct vcpu *vcpu, struct vmm_stat_type *vst, int statidx,
+    uint64_t x)
 {
 #ifdef VMM_KEEP_STATS
 	uint64_t *stats;
 
-	stats = vcpu_stats(vm, vcpu);
+	stats = vcpu_stats(vcpu);
 
 	if (vst->index >= 0 && statidx < vst->nelems)
 		stats[vst->index + statidx] += x;
@@ -106,13 +106,13 @@ vmm_stat_array_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
 }
 
 static void __inline
-vmm_stat_array_set(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
-		   int statidx, uint64_t val)
+vmm_stat_array_set(struct vcpu *vcpu, struct vmm_stat_type *vst, int statidx,
+    uint64_t val)
 {
 #ifdef VMM_KEEP_STATS
 	uint64_t *stats;
 
-	stats = vcpu_stats(vm, vcpu);
+	stats = vcpu_stats(vcpu);
 
 	if (vst->index >= 0 && statidx < vst->nelems)
 		stats[vst->index + statidx] = val;
@@ -120,20 +120,20 @@ vmm_stat_array_set(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
 }
 		   
 static void __inline
-vmm_stat_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst, uint64_t x)
+vmm_stat_incr(struct vcpu *vcpu, struct vmm_stat_type *vst, uint64_t x)
 {
 
 #ifdef VMM_KEEP_STATS
-	vmm_stat_array_incr(vm, vcpu, vst, 0, x);
+	vmm_stat_array_incr(vcpu, vst, 0, x);
 #endif
 }
 
 static void __inline
-vmm_stat_set(struct vm *vm, int vcpu, struct vmm_stat_type *vst, uint64_t val)
+vmm_stat_set(struct vcpu *vcpu, struct vmm_stat_type *vst, uint64_t val)
 {
 
 #ifdef VMM_KEEP_STATS
-	vmm_stat_array_set(vm, vcpu, vst, 0, val);
+	vmm_stat_array_set(vcpu, vst, 0, val);
 #endif
 }
 

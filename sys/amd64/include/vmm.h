@@ -377,7 +377,7 @@ vcpu_should_yield(struct vm *vm, int vcpu)
 }
 #endif
 
-void *vcpu_stats(struct vm *vm, int vcpu);
+void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);

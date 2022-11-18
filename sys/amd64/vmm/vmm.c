@@ -1447,7 +1447,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		 */
 		msleep_spin(vcpu, &vcpu->mtx, wmesg, hz);
 		vcpu_require_state_locked(vm, vcpuid, VCPU_FROZEN);
-		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
+		vmm_stat_incr(vcpu, VCPU_IDLE_TICKS, ticks - t);
 		if (td_ast_pending(td, TDA_SUSPEND)) {
 			vcpu_unlock(vcpu);
 			error = thread_check_susp(td, false);
@@ -1729,7 +1729,7 @@ vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip)
 	vmexit->rip = rip;
 	vmexit->inst_length = 0;
 	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
-	vmm_stat_incr(vm, vcpuid, VMEXIT_RENDEZVOUS, 1);
+	vmm_stat_incr(vm_vcpu(vm, vcpuid), VMEXIT_RENDEZVOUS, 1);
 }
 
 void
@@ -1741,7 +1741,7 @@ vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip)
 	vmexit->rip = rip;
 	vmexit->inst_length = 0;
 	vmexit->exitcode = VM_EXITCODE_REQIDLE;
-	vmm_stat_incr(vm, vcpuid, VMEXIT_REQIDLE, 1);
+	vmm_stat_incr(vm_vcpu(vm, vcpuid), VMEXIT_REQIDLE, 1);
 }
 
 void
@@ -1753,7 +1753,7 @@ vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip)
 	vmexit->rip = rip;
 	vmexit->inst_length = 0;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
-	vmm_stat_incr(vm, vcpuid, VMEXIT_ASTPENDING, 1);
+	vmm_stat_incr(vm_vcpu(vm, vcpuid), VMEXIT_ASTPENDING, 1);
 }
 
 int
@@ -1804,7 +1804,7 @@ restart:
 
 	save_guest_fpustate(vcpu);
 
-	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
+	vmm_stat_incr(vcpu, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
 
 	critical_exit();
 
@@ -1862,7 +1862,7 @@ restart:
 	if (error == 0 && retu == false)
 		goto restart;
 
-	vmm_stat_incr(vm, vcpuid, VMEXIT_USERSPACE, 1);
+	vmm_stat_incr(vcpu, VMEXIT_USERSPACE, 1);
 	VCPU_CTR2(vm, vcpuid, "retu %d/%d", error, vme->exitcode);
 
 	/* copy the exit information */
@@ -2246,7 +2246,7 @@ vm_nmi_clear(struct vm *vm, int vcpuid)
 		panic("vm_nmi_clear: inconsistent nmi_pending state");
 
 	vcpu->nmi_pending = 0;
-	vmm_stat_incr(vm, vcpuid, VCPU_NMI_COUNT, 1);
+	vmm_stat_incr(vcpu, VCPU_NMI_COUNT, 1);
 }
 
 static VMM_STAT(VCPU_EXTINT_COUNT, "number of ExtINTs delivered to vcpu");
@@ -2293,7 +2293,7 @@ vm_extint_clear(struct vm *vm, int vcpuid)
 		panic("vm_extint_clear: inconsistent extint_pending state");
 
 	vcpu->extint_pending = 0;
-	vmm_stat_incr(vm, vcpuid, VCPU_EXTINT_COUNT, 1);
+	vmm_stat_incr(vcpu, VCPU_EXTINT_COUNT, 1);
 }
 
 int
@@ -2532,10 +2532,10 @@ vm_suspended_cpus(struct vm *vm)
 }
 
 void *
-vcpu_stats(struct vm *vm, int vcpuid)
+vcpu_stats(struct vcpu *vcpu)
 {
 
-	return (vm->vcpu[vcpuid].stats);
+	return (vcpu->stats);
 }
 
 int
@@ -2827,7 +2827,7 @@ vm_get_rescnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
 {
 
 	if (vcpu == 0) {
-		vmm_stat_set(vm, vcpu, VMM_MEM_RESIDENT,
+		vmm_stat_set(vm_vcpu(vm, vcpu), VMM_MEM_RESIDENT,
 	       	    PAGE_SIZE * vmspace_resident_count(vm->vmspace));
 	}	
 }
@@ -2837,7 +2837,7 @@ vm_get_wiredcnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
 {
 
 	if (vcpu == 0) {
-		vmm_stat_set(vm, vcpu, VMM_MEM_WIRED,
+		vmm_stat_set(vm_vcpu(vm, vcpu), VMM_MEM_WIRED,
 	      	    PAGE_SIZE * pmap_wired_count(vmspace_pmap(vm->vmspace)));
 	}	
 }
