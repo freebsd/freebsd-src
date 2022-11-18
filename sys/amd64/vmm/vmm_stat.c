@@ -113,7 +113,7 @@ vmm_stat_copy(struct vm *vm, int vcpu, int index, int count, int *num_stats,
 	}
 
 	/* Copy over the stats */
-	stats = vcpu_stats(vm, vcpu);
+	stats = vcpu_stats(vm_vcpu(vm, vcpu));
 	memcpy(buf, stats + index, tocopy * sizeof(stats[0]));
 	*num_stats = tocopy;
 	return (0);

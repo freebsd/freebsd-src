@@ -1010,7 +1010,7 @@ svm_save_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 	 */
 	SVM_CTR2(vcpu, "SVM:Pending INTINFO(0x%lx), vector=%d.\n", intinfo,
 	    VMCB_EXITINTINFO_VECTOR(intinfo));
-	vmm_stat_incr(svm_sc->vm, vcpuid, VCPU_EXITINTINFO, 1);
+	vmm_stat_incr(vcpu->vcpu, VCPU_EXITINTINFO, 1);
 	vm_exit_intinfo(svm_sc->vm, vcpuid, intinfo);
 }
 
@@ -1355,7 +1355,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 	vmexit->rip = state->rip;
 	vmexit->inst_length = nrip_valid(code) ? ctrl->nrip - state->rip : 0;
 
-	vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_COUNT, 1);
+	vmm_stat_incr(vcpu->vcpu, VMEXIT_COUNT, 1);
 
 	/*
 	 * #VMEXIT(INVALID) needs to be handled early because the VMCB is
@@ -1387,18 +1387,18 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		handled = 1;
 		break;
 	case VMCB_EXIT_VINTR:	/* interrupt window exiting */
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_VINTR, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_VINTR, 1);
 		handled = 1;
 		break;
 	case VMCB_EXIT_INTR:	/* external interrupt */
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_EXTINT, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_EXTINT, 1);
 		handled = 1;
 		break;
 	case VMCB_EXIT_NMI:	/* external NMI */
 		handled = 1;
 		break;
 	case 0x40 ... 0x5F:
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_EXCEPTION, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_EXCEPTION, 1);
 		reflect = 1;
 		idtvec = code - 0x40;
 		switch (idtvec) {
@@ -1473,7 +1473,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		retu = false;	
 
 		if (info1) {
-			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_WRMSR, 1);
+			vmm_stat_incr(vcpu->vcpu, VMEXIT_WRMSR, 1);
 			val = (uint64_t)edx << 32 | eax;
 			SVM_CTR2(vcpu, "wrmsr %#x val %#lx", ecx, val);
 			if (emulate_wrmsr(svm_sc, vcpu, ecx, val, &retu)) {
@@ -1488,7 +1488,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			}
 		} else {
 			SVM_CTR1(vcpu, "rdmsr %#x", ecx);
-			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_RDMSR, 1);
+			vmm_stat_incr(vcpu->vcpu, VMEXIT_RDMSR, 1);
 			if (emulate_rdmsr(svm_sc, vcpu, ecx, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_RDMSR;
 				vmexit->u.msr.code = ecx;
@@ -1502,21 +1502,21 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		break;
 	case VMCB_EXIT_IO:
 		handled = svm_handle_io(vcpu, vmexit);
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_INOUT, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_INOUT, 1);
 		break;
 	case VMCB_EXIT_CPUID:
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_CPUID, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_CPUID, 1);
 		handled = x86_emulate_cpuid(svm_sc->vm, vcpuid, &state->rax,
 		    &ctx->sctx_rbx, &ctx->sctx_rcx, &ctx->sctx_rdx);
 		break;
 	case VMCB_EXIT_HLT:
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_HLT, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_HLT, 1);
 		vmexit->exitcode = VM_EXITCODE_HLT;
 		vmexit->u.hlt.rflags = state->rflags;
 		break;
 	case VMCB_EXIT_PAUSE:
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_PAUSE, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_PAUSE, 1);
 		break;
 	case VMCB_EXIT_NPF:
 		/* EXITINFO2 contains the faulting guest physical address */
@@ -1528,13 +1528,13 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = npf_fault_type(info1);
-			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_NESTED_FAULT, 1);
+			vmm_stat_incr(vcpu->vcpu, VMEXIT_NESTED_FAULT, 1);
 			SVM_CTR3(vcpu, "nested page fault "
 			    "on gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		} else if (svm_npf_emul_fault(info1)) {
 			svm_handle_inst_emul(vmcb, info2, vmexit);
-			vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_INST_EMUL, 1);
+			vmm_stat_incr(vcpu->vcpu, VMEXIT_INST_EMUL, 1);
 			SVM_CTR3(vcpu, "inst_emul fault "
 			    "for gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
@@ -1565,7 +1565,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		handled = 1;
 		break;
 	default:
-		vmm_stat_incr(svm_sc->vm, vcpuid, VMEXIT_UNKNOWN, 1);
+		vmm_stat_incr(vcpu->vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}	
 
@@ -1610,7 +1610,7 @@ svm_inj_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 		VMCB_EXITINTINFO_VECTOR(intinfo),
 		VMCB_EXITINTINFO_EC(intinfo),
 		VMCB_EXITINTINFO_EC_VALID(intinfo));
-	vmm_stat_incr(svm_sc->vm, vcpuid, VCPU_INTINFO_INJECTED, 1);
+	vmm_stat_incr(vcpu->vcpu, VCPU_INTINFO_INJECTED, 1);
 	SVM_CTR1(vcpu, "Injected entry intinfo: %#lx", intinfo);
 }
 
@@ -2044,7 +2044,7 @@ svm_run(void *vcpui, register_t rip, pmap_t pmap, struct vm_eventinfo *evinfo)
 		 * migration should take this case into account.
 		 */
 		vcpu->lastcpu = curcpu;
-		vmm_stat_incr(vm, vcpuid, VCPU_MIGRATIONS, 1);
+		vmm_stat_incr(vcpu->vcpu, VCPU_MIGRATIONS, 1);
 	}
 
 	svm_msr_guest_enter(svm_sc, vcpu);
