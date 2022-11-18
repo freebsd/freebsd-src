@@ -35,6 +35,7 @@
 #define	VHPET_BASE	0xfed00000
 #define	VHPET_SIZE	1024
 
+#ifdef _KERNEL
 struct vm_snapshot_meta;
 
 struct vhpet *vhpet_init(struct vm *vm);
@@ -48,5 +49,7 @@ int	vhpet_getcap(struct vm_hpet_cap *cap);
 int	vhpet_snapshot(struct vhpet *vhpet, struct vm_snapshot_meta *meta);
 int	vhpet_restore_time(struct vhpet *vhpet);
 #endif
+
+#endif /* _KERNEL */
 
 #endif	/* _VHPET_H_ */
