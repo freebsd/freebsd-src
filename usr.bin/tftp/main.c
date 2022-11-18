@@ -50,11 +50,10 @@ __FBSDID("$FreeBSD$");
  * TFTP User Program -- Command Interface.
  */
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/sysctl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <setjmp.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -126,7 +126,7 @@ static void putusage(char *);
 static void settftpmode(const char *);
 
 static char	*tail(char *);
-static struct	cmd *getcmd(char *);
+static const struct cmd *getcmd(const char *);
 
 #define HELPINDENT (sizeof("connect"))
 
@@ -743,7 +743,7 @@ command_prompt(void)
 static void
 command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 {
-	struct cmd *c;
+	const struct cmd *c;
 	const char *bp;
 	char *cp;
 	int len, num;
@@ -787,21 +787,22 @@ command(bool interactive, EditLine *el, History *hist, HistEvent *hep)
 	}
 }
 
-static struct cmd *
-getcmd(char *name)
+static const struct cmd *
+getcmd(const char *name)
 {
 	const char *p, *q;
-	struct cmd *c, *found;
-	int nmatches, longest;
+	const struct cmd *c, *found;
+	ptrdiff_t longest;
+	int nmatches;
 
 	longest = 0;
 	nmatches = 0;
 	found = 0;
 	for (c = cmdtab; (p = c->name) != NULL; c++) {
 		for (q = name; *q == *p++; q++)
-			if (*q == 0)		/* exact match? */
+			if (*q == '\0')		/* exact match? */
 				return (c);
-		if (!*q) {			/* the name was a prefix */
+		if (*q == '\0') {		/* the name was a prefix */
 			if (q - name > longest) {
 				longest = q - name;
 				nmatches = 1;
@@ -856,7 +857,7 @@ quit(int argc __unused, char *argv[] __unused)
 static void
 help(int argc, char *argv[])
 {
-	struct cmd *c;
+	const struct cmd *c;
 
 	if (argc == 1) {
 		printf("Commands may be abbreviated.  Commands are:\n\n");
