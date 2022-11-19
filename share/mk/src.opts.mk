@@ -348,6 +348,11 @@ __DEFAULT_YES_OPTIONS+=OPENMP
 __DEFAULT_NO_OPTIONS+=OPENMP
 .endif
 
+# libc++ requires C++20
+.if !${COMPILER_FEATURES:Mc++20}
+BROKEN_OPTIONS+=CXX
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
