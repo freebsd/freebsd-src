@@ -7900,8 +7900,6 @@ OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
 OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
-# 20190909: vm_map_unwire(9) removed
-OLD_FILES+=usr/share/man/man9/vm_map_unwire.9.gz
 # 20190904: Remove boot1.efifat and gptboot.efifat (which never should have been)
 OLD_FILES+=boot/boot1.efifat
 OLD_FILES+=boot/gptboot.efifat
