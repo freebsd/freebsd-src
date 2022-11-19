@@ -1025,7 +1025,7 @@ _worldtmp: .PHONY
 	${_+_}@if [ -e "${WORLDTMP}" ]; then \
 		echo ">>> Deleting stale files in build tree..."; \
 		cd ${.CURDIR}; env PATH=${TMPPATH}:${PATH} ${WMAKE:NPATH=*} \
-		    _NO_INCLUDE_COMPILERMK=t -DBATCH_DELETE_OLD_FILES delete-old \
+		    -DBATCH_DELETE_OLD_FILES delete-old \
 		    delete-old-libs >/dev/null; \
 	fi
 	rm -rf ${WORLDTMP}/legacy/usr/include
