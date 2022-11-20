@@ -201,6 +201,12 @@ nullfs_mount(struct mount *mp)
 		    &xmp->notify_node);
 	}
 
+	if (lowerrootvp == mp->mnt_vnodecovered) {
+		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE);
+		lowerrootvp->v_vflag |= VV_CROSSLOCK;
+		VOP_UNLOCK(lowerrootvp);
+	}
+
 	MNT_ILOCK(mp);
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
@@ -260,6 +266,11 @@ nullfs_unmount(mp, mntflags)
 	if ((mntdata->nullm_flags & NULLM_CACHE) != 0) {
 		vfs_unregister_for_notification(mntdata->nullm_vfs,
 		    &mntdata->notify_node);
+	}
+	if (mntdata->nullm_lowerrootvp == mp->mnt_vnodecovered) {
+		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE);
+		mp->mnt_vnodecovered->v_vflag &= ~VV_CROSSLOCK;
+		VOP_UNLOCK(mp->mnt_vnodecovered);
 	}
 	vfs_unregister_upper(mntdata->nullm_vfs, &mntdata->upper_node);
 	vrele(mntdata->nullm_lowerrootvp);
