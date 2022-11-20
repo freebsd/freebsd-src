@@ -329,7 +329,7 @@ unionfs_domount(struct mount *mp)
 	 * order unionfs currently requires.
 	 */
 	if (!below) {
-		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE);
 		mp->mnt_vnodecovered->v_vflag |= VV_CROSSLOCK;
 		VOP_UNLOCK(mp->mnt_vnodecovered);
 	}
@@ -386,7 +386,7 @@ unionfs_unmount(struct mount *mp, int mntflags)
 	if (error)
 		return (error);
 
-	vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(mp->mnt_vnodecovered, LK_EXCLUSIVE | LK_RETRY | LK_CANRECURSE);
 	mp->mnt_vnodecovered->v_vflag &= ~VV_CROSSLOCK;
 	VOP_UNLOCK(mp->mnt_vnodecovered);
 	vfs_unregister_upper(ump->um_lowervp->v_mount, &ump->um_lower_link);
