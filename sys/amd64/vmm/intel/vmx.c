@@ -2350,7 +2350,9 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
 	uint32_t intr_type, intr_vec, reason;
 	uint64_t exitintinfo, qual, gpa;
+#ifdef KDTRACE_HOOKS
 	int vcpuid;
+#endif
 	bool retu;
 
 	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_VIRTUAL_NMI) != 0);
@@ -2358,7 +2360,9 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 
 	handled = UNHANDLED;
 	vmxctx = &vcpu->ctx;
+#ifdef KDTRACE_HOOKS
 	vcpuid = vcpu->vcpuid;
+#endif
 
 	qual = vmexit->u.vmx.exit_qualification;
 	reason = vmexit->u.vmx.exit_reason;
