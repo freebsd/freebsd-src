@@ -107,7 +107,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	printf("Firmware Version:            %s\n", str);
 	printf("Recommended Arb Burst:       %d\n", cdata->rab);
 	printf("IEEE OUI Identifier:         %02x %02x %02x\n",
-		cdata->ieee[0], cdata->ieee[1], cdata->ieee[2]);
+		cdata->ieee[2], cdata->ieee[1], cdata->ieee[0]);
 	printf("Multi-Path I/O Capabilities: %s%s%s%s%s\n",
 	    (cdata->mic == 0) ? "Not Supported" : "",
 	    ((cdata->mic >> NVME_CTRLR_DATA_MIC_ANAR_SHIFT) &
