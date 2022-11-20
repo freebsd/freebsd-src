@@ -743,9 +743,9 @@ An error occurred.
 .El
 .Sh EXAMPLES
 The following will send ICMPv6 echo request to
-.Li dst.foo.com .
+.Li dst.example.com .
 .Bd -literal -offset indent
-ping -6 -n dst.foo.com
+ping -6 -n dst.example.com
 .Ed
 .Pp
 The following will probe hostnames for all nodes on the network link attached to
@@ -760,9 +760,9 @@ ping -6 -y ff02::1%wi0
 .Ed
 .Pp
 The following will probe addresses assigned to the destination node,
-.Li dst.foo.com .
+.Li dst.example.com .
 .Bd -literal -offset indent
-ping -6 -k agl dst.foo.com
+ping -6 -k agl dst.example.com
 .Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
