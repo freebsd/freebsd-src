@@ -34,9 +34,9 @@
 .Sh NAME
 .Nm ping
 .Nd send
-.Tn ICMP
+ICMP
 or
-.Tn ICMPv6 ECHO_REQUEST
+ICMPv6 ECHO_REQUEST
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
@@ -101,19 +101,21 @@ packets to network hosts
 The
 .Nm
 utility invoked with an IPv4 target
-.Ns ( Ar IPv4-host No or Ar IPv4-mcast-group Ns )
+.Ar ( IPv4-host
+or
+.Ar IPv4-mcast-group )
 uses the
-.Tn ICMP
+ICMP
 .No protocol Ap s mandatory
-.Tn ECHO_REQUEST
+ECHO_REQUEST
 datagram to elicit an
-.Tn ICMP ECHO_RESPONSE
+ICMP ECHO_RESPONSE
 from a host or gateway.
-.Tn ECHO_REQUEST
+ECHO_REQUEST
 datagrams
 .Pq Dq pings
 have an IP and
-.Tn ICMP
+ICMP
 header, followed by a
 .Dq struct timeval
 and then an arbitrary number of
@@ -121,24 +123,26 @@ and then an arbitrary number of
 bytes used to fill out the packet.
 .Pp
 When invoked with an IPv6 target
-.Ns ( Ar IPv6-host Ns ) Ns ,
+.Ar ( IPv6-host ) ,
 it uses the
-.Tn ICMPv6
+ICMPv6
 protocol's mandatory
-.Tn ICMP6_ECHO_REQUEST
+ICMP6_ECHO_REQUEST
 datagram to elicit an
-.Tn ICMP6_ECHO_REPLY
-.Ns .
-.Tn ICMP6_ECHO_REQUEST
+ICMP6_ECHO_REPLY.
+ICMP6_ECHO_REQUEST
 datagrams have an IPv6 header and
-.Tn ICMPv6
+ICMPv6
 header formatted as documented in RFC 2463.
 .Pp
-When invoked with a hostname, the version to which the target is resolved first is used.
-In that case, the options and arguments used must be valid for the specific IP version, otherwise
+When invoked with a hostname, the version to which the target is resolved first
+is used.
+In that case, the options and arguments used must be valid for the specific IP
+version, otherwise
 .Nm
 exits with an error.
-If the target is resolved to both IPv4 and IPv6, the specific IP version can be requested by
+If the target is resolved to both IPv4 and IPv6, the specific IP version can be
+requested by
 .Fl 4
 or
 .Fl 6
@@ -150,11 +154,11 @@ as
 .Bl -tag -width indent
 .It Fl .\& Ns Ar chars
 By default, for every
-.Tn ECHO_REQUEST
+ECHO_REQUEST
 sent, a period
 .Dq .\&
 is printed, while for every
-.Tn ECHO_REPLY
+ECHO_REPLY
 received, a backspace is printed.
 This option takes an optional string argument listing characters
 that will be printed one by one in the provided order
@@ -167,7 +171,7 @@ ping -.0123456789 freebsd.org
 .It Fl A
 Audible.
 Output a bell
-.Tn ( ASCII
+(ASCII
 0x07)
 character when no packet is received before the next packet
 is transmitted.
@@ -177,7 +181,7 @@ if the maximum number of unreceived packets has increased.
 .It Fl a
 Audible.
 Include a bell
-.Tn ( ASCII
+(ASCII
 0x07)
 character in the output when any packet is received.
 .It Fl C Ar pcp
@@ -187,7 +191,7 @@ Add an 802.1p Ethernet Priority Code Point when sending a packet.
 Stop after sending
 (and receiving)
 .Ar count
-.Tn ECHO_RESPONSE
+ECHO_RESPONSE
 packets.
 If this option is not specified,
 .Nm
@@ -210,9 +214,9 @@ whichever is more.
 Implies
 .Fl .\&
 to print a period for every
-.Tn ECHO_REQUEST
+ECHO_REQUEST
 sent and a backspace for every
-.Tn ECHO_REPLY
+ECHO_REPLY
 received.
 This provides a rapid display of how many packets are being dropped.
 Only the super-user may use this option.
@@ -233,9 +237,9 @@ This flag applies only if the ping target is a multicast address.
 .Pp
 For an IPv6 target,
 .Ar iface
-is a name of an interface (e.g. `em0') from which the packets will be sent.
-This flag applies if the ping target is a multicast address, or link-local/site-local
-unicast address.
+is a name of an interface (e.g., `em0') from which the packets will be sent.
+This flag applies if the ping target is a multicast address, or
+link-local/site-local unicast address.
 .It Fl i Ar wait
 Wait
 .Ar wait
@@ -304,10 +308,10 @@ the sending node, and must be numeric.
 .It Fl s Ar packetsize
 Specify the number of data bytes to be sent.
 The default is 56, which translates into 64
-.Tn ICMP
+ICMP
 data bytes when combined
 with the 8 bytes of
-.Tn ICMP
+ICMP
 header data.
 .Pp
 For IPv4, only the super-user may specify values more than default.
@@ -321,9 +325,9 @@ Specify a timeout, in seconds, before ping exits regardless of how
 many packets have been received.
 .It Fl v
 Verbose output.
-.Tn ICMP
+ICMP
 packets other than
-.Tn ECHO_RESPONSE
+ECHO_RESPONSE
 that are received are listed.
 .It Fl W Ar waittime
 Time in milliseconds to wait for a reply for each packet sent.
@@ -336,17 +340,17 @@ considered as replied when calculating statistics.
 Use IPv4 regardless of how the target is resolved.
 .It Fl G Ar sweepmaxsize
 Specify the maximum size of
-.Tn ICMP
+ICMP
 payload when sending sweeping pings.
 This option is required for ping sweeps.
 .It Fl g Ar sweepminsize
 Specify the size of
-.Tn ICMP
+ICMP
 payload to start with when sending sweeping pings.
 The default value is 0.
 .It Fl h Ar sweepincrsize
 Specify the number of bytes to increment the size of
-.Tn ICMP
+ICMP
 payload after
 each sweep when sending sweeping pings.
 The default value is 1.
@@ -396,9 +400,9 @@ messages.
 .It Fl R
 Record route.
 Includes the
-.Tn RECORD_ROUTE
+RECORD_ROUTE
 option in the
-.Tn ECHO_REQUEST
+ECHO_REQUEST
 packet and displays
 the route buffer on returned packets.
 Note that the IP header is only large enough for nine such routes;
@@ -410,7 +414,7 @@ If more routes come back than should, such as due to an illegal spoofed
 packet, ping will print the route list and then truncate it at the correct
 spot.
 Many hosts ignore or discard the
-.Tn RECORD_ROUTE
+RECORD_ROUTE
 option.
 .It Fl r
 Bypass the normal routing tables and send directly to a host on an attached
@@ -575,21 +579,21 @@ during normal operations or from automated scripts.
 .Sh ICMP PACKET DETAILS
 An IP header without options is 20 bytes.
 An
-.Tn ICMP
-.Tn ECHO_REQUEST
+ICMP
+ECHO_REQUEST
 packet contains an additional 8 bytes worth of
-.Tn ICMP
+ICMP
 header followed by an arbitrary amount of data.
 When a
 .Ar packetsize
 is given, this indicated the size of this extra piece of data
 (the default is 56).
 Thus the amount of data received inside of an IP packet of type
-.Tn ICMP
-.Tn ECHO_REPLY
+ICMP
+ECHO_REPLY
 will always be 8 bytes more than the requested data space
 (the
-.Tn ICMP
+ICMP
 header).
 .Pp
 If the data space is at least eight bytes large,
@@ -648,22 +652,22 @@ option of
 .Nm .
 .Sh IPv4 TTL DETAILS
 The
-.Tn TTL
+TTL
 value of an IP packet represents the maximum number of IP routers
 that the packet can go through before being thrown away.
 In current practice you can expect each router in the Internet to decrement
 the
-.Tn TTL
+TTL
 field by exactly one.
 .Pp
 The
-.Tn TCP/IP
+TCP/IP
 specification recommends setting the
-.Tn TTL
+TTL
 field for
-.Tn IP
+IP
 packets to 64, but many systems use smaller values
-.No ( Bx 4.3
+.Bx ( 4.3
 uses 30,
 .Bx 4.2
 used 15).
@@ -672,9 +676,9 @@ The maximum possible value of this field is 255, and most
 .Ux
 systems set
 the
-.Tn TTL
+TTL
 field of
-.Tn ICMP ECHO_REQUEST
+ICMP ECHO_REQUEST
 packets to 255.
 This is why you will find you can
 .Dq ping
@@ -688,7 +692,7 @@ In normal operation
 prints the ttl value from the packet it receives.
 When a remote system receives a ping packet, it can do one of three things
 with the
-.Tn TTL
+TTL
 field in its response:
 .Bl -bullet
 .It
@@ -698,7 +702,7 @@ systems did before the
 .Bx 4.3 tahoe
 release.
 In this case the
-.Tn TTL
+TTL
 value in the received packet will be 255 minus the
 number of routers in the round-trip path.
 .It
@@ -706,7 +710,7 @@ Set it to 255; this is what current
 .Bx
 systems do.
 In this case the
-.Tn TTL
+TTL
 value in the received packet will be 255 minus the
 number of routers in the path
 .Em from
@@ -718,9 +722,9 @@ host.
 .It
 Set it to some other value.
 Some machines use the same value for
-.Tn ICMP
+ICMP
 packets that they use for
-.Tn TCP
+TCP
 packets, for example either 30 or 60.
 Others may use completely wild values.
 .El
@@ -813,11 +817,11 @@ while at the US Army Ballistics
 Research Laboratory.
 .Sh BUGS
 Many Hosts and Gateways ignore the IPv4
-.Tn RECORD_ROUTE
+RECORD_ROUTE
 option.
 .Pp
 The maximum IP header length is too small for options like
-.Tn RECORD_ROUTE
+RECORD_ROUTE
 to be completely useful.
 .No There Ap s
 not much that can be done about this, however.
