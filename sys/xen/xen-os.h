@@ -30,7 +30,7 @@
 #ifndef _XEN_XEN_OS_H_
 #define _XEN_XEN_OS_H_
 
-#define  __XEN_INTERFACE_VERSION__ 0x00030208
+#define  __XEN_INTERFACE_VERSION__ 0x00040d00
 
 #define GRANT_REF_INVALID   0xffffffff
 

@@ -155,7 +155,6 @@ increase_reservation(unsigned long nr_pages)
 	vm_page_t      page;
 	long           rc;
 	struct xen_memory_reservation reservation = {
-		.address_bits = 0,
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
@@ -217,7 +216,6 @@ decrease_reservation(unsigned long nr_pages)
 	int            need_sleep = 0;
 	int ret __diagused;
 	struct xen_memory_reservation reservation = {
-		.address_bits = 0,
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};

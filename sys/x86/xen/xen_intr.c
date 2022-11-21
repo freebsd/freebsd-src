@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
+/* The code below is the implementation of 2L event channels. */
+#define NR_EVENT_CHANNELS EVTCHN_2L_NR_CHANNELS
+
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
 static u_int first_evtchn_irq;
