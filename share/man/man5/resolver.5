@@ -28,7 +28,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2022
+.Dd November 19, 2022
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -47,7 +47,8 @@ The file is designed to be human readable and contains a list of
 keywords with values that provide various types of resolver information.
 .Pp
 On a normally configured system this file should not be necessary.
-The only name server to be queried will be on the local machine,
+The only name server(s) to be queried will be on the local machine
+or automatically configured using DHCP or a similar mechanism,
 the domain name is determined from the host name,
 and the domain search path is constructed from the domain name.
 .Pp
@@ -132,7 +133,7 @@ in _res.options.
 sets
 .Dv RES_USEVC
 to use TCP instead of UDP for queries.
-.It Sy ndots: Ns Ar n
+.It Sy ndots : Ns Ar n
 sets a threshold for the number of dots which must appear in a name given to
 .Fn res_query
 (see
@@ -148,7 +149,7 @@ meaning that if there are any dots in a name, the name
 will be tried first as an absolute name before any
 .Em search list
 elements are appended to it.
-.It Sy timeout: Ns Ar n
+.It Sy timeout : Ns Ar n
 sets the initial amount of time the resolver will wait
 for a response from a remote
 name server before retrying the query via a different name server.
@@ -161,7 +162,7 @@ the allowed maximum is
 .Dv RES_MAXRETRANS
 (see
 .In resolv.h ) .
-.It Sy attempts: Ns Ar n
+.It Sy attempts : Ns Ar n
 sets the number of times the resolver will send a query to each of
 its name servers
 before giving up and returning an error to the calling application.
@@ -180,7 +181,7 @@ the resolver from obeying the standard
 and
 .Sy search
 rules with the given name.
-.It Sy reload-period: Ns Ar n
+.It Sy reload-period : Ns Ar n
 The resolver checks the modification time of
 .Pa /etc/resolv.conf
 every
