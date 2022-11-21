@@ -1127,9 +1127,8 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			    i == vlapic->vcpuid)
 				break;
 
-			/* vCPU i is waiting for SIPI. */
-			CPU_SETOF(i, &dmask);
-			vm_await_start(vlapic->vm, &dmask);
+			CPU_SETOF(i, &ipimask);
+
 			break;
 		}
 
@@ -1140,36 +1139,17 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			if (!phys)
 				break;
 
-			/*
-			 * Old bhyve versions don't support the IPI
-			 * exit. Translate it into the old style.
-			 */
 			i = vm_apicid2vcpuid(vlapic->vm, dest);
 			if (i >= vm_get_maxcpus(vlapic->vm) ||
 			    i == vlapic->vcpuid)
 				break;
 
-			/*
-			 * Ignore SIPIs in any state other than wait-for-SIPI
-			 */
-			CPU_SETOF(i, &dmask);
-			dmask = vm_start_cpus(vlapic->vm, &dmask);
-			if (CPU_EMPTY(&dmask))
-				break;
+			CPU_SETOF(i, &ipimask);
 
-			vmexit = vm_exitinfo(vlapic->vcpu);
-			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
-			vmexit->u.spinup_ap.vcpu = i;
-			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
-
-			*retu = true;
 			break;
 		}
 
-		/*
-		 * Ignore SIPIs in any state other than wait-for-SIPI
-		 */
-		ipimask = vm_start_cpus(vlapic->vm, &dmask);
+		CPU_COPY(&dmask, &ipimask);
 		break;
 	default:
 		return (1);
@@ -1199,14 +1179,43 @@ vlapic_handle_init(struct vcpu *vcpu, void *arg)
 int
 vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 {
+	struct vlapic *vlapic = vm_lapic(vcpu);
+	cpuset_t *dmask = &vme->u.ipi.dmask;
+	uint8_t vec = vme->u.ipi.vector;
+
 	*retu = true;
 	switch (vme->u.ipi.mode) {
 	case APIC_DELMODE_INIT:
-		vm_smp_rendezvous(vcpu, vme->u.ipi.dmask, vlapic_handle_init,
+		vm_smp_rendezvous(vcpu, *dmask, vlapic_handle_init,
 		    NULL);
-		vm_await_start(vcpu_vm(vcpu), &vme->u.ipi.dmask);
+		vm_await_start(vcpu_vm(vcpu), dmask);
+
+		if (!vlapic->ipi_exit) {
+			*retu = false;
+		}
+
 		break;
 	case APIC_DELMODE_STARTUP:
+		/*
+		 * Ignore SIPIs in any state other than wait-for-SIPI
+		 */
+		*dmask = vm_start_cpus(vcpu_vm(vcpu), dmask);
+
+		if (CPU_EMPTY(dmask)) {
+			*retu = false;
+			break;
+		}
+
+		/*
+		 * Old bhyve versions don't support the IPI
+		 * exit. Translate it into the old style.
+		 */
+		if (!vlapic->ipi_exit) {
+			vme->exitcode = VM_EXITCODE_SPINUP_AP;
+			vme->u.spinup_ap.vcpu = CPU_FFS(dmask);
+			vme->u.spinup_ap.rip = vec << PAGE_SHIFT;
+		}
+
 		break;
 	default:
 		return (1);
