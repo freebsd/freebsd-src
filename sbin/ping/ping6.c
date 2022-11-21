@@ -124,7 +124,6 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <math.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -188,7 +187,6 @@ struct tv32 {
 #define F_FQDN		0x1000
 #define F_INTERFACE	0x2000
 #define F_SRCADDR	0x4000
-#define F_HOSTNAME	0x10000
 #define F_FQDNOLD	0x20000
 #define F_NIGROUP	0x40000
 #define F_SUPTYPES	0x80000
@@ -200,7 +198,6 @@ struct tv32 {
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
 #define	F_WAITTIME	0x2000000
 #define	F_DOT		0x4000000
-static u_int options;
 
 #define IN6LEN		sizeof(struct in6_addr)
 #define SA6LEN		sizeof(struct sockaddr_in6)
@@ -229,7 +226,6 @@ static char BBELL = '\a';	/* characters written for AUDIBLE */
 static const char *DOT = ".";
 static size_t DOTlen = 1;
 static size_t DOTidx = 0;
-static char *hostname;
 static int ident;		/* process id to identify our packets */
 static u_int8_t nonce[8];	/* nonce field for node information */
 static int hoplimit = -1;	/* hoplimit */
@@ -241,20 +237,9 @@ static cap_channel_t *capdns;
 /* counters */
 static long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 static long npackets;		/* max packets to transmit */
-static long nreceived;		/* # of packets we got back */
-static long nrepeats;		/* number of duplicates */
-static long ntransmitted;	/* sequence # for outbound packets = #sent */
 static long ntransmitfailures;	/* number of transmit failures */
 static int interval = 1000;	/* interval between packets in ms */
 static int waittime = MAXWAIT;	/* timeout for each packet */
-static long nrcvtimeout = 0;	/* # of packets we got back after waittime */
-
-/* timing */
-static int timing;		/* flag to do timing */
-static double tmin = 999999999.0;	/* minimum round trip time */
-static double tmax = 0.0;	/* maximum round trip time */
-static double tsum = 0.0;	/* sum of all times, for doing average */
-static double tsumsq = 0.0;	/* sum of all times squared, for std. dev. */
 
 /* for node addresses */
 static u_short naflags;
@@ -264,18 +249,11 @@ static struct msghdr smsghdr;
 static struct iovec smsgiov;
 static char *scmsg = 0;
 
-static volatile sig_atomic_t seenint;
-#ifdef SIGINFO
-static volatile sig_atomic_t seeninfo;
-#endif
-
 static cap_channel_t *capdns_setup(void);
 static void	 fill(char *, char *);
 static int	 get_hoplim(struct msghdr *);
 static int	 get_pathmtu(struct msghdr *);
 static struct in6_pktinfo *get_rcvpktinfo(struct msghdr *);
-static void	 onsignal(int);
-static void	 onint(int);
 static size_t	 pingerlen(void);
 static int	 pinger(void);
 static const char *pr_addr(struct sockaddr *, int);
@@ -293,7 +271,6 @@ static void	 pr_ip6opt(void *, size_t);
 static void	 pr_rthdr(void *, size_t);
 static int	 pr_bitrange(u_int32_t, int, int);
 static void	 pr_retip(struct ip6_hdr *, u_char *);
-static void	 summary(void);
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 static int	 setpolicy(int, char *);
@@ -1142,7 +1119,7 @@ ping6(int argc, char *argv[])
 	if (caph_rights_limit(ssend, &rights_ssend) < 0)
 		err(1, "caph_rights_limit ssend setsockopt");
 
-	printf("PING6(%lu=40+8+%lu bytes) ", (unsigned long)(40 + pingerlen()),
+	printf("PING(%lu=40+8+%lu bytes) ", (unsigned long)(40 + pingerlen()),
 	    (unsigned long)(pingerlen() - 8));
 	printf("%s --> ", pr_addr((struct sockaddr *)&src, sizeof(src)));
 	printf("%s\n", pr_addr((struct sockaddr *)&dst, sizeof(dst)));
@@ -1163,11 +1140,9 @@ ping6(int argc, char *argv[])
 	if (sigaction(SIGINT, &si_sa, 0) == -1)
 		err(EX_OSERR, "sigaction SIGINT");
 	seenint = 0;
-#ifdef SIGINFO
 	if (sigaction(SIGINFO, &si_sa, 0) == -1)
 		err(EX_OSERR, "sigaction SIGINFO");
 	seeninfo = 0;
-#endif
 	if (alarmtimeout > 0) {
 		if (sigaction(SIGALRM, &si_sa, 0) == -1)
 			err(EX_OSERR, "sigaction SIGALRM");
@@ -1186,15 +1161,11 @@ ping6(int argc, char *argv[])
 		int n;
 
 		/* signal handling */
-		if (seenint)
-			onint(SIGINT);
-#ifdef SIGINFO
 		if (seeninfo) {
-			summary();
+			pr_summary(stderr);
 			seeninfo = 0;
 			continue;
 		}
-#endif
 		FD_ZERO(&rfds);
 		FD_SET(srecv, &rfds);
 		clock_gettime(CLOCK_MONOTONIC, &now);
@@ -1258,12 +1229,12 @@ ping6(int argc, char *argv[])
 				if (almost_done)
 					break;
 				almost_done = 1;
-			/*
-			 * If we're not transmitting any more packets,
-			 * change the timer to wait two round-trip times
-			 * if we've received any packets or (waittime)
-			 * milliseconds if we haven't.
-			 */
+				/*
+				 * If we're not transmitting any more packets,
+				 * change the timer to wait two round-trip times
+				 * if we've received any packets or (waittime)
+				 * milliseconds if we haven't.
+				 */
 				intvl.tv_nsec = 0;
 				if (nreceived) {
 					intvl.tv_sec = 2 * tmax / 1000;
@@ -1272,7 +1243,7 @@ ping6(int argc, char *argv[])
 				} else {
 					intvl.tv_sec = waittime / 1000;
 					intvl.tv_nsec =
-						waittime % 1000 * 1000000;
+					    waittime % 1000 * 1000000;
 				}
 			}
 			clock_gettime(CLOCK_MONOTONIC, &last);
@@ -1288,7 +1259,7 @@ ping6(int argc, char *argv[])
 	si_sa.sa_handler = SIG_IGN;
 	sigaction(SIGINT, &si_sa, 0);
 	sigaction(SIGALRM, &si_sa, 0);
-	summary();
+	pr_summary(stdout);
 
         if(packet != NULL)
                 free(packet);
@@ -1299,23 +1270,6 @@ ping6(int argc, char *argv[])
 		exit(2);
 	else
 		exit(EX_OSERR);
-}
-
-static void
-onsignal(int sig)
-{
-
-	switch (sig) {
-	case SIGINT:
-	case SIGALRM:
-		seenint++;
-		break;
-#ifdef SIGINFO
-	case SIGINFO:
-		seeninfo++;
-		break;
-#endif
-	}
 }
 
 /*
@@ -1469,7 +1423,7 @@ pinger(void)
 			ntransmitfailures++;
 			warn("sendmsg");
 		}
-		(void)printf("ping6: wrote %s %d chars, ret=%d\n",
+		(void)printf("ping: wrote %s %d chars, ret=%d\n",
 		    hostname, cc, i);
 	}
 	if (!(options & F_QUIET) && options & F_DOT)
@@ -2305,59 +2259,6 @@ get_pathmtu(struct msghdr *mhdr)
 	return(0);
 }
 
-/*
- * onint --
- *	SIGINT handler.
- */
-/* ARGSUSED */
-static void
-onint(int notused __unused)
-{
-	/*
-	 * When doing reverse DNS lookups, the seenint flag might not
-	 * be noticed for a while.  Just exit if we get a second SIGINT.
-	 */
-	if ((options & F_HOSTNAME) && seenint != 0)
-		_exit(nreceived ? 0 : 2);
-}
-
-/*
- * summary --
- *	Print out statistics.
- */
-static void
-summary(void)
-{
-
-	(void)printf("\n--- %s ping6 statistics ---\n", hostname);
-	(void)printf("%ld packets transmitted, ", ntransmitted);
-	(void)printf("%ld packets received, ", nreceived);
-	if (nrepeats)
-		(void)printf("+%ld duplicates, ", nrepeats);
-	if (ntransmitted) {
-		if (nreceived > ntransmitted)
-			(void)printf("-- somebody's duplicating packets!");
-		else
-			(void)printf("%.1f%% packet loss",
-			    ((((double)ntransmitted - nreceived) * 100.0) /
-			    ntransmitted));
-	}
-	if (nrcvtimeout)
-		printf(", %ld packets out of wait time", nrcvtimeout);
-	(void)putchar('\n');
-	if (nreceived && timing) {
-		/* Only display average to microseconds */
-		double num = nreceived + nrepeats;
-		double avg = tsum / num;
-		double stddev = sqrt(fmax(0, tsumsq / num - avg * avg));
-		(void)printf(
-		    "round-trip min/avg/max/std-dev = %.3f/%.3f/%.3f/%.3f ms\n",
-		    tmin, avg, tmax, stddev);
-		(void)fflush(stdout);
-	}
-	(void)fflush(stdout);
-}
-
 /*subject type*/
 static const char *niqcode[] = {
 	"IPv6 address",
@@ -2640,7 +2541,7 @@ pr_addr(struct sockaddr *addr, int addrlen)
 	static char buf[NI_MAXHOST];
 	int flag = 0;
 
-	if ((options & F_HOSTNAME) == 0)
+	if (!(options & F_HOSTNAME))
 		flag |= NI_NUMERICHOST;
 
 	if (cap_getnameinfo(capdns, addr, addrlen, buf, sizeof(buf), NULL, 0,
