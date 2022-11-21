@@ -75,7 +75,7 @@ krb5_recvauth_match_version(krb5_context context,
     const char *version = KRB5_SENDAUTH_VERSION;
     char her_version[sizeof(KRB5_SENDAUTH_VERSION)];
     char *her_appl_version;
-    uint32_t len;
+    uint32_t len, bytes;
     u_char repl;
     krb5_data data;
     krb5_flags ap_options;
@@ -139,15 +139,21 @@ krb5_recvauth_match_version(krb5_context context,
 			       N_("malloc: out of memory", ""));
 	return ENOMEM;
     }
-    if (krb5_net_read (context, p_fd, her_appl_version, len) != len
-	|| !(*match_appl_version)(match_data, her_appl_version)) {
-	repl = 2;
-	krb5_net_write (context, p_fd, &repl, 1);
-	krb5_set_error_message(context, KRB5_SENDAUTH_BADAPPLVERS,
-			       N_("wrong sendauth version (%s)", ""),
-			       her_appl_version);
-	free (her_appl_version);
-	return KRB5_SENDAUTH_BADAPPLVERS;
+    if ((bytes = krb5_net_read (context, p_fd, her_appl_version, len))) {
+	/* PR/267884: String read must always conatain a terminating NUL */
+	if (strnlen(her_appl_version, len) == len)
+		her_appl_version[len-1] = '\0';
+
+	    if (bytes != len ||
+		!(*match_appl_version)(match_data, her_appl_version)) {
+		repl = 2;
+		krb5_net_write (context, p_fd, &repl, 1);
+		krb5_set_error_message(context, KRB5_SENDAUTH_BADAPPLVERS,
+				       N_("wrong sendauth version (%s)", ""),
+				       her_appl_version);
+		free (her_appl_version);
+		return KRB5_SENDAUTH_BADAPPLVERS;
+	    }
     }
     free (her_appl_version);
 
