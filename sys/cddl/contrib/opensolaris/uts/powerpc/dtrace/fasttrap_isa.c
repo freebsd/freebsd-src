@@ -246,12 +246,16 @@ fasttrap_usdt_args(fasttrap_probe_t *probe, struct reg *rp, int argc,
 		if (x < 8)
 			argv[i] = rp->fixreg[x];
 		else
+#ifdef __powerpc64__
 			if (SV_PROC_FLAG(curproc, SV_ILP32))
+#endif
 				argv[i] = fuword32((void *)(rp->fixreg[1] + 8 +
 				    (x * sizeof(uint32_t))));
+#ifdef __powerpc64__
 			else
 				argv[i] = fuword64((void *)(rp->fixreg[1] + 48 +
 				    (x * sizeof(uint64_t))));
+#endif
 	}
 
 	for (; i < argc; i++) {
