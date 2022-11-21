@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 /* External tools reserve first few grant table entries. */
 #define NR_RESERVED_ENTRIES 8
-#define GREFS_PER_GRANT_FRAME (PAGE_SIZE / sizeof(grant_entry_t))
+#define GREFS_PER_GRANT_FRAME (PAGE_SIZE / sizeof(grant_entry_v1_t))
 
 static grant_ref_t **gnttab_list;
 static unsigned int nr_grant_frames;
@@ -59,7 +59,7 @@ static struct resource *gnttab_pseudo_phys_res;
 /* Resource id for allocated physical address space. */
 static int gnttab_pseudo_phys_res_id;
 
-static grant_entry_t *shared;
+static grant_entry_v1_t *shared;
 
 static struct gnttab_free_callback *gnttab_free_callback_list = NULL;
 
