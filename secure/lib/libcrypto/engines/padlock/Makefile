@@ -9,6 +9,8 @@ SRCS+=	e_padlock-x86_64.S
 SRCS+=	e_padlock-x86.S
 .endif
 
+LDFLAGS.bfd+=	-Wl,-znoexecstack
+
 .include <bsd.lib.mk>
 
 .PATH:	${.CURDIR:H:H}/${MACHINE_CPUARCH}
