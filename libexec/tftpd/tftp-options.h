@@ -66,6 +66,6 @@ enum opt_enum {
 };
 
 int	options_set_request(enum opt_enum, const char *, ...)
-	__printflike(2, 3);
+	__printf0like(2, 3);
 int	options_set_reply(enum opt_enum, const char *, ...)
-	__printflike(2, 3);
+	__printf0like(2, 3);
