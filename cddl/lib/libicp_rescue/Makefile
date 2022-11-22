@@ -92,4 +92,6 @@ CFLAGS.sha256_impl.S+= -DLOCORE
 CFLAGS.sha512_impl.S+= -DLOCORE
 CFLAGS.gcm.c+= -UCAN_USE_GCM_ASM
 
+LDFLAGS.bfd+= -Wl,-znoexecstack
+
 .include <bsd.lib.mk>
