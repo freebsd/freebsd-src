@@ -13,6 +13,8 @@ CFLAGS+=	-DLIBWRAP
 LIBADD=	wrap
 .endif
 
+CWARNFLAGS.gcc+=	-Wno-format-nonliteral
+
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
