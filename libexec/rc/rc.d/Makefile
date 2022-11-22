@@ -216,7 +216,8 @@ CONFS+=	ipfilter \
 .endif
 
 .if ${MK_IPFW} != "no"
-CONFS+=		ipfw
+CONFS+=		ipfw \
+		dnctl
 .if ${MK_NETGRAPH} != "no"
 CONFS+=		ipfw_netflow
 .endif
