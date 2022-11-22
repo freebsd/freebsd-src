@@ -75,3 +75,5 @@ ENTRY(_longjmp)
 1:	movl	%ecx,0(%esp)
 	ret
 END(_longjmp)
+
+	.section .note.GNU-stack,"",%progbits
