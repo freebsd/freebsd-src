@@ -116,4 +116,6 @@ CFLAGS.b3_ppc64le_sse2.S = -DLOCORE
 CFLAGS.b3_ppc64le_sse41.S = -DLOCORE
 
 
+LDFLAGS.bfd+= -Wl,-znoexecstack
+
 .include <bsd.lib.mk>
