@@ -492,7 +492,7 @@ int	parseport(char *, struct range *r, int);
 %token	ICMP6TYPE CODE KEEP MODULATE STATE PORT RDR NAT BINAT ARROW NODF
 %token	MINTTL ERROR ALLOWOPTS FASTROUTE FILENAME ROUTETO DUPTO REPLYTO NO LABEL
 %token	NOROUTE URPFFAILED FRAGMENT USER GROUP MAXMSS MAXIMUM TTL TOS DROP TABLE
-%token	REASSEMBLE FRAGDROP FRAGCROP ANCHOR NATANCHOR RDRANCHOR BINATANCHOR
+%token	REASSEMBLE ANCHOR NATANCHOR RDRANCHOR BINATANCHOR
 %token	SET OPTIMIZATION TIMEOUT LIMIT LOGINTERFACE BLOCKPOLICY FAILPOLICY
 %token	RANDOMID REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
 %token	ANTISPOOF FOR INCLUDE KEEPCOUNTERS SYNCOOKIES L3
@@ -1530,8 +1530,6 @@ scrub_opt	: NODF	{
 
 fragcache	: FRAGMENT REASSEMBLE		{ $$ = 0; /* default */ }
 		| FRAGMENT NO REASSEMBLE	{ $$ = PFRULE_FRAGMENT_NOREASS; }
-		| FRAGMENT FRAGCROP	{ $$ = 0; }
-		| FRAGMENT FRAGDROP	{ $$ = 0; }
 		;
 
 antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
@@ -6131,14 +6129,12 @@ lookup(char *s)
 		{ "cbq",		CBQ},
 		{ "code",		CODE},
 		{ "codelq",		CODEL},
-		{ "crop",		FRAGCROP},
 		{ "debug",		DEBUG},
 		{ "divert-reply",	DIVERTREPLY},
 		{ "divert-to",		DIVERTTO},
 		{ "dnpipe",		DNPIPE},
 		{ "dnqueue",		DNQUEUE},
 		{ "drop",		DROP},
-		{ "drop-ovl",		FRAGDROP},
 		{ "dup-to",		DUPTO},
 		{ "ether",		ETHER},
 		{ "fail-policy",	FAILPOLICY},

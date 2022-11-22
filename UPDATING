@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20221122:
+	pf no longer accepts 'scrub fragment crop' or 'scrub fragment drop-ovl'.
+	These configurations are no longer automatically reinterpreted as
+	'scrub fragment reassemble'.
+
 20221121:
 	The WITHOUT_CLANG_IS_CC option has been removed.  When Clang is enabled
 	it is always installed as /usr/bin/cc (and c++, cpp).
