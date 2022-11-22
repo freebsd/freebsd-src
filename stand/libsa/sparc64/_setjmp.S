@@ -92,3 +92,5 @@ ENTRY(_longjmp)
 	retl
 	 mov	%g1, %o0
 END(_longjmp)
+
+	.section .note.GNU-stack,"",%progbits

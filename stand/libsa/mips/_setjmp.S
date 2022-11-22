@@ -105,3 +105,5 @@ botch:
 	jal	_C_LABEL(abort)
 	nop
 END(_longjmp)
+
+	.section .note.GNU-stack,"",%progbits

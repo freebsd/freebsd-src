@@ -113,3 +113,5 @@ ASENTRY_NOPROF(_longjmp)
 	/* f14-f31, fpscr */
 	mr 3, 4
 	blr
+
+	.section .note.GNU-stack,"",%progbits
