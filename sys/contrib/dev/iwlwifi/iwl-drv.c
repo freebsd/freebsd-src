@@ -77,6 +77,9 @@ struct iwl_drv {
 	char firmware_name[64];         /* name of firmware file to load */
 
 	struct completion request_firmware_complete;
+#if defined(__FreeBSD__)
+	struct completion drv_start_complete;
+#endif
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *dbgfs_drv;
@@ -1736,6 +1739,9 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	drv->dev = trans->dev;
 
 	init_completion(&drv->request_firmware_complete);
+#if defined(__FreeBSD__)
+	init_completion(&drv->drv_start_complete);
+#endif
 	INIT_LIST_HEAD(&drv->list);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1763,6 +1769,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	 * returned before it was all done that is what could happen.
 	 */
 	wait_for_completion(&drv->request_firmware_complete);
+	complete(&drv->drv_start_complete);
 #endif
 
 	return drv;
@@ -1779,7 +1786,11 @@ err:
 
 void iwl_drv_stop(struct iwl_drv *drv)
 {
+#if defined(__linux__)
 	wait_for_completion(&drv->request_firmware_complete);
+#elif defined(__FreeBSD__)
+	wait_for_completion(&drv->drv_start_complete);
+#endif
 
 	_iwl_op_mode_stop(drv);
 
