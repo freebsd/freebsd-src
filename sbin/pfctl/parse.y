@@ -1528,7 +1528,8 @@ scrub_opt	: NODF	{
 		}
 		;
 
-fragcache	: FRAGMENT REASSEMBLE	{ $$ = 0; /* default */ }
+fragcache	: FRAGMENT REASSEMBLE		{ $$ = 0; /* default */ }
+		| FRAGMENT NO REASSEMBLE	{ $$ = PFRULE_FRAGMENT_NOREASS; }
 		| FRAGMENT FRAGCROP	{ $$ = 0; }
 		| FRAGMENT FRAGDROP	{ $$ = 0; }
 		;

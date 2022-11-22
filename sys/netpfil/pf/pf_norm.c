@@ -1115,31 +1115,34 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 		DPFPRINTF(("max packet %d\n", fragoff + ip_len));
 		goto bad;
 	}
-	max = fragoff + ip_len;
 
-	/* Fully buffer all of the fragments
-	 * Might return a completely reassembled mbuf, or NULL */
-	PF_FRAG_LOCK();
-	DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
-	verdict = pf_reassemble(m0, h, dir, reason);
-	PF_FRAG_UNLOCK();
+	if (! (r->rule_flag & PFRULE_FRAGMENT_NOREASS)) {
+		max = fragoff + ip_len;
 
-	if (verdict != PF_PASS)
-		return (PF_DROP);
+		/* Fully buffer all of the fragments
+		 * Might return a completely reassembled mbuf, or NULL */
+		PF_FRAG_LOCK();
+		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
+		verdict = pf_reassemble(m0, h, dir, reason);
+		PF_FRAG_UNLOCK();
 
-	m = *m0;
-	if (m == NULL)
-		return (PF_DROP);
+		if (verdict != PF_PASS)
+			return (PF_DROP);
 
-	h = mtod(m, struct ip *);
+		m = *m0;
+		if (m == NULL)
+			return (PF_DROP);
+
+		h = mtod(m, struct ip *);
 
  no_fragment:
-	/* At this point, only IP_DF is allowed in ip_off */
-	if (h->ip_off & ~htons(IP_DF)) {
-		u_int16_t ip_off = h->ip_off;
+		/* At this point, only IP_DF is allowed in ip_off */
+		if (h->ip_off & ~htons(IP_DF)) {
+			u_int16_t ip_off = h->ip_off;
 
-		h->ip_off &= htons(IP_DF);
-		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_off, h->ip_off, 0);
+			h->ip_off &= htons(IP_DF);
+			h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_off, h->ip_off, 0);
+		}
 	}
 
 	pf_scrub_ip(&m, r->rule_flag, r->min_ttl, r->set_tos);

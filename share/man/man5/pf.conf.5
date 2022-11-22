@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 28, 2022
+.Dd November 24, 2022
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -832,6 +832,9 @@ packet, and only the completed packet is passed on to the filter.
 The advantage is that filter rules have to deal only with complete
 packets, and can ignore fragments.
 The drawback of caching fragments is the additional memory cost.
+This is the default behaviour unless no fragment reassemble is specified.
+.It Ar no fragment reassemble
+Do not reassemble fragments.
 .It Ar reassemble tcp
 Statefully normalizes TCP connections.
 .Ar scrub reassemble tcp

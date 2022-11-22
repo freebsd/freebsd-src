@@ -1131,7 +1131,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		if (r->rule_flag & PFRULE_REASSEMBLE_TCP)
 			printf(" reassemble tcp");
 
-		printf(" fragment reassemble");
+		printf(" fragment %sreassemble",
+		    r->rule_flag & PFRULE_FRAGMENT_NOREASS ? "no " : "");
 	}
 	i = 0;
 	while (r->label[i][0])
