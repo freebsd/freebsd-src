@@ -268,6 +268,7 @@ struct file;
 struct shmfd {
 	vm_ooffset_t	shm_size;
 	vm_object_t	shm_object;
+	vm_pindex_t	shm_pages;	/* allocated pages */
 	int		shm_refs;
 	uid_t		shm_uid;
 	gid_t		shm_gid;
