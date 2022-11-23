@@ -156,6 +156,17 @@ nullfs_mount(struct mount *mp)
 		}
 	}
 
+	/*
+	 * Lower vnode must be the same type as the covered vnode - we
+	 * don't allow mounting directories to files or vice versa.
+	 */
+	if ((lowerrootvp->v_type != VDIR && lowerrootvp->v_type != VREG) ||
+	    lowerrootvp->v_type != mp->mnt_vnodecovered->v_type) {
+		NULLFSDEBUG("nullfs_mount: target must be same type as fspath");
+		vput(lowerrootvp);
+		return (EINVAL);
+	}
+
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
 	    M_NULLFSMNT, M_WAITOK | M_ZERO);
 
@@ -467,4 +478,4 @@ static struct vfsops null_vfsops = {
 	.vfs_unlink_lowervp =	nullfs_unlink_lowervp,
 };
 
-VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK | VFCF_JAIL);
+VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK | VFCF_JAIL | VFCF_FILEMOUNT);

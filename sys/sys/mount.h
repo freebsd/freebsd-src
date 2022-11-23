@@ -648,6 +648,7 @@ struct ovfsconf {
 #define	VFCF_DELEGADMIN	0x00800000	/* supports delegated administration */
 #define	VFCF_SBDRY	0x01000000	/* Stop at Boundary: defer stop requests
 					   to kernel->user (AST) transition */
+#define	VFCF_FILEMOUNT	0x02000000	/* allow mounting files */
 
 typedef uint32_t fsctlop_t;
 

@@ -1154,8 +1154,8 @@ good:
 	 * Check to see if the vnode has been mounted on;
 	 * if so find the root of the mounted filesystem.
 	 */
-	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
-	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
+	while ((dp->v_type == VDIR || dp->v_type == VREG) &&
+	    (mp = dp->v_mountedhere) && (cnp->cn_flags & NOCROSSMOUNT) == 0) {
 		if (vfs_busy(mp, 0))
 			continue;
 		vput(dp);
