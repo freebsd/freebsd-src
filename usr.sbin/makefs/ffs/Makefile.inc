@@ -7,3 +7,5 @@ SRCS+=	buf.c mkfs.c
 
 # Reach-over source from sys/ufs/ffs
 SRCS+=	ffs_tables.c
+
+CWARNFLAGS.ffs_balloc.c+= -Wno-sign-compare
