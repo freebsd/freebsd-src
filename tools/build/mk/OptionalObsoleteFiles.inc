@@ -7347,6 +7347,27 @@ OLD_DIRS+=var/spool/clientmqueue
 OLD_FILES+=var/db/services.db
 .endif
 
+.if ${MK_NUAGEINIT} == no
+OLD_FILES+=etc/rc.d/nuageinit
+OLD_FILES+=usr/libexec/nuageinit
+OLD_FILES+=usr/share/flua/nuage.lua
+OLD_FILES+=usr/share/flua/yaml.lua
+OLD_FILES+=usr/tests
+OLD_FILES+=usr/tests/libexec/nuageinit/utils
+OLD_FILES+=usr/tests/libexec/nuageinit/nuage
+OLD_FILES+=usr/tests/libexec/nuageinit/warn.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/dirname.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/err.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/adduser.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/addsshkeys.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/Kyuafile
+OLD_FILES+=usr/tests/libexec/nuageinit/ktrace.out
+OLD_FILES+=usr/tests/libexec/nuageinit/addgroup.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/sethostname.lua
+OLD_FILES+=usr/tests/libexec/nuageinit/nuageinit
+OLD_FILES+=usr/tests/libexec/nuageinit/addsshkey.lua
+.endif
+
 .if ${MK_SHAREDOCS} == no
 OLD_FILES+=usr/share/doc/pjdfstest/README
 OLD_DIRS+=usr/share/doc/pjdfstest

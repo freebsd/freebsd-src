@@ -313,6 +313,12 @@ SMRCD=		sendmail
 SMRCDPACKAGE=	sendmail
 .endif
 
+.if ${MK_NUAGEINIT} != "no"
+CONFGROUPS+=	NIUAGEINIT
+NIUAGEINIT=		nuageinit
+NIUAGEINITPACKAGE=	nuageinit
+.endif
+
 .if ${MK_UNBOUND} != "no"
 CONFGROUPS+=	UNBOUND
 UNBOUND+=	local_unbound
