@@ -22,6 +22,7 @@ FILES=		chmod \
 		vop_rename \
 		vop_symlink
 
+LINKMODE=	${SHAREMODE}
 LINKS=	${LIBEXECDIR}/dwatch/chmod ${LIBEXECDIR}/dwatch/fchmodat
 LINKS+=	${LIBEXECDIR}/dwatch/chmod ${LIBEXECDIR}/dwatch/lchmod
 LINKS+=	${LIBEXECDIR}/dwatch/io ${LIBEXECDIR}/dwatch/io-done
