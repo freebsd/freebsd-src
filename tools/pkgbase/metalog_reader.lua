@@ -86,13 +86,14 @@ function main(args)
 
 	local sess = Analysis_session(filename, verbose, w_notagdirs)
 
+	local errors
 	if printall then
 		io.write('--- PACKAGE REPORTS ---\n')
 		io.write(sess.pkg_report_full())
 		io.write('--- LINTING REPORTS ---\n')
-		print_lints(sess)
+		errors = print_lints(sess)
 	elseif checkonly then
-		print_lints(sess)
+		errors = print_lints(sess)
 	elseif pkgonly then
 		io.write(sess.pkg_report_simple(dcount, dsize, {
 			fuid and sess.pkg_issetuid or nil,
@@ -102,6 +103,10 @@ function main(args)
 	else
 		io.stderr:write('This text should not be displayed.')
 		usage()
+	end
+
+	if errors then
+		return 1
 	end
 end
 
@@ -151,6 +156,7 @@ function print_lints(sess)
 	local inodewarn, inodeerr = sess.inode_report()
 	io.write(inodewarn)
 	io.write(inodeerr)
+	return #duperr > 0 or #inodeerr > 0
 end
 
 --- @param t table
@@ -520,4 +526,4 @@ function Analysis_session(metalog, verbose, w_notagdirs)
 	}
 end
 
-main(arg)
+os.exit(main(arg))
