@@ -608,7 +608,7 @@ dnode_cursor_init(zfs_opt_t *zfs, zfs_objset_t *os, dnode_phys_t *dnode,
 	if (blksz == 0) {
 		/* Must be between 1<<ashift and 128KB. */
 		blksz = MIN(MAXBLOCKSIZE, MAX(1 << zfs->ashift,
-		    powerof2(size) ? size : (1ul << flsll(size))));
+		    powerof2(size) ? size : (1l << flsll(size))));
 	}
 	assert(powerof2(blksz));
 
