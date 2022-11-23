@@ -28,14 +28,15 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2022
+.Dd November 23, 2022
 .Dt HIER 7
 .Os
 .Sh NAME
 .Nm hier
 .Nd layout of file systems
-.Sh DESCRIPTION
+.Sh SYNOPSIS
 A sketch of the file system hierarchy.
+.Sh DESCRIPTION
 .Bl -tag -width "/libexec/"
 .It Pa /
 root directory of the file system
@@ -294,7 +295,7 @@ machine-specific C include files
 miscellaneous network C include files
 .Bl -tag -width Fl -compact
 .It Pa altq/
-C include files for alternate packet queueing; see
+C include files for alternate packet queuing; see
 .Xr altq 4
 .El
 .It Pa net80211/
@@ -330,7 +331,7 @@ definition of RPC service structures; see
 .Xr rpc 3
 .It Pa security/
 PAM; see
-.Xr pam 8
+.Xr pam 3
 .It Pa sys/
 system C include files (kernel data structures)
 .\" .It Pa tcl/
@@ -378,14 +379,15 @@ miscellaneous utility data files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa gcc/
-.Xr gcc 1
-configuration data
+GCC configuration data
 .It Pa ldscripts/
 linker scripts;
 see
 .Xr ld 1
 .It Pa pkgconfig/
-pc files
+.Xr pc 5 Pq Pa ports/devel/pkgconf
+files: collections of compiler flags, linker flags, and other
+information relevant to library use
 .El
 .Pp
 .It Pa libexec/
@@ -462,16 +464,14 @@ see
 .Fx Ns -specific
 terms, proper names, and jargon
 .It Pa web2
-words from Webster's 2nd International
+words from Webster's Second International
 .El
 .It Pa doc/
 miscellaneous documentation;
 source for most of the printed
 .Bx
 manuals (available
-from the
-.Tn USENIX
-association)
+from the USENIX association)
 .Bl -tag -width Fl -compact
 .It Pa FAQ/
 Frequently Asked Questions
