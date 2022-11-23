@@ -1105,8 +1105,13 @@ vfs_domount_first(
 		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN);
 	if (error == 0)
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
-	if (error == 0 && vp->v_type != VDIR)
-		error = ENOTDIR;
+	if (vfsp->vfc_flags & VFCF_FILEMOUNT) {
+		if (error == 0 && vp->v_type != VDIR && vp->v_type != VREG)
+			error = EINVAL;
+	} else {
+		if (error == 0 && vp->v_type != VDIR)
+			error = ENOTDIR;
+	}
 	if (error == 0 && (fsflags & MNT_EMPTYDIR) != 0)
 		error = vfs_emptydir(vp);
 	if (error == 0) {
@@ -1535,22 +1540,33 @@ vfs_domount(
 	/*
 	 * Get vnode to be covered or mount point's vnode in case of MNT_UPDATE.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_SYSSPACE,
-	    fspath);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1 | WANTPARENT,
+	    UIO_SYSSPACE, fspath);
 	error = namei(&nd);
 	if (error != 0)
 		return (error);
-	NDFREE_PNBUF(&nd);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
 		if ((vp->v_vflag & VV_ROOT) != 0 &&
 		    (fsflags & MNT_NOCOVER) != 0) {
 			vput(vp);
-			return (EBUSY);
+			error = EBUSY;
+			goto out;
 		}
 		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 		strcpy(pathbuf, fspath);
-		error = vn_path_to_global_path(td, vp, pathbuf, MNAMELEN);
+		/*
+		 * Note: we allow any vnode type here. If the path sanity check
+		 * succeeds, the type will be validated in vfs_domount_first
+		 * above.
+		 */
+		if (vp->v_type == VDIR)
+			error = vn_path_to_global_path(td, vp, pathbuf,
+			    MNAMELEN);
+		else
+			error = vn_path_to_global_path_hardlink(td, vp,
+			    nd.ni_dvp, pathbuf, MNAMELEN,
+			    nd.ni_cnd.cn_nameptr, nd.ni_cnd.cn_namelen);
 		if (error == 0) {
 			error = vfs_domount_first(td, vfsp, pathbuf, vp,
 			    fsflags, optlist);
@@ -1558,6 +1574,10 @@ vfs_domount(
 		free(pathbuf, M_TEMP);
 	} else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
+
+out:
+	NDFREE_PNBUF(&nd);
+	vrele(nd.ni_dvp);
 
 	return (error);
 }
