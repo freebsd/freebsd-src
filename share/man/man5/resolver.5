@@ -28,7 +28,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2022
+.Dd November 23, 2022
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -46,7 +46,8 @@ by the resolver routines the first time they are invoked by a process.
 The file is designed to be human readable and contains a list of
 keywords with values that provide various types of resolver information.
 .Pp
-On a normally configured system this file should not be necessary.
+On a normally configured system, setting this file manually should not
+be necessary.
 The only name server(s) to be queried will be on the local machine
 or automatically configured using DHCP or a similar mechanism,
 the domain name is determined from the host name,
