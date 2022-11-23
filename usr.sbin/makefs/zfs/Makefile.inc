@@ -10,3 +10,4 @@ SRCS+=	dsl.c \
 SRCS+=	nvlist.c
 
 CFLAGS.nvlist.c+= -I${SRCTOP}/stand/libsa -Wno-cast-qual
+CWARNFLAGS.zap.c+= -Wno-sign-compare
