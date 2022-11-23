@@ -29,6 +29,7 @@ SUBDIR=	${_atf} \
 	${_rshd} \
 	${_rtld-elf} \
 	save-entropy \
+	${_nuageinit} \
 	${_smrsh} \
 	${_tests} \
 	${_tftp-proxy} \
@@ -119,6 +120,10 @@ SUBDIR+=	tftpd
 .if ${MK_TESTS} != "no"
 _atf=		atf
 _tests=		tests
+.endif
+
+.if ${MK_NUAGEINIT} != "no"
+_nuageinit=	nuageinit
 .endif
 
 .include <bsd.arch.inc.mk>

@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+
+# PROVIDE: nuageinit
+# REQUIRE: mountcritlocal
+# BEFORE: NETWORKING
+# KEYWORD: firstboot
+
+. /etc/rc.subr
+
+name="nuageinit"
+desc="Limited Cloud Init configuration"
+start_cmd="nuageinit_start"
+stop_cmd=":"
+rcvar="nuageinit_enable"
+
+nuageinit_start()
+{
+	local citype
+	# detect cloud init provider
+	# according to the specification of the config drive
+	# it either formatted in vfat or iso9660 and labeled
+	# config-2
+	for f in iso9660 msdosfs; do
+		drive="/dev/$f/[cC][oO][nN][fF][iI][gG]-2"
+		if [ -e $drive ]; then
+			citype=config-2
+			break
+		fi
+		drive="/dev/$f/[cC][iI][dD][aA][tT][aA]"
+		if [ -e $drive ]; then
+			citype=nocloud
+			break
+		fi
+		unset drive
+	done
+	if [ -z "$drive" ]; then
+		# try to detect networked based instance
+		err 1 "Impossible to find a cloud init provider"
+	fi
+	mkdir -p /media/nuageinit
+	fs=$(fstyp $drive)
+	mount -t $fs $drive /media/nuageinit
+	# according to the specification, the content is either
+	# in the openstack or ec2 directory
+	case "$citype" in
+	config-2)
+		for d in openstack ec2; do
+			dir=/media/nuageinit/$d/latest
+			if [ -d $dir ]; then
+				/usr/libexec/nuageinit $dir $citype
+				break
+			fi
+		done
+		;;
+	nocloud)
+		/usr/libexec/nuageinit /media/nuageinit $citype
+		;;
+	esac
+	if [ -n "$drive" ]; then
+		umount /media/nuageinit
+	fi
+	rmdir /media/nuageinit
+}
+
+load_rc_config $name
+run_rc_command "$1"
