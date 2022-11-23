@@ -1311,11 +1311,7 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 	return (error);
 }
 
-#ifndef __mips__
 #define FREEBSD32_ALIGNBYTES	(sizeof(int) - 1)
-#else
-#define FREEBSD32_ALIGNBYTES	(sizeof(long) - 1)
-#endif
 #define FREEBSD32_ALIGN(p)	\
 	(((u_long)(p) + FREEBSD32_ALIGNBYTES) & ~FREEBSD32_ALIGNBYTES)
 #define	FREEBSD32_CMSG_SPACE(l)	\
