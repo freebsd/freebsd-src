@@ -829,7 +829,7 @@ nlm_create_host(const char* caller_name)
 	if (!host)
 		return (NULL);
 	mtx_init(&host->nh_lock, "nh_lock", NULL, MTX_DEF);
-	host->nh_refs = 1;
+	refcount_init(&host->nh_refs, 1);
 	strlcpy(host->nh_caller_name, caller_name, MAXNAMELEN);
 	host->nh_sysid = nlm_next_sysid++;
 	snprintf(host->nh_sysid_string, sizeof(host->nh_sysid_string),
