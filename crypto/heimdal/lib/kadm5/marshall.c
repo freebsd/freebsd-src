@@ -333,11 +333,37 @@ _kadm5_unmarshal_params(krb5_context context,
     ret = krb5_ret_int32(sp, &mask);
     if (ret)
 	goto out;
+    if (mask & KADM5_CONFIG_REALM & KADM5_CONFIG_DBNAME
+	& KADM5_CONFIG_ACL_FILE & KADM5_CONFIG_STASH_FILE) {
+	    ret = EINVAL;
+	    goto out;
+    }
     params->mask = mask;
 
     if (params->mask & KADM5_CONFIG_REALM) {
 	ret = krb5_ret_string(sp, &params->realm);
 	if (params->realm == NULL) {
+	    ret = EINVAL;
+	    goto out;
+	}
+    }
+    if (params->mask & KADM5_CONFIG_DBNAME) {
+	ret = krb5_ret_string(sp, &params->dbname);
+	if (params->dbname == NULL) {
+	    ret = EINVAL;
+	    goto out;
+	}
+    }
+    if (params->mask & KADM5_CONFIG_ACL_FILE) {
+	ret = krb5_ret_string(sp, &params->acl_file);
+	if (params->acl_file == NULL) {
+	    ret = EINVAL;
+	    goto out;
+	}
+    }
+    if (params->mask & KADM5_CONFIG_STASH_FILE) {
+	ret = krb5_ret_string(sp, &params->stash_file);
+	if (params->stash_file == NULL) {
 	    ret = EINVAL;
 	}
     }
