@@ -516,7 +516,9 @@ handle_v5(krb5_context contextp,
 	ret = krb5_read_priv_message(contextp, ac, &fd, &params);
 	if(ret)
 	    krb5_err(contextp, 1, ret, "krb5_read_priv_message");
-	_kadm5_unmarshal_params(contextp, &params, &realm_params);
+	ret = _kadm5_unmarshal_params(contextp, &params, &realm_params);
+	if(ret)
+	    krb5_err(contextp, 1, ret, "Could not read or parse kadm5 parameters");
     }
 
     initial = ticket->ticket.flags.initial;
