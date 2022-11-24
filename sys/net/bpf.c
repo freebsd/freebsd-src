@@ -973,7 +973,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
 	d->bd_direction = BPF_D_INOUT;
-	d->bd_refcnt = 1;
+	refcount_init(&d->bd_refcnt, 1);
 	BPF_PID_REFRESH(d, td);
 #ifdef MAC
 	mac_bpfdesc_init(d);
@@ -2776,7 +2776,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen,
 	bp->bif_dlt = dlt;
 	bp->bif_hdrlen = hdrlen;
 	bp->bif_bpf = driverp;
-	bp->bif_refcnt = 1;
+	refcount_init(&bp->bif_refcnt, 1);
 	*driverp = bp;
 	/*
 	 * Reference ifnet pointer, so it won't freed until
@@ -3146,6 +3146,7 @@ bpf_show_bpf_if(struct bpf_if *bpf_if)
 		return;
 	db_printf("%p:\n", bpf_if);
 #define	BPF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, bpf_if->e);
+#define	BPF_DB_PRINTF_RAW(f, e)	db_printf("   %s = " f "\n", #e, e);
 	/* bif_ext.bif_next */
 	/* bif_ext.bif_dlist */
 	BPF_DB_PRINTF("%#x", bif_dlt);
@@ -3153,7 +3154,7 @@ bpf_show_bpf_if(struct bpf_if *bpf_if)
 	/* bif_wlist */
 	BPF_DB_PRINTF("%p", bif_ifp);
 	BPF_DB_PRINTF("%p", bif_bpf);
-	BPF_DB_PRINTF("%u", bif_refcnt);
+	BPF_DB_PRINTF_RAW("%u", refcount_load(&bpf_if->bif_refcnt));
 }
 
 DB_SHOW_COMMAND(bpf_if, db_show_bpf_if)
