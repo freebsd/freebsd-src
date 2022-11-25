@@ -102,7 +102,7 @@ lua_chown(lua_State *L)
 			group = g->gr_gid;
 		else
 			return (luaL_argerror(L, 3,
-			    lua_pushfstring(L, "unknown user %s",
+			    lua_pushfstring(L, "unknown group %s",
 			    lua_tostring(L, 3))));
 	} else if (!lua_isnoneornil(L, 3)) {
 		const char *type = luaL_typename(L, 3);
