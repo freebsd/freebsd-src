@@ -187,9 +187,9 @@ ret_principal_ent(krb5_storage *sp,
     int i;
     int32_t tmp;
 
-    if (mask & KADM5_PRINCIPAL)
-	krb5_ret_principal(sp, &princ->principal);
-
+    if (mask & KADM5_PRINCIPAL) 
+	if (krb5_ret_principal(sp, &princ->principal))
+	    return EINVAL;
     if (mask & KADM5_PRINC_EXPIRE_TIME) {
 	krb5_ret_int32(sp, &tmp);
 	princ->princ_expire_time = tmp;
@@ -208,9 +208,10 @@ ret_principal_ent(krb5_storage *sp,
     }
     if (mask & KADM5_MOD_NAME) {
 	krb5_ret_int32(sp, &tmp);
-	if(tmp)
-	    krb5_ret_principal(sp, &princ->mod_name);
-	else
+	if(tmp) {
+	    if (krb5_ret_principal(sp, &princ->mod_name))
+		return EINVAL;
+	} else
 	    princ->mod_name = NULL;
     }
     if (mask & KADM5_MOD_TIME) {
