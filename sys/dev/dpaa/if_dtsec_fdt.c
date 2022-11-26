@@ -125,6 +125,9 @@ find_mdio(phandle_t phy_node, device_t mac, device_t *mdio_dev)
 	bus = device_get_parent(mac);
 	*mdio_dev = ofw_bus_find_child_device_by_phandle(bus, phy_node);
 
+	if (*mdio_dev == NULL)
+		return (ENOENT);
+
 	return (0);
 }
 
