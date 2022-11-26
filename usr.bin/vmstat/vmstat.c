@@ -1349,7 +1349,7 @@ dointr(unsigned int interval, int reps)
 	/* Determine the length of the longest interrupt name */
 	intrname = intrnames;
 	istrnamlen = strlen("interrupt");
-	while(*intrname != '\0') {
+	while (intrname < intrnames + inamlen) {
 		clen = strlen(intrname);
 		if (clen > istrnamlen)
 			istrnamlen = clen;
