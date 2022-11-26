@@ -3068,11 +3068,12 @@ zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result)
 	char name[256];
 	char component[256];
 	uint64_t dir_obj, parent_obj, child_dir_zapobj;
-	dnode_phys_t child_dir_zap, dataset, dir, parent;
+	dnode_phys_t child_dir_zap, snapnames_zap, dataset, dir, parent;
 	dsl_dir_phys_t *dd;
 	dsl_dataset_phys_t *ds;
 	char *p;
 	int len;
+	boolean_t issnap = B_FALSE;
 
 	p = &name[sizeof(name) - 1];
 	*p = '\0';
@@ -3083,6 +3084,8 @@ zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result)
 	}
 	ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
 	dir_obj = ds->ds_dir_obj;
+	if (ds->ds_snapnames_zapobj == 0)
+		issnap = B_TRUE;
 
 	for (;;) {
 		if (objset_get_dnode(spa, spa->spa_mos, dir_obj, &dir) != 0)
@@ -3098,6 +3101,34 @@ zfs_rlookup(const spa_t *spa, uint64_t objnum, char *result)
 		    &parent) != 0)
 			return (EIO);
 		dd = (dsl_dir_phys_t *)&parent.dn_bonus;
+		if (issnap == B_TRUE) {
+			/*
+			 * The dataset we are looking up is a snapshot
+			 * the dir_obj is the parent already, we don't want
+			 * the grandparent just yet. Reset to the parent.
+			 */
+			dd = (dsl_dir_phys_t *)&dir.dn_bonus;
+			/* Lookup the dataset to get the snapname ZAP */
+			if (objset_get_dnode(spa, spa->spa_mos,
+			    dd->dd_head_dataset_obj, &dataset))
+				return (EIO);
+			ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
+			if (objset_get_dnode(spa, spa->spa_mos,
+			    ds->ds_snapnames_zapobj, &snapnames_zap) != 0)
+				return (EIO);
+			/* Get the name of the snapshot */
+			if (zap_rlookup(spa, &snapnames_zap, component,
+			    objnum) != 0)
+				return (EIO);
+			len = strlen(component);
+			p -= len;
+			memcpy(p, component, len);
+			--p;
+			*p = '@';
+			issnap = B_FALSE;
+			continue;
+		}
+
 		child_dir_zapobj = dd->dd_child_dir_zapobj;
 		if (objset_get_dnode(spa, spa->spa_mos, child_dir_zapobj,
 		    &child_dir_zap) != 0)
@@ -3127,9 +3158,11 @@ zfs_lookup_dataset(const spa_t *spa, const char *name, uint64_t *objnum)
 {
 	char element[256];
 	uint64_t dir_obj, child_dir_zapobj;
-	dnode_phys_t child_dir_zap, dir;
+	dnode_phys_t child_dir_zap, snapnames_zap, dir, dataset;
 	dsl_dir_phys_t *dd;
+	dsl_dataset_phys_t *ds;
 	const char *p, *q;
+	boolean_t issnap = B_FALSE;
 
 	if (objset_get_dnode(spa, spa->spa_mos,
 	    DMU_POOL_DIRECTORY_OBJECT, &dir))
@@ -3160,6 +3193,25 @@ zfs_lookup_dataset(const spa_t *spa, const char *name, uint64_t *objnum)
 			p += strlen(p);
 		}
 
+		if (issnap == B_TRUE) {
+		        if (objset_get_dnode(spa, spa->spa_mos,
+			    dd->dd_head_dataset_obj, &dataset))
+		                return (EIO);
+			ds = (dsl_dataset_phys_t *)&dataset.dn_bonus;
+			if (objset_get_dnode(spa, spa->spa_mos,
+			    ds->ds_snapnames_zapobj, &snapnames_zap) != 0)
+				return (EIO);
+			/* Actual loop condition #2. */
+			if (zap_lookup(spa, &snapnames_zap, element,
+			    sizeof (dir_obj), 1, &dir_obj) != 0)
+				return (ENOENT);
+			*objnum = dir_obj;
+			return (0);
+		} else if ((q = strchr(element, '@')) != NULL) {
+			issnap = B_TRUE;
+			element[q - element] = '\0';
+			p = q + 1;
+		}
 		child_dir_zapobj = dd->dd_child_dir_zapobj;
 		if (objset_get_dnode(spa, spa->spa_mos, child_dir_zapobj,
 		    &child_dir_zap) != 0)
