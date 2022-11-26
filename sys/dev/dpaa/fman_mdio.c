@@ -205,7 +205,7 @@ pqmdio_miibus_writereg(device_t dev, int phy, int reg, int value)
 }
 
 EARLY_DRIVER_MODULE(pqmdio, fman, pqmdio_driver, 0, 0,
-    BUS_PASS_RESOURCE);
+    BUS_PASS_SUPPORTDEV);
 DRIVER_MODULE(miibus, pqmdio, miibus_driver, 0, 0);
 MODULE_DEPEND(pqmdio, miibus, 1, 1, 1);
 
