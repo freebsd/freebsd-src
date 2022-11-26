@@ -231,6 +231,8 @@ kadm5_s_get_principal(void *server_handle,
 	    unsigned char buf[4];
 	    _krb5_put_int(buf, last_pw_expire, sizeof(buf));
 	    ret = add_tl_data(out, KRB5_TL_LAST_PWD_CHANGE, buf, sizeof(buf));
+	    if (ret)
+		goto out;
 	}
 	if(ret){
 	    kadm5_free_principal_ent(context, out);
