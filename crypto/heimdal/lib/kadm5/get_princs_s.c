@@ -93,7 +93,8 @@ kadm5_s_get_principals(void *server_handle,
     d.exp = expression;
     {
 	krb5_realm r;
-	krb5_get_default_realm(context->context, &r);
+	if ((ret = krb5_get_default_realm(context->context, &r)))
+	    return (ret);
 	asprintf(&d.exp2, "%s@%s", expression, r);
 	free(r);
     }
