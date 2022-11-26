@@ -122,6 +122,14 @@ struct ovpn_notification {
 
 struct ovpn_softc;
 
+struct ovpn_peer_counters {
+	uint64_t	pkt_in;
+	uint64_t	pkt_out;
+	uint64_t	bytes_in;
+	uint64_t	bytes_out;
+};
+#define OVPN_PEER_COUNTER_SIZE (sizeof(struct ovpn_peer_counters)/sizeof(uint64_t))
+
 struct ovpn_kpeer {
 	RB_ENTRY(ovpn_kpeer)	 tree;
 	int			 refcount;
@@ -142,6 +150,8 @@ struct ovpn_kpeer {
 	uint32_t		*last_active;
 	struct callout		 ping_send;
 	struct callout		 ping_rcv;
+
+	counter_u64_t		 counters[OVPN_PEER_COUNTER_SIZE];
 };
 
 struct ovpn_counters {
@@ -218,6 +228,9 @@ VNET_DEFINE_STATIC(struct if_clone *, ovpn_cloner);
 
 #define OVPN_COUNTER_ADD(sc, name, val)	\
 	counter_u64_add(sc->counters[offsetof(struct ovpn_counters, name) / \
+	    sizeof(uint64_t)], val)
+#define OVPN_PEER_COUNTER_ADD(p, name, val)	\
+	counter_u64_add(p->counters[offsetof(struct ovpn_peer_counters, name) / \
 	    sizeof(uint64_t)], val)
 
 #define TO_IN(x)		((struct sockaddr_in *)(x))
@@ -499,6 +512,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	peer->tx_seq = 1;
 	peer->refcount = 1;
 	peer->last_active = uma_zalloc_pcpu(pcpu_zone_4, M_WAITOK | M_ZERO);
+	COUNTER_ARRAY_ALLOC(peer->counters, OVPN_PEER_COUNTER_SIZE, M_WAITOK);
 
 	if (nvlist_exists_binary(nvl, "vpn_ipv4")) {
 		size_t len;
@@ -606,6 +620,7 @@ error_locked:
 	OVPN_WUNLOCK(sc);
 error:
 	free(name, M_SONAME);
+	COUNTER_ARRAY_FREE(peer->counters, OVPN_PEER_COUNTER_SIZE);
 	uma_zfree_pcpu(pcpu_zone_4, peer->last_active);
 	free(peer, M_OVPN);
 done:
@@ -1404,6 +1419,8 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 
 	OVPN_COUNTER_ADD(sc, received_data_pkts, 1);
 	OVPN_COUNTER_ADD(sc, tunnel_bytes_received, m->m_pkthdr.len);
+	OVPN_PEER_COUNTER_ADD(peer, pkt_in, 1);
+	OVPN_PEER_COUNTER_ADD(peer, bytes_in, m->m_pkthdr.len);
 
 	/* Receive the packet on our interface. */
 	m->m_pkthdr.rcvif = sc->ifp;
@@ -1739,6 +1756,9 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	seq = atomic_fetchadd_32(&peer->tx_seq, 1);
 	seq = htonl(seq);
 	ohdr->seq = seq;
+
+	OVPN_PEER_COUNTER_ADD(peer, pkt_out, 1);
+	OVPN_PEER_COUNTER_ADD(peer, bytes_out, len);
 
 	if (key->encrypt->cipher == OVPN_CIPHER_ALG_NONE) {
 		ret = ovpn_encap(sc, peer->peerid, m);
