@@ -932,55 +932,6 @@ ovpn_del_key(struct ifnet *ifp, const nvlist_t *nvl)
 	return (0);
 }
 
-static int
-ovpn_send_pkt(struct ifnet *ifp, const nvlist_t *nvl)
-{
-	struct epoch_tracker et;
-	struct ovpn_softc *sc = ifp->if_softc;
-	struct mbuf *m;
-	const uint8_t *pkt;
-	size_t pktlen;
-	uint32_t peerid;
-	int ret;
-
-	if (nvl == NULL)
-		return (EINVAL);
-
-	if (! nvlist_exists_binary(nvl, "packet"))
-		return (EINVAL);
-	pkt = nvlist_get_binary(nvl, "packet", &pktlen);
-
-	if (! nvlist_exists_number(nvl, "peerid"))
-		return (EINVAL);
-
-	peerid = nvlist_get_number(nvl, "peerid");
-
-	/*
-	 * Check that userspace isn't giving us a data packet. That might lead
-	 * to IV re-use, which would be bad.
-	 */
-	if ((pkt[0] >> OVPN_OP_SHIFT) == OVPN_OP_DATA_V2)
-		return (EINVAL);
-
-	m = m_get2(pktlen, M_WAITOK, MT_DATA, M_PKTHDR);
-	if (m == NULL)
-		return (ENOMEM);
-
-	m->m_len = m->m_pkthdr.len = pktlen;
-	m_copyback(m, 0, m->m_len, pkt);
-
-	/* Now prepend IP/UDP headers and transmit the mbuf. */
-	NET_EPOCH_ENTER(et);
-	ret = ovpn_encap(sc, peerid, m);
-	NET_EPOCH_EXIT(et);
-	if (ret == 0)
-		OVPN_COUNTER_ADD(sc, sent_ctrl_pkts, 1);
-	else
-		OVPN_COUNTER_ADD(sc, lost_ctrl_pkts_out, 1);
-
-	return (ret);
-}
-
 static void
 ovpn_send_ping(void *arg)
 {
@@ -1169,9 +1120,6 @@ ovpn_ioctl_set(struct ifnet *ifp, struct ifdrv *ifd)
 		break;
 	case OVPN_DEL_KEY:
 		ret = ovpn_del_key(ifp, nvl);
-		break;
-	case OVPN_SEND_PKT:
-		ret = ovpn_send_pkt(ifp, nvl);
 		break;
 	case OVPN_SET_PEER:
 		ret = ovpn_set_peer(ifp, nvl);

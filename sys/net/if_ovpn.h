@@ -62,7 +62,7 @@ enum ovpn_key_cipher {
 #define OVPN_DEL_KEY		_IO  ('D', 6)
 #define OVPN_SET_PEER		_IO  ('D', 7)
 #define OVPN_START_VPN		_IO  ('D', 8)
-#define OVPN_SEND_PKT		_IO  ('D', 9)
+/* OVPN_SEND_PKT		_IO  ('D', 9) */
 #define OVPN_POLL_PKT		_IO  ('D', 10)
 #define OVPN_GET_PKT		_IO  ('D', 11)
 #define OVPN_SET_IFMODE		_IO  ('D', 12)
