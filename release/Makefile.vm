@@ -20,6 +20,7 @@ RAW_DESC=	Unformatted raw disk image
 CLOUDWARE?=	BASIC-CI \
 		EC2 \
 		GCE \
+		OCI \
 		VAGRANT-VIRTUALBOX \
 		VAGRANT-VMWARE
 AZURE_FORMAT=	vhdf
@@ -34,6 +35,9 @@ EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
 GCE_FORMAT=	raw
 GCE_DESC=	Google Compute Engine image
 GCE_DISK=	disk.${GCE_FORMAT}
+OCI_FORMAT=	qcow2
+OCI_DESC=	Oracle Cloud Infrastructure image
+OCI_DISK=	${OSRELEASE}.${OCI_FORMAT}
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_DESC=	OpenStack platform image
 OPENSTACK_DISK=	${OSRELEASE}.${OPENSTACK_FORMAT}
