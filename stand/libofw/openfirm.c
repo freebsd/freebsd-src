@@ -772,6 +772,7 @@ OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 	if (size > 0)
 		OF_release(virt, size);
 #endif
-	entry(0, 0, openfirmware, arg, len);
+	((int (*)(u_long, u_long, u_long, void *, u_long))entry)
+	    (0, 0, (u_long)openfirmware, arg, len);
 }
 #endif
