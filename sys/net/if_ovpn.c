@@ -1213,6 +1213,60 @@ error:
 }
 
 static int
+ovpn_get_peer_stats(struct ovpn_softc *sc, nvlist_t **nvl)
+{
+	struct ovpn_kpeer *peer;
+	nvlist_t *nvpeer = NULL;
+	int ret;
+
+	OVPN_RLOCK_TRACKER;
+
+	*nvl = nvlist_create(0);
+	if (*nvl == NULL)
+		return (ENOMEM);
+
+#define OVPN_PEER_COUNTER_OUT(name, in, out) \
+	do { \
+		ret = ovpn_add_counters(nvpeer, name, \
+		    peer->counters[offsetof(struct ovpn_peer_counters, in) / \
+		    sizeof(uint64_t)], \
+		    peer->counters[offsetof(struct ovpn_peer_counters, out) / \
+		    sizeof(uint64_t)]); \
+		if (ret != 0) \
+			goto error; \
+	} while(0)
+
+	OVPN_RLOCK(sc);
+	RB_FOREACH(peer, ovpn_kpeers, &sc->peers) {
+		nvpeer = nvlist_create(0);
+		if (nvpeer == NULL) {
+			OVPN_RUNLOCK(sc);
+			nvlist_destroy(*nvl);
+			*nvl = NULL;
+			return (ENOMEM);
+		}
+
+		nvlist_add_number(nvpeer, "peerid", peer->peerid);
+
+		OVPN_PEER_COUNTER_OUT("packets", pkt_in, pkt_out);
+		OVPN_PEER_COUNTER_OUT("bytes", bytes_in, bytes_out);
+
+		nvlist_append_nvlist_array(*nvl, "peers", nvpeer);
+		nvlist_destroy(nvpeer);
+	}
+#undef OVPN_PEER_COUNTER_OUT
+	OVPN_RUNLOCK(sc);
+
+	return (0);
+
+error:
+	nvlist_destroy(nvpeer);
+	nvlist_destroy(*nvl);
+	*nvl = NULL;
+	return (ret);
+}
+
+static int
 ovpn_poll_pkt(struct ovpn_softc *sc, nvlist_t **onvl)
 {
 	nvlist_t *nvl;
@@ -1265,6 +1319,9 @@ ovpn_ioctl_get(struct ifnet *ifp, struct ifdrv *ifd)
 	switch (ifd->ifd_cmd) {
 	case OVPN_GET_STATS:
 		error = ovpn_get_stats(sc, &nvl);
+		break;
+	case OVPN_GET_PEER_STATS:
+		error = ovpn_get_peer_stats(sc, &nvl);
 		break;
 	case OVPN_POLL_PKT:
 		error = ovpn_poll_pkt(sc, &nvl);
