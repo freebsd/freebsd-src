@@ -189,8 +189,6 @@ ofwn_get(struct iodesc *desc, void **pkt, time_t timeout)
 	return (length);
 }
 
-extern char *strchr();
-
 static void
 ofwn_init(struct iodesc *desc, void *machdep_hint)
 {
