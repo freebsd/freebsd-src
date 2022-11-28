@@ -151,6 +151,28 @@ linuxkpi_dev_alloc_skb(size_t size, gfp_t gfp)
 }
 
 struct sk_buff *
+linuxkpi_build_skb(void *data, size_t fragsz)
+{
+	struct sk_buff *skb;
+
+	if (data == NULL || fragsz == 0)
+		return (NULL);
+
+	/* Just allocate a skb without data area. */
+	skb = linuxkpi_alloc_skb(0, GFP_KERNEL);
+	if (skb == NULL)
+		return (NULL);
+
+	skb->_flags |= _SKB_FLAGS_SKBEXTFRAG;
+	skb->truesize = fragsz;
+	skb->head = skb->data = data;
+	skb_reset_tail_pointer(skb);	/* XXX is that correct? */
+	skb->end = (void *)((uintptr_t)skb->head + fragsz);
+
+	return (skb);
+}
+
+struct sk_buff *
 linuxkpi_skb_copy(struct sk_buff *skb, gfp_t gfp)
 {
 	struct sk_buff *new;
@@ -233,6 +255,13 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 		}
 	}
 
+	if ((skb->_flags & _SKB_FLAGS_SKBEXTFRAG) != 0) {
+		void *p;
+
+		p = skb->head;
+		skb_free_frag(p);
+	}
+
 #ifdef __LP64__
 	if (__predict_true(linuxkpi_skb_memlimit == 0))
 		free(skb, M_LKPISKB);
@@ -268,6 +297,7 @@ DB_SHOW_COMMAND(skb, db_show_skb)
 	    skb->pkt_type, skb->dev, skb->sk);
 	db_printf("\tcsum_offset %d csum_start %d ip_summed %d protocol %d\n",
 	    skb->csum_offset, skb->csum_start, skb->ip_summed, skb->protocol);
+	db_printf("\t_flags %#06x\n", skb->_flags);		/* XXX-BZ print names? */
 	db_printf("\thead %p data %p tail %p end %p\n",
 	    skb->head, skb->data, skb->tail, skb->end);
 	db_printf("\tshinfo %p m %p m_free_func %p\n",
@@ -298,7 +328,6 @@ DB_SHOW_COMMAND(skb, db_show_skb)
 	}
 	db_printf("}\n");
 
-	db_printf("\t_spareu16_0 %#06x __scratch[0] %p\n",
-	    skb->_spareu16_0, skb->__scratch);
+	db_printf("\t__scratch[0] %p\n", skb->__scratch);
 };
 #endif
