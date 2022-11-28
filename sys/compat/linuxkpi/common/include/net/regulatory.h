@@ -32,6 +32,10 @@
 #ifndef	_LINUXKPI_NET_REGULATORY_H
 #define	_LINUXKPI_NET_REGULATORY_H
 
+enum environment_cap {
+	ENVIRON_INDOOR		= 1,	/* keep != 0 */
+};
+
 #define	REG_RULE(_begin, _end, _bw, _mag, _meirp, _flags)		\
 {									\
 	.flags = (_flags),						\
