@@ -559,6 +559,18 @@ skb_queue_tail(struct sk_buff_head *q, struct sk_buff *skb)
 }
 
 static inline struct sk_buff *
+skb_peek(struct sk_buff_head *q)
+{
+	struct sk_buff *skb;
+
+	skb = q->next;
+	SKB_TRACE2(q, skb);
+	if (skb == (struct sk_buff *)q)
+		return (NULL);
+	return (skb);
+}
+
+static inline struct sk_buff *
 skb_peek_tail(struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
@@ -908,14 +920,6 @@ skb_reset_mac_header(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
-}
-
-static inline struct sk_buff *
-skb_peek(struct sk_buff_head *q)
-{
-	SKB_TRACE(q);
-	SKB_TODO();
-	return (NULL);
 }
 
 static inline __sum16
