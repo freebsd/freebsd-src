@@ -34,6 +34,8 @@
 #define _TCP_LRO_H_
 
 #include <sys/time.h>
+#include <sys/param.h>
+
 #include <netinet/in.h>
 
 #ifndef TCP_LRO_ENTRIES
@@ -65,8 +67,12 @@
 
 struct inpcb;
 
+/* Precompute the LRO_RAW_ADDRESS_MAX value: */
+#define	LRO_RAW_ADDRESS_MAX \
+	howmany(12 + 2 * sizeof(struct in6_addr), sizeof(u_long))
+
 union lro_address {
-	u_long raw[1];
+	u_long raw[LRO_RAW_ADDRESS_MAX];
 	struct {
 		uint8_t lro_type;	/* internal */
 #define	LRO_TYPE_NONE     0
@@ -89,10 +95,10 @@ union lro_address {
 			struct in6_addr v6;
 		} d_addr;	/* destination IPv4/IPv6 address */
 	};
-} __aligned(sizeof(u_long));
+};
 
-#define	LRO_RAW_ADDRESS_MAX \
-    (sizeof(union lro_address) / sizeof(u_long))
+_Static_assert(sizeof(union lro_address) == sizeof(u_long) * LRO_RAW_ADDRESS_MAX,
+    "The raw field in the lro_address union does not cover the whole structure.");
 
 /* Optimize address comparison by comparing one unsigned long at a time: */
 
