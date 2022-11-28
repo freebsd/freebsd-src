@@ -112,32 +112,10 @@ dtsec_fdt_probe(device_t dev)
 }
 
 static int
-find_mdio(phandle_t phy_node, device_t mac, device_t *mdio_dev)
-{
-	device_t bus;
-
-	while (phy_node > 0) {
-		if (ofw_bus_node_is_compatible(phy_node, "fsl,fman-mdio"))
-			break;
-		phy_node = OF_parent(phy_node);
-	}
-
-	if (phy_node <= 0)
-		return (ENOENT);
-
-	bus = device_get_parent(mac);
-	*mdio_dev = ofw_bus_find_child_device_by_phandle(bus, phy_node);
-
-	if (*mdio_dev == NULL)
-		return (ENOENT);
-
-	return (0);
-}
-
-static int
 dtsec_fdt_attach(device_t dev)
 {
 	struct dtsec_softc *sc;
+	device_t phy_dev;
 	phandle_t enet_node, phy_node;
 	phandle_t fman_rxtx_node[2];
 	char phy_type[6];
@@ -162,24 +140,30 @@ dtsec_fdt_attach(device_t dev)
 	else
 		return(ENXIO);
 
-	/* Get MAC memory offset in SoC */
-	rid = 0;
-	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (sc->sc_mem == NULL)
-		return (ENXIO);
-
 	/* Get PHY address */
 	if (OF_getprop(enet_node, "phy-handle", (void *)&phy_node,
 	    sizeof(phy_node)) <= 0)
 		return (ENXIO);
 
-	phy_node = OF_instance_to_package(phy_node);
+	phy_node = OF_node_from_xref(phy_node);
 
 	if (OF_getprop(phy_node, "reg", (void *)&sc->sc_phy_addr,
 	    sizeof(sc->sc_phy_addr)) <= 0)
 		return (ENXIO);
 
-	if (find_mdio(phy_node, dev, &sc->sc_mdio) != 0)
+	phy_dev = OF_device_from_xref(OF_parent(phy_node));
+
+	if (phy_dev == NULL) {
+		device_printf(dev, "No PHY found.\n");
+		return (ENXIO);
+	}
+
+	sc->sc_mdio = phy_dev;
+
+	/* Get MAC memory offset in SoC */
+	rid = 0;
+	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (sc->sc_mem == NULL)
 		return (ENXIO);
 
 	/* Get PHY connection type */
