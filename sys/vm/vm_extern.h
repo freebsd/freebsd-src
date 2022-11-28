@@ -50,6 +50,7 @@ struct domainset;
 
 /* These operate on kernel virtual addresses only. */
 vm_offset_t kva_alloc(vm_size_t);
+vm_offset_t kva_xalloc(vm_size_t size, vm_size_t align); 
 void kva_free(vm_offset_t, vm_size_t);
 
 /* These operate on pageable virtual addresses. */
@@ -81,6 +82,8 @@ void kmem_unback(vm_object_t, vm_offset_t, vm_size_t);
 void kmem_bootstrap_free(vm_offset_t, vm_size_t);
 void kmem_subinit(vm_map_t, vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t,
     bool);
+void kmem_subinitx(vm_map_t map, vm_map_t parent, vm_offset_t *min, 
+    vm_offset_t *max, vm_size_t size, int find_space);
 void kmem_init(vm_offset_t, vm_offset_t);
 void kmem_init_zero_region(void);
 void kmeminit(void);

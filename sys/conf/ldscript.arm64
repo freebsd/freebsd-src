@@ -10,6 +10,11 @@ SECTIONS
   .text      :
   {
     *(.text)
+   . = ALIGN(0x1000);
+   __zm_nx_begin = .;
+    *(.zm_nx)
+   __zm_nx_end = .;
+    . = ALIGN(0x1000);
     *(.stub)
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
@@ -110,8 +115,13 @@ SECTIONS
   .bss       :
   {
    *(.dynbss)
-   *(.bss)
+   *(.bss)   
    *(COMMON)
+   /* Set of BSS variables that are set to RO after boot completes */
+   . = ALIGN(0x1000);
+   __zm_ro_begin = .;
+    *(.zm_ro)
+   __zm_ro_end = .;
    . = ALIGN(8);
    __bss_end = .;
    /* A section for the initial page table, it doesn't need to be in the

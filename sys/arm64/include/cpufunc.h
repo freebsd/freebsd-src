@@ -96,20 +96,22 @@ flsll(long long mask)
 }
 
 #include <machine/armreg.h>
-
+#include <sys/kassert.h>
+#include <machine/zone_manager_routines.h>
 void pan_enable(void);
 
 static __inline register_t
 dbg_disable(void)
 {
-	uint32_t ret;
+	// uint32_t ret;
 
-	__asm __volatile(
-	    "mrs %x0, daif   \n"
-	    "msr daifset, #(" __XSTRING(DAIF_D) ") \n"
-	    : "=&r" (ret));
+	// __asm __volatile(
+	//     "mrs %x0, daif   \n"
+	//     "msr daifset, #(" __XSTRING(DAIF_D) ") \n"
+	//     : "=&r" (ret));
 
-	return (ret);
+	// return (ret);
+	panic("Disabling debug exceptions is not allowed!");
 }
 
 static __inline void
@@ -137,7 +139,8 @@ static __inline void
 intr_restore(register_t s)
 {
 
-	WRITE_SPECIALREG(daif, s);
+	// WRITE_SPECIALREG(daif, s);
+	zm_safe_restore_interrupts(s);
 }
 
 static __inline void

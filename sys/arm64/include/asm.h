@@ -55,6 +55,13 @@
 #define	END(sym) LEND(sym)
 #define	EEND(sym)
 
+#define	ZM_NX_LENTRY(sym)						\
+	.section .zm_nx; .align 2; .type sym,#function; sym:		\
+	.cfi_startproc; DTRACE_NOP
+
+#define	ZM_NX_ENTRY(sym)						\
+	.globl sym; ZM_NX_LENTRY(sym)
+	
 #define	WEAK_REFERENCE(sym, alias)				\
 	.weak alias;						\
 	.set alias,sym

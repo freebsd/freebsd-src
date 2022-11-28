@@ -64,8 +64,7 @@ END(dtrace_interrupt_disable)
 void dtrace_interrupt_enable(dtrace_icookie_t cookie)
 */
 ENTRY(dtrace_interrupt_enable)
-	msr	daif, x0
-	RET
+	b zm_safe_restore_interrupts
 END(dtrace_interrupt_enable)
 /*
 uint8_t

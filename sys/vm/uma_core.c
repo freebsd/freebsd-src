@@ -5029,6 +5029,12 @@ uma_zone_reserve(uma_zone_t zone, int items)
 int
 uma_zone_reserve_kva(uma_zone_t zone, int count)
 {
+	return (uma_zone_reserve_kvax(zone, count, 0, NULL));
+}
+
+int
+uma_zone_reserve_kvax(uma_zone_t zone, int count, vm_size_t align, 
+						vm_offset_t *basep) {
 	uma_keg_t keg;
 	vm_offset_t kva;
 	u_int pages;
@@ -5044,7 +5050,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 #else
 	if (1) {
 #endif
-		kva = kva_alloc((vm_size_t)pages * PAGE_SIZE);
+		kva = kva_xalloc((vm_size_t)pages * PAGE_SIZE, align);
 		if (kva == 0)
 			return (0);
 	} else
@@ -5062,6 +5068,10 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 	keg->uk_flags |= UMA_ZFLAG_LIMIT | UMA_ZONE_NOFREE;
 	zone->uz_flags |= UMA_ZFLAG_LIMIT | UMA_ZONE_NOFREE;
 	zone_update_caches(zone);
+
+	if (basep) {
+		*basep = kva;
+	}
 
 	return (1);
 }

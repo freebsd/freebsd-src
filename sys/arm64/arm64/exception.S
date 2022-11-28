@@ -181,8 +181,9 @@ __FBSDID("$FreeBSD$");
 	cbz	x2, 2f
 
 	/* Restore interrupts */
-	msr	daif, x19
-
+	mov x0, x19
+	bl zm_safe_restore_interrupts
+	
 	/* handle the ast */
 	mov	x0, sp
 	bl	_C_LABEL(ast)

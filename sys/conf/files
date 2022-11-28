@@ -4019,6 +4019,7 @@ kern/vfs_mountroot.c		standard
 kern/vfs_subr.c			standard
 kern/vfs_syscalls.c		standard
 kern/vfs_vnops.c		standard
+kern/secure_memory_heap.c    standard
 #
 # Kernel GSS-API
 #
