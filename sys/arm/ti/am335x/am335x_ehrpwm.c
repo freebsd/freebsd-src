@@ -193,6 +193,7 @@ struct am335x_ehrpwm_softc {
 };
 
 static struct ofw_compat_data compat_data[] = {
+	{"ti,am3352-ehrpwm",    true},
 	{"ti,am33xx-ehrpwm",    true},
 	{NULL,                  false},
 };
