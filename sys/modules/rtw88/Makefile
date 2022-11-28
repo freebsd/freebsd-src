@@ -15,7 +15,7 @@ SRCS+=	phy.c ps.c regd.c
 SRCS+=	rx.c sar.c sec.c tx.c util.c
 
 .if defined(WITH_CONFIG_PM) && ${WITH_CONFIG_PM} > 0
-SRCR+=	wow.c
+SRCS+=	wow.c
 CFLAGS+=	-DCONFIG_PM=${WITH_CONFIG_PM}
 .endif
 
