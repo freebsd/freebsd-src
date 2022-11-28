@@ -81,6 +81,13 @@ struct am335x_ecap_softc {
 	int			sc_mem_rid;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{"ti,am3352-ecap",	true},
+	{"ti,am33xx-ecap",	true},
+	{NULL,			false},
+};
+SIMPLEBUS_PNP_INFO(compat_data);
+
 static device_method_t am335x_ecap_methods[] = {
 	DEVMETHOD(device_probe,		am335x_ecap_probe),
 	DEVMETHOD(device_attach,	am335x_ecap_attach),
@@ -142,7 +149,7 @@ am335x_ecap_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,am33xx-ecap"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "AM335x eCAP");
