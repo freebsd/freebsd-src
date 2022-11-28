@@ -339,6 +339,8 @@ lkpinew_pci_dev_release(struct device *dev)
 	if (pdev->bus->self != pdev)
 		pci_dev_put(pdev->bus->self);
 	free(pdev->bus, M_DEVBUF);
+	if (pdev->msi_desc != NULL)
+		free(pdev->msi_desc, M_DEVBUF);
 	free(pdev, M_DEVBUF);
 }
 
@@ -963,6 +965,35 @@ out:
 	}
 
 	return (-EINVAL);
+}
+
+struct msi_desc *
+lkpi_pci_msi_desc_alloc(int irq)
+{
+	struct device *dev;
+	struct pci_dev *pdev;
+	struct msi_desc *desc;
+	struct pci_devinfo *dinfo;
+	struct pcicfg_msi *msi;
+
+	dev = linux_pci_find_irq_dev(irq);
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = to_pci_dev(dev);
+	if (pdev->msi_desc != NULL)
+		return (pdev->msi_desc);
+
+	dinfo = device_get_ivars(dev->bsddev);
+	msi = &dinfo->cfg.msi;
+
+	desc = malloc(sizeof(*desc), M_DEVBUF, M_WAITOK | M_ZERO);
+
+	desc->msi_attrib.is_64 =
+	   (msi->msi_ctrl & PCIM_MSICTRL_64BIT) ? true : false;
+	desc->msg.data = msi->msi_data;
+
+	return (desc);
 }
 
 CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
