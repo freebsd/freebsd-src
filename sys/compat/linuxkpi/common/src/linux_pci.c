@@ -928,6 +928,11 @@ out:
 			return (pdev->dev.irq_end - pdev->dev.irq_start);
 	}
 	if (flags & PCI_IRQ_MSI) {
+		if (pci_msi_count(pdev->dev.bsddev) < minv)
+			return (-ENOSPC);
+		/* We only support 1 vector in pci_enable_msi() */
+		if (minv != 1)
+			return (-ENOSPC);
 		error = pci_enable_msi(pdev);
 		if (error == 0 && pdev->msi_enabled)
 			return (pdev->dev.irq_end - pdev->dev.irq_start);
