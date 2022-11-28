@@ -18,7 +18,7 @@ SRCS+=	rtw8822c.c rtw8822c_table.c rtw8822ce.c		# 11ac
 SRCS+=	rx.c sar.c sec.c tx.c util.c
 
 .if defined(WITH_CONFIG_PM) && ${WITH_CONFIG_PM} > 0
-SRCR+=	wow.c
+SRCS+=	wow.c
 CFLAGS+=	-DCONFIG_PM=${WITH_CONFIG_PM}
 .endif
 
