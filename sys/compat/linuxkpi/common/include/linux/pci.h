@@ -306,6 +306,17 @@ _pci_exit(void)								\
 module_init(_pci_init);							\
 module_exit(_pci_exit)
 
+struct msi_msg {
+	uint32_t			data;
+};
+
+struct msi_desc {
+	struct msi_msg			msg;
+	struct {
+		bool			is_64;
+	} msi_attrib;
+};
+
 /*
  * If we find drivers accessing this from multiple KPIs we may have to
  * refcount objects of this structure.
@@ -342,6 +353,8 @@ struct pci_dev {
 	bool			managed;	/* devres "pcim_*(). */
 	bool			want_iomap_res;
 	bool			msix_enabled;
+	uint8_t			msi_cap;
+	struct msi_desc		*msi_desc;
 };
 
 /* XXX add kassert here on the mmio offset */
@@ -371,6 +384,7 @@ struct resource *_lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size);
 struct pcim_iomap_devres *lkpi_pcim_iomap_devres_find(struct pci_dev *pdev);
 void lkpi_pcim_iomap_table_release(struct device *, void *);
 struct pci_dev *lkpi_pci_get_device(uint16_t, uint16_t, struct pci_dev *);
+struct msi_desc *lkpi_pci_msi_desc_alloc(int);
 
 static inline bool
 dev_is_pci(struct device *dev)
