@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230113:
+	LinuxKPI pci.h changes may require out-of-tree drivers to be recompiled.
+	Bump _FreeBSD_version to 1400078 to be able to detect this change.
+
 20221212:
 	llvm-objump is now always installed as objdump.  Previously there was
 	no /usr/bin/objdump unless the WITH_LLVM_BINUTILS knob was used.

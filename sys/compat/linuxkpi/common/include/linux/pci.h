@@ -285,6 +285,17 @@ _pci_exit(void)								\
 module_init(_pci_init);							\
 module_exit(_pci_exit)
 
+struct msi_msg {
+	uint32_t			data;
+};
+
+struct msi_desc {
+	struct msi_msg			msg;
+	struct {
+		bool			is_64;
+	} msi_attrib;
+};
+
 /*
  * If we find drivers accessing this from multiple KPIs we may have to
  * refcount objects of this structure.
@@ -311,12 +322,18 @@ struct pci_dev {
 	unsigned int		devfn;
 	uint32_t		class;
 	uint8_t			revision;
+	uint8_t			msi_cap;
 	bool			managed;	/* devres "pcim_*(). */
 	bool			want_iomap_res;
 	bool			msi_enabled;
 	bool			msix_enabled;
 	phys_addr_t		rom;
 	size_t			romlen;
+	/*
+	 * msi_desc should be an array one day? For as long as we only support
+	 * 1 MSI vector this is fine.
+	 */
+	struct msi_desc		*msi_desc;
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
 };
@@ -345,6 +362,7 @@ struct resource *_lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size);
 struct pcim_iomap_devres *lkpi_pcim_iomap_devres_find(struct pci_dev *pdev);
 void lkpi_pcim_iomap_table_release(struct device *, void *);
 struct pci_dev *lkpi_pci_get_device(uint16_t, uint16_t, struct pci_dev *);
+struct msi_desc *lkpi_pci_msi_desc_alloc(int);
 
 static inline bool
 dev_is_pci(struct device *dev)

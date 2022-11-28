@@ -131,6 +131,13 @@ irq_set_affinity_hint(int vector, cpumask_t *mask)
 	return (-error);
 }
 
+static inline struct msi_desc *
+irq_get_msi_desc(unsigned int irq)
+{
+
+	return (lkpi_pci_msi_desc_alloc(irq));
+}
+
 /*
  * LinuxKPI tasklet support
  */
