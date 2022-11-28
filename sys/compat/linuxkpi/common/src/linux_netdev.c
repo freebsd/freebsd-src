@@ -326,12 +326,12 @@ lkpi_napi_task(void *ctx, int pending)
 
 void
 linuxkpi_netif_napi_add(struct net_device *ndev, struct napi_struct *napi,
-    int(*napi_poll)(struct napi_struct *, int), int budget)
+    int(*napi_poll)(struct napi_struct *, int))
 {
 
 	napi->dev = ndev;
 	napi->poll = napi_poll;
-	napi->budget = budget;
+	napi->budget = NAPI_POLL_WEIGHT;
 
 	INIT_LIST_HEAD(&napi->rx_list);
 	napi->rx_count = 0;

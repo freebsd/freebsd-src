@@ -229,7 +229,7 @@ struct napi_struct {
 
 void linuxkpi_init_dummy_netdev(struct net_device *);
 void linuxkpi_netif_napi_add(struct net_device *, struct napi_struct *,
-    int(*napi_poll)(struct napi_struct *, int), int);
+    int(*napi_poll)(struct napi_struct *, int));
 void linuxkpi_netif_napi_del(struct napi_struct *);
 bool linuxkpi_napi_schedule_prep(struct napi_struct *);
 void linuxkpi___napi_schedule(struct napi_struct *);
@@ -243,8 +243,8 @@ void linuxkpi_napi_synchronize(struct napi_struct *);
 
 #define	init_dummy_netdev(_n)						\
 	linuxkpi_init_dummy_netdev(_n)
-#define	netif_napi_add(_nd, _ns, _p, _b)				\
-	linuxkpi_netif_napi_add(_nd, _ns, _p, _b)
+#define	netif_napi_add(_nd, _ns, _p)					\
+	linuxkpi_netif_napi_add(_nd, _ns, _p)
 #define	netif_napi_del(_n)						\
 	linuxkpi_netif_napi_del(_n)
 #define	napi_schedule_prep(_n)						\
