@@ -47,18 +47,34 @@ struct dev_pm_domain {
 #define	PM_EVENT_FREEZE		0x0001
 #define	PM_EVENT_SUSPEND	0x0002
 
+#define	pm_sleep_ptr(_p)					\
+    IS_ENABLED(CONFIG_PM_SLEEP) ? (_p) : NULL
+
 #ifdef CONFIG_PM_SLEEP
 #define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
 const struct dev_pm_ops _name = {				\
-        .suspend	= _suspendfunc,				\
-        .resume		= _resumefunc,				\
-        .freeze		= _suspendfunc,				\
-        .thaw		= _resumefunc,				\
-        .poweroff	= _suspendfunc,				\
-        .restore	= _resumefunc,				\
+	.suspend	= _suspendfunc,		\
+	.resume		= _resumefunc,		\
+	.freeze		= _suspendfunc,		\
+	.thaw		= _resumefunc,		\
+	.poweroff	= _suspendfunc,		\
+	.restore	= _resumefunc,		\
+}
+
+#define	DEFINE_SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc) \
+const struct dev_pm_ops _name = {				\
+	.suspend	= _suspendfunc,		\
+	.resume		= _resumefunc,		\
+	.freeze		= _suspendfunc,		\
+	.thaw		= _resumefunc,		\
+	.poweroff	= _suspendfunc,		\
+	.restore	= _resumefunc,		\
 }
 #else
 #define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
+const struct dev_pm_ops _name = {				\
+}
+#define	DEFINE_SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc) \
 const struct dev_pm_ops _name = {				\
 }
 #endif
