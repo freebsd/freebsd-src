@@ -1530,6 +1530,7 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 	DPRINTF("%s identify 0x%x nsid 0x%x", __func__,
 	        command->cdw10 & 0xFF, command->nsid);
 
+	status = 0;
 	pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
 
 	switch (command->cdw10 & 0xFF) {
@@ -2383,6 +2384,7 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 
 	/* TODO return correct error */
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
+	status = 0;
 	pci_nvme_status_genc(&status, code);
 
 	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, status);
@@ -2447,6 +2449,7 @@ nvme_write_read_ram(struct pci_nvme_softc *sc,
 	else
 		dir = NVME_COPY_FROM_PRP;
 
+	status = 0;
 	if (nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, prp1, prp2,
 	    buf + offset, bytes, dir))
 		pci_nvme_status_genc(&status,
@@ -2594,6 +2597,7 @@ pci_nvme_dealloc_sm(struct blockif_req *br, int err)
 	bool done = true;
 	uint16_t status;
 
+	status = 0;
 	if (err) {
 		pci_nvme_status_genc(&status, NVME_SC_INTERNAL_DEVICE_ERROR);
 	} else if ((req->prev_gpaddr + 1) == (req->prev_size)) {
