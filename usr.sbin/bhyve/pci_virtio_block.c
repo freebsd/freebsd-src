@@ -453,7 +453,7 @@ static int
 pci_vtblk_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
     nvlist_t *nvl)
 {
-	char bident[sizeof("XX:X:X")];
+	char bident[sizeof("XXX:XXX")];
 	struct blockif_ctxt *bctxt;
 	const char *path, *serial;
 	MD5_CTX mdctx;
@@ -465,7 +465,7 @@ pci_vtblk_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
 	/*
 	 * The supplied backing file has to exist
 	 */
-	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
+	snprintf(bident, sizeof(bident), "%u:%u", pi->pi_slot, pi->pi_func);
 	bctxt = blockif_open(nvl, bident);
 	if (bctxt == NULL) {
 		perror("Could not open backing file");

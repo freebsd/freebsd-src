@@ -2422,7 +2422,7 @@ pci_ahci_hd_legacy_config(nvlist_t *nvl, const char *opts)
 static int
 pci_ahci_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
 {
-	char bident[sizeof("XX:XX:XX")];
+	char bident[sizeof("XXX:XXX:XXX")];
 	char node_name[sizeof("XX")];
 	struct blockif_ctxt *bctxt;
 	struct pci_ahci_softc *sc;
@@ -2469,7 +2469,7 @@ pci_ahci_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
 		 * Attempt to open the backing image. Use the PCI slot/func
 		 * and the port number for the identifier string.
 		 */
-		snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot,
+		snprintf(bident, sizeof(bident), "%u:%u:%u", pi->pi_slot,
 		    pi->pi_func, p);
 
 		bctxt = blockif_open(port_nvl, bident);
