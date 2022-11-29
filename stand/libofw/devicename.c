@@ -43,27 +43,24 @@ static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
 int
 ofw_getdev(void **vdev, const char *devspec, const char **path)
 {
-    struct ofw_devdesc **dev = (struct ofw_devdesc **)vdev;
-    int				rv;
+	struct ofw_devdesc **dev = (struct ofw_devdesc **)vdev;
+	int rv;
 
-    /*
-     * If it looks like this is just a path and no
-     * device, go with the current device.
-     */
-    if ((devspec == NULL) || 
-	((strchr(devspec, '@') == NULL) &&
-	(strchr(devspec, ':') == NULL))) {
-
-	if (((rv = ofw_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
-	    (path != NULL))
-		*path = devspec;
-	return(rv);
-    }
+	/*
+	 * If it looks like this is just a path and no device, go with the current
+	 * device.
+	 */
+	if (devspec == NULL || strpbrk(devspec, ":@") == NULL) {
+		if (((rv = ofw_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
+		    (path != NULL))
+			*path = devspec;
+		return(rv);
+	}
     
-    /*
-     * Try to parse the device name off the beginning of the devspec
-     */
-    return(ofw_parsedev(dev, devspec, path));
+	/*
+	 * Try to parse the device name off the beginning of the devspec
+	 */
+	return(ofw_parsedev(dev, devspec, path));
 }
 
 /*
