@@ -68,7 +68,12 @@ havemouse=
 for daemon in $DAEMONS; do
 	[ "$daemon" = "dumpdev" ] && havedump=1 continue
 	[ "$daemon" = "moused" ] && havemouse=1
-	echo ${daemon}_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
+	if [ "$daemon" = "ntpd_sync_on_start" ]; then
+		rcvar=${daemon}
+	else
+		rcvar=${daemon}_enable
+	fi
+	echo ${rcvar}=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 done
 
 if [ ! "$havemouse" ]; then
