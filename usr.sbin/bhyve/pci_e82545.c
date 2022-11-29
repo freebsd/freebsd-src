@@ -1045,7 +1045,7 @@ e82545_transmit_checksum(struct iovec *iov, int iovcnt, struct ck_info *ck)
 
 	DPRINTF("tx cksum: iovcnt/s/off/len %d/%d/%d/%d",
 	    iovcnt, ck->ck_start, ck->ck_off, ck->ck_len);
-	cklen = ck->ck_len ? ck->ck_len - ck->ck_start + 1 : UINT_MAX;
+	cklen = ck->ck_len ? ck->ck_len - ck->ck_start + 1U : UINT_MAX;
 	cksum = e82545_iov_checksum(iov, iovcnt, ck->ck_start, cklen);
 	*(uint16_t *)((uint8_t *)iov[0].iov_base + ck->ck_off) = ~cksum;
 }
@@ -1231,9 +1231,9 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 	if (!tso) {
 		/* Estimate required writable space for checksums. */
 		if (ckinfo[0].ck_valid)
-			hdrlen = MAX(hdrlen, ckinfo[0].ck_off + 2);
+			hdrlen = MAX(hdrlen, ckinfo[0].ck_off + 2U);
 		if (ckinfo[1].ck_valid)
-			hdrlen = MAX(hdrlen, ckinfo[1].ck_off + 2);
+			hdrlen = MAX(hdrlen, ckinfo[1].ck_off + 2U);
 		/* Round up writable space to the first vector. */
 		if (hdrlen != 0 && iov[0].iov_len > hdrlen &&
 		    iov[0].iov_len < hdrlen + 100)
@@ -1282,26 +1282,26 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 		 * TCP    | flags | 13     | 1
 		 * UDP    | len   | 4      | 4
 		 */
-		if (hdrlen < ckinfo[0].ck_start + 6 ||
-		    hdrlen < ckinfo[0].ck_off + 2) {
+		if (hdrlen < ckinfo[0].ck_start + 6U ||
+		    hdrlen < ckinfo[0].ck_off + 2U) {
 			WPRINTF("TSO hdrlen too small for IP fields (%d) "
 			    "-- dropped", hdrlen);
 			goto done;
 		}
 		if (sc->esc_txctx.cmd_and_length & E1000_TXD_CMD_TCP) {
-			if (hdrlen < ckinfo[1].ck_start + 14) {
+			if (hdrlen < ckinfo[1].ck_start + 14U) {
 				WPRINTF("TSO hdrlen too small for TCP fields "
 				    "(%d) -- dropped", hdrlen);
 				goto done;
 			}
 		} else {
-			if (hdrlen < ckinfo[1].ck_start + 8) {
+			if (hdrlen < ckinfo[1].ck_start + 8U) {
 				WPRINTF("TSO hdrlen too small for UDP fields "
 				    "(%d) -- dropped", hdrlen);
 				goto done;
 			}
 		}
-		if (ckinfo[1].ck_valid && hdrlen < ckinfo[1].ck_off + 2) {
+		if (ckinfo[1].ck_valid && hdrlen < ckinfo[1].ck_off + 2U) {
 			WPRINTF("TSO hdrlen too small for TCP/UDP fields "
 			    "(%d) -- dropped", hdrlen);
 			goto done;
