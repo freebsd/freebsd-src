@@ -21,11 +21,13 @@ extern void *__zm_ro_end;
 
 static void * dispatch_test(void *aux);
 
+extern void *dispatch_test_nop(void *aux);
+
 ZM_RO zm_globals_s *zm_globals = NULL;
 ZM_RO zm_pcpu_s *zm_pcpus = NULL;
 ZM_RO u_int32_t zm_pcpu_count;
 const zm_zone_dispatch_fcn_t zm_dispatch_functions[] = {
-    /* ZONE_STATE_PMAP */           dispatch_test,
+    /* ZONE_STATE_PMAP */           dispatch_test_nop,
     /* ZONE_STATE_CAPABILITIES */   dispatch_test
 };
 
@@ -40,7 +42,7 @@ struct secure_memory_heap pmap_heap;
 static void
 configure_watchpoints_smp(void *aux) {
     printf(TAG "go for watchpoint config on CPU %d\n", curcpu);
-    sched_pin();
+    critical_enter();
     zm_init_watchpoint_config_s configs[4] = {
         /* ZONE_STATE_PMAP */
         {
@@ -74,7 +76,7 @@ configure_watchpoints_smp(void *aux) {
     
     zm_init_debug(configs);
 
-    sched_unpin();
+    critical_exit();
 }
 
 static void
@@ -123,10 +125,43 @@ init_startup(void *arg __unused) {
     smp_rendezvous(NULL, configure_watchpoints_smp, NULL, NULL);
 
     printf("Entering pmap zone...\n");
-    sched_pin();
-    void *result = zm_zone_enter(ZONE_STATE_PMAP, (void *)0x41414141);
-    sched_unpin();
-    printf("pmap returned %p\n", result);  
+    critical_enter();
+    u_int64_t start = 0, stop = 0;
+    __asm__ volatile(
+        "msr pmcr_el0, %0\n"
+        "isb"
+        :: "r" ((u_int64_t)(PMCR_E))
+    );
+    __asm__ volatile(
+        "msr pmcntenset_el0, %0\n"
+        "isb"
+        :: "r" ((u_int64_t)(1LU << 31))
+    );
+
+    void *result;
+    __asm__ volatile("isb\nmrs %0, pmccntr_el0\nisb" : "=r" (start));
+    for (int i = 0; i < 100000; i++) {
+        result = zm_zone_enter(ZONE_STATE_PMAP, (void *)0);
+    }
+    __asm__ volatile("isb\nmrs %0, pmccntr_el0\nisb" : "=r" (stop));
+    printf(TAG "zm_zone_enter 100000 cycles = %lu\n", stop-start);
+
+    __asm__ volatile("isb\nmrs %0, pmccntr_el0\nisb" : "=r" (start));
+    for (int i = 0; i < 100000; i++) {
+        result = zm_zone_enter(ZONE_STATE_PMAP, (void *)0);
+    }
+    __asm__ volatile("isb\nmrs %0, pmccntr_el0\nisb" : "=r" (stop));
+    printf(TAG "zm_zone_enter 100000 cycles = %lu\n", stop-start);
+
+
+    __asm__ volatile("isb\nmrs %0, pmccntr_el0\nisb" : "=r" (start));
+    for (int i = 0; i < 100000; i++) {
+        result = dispatch_test_nop(NULL);
+    }
+    __asm__ volatile("isb\nmrs %0, pmccntr_el0\nisb" : "=r" (stop));
+    printf(TAG "dispatch_test_nop raw 100000 cycles = %lu\n", stop-start);
+
+    critical_exit();
 }
 
 /* Start after SMP is up so that we can rendezvous. */

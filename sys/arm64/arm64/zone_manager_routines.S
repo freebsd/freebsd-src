@@ -314,6 +314,8 @@ necessary.
 	/* States where we're in a zone are zero or positive */
 	cmp w12, #0
 	b.lt Lzone_return_invalid_state
+	mov w10, #ZONE_STATE_NONE
+	str w10, [x9, #ZM_PCPU_STATE]
 
 	/* State okay! Go for exit */
 
@@ -466,6 +468,10 @@ LENTRY(panic_entered)
 	mov x0, x19
 	b panic
 LEND(panic_entered)
+
+ENTRY(dispatch_test_nop)
+	ret
+END(dispatch_test_nop)
 
 /*
 Boot time configuration of the debug registers. Expects an array of four

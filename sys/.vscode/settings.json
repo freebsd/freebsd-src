@@ -1,0 +1,16 @@
+{
+    "C_Cpp.dimInactiveRegions": false,
+    "cSpell.enabled": true,
+    "files.associations": {
+        "random": "c",
+        "types.h": "c",
+        "zone_manager.h": "c",
+        "domainset.h": "c",
+        "frame.h": "c",
+        "param.h": "c",
+        "thread": "cpp",
+        "zone_manager_asm.h": "c",
+        "secure_memory_heap.h": "c",
+        "kernel.h": "c"
+    }
+}
