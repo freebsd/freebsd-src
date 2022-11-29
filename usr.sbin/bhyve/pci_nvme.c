@@ -3152,7 +3152,7 @@ pci_nvme_read(struct vmctx *ctx __unused, int vcpu __unused,
 static int
 pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 {
-	char bident[sizeof("XX:X:X")];
+	char bident[sizeof("XXX:XXX")];
 	const char *value;
 	uint32_t sectsz;
 
@@ -3226,7 +3226,7 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 			return (-1);
 		}
 	} else {
-		snprintf(bident, sizeof(bident), "%d:%d",
+		snprintf(bident, sizeof(bident), "%u:%u",
 		    sc->nsc_pi->pi_slot, sc->nsc_pi->pi_func);
 		sc->nvstore.ctx = blockif_open(nvl, bident);
 		if (sc->nvstore.ctx == NULL) {
