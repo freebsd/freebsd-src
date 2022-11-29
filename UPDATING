@@ -17,6 +17,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20221129:
+	12.3-RELEASE-p10 FreeBSD-SA-22:15.ping
+			 FreeBSD-EN-22:28.heimdal
+
+	Stack overflow in ping [SA-22:15.ping]
+
+	Regression in Heimdal KDC [EN-22:28.heimdal]
+
 20221116:
 	12.3-RELEASE-p9	FreeBSD-SA-22:14.heimdal
 
