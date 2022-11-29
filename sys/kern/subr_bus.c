@@ -2542,7 +2542,8 @@ device_attach(device_t dev)
 		return (error);
 	}
 	dev->flags |= DF_ATTACHED_ONCE;
-	/* We only need the low bits of this time, but ranges from tens to thousands
+	/*
+	 * We only need the low bits of this time, but ranges from tens to thousands
 	 * have been seen, so keep 2 bytes' worth.
 	 */
 	attachentropy = (uint16_t)(get_cyclecount() - attachtime);
