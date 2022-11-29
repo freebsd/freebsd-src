@@ -32,8 +32,8 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 : ${BSDDIALOG_OK=0}
 
 if [ -f $BSDINSTALL_TMPETC/rc.conf.services ]; then
-	eval $( sed -e s/YES/on/i -e s/NO/off/i \
-		$BSDINSTALL_TMPETC/rc.conf.services )
+	eval "$( sed -E -e 's/\<(YES|AUTO)\>/on/i' -e 's/\<NO\>/off/i' \
+		$BSDINSTALL_TMPETC/rc.conf.services )"
 else
 	# Default service states. Everything is off if not enabled.
 	sshd_enable="on"
