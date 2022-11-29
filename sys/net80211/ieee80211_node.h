@@ -407,71 +407,54 @@ struct ieee80211_node *ieee80211_dup_bss(struct ieee80211vap *,
 struct ieee80211_node *ieee80211_node_create_wds(struct ieee80211vap *,
 		const uint8_t bssid[IEEE80211_ADDR_LEN],
 		struct ieee80211_channel *);
-#ifdef IEEE80211_DEBUG_REFCNT
-void	ieee80211_free_node_debug(struct ieee80211_node *,
+
+/* These functions are taking __func__, __LINE__ for IEEE80211_DEBUG_REFCNT */
+void	_ieee80211_free_node(struct ieee80211_node *,
 		const char *func, int line);
-struct ieee80211_node *ieee80211_find_node_locked_debug(
+struct ieee80211_node *_ieee80211_find_node_locked(
 		struct ieee80211_node_table *,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN],
 		const char *func, int line);
-struct ieee80211_node *ieee80211_find_node_debug(struct ieee80211_node_table *,
+struct ieee80211_node *_ieee80211_find_node(struct ieee80211_node_table *,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN],
 		const char *func, int line);
-struct ieee80211_node *ieee80211_find_vap_node_locked_debug(
-		struct ieee80211_node_table *,
-		const struct ieee80211vap *vap,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN],
-		const char *func, int line);
-struct ieee80211_node *ieee80211_find_vap_node_debug(
+struct ieee80211_node *_ieee80211_find_vap_node_locked(
 		struct ieee80211_node_table *,
 		const struct ieee80211vap *vap,
 		const uint8_t macaddr[IEEE80211_ADDR_LEN],
 		const char *func, int line);
-struct ieee80211_node * ieee80211_find_rxnode_debug(struct ieee80211com *,
+struct ieee80211_node *_ieee80211_find_vap_node(
+		struct ieee80211_node_table *,
+		const struct ieee80211vap *vap,
+		const uint8_t macaddr[IEEE80211_ADDR_LEN],
+		const char *func, int line);
+struct ieee80211_node *_ieee80211_find_rxnode(struct ieee80211com *,
 		const struct ieee80211_frame_min *,
 		const char *func, int line);
-struct ieee80211_node * ieee80211_find_rxnode_withkey_debug(
+struct ieee80211_node *_ieee80211_find_rxnode_withkey(
 		struct ieee80211com *,
 		const struct ieee80211_frame_min *, uint16_t keyix,
 		const char *func, int line);
-struct ieee80211_node *ieee80211_find_txnode_debug(struct ieee80211vap *,
+struct ieee80211_node *_ieee80211_find_txnode(struct ieee80211vap *,
 		const uint8_t *,
 		const char *func, int line);
 #define	ieee80211_free_node(ni) \
-	ieee80211_free_node_debug(ni, __func__, __LINE__)
+	_ieee80211_free_node(ni, __func__, __LINE__)
 #define	ieee80211_find_node_locked(nt, mac) \
-	ieee80211_find_node_locked_debug(nt, mac, __func__, __LINE__)
+	_ieee80211_find_node_locked(nt, mac, __func__, __LINE__)
 #define	ieee80211_find_node(nt, mac) \
-	ieee80211_find_node_debug(nt, mac, __func__, __LINE__)
+	_ieee80211_find_node(nt, mac, __func__, __LINE__)
 #define	ieee80211_find_vap_node_locked(nt, vap, mac) \
-	ieee80211_find_vap_node_locked_debug(nt, vap, mac, __func__, __LINE__)
+	_ieee80211_find_vap_node_locked(nt, vap, mac, __func__, __LINE__)
 #define	ieee80211_find_vap_node(nt, vap, mac) \
-	ieee80211_find_vap_node_debug(nt, vap, mac, __func__, __LINE__)
+	_ieee80211_find_vap_node(nt, vap, mac, __func__, __LINE__)
 #define	ieee80211_find_rxnode(ic, wh) \
-	ieee80211_find_rxnode_debug(ic, wh, __func__, __LINE__)
+	_ieee80211_find_rxnode(ic, wh, __func__, __LINE__)
 #define	ieee80211_find_rxnode_withkey(ic, wh, keyix) \
-	ieee80211_find_rxnode_withkey_debug(ic, wh, keyix, __func__, __LINE__)
+	_ieee80211_find_rxnode_withkey(ic, wh, keyix, __func__, __LINE__)
 #define	ieee80211_find_txnode(vap, mac) \
-	ieee80211_find_txnode_debug(vap, mac, __func__, __LINE__)
-#else
-void	ieee80211_free_node(struct ieee80211_node *);
-struct ieee80211_node *ieee80211_find_node_locked(struct ieee80211_node_table *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
-struct ieee80211_node *ieee80211_find_node(struct ieee80211_node_table *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
-struct ieee80211_node *ieee80211_find_vap_node_locked(
-		struct ieee80211_node_table *, const struct ieee80211vap *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
-struct ieee80211_node *ieee80211_find_vap_node(
-		struct ieee80211_node_table *, const struct ieee80211vap *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
-struct ieee80211_node * ieee80211_find_rxnode(struct ieee80211com *,
-		const struct ieee80211_frame_min *);
-struct ieee80211_node * ieee80211_find_rxnode_withkey(struct ieee80211com *,
-		const struct ieee80211_frame_min *, uint16_t keyix);
-struct ieee80211_node *ieee80211_find_txnode(struct ieee80211vap *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
-#endif
+	_ieee80211_find_txnode(vap, mac, __func__, __LINE__)
+
 int	ieee80211_node_delucastkey(struct ieee80211_node *);
 void	ieee80211_node_timeout(void *arg);
 
