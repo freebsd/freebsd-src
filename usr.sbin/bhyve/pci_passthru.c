@@ -212,7 +212,7 @@ cfginitmsi(struct passthru_softc *sc)
 	struct pcisel sel;
 	struct pci_devinst *pi;
 	struct msixcap msixcap;
-	uint32_t *msixcap_ptr;
+	char *msixcap_ptr;
 
 	pi = sc->psc_pi;
 	sel = sc->psc_sel;
@@ -249,15 +249,15 @@ cfginitmsi(struct passthru_softc *sc)
 				 */
 				sc->psc_msix.capoff = ptr;
 				caplen = 12;
-				msixcap_ptr = (uint32_t*) &msixcap;
+				msixcap_ptr = (char *)&msixcap;
 				capptr = ptr;
 				while (caplen > 0) {
 					u32 = read_config(&sel, capptr, 4);
-					*msixcap_ptr = u32;
+					memcpy(msixcap_ptr, &u32, 4);
 					pci_set_cfgdata32(pi, capptr, u32);
 					caplen -= 4;
 					capptr += 4;
-					msixcap_ptr++;
+					msixcap_ptr += 4;
 				}
 			}
 			ptr = read_config(&sel, ptr + PCICAP_NEXTPTR, 1);
