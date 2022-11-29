@@ -53,22 +53,26 @@ static void	ofwn_end(struct netif *);
 extern struct netif_stats	ofwn_stats[];
 
 struct netif_dif ofwn_ifs[] = {
-	/*	dif_unit	dif_nsel	dif_stats	dif_private	*/
-	{	0,		1,		&ofwn_stats[0],	0,	},
+	{
+		.dif_unit=0,
+		.dif_nsel=1,
+		.dif_stats=&ofwn_stats[0],
+		.dif_private=0,
+	},
 };
 
 struct netif_stats ofwn_stats[nitems(ofwn_ifs)];
 
 struct netif_driver ofwnet = {
-	"net",			/* netif_bname */
-	ofwn_match,		/* netif_match */
-	ofwn_probe,		/* netif_probe */
-	ofwn_init,		/* netif_init */
-	ofwn_get,		/* netif_get */
-	ofwn_put,		/* netif_put */
-	ofwn_end,		/* netif_end */
-	ofwn_ifs,		/* netif_ifs */
-	nitems(ofwn_ifs)		/* netif_nifs */
+	.netif_bname="net",
+	.netif_match=ofwn_match,
+	.netif_probe=ofwn_probe,
+	.netif_init=ofwn_init,
+	.netif_get=ofwn_get,
+	.netif_put=ofwn_put,
+	.netif_end=ofwn_end,
+	.netif_ifs=ofwn_ifs,
+	.netif_nifs=nitems(ofwn_ifs)
 };
 
 static ihandle_t	netinstance;
