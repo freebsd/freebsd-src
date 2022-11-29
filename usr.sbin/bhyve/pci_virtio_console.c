@@ -273,7 +273,7 @@ static int
 pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *port_name,
     const nvlist_t *nvl)
 {
-	struct pci_vtcon_sock *sock;
+	struct pci_vtcon_sock *sock = NULL;
 	struct sockaddr_un sun;
 	const char *name, *path;
 	char *cp, *pathcopy;
