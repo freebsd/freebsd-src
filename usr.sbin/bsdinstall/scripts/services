@@ -46,7 +46,8 @@ DAEMONS=$( bsddialog --backtitle "$OSNAME Installer" \
     --title "System Configuration" --no-cancel --separate-output \
     --checklist "Choose the services you would like to be started at boot:" \
     0 0 0 \
-	local_unbound "Local caching validating resolver" ${local_unbound:-off} \
+	local_unbound "Local caching validating resolver" \
+		${local_unbound_enable:-off} \
 	sshd	"Secure shell daemon" ${sshd_enable:-off} \
 	moused	"PS/2 mouse pointer on console" ${moused_enable:-off} \
 	ntpd	"Synchronize system and network time" ${ntpd_enable:-off} \
