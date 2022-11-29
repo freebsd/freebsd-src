@@ -798,7 +798,7 @@ pci_nvme_aer_limit_reached(struct pci_nvme_softc *sc)
 	struct nvme_controller_data *cd = &sc->ctrldata;
 
 	/* AERL is a zero based value while aer_count is one's based */
-	return (sc->aer_count == (cd->aerl + 1));
+	return (sc->aer_count == (cd->aerl + 1U));
 }
 
 /*
@@ -3243,7 +3243,7 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 	else if (sc->nvstore.type != NVME_STOR_RAM)
 		sc->nvstore.sectsz = blockif_sectsz(sc->nvstore.ctx);
 	for (sc->nvstore.sectsz_bits = 9;
-	     (1 << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
+	     (1U << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
 	     sc->nvstore.sectsz_bits++);
 
 	if (sc->max_queues <= 0 || sc->max_queues > NVME_QUEUES)
