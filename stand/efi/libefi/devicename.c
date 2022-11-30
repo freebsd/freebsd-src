@@ -118,11 +118,7 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 
 #ifdef EFI_ZFS_BOOT
 	case DEVT_ZFS:
-		idev = malloc(sizeof(struct zfs_devdesc));
-		if (idev == NULL)
-			return (ENOMEM);
-
-		err = zfs_parsedev((struct zfs_devdesc*)idev, np, path);
+		err = zfs_parsedev(&idev, np, path);
 		if (err != 0)
 			goto fail;
 		break;

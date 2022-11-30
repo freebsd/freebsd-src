@@ -113,9 +113,9 @@ found:
     idev->dd.d_dev = dv;
     if (dv->dv_type == DEVT_ZFS) {
 	p = devspec + strlen(dv->dv_name);
-	err = zfs_parsedev((struct zfs_devdesc *)idev, p, path);
+	free(idev);
+	err = zfs_parsedev((struct devdesc **)&idev, p, path);
 	if (err != 0) {
-	    free(idev);
 	    return (err);
 	}
     }

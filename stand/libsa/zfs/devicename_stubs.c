@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 
 __attribute__((weak))
 int
-zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
+zfs_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 {
 	return (EINVAL);
 }
