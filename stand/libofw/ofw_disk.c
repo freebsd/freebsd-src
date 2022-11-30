@@ -50,7 +50,8 @@ static int	ofwd_close(struct open_file *f);
 static int	ofwd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int	ofwd_print(int verbose);
 static char *	ofwd_fmtdev(struct devdesc *);
-
+static int	ofwd_parsedev(struct devdesc **, const char *, const char **);
+static bool	ofwd_match(struct devsw *, const char *);
 
 struct devsw ofwdisk = {
 	.dv_name = "block",
@@ -62,7 +63,9 @@ struct devsw ofwdisk = {
 	.dv_ioctl = ofwd_ioctl,
 	.dv_print = ofwd_print,
 	.dv_cleanup = nullsys,
+	.dv_match = ofwd_match,
 	.dv_fmtdev = ofwd_fmtdev,
+	.dv_parsedev = ofwd_parsedev,
 };
 
 /*
@@ -210,10 +213,42 @@ ofwd_print(int verbose __unused)
 
 	return (0);
 }
+
+
+static bool
+ofwd_match(struct devsw *devsw, const char *devspec)
+{
+	const char *path;
+
+	return (ofw_path_to_handle(devspec, devsw->dv_name, &path) != -1);
+}
+
 static char *
 ofwd_fmtdev(struct devdesc *idev)
 {
 	struct ofw_devdesc *dev = (struct ofw_devdesc *)idev;
 
 	return (dev->d_path);
+}
+
+static int
+ofwd_parsedev(struct devdesc **dev, const char *devspec, const char **path)
+{
+	const char *rem_path;
+	struct ofw_devdesc *idev;
+
+	if (ofw_path_to_handle(devspec, ofwdisk.dv_name, &rem_path) == -1)
+		return (ENOENT);
+	idev = malloc(sizeof(struct ofw_devdesc));
+	if (idev == NULL) {
+		printf("ofw_parsedev: malloc failed\n");
+		return ENOMEM;
+	};
+	strlcpy(idev->d_path, devspec, min(rem_path - devspec + 1,
+		sizeof(idev->d_path)));
+	if (dev != NULL)
+		*dev = &idev->dd;
+	if (path != NULL)
+		*path = rem_path;
+	return 0;
 }
