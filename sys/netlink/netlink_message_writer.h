@@ -55,6 +55,7 @@ struct nl_writer {
 	uint8_t			writer_target;	/* NS_WRITER_TARGET_*  */
 	bool			ignore_limit;	/* If true, ignores RCVBUF limit */
 	bool			enomem;		/* True if ENOMEM occured */
+	bool			suppress_ack;	/* If true, don't send NLMSG_ERR */
 };
 #define	NS_WRITER_TARGET_SOCKET	0
 #define	NS_WRITER_TARGET_GROUP	1
