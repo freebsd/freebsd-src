@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2022
+.Dd November 30, 2022
 .Dt NETLINK 4
 .Os
 .Sh NAME
@@ -212,11 +212,16 @@ If the
 socket option is not set, the remainder of the original message will follow.
 If the
 .Dv NETLINK_EXT_ACK
-socket option is set, kernel may add a
+socket option is set, the kernel may add a
 .Dv NLMSGERR_ATTR_MSG
 string TLV with the textual error description, optionally followed by the
 .Dv NLMSGERR_ATTR_OFFS
 TLV, indicating the offset from the message start that triggered an error.
+If the operation reply is a multipart message, then no
+.Dv NLMSG_ERROR
+reply is generated, only a
+.Dv NLMSG_DONE
+message, closing multipart sequence.
 .Pp
 .Dv NLMSG_DONE
 indicates the end of the message group: typically, the end of the dump.

@@ -600,6 +600,9 @@ nlmsg_end(struct nl_writer *nw)
 	}
 
         nw->hdr->nlmsg_len = (uint32_t)(nw->data + nw->offset - (char *)nw->hdr);
+	NL_LOG(LOG_DEBUG2, "wrote msg len: %u type: %d: flags: 0x%X seq: %u pid: %u",
+	    nw->hdr->nlmsg_len, nw->hdr->nlmsg_type, nw->hdr->nlmsg_flags,
+	    nw->hdr->nlmsg_seq, nw->hdr->nlmsg_pid);
         nw->hdr = NULL;
 	nw->num_messages++;
 	return (true);
@@ -681,6 +684,7 @@ nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
 	    nw->offset, perror);
 	*perror = error;
 	nlmsg_end(nw);
+	nw->suppress_ack = true;
 
 	return (true);
 }
