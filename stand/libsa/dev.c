@@ -134,7 +134,7 @@ devparse(struct devdesc **dev, const char *devspec, const char **path)
 	idev = NULL;
 	err = 0;
 	if (dv->dv_parsedev) {
-		err = dv->dv_parsedev(&idev, np, path);
+		err = dv->dv_parsedev(&idev, devspec, path);
 	} else {
 		np = devspec + strlen(dv->dv_name);
 		err = default_parsedev(&idev, np, path);
