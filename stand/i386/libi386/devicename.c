@@ -32,9 +32,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "disk.h"
 #include "libi386.h"
-#include "libzfs.h"
-
-static int	i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -44,7 +41,7 @@ static int	i386_parsedev(struct i386_devdesc **dev, const char *devspec, const c
 int
 i386_getdev(void **vdev, const char *devspec, const char **path)
 {
-    struct i386_devdesc **dev = (struct i386_devdesc **)vdev;
+    struct devdesc **dev = (struct devdesc **)vdev;
     int				rv;
     
     /*
@@ -55,7 +52,7 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
 	(devspec[0] == '/') || 
 	(strchr(devspec, ':') == NULL)) {
 
-	if (((rv = i386_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
+	if (((rv = devparse(dev, getenv("currdev"), NULL)) == 0) &&
 	    (path != NULL))
 		*path = devspec;
 	return(rv);
@@ -64,103 +61,7 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
     /*
      * Try to parse the device name off the beginning of the devspec
      */
-    return(i386_parsedev(dev, devspec, path));
-}
-
-/*
- * Point (dev) at an allocated device specifier matching the string version
- * at the beginning of (devspec).  Return a pointer to the remaining
- * text in (path).
- *
- * In all cases, the beginning of (devspec) is compared to the names
- * of known devices in the device switch, and then any following text
- * is parsed according to the rules applied to the device type.
- *
- * For disk-type devices, the syntax is:
- *
- * disk<unit>[s<slice>][<partition>]:
- * 
- */
-static int
-i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
-{
-    struct i386_devdesc *idev = NULL;
-    struct devsw	*dv;
-    int			i, unit, err;
-    char		*cp;
-    const char		*np;
-
-    /* minimum length check */
-    if (strlen(devspec) < 2)
-	return(EINVAL);
-
-    /* look for a device that matches */
-    for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
-	if (!strncmp(devspec, devsw[i]->dv_name, strlen(devsw[i]->dv_name))) {
-	    dv = devsw[i];
-	    break;
-	}
-    }
-    if (dv == NULL)
-	return(ENOENT);
-
-    np = (devspec + strlen(dv->dv_name));
-    idev = NULL;
-    err = 0;
-        
-    switch(dv->dv_type) {
-    case DEVT_NONE:
-	break;
-
-    case DEVT_DISK:
-	err = disk_parsedev((struct devdesc **)&idev, np, path);
-	if (err != 0)
-	    goto fail;
-	break;
-
-    case DEVT_ZFS:
-	err = zfs_parsedev((struct devdesc **)&idev, np, path);
-	if (err != 0)
-	    goto fail;
-	break;
-
-    default:
-	idev = malloc(sizeof (struct devdesc));
-	if (idev == NULL)
-	    return (ENOMEM);
-
-	unit = 0;
-	cp = (char *)np;
-
-	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 0);	/* get unit number if present */
-	    if (cp == np) {
-		err = EUNIT;
-		goto fail;
-	    }
-	}
-
-	if (*cp && (*cp != ':')) {
-	    err = EINVAL;
-	    goto fail;
-	}
-
-	idev->dd.d_unit = unit;
-	if (path != NULL)
-	    *path = (*cp == 0) ? cp : cp + 1;
-	break;
-    }
-    idev->dd.d_dev = dv;
-    if (dev != NULL)
-	*dev = idev;
-    else
-	free(idev);
-
-    return(0);
-
- fail:
-    free(idev);
-    return(err);
+    return(devparse(dev, devspec, path));
 }
 
 /*
@@ -169,10 +70,10 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 int
 i386_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-	struct i386_devdesc	*ncurr;
+	struct devdesc	*ncurr;
 	int			rv;
 
-	if ((rv = i386_parsedev(&ncurr, value, NULL)) != 0)
+	if ((rv = devparse(&ncurr, value, NULL)) != 0)
 		return (rv);
 	free(ncurr);
 
