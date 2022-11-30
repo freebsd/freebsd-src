@@ -111,11 +111,7 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 		break;
 
 	case DEVT_DISK:
-		idev = malloc(sizeof(struct disk_devdesc));
-		if (idev == NULL)
-			return (ENOMEM);
-
-		err = disk_parsedev((struct disk_devdesc *)idev, np, path);
+		err = disk_parsedev(&idev, np, path);
 		if (err != 0)
 			goto fail;
 		break;
