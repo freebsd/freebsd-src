@@ -187,6 +187,7 @@ struct devdesc {
 };
 
 char *devformat(struct devdesc *d);
+int devparse(struct devdesc **, const char *, const char **);
 
 struct open_file {
     int			f_flags;	/* see F_* below */
