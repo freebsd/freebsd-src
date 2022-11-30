@@ -1561,7 +1561,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			error = EBUSY;
 			goto coredump_cleanup_locked;
 		}
-		KASSERT((td2->td_dbgflags & TDB_COREDUMPRQ) == 0,
+		KASSERT((td2->td_dbgflags & TDB_COREDUMPREQ) == 0,
 		    ("proc %d tid %d req coredump", p->p_pid, td2->td_tid));
 
 		tcq->tc_vp = fp->f_vnode;
@@ -1571,10 +1571,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			tcq->tc_flags |= SVC_NOCOMPRESS;
 		if ((pc->pc_flags & PC_ALL) != 0)
 			tcq->tc_flags |= SVC_ALL;
-		td2->td_coredump = tcq;
-		td2->td_dbgflags |= TDB_COREDUMPRQ;
+		td2->td_remotereq = tcq;
+		td2->td_dbgflags |= TDB_COREDUMPREQ;
 		thread_run_flash(td2);
-		while ((td2->td_dbgflags & TDB_COREDUMPRQ) != 0)
+		while ((td2->td_dbgflags & TDB_COREDUMPREQ) != 0)
 			msleep(p, &p->p_mtx, PPAUSE, "crdmp", 0);
 		error = tcq->tc_error;
 coredump_cleanup_locked:

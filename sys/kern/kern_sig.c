@@ -2565,12 +2565,12 @@ ptrace_coredump(struct thread *td)
 	MPASS(td == curthread);
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((td->td_dbgflags & TDB_COREDUMPRQ) == 0)
+	if ((td->td_dbgflags & TDB_COREDUMPREQ) == 0)
 		return;
 	KASSERT((p->p_flag & P_STOPPED_TRACE) != 0, ("not stopped"));
 
-	tcq = td->td_coredump;
-	KASSERT(tcq != NULL, ("td_coredump is NULL"));
+	tcq = td->td_remotereq;
+	KASSERT(tcq != NULL, ("td_remotereq is NULL"));
 
 	if (p->p_sysent->sv_coredump == NULL) {
 		tcq->tc_error = ENOSYS;
@@ -2586,8 +2586,8 @@ ptrace_coredump(struct thread *td)
 	vn_rangelock_unlock(tcq->tc_vp, rl_cookie);
 	PROC_LOCK(p);
 wake:
-	td->td_dbgflags &= ~TDB_COREDUMPRQ;
-	td->td_coredump = NULL;
+	td->td_dbgflags &= ~TDB_COREDUMPREQ;
+	td->td_remotereq = NULL;
 	wakeup(p);
 }
 
@@ -2721,7 +2721,7 @@ stopme:
 			td->td_dbgflags |= TDB_SSWITCH;
 			thread_suspend_switch(td, p);
 			td->td_dbgflags &= ~TDB_SSWITCH;
-			if ((td->td_dbgflags & TDB_COREDUMPRQ) != 0) {
+			if ((td->td_dbgflags & TDB_COREDUMPREQ) != 0) {
 				PROC_SUNLOCK(p);
 				ptrace_coredump(td);
 				PROC_SLOCK(p);
