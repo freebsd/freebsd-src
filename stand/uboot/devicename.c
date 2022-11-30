@@ -115,7 +115,8 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 
 #ifdef LOADER_DISK_SUPPORT
 	case DEVT_DISK:
-		err = disk_parsedev((struct disk_devdesc *)idev, np, path);
+		free(idev);
+		err = disk_parsedev((struct devdesc **)&idev, np, path);
 		if (err != 0)
 			goto fail;
 		break;

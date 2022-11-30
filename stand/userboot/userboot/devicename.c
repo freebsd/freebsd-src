@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "libzfs.h"
 #endif
 
-static int userboot_parsedev(struct disk_devdesc **dev, const char *devspec,
+static int userboot_parsedev(struct devdesc **dev, const char *devspec,
     const char **path);
 
 /*
@@ -49,7 +49,7 @@ static int userboot_parsedev(struct disk_devdesc **dev, const char *devspec,
 int
 userboot_getdev(void **vdev, const char *devspec, const char **path)
 {
-	struct disk_devdesc **dev = (struct disk_devdesc **)vdev;
+	struct devdesc **dev = (struct devdesc **)vdev;
 	int rv;
 
 	/*
@@ -87,10 +87,10 @@ userboot_getdev(void **vdev, const char *devspec, const char **path)
  *
  */
 static int
-userboot_parsedev(struct disk_devdesc **dev, const char *devspec,
+userboot_parsedev(struct devdesc **dev, const char *devspec,
     const char **path)
 {
-	struct disk_devdesc *idev;
+	struct devdesc *idev;
 	struct devsw *dv;
 	int i, unit, err;
 	const char *cp;
@@ -119,7 +119,8 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec,
 		break;
 
 	case DEVT_DISK:
-		err = disk_parsedev(idev, np, path);
+		free(idev);
+		err = disk_parsedev(&idev, np, path);
 		if (err != 0)
 			goto fail;
 		break;
@@ -143,13 +144,14 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec,
 			goto fail;
 		}
 
-		idev->dd.d_unit = unit;
+		idev->d_unit = unit;
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
 		break;
 
 	case DEVT_ZFS:
 #if defined(USERBOOT_ZFS_SUPPORT)
+		/* XXX assumes sizeof disk_devdesc >= sizeof zfs_devdesc */
 		err = zfs_parsedev((struct zfs_devdesc *)idev, np, path);
 		if (err != 0)
 			goto fail;
@@ -162,7 +164,7 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec,
 		err = EINVAL;
 		goto fail;
 	}
-	idev->dd.d_dev = dv;
+	idev->d_dev = dv;
 	if (dev == NULL) {
 		free(idev);
 	} else {
@@ -182,7 +184,7 @@ fail:
 int
 userboot_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-	struct disk_devdesc *ncurr;
+	struct devdesc *ncurr;
 	int rv;
 
 	if ((rv = userboot_parsedev(&ncurr, value, NULL)) != 0)

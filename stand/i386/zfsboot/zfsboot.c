@@ -168,7 +168,7 @@ main(void)
 {
 	unsigned i;
 	int auto_boot, fd, nextboot = 0;
-	struct disk_devdesc devdesc;
+	struct disk_devdesc *devdesc;
 
 	bios_getmem();
 
@@ -215,11 +215,13 @@ main(void)
 		if (devsw[i]->dv_init != NULL)
 			(devsw[i]->dv_init)();
 
-	disk_parsedev(&devdesc, boot_devname + 4, NULL);
+	/* XXX assumes this will be a disk, but it looks likely give above */
+	disk_parsedev((struct devdesc **)&devdesc, boot_devname + 4, NULL);
 
-	bootdev = MAKEBOOTDEV(dev_maj[DEVT_DISK], devdesc.d_slice + 1,
-	    devdesc.dd.d_unit,
-	    devdesc.d_partition >= 0 ? devdesc.d_partition : 0xff);
+	bootdev = MAKEBOOTDEV(dev_maj[DEVT_DISK], devdesc->d_slice + 1,
+	    devdesc->dd.d_unit,
+	    devdesc->d_partition >= 0 ? devdesc->d_partition : 0xff);
+	free(devdesc);
 
 	/*
 	 * devformat() can be called only after dv_init
