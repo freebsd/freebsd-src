@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <net.h>
 #include <netif.h>
 
+#include "libofw.h"
 #include "openfirm.h"
 
 static int	ofwn_probe(struct netif *, void *);
@@ -267,3 +268,77 @@ ofwn_getunit(const char *path)
 	return -1;
 }
 #endif
+
+/*
+ * To properly match network devices, we have to subclass the netdev device.
+ * It has a different devdesc than a normal network device (which is fine:
+ * it's a struct superset) and different matching criteria (since it has to
+ * look at the path, find a handle and see if that handle is a network node
+ * or not).
+ */
+
+static int ofwnd_init(void);
+static int ofwnd_parsedev(struct devdesc **, const char *, const char **);
+static bool ofwnd_match(struct devsw *, const char *);
+static char *ofwnd_fmtdev(struct devdesc *);
+
+struct devsw ofw_netdev = {
+	.dv_name = "network",
+	.dv_type = DEVT_NET,
+	.dv_init = ofwnd_init,
+	.dv_match = ofwnd_match,
+	.dv_fmtdev = ofwnd_fmtdev,
+	.dv_parsedev = ofwnd_parsedev,
+};
+
+static int ofwnd_init(void)
+{
+	netdev.dv_init();
+	ofw_netdev.dv_strategy = netdev.dv_strategy;
+	ofw_netdev.dv_open = netdev.dv_open;
+	ofw_netdev.dv_close = netdev.dv_close;
+	ofw_netdev.dv_ioctl = netdev.dv_ioctl;
+	ofw_netdev.dv_print = netdev.dv_print;
+	ofw_netdev.dv_fmtdev = netdev.dv_fmtdev;
+	/* parsedev is unique to ofwnd */
+	/* match is unique to ofwnd */
+	return (0);
+}
+
+static int
+ofwnd_parsedev(struct devdesc **dev, const char *devspec, const char **path)
+{
+	const char *rem_path;
+	struct ofw_devdesc *idev;
+
+	if (ofw_path_to_handle(devspec, ofw_netdev.dv_name, &rem_path) == -1)
+		return (ENOENT);
+	idev = malloc(sizeof(struct ofw_devdesc));
+	if (idev == NULL) {
+		printf("ofw_parsedev: malloc failed\n");
+		return ENOMEM;
+	};
+	strlcpy(idev->d_path, devspec, min(rem_path - devspec + 1,
+		sizeof(idev->d_path)));
+	if (dev != NULL)
+		*dev = &idev->dd;
+	if (path != NULL)
+		*path = rem_path;
+	return 0;
+}
+
+static bool
+ofwnd_match(struct devsw *devsw, const char *devspec)
+{
+	const char *path;
+
+	return (ofw_path_to_handle(devspec, devsw->dv_name, &path) != -1);
+}
+
+static char *
+ofwnd_fmtdev(struct devdesc *idev)
+{
+	struct ofw_devdesc *dev = (struct ofw_devdesc *)idev;
+
+	return (dev->d_path);
+}
