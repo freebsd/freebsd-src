@@ -428,9 +428,11 @@ kadmind_dispatch(void *kadm_handlep, krb5_boolean initial,
 	krb5_store_int32(sp, ret);
 	if(ret == 0){
 	    int i;
-	    krb5_store_int32(sp, n_princs);
+	    if ((ret = krb5_store_int32(sp, n_princs)))
+		goto fail;
 	    for(i = 0; i < n_princs; i++)
-		krb5_store_string(sp, princs[i]);
+		if ((ret = krb5_store_string(sp, princs[i])))
+			goto fail;
 	    kadm5_free_name_list(kadm_handlep, princs, &n_princs);
 	}
 	break;
@@ -451,7 +453,7 @@ fail:
     krb5_store_int32(sp, ret);
     krb5_storage_to_data(sp, out);
     krb5_storage_free(sp);
-    return 0;
+    return ret;
 }
 
 static void
