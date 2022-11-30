@@ -149,3 +149,21 @@ devparse(struct devdesc **dev, const char *devspec, const char **path)
 		free(idev);
 	return (0);
 }
+
+int
+devinit(void)
+{
+	int err = 0;
+
+	/*
+	 * March through the device switch probing for things.
+	 */
+	for (int i = 0; devsw[i] != NULL; i++) {
+		if (devsw[i]->dv_init != NULL) {
+			if ((devsw[i]->dv_init)() != 0) {
+				err++;
+			}
+		}
+	}
+	return (err);
+}

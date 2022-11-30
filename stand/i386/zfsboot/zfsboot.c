@@ -211,9 +211,7 @@ main(void)
 	env_setenv("currdev", EV_VOLATILE, "", i386_setcurrdev,
 	    env_nounset);
 
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
+	devinit();
 
 	/* XXX assumes this will be a disk, but it looks likely give above */
 	disk_parsedev((struct devdesc **)&devdesc, boot_devname + 4, NULL);
