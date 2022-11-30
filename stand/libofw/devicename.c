@@ -63,6 +63,38 @@ ofw_getdev(void **vdev, const char *devspec, const char **path)
 }
 
 /*
+ * Search the OFW (path) for a node that's of (want_type).
+ */
+phandle_t
+ofw_path_to_handle(const char *ofwpath, const char *want_type, const char **path)
+{
+	const char *p, *s;
+	char name[256];
+	char type[64];
+	phandle_t handle;
+	int len;
+
+	for (p = s = ofwpath; *s != '\0'; p = s) {
+		if ((s = strchr(p + 1, '/')) == NULL)
+			s = strchr(p, '\0');
+		len = s - ofwpath;
+		if (len >= sizeof(name))
+			return ((phandle_t)-1);
+		bcopy(ofwpath, name, len);
+		name[len] = '\0';
+		if ((handle = OF_finddevice(name)) == -1)
+			continue;
+		if (OF_getprop(handle, "device_type", type, sizeof(type)) == -1)
+			continue;
+		if (strcmp(want_type, type) == 0) {
+			*path = s;
+			return (handle);
+		}
+	}
+	return ((phandle_t)-1);
+}
+
+/*
  * Point (dev) at an allocated device specifier matching the string version
  * at the beginning of (devspec).  Return a pointer to the remaining
  * text in (path).
@@ -82,6 +114,7 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     int			len;
     int			i;
 
+    /* XXX next step: use devparse -- don't forget to hack ofw_disk like you did ofw_net */
     for (p = s = devspec; *s != '\0'; p = s) {
 	if ((s = strchr(p + 1, '/')) == NULL)
 	    s = strchr(p, '\0');
