@@ -28,6 +28,8 @@
 #include "openfirm.h"
 #include <readin.h>
 
+#define DEVT_OFDISK	1001
+
 struct ofw_devdesc {
 	struct devdesc			dd;
 	union {
