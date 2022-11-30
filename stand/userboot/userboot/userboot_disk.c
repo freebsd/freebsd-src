@@ -73,6 +73,7 @@ struct devsw userboot_disk = {
 	.dv_print = userdisk_print,
 	.dv_cleanup = userdisk_cleanup,
 	.dv_fmtdev = disk_fmtdev,
+	.dv_parsedev = disk_parsedev,
 };
 
 /*
