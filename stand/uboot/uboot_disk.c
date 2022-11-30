@@ -91,6 +91,7 @@ struct devsw uboot_storage = {
 	.dv_print = stor_print,
 	.dv_cleanup = stor_cleanup,
 	.dv_fmtdev = disk_fmtdev,
+	.dv_parsedev = disk_parsedev,
 };
 
 static int

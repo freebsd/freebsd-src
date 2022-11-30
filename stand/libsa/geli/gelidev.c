@@ -63,6 +63,7 @@ static struct devsw geli_devsw = {
 	.dv_print    = geli_dev_print,
 	.dv_cleanup  = geli_dev_cleanup,
 	.dv_fmtdev   = disk_fmtdev,
+	.dv_parsedev = disk_parsedev,
 };
 
 /*
