@@ -1574,14 +1574,13 @@ _if_delgroup_locked(struct ifnet *ifp, struct ifg_list *ifgl,
 	IFNET_WUNLOCK();
 
 	epoch_wait_preempt(net_epoch_preempt);
+	EVENTHANDLER_INVOKE(group_change_event, groupname);
 	if (freeifgl) {
 		EVENTHANDLER_INVOKE(group_detach_event, ifgl->ifgl_group);
 		free(ifgl->ifgl_group, M_TEMP);
 	}
 	free(ifgm, M_TEMP);
 	free(ifgl, M_TEMP);
-
-	EVENTHANDLER_INVOKE(group_change_event, groupname);
 }
 
 /*

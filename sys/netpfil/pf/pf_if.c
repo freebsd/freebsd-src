@@ -340,14 +340,11 @@ pfi_kkif_ref(struct pfi_kkif *kif)
 	kif->pfik_rulerefs++;
 }
 
-void
-pfi_kkif_unref(struct pfi_kkif *kif)
+static void
+pfi_kkif_remove_if_unref(struct pfi_kkif *kif)
 {
 
 	PF_RULES_WASSERT();
-	KASSERT(kif->pfik_rulerefs > 0, ("%s: %p has zero refs", __func__, kif));
-
-	kif->pfik_rulerefs--;
 
 	if (kif->pfik_rulerefs > 0)
 		return;
@@ -365,6 +362,18 @@ pfi_kkif_unref(struct pfi_kkif *kif)
 	mtx_lock(&pfi_unlnkdkifs_mtx);
 	LIST_INSERT_HEAD(&V_pfi_unlinked_kifs, kif, pfik_list);
 	mtx_unlock(&pfi_unlnkdkifs_mtx);
+}
+
+void
+pfi_kkif_unref(struct pfi_kkif *kif)
+{
+
+	PF_RULES_WASSERT();
+	KASSERT(kif->pfik_rulerefs > 0, ("%s: %p has zero refs", __func__, kif));
+
+	kif->pfik_rulerefs--;
+
+	pfi_kkif_remove_if_unref(kif);
 }
 
 void
@@ -1012,6 +1021,8 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 #ifdef ALTQ
 	pf_altq_ifnet_event(ifp, 1);
 #endif
+	pfi_kkif_remove_if_unref(kif);
+
 	PF_RULES_WUNLOCK();
 }
 
@@ -1061,6 +1072,8 @@ pfi_detach_group_event(void *arg __unused, struct ifg_group *ifg)
 
 	kif->pfik_group = NULL;
 	ifg->ifg_pf_kif = NULL;
+
+	pfi_kkif_remove_if_unref(kif);
 	PF_RULES_WUNLOCK();
 }
 
