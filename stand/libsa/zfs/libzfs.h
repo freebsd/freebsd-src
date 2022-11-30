@@ -48,8 +48,6 @@ struct zfs_devdesc {
 	uint64_t	root_guid;
 };
 
-int	zfs_parsedev(struct devdesc **dev, const char *devspec,
-		     const char **path);
 char	*zfs_fmtdev(struct devdesc *);
 int	zfs_probe_dev(const char *devname, uint64_t *pool_guid);
 int	zfs_list(const char *name);

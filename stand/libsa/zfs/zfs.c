@@ -66,6 +66,9 @@ static void	zfs_bootenv_initial(const char *envname, spa_t *spa,
 static void	zfs_checkpoints_initial(spa_t *spa, const char *name,
 		    const char *dsname);
 
+static int	zfs_parsedev(struct devdesc **idev, const char *devspec,
+		    const char **path);
+
 struct devsw zfs_dev;
 
 struct fs_ops zfs_fsops = {
@@ -1629,7 +1632,7 @@ struct devsw zfs_dev = {
 	.dv_parsedev = zfs_parsedev,
 };
 
-int
+static int
 zfs_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 {
 	static char	rootname[ZFS_MAXNAMELEN];

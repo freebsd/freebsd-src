@@ -31,13 +31,6 @@ __FBSDID("$FreeBSD$");
 #include "libzfs.h"
 
 __attribute__((weak))
-int
-zfs_parsedev(struct devdesc **dev, const char *devspec, const char **path)
-{
-	return (EINVAL);
-}
-
-__attribute__((weak))
 char *
 zfs_fmtdev(struct devdesc *vdev)
 {
