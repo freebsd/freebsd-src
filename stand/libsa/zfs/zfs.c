@@ -382,13 +382,8 @@ zfs_mount(const char *dev, const char *path, void **data)
 	int rv;
 
 	errno = 0;
-	zfsdev = malloc(sizeof(*zfsdev));
-	if (zfsdev == NULL)
-		return (errno);
-
-	rv = zfs_parsedev(zfsdev, dev + 3, NULL);
+	rv = zfs_parsedev((struct devdesc **)&zfsdev, dev + 3, NULL);
 	if (rv != 0) {
-		free(zfsdev);
 		return (rv);
 	}
 
@@ -1634,7 +1629,7 @@ struct devsw zfs_dev = {
 };
 
 int
-zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
+zfs_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 {
 	static char	rootname[ZFS_MAXNAMELEN];
 	static char	poolname[ZFS_MAXNAMELEN];
@@ -1643,6 +1638,7 @@ zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
 	const char	*np;
 	const char	*sep;
 	int		rv;
+	struct zfs_devdesc *dev;
 
 	np = devspec;
 	if (*np != ':')
@@ -1667,13 +1663,19 @@ zfs_parsedev(struct zfs_devdesc *dev, const char *devspec, const char **path)
 	spa = spa_find_by_name(poolname);
 	if (!spa)
 		return (ENXIO);
+	dev = malloc(sizeof(*dev));
+	if (dev == NULL)
+		return (ENOMEM);
 	dev->pool_guid = spa->spa_guid;
 	rv = zfs_lookup_dataset(spa, rootname, &dev->root_guid);
-	if (rv != 0)
+	if (rv != 0) {
+		free(dev);
 		return (rv);
+	}
 	if (path != NULL)
 		*path = (*end == '\0') ? end : end + 1;
 	dev->dd.d_dev = &zfs_dev;
+	*idev = &dev->dd;
 	return (0);
 }
 
