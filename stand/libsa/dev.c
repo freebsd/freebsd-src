@@ -67,3 +67,85 @@ devformat(struct devdesc *d)
 	snprintf(name, sizeof(name), "%s%d:", d->d_dev->dv_name, d->d_unit);
 	return (name);
 }
+
+/* NB: devspec points to the remainder of the device name after dv_name */
+static int
+default_parsedev(struct devdesc **dev, const char *devspec,
+    const char **path)
+{
+	struct devdesc *idev;
+	int unit, err;
+	char *cp;
+
+	idev = malloc(sizeof(struct devdesc));
+	if (idev == NULL)
+		return (ENOMEM);
+
+	unit = 0;
+	cp = (char *)devspec;	/* strtol interface, alas */
+
+	if (*devspec != '\0' && *devspec != ':') {
+		errno = 0;
+		unit = strtol(devspec, &cp, 0);
+		if (errno != 0 || cp == devspec) {
+			err = EUNIT;
+			goto fail;
+		}
+	}
+	if (*cp != '\0' && *cp != ':') {
+		err = EINVAL;
+		goto fail;
+	}
+
+	idev->d_unit = unit;
+	if (path != NULL)
+		*path = (*cp == 0) ? cp : cp + 1;
+	if (dev != NULL)	/* maybe this can be required? */
+		*dev = idev;
+	else
+		free(idev);
+	return (0);
+fail:
+	free(idev);
+	return (err);
+}
+
+/* NB: devspec points to the whole device spec, and possible trailing path */
+int
+devparse(struct devdesc **dev, const char *devspec, const char **path)
+{
+	struct devdesc *idev;
+	struct devsw *dv;
+	int i, err;
+	const char *np;
+
+	/* minimum length check */
+	if (strlen(devspec) < 2)
+		return (EINVAL);
+
+	/* look for a device that matches */
+	for (i = 0; devsw[i] != NULL; i++) {
+		dv = devsw[i];
+		if (!strncmp(devspec, dv->dv_name, strlen(dv->dv_name)))
+			break;
+	}
+	if (devsw[i] == NULL)
+		return (ENOENT);
+	idev = NULL;
+	err = 0;
+	if (dv->dv_parsedev) {
+		err = dv->dv_parsedev(&idev, np, path);
+	} else {
+		np = devspec + strlen(dv->dv_name);
+		err = default_parsedev(&idev, np, path);
+	}
+	if (err != 0)
+		return (err);
+
+	idev->d_dev = dv;
+	if (dev != NULL)
+		*dev = idev;
+	else
+		free(idev);
+	return (0);
+}
