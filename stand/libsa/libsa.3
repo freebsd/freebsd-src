@@ -537,6 +537,14 @@ is non-NULL, then a pointer to the remainder of the
 .Dv devdesc
 string after the device specification is written.
 .It Xo
+.Ft int
+.Fn devinit void
+Calls all the
+.Fa dv_init
+routines in the
+.Dv devsw
+array, returning the number of routines that returned an error.
+.It Xo
 .Ft void
 .Fn twiddle void
 .Xc

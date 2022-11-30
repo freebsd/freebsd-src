@@ -182,12 +182,7 @@ main(int (*openfirm)(void *))
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE, "", ofw_setcurrdev, env_nounset);
 
-	/*
-	 * March through the device switch probing for things.
-	 */
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
+	devinit();
 
 	printf("\n%s", bootprog_info);
 	printf("Memory: %lldKB\n", memsize() / 1024);
