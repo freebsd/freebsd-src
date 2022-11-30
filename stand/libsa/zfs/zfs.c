@@ -1626,6 +1626,7 @@ struct devsw zfs_dev = {
 	.dv_print = zfs_dev_print,
 	.dv_cleanup = nullsys,
 	.dv_fmtdev = zfs_fmtdev,
+	.dv_parsedev = zfs_parsedev,
 };
 
 int
