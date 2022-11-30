@@ -313,9 +313,6 @@ int vm_restore_time(struct vm *vm);
  * The rendezvous 'func(arg)' is not allowed to do anything that will
  * cause the thread to be put to sleep.
  *
- * If the rendezvous is being initiated from a vcpu context then the
- * 'vcpuid' must refer to that vcpu, otherwise it should be set to -1.
- *
  * The caller cannot hold any locks when initiating the rendezvous.
  *
  * The implementation of this API may cause vcpus other than those specified
