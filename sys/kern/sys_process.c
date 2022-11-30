@@ -592,6 +592,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_lwpinfo pl;
 		struct ptrace_vm_entry pve;
 		struct ptrace_coredump pc;
+		struct ptrace_sc_remote sr;
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -600,6 +601,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_sc_ret psr;
 		int ptevents;
 	} r;
+	syscallarg_t pscr_args[nitems(td->td_sa.args)];
 	void *addr;
 	int error;
 
@@ -657,6 +659,24 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		else
 			error = copyin(uap->addr, &r.pc, uap->data);
 		break;
+	case PT_SC_REMOTE:
+		if (uap->data != sizeof(r.sr)) {
+			error = EINVAL;
+			break;
+		}
+		error = copyin(uap->addr, &r.sr, uap->data);
+		if (error != 0)
+			break;
+		if (r.sr.pscr_nargs > nitems(td->td_sa.args)) {
+			error = EINVAL;
+			break;
+		}
+		error = copyin(r.sr.pscr_args, pscr_args,
+		    sizeof(u_long) * r.sr.pscr_nargs);
+		if (error != 0)
+			break;
+		r.sr.pscr_args = pscr_args;
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -702,6 +722,11 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GET_SC_RET:
 		error = copyout(&r.psr, uap->addr, MIN(uap->data,
 		    sizeof(r.psr)));
+		break;
+	case PT_SC_REMOTE:
+		error = copyout(&r.sr.pscr_ret, uap->addr +
+		    offsetof(struct ptrace_sc_remote, pscr_ret),
+		    sizeof(r.sr.pscr_ret));
 		break;
 	}
 
@@ -812,9 +837,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct ptrace_io_desc *piod = NULL;
 	struct ptrace_lwpinfo *pl;
 	struct ptrace_sc_ret *psr;
+	struct ptrace_sc_remote *pscr;
 	struct file *fp;
 	struct ptrace_coredump *pc;
 	struct thr_coredump_req *tcq;
+	struct thr_syscall_req *tsr;
 	int error, num, tmp;
 	lwpid_t tid = 0, *buf;
 #ifdef COMPAT_FREEBSD32
@@ -1559,7 +1586,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			error = EBUSY;
 			goto coredump_cleanup_locked;
 		}
-		KASSERT((td2->td_dbgflags & TDB_COREDUMPREQ) == 0,
+		KASSERT((td2->td_dbgflags & (TDB_COREDUMPREQ |
+		    TDB_SCREMOTEREQ)) == 0,
 		    ("proc %d tid %d req coredump", p->p_pid, td2->td_tid));
 
 		tcq->tc_vp = fp->f_vnode;
@@ -1582,6 +1610,50 @@ coredump_cleanup:
 coredump_cleanup_nofp:
 		free(tcq, M_TEMP);
 		PROC_LOCK(p);
+		break;
+
+	case PT_SC_REMOTE:
+		pscr = addr;
+		CTR2(KTR_PTRACE, "PT_SC_REMOTE: pid %d, syscall %d",
+		    p->p_pid, pscr->pscr_syscall);
+		if ((td2->td_dbgflags & TDB_BOUNDARY) == 0) {
+			error = EBUSY;
+			break;
+		}
+		PROC_UNLOCK(p);
+		MPASS(pscr->pscr_nargs <= nitems(td->td_sa.args));
+
+		tsr = malloc(sizeof(struct thr_syscall_req), M_TEMP,
+		    M_WAITOK | M_ZERO);
+
+		tsr->ts_sa.code = pscr->pscr_syscall;
+		tsr->ts_nargs = pscr->pscr_nargs;
+		memcpy(&tsr->ts_sa.args, pscr->pscr_args,
+		    sizeof(syscallarg_t) * tsr->ts_nargs);
+
+		PROC_LOCK(p);
+		error = proc_can_ptrace(td, p);
+		if (error != 0) {
+			free(tsr, M_TEMP);
+			break;
+		}
+		if (td2->td_proc != p) {
+			free(tsr, M_TEMP);
+			error = ESRCH;
+			break;
+		}
+		KASSERT((td2->td_dbgflags & (TDB_COREDUMPREQ |
+		    TDB_SCREMOTEREQ)) == 0,
+		    ("proc %d tid %d req coredump", p->p_pid, td2->td_tid));
+
+		td2->td_remotereq = tsr;
+		td2->td_dbgflags |= TDB_SCREMOTEREQ;
+		thread_run_flash(td2);
+		while ((td2->td_dbgflags & TDB_SCREMOTEREQ) != 0)
+			msleep(p, &p->p_mtx, PPAUSE, "pscrx", 0);
+		error = 0;
+		memcpy(&pscr->pscr_ret, &tsr->ts_ret, sizeof(tsr->ts_ret));
+		free(tsr, M_TEMP);
 		break;
 
 	default:
