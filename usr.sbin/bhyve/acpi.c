@@ -693,6 +693,37 @@ build_rsdt(struct vmctx *const ctx)
 }
 
 static int
+build_spcr(struct vmctx *const ctx)
+{
+	ACPI_TABLE_SPCR spcr;
+	struct basl_table *table;
+
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_SIG_SPCR,
+	    BASL_TABLE_ALIGNMENT));
+
+	memset(&spcr, 0, sizeof(spcr));
+	BASL_EXEC(basl_table_append_header(table, ACPI_SIG_SPCR, 1, 1));
+	spcr.InterfaceType = ACPI_DBG2_16550_COMPATIBLE;
+	basl_fill_gas(&spcr.SerialPort, ACPI_ADR_SPACE_SYSTEM_IO, 8, 0,
+	    ACPI_GAS_ACCESS_WIDTH_LEGACY, 0x3F8);
+	spcr.InterruptType = ACPI_SPCR_INTERRUPT_TYPE_8259;
+	spcr.PcInterrupt = 4;
+	spcr.BaudRate = ACPI_SPCR_BAUD_RATE_115200;
+	spcr.Parity = ACPI_SPCR_PARITY_NO_PARITY;
+	spcr.StopBits = ACPI_SPCR_STOP_BITS_1;
+	spcr.FlowControl = 3; /* RTS/CTS | DCD */
+	spcr.TerminalType = ACPI_SPCR_TERMINAL_TYPE_VT_UTF8;
+	BASL_EXEC(basl_table_append_content(table, &spcr, sizeof(spcr)));
+
+	BASL_EXEC(basl_table_append_pointer(rsdt, ACPI_SIG_SPCR,
+	    ACPI_RSDT_ENTRY_SIZE));
+	BASL_EXEC(basl_table_append_pointer(xsdt, ACPI_SIG_SPCR,
+	    ACPI_XSDT_ENTRY_SIZE));
+
+	return (0);
+}
+
+static int
 build_xsdt(struct vmctx *const ctx)
 {
 	BASL_EXEC(
@@ -749,6 +780,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(build_hpet(ctx));
 	BASL_EXEC(build_mcfg(ctx));
 	BASL_EXEC(build_facs(ctx));
+	BASL_EXEC(build_spcr(ctx));
 	BASL_EXEC(build_dsdt(ctx));
 
 	BASL_EXEC(basl_finish());
