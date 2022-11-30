@@ -49,10 +49,12 @@ static int	ofwd_open(struct open_file *f, ...);
 static int	ofwd_close(struct open_file *f);
 static int	ofwd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int	ofwd_print(int verbose);
+static char *	ofwd_fmtdev(struct devdesc *);
+
 
 struct devsw ofwdisk = {
 	.dv_name = "block",
-	.dv_type = DEVT_DISK,
+	.dv_type = DEVT_OFDISK,
 	.dv_init = ofwd_init,
 	.dv_strategy = ofwd_strategy,
 	.dv_open = ofwd_open,
@@ -60,8 +62,7 @@ struct devsw ofwdisk = {
 	.dv_ioctl = ofwd_ioctl,
 	.dv_print = ofwd_print,
 	.dv_cleanup = nullsys,
-	.dv_fmtdev = disk_fmtdev,
-	.dv_parsedev = disk_parsedev,
+	.dv_fmtdev = ofwd_fmtdev,
 };
 
 /*
@@ -184,4 +185,11 @@ static int
 ofwd_print(int verbose __unused)
 {
 	return (0);
+}
+static char *
+ofwd_fmtdev(struct devdesc *idev)
+{
+	struct ofw_devdesc *dev = (struct ofw_devdesc *)idev;
+
+	return (dev->d_path);
 }
