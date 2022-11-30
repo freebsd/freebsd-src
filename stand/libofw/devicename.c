@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "libofw.h"
-#include "libzfs.h"
 
 static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
 
@@ -109,15 +108,16 @@ found:
 	printf("ofw_parsedev: malloc failed\n");
 	return ENOMEM;
     }
-    strcpy(idev->d_path, name);
     idev->dd.d_dev = dv;
-    if (dv->dv_type == DEVT_ZFS) {
+    if (dv->dv_parsedev != NULL) {
 	p = devspec + strlen(dv->dv_name);
 	free(idev);
-	err = zfs_parsedev((struct devdesc **)&idev, p, path);
+	err = dv->dv_parsedev((struct devdesc **)&idev, p, path);
 	if (err != 0) {
 	    return (err);
 	}
+    } else {
+	strcpy(idev->d_path, name);
     }
 
     if (dev == NULL) {
