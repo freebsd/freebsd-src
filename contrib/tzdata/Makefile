@@ -196,6 +196,7 @@ PACKRATLIST=
 UTF8_LOCALE=	en_US.utf8
 
 # Non-default libraries needed to link.
+# On some hosts, this should have -lintl unless CFLAGS has -DHAVE_GETTEXT=0.
 LDLIBS=
 
 # Add the following to the end of the "CFLAGS=" line as needed to override
@@ -208,14 +209,18 @@ LDLIBS=
 #	For example, N is 252460800 on AmigaOS.
 #  -DHAVE_DECL_ASCTIME_R=0 if <time.h> does not declare asctime_r
 #  -DHAVE_DECL_ENVIRON if <unistd.h> declares 'environ'
+#  -DHAVE_DECL_TIMEGM=0 if <time.h> does not declare timegm
 #  -DHAVE_DIRECT_H if mkdir needs <direct.h> (MS-Windows)
-#  -DHAVE_GENERIC=0 if _Generic does not work
-#  -DHAVE_GETRANDOM if getgrandom works (e.g., GNU/Linux)*
-#  -DHAVE_GETTEXT if 'gettext' works (e.g., GNU/Linux, FreeBSD, Solaris)*
+#  -DHAVE_GENERIC=0 if _Generic does not work*
+#  -DHAVE_GETRANDOM if getrandom works (e.g., GNU/Linux),
+#	-DHAVE_GETRANDOM=0 to avoid using getrandom
+#  -DHAVE_GETTEXT if gettext works (e.g., GNU/Linux, FreeBSD, Solaris),
+#	where LDLIBS also needs to contain -lintl on some hosts;
+#	-DHAVE_GETTEXT=0 to avoid using gettext
 #  -DHAVE_INCOMPATIBLE_CTIME_R if your system's time.h declares
 #	ctime_r and asctime_r incompatibly with the POSIX standard
 #	(Solaris when _POSIX_PTHREAD_SEMANTICS is not defined).
-#  -DHAVE_INTTYPES_H if you have a non-C99 compiler with <inttypes.h>
+#  -DHAVE_INTTYPES_H=0 if <inttypes.h> does not work*
 #  -DHAVE_LINK=0 if your system lacks a link function
 #  -DHAVE_LOCALTIME_R=0 if your system lacks a localtime_r function
 #  -DHAVE_LOCALTIME_RZ=0 if you do not want zdump to use localtime_rz
@@ -225,15 +230,17 @@ LDLIBS=
 #	functions like 'link' or variables like 'tzname' required by POSIX
 #  -DHAVE_SETENV=0 if your system lacks the setenv function
 #  -DHAVE_SNPRINTF=0 if your system lacks the snprintf function
-#  -DHAVE_STDINT_H if you have a non-C99 compiler with <stdint.h>*
+#  -DHAVE_STDCKDINT_H=0 if neither <stdckdint.h> nor substitutes like
+#	__builtin_add_overflow work*
+#  -DHAVE_STDINT_H=0 if <stdint.h> does not work*
 #  -DHAVE_STRFTIME_L if <time.h> declares locale_t and strftime_l
 #  -DHAVE_STRDUP=0 if your system lacks the strdup function
 #  -DHAVE_STRTOLL=0 if your system lacks the strtoll function
 #  -DHAVE_SYMLINK=0 if your system lacks the symlink function
-#  -DHAVE_SYS_STAT_H=0 if your compiler lacks a <sys/stat.h>*
+#  -DHAVE_SYS_STAT_H=0 if <sys/stat.h> does not work*
 #  -DHAVE_TZSET=0 if your system lacks a tzset function
-#  -DHAVE_UNISTD_H=0 if your compiler lacks a <unistd.h>*
-#  -DHAVE_UTMPX_H=0 if your compiler lacks a <utmpx.h>*
+#  -DHAVE_UNISTD_H=0 if <unistd.h> does not work*
+#  -DHAVE_UTMPX_H=0 if <utmpx.h> does not work*
 #  -Dlocale_t=XXX if your system uses XXX instead of locale_t
 #  -DRESERVE_STD_EXT_IDS if your platform reserves standard identifiers
 #	with external linkage, e.g., applications cannot define 'localtime'.
@@ -280,7 +287,7 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
   -Wdeclaration-after-statement -Wdouble-promotion \
   -Wduplicated-branches -Wduplicated-cond \
   -Wformat=2 -Wformat-overflow=2 -Wformat-signedness -Wformat-truncation \
-  -Winit-self -Wlogical-op \
+  -Wimplicit-fallthrough=5 -Winit-self -Wlogical-op \
   -Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
   -Wnull-dereference \
   -Wold-style-definition -Woverlength-strings -Wpointer-arith \
@@ -293,7 +300,7 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
   -Wtrampolines -Wundef -Wuninitialized -Wunused-macros -Wuse-after-free=3 \
   -Wvariadic-macros -Wvla -Wwrite-strings \
   -Wno-address -Wno-format-nonliteral -Wno-sign-compare \
-  -Wno-type-limits -Wno-unused-parameter
+  -Wno-type-limits
 #
 # If your system has a "GMT offset" field in its "struct tm"s
 # (or if you decide to add such a field in your system's "time.h" file),
@@ -340,14 +347,11 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 -fno-common \
 # If you want functions that were inspired by early versions of X3J11's work,
 # add
 #	-DSTD_INSPIRED
-# to the end of the "CFLAGS=" line.  This arranges for the functions
-# "offtime", "timelocal", "timegm", "timeoff",
-# "posix2time", and "time2posix" to be added to the time conversion library.
+# to the end of the "CFLAGS=" line.  This arranges for the following
+# functions to be added to the time conversion library.
 # "offtime" is like "gmtime" except that it accepts a second (long) argument
 # that gives an offset to add to the time_t when converting it.
 # "timelocal" is equivalent to "mktime".
-# "timegm" is like "timelocal" except that it turns a struct tm into
-# a time_t using UT (rather than local time as "timelocal" does).
 # "timeoff" is like "timegm" except that it accepts a second (long) argument
 # that gives an offset to use when converting to a time_t.
 # "posix2time" and "time2posix" are described in an included manual page.
@@ -494,6 +498,11 @@ TARFLAGS=	`if tar $(GNUTARFLAGS) --version >/dev/null 2>&1; \
 
 # Flags to give 'gzip' when making a distribution.
 GZIPFLAGS=	-9n
+
+# When comparing .tzs files, use GNU diff's -F'^TZ=' option if supported.
+# This makes it easier to see which Zone has been affected.
+DIFF_TZS=	 diff -u$$(! diff -u -F'^TZ=' - - <>/dev/null >&0 2>&1 \
+			   || echo ' -F^TZ=')
 
 ###############################################################################
 
@@ -773,7 +782,8 @@ tzselect:	tzselect.ksh version
 		chmod +x $@.out
 		mv $@.out $@
 
-check:		check_character_set check_white_space check_links \
+check: check_back check_mild
+check_mild:	check_character_set check_white_space check_links \
 		  check_name_lengths check_slashed_abbrs check_sorted \
 		  check_tables check_web check_ziguard check_zishrink check_tzs
 
@@ -824,16 +834,19 @@ check_slashed_abbrs: $(TDATA_TO_CHECK)
 CHECK_CC_LIST = { n = split($$1,a,/,/); for (i=2; i<=n; i++) print a[1], a[i]; }
 
 check_sorted: backward backzone iso3166.tab zone.tab zone1970.tab
-		$(AWK) '/^Link/ {printf "%.5d %s\n", g, $$3} /^$$/ {g++}' \
+		$(AWK) '/^Link/ {printf "%.5d %s\n", g, $$3} !/./ {g++}' \
 		  backward | LC_ALL=C sort -cu
 		$(AWK) '/^Zone/ {print $$2}' backzone | LC_ALL=C sort -cu
 		touch $@
 
-check_links:	checklinks.awk $(TDATA_TO_CHECK) tzdata.zi
+check_back:	checklinks.awk $(TDATA_TO_CHECK)
 		$(AWK) \
 		  -v DATAFORM=$(DATAFORM) \
 		  -v backcheck=backward \
 		  -f checklinks.awk $(TDATA_TO_CHECK)
+		touch $@
+
+check_links:	checklinks.awk tzdata.zi
 		$(AWK) \
 		  -v DATAFORM=$(DATAFORM) \
 		  -f checklinks.awk tzdata.zi
@@ -849,7 +862,7 @@ check_tables:	checktab.awk $(YDATA) backward $(ZONETABLES)
 
 check_tzs:	$(TZS) $(TZS_NEW)
 		if test -s $(TZS); then \
-		  diff -u $(TZS) $(TZS_NEW); \
+		  $(DIFF_TZS) $(TZS) $(TZS_NEW); \
 		else \
 		  cp $(TZS_NEW) $(TZS); \
 		fi
@@ -1050,7 +1063,7 @@ $(TIME_T_ALTERNATIVES): $(VERSION_DEPS)
 		      TZS_YEAR="$$range" TZS_CUTOFF_FLAG="-t $$range" \
 			D=$$wd/$@.dir \
 		      to$$range.tzs) && \
-		  diff -u $(TIME_T_ALTERNATIVES_HEAD).dir/to$$range.tzs \
+		  $(DIFF_TZS) $(TIME_T_ALTERNATIVES_HEAD).dir/to$$range.tzs \
 			  $@.dir/to$$range.tzs && \
 		  if diff -q Makefile Makefile 2>/dev/null; then \
 		    quiet_option='-q'; \
@@ -1220,7 +1233,7 @@ zdump.o:	version.h
 zic.o:		private.h tzfile.h version.h
 
 .PHONY: ALL INSTALL all
-.PHONY: check check_time_t_alternatives
+.PHONY: check check_mild check_time_t_alternatives
 .PHONY: check_web check_zishrink
 .PHONY: clean clean_misc dummy.zd force_tzs
 .PHONY: install install_data maintainer-clean names
