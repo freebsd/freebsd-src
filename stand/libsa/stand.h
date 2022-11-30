@@ -160,6 +160,7 @@ struct devsw {
     int		(*dv_print)(int verbose);	/* print device information */
     void	(*dv_cleanup)(void);
     char *	(*dv_fmtdev)(struct devdesc *);
+    int		(*dv_parsedev)(struct devdesc **, const char *, const char **);
 };
 
 /*
