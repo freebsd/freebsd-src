@@ -61,6 +61,8 @@ extern int	ofw_autoload(void);
 
 void	ofw_memmap(int);
 
+phandle_t ofw_path_to_handle(const char *ofwpath, const char *want_type, const char **path);
+
 struct preloaded_file;
 struct file_format;
 
