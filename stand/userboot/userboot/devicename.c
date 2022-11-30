@@ -34,13 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libuserboot.h"
 
-#if defined(USERBOOT_ZFS_SUPPORT)
-#include "libzfs.h"
-#endif
-
-static int userboot_parsedev(struct devdesc **dev, const char *devspec,
-    const char **path);
-
 /*
  * Point (dev) at an allocated device specifier for the device matching the
  * path in (devspec). If it contains an explicit device specification,
@@ -60,7 +53,7 @@ userboot_getdev(void **vdev, const char *devspec, const char **path)
 	    (devspec[0] == '/') ||
 	    (strchr(devspec, ':') == NULL)) {
 
-		rv = userboot_parsedev(dev, getenv("currdev"), NULL);
+		rv = devparse(dev, getenv("currdev"), NULL);
 		if (rv == 0 && path != NULL)
 			*path = devspec;
 		return (rv);
@@ -69,114 +62,8 @@ userboot_getdev(void **vdev, const char *devspec, const char **path)
 	/*
 	 * Try to parse the device name off the beginning of the devspec
 	 */
-	return (userboot_parsedev(dev, devspec, path));
+	return (devparse(dev, devspec, path));
 }
-
-/*
- * Point (dev) at an allocated device specifier matching the string version
- * at the beginning of (devspec).  Return a pointer to the remaining
- * text in (path).
- *
- * In all cases, the beginning of (devspec) is compared to the names
- * of known devices in the device switch, and then any following text
- * is parsed according to the rules applied to the device type.
- *
- * For disk-type devices, the syntax is:
- *
- * disk<unit>[s<slice>][<partition>]:
- *
- */
-static int
-userboot_parsedev(struct devdesc **dev, const char *devspec,
-    const char **path)
-{
-	struct devdesc *idev;
-	struct devsw *dv;
-	int i, unit, err;
-	const char *cp;
-	const char *np;
-
-	/* minimum length check */
-	if (strlen(devspec) < 2)
-		return (EINVAL);
-
-	/* look for a device that matches */
-	for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
-		if (strncmp(devspec, devsw[i]->dv_name,
-		    strlen(devsw[i]->dv_name)) == 0) {
-			dv = devsw[i];
-			break;
-		}
-	}
-	if (dv == NULL)
-		return (ENOENT);
-	idev = malloc(sizeof(struct disk_devdesc));
-	err = 0;
-	np = (devspec + strlen(dv->dv_name));
-
-	switch (dv->dv_type) {
-	case DEVT_NONE:			/* XXX what to do here?  Do we care? */
-		break;
-
-	case DEVT_DISK:
-		free(idev);
-		err = disk_parsedev(&idev, np, path);
-		if (err != 0)
-			goto fail;
-		break;
-
-	case DEVT_CD:
-	case DEVT_NET:
-		unit = 0;
-
-		if (*np && (*np != ':')) {
-			/* get unit number if present */
-			unit = strtol(np, (char **)&cp, 0);
-			if (cp == np) {
-				err = EUNIT;
-				goto fail;
-			}
-		} else {
-			cp = np;
-		}
-		if (*cp && (*cp != ':')) {
-			err = EINVAL;
-			goto fail;
-		}
-
-		idev->d_unit = unit;
-		if (path != NULL)
-			*path = (*cp == 0) ? cp : cp + 1;
-		break;
-
-	case DEVT_ZFS:
-#if defined(USERBOOT_ZFS_SUPPORT)
-		free(idev);
-		err = zfs_parsedev(&idev, np, path);
-		if (err != 0)
-			goto fail;
-		break;
-#else
-		/* FALLTHROUGH */
-#endif
-
-	default:
-		err = EINVAL;
-		goto fail;
-	}
-	idev->d_dev = dv;
-	if (dev == NULL) {
-		free(idev);
-	} else {
-		*dev = idev;
-	}
-	return (0);
-
-fail:
-	free(idev);
-	return (err);
-}
-
 
 /*
  * Set currdev to suit the value being supplied in (value)
@@ -187,7 +74,7 @@ userboot_setcurrdev(struct env_var *ev, int flags, const void *value)
 	struct devdesc *ncurr;
 	int rv;
 
-	if ((rv = userboot_parsedev(&ncurr, value, NULL)) != 0)
+	if ((rv = devparse(&ncurr, value, NULL)) != 0)
 		return (rv);
 	free(ncurr);
 
