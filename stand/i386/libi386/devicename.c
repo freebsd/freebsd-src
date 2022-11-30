@@ -84,7 +84,7 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
 static int
 i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 {
-    struct i386_devdesc *idev;
+    struct i386_devdesc *idev = NULL;
     struct devsw	*dv;
     int			i, unit, err;
     char		*cp;
@@ -113,11 +113,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	break;
 
     case DEVT_DISK:
-	idev = malloc(sizeof(struct i386_devdesc));
-	if (idev == NULL)
-	    return (ENOMEM);
-
-	err = disk_parsedev((struct disk_devdesc *)idev, np, path);
+	err = disk_parsedev((struct devdesc **)&idev, np, path);
 	if (err != 0)
 	    goto fail;
 	break;

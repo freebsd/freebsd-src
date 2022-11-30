@@ -206,7 +206,7 @@ device_typename(int type)
 static void
 get_load_device(int *type, int *unit, int *slice, int *partition)
 {
-	struct disk_devdesc dev;
+	struct disk_devdesc *dev;
 	char *devstr;
 	const char *p;
 	char *endp;
@@ -237,10 +237,11 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	if (*type & DEV_TYP_STOR) {
 		size_t len = strlen(p);
 		if (strcspn(p, " .") == len && strcspn(p, ":") >= len - 1 &&
-		    disk_parsedev(&dev, p, NULL) == 0) {
-			*unit = dev.dd.d_unit;
-			*slice = dev.d_slice;
-			*partition = dev.d_partition;
+		    disk_parsedev((struct devdesc **)&dev, p, NULL) == 0) {
+			*unit = dev->dd.d_unit;
+			*slice = dev->d_slice;
+			*partition = dev->d_partition;
+			free(dev);
 			return;
 		}
 	}
