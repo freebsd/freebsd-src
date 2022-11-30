@@ -9829,6 +9829,7 @@ OLD_FILES+=usr/share/zoneinfo/America/Cayenne
 OLD_FILES+=usr/share/zoneinfo/America/Cayman
 OLD_FILES+=usr/share/zoneinfo/America/Chicago
 OLD_FILES+=usr/share/zoneinfo/America/Chihuahua
+OLD_FILES+=usr/share/zoneinfo/America/Ciudad_Juarez
 OLD_FILES+=usr/share/zoneinfo/America/Costa_Rica
 OLD_FILES+=usr/share/zoneinfo/America/Creston
 OLD_FILES+=usr/share/zoneinfo/America/Cuiaba
