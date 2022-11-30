@@ -405,8 +405,9 @@ nl_receive_message(struct nlmsghdr *hdr, int remaining_length,
 	nl_handler_f handler = nl_handlers[nlp->nl_proto].cb;
 	int error = 0;
 
-	NL_LOG(LOG_DEBUG2, "msg len: %d type: %d", hdr->nlmsg_len,
-	    hdr->nlmsg_type);
+	NLP_LOG(LOG_DEBUG2, nlp, "msg len: %u type: %d: flags: 0x%X seq: %u pid: %u",
+	    hdr->nlmsg_len, hdr->nlmsg_type, hdr->nlmsg_flags, hdr->nlmsg_seq,
+	    hdr->nlmsg_pid);
 
 	if (__predict_false(hdr->nlmsg_len > remaining_length)) {
 		NLP_LOG(LOG_DEBUG, nlp, "message is not entirely present: want %d got %d",
@@ -439,9 +440,10 @@ nl_receive_message(struct nlmsghdr *hdr, int remaining_length,
 		NL_LOG(LOG_DEBUG2, "retcode: %d", error);
 	}
 	if ((hdr->nlmsg_flags & NLM_F_ACK) || (error != 0 && error != EINTR)) {
-		NL_LOG(LOG_DEBUG3, "ack");
-		nlmsg_ack(nlp, error, hdr, npt);
-		NL_LOG(LOG_DEBUG3, "done");
+		if (!npt->nw->suppress_ack) {
+			NL_LOG(LOG_DEBUG3, "ack");
+			nlmsg_ack(nlp, error, hdr, npt);
+		}
 	}
 
 	return (0);
@@ -455,6 +457,7 @@ npt_clear(struct nl_pstate *npt)
 	npt->err_msg = NULL;
 	npt->err_off = 0;
 	npt->hdr = NULL;
+	npt->nw->suppress_ack = false;
 }
 
 /*
