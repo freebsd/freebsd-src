@@ -750,6 +750,7 @@ struct devsw {
     char *	(*dv_fmtdev)(struct devdesc *);
     int		(*dv_parsedev)(struct devdesc **dev, const char *devpart,
     		const char **path);
+    bool	(*dv_match)(struct devsw *dv, const char *devspec);
 };
 .Ed
 .Bl -tag -width ".Fn dv_strategy"
@@ -823,6 +824,17 @@ in the earlier example.
 Generally, code needing to parse a path will use
 .Fa devparse
 instead of calling this routine directly.
+.It Fn dv_match
+.Dv NULL
+to specify that all device paths starting with
+.Fa dv_name
+match.
+Otherwise, this function returns 0 for a match and a non-zero
+.Dv errno
+to indicate why it didn't match.
+This is helpful when you claim the device path after using it to query
+properties on systems that have uniform naming for different types of
+devices.
 .El
 .Sh HISTORY
 The

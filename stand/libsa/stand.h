@@ -161,6 +161,7 @@ struct devsw {
     void	(*dv_cleanup)(void);
     char *	(*dv_fmtdev)(struct devdesc *);
     int		(*dv_parsedev)(struct devdesc **, const char *, const char **);
+    bool	(*dv_match)(struct devsw *, const char *);
 };
 
 /*

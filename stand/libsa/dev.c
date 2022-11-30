@@ -126,8 +126,13 @@ devparse(struct devdesc **dev, const char *devspec, const char **path)
 	/* look for a device that matches */
 	for (i = 0; devsw[i] != NULL; i++) {
 		dv = devsw[i];
-		if (!strncmp(devspec, dv->dv_name, strlen(dv->dv_name)))
-			break;
+		if (dv->dv_match != NULL) {
+			if (dv->dv_match(dv, devspec) != 0)
+				break;
+		} else {
+			if (!strncmp(devspec, dv->dv_name, strlen(dv->dv_name)))
+				break;
+		}
 	}
 	if (devsw[i] == NULL)
 		return (ENOENT);
