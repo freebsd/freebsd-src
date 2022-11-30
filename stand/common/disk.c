@@ -420,7 +420,7 @@ disk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	char *cp;
 	struct disk_devdesc *dev;
 
-	np = devspec;
+	np = devspec + 4;	/* Skip the leading 'disk' */
 	unit = -1;
 	/*
 	 * If there is path/file info after the device info, then any missing
