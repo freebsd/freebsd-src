@@ -214,7 +214,7 @@ main(void)
 	devinit();
 
 	/* XXX assumes this will be a disk, but it looks likely give above */
-	disk_parsedev((struct devdesc **)&devdesc, boot_devname + 4, NULL);
+	disk_parsedev((struct devdesc **)&devdesc, boot_devname, NULL);
 
 	bootdev = MAKEBOOTDEV(dev_maj[DEVT_DISK], devdesc->d_slice + 1,
 	    devdesc->dd.d_unit,

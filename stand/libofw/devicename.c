@@ -112,7 +112,7 @@ found:
     if (dv->dv_parsedev != NULL) {
 	p = devspec + strlen(dv->dv_name);
 	free(idev);
-	err = dv->dv_parsedev((struct devdesc **)&idev, p, path);
+	err = dv->dv_parsedev((struct devdesc **)&idev, devspec, path);
 	if (err != 0) {
 	    return (err);
 	}
