@@ -54,7 +54,7 @@ struct devsw *devsw[] = {
     &ofwdisk,
 #endif
 #if defined(LOADER_NET_SUPPORT)
-    &netdev,
+    &ofw_netdev,
 #endif
     NULL
 };
