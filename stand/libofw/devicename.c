@@ -32,9 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libofw.h"
 
-static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
-
-/* 
+/*
  * Point (dev) at an allocated device specifier for the device matching the
  * path in (devspec). If it contains an explicit device specification,
  * use that.  If not, use the default device.
@@ -42,24 +40,24 @@ static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
 int
 ofw_getdev(void **vdev, const char *devspec, const char **path)
 {
-	struct ofw_devdesc **dev = (struct ofw_devdesc **)vdev;
+	struct devdesc **dev = (struct devdesc **)vdev;
 	int rv;
 
 	/*
-	 * If it looks like this is just a path and no device, go with the current
-	 * device.
+	 * If it looks like this is just a path and no device, go with the
+	 * current device.
 	 */
 	if (devspec == NULL || strpbrk(devspec, ":@") == NULL) {
-		if (((rv = ofw_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
-		    (path != NULL))
+		rv = devparse(dev, getenv("currdev"), NULL);
+		if (rv == 0  && path != NULL)
 			*path = devspec;
-		return(rv);
+		return (rv);
 	}
-    
+
 	/*
 	 * Try to parse the device name off the beginning of the devspec
 	 */
-	return(ofw_parsedev(dev, devspec, path));
+	return (devparse(dev, devspec, path));
 }
 
 /*
@@ -94,80 +92,13 @@ ofw_path_to_handle(const char *ofwpath, const char *want_type, const char **path
 	return ((phandle_t)-1);
 }
 
-/*
- * Point (dev) at an allocated device specifier matching the string version
- * at the beginning of (devspec).  Return a pointer to the remaining
- * text in (path).
- */
-static int
-ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
-{
-    struct ofw_devdesc	*idev;
-    struct devsw	*dv;
-    phandle_t		handle;
-    const char		*p;
-    const char		*s;
-    char		*ep;
-    char		name[256];
-    char		type[64];
-    int			err;
-    int			len;
-    int			i;
-
-    /* XXX next step: use devparse -- don't forget to hack ofw_disk like you did ofw_net */
-    for (p = s = devspec; *s != '\0'; p = s) {
-	if ((s = strchr(p + 1, '/')) == NULL)
-	    s = strchr(p, '\0');
-	len = s - devspec;
-	bcopy(devspec, name, len);
-	name[len] = '\0';
-	if ((handle = OF_finddevice(name)) == -1) {
-	    bcopy(name, type, len);
-	    type[len] = '\0';
-	} else if (OF_getprop(handle, "device_type", type, sizeof(type)) == -1)
-	    continue;
-	for (i = 0; (dv = devsw[i]) != NULL; i++) {
-	    if (strncmp(dv->dv_name, type, strlen(dv->dv_name)) == 0)
-		goto found;
-	}
-    }
-    return(ENOENT);
-
-found:
-    if (path != NULL)
-	*path = s;
-    idev = malloc(sizeof(struct ofw_devdesc));
-    if (idev == NULL) {
-	printf("ofw_parsedev: malloc failed\n");
-	return ENOMEM;
-    }
-    idev->dd.d_dev = dv;
-    if (dv->dv_parsedev != NULL) {
-	p = devspec + strlen(dv->dv_name);
-	free(idev);
-	err = dv->dv_parsedev((struct devdesc **)&idev, devspec, path);
-	if (err != 0) {
-	    return (err);
-	}
-    } else {
-	strcpy(idev->d_path, name);
-    }
-
-    if (dev == NULL) {
-	free(idev);
-    } else {
-	*dev = idev;
-    }
-    return(0);
-}
-
 int
 ofw_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-	struct ofw_devdesc	*ncurr;
-	int			rv;
+	struct devdesc	*ncurr;
+	int		rv;
 
-	if ((rv = ofw_parsedev(&ncurr, value, NULL)) != 0)
+	if ((rv = devparse(&ncurr, value, NULL)) != 0)
 		return (rv);
 
 	free(ncurr);
