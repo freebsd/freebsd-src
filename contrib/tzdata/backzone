@@ -7,6 +7,10 @@
 # tz@iana.org for general use in the future).  For more, please see
 # the file CONTRIBUTING in the tz distribution.
 
+# When proposing changes to this file, please use 'git format-patch'
+# format, either by attaching the resulting .patch file to your email,
+# or by using 'git send-email'.  This will help maintainers save time.
+
 
 # From Paul Eggert (2014-10-31):
 
@@ -750,6 +754,55 @@ Zone America/Nipigon	-5:53:04 -	LMT	1895
 			-5:00	1:00	EDT	1942 Feb  9  2:00s
 			-5:00	Canada	E%sT
 
+# From Rives McDow (1999-11-08):
+# On October 31, when the rest of Nunavut went to Central time,
+# Pangnirtung wobbled.  Here is the result of their wobble:
+#
+# The following businesses and organizations in Pangnirtung use Central Time:
+#
+#	First Air, Power Corp, Nunavut Construction, Health Center, RCMP,
+#	Eastern Arctic National Parks, A & D Specialist
+#
+# The following businesses and organizations in Pangnirtung use Eastern Time:
+#
+#	Hamlet office, All other businesses, Both schools, Airport operator
+#
+# This has made for an interesting situation there, which warranted the news.
+# No one there that I spoke with seems concerned, or has plans to
+# change the local methods of keeping time, as it evidently does not
+# really interfere with any activities or make things difficult locally.
+# They plan to celebrate New Year's turn-over twice, one hour apart,
+# so it appears that the situation will last at least that long.
+# The Nunavut Intergovernmental Affairs hopes that they will "come to
+# their senses", but the locals evidently don't see any problem with
+# the current state of affairs.
+
+# From Michaela Rodrigue, writing in the
+# Nunatsiaq News (1999-11-19):
+# http://www.nunatsiaqonline.ca/archives/nunavut991130/nvt91119_17.html
+# Clyde River, Pangnirtung and Sanikiluaq now operate with two time zones,
+# central - or Nunavut time - for government offices, and eastern time
+# for municipal offices and schools....  Igloolik [was similar but then]
+# made the switch to central time on Saturday, Nov. 6.
+
+# From Chris Walton (2022-11-06):
+# The implication is that Pangnirtung and Qikiqtarjuaq have observed Eastern
+# Time as far back as 1984 (and likely even further back than that).
+# It is possible that these communities never actually observed Atlantic
+# Time, but that would be difficult to prove.
+# From Paul Eggert (2022-11-06):
+# This is in 'backzone' as we have no good evidence that Pangnirtung differs
+# from America/Iqaluit since 1970.  A Google Books snippet view of
+# volume 2, page 186 of "Pilot of Arctic Canada", published 1959 by
+# the Canadian Hydrographic Service, suggests (though does not state)
+# that Pangnirtung observed EST then.
+#
+# aka Panniqtuuq
+Zone America/Pangnirtung 0	-	-00	1921 # trading post est.
+			-5:00	NT_YK	E%sT	1999 Oct 31  2:00
+			-6:00	Canada	C%sT	2000 Oct 29  2:00
+			-5:00	Canada	E%sT
+
 # United States
 #
 # From Paul Eggert (2018-03-18):
@@ -1043,7 +1096,7 @@ Zone Asia/Kuala_Lumpur	6:46:46 -	LMT	1901 Jan  1
 			7:20	-	+0720	1941 Sep  1
 			7:30	-	+0730	1942 Feb 16
 			9:00	-	+09	1945 Sep 12
-			7:30	-	+0730	1982 Jan  1
+			7:30	-	+0730	1981 Dec 31 16:00u
 			8:00	-	+08
 
 # Kuwait
