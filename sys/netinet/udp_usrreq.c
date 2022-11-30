@@ -446,7 +446,6 @@ udp_multi_input(struct mbuf *m, int proto, struct sockaddr_in *udp_in)
 			else
 				UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 			if (udp_append(inp, ip, n, sizeof(struct ip), udp_in)) {
-				INP_RUNLOCK(inp);
 				break;
 			} else
 				appends++;
