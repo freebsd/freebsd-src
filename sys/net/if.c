@@ -2610,8 +2610,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		else if (ifr_buffer_get_length(ifr) == 0)
 			descrbuf = NULL;
 		else {
-			descrbuf = malloc(ifr_buffer_get_length(ifr),
-			    M_IFDESCR, M_WAITOK | M_ZERO);
+			descrbuf = if_allocdescr(ifr_buffer_get_length(ifr), M_WAITOK);
 			error = copyin(ifr_buffer_get_buffer(ifr), descrbuf,
 			    ifr_buffer_get_length(ifr) - 1);
 			if (error) {
@@ -4271,6 +4270,13 @@ if_setdescr(if_t ifp, char *descrbuf)
 	sx_xunlock(&ifdescr_sx);
 
 	if_freedescr(odescrbuf);
+}
+
+char *
+if_allocdescr(size_t sz, int malloc_flag)
+{
+	malloc_flag &= (M_WAITOK | M_NOWAIT);
+	return (malloc(sz, M_IFDESCR, M_ZERO | malloc_flag));
 }
 
 void
