@@ -184,6 +184,30 @@ ofwd_ioctl(struct open_file *f, u_long cmd, void *data)
 static int
 ofwd_print(int verbose __unused)
 {
+	uintmax_t block_size, n;
+	int ret;
+	char line[80];
+
+	/*
+	 * We don't have a list of devices since we don't parse the whole OFW
+	 * tree to find them. Instead, if we have an open device print info
+	 * about it. Otherwise say we can't. Makes lsdev nicer.
+	 */
+	if ((ret = pager_output("block devices:\n")) != 0)
+		return (ret);
+	if (kdp != NULL) {
+		block_size = OF_block_size(kdp->d_handle);
+		n = OF_blocks(kdp->d_handle);
+		snprintf(line, sizeof(line),
+		    "    %s:   OFW block device (%ju X %ju): %ju bytes\n",
+		    kdp->d_path, n, block_size, n * block_size);
+		if ((ret = pager_output(line)) != 0)
+			return (ret);
+	} else {
+		if ((ret = pager_output("  none are open, so no info\n")) != 0)
+			return (ret);
+	}
+
 	return (0);
 }
 static char *
