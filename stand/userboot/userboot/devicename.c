@@ -151,8 +151,8 @@ userboot_parsedev(struct devdesc **dev, const char *devspec,
 
 	case DEVT_ZFS:
 #if defined(USERBOOT_ZFS_SUPPORT)
-		/* XXX assumes sizeof disk_devdesc >= sizeof zfs_devdesc */
-		err = zfs_parsedev((struct zfs_devdesc *)idev, np, path);
+		free(idev);
+		err = zfs_parsedev(&idev, np, path);
 		if (err != 0)
 			goto fail;
 		break;

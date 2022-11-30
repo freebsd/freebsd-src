@@ -119,11 +119,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	break;
 
     case DEVT_ZFS:
-	idev = malloc(sizeof (struct zfs_devdesc));
-	if (idev == NULL)
-	    return (ENOMEM);
-
-	err = zfs_parsedev((struct zfs_devdesc *)idev, np, path);
+	err = zfs_parsedev((struct devdesc **)&idev, np, path);
 	if (err != 0)
 	    goto fail;
 	break;
