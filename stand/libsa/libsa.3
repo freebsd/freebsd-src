@@ -710,7 +710,9 @@ struct devsw {
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
     int		(*dv_print)(int verbose);
     void	(*dv_cleanup)(void);
-    void	(*dv_fmtdev)(struct devdesc *);
+    char *	(*dv_fmtdev)(struct devdesc *);
+    int		(*dv_parsedev)(struct devdesc **dev, const char *devpart,
+    		const char **path);
 };
 .Ed
 .Bl -tag -width ".Fn dv_strategy"
@@ -751,6 +753,34 @@ Cleans up any memory used by the device before the next stage is run.
 .It Fn dv_fmtdev
 Converts the specified devdesc to the canonical string representation
 for that device.
+.It Fn dv_parsedev
+Parses the device portion of a file path.
+The
+.Dv devpart
+will point to the
+.Sq tail
+of device name, possibly followed by a colon and a path within the device.
+The
+.Sq tail
+is, by convention, the part of the device specification that follows the
+.Fa dv_name
+part of the string.
+So when parsing the string
+.Dq disk3p5:/xxx
+.Dv devpart
+will point to the
+.Sq 3
+in that string.
+The parsing routine is expected to allocate a new
+.Dv struct devdesc
+or subclass and return it in
+.Dv dev
+when successful.
+This routine should set
+.Dv path
+to point to the portion of the string after device specification, or
+.Dq /xxx
+in the earlier example.
 .El
 .Sh HISTORY
 The
