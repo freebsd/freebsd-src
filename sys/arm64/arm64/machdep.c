@@ -580,6 +580,115 @@ print_efi_map_entries(struct efi_map_header *efihdr)
 	foreach_efi_map_entry(efihdr, print_efi_map_entry, NULL);
 }
 
+/*
+ * Map the passed in VA in EFI space to a void * using the efi memory table to
+ * find the PA and return it in the DMAP, if it exists. We're used between the
+ * calls to pmap_bootstrap() and physmem_init_kernel_globals() to parse CFG
+ * tables We assume that either the entry you are mapping fits within its page,
+ * or if it spills to the next page, that's contiguous in PA and in the DMAP.
+ * All observed tables obey the first part of this precondition.
+ */
+struct early_map_data
+{
+	vm_offset_t va;
+	vm_offset_t pa;
+};
+
+static void
+efi_early_map_entry(struct efi_md *p, void *argp)
+{
+	struct early_map_data *emdp = argp;
+	vm_offset_t s, e;
+
+	if (emdp->pa != 0)
+		return;
+	if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
+		return;
+	s = p->md_virt;
+	e = p->md_virt + p->md_pages * EFI_PAGE_SIZE;
+	if (emdp->va < s  || emdp->va >= e)
+		return;
+	emdp->pa = p->md_phys + (emdp->va - p->md_virt);
+}
+
+static void *
+efi_early_map(vm_offset_t va)
+{
+	struct early_map_data emd = { .va = va };
+
+	foreach_efi_map_entry(efihdr, efi_early_map_entry, &emd);
+	if (emd.pa == 0)
+		return NULL;
+	return (void *)PHYS_TO_DMAP(emd.pa);
+}
+
+
+/*
+ * When booted via kboot, the prior kernel will pass in reserved memory areas in
+ * a EFI config table. We need to find that table and walk through it excluding
+ * the memory ranges in it. btw, this is called too early for the printf to do
+ * anything since msgbufp isn't initialized, let alone a console...
+ */
+static void
+exclude_efi_memreserve(vm_offset_t efi_systbl_phys)
+{
+	struct efi_systbl *systbl;
+	struct uuid efi_memreserve = LINUX_EFI_MEMRESERVE_TABLE;
+
+	systbl = (struct efi_systbl *)PHYS_TO_DMAP(efi_systbl_phys);
+	if (systbl == NULL) {
+		printf("can't map systbl\n");
+		return;
+	}
+	if (systbl->st_hdr.th_sig != EFI_SYSTBL_SIG) {
+		printf("Bad signature for systbl %#lx\n", systbl->st_hdr.th_sig);
+		return;
+	}
+
+	/*
+	 * We don't yet have the pmap system booted enough to create a pmap for
+	 * the efi firmware's preferred address space from the GetMemoryMap()
+	 * table. The st_cfgtbl is a VA in this space, so we need to do the
+	 * mapping ourselves to a kernel VA with efi_early_map. We assume that
+	 * the cfgtbl entries don't span a page. Other pointers are PAs, as
+	 * noted below.
+	 */
+	if (systbl->st_cfgtbl == 0)	/* Failsafe st_entries should == 0 in this case */
+		return;
+	for (int i = 0; i < systbl->st_entries; i++) {
+		struct efi_cfgtbl *cfgtbl;
+		struct linux_efi_memreserve *mr;
+
+		cfgtbl = efi_early_map(systbl->st_cfgtbl + i * sizeof(*cfgtbl));
+		if (cfgtbl == NULL)
+			panic("Can't map the config table entry %d\n", i);
+		if (memcmp(&cfgtbl->ct_uuid, &efi_memreserve, sizeof(struct uuid)) != 0)
+			continue;
+
+		/*
+		 * cfgtbl points are either VA or PA, depending on the GUID of
+		 * the table. memreserve GUID pointers are PA and not converted
+		 * after a SetVirtualAddressMap(). The list's mr_next pointer
+		 * is also a PA.
+		 */
+		mr = (struct linux_efi_memreserve *)PHYS_TO_DMAP(
+			(vm_offset_t)cfgtbl->ct_data);
+		while (true) {
+			for (int j = 0; j < mr->mr_count; j++) {
+				struct linux_efi_memreserve_entry *mre;
+
+				mre = &mr->mr_entry[j];
+				physmem_exclude_region(mre->mre_base, mre->mre_size,
+				    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+			}
+			if (mr->mr_next == 0)
+				break;
+			mr = (struct linux_efi_memreserve *)PHYS_TO_DMAP(mr->mr_next);
+		};
+	}
+
+}
+
 #ifdef FDT
 static void
 try_load_dtb(caddr_t kmdp)
@@ -825,6 +934,9 @@ initarm(struct arm64_bootparams *abp)
 	/* Exclude entries needed in the DMAP region, but not phys_avail */
 	if (efihdr != NULL)
 		exclude_efi_map_entries(efihdr);
+	/*  Do the same for reserve entries in the EFI MEMRESERVE table */
+	if (efi_systbl_phys != 0)
+		exclude_efi_memreserve(efi_systbl_phys);
 	physmem_init_kernel_globals();
 
 	devmap_bootstrap(0, NULL);
