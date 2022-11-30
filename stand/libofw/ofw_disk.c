@@ -234,21 +234,5 @@ ofwd_fmtdev(struct devdesc *idev)
 static int
 ofwd_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 {
-	const char *rem_path;
-	struct ofw_devdesc *idev;
-
-	if (ofw_path_to_handle(devspec, ofwdisk.dv_name, &rem_path) == -1)
-		return (ENOENT);
-	idev = malloc(sizeof(struct ofw_devdesc));
-	if (idev == NULL) {
-		printf("ofw_parsedev: malloc failed\n");
-		return ENOMEM;
-	};
-	strlcpy(idev->d_path, devspec, min(rem_path - devspec + 1,
-		sizeof(idev->d_path)));
-	if (dev != NULL)
-		*dev = &idev->dd;
-	if (path != NULL)
-		*path = rem_path;
-	return 0;
+	return (ofw_common_parsedev(dev, devspec, path, ofwdisk.dv_name));
 }
