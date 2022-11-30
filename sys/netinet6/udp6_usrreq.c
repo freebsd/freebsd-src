@@ -312,7 +312,6 @@ udp6_multi_input(struct mbuf *m, int off, int proto,
 				UDP_PROBE(receive, NULL, inp, ctx.ip6, inp,
 				    ctx.uh);
 			if (udp6_append(inp, n, off, fromsa)) {
-				INP_RUNLOCK(inp);
 				break;
 			} else
 				appends++;
