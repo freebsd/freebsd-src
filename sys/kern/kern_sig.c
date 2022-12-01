@@ -279,7 +279,7 @@ static void
 ast_sig(struct thread *td, int tda)
 {
 	struct proc *p;
-	int sig;
+	int old_boundary, sig;
 	bool resched_sigs;
 
 	p = td->td_proc;
@@ -321,12 +321,15 @@ ast_sig(struct thread *td, int tda)
 	    !SIGISEMPTY(p->p_siglist)) {
 		sigfastblock_fetch(td);
 		PROC_LOCK(p);
+		old_boundary = ~TDB_BOUNDARY | (td->td_dbgflags & TDB_BOUNDARY);
+		td->td_dbgflags |= TDB_BOUNDARY;
 		mtx_lock(&p->p_sigacts->ps_mtx);
 		while ((sig = cursig(td)) != 0) {
 			KASSERT(sig >= 0, ("sig %d", sig));
 			postsig(sig);
 		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
+		td->td_dbgflags &= old_boundary;
 		PROC_UNLOCK(p);
 		resched_sigs = true;
 	} else {
