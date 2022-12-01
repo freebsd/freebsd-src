@@ -299,7 +299,9 @@ fsl_pcib_probe(device_t dev)
 	    ofw_bus_is_compatible(dev, "fsl,mpc8540-pcie") ||
 	    ofw_bus_is_compatible(dev, "fsl,mpc8548-pcie") ||
 	    ofw_bus_is_compatible(dev, "fsl,p5020-pcie") ||
+	    ofw_bus_is_compatible(dev, "fsl,p5040-pcie") ||
 	    ofw_bus_is_compatible(dev, "fsl,qoriq-pcie-v2.2") ||
+	    ofw_bus_is_compatible(dev, "fsl,qoriq-pcie-v2.4") ||
 	    ofw_bus_is_compatible(dev, "fsl,qoriq-pcie")))
 		return (ENXIO);
 
