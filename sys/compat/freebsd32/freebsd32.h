@@ -492,6 +492,11 @@ struct timex32 {
 	int32_t	stbcnt;
 };
 
+struct ptrace_sc_ret32 {
+	uint32_t	sr_retval[2];
+	int		sr_error;
+};
+
 struct ptrace_coredump32 {
 	int		pc_fd;
 	uint32_t	pc_flags;
