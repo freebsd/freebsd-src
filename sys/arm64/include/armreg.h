@@ -158,6 +158,8 @@
 #define	 DBGWCR_PAC_EL0		(0x2 << DBGWCR_PAC_SHIFT)
 #define	DBGWCR_LSC_SHIFT	3
 #define	DBGWCR_LSC		(0x3 << DBGWCR_LSC_SHIFT)
+#define  DBGWCR_LSC_LD (0x1 << DBGWCR_LSC_SHIFT)
+#define  DBGWCR_LSC_ST (0x2 << DBGWCR_LSC_SHIFT)
 #define	DBGWCR_BAS_SHIFT	5
 #define	DBGWCR_BAS		(0xff << DBGWCR_BAS_SHIFT)
 #define	DBGWCR_HMC_SHIFT	13
@@ -170,6 +172,7 @@
 #define	DBGWCR_WT		(0x1 << DBGWCR_WT_SHIFT)
 #define	DBGWCR_MASK_SHIFT	24
 #define	DBGWCR_MASK		(0x1f << DBGWCR_MASK_SHIFT)
+#define  DBGWCR_MASK_X(x) (x << DBGWCR_MASK_SHIFT)
 
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP		(1 << 4) /* DC ZVA prohibited if non-0 */
@@ -271,7 +274,8 @@
 #define	 EXCP_SP_ALIGN		0x26	/* SP slignment fault */
 #define	 EXCP_TRAP_FP		0x2c	/* Trapped FP exception */
 #define	 EXCP_SERROR		0x2f	/* SError interrupt */
-#define	 EXCP_BRKPT_EL0		0x30	/* Hardware breakpoint, from same EL */
+#define	 EXCP_BRKPT_EL0		0x30	/* Hardware breakpoint, from lower EL */
+#define	 EXCP_BRKPT_EL1		0x31	/* Hardware breakpoint, from same EL */
 #define	 EXCP_SOFTSTP_EL0	0x32	/* Software Step, from lower EL */
 #define	 EXCP_SOFTSTP_EL1	0x33	/* Software Step, from same EL */
 #define	 EXCP_WATCHPT_EL0	0x34	/* Watchpoint, from lower EL */

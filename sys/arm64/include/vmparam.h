@@ -226,8 +226,8 @@
 #ifndef	VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
-
-#define	UMA_MD_SMALL_ALLOC
+/* Disable UMA_MD_SMALL_ALLOC as it breaks KVA reservations for a zone */
+// #define	UMA_MD_SMALL_ALLOC
 
 #ifndef LOCORE
 

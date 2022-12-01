@@ -145,11 +145,27 @@ extern void     uma_startup2(void);
 vm_offset_t
 kva_alloc(vm_size_t size)
 {
+	return (kva_xalloc(size, 0));
+}
+
+/*
+ * kva_xalloc
+ * 
+ * Allocate a virtual address range with no underlying object of SIZE and
+ * alignment ALIGN.
+ */
+vm_offset_t
+kva_xalloc(vm_size_t size, vm_size_t align) {
+	int result = 0;
 	vm_offset_t addr;
 
 	size = round_page(size);
-	if (vmem_alloc(kernel_arena, size, M_BESTFIT | M_NOWAIT, &addr))
+
+	if ((result = vmem_xalloc(kernel_arena, size, align, 
+			0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX, 
+			M_BESTFIT | M_NOWAIT, &addr))) {
 		return (0);
+	}
 
 	return (addr);
 }
@@ -386,20 +402,26 @@ void
 kmem_subinit(vm_map_t map, vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
     vm_size_t size, bool superpage_align)
 {
+	return kmem_subinitx(map, parent, min, max, size, superpage_align ?
+	    VMFS_SUPER_SPACE : VMFS_ANY_SPACE);
+}
+
+void
+kmem_subinitx(vm_map_t map, vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
+    vm_size_t size, int find_space) {
 	int ret;
 
 	size = round_page(size);
 
 	*min = vm_map_min(parent);
-	ret = vm_map_find(parent, NULL, 0, min, size, 0, superpage_align ?
-	    VMFS_SUPER_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
-	    MAP_ACC_NO_CHARGE);
+	ret = vm_map_find(parent, NULL, 0, min, size, 0, find_space, 
+		VM_PROT_ALL, VM_PROT_ALL, MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
-		panic("kmem_subinit: bad status return of %d", ret);
+		panic("kmem_subinitx: bad status return of %d", ret);
 	*max = *min + size;
 	vm_map_init(map, vm_map_pmap(parent), *min, *max);
 	if (vm_map_submap(parent, *min, *max, map) != KERN_SUCCESS)
-		panic("kmem_subinit: unable to change range to submap");
+		panic("kmem_subinitx: unable to change range to submap");
 }
 
 /*

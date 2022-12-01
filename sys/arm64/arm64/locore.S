@@ -685,8 +685,9 @@ LENTRY(start_mmu)
 	msr	ttbr1_el1, x24
 	isb
 
-	/* Clear the Monitor Debug System control register */
-	msr	mdscr_el1, xzr
+	/* Enable kernel debug and self-hosted monitor */
+	mov x2, #(MDSCR_KDE | MDSCR_MDE)
+	msr	mdscr_el1, x2
 
 	/* Invalidate the TLB */
 	tlbi	vmalle1is

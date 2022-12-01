@@ -482,6 +482,15 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 #endif
 		break;
 	case EXCP_WATCHPT_EL1:
+		print_registers(frame);
+		print_gp_register("far", READ_SPECIALREG(far_el1));
+		printf(" esr:         %.8lx\n", esr);
+		panic("zone_manager privilege abort (data)");
+	case EXCP_BRKPT_EL1:
+		print_registers(frame);
+		printf(" esr:         %.8lx\n", esr);
+		panic("zone_manager privilege abort (instruction)");
+
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
 		kdb_trap(exception, 0, frame);

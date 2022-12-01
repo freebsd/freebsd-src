@@ -505,6 +505,13 @@ void uma_zone_reserve(uma_zone_t zone, int nitems);
 int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 
 /*
+ * See uma_zone_reserve_kva. Same behavior except reserves with an alignment
+ * requirement for the KVA region. Returns base address in *BASEP.
+ */
+int uma_zone_reserve_kvax(uma_zone_t zone, int count, vm_size_t align, 
+							vm_offset_t *basep);
+
+/*
  * Sets an upper limit on the number of items allocated from a zone
  *
  * Arguments:

@@ -80,6 +80,8 @@ arm64/arm64/undefined.c				standard
 arm64/arm64/unwind.c				optional ddb | kdtrace_hooks | stack
 arm64/arm64/vfp.c				standard
 arm64/arm64/vm_machdep.c			standard
+arm64/arm64/zone_manager_routines.S standard
+arm64/arm64/zone_manager.c standard
 
 arm64/coresight/coresight.c			standard
 arm64/coresight/coresight_acpi.c		optional acpi

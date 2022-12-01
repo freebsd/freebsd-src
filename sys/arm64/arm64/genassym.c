@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
+#include <machine/zone_manager.h>
 
 /* Sizeof arm64_bootparams, rounded to keep stack alignment */
 ASSYM(BOOTPARAMS_SIZE, roundup2(sizeof(struct arm64_bootparams),
@@ -55,6 +56,8 @@ ASSYM(PCPU_SIZE, sizeof(struct pcpu));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_SSBD, offsetof(struct pcpu, pc_ssbd));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+ASSYM(PC_MPIDR, offsetof(struct pcpu, pc_mpidr));
 
 /* Size of pcb, rounded to keep stack alignment */
 ASSYM(PCB_SIZE, roundup2(sizeof(struct pcb), STACKALIGNBYTES + 1));
@@ -80,3 +83,12 @@ ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));
 ASSYM(TF_ELR, offsetof(struct trapframe, tf_elr));
 ASSYM(TF_SPSR, offsetof(struct trapframe, tf_spsr));
 ASSYM(TF_X, offsetof(struct trapframe, tf_x));
+
+ASSYM(ZM_GLOBALS_IS_PANICKED, offsetof(zm_globals_s, is_panicked));
+ASSYM(ZM_PCPU_SIZE, sizeof(zm_pcpu_s));
+ASSYM(ZM_PCPU_STATE, offsetof(zm_pcpu_s, state));
+ASSYM(ZM_PCPU_MPIDR, offsetof(zm_pcpu_s, mpidr));
+ASSYM(ZM_PCPU_ZONE_STACKS, offsetof(zm_pcpu_s, zone_stacks));
+ASSYM(ZM_INIT_WATCHPOINT_CONFIG_WCR, offsetof(zm_init_watchpoint_config_s, wcr));
+ASSYM(ZM_INIT_WATCHPOINT_CONFIG_WVR, offsetof(zm_init_watchpoint_config_s, wvr));
+
