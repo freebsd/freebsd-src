@@ -33,7 +33,10 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/seqc.h>
+
+#include <linux/mutex.h>
 
 struct lock_class_key;
 
@@ -48,6 +51,12 @@ struct seqlock {
 };
 typedef struct seqlock seqlock_t;
 
+struct seqcount_mutex {
+	struct mutex	*seqm_lock;
+	struct seqcount	 seqm_count;
+};
+typedef struct seqcount_mutex seqcount_mutex_t;
+
 static inline void
 __seqcount_init(struct seqcount *seqcount, const char *name __unused,
     struct lock_class_key *key __unused)
@@ -57,15 +66,72 @@ __seqcount_init(struct seqcount *seqcount, const char *name __unused,
 #define	seqcount_init(seqcount)	__seqcount_init(seqcount, NULL, NULL)
 
 static inline void
-write_seqcount_begin(struct seqcount *seqcount)
+seqcount_mutex_init(struct seqcount_mutex *seqcount, struct mutex *mutex)
+{
+	seqcount->seqm_lock = mutex;
+	seqcount_init(&seqcount->seqm_count);
+}
+
+#define	write_seqcount_begin(s)						\
+    _Generic(*(s),							\
+	struct seqcount:	lkpi_write_seqcount_begin,		\
+	struct seqcount_mutex:	lkpi_write_seqcount_mutex_begin		\
+    )(s)
+
+static inline void
+lkpi_write_seqcount_begin(struct seqcount *seqcount)
 {
 	seqc_sleepable_write_begin(&seqcount->seqc);
 }
 
 static inline void
-write_seqcount_end(struct seqcount *seqcount)
+lkpi_write_seqcount_mutex_begin(struct seqcount_mutex *seqcount)
+{
+	mutex_lock(seqcount->seqm_lock);
+	lkpi_write_seqcount_begin(&seqcount->seqm_count);
+}
+
+#define	write_seqcount_end(s)						\
+    _Generic(*(s),							\
+	struct seqcount:	lkpi_write_seqcount_end,		\
+	struct seqcount_mutex:	lkpi_write_seqcount_mutex_end		\
+    )(s)
+
+static inline void
+lkpi_write_seqcount_end(struct seqcount *seqcount)
 {
 	seqc_sleepable_write_end(&seqcount->seqc);
+}
+
+static inline void
+lkpi_write_seqcount_mutex_end(struct seqcount_mutex *seqcount)
+{
+	lkpi_write_seqcount_end(&seqcount->seqm_count);
+	mutex_unlock(seqcount->seqm_lock);
+}
+
+#define	read_seqcount_begin(s)						\
+    _Generic(*(s),							\
+	struct seqcount:	lkpi_read_seqcount_begin,		\
+	struct seqcount_mutex:	lkpi_read_seqcount_mutex_begin		\
+    )(s)
+
+static inline unsigned
+lkpi_read_seqcount_begin(const struct seqcount *seqcount)
+{
+	return (seqc_read(&seqcount->seqc));
+}
+
+static inline unsigned
+lkpi_read_seqcount_mutex_begin(const struct seqcount_mutex *seqcount)
+{
+	return (lkpi_read_seqcount_begin(&seqcount->seqm_count));
+}
+
+static inline unsigned
+raw_read_seqcount(const struct seqcount *seqcount)
+{
+	return (seqc_read_any(&seqcount->seqc));
 }
 
 /*
@@ -73,19 +139,24 @@ write_seqcount_end(struct seqcount *seqcount)
  */
 #define	__read_seqcount_retry(seqcount, gen)	\
 	(!seqc_consistent_no_fence(&(seqcount)->seqc, gen))
-#define	read_seqcount_retry(seqcount, gen)	\
-	(!seqc_consistent(&(seqcount)->seqc, gen))
+#define	read_seqcount_retry(s, old)					\
+    _Generic(*(s),							\
+	struct seqcount:	lkpi_read_seqcount_retry,		\
+	struct seqcount_mutex:	lkpi_read_seqcount_mutex_retry		\
+    )(s, old)
 
-static inline unsigned
-read_seqcount_begin(const struct seqcount *seqcount)
+static inline int
+lkpi_read_seqcount_retry(
+    const struct seqcount *seqcount, unsigned int old)
 {
-	return (seqc_read(&seqcount->seqc));
+	return (!seqc_consistent(&seqcount->seqc, old));
 }
 
-static inline unsigned
-raw_read_seqcount(const struct seqcount *seqcount)
+static inline int
+lkpi_read_seqcount_mutex_retry(
+    const struct seqcount_mutex *seqcount, unsigned int old)
 {
-	return (seqc_read_any(&seqcount->seqc));
+	return (!seqc_consistent(&seqcount->seqm_count.seqc, old));
 }
 
 static inline void
