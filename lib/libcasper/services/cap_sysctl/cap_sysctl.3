@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd December 1, 2022
 .Dt CAP_SYSCTL 3
 .Os
 .Sh NAME
@@ -41,14 +41,14 @@
 .Fn cap_sysctlbyname "cap_channel_t *chan" "const char *name" "void *oldp" "size_t *oldlenp" "const void *newp" "size_t newlen"
 .Ft int
 .Fn cap_sysctlnametomib "cap_channel_t *chan" "const char *name" "int *mibp" "size_t *sizep"
-.Ft void *
+.Ft cap_sysctl_limit_t *
 .Fn cap_sysctl_limit_init "cap_channel_t *chan"
-.Ft void *
-.Fn cap_sysctl_limit_name "void *limit" "const char *name" "int flags"
-.Ft void *
-.Fn cap_sysctl_limit_mib "void *limit" "const int *mibp" "u_int miblen" "int flags"
+.Ft cap_sysctl_limit_t *
+.Fn cap_sysctl_limit_name "cap_sysctl_limit_t *limit" "const char *name" "int flags"
+.Ft cap_sysctl_limit_t *
+.Fn cap_sysctl_limit_mib "cap_sysctl_limit_t *limit" "const int *mibp" "u_int miblen" "int flags"
 .Ft int
-.Fn cap_sysctl_limit "void *limit"
+.Fn cap_sysctl_limit "cap_sysctl_limit_t *limit"
 .Sh DESCRIPTION
 The
 .Fn cap_sysctl ,
@@ -109,6 +109,8 @@ must be specified.
 .Fn cap_sysctl_limit
 applies a set of sysctl limits to the capability, denying access to sysctl
 variables not belonging to the set.
+It consumes the limit handle.
+After either success or failure, the user must not access the handle again.
 .Pp
 Once a set of limits is applied, subsequent calls to
 .Fn cap_sysctl_limit
@@ -168,6 +170,32 @@ printf("The value of %s is %d.\\n", name, value);
 
 cap_close(capsysctl);
 .Ed
+.Sh RETURN VALUES
+.Fn cap_sysctl_limit_init
+will return a new limit handle on success or
+.Dv NULL
+on failure, and set
+.Va errno .
+.Fn cap_sysctl_limit_mib
+and
+.Fn cap_sysctl_limit_name
+will return the modified limit handle on success or
+.Dv NULL
+on failure and set
+.Va errno .
+After failure, the caller must not access the limit handle again.
+.Fn cap_sysctl_limit
+will return
+.Dv -1
+on failure and set
+.Va errno .
+.Fn cap_sysctl ,
+.Fn cap_sysctlbyname ,
+and
+.Fn cap_sysctlnametomib
+have the same return values as their non-capability-mode equivalents as
+documented in
+.Xr sysctl 3 .
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
 .Xr err 3 ,
