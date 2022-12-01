@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 
 /* LM75 registers. */
 #define	LM75_TEMP	0x0
-#define	LM75_TEMP_MASK		0xff80
-#define	LM75A_TEMP_MASK		0xffe0
 #define	LM75_CONF	0x1
 #define	LM75_CONF_FSHIFT	3
 #define	LM75_CONF_FAULT		0x18
@@ -67,16 +65,13 @@ __FBSDID("$FreeBSD$");
 #define	LM75_TEST_PATTERN	0xa
 #define	LM75_MIN_TEMP		-55
 #define	LM75_MAX_TEMP		125
-#define	LM75_0500C		0x80
-#define	LM75_0250C		0x40
-#define	LM75_0125C		0x20
-#define	LM75_MSB		0x8000
-#define	LM75_NEG_BIT		LM75_MSB
-#define	TZ_ZEROC		2731
+#define	TZ_ZEROC		27315
+#define	TZ_ZEROC_DIVIDER	100
 
-/* LM75 supported models. */
-#define	HWTYPE_LM75		1
-#define	HWTYPE_LM75A		2
+enum max_resolution{
+	BITS_9 = 1,
+	BITS_11
+};
 
 /* Regular bus attachment functions */
 static int  lm75_probe(device_t);
@@ -85,9 +80,11 @@ static int  lm75_attach(device_t);
 struct lm75_softc {
 	device_t		sc_dev;
 	struct intr_config_hook enum_hook;
-	int32_t			sc_hwtype;
 	uint32_t		sc_addr;
 	uint32_t		sc_conf;
+	uint8_t			sc_resolution;
+	uint8_t			sc_max_resolution;
+	uint16_t		sc_multiplier;
 };
 
 /* Utility functions */
@@ -105,6 +102,7 @@ static int  lm75_faults_sysctl(SYSCTL_HANDLER_ARGS);
 static int  lm75_mode_sysctl(SYSCTL_HANDLER_ARGS);
 static int  lm75_pol_sysctl(SYSCTL_HANDLER_ARGS);
 static int  lm75_shutdown_sysctl(SYSCTL_HANDLER_ARGS);
+static int  lm75_resolution_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t  lm75_methods[] = {
 	/* Device interface */
@@ -119,6 +117,14 @@ static driver_t lm75_driver = {
 	lm75_methods,
 	sizeof(struct lm75_softc)
 };
+
+#ifdef FDT
+static struct ofw_compat_data compat_data[] = {
+	{"national,lm75",	BITS_9},
+	{"ti,lm75",		BITS_9},
+	{0,0}
+};
+#endif
 
 DRIVER_MODULE(lm75, iicbus, lm75_driver, 0, 0);
 
@@ -152,13 +158,30 @@ lm75_write(device_t dev, uint32_t addr, uint8_t *data, size_t len)
 static int
 lm75_probe(device_t dev)
 {
+#ifdef FDT
+	const struct ofw_compat_data *compat_ptr;
+#endif
 	struct lm75_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->sc_hwtype = HWTYPE_LM75;
+	sc->sc_max_resolution = 9;
+
 #ifdef FDT
-	if (!ofw_bus_is_compatible(dev, "national,lm75"))
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
+
+	compat_ptr = ofw_bus_search_compatible(dev, compat_data);
+
+	switch (compat_ptr->ocd_data){
+	case BITS_9:
+		sc->sc_max_resolution = 9;
+		break;
+	case BITS_11:
+		sc->sc_max_resolution = 11;
+		break;
+	default:
+		return (ENXIO);
+	}
 #endif
 	device_set_desc(dev, "LM75 temperature sensor");
 
@@ -176,6 +199,21 @@ lm75_attach(device_t dev)
 
 	sc->enum_hook.ich_func = lm75_start;
 	sc->enum_hook.ich_arg = dev;
+
+	switch (sc->sc_max_resolution) {
+	case 9:
+		sc->sc_resolution = 9;
+		sc->sc_max_resolution = 9;
+		sc->sc_multiplier = 10;
+		break;
+	case 11:
+		sc->sc_resolution = 11;
+		sc->sc_max_resolution = 11;
+		sc->sc_multiplier = 1000;
+		break;
+	default:
+		return (ENXIO);
+	}
 
 	/*
 	 * We have to wait until interrupts are enabled.  Usually I2C read
@@ -232,8 +270,11 @@ lm75_type_detect(struct lm75_softc *sc)
 		if (buf8 == 0xff)
 			lm75a++;
 	}
-	if (lm75a == 3)
-		sc->sc_hwtype = HWTYPE_LM75A;
+	if (lm75a == 3){
+		sc->sc_multiplier = 1000;
+		sc->sc_resolution = 11;
+		sc->sc_max_resolution = 11;
+	}
 
 	/* Restore the configuration register. */
 	sc->sc_conf = conf;
@@ -251,6 +292,7 @@ lm75_start(void *xdev)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree_node;
 	struct sysctl_oid_list *tree;
+	char *mult_format;
 
 	dev = (device_t)xdev;
 	sc = device_get_softc(dev);
@@ -265,23 +307,30 @@ lm75_start(void *xdev)
 	 * This may not work for LM75 clones.
 	 */
 	if (lm75_type_detect(sc) != 0) {
-		device_printf(dev, "cannot read from sensor.\n");
+		device_printf(dev, "cannot detect sesnor.\n");
+#ifndef FDT
 		return;
+#endif
 	}
-	if (sc->sc_hwtype == HWTYPE_LM75A)
-		device_printf(dev,
-		    "LM75A type sensor detected (11bits resolution).\n");
+
+	device_printf(dev,"%d bit resolution sensor attached.\n",
+			sc->sc_resolution);
+
+	if (sc->sc_multiplier == 1000)
+		mult_format = "IK3";
+	else
+		mult_format = "IK";
 
 	/* Temperature. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temperature",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, LM75_TEMP,
-	    lm75_temp_sysctl, "IK", "Current temperature");
+	    lm75_temp_sysctl, mult_format, "Current temperature");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "thyst",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, LM75_THYST,
-	    lm75_temp_sysctl, "IK", "Hysteresis temperature");
+	    lm75_temp_sysctl, mult_format, "Hysteresis temperature");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "tos",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, LM75_TOS,
-	    lm75_temp_sysctl, "IK", "Overtemperature");
+	    lm75_temp_sysctl, mult_format, "Overtemperature");
 
 	/* Configuration parameters. */
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "faults",
@@ -296,6 +345,9 @@ lm75_start(void *xdev)
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "shutdown",
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
 	    lm75_shutdown_sysctl, "IU", "LM75 shutdown");
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "resolution",
+	    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_MPSAFE, dev, 0,
+	    lm75_resolution_sysctl, "IU", "LM75 resolution");
 }
 
 static int
@@ -325,65 +377,43 @@ lm75_conf_write(struct lm75_softc *sc)
 }
 
 static int
-lm75_temp_read(struct lm75_softc *sc, uint8_t reg, int *temp)
+lm75_temp_read(struct lm75_softc *sc, uint8_t reg, int32_t *temp)
 {
+	int32_t buf;
 	uint8_t buf8[2];
-	uint16_t buf;
-	int neg, t;
+	uint8_t resolution = sc->sc_resolution;
+	uint16_t multiplier = sc->sc_multiplier;
 
 	if (lm75_read(sc->sc_dev, sc->sc_addr, reg, buf8, sizeof(buf8)) < 0)
 		return (-1);
-	buf = (uint16_t)((buf8[0] << 8) | (buf8[1] & 0xff));
-	/*
-	 * LM75 has a 9 bit ADC with resolution of 0.5 C per bit.
-	 * LM75A has an 11 bit ADC with resolution of 0.125 C per bit.
-	 * Temperature is stored with two's complement.
-	 */
-	neg = 0;
-	if (buf & LM75_NEG_BIT) {
-		if (sc->sc_hwtype == HWTYPE_LM75A)
-			buf = ~(buf & LM75A_TEMP_MASK) + 1;
-		else
-			buf = ~(buf & LM75_TEMP_MASK) + 1;
-		neg = 1;
-	}
-	*temp = ((int16_t)buf >> 8) * 10;
-	t = 0;
-	if (sc->sc_hwtype == HWTYPE_LM75A) {
-		if (buf & LM75_0125C)
-			t += 125;
-		if (buf & LM75_0250C)
-			t += 250;
-	}
-	if (buf & LM75_0500C)
-		t += 500;
-	t /= 100;
-	*temp += t;
-	if (neg)
-		*temp = -(*temp);
-	*temp += TZ_ZEROC;
+
+	buf = (int16_t)((buf8[0] << 8) | buf8[1]);
+	*temp = ((buf >> (16 - resolution)) * multiplier) >> (resolution - 8);
+
+	*temp += TZ_ZEROC * sc->sc_multiplier / TZ_ZEROC_DIVIDER;
 
 	return (0);
 }
 
 static int
-lm75_temp_write(struct lm75_softc *sc, uint8_t reg, int temp)
+lm75_temp_write(struct lm75_softc *sc, uint8_t reg, int32_t temp)
 {
-	uint8_t buf8[3];
-	uint16_t buf;
+	int32_t buf;
+	uint8_t buf8[3], resolution = sc->sc_resolution;
+	uint16_t multiplier = sc->sc_multiplier;
 
-	temp = (temp - TZ_ZEROC) / 10;
-	if (temp > LM75_MAX_TEMP)
-		temp = LM75_MAX_TEMP;
-	if (temp < LM75_MIN_TEMP)
-		temp = LM75_MIN_TEMP;
+	temp -= TZ_ZEROC * multiplier / TZ_ZEROC_DIVIDER;
+	if (temp > LM75_MAX_TEMP * multiplier)
+		temp = LM75_MAX_TEMP * multiplier;
+	if (temp < LM75_MIN_TEMP * multiplier)
+		temp = LM75_MIN_TEMP * multiplier;
 
-	buf = (uint16_t)temp;
-	buf <<= 8;
+	buf = ((temp << (resolution - 8)) / multiplier) << (16 - resolution);
 
 	buf8[0] = reg;
-	buf8[1] = buf >> 8;
+	buf8[1] = (buf >> 8) & 0xff;
 	buf8[2] = buf & 0xff;
+
 	if (lm75_write(sc->sc_dev, sc->sc_addr, buf8, sizeof(buf8)) < 0)
 		return (-1);
 
@@ -428,7 +458,8 @@ static int
 lm75_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
-	int error, temp;
+	int error;
+	int32_t temp;
 	struct lm75_softc *sc;
 	uint8_t reg;
 
@@ -574,4 +605,28 @@ lm75_shutdown_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 
 	return (error);
+}
+
+static int
+lm75_resolution_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev;
+	int error;
+	struct lm75_softc *sc;
+	int resolution;
+
+	dev = (device_t)arg1;
+	sc = device_get_softc(dev);
+	resolution = sc->sc_resolution;
+
+	error = sysctl_handle_int(oidp, &resolution, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (resolution > sc->sc_max_resolution || resolution < 9)
+		return (EINVAL);
+
+	sc->sc_resolution = (uint8_t) resolution;
+
+	return (0);
 }
