@@ -300,8 +300,46 @@ static u_int physmap_idx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
-/* A while list of pmap for checking argument pmap */
-whitelist = 
+struct secure_memory_heap pmap_heap;
+zm_globals = smh_calloc(&pmap_heap, size_of(zm_globals_s, 1)); 
+/* 
+	Create a whitelist of pmap for checking argument pmap
+	TODO: put the whitelist into zm_calloced area 
+ */
+typedef struct pmap_whitelist {
+	*pmap_t *whitelist;
+	size_t used;
+	size_t size;
+} pmap_whitelist_t; 
+
+void whitelist_init(pmap_whitelist_t *pmap_whitelist, size_t initialSize) {
+	pmap_whitelist->whitelist = malloc(initialSize * sizeof(*pmap_t));
+	pmap_whitelist->used = 0;
+	pmap_whitelist->size = initialSize;
+	return;
+}
+/* Add a pmap to whitelist */
+void whitelist_append(pmap_whitelist_t *pmap_whitelist, *pmap_t pmap) {
+	if (pmap_whitelist->used == pmap_whitelist->size) {
+		pmap_whitelist->size *= 2;
+		pmap_whitelist->whitelist = realloc(pmap_whitelist->whitelist, pmap_whitelist->size * sizeof(*pmap_t));
+	}
+	pmap_whitelist->whitelist[pmap_whitelist->used++] = pmap;
+	return;
+}
+/* Check if a pmap is in whitelist */
+bool valid_pmap(pmap_whitelist_t *pmap_whitelist, *pmap_t pmap) {
+	for (int i = 0; i < pmap_whitelist->size; i++) {
+		if (pmap_whitelist->whitelist[i] == pmap) {
+			return true;
+		}
+	}
+	return false;
+}
+
+pmap_whitelist_t pmap_whitelist;
+whitelist_init(&pmap_whitelist, 1);
+
 /*
  * This ASID allocator uses a bit vector ("asid_set") to remember which ASIDs
  * that it has currently allocated to a pmap, a cursor ("asid_next") to
@@ -1255,6 +1293,11 @@ pmap_invalidate_all(pmap_t pmap)
 vm_paddr_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+
 	pt_entry_t *pte, tpte;
 	vm_paddr_t pa;
 	int lvl;
@@ -1304,6 +1347,11 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+	
 	pt_entry_t *pte, tpte;
 	vm_offset_t off;
 	vm_page_t m;
@@ -1750,6 +1798,10 @@ pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 void
 pmap_pinit0(pmap_t pmap)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
 
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
@@ -1768,6 +1820,11 @@ pmap_pinit0(pmap_t pmap)
 int
 pmap_pinit_stage(pmap_t pmap, enum pmap_stage stage, int levels)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+
 	vm_page_t m;
 
 	/*
@@ -1811,6 +1868,9 @@ pmap_pinit_stage(pmap_t pmap, enum pmap_stage stage, int levels)
 		PMAP_UNLOCK(pmap);
 	}
 	pmap->pm_ttbr = VM_PAGE_TO_PHYS(m);
+
+	/* Add pmap to pmap_whitelist */
+
 
 	return (1);
 }
@@ -2091,6 +2151,11 @@ retry:
 void
 pmap_release(pmap_t pmap)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+
 	boolean_t rv;
 	struct spglist free;
 	struct asid_set *set;
@@ -2144,6 +2209,8 @@ pmap_release(pmap_t pmap)
 	m = PHYS_TO_VM_PAGE(pmap->pm_l0_paddr);
 	vm_page_unwire_noq(m);
 	vm_page_free_zero(m);
+
+	/* Remove the pmap from pmap_whitelist */
 }
 
 static int
@@ -2598,6 +2665,11 @@ retry:
 static void
 reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+
 	struct pch new_tail;
 	struct pv_chunk *pc;
 	vm_page_t m;
@@ -3032,6 +3104,11 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+
 	struct rwlock *lock;
 	vm_offset_t va_next;
 	pd_entry_t *l0, *l1, *l2;
@@ -3285,6 +3362,11 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
+	/* check valid argument */
+	if (not valid_pmap(pmap_whitelist, pmap)) {
+		panic("Invalid pmap in argument");
+	}
+	
 	vm_offset_t va, va_next;
 	pd_entry_t *l0, *l1, *l2;
 	pt_entry_t *l3p, l3, mask, nbits;
