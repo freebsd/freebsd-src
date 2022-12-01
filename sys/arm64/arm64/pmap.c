@@ -300,6 +300,8 @@ static u_int physmap_idx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
+/* A while list of pmap for checking argument pmap */
+whitelist = 
 /*
  * This ASID allocator uses a bit vector ("asid_set") to remember which ASIDs
  * that it has currently allocated to a pmap, a cursor ("asid_next") to
@@ -4706,8 +4708,13 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *	Because the executable mappings created by this routine are copied,
  *	it should not have to flush the instruction cache.
  */
+void pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
+    vm_offset_t src_addr) {
+	pmap_copy_internal(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
+    vm_offset_t src_addr)
+}
 void
-pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
+pmap_copy_internal(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
     vm_offset_t src_addr)
 {
 	struct rwlock *lock;
