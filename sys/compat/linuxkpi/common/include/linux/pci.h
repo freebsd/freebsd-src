@@ -147,19 +147,24 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	PCI_EXP_TYPE_RC_EC	PCIEM_TYPE_ROOT_EC		/* Root Complex Event Collector */
 #define	PCI_EXP_LNKCAP_SLS_2_5GB 0x01	/* Supported Link Speed 2.5GT/s */
 #define	PCI_EXP_LNKCAP_SLS_5_0GB 0x02	/* Supported Link Speed 5.0GT/s */
-#define	PCI_EXP_LNKCAP_SLS_8_0GB 0x04	/* Supported Link Speed 8.0GT/s */
-#define	PCI_EXP_LNKCAP_SLS_16_0GB 0x08	/* Supported Link Speed 16.0GT/s */
+#define	PCI_EXP_LNKCAP_SLS_8_0GB 0x03	/* Supported Link Speed 8.0GT/s */
+#define	PCI_EXP_LNKCAP_SLS_16_0GB 0x04	/* Supported Link Speed 16.0GT/s */
+#define	PCI_EXP_LNKCAP_SLS_32_0GB 0x05	/* Supported Link Speed 32.0GT/s */
+#define	PCI_EXP_LNKCAP_SLS_64_0GB 0x06	/* Supported Link Speed 64.0GT/s */
 #define	PCI_EXP_LNKCAP_MLW	0x03f0	/* Maximum Link Width */
 #define	PCI_EXP_LNKCAP2_SLS_2_5GB 0x02	/* Supported Link Speed 2.5GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_5_0GB 0x04	/* Supported Link Speed 5.0GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_8_0GB 0x08	/* Supported Link Speed 8.0GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_16_0GB 0x10	/* Supported Link Speed 16.0GT/s */
+#define	PCI_EXP_LNKCAP2_SLS_32_0GB 0x20	/* Supported Link Speed 32.0GT/s */
+#define	PCI_EXP_LNKCAP2_SLS_64_0GB 0x40	/* Supported Link Speed 64.0GT/s */
 #define	PCI_EXP_LNKCTL2_TLS		0x000f
 #define	PCI_EXP_LNKCTL2_TLS_2_5GT	0x0001	/* Supported Speed 2.5GT/s */
 #define	PCI_EXP_LNKCTL2_TLS_5_0GT	0x0002	/* Supported Speed 5GT/s */
 #define	PCI_EXP_LNKCTL2_TLS_8_0GT	0x0003	/* Supported Speed 8GT/s */
 #define	PCI_EXP_LNKCTL2_TLS_16_0GT	0x0004	/* Supported Speed 16GT/s */
 #define	PCI_EXP_LNKCTL2_TLS_32_0GT	0x0005	/* Supported Speed 32GT/s */
+#define	PCI_EXP_LNKCTL2_TLS_64_0GT	0x0006	/* Supported Speed 64GT/s */
 #define	PCI_EXP_LNKCTL2_ENTER_COMP	0x0010	/* Enter Compliance */
 #define	PCI_EXP_LNKCTL2_TX_MARGIN	0x0380	/* Transmit Margin */
 
@@ -181,6 +186,8 @@ enum pci_bus_speed {
 	PCIE_SPEED_5_0GT,
 	PCIE_SPEED_8_0GT,
 	PCIE_SPEED_16_0GT,
+	PCIE_SPEED_32_0GT,
+	PCIE_SPEED_64_0GT,
 };
 
 enum pcie_link_width {
@@ -1270,6 +1277,10 @@ pcie_get_speed_cap(struct pci_dev *dev)
 			return (PCIE_SPEED_8_0GT);
 		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_16_0GB)
 			return (PCIE_SPEED_16_0GT);
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_32_0GB)
+			return (PCIE_SPEED_32_0GT);
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_64_0GB)
+			return (PCIE_SPEED_64_0GT);
 	} else {	/* pre-r3.0 */
 		lnkcap = pci_read_config(root, pos + PCIER_LINK_CAP, 4);
 		if (lnkcap & PCI_EXP_LNKCAP_SLS_2_5GB)
@@ -1280,6 +1291,10 @@ pcie_get_speed_cap(struct pci_dev *dev)
 			return (PCIE_SPEED_8_0GT);
 		if (lnkcap & PCI_EXP_LNKCAP_SLS_16_0GB)
 			return (PCIE_SPEED_16_0GT);
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_32_0GB)
+			return (PCIE_SPEED_32_0GT);
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_64_0GB)
+			return (PCIE_SPEED_64_0GT);
 	}
 	return (PCI_SPEED_UNKNOWN);
 }
@@ -1307,6 +1322,10 @@ PCIE_SPEED2MBS_ENC(enum pci_bus_speed spd)
 {
 
 	switch(spd) {
+	case PCIE_SPEED_64_0GT:
+		return (64000 * 128 / 130);
+	case PCIE_SPEED_32_0GT:
+		return (32000 * 128 / 130);
 	case PCIE_SPEED_16_0GT:
 		return (16000 * 128 / 130);
 	case PCIE_SPEED_8_0GT:
