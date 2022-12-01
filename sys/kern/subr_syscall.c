@@ -73,6 +73,7 @@ syscallenter(struct thread *td)
 	traced = (p->p_flag & P_TRACED) != 0;
 	if (__predict_false(traced || td->td_dbgflags & TDB_USERWR)) {
 		PROC_LOCK(p);
+		MPASS((td->td_dbgflags & TDB_BOUNDARY) == 0);
 		td->td_dbgflags &= ~TDB_USERWR;
 		if (traced)
 			td->td_dbgflags |= TDB_SCE;
@@ -201,7 +202,7 @@ syscallenter(struct thread *td)
 	    td->td_retval[1]);
 	if (__predict_false(traced)) {
 		PROC_LOCK(p);
-		td->td_dbgflags &= ~TDB_SCE;
+		td->td_dbgflags &= ~(TDB_SCE | TDB_BOUNDARY);
 		PROC_UNLOCK(p);
 	}
 	(p->p_sysent->sv_set_syscall_retval)(td, error);
@@ -281,9 +282,13 @@ syscallret(struct thread *td)
 		 */
 		if (traced &&
 		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
-		    (p->p_ptevents & PTRACE_SCX) != 0))
+		    (p->p_ptevents & PTRACE_SCX) != 0)) {
+			MPASS((td->td_dbgflags & TDB_BOUNDARY) == 0);
+			td->td_dbgflags |= TDB_BOUNDARY;
 			ptracestop(td, SIGTRAP, NULL);
-		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
+		}
+		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK |
+		    TDB_BOUNDARY);
 		PROC_UNLOCK(p);
 	}
 
