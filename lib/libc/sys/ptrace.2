@@ -976,10 +976,44 @@ The size of
 .Vt "struct ptrace_coredump"
 must be passed in
 .Fa data .
-.Pp
-The process must be stopped before dumping core.
+.It Dv PT_SC_REMOTE
+Request to execute a syscall in the context of the traced process,
+in the specified thread.
+The
+.Fa addr
+argument must point to the
+.Vt "struct ptrace_sc_remote" ,
+which describes the requested syscall and its arguments, and receives
+the result.
+The size of
+.Vt "struct ptrace_sc_remote"
+must be passed in
+.Fa data.
+.Bd -literal
+struct ptrace_sc_remote {
+	struct ptrace_sc_ret pscr_ret;
+	u_int	pscr_syscall;
+	u_int	pscr_nargs;
+	u_long	*pscr_args;
+};
+.Ed
+The
+.Dv pscr_syscall
+contains the syscall number to execute, the
+.Dv pscr_nargs
+is the number of supplied arguments, which are supplied in the
+.Dv pscr_args
+array.
+Result of the execution is returned in the
+.Dv pscr_ret
+member.
+Note that the request and its result do not affect the returned value from
+the currently executed syscall, if any.
+.El
+.Sh PT_COREDUMP and PT_SC_REMOTE usage
+The process must be stopped before dumping or initiating a remote system call.
 A single thread in the target process is temporarily unsuspended
-in kernel to write the dump.
+in the kernel to perform the action.
 If the
 .Nm
 call fails before a thread is unsuspended, there is no event to
@@ -996,9 +1030,38 @@ an error occurred, it is recommended to unconditionally perform
 with
 .Dv WNOHANG
 flag after
-.Dv PT_COREDUMP ,
+.Dv PT_COREDUMP
+and
+.Dv PT_SC_REMOTE ,
 and silently accept zero result from it.
-.El
+.Pp
+For
+.Dv PT_SC_REMOTE ,
+the selected thread must be stopped in the safe place, which is
+currently defined as a syscall exit, or a return from kernel to
+user mode (basically, a signal handler call place).
+Kernel returns
+.Er EBUSY
+status if attempt is made to execute remote syscall at unsafe stop.
+.Pp
+Note that neither
+.Dv kern.trap_enotcap
+sysctl setting, nor the corresponding
+.Xr procctl 2
+flag
+.Dv PROC_TRAPCAP_CTL_ENABLE
+are obeyed during the execution of the syscall by
+.Dv PT_SC_REMOTE .
+In other words,
+.Dv SIGTRAP
+signal is not sent to a process executing in capability mode,
+which violated a mode access restriction.
+.Pp
+Note that due to the mode of execution for the remote syscall, in
+particular, the setting where only one thread is allowed to run,
+the syscall might block on resources owned by suspended threads.
+This might result in the target process deadlock.
+In this situation, the only way out is to kill the target.
 .Sh ARM MACHINE-SPECIFIC REQUESTS
 .Bl -tag -width "Dv PT_SETVFPREGS"
 .It Dv PT_GETVFPREGS
