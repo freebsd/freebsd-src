@@ -464,13 +464,14 @@ struct inpcbstorage {
 	uma_zone_t	ips_zone;
 	uma_zone_t	ips_portzone;
 	uma_init	ips_pcbinit;
+	size_t		ips_size;
 	const char *	ips_zone_name;
 	const char *	ips_portzone_name;
 	const char *	ips_infolock_name;
 	const char *	ips_hashlock_name;
 };
 
-#define INPCBSTORAGE_DEFINE(prot, lname, zname, iname, hname)		\
+#define INPCBSTORAGE_DEFINE(prot, ppcb, lname, zname, iname, hname)	\
 static int								\
 prot##_inpcb_init(void *mem, int size __unused, int flags __unused)	\
 {									\
@@ -480,6 +481,7 @@ prot##_inpcb_init(void *mem, int size __unused, int flags __unused)	\
 	return (0);							\
 }									\
 static struct inpcbstorage prot = {					\
+	.ips_size = sizeof(struct ppcb),				\
 	.ips_pcbinit = prot##_inpcb_init,				\
 	.ips_zone_name = zname,						\
 	.ips_portzone_name = zname " ports",				\

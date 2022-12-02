@@ -170,9 +170,9 @@ static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		    struct mbuf *, struct thread *, int);
 #endif
 
-INPCBSTORAGE_DEFINE(udpcbstor, "udpinp", "udp_inpcb", "udp", "udphash");
-INPCBSTORAGE_DEFINE(udplitecbstor, "udpliteinp", "udplite_inpcb", "udplite",
-    "udplitehash");
+INPCBSTORAGE_DEFINE(udpcbstor, inpcb, "udpinp", "udp_inpcb", "udp", "udphash");
+INPCBSTORAGE_DEFINE(udplitecbstor, inpcb, "udpliteinp", "udplite_inpcb",
+    "udplite", "udplitehash");
 
 static void
 udp_vnet_init(void *arg __unused)
