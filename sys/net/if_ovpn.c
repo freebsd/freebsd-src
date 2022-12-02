@@ -114,14 +114,6 @@ struct ovpn_wire_header {
 	uint8_t		 auth_tag[16];
 };
 
-struct ovpn_notification {
-	enum ovpn_notif_type	type;
-	enum ovpn_del_reason	del_reason;
-	uint32_t		peerid;
-};
-
-struct ovpn_softc;
-
 struct ovpn_peer_counters {
 	uint64_t	pkt_in;
 	uint64_t	pkt_out;
@@ -129,6 +121,17 @@ struct ovpn_peer_counters {
 	uint64_t	bytes_out;
 };
 #define OVPN_PEER_COUNTER_SIZE (sizeof(struct ovpn_peer_counters)/sizeof(uint64_t))
+
+struct ovpn_notification {
+	enum ovpn_notif_type	type;
+	uint32_t		peerid;
+
+	/* Delete notification */
+	enum ovpn_del_reason	del_reason;
+	struct ovpn_peer_counters	counters;
+};
+
+struct ovpn_softc;
 
 struct ovpn_kpeer {
 	RB_ENTRY(ovpn_kpeer)	 tree;
@@ -438,6 +441,16 @@ ovpn_notify_del_peer(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
 	n->peerid = peer->peerid;
 	n->type = OVPN_NOTIF_DEL_PEER;
 	n->del_reason = peer->del_reason;
+
+	n->counters.pkt_in = counter_u64_fetch(peer->counters[offsetof(
+	    struct ovpn_peer_counters, pkt_in)/sizeof(uint64_t)]);
+	n->counters.pkt_out = counter_u64_fetch(peer->counters[offsetof(
+	    struct ovpn_peer_counters, pkt_out)/sizeof(uint64_t)]);
+	n->counters.bytes_in = counter_u64_fetch(peer->counters[offsetof(
+	    struct ovpn_peer_counters, bytes_in)/sizeof(uint64_t)]);
+	n->counters.bytes_out = counter_u64_fetch(peer->counters[offsetof(
+	    struct ovpn_peer_counters, bytes_out)/sizeof(uint64_t)]);
+
 	if (buf_ring_enqueue(sc->notifring, n) != 0) {
 		free(n, M_OVPN);
 	} else if (sc->so != NULL) {
@@ -1335,6 +1348,32 @@ ovpn_poll_pkt(struct ovpn_softc *sc, nvlist_t **onvl)
 	return (0);
 }
 
+static void
+ovpn_notif_add_counters(nvlist_t *parent, struct ovpn_notification *n)
+{
+	nvlist_t *nvl;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return;
+
+	nvlist_add_number(nvl, "in", n->counters.pkt_in);
+	nvlist_add_number(nvl, "out", n->counters.pkt_out);
+
+	nvlist_add_nvlist(parent, "packets", nvl);
+	nvlist_destroy(nvl);
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return;
+
+	nvlist_add_number(nvl, "in", n->counters.bytes_in);
+	nvlist_add_number(nvl, "out", n->counters.bytes_out);
+
+	nvlist_add_nvlist(parent, "bytes", nvl);
+	nvlist_destroy(nvl);
+}
+
 static int
 opvn_get_pkt(struct ovpn_softc *sc, nvlist_t **onvl)
 {
@@ -1353,8 +1392,13 @@ opvn_get_pkt(struct ovpn_softc *sc, nvlist_t **onvl)
 	}
 	nvlist_add_number(nvl, "peerid", n->peerid);
 	nvlist_add_number(nvl, "notification", n->type);
-	if (n->type == OVPN_NOTIF_DEL_PEER)
+	if (n->type == OVPN_NOTIF_DEL_PEER) {
 		nvlist_add_number(nvl, "del_reason", n->del_reason);
+
+		/* No error handling, because we want to send the notification
+		 * even if we can't attach the counters. */
+		ovpn_notif_add_counters(nvl, n);
+	}
 	free(n, M_OVPN);
 
 	*onvl = nvl;
