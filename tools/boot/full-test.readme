@@ -1,0 +1,40 @@
+First, you will need a few things.
+
+(1) My latest branch at https://github.com/bsdimp/freebsd/tree/boot-linuxboot
+ (so the boot-linuxboot branch of my freebsd tree, it's sync to Friday).
+
+(2) a small cache of binaries. You'll need to put these into
+ ~/stand-test-root/cache. You can find the tarball at
+ freefall.freebsd.org:~imp/cache.tar. You can just extract this in ~. These are
+ the linux kernels I'm testing with.
+
+(3) The latest qemu-system-aarch64 (I think ports/pkg version of emulators/qemu
+ is recent enough). If not, I know the latest master of qemu project works.
+
+(4) A recent enough universe that the building of stand will work for all the
+ architectures that I build. You can hack the ARCHES line near the top of
+ tools/boot/full-test.sh if need be, but you'll need at least amd64, arm64 and
+ maybe riscv (I don't have a good way to filter arches in this script yet, since
+ it's at an early state of development.
+
+(5) Build the kernel for at least arm64 and use it as an 'override'. I do this
+ by sudo -E make installkernel
+ DESTDIR=$HOME/stand-test-root/override/arm64-aarch64 TARGET=arm64 after
+ building the kernel. The script is designed to use kernels and binaries from
+ the latest CDs to do the testing, but has a way to override the kernel and
+ since we need to fix arm64...
+
+(6) You'll need to build the images. If you've done 1-5 correctly (and I've not
+ missed anything), then "cd <mumble>/src; sh tools/boot/full-test.sh" will create
+ all the images and scripts to run qemu. There should be no errors, though
+ warnings about zfs.ko etc missing from powerpc is fine (and ignored by the
+ script already).
+
+(7) There will be a script to recreate this created in
+ $HOME/stand-test-root/scripts/arm64-aarch64/linuxboot-test.sh. Just run it with
+ 'sh'. And extra args are passed to qemu, so '-s -S' for gdb and
+ '-d trace:gicv3\* -D /tmp/gic.log' for verbose gic tracing (spaces are important).
+
+There's also a linuxboot-test-raw.sh which boots w/o EDK2+Linux.efi but loads
+the kernel directly. and freebsd-test.sh which uses EDK2+loader.efi to boot FreeBSD
+w/o kboot at all.
