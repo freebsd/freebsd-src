@@ -49,49 +49,31 @@ static void kboot_kseg_get(int *nseg, void **ptr);
 
 extern int command_fdt_internal(int argc, char *argv[]);
 
+/*
+ * NB: getdev should likely be identical to this most places, except maybe
+ * we should move to storing the length of the platform devdesc.
+ */
 int
 kboot_getdev(void **vdev, const char *devspec, const char **path)
 {
-	int i, rv;
-	const char *devpath, *filepath;
-	struct devsw *dv;
-	struct devdesc *desc;
+	int rv;
+	struct devdesc **dev = (struct devdesc **)vdev;
 
-	if (devspec == NULL) {
-		rv = kboot_getdev(vdev, getenv("currdev"), NULL);
-		if (rv == 0 && path != NULL)
+	/*
+	 * If it looks like this is just a path and no device, go with the
+	 * current device.
+	 */
+	if (devspec == NULL || strchr(devspec, ':') == NULL) {
+		if (((rv = devparse(dev, getenv("currdev"), NULL)) == 0) &&
+		    (path != NULL))
 			*path = devspec;
 		return (rv);
 	}
-	if (strchr(devspec, ':') != NULL) {
-		devpath = devspec;
-		filepath = strchr(devspec, ':') + 1;
-	} else {
-		devpath = getenv("currdev");
-		filepath = devspec;
-	}
 
-	for (i = 0; (dv = devsw[i]) != NULL; i++) {
-		if (strncmp(dv->dv_name, devpath, strlen(dv->dv_name)) == 0)
-			goto found;
-	}
-	return (ENOENT);
-
-found:
-	if (path != NULL && filepath != NULL)
-		*path = filepath;
-	else if (path != NULL)
-		*path = strchr(devspec, ':') + 1;
-
-	if (vdev != NULL) {
-		desc = malloc(sizeof(*desc));
-		desc->d_dev = dv;
-		desc->d_unit = 0;
-		desc->d_opendata = strdup(devpath);
-		*vdev = desc;
-	}
-
-	return (0);
+	/*
+	 * Try to parse the device name off the beginning of the devspec
+	 */
+	return (devparse(dev, devspec, path));
 }
 
 int
