@@ -714,6 +714,7 @@ nhop_copy(struct nhop_object *nh, const struct nhop_object *nh_orig)
 	nh_priv->nh_type = nh_orig->nh_priv->nh_type;
 	nh_priv->rt_flags = nh_orig->nh_priv->rt_flags;
 	nh_priv->nh_fibnum = nh_orig->nh_priv->nh_fibnum;
+	nh_priv->nh_origin = nh_orig->nh_priv->nh_origin;
 }
 
 void
