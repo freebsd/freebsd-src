@@ -173,6 +173,8 @@ delete_and_clear(vector<T *> &v)
 
 static config cfg;
 
+static const char *curr_cf = NULL;
+
 event_proc::event_proc() : _prio(-1)
 {
 	_epsvec.reserve(4);
@@ -452,17 +454,28 @@ config::reset(void)
 	delete_and_clear(_notify_list);
 }
 
+/*
+ * Called recursively as new files are included, so current stack of old names
+ * saved in each instance of 'old' on the call stack. Called single threaded
+ * so global varaibles curr_cf and lineno (and all of yacc's parser state)
+ * are safe to access w/o a lock.
+ */
 void
 config::parse_one_file(const char *fn)
 {
+	const char *old;
+
 	devdlog(LOG_DEBUG, "Parsing %s\n", fn);
 	yyin = fopen(fn, "r");
+	old = curr_cf;
+	curr_cf = fn;
 	if (yyin == NULL)
 		err(1, "Cannot open config file %s", fn);
 	lineno = 1;
 	if (yyparse() != 0)
 		errx(1, "Cannot parse %s at line %d", fn, lineno);
 	fclose(yyin);
+	curr_cf = old;
 }
 
 void
@@ -1194,6 +1207,27 @@ new_action(const char *cmd)
 eps *
 new_match(const char *var, const char *re)
 {
+	/*
+	 * In FreeBSD 14, we changed the system=kern to system=kernel for the
+	 * resume message to match all the other 'kernel' messages. Generate a
+	 * warning for the life of 14.x that we've 'fixed' the file on the fly,
+	 * but make it a fatal error in 15.x and newer.
+	 */
+	if (strcmp(var, "kern") == 0) {
+#if __FreeBSD_version < 1500000
+		devdlog(LOG_WARNING,
+		    "Changing deprecated system='kern' to new name 'kernel' in %s line %d.",
+		    curr_cf, lineno);
+		free(const_cast<char *>(var));
+		var = strdup("kernel");
+#elif  __FreeBSD_version < 1600000
+		errx(1, "Encountered deprecated system=\"kern\" rule in %s line %d",
+		    curr_cf, lineno);
+#else
+#error "Remove this gross hack"
+#endif
+	}
+
 	eps *e = new match(cfg, var, re);
 	free(const_cast<char *>(var));
 	free(const_cast<char *>(re));
