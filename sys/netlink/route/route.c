@@ -747,13 +747,13 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
     struct nl_pstate *npt, int *perror)
 {
 	struct nhop_object *nh = NULL;
+	int error = 0;
 
 	if (attrs->rta_multipath != NULL) {
 #ifdef ROUTE_MPATH
 		/* Multipath w/o explicit nexthops */
 		int num_nhops = attrs->rta_multipath->num_nhops;
 		struct weightened_nhop *wn = npt_alloc(npt, sizeof(*wn) * num_nhops);
-		int error = 0;
 
 		for (int i = 0; i < num_nhops; i++) {
 			struct rta_mpath_nh *mpnh = &attrs->rta_multipath->nhops[i];
