@@ -93,7 +93,6 @@ SUBDIR=	adduser \
 	tcpsso \
 	traceroute \
 	trim \
-	trpt \
 	tzsetup \
 	ugidfw \
 	valectl \

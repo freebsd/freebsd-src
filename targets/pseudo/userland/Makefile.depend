@@ -700,7 +700,6 @@ DIRDEPS+= \
 	usr.sbin/timed/timedc \
 	usr.sbin/traceroute \
 	usr.sbin/traceroute6 \
-	usr.sbin/trpt \
 	usr.sbin/tzsetup \
 	usr.sbin/uathload \
 	usr.sbin/uefisign \
