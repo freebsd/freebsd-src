@@ -35,7 +35,7 @@ file2str(const char *fn, char *buffer, size_t buflen)
 bool
 file2u64(const char *fn, uint64_t *val)
 {
-	unsigned long v;
+	unsigned long long v;
 	char buffer[80];
 
 	if (!file2str(fn, buffer, sizeof(buffer)))
