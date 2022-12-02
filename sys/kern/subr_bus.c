@@ -4704,7 +4704,6 @@ root_resume(device_t dev)
 
 	error = bus_generic_resume(dev);
 	if (error == 0) {
-		devctl_notify("kern", "power", "resume", NULL); /* Deprecated gone in 14 */
 		devctl_notify("kernel", "power", "resume", NULL);
 	}
 	return (error);

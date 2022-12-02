@@ -40,7 +40,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd September 22, 2022
+.Dd December 1, 2022
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -471,14 +471,6 @@ The network interface is renamed.
 The network interface address added.
 .It Li IFNET Ta Em inet Ta Li ADDR_DEL Ta
 The network interface address removed.
-.El
-.Pp
-.Bl -column "System" "Subsystem" "1234567" -compact
-.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
-.It Li kern Ta Li power Ta Li resume Ta
-Notification that the system has woken from the suspended state.
-Note: this notification is deprecated and will be removed in
-.Fx 14.0 .
 .El
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
