@@ -30,7 +30,8 @@ SRCS=	\
 		kbootfdt.c \
 		main.c \
 		termios.c \
-		vers.c \
+		util.c \
+		vers.c
 
 CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
