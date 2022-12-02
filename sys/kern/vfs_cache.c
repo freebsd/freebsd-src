@@ -3797,6 +3797,71 @@ out:
 	return (error);
 }
 
+/*
+ * This is similar to vn_path_to_global_path but allows for regular
+ * files which may not be present in the cache.
+ *
+ * Requires a locked, referenced vnode.
+ * Vnode is re-locked on success or ENODEV, otherwise unlocked.
+ */
+int
+vn_path_to_global_path_hardlink(struct thread *td, struct vnode *vp,
+    struct vnode *dvp, char *path, u_int pathlen, const char *leaf_name,
+    size_t leaf_length)
+{
+	struct nameidata nd;
+	struct vnode *vp1;
+	char *rpath, *fbuf;
+	size_t len;
+	int error;
+
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
+	/*
+	 * Construct global filesystem path from dvp, vp and leaf
+	 * name.
+	 */
+	VOP_UNLOCK(vp);
+	error = vn_fullpath_hardlink(vp, dvp, leaf_name, leaf_length,
+	    &rpath, &fbuf, &len);
+
+	if (error != 0) {
+		vrele(vp);
+		goto out;
+	}
+
+	if (strlen(rpath) >= pathlen) {
+		vrele(vp);
+		error = ENAMETOOLONG;
+		goto out;
+	}
+
+	/*
+	 * Re-lookup the vnode by path to detect a possible rename.
+	 * As a side effect, the vnode is relocked.
+	 * If vnode was renamed, return ENOENT.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_SYSSPACE, path, td);
+	error = namei(&nd);
+	if (error != 0) {
+		vrele(vp);
+		goto out;
+	}
+	NDFREE_PNBUF(&nd);
+	vp1 = nd.ni_vp;
+	vrele(vp);
+	if (vp1 == vp)
+		strcpy(path, rpath);
+	else {
+		vput(vp1);
+		error = ENOENT;
+	}
+
+out:
+	free(fbuf, M_TEMP);
+	return (error);
+}
+
 #ifdef DDB
 static void
 db_print_vpath(struct vnode *vp)
@@ -5349,7 +5414,7 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 	vp = fpl->tvp;
 	vp_seqc = fpl->tvp_seqc;
 
-	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
+	VNPASS(vp->v_type == VDIR || vp->v_type == VREG || vp->v_type == VBAD, vp);
 	mp = atomic_load_ptr(&vp->v_mountedhere);
 	if (__predict_false(mp == NULL)) {
 		return (0);
@@ -5406,7 +5471,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 	vp = fpl->tvp;
 	vp_seqc = fpl->tvp_seqc;
 
-	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
+	VNPASS(vp->v_type == VDIR || vp->v_type == VREG || vp->v_type == VBAD, vp);
 	mp = atomic_load_ptr(&vp->v_mountedhere);
 	if (__predict_false(mp == NULL)) {
 		return (0);
