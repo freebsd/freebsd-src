@@ -568,5 +568,3 @@ devctl_safe_quote_sb(struct sbuf *sb, const char *src)
 		sbuf_putc(sb, *src++);
 	}
 }
-
-
