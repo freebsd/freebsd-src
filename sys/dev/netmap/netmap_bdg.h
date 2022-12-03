@@ -190,7 +190,6 @@ void netmap_uninit_bridges2(struct nm_bridge *, u_int);
 int netmap_bdg_update_private_data(const char *name, bdg_update_private_data_fn_t callback,
 	void *callback_data, void *auth_token);
 int netmap_bdg_config(struct nm_ifreq *nifr);
-int nm_is_bwrap(struct netmap_adapter *);
 
 #define NM_NEED_BWRAP (-2)
 #endif /* _NET_NETMAP_BDG_H_ */

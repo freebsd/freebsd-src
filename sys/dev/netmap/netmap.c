@@ -760,6 +760,10 @@ netmap_update_config(struct netmap_adapter *na)
 {
 	struct nm_config_info info;
 
+	if (na->ifp && !nm_is_bwrap(na)) {
+		strlcpy(na->name, na->ifp->if_xname, sizeof(na->name));
+	}
+
 	bzero(&info, sizeof(info));
 	if (na->nm_config == NULL ||
 	    na->nm_config(na, &info)) {
