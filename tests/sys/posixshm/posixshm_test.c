@@ -953,7 +953,7 @@ ATF_TC_BODY(fallocate, tc)
 	ATF_REQUIRE_MSG((error = posix_fallocate(fd, sz, sz)) == 0,
 	    "posix_fallocate failed; error=%d", error);
 	ATF_REQUIRE(fstat(fd, &st) == 0);
-	ATF_REQUIRE(st.st_size == (sz * 2));
+	ATF_REQUIRE(st.st_size == sz * 2);
 
 	close(fd);
 }
