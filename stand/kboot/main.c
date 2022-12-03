@@ -83,6 +83,14 @@ main(int argc, const char **argv)
 	const size_t heapsize = 15*1024*1024;
 	const char *bootdev;
 
+	archsw.arch_getdev = kboot_getdev;
+	archsw.arch_copyin = kboot_copyin;
+	archsw.arch_copyout = kboot_copyout;
+	archsw.arch_readin = kboot_readin;
+	archsw.arch_autoload = kboot_autoload;
+	archsw.arch_loadaddr = kboot_loadaddr;
+	archsw.arch_kexec_kseg_get = kboot_kseg_get;
+
 	/* Give us a sane world if we're running as init */
 	do_init();
 
@@ -106,14 +114,6 @@ main(int argc, const char **argv)
 		hostfs_root = argv[2];
 
 	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
-
-	archsw.arch_getdev = kboot_getdev;
-	archsw.arch_copyin = kboot_copyin;
-	archsw.arch_copyout = kboot_copyout;
-	archsw.arch_readin = kboot_readin;
-	archsw.arch_autoload = kboot_autoload;
-	archsw.arch_loadaddr = kboot_loadaddr;
-	archsw.arch_kexec_kseg_get = kboot_kseg_get;
 
 	printf("\n%s", bootprog_info);
 
