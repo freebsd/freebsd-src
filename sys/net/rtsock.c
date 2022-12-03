@@ -220,6 +220,7 @@ static void	send_rtm_reply(struct socket *so, struct rt_msghdr *rtm,
 static bool	can_export_rte(struct ucred *td_ucred, bool rt_is_host,
 			const struct sockaddr *rt_dst);
 static void	rtsock_notify_event(uint32_t fibnum, const struct rib_cmd_info *rc);
+static void	rtsock_ifmsg(struct ifnet *ifp, int if_flags_mask);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -297,7 +298,10 @@ rts_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 #endif
 		report_route_event(rc, (void *)(uintptr_t)fibnum);
 }
-static struct rtbridge rtsbridge = { .route_f = rts_handle_route_event };
+static struct rtbridge rtsbridge = {
+	.route_f = rts_handle_route_event,
+	.ifmsg_f = rtsock_ifmsg,
+};
 static struct rtbridge *rtsbridge_orig_p;
 
 static void
@@ -1916,8 +1920,8 @@ rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
  * This routine is called to generate a message from the routing
  * socket indicating that the status of a network interface has changed.
  */
-void
-rt_ifmsg(struct ifnet *ifp)
+static void
+rtsock_ifmsg(struct ifnet *ifp, int if_flags_mask __unused)
 {
 	struct if_msghdr *ifm;
 	struct mbuf *m;

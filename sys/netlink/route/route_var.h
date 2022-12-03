@@ -88,6 +88,7 @@ void rtnl_ifaces_init(void);
 void rtnl_ifaces_destroy(void);
 void rtnl_iface_add_cloner(struct nl_cloner *cloner);
 void rtnl_iface_del_cloner(struct nl_cloner *cloner);
+void rtnl_handle_ifnet_event(struct ifnet *ifp, int if_change_mask);
 
 /* iface_drivers.c */
 void rtnl_iface_drivers_register(void);
