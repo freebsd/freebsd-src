@@ -42,6 +42,9 @@ struct ifinfomsg {
 	unsigned	ifi_change;	/* IFF_* change mask */
 };
 
+/* Linux-specific link-level state flag */
+#define	IFF_LOWER_UP	IFF_NETLINK_1
+
 #ifndef _KERNEL
 /* Compatilbility helpers */
 #define	_IFINFO_HDRLEN		((int)sizeof(struct ifinfomsg))

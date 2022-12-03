@@ -68,7 +68,7 @@ struct netlink_walkargs {
 	int dumped;
 };
 
-static eventhandler_tag ifdetach_event, ifattach_event, ifaddr_event;
+static eventhandler_tag ifdetach_event, ifattach_event, iflink_event, ifaddr_event;
 
 static SLIST_HEAD(, nl_cloner) nl_cloners = SLIST_HEAD_INITIALIZER(nl_cloners);
 
@@ -234,11 +234,13 @@ dump_sa(struct nl_writer *nw, int attr, const struct sockaddr *sa)
  * @nw: message writer
  * @ifp: target interface
  * @hdr: template header
+ * @if_flags_mask: changed if_[drv]_flags bitmask
  *
  * This function is called without epoch and MAY sleep.
  */
 static bool
-dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr)
+dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
+    int if_flags_mask)
 {
         struct ifinfomsg *ifinfo;
 
@@ -253,13 +255,15 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr)
         ifinfo->ifi_type = ifp->if_type;
         ifinfo->ifi_index = ifp->if_index;
         ifinfo->ifi_flags = ifp_flags_to_netlink(ifp);
-        ifinfo->ifi_change = 0;
-
-        nlattr_add_string(nw, IFLA_IFNAME, if_name(ifp));
+        ifinfo->ifi_change = if_flags_mask;
 
 	struct if_state ifs = {};
 	get_operstate(ifp, &ifs);
 
+	if (ifs.ifla_operstate == IF_OPER_UP)
+		ifinfo->ifi_flags |= IFF_LOWER_UP;
+
+        nlattr_add_string(nw, IFLA_IFNAME, if_name(ifp));
         nlattr_add_u8(nw, IFLA_OPERSTATE, ifs.ifla_operstate);
         nlattr_add_u8(nw, IFLA_CARRIER, ifs.ifla_carrier);
 
@@ -387,7 +391,7 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 		NLP_LOG(LOG_DEBUG3, nlp, "fast track -> searching index %u", attrs.ifi_index);
 		if (ifp != NULL) {
 			if (match_iface(&attrs, ifp)) {
-				if (!dump_iface(wa.nw, ifp, &wa.hdr))
+				if (!dump_iface(wa.nw, ifp, &wa.hdr, 0))
 					error = ENOMEM;
 			} else
 				error = ESRCH;
@@ -439,7 +443,7 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 
 	NL_LOG(LOG_DEBUG2, "Matched %d interface(s), dumping", offset);
 	for (int i = 0; error == 0 && i < offset; i++) {
-		if (!dump_iface(wa.nw, match_array[i], &wa.hdr))
+		if (!dump_iface(wa.nw, match_array[i], &wa.hdr, 0))
 			error = ENOMEM;
 	}
 	for (int i = 0; i < offset; i++)
@@ -767,9 +771,9 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 }
 
 static void
-rtnl_handle_ifattach(void *arg, struct ifnet *ifp)
+rtnl_handle_ifevent(struct ifnet *ifp, int nlmsg_type, int if_flags_mask)
 {
-	struct nlmsghdr hdr = { .nlmsg_type = NL_RTM_NEWLINK };
+	struct nlmsghdr hdr = { .nlmsg_type = nlmsg_type };
 	struct nl_writer nw = {};
 
 	if (!nl_has_listeners(NETLINK_ROUTE, RTNLGRP_LINK))
@@ -779,25 +783,36 @@ rtnl_handle_ifattach(void *arg, struct ifnet *ifp)
 		NL_LOG(LOG_DEBUG, "error allocating mbuf");
 		return;
 	}
-	dump_iface(&nw, ifp, &hdr);
+	dump_iface(&nw, ifp, &hdr, if_flags_mask);
         nlmsg_flush(&nw);
+}
+
+static void
+rtnl_handle_ifattach(void *arg, struct ifnet *ifp)
+{
+	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
 }
 
 static void
 rtnl_handle_ifdetach(void *arg, struct ifnet *ifp)
 {
-	struct nlmsghdr hdr = { .nlmsg_type = NL_RTM_DELLINK };
-	struct nl_writer nw = {};
+	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
+	rtnl_handle_ifevent(ifp, NL_RTM_DELLINK, 0);
+}
 
-	if (!nl_has_listeners(NETLINK_ROUTE, RTNLGRP_LINK))
-		return;
+static void
+rtnl_handle_iflink(void *arg, struct ifnet *ifp)
+{
+	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
+}
 
-	if (!nlmsg_get_group_writer(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK)) {
-		NL_LOG(LOG_DEBUG, "error allocating mbuf");
-		return;
-	}
-	dump_iface(&nw, ifp, &hdr);
-        nlmsg_flush(&nw);
+void
+rtnl_handle_ifnet_event(struct ifnet *ifp, int if_flags_mask)
+{
+	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
+	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, if_flags_mask);
 }
 
 static const struct rtnl_cmd_handler cmd_handlers[] = {
@@ -867,6 +882,9 @@ rtnl_ifaces_init(void)
 	ifaddr_event = EVENTHANDLER_REGISTER(
 	    rt_addrmsg, rtnl_handle_ifaddr, NULL,
 	    EVENTHANDLER_PRI_ANY);
+	iflink_event = EVENTHANDLER_REGISTER(
+	    ifnet_link_event, rtnl_handle_iflink, NULL,
+	    EVENTHANDLER_PRI_ANY);
 	NL_VERIFY_PARSERS(all_parsers);
 	rtnl_iface_drivers_register();
 	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
@@ -878,4 +896,5 @@ rtnl_ifaces_destroy(void)
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ifattach_event);
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_event);
 	EVENTHANDLER_DEREGISTER(rt_addrmsg, ifaddr_event);
+	EVENTHANDLER_DEREGISTER(ifnet_link_event, iflink_event);
 }

@@ -203,7 +203,7 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_ioctl = usbpf_ioctl;
 	if_attach(ifp);
 	ifp->if_flags |= IFF_UP;
-	rt_ifmsg(ifp);
+	rt_ifmsg_14(ifp, IFF_UP);
 	/*
 	 * XXX According to the specification of DLT_USB, it indicates
 	 * packets beginning with USB setup header. But not sure all

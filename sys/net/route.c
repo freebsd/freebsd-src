@@ -813,12 +813,34 @@ rt_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum)
 	return (rtsock_routemsg_info(cmd, info, fibnum));
 }
 
+void
+rt_ifmsg(struct ifnet *ifp)
+{
+	rt_ifmsg_14(ifp, 0);
+}
+
+void
+rt_ifmsg_14(struct ifnet *ifp, int if_flags_mask)
+{
+	rtsock_callback_p->ifmsg_f(ifp, if_flags_mask);
+	netlink_callback_p->ifmsg_f(ifp, if_flags_mask);
+}
+
 /* Netlink-related callbacks needed to glue rtsock, netlink and linuxolator */
 static void
 ignore_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 {
 }
-static struct rtbridge ignore_cb = { .route_f = ignore_route_event };
+
+static void
+ignore_ifmsg_event(struct ifnet *ifp, int if_flags_mask)
+{
+}
+
+static struct rtbridge ignore_cb = {
+	.route_f = ignore_route_event,
+	.ifmsg_f = ignore_ifmsg_event,
+};
 
 void *linux_netlink_p = NULL; /* Callback pointer for Linux translator functions */
 struct rtbridge *rtsock_callback_p = &ignore_cb;
