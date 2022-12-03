@@ -173,6 +173,37 @@ verify_object(const char *path, char expected_value)
 	close(fd);
 }
 
+static off_t shm_max_pages = 32;
+static const char byte_to_fill = 0x5f;
+
+static int
+shm_fill(int fd, off_t offset, off_t len)
+{
+	int error;
+	size_t blen, page_size;
+	char *buf;
+
+	error = 0;
+	page_size = getpagesize();
+	buf = malloc(page_size);
+	if (buf == NULL)
+		return (1);
+
+	while (len > 0) {
+		blen = len < (off_t)page_size ? (size_t)len : page_size;
+		memset(buf, byte_to_fill, blen);
+		if (pwrite(fd, buf, blen, offset) != (ssize_t)blen) {
+			error = 1;
+			break;
+		}
+		len -= blen;
+		offset += blen;
+	}
+
+	free(buf);
+	return (error);
+}
+
 ATF_TC_WITHOUT_HEAD(remap_object);
 ATF_TC_BODY(remap_object, tc)
 {
@@ -958,6 +989,40 @@ ATF_TC_BODY(fallocate, tc)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(accounting);
+ATF_TC_BODY(accounting, tc)
+{
+	struct spacectl_range range;
+	struct stat st;
+	off_t shm_sz, len;
+	size_t page_size;
+	int fd, error;
+
+	page_size = getpagesize();
+	shm_sz = shm_max_pages * page_size;
+
+	fd = shm_open("/testtest1", O_RDWR | O_CREAT, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno:%d", errno);
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, shm_sz)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)shm_sz);
+
+#if 0
+	range.r_offset = page_size;
+	range.r_len = len = (shm_max_pages - 1) * page_size -
+	    range.r_offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "SPACECTL_DEALLOC failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)(shm_sz - len));
+
+	ATF_REQUIRE(close(fd) == 0);
+#endif
+}
+
 static int
 shm_open_large(int psind, int policy, size_t sz)
 {
@@ -1716,6 +1781,13 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, cloexec);
 	ATF_TP_ADD_TC(tp, mode);
 	ATF_TP_ADD_TC(tp, fallocate);
+<<<<<<< HEAD
+||||||| parent of 91ddfd352f59 (posixshm_test: add naive page accounting test)
+	ATF_TP_ADD_TC(tp, fspacectl);
+=======
+	ATF_TP_ADD_TC(tp, fspacectl);
+	ATF_TP_ADD_TC(tp, accounting);
+>>>>>>> 91ddfd352f59 (posixshm_test: add naive page accounting test)
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
 	ATF_TP_ADD_TC(tp, largepage_mmap);
