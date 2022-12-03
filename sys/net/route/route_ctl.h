@@ -191,8 +191,10 @@ void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
 
 /* Event bridge */
 typedef void route_event_f(uint32_t fibnum, const struct rib_cmd_info *rc);
+typedef void ifmsg_event_f(struct ifnet *ifp, int if_flags_mask);
 struct rtbridge{
 	route_event_f	*route_f;
+	ifmsg_event_f	*ifmsg_f;
 };
 extern struct rtbridge *rtsock_callback_p;
 extern struct rtbridge *netlink_callback_p;
