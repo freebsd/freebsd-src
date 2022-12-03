@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 
 struct tpcl_softc {
 	struct ctl_port port;
-	int cur_tag_num;
+	u_int cur_tag_num;
 };
 
 static struct tpcl_softc tpcl_softc;

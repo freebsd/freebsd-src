@@ -1185,7 +1185,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		bcopy(atio_cdb_ptr(atio), io->scsiio.cdb, io->scsiio.cdb_len);
 
 #ifdef CTLFEDEBUG
-		printf("%s: %u:%u:%u: tag %04x CDB %02x\n", __func__,
+		printf("%s: %u:%u:%u: tag %jx CDB %02x\n", __func__,
 		        io->io_hdr.nexus.initid,
 		        io->io_hdr.nexus.targ_port,
 		        io->io_hdr.nexus.targ_lun,
