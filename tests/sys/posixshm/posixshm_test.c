@@ -1161,6 +1161,38 @@ ATF_TC_BODY(fspacectl, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+ATF_TC_WITHOUT_HEAD(accounting);
+ATF_TC_BODY(accounting, tc)
+{
+	struct spacectl_range range;
+	struct stat st;
+	off_t shm_sz, len;
+	size_t page_size;
+	int fd, error;
+
+	page_size = getpagesize();
+	shm_sz = shm_max_pages * page_size;
+
+	fd = shm_open("/testtest1", O_RDWR | O_CREAT, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno:%d", errno);
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, shm_sz)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)shm_sz);
+
+	range.r_offset = page_size;
+	range.r_len = len = (shm_max_pages - 1) * page_size -
+	    range.r_offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "SPACECTL_DEALLOC failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)(shm_sz - len));
+
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 static int
 shm_open_large(int psind, int policy, size_t sz)
 {
@@ -1922,6 +1954,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mode);
 	ATF_TP_ADD_TC(tp, fallocate);
 	ATF_TP_ADD_TC(tp, fspacectl);
+	ATF_TP_ADD_TC(tp, accounting);
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
 	ATF_TP_ADD_TC(tp, largepage_mmap);
