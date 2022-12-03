@@ -435,7 +435,7 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, max_luns, CTLFLAG_RDTUN,
 /*
  * Maximum number of ports registered at one time.
  */
-#define	CTL_DEFAULT_MAX_PORTS		256
+#define	CTL_DEFAULT_MAX_PORTS		1024
 static int ctl_max_ports = CTL_DEFAULT_MAX_PORTS;
 TUNABLE_INT("kern.cam.ctl.max_ports", &ctl_max_ports);
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, max_ports, CTLFLAG_RDTUN,
@@ -2443,7 +2443,7 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 	case CTL_ACTION_OVERLAP_TAG:
 		LIST_REMOVE(&ctsio->io_hdr, ooa_links);
 		mtx_unlock(&lun->lun_lock);
-		ctl_set_overlapped_tag(ctsio, ctsio->tag_num);
+		ctl_set_overlapped_tag(ctsio, ctsio->tag_num & 0xff);
 badjuju:
 		ctl_copy_sense_data_back((union ctl_io *)ctsio, &msg_info);
 		msg_info.hdr.original_sc = ctsio->io_hdr.remote_io;
@@ -2491,6 +2491,7 @@ ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 		entry = &kern_entries[*cur_fill_num];
 
 		entry->tag_num = io->scsiio.tag_num;
+		entry->tag_type = io->scsiio.tag_type;
 		entry->lun_num = lun->lun;
 #ifdef CTL_TIME_IO
 		entry->start_bt = io->io_hdr.start_bt;
@@ -12594,7 +12595,7 @@ ctl_datamove(union ctl_io *io)
 	 * the data move.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-		printf("ctl_datamove: tag 0x%04x on (%u:%u:%u) aborted\n",
+		printf("ctl_datamove: tag 0x%jx on (%u:%u:%u) aborted\n",
 		       io->scsiio.tag_num, io->io_hdr.nexus.initid,
 		       io->io_hdr.nexus.targ_port,
 		       io->io_hdr.nexus.targ_lun);
@@ -12996,7 +12997,7 @@ ctl_datamove_remote(union ctl_io *io)
 	 * have been done if need be on the other controller.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-		printf("%s: tag 0x%04x on (%u:%u:%u) aborted\n", __func__,
+		printf("%s: tag 0x%jx on (%u:%u:%u) aborted\n", __func__,
 		       io->scsiio.tag_num, io->io_hdr.nexus.initid,
 		       io->io_hdr.nexus.targ_port,
 		       io->io_hdr.nexus.targ_lun);
@@ -13042,12 +13043,12 @@ ctl_process_done(union ctl_io *io)
 			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
 			sbuf_printf(&sb, "\n");
 			sbuf_cat(&sb, path_str);
-			sbuf_printf(&sb, "Tag: 0x%04x/%d, Prio: %d\n",
+			sbuf_printf(&sb, "Tag: 0x%jx/%d, Prio: %d\n",
 				    io->scsiio.tag_num, io->scsiio.tag_type,
 				    io->scsiio.priority);
 			break;
 		case CTL_IO_TASK:
-			sbuf_printf(&sb, "Task Action: %d Tag: 0x%04x/%d\n",
+			sbuf_printf(&sb, "Task Action: %d Tag: 0x%jx/%d\n",
 				    io->taskio.task_action,
 				    io->taskio.tag_num, io->taskio.tag_type);
 			break;

@@ -328,8 +328,7 @@ struct ctl_scsiio {
 	uint8_t	   scsi_status;		/* SCSI status byte */
 	uint8_t	   seridx;		/* Serialization index. */
 	uint8_t	   priority;		/* Command priority */
-	uint32_t   residual;		/* Unused */
-	uint32_t   tag_num;		/* tag number */
+	uint64_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
 	uint8_t	   cdb[CTL_MAX_CDBLEN];	/* CDB */
@@ -373,7 +372,7 @@ typedef enum {
 struct ctl_taskio {
 	struct ctl_io_hdr	io_hdr;      /* common to all I/O types */
 	ctl_task_type		task_action; /* Target Reset, Abort, etc.  */
-	uint32_t		tag_num;     /* tag number */
+	uint64_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 	uint8_t			task_status; /* Complete, Succeeded, etc. */
 	uint8_t			task_resp[3];/* Response information */
@@ -382,7 +381,7 @@ struct ctl_taskio {
 /*
  * HA link messages.
  */
-#define	CTL_HA_VERSION		3
+#define	CTL_HA_VERSION		4
 
 /*
  * Used for CTL_MSG_LOGIN.
@@ -483,7 +482,7 @@ struct ctl_ha_msg_dt {
  */
 struct ctl_ha_msg_scsi {
 	struct ctl_ha_msg_hdr	hdr;
-	uint32_t		tag_num;     /* tag number */
+	uint64_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 	uint8_t			cdb[CTL_MAX_CDBLEN];	/* CDB */
 	uint8_t			cdb_len;	/* CDB length */
@@ -502,7 +501,7 @@ struct ctl_ha_msg_scsi {
 struct ctl_ha_msg_task {
 	struct ctl_ha_msg_hdr	hdr;
 	ctl_task_type		task_action; /* Target Reset, Abort, etc.  */
-	uint32_t		tag_num;     /* tag number */
+	uint64_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 };
 
