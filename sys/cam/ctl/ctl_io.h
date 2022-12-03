@@ -88,7 +88,7 @@ typedef enum {
 	CTL_FLAG_DATA_OUT	= 0x00000002,	/* DATA OUT */
 	CTL_FLAG_DATA_NONE	= 0x00000003,	/* no data */
 	CTL_FLAG_DATA_MASK	= 0x00000003,
-	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
+	CTL_FLAG_USER_TAG	= 0x00000020,	/* userland provides tag */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
 	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */

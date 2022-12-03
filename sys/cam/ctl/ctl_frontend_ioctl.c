@@ -632,8 +632,9 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	 */
 	io->io_hdr.nexus.targ_port = cfi->port.targ_port;
 	io->io_hdr.flags |= CTL_FLAG_USER_REQ;
-	if ((io->io_hdr.io_type == CTL_IO_SCSI) &&
-	    (io->scsiio.tag_type != CTL_TAG_UNTAGGED))
+	if ((io->io_hdr.flags & CTL_FLAG_USER_TAG) == 0 &&
+	    io->io_hdr.io_type == CTL_IO_SCSI &&
+	    io->scsiio.tag_type != CTL_TAG_UNTAGGED)
 		io->scsiio.tag_num = atomic_fetchadd_int(&cfi->cur_tag_num, 1);
 
 	retval = cfi_submit_wait(io);
