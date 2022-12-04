@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2005-2020 Rich Felker, et al.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Note: From the musl project, stripped down and repackaged with HOST_/host_ prepended
+ */
+
 struct host_termios {
 	host_tcflag_t c_iflag;
 	host_tcflag_t c_oflag;

@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2005-2020 Rich Felker, et al.
+ *
+ * SPDX-License-Identifier: MIT
+ *
+ * Note: From the musl project, stripped down and repackaged with HOST_/host_ prepended
+ */
+
 #undef HOST_NCCS
 #define HOST_NCCS 19
 struct host_termios {
