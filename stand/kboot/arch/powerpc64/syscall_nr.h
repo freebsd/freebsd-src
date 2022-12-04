@@ -12,7 +12,6 @@
 #define SYS_mmap		 90
 #define SYS_mount		 21
 #define	SYS_munmap		 91
-#define SYS_newfstat		SYS_fstat
 #define SYS_newfstatat		291
 #define SYS_openat		286
 #define SYS_pselect6		280
