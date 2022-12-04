@@ -1108,6 +1108,11 @@ vfs_domount_first(
 	if (vfsp->vfc_flags & VFCF_FILEMOUNT) {
 		if (error == 0 && vp->v_type != VDIR && vp->v_type != VREG)
 			error = EINVAL;
+		/*
+		 * For file mounts, ensure that there is only one hardlink to the file.
+		 */
+		if (error == 0 && vp->v_type == VREG && va.va_nlink != 1)
+			error = EINVAL;
 	} else {
 		if (error == 0 && vp->v_type != VDIR)
 			error = ENOTDIR;
