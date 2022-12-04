@@ -69,9 +69,10 @@ bi_getboothowto(char *kargs)
 {
 	const char *sw, *tmp;
 	char *opts;
-	char *console;
-	int howto, speed, port;
+	int speed, port;
 	char buf[50];
+	char *console;
+	int howto;
 
 	howto = boot_parse_cmdline(kargs);
 	howto |= boot_env_to_howto();
