@@ -58,7 +58,7 @@ add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
 			    strcmp(dent->d_name, "..") == 0)
 				continue;
 			d_type = dent->d_type;
-			if (d_type == 4 /* DT_DIR */) {
+			if (d_type == HOST_DT_DIR) {
 				child_offset = fdt_add_subnode(buffer, fdt_offset,
 				    dent->d_name);
 				if (child_offset < 0) {
