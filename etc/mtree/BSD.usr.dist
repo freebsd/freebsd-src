@@ -37,7 +37,7 @@
     ..
     lib
         clang
-            15.0.3
+            15.0.6
                 include
                     cuda_wrappers
                     ..
