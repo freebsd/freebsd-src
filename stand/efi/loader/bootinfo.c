@@ -413,7 +413,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 	bi_load_efi_data(kfp, exit_bs);
 
-	size = md_copymodules(0, is64);
+	size = md_copymodules(0, is64);	/* Find the size of the modules */
 	kernend = roundup(addr + size, PAGE_SIZE);
 	*kernendp = kernend;
 
