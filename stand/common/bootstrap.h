@@ -201,6 +201,7 @@ struct file_metadata
 {
 	size_t		md_size;
 	uint16_t	md_type;
+	vm_offset_t	md_addr;	/* Valid after copied to kernel space */
 	struct file_metadata *md_next;
 	char		md_data[1];	/* data are immediately appended */
 };
