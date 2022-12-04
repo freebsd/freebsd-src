@@ -258,9 +258,14 @@ vm_object_t
 vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
     vm_prot_t prot, vm_ooffset_t off, struct ucred *cred)
 {
+	vm_object_t object;
+
 	MPASS(type < nitems(pagertab));
 
-	return ((*pagertab[type]->pgo_alloc)(handle, size, prot, off, cred));
+	object = (*pagertab[type]->pgo_alloc)(handle, size, prot, off, cred);
+	if (object != NULL)
+		object->type = type;
+	return (object);
 }
 
 /*
