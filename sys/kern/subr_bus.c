@@ -69,6 +69,10 @@ SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
 SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     NULL);
 
+static bool disable_failed_devs = false;
+SYSCTL_BOOL(_hw_bus, OID_AUTO, disable_failed_devices, CTLFLAG_RWTUN, &disable_failed_devs,
+    0, "Do not retry attaching devices that return an error from DEVICE_ATTACH the first time");
+
 /*
  * Used to attach drivers to devclasses.
  */
@@ -2533,12 +2537,29 @@ device_attach(device_t dev)
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
-		if (!(dev->flags & DF_FIXEDCLASS))
-			devclass_delete_device(dev->devclass, dev);
-		(void)device_set_driver(dev, NULL);
-		device_sysctl_fini(dev);
-		KASSERT(dev->busy == 0, ("attach failed but busy"));
-		dev->state = DS_NOTPRESENT;
+		if (disable_failed_devs) {
+			/*
+			 * When the user has asked to disable failed devices, we
+			 * directly disable the device, but leave it in the
+			 * attaching state. It will not try to probe/attach the
+			 * device further. This leaves the device numbering
+			 * intact for other similar devices in the system. It
+			 * can be removed from this state with devctl.
+			 */
+			device_disable(dev);
+		} else {
+			/*
+			 * Otherwise, when attach fails, tear down the state
+			 * around that so we can retry when, for example, new
+			 * drivers are loaded.
+			 */
+			if (!(dev->flags & DF_FIXEDCLASS))
+				devclass_delete_device(dev->devclass, dev);
+			(void)device_set_driver(dev, NULL);
+			device_sysctl_fini(dev);
+			KASSERT(dev->busy == 0, ("attach failed but busy"));
+			dev->state = DS_NOTPRESENT;
+		}
 		return (error);
 	}
 	dev->flags |= DF_ATTACHED_ONCE;
