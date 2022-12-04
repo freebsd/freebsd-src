@@ -95,8 +95,10 @@
 #define MOD_METADATA(a, mm, c) {		\
     COPY32(MODINFO_METADATA | mm->md_type, a, c);\
     COPY32(mm->md_size, a, c);			\
-    if (c)					\
+    if (c) {					\
         archsw.arch_copyin(mm->md_data, a, mm->md_size);\
+	mm->md_addr = a;			\
+    }						\
     a += MOD_ALIGN(mm->md_size);		\
 }
 
