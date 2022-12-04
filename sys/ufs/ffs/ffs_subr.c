@@ -332,9 +332,11 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
  */
 static int prtmsg = 1;
 #ifdef _KERNEL
+#ifdef FFS
 SYSCTL_DECL(_vfs_ffs);
 SYSCTL_INT(_vfs_ffs, OID_AUTO, prtsberrmsg, CTLFLAG_RWTUN, &prtmsg, 0,
     "Print error messages when bad superblock values are found");
+#endif /* FFS */
 #endif /* _KERNEL */
 #endif /* STANDALONE_SMALL */
 #undef CHK
