@@ -355,7 +355,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 
 	addr = 0;
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-		if (addr < (xp->f_addr + xp->f_size))
+		if (addr < xp->f_addr + xp->f_size)
 			addr = xp->f_addr + xp->f_size;
 	}
 
