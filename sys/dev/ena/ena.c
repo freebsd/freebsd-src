@@ -3450,8 +3450,6 @@ err:
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_ONGOING_RESET, adapter);
 	ena_log(dev, ERR, "Reset attempt failed. Can not reset the device\n");
 
-	ENA_TIMER_RESET(adapter);
-
 	return (rc);
 }
 
