@@ -45,12 +45,12 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "modinfo.h"
-#include "loader_efi.h"
 
 #if defined(__amd64__)
 #include <machine/specialreg.h>
 #endif
 
+#include "loader_efi.h"
 #include "gfx_fb.h"
 
 #if defined(LOADER_FDT_SUPPORT)
