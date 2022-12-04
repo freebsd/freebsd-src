@@ -6,6 +6,8 @@
  * Note: From the musl project
  */
 
+typedef uint64_t host_nlink_t;
+
 struct host_kstat {
 	host_dev_t st_dev;
 	host_ino_t st_ino;
