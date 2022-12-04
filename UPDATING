@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20221204:
+	hw.bus.disable_failed_devices has changed from 'false' to 'true' by
+	default. Now if newbus succeeds in probing a device, but fails to attach
+	the device, we'll disable the device. In the past, we'd keep retrying
+	the device on each new driver loaded. To get that behavior now, one
+	needs to use devctl to re-enable the device, and repobe it (or set
+	the sysctl/tunable hw.bus.disable_failed_devices=false).
+
 20221122:
 	pf no longer accepts 'scrub fragment crop' or 'scrub fragment drop-ovl'.
 	These configurations are no longer automatically reinterpreted as
