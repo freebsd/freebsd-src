@@ -307,7 +307,7 @@ lm75_start(void *xdev)
 	 * This may not work for LM75 clones.
 	 */
 	if (lm75_type_detect(sc) != 0) {
-		device_printf(dev, "cannot detect sesnor.\n");
+		device_printf(dev, "cannot detect sensor.\n");
 #ifndef FDT
 		return;
 #endif
