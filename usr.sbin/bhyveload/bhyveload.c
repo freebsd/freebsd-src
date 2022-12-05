@@ -690,7 +690,7 @@ disk_open(char *path)
 	if (ndisks >= NDISKS)
 		return (ERANGE);
 
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDWR);
 	if (fd < 0)
 		return (errno);
 
