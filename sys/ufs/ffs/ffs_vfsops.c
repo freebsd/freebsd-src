@@ -604,11 +604,12 @@ ffs_mount(struct mount *mp)
 				     (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 				     (fs->fs_flags & FS_DOSOFTDEP))) {
 					printf("WARNING: %s was not properly "
-					   "dismounted\n", fs->fs_fsmnt);
+					   "dismounted\n",
+					   mp->mnt_stat.f_mntonname);
 				} else {
 					vfs_mount_error(mp,
 					   "R/W mount of %s denied. %s.%s",
-					   fs->fs_fsmnt,
+					   mp->mnt_stat.f_mntonname,
 					   "Filesystem is not clean - run fsck",
 					   (fs->fs_flags & FS_SUJ) == 0 ? "" :
 					   " Forced mount will invalidate"
@@ -810,8 +811,8 @@ ffs_reload(struct mount *mp, int flags)
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("WARNING: %s: reload pending error: blocks %jd "
-		    "files %d\n", fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
-		    fs->fs_pendinginodes);
+		    "files %d\n", mp->mnt_stat.f_mntonname,
+		    (intmax_t)fs->fs_pendingblocks, fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
@@ -974,10 +975,11 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		    ((fs->fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 		     (fs->fs_flags & FS_DOSOFTDEP))) {
 			printf("WARNING: %s was not properly dismounted\n",
-			    fs->fs_fsmnt);
+			    mp->mnt_stat.f_mntonname);
 		} else {
-			vfs_mount_error(mp, "R/W mount of %s denied. %s%s",
-			    fs->fs_fsmnt, "Filesystem is not clean - run fsck.",
+			vfs_mount_error(mp, "R/W mount on %s denied. "
+			    "Filesystem is not clean - run fsck.%s",
+			    mp->mnt_stat.f_mntonname,
 			    (fs->fs_flags & FS_SUJ) == 0 ? "" :
 			    " Forced mount will invalidate journal contents");
 			error = EPERM;
@@ -986,7 +988,8 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		if ((fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) &&
 		    (mp->mnt_flag & MNT_FORCE)) {
 			printf("WARNING: %s: lost blocks %jd files %d\n",
-			    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
+			    mp->mnt_stat.f_mntonname,
+			    (intmax_t)fs->fs_pendingblocks,
 			    fs->fs_pendinginodes);
 			fs->fs_pendingblocks = 0;
 			fs->fs_pendinginodes = 0;
@@ -994,8 +997,8 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 	}
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("WARNING: %s: mount pending error: blocks %jd "
-		    "files %d\n", fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
-		    fs->fs_pendinginodes);
+		    "files %d\n", mp->mnt_stat.f_mntonname,
+		    (intmax_t)fs->fs_pendingblocks, fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
