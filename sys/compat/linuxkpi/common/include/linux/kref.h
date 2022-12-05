@@ -44,35 +44,35 @@
 
 struct kref {
 	/* XXX In Linux this is a refcount_t */
-	atomic_t refcount;
+	volatile u_int32_t refcount;
 };
 
 static inline void
 kref_init(struct kref *kref)
 {
 
-	refcount_init(&kref->refcount.counter, 1);
+	refcount_init(&kref->refcount, 1);
 }
 
 static inline unsigned int
-kref_read(const struct kref *kref)
+kref_read(struct kref *kref)
 {
 
-	return (atomic_read(&kref->refcount));
+	return (refcount_load(&kref->refcount));
 }
 
 static inline void
 kref_get(struct kref *kref)
 {
 
-	refcount_acquire(&kref->refcount.counter);
+	refcount_acquire(&kref->refcount);
 }
 
 static inline int
 kref_put(struct kref *kref, void (*rel)(struct kref *kref))
 {
 
-	if (refcount_release(&kref->refcount.counter)) {
+	if (refcount_release(&kref->refcount)) {
 		rel(kref);
 		return 1;
 	}
@@ -84,7 +84,7 @@ kref_put_lock(struct kref *kref, void (*rel)(struct kref *kref),
     spinlock_t *lock)
 {
 
-	if (refcount_release(&kref->refcount.counter)) {
+	if (refcount_release(&kref->refcount)) {
 		spin_lock(lock);
 		rel(kref);
 		return (1);
@@ -98,7 +98,7 @@ kref_sub(struct kref *kref, unsigned int count,
 {
 
 	while (count--) {
-		if (refcount_release(&kref->refcount.counter)) {
+		if (refcount_release(&kref->refcount)) {
 			rel(kref);
 			return 1;
 		}
@@ -110,16 +110,16 @@ static inline int __must_check
 kref_get_unless_zero(struct kref *kref)
 {
 
-	return atomic_add_unless(&kref->refcount, 1, 0);
+	return refcount_acquire_if_not_zero(&kref->refcount);
 }
 
 static inline int kref_put_mutex(struct kref *kref,
     void (*release)(struct kref *kref), struct mutex *lock)
 {
 	WARN_ON(release == NULL);
-	if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {
+	if (unlikely(!refcount_release_if_not_last(&kref->refcount))) {
 		mutex_lock(lock);
-		if (unlikely(!atomic_dec_and_test(&kref->refcount))) {
+		if (unlikely(!refcount_release(&kref->refcount))) {
 			mutex_unlock(lock);
 			return 0;
 		}
