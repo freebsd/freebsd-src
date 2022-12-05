@@ -43,6 +43,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	needs to use devctl to re-enable the device, and reprobe it (or set
 	the sysctl/tunable hw.bus.disable_failed_devices=false).
 
+	NOTE: This was reverted 20221205 due to unexpected compatibility issues
+
 20221122:
 	pf no longer accepts 'scrub fragment crop' or 'scrub fragment drop-ovl'.
 	These configurations are no longer automatically reinterpreted as
