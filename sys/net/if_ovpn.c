@@ -250,12 +250,16 @@ VNET_DEFINE_STATIC(struct if_clone *, ovpn_cloner);
 #define OVPN_WASSERT(sc)	rm_assert(&(sc)->lock, RA_WLOCKED)
 #define OVPN_UNLOCK_ASSERT(sc)	rm_assert(&(sc)->lock, RA_UNLOCKED)
 
+#define OVPN_COUNTER(sc, name) \
+	((sc)->counters[offsetof(struct ovpn_counters, name)/sizeof(uint64_t)])
+#define OVPN_PEER_COUNTER(peer, name) \
+	((peer)->counters[offsetof(struct ovpn_peer_counters, name) / \
+	 sizeof(uint64_t)])
+
 #define OVPN_COUNTER_ADD(sc, name, val)	\
-	counter_u64_add(sc->counters[offsetof(struct ovpn_counters, name) / \
-	    sizeof(uint64_t)], val)
+	counter_u64_add(OVPN_COUNTER(sc, name), val)
 #define OVPN_PEER_COUNTER_ADD(p, name, val)	\
-	counter_u64_add(p->counters[offsetof(struct ovpn_peer_counters, name) / \
-	    sizeof(uint64_t)], val)
+	counter_u64_add(OVPN_PEER_COUNTER(p, name), val)
 
 #define TO_IN(x)		((struct sockaddr_in *)(x))
 #define TO_IN6(x)		((struct sockaddr_in6 *)(x))
@@ -442,14 +446,10 @@ ovpn_notify_del_peer(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
 	n->type = OVPN_NOTIF_DEL_PEER;
 	n->del_reason = peer->del_reason;
 
-	n->counters.pkt_in = counter_u64_fetch(peer->counters[offsetof(
-	    struct ovpn_peer_counters, pkt_in)/sizeof(uint64_t)]);
-	n->counters.pkt_out = counter_u64_fetch(peer->counters[offsetof(
-	    struct ovpn_peer_counters, pkt_out)/sizeof(uint64_t)]);
-	n->counters.bytes_in = counter_u64_fetch(peer->counters[offsetof(
-	    struct ovpn_peer_counters, bytes_in)/sizeof(uint64_t)]);
-	n->counters.bytes_out = counter_u64_fetch(peer->counters[offsetof(
-	    struct ovpn_peer_counters, bytes_out)/sizeof(uint64_t)]);
+	n->counters.pkt_in = counter_u64_fetch(OVPN_PEER_COUNTER(peer, pkt_in));
+	n->counters.pkt_out = counter_u64_fetch(OVPN_PEER_COUNTER(peer, pkt_out));
+	n->counters.bytes_in = counter_u64_fetch(OVPN_PEER_COUNTER(peer, bytes_in));
+	n->counters.bytes_out = counter_u64_fetch(OVPN_PEER_COUNTER(peer, bytes_out));
 
 	if (buf_ring_enqueue(sc->notifring, n) != 0) {
 		free(n, M_OVPN);
@@ -1248,11 +1248,8 @@ ovpn_get_stats(struct ovpn_softc *sc, nvlist_t **onvl)
 
 #define OVPN_COUNTER_OUT(name, in, out) \
 	do { \
-		ret = ovpn_add_counters(nvl, name, \
-		    sc->counters[offsetof(struct ovpn_counters, in) / \
-		    sizeof(uint64_t)], \
-		    sc->counters[offsetof(struct ovpn_counters, out) / \
-		    sizeof(uint64_t)]); \
+		ret = ovpn_add_counters(nvl, name, OVPN_COUNTER(sc, in), \
+		    OVPN_COUNTER(sc, out)); \
 		if (ret != 0) \
 			goto error; \
 	} while(0)
@@ -1294,10 +1291,7 @@ ovpn_get_peer_stats(struct ovpn_softc *sc, nvlist_t **nvl)
 #define OVPN_PEER_COUNTER_OUT(name, in, out) \
 	do { \
 		ret = ovpn_add_counters(nvpeer, name, \
-		    peer->counters[offsetof(struct ovpn_peer_counters, in) / \
-		    sizeof(uint64_t)], \
-		    peer->counters[offsetof(struct ovpn_peer_counters, out) / \
-		    sizeof(uint64_t)]); \
+		    OVPN_PEER_COUNTER(peer, in), OVPN_PEER_COUNTER(peer, out)); \
 		if (ret != 0) \
 			goto error; \
 	} while(0)
