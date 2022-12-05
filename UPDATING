@@ -32,7 +32,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	default. Now if newbus succeeds in probing a device, but fails to attach
 	the device, we'll disable the device. In the past, we'd keep retrying
 	the device on each new driver loaded. To get that behavior now, one
-	needs to use devctl to re-enable the device, and repobe it (or set
+	needs to use devctl to re-enable the device, and reprobe it (or set
 	the sysctl/tunable hw.bus.disable_failed_devices=false).
 
 20221122:
