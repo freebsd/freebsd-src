@@ -55,7 +55,8 @@ grp_set_passwd(struct group *grp, bool update, int fd, bool precrypted)
 	int		 b;
 	int		 istty;
 	struct termios	 t, n;
-	char		*p, line[256];
+	static char      line[256];
+	char		*p;
 
 	if (fd == -1)
 		return;
