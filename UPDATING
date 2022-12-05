@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20221205:
+	dma(8) has replaced sendmail(8) as the default mta.  For people willing
+	to reenable sendmail(8):
+
+	$ cp /usr/share/examples/sendmail/mailer.conf /etc/mail/mailer.conf
+
+	and add sendmail_enable="YES" to rc.conf.
+
 20221204:
 	hw.bus.disable_failed_devices has changed from 'false' to 'true' by
 	default. Now if newbus succeeds in probing a device, but fails to attach
