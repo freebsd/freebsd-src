@@ -195,7 +195,7 @@ shm_fill(int fd, off_t offset, off_t len)
 		return (1);
 
 	while (len > 0) {
-		blen = len < (off_t)page_size ? len : page_size;
+		blen = len < (off_t)page_size ? (size_t)len : page_size;
 		memset(buf, byte_to_fill, blen);
 		if (pwrite(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
@@ -236,7 +236,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = hole_start;
 	resid = hole_len;
 	while (resid > 0) {
-		blen = resid < (off_t)page_size ? resid : page_size;
+		blen = resid < (off_t)page_size ? (size_t)resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -257,7 +257,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = 0;
 	resid = hole_start;
 	while (resid > 0) {
-		blen = resid < (off_t)page_size ? resid : page_size;
+		blen = resid < (off_t)page_size ? (size_t)resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -276,7 +276,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = hole_start + hole_len;
 	resid = shm_sz - offset;
 	while (resid > 0) {
-		blen = resid < (off_t)page_size ? resid : page_size;
+		blen = resid < (off_t)page_size ? (size_t)resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
