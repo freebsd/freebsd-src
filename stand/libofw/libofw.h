@@ -69,10 +69,6 @@ int ofw_common_parsedev(struct devdesc **dev, const char *devspec, const char **
 struct preloaded_file;
 struct file_format;
 
-/* MD code implementing MI interfaces */
-vm_offset_t md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
-vm_offset_t md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
-
 extern void	reboot(void);
 
 struct ofw_reg

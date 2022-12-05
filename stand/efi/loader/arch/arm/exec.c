@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "loader_efi.h"
 
-extern vm_offset_t md_load(char *, vm_offset_t *);
 extern int bi_load(char *, vm_offset_t *, vm_offset_t *, bool);
 
 static int
