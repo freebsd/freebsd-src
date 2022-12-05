@@ -92,12 +92,12 @@ static int	tmpfs_fhtovp(struct mount *, struct fid *, int,
 static int	tmpfs_statfs(struct mount *, struct statfs *);
 
 static const char *tmpfs_opts[] = {
-	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
-	"union", "nonc", "nomtime", NULL
+	"from", "easize", "size", "maxfilesize", "inodes", "uid", "gid", "mode",
+	"export", "union", "nonc", "nomtime", NULL
 };
 
 static const char *tmpfs_updateopts[] = {
-	"from", "export", "nomtime", "size", NULL
+	"from", "easize", "export", "nomtime", "size", NULL
 };
 
 static int
@@ -332,7 +332,7 @@ tmpfs_mount(struct mount *mp)
 	bool nomtime, nonc;
 	/* Size counters. */
 	u_quad_t pages;
-	off_t nodes_max, size_max, maxfilesize;
+	off_t nodes_max, size_max, maxfilesize, ea_max_size;
 
 	/* Root node attributes. */
 	uid_t root_uid;
@@ -359,6 +359,9 @@ tmpfs_mount(struct mount *mp)
 			 */
 			if (size_max != tmp->tm_size_max)
 				return (EOPNOTSUPP);
+		}
+		if (vfs_getopt_size(mp->mnt_optnew, "easize", &ea_max_size) == 0) {
+			tmp->tm_ea_memory_max = ea_max_size;
 		}
 		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
 		    !tmp->tm_ronly) {
@@ -405,6 +408,8 @@ tmpfs_mount(struct mount *mp)
 		size_max = 0;
 	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
+	if (vfs_getopt_size(mp->mnt_optnew, "easize", &ea_max_size) != 0)
+		ea_max_size = 0;
 	nonc = vfs_getopt(mp->mnt_optnew, "nonc", NULL, NULL) == 0;
 	nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL, NULL) == 0;
 
@@ -443,8 +448,11 @@ tmpfs_mount(struct mount *mp)
 	mtx_init(&tmp->tm_allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes_max;
 	tmp->tm_nodes_inuse = 0;
+	tmp->tm_ea_memory_inuse = 0;
 	tmp->tm_refcount = 1;
 	tmp->tm_maxfilesize = maxfilesize > 0 ? maxfilesize : OFF_MAX;
+	tmp->tm_ea_memory_max = ea_max_size > 0 ?
+	    ea_max_size : TMPFS_EA_MEMORY_RESERVED;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_size_max = size_max;
@@ -708,11 +716,12 @@ db_print_tmpfs(struct mount *mp, struct tmpfs_mount *tmp)
 	    mp->mnt_stat.f_mntonname, tmp);
 	db_printf(
 	    "\tsize max %ju pages max %lu pages used %lu\n"
-	    "\tinodes max %ju inodes inuse %ju refcount %ju\n"
+	    "\tinodes max %ju inodes inuse %ju ea inuse %ju refcount %ju\n"
 	    "\tmaxfilesize %ju r%c %snamecache %smtime\n",
 	    (uintmax_t)tmp->tm_size_max, tmp->tm_pages_max, tmp->tm_pages_used,
 	    (uintmax_t)tmp->tm_nodes_max, (uintmax_t)tmp->tm_nodes_inuse,
-	    (uintmax_t)tmp->tm_refcount, (uintmax_t)tmp->tm_maxfilesize,
+	    (uintmax_t)tmp->tm_ea_memory_inuse, (uintmax_t)tmp->tm_refcount,
+	    (uintmax_t)tmp->tm_maxfilesize,
 	    tmp->tm_ronly ? 'o' : 'w', tmp->tm_nonc ? "no" : "",
 	    tmp->tm_nomtime ? "no" : "");
 }
