@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "syscall_nr.h"
 #include "host_syscall.h"
+#include "modinfo.h"
 
 extern char		end[];
 extern void		*kerneltramp;
@@ -54,8 +55,6 @@ struct trampoline_data {
 	uint32_t	mdp;
 	uint32_t	mdp_size;
 };
-
-vm_offset_t md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
 
 int
 ppc64_elf_loadfile(char *filename, uint64_t dest,
