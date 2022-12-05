@@ -125,6 +125,7 @@ NO_WARRAY_PARAMETER=	-Wno-array-parameter
 .endif
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 120100
 NO_WUSE_AFTER_FREE=	-Wno-use-after-free
+NO_WDANGLING_POINTER=	-Wno-dangling-pointer
 .endif
 .endif # WARNS
 
