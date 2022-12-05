@@ -925,7 +925,6 @@ moreargs(void)
 		warnx("unable to allocate arglist");
 		crash();
 	}
-	free(arglist);
 	arglist = newarglist;
 }
 
