@@ -83,3 +83,5 @@ CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111
 # To find blake3_impl.c in OpenZFS tree for our somehat ugly blake3_impl_hack.c
 # that's needed until the necessary tweaks can be upstreamed.
 CFLAGS.blake3_impl_hack.c+= -I${OZFS}/module/icp/algs/blake3
+
+CWARNFLAGS.zfs.c+= ${NO_WDANGLING_POINTER}
