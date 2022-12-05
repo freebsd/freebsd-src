@@ -165,7 +165,7 @@ static __unused __inline struct type *					\
 name##_SPLAY_MIN_MAX(struct name *head, int val)			\
 {									\
 	name##_SPLAY_MINMAX(head, val);					\
-        return (SPLAY_ROOT(head));					\
+	return (SPLAY_ROOT(head));					\
 }
 
 /* Main splay operation.
@@ -565,7 +565,7 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 			 * Exactly one of the edges descending from elm \
 			 * is long. The long one is in the same		\
 			 * direction as the edge from parent to elm,	\
-			 * so change that by rotation.  The edge from 	\
+			 * so change that by rotation.  The edge from	\
 			 * parent to z was shortened above.  Shorten	\
 			 * the long edge down from elm, and adjust	\
 			 * other edge lengths based on the downward	\
@@ -576,9 +576,9 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 			 *	  elm	 z	       /     z		\
 			 *	 /  \		     child		\
 			 *	/  child	     /	 \		\
-			 *     /   /  \		   elm 	  \		\
+			 *     /   /  \		   elm	  \		\
 			 *    w	  /    \	  /   \    y		\
-			 *     	 x      y	 w     \     		\
+			 *	 x      y	 w     \		\
 			 *				x		\
 			 */						\
 			RB_ROTATE(elm, child, elmdir, field);		\
@@ -690,15 +690,15 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 			 *						\
 			 *	     par		 par		\
 			 *	    /	\		/   \		\
-			 *	   /	sib	      elm    \  	\
+			 *	   /	sib	      elm    \		\
 			 *	  /	/ \	            elm*	\
-			 *	elm   elm* \	            /  \ 	\
-			 *	      /	\   \	       	   /    \	\
-			 *	     /   \   z	    	  /      \	\
-			 *	    x	  y    		 x      sib 	\
+			 *	elm   elm* \	            /  \	\
+			 *	      /	\   \		   /    \	\
+			 *	     /   \   z		  /      \	\
+			 *	    x	  y		 x      sib	\
 			 *				        /  \	\
 			 *				       /    z	\
-			 *				      y 	\
+			 *				      y		\
 			 */						\
 			elm = _RB_LINK(sib, elmdir, field);		\
 			/* elm is a 1-child.  First rotate at elm. */	\
@@ -772,7 +772,7 @@ name##_RB_REMOVE(struct name *head, struct type *out)			\
 	in = RB_RIGHT(out, field);					\
 	opar = _RB_UP(out, field);					\
 	if (in == NULL || child == NULL) {				\
-		in = child = in == NULL ? child : in;			\
+		in = child = (in == NULL ? child : in);			\
 		parent = opar = _RB_PTR(opar);				\
 	} else {							\
 		parent = in;						\
