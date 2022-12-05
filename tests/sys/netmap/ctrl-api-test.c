@@ -1974,6 +1974,7 @@ nmreq_parsing(struct TestContext *ctx)
 			ret = -1;
 		}
 	}
+	ctx->nmctx = NULL;
 	return ret;
 }
 
