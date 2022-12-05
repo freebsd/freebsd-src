@@ -680,14 +680,14 @@ enum c4iw_mmid_state {
 
 #define c4iw_put_ep(ep) { \
 	CTR4(KTR_IW_CXGBE, "put_ep (%s:%u) ep %p, refcnt %d", \
-	     __func__, __LINE__, ep, atomic_read(&(ep)->kref.refcount)); \
-	WARN_ON(atomic_read(&(ep)->kref.refcount) < 1); \
+	     __func__, __LINE__, ep, kref_read(&(ep)->kref)); \
+	WARN_ON(kref_read(&(ep)->kref) < 1); \
         kref_put(&((ep)->kref), _c4iw_free_ep); \
 }
 
 #define c4iw_get_ep(ep) { \
 	CTR4(KTR_IW_CXGBE, "get_ep (%s:%u) ep %p, refcnt %d", \
-	      __func__, __LINE__, ep, atomic_read(&(ep)->kref.refcount)); \
+	      __func__, __LINE__, ep, kref_read(&(ep)->kref)); \
         kref_get(&((ep)->kref));  \
 }
 
