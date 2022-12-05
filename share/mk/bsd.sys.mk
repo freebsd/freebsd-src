@@ -120,6 +120,9 @@ NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000
 NO_WDEPRECATED_NON_PROTOTYPE=-Wno-deprecated-non-prototype
 .endif
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 100100
+NO_WZERO_LENGTH_BOUNDS=	-Wno-zero-length-bounds
+.endif
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 110100
 NO_WARRAY_PARAMETER=	-Wno-array-parameter
 .endif
