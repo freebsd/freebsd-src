@@ -95,6 +95,8 @@ SRCS+=${i}
 .endfor
 
 # decompression functionality from zlib
+# https://github.com/madler/zlib/issues/633 documents why we suppress deprecated
+# prototype warnings.
 .PATH: ${SRCTOP}/sys/contrib/zlib
 ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib ${NO_WDEPRECATED_NON_PROTOTYPE}
 .for i in adler32.c crc32.c infback.c inffast.c inflate.c inftrees.c zutil.c
