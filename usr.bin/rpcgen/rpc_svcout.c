@@ -619,7 +619,7 @@ print_return(const char *space)
 		if (timerflag) {
 			if (mtflag)
 				f_print(fout, "%spthread_mutex_lock(&_svcstate_lock);\n", space);
-				f_print(fout, "%s_rpcsvcstate = _SERVED;\n", space);
+			f_print(fout, "%s_rpcsvcstate = _SERVED;\n", space);
 			if (mtflag)
 				f_print(fout, "%spthread_mutex_unlock(&_svcstate_lock);\n", space);
 		}
