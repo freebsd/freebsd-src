@@ -1392,6 +1392,12 @@ vfs_domount(
 	if (error != 0)
 		return (error);
 	vp = nd.ni_vp;
+	/*
+	 * Don't allow stacking file mounts to work around problems with the way
+	 * that namei sets nd.ni_dvp to vp_crossmp for these.
+	 */
+	if (vp->v_type == VREG)
+		fsflags |= MNT_NOCOVER;
 	if ((fsflags & MNT_UPDATE) == 0) {
 		if ((vp->v_vflag & VV_ROOT) != 0 &&
 		    (fsflags & MNT_NOCOVER) != 0) {
