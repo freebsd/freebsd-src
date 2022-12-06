@@ -40,7 +40,7 @@ mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export RUNDIR=$mntpoint/stressX
-export runRUNTIME=30m
+export runRUNTIME=10m
 set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
 export KBLOCKS=$(($1 / 2))
 export INODES=$(($2 / 2))
