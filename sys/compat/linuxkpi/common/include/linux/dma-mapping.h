@@ -362,7 +362,14 @@ dma_map_sgtable(struct device *dev, struct sg_table *sgt,
     unsigned long attrs)
 {
 
-	return (dma_map_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs));
+	int nents = dma_map_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs);
+
+	if (nents < 0) {
+		return nents;
+	} else {
+		sgt->nents = nents;
+		return 0;
+	}
 }
 
 static inline void
