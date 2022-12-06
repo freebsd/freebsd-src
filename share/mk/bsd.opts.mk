@@ -104,6 +104,8 @@ __DEFAULT_NO_OPTIONS+= PIE
 __DEFAULT_YES_OPTIONS+=PIE
 .endif
 
+.-include <local.opts.mk>
+
 .include <bsd.mkopt.mk>
 
 .if ${MK_INIT_ALL_PATTERN} == "yes" && ${MK_INIT_ALL_ZERO} == "yes"
