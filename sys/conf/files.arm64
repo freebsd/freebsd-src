@@ -468,7 +468,6 @@ arm/allwinner/h6/h6_r_padconf.c			optional soc_allwinner_h6 fdt
 
 # Altera/Intel
 dev/altera/dwc/if_dwc_socfpga.c			optional fdt dwc_socfpga
-arm64/intel/firmware.c				optional soc_intel_stratix10 fdt
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10 fdt
 arm64/intel/stratix10-svc.c			optional soc_intel_stratix10 fdt
 
