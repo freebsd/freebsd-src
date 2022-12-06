@@ -59,8 +59,8 @@
 static boolean_t zpool_vdev_is_interior(const char *name);
 
 typedef struct prop_flags {
-	int create:1;	/* Validate property on creation */
-	int import:1;	/* Validate property on import */
+	unsigned int create:1;	/* Validate property on creation */
+	unsigned int import:1;	/* Validate property on import */
 } prop_flags_t;
 
 /*
@@ -4788,8 +4788,8 @@ zpool_load_compat(const char *compat, boolean_t *features, char *report,
 		for (uint_t i = 0; i < SPA_FEATURES; i++)
 			features[i] = B_TRUE;
 
-	char err_badfile[1024] = "";
-	char err_badtoken[1024] = "";
+	char err_badfile[ZFS_MAXPROPLEN] = "";
+	char err_badtoken[ZFS_MAXPROPLEN] = "";
 
 	/*
 	 * We ignore errors from the directory open()

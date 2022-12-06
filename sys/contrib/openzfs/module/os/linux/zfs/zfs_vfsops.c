@@ -791,9 +791,7 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	}
 
 	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
-	if (error != 0) {
-		dmu_objset_disown(os, B_TRUE, zfsvfs);
-	}
+
 	return (error);
 }
 
@@ -833,6 +831,7 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
+		dmu_objset_disown(os, B_TRUE, zfsvfs);
 		*zfvp = NULL;
 		zfsvfs_free(zfsvfs);
 		return (error);
@@ -1501,7 +1500,6 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 	sb->s_op = &zpl_super_operations;
 	sb->s_xattr = zpl_xattr_handlers;
 	sb->s_export_op = &zpl_export_operations;
-	sb->s_d_op = &zpl_dentry_operations;
 
 	/* Set features for file system. */
 	zfs_set_fuid_feature(zfsvfs);
@@ -1535,6 +1533,7 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 	error = zfs_root(zfsvfs, &root_inode);
 	if (error) {
 		(void) zfs_umount(sb);
+		zfsvfs = NULL; /* avoid double-free; first in zfs_umount */
 		goto out;
 	}
 
@@ -1542,6 +1541,7 @@ zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent)
 	sb->s_root = d_make_root(root_inode);
 	if (sb->s_root == NULL) {
 		(void) zfs_umount(sb);
+		zfsvfs = NULL; /* avoid double-free; first in zfs_umount */
 		error = SET_ERROR(ENOMEM);
 		goto out;
 	}
@@ -1858,8 +1858,8 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 	    zp = list_next(&zfsvfs->z_all_znodes, zp)) {
 		err2 = zfs_rezget(zp);
 		if (err2) {
+			zpl_d_drop_aliases(ZTOI(zp));
 			remove_inode_hash(ZTOI(zp));
-			zp->z_is_stale = B_TRUE;
 		}
 
 		/* see comment in zfs_suspend_fs() */

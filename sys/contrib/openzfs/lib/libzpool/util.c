@@ -173,12 +173,13 @@ set_global_var_parse_kv(const char *arg, char **k_out, u_longlong_t *v_out)
 		goto err_free;
 	}
 
-	*k_out = k;
+	*k_out = strdup(k);
 	*v_out = val;
+	free(d);
 	return (0);
 
 err_free:
-	free(k);
+	free(d);
 
 	return (err);
 }
@@ -227,13 +228,14 @@ set_global_var(char const *arg)
 		fprintf(stderr, "Failed to open libzpool.so to set global "
 		    "variable\n");
 		ret = EIO;
-		goto out_dlclose;
+		goto out_free;
 	}
 
 	ret = 0;
 
 out_dlclose:
 	dlclose(zpoolhdl);
+out_free:
 	free(varname);
 out_ret:
 	return (ret);

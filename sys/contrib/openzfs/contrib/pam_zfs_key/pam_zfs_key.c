@@ -496,7 +496,6 @@ zfs_key_config_get_dataset(zfs_key_config_t *config)
 		if (zhp == NULL) {
 			pam_syslog(NULL, LOG_ERR, "dataset %s not found",
 			    config->homes_prefix);
-			zfs_close(zhp);
 			return (NULL);
 		}
 
@@ -506,6 +505,10 @@ zfs_key_config_get_dataset(zfs_key_config_t *config)
 		char *dsname = config->dsname;
 		config->dsname = NULL;
 		return (dsname);
+	}
+
+	if (config->homes_prefix == NULL) {
+		return (NULL);
 	}
 
 	size_t len = ZFS_MAX_DATASET_NAME_LEN;
@@ -711,7 +714,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		return (PAM_SUCCESS);
 	}
 	zfs_key_config_t config;
-	zfs_key_config_load(pamh, &config, argc, argv);
+	if (zfs_key_config_load(pamh, &config, argc, argv) != 0) {
+		return (PAM_SESSION_ERR);
+	}
+
 	if (config.uid < 1000) {
 		zfs_key_config_free(&config);
 		return (PAM_SUCCESS);
@@ -765,7 +771,9 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
 		return (PAM_SUCCESS);
 	}
 	zfs_key_config_t config;
-	zfs_key_config_load(pamh, &config, argc, argv);
+	if (zfs_key_config_load(pamh, &config, argc, argv) != 0) {
+		return (PAM_SESSION_ERR);
+	}
 	if (config.uid < 1000) {
 		zfs_key_config_free(&config);
 		return (PAM_SUCCESS);

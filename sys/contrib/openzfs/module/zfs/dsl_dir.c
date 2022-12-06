@@ -809,6 +809,18 @@ dsl_fs_ss_limit_check(dsl_dir_t *dd, uint64_t delta, zfs_prop_t prop,
 	ASSERT(prop == ZFS_PROP_FILESYSTEM_LIMIT ||
 	    prop == ZFS_PROP_SNAPSHOT_LIMIT);
 
+	if (prop == ZFS_PROP_SNAPSHOT_LIMIT) {
+		/*
+		 * We don't enforce the limit for temporary snapshots. This is
+		 * indicated by a NULL cred_t argument.
+		 */
+		if (cr == NULL)
+			return (0);
+
+		count_prop = DD_FIELD_SNAPSHOT_COUNT;
+	} else {
+		count_prop = DD_FIELD_FILESYSTEM_COUNT;
+	}
 	/*
 	 * If we're allowed to change the limit, don't enforce the limit
 	 * e.g. this can happen if a snapshot is taken by an administrative
@@ -827,19 +839,6 @@ dsl_fs_ss_limit_check(dsl_dir_t *dd, uint64_t delta, zfs_prop_t prop,
 	 */
 	if (delta == 0)
 		return (0);
-
-	if (prop == ZFS_PROP_SNAPSHOT_LIMIT) {
-		/*
-		 * We don't enforce the limit for temporary snapshots. This is
-		 * indicated by a NULL cred_t argument.
-		 */
-		if (cr == NULL)
-			return (0);
-
-		count_prop = DD_FIELD_SNAPSHOT_COUNT;
-	} else {
-		count_prop = DD_FIELD_FILESYSTEM_COUNT;
-	}
 
 	/*
 	 * If an ancestor has been provided, stop checking the limit once we
@@ -1262,6 +1261,7 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 	uint64_t quota;
 	struct tempreserve *tr;
 	int retval;
+	uint64_t ext_quota;
 	uint64_t ref_rsrv;
 
 top_of_function:
@@ -1337,7 +1337,16 @@ top_of_function:
 	 * on-disk is over quota and there are no pending changes
 	 * or deferred frees (which may free up space for us).
 	 */
-	if (used_on_disk + est_inflight >= quota) {
+	ext_quota = quota >> 5;
+	if (quota == UINT64_MAX)
+		ext_quota = 0;
+
+	if (used_on_disk >= quota) {
+		/* Quota exceeded */
+		mutex_exit(&dd->dd_lock);
+		DMU_TX_STAT_BUMP(dmu_tx_quota);
+		return (retval);
+	} else if (used_on_disk + est_inflight >= quota + ext_quota) {
 		if (est_inflight > 0 || used_on_disk < quota) {
 			retval = SET_ERROR(ERESTART);
 		} else {

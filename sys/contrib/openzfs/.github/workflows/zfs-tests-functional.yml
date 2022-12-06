@@ -12,7 +12,7 @@ jobs:
         os: [18.04, 20.04]
     runs-on: ubuntu-${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         ref: ${{ github.event.pull_request.head.sha }}
     - name: Install dependencies
@@ -75,7 +75,7 @@ jobs:
         sudo chmod +r $RESULTS_PATH/*
         # Replace ':' in dir names, actions/upload-artifact doesn't support it
         for f in $(find /var/tmp/test_results -name '*:*'); do mv "$f" "${f//:/__}"; done
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: Test logs Ubuntu-${{ matrix.os }}

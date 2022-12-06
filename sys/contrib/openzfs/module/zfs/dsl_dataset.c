@@ -1747,6 +1747,21 @@ dsl_dataset_snapshot_sync_impl(dsl_dataset_t *ds, const char *snapname,
 		}
 	}
 
+	/*
+	 * We are not allowed to dirty a filesystem when done receiving
+	 * a snapshot. In this case the flag SPA_FEATURE_LARGE_BLOCKS will
+	 * not be set and a subsequent encrypted raw send will fail. Hence
+	 * activate this feature if needed here.
+	 */
+	for (spa_feature_t f = 0; f < SPA_FEATURES; f++) {
+		if (zfeature_active(f, ds->ds_feature_activation[f]) &&
+		    !(zfeature_active(f, ds->ds_feature[f]))) {
+			dsl_dataset_activate_feature(dsobj, f,
+			    ds->ds_feature_activation[f], tx);
+			ds->ds_feature[f] = ds->ds_feature_activation[f];
+		}
+	}
+
 	ASSERT3U(ds->ds_prev != 0, ==,
 	    dsl_dataset_phys(ds)->ds_prev_snap_obj != 0);
 	if (ds->ds_prev) {
@@ -3307,7 +3322,6 @@ dsl_dataset_promote_check(void *arg, dmu_tx_t *tx)
 	dsl_pool_t *dp = dmu_tx_pool(tx);
 	dsl_dataset_t *hds;
 	struct promotenode *snap;
-	dsl_dataset_t *origin_ds, *origin_head;
 	int err;
 	uint64_t unused;
 	uint64_t ss_mv_cnt;
@@ -3327,12 +3341,11 @@ dsl_dataset_promote_check(void *arg, dmu_tx_t *tx)
 	}
 
 	snap = list_head(&ddpa->shared_snaps);
-	origin_head = snap->ds;
 	if (snap == NULL) {
 		err = SET_ERROR(ENOENT);
 		goto out;
 	}
-	origin_ds = snap->ds;
+	dsl_dataset_t *const origin_ds = snap->ds;
 
 	/*
 	 * Encrypted clones share a DSL Crypto Key with their origin's dsl dir.
@@ -3428,10 +3441,10 @@ dsl_dataset_promote_check(void *arg, dmu_tx_t *tx)
 	 * Check that bookmarks that are being transferred don't have
 	 * name conflicts.
 	 */
-	for (dsl_bookmark_node_t *dbn = avl_first(&origin_head->ds_bookmarks);
+	for (dsl_bookmark_node_t *dbn = avl_first(&origin_ds->ds_bookmarks);
 	    dbn != NULL && dbn->dbn_phys.zbm_creation_txg <=
 	    dsl_dataset_phys(origin_ds)->ds_creation_txg;
-	    dbn = AVL_NEXT(&origin_head->ds_bookmarks, dbn)) {
+	    dbn = AVL_NEXT(&origin_ds->ds_bookmarks, dbn)) {
 		if (strlen(dbn->dbn_name) >= max_snap_len) {
 			err = SET_ERROR(ENAMETOOLONG);
 			goto out;

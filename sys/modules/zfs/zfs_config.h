@@ -245,6 +245,9 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
+/* dentry aliases are in d_u member */
+/* #undef HAVE_DENTRY_D_U_ALIASES */
+
 /* dequeue_signal() takes 4 arguments */
 /* #undef HAVE_DEQUEUE_SIGNAL_4ARG */
 
@@ -868,9 +871,6 @@
 /* make_request_fn() return type */
 /* #undef MAKE_REQUEST_FN_RET */
 
-/* hardened module_param_call */
-/* #undef MODULE_PARAM_CALL_CONST */
-
 /* struct shrink_control has nid */
 /* #undef SHRINK_CONTROL_HAS_NID */
 
@@ -935,7 +935,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.6-FreeBSD_g6a6bd4939"
+#define ZFS_META_ALIAS "zfs-2.1.7-FreeBSD_g21bd76613"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -944,7 +944,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.19"
+#define ZFS_META_KVER_MAX "6.0"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -965,10 +965,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g6a6bd4939"
+#define ZFS_META_RELEASE "FreeBSD_g21bd76613"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.1.6"
+#define ZFS_META_VERSION "2.1.7"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */

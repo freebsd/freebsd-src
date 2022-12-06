@@ -5230,7 +5230,7 @@ spa_open_common(const char *pool, spa_t **spapp, void *tag, nvlist_t *nvpolicy,
 	 * If we've recovered the pool, pass back any information we
 	 * gathered while doing the load.
 	 */
-	if (state == SPA_LOAD_RECOVER) {
+	if (state == SPA_LOAD_RECOVER && config != NULL) {
 		fnvlist_add_nvlist(*config, ZPOOL_CONFIG_LOAD_INFO,
 		    spa->spa_load_info);
 	}
@@ -6772,10 +6772,12 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		return (spa_vdev_exit(spa, newrootvd, txg, error));
 
 	/*
-	 * Spares can't replace logs
+	 * log, dedup and special vdevs should not be replaced by spares.
 	 */
-	if (oldvd->vdev_top->vdev_islog && newvd->vdev_isspare)
+	if ((oldvd->vdev_top->vdev_alloc_bias != VDEV_BIAS_NONE ||
+	    oldvd->vdev_top->vdev_islog) && newvd->vdev_isspare) {
 		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
+	}
 
 	/*
 	 * A dRAID spare can only replace a child of its parent dRAID vdev.

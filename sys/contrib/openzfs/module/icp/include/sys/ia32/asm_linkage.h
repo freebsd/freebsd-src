@@ -30,9 +30,29 @@
 #include <sys/stack.h>
 #include <sys/trap.h>
 
-#if defined(__linux__) && defined(CONFIG_SLS)
-#define	RET	ret; int3
-#else
+#if defined(_KERNEL) && defined(__linux__)
+#include <linux/linkage.h>
+#endif
+
+#ifndef ENDBR
+#if defined(__ELF__) && defined(__CET__) && defined(__has_include)
+/* CSTYLED */
+#if __has_include(<cet.h>)
+
+#include <cet.h>
+
+#ifdef _CET_ENDBR
+#define	ENDBR	_CET_ENDBR
+#endif /* _CET_ENDBR */
+
+#endif /* <cet.h> */
+#endif /* __ELF__ && __CET__ && __has_include */
+#endif /* !ENDBR */
+
+#ifndef ENDBR
+#define	ENDBR
+#endif
+#ifndef RET
 #define	RET	ret
 #endif
 
@@ -204,6 +224,7 @@ sym1	= sym2
  * insert the calls to mcount for profiling. ENTRY_NP is identical, but
  * never calls mcount.
  */
+#undef ENTRY
 #define	ENTRY(x) \
 	.text; \
 	.align	ASM_ENTRY_ALIGN; \
