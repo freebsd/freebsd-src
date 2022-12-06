@@ -1064,8 +1064,11 @@ ixl_if_msix_intr_assign(if_ctx_t ctx, int msix)
 		    "Failed to register Admin Que handler");
 		return (err);
 	}
+
+#ifdef PCI_IOV
 	/* Create soft IRQ for handling VFLRs */
 	iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_IOV, pf, 0, "iov");
+#endif
 
 	/* Now set up the stations */
 	for (i = 0, vector = 1; i < vsi->shared->isc_nrxqsets; i++, vector++, rx_que++) {
