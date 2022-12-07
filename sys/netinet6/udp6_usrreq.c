@@ -657,7 +657,7 @@ SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred,
     "Get the xucred of a UDP6 connection");
 
 static int
-udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
+udp6_send(struct socket *so, int flags_arg, struct mbuf *m,
     struct sockaddr *addr6, struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp;
@@ -673,7 +673,19 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	u_short fport;
 	uint8_t nxt;
 
-	/* addr6 has been validated in udp6_send(). */
+	if (addr6) {
+		error = 0;
+		if (addr6->sa_family != AF_INET6)
+			error = EAFNOSUPPORT;
+		else if (addr6->sa_len != sizeof(struct sockaddr_in6))
+			error = EINVAL;
+		if (__predict_false(error != 0)) {
+			m_freem(control);
+			m_freem(m);
+			return (error);
+		}
+	}
+
 	sin6 = (struct sockaddr_in6 *)addr6;
 
 	/*
@@ -1241,32 +1253,6 @@ udp6_disconnect(struct socket *so)
 	SOCK_UNLOCK(so);
 	INP_WUNLOCK(inp);
 	return (0);
-}
-
-static int
-udp6_send(struct socket *so, int flags, struct mbuf *m,
-    struct sockaddr *addr, struct mbuf *control, struct thread *td)
-{
-	int error;
-
-	if (addr) {
-		if (addr->sa_len != sizeof(struct sockaddr_in6)) {
-			error = EINVAL;
-			goto bad;
-		}
-		if (addr->sa_family != AF_INET6) {
-			error = EAFNOSUPPORT;
-			goto bad;
-		}
-	}
-
-	return (udp6_output(so, flags, m, addr, control, td));
-
-bad:
-	if (control)
-		m_freem(control);
-	m_freem(m);
-	return (error);
 }
 
 #define	UDP6_PROTOSW							\
