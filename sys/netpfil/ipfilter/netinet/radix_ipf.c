@@ -318,7 +318,7 @@ ipf_rx_attach_mask(ipf_rdx_node_t *node, ipf_rdx_mask_t *mask)
 /* by the netmask.                                                          */
 /* ------------------------------------------------------------------------ */
 static ipf_rdx_node_t *
-ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t *nodes, int *dup)
+ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t nodes[2], int *dup)
 {
 	ipf_rdx_mask_t **pmask;
 	ipf_rdx_node_t *node;
