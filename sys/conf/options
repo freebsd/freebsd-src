@@ -110,7 +110,7 @@ FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 GZIO		opt_gzio.h
-IMAGACT_BINMISC		opt_dontuse.h
+IMGACT_BINMISC		opt_dontuse.h
 IPI_PREEMPTION	opt_sched.h
 GEOM_BDE	opt_geom.h
 GEOM_CACHE	opt_geom.h

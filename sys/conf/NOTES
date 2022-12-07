@@ -2772,7 +2772,7 @@ options 	RANDOM_ENABLE_UMA	# slab allocator
 options 	RANDOM_ENABLE_ETHER	# ether_input
 
 # Module to enable execution of application via emulators like QEMU
-options         IMAGACT_BINMISC
+options         IMGACT_BINMISC
 
 # zlib I/O stream support
 # This enables support for compressed core dumps.
