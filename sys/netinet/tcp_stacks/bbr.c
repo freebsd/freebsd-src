@@ -5285,37 +5285,13 @@ bbr_timer_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts)
 	}
 }
 
-static void
-bbr_timer_stop(struct tcpcb *tp, uint32_t timer_type)
+static int
+bbr_stopall(struct tcpcb *tp)
 {
 	struct tcp_bbr *bbr;
 
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	bbr->rc_all_timers_stopped = 1;
-	return;
-}
-
-/*
- * stop all timers always returning 0.
- */
-static int
-bbr_stopall(struct tcpcb *tp)
-{
-	return (0);
-}
-
-static void
-bbr_timer_activate(struct tcpcb *tp, uint32_t timer_type, uint32_t delta)
-{
-	return;
-}
-
-/*
- * return true if a bbr timer (rack or tlp) is active.
- */
-static int
-bbr_timer_active(struct tcpcb *tp, uint32_t timer_type)
-{
 	return (0);
 }
 
@@ -14168,9 +14144,6 @@ struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_fb_init = bbr_init,
 	.tfb_tcp_fb_fini = bbr_fini,
 	.tfb_tcp_timer_stop_all = bbr_stopall,
-	.tfb_tcp_timer_activate = bbr_timer_activate,
-	.tfb_tcp_timer_active = bbr_timer_active,
-	.tfb_tcp_timer_stop = bbr_timer_stop,
 	.tfb_tcp_rexmit_tmr = bbr_remxt_tmr,
 	.tfb_tcp_handoff_ok = bbr_handoff_ok,
 	.tfb_tcp_mtu_chg = bbr_mtu_chg,
