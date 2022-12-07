@@ -9919,10 +9919,6 @@ bbr_stop_all_timers(struct tcpcb *tp)
 		bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 		bbr->rc_in_persist = 1;
 	}
-	tcp_timer_suspend(tp, TT_PERSIST);
-	tcp_timer_suspend(tp, TT_REXMT);
-	tcp_timer_suspend(tp, TT_KEEP);
-	tcp_timer_suspend(tp, TT_DELACK);
 }
 
 static void
