@@ -314,6 +314,9 @@
 /* iops->follow_link() nameidata */
 /* #undef HAVE_FOLLOW_LINK_NAMEIDATA */
 
+/* Define if compiler supports -Wformat-overflow */
+/* #undef HAVE_FORMAT_OVERFLOW  */
+
 /* fops->fsync() with range */
 /* #undef HAVE_FSYNC_RANGE */
 
@@ -370,6 +373,9 @@
 
 /* APIs for idmapped mount are present */
 /* #undef HAVE_IDMAP_MNT_API */
+
+/* Define if compiler supports -Wimplicit-fallthrough */
+/* #undef HAVE_IMPLICIT_FALLTHROUGH */
 
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_INFINITE_RECURSION */
@@ -457,6 +463,9 @@
 
 /* uncached_acl_sentinel() exists */
 /* #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE */
+
+/* Define if compiler supports -Winfinite-recursion */
+/* #undef HAVE_KERNEL_INFINITE_RECURSION */
 
 /* kernel does stack verification */
 /* #undef HAVE_KERNEL_OBJTOOL */
@@ -901,9 +910,6 @@
 /* make_request_fn() return type */
 /* #undef MAKE_REQUEST_FN_RET */
 
-/* hardened module_param_call */
-/* #undef MODULE_PARAM_CALL_CONST */
-
 /* struct shrink_control has nid */
 /* #undef SHRINK_CONTROL_HAS_NID */
 
@@ -970,7 +976,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g2163cde45"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g59493b63c"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -979,7 +985,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.19"
+#define ZFS_META_KVER_MAX "6.0"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1000,7 +1006,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g2163cde45"
+#define ZFS_META_RELEASE "FreeBSD_g59493b63c"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
