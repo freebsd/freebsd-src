@@ -28,7 +28,7 @@
 .\"     @(#)protocols.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd December 7, 2020
 .Dt PROTOCOLS 5
 .Os
 .Sh NAME
@@ -37,9 +37,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-file contains information regarding the known protocols used in the
-.Tn DARPA
-Internet.
+file contains information regarding the assigned protocol numbers
+used by IPv4 and IPv6 to identify the next level protocol.
 For each protocol a single line should be present
 with the following information:
 .Bd -unfilled -offset indent
@@ -67,10 +66,22 @@ file resides in
 .El
 .Sh SEE ALSO
 .Xr getprotoent 3
+.Rs
+.%R RFC 2780
+.%D March 2000
+.%T "IANA Allocation Guidelines For Values In the \
+Internet Protocol and Related Headers"
+.Re
+.Rs
+.%R RFC 5237
+.%D February 2008
+.%T "IANA Allocation Guidelines for the Protocol Field"
+.Re
 .Sh HISTORY
 The
 .Nm
 file format appeared in
-.Bx 4.2 .
+.Bx 4.2 ,
+describing the "known protocols used in the DARPA Internet".
 .Sh BUGS
 A name server should be used instead of a static file.
