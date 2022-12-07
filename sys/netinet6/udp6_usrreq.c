@@ -131,12 +131,6 @@ SYSCTL_INT(_net_inet6_udp6, OID_AUTO, rfc6935_port, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(zero_checksum_port), 0,
     "Zero UDP checksum allowed for traffic to/from this port.");
 
-
-/* netinet/udp_usrreqs.c */
-pr_abort_t	udp_abort;
-pr_disconnect_t	udp_disconnect;
-pr_send_t	udp_send;
-
 /*
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.

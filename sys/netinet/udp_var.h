@@ -176,6 +176,12 @@ int		udp_shutdown(struct socket *so);
 int		udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f,
 		    udp_tun_icmp_t i, void *ctx);
 
+#ifdef _SYS_PROTOSW_H_
+pr_abort_t	udp_abort;
+pr_disconnect_t	udp_disconnect;
+pr_send_t	udp_send;
+#endif
+
 #endif /* _KERNEL */
 
 #endif /* _NETINET_UDP_VAR_H_ */

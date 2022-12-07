@@ -1037,7 +1037,6 @@ udp_v4mapped_pktinfo(struct cmsghdr *cm, struct sockaddr_in * src,
 }
 #endif	/* INET6 */
 
-pr_send_t udp_send;			/* shared with udp6_usrreq.c */
 int
 udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *td)
@@ -1445,7 +1444,6 @@ release:
 	return (error);
 }
 
-pr_abort_t udp_abort;			/* shared with udp6_usrreq.c */
 void
 udp_abort(struct socket *so)
 {
@@ -1630,7 +1628,6 @@ udp_detach(struct socket *so)
 	in_pcbfree(inp);
 }
 
-pr_disconnect_t udp_disconnect;		/* shared with udp6_usrreq.c */
 int
 udp_disconnect(struct socket *so)
 {
