@@ -28,7 +28,7 @@
 .\"     From: @(#)getservent.3	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd July 9, 1995
+.Dd December 7, 2020
 .Dt GETSERVENT 3
 .Os
 .Sh NAME
@@ -128,6 +128,7 @@ searches must also match the protocol.
 .Sh FILES
 .Bl -tag -width /etc/services -compact
 .It Pa /etc/services
+.It Pa /var/db/services.db
 .El
 .Sh DIAGNOSTICS
 Null pointer returned on
@@ -135,7 +136,8 @@ Null pointer returned on
 or error.
 .Sh SEE ALSO
 .Xr getprotoent 3 ,
-.Xr services 5
+.Xr services 5 ,
+.Xr services_mkdb 8
 .Sh HISTORY
 The
 .Fn getservent ,
