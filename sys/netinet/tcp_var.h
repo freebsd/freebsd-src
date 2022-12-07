@@ -81,6 +81,8 @@
 #define TCP_EI_BITS_2MS_TIMER	0x400	/* 2 MSL timer expired */
 
 #if defined(_KERNEL) || defined(_WANT_TCPCB)
+#include <netinet/cc/cc.h>
+
 /* TCP segment queue entry */
 struct tseg_qent {
 	TAILQ_ENTRY(tseg_qent) tqe_q;
@@ -125,15 +127,24 @@ struct sackhint {
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
 /*
- * Tcp control block, one per tcp; fields:
- * Organized for 64 byte cacheline efficiency based
- * on common tcp_input/tcp_output processing.
+ * Tcp control block, one per tcp connection.
  */
 struct tcpcb {
-	/* Cache line 1 */
-	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
+	struct inpcb t_inpcb;		/* embedded protocol indepenent cb */
+#define	t_start_zero	t_fb
+#define	t_zero_size	(sizeof(struct tcpcb) - \
+			    offsetof(struct tcpcb, t_start_zero))
 	struct tcp_function_block *t_fb;/* TCP function call block */
 	void	*t_fb_ptr;		/* Pointer to t_fb specific data */
+
+        struct callout	tt_rexmt;	/* retransmit timer */
+        struct callout	tt_persist;	/* retransmit persistence */
+        struct callout	tt_keep;	/* keepalive */
+        struct callout	tt_2msl;	/* 2*msl TIME_WAIT timer */
+        struct callout	tt_delack;	/* delayed ACK timer */
+        uint32_t	tt_flags;	/* Timers flags */
+        uint32_t	tt_draincnt;	/* Count being drained */
+
 	uint32_t t_maxseg:24,		/* maximum segment size */
 		t_logstate:8;		/* State of "black box" logging */
 	uint32_t t_port:16,		/* Tunneling (over udp) port */
@@ -153,7 +164,6 @@ struct tcpcb {
 	uint32_t snd_wnd;		/* send window */
 	uint32_t snd_cwnd;		/* congestion-controlled window */
 	uint32_t t_peakrate_thr; 	/* pre-calculated peak rate threshold */
-	/* Cache line 2 */
 	uint32_t ts_offset;		/* our timestamp offset */
 	uint32_t rfbuf_ts;		/* recv buffer autoscaling timestamp */
 	int	rcv_numsacks;		/* # distinct sack blks present */
@@ -173,20 +183,17 @@ struct tcpcb {
 	u_char	request_r_scale;	/* pending window scaling */
 	tcp_seq	last_ack_sent;
 	u_int	t_rcvtime;		/* inactivity time */
-	/* Cache line 3 */
 	tcp_seq	rcv_up;			/* receive urgent pointer */
 	int	t_segqlen;		/* segment reassembly queue length */
 	uint32_t t_segqmbuflen;		/* total reassembly queue byte length */
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
 	struct mbuf *t_in_pkt;
 	struct mbuf *t_tail_pkt;
-	struct tcp_timer *t_timers;	/* All the TCP timers in one struct */
 	uint32_t snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
 					 */
 	tcp_seq	snd_wl1;		/* window update seg seq number */
-	/* Cache line 4 */
 	tcp_seq	snd_wl2;		/* window update seg ack number */
 
 	tcp_seq	irs;			/* initial receive sequence number */
@@ -195,7 +202,6 @@ struct tcpcb {
 	u_int	t_sndtime;		/* time last data was sent */
 	u_int	ts_recent_age;		/* when last updated */
 	tcp_seq	snd_recover;		/* for use in NewReno Fast Recovery */
-	uint16_t cl4_spare;		/* Spare to adjust CL 4 */
 	char	t_oobflags;		/* have some */
 	char	t_iobc;			/* input character */
 	int	t_rxtcur;		/* current retransmit value (ticks) */
@@ -215,7 +221,6 @@ struct tcpcb {
 
 	int	t_softerror;		/* possible error not yet reported */
 	uint32_t max_sndwnd;		/* largest window peer has offered */
-	/* Cache line 5 */
 	uint32_t snd_cwnd_prev;		/* cwnd prior to retransmit */
 	uint32_t snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
@@ -234,9 +239,8 @@ struct tcpcb {
 	int	t_sndrexmitpack;	/* retransmit packets sent */
 	int	t_rcvoopack;		/* out-of-order packets received */
 	void	*t_toe;			/* TOE pcb pointer */
-	struct cc_algo	*cc_algo;	/* congestion control algorithm */
-	struct cc_var	*ccv;		/* congestion control specific vars */
-	struct osd	*osd;		/* storage for Khelp module data */
+	struct cc_algo	*t_cc;		/* congestion control algorithm */
+	struct cc_var	t_ccv;		/* congestion control specific vars */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
 	u_int	t_maxunacktime;
 	u_int	t_keepinit;		/* time to establish connection */
@@ -282,6 +286,9 @@ struct tcpcb {
 #ifdef TCPPCAP
 	struct mbufq t_inpkts;		/* List of saved input packets. */
 	struct mbufq t_outpkts;		/* List of saved output packets. */
+#endif
+#ifdef TCP_HHOOK
+	struct osd	t_osd;		/* storage for Khelp module data */
 #endif
 };
 #endif	/* _KERNEL || _WANT_TCPCB */
@@ -389,10 +396,10 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 struct tcpcb * tcp_drop(struct tcpcb *, int);
 
 #ifdef _NETINET_IN_PCB_H_
-#define	intotcpcb(inp)	((struct tcpcb *)(inp)->inp_ppcb)
+#define	intotcpcb(inp)	__containerof((inp), struct tcpcb, t_inpcb)
 #define	sototcpcb(so)	intotcpcb(sotoinpcb(so))
-#define	tptoinpcb(tp)	tp->t_inpcb
-#define	tptosocket(tp)	tp->t_inpcb->inp_socket
+#define	tptoinpcb(tp)	(&(tp)->t_inpcb)
+#define	tptosocket(tp)	(tp)->t_inpcb.inp_socket
 
 /*
  * tcp_output()

@@ -39,7 +39,6 @@ static const char rcsid[] = "@(#)$Id$";
 #include <sys/sockopt.h>
 #include <sys/socket.h>
 #include <sys/selinfo.h>
-#include <netinet/tcp_var.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
@@ -53,6 +52,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_var.h>
 #include <net/vnet.h>
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>

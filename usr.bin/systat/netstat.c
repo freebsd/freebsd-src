@@ -43,6 +43,7 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/callout.h>
 #define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/protosw.h>

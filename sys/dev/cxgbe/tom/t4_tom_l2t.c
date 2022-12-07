@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
 

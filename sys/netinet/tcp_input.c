@@ -283,7 +283,7 @@ hhook_run_tcp_est_in(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 		hhook_data.to = to;
 
 		hhook_run_hooks(V_tcp_hhh[HHOOK_TCP_EST_IN], &hhook_data,
-		    tp->osd);
+		    &tp->t_osd);
 	}
 }
 #endif
@@ -301,14 +301,14 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
-	tp->ccv->nsegs = nsegs;
-	tp->ccv->bytes_this_ack = BYTES_THIS_ACK(tp, th);
+	tp->t_ccv.nsegs = nsegs;
+	tp->t_ccv.bytes_this_ack = BYTES_THIS_ACK(tp, th);
 	if ((!V_tcp_do_newcwv && (tp->snd_cwnd <= tp->snd_wnd)) ||
 	    (V_tcp_do_newcwv && (tp->snd_cwnd <= tp->snd_wnd) &&
 	     (tp->snd_cwnd < (tcp_compute_pipe(tp) * 2))))
-		tp->ccv->flags |= CCF_CWND_LIMITED;
+		tp->t_ccv.flags |= CCF_CWND_LIMITED;
 	else
-		tp->ccv->flags &= ~CCF_CWND_LIMITED;
+		tp->t_ccv.flags &= ~CCF_CWND_LIMITED;
 
 	if (type == CC_ACK) {
 #ifdef STATS
@@ -316,7 +316,7 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 		    ((int32_t)tp->snd_cwnd) - tp->snd_wnd);
 		if (!IN_RECOVERY(tp->t_flags))
 			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_ACKLEN,
-			   tp->ccv->bytes_this_ack / (tcp_maxseg(tp) * nsegs));
+			   tp->t_ccv.bytes_this_ack / (tcp_maxseg(tp) * nsegs));
 		if ((tp->t_flags & TF_GPUTINPROG) &&
 		    SEQ_GEQ(th->th_ack, tp->gput_ack)) {
 			/*
@@ -341,21 +341,21 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 		}
 #endif /* STATS */
 		if (tp->snd_cwnd > tp->snd_ssthresh) {
-			tp->t_bytes_acked += tp->ccv->bytes_this_ack;
+			tp->t_bytes_acked += tp->t_ccv.bytes_this_ack;
 			if (tp->t_bytes_acked >= tp->snd_cwnd) {
 				tp->t_bytes_acked -= tp->snd_cwnd;
-				tp->ccv->flags |= CCF_ABC_SENTAWND;
+				tp->t_ccv.flags |= CCF_ABC_SENTAWND;
 			}
 		} else {
-				tp->ccv->flags &= ~CCF_ABC_SENTAWND;
+				tp->t_ccv.flags &= ~CCF_ABC_SENTAWND;
 				tp->t_bytes_acked = 0;
 		}
 	}
 
 	if (CC_ALGO(tp)->ack_received != NULL) {
 		/* XXXLAS: Find a way to live without this */
-		tp->ccv->curack = th->th_ack;
-		CC_ALGO(tp)->ack_received(tp->ccv, type);
+		tp->t_ccv.curack = th->th_ack;
+		CC_ALGO(tp)->ack_received(&tp->t_ccv, type);
 	}
 #ifdef STATS
 	stats_voi_update_abs_ulong(tp->t_stats, VOI_TCP_LCWIN, tp->snd_cwnd);
@@ -414,7 +414,7 @@ cc_conn_init(struct tcpcb *tp)
 		tp->snd_cwnd = tcp_compute_initwnd(maxseg);
 
 	if (CC_ALGO(tp)->conn_init != NULL)
-		CC_ALGO(tp)->conn_init(tp->ccv);
+		CC_ALGO(tp)->conn_init(&tp->t_ccv);
 }
 
 void inline
@@ -473,8 +473,8 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 
 	if (CC_ALGO(tp)->cong_signal != NULL) {
 		if (th != NULL)
-			tp->ccv->curack = th->th_ack;
-		CC_ALGO(tp)->cong_signal(tp->ccv, type);
+			tp->t_ccv.curack = th->th_ack;
+		CC_ALGO(tp)->cong_signal(&tp->t_ccv, type);
 	}
 }
 
@@ -486,8 +486,8 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	/* XXXLAS: KASSERT that we're in recovery? */
 
 	if (CC_ALGO(tp)->post_recovery != NULL) {
-		tp->ccv->curack = th->th_ack;
-		CC_ALGO(tp)->post_recovery(tp->ccv);
+		tp->t_ccv.curack = th->th_ack;
+		CC_ALGO(tp)->post_recovery(&tp->t_ccv);
 	}
 	/* XXXLAS: EXIT_RECOVERY ? */
 	tp->t_bytes_acked = 0;
@@ -518,25 +518,25 @@ cc_ecnpkt_handler_flags(struct tcpcb *tp, uint16_t flags, uint8_t iptos)
 	if (CC_ALGO(tp)->ecnpkt_handler != NULL) {
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
-			tp->ccv->flags |= CCF_IPHDR_CE;
+			tp->t_ccv.flags |= CCF_IPHDR_CE;
 			break;
 		case IPTOS_ECN_ECT0:
 			/* FALLTHROUGH */
 		case IPTOS_ECN_ECT1:
 			/* FALLTHROUGH */
 		case IPTOS_ECN_NOTECT:
-			tp->ccv->flags &= ~CCF_IPHDR_CE;
+			tp->t_ccv.flags &= ~CCF_IPHDR_CE;
 			break;
 		}
 
 		if (flags & TH_CWR)
-			tp->ccv->flags |= CCF_TCPHDR_CWR;
+			tp->t_ccv.flags |= CCF_TCPHDR_CWR;
 		else
-			tp->ccv->flags &= ~CCF_TCPHDR_CWR;
+			tp->t_ccv.flags &= ~CCF_TCPHDR_CWR;
 
-		CC_ALGO(tp)->ecnpkt_handler(tp->ccv);
+		CC_ALGO(tp)->ecnpkt_handler(&tp->t_ccv);
 
-		if (tp->ccv->flags & CCF_ACKNOW) {
+		if (tp->t_ccv.flags & CCF_ACKNOW) {
 			tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
 			tp->t_flags |= TF_ACKNOW;
 		}

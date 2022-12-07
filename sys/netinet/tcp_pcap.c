@@ -36,6 +36,8 @@
 #include <sys/mbuf.h>
 #include <sys/eventhandler.h>
 #include <machine/atomic.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_pcap.h>
 

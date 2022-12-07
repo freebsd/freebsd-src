@@ -80,6 +80,7 @@
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
