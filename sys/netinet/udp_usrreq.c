@@ -149,8 +149,6 @@ SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
 
 VNET_DEFINE(struct inpcbinfo, udbinfo);
 VNET_DEFINE(struct inpcbinfo, ulitecbinfo);
-VNET_DEFINE_STATIC(uma_zone_t, udpcb_zone);
-#define	V_udpcb_zone			VNET(udpcb_zone)
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128
@@ -170,8 +168,8 @@ static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		    struct mbuf *, struct thread *, int);
 #endif
 
-INPCBSTORAGE_DEFINE(udpcbstor, inpcb, "udpinp", "udp_inpcb", "udp", "udphash");
-INPCBSTORAGE_DEFINE(udplitecbstor, inpcb, "udpliteinp", "udplite_inpcb",
+INPCBSTORAGE_DEFINE(udpcbstor, udpcb, "udpinp", "udp_inpcb", "udp", "udphash");
+INPCBSTORAGE_DEFINE(udplitecbstor, udpcb, "udpliteinp", "udplite_inpcb",
     "udplite", "udplitehash");
 
 static void
@@ -186,11 +184,6 @@ udp_vnet_init(void *arg __unused)
 	 * a 4-tuple, flip this to 4-tuple.
 	 */
 	in_pcbinfo_init(&V_udbinfo, &udpcbstor, UDBHASHSIZE, UDBHASHSIZE);
-	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(V_udpcb_zone, maxsockets);
-	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
-
 	/* Additional pcbinfo for UDP-Lite */
 	in_pcbinfo_init(&V_ulitecbinfo, &udplitecbstor, UDBHASHSIZE,
 	    UDBHASHSIZE);
@@ -212,25 +205,6 @@ kmod_udpstat_inc(int statnum)
 	counter_u64_add(VNET(udpstat)[statnum], 1);
 }
 
-int
-udp_newudpcb(struct inpcb *inp)
-{
-	struct udpcb *up;
-
-	up = uma_zalloc(V_udpcb_zone, M_NOWAIT | M_ZERO);
-	if (up == NULL)
-		return (ENOBUFS);
-	inp->inp_ppcb = up;
-	return (0);
-}
-
-void
-udp_discardcb(struct udpcb *up)
-{
-
-	uma_zfree(V_udpcb_zone, up);
-}
-
 #ifdef VIMAGE
 static void
 udp_destroy(void *unused __unused)
@@ -238,7 +212,6 @@ udp_destroy(void *unused __unused)
 
 	in_pcbinfo_destroy(&V_udbinfo);
 	in_pcbinfo_destroy(&V_ulitecbinfo);
-	uma_zdestroy(V_udpcb_zone);
 }
 VNET_SYSUNINIT(udp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udp_destroy, NULL);
 #endif
@@ -1482,8 +1455,9 @@ static int
 udp_attach(struct socket *so, int proto, struct thread *td)
 {
 	static uint32_t udp_flowid;
-	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
+	struct inpcb *inp;
+	struct udpcb *up;
 	int error;
 
 	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
@@ -1500,13 +1474,8 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	inp->inp_ip_ttl = V_ip_defttl;
 	inp->inp_flowid = atomic_fetchadd_int(&udp_flowid, 1);
 	inp->inp_flowtype = M_HASHTYPE_OPAQUE;
-
-	error = udp_newudpcb(inp);
-	if (error) {
-		in_pcbdetach(inp);
-		in_pcbfree(inp);
-		return (error);
-	}
+	up = intoudpcb(inp);
+	bzero(&up->u_start_zero, u_zero_size);
 	INP_WUNLOCK(inp);
 
 	return (0);
@@ -1636,19 +1605,14 @@ static void
 udp_detach(struct socket *so)
 {
 	struct inpcb *inp;
-	struct udpcb *up;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_detach: inp == NULL"));
 	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY,
 	    ("udp_detach: not disconnected"));
 	INP_WLOCK(inp);
-	up = intoudpcb(inp);
-	KASSERT(up != NULL, ("%s: up == NULL", __func__));
-	inp->inp_ppcb = NULL;
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
-	udp_discardcb(up);
 }
 
 pr_disconnect_t udp_disconnect;		/* shared with udp6_usrreq.c */

@@ -110,6 +110,10 @@ typedef void	udp_tun_icmp_t(udp_tun_icmp_param_t);
  * UDP control block; one per udp.
  */
 struct udpcb {
+	struct inpcb	u_inpcb;
+#define	u_start_zero	u_tun_func
+#define	u_zero_size	(sizeof(struct udpcb) - \
+			    offsetof(struct udpcb, u_start_zero))
 	udp_tun_func_t	*u_tun_func;	/* UDP kernel tunneling callback. */
 	udp_tun_icmp_t  *u_icmp_func;	/* UDP kernel tunneling icmp callback */
 	u_int		u_flags;	/* Generic UDP flags. */
@@ -118,7 +122,7 @@ struct udpcb {
 	void 		*u_tun_ctx;	/* Tunneling callback context. */
 };
 
-#define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
+#define	intoudpcb(ip)	__containerof((inp), struct udpcb, u_inpcb)
 #define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
 
 VNET_PCPUSTAT_DECLARE(struct udpstat, udpstat);
@@ -163,9 +167,6 @@ udp_get_inpcbinfo(int protocol)
 {
 	return (protocol == IPPROTO_UDP) ? &V_udbinfo : &V_ulitecbinfo;
 }
-
-int		udp_newudpcb(struct inpcb *);
-void		udp_discardcb(struct udpcb *);
 
 int		udp_ctloutput(struct socket *, struct sockopt *);
 void		udplite_input(struct mbuf *, int);

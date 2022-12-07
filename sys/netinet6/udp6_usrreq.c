@@ -1005,13 +1005,6 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
-
-	error = udp_newudpcb(inp);
-	if (error) {
-		in_pcbdetach(inp);
-		in_pcbfree(inp);
-		return (error);
-	}
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -1213,7 +1206,6 @@ udp6_detach(struct socket *so)
 	KASSERT(up != NULL, ("%s: up == NULL", __func__));
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
-	udp_discardcb(up);
 }
 
 static int
