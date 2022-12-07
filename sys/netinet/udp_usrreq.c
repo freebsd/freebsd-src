@@ -164,8 +164,6 @@ VNET_PCPUSTAT_SYSUNINIT(udpstat);
 #endif /* VIMAGE */
 #ifdef INET
 static void	udp_detach(struct socket *so);
-static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
-		    struct mbuf *, struct thread *, int);
 #endif
 
 INPCBSTORAGE_DEFINE(udpcbstor, udpcb, "udpinp", "udp_inpcb", "udp", "udphash");
@@ -1037,21 +1035,22 @@ udp_v4mapped_pktinfo(struct cmsghdr *cm, struct sockaddr_in * src,
 
 	return (0);
 }
-#endif
+#endif	/* INET6 */
 
-static int
-udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
-    struct mbuf *control, struct thread *td, int flags)
+pr_send_t udp_send;			/* shared with udp6_usrreq.c */
+int
+udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
+    struct mbuf *control, struct thread *td)
 {
+	struct inpcb *inp;
 	struct udpiphdr *ui;
-	int len = m->m_pkthdr.len;
+	int len, error = 0;
 	struct in_addr faddr, laddr;
 	struct cmsghdr *cm;
 	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sin, src;
 	struct epoch_tracker et;
 	int cscov_partial = 0;
-	int error = 0;
 	int ipflags = 0;
 	u_short fport, lport;
 	u_char tos;
@@ -1060,6 +1059,22 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	uint32_t flowid = 0;
 	uint8_t flowtype = M_HASHTYPE_NONE;
 
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
+
+	if (addr != NULL) {
+		if (addr->sa_family != AF_INET)
+			error = EAFNOSUPPORT;
+		else if (addr->sa_len != sizeof(struct sockaddr_in))
+			error = EINVAL;
+		if (__predict_false(error != 0)) {
+			m_freem(control);
+			m_freem(m);
+			return (error);
+		}
+	}
+
+	len = m->m_pkthdr.len;
 	if (len + sizeof(struct udpiphdr) > IP_MAXPACKET) {
 		if (control)
 			m_freem(control);
@@ -1071,7 +1086,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	sin = (struct sockaddr_in *)addr;
 
 	/*
-	 * udp_output() may need to temporarily bind or connect the current
+	 * udp_send() may need to temporarily bind or connect the current
 	 * inpcb.  As such, we don't know up front whether we will need the
 	 * pcbinfo lock or not.  Do any work to decide what is needed up
 	 * front before acquiring any locks.
@@ -1639,32 +1654,6 @@ udp_disconnect(struct socket *so)
 	SOCK_UNLOCK(so);
 	INP_WUNLOCK(inp);
 	return (0);
-}
-
-pr_send_t udp_send;			/* shared with udp6_usrreq.c */
-int
-udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-    struct mbuf *control, struct thread *td)
-{
-	struct inpcb *inp;
-	int error;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
-
-	if (addr != NULL) {
-		error = 0;
-		if (addr->sa_family != AF_INET)
-			error = EAFNOSUPPORT;
-		else if (addr->sa_len != sizeof(struct sockaddr_in))
-			error = EINVAL;
-		if (__predict_false(error != 0)) {
-			m_freem(control);
-			m_freem(m);
-			return (error);
-		}
-	}
-	return (udp_output(inp, m, addr, control, td, flags));
 }
 #endif /* INET */
 
