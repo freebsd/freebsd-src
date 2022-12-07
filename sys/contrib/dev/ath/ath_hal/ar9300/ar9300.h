@@ -1411,7 +1411,7 @@ extern void ar9300_iq_calibration(struct ath_hal *ah, u_int8_t num_chains);
 extern void ar9300_temp_comp_cal_collect(struct ath_hal *ah);
 extern void ar9300_temp_comp_calibration(struct ath_hal *ah, u_int8_t num_chains);
 extern int16_t ar9300_get_min_cca_pwr(struct ath_hal *ah);
-extern void ar9300_upload_noise_floor(struct ath_hal *ah, int is2G, int16_t nfarray[]);
+extern void ar9300_upload_noise_floor(struct ath_hal *ah, int is2G, int16_t nfarray[HAL_NUM_NF_READINGS]);
 
 extern HAL_BOOL ar9300_set_tx_power_limit(struct ath_hal *ah, u_int32_t limit,
                                        u_int16_t extra_txpow, u_int16_t tpc_in_db);
