@@ -432,13 +432,15 @@ FreeBSD 5.2           |      |                 |                       |
  |     |      |       |      |    |               |                    |
  |     |   FreeBSD  macOS    |    |           OpenBSD 7.0              |
  |     |     12.3    12      |    |               |                    |
- |     |              |      |    |               |            DragonFly 6.2.1
- |     |              |      |    |           OpenBSD 7.1              |
- |  FreeBSD           |      |    |               |                    |
- |   13.1             |      |    |               |                    |
- |                    |      |    |               |            DragonFly 6.2.2
- |                    |      |  NetBSD 9.3        |                    |
- |                    |      |                OpenBSD 7.2              |
+ |     |      |       |      |    |               |            DragonFly 6.2.1
+ |     |      |       |      |    |           OpenBSD 7.1              |
+ |  FreeBSD   |       |      |    |               |                    |
+ |   13.1     |       |      |    |               |                    |
+ |            |       |      |    |               |            DragonFly 6.2.2
+ |            |       |      |  NetBSD 9.3        |                    |
+ |            |       |      |                OpenBSD 7.2              |
+ |         FreeBSD    |      |                    |                    |
+ |           12.4     |      |                    |                    |
  |                    |      |                    |                    |
 FreeBSD 14 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
@@ -860,6 +862,7 @@ FreeBSD 13.1		2022-05-17 [FBD]
 DragonFly 6.2.2		2022-06-09 [DFB]
 NetBSD 9.3		2022-08-04 [NBD]
 OpenBSD 7.2		2022-10-20 [OBD]
+FreeBSD 12.4		2022-12-05 [FBD]
 
 Bibliography
 ------------------------
