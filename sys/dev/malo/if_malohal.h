@@ -223,7 +223,7 @@ int	malo_hal_setmaxtxpwr(struct malo_hal *, uint16_t);
 int	malo_hal_settxpower(struct malo_hal *, const struct malo_hal_channel *);
 int	malo_hal_setpromisc(struct malo_hal *, int);
 int	malo_hal_setassocid(struct malo_hal *,
-	    const uint8_t[], uint16_t);
+	    const uint8_t[IEEE80211_ADDR_LEN], uint16_t);
 void	malo_hal_txstart(struct malo_hal *, int);
 void	malo_hal_getisr(struct malo_hal *, uint32_t *);
 void	malo_hal_cmddone(struct malo_hal *);
