@@ -105,6 +105,9 @@ main(int argc, const char **argv)
 	 */
 	cons_probe();
 
+	/* Initialize all the devices */
+	devinit();
+
 	/* Choose bootdev if provided */
 	if (argc > 1)
 		bootdev = argv[1];
