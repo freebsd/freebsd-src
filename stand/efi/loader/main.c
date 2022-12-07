@@ -702,8 +702,7 @@ interactive_interrupt(const char *msg)
 static int
 parse_args(int argc, CHAR16 *argv[])
 {
-	int i, j, howto;
-	bool vargood;
+	int i, howto;
 	char var[128];
 
 	/*
