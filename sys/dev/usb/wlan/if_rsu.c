@@ -163,9 +163,10 @@ static usb_callback_t   rsu_bulk_rx_callback;
 static usb_error_t	rsu_do_request(struct rsu_softc *,
 			    struct usb_device_request *, void *);
 static struct ieee80211vap *
-		rsu_vap_create(struct ieee80211com *, const char name[],
-		    int, enum ieee80211_opmode, int, const uint8_t bssid[],
-		    const uint8_t mac[]);
+		rsu_vap_create(struct ieee80211com *, const char name[IFNAMSIZ],
+		    int, enum ieee80211_opmode, int,
+		    const uint8_t bssid[IEEE80211_ADDR_LEN],
+		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	rsu_vap_delete(struct ieee80211vap *);
 static void	rsu_scan_start(struct ieee80211com *);
 static void	rsu_scan_end(struct ieee80211com *);
