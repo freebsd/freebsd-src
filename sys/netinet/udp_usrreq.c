@@ -237,18 +237,10 @@ udp_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_udbinfo);
+	in_pcbinfo_destroy(&V_ulitecbinfo);
 	uma_zdestroy(V_udpcb_zone);
 }
 VNET_SYSUNINIT(udp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udp_destroy, NULL);
-
-static void
-udplite_destroy(void *unused __unused)
-{
-
-	in_pcbinfo_destroy(&V_ulitecbinfo);
-}
-VNET_SYSUNINIT(udplite, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, udplite_destroy,
-    NULL);
 #endif
 
 #ifdef INET
