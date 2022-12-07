@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/toecore.h>
 #endif
 #include <netinet/udp.h>
-#include <netinet/udp_var.h>
 
 #include <netipsec/ipsec_support.h>
 
