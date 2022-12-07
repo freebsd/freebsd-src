@@ -436,7 +436,7 @@ struct ieee80211_node *_ieee80211_find_rxnode_withkey(
 		const struct ieee80211_frame_min *, uint16_t keyix,
 		const char *func, int line);
 struct ieee80211_node *_ieee80211_find_txnode(struct ieee80211vap *,
-		const uint8_t *,
+		const uint8_t macaddr[IEEE80211_ADDR_LEN],
 		const char *func, int line);
 #define	ieee80211_free_node(ni) \
 	_ieee80211_free_node(ni, __func__, __LINE__)
