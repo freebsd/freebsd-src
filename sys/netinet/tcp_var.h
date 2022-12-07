@@ -1187,8 +1187,6 @@ struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, uint16_t, void *, void *);
 void	 tcp_timer_activate(struct tcpcb *, uint32_t, u_int);
-int	 tcp_timer_suspend(struct tcpcb *, uint32_t);
-void	 tcp_timers_unsuspend(struct tcpcb *, uint32_t);
 int	 tcp_timer_active(struct tcpcb *, uint32_t);
 void	 tcp_timer_stop(struct tcpcb *, uint32_t);
 void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);

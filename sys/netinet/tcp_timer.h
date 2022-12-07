@@ -155,16 +155,6 @@ static const char *tcptimers[] =
 #define TT_2MSL		0x0010
 #define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
 
-/*
- * Suspend flags - used when suspending a timer
- * from ever running again.
- */
-#define TT_DELACK_SUS	0x0100
-#define TT_REXMT_SUS	0x0200
-#define TT_PERSIST_SUS	0x0400
-#define TT_KEEP_SUS	0x0800
-#define TT_2MSL_SUS	0x1000
-
 #define TT_STOPPED	0x00010000
 
 #define	TP_KEEPINIT(tp)	((tp)->t_keepinit ? (tp)->t_keepinit : tcp_keepinit)

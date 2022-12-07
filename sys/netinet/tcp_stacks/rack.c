@@ -7100,10 +7100,6 @@ rack_stop_all_timers(struct tcpcb *tp)
 		rack = (struct tcp_rack *)tp->t_fb_ptr;
 		rack->rc_in_persist = 1;
 	}
-	tcp_timer_suspend(tp, TT_PERSIST);
-	tcp_timer_suspend(tp, TT_REXMT);
-	tcp_timer_suspend(tp, TT_KEEP);
-	tcp_timer_suspend(tp, TT_DELACK);
 }
 
 static void
