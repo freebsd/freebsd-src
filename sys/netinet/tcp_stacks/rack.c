@@ -489,10 +489,6 @@ static void rack_remxt_tmr(struct tcpcb *tp);
 static int rack_set_sockopt(struct inpcb *inp, struct sockopt *sopt);
 static void rack_set_state(struct tcpcb *tp, struct tcp_rack *rack);
 static int32_t rack_stopall(struct tcpcb *tp);
-static void
-rack_timer_activate(struct tcpcb *tp, uint32_t timer_type,
-    uint32_t delta);
-static int32_t rack_timer_active(struct tcpcb *tp, uint32_t timer_type);
 static void rack_timer_cancel(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, int line);
 static void rack_timer_stop(struct tcpcb *tp, uint32_t timer_type);
 static uint32_t
@@ -5910,9 +5906,6 @@ rack_timeout_rack(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	 */
 	struct rack_sendmap *rsm;
 
-	if (tp->tt_flags & TT_STOPPED) {
-		return (1);
-	}
 	counter_u64_add(rack_to_tot, 1);
 	if (rack->r_state && (rack->r_state != tp->t_state))
 		rack_set_state(tp, rack);
@@ -6123,9 +6116,6 @@ rack_timeout_tlp(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, uint8_t 
 	uint32_t out, avail;
 	int collapsed_win = 0;
 
-	if (tp->tt_flags & TT_STOPPED) {
-		return (1);
-	}
 	if (TSTMP_LT(cts, rack->r_ctl.rc_timer_exp)) {
 		/* Its not time yet */
 		return (0);
@@ -6312,9 +6302,7 @@ out:
 static int
 rack_timeout_delack(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 {
-	if (tp->tt_flags & TT_STOPPED) {
-		return (1);
-	}
+
 	rack_log_to_event(rack, RACK_TO_FRM_DELACK, NULL);
 	tp->t_flags &= ~TF_DELACK;
 	tp->t_flags |= TF_ACKNOW;
@@ -6337,9 +6325,6 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	struct tcptemp *t_template;
 	int32_t retval = 1;
 
-	if (tp->tt_flags & TT_STOPPED) {
-		return (1);
-	}
 	if (rack->rc_in_persist == 0)
 		return (0);
 	if (ctf_progress_timeout_check(tp, false)) {
@@ -6425,9 +6410,6 @@ rack_timeout_keepalive(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	struct tcptemp *t_template;
 	struct inpcb *inp = tptoinpcb(tp);
 
-	if (tp->tt_flags & TT_STOPPED) {
-		return (1);
-	}
 	rack->r_ctl.rc_hpts_flags &= ~PACE_TMR_KEEP;
 	rack_log_to_event(rack, RACK_TO_FRM_KEEP, NULL);
 	/*
@@ -6654,9 +6636,6 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	int32_t retval = 0;
 	bool isipv6;
 
-	if (tp->tt_flags & TT_STOPPED) {
-		return (1);
-	}
 	if ((tp->t_flags & TF_GPUTINPROG) &&
 	    (tp->t_rxtshift)) {
 		/*
@@ -7060,30 +7039,12 @@ rack_timer_cancel(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, int lin
 		rack_log_to_cancel(rack, hpts_removed, line, us_cts, &tv, flags_on_entry);
 }
 
-static void
-rack_timer_stop(struct tcpcb *tp, uint32_t timer_type)
-{
-	return;
-}
-
 static int
 rack_stopall(struct tcpcb *tp)
 {
 	struct tcp_rack *rack;
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	rack->t_timers_stopped = 1;
-	return (0);
-}
-
-static void
-rack_timer_activate(struct tcpcb *tp, uint32_t timer_type, uint32_t delta)
-{
-	return;
-}
-
-static int
-rack_timer_active(struct tcpcb *tp, uint32_t timer_type)
-{
 	return (0);
 }
 
@@ -20307,9 +20268,6 @@ static struct tcp_function_block __tcp_rack = {
 	.tfb_tcp_fb_init = rack_init,
 	.tfb_tcp_fb_fini = rack_fini,
 	.tfb_tcp_timer_stop_all = rack_stopall,
-	.tfb_tcp_timer_activate = rack_timer_activate,
-	.tfb_tcp_timer_active = rack_timer_active,
-	.tfb_tcp_timer_stop = rack_timer_stop,
 	.tfb_tcp_rexmit_tmr = rack_remxt_tmr,
 	.tfb_tcp_handoff_ok = rack_handoff_ok,
 	.tfb_tcp_mtu_chg = rack_mtu_change,

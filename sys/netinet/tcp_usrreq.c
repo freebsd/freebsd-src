@@ -3072,10 +3072,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	   TAILQ_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
 
 	db_print_indent(indent);
-	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",
-	    &tp->tt_rexmt, &tp->tt_persist, &tp->tt_keep);
-	db_printf("tt_2msl: %p   tt_delack: %p\n", &tp->tt_2msl,
-	    &tp->tt_delack);
+	db_printf("t_callout: %p   t_timers: %p\n",
+	    &tp->t_callout, &tp->t_timers);
 
 	db_print_indent(indent);
 	db_printf("t_state: %d (", tp->t_state);

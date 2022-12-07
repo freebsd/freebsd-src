@@ -145,18 +145,6 @@ static const char *tcptimers[] =
 
 #ifdef _KERNEL
 
-/*
- * Flags for the tcpcb's tt_flags field.
- */
-#define TT_DELACK	0x0001
-#define TT_REXMT	0x0002
-#define TT_PERSIST	0x0004
-#define TT_KEEP		0x0008
-#define TT_2MSL		0x0010
-#define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
-
-#define TT_STOPPED	0x00010000
-
 #define	TP_KEEPINIT(tp)	((tp)->t_keepinit ? (tp)->t_keepinit : tcp_keepinit)
 #define	TP_KEEPIDLE(tp)	((tp)->t_keepidle ? (tp)->t_keepidle : tcp_keepidle)
 #define	TP_KEEPINTVL(tp) ((tp)->t_keepintvl ? (tp)->t_keepintvl : tcp_keepintvl)
@@ -204,13 +192,6 @@ VNET_DECLARE(int, tcp_v6pmtud_blackhole_mss);
 #define V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
 VNET_DECLARE(int, tcp_msl);
 #define V_tcp_msl			VNET(tcp_msl)
-
-void	tcp_timer_init(void);
-void	tcp_timer_2msl(void *xtp);
-void	tcp_timer_keep(void *xtp);
-void	tcp_timer_persist(void *xtp);
-void	tcp_timer_rexmt(void *xtp);
-void	tcp_timer_delack(void *xtp);
 
 #endif /* _KERNEL */
 

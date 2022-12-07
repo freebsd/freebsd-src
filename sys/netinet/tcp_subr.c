@@ -1194,22 +1194,6 @@ register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
 		*num_names = 0;
 		return (EINVAL);
 	}
-	if (blk->tfb_tcp_timer_stop_all ||
-	    blk->tfb_tcp_timer_activate ||
-	    blk->tfb_tcp_timer_active ||
-	    blk->tfb_tcp_timer_stop) {
-		/*
-		 * If you define one timer function you
-		 * must have them all.
-		 */
-		if ((blk->tfb_tcp_timer_stop_all == NULL) ||
-		    (blk->tfb_tcp_timer_activate == NULL) ||
-		    (blk->tfb_tcp_timer_active == NULL) ||
-		    (blk->tfb_tcp_timer_stop == NULL)) {
-			*num_names = 0;
-			return (EINVAL);
-		}
-	}
 
 	if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
 		*num_names = 0;
@@ -2227,12 +2211,9 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif /* INET6 */
 		V_tcp_mssdflt;
 
-	/* Set up our timeouts. */
-	callout_init(&tp->tt_rexmt, 1);
-	callout_init(&tp->tt_persist, 1);
-	callout_init(&tp->tt_keep, 1);
-	callout_init(&tp->tt_2msl, 1);
-	callout_init(&tp->tt_delack, 1);
+	callout_init_rw(&tp->t_callout, &inp->inp_lock, CALLOUT_RETURNUNLOCKED);
+	for (int i = 0; i < TT_N; i++)
+		tp->t_timers[i] = SBT_MAX;
 
 	switch (V_tcp_do_rfc1323) {
 		case 0:
@@ -2301,13 +2282,6 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (V_tcp_do_lrd)
 		tp->t_flags |= TF_LRD;
 
-	/*
-	 * XXXGL: this self-reference might be pointless.  It will go away
-	 * when the TCP timers are properly locked and could never fire after
-	 * tcp_discardcb().
-	*/
-	in_pcbref(inp);
-
 	return (tp);
 }
 
@@ -2341,32 +2315,15 @@ void
 tcp_discardcb(struct tcpcb *tp)
 {
 	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
+#ifdef INET6
+	bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
+#endif
 
 	INP_WLOCK_ASSERT(inp);
 
-	/*
-	 * Make sure that all of our timers are stopped before we delete the
-	 * PCB.
-	 *
-	 * If stopping a timer fails, we schedule a discard function in same
-	 * callout, and the last discard function called will take care of
-	 * deleting the tcpcb.
-	 */
-	tp->tt_draincnt = 0;
-	tcp_timer_stop(tp, TT_REXMT);
-	tcp_timer_stop(tp, TT_PERSIST);
-	tcp_timer_stop(tp, TT_KEEP);
-	tcp_timer_stop(tp, TT_2MSL);
-	tcp_timer_stop(tp, TT_DELACK);
+	tcp_timer_stop(tp);
 	if (tp->t_fb->tfb_tcp_timer_stop_all) {
-		/*
-		 * Call the stop-all function of the methods,
-		 * this function should call the tcp_timer_stop()
-		 * method with each of the function specific timeouts.
-		 * That stop will be called via the tfb_tcp_timer_stop()
-		 * which should use the async drain function of the
-		 * callout system (see tcp_var.h).
-		 */
 		tp->t_fb->tfb_tcp_timer_stop_all(tp);
 	}
 
@@ -2402,23 +2359,7 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 
 	CC_ALGO(tp) = NULL;
-	if (tp->tt_draincnt == 0)
-		tcp_freecb(tp);
-}
 
-bool
-tcp_freecb(struct tcpcb *tp)
-{
-	struct inpcb *inp = tptoinpcb(tp);
-	struct socket *so = tptosocket(tp);
-#ifdef INET6
-	bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
-#endif
-
-	INP_WLOCK_ASSERT(inp);
-	MPASS(tp->tt_draincnt == 0);
-
-	/* We own the last reference on tcpcb, let's free it. */
 #ifdef TCP_BLACKBOX
 	tcp_log_tcpcbfini(tp);
 #endif
@@ -2489,8 +2430,6 @@ tcp_freecb(struct tcpcb *tp)
 	}
 
 	refcount_release(&tp->t_fb->tfb_refcnt);
-
-	return (in_pcbrele_wlocked(inp));
 }
 
 /*
@@ -3940,17 +3879,17 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 		     (tp->t_flags2 & TF2_ACE_PERMIT) ? 2 : 0;
 
 	now = getsbinuptime();
-#define	COPYTIMER(ttt)	do {					\
-	if (callout_active(&tp->ttt))				\
-		xt->ttt = (tp->ttt.c_time - now) / SBT_1MS;	\
-	else							\
-		xt->ttt = 0;					\
+#define	COPYTIMER(which,where)	do {					\
+	if (tp->t_timers[which] != SBT_MAX)				\
+		xt->where = (tp->t_timers[which] - now) / SBT_1MS;	\
+	else								\
+		xt->where = 0;						\
 } while (0)
-	COPYTIMER(tt_delack);
-	COPYTIMER(tt_rexmt);
-	COPYTIMER(tt_persist);
-	COPYTIMER(tt_keep);
-	COPYTIMER(tt_2msl);
+	COPYTIMER(TT_DELACK, tt_delack);
+	COPYTIMER(TT_REXMT, tt_rexmt);
+	COPYTIMER(TT_PERSIST, tt_persist);
+	COPYTIMER(TT_KEEP, tt_keep);
+	COPYTIMER(TT_2MSL, tt_2msl);
 #undef COPYTIMER
 	xt->t_rcvtime = 1000 * (ticks - tp->t_rcvtime) / hz;
 

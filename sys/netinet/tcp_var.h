@@ -126,6 +126,15 @@ struct sackhint {
 
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
+typedef enum {
+	TT_DELACK = 0,
+	TT_REXMT,
+	TT_PERSIST,
+	TT_KEEP,
+	TT_2MSL,
+	TT_N,
+} tt_which;
+
 /*
  * Tcp control block, one per tcp connection.
  */
@@ -137,13 +146,9 @@ struct tcpcb {
 	struct tcp_function_block *t_fb;/* TCP function call block */
 	void	*t_fb_ptr;		/* Pointer to t_fb specific data */
 
-        struct callout	tt_rexmt;	/* retransmit timer */
-        struct callout	tt_persist;	/* retransmit persistence */
-        struct callout	tt_keep;	/* keepalive */
-        struct callout	tt_2msl;	/* 2*msl TIME_WAIT timer */
-        struct callout	tt_delack;	/* delayed ACK timer */
-        uint32_t	tt_flags;	/* Timers flags */
-        uint32_t	tt_draincnt;	/* Count being drained */
+	struct callout t_callout;
+	sbintime_t t_timers[TT_N];
+	sbintime_t t_precisions[TT_N];
 
 	uint32_t t_maxseg:24,		/* maximum segment size */
 		t_logstate:8;		/* State of "black box" logging */
@@ -370,10 +375,6 @@ struct tcp_function_block {
 	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
 	/* Optional timers, must define all if you define one */
 	int	(*tfb_tcp_timer_stop_all)(struct tcpcb *);
-	void	(*tfb_tcp_timer_activate)(struct tcpcb *,
-			    uint32_t, u_int);
-	int	(*tfb_tcp_timer_active)(struct tcpcb *, uint32_t);
-	void	(*tfb_tcp_timer_stop)(struct tcpcb *, uint32_t);
 	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
 	int	(*tfb_tcp_handoff_ok)(struct tcpcb *);
 	void	(*tfb_tcp_mtu_chg)(struct tcpcb *);
@@ -1086,7 +1087,6 @@ int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
-bool	 tcp_freecb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 void	 tcp_fini(void *);
@@ -1186,9 +1186,9 @@ void	 tcp_record_dsack(struct tcpcb *tp, tcp_seq start, tcp_seq end, int tlp);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, uint16_t, void *, void *);
-void	 tcp_timer_activate(struct tcpcb *, uint32_t, u_int);
-int	 tcp_timer_active(struct tcpcb *, uint32_t);
-void	 tcp_timer_stop(struct tcpcb *, uint32_t);
+void	 tcp_timer_activate(struct tcpcb *, tt_which, u_int);
+bool	 tcp_timer_active(struct tcpcb *, tt_which);
+void	 tcp_timer_stop(struct tcpcb *);
 void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);
 int	 inp_to_cpuid(struct inpcb *inp);
 /*
