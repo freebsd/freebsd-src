@@ -242,6 +242,8 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 __DEFAULT_DEPENDENT_OPTIONS+= ${var}_SUPPORT/${var}
 .endfor
 
+.-include <site.src.opts.mk>
+
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
 # this means that we have to test TARGET_ARCH (the buildworld case) as well

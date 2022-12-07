@@ -42,6 +42,8 @@ _undefMAKEOBJDIRPREFIX=	t
 .endif
 .endif
 
+.-include <site.src.sys.env.mk>
+
 SRC_ENV_CONF?= /etc/src-env.conf
 .if !empty(SRC_ENV_CONF) && !target(_src_env_conf_included_)
 .-include "${SRC_ENV_CONF}"
@@ -89,6 +91,6 @@ MAKESYSPATH:=	${.PARSEDIR:tA}
 .endif
 
 .if ${RELDIR:U} == "." && ${.MAKE.LEVEL} == 0
-.sinclude "${.CURDIR}/Makefile.sys.inc"
+.-include "${.CURDIR}/Makefile.sys.inc"
 .endif
 .include <src.sys.obj.mk>

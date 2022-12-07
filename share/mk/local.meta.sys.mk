@@ -25,6 +25,9 @@ MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
 ALL_MACHINE_LIST?= amd64 arm arm64 i386 powerpc riscv
+
+.-include <site.meta.sys.mk>
+
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
