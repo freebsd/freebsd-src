@@ -607,7 +607,8 @@ ieee80211_scan_timeout(struct ieee80211com *ic)
  * Mark a scan cache entry after a successful associate.
  */
 void
-ieee80211_scan_assoc_success(struct ieee80211vap *vap, const uint8_t mac[])
+ieee80211_scan_assoc_success(struct ieee80211vap *vap,
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
@@ -623,7 +624,7 @@ ieee80211_scan_assoc_success(struct ieee80211vap *vap, const uint8_t mac[])
  */
 void
 ieee80211_scan_assoc_fail(struct ieee80211vap *vap,
-	const uint8_t mac[], int reason)
+	const uint8_t mac[IEEE80211_ADDR_LEN], int reason)
 {
 	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
