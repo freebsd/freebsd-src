@@ -58,33 +58,14 @@ struct udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
-struct inpcb;
-struct mbuf;
-
-#ifdef _KERNEL
-typedef bool	udp_tun_func_t(struct mbuf *, int, struct inpcb *,
-		    const struct sockaddr *, void *);
-typedef union {
-	struct icmp *icmp;
-	struct ip6ctlparam *ip6cp;
-} udp_tun_icmp_param_t __attribute__((__transparent_union__));
-typedef void	udp_tun_icmp_t(udp_tun_icmp_param_t);
-
 /*
- * UDP control block; one per udp.
+ * Identifiers for UDP sysctl nodes.
  */
-struct udpcb {
-	udp_tun_func_t	*u_tun_func;	/* UDP kernel tunneling callback. */
-	udp_tun_icmp_t  *u_icmp_func;	/* UDP kernel tunneling icmp callback */
-	u_int		u_flags;	/* Generic UDP flags. */
-	uint16_t	u_rxcslen;	/* Coverage for incoming datagrams. */
-	uint16_t	u_txcslen;	/* Coverage for outgoing datagrams. */
-	void 		*u_tun_ctx;	/* Tunneling callback context. */
-};
-
-#define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
-#define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
-#endif
+#define	UDPCTL_CHECKSUM		1	/* checksum UDP packets */
+#define	UDPCTL_STATS		2	/* statistics (read-only) */
+#define	UDPCTL_MAXDGRAM		3	/* max datagram size */
+#define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
+#define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
 
 				/* IPsec: ESP in UDP tunneling: */
 #define	UF_ESPINUDP_NON_IKE	0x00000001	/* w/ non-IKE marker .. */
@@ -113,7 +94,32 @@ struct udpstat {
 };
 
 #ifdef _KERNEL
+#include <netinet/in_pcb.h>
 #include <sys/counter.h>
+struct mbuf;
+
+typedef bool	udp_tun_func_t(struct mbuf *, int, struct inpcb *,
+		    const struct sockaddr *, void *);
+typedef union {
+	struct icmp *icmp;
+	struct ip6ctlparam *ip6cp;
+} udp_tun_icmp_param_t __attribute__((__transparent_union__));
+typedef void	udp_tun_icmp_t(udp_tun_icmp_param_t);
+
+/*
+ * UDP control block; one per udp.
+ */
+struct udpcb {
+	udp_tun_func_t	*u_tun_func;	/* UDP kernel tunneling callback. */
+	udp_tun_icmp_t  *u_icmp_func;	/* UDP kernel tunneling icmp callback */
+	u_int		u_flags;	/* Generic UDP flags. */
+	uint16_t	u_rxcslen;	/* Coverage for incoming datagrams. */
+	uint16_t	u_txcslen;	/* Coverage for outgoing datagrams. */
+	void 		*u_tun_ctx;	/* Tunneling callback context. */
+};
+
+#define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
+#define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
 
 VNET_PCPUSTAT_DECLARE(struct udpstat, udpstat);
 /*
@@ -130,19 +136,7 @@ VNET_PCPUSTAT_DECLARE(struct udpstat, udpstat);
 void	kmod_udpstat_inc(int statnum);
 #define	KMOD_UDPSTAT_INC(name)	\
     kmod_udpstat_inc(offsetof(struct udpstat, name) / sizeof(uint64_t))
-#endif
 
-/*
- * Identifiers for UDP sysctl nodes.
- */
-#define	UDPCTL_CHECKSUM		1	/* checksum UDP packets */
-#define	UDPCTL_STATS		2	/* statistics (read-only) */
-#define	UDPCTL_MAXDGRAM		3	/* max datagram size */
-#define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
-#define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
-
-#ifdef _KERNEL
-#include <netinet/in_pcb.h>
 SYSCTL_DECL(_net_inet_udp);
 
 VNET_DECLARE(struct inpcbinfo, udbinfo);
