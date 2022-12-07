@@ -27,7 +27,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <sys/endian.h>
 #include <sys/param.h>
 #include <fdt_platform.h>
 
