@@ -173,7 +173,7 @@ static void	iwi_rx_intr(struct iwi_softc *);
 static void	iwi_tx_intr(struct iwi_softc *, struct iwi_tx_ring *);
 static void	iwi_intr(void *);
 static int	iwi_cmd(struct iwi_softc *, uint8_t, void *, uint8_t);
-static void	iwi_write_ibssnode(struct iwi_softc *, const u_int8_t [], int);
+static void	iwi_write_ibssnode(struct iwi_softc *, const u_int8_t [IEEE80211_ADDR_LEN], int);
 static int	iwi_tx_start(struct iwi_softc *, struct mbuf *,
 		    struct ieee80211_node *, int);
 static int	iwi_raw_xmit(struct ieee80211_node *, struct mbuf *,
