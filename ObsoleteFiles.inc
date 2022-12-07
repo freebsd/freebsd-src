@@ -94,7 +94,6 @@ OLD_FILES+=usr/lib/libopie.a
 OLD_FILES+=usr/lib/libopie.so
 OLD_LIBS+=usr/lib/libopie.so.8
 OLD_FILES+=usr/lib/libopie_p.a
-OLD_FILES+=usr/bin/opieinfo
 OLD_FILES+=usr/lib/pam_opie.so
 OLD_LIBS+=usr/lib/pam_opie.so.6
 OLD_FILES+=usr/lib/pam_opieaccess.so
