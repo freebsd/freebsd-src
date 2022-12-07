@@ -1202,14 +1202,11 @@ static void
 udp6_detach(struct socket *so)
 {
 	struct inpcb *inp;
-	struct udpcb *up;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
 	INP_WLOCK(inp);
-	up = intoudpcb(inp);
-	KASSERT(up != NULL, ("%s: up == NULL", __func__));
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 }
