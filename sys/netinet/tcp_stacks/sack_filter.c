@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/sockopt.h>
 #endif
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_seq.h>

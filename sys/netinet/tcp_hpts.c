@@ -1368,10 +1368,10 @@ again:
 			if (error < 0)
 				goto skip_pacing;
 			inp->inp_hpts_calls = 0;
-			if (ninp && ninp->inp_ppcb) {
+			if (ninp) {
 				/*
 				 * If we have a nxt inp, see if we can
-				 * prefetch its ppcb. Note this may seem
+				 * prefetch it. Note this may seem
 				 * "risky" since we have no locks (other
 				 * than the previous inp) and there no
 				 * assurance that ninp was not pulled while
@@ -1399,8 +1399,11 @@ again:
 				 * TLB hit, and instead if <c> occurs just
 				 * cause us to load cache with a useless
 				 * address (to us).
+				 *
+				 * XXXGL: with tcpcb == inpcb, I'm unsure this
+				 * prefetch is still correct and useful.
 				 */
-				kern_prefetch(ninp->inp_ppcb, &prefetch_tp);
+				kern_prefetch(ninp, &prefetch_tp);
 				prefetch_tp = 1;
 			}
 			INP_WUNLOCK(inp);

@@ -2053,17 +2053,17 @@ no_mem_needed:
 		 * the old ones cleanup (if any).
 		 */
 		if (CC_ALGO(tp)->cb_destroy != NULL)
-			CC_ALGO(tp)->cb_destroy(tp->ccv);
+			CC_ALGO(tp)->cb_destroy(&tp->t_ccv);
 		/* Detach the old CC from the tcpcb  */
 		cc_detach(tp);
 		/* Copy in our temp memory that was inited */
-		memcpy(tp->ccv, &cc_mem, sizeof(struct cc_var));
+		memcpy(&tp->t_ccv, &cc_mem, sizeof(struct cc_var));
 		/* Now attach the new, which takes a reference */
 		cc_attach(tp, algo);
 		/* Ok now are we where we have gotten past any conn_init? */
 		if (TCPS_HAVEESTABLISHED(tp->t_state) && (CC_ALGO(tp)->conn_init != NULL)) {
 			/* Yep run the connection init for the new CC */
-			CC_ALGO(tp)->conn_init(tp->ccv);
+			CC_ALGO(tp)->conn_init(&tp->t_ccv);
 		}
 	} else if (ptr)
 		free(ptr, M_CC_MEM);
@@ -2134,7 +2134,7 @@ tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 		}
 		INP_WLOCK_RECHECK_CLEANUP(inp, free(pbuf, M_TEMP));
 		if (CC_ALGO(tp)->ctl_output != NULL)
-			error = CC_ALGO(tp)->ctl_output(tp->ccv, sopt, pbuf);
+			error = CC_ALGO(tp)->ctl_output(&tp->t_ccv, sopt, pbuf);
 		else
 			error = ENOENT;
 		INP_WUNLOCK(inp);
@@ -3073,11 +3073,9 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",
-	    &tp->t_timers->tt_rexmt, &tp->t_timers->tt_persist, &tp->t_timers->tt_keep);
-
-	db_print_indent(indent);
-	db_printf("tt_2msl: %p   tt_delack: %p   t_inpcb: %p\n", &tp->t_timers->tt_2msl,
-	    &tp->t_timers->tt_delack, tp->t_inpcb);
+	    &tp->tt_rexmt, &tp->tt_persist, &tp->tt_keep);
+	db_printf("tt_2msl: %p   tt_delack: %p\n", &tp->tt_2msl,
+	    &tp->tt_delack);
 
 	db_print_indent(indent);
 	db_printf("t_state: %d (", tp->t_state);

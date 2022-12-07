@@ -70,7 +70,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <netinet/tcp.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -146,7 +147,7 @@ hd_ack_received(struct cc_var *ccv, uint16_t ack_type)
 	int qdly;
 
 	if (ack_type == CC_ACK) {
-		e_t = khelp_get_osd(CCV(ccv, osd), ertt_id);
+		e_t = khelp_get_osd(&CCV(ccv, t_osd), ertt_id);
 
 		if (e_t->rtt && e_t->minrtt && V_hd_qthresh > 0) {
 			qdly = e_t->rtt - e_t->minrtt;

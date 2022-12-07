@@ -103,7 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
-#include <netinet/tcp_var.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
 

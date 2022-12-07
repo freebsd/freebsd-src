@@ -145,20 +145,8 @@ static const char *tcptimers[] =
 
 #ifdef _KERNEL
 
-struct xtcp_timer;
-
-struct tcp_timer {
-	struct	callout tt_rexmt;	/* retransmit timer */
-	struct	callout tt_persist;	/* retransmit persistence */
-	struct	callout tt_keep;	/* keepalive */
-	struct	callout tt_2msl;	/* 2*msl TIME_WAIT timer */
-	struct	callout tt_delack;	/* delayed ACK timer */
-	uint32_t	tt_flags;	/* Timers flags */
-	uint32_t	tt_draincnt;	/* Count being drained */
-};
-
 /*
- * Flags for the tt_flags field.
+ * Flags for the tcpcb's tt_flags field.
  */
 #define TT_DELACK	0x0001
 #define TT_REXMT	0x0002

@@ -469,7 +469,7 @@ TCPDEBUG
 TCPPCAP		opt_global.h
 SIFTR
 TCP_BLACKBOX		opt_global.h
-TCP_HHOOK		opt_inet.h
+TCP_HHOOK		opt_global.h
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_RFC7413		opt_inet.h
 TCP_RFC7413_MAX_KEYS	opt_inet.h

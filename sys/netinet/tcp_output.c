@@ -173,7 +173,7 @@ hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
 		hhook_data.tso = tso;
 
 		hhook_run_hooks(V_tcp_hhh[HHOOK_TCP_EST_OUT], &hhook_data,
-		    tp->osd);
+		    &tp->t_osd);
 	}
 }
 #endif
@@ -187,7 +187,7 @@ cc_after_idle(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	if (CC_ALGO(tp)->after_idle != NULL)
-		CC_ALGO(tp)->after_idle(tp->ccv);
+		CC_ALGO(tp)->after_idle(&tp->t_ccv);
 }
 
 /*

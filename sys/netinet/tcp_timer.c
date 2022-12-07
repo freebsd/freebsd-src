@@ -255,13 +255,13 @@ tcp_timer_delack(void *xtp)
 	INP_WLOCK(inp);
 	CURVNET_SET(inp->inp_vnet);
 
-	if (callout_pending(&tp->t_timers->tt_delack) ||
-	    !callout_active(&tp->t_timers->tt_delack)) {
+	if (callout_pending(&tp->tt_delack) ||
+	    !callout_active(&tp->tt_delack)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	callout_deactivate(&tp->t_timers->tt_delack);
+	callout_deactivate(&tp->tt_delack);
 	if ((inp->inp_flags & INP_DROPPED) != 0) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
@@ -327,19 +327,19 @@ tcp_timer_2msl(void *xtp)
 
 	tcp_log_end_status(tp, TCP_EI_STATUS_2MSL);
 	tcp_free_sackholes(tp);
-	if (callout_pending(&tp->t_timers->tt_2msl) ||
-	    !callout_active(&tp->t_timers->tt_2msl)) {
+	if (callout_pending(&tp->tt_2msl) ||
+	    !callout_active(&tp->tt_2msl)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	callout_deactivate(&tp->t_timers->tt_2msl);
+	callout_deactivate(&tp->tt_2msl);
 	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
+	KASSERT((tp->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
 	/*
 	 * 2 MSL timeout in shutdown went off.  If we're closed but
@@ -366,7 +366,7 @@ tcp_timer_2msl(void *xtp)
 		return;
 	} else {
 		if (ticks - tp->t_rcvtime <= TP_MAXIDLE(tp)) {
-			callout_reset(&tp->t_timers->tt_2msl,
+			callout_reset(&tp->tt_2msl,
 				      TP_KEEPINTVL(tp), tcp_timer_2msl, tp);
 		} else {
 			tcp_timer_close(tp);
@@ -402,19 +402,19 @@ tcp_timer_keep(void *xtp)
 	INP_WLOCK(inp);
 	CURVNET_SET(inp->inp_vnet);
 
-	if (callout_pending(&tp->t_timers->tt_keep) ||
-	    !callout_active(&tp->t_timers->tt_keep)) {
+	if (callout_pending(&tp->tt_keep) ||
+	    !callout_active(&tp->tt_keep)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	callout_deactivate(&tp->t_timers->tt_keep);
+	callout_deactivate(&tp->tt_keep);
 	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
+	KASSERT((tp->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
 
 	/*
@@ -428,7 +428,7 @@ tcp_timer_keep(void *xtp)
 
 		idletime = ticks - tp->t_rcvtime;
 		if (idletime < TP_KEEPIDLE(tp)) {
-			callout_reset(&tp->t_timers->tt_keep,
+			callout_reset(&tp->tt_keep,
 			    TP_KEEPIDLE(tp) - idletime, tcp_timer_keep, tp);
 			INP_WUNLOCK(inp);
 			CURVNET_RESTORE();
@@ -470,10 +470,10 @@ tcp_timer_keep(void *xtp)
 			NET_EPOCH_EXIT(et);
 			free(t_template, M_TEMP);
 		}
-		callout_reset(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
+		callout_reset(&tp->tt_keep, TP_KEEPINTVL(tp),
 			      tcp_timer_keep, tp);
 	} else
-		callout_reset(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
+		callout_reset(&tp->tt_keep, TP_KEEPIDLE(tp),
 			      tcp_timer_keep, tp);
 
 #ifdef TCPDEBUG
@@ -546,19 +546,19 @@ tcp_timer_persist(void *xtp)
 	INP_WLOCK(inp);
 	CURVNET_SET(inp->inp_vnet);
 
-	if (callout_pending(&tp->t_timers->tt_persist) ||
-	    !callout_active(&tp->t_timers->tt_persist)) {
+	if (callout_pending(&tp->tt_persist) ||
+	    !callout_active(&tp->tt_persist)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	callout_deactivate(&tp->t_timers->tt_persist);
+	callout_deactivate(&tp->tt_persist);
 	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
+	KASSERT((tp->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
 	/*
 	 * Persistence timer into zero window.
@@ -630,19 +630,19 @@ tcp_timer_rexmt(void * xtp)
 	INP_WLOCK(inp);
 	CURVNET_SET(inp->inp_vnet);
 
-	if (callout_pending(&tp->t_timers->tt_rexmt) ||
-	    !callout_active(&tp->t_timers->tt_rexmt)) {
+	if (callout_pending(&tp->tt_rexmt) ||
+	    !callout_active(&tp->tt_rexmt)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	callout_deactivate(&tp->t_timers->tt_rexmt);
+	callout_deactivate(&tp->tt_rexmt);
 	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
-	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) == 0,
+	KASSERT((tp->tt_flags & TT_STOPPED) == 0,
 		("%s: tp %p tcpcb can't be stopped here", __func__, tp));
 	tcp_free_sackholes(tp);
 	TCP_LOG_EVENT(tp, NULL, NULL, NULL, TCP_LOG_RTO, 0, 0, NULL, false);
@@ -824,7 +824,7 @@ tcp_timer_rexmt(void * xtp)
 			 * as it may depend on the new MSS.
 			 */
 			if (CC_ALGO(tp)->conn_init != NULL)
-				CC_ALGO(tp)->conn_init(tp->ccv);
+				CC_ALGO(tp)->conn_init(&tp->t_ccv);
 		} else {
 			/*
 			 * If further retransmissions are still unsuccessful
@@ -843,7 +843,7 @@ tcp_timer_rexmt(void * xtp)
 				 * may depend on the new MSS.
 				 */
 				if (CC_ALGO(tp)->conn_init != NULL)
-					CC_ALGO(tp)->conn_init(tp->ccv);
+					CC_ALGO(tp)->conn_init(&tp->t_ccv);
 			}
 		}
 	}
@@ -908,28 +908,28 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 		return;
 #endif
 
-	if (tp->t_timers->tt_flags & TT_STOPPED)
+	if (tp->tt_flags & TT_STOPPED)
 		return;
 
 	switch (timer_type) {
 		case TT_DELACK:
-			t_callout = &tp->t_timers->tt_delack;
+			t_callout = &tp->tt_delack;
 			f_callout = tcp_timer_delack;
 			break;
 		case TT_REXMT:
-			t_callout = &tp->t_timers->tt_rexmt;
+			t_callout = &tp->tt_rexmt;
 			f_callout = tcp_timer_rexmt;
 			break;
 		case TT_PERSIST:
-			t_callout = &tp->t_timers->tt_persist;
+			t_callout = &tp->tt_persist;
 			f_callout = tcp_timer_persist;
 			break;
 		case TT_KEEP:
-			t_callout = &tp->t_timers->tt_keep;
+			t_callout = &tp->tt_keep;
 			f_callout = tcp_timer_keep;
 			break;
 		case TT_2MSL:
-			t_callout = &tp->t_timers->tt_2msl;
+			t_callout = &tp->tt_2msl;
 			f_callout = tcp_timer_2msl;
 			break;
 		default:
@@ -953,19 +953,19 @@ tcp_timer_active(struct tcpcb *tp, uint32_t timer_type)
 
 	switch (timer_type) {
 		case TT_DELACK:
-			t_callout = &tp->t_timers->tt_delack;
+			t_callout = &tp->tt_delack;
 			break;
 		case TT_REXMT:
-			t_callout = &tp->t_timers->tt_rexmt;
+			t_callout = &tp->tt_rexmt;
 			break;
 		case TT_PERSIST:
-			t_callout = &tp->t_timers->tt_persist;
+			t_callout = &tp->tt_persist;
 			break;
 		case TT_KEEP:
-			t_callout = &tp->t_timers->tt_keep;
+			t_callout = &tp->tt_keep;
 			break;
 		case TT_2MSL:
-			t_callout = &tp->t_timers->tt_2msl;
+			t_callout = &tp->tt_2msl;
 			break;
 		default:
 			if (tp->t_fb->tfb_tcp_timer_active) {
@@ -993,38 +993,39 @@ tcp_timer_suspend(struct tcpcb *tp, uint32_t timer_type)
 	switch (timer_type) {
 		case TT_DELACK:
 			t_flags = TT_DELACK_SUS;
-			t_callout = &tp->t_timers->tt_delack;
+			t_callout = &tp->tt_delack;
 			break;
 		case TT_REXMT:
 			t_flags = TT_REXMT_SUS;
-			t_callout = &tp->t_timers->tt_rexmt;
+			t_callout = &tp->tt_rexmt;
 			break;
 		case TT_PERSIST:
 			t_flags = TT_PERSIST_SUS;
-			t_callout = &tp->t_timers->tt_persist;
+			t_callout = &tp->tt_persist;
 			break;
 		case TT_KEEP:
 			t_flags = TT_KEEP_SUS;
-			t_callout = &tp->t_timers->tt_keep;
+			t_callout = &tp->tt_keep;
 			break;
 		case TT_2MSL:
 			t_flags = TT_2MSL_SUS;
-			t_callout = &tp->t_timers->tt_2msl;
+			t_callout = &tp->tt_2msl;
 			break;
 		default:
 			panic("tp:%p bad timer_type 0x%x", tp, timer_type);
 	}
-	tp->t_timers->tt_flags |= t_flags;
+	tp->tt_flags |= t_flags;
 	return (callout_stop(t_callout));
 }
 
 void
 tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 {
+
 	switch (timer_type) {
 		case TT_DELACK:
-			if (tp->t_timers->tt_flags & TT_DELACK_SUS) {
-				tp->t_timers->tt_flags &= ~TT_DELACK_SUS;
+			if (tp->tt_flags & TT_DELACK_SUS) {
+				tp->tt_flags &= ~TT_DELACK_SUS;
 				if (tp->t_flags & TF_DELACK) {
 					/* Delayed ack timer should be up activate a timer */
 					tp->t_flags &= ~TF_DELACK;
@@ -1034,8 +1035,8 @@ tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 			}
 			break;
 		case TT_REXMT:
-			if (tp->t_timers->tt_flags & TT_REXMT_SUS) {
-				tp->t_timers->tt_flags &= ~TT_REXMT_SUS;
+			if (tp->tt_flags & TT_REXMT_SUS) {
+				tp->tt_flags &= ~TT_REXMT_SUS;
 				if (SEQ_GT(tp->snd_max, tp->snd_una) &&
 				    (tcp_timer_active((tp), TT_PERSIST) == 0) &&
 				    tp->snd_wnd) {
@@ -1046,8 +1047,8 @@ tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 			}
 			break;
 		case TT_PERSIST:
-			if (tp->t_timers->tt_flags & TT_PERSIST_SUS) {
-				tp->t_timers->tt_flags &= ~TT_PERSIST_SUS;
+			if (tp->tt_flags & TT_PERSIST_SUS) {
+				tp->tt_flags &= ~TT_PERSIST_SUS;
 				if (tp->snd_wnd == 0) {
 					/* Activate the persists timer */
 					tp->t_rxtshift = 0;
@@ -1056,18 +1057,18 @@ tcp_timers_unsuspend(struct tcpcb *tp, uint32_t timer_type)
 			}
 			break;
 		case TT_KEEP:
-			if (tp->t_timers->tt_flags & TT_KEEP_SUS) {
-				tp->t_timers->tt_flags &= ~TT_KEEP_SUS;
+			if (tp->tt_flags & TT_KEEP_SUS) {
+				tp->tt_flags &= ~TT_KEEP_SUS;
 				tcp_timer_activate(tp, TT_KEEP,
 					    TCPS_HAVEESTABLISHED(tp->t_state) ?
 					    TP_KEEPIDLE(tp) : TP_KEEPINIT(tp));
 			}
 			break;
 		case TT_2MSL:
-			if (tp->t_timers->tt_flags &= TT_2MSL_SUS) {
+			if (tp->tt_flags &= TT_2MSL_SUS) {
 				struct socket *so = tptosocket(tp);
 
-				tp->t_timers->tt_flags &= ~TT_2MSL_SUS;
+				tp->tt_flags &= ~TT_2MSL_SUS;
 				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
 				    (so == NULL ||	/* XXXGL: needed? */
 				    (so->so_rcv.sb_state & SBS_CANTRCVMORE))) {
@@ -1094,9 +1095,9 @@ tcp_timer_discard(void *ptp)
 	CURVNET_SET(inp->inp_vnet);
 	NET_EPOCH_ENTER(et);
 
-	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
+	KASSERT((tp->tt_flags & TT_STOPPED) != 0,
 		("%s: tcpcb has to be stopped here", __func__));
-	if (--tp->t_timers->tt_draincnt > 0 ||
+	if (--tp->tt_draincnt > 0 ||
 	    tcp_freecb(tp) == false)
 		INP_WUNLOCK(inp);
 	NET_EPOCH_EXIT(et);
@@ -1108,22 +1109,22 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 {
 	struct callout *t_callout;
 
-	tp->t_timers->tt_flags |= TT_STOPPED;
+	tp->tt_flags |= TT_STOPPED;
 	switch (timer_type) {
 		case TT_DELACK:
-			t_callout = &tp->t_timers->tt_delack;
+			t_callout = &tp->tt_delack;
 			break;
 		case TT_REXMT:
-			t_callout = &tp->t_timers->tt_rexmt;
+			t_callout = &tp->tt_rexmt;
 			break;
 		case TT_PERSIST:
-			t_callout = &tp->t_timers->tt_persist;
+			t_callout = &tp->tt_persist;
 			break;
 		case TT_KEEP:
-			t_callout = &tp->t_timers->tt_keep;
+			t_callout = &tp->tt_keep;
 			break;
 		case TT_2MSL:
-			t_callout = &tp->t_timers->tt_2msl;
+			t_callout = &tp->tt_2msl;
 			break;
 		default:
 			if (tp->t_fb->tfb_tcp_timer_stop) {
@@ -1143,6 +1144,6 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		 * to the last one. We do this using the async drain
 		 * function and incrementing the count in
 		 */
-		tp->t_timers->tt_draincnt++;
+		tp->tt_draincnt++;
 	}
 }
