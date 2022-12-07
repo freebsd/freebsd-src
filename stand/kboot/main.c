@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <fdt_platform.h>
 
 #include <machine/cpufunc.h>
@@ -75,6 +76,32 @@ kboot_getdev(void **vdev, const char *devspec, const char **path)
 	return (devparse(dev, devspec, path));
 }
 
+static int
+parse_args(int argc, const char **argv)
+{
+	int howto = 0;
+
+	/*
+	 * When run as init, sometimes argv[0] is a EFI-ESP path, other times
+	 * it's the name of the init program, and sometimes it's a placeholder
+	 * string, so we exclude it here. For the other args, look for DOS-like
+	 * and Unix-like absolte paths and exclude parsing it if we find that,
+	 * otherwise parse it as a command arg (so looking for '-X', 'foo' or
+	 * 'foo=bar'). This is a little different than EFI where it argv[0]
+	 * often times is the first argument passed in. There are cases when
+	 * linux-booting via EFI that we have the EFI path we used to run
+	 * bootXXX.efi as the arguments to init, so we need to exclude the paths
+	 * there as well.
+	 */
+	for (int i = 1; i < argc; i++) {
+		if (argv[i][0] != '\\' && argv[i][0] != '/') {
+			howto |= boot_parse_arg(argv[i]);
+		}
+	}
+
+	return (howto);
+}
+
 int
 main(int argc, const char **argv)
 {
@@ -107,13 +134,8 @@ main(int argc, const char **argv)
 	/* Initialize all the devices */
 	devinit();
 
-	/* Choose bootdev if provided */
-	if (argc > 1)
-		bootdev = argv[1];
-	else
-		bootdev = "";
-	if (argc > 2)
-		hostfs_root = argv[2];
+	/* Parse the command line args -- ignoring for now the console selection */
+	parse_args(argc, argv);
 
 	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
 
