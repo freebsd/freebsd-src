@@ -1367,6 +1367,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/events/events_001_pos.ksh \
 	functional/events/events_002_pos.ksh \
 	functional/events/setup.ksh \
+	functional/events/zed_cksum_reported.ksh \
 	functional/events/zed_fd_spill.ksh \
 	functional/events/zed_rc_filter.ksh \
 	functional/exec/cleanup.ksh \
@@ -1812,6 +1813,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/rsend/send_partial_dataset.ksh \
 	functional/rsend/send_raw_ashift.ksh \
 	functional/rsend/send_raw_spill_block.ksh \
+	functional/rsend/send_raw_large_blocks.ksh \
 	functional/rsend/send_realloc_dnode_size.ksh \
 	functional/rsend/send_realloc_encrypted_files.ksh \
 	functional/rsend/send_realloc_files.ksh \

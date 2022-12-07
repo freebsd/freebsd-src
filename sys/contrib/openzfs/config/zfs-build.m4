@@ -81,7 +81,7 @@ AC_DEFUN([ZFS_AC_DEBUG], [
 AC_DEFUN([ZFS_AC_DEBUGINFO_ENABLE], [
 	DEBUG_CFLAGS="$DEBUG_CFLAGS -g -fno-inline $NO_IPA_SRA"
 
-	KERNEL_DEBUG_CFLAGS="$KERNEL_DEBUG_CFLAGS -fno-inline $NO_IPA_SRA"
+	KERNEL_DEBUG_CFLAGS="$KERNEL_DEBUG_CFLAGS -fno-inline $KERNEL_NO_IPA_SRA"
 	KERNEL_MAKE="$KERNEL_MAKE CONFIG_DEBUG_INFO=y"
 
 	DEBUGINFO_ZFS="_with_debuginfo"
@@ -211,12 +211,15 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS], [
 
 	ZFS_AC_CONFIG_ALWAYS_CC_NO_CLOBBERED
 	ZFS_AC_CONFIG_ALWAYS_CC_INFINITE_RECURSION
+	ZFS_AC_CONFIG_ALWAYS_KERNEL_CC_INFINITE_RECURSION
 	ZFS_AC_CONFIG_ALWAYS_CC_IMPLICIT_FALLTHROUGH
 	ZFS_AC_CONFIG_ALWAYS_CC_FRAME_LARGER_THAN
 	ZFS_AC_CONFIG_ALWAYS_CC_NO_FORMAT_TRUNCATION
 	ZFS_AC_CONFIG_ALWAYS_CC_NO_FORMAT_ZERO_LENGTH
+	ZFS_AC_CONFIG_ALWAYS_CC_FORMAT_OVERFLOW
 	ZFS_AC_CONFIG_ALWAYS_CC_NO_OMIT_FRAME_POINTER
 	ZFS_AC_CONFIG_ALWAYS_CC_NO_IPA_SRA
+	ZFS_AC_CONFIG_ALWAYS_KERNEL_CC_NO_IPA_SRA
 	ZFS_AC_CONFIG_ALWAYS_CC_ASAN
 	ZFS_AC_CONFIG_ALWAYS_CC_UBSAN
 	ZFS_AC_CONFIG_ALWAYS_TOOLCHAIN_SIMD
@@ -529,6 +532,8 @@ AC_DEFUN([ZFS_AC_DEFAULT_PACKAGE], [
 			VENDOR=alpine ;
 		elif test -f /bin/freebsd-version ; then
 			VENDOR=freebsd ;
+		elif test -f /etc/openEuler-release ; then
+			VENDOR=openeuler ;
 		else
 			VENDOR= ;
 		fi],
@@ -553,6 +558,7 @@ AC_DEFUN([ZFS_AC_DEFAULT_PACKAGE], [
 		ubuntu)     DEFAULT_PACKAGE=deb  ;;
 		debian)     DEFAULT_PACKAGE=deb  ;;
 		freebsd)    DEFAULT_PACKAGE=pkg  ;;
+		openeuler)  DEFAULT_PACKAGE=rpm  ;;
 		*)          DEFAULT_PACKAGE=rpm  ;;
 	esac
 	AC_MSG_RESULT([$DEFAULT_PACKAGE])
@@ -566,31 +572,14 @@ AC_DEFUN([ZFS_AC_DEFAULT_PACKAGE], [
 	AC_MSG_RESULT([$initdir])
 	AC_SUBST(initdir)
 
-	AC_MSG_CHECKING([default init script type and shell])
-	case "$VENDOR" in
-		toss)       DEFAULT_INIT_SCRIPT=redhat ;;
-		redhat)     DEFAULT_INIT_SCRIPT=redhat ;;
-		fedora)     DEFAULT_INIT_SCRIPT=fedora ;;
-		gentoo)     DEFAULT_INIT_SCRIPT=openrc ;;
-		alpine)     DEFAULT_INIT_SCRIPT=openrc ;;
-		arch)       DEFAULT_INIT_SCRIPT=lsb    ;;
-		sles)       DEFAULT_INIT_SCRIPT=lsb    ;;
-		slackware)  DEFAULT_INIT_SCRIPT=lsb    ;;
-		lunar)      DEFAULT_INIT_SCRIPT=lunar  ;;
-		ubuntu)     DEFAULT_INIT_SCRIPT=lsb    ;;
-		debian)     DEFAULT_INIT_SCRIPT=lsb    ;;
-		freebsd)    DEFAULT_INIT_SCRIPT=freebsd;;
-		*)          DEFAULT_INIT_SCRIPT=lsb    ;;
-	esac
-
+	AC_MSG_CHECKING([default shell])
 	case "$VENDOR" in
 		gentoo)     DEFAULT_INIT_SHELL="/sbin/openrc-run";;
 		alpine)     DEFAULT_INIT_SHELL="/sbin/openrc-run";;
 		*)          DEFAULT_INIT_SHELL="/bin/sh"         ;;
 	esac
 
-	AC_MSG_RESULT([$DEFAULT_INIT_SCRIPT:$DEFAULT_INIT_SHELL])
-	AC_SUBST(DEFAULT_INIT_SCRIPT)
+	AC_MSG_RESULT([$DEFAULT_INIT_SHELL])
 	AC_SUBST(DEFAULT_INIT_SHELL)
 
 	AC_MSG_CHECKING([default nfs server init script])
@@ -609,6 +598,7 @@ AC_DEFUN([ZFS_AC_DEFAULT_PACKAGE], [
 		redhat)     initconfdir=/etc/sysconfig ;;
 		fedora)     initconfdir=/etc/sysconfig ;;
 		sles)       initconfdir=/etc/sysconfig ;;
+		openeuler)  initconfdir=/etc/sysconfig ;;
 		ubuntu)     initconfdir=/etc/default   ;;
 		debian)     initconfdir=/etc/default   ;;
 		freebsd)    initconfdir=$sysconfdir/rc.conf.d;;

@@ -396,7 +396,7 @@ get_usage(zfs_help_t idx)
 	case HELP_RELEASE:
 		return (gettext("\trelease [-r] <tag> <snapshot> ...\n"));
 	case HELP_DIFF:
-		return (gettext("\tdiff [-FHt] <snapshot> "
+		return (gettext("\tdiff [-FHth] <snapshot> "
 		    "[snapshot|filesystem]\n"));
 	case HELP_BOOKMARK:
 		return (gettext("\tbookmark <snapshot|bookmark> "
@@ -548,7 +548,7 @@ usage(boolean_t requested)
 		show_properties = B_TRUE;
 
 	if (show_properties) {
-		(void) fprintf(fp,
+		(void) fprintf(fp, "%s",
 		    gettext("\nThe following properties are supported:\n"));
 
 		(void) fprintf(fp, "\n\t%-14s %s  %s   %s\n\n",

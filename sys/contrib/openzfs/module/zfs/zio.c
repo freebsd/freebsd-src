@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2022 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Klara Inc.
@@ -724,7 +724,9 @@ zio_notify_parent(zio_t *pio, zio_t *zio, enum zio_wait_type wait,
 
 		/*
 		 * If we can tell the caller to execute this parent next, do
-		 * so.  Otherwise dispatch the parent zio as its own task.
+		 * so. We only do this if the parent's zio type matches the
+		 * child's type. Otherwise dispatch the parent zio in its
+		 * own taskq.
 		 *
 		 * Having the caller execute the parent when possible reduces
 		 * locking on the zio taskq's, reduces context switch
@@ -743,7 +745,8 @@ zio_notify_parent(zio_t *pio, zio_t *zio, enum zio_wait_type wait,
 		 * parent-child relationships, as we do with the "mega zio"
 		 * of writes for spa_sync(), and the chain of ZIL blocks.
 		 */
-		if (next_to_executep != NULL && *next_to_executep == NULL) {
+		if (next_to_executep != NULL && *next_to_executep == NULL &&
+		    pio->io_type == zio->io_type) {
 			*next_to_executep = pio;
 		} else {
 			zio_taskq_dispatch(pio, type, B_FALSE);
@@ -2974,6 +2977,7 @@ zio_nop_write(zio_t *zio)
 	blkptr_t *bp_orig = &zio->io_bp_orig;
 	zio_prop_t *zp = &zio->io_prop;
 
+	ASSERT(BP_IS_HOLE(bp));
 	ASSERT(BP_GET_LEVEL(bp) == 0);
 	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REWRITE));
 	ASSERT(zp->zp_nopwrite);
@@ -3007,8 +3011,7 @@ zio_nop_write(zio_t *zio)
 		ASSERT3U(BP_GET_PSIZE(bp), ==, BP_GET_PSIZE(bp_orig));
 		ASSERT3U(BP_GET_LSIZE(bp), ==, BP_GET_LSIZE(bp_orig));
 		ASSERT(zp->zp_compress != ZIO_COMPRESS_OFF);
-		ASSERT(memcmp(&bp->blk_prop, &bp_orig->blk_prop,
-		    sizeof (uint64_t)) == 0);
+		ASSERT3U(bp->blk_prop, ==, bp_orig->blk_prop);
 
 		/*
 		 * If we're overwriting a block that is currently on an
@@ -3016,11 +3019,13 @@ zio_nop_write(zio_t *zio)
 		 * allow a new block to be allocated on a concrete vdev.
 		 */
 		spa_config_enter(zio->io_spa, SCL_VDEV, FTAG, RW_READER);
-		vdev_t *tvd = vdev_lookup_top(zio->io_spa,
-		    DVA_GET_VDEV(&bp->blk_dva[0]));
-		if (tvd->vdev_ops == &vdev_indirect_ops) {
-			spa_config_exit(zio->io_spa, SCL_VDEV, FTAG);
-			return (zio);
+		for (int d = 0; d < BP_GET_NDVAS(bp_orig); d++) {
+			vdev_t *tvd = vdev_lookup_top(zio->io_spa,
+			    DVA_GET_VDEV(&bp_orig->blk_dva[d]));
+			if (tvd->vdev_ops == &vdev_indirect_ops) {
+				spa_config_exit(zio->io_spa, SCL_VDEV, FTAG);
+				return (zio);
+			}
 		}
 		spa_config_exit(zio->io_spa, SCL_VDEV, FTAG);
 
@@ -4311,12 +4316,12 @@ zio_checksum_verify(zio_t *zio)
 		zio->io_error = error;
 		if (error == ECKSUM &&
 		    !(zio->io_flags & ZIO_FLAG_SPECULATIVE)) {
-			(void) zfs_ereport_start_checksum(zio->io_spa,
-			    zio->io_vd, &zio->io_bookmark, zio,
-			    zio->io_offset, zio->io_size, &info);
 			mutex_enter(&zio->io_vd->vdev_stat_lock);
 			zio->io_vd->vdev_stat.vs_checksum_errors++;
 			mutex_exit(&zio->io_vd->vdev_stat_lock);
+			(void) zfs_ereport_start_checksum(zio->io_spa,
+			    zio->io_vd, &zio->io_bookmark, zio,
+			    zio->io_offset, zio->io_size, &info);
 		}
 	}
 

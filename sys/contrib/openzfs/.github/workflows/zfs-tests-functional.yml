@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [18.04, 20.04]
+        os: [20.04, 22.04]
     runs-on: ubuntu-${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -21,7 +21,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        xargs --arg-file=${{ github.workspace }}/.github/workflows/build-dependencies.txt sudo apt-get install -qq
+        sudo apt-get -qq upgrade
+        sudo xargs --arg-file=${{ github.workspace }}/.github/workflows/build-dependencies.txt apt-get install -qq
         sudo apt-get clean
     - name: Autogen.sh
       run: |
