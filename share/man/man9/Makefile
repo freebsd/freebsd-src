@@ -1035,6 +1035,15 @@ MLINKS+=domain.9 protosw.9 \
 	domain.9 domain_add.9 \
 	domain.9 protosw_register.9 \
 	domain.9 protosw_unregister.9
+MLINKS+=dpcpu.9 DPCPU_DECLARE.9 \
+	dpcpu.9 DPCPU_DEFINE.9 \
+	dpcpu.9 DPCPU_DEFINE_STATIC.9 \
+	dpcpu.9 DPCPU_GET.9 \
+	dpcpu.9 DPCPU_ID_PTR.9 \
+	dpcpu.9 DPCPU_ID_GET.9 \
+	dpcpu.9 DPCPU_ID_SET.9 \
+	dpcpu.9 DPCPU_PTR.9 \
+	dpcpu.9 DPCPU_SET.9
 MLINKS+=drbr.9 drbr_free.9 \
 	drbr.9 drbr_enqueue.9 \
 	drbr.9 drbr_dequeue.9 \
