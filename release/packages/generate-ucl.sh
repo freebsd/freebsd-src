@@ -96,7 +96,6 @@ main() {
 			pkgdeps="${outname}"
 			;;
 		${origname})
-			pkgdeps="runtime"
 			;;
 		*)
 			uclfile="${outname##*}${origname}"
