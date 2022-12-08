@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2021
+.Dd December 14, 2022
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1446,6 +1446,24 @@ for normal users and
 for superusers.
 .It Li \e\e
 A literal backslash.
+.It Li \e[
+Start of a sequence of non-printing characters (used, for example,
+to embed ANSI CSI sequences into the prompt).
+.It Li \e]
+End of a sequence of non-printing characters.
+.El
+.Pp
+The following special and non-printing characters are supported
+within the sequence of non-printing characters:
+.Bl -tag -width indent
+.It Li \ea
+Emits ASCII BEL (0x07, 007) character.
+.It Li \ee
+Emits ASCII ESC (0x1b, 033) character.
+.It Li \er
+Emits ASCII CR (0x0d, 015) character.
+.It Li \en
+Emits CRLF sequence.
 .El
 .It Va PS2
 The secondary prompt string, which defaults to
