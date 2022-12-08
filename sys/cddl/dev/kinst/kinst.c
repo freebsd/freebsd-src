@@ -39,7 +39,7 @@ static dtrace_pattr_t kinst_attr = {
 { DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE, DTRACE_CLASS_ISA },
 };
 
-static dtrace_pops_t kinst_pops = {
+static const dtrace_pops_t kinst_pops = {
 	.dtps_provide		= NULL,
 	.dtps_provide_module	= kinst_provide_module,
 	.dtps_enable		= kinst_enable,
