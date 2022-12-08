@@ -55,11 +55,6 @@ krb5_read_message (krb5_context context,
 	return HEIM_ERR_EOF;
     }
     len = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-    if (len == 0) {
-	krb5_clear_error_message(context);
-	return HEIM_ERR_EOF;
-    }
-
     ret = krb5_data_alloc (data, len);
     if (ret) {
 	krb5_clear_error_message(context);
