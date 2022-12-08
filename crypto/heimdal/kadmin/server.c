@@ -473,6 +473,8 @@ v5_loop (krb5_context contextp,
 	ret = krb5_read_priv_message(contextp, ac, &fd, &in);
 	if(ret == HEIM_ERR_EOF)
 	    exit(0);
+	if (in.length == 0)
+	    ret = HEIM_ERR_OPNOTSUPP;
 	if(ret)
 	    krb5_err(contextp, 1, ret, "krb5_read_priv_message");
 	doing_useful_work = 1;
