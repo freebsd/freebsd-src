@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  * Shell command parser.
  */
 
-#define	PROMPTLEN	128
+#define	PROMPTLEN	192
 
 /* values of checkkwd variable */
 #define CHKALIAS	0x1
@@ -2061,6 +2061,44 @@ getprompt(void *unused __unused)
 			switch (*++fmt) {
 
 				/*
+				 * Non-printing sequence begin and end.
+				 */
+			case '[':
+			case ']':
+				ps[i] = '\001';
+				break;
+
+				/*
+				 * Literal \ and some ASCII characters:
+				 * \a	BEL
+				 * \e	ESC
+				 * \r	CR
+				 */
+			case '\\':
+			case 'a':
+			case 'e':
+			case 'r':
+				if (*fmt == 'a')
+					ps[i] = '\007';
+				else if (*fmt == 'e')
+					ps[i] = '\033';
+				else if (*fmt == 'r')
+					ps[i] = '\r';
+				else
+					ps[i] = '\\';
+				break;
+
+				/*
+				 * CRLF sequence
+				 */
+			case 'n':
+				if (i < PROMPTLEN - 3) {
+					ps[i++] = '\r';
+					ps[i] = '\n';
+				}
+				break;
+
+				/*
 				 * Hostname.
 				 *
 				 * \h specifies just the local hostname,
@@ -2134,13 +2172,6 @@ getprompt(void *unused __unused)
 				 */
 			case '$':
 				ps[i] = (geteuid() != 0) ? '$' : '#';
-				break;
-
-				/*
-				 * A literal \.
-				 */
-			case '\\':
-				ps[i] = '\\';
 				break;
 
 				/*
