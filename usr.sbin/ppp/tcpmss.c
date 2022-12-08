@@ -35,6 +35,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#ifndef NOINET6
+#include <netinet/ip6.h>
+#endif
 #include <netinet/tcp.h>
 #include <sys/un.h>
 
@@ -69,10 +72,12 @@
 
 
 /*-
- * We are in a liberal position about MSS
- * (RFC 879, section 7).
+ * Compute the MSS as described in RFC 6691.
  */
-#define MAXMSS(mtu) ((mtu) - sizeof(struct ip) - sizeof(struct tcphdr) - 12)
+#define MAXMSS4(mtu) ((mtu) - sizeof(struct ip) - sizeof(struct tcphdr))
+#ifndef NOINET6
+#define MAXMSS6(mtu) ((mtu) - sizeof(struct ip6_hdr) - sizeof(struct tcphdr))
+#endif
 
 
 /*-
@@ -146,6 +151,10 @@ static struct mbuf *
 tcpmss_Check(struct bundle *bundle, struct mbuf *bp)
 {
   struct ip *pip;
+#ifndef NOINET6
+  struct ip6_hdr *pip6;
+  struct ip6_frag *pfrag;
+#endif
   size_t hlen, plen;
 
   if (!Enabled(bundle, OPT_TCPMSSFIXUP))
@@ -153,19 +162,58 @@ tcpmss_Check(struct bundle *bundle, struct mbuf *bp)
 
   bp = m_pullup(bp);
   plen = m_length(bp);
+  if (plen < sizeof(struct ip))
+    return bp;
   pip = (struct ip *)MBUF_CTOP(bp);
-  hlen = pip->ip_hl << 2;
 
-  /*
-   * Check for MSS option only for TCP packets with zero fragment offsets
-   * and correct total and header lengths.
-   */
-  if (pip->ip_p == IPPROTO_TCP && (ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
-      ntohs(pip->ip_len) == plen && hlen <= plen &&
-      plen >= sizeof(struct tcphdr) + hlen)
-    MSSFixup((struct tcphdr *)(MBUF_CTOP(bp) + hlen), plen - hlen,
-             MAXMSS(bundle->iface->mtu));
-
+  switch (pip->ip_v) {
+  case IPVERSION:
+    /*
+     * Check for MSS option only for TCP packets with zero fragment offsets
+     * and correct total and header lengths.
+     */
+    hlen = pip->ip_hl << 2;
+    if (pip->ip_p == IPPROTO_TCP && (ntohs(pip->ip_off) & IP_OFFMASK) == 0 &&
+        ntohs(pip->ip_len) == plen && hlen <= plen &&
+        plen >= sizeof(struct tcphdr) + hlen)
+      MSSFixup((struct tcphdr *)(MBUF_CTOP(bp) + hlen), plen - hlen,
+               MAXMSS4(bundle->iface->mtu));
+    break;
+#ifndef NOINET6
+  case IPV6_VERSION >> 4:
+    /*
+     * Check for MSS option only for TCP packets with no extension headers
+     * or a single extension header which is a fragmentation header with
+     * offset 0. Furthermore require that the length field is correct.
+     */
+    if (plen < sizeof(struct ip6_hdr))
+      break;
+    pip6 = (struct ip6_hdr *)MBUF_CTOP(bp);
+    if (ntohs(pip6->ip6_plen) + sizeof(struct ip6_hdr) != plen)
+      break;
+    hlen = 0;
+    switch (pip6->ip6_nxt) {
+    case IPPROTO_TCP:
+      hlen = sizeof(struct ip6_hdr);
+      break;
+    case IPPROTO_FRAGMENT:
+      if (plen >= sizeof(struct ip6_frag) + sizeof(struct ip6_hdr)) {
+        pfrag = (struct ip6_frag *)(MBUF_CTOP(bp) + sizeof(struct ip6_hdr));
+        if (pfrag->ip6f_nxt == IPPROTO_TCP &&
+            ntohs(pfrag->ip6f_offlg & IP6F_OFF_MASK) == 0)
+          hlen = sizeof(struct ip6_hdr)+ sizeof(struct ip6_frag);
+      }
+      break;
+    }
+    if (hlen > 0 && plen >= sizeof(struct tcphdr) + hlen)
+      MSSFixup((struct tcphdr *)(MBUF_CTOP(bp) + hlen), plen - hlen,
+               MAXMSS6(bundle->iface->mtu));
+    break;
+#endif
+  default:
+    log_Printf(LogDEBUG, "tcpmss_Check: Unknown IP family %u\n", pip->ip_v);
+    break;
+  }
   return bp;
 }
 
