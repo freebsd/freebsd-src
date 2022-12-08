@@ -180,10 +180,16 @@ kinst_load(void *dummy)
 	error = kinst_trampoline_init();
 	if (error != 0)
 		return (error);
+	error = kinst_md_init();
+	if (error != 0) {
+		kinst_trampoline_deinit();
+		return (error);
+	}
 
 	error = dtrace_register("kinst", &kinst_attr, DTRACE_PRIV_USER, NULL,
 	    &kinst_pops, NULL, &kinst_id);
 	if (error != 0) {
+		kinst_md_deinit();
 		kinst_trampoline_deinit();
 		return (error);
 	}
@@ -201,6 +207,7 @@ static int
 kinst_unload(void *dummy)
 {
 	free(kinst_probetab, M_KINST);
+	kinst_md_deinit();
 	kinst_trampoline_deinit();
 	dtrace_invop_remove(kinst_invop);
 	destroy_dev(kinst_cdev);

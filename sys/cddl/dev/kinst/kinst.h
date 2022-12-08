@@ -57,6 +57,9 @@ int	kinst_trampoline_deinit(void);
 uint8_t	*kinst_trampoline_alloc(int);
 void	kinst_trampoline_dealloc(uint8_t *);
 
+int	kinst_md_init(void);
+void	kinst_md_deinit(void);
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_KINST);
 #endif /* MALLOC_DECLARE */

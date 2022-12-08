@@ -6,6 +6,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/pcpu.h>
 
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
@@ -38,6 +39,14 @@
 #define KINST_F_RIPREL		0x0004	/* instruction is position-dependent */
 #define KINST_F_JMP		0x0008	/* instruction is a %rip-relative jmp */
 #define KINST_F_MOD_DIRECT	0x0010	/* operand is not a memory address */
+
+/*
+ * Per-CPU trampolines used when the interrupted thread is executing with
+ * interrupts disabled.  If an interrupt is raised while executing a trampoline,
+ * the interrupt thread cannot safely overwrite its trampoline if it hits a
+ * kinst probe while executing the interrupt handler.
+ */
+DPCPU_DEFINE_STATIC(uint8_t *, intr_tramp);
 
 /*
  * Map ModR/M register bits to a trapframe offset.
@@ -185,7 +194,10 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 		}
 		return (DTRACE_INVOP_CALL);
 	} else {
-		tramp = curthread->t_kinst;
+		if ((frame->tf_rflags & PSL_I) == 0)
+			tramp = DPCPU_GET(intr_tramp);
+		else
+			tramp = curthread->t_kinst;
 		if (tramp == NULL) {
 			/*
 			 * A trampoline allocation failed, so this probe is
@@ -495,7 +507,7 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 	struct kinst_probe *kp;
 	dtrace_kinst_probedesc_t *pd;
 	const char *func;
-	int error, n, off;
+	int error, instrsize, n, off;
 	uint8_t *instr, *limit;
 
 	pd = opaque;
@@ -510,17 +522,37 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 
 	/*
 	 * Ignore functions not beginning with the usual function prologue.
-	 * These might correspond to assembly routines with which we should not
-	 * meddle.
+	 * These might correspond to exception handlers with which we should not
+	 * meddle.  This does however exclude functions which can be safely
+	 * traced, such as cpu_switch().
 	 */
 	if (*instr != KINST_PUSHL_RBP)
 		return (0);
 
 	n = 0;
 	while (instr < limit) {
+		instrsize = dtrace_instr_size(instr);
 		off = (int)(instr - (uint8_t *)symval->value);
 		if (pd->kpd_off != -1 && off != pd->kpd_off) {
-			instr += dtrace_instr_size(instr);
+			instr += instrsize;
+			continue;
+		}
+
+		/*
+		 * Check for instructions which may enable interrupts.  Such
+		 * instructions are tricky to trace since it is unclear whether
+		 * to use the per-thread or per-CPU trampolines.  Since they are
+		 * rare, we don't bother to implement special handling for them.
+		 *
+		 * If the caller specified an offset, return an error, otherwise
+		 * silently ignore the instruction so that it remains possible
+		 * to enable all instructions in a function.
+		 */
+		if (instrsize == 1 &&
+		    (instr[0] == KINST_POPF || instr[0] == KINST_STI)) {
+			if (pd->kpd_off != -1)
+				return (EINVAL);
+			instr += instrsize;
 			continue;
 		}
 
@@ -553,4 +585,35 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 	}
 
 	return (0);
+}
+
+int
+kinst_md_init(void)
+{
+	uint8_t *tramp;
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		tramp = kinst_trampoline_alloc(M_WAITOK);
+		if (tramp == NULL)
+			return (ENOMEM);
+		DPCPU_ID_SET(cpu, intr_tramp, tramp);
+	}
+
+	return (0);
+}
+
+void
+kinst_md_deinit(void)
+{
+	uint8_t *tramp;
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		tramp = DPCPU_ID_GET(cpu, intr_tramp);
+		if (tramp != NULL) {
+			kinst_trampoline_dealloc(DPCPU_ID_GET(cpu, intr_tramp));
+			DPCPU_ID_SET(cpu, intr_tramp, NULL);
+		}
+	}
 }
