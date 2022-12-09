@@ -460,6 +460,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SET_INTINFO:
 	case VM_GET_INTINFO:
 	case VM_RESTART_INSTRUCTION:
+	case VM_GET_KERNEMU_DEV:
+	case VM_SET_KERNEMU_DEV:
 		/*
 		 * ioctls that can operate only on vcpus that are not running.
 		 */
