@@ -447,7 +447,7 @@ pci_msix_pba_bar(struct pci_devinst *pi)
 }
 
 static int
-pci_emul_io_handler(struct vmctx *ctx, int vcpu __unused, int in, int port,
+pci_emul_io_handler(struct vmctx *ctx, int in, int port,
     int bytes, uint32_t *eax, void *arg)
 {
 	struct pci_devinst *pdi = arg;
@@ -2217,7 +2217,7 @@ pci_cfgrw(struct vmctx *ctx, int in, int bus, int slot, int func,
 static int cfgenable, cfgbus, cfgslot, cfgfunc, cfgoff;
 
 static int
-pci_emul_cfgaddr(struct vmctx *ctx __unused, int vcpu __unused, int in,
+pci_emul_cfgaddr(struct vmctx *ctx __unused, int in,
     int port __unused, int bytes, uint32_t *eax, void *arg __unused)
 {
 	uint32_t x;
@@ -2247,7 +2247,7 @@ pci_emul_cfgaddr(struct vmctx *ctx __unused, int vcpu __unused, int in,
 INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_INOUT, pci_emul_cfgaddr);
 
 static int
-pci_emul_cfgdata(struct vmctx *ctx, int vcpu __unused, int in, int port,
+pci_emul_cfgdata(struct vmctx *ctx, int in, int port,
     int bytes, uint32_t *eax, void *arg __unused)
 {
 	int coff;

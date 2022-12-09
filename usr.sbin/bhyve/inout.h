@@ -39,7 +39,7 @@ struct vm_exit;
 /*
  * inout emulation handlers return 0 on success and -1 on failure.
  */
-typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
+typedef int (*inout_func_t)(struct vmctx *ctx, int in, int port,
 			    int bytes, uint32_t *eax, void *arg);
 
 struct inout_port {

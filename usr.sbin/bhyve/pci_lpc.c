@@ -180,7 +180,7 @@ lpc_uart_intr_deassert(void *arg __unused)
 }
 
 static int
-lpc_uart_io_handler(struct vmctx *ctx __unused, int vcpu __unused, int in,
+lpc_uart_io_handler(struct vmctx *ctx __unused, int in,
     int port, int bytes, uint32_t *eax, void *arg)
 {
 	int offset;

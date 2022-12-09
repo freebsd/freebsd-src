@@ -72,14 +72,14 @@ static bool	pctestdev_inited;
 static uint8_t	pctestdev_iomem_buf[IOMEM_LEN];
 static uint32_t	pctestdev_ioport_data;
 
-static int	pctestdev_debugexit_io(struct vmctx *ctx, int vcpu, int in,
+static int	pctestdev_debugexit_io(struct vmctx *ctx, int in,
 		    int port, int bytes, uint32_t *eax, void *arg);
 static int	pctestdev_iomem_io(struct vmctx *ctx, int vcpu, int dir,
 		    uint64_t addr, int size, uint64_t *val, void *arg1,
 		    long arg2);
-static int	pctestdev_ioport_io(struct vmctx *ctx, int vcpu, int in,
+static int	pctestdev_ioport_io(struct vmctx *ctx, int in,
 		    int port, int bytes, uint32_t *eax, void *arg);
-static int	pctestdev_irq_io(struct vmctx *ctx, int vcpu, int in,
+static int	pctestdev_irq_io(struct vmctx *ctx, int in,
 		    int port, int bytes, uint32_t *eax, void *arg);
 
 const char *
@@ -178,7 +178,7 @@ fail:
 }
 
 static int
-pctestdev_debugexit_io(struct vmctx *ctx __unused, int vcpu __unused, int in,
+pctestdev_debugexit_io(struct vmctx *ctx __unused, int in,
     int port __unused, int bytes __unused, uint32_t *eax, void *arg __unused)
 {
 	if (in)
@@ -211,7 +211,7 @@ pctestdev_iomem_io(struct vmctx *ctx __unused, int vcpu __unused, int dir,
 }
 
 static int
-pctestdev_ioport_io(struct vmctx *ctx __unused, int vcpu __unused, int in,
+pctestdev_ioport_io(struct vmctx *ctx __unused, int in,
     int port, int bytes, uint32_t *eax, void *arg __unused)
 {
 	uint32_t mask;
@@ -234,7 +234,7 @@ pctestdev_ioport_io(struct vmctx *ctx __unused, int vcpu __unused, int in,
 }
 
 static int
-pctestdev_irq_io(struct vmctx *ctx, int vcpu __unused, int in, int port,
+pctestdev_irq_io(struct vmctx *ctx, int in, int port,
     int bytes, uint32_t *eax, void *arg __unused)
 {
 	int irq;
