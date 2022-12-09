@@ -483,7 +483,7 @@ static daddr_t	swp_pager_getswapspace(int *npages);
  * Metadata functions
  */
 static daddr_t swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
-static void swp_pager_meta_free(vm_object_t, vm_pindex_t, vm_size_t,
+static void swp_pager_meta_free(vm_object_t, vm_pindex_t, vm_pindex_t,
     vm_size_t *);
 static void swp_pager_meta_transfer(vm_object_t src, vm_object_t dst,
     vm_pindex_t pindex, vm_pindex_t count, vm_size_t *freed);
