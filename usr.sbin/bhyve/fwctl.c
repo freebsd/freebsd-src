@@ -516,7 +516,7 @@ fwctl_outl(uint32_t val)
 }
 
 static int
-fwctl_handler(struct vmctx *ctx __unused, int vcpu __unused, int in,
+fwctl_handler(struct vmctx *ctx __unused, int in,
     int port __unused, int bytes, uint32_t *eax, void *arg __unused)
 {
 

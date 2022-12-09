@@ -1215,7 +1215,7 @@ vga_port_out_handler(struct vmctx *ctx __unused, int in __unused, int port,
 }
 
 static int
-vga_port_handler(struct vmctx *ctx, int vcpu __unused, int in, int port,
+vga_port_handler(struct vmctx *ctx, int in, int port,
     int bytes, uint32_t *eax, void *arg)
 {
 	uint8_t val;
