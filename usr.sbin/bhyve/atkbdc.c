@@ -307,7 +307,7 @@ atkbdc_dequeue_data(struct atkbdc_softc *sc, uint8_t *buf)
 }
 
 static int
-atkbdc_data_handler(struct vmctx *ctx __unused, int vcpu __unused, int in,
+atkbdc_data_handler(struct vmctx *ctx __unused, int in,
     int port __unused, int bytes, uint32_t *eax, void *arg)
 {
 	struct atkbdc_softc *sc;
@@ -393,7 +393,7 @@ atkbdc_data_handler(struct vmctx *ctx __unused, int vcpu __unused, int in,
 }
 
 static int
-atkbdc_sts_ctl_handler(struct vmctx *ctx, int vcpu __unused, int in,
+atkbdc_sts_ctl_handler(struct vmctx *ctx, int in,
     int port __unused, int bytes, uint32_t *eax, void *arg)
 {
 	struct atkbdc_softc *sc;
