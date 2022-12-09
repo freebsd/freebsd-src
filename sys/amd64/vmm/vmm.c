@@ -341,6 +341,7 @@ vcpu_cleanup(struct vcpu *vcpu, bool destroy)
 		vmm_stat_free(vcpu->stats);	
 		fpu_save_area_free(vcpu->guestfpu);
 		vcpu_lock_destroy(vcpu);
+		free(vcpu, M_VM);
 	}
 }
 
