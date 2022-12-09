@@ -149,7 +149,7 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 {
 	struct vcpu *vcpu;
 	int error;
-	uint16_t i, maxcpus;
+	uint16_t i, j, maxcpus;
 
 	vm_slock_vcpus(sc->vm);
 	maxcpus = vm_get_maxcpus(sc->vm);
@@ -163,11 +163,11 @@ vcpu_lock_all(struct vmmdev_softc *sc)
 	}
 
 	if (error) {
-		while (--i >= 0) {
-			vcpu = vm_vcpu(sc->vm, i);
+		for (j = 0; j < i; j++) {
+			vcpu = vm_vcpu(sc->vm, j);
 			if (vcpu == NULL)
 				continue;
-			vcpu_unlock_one(sc, i, vcpu);
+			vcpu_unlock_one(sc, j, vcpu);
 		}
 		vm_unlock_vcpus(sc->vm);
 	}
