@@ -558,7 +558,7 @@ vi_find_cr(int offset) {
  * Otherwise dispatch to the actual driver.
  */
 uint64_t
-vi_pci_read(struct vmctx *ctx __unused, int vcpu __unused,
+vi_pci_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct virtio_softc *vs = pi->pi_arg;
@@ -678,7 +678,7 @@ done:
  * Otherwise dispatch to the actual driver.
  */
 void
-vi_pci_write(struct vmctx *ctx __unused, int vcpu __unused,
+vi_pci_write(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {

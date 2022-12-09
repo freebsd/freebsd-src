@@ -2267,7 +2267,7 @@ pci_xhci_hostop_write(struct pci_xhci_softc *sc, uint64_t offset,
 
 
 static void
-pci_xhci_write(struct vmctx *ctx __unused, int vcpu __unused,
+pci_xhci_write(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size __unused,
     uint64_t value)
 {
@@ -2489,7 +2489,7 @@ pci_xhci_xecp_read(struct pci_xhci_softc *sc, uint64_t offset)
 
 
 static uint64_t
-pci_xhci_read(struct vmctx *ctx __unused, int vcpu __unused,
+pci_xhci_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_xhci_softc *sc;

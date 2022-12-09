@@ -63,18 +63,18 @@ struct pci_devemu {
 	void	(*pe_write_dsdt)(struct pci_devinst *);
 
 	/* config space read/write callbacks */
-	int	(*pe_cfgwrite)(struct vmctx *ctx, int vcpu,
+	int	(*pe_cfgwrite)(struct vmctx *ctx,
 			       struct pci_devinst *pi, int offset,
 			       int bytes, uint32_t val);
-	int	(*pe_cfgread)(struct vmctx *ctx, int vcpu,
+	int	(*pe_cfgread)(struct vmctx *ctx,
 			      struct pci_devinst *pi, int offset,
 			      int bytes, uint32_t *retval);
 
 	/* BAR read/write callbacks */
-	void      (*pe_barwrite)(struct vmctx *ctx, int vcpu,
+	void      (*pe_barwrite)(struct vmctx *ctx,
 				 struct pci_devinst *pi, int baridx,
 				 uint64_t offset, int size, uint64_t value);
-	uint64_t  (*pe_barread)(struct vmctx *ctx, int vcpu,
+	uint64_t  (*pe_barread)(struct vmctx *ctx,
 				struct pci_devinst *pi, int baridx,
 				uint64_t offset, int size);
 

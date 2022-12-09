@@ -426,9 +426,9 @@ void	vq_relchain_publish(struct vqueue_info *vq);
 void	vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen);
 void	vq_endchains(struct vqueue_info *vq, int used_all_avail);
 
-uint64_t vi_pci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+uint64_t vi_pci_read(struct vmctx *ctx, struct pci_devinst *pi,
 		     int baridx, uint64_t offset, int size);
-void	vi_pci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+void	vi_pci_write(struct vmctx *ctx, struct pci_devinst *pi,
 		     int baridx, uint64_t offset, int size, uint64_t value);
 #ifdef BHYVE_SNAPSHOT
 int	vi_pci_snapshot(struct vm_snapshot_meta *meta);

@@ -2197,7 +2197,7 @@ pci_ahci_host_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 }
 
 static void
-pci_ahci_write(struct vmctx *ctx __unused, int vcpu __unused,
+pci_ahci_write(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {
@@ -2292,7 +2292,7 @@ pci_ahci_port_read(struct pci_ahci_softc *sc, uint64_t offset)
 }
 
 static uint64_t
-pci_ahci_read(struct vmctx *ctx __unused, int vcpu __unused,
+pci_ahci_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t regoff, int size)
 {
 	struct pci_ahci_softc *sc = pi->pi_arg;

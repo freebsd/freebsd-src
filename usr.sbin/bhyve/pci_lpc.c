@@ -398,7 +398,7 @@ pci_lpc_uart_dsdt(void)
 LPC_DSDT(pci_lpc_uart_dsdt);
 
 static int
-pci_lpc_cfgwrite(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
+pci_lpc_cfgwrite(struct vmctx *ctx, struct pci_devinst *pi,
     int coff, int bytes, uint32_t val)
 {
 	int pirq_pin;
@@ -419,14 +419,14 @@ pci_lpc_cfgwrite(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
 }
 
 static void
-pci_lpc_write(struct vmctx *ctx __unused, int vcpu __unused,
+pci_lpc_write(struct vmctx *ctx __unused,
     struct pci_devinst *pi __unused, int baridx __unused,
     uint64_t offset __unused, int size __unused, uint64_t value __unused)
 {
 }
 
 static uint64_t
-pci_lpc_read(struct vmctx *ctx __unused, int vcpu __unused,
+pci_lpc_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi __unused, int baridx __unused, uint64_t offset __unused,
     int size __unused)
 {

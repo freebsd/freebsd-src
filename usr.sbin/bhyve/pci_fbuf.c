@@ -117,7 +117,7 @@ static struct pci_fbuf_softc *fbuf_sc;
 #define	PCI_FBUF_MSI_MSGS	 4
 
 static void
-pci_fbuf_write(struct vmctx *ctx __unused, int vcpu __unused,
+pci_fbuf_write(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {
@@ -172,7 +172,7 @@ pci_fbuf_write(struct vmctx *ctx __unused, int vcpu __unused,
 }
 
 static uint64_t
-pci_fbuf_read(struct vmctx *ctx __unused, int vcpu __unused,
+pci_fbuf_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_fbuf_softc *sc;

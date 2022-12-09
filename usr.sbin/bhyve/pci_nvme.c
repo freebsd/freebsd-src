@@ -3062,7 +3062,7 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 }
 
 static void
-pci_nvme_write(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
+pci_nvme_write(struct vmctx *ctx, struct pci_devinst *pi,
     int baridx, uint64_t offset, int size, uint64_t value)
 {
 	struct pci_nvme_softc* sc = pi->pi_arg;
@@ -3125,7 +3125,7 @@ static uint64_t pci_nvme_read_bar_0(struct pci_nvme_softc* sc,
 
 
 static uint64_t
-pci_nvme_read(struct vmctx *ctx __unused, int vcpu __unused,
+pci_nvme_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_nvme_softc* sc = pi->pi_arg;
