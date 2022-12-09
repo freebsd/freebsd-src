@@ -2836,7 +2836,7 @@ complete:
 }
 
 static void
-pci_nvme_handle_doorbell(struct vmctx *ctx __unused, struct pci_nvme_softc* sc,
+pci_nvme_handle_doorbell(struct pci_nvme_softc* sc,
 	uint64_t idx, int is_sq, uint64_t value)
 {
 	DPRINTF("nvme doorbell %lu, %s, val 0x%lx",
@@ -2959,7 +2959,7 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 		} else if (sc->compl_queues[idx].qbase == NULL)
 			return;
 
-		pci_nvme_handle_doorbell(ctx, sc, idx, is_sq, value);
+		pci_nvme_handle_doorbell(sc, idx, is_sq, value);
 		return;
 	}
 
