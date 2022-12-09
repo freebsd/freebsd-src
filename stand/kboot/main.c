@@ -125,7 +125,7 @@ kboot_rsdp_from_efi(void)
 }
 
 static void
-find_acpi()
+find_acpi(void)
 {
 	rsdp = kboot_rsdp_from_efi();
 #if 0	/* maybe for amd64 */
@@ -135,13 +135,13 @@ find_acpi()
 }
 
 vm_offset_t
-acpi_rsdp()
+acpi_rsdp(void)
 {
 	return (rsdp);
 }
 
 bool
-has_acpi()
+has_acpi(void)
 {
 	return rsdp != 0;
 }
