@@ -102,6 +102,50 @@ parse_args(int argc, const char **argv)
 	return (howto);
 }
 
+static vm_offset_t rsdp;
+
+static vm_offset_t
+kboot_rsdp_from_efi(void)
+{
+	char buffer[512 + 1];
+	char *walker, *ep;
+
+	if (!file2str("/sys/firmware/efi/systab", buffer, sizeof(buffer)))
+		return (0);	/* Not an EFI system */
+	ep = buffer + strlen(buffer);
+	walker = buffer;
+	while (walker < ep) {
+		if (strncmp("ACPI20=", walker, 7) == 0)
+			return((vm_offset_t)strtoull(walker + 7, NULL, 0));
+		if (strncmp("ACPI=", walker, 5) == 0)
+			return((vm_offset_t)strtoull(walker + 5, NULL, 0));
+		walker += strcspn(walker, "\n");
+	}
+	return (0);
+}
+
+static void
+find_acpi()
+{
+	rsdp = kboot_rsdp_from_efi();
+#if 0	/* maybe for amd64 */
+	if (rsdp == 0)
+		rsdp = find_rsdp_arch();
+#endif
+}
+
+vm_offset_t
+acpi_rsdp()
+{
+	return (rsdp);
+}
+
+bool
+has_acpi()
+{
+	return rsdp != 0;
+}
+
 int
 main(int argc, const char **argv)
 {
@@ -145,6 +189,11 @@ main(int argc, const char **argv)
 	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
 	setenv("usefdt", "1", 1);
+
+	/*
+	 * Find acpi, if it exists
+	 */
+	find_acpi();
 
 	interact();			/* doesn't return */
 
