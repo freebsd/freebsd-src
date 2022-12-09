@@ -94,11 +94,26 @@ fdt_platform_load_dtb(void)
 {
 	void *buffer;
 	size_t buflen = 409600;
+	int fd;
 
+	/*
+	 * Should load /sys/firmware/fdt if it exists, otherwise we walk the
+	 * tree from /proc/device-tree. The former is much easier than the
+	 * latter and also the newer interface. But as long as we support the
+	 * PS3 boot, we'll need the latter due to that kernel's age. It likely
+	 * would be better to script the decision between the two, but that
+	 * turns out to be tricky...
+	 */
 	buffer = malloc(buflen);
-	fdt_create_empty_tree(buffer, buflen);
-	add_node_to_fdt(buffer, "/proc/device-tree",
-	    fdt_path_offset(buffer, "/"));
+	fd = host_open("/sys/firmware/fdt", O_RDONLY, 0);
+	if (fd != -1) {
+		buflen = host_read(fd, buffer, buflen);
+		close(fd);
+	} else {
+		fdt_create_empty_tree(buffer, buflen);
+		add_node_to_fdt(buffer, "/proc/device-tree",
+		    fdt_path_offset(buffer, "/"));
+	}
 	fdt_arch_fixups(buffer);
 
 	fdt_pack(buffer);
@@ -112,12 +127,11 @@ fdt_platform_load_dtb(void)
 void
 fdt_platform_load_overlays(void)
 {
-
+	fdt_load_dtb_overlays(NULL);
 }
 
 void
 fdt_platform_fixups(void)
 {
-
+	fdt_apply_overlays();
 }
-
