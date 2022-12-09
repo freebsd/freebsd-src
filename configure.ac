@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.6.1])
-m4_define([LIBARCHIVE_VERSION_N],[3006001])
+m4_define([LIBARCHIVE_VERSION_S],[3.6.2])
+m4_define([LIBARCHIVE_VERSION_N],[3006002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -378,6 +378,7 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_HEADERS([localcharset.h])
     am_save_LIBS="$LIBS"
     LIBS="${LIBS} ${LIBICONV}"
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }iconv"
     AC_CHECK_FUNCS([locale_charset])
     LIBS="${am_save_LIBS}"
     if test "x$ac_cv_func_locale_charset" != "xyes"; then
@@ -1209,24 +1210,8 @@ fi
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
-    case "$host_os" in
-      *mingw* | *cygwin* | *msys*)
-        case "$host_cpu" in
-          x86_64)
-            AC_CHECK_LIB(eay64,OPENSSL_config)
-            if test "x$ac_cv_lib_eay64_main" != "xyes"; then
-              AC_CHECK_LIB(eay32,OPENSSL_config)
-            fi
-            ;;
-          *)
-            AC_CHECK_LIB(eay32,OPENSSL_config)
-            ;;
-        esac
-        ;;
-      *)
-        AC_CHECK_LIB(crypto,OPENSSL_config)
-        ;;
-    esac
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libssl libcrypto"
+    AC_CHECK_LIB(crypto,OPENSSL_config)
     CRYPTO_CHECK(MD5, OPENSSL, md5)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160)
     CRYPTO_CHECK(SHA1, OPENSSL, sha1)
@@ -1235,6 +1220,8 @@ if test "x$with_openssl" != "xno"; then
     CRYPTO_CHECK(SHA512, OPENSSL, sha512)
     AC_CHECK_FUNCS([PKCS5_PBKDF2_HMAC_SHA1])
 fi
+
+AC_SUBST(LIBSREQUIRED)
 
 # Probe libmd AFTER OpenSSL/libcrypto.
 # The two are incompatible and OpenSSL is more complete.
@@ -1259,6 +1246,18 @@ case "$host_os" in
 	CRYPTO_CHECK_WIN(SHA512, CALG_SHA_512)
 	;;
 esac
+
+dnl Visibility annotations...
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden -Werror"
+AC_MSG_CHECKING(whether compiler supports visibility annotations)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+                 int foo( void ) __attribute__((visibility("default")));
+               ])],
+               [CFLAGS="$saved_CFLAGS -fvisibility=hidden -D__LIBARCHIVE_ENABLE_VISIBILITY";
+                AC_MSG_RESULT(yes)],
+               [CFLAGS="$saved_CFLAGS"
+                AC_MSG_RESULT(no)])
 
 # Ensure test directories are present if building out-of-tree
 AC_CONFIG_COMMANDS([mkdirs],

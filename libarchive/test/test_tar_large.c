@@ -224,7 +224,7 @@ DEFINE_TEST(test_tar_large)
 	 */
 	for (i = 0; tests[i] != 0; i++) {
 		assert((ae = archive_entry_new()) != NULL);
-		sprintf(namebuff, "file_%d", i);
+		snprintf(namebuff, sizeof(namebuff), "file_%d", i);
 		archive_entry_copy_pathname(ae, namebuff);
 		archive_entry_set_mode(ae, S_IFREG | 0755);
 		filesize = tests[i];
@@ -271,7 +271,7 @@ DEFINE_TEST(test_tar_large)
 	 */
 	for (i = 0; tests[i] > 0; i++) {
 		assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-		sprintf(namebuff, "file_%d", i);
+		snprintf(namebuff, sizeof(namebuff), "file_%d", i);
 		assertEqualString(namebuff, archive_entry_pathname(ae));
 		assert(tests[i] == archive_entry_size(ae));
 	}

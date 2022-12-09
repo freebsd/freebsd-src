@@ -316,13 +316,13 @@ typedef uint64_t uintmax_t;
 #cmakedefine ARCHIVE_XATTR_LINUX 1
 
 /* Version number of bsdcpio */
-#cmakedefine BSDCPIO_VERSION_STRING "${BSDCPIO_VERSION_STRING}"
+#cmakedefine BSDCPIO_VERSION_STRING "@BSDCPIO_VERSION_STRING@"
 
 /* Version number of bsdtar */
-#cmakedefine BSDTAR_VERSION_STRING "${BSDTAR_VERSION_STRING}"
+#cmakedefine BSDTAR_VERSION_STRING "@BSDTAR_VERSION_STRING@"
 
 /* Version number of bsdcat */
-#cmakedefine BSDCAT_VERSION_STRING "${BSDCAT_VERSION_STRING}"
+#cmakedefine BSDCAT_VERSION_STRING "@BSDCAT_VERSION_STRING@"
 
 /* Define to 1 if you have the `acl_create_entry' function. */
 #cmakedefine HAVE_ACL_CREATE_ENTRY 1
@@ -1231,13 +1231,13 @@ typedef uint64_t uintmax_t;
 #cmakedefine HAVE__MKGMTIME64 1
 
 /* Define as const if the declaration of iconv() needs const. */
-#define ICONV_CONST ${ICONV_CONST}
+#define ICONV_CONST @ICONV_CONST@
 
 /* Version number of libarchive as a single integer */
-#cmakedefine LIBARCHIVE_VERSION_NUMBER "${LIBARCHIVE_VERSION_NUMBER}"
+#cmakedefine LIBARCHIVE_VERSION_NUMBER "@LIBARCHIVE_VERSION_NUMBER@"
 
 /* Version number of libarchive */
-#cmakedefine LIBARCHIVE_VERSION_STRING "${LIBARCHIVE_VERSION_STRING}"
+#cmakedefine LIBARCHIVE_VERSION_STRING "@LIBARCHIVE_VERSION_STRING@"
 
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
@@ -1255,7 +1255,7 @@ typedef uint64_t uintmax_t;
 #cmakedefine NO_MINUS_C_MINUS_O 1
 
 /* The size of `wchar_t', as computed by sizeof. */
-#cmakedefine SIZEOF_WCHAR_T ${SIZEOF_WCHAR_T}
+#cmakedefine SIZEOF_WCHAR_T @SIZEOF_WCHAR_T@
 
 /* Define to 1 if strerror_r returns char *. */
 #cmakedefine STRERROR_R_CHAR_P 1
@@ -1291,59 +1291,59 @@ typedef uint64_t uintmax_t;
 #endif /* SAFE_TO_DEFINE_EXTENSIONS */
 
 /* Version number of package */
-#cmakedefine VERSION "${VERSION}"
+#cmakedefine VERSION "@VERSION@"
 
 /* Number of bits in a file offset, on hosts where this is settable. */
-#cmakedefine _FILE_OFFSET_BITS ${_FILE_OFFSET_BITS}
+#cmakedefine _FILE_OFFSET_BITS @_FILE_OFFSET_BITS@
 
 /* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
 #cmakedefine _LARGEFILE_SOURCE 1
 
 /* Define for large files, on AIX-style hosts. */
-#cmakedefine _LARGE_FILES ${_LARGE_FILES}
+#cmakedefine _LARGE_FILES @_LARGE_FILES@
 
 /* Define to control Windows SDK version */
 #ifndef NTDDI_VERSION
-#cmakedefine NTDDI_VERSION ${NTDDI_VERSION}
+#cmakedefine NTDDI_VERSION @NTDDI_VERSION@
 #endif // NTDDI_VERSION
 
 #ifndef _WIN32_WINNT
-#cmakedefine _WIN32_WINNT ${_WIN32_WINNT}
+#cmakedefine _WIN32_WINNT @_WIN32_WINNT@
 #endif // _WIN32_WINNT
 
 #ifndef WINVER
-#cmakedefine WINVER ${WINVER}
+#cmakedefine WINVER @WINVER@
 #endif // WINVER
 
 /* Define to empty if `const' does not conform to ANSI C. */
-#cmakedefine const ${const}
+#cmakedefine const @const@
 
 /* Define to `int' if <sys/types.h> doesn't define. */
-#cmakedefine gid_t ${gid_t}
+#cmakedefine gid_t @gid_t@
 
 /* Define to `unsigned long' if <sys/types.h> does not define. */
-#cmakedefine id_t ${id_t}
+#cmakedefine id_t @id_t@
 
 /* Define to `int' if <sys/types.h> does not define. */
-#cmakedefine mode_t ${mode_t}
+#cmakedefine mode_t @mode_t@
 
 /* Define to `long long' if <sys/types.h> does not define. */
-#cmakedefine off_t ${off_t}
+#cmakedefine off_t @off_t@
 
 /* Define to `int' if <sys/types.h> doesn't define. */
-#cmakedefine pid_t ${pid_t}
+#cmakedefine pid_t @pid_t@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
-#cmakedefine size_t ${size_t}
+#cmakedefine size_t @size_t@
 
 /* Define to `int' if <sys/types.h> does not define. */
-#cmakedefine ssize_t ${ssize_t}
+#cmakedefine ssize_t @ssize_t@
 
 /* Define to `int' if <sys/types.h> doesn't define. */
-#cmakedefine uid_t ${uid_t}
+#cmakedefine uid_t @uid_t@
 
 /* Define to `int' if <sys/types.h> does not define. */
-#cmakedefine intptr_t ${intptr_t}
+#cmakedefine intptr_t @intptr_t@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
-#cmakedefine uintptr_t ${uintptr_t}
+#cmakedefine uintptr_t @uintptr_t@

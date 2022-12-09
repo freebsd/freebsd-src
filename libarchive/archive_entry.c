@@ -568,6 +568,13 @@ archive_entry_nlink(struct archive_entry *entry)
 	return (entry->ae_stat.aest_nlink);
 }
 
+/* Instead, our caller could have chosen a specific encoding
+ * (archive_mstring_get_mbs, archive_mstring_get_utf8,
+ * archive_mstring_get_wcs).  So we should try multiple
+ * encodings.  Try mbs first because of history, even though
+ * utf8 might be better for pathname portability.
+ * Also omit wcs because of type mismatch (char * versus wchar *)
+ */
 const char *
 archive_entry_pathname(struct archive_entry *entry)
 {
@@ -575,6 +582,13 @@ archive_entry_pathname(struct archive_entry *entry)
 	if (archive_mstring_get_mbs(
 	    entry->archive, &entry->ae_pathname, &p) == 0)
 		return (p);
+#if HAVE_EILSEQ  /*{*/
+    if (errno == EILSEQ) {
+	    if (archive_mstring_get_utf8(
+	        entry->archive, &entry->ae_pathname, &p) == 0)
+		    return (p);
+    }
+#endif  /*}*/
 	if (errno == ENOMEM)
 		__archive_errx(1, "No memory");
 	return (NULL);

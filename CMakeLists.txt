@@ -213,7 +213,7 @@ OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
 OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
 OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
 OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
-OPTION(ENABLE_LibGCC "Enable the use of the system LibGCC library if found" ON)
+OPTION(ENABLE_LIBGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
 
@@ -232,7 +232,7 @@ OPTION(ENABLE_INSTALL "Enable installing of libraries" ON)
 
 SET(POSIX_REGEX_LIB "AUTO" CACHE STRING "Choose what library should provide POSIX regular expression support")
 SET(ENABLE_SAFESEH "AUTO" CACHE STRING "Enable use of /SAFESEH linker flag (MSVC only)")
-SET(WINDOWS_VERSION "WIN7" CACHE STRING "Set Windows version to use (Windows only)")
+SET(WINDOWS_VERSION "WIN10" CACHE STRING "Set Windows version to use (Windows only)")
 
 IF(ENABLE_COVERAGE)
 	include(LibarchiveCodeCoverage)
@@ -243,7 +243,11 @@ IF(ENABLE_TEST)
 ENDIF(ENABLE_TEST)
 
 IF(WIN32)
-  IF(WINDOWS_VERSION STREQUAL "WIN8")
+  IF(WINDOWS_VERSION STREQUAL "WIN10")
+    SET(NTDDI_VERSION 0x0A000000)
+    SET(_WIN32_WINNT 0x0A00)
+    SET(WINVER 0x0A00)
+  ELSEIF(WINDOWS_VERSION STREQUAL "WIN8")
     SET(NTDDI_VERSION 0x06020000)
     SET(_WIN32_WINNT 0x0602)
     SET(WINVER 0x0602)
@@ -267,12 +271,12 @@ IF(WIN32)
     SET(NTDDI_VERSION 0x05010000)
     SET(_WIN32_WINNT 0x0501)
     SET(WINVER 0x0501)
-  ELSE(WINDOWS_VERSION STREQUAL "WIN8")
+  ELSE(WINDOWS_VERSION STREQUAL "WIN10")
     # Default to Windows Server 2003 API if we don't recognize the specifier
     SET(NTDDI_VERSION 0x05020000)
     SET(_WIN32_WINNT 0x0502)
     SET(WINVER 0x0502)
-  ENDIF(WINDOWS_VERSION STREQUAL "WIN8")
+  ENDIF(WINDOWS_VERSION STREQUAL "WIN10")
 ENDIF(WIN32)
 
 IF(MSVC)
@@ -610,8 +614,13 @@ IF(ENABLE_ZSTD)
     SET(ZSTD_FIND_QUIETLY TRUE)
   ENDIF (ZSTD_INCLUDE_DIR)
 
-  FIND_PATH(ZSTD_INCLUDE_DIR zstd.h)
-  FIND_LIBRARY(ZSTD_LIBRARY NAMES zstd libzstd)
+  IF(UNIX)
+    FIND_PACKAGE(PkgConfig QUIET)
+    PKG_SEARCH_MODULE(PC_ZSTD libzstd)
+  ENDIF()
+
+  FIND_PATH(ZSTD_INCLUDE_DIR zstd.h HINTS ${PC_ZSTD_INCLUDEDIR} ${PC_ZSTD_INCLUDE_DIRS})
+  FIND_LIBRARY(ZSTD_LIBRARY NAMES zstd libzstd HINTS ${PC_ZSTD_LIBDIR} ${PC_ZSTD_LIBRARY_DIRS})
   INCLUDE(FindPackageHandleStandardArgs)
   FIND_PACKAGE_HANDLE_STANDARD_ARGS(ZSTD DEFAULT_MSG ZSTD_LIBRARY ZSTD_INCLUDE_DIR)
 ELSE(ENABLE_ZSTD)
@@ -1255,9 +1264,10 @@ IF(NOT FOUND_POSIX_REGEX_LIB AND POSIX_REGEX_LIB MATCHES "^(AUTO|LIBPCREPOSIX)$"
   #
   # If requested, try finding library for PCREPOSIX
   #
-  IF(ENABLE_LibGCC)
-    FIND_PACKAGE(LibGCC)
+  IF(ENABLE_LIBGCC)
+    FIND_PACKAGE(LIBGCC)
   ELSE()
+    MESSAGE(FATAL_ERROR "libgcc not found.")
     SET(LIBGCC_FOUND FALSE) # Override cached value
   ENDIF()
   IF(ENABLE_PCREPOSIX)
@@ -2023,6 +2033,17 @@ CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA384;SHA512" OPENSSL)
 CHECK_CRYPTO("MD5;RMD160;SHA1;SHA256;SHA512" LIBMD)
 
 CHECK_CRYPTO_WIN("MD5;SHA1;SHA256;SHA384;SHA512")
+
+# Check visibility annotations
+SET(OLD_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fvisibility=hidden -Werror")
+CHECK_C_SOURCE_COMPILES("void __attribute__((visibility(\"default\"))) foo(void);
+int main() { return 0; }" HAVE_VISIBILITY_ATTR)
+IF (HAVE_VISIBILITY_ATTR)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
+  ADD_DEFINITIONS(-D__LIBARCHIVE_ENABLE_VISIBILITY)
+ENDIF(HAVE_VISIBILITY_ATTR)
+SET(CMAKE_REQUIRED_FLAGS "${OLD_CMAKE_REQUIRED_FLAGS}")
 
 # Generate "config.h" from "build/cmake/config.h.in"
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.h.in

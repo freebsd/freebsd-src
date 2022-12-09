@@ -1370,6 +1370,7 @@ archive_write_disk_new(void)
 		free(a);
 		return (NULL);
 	}
+	a->path_safe.s[0] = 0;
 	return (&a->archive);
 }
 
@@ -2154,6 +2155,8 @@ check_symlinks(struct archive_write_disk *a)
 				return (ARCHIVE_FAILED);
 			}
 		}
+		if (!c)
+			break;
 		pn[0] = c;
 		pn++;
 	}
@@ -2258,6 +2261,9 @@ cleanup_pathname(struct archive_write_disk *a, wchar_t *name)
 			return (ARCHIVE_FAILED);
 		} else
 			p += 4;
+    /* Network drive path like "\\<server-name>\<share-name>\file" */
+    } else if (p[0] == L'\\' && p[1] == L'\\') {
+        p += 2;
 	}
 
 	/* Skip leading drive letter from archives created

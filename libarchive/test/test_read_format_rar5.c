@@ -168,7 +168,7 @@ DEFINE_TEST(test_read_format_rar5_compressed)
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-	verify_data(buff, 0, DATA_SIZE);
+	assertA(1 == verify_data(buff, 0, DATA_SIZE));
 
 	EPILOGUE();
 }
@@ -187,25 +187,25 @@ DEFINE_TEST(test_read_format_rar5_multiple_files)
 	assertEqualString("test1.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 1, DATA_SIZE));
+	assertA(1 == verify_data(buff, 1, DATA_SIZE));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("test2.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 2, DATA_SIZE));
+	assertA(1 == verify_data(buff, 2, DATA_SIZE));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("test3.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 3, DATA_SIZE));
+	assertA(1 == verify_data(buff, 3, DATA_SIZE));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("test4.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 4, DATA_SIZE));
+	assertA(1 == verify_data(buff, 4, DATA_SIZE));
 
 	/* There should be no more files in this archive. */
 
@@ -230,25 +230,25 @@ DEFINE_TEST(test_read_format_rar5_multiple_files_solid)
 	assertEqualString("test1.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 1, DATA_SIZE));
+	assertA(1 == verify_data(buff, 1, DATA_SIZE));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("test2.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 2, DATA_SIZE));
+	assertA(1 == verify_data(buff, 2, DATA_SIZE));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("test3.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 3, DATA_SIZE));
+	assertA(1 == verify_data(buff, 3, DATA_SIZE));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("test4.bin", archive_entry_pathname(ae));
 	assertEqualInt(DATA_SIZE, archive_entry_size(ae));
 	assertA(DATA_SIZE == archive_read_data(a, buff, DATA_SIZE));
-	assertA(verify_data(buff, 4, DATA_SIZE));
+	assertA(1 == verify_data(buff, 4, DATA_SIZE));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 	EPILOGUE();
@@ -1344,6 +1344,29 @@ DEFINE_TEST(test_read_format_rar5_bad_window_size_in_multiarchive_file)
 	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
 	(void) archive_read_next_header(a, &ae);
 	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_read_data_block_uninitialized_offset)
+{
+	const void *buf;
+	size_t size;
+	la_int64_t offset;
+
+	PROLOGUE("test_read_format_rar5_compressed.rar");
+	assertA(0 == archive_read_next_header(a, &ae));
+
+	/* A real code may pass a pointer to an uninitialized variable as an offset
+	 * output argument. Here we want to check this situation. But because
+	 * relying on a value of an uninitialized variable in a test is not a good
+	 * idea, let's pretend that 0xdeadbeef is a random value of the
+	 * uninitialized variable. */
+	offset = 0xdeadbeef;
+	assertEqualInt(ARCHIVE_OK, archive_read_data_block(a, &buf, &size, &offset));
+	/* The test archive doesn't contain a sparse file. And because of that, here
+	 * we assume that the first returned offset should be 0. */
+	assertEqualInt(0, offset);
 
 	EPILOGUE();
 }

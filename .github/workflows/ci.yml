@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   MacOS:
-    runs-on: macos-latest
+    runs-on: macos-12
     strategy:
       matrix:
         bs: [autotools, cmake]
@@ -43,7 +43,7 @@ jobs:
         path: libarchive.tar.xz
 
   Ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         bs: [autotools, cmake]
@@ -83,7 +83,7 @@ jobs:
         name: libarchive-ubuntu-${{ matrix.bs }}-${{ matrix.crypto }}-${{ github.sha }}
         path: libarchive.tar.xz
   Ubuntu-distcheck:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies

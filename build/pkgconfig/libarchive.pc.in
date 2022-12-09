@@ -10,3 +10,4 @@ Cflags: -I${includedir}
 Cflags.private: -DLIBARCHIVE_STATIC
 Libs: -L${libdir} -larchive
 Libs.private: @LIBS@
+Requires.private: @LIBSREQUIRED@
