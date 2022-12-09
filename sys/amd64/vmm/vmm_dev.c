@@ -451,8 +451,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_INJECT_EXCEPTION:
 	case VM_GET_CAPABILITY:
 	case VM_SET_CAPABILITY:
-	case VM_PPTDEV_MSI:
-	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
 	case VM_GLA2GPA:
 	case VM_GLA2GPA_NOFAULT:
