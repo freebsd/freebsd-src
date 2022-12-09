@@ -2112,7 +2112,7 @@ e82545_read_register(struct e82545_softc *sc, uint32_t offset)
 }
 
 static void
-e82545_write(struct vmctx *ctx __unused, int vcpu __unused,
+e82545_write(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {
@@ -2163,7 +2163,7 @@ e82545_write(struct vmctx *ctx __unused, int vcpu __unused,
 }
 
 static uint64_t
-e82545_read(struct vmctx *ctx __unused, int vcpu __unused,
+e82545_read(struct vmctx *ctx __unused,
     struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct e82545_softc *sc;

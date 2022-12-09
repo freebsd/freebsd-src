@@ -903,8 +903,8 @@ msixcap_access(struct passthru_softc *sc, int coff)
 }
 
 static int
-passthru_cfgread(struct vmctx *ctx __unused, int vcpu __unused,
-    struct pci_devinst *pi, int coff, int bytes, uint32_t *rv)
+passthru_cfgread(struct vmctx *ctx __unused, struct pci_devinst *pi, int coff,
+    int bytes, uint32_t *rv)
 {
 	struct passthru_softc *sc;
 
@@ -948,8 +948,8 @@ passthru_cfgread(struct vmctx *ctx __unused, int vcpu __unused,
 }
 
 static int
-passthru_cfgwrite(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
-		  int coff, int bytes, uint32_t val)
+passthru_cfgwrite(struct vmctx *ctx, struct pci_devinst *pi, int coff,
+    int bytes, uint32_t val)
 {
 	int error, msix_table_entries, i;
 	struct passthru_softc *sc;
@@ -1029,8 +1029,8 @@ passthru_cfgwrite(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
 }
 
 static void
-passthru_write(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size, uint64_t value)
+passthru_write(struct vmctx *ctx, struct pci_devinst *pi, int baridx,
+    uint64_t offset, int size, uint64_t value)
 {
 	struct passthru_softc *sc;
 	struct pci_bar_ioreq pio;
@@ -1057,8 +1057,8 @@ passthru_write(struct vmctx *ctx, int vcpu __unused, struct pci_devinst *pi,
 }
 
 static uint64_t
-passthru_read(struct vmctx *ctx __unused, int vcpu __unused,
-    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
+passthru_read(struct vmctx *ctx __unused, struct pci_devinst *pi, int baridx,
+    uint64_t offset, int size)
 {
 	struct passthru_softc *sc;
 	struct pci_bar_ioreq pio;
