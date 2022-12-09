@@ -34,6 +34,18 @@
 
 #include "lzma.h"
 
+// The extra symbol versioning in the C files may only be used when
+// building a shared library. If HAVE_SYMBOL_VERSIONS_LINUX is defined
+// to 2 then symbol versioning is done only if also PIC is defined.
+// By default Libtool defines PIC when building a shared library and
+// doesn't define it when building a static library but it can be
+// overriden with --with-pic and --without-pic. configure let's rely
+// on PIC if neither --with-pic or --without-pic was used.
+#if defined(HAVE_SYMBOL_VERSIONS_LINUX) \
+		&& (HAVE_SYMBOL_VERSIONS_LINUX == 2 && !defined(PIC))
+#	undef HAVE_SYMBOL_VERSIONS_LINUX
+#endif
+
 #ifdef HAVE_SYMBOL_VERSIONS_LINUX
 // To keep link-time optimization (LTO, -flto) working with GCC,
 // the __symver__ attribute must be used instead of __asm__(".symver ...").

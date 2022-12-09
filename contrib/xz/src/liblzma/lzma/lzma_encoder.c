@@ -559,10 +559,9 @@ lzma_lzma_encoder_create(void **coder_ptr,
 
 	lzma_lzma1_encoder *coder = *coder_ptr;
 
-	// Set compression mode. We haven't validates the options yet,
-	// but it's OK here, since nothing bad happens with invalid
-	// options in the code below, and they will get rejected by
-	// lzma_lzma_encoder_reset() call at the end of this function.
+	// Set compression mode. Note that we haven't validated the options
+	// yet. Invalid options will get rejected by lzma_lzma_encoder_reset()
+	// call at the end of this function.
 	switch (options->mode) {
 		case LZMA_MODE_FAST:
 			coder->fast_mode = true;
@@ -573,6 +572,18 @@ lzma_lzma_encoder_create(void **coder_ptr,
 
 			// Set dist_table_size.
 			// Round the dictionary size up to next 2^n.
+			//
+			// Currently the maximum encoder dictionary size
+			// is 1.5 GiB due to lz_encoder.c and here we need
+			// to be below 2 GiB to make the rounded up value
+			// fit in an uint32_t and avoid an infite while-loop
+			// (and undefined behavior due to a too large shift).
+			// So do the same check as in LZ encoder,
+			// limiting to 1.5 GiB.
+			if (options->dict_size > (UINT32_C(1) << 30)
+					+ (UINT32_C(1) << 29))
+				return LZMA_OPTIONS_ERROR;
+
 			uint32_t log_size = 0;
 			while ((UINT32_C(1) << log_size) < options->dict_size)
 				++log_size;

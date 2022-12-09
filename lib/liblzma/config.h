@@ -256,8 +256,11 @@
 /* Define to 1 if `st_uatime' is a member of `struct stat'. */
 /* #undef HAVE_STRUCT_STAT_ST_UATIME */
 
-/* Define to 1 to if GNU/Linux-specific details are wanted for symbol
-   versioning. This must be used together with liblzma_linux.map. */
+/* Define to 1 to if GNU/Linux-specific details are unconditionally wanted for
+   symbol versioning. Define to 2 to if these are wanted only if also PIC is
+   defined (allows building both shared and static liblzma at the same time
+   with Libtool if neither --with-pic nor --without-pic is used). This define
+   must be used together with liblzma_linux.map. */
 /* #undef HAVE_SYMBOL_VERSIONS_LINUX */
 
 /* Define to 1 if you have the <sys/byteorder.h> header file. */
@@ -343,13 +346,13 @@
 #define PACKAGE "xz"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+#define PACKAGE_BUGREPORT "xz@tukaani.org"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "XZ Utils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "XZ Utils 5.2.8"
+#define PACKAGE_STRING "XZ Utils 5.2.9"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "xz"
@@ -358,7 +361,7 @@
 #define PACKAGE_URL "https://tukaani.org/xz/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.2.8"
+#define PACKAGE_VERSION "5.2.9"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -519,7 +522,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.2.8"
+#define VERSION "5.2.9"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

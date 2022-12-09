@@ -57,7 +57,7 @@ extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
  * If the hardware supports more than one thread per CPU core, the number
  * of hardware threads is returned if that information is available.
  *
- * \brief       On success, the number of available CPU threads or cores is
+ * \return      On success, the number of available CPU threads or cores is
  *              returned. If this information isn't available or an error
  *              occurs, zero is returned.
  */
