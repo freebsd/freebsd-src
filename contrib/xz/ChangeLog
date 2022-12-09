@@ -1,3 +1,198 @@
+commit d8a898eb9974683bc725c49ec76722f9a8758f48
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-30 18:33:05 +0200
+
+    Bump version and soname for 5.2.9.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit efd4430e21f798e198a6ee8a368a79065139eb54
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-30 18:31:16 +0200
+
+    Add NEWS for 5.2.9.
+
+ NEWS | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+commit 2dc1bc97a562ef4d4134c8df4d344d0f403428b8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-30 18:08:34 +0200
+
+    Change the bug report address.
+    
+    It forwards to me and Jia Tan.
+    
+    Also update the IRC reference in README as #tukaani was moved
+    to Libera Chat long ago.
+
+ CMakeLists.txt             |  2 +-
+ README                     | 11 +++++------
+ configure.ac               |  2 +-
+ dos/config.h               |  2 +-
+ windows/README-Windows.txt |  2 +-
+ 5 files changed, 9 insertions(+), 10 deletions(-)
+
+commit fb13a234d9def06cbe2b8ed88ece7db0c6d5c39f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-30 17:38:32 +0200
+
+    Update to HTTPS URLs in AUTHORS.
+
+ AUTHORS | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 841448e36d4455d39ff1e1115843360934e7a507
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-27 01:03:16 +0200
+
+    liblzma: Remove two FIXME comments.
+
+ src/liblzma/common/filter_encoder.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit b61da00c7f535bd48930a878efdf6843d804983e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-24 14:52:44 +0200
+
+    Build: Don't put GNU/Linux-specific symbol versions into static liblzma.
+    
+    It not only makes no sense to put symbol versions into a static library
+    but it can also cause breakage.
+    
+    By default Libtool #defines PIC if building a shared library and
+    doesn't define it for static libraries. This is documented in the
+    Libtool manual. It can be overriden using --with-pic or --without-pic.
+    configure.ac detects if --with-pic or --without-pic is used and then
+    gives an error if neither --disable-shared nor --disable-static was
+    used at the same time. Thus, in normal situations it works to build
+    both shared and static library at the same time on GNU/Linux,
+    only --with-pic or --without-pic requires that only one type of
+    library is built.
+    
+    Thanks to John Paul Adrian Glaubitz from Debian for reporting
+    the problem that occurred on ia64:
+    https://www.mail-archive.com/xz-devel@tukaani.org/msg00610.html
+
+ CMakeLists.txt              |   5 +-
+ configure.ac                | 143 +++++++++++++++++++++++++++++---------------
+ src/liblzma/common/common.h |  12 ++++
+ 3 files changed, 111 insertions(+), 49 deletions(-)
+
+commit 6c29793b3cac292b25801d011db6d8ccade50396
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-24 00:02:31 +0200
+
+    CMake: Don't use symbol versioning with static library.
+
+ CMakeLists.txt | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+commit 872623def5e3e5c7f9f14f366d908f3e012d1007
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-24 01:26:37 +0200
+
+    liblzma: Fix another invalid free() after memory allocation failure.
+    
+    This time it can happen when lzma_stream_encoder_mt() is used
+    to reinitialize an existing multi-threaded Stream encoder
+    and one of 1-4 tiny allocations in lzma_filters_copy() fail.
+    
+    It's very similar to the previous bug
+    10430fbf3820dafd4eafd38ec8be161a6978ed2b, happening with
+    an array of lzma_filter structures whose old options are freed
+    but the replacement never arrives due to a memory allocation
+    failure in lzma_filters_copy().
+
+ src/liblzma/common/stream_encoder_mt.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit b0f8d9293ca5a0a56964695a59a098c9d1e82b99
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-05-05 20:53:42 +0800
+
+    liblzma: Add support for LZMA_SYNC_FLUSH in the Block encoder.
+    
+    The documentation mentions that lzma_block_encoder() supports
+    LZMA_SYNC_FLUSH but it was never added to supported_actions[]
+    in the internal structure. Because of this, LZMA_SYNC_FLUSH could
+    not be used with the Block encoder unless it was the next coder
+    after something like stream_encoder() or stream_encoder_mt().
+
+ src/liblzma/common/block_encoder.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 6997e0b5e2339025646cfaec13a3317fb340729b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-23 21:55:22 +0200
+
+    liblzma: Add lzma_attr_warn_unused_result to lzma_filters_copy().
+
+ src/liblzma/api/lzma/filter.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit f94a3e34603c56c55777056bb5412bfd0e948f0b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-23 21:26:21 +0200
+
+    liblzma: Fix invalid free() after memory allocation failure.
+    
+    The bug was in the single-threaded .xz Stream encoder
+    in the code that is used for both re-initialization and for
+    lzma_filters_update(). To trigger it, an application had
+    to either re-initialize an existing encoder instance with
+    lzma_stream_encoder() or use lzma_filters_update(), and
+    then one of the 1-4 tiny allocations in lzma_filters_copy()
+    (called from stream_encoder_update()) must fail. An error
+    was correctly reported but the encoder state was corrupted.
+    
+    This is related to the recent fix in
+    f8ee61e74eb40600445fdb601c374d582e1e9c8a which is good but
+    it wasn't enough to fix the main problem in stream_encoder.c.
+
+ src/liblzma/common/stream_encoder.c | 39 +++++++++++++++++++++++++++++--------
+ 1 file changed, 31 insertions(+), 8 deletions(-)
+
+commit 8309385b444bce23e56256e21fb008a170434008
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-22 16:37:15 +0200
+
+    liblzma: Fix language in a comment.
+
+ src/liblzma/common/stream_encoder.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 5fecba6022cbbeed8103b49d79b2fb36086be72d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-22 11:20:17 +0200
+
+    liblzma: Fix infinite loop in LZMA encoder init with dict_size >= 2 GiB.
+    
+    The encoder doesn't support dictionary sizes larger than 1536 MiB.
+    This is validated, for example, when calculating the memory usage
+    via lzma_raw_encoder_memusage(). It is also enforced by the LZ
+    part of the encoder initialization. However, LZMA encoder with
+    LZMA_MODE_NORMAL did an unsafe calculation with dict_size before
+    such validation and that results in an infinite loop if dict_size
+    was 2 << 30 or greater.
+
+ src/liblzma/lzma/lzma_encoder.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+commit 1946b2b141d8b12c9325ba48d3a04ad8e8206750
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-11-21 13:02:33 +0200
+
+    liblzma: Fix two Doxygen commands in the API headers.
+    
+    These were caught by clang -Wdocumentation.
+
+ src/liblzma/api/lzma/hardware.h   | 2 +-
+ src/liblzma/api/lzma/index_hash.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
 commit 5476089d9c42b9b04e92b80e1800b384a98265cb
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2022-11-13 19:58:47 +0200

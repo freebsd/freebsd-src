@@ -120,7 +120,8 @@ extern LZMA_API(lzma_bool) lzma_filter_decoder_is_supported(lzma_vli id)
  */
 extern LZMA_API(lzma_ret) lzma_filters_copy(
 		const lzma_filter *src, lzma_filter *dest,
-		const lzma_allocator *allocator) lzma_nothrow;
+		const lzma_allocator *allocator)
+		lzma_nothrow lzma_attr_warn_unused_result;
 
 
 /**
