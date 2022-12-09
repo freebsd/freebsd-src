@@ -129,6 +129,9 @@ typedef struct ifnet * if_t;
 typedef	void (*if_start_fn_t)(if_t);
 typedef	int (*if_ioctl_fn_t)(if_t, u_long, caddr_t);
 typedef	void (*if_init_fn_t)(void *);
+typedef	void (*if_input_fn_t)(struct ifnet *, struct mbuf *);
+typedef	int (*if_output_fn_t)
+    (struct ifnet *, struct mbuf *, const struct sockaddr *, struct route *);
 typedef void (*if_qflush_fn_t)(if_t);
 typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
 typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
@@ -402,11 +405,8 @@ struct ifnet {
 	struct	netmap_adapter *if_netmap; /* netmap(4) softc */
 
 	/* Various procedures of the layer2 encapsulation and drivers. */
-	int	(*if_output)		/* output routine (enqueue) */
-		(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		     struct route *);
-	void	(*if_input)		/* input routine (from h/w driver) */
-		(struct ifnet *, struct mbuf *);
+	if_output_fn_t if_output;	/* output routine (enqueue) */
+	if_input_fn_t if_input;		/* input routine (from h/w driver) */
 	struct mbuf *(*if_bridge_input)(struct ifnet *, struct mbuf *);
 	int	(*if_bridge_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
@@ -476,9 +476,6 @@ struct ifnet {
 	 */
 	int	if_ispare[4];		/* general use */
 };
-
-/* for compatibility with other BSDs */
-#define	if_name(ifp)	((ifp)->if_xname)
 
 #define	IF_NODOM	255
 /*
@@ -730,44 +727,51 @@ void	if_inc_counter(struct ifnet *, ift_counter, int64_t);
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
 
 uint64_t if_setbaudrate(if_t ifp, uint64_t baudrate);
-uint64_t if_getbaudrate(if_t ifp);
+uint64_t if_getbaudrate(const if_t ifp);
 int if_setcapabilities(if_t ifp, int capabilities);
 int if_setcapabilitiesbit(if_t ifp, int setbit, int clearbit);
-int if_getcapabilities(if_t ifp);
+int if_getcapabilities(const if_t ifp);
 int if_togglecapenable(if_t ifp, int togglecap);
 int if_setcapenable(if_t ifp, int capenable);
 int if_setcapenablebit(if_t ifp, int setcap, int clearcap);
-int if_getcapenable(if_t ifp);
-const char *if_getdname(if_t ifp);
+int if_getcapenable(const if_t ifp);
+int if_getdunit(const if_t ifp);
+int if_getindex(const if_t ifp);
+const char *if_getdname(const if_t ifp);
+void if_setdname(if_t ifp, const char *name);
+const char *if_name(if_t ifp);
+int if_setname(if_t ifp, const char *name);
 void if_setdescr(if_t ifp, char *descrbuf);
 char *if_allocdescr(size_t sz, int malloc_flag);
 void if_freedescr(char *descrbuf);
+int if_getalloctype(const if_t ifp);
 int if_setdev(if_t ifp, void *dev);
 int if_setdrvflagbits(if_t ifp, int if_setflags, int clear_flags);
-int if_getdrvflags(if_t ifp);
+int if_getdrvflags(const if_t ifp);
 int if_setdrvflags(if_t ifp, int flags);
 int if_clearhwassist(if_t ifp);
 int if_sethwassistbits(if_t ifp, int toset, int toclear);
 int if_sethwassist(if_t ifp, int hwassist_bit);
-int if_gethwassist(if_t ifp);
+int if_gethwassist(const if_t ifp);
+int if_togglehwassist(if_t ifp, int toggle_bits);
 int if_setsoftc(if_t ifp, void *softc);
 void *if_getsoftc(if_t ifp);
 int if_setflags(if_t ifp, int flags);
-int if_gethwaddr(if_t ifp, struct ifreq *);
+int if_gethwaddr(const if_t ifp, struct ifreq *);
 int if_setmtu(if_t ifp, int mtu);
-int if_getmtu(if_t ifp);
-int if_getmtu_family(if_t ifp, int family);
+int if_getmtu(const if_t ifp);
+int if_getmtu_family(const if_t ifp, int family);
 int if_setflagbits(if_t ifp, int set, int clear);
-int if_getflags(if_t ifp);
+int if_getflags(const if_t ifp);
 int if_sendq_empty(if_t ifp);
 int if_setsendqready(if_t ifp);
 int if_setsendqlen(if_t ifp, int tx_desc_count);
 int if_sethwtsomax(if_t ifp, u_int if_hw_tsomax);
 int if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount);
 int if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize);
-u_int if_gethwtsomax(if_t ifp);
-u_int if_gethwtsomaxsegcount(if_t ifp);
-u_int if_gethwtsomaxsegsize(if_t ifp);
+u_int if_gethwtsomax(const if_t ifp);
+u_int if_gethwtsomaxsegcount(const if_t ifp);
+u_int if_gethwtsomaxsegsize(const if_t ifp);
 int if_input(if_t ifp, struct mbuf* sendmp);
 int if_sendq_prepend(if_t ifp, struct mbuf *m);
 struct mbuf *if_dequeue(if_t ifp);
@@ -776,11 +780,13 @@ void if_setrcvif(struct mbuf *m, if_t ifp);
 void if_setvtag(struct mbuf *m, u_int16_t tag);
 u_int16_t if_getvtag(struct mbuf *m);
 int if_vlantrunkinuse(if_t ifp);
-caddr_t if_getlladdr(if_t ifp);
+caddr_t if_getlladdr(const if_t ifp);
 void *if_gethandle(u_char);
 void if_bpfmtap(if_t ifp, struct mbuf *m);
 void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
+int if_transmit(if_t ifp, struct mbuf *m);
+int if_init(if_t ifp);
 
 /*
  * Traversing through interface address lists.
@@ -792,16 +798,22 @@ u_int if_foreach_llmaddr(if_t, iflladdr_cb_t, void *);
 u_int if_lladdr_count(if_t);
 u_int if_llmaddr_count(if_t);
 
-int if_getamcount(if_t ifp);
-struct ifaddr * if_getifaddr(if_t ifp);
+int if_getamcount(const if_t ifp);
+struct ifaddr * if_getifaddr(const if_t ifp);
+typedef u_int if_addr_cb_t(void *, struct ifaddr *, u_int);
+u_int if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg);
 
 /* Functions */
-void if_setinitfn(if_t ifp, void (*)(void *));
-void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
+void if_setinitfn(if_t ifp, if_init_fn_t);
+void if_setinputfn(if_t ifp, if_input_fn_t);
+void if_setioctlfn(if_t ifp, if_ioctl_fn_t);
+void if_setoutputfn(if_t ifp, int(*)
+    (if_t, struct mbuf *, const struct sockaddr *, struct route *));
 void if_setstartfn(if_t ifp, void (*)(if_t));
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
 void if_setgetcounterfn(if_t ifp, if_get_counter_t);
+void if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t);
 
 /* TSO */
 void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);
