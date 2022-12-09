@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 static void hostcons_probe(struct console *cp);
 static int hostcons_init(int arg);
 static void hostcons_putchar(int c);
-static int hostcons_getchar();
-static int hostcons_poll();
+static int hostcons_getchar(void);
+static int hostcons_poll(void);
 
 struct console hostconsole = {
 	"host",
@@ -79,7 +79,7 @@ hostcons_putchar(int c)
 }
 
 static int
-hostcons_getchar()
+hostcons_getchar(void)
 {
 	uint8_t ch;
 	int rv;
@@ -91,7 +91,7 @@ hostcons_getchar()
 }
 
 static int
-hostcons_poll()
+hostcons_poll(void)
 {
 	struct host_timeval tv = {0,0};
 	long fds = 1 << 0;
