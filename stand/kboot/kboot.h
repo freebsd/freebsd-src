@@ -9,6 +9,9 @@
 
 #define DEVT_HOSTDISK 1234
 
+bool has_acpi(void);
+vm_offset_t acpi_rsdp(void);
+
 void do_init(void);
 
 extern const char *hostfs_root;
