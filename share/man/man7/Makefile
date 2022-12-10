@@ -35,6 +35,7 @@ MAN=	arch.7 \
 	tuning.7
 
 MLINKS=	intro.7 miscellaneous.7
+MLINKS+= growfs.7 growfs_fstab.7
 MLINKS+= security.7 securelevel.7
 MLINKS+= c99.7 c.7
 MLINKS+= c99.7 c78.7
