@@ -1612,6 +1612,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * invocation.
 			 */
 			if (rsym.st_shndx != SHN_ABS) {
+				rsym.st_info = GELF_ST_INFO(STB_WEAK, STT_FUNC);
 				rsym.st_shndx = SHN_ABS;
 				(void) gelf_update_sym(data_sym, ndx, &rsym);
 			}
