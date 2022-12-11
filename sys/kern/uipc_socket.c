@@ -252,13 +252,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
 
 /*
- * accept_mtx locks down per-socket fields relating to accept queues.  See
- * socketvar.h for an annotation of the protected fields of struct socket.
- */
-struct mtx accept_mtx;
-MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
-
-/*
  * so_global_mtx protects so_gencnt, numopensockets, and the per-socket
  * so_gencnt field.
  */
