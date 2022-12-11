@@ -509,16 +509,13 @@ do {									\
 	}
 
 #define PICKUP_GIANT()							\
-	PARTIAL_PICKUP_GIANT();						\
-} while (0)
-
-#define PARTIAL_PICKUP_GIANT()						\
 	mtx_assert(&Giant, MA_NOTOWNED);				\
 	if (__predict_false(_giantcnt > 0)) {				\
 		while (_giantcnt--)					\
 			mtx_lock(&Giant);				\
 		WITNESS_RESTORE(&Giant.lock_object, Giant);		\
-	}
+	}								\
+} while (0)
 #endif
 
 struct mtx_args {
