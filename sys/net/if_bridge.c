@@ -2028,8 +2028,13 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 
 		M_ASSERTPKTHDR(m); /* We shouldn't transmit mbuf without pkthdr */
 		if ((err = dst_ifp->if_transmit(dst_ifp, m))) {
-			m_freem(m0);
-			if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
+			int n;
+
+			for (m = m0, n = 1; m != NULL; m = m0, n++) {
+				m0 = m->m_nextpkt;
+				m_freem(m);
+			}
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, n);
 			break;
 		}
 
