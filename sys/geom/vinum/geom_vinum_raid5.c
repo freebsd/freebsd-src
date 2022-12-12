@@ -605,7 +605,7 @@ gv_raid5_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
 	/* The number of the subdisk containing the parity stripe. */
 	psd = sdcount - 1 - ( boff / (p->stripesize * (sdcount - 1))) %
 	    sdcount;
-	KASSERT(psdno >= 0, ("gv_raid5_offset: psdno < 0"));
+	KASSERT(psd >= 0, ("gv_raid5_offset: psdno < 0"));
 
 	/* Offset of the start address from the start of the stripe. */
 	stripeoff = boff % (p->stripesize * (sdcount - 1));
@@ -613,7 +613,7 @@ gv_raid5_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
 
 	/* The number of the subdisk where the stripe resides. */
 	sd = stripeoff / p->stripesize;
-	KASSERT(sdno >= 0, ("gv_raid5_offset: sdno < 0"));
+	KASSERT(sd >= 0, ("gv_raid5_offset: sdno < 0"));
 
 	/* At or past parity subdisk. */
 	if (sd >= psd)
