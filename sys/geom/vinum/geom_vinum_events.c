@@ -40,6 +40,8 @@
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 
+static bool deprecation_printed;
+
 void
 gv_post_event(struct gv_softc *sc, int event, void *arg1, void *arg2,
     intmax_t arg3, intmax_t arg4)
@@ -179,6 +181,13 @@ gv_drive_tasted(struct gv_softc *sc, struct g_provider *pp)
 
 	gv_setup_objects(sc);
 	gv_set_drive_state(d, GV_DRIVE_UP, 0);
+
+	/* Emit deprecation notice. */
+	if (!deprecation_printed) {
+		gone_in(15, "gvinum volume manager");
+		deprecation_printed = true;
+	}
+	G_VINUM_DEBUG(1, "drive '%s' relies on deprecated gvinum", d->name);
 
 	return;
 
