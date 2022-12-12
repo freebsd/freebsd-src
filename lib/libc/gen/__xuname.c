@@ -127,11 +127,11 @@ __xuname(int namesize, void *namebuf)
 	}
 	q += namesize;
 
-	if ((p = getenv("UNAME_p")))
+	if ((p = getenv("UNAME_m")))
 		strlcpy(q, p, namesize);
 	else {
 		mib[0] = CTL_HW;
-		mib[1] = HW_MACHINE_ARCH;
+		mib[1] = HW_MACHINE;
 		len = namesize;
 		oerrno = errno;
 		if (sysctl(mib, 2, q, &len, NULL, 0) == -1) {
