@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2022
+.Dd December 12, 2022
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -164,6 +164,8 @@ STRIPE
 .It
 UNION
 .It
+VINUM (deprecated)
+.It
 VIRSTOR
 .El
 .Sh ENVIRONMENT
@@ -213,6 +215,7 @@ geom md unload
 .Xr gshsec 8 ,
 .Xr gstripe 8 ,
 .Xr gunion 8 ,
+.Xr gvinum 8 ,
 .Xr gvirstor 8
 .Sh HISTORY
 The
