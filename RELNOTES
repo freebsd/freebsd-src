@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4a30d7bb373c,d670a8f7c596,af01b4722577,4e240e55d818:
+	The growfs(7) script can now add a swap partition at the end of
+	the expansion area, and does so by default if there is no existing
+	swap.  See growfs(7).
+
 86edb11e7491:
 	llvm-objump is now always installed as objdump.
 
