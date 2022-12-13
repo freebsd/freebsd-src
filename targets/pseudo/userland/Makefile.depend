@@ -784,7 +784,6 @@ DIRDEPS.i386= \
 	sbin/bsdlabel \
 	sbin/fdisk \
 	sbin/nvmecontrol \
-	sbin/sconfig \
 	usr.sbin/apm \
 	usr.sbin/apmd \
 	usr.sbin/btxld \

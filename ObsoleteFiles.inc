@@ -53,8 +53,10 @@
 # done
 
 # 20221213: remove sync serial drivers and utilities
+OLD_FILES+=sbin/sconfig
 OLD_FILES+=usr/share/man/man4/ce.4
 OLD_FILES+=usr/share/man/man4/cp.4
+OLD_FILES+=usr/share/man/man8/sconfig.8.gz
 
 # 20221202: remove trpt(8)
 OLD_FILES+=usr/sbin/trpt
