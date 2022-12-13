@@ -612,9 +612,11 @@ lzip_tail(struct archive_read_filter *self)
 	/* Check the crc32 value of the uncompressed data of the current
 	 * member */
 	if (state->crc32 != archive_le32dec(f)) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Lzip: CRC32 error");
 		return (ARCHIVE_FAILED);
+#endif
 	}
 
 	/* Check the uncompressed size of the current member */

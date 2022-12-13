@@ -283,7 +283,9 @@ consume_header(struct archive_read_filter *self)
 	else
 		checksum = adler32(adler32(0, NULL, 0), p, len);
 	if (archive_be32dec(p + len) != checksum)
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		goto corrupted;
+#endif
 	__archive_read_filter_consume(self->upstream, len + 4);
 	if (flags & EXTRA_FIELD) {
 		/* Skip extra field */
