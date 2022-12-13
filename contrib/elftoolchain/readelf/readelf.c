@@ -3263,8 +3263,7 @@ dump_symtab(struct readelf *re, int i)
 		return;
 	if (!get_ent_count(s, &len))
 		return;
-	printf("Symbol table (%s)", s->name);
-	printf(" contains %d entries:\n", len);
+	printf("\nSymbol table '%s' contains %d entries:\n", s->name, len);
 	printf("%7s%9s%14s%5s%8s%6s%9s%5s\n", "Num:", "Value", "Size", "Type",
 	    "Bind", "Vis", "Ndx", "Name");
 
