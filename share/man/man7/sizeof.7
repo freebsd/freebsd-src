@@ -34,17 +34,38 @@ operator
 .br
 .Nm Vt expression
 .Sh DESCRIPTION
-The size of primitive data types in C may differ
+The
+.Nm
+operator yields the size of its operand.
+The
+.Nm
+operator cannot be applied to incomplete types and expressions
+with incomplete types (e.g.
+.Vt void ,
+or forward-defined
+.Vt struct foo ),
+and function types.
+.Pp
+The size of primitive (non-derived) data types in C may differ
 across hardware platforms and implementations.
+They are defined by corresponding Application Binary Interface (ABI)
+specifications, see
+.Xr arch 7
+for details about ABI used by
+.Fx .
 It may be necessary or useful for a program to be able
-to determine the storage size of a data type or object.
+to determine the storage size of a data type or object
+to account for the platform specifics.
 .Pp
 The unary
 .Nm
 operator yields the storage size of an expression or
 data type in
-.Em char sized units .
-As a result, 'sizeof(char)' is always guaranteed to be 1.
+.Em char sized units
+(C language bytes).
+As a result,
+.Ql sizeof(char)
+is always guaranteed to be 1.
 (The number of bits per
 .Vt char
 is given by the
@@ -72,8 +93,7 @@ on an ILP32 vs. an LP64 system:
 .Pp
 When applied to a simple variable or data type,
 .Nm
-returns the storage size of the data type of the
-object:
+returns the storage size of the data type of the object:
 .Bl -column -offset indent \
     ".Li sizeof(struct flex)" ".Sy Result (ILP32)" ".Sy Result (LP64)"
 .It Sy Object or type \
@@ -128,7 +148,7 @@ platforms, as they are based on character units.
 .Pp
 When applied to a struct or union,
 .Nm
-returns the total number of units in the object,
+returns the total number of bytes in the object,
 including any internal or trailing padding used to
 align the object in memory.
 This result may thus be larger than if the storage
@@ -251,8 +271,10 @@ if ((buf = malloc(BUFSIZ)) == NULL) {
 .Ed
 .Pp
 In that case, the operator will return the storage
-size of the pointer ('sizeof(char *)'), not the
-allocated memory!
+size of the pointer (
+.Ql sizeof(char *)
+), not the
+allocated memory.
 .Pp
 .Nm
 determines the
