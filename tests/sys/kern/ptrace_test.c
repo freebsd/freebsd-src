@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/procctl.h>
 #include <sys/procdesc.h>
-#define	_WANT_MIPS_REGNUM
 #include <sys/ptrace.h>
 #include <sys/procfs.h>
 #include <sys/queue.h>
