@@ -1717,7 +1717,7 @@ build_pax_attribute_name(char *dest, const char *src)
 	 * to having clients override it.
 	 */
 #if HAVE_GETPID && 0  /* Disable this for now; see above comment. */
-	sprintf(buff, "PaxHeader.%d", getpid());
+	snprintf(buff, sizeof(buff), "PaxHeader.%d", getpid());
 #else
 	/* If the platform can't fetch the pid, don't include it. */
 	strcpy(buff, "PaxHeader");

@@ -74,9 +74,16 @@ typedef mbedtls_md_context_t archive_hmac_sha1_ctx;
 typedef	struct hmac_sha1_ctx archive_hmac_sha1_ctx;
 
 #elif defined(HAVE_LIBCRYPTO)
+#include <openssl/opensslv.h>
+#include <openssl/hmac.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+typedef EVP_MAC_CTX *archive_hmac_sha1_ctx;
+
+#else
 #include "archive_openssl_hmac_private.h"
 
 typedef	HMAC_CTX* archive_hmac_sha1_ctx;
+#endif
 
 #else
 
