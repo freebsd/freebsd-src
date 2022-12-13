@@ -320,6 +320,7 @@ cleanup_substitution(struct bsdtar *bsdtar)
 	while ((rule = subst->first_rule) != NULL) {
 		subst->first_rule = rule->next;
 		free(rule->result);
+		regfree(&rule->re);
 		free(rule);
 	}
 	free(subst);

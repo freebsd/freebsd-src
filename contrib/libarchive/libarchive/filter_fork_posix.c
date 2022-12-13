@@ -76,7 +76,7 @@ int
 __archive_create_child(const char *cmd, int *child_stdin, int *child_stdout,
 		pid_t *out_child)
 {
-	pid_t child;
+	pid_t child = -1;
 	int stdin_pipe[2], stdout_pipe[2], tmp;
 #if HAVE_POSIX_SPAWNP
 	posix_spawn_file_actions_t actions;

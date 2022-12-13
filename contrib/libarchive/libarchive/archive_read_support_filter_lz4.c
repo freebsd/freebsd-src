@@ -450,7 +450,9 @@ lz4_filter_read_descriptor(struct archive_read_filter *self)
 	chsum = (chsum >> 8) & 0xff;
 	chsum_verifier = read_buf[descriptor_bytes-1] & 0xff;
 	if (chsum != chsum_verifier)
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		goto malformed_error;
+#endif
 
 	__archive_read_filter_consume(self->upstream, descriptor_bytes);
 
@@ -521,7 +523,9 @@ lz4_filter_read_data_block(struct archive_read_filter *self, const void **p)
 		unsigned int chsum_block =
 		    archive_le32dec(read_buf + 4 + compressed_size);
 		if (chsum != chsum_block)
+#ifndef DONT_FAIL_ON_CRC_ERROR
 			goto malformed_error;
+#endif
 	}
 
 
@@ -652,10 +656,12 @@ lz4_filter_read_default_stream(struct archive_read_filter *self, const void **p)
 			    state->xxh32_state);
 			state->xxh32_state = NULL;
 			if (checksum != checksum_stream) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 				archive_set_error(&self->archive->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "lz4 stream checksum error");
 				return (ARCHIVE_FATAL);
+#endif
 			}
 		} else if (ret > 0)
 			__archive_xxhash.XXH32_update(state->xxh32_state,

@@ -996,7 +996,7 @@ archive_read_format_cab_read_header(struct archive_read *a,
 		cab->end_of_entry_cleanup = cab->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
-	sprintf(cab->format_name, "CAB %d.%d (%s)",
+	snprintf(cab->format_name, sizeof(cab->format_name), "CAB %d.%d (%s)",
 	    hd->major, hd->minor, cab->entry_cffolder->compname);
 	a->archive.archive_format_name = cab->format_name;
 
@@ -1134,7 +1134,7 @@ cab_checksum_update(struct archive_read *a, size_t bytes)
 	}
 	if (sumbytes) {
 		int odd = sumbytes & 3;
-		if (sumbytes - odd > 0)
+		if ((int)(sumbytes - odd) > 0)
 			cfdata->sum_calculated = cab_checksum_cfdata_4(
 			    p, sumbytes - odd, cfdata->sum_calculated);
 		if (odd)
@@ -1171,12 +1171,14 @@ cab_checksum_finish(struct archive_read *a)
 	cfdata->sum_calculated = cab_checksum_cfdata(
 	    cfdata->memimage + CFDATA_cbData, l, cfdata->sum_calculated);
 	if (cfdata->sum_calculated != cfdata->sum) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Checksum error CFDATA[%d] %" PRIx32 ":%" PRIx32 " in %d bytes",
 		    cab->entry_cffolder->cfdata_index -1,
 		    cfdata->sum, cfdata->sum_calculated,
 		    cfdata->compressed_size);
 		return (ARCHIVE_FAILED);
+#endif
 	}
 	return (ARCHIVE_OK);
 }

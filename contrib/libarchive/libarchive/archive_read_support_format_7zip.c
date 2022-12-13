@@ -776,7 +776,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	}
 
 	/* Set up a more descriptive format name. */
-	sprintf(zip->format_name, "7-Zip");
+	snprintf(zip->format_name, sizeof(zip->format_name), "7-Zip");
 	a->archive.archive_format_name = zip->format_name;
 
 	return (ret);
@@ -2857,8 +2857,10 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	/* CRC check. */
 	if (crc32(0, (const unsigned char *)p + 12, 20)
 	    != archive_le32dec(p + 8)) {
+#ifdef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, -1, "Header CRC error");
 		return (ARCHIVE_FATAL);
+#endif
 	}
 
 	next_header_offset = archive_le64dec(p + 12);
@@ -2908,8 +2910,10 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 		/* Check the EncodedHeader CRC.*/
 		if (r == 0 && zip->header_crc32 != next_header_crc) {
 			archive_set_error(&a->archive, -1,
+#ifndef DONT_FAIL_ON_CRC_ERROR
 			    "Damaged 7-Zip archive");
 			r = -1;
+#endif
 		}
 		if (r == 0) {
 			if (zip->si.ci.folders[0].digest_defined)
@@ -2960,9 +2964,11 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 
 		/* Check the Header CRC.*/
 		if (check_header_crc && zip->header_crc32 != next_header_crc) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 			archive_set_error(&a->archive, -1,
 			    "Malformed 7-Zip archive");
 			return (ARCHIVE_FATAL);
+#endif
 		}
 		break;
 	default:

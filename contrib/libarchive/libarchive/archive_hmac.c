@@ -230,10 +230,23 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	OSSL_PARAM params[2];
+
+	EVP_MAC *mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
+	*ctx = EVP_MAC_CTX_new(mac);
+	if (*ctx == NULL)
+		return -1;
+	EVP_MAC_free(mac);
+	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA1", 0);
+	params[1] = OSSL_PARAM_construct_end();
+	EVP_MAC_init(*ctx, key, key_len, params);
+#else
 	*ctx = HMAC_CTX_new();
 	if (*ctx == NULL)
 		return -1;
 	HMAC_Init_ex(*ctx, key, key_len, EVP_sha1(), NULL);
+#endif
 	return 0;
 }
 
@@ -241,22 +254,38 @@ static void
 __hmac_sha1_update(archive_hmac_sha1_ctx *ctx, const uint8_t *data,
     size_t data_len)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	EVP_MAC_update(*ctx, data, data_len);
+#else
 	HMAC_Update(*ctx, data, data_len);
+#endif
 }
 
 static void
 __hmac_sha1_final(archive_hmac_sha1_ctx *ctx, uint8_t *out, size_t *out_len)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	size_t len = *out_len;
+#else
 	unsigned int len = (unsigned int)*out_len;
+#endif
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	EVP_MAC_final(*ctx, out, &len, *out_len);
+#else
 	HMAC_Final(*ctx, out, &len);
+#endif
 	*out_len = len;
 }
 
 static void
 __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	EVP_MAC_CTX_free(*ctx);
+#else
 	HMAC_CTX_free(*ctx);
+#endif
 	*ctx = NULL;
 }
 

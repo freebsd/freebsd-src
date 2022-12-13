@@ -59,7 +59,7 @@ DEFINE_TEST(test_write_filter_compress)
 	    archive_write_open_memory(a, buff, buffsize, &used));
 
 	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
+		snprintf(path, sizeof(path), "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_copy_pathname(ae, path);
 		archive_entry_set_size(ae, datasize);
@@ -83,7 +83,7 @@ DEFINE_TEST(test_write_filter_compress)
 
 
 	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
+		snprintf(path, sizeof(path), "file%03d", i);
 		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
 			break;
 		assertEqualString(path, archive_entry_pathname(ae));

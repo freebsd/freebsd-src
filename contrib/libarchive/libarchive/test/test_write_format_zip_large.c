@@ -309,7 +309,7 @@ verify_large_zip(struct archive *a, struct fileblocks *fileblocks)
 	for (i = 0; test_sizes[i] > 0; i++) {
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
-		sprintf(namebuff, "file_%d", i);
+		snprintf(namebuff, sizeof(namebuff), "file_%d", i);
 		assertEqualString(namebuff, archive_entry_pathname(ae));
 		assertEqualInt(test_sizes[i], archive_entry_size(ae));
 	}
@@ -359,7 +359,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	 */
 	for (i = 0; test_sizes[i] != 0; i++) {
 		assert((ae = archive_entry_new()) != NULL);
-		sprintf(namebuff, "file_%d", i);
+		snprintf(namebuff, sizeof(namebuff), "file_%d", i);
 		archive_entry_copy_pathname(ae, namebuff);
 		archive_entry_set_mode(ae, S_IFREG | 0755);
 		filesize = test_sizes[i];

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2020 Ben Wagner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,29 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_archive_api_feature)
+/*
+ * The pax size attribute can be used to override the size.
+ * It should be validated the same way the normal size is validated.
+ * The test data is fuzzer output from
+ * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=48467 .
+ */
+DEFINE_TEST(test_read_format_tar_invalid_pax_size)
 {
-	char buff[128];
-	const char *p;
+	/*
+	 * An archive that contains a PAX 'size' record with a large negative value.
+	 */
+	struct archive_entry *ae;
+	struct archive *a;
+	const char *refname = "test_read_format_tar_invalid_pax_size.tar";
 
-	/* This is the (hopefully) final versioning API. */
-	assertEqualInt(ARCHIVE_VERSION_NUMBER, archive_version_number());
-	snprintf(buff, sizeof(buff), "libarchive %d.%d.%d",
-	    archive_version_number() / 1000000,
-	    (archive_version_number() / 1000) % 1000,
-	    archive_version_number() % 1000);
-	failure("Version string is: %s, computed is: %s",
-	    archive_version_string(), buff);
-	assertEqualMem(buff, archive_version_string(), strlen(buff));
-	if (strlen(buff) < strlen(archive_version_string())) {
-		p = archive_version_string() + strlen(buff);
-		failure("Version string is: %s", archive_version_string());
-		if (p[0] == 'd'&& p[1] == 'e' && p[2] == 'v')
-			p += 3;
-		else {
-			assert(*p == 'a' || *p == 'b' || *p == 'c' || *p == 'd');
-			++p;
-		}
-		failure("Version string is: %s", archive_version_string());
-		assert(*p == '\0');
-	}
+	extract_reference_file(refname);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualInt(ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
+	/* This assert will pass a normal debug build without the pax size check. */
+	/* Run this test with `-fsanitize=undefined` to verify.                   */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

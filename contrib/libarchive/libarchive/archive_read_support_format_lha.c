@@ -739,7 +739,7 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	if (lha->directory || lha->compsize == 0)
 		lha->end_of_entry = 1;
 
-	sprintf(lha->format_name, "lha -%c%c%c-",
+	snprintf(lha->format_name, sizeof(lha->format_name), "lha -%c%c%c-",
 	    lha->method[0], lha->method[1], lha->method[2]);
 	a->archive.archive_format_name = lha->format_name;
 
@@ -1039,9 +1039,11 @@ lha_read_file_header_2(struct archive_read *a, struct lha *lha)
 	}
 
 	if (header_crc != lha->header_crc) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "LHa header CRC error");
 		return (ARCHIVE_FATAL);
+#endif
 	}
 	return (err);
 }
@@ -1107,9 +1109,11 @@ lha_read_file_header_3(struct archive_read *a, struct lha *lha)
 		return (err);
 
 	if (header_crc != lha->header_crc) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "LHa header CRC error");
 		return (ARCHIVE_FATAL);
+#endif
 	}
 	return (err);
 invalid:

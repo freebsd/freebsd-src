@@ -37,6 +37,7 @@ The top-level directory contains the following information files:
 * **configure** - configuration script, see INSTALL for details.  If your copy of the source lacks a `configure` script, you can try to construct it by running the script in `build/autogen.sh` (or use `cmake`).
 
 The following files in the top-level directory are used by the 'configure' script:
+
 * `Makefile.am`, `aclocal.m4`, `configure.ac` - used to build this distribution, only needed by maintainers
 * `Makefile.in`, `config.h.in` - templates used by configure script
 
@@ -71,6 +72,7 @@ know about any errors or omissions you find.
 ## Supported Formats
 
 Currently, the library automatically detects and reads the following formats:
+
   * Old V7 tar archives
   * POSIX ustar
   * GNU tar format (including GNU long filenames, long link names, and sparse files)
@@ -92,6 +94,7 @@ Currently, the library automatically detects and reads the following formats:
   * XAR archives
 
 The library also detects and handles any of the following before evaluating the archive:
+
   * uuencoded files
   * files with RPM wrapper
   * gzip compression
@@ -103,6 +106,7 @@ The library also detects and handles any of the following before evaluating the 
   * zstandard compression
 
 The library can create archives in any of the following formats:
+
   * POSIX ustar
   * POSIX pax interchange format
   * "restricted" pax format, which will create ustar archives except for
@@ -122,6 +126,7 @@ The library can create archives in any of the following formats:
   * XAR archives
 
 When creating archives, the result can be filtered with any of the following:
+
   * uuencode
   * gzip compression
   * bzip2 compression

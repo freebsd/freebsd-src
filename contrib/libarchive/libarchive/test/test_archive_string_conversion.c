@@ -847,6 +847,7 @@ test_archive_string_set_get(void)
 	assertEqualInt(0, archive_mstring_update_utf8(a, &mstr, "EEEEE---H"));
 	check_string(a, &mstr, sc, "EEEEE---H", L"EEEEE---H");
 
+        archive_mstring_clean(&mstr);
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 }

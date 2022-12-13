@@ -80,7 +80,7 @@ DEFINE_TEST(test_write_filter_lzma)
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, datasize);
 	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
+		snprintf(path, sizeof(path), "file%03d", i);
 		archive_entry_copy_pathname(ae, path);
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 		assertA(datasize
@@ -102,7 +102,7 @@ DEFINE_TEST(test_write_filter_lzma)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used1));
 		for (i = 0; i < 100; i++) {
-			sprintf(path, "file%03d", i);
+			snprintf(path, sizeof(path), "file%03d", i);
 			if (!assertEqualInt(ARCHIVE_OK,
 				archive_read_next_header(a, &ae)))
 				break;
@@ -132,7 +132,7 @@ DEFINE_TEST(test_write_filter_lzma)
 	    archive_write_set_filter_option(a, NULL, "compression-level", "9"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
+		snprintf(path, sizeof(path), "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_copy_pathname(ae, path);
 		archive_entry_set_size(ae, datasize);
@@ -156,7 +156,7 @@ DEFINE_TEST(test_write_filter_lzma)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used2));
 		for (i = 0; i < 100; i++) {
-			sprintf(path, "file%03d", i);
+			snprintf(path, sizeof(path), "file%03d", i);
 			failure("Trying to read %s", path);
 			if (!assertEqualIntA(a, ARCHIVE_OK,
 				archive_read_next_header(a, &ae)))
@@ -180,7 +180,7 @@ DEFINE_TEST(test_write_filter_lzma)
 	    archive_write_set_filter_option(a, NULL, "compression-level", "0"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {
-		sprintf(path, "file%03d", i);
+		snprintf(path, sizeof(path), "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
 		archive_entry_copy_pathname(ae, path);
 		archive_entry_set_size(ae, datasize);
@@ -214,7 +214,7 @@ DEFINE_TEST(test_write_filter_lzma)
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_open_memory(a, buff, used2));
 		for (i = 0; i < 100; i++) {
-			sprintf(path, "file%03d", i);
+			snprintf(path, sizeof(path), "file%03d", i);
 			if (!assertEqualInt(ARCHIVE_OK,
 				archive_read_next_header(a, &ae)))
 				break;
