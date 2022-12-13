@@ -253,8 +253,10 @@ is_sparse_supported(const char *path)
 #if defined(HAVE_LINUX_FIEMAP_H)
 	if (r < 0)
 		return (is_sparse_supported_fiemap(path));
-#endif
+	return (1);
+#else
 	return (r >= 0);
+#endif
 }
 
 #elif !defined(HAVE_LINUX_FIEMAP_H)
