@@ -82,7 +82,7 @@
 #define	_IOC_INVALID	(_IOC_VOID|_IOC_INOUT)	/* Never valid cmd value,
 						   use as filler */
 
-#else
+#elif !defined(_STANDALONE)
 
 #include <sys/cdefs.h>
 

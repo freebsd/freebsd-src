@@ -315,6 +315,7 @@ extern int	close(int);
 extern void	closeall(void);
 extern ssize_t	read(int, void *, size_t);
 extern ssize_t	write(int, const void *, size_t);
+extern int	ioctl(int, u_long, void *);
 extern struct	dirent *readdirfd(int);
 extern void	preload(int);
 
