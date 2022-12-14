@@ -1127,8 +1127,6 @@ relock:
 		}
 		if (error != 0)
 			goto unlock;
-		if ((tcnp->cn_flags & SAVESTART) == 0)
-			panic("msdosfs_rename: lost to startdir");
 	}
 
 	if (tip != NULL) {
