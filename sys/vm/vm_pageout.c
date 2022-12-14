@@ -1405,7 +1405,7 @@ vm_pageout_reinsert_inactive(struct scan_state *ss, struct vm_batchqueue *bq,
 	pq = ss->pq;
 
 	if (m != NULL) {
-		if (vm_batchqueue_insert(bq, m))
+		if (vm_batchqueue_insert(bq, m) != 0)
 			return;
 		vm_pagequeue_lock(pq);
 		delta += vm_pageout_reinsert_inactive_page(pq, marker, m);

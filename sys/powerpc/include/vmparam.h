@@ -263,7 +263,7 @@ extern	int vm_level_0_order;
  * memory.
  */
 #ifdef __powerpc64__
-#define	VM_BATCHQUEUE_SIZE	31
+#define	VM_BATCHQUEUE_SIZE	63
 #endif
 
 /*
