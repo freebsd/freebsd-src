@@ -3484,6 +3484,9 @@ fi
 # Set LC_ALL in order to avoid problems with character ranges like [A-Z].
 export LC_ALL=C
 
+# Clear environment variables that may affect operation of tools that we use.
+unset GREP_OPTIONS
+
 get_params $@
 for COMMAND in ${COMMANDS}; do
 	cmd_${COMMAND}
