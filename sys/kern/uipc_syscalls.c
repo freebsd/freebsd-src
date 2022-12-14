@@ -798,21 +798,7 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	error = sosend(so, mp->msg_name, &auio, 0, control, flags, td);
-	if (error != 0) {
-		if (auio.uio_resid != len &&
-		    (so->so_proto->pr_flags & PR_ATOMIC) == 0 &&
-		    (error == ERESTART || error == EINTR ||
-		    error == EWOULDBLOCK))
-			error = 0;
-		/* Generation of SIGPIPE can be controlled per socket */
-		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
-		    !(flags & MSG_NOSIGNAL)) {
-			PROC_LOCK(td->td_proc);
-			tdsignal(td, SIGPIPE);
-			PROC_UNLOCK(td->td_proc);
-		}
-	}
+	error = sousrsend(so, mp->msg_name, &auio, control, flags, NULL);
 	if (error == 0)
 		td->td_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE

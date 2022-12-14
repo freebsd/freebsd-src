@@ -145,13 +145,7 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	error = sosend(so, 0, uio, 0, 0, 0, uio->uio_td);
-	if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
-		PROC_LOCK(uio->uio_td->td_proc);
-		tdsignal(uio->uio_td, SIGPIPE);
-		PROC_UNLOCK(uio->uio_td->td_proc);
-	}
-	return (error);
+	return (sousrsend(so, NULL, uio, NULL, 0, NULL));
 }
 
 static int
@@ -646,15 +640,10 @@ retry:
 		error = mac_socket_check_send(fp->f_cred, so);
 		if (error == 0)
 #endif
-			error = sosend(so, NULL, job->uiop, NULL, NULL, flags,
-			    td);
+			error = sousrsend(so, NULL, job->uiop, NULL, flags,
+			    job->userproc);
 		if (td->td_ru.ru_msgsnd != ru_before)
 			job->msgsnd = 1;
-		if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
-			PROC_LOCK(job->userproc);
-			kern_psignal(job->userproc, SIGPIPE);
-			PROC_UNLOCK(job->userproc);
-		}
 	}
 
 	done += cnt - job->uiop->uio_resid;

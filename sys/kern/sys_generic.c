@@ -562,12 +562,16 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 		ktruio = cloneuio(auio);
 #endif
 	cnt = auio->uio_resid;
-	if ((error = fo_write(fp, auio, td->td_ucred, flags, td))) {
+	error = fo_write(fp, auio, td->td_ucred, flags, td);
+	/*
+	 * Socket layer is responsible for special error handling,
+	 * see sousrsend().
+	 */
+	if (error != 0 && fp->f_type != DTYPE_SOCKET) {
 		if (auio->uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
-		/* Socket layer is responsible for issuing SIGPIPE. */
-		if (fp->f_type != DTYPE_SOCKET && error == EPIPE) {
+		if (error == EPIPE) {
 			PROC_LOCK(td->td_proc);
 			tdsignal(td, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
