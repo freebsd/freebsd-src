@@ -147,16 +147,22 @@ nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser 
 	return (0);
 }
 
-int
-nl_parse_attrs(struct nlmsghdr *hdr, int hdrlen, struct nlattr_parser *ps, int pslen,
-    struct nl_pstate *npt, void *target)
+void
+nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len, struct nlattr_bmask *bm)
 {
-	int off = NLMSG_HDRLEN + NETLINK_ALIGN(hdrlen);
-	int len = hdr->nlmsg_len - off;
-	struct nlattr *nla_head = (struct nlattr *)((char *)hdr + off);
+	struct nlattr *nla = NULL;
 
-	return (nl_parse_attrs_raw(nla_head, len, ps, pslen, npt, target));
+	bzero(bm->mask, sizeof(bm->mask));
+
+	NLA_FOREACH(nla, nla_head, len) {
+		if (nla->nla_len < sizeof(struct nlattr))
+			return;
+		int nla_type = nla->nla_type & NLA_TYPE_MASK;
+		if (nla_type <= sizeof(bm->mask) * 8)
+			bm->mask[nla_type / 8] |= 1 << (nla_type % 8);
+	}
 }
+
 
 int
 nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)

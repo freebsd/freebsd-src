@@ -66,23 +66,30 @@ struct nl_parsed_link {
 	char		*ifla_group;
 	char		*ifla_ifname;
 	char		*ifla_cloner;
+	char		*ifla_ifalias;
 	struct nlattr	*ifla_idata;
 	unsigned short	ifi_type;
 	int		ifi_index;
 	uint32_t	ifla_mtu;
+	uint32_t	ifi_flags;
+	uint32_t	ifi_change;
 };
 
-typedef int rtnl_iface_create_f(struct nl_parsed_link *lattrs, struct nlpcb *nlp,
-    struct nl_pstate *npt);
-typedef int rtnl_iface_modify_f(struct nl_parsed_link *lattrs, struct nlpcb *nlp,
-    struct nl_pstate *npt);
+typedef int rtnl_iface_create_f(struct nl_parsed_link *lattrs,
+    const struct nlattr_bmask *bm, struct nlpcb *nlp, struct nl_pstate *npt);
+typedef int rtnl_iface_modify_f(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+    const struct nlattr_bmask *bm, struct nlpcb *nlp, struct nl_pstate *npt);
+typedef int rtnl_iface_dump_f(struct ifnet *ifp, struct nl_writer *nw);
 
 struct nl_cloner {
 	const char		*name;
 	rtnl_iface_create_f	*create_f;
 	rtnl_iface_modify_f	*modify_f;
+	rtnl_iface_dump_f	*dump_f;
 	SLIST_ENTRY(nl_cloner)	next;
 };
+
+extern struct nl_cloner	generic_cloner;
 
 void rtnl_ifaces_init(void);
 void rtnl_ifaces_destroy(void);
