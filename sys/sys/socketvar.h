@@ -506,6 +506,8 @@ void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags,
 	    struct thread *td);
+int	sousrsend(struct socket *so, struct sockaddr *addr, struct uio *uio,
+	    struct mbuf *control, int flags, struct proc *);
 int	sosend_dgram(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
