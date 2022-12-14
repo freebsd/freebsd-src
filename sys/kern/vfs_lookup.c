@@ -800,9 +800,6 @@ vfs_lookup_degenerate(struct nameidata *ndp, struct vnode *dp, int wantparent)
 
 	if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 		VOP_UNLOCK(dp);
-	/* XXX This should probably move to the top of function. */
-	if (cnp->cn_flags & SAVESTART)
-		panic("lookup: SAVESTART");
 	return (0);
 bad:
 	VOP_UNLOCK(dp);
@@ -1208,10 +1205,6 @@ unionlookup:
 		 * doesn't currently exist, leaving a pointer to the
 		 * (possibly locked) directory vnode in ndp->ni_dvp.
 		 */
-		if (cnp->cn_flags & SAVESTART) {
-			ndp->ni_startdir = ndp->ni_dvp;
-			VREF(ndp->ni_startdir);
-		}
 		goto success;
 	}
 
@@ -1365,10 +1358,6 @@ nextname:
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
 		error = EROFS;
 		goto bad2;
-	}
-	if (cnp->cn_flags & SAVESTART) {
-		ndp->ni_startdir = ndp->ni_dvp;
-		VREF(ndp->ni_startdir);
 	}
 	if (!wantparent) {
 		ni_dvp_unlocked = 2;
