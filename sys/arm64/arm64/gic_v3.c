@@ -631,7 +631,7 @@ arm_gic_v3_intr(void *arg)
 			/* Call EOI for all IPI before dispatch. */
 			gic_icc_write(EOIR1, (uint64_t)active_irq);
 #ifdef SMP
-			intr_ipi_dispatch(sgi_to_ipi[gi->gi_irq], tf);
+			intr_ipi_dispatch(sgi_to_ipi[gi->gi_irq]);
 #else
 			device_printf(sc->dev, "SGI %ju on UP system detected\n",
 			    (uintmax_t)(active_irq - GIC_FIRST_SGI));
