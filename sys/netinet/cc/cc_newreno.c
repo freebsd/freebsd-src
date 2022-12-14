@@ -460,8 +460,6 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 			nreno->beta = opt->val;
 			break;
 		case CC_NEWRENO_BETA_ECN:
-			if ((!V_cc_do_abe) && ((nreno->newreno_flags & CC_NEWRENO_BETA_ECN) == 0))
-				return (EACCES);
 			nreno->beta_ecn = opt->val;
 			nreno->newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
 			break;
@@ -472,12 +470,10 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 	case SOPT_GET:
 		switch (opt->name) {
 		case CC_NEWRENO_BETA:
-			opt->val = (nreno == NULL) ?
-			    V_newreno_beta : nreno->beta;
+			opt->val =  nreno->beta;
 			break;
 		case CC_NEWRENO_BETA_ECN:
-			opt->val = (nreno == NULL) ?
-			    V_newreno_beta_ecn : nreno->beta_ecn;
+			opt->val = nreno->beta_ecn;
 			break;
 		default:
 			return (ENOPROTOOPT);
