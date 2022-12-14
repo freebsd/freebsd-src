@@ -86,10 +86,6 @@ static u_char	tcp_outflags[TCP_NSTATES] = {
 };
 #endif
 
-#ifdef KPROF
-int	tcp_acounts[TCP_NSTATES][PRU_NREQ];
-#endif
-
 #ifdef	TCPSTATES
 static char const * const tcpstates[] = {
 	"CLOSED",	"LISTEN",	"SYN_SENT",	"SYN_RCVD",
