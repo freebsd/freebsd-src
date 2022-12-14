@@ -1009,10 +1009,6 @@ device		wg
 #
 # PF_DEFAULT_TO_DROP causes the default pf(4) rule to deny everything.
 #
-# TCPDEBUG enables code which keeps traces of the TCP state machine
-# for sockets with the SO_DEBUG option set, which can then be examined
-# using the trpt(8) utility.
-#
 # TCPPCAP enables code which keeps the last n packets sent and received
 # on a TCP socket.
 #
@@ -1037,7 +1033,6 @@ options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
-options 	TCPDEBUG
 options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK

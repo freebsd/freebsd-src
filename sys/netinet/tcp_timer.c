@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_tcpdebug.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -77,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
-#include <netinet/tcp_debug.h>
 
 int    tcp_persmin;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmin,
