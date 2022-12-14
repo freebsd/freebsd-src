@@ -56,21 +56,6 @@
 */
 enum { SECSPER400YEARS_FITS = SECSPERLYEAR <= INTMAX_MAX / 400 };
 
-#if !defined HAVE_GENERIC && defined __has_extension
-# if __has_extension(c_generic_selections)
-#  define HAVE_GENERIC 1
-# else
-#  define HAVE_GENERIC 0
-# endif
-#endif
-/* _Generic is buggy in pre-4.9 GCC.  */
-#if !defined HAVE_GENERIC && defined __GNUC__
-# define HAVE_GENERIC (4 < __GNUC__ + (9 <= __GNUC_MINOR__))
-#endif
-#ifndef HAVE_GENERIC
-# define HAVE_GENERIC (201112 <= __STDC_VERSION__)
-#endif
-
 #if HAVE_GETTEXT
 # include <locale.h> /* for setlocale */
 #endif /* HAVE_GETTEXT */
@@ -243,33 +228,56 @@ mktime_z(timezone_t tz, struct tm *tmp)
 static timezone_t
 tzalloc(char const *val)
 {
+# if HAVE_SETENV
+  if (setenv("TZ", val, 1) != 0) {
+    perror("setenv");
+    exit(EXIT_FAILURE);
+  }
+  tzset();
+  return NULL;
+# else
+  enum { TZeqlen = 3 };
+  static char const TZeq[TZeqlen] = "TZ=";
   static char **fakeenv;
-  char **env = fakeenv;
-  char *env0;
-  if (! env) {
-    char **e = environ;
-    int to;
+  static size_t fakeenv0size;
+  void *freeable = NULL;
+  char **env = fakeenv, **initial_environ;
+  size_t valsize = strlen(val) + 1;
+  if (fakeenv0size < valsize) {
+    char **e = environ, **to;
+    ptrdiff_t initial_nenvptrs;  /* Counting the trailing NULL pointer.  */
 
     while (*e++)
       continue;
-    env = xmalloc(sumsize(sizeof *environ,
-			  (e - environ) * sizeof *environ));
-    to = 1;
-    for (e = environ; (env[to] = *e); e++)
-      to += strncmp(*e, "TZ=", 3) != 0;
+    initial_nenvptrs = e - environ;
+    fakeenv0size = sumsize(valsize, valsize);
+    fakeenv0size = max(fakeenv0size, 64);
+    freeable = env;
+    fakeenv = env =
+      xmalloc(sumsize(sumsize(sizeof *environ,
+			      initial_nenvptrs * sizeof *environ),
+		      sumsize(TZeqlen, fakeenv0size)));
+    to = env + 1;
+    for (e = environ; (*to = *e); e++)
+      to += strncmp(*e, TZeq, TZeqlen) != 0;
+    env[0] = memcpy(to + 1, TZeq, TZeqlen);
   }
-  env0 = xmalloc(sumsize(sizeof "TZ=", strlen(val)));
-  env[0] = strcat(strcpy(env0, "TZ="), val);
-  environ = fakeenv = env;
+  memcpy(env[0] + TZeqlen, val, valsize);
+  initial_environ = environ;
+  environ = env;
   tzset();
-  return env;
+  free(freeable);
+  return initial_environ;
+# endif
 }
 
 static void
-tzfree(timezone_t env)
+tzfree(timezone_t initial_environ)
 {
-  environ = env + 1;
-  free(env[0]);
+# if !HAVE_SETENV
+  environ = initial_environ;
+  tzset();
+# endif
 }
 #endif /* ! USE_LOCALTIME_RZ */
 
@@ -281,9 +289,9 @@ gmtzinit(void)
   if (USE_LOCALTIME_RZ) {
     /* Try "GMT" first to find out whether this is one of the rare
        platforms where time_t counts leap seconds; this works due to
-       the "Link Etc/GMT GMT" line in the "etcetera" file.  If "GMT"
+       the "Zone GMT 0 - GMT" line in the "etcetera" file.  If "GMT"
        fails, fall back on "GMT0" which might be similar due to the
-       "Link Etc/GMT GMT0" line in the "backward" file, and which
+       "Link GMT GMT0" line in the "backward" file, and which
        should work on all POSIX platforms.  The rest of zdump does not
        use the "GMT" abbreviation that comes from this setting, so it
        is OK to use "GMT" here rather than the more-modern "UTC" which

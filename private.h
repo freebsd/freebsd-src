@@ -17,6 +17,15 @@
 ** Thank you!
 */
 
+/* Define true, false and bool if they don't work out of the box.  */
+#if __STDC_VERSION__ < 199901
+# define true 1
+# define false 0
+# define bool int
+#elif __STDC_VERSION__ < 202311
+# include <stdbool.h>
+#endif
+
 /*
 ** zdump has been made independent of the rest of the time
 ** conversion package to increase confidence in the verification it provides.
@@ -54,9 +63,25 @@
 # define HAVE_GENERIC (201112 <= __STDC_VERSION__)
 #endif
 
+#if !defined HAVE_GETRANDOM && defined __has_include
+# if __has_include(<sys/random.h>)
+#  define HAVE_GETRANDOM true
+# else
+#  define HAVE_GETRANDOM false
+# endif
+#endif
+#ifndef HAVE_GETRANDOM
+# define HAVE_GETRANDOM (2 < __GLIBC__ + (25 <= __GLIBC_MINOR__))
+#endif
+
+#if !defined HAVE_GETTEXT && defined __has_include
+# if __has_include(<libintl.h>)
+#  define HAVE_GETTEXT true
+# endif
+#endif
 #ifndef HAVE_GETTEXT
-# define HAVE_GETTEXT 0
-#endif /* !defined HAVE_GETTEXT */
+# define HAVE_GETTEXT false
+#endif
 
 #ifndef HAVE_INCOMPATIBLE_CTIME_R
 # define HAVE_INCOMPATIBLE_CTIME_R 0
@@ -74,8 +99,8 @@
 # define HAVE_POSIX_DECLS 1
 #endif
 
-#ifndef HAVE_STDBOOL_H
-# define HAVE_STDBOOL_H (199901 <= __STDC_VERSION__)
+#ifndef HAVE_SETENV
+# define HAVE_SETENV 1
 #endif
 
 #ifndef HAVE_STRDUP
@@ -90,17 +115,23 @@
 # define HAVE_SYMLINK 1
 #endif /* !defined HAVE_SYMLINK */
 
+#if !defined HAVE_SYS_STAT_H && defined __has_include
+# if !__has_include(<sys/stat.h>)
+#  define HAVE_SYS_STAT_H false
+# endif
+#endif
 #ifndef HAVE_SYS_STAT_H
-# define HAVE_SYS_STAT_H 1
-#endif /* !defined HAVE_SYS_STAT_H */
+# define HAVE_SYS_STAT_H true
+#endif
 
+#if !defined HAVE_UNISTD_H && defined __has_include
+# if !__has_include(<unistd.h>)
+#  define HAVE_UNISTD_H false
+# endif
+#endif
 #ifndef HAVE_UNISTD_H
-# define HAVE_UNISTD_H 1
-#endif /* !defined HAVE_UNISTD_H */
-
-#ifndef HAVE_UTMPX_H
-# define HAVE_UTMPX_H 1
-#endif /* !defined HAVE_UTMPX_H */
+# define HAVE_UNISTD_H true
+#endif
 
 #ifndef NETBSD_INSPIRED
 # define NETBSD_INSPIRED 1
@@ -118,15 +149,17 @@
 /* Enable strtoimax on pre-C99 Solaris 11.  */
 #define __EXTENSIONS__ 1
 
-/* To avoid having 'stat' fail unnecessarily with errno == EOVERFLOW,
-   enable large files on GNUish systems ...  */
+/* On GNUish systems where time_t might be 32 or 64 bits, use 64.
+   On these platforms _FILE_OFFSET_BITS must also be 64; otherwise
+   setting _TIME_BITS to 64 does not work.  The code does not
+   otherwise rely on _FILE_OFFSET_BITS being 64, since it does not
+   use off_t or functions like 'stat' that depend on off_t.  */
 #ifndef _FILE_OFFSET_BITS
 # define _FILE_OFFSET_BITS 64
 #endif
-/* ... and on AIX ...  */
-#define _LARGE_FILES 1
-/* ... and enable large inode numbers on Mac OS X 10.5 and later.  */
-#define _DARWIN_USE_64_BIT_INODE 1
+#if !defined _TIME_BITS && _FILE_OFFSET_BITS == 64
+# define _TIME_BITS 64
+#endif
 
 /*
 ** Nested includes
@@ -157,7 +190,7 @@
 #undef tzalloc
 #undef tzfree
 
-#include <sys/types.h>	/* for time_t */
+#include <stddef.h>
 #include <string.h>
 #include <limits.h>	/* for CHAR_BIT et al. */
 #include <stdlib.h>
@@ -234,6 +267,9 @@
 ** previously-included files.  glibc 2.1 and Solaris 10 and later have
 ** stdint.h, even with pre-C99 compilers.
 */
+#if !defined HAVE_STDINT_H && defined __has_include
+# define HAVE_STDINT_H true /* C23 __has_include implies C99 stdint.h.  */
+#endif
 #ifndef HAVE_STDINT_H
 # define HAVE_STDINT_H \
    (199901 <= __STDC_VERSION__ \
@@ -359,13 +395,6 @@ typedef unsigned long uintmax_t;
 #  define PRIuMAX "lu"
 # endif
 #endif
-
-#ifndef INT32_MAX
-# define INT32_MAX 0x7fffffff
-#endif /* !defined INT32_MAX */
-#ifndef INT32_MIN
-# define INT32_MIN (-1 - INT32_MAX)
-#endif /* !defined INT32_MIN */
 
 #ifndef SIZE_MAX
 # define SIZE_MAX ((size_t) -1)
@@ -623,14 +652,6 @@ time_t time2posix_z(timezone_t, time_t) ATTRIBUTE_PURE;
 ** Finally, some convenience items.
 */
 
-#if HAVE_STDBOOL_H
-# include <stdbool.h>
-#else
-# define true 1
-# define false 0
-# define bool int
-#endif
-
 #define TYPE_BIT(type)	(sizeof(type) * CHAR_BIT)
 #define TYPE_SIGNED(type) (((type) -1) < 0)
 #define TWOS_COMPLEMENT(t) ((t) ~ (t) 0 < 0)
@@ -708,16 +729,19 @@ time_t time2posix_z(timezone_t, time_t) ATTRIBUTE_PURE;
 #endif
 
 #ifdef DEBUG
-# define UNREACHABLE() abort()
-#elif 4 < __GNUC__ + (5 <= __GNUC_MINOR__)
-# define UNREACHABLE() __builtin_unreachable()
-#elif defined __has_builtin
-# if __has_builtin(__builtin_unreachable)
-#  define UNREACHABLE() __builtin_unreachable()
+# undef unreachable
+# define unreachable() abort()
+#elif !defined unreachable
+# ifdef __has_builtin
+#  if __has_builtin(__builtin_unreachable)
+#   define unreachable() __builtin_unreachable()
+#  endif
+# elif 4 < __GNUC__ + (5 <= __GNUC_MINOR__)
+#  define unreachable() __builtin_unreachable()
 # endif
-#endif
-#ifndef UNREACHABLE
-# define UNREACHABLE() ((void) 0)
+# ifndef unreachable
+#  define unreachable() ((void) 0)
+# endif
 #endif
 
 /*

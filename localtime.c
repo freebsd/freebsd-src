@@ -802,12 +802,14 @@ typesequiv(const struct state *sp, int a, int b)
 		b < 0 || b >= sp->typecnt)
 			result = false;
 	else {
+		/* Compare the relevant members of *AP and *BP.
+		   Ignore tt_ttisstd and tt_ttisut, as they are
+		   irrelevant now and counting them could cause
+		   sp->goahead to mistakenly remain false.  */
 		register const struct ttinfo *	ap = &sp->ttis[a];
 		register const struct ttinfo *	bp = &sp->ttis[b];
 		result = (ap->tt_utoff == bp->tt_utoff
 			  && ap->tt_isdst == bp->tt_isdst
-			  && ap->tt_ttisstd == bp->tt_ttisstd
-			  && ap->tt_ttisut == bp->tt_ttisut
 			  && (strcmp(&sp->chars[ap->tt_desigidx],
 				     &sp->chars[bp->tt_desigidx])
 			      == 0));
@@ -1096,7 +1098,7 @@ transtime(const int year, register const struct rule *const rulep,
 			value += mon_lengths[leapyear][i] * SECSPERDAY;
 		break;
 
-	default: UNREACHABLE();
+	default: unreachable();
 	}
 
 	/*

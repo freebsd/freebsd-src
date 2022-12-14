@@ -93,7 +93,8 @@ OPTIONS
 
        -v     Be more verbose, and complain about the following situations:
 
-              The input specifies a link to a link.
+              The input specifies a link to a link, something not supported by
+              some older parsers, including zic itself through release 2022e.
 
               A year that appears in a data file is outside the range of
               representable years.
@@ -386,14 +387,24 @@ FILES
 
             Link  Europe/Istanbul  Asia/Istanbul
 
-       The TARGET field should appear as the NAME field in some zone line.
-       The LINK-NAME field is used as an alternative name for that zone; it
-       has the same syntax as a zone line's NAME field.
+       The TARGET field should appear as the NAME field in some zone line or
+       as the LINK-NAME field in some link line.  The LINK-NAME field is used
+       as an alternative name for that zone; it has the same syntax as a zone
+       line's NAME field.  Links can chain together, although the behavior is
+       unspecified if a chain of one or more links does not terminate in a
+       Zone name.  A link line can appear before the line that defines the
+       link target.  For example:
+
+         Link  Greenwich  G_M_T
+         Link  Etc/GMT    Greenwich
+         Zone  Etc/GMT  0  -  GMT
+
+       The two links are chained together, and G_M_T, Greenwich, and Etc/GMT
+       all name the same zone.
 
        Except for continuation lines, lines may appear in any order in the
        input.  However, the behavior is unspecified if multiple zone or link
-       lines define the same name, or if the source of one link line is the
-       target of another.
+       lines define the same name.
 
        The file that describes leap seconds can have leap lines and an
        expiration line.  Leap lines have the following form:
