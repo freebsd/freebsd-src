@@ -145,7 +145,8 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	return (sousrsend(so, NULL, uio, NULL, 0, NULL));
+	error = sousrsend(so, NULL, uio, NULL, 0, NULL);
+	return (error);
 }
 
 static int
