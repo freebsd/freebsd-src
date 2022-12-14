@@ -1313,9 +1313,10 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 	*lsop = syncache_socket(sc, *lsop, m);
 
-	if (*lsop == NULL)
+	if (__predict_false(*lsop == NULL)) {
 		TCPSTAT_INC(tcps_sc_aborted);
-	else
+		TCPSTATES_DEC(TCPS_SYN_RECEIVED);
+	} else
 		TCPSTAT_INC(tcps_sc_completed);
 
 /* how do we find the inp for the new socket? */
