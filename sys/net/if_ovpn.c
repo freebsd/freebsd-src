@@ -1715,7 +1715,6 @@ ovpn_get_af(struct mbuf *m)
 	return (0);
 }
 
-#ifdef INET
 static struct ovpn_kpeer *
 ovpn_find_peer_by_ip(struct ovpn_softc *sc, const struct in_addr addr)
 {
@@ -1727,9 +1726,7 @@ ovpn_find_peer_by_ip(struct ovpn_softc *sc, const struct in_addr addr)
 
 	return (RB_FIND(ovpn_kpeers_by_ip, &sc->peers_by_ip, &peer));
 }
-#endif
 
-#ifdef INET6
 static struct ovpn_kpeer *
 ovpn_find_peer_by_ip6(struct ovpn_softc *sc, const struct in6_addr *addr)
 {
@@ -1741,7 +1738,6 @@ ovpn_find_peer_by_ip6(struct ovpn_softc *sc, const struct in6_addr *addr)
 
 	return (RB_FIND(ovpn_kpeers_by_ip6, &sc->peers_by_ip6, &peer));
 }
-#endif
 
 static struct ovpn_kpeer *
 ovpn_route_peer(struct ovpn_softc *sc, struct mbuf **m0,
