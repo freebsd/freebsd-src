@@ -32,6 +32,7 @@ REPORT_BUGS_TO=tz@iana.org
 #
 #	Gawk (GNU awk) <https://www.gnu.org/software/gawk/>
 #	mawk <https://invisible-island.net/mawk/>
+#	nawk <https://github.com/onetrueawk/awk>
 
 
 # Specify default values for environment variables if they are unset.
