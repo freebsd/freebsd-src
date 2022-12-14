@@ -260,9 +260,9 @@ static struct cdevsw pf_cdevsw = {
 	.d_version =	D_VERSION,
 };
 
-volatile VNET_DEFINE_STATIC(int, pf_pfil_hooked);
+VNET_DEFINE_STATIC(bool, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
-volatile VNET_DEFINE_STATIC(int, pf_pfil_eth_hooked);
+VNET_DEFINE_STATIC(bool, pf_pfil_eth_hooked);
 #define V_pf_pfil_eth_hooked	VNET(pf_pfil_eth_hooked)
 
 /*
@@ -383,8 +383,8 @@ pfattach_vnet(void)
 	bzero(&V_pf_status, sizeof(V_pf_status));
 	V_pf_status.debug = PF_DEBUG_URGENT;
 
-	V_pf_pfil_hooked = 0;
-	V_pf_pfil_eth_hooked = 0;
+	V_pf_pfil_hooked = false;
+	V_pf_pfil_eth_hooked = false;
 
 	/* XXX do our best to avoid a conflict */
 	V_pf_status.hostid = arc4random();
@@ -6534,7 +6534,7 @@ hook_pf_eth(void)
 	struct pfil_link_args pla;
 	int ret __diagused;
 
-	if (V_pf_pfil_eth_hooked)
+	if (atomic_load_bool(&V_pf_pfil_eth_hooked))
 		return;
 
 	pha.pa_version = PFIL_VERSION;
@@ -6563,7 +6563,7 @@ hook_pf_eth(void)
 	ret = pfil_link(&pla);
 	MPASS(ret == 0);
 
-	V_pf_pfil_eth_hooked = 1;
+	atomic_store_bool(&V_pf_pfil_eth_hooked, true);
 }
 
 static void
@@ -6573,7 +6573,7 @@ hook_pf(void)
 	struct pfil_link_args pla;
 	int ret __diagused;
 
-	if (V_pf_pfil_hooked)
+	if (atomic_load_bool(&V_pf_pfil_hooked))
 		return;
 
 	pha.pa_version = PFIL_VERSION;
@@ -6625,27 +6625,27 @@ hook_pf(void)
 	MPASS(ret == 0);
 #endif
 
-	V_pf_pfil_hooked = 1;
+	atomic_store_bool(&V_pf_pfil_hooked, true);
 }
 
 static void
 dehook_pf_eth(void)
 {
 
-	if (V_pf_pfil_eth_hooked == 0)
+	if (!atomic_load_bool(&V_pf_pfil_eth_hooked))
 		return;
 
 	pfil_remove_hook(V_pf_eth_in_hook);
 	pfil_remove_hook(V_pf_eth_out_hook);
 
-	V_pf_pfil_eth_hooked = 0;
+	atomic_store_bool(&V_pf_pfil_eth_hooked, false);
 }
 
 static void
 dehook_pf(void)
 {
 
-	if (V_pf_pfil_hooked == 0)
+	if (!atomic_load_bool(&V_pf_pfil_hooked))
 		return;
 
 #ifdef INET
@@ -6657,7 +6657,7 @@ dehook_pf(void)
 	pfil_remove_hook(V_pf_ip6_out_hook);
 #endif
 
-	V_pf_pfil_hooked = 0;
+	atomic_store_bool(&V_pf_pfil_hooked, false);
 }
 
 static void
