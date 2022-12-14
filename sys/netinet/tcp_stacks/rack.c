@@ -490,7 +490,6 @@ static int rack_set_sockopt(struct inpcb *inp, struct sockopt *sopt);
 static void rack_set_state(struct tcpcb *tp, struct tcp_rack *rack);
 static int32_t rack_stopall(struct tcpcb *tp);
 static void rack_timer_cancel(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, int line);
-static void rack_timer_stop(struct tcpcb *tp, uint32_t timer_type);
 static uint32_t
 rack_update_entry(struct tcpcb *tp, struct tcp_rack *rack,
     struct rack_sendmap *rsm, uint64_t ts, int32_t * lenp, uint16_t add_flag);
