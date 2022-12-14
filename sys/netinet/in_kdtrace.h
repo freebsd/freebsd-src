@@ -78,4 +78,55 @@ SDT_PROBE_DECLARE(udp, , , send);
 SDT_PROBE_DECLARE(udplite, , , receive);
 SDT_PROBE_DECLARE(udplite, , , send);
 
+/*
+ * These constants originate from the 4.4BSD sys/protosw.h.  They lost
+ * their initial purpose in 2c37256e5a59, when single pr_usrreq method
+ * was split into multiple methods.  However, they were used by TCPDEBUG,
+ * a feature barely used, but it kept them in the tree for many years.
+ * In 5d06879adb95 DTrace probes started to use them.  Note that they
+ * are not documented in dtrace_tcp(4), so they are likely to be
+ * eventually renamed to something better and extended/trimmed.
+ */
+#define	PRU_ATTACH		0	/* attach protocol to up */
+#define	PRU_DETACH		1	/* detach protocol from up */
+#define	PRU_BIND		2	/* bind socket to address */
+#define	PRU_LISTEN		3	/* listen for connection */
+#define	PRU_CONNECT		4	/* establish connection to peer */
+#define	PRU_ACCEPT		5	/* accept connection from peer */
+#define	PRU_DISCONNECT		6	/* disconnect from peer */
+#define	PRU_SHUTDOWN		7	/* won't send any more data */
+#define	PRU_RCVD		8	/* have taken data; more room now */
+#define	PRU_SEND		9	/* send this data */
+#define	PRU_ABORT		10	/* abort (fast DISCONNECT, DETATCH) */
+#define	PRU_CONTROL		11	/* control operations on protocol */
+#define	PRU_SENSE		12	/* return status into m */
+#define	PRU_RCVOOB		13	/* retrieve out of band data */
+#define	PRU_SENDOOB		14	/* send out of band data */
+#define	PRU_SOCKADDR		15	/* fetch socket's address */
+#define	PRU_PEERADDR		16	/* fetch peer's address */
+#define	PRU_CONNECT2		17	/* connect two sockets */
+/* begin for protocols internal use */
+#define	PRU_FASTTIMO		18	/* 200ms timeout */
+#define	PRU_SLOWTIMO		19	/* 500ms timeout */
+#define	PRU_PROTORCV		20	/* receive from below */
+#define	PRU_PROTOSEND		21	/* send to below */
+/* end for protocol's internal use */
+#define PRU_SEND_EOF		22	/* send and close */
+#define	PRU_SOSETLABEL		23	/* MAC label change */
+#define	PRU_CLOSE		24	/* socket close */
+#define	PRU_FLUSH		25	/* flush the socket */
+#define	PRU_NREQ		25
+
+#ifdef PRUREQUESTS
+const char *prurequests[] = {
+	"ATTACH",	"DETACH",	"BIND",		"LISTEN",
+	"CONNECT",	"ACCEPT",	"DISCONNECT",	"SHUTDOWN",
+	"RCVD",		"SEND",		"ABORT",	"CONTROL",
+	"SENSE",	"RCVOOB",	"SENDOOB",	"SOCKADDR",
+	"PEERADDR",	"CONNECT2",	"FASTTIMO",	"SLOWTIMO",
+	"PROTORCV",	"PROTOSEND",	"SEND_EOF",	"SOSETLABEL",
+	"CLOSE",	"FLUSH",
+};
+#endif
+
 #endif

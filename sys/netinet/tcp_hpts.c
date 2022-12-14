@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
-#include "opt_tcpdebug.h"
 
 /**
  * Some notes about usage.
@@ -157,9 +156,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
 
-#ifdef tcpdebug
-#include <netinet/tcp_debug.h>
-#endif				/* tcpdebug */
 #ifdef tcp_offload
 #include <netinet/tcp_offload.h>
 #endif

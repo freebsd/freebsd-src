@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_tcpdebug.h"
 
 /* For debugging we want counters and BB logging */
 /* #define TCP_REASS_COUNTERS 1 */
@@ -81,9 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_hpts.h>
 #endif
 #include <netinet/tcpip.h>
-#ifdef TCPDEBUG
-#include <netinet/tcp_debug.h>
-#endif /* TCPDEBUG */
 
 #define TCP_R_LOG_ADD		1
 #define TCP_R_LOG_LIMIT_REACHED 2

@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221214: TCPDEBUG removed
+OLD_FILES+=usr/include/netinet/tcp_debug.h
+
 # 20221213: remove sync serial drivers and utilities
 OLD_FILES+=sbin/sconfig
 OLD_FILES+=usr/share/man/man4/ce.4
