@@ -1,4 +1,4 @@
-ZDUMP(8)                    System Manager's Manual                   ZDUMP(8)
+zdump(8)                    System Manager's Manual                   zdump(8)
 
 NAME
        zdump - timezone dumper
@@ -141,4 +141,4 @@ LIMITATIONS
 SEE ALSO
        tzfile(5), zic(8)
 
-                                                                      ZDUMP(8)
+                                                                      zdump(8)

@@ -1,4 +1,6 @@
-.TH ZIC 8
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.TH zic 8
 .SH NAME
 zic \- timezone compiler
 .SH SYNOPSIS
@@ -22,7 +24,7 @@ zic \- timezone compiler
 .el .ds > \(ra
 .ie \n(.g \{\
 .  ds : \:
-.  ds - \f(CW-\fP
+.  ds - \f(CR-\fP
 .\}
 .el \{\
 .  ds :
@@ -347,7 +349,9 @@ nor
 .q + .
 To allow for future extensions,
 an unquoted name should not contain characters from the set
-.q !$%&'()*,/:;<=>?@[\e]^`{|}~ .
+.ie \n(.g .q \f(CR!$%&\(aq()*,/:;<=>?@[\e]\(ha\(ga{|}\(ti\fP .
+.el .ie t .q \f(CW!$%&'()*,/:;<=>?@[\e]^\(ga{|}~\fP .
+.el .q !$%&'()*,/:;<=>?@[\e]^`{|}~ .
 .TP
 .B FROM
 Gives the first year in which the rule applies.
@@ -894,5 +898,3 @@ specifying transition instants using universal time.
 .SH SEE ALSO
 .BR tzfile (5),
 .BR zdump (8)
-.\" This file is in the public domain, so clarified as of
-.\" 2009-05-17 by Arthur David Olson.

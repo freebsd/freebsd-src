@@ -117,7 +117,7 @@ static char *	_yconv(int, int, bool, bool, char *, char const *);
 #if HAVE_STRFTIME_L
 size_t
 strftime_l(char *s, size_t maxsize, char const *format, struct tm const *t,
-	   locale_t locale)
+	   ATTRIBUTE_MAYBE_UNUSED locale_t locale)
 {
   /* Just call strftime, as only the C locale is supported.  */
   return strftime(s, maxsize, format, t);
@@ -319,12 +319,21 @@ label:
 								time_t) + 1];
 					time_t		mkt;
 
-					tm = *t;
+					tm.tm_sec = t->tm_sec;
+					tm.tm_min = t->tm_min;
+					tm.tm_hour = t->tm_hour;
+					tm.tm_mday = t->tm_mday;
+					tm.tm_mon = t->tm_mon;
+					tm.tm_year = t->tm_year;
+					tm.tm_isdst = t->tm_isdst;
+#if defined TM_GMTOFF && ! UNINIT_TRAP
+					tm.TM_GMTOFF = t->TM_GMTOFF;
+#endif
 					mkt = mktime(&tm);
-					/* There is no portable, definitive
-					   test for whether whether mktime
-					   succeeded, so treat (time_t) -1 as
-					   the success that it might be.  */
+					/* If mktime fails, %s expands to the
+					   value of (time_t) -1 as a failure
+					   marker; this is better in practice
+					   than strftime failing.  */
 					if (TYPE_SIGNED(time_t)) {
 					  intmax_t n = mkt;
 					  sprintf(buf, "%"PRIdMAX, n);

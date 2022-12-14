@@ -425,8 +425,7 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 #endif
 	if (!doaccess) {
 		char const *dot;
-		size_t namelen = strlen(name);
-		if (sizeof lsp->fullname - sizeof tzdirslash <= namelen)
+		if (sizeof lsp->fullname - sizeof tzdirslash <= strlen(name))
 		  return ENAMETOOLONG;
 
 		/* Create a string "TZDIR/NAME".  Using sprintf here
@@ -839,7 +838,7 @@ is_digit(char c)
 ** Return a pointer to that character.
 */
 
-static ATTRIBUTE_PURE const char *
+static ATTRIBUTE_REPRODUCIBLE const char *
 getzname(register const char *strp)
 {
 	register char	c;
@@ -860,7 +859,7 @@ getzname(register const char *strp)
 ** We don't do any checking here; checking is done later in common-case code.
 */
 
-static ATTRIBUTE_PURE const char *
+static ATTRIBUTE_REPRODUCIBLE const char *
 getqzname(register const char *strp, const int delim)
 {
 	register int	c;
@@ -1120,13 +1119,11 @@ tzparse(const char *name, struct state *sp, struct state *basep)
 {
 	const char *			stdname;
 	const char *			dstname;
-	size_t				stdlen;
-	size_t				dstlen;
-	size_t				charcnt;
 	int_fast32_t			stdoffset;
 	int_fast32_t			dstoffset;
 	register char *			cp;
 	register bool			load_ok;
+	ptrdiff_t stdlen, dstlen, charcnt;
 	time_t atlo = TIME_T_MIN, leaplo = TIME_T_MIN;
 
 	stdname = name;
@@ -1568,6 +1565,14 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 					return NULL;	/* "cannot happen" */
 			result = localsub(sp, &newt, setname, tmp);
 			if (result) {
+#if defined ckd_add && defined ckd_sub
+				if (t < sp->ats[0]
+				    ? ckd_sub(&result->tm_year,
+					      result->tm_year, years)
+				    : ckd_add(&result->tm_year,
+					      result->tm_year, years))
+				  return NULL;
+#else
 				register int_fast64_t newy;
 
 				newy = result->tm_year;
@@ -1577,6 +1582,7 @@ localsub(struct state const *sp, time_t const *timep, int_fast32_t setname,
 				if (! (INT_MIN <= newy && newy <= INT_MAX))
 					return NULL;
 				result->tm_year = newy;
+#endif
 			}
 			return result;
 	}
@@ -1656,8 +1662,8 @@ localtime_r(const time_t *timep, struct tm *tmp)
 */
 
 static struct tm *
-gmtsub(struct state const *sp, time_t const *timep, int_fast32_t offset,
-       struct tm *tmp)
+gmtsub(ATTRIBUTE_MAYBE_UNUSED struct state const *sp, time_t const *timep,
+       int_fast32_t offset, struct tm *tmp)
 {
 	register struct tm *	result;
 
@@ -1786,6 +1792,12 @@ timesub(const time_t *timep, int_fast32_t offset,
 		y = newy;
 	}
 
+#ifdef ckd_add
+	if (ckd_add(&tmp->tm_year, y, -TM_YEAR_BASE)) {
+	  errno = EOVERFLOW;
+	  return NULL;
+	}
+#else
 	if (!TYPE_SIGNED(time_t) && y < TM_YEAR_BASE) {
 	  int signed_y = y;
 	  tmp->tm_year = signed_y - TM_YEAR_BASE;
@@ -1796,6 +1808,7 @@ timesub(const time_t *timep, int_fast32_t offset,
 	  errno = EOVERFLOW;
 	  return NULL;
 	}
+#endif
 	tmp->tm_yday = idays;
 	/*
 	** The "extra" mods below avoid overflow problems.
@@ -1870,6 +1883,9 @@ ctime_r(const time_t *timep, char *buf)
 static bool
 increment_overflow(int *ip, int j)
 {
+#ifdef ckd_add
+	return ckd_add(ip, *ip, j);
+#else
 	register int const	i = *ip;
 
 	/*
@@ -1882,22 +1898,30 @@ increment_overflow(int *ip, int j)
 		return true;
 	*ip += j;
 	return false;
+#endif
 }
 
 static bool
 increment_overflow32(int_fast32_t *const lp, int const m)
 {
+#ifdef ckd_add
+	return ckd_add(lp, *lp, m);
+#else
 	register int_fast32_t const	l = *lp;
 
 	if ((l >= 0) ? (m > INT_FAST32_MAX - l) : (m < INT_FAST32_MIN - l))
 		return true;
 	*lp += m;
 	return false;
+#endif
 }
 
 static bool
 increment_overflow_time(time_t *tp, int_fast32_t j)
 {
+#ifdef ckd_add
+	return ckd_add(tp, *tp, j);
+#else
 	/*
 	** This is like
 	** 'if (! (TIME_T_MIN <= *tp + j && *tp + j <= TIME_T_MAX)) ...',
@@ -1909,6 +1933,7 @@ increment_overflow_time(time_t *tp, int_fast32_t j)
 		return true;
 	*tp += j;
 	return false;
+#endif
 }
 
 static bool
@@ -1951,6 +1976,23 @@ tmcomp(register const struct tm *const atmp,
 	return result;
 }
 
+/* Copy to *DEST from *SRC.  Copy only the members needed for mktime,
+   as other members might not be initialized.  */
+static void
+mktmcpy(struct tm *dest, struct tm const *src)
+{
+  dest->tm_sec = src->tm_sec;
+  dest->tm_min = src->tm_min;
+  dest->tm_hour = src->tm_hour;
+  dest->tm_mday = src->tm_mday;
+  dest->tm_mon = src->tm_mon;
+  dest->tm_year = src->tm_year;
+  dest->tm_isdst = src->tm_isdst;
+#if defined TM_GMTOFF && ! UNINIT_TRAP
+  dest->TM_GMTOFF = src->TM_GMTOFF;
+#endif
+}
+
 static time_t
 time2sub(struct tm *const tmp,
 	 struct tm *(*funcp)(struct state const *, time_t const *,
@@ -1972,7 +2014,8 @@ time2sub(struct tm *const tmp,
 	struct tm			yourtm, mytm;
 
 	*okayp = false;
-	yourtm = *tmp;
+	mktmcpy(&yourtm, tmp);
+
 	if (do_norm_secs) {
 		if (normalize_overflow(&yourtm.tm_min, &yourtm.tm_sec,
 			SECSPERMIN))
@@ -2014,14 +2057,19 @@ time2sub(struct tm *const tmp,
 				return WRONG;
 		}
 	}
+#ifdef ckd_add
+	if (ckd_add(&yourtm.tm_year, y, -TM_YEAR_BASE))
+	  return WRONG;
+#else
 	if (increment_overflow32(&y, -TM_YEAR_BASE))
 		return WRONG;
 	if (! (INT_MIN <= y && y <= INT_MAX))
 		return WRONG;
 	yourtm.tm_year = y;
+#endif
 	if (yourtm.tm_sec >= 0 && yourtm.tm_sec < SECSPERMIN)
 		saved_seconds = 0;
-	else if (y + TM_YEAR_BASE < EPOCH_YEAR) {
+	else if (yourtm.tm_year < EPOCH_YEAR - TM_YEAR_BASE) {
 		/*
 		** We can't set tm_sec to 0, because that might push the
 		** time below the minimum representable time.
@@ -2278,7 +2326,6 @@ mktime(struct tm *tmp)
 }
 
 #ifdef STD_INSPIRED
-
 time_t
 timelocal(struct tm *tmp)
 {
@@ -2286,13 +2333,9 @@ timelocal(struct tm *tmp)
 		tmp->tm_isdst = -1;	/* in case it wasn't initialized */
 	return mktime(tmp);
 }
-
-time_t
-timegm(struct tm *tmp)
-{
-  return timeoff(tmp, 0);
-}
-
+#else
+static
+#endif
 time_t
 timeoff(struct tm *tmp, long offset)
 {
@@ -2302,7 +2345,18 @@ timeoff(struct tm *tmp, long offset)
   return time1(tmp, gmtsub, gmtptr, offset);
 }
 
-#endif /* defined STD_INSPIRED */
+time_t
+timegm(struct tm *tmp)
+{
+  time_t t;
+  struct tm tmcpy;
+  mktmcpy(&tmcpy, tmp);
+  tmcpy.tm_wday = -1;
+  t = timeoff(&tmcpy, 0);
+  if (0 <= tmcpy.tm_wday)
+    *tmp = tmcpy;
+  return t;
+}
 
 static int_fast32_t
 leapcorr(struct state const *sp, time_t t)

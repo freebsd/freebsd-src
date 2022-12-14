@@ -1,4 +1,4 @@
-DATE(1)                     General Commands Manual                    DATE(1)
+date(1)                     General Commands Manual                    date(1)
 
 NAME
        date - show and set date and time
@@ -104,4 +104,4 @@ FILES
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
        /usr/share/zoneinfo/posixrules.
 
-                                                                       DATE(1)
+                                                                       date(1)

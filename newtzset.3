@@ -1,9 +1,11 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
 .TH NEWTZSET 3
 .SH NAME
 tzset \- initialize time conversion information
 .SH SYNOPSIS
 .nf
-.ie \n(.g .ds - \f(CW-\fP
+.ie \n(.g .ds - \f(CR-\fP
 .el .ds - \-
 .B #include <time.h>
 .PP
@@ -331,7 +333,7 @@ from the rest of the specification.
 .br
 /usr/share/zoneinfo/localtime	local timezone file
 .br
-/usr/share/zoneinfo/posixrules	used with POSIX-style TZ's
+/usr/share/zoneinfo/posixrules	used with POSIX-style TZ
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .sp
@@ -346,5 +348,3 @@ newctime(3),
 newstrftime(3),
 time(2),
 tzfile(5)
-.\" This file is in the public domain, so clarified as of
-.\" 2009-05-17 by Arthur David Olson.

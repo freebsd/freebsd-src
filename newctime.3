@@ -1,9 +1,11 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
 .TH NEWCTIME 3
 .SH NAME
 asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .SH SYNOPSIS
 .nf
-.ie \n(.g .ds - \f(CW-\fP
+.ie \n(.g .ds - \f(CR-\fP
 .el .ds - \-
 .B #include <time.h>
 .PP
@@ -340,5 +342,3 @@ restricted to years in the range 1900 through 2099.
 To avoid this portability mess, new programs should use
 .B strftime
 instead.
-.\" This file is in the public domain, so clarified as of
-.\" 2009-05-17 by Arthur David Olson.

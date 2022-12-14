@@ -84,20 +84,20 @@ static time_t const absolute_max_time =
    ? (((time_t) 1 << atime_shift) - 1 + ((time_t) 1 << atime_shift))
    : -1);
 static int	longest;
-static char *	progname;
+static char const *progname;
 static bool	warned;
 static bool	errout;
 
 static char const *abbr(struct tm const *);
-static intmax_t	delta(struct tm *, struct tm *) ATTRIBUTE_PURE;
+static intmax_t	delta(struct tm *, struct tm *) ATTRIBUTE_REPRODUCIBLE;
 static void dumptime(struct tm const *);
-static time_t hunt(timezone_t, char *, time_t, time_t, bool);
+static time_t hunt(timezone_t, time_t, time_t, bool);
 static void show(timezone_t, char *, time_t, bool);
 static void showextrema(timezone_t, char *, time_t, struct tm *, time_t);
 static void showtrans(char const *, struct tm const *, time_t, char const *,
 		      char const *);
 static const char *tformat(void);
-static time_t yeartot(intmax_t) ATTRIBUTE_PURE;
+static time_t yeartot(intmax_t) ATTRIBUTE_REPRODUCIBLE;
 
 /* Is C an ASCII digit?  */
 static bool
@@ -125,16 +125,28 @@ is_alpha(char a)
 	}
 }
 
-/* Return A + B, exiting if the result would overflow.  */
-static size_t
+static ATTRIBUTE_NORETURN void
+size_overflow(void)
+{
+  fprintf(stderr, _("%s: size overflow\n"), progname);
+  exit(EXIT_FAILURE);
+}
+
+/* Return A + B, exiting if the result would overflow either ptrdiff_t
+   or size_t.  */
+static ATTRIBUTE_REPRODUCIBLE ptrdiff_t
 sumsize(size_t a, size_t b)
 {
-  size_t sum = a + b;
-  if (sum < a) {
-    fprintf(stderr, _("%s: size overflow\n"), progname);
-    exit(EXIT_FAILURE);
-  }
-  return sum;
+#ifdef ckd_add
+  ptrdiff_t sum;
+  if (!ckd_add(&sum, a, b) && sum <= SIZE_MAX)
+    return sum;
+#else
+  ptrdiff_t sum_max = min(PTRDIFF_MAX, SIZE_MAX);
+  if (a <= sum_max && b <= sum_max - a)
+    return a + b;
+#endif
+  size_overflow();
 }
 
 /* Return a pointer to a newly allocated buffer of size SIZE, exiting
@@ -234,22 +246,30 @@ tzalloc(char const *val)
     exit(EXIT_FAILURE);
   }
   tzset();
-  return NULL;
+  return &optarg;  /* Any valid non-null char ** will do.  */
 # else
   enum { TZeqlen = 3 };
   static char const TZeq[TZeqlen] = "TZ=";
   static char **fakeenv;
-  static size_t fakeenv0size;
+  static ptrdiff_t fakeenv0size;
   void *freeable = NULL;
   char **env = fakeenv, **initial_environ;
   size_t valsize = strlen(val) + 1;
   if (fakeenv0size < valsize) {
     char **e = environ, **to;
-    ptrdiff_t initial_nenvptrs;  /* Counting the trailing NULL pointer.  */
+    ptrdiff_t initial_nenvptrs = 1;  /* Counting the trailing NULL pointer.  */
 
-    while (*e++)
-      continue;
-    initial_nenvptrs = e - environ;
+    while (*e++) {
+#  ifdef ckd_add
+      if (ckd_add(&initial_nenvptrs, initial_envptrs, 1)
+	  || SIZE_MAX < initial_envptrs)
+	size_overflow();
+#  else
+      if (initial_nenvptrs == min(PTRDIFF_MAX, SIZE_MAX) / sizeof *environ)
+	size_overflow();
+      initial_nenvptrs++;
+#  endif
+    }
     fakeenv0size = sumsize(valsize, valsize);
     fakeenv0size = max(fakeenv0size, 64);
     freeable = env;
@@ -385,7 +405,7 @@ abbrok(const char *const abbrp, const char *const zone)
    return the abbreviation.  Get the abbreviation from TMP.
    Exit on memory allocation failure.  */
 static char const *
-saveabbr(char **buf, size_t *bufalloc, struct tm const *tmp)
+saveabbr(char **buf, ptrdiff_t *bufalloc, struct tm const *tmp)
 {
   char const *ab = abbr(tmp);
   if (HAVE_LOCALTIME_RZ)
@@ -442,7 +462,7 @@ main(int argc, char *argv[])
 {
 	/* These are static so that they're initially zero.  */
 	static char *		abbrev;
-	static size_t		abbrevsize;
+	static ptrdiff_t	abbrevsize;
 
 	register int		i;
 	register bool		vflag;
@@ -463,7 +483,7 @@ main(int argc, char *argv[])
 # endif /* defined TEXTDOMAINDIR */
 	textdomain(TZ_DOMAIN);
 #endif /* HAVE_GETTEXT */
-	progname = argv[0];
+	progname = argv[0] ? argv[0] : "zdump";
 	for (i = 1; i < argc; ++i)
 		if (strcmp(argv[i], "--version") == 0) {
 			printf("zdump %s%s\n", PKGVERSION, TZVERSION);
@@ -483,7 +503,7 @@ main(int argc, char *argv[])
 	  case -1:
 	    if (! (optind == argc - 1 && strcmp(argv[optind], "=") == 0))
 	      goto arg_processing_done;
-	    /* Fall through.  */
+	    ATTRIBUTE_FALLTHROUGH;
 	  default:
 	    usage(stderr, EXIT_FAILURE);
 	  }
@@ -607,7 +627,7 @@ main(int argc, char *argv[])
 		      || (ab && (delta(&newtm, &tm) != newt - t
 				 || newtm.tm_isdst != tm.tm_isdst
 				 || strcmp(abbr(&newtm), ab) != 0))) {
-		    newt = hunt(tz, argv[i], t, newt, false);
+		    newt = hunt(tz, t, newt, false);
 		    newtmp = localtime_rz(tz, &newt, &newtm);
 		    newtm_ok = newtmp != NULL;
 		    if (iflag)
@@ -687,7 +707,7 @@ yeartot(intmax_t y)
 	return t;
 }
 
-/* Search for a discontinuity in timezone TZ with name NAME, in the
+/* Search for a discontinuity in timezone TZ, in the
    timestamps ranging from LOT through HIT.  LOT and HIT disagree
    about some aspect of timezone.  If ONLY_OK, search only for
    definedness changes, i.e., localtime succeeds on one side of the
@@ -695,10 +715,10 @@ yeartot(intmax_t y)
    before the transition from LOT's settings.  */
 
 static time_t
-hunt(timezone_t tz, char *name, time_t lot, time_t hit, bool only_ok)
+hunt(timezone_t tz, time_t lot, time_t hit, bool only_ok)
 {
 	static char *		loab;
-	static size_t		loabsize;
+	static ptrdiff_t	loabsize;
 	struct tm		lotm;
 	struct tm		tm;
 
@@ -787,7 +807,8 @@ adjusted_yday(struct tm const *a, struct tm const *b)
    my_gmtime_r and use its result instead of B.  Otherwise, B is the
    possibly nonnull result of an earlier call to my_gmtime_r.  */
 static long
-gmtoff(struct tm const *a, time_t *t, struct tm const *b)
+gmtoff(struct tm const *a, ATTRIBUTE_MAYBE_UNUSED time_t *t,
+       ATTRIBUTE_MAYBE_UNUSED struct tm const *b)
 {
 #ifdef TM_GMTOFF
   return a->TM_GMTOFF;
@@ -858,7 +879,7 @@ static void
 showextrema(timezone_t tz, char *zone, time_t lo, struct tm *lotmp, time_t hi)
 {
   struct tm localtm[2], gmtm[2];
-  time_t t, boundary = hunt(tz, zone, lo, hi, true);
+  time_t t, boundary = hunt(tz, lo, hi, true);
   bool old = false;
   hi = (SECSPERDAY < hi - boundary
 	? boundary + SECSPERDAY
@@ -937,7 +958,7 @@ my_snprintf(char *s, size_t size, char const *format, ...)
    fit, return the length that the string would have been if it had
    fit; do not overrun the output buffer.  */
 static int
-format_local_time(char *buf, size_t size, struct tm const *tm)
+format_local_time(char *buf, ptrdiff_t size, struct tm const *tm)
 {
   int ss = tm->tm_sec, mm = tm->tm_min, hh = tm->tm_hour;
   return (ss
@@ -960,7 +981,7 @@ format_local_time(char *buf, size_t size, struct tm const *tm)
    the length that the string would have been if it had fit; do not
    overrun the output buffer.  */
 static int
-format_utc_offset(char *buf, size_t size, struct tm const *tm, time_t t)
+format_utc_offset(char *buf, ptrdiff_t size, struct tm const *tm, time_t t)
 {
   long off = gmtoff(tm, &t, NULL);
   char sign = ((off < 0
@@ -989,11 +1010,11 @@ format_utc_offset(char *buf, size_t size, struct tm const *tm, time_t t)
    If the representation's length is less than SIZE, return the
    length; the representation is not null terminated.  Otherwise
    return SIZE, to indicate that BUF is too small.  */
-static size_t
-format_quoted_string(char *buf, size_t size, char const *p)
+static ptrdiff_t
+format_quoted_string(char *buf, ptrdiff_t size, char const *p)
 {
   char *b = buf;
-  size_t s = size;
+  ptrdiff_t s = size;
   if (!s)
     return size;
   *b++ = '"', s--;
@@ -1031,11 +1052,11 @@ format_quoted_string(char *buf, size_t size, char const *p)
       and omit any trailing tabs.  */
 
 static bool
-istrftime(char *buf, size_t size, char const *time_fmt,
+istrftime(char *buf, ptrdiff_t size, char const *time_fmt,
 	  struct tm const *tm, time_t t, char const *ab, char const *zone_name)
 {
   char *b = buf;
-  size_t s = size;
+  ptrdiff_t s = size;
   char const *f = time_fmt, *p;
 
   for (p = f; ; p++)
@@ -1044,9 +1065,9 @@ istrftime(char *buf, size_t size, char const *time_fmt,
     else if (!*p
 	     || (*p == '%'
 		 && (p[1] == 'f' || p[1] == 'L' || p[1] == 'Q'))) {
-      size_t formatted_len;
-      size_t f_prefix_len = p - f;
-      size_t f_prefix_copy_size = p - f + 2;
+      ptrdiff_t formatted_len;
+      ptrdiff_t f_prefix_len = p - f;
+      ptrdiff_t f_prefix_copy_size = sumsize(f_prefix_len, 2);
       char fbuf[100];
       bool oversized = sizeof fbuf <= f_prefix_copy_size;
       char *f_prefix_copy = oversized ? xmalloc(f_prefix_copy_size) : fbuf;
@@ -1078,7 +1099,7 @@ istrftime(char *buf, size_t size, char const *time_fmt,
 	  b += offlen, s -= offlen;
 	  if (show_abbr) {
 	    char const *abp;
-	    size_t len;
+	    ptrdiff_t len;
 	    if (s <= 1)
 	      return false;
 	    *b++ = '\t', s--;
@@ -1117,7 +1138,7 @@ showtrans(char const *time_fmt, struct tm const *tm, time_t t, char const *ab,
     putchar('\n');
   } else {
     char stackbuf[1000];
-    size_t size = sizeof stackbuf;
+    ptrdiff_t size = sizeof stackbuf;
     char *buf = stackbuf;
     char *bufalloc = NULL;
     while (! istrftime(buf, size, time_fmt, tm, t, ab, zone_name)) {

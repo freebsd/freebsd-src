@@ -187,7 +187,7 @@ DESCRIPTION
 FILES
        /usr/share/zoneinfo             timezone information directory
        /usr/share/zoneinfo/localtime   local timezone file
-       /usr/share/zoneinfo/posixrules  used with POSIX-style TZ's
+       /usr/share/zoneinfo/posixrules  used with POSIX-style TZ
        /usr/share/zoneinfo/GMT         for UTC leap seconds
 
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from

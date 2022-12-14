@@ -1,4 +1,4 @@
-TIME2POSIX(3)              Library Functions Manual              TIME2POSIX(3)
+time2posix(3)              Library Functions Manual              time2posix(3)
 
 NAME
        time2posix, posix2time - convert seconds since the Epoch
@@ -30,8 +30,8 @@ DESCRIPTION
        difftime(3).  However, POSIX gives an arithmetic expression for
        directly computing a time_t value from a given date/time, and the same
        relationship is assumed by some (usually older) applications.  Any
-       programs creating/dissecting time_t's using such a relationship will
-       typically not handle intervals over leap seconds correctly.
+       programs creating/dissecting time_t values using such a relationship
+       will typically not handle intervals over leap seconds correctly.
 
        The time2posix and posix2time functions are provided to address this
        time_t mismatch by converting between local time_t values and their
@@ -49,7 +49,7 @@ DESCRIPTION
        indicators of the inferiority of the POSIX representation.
 
        The following table summarizes the relationship between a time T and
-       it's conversion to, and back from, the POSIX representation over the
+       its conversion to, and back from, the POSIX representation over the
        leap second inserted at the end of June, 1993.
        DATE     TIME     T   X=time2posix(T) posix2time(X)
        93/06/30 23:59:59 A+0 B+0             A+0
@@ -66,11 +66,11 @@ DESCRIPTION
 
                             [Note: posix2time(B+1) => A+0 or A+1]
 
-       If leap-second support is not enabled, local time_t's and POSIX
-       time_t's are equivalent, and both time2posix and posix2time degenerate
-       to the identity function.
+       If leap-second support is not enabled, local time_t and POSIX time_t
+       values are equivalent, and both time2posix and posix2time degenerate to
+       the identity function.
 
 SEE ALSO
        difftime(3), localtime(3), mktime(3), time(2)
 
-                                                                 TIME2POSIX(3)
+                                                                 time2posix(3)
