@@ -293,7 +293,7 @@
  * Use a fairly large batch size since we expect amd64 systems to have lots of
  * memory.
  */
-#define	VM_BATCHQUEUE_SIZE	31
+#define	VM_BATCHQUEUE_SIZE	63
 
 /*
  * The pmap can create non-transparent large page mappings.

@@ -3662,18 +3662,31 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 {
 	struct vm_batchqueue *bq;
 	struct vm_pagequeue *pq;
-	int domain;
+	int domain, slots_remaining;
 
 	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
 
 	domain = vm_page_domain(m);
 	critical_enter();
 	bq = DPCPU_PTR(pqbatch[domain][queue]);
-	if (vm_batchqueue_insert(bq, m)) {
+	slots_remaining = vm_batchqueue_insert(bq, m);
+	if (slots_remaining > (VM_BATCHQUEUE_SIZE >> 1)) {
+		/* keep building the bq */
+		critical_exit();
+		return;
+	} else if (slots_remaining > 0 ) {
+		/* Try to process the bq if we can get the lock */
+		pq = &VM_DOMAIN(domain)->vmd_pagequeues[queue];
+		if (vm_pagequeue_trylock(pq)) {
+			vm_pqbatch_process(pq, bq, queue);
+			vm_pagequeue_unlock(pq);
+		}
 		critical_exit();
 		return;
 	}
 	critical_exit();
+
+	/* if we make it here, the bq is full so wait for the lock */
 
 	pq = &VM_DOMAIN(domain)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
