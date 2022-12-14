@@ -1246,9 +1246,9 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 			else if (diff_format != D_UNIFIED)
 				printf(" ");
 		}
-		col = 0;
-		for (j = 0, lastc = '\0'; j < nc && (hw == 0 || col < hw);
-		    j++, lastc = c) {
+		col = j = 0;
+		lastc = '\0';
+		while (j < nc && (hw == 0 || col < hw)) {
 			c = getc(lb);
 			if (flags & D_STRIPCR && c == '\r') {
 				if ((c = getc(lb)) == '\n')
@@ -1313,6 +1313,9 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 					col++;
 				}
 			}
+
+			j++;
+			lastc = c;
 		}
 	}
 	if (color && diff_format == D_SIDEBYSIDE)
