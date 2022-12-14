@@ -55,7 +55,7 @@
 typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
 typedef void intr_ipi_handler_t(void *);
 
-void intr_ipi_dispatch(u_int, struct trapframe *);
+void intr_ipi_dispatch(u_int);
 void intr_ipi_send(cpuset_t, u_int);
 
 void intr_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *,

@@ -141,7 +141,7 @@ intr_ipi_lookup(u_int ipi)
 }
 
 void
-intr_ipi_dispatch(u_int ipi, struct trapframe *tf)
+intr_ipi_dispatch(u_int ipi)
 {
 	struct intr_ipi *ii;
 
