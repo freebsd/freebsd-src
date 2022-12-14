@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 1
+.Op Fl r
 .Op Fl n Ar count
 .Op Fl o Ar filename
 .Sh DESCRIPTION
@@ -50,6 +51,8 @@ This option only has effect if multiple identifiers are to be generated and
 instructs
 .Nm
 to not generate them in batch, but one at a time.
+.It Fl r
+This option controls creation of random UUID (version 4).
 .It Fl n
 This option controls the number of identifiers generated.
 By default, multiple identifiers are generated in batch.
