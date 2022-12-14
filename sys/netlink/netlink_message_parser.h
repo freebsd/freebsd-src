@@ -152,14 +152,20 @@ static const struct nlhdr_parser _name = {		\
 	.np_size = NL_ARRAY_LEN(_np),			\
 }
 
-struct nlarr_hdr {
-	int num_items;
-	int max_items;
+struct nlattr_bmask {
+	uint64_t			mask[2];
 };
 
+static inline bool
+nl_has_attr(const struct nlattr_bmask *bm, unsigned int attr_type)
+{
+	MPASS(attr_type < sizeof(bm->mask) * 8);
+
+	return ((bm->mask[attr_type / 8] & (1 << (attr_type % 8))));
+}
+void nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len, struct nlattr_bmask *bm);
+
 int nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser *ps,
-    int pslen, struct nl_pstate *npt, void *target);
-int nl_parse_attrs(struct nlmsghdr *hdr, int hdrlen, struct nlattr_parser *ps,
     int pslen, struct nl_pstate *npt, void *target);
 
 int nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt,
@@ -268,6 +274,18 @@ nl_parse_nlmsg(struct nlmsghdr *hdr, const struct nlhdr_parser *parser,
     struct nl_pstate *npt, void *target)
 {
 	return (nl_parse_header(hdr + 1, hdr->nlmsg_len - sizeof(*hdr), parser, npt, target));
+}
+
+static inline void
+nl_get_attrs_bmask_nlmsg(struct nlmsghdr *hdr, const struct nlhdr_parser *parser,
+    struct nlattr_bmask *bm)
+{
+	struct nlattr *nla_head;
+
+	nla_head = (struct nlattr *)((char *)(hdr + 1) + parser->nl_hdr_off);
+	int len = hdr->nlmsg_len - sizeof(*hdr) - parser->nl_hdr_off;
+
+	nl_get_attrs_bmask_raw(nla_head, len, bm);
 }
 
 #endif

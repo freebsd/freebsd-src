@@ -92,7 +92,7 @@ enum {
 #define IFLA_LINKINFO IFLA_LINKINFO
 	IFLA_NET_NS_PID	= 19,	/* u32: vnet id (not supported) */
 #define	IFLA_NET_NS_PID IFLA_NET_NS_PID
-	IFLA_IFALIAS	= 20,	/* not supported */
+	IFLA_IFALIAS	= 20,	/* string: interface description */
 #define	IFLA_IFALIAS IFLA_IFALIAS
 	IFLA_NUM_VF	= 21,	/* not supported */
 #define	IFLA_NUM_VF IFLA_NUM_VF

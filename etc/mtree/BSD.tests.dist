@@ -826,6 +826,8 @@
             tunnel
             ..
         ..
+        netlink
+        ..
         netmap
         ..
         netpfil
