@@ -552,7 +552,7 @@ in_pcbstorage_init(void *arg)
 
 	pcbstor->ips_zone = uma_zcreate(pcbstor->ips_zone_name,
 	    pcbstor->ips_size, NULL, inpcb_dtor, pcbstor->ips_pcbinit,
-	    inpcb_fini, UMA_ALIGN_PTR, UMA_ZONE_SMR);
+	    inpcb_fini, UMA_ALIGN_CACHE, UMA_ZONE_SMR);
 	pcbstor->ips_portzone = uma_zcreate(pcbstor->ips_portzone_name,
 	    sizeof(struct inpcbport), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_smr(pcbstor->ips_portzone,
