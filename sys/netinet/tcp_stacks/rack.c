@@ -636,8 +636,6 @@ out:
 		ptr = ((struct newreno *)tp->t_ccv.cc_data);
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
-		printf("Digging into the cc mod beta:%d beta_ecn:%d\n",
-		       ptr->beta, ptr->beta_ecn);
 		log.u_bbr.flex1 = ptr->beta;
 		log.u_bbr.flex2 = ptr->beta_ecn;
 		log.u_bbr.flex3 = ptr->newreno_flags;
