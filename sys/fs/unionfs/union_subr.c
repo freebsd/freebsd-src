@@ -675,9 +675,8 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	refstart = false;
 	if (nameiop == DELETE) {
 		cn->cn_flags |= (cnp->cn_flags & DOWHITEOUT);
-		refstart = (cnp->cn_flags & SAVESTART) != 0;
-	} else if (RENAME == nameiop) {
-		refstart = (cnp->cn_flags & SAVESTART) != 0;
+	} else if (nameiop == RENAME) {
+		refstart = true;
 	} else if (nameiop == CREATE) {
 		cn->cn_flags |= NOCACHE;
 	}
