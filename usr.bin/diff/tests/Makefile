@@ -12,6 +12,8 @@ ${PACKAGE}FILES+=	\
 	input2.in \
 	input_c1.in \
 	input_c2.in \
+	side_by_side_tabbed_a.in \
+	side_by_side_tabbed_b.in \
 	simple.out \
 	simple_e.out \
 	simple_n.out \

@@ -7,6 +7,7 @@ atf_test_case header_ns
 atf_test_case ifdef
 atf_test_case group_format
 atf_test_case side_by_side
+atf_test_case side_by_side_tabbed
 atf_test_case brief_format
 atf_test_case b230049
 atf_test_case stripcr_o
@@ -143,6 +144,23 @@ side_by_side_body()
 	    diff -y --suppress-common-lines A B
 	atf_check -o match:"$exp_output_suppressed" -s exit:1 \
 	    diff -W 65 -y --suppress-common-lines A B
+}
+
+side_by_side_tabbed_body()
+{
+	file_a=$(atf_get_srcdir)/side_by_side_tabbed_a.in
+	file_b=$(atf_get_srcdir)/side_by_side_tabbed_b.in
+
+	atf_check -o save:diffout -s not-exit:0 \
+	    diff -y ${file_a} ${file_b}
+	atf_check -o save:diffout_expanded -s not-exit:0 \
+	    diff -yt ${file_a} ${file_b}
+
+	atf_check -o not-empty grep -Ee 'file A.+file B' diffout
+	atf_check -o not-empty grep -Ee 'file A.+file B' diffout_expanded
+
+	atf_check -o not-empty grep -Ee 'tabs.+tabs' diffout
+	atf_check -o not-empty grep -Ee 'tabs.+tabs' diffout_expanded
 }
 
 brief_format_body()
@@ -343,6 +361,7 @@ atf_init_test_cases()
 	atf_add_test_case ifdef
 	atf_add_test_case group_format
 	atf_add_test_case side_by_side
+	atf_add_test_case side_by_side_tabbed
 	atf_add_test_case brief_format
 	atf_add_test_case b230049
 	atf_add_test_case stripcr_o

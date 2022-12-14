@@ -1247,7 +1247,8 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 				printf(" ");
 		}
 		col = 0;
-		for (j = 0, lastc = '\0'; j < nc; j++, lastc = c) {
+		for (j = 0, lastc = '\0'; j < nc && (hw == 0 || col < hw);
+		    j++, lastc = c) {
 			c = getc(lb);
 			if (flags & D_STRIPCR && c == '\r') {
 				if ((c = getc(lb)) == '\n')
@@ -1274,19 +1275,16 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 				if (flags & D_EXPANDTABS) {
 					newcol = ((col / tabsize) + 1) * tabsize;
 					do {
-						if (diff_format == D_SIDEBYSIDE)
-							j++;
 						printf(" ");
-					} while (++col < newcol && j < nc);
+					} while (++col < newcol && col < hw);
 				} else {
 					if (diff_format == D_SIDEBYSIDE) {
-						if ((j + tabsize) > nc) {
-							printf("%*s", nc - j, "");
-							j = col = nc;
+						if ((col + tabsize) > hw) {
+							printf("%*s", hw - col, "");
+							col = hw;
 						} else {
 							printf("\t");
 							col += tabsize - 1;
-							j += tabsize - 1;
 						}
 					} else {
 						printf("\t");
