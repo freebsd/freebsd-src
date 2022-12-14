@@ -59,6 +59,95 @@ __FBSDID("$FreeBSD$");
 _DECLARE_DEBUG(LOG_DEBUG);
 
 /*
+ * Generic modification interface handler.
+ * Responsible for changing network stack interface attributes
+ * such as state, mtu or description.
+ */
+static int
+modify_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+    const struct nlattr_bmask *bm, struct nlpcb *nlp, struct nl_pstate *npt)
+{
+	int error;
+
+	if (lattrs->ifla_ifalias != NULL) {
+		if (nlp_has_priv(nlp, PRIV_NET_SETIFDESCR)) {
+			int len = strlen(lattrs->ifla_ifalias) + 1;
+			char *buf = if_allocdescr(len, true);
+
+			memcpy(buf, lattrs->ifla_ifalias, len);
+			if_setdescr(ifp, buf);
+			getmicrotime(&ifp->if_lastchange);
+		} else {
+			nlmsg_report_err_msg(npt, "Not enough privileges to set descr");
+			return (EPERM);
+		}
+	}
+
+	if ((lattrs->ifi_change & IFF_UP) && (lattrs->ifi_flags & IFF_UP) == 0) {
+		/* Request to down the interface */
+		if_down(ifp);
+	}
+
+	if (lattrs->ifla_mtu > 0) {
+		if (nlp_has_priv(nlp, PRIV_NET_SETIFMTU)) {
+			struct ifreq ifr = { .ifr_mtu = lattrs->ifla_mtu };
+			error = ifhwioctl(SIOCSIFMTU, ifp, (char *)&ifr, curthread);
+		} else {
+			nlmsg_report_err_msg(npt, "Not enough privileges to set mtu");
+			return (EPERM);
+		}
+	}
+
+	if (lattrs->ifi_change & IFF_PROMISC) {
+		error = ifpromisc(ifp, lattrs->ifi_flags & IFF_PROMISC);
+		if (error != 0) {
+			nlmsg_report_err_msg(npt, "unable to set promisc");
+			return (error);
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Generic creation interface handler.
+ * Responsible for creating interfaces w/o parameters and setting
+ * misc attributes such as state, mtu or description.
+ */
+static int
+create_generic(struct nl_parsed_link *lattrs, const struct nlattr_bmask *bm,
+    struct nlpcb *nlp, struct nl_pstate *npt)
+{
+	int error = 0;
+
+	struct ifc_data ifd = {};
+	struct ifnet *ifp = NULL;
+	error = ifc_create_ifp(lattrs->ifla_ifname, &ifd, &ifp);
+
+	NLP_LOG(LOG_DEBUG2, nlp, "clone for %s returned %d", lattrs->ifla_ifname, error);
+
+	if (error == 0) {
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
+		bool success = if_try_ref(ifp);
+		NET_EPOCH_EXIT(et);
+		if (!success)
+			return (EINVAL);
+		error = modify_generic(ifp, lattrs, bm, nlp, npt);
+		if_rele(ifp);
+	}
+
+	return (error);
+}
+
+struct nl_cloner generic_cloner = {
+	.name = "_default_",
+	.create_f = create_generic,
+	.modify_f = modify_generic,
+};
+
+/*
  *
  * {len=76, type=RTM_NEWLINK, flags=NLM_F_REQUEST|NLM_F_ACK|NLM_F_EXCL|NLM_F_CREATE, seq=1662892737, pid=0},
  *  {ifi_family=AF_UNSPEC, ifi_type=ARPHRD_NETROM, ifi_index=0, ifi_flags=0, ifi_change=0},
@@ -87,7 +176,8 @@ static const struct nlattr_parser nla_p_vlan[] = {
 NL_DECLARE_ATTR_PARSER(vlan_parser, nla_p_vlan);
 
 static int
-create_vlan(struct nl_parsed_link *lattrs, struct nlpcb *nlp, struct nl_pstate *npt)
+create_vlan(struct nl_parsed_link *lattrs, const struct nlattr_bmask *bm,
+    struct nlpcb *nlp, struct nl_pstate *npt)
 {
 	struct epoch_tracker et;
         struct ifnet *ifp;
@@ -147,9 +237,17 @@ create_vlan(struct nl_parsed_link *lattrs, struct nlpcb *nlp, struct nl_pstate *
 	return (error);
 }
 
+static int
+dump_vlan(struct ifnet *ifp, struct nl_writer *nw)
+{
+	return (0);
+}
+
 static struct nl_cloner vlan_cloner = {
 	.name = "vlan",
 	.create_f = create_vlan,
+	.modify_f = modify_generic,
+	.dump_f = dump_vlan,
 
 };
 
