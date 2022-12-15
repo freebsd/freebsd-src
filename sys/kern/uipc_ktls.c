@@ -2302,6 +2302,27 @@ ktls_resync_ifnet(struct socket *so, uint32_t tls_len, uint64_t tls_rcd_num)
 }
 
 static void
+ktls_drop(struct socket *so, int error)
+{
+	struct epoch_tracker et;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp;
+
+	NET_EPOCH_ENTER(et);
+	INP_WLOCK(inp);
+	if (!(inp->inp_flags & INP_DROPPED)) {
+		tp = intotcpcb(inp);
+		CURVNET_SET(inp->inp_vnet);
+		tp = tcp_drop(tp, error);
+		CURVNET_RESTORE();
+		if (tp != NULL)
+			INP_WUNLOCK(inp);
+	} else
+		INP_WUNLOCK(inp);
+	NET_EPOCH_EXIT(et);
+}
+
+static void
 ktls_decrypt(struct socket *so)
 {
 	char tls_header[MBUF_PEXT_HDR_LEN];
@@ -2358,10 +2379,7 @@ ktls_decrypt(struct socket *so)
 			SOCKBUF_UNLOCK(sb);
 			counter_u64_add(ktls_offload_corrupted_records, 1);
 
-			CURVNET_SET(so->so_vnet);
-			so->so_proto->pr_abort(so);
-			so->so_error = error;
-			CURVNET_RESTORE();
+			ktls_drop(so, error);
 			goto deref;
 		}
 
@@ -2887,8 +2905,7 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 	if (error == 0) {
 		(void)so->so_proto->pr_ready(so, top, npages);
 	} else {
-		so->so_proto->pr_abort(so);
-		so->so_error = EIO;
+		ktls_drop(so, EIO);
 		mb_free_notready(top, total_pages);
 	}
 
@@ -2931,8 +2948,7 @@ ktls_encrypt_cb(struct ktls_ocf_encrypt_state *state, int error)
 	if (error == 0) {
 		(void)so->so_proto->pr_ready(so, m, npages);
 	} else {
-		so->so_proto->pr_abort(so);
-		so->so_error = EIO;
+		ktls_drop(so, EIO);
 		mb_free_notready(m, npages);
 	}
 
@@ -2996,8 +3012,7 @@ ktls_encrypt_async(struct ktls_wq *wq, struct mbuf *top)
 
 	CURVNET_SET(so->so_vnet);
 	if (error != 0) {
-		so->so_proto->pr_abort(so);
-		so->so_error = EIO;
+		ktls_drop(so, EIO);
 		mb_free_notready(m, total_pages - npages);
 	}
 
