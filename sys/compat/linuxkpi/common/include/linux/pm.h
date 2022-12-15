@@ -33,8 +33,6 @@
 #ifndef	_LINUXKPI_LINUX_PM_H
 #define	_LINUXKPI_LINUX_PM_H
 
-#include <asm/atomic.h>
-
 /* Needed but breaks linux_usb.c */
 /* #include <linux/completion.h> */
 /* #include <linux/wait.h> */
@@ -44,10 +42,6 @@ typedef struct pm_message {
 } pm_message_t;
 
 struct dev_pm_domain {
-};
-
-struct dev_pm_info {
-	atomic_t usage_count;
 };
 
 #define	PM_EVENT_FREEZE		0x0001
