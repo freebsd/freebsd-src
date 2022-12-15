@@ -841,38 +841,53 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 	DPRINTFN(5, "iface_index=%d cmd=%d\n",
 	    iface_index, cmd);
 
-	if (cmd == USB_CFG_FREE)
-		goto cleanup;
-
-	if (cmd == USB_CFG_INIT) {
+	if (cmd == USB_CFG_INIT || cmd == USB_CFG_FREE) {
 		sx_assert(&udev->enum_sx, SA_LOCKED);
 
 		/* check for in-use endpoints */
+
+		if (cmd == USB_CFG_INIT) {
+			ep = udev->endpoints;
+			ep_max = udev->endpoints_max;
+			while (ep_max--) {
+				/* look for matching endpoints */
+				if (iface_index == USB_IFACE_INDEX_ANY ||
+				    iface_index == ep->iface_index) {
+					if (ep->refcount_alloc != 0)
+						return (USB_ERR_IN_USE);
+				}
+			}
+		}
 
 		ep = udev->endpoints;
 		ep_max = udev->endpoints_max;
 		while (ep_max--) {
 			/* look for matching endpoints */
-			if ((iface_index == USB_IFACE_INDEX_ANY) ||
-			    (iface_index == ep->iface_index)) {
-				if (ep->refcount_alloc != 0) {
-					/*
-					 * This typically indicates a
-					 * more serious error.
-					 */
-					err = USB_ERR_IN_USE;
-				} else {
-					/* reset endpoint */
-					memset(ep, 0, sizeof(*ep));
-					/* make sure we don't zero the endpoint again */
-					ep->iface_index = USB_IFACE_INDEX_ANY;
-				}
+			if (iface_index == USB_IFACE_INDEX_ANY ||
+			    iface_index == ep->iface_index) {
+				/*
+				 * Check if hardware needs a callback
+				 * to unconfigure the endpoint. This
+				 * may happen multiple times,
+				 * because the requested alternate
+				 * setting may fail. The callback
+				 * implementation should be aware of
+				 * and handle that.
+				 */
+				if (ep->edesc != NULL &&
+				    udev->bus->methods->endpoint_uninit != NULL)
+					udev->bus->methods->endpoint_uninit(udev, ep);
+
+				/* reset endpoint */
+				memset(ep, 0, sizeof(*ep));
+				/* make sure we don't zero the endpoint again */
+				ep->iface_index = USB_IFACE_INDEX_ANY;
 			}
 			ep++;
 		}
 
-		if (err)
-			return (err);
+		if (cmd == USB_CFG_FREE)
+			goto cleanup;
 	}
 
 	memset(&ips, 0, sizeof(ips));
