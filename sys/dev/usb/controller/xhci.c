@@ -4030,7 +4030,47 @@ xhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 static void
 xhci_ep_uninit(struct usb_device *udev, struct usb_endpoint *ep)
 {
+	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
+	const struct usb_endpoint_descriptor *edesc = ep->edesc;
+	struct usb_page_search buf_inp;
+	struct usb_page_cache *pcinp;
+	uint32_t mask;
+	uint8_t index;
+	uint8_t epno;
+	usb_error_t err;
 
+	if (udev->parent_hub == NULL) {
+		/* root HUB has special endpoint handling */
+		return;
+	}
+
+	if ((edesc->bEndpointAddress & UE_ADDR) == 0) {
+		/* control endpoint is never unconfigured */
+		return;
+	}
+
+	XHCI_CMD_LOCK(sc);
+	index = udev->controller_slot_id;
+	epno = XHCI_EPNO2EPID(edesc->bEndpointAddress);
+	mask = 1U << epno;
+
+	if (sc->sc_hw.devs[index].ep_configured & mask) {
+		USB_BUS_LOCK(udev->bus);
+		xhci_configure_mask(udev, mask, 1);
+		USB_BUS_UNLOCK(udev->bus);
+
+		pcinp = &sc->sc_hw.devs[index].input_pc;
+		usbd_get_page(pcinp, 0, &buf_inp);
+		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+		if (err) {
+			DPRINTF("Unconfiguring endpoint failed: %d\n", err);
+		} else {
+			USB_BUS_LOCK(udev->bus);
+			sc->sc_hw.devs[index].ep_configured &= ~mask;
+			USB_BUS_UNLOCK(udev->bus);
+		}
+	}
+	XHCI_CMD_UNLOCK(sc);
 }
 
 static void
