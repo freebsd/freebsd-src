@@ -661,7 +661,7 @@ rt_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
     int fibnum)
 {
 
-	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE || cmd == RTM_CHANGE,
 	    ("unexpected cmd %d", cmd));
 
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
