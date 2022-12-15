@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd January 27, 2022
+.Dd December 15, 2022
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -132,7 +132,7 @@ The following controls are provided for this:
 .Bl -tag -width security.bsd.unprivileged_proc_debug
 .It Dv security.bsd.allow_ptrace
 Setting this sysctl to zero value makes
-.Xr ptrace 2
+.Nm
 return
 .Er ENOSYS
 always as if the syscall is not implemented by the kernel.
@@ -431,11 +431,11 @@ given as the signal to be delivered.
 .It Dv PT_ATTACH
 This request allows a process to gain control of an otherwise
 unrelated process and begin tracing it.
-It does not need any cooperation from the to-be-traced process.
+It does not need any cooperation from the process to trace.
 In
 this case,
 .Fa pid
-specifies the process ID of the to-be-traced process, and the other
+specifies the process ID of the process to trace, and the other
 two arguments are ignored.
 This request requires that the target process must have the same real
 UID as the tracing process, and that it must not be executing a setuid
