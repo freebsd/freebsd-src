@@ -207,8 +207,8 @@ socketpair_tcp(int sv[2])
 	pfd.fd = cs;
 	pfd.events = POLLOUT;
 	pfd.revents = 0;
-	ATF_REQUIRE(poll(&pfd, 1, INFTIM) == 1);
-	ATF_REQUIRE(pfd.revents == POLLOUT);
+	ATF_REQUIRE_INTEQ(1, poll(&pfd, 1, INFTIM));
+	ATF_REQUIRE_INTEQ(POLLOUT, pfd.revents);
 
 	sv[0] = cs;
 	sv[1] = as;
@@ -795,8 +795,8 @@ decrypt_tls_aes_cbc_mte(const atf_tc_t *tc, struct tls_enable *en,
 	hdr = src;
 	hdr_len = tls_header_len(en);
 	mac_len = tls_mac_len(en);
-	ATF_REQUIRE(hdr->tls_vmajor == TLS_MAJOR_VER_ONE);
-	ATF_REQUIRE(hdr->tls_vminor == en->tls_vminor);
+	ATF_REQUIRE_INTEQ(TLS_MAJOR_VER_ONE, hdr->tls_vmajor);
+	ATF_REQUIRE_INTEQ(en->tls_vminor, hdr->tls_vminor);
 	debug(tc, "decrypting MTE record seqno %ju:\n", (uintmax_t)seqno);
 	debug_hexdump(tc, src, len, NULL);
 
@@ -826,8 +826,11 @@ decrypt_tls_aes_cbc_mte(const atf_tc_t *tc, struct tls_enable *en,
 	 * The kernel always generates the smallest amount of padding.
 	 */
 	padding = buf[payload_len - 1] + 1;
-	ATF_REQUIRE(padding > 0 && padding <= AES_BLOCK_LEN);
-	ATF_REQUIRE(payload_len >= mac_len + padding);
+	ATF_REQUIRE_MSG(padding > 0 && padding <= AES_BLOCK_LEN,
+	    "invalid padding %d", padding);
+	ATF_REQUIRE_MSG(payload_len >= mac_len + padding,
+	    "payload_len (%zu) < mac_len (%zu) + padding (%d)", payload_len,
+	    mac_len, padding);
 	payload_len -= padding;
 
 	/* Verify HMAC. */
@@ -837,7 +840,8 @@ decrypt_tls_aes_cbc_mte(const atf_tc_t *tc, struct tls_enable *en,
 	ATF_REQUIRE(verify_hash(tls_EVP_MD(en), en->auth_key, en->auth_key_len,
 	    &aad, sizeof(aad), buf, payload_len, buf + payload_len));
 
-	ATF_REQUIRE(payload_len <= avail);
+	ATF_REQUIRE_MSG(payload_len <= avail, "payload_len (%zu) < avail (%zu)",
+	    payload_len, avail);
 	memcpy(dst, buf, payload_len);
 	*record_type = hdr->tls_type;
 	return (payload_len);
@@ -857,8 +861,8 @@ decrypt_tls_12_aead(const atf_tc_t *tc, struct tls_enable *en, uint64_t seqno,
 	hdr_len = tls_header_len(en);
 	mac_len = tls_mac_len(en);
 	payload_len = len - (hdr_len + mac_len);
-	ATF_REQUIRE(hdr->tls_vmajor == TLS_MAJOR_VER_ONE);
-	ATF_REQUIRE(hdr->tls_vminor == TLS_MINOR_VER_TWO);
+	ATF_REQUIRE_INTEQ(TLS_MAJOR_VER_ONE, hdr->tls_vmajor);
+	ATF_REQUIRE_INTEQ(TLS_MINOR_VER_TWO, hdr->tls_vminor);
 	debug(tc, "decrypting TLS 1.2 record seqno %ju:\n", (uintmax_t)seqno);
 	debug_hexdump(tc, src, len, NULL);
 
@@ -893,10 +897,12 @@ decrypt_tls_13_aead(const atf_tc_t *tc, struct tls_enable *en, uint64_t seqno,
 	hdr_len = tls_header_len(en);
 	mac_len = tls_mac_len(en);
 	payload_len = len - (hdr_len + mac_len);
-	ATF_REQUIRE(payload_len >= 1);
-	ATF_REQUIRE(hdr->tls_type == TLS_RLTYPE_APP);
-	ATF_REQUIRE(hdr->tls_vmajor == TLS_MAJOR_VER_ONE);
-	ATF_REQUIRE(hdr->tls_vminor == TLS_MINOR_VER_TWO);
+	ATF_REQUIRE_MSG(payload_len >= 1,
+	    "payload_len (%zu) too short: len %zu hdr_len %zu mac_len %zu",
+	    payload_len, len, hdr_len, mac_len);
+	ATF_REQUIRE_INTEQ(TLS_RLTYPE_APP, hdr->tls_type);
+	ATF_REQUIRE_INTEQ(TLS_MAJOR_VER_ONE, hdr->tls_vmajor);
+	ATF_REQUIRE_INTEQ(TLS_MINOR_VER_TWO, hdr->tls_vminor);
 	debug(tc, "decrypting TLS 1.3 record seqno %ju:\n", (uintmax_t)seqno);
 	debug_hexdump(tc, src, len, NULL);
 
@@ -934,17 +940,18 @@ decrypt_tls_aead(const atf_tc_t *tc, struct tls_enable *en, uint64_t seqno,
 	size_t payload_len;
 
 	hdr = src;
-	ATF_REQUIRE(ntohs(hdr->tls_length) + sizeof(*hdr) == len);
+	ATF_REQUIRE_INTEQ(len, ntohs(hdr->tls_length) + sizeof(*hdr));
 
 	payload_len = len - (tls_header_len(en) + tls_trailer_len(en));
-	ATF_REQUIRE(payload_len <= avail);
+	ATF_REQUIRE_MSG(payload_len <= avail, "payload_len (%zu) > avail (%zu)",
+	    payload_len, avail);
 
 	if (en->tls_vminor == TLS_MINOR_VER_TWO) {
-		ATF_REQUIRE(decrypt_tls_12_aead(tc, en, seqno, src, len, dst,
-		    record_type) == payload_len);
+		ATF_REQUIRE_INTEQ(payload_len, decrypt_tls_12_aead(tc, en,
+		    seqno, src, len, dst, record_type));
 	} else {
-		ATF_REQUIRE(decrypt_tls_13_aead(tc, en, seqno, src, len, dst,
-		    record_type) == payload_len);
+		ATF_REQUIRE_INTEQ(payload_len, decrypt_tls_13_aead(tc, en,
+		    seqno, src, len, dst, record_type));
 	}
 
 	return (payload_len);
@@ -980,7 +987,7 @@ encrypt_tls_aes_cbc_mte(const atf_tc_t *tc, struct tls_enable *en,
 	size_t hdr_len, mac_len, record_len;
 	u_int digest_len, i;
 
-	ATF_REQUIRE(padding % 16 == 0);
+	ATF_REQUIRE_INTEQ(0, padding % 16);
 
 	hdr = dst;
 	buf = dst;
@@ -989,10 +996,13 @@ encrypt_tls_aes_cbc_mte(const atf_tc_t *tc, struct tls_enable *en,
 	hdr_len = tls_header_len(en);
 	mac_len = tls_mac_len(en);
 	padding += (AES_BLOCK_LEN - (len + mac_len) % AES_BLOCK_LEN);
-	ATF_REQUIRE(padding > 0 && padding <= 255);
+	ATF_REQUIRE_MSG(padding > 0 && padding <= 255, "invalid padding (%zu)",
+	    padding);
 
 	record_len = hdr_len + len + mac_len + padding;
-	ATF_REQUIRE(record_len <= avail);
+	ATF_REQUIRE_MSG(record_len <= avail, "record_len (%zu) > avail (%zu): "
+	    "hdr_len %zu, len %zu, mac_len %zu, padding %zu", record_len,
+	    avail, hdr_len, len, mac_len, padding);
 
 	hdr->tls_type = record_type;
 	hdr->tls_vmajor = TLS_MAJOR_VER_ONE;
@@ -1012,12 +1022,13 @@ encrypt_tls_aes_cbc_mte(const atf_tc_t *tc, struct tls_enable *en,
 	debug_hexdump(tc, src, len, "plaintext");
 	ATF_REQUIRE(compute_hash(tls_EVP_MD(en), en->auth_key, en->auth_key_len,
 	    &aad, sizeof(aad), src, len, buf + hdr_len + len, &digest_len));
-	ATF_REQUIRE(digest_len == mac_len);
+	ATF_REQUIRE_INTEQ(mac_len, digest_len);
 
 	/* Store padding. */
 	for (i = 0; i < padding; i++)
 		buf[hdr_len + len + mac_len + i] = padding - 1;
-	debug_hexdump(tc, buf + hdr_len + len, mac_len + padding, "MAC and padding");
+	debug_hexdump(tc, buf + hdr_len + len, mac_len + padding,
+	    "MAC and padding");
 
 	/* Encrypt the record. */
 	ATF_REQUIRE(cbc_encrypt(tls_EVP_CIPHER(en), en->cipher_key, iv,
@@ -1123,15 +1134,17 @@ encrypt_tls_aead(const atf_tc_t *tc, struct tls_enable *en,
 	size_t record_len;
 
 	record_len = tls_header_len(en) + len + padding + tls_trailer_len(en);
-	ATF_REQUIRE(record_len <= avail);
+	ATF_REQUIRE_MSG(record_len <= avail, "record_len (%zu) > avail (%zu): "
+	    "header %zu len %zu padding %zu trailer %zu", record_len, avail,
+	    tls_header_len(en), len, padding, tls_trailer_len(en));
 
 	if (en->tls_vminor == TLS_MINOR_VER_TWO) {
-		ATF_REQUIRE(padding == 0);
-		ATF_REQUIRE(encrypt_tls_12_aead(tc, en, record_type, seqno, src,
-		    len, dst) == record_len);
+		ATF_REQUIRE_INTEQ(0, padding);
+		ATF_REQUIRE_INTEQ(record_len, encrypt_tls_12_aead(tc, en,
+		    record_type, seqno, src, len, dst));
 	} else
-		ATF_REQUIRE(encrypt_tls_13_aead(tc, en, record_type, seqno, src,
-		    len, dst, padding) == record_len);
+		ATF_REQUIRE_INTEQ(record_len, encrypt_tls_13_aead(tc, en,
+		    record_type, seqno, src, len, dst, padding));
 
 	return (record_len);
 }
@@ -1243,7 +1256,8 @@ test_ktls_transmit_app_data(const atf_tc_t *tc, struct tls_enable *en,
 			    record_len - outbuf_len);
 			if (rv == -1 && errno == EAGAIN)
 				break;
-			ATF_REQUIRE_MSG(rv > 0, "failed to read from socket");
+			ATF_REQUIRE_MSG(rv > 0,
+			    "failed to read from socket: %s", strerror(errno));
 
 			outbuf_len += rv;
 			if (outbuf_len == record_len) {
@@ -1251,7 +1265,7 @@ test_ktls_transmit_app_data(const atf_tc_t *tc, struct tls_enable *en,
 				    seqno, outbuf, outbuf_len,
 				    decrypted + decrypted_len,
 				    len - decrypted_len, &record_type);
-				ATF_REQUIRE(record_type == TLS_RLTYPE_APP);
+				ATF_REQUIRE_INTEQ(TLS_RLTYPE_APP, record_type);
 
 				seqno++;
 				outbuf_len = 0;
@@ -1296,7 +1310,7 @@ ktls_send_control_message(int fd, uint8_t type, void *data, size_t len)
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	ATF_REQUIRE(sendmsg(fd, &msg, 0) == (ssize_t)len);
+	ATF_REQUIRE_INTEQ((ssize_t)len, sendmsg(fd, &msg, 0));
 }
 
 static void
@@ -1334,20 +1348,21 @@ test_ktls_transmit_control(const atf_tc_t *tc, struct tls_enable *en,
 	 * to read.
 	 */
 	rv = read(sockets[0], outbuf, sizeof(struct tls_record_layer));
-	ATF_REQUIRE(rv == sizeof(struct tls_record_layer));
+	ATF_REQUIRE_INTEQ(sizeof(struct tls_record_layer), rv);
 	payload_len = ntohs(hdr->tls_length);
 	record_len = payload_len + sizeof(struct tls_record_layer);
-	ATF_REQUIRE(record_len <= outbuf_cap);
+	ATF_REQUIRE_MSG(record_len <= outbuf_cap,
+	    "record_len (%zu) > outbuf_cap (%zu)", record_len, outbuf_cap);
 	rv = read(sockets[0], outbuf + sizeof(struct tls_record_layer),
 	    payload_len);
-	ATF_REQUIRE(rv == (ssize_t)payload_len);
+	ATF_REQUIRE_INTEQ((ssize_t)payload_len, rv);
 
 	rv = decrypt_tls_record(tc, en, seqno, outbuf, record_len, decrypted,
 	    len, &record_type);
 
 	ATF_REQUIRE_MSG((ssize_t)len == rv,
 	    "read %zd decrypted bytes, but wrote %zu", rv, len);
-	ATF_REQUIRE(record_type == type);
+	ATF_REQUIRE_INTEQ(type, record_type);
 
 	ATF_REQUIRE(memcmp(plaintext, decrypted, len) == 0);
 
@@ -1388,11 +1403,11 @@ test_ktls_transmit_empty_fragment(const atf_tc_t *tc, struct tls_enable *en,
 	 */
 	rv = write(sockets[1], NULL, 0);
 	if (rv == 0) {
-		ATF_REQUIRE(en->cipher_algorithm == CRYPTO_AES_CBC);
-		ATF_REQUIRE(en->tls_vminor == TLS_MINOR_VER_ZERO);
+		ATF_REQUIRE_INTEQ(CRYPTO_AES_CBC, en->cipher_algorithm);
+		ATF_REQUIRE_INTEQ(TLS_MINOR_VER_ZERO, en->tls_vminor);
 	} else {
-		ATF_REQUIRE(rv == -1);
-		ATF_REQUIRE(errno == EINVAL);
+		ATF_REQUIRE_INTEQ(-1, rv);
+		ATF_REQUIRE_ERRNO(EINVAL, true);
 		goto out;
 	}
 
@@ -1401,20 +1416,21 @@ test_ktls_transmit_empty_fragment(const atf_tc_t *tc, struct tls_enable *en,
 	 * to read.
 	 */
 	rv = read(sockets[0], outbuf, sizeof(struct tls_record_layer));
-	ATF_REQUIRE(rv == sizeof(struct tls_record_layer));
+	ATF_REQUIRE_INTEQ(sizeof(struct tls_record_layer), rv);
 	payload_len = ntohs(hdr->tls_length);
 	record_len = payload_len + sizeof(struct tls_record_layer);
-	ATF_REQUIRE(record_len <= outbuf_cap);
+	ATF_REQUIRE_MSG(record_len <= outbuf_cap,
+	    "record_len (%zu) > outbuf_cap (%zu)", record_len, outbuf_cap);
 	rv = read(sockets[0], outbuf + sizeof(struct tls_record_layer),
 	    payload_len);
-	ATF_REQUIRE(rv == (ssize_t)payload_len);
+	ATF_REQUIRE_INTEQ((ssize_t)payload_len, rv);
 
 	rv = decrypt_tls_record(tc, en, seqno, outbuf, record_len, NULL, 0,
 	    &record_type);
 
 	ATF_REQUIRE_MSG(rv == 0,
 	    "read %zd decrypted bytes for an empty fragment", rv);
-	ATF_REQUIRE(record_type == TLS_RLTYPE_APP);
+	ATF_REQUIRE_INTEQ(TLS_RLTYPE_APP, record_type);
 
 out:
 	free(outbuf);
@@ -1449,19 +1465,19 @@ ktls_receive_tls_record(struct tls_enable *en, int fd, uint8_t record_type,
 
 	cmsg = CMSG_FIRSTHDR(&msg);
 	ATF_REQUIRE(cmsg != NULL);
-	ATF_REQUIRE(cmsg->cmsg_level == IPPROTO_TCP);
-	ATF_REQUIRE(cmsg->cmsg_type == TLS_GET_RECORD);
-	ATF_REQUIRE(cmsg->cmsg_len == CMSG_LEN(sizeof(*tgr)));
+	ATF_REQUIRE_INTEQ(IPPROTO_TCP, cmsg->cmsg_level);
+	ATF_REQUIRE_INTEQ(TLS_GET_RECORD, cmsg->cmsg_type);
+	ATF_REQUIRE_INTEQ(CMSG_LEN(sizeof(*tgr)), cmsg->cmsg_len);
 
 	tgr = (struct tls_get_record *)CMSG_DATA(cmsg);
-	ATF_REQUIRE(tgr->tls_type == record_type);
-	ATF_REQUIRE(tgr->tls_vmajor == en->tls_vmajor);
+	ATF_REQUIRE_INTEQ(record_type, tgr->tls_type);
+	ATF_REQUIRE_INTEQ(en->tls_vmajor, tgr->tls_vmajor);
 	/* XXX: Not sure if this is what OpenSSL expects? */
 	if (en->tls_vminor == TLS_MINOR_VER_THREE)
-		ATF_REQUIRE(tgr->tls_vminor == TLS_MINOR_VER_TWO);
+		ATF_REQUIRE_INTEQ(TLS_MINOR_VER_TWO, tgr->tls_vminor);
 	else
-		ATF_REQUIRE(tgr->tls_vminor == en->tls_vminor);
-	ATF_REQUIRE(tgr->tls_length == htons(rv));
+		ATF_REQUIRE_INTEQ(en->tls_vminor, tgr->tls_vminor);
+	ATF_REQUIRE_INTEQ(htons(rv), tgr->tls_length);
 
 	return (rv);
 }
@@ -1527,7 +1543,7 @@ test_ktls_receive_app_data(const atf_tc_t *tc, struct tls_enable *en,
 			rv = write(ev.ident, outbuf + outbuf_sent,
 			    outbuf_len - outbuf_sent);
 			ATF_REQUIRE_MSG(rv > 0,
-			    "failed to write to socket");
+			    "failed to write to socket: %s", strerror(errno));
 			outbuf_sent += rv;
 			if (outbuf_sent == outbuf_len) {
 				outbuf_len = 0;
@@ -1584,7 +1600,7 @@ ktls_receive_tls_error(int fd, int expected_error)
 
 	ATF_REQUIRE(recvmsg(fd, &msg, 0) == -1);
 	if (expected_error != 0)
-		ATF_REQUIRE(errno == expected_error);
+		ATF_REQUIRE_ERRNO(expected_error, true);
 }
 
 static void
@@ -1620,7 +1636,7 @@ test_ktls_receive_corrupted_record(const atf_tc_t *tc, struct tls_enable *en,
 	outbuf[offset] ^= 0x01;
 
 	rv = write(sockets[1], outbuf, outbuf_len);
-	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+	ATF_REQUIRE_INTEQ((ssize_t)outbuf_len, rv);
 
 	ktls_receive_tls_error(sockets[0], EBADMSG);
 
@@ -1670,7 +1686,7 @@ static void
 test_ktls_receive_corrupted_padding(const atf_tc_t *tc, struct tls_enable *en,
     uint64_t seqno, size_t len)
 {
-	ATF_REQUIRE(en->cipher_algorithm == CRYPTO_AES_CBC);
+	ATF_REQUIRE_INTEQ(CRYPTO_AES_CBC, en->cipher_algorithm);
 
 	/* Corrupt the last byte of the padding. */
 	test_ktls_receive_corrupted_record(tc, en, seqno, len, -1);
@@ -1704,7 +1720,7 @@ test_ktls_receive_truncated_record(const atf_tc_t *tc, struct tls_enable *en,
 	    plaintext, len, outbuf, outbuf_cap, 0);
 
 	rv = write(sockets[1], outbuf, outbuf_len / 2);
-	ATF_REQUIRE(rv == (ssize_t)(outbuf_len / 2));
+	ATF_REQUIRE_INTEQ((ssize_t)(outbuf_len / 2), rv);
 
 	ATF_REQUIRE(shutdown(sockets[1], SHUT_WR) == 0);
 
@@ -1748,7 +1764,7 @@ test_ktls_receive_bad_major(const atf_tc_t *tc, struct tls_enable *en,
 	hdr->tls_vmajor++;
 
 	rv = write(sockets[1], outbuf, outbuf_len);
-	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+	ATF_REQUIRE_INTEQ((ssize_t)outbuf_len, rv);
 
 	ktls_receive_tls_error(sockets[0], EINVAL);
 
@@ -1790,7 +1806,7 @@ test_ktls_receive_bad_minor(const atf_tc_t *tc, struct tls_enable *en,
 	hdr->tls_vminor++;
 
 	rv = write(sockets[1], outbuf, outbuf_len);
-	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+	ATF_REQUIRE_INTEQ((ssize_t)outbuf_len, rv);
 
 	ktls_receive_tls_error(sockets[0], EINVAL);
 
@@ -1811,7 +1827,7 @@ test_ktls_receive_bad_type(const atf_tc_t *tc, struct tls_enable *en,
 	int sockets[2];
 
 	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
-	ATF_REQUIRE(en->tls_vminor == TLS_MINOR_VER_THREE);
+	ATF_REQUIRE_INTEQ(TLS_MINOR_VER_THREE, en->tls_vminor);
 
 	plaintext = alloc_buffer(len);
 	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
@@ -1833,7 +1849,7 @@ test_ktls_receive_bad_type(const atf_tc_t *tc, struct tls_enable *en,
 	hdr->tls_type = TLS_RLTYPE_APP + 1;
 
 	rv = write(sockets[1], outbuf, outbuf_len);
-	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+	ATF_REQUIRE_INTEQ((ssize_t)outbuf_len, rv);
 
 	ktls_receive_tls_error(sockets[0], EINVAL);
 
@@ -1875,7 +1891,7 @@ test_ktls_receive_bad_size(const atf_tc_t *tc, struct tls_enable *en,
 	hdr->tls_length = htons(len);
 
 	rv = write(sockets[1], outbuf, outbuf_len);
-	ATF_REQUIRE(rv == (ssize_t)outbuf_len);
+	ATF_REQUIRE_INTEQ((ssize_t)outbuf_len, rv);
 
 	ATF_REQUIRE(shutdown(sockets[1], SHUT_WR) == 0);
 
@@ -2131,9 +2147,8 @@ test_ktls_invalid_transmit_cipher_suite(const atf_tc_t *tc,
 
 	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
-	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
-	    sizeof(*en)) == -1);
-	ATF_REQUIRE(errno == EINVAL);
+	ATF_REQUIRE_ERRNO(EINVAL, setsockopt(sockets[1], IPPROTO_TCP,
+	    TCP_TXTLS_ENABLE, en, sizeof(*en)) == -1);
 
 	close_sockets(sockets);
 }
@@ -2628,9 +2643,8 @@ test_ktls_invalid_receive_cipher_suite(const atf_tc_t *tc,
 
 	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
-	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
-	    sizeof(*en)) == -1);
-	ATF_REQUIRE(errno == EINVAL);
+	ATF_REQUIRE_ERRNO(EINVAL, setsockopt(sockets[1], IPPROTO_TCP,
+	    TCP_RXTLS_ENABLE, en, sizeof(*en)) == -1);
 
 	close_sockets(sockets);
 }
@@ -2668,9 +2682,8 @@ test_ktls_unsupported_receive_cipher_suite(const atf_tc_t *tc,
 
 	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
-	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
-	    sizeof(*en)) == -1);
-	ATF_REQUIRE(errno == EPROTONOSUPPORT);
+	ATF_REQUIRE_ERRNO(EPROTONOSUPPORT, setsockopt(sockets[1], IPPROTO_TCP,
+	    TCP_RXTLS_ENABLE, en, sizeof(*en)) == -1);
 
 	close_sockets(sockets);
 }
