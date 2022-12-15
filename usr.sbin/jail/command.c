@@ -440,7 +440,7 @@ run_command(struct cfjail *j)
 		} else
 			argc = 4;
 
-		if (!down) {
+		if (!down && extrap != NULL) {
 			for (cs = strtok(extrap, " "); cs;
 			     cs = strtok(NULL, " ")) {
 				size_t len = strlen(cs) + 1;
