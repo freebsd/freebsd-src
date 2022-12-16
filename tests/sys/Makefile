@@ -24,6 +24,7 @@ TESTS_SUBDIRS+=		${_netgraph}
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		netinet6
 TESTS_SUBDIRS+=		netipsec
+TESTS_SUBDIRS+=		netlink
 TESTS_SUBDIRS+=		netmap
 TESTS_SUBDIRS+=		netpfil
 TESTS_SUBDIRS+=		opencrypto

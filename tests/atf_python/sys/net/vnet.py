@@ -5,17 +5,14 @@ import os
 import socket
 import sys
 import time
-from ctypes import cdll
-from ctypes import get_errno
-from ctypes.util import find_library
 from multiprocessing import Pipe
 from multiprocessing import Process
 from typing import Dict
 from typing import List
 from typing import NamedTuple
-from typing import Optional
 
 from atf_python.sys.net.tools import ToolsHelper
+from atf_python.utils import libc, BaseTest
 
 
 def run_cmd(cmd: str, verbose=True) -> str:
@@ -145,7 +142,7 @@ class IfaceFactory(object):
 
     def __init__(self, test_name: str):
         self.test_name = test_name
-        test_id = convert_test_name(test_name)
+        self.test_id = convert_test_name(test_name)
         self.file_name = self.INTERFACES_FNAME
 
     def _register_iface(self, iface_name: str):
@@ -204,13 +201,9 @@ class VnetInstance(object):
 
     @staticmethod
     def attach_jid(jid: int):
-        _path: Optional[str] = find_library("c")
-        if _path is None:
-            raise Exception("libc not found")
-        path: str = _path
-        libc = cdll.LoadLibrary(path)
-        if libc.jail_attach(jid) != 0:
-            raise Exception("jail_attach() failed: errno {}".format(get_errno()))
+        error_code = libc.jail_attach(jid)
+        if error_code != 0:
+            raise Exception("jail_attach() failed: errno {}".format(error_code))
 
     def attach(self):
         self.attach_jid(self.jid)
@@ -290,7 +283,7 @@ class SingleInterfaceMap(NamedTuple):
     vnet_aliases: List[str]
 
 
-class VnetTestTemplate(object):
+class VnetTestTemplate(BaseTest):
     TOPOLOGY = {}
 
     def _get_vnet_handler(self, vnet_alias: str):
@@ -395,6 +388,7 @@ class VnetTestTemplate(object):
         # 'test_ip6_output.py::TestIP6Output::test_output6_pktinfo[ipandif] (setup)'
         test_id = os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]
         test_name = test_id.split("::")[-1]
+        self.check_constraints()
         topology = self.TOPOLOGY
         # First, setup kernel objects - interfaces & vnets
         obj_map = self.setup_topology(topology, test_name)
