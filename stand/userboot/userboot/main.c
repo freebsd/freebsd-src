@@ -313,7 +313,7 @@ userboot_zfs_probe(void)
 	for (unit = 0; unit < userboot_disk_maxunit; unit++) {
 		sprintf(devname, "disk%d:", unit);
 		pool_guid = 0;
-		zfs_probe_dev(devname, &pool_guid);
+		zfs_probe_dev(devname, &pool_guid, true);
 		if (pool_guid != 0)
 			userboot_zfs_found = 1;
 	}

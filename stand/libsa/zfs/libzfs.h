@@ -49,7 +49,7 @@ struct zfs_devdesc {
 };
 
 char	*zfs_fmtdev(struct devdesc *);
-int	zfs_probe_dev(const char *devname, uint64_t *pool_guid);
+int	zfs_probe_dev(const char *devname, uint64_t *pool_guid, bool part_too);
 int	zfs_list(const char *name);
 int	zfs_get_bootonce(void *, const char *, char *, size_t);
 int	zfs_get_bootenv(void *, nvlist_t **);
