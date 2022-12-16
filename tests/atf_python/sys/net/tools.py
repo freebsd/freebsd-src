@@ -1,13 +1,6 @@
 #!/usr/local/bin/python3
 import json
 import os
-import socket
-import time
-from ctypes import cdll
-from ctypes import get_errno
-from ctypes.util import find_library
-from typing import List
-from typing import Optional
 
 
 class ToolsHelper(object):
