@@ -89,7 +89,9 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
 #define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
 #define	U3GINIT_HUAWEISCSI2	10	/* Requires Huawei SCSI init command (2) */
-#define	U3GINIT_TCT		11	/* Requires TCT Mobile init command */
+#define	U3GINIT_HUAWEISCSI3	11	/* Requires Huawei SCSI init command (3) */
+#define	U3GINIT_HUAWEISCSI4	12	/* Requires Huawei SCSI init command (4) */
+#define	U3GINIT_TCT		13	/* Requires TCT Mobile init command */
 
 enum {
 	U3G_BULK_WR,
