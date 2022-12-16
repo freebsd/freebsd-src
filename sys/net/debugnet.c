@@ -855,6 +855,9 @@ debugnet_any_ifnet_update(struct ifnet *ifp)
 	 * dn_init method is available.
 	 */
 	if (nmbuf == 0 || ncl == 0 || clsize == 0) {
+#ifndef INVARIANTS
+		if (bootverbose)
+#endif
 		printf("%s: Bad dn_init result from %s (ifp %p), ignoring.\n",
 		    __func__, if_name(ifp), ifp);
 		return;
