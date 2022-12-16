@@ -38,7 +38,7 @@ case "$daily_status_mailq_enable" in
 
 	    case "$daily_status_include_submit_mailq" in
 	    [Yy][Ee][Ss])
-		if [ -f /etc/mail/submit.cf ]
+		if [ -f /etc/mail/submit.cf ] && mailq -Ac >/dev/null 2>&1
 		then
 		    echo ""
 		    echo "Mail in submit queue:"
