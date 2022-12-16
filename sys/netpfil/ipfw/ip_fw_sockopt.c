@@ -4395,7 +4395,8 @@ objhash_hash_idx(struct namedobj_instance *ni, uint32_t val)
 }
 
 struct named_object *
-ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
+ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set,
+    const char *name)
 {
 	struct named_object *no;
 	uint32_t hash;
