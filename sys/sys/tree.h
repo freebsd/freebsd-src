@@ -331,7 +331,7 @@ struct {								\
  * that the left or right child of the tree node is "red".
  */
 #define _RB_LINK(elm, dir, field)	(elm)->field.rbe_link[dir]
-#define _RB_UP(elm, field)		_RB_LINK(elm, 0, field)
+#define _RB_UP(elm, field)		_RB_LINK(elm, 2, field)
 #define _RB_L				((__uintptr_t)1)
 #define _RB_R				((__uintptr_t)2)
 #define _RB_LR				((__uintptr_t)3)
@@ -341,8 +341,8 @@ struct {								\
 					((__uintptr_t)elm & ~_RB_LR)
 
 #define RB_PARENT(elm, field)		_RB_PTR(_RB_UP(elm, field))
-#define RB_LEFT(elm, field)		_RB_LINK(elm, _RB_L, field)
-#define RB_RIGHT(elm, field)		_RB_LINK(elm, _RB_R, field)
+#define RB_LEFT(elm, field)		_RB_LINK(elm, _RB_L-1, field)
+#define RB_RIGHT(elm, field)		_RB_LINK(elm, _RB_R-1, field)
 #define RB_ROOT(head)			(head)->rbh_root
 #define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
 
@@ -398,10 +398,10 @@ struct {								\
  * update the same pair of pointer fields with distinct values.
  */
 #define RB_ROTATE(elm, tmp, dir, field) do {				\
-	if ((_RB_LINK(elm, dir ^ _RB_LR, field) =			\
-	    _RB_LINK(tmp, dir, field)) != NULL)				\
-		RB_SET_PARENT(_RB_LINK(tmp, dir, field), elm, field);	\
-	_RB_LINK(tmp, dir, field) = (elm);				\
+	if ((_RB_LINK(elm, (dir ^ _RB_LR)-1, field) =			\
+	    _RB_LINK(tmp, dir-1, field)) != NULL)			\
+		RB_SET_PARENT(_RB_LINK(tmp, dir-1, field), elm, field);	\
+	_RB_LINK(tmp, dir-1, field) = (elm);				\
 	RB_SET_PARENT(elm, tmp, field);					\
 } while (/*CONSTCOND*/ 0)
 
@@ -412,6 +412,7 @@ struct {								\
 	RB_PROTOTYPE_INTERNAL(name, type, field, cmp, __unused static)
 #define RB_PROTOTYPE_INTERNAL(name, type, field, cmp, attr)		\
 	RB_PROTOTYPE_RANK(name, type, attr)				\
+	RB_PROTOTYPE_DO_INSERT_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_INSERT_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_REMOVE_COLOR(name, type, attr);			\
 	RB_PROTOTYPE_INSERT_FINISH(name, type, attr);			\
@@ -431,9 +432,11 @@ struct {								\
 #else
 #define RB_PROTOTYPE_RANK(name, type, attr)
 #endif
-#define RB_PROTOTYPE_INSERT_COLOR(name, type, attr)			\
-	attr struct type *name##_RB_INSERT_COLOR(struct name *,		\
+#define RB_PROTOTYPE_DO_INSERT_COLOR(name, type, attr)			\
+	attr struct type *name##_RB_DO_INSERT_COLOR(struct name *,	\
 	    struct type *, struct type *)
+#define RB_PROTOTYPE_INSERT_COLOR(name, type, attr)			\
+	attr struct type *name##_RB_INSERT_COLOR(struct name *, struct type *)
 #define RB_PROTOTYPE_REMOVE_COLOR(name, type, attr)			\
 	attr struct type *name##_RB_REMOVE_COLOR(struct name *,		\
 	    struct type *, struct type *)
@@ -472,6 +475,7 @@ struct {								\
 	RB_GENERATE_INTERNAL(name, type, field, cmp, __unused static)
 #define RB_GENERATE_INTERNAL(name, type, field, cmp, attr)		\
 	RB_GENERATE_RANK(name, type, field, attr)			\
+	RB_GENERATE_DO_INSERT_COLOR(name, type, field, attr)		\
 	RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
 	RB_GENERATE_REMOVE_COLOR(name, type, field, attr)		\
 	RB_GENERATE_INSERT_FINISH(name, type, field, attr)		\
@@ -522,9 +526,9 @@ name##_RB_RANK(struct type *elm)					\
 #define RB_GENERATE_RANK(name, type, field, attr)
 #endif
 
-#define RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
+#define RB_GENERATE_DO_INSERT_COLOR(name, type, field, attr)		\
 attr struct type *							\
-name##_RB_INSERT_COLOR(struct name *head,				\
+name##_RB_DO_INSERT_COLOR(struct name *head,				\
     struct type *parent, struct type *elm)				\
 {									\
 	/*								\
@@ -625,6 +629,20 @@ name##_RB_INSERT_COLOR(struct name *head,				\
 	return (NULL);							\
 }
 
+#define RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
+attr struct type *							\
+name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
+{									\
+	struct type *parent, *tmp;					\
+									\
+	parent = RB_PARENT(elm, field);					\
+	if (parent != NULL)						\
+		tmp = name##_RB_DO_INSERT_COLOR(head, parent, elm);	\
+	else								\
+		tmp = NULL;						\
+	return (tmp);							\
+}
+
 #ifndef RB_STRICT_HST
 /*
  * In REMOVE_COLOR, the HST paper, in figure 3, in the single-rotate case, has
@@ -671,7 +689,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 			continue;					\
 		}							\
 		sibdir = elmdir ^ _RB_LR;				\
-		sib = _RB_LINK(parent, sibdir, field);			\
+		sib = _RB_LINK(parent, sibdir-1, field);		\
 		up = _RB_UP(sib, field);				\
 		_RB_BITS(up) ^= _RB_LR;					\
 		if ((_RB_BITS(up) & _RB_LR) == 0) {			\
@@ -700,7 +718,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 			 *				       /    z	\
 			 *				      y 	\
 			 */						\
-			elm = _RB_LINK(sib, elmdir, field);		\
+			elm = _RB_LINK(sib, elmdir-1, field);		\
 			/* elm is a 1-child.  First rotate at elm. */	\
 			RB_ROTATE(sib, elm, sibdir, field);		\
 			up = _RB_UP(elm, field);			\
@@ -826,7 +844,7 @@ name##_RB_INSERT_FINISH(struct name *head, struct type *parent,		\
 	RB_SET(elm, parent, field);					\
 	*pptr = elm;							\
 	if (parent != NULL)						\
-		tmp = name##_RB_INSERT_COLOR(head, parent, elm);	\
+		tmp = name##_RB_DO_INSERT_COLOR(head, parent, elm);	\
 	_RB_AUGMENT_WALK(elm, tmp, field);				\
 	if (tmp != NULL)						\
 		/*							\
