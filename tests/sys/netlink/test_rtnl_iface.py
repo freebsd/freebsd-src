@@ -22,6 +22,8 @@ from atf_python.sys.net.vnet import SingleVnetTestTemplate
 
 
 class TestRtNlIface(SingleVnetTestTemplate):
+    REQUIRED_MODULES = ["netlink"]
+
     def setup_method(self, method):
         super().setup_method(method)
         self.helper = NlHelper()

@@ -2,7 +2,7 @@
 
 .PATH:	${.CURDIR}
 
-FILES=	__init__.py atf_pytest.py
+FILES=	__init__.py atf_pytest.py utils.py
 SUBDIR=	sys
 
 .include <bsd.own.mk>
