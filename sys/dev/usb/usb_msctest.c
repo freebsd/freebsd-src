@@ -1011,6 +1011,16 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		    &scsi_huawei_eject2, sizeof(scsi_huawei_eject2),
 		    USB_MS_HZ);
 		break;
+	case MSC_EJECT_HUAWEI3:
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_huawei_eject3, sizeof(scsi_huawei_eject3),
+		    USB_MS_HZ);
+		break;
+	case MSC_EJECT_HUAWEI4:
+		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+		    &scsi_huawei_eject4, sizeof(scsi_huawei_eject4),
+ 		    USB_MS_HZ);
+		break;
 	case MSC_EJECT_TCT:
 		/*
 		 * TCTMobile needs DIR_IN flag. To get it, we
