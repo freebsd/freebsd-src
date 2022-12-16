@@ -106,6 +106,8 @@ enum {
 	UQ_MSC_EJECT_SAEL_M460,		/* ejects after Sael USB commands */ 
 	UQ_MSC_EJECT_HUAWEISCSI,	/* ejects after Huawei SCSI command */
 	UQ_MSC_EJECT_HUAWEISCSI2,	/* ejects after Huawei SCSI 2 command */
+	UQ_MSC_EJECT_HUAWEISCSI3,	/* ejects after Huawei SCSI 3 command */
+	UQ_MSC_EJECT_HUAWEISCSI4,	/* ejects after Huawei SCSI 4 command */
 	UQ_MSC_EJECT_TCT,		/* ejects after TCT SCSI command */
 
 	UQ_BAD_MIDI,		/* device claims MIDI class, but isn't */
