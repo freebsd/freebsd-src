@@ -453,7 +453,7 @@ i386_zfs_probe(void)
 	for (dev.dd.d_unit = 0; bd_unit2bios(&dev) >= 0; dev.dd.d_unit++) {
 		snprintf(devname, sizeof(devname), "%s%d:", bioshd.dv_name,
 		    dev.dd.d_unit);
-		zfs_probe_dev(devname, NULL);
+		zfs_probe_dev(devname, NULL, true);
 	}
 }
 #endif
