@@ -1492,7 +1492,7 @@ zfs_attach_nvstore(void *vdev)
 }
 
 int
-zfs_probe_dev(const char *devname, uint64_t *pool_guid)
+zfs_probe_dev(const char *devname, uint64_t *pool_guid, bool parts_too)
 {
 	struct ptable *table;
 	struct zfs_probe_args pa;
@@ -1508,6 +1508,8 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 	ret = zfs_probe(pa.fd, pool_guid);
 	if (ret == 0)
 		return (0);
+	if (!parts_too)
+		return (ENXIO);
 
 	/* Probe each partition */
 	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);

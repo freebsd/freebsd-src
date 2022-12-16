@@ -706,9 +706,9 @@ i386_zfs_probe(void)
 		    dev.dd.d_unit);
 		/* If this is not boot disk, use generic probe. */
 		if (dev.dd.d_unit != boot_unit)
-			zfs_probe_dev(devname, NULL);
+			zfs_probe_dev(devname, NULL, true);
 		else
-			zfs_probe_dev(devname, &pool_guid);
+			zfs_probe_dev(devname, &pool_guid, true);
 
 		if (pool_guid != 0 && bdev == NULL) {
 			bdev = malloc(sizeof (struct i386_devdesc));
