@@ -320,8 +320,6 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, E143F, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E173, 0),
 	U3G_DEV(HUAWEI, E173_INIT, U3GINIT_HUAWEISCSI),
-	U3G_DEV(HUAWEI, E3131, 0),
-	U3G_DEV(HUAWEI, E3131_INIT, U3GINIT_HUAWEISCSI2),
 	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
@@ -344,6 +342,12 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, ETS2055, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E3272_INIT, U3GINIT_HUAWEISCSI2),
 	U3G_DEV(HUAWEI, E3272, 0),
+	U3G_DEV(HUAWEI, E3372_INIT, U3GINIT_HUAWEISCSI3),
+	U3G_DEV(HUAWEI, E3372v153_INIT, U3GINIT_HUAWEISCSI2),
+	U3G_DEV(HUAWEI, E3372v153_NCM, 0),                  
+	U3G_DEV(HUAWEI, E5573Cs322_NCM, 0),
+	U3G_DEV(HUAWEI, E5573Cs322_ECM, 0),
+	U3G_DEV(HUAWEI, E5573Cs322_ACM, 0),
 	U3G_DEV(KYOCERA2, CDMA_MSM_K, 0),
 	U3G_DEV(KYOCERA2, KPC680, 0),
 	U3G_DEV(LONGCHEER, WM66, U3GINIT_HUAWEI),
@@ -817,6 +821,10 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		method = U3GINIT_HUAWEISCSI;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI2))
 		method = U3GINIT_HUAWEISCSI2;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI3))
+		method = U3GINIT_HUAWEISCSI3;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI4))
+		method = U3GINIT_HUAWEISCSI4;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_TCT))
 		method = U3GINIT_TCT;
 	else if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa) == 0)
@@ -839,7 +847,13 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			break;
 		case U3GINIT_HUAWEISCSI2:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI2);
+			break;			
+		case U3GINIT_HUAWEISCSI3:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI3);
 			break;
+		case U3GINIT_HUAWEISCSI4:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI4);
+ 			break;
 		case U3GINIT_SCSIEJECT:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
 			break;
