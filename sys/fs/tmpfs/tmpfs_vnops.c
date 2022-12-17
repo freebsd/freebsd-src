@@ -498,7 +498,6 @@ tmpfs_getattr(struct vop_getattr_args *v)
 {
 	struct vnode *vp = v->a_vp;
 	struct vattr *vap = v->a_vap;
-	vm_object_t obj;
 	struct tmpfs_node *node;
 
 	node = VP_TO_TMPFS_NODE(vp);
@@ -523,10 +522,15 @@ tmpfs_getattr(struct vop_getattr_args *v)
 	vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
 	    node->tn_rdev : NODEV;
 	if (vp->v_type == VREG) {
-		obj = node->tn_reg.tn_aobj;
+#ifdef __ILP32__
+		vm_object_t obj = node->tn_reg.tn_aobj;
+
 		VM_OBJECT_RLOCK(obj);
+#endif
 		vap->va_bytes = ptoa(node->tn_reg.tn_pages);
+#ifdef __ILP32__
 		VM_OBJECT_RUNLOCK(obj);
+#endif
 	} else {
 		vap->va_bytes = node->tn_size;
 	}
