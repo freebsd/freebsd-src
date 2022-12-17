@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2022
+.Dd December 11, 2022
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -584,6 +584,19 @@ or
 memory subject to
 .Va security.bsd.unprivileged_mlock
 and resource limits.
+.It Va allow.nfsd
+The
+.Xr mountd 8
+and
+.Xr nfsd 8
+daemons are permitted to run inside a vnet-enabled jail.
+The kernel must have been compiled with the
+.Sy VNET_NFSD option
+and
+.Sy NFSD option
+as well as the
+.Sy VIMAGE option
+for this to be available.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
 .It Va allow.unprivileged_proc_debug
