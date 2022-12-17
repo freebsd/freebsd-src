@@ -924,6 +924,8 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 			fsflags |= MNT_SYNCHRONOUS;
 		else if (strcmp(opt->name, "union") == 0)
 			fsflags |= MNT_UNION;
+		else if (strcmp(opt->name, "export") == 0)
+			fsflags |= MNT_EXPORTED;
 		else if (strcmp(opt->name, "automounted") == 0) {
 			fsflags |= MNT_AUTOMOUNTED;
 			do_freeopt = 1;
