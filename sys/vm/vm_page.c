@@ -4713,8 +4713,10 @@ retrylookup:
 		*mp = NULL;
 		return (VM_PAGER_FAIL);
 	} else if ((m = vm_page_alloc(object, pindex, pflags)) == NULL) {
-		if (!vm_pager_can_alloc_page(object, pindex))
+		if (!vm_pager_can_alloc_page(object, pindex)) {
+			*mp = NULL;
 			return (VM_PAGER_AGAIN);
+		}
 		goto retrylookup;
 	}
 
