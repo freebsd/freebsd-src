@@ -1099,8 +1099,10 @@ ext4_ext_grow_indepth(struct inode *ip, struct ext4_extent_path *path,
 		return (error);
 
 	bp = getblk(ip->i_devvp, fsbtodb(fs, newblk), fs->e2fs_bsize, 0, 0, 0);
-	if (!bp)
+	if (!bp) {
+		ext4_ext_blkfree(ip, newblk, 1, 0);
 		return (EIO);
+	}
 
 	/* Move top-level index/leaf into new block. */
 	memmove(bp->b_data, curpath->ep_header, sizeof(ip->i_data));
@@ -1116,8 +1118,10 @@ ext4_ext_grow_indepth(struct inode *ip, struct ext4_extent_path *path,
 
 	ext2_extent_blk_csum_set(ip, bp->b_data);
 	error = bwrite(bp);
-	if (error)
+	if (error) {
+		ext4_ext_blkfree(ip, newblk, 1, 0);
 		goto out;
+	}
 
 	bp = NULL;
 
