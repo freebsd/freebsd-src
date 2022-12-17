@@ -58,6 +58,8 @@ distribution:
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 	${INSTALL_SYMLINK} -T "package=runtime" ../var/run/os-release \
 		${DESTDIR}/etc/os-release
+	${INSTALL_SYMLINK} -T "package=runtime" ../var/db/machine-id \
+		${DESTDIR}/etc/machine-id
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} -T "package=unbound" \

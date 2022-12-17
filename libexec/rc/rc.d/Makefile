@@ -53,6 +53,7 @@ CONFS=	DAEMON \
 	local \
 	localpkg \
 	lockd \
+	machine_id \
 	mixer \
 	motd \
 	mountcritlocal \
