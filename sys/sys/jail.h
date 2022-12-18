@@ -253,7 +253,8 @@ struct prison_racct {
 #define	PR_ALLOW_SUSER			0x00000400
 #define	PR_ALLOW_RESERVED_PORTS		0x00008000
 #define	PR_ALLOW_KMEM_ACCESS		0x00010000	/* reserved, not used yet */
-#define	PR_ALLOW_ALL_STATIC		0x000187ff
+#define	PR_ALLOW_NFSD			0x00020000
+#define	PR_ALLOW_ALL_STATIC		0x000387ff
 
 /*
  * PR_ALLOW_DIFFERENCES determines which flags are able to be
@@ -420,6 +421,7 @@ void getjailname(struct ucred *cred, char *name, size_t len);
 void prison0_init(void);
 int prison_allow(struct ucred *, unsigned);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
+bool prison_check_nfsd(struct ucred *cred);
 int prison_owns_vnet(struct ucred *);
 int prison_canseemount(struct ucred *cred, struct mount *mp);
 void prison_enforce_statfs(struct ucred *cred, struct mount *mp,
