@@ -76,7 +76,9 @@ SYSCTL_ULONG(_net_netlink, OID_AUTO, recvspace, CTLFLAG_RW, &nl_recvspace, 0,
     "Default netlink socket receive space");
 
 extern u_long sb_max_adj;
+#if 0
 static u_long nl_maxsockbuf = 512 * 1024 * 1024; /* 512M, XXX: init based on physmem */
+#endif
 
 uint32_t
 nlp_get_pid(const struct nlpcb *nlp)
@@ -671,6 +673,7 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
+#if 0
 static int
 nl_setsbopt(struct socket *so, struct sockopt *sopt)
 {
@@ -697,32 +700,44 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 
 	return (result ? 0 : ENOBUFS);
 }
+#endif
+
+struct pr_usrreqs nl_usrreqs = {
+	.pru_abort =		nl_pru_abort,
+	.pru_attach =		nl_pru_attach,
+	.pru_bind =		nl_pru_bind,
+	.pru_connect =		nl_pru_connect,
+	.pru_detach =		nl_pru_detach,
+	.pru_disconnect =	nl_pru_disconnect,
+	.pru_peeraddr =		nl_pru_peeraddr,
+	.pru_send =		nl_pru_send,
+	//.pru_soreceive =	soreceive_dgram,
+	//.pru_sosend =		sosend_dgram,
+	.pru_shutdown =		nl_pru_shutdown,
+	.pru_sockaddr =		nl_pru_sockaddr,
+	//.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_close =		nl_pru_close,
+};
+
+static struct domain netlinkdomain;
 
 static struct protosw netlinksw = {
 	.pr_type = SOCK_RAW,
+	.pr_domain = &netlinkdomain,
+	.pr_protocol = 0, // IPPROTO_UDP
 	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,
 	.pr_ctloutput = nl_ctloutput,
-	.pr_setsbopt = nl_setsbopt,
-	.pr_abort = nl_pru_abort,
-	.pr_attach = nl_pru_attach,
-	.pr_bind = nl_pru_bind,
-	.pr_connect = nl_pru_connect,
-	.pr_detach = nl_pru_detach,
-	.pr_disconnect = nl_pru_disconnect,
-	.pr_peeraddr = nl_pru_peeraddr,
-	.pr_send = nl_pru_send,
-	.pr_rcvd = nl_pru_rcvd,
-	.pr_shutdown = nl_pru_shutdown,
-	.pr_sockaddr = nl_pru_sockaddr,
-	.pr_close = nl_pru_close
+	.pr_usrreqs = &nl_usrreqs,
 };
 
 static struct domain netlinkdomain = {
-	.dom_family = PF_NETLINK,
+	.dom_family = AF_NETLINK,
 	.dom_name = "netlink",
+#ifdef	DOMF_UNLOADABLE
 	.dom_flags = DOMF_UNLOADABLE,
-	.dom_nprotosw =		1,
-	.dom_protosw =		{ &netlinksw },
+#endif
+	.dom_protosw =		&netlinksw,
+	.dom_protoswNPROTOSW =	(&netlinksw + 1),
 };
 
 DOMAIN_SET(netlink);
