@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd April 17, 2021
+.Dd December 18, 2022
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -440,6 +440,22 @@ read from standard input.
 This includes both
 .Fl f
 and file arguments.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width "GREP_OPTIONS"
+.It Ev GREP_COLOR
+This variable specifies the color used to highlight matched (non-empty) text.
+.It Ev GREP_OPTIONS
+This variable specifies default options
+to be placed in front of any explicit options.
+It may cause problems with portable scripts.
+.It Ev TERM
+This variable specifies the type name of the terminal, console or display-device
+type to be used.
+See
+.Xr term 7 .
+.El
 .Sh EXIT STATUS
 The
 .Nm grep
