@@ -210,13 +210,6 @@ intptr_t phynode_get_id(struct phynode *phynode)
 	return (phynode->id);
 }
 
-void
-phynode_set_id(struct phynode *phynode, intptr_t id)
-{
-
-	phynode->id = id;
-}
-
 #ifdef FDT
 phandle_t
 phynode_get_ofw_node(struct phynode *phynode)
