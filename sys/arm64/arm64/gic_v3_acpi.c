@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2016 The FreeBSD Foundation
+ * Copyright (c) 2022 Arm Ltd
  *
  * This software was developed by Andrew Turner under
  * the sponsorship of the FreeBSD Foundation.
@@ -393,23 +394,25 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		dev = arg;
 		sc = device_get_softc(dev);
 
-		child = device_add_child(dev, "its", -1);
-		if (child == NULL)
-			return;
-
 		di = malloc(sizeof(*di), M_GIC_V3, M_WAITOK | M_ZERO);
+		err = acpi_iort_its_lookup(gict->TranslationId, &xref, &pxm);
+		if (err != 0) {
+			free(di, M_GIC_V3);
+			return;
+		}
+
+		child = device_add_child(dev, "its", -1);
+		if (child == NULL) {
+			free(di, M_GIC_V3);
+			return;
+		}
+
+		di->di_gic_dinfo.gic_domain = pxm;
+		di->di_gic_dinfo.msi_xref = xref;
 		resource_list_init(&di->di_rl);
 		resource_list_add(&di->di_rl, SYS_RES_MEMORY, 0,
 		    gict->BaseAddress, gict->BaseAddress + 128 * 1024 - 1,
 		    128 * 1024);
-		err = acpi_iort_its_lookup(gict->TranslationId, &xref, &pxm);
-		if (err == 0) {
-			di->di_gic_dinfo.gic_domain = pxm;
-			di->di_gic_dinfo.msi_xref = xref;
-		} else {
-			di->di_gic_dinfo.gic_domain = -1;
-			di->di_gic_dinfo.msi_xref = ACPI_MSI_XREF;
-		}
 		sc->gic_nchildren++;
 		device_set_ivars(child, di);
 	}
