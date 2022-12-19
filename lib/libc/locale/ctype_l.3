@@ -27,14 +27,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2012
+.Dd December 19, 2022
 .Dt CTYPE_L 3
 .Os
 .Sh NAME
 .Nm digittoint_l ,
 .Nm isalnum_l ,
 .Nm isalpha_l ,
-.Nm isascii_l ,
 .Nm isblank_l ,
 .Nm iscntrl_l ,
 .Nm isdigit_l ,
@@ -64,8 +63,6 @@
 .Fn isalnum_l "int c" "locale_t loc"
 .Ft int
 .Fn isalpha_l "int c" "locale_t loc"
-.Ft int
-.Fn isascii_l "int c" "locale_t loc"
 .Ft int
 .Fn iscntrl_l "int c" "locale_t loc"
 .Ft int
@@ -111,34 +108,32 @@ specified locale rather than the global or per-thread locale.
 or as true functions in the C library.
 See the specific manual pages for more information.
 .Sh SEE ALSO
-.Xr digittoint 3 ,
-.Xr isalnum 3 ,
-.Xr isalpha 3 ,
-.Xr isascii 3 ,
-.Xr isblank 3 ,
-.Xr iscntrl 3 ,
-.Xr isdigit 3 ,
-.Xr isgraph 3 ,
-.Xr isideogram 3 ,
-.Xr islower 3 ,
-.Xr isphonogram 3 ,
-.Xr isprint 3 ,
-.Xr ispunct 3 ,
-.Xr isrune 3 ,
-.Xr isspace 3 ,
-.Xr isspecial 3 ,
-.Xr isupper 3 ,
-.Xr isxdigit 3 ,
-.Xr tolower 3 ,
-.Xr toupper 3 ,
-.Xr wctype 3 ,
-.Xr xlocale 3
+.Xr digittoint_l 3 ,
+.Xr isalnum_l 3 ,
+.Xr isalpha_l 3 ,
+.Xr isblank_l 3 ,
+.Xr iscntrl_l 3 ,
+.Xr isdigit_l 3 ,
+.Xr isgraph_l 3 ,
+.Xr isideogram_l 3 ,
+.Xr islower_l 3 ,
+.Xr isphonogram_l 3 ,
+.Xr isprint_l 3 ,
+.Xr ispunct_l 3 ,
+.Xr isrune_l 3 ,
+.Xr isspace_l 3 ,
+.Xr isspecial_l 3 ,
+.Xr isupper_l 3 ,
+.Xr isxdigit_l 3 ,
+.Xr tolower_l 3 ,
+.Xr toupper_l 3 ,
+.Xr wctype_l 3 ,
+.Xr xlocale_l 3
 .Sh STANDARDS
 These functions conform to
 .St -p1003.1-2008 ,
 except for
 .Fn digittoint_l ,
-.Fn isascii_l ,
 .Fn ishexnumber_l ,
 .Fn isideogram_l ,
 .Fn isnumber_l ,
