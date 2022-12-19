@@ -32,11 +32,12 @@
 .\"	@(#)ispunct.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2022
+.Dd December 19, 2022
 .Dt ISPUNCT 3
 .Os
 .Sh NAME
-.Nm ispunct
+.Nm ispunct ,
+.Nm ispunct_l
 .Nd punctuation character test
 .Sh LIBRARY
 .Lb libc
@@ -49,11 +50,15 @@
 .Sh DESCRIPTION
 The
 .Fn ispunct
-function tests for any printing character except for space
+and
+.Fn ispunct_l
+functions test for any printing character except for space
 .Pq Ql "\ "
 or a
 character for which
 .Xr isalnum 3
+or
+.Xr isalnum_l 3
 is true.
 The value of the argument must be representable as an
 .Vt "unsigned char"
@@ -93,10 +98,15 @@ type in locales with large character sets is considered obsolete
 and may not be supported in future releases.
 The
 .Fn iswpunct
+or
+.Fn iswpunct_l
 function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr iswpunct 3 ,
+.Xr iswpunct_l 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
