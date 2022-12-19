@@ -262,6 +262,7 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	}
 
 	null_hashins(mp, xp);
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	rw_wunlock(&null_hash_lock);
 	*vpp = vp;
 

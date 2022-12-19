@@ -263,6 +263,7 @@ fuse_vnode_alloc(struct mount *mp,
 	if (data->dataflags & FSESS_ASYNC_READ && vtyp != VFIFO)
 		VN_LOCK_ASHARE(*vpp);
 
+	vn_set_state(*vpp, VSTATE_CONSTRUCTED);
 	err = vfs_hash_insert(*vpp, fuse_vnode_hash(nodeid), LK_EXCLUSIVE,
 	    td, &vp2, fuse_vnode_cmp, &nodeid);
 	if (err) {

@@ -299,6 +299,7 @@ badoff:
 		}
 	} else
 		nvp->v_type = VREG;
+	vn_set_state(nvp, VSTATE_CONSTRUCTED);
 	ldep->de_modrev = init_va_filerev();
 	*depp = ldep;
 	return (0);

@@ -235,6 +235,7 @@ loop:
 	/* If we came here, we can insert it safely. */
 	LIST_INSERT_HEAD(fc, fd, fd_hash);
 	mtx_unlock(&fdesc_hashmtx);
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

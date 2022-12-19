@@ -161,6 +161,7 @@ nameiinit(void *dummy __unused)
 	    UMA_ALIGN_PTR, 0);
 	vfs_vector_op_register(&crossmp_vnodeops);
 	getnewvnode("crossmp", NULL, &crossmp_vnodeops, &vp_crossmp);
+	vp_crossmp->v_state = VSTATE_CONSTRUCTED;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 

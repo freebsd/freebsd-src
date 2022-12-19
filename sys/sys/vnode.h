@@ -60,6 +60,10 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
 		  VMARKER };
 #define VLASTTYPE VMARKER
 
+enum vstate	{ VSTATE_UNINITIALIZED, VSTATE_CONSTRUCTED, VSTATE_DESTROYING,
+		  VSTATE_DEAD };
+#define VLASTSTATE VSTATE_DEAD
+
 enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
 /*
  * Each underlying filesystem allocates its own private area and hangs
@@ -107,6 +111,7 @@ struct vnode {
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
 	enum	vtype v_type:8;			/* u vnode type */
+	enum	vstate v_state:8;		/* u vnode state */
 	short	v_irflag;			/* i frequently read flags */
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
@@ -1135,6 +1140,25 @@ void vn_fsid(struct vnode *vp, struct vattr *va);
 
 int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
 int vn_lktype_write(struct mount *mp, struct vnode *vp);
+
+#ifdef INVARIANTS
+void vn_set_state_validate(struct vnode *vp, enum vstate state);
+#endif
+
+static inline void
+vn_set_state(struct vnode *vp, enum vstate state)
+{
+#ifdef INVARIANTS
+	vn_set_state_validate(vp, state);
+#endif
+	vp->v_state = state;
+}
+
+static inline enum vstate
+vn_get_state(struct vnode *vp)
+{
+	return (vp->v_state);
+}
 
 #define VOP_UNLOCK_FLAGS(vp, flags)	({				\
 	struct vnode *_vp = (vp);					\
