@@ -415,7 +415,8 @@ sysctl_try_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 	counter_u64_add(recycles_count, 1);
 	vgone(vp);
 putvnode:
-	NDFREE(&nd, 0);
+	vput(vp);
+	NDFREE_PNBUF(&nd);
 out:
 	free(buf, M_TEMP);
 	return (error);

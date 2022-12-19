@@ -3153,7 +3153,9 @@ kern___realpathat(struct thread *td, int fd, const char *path, char *buf,
 		error = copyout(retbuf, buf, size);
 		free(freebuf, M_TEMP);
 	}
-	NDFREE(&nd, 0);
+	vrele(nd.ni_vp);
+	vrele(nd.ni_dvp);
+	NDFREE_PNBUF(&nd);
 	return (error);
 }
 
@@ -4186,7 +4188,7 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
 	(NC_NOMAKEENTRY | NC_KEEPPOSENTRY | LOCKLEAF | LOCKPARENT | WANTPARENT | \
-	 FAILIFEXISTS | FOLLOW | EMPTYPATH | LOCKSHARED | SAVESTART | WILLBEDIR | \
+	 FAILIFEXISTS | FOLLOW | EMPTYPATH | LOCKSHARED | WILLBEDIR | \
 	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK | OPENREAD | \
 	 OPENWRITE | WANTIOCTLCAPS)
 
@@ -4422,7 +4424,7 @@ cache_fplookup_final_child(struct cache_fpl *fpl, enum vgetstate tvs)
 static int __noinline
 cache_fplookup_final_modifying(struct cache_fpl *fpl)
 {
-	struct nameidata *ndp;
+	struct nameidata *ndp __diagused;
 	struct componentname *cnp;
 	enum vgetstate dvs;
 	struct vnode *dvp, *tvp;
@@ -4537,10 +4539,6 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	fpl->tvp = tvp;
 
 	if (tvp == NULL) {
-		if ((cnp->cn_flags & SAVESTART) != 0) {
-			ndp->ni_startdir = dvp;
-			vrefact(ndp->ni_startdir);
-		}
 		MPASS(error == EJUSTRETURN);
 		if ((cnp->cn_flags & LOCKPARENT) == 0) {
 			VOP_UNLOCK(dvp);
@@ -4595,11 +4593,6 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 
 	if ((cnp->cn_flags & LOCKPARENT) == 0) {
 		VOP_UNLOCK(dvp);
-	}
-
-	if ((cnp->cn_flags & SAVESTART) != 0) {
-		ndp->ni_startdir = dvp;
-		vrefact(ndp->ni_startdir);
 	}
 
 	return (cache_fpl_handled(fpl));
@@ -4756,8 +4749,6 @@ cache_fplookup_degenerate(struct cache_fpl *fpl)
 		return (cache_fpl_handled_error(fpl, EISDIR));
 	}
 
-	MPASS((cnp->cn_flags & SAVESTART) == 0);
-
 	if ((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0) {
 		return (cache_fplookup_final_withparent(fpl));
 	}
@@ -4877,8 +4868,6 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 		fpl->tvp = NULL;
 		return (cache_fplookup_modifying(fpl));
 	}
-
-	MPASS((cnp->cn_flags & SAVESTART) == 0);
 
 	/*
 	 * Only try to fill in the component if it is the last one,
@@ -6058,9 +6047,6 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	KASSERT ((cnp->cn_flags & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
 	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
 	    cnp->cn_flags));
-	if ((cnp->cn_flags & SAVESTART) != 0) {
-		MPASS(cnp->cn_nameiop != LOOKUP);
-	}
 	MPASS(cnp->cn_nameptr == cnp->cn_pnbuf);
 
 	if (__predict_false(!cache_can_fplookup(&fpl))) {

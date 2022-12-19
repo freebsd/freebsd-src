@@ -1172,7 +1172,6 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 	error = nd->nd_repstat;
 	if (!error && ndp->ni_vp == NULL) {
 		if (nvap->na_type == VREG || nvap->na_type == VSOCK) {
-			vrele(ndp->ni_startdir);
 			error = VOP_CREATE(ndp->ni_dvp,
 			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
 			/* For a pNFS server, create the data file on a DS. */
@@ -1213,7 +1212,6 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				nvap->na_type = VFIFO;
                         if (nvap->na_type != VFIFO &&
 			    (error = priv_check_cred(nd->nd_cred, PRIV_VFS_MKNOD_DEV))) {
-				vrele(ndp->ni_startdir);
 				nfsvno_relpathbuf(ndp);
 				vput(ndp->ni_dvp);
 				goto out;
@@ -1224,11 +1222,9 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
 			    NULL, false);
 			nfsvno_relpathbuf(ndp);
-			vrele(ndp->ni_startdir);
 			if (error)
 				goto out;
 		} else {
-			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vput(ndp->ni_dvp);
 			error = ENXIO;
@@ -1242,7 +1238,6 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * 1 - clean up the lookup
 		 * 2 - iff !error and na_size set, truncate it
 		 */
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		*vpp = ndp->ni_vp;
 		if (ndp->ni_dvp == *vpp)
@@ -1285,7 +1280,6 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 	 * Iff doesn't exist, create it.
 	 */
 	if (ndp->ni_vp) {
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		vput(ndp->ni_dvp);
 		vrele(ndp->ni_vp);
@@ -1293,14 +1287,12 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		goto out;
 	}
 	if (vtyp != VCHR && vtyp != VBLK && vtyp != VSOCK && vtyp != VFIFO) {
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		vput(ndp->ni_dvp);
 		error = NFSERR_BADTYPE;
 		goto out;
 	}
 	if (vtyp == VSOCK) {
-		vrele(ndp->ni_startdir);
 		error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 		    &ndp->ni_cnd, &nvap->na_vattr);
 		VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL,
@@ -1309,7 +1301,6 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 	} else {
 		if (nvap->na_type != VFIFO &&
 		    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV))) {
-			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vput(ndp->ni_dvp);
 			goto out;
@@ -1319,7 +1310,6 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL,
 		    false);
 		nfsvno_relpathbuf(ndp);
-		vrele(ndp->ni_startdir);
 		/*
 		 * Since VOP_MKNOD returns the ni_vp, I can't
 		 * see any reason to do the lookup.
@@ -1371,7 +1361,6 @@ nfsvno_symlink(struct nameidata *ndp, struct nfsvattr *nvap, char *pathcp,
 	int error = 0;
 
 	if (ndp->ni_vp) {
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		if (ndp->ni_dvp == ndp->ni_vp)
 			vrele(ndp->ni_dvp);
@@ -1391,7 +1380,6 @@ nfsvno_symlink(struct nameidata *ndp, struct nfsvattr *nvap, char *pathcp,
 	 * Just vput it for v2.
 	 */
 	VOP_VPUT_PAIR(ndp->ni_dvp, &ndp->ni_vp, !not_v2 && error == 0);
-	vrele(ndp->ni_startdir);
 	nfsvno_relpathbuf(ndp);
 
 out:
@@ -1642,10 +1630,8 @@ out:
 		NFSD_DEBUG(4, "nfsvno_rename: pnfsremove\n");
 	}
 
-	vrele(tondp->ni_startdir);
 	nfsvno_relpathbuf(tondp);
 out1:
-	vrele(fromndp->ni_startdir);
 	nfsvno_relpathbuf(fromndp);
 	NFSEXITCODE(error);
 	return (error);
@@ -1862,7 +1848,6 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 		    stateidp, stp, NULL, nd, p, nd->nd_repstat);
 	if (!nd->nd_repstat) {
 		if (ndp->ni_vp == NULL) {
-			vrele(ndp->ni_startdir);
 			nd->nd_repstat = VOP_CREATE(ndp->ni_dvp,
 			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
 			/* For a pNFS server, create the data file on a DS. */
@@ -1900,8 +1885,6 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 			}
 			vp = ndp->ni_vp;
 		} else {
-			if (ndp->ni_startdir)
-				vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vp = ndp->ni_vp;
 			if (create == NFSV4OPEN_CREATE) {
@@ -1935,8 +1918,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 		}
 	} else {
 		nfsvno_relpathbuf(ndp);
-		if (ndp->ni_startdir && create == NFSV4OPEN_CREATE) {
-			vrele(ndp->ni_startdir);
+		if (create == NFSV4OPEN_CREATE) {
 			if (ndp->ni_dvp == ndp->ni_vp)
 				vrele(ndp->ni_dvp);
 			else
@@ -4186,7 +4168,7 @@ nfsrv_dscreate(struct vnode *dvp, struct vattr *vap, struct vattr *nvap,
 	int error;
 
 	NFSNAMEICNDSET(&named.ni_cnd, tcred, CREATE,
-	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
+	    LOCKPARENT | LOCKLEAF | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
 	named.ni_cnd.cn_nameptr = bufp;

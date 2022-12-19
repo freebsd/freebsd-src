@@ -478,7 +478,12 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = uc->uid;
 	cr->cr_rgid = cr->cr_svgid = uc->gid;
 	crsetgroups(cr, uc->gidlen, uc->gidlist);
-	cr->cr_prison = &prison0;
+#ifdef VNET_NFSD
+	if (jailed(curthread->td_ucred))
+		cr->cr_prison = curthread->td_ucred->cr_prison;
+	else
+#endif
+		cr->cr_prison = &prison0;
 	prison_hold(cr->cr_prison);
 	*crp = crhold(cr);
 

@@ -3637,8 +3637,8 @@ kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
 {
 	int error;
 
-	NDINIT_ATRIGHTS(fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
-	    AUDITVNODE1, pathseg, old, oldfd, &cap_renameat_source_rights);
+	NDINIT_ATRIGHTS(fromnd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
+	    pathseg, old, oldfd, &cap_renameat_source_rights);
 	if ((error = namei(fromnd)) != 0)
 		return (error);
 	error = mac_vnode_check_rename_from(td->td_ucred, fromnd->ni_dvp,
@@ -3650,8 +3650,6 @@ kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
 		NDFREE_PNBUF(fromnd);
 		vrele(fromnd->ni_dvp);
 		vrele(fromnd->ni_vp);
-		if (fromnd->ni_startdir)
-			vrele(fromnd->ni_startdir);
 	}
 	return (error);
 }
@@ -3677,7 +3675,7 @@ again:
 			return (error);
 	} else {
 #endif
-	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | SAVESTART | AUDITVNODE1,
+	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | AUDITVNODE1,
 	    pathseg, old, oldfd, &cap_renameat_source_rights);
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
@@ -3685,7 +3683,7 @@ again:
 	}
 #endif
 	fvp = fromnd.ni_vp;
-	tondflags = LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART | AUDITVNODE2;
+	tondflags = LOCKPARENT | LOCKLEAF | NOCACHE | AUDITVNODE2;
 	if (fromnd.ni_vp->v_type == VDIR)
 		tondflags |= WILLBEDIR;
 	NDINIT_ATRIGHTS(&tond, RENAME, tondflags, pathseg, new, newfd,
@@ -3713,9 +3711,6 @@ again:
 			vput(tdvp);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
-		vrele(tond.ni_startdir);
-		if (fromnd.ni_startdir != NULL)
-			vrele(fromnd.ni_startdir);
 		error = vn_start_write(NULL, &mp, V_XSLEEP | V_PCATCH);
 		if (error != 0)
 			return (error);
@@ -3775,11 +3770,8 @@ out:
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 	}
-	vrele(tond.ni_startdir);
 	vn_finished_write(mp);
 out1:
-	if (fromnd.ni_startdir)
-		vrele(fromnd.ni_startdir);
 	if (error == ERESTART)
 		return (0);
 	if (error == ERELOOKUP)

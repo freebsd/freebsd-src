@@ -25,11 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2004
+.Dd December 19, 2022
 .Dt ISRUNE 3
 .Os
 .Sh NAME
-.Nm isrune
+.Nm isrune ,
+.Nm isrune_l
 .Nd valid character test
 .Sh LIBRARY
 .Lb libc
@@ -37,24 +38,51 @@
 .In ctype.h
 .Ft int
 .Fn isrune "int c"
+.Ft int
+.Fn isrune_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isrune
-function tests for any character that is valid in the current
+and
+.Fn isrune_l
+functions test for any character that is valid in the current
 character set.
 In the
 .Tn ASCII
 character set, this is equivalent to
 .Fn isascii .
+.Pp
+The
+.Fn isrune_l
+function takes an explicit locale argument, whereas the
+.Fn isrune
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isrune
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
+and
+.Fn isrune_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
+.Sh COMPATIBILITY
+The
+.Bx 4.4
+extension of accepting arguments outside of the range of the
+.Vt "unsigned char"
+type in locales with large character sets is considered obsolete
+and may not be supported in future releases.
+The
+.Fn iswrune
+or
+.Fn iswrune_l
+function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr isascii 3 ,
 .Xr iswrune 3 ,
+.Xr iswrune_l 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh HISTORY
 The

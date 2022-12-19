@@ -161,7 +161,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  */
 #define	RDONLY		0x00000200 /* lookup with read-only semantics */
 /* UNUSED		0x00000400 */
-#define	SAVESTART	0x00000800 /* save starting directory */
+/* UNUSED		0x00000800 */
 #define	ISWHITEOUT	0x00001000 /* found whiteout */
 #define	DOWHITEOUT	0x00002000 /* do whiteouts */
 #define	WILLBEDIR	0x00004000 /* new files will be dirs; allow trailing / */
@@ -290,12 +290,10 @@ do {										\
 	_ndp->ni_cnd.cn_pnbuf = NULL;						\
 } while (0)
 
-void NDFREE(struct nameidata *, const u_int);
-
 int	namei(struct nameidata *ndp);
 int	vfs_lookup(struct nameidata *ndp);
 int	vfs_relookup(struct vnode *dvp, struct vnode **vpp,
-	    struct componentname *cnp);
+	    struct componentname *cnp, bool refstart);
 #endif
 
 /*
