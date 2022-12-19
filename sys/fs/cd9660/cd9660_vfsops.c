@@ -822,6 +822,7 @@ cd9660_vget_internal(struct mount *mp, cd_ino_t ino, int flags,
 	 * XXX need generation number?
 	 */
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

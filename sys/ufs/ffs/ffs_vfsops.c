@@ -2026,6 +2026,7 @@ ffs_vgetf(struct mount *mp,
 	}
 #endif
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

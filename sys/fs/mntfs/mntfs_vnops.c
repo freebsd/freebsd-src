@@ -85,6 +85,7 @@ mntfs_allocvp(struct mount *mp, struct vnode *ovp)
 
 	VOP_UNLOCK(ovp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	return (vp);
 }
 

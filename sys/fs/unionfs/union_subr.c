@@ -407,6 +407,8 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		return (ENOENT);
 	}
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
+
 	if (dvp != NULLVP && vt == VDIR)
 		*vpp = unionfs_ins_cached_vnode(unp, dvp);
 	if (*vpp != NULLVP) {

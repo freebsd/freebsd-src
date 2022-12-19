@@ -480,6 +480,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_birthtime = ts.tv_sec;
 	ip->i_birthnsec = ts.tv_nsec;
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 
 	return (0);

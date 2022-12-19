@@ -603,6 +603,8 @@ vnode_init(void *mem, int size, int flags)
 
 	vp->v_dbatchcpu = NOCPU;
 
+	vp->v_state = VSTATE_DEAD;
+
 	/*
 	 * Check vhold_recycle_free for an explanation.
 	 */
@@ -1792,6 +1794,9 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 		vp = vn_alloc(mp);
 	}
 	counter_u64_add(vnodes_created, 1);
+
+	vn_set_state(vp, VSTATE_UNINITIALIZED);
+
 	/*
 	 * Locks are given the generic name "vnode" when created.
 	 * Follow the historic practice of using the filesystem
@@ -4015,14 +4020,18 @@ vgonel(struct vnode *vp)
 	/*
 	 * Don't vgonel if we're already doomed.
 	 */
-	if (VN_IS_DOOMED(vp))
+	if (VN_IS_DOOMED(vp)) {
+		VNPASS(vn_get_state(vp) == VSTATE_DESTROYING || \
+		    vn_get_state(vp) == VSTATE_DEAD, vp);
 		return;
+	}
 	/*
 	 * Paired with freevnode.
 	 */
 	vn_seqc_write_begin_locked(vp);
 	vunlazy_gone(vp);
 	vn_irflag_set_locked(vp, VIRF_DOOMED);
+	vn_set_state(vp, VSTATE_DESTROYING);
 
 	/*
 	 * Check to see if the vnode is in use.  If so, we have to
@@ -4140,6 +4149,7 @@ vgonel(struct vnode *vp)
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
 	vp->v_type = VBAD;
+	vn_set_state(vp, VSTATE_DEAD);
 }
 
 /*
@@ -4160,6 +4170,15 @@ static const char *const vtypename[] = {
 _Static_assert(nitems(vtypename) == VLASTTYPE + 1,
     "vnode type name not added to vtypename");
 
+static const char *const vstatename[] = {
+	[VSTATE_UNINITIALIZED] = "VSTATE_UNINITIALIZED",
+	[VSTATE_CONSTRUCTED] = "VSTATE_CONSTRUCTED",
+	[VSTATE_DESTROYING] = "VSTATE_DESTROYING",
+	[VSTATE_DEAD] = "VSTATE_DEAD",
+};
+_Static_assert(nitems(vstatename) == VLASTSTATE + 1,
+    "vnode state name not added to vstatename");
+
 _Static_assert((VHOLD_ALL_FLAGS & ~VHOLD_NO_SMR) == 0,
     "new hold count flag not added to vn_printf");
 
@@ -4176,7 +4195,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("%p: ", (void *)vp);
-	printf("type %s\n", vtypename[vp->v_type]);
+	printf("type %s state %s\n", vtypename[vp->v_type], vstatename[vp->v_state]);
 	holdcnt = atomic_load_int(&vp->v_holdcnt);
 	printf("    usecount %d, writecount %d, refcount %d seqc users %d",
 	    vp->v_usecount, vp->v_writecount, holdcnt & ~VHOLD_ALL_FLAGS,
@@ -5074,6 +5093,7 @@ vfs_allocate_syncvnode(struct mount *mp)
 	if (error != 0)
 		panic("vfs_allocate_syncvnode: insmntque() failed");
 	vp->v_vflag &= ~VV_FORCEINSMQ;
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	VOP_UNLOCK(vp);
 	/*
 	 * Place the vnode onto the syncer worklist. We attempt to
@@ -5720,8 +5740,10 @@ void
 vop_unlock_debugpre(void *ap)
 {
 	struct vop_unlock_args *a = ap;
+	struct vnode *vp = a->a_vp;
 
-	ASSERT_VOP_LOCKED(a->a_vp, "VOP_UNLOCK");
+	VNPASS(vn_get_state(vp) != VSTATE_UNINITIALIZED, vp);
+	ASSERT_VOP_LOCKED(vp, "VOP_UNLOCK");
 }
 
 void
@@ -7093,3 +7115,51 @@ vn_irflag_unset(struct vnode *vp, short tounset)
 	vn_irflag_unset_locked(vp, tounset);
 	VI_UNLOCK(vp);
 }
+
+#ifdef INVARIANTS
+void
+vn_set_state_validate(struct vnode *vp, enum vstate state)
+{
+
+	switch (vp->v_state) {
+	case VSTATE_UNINITIALIZED:
+		switch (state) {
+		case VSTATE_CONSTRUCTED:
+		case VSTATE_DESTROYING:
+			return;
+		default:
+			break;
+		}
+		break;
+	case VSTATE_CONSTRUCTED:
+		ASSERT_VOP_ELOCKED(vp, __func__);
+		switch (state) {
+		case VSTATE_DESTROYING:
+			return;
+		default:
+			break;
+		}
+		break;
+	case VSTATE_DESTROYING:
+		ASSERT_VOP_ELOCKED(vp, __func__);
+		switch (state) {
+		case VSTATE_DEAD:
+			return;
+		default:
+			break;
+		}
+		break;
+	case VSTATE_DEAD:
+		switch (state) {
+		case VSTATE_UNINITIALIZED:
+			return;
+		default:
+			break;
+		}
+		break;
+	}
+
+	vn_printf(vp, "invalid state transition %d -> %d\n", vp->v_state, state);
+	panic("invalid state transition %d -> %d\n", vp->v_state, state);
+}
+#endif
