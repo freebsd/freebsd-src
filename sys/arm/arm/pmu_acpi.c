@@ -82,7 +82,6 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		/* pcpu not found. */
 		device_printf(sc->dev, "MADT: could not find pcpu, "
 		    "ArmMpidr %lx\n", intr->ArmMpidr);
-		ctx->error = ENODEV;
 		return;
 	}
 
