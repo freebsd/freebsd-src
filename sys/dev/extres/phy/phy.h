@@ -65,6 +65,7 @@ struct phynode *phynode_register(struct phynode *phynode);
 void *phynode_get_softc(struct phynode *phynode);
 device_t phynode_get_device(struct phynode *phynode);
 intptr_t phynode_get_id(struct phynode *phynode);
+void phynode_set_id(struct phynode *phynode, intptr_t id);
 int phynode_enable(struct phynode *phynode);
 int phynode_disable(struct phynode *phynode);
 int phynode_status(struct phynode *phynode, int *status);
