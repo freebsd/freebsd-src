@@ -52,11 +52,24 @@ MAN+=	btowc.3 \
 MAN+=	big5.5 euc.5 gb18030.5 gb2312.5 gbk.5 mskanji.5 utf8.5
 
 MLINKS+=btowc.3 wctob.3
-MLINKS+=isdigit.3 isnumber.3
+MLINKS+=digittoint.3 digittoint_l.3
+MLINKS+=isalnum.3 isalnum_l.3
+MLINKS+=isalpha.3 isalpha_l.3
+MLINKS+=isblank.3 isblank_l.3
+MLINKS+=iscntrl.3 iscntrl_l.3
+MLINKS+=isdigit.3 isnumber.3 isdigit.3 isdigit_l.3 isdigit.3 isnumber_l.3
 MLINKS+=isgraph.3 isgraph_l.3
+MLINKS+=isideogram.3 isideogram_l.3
 MLINKS+=islower.3 islower_l.3
+MLINKS+=isphonogram.3 isphonogram_l.3
+MLINKS+=isprint.3 isprint_l.3
 MLINKS+=ispunct.3 ispunct_l.3
+MLINKS+=isrune.3 isrune_l.3
 MLINKS+=isspace.3 isspace_l.3
+MLINKS+=isspecial.3 isspecial_l.3
+MLINKS+=isupper.3 isupper_l.3
+MLINKS+=tolower.3 tolower_l.3
+MLINKS+=toupper.3 toupper_l.3
 MLINKS+=nl_langinfo.3 nl_langinfo_l.3
 MLINKS+=iswalnum.3 iswalpha.3 iswalnum.3 iswascii.3 iswalnum.3 iswblank.3 \
 	iswalnum.3 iswcntrl.3 iswalnum.3 iswdigit.3 iswalnum.3 iswgraph.3 \
@@ -77,7 +90,8 @@ MLINKS+=iswalnum_l.3 iswalpha_l.3 iswalnum_l.3 iswcntrl_l.3 \
 	iswalnum_l.3 iswphonogram_l.3 iswalnum_l.3 iswrune_l.3 \
 	iswalnum_l.3 iswspecial_l.3 iswalnum_l.3 nextwctype_l.3 \
 	iswalnum_l.3 towctrans_l.3 iswalnum_l.3 wctrans_l.3
-MLINKS+=isxdigit.3 ishexnumber.3
+MLINKS+=isxdigit.3 ishexnumber.3 isxdigit.3 isxdigit_l.3 \
+	isxdigit.3 ishexnumber_l.3
 MLINKS+=localeconv.3 localeconv_l.3
 MLINKS+=mbrtowc.3 mbrtoc16.3 mbrtowc.3 mbrtoc32.3
 MLINKS+=mbsrtowcs.3 mbsnrtowcs.3

@@ -32,11 +32,12 @@
 .\"     @(#)isupper.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2022
+.Dd December 19, 2022
 .Dt ISUPPER 3
 .Os
 .Sh NAME
-.Nm isupper
+.Nm isupper ,
+.Nm isupper_l
 .Nd upper-case character test
 .Sh LIBRARY
 .Lb libc
@@ -44,10 +45,14 @@
 .In ctype.h
 .Ft int
 .Fn isupper "int c"
+.Ft int
+.Fn isupper_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isupper
-function tests for any upper-case letter.
+and
+.Fn isupper_l
+functions test for any upper-case letter.
 The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
@@ -63,11 +68,19 @@ In the ASCII character set, this includes the following characters
 .It "\&125\ ``U''" Ta "126\ ``V''" Ta "127\ ``W''" Ta "130\ ``X''" Ta "131\ ``Y''"
 .It "\&132\ ``Z''" Ta \& Ta \& Ta \& Ta \&
 .El
+.Pp
+The
+.Fn isupper_l
+function takes an explicit locale argument, whereas the
+.Fn isupper
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isupper
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
+and
+.Fn isupper_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
 .Sh COMPATIBILITY
 The
 .Bx 4.4
@@ -77,11 +90,17 @@ type in locales with large character sets is considered obsolete
 and may not be supported in future releases.
 The
 .Fn iswupper
+or
+.Fn iswupper_l
 function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr iswupper 3 ,
+.Xr iswupper_l 3 ,
 .Xr toupper 3 ,
+.Xr toupper_l 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The

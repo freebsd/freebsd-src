@@ -32,11 +32,12 @@
 .\"     @(#)isalnum.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2022
+.Dd December 19, 2022
 .Dt ISALNUM 3
 .Os
 .Sh NAME
-.Nm isalnum
+.Nm isalnum ,
+.Nm isalnum_l
 .Nd alphanumeric character test
 .Sh LIBRARY
 .Lb libc
@@ -49,10 +50,14 @@
 .Sh DESCRIPTION
 The
 .Fn isalnum
-function tests for any character for which
-.Xr isalpha 3
+and
+.Fn isalnum_l
+functions test for any character for which
+.Xr isalpha 3 ,
+.Xr isalpha_l 3
 or
-.Xr isdigit 3
+.Xr isdigit 3 ,
+.Xr isdigit_l 3
 is true.
 The value of the argument must be representable as an
 .Vt "unsigned char"
@@ -85,8 +90,10 @@ function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isalnum
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
+and
+.Fn isalnum_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
 .Sh COMPATIBILITY
 The
 .Bx 4.4
@@ -96,12 +103,18 @@ type in locales with large character sets is considered obsolete
 and may not be supported in future releases.
 The
 .Fn iswalnum
+or
+.Fn iswalnum_l
 function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr isalpha 3 ,
+.Xr isalpha_l 3 ,
 .Xr isdigit 3 ,
+.Xr isdigit_l 3 ,
 .Xr iswalnum 3 ,
+.Xr iswalnum_l 3 ,
 .Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS

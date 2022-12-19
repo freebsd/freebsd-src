@@ -28,11 +28,12 @@
 .\"	@(#)digittoint.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2001
+.Dd December 19, 2022
 .Dt DIGITTOINT 3
 .Os
 .Sh NAME
-.Nm digittoint
+.Nm digittoint ,
+.Nm digittoint_l
 .Nd convert a numeric character to its integer value
 .Sh LIBRARY
 .Lb libc
@@ -45,7 +46,9 @@
 .Sh DESCRIPTION
 The
 .Fn digittoint
-function converts a numeric character to its corresponding integer value.
+and
+.Fn digittoint_l
+functions convert a numeric character to its corresponding integer value.
 The character can be any decimal digit or hexadecimal digit.
 With hexadecimal characters, the case of the values does not matter.
 .Pp
@@ -57,12 +60,19 @@ function use the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn digittoint
-function always returns an integer from the range of 0 to 15.
+and
+.Fn digittoint_l
+functions always return an integer from the range of 0 to 15.
 If the given character was not a digit as defined by
-.Xr isxdigit 3 ,
+.Xr isxdigit 3
+or
+.Xr isxdigit_l 3 ,
 the function will return 0.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr isdigit 3 ,
+.Xr isdigit_l 3 ,
 .Xr isxdigit 3 ,
+.Xr isxdigit_l 3 ,
 .Xr xlocale 3

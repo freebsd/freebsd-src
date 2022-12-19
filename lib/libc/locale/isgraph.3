@@ -32,11 +32,12 @@
 .\"     @(#)isgraph.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2012
+.Dd December 19, 2022
 .Dt ISGRAPH 3
 .Os
 .Sh NAME
-.Nm isgraph
+.Nm isgraph ,
+.Nm isgraph_l
 .Nd printing character test (space character exclusive)
 .Sh LIBRARY
 .Lb libc
@@ -49,7 +50,9 @@
 .Sh DESCRIPTION
 The
 .Fn isgraph
-function tests for any printing character except space
+and
+.Fn isgraph_l
+functions test for any printing character except space
 .Pq Ql "\~"
 and other
 locale-specific space-like characters.
@@ -103,10 +106,15 @@ type in locales with large character sets is considered obsolete
 and may not be supported in future releases.
 The
 .Fn iswgraph
+or
+.Fn iswgraph_l
 function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr iswgraph 3 ,
+.Xr iswgraph_l 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
