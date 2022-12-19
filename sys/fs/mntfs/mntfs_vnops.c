@@ -83,6 +83,8 @@ mntfs_allocvp(struct mount *mp, struct vnode *ovp)
 	dev_ref(dev);
 	vp->v_rdev = dev;
 
+	VOP_UNLOCK(ovp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	return (vp);
 }
 
