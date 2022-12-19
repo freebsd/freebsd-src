@@ -41,8 +41,8 @@
 struct rb_node {
 	RB_ENTRY(rb_node)	__entry;
 };
-#define	rb_left		__entry.rbe_link[_RB_L]
-#define	rb_right	__entry.rbe_link[_RB_R]
+#define	rb_left		__entry.rbe_link[_RB_L-1]
+#define	rb_right	__entry.rbe_link[_RB_R-1]
 
 /*
  * We provide a false structure that has the same bit pattern as tree.h
