@@ -210,6 +210,10 @@ dev/enetc/if_enetc.c				optional enetc iflib pci fdt soc_nxp_ls
 
 dev/etherswitch/felix/felix.c			optional enetc etherswitch fdt felix pci soc_nxp_ls
 
+dev/firmware/arm/scmi.c				optional fdt scmi
+dev/firmware/arm/scmi_clk.c			optional fdt scmi
+dev/firmware/arm/scmi_shmem.c			optional fdt scmi
+
 dev/gpio/pl061.c				optional pl061 gpio
 dev/gpio/pl061_acpi.c				optional pl061 gpio acpi
 dev/gpio/pl061_fdt.c				optional pl061 gpio fdt
@@ -311,6 +315,7 @@ dev/ipmi/ipmi_acpi.c				optional ipmi acpi
 dev/ipmi/ipmi_kcs.c				optional ipmi
 dev/ipmi/ipmi_smic.c				optional ipmi
 
+dev/mailbox/arm/arm_doorbell.c			optional fdt arm_doorbell
 dev/mbox/mbox_if.m				optional soc_brcm_bcm2837
 
 dev/mmc/host/dwmmc.c				optional dwmmc fdt
@@ -342,6 +347,9 @@ dev/safexcel/safexcel.c				optional safexcel fdt
 dev/sdhci/sdhci_xenon.c				optional sdhci_xenon sdhci
 dev/sdhci/sdhci_xenon_acpi.c			optional sdhci_xenon sdhci acpi
 dev/sdhci/sdhci_xenon_fdt.c			optional sdhci_xenon sdhci fdt
+
+dev/sram/mmio_sram.c				optional fdt mmio_sram
+dev/sram/mmio_sram_if.m				optional fdt mmio_sram
 
 dev/uart/uart_cpu_arm64.c			optional uart
 dev/uart/uart_dev_mu.c				optional uart uart_mu fdt
