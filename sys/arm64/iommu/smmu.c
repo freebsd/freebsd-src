@@ -149,6 +149,9 @@ __FBSDID("$FreeBSD$");
 
 #define	SMMU_Q_ALIGN		(64 * 1024)
 
+#define		MAXADDR_48BIT	0xFFFFFFFFFFFFUL
+#define		MAXADDR_52BIT	0xFFFFFFFFFFFFFUL
+
 static struct resource_spec smmu_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
 	{ SYS_RES_IRQ, 0, RF_ACTIVE },
@@ -1702,6 +1705,7 @@ smmu_map(device_t dev, struct iommu_domain *iodom,
 static struct iommu_domain *
 smmu_domain_alloc(device_t dev, struct iommu_unit *iommu)
 {
+	struct iommu_domain *iodom;
 	struct smmu_domain *domain;
 	struct smmu_unit *unit;
 	struct smmu_softc *sc;
@@ -1742,7 +1746,15 @@ smmu_domain_alloc(device_t dev, struct iommu_unit *iommu)
 	LIST_INSERT_HEAD(&unit->domain_list, domain, next);
 	IOMMU_UNLOCK(iommu);
 
-	return (&domain->iodom);
+	iodom = &domain->iodom;
+
+	/*
+	 * Use 48-bit address space regardless of VAX bit
+	 * as we need 64k IOMMU_PAGE_SIZE for 52-bit space.
+	 */
+	iodom->end = MAXADDR_48BIT;
+
+	return (iodom);
 }
 
 static void
