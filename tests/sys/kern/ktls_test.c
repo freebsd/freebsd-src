@@ -285,6 +285,14 @@ close_sockets(int sv[2])
 }
 
 static void
+close_sockets_ignore_errors(int sv[2])
+{
+	if (sv[0] != sv[1])
+		close(sv[1]);
+	close(sv[0]);
+}
+
+static void
 fd_set_blocking(int fd)
 {
 	int flags;
@@ -1643,7 +1651,7 @@ test_ktls_receive_corrupted_record(const atf_tc_t *tc, struct tls_enable *en,
 	free(outbuf);
 	free(plaintext);
 
-	close_sockets(sockets);
+	close_sockets_ignore_errors(sockets);
 }
 
 static void
@@ -1729,7 +1737,7 @@ test_ktls_receive_truncated_record(const atf_tc_t *tc, struct tls_enable *en,
 	free(outbuf);
 	free(plaintext);
 
-	close_sockets(sockets);
+	close_sockets_ignore_errors(sockets);
 }
 
 static void
@@ -1771,7 +1779,7 @@ test_ktls_receive_bad_major(const atf_tc_t *tc, struct tls_enable *en,
 	free(outbuf);
 	free(plaintext);
 
-	close_sockets(sockets);
+	close_sockets_ignore_errors(sockets);
 }
 
 static void
@@ -1813,7 +1821,7 @@ test_ktls_receive_bad_minor(const atf_tc_t *tc, struct tls_enable *en,
 	free(outbuf);
 	free(plaintext);
 
-	close_sockets(sockets);
+	close_sockets_ignore_errors(sockets);
 }
 
 static void
@@ -1856,7 +1864,7 @@ test_ktls_receive_bad_type(const atf_tc_t *tc, struct tls_enable *en,
 	free(outbuf);
 	free(plaintext);
 
-	close_sockets(sockets);
+	close_sockets_ignore_errors(sockets);
 }
 
 static void
@@ -1905,7 +1913,7 @@ test_ktls_receive_bad_size(const atf_tc_t *tc, struct tls_enable *en,
 
 	free(outbuf);
 
-	close_sockets(sockets);
+	close_sockets_ignore_errors(sockets);
 }
 
 #define	TLS_10_TESTS(M)							\
