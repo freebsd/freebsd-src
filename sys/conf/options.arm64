@@ -34,4 +34,5 @@ SOC_NVIDIA_TEGRA210		opt_soc.h
 SOC_NXP_LS			opt_soc.h
 SOC_ROCKCHIP_RK3328		opt_soc.h
 SOC_ROCKCHIP_RK3399		opt_soc.h
+SOC_ROCKCHIP_RK3568		opt_soc.h
 SOC_XILINX_ZYNQ			opt_soc.h

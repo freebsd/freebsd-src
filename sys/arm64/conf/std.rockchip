@@ -5,6 +5,7 @@
 # SoC support
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_ROCKCHIP_RK3399
+options 	SOC_ROCKCHIP_RK3568
 
 # GPIO / PINCTRL
 device		dwgpio			# Synopsys DesignWare APB GPIO Controller
