@@ -111,6 +111,7 @@
 #define	CPU_PART_CORTEX_X1C	0xD4C
 #define	CPU_PART_CORTEX_A715	0xD4D
 #define	CPU_PART_CORTEX_X3	0xD4E
+#define	CPU_PART_NEOVERSE_V2	0xD4F
 
 /* Cavium Part numbers */
 #define	CPU_PART_THUNDERX	0x0A1
@@ -125,6 +126,10 @@
 
 /* APM / Ampere Part Number */
 #define CPU_PART_EMAG8180	0x000
+
+/* Qualcomm */
+#define	CPU_PART_KRYO400_GOLD	0x804
+#define	CPU_PART_KRYO400_SILVER	0x805
 
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
