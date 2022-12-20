@@ -2052,7 +2052,7 @@ void	nvme_resv_status_swapbytes(struct nvme_resv_status *s __unused,
     size_t size __unused)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
-	u_int i, n;
+	size_t i, n;
 
 	s->gen = le32toh(s->gen);
 	n = (s->regctl[1] << 8) | s->regctl[0];
@@ -2070,7 +2070,7 @@ void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s __unused,
     size_t size __unused)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
-	u_int i, n;
+	size_t i, n;
 
 	s->gen = le32toh(s->gen);
 	n = (s->regctl[1] << 8) | s->regctl[0];
