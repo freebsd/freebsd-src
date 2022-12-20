@@ -28,7 +28,8 @@
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
-# Deadlock seen
+# "panic: general protection fault" seen:
+# https://people.freebsd.org/~pho/stress/log/log0398.txt
 
 . ../default.cfg
 
