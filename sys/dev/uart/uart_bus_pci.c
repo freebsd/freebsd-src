@@ -175,6 +175,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x8086, 0x8814, 0xffff, 0, "Intel EG20T Serial Port 3", 0x10 },
 { 0x8086, 0x8c3d, 0xffff, 0, "Intel Lynx Point KT Controller", 0x10 },
 { 0x8086, 0x8cbd, 0xffff, 0, "Intel Wildcat Point KT Controller", 0x10 },
+{ 0x8086, 0x8d3d, 0xffff, 0,
+	"Intel Corporation C610/X99 series chipset KT Controller", 0x10 },
 { 0x8086, 0x9c3d, 0xffff, 0, "Intel Lynx Point-LP HECI KT", 0x10 },
 { 0x8086, 0xa13d, 0xffff, 0,
 	"100 Series/C230 Series Chipset Family KT Redirection", 0x10 },
