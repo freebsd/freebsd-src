@@ -77,6 +77,9 @@ CWARNEXTRA+=	-Wno-error=packed-not-aligned
 .if ${COMPILER_VERSION} >= 90100
 CWARNEXTRA+=	-Wno-address-of-packed-member			\
 		-Wno-error=alloca-larger-than=
+.if ${COMPILER_VERSION} >= 120100
+CWARNEXTRA+=	-Wno-error=nonnull
+.endif
 .endif
 
 # GCC produces false positives for functions that switch on an
