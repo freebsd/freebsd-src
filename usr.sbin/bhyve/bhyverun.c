@@ -552,12 +552,6 @@ fbsdrun_addcpu(struct vmctx *ctx, int newcpu, uint64_t rip, bool suspend)
 {
 	int error;
 
-	/*
-	 * The 'newcpu' must be activated in the context of 'fromcpu'. If
-	 * vm_activate_cpu() is delayed until newcpu's pthread starts running
-	 * then vmm.ko is out-of-sync with bhyve and this can create a race
-	 * with vm_suspend().
-	 */
 	error = vm_activate_cpu(ctx, newcpu);
 	if (error != 0)
 		err(EX_OSERR, "could not activate CPU %d", newcpu);
@@ -1044,7 +1038,7 @@ num_vcpus_allowed(struct vmctx *ctx)
 		return (1);
 }
 
-void
+static void
 fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 {
 	int err, tmp;
@@ -1086,6 +1080,9 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 	}
 
 	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
+
+	err = vm_set_capability(ctx, cpu, VM_CAP_IPI_EXIT, 1);
+	assert(err == 0);
 }
 
 static struct vmctx *
@@ -1157,14 +1154,19 @@ spinup_vcpu(struct vmctx *ctx, int vcpu, bool suspend)
 	int error;
 	uint64_t rip;
 
+	if (vcpu != BSP) {
+		fbsdrun_set_capabilities(ctx, vcpu);
+
+		/*
+		 * Enable the 'unrestricted guest' mode for APs.
+		 *
+		 * APs startup in power-on 16-bit mode.
+		 */
+		error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
+		assert(error == 0);
+	}
+
 	error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
-	assert(error == 0);
-
-	fbsdrun_set_capabilities(ctx, vcpu);
-	error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
-	assert(error == 0);
-
-	error = vm_set_capability(ctx, vcpu, VM_CAP_IPI_EXIT, 1);
 	assert(error == 0);
 
 	fbsdrun_addcpu(ctx, vcpu, rip, suspend);
