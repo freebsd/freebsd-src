@@ -1738,7 +1738,7 @@ fib_set_algo_ptr(struct fib_data *fd, void *algo_data)
 void
 fib_epoch_call(epoch_callback_t callback, epoch_context_t ctx)
 {
-	epoch_call(net_epoch_preempt, callback, ctx);
+	NET_EPOCH_CALL(callback, ctx);
 }
 
 /*

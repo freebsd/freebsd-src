@@ -177,8 +177,10 @@ nvme_notify(struct nvme_consumer *cons,
 	ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
 
 	/* ctrlr_fn has failed.  Nothing to notify here any more. */
-	if (ctrlr_cookie == NULL)
+	if (ctrlr_cookie == NULL) {
+		(void)atomic_cmpset_32(&ctrlr->notification_sent, 1, 0);
 		return;
+	}
 
 	if (ctrlr->is_failed) {
 		ctrlr->cons_cookie[cons->id] = NULL;

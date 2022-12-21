@@ -33,7 +33,7 @@
 .\"     @(#)mount_null.8	8.6 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2022
+.Dd December 19, 2022
 .Dt MOUNT_NULLFS 8
 .Os
 .Sh NAME
@@ -61,6 +61,17 @@ may be mounted on the virtual copy without affecting the original.
 A different device number for the virtual copy is returned by
 .Xr stat 2 ,
 but in other respects it is indistinguishable from the original.
+.Pp
+The
+.Nm
+utility supports mounting both directories and single files.
+Both
+.Ar target
+and
+.Ar mount_point
+must be the same type.
+Mounting directories to files or files to
+directories is not supported.
 .Pp
 The
 .Nm

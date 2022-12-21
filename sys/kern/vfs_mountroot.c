@@ -794,7 +794,7 @@ parse_mount(char **conf)
 		ma = parse_mountroot_options(ma, opts);
 
 		error = kernel_mount(ma, MNT_ROOTFS);
-		if (error == 0 || timeout <= 0)
+		if (error == 0 || error == EILSEQ || timeout <= 0)
 			break;
 
 		if (root_mount_timeout * hz == timeout ||

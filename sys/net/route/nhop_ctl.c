@@ -638,8 +638,7 @@ nhop_free(struct nhop_object *nh)
 	}
 	NET_EPOCH_EXIT(et);
 
-	epoch_call(net_epoch_preempt, destroy_nhop_epoch,
-	    &nh_priv->nh_epoch_ctx);
+	NET_EPOCH_CALL(destroy_nhop_epoch, &nh_priv->nh_epoch_ctx);
 }
 
 void

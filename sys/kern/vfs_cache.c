@@ -3147,12 +3147,36 @@ kern___realpathat(struct thread *td, int fd, const char *path, char *buf,
 	    pathseg, path, fd, &cap_fstat_rights);
 	if ((error = namei(&nd)) != 0)
 		return (error);
-	error = vn_fullpath_hardlink(nd.ni_vp, nd.ni_dvp, nd.ni_cnd.cn_nameptr,
-	    nd.ni_cnd.cn_namelen, &retbuf, &freebuf, &size);
+
+	if (nd.ni_vp->v_type == VREG && nd.ni_dvp->v_type != VDIR &&
+	    (nd.ni_vp->v_vflag & VV_ROOT) != 0) {
+		/*
+		 * This happens if vp is a file mount. The call to
+		 * vn_fullpath_hardlink can panic if path resolution can't be
+		 * handled without the directory.
+		 *
+		 * To resolve this, we find the vnode which was mounted on -
+		 * this should have a unique global path since we disallow
+		 * mounting on linked files.
+		 */
+		struct vnode *covered_vp;
+		error = vn_lock(nd.ni_vp, LK_SHARED);
+		if (error != 0)
+			goto out;
+		covered_vp = nd.ni_vp->v_mount->mnt_vnodecovered;
+		vref(covered_vp);
+		VOP_UNLOCK(nd.ni_vp);
+		error = vn_fullpath(covered_vp, &retbuf, &freebuf);
+		vrele(covered_vp);
+	} else {
+		error = vn_fullpath_hardlink(nd.ni_vp, nd.ni_dvp, nd.ni_cnd.cn_nameptr,
+		    nd.ni_cnd.cn_namelen, &retbuf, &freebuf, &size);
+	}
 	if (error == 0) {
 		error = copyout(retbuf, buf, size);
 		free(freebuf, M_TEMP);
 	}
+out:
 	vrele(nd.ni_vp);
 	vrele(nd.ni_dvp);
 	NDFREE_PNBUF(&nd);
@@ -3778,6 +3802,71 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 	if (error != 0) {
 		vrele(vp);
 		return (error);
+	}
+
+	if (strlen(rpath) >= pathlen) {
+		vrele(vp);
+		error = ENAMETOOLONG;
+		goto out;
+	}
+
+	/*
+	 * Re-lookup the vnode by path to detect a possible rename.
+	 * As a side effect, the vnode is relocked.
+	 * If vnode was renamed, return ENOENT.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_SYSSPACE, path);
+	error = namei(&nd);
+	if (error != 0) {
+		vrele(vp);
+		goto out;
+	}
+	NDFREE_PNBUF(&nd);
+	vp1 = nd.ni_vp;
+	vrele(vp);
+	if (vp1 == vp)
+		strcpy(path, rpath);
+	else {
+		vput(vp1);
+		error = ENOENT;
+	}
+
+out:
+	free(fbuf, M_TEMP);
+	return (error);
+}
+
+/*
+ * This is similar to vn_path_to_global_path but allows for regular
+ * files which may not be present in the cache.
+ *
+ * Requires a locked, referenced vnode.
+ * Vnode is re-locked on success or ENODEV, otherwise unlocked.
+ */
+int
+vn_path_to_global_path_hardlink(struct thread *td, struct vnode *vp,
+    struct vnode *dvp, char *path, u_int pathlen, const char *leaf_name,
+    size_t leaf_length)
+{
+	struct nameidata nd;
+	struct vnode *vp1;
+	char *rpath, *fbuf;
+	size_t len;
+	int error;
+
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
+	/*
+	 * Construct global filesystem path from dvp, vp and leaf
+	 * name.
+	 */
+	VOP_UNLOCK(vp);
+	error = vn_fullpath_hardlink(vp, dvp, leaf_name, leaf_length,
+	    &rpath, &fbuf, &len);
+
+	if (error != 0) {
+		vrele(vp);
+		goto out;
 	}
 
 	if (strlen(rpath) >= pathlen) {
@@ -5339,7 +5428,7 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 	vp = fpl->tvp;
 	vp_seqc = fpl->tvp_seqc;
 
-	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
+	VNPASS(vp->v_type == VDIR || vp->v_type == VREG || vp->v_type == VBAD, vp);
 	mp = atomic_load_ptr(&vp->v_mountedhere);
 	if (__predict_false(mp == NULL)) {
 		return (0);
@@ -5396,7 +5485,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 	vp = fpl->tvp;
 	vp_seqc = fpl->tvp_seqc;
 
-	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
+	VNPASS(vp->v_type == VDIR || vp->v_type == VREG || vp->v_type == VBAD, vp);
 	mp = atomic_load_ptr(&vp->v_mountedhere);
 	if (__predict_false(mp == NULL)) {
 		return (0);

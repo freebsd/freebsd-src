@@ -210,6 +210,10 @@ dev/enetc/if_enetc.c				optional enetc iflib pci fdt soc_nxp_ls
 
 dev/etherswitch/felix/felix.c			optional enetc etherswitch fdt felix pci soc_nxp_ls
 
+dev/firmware/arm/scmi.c				optional fdt scmi
+dev/firmware/arm/scmi_clk.c			optional fdt scmi
+dev/firmware/arm/scmi_shmem.c			optional fdt scmi
+
 dev/gpio/pl061.c				optional pl061 gpio
 dev/gpio/pl061_acpi.c				optional pl061 gpio acpi
 dev/gpio/pl061_fdt.c				optional pl061 gpio fdt
@@ -311,6 +315,7 @@ dev/ipmi/ipmi_acpi.c				optional ipmi acpi
 dev/ipmi/ipmi_kcs.c				optional ipmi
 dev/ipmi/ipmi_smic.c				optional ipmi
 
+dev/mailbox/arm/arm_doorbell.c			optional fdt arm_doorbell
 dev/mbox/mbox_if.m				optional soc_brcm_bcm2837
 
 dev/mmc/host/dwmmc.c				optional dwmmc fdt
@@ -342,6 +347,9 @@ dev/safexcel/safexcel.c				optional safexcel fdt
 dev/sdhci/sdhci_xenon.c				optional sdhci_xenon sdhci
 dev/sdhci/sdhci_xenon_acpi.c			optional sdhci_xenon sdhci acpi
 dev/sdhci/sdhci_xenon_fdt.c			optional sdhci_xenon sdhci fdt
+
+dev/sram/mmio_sram.c				optional fdt mmio_sram
+dev/sram/mmio_sram_if.m				optional fdt mmio_sram
 
 dev/uart/uart_cpu_arm64.c			optional uart
 dev/uart/uart_dev_mu.c				optional uart uart_mu fdt
@@ -610,40 +618,45 @@ arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
 # RockChip Drivers
 arm64/rockchip/rk3328_codec.c			optional fdt rk3328codec soc_rockchip_rk3328
 arm64/rockchip/rk3399_emmcphy.c			optional fdt rk_emmcphy soc_rockchip_rk3399
-arm64/rockchip/rk_dwc3.c			optional fdt rk_dwc3 soc_rockchip_rk3399
-arm64/rockchip/rk_i2c.c				optional fdt rk_i2c soc_rockchip_rk3328 | fdt rk_i2c soc_rockchip_rk3399
+arm64/rockchip/rk_dwc3.c			optional fdt rk_dwc3 soc_rockchip_rk3399 | fdt rk_dwc3 soc_rockchip_rk3568
+arm64/rockchip/rk_i2c.c				optional fdt rk_i2c soc_rockchip_rk3328 | fdt rk_i2c soc_rockchip_rk3399 | fdt rk_i2c soc_rockchip_rk3568
 arm64/rockchip/rk_i2s.c				optional fdt sound soc_rockchip_rk3328 | fdt sound soc_rockchip_rk3399
-dev/iicbus/pmic/rockchip/rk8xx.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
+arm64/rockchip/rk_otp.c				optional fdt soc_rockchip_rk3568
+arm64/rockchip/rk_otp_if.m			optional fdt soc_rockchip_rk3568
+dev/iicbus/pmic/rockchip/rk8xx.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+dev/iicbus/pmic/rockchip/rk8xx_clocks.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+dev/iicbus/pmic/rockchip/rk8xx_regulators.c	optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+dev/iicbus/pmic/rockchip/rk8xx_rtc.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 dev/iicbus/pmic/rockchip/rk805.c		optional fdt rk805 soc_rockchip_rk3328
 dev/iicbus/pmic/rockchip/rk808.c		optional fdt rk805 soc_rockchip_rk3399
-dev/iicbus/pmic/rockchip/rk8xx_clocks.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
-dev/iicbus/pmic/rockchip/rk8xx_regulators.c	optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
-dev/iicbus/pmic/rockchip/rk8xx_rtc.c		optional fdt rk805 soc_rockchip_rk3328 | fdt rk805 soc_rockchip_rk3399
-arm64/rockchip/rk_grf.c				optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/rk_pinctrl.c			optional fdt rk_pinctrl soc_rockchip_rk3328 | fdt rk_pinctrl soc_rockchip_rk3399
-arm64/rockchip/rk_gpio.c			optional fdt rk_gpio soc_rockchip_rk3328 | fdt rk_gpio soc_rockchip_rk3399
+dev/iicbus/pmic/rockchip/rk817.c		optional fdt rk817 soc_rockchip_rk3568
+arm64/rockchip/rk_grf.c				optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/rk_pinctrl.c			optional fdt rk_pinctrl soc_rockchip_rk3328 | fdt rk_pinctrl soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/rk_gpio.c			optional fdt rk_gpio soc_rockchip_rk3328 | fdt rk_gpio soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_iodomain.c			optional fdt rk_iodomain
 arm64/rockchip/rk_spi.c				optional fdt rk_spi
-arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | fdt rk_usb2phy soc_rockchip_rk3399
+arm64/rockchip/rk_usb2phy.c			optional fdt rk_usb2phy soc_rockchip_rk3328 | fdt rk_usb2phy soc_rockchip_rk3399 | fdt rk_usb2phy soc_rockchip_rk3568
 arm64/rockchip/rk_typec_phy.c			optional fdt rk_typec_phy soc_rockchip_rk3399
 arm64/rockchip/if_dwc_rk.c			optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399
-arm64/rockchip/rk_tsadc_if.m			optional fdt soc_rockchip_rk3399
-arm64/rockchip/rk_tsadc.c			optional fdt soc_rockchip_rk3399
+arm64/rockchip/rk_tsadc_if.m			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/rk_tsadc.c			optional fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/rk_pwm.c				optional fdt rk_pwm
 arm64/rockchip/rk_pcie.c			optional fdt pci soc_rockchip_rk3399
 arm64/rockchip/rk_pcie_phy.c			optional fdt pci soc_rockchip_rk3399
 
 # RockChip Clock support
-arm64/rockchip/clk/rk_cru.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/clk/rk_clk_armclk.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/clk/rk_clk_composite.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/clk/rk_clk_fract.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/clk/rk_clk_gate.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/clk/rk_clk_mux.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
-arm64/rockchip/clk/rk_clk_pll.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399
+arm64/rockchip/clk/rk_cru.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk_clk_armclk.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk_clk_composite.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk_clk_fract.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk_clk_gate.c		optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk_clk_mux.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk_clk_pll.c			optional fdt soc_rockchip_rk3328 | fdt soc_rockchip_rk3399 | fdt soc_rockchip_rk3568
 arm64/rockchip/clk/rk3328_cru.c			optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk3399_cru.c			optional fdt soc_rockchip_rk3399
 arm64/rockchip/clk/rk3399_pmucru.c		optional fdt soc_rockchip_rk3399
+arm64/rockchip/clk/rk3568_cru.c			optional fdt soc_rockchip_rk3568
+arm64/rockchip/clk/rk3568_pmucru.c		optional fdt soc_rockchip_rk3568
 
 # Xilinx
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq fdt

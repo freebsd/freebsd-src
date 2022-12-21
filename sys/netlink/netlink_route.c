@@ -134,6 +134,6 @@ rtnl_unload(void *u __unused)
 	rtnl_neighs_destroy();
 
 	/* Wait till all consumers read nlbridge data */
-	epoch_wait_preempt(net_epoch_preempt);
+	NET_EPOCH_WAIT();
 }
 SYSUNINIT(rtnl_unload, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rtnl_unload, NULL);

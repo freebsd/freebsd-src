@@ -428,7 +428,8 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	node = ofw_bus_get_node(dev);
 
 	/* Get the clocks if any */
-	if (ofw_bus_is_compatible(dev, "rockchip,rk3328-dwc3") == 1) {
+	if (ofw_bus_is_compatible(dev, "rockchip,rk3328-dwc3") == 1 ||
+	    ofw_bus_is_compatible(dev, "rockchip,rk3568-dwc3") == 1) {
 		if (clk_get_by_ofw_name(dev, node, "ref_clk", &sc->clk_ref) != 0)
 			device_printf(dev, "Cannot get ref_clk\n");
 		if (clk_get_by_ofw_name(dev, node, "suspend_clk", &sc->clk_suspend) != 0)
