@@ -348,7 +348,7 @@ CFLAGS.gcc+= -Wno-pointer-to-int-cast
 
 CFLAGS.lapi.c= -Wno-cast-qual
 CFLAGS.lcompat.c= -Wno-cast-qual
-CFLAGS.ldo.c= ${NO_WINFINTE_RECURSION}
+CFLAGS.ldo.c= ${NO_WINFINITE_RECURSION}
 CFLAGS.lobject.c= -Wno-cast-qual
 CFLAGS.ltable.c= -Wno-cast-qual
 CFLAGS.lvm.c= -Wno-cast-qual
