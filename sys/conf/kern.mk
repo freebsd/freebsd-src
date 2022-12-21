@@ -81,6 +81,8 @@ CWARNEXTRA+=	-Wno-address-of-packed-member			\
 CWARNEXTRA+=	-Wno-error=nonnull				\
 		-Wno-dangling-pointer				\
 		-Wno-zero-length-bounds
+NO_WINFINTE_RECURSION=	-Wno-infinite-recursion
+NO_WSTRINGOP_OVERREAD=	-Wno-stringop-overread
 .endif
 .endif
 
