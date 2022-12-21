@@ -194,7 +194,7 @@ static const int BSP = 0;
 
 static cpuset_t cpumask;
 
-static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
+static void vm_loop(struct vmctx *ctx, int vcpu);
 
 static struct vm_exit *vmexit;
 
@@ -540,7 +540,7 @@ fbsdrun_start_thread(void *param)
 #endif
 	gdb_cpu_add(vcpu);
 
-	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
+	vm_loop(mtp->mt_ctx, vcpu);
 
 	/* not reached */
 	exit(1);
@@ -548,7 +548,7 @@ fbsdrun_start_thread(void *param)
 }
 
 static void
-fbsdrun_addcpu(struct vmctx *ctx, int newcpu, uint64_t rip, bool suspend)
+fbsdrun_addcpu(struct vmctx *ctx, int newcpu, bool suspend)
 {
 	int error;
 
@@ -560,13 +560,6 @@ fbsdrun_addcpu(struct vmctx *ctx, int newcpu, uint64_t rip, bool suspend)
 
 	if (suspend)
 		vm_suspend_cpu(ctx, newcpu);
-
-	/*
-	 * Set up the vmexit struct to allow execution to start
-	 * at the given RIP
-	 */
-	vmexit[newcpu].rip = rip;
-	vmexit[newcpu].inst_length = 0;
 
 	mt_vmm_info[newcpu].mt_ctx = ctx;
 	mt_vmm_info[newcpu].mt_vcpu = newcpu;
@@ -973,7 +966,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 };
 
 static void
-vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
+vm_loop(struct vmctx *ctx, int vcpu)
 {
 	int error, rc;
 	enum vm_exitcode exitcode;
@@ -987,9 +980,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 
 	error = vm_active_cpus(ctx, &active_cpus);
 	assert(CPU_ISSET(vcpu, &active_cpus));
-
-	error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RIP, startrip);
-	assert(error == 0);
 
 	while (1) {
 		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
@@ -1152,7 +1142,6 @@ static void
 spinup_vcpu(struct vmctx *ctx, int vcpu, bool suspend)
 {
 	int error;
-	uint64_t rip;
 
 	if (vcpu != BSP) {
 		fbsdrun_set_capabilities(ctx, vcpu);
@@ -1166,10 +1155,7 @@ spinup_vcpu(struct vmctx *ctx, int vcpu, bool suspend)
 		assert(error == 0);
 	}
 
-	error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
-	assert(error == 0);
-
-	fbsdrun_addcpu(ctx, vcpu, rip, suspend);
+	fbsdrun_addcpu(ctx, vcpu, suspend);
 }
 
 static bool
