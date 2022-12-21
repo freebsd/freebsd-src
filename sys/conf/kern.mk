@@ -78,7 +78,8 @@ CWARNEXTRA+=	-Wno-error=packed-not-aligned
 CWARNEXTRA+=	-Wno-address-of-packed-member			\
 		-Wno-error=alloca-larger-than=
 .if ${COMPILER_VERSION} >= 120100
-CWARNEXTRA+=	-Wno-error=nonnull
+CWARNEXTRA+=	-Wno-error=nonnull				\
+		-Wno-dangling-pointer
 .endif
 .endif
 
