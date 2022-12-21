@@ -513,6 +513,6 @@ genl_unload(void *u __unused)
 {
 	genl_nlctrl_destroy();
 	GENL_LOCK_DESTROY();
-	epoch_wait_preempt(net_epoch_preempt);
+	NET_EPOCH_WAIT();
 }
 SYSUNINIT(genl_unload, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, genl_unload, NULL);
