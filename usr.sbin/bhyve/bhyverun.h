@@ -45,7 +45,6 @@ void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
 uintptr_t paddr_host2guest(struct vmctx *ctx, void *addr);
 #endif
 
-void fbsdrun_set_capabilities(struct vmctx *ctx, int cpu);
 int  fbsdrun_virtio_msix(void);
 
 int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
