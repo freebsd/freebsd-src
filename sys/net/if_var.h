@@ -124,8 +124,6 @@ typedef enum {
 	IFCOUNTERS /* Array size. */
 } ift_counter;
 
-typedef struct ifnet * if_t;
-
 typedef	void (*if_start_fn_t)(if_t);
 typedef	int (*if_ioctl_fn_t)(if_t, u_long, caddr_t);
 typedef	void (*if_init_fn_t)(void *);
