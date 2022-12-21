@@ -172,7 +172,7 @@ contrib/openzfs/module/lua/lcompat.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/lcorolib.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/lctype.c			optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/ldebug.c			optional zfs compile-with "${ZFS_C}"
-contrib/openzfs/module/lua/ldo.c			optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/lua/ldo.c			optional zfs compile-with "${ZFS_C} ${NO_WINFINTE_RECURSION}"
 contrib/openzfs/module/lua/lfunc.c			optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/lgc.c			optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/llex.c			optional zfs compile-with "${ZFS_C}"
@@ -191,7 +191,7 @@ contrib/openzfs/module/lua/lzio.c			optional zfs compile-with "${ZFS_C}"
 
 # zfs nvpair support
 contrib/openzfs/module/nvpair/fnvpair.c		optional zfs compile-with "${ZFS_C}"
-contrib/openzfs/module/nvpair/nvpair.c		optional zfs compile-with "${ZFS_RPC_C}"
+contrib/openzfs/module/nvpair/nvpair.c		optional zfs compile-with "${ZFS_RPC_C} ${NO_WSTRINGOP_OVERREAD}"
 contrib/openzfs/module/nvpair/nvpair_alloc_fixed.c	optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/nvpair/nvpair_alloc_spl.c	optional zfs compile-with "${ZFS_C}"
 
