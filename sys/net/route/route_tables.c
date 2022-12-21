@@ -245,7 +245,7 @@ grow_rtables(uint32_t num_tables)
 
 	/* Wait till all cpus see new pointers */
 	atomic_thread_fence_rel();
-	epoch_wait_preempt(net_epoch_preempt);
+	NET_EPOCH_WAIT();
 
 	/* Set number of fibs to a new value */
 	V_rt_numfibs = num_tables;

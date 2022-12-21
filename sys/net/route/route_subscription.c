@@ -157,8 +157,7 @@ rib_unsubscribe(struct rib_subscription *rs)
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 	RIB_WUNLOCK(rnh);
 
-	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
-	    &rs->epoch_ctx);
+	NET_EPOCH_CALL(destroy_subscription_epoch, &rs->epoch_ctx);
 }
 
 void
@@ -171,8 +170,7 @@ rib_unsubscribe_locked(struct rib_subscription *rs)
 
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 
-	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
-	    &rs->epoch_ctx);
+	NET_EPOCH_CALL(destroy_subscription_epoch, &rs->epoch_ctx);
 }
 
 /*
@@ -205,8 +203,7 @@ rib_destroy_subscriptions(struct rib_head *rnh)
 	RIB_WLOCK(rnh);
 	while ((rs = CK_STAILQ_FIRST(&rnh->rnh_subscribers)) != NULL) {
 		CK_STAILQ_REMOVE_HEAD(&rnh->rnh_subscribers, next);
-		epoch_call(net_epoch_preempt, destroy_subscription_epoch,
-		    &rs->epoch_ctx);
+		NET_EPOCH_CALL(destroy_subscription_epoch, &rs->epoch_ctx);
 	}
 	RIB_WUNLOCK(rnh);
 	NET_EPOCH_EXIT(et);
