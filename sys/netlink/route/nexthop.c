@@ -553,8 +553,7 @@ delete_unhop(struct unhop_ctl *ctl, struct nlmsghdr *hdr, uint32_t uidx)
 
 	while (unhop_base != NULL) {
 		unhop_chain = unhop_base->un_nextchild;
-		epoch_call(net_epoch_preempt, destroy_unhop_epoch,
-		    &unhop_base->un_epoch_ctx);
+		NET_EPOCH_CALL(destroy_unhop_epoch, &unhop_base->un_epoch_ctx);
 		unhop_base = unhop_chain;
 	}
 
@@ -632,7 +631,7 @@ vnet_destroy_unhops(const void *unused __unused)
 	V_un_ctl = NULL;
 
 	/* Wait till all unhop users finish their reads */
-	epoch_wait_preempt(net_epoch_preempt);
+	NET_EPOCH_WAIT();
 
 	UN_WLOCK(ctl);
 	CHT_SLIST_FOREACH_SAFE(&ctl->un_head, unhop, unhop, tmp) {

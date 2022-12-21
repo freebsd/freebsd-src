@@ -486,7 +486,7 @@ nl_pru_detach(struct socket *so)
 	NL_LOG(LOG_DEBUG3, "socket %p, detached", so);
 
 	/* XXX: is delayed free needed? */
-	epoch_call(net_epoch_preempt, destroy_nlpcb_epoch, &nlp->nl_epoch_ctx);
+	NET_EPOCH_CALL(destroy_nlpcb_epoch, &nlp->nl_epoch_ctx);
 }
 
 static int
