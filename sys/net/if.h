@@ -657,6 +657,12 @@ MALLOC_DECLARE(M_IFADDR);
 MALLOC_DECLARE(M_IFMADDR);
 #endif
 
+/*
+ * Opaque interface structure.
+ */
+
+typedef struct ifnet * if_t;
+
 extern struct sx ifnet_detach_sxlock;
 
 struct nvlist;
