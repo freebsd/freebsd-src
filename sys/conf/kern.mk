@@ -79,7 +79,8 @@ CWARNEXTRA+=	-Wno-address-of-packed-member			\
 		-Wno-error=alloca-larger-than=
 .if ${COMPILER_VERSION} >= 120100
 CWARNEXTRA+=	-Wno-error=nonnull				\
-		-Wno-dangling-pointer
+		-Wno-dangling-pointer				\
+		-Wno-zero-length-bounds
 .endif
 .endif
 
