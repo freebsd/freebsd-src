@@ -76,7 +76,7 @@ spinup_ap_realmode(struct vmctx *ctx, int newcpu, uint64_t *rip)
 	assert(error == 0);
 }
 
-int
+void
 spinup_ap(struct vmctx *ctx, int newcpu, uint64_t rip)
 {
 	int error;
@@ -104,6 +104,4 @@ spinup_ap(struct vmctx *ctx, int newcpu, uint64_t rip)
 	spinup_ap_realmode(ctx, newcpu, &rip);
 
 	vm_resume_cpu(ctx, newcpu);
-
-	return (newcpu);
 }
