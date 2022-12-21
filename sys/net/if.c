@@ -4765,6 +4765,12 @@ if_setioctlfn(if_t ifp, if_ioctl_fn_t ioctl_fn)
 }
 
 void
+if_setoutputfn(if_t ifp, if_output_fn_t output_fn)
+{
+	((struct ifnet *)ifp)->if_output = output_fn;
+}
+
+void
 if_setstartfn(if_t ifp, if_start_fn_t start_fn)
 {
 	((struct ifnet *)ifp)->if_start = (void *)start_fn;
