@@ -154,8 +154,7 @@ rt_free(struct rtentry *rt)
 
 	KASSERT(rt != NULL, ("%s: NULL rt", __func__));
 
-	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
-	    &rt->rt_epoch_ctx);
+	NET_EPOCH_CALL(destroy_rtentry_epoch, &rt->rt_epoch_ctx);
 }
 
 void

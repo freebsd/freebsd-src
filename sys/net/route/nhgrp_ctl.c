@@ -385,8 +385,7 @@ nhgrp_free(struct nhgrp_object *nhg)
 	NET_EPOCH_EXIT(et);
 
 	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
-	epoch_call(net_epoch_preempt, destroy_nhgrp_epoch,
-	    &nhg_priv->nhg_epoch_ctx);
+	NET_EPOCH_CALL(destroy_nhgrp_epoch, &nhg_priv->nhg_epoch_ctx);
 }
 
 /*

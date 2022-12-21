@@ -170,8 +170,7 @@ nhops_destroy_rib(struct rib_head *rh)
 	 * Postpone destruction till the end of current epoch
 	 * so nhop_free() can safely use nh_control pointer.
 	 */
-	epoch_call(net_epoch_preempt, destroy_ctl_epoch,
-	    &ctl->ctl_epoch_ctx);
+	NET_EPOCH_CALL(destroy_ctl_epoch, &ctl->ctl_epoch_ctx);
 }
 
 /*
