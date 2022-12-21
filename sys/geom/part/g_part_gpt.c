@@ -515,7 +515,8 @@ gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
 	    hdr->hdr_lba_table <= hdr->hdr_lba_end)
 		goto fail;
 	lba = hdr->hdr_lba_table +
-	    howmany(hdr->hdr_entries * hdr->hdr_entsz, pp->sectorsize) - 1;
+	    howmany((uint64_t)hdr->hdr_entries * hdr->hdr_entsz,
+	        pp->sectorsize) - 1;
 	if (lba >= last)
 		goto fail;
 	if (lba >= hdr->hdr_lba_start && lba <= hdr->hdr_lba_end)
