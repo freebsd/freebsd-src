@@ -525,13 +525,19 @@ fbsdrun_start_thread(void *param)
 {
 	char tname[MAXCOMLEN + 1];
 	struct mt_vmm_info *mtp;
-	int vcpu;
+	int error, vcpu;
 
 	mtp = param;
 	vcpu = mtp->mt_vcpu;
 
 	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
+
+	if (vcpumap[vcpu] != NULL) {
+		error = pthread_setaffinity_np(mtp->mt_thr, sizeof(cpuset_t),
+		    vcpumap[vcpu]);
+		assert(error == 0);
+	}
 
 #ifdef BHYVE_SNAPSHOT
 	checkpoint_cpu_add(vcpu);
@@ -970,12 +976,6 @@ vm_loop(struct vmctx *ctx, int vcpu)
 	int error, rc;
 	enum vm_exitcode exitcode;
 	cpuset_t active_cpus;
-
-	if (vcpumap[vcpu] != NULL) {
-		error = pthread_setaffinity_np(pthread_self(),
-		    sizeof(cpuset_t), vcpumap[vcpu]);
-		assert(error == 0);
-	}
 
 	error = vm_active_cpus(ctx, &active_cpus);
 	assert(CPU_ISSET(vcpu, &active_cpus));
