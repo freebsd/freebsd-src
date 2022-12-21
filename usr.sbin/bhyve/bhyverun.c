@@ -685,15 +685,6 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
-static int
-vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu __unused)
-{
-
-	(void)spinup_ap(ctx, vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
-
-	return (VMEXIT_CONTINUE);
-}
-
 #define	DEBUG_EPT_MISCONFIG
 #ifdef DEBUG_EPT_MISCONFIG
 #define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
@@ -980,7 +971,6 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
-	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
 	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
 	[VM_EXITCODE_DEBUG] = vmexit_debug,
