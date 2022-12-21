@@ -441,12 +441,12 @@ parse_cpuset(int vcpu, const char *list, cpuset_t *set)
 					errx(4, "Invalid hostcpu range %d-%d",
 					    start, pcpu);
 				while (start < pcpu) {
-					CPU_SET(start, vcpumap[vcpu]);
+					CPU_SET(start, set);
 					start++;
 				}
 				start = -1;
 			}
-			CPU_SET(pcpu, vcpumap[vcpu]);
+			CPU_SET(pcpu, set);
 			break;
 		case '-':
 			if (start >= 0)
