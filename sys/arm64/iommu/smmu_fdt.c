@@ -202,7 +202,5 @@ static device_method_t smmu_fdt_methods[] = {
 DEFINE_CLASS_1(smmu, smmu_fdt_driver, smmu_fdt_methods,
     sizeof(struct smmu_softc), smmu_driver);
 
-static devclass_t smmu_fdt_devclass;
-
-EARLY_DRIVER_MODULE(smmu, simplebus, smmu_fdt_driver, smmu_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(smmu, simplebus, smmu_fdt_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

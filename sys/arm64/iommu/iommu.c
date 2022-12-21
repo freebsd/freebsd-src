@@ -248,6 +248,7 @@ iommu_lookup(device_t dev)
 	return (NULL);
 }
 
+#ifdef FDT
 struct iommu_ctx *
 iommu_get_ctx_ofw(device_t dev, int channel)
 {
@@ -333,6 +334,7 @@ iommu_get_ctx_ofw(device_t dev, int channel)
 
 	return (ioctx);
 }
+#endif
 
 struct iommu_ctx *
 iommu_get_ctx(struct iommu_unit *iommu, device_t requester,
