@@ -385,15 +385,15 @@ validate_sblock(struct fs *fs, int flags)
 	warnerr = (flags & UFS_NOWARNFAIL) == UFS_NOWARNFAIL ? 0 : ENOENT;
 	wmsg = warnerr ? "" : " (Ignored)";
 	/*
-	* Check for endian mismatch between machine and filesystem.
-	*/
+	 * Check for endian mismatch between machine and filesystem.
+	 */
 	if (((fs->fs_magic != FS_UFS2_MAGIC) &&
-		(bswap32(fs->fs_magic) == FS_UFS2_MAGIC)) ||
-		((fs->fs_magic != FS_UFS1_MAGIC) &&
-		(bswap32(fs->fs_magic) == FS_UFS1_MAGIC))) {
-			MPRINT("UFS superblock failed due to endian mismatch "
-				"between machine and filesystem\n");
-			return(EILSEQ);
+	    (bswap32(fs->fs_magic) == FS_UFS2_MAGIC)) ||
+	    ((fs->fs_magic != FS_UFS1_MAGIC) &&
+	    (bswap32(fs->fs_magic) == FS_UFS1_MAGIC))) {
+		MPRINT("UFS superblock failed due to endian mismatch "
+		    "between machine and filesystem\n");
+		return(EILSEQ);
 	}
 	/*
 	 * If just validating for recovery, then do just the minimal
@@ -647,7 +647,7 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 	if (error == 0 || error == EILSEQ) {
 		if (msg && error == EILSEQ)
 			printf("UFS superblock failed due to endian mismatch "
-				"between machine and filesystem\n");
+			    "between machine and filesystem\n");
 		return (error);
 	}
 	/*
