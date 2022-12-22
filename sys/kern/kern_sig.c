@@ -2595,6 +2595,7 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 
 	sc = tsr->ts_sa.code;
 	if (sc == SYS_syscall || sc == SYS___syscall) {
+		sc = tsr->ts_sa.args[0];
 		memmove(&tsr->ts_sa.args[0], &tsr->ts_sa.args[1],
 		    sizeof(register_t) * (tsr->ts_nargs - 1));
 	}
@@ -2615,7 +2616,7 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 #endif
 
 	sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
-	audited = AUDIT_SYSCALL_ENTER(tsr->ts_syscall, td) != 0;
+	audited = AUDIT_SYSCALL_ENTER(sc, td) != 0;
 
 	if (!sy_thr_static) {
 		error = syscall_thread_enter(td, se);
@@ -2639,7 +2640,7 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 #ifdef KDTRACE_HOOKS
 	if (se->sy_return != 0)
 		(*systrace_probe_func)(&tsr->ts_sa, SYSTRACE_RETURN,
-		    tsr->ts_ret->sr_error != 0 ? -1 : td->td_retval[0]);
+		    tsr->ts_ret.sr_error != 0 ? -1 : td->td_retval[0]);
 #endif
 
 	tsr->ts_ret.sr_retval[0] = td->td_retval[0];
