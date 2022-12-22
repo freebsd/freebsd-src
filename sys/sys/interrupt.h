@@ -205,5 +205,7 @@ int	swi_remove(void *cookie);
 /* For handling the core interrupt counters and names */
 extern int intr_event_sysctl_intrnames(SYSCTL_HANDLER_ARGS);
 extern int intr_event_sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
+extern int sysctl_intrnames(SYSCTL_HANDLER_ARGS);
+extern int sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
 
 #endif
