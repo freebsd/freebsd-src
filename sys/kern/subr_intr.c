@@ -4,7 +4,7 @@
  * All rights reserved.
  * Copyright (c) 2015-2016 The FreeBSD Foundation
  * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
- * Copyright © 2023 Elliott Mitchell
+ * Copyright © 2022-2023 Elliott Mitchell
  *
  * Portions of this software were developed by Andrew Turner under
  * sponsorship from the FreeBSD Foundation.
@@ -1949,12 +1949,45 @@ intr_ipi_dispatch(u_int ipi)
 }
 #endif
 
+/*
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ */
+static int
+intr_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
+}
+
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_intrnames,
+    intr_sysctl_intrnames,
     "", "Interrupt Names");
+
+static int
+intr_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+	int error;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
+		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
+		free(intrcnt32, M_TEMP);
+		return (error);
+	}
+#endif
+	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
+}
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_intrcnt,
+    intr_sysctl_intrcnt,
     "", "Interrupt Counts");
