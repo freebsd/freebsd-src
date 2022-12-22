@@ -124,12 +124,10 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 static u_int stray_count;
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
-u_long *intrcnt;
-char *intrnames;
-size_t sintrcnt = sizeof(intrcnt);
-size_t sintrnames = sizeof(intrnames);
+static u_long *intrcnt;
+static char *intrnames;
 static u_int intrcnt_index;
-int nintrcnt;
+static int nintrcnt;
 
 /*
  * Just to start
