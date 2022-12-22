@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2021 Intel Corporation
+ * Copyright (c) 2017 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -71,21 +71,23 @@ static u32 icrdma_regs[IRDMA_MAX_REGS] = {
 };
 
 static u64 icrdma_masks[IRDMA_MAX_MASKS] = {
-	ICRDMA_CCQPSTATUS_CCQP_DONE_M,
-	    ICRDMA_CCQPSTATUS_CCQP_ERR_M,
-	    ICRDMA_CQPSQ_STAG_PDID_M,
-	    ICRDMA_CQPSQ_CQ_CEQID_M,
-	    ICRDMA_CQPSQ_CQ_CQID_M,
-	    ICRDMA_COMMIT_FPM_CQCNT_M,
+	ICRDMA_CCQPSTATUS_CCQP_DONE,
+	    ICRDMA_CCQPSTATUS_CCQP_ERR,
+	    ICRDMA_CQPSQ_STAG_PDID,
+	    ICRDMA_CQPSQ_CQ_CEQID,
+	    ICRDMA_CQPSQ_CQ_CQID,
+	    ICRDMA_COMMIT_FPM_CQCNT,
+	    ICRDMA_CQPSQ_UPESD_HMCFNID
 };
 
-static u64 icrdma_shifts[IRDMA_MAX_SHIFTS] = {
+static u8 icrdma_shifts[IRDMA_MAX_SHIFTS] = {
 	ICRDMA_CCQPSTATUS_CCQP_DONE_S,
 	    ICRDMA_CCQPSTATUS_CCQP_ERR_S,
 	    ICRDMA_CQPSQ_STAG_PDID_S,
 	    ICRDMA_CQPSQ_CQ_CEQID_S,
 	    ICRDMA_CQPSQ_CQ_CQID_S,
 	    ICRDMA_COMMIT_FPM_CQCNT_S,
+	    ICRDMA_CQPSQ_UPESD_HMCFNID_S
 };
 
 /**
@@ -101,9 +103,10 @@ icrdma_ena_irq(struct irdma_sc_dev *dev, u32 idx)
 
 	if (dev->ceq_itr && dev->aeq->msix_idx != idx)
 		interval = dev->ceq_itr >> 1;	/* 2 usec units */
-	val = LS_64(0, IRDMA_GLINT_DYN_CTL_ITR_INDX) |
-	    LS_64(interval, IRDMA_GLINT_DYN_CTL_INTERVAL) |
-	    IRDMA_GLINT_DYN_CTL_INTENA_M | IRDMA_GLINT_DYN_CTL_CLEARPBA_M;
+	val = FIELD_PREP(IRDMA_GLINT_DYN_CTL_ITR_INDX, IRDMA_IDX_ITR0) |
+	    FIELD_PREP(IRDMA_GLINT_DYN_CTL_INTERVAL, interval) |
+	    FIELD_PREP(IRDMA_GLINT_DYN_CTL_INTENA, true) |
+	    FIELD_PREP(IRDMA_GLINT_DYN_CTL_CLEARPBA, true);
 	writel(val, dev->hw_regs[IRDMA_GLINT_DYN_CTL] + idx);
 }
 
@@ -131,9 +134,9 @@ icrdma_cfg_ceq(struct irdma_sc_dev *dev, u32 ceq_id, u32 idx,
 {
 	u32 reg_val;
 
-	reg_val = enable ? IRDMA_GLINT_CEQCTL_CAUSE_ENA_M : 0;
+	reg_val = enable ? IRDMA_GLINT_CEQCTL_CAUSE_ENA : 0;
 	reg_val |= (idx << IRDMA_GLINT_CEQCTL_MSIX_INDX_S) |
-	    IRDMA_GLINT_CEQCTL_ITR_INDX_M;
+	    IRDMA_GLINT_CEQCTL_ITR_INDX;
 
 	writel(reg_val, dev->hw_regs[IRDMA_GLINT_CEQCTL] + ceq_id);
 }
@@ -224,7 +227,7 @@ icrdma_init_hw(struct irdma_sc_dev *dev)
 	dev->cq_ack_db = dev->hw_regs[IRDMA_CQACK];
 	dev->irq_ops = &icrdma_irq_ops;
 	dev->hw_stats_map = icrdma_hw_stat_map;
-
+	dev->hw_attrs.page_size_cap = SZ_4K | SZ_2M | SZ_1G;
 	dev->hw_attrs.max_hw_ird = ICRDMA_MAX_IRD_SIZE;
 	dev->hw_attrs.max_hw_ord = ICRDMA_MAX_ORD_SIZE;
 	dev->hw_attrs.max_stat_inst = ICRDMA_MAX_STATS_COUNT;
@@ -232,8 +235,7 @@ icrdma_init_hw(struct irdma_sc_dev *dev)
 
 	dev->hw_attrs.uk_attrs.max_hw_wq_frags = ICRDMA_MAX_WQ_FRAGMENT_COUNT;
 	dev->hw_attrs.uk_attrs.max_hw_read_sges = ICRDMA_MAX_SGE_RD;
-	dev->hw_attrs.uk_attrs.max_hw_wq_size = IRDMA_QP_WQE_MAX_SIZE;
-	dev->hw_attrs.uk_attrs.min_sw_wq_size = IRDMA_QP_SW_MIN_WQSIZE;
+	dev->hw_attrs.uk_attrs.min_hw_wq_size = ICRDMA_MIN_WQ_SIZE;
 	dev->hw_attrs.uk_attrs.max_hw_sq_chunk = IRDMA_MAX_QUANTA_PER_WR;
 	disable_tx_spad(dev->hw);
 	disable_prefetch(dev->hw);
@@ -320,6 +322,9 @@ irdma_is_config_ok(struct irdma_config_check *cc, struct irdma_sc_vsi *vsi)
 #define IRDMA_CWND_NO_FC	0x1
 #define IRDMA_CWND_FC		0x18
 
+#define IRDMA_RTOMIN_NO_FC	0x5
+#define IRDMA_RTOMIN_FC		0x32
+
 #define IRDMA_ACKCREDS_NO_FC	0x02
 #define IRDMA_ACKCREDS_FC	0x06
 
@@ -405,7 +410,7 @@ disable_tx_spad(struct irdma_hw *hw)
 	wr32(hw, GLPE_WQMTXIDXDATA, wqm_data);
 }
 
-#define GL_RDPU_CNTRL 		0x52054
+#define GL_RDPU_CNTRL		0x52054
 void
 rdpu_ackreqpmthresh(struct irdma_hw *hw)
 {

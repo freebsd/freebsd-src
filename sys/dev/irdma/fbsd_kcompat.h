@@ -55,6 +55,7 @@
 	 BUILD_BUG_ON_ZERO(                                       \
 		!__same_type(((struct drv_struct *)NULL)->member, \
                                       struct ib_struct)))
+
 #define set_ibdev_dma_device(ibdev, dev) \
 	ibdev.dma_device = (dev)
 #define set_max_sge(props, rf)  \
@@ -72,7 +73,6 @@
 
 #define IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION IB_CQ_FLAGS_TIMESTAMP_COMPLETION
 #define kc_irdma_destroy_qp(ibqp, udata) irdma_destroy_qp(ibqp, udata)
-
 #ifndef IB_QP_ATTR_STANDARD_BITS
 #define IB_QP_ATTR_STANDARD_BITS GENMASK(20, 0)
 #endif
@@ -80,12 +80,15 @@
 #define IRDMA_QOS_MODE_VLAN 0x0
 #define IRDMA_QOS_MODE_DSCP 0x1
 
+#define IRDMA_VER_LEN 24
+
 void kc_set_roce_uverbs_cmd_mask(struct irdma_device *iwdev);
 void kc_set_rdma_uverbs_cmd_mask(struct irdma_device *iwdev);
 
 struct irdma_tunable_info {
 	struct sysctl_ctx_list irdma_sysctl_ctx;
 	struct sysctl_oid *irdma_sysctl_tree;
+	char drv_ver[IRDMA_VER_LEN];
 	u8 roce_ena;
 };
 
@@ -167,6 +170,7 @@ struct irdma_device *kc_irdma_get_device(struct ifnet *netdev);
 void kc_irdma_put_device(struct irdma_device *iwdev);
 
 void kc_set_loc_seq_num_mss(struct irdma_cm_node *cm_node);
+u16 kc_rdma_get_udp_sport(u32 fl, u32 lqpn, u32 rqpn);
 
 void irdma_get_dev_fw_str(struct ib_device *dev, char *str, size_t str_len);
 
@@ -184,11 +188,19 @@ void irdma_dcqcn_tunables_init(struct irdma_pci_f *rf);
 u32 irdma_create_stag(struct irdma_device *iwdev);
 void irdma_free_stag(struct irdma_device *iwdev, u32 stag);
 
+int irdma_hwdereg_mr(struct ib_mr *ib_mr);
+int irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start, u64 len,
+			u64 virt, int new_access, struct ib_pd *new_pd,
+			struct ib_udata *udata);
 struct irdma_mr;
 struct irdma_cq;
 struct irdma_cq_buf;
 struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			     u32 max_num_sg, struct ib_udata *udata);
+int irdma_hwreg_mr(struct irdma_device *iwdev, struct irdma_mr *iwmr,
+		   u16 access);
+struct ib_mr *irdma_rereg_mr_trans(struct irdma_mr *iwmr, u64 start, u64 len,
+				   u64 virt, struct ib_udata *udata);
 int irdma_hw_alloc_mw(struct irdma_device *iwdev, struct irdma_mr *iwmr);
 struct ib_mw *irdma_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			     struct ib_udata *udata);
@@ -200,6 +212,11 @@ void irdma_setup_virt_qp(struct irdma_device *iwdev,
                          struct irdma_qp *iwqp,
                          struct irdma_qp_init_info *init_info);
 int irdma_setup_kmode_qp(struct irdma_device *iwdev,
+			 struct irdma_qp *iwqp,
+			 struct irdma_qp_init_info *info,
+			 struct ib_qp_init_attr *init_attr);
+int irdma_setup_umode_qp(struct ib_udata *udata,
+			 struct irdma_device *iwdev,
 			 struct irdma_qp *iwqp,
 			 struct irdma_qp_init_info *info,
 			 struct ib_qp_init_attr *init_attr);

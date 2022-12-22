@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,7 +37,7 @@
 #define IRDMA_VERBS_H
 
 #define IRDMA_MAX_SAVED_PHY_PGADDR	4
-#define IRDMA_FLUSH_DELAY_MS 1500
+#define IRDMA_FLUSH_DELAY_MS		20
 
 #define IRDMA_PKEY_TBL_SZ		1
 #define IRDMA_DEFAULT_PKEY		0xFFFF
@@ -132,6 +132,8 @@ struct irdma_mr {
 		struct ib_mw ibmw;
 	};
 	struct ib_umem *region;
+	int access;
+	u8 is_hwreg;
 	u16 type;
 	u32 page_cnt;
 	u64 page_size;
@@ -150,7 +152,7 @@ struct irdma_cq {
 	u16 cq_size;
 	u16 cq_num;
 	bool user_mode;
-	bool armed;
+	atomic_t armed;
 	enum irdma_cmpl_notify last_notify;
 	u32 polled_cmpls;
 	u32 cq_mem_size;
@@ -224,13 +226,6 @@ struct irdma_qp {
 	void *pbl_vbase;
 	dma_addr_t pbl_pbase;
 	struct page *page;
-	u8 active_conn : 1;
-	u8 user_mode : 1;
-	u8 hte_added : 1;
-	u8 flush_issued : 1;
-	u8 sig_all : 1;
-	u8 pau_mode : 1;
-	u8 rsvd : 1;
 	u8 iwarp_state;
 	u16 term_sq_flush_code;
 	u16 term_rq_flush_code;
@@ -247,6 +242,12 @@ struct irdma_qp {
 	wait_queue_head_t waitq;
 	wait_queue_head_t mod_qp_waitq;
 	u8 rts_ae_rcvd;
+	u8 active_conn : 1;
+	u8 user_mode : 1;
+	u8 hte_added : 1;
+	u8 flush_issued : 1;
+	u8 sig_all : 1;
+	u8 pau_mode : 1;
 };
 
 enum irdma_mmap_flag {
@@ -262,12 +263,12 @@ struct irdma_user_mmap_entry {
 
 static inline u16 irdma_fw_major_ver(struct irdma_sc_dev *dev)
 {
-	return (u16)RS_64(dev->feature_info[IRDMA_FEATURE_FW_INFO], IRDMA_FW_VER_MAJOR);
+	return (u16)FIELD_GET(IRDMA_FW_VER_MAJOR, dev->feature_info[IRDMA_FEATURE_FW_INFO]);
 }
 
 static inline u16 irdma_fw_minor_ver(struct irdma_sc_dev *dev)
 {
-	return (u16)RS_64(dev->feature_info[IRDMA_FEATURE_FW_INFO], IRDMA_FW_VER_MINOR);
+	return (u16)FIELD_GET(IRDMA_FW_VER_MINOR, dev->feature_info[IRDMA_FEATURE_FW_INFO]);
 }
 
 /**
@@ -304,10 +305,10 @@ irdma_user_mmap_entry_insert(struct irdma_ucontext *ucontext, u64 bar_offset,
 			     enum irdma_mmap_flag mmap_flag, u64 *mmap_offset);
 int irdma_ib_register_device(struct irdma_device *iwdev);
 void irdma_ib_unregister_device(struct irdma_device *iwdev);
-void irdma_ib_dealloc_device(struct ib_device *ibdev);
 void irdma_ib_qp_event(struct irdma_qp *iwqp, enum irdma_qp_event_type event);
 void irdma_generate_flush_completions(struct irdma_qp *iwqp);
 void irdma_remove_cmpls_list(struct irdma_cq *iwcq);
 int irdma_generated_cmpls(struct irdma_cq *iwcq, struct irdma_cq_poll_info *cq_poll_info);
+void irdma_sched_qp_flush_work(struct irdma_qp *iwqp);
 void irdma_flush_worker(struct work_struct *work);
 #endif /* IRDMA_VERBS_H */

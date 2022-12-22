@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -129,17 +129,17 @@ irdma_puda_post_recvbuf(struct irdma_puda_rsrc *rsrc, u32 wqe_idx,
 	if (!initial)
 		get_64bit_val(wqe, IRDMA_BYTE_24, &offset24);
 
-	offset24 = (offset24) ? 0 : LS_64(1, IRDMAQPSQ_VALID);
+	offset24 = (offset24) ? 0 : FIELD_PREP(IRDMAQPSQ_VALID, 1);
 
 	set_64bit_val(wqe, IRDMA_BYTE_16, 0);
 	set_64bit_val(wqe, 0, buf->mem.pa);
 	if (qp->qp_uk.uk_attrs->hw_rev == IRDMA_GEN_1) {
 		set_64bit_val(wqe, IRDMA_BYTE_8,
-			      LS_64(buf->mem.size, IRDMAQPSQ_GEN1_FRAG_LEN));
+			      FIELD_PREP(IRDMAQPSQ_GEN1_FRAG_LEN, buf->mem.size));
 	} else {
 		set_64bit_val(wqe, IRDMA_BYTE_8,
-			      LS_64(buf->mem.size,
-				    IRDMAQPSQ_FRAG_LEN) | (offset24 & IRDMAQPSQ_VALID_M));
+			      FIELD_PREP(IRDMAQPSQ_FRAG_LEN, buf->mem.size) |
+			      offset24);
 	}
 	irdma_wmb();		/* make sure WQE is written before valid bit is set */
 
@@ -183,7 +183,7 @@ irdma_puda_alloc_buf(struct irdma_sc_dev *dev,
 	struct irdma_virt_mem buf_mem;
 
 	buf_mem.size = sizeof(struct irdma_puda_buf);
-	buf_mem.va = kzalloc(buf_mem.size, GFP_ATOMIC);
+	buf_mem.va = kzalloc(buf_mem.size, GFP_KERNEL);
 	if (!buf_mem.va)
 		return NULL;
 
@@ -269,18 +269,18 @@ irdma_puda_poll_info(struct irdma_sc_cq *cq,
 
 	cqe = IRDMA_GET_CURRENT_CQ_ELEM(&cq->cq_uk);
 	get_64bit_val(cqe, IRDMA_BYTE_24, &qword3);
-	valid_bit = (bool)RS_64(qword3, IRDMA_CQ_VALID);
+	valid_bit = (bool)FIELD_GET(IRDMA_CQ_VALID, qword3);
 	if (valid_bit != cq_uk->polarity)
 		return -ENOENT;
 
 	if (cq->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
-		ext_valid = (bool)RS_64(qword3, IRDMA_CQ_EXTCQE);
+		ext_valid = (bool)FIELD_GET(IRDMA_CQ_EXTCQE, qword3);
 
 	if (ext_valid) {
 		peek_head = (cq_uk->cq_ring.head + 1) % cq_uk->cq_ring.size;
 		ext_cqe = cq_uk->cq_base[peek_head].buf;
 		get_64bit_val(ext_cqe, IRDMA_BYTE_24, &qword7);
-		polarity = (u8)RS_64(qword7, IRDMA_CQ_VALID);
+		polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword7);
 		if (!peek_head)
 			polarity ^= 1;
 		if (polarity != cq_uk->polarity)
@@ -298,11 +298,11 @@ irdma_puda_poll_info(struct irdma_sc_cq *cq,
 		irdma_debug_buf(cq->dev, IRDMA_DEBUG_PUDA, "PUDA EXT-CQE",
 				ext_cqe, 32);
 
-	error = (bool)RS_64(qword3, IRDMA_CQ_ERROR);
+	error = (bool)FIELD_GET(IRDMA_CQ_ERROR, qword3);
 	if (error) {
 		irdma_debug(cq->dev, IRDMA_DEBUG_PUDA, "receive error\n");
-		major_err = (u32)(RS_64(qword3, IRDMA_CQ_MAJERR));
-		minor_err = (u32)(RS_64(qword3, IRDMA_CQ_MINERR));
+		major_err = (u32)(FIELD_GET(IRDMA_CQ_MAJERR, qword3));
+		minor_err = (u32)(FIELD_GET(IRDMA_CQ_MINERR, qword3));
 		info->compl_error = major_err << 16 | minor_err;
 		return -EIO;
 	}
@@ -310,23 +310,23 @@ irdma_puda_poll_info(struct irdma_sc_cq *cq,
 	get_64bit_val(cqe, IRDMA_BYTE_0, &qword0);
 	get_64bit_val(cqe, IRDMA_BYTE_16, &qword2);
 
-	info->q_type = (u8)RS_64(qword3, IRDMA_CQ_SQ);
-	info->qp_id = (u32)RS_64(qword2, IRDMACQ_QPID);
+	info->q_type = (u8)FIELD_GET(IRDMA_CQ_SQ, qword3);
+	info->qp_id = (u32)FIELD_GET(IRDMACQ_QPID, qword2);
 	if (cq->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
-		info->ipv4 = (bool)RS_64(qword3, IRDMACQ_IPV4);
+		info->ipv4 = (bool)FIELD_GET(IRDMACQ_IPV4, qword3);
 
 	get_64bit_val(cqe, IRDMA_BYTE_8, &comp_ctx);
 	info->qp = (struct irdma_qp_uk *)(irdma_uintptr) comp_ctx;
-	info->wqe_idx = (u32)RS_64(qword3, IRDMA_CQ_WQEIDX);
+	info->wqe_idx = (u32)FIELD_GET(IRDMA_CQ_WQEIDX, qword3);
 
 	if (info->q_type == IRDMA_CQE_QTYPE_RQ) {
 		if (ext_valid) {
-			info->vlan_valid = (bool)RS_64(qword7, IRDMA_CQ_UDVLANVALID);
+			info->vlan_valid = (bool)FIELD_GET(IRDMA_CQ_UDVLANVALID, qword7);
 			if (info->vlan_valid) {
 				get_64bit_val(ext_cqe, IRDMA_BYTE_16, &qword6);
-				info->vlan = (u16)RS_64(qword6, IRDMA_CQ_UDVLAN);
+				info->vlan = (u16)FIELD_GET(IRDMA_CQ_UDVLAN, qword6);
 			}
-			info->smac_valid = (bool)RS_64(qword7, IRDMA_CQ_UDSMACVALID);
+			info->smac_valid = (bool)FIELD_GET(IRDMA_CQ_UDSMACVALID, qword7);
 			if (info->smac_valid) {
 				get_64bit_val(ext_cqe, IRDMA_BYTE_16, &qword6);
 				info->smac[0] = (u8)((qword6 >> 40) & 0xFF);
@@ -339,12 +339,12 @@ irdma_puda_poll_info(struct irdma_sc_cq *cq,
 		}
 
 		if (cq->dev->hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1) {
-			info->vlan_valid = (bool)RS_64(qword3, IRDMA_VLAN_TAG_VALID);
-			info->l4proto = (u8)RS_64(qword2, IRDMA_UDA_L4PROTO);
-			info->l3proto = (u8)RS_64(qword2, IRDMA_UDA_L3PROTO);
+			info->vlan_valid = (bool)FIELD_GET(IRDMA_VLAN_TAG_VALID, qword3);
+			info->l4proto = (u8)FIELD_GET(IRDMA_UDA_L4PROTO, qword2);
+			info->l3proto = (u8)FIELD_GET(IRDMA_UDA_L3PROTO, qword2);
 		}
 
-		info->payload_len = (u32)RS_64(qword0, IRDMACQ_PAYLDLEN);
+		info->payload_len = (u32)FIELD_GET(IRDMACQ_PAYLDLEN, qword0);
 	}
 
 	return 0;
@@ -486,35 +486,36 @@ irdma_puda_send(struct irdma_sc_qp *qp, struct irdma_puda_send_info *info)
 
 	if (qp->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2) {
 		hdr[0] = 0;	/* Dest_QPN and Dest_QKey only for UD */
-		hdr[1] = LS_64(IRDMA_OP_TYPE_SEND, IRDMA_UDA_QPSQ_OPCODE) |
-		    LS_64(l4len, IRDMA_UDA_QPSQ_L4LEN) |
-		    LS_64(info->ah_id, IRDMAQPSQ_AHID) |
-		    LS_64(1, IRDMA_UDA_QPSQ_SIGCOMPL) |
-		    LS_64(qp->qp_uk.swqe_polarity, IRDMA_UDA_QPSQ_VALID);
+		hdr[1] = FIELD_PREP(IRDMA_UDA_QPSQ_OPCODE, IRDMA_OP_TYPE_SEND) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_L4LEN, l4len) |
+		    FIELD_PREP(IRDMAQPSQ_AHID, info->ah_id) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_SIGCOMPL, 1) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_VALID,
+			       qp->qp_uk.swqe_polarity);
 
 		/* Forth line of WQE descriptor */
 
 		set_64bit_val(wqe, IRDMA_BYTE_0, info->paddr);
 		set_64bit_val(wqe, IRDMA_BYTE_8,
-			      LS_64(info->len, IRDMAQPSQ_FRAG_LEN) |
-			      LS_64(qp->qp_uk.swqe_polarity, IRDMA_UDA_QPSQ_VALID));
+			      FIELD_PREP(IRDMAQPSQ_FRAG_LEN, info->len) |
+			      FIELD_PREP(IRDMA_UDA_QPSQ_VALID, qp->qp_uk.swqe_polarity));
 	} else {
-		hdr[0] = LS_64((info->maclen >> 1), IRDMA_UDA_QPSQ_MACLEN) |
-		    LS_64(iplen, IRDMA_UDA_QPSQ_IPLEN) |
-		    LS_64(1, IRDMA_UDA_QPSQ_L4T) |
-		    LS_64(iipt, IRDMA_UDA_QPSQ_IIPT) |
-		    LS_64(l4len, IRDMA_GEN1_UDA_QPSQ_L4LEN);
+		hdr[0] = FIELD_PREP(IRDMA_UDA_QPSQ_MACLEN, info->maclen >> 1) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_IPLEN, iplen) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_L4T, 1) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_IIPT, iipt) |
+		    FIELD_PREP(IRDMA_GEN1_UDA_QPSQ_L4LEN, l4len);
 
-		hdr[1] = LS_64(IRDMA_OP_TYPE_SEND, IRDMA_UDA_QPSQ_OPCODE) |
-		    LS_64(1, IRDMA_UDA_QPSQ_SIGCOMPL) |
-		    LS_64(info->do_lpb, IRDMA_UDA_QPSQ_DOLOOPBACK) |
-		    LS_64(qp->qp_uk.swqe_polarity, IRDMA_UDA_QPSQ_VALID);
+		hdr[1] = FIELD_PREP(IRDMA_UDA_QPSQ_OPCODE, IRDMA_OP_TYPE_SEND) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_SIGCOMPL, 1) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_DOLOOPBACK, info->do_lpb) |
+		    FIELD_PREP(IRDMA_UDA_QPSQ_VALID, qp->qp_uk.swqe_polarity);
 
 		/* Forth line of WQE descriptor */
 
 		set_64bit_val(wqe, IRDMA_BYTE_0, info->paddr);
 		set_64bit_val(wqe, IRDMA_BYTE_8,
-			      LS_64(info->len, IRDMAQPSQ_GEN1_FRAG_LEN));
+			      FIELD_PREP(IRDMAQPSQ_GEN1_FRAG_LEN, info->len));
 	}
 
 	set_64bit_val(wqe, IRDMA_BYTE_16, hdr[0]);
@@ -606,27 +607,27 @@ irdma_puda_qp_setctx(struct irdma_puda_rsrc *rsrc)
 	set_64bit_val(qp_ctx, IRDMA_BYTE_8, qp->sq_pa);
 	set_64bit_val(qp_ctx, IRDMA_BYTE_16, qp->rq_pa);
 	set_64bit_val(qp_ctx, IRDMA_BYTE_24,
-		      LS_64(qp->hw_rq_size, IRDMAQPC_RQSIZE) |
-		      LS_64(qp->hw_sq_size, IRDMAQPC_SQSIZE));
+		      FIELD_PREP(IRDMAQPC_RQSIZE, qp->hw_rq_size) |
+		      FIELD_PREP(IRDMAQPC_SQSIZE, qp->hw_sq_size));
 	set_64bit_val(qp_ctx, IRDMA_BYTE_48,
-		      LS_64(rsrc->buf_size, IRDMAQPC_SNDMSS));
+		      FIELD_PREP(IRDMAQPC_SNDMSS, rsrc->buf_size));
 	set_64bit_val(qp_ctx, IRDMA_BYTE_56, 0);
 	if (qp->dev->hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
 		set_64bit_val(qp_ctx, IRDMA_BYTE_64, 1);
 	set_64bit_val(qp_ctx, IRDMA_BYTE_136,
-		      LS_64(rsrc->cq_id, IRDMAQPC_TXCQNUM) |
-		      LS_64(rsrc->cq_id, IRDMAQPC_RXCQNUM));
+		      FIELD_PREP(IRDMAQPC_TXCQNUM, rsrc->cq_id) |
+		      FIELD_PREP(IRDMAQPC_RXCQNUM, rsrc->cq_id));
 	set_64bit_val(qp_ctx, IRDMA_BYTE_144,
-		      LS_64(rsrc->stats_idx, IRDMAQPC_STAT_INDEX));
+		      FIELD_PREP(IRDMAQPC_STAT_INDEX, rsrc->stats_idx));
 	set_64bit_val(qp_ctx, IRDMA_BYTE_160,
-		      LS_64(1, IRDMAQPC_PRIVEN) |
-		      LS_64(rsrc->stats_idx_valid, IRDMAQPC_USESTATSINSTANCE));
+		      FIELD_PREP(IRDMAQPC_PRIVEN, 1) |
+		      FIELD_PREP(IRDMAQPC_USESTATSINSTANCE, rsrc->stats_idx_valid));
 	set_64bit_val(qp_ctx, IRDMA_BYTE_168,
-		      LS_64((uintptr_t)qp, IRDMAQPC_QPCOMPCTX));
+		      FIELD_PREP(IRDMAQPC_QPCOMPCTX, (uintptr_t)qp));
 	set_64bit_val(qp_ctx, IRDMA_BYTE_176,
-		      LS_64(qp->sq_tph_val, IRDMAQPC_SQTPHVAL) |
-		      LS_64(qp->rq_tph_val, IRDMAQPC_RQTPHVAL) |
-		      LS_64(qp->qs_handle, IRDMAQPC_QSHANDLE));
+		      FIELD_PREP(IRDMAQPC_SQTPHVAL, qp->sq_tph_val) |
+		      FIELD_PREP(IRDMAQPC_RQTPHVAL, qp->rq_tph_val) |
+		      FIELD_PREP(IRDMAQPC_QSHANDLE, qp->qs_handle));
 
 	irdma_debug_buf(rsrc->dev, IRDMA_DEBUG_PUDA, "PUDA QP CONTEXT", qp_ctx,
 			IRDMA_QP_CTX_SIZE);
@@ -655,11 +656,11 @@ irdma_puda_qp_wqe(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 	set_64bit_val(wqe, IRDMA_BYTE_40, qp->shadow_area_pa);
 
 	hdr = qp->qp_uk.qp_id |
-	    LS_64(IRDMA_CQP_OP_CREATE_QP, IRDMA_CQPSQ_OPCODE) |
-	    LS_64(IRDMA_QP_TYPE_UDA, IRDMA_CQPSQ_QP_QPTYPE) |
-	    LS_64(1, IRDMA_CQPSQ_QP_CQNUMVALID) |
-	    LS_64(2, IRDMA_CQPSQ_QP_NEXTIWSTATE) |
-	    LS_64(cqp->polarity, IRDMA_CQPSQ_WQEVALID);
+	    FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_CREATE_QP) |
+	    FIELD_PREP(IRDMA_CQPSQ_QP_QPTYPE, IRDMA_QP_TYPE_UDA) |
+	    FIELD_PREP(IRDMA_CQPSQ_QP_CQNUMVALID, 1) |
+	    FIELD_PREP(IRDMA_CQPSQ_QP_NEXTIWSTATE, 2) |
+	    FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
 	irdma_wmb();		/* make sure WQE is written before valid bit is set */
 
 	set_64bit_val(wqe, IRDMA_BYTE_24, hdr);
@@ -768,20 +769,19 @@ irdma_puda_cq_wqe(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq)
 	set_64bit_val(wqe, IRDMA_BYTE_0, cq->cq_uk.cq_size);
 	set_64bit_val(wqe, IRDMA_BYTE_8, RS_64_1(cq, 1));
 	set_64bit_val(wqe, IRDMA_BYTE_16,
-		      LS_64(cq->shadow_read_threshold,
-			    IRDMA_CQPSQ_CQ_SHADOW_READ_THRESHOLD));
+		      FIELD_PREP(IRDMA_CQPSQ_CQ_SHADOW_READ_THRESHOLD, cq->shadow_read_threshold));
 	set_64bit_val(wqe, IRDMA_BYTE_32, cq->cq_pa);
 	set_64bit_val(wqe, IRDMA_BYTE_40, cq->shadow_area_pa);
 	set_64bit_val(wqe, IRDMA_BYTE_56,
-		      LS_64(cq->tph_val, IRDMA_CQPSQ_TPHVAL) |
-		      LS_64(cq->vsi->vsi_idx, IRDMA_CQPSQ_VSIIDX));
+		      FIELD_PREP(IRDMA_CQPSQ_TPHVAL, cq->tph_val) |
+		      FIELD_PREP(IRDMA_CQPSQ_VSIIDX, cq->vsi->vsi_idx));
 
 	hdr = cq->cq_uk.cq_id |
-	    LS_64(IRDMA_CQP_OP_CREATE_CQ, IRDMA_CQPSQ_OPCODE) |
-	    LS_64(1, IRDMA_CQPSQ_CQ_CHKOVERFLOW) |
-	    LS_64(1, IRDMA_CQPSQ_CQ_ENCEQEMASK) |
-	    LS_64(1, IRDMA_CQPSQ_CQ_CEQIDVALID) |
-	    LS_64(cqp->polarity, IRDMA_CQPSQ_WQEVALID);
+	    FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_CREATE_CQ) |
+	    FIELD_PREP(IRDMA_CQPSQ_CQ_CHKOVERFLOW, 1) |
+	    FIELD_PREP(IRDMA_CQPSQ_CQ_ENCEQEMASK, 1) |
+	    FIELD_PREP(IRDMA_CQPSQ_CQ_CEQIDVALID, 1) |
+	    FIELD_PREP(IRDMA_CQPSQ_WQEVALID, cqp->polarity);
 	irdma_wmb();		/* make sure WQE is written before valid bit is set */
 
 	set_64bit_val(wqe, IRDMA_BYTE_24, hdr);
@@ -962,13 +962,13 @@ irdma_puda_dele_rsrc(struct irdma_sc_vsi *vsi, enum puda_rsrc_type type,
 	case PUDA_QP_CREATED:
 		irdma_qp_rem_qos(&rsrc->qp);
 
-		if (!(reset || dev->no_cqp))
+		if (!reset)
 			irdma_puda_free_qp(rsrc);
 
 		irdma_free_dma_mem(dev->hw, &rsrc->qpmem);
 		/* fallthrough */
 	case PUDA_CQ_CREATED:
-		if (!(reset || dev->no_cqp))
+		if (!reset)
 			irdma_puda_free_cq(rsrc);
 
 		irdma_free_dma_mem(dev->hw, &rsrc->cqmem);
@@ -1007,7 +1007,7 @@ irdma_puda_allocbufs(struct irdma_puda_rsrc *rsrc, u32 count)
 	unsigned long flags;
 
 	buf_mem.size = count * sizeof(struct irdma_puda_buf);
-	buf_mem.va = kzalloc(buf_mem.size, GFP_ATOMIC);
+	buf_mem.va = kzalloc(buf_mem.size, GFP_KERNEL);
 	if (!buf_mem.va) {
 		irdma_debug(rsrc->dev, IRDMA_DEBUG_PUDA,
 			    "error virt_mem for buf\n");
@@ -1115,7 +1115,7 @@ irdma_puda_create_rsrc(struct irdma_sc_vsi *vsi,
 		return -EOPNOTSUPP;
 	}
 	vmem->size = pudasize + sqwridsize + rqwridsize;
-	vmem->va = kzalloc(vmem->size, GFP_ATOMIC);
+	vmem->va = kzalloc(vmem->size, GFP_KERNEL);
 	if (!vmem->va)
 		return -ENOMEM;
 
@@ -1224,16 +1224,16 @@ irdma_ilq_putback_rcvbuf(struct irdma_sc_qp *qp,
 	if (qp->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2) {
 		get_64bit_val(wqe, IRDMA_BYTE_8, &offset8);
 		if (offset24)
-			offset8 &= ~LS_64(1, IRDMAQPSQ_VALID);
+			offset8 &= ~FIELD_PREP(IRDMAQPSQ_VALID, 1);
 		else
-			offset8 |= LS_64(1, IRDMAQPSQ_VALID);
+			offset8 |= FIELD_PREP(IRDMAQPSQ_VALID, 1);
 		set_64bit_val(wqe, IRDMA_BYTE_8, offset8);
 		irdma_wmb();	/* make sure WQE is written before valid bit is set */
 	}
 	if (offset24)
 		offset24 = 0;
 	else
-		offset24 = LS_64(1, IRDMAQPSQ_VALID);
+		offset24 = FIELD_PREP(IRDMAQPSQ_VALID, 1);
 
 	set_64bit_val(wqe, IRDMA_BYTE_24, offset24);
 }

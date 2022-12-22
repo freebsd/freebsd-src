@@ -41,6 +41,7 @@
 #include <netinet/in_fib.h>
 #include <netinet6/in6_fib.h>
 #include <net/route/nhop.h>
+#include <net/if_llatbl.h>
 
 /* additional QP debuging option. Keep false unless needed */
 bool irdma_upload_context = false;
@@ -389,7 +390,8 @@ irdma_get_dst_mac(struct irdma_cm_node *cm_node, struct sockaddr *dst_sin, u8 *d
 	if (dst_sin->sa_family == AF_INET) {
 		err = arpresolve(ifp, gateway, NULL, nexthop, dst_mac, NULL, &lle);
 	} else if (dst_sin->sa_family == AF_INET6) {
-		err = nd6_resolve(ifp, gateway, NULL, nexthop, dst_mac, NULL, &lle);
+		err = nd6_resolve(ifp, LLE_SF(AF_INET6, gateway), NULL, nexthop,
+				  dst_mac, NULL, &lle);
 	} else {
 		err = -EPROTONOSUPPORT;
 	}
@@ -467,15 +469,20 @@ int
 irdma_resolve_neigh_lpb_chk(struct irdma_device *iwdev, struct irdma_cm_node *cm_node,
 			    struct irdma_cm_info *cm_info)
 {
+#ifdef VIMAGE
 	struct rdma_cm_id *rdma_id = (struct rdma_cm_id *)cm_node->cm_id->context;
 	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
+#endif
 	int arpindex;
 	int oldarpindex;
+	bool is_lpb = false;
 
-	if ((cm_node->ipv4 &&
-	     irdma_ipv4_is_lpb(vnet, cm_node->loc_addr[0], cm_node->rem_addr[0])) ||
-	    (!cm_node->ipv4 &&
-	     irdma_ipv6_is_lpb(cm_node->loc_addr, cm_node->rem_addr))) {
+	CURVNET_SET_QUIET(vnet);
+	is_lpb = cm_node->ipv4 ?
+	    irdma_ipv4_is_lpb(cm_node->loc_addr[0], cm_node->rem_addr[0]) :
+	    irdma_ipv6_is_lpb(cm_node->loc_addr, cm_node->rem_addr);
+	CURVNET_RESTORE();
+	if (is_lpb) {
 		cm_node->do_lpb = true;
 		arpindex = irdma_arp_table(iwdev->rf, cm_node->rem_addr,
 					   NULL,

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2021 Intel Corporation
+ * Copyright (c) 2017 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -59,7 +59,7 @@ irdma_alloc_node(struct irdma_sc_vsi *vsi,
 	u16 node_index = 0;
 
 	ws_mem.size = sizeof(struct irdma_ws_node);
-	ws_mem.va = kzalloc(ws_mem.size, GFP_ATOMIC);
+	ws_mem.va = kzalloc(ws_mem.size, GFP_KERNEL);
 	if (!ws_mem.va)
 		return NULL;
 
