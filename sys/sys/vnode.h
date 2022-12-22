@@ -58,6 +58,7 @@
  */
 enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
 		  VMARKER };
+#define VLASTTYPE VMARKER
 
 enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
 /*
