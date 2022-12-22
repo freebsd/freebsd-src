@@ -692,3 +692,13 @@ powerpc_intr_unmask(u_int irq)
 
 	PIC_UNMASK(i->pic, i->intline, i->priv);
 }
+
+SYSCTL_PROC(_hw, OID_AUTO, intrnames,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_intrnames,
+    "", "Interrupt Names");
+
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_intrcnt,
+    "", "Interrupt Counts");
