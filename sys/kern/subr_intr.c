@@ -1948,3 +1948,13 @@ intr_ipi_dispatch(u_int ipi)
 	ii->ii_handler(ii->ii_handler_arg);
 }
 #endif
+
+SYSCTL_PROC(_hw, OID_AUTO, intrnames,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_intrnames,
+    "", "Interrupt Names");
+
+SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_intrcnt,
+    "", "Interrupt Counts");
