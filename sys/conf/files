@@ -172,7 +172,7 @@ contrib/openzfs/module/lua/lcompat.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/lcorolib.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/lctype.c			optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/ldebug.c			optional zfs compile-with "${ZFS_C}"
-contrib/openzfs/module/lua/ldo.c			optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/lua/ldo.c			optional zfs compile-with "${ZFS_C} ${NO_WINFINITE_RECURSION}"
 contrib/openzfs/module/lua/lfunc.c			optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/lgc.c			optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/lua/llex.c			optional zfs compile-with "${ZFS_C}"
@@ -191,7 +191,7 @@ contrib/openzfs/module/lua/lzio.c			optional zfs compile-with "${ZFS_C}"
 
 # zfs nvpair support
 contrib/openzfs/module/nvpair/fnvpair.c		optional zfs compile-with "${ZFS_C}"
-contrib/openzfs/module/nvpair/nvpair.c		optional zfs compile-with "${ZFS_RPC_C}"
+contrib/openzfs/module/nvpair/nvpair.c		optional zfs compile-with "${ZFS_RPC_C} ${NO_WSTRINGOP_OVERREAD}"
 contrib/openzfs/module/nvpair/nvpair_alloc_fixed.c	optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/nvpair/nvpair_alloc_spl.c	optional zfs compile-with "${ZFS_C}"
 
@@ -1739,6 +1739,7 @@ dev/extres/phy/phynode_if.m	optional phy
 dev/extres/phy/phy_usb.c	optional phy
 dev/extres/phy/phynode_usb_if.m	optional phy
 dev/extres/hwreset/hwreset.c	optional hwreset
+dev/extres/hwreset/hwreset_array.c	optional hwreset
 dev/extres/hwreset/hwreset_if.m	optional hwreset
 dev/extres/nvmem/nvmem.c	optional nvmem fdt
 dev/extres/nvmem/nvmem_if.m	optional nvmem
@@ -2433,6 +2434,7 @@ dev/mii/icsphy.c		optional miibus | icsphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
+dev/mii/mcommphy.c		optional miibus | mcommphy
 dev/mii/micphy.c		optional miibus fdt | micphy fdt
 dev/mii/mii.c			optional miibus | mii
 dev/mii/mii_bitbang.c		optional miibus | mii_bitbang

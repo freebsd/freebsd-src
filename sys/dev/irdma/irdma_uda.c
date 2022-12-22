@@ -66,35 +66,35 @@ irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
 		      LS_64_1(info->mac_addr[1], 48) |
 		      LS_64_1(info->mac_addr[0], 56));
 
-	qw1 = LS_64(info->pd_idx, IRDMA_UDA_CQPSQ_MAV_PDINDEXLO) |
-	    LS_64(info->tc_tos, IRDMA_UDA_CQPSQ_MAV_TC) |
-	    LS_64(info->vlan_tag, IRDMA_UDAQPC_VLANTAG);
+	qw1 = FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_PDINDEXLO, info->pd_idx) |
+	    FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_TC, info->tc_tos) |
+	    FIELD_PREP(IRDMA_UDAQPC_VLANTAG, info->vlan_tag);
 
-	qw2 = LS_64(info->dst_arpindex, IRDMA_UDA_CQPSQ_MAV_ARPINDEX) |
-	    LS_64(info->flow_label, IRDMA_UDA_CQPSQ_MAV_FLOWLABEL) |
-	    LS_64(info->hop_ttl, IRDMA_UDA_CQPSQ_MAV_HOPLIMIT) |
-	    LS_64(info->pd_idx >> 16, IRDMA_UDA_CQPSQ_MAV_PDINDEXHI);
+	qw2 = FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ARPINDEX, info->dst_arpindex) |
+	    FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_FLOWLABEL, info->flow_label) |
+	    FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_HOPLIMIT, info->hop_ttl) |
+	    FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_PDINDEXHI, info->pd_idx >> 16);
 
 	if (!info->ipv4_valid) {
 		set_64bit_val(wqe, IRDMA_BYTE_40,
-			      LS_64(info->dest_ip_addr[0], IRDMA_UDA_CQPSQ_MAV_ADDR0) |
-			      LS_64(info->dest_ip_addr[1], IRDMA_UDA_CQPSQ_MAV_ADDR1));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR0, info->dest_ip_addr[0]) |
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR1, info->dest_ip_addr[1]));
 		set_64bit_val(wqe, IRDMA_BYTE_32,
-			      LS_64(info->dest_ip_addr[2], IRDMA_UDA_CQPSQ_MAV_ADDR2) |
-			      LS_64(info->dest_ip_addr[3], IRDMA_UDA_CQPSQ_MAV_ADDR3));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR2, info->dest_ip_addr[2]) |
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR3, info->dest_ip_addr[3]));
 
 		set_64bit_val(wqe, IRDMA_BYTE_56,
-			      LS_64(info->src_ip_addr[0], IRDMA_UDA_CQPSQ_MAV_ADDR0) |
-			      LS_64(info->src_ip_addr[1], IRDMA_UDA_CQPSQ_MAV_ADDR1));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR0, info->src_ip_addr[0]) |
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR1, info->src_ip_addr[1]));
 		set_64bit_val(wqe, IRDMA_BYTE_48,
-			      LS_64(info->src_ip_addr[2], IRDMA_UDA_CQPSQ_MAV_ADDR2) |
-			      LS_64(info->src_ip_addr[3], IRDMA_UDA_CQPSQ_MAV_ADDR3));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR2, info->src_ip_addr[2]) |
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR3, info->src_ip_addr[3]));
 	} else {
 		set_64bit_val(wqe, IRDMA_BYTE_32,
-			      LS_64(info->dest_ip_addr[0], IRDMA_UDA_CQPSQ_MAV_ADDR3));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR3, info->dest_ip_addr[0]));
 
 		set_64bit_val(wqe, IRDMA_BYTE_48,
-			      LS_64(info->src_ip_addr[0], IRDMA_UDA_CQPSQ_MAV_ADDR3));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR3, info->src_ip_addr[0]));
 	}
 
 	set_64bit_val(wqe, IRDMA_BYTE_8, qw1);
@@ -104,13 +104,12 @@ irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
 
 	set_64bit_val(
 		      wqe, IRDMA_BYTE_24,
-		      LS_64(cqp->polarity, IRDMA_UDA_CQPSQ_MAV_WQEVALID) |
-		      LS_64(op, IRDMA_UDA_CQPSQ_MAV_OPCODE) |
-		      LS_64(info->do_lpbk, IRDMA_UDA_CQPSQ_MAV_DOLOOPBACKK) |
-		      LS_64(info->ipv4_valid, IRDMA_UDA_CQPSQ_MAV_IPV4VALID) |
-		      LS_64(info->ah_idx, IRDMA_UDA_CQPSQ_MAV_AVIDX) |
-		      LS_64(info->insert_vlan_tag,
-			    IRDMA_UDA_CQPSQ_MAV_INSERTVLANTAG));
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_WQEVALID, cqp->polarity) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_OPCODE, op) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_DOLOOPBACKK, info->do_lpbk) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_IPV4VALID, info->ipv4_valid) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_AVIDX, info->ah_idx) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_INSERTVLANTAG, info->insert_vlan_tag));
 
 	irdma_debug_buf(cqp->dev, IRDMA_DEBUG_WQE, "MANAGE_AH WQE", wqe,
 			IRDMA_CQP_WQE_SIZE * 8);
@@ -137,9 +136,9 @@ irdma_create_mg_ctx(struct irdma_mcast_grp_info *info)
 		if (entry_info->valid_entry) {
 			set_64bit_val((__le64 *) info->dma_mem_mc.va,
 				      ctx_idx * sizeof(u64),
-				      LS_64(entry_info->dest_port, IRDMA_UDA_MGCTX_DESTPORT) |
-				      LS_64(entry_info->valid_entry, IRDMA_UDA_MGCTX_VALIDENT) |
-				      LS_64(entry_info->qp_id, IRDMA_UDA_MGCTX_QPID));
+				      FIELD_PREP(IRDMA_UDA_MGCTX_DESTPORT, entry_info->dest_port) |
+				      FIELD_PREP(IRDMA_UDA_MGCTX_VALIDENT, entry_info->valid_entry) |
+				      FIELD_PREP(IRDMA_UDA_MGCTX_QPID, entry_info->qp_id));
 			ctx_idx++;
 		}
 	}
@@ -179,8 +178,8 @@ irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 
 	set_64bit_val(wqe, IRDMA_BYTE_32, info->dma_mem_mc.pa);
 	set_64bit_val(wqe, IRDMA_BYTE_16,
-		      LS_64(info->vlan_id, IRDMA_UDA_CQPSQ_MG_VLANID) |
-		      LS_64(info->qs_handle, IRDMA_UDA_CQPSQ_QS_HANDLE));
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_VLANID, info->vlan_id) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_QS_HANDLE, info->qs_handle));
 	set_64bit_val(wqe, IRDMA_BYTE_0, LS_64_1(info->dest_mac_addr[5], 0) |
 		      LS_64_1(info->dest_mac_addr[4], 8) |
 		      LS_64_1(info->dest_mac_addr[3], 16) |
@@ -188,28 +187,28 @@ irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 		      LS_64_1(info->dest_mac_addr[1], 32) |
 		      LS_64_1(info->dest_mac_addr[0], 40));
 	set_64bit_val(wqe, IRDMA_BYTE_8,
-		      LS_64(info->hmc_fcn_id, IRDMA_UDA_CQPSQ_MG_HMC_FCN_ID));
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_HMC_FCN_ID, info->hmc_fcn_id));
 
 	if (!info->ipv4_valid) {
 		set_64bit_val(wqe, IRDMA_BYTE_56,
-			      LS_64(info->dest_ip_addr[0], IRDMA_UDA_CQPSQ_MAV_ADDR0) |
-			      LS_64(info->dest_ip_addr[1], IRDMA_UDA_CQPSQ_MAV_ADDR1));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR0, info->dest_ip_addr[0]) |
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR1, info->dest_ip_addr[1]));
 		set_64bit_val(wqe, IRDMA_BYTE_48,
-			      LS_64(info->dest_ip_addr[2], IRDMA_UDA_CQPSQ_MAV_ADDR2) |
-			      LS_64(info->dest_ip_addr[3], IRDMA_UDA_CQPSQ_MAV_ADDR3));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR2, info->dest_ip_addr[2]) |
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR3, info->dest_ip_addr[3]));
 	} else {
 		set_64bit_val(wqe, IRDMA_BYTE_48,
-			      LS_64(info->dest_ip_addr[0], IRDMA_UDA_CQPSQ_MAV_ADDR3));
+			      FIELD_PREP(IRDMA_UDA_CQPSQ_MAV_ADDR3, info->dest_ip_addr[0]));
 	}
 
 	irdma_wmb();		/* need write memory block before writing the WQE header. */
 
 	set_64bit_val(wqe, IRDMA_BYTE_24,
-		      LS_64(cqp->polarity, IRDMA_UDA_CQPSQ_MG_WQEVALID) |
-		      LS_64(op, IRDMA_UDA_CQPSQ_MG_OPCODE) |
-		      LS_64(info->mg_id, IRDMA_UDA_CQPSQ_MG_MGIDX) |
-		      LS_64(info->vlan_valid, IRDMA_UDA_CQPSQ_MG_VLANVALID) |
-		      LS_64(info->ipv4_valid, IRDMA_UDA_CQPSQ_MG_IPV4VALID));
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_WQEVALID, cqp->polarity) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_OPCODE, op) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_MGIDX, info->mg_id) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_VLANVALID, info->vlan_valid) |
+		      FIELD_PREP(IRDMA_UDA_CQPSQ_MG_IPV4VALID, info->ipv4_valid));
 
 	irdma_debug_buf(cqp->dev, IRDMA_DEBUG_WQE, "MANAGE_MCG WQE", wqe,
 			IRDMA_CQP_WQE_SIZE * 8);

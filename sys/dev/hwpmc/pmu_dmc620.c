@@ -1,7 +1,8 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021 Ampere Computing LLC
+ * Copyright (c) 2022 Arm Ltd
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +34,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_acpi.h"
 
+/*
+ * This depends on ACPI, but is built unconditionally in the hwpmc module.
+ */
+#ifdef DEV_ACPI
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/module.h>
@@ -275,3 +280,4 @@ DRIVER_MODULE(pmu_dmc620, acpi, pmu_dmc620_acpi_driver, 0, 0);
 /* Reverse dependency. hwpmc needs DMC-620 on ARM64. */
 MODULE_DEPEND(pmc, pmu_dmc620, 1, 1, 1);
 MODULE_VERSION(pmu_dmc620, 1);
+#endif /* DEV_ACPI */

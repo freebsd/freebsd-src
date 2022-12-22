@@ -1,9 +1,9 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2003-2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
- * Copyright (c) 2021 ARM Ltd
+ * Copyright (c) 2021-2022 ARM Ltd
  *
  * Portions of this software were developed by A. Joseph Koshy under
  * sponsorship from the FreeBSD Foundation and Google, Inc.
@@ -35,6 +35,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
+
+/*
+ * This depends on ACPI, but is built unconditionally in the hwpmc module.
+ */
+#ifdef DEV_ACPI
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -824,3 +830,4 @@ pmc_cmn600_finalize(struct pmc_mdep *md)
 }
 
 MODULE_DEPEND(pmc, cmn600, 1, 1, 1);
+#endif /* DEV_ACPI */

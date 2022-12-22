@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2020 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -50,11 +50,11 @@ enum i40iw_device_caps_const {
 	I40IW_MAX_CQ_SIZE			= 1048575,
 	I40IW_MAX_OUTBOUND_MSG_SIZE		= 2147483647,
 	I40IW_MAX_INBOUND_MSG_SIZE		= 2147483647,
+	I40IW_MIN_WQ_SIZE			= 4 /* WQEs */,
 };
 
 #define I40IW_QP_WQE_MIN_SIZE   32
 #define I40IW_QP_WQE_MAX_SIZE   128
-#define I40IW_QP_SW_MIN_WQSIZE  4
 #define I40IW_MAX_RQ_WQE_SHIFT  2
 #define I40IW_MAX_QUANTA_PER_WR 2
 

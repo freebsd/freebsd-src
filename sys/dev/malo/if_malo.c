@@ -1743,7 +1743,7 @@ malo_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		DPRINTF(sc, MALO_DEBUG_STATE,
 		    "%s: %s(RUN): iv_flags 0x%08x bintvl %d bssid %s "
 		    "capinfo 0x%04x chan %d associd 0x%x mode %d rate %d\n",
-		    vap->iv_ifp->if_xname, __func__, vap->iv_flags,
+		    if_name(vap->iv_ifp), __func__, vap->iv_flags,
 		    ni->ni_intval, ether_sprintf(ni->ni_bssid), ni->ni_capinfo,
 		    ieee80211_chan2ieee(ic, ic->ic_curchan),
 		    ni->ni_associd, mode, tp->ucastrate);

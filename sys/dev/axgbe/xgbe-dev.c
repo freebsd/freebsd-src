@@ -2029,7 +2029,7 @@ xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 static void
 xgbe_config_mac_address(struct xgbe_prv_data *pdata)
 {
-	xgbe_set_mac_address(pdata, IF_LLADDR(pdata->netdev));
+	xgbe_set_mac_address(pdata, if_getlladdr(pdata->netdev));
 
 	/* Filtering is done using perfect filtering and hash filtering */
 	if (pdata->hw_feat.hash_table_size) {

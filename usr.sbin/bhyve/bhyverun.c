@@ -194,9 +194,7 @@ static const int BSP = 0;
 
 static cpuset_t cpumask;
 
-static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
-
-static struct vm_exit *vmexit;
+static void vm_loop(struct vmctx *ctx, int vcpu);
 
 static struct bhyvestats {
 	uint64_t	vmexit_bogus;
@@ -443,12 +441,12 @@ parse_cpuset(int vcpu, const char *list, cpuset_t *set)
 					errx(4, "Invalid hostcpu range %d-%d",
 					    start, pcpu);
 				while (start < pcpu) {
-					CPU_SET(start, vcpumap[vcpu]);
+					CPU_SET(start, set);
 					start++;
 				}
 				start = -1;
 			}
-			CPU_SET(pcpu, vcpumap[vcpu]);
+			CPU_SET(pcpu, set);
 			break;
 		case '-':
 			if (start >= 0)
@@ -527,7 +525,7 @@ fbsdrun_start_thread(void *param)
 {
 	char tname[MAXCOMLEN + 1];
 	struct mt_vmm_info *mtp;
-	int vcpu;
+	int error, vcpu;
 
 	mtp = param;
 	vcpu = mtp->mt_vcpu;
@@ -535,12 +533,18 @@ fbsdrun_start_thread(void *param)
 	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
 
+	if (vcpumap[vcpu] != NULL) {
+		error = pthread_setaffinity_np(mtp->mt_thr, sizeof(cpuset_t),
+		    vcpumap[vcpu]);
+		assert(error == 0);
+	}
+
 #ifdef BHYVE_SNAPSHOT
 	checkpoint_cpu_add(vcpu);
 #endif
 	gdb_cpu_add(vcpu);
 
-	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
+	vm_loop(mtp->mt_ctx, vcpu);
 
 	/* not reached */
 	exit(1);
@@ -548,16 +552,10 @@ fbsdrun_start_thread(void *param)
 }
 
 static void
-fbsdrun_addcpu(struct vmctx *ctx, int newcpu, uint64_t rip, bool suspend)
+fbsdrun_addcpu(struct vmctx *ctx, int newcpu, bool suspend)
 {
 	int error;
 
-	/*
-	 * The 'newcpu' must be activated in the context of 'fromcpu'. If
-	 * vm_activate_cpu() is delayed until newcpu's pthread starts running
-	 * then vmm.ko is out-of-sync with bhyve and this can create a race
-	 * with vm_suspend().
-	 */
 	error = vm_activate_cpu(ctx, newcpu);
 	if (error != 0)
 		err(EX_OSERR, "could not activate CPU %d", newcpu);
@@ -566,13 +564,6 @@ fbsdrun_addcpu(struct vmctx *ctx, int newcpu, uint64_t rip, bool suspend)
 
 	if (suspend)
 		vm_suspend_cpu(ctx, newcpu);
-
-	/*
-	 * Set up the vmexit struct to allow execution to start
-	 * at the given RIP
-	 */
-	vmexit[newcpu].rip = rip;
-	vmexit[newcpu].inst_length = 0;
 
 	mt_vmm_info[newcpu].mt_ctx = ctx;
 	mt_vmm_info[newcpu].mt_vcpu = newcpu;
@@ -632,7 +623,7 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		fprintf(stderr, "Unhandled %s%c 0x%04x at 0x%lx\n",
 		    in ? "in" : "out",
 		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
-		    port, vmexit->rip);
+		    port, vme->rip);
 		return (VMEXIT_ABORT);
 	} else {
 		return (VMEXIT_CONTINUE);
@@ -682,15 +673,6 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 			return (VMEXIT_CONTINUE);
 		}
 	}
-	return (VMEXIT_CONTINUE);
-}
-
-static int
-vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu __unused)
-{
-
-	(void)spinup_ap(ctx, vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
-
 	return (VMEXIT_CONTINUE);
 }
 
@@ -980,7 +962,6 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
-	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
 	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
 	[VM_EXITCODE_DEBUG] = vmexit_debug,
@@ -989,37 +970,29 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 };
 
 static void
-vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
+vm_loop(struct vmctx *ctx, int vcpu)
 {
+	struct vm_exit vme;
 	int error, rc;
 	enum vm_exitcode exitcode;
 	cpuset_t active_cpus;
 
-	if (vcpumap[vcpu] != NULL) {
-		error = pthread_setaffinity_np(pthread_self(),
-		    sizeof(cpuset_t), vcpumap[vcpu]);
-		assert(error == 0);
-	}
-
 	error = vm_active_cpus(ctx, &active_cpus);
 	assert(CPU_ISSET(vcpu, &active_cpus));
 
-	error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RIP, startrip);
-	assert(error == 0);
-
 	while (1) {
-		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
+		error = vm_run(ctx, vcpu, &vme);
 		if (error != 0)
 			break;
 
-		exitcode = vmexit[vcpu].exitcode;
+		exitcode = vme.exitcode;
 		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
 			fprintf(stderr, "vm_loop: unexpected exitcode 0x%x\n",
 			    exitcode);
 			exit(4);
 		}
 
-		rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
+		rc = (*handler[exitcode])(ctx, &vme, &vcpu);
 
 		switch (rc) {
 		case VMEXIT_CONTINUE:
@@ -1054,7 +1027,7 @@ num_vcpus_allowed(struct vmctx *ctx)
 		return (1);
 }
 
-void
+static void
 fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 {
 	int err, tmp;
@@ -1096,6 +1069,9 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 	}
 
 	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
+
+	err = vm_set_capability(ctx, cpu, VM_CAP_IPI_EXIT, 1);
+	assert(err == 0);
 }
 
 static struct vmctx *
@@ -1165,19 +1141,20 @@ static void
 spinup_vcpu(struct vmctx *ctx, int vcpu, bool suspend)
 {
 	int error;
-	uint64_t rip;
 
-	error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
-	assert(error == 0);
+	if (vcpu != BSP) {
+		fbsdrun_set_capabilities(ctx, vcpu);
 
-	fbsdrun_set_capabilities(ctx, vcpu);
-	error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
-	assert(error == 0);
+		/*
+		 * Enable the 'unrestricted guest' mode for APs.
+		 *
+		 * APs startup in power-on 16-bit mode.
+		 */
+		error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
+		assert(error == 0);
+	}
 
-	error = vm_set_capability(ctx, vcpu, VM_CAP_IPI_EXIT, 1);
-	assert(error == 0);
-
-	fbsdrun_addcpu(ctx, vcpu, rip, suspend);
+	fbsdrun_addcpu(ctx, vcpu, suspend);
 }
 
 static bool
@@ -1604,7 +1581,6 @@ main(int argc, char *argv[])
 #endif
 
 	/* Allocate per-VCPU resources. */
-	vmexit = calloc(guest_ncpus, sizeof(*vmexit));
 	mt_vmm_info = calloc(guest_ncpus, sizeof(*mt_vmm_info));
 
 	/*

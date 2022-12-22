@@ -797,7 +797,7 @@ igc_if_init(if_ctx_t ctx)
 {
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = adapter->shared;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct igc_tx_queue *tx_que;
 	int i;
 
@@ -1079,7 +1079,7 @@ static int
 igc_if_set_promisc(if_ctx_t ctx, int flags)
 {
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u32 reg_rctl;
 	int mcnt = 0;
 
@@ -1133,7 +1133,7 @@ static void
 igc_if_multi_set(if_ctx_t ctx)
 {
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u8  *mta; /* Multicast array memory */
 	u32 reg_rctl = 0;
 	int mcnt = 0;
@@ -1762,7 +1762,7 @@ igc_initialize_rss_mapping(struct igc_adapter *adapter)
 static int
 igc_setup_interface(if_ctx_t ctx)
 {
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = adapter->shared;
 
@@ -1991,7 +1991,7 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 {
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = adapter->shared;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct igc_hw	*hw = &adapter->hw;
 	struct igc_rx_queue *que;
 	int i;
@@ -2060,7 +2060,7 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 		}
 		psize = scctx->isc_max_frame_size;
 		/* are we on a vlan? */
-		if (ifp->if_vlantrunk != NULL)
+		if (if_vlantrunkinuse(ifp))
 			psize += VLAN_TAG_SIZE;
 		IGC_WRITE_REG(&adapter->hw, IGC_RLPML, psize);
 	} else {
@@ -2386,7 +2386,7 @@ static uint64_t
 igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	switch (cnt) {
 	case IFCOUNTER_COLLISIONS:
@@ -2903,7 +2903,7 @@ static void
 igc_print_debug_info(struct igc_adapter *adapter)
 {
 	device_t dev = iflib_get_dev(adapter->ctx);
-	struct ifnet *ifp = iflib_get_ifp(adapter->ctx);
+	if_t ifp = iflib_get_ifp(adapter->ctx);
 	struct tx_ring *txr = &adapter->tx_queues->txr;
 	struct rx_ring *rxr = &adapter->rx_queues->rxr;
 

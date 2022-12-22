@@ -905,14 +905,14 @@ ixl_if_suspend(if_ctx_t ctx)
 static int
 ixl_if_resume(if_ctx_t ctx)
 {
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	INIT_DEBUGOUT("ixl_if_resume: begin");
 
 	/* Read & clear wake-up registers */
 
 	/* Required after D3->D0 transition */
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		ixl_if_init(ctx);
 
 	return (0);
@@ -924,7 +924,7 @@ ixl_if_init(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 	struct i40e_hw	*hw = &pf->hw;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	device_t 	dev = iflib_get_dev(ctx);
 	u8		tmpaddr[ETHER_ADDR_LEN];
 	int		ret;
@@ -943,7 +943,7 @@ ixl_if_init(if_ctx_t ctx)
 	}
 
 	/* Get the latest mac address... User might use a LAA */
-	bcopy(IF_LLADDR(vsi->ifp), tmpaddr, ETH_ALEN);
+	bcopy(if_getlladdr(vsi->ifp), tmpaddr, ETH_ALEN);
 	if (!ixl_ether_is_equal(hw->mac.addr, tmpaddr) &&
 	    (i40e_validate_mac_addr(tmpaddr) == I40E_SUCCESS)) {
 		ixl_del_all_vlan_filters(vsi, hw->mac.addr);
@@ -1013,7 +1013,7 @@ void
 ixl_if_stop(if_ctx_t ctx)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 
 	INIT_DEBUGOUT("ixl_if_stop: begin\n");
@@ -1639,7 +1639,7 @@ ixl_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
-	struct ifnet	*ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct i40e_hw	*hw = vsi->hw;
 	int		err;
 	bool		uni = FALSE, multi = FALSE;

@@ -174,7 +174,7 @@ void		otus_sub_rxeof(struct otus_softc *, uint8_t *, int,
 static int	otus_tx(struct otus_softc *, struct ieee80211_node *,
 		    struct mbuf *, struct otus_data *,
 		    const struct ieee80211_bpf_params *);
-int		otus_ioctl(struct ifnet *, u_long, caddr_t);
+int		otus_ioctl(if_t, u_long, caddr_t);
 int		otus_set_multi(struct otus_softc *);
 static int	otus_updateedca(struct ieee80211com *);
 static void	otus_updateedca_locked(struct otus_softc *);

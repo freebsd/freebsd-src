@@ -4392,7 +4392,7 @@ bxe_nic_unload(struct bxe_softc *sc,
  * the user runs "ifconfig bxe media ..." or "ifconfig bxe mediaopt ...".
  */
 static int
-bxe_ifmedia_update(struct ifnet  *ifp)
+bxe_ifmedia_update(if_t ifp)
 {
     struct bxe_softc *sc = (struct bxe_softc *)if_getsoftc(ifp);
     struct ifmedia *ifm;
@@ -4425,7 +4425,7 @@ bxe_ifmedia_update(struct ifnet  *ifp)
  * Called by the OS to get the current media status (i.e. link, speed, etc.).
  */
 static void
-bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+bxe_ifmedia_status(if_t ifp, struct ifmediareq *ifmr)
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
 
@@ -4441,7 +4441,7 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
     ifmr->ifm_active = IFM_ETHER;
 
     /* Report link down if the driver isn't running. */
-    if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+    if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
         ifmr->ifm_active |= IFM_NONE;
         BLOGD(sc, DBG_PHY, "in %s : nic still not loaded fully\n", __func__);
         BLOGD(sc, DBG_PHY, "in %s : link_up (1) : %d\n",
@@ -5753,7 +5753,7 @@ bxe_tx_mq_start_deferred(void *arg,
 
 /* Multiqueue (TSS) dispatch routine. */
 static int
-bxe_tx_mq_start(struct ifnet *ifp,
+bxe_tx_mq_start(if_t ifp,
                 struct mbuf  *m)
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
@@ -5786,7 +5786,7 @@ bxe_tx_mq_start(struct ifnet *ifp,
 }
 
 static void
-bxe_mq_flush(struct ifnet *ifp)
+bxe_mq_flush(if_t ifp)
 {
     struct bxe_softc *sc = if_getsoftc(ifp);
     struct bxe_fastpath *fp;
@@ -19099,7 +19099,7 @@ bxe_add_cdev(struct bxe_softc *sc)
     }
 
     sc->ioctl_dev = make_dev(&bxe_cdevsw,
-                            sc->ifp->if_dunit,
+                            if_getdunit(sc->ifp),
                             UID_ROOT,
                             GID_WHEEL,
                             0600,
@@ -19421,7 +19421,7 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 #ifdef DEBUGNET
 static void
-bxe_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+bxe_debugnet_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct bxe_softc *sc;
 
@@ -19434,12 +19434,12 @@ bxe_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 }
 
 static void
-bxe_debugnet_event(struct ifnet *ifp __unused, enum debugnet_ev event __unused)
+bxe_debugnet_event(if_t ifp __unused, enum debugnet_ev event __unused)
 {
 }
 
 static int
-bxe_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
+bxe_debugnet_transmit(if_t ifp, struct mbuf *m)
 {
 	struct bxe_softc *sc;
 	int error;
@@ -19456,7 +19456,7 @@ bxe_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-bxe_debugnet_poll(struct ifnet *ifp, int count)
+bxe_debugnet_poll(if_t ifp, int count)
 {
 	struct bxe_softc *sc;
 	int i;

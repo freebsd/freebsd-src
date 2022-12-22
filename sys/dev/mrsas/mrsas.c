@@ -3980,6 +3980,7 @@ mrsas_issue_blocked_cmd(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 			}
 		}
 	}
+	sc->chan = NULL;
 
 	if (cmd->cmd_status == 0xFF) {
 		device_printf(sc->mrsas_dev, "DCMD timed out after %d "
