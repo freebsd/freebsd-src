@@ -808,12 +808,45 @@ intr_next_cpu(int domain)
 }
 #endif
 
+/*
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ */
+static int
+x86_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
+}
+
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_intrnames,
+    x86_sysctl_intrnames,
     "", "Interrupt Names");
+
+static int
+x86_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+	int error;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
+		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
+		free(intrcnt32, M_TEMP);
+		return (error);
+	}
+#endif
+	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
+}
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_intrcnt,
+    x86_sysctl_intrcnt,
     "", "Interrupt Counts");
