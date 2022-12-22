@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -74,6 +74,7 @@ static enum irdma_hmc_rsrc_type iw_hmc_obj_types[] = {
 	IRDMA_HMC_IW_XFFL,
 	IRDMA_HMC_IW_Q1,
 	IRDMA_HMC_IW_Q1FL,
+	IRDMA_HMC_IW_PBLE,
 	IRDMA_HMC_IW_TIMER,
 	IRDMA_HMC_IW_FSIMC,
 	IRDMA_HMC_IW_FSIAV,
@@ -95,7 +96,7 @@ irdma_iwarp_ce_handler(struct irdma_sc_cq *iwcq)
 	struct irdma_cq *cq = iwcq->back_cq;
 
 	if (!cq->user_mode)
-		cq->armed = false;
+		atomic_set(&cq->armed, 0);
 	if (cq->ibcq.comp_handler)
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -171,68 +172,36 @@ static void
 irdma_set_flush_fields(struct irdma_sc_qp *qp,
 		       struct irdma_aeqe_info *info)
 {
+	struct qp_err_code qp_err;
+
 	qp->sq_flush_code = info->sq;
 	qp->rq_flush_code = info->rq;
-	qp->event_type = IRDMA_QP_EVENT_CATASTROPHIC;
 
-	switch (info->ae_id) {
-	case IRDMA_AE_AMP_BOUNDS_VIOLATION:
-	case IRDMA_AE_AMP_INVALID_STAG:
-		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		/* fallthrough */
-	case IRDMA_AE_UDA_XMIT_BAD_PD:
-		qp->flush_code = FLUSH_PROT_ERR;
-		break;
-	case IRDMA_AE_AMP_UNALLOCATED_STAG:
-	case IRDMA_AE_AMP_BAD_PD:
-		qp->flush_code = FLUSH_PROT_ERR;
-		break;
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
-	case IRDMA_AE_AMP_BAD_QP:
-	case IRDMA_AE_WQE_UNEXPECTED_OPCODE:
-		qp->flush_code = FLUSH_LOC_QP_OP_ERR;
-		break;
-	case IRDMA_AE_AMP_BAD_STAG_KEY:
-	case IRDMA_AE_AMP_BAD_STAG_INDEX:
-	case IRDMA_AE_AMP_TO_WRAP:
-	case IRDMA_AE_AMP_RIGHTS_VIOLATION:
-	case IRDMA_AE_AMP_INVALIDATE_NO_REMOTE_ACCESS_RIGHTS:
-	case IRDMA_AE_PRIV_OPERATION_DENIED:
-	case IRDMA_AE_IB_REMOTE_ACCESS_ERROR:
-	case IRDMA_AE_IB_REMOTE_OP_ERROR:
-		qp->flush_code = FLUSH_REM_ACCESS_ERR;
-		qp->event_type = IRDMA_QP_EVENT_ACCESS_ERR;
-		break;
-	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
-	case IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
-	case IRDMA_AE_UDA_XMIT_DGRAM_TOO_SHORT:
-	case IRDMA_AE_UDA_L4LEN_INVALID:
-	case IRDMA_AE_ROCE_RSP_LENGTH_ERROR:
-		qp->flush_code = FLUSH_LOC_LEN_ERR;
-		break;
-	case IRDMA_AE_LCE_QP_CATASTROPHIC:
-		qp->flush_code = FLUSH_FATAL_ERR;
-		break;
-	case IRDMA_AE_DDP_UBE_INVALID_MO:
-	case IRDMA_AE_IB_RREQ_AND_Q1_FULL:
-	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
-		qp->flush_code = FLUSH_GENERAL_ERR;
-		break;
-	case IRDMA_AE_AMP_MWBIND_INVALID_RIGHTS:
-	case IRDMA_AE_AMP_MWBIND_BIND_DISABLED:
-	case IRDMA_AE_AMP_MWBIND_INVALID_BOUNDS:
-		qp->flush_code = FLUSH_MW_BIND_ERR;
-		break;
-	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
-		qp->flush_code = FLUSH_RETRY_EXC_ERR;
-		break;
-	case IRDMA_AE_IB_INVALID_REQUEST:
-		qp->flush_code = FLUSH_REM_INV_REQ_ERR;
-		break;
-	default:
-		qp->flush_code = FLUSH_FATAL_ERR;
-		break;
+	qp_err = irdma_ae_to_qp_err_code(info->ae_id);
+
+	qp->flush_code = qp_err.flush_code;
+	qp->event_type = qp_err.event_type;
+}
+
+/**
+ * irdma_complete_cqp_request - perform post-completion cleanup
+ * @cqp: device CQP
+ * @cqp_request: CQP request
+ *
+ * Mark CQP request as done, wake up waiting thread or invoke
+ * callback function and release/free CQP request.
+ */
+static void
+irdma_complete_cqp_request(struct irdma_cqp *cqp,
+			   struct irdma_cqp_request *cqp_request)
+{
+	if (cqp_request->waiting) {
+		cqp_request->request_done = true;
+		wake_up(&cqp_request->waitq);
+	} else if (cqp_request->callback_fcn) {
+		cqp_request->callback_fcn(cqp_request);
 	}
+	irdma_put_cqp_request(cqp, cqp_request);
 }
 
 /**
@@ -315,13 +284,11 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 			wake_up_interruptible(&iwqp->waitq);
 			break;
 		case IRDMA_AE_LLP_FIN_RECEIVED:
-		case IRDMA_AE_RDMAP_ROE_BAD_LLP_CLOSE:
 			if (qp->term_flags)
 				break;
 			if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
 				iwqp->hw_tcp_state = IRDMA_TCP_STATE_CLOSE_WAIT;
-				if (iwqp->hw_tcp_state == IRDMA_TCP_STATE_CLOSE_WAIT &&
-				    iwqp->ibqp_state == IB_QPS_RTS) {
+				if (iwqp->ibqp_state == IB_QPS_RTS) {
 					irdma_next_iw_state(iwqp,
 							    IRDMA_QP_STATE_CLOSING,
 							    0, 0, 0);
@@ -394,6 +361,7 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 		case IRDMA_AE_RESOURCE_EXHAUSTION:
 			break;
 		case IRDMA_AE_PRIV_OPERATION_DENIED:
+		case IRDMA_AE_RDMAP_ROE_BAD_LLP_CLOSE:
 		case IRDMA_AE_STAG_ZERO_INVALID:
 		case IRDMA_AE_IB_RREQ_AND_Q1_FULL:
 		case IRDMA_AE_DDP_UBE_INVALID_DDP_VERSION:
@@ -442,10 +410,7 @@ irdma_process_aeq(struct irdma_pci_f *rf)
 				irdma_next_iw_state(iwqp, IRDMA_QP_STATE_ERROR, 1, 0, 0);
 				irdma_cm_disconn(iwqp);
 			} else {
-				iwqp->sc_qp.term_flags = 1;
-				irdma_next_iw_state(iwqp, IRDMA_QP_STATE_ERROR, 1, 0,
-						    0);
-				irdma_cm_disconn(iwqp);
+				irdma_terminate_connection(qp, info);
 			}
 			break;
 		}
@@ -513,8 +478,10 @@ irdma_save_msix_info(struct irdma_pci_f *rf)
 	u32 i;
 	u32 size;
 
-	if (!rf->msix_count)
+	if (!rf->msix_count) {
+		irdma_dev_err(&rf->sc_dev, "No MSI-X vectors reserved for RDMA.\n");
 		return -EINVAL;
+	}
 
 	size = sizeof(struct irdma_msix_vector) * rf->msix_count;
 	size += sizeof(struct irdma_qvlist_info);
@@ -546,7 +513,7 @@ irdma_save_msix_info(struct irdma_pci_f *rf)
 			iw_qvinfo->aeq_idx = IRDMA_Q_INVALID_IDX;
 			iw_qvinfo->ceq_idx = ceq_idx++;
 		}
-		iw_qvinfo->itr_idx = 3;
+		iw_qvinfo->itr_idx = IRDMA_IDX_NOITR;
 		iw_qvinfo->v_idx = rf->iw_msixtbl[i].idx;
 	}
 
@@ -636,8 +603,7 @@ irdma_destroy_cqp(struct irdma_pci_f *rf, bool free_hwcqp)
 
 	if (rf->cqp_cmpl_wq)
 		destroy_workqueue(rf->cqp_cmpl_wq);
-	if (free_hwcqp)
-		status = irdma_sc_cqp_destroy(dev->cqp);
+	status = irdma_sc_cqp_destroy(dev->cqp, free_hwcqp);
 	if (status)
 		irdma_debug(dev, IRDMA_DEBUG_ERR, "Destroy CQP failed %d\n",
 			    status);
@@ -898,6 +864,8 @@ irdma_create_hmc_objs(struct irdma_pci_f *rf, bool privileged,
 	info.entry_type = rf->sd_type;
 
 	for (i = 0; i < IW_HMC_OBJ_TYPE_NUM; i++) {
+		if (iw_hmc_obj_types[i] == IRDMA_HMC_IW_PBLE)
+			continue;
 		if (dev->hmc_info->hmc_obj[iw_hmc_obj_types[i]].cnt) {
 			info.rsrc_type = iw_hmc_obj_types[i];
 			info.count = dev->hmc_info->hmc_obj[info.rsrc_type].cnt;
@@ -992,8 +960,8 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 	cqp->scratch_array = kcalloc(sqsize, sizeof(*cqp->scratch_array), GFP_KERNEL);
 	memset(cqp->scratch_array, 0, sqsize * sizeof(*cqp->scratch_array));
 	if (!cqp->scratch_array) {
-		kfree(cqp->cqp_requests);
-		return -ENOMEM;
+		status = -ENOMEM;
+		goto err_scratch;
 	}
 
 	dev->cqp = &cqp->sc_cqp;
@@ -1002,15 +970,14 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 	cqp->sq.va = irdma_allocate_dma_mem(dev->hw, &cqp->sq, cqp->sq.size,
 					    IRDMA_CQP_ALIGNMENT);
 	if (!cqp->sq.va) {
-		kfree(cqp->scratch_array);
-		kfree(cqp->cqp_requests);
-		return -ENOMEM;
+		status = -ENOMEM;
+		goto err_sq;
 	}
 
 	status = irdma_obj_aligned_mem(rf, &mem, sizeof(struct irdma_cqp_ctx),
 				       IRDMA_HOST_CTX_ALIGNMENT_M);
 	if (status)
-		goto exit;
+		goto err_ctx;
 
 	dev->cqp->host_ctx_pa = mem.pa;
 	dev->cqp->host_ctx = mem.va;
@@ -1040,7 +1007,7 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 	if (status) {
 		irdma_debug(dev, IRDMA_DEBUG_ERR, "cqp init status %d\n",
 			    status);
-		goto exit;
+		goto err_ctx;
 	}
 
 	spin_lock_init(&cqp->req_lock);
@@ -1051,7 +1018,7 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 		irdma_debug(dev, IRDMA_DEBUG_ERR,
 			    "cqp create failed - status %d maj_err %d min_err %d\n",
 			    status, maj_err, min_err);
-		goto exit;
+		goto err_create;
 	}
 
 	INIT_LIST_HEAD(&cqp->cqp_avail_reqs);
@@ -1065,8 +1032,15 @@ irdma_create_cqp(struct irdma_pci_f *rf)
 	init_waitqueue_head(&cqp->remove_wq);
 	return 0;
 
-exit:
-	irdma_destroy_cqp(rf, false);
+err_create:
+err_ctx:
+	irdma_free_dma_mem(dev->hw, &cqp->sq);
+err_sq:
+	kfree(cqp->scratch_array);
+	cqp->scratch_array = NULL;
+err_scratch:
+	kfree(cqp->cqp_requests);
+	cqp->cqp_requests = NULL;
 
 	return status;
 }
@@ -1223,12 +1197,6 @@ irdma_cfg_ceq_vector(struct irdma_pci_f *rf, struct irdma_ceq *iwceq,
 		if (status)
 			return status;
 		bus_describe_intr(rf->dev_ctx.dev, msix_vec->res, msix_vec->tag, "CEQ");
-	}
-	status = bus_bind_intr(rf->dev_ctx.dev, msix_vec->res, msix_vec->cpu_affinity);
-	if (status) {
-		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_ERR,
-			    "ceq irq config fail\n");
-		return status;
 	}
 
 	msix_vec->ceq_id = ceq_id;
@@ -1655,10 +1623,7 @@ irdma_hmc_setup(struct irdma_pci_f *rf)
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	u32 qpcnt;
 
-	if (rf->rdma_ver == IRDMA_GEN_1)
-		qpcnt = rsrc_limits_table[rf->limits_sel].qplimit * 2;
-	else
-		qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
+	qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
 
 	rf->sd_type = IRDMA_SD_TYPE_DIRECT;
 	status = irdma_cfg_fpm_val(dev, qpcnt);
@@ -1687,8 +1652,8 @@ irdma_del_init_mem(struct irdma_pci_f *rf)
 	if (rf->rdma_ver != IRDMA_GEN_1) {
 		kfree(rf->allocated_ws_nodes);
 		rf->allocated_ws_nodes = NULL;
-		mutex_destroy(&dev->ws_mutex);
 	}
+	mutex_destroy(&dev->ws_mutex);
 	kfree(rf->ceqlist);
 	rf->ceqlist = NULL;
 	kfree(rf->iw_msixtbl);
@@ -1696,7 +1661,6 @@ irdma_del_init_mem(struct irdma_pci_f *rf)
 	kfree(rf->hmc_info_mem);
 	rf->hmc_info_mem = NULL;
 }
-
 /**
  * irdma_initialize_dev - initialize device
  * @rf: RDMA PCI function
@@ -1746,7 +1710,7 @@ irdma_initialize_dev(struct irdma_pci_f *rf)
 	info.bar0 = rf->hw.hw_addr;
 	info.hmc_fn_id = rf->peer_info->pf_id;
 	info.hw = &rf->hw;
-	status = irdma_sc_dev_init(rf->rdma_ver, &rf->sc_dev, &info);
+	status = irdma_sc_dev_init(&rf->sc_dev, &info);
 	if (status)
 		goto error;
 
@@ -1996,10 +1960,6 @@ irdma_rt_init_hw(struct irdma_device *iwdev,
 			rf->rsrc_created = true;
 		}
 
-		iwdev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
-		    IB_DEVICE_MEM_WINDOW |
-		    IB_DEVICE_MEM_MGT_EXTENSIONS;
-
 		if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
 			irdma_alloc_set_mac(iwdev);
 		irdma_add_ip(iwdev);
@@ -2233,28 +2193,20 @@ irdma_cqp_ce_handler(struct irdma_pci_f *rf, struct irdma_sc_cq *cq)
 			break;
 
 		cqp_request = (struct irdma_cqp_request *)
-		    (unsigned long)info.scratch;
+		    (uintptr_t)info.scratch;
 		if (info.error && irdma_cqp_crit_err(dev, cqp_request->info.cqp_cmd,
 						     info.maj_err_code,
 						     info.min_err_code))
 			irdma_dev_err(dev, "cqp opcode = 0x%x maj_err_code = 0x%x min_err_code = 0x%x\n",
 				      info.op_code, info.maj_err_code,
 				      info.min_err_code);
+
 		if (cqp_request) {
 			cqp_request->compl_info.maj_err_code = info.maj_err_code;
 			cqp_request->compl_info.min_err_code = info.min_err_code;
 			cqp_request->compl_info.op_ret_val = info.op_ret_val;
 			cqp_request->compl_info.error = info.error;
-
-			if (cqp_request->waiting) {
-				cqp_request->request_done = true;
-				wake_up(&cqp_request->waitq);
-				irdma_put_cqp_request(&rf->cqp, cqp_request);
-			} else {
-				if (cqp_request->callback_fcn)
-					cqp_request->callback_fcn(cqp_request);
-				irdma_put_cqp_request(&rf->cqp, cqp_request);
-			}
+			irdma_complete_cqp_request(&rf->cqp, cqp_request);
 		}
 
 		cqe_count++;
@@ -2545,7 +2497,7 @@ irdma_del_apbvt(struct irdma_device *iwdev,
  * @action: add, delete or modify
  */
 void
-irdma_manage_arp_cache(struct irdma_pci_f *rf, unsigned char *mac_addr,
+irdma_manage_arp_cache(struct irdma_pci_f *rf, const unsigned char *mac_addr,
 		       u32 *ip_addr, u32 action)
 {
 	struct irdma_add_arp_cache_entry_info *info;
@@ -2798,29 +2750,30 @@ irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask)
 	info.sq = flush_mask & IRDMA_FLUSH_SQ;
 	info.rq = flush_mask & IRDMA_FLUSH_RQ;
 
-	if (flush_mask & IRDMA_REFLUSH) {
-		if (info.sq)
-			iwqp->sc_qp.flush_sq = false;
-		if (info.rq)
-			iwqp->sc_qp.flush_rq = false;
-	}
-
 	/* Generate userflush errors in CQE */
 	info.sq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.sq_minor_code = FLUSH_GENERAL_ERR;
 	info.rq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.rq_minor_code = FLUSH_GENERAL_ERR;
 	info.userflushcode = true;
-	if (flush_code) {
-		if (info.sq && iwqp->sc_qp.sq_flush_code)
-			info.sq_minor_code = flush_code;
-		if (info.rq && iwqp->sc_qp.rq_flush_code)
-			info.rq_minor_code = flush_code;
-	}
 
-	if (irdma_upload_context && !(flush_mask & IRDMA_REFLUSH) &&
-	    irdma_upload_qp_context(iwqp, 0, 1))
-		irdma_print("failed to upload QP context\n");
+	if (flush_mask & IRDMA_REFLUSH) {
+		if (info.sq)
+			iwqp->sc_qp.flush_sq = false;
+		if (info.rq)
+			iwqp->sc_qp.flush_rq = false;
+	} else {
+		if (flush_code) {
+			if (info.sq && iwqp->sc_qp.sq_flush_code)
+				info.sq_minor_code = flush_code;
+			if (info.rq && iwqp->sc_qp.rq_flush_code)
+				info.rq_minor_code = flush_code;
+		}
+		if (irdma_upload_context && irdma_upload_qp_context(iwqp, 0, 1))
+			irdma_print("failed to upload QP context\n");
+		if (!iwqp->user_mode)
+			irdma_sched_qp_flush_work(iwqp);
+	}
 
 	/* Issue flush */
 	(void)irdma_hw_flush_wqes(rf, &iwqp->sc_qp, &info,

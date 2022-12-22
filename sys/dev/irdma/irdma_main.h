@@ -44,6 +44,7 @@
 #include <netinet/if_ether.h>
 #include <linux/slab.h>
 #include <linux/rculist.h>
+#include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
@@ -52,7 +53,6 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_cache.h>
-#include <rdma/uverbs_ioctl.h>
 #include "osdep.h"
 #include "irdma_defs.h"
 #include "irdma_hmc.h"
@@ -101,7 +101,7 @@ extern bool irdma_upload_context;
 #define	IRDMA_NO_QSET	0xffff
 
 #define IW_CFG_FPM_QP_COUNT		32768
-#define IRDMA_MAX_PAGES_PER_FMR		512
+#define IRDMA_MAX_PAGES_PER_FMR		262144
 #define IRDMA_MIN_PAGES_PER_FMR		1
 #define IRDMA_CQP_COMPL_RQ_WQE_FLUSHED	2
 #define IRDMA_CQP_COMPL_SQ_WQE_FLUSHED	3
@@ -123,9 +123,6 @@ extern bool irdma_upload_context;
 #define IRDMA_DRV_OPT_MCAST_LOGPORT_MAP		0x00000800
 
 #define IW_HMC_OBJ_TYPE_NUM	ARRAY_SIZE(iw_hmc_obj_types)
-#define VSI_RXSWCTRL(_VSI)			(0x00205000 + ((_VSI) * 4))
-#define VSI_RXSWCTRL_MACVSIPRUNEENABLE_M	BIT(8)
-#define VSI_RXSWCTRL_SRCPRUNEENABLE_M		BIT(13)
 #define IRDMA_ROCE_CWND_DEFAULT			0x400
 #define IRDMA_ROCE_ACKCREDS_DEFAULT		0x1E
 
@@ -278,6 +275,8 @@ struct irdma_pci_f {
 	u8 *mem_rsrc;
 	u8 rdma_ver;
 	u8 rst_to;
+	/* Not used in SRIOV VF mode */
+	u8 pf_id;
 	enum irdma_protocol_used protocol_used;
 	bool en_rem_endpoint_trk:1;
 	bool dcqcn_ena:1;
@@ -360,6 +359,7 @@ struct irdma_device {
 	struct ib_device ibdev;
 	struct irdma_pci_f *rf;
 	struct ifnet *netdev;
+	struct notifier_block nb_netdevice_event;
 	struct irdma_handler *hdl;
 	struct workqueue_struct *cleanup_wq;
 	struct irdma_sc_vsi vsi;
@@ -368,7 +368,6 @@ struct irdma_device {
 	u32 roce_ackcreds;
 	u32 vendor_id;
 	u32 vendor_part_id;
-	u32 device_cap_flags;
 	u32 push_mode;
 	u32 rcv_wnd;
 	u16 mac_ip_table_idx;
@@ -376,6 +375,12 @@ struct irdma_device {
 	u8 rcv_wscale;
 	u8 iw_status;
 	u8 rd_fence_rate;
+	bool override_rcv_wnd:1;
+	bool override_cwnd:1;
+	bool override_ackcreds:1;
+	bool override_ooo:1;
+	bool override_rd_fence_rate:1;
+	bool override_rtomin:1;
 	bool roce_mode:1;
 	bool roce_dcqcn_en:1;
 	bool dcb_vlan_mode:1;
@@ -508,7 +513,7 @@ void irdma_qp_rem_ref(struct ib_qp *ibqp);
 void irdma_free_lsmm_rsrc(struct irdma_qp *iwqp);
 struct ib_qp *irdma_get_qp(struct ib_device *ibdev, int qpn);
 void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask);
-void irdma_manage_arp_cache(struct irdma_pci_f *rf, unsigned char *mac_addr,
+void irdma_manage_arp_cache(struct irdma_pci_f *rf, const unsigned char *mac_addr,
 			    u32 *ip_addr, u32 action);
 struct irdma_apbvt_entry *irdma_add_apbvt(struct irdma_device *iwdev, u16 port);
 void irdma_del_apbvt(struct irdma_device *iwdev,
@@ -581,6 +586,10 @@ int irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		    void *cb_param);
 void irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request);
 bool irdma_cq_empty(struct irdma_cq *iwcq);
+int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,
+			  void *ptr);
+void irdma_unregister_notifiers(struct irdma_device *iwdev);
+int irdma_register_notifiers(struct irdma_device *iwdev);
 void irdma_set_rf_user_cfg_params(struct irdma_pci_f *rf);
 void irdma_add_ip(struct irdma_device *iwdev);
 void irdma_add_handler(struct irdma_handler *hdl);
