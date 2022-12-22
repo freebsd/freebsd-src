@@ -4145,9 +4145,20 @@ vgonel(struct vnode *vp)
 /*
  * Print out a description of a vnode.
  */
-static const char * const typename[] =
-{"VNON", "VREG", "VDIR", "VBLK", "VCHR", "VLNK", "VSOCK", "VFIFO", "VBAD",
- "VMARKER"};
+static const char *const vtypename[] = {
+	[VNON] = "VNON",
+	[VREG] = "VREG",
+	[VDIR] = "VDIR",
+	[VBLK] = "VBLK",
+	[VCHR] = "VCHR",
+	[VLNK] = "VLNK",
+	[VSOCK] = "VSOCK",
+	[VFIFO] = "VFIFO",
+	[VBAD] = "VBAD",
+	[VMARKER] = "VMARKER",
+};
+_Static_assert(nitems(vtypename) == VLASTTYPE + 1,
+    "vnode type name not added to vtypename");
 
 _Static_assert((VHOLD_ALL_FLAGS & ~VHOLD_NO_SMR) == 0,
     "new hold count flag not added to vn_printf");
@@ -4165,7 +4176,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("%p: ", (void *)vp);
-	printf("type %s\n", typename[vp->v_type]);
+	printf("type %s\n", vtypename[vp->v_type]);
 	holdcnt = atomic_load_int(&vp->v_holdcnt);
 	printf("    usecount %d, writecount %d, refcount %d seqc users %d",
 	    vp->v_usecount, vp->v_writecount, holdcnt & ~VHOLD_ALL_FLAGS,
