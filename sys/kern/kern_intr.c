@@ -1814,45 +1814,6 @@ out:
 	return (error);
 }
 
-/*
- * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
- * The data for this machine dependent, and the declarations are in machine
- * dependent code.  The layout of intrnames and intrcnt however is machine
- * independent.
- *
- * We do not know the length of intrcnt and intrnames at compile time, so
- * calculate things at run time.
- */
-int
-sysctl_intrnames(SYSCTL_HANDLER_ARGS)
-{
-	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
-}
-
-int
-sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
-{
-#ifdef SCTL_MASK32
-	uint32_t *intrcnt32;
-	unsigned i;
-	int error;
-
-	if (req->flags & SCTL_MASK32) {
-		if (!req->oldptr)
-			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
-		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
-		if (intrcnt32 == NULL)
-			return (ENOMEM);
-		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
-			intrcnt32[i] = intrcnt[i];
-		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
-		free(intrcnt32, M_TEMP);
-		return (error);
-	}
-#endif
-	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
-}
-
 #ifdef DDB
 /*
  * DDB command to dump the interrupt statistics.
