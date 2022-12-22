@@ -1180,7 +1180,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_FHEXPIRED:
 	case NFSERR_RESOURCE:
 	case NFSERR_MOVED:
-	case NFSERR_NOFILEHANDLE:
 	case NFSERR_MINORVERMISMATCH:
 	case NFSERR_OLDSTATEID:
 	case NFSERR_BADSEQID:
@@ -1190,6 +1189,10 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_OPILLEGAL:
 		printf("nfsv4 client/server protocol prob err=%d\n",
 		    error);
+		return (EIO);
+	case NFSERR_NOFILEHANDLE:
+		printf("nfsv4 no file handle: usually means the file "
+		    "system is not exported on the NFSv4 server\n");
 		return (EIO);
 	default:
 		tprintf(p, LOG_INFO, "nfsv4 err=%d\n", error);
