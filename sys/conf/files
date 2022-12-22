@@ -4471,6 +4471,18 @@ netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 	 ipsec inet6 tcp_signature | ipsec_support inet tcp_signature | \
 	 ipsec_support inet6 tcp_signature
+netlink/netlink_domain.c	optional netlink
+netlink/netlink_generic.c	optional netlink
+netlink/netlink_io.c		optional netlink
+netlink/netlink_message_parser.c	optional netlink
+netlink/netlink_message_writer.c	optional netlink
+netlink/netlink_module.c	optional netlink
+netlink/netlink_route.c		optional netlink
+netlink/route/iface_drivers.c	optional netlink
+netlink/route/iface.c		optional netlink
+netlink/route/neigh.c		optional netlink
+netlink/route/nexthop.c		optional netlink
+netlink/route/rt.c		optional netlink
 netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet
 netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet
 netpfil/ipfw/dn_heap.c		optional inet dummynet

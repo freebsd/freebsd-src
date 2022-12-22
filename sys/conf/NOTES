@@ -692,6 +692,9 @@ options		IPSEC_SUPPORT
 # TLS framing and encryption/decryption of data over TCP sockets.
 options		KERN_TLS		# TLS transmit and receive offload
 
+# Netlink kernel/user<>kernel/user messaging interface
+options		NETLINK
+
 #
 # SMB/CIFS requester
 # NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
