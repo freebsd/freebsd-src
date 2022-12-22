@@ -343,7 +343,14 @@ main(int argc, char **argv)
 	rpctls_gothup = false;
 	LIST_INIT(&rpctls_ssllist);
 
-	rpctls_syscall(RPCTLS_SYSC_SRVSETPATH, _PATH_RPCTLSSDSOCK);
+	if (rpctls_syscall(RPCTLS_SYSC_SRVSETPATH, _PATH_RPCTLSSDSOCK) < 0) {
+		if (rpctls_debug_level == 0) {
+			syslog(LOG_ERR,
+			    "Can't set upcall socket errno=%d", errno);
+			exit(1);
+		}
+		err(1, "Can't set upcall socket");
+	}
 
 	rpctls_svc_run();
 
