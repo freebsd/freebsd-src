@@ -93,12 +93,10 @@ u_int num_io_irqs;
 #endif
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
-u_long *intrcnt;
-char *intrnames;
-size_t sintrcnt = sizeof(intrcnt);
-size_t sintrnames = sizeof(intrnames);
+static u_long *intrcnt;
+static char *intrnames;
 static u_int intrcnt_index;
-int nintrcnt;
+static int nintrcnt;
 
 static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 

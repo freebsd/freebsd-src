@@ -160,12 +160,6 @@ struct proc;
 
 extern struct	intr_event *clk_intr_event;
 
-/* Counts and names for statistics (defined in MD code). */
-extern u_long 	*intrcnt;	/* counts for each device and stray */
-extern char 	*intrnames;	/* string table containing device names */
-extern size_t	sintrcnt;	/* size of intrcnt table */
-extern size_t	sintrnames;	/* size of intrnames table */
-
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
@@ -205,7 +199,5 @@ int	swi_remove(void *cookie);
 /* For handling the core interrupt counters and names */
 extern int intr_event_sysctl_intrnames(SYSCTL_HANDLER_ARGS);
 extern int intr_event_sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
-extern int sysctl_intrnames(SYSCTL_HANDLER_ARGS);
-extern int sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
 
 #endif

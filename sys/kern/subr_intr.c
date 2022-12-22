@@ -172,15 +172,13 @@ u_int intr_nirq = NIRQ;
 SYSCTL_UINT(_machdep, OID_AUTO, nirq, CTLFLAG_RDTUN, &intr_nirq, 0,
     "Number of IRQs");
 
-/* Data for MI statistics reporting. */
-u_long *intrcnt;
-char *intrnames;
-size_t sintrcnt;
-size_t sintrnames;
+/* Data for statistics reporting. */
+static u_long *intrcnt;
+static char *intrnames;
 #ifdef SMP
 static u_int intrcnt_index;
 #endif
-int nintrcnt;
+static int nintrcnt;
 static bitstr_t *intrcnt_bitmap;
 
 static struct intr_irqsrc *intr_map_get_isrc(u_int res_id);
