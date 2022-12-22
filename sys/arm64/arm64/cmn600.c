@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2021 ARM Ltd
+ * Copyright (c) 2021-2022 Arm Ltd
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
 
+/*
+ * This depends on ACPI, but is built unconditionally in the hwpmc module.
+ */
+#ifdef DEV_ACPI
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -831,3 +835,4 @@ static driver_t cmn600_acpi_driver = {
 
 DRIVER_MODULE(cmn600, acpi, cmn600_acpi_driver, 0, 0);
 MODULE_VERSION(cmn600, 1);
+#endif /* DEV_ACPI */
