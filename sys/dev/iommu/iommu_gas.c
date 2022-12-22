@@ -309,7 +309,7 @@ struct iommu_gas_match_args {
 
 /*
  * The interval [beg, end) is a free interval between two iommu_map_entries.
- * Addresses can be allocated only in the range [lbound, ubound). Try to
+ * Addresses can be allocated only in the range [lbound, ubound]. Try to
  * allocate space in the free interval, subject to the conditions expressed by
  * a, and return 'true' if and only if the allocation attempt succeeds.
  */
@@ -332,10 +332,10 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 	start = roundup2(beg, a->common->alignment);
 	if (start < beg)
 		return (false);
-	end = MIN(end - IOMMU_PAGE_SIZE, ubound);
+	end = MIN(end - IOMMU_PAGE_SIZE - 1, ubound);
 	offset = a->offset;
 	size = a->size;
-	if (start + offset + size > end)
+	if (start + offset + size - 1 > end)
 		return (false);
 
 	/* Check for and try to skip past boundary crossing. */
@@ -349,7 +349,7 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 		beg = roundup2(start + offset + 1, a->common->boundary);
 		start = roundup2(beg, a->common->alignment);
 
-		if (start + offset + size > end ||
+		if (start + offset + size - 1 > end ||
 		    !vm_addr_bound_ok(start + offset, size,
 		    a->common->boundary)) {
 			/*
@@ -453,7 +453,7 @@ iommu_gas_find_space(struct iommu_domain *domain,
 	 * Walk the big-enough ranges tree until one satisfies alignment
 	 * requirements, or violates lowaddr address requirement.
 	 */
-	addr = a->common->lowaddr + 1;
+	addr = a->common->lowaddr;
 	for (curr = first; curr != NULL;
 	    curr = iommu_gas_next(curr, min_free)) {
 		if ((first = RB_LEFT(curr, rb_entry)) != NULL &&
@@ -464,7 +464,7 @@ iommu_gas_find_space(struct iommu_domain *domain,
 			return (0);
 		}
 		if (curr->end >= addr) {
-			/* All remaining ranges >= addr */
+			/* All remaining ranges > addr */
 			break;
 		}
 		if ((first = RB_RIGHT(curr, rb_entry)) != NULL &&
@@ -502,14 +502,14 @@ iommu_gas_find_space(struct iommu_domain *domain,
 	    curr = iommu_gas_next(curr, min_free)) {
 		if ((first = RB_LEFT(curr, rb_entry)) != NULL &&
 		    iommu_gas_match_one(a, first->last, curr->start,
-		    addr + 1, domain->end)) {
+		    addr + 1, domain->end - 1)) {
 			RB_INSERT_PREV(iommu_gas_entries_tree,
 			    &domain->rb_root, curr, a->entry);
 			return (0);
 		}
 		if ((first = RB_RIGHT(curr, rb_entry)) != NULL &&
 		    iommu_gas_match_one(a, curr->end, first->first,
-		    addr + 1, domain->end)) {
+		    addr + 1, domain->end - 1)) {
 			RB_INSERT_NEXT(iommu_gas_entries_tree,
 			    &domain->rb_root, curr, a->entry);
 			return (0);
