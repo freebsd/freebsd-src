@@ -164,7 +164,7 @@ intr_init_sources(void *arg __unused)
 
 	powerpc_intrs = mallocarray(num_io_irqs, sizeof(*powerpc_intrs),
 	    M_INTR, M_WAITOK | M_ZERO);
-	nintrcnt = 1 + mp_ncpus * 2;
+	nintrcnt = mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
@@ -173,9 +173,6 @@ intr_init_sources(void *arg __unused)
 	    M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
-
-	intrcnt_setname("???", 0);
-	intrcnt_index = 1;
 }
 /*
  * This needs to happen before SI_SUB_CPU

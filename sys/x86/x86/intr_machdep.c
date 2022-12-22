@@ -171,12 +171,11 @@ intr_init_sources(void *arg)
 #endif
 
 	/*
-	 * - 1 ??? dummy counter.
 	 * - 1 counter for each CPU for lapic timer.
 	 * - 1 counter for each CPU for hypervisor drivers.
 	 * - 8 counters for each CPU for IPI counters for SMP.
 	 */
-	nintrcnt = 1 + mp_ncpus * 2;
+	nintrcnt = mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
@@ -185,9 +184,6 @@ intr_init_sources(void *arg)
 	    M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
-
-	intrcnt_setname("???", 0);
-	intrcnt_index = 1;
 
 	/*
 	 * NB: intrpic_lock is not held here to avoid LORs due to
