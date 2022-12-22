@@ -86,10 +86,10 @@ usage()
 	fprintf(stderr, "  er\t edge rising\n");
 	fprintf(stderr, "  ef\t edge falling\n");
 	fprintf(stderr, "  eb\t edge both\n\n");
-        fprintf(stderr, "Possible options for pin-mode:\n\n");
-        fprintf(stderr, "  ft\t floating\n");
-        fprintf(stderr, "  pd\t pull-down\n");
-        fprintf(stderr, "  pu\t pull-up\n");
+	fprintf(stderr, "Possible options for pin-mode:\n\n");
+	fprintf(stderr, "  ft\t floating\n");
+	fprintf(stderr, "  pd\t pull-down\n");
+	fprintf(stderr, "  pu\t pull-up\n");
 }
 
 static void
