@@ -196,4 +196,8 @@ int	swi_add(struct intr_event **eventp, const char *name,
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
 
+/* For handling the core interrupt counters and names */
+extern int sysctl_intrnames(SYSCTL_HANDLER_ARGS);
+extern int sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
+
 #endif
