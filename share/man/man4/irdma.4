@@ -39,8 +39,8 @@
 .Nd RDMA FreeBSD driver for Intel(R) Ethernet Controller E810
 .Sh SYNOPSIS
 This module relies on
-.Xr if_ice 4
-.Bl -tag -nested-width indent
+.Xr ice 4
+.Bl -tag -width indent
 .It The following kernel options should be included in the configuration:
 .Cd options OFED
 .Cd options OFED_DEBUG_INIT
@@ -52,8 +52,9 @@ This module relies on
 .Ss Features
 The
 .Nm
-driver provides RDMA protocol support on RDMA-capable Intel Ethernet 800 Series NICs which are supported by
-.Xr if_ice 4
+driver provides RDMA protocol support on RDMA-capable Intel Ethernet 800 Series
+NICs which are supported by
+.Xr ice 4
 .
 .Pp
 The driver supports both iWARP and RoCEv2 protocols.
@@ -66,48 +67,65 @@ prompt before booting the kernel or stored in
 .Bl -tag -width indent
 .It Va dev.irdma<interface_number>.roce_enable
 enables RoCEv2 protocol usage on <interface_numer> interface.
-.Pp By default RoCEv2 protocol is used.
-.It Va dev.irdma<interface_number>.dcqcn_cc_cfg_valid
-indicates that all DCQCN parameters are valid and should be updated in registers or QP context.
 .Pp
-Setting this parameter to 1 means that settings in 
-.Em dcqcn_min_dec_factor, dcqcn_min_rate_MBps, dcqcn_F, dcqcn_T, 
-.Em dcqcn_B, dcqcn_rai_factor, dcqcn_hai_factor, dcqcn_rreduce_mperiod 
-are taken into account. Otherwise default values are used.
+By default RoCEv2 protocol is used.
+.It Va dev.irdma<interface_number>.dcqcn_cc_cfg_valid
+indicates that all DCQCN parameters are valid and should be updated in
+registers or QP context.
+.Pp
+Setting this parameter to 1 means that settings in
+.Em dcqcn_min_dec_factor , dcqcn_min_rate_MBps , dcqcn_F , dcqcn_T ,
+.Em dcqcn_B, dcqcn_rai_factor, dcqcn_hai_factor, dcqcn_rreduce_mperiod
+are taken into account.
+Otherwise default values are used.
 .Pp
 Note: "roce_enable" must also be set for this tunable to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_min_dec_factor
-The minimum factor by which the current transmit rate can be changed when processing a CNP. Value is given as a percentage (1-100).
+The minimum factor by which the current transmit rate can be changed when
+processing a CNP.
+Value is given as a percentage (1-100).
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_min_rate_MBps
 The minimum value, in Mbits per second, for rate to limit.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_F
 The number of times to stay in each stage of bandwidth recovery.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_T
-The number of microseconds that should elapse before increasing the CWND in DCQCN mode.
+The number of microseconds that should elapse before increasing the CWND
+in DCQCN mode.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_B
 The number of bytes to transmit before updating CWND in DCQCN mode.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_rai_factor
 The number of MSS to add to the congestion window in additive increase mode.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_hai_factor
 The number of MSS to add to the congestion window in hyperactive increase mode.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
 .It Va dev.irdma<interface_number>.dcqcn_rreduce_mperiod
-The minimum time between 2 consecutive rate reductions for a single flow. Rate reduction will occur only if a CNP is received during the relevant time interval.
+The minimum time between 2 consecutive rate reductions for a single flow.
+Rate reduction will occur only if a CNP is received during the relevant time
+interval.
 .Pp
-Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable
+to take effect.
+.El
 .Ss SYSCTL PROCEDURES
 Sysctl controls are available for runtime adjustments.
 .Bl -tag -width indent
@@ -120,64 +138,60 @@ enables the DCQCN algorithm for RoCEv2.
 .Pp
 Note: "roce_enable" must also be set for this sysctl to take effect.
 .Pp
-Note: The change may be set at any time, but it will be applied only to newly created QPs.
+Note: The change may be set at any time, but it will be applied only to newly
+created QPs.
+.El
 .Ss TESTING
 .Bl -enum
 .It
 To load the irdma driver, run:
-.Bl -tag -width indent
-.It
+.Bd -literal -offset indent
 kldload irdma
-.El
-If if_ice is not already loaded, the system will load it on its own. Please check whether the value of sysctl
+.Ed
+If if_ice is not already loaded, the system will load it on its own.
+Please check whether the value of sysctl
 .Va hw.ice.irdma
-is 1, if the irdma driver is not loading. To change the value put:
-.Bl -tag -width indent
-.It
+is 1, if the irdma driver is not loading.
+To change the value put:
+.Bd -literal -offset indent
 hw.ice.irdma=1
-.El
-to
+.Ed
+in
 .Pa /boot/loader.conf
 and reboot.
 .It
 To check that the driver was loaded, run:
-.Bl -tag -width indent
-.It
+.Bd -literal -offset indent
 sysctl -a | grep infiniband
-.El
+.Ed
 Typically, if everything goes well, around 190 entries per PF will appear.
 .It
-Each interface of the card may work in either iWARP or RoCEv2 mode. To enable RoCEv2 compatibility, add:
-.Bl -tag -width indent
-.It
+Each interface of the card may work in either iWARP or RoCEv2 mode.
+To enable RoCEv2 compatibility, add:
+.Bd -literal -offset indent
 dev.irdma<interface_number>.roce_enable=1
-.El
+.Ed
 where <interface_number> is a desired ice interface number on which
-RoCEv2 protocol needs to be enabled, to:
-.Bl -tag -width indent
-.It
+RoCEv2 protocol needs to be enabled, into:
 .Pa /boot/loader.conf
-.El
-for instance:
+, for instance:
 .Bl -tag -width indent
-.It
-dev.irdma0.roce_enable=0
-.It
-dev.irdma1.roce_enable=1
+.It dev.irdma0.roce_enable=0
+.It dev.irdma1.roce_enable=1
 .El
-will keep iWARP mode on ice0 and enable RoCEv2 mode on interface ice1. The RoCEv2 mode is the default.
-.Dl
+will keep iWARP mode on ice0 and enable RoCEv2 mode on interface ice1.
+The RoCEv2 mode is the default.
+.Pp
 To check irdma roce_enable status, run:
-.Bl -tag -width indent
-.It
+.Bd -literal -offset indent
 sysctl dev.irdma<interface_number>.roce_enable
-.El
+.Ed
 for instance:
-.Bl -tag -width indent
-.It
+.Bd -literal -offset indent
 sysctl dev.irdma2.roce_enable
-.El
-with returned value of '0' indicate the iWARP mode, and the value of '1' indicate the RoCEv2 mode.
+.Ed
+with returned value of '0' indicate the iWARP mode, and the value of '1'
+indicate the RoCEv2 mode.
 .Pp
 Note: An interface configured in one mode will not be able to connect
 to a node configured in another mode.
@@ -187,44 +201,42 @@ DCB and Priority Flow Controller (PFC) are not currently supported which
 may lead to significant performance loss or connectivity issues.
 .It
 Enable flow control in the ice driver:
-.Bl -tag -width indent
-.It
+.Bd -literal -offset indent
 sysctl dev.ice.<interface_number>.fc=3
-.El
-Enable flow control on the switch your system is connected to. See your
-switch documentation for details.
+.Ed
+Enable flow control on the switch your system is connected to.
+See your switch documentation for details.
 .It
 The source code for krping software is provided with the kernel in
-/usr/src/sys/contrib/rdma/krping/. To compile the software, change
-directory to /usr/src/sys/modules/rdma/krping/ and invoke the following:
+/usr/src/sys/contrib/rdma/krping/.
+To compile the software, change directory to
+/usr/src/sys/modules/rdma/krping/ and invoke the following:
 .Bl -tag -width indent
-.It
-make clean
-.It
-make
-.It
-make install
+.It make clean
+.It make
+.It make install
+.It kldload krping
 .El
 .It
 Start a krping server on one machine:
-.Bl -tag -width indent
-.It
- echo size=64,count=1,port=6601,addr=100.0.0.189,server > /dev/krping
-.El
+.Bd -literal -offset indent
+echo size=64,count=1,port=6601,addr=100.0.0.189,server > /dev/krping
+.Ed
 .It
 Connect a client from another machine:
-.Bl -tag -width indent
-.It
- echo size=64,count=1,port=6601,addr=100.0.0.189,client > /dev/krping
+.Bd -literal -offset indent
+echo size=64,count=1,port=6601,addr=100.0.0.189,client > /dev/krping
+.Ed
 .El
 .Sh SUPPORT
 For general information and support, go to the Intel support website at:
 .Lk http://support.intel.com/ .
 .Pp
-If an issue is identified with this driver with a supported adapter, email all the specific information related to the issue to
+If an issue is identified with this driver with a supported adapter, email all
+the specific information related to the issue to
 .Mt freebsd@intel.com .
 .Sh SEE ALSO
-.Xr if_ice 4
+.Xr ice 4
 .Sh AUTHORS
 .An -nosplit
 The

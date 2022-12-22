@@ -265,7 +265,7 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 		return -EINVAL;
 
 	chunkmem.size = sizeof(*chunk);
-	chunkmem.va = kzalloc(chunkmem.size, GFP_ATOMIC);
+	chunkmem.va = kzalloc(chunkmem.size, GFP_KERNEL);
 	if (!chunkmem.va)
 		return -ENOMEM;
 
@@ -394,7 +394,7 @@ get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	lvl2->leaf_cnt = total;
 
 	lvl2->leafmem.size = (sizeof(*leaf) * total);
-	lvl2->leafmem.va = kzalloc(lvl2->leafmem.size, GFP_ATOMIC);
+	lvl2->leafmem.va = kzalloc(lvl2->leafmem.size, GFP_KERNEL);
 	if (!lvl2->leafmem.va)
 		return -ENOMEM;
 

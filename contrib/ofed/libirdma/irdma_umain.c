@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include "irdma_umain.h"
 #include "irdma-abi.h"
+#include "irdma_uquery.h"
 
 #include "ice_devids.h"
 #include "i40e_devids.h"
@@ -48,7 +49,7 @@
 /**
  *  Driver version
  */
-char libirdma_version[] = "0.0.51-k";
+char libirdma_version[] = "1.1.5-k";
 
 unsigned int irdma_dbg;
 
@@ -118,6 +119,28 @@ static struct ibv_context_ops irdma_ctx_ops = {
 	.detach_mcast = irdma_udetach_mcast,
 };
 
+/**
+ * libirdma_query_device - fill libirdma_device structure
+ * @ctx_in - ibv_context identifying device
+ * @out - libirdma_device structure to fill quered info
+ *
+ * ctx_in is not used at the moment
+ */
+int
+libirdma_query_device(struct ibv_context *ctx_in, struct libirdma_device *out)
+{
+	if (!out)
+		return EIO;
+	if (sizeof(out->lib_ver) < sizeof(libirdma_version))
+		return ERANGE;
+
+	out->query_ver = 1;
+	snprintf(out->lib_ver, min(sizeof(libirdma_version), sizeof(out->lib_ver)),
+		 "%s", libirdma_version);
+
+	return 0;
+}
+
 static int
 irdma_init_context(struct verbs_device *vdev,
 		   struct ibv_context *ctx, int cmd_fd)
@@ -147,6 +170,7 @@ irdma_init_context(struct verbs_device *vdev,
 	iwvctx->uk_attrs.max_hw_sq_chunk = resp.max_hw_sq_chunk;
 	iwvctx->uk_attrs.max_hw_cq_size = resp.max_hw_cq_size;
 	iwvctx->uk_attrs.min_hw_cq_size = resp.min_hw_cq_size;
+	iwvctx->uk_attrs.min_hw_wq_size = IRDMA_MIN_WQ_SIZE_GEN2;
 	iwvctx->abi_ver = IRDMA_ABI_VER;
 	mmap_key = resp.db_mmap_key;
 
@@ -179,8 +203,6 @@ irdma_cleanup_context(struct verbs_device *device,
 		      struct ibv_context *ibctx)
 {
 	struct irdma_uvcontext *iwvctx;
-
-	printf("%s %s CALL\n", __FILE__, __func__);
 
 	iwvctx = container_of(ibctx, struct irdma_uvcontext, ibv_ctx);
 	irdma_ufree_pd(&iwvctx->iwupd->ibv_pd);

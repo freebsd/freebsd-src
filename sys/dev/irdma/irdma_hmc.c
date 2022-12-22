@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -106,10 +106,14 @@ static void
 irdma_set_sd_entry(u64 pa, u32 idx, enum irdma_sd_entry_type type,
 		   struct irdma_update_sd_entry *entry)
 {
-	entry->data = pa | (IRDMA_HMC_MAX_BP_COUNT << IRDMA_PFHMC_SDDATALOW_PMSDBPCOUNT_S) |
-	    (((type == IRDMA_SD_TYPE_PAGED) ? 0 : 1) << IRDMA_PFHMC_SDDATALOW_PMSDTYPE_S) |
-	    (1 << IRDMA_PFHMC_SDDATALOW_PMSDVALID_S);
-	entry->cmd = (idx | (1 << IRDMA_PFHMC_SDCMD_PMSDWR_S) | (1 << 15));
+	entry->data = pa |
+	    FIELD_PREP(IRDMA_PFHMC_SDDATALOW_PMSDBPCOUNT, IRDMA_HMC_MAX_BP_COUNT) |
+	    FIELD_PREP(IRDMA_PFHMC_SDDATALOW_PMSDTYPE,
+		       type == IRDMA_SD_TYPE_PAGED ? 0 : 1) |
+	    FIELD_PREP(IRDMA_PFHMC_SDDATALOW_PMSDVALID, 1);
+
+	entry->cmd = idx | FIELD_PREP(IRDMA_PFHMC_SDCMD_PMSDWR, 1) |
+	    IRDMA_PFHMC_SDCMD_PMSDPARTSEL;
 }
 
 /**
@@ -122,9 +126,12 @@ static void
 irdma_clr_sd_entry(u32 idx, enum irdma_sd_entry_type type,
 		   struct irdma_update_sd_entry *entry)
 {
-	entry->data = (IRDMA_HMC_MAX_BP_COUNT << IRDMA_PFHMC_SDDATALOW_PMSDBPCOUNT_S) |
-	    (((type == IRDMA_SD_TYPE_PAGED) ? 0 : 1) << IRDMA_PFHMC_SDDATALOW_PMSDTYPE_S);
-	entry->cmd = (idx | (1 << IRDMA_PFHMC_SDCMD_PMSDWR_S) | (1 << 15));
+	entry->data = FIELD_PREP(IRDMA_PFHMC_SDDATALOW_PMSDBPCOUNT, IRDMA_HMC_MAX_BP_COUNT) |
+	    FIELD_PREP(IRDMA_PFHMC_SDDATALOW_PMSDTYPE,
+		       type == IRDMA_SD_TYPE_PAGED ? 0 : 1);
+
+	entry->cmd = idx | FIELD_PREP(IRDMA_PFHMC_SDCMD_PMSDWR, 1) |
+	    IRDMA_PFHMC_SDCMD_PMSDPARTSEL;
 }
 
 /**
@@ -137,9 +144,9 @@ static inline void
 irdma_invalidate_pf_hmc_pd(struct irdma_sc_dev *dev, u32 sd_idx,
 			   u32 pd_idx)
 {
-	u32 val = LS_32(sd_idx, IRDMA_PFHMC_PDINV_PMSDIDX) |
-	LS_32(1, IRDMA_PFHMC_PDINV_PMSDPARTSEL) |
-	LS_32(pd_idx, IRDMA_PFHMC_PDINV_PMPDIDX);
+	u32 val = FIELD_PREP(IRDMA_PFHMC_PDINV_PMSDIDX, sd_idx) |
+	FIELD_PREP(IRDMA_PFHMC_PDINV_PMSDPARTSEL, 1) |
+	FIELD_PREP(IRDMA_PFHMC_PDINV_PMPDIDX, pd_idx);
 
 	writel(val, dev->hw_regs[IRDMA_PFHMC_PDINV]);
 }
@@ -154,7 +161,7 @@ irdma_invalidate_pf_hmc_pd(struct irdma_sc_dev *dev, u32 sd_idx,
  * @setsd: flag to set or clear sd
  */
 int
-irdma_hmc_sd_one(struct irdma_sc_dev *dev, u8 hmc_fn_id, u64 pa, u32 sd_idx,
+irdma_hmc_sd_one(struct irdma_sc_dev *dev, u16 hmc_fn_id, u64 pa, u32 sd_idx,
 		 enum irdma_sd_entry_type type, bool setsd)
 {
 	struct irdma_update_sds_info sdinfo;
@@ -534,7 +541,7 @@ irdma_add_sd_table_entry(struct irdma_hw *hw,
 			&sd_entry->u.pd_table.pd_entry_virt_mem;
 
 			vmem->size = sizeof(struct irdma_hmc_pd_entry) * 512;
-			vmem->va = kzalloc(vmem->size, GFP_ATOMIC);
+			vmem->va = kzalloc(vmem->size, GFP_KERNEL);
 			if (!vmem->va) {
 				irdma_free_dma_mem(hw, &dma_mem);
 				return -ENOMEM;

@@ -53,7 +53,7 @@
 /**
  *  Driver version
  */
-char irdma_driver_version[] = "0.0.51-k";
+char irdma_driver_version[] = "1.1.5-k";
 
 #define pf_if_d(peer) peer->ifp->if_dunit
 
@@ -102,6 +102,11 @@ irdma_init_tunable(struct irdma_pci_f *rf, uint8_t pf_id)
 	printf("%s:%d protocol: %s, roce_enable value: %d\n", __func__, __LINE__,
 	       (rf->protocol_used == IRDMA_IWARP_PROTOCOL_ONLY) ? "iWARP" : "RoCEv2",
 	       rf->tun_info.roce_ena);
+
+	snprintf(rf->tun_info.drv_ver, IRDMA_VER_LEN, "%s", irdma_driver_version);
+	SYSCTL_ADD_STRING(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
+			  OID_AUTO, "drv_ver", CTLFLAG_RDTUN, rf->tun_info.drv_ver,
+			  IRDMA_VER_LEN, "driver version");
 
 	irdma_dcqcn_tunables_init(rf);
 }
