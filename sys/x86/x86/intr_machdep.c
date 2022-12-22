@@ -107,8 +107,6 @@ static void	intr_disable_src(void *arg);
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(struct pic *pic);
 static void	intrcnt_setname(const char *name, int index);
-static void	intrcnt_updatename(struct intsrc *is);
-static void	intrcnt_register(struct intsrc *is);
 
 /*
  * SYSINIT levels for SI_SUB_INTR:
@@ -176,12 +174,11 @@ intr_init_sources(void *arg)
 
 	/*
 	 * - 1 ??? dummy counter.
-	 * - 2 counters for each I/O interrupt.
 	 * - 1 counter for each CPU for lapic timer.
-	 * - 1 counter for each CPU for the Hyper-V vmbus driver.
+	 * - 1 counter for each CPU for hypervisor drivers.
 	 * - 8 counters for each CPU for IPI counters for SMP.
 	 */
-	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
+	nintrcnt = 1 + mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
@@ -236,7 +233,6 @@ intr_register_source(struct intsrc *isrc)
 		intr_event_destroy(isrc->is_event);
 		return (EEXIST);
 	}
-	intrcnt_register(isrc);
 	interrupt_sources[vector] = isrc;
 	isrc->is_handlers = 0;
 	sx_xunlock(&intrsrc_lock);
@@ -283,7 +279,6 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
-		intrcnt_updatename(isrc);
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_domain = domain;
@@ -310,7 +305,6 @@ intr_remove_handler(void *cookie)
 			isrc->is_pic->pic_disable_source(isrc, PIC_NO_EOI);
 			isrc->is_pic->pic_disable_intr(isrc);
 		}
-		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
 	}
 	return (error);
@@ -345,7 +339,6 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * argument for counting hardware interrupts when they're
 	 * processed too.
 	 */
-	(*isrc->is_count)++;
 	VM_CNT_INC(v_intr);
 
 	ie = isrc->is_event;
@@ -444,31 +437,6 @@ intrcnt_setname(const char *name, int index)
 	    INTRNAME_LEN - 1, name);
 }
 
-static void
-intrcnt_updatename(struct intsrc *is)
-{
-
-	intrcnt_setname(is->is_event->ie_fullname, is->is_index);
-}
-
-static void
-intrcnt_register(struct intsrc *is)
-{
-	char straystr[INTRNAME_LEN];
-
-	KASSERT(is->is_event != NULL, ("%s: isrc with no event", __func__));
-	mtx_lock_spin(&intrcnt_lock);
-	MPASS(intrcnt_index + 2 <= nintrcnt);
-	is->is_index = nintrcnt - 2;
-	snprintf(straystr, sizeof(straystr), "stray irq%d",
-	    is->is_pic->pic_vector(is));
-	intrcnt_updatename(is);
-	is->is_count = &intrcnt[is->is_index];
-	intrcnt_setname(straystr, is->is_index + 1);
-	is->is_straycount = &intrcnt[is->is_index + 1];
-	mtx_unlock_spin(&intrcnt_lock);
-}
-
 void
 intrcnt_add(const char *name, u_long **countp)
 {
@@ -533,13 +501,8 @@ atpic_reset(void)
 int
 intr_describe(struct intsrc *isrc, void *ih, const char *descr)
 {
-	int error;
 
-	error = intr_event_describe_handler(isrc->is_event, ih, descr);
-	if (error)
-		return (error);
-	intrcnt_updatename(isrc);
-	return (0);
+	return (intr_event_describe_handler(isrc->is_event, ih, descr));
 }
 
 void
@@ -693,9 +656,8 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 		isrc = interrupt_sources[i];
 		if (isrc == NULL)
 			continue;
-		sbuf_printf(&sbuf, "%s:%d @cpu%d(domain%d): %ld\n",
+		sbuf_printf(&sbuf, "%s @cpu%d(domain%d): %lu\n",
 		    isrc->is_event->ie_fullname,
-		    isrc->is_index,
 		    isrc->is_cpu,
 		    isrc->is_domain,
 		    isrc->is_event->ie_intrcnt);
@@ -709,7 +671,7 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, OID_AUTO, intrs,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, sysctl_hw_intrs, "A",
-    "interrupt:number @cpu: count");
+    "interrupt @cpu: count");
 
 /*
  * Compare two, possibly NULL, entries in the interrupt source array
