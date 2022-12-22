@@ -208,6 +208,10 @@ dev/dwc/if_dwc_if.m				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_
 dev/enetc/enetc_mdio.c				optional enetc soc_nxp_ls
 dev/enetc/if_enetc.c				optional enetc iflib pci fdt soc_nxp_ls
 
+dev/eqos/if_eqos.c				optional eqos
+dev/eqos/if_eqos_if.m				optional eqos
+dev/eqos/if_eqos_fdt.c				optional eqos fdt
+
 dev/etherswitch/felix/felix.c			optional enetc etherswitch fdt felix pci soc_nxp_ls
 
 dev/firmware/arm/scmi.c				optional fdt scmi
