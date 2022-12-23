@@ -35,14 +35,12 @@
  * Simple Netlink Library - NETLINK_ROUTE helpers
  */
 
-#define snl_alloc_sockaddr(_ss, _len)  ((struct sockaddr *)(snl_allocz(_ss, _len)))
-
 static inline struct sockaddr *
 parse_rta_ip4(struct snl_state *ss, void *rta_data, int *perror)
 {
 	struct sockaddr_in *sin;
 
-	sin = (struct sockaddr_in *)snl_alloc_sockaddr(ss, sizeof(struct sockaddr_in));
+	sin = (struct sockaddr_in *)snl_allocz(ss, sizeof(struct sockaddr_in));
 	if (sin == NULL) {
 		*perror = ENOBUFS;
 		return (NULL);
@@ -58,7 +56,7 @@ parse_rta_ip6(struct snl_state *ss, void *rta_data, int *perror)
 {
 	struct sockaddr_in6 *sin6;
 
-	sin6 = (struct sockaddr_in6 *)snl_alloc_sockaddr(ss, sizeof(struct sockaddr_in6));
+	sin6 = (struct sockaddr_in6 *)snl_allocz(ss, sizeof(struct sockaddr_in6));
 	if (sin6 == NULL) {
 		*perror = ENOBUFS;
 		return (NULL);
@@ -87,7 +85,8 @@ parse_rta_ip(struct snl_state *ss, struct rtattr *rta, int *perror)
 }
 
 static inline bool
-snl_attr_get_ip(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+snl_attr_get_ip(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	int error = 0;
 	struct sockaddr *sa = parse_rta_ip(ss, (struct rtattr *)nla, &error);
@@ -115,7 +114,8 @@ parse_rta_via(struct snl_state *ss, struct rtattr *rta, int *perror)
 }
 
 static inline bool
-snl_attr_get_ipvia(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+snl_attr_get_ipvia(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	int error = 0;
 
