@@ -243,7 +243,7 @@ static device_method_t eqos_fdt_methods[] = {
 	DEVMETHOD(device_probe,		eqos_fdt_probe),
 
 	/* EQOS interface */
-	DEVMETHOD(eqos_init,		eqos_fdt_init),
+	DEVMETHOD(if_eqos_init,		eqos_fdt_init),
 
 	DEVMETHOD_END
 };

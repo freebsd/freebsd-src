@@ -216,7 +216,7 @@ eqos_miibus_statchg(device_t dev)
 
 	WR4(sc, GMAC_MAC_CONFIGURATION, reg);
 
-	EQOS_SET_SPEED(dev, IFM_SUBTYPE(mii->mii_media_active));
+	IF_EQOS_SET_SPEED(dev, IFM_SUBTYPE(mii->mii_media_active));
 
 	WR4(sc, GMAC_MAC_1US_TIC_COUNTER, (sc->csr_clock / 1000000) - 1);
 }
@@ -1143,7 +1143,7 @@ eqos_attach(device_t dev)
 	}
 
 
-	if ((error = EQOS_INIT(dev)))
+	if ((error = IF_EQOS_INIT(dev)))
 		return (error);
 
 	mtx_init(&sc->lock, "eqos lock", MTX_NETWORK_LOCK, MTX_DEF);

@@ -28,7 +28,7 @@
 # $Id: eqos_if.m 921 2022-08-09 18:38:11Z sos $
 #
 
-INTERFACE eqos;
+INTERFACE if_eqos;
 
 CODE {
 	static int
