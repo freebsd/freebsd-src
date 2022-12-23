@@ -177,7 +177,9 @@ u_long *intrcnt;
 char *intrnames;
 size_t sintrcnt;
 size_t sintrnames;
+#ifdef SMP
 static u_int intrcnt_index;
+#endif
 int nintrcnt;
 static bitstr_t *intrcnt_bitmap;
 
@@ -199,12 +201,11 @@ intr_irq_init(void *dummy __unused)
 
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
 
+#ifdef SMP
 	/*
 	 * - mp_maxid + 1 counters for each IPI counters for SMP.
 	 */
-#ifdef SMP
 	nintrcnt += INTR_IPI_COUNT * (mp_maxid + 1);
-#endif
 
 	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTRNG,
 	    M_WAITOK | M_ZERO);
@@ -213,12 +214,14 @@ intr_irq_init(void *dummy __unused)
 
 	/* Allocate the bitmap tracking counter allocations. */
 	intrcnt_bitmap = bit_alloc(nintrcnt, M_INTRNG, M_WAITOK | M_ZERO);
+#endif
 
 	irq_sources = mallocarray(intr_nirq, sizeof(struct intr_irqsrc*),
 	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
 
+#ifdef SMP
 static void
 intrcnt_setname(const char *name, int index)
 {
@@ -1836,12 +1839,18 @@ intr_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 
 	return (intr_event_sysctl_intrnames(oidp, arg1, arg2, req));
 }
+#endif
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+#ifdef SMP
     intr_sysctl_intrnames,
+#else
+    intr_event_sysctl_intrnames,
+#endif
     "", "Interrupt Names");
 
+#ifdef SMP
 static int
 intr_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
@@ -1871,10 +1880,15 @@ intr_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 	return (error == 0 ? intr_event_sysctl_intrcnt(oidp, arg1, arg2, req) :
 	    error);
 }
+#endif
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+#ifdef SMP
     intr_sysctl_intrcnt,
+#else
+    intr_event_sysctl_intrcnt,
+#endif
     "", "Interrupt Counts");
 
 #ifdef DDB
