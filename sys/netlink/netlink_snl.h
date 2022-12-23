@@ -58,7 +58,7 @@
 
 #define	NLA_TYPE(_nla)		((_nla)->nla_type & 0x3FFF)
 
-#define NLA_NEXT(_attr) (struct nlattr *)((char *)_attr + NLA_ALIGN(_attr->nla_len))
+#define NLA_NEXT(_attr) (struct nlattr *)(void *)((char *)_attr + NLA_ALIGN(_attr->nla_len))
 
 #define	_NLA_END(_start, _len)	((char *)(_start) + (_len))
 #define NLA_FOREACH(_attr, _start, _len)      \
@@ -241,7 +241,7 @@ snl_read_message(struct snl_state *ss)
 				return (NULL);
 		}
 	}
-	struct nlmsghdr *hdr = (struct nlmsghdr *)&ss->buf[ss->off];
+	struct nlmsghdr *hdr = (struct nlmsghdr *)(void *)&ss->buf[ss->off];
 	ss->off += NLMSG_ALIGN(hdr->nlmsg_len);
 	return (hdr);
 }
@@ -313,7 +313,7 @@ snl_parse_attrs(struct snl_state *ss, struct nlmsghdr *hdr, int hdrlen,
 {
 	int off = NLMSG_HDRLEN + NETLINK_ALIGN(hdrlen);
 	int len = hdr->nlmsg_len - off;
-	struct nlattr *nla_head = (struct nlattr *)((char *)hdr + off);
+	struct nlattr *nla_head = (struct nlattr *)(void *)((char *)hdr + off);
 
 	return (snl_parse_attrs_raw(ss, nla_head, len, ps, pslen, target));
 }
@@ -331,7 +331,7 @@ snl_parse_header(struct snl_state *ss, void *hdr, int len,
 		fp->cb(ss, src, dst);
 	}
 
-	struct nlattr *nla_head = (struct nlattr *)((char *)hdr + parser->hdr_off);
+	struct nlattr *nla_head = (struct nlattr *)(void *)((char *)hdr + parser->hdr_off);
 	bool result = snl_parse_attrs_raw(ss, nla_head, len - parser->hdr_off,
 	    parser->np, parser->np_size, target);
 
@@ -346,7 +346,7 @@ snl_parse_nlmsg(struct snl_state *ss, struct nlmsghdr *hdr,
 }
 
 static inline bool
-snl_attr_get_flag(struct snl_state *ss, struct nlattr *nla, void *target)
+snl_attr_get_flag(struct snl_state *ss __unused, struct nlattr *nla, void *target)
 {
 	if (NLA_DATA_LEN(nla) == 0) {
 		*((uint8_t *)target) = 1;
@@ -356,27 +356,30 @@ snl_attr_get_flag(struct snl_state *ss, struct nlattr *nla, void *target)
 }
 
 static inline bool
-snl_attr_get_uint16(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+snl_attr_get_uint16(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	if (NLA_DATA_LEN(nla) == sizeof(uint16_t)) {
-		*((uint16_t *)target) = *((const uint16_t *)NL_RTA_DATA_CONST(nla));
+		*((uint16_t *)target) = *((const uint16_t *)NLA_DATA_CONST(nla));
 		return (true);
 	}
 	return (false);
 }
 
 static inline bool
-snl_attr_get_uint32(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+snl_attr_get_uint32(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	if (NLA_DATA_LEN(nla) == sizeof(uint32_t)) {
-		*((uint32_t *)target) = *((const uint32_t *)NL_RTA_DATA_CONST(nla));
+		*((uint32_t *)target) = *((const uint32_t *)NLA_DATA_CONST(nla));
 		return (true);
 	}
 	return (false);
 }
 
 static inline bool
-snl_attr_get_string(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+snl_attr_get_string(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	size_t maxlen = NLA_DATA_LEN(nla);
 
@@ -388,7 +391,8 @@ snl_attr_get_string(struct snl_state *ss, struct nlattr *nla, const void *arg, v
 }
 
 static inline bool
-snl_attr_get_stringn(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+snl_attr_get_stringn(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	int maxlen = NLA_DATA_LEN(nla);
 
@@ -412,26 +416,26 @@ snl_attr_get_nested(struct snl_state *ss, struct nlattr *nla, const void *arg, v
 }
 
 static inline bool
-snl_attr_get_nla(struct snl_state *ss, struct nlattr *nla, void *target)
+snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla, void *target)
 {
 	*((struct nlattr **)target) = nla;
 	return (true);
 }
 
 static inline void
-snl_field_get_uint8(struct snl_state *ss, void *src, void *target)
+snl_field_get_uint8(struct snl_state *ss __unused, void *src, void *target)
 {
 	*((uint8_t *)target) = *((uint8_t *)src);
 }
 
 static inline void
-snl_field_get_uint16(struct snl_state *ss, void *src, void *target)
+snl_field_get_uint16(struct snl_state *ss __unused, void *src, void *target)
 {
 	*((uint16_t *)target) = *((uint16_t *)src);
 }
 
 static inline void
-snl_field_get_uint32(struct snl_state *ss, void *src, void *target)
+snl_field_get_uint32(struct snl_state *ss __unused, void *src, void *target)
 {
 	*((uint32_t *)target) = *((uint32_t *)src);
 }
