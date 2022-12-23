@@ -2725,15 +2725,22 @@ again:
 				 * For NFSv4 the behavior is controlled by
 				 * RDATTRERROR: we either ignore the error or
 				 * fail the request.
+				 * The exception is EOPNOTSUPP, which can be
+				 * returned by nfsvno_getfh() for certain
+				 * file systems, such as devfs.  This indicates
+				 * that the file system cannot be exported,
+				 * so just skip over the entry.
 				 * Note that RDATTRERROR is never set for NFSv3.
 				 */
 				if (r != 0) {
 					if (!NFSISSET_ATTRBIT(&attrbits,
-					    NFSATTRBIT_RDATTRERROR)) {
+					    NFSATTRBIT_RDATTRERROR) ||
+					    r == EOPNOTSUPP) {
 						vput(nvp);
 						if (needs_unbusy != 0)
 							vfs_unbusy(new_mp);
-						if ((nd->nd_flag & ND_NFSV3))
+						if ((nd->nd_flag & ND_NFSV3) ||
+						    r == EOPNOTSUPP)
 							goto invalid;
 						nd->nd_repstat = r;
 						break;

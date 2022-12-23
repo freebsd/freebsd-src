@@ -647,8 +647,15 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		 * non-exported volumes during NFSv4 mounting.
 		 */
 		nd->nd_repstat = ENOENT;
-	if (nd->nd_repstat == 0)
+	if (nd->nd_repstat == 0) {
 		nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
+		/*
+		 * EOPNOTSUPP indicates the file system cannot be exported,
+		 * so just pretend the entry does not exist.
+		 */
+		if (nd->nd_repstat == EOPNOTSUPP)
+			nd->nd_repstat = ENOENT;
+	}
 	if (!(nd->nd_flag & ND_NFSV4) && !nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, NULL);
 	if (vpp != NULL && nd->nd_repstat == 0)
