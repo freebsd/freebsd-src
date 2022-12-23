@@ -3664,10 +3664,10 @@ siocsifcap_driver:
 			}
 		}
 		mask = drv_ioctl_data->reqcap2 ^ ifp->if_capenable2;
-		if (mask & IFCAP2_RXTLS4)
-			ifp->if_capenable2 ^= IFCAP2_RXTLS4;
-		if (mask & IFCAP2_RXTLS6)
-			ifp->if_capenable2 ^= IFCAP2_RXTLS6;
+		if ((mask & IFCAP2_BIT(IFCAP2_RXTLS4)) != 0)
+			ifp->if_capenable2 ^= IFCAP2_BIT(IFCAP2_RXTLS4);
+		if ((mask & IFCAP2_BIT(IFCAP2_RXTLS6)) != 0)
+			ifp->if_capenable2 ^= IFCAP2_BIT(IFCAP2_RXTLS6);
 out:
 		PRIV_UNLOCK(priv);
 		break;
@@ -4550,7 +4550,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_capabilities |= IFCAP_TXRTLMT | IFCAP_TXTLS_RTLMT;
 #endif
 	ifp->if_capabilities |= IFCAP_VXLAN_HWCSUM | IFCAP_VXLAN_HWTSO;
-	ifp->if_capabilities2 |= IFCAP2_RXTLS4 | IFCAP2_RXTLS6;
+	ifp->if_capabilities2 |= IFCAP2_BIT(IFCAP2_RXTLS4) |
+	    IFCAP2_BIT(IFCAP2_RXTLS6);
 	ifp->if_snd_tag_alloc = mlx5e_snd_tag_alloc;
 #ifdef RATELIMIT
 	ifp->if_ratelimit_query = mlx5e_ratelimit_query;
