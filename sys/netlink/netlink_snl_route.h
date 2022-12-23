@@ -27,6 +27,7 @@
 #ifndef	_NETLINK_NETLINK_SNL_ROUTE_H_
 #define	_NETLINK_NETLINK_SNL_ROUTE_H_
 
+#include <netlink/netlink_snl.h>
 #include <netinet/in.h>
 
 /*
