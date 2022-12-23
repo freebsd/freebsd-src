@@ -150,7 +150,7 @@ int
 main(int argc, const char **argv)
 {
 	void *heapbase;
-	const size_t heapsize = 15*1024*1024;
+	const size_t heapsize = 128*1024*1024;
 	const char *bootdev;
 
 	archsw.arch_getdev = kboot_getdev;
