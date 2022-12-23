@@ -40,6 +40,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netlink/netlink.h>
+
 
 #define _roundup2(x, y)         (((x)+((y)-1))&(~((y)-1)))
 
