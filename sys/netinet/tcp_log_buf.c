@@ -114,18 +114,18 @@ SYSCTL_U32(_net_inet_tcp_bb, OID_AUTO, log_version, CTLFLAG_RD, &tcp_log_version
     0, "Version of log formats exported");
 
 SYSCTL_U32(_net_inet_tcp_bb, OID_AUTO, disable_all, CTLFLAG_RW,
-    &tcp_disable_all_bb_logs, TCP_LOG_STATE_HEAD_AUTO,
+    &tcp_disable_all_bb_logs, 0,
     "Disable all BB logging for all connections");
 
 SYSCTL_ULONG(_net_inet_tcp_bb, OID_AUTO, log_auto_ratio, CTLFLAG_RW,
     &tcp_log_auto_ratio, 0, "Do auto capturing for 1 out of N sessions");
 
 SYSCTL_U32(_net_inet_tcp_bb, OID_AUTO, log_auto_mode, CTLFLAG_RW,
-    &tcp_log_auto_mode, TCP_LOG_STATE_HEAD_AUTO,
-    "Logging mode for auto-selected sessions (default is TCP_LOG_STATE_HEAD_AUTO)");
+    &tcp_log_auto_mode, 0,
+    "Logging mode for auto-selected sessions (default is TCP_LOG_STATE_TAIL)");
 
 SYSCTL_BOOL(_net_inet_tcp_bb, OID_AUTO, log_auto_all, CTLFLAG_RW,
-    &tcp_log_auto_all, false,
+    &tcp_log_auto_all, 0,
     "Auto-select from all sessions (rather than just those with IDs)");
 
 #ifdef TCPLOG_DEBUG_COUNTERS
