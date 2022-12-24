@@ -175,6 +175,8 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	/* Quirk for Corsair STRAFE Gaming keyboard */
 	USB_QUIRK(CORSAIR, STRAFE, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	USB_QUIRK(CORSAIR, STRAFE2, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
+	/* Quirk for Kensington Slimblade Trackball */
+	USB_QUIRK(KENSINGTON, SLIMBLADE, 0x0000, 0xffff, UQ_MS_VENDOR_BTN),
 	/* umodem(4) device quirks */
 	USB_QUIRK(METRICOM, RICOCHET_GS, 0x100, 0x100, UQ_ASSUME_CM_OVER_DATA),
 	USB_QUIRK(SANYO, SCP4900, 0x000, 0x000, UQ_ASSUME_CM_OVER_DATA),
@@ -649,6 +651,7 @@ static const char *usb_quirk_str[USB_QUIRK_MAX] = {
 	[UQ_MS_BAD_CLASS]	= "UQ_MS_BAD_CLASS",
 	[UQ_MS_LEADING_BYTE]	= "UQ_MS_LEADING_BYTE",
 	[UQ_MS_REVZ]		= "UQ_MS_REVZ",
+	[UQ_MS_VENDOR_BTN]	= "UQ_MS_VENDOR_BTN",
 	[UQ_NO_STRINGS]		= "UQ_NO_STRINGS",
 	[UQ_POWER_CLAIM]	= "UQ_POWER_CLAIM",
 	[UQ_SPUR_BUT_UP]	= "UQ_SPUR_BUT_UP",
