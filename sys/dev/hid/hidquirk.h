@@ -59,6 +59,7 @@
 	HQ(MS_BAD_CLASS),	/* doesn't identify properly */		\
 	HQ(MS_LEADING_BYTE),	/* mouse sends an unknown leading byte */ \
 	HQ(MS_REVZ),		/* mouse has Z-axis reversed */		\
+	HQ(MS_VENDOR_BTN),	/* mouse has buttons in vendor usage page */ \
 	HQ(SPUR_BUT_UP),	/* spurious mouse button up events */	\
 	HQ(MT_TIMESTAMP)	/* Multitouch device exports HW timestamps */
 
