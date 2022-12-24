@@ -1628,8 +1628,8 @@ void __netmap_adapter_get(struct netmap_adapter *na);
 #define netmap_adapter_get(na) 				\
 	do {						\
 		struct netmap_adapter *__na = na;	\
-		nm_prinf("getting %p:%s (%d)", __na, (__na)->name, (__na)->na_refcount);	\
 		__netmap_adapter_get(__na);		\
+		nm_prinf("getting %p:%s -> %d", __na, (__na)->name, (__na)->na_refcount);	\
 	} while (0)
 
 int __netmap_adapter_put(struct netmap_adapter *na);
@@ -1637,8 +1637,11 @@ int __netmap_adapter_put(struct netmap_adapter *na);
 #define netmap_adapter_put(na)				\
 	({						\
 		struct netmap_adapter *__na = na;	\
-		nm_prinf("putting %p:%s (%d)", __na, (__na)->name, (__na)->na_refcount);	\
-		__netmap_adapter_put(__na);		\
+		if (__na == NULL)			\
+			nm_prinf("putting NULL");	\
+		else					\
+			nm_prinf("putting %p:%s -> %d", __na, (__na)->name, (__na)->na_refcount - 1);	\
+		__netmap_adapter_put(__na);	\
 	})
 
 #else /* !NM_DEBUG_PUTGET */
