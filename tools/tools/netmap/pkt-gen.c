@@ -684,6 +684,10 @@ source_hwaddr(const char *ifname, char *buf)
 		return (-1);
 	}
 
+	/* remove 'netmap:' prefix before comparing interfaces */
+	if (!strncmp(ifname, "netmap:", 7))
+		ifname = &ifname[7];
+
 	for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
 		struct sockaddr_dl *sdl =
 			(struct sockaddr_dl *)ifap->ifa_addr;
