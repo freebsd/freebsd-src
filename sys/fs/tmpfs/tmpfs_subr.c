@@ -2161,29 +2161,19 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 int
 tmpfs_truncate(struct vnode *vp, off_t length)
 {
-	int error;
 	struct tmpfs_node *node;
+	int error;
 
-	node = VP_TO_TMPFS_NODE(vp);
-
-	if (length < 0) {
-		error = EINVAL;
-		goto out;
-	}
-
-	if (node->tn_size == length) {
-		error = 0;
-		goto out;
-	}
-
+	if (length < 0)
+		return (EINVAL);
 	if (length > VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	error = tmpfs_reg_resize(vp, length, FALSE);
+	node = VP_TO_TMPFS_NODE(vp);
+	error = node->tn_size == length ? 0 : tmpfs_reg_resize(vp, length,
+	    FALSE);
 	if (error == 0)
 		node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
-
-out:
 	tmpfs_update(vp);
 
 	return (error);
