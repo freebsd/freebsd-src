@@ -419,6 +419,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 
 	if (clock == slot->clock)
 		return;
+	clock = SDHCI_SET_CLOCK(slot->bus, slot, clock);
 	slot->clock = clock;
 
 	/* Turn off the clock. */
