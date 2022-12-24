@@ -93,12 +93,7 @@
 #error "INET not defined, cannot support offloadings"
 #endif
 
-#if __FreeBSD_version >= 1100000
 static uint64_t	ptnet_get_counter(if_t, ift_counter);
-#else
-typedef struct ifnet *if_t;
-#define if_getsoftc(_ifp)   (_ifp)->if_softc
-#endif
 
 //#define PTNETMAP_STATS
 //#define DEBUG
@@ -419,9 +414,7 @@ ptnet_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX;
 	ifp->if_init = ptnet_init;
 	ifp->if_ioctl = ptnet_ioctl;
-#if __FreeBSD_version >= 1100000
 	ifp->if_get_counter = ptnet_get_counter;
-#endif
 	ifp->if_transmit = ptnet_transmit;
 	ifp->if_qflush = ptnet_qflush;
 
@@ -1015,7 +1008,6 @@ ptnet_media_change(if_t ifp)
 	return 0;
 }
 
-#if __FreeBSD_version >= 1100000
 static uint64_t
 ptnet_get_counter(if_t ifp, ift_counter cnt)
 {
@@ -1053,7 +1045,6 @@ ptnet_get_counter(if_t ifp, ift_counter cnt)
 		return (if_get_counter_default(ifp, cnt));
 	}
 }
-#endif
 
 
 #ifdef PTNETMAP_STATS
