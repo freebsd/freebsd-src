@@ -487,6 +487,8 @@ netmap_monitor_stop(struct netmap_adapter *na)
 					/* let the monitor forget about us */
 					netmap_adapter_put(next->priv.np_na); /* nop if null */
 					next->priv.np_na = NULL;
+					/* drop the additional ref taken in netmap_monitor_add() */
+					netmap_adapter_put(zkring->zmon_list[t].prev->na);
 				}
 				/* orphan the zmon list */
 				if (z->next != NULL)
