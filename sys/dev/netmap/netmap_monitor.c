@@ -456,6 +456,9 @@ netmap_monitor_stop(struct netmap_adapter *na)
 			struct netmap_zmon_list *z = &kring->zmon_list[t];
 			u_int j;
 
+			if (nm_monitor_none(kring))
+				continue;
+
 			for (j = 0; j < kring->n_monitors; j++) {
 				struct netmap_kring *mkring =
 					kring->monitors[j];
@@ -468,6 +471,8 @@ netmap_monitor_stop(struct netmap_adapter *na)
 				}
 				kring->monitors[j] = NULL;
 			}
+			kring->n_monitors = 0;
+			nm_monitor_dealloc(kring);
 
 			if (!nm_is_zmon(na)) {
 				/* we are the head of at most one list */
@@ -488,12 +493,7 @@ netmap_monitor_stop(struct netmap_adapter *na)
 				z->prev = NULL;
 			}
 
-			if (!nm_monitor_none(kring)) {
-
-				kring->n_monitors = 0;
-				nm_monitor_dealloc(kring);
-				nm_monitor_restore_callbacks(kring);
-			}
+			nm_monitor_restore_callbacks(kring);
 		}
 	}
 }
