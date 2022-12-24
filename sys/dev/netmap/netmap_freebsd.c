@@ -210,11 +210,7 @@ nm_os_ifnet_fini(void)
 unsigned
 nm_os_ifnet_mtu(struct ifnet *ifp)
 {
-#if __FreeBSD_version < 1100030
-	return ifp->if_data.ifi_mtu;
-#else /* __FreeBSD_version >= 1100030 */
 	return ifp->if_mtu;
-#endif
 }
 
 rawsum_t
@@ -422,26 +418,10 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	struct ifnet *ifp = a->ifp;
 	struct mbuf *m = a->m;
 
-#if __FreeBSD_version < 1100000
-	/*
-	 * Old FreeBSD versions. The mbuf has a cluster attached,
-	 * we need to copy from the cluster to the netmap buffer.
-	 */
-	if (MBUF_REFCNT(m) != 1) {
-		nm_prerr("invalid refcnt %d for %p", MBUF_REFCNT(m), m);
-		panic("in generic_xmit_frame");
-	}
-	if (m->m_ext.ext_size < len) {
-		nm_prlim(2, "size %d < len %d", m->m_ext.ext_size, len);
-		len = m->m_ext.ext_size;
-	}
-	bcopy(a->addr, m->m_data, len);
-#else  /* __FreeBSD_version >= 1100000 */
-	/* New FreeBSD versions. Link the external storage to
+	/* Link the external storage to
 	 * the netmap buffer, so that no copy is necessary. */
 	m->m_ext.ext_buf = m->m_data = a->addr;
 	m->m_ext.ext_size = len;
-#endif /* __FreeBSD_version >= 1100000 */
 
 	m->m_flags |= M_PKTHDR;
 	m->m_len = m->m_pkthdr.len = len;
@@ -459,13 +439,11 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 }
 
 
-#if __FreeBSD_version >= 1100005
 struct netmap_adapter *
 netmap_getna(if_t ifp)
 {
 	return (NA((struct ifnet *)ifp));
 }
-#endif /* __FreeBSD_version >= 1100005 */
 
 /*
  * The following two functions are empty until we have a generic
