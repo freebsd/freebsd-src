@@ -2706,6 +2706,7 @@ product KEISOKUGIKEN USBDAQ	0x0068	HKS-0200 USBDAQ
 /* Kensington products */
 product KENSINGTON ORBIT	0x1003	Orbit USB/PS2 trackball
 product KENSINGTON TURBOBALL	0x1005	TurboBall
+product KENSINGTON SLIMBLADE	0x2041	Slimblade Trackball
 
 /* Synaptics products */
 product SYNAPTICS FPR9A		0x009a	Fingerprint Reader
