@@ -679,10 +679,9 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, hgd->hgd_maxlen);
 		copyin(hgd->hgd_data, buf, hgd->hgd_maxlen);
-		/* Lock newbus around set_report_descr call */
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		error = hid_set_report_descr(sc->sc_dev, buf, hgd->hgd_maxlen);
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		HIDRAW_LOCAL_FREE(local_buf, buf);
 
 		/* Realloc hidraw input queue */
