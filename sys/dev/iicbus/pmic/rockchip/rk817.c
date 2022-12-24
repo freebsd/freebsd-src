@@ -525,8 +525,8 @@ DEFINE_CLASS_1(rk817_pmu, rk817_driver, rk817_methods,
     sizeof(struct rk8xx_softc), rk8xx_driver);
 
 EARLY_DRIVER_MODULE(rk817_pmu, iicbus, rk817_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(iicbus, rk817_pmu, iicbus_driver, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(rk817_pmu, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(rk817_pmu, 1);
