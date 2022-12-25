@@ -49,6 +49,7 @@ struct xformsw;
 
 struct secpolicy *key_newsp(void);
 struct secpolicy *key_allocsp(struct secpolicyindex *, u_int);
+struct secpolicy *key_do_allocsp(struct secpolicyindex *spidx, u_int dir);
 struct secpolicy *key_msg2sp(struct sadb_x_policy *, size_t, int *);
 int key_sp2msg(struct secpolicy *, void *, size_t *);
 void key_addref(struct secpolicy *);

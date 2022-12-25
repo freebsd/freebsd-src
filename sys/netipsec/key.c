@@ -622,7 +622,6 @@ static struct callout key_timer;
 
 static void key_unlink(struct secpolicy *);
 static void key_detach(struct secpolicy *);
-static struct secpolicy *key_do_allocsp(struct secpolicyindex *spidx, u_int dir);
 static struct secpolicy *key_getsp(struct secpolicyindex *);
 static struct secpolicy *key_getspbyid(u_int32_t);
 static struct mbuf *key_gather_mbuf(struct mbuf *,
