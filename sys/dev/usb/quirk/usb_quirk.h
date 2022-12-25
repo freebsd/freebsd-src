@@ -55,6 +55,7 @@ enum {
 	UQ_MS_BAD_CLASS,	/* doesn't identify properly */
 	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
 	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
+	UQ_MS_VENDOR_BTN,	/* mouse has buttons in vendor usage page */
 	UQ_NO_STRINGS,		/* string descriptors are broken */
 	UQ_POWER_CLAIM,		/* hub lies about power status */
 	UQ_SPUR_BUT_UP,		/* spurious mouse button up events */

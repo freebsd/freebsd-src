@@ -384,7 +384,7 @@ struct thread {
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 	int		td_pmcpend;
-	void		*td_coredump;	/* (c) coredump request. */
+	void		*td_remotereq;	/* (c) dbg remote request. */
 	off_t		td_ktr_io_lim;	/* (k) limit for ktrace file size */
 #ifdef EPOCH_TRACE
 	SLIST_HEAD(, epoch_tracker) td_epochs;
@@ -522,7 +522,9 @@ enum {
 #define	TDB_FSTP	0x00001000 /* The thread is PT_ATTACH leader */
 #define	TDB_STEP	0x00002000 /* (x86) PSL_T set for PT_STEP */
 #define	TDB_SSWITCH	0x00004000 /* Suspended in ptracestop */
-#define	TDB_COREDUMPRQ	0x00008000 /* Coredump request */
+#define	TDB_BOUNDARY	0x00008000 /* ptracestop() at boundary */
+#define	TDB_COREDUMPREQ	0x00010000 /* Coredump request */
+#define	TDB_SCREMOTEREQ	0x00020000 /* Remote syscall request */
 
 /*
  * "Private" flags kept in td_pflags:

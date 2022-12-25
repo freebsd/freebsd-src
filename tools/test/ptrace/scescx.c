@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ptrace.h>
+#include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -213,9 +214,13 @@ wait_info(int pid, int status, struct ptrace_lwpinfo *lwpinfo)
 	printf("\n");
 }
 
+static int trace_syscalls = 1;
+static int remote_getpid = 0;
+
 static int
 trace_sc(int pid)
 {
+	struct ptrace_sc_remote pscr;
 	struct ptrace_lwpinfo lwpinfo;
 	int status;
 
@@ -269,6 +274,24 @@ trace_sc(int pid)
 	wait_info(pid, status, &lwpinfo);
 	assert(lwpinfo.pl_flags & PL_FLAG_SCX);
 
+	if (remote_getpid) {
+		memset(&pscr, 0, sizeof(pscr));
+		pscr.pscr_syscall = SYS_getpid;
+		pscr.pscr_nargs = 0;
+		if (ptrace(PT_SC_REMOTE, pid, (caddr_t)&pscr,
+		    sizeof(pscr)) < 0) {
+			perror("PT_SC_REMOTE");
+			ptrace(PT_KILL, pid, NULL, 0);
+			return (-1);
+		} else {
+			printf(TRACE "remote getpid %ld errno %d\n",
+			    pscr.pscr_ret.sr_retval[0], pscr.pscr_ret.sr_error);
+			if (waitpid(pid, &status, 0) == -1) {
+			  perror("waitpid");
+			  return (-1);
+			}
+		}
+	}
 	if (lwpinfo.pl_flags & PL_FLAG_EXEC)
 		get_pathname(pid);
 
@@ -322,8 +345,6 @@ trace_cont(int pid)
 	return (0);
 }
 
-static int trace_syscalls = 1;
-
 static int
 trace(pid_t pid)
 {
@@ -340,11 +361,15 @@ main(int argc, char *argv[])
 	pid_t pid, pid1;
 
 	trace_syscalls = 1;
+	remote_getpid = 0;
 	use_vfork = 0;
-	while ((c = getopt(argc, argv, "csv")) != -1) {
+	while ((c = getopt(argc, argv, "crsv")) != -1) {
 		switch (c) {
 		case 'c':
 			trace_syscalls = 0;
+			break;
+		case 'r':
+			remote_getpid = 1;
 			break;
 		case 's':
 			trace_syscalls = 1;
@@ -354,7 +379,8 @@ main(int argc, char *argv[])
 			break;
 		default:
 		case '?':
-			fprintf(stderr, "Usage: %s [-c] [-s] [-v]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-c] [-r] [-s] [-v]\n",
+			    argv[0]);
 			return (2);
 		}
 	}

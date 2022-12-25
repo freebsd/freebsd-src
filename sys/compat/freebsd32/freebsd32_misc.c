@@ -133,11 +133,6 @@ struct ptrace_io_desc32 {
 	uint32_t	piod_len;
 };
 
-struct ptrace_sc_ret32 {
-	uint32_t	sr_retval[2];
-	int		sr_error;
-};
-
 struct ptrace_vm_entry32 {
 	int		pve_entry;
 	int		pve_timestamp;
@@ -971,6 +966,7 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		struct ptrace_lwpinfo pl;
 		struct ptrace_vm_entry pve;
 		struct ptrace_coredump pc;
+		struct ptrace_sc_remote sr;
 		struct dbreg32 dbreg;
 		struct fpreg32 fpreg;
 		struct reg32 reg;
@@ -984,10 +980,13 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		struct ptrace_lwpinfo32 pl;
 		struct ptrace_vm_entry32 pve;
 		struct ptrace_coredump32 pc;
+		struct ptrace_sc_remote32 sr;
 		uint32_t args[nitems(td->td_sa.args)];
 		struct ptrace_sc_ret32 psr;
 		struct iovec32 vec;
 	} r32;
+	syscallarg_t pscr_args[nitems(td->td_sa.args)];
+	u_int pscr_args32[nitems(td->td_sa.args)];
 	void *addr;
 	int data, error, i;
 
@@ -1086,6 +1085,28 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		r.pc.pc_limit = PAIR32TO64(off_t, r32.pc.pc_limit);
 		data = sizeof(r.pc);
 		break;
+	case PT_SC_REMOTE:
+		if (uap->data != sizeof(r32.sr)) {
+			error = EINVAL;
+			break;
+		}
+		error = copyin(uap->addr, &r32.sr, uap->data);
+		if (error != 0)
+			break;
+		CP(r32.sr, r.sr, pscr_syscall);
+		CP(r32.sr, r.sr, pscr_nargs);
+		if (r.sr.pscr_nargs > nitems(td->td_sa.args)) {
+			error = EINVAL;
+			break;
+		}
+		error = copyin(PTRIN(r32.sr.pscr_args), pscr_args32,
+		    sizeof(u_int) * r32.sr.pscr_nargs);
+		if (error != 0)
+			break;
+		for (i = 0; i < r32.sr.pscr_nargs; i++)
+			pscr_args[i] = pscr_args32[i];
+		r.sr.pscr_args = pscr_args;
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -1145,6 +1166,12 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		ptrace_sc_ret_to32(&r.psr, &r32.psr);
 		error = copyout(&r32.psr, uap->addr, MIN(uap->data,
 		    sizeof(r32.psr)));
+		break;
+	case PT_SC_REMOTE:
+		ptrace_sc_ret_to32(&r.sr.pscr_ret, &r32.sr.pscr_ret);
+		error = copyout(&r32.sr.pscr_ret, uap->addr +
+		    offsetof(struct ptrace_sc_remote32, pscr_ret),
+		    sizeof(r32.psr));
 		break;
 	}
 

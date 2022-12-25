@@ -39,9 +39,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/ctype.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
@@ -75,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
+#include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -82,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/timers.h>
 #include <sys/unistd.h>
+#include <sys/vmmeter.h>
 #include <sys/wait.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -279,7 +283,7 @@ static void
 ast_sig(struct thread *td, int tda)
 {
 	struct proc *p;
-	int sig;
+	int old_boundary, sig;
 	bool resched_sigs;
 
 	p = td->td_proc;
@@ -321,12 +325,15 @@ ast_sig(struct thread *td, int tda)
 	    !SIGISEMPTY(p->p_siglist)) {
 		sigfastblock_fetch(td);
 		PROC_LOCK(p);
+		old_boundary = ~TDB_BOUNDARY | (td->td_dbgflags & TDB_BOUNDARY);
+		td->td_dbgflags |= TDB_BOUNDARY;
 		mtx_lock(&p->p_sigacts->ps_mtx);
 		while ((sig = cursig(td)) != 0) {
 			KASSERT(sig >= 0, ("sig %d", sig));
 			postsig(sig);
 		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
+		td->td_dbgflags &= old_boundary;
 		PROC_UNLOCK(p);
 		resched_sigs = true;
 	} else {
@@ -2630,38 +2637,130 @@ out:
 }
 
 static void
-ptrace_coredump(struct thread *td)
+ptrace_coredumpreq(struct thread *td, struct proc *p,
+    struct thr_coredump_req *tcq)
+{
+	void *rl_cookie;
+
+	if (p->p_sysent->sv_coredump == NULL) {
+		tcq->tc_error = ENOSYS;
+		return;
+	}
+
+	rl_cookie = vn_rangelock_wlock(tcq->tc_vp, 0, OFF_MAX);
+	tcq->tc_error = p->p_sysent->sv_coredump(td, tcq->tc_vp,
+	    tcq->tc_limit, tcq->tc_flags);
+	vn_rangelock_unlock(tcq->tc_vp, rl_cookie);
+}
+
+static void
+ptrace_syscallreq(struct thread *td, struct proc *p,
+    struct thr_syscall_req *tsr)
+{
+	struct sysentvec *sv;
+	struct sysent *se;
+	register_t rv_saved[2];
+	int error, nerror;
+	int sc;
+	bool audited, sy_thr_static;
+
+	sv = p->p_sysent;
+	if (sv->sv_table == NULL || sv->sv_size < tsr->ts_sa.code) {
+		tsr->ts_ret.sr_error = ENOSYS;
+		return;
+	}
+
+	sc = tsr->ts_sa.code;
+	if (sc == SYS_syscall || sc == SYS___syscall) {
+		sc = tsr->ts_sa.args[0];
+		memmove(&tsr->ts_sa.args[0], &tsr->ts_sa.args[1],
+		    sizeof(register_t) * (tsr->ts_nargs - 1));
+	}
+
+	tsr->ts_sa.callp = se = &sv->sv_table[sc];
+
+	VM_CNT_INC(v_syscall);
+	td->td_pticks = 0;
+	if (__predict_false(td->td_cowgen != atomic_load_int(
+	    &td->td_proc->p_cowgen)))
+		thread_cow_update(td);
+
+#ifdef CAPABILITY_MODE
+	if (IN_CAPABILITY_MODE(td) && (se->sy_flags & SYF_CAPENABLED) == 0) {
+		tsr->ts_ret.sr_error = ECAPMODE;
+		return;
+	}
+#endif
+
+	sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
+	audited = AUDIT_SYSCALL_ENTER(sc, td) != 0;
+
+	if (!sy_thr_static) {
+		error = syscall_thread_enter(td, se);
+		if (error != 0) {
+			tsr->ts_ret.sr_error = error;
+			return;
+		}
+	}
+
+	rv_saved[0] = td->td_retval[0];
+	rv_saved[1] = td->td_retval[1];
+	nerror = td->td_errno;
+	td->td_retval[0] = 0;
+	td->td_retval[1] = 0;
+
+#ifdef KDTRACE_HOOKS
+	if (se->sy_entry != 0)
+		(*systrace_probe_func)(&tsr->ts_sa, SYSTRACE_ENTRY, 0);
+#endif
+	tsr->ts_ret.sr_error = se->sy_call(td, tsr->ts_sa.args);
+#ifdef KDTRACE_HOOKS
+	if (se->sy_return != 0)
+		(*systrace_probe_func)(&tsr->ts_sa, SYSTRACE_RETURN,
+		    tsr->ts_ret.sr_error != 0 ? -1 : td->td_retval[0]);
+#endif
+
+	tsr->ts_ret.sr_retval[0] = td->td_retval[0];
+	tsr->ts_ret.sr_retval[1] = td->td_retval[1];
+	td->td_retval[0] = rv_saved[0];
+	td->td_retval[1] = rv_saved[1];
+	td->td_errno = nerror;
+
+	if (audited)
+		AUDIT_SYSCALL_EXIT(error, td);
+	if (!sy_thr_static)
+		syscall_thread_exit(td, se);
+}
+
+static void
+ptrace_remotereq(struct thread *td, int flag)
 {
 	struct proc *p;
-	struct thr_coredump_req *tcq;
-	void *rl_cookie;
 
 	MPASS(td == curthread);
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((td->td_dbgflags & TDB_COREDUMPRQ) == 0)
+	if ((td->td_dbgflags & flag) == 0)
 		return;
 	KASSERT((p->p_flag & P_STOPPED_TRACE) != 0, ("not stopped"));
-
-	tcq = td->td_coredump;
-	KASSERT(tcq != NULL, ("td_coredump is NULL"));
-
-	if (p->p_sysent->sv_coredump == NULL) {
-		tcq->tc_error = ENOSYS;
-		goto wake;
-	}
+	KASSERT(td->td_remotereq != NULL, ("td_remotereq is NULL"));
 
 	PROC_UNLOCK(p);
-	rl_cookie = vn_rangelock_wlock(tcq->tc_vp, 0, OFF_MAX);
-
-	tcq->tc_error = p->p_sysent->sv_coredump(td, tcq->tc_vp,
-	    tcq->tc_limit, tcq->tc_flags);
-
-	vn_rangelock_unlock(tcq->tc_vp, rl_cookie);
+	switch (flag) {
+	case TDB_COREDUMPREQ:
+		ptrace_coredumpreq(td, p, td->td_remotereq);
+		break;
+	case TDB_SCREMOTEREQ:
+		ptrace_syscallreq(td, p, td->td_remotereq);
+		break;
+	default:
+		__unreachable();
+	}
 	PROC_LOCK(p);
-wake:
-	td->td_dbgflags &= ~TDB_COREDUMPRQ;
-	td->td_coredump = NULL;
+
+	MPASS((td->td_dbgflags & flag) != 0);
+	td->td_dbgflags &= ~flag;
+	td->td_remotereq = NULL;
 	wakeup(p);
 }
 
@@ -2792,9 +2891,14 @@ stopme:
 			td->td_dbgflags |= TDB_SSWITCH;
 			thread_suspend_switch(td, p);
 			td->td_dbgflags &= ~TDB_SSWITCH;
-			if ((td->td_dbgflags & TDB_COREDUMPRQ) != 0) {
+			if ((td->td_dbgflags & (TDB_COREDUMPREQ |
+			    TDB_SCREMOTEREQ)) != 0) {
+				MPASS((td->td_dbgflags & (TDB_COREDUMPREQ |
+				    TDB_SCREMOTEREQ)) !=
+				    (TDB_COREDUMPREQ | TDB_SCREMOTEREQ));
 				PROC_SUNLOCK(p);
-				ptrace_coredump(td);
+				ptrace_remotereq(td, td->td_dbgflags &
+				    (TDB_COREDUMPREQ | TDB_SCREMOTEREQ));
 				PROC_SLOCK(p);
 				goto stopme;
 			}
