@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2022
+.Dd December 24, 2022
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -36,13 +36,13 @@
 .Nd get or set kernel state
 .Sh SYNOPSIS
 .Nm
-.Op Fl bdehiNnoTtqWx
+.Op Fl bdeFhilNnoTtqWx
 .Op Fl B Ar bufsize
 .Op Fl f Ar filename
 .Ar name Ns Op = Ns Ar value Ns Op , Ns Ar value
 .Ar ...
 .Nm
-.Op Fl bdehNnoTtqWx
+.Op Fl bdeFhlNnoTtqWx
 .Op Fl B Ar bufsize
 .Fl a
 .Sh DESCRIPTION
@@ -100,6 +100,10 @@ Specify a file which contains a pair of name and value in each line.
 .Nm
 reads and processes the specified file first and then processes the name
 and value pairs in the command line argument.
+.It Fl F
+Print the format of the variable.
+This is additional information to describe the type of the variable and
+most useful with struct types such as clockinfo, timeval, and loadavg.
 .It Fl h
 Format output for human, rather than machine, readability.
 .It Fl i
@@ -108,6 +112,11 @@ The purpose is to make use of
 .Nm
 for collecting data from a variety of machines (not all of which
 are necessarily running exactly the same software) easier.
+.It Fl l
+Show the length of variables along with their values.
+This option cannot be combined with the
+.Fl N
+option.
 .It Fl N
 Show only variable names, not their values.
 This is particularly useful with shells that offer programmable
