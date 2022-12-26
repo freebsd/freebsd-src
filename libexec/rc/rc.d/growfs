@@ -200,7 +200,7 @@ growfs_start()
 		disksize = size[lvl]
 		if (verbose)
 			print "disksize ", disksize
-		# Don't add swap on disks under 15 GB (decimal) by default.
+		# Do not add swap on disks under 15 GB (decimal) by default.
 		if (addswap == 1 && (size[lvl] > 15000000000 || swapsize > 0))
 			doing_swap = 1
 		else

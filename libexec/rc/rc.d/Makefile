@@ -36,6 +36,7 @@ CONFS=	DAEMON \
 	geli2 \
 	gptboot \
 	growfs \
+	growfs_fstab \
 	hostid \
 	hostid_save \
 	hostname \
