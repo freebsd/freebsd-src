@@ -1719,11 +1719,19 @@ ifmaybeload(const char *name)
 		}
 	}
 
-	/*
-	 * Try to load the module.  But ignore failures, because ifconfig can't
-	 * infer the names of all drivers (eg mlx4en(4)).
-	 */
-	(void) kldload(ifkind);
+	/* Try to load the module. */
+	if (kldload(ifkind) < 0) {
+		switch (errno) {
+		case ENOENT:
+			/*
+			 * Ignore ENOENT, because ifconfig can't infer the
+			 * names of all drivers (eg mlx4en(4)).
+			 */
+			break;
+		default:
+			err(1, "kldload(%s)", ifkind);
+		}
+	}
 }
 
 static struct cmd basic_cmds[] = {
