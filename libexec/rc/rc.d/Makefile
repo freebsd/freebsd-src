@@ -35,6 +35,7 @@ CONFS=	DAEMON \
 	ggated \
 	gptboot \
 	growfs \
+	growfs_fstab \
 	hostid \
 	hostid_save \
 	hostname \
