@@ -27,6 +27,12 @@
 #  SUCH DAMAGE.
 #
 
+# Rendering a manual page is fast. Even a manual page several 100k in size
+# takes less than a CPU second. If it takes much longer, it is very likely
+# that a tool like mandoc(1) is running in an infinite loop. In this case
+# it is better to terminate it.
+ulimit -t 20
+
 # Usage: add_to_manpath path
 # Adds a variable to manpath while ensuring we don't have duplicates.
 # Returns true if we were able to add something. False otherwise.
