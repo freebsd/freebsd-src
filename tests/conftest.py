@@ -51,7 +51,7 @@ def atf_vars() -> Dict[str, str]:
     return ATFHandler.get_atf_vars()
 
 
-@pytest.mark.trylast
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config):
     if config.option.help:
         return
