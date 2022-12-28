@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/filedesc.h>
 #include <sys/ioccom.h>
 #include <sys/jail.h>
 #include <sys/mount.h>
@@ -302,6 +303,16 @@ ffs_susp_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		vfs_rel(mp);
 		if (error != 0)
 			break;
+
+		/*
+		 * Require single-thread curproc so that the check is not racey.
+		 * XXXKIB: might consider to singlethread curproc instead.
+		 */
+		error = curproc->p_numthreads > 1 ? EDEADLK :
+		    descrip_check_write_mp(curproc->p_fd, mp);
+		if (error != 0)
+			break;
+
 		error = ffs_susp_suspend(mp);
 		if (error != 0) {
 			vfs_unbusy(mp);
