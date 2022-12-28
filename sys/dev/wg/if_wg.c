@@ -2845,7 +2845,7 @@ wg_clone_destroy(struct ifnet *ifp)
 	taskqgroup_drain_all(qgroup_wg_tqg);
 	sx_xlock(&sc->sc_lock);
 	wg_peer_destroy_all(sc);
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 	sx_xunlock(&sc->sc_lock);
 	sx_destroy(&sc->sc_lock);
 	taskqgroup_detach(qgroup_wg_tqg, &sc->sc_handshake);
