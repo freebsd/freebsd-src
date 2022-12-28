@@ -860,8 +860,7 @@ gv_init_complete(struct gv_plex *p, struct bio *bp)
 	 */
 	if (start >= s->drive_offset + s->size) {
 		/* Free the data we initialized. */
-		if (data != NULL)
-			g_free(data);
+		g_free(data);
 		g_topology_assert_not();
 		g_topology_lock();
 		g_access(cp, 0, -1, 0);

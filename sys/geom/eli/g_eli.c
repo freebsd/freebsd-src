@@ -755,8 +755,7 @@ g_eli_read_metadata_offset(struct g_class *mp, struct g_provider *pp,
 		goto end;
 	/* Metadata was read and decoded successfully. */
 end:
-	if (buf != NULL)
-		g_free(buf);
+	g_free(buf);
 	if (cp->provider != NULL) {
 		if (cp->acr == 1)
 			g_access(cp, -1, 0, 0);

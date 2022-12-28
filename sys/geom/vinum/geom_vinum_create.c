@@ -140,8 +140,7 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 			g_topology_unlock();
 			G_VINUM_DEBUG(0, "create drive '%s': unable to update "
 			    "access counts", d->name);
-			if (d->hdr != NULL)
-				g_free(d->hdr);
+			g_free(d->hdr);
 			g_free(d);
 			return (GV_ERR_CREATE);
 		}
