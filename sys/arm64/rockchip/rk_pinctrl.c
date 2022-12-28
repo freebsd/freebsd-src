@@ -767,6 +767,10 @@ struct rk_pinctrl_conf rk3399_conf = {
 	.get_bias_value = rk3399_get_bias_value,
 };
 
+#define	GRF_IOFUNC_SEL0		0x0300
+#define	 GMAC1_IOMUX_SEL_M0		0x01000000
+#define	 GMAC1_IOMUX_SEL_M1		0x01000100
+
 static struct rk_pinctrl_gpio rk3568_gpio_bank[] = {
 	RK_GPIO(0, "gpio0"),
 	RK_GPIO(1, "gpio1"),
@@ -1239,6 +1243,17 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	 * without hi-word write mask.
 	 */
 	SYSCON_MODIFY_4(syscon, reg, mask, function << bit | (mask << 16));
+
+	/* RK3568 specific pin mux for various functionalities */
+	if (ofw_bus_node_is_compatible(ofw_bus_get_node(sc->dev),
+	    "rockchip,rk3568-pinctrl")) {
+		if (bank == 3 && pin == 9 && function == 3)
+			SYSCON_WRITE_4(sc->grf,
+			    GRF_IOFUNC_SEL0, GMAC1_IOMUX_SEL_M0);
+		if (bank == 4 && pin == 7 && function == 3)
+			SYSCON_WRITE_4(sc->grf,
+			    GRF_IOFUNC_SEL0, GMAC1_IOMUX_SEL_M1);
+	}
 }
 
 static int
