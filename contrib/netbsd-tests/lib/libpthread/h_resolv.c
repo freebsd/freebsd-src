@@ -73,18 +73,18 @@ static void
 load(const char *fname)
 {
 	FILE *fp;
-	size_t len;
+	size_t linecap;
 	char *line;
 
 	if ((fp = fopen(fname, "r")) == NULL)
 		err(1, "Cannot open `%s'", fname);
-	while ((line = fgetln(fp, &len)) != NULL) {
-		char c = line[len];
+	line = NULL;
+	linecap = 0;
+	while (getline(&line, &linecap, fp) >= 0) {
 		char *ptr;
-		line[len] = '\0';
+
 		for (ptr = strtok(line, WS); ptr; ptr = strtok(NULL, WS))
 			sl_add(hosts, strdup(ptr));
-		line[len] = c;
 	}
 
 	(void)fclose(fp);
