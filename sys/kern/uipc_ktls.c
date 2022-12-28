@@ -2317,8 +2317,12 @@ ktls_drop(struct socket *so, int error)
 		CURVNET_RESTORE();
 		if (tp != NULL)
 			INP_WUNLOCK(inp);
-	} else
+	} else {
+		so->so_error = error;
+		SOCK_RECVBUF_LOCK(so);
+		sorwakeup_locked(so);
 		INP_WUNLOCK(inp);
+	}
 	NET_EPOCH_EXIT(et);
 }
 
