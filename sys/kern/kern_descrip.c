@@ -4238,6 +4238,31 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 		vrele(olddp);
 }
 
+int
+descrip_check_write_mp(struct filedesc *fdp, struct mount *mp)
+{
+	struct file *fp;
+	struct vnode *vp;
+	int error, i, lastfile;
+
+	error = 0;
+	FILEDESC_SLOCK(fdp);
+	lastfile = fdlastfile(fdp);
+	for (i = 0; i <= lastfile; i++) {
+		fp = fdp->fd_ofiles[i].fde_file;
+		if (fp->f_type != DTYPE_VNODE ||
+		    (atomic_load_int(&fp->f_flag) & FWRITE) == 0)
+			continue;
+		vp = fp->f_vnode;
+		if (vp->v_mount == mp) {
+			error = EDEADLK;
+			break;
+		}
+	}
+	FILEDESC_SUNLOCK(fdp);
+	return (error);
+}
+
 struct filedesc_to_leader *
 filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp,
     struct proc *leader)
