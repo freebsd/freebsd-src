@@ -397,6 +397,15 @@ vtblk_attach(device_t dev)
 		goto fail;
 	}
 
+#ifdef __powerpc__
+	/*
+	 * Virtio uses physical addresses rather than bus addresses, so we
+	 * need to ask busdma to skip the iommu physical->bus mapping.  At
+	 * present, this is only a thing on the powerpc architectures.
+	 */
+	bus_dma_tag_set_iommu(sc->vtblk_dmat, NULL, NULL);
+#endif
+
 	error = vtblk_alloc_virtqueue(sc);
 	if (error) {
 		device_printf(dev, "cannot allocate virtqueue\n");
@@ -1070,9 +1079,8 @@ vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		/*
-		 * We cast bus_addr_t to vm_paddr_t here; this isn't valid on
-		 * all platforms, but we believe it works on all platforms
-		 * which are supported by virtio.
+		 * We cast bus_addr_t to vm_paddr_t here; since we skip the
+		 * iommu mapping (see vtblk_attach) this should be safe.
 		 */
 		for (i = 0; i < nseg; i++) {
 			error = sglist_append_phys(sg,
