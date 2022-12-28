@@ -226,8 +226,7 @@ g_ccd_freesc(struct ccd_s *sc)
 	g_free(sc->sc_cinfo);
 	if (sc->sc_itable != NULL) {
 		for (ii = sc->sc_itable; ii->ii_ndisk > 0; ii++)
-			if (ii->ii_index != NULL)
-				g_free(ii->ii_index);
+			g_free(ii->ii_index);
 		g_free(sc->sc_itable);
 	}
 	g_free(sc);

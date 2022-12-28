@@ -88,10 +88,8 @@ g_slice_free(struct g_geom *gp)
 	if (gsp == NULL)
 		return;
 	g_free(gsp->slices);
-	if (gsp->hotspot != NULL)
-		g_free(gsp->hotspot);
-	if (gsp->softc != NULL)
-		g_free(gsp->softc);
+	g_free(gsp->hotspot);
+	g_free(gsp->softc);
 	g_free(gsp);
 }
 
