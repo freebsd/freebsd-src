@@ -65,7 +65,7 @@ class Handler {
     // * without schebang args
     // atf_wrap /path/to/script -l
     // Running test:
-    // atf_wrap '-P /path' /path/to/script -r /path1 -s /path2 -vk1=v1 testname 
+    // atf_wrap '-P /path' /path/to/script -r /path1 -s /path2 -vk1=v1 testname
     void Parse(int argc, char **argv) {
       if (flag_debug) {
         PrintVector("IN", ToVector(argc, argv));
@@ -89,34 +89,34 @@ class Handler {
       // The next argument is a script name. Copy and keep argc/argv the same
       // Show usage for empty args
       if (argc == 0) {
-          Usage("Must provide a test case name", true);
+        Usage("Must provide a test case name", true);
       }
       script_path = std::string(argv[0]);
 
       int c;
       while ((c = getopt(argc, argv, "lr:s:v:")) != -1) {
         switch (c) {
-        case 'l':
-          flag_list = true;
-          break;
-        case 's':
-          src_dir = std::string(optarg);
-          break;
-        case 'r':
-          dst_file = std::string(optarg);
-          break;
-        case 'v':
-	  {
-	    std::string kv = std::string(optarg);
-	    size_t splitter = kv.find("=");
-	    if (splitter == std::string::npos) {
-	      Usage("Unknown variable: " + kv, true);
-	    }
-	    kv_map[kv.substr(0, splitter)] = kv.substr(splitter + 1);
-	  }
-          break;
-        default:
-          Usage("Unknown option -" + std::string(1, static_cast<char>(c)), true);
+          case 'l':
+            flag_list = true;
+            break;
+          case 's':
+            src_dir = std::string(optarg);
+            break;
+          case 'r':
+            dst_file = std::string(optarg);
+            break;
+          case 'v':
+            {
+              std::string kv = std::string(optarg);
+              size_t splitter = kv.find("=");
+              if (splitter == std::string::npos) {
+                Usage("Unknown variable: " + kv, true);
+              }
+              kv_map[kv.substr(0, splitter)] = kv.substr(splitter + 1);
+            }
+            break;
+          default:
+            Usage("Unknown option -" + std::string(1, static_cast<char>(c)), true);
         }
       }
       argc -= optind;
@@ -138,7 +138,8 @@ class Handler {
     }
 
     std::vector<std::string> BuildArgs() {
-      std::vector<std::string> args = {"pytest", "-p", "no:cacheprovider", "-s", "--atf"};
+      std::vector<std::string> args = {"pytest", "-vv", "-p",
+        "no:cacheprovider", "-s", "--atf"};
 
       if (flag_list) {
         args.push_back("--co");
@@ -179,7 +180,7 @@ class Handler {
       // Pass ATF kv pairs as env variables to avoid dealing with
       // pytest parser
       for (auto [k, v]: kv_map) {
-	setenv((kAtfVar + k).c_str(), v.c_str(), 1);
+        setenv((kAtfVar + k).c_str(), v.c_str(), 1);
       }
     }
 
@@ -190,7 +191,7 @@ class Handler {
       // allocate array with final NULL
       char **arr = new char*[args.size() + 1]();
       for (unsigned long i = 0; i < args.size(); i++) {
-	// work around 'char *const *'
+        // work around 'char *const *'
         arr[i] = strdup(args[i].c_str());
       }
       return execvp(binary.c_str(), arr) == 0;
@@ -204,7 +205,7 @@ class Handler {
           "not_found__" << std::endl;
       } else {
         std::cout << "execvp(" << kPytestName << ") failed: " <<
-            std::strerror(errno) << std::endl;
+          std::strerror(errno) << std::endl;
       }
     }
 
