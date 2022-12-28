@@ -298,15 +298,13 @@ again:
 	if (buf != NULL)
 		head = parse_fis_directory(buf, blksize, offset, offmask);
 	if (head == NULL && offset != 0) {
-		if (buf != NULL)
-			g_free(buf);
+		g_free(buf);
 		offset = 0;			/* check the front */
 		goto again;
 	}
 	g_topology_lock();
 	if (head == NULL) {
-		if (buf != NULL)
-			g_free(buf);
+		g_free(buf);
 		return NULL;
 	}
 	/*
