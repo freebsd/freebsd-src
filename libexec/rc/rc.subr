@@ -900,8 +900,8 @@ startmsg()
 #			by $flags from the environment.
 #			This variable may be changed by the precmd method.
 #
-#       rc_service      Path to the service being executed, in case the service
-#                       needs to re-invoke itself.
+#	rc_service	Path to the service being executed, in case the service
+#			needs to re-invoke itself.
 #
 #	rc_pid		PID of command (if appropriate)
 #
