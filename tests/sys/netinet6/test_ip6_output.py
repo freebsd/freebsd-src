@@ -73,24 +73,24 @@ class BaseTestIP6Ouput(VnetTestTemplate):
     }
     DEFAULT_PORT = 45365
 
-    def _vnet2_handler(self, vnet, obj_map, pipe, ip: str, os_ifname: str = None):
+    def _vnet2_handler(self, vnet, ip: str, os_ifname: str = None):
         """Generic listener that sends first received packet with metadata
         back to the sender via pipw
         """
         ll_data = ToolsHelper.get_linklocals()
         # Start listener
         ss = VerboseSocketServer(ip, self.DEFAULT_PORT, os_ifname)
-        pipe.send(ll_data)
+        vnet.pipe.send(ll_data)
 
         tx_obj = ss.recv()
         tx_obj["dst_iface_alias"] = vnet.iface_map[tx_obj["dst_iface"]].alias
-        pipe.send(tx_obj)
+        vnet.pipe.send(tx_obj)
 
 
 class TestIP6Output(BaseTestIP6Ouput):
-    def vnet2_handler(self, vnet, obj_map, pipe):
+    def vnet2_handler(self, vnet):
         ip = str(vnet.iface_alias_map["if2"].first_ipv6.ip)
-        self._vnet2_handler(vnet, obj_map, pipe, ip, None)
+        self._vnet2_handler(vnet, ip, None)
 
     @pytest.mark.require_user("root")
     def test_output6_base(self):
@@ -221,14 +221,14 @@ class TestIP6Output(BaseTestIP6Ouput):
 
 
 class TestIP6OutputLL(BaseTestIP6Ouput):
-    def vnet2_handler(self, vnet, obj_map, pipe):
+    def vnet2_handler(self, vnet):
         """Generic listener that sends first received packet with metadata
         back to the sender via pipw
         """
         os_ifname = vnet.iface_alias_map["if2"].name
         ll_data = ToolsHelper.get_linklocals()
         ll_ip, _ = ll_data[os_ifname][0]
-        self._vnet2_handler(vnet, obj_map, pipe, ll_ip, os_ifname)
+        self._vnet2_handler(vnet, ll_ip, os_ifname)
 
     @pytest.mark.require_user("root")
     def test_output6_linklocal(self):
@@ -258,12 +258,12 @@ class TestIP6OutputLL(BaseTestIP6Ouput):
 
 
 class TestIP6OutputNhopLL(BaseTestIP6Ouput):
-    def vnet2_handler(self, vnet, obj_map, pipe):
+    def vnet2_handler(self, vnet):
         """Generic listener that sends first received packet with metadata
         back to the sender via pipw
         """
         ip = str(vnet.iface_alias_map["if2"].first_ipv6.ip)
-        self._vnet2_handler(vnet, obj_map, pipe, ip, None)
+        self._vnet2_handler(vnet, ip, None)
 
     @pytest.mark.require_user("root")
     def test_output6_nhop_linklocal(self):
@@ -296,11 +296,11 @@ class TestIP6OutputNhopLL(BaseTestIP6Ouput):
 
 
 class TestIP6OutputScope(BaseTestIP6Ouput):
-    def vnet2_handler(self, vnet, obj_map, pipe):
+    def vnet2_handler(self, vnet):
         """Generic listener that sends first received packet with metadata
         back to the sender via pipw
         """
-        bind_ip, bind_ifp = self.wait_object(pipe)
+        bind_ip, bind_ifp = self.wait_object(vnet.pipe)
         if bind_ip is None:
             os_ifname = vnet.iface_alias_map[bind_ifp].name
             ll_data = ToolsHelper.get_linklocals()
@@ -308,7 +308,7 @@ class TestIP6OutputScope(BaseTestIP6Ouput):
         if bind_ifp is not None:
             bind_ifp = vnet.iface_alias_map[bind_ifp].name
         print("## BIND {}%{}".format(bind_ip, bind_ifp))
-        self._vnet2_handler(vnet, obj_map, pipe, bind_ip, bind_ifp)
+        self._vnet2_handler(vnet, bind_ip, bind_ifp)
 
     @pytest.mark.parametrize(
         "params",
@@ -402,10 +402,10 @@ class TestIP6OutputScope(BaseTestIP6Ouput):
 
 
 class TestIP6OutputMulticast(BaseTestIP6Ouput):
-    def vnet2_handler(self, vnet, obj_map, pipe):
-        group = self.wait_object(pipe)
+    def vnet2_handler(self, vnet):
+        group = self.wait_object(vnet.pipe)
         os_ifname = vnet.iface_alias_map["if2"].name
-        self._vnet2_handler(vnet, obj_map, pipe, group, os_ifname)
+        self._vnet2_handler(vnet, group, os_ifname)
 
     @pytest.mark.parametrize("group_scope", ["ff02", "ff05", "ff08", "ff0e"])
     @pytest.mark.require_user("root")
