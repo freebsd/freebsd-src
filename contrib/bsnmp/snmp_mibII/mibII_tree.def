@@ -32,7 +32,7 @@
 #
 (1 internet
   (2 mgmt
-    (1 mib2
+    (1 mib-2
       (2 interfaces
         (1 ifNumber INTEGER op_interfaces GET)
         (2 ifTable

@@ -43,7 +43,7 @@ typedef BegemotSnmpdTransportProto ENUM (
 
 (1 internet
   (2 mgmt
-    (1 mibII
+    (1 mib-2
       (1 system
 #
 # The standard System group
