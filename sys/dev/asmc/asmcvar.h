@@ -209,13 +209,13 @@ struct asmc_softc {
 				  "Unknown", "Unknown", \
 				  "Wireless Module", }
 
-#define ASMC_MBP5_TEMPS		{ "TB0T", "TB1T", "TB2T", "TB3T", "TC0D", \
+#define ASMC_MBP51_TEMPS	{ "TB0T", "TB1T", "TB2T", "TB3T", "TC0D", \
 				  "TC0F", "TC0P", "TG0D", "TG0F", "TG0H", \
 				  "TG0P", "TG0T", "TG1H", "TN0D", "TN0P", \
 				  "TTF0", "Th2H", "Tm0P", "Ts0P", "Ts0S", \
 				  NULL }
 
-#define ASMC_MBP5_TEMPNAMES	{ "enclosure_bottom_0", "enclosure_bottom_1", \
+#define ASMC_MBP51_TEMPNAMES	{ "enclosure_bottom_0", "enclosure_bottom_1", \
 				  "enclosure_bottom_2", "enclosure_bottom_3", \
 				  "cpu_diode", "cpu", \
 				  "cpu_pin", "gpu_diode", \
@@ -226,7 +226,7 @@ struct asmc_softc {
 				  "heatsink_2", "memory_controller", \
 				  "pci_express_slot_pin", "pci_express_slot_unk" }
 
-#define ASMC_MBP5_TEMPDESCS	{ "Enclosure Bottom 0", "Enclosure Bottom 1", \
+#define ASMC_MBP51_TEMPDESCS	{ "Enclosure Bottom 0", "Enclosure Bottom 1", \
 				  "Enclosure Bottom 2", "Enclosure Bottom 3", \
 				  "CPU Diode", "CPU ???", \
 				  "CPU Pin", "GPU Diode", \
@@ -263,6 +263,31 @@ struct asmc_softc {
 				  "PCH Die", "Heat Sink 1", \
 				  "Heat Sink 2", "Memory Controller", \
 				  "Palm Rest", "Memory Proximity" }
+
+#define ASMC_MBP55_TEMPS	{ "TB0T", "TB1T", \
+				  "TB2T", "TB3T", \
+				  "TC0D", "TC0P", \
+				  "TN0D", "TN0P", \
+				  "TTF0", \
+				  "Th0H", "Th1H", "ThFH", \
+				  "Ts0P", "Ts0S", \
+				  NULL }
+
+#define ASMC_MBP55_TEMPNAMES	{ "enclosure_bottom_0", "enclosure_bottom_1", \
+				  "enclosure_bottom_2", "enclosure_bottom_3", \
+				  "cpu_diode", "cpu_pin", \
+				  "northbridge_diode", "northbridge_pin", \
+				  "unknown", \
+				  "heatsink_0", "heatsink_1", "heatsink_2", \
+				  "pci_express_slot_pin", "pci_express_slot_unk" }
+
+#define ASMC_MBP55_TEMPDESCS	{ "Enclosure Bottom 0", "Enclosure Bottom 1", \
+				  "Enclosure Bottom 2", "Enclosure Bottom 3", \
+				  "CPU Diode", "CPU Pin", \
+				  "Northbridge Diode", "Northbridge Pin", \
+				  "Unknown", \
+				  "Heatsink 0", "Heatsink 1", "Heatsink 2", \
+				  "PCI Express Slot Pin", "PCI Express Slot (unk)" }
 
 #define ASMC_MBP81_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
