@@ -310,8 +310,10 @@ ffs_susp_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		 */
 		error = curproc->p_numthreads > 1 ? EDEADLK :
 		    descrip_check_write_mp(curproc->p_fd, mp);
-		if (error != 0)
+		if (error != 0) {
+			vfs_unbusy(mp);
 			break;
+		}
 
 		error = ffs_susp_suspend(mp);
 		if (error != 0) {
