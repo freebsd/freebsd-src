@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 
+#include <asm/atomic.h>
 #include <linux/compat.h>
 #include <linux/debugfs.h>
 #include <linux/fs.h>
@@ -421,6 +422,35 @@ debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent, unsi
 {
 	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_ulong,
 	    &fops_ulong_ro, &fops_ulong_wo);
+}
+
+
+static int
+debugfs_atomic_t_get(void *data, uint64_t *value)
+{
+	atomic_t *atomic_data = data;
+	*value = atomic_read(atomic_data);
+	return (0);
+}
+
+static int
+debugfs_atomic_t_set(void *data, uint64_t value)
+{
+	atomic_t *atomic_data = data;
+	atomic_set(atomic_data, (int)value);
+	return (0);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get, debugfs_atomic_t_set, "%d\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t_ro, debugfs_atomic_t_get, NULL, "%d\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set, "%d\n");
+
+void
+debugfs_create_atomic_t(const char *name, umode_t mode, struct dentry *parent, atomic_t *value)
+{
+
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_atomic_t,
+	    &fops_atomic_t_ro, &fops_atomic_t_wo);
 }
 
 
