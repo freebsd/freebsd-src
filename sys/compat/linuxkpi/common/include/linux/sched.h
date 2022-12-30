@@ -50,6 +50,8 @@
 #include <linux/spinlock.h>
 #include <linux/time.h>
 
+#include <linux/sched/mm.h>
+
 #include <asm/atomic.h>
 
 #define	MAX_SCHEDULE_TIMEOUT	INT_MAX
