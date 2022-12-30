@@ -29,8 +29,10 @@
 #define	_LINUXKPI_LINUX_SHRINKER_H_
 
 #include <sys/queue.h>
+#include <linux/gfp.h>
 
 struct shrink_control {
+	gfp_t		gfp_mask;
 	unsigned long	nr_to_scan;
 	unsigned long	nr_scanned;
 };
