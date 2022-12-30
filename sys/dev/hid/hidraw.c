@@ -991,5 +991,4 @@ static driver_t hidraw_driver = {
 DRIVER_MODULE(hidraw, hidbus, hidraw_driver, NULL, NULL);
 MODULE_DEPEND(hidraw, hidbus, 1, 1, 1);
 MODULE_DEPEND(hidraw, hid, 1, 1, 1);
-MODULE_DEPEND(hidraw, usb, 1, 1, 1);
 MODULE_VERSION(hidraw, 1);
