@@ -67,6 +67,8 @@ struct pin_cookie {
 	LOCK_CLASS(__lock)->lc_assert(__lock, LA_LOCKED | LA_NOTRECURSED); \
 } while (0)
 
+#define	lockdep_assert_none_held_once() do { } while (0)
+
 static __inline bool
 lockdep_is_held(void *__m)
 {
@@ -81,6 +83,7 @@ lockdep_is_held(void *__m)
 #else
 #define	lockdep_assert_not_held(m) do { (void)(m); } while (0)
 #define	lockdep_assert_held(m) do { (void)(m); } while (0)
+#define	lockdep_assert_none_held_once() do { } while (0)
 
 #define	lockdep_assert_held_once(m) do { (void)(m); } while (0)
 
