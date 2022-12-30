@@ -31,6 +31,8 @@
 #ifndef _LINUXKPI_ACPI_VIDEO_H_
 #define _LINUXKPI_ACPI_VIDEO_H_
 
+#include <sys/errno.h>
+
 #define	ACPI_VIDEO_CLASS	"video"
 
 #define	ACPI_VIDEO_NOTIFY_PROBE	0x81
