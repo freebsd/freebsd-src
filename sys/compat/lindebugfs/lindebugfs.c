@@ -213,6 +213,16 @@ debugfs_create_file(const char *name, umode_t mode,
 	return (dnode);
 }
 
+struct dentry *
+debugfs_create_file_size(const char *name, umode_t mode,
+    struct dentry *parent, void *data,
+    const struct file_operations *fops,
+    loff_t file_size __unused)
+{
+
+	return debugfs_create_file(name, mode, parent, data, fops);
+}
+
 /*
  * NOTE: Files created with the _unsafe moniker will not be protected from
  * debugfs core file removals. It is the responsibility of @fops to protect
@@ -228,6 +238,7 @@ debugfs_create_file_unsafe(const char *name, umode_t mode,
     struct dentry *parent, void *data,
     const struct file_operations *fops)
 {
+
 	return (debugfs_create_file(name, mode, parent, data, fops));
 }
 
