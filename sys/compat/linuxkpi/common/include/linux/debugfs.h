@@ -56,8 +56,14 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
     struct dentry *parent, void *data,
     const struct file_operations *fops);
 
-struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
+/* TODO: We currently ignore the `file_size` argument. */
+struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
     struct dentry *parent, void *data,
+    const struct file_operations *fops,
+    loff_t file_size);
+
+struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
+struct dentry *parent, void *data,
     const struct file_operations *fops);
 
 struct dentry *debugfs_create_mode_unsafe(const char *name, umode_t mode,
