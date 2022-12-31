@@ -1118,6 +1118,10 @@ uint32_t linuxkpi_ieee80211_channel_to_frequency(uint32_t, enum nl80211_band);
 uint32_t linuxkpi_ieee80211_frequency_to_channel(uint32_t, uint32_t);
 struct linuxkpi_ieee80211_channel *
     linuxkpi_ieee80211_get_channel(struct wiphy *, uint32_t);
+struct cfg80211_bss *linuxkpi_cfg80211_get_bss(struct wiphy *,
+    struct linuxkpi_ieee80211_channel *, const uint8_t *,
+    const uint8_t *, size_t, enum ieee80211_bss_type, enum ieee80211_privacy);
+void linuxkpi_cfg80211_put_bss(struct wiphy *, struct cfg80211_bss *);
 void linuxkpi_cfg80211_bss_flush(struct wiphy *);
 
 /* -------------------------------------------------------------------------- */
@@ -1185,6 +1189,32 @@ wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
     enum rfkill_hard_block_reasons reason)
 {
 	TODO();
+}
+
+/* -------------------------------------------------------------------------- */
+
+static inline struct cfg80211_bss *
+cfg80211_get_bss(struct wiphy *wiphy, struct linuxkpi_ieee80211_channel *chan,
+    const uint8_t *bssid, const uint8_t *ssid, size_t ssid_len,
+    enum ieee80211_bss_type bss_type, enum ieee80211_privacy privacy)
+{
+
+	return (linuxkpi_cfg80211_get_bss(wiphy, chan, bssid, ssid, ssid_len,
+	   bss_type, privacy));
+}
+
+static inline void
+cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss)
+{
+
+	linuxkpi_cfg80211_put_bss(wiphy, bss);
+}
+
+static inline void
+cfg80211_bss_flush(struct wiphy *wiphy)
+{
+
+	linuxkpi_cfg80211_bss_flush(wiphy);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1381,20 +1411,6 @@ freq_reg_info(struct wiphy *wiphy, uint32_t center_freq)
 {
 	TODO();
 	return (NULL);
-}
-
-static __inline struct cfg80211_bss *
-cfg80211_get_bss(struct wiphy *wiphy, struct linuxkpi_ieee80211_channel *chan,
-    const uint8_t *bssid, void *p, int x, uint32_t f1, uint32_t f2)
-{
-	TODO();
-	return (NULL);
-}
-
-static __inline void
-cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss)
-{
-	TODO();
 }
 
 static __inline void
@@ -1656,13 +1672,6 @@ ieee80211_get_hdrlen_from_skb(struct sk_buff *skb)
 
 	TODO();
 	return (-1);
-}
-
-static __inline void
-cfg80211_bss_flush(struct wiphy *wiphy)
-{
-
-	linuxkpi_cfg80211_bss_flush(wiphy);
 }
 
 static __inline bool
