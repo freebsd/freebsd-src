@@ -524,31 +524,6 @@ linuxkpi_ieee80211_get_channel(struct wiphy *wiphy, uint32_t freq)
 	return (NULL);
 }
 
-void
-linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
-{
-	struct lkpi_hw *lhw;
-	struct ieee80211com *ic;
-	struct ieee80211vap *vap;
-
-	lhw = wiphy_priv(wiphy);
-	ic = lhw->ic;
-
-	/*
-	 * If we haven't called ieee80211_ifattach() yet
-	 * or there is no VAP, there are no scans to flush.
-	 */
-	if (ic == NULL ||
-	    (lhw->sc_flags & LKPI_MAC80211_DRV_STARTED) == 0)
-		return;
-
-	/* Should only happen on the current one? Not seen it late enough. */
-	IEEE80211_LOCK(ic);
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		ieee80211_scan_flush(vap);
-	IEEE80211_UNLOCK(ic);
-}
-
 #ifdef LKPI_80211_HW_CRYPTO
 static int
 _lkpi_iv_key_set_delete(struct ieee80211vap *vap, const struct ieee80211_key *k,
@@ -4565,6 +4540,175 @@ linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *vif)
 #endif
 	ieee80211_beacon_miss(vap->iv_ic);
 }
+
+/* -------------------------------------------------------------------------- */
+
+struct lkpi_cfg80211_bss {
+	u_int refcnt;
+	struct cfg80211_bss bss;
+};
+
+struct lkpi_cfg80211_get_bss_iter_lookup {
+	struct wiphy *wiphy;
+	struct linuxkpi_ieee80211_channel *chan;
+	const uint8_t *bssid;
+	const uint8_t *ssid;
+	size_t ssid_len;
+	enum ieee80211_bss_type bss_type;
+	enum ieee80211_privacy privacy;
+
+	/*
+	 * Something to store a copy of the result as the net80211 scan cache
+	 * is not refoucnted so a scan entry might go away any time.
+	 */
+	bool match;
+	struct cfg80211_bss *bss;
+};
+
+static void
+lkpi_cfg80211_get_bss_iterf(void *arg, const struct ieee80211_scan_entry *se)
+{
+	struct lkpi_cfg80211_get_bss_iter_lookup *lookup;
+	size_t ielen;
+
+	lookup = arg;
+
+	/* Do not try to find another match. */
+	if (lookup->match)
+		return;
+
+	/* Nothing to store result. */
+	if (lookup->bss == NULL)
+		return;
+
+	if (lookup->privacy != IEEE80211_PRIVACY_ANY) {
+		/* if (se->se_capinfo & IEEE80211_CAPINFO_PRIVACY) */
+		/* We have no idea what to compare to as the drivers only request ANY */
+		return;
+	}
+
+	if (lookup->bss_type != IEEE80211_BSS_TYPE_ANY) {
+		/* if (se->se_capinfo & (IEEE80211_CAPINFO_IBSS|IEEE80211_CAPINFO_ESS)) */
+		/* We have no idea what to compare to as the drivers only request ANY */
+		return;
+	}
+
+	if (lookup->chan != NULL) {
+		struct linuxkpi_ieee80211_channel *chan;
+
+		chan = linuxkpi_ieee80211_get_channel(lookup->wiphy,
+		    se->se_chan->ic_freq);
+		if (chan == NULL || chan != lookup->chan)
+			return;
+	}
+
+	if (lookup->bssid && !IEEE80211_ADDR_EQ(lookup->bssid, se->se_bssid))
+		return;
+
+	if (lookup->ssid) {
+		if (lookup->ssid_len != se->se_ssid[1] ||
+		    se->se_ssid[1] == 0)
+			return;
+		if (memcmp(lookup->ssid, se->se_ssid+2, lookup->ssid_len) != 0)
+			return;
+	}
+
+	ielen = se->se_ies.len;
+
+	lookup->bss->ies = malloc(sizeof(*lookup->bss->ies) + ielen,
+	    M_LKPI80211, M_NOWAIT | M_ZERO);
+	if (lookup->bss->ies == NULL)
+		return;
+
+	lookup->bss->ies->data = (uint8_t *)lookup->bss->ies + sizeof(*lookup->bss->ies);
+	lookup->bss->ies->len = ielen;
+	if (ielen)
+		memcpy(lookup->bss->ies->data, se->se_ies.data, ielen);
+
+	lookup->match = true;
+}
+
+struct cfg80211_bss *
+linuxkpi_cfg80211_get_bss(struct wiphy *wiphy, struct linuxkpi_ieee80211_channel *chan,
+    const uint8_t *bssid, const uint8_t *ssid, size_t ssid_len,
+    enum ieee80211_bss_type bss_type, enum ieee80211_privacy privacy)
+{
+	struct lkpi_cfg80211_bss *lbss;
+	struct lkpi_cfg80211_get_bss_iter_lookup lookup;
+	struct lkpi_hw *lhw;
+	struct ieee80211vap *vap;
+
+	lhw = wiphy_priv(wiphy);
+
+	/* Let's hope we can alloc. */
+	lbss = malloc(sizeof(*lbss), M_LKPI80211, M_NOWAIT | M_ZERO);
+	if (lbss == NULL) {
+		ic_printf(lhw->ic, "%s: alloc failed.\n", __func__);
+		return (NULL);
+	}
+
+	lookup.wiphy = wiphy;
+	lookup.chan = chan;
+	lookup.bssid = bssid;
+	lookup.ssid = ssid;
+	lookup.ssid_len = ssid_len;
+	lookup.bss_type = bss_type;
+	lookup.privacy = privacy;
+	lookup.match = false;
+	lookup.bss = &lbss->bss;
+
+	IMPROVE("Iterate over all VAPs comparing perm_addr and addresses?");
+	vap = TAILQ_FIRST(&lhw->ic->ic_vaps);
+	ieee80211_scan_iterate(vap, lkpi_cfg80211_get_bss_iterf, &lookup);
+	if (!lookup.match) {
+		free(lbss, M_LKPI80211);
+		return (NULL);
+	}
+
+	refcount_init(&lbss->refcnt, 1);
+	return (&lbss->bss);
+}
+
+void
+linuxkpi_cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss)
+{
+	struct lkpi_cfg80211_bss *lbss;
+
+	lbss = container_of(bss, struct lkpi_cfg80211_bss, bss);
+
+	/* Free everything again on refcount ... */
+	if (refcount_release(&lbss->refcnt)) {
+		free(lbss->bss.ies, M_LKPI80211);
+		free(lbss, M_LKPI80211);
+	}
+}
+
+void
+linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211com *ic;
+	struct ieee80211vap *vap;
+
+	lhw = wiphy_priv(wiphy);
+	ic = lhw->ic;
+
+	/*
+	 * If we haven't called ieee80211_ifattach() yet
+	 * or there is no VAP, there are no scans to flush.
+	 */
+	if (ic == NULL ||
+	    (lhw->sc_flags & LKPI_MAC80211_DRV_STARTED) == 0)
+		return;
+
+	/* Should only happen on the current one? Not seen it late enough. */
+	IEEE80211_LOCK(ic);
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		ieee80211_scan_flush(vap);
+	IEEE80211_UNLOCK(ic);
+}
+
+/* -------------------------------------------------------------------------- */
 
 MODULE_VERSION(linuxkpi_wlan, 1);
 MODULE_DEPEND(linuxkpi_wlan, linuxkpi, 1, 1, 1);
