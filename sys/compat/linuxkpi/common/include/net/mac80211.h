@@ -224,6 +224,10 @@ struct ieee80211_chanctx_conf {
 	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
 };
 
+struct ieee80211_rate_status {
+	struct rate_info			rate_idx;
+};
+
 #define	WLAN_MEMBERSHIP_LEN			(8)
 #define	WLAN_USER_POSITION_LEN			(16)
 
@@ -557,15 +561,12 @@ struct ieee80211_rx_status {
 	uint8_t				rate_idx;
 };
 
-struct ieee80211_tx_rate_status {
-};
-
 struct ieee80211_tx_status {
 	struct ieee80211_sta		*sta;
 	struct ieee80211_tx_info	*info;
 
 	u8				n_rates;
-	struct ieee80211_tx_rate_status	*rates;
+	struct ieee80211_rate_status	*rates;
 
 	struct sk_buff			*skb;
 	struct list_head		*free_list;
@@ -609,6 +610,11 @@ struct ieee80211_sta_txpwr {
 	short				power;
 };
 
+struct ieee80211_sta_agg {
+	/* XXX TODO */
+	int max_amsdu_len;
+};
+
 struct ieee80211_link_sta {
 	uint32_t				supp_rates[NUM_NL80211_BANDS];
 	struct ieee80211_sta_ht_cap		ht_cap;
@@ -617,6 +623,8 @@ struct ieee80211_link_sta {
 	struct ieee80211_sta_he_6ghz_capa	he_6ghz_capa;
 	uint8_t					rx_nss;
 	enum ieee80211_sta_rx_bw		bandwidth;
+	enum ieee80211_smps_mode		smps_mode;
+	struct ieee80211_sta_agg		agg;
 	struct ieee80211_sta_txpwr		txpwr;
 };
 
@@ -682,6 +690,7 @@ enum ieee80211_vif_driver_flags {
 struct ieee80211_vif_cfg {
 	uint16_t				aid;
 	bool					assoc;
+	bool					ps;
 	int					arp_addr_cnt;
 	uint32_t				arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];		/* big endian */
 };
