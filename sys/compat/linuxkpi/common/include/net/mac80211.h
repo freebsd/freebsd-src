@@ -980,7 +980,9 @@ void linuxkpi_ieee80211_iffree(struct ieee80211_hw *);
 void linuxkpi_set_ieee80211_dev(struct ieee80211_hw *, char *);
 int linuxkpi_ieee80211_ifattach(struct ieee80211_hw *);
 void linuxkpi_ieee80211_ifdetach(struct ieee80211_hw *);
+void linuxkpi_ieee80211_unregister_hw(struct ieee80211_hw *);
 struct ieee80211_hw * linuxkpi_wiphy_to_ieee80211_hw(struct wiphy *);
+void linuxkpi_ieee80211_restart_hw(struct ieee80211_hw *);
 void linuxkpi_ieee80211_iterate_interfaces(
     struct ieee80211_hw *hw, enum ieee80211_iface_iter flags,
     void(*iterfunc)(void *, uint8_t *, struct ieee80211_vif *),
@@ -1110,14 +1112,11 @@ ieee80211_register_hw(struct ieee80211_hw *hw)
 	return (error);
 }
 
-static __inline void
+static inline void
 ieee80211_unregister_hw(struct ieee80211_hw *hw)
 {
 
-	wiphy_unregister(hw->wiphy);
-	linuxkpi_ieee80211_ifdetach(hw);
-
-	IMPROVE();
+	linuxkpi_ieee80211_unregister_hw(hw);
 }
 
 static __inline struct ieee80211_hw *
@@ -1126,6 +1125,13 @@ wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 
 	return (linuxkpi_wiphy_to_ieee80211_hw(wiphy));
 }
+
+static inline void
+ieee80211_restart_hw(struct ieee80211_hw *hw)
+{
+	linuxkpi_ieee80211_restart_hw(hw);
+}
+
 
 /* -------------------------------------------------------------------------- */
 
@@ -1828,12 +1834,6 @@ ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * it from normal low values flying around in net80211 ("ETX").
 	 */
 	linuxkpi_ieee80211_free_txskb(hw, skb, 0x455458);
-}
-
-static __inline void
-ieee80211_restart_hw(struct ieee80211_hw *hw)
-{
-	TODO();
 }
 
 static __inline void
