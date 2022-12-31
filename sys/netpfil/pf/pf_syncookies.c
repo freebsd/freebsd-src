@@ -127,7 +127,13 @@ pf_syncookies_init(void)
 {
 	callout_init(&V_pf_syncookie_status.keytimeout, 1);
 	PF_RULES_WLOCK();
-	pf_syncookies_setmode(PF_SYNCOOKIES_NEVER);
+
+	V_pf_syncookie_status.hiwat = PF_SYNCOOKIES_HIWATPCT *
+	    V_pf_limits[PF_LIMIT_STATES].limit / 100;
+	V_pf_syncookie_status.lowat = PF_SYNCOOKIES_LOWATPCT *
+	    V_pf_limits[PF_LIMIT_STATES].limit / 100;
+	pf_syncookies_setmode(PF_SYNCOOKIES_ADAPTIVE);
+
 	PF_RULES_WUNLOCK();
 }
 
