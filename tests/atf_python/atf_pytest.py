@@ -9,11 +9,21 @@ import pytest
 import os
 
 
+def nodeid_to_method_name(nodeid: str) -> str:
+    """file_name.py::ClassName::method_name[parametrize] -> method_name"""
+    return nodeid.split("::")[-1].split("[")[0]
+
+
 class ATFCleanupItem(pytest.Item):
     def runtest(self):
-        """Runs cleanup procedure for the test instead of the test"""
+        """Runs cleanup procedure for the test instead of the test itself"""
         instance = self.parent.cls()
-        instance.cleanup(self.nodeid)
+        cleanup_name = "cleanup_{}".format(nodeid_to_method_name(self.nodeid))
+        if hasattr(instance, cleanup_name):
+            cleanup = getattr(instance, cleanup_name)
+            cleanup(self.nodeid)
+        elif hasattr(instance, "cleanup"):
+            instance.cleanup(self.nodeid)
 
     def setup_method_noop(self, method):
         """Overrides runtest setup method"""
@@ -91,15 +101,20 @@ class ATFHandler(object):
         obj.parent.cls.setup_method = ATFCleanupItem.setup_method_noop
         obj.parent.cls.teardown_method = ATFCleanupItem.teardown_method_noop
 
-    def get_object_cleanup_class(self, obj):
+    @staticmethod
+    def get_test_class(obj):
         if hasattr(obj, "parent") and obj.parent is not None:
-            if hasattr(obj.parent, "cls") and obj.parent.cls is not None:
-                if hasattr(obj.parent.cls, "cleanup"):
-                    return obj.parent.cls
-        return None
+            if hasattr(obj.parent, "cls"):
+                return obj.parent.cls
 
     def has_object_cleanup(self, obj):
-        return self.get_object_cleanup_class(obj) is not None
+        cls = self.get_test_class(obj)
+        if cls is not None:
+            method_name = nodeid_to_method_name(obj.nodeid)
+            cleanup_name = "cleanup_{}".format(method_name)
+            if hasattr(cls, "cleanup") or hasattr(cls, cleanup_name):
+                return True
+        return False
 
     def list_tests(self, tests: List[str]):
         print('Content-Type: application/X-atf-tp; version="1"')
