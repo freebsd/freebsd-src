@@ -300,8 +300,8 @@ pf_syncookie_send(struct mbuf *m, int off, struct pf_pdesc *pd)
 	    1);
 }
 
-uint8_t
-pf_syncookie_validate(struct pf_pdesc *pd)
+bool
+pf_syncookie_check(struct pf_pdesc *pd)
 {
 	uint32_t		 hash, ack, seq;
 	union pf_syncookie	 cookie;
@@ -314,13 +314,28 @@ pf_syncookie_validate(struct pf_pdesc *pd)
 	cookie.cookie = (ack & 0xff) ^ (ack >> 24);
 
 	/* we don't know oddeven before setting the cookie (union) */
-        if (atomic_load_64(&V_pf_status.syncookies_inflight[cookie.flags.oddeven])
+	if (atomic_load_64(&V_pf_status.syncookies_inflight[cookie.flags.oddeven])
 	    == 0)
-                return (0);
+		return (0);
 
 	hash = pf_syncookie_mac(pd, cookie, seq);
 	if ((ack & ~0xff) != (hash & ~0xff))
+		return (false);
+
+	return (true);
+}
+
+uint8_t
+pf_syncookie_validate(struct pf_pdesc *pd)
+{
+	uint32_t		 ack;
+	union pf_syncookie	 cookie;
+
+	if (! pf_syncookie_check(pd))
 		return (0);
+
+	ack = ntohl(pd->hdr.tcp.th_ack) - 1;
+	cookie.cookie = (ack & 0xff) ^ (ack >> 24);
 
 	counter_u64_add(V_pf_status.lcounters[KLCNT_SYNCOOKIES_VALID], 1);
 	atomic_add_64(&V_pf_status.syncookies_inflight[cookie.flags.oddeven], -1);
