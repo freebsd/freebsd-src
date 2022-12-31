@@ -217,10 +217,67 @@ adaptive_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "port_reuse" "cleanup"
+port_reuse_head()
+{
+	atf_set descr 'Test rapid port re-use'
+	atf_set require.user root
+}
+
+port_reuse_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}b
+	vnet_mkjail singsing
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+	jexec alcatraz /usr/sbin/inetd -p ${HOME}/inetd-alcatraz.pid \
+	    $(atf_get_srcdir)/echo_inetd.conf
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	jexec alcatraz pfctl -e
+	jexec alcatraz pfctl -x loud
+	pft_set_rules alcatraz \
+		"set syncookies always" \
+		"pass in" \
+		"pass out"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	reply=$(echo foo | nc -p 1234 -N -w 5 192.0.2.1 7)
+	if [ "${reply}" != "foo" ];
+	then
+		atf_fail "Failed to connect to syncookie protected echo daemon"
+	fi
+
+	# We can't re-use the source IP/port combo quickly enough, so we're
+	# going to play a really dirty trick, and move our interface to a new
+	# jail, and do it from there.
+	ifconfig ${epair}a vnet singsing
+	jexec singsing ifconfig ${epair}a 192.0.2.2/24 up
+	atf_check -s exit:0 -o ignore jexec singsing ping -c 1 192.0.2.1
+
+	reply=$(echo bar | jexec singsing nc -p 1234 -N -w 5 192.0.2.1 7)
+	if [ "${reply}" != "bar" ];
+	then
+		atf_fail "Failed to connect to syncookie protected echo daemon (2)"
+	fi
+}
+
+port_reuse_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
 	atf_add_test_case "forward"
 	atf_add_test_case "nostate"
 	atf_add_test_case "adaptive"
+	atf_add_test_case "port_reuse"
 }
