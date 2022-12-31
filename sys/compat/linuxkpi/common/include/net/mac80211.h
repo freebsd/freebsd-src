@@ -2174,13 +2174,6 @@ SET_IEEE80211_PERM_ADDR	(struct ieee80211_hw *hw, uint8_t *addr)
 	ether_addr_copy(hw->wiphy->perm_addr, addr);
 }
 
-static __inline uint8_t *
-ieee80211_bss_get_ie(struct cfg80211_bss *bss, uint32_t eid)
-{
-	TODO();
-	return (NULL);
-}
-
 static __inline void
 ieee80211_report_low_ack(struct ieee80211_sta *sta, int x)
 {
@@ -2357,13 +2350,6 @@ ieee80211_tx_status_ext(struct ieee80211_hw *hw,
     struct ieee80211_tx_status *txstat)
 {
 	TODO();
-}
-
-static __inline const struct element *
-ieee80211_bss_get_elem(struct cfg80211_bss *bss, uint32_t eid)
-{
-	TODO();
-	return (NULL);
 }
 
 static __inline void

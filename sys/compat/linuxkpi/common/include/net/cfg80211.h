@@ -1321,11 +1321,73 @@ struct element {
 	uint8_t					data[0];
 } __packed;
 
-static __inline const struct element *
-cfg80211_find_elem(enum ieee80211_eid eid, uint8_t *data, size_t len)
+static inline const struct element *
+lkpi_cfg80211_find_elem_pattern(enum ieee80211_eid eid,
+    const uint8_t *data, size_t len, uint8_t *pattern, size_t plen)
 {
-	TODO();
+	const struct element *elem;
+	const uint8_t *p;
+	size_t ielen;
+
+	p = data;
+	elem = (const struct element *)p;
+	ielen = len;
+	while (elem != NULL && ielen > 1) {
+		if ((2 + elem->datalen) > ielen)
+			/* Element overruns our memory. */
+			return (NULL);
+		if (elem->id == eid) {
+			if (pattern == NULL)
+				return (elem);
+			if (elem->datalen >= plen &&
+			    memcmp(elem->data, pattern, plen) == 0)
+				return (elem);
+		}
+		ielen -= 2 + elem->datalen;
+		p += 2 + elem->datalen;
+		elem = (const struct element *)p;
+	}
+
 	return (NULL);
+}
+
+static inline const struct element *
+cfg80211_find_elem(enum ieee80211_eid eid, const uint8_t *data, size_t len)
+{
+
+	return (lkpi_cfg80211_find_elem_pattern(eid, data, len, NULL, 0));
+}
+
+static inline const struct element *
+ieee80211_bss_get_elem(struct cfg80211_bss *bss, uint32_t eid)
+{
+
+	if (bss->ies == NULL)
+		return (NULL);
+	return (cfg80211_find_elem(eid, bss->ies->data, bss->ies->len));
+}
+
+static inline const uint8_t *
+ieee80211_bss_get_ie(struct cfg80211_bss *bss, uint32_t eid)
+{
+
+	return ((const uint8_t *)ieee80211_bss_get_elem(bss, eid));
+}
+
+static inline uint8_t *
+cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
+    uint8_t *data, size_t len)
+{
+	const struct element *elem;
+	uint8_t pattern[4] = { oui << 16, oui << 8, oui, oui_type };
+	uint8_t plen = 4;		/* >= 3? oui_type always part of this? */
+	IMPROVE("plen currently always incl. oui_type");
+
+	elem = lkpi_cfg80211_find_elem_pattern(IEEE80211_ELEMID_VENDOR,
+	    data, len, pattern, plen);
+	if (elem == NULL)
+		return (NULL);
+	return (__DECONST(uint8_t *, elem));
 }
 
 static __inline uint32_t
@@ -1437,14 +1499,6 @@ wiphy_read_of_freq_limits(struct wiphy *wiphy)
 #ifdef FDT
 	TODO();
 #endif
-}
-
-static __inline uint8_t *
-cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
-    uint8_t *data, size_t len)
-{
-	TODO();
-	return (NULL);
 }
 
 static __inline void
