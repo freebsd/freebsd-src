@@ -192,7 +192,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	struct lkpi_vif *lvif;
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
-	int tid;
+	int band, i, tid;
 
 	lsta = malloc(sizeof(*lsta) + hw->sta_data_size, M_LKPI80211,
 	    M_NOWAIT | M_ZERO);
@@ -216,6 +216,8 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	sta = LSTA_TO_STA(lsta);
 
 	IEEE80211_ADDR_COPY(sta->addr, mac);
+
+	/* TXQ */
 	for (tid = 0; tid < nitems(sta->txq); tid++) {
 		struct lkpi_txq *ltxq;
 
@@ -242,6 +244,24 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 		skb_queue_head_init(&ltxq->skbq);
 		sta->txq[tid] = &ltxq->txq;
 	}
+
+	/* Deflink information. */
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *supband;
+
+		supband = hw->wiphy->bands[band];
+		if (supband == NULL)
+			continue;
+
+		for (i = 0; i < supband->n_bitrates; i++) {
+
+			IMPROVE("Further supband->bitrates[i]* checks?");
+			/* or should we get them from the ni? */
+			sta->deflink.supp_rates[band] |= BIT(i);
+		}
+	}
+	IMPROVE("ht, vht, he, ... bandwidth, smps_mode, ..");
+	/* bandwidth = IEEE80211_STA_RX_... */
 
 	/* Deferred TX path. */
 	mtx_init(&lsta->txq_mtx, "lsta_txq", NULL, MTX_DEF);
