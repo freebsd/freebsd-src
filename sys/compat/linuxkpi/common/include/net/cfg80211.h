@@ -1666,12 +1666,23 @@ ieee80211_get_channel(struct wiphy *wiphy, uint32_t freq)
 	return (linuxkpi_ieee80211_get_channel(wiphy, freq));
 }
 
-static __inline size_t
+static inline size_t
 ieee80211_get_hdrlen_from_skb(struct sk_buff *skb)
 {
+	const struct ieee80211_hdr *hdr;
+	size_t len;
 
-	TODO();
-	return (-1);
+	if (skb->len < 10)	/* sizeof(ieee80211_frame_[ack,cts]) */
+		return (0);
+
+	hdr = (const struct ieee80211_hdr *)skb->data;
+	len = ieee80211_hdrlen(hdr->frame_control);
+
+	/* If larger than what is in the skb return. */
+	if (len > skb->len)
+		return (0);
+
+	return (len);
 }
 
 static __inline bool
