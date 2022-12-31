@@ -1740,12 +1740,36 @@ cfg80211_channel_is_psc(struct linuxkpi_ieee80211_channel *channel)
 	return (false);
 }
 
-static __inline int
+static inline int
 cfg80211_get_ies_channel_number(const uint8_t *ie, size_t len,
     enum nl80211_band band, enum cfg80211_bss_frame_type ftype)
 {
+	const struct element *elem;
 
-	TODO();
+	switch (band) {
+	case NL80211_BAND_6GHZ:
+		TODO();
+		break;
+	case NL80211_BAND_5GHZ:
+	case NL80211_BAND_2GHZ:
+		/* DSPARAMS has the channel number. */
+		elem = cfg80211_find_elem(IEEE80211_ELEMID_DSPARMS, ie, len);
+		if (elem != NULL && elem->datalen == 1)
+			return (elem->data[0]);
+		/* HTINFO has the primary center channel. */
+		elem = cfg80211_find_elem(IEEE80211_ELEMID_HTINFO, ie, len);
+		if (elem != NULL &&
+		    elem->datalen >= (sizeof(struct ieee80211_ie_htinfo) - 2)) {
+			const struct ieee80211_ie_htinfo *htinfo;
+			htinfo = (const struct ieee80211_ie_htinfo *)elem;
+			return (htinfo->hi_ctrlchannel);
+		}
+		/* What else? */
+		break;
+	default:
+		IMPROVE("Unsupported");
+		break;
+	}
 	return (-1);
 }
 
