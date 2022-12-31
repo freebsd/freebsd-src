@@ -2345,6 +2345,23 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	return (vap);
 }
 
+void
+linuxkpi_ieee80211_unregister_hw(struct ieee80211_hw *hw)
+{
+
+	wiphy_unregister(hw->wiphy);
+	linuxkpi_ieee80211_ifdetach(hw);
+
+	IMPROVE();
+}
+
+void
+linuxkpi_ieee80211_restart_hw(struct ieee80211_hw *hw)
+{
+
+	TODO();
+}
+
 static void
 lkpi_ic_vap_delete(struct ieee80211vap *vap)
 {
