@@ -29,19 +29,29 @@ bool opt_ignore_check = false;
 const char stdin_filename[] = "(stdin)";
 
 
-/// Parse and set the memory usage limit for compression and/or decompression.
+/// Parse and set the memory usage limit for compression, decompression,
+/// and/or multithreaded decompression.
 static void
-parse_memlimit(const char *name, const char *name_percentage, char *str,
-		bool set_compress, bool set_decompress)
+parse_memlimit(const char *name, const char *name_percentage, const char *str,
+		bool set_compress, bool set_decompress, bool set_mtdec)
 {
 	bool is_percentage = false;
 	uint64_t value;
 
 	const size_t len = strlen(str);
 	if (len > 0 && str[len - 1] == '%') {
-		str[len - 1] = '\0';
+		// Make a copy so that we can get rid of %.
+		//
+		// In the past str wasn't const and we modified it directly
+		// but that modified argv[] and thus affected what was visible
+		// in "ps auxf" or similar tools which was confusing. For
+		// example, --memlimit=50% would show up as --memlimit=50
+		// since the percent sign was overwritten here.
+		char *s = xstrdup(str);
+		s[len - 1] = '\0';
 		is_percentage = true;
-		value = str_to_uint64(name_percentage, str, 1, 100);
+		value = str_to_uint64(name_percentage, s, 1, 100);
+		free(s);
 	} else {
 		// On 32-bit systems, SIZE_MAX would make more sense than
 		// UINT64_MAX. But use UINT64_MAX still so that scripts
@@ -49,15 +59,19 @@ parse_memlimit(const char *name, const char *name_percentage, char *str,
 		value = str_to_uint64(name, str, 0, UINT64_MAX);
 	}
 
-	hardware_memlimit_set(
-			value, set_compress, set_decompress, is_percentage);
+	hardware_memlimit_set(value, set_compress, set_decompress, set_mtdec,
+			is_percentage);
 	return;
 }
 
 
 static void
-parse_block_list(char *str)
+parse_block_list(const char *str_const)
 {
+	// We need a modifiable string in the for-loop.
+	char *str_start = xstrdup(str_const);
+	char *str = str_start;
+
 	// It must be non-empty and not begin with a comma.
 	if (str[0] == '\0' || str[0] == ',')
 		message_fatal(_("%s: Invalid argument to --block-list"), str);
@@ -112,6 +126,8 @@ parse_block_list(char *str)
 
 	// Terminate the array.
 	opt_block_list[count] = 0;
+
+	free(str_start);
 	return;
 }
 
@@ -125,6 +141,7 @@ parse_real(args_info *args, int argc, char **argv)
 		OPT_IA64,
 		OPT_ARM,
 		OPT_ARMTHUMB,
+		OPT_ARM64,
 		OPT_SPARC,
 		OPT_DELTA,
 		OPT_LZMA1,
@@ -138,6 +155,7 @@ parse_real(args_info *args, int argc, char **argv)
 		OPT_BLOCK_LIST,
 		OPT_MEM_COMPRESS,
 		OPT_MEM_DECOMPRESS,
+		OPT_MEM_MT_DECOMPRESS,
 		OPT_NO_ADJUST,
 		OPT_INFO_MEMORY,
 		OPT_ROBOT,
@@ -176,6 +194,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "block-list",  required_argument, NULL,  OPT_BLOCK_LIST },
 		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
 		{ "memlimit-decompress", required_argument, NULL, OPT_MEM_DECOMPRESS },
+		{ "memlimit-mt-decompress", required_argument, NULL, OPT_MEM_MT_DECOMPRESS },
 		{ "memlimit",     required_argument, NULL,  'M' },
 		{ "memory",       required_argument, NULL,  'M' }, // Old alias
 		{ "no-adjust",    no_argument,       NULL,  OPT_NO_ADJUST },
@@ -194,6 +213,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "ia64",         optional_argument, NULL,  OPT_IA64 },
 		{ "arm",          optional_argument, NULL,  OPT_ARM },
 		{ "armthumb",     optional_argument, NULL,  OPT_ARMTHUMB },
+		{ "arm64",        optional_argument, NULL,  OPT_ARM64 },
 		{ "sparc",        optional_argument, NULL,  OPT_SPARC },
 		{ "delta",        optional_argument, NULL,  OPT_DELTA },
 
@@ -225,20 +245,27 @@ parse_real(args_info *args, int argc, char **argv)
 		case OPT_MEM_COMPRESS:
 			parse_memlimit("memlimit-compress",
 					"memlimit-compress%", optarg,
-					true, false);
+					true, false, false);
 			break;
 
 		// --memlimit-decompress
 		case OPT_MEM_DECOMPRESS:
 			parse_memlimit("memlimit-decompress",
 					"memlimit-decompress%", optarg,
-					false, true);
+					false, true, false);
+			break;
+
+		// --memlimit-mt-decompress
+		case OPT_MEM_MT_DECOMPRESS:
+			parse_memlimit("memlimit-mt-decompress",
+					"memlimit-mt-decompress%", optarg,
+					false, false, true);
 			break;
 
 		// --memlimit
 		case 'M':
 			parse_memlimit("memlimit", "memlimit%", optarg,
-					true, true);
+					true, true, true);
 			break;
 
 		// --suffix
@@ -246,11 +273,23 @@ parse_real(args_info *args, int argc, char **argv)
 			suffix_set(optarg);
 			break;
 
-		case 'T':
+		case 'T': {
+			// Since xz 5.4.0: Ignore leading '+' first.
+			const char *s = optarg;
+			if (optarg[0] == '+')
+				++s;
+
 			// The max is from src/liblzma/common/common.h.
-			hardware_threads_set(str_to_uint64("threads",
-					optarg, 0, 16384));
+			uint32_t t = str_to_uint64("threads", s, 0, 16384);
+
+			// If leading '+' was used then use multi-threaded
+			// mode even if exactly one thread was specified.
+			if (t == 1 && optarg[0] == '+')
+				t = UINT32_MAX;
+
+			hardware_threads_set(t);
 			break;
+		}
 
 		// --version
 		case 'V':
@@ -360,6 +399,11 @@ parse_real(args_info *args, int argc, char **argv)
 					options_bcj(optarg));
 			break;
 
+		case OPT_ARM64:
+			coder_add_filter(LZMA_FILTER_ARM64,
+					options_bcj(optarg));
+			break;
+
 		case OPT_SPARC:
 			coder_add_filter(LZMA_FILTER_SPARC,
 					options_bcj(optarg));
@@ -395,8 +439,9 @@ parse_real(args_info *args, int argc, char **argv)
 				{ "xz",     FORMAT_XZ },
 				{ "lzma",   FORMAT_LZMA },
 				{ "alone",  FORMAT_LZMA },
-				// { "gzip",   FORMAT_GZIP },
-				// { "gz",     FORMAT_GZIP },
+#ifdef HAVE_LZIP_DECODER
+				{ "lzip",   FORMAT_LZIP },
+#endif
 				{ "raw",    FORMAT_RAW },
 			};
 
@@ -475,7 +520,7 @@ parse_real(args_info *args, int argc, char **argv)
 						"or `--files0'."));
 
 			if (optarg == NULL) {
-				args->files_name = (char *)stdin_filename;
+				args->files_name = stdin_filename;
 				args->files_file = stdin;
 			} else {
 				args->files_name = optarg;
@@ -649,6 +694,12 @@ args_parse(args_info *args, int argc, char **argv)
 	if (opt_mode != MODE_COMPRESS)
 		message_fatal(_("Decompression support was disabled "
 				"at build time"));
+#endif
+
+#ifdef HAVE_LZIP_DECODER
+	if (opt_mode == MODE_COMPRESS && opt_format == FORMAT_LZIP)
+		message_fatal(_("Compression of lzip files (.lz) "
+				"is not supported"));
 #endif
 
 	// Never remove the source file when the destination is not on disk.

@@ -12,11 +12,24 @@
 
 #include "common.h"
 
+
+// FIXME: Compared to crc64_fast.c this has to check for __x86_64__ too
+// so that in 32-bit builds crc64_x86.S won't break due to a missing table.
+#if (defined(__x86_64__) && defined(__SSSE3__) \
+			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
+		|| (defined(__e2k__) && __iset__ >= 6)
+// No table needed but something has to be exported to keep some toolchains
+// happy. Also use a declaration to silence compiler warnings.
+extern const char lzma_crc64_dummy;
+const char lzma_crc64_dummy;
+
+#else
 // Having the declaration here silences clang -Wmissing-variable-declarations.
 extern const uint64_t lzma_crc64_table[4][256];
 
-#ifdef WORDS_BIGENDIAN
-#	include "crc64_table_be.h"
-#else
-#	include "crc64_table_le.h"
+#	if defined(WORDS_BIGENDIAN)
+#		include "crc64_table_be.h"
+#	else
+#		include "crc64_table_le.h"
+#	endif
 #endif
