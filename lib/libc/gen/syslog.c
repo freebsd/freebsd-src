@@ -463,7 +463,10 @@ setlogmask(int pmask)
 }
 
 /*
- * Obtain LogPid from LogTag formatted as following: ident[NNN]
+ * Obtain LogPid from LogTag formatted as per RFC 3164,
+ * Section 5.3 Originating Process Information:
+ *
+ * ident[NNN]
  */
 static void
 parse_tag(void)
