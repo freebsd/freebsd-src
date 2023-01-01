@@ -51,10 +51,6 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 			|| (defined(__INTEL_COMPILER) && defined(__x86_64__)) \
 			|| (defined(__INTEL_COMPILER) && defined(_M_X64)) \
 			|| (defined(_MSC_VER) && defined(_M_X64)))
-	// NOTE: This will use 64-bit unaligned access which
-	// TUKLIB_FAST_UNALIGNED_ACCESS wasn't meant to permit, but
-	// it's convenient here at least as long as it's x86-64 only.
-	//
 	// I keep this x86-64 only for now since that's where I know this
 	// to be a good method. This may be fine on other 64-bit CPUs too.
 	// On big endian one should use xor instead of subtraction and switch
@@ -83,8 +79,9 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 		&& (defined(__SSE2__) \
 			|| (defined(_MSC_VER) && defined(_M_IX86_FP) \
 				&& _M_IX86_FP >= 2))
-	// NOTE: Like above, this will use 128-bit unaligned access which
-	// TUKLIB_FAST_UNALIGNED_ACCESS wasn't meant to permit.
+	// NOTE: This will use 128-bit unaligned access which
+	// TUKLIB_FAST_UNALIGNED_ACCESS wasn't meant to permit,
+	// but it's convenient here since this is x86-only.
 	//
 	// SSE2 version for 32-bit and 64-bit x86. On x86-64 the above
 	// version is sometimes significantly faster and sometimes
