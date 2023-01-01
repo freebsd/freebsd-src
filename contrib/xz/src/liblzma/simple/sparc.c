@@ -65,6 +65,7 @@ sparc_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 }
 
 
+#ifdef HAVE_ENCODER_SPARC
 extern lzma_ret
 lzma_simple_sparc_encoder_init(lzma_next_coder *next,
 		const lzma_allocator *allocator,
@@ -72,8 +73,10 @@ lzma_simple_sparc_encoder_init(lzma_next_coder *next,
 {
 	return sparc_coder_init(next, allocator, filters, true);
 }
+#endif
 
 
+#ifdef HAVE_DECODER_SPARC
 extern lzma_ret
 lzma_simple_sparc_decoder_init(lzma_next_coder *next,
 		const lzma_allocator *allocator,
@@ -81,3 +84,4 @@ lzma_simple_sparc_decoder_init(lzma_next_coder *next,
 {
 	return sparc_coder_init(next, allocator, filters, false);
 }
+#endif

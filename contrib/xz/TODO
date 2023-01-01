@@ -59,8 +59,6 @@ Missing features
       - Implement threaded match finders.
       - Implement pigz-style threading in LZMA2.
 
-    Multithreaded decompression
-
     Buffer-to-buffer coding could use less RAM (especially when
     decompressing LZMA1 or LZMA2).
 

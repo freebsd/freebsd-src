@@ -204,6 +204,10 @@ typedef struct {
 	/// Update the options in the middle of the encoding.
 	lzma_ret (*options_update)(void *coder, const lzma_filter *filter);
 
+	/// Set maximum allowed output size
+	lzma_ret (*set_out_limit)(void *coder, uint64_t *uncomp_size,
+			uint64_t out_limit);
+
 } lzma_lz_encoder;
 
 
@@ -214,6 +218,15 @@ typedef struct {
 //
 // The bytes that have been ran through the match finder, but not encoded yet,
 // are called `read ahead'.
+
+
+/// Get how many bytes the match finder hashes in its initial step.
+/// This is also the minimum nice_len value with the match finder.
+static inline uint32_t
+mf_get_hash_bytes(lzma_match_finder match_finder)
+{
+	return (uint32_t)match_finder & 0x0F;
+}
 
 
 /// Get pointer to the first byte not ran through the match finder
@@ -298,7 +311,8 @@ extern lzma_ret lzma_lz_encoder_init(
 		lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters,
 		lzma_ret (*lz_init)(lzma_lz_encoder *lz,
-			const lzma_allocator *allocator, const void *options,
+			const lzma_allocator *allocator,
+			lzma_vli id, const void *options,
 			lzma_lz_options *lz_options));
 
 
