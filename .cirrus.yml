@@ -37,6 +37,7 @@ task:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11 ${TOOLCHAIN_PKG}
   setup_script:
   - uname -a
+  - gpart show
   - df -m
   - pkg --version
   - pw useradd user
