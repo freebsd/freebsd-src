@@ -50,7 +50,3 @@ class BaseTest(object):
     def setup_method(self, method):
         """Run all pre-requisits for the test execution"""
         self._check_modules()
-
-    def cleanup(self, test_id: str):
-        """Cleanup all test resources here"""
-        pass
