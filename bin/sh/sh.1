@@ -1427,6 +1427,16 @@ unless you are the superuser, in which case it defaults to
 may include any of the following formatting sequences,
 which are replaced by the given information:
 .Bl -tag -width indent
+.It Li \eD{format}
+The current time in
+.Xr strftime 3
+.Ar format .
+The braces are required.
+Empty
+.Ar format
+is equivalent to
+\&%X,
+national representation of the time.
 .It Li \eH
 This system's fully-qualified hostname (FQDN).
 .It Li \eh

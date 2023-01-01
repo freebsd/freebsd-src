@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -2099,6 +2100,49 @@ getprompt(void *unused __unused)
 				ps[i] = '\n';
 			}
 			break;
+
+		/*
+		 * Print the current time as per provided strftime format.
+		 */
+		case 'D': {
+			char tfmt[128] = "%X"; /* \D{} means %X. */
+			struct tm *now;
+
+			if (fmt[1] != '{') {
+				/*
+				 * "\D" but not "\D{", so treat the '\'
+				 * literally and rewind fmt to treat 'D'
+				 * literally next iteration.
+				 */
+				ps[i] = '\\';
+				fmt--;
+				break;
+			}
+			fmt += 2; /* Consume "D{". */
+			if (fmt[0] != '}') {
+				char *end;
+
+				end = memccpy(tfmt, fmt, '}', sizeof(tfmt));
+				if (end == NULL) {
+					/*
+					 * Format too long or no '}', so
+					 * ignore "\D{" altogether.
+					 * The loop will do i++, but nothing
+					 * was written to ps, so do i-- here.
+					 * Rewind fmt for similar reason.
+					 */
+					i--;
+					fmt--;
+					break;
+				}
+				*--end = '\0'; /* Ignore the copy of '}'. */
+				fmt += end - tfmt;
+			}
+			now = localtime(&(time_t){time(NULL)});
+			i += strftime(&ps[i], PROMPTLEN - i - 1, tfmt, now);
+			i--; /* The loop will do i++. */
+			break;
+		}
 
 		/*
 		 * Hostname.
