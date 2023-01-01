@@ -263,6 +263,8 @@
         rc.d
         ..
     ..
+    examples
+    ..
     games
     ..
     gnu
