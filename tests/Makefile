@@ -9,6 +9,7 @@ ${PACKAGE}FILES+=		README __init__.py conftest.py
 KYUAFILE= yes
 
 SUBDIR+= etc
+SUBDIR+= examples
 SUBDIR+= sys
 SUBDIR+= atf_python
 
