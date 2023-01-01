@@ -42,6 +42,13 @@ static const struct {
 		.last_ok = true,
 		.changes_size = true,
 	},
+	{
+		.id = LZMA_FILTER_LZMA1EXT,
+		.options_size = sizeof(lzma_options_lzma),
+		.non_last_ok = false,
+		.last_ok = true,
+		.changes_size = true,
+	},
 #endif
 #if defined(HAVE_ENCODER_LZMA2) || defined(HAVE_DECODER_LZMA2)
 	{
@@ -91,6 +98,15 @@ static const struct {
 #if defined(HAVE_ENCODER_ARMTHUMB) || defined(HAVE_DECODER_ARMTHUMB)
 	{
 		.id = LZMA_FILTER_ARMTHUMB,
+		.options_size = sizeof(lzma_options_bcj),
+		.non_last_ok = true,
+		.last_ok = false,
+		.changes_size = false,
+	},
+#endif
+#if defined(HAVE_ENCODER_ARM64) || defined(HAVE_DECODER_ARM64)
+	{
+		.id = LZMA_FILTER_ARM64,
 		.options_size = sizeof(lzma_options_bcj),
 		.non_last_ok = true,
 		.last_ok = false,
@@ -196,8 +212,34 @@ error:
 }
 
 
-static lzma_ret
-validate_chain(const lzma_filter *filters, size_t *count)
+extern LZMA_API(void)
+lzma_filters_free(lzma_filter *filters, const lzma_allocator *allocator)
+{
+	if (filters == NULL)
+		return;
+
+	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+		if (i == LZMA_FILTERS_MAX) {
+			// The API says that LZMA_FILTERS_MAX + 1 is the
+			// maximum allowed size including the terminating
+			// element. Thus, we should never get here but in
+			// case there is a bug and we do anyway, don't go
+			// past the (probable) end of the array.
+			assert(0);
+			break;
+		}
+
+		lzma_free(filters[i].options, allocator);
+		filters[i].options = NULL;
+		filters[i].id = LZMA_VLI_UNKNOWN;
+	}
+
+	return;
+}
+
+
+extern lzma_ret
+lzma_validate_chain(const lzma_filter *filters, size_t *count)
 {
 	// There must be at least one filter.
 	if (filters == NULL || filters[0].id == LZMA_VLI_UNKNOWN)
@@ -251,7 +293,7 @@ lzma_raw_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 {
 	// Do some basic validation and get the number of filters.
 	size_t count;
-	return_if_error(validate_chain(options, &count));
+	return_if_error(lzma_validate_chain(options, &count));
 
 	// Set the filter functions and copy the options pointer.
 	lzma_filter_info filters[LZMA_FILTERS_MAX + 1];
@@ -304,7 +346,7 @@ lzma_raw_coder_memusage(lzma_filter_find coder_find,
 	// The chain has to have at least one filter.
 	{
 		size_t tmp;
-		if (validate_chain(filters, &tmp) != LZMA_OK)
+		if (lzma_validate_chain(filters, &tmp) != LZMA_OK)
 			return UINT64_MAX;
 	}
 

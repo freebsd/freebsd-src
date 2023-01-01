@@ -110,11 +110,23 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
 		// Another hack to ditch false positives: Assume that
 		// if the uncompressed size is known, it must be less
 		// than 256 GiB.
+		//
+		// FIXME? Without picky we allow > LZMA_VLI_MAX which doesn't
+		// really matter in this specific situation (> LZMA_VLI_MAX is
+		// safe in the LZMA decoder) but it's somewhat weird still.
 		if (coder->picky
 				&& coder->uncompressed_size != LZMA_VLI_UNKNOWN
 				&& coder->uncompressed_size
 					>= (LZMA_VLI_C(1) << 38))
 			return LZMA_FORMAT_ERROR;
+
+		// Use LZMA_FILTER_LZMA1EXT features to specify the
+		// uncompressed size and that the end marker is allowed
+		// even when the uncompressed size is known. Both .lzma
+		// header and LZMA1EXT use UINT64_MAX indicate that size
+		// is unknown.
+		coder->options.ext_flags = LZMA_LZMA1EXT_ALLOW_EOPM;
+		lzma_set_ext_size(coder->options, coder->uncompressed_size);
 
 		// Calculate the memory usage so that it is ready
 		// for SEQ_CODER_INIT.
@@ -132,6 +144,7 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
 
 		lzma_filter_info filters[2] = {
 			{
+				.id = LZMA_FILTER_LZMA1EXT,
 				.init = &lzma_lzma_decoder_init,
 				.options = &coder->options,
 			}, {
@@ -139,14 +152,8 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
 			}
 		};
 
-		const lzma_ret ret = lzma_next_filter_init(&coder->next,
-				allocator, filters);
-		if (ret != LZMA_OK)
-			return ret;
-
-		// Use a hack to set the uncompressed size.
-		lzma_lz_decoder_uncompressed(coder->next.coder,
-				coder->uncompressed_size, true);
+		return_if_error(lzma_next_filter_init(&coder->next,
+				allocator, filters));
 
 		coder->sequence = SEQ_CODE;
 		break;

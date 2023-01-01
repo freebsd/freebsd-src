@@ -51,7 +51,12 @@ static lzma_check check;
 /// This becomes false if the --check=CHECK option is used.
 static bool check_default = true;
 
-#if defined(HAVE_ENCODERS) && defined(MYTHREAD_ENABLED)
+/// Indicates if unconsumed input is allowed to remain after
+/// decoding has successfully finished. This is set for each file
+/// in coder_init().
+static bool allow_trailing_input;
+
+#ifdef MYTHREAD_ENABLED
 static lzma_mt mt_options = {
 	.flags = 0,
 	.timeout = 300,
@@ -136,6 +141,11 @@ memlimit_too_small(uint64_t memory_usage)
 extern void
 coder_set_compression_settings(void)
 {
+#ifdef HAVE_LZIP_DECODER
+	// .lz compression isn't supported.
+	assert(opt_format != FORMAT_LZIP);
+#endif
+
 	// The default check type is CRC64, but fallback to CRC32
 	// if CRC64 isn't supported by the copy of liblzma we are
 	// using. CRC32 is always supported.
@@ -211,7 +221,7 @@ coder_set_compression_settings(void)
 			}
 		}
 
-		if (hardware_threads_get() > 1) {
+		if (hardware_threads_is_mt()) {
 			message(V_WARNING, _("Switching to single-threaded "
 					"mode due to --flush-timeout"));
 			hardware_threads_set(1);
@@ -220,12 +230,16 @@ coder_set_compression_settings(void)
 
 	// Get the memory usage. Note that if --format=raw was used,
 	// we can be decompressing.
-	const uint64_t memory_limit = hardware_memlimit_get(opt_mode);
+	//
+	// If multithreaded .xz compression is done, this value will be
+	// replaced.
+	uint64_t memory_limit = hardware_memlimit_get(opt_mode);
 	uint64_t memory_usage = UINT64_MAX;
 	if (opt_mode == MODE_COMPRESS) {
 #ifdef HAVE_ENCODERS
 #	ifdef MYTHREAD_ENABLED
-		if (opt_format == FORMAT_XZ && hardware_threads_get() > 1) {
+		if (opt_format == FORMAT_XZ && hardware_threads_is_mt()) {
+			memory_limit = hardware_memlimit_mtenc_get();
 			mt_options.threads = hardware_threads_get();
 			mt_options.block_size = opt_block_size;
 			mt_options.check = check;
@@ -269,46 +283,89 @@ coder_set_compression_settings(void)
 	if (memory_usage <= memory_limit)
 		return;
 
-	// If --no-adjust was used or we didn't find LZMA1 or
-	// LZMA2 as the last filter, give an error immediately.
-	// --format=raw implies --no-adjust.
-	if (!opt_auto_adjust || opt_format == FORMAT_RAW)
+	// With --format=raw settings are never adjusted to meet
+	// the memory usage limit.
+	if (opt_format == FORMAT_RAW)
 		memlimit_too_small(memory_usage);
 
 	assert(opt_mode == MODE_COMPRESS);
 
 #ifdef HAVE_ENCODERS
 #	ifdef MYTHREAD_ENABLED
-	if (opt_format == FORMAT_XZ && mt_options.threads > 1) {
+	if (opt_format == FORMAT_XZ && hardware_threads_is_mt()) {
 		// Try to reduce the number of threads before
 		// adjusting the compression settings down.
-		do {
-			// FIXME? The real single-threaded mode has
-			// lower memory usage, but it's not comparable
-			// because it doesn't write the size info
-			// into Block Headers.
-			if (--mt_options.threads == 0)
-				memlimit_too_small(memory_usage);
-
+		while (mt_options.threads > 1) {
+			// Reduce the number of threads by one and check
+			// the memory usage.
+			--mt_options.threads;
 			memory_usage = lzma_stream_encoder_mt_memusage(
 					&mt_options);
 			if (memory_usage == UINT64_MAX)
 				message_bug();
 
-		} while (memory_usage > memory_limit);
+			if (memory_usage <= memory_limit) {
+				// The memory usage is now low enough.
+				message(V_WARNING, _("Reduced the number of "
+					"threads from %s to %s to not exceed "
+					"the memory usage limit of %s MiB"),
+					uint64_to_str(
+						hardware_threads_get(), 0),
+					uint64_to_str(mt_options.threads, 1),
+					uint64_to_str(round_up_to_mib(
+						memory_limit), 2));
+				return;
+			}
+		}
 
-		message(V_WARNING, _("Adjusted the number of threads "
-			"from %s to %s to not exceed "
-			"the memory usage limit of %s MiB"),
-			uint64_to_str(hardware_threads_get(), 0),
-			uint64_to_str(mt_options.threads, 1),
-			uint64_to_str(round_up_to_mib(
-				memory_limit), 2));
+		// If the memory usage limit is only a soft limit (automatic
+		// number of threads and no --memlimit-compress), the limit
+		// is only used to reduce the number of threads and once at
+		// just one thread, the limit is completely ignored. This
+		// way -T0 won't use insane amount of memory but at the same
+		// time the soft limit will never make xz fail and never make
+		// xz change settings that would affect the compressed output.
+		if (hardware_memlimit_mtenc_is_default()) {
+			message(V_WARNING, _("Reduced the number of threads "
+				"from %s to one. The automatic memory usage "
+				"limit of %s MiB is still being exceeded. "
+				"%s MiB of memory is required. "
+				"Continuing anyway."),
+				uint64_to_str(hardware_threads_get(), 0),
+				uint64_to_str(
+					round_up_to_mib(memory_limit), 1),
+				uint64_to_str(
+					round_up_to_mib(memory_usage), 2));
+			return;
+		}
+
+		// If --no-adjust was used, we cannot drop to single-threaded
+		// mode since it produces different compressed output.
+		//
+		// NOTE: In xz 5.2.x, --no-adjust also prevented reducing
+		// the number of threads. This changed in 5.3.3alpha.
+		if (!opt_auto_adjust)
+			memlimit_too_small(memory_usage);
+
+		// Switch to single-threaded mode. It uses
+		// less memory than using one thread in
+		// the multithreaded mode but the output
+		// is also different.
+		hardware_threads_set(1);
+		memory_usage = lzma_raw_encoder_memusage(filters);
+		message(V_WARNING, _("Switching to single-threaded mode "
+			"to not exceed the memory usage limit of %s MiB"),
+			uint64_to_str(round_up_to_mib(memory_limit), 0));
 	}
 #	endif
 
 	if (memory_usage <= memory_limit)
 		return;
+
+	// Don't adjust LZMA2 or LZMA1 dictionary size if --no-adjust
+	// was specified as that would change the compressed output.
+	if (!opt_auto_adjust)
+		memlimit_too_small(memory_usage);
 
 	// Look for the last filter if it is LZMA2 or LZMA1, so we can make
 	// it use less RAM. With other filters we don't know what to do.
@@ -423,6 +480,18 @@ is_format_lzma(void)
 
 	return true;
 }
+
+
+#ifdef HAVE_LZIP_DECODER
+/// Return true if the data in in_buf seems to be in the .lz format.
+static bool
+is_format_lzip(void)
+{
+	static const uint8_t magic[4] = { 0x4C, 0x5A, 0x49, 0x50 };
+	return strm.avail_in >= sizeof(magic)
+			&& memcmp(in_buf.u8, magic, sizeof(magic)) == 0;
+}
+#endif
 #endif
 
 
@@ -436,6 +505,12 @@ coder_init(file_pair *pair)
 {
 	lzma_ret ret = LZMA_PROG_ERROR;
 
+	// In most cases if there is input left when coding finishes,
+	// something has gone wrong. Exceptions are --single-stream
+	// and decoding .lz files which can contain trailing non-.lz data.
+	// These will be handled later in this function.
+	allow_trailing_input = false;
+
 	if (opt_mode == MODE_COMPRESS) {
 #ifdef HAVE_ENCODERS
 		switch (opt_format) {
@@ -446,7 +521,7 @@ coder_init(file_pair *pair)
 
 		case FORMAT_XZ:
 #	ifdef MYTHREAD_ENABLED
-			if (hardware_threads_get() > 1)
+			if (hardware_threads_is_mt())
 				ret = lzma_stream_encoder_mt(
 						&strm, &mt_options);
 			else
@@ -458,6 +533,14 @@ coder_init(file_pair *pair)
 		case FORMAT_LZMA:
 			ret = lzma_alone_encoder(&strm, filters[0].options);
 			break;
+
+#	ifdef HAVE_LZIP_DECODER
+		case FORMAT_LZIP:
+			// args.c should disallow this.
+			assert(0);
+			ret = LZMA_PROG_ERROR;
+			break;
+#	endif
 
 		case FORMAT_RAW:
 			ret = lzma_raw_encoder(&strm, filters);
@@ -475,7 +558,9 @@ coder_init(file_pair *pair)
 		else
 			flags |= LZMA_TELL_UNSUPPORTED_CHECK;
 
-		if (!opt_single_stream)
+		if (opt_single_stream)
+			allow_trailing_input = true;
+		else
 			flags |= LZMA_CONCATENATED;
 
 		// We abuse FORMAT_AUTO to indicate unknown file format,
@@ -484,8 +569,14 @@ coder_init(file_pair *pair)
 
 		switch (opt_format) {
 		case FORMAT_AUTO:
+			// .lz is checked before .lzma since .lzma detection
+			// is more complicated (no magic bytes).
 			if (is_format_xz())
 				init_format = FORMAT_XZ;
+#	ifdef HAVE_LZIP_DECODER
+			else if (is_format_lzip())
+				init_format = FORMAT_LZIP;
+#	endif
 			else if (is_format_lzma())
 				init_format = FORMAT_LZMA;
 			break;
@@ -499,6 +590,13 @@ coder_init(file_pair *pair)
 			if (is_format_lzma())
 				init_format = FORMAT_LZMA;
 			break;
+
+#	ifdef HAVE_LZIP_DECODER
+		case FORMAT_LZIP:
+			if (is_format_lzip())
+				init_format = FORMAT_LZIP;
+			break;
+#	endif
 
 		case FORMAT_RAW:
 			init_format = FORMAT_RAW;
@@ -524,9 +622,31 @@ coder_init(file_pair *pair)
 			break;
 
 		case FORMAT_XZ:
+#	ifdef MYTHREAD_ENABLED
+			mt_options.flags = flags;
+
+			mt_options.threads = hardware_threads_get();
+			mt_options.memlimit_stop
+				= hardware_memlimit_get(MODE_DECOMPRESS);
+
+			// If single-threaded mode was requested, set the
+			// memlimit for threading to zero. This forces the
+			// decoder to use single-threaded mode which matches
+			// the behavior of lzma_stream_decoder().
+			//
+			// Otherwise use the limit for threaded decompression
+			// which has a sane default (users are still free to
+			// make it insanely high though).
+			mt_options.memlimit_threading
+					= mt_options.threads == 1
+					? 0 : hardware_memlimit_mtdec_get();
+
+			ret = lzma_stream_decoder_mt(&strm, &mt_options);
+#	else
 			ret = lzma_stream_decoder(&strm,
 					hardware_memlimit_get(
 						MODE_DECOMPRESS), flags);
+#	endif
 			break;
 
 		case FORMAT_LZMA:
@@ -534,6 +654,15 @@ coder_init(file_pair *pair)
 					hardware_memlimit_get(
 						MODE_DECOMPRESS));
 			break;
+
+#	ifdef HAVE_LZIP_DECODER
+		case FORMAT_LZIP:
+			allow_trailing_input = true;
+			ret = lzma_lzip_decoder(&strm,
+					hardware_memlimit_get(
+						MODE_DECOMPRESS), flags);
+			break;
+#	endif
 
 		case FORMAT_RAW:
 			// Memory usage has already been checked in
@@ -598,7 +727,7 @@ split_block(uint64_t *block_remaining,
 {
 	if (*next_block_remaining > 0) {
 		// The Block at *list_pos has previously been split up.
-		assert(hardware_threads_get() == 1);
+		assert(!hardware_threads_is_mt());
 		assert(opt_block_size > 0);
 		assert(opt_block_list != NULL);
 
@@ -626,7 +755,7 @@ split_block(uint64_t *block_remaining,
 		// If in single-threaded mode, split up the Block if needed.
 		// This is not needed in multi-threaded mode because liblzma
 		// will do this due to how threaded encoding works.
-		if (hardware_threads_get() == 1 && opt_block_size > 0
+		if (!hardware_threads_is_mt() && opt_block_size > 0
 				&& *block_remaining > opt_block_size) {
 			*next_block_remaining
 					= *block_remaining - opt_block_size;
@@ -686,7 +815,7 @@ coder_normal(file_pair *pair)
 		// --block-size doesn't do anything here in threaded mode,
 		// because the threaded encoder will take care of splitting
 		// to fixed-sized Blocks.
-		if (hardware_threads_get() == 1 && opt_block_size > 0)
+		if (!hardware_threads_is_mt() && opt_block_size > 0)
 			block_remaining = opt_block_size;
 
 		// If --block-list was used, start with the first size.
@@ -700,7 +829,7 @@ coder_normal(file_pair *pair)
 		// mode the size info isn't written into Block Headers.
 		if (opt_block_list != NULL) {
 			if (block_remaining < opt_block_list[list_pos]) {
-				assert(hardware_threads_get() == 1);
+				assert(!hardware_threads_is_mt());
 				next_block_remaining = opt_block_list[list_pos]
 						- block_remaining;
 			} else {
@@ -764,7 +893,7 @@ coder_normal(file_pair *pair)
 			} else {
 				// Start a new Block after LZMA_FULL_BARRIER.
 				if (opt_block_list == NULL) {
-					assert(hardware_threads_get() == 1);
+					assert(!hardware_threads_is_mt());
 					assert(opt_block_size > 0);
 					block_remaining = opt_block_size;
 				} else {
@@ -795,7 +924,7 @@ coder_normal(file_pair *pair)
 			}
 
 			if (ret == LZMA_STREAM_END) {
-				if (opt_single_stream) {
+				if (allow_trailing_input) {
 					io_fix_src_pos(pair, strm.avail_in);
 					success = true;
 					break;
@@ -803,7 +932,9 @@ coder_normal(file_pair *pair)
 
 				// Check that there is no trailing garbage.
 				// This is needed for LZMA_Alone and raw
-				// streams.
+				// streams. This is *not* done with .lz files
+				// as that format specifically requires
+				// allowing trailing garbage.
 				if (strm.avail_in == 0 && !pair->src_eof) {
 					// Try reading one more byte.
 					// Hopefully we don't get any more

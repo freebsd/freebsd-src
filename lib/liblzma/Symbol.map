@@ -102,6 +102,18 @@ XZ_5.2 {
 	lzma_stream_encoder_mt_memusage;
 };
 
+XZ_5.4 {
+	lzma_file_info_decoder;
+	lzma_filters_free;
+	lzma_lzip_decoder;
+	lzma_microlzma_decoder;
+	lzma_microlzma_encoder;
+	lzma_stream_decoder_mt;
+	lzma_str_from_filters;
+	lzma_str_list_filters;
+	lzma_str_to_filters;
+};
+
 XZprivate_1.0 {
 	lzma_alloc;
 	lzma_alloc_zero;

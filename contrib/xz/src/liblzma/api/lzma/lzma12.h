@@ -18,16 +18,39 @@
 
 
 /**
- * \brief       LZMA1 Filter ID
+ * \brief       LZMA1 Filter ID (for raw encoder/decoder only, not in .xz)
  *
  * LZMA1 is the very same thing as what was called just LZMA in LZMA Utils,
  * 7-Zip, and LZMA SDK. It's called LZMA1 here to prevent developers from
  * accidentally using LZMA when they actually want LZMA2.
- *
- * LZMA1 shouldn't be used for new applications unless you _really_ know
- * what you are doing. LZMA2 is almost always a better choice.
  */
 #define LZMA_FILTER_LZMA1       LZMA_VLI_C(0x4000000000000001)
+
+/**
+ * \brief       LZMA1 Filter ID with extended options (for raw encoder/decoder)
+ *
+ * This is like LZMA_FILTER_LZMA1 but with this ID a few extra options
+ * are supported in the lzma_options_lzma structure:
+ *
+ *   - A flag to tell the encoder if the end of payload marker (EOPM) alias
+ *     end of stream (EOS) marker must be written at the end of the stream.
+ *     In contrast, LZMA_FILTER_LZMA1 always writes the end marker.
+ *
+ *   - Decoder needs to be told the uncompressed size of the stream
+ *     or that it is unknown (using the special value UINT64_MAX).
+ *     If the size is known, a flag can be set to allow the presence of
+ *     the end marker anyway. In contrast, LZMA_FILTER_LZMA1 always
+ *     behaves as if the uncompressed size was unknown.
+ *
+ * This allows handling file formats where LZMA1 streams are used but where
+ * the end marker isn't allowed or where it might not (always) be present.
+ * This extended LZMA1 functionality is provided as a Filter ID for raw
+ * encoder and decoder instead of adding new encoder and decoder initialization
+ * functions because this way it is possible to also use extra filters,
+ * for example, LZMA_FILTER_X86 in a filter chain with LZMA_FILTER_LZMA1EXT,
+ * which might be needed to handle some file formats.
+ */
+#define LZMA_FILTER_LZMA1EXT    LZMA_VLI_C(0x4000000000000002)
 
 /**
  * \brief       LZMA2 Filter ID
@@ -374,6 +397,82 @@ typedef struct {
 	 */
 	uint32_t depth;
 
+	/**
+	 * \brief       For LZMA_FILTER_LZMA1EXT: Extended flags
+	 *
+	 * This is used only with LZMA_FILTER_LZMA1EXT.
+	 *
+	 * Currently only one flag is supported, LZMA_LZMA1EXT_ALLOW_EOPM:
+	 *
+	 *   - Encoder: If the flag is set, then end marker is written just
+	 *     like it is with LZMA_FILTER_LZMA1. Without this flag the
+	 *     end marker isn't written and the application has to store
+	 *     the uncompressed size somewhere outside the compressed stream.
+	 *     To decompress streams without the end marker, the appliation
+	 *     has to set the correct uncompressed size in ext_size_low and
+	 *     ext_size_high.
+	 *
+	 *   - Decoder: If the uncompressed size in ext_size_low and
+	 *     ext_size_high is set to the special value UINT64_MAX
+	 *     (indicating unknown uncompressed size) then this flag is
+	 *     ignored and the end marker must always be present, that is,
+	 *     the behavior is identical to LZMA_FILTER_LZMA1.
+	 *
+	 *     Otherwise, if this flag isn't set, then the input stream
+	 *     must not have the end marker; if the end marker is detected
+	 *     then it will result in LZMA_DATA_ERROR. This is useful when
+	 *     it is known that the stream must not have the end marker and
+	 *     strict validation is wanted.
+	 *
+	 *     If this flag is set, then it is autodetected if the end marker
+	 *     is present after the specified number of uncompressed bytes
+	 *     has been decompressed (ext_size_low and ext_size_high). The
+	 *     end marker isn't allowed in any other position. This behavior
+	 *     is useful when uncompressed size is known but the end marker
+	 *     may or may not be present. This is the case, for example,
+	 *     in .7z files (valid .7z files that have the end marker in
+	 *     LZMA1 streams are rare but they do exist).
+	 */
+	uint32_t ext_flags;
+#	define LZMA_LZMA1EXT_ALLOW_EOPM   UINT32_C(0x01)
+
+	/**
+	 * \brief       For LZMA_FILTER_LZMA1EXT: Uncompressed size (low bits)
+	 *
+	 * The 64-bit uncompressed size is needed for decompression with
+	 * LZMA_FILTER_LZMA1EXT. The size is ignored by the encoder.
+	 *
+	 * The special value UINT64_MAX indicates that the uncompressed size
+	 * is unknown and that the end of payload marker (also known as
+	 * end of stream marker) must be present to indicate the end of
+	 * the LZMA1 stream. Any other value indicates the expected
+	 * uncompressed size of the LZMA1 stream. (If LZMA1 was used together
+	 * with filters that change the size of the data then the uncompressed
+	 * size of the LZMA1 stream could be different than the final
+	 * uncompressed size of the filtered stream.)
+	 *
+	 * ext_size_low holds the least significant 32 bits of the
+	 * uncompressed size. The most significant 32 bits must be set
+	 * in ext_size_high. The macro lzma_ext_size_set(opt_lzma, u64size)
+	 * can be used to set these members.
+	 *
+	 * The 64-bit uncompressed size is split into two uint32_t variables
+	 * because there were no reserved uint64_t members and using the
+	 * same options structure for LZMA_FILTER_LZMA1, LZMA_FILTER_LZMA1EXT,
+	 * and LZMA_FILTER_LZMA2 was otherwise more convenient than having
+	 * a new options structure for LZMA_FILTER_LZMA1EXT. (Replacing two
+	 * uint32_t members with one uint64_t changes the ABI on some systems
+	 * as the alignment of this struct can increase from 4 bytes to 8.)
+	 */
+	uint32_t ext_size_low;
+
+	/**
+	 * \brief       For LZMA_FILTER_LZMA1EXT: Uncompressed size (high bits)
+	 *
+	 * This holds the most significant 32 bits of the uncompressed size.
+	 */
+	uint32_t ext_size_high;
+
 	/*
 	 * Reserved space to allow possible future extensions without
 	 * breaking the ABI. You should not touch these, because the names
@@ -381,9 +480,6 @@ typedef struct {
 	 * with the currently supported options, so it is safe to leave these
 	 * uninitialized.
 	 */
-	uint32_t reserved_int1;
-	uint32_t reserved_int2;
-	uint32_t reserved_int3;
 	uint32_t reserved_int4;
 	uint32_t reserved_int5;
 	uint32_t reserved_int6;
@@ -397,6 +493,19 @@ typedef struct {
 	void *reserved_ptr2;
 
 } lzma_options_lzma;
+
+
+/**
+ * \brief       Macro to set the 64-bit uncompressed size in ext_size_*
+ *
+ * This might be convenient when decoding using LZMA_FILTER_LZMA1EXT.
+ * This isn't used with LZMA_FILTER_LZMA1 or LZMA_FILTER_LZMA2.
+ */
+#define lzma_set_ext_size(opt_lzma2, u64size) \
+do { \
+	(opt_lzma2).ext_size_low = (uint32_t)(u64size); \
+	(opt_lzma2).ext_size_high = (uint32_t)((uint64_t)(u64size) >> 32); \
+} while (0)
 
 
 /**

@@ -829,6 +829,15 @@ message_strm(lzma_ret code)
 	case LZMA_STREAM_END:
 	case LZMA_GET_CHECK:
 	case LZMA_PROG_ERROR:
+	case LZMA_SEEK_NEEDED:
+	case LZMA_RET_INTERNAL1:
+	case LZMA_RET_INTERNAL2:
+	case LZMA_RET_INTERNAL3:
+	case LZMA_RET_INTERNAL4:
+	case LZMA_RET_INTERNAL5:
+	case LZMA_RET_INTERNAL6:
+	case LZMA_RET_INTERNAL7:
+	case LZMA_RET_INTERNAL8:
 		// Without "default", compiler will warn if new constants
 		// are added to lzma_ret, it is not too easy to forget to
 		// add the new constants to this function.
@@ -891,167 +900,20 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
 }
 
 
-/// \brief      Convert uint32_t to a nice string for --lzma[12]=dict=SIZE
-///
-/// The idea is to use KiB or MiB suffix when possible.
-static const char *
-uint32_to_optstr(uint32_t num)
-{
-	static char buf[16];
-
-	if ((num & ((UINT32_C(1) << 20) - 1)) == 0)
-		snprintf(buf, sizeof(buf), "%" PRIu32 "MiB", num >> 20);
-	else if ((num & ((UINT32_C(1) << 10) - 1)) == 0)
-		snprintf(buf, sizeof(buf), "%" PRIu32 "KiB", num >> 10);
-	else
-		snprintf(buf, sizeof(buf), "%" PRIu32, num);
-
-	return buf;
-}
-
-
-extern void
-message_filters_to_str(char buf[FILTERS_STR_SIZE],
-		const lzma_filter *filters, bool all_known)
-{
-	char *pos = buf;
-	size_t left = FILTERS_STR_SIZE;
-
-	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
-		// Add the dashes for the filter option. A space is
-		// needed after the first and later filters.
-		my_snprintf(&pos, &left, "%s", i == 0 ? "--" : " --");
-
-		switch (filters[i].id) {
-		case LZMA_FILTER_LZMA1:
-		case LZMA_FILTER_LZMA2: {
-			const lzma_options_lzma *opt = filters[i].options;
-			const char *mode = NULL;
-			const char *mf = NULL;
-
-			if (all_known) {
-				switch (opt->mode) {
-				case LZMA_MODE_FAST:
-					mode = "fast";
-					break;
-
-				case LZMA_MODE_NORMAL:
-					mode = "normal";
-					break;
-
-				default:
-					mode = "UNKNOWN";
-					break;
-				}
-
-				switch (opt->mf) {
-				case LZMA_MF_HC3:
-					mf = "hc3";
-					break;
-
-				case LZMA_MF_HC4:
-					mf = "hc4";
-					break;
-
-				case LZMA_MF_BT2:
-					mf = "bt2";
-					break;
-
-				case LZMA_MF_BT3:
-					mf = "bt3";
-					break;
-
-				case LZMA_MF_BT4:
-					mf = "bt4";
-					break;
-
-				default:
-					mf = "UNKNOWN";
-					break;
-				}
-			}
-
-			// Add the filter name and dictionary size, which
-			// is always known.
-			my_snprintf(&pos, &left, "lzma%c=dict=%s",
-					filters[i].id == LZMA_FILTER_LZMA2
-						? '2' : '1',
-					uint32_to_optstr(opt->dict_size));
-
-			// With LZMA1 also lc/lp/pb are known when
-			// decompressing, but this function is never
-			// used to print information about .lzma headers.
-			assert(filters[i].id == LZMA_FILTER_LZMA2
-					|| all_known);
-
-			// Print the rest of the options, which are known
-			// only when compressing.
-			if (all_known)
-				my_snprintf(&pos, &left,
-					",lc=%" PRIu32 ",lp=%" PRIu32
-					",pb=%" PRIu32
-					",mode=%s,nice=%" PRIu32 ",mf=%s"
-					",depth=%" PRIu32,
-					opt->lc, opt->lp, opt->pb,
-					mode, opt->nice_len, mf, opt->depth);
-			break;
-		}
-
-		case LZMA_FILTER_X86:
-		case LZMA_FILTER_POWERPC:
-		case LZMA_FILTER_IA64:
-		case LZMA_FILTER_ARM:
-		case LZMA_FILTER_ARMTHUMB:
-		case LZMA_FILTER_SPARC: {
-			static const char bcj_names[][9] = {
-				"x86",
-				"powerpc",
-				"ia64",
-				"arm",
-				"armthumb",
-				"sparc",
-			};
-
-			const lzma_options_bcj *opt = filters[i].options;
-			my_snprintf(&pos, &left, "%s", bcj_names[filters[i].id
-					- LZMA_FILTER_X86]);
-
-			// Show the start offset only when really needed.
-			if (opt != NULL && opt->start_offset != 0)
-				my_snprintf(&pos, &left, "=start=%" PRIu32,
-						opt->start_offset);
-
-			break;
-		}
-
-		case LZMA_FILTER_DELTA: {
-			const lzma_options_delta *opt = filters[i].options;
-			my_snprintf(&pos, &left, "delta=dist=%" PRIu32,
-					opt->dist);
-			break;
-		}
-
-		default:
-			// This should be possible only if liblzma is
-			// newer than the xz tool.
-			my_snprintf(&pos, &left, "UNKNOWN");
-			break;
-		}
-	}
-
-	return;
-}
-
-
 extern void
 message_filters_show(enum message_verbosity v, const lzma_filter *filters)
 {
 	if (v > verbosity)
 		return;
 
-	char buf[FILTERS_STR_SIZE];
-	message_filters_to_str(buf, filters, true);
+	char *buf;
+	const lzma_ret ret = lzma_str_from_filters(&buf, filters,
+			LZMA_STR_ENCODER | LZMA_STR_GETOPT_LONG, NULL);
+	if (ret != LZMA_OK)
+		message_fatal("%s", message_strm(ret));
+
 	fprintf(stderr, _("%s: Filter chain: %s\n"), progname, buf);
+	free(buf);
 	return;
 }
 
@@ -1134,7 +996,7 @@ message_help(bool long_help)
 		puts(_("\n Basic file format and compression options:\n"));
 		puts(_(
 "  -F, --format=FMT    file format to encode or decode; possible values are\n"
-"                      `auto' (default), `xz', `lzma', and `raw'\n"
+"                      `auto' (default), `xz', `lzma', `lzip', and `raw'\n"
 "  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
 "                      `crc32', `crc64' (default), or `sha256'"));
 		puts(_(
@@ -1171,9 +1033,11 @@ message_help(bool long_help)
 		puts(_( // xgettext:no-c-format
 "      --memlimit-compress=LIMIT\n"
 "      --memlimit-decompress=LIMIT\n"
+"      --memlimit-mt-decompress=LIMIT\n"
 "  -M, --memlimit=LIMIT\n"
 "                      set memory usage limit for compression, decompression,\n"
-"                      or both; LIMIT is in bytes, % of RAM, or 0 for defaults"));
+"                      threaded decompression, or all of these; LIMIT is in\n"
+"                      bytes, % of RAM, or 0 for defaults"));
 
 		puts(_(
 "      --no-adjust     if compression settings exceed the memory usage limit,\n"
@@ -1208,10 +1072,11 @@ message_help(bool long_help)
 		puts(_(
 "\n"
 "  --x86[=OPTS]        x86 BCJ filter (32-bit and 64-bit)\n"
+"  --arm[=OPTS]        ARM BCJ filter\n"
+"  --armthumb[=OPTS]   ARM-Thumb BCJ filter\n"
+"  --arm64[=OPTS]      ARM64 BCJ filter\n"
 "  --powerpc[=OPTS]    PowerPC BCJ filter (big endian only)\n"
 "  --ia64[=OPTS]       IA-64 (Itanium) BCJ filter\n"
-"  --arm[=OPTS]        ARM BCJ filter (little endian only)\n"
-"  --armthumb[=OPTS]   ARM-Thumb BCJ filter (little endian only)\n"
 "  --sparc[=OPTS]      SPARC BCJ filter\n"
 "                      Valid OPTS for all BCJ filters:\n"
 "                        start=NUM  start offset for conversions (default=0)"));

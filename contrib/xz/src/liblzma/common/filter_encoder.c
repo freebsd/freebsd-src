@@ -64,6 +64,15 @@ static const lzma_filter_encoder encoders[] = {
 		.props_size_fixed = 5,
 		.props_encode = &lzma_lzma_props_encode,
 	},
+	{
+		.id = LZMA_FILTER_LZMA1EXT,
+		.init = &lzma_lzma_encoder_init,
+		.memusage = &lzma_lzma_encoder_memusage,
+		.block_size = NULL, // Not needed for LZMA1
+		.props_size_get = NULL,
+		.props_size_fixed = 5,
+		.props_encode = &lzma_lzma_props_encode,
+	},
 #endif
 #ifdef HAVE_ENCODER_LZMA2
 	{
@@ -120,6 +129,16 @@ static const lzma_filter_encoder encoders[] = {
 	{
 		.id = LZMA_FILTER_ARMTHUMB,
 		.init = &lzma_simple_armthumb_encoder_init,
+		.memusage = NULL,
+		.block_size = NULL,
+		.props_size_get = &lzma_simple_props_size,
+		.props_encode = &lzma_simple_props_encode,
+	},
+#endif
+#ifdef HAVE_ENCODER_ARM64
+	{
+		.id = LZMA_FILTER_ARM64,
+		.init = &lzma_simple_arm64_encoder_init,
 		.memusage = NULL,
 		.block_size = NULL,
 		.props_size_get = &lzma_simple_props_size,

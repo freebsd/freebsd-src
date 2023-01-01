@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       auto_decoder.c
-/// \brief      Autodetect between .xz Stream and .lzma (LZMA_Alone) formats
+/// \brief      Autodetect between .xz, .lzma (LZMA_Alone), and .lz (lzip)
 //
 //  Author:     Lasse Collin
 //
@@ -12,10 +12,13 @@
 
 #include "stream_decoder.h"
 #include "alone_decoder.h"
+#ifdef HAVE_LZIP_DECODER
+#	include "lzip_decoder.h"
+#endif
 
 
 typedef struct {
-	/// Stream decoder or LZMA_Alone decoder
+	/// .xz Stream decoder, LZMA_Alone decoder, or lzip decoder
 	lzma_next_coder next;
 
 	uint64_t memlimit;
@@ -46,14 +49,22 @@ auto_decode(void *coder_ptr, const lzma_allocator *allocator,
 		// SEQ_CODE even if we return some LZMA_*_CHECK.
 		coder->sequence = SEQ_CODE;
 
-		// Detect the file format. For now this is simple, since if
-		// it doesn't start with 0xFD (the first magic byte of the
-		// new format), it has to be LZMA_Alone, or something that
-		// we don't support at all.
+		// Detect the file format. .xz files start with 0xFD which
+		// cannot be the first byte of .lzma (LZMA_Alone) format.
+		// The .lz format starts with 0x4C which could be the
+		// first byte of a .lzma file but luckily it would mean
+		// lc/lp/pb being 4/3/1 which liblzma doesn't support because
+		// lc + lp > 4. So using just 0x4C to detect .lz is OK here.
 		if (in[*in_pos] == 0xFD) {
 			return_if_error(lzma_stream_decoder_init(
 					&coder->next, allocator,
 					coder->memlimit, coder->flags));
+#ifdef HAVE_LZIP_DECODER
+		} else if (in[*in_pos] == 0x4C) {
+			return_if_error(lzma_lzip_decoder_init(
+					&coder->next, allocator,
+					coder->memlimit, coder->flags));
+#endif
 		} else {
 			return_if_error(lzma_alone_decoder_init(&coder->next,
 					allocator, coder->memlimit, true));

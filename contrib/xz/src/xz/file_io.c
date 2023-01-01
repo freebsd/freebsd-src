@@ -212,6 +212,17 @@ io_sandbox_enter(int src_fd)
 	if (cap_enter())
 		goto error;
 
+#elif defined(HAVE_PLEDGE)
+	// pledge() was introduced in OpenBSD 5.9.
+	//
+	// main() unconditionally calls pledge() with fairly relaxed
+	// promises which work in all situations. Here we make the
+	// sandbox more strict.
+	if (pledge("stdio", ""))
+		goto error;
+
+	(void)src_fd;
+
 #else
 #	error ENABLE_SANDBOX is defined but no sandboxing method was found.
 #endif
@@ -221,7 +232,7 @@ io_sandbox_enter(int src_fd)
 	return;
 
 error:
-	message(V_DEBUG, _("Failed to enable the sandbox"));
+	message_fatal(_("Failed to enable the sandbox"));
 }
 #endif // ENABLE_SANDBOX
 
@@ -748,8 +759,10 @@ error:
 extern file_pair *
 io_open_src(const char *src_name)
 {
-	if (is_empty_filename(src_name))
+	if (src_name[0] == '\0') {
+		message_error(_("Empty filename, skipping"));
 		return NULL;
+	}
 
 	// Since we have only one file open at a time, we can use
 	// a statically allocated structure.
@@ -1195,15 +1208,35 @@ io_read(file_pair *pair, io_buf *buf, size_t size)
 
 
 extern bool
-io_pread(file_pair *pair, io_buf *buf, size_t size, off_t pos)
+io_seek_src(file_pair *pair, uint64_t pos)
 {
-	// Using lseek() and read() is more portable than pread() and
-	// for us it is as good as real pread().
-	if (lseek(pair->src_fd, pos, SEEK_SET) != pos) {
+	// Caller must not attempt to seek past the end of the input file
+	// (seeking to 100 in a 100-byte file is seeking to the end of
+	// the file, not past the end of the file, and thus that is allowed).
+	//
+	// This also validates that pos can be safely cast to off_t.
+	if (pos > (uint64_t)(pair->src_st.st_size))
+		message_bug();
+
+	if (lseek(pair->src_fd, (off_t)(pos), SEEK_SET) == -1) {
 		message_error(_("%s: Error seeking the file: %s"),
 				pair->src_name, strerror(errno));
 		return true;
 	}
+
+	pair->src_eof = false;
+
+	return false;
+}
+
+
+extern bool
+io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos)
+{
+	// Using lseek() and read() is more portable than pread() and
+	// for us it is as good as real pread().
+	if (io_seek_src(pair, pos))
+		return true;
 
 	const size_t amount = io_read(pair, buf, size);
 	if (amount == SIZE_MAX)

@@ -354,10 +354,5 @@ options_lzma(const char *str)
 	if (options->lc + options->lp > LZMA_LCLP_MAX)
 		message_fatal(_("The sum of lc and lp must not exceed 4"));
 
-	const uint32_t nice_len_min = options->mf & 0x0F;
-	if (options->nice_len < nice_len_min)
-		message_fatal(_("The selected match finder requires at "
-				"least nice=%" PRIu32), nice_len_min);
-
 	return options;
 }

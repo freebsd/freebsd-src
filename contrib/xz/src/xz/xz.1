@@ -5,7 +5,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2022-10-25" "Tukaani" "XZ Utils"
+.TH XZ 1 "2022-12-01" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -62,6 +62,11 @@ format, but the legacy
 format used by LZMA Utils and
 raw compressed streams with no container format headers
 are also supported.
+In addition, decompression of the
+.B .lz
+format used by
+.B lzip
+is supported.
 .PP
 .B xz
 compresses or decompresses each
@@ -102,9 +107,10 @@ or
 is appended to the source filename to get the target filename.
 .IP \(bu 3
 When decompressing, the
-.B .xz
+.BR .xz ,
+.BR .lzma ,
 or
-.B .lzma
+.B .lz
 suffix is removed from the filename to get the target filename.
 .B xz
 also recognizes the suffixes
@@ -158,8 +164,9 @@ doesn't have a suffix of any of the supported file formats
 .RB ( .xz ,
 .BR .txz ,
 .BR .lzma ,
+.BR .tlz ,
 or
-.BR .tlz ).
+.BR .lz ).
 .PP
 After successfully compressing or decompressing the
 .IR file ,
@@ -507,8 +514,9 @@ in addition to files with the
 .BR .xz ,
 .BR .txz ,
 .BR .lzma ,
+.BR .tlz ,
 or
-.B .tlz
+.B .lz
 suffix.
 If the source file has the suffix
 .IR .suf ,
@@ -574,6 +582,34 @@ files when decompressing.
 The alternative name
 .B alone
 is provided for backwards compatibility with LZMA Utils.
+.TP
+.B lzip
+Accept only
+.B .lz
+files when decompressing.
+Compression is not supported.
+.IP ""
+The
+.B .lz
+format version 0 and the unextended version 1 are supported.
+Version 0 files were produced by
+.B lzip
+1.3 and older.
+Such files aren't common but may be found from file archives
+as a few source packages were released in this format.
+People might have old personal files in this format too.
+Decompression support for the format version 0 was removed in
+.B lzip
+1.18.
+.IP ""
+.B lzip
+1.4 and later create files in the format version 1.
+The sync flush marker extension to the format version 1 was added in
+.B lzip
+1.6.
+This extension is rarely used and isn't supported by
+.B xz
+(diagnosed as corrupt input).
 .TP
 .B raw
 Compress or uncompress a raw stream (no headers).
@@ -965,15 +1001,28 @@ the last one takes effect.
 If the compression settings exceed the
 .IR limit ,
 .B xz
-will adjust the settings downwards so that
+will attempt to adjust the settings downwards so that
 the limit is no longer exceeded and display a notice that
 automatic adjustment was done.
-Such adjustments are not made when compressing with
+The adjustments are done in this order:
+reducing the number of threads,
+switching to single-threaded mode
+if even one thread in multi-threaded mode exceeds the
+.IR limit ,
+and finally reducing the LZMA2 dictionary size.
+.IP ""
+When compressing with
 .B \-\-format=raw
 or if
 .B \-\-no\-adjust
-has been specified.
-In those cases, an error is displayed and
+has been specified,
+only the number of threads may be reduced
+since it can be done without affecting the compressed output.
+.IP ""
+If the
+.I limit
+cannot be met even with the adjustments described above,
+an error is displayed and
 .B xz
 will exit with exit status 1.
 .IP ""
@@ -1012,16 +1061,6 @@ This is currently equivalent to setting the
 to
 .B max
 (no memory usage limit).
-Once multithreading support has been implemented,
-there may be a difference between
-.B 0
-and
-.B max
-for the multithreaded case, so it is recommended to use
-.B 0
-instead of
-.B max
-until the details have been decided.
 .RE
 .IP ""
 For 32-bit
@@ -1064,16 +1103,80 @@ See
 for possible ways to specify the
 .IR limit .
 .TP
+.BI \-\-memlimit\-mt\-decompress= limit
+Set a memory usage limit for multi-threaded decompression.
+This can only affect the number of threads;
+this will never make
+.B xz
+refuse to decompress a file.
+If
+.I limit
+is too low to allow any multi-threading, the
+.I limit
+is ignored and
+.B xz
+will continue in single-threaded mode.
+Note that if also
+.B \-\-memlimit\-decompress
+is used,
+it will always apply to both single-threaded and multi-threaded modes,
+and so the effective
+.I limit
+for multi-threading will never be higher than the limit set with
+.BR \-\-memlimit\-decompress .
+.IP ""
+In contrast to the other memory usage limit options,
+.BI \-\-memlimit\-mt\-decompress= limit
+has a system-specific default
+.IR limit .
+.B "xz \-\-info\-memory"
+can be used to see the current value.
+.IP ""
+This option and its default value exist
+because without any limit the threaded decompressor
+could end up allocating an insane amount of memory with some input files.
+If the default
+.I limit
+is too low on your system,
+feel free to increase the
+.I limit
+but never set it to a value larger than the amount of usable RAM
+as with appropriate input files
+.B xz
+will attempt to use that amount of memory
+even with a low number of threads.
+Running out of memory or swapping
+will not improve decompression performance.
+.IP ""
+See
+.BI \-\-memlimit\-compress= limit
+for possible ways to specify the
+.IR limit .
+Setting
+.I limit
+to
+.B 0
+resets the
+.I limit
+to the default system-specific value.
+.IP ""
+.TP
 \fB\-M\fR \fIlimit\fR, \fB\-\-memlimit=\fIlimit\fR, \fB\-\-memory=\fIlimit
 This is equivalent to specifying
 .BI \-\-memlimit\-compress= limit
-\fB\-\-memlimit\-decompress=\fIlimit\fR.
+.BI \-\-memlimit-decompress= limit
+\fB\-\-memlimit\-mt\-decompress=\fIlimit\fR.
 .TP
 .B \-\-no\-adjust
-Display an error and exit if the compression settings exceed
-the memory usage limit.
-The default is to adjust the settings downwards so
-that the memory usage limit is not exceeded.
+Display an error and exit if the memory usage limit cannot be
+met without adjusting settings that affect the compressed output.
+That is, this prevents
+.B xz
+from switching the encoder from multi-threaded mode to single-threaded mode
+and from reducing the LZMA2 dictionary size.
+Even when this option is used the number of threads may be reduced
+to meet the memory usage limit as that won't affect the compressed output.
+.IP ""
 Automatic adjusting is always disabled when creating raw streams
 .RB ( \-\-format=raw ).
 .TP
@@ -1085,12 +1188,65 @@ to a special value
 .B 0
 makes
 .B xz
-use as many threads as there are CPU cores on the system.
-The actual number of threads can be less than
+use up to as many threads as the processor(s) on the system support.
+The actual number of threads can be fewer than
 .I threads
 if the input file is not big enough
 for threading with the given settings or
 if using more threads would exceed the memory usage limit.
+.IP ""
+The single-threaded and multi-threaded compressors produce different output.
+Single-threaded compressor will give the smallest file size but
+only the output from the multi-threaded compressor can be decompressed
+using multiple threads.
+Setting
+.I threads
+to
+.B 1
+will use the single-threaded mode.
+Setting
+.I threads
+to any other value, including
+.BR 0 ,
+will use the multi-threaded compressor
+even if the system supports only one hardware thread.
+.RB ( xz
+5.2.x
+used single-threaded mode in this situation.)
+.IP ""
+To use multi-threaded mode with only one thread, set
+.I threads
+to
+.BR +1 .
+The
+.B +
+prefix has no effect with values other than
+.BR 1 .
+A memory usage limit can still make
+.B xz
+switch to single-threaded mode unless
+.B \-\-no\-adjust
+is used.
+Support for the
+.B +
+prefix was added in
+.B xz
+5.4.0.
+.IP ""
+If an automatic number of threads has been requested and
+no memory usage limit has been specified,
+then a system-specific default soft limit will be used to possibly
+limit the number of threads.
+It is a soft limit in sense that it is ignored
+if the number of threads becomes one,
+thus a soft limit will never stop
+.B xz
+from compressing or decompressing.
+This default soft limit will not make
+.B xz
+switch from multi-threaded mode to single-threaded mode.
+The active limits can be seen with
+.BR "xz \-\-info\-memory" .
 .IP ""
 Currently the only threading method is to split the input into
 blocks and compress them independently from each other.
@@ -1099,13 +1255,13 @@ can be overridden with the
 .BI \-\-block\-size= size
 option.
 .IP ""
-Threaded decompression hasn't been implemented yet.
-It will only work on files that contain multiple blocks
-with size information in block headers.
-All files compressed in multi-threaded mode meet this condition,
+Threaded decompression only works on files that contain
+multiple blocks with size information in block headers.
+All large enough files compressed in multi-threaded mode
+meet this condition,
 but files compressed in single-threaded mode don't even if
 .BI \-\-block\-size= size
-is used.
+has been used.
 .
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying
@@ -1537,13 +1693,15 @@ and
 \fB\-\-x86\fR[\fB=\fIoptions\fR]
 .PD 0
 .TP
-\fB\-\-powerpc\fR[\fB=\fIoptions\fR]
-.TP
-\fB\-\-ia64\fR[\fB=\fIoptions\fR]
-.TP
 \fB\-\-arm\fR[\fB=\fIoptions\fR]
 .TP
 \fB\-\-armthumb\fR[\fB=\fIoptions\fR]
+.TP
+\fB\-\-arm64\fR[\fB=\fIoptions\fR]
+.TP
+\fB\-\-powerpc\fR[\fB=\fIoptions\fR]
+.TP
+\fB\-\-ia64\fR[\fB=\fIoptions\fR]
 .TP
 \fB\-\-sparc\fR[\fB=\fIoptions\fR]
 .PD
@@ -1553,7 +1711,7 @@ in the filter chain.
 .IP ""
 A BCJ filter converts relative addresses in
 the machine code to their absolute counterparts.
-This doesn't change the size of the data,
+This doesn't change the size of the data
 but it increases redundancy,
 which can help LZMA2 to produce 0\(en15\ % smaller
 .B .xz
@@ -1562,21 +1720,8 @@ The BCJ filters are always reversible,
 so using a BCJ filter for wrong type of data
 doesn't cause any data loss, although it may make
 the compression ratio slightly worse.
-.IP ""
-It is fine to apply a BCJ filter on a whole executable;
-there's no need to apply it only on the executable section.
-Applying a BCJ filter on an archive that contains both executable
-and non-executable files may or may not give good results,
-so it generally isn't good to blindly apply a BCJ filter when
-compressing binary packages for distribution.
-.IP ""
-These BCJ filters are very fast and
-use insignificant amount of memory.
-If a BCJ filter improves compression ratio of a file,
-it can improve decompression speed at the same time.
-This is because, on the same hardware,
-the decompression speed of LZMA2 is roughly
-a fixed number of bytes of compressed data per second.
+The BCJ filters are very fast and
+use an insignificant amount of memory.
 .IP ""
 These BCJ filters have known problems related to
 the compression ratio:
@@ -1588,21 +1733,20 @@ have the addresses in the instructions filled with filler values.
 These BCJ filters will still do the address conversion,
 which will make the compression worse with these files.
 .IP \(bu 3
-Applying a BCJ filter on an archive containing multiple similar
-executables can make the compression ratio worse than not using
-a BCJ filter.
-This is because the BCJ filter doesn't detect the boundaries
-of the executable files, and doesn't reset
-the address conversion counter for each executable.
+If a BCJ filter is applied on an archive,
+it is possible that it makes the compression ratio
+worse than not using a BCJ filter.
+For example, if there are similar or even identical executables
+then filtering will likely make the files less similar
+and thus compression is worse.
+The contents of non-executable files in the same archive can matter too.
+In practice one has to try with and without a BCJ filter to see
+which is better in each situation.
 .RE
 .IP ""
-Both of the above problems will be fixed
-in the future in a new filter.
-The old BCJ filters will still be useful in embedded systems,
-because the decoder of the new filter will be bigger
-and use more memory.
-.IP ""
 Different instruction sets have different alignment:
+the executable file must be aligned to a multiple of
+this value in the input data to make the filter work.
 .RS
 .RS
 .PP
@@ -1612,11 +1756,12 @@ l n l
 l n l.
 Filter;Alignment;Notes
 x86;1;32-bit or 64-bit x86
+ARM;4;
+ARM-Thumb;2;
+ARM64;4;4096-byte alignment is best
 PowerPC;4;Big endian only
-ARM;4;Little endian only
-ARM-Thumb;2;Little endian only
-IA-64;16;Big or little endian
-SPARC;4;Big or little endian
+IA-64;16;Itanium
+SPARC;4;
 .TE
 .RE
 .RE
@@ -1627,6 +1772,8 @@ the LZMA2 options are set to match the
 alignment of the selected BCJ filter.
 For example, with the IA-64 filter, it's good to set
 .B pb=4
+or even
+.B pb=4,lp=4,lc=0
 with LZMA2 (2^4=16).
 The x86 filter is an exception;
 it's usually good to stick to LZMA2's default
@@ -1774,6 +1921,7 @@ for details.
 .TP
 .B \-\-info\-memory
 Display, in human-readable format, how much physical memory (RAM)
+and how many processor threads
 .B xz
 thinks the system has and the memory usage limits for compression
 and decompression, and exit successfully.
@@ -1858,15 +2006,50 @@ and
 .B "xz \-\-robot \-\-info\-memory"
 prints a single line with three tab-separated columns:
 .IP 1. 4
-Total amount of physical memory (RAM) in bytes
+Total amount of physical memory (RAM) in bytes.
 .IP 2. 4
-Memory usage limit for compression in bytes.
-A special value of zero indicates the default setting,
+Memory usage limit for compression in bytes
+.RB ( \-\-memlimit\-compress ).
+A special value of
+.B 0
+indicates the default setting
 which for single-threaded mode is the same as no limit.
 .IP 3. 4
-Memory usage limit for decompression in bytes.
-A special value of zero indicates the default setting,
+Memory usage limit for decompression in bytes
+.RB ( \-\-memlimit\-decompress ).
+A special value of
+.B 0
+indicates the default setting
 which for single-threaded mode is the same as no limit.
+.IP 4. 4
+Since
+.B xz
+5.3.4alpha:
+Memory usage for multi-threaded decompression in bytes
+.RB ( \-\-memlimit\-mt\-decompress ).
+This is never zero because a system-specific default value
+shown in the column 5
+is used if no limit has been specified explicitly.
+This is also never greater than the value in the column 3
+even if a larger value has been specified with
+.BR \-\-memlimit\-mt\-decompress .
+.IP 5. 4
+Since
+.B xz
+5.3.4alpha:
+A system-specific default memory usage limit
+that is used to limit the number of threads
+when compressing with an automatic number of threads
+.RB ( \-\-threads=0 )
+and no memory usage limit has been specified
+.RB ( \-\-memlimit\-compress ).
+This is also used as the default value for
+.BR \-\-memlimit\-mt\-decompress .
+.IP 6. 4
+Since
+.B xz
+5.3.4alpha:
+Number of available processor threads.
 .PP
 In the future, the output of
 .B "xz \-\-robot \-\-info\-memory"

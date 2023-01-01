@@ -40,6 +40,7 @@ SRCS+=	common.c \
 	hardware_cputhreads.c \
 	index.c \
 	stream_flags_common.c \
+	string_conversion.c \
 	vli_size.c \
 	alone_encoder.c \
 	block_buffer_encoder.c \
@@ -52,6 +53,9 @@ SRCS+=	common.c \
 	filter_encoder.c \
 	filter_flags_encoder.c \
 	index_encoder.c \
+	lzip_decoder.c \
+	microlzma_encoder.c \
+	microlzma_decoder.c \
 	stream_buffer_encoder.c \
 	stream_encoder.c \
 	stream_flags_encoder.c \
@@ -62,6 +66,7 @@ SRCS+=	common.c \
 	block_decoder.c \
 	block_header_decoder.c \
 	easy_decoder_memusage.c \
+	file_info.c \
 	filter_buffer_decoder.c \
 	filter_decoder.c \
 	filter_flags_decoder.c \
@@ -69,6 +74,7 @@ SRCS+=	common.c \
 	index_hash.c \
 	stream_buffer_decoder.c \
 	stream_decoder.c \
+	stream_decoder_mt.c \
 	stream_flags_decoder.c \
 	stream_encoder_mt.c \
 	vli_decoder.c \
@@ -119,6 +125,7 @@ SRCS+=	simple_coder.c \
 	powerpc.c \
 	ia64.c \
 	arm.c \
+	arm64.c \
 	armthumb.c \
 	sparc.c
 

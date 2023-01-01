@@ -226,7 +226,8 @@ lzma2_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
 
 static lzma_ret
 lzma2_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
-		const void *opt, lzma_lz_options *lz_options)
+		lzma_vli id lzma_attribute((__unused__)), const void *opt,
+		lzma_lz_options *lz_options)
 {
 	lzma_lzma2_coder *coder = lz->coder;
 	if (coder == NULL) {

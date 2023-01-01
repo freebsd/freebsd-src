@@ -45,7 +45,7 @@
 #	define STDERR_FILENO (fileno(stderr))
 #endif
 
-#ifdef HAVE_CAPSICUM
+#if defined(HAVE_CAPSICUM) || defined(HAVE_PLEDGE)
 #	define ENABLE_SANDBOX 1
 #endif
 

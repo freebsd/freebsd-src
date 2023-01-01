@@ -35,6 +35,9 @@ typedef struct {
 typedef const lzma_filter_coder *(*lzma_filter_find)(lzma_vli id);
 
 
+extern lzma_ret lzma_validate_chain(const lzma_filter *filters, size_t *count);
+
+
 extern lzma_ret lzma_raw_coder_init(
 		lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter *filters,

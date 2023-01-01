@@ -212,7 +212,8 @@ extern lzma_ret
 lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters,
 		lzma_ret (*lz_init)(lzma_lz_decoder *lz,
-			const lzma_allocator *allocator, const void *options,
+			const lzma_allocator *allocator,
+			lzma_vli id, const void *options,
 			lzma_lz_options *lz_options))
 {
 	// Allocate the base structure if it isn't already allocated.
@@ -236,7 +237,7 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 	// us the dictionary size.
 	lzma_lz_options lz_options;
 	return_if_error(lz_init(&coder->lz, allocator,
-			filters[0].options, &lz_options));
+			filters[0].id, filters[0].options, &lz_options));
 
 	// If the dictionary size is very small, increase it to 4096 bytes.
 	// This is to prevent constant wrapping of the dictionary, which
@@ -300,18 +301,4 @@ extern uint64_t
 lzma_lz_decoder_memusage(size_t dictionary_size)
 {
 	return sizeof(lzma_coder) + (uint64_t)(dictionary_size);
-}
-
-
-extern void
-lzma_lz_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size,
-		bool allow_eopm)
-{
-	lzma_coder *coder = coder_ptr;
-
-	if (uncompressed_size == LZMA_VLI_UNKNOWN)
-		allow_eopm = true;
-
-	coder->lz.set_uncompressed(coder->lz.coder, uncompressed_size,
-			allow_eopm);
 }
