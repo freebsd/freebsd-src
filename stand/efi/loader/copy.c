@@ -331,7 +331,7 @@ efi_copy_init(void)
 
 	staging = get_staging_max();
 #endif
-	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderData,
+	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderCode,
 	    nr_pages, &staging);
 	if (EFI_ERROR(status)) {
 		printf("failed to allocate staging area: %lu\n",
@@ -399,7 +399,7 @@ efi_check_space(vm_offset_t end)
 
 	/* Try to allocate more space after the previous allocation */
 	addr = staging_end;
-	status = BS->AllocatePages(AllocateAddress, EfiLoaderData, nr_pages,
+	status = BS->AllocatePages(AllocateAddress, EfiLoaderCode, nr_pages,
 	    &addr);
 	if (!EFI_ERROR(status)) {
 		staging_end = staging_end + nr_pages * EFI_PAGE_SIZE;
@@ -416,7 +416,7 @@ before_staging:
 	addr = rounddown2(addr, M(2));
 #endif
 	nr_pages = EFI_SIZE_TO_PAGES(staging_base - addr);
-	status = BS->AllocatePages(AllocateAddress, EfiLoaderData, nr_pages,
+	status = BS->AllocatePages(AllocateAddress, EfiLoaderCode, nr_pages,
 	    &addr);
 	if (!EFI_ERROR(status)) {
 		/*
@@ -439,7 +439,7 @@ expand:
 #if defined(__i386__) || defined(__amd64__)
 	new_base = get_staging_max();
 #endif
-	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderData,
+	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderCode,
 	    nr_pages, &new_base);
 	if (!EFI_ERROR(status)) {
 #if EFI_STAGING_2M_ALIGN
