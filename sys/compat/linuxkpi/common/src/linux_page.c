@@ -79,7 +79,9 @@ void
 si_meminfo(struct sysinfo *si)
 {
 	si->totalram = physmem;
+	si->freeram = vm_free_count();
 	si->totalhigh = 0;
+	si->freehigh = 0;
 	si->mem_unit = PAGE_SIZE;
 }
 
