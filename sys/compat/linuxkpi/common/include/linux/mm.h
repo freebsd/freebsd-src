@@ -144,9 +144,11 @@ struct vm_operations_struct {
 };
 
 struct sysinfo {
-	uint64_t totalram;
-	uint64_t totalhigh;
-	uint32_t mem_unit;
+	uint64_t totalram;	/* Total usable main memory size */
+	uint64_t freeram;	/* Available memory size */
+	uint64_t totalhigh;	/* Total high memory size */
+	uint64_t freehigh;	/* Available high memory size */
+	uint32_t mem_unit;	/* Memory unit size in bytes */
 };
 
 /*
