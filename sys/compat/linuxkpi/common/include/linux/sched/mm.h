@@ -36,5 +36,8 @@
 #define	memalloc_nofs_save(x)		0
 #define	memalloc_nofs_restore(x)	do {	\
 	} while (0)
+#define	memalloc_noreclaim_save(x)	0
+#define	memalloc_noreclaim_restore(x)	do {	\
+	} while (0)
 
 #endif	/* _BSD_LKPI_LINUX_SCHED_MM_H_ */
