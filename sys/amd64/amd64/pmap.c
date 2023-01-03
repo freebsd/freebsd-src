@@ -2566,9 +2566,6 @@ pmap_init(void)
 			    VM_PAGE_TO_PHYS(m);
 		}
 	}
-
-	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
-	    &pmap_pcid_invlpg_workaround_uena);
 }
 
 SYSCTL_UINT(_vm_pmap, OID_AUTO, large_map_pml4_entries,
