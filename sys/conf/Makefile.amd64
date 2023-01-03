@@ -33,7 +33,7 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
-.if !empty(DDB_ENABLED) || !empty(DTR_ENABLED) || !empty(HWPMC_ENABLED)
+.if !empty(DDB_ENABLED) || !empty(DTRACE_ENABLED) || !empty(HWPMC_ENABLED)
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
