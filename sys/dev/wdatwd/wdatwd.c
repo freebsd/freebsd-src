@@ -363,8 +363,12 @@ wdatwd_event(void *private, u_int cmd, int *error)
 		if (wdatwd_get_current_countdown(sc, &cur[1]) != 0)
 			cur[1] = 0;
 		WDATWD_VERBOSE_PRINTF(sc->dev, "cmd: %u, sc->running: "
-		    "%d -> %d, cnt: %lu -> %lu, cur: %lu -> %lu\n", cmd,
-		    run[0], run[1], cnt[0], cnt[1], cur[0], cur[1]);
+		    "%d -> %d, cnt: %llu -> %llu, cur: %llu -> %llu\n", cmd,
+				      run[0], run[1], 
+				      (unsigned long long) cnt[0],
+				      (unsigned long long) cnt[1],
+				      (unsigned long long)cur[0],
+				      (unsigned long long)cur[1]);
 	}
 
 	return;
@@ -674,7 +678,7 @@ wdatwd_attach(device_t dev)
 		for (i = 0; i < nitems(sc->action); ++i)
 			STAILQ_FOREACH(wdat, &sc->action[i], next) {
 				WDATWD_VERBOSE_PRINTF(dev, "action: 0x%02x, "
-				    "%s %s at 0x%lx (%d bit(s), offset %d bit(s))\n",
+				    "%s %s at 0x%llx (%d bit(s), offset %d bit(s))\n",
 				    i,
 				    wdat->entry.RegisterRegion.SpaceId
 					== ACPI_ADR_SPACE_SYSTEM_MEMORY
@@ -692,6 +696,7 @@ wdatwd_attach(device_t dev)
 						: wdat->entry.RegisterRegion.AccessWidth == 4
 						    ? "qword"
 						    : "undef",
+				    (unsigned long long )
 				    wdat->entry.RegisterRegion.Address,
 				    wdat->entry.RegisterRegion.BitWidth,
 				    wdat->entry.RegisterRegion.BitOffset);
@@ -729,16 +734,18 @@ wdatwd_attach(device_t dev)
 		    dev, res->type, &res->rid, RF_ACTIVE);
 		if (res->res == NULL) {
 			bus_delete_resource(dev, res->type, res->rid);
-			device_printf(dev, "%s at 0x%lx (%ld byte(s)): "
+			device_printf(dev, "%s at 0x%llx (%lld byte(s)): "
 			    "alloc' failed\n",
 			    res->type == SYS_RES_MEMORY ? "mem" : "io ",
-			    res->start, res->end - res->start);
+			    (unsigned long long )res->start,
+			    (unsigned long long )(res->end - res->start));
 			goto fail;
 		}
-		WDATWD_VERBOSE_PRINTF(dev, "%s at 0x%lx (%ld byte(s)): "
+		WDATWD_VERBOSE_PRINTF(dev, "%s at 0x%llx (%lld byte(s)): "
 		    "alloc'ed\n",
 		    res->type == SYS_RES_MEMORY ? "mem" : "io ",
-		    res->start, res->end - res->start);
+		    (unsigned long long )res->start,
+		    (unsigned long long) (res->end - res->start));
 	}
 
 	/* Initialize the watchdog hardware. */
