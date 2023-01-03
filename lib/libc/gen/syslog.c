@@ -223,7 +223,7 @@ vsyslog1(int pri, const char *fmt, va_list ap)
 	 * specified, as it provides valuable information. Many
 	 * applications tend not to use this, even though they should.
 	 */
-	if (LogPid == -1)
+	if (LogTagLength <= 0)
 		LogPid = getpid();
 	(void)fprintf(fp, "%d ", (int)LogPid);
 	/* Message ID. */
