@@ -247,6 +247,26 @@ cpu_auxmsr(void)
 	return (PCPU_GET(cpuid));
 }
 
+void
+cpu_init_small_core(void)
+{
+	u_int r[4];
+
+	if (cpu_high < 0x1a)
+		return;
+
+	cpuid_count(0x1a, 0, r);
+	if ((r[0] & CPUID_HYBRID_CORE_MASK) != CPUID_HYBRID_SMALL_CORE)
+		return;
+
+	PCPU_SET(small_core, 1);
+	if (pmap_pcid_enabled && invpcid_works &&
+	    pmap_pcid_invlpg_workaround_uena) {
+		PCPU_SET(pcid_invlpg_workaround, 1);
+		pmap_pcid_invlpg_workaround = 1;
+	}
+}
+
 /*
  * Initialize CPU control registers
  */
@@ -255,7 +275,6 @@ initializecpu(void)
 {
 	uint64_t msr;
 	uint32_t cr4;
-	u_int r[4];
 
 	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
@@ -319,18 +338,8 @@ initializecpu(void)
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
 		wrmsr(MSR_TSC_AUX, cpu_auxmsr());
 
-	if (cpu_high >= 0x1a) {
-		cpuid_count(0x1a, 0, r);
-		if ((r[0] & CPUID_HYBRID_CORE_MASK) ==
-		    CPUID_HYBRID_SMALL_CORE) {
-			PCPU_SET(small_core, 1);
-			if (pmap_pcid_enabled &&
-			    pmap_pcid_invlpg_workaround_uena) {
-				PCPU_SET(pcid_invlpg_workaround, 1);
-				pmap_pcid_invlpg_workaround = 1;
-			}
-		}
-	}
+	if (!IS_BSP())
+		cpu_init_small_core();
 }
 
 void

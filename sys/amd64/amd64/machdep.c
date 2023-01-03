@@ -1352,6 +1352,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		pmap_pcid_enabled = 0;
 	}
 
+	/*
+	 * Now we can do small core initialization, after the PCID
+	 * CPU features and user knobs are evaluated.
+	 */
+	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
+	    &pmap_pcid_invlpg_workaround_uena);
+	cpu_init_small_core();
+
 	link_elf_ireloc(kmdp);
 
 	/*
