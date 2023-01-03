@@ -3881,8 +3881,12 @@ bus_generic_suspend_child(device_t dev, device_t child)
 
 	error = DEVICE_SUSPEND(child);
 
-	if (error == 0)
+	if (error == 0) {
 		child->flags |= DF_SUSPENDED;
+	} else {
+		printf("DEVICE_SUSPEND(%s) failed: %d\n",
+		    device_get_nameunit(child), error);
+	}
 
 	return (error);
 }
