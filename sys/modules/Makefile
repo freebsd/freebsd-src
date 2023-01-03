@@ -395,6 +395,7 @@ SUBDIR=	\
 	vr \
 	vte \
 	${_wbwd} \
+	${_wdatwd} \
 	wlan \
 	wlan_acl \
 	wlan_amrr \
@@ -706,6 +707,7 @@ _speaker=	speaker
 _splash=	splash
 _syscons=	syscons
 _wbwd=		wbwd
+_wdatwd=	wdatwd
 
 _aac=		aac
 _aacraid=	aacraid

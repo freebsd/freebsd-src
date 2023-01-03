@@ -588,6 +588,7 @@ MAN=	aac.4 \
 	vtnet.4 \
 	watchdog.4 \
 	${_wbwd.4} \
+	${_wdatwd.4} \
 	wg.4 \
 	witness.4 \
 	wlan.4 \
@@ -850,6 +851,7 @@ _vmci.4=	vmci.4
 _vmd.4=		vmd.4
 _vmx.4=		vmx.4
 _wbwd.4=	wbwd.4
+_wdatwd.4=	wdatwd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
 _xnb.4=		xnb.4
