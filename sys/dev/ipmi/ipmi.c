@@ -754,7 +754,7 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 }
 
 static void
-ipmi_shutdown_event(void *arg, unsigned int cmd, int *error)
+ipmi_shutdown_event(void *arg, int howto)
 {
 	struct ipmi_softc *sc = arg;
 
