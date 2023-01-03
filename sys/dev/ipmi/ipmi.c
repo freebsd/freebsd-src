@@ -766,6 +766,10 @@ ipmi_shutdown_event(void *arg, int howto)
 	 * Zero value in wd_shutdown_countdown will disable watchdog;
 	 * Negative value in wd_shutdown_countdown will keep existing state;
 	 *
+	 * System halt is a special case of shutdown where wd_shutdown_countdown
+	 * is ignored and watchdog is disabled to ensure that the system remains
+	 * halted as requested.
+	 *
 	 * Revert to using a power cycle to ensure that the watchdog will
 	 * do something useful here.  Having the watchdog send an NMI
 	 * instead is useless during shutdown, and might be ignored if an
@@ -773,7 +777,7 @@ ipmi_shutdown_event(void *arg, int howto)
 	 */
 
 	wd_in_shutdown = true;
-	if (wd_shutdown_countdown == 0) {
+	if (wd_shutdown_countdown == 0 || (howto & RB_HALT) != 0) {
 		/* disable watchdog */
 		ipmi_set_watchdog(sc, 0);
 		sc->ipmi_watchdog_active = 0;
