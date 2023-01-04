@@ -516,6 +516,7 @@ pmap_invalidate_cpu_mask(pmap_t pmap)
 	return (&pmap->pm_active);
 }
 
+#if defined(_SYS_PCPU_H_) && defined(_MACHINE_CPUFUNC_H_)
 /*
  * It seems that AlderLake+ small cores have some microarchitectural
  * bug, which results in the INVLPG instruction failing to flush all
@@ -533,6 +534,7 @@ pmap_invlpg(pmap_t pmap, vm_offset_t va)
 		invlpg(va);
 	}
 }
+#endif /* sys/pcpu.h && machine/cpufunc.h */
 
 #endif /* _KERNEL */
 
