@@ -89,7 +89,7 @@ growfs_swap_max()
 
 	if [ $swapmax -gt $vm_swap_max ]
 	then
-		$swapmax=$vm_swap_max
+		swapmax=$vm_swap_max
 	fi
 	echo -n "$swapmax"
 }
@@ -260,9 +260,9 @@ growfs_start()
 						" sz ", size[i]
 					swapbase = (expand + size[i]) / sector
 					swapbase -= swapsize + align
-					swapcmd = "gpart add -t freebsd-swap -a " align " -b " swapbase " " pdev "; kenv growfs_swap_pdev=" pdev " >/dev/null; "
+					swapcmd = "gpart add -t freebsd-swap -a " align " -b " int(swapbase) " " pdev " && kenv growfs_swap_pdev=" pdev " >/dev/null; "
 					if (verbose)
-						swapcmd = "set -x; " swapcmd
+						swapcmd = "set -x; gpart show; " swapcmd
 				}
 				cmd[i] = swapcmd "gpart resize -i " idx[i] " " pdev
 				if (parttype[i] == "GPT")
