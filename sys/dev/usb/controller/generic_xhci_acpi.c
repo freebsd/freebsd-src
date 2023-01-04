@@ -53,13 +53,16 @@ __FBSDID("$FreeBSD$");
 
 #include "generic_xhci.h"
 
+static char *xhci_ids[] = {
+	"PNP0D10",
+	"PNP0D15",
+	NULL,
+};
+
 static int
 generic_xhci_acpi_probe(device_t dev)
 {
-	ACPI_HANDLE h;
-
-	if ((h = acpi_get_handle(dev)) == NULL ||
-	    acpi_MatchHid(h, "PNP0D10") == ACPI_MATCHHID_NOMATCH)
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, xhci_ids, NULL) >= 0)
 		return (ENXIO);
 
 	device_set_desc(dev, XHCI_HC_DEVSTR);
