@@ -651,17 +651,17 @@ struct ifdownreason {
 
 #endif /* __BSD_VISIBLE */
 
-#ifdef _KERNEL
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_IFADDR);
-MALLOC_DECLARE(M_IFMADDR);
-#endif
-
 /*
  * Opaque interface structure.
  */
 
 typedef struct ifnet * if_t;
+
+#ifdef _KERNEL
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_IFADDR);
+MALLOC_DECLARE(M_IFMADDR);
+#endif
 
 extern struct sx ifnet_detach_sxlock;
 
