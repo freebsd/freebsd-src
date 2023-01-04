@@ -92,9 +92,22 @@ gnuext_body()
 
 }
 
+atf_test_case zflag
+zflag_body()
+{
+
+	# The -z flag should pick up 'foo' and 'bar' as on the same line with
+	# 'some kind of junk' in between; a bug was present that instead made
+	# it process this incorrectly.
+	printf "foo\nbar\0" > in
+
+	atf_check grep -qz "foo.*bar" in
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case grep_r_implied
 	atf_add_test_case rgrep
 	atf_add_test_case gnuext
+	atf_add_test_case zflag
 }

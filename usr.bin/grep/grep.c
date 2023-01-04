@@ -562,6 +562,7 @@ main(int argc, char *argv[])
 			break;
 		case 'z':
 			fileeol = '\0';
+			cflags &= ~REG_NEWLINE;
 			break;
 		case BIN_OPT:
 			if (strcasecmp("binary", optarg) == 0)
