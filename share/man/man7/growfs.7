@@ -36,6 +36,7 @@ The
 .Nm
 script normally runs at the first boot after system installation.
 If the boot disk is larger than the root file system and boot partitions,
+and the root file system is in the last partition,
 .Nm
 can expand the root file system.
 It can also add a swap partition, with a default size of 10% of the boot disk.
@@ -99,12 +100,17 @@ partition before this procedure
 in order to expand the root file system to the new size.
 A new swap partition can be created during the expansion.
 .Sh IMPLEMENTATION NOTES
+The
+.Nm
+script only attempts to expand the root file system,
+and free space must be available immediately after the root partition.
+It is normally used on images that have a single file system.
 The script requires that
-.Pa awk
+.Xr awk 1
 be present and in the path.
 This usually means that
 .Pa /usr
-should be mounted prior to running the script.
+must be available prior to running the script.
 .Sh FILES
 .Bl -tag -compact -width Pa
 .It Pa /etc/fstab
@@ -114,7 +120,9 @@ should be mounted prior to running the script.
 .Ex -std
 .Sh SEE ALSO
 .Xr fstab 5 ,
-.Xr rc.conf 5
+.Xr rc.conf 5 ,
+.Xr growfs 8 ,
+.Xr zpool 8
 .Sh HISTORY
 The
 .Nm
