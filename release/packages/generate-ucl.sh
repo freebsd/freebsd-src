@@ -68,6 +68,10 @@ main() {
 			outname=${outname%%-lib32_dev}
 			_descr="32-bit Libraries, Development Files"
 			;;
+		libelftc-man)
+			outname=${outname%%-dev}
+			_descr="Development Files"
+			;;
 
 		utilities)
 			uclfile="${uclfile}"
