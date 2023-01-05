@@ -255,6 +255,10 @@ static uint32_t wait_time_floor = 8000;	/* 8 ms */
 static uint32_t rs_hw_floor_mss = 16;
 static uint32_t num_of_waits_allowed = 1; /* How many time blocks are we willing to wait */
 
+static uint32_t mss_divisor = RL_DEFAULT_DIVISOR;
+static uint32_t even_num_segs = 1;
+static uint32_t even_threshold = 4;
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Ratelimit stats");
 SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, alive, CTLFLAG_RW,
@@ -277,6 +281,15 @@ SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, hw_floor_mss, CTLFLAG_RW,
     &rs_hw_floor_mss, 16,
     "Number of mss that are a minum for hardware pacing?");
 
+SYSCTL_INT(_net_inet_tcp_rl, OID_AUTO, divisor, CTLFLAG_RW,
+    &mss_divisor, RL_DEFAULT_DIVISOR,
+    "The value divided into bytes per second to help establish mss size");
+SYSCTL_INT(_net_inet_tcp_rl, OID_AUTO, even, CTLFLAG_RW,
+    &even_num_segs, 1,
+    "Do we round mss size up to an even number of segments for delayed ack");
+SYSCTL_INT(_net_inet_tcp_rl, OID_AUTO, eventhresh, CTLFLAG_RW,
+    &even_threshold, 4,
+    "At what number of mss do we start rounding up to an even number of mss?");
 
 static void
 rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
@@ -1583,8 +1596,8 @@ tcp_log_pacing_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, uint32_t new
 }
 
 uint32_t
-tcp_get_pacing_burst_size (struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
-   const struct tcp_hwrate_limit_table *te, int *err)
+tcp_get_pacing_burst_size_w_divisor(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
+   const struct tcp_hwrate_limit_table *te, int *err, int divisor)
 {
 	/*
 	 * We use the google formula to calculate the
@@ -1592,20 +1605,35 @@ tcp_get_pacing_burst_size (struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int c
 	 * bw < 24Meg
 	 *   tso = 2mss
 	 * else
-	 *   tso = min(bw/1000, 64k)
+	 *   tso = min(bw/(div=1000), 64k)
 	 *
 	 * Note for these calculations we ignore the
 	 * packet overhead (enet hdr, ip hdr and tcp hdr).
+	 * We only get the google formula when we have
+	 * divisor = 1000, which is the default for now.
 	 */
 	uint64_t lentim, res, bytes;
 	uint32_t new_tso, min_tso_segs;
 
-	bytes = bw / 1000;
-	if (bytes > (64 * 1000))
-		bytes = 64 * 1000;
+	/* It can't be zero */
+	if ((divisor == 0) ||
+	    (divisor < RL_MIN_DIVISOR)) {
+		if (mss_divisor)
+			bytes = bw / mss_divisor;
+		else
+			bytes = bw / 1000;
+	} else
+		bytes = bw / divisor;
+	/* We can't ever send more than 65k in a TSO */
+	if (bytes > 0xffff) {
+		bytes = 0xffff;
+	}
 	/* Round up */
 	new_tso = (bytes + segsiz - 1) / segsiz;
-	if (can_use_1mss && (bw < ONE_POINT_TWO_MEG))
+	/* Are we enforcing even boundaries? */
+	if (even_num_segs && (new_tso & 1) && (new_tso > even_threshold))
+		new_tso++;
+	if (can_use_1mss)
 		min_tso_segs = 1;
 	else
 		min_tso_segs = 2;
