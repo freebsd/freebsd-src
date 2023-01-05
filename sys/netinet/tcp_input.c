@@ -834,7 +834,7 @@ findpcb:
 		 */
 		inp = in6_pcblookup_mbuf(&V_tcbinfo,
 		    &ip6->ip6_src, th->th_sport, &ip6->ip6_dst, th->th_dport,
-		    lookupflag, m->m_pkthdr.rcvif, m);
+		    lookupflag & ~INPLOOKUP_WILDCARD, m->m_pkthdr.rcvif, m);
 		if (!inp) {
 			/*
 			 * It's new.  Try to find the ambushing socket.
@@ -865,7 +865,8 @@ findpcb:
 		 * already got one like this?
 		 */
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src, th->th_sport,
-		    ip->ip_dst, th->th_dport, lookupflag, m->m_pkthdr.rcvif, m);
+		    ip->ip_dst, th->th_dport, lookupflag & ~INPLOOKUP_WILDCARD,
+		    m->m_pkthdr.rcvif, m);
 		if (!inp) {
 			/*
 			 * It's new.  Try to find the ambushing socket.
