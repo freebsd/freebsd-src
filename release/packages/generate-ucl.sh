@@ -56,6 +56,18 @@ main() {
 			outname=${outname%%-lib32_dev}
 			_descr="32-bit Libraries, Development Files"
 			;;
+		libcompat-dev)
+			outname=${outname%%-dev}
+			_descr="Development Files"
+			;;
+		libcompat-man)
+			outname=${outname%%-dev}
+			_descr="Development Files"
+			;;
+		libcompat-lib32_dev)
+			outname=${outname%%-lib32_dev}
+			_descr="32-bit Libraries, Development Files"
+			;;
 
 		utilities)
 			uclfile="${uclfile}"
