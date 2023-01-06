@@ -794,11 +794,23 @@ dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
         ifamsg->ifa_scope = ifa_get_scope(ifa);
         ifamsg->ifa_index = ifp->if_index;
 
-        struct sockaddr *dst_sa = ifa->ifa_dstaddr;
-        if ((dst_sa == NULL) || (dst_sa->sa_family != sa->sa_family))
-                dst_sa = sa;
-        dump_sa(nw, IFA_ADDRESS, dst_sa);
-        dump_sa(nw, IFA_LOCAL, sa);
+	if (ifp->if_flags & IFF_POINTOPOINT) {
+		dump_sa(nw, IFA_ADDRESS, ifa->ifa_dstaddr);
+		dump_sa(nw, IFA_LOCAL, sa);
+	} else {
+		dump_sa(nw, IFA_ADDRESS, sa);
+#ifdef INET
+		/*
+		 * In most cases, IFA_ADDRESS == IFA_LOCAL
+		 * Skip IFA_LOCAL for anything except INET
+		 */
+		if (sa->sa_family == AF_INET)
+			dump_sa(nw, IFA_LOCAL, sa);
+#endif
+	}
+	if (ifp->if_flags & IFF_BROADCAST)
+		dump_sa(nw, IFA_BROADCAST, ifa->ifa_broadaddr);
+
         nlattr_add_string(nw, IFA_LABEL, if_name(ifp));
 
         uint32_t val = 0; // ifa->ifa_flags;
