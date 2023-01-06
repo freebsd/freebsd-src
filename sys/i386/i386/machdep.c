@@ -1654,6 +1654,8 @@ machdep_init_trampoline(void)
 
 	/* Re-initialize new IDT since the handlers were relocated */
 	setidt_disp = trampoline - start_exceptions;
+	if (bootverbose)
+		printf("Trampoline disposition %#zx\n", setidt_disp);
 	fixup_idt();
 
 	r_idt.rd_limit = sizeof(struct gate_descriptor) * NIDT - 1;
