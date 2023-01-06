@@ -3930,7 +3930,7 @@ static unsigned re_next_char(ReInput *p){
       c = (c&0x0f)<<12 | ((p->z[p->i]&0x3f)<<6) | (p->z[p->i+1]&0x3f);
       p->i += 2;
       if( c<=0x7ff || (c>=0xd800 && c<=0xdfff) ) c = 0xfffd;
-    }else if( (c&0xf8)==0xf0 && p->i+3<p->mx && (p->z[p->i]&0xc0)==0x80
+    }else if( (c&0xf8)==0xf0 && p->i+2<p->mx && (p->z[p->i]&0xc0)==0x80
            && (p->z[p->i+1]&0xc0)==0x80 && (p->z[p->i+2]&0xc0)==0x80 ){
       c = (c&0x07)<<18 | ((p->z[p->i]&0x3f)<<12) | ((p->z[p->i+1]&0x3f)<<6)
                        | (p->z[p->i+2]&0x3f);
@@ -4457,15 +4457,15 @@ static const char *re_compile(ReCompiled **ppRe, const char *zIn, int noCase){
   ** one or more matching characters, enter those matching characters into
   ** zInit[].  The re_match() routine can then search ahead in the input 
   ** string looking for the initial match without having to run the whole
-  ** regex engine over the string.  Do not worry able trying to match
+  ** regex engine over the string.  Do not worry about trying to match
   ** unicode characters beyond plane 0 - those are very rare and this is
   ** just an optimization. */
   if( pRe->aOp[0]==RE_OP_ANYSTAR && !noCase ){
     for(j=0, i=1; j<(int)sizeof(pRe->zInit)-2 && pRe->aOp[i]==RE_OP_MATCH; i++){
       unsigned x = pRe->aArg[i];
-      if( x<=127 ){
+      if( x<=0x7f ){
         pRe->zInit[j++] = (unsigned char)x;
-      }else if( x<=0xfff ){
+      }else if( x<=0x7ff ){
         pRe->zInit[j++] = (unsigned char)(0xc0 | (x>>6));
         pRe->zInit[j++] = 0x80 | (x&0x3f);
       }else if( x<=0xffff ){
@@ -14629,6 +14629,7 @@ static void recoverFinalCleanup(sqlite3_recover *p){
   p->pTblList = 0;
   sqlite3_finalize(p->pGetPage);
   p->pGetPage = 0;
+  sqlite3_file_control(p->dbIn, p->zDb, SQLITE_FCNTL_RESET_CACHE, 0);
 
   {
 #ifndef NDEBUG
@@ -14927,6 +14928,7 @@ static int recoverVfsRead(sqlite3_file *pFd, void *aBuf, int nByte, i64 iOff){
       **
       **   + first freelist page (32-bits at offset 32)
       **   + size of freelist (32-bits at offset 36)
+      **   + the wal-mode flags (16-bits at offset 18)
       **
       ** We also try to preserve the auto-vacuum, incr-value, user-version
       ** and application-id fields - all 32 bit quantities at offsets 
@@ -14990,7 +14992,8 @@ static int recoverVfsRead(sqlite3_file *pFd, void *aBuf, int nByte, i64 iOff){
       if( p->pPage1Cache ){
         p->pPage1Disk = &p->pPage1Cache[nByte];
         memcpy(p->pPage1Disk, aBuf, nByte);
-
+        aHdr[18] = a[18];
+        aHdr[19] = a[19];
         recoverPutU32(&aHdr[28], dbsz);
         recoverPutU32(&aHdr[56], enc);
         recoverPutU16(&aHdr[105], pgsz-nReserve);
@@ -15186,6 +15189,7 @@ static void recoverStep(sqlite3_recover *p){
       recoverOpenOutput(p);
 
       /* Open transactions on both the input and output databases. */
+      sqlite3_file_control(p->dbIn, p->zDb, SQLITE_FCNTL_RESET_CACHE, 0);
       recoverExec(p, p->dbIn, "PRAGMA writable_schema = on");
       recoverExec(p, p->dbIn, "BEGIN");
       if( p->errCode==SQLITE_OK ) p->bCloseTransaction = 1;
@@ -16275,7 +16279,7 @@ static int safeModeAuth(
     "zipfile",
     "zipfile_cds",
   };
-  UNUSED_PARAMETER(zA2);
+  UNUSED_PARAMETER(zA1);
   UNUSED_PARAMETER(zA3);
   UNUSED_PARAMETER(zA4);
   switch( op ){
@@ -16290,7 +16294,7 @@ static int safeModeAuth(
     case SQLITE_FUNCTION: {
       int i;
       for(i=0; i<ArraySize(azProhibitedFunctions); i++){
-        if( sqlite3_stricmp(zA1, azProhibitedFunctions[i])==0 ){
+        if( sqlite3_stricmp(zA2, azProhibitedFunctions[i])==0 ){
           failIfSafeMode(p, "cannot use the %s() function in safe mode",
                          azProhibitedFunctions[i]);
         }
@@ -26132,7 +26136,7 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv){
     if( pVfs ){
       sqlite3_vfs_register(pVfs, 1);
     }else{
-      utf8_printf(stderr, "no such VFS: \"%s\"\n", argv[i]);
+      utf8_printf(stderr, "no such VFS: \"%s\"\n", zVfs);
       exit(1);
     }
   }
