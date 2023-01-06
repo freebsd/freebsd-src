@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2021, 2022 Soren Schmidt <sos@deepcore.dk>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,7 +24,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: rk3568_combphy.c 893 2022-07-26 09:47:22Z sos $
  */
 
 #include <sys/cdefs.h>
