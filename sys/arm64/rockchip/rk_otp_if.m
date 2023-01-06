@@ -1,4 +1,6 @@
 #-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2022 Soren Schmidt <sos@deepcore.dk>
 # All rights reserved.
 #
@@ -23,7 +25,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: rk_otp_if.m 921 2022-08-09 18:38:11Z sos $
 #
 
 #include <arm64/rockchip/rk_otp.h>
