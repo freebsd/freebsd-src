@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2020 Greg V <greg@unrelenting.technology>
+ * Copyright (c) 2020 Val Packett <val@packett.cool>
  * Copyright (c) 2021 Ruslan Bukin <br@bsdpad.com>
  *
  * Redistribution and use in source and binary forms, with or without
