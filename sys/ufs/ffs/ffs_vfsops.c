@@ -1482,9 +1482,6 @@ ffs_unmount(struct mount *mp, int mntflags)
 		free(ump->um_fsfail_task, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	if (td->td_su == mp) {
 		td->td_su = NULL;
 		vfs_rel(mp);

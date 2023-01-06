@@ -1056,9 +1056,6 @@ ext2_unmount(struct mount *mp, int mntflags)
 	free(fs, M_EXT2MNT);
 	free(ump, M_EXT2MNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	return (error);
 }
 

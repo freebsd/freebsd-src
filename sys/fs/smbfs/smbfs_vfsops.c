@@ -299,9 +299,6 @@ smbfs_unmount(struct mount *mp, int mntflags)
 	mp->mnt_data = NULL;
 	SMB_UNLOCK();
 	free(smp, M_SMBFSDATA);
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 out:
 	smbfs_free_scred(scred);
 	return error;

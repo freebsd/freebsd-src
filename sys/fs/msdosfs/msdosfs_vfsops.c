@@ -872,9 +872,6 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	lockdestroy(&pmp->pm_checkpath_lock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	return (error);
 }
 

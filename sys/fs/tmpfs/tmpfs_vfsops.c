@@ -536,10 +536,6 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 	tmpfs_free_tmp(tmp);
 	vfs_write_resume(mp, VR_START_WRITE);
 
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
-
 	return (0);
 }
 
