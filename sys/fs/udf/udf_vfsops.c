@@ -542,10 +542,6 @@ udf_unmount(struct mount *mp, int mntflags)
 	free(udfmp, M_UDFMOUNT);
 
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
-
 	return (0);
 }
 
