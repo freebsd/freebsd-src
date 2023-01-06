@@ -114,6 +114,7 @@ OLD_FILES+=usr/share/man/man1/otp-md4.1.gz
 OLD_FILES+=usr/share/man/man1/otp-md5.1.gz
 OLD_FILES+=usr/share/man/man1/otp-sha1.1.gz
 OLD_FILES+=usr/share/man/man4/opie.4.gz
+OLD_FILES+=usr/share/man/man4/skey.4.gz
 OLD_FILES+=usr/share/man/man5/opieaccess.5.gz
 OLD_FILES+=usr/share/man/man5/opiekeys.5.gz
 OLD_FILES+=usr/share/man/man8/pam_opie.8.gz
