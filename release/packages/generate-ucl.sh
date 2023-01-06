@@ -48,31 +48,18 @@ main() {
 
 		# -dev packages that have no corresponding non-dev package
 		# as a dependency.
-		liby-dev)
+		libcompat-dev|liby-dev)
 			outname=${outname%%-dev}
 			_descr="Development Files"
 			;;
-		liby-lib32_dev)
+		libcompat-lib32_dev|liby-lib32_dev)
 			outname=${outname%%-lib32_dev}
 			_descr="32-bit Libraries, Development Files"
 			;;
-		libcompat-dev)
-			outname=${outname%%-dev}
-			_descr="Development Files"
+		libcompat-man|libelftc-man)
+			outname=${outname%%-man}
+			_descr="Manual Pages"
 			;;
-		libcompat-man)
-			outname=${outname%%-dev}
-			_descr="Development Files"
-			;;
-		libcompat-lib32_dev)
-			outname=${outname%%-lib32_dev}
-			_descr="32-bit Libraries, Development Files"
-			;;
-		libelftc-man)
-			outname=${outname%%-dev}
-			_descr="Development Files"
-			;;
-
 		utilities)
 			uclfile="${uclfile}"
 			;;
