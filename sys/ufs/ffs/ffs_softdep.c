@@ -12758,9 +12758,15 @@ restart:
 					pagedep_new_block = pagedep->pd_state & NEWBLOCK;
 					FREE_LOCK(ump);
 					locked = 0;
-					if (pagedep_new_block && (error =
-					    ffs_syncvnode(pvp, MNT_WAIT, 0))) {
+					if (pagedep_new_block) {
+						VOP_UNLOCK(vp);
+						error = ffs_syncvnode(pvp,
+						    MNT_WAIT, 0);
+						if (error == 0)
+							error = ERELOOKUP;
 						vput(pvp);
+						vn_lock(vp, LK_EXCLUSIVE |
+						    LK_RETRY);
 						return (error);
 					}
 				}
