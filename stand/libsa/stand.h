@@ -61,8 +61,9 @@
 #ifndef	STAND_H
 #define	STAND_H
 
-#include <sys/types.h>
 #include <sys/cdefs.h>
+
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>
 #include <sys/queue.h>
@@ -89,6 +90,8 @@
 
 /* Partial signal emulation for sig_atomic_t */
 #include <machine/signal.h>
+
+__BEGIN_DECLS
 
 struct open_file;
 
@@ -508,5 +511,7 @@ void	hexdump(caddr_t region, size_t len);
 void tslog(const char *, const char *, const char *);
 void tslog_setbuf(void * buf, size_t len);
 void tslog_getbuf(void ** buf, size_t * len);
+
+__END_DECLS
 
 #endif	/* STAND_H */
