@@ -524,13 +524,23 @@ The optional
 argument limits the search.
 .\"
 .Pp
-.It Ic reboot Op Ar seconds
-.It Ic reset Op Ar seconds
+.It Xo
+.Ic Ic reboot Ns Op Li / Ns Cm s
+.Op Ar seconds
+.Xc
+.It Xo
+.Ic Ic reset Ns Op Li / Ns Cm s
+.Op Ar seconds
+.Xc
 Hard reset the system.
 If the optional argument
 .Ar seconds
 is given, the debugger will wait for this long, at most a week,
 before rebooting.
+When the
+.Cm s
+modifier is given, the command will skip running any registered shutdown
+handlers and attempt the most basic reset.
 .Pp
 .It Ic thread Ar addr | tid
 Switch the debugger to the thread with ID
