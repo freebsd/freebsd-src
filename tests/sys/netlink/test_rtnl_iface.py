@@ -6,49 +6,24 @@ from atf_python.sys.net.netlink import IflattrType
 from atf_python.sys.net.netlink import IflinkInfo
 from atf_python.sys.net.netlink import IfLinkInfoDataVlan
 from atf_python.sys.net.netlink import NetlinkIflaMessage
+from atf_python.sys.net.netlink import NetlinkTestTemplate
 from atf_python.sys.net.netlink import NlAttrNested
 from atf_python.sys.net.netlink import NlAttrStr
 from atf_python.sys.net.netlink import NlAttrStrn
 from atf_python.sys.net.netlink import NlAttrU16
 from atf_python.sys.net.netlink import NlAttrU32
 from atf_python.sys.net.netlink import NlConst
-from atf_python.sys.net.netlink import NlHelper
 from atf_python.sys.net.netlink import NlmBaseFlags
 from atf_python.sys.net.netlink import NlmNewFlags
 from atf_python.sys.net.netlink import NlMsgType
 from atf_python.sys.net.netlink import NlRtMsgType
-from atf_python.sys.net.netlink import Nlsock
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
 
 
-class TestRtNlIface(SingleVnetTestTemplate):
-    REQUIRED_MODULES = ["netlink"]
-
+class TestRtNlIface(SingleVnetTestTemplate, NetlinkTestTemplate):
     def setup_method(self, method):
         super().setup_method(method)
-        self.helper = NlHelper()
-        self.nlsock = Nlsock(NlConst.NETLINK_ROUTE, self.helper)
-
-    def write_message(self, msg):
-        print("")
-        print("============= >> TX MESSAGE =============")
-        msg.print_message()
-        self.nlsock.write_data(bytes(msg))
-        msg.print_as_bytes(bytes(msg), "-- DATA --")
-
-    def read_message(self):
-        msg = self.nlsock.read_message()
-        print("")
-        print("============= << RX MESSAGE =============")
-        msg.print_message()
-        return msg
-
-    def get_reply(self, tx_msg):
-        self.write_message(tx_msg)
-        while True:
-            rx_msg = self.read_message()
-            if tx_msg.nl_hdr.nlmsg_seq == rx_msg.nl_hdr.nlmsg_seq:
-                return rx_msg
+        self.setup_netlink(NlConst.NETLINK_ROUTE)
 
     def get_interface_byname(self, ifname):
         msg = NetlinkIflaMessage(self.helper, NlRtMsgType.RTM_GETLINK.value)
@@ -236,13 +211,11 @@ class TestRtNlIface(SingleVnetTestTemplate):
     # *
     # * {len=76, type=RTM_NEWLINK, flags=NLM_F_REQUEST|NLM_F_ACK|NLM_F_EXCL|NLM_F_CREATE, seq=1662892737, pid=0},
     # *  {ifi_family=AF_UNSPEC, ifi_type=ARPHRD_NETROM, ifi_index=0, ifi_flags=0, ifi_change=0},
-    # *   [
     # *    {{nla_len=8, nla_type=IFLA_LINK}, 2},
     # *    {{nla_len=12, nla_type=IFLA_IFNAME}, "xvlan22"},
     # *    {{nla_len=24, nla_type=IFLA_LINKINFO},
-    # *     [
     # *      {{nla_len=8, nla_type=IFLA_INFO_KIND}, "vlan"...},
-    # *      {{nla_len=12, nla_type=IFLA_INFO_DATA}, "\x06\x00\x01\x00\x16\x00\x00\x00"}]}]}, iov_len=76}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 76
+    # *      {{nla_len=12, nla_type=IFLA_INFO_DATA}, "\x06\x00\x01\x00\x16\x00\x00\x00"}
     # */
     @pytest.mark.skip(reason="vlan support needs more work")
     @pytest.mark.require_user("root")
