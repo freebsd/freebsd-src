@@ -729,7 +729,7 @@ out:
 
 static void
 db_reset(db_expr_t addr, bool have_addr, db_expr_t count __unused,
-    char *modif __unused)
+    char *modif)
 {
 	int delay, loop;
 
@@ -752,6 +752,18 @@ db_reset(db_expr_t addr, bool have_addr, db_expr_t count __unused,
 			if (cncheckc() != -1)
 				return;
 		}
+	}
+
+	/*
+	 * Conditionally try the standard reboot path, so any registered
+	 * shutdown/reset handlers have a chance to run first. Some platforms
+	 * may not support the machine-dependent mechanism used by cpu_reset()
+	 * and rely on some other non-standard mechanism to perform the reset.
+	 * For example, the BCM2835 watchdog driver or gpio-poweroff driver.
+	 */
+	if (modif[0] != 's') {
+		kern_reboot(RB_NOSYNC);
+		/* NOTREACHED */
 	}
 
 	cpu_reset();
