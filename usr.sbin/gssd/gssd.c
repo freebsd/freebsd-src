@@ -847,7 +847,7 @@ gssd_acquire_cred_1_svc(acquire_cred_args *argp, acquire_cred_res *result, struc
 	}
 
 	result->major_status = gss_acquire_cred(&result->minor_status,
-	    desired_name, argp->time_req, argp->desired_mechs,
+	    GSS_C_NO_NAME, argp->time_req, argp->desired_mechs,
 	    argp->cred_usage, &cred, &result->actual_mechs, &result->time_rec);
 	gssd_verbose_out("gssd_acquire_cred: done major=0x%x minor=%d\n",
 	    (unsigned int)result->major_status, (int)result->minor_status);
