@@ -1106,6 +1106,8 @@ main(int argc, char **argv)
 			break;
 		case 'R':
 			mapped_reads = 0;
+			if (!quiet)
+				fprintf(stdout, "mapped reads DISABLED\n");
 			break;
 		case 'S':
 			seed = getnum(optarg, &endp);
