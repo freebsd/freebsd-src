@@ -52,7 +52,7 @@ enum {
 	IFA_UNSPEC,
 	IFA_ADDRESS		= 1, /* binary, prefix address (destination for p2p) */
 	IFA_LOCAL		= 2, /* binary, interface address */
-	IFA_LABEL		= 3, /* not supported */
+	IFA_LABEL		= 3, /* string, interface name */
 	IFA_BROADCAST		= 4, /* binary, broadcast ifa */
 	IFA_ANYCAST		= 5, /* not supported */
 	IFA_CACHEINFO		= 6, /* not supported */
