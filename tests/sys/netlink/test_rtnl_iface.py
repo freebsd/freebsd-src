@@ -20,7 +20,7 @@ from atf_python.sys.net.netlink import NlRtMsgType
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
 
 
-class TestRtNlIface(SingleVnetTestTemplate, NetlinkTestTemplate):
+class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
     def setup_method(self, method):
         super().setup_method(method)
         self.setup_netlink(NlConst.NETLINK_ROUTE)

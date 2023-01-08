@@ -15,7 +15,7 @@ from atf_python.sys.net.netlink import RtScope
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
 
 
-class TestRtNlIfaddr(SingleVnetTestTemplate, NetlinkTestTemplate):
+class TestRtNlIfaddr(NetlinkTestTemplate, SingleVnetTestTemplate):
     def setup_method(self, method):
         method_name = method.__name__
         if "4" in method_name:
