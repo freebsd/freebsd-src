@@ -1883,7 +1883,7 @@ dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a fdt
 dev/iicbus/syr827.c		optional syr827 fdt
 dev/iicbus/gpio/tca64xx.c	optional tca64xx fdt gpio
-dev/iicbus/pmic/fan53555.c	optional fan53555 fdt
+dev/iicbus/pmic/fan53555.c	optional fan53555 fdt | tcs4525 fdt
 dev/igc/if_igc.c		optional igc iflib pci
 dev/igc/igc_api.c		optional igc iflib pci
 dev/igc/igc_base.c		optional igc iflib pci
