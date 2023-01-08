@@ -267,7 +267,7 @@ probe_zfs_currdev(uint64_t guid)
 	char *devname;
 	struct zfs_devdesc currdev;
 	char *buf = NULL;
-	bool rv;
+	bool bootable;
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
@@ -277,8 +277,8 @@ probe_zfs_currdev(uint64_t guid)
 	devname = devformat(&currdev.dd);
 	init_zfs_boot_options(devname);
 
-	rv = sanity_check_currdev();
-	if (rv) {
+	bootable = sanity_check_currdev();
+	if (bootable) {
 		buf = malloc(VDEV_PAD_SIZE);
 		if (buf != NULL) {
 			if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf,
@@ -291,7 +291,7 @@ probe_zfs_currdev(uint64_t guid)
 			(void) zfs_attach_nvstore(&currdev);
 		}
 	}
-	return (rv);
+	return (bootable);
 }
 #endif
 
