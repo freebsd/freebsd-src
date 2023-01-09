@@ -163,12 +163,12 @@ int
 do_fuser(int argc, char *argv[])
 {
 	struct consumer *consumer;
-	struct kinfo_proc *p, *procs;
+	struct kinfo_proc *procs;
 	struct procstat *procstat;
 	struct reqfile *reqfiles;
 	char *ep, *nlistf, *memf;
-	int ch, cnt, sig;
-	unsigned int i, nfiles;
+	int ch, sig;
+	unsigned int i, cnt, nfiles;
 
 	sig = SIGKILL;	/* Default to kill. */
 	nlistf = NULL;
@@ -253,10 +253,9 @@ do_fuser(int argc, char *argv[])
 	/*
 	 * Walk through process table and look for matching files.
 	 */
-	p = procs;
-	while(cnt--)
-		if (p->ki_stat != SZOMB)
-			dofiles(procstat, p++, reqfiles, nfiles);
+	for (i = 0; i < cnt; i++)
+		if (procs[i].ki_stat != SZOMB)
+			dofiles(procstat, &procs[i], reqfiles, nfiles);
 
 	for (i = 0; i < nfiles; i++) {
 		fprintf(stderr, "%s:", reqfiles[i].name);
