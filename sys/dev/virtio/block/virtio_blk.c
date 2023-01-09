@@ -1126,15 +1126,17 @@ vtblk_request_execute_cb(void * callback_arg, bus_dma_segment_t * segs,
 	sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
 	readable = sg->sg_nseg - writable;
 
-	switch (bp->bio_cmd) {
-	case BIO_READ:
-		bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
-		    BUS_DMASYNC_PREREAD);
-		break;
-	case BIO_WRITE:
-		bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
-		    BUS_DMASYNC_PREWRITE);
-		break;
+	if (req->vbr_mapp != NULL) {
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+			    BUS_DMASYNC_PREREAD);
+			break;
+		case BIO_WRITE:
+			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+			    BUS_DMASYNC_PREWRITE);
+			break;
+		}
 	}
 
 	error = virtqueue_enqueue(vq, req, sg, readable, writable);
@@ -1191,17 +1193,21 @@ vtblk_queue_completed(struct vtblk_softc *sc, struct bio_queue *queue)
 		}
 
 		bp = req->vbr_bp;
-		switch (bp->bio_cmd) {
-		case BIO_READ:
-			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
-			break;
-		case BIO_WRITE:
-			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
-			break;
+		if (req->vbr_mapp != NULL) {
+			switch (bp->bio_cmd) {
+			case BIO_READ:
+				bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->vtblk_dmat,
+				    req->vbr_mapp);
+				break;
+			case BIO_WRITE:
+				bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(sc->vtblk_dmat,
+				    req->vbr_mapp);
+				break;
+			}
 		}
 		bp->bio_error = vtblk_request_error(req);
 		TAILQ_INSERT_TAIL(queue, bp, bio_queue);
