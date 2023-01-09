@@ -70,6 +70,7 @@ __RCSID("$NetBSD: t_setjmp.c,v 1.2 2017/01/14 21:08:17 christos Exp $");
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,6 +84,8 @@ __RCSID("$NetBSD: t_setjmp.c,v 1.2 2017/01/14 21:08:17 christos Exp $");
 #define TEST_U_SETJMP 1
 #define TEST_SIGSETJMP_SAVE 2
 #define TEST_SIGSETJMP_NOSAVE 3
+#define TEST_LONGJMP_ZERO 4
+#define TEST_U_LONGJMP_ZERO 5
 
 static int expectsignal;
 
@@ -101,12 +104,16 @@ h_check(int test)
 	sigjmp_buf sjb;
 	sigset_t ss;
 	int i, x;
+	volatile bool did_longjmp;
 
 	i = getpid();
+	did_longjmp = false;
 
-	if (test == TEST_SETJMP || test == TEST_SIGSETJMP_SAVE)
+	if (test == TEST_SETJMP || test == TEST_SIGSETJMP_SAVE ||
+	    test == TEST_LONGJMP_ZERO)
 		expectsignal = 0;
-	else if (test == TEST_U_SETJMP || test == TEST_SIGSETJMP_NOSAVE)
+	else if (test == TEST_U_SETJMP || test == TEST_SIGSETJMP_NOSAVE ||
+	    test == TEST_U_LONGJMP_ZERO)
 		expectsignal = 1;
 	else
 		atf_tc_fail("unknown test");
@@ -119,26 +126,37 @@ h_check(int test)
 	REQUIRE_ERRNO(sigaddset(&ss, SIGABRT) != -1);
 	REQUIRE_ERRNO(sigprocmask(SIG_BLOCK, &ss, NULL) != -1);
 
-	if (test == TEST_SETJMP)
+	if (test == TEST_SETJMP || test == TEST_LONGJMP_ZERO)
 		x = setjmp(jb);
-	else if (test == TEST_U_SETJMP)
+	else if (test == TEST_U_SETJMP || test == TEST_U_LONGJMP_ZERO)
 		x = _setjmp(jb);
 	else 
 		x = sigsetjmp(sjb, !expectsignal);
 
 	if (x != 0) {
-		ATF_REQUIRE_MSG(x == i, "setjmp returned wrong value");
+		if (test == TEST_LONGJMP_ZERO || test == TEST_U_LONGJMP_ZERO)
+			ATF_REQUIRE_MSG(x == 1, "setjmp returned wrong value");
+		else
+			ATF_REQUIRE_MSG(x == i, "setjmp returned wrong value");
+
 		kill(i, SIGABRT);
 		ATF_REQUIRE_MSG(!expectsignal, "kill(SIGABRT) failed");
 		atf_tc_pass();
+	} else if (did_longjmp) {
+		atf_tc_fail("setjmp returned zero after longjmp");
 	}
 
 	REQUIRE_ERRNO(sigprocmask(SIG_UNBLOCK, &ss, NULL) != -1);
 
+	did_longjmp = true;
 	if (test == TEST_SETJMP)
 		longjmp(jb, i);
+	else if (test == TEST_LONGJMP_ZERO)
+		longjmp(jb, 0);
 	else if (test == TEST_U_SETJMP)
 		_longjmp(jb, i);
+	else if (test == TEST_U_LONGJMP_ZERO)
+		_longjmp(jb, 0);
 	else 
 		siglongjmp(sjb, i);
 
@@ -185,12 +203,34 @@ ATF_TC_BODY(sigsetjmp_nosave, tc)
 	h_check(TEST_SIGSETJMP_NOSAVE);
 }
 
+ATF_TC(longjmp_zero);
+ATF_TC_HEAD(longjmp_zero, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Checks longjmp(3) with a zero value");
+}
+ATF_TC_BODY(longjmp_zero, tc)
+{
+	h_check(TEST_LONGJMP_ZERO);
+}
+
+ATF_TC(_longjmp_zero);
+ATF_TC_HEAD(_longjmp_zero, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Checks _longjmp(3) with a zero value");
+}
+ATF_TC_BODY(_longjmp_zero, tc)
+{
+	h_check(TEST_U_LONGJMP_ZERO);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, setjmp);
 	ATF_TP_ADD_TC(tp, _setjmp);
 	ATF_TP_ADD_TC(tp, sigsetjmp_save);
 	ATF_TP_ADD_TC(tp, sigsetjmp_nosave);
+	ATF_TP_ADD_TC(tp, longjmp_zero);
+	ATF_TP_ADD_TC(tp, _longjmp_zero);
 
 	return atf_no_error();
 }
