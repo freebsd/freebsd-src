@@ -91,7 +91,8 @@ ENTRY(_longjmp)
 #endif
 
 	/* Load the return value */
-	mov	x0, x1
+	cmp	x1, #0
+	csinc	x0, x1, xzr, ne
 	ret
 
 botch:
