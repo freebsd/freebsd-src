@@ -4211,8 +4211,8 @@ if_setcapabilities(if_t ifp, int capabilities)
 int
 if_setcapabilitiesbit(if_t ifp, int setbit, int clearbit)
 {
-	((struct ifnet *)ifp)->if_capabilities |= setbit;
 	((struct ifnet *)ifp)->if_capabilities &= ~clearbit;
+	((struct ifnet *)ifp)->if_capabilities |= setbit;
 
 	return (0);
 }
@@ -4233,10 +4233,10 @@ if_setcapenable(if_t ifp, int capabilities)
 int 
 if_setcapenablebit(if_t ifp, int setcap, int clearcap)
 {
-	if(setcap) 
-		((struct ifnet *)ifp)->if_capenable |= setcap;
 	if(clearcap)
 		((struct ifnet *)ifp)->if_capenable &= ~clearcap;
+	if(setcap) 
+		((struct ifnet *)ifp)->if_capenable |= setcap;
 
 	return (0);
 }
@@ -4339,8 +4339,8 @@ if_setdev(if_t ifp, void *dev)
 int
 if_setdrvflagbits(if_t ifp, int set_flags, int clear_flags)
 {
-	((struct ifnet *)ifp)->if_drv_flags |= set_flags;
 	((struct ifnet *)ifp)->if_drv_flags &= ~clear_flags;
+	((struct ifnet *)ifp)->if_drv_flags |= set_flags;
 
 	return (0);
 }
@@ -4369,8 +4369,8 @@ if_setflags(if_t ifp, int flags)
 int
 if_setflagbits(if_t ifp, int set, int clear)
 {
-	((struct ifnet *)ifp)->if_flags |= set;
 	((struct ifnet *)ifp)->if_flags &= ~clear;
+	((struct ifnet *)ifp)->if_flags |= set;
 
 	return (0);
 }
@@ -4391,8 +4391,8 @@ if_clearhwassist(if_t ifp)
 int
 if_sethwassistbits(if_t ifp, int toset, int toclear)
 {
-	((struct ifnet *)ifp)->if_hwassist |= toset;
 	((struct ifnet *)ifp)->if_hwassist &= ~toclear;
+	((struct ifnet *)ifp)->if_hwassist |= toset;
 
 	return (0);
 }
