@@ -150,17 +150,17 @@ INCS+=	${SRCTOP}/include/nlist.h
 SYSINCS+=	${SRCTOP}/sys/sys/imgact_aout.h
 SYSINCS+=	${SRCTOP}/sys/sys/nlist_aout.h
 
+# macOS's bitstring lacks FreeBSD-specific additions used by makefs's ZFS code
+# and Linux doesn't have it at all.  Older FreeBSD versions lack recent
+# additions.
+INCS+=	${SRCTOP}/include/bitstring.h
+SYSINCS+=	${SRCTOP}/sys/sys/bitstring.h
 
 .if ${.MAKE.OS} != "FreeBSD"
 .PATH: ${.CURDIR}/cross-build
 
 # Needed by our sys/types.h wrapper
 SYSINCS+=	${SRCTOP}/sys/sys/bitcount.h
-
-# macOS's bitstring lacks FreeBSD-specific additions used by makefs's ZFS code
-# and Linux doesn't have it at all.
-INCS+=	${SRCTOP}/include/bitstring.h
-SYSINCS+=	${SRCTOP}/sys/sys/bitstring.h
 
 # dbopen() behaves differently on Linux and FreeBSD so we ensure that we
 # bootstrap the FreeBSD db code. The cross-build headers #define dbopen() to
