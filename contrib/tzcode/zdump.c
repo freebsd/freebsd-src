@@ -134,16 +134,15 @@ size_overflow(void)
 
 /* Return A + B, exiting if the result would overflow either ptrdiff_t
    or size_t.  */
-static ATTRIBUTE_REPRODUCIBLE ptrdiff_t
+static ATTRIBUTE_REPRODUCIBLE size_t
 sumsize(size_t a, size_t b)
 {
 #ifdef ckd_add
-  ptrdiff_t sum;
-  if (!ckd_add(&sum, a, b) /* && sum <= SIZE_MAX */)
+  size_t sum;
+  if (!ckd_add(&sum, a, b))
     return sum;
 #else
-  ptrdiff_t sum_max = min(PTRDIFF_MAX, SIZE_MAX);
-  if (a <= sum_max && b <= sum_max - a)
+  if (a <= SIZE_MAX && b <= SIZE_MAX - a)
     return a + b;
 #endif
   size_overflow();
