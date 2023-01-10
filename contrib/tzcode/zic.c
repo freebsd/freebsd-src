@@ -474,40 +474,38 @@ size_overflow(void)
   memory_exhausted(_("size overflow"));
 }
 
-static ATTRIBUTE_REPRODUCIBLE ptrdiff_t
+static ATTRIBUTE_REPRODUCIBLE size_t
 size_sum(size_t a, size_t b)
 {
 #ifdef ckd_add
-  ptrdiff_t sum;
-  if (!ckd_add(&sum, a, b) /* && sum <= SIZE_MAX */)
+  size_t sum;
+  if (!ckd_add(&sum, a, b))
     return sum;
 #else
-  ptrdiff_t sum_max = min(PTRDIFF_MAX, SIZE_MAX);
-  if (a <= sum_max && b <= sum_max - a)
+  if (b <= SIZE_MAX - a)
     return a + b;
 #endif
   size_overflow();
 }
 
-static ATTRIBUTE_REPRODUCIBLE ptrdiff_t
-size_product(ptrdiff_t nitems, ptrdiff_t itemsize)
+static ATTRIBUTE_REPRODUCIBLE size_t
+size_product(size_t nitems, size_t itemsize)
 {
 #ifdef ckd_mul
-  ptrdiff_t product;
-  if (!ckd_mul(&product, nitems, itemsize) /* && product <= SIZE_MAX */)
+  size_t product;
+  if (!ckd_mul(&product, nitems, itemsize))
     return product;
 #else
-  ptrdiff_t nitems_max = min(PTRDIFF_MAX, SIZE_MAX) / itemsize;
-  if (nitems <= nitems_max)
+  if (nitems <= SIZE_MAX / itemsize)
     return nitems * itemsize;
 #endif
   size_overflow();
 }
 
-static ATTRIBUTE_REPRODUCIBLE ptrdiff_t
-align_to(ptrdiff_t size, ptrdiff_t alignment)
+static ATTRIBUTE_REPRODUCIBLE size_t
+align_to(size_t size, size_t alignment)
 {
-  ptrdiff_t lo_bits = alignment - 1, sum = size_sum(size, lo_bits);
+  size_t lo_bits = alignment - 1, sum = size_sum(size, lo_bits);
   return sum & ~lo_bits;
 }
 
@@ -1269,7 +1267,10 @@ get_rand_u64(void)
       s = getrandom(entropy_buffer, sizeof entropy_buffer, 0);
     while (s < 0 && errno == EINTR);
 
-    nwords = s < 0 ? -1 : s / sizeof *entropy_buffer;
+    if (s < 0)
+      nwords = -1;
+    else
+      nwords = s / sizeof *entropy_buffer;
   }
   if (0 < nwords)
     return entropy_buffer[--nwords];
@@ -3991,9 +3992,7 @@ mkdirs(char const *argname, bool ancestors)
 #include <pwd.h>
 
 static void
-setgroup(flag, name)
-	gid_t *flag;
-	const char *name;
+setgroup(gid_t *flag, const char *name)
 {
 	struct group *gr;
 
@@ -4019,9 +4018,7 @@ setgroup(flag, name)
 }
 
 static void
-setuser(flag, name)
-	uid_t *flag;
-	const char *name;
+setuser(uid_t *flag, const char *name)
 {
 	struct passwd *pw;
 
