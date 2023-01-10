@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "tzfile.h"
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <stdio.h>
 #include "un-namespace.h"
 #include "timelocal.h"
 

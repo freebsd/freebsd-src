@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include "private.h"
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "timelocal.h"
