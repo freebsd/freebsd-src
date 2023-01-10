@@ -1,0 +1,290 @@
+.\" strftime man page
+.\"
+.\" Based on the UCB file whose corrected copyright information appears below.
+.\" Copyright 1989, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)strftime.3	5.12 (Berkeley) 6/29/91
+.\"	$Id: strftime.3,v 1.4 1993/12/15 20:33:00 jtc Exp $
+.\"
+.TH NEWSTRFTIME 3
+.SH NAME
+strftime \- format date and time
+.SH SYNOPSIS
+.nf
+.ie \n(.g .ds - \f(CR-\fP
+.el .ds - \-
+.B #include <time.h>
+.PP
+.B "size_t strftime(char *restrict buf, size_t maxsize,"
+.B "    char const *restrict format, struct tm const *restrict timeptr);"
+.PP
+.B cc ... \-ltz
+.fi
+.SH DESCRIPTION
+.ie '\(lq'' .ds lq \&"\"
+.el .ds lq \(lq\"
+.ie '\(rq'' .ds rq \&"\"
+.el .ds rq \(rq\"
+.de c
+.ie \n(.g \f(CR\\$1\fP\\$2
+.el \\$1\\$2
+..
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
+The
+.B strftime
+function formats the information from
+.I timeptr
+into the array pointed to by
+.I buf
+according to the string pointed to by
+.IR format .
+.PP
+The
+.I format
+string consists of zero or more conversion specifications and
+ordinary characters.
+All ordinary characters are copied directly into the array.
+A conversion specification consists of a percent sign
+.Ql %
+and one other character.
+.PP
+No more than
+.I maxsize
+bytes are placed into the array.
+.PP
+Each conversion specification is replaced by the characters as
+follows which are then copied into the array.
+.TP
+%A
+is replaced by the locale's full weekday name.
+.TP
+%a
+is replaced by the locale's abbreviated weekday name.
+.TP
+%B
+is replaced by the locale's full month name.
+.TP
+%b or %h
+is replaced by the locale's abbreviated month name.
+.TP
+%C
+is replaced by the century (a year divided by 100 and truncated to an integer)
+as a decimal number [00,99].
+.TP
+%c
+is replaced by the locale's appropriate date and time representation.
+.TP
+%D
+is equivalent to
+.c %m/%d/%y .
+.TP
+%d
+is replaced by the day of the month as a decimal number [01,31].
+.TP
+%e
+is replaced by the day of month as a decimal number [1,31];
+single digits are preceded by a blank.
+.TP
+%F
+is equivalent to
+.c %Y-%m-%d
+(the ISO 8601 date format).
+.TP
+%G
+is replaced by the ISO 8601 year with century as a decimal number.
+See also the
+.c %V
+conversion specification.
+.TP
+%g
+is replaced by the ISO 8601 year without century as a decimal number [00,99].
+This is the year that includes the greater part of the week.
+(Monday as the first day of a week).
+See also the
+.c %V
+conversion specification.
+.TP
+%H
+is replaced by the hour (24-hour clock) as a decimal number [00,23].
+.TP
+%I
+is replaced by the hour (12-hour clock) as a decimal number [01,12].
+.TP
+%j
+is replaced by the day of the year as a decimal number [001,366].
+.TP
+%k
+is replaced by the hour (24-hour clock) as a decimal number [0,23];
+single digits are preceded by a blank.
+.TP
+%l
+is replaced by the hour (12-hour clock) as a decimal number [1,12];
+single digits are preceded by a blank.
+.TP
+%M
+is replaced by the minute as a decimal number [00,59].
+.TP
+%m
+is replaced by the month as a decimal number [01,12].
+.TP
+%n
+is replaced by a newline.
+.TP
+%p
+is replaced by the locale's equivalent of either
+.q AM
+or
+.q PM .
+.TP
+%R
+is replaced by the time in the format
+.c %H:%M .
+.TP
+%r
+is replaced by the locale's representation of 12-hour clock time
+using AM/PM notation.
+.TP
+%S
+is replaced by the second as a decimal number [00,60].
+The range of
+seconds is [00,60] instead of [00,59] to allow for the periodic occurrence
+of leap seconds.
+.TP
+%s
+is replaced by the number of seconds since the Epoch (see
+.BR ctime (3)).
+.TP
+%T
+is replaced by the time in the format
+.c %H:%M:%S .
+.TP
+%t
+is replaced by a tab.
+.TP
+%U
+is replaced by the week number of the year (Sunday as the first day of
+the week) as a decimal number [00,53].
+.TP
+%u
+is replaced by the weekday (Monday as the first day of the week)
+as a decimal number [1,7].
+.TP
+%V
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number [01,53].  If the week containing January
+1 has four or more days in the new year, then it is week 1; otherwise
+it is week 53 of the previous year, and the next week is week 1.
+The year is given by the
+.c %G
+conversion specification.
+.TP
+%W
+is replaced by the week number of the year (Monday as the first day of
+the week) as a decimal number [00,53].
+.TP
+%w
+is replaced by the weekday (Sunday as the first day of the week)
+as a decimal number [0,6].
+.TP
+%X
+is replaced by the locale's appropriate time representation.
+.TP
+%x
+is replaced by the locale's appropriate date representation.
+.TP
+%Y
+is replaced by the year with century as a decimal number.
+.TP
+%y
+is replaced by the year without century as a decimal number [00,99].
+.TP
+%Z
+is replaced by the time zone abbreviation,
+or by the empty string if this is not determinable.
+.TP
+%z
+is replaced by the offset from the Prime Meridian
+in the format +HHMM or \*-HHMM (ISO 8601) as appropriate,
+with positive values representing locations east of Greenwich,
+or by the empty string if this is not determinable.
+The numeric time zone abbreviation \*-0000 is used when the time is
+Universal Time
+but local time is indeterminate; by convention this is used for
+locations while uninhabited, and corresponds to a zero offset when the
+time zone abbreviation begins with
+.q "\*-" .
+.TP
+%%
+is replaced by a single %.
+.TP
+%+
+is replaced by the locale's date and time in
+.BR date (1)
+format.
+.SH "RETURN VALUE"
+If the conversion is successful,
+.B strftime
+returns the number of bytes placed into the array, not counting the
+terminating NUL;
+.B errno
+is unchanged if the returned value is zero.
+Otherwise,
+.B errno
+is set to indicate the error, zero is returned,
+and the array contents are unspecified.
+.SH ERRORS
+This function fails if:
+.TP
+[ERANGE]
+The total number of resulting bytes, including the terminating
+NUL character, is more than
+.IR maxsize .
+.PP
+This function may fail if:
+.TP
+[EOVERFLOW]
+The format includes an
+.c %s
+conversion and the number of seconds since the Epoch cannot be represented
+in a
+.c time_t .
+.SH SEE ALSO
+date(1),
+getenv(3),
+newctime(3),
+newtzset(3),
+time(2),
+tzfile(5)
+.SH BUGS
+There is no conversion specification for the phase of the moon.

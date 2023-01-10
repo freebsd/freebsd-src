@@ -2,9 +2,9 @@
 
 .PATH: ${SRCTOP}/contrib/tzcode
 
-PROG=	zic
-MAN=	zic.8
-SRCS=	zic.c
+PROG=	zdump
+MAN=	zdump.8
+SRCS=	zdump.c
 
 CFLAGS+= -DNETBSD_INSPIRED=0 -DSTD_INSPIRED=1
 CFLAGS+= -I${SRCTOP}/contrib/tzcode
