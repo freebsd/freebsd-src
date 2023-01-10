@@ -1,7 +1,10 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/string ${LIBC_SRCTOP}/string
+.if ${MK_MACHDEP_OPTIMIZATIONS} != "no"
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/string
+.endif
+.PATH: ${LIBC_SRCTOP}/string
 .PATH: ${SRCTOP}/sys/libkern
 
 CFLAGS+= -I${LIBC_SRCTOP}/locale
@@ -30,8 +33,10 @@ MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
 SYM_MAPS+=	${LIBC_SRCTOP}/string/Symbol.map
 
 
+.if ${MK_MACHDEP_OPTIMIZATIONS} != "no"
 # machine-dependent string sources
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/string/Makefile.inc"
+.endif
 
 MAN+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \
 	memcmp.3 memcpy.3 memmem.3 memmove.3 memset.3 strcasecmp.3 strcat.3 \
