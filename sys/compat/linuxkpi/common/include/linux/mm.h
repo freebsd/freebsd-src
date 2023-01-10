@@ -257,24 +257,53 @@ get_page(struct vm_page *page)
 
 extern long
 get_user_pages(unsigned long start, unsigned long nr_pages,
-    int gup_flags, struct page **,
+    unsigned int gup_flags, struct page **,
     struct vm_area_struct **);
+
+static inline long
+pin_user_pages(unsigned long start, unsigned long nr_pages,
+    unsigned int gup_flags, struct page **pages,
+    struct vm_area_struct **vmas)
+{
+	return get_user_pages(start, nr_pages, gup_flags, pages, vmas);
+}
 
 extern int
 __get_user_pages_fast(unsigned long start, int nr_pages, int write,
     struct page **);
 
+static inline int
+pin_user_pages_fast(unsigned long start, int nr_pages,
+    unsigned int gup_flags, struct page **pages)
+{
+	return __get_user_pages_fast(
+	    start, nr_pages, !!(gup_flags & FOLL_WRITE), pages);
+}
+
 extern long
 get_user_pages_remote(struct task_struct *, struct mm_struct *,
     unsigned long start, unsigned long nr_pages,
-    int gup_flags, struct page **,
+    unsigned int gup_flags, struct page **,
     struct vm_area_struct **);
+
+static inline long
+pin_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
+    unsigned long start, unsigned long nr_pages,
+    unsigned int gup_flags, struct page **pages,
+    struct vm_area_struct **vmas)
+{
+	return get_user_pages_remote(
+	    task, mm, start, nr_pages, gup_flags, pages, vmas);
+}
 
 static inline void
 put_page(struct vm_page *page)
 {
 	vm_page_unwire(page, PQ_ACTIVE);
 }
+
+#define	unpin_user_page(page) put_page(page)
+#define	unpin_user_pages(pages, npages) release_pages(pages, npages)
 
 #define	copy_highpage(to, from) pmap_copy_page(from, to)
 
