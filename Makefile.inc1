@@ -1324,10 +1324,6 @@ __installcheck_sh_check: .PHONY
 #
 # Required install tools to be saved in a scratch dir for safety.
 #
-.if ${MK_ZONEINFO} != "no"
-_zoneinfo=	zic tzsetup
-.endif
-
 .if !defined(CROSSBUILD_HOST)
 _sysctl=sysctl
 .endif
@@ -1335,13 +1331,18 @@ _sysctl=sysctl
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
 	date echo egrep find grep id install ${_install-info} \
 	ln make mkdir mtree mv pwd_mkdb \
-	rm sed services_mkdb sh sort strip ${_sysctl} test true uname wc \
-	${_zoneinfo} ${LOCAL_ITOOLS}
+	rm sed services_mkdb sh sort strip ${_sysctl} test true uname wc
+
+.if ${MK_ZONEINFO} != "no"
+ITOOLS+=tzsetup
+.endif
 
 # Needed for share/man
 .if ${MK_MAN_UTILS} != "no"
 ITOOLS+=makewhatis
 .endif
+
+ITOOLS+=${LOCAL_ITOOLS}
 
 #
 # distributeworld
@@ -2222,6 +2223,11 @@ _strfile=	usr.bin/fortune/strfile
 # C source for loader built in font (8x16.c).
 _vtfontcvt=	usr.bin/vtfontcvt
 
+# zic is used to compile timezone data
+.if ${MK_ZONEINFO} != "no"
+_zic=		usr.sbin/zic
+.endif
+
 # If we are not building the bootstrap because BOOTSTRAPPING is sufficient
 # we symlink the host version to $WORLDTMP instead. By doing this we can also
 # detect when a bootstrap tool is being used without the required MK_FOO.
@@ -2437,8 +2443,9 @@ _basic_bootstrap_tools+=usr.bin/jot
 _basic_bootstrap_tools+=sbin/md5
 .endif
 
+# tzsetup is needed as an install tool
 .if ${MK_ZONEINFO} != "no"
-_basic_bootstrap_tools+=usr.sbin/zic usr.sbin/tzsetup
+_basic_bootstrap_tools+=usr.sbin/tzsetup
 .endif
 
 .if defined(BOOTSTRAP_ALL_TOOLS)
@@ -2525,6 +2532,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_localedef} \
     ${_mkcsmapper} \
     ${_mkesdb} \
+    ${_zic} \
     ${LOCAL_BSTOOL_DIRS}
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \

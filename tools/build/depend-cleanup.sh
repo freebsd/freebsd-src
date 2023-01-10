@@ -86,3 +86,9 @@ if stat "$OBJTOP"/tests/sys/kqueue/libkqueue/*kqtest* \
 	rm -f "$OBJTOP"/tests/sys/kqueue/libkqueue/.depend.* \
 	   "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 fi
+
+# 20230110  bc42155199b5    usr.sbin/zic/zic -> usr.sbin/zic
+if [ -d "$OBJTOP"/usr.sbin/zic/zic ] ; then
+	echo "Removing old zic directory"
+	rm -rf "$OBJTOP"/usr.sbin/zic/zic
+fi

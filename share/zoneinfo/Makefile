@@ -51,7 +51,6 @@ LEAPFILE=
 TZFILES=	africa antarctica asia australasia etcetera europe \
 		factory northamerica southamerica
 TZFILES+=	backward
-POSIXRULES=	America/New_York
 
 TZFILES:=	${TZFILES:S/^/${CONTRIBDIR}/}
 
@@ -78,11 +77,16 @@ all: zoneinfo
 .endif
 META_TARGETS+=	zoneinfo install-zoneinfo
 
+#
+# Produce “fat” zoneinfo files for backward compatibility.
+#
+ZICFLAGS?=	-b fat
+
 zoneinfo: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
 	umask 022; cd ${.CURDIR}; \
-	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
+	zic -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
 	    ${LEAPFILE} ${TZFILES}
 
 #
