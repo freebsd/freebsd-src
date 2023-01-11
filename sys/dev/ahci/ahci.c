@@ -1485,7 +1485,7 @@ ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 			ahci_done(ch, fccb);
 		}
 		for (i = 0; i < ch->numslots; i++) {
-			/* XXX: reqests in loading state. */
+			/* XXX: requests in loading state. */
 			if (((err >> i) & 1) == 0)
 				continue;
 			if (port >= 0 &&
