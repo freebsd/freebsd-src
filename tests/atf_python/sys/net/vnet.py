@@ -92,6 +92,7 @@ class VnetInterface(object):
     def setup_loopback(cls, vnet_name: str):
         lo = VnetInterface("", "lo0")
         lo.set_vnet(vnet_name)
+        lo.setup_addr("127.0.0.1/8")
         lo.turn_up()
 
     @classmethod
