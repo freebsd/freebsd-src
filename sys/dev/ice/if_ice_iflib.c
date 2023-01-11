@@ -1249,7 +1249,7 @@ ice_msix_admin(void *arg)
 		 * soon as the driver has determined that the hardware is out
 		 * of reset.
 		 *
-		 * If the driver wishes to trigger a reqest, it can set one of
+		 * If the driver wishes to trigger a request, it can set one of
 		 * the ICE_STATE_RESET_*_REQ bits, which will trigger the
 		 * correct type of reset.
 		 */
