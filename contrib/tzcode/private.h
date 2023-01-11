@@ -7,20 +7,7 @@
 /*
 ** This file is in the public domain, so clarified as of
 ** 1996-06-05 by Arthur David Olson.
-**
-** $FreeBSD$
 */
-
-/* Stuff moved from Makefile.inc to reduce clutter */
-#ifndef TM_GMTOFF
-#define TM_GMTOFF	tm_gmtoff
-#define TM_ZONE		tm_zone
-#define PCTS		1
-#define HAVE_LONG_DOUBLE 1
-#define	HAVE_UNISTD_H	1
-#define	LOCALE_HOME	_PATH_LOCALE
-#define TZDIR		"/usr/share/zoneinfo"
-#endif /* ndef TM_GMTOFF */
 
 /*
 ** This header is for use ONLY with the time conversion code.
@@ -522,12 +509,6 @@ typedef unsigned long uintmax_t;
 
 #if __STDC_VERSION__ < 199901 && !defined restrict
 # define restrict /* empty */
-#endif
-
-#if 2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)
-# define ATTRIBUTE_PURE __attribute__ ((__pure__))
-#else
-# define ATTRIBUTE_PURE /* empty */
 #endif
 
 /*

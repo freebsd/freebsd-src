@@ -3,17 +3,20 @@
 
 .PATH:	${LIBC_SRCTOP}/stdtime ${SRCTOP}/contrib/tzcode
 
-SRCS+=	asctime.c difftime.c localtime.c strftime.c strptime.c timelocal.c \
-	time32.c
+TZCODE_SRCS=	asctime.c difftime.c localtime.c
+STDTIME_SRCS=	strftime.c strptime.c timelocal.c
+SRCS+=		${TZCODE_SRCS} ${STDTIME_SRCS} time32.c
 
-SYM_MAPS+= ${LIBC_SRCTOP}/stdtime/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/stdtime/Symbol.map
 
-CFLAGS+= -I${SRCTOP}/contrib/tzcode -I${LIBC_SRCTOP}/stdtime
+.for src in ${TZCODE_SRCS} ${STDTIME_SRCS}
+CFLAGS.${src}+=	-I${SRCTOP}/contrib/tzcode -include tzconfig.h
+.endfor
+.for src in ${STDTIME_SRCS}
+CFLAGS.${src}+=	-I${LIBC_SRCTOP}/stdtime
+.endfor
 
-CFLAGS.localtime.c= -fwrapv
 CFLAGS.localtime.c+= -DALL_STATE -DTHREAD_SAFE
-CFLAGS.localtime.c+= -DHAVE_TZNAME=2 -DUSG_COMPAT=0 -DALTZONE=0
-CFLAGS.localtime.c+= -DNETBSD_INSPIRED=0 -DSTD_INSPIRED=1
 .if ${MK_DETECT_TZ_CHANGES} != "no"
 CFLAGS.localtime.c+= -DDETECT_TZ_CHANGES
 .endif
