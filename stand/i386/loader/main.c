@@ -383,10 +383,7 @@ extract_currdev(void)
 		init_zfs_boot_options(devformat(&new_currdev.dd));
 #endif
 
-	env_setenv("currdev", EV_VOLATILE, devformat(&new_currdev.dd),
-	    gen_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, devformat(&new_currdev.dd),
-	    env_noset, env_nounset);
+	set_currdev(devformat(&new_currdev.dd));
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
