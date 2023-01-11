@@ -415,6 +415,7 @@ int nvstore_unset_var(void *, const char *);
 /* common code to set currdev variable. */
 int gen_setcurrdev(struct env_var *ev, int flags, const void *value);
 int mount_currdev(struct env_var *, int, const void *);
+void set_currdev(const char *devname);
 
 #ifndef CTASSERT
 #define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
