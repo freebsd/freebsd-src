@@ -40,4 +40,10 @@ pm_runtime_get_if_active(struct device *dev, bool x)
 	return 1;
 }
 
+static inline int
+pm_runtime_suspended(struct device *dev)
+{
+	return 0;
+}
+
 #endif	/* _LINUXKPI_LINUX_PM_RUNTIME_H_ */
