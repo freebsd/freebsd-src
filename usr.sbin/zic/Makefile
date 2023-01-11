@@ -6,7 +6,6 @@ PROG=	zic
 MAN=	zic.8
 SRCS=	zic.c
 
-CFLAGS+= -DNETBSD_INSPIRED=0 -DSTD_INSPIRED=1
-CFLAGS+= -I${SRCTOP}/contrib/tzcode
+CFLAGS+= -I${SRCTOP}/contrib/tzcode -include tzconfig.h
 
 .include <bsd.prog.mk>
