@@ -781,7 +781,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 	}
 	/*
 	 * To get the number left we can insert into we simply
-	 * subract the distance the pacer has to run from how
+	 * subtract the distance the pacer has to run from how
 	 * many slots there are.
 	 */
 	avail_on_wheel = NUM_OF_HPTSI_SLOTS - dis_to_travel;
