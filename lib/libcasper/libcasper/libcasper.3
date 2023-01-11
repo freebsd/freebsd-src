@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2022
+.Dd January 10, 2023
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -96,6 +96,7 @@ The
 .Fn cap_init
 function instantiates a capability to allow a program to access
 the casper daemon.
+It must be called from a single-threaded context.
 .Pp
 The
 .Fn cap_wrap
