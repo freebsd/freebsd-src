@@ -224,16 +224,6 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	exit(0);
 }
 
-static void
-set_currdev(const char *devname)
-{
-
-	env_setenv("currdev", EV_VOLATILE, devname,
-	    gen_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, devname,
-	    env_noset, env_nounset);
-}
-
 /*
  * Set the 'current device' by (if possible) recovering the boot device as 
  * supplied by the initial bootstrap.
