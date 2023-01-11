@@ -567,7 +567,7 @@ qcom_clk_rcg2_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	}
 
 	DPRINTF(clknode_get_device(sc->clknode),
-	    "%s: requsted freq=%llu, target freq=%llu,"
+	    "%s: requested freq=%llu, target freq=%llu,"
 	    " parent choice=%s, parent_freq=%llu\n",
 	    __func__,
 	    *fout,
