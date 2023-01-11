@@ -63,20 +63,3 @@ efi_getdev(void **vdev, const char *devspec, const char **path)
 
 	return (devparse(dev, devspec, path));
 }
-
-/*
- * Set currdev to suit the value being supplied in (value)
- */
-int
-efi_setcurrdev(struct env_var *ev, int flags, const void *value)
-{
-	struct devdesc *ncurr;
-	int rv;
-
-	rv = devparse(&ncurr, value, NULL);
-	if (rv != 0)
-		return (rv);
-	free(ncurr);
-
-	return (mount_currdev(ev, flags, value));
-}
