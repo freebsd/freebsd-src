@@ -381,8 +381,6 @@ extern struct arch_switch archsw;
 /* This must be provided by the MD code, but should it be in the archsw? */
 void	delay(int delay);
 
-void	dev_cleanup(void);
-
 /*
  * nvstore API.
  */
