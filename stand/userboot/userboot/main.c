@@ -172,8 +172,7 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	cons_probe();
 
 	/* Set up currdev variable to have hooks in place. */
-	env_setenv("currdev", EV_VOLATILE, "",
-	    userboot_setcurrdev, env_nounset);
+	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev, env_nounset);
 
 	printf("\n%s", bootprog_info);
 #if 0
@@ -230,7 +229,7 @@ set_currdev(const char *devname)
 {
 
 	env_setenv("currdev", EV_VOLATILE, devname,
-	    userboot_setcurrdev, env_nounset);
+	    gen_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, devname,
 	    env_noset, env_nounset);
 }

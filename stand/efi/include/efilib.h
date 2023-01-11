@@ -85,8 +85,6 @@ efi_exit_boot_services(UINTN key)
 }
 
 int efi_getdev(void **vdev, const char *devspec, const char **path);
-int efi_setcurrdev(struct env_var *ev, int flags, const void *value);
-
 
 int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
 EFI_HANDLE efi_find_handle(struct devsw *, int);

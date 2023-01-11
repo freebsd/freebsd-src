@@ -45,7 +45,6 @@ struct ofw_devdesc {
 };
 
 extern int	ofw_getdev(void **vdev, const char *devspec, const char **path);
-extern ev_sethook_t ofw_setcurrdev;
 
 extern struct devsw		ofwdisk;
 extern struct devsw		ofw_netdev;
