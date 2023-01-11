@@ -451,6 +451,8 @@ linuxkpi_page_frag_alloc(struct page_frag_cache *pfc,
 	    "supported", __func__, fragsz));
 
 	pages = alloc_pages(gfp, flsl(howmany(fragsz, PAGE_SIZE) - 1));
+	if (pages == NULL)
+		return (NULL);
 	pfc->va = linux_page_address(pages);
 
 	/* Passed in as "count" to __page_frag_cache_drain(). Unused by us. */
