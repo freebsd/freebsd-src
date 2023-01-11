@@ -57,7 +57,7 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
 		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
-			cpu->cpu_dtrace_caller = addr;
+			cpu->cpu_dtrace_caller = frame->tf_ra - INSN_SIZE;
 
 			if (fbt->fbtp_roffset == 0) {
 				dtrace_probe(fbt->fbtp_id, frame->tf_a[0],
