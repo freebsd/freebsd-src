@@ -127,8 +127,7 @@ struct profile_probe_percpu;
 #endif
 
 #ifdef __riscv
-/* TODO: verify */
-#define	PROF_ARTIFICIAL_FRAMES	10
+#define	PROF_ARTIFICIAL_FRAMES	12
 #endif
 
 typedef struct profile_probe {
