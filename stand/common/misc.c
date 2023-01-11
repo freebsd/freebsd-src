@@ -169,17 +169,6 @@ alloc_pread(readin_handle_t fd, off_t off, size_t len)
 	return (buf);
 }
 
-void
-dev_cleanup(void)
-{
-    int		i;
-
-    /* Call cleanup routines */
-    for (i = 0; devsw[i] != NULL; ++i)
-	if (devsw[i]->dv_cleanup != NULL)
-	    (devsw[i]->dv_cleanup)();
-}
-
 /*
  * mount new rootfs and unmount old, set "currdev" environment variable.
  */
