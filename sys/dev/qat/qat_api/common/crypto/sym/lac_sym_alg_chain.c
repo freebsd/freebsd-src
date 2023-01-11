@@ -849,7 +849,7 @@ LacAlgChain_SessionInit(const CpaInstanceHandle instanceHandle,
 	 * constants and an optimised content descriptor. we have to do this in
 	 *case
 	 * of partials.
-	 * 64 byte content desciptor is used in the SHRAM case for
+	 * 64 byte content descriptor is used in the SHRAM case for
 	 *AES-128-HMAC-SHA1
 	 *-----------------------------------------------------------------------*/
 	if (CPA_STATUS_SUCCESS == status) {
