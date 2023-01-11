@@ -80,7 +80,6 @@ extern uint16_t relocator_a20_enabled;
 
 int	i386_getdev(void **vdev, const char *devspec, const char **path);
 char	*i386_fmtdev(void *vdev);
-int	i386_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 extern struct devdesc	currdev;	/* our current device */
 

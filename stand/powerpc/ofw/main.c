@@ -180,7 +180,7 @@ main(int (*openfirm)(void *))
 #endif
 
 	/* Set up currdev variable to have hooks in place. */
-	env_setenv("currdev", EV_VOLATILE, "", ofw_setcurrdev, env_nounset);
+	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev, env_nounset);
 
 	devinit();
 
@@ -202,11 +202,11 @@ main(int (*openfirm)(void *))
 	bargc = 0;
 	parse(&bargc, &bargv, bootargs);
 	if (bargc == 1)
-		env_setenv("currdev", EV_VOLATILE, bargv[0], ofw_setcurrdev,
+		env_setenv("currdev", EV_VOLATILE, bargv[0], gen_setcurrdev,
 		    env_nounset);
 	else
 		env_setenv("currdev", EV_VOLATILE, bootpath,
-			   ofw_setcurrdev, env_nounset);
+			   gen_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath, env_noset,
 	    env_nounset);
 	setenv("LINES", "24", 1);		/* optional */
