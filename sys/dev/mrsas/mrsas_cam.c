@@ -1941,7 +1941,7 @@ mrsas_tm_response_code(struct mrsas_softc *sc,
 /*
  * mrsas_issue_tm:  Fires the TM command to FW and waits for completion
  * input:           Adapter instance soft state
- *                  reqest descriptor compiled by mrsas_reset_targets
+ *                  request descriptor compiled by mrsas_reset_targets
  *
  * Returns FAIL if TM command TIMEDOUT from FW else SUCCESS.
  */
