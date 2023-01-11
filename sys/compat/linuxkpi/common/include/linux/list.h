@@ -504,7 +504,12 @@ static inline int list_is_last(const struct list_head *list,
 	     (pos) && ({ n = (pos)->member.next; 1; });			\
 	     pos = hlist_entry_safe(n, typeof(*(pos)), member))
 
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+extern void list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+    const struct list_head *a, const struct list_head *b));
+#else
 extern void list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
     struct list_head *a, struct list_head *b));
+#endif
 
 #endif /* _LINUXKPI_LINUX_LIST_H_ */
