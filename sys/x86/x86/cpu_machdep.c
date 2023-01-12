@@ -823,7 +823,7 @@ cpu_idle_tun(void *unused __unused)
 	}
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
-	    (cpu_id == 0x506c9 || cpu_id == 0x506ca)) {
+	    CPUID_TO_FAMILY(cpu_id) == 0x6 && CPUID_TO_MODEL(cpu_id) == 0x5c) {
 		/*
 		 * Apollo Lake errata APL31 (public errata APL30).
 		 * Stores to the armed address range may not trigger
