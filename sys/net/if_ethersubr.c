@@ -1337,6 +1337,18 @@ ether_vlanencap_proto(struct mbuf *m, uint16_t tag, uint16_t proto)
 	return (m);
 }
 
+void
+ether_bpf_mtap_if(struct ifnet *ifp, struct mbuf *m)
+{
+	if (bpf_peers_present(ifp->if_bpf)) {
+		M_ASSERTVALID(m);
+		if ((m->m_flags & M_VLANTAG) != 0)
+			ether_vlan_mtap(ifp->if_bpf, m, NULL, 0);
+		else
+			bpf_mtap(ifp->if_bpf, m);
+	}
+}
+
 static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IEEE 802.1Q VLAN");
 static SYSCTL_NODE(_net_link_vlan, PF_LINK, link,
