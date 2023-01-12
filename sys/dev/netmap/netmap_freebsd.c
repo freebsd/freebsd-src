@@ -171,13 +171,13 @@ nm_os_put_module(void)
 }
 
 static void
-netmap_ifnet_arrival_handler(void *arg __unused, struct ifnet *ifp)
+netmap_ifnet_arrival_handler(void *arg __unused, if_t ifp)
 {
 	netmap_undo_zombie(ifp);
 }
 
 static void
-netmap_ifnet_departure_handler(void *arg __unused, struct ifnet *ifp)
+netmap_ifnet_departure_handler(void *arg __unused, if_t ifp)
 {
 	netmap_make_zombie(ifp);
 }
@@ -209,9 +209,9 @@ nm_os_ifnet_fini(void)
 }
 
 unsigned
-nm_os_ifnet_mtu(struct ifnet *ifp)
+nm_os_ifnet_mtu(if_t ifp)
 {
-	return ifp->if_mtu;
+	return if_getmtu(ifp);
 }
 
 rawsum_t
@@ -294,7 +294,7 @@ nm_os_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
 
 /* on FreeBSD we send up one packet at a time */
 void *
-nm_os_send_up(struct ifnet *ifp, struct mbuf *m, struct mbuf *prev)
+nm_os_send_up(if_t ifp, struct mbuf *m, struct mbuf *prev)
 {
 	NA(ifp)->if_input(ifp, m);
 	return NULL;
@@ -315,7 +315,7 @@ nm_os_mbuf_has_seg_offld(struct mbuf *m)
 }
 
 static void
-freebsd_generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
+freebsd_generic_rx_handler(if_t ifp, struct mbuf *m)
 {
 	int stolen;
 
@@ -341,7 +341,7 @@ int
 nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 {
 	struct netmap_adapter *na = &gna->up.up;
-	struct ifnet *ifp = na->ifp;
+	if_t ifp = na->ifp;
 	int ret = 0;
 
 	nm_os_ifnet_lock();
@@ -351,10 +351,9 @@ nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 			ret = EBUSY; /* already set */
 			goto out;
 		}
-
-		ifp->if_capenable |= IFCAP_NETMAP;
-		gna->save_if_input = ifp->if_input;
-		ifp->if_input = freebsd_generic_rx_handler;
+		if_setcapenablebit(ifp, IFCAP_NETMAP, 0);
+		gna->save_if_input = if_getinputfn(ifp);
+		if_setinputfn(ifp, freebsd_generic_rx_handler);
 	} else {
 		if (!gna->save_if_input) {
 			nm_prerr("Failed to undo RX intercept on %s",
@@ -362,9 +361,8 @@ nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 			ret = EINVAL;  /* not saved */
 			goto out;
 		}
-
-		ifp->if_capenable &= ~IFCAP_NETMAP;
-		ifp->if_input = gna->save_if_input;
+		if_setcapenablebit(ifp, 0, IFCAP_NETMAP);
+		if_setinputfn(ifp, gna->save_if_input);
 		gna->save_if_input = NULL;
 	}
 out:
@@ -384,14 +382,14 @@ int
 nm_os_catch_tx(struct netmap_generic_adapter *gna, int intercept)
 {
 	struct netmap_adapter *na = &gna->up.up;
-	struct ifnet *ifp = netmap_generic_getifp(gna);
+	if_t ifp = netmap_generic_getifp(gna);
 
 	nm_os_ifnet_lock();
 	if (intercept) {
-		na->if_transmit = ifp->if_transmit;
-		ifp->if_transmit = netmap_transmit;
+		na->if_transmit = if_gettransmitfn(ifp);
+		if_settransmitfn(ifp, netmap_transmit);
 	} else {
-		ifp->if_transmit = na->if_transmit;
+		if_settransmitfn(ifp, na->if_transmit);
 	}
 	nm_os_ifnet_unlock();
 
@@ -420,7 +418,7 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 {
 	int ret;
 	u_int len = a->len;
-	struct ifnet *ifp = a->ifp;
+	if_t ifp = a->ifp;
 	struct mbuf *m = a->m;
 
 	/* Link the external storage to
@@ -437,7 +435,7 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	m->m_pkthdr.flowid = a->ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
-	CURVNET_SET(ifp->if_vnet);
+	CURVNET_SET(if_getvnet(ifp));
 	ret = NA(ifp)->if_transmit(ifp, m);
 	CURVNET_RESTORE();
 	return ret ? -1 : 0;
@@ -447,7 +445,7 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 struct netmap_adapter *
 netmap_getna(if_t ifp)
 {
-	return (NA((struct ifnet *)ifp));
+	return (NA(ifp));
 }
 
 /*
@@ -455,14 +453,14 @@ netmap_getna(if_t ifp)
  * way to extract the info from the ifp
  */
 int
-nm_os_generic_find_num_desc(struct ifnet *ifp, unsigned int *tx, unsigned int *rx)
+nm_os_generic_find_num_desc(if_t ifp, unsigned int *tx, unsigned int *rx)
 {
 	return 0;
 }
 
 
 void
-nm_os_generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq)
+nm_os_generic_find_num_queues(if_t ifp, u_int *txq, u_int *rxq)
 {
 	unsigned num_rings = netmap_generic_rings ? netmap_generic_rings : 1;
 
@@ -513,14 +511,14 @@ nm_os_mitigation_cleanup(struct nm_generic_mit *mit)
 }
 
 static int
-nm_vi_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
+nm_vi_dummy(if_t ifp, u_long cmd, caddr_t addr)
 {
 
 	return EINVAL;
 }
 
 static void
-nm_vi_start(struct ifnet *ifp)
+nm_vi_start(if_t ifp)
 {
 	panic("nm_vi_start() must not be called");
 }
@@ -594,9 +592,9 @@ nm_vi_free_index(uint8_t val)
  * increment this refcount on if_attach().
  */
 int
-nm_os_vi_persist(const char *name, struct ifnet **ret)
+nm_os_vi_persist(const char *name, if_t *ret)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	u_short macaddr_hi;
 	uint32_t macaddr_mid;
 	u_char eaddr[6];
@@ -620,14 +618,14 @@ nm_os_vi_persist(const char *name, struct ifnet **ret)
 		return ENOMEM;
 	}
 	if_initname(ifp, name, IF_DUNIT_NONE);
-	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = (void *)nm_vi_dummy;
-	ifp->if_ioctl = nm_vi_dummy;
-	ifp->if_start = nm_vi_start;
-	ifp->if_mtu = ETHERMTU;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_capabilities |= IFCAP_LINKSTATE;
-	ifp->if_capenable |= IFCAP_LINKSTATE;
+	if_setflags(ifp, IFF_UP | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setinitfn(ifp, (void *)nm_vi_dummy);
+	if_setioctlfn(ifp, nm_vi_dummy);
+	if_setstartfn(ifp, nm_vi_start);
+	if_setmtu(ifp, ETHERMTU);
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setcapabilitiesbit(ifp, IFCAP_LINKSTATE, 0);
+	if_setcapenablebit(ifp, IFCAP_LINKSTATE, 0);
 
 	ether_ifattach(ifp, eaddr);
 	*ret = ifp;
@@ -636,9 +634,9 @@ nm_os_vi_persist(const char *name, struct ifnet **ret)
 
 /* unregister from the system and drop the final refcount */
 void
-nm_os_vi_detach(struct ifnet *ifp)
+nm_os_vi_detach(if_t ifp)
 {
-	nm_vi_free_index(((char *)IF_LLADDR(ifp))[5]);
+	nm_vi_free_index(((char *)if_getlladdr(ifp))[5]);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 }
@@ -1502,28 +1500,28 @@ out:
 }
 
 void
-nm_os_onattach(struct ifnet *ifp)
+nm_os_onattach(if_t ifp)
 {
-	ifp->if_capabilities |= IFCAP_NETMAP;
+	if_setcapabilitiesbit(ifp, IFCAP_NETMAP, 0);
 }
 
 void
-nm_os_onenter(struct ifnet *ifp)
+nm_os_onenter(if_t ifp)
 {
 	struct netmap_adapter *na = NA(ifp);
 
-	na->if_transmit = ifp->if_transmit;
-	ifp->if_transmit = netmap_transmit;
-	ifp->if_capenable |= IFCAP_NETMAP;
+	na->if_transmit = if_gettransmitfn(ifp);
+	if_settransmitfn(ifp, netmap_transmit);
+	if_setcapenablebit(ifp, IFCAP_NETMAP, 0);
 }
 
 void
-nm_os_onexit(struct ifnet *ifp)
+nm_os_onexit(if_t ifp)
 {
 	struct netmap_adapter *na = NA(ifp);
 
-	ifp->if_transmit = na->if_transmit;
-	ifp->if_capenable &= ~IFCAP_NETMAP;
+	if_settransmitfn(ifp, na->if_transmit);
+	if_setcapenablebit(ifp, 0, IFCAP_NETMAP);
 }
 
 extern struct cdevsw netmap_cdevsw; /* XXX used in netmap.c, should go elsewhere */

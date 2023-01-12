@@ -126,7 +126,7 @@ SYSCTL_UINT(_dev_netmap, OID_AUTO, max_bridges, CTLFLAG_RDTUN, &vale_max_bridges
 		"Max number of vale bridges");
 SYSEND;
 
-static int netmap_vale_vp_create(struct nmreq_header *hdr, struct ifnet *,
+static int netmap_vale_vp_create(struct nmreq_header *hdr, if_t,
 		struct netmap_mem_d *nmd, struct netmap_vp_adapter **);
 static int netmap_vale_vp_bdg_attach(const char *, struct netmap_adapter *,
 		struct nm_bridge *);
@@ -411,7 +411,7 @@ netmap_vale_vp_dtor(struct netmap_adapter *na)
 	if (na->ifp != NULL && !nm_iszombie(na)) {
 		NM_DETACH_NA(na->ifp);
 		if (vpna->autodelete) {
-			nm_prdis("releasing %s", na->ifp->if_xname);
+			nm_prdis("releasing %s", if_name(na->ifp));
 			NMG_UNLOCK();
 			nm_os_vi_detach(na->ifp);
 			NMG_LOCK();
@@ -1139,7 +1139,7 @@ done:
  * Only persistent VALE ports have a non-null ifp.
  */
 static int
-netmap_vale_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
+netmap_vale_vp_create(struct nmreq_header *hdr, if_t ifp,
 		struct netmap_mem_d *nmd, struct netmap_vp_adapter **ret)
 {
 	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
@@ -1352,7 +1352,7 @@ nm_vi_create(struct nmreq_header *hdr)
 int
 nm_vi_destroy(const char *name)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct netmap_vp_adapter *vpna;
 	int error;
 
@@ -1384,7 +1384,7 @@ nm_vi_destroy(const char *name)
 	NMG_UNLOCK();
 
 	if (netmap_verbose)
-		nm_prinf("destroying a persistent vale interface %s", ifp->if_xname);
+		nm_prinf("destroying a persistent vale interface %s", if_name(ifp));
 	/* Linux requires all the references are released
 	 * before unregister
 	 */
@@ -1419,7 +1419,7 @@ int
 netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 {
 	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct netmap_vp_adapter *vpna;
 	struct netmap_mem_d *nmd = NULL;
 	int error;
@@ -1483,7 +1483,7 @@ netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 	if (nmd)
 		netmap_mem_put(nmd);
 	NMG_UNLOCK();
-	nm_prdis("created %s", ifp->if_xname);
+	nm_prdis("created %s", if_name(ifp));
 	return 0;
 
 err_2:

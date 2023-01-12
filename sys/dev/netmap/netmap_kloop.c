@@ -1158,7 +1158,7 @@ netmap_pt_guest_attach(struct netmap_adapter *arg,
 		       unsigned int nifp_offset, unsigned int memid)
 {
 	struct netmap_pt_guest_adapter *ptna;
-	struct ifnet *ifp = arg ? arg->ifp : NULL;
+	if_t ifp = arg ? arg->ifp : NULL;
 	int error;
 
 	/* get allocator */

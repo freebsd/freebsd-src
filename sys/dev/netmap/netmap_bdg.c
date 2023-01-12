@@ -390,7 +390,7 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 {
 	char *nr_name = hdr->nr_name;
 	const char *ifname;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	int error = 0;
 	struct netmap_vp_adapter *vpna, *hostna = NULL;
 	struct nm_bridge *b;
@@ -1777,7 +1777,7 @@ netmap_bwrap_attach_common(struct netmap_adapter *na,
 		na->na_flags |= NAF_MOREFRAG;
 
 	nm_prdis("%s<->%s txr %d txd %d rxr %d rxd %d",
-		na->name, ifp->if_xname,
+		na->name, if_name(ifp),
 		na->num_tx_rings, na->num_tx_desc,
 		na->num_rx_rings, na->num_rx_desc);
 
