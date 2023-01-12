@@ -255,7 +255,13 @@ static void
 fs_populate_path(const fsnode *cur, struct fs_populate_arg *arg,
     char *path, size_t sz, int *dirfdp)
 {
-	if (cur->root == NULL) {
+	if (cur->contents != NULL) {
+		size_t n;
+
+		*dirfdp = AT_FDCWD;
+		n = strlcpy(path, cur->contents, sz);
+		assert(n < sz);
+	} else if (cur->root == NULL) {
 		size_t n;
 
 		*dirfdp = SLIST_FIRST(&arg->dirs)->dirfd;
