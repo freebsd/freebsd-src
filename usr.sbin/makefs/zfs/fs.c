@@ -297,15 +297,23 @@ fs_readlink(const fsnode *cur, struct fs_populate_arg *arg,
     char *buf, size_t bufsz)
 {
 	char path[PATH_MAX];
-	ssize_t n;
 	int fd;
 
-	fs_populate_path(cur, arg, path, sizeof(path), &fd);
+	if (cur->symlink != NULL) {
+		size_t n;
 
-	n = readlinkat(fd, path, buf, bufsz - 1);
-	if (n == -1)
-		err(1, "readlinkat(%s)", cur->name);
-	buf[n] = '\0';
+		n = strlcpy(buf, cur->symlink, bufsz);
+		assert(n < bufsz);
+	} else {
+		ssize_t n;
+
+		fs_populate_path(cur, arg, path, sizeof(path), &fd);
+
+		n = readlinkat(fd, path, buf, bufsz - 1);
+		if (n == -1)
+			err(1, "readlinkat(%s)", cur->name);
+		buf[n] = '\0';
+	}
 }
 
 static void
