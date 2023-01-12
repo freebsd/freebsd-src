@@ -292,6 +292,17 @@ fs_open(const fsnode *cur, struct fs_populate_arg *arg, int flags)
 	return (fd);
 }
 
+static int
+fs_open_can_fail(const fsnode *cur, struct fs_populate_arg *arg, int flags)
+{
+	int fd;
+	char path[PATH_MAX];
+
+	fs_populate_path(cur, arg, path, sizeof(path), &fd);
+
+	return (openat(fd, path, flags));
+}
+
 static void
 fs_readlink(const fsnode *cur, struct fs_populate_arg *arg,
     char *buf, size_t bufsz)
@@ -590,7 +601,12 @@ fs_populate_dir(fsnode *cur, struct fs_populate_arg *arg)
 	 */
 	if (!SLIST_EMPTY(&arg->dirs)) {
 		fs_populate_dirent(arg, cur, dnid);
-		dirfd = fs_open(cur, arg, O_DIRECTORY | O_RDONLY);
+		/*
+		 * We only need the directory fd if we're finding files in
+		 * it.  If it's just there for other directories or
+		 * files using contents= we don't need to succeed here.
+		 */
+		dirfd = fs_open_can_fail(cur, arg, O_DIRECTORY | O_RDONLY);
 	} else {
 		arg->rootdirid = dnid;
 		dirfd = arg->rootdirfd;
