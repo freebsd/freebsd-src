@@ -784,7 +784,7 @@ void if_bpfmtap(if_t ifp, struct mbuf *m);
 void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
 int if_transmit(if_t ifp, struct mbuf *m);
-int if_init(if_t ifp);
+int if_init(if_t ifp, void *ctx);
 
 /*
  * Traversing through interface address lists.
