@@ -907,7 +907,7 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	struct nmreq_register preq;
 	struct netmap_adapter *pna; /* parent adapter */
 	struct netmap_monitor_adapter *mna;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	int  error;
 	int zcopy = (req->nr_flags & NR_ZCOPY_MON);
 
