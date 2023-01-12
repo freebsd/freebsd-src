@@ -82,6 +82,20 @@ void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
     bool *value);
 void debugfs_create_u8(const char *name, umode_t mode, struct dentry *parent,
     uint8_t *value);
+void debugfs_create_u16(const char *name, umode_t mode, struct dentry *parent,
+    uint16_t *value);
+void debugfs_create_u32(const char *name, umode_t mode, struct dentry *parent,
+    uint32_t *value);
+void debugfs_create_u64(const char *name, umode_t mode, struct dentry *parent,
+    uint64_t *value);
+void debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent,
+    uint8_t *value);
+void debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent,
+    uint16_t *value);
+void debugfs_create_x32(const char *name, umode_t mode, struct dentry *parent,
+    uint32_t *value);
+void debugfs_create_x64(const char *name, umode_t mode, struct dentry *parent,
+    uint64_t *value);
 void debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent,
     unsigned long *value);
 void debugfs_create_atomic_t(const char *name, umode_t mode, struct dentry *parent,
