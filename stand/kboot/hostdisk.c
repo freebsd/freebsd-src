@@ -47,6 +47,7 @@ static int hostdisk_close(struct open_file *f);
 static int hostdisk_ioctl(struct open_file *f, u_long cmd, void *data);
 static int hostdisk_print(int verbose);
 static char *hostdisk_fmtdev(struct devdesc *vdev);
+static bool hostdisk_match(struct devsw *devsw, const char *devspec);
 static int hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path);
 
 struct devsw hostdisk = {
@@ -60,6 +61,7 @@ struct devsw hostdisk = {
 	.dv_print = hostdisk_print,
 	.dv_cleanup = nullsys,
 	.dv_fmtdev = hostdisk_fmtdev,
+	.dv_match = hostdisk_match,
 	.dv_parsedev = hostdisk_parsedev,
 };
 
@@ -247,15 +249,59 @@ hostdisk_one_disk(struct host_dirent64 *dent, void *argp __unused)
 	return (true);
 }
 
+static bool
+hostdisk_fake_one_disk(struct host_dirent64 *dent, void *argp)
+{
+	char *override_dir = argp;
+	char *fn = NULL;
+	hdinfo_t *hd = NULL;
+	struct host_kstat sb;
+
+	/*
+	 * We only do regular files. Each one is treated as a disk image
+	 * accessible via /dev/${dent->d_name}.
+	 */
+	if (dent->d_type != HOST_DT_REG && dent->d_type != HOST_DT_LNK)
+		return (true);
+	if (asprintf(&fn, "%s/%s", override_dir, dent->d_name) == -1)
+		return (true);
+	if (host_stat(fn, &sb) != 0)
+		goto err;
+	if (!HOST_S_ISREG(sb.st_mode))
+		return (true);
+	if (sb.st_size == 0)
+		goto err;
+	if ((hd = calloc(1, sizeof(*hd))) == NULL)
+		goto err;
+	hd->hd_dev = fn;
+	hd->hd_size = sb.st_size;
+	hd->hd_sectorsize = 512;	/* XXX configurable? */
+	hd->hd_sectors = hd->hd_size / hd->hd_sectorsize;
+	if (hd->hd_size < HOSTDISK_MIN_SIZE)
+		goto err;
+	hd->hd_flags = 0;
+	STAILQ_INIT(&hd->hd_children);
+	printf("%s: %ju %ju %ju\n",
+	    hd->hd_dev, hd->hd_size, hd->hd_sectors, hd->hd_sectorsize);
+	STAILQ_INSERT_TAIL(&hdinfo, hd, hd_link);
+	/* XXX no partiions? -- is that OK? */
+	return (true);
+err:
+	free(hd);
+	free(fn);
+	return (true);
+}
+
 static void
 hostdisk_find_block_devices(void)
 {
-	/*
-	 * Start here XXX open SYSBLK, walk through all directories, keep the
-	 * ones that return a size and a 'block' device when we 'stat' it. Try
-	 * to avoid partitions and only do raw devices.
-	 */
-	foreach_file(SYSBLK, hostdisk_one_disk, NULL, 0);
+	char *override;
+
+	override=getenv("hostdisk_override");
+	if (override != NULL)
+		foreach_file(override, hostdisk_fake_one_disk, override, 0);
+	else
+		foreach_file(SYSBLK, hostdisk_one_disk, NULL, 0);
 }
 
 static int
@@ -387,6 +433,23 @@ hostdisk_fmtdev(struct devdesc *vdev)
 	return ((char *)hd_name(dev2hd(vdev)));
 }
 
+static bool
+hostdisk_match(struct devsw *devsw, const char *devspec)
+{
+	hdinfo_t *hd;
+	const char *colon;
+	char *cp;
+
+	colon = strchr(devspec, ':');
+	if (colon == NULL)
+		return false;
+	cp = strdup(devspec);
+	cp[colon - devspec] = '\0';
+	hd = hostdisk_find(cp);
+	free(cp);
+	return (hd != NULL);
+}
+
 static int
 hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 {
@@ -396,9 +459,6 @@ hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	int len;
 	char *fn;
 
-	/* Must start with /dev */
-	if (strncmp(devspec, "/dev", 4) != 0)
-		return (EINVAL);
 	/* Must have a : in it */
 	cp = strchr(devspec, ':');
 	if (cp == NULL)
@@ -412,6 +472,7 @@ hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	hd = hostdisk_find(fn);
 	if (hd == NULL) {
 		printf("Can't find hdinfo for %s\n", fn);
+		free(fn);
 		return (EINVAL);
 	}
 	free(fn);
