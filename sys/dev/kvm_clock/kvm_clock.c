@@ -70,12 +70,16 @@ struct kvm_clock_softc {
 	struct pvclock_vcpu_time_info	*timeinfos;
 	u_int				 msr_tc;
 	u_int				 msr_wc;
+#ifndef EARLY_AP_STARTUP
+	int				 firstcpu;
+#endif
 };
 
 static devclass_t	kvm_clock_devclass;
 
 static struct pvclock_wall_clock *kvm_clock_get_wallclock(void *arg);
-static void	kvm_clock_system_time_enable(struct kvm_clock_softc *sc);
+static void	kvm_clock_system_time_enable(struct kvm_clock_softc *sc,
+		    const cpuset_t *cpus);
 static void	kvm_clock_system_time_enable_pcpu(void *arg);
 
 static struct pvclock_wall_clock *
@@ -88,9 +92,10 @@ kvm_clock_get_wallclock(void *arg)
 }
 
 static void
-kvm_clock_system_time_enable(struct kvm_clock_softc *sc)
+kvm_clock_system_time_enable(struct kvm_clock_softc *sc, const cpuset_t *cpus)
 {
-	smp_rendezvous(NULL, kvm_clock_system_time_enable_pcpu, NULL, sc);
+	smp_rendezvous_cpus(*cpus, NULL, kvm_clock_system_time_enable_pcpu,
+	    NULL, sc);
 }
 
 static void
@@ -103,6 +108,32 @@ kvm_clock_system_time_enable_pcpu(void *arg)
 	 */
 	wrmsr(sc->msr_tc, vtophys(&(sc->timeinfos)[curcpu]) | 1);
 }
+
+#ifndef EARLY_AP_STARTUP
+static void
+kvm_clock_init_smp(void *arg __unused)
+{
+	devclass_t kvm_clock_devclass;
+	cpuset_t cpus;
+	struct kvm_clock_softc *sc;
+
+	kvm_clock_devclass = devclass_find(KVM_CLOCK_DEVNAME);
+	sc = devclass_get_softc(kvm_clock_devclass, 0);
+	if (sc == NULL || mp_ncpus == 1)
+		return;
+
+	/*
+	 * Register with the hypervisor on all CPUs except the one that
+	 * registered in kvm_clock_attach().
+	 */
+	cpus = all_cpus;
+	KASSERT(CPU_ISSET(sc->firstcpu, &cpus),
+	    ("%s: invalid first CPU %d", __func__, sc->firstcpu));
+	CPU_CLR(sc->firstcpu, &cpus);
+	kvm_clock_system_time_enable(sc, &cpus);
+}
+SYSINIT(kvm_clock, SI_SUB_SMP, SI_ORDER_ANY, kvm_clock_init_smp, NULL);
+#endif
 
 static void
 kvm_clock_identify(driver_t *driver, device_t parent)
@@ -150,7 +181,12 @@ kvm_clock_attach(device_t dev)
 	/* Set up 'struct pvclock_vcpu_time_info' page(s): */
 	sc->timeinfos = (struct pvclock_vcpu_time_info *)kmem_malloc(mp_ncpus *
 	    sizeof(struct pvclock_vcpu_time_info), M_WAITOK | M_ZERO);
-	kvm_clock_system_time_enable(sc);
+#ifdef EARLY_AP_STARTUP
+	kvm_clock_system_time_enable(sc, &all_cpus);
+#else
+	sc->firstcpu = curcpu;
+	kvm_clock_system_time_enable_pcpu(sc);
+#endif
 
 	/*
 	 * Init pvclock; register KVM clock wall clock, register KVM clock
@@ -191,7 +227,7 @@ kvm_clock_resume(device_t dev)
 	 * conservatively assume that the system time must be re-inited in
 	 * suspend/resume scenarios.
 	 */
-	kvm_clock_system_time_enable(device_get_softc(dev));
+	kvm_clock_system_time_enable(device_get_softc(dev), &all_cpus);
 	pvclock_resume();
 	inittodr(time_second);
 	return (0);
