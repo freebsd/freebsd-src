@@ -190,6 +190,7 @@ struct _s_x f_ipdscp[] = {
 	{ "af42", IPTOS_DSCP_AF42 >> 2 },	/* 100100 */
 	{ "af43", IPTOS_DSCP_AF43 >> 2 },	/* 100110 */
 	{ "be", IPTOS_DSCP_CS0 >> 2 }, 	/* 000000 */
+	{ "va", IPTOS_DSCP_VA >> 2 },	/* 101100 */
 	{ "ef", IPTOS_DSCP_EF >> 2 },	/* 101110 */
 	{ "cs0", IPTOS_DSCP_CS0 >> 2 },	/* 000000 */
 	{ "cs1", IPTOS_DSCP_CS1 >> 2 },	/* 001000 */
