@@ -46,6 +46,7 @@ ssize_t kboot_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
 uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
 static void kboot_kseg_get(int *nseg, void **ptr);
+static void kboot_zfs_probe(void);
 
 extern int command_fdt_internal(int argc, char *argv[]);
 
@@ -160,6 +161,7 @@ main(int argc, const char **argv)
 	archsw.arch_autoload = kboot_autoload;
 	archsw.arch_loadaddr = kboot_loadaddr;
 	archsw.arch_kexec_kseg_get = kboot_kseg_get;
+	archsw.arch_zfs_probe = kboot_zfs_probe;
 
 	/* Give us a sane world if we're running as init */
 	do_init();
@@ -378,6 +380,18 @@ kboot_kseg_get(int *nseg, void **ptr)
 
 	*nseg = nkexec_segments;
 	*ptr = &loaded_segments[0];
+}
+
+static void
+kboot_zfs_probe(void)
+{
+#if defined(LOADER_ZFS_SUPPORT)
+	/*
+	 * Open all the disks and partitions we can find to see if there are ZFS
+	 * pools on them.
+	 */
+	hostdisk_zfs_probe();
+#endif
 }
 
 /*
