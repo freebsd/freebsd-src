@@ -15,7 +15,7 @@ LIB?=		sa
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c \
 	getopt.c gets.c globals.c \
-	hexdump.c pager.c panic.c printf.c strdup.c strerror.c \
+	hexdump.c nvstore.c pager.c panic.c printf.c strdup.c strerror.c \
 	random.c sbrk.c tslog.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
