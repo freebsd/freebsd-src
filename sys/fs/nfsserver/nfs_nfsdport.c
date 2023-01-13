@@ -1835,7 +1835,7 @@ void
 nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
     nfsquad_t clientid, nfsv4stateid_t *stateidp, struct nfsstate *stp,
     int *exclusive_flagp, struct nfsvattr *nvap, int32_t *cverf, int create,
-    NFSACL_T *aclp, nfsattrbit_t *attrbitp, struct ucred *cred,
+    NFSACL_T *aclp, nfsattrbit_t *attrbitp, struct ucred *cred, bool done_namei,
     struct nfsexstuff *exp, struct vnode **vpp)
 {
 	struct vnode *vp = NULL;
@@ -1918,7 +1918,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 		}
 	} else {
 		nfsvno_relpathbuf(ndp);
-		if (create == NFSV4OPEN_CREATE) {
+		if (done_namei && create == NFSV4OPEN_CREATE) {
 			if (ndp->ni_dvp == ndp->ni_vp)
 				vrele(ndp->ni_dvp);
 			else
