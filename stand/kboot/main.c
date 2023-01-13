@@ -172,6 +172,9 @@ main(int argc, const char **argv)
 	heapbase = host_getmem(heapsize);
 	setheap(heapbase, heapbase + heapsize);
 
+	/* Parse the command line args -- ignoring for now the console selection */
+	parse_args(argc, argv);
+
 	/*
 	 * Set up console.
 	 */
@@ -180,8 +183,20 @@ main(int argc, const char **argv)
 	/* Initialize all the devices */
 	devinit();
 
-	/* Parse the command line args -- ignoring for now the console selection */
-	parse_args(argc, argv);
+	bootdev = getenv("bootdev");
+	if (bootdev == NULL)
+		bootdev="zfs:";
+	hostfs_root = getenv("hostfs_root");
+	if (hostfs_root == NULL)
+		hostfs_root = "/";
+#if defined(LOADER_ZFS_SUPPORT)
+	if (strcmp(bootdev, "zfs:") == 0) {
+		/*
+		 * Pseudo device that says go find the right ZFS pool.
+		 */
+		printf("WARNING: bare 'zfs:' for boot device not yet implemented\n");
+	}
+#endif
 
 	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
 
