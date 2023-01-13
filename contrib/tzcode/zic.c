@@ -661,7 +661,7 @@ close_file(FILE *stream, char const *dir, char const *name,
 	    name ? name : "", name ? ": " : "",
 	    e);
     if (tempname)
-      remove(tempname);
+      (void)remove(tempname);
     exit(EXIT_FAILURE);
   }
 }
@@ -1418,7 +1418,7 @@ rename_dest(char *tempname, char const *name)
   if (tempname) {
     if (rename(tempname, name) != 0) {
       int rename_errno = errno;
-      remove(tempname);
+      (void)remove(tempname);
       fprintf(stderr, _("%s: rename to %s/%s: %s\n"),
 	      progname, directory, name, strerror(rename_errno));
       exit(EXIT_FAILURE);
@@ -3933,6 +3933,14 @@ mp = _("time zone abbreviation differs from POSIX standard");
 static void
 mkdirs(char const *argname, bool ancestors)
 {
+	/*
+	 * If -D was specified, do not create directories.  A subsequent
+	 * file operation will fail and produce an appropriate error
+	 * message.
+	 */
+	if (Dflag)
+		return;
+
 	char *name = estrdup(argname);
 	char *cp = name;
 
@@ -3943,13 +3951,6 @@ mkdirs(char const *argname, bool ancestors)
 	   it can use slashes to separate the already-existing
 	   ancestor prefix from the to-be-created subdirectories.  */
 
-	/*
-	 * If -D was specified, do not create directories.  A subsequent
-	 * file operation will fail and produce an appropriate error
-	 * message.
-	 */
-	if (Dflag)
-		return;
 	/* Do not mkdir a root directory, as it must exist.  */
 	while (*cp == '/')
 	  cp++;
