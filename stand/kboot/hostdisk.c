@@ -30,8 +30,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/disk.h>
 #include <stdarg.h>
+#include <paths.h>
 #include "host_syscall.h"
 #include "kboot.h"
+#include "bootstrap.h"
+#ifdef LOADER_ZFS_SUPPORT
+#include "libzfs.h"
+#include <sys/zfs_bootenv.h>
+#endif
 
 static int hostdisk_init(void);
 static int hostdisk_strategy(void *devdata, int flag, daddr_t dblk,
@@ -75,6 +81,8 @@ typedef struct hdinfo {
 	uint64_t	hd_sectors;
 	uint64_t	hd_sectorsize;
 	int		hd_flags;
+#define HDF_HAS_ZPOOL	1			/* We found a zpool here and uuid valid */
+	uint64_t	hd_zfs_uuid;
 } hdinfo_t;
 
 #define dev2hd(d) ((hdinfo_t *)d->d_opendata)
@@ -416,3 +424,117 @@ hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	*idev = dev;
 	return (0);
 }
+
+#ifdef LOADER_ZFS_SUPPORT
+static bool
+hostdisk_zfs_check_one(hdinfo_t *hd)
+{
+	char *fn;
+	bool found = false;
+	uint64_t pool_uuid;
+
+	if (asprintf(&fn, "%s:", hd->hd_dev) == -1)
+		return (false);
+	pool_uuid = 0;
+	zfs_probe_dev(fn, &pool_uuid, false);
+	if (pool_uuid != 0) {
+		found = true;
+		hd->hd_flags |= HDF_HAS_ZPOOL;
+		hd->hd_zfs_uuid = pool_uuid;
+	}
+	free(fn);
+
+	return (found);
+}
+
+void
+hostdisk_zfs_probe(void)
+{
+	hdinfo_t *hd, *md;
+
+	STAILQ_FOREACH(hd, &hdinfo, hd_link) {
+		if (hostdisk_zfs_check_one(hd))
+			continue;
+		STAILQ_FOREACH(md, &hd->hd_children, hd_link) {
+			hostdisk_zfs_check_one(md);
+		}
+	}
+}
+
+/* XXX refactor */
+static bool
+sanity_check_currdev(void)
+{
+	struct stat st;
+
+	return (stat(PATH_DEFAULTS_LOADER_CONF, &st) == 0 ||
+#ifdef PATH_BOOTABLE_TOKEN
+	    stat(PATH_BOOTABLE_TOKEN, &st) == 0 || /* non-standard layout */
+#endif
+	    stat(PATH_KERNEL, &st) == 0);
+}
+
+/* This likely shoud move to libsa/zfs/zfs.c and be used by at least EFI booting */
+static bool
+probe_zfs_currdev(uint64_t pool_guid, uint64_t root_guid, bool setcurrdev)
+{
+	char *devname;
+	struct zfs_devdesc currdev;
+	char *buf = NULL;
+	bool bootable;
+
+	currdev.dd.d_dev = &zfs_dev;
+	currdev.dd.d_unit = 0;
+	currdev.pool_guid = pool_guid;
+	currdev.root_guid = root_guid;
+	devname = devformat(&currdev.dd);
+	if (setcurrdev)
+		set_currdev(devname);
+
+	bootable = sanity_check_currdev();
+	if (bootable) {
+		buf = malloc(VDEV_PAD_SIZE);
+		if (buf != NULL) {
+			if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf,
+			    VDEV_PAD_SIZE) == 0) {
+				printf("zfs bootonce: %s\n", buf);
+				if (setcurrdev)
+					set_currdev(buf);
+				setenv("zfs-bootonce", buf, 1);
+			}
+			free(buf);
+			(void)zfs_attach_nvstore(&currdev);
+		}
+		init_zfs_boot_options(devname);
+	}
+	return (bootable);
+}
+
+static bool
+hostdisk_zfs_try_default(hdinfo_t *hd)
+{
+	return (probe_zfs_currdev(hd->hd_zfs_uuid, 0, true));
+}
+
+bool
+hostdisk_zfs_find_default(void)
+{
+	hdinfo_t *hd, *md;
+
+	STAILQ_FOREACH(hd, &hdinfo, hd_link) {
+		if (hd->hd_flags & HDF_HAS_ZPOOL) {
+			if (hostdisk_zfs_try_default(hd))
+				return (true);
+			continue;
+		}
+		STAILQ_FOREACH(md, &hd->hd_children, hd_link) {
+			if (md->hd_flags & HDF_HAS_ZPOOL) {
+				if (hostdisk_zfs_try_default(md))
+					return (true);
+			}
+		}
+	}
+	return (false);
+}
+
+#endif
