@@ -1842,7 +1842,7 @@ getsave(char *field, bool *isdst)
 static void
 inrule(char **fields, int nfields)
 {
-	struct rule r;
+	struct rule r = { 0 };
 
 	if (nfields != RULE_FIELDS) {
 		error(_("wrong number of fields on Rule line"));
@@ -1921,7 +1921,7 @@ inzsub(char **fields, int nfields, bool iscont)
 {
 	register char *		cp;
 	char *			cp1;
-	struct zone z;
+	struct zone		z = { 0 };
 	int format_len;
 	register int		i_stdoff, i_rule, i_format;
 	register int		i_untilyear, i_untilmonth;
