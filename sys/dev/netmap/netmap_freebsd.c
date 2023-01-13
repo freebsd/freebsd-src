@@ -351,6 +351,8 @@ nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 			ret = EBUSY; /* already set */
 			goto out;
 		}
+
+		ifp->if_capenable |= IFCAP_NETMAP;
 		gna->save_if_input = ifp->if_input;
 		ifp->if_input = freebsd_generic_rx_handler;
 	} else {
@@ -360,6 +362,8 @@ nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 			ret = EINVAL;  /* not saved */
 			goto out;
 		}
+
+		ifp->if_capenable &= ~IFCAP_NETMAP;
 		ifp->if_input = gna->save_if_input;
 		gna->save_if_input = NULL;
 	}
