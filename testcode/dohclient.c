@@ -573,6 +573,7 @@ int main(int argc, char** argv)
 #endif
 	checklock_start();
 	log_init(0, 0, 0);
+	log_ident_set("dohclient");
 
 	h2_session = http2_session_create();
 	if(!h2_session) fatal_exit("out of memory");

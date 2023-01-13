@@ -103,6 +103,15 @@ for input in $PRE/testdata/*.rpl $PRE/testdata/*.crpl; do
 		fi
 	fi
 
+	# detect if cachedb is needed
+	if echo $cleaninput | grep cachedb >/dev/null 2>&1; then
+		if grep "define USE_CACHEDB 1" $PRE/config.h >/dev/null 2>&1; then
+			: # CACHEDB is supported
+		else
+			continue
+		fi
+	fi
+
 	if test $do_valgrind = "yes"; then
 		echo
 		if (valgrind $VALGRIND_FLAGS $PRE/testbound -p $input >tmpout 2>&1;); then

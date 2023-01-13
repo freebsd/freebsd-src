@@ -4,7 +4,7 @@ server:
 	qname-minimisation: "no"
 	minimal-responses: no
 	serve-expired: yes
-	serve-expired-client-timeout: 1800
+	serve-expired-client-timeout: 1
 	serve-expired-reply-ttl: 123
 	log-servfail: yes
 	ede: yes
@@ -32,11 +32,11 @@ RANGE_BEGIN 0 20
 		ADJUST copy_id
 		REPLY QR NOERROR
 		SECTION QUESTION
-			example.com. IN NS
+			example.com. 10 IN NS
 		SECTION ANSWER
-			example.com. IN NS ns.example.com.
+			example.com. 10 IN NS ns.example.com.
 		SECTION ADDITIONAL
-			ns.example.com. IN A 1.2.3.4
+			ns.example.com. 10 IN A 1.2.3.4
 	ENTRY_END
 
 	ENTRY_BEGIN
@@ -48,14 +48,14 @@ RANGE_BEGIN 0 20
 		SECTION ANSWER
 			example.com. 10 IN A 5.6.7.8
 		SECTION AUTHORITY
-			example.com. IN NS ns.example.com.
+			example.com. 10 IN NS ns.example.com.
 		SECTION ADDITIONAL
-			ns.example.com. IN A 1.2.3.4
+			ns.example.com. 10 IN A 1.2.3.4
 	ENTRY_END
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 30 100
+RANGE_BEGIN 30 70
 	ADDRESS 1.2.3.4
 	; response to A query
 	ENTRY_BEGIN
@@ -85,13 +85,13 @@ ENTRY_BEGIN
 	SECTION ANSWER
 		example.com. 10 IN A 5.6.7.8
 	SECTION AUTHORITY
-		example.com. IN NS ns.example.com.
+		example.com. 10 IN NS ns.example.com.
 	SECTION ADDITIONAL
-		ns.example.com. IN A 1.2.3.4
+		ns.example.com. 10 IN A 1.2.3.4
 ENTRY_END
 
 ; Wait for the TTL to expire
-STEP 11 TIME_PASSES ELAPSE 3601
+STEP 11 TIME_PASSES ELAPSE 11
 
 ; Query again
 STEP 30 QUERY

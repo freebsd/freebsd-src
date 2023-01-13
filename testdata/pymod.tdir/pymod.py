@@ -37,7 +37,12 @@
 import os
 
 def init(id, cfg):
-    log_info("pythonmod: init called, module id is %d port: %d script: %s" % (id, cfg.port, cfg.python_script))
+    scripts=[]
+    s = cfg.python_script
+    while s != None:
+        scripts.append(s.str)
+        s = s.next
+    log_info("pythonmod: init called, module id is %d port: %d script: %s" % (id, cfg.port, scripts))
     return True
 
 def deinit(id):

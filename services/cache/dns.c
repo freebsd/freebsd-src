@@ -636,6 +636,14 @@ tomsg(struct module_env* env, struct query_info* q, struct reply_info* r,
 				r->serve_expired_ttl < now) {
 				return NULL;
 			}
+			/* Ignore expired failure answers */
+			if(FLAGS_GET_RCODE(r->flags) !=
+				LDNS_RCODE_NOERROR &&
+				FLAGS_GET_RCODE(r->flags) !=
+				LDNS_RCODE_NXDOMAIN &&
+				FLAGS_GET_RCODE(r->flags) !=
+				LDNS_RCODE_YXDOMAIN)
+				return 0;
 		} else {
 			return NULL;
 		}

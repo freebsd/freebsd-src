@@ -2,6 +2,7 @@
 ; config options go here.
 server:
 	serve-expired: yes
+	prefetch: yes
 forward-zone: name: "." forward-addr: 216.0.0.1
 CONFIG_END
 
@@ -45,7 +46,7 @@ SECTION ANSWER
 ENTRY_END
 
 ; enough to pass by the TTL of the servfail answer in cache
-STEP 50 TIME_PASSES ELAPSE 40
+STEP 50 TIME_PASSES ELAPSE 5
 
 ; this query triggers a prefetch
 STEP 210 QUERY

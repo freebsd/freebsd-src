@@ -29,6 +29,7 @@
 # wait_server_up_or_fail: wait for server to come up or print a failure string
 # skip_test x		: print message and skip test (must be called in .pre)
 # kill_pid		: kill a server, make sure and wait for it to go down.
+# teststep		: print the current test step in the output
 
 
 # print error and exit
@@ -272,3 +273,8 @@ set_doxygen_path () {
 	fi
 }
 
+# Print the current test step in the output
+teststep () {
+	echo
+	echo "STEP [ $1 ]"
+}

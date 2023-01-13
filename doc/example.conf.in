@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.17.0.
+# See unbound.conf(5) man page, version 1.17.1.
 #
 # this is a comment.
 
@@ -35,8 +35,13 @@ server:
 	# statistics-cumulative: no
 
 	# enable extended statistics (query types, answer codes, status)
-	# printed from unbound-control. default off, because of speed.
+	# printed from unbound-control. Default off, because of speed.
 	# extended-statistics: no
+
+	# Inhibits selected extended statistics (qtype, qclass, qopcode, rcode,
+	# rpz-actions) from printing if their value is 0.
+	# Default on.
+	# statistics-inhibit-zero: yes
 
 	# number of threads to create. 1 disables threading.
 	# num-threads: 1
@@ -172,6 +177,15 @@ server:
 	# The number of retries, per upstream nameserver in a delegation, when
 	# a throwaway response (also timeouts) is received.
 	# outbound-msg-retry: 5
+
+	# Hard limit on the number of outgoing queries Unbound will make while
+	# resolving a name, making sure large NS sets do not loop.
+	# It resets on query restarts (e.g., CNAME) and referrals.
+	# max-sent-count: 32
+
+	# Hard limit on the number of times Unbound is allowed to restart a
+	# query upon encountering a CNAME record.
+	# max-query-restarts: 11
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.

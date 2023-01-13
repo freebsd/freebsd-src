@@ -255,7 +255,7 @@ cleanup:
 int pythonmod_init(struct module_env* env, int id)
 {
    int py_mod_idx = py_mod_count++;
-    
+
    /* Initialize module */
    FILE* script_py = NULL;
    PyObject* py_init_arg, *res;
@@ -316,23 +316,37 @@ int pythonmod_init(struct module_env* env, int id)
 
    if (py_mod_count==1) {
       /* Initialize Python */
-      PyRun_SimpleString("import sys \n");
+      if(PyRun_SimpleString("import sys \n") < 0 ) {
+         goto python_init_fail;
+      }
       PyRun_SimpleString("sys.path.append('.') \n");
+      PyRun_SimpleString("sys.path.append('"RUN_DIR"') \n");
+      PyRun_SimpleString("sys.path.append('"SHARE_DIR"') \n");
       if(env->cfg->directory && env->cfg->directory[0]) {
          char wdir[1524];
          snprintf(wdir, sizeof(wdir), "sys.path.append('%s') \n",
          env->cfg->directory);
          PyRun_SimpleString(wdir);
       }
-      PyRun_SimpleString("sys.path.append('"RUN_DIR"') \n");
-      PyRun_SimpleString("sys.path.append('"SHARE_DIR"') \n");
-      PyRun_SimpleString("import distutils.sysconfig \n");
-      PyRun_SimpleString("sys.path.append(distutils.sysconfig.get_python_lib(1,0)) \n");
-      if (PyRun_SimpleString("from unboundmodule import *\n") < 0)
+      /* Check if sysconfig is there and use that instead of distutils;
+       * distutils.sysconfig is deprecated in Python 3.10. */
+      if(PyRun_SimpleString("import sysconfig \n") < 0) {
+         log_info("pythonmod: module sysconfig not available; "
+            "falling back to distutils.sysconfig.");
+         if(PyRun_SimpleString("import distutils.sysconfig \n") < 0
+            || PyRun_SimpleString("sys.path.append("
+            "distutils.sysconfig.get_python_lib(1,0)) \n") < 0) {
+            goto python_init_fail;
+         }
+      } else {
+         if(PyRun_SimpleString("sys.path.append("
+            "sysconfig.get_path('platlib')) \n") < 0) {
+            goto python_init_fail;
+         }
+      }
+      if(PyRun_SimpleString("from unboundmodule import *\n") < 0)
       {
-         log_err("pythonmod: cannot initialize core module: unboundmodule.py");
-         PyGILState_Release(gil);
-         return 0;
+         goto python_init_fail;
       }
    }
 
@@ -480,6 +494,11 @@ int pythonmod_init(struct module_env* env, int id)
    PyGILState_Release(gil);
 
    return 1;
+
+python_init_fail:
+   log_err("pythonmod: cannot initialize core module: unboundmodule.py");
+   PyGILState_Release(gil);
+   return 0;
 }
 
 void pythonmod_deinit(struct module_env* env, int id)

@@ -5,364 +5,317 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 PRE="../.."
+. ../common.sh
 
-# exit value is 1 on usage
-$PRE/unbound-control -h
-if test $? -ne 1; then
-	echo "wrong exit value for usage."
-	exit 1
-else
-	echo "exit value for usage: OK"
-fi
+# End the test
+# $1: exit value
+end () {
+	echo "> cat logfiles"
+	cat fwd.log 
+	cat unbound.log
+	exit $1
+}
+
+# Expect a given exit value of the previous command
+# $1: the expected exit value
+# $2: optional text to print when failing
+expect_exit_value () {
+	if test $? -ne $1; then
+		if test -z "$2"; then
+			if test $1 -eq 1; then
+				msg="on error"
+			else
+				msg="after success"
+			fi
+		else
+			msg="$2"
+		fi
+		echo "wrong exit value $msg"
+		end 1
+	fi
+}
+
+# Helper function for quering
+# $@: at least the domain name to query and optional dig arguments
+query () {
+	echo "> dig $@"
+	dig @127.0.0.1 -p $UNBOUND_PORT $@ | tee outfile
+}
+
+# Expect something in the answer
+# $1: expected regular expression
+expect_answer () {
+	echo "> check answer for \"$1\""
+	if grep "$1" outfile; then
+		echo "OK"
+	else
+		echo "Not OK"
+		end 1
+	fi
+}
+
+# Fail the test for unexpected answers
+# $1: unexpected regular expression
+fail_answer () {
+	echo "> \"$1\" should not be in answer"
+	if grep "$1" outfile; then
+		echo "Not OK"
+		end 1
+	else
+		echo "OK"
+	fi
+}
+
+# Issue an unbound-control command
+# $@: command arguments
+control_command () {
+	echo "$PRE/unbound-control $@"
+	$PRE/unbound-control $@ > outfile
+}
+
+# Dump the cache contents
+# $@: optional options to unbound-control
+cache_dump () {
+	echo "$PRE/unbound-control $@ dump_cache > cache.dump"
+	$PRE/unbound-control $@ dump_cache > cache.dump
+}
+
+# Load cache contents
+# $@: optional options to unbound-control
+cache_load () {
+	echo "$PRE/unbound-control $@ load_cache < cache.dump"
+	$PRE/unbound-control $@ load_cache < cache.dump
+}
+
+# Expect an entry in the cache dump
+# $1: expected regular expression
+expect_in_cache_dump () {
+	echo "> check cache dump for \"$1\""
+	if grep "$1" cache.dump; then
+		echo "OK cache dump"
+	else
+		echo "Not OK cache dump"
+		end 1
+	fi
+}
+
+# Fail the test for unexpected entry in the cache dump
+# $1: unexpected regular expression
+fail_in_cache_dump () {
+	echo "> \"$1\" should not be in cache dump"
+	if grep "$1" cache.dump; then
+		echo "Not OK cache dump"
+		end 1
+	else
+		echo "OK cache dump"
+	fi
+}
+
+# start the test
+cp ub.conf main.conf
+
+teststep "exit value is 1 on usage"
+control_command -h
+expect_exit_value 1 "for usage"
 
 # use lock-verify if possible
 
-# test if the server is up.
-echo "> dig www.example.com."
-dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
-echo "> check answer"
-if grep "10.20.30.40" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "test if the server is up"
+query www.example.com.
+expect_answer "10.20.30.40"
 
-# exit value is 1 when a bad command is given.
-echo "$PRE/unbound-control -c ub.conf blablargh"
-$PRE/unbound-control -c ub.conf blablargh
-if test $? -ne 1; then
-	echo "wrong exit value on error."
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.lo
-	exit 1
-else
-	echo "correct exit value on error"
-fi
+teststep "exit value is 1 when a bad command is given"
+control_command -c ub.conf blablargh
+expect_exit_value 1
 
 # reload the server. test if the server came up by putting a new
 # local-data element in the server.
+teststep "reload the server"
 echo "server: local-data: 'afterreload. IN A 5.6.7.8'" >> ub.conf
-echo "$PRE/unbound-control -c ub.conf reload"
-$PRE/unbound-control -c ub.conf reload
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+control_command -c ub.conf reload
+expect_exit_value 0
+query afterreload.
+expect_answer "5.6.7.8"
 
-echo "> dig afterreload."
-dig @127.0.0.1 -p $UNBOUND_PORT afterreload. | tee outfile
-echo "> check answer"
-if grep "5.6.7.8" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "must have had at least 1 query since reload"
+control_command -c ub.conf stats
+expect_exit_value 0
+expect_answer "^total.num.queries=[1-9][0-9]*$"
 
-# must have had queries now.  1 since reload.
-echo "$PRE/unbound-control -c ub.conf stats"
-$PRE/unbound-control -c ub.conf stats > tmp.$$
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-if grep "^total.num.queries=[1-9][0-9]*$" tmp.$$; then
-	echo "OK"
-else
-	echo "bad stats"
-	cat tmp.$$
-	exit 1
-fi
+teststep "check verbosity"
+control_command -c ub.conf verbosity 2
+expect_exit_value 0
 
-# verbosity
-echo "$PRE/unbound-control -c ub.conf verbosity 2"
-$PRE/unbound-control -c ub.conf verbosity 2
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+teststep "check syntax error in parse"
+control_command -c ub.conf verbosity jkdf
+expect_exit_value 1
 
-# check syntax error in parse 
-echo "$PRE/unbound-control -c ub.conf verbosity jkdf"
-$PRE/unbound-control -c ub.conf verbosity jkdf
-if test $? -ne 1; then
-	echo "wrong exit value after failure"
-	exit 1
-fi
-
-# check bad credentials
+teststep "check bad credentials"
 cp ub.conf bad.conf
-echo "remote-control:" >> bad.conf
-echo "	server-key-file: bad_server.key" >> bad.conf
-echo "	server-cert-file: bad_server.pem" >> bad.conf
-echo "	control-key-file: bad_control.key" >> bad.conf
-echo "	control-cert-file: bad_control.pem" >> bad.conf
-echo "$PRE/unbound-control -c bad.conf verbosity 2"
-$PRE/unbound-control -c bad.conf verbosity 2
-if test $? -ne 1; then
-	echo "wrong exit value after failure"
-	exit 1
-fi
+cat conf.bad_credentials >> bad.conf
+control_command -c bad.conf verbosity 2
+expect_exit_value 1
 
-# check spoofedclient credentials
+teststep "check spoofed client credentials"
 rm -f bad.conf
 cp ub.conf bad.conf
-echo "remote-control:" >> bad.conf
-echo "	server-key-file: unbound_server.key" >> bad.conf
-echo "	server-cert-file: unbound_server.pem" >> bad.conf
-echo "	control-key-file: bad_control.key" >> bad.conf
-echo "	control-cert-file: bad_control.pem" >> bad.conf
-echo "$PRE/unbound-control -c bad.conf verbosity 2"
-$PRE/unbound-control -c bad.conf verbosity 2
-if test $? -ne 1; then
-	echo "wrong exit value after failure"
-	exit 1
-fi
+cat conf.spoofed_credentials >> bad.conf
+control_command -c bad.conf verbosity 2
+expect_exit_value 1
 
-# create a new local zone
-echo "> test of local zone"
-echo "$PRE/unbound-control -c ub.conf local_zone example.net static"
-$PRE/unbound-control -c ub.conf local_zone example.net static
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "$PRE/unbound-control -c ub.conf local_data www.example.net A 192.0.2.1"
-$PRE/unbound-control -c ub.conf local_data www.example.net A 192.0.2.1
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+teststep "create a new local zone"
+control_command -c ub.conf local_zone example.net static
+expect_exit_value 0
+control_command -c ub.conf local_data www.example.net A 192.0.2.1
+expect_exit_value 0
 
-# check that www.example.net exists
-echo "> dig www.example.net."
-dig @127.0.0.1 -p $UNBOUND_PORT www.example.net. | tee outfile
-echo "> check answer"
-if grep "192.0.2.1" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "check that www.example.net exists"
+query www.example.net.
+expect_answer "192.0.2.1"
 
-# check that mail.example.net has nxdomain
-echo "> dig mail.example.net."
-dig @127.0.0.1 -p $UNBOUND_PORT mail.example.net. | tee outfile
-echo "> check answer"
-if grep "NXDOMAIN" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "check that mail.example.net has nxdomain"
+query mail.example.net.
+expect_answer "NXDOMAIN"
 
-# remove www.example.net - check it gets nxdomain
-echo "$PRE/unbound-control -c ub.conf local_data_remove www.example.net"
-$PRE/unbound-control -c ub.conf local_data_remove www.example.net
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "> dig www.example.net."
-dig @127.0.0.1 -p $UNBOUND_PORT www.example.net. | tee outfile
-echo "> check answer"
-if grep "NXDOMAIN" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "remove www.example.net - check it gets nxdomain"
+control_command -c ub.conf local_data_remove www.example.net
+expect_exit_value 0
+query www.example.net.
+expect_answer "NXDOMAIN"
 
-# remove nonexistent name - check bug#287(segfault) does not happen.
-echo "$PRE/unbound-control -c ub.conf local_data_remove test.example.net"
-$PRE/unbound-control -c ub.conf local_data_remove test.example.net
+teststep "remove nonexistent name - check bug#287(segfault) does not happen"
+control_command -c ub.conf local_data_remove test.example.net
 # if crash then then we get: error: could not SSL_read from unbound-control
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+expect_exit_value 0
 
-# remove example.net - check its gone.
-echo "$PRE/unbound-control -c ub.conf local_zone_remove example.net"
-$PRE/unbound-control -c ub.conf local_zone_remove example.net
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "> dig www.example.net."
-dig @127.0.0.1 -p $UNBOUND_PORT www.example.net. | tee outfile
-echo "> check answer"
-if grep "SERVFAIL" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "remove example.net - check its gone"
+control_command -c ub.conf local_zone_remove example.net
+expect_exit_value 0
+query www.example.net.
+expect_answer "SERVFAIL"
 
-# dump the cache
-echo "> test cache dump"
-# fillup cache
-echo "dig www.example.com"
-dig @127.0.0.1 -p $UNBOUND_PORT www.example.com.
-echo "$PRE/unbound-control -c ub.conf dump_cache"
-$PRE/unbound-control -c ub.conf dump_cache > tmp.$$
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-cat tmp.$$
-if grep 10.20.30.40 tmp.$$; then
-	echo "OK example.com is in cache dump"
-else
-	echo "Not OK cache dump"
-	exit 1
-fi
+teststep "dump the cache"
+query www.example.com.
+cache_dump -c ub.conf
+expect_exit_value 0
+cat cache.dump
+expect_in_cache "10.20.30.40"
 
-# test lookup 
-echo "$PRE/unbound-control -c ub.conf lookup www.example.com"
-$PRE/unbound-control -c ub.conf lookup www.example.com
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+control_command -c ub.conf lookup www.example.com
+expect_exit_value 0
 # answer to lookup is meaningless because of use a forwarder, oh well.
 
-# load the cache dump.
-echo "$PRE/unbound-control -c ub.conf load_cache < tmp.$$"
-$PRE/unbound-control -c ub.conf load_cache < tmp.$$
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "> dig www.example.com."
-dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
-echo "> check answer"
-if grep "10.20.30.40" outfile; then
-	echo "OK"
-else
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
-	echo "Not OK"
-	exit 1
-fi
+teststep "load the cache dump"
+cache_load -c ub.conf
+expect_exit_value 0
+query www.example.com.
+expect_answer "10.20.30.40"
 
-# load local-zones from file
-echo "$PRE/unbound-control -c ub.conf local_zones < local_zones"
-$PRE/unbound-control -c ub.conf local_zones < local_zones
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "> dig localzonefromfile."
-dig @127.0.0.1 -p $UNBOUND_PORT localzonefromfile | tee outfile
-echo "> check answer"
-if grep "REFUSED" outfile; then
-	echo "OK"
-else
-	echo "Not OK"
-	exit 1
-fi
+teststep "load local-zones from file"
+control_command -c ub.conf local_zones < local_zones
+expect_exit_value 0
+query localzonefromfile
+expect_answer "REFUSED"
 
-# load local-data from file
-echo "$PRE/unbound-control -c ub.conf local_datas < local_data"
-$PRE/unbound-control -c ub.conf local_datas < local_data
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "> dig localdatafromfile."
-dig @127.0.0.1 -p $UNBOUND_PORT -t txt localdatafromfile | tee outfile
-echo "> check answer"
-if grep "local data from file OK" outfile; then
-	echo "OK"
-else
-	echo "Not OK"
-	exit 1
-fi
+teststep "load local-data from file"
+control_command -c ub.conf local_datas < local_data
+expect_exit_value 0
+query -t txt localdatafromfile
+expect_answer "local data from file OK"
 
-# remove local-zone and local-data from file
-echo "$PRE/unbound-control -c ub.conf local_zones_remove < local_zones_remove"
-$PRE/unbound-control -c ub.conf local_zones_remove < local_zones_remove
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "$PRE/unbound-control -c ub.conf local_datas_remove < local_data_remove"
-$PRE/unbound-control -c ub.conf local_datas_remove < local_data_remove
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-echo "> check zone and data removal list_local_zones"
-$PRE/unbound-control -c ub.conf list_local_zones | tee outfile
-if grep "localzonefromfile" outfile; then
-	echo "Not OK"
-	exit 1
-fi
-if grep "local data from file OK" outfile; then
-	echo "Not OK"
-	exit 1
-fi
-if grep "otherlocalzone" outfile; then
-	echo "OK"
-else
-	echo "Not OK"
-	exit 1
-fi
+teststep "remove local-zone and local-data from file"
+control_command -c ub.conf local_zones_remove < local_zones_remove
+expect_exit_value 0
+control_command -c ub.conf local_datas_remove < local_data_remove
+expect_exit_value 0
+control_command -c ub.conf list_local_zones
+fail_answer "localzonefromfile"
+fail_answer "local data from file OK"
+expect_answer "otherlocalzone"
 
-# flushing
-echo "$PRE/unbound-control -c ub.conf flush www.example.net"
-$PRE/unbound-control -c ub.conf flush www.example.net
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+teststep "flushing"
+control_command -c ub.conf flush www.example.net
+expect_exit_value 0
+control_command -c ub.conf flush_type www.example.net TXT
+expect_exit_value 0
+control_command -c ub.conf flush_zone example.net
+expect_exit_value 0
 
-echo "$PRE/unbound-control -c ub.conf flush_type www.example.net TXT"
-$PRE/unbound-control -c ub.conf flush_type www.example.net TXT
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+teststep "reload the server for a clean state and populate the cache"
+cp main.conf ub.conf
+control_command -c ub.conf reload
+expect_exit_value 0
+query www.example.com
+expect_answer "10.20.30.40"
 
-echo "$PRE/unbound-control -c ub.conf flush_zone example.net"
-$PRE/unbound-control -c ub.conf flush_zone example.net
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
+teststep "reload and check cache dump - should be empty"
+control_command -c ub.conf reload
+expect_exit_value 0
+cache_dump -c ub.conf
+expect_exit_value 0
+fail_in_cache_dump "www.example.com.*10.20.30.40"
+fail_in_cache_dump "msg www.example.com. IN A"
 
-# now stop the server
-echo "$PRE/unbound-control -c ub.conf stop"
-$PRE/unbound-control -c ub.conf stop
-if test $? -ne 0; then
-	echo "wrong exit value after success"
-	exit 1
-fi
-# see if the server has really exited.
+query www.example.com
+expect_answer "10.20.30.40"
+
+teststep "reload_keep_cache and check cache dump - should not be empty"
+control_command -c ub.conf reload_keep_cache
+expect_exit_value 0
+cache_dump -c ub.conf
+expect_exit_value 0
+expect_in_cache_dump "www.example.com.*10.20.30.40"
+expect_in_cache_dump "msg www.example.com. IN A"
+query www.example.com +nordflag
+expect_answer "10.20.30.40"
+
+teststep "change msg-cache-size and reload_keep_cache - should be empty"
+echo "server: msg-cache-size: 2m" >> ub.conf
+control_command -c ub.conf reload_keep_cache
+expect_exit_value 0
+cache_dump -c ub.conf
+expect_exit_value 0
+fail_in_cache_dump "www.example.com.*10.20.30.40"
+fail_in_cache_dump "msg www.example.com. IN A"
+query www.example.com
+expect_answer "10.20.30.40"
+
+teststep "change rrset-cache-size and reload_keep_cache - should be empty"
+echo "server: rrset-cache-size: 2m" >> ub.conf
+control_command -c ub.conf reload_keep_cache
+expect_exit_value 0
+cache_dump -c ub.conf
+expect_exit_value 0
+fail_in_cache_dump "www.example.com.*10.20.30.40"
+fail_in_cache_dump "msg www.example.com. IN A"
+query www.example.com
+expect_answer "10.20.30.40"
+
+teststep "change num-threads and reload_keep_cache - should be empty"
+echo "server: num-threads: 2" >> ub.conf
+control_command -c ub.conf reload_keep_cache
+expect_exit_value 0
+cache_dump -c ub.conf
+expect_exit_value 0
+fail_in_cache_dump "www.example.com.*10.20.30.40"
+fail_in_cache_dump "msg www.example.com. IN A"
+query www.example.com
+expect_answer "10.20.30.40"
+
+teststep "change minimal-responses and reload_keep_cache - should not be empty"
+echo "server: minimal-responses: no" >> ub.conf
+control_command -c ub.conf reload_keep_cache
+expect_exit_value 0
+cache_dump -c ub.conf
+expect_exit_value 0
+expect_in_cache_dump "www.example.com.*10.20.30.40"
+expect_in_cache_dump "msg www.example.com. IN A"
+
+teststep "now stop the server"
+control_command -c ub.conf stop
+expect_exit_value 0
+
+teststep "see if the server has really exited"
 TRY_MAX=20
 for (( try=0 ; try <= $TRY_MAX ; try++ )) ; do
 	if kill -0 $UNBOUND_PID 2>&1 | tee tmp.$$; then
@@ -379,11 +332,8 @@ for (( try=0 ; try <= $TRY_MAX ; try++ )) ; do
 done
 if kill -0 $UNBOUND_PID; then
 	echo "still up!"
-	echo "> cat logfiles"
-	cat fwd.log 
-	cat unbound.log
 	echo "not stopped, failure"
-	exit 1
+	end 1
 else
 	echo "stopped OK"
 
@@ -392,15 +342,9 @@ else
 			echo "lock-verify test worked."
 		else
 			echo "lock-verify test failed."
-			cat fwd.log 
-			cat unbound.log
-			exit 1
+			end 1
 		fi
 	fi
 fi
 
-echo "> cat logfiles"
-cat fwd.log 
-cat unbound.log
-echo "> OK"
-exit 0
+end 0
