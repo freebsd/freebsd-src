@@ -379,9 +379,9 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 static int
 zfs_mount(const char *dev, const char *path, void **data)
 {
-	struct zfs_devdesc *zfsdev;
+	struct zfs_devdesc *zfsdev = NULL;
 	spa_t *spa;
-	struct zfsmount *mnt;
+	struct zfsmount *mnt = NULL;
 	int rv;
 
 	errno = 0;
@@ -391,36 +391,46 @@ zfs_mount(const char *dev, const char *path, void **data)
 	}
 
 	spa = spa_find_by_dev(zfsdev);
-	if (spa == NULL)
-		return (ENXIO);
+	if (spa == NULL) {
+		rv = ENXIO;
+		goto err;
+	}
 
 	mnt = calloc(1, sizeof(*mnt));
-	if (mnt != NULL && path != NULL)
+	if (mnt == NULL) {
+		rv = ENOMEM;
+		goto err;
+	}
+
+	if (mnt->path != NULL) {
 		mnt->path = strdup(path);
-	rv = errno;
+		if (mnt->path == NULL) {
+			rv = ENOMEM;
+			goto err;
+		}
+	}
 
-	if (mnt != NULL)
-		rv = zfs_mount_impl(spa, zfsdev->root_guid, mnt);
-	free(zfsdev);
+	rv = zfs_mount_impl(spa, zfsdev->root_guid, mnt);
 
-	if (rv == 0 && mnt != NULL && mnt->objset.os_type != DMU_OST_ZFS) {
+	if (rv == 0 && mnt->objset.os_type != DMU_OST_ZFS) {
 		printf("Unexpected object set type %ju\n",
 		    (uintmax_t)mnt->objset.os_type);
 		rv = EIO;
 	}
-
+err:
 	if (rv != 0) {
 		if (mnt != NULL)
 			free(mnt->path);
 		free(mnt);
+		free(zfsdev);
 		return (rv);
 	}
 
-	if (mnt != NULL) {
-		*data = mnt;
-		if (path != NULL)
-			STAILQ_INSERT_TAIL(&zfsmount, mnt, next);
-	}
+	*data = mnt;
+	if (path != NULL)
+		STAILQ_INSERT_TAIL(&zfsmount, mnt, next);
+
+	free(zfsdev);
 
 	return (rv);
 }
