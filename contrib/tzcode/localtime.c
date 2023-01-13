@@ -468,7 +468,6 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 	register int			fid;
 	register int			stored;
 	register ssize_t		nread;
-	register bool doaccess;
 	register union input_buffer *up = &lsp->u.u;
 	register int tzheadsize = sizeof(struct tzhead);
 
@@ -482,15 +481,7 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 
 	if (name[0] == ':')
 		++name;
-#ifdef SUPPRESS_TZDIR
-	/* Do not prepend TZDIR.  This is intended for specialized
-	   applications only, due to its security implications.  */
-	doaccess = true;
-#else
-	doaccess = name[0] == '/';
-#endif
-	if (!doaccess) {
-		char const *dot;
+	if (name[0] != '/') {
 		if (sizeof lsp->fullname - sizeof tzdirslash <= strlen(name))
 		  return ENAMETOOLONG;
 
@@ -500,20 +491,8 @@ tzloadbody(char const *name, struct state *sp, bool doextend,
 		memcpy(lsp->fullname, tzdirslash, sizeof tzdirslash);
 		strcpy(lsp->fullname + sizeof tzdirslash, name);
 
-		/* Set doaccess if NAME contains a ".." file name
-		   component, as such a name could read a file outside
-		   the TZDIR virtual subtree.  */
-		for (dot = name; (dot = strchr(dot, '.')); dot++)
-		  if ((dot == name || dot[-1] == '/') && dot[1] == '.'
-		      && (dot[2] == '/' || !dot[2])) {
-		    doaccess = true;
-		    break;
-		  }
-
 		name = lsp->fullname;
 	}
-	if (doaccess && access(name, R_OK) != 0)
-	  return errno;
 	if (doextend) {
 		/*
 		 * Detect if the timezone file has changed.  Check
