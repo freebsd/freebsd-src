@@ -224,7 +224,7 @@ ena_ring_in_netmap(struct ena_adapter *adapter, int qid, enum txrx x)
 	struct netmap_adapter *na;
 	struct netmap_kring *kring;
 
-	if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+	if (if_getcapenable(adapter->ifp) & IFCAP_NETMAP) {
 		na = NA(adapter->ifp);
 		kring = (x == NR_RX) ? na->rx_rings[qid] : na->tx_rings[qid];
 		if (kring->nr_mode == NKR_NETMAP_ON)
@@ -271,8 +271,8 @@ ena_netmap_reset_tx_ring(struct ena_adapter *adapter, int qid)
 static int
 ena_netmap_reg(struct netmap_adapter *na, int onoff)
 {
-	struct ifnet *ifp = na->ifp;
-	struct ena_adapter *adapter = ifp->if_softc;
+	if_t ifp = na->ifp;
+	struct ena_adapter *adapter = if_getsoftc(ifp);
 	device_t pdev = adapter->pdev;
 	struct netmap_kring *kring;
 	enum txrx t;
@@ -528,7 +528,7 @@ ena_netmap_map_single_slot(struct netmap_adapter *na, struct netmap_slot *slot,
 	device_t pdev;
 	int rc;
 
-	pdev = ((struct ena_adapter *)na->ifp->if_softc)->pdev;
+	pdev = ((struct ena_adapter *)if_getsoftc(na->ifp))->pdev;
 
 	*vaddr = PNMB(na, slot, paddr);
 	if (unlikely(vaddr == NULL)) {
@@ -1065,7 +1065,7 @@ ena_netmap_fill_ctx(struct netmap_kring *kring, struct ena_netmap_ctx *ctx,
 {
 	ctx->kring = kring;
 	ctx->na = kring->na;
-	ctx->adapter = ctx->na->ifp->if_softc;
+	ctx->adapter = if_getsoftc(ctx->na->ifp);
 	ctx->lim = kring->nkr_num_slots - 1;
 	ctx->io_cq = &ctx->adapter->ena_dev->io_cq_queues[ena_qid];
 	ctx->io_sq = &ctx->adapter->ena_dev->io_sq_queues[ena_qid];

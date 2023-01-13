@@ -575,7 +575,7 @@ ena_release_all_tx_dmamap(struct ena_ring *tx_ring)
 	for (i = 0; i < tx_ring->ring_size; ++i) {
 		tx_info = &tx_ring->tx_buffer_info[i];
 #ifdef DEV_NETMAP
-		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+		if (if_getcapenable(adapter->ifp) & IFCAP_NETMAP) {
 			nm_info = &tx_info->nm_info;
 			for (j = 0; j < ENA_PKT_MAX_BUFS; ++j) {
 				if (nm_info->map_seg[j] != NULL) {
@@ -661,7 +661,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		}
 
 #ifdef DEV_NETMAP
-		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+		if (if_getcapenable(adapter->ifp) & IFCAP_NETMAP) {
 			map = tx_ring->tx_buffer_info[i].nm_info.map_seg;
 			for (j = 0; j < ENA_PKT_MAX_BUFS; j++) {
 				err = bus_dmamap_create(adapter->tx_buf_tag, 0,
@@ -750,7 +750,7 @@ ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 		    tx_ring->tx_buffer_info[i].dmamap);
 
 #ifdef DEV_NETMAP
-		if (adapter->ifp->if_capenable & IFCAP_NETMAP) {
+		if (if_getcapenable(adapter->ifp) & IFCAP_NETMAP) {
 			nm_info = &tx_ring->tx_buffer_info[i].nm_info;
 			for (j = 0; j < ENA_PKT_MAX_BUFS; j++) {
 				if (nm_info->socket_buf_idx[j] != 0) {
@@ -882,7 +882,7 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 	}
 
 	/* Create LRO for the ring */
-	if ((adapter->ifp->if_capenable & IFCAP_LRO) != 0) {
+	if ((if_getcapenable(adapter->ifp) & IFCAP_LRO) != 0) {
 		int err = tcp_lro_init(&rx_ring->lro);
 		if (err != 0) {
 			ena_log(pdev, ERR, "LRO[%d] Initialization failed!\n",
@@ -1292,7 +1292,7 @@ ena_free_rx_bufs(struct ena_adapter *adapter, unsigned int qid)
 			ena_free_rx_mbuf(adapter, rx_ring, rx_info);
 #ifdef DEV_NETMAP
 		if (((if_getflags(adapter->ifp) & IFF_DYING) == 0) &&
-		    (adapter->ifp->if_capenable & IFCAP_NETMAP)) {
+		    (if_getcapenable(adapter->ifp) & IFCAP_NETMAP)) {
 			if (rx_info->netmap_buf_idx != 0)
 				ena_netmap_free_rx_slot(adapter, rx_ring,
 				    rx_info);
@@ -1964,7 +1964,7 @@ ena_up_complete(struct ena_adapter *adapter)
 		}
 	}
 
-	rc = ena_change_mtu(adapter->ifp, adapter->ifp->if_mtu);
+	rc = ena_change_mtu(adapter->ifp, if_getmtu(adapter->ifp));
 	if (unlikely(rc != 0))
 		return (rc);
 
@@ -2225,7 +2225,7 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	struct ifreq *ifr;
 	int rc;
 
-	adapter = ifp->if_softc;
+	adapter = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	/*
@@ -2234,7 +2234,7 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	rc = 0;
 	switch (command) {
 	case SIOCSIFMTU:
-		if (ifp->if_mtu == ifr->ifr_mtu)
+		if (if_getmtu(ifp) == ifr->ifr_mtu)
 			break;
 		ENA_LOCK_LOCK();
 		ena_down(adapter);
@@ -2246,10 +2246,10 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
-		if ((ifp->if_flags & IFF_UP) != 0) {
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
 			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
-				if ((ifp->if_flags &
-				    (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+				if ((if_getflags(ifp) & (IFF_PROMISC |
+				    IFF_ALLMULTI)) != 0) {
 					ena_log(adapter->pdev, INFO,
 					    "ioctl promisc/allmulti\n");
 				}
@@ -2280,8 +2280,8 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 		{
 			int reinit = 0;
 
-			if (ifr->ifr_reqcap != ifp->if_capenable) {
-				ifp->if_capenable = ifr->ifr_reqcap;
+			if (ifr->ifr_reqcap != if_getcapenable(ifp)) {
+				if_setcapenable(ifp, ifr->ifr_reqcap);
 				reinit = 1;
 			}
 
@@ -2414,10 +2414,10 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	if_setcapabilitiesbit(ifp, caps, 0);
 
 	/* TSO parameters */
-	ifp->if_hw_tsomax = ENA_TSO_MAXSIZE -
-	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
-	ifp->if_hw_tsomaxsegcount = adapter->max_tx_sgl_size - 1;
-	ifp->if_hw_tsomaxsegsize = ENA_TSO_MAXSIZE;
+	if_sethwtsomax(ifp, ENA_TSO_MAXSIZE -
+	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
+	if_sethwtsomaxsegcount(ifp, adapter->max_tx_sgl_size - 1);
+	if_sethwtsomaxsegsize(ifp, ENA_TSO_MAXSIZE);
 
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 	if_setcapenable(ifp, if_getcapabilities(ifp));
@@ -3744,7 +3744,7 @@ ena_detach(device_t pdev)
 	int rc;
 
 	/* Make sure VLANS are not using driver */
-	if (adapter->ifp->if_vlantrunk != NULL) {
+	if (if_vlantrunkinuse(adapter->ifp)) {
 		ena_log(adapter->pdev, ERR, "VLAN is in use, detach first\n");
 		return (EBUSY);
 	}
