@@ -108,8 +108,7 @@ ofw_common_parsedev(struct devdesc **dev, const char *devspec, const char **path
 	};
 	strlcpy(idev->d_path, devspec, min(rem_path - devspec + 1,
 		sizeof(idev->d_path)));
-	if (dev != NULL)
-		*dev = &idev->dd;
+	*dev = &idev->dd;
 	if (path != NULL)
 		*path = rem_path;
 	return 0;
