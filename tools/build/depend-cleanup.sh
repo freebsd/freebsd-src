@@ -110,3 +110,9 @@ fi
 
 # 20221115  42d10b1b56f2    move from rs.c to rs.cc
 clean_dep   usr.bin/rs      rs c
+
+# 20230110  bc42155199b5    usr.sbin/zic/zic -> usr.sbin/zic
+if [ -d "$OBJTOP"/usr.sbin/zic/zic ] ; then
+	echo "Removing old zic directory"
+	rm -rf "$OBJTOP"/usr.sbin/zic/zic
+fi
