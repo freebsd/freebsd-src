@@ -474,6 +474,7 @@ nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_orig,
 	nh_priv->nh_neigh_family = nh_orig->nh_priv->nh_neigh_family;
 	nh_priv->rt_flags = nh_orig->nh_priv->rt_flags;
 	nh_priv->nh_type = nh_orig->nh_priv->nh_type;
+	nh_priv->nh_fibnum = nh_orig->nh_priv->nh_fibnum;
 
 	nh->nh_ifp = nh_orig->nh_ifp;
 	nh->nh_ifa = nh_orig->nh_ifa;
