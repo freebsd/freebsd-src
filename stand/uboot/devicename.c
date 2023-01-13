@@ -148,6 +148,10 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 		goto fail;
 	}
 	idev->dd.d_dev = dv;
+	/*
+	 * dev can be NULL, since uboot_getdev calls us directly, rather than via
+	 * dv_parsedev in devparse() which otherwise ensures that it can't be NULL.
+	 */
 	if (dev == NULL) {
 		free(idev);
 	} else {
