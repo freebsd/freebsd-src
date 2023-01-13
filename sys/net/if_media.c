@@ -75,6 +75,7 @@ static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
 
 #ifdef IFMEDIA_DEBUG
 #include <net/if_var.h>
+#include <net/if_private.h>
 int	ifmedia_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
 	    0, "if_media debugging msgs");

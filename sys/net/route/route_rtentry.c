@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/in6_var.h>
 
 #include <vm/uma.h>
 
