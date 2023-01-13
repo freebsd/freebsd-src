@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #if defined(LOADER_NET_SUPPORT)
 #include "dev_net.h"
 #endif
+#ifdef LOADER_ZFS_SUPPORT
+#include "libzfs.h"
+#endif
 
 extern struct devsw hostdisk;
 extern struct devsw host_dev;
@@ -55,6 +58,9 @@ struct devsw *devsw[] = {
     &netdev,
 #endif
     &host_dev,
+#if defined(LOADER_ZFS_SUPPORT)
+    &zfs_dev,				/* Must be last */
+#endif
     NULL
 };
 
@@ -84,6 +90,9 @@ struct fs_ops *file_system[] = {
 #endif
 #if defined(LOADER_MSDOS_SUPPORT)
     &dosfs_fsops,
+#endif
+#if defined(LOADER_ZFS_SUPPORT)
+	&zfs_fsops,
 #endif
     &hostfs_fsops,
     NULL
