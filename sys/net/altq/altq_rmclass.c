@@ -52,6 +52,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 
 #include <net/altq/if_altq.h>
 #include <net/altq/altq.h>

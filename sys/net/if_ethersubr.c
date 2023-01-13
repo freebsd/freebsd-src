@@ -60,6 +60,7 @@
 #include <net/ieee_oui.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_arp.h>
 #include <net/netisr.h>
 #include <net/route.h>
