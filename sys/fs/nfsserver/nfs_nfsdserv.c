@@ -2830,13 +2830,14 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	u_long *hashp;
 	NFSACL_T *aclp = NULL;
 	struct thread *p = curthread;
+	bool done_namei;
 
 #ifdef NFS4_ACL_EXTATTR_NAME
 	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
 #endif
 	NFSZERO_ATTRBIT(&attrbits);
-	named.ni_startdir = NULL;
+	done_namei = false;
 	named.ni_cnd.cn_nameiop = 0;
 	NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *(tl + 5));
@@ -3042,6 +3043,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp,
 			    &dirp);
+			done_namei = true;
 		} else {
 			vrele(dp);
 			nfsvno_relpathbuf(&named);
@@ -3049,7 +3051,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		if (create == NFSV4OPEN_CREATE) {
 		    switch (how) {
 		    case NFSCREATE_UNCHECKED:
-			if (named.ni_vp) {
+			if (done_namei && named.ni_vp != NULL) {
 				/*
 				 * Clear the setable attribute bits, except
 				 * for Size, if it is being truncated.
@@ -3061,12 +3063,13 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			}
 			break;
 		    case NFSCREATE_GUARDED:
-			if (named.ni_vp && !nd->nd_repstat)
+			if (done_namei && named.ni_vp != NULL &&
+			    nd->nd_repstat == 0)
 				nd->nd_repstat = EEXIST;
 			break;
 		    case NFSCREATE_EXCLUSIVE:
 			exclusive_flag = 1;
-			if (!named.ni_vp)
+			if (done_namei && named.ni_vp == NULL)
 				nva.na_mode = 0;
 			break;
 		    case NFSCREATE_EXCLUSIVE41:
@@ -3076,7 +3079,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 		nfsvno_open(nd, &named, clientid, &stateid, stp,
 		    &exclusive_flag, &nva, cverf, create, aclp, &attrbits,
-		    nd->nd_cred, exp, &vp);
+		    nd->nd_cred, done_namei, exp, &vp);
 	} else if (claim == NFSV4OPEN_CLAIMPREVIOUS || claim ==
 	    NFSV4OPEN_CLAIMFH || claim == NFSV4OPEN_CLAIMDELEGATECURFH ||
 	    claim == NFSV4OPEN_CLAIMDELEGATEPREVFH) {

@@ -719,7 +719,7 @@ int nfsvno_statfs(vnode_t, struct statfs *);
 void nfsvno_getfs(struct nfsfsinfo *, int);
 void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
     nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, int32_t *,
-    int, NFSACL_T *, nfsattrbit_t *, struct ucred *,
+    int, NFSACL_T *, nfsattrbit_t *, struct ucred *, bool,
     struct nfsexstuff *, vnode_t *);
 int nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct nfsrv_descript *,
     NFSPROC_T *);
