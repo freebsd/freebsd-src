@@ -198,15 +198,22 @@ main(int argc, const char **argv)
 		 * on active BEs, etc
 		 */
 		hostdisk_zfs_find_default();
-	}
+	} else
 #endif
+	{
+		/*
+		 * Otherwise, honor what's on the command line. If we've been
+		 * given a specific ZFS partition, then we'll honor it w/o BE
+		 * processing that would otherwise pick a different snapshot to
+		 * boot than the default one in the pool.
+		 */
+		set_currdev(bootdev);
+	}
 
 	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
 
 	printf("\n%s", bootprog_info);
 
-	setenv("currdev", bootdev, 1);
-	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
 	setenv("usefdt", "1", 1);
 
