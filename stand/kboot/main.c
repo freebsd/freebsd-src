@@ -192,9 +192,12 @@ main(int argc, const char **argv)
 #if defined(LOADER_ZFS_SUPPORT)
 	if (strcmp(bootdev, "zfs:") == 0) {
 		/*
-		 * Pseudo device that says go find the right ZFS pool.
+		 * Pseudo device that says go find the right ZFS pool. This will be
+		 * the first pool that we find that passes the sanity checks (eg looks
+		 * like it might be vbootable) and sets currdev to the right thing based
+		 * on active BEs, etc
 		 */
-		printf("WARNING: bare 'zfs:' for boot device not yet implemented\n");
+		hostdisk_zfs_find_default();
 	}
 #endif
 
