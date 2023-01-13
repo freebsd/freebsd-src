@@ -4141,6 +4141,7 @@ net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
+net/ifq.c			standard
 net/if_bridge.c			optional bridge inet | if_bridge inet
 net/if_clone.c			standard
 net/if_dead.c			standard
