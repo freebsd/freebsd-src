@@ -1823,7 +1823,10 @@ pfsync_defer_tmo(void *arg)
 
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
-	CURVNET_SET(m->m_pkthdr.rcvif->if_vnet);
+	if (sc->sc_sync_if == NULL)
+		return;
+
+	CURVNET_SET(sc->sc_sync_if->if_vnet);
 
 	TAILQ_REMOVE(&b->b_deferrals, pd, pd_entry);
 	b->b_deferred--;
