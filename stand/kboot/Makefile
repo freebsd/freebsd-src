@@ -5,6 +5,7 @@ LOADER_CD9660_SUPPORT?=	yes
 LOADER_MSDOS_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
+LOADER_ZFS_SUPPORT?=	yes
 LOADER_NET_SUPPORT?=	no
 LOADER_NFS_SUPPORT?=	no
 LOADER_TFTP_SUPPORT?=	no
@@ -34,6 +35,12 @@ SRCS=	\
 		vers.c
 
 CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
+.if ${MK_LOADER_ZFS} != "no"
+CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include
+CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
+HAVE_ZFS=yes
+.endif
 
 .include	"${BOOTSRC}/fdt.mk"
 
