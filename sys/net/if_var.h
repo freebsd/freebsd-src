@@ -653,6 +653,7 @@ void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
 void if_setgetcounterfn(if_t ifp, if_get_counter_t);
 void if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t);
+void if_setdebugnet_methods(struct ifnet *, struct debugnet_methods *);
 
 /* TSO */
 void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);

@@ -4803,6 +4803,12 @@ if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 	ifp->if_get_counter = fn;
 }
 
+void
+if_setdebugnet_methods(if_t ifp, struct debugnet_methods *m)
+{
+	ifp->if_debugnet_methods = m;
+}
+
 #ifdef DDB
 static void
 if_show_ifnet(struct ifnet *ifp)
