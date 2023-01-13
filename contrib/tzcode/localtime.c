@@ -1761,7 +1761,10 @@ localtime(const time_t *timep)
 			if ((p_tm = malloc(sizeof(*p_tm))) == NULL) {
 				return (NULL);
 			}
-			_pthread_setspecific(localtime_key, p_tm);
+			if (_pthread_setspecific(localtime_key, p_tm) != 0) {
+				free(p_tm);
+				return (NULL);
+			}
 		}
 	}
 	return localtime_tzset(timep, p_tm, true);
@@ -1829,7 +1832,10 @@ gmtime(const time_t *timep)
 			if ((p_tm = malloc(sizeof(*p_tm))) == NULL) {
 				return (NULL);
 			}
-			_pthread_setspecific(gmtime_key, p_tm);
+			if (_pthread_setspecific(gmtime_key, p_tm) != 0) {
+				free(p_tm);
+				return (NULL);
+			}
 		}
 	}
 	return gmtime_r(timep, p_tm);
