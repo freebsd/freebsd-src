@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/disk.h>
 #include <stdarg.h>
 #include "host_syscall.h"
 #include "kboot.h"
@@ -40,6 +41,7 @@ static int hostdisk_close(struct open_file *f);
 static int hostdisk_ioctl(struct open_file *f, u_long cmd, void *data);
 static int hostdisk_print(int verbose);
 static char *hostdisk_fmtdev(struct devdesc *vdev);
+static int hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path);
 
 struct devsw hostdisk = {
 	.dv_name = "/dev",
@@ -52,6 +54,7 @@ struct devsw hostdisk = {
 	.dv_print = hostdisk_print,
 	.dv_cleanup = nullsys,
 	.dv_fmtdev = hostdisk_fmtdev,
+	.dv_parsedev = hostdisk_parsedev,
 };
 
 /*
@@ -67,12 +70,15 @@ typedef struct hdinfo {
 	STAILQ_ENTRY(hdinfo)	hd_link;	/* link in device list */
 	hdinfo_list_t	hd_children;
 	struct hdinfo	*hd_parent;
-	const char	*hd_name;
-	uint64_t	hd_size;
+	const char	*hd_dev;
+	uint64_t	hd_size;		/* In bytes */
 	uint64_t	hd_sectors;
 	uint64_t	hd_sectorsize;
 	int		hd_flags;
 } hdinfo_t;
+
+#define dev2hd(d) ((hdinfo_t *)d->d_opendata)
+#define hd_name(hd) ((hd->hd_dev + 5))
 
 static hdinfo_list_t hdinfo = STAILQ_HEAD_INITIALIZER(hdinfo);
 
@@ -107,14 +113,20 @@ foreach_file(const char *dir, fef_cb_t cb, void *argp, u_int flags)
 }
 
 static void
-hostdisk_add_part(struct hdinfo *hd, const char *drv, uint64_t secs)
+hostdisk_add_part(hdinfo_t *hd, const char *drv, uint64_t secs)
 {
-	struct hdinfo *md;
+	hdinfo_t *md;
+	char *dev;
 
-	printf("hd %s adding %s %ju\n", hd->hd_name, drv, (uintmax_t)secs);
+	printf("hd %s adding %s %ju\n", hd->hd_dev, drv, (uintmax_t)secs);
 	if ((md = calloc(1, sizeof(*md))) == NULL)
 		return;
-	md->hd_name = strdup(drv);
+	if (asprintf(&dev, "/dev/%s", drv) == -1) {
+		printf("hostdisk: no memory\n");
+		free(md);
+		return;
+	}
+	md->hd_dev = dev;
 	md->hd_sectors = secs;
 	md->hd_sectorsize = hd->hd_sectorsize;
 	md->hd_size = md->hd_sectors * md->hd_sectorsize;
@@ -125,15 +137,16 @@ hostdisk_add_part(struct hdinfo *hd, const char *drv, uint64_t secs)
 static bool
 hostdisk_one_part(struct host_dirent64 *dent, void *argp)
 {
-	struct hdinfo *hd = argp;
+	hdinfo_t *hd = argp;
 	char szfn[1024];
 	uint64_t sz;
 
-	if (strncmp(dent->d_name, hd->hd_name, strlen(hd->hd_name)) != 0)
+	/* Need to skip /dev/ at start of hd_name */
+	if (strncmp(dent->d_name, hd_name(hd), strlen(hd_name(hd))) != 0)
 		return (true);
 	/* Find out how big this is -- no size not a disk */
 	snprintf(szfn, sizeof(szfn), "%s/%s/%s/size", SYSBLK,
-	    hd->hd_name, dent->d_name);
+	    hd_name(hd), dent->d_name);
 	if (!file2u64(szfn, &sz))
 		return true;
 	hostdisk_add_part(hd, dent->d_name, sz);
@@ -141,23 +154,29 @@ hostdisk_one_part(struct host_dirent64 *dent, void *argp)
 }
 
 static void
-hostdisk_add_parts(struct hdinfo *hd)
+hostdisk_add_parts(hdinfo_t *hd)
 {
 	char fn[1024];
 
-	snprintf(fn, sizeof(fn), "%s/%s", SYSBLK, hd->hd_name);
+	snprintf(fn, sizeof(fn), "%s/%s", SYSBLK, hd_name(hd));
 	foreach_file(fn, hostdisk_one_part, hd, 0);
 }
 
 static void
 hostdisk_add_drive(const char *drv, uint64_t secs)
 {
-	struct hdinfo *hd;
+	hdinfo_t *hd = NULL;
+	char *dev = NULL;
 	char fn[1024];
 
 	if ((hd = calloc(1, sizeof(*hd))) == NULL)
 		return;
-	hd->hd_name = strdup(drv);
+	if (asprintf(&dev, "/dev/%s", drv) == -1) {
+		printf("hostdisk: no memory\n");
+		free(hd);
+		return;
+	}
+	hd->hd_dev = dev;
 	hd->hd_sectors = secs;
 	snprintf(fn, sizeof(fn), "%s/%s/queue/hw_sector_size",
 	    SYSBLK, drv);
@@ -174,9 +193,29 @@ hostdisk_add_drive(const char *drv, uint64_t secs)
 	hostdisk_add_parts(hd);
 	return;
 err:
+	free(dev);
 	free(hd);
 	return;
 }
+
+/* Find a disk / partition by its filename */
+
+static hdinfo_t *
+hostdisk_find(const char *fn)
+{
+	hdinfo_t *hd, *md;
+
+	STAILQ_FOREACH(hd, &hdinfo, hd_link) {
+		if (strcmp(hd->hd_dev, fn) == 0)
+			return (hd);
+		STAILQ_FOREACH(md, &hd->hd_children, hd_link) {
+			if (strcmp(md->hd_dev, fn) == 0)
+				return (md);
+		}
+	}
+	return (NULL);
+}
+
 
 static bool
 hostdisk_one_disk(struct host_dirent64 *dent, void *argp __unused)
@@ -252,16 +291,17 @@ static int
 hostdisk_open(struct open_file *f, ...)
 {
 	struct devdesc *desc;
+	const char *fn;
 	va_list vl;
 
 	va_start(vl, f);
 	desc = va_arg(vl, struct devdesc *);
 	va_end(vl);
 
-	desc->d_unit = host_open(desc->d_opendata, O_RDONLY, 0);
+	fn = dev2hd(desc)->hd_dev;
+	desc->d_unit = host_open(fn, O_RDONLY, 0);
 	if (desc->d_unit <= 0) {
-		printf("hostdisk_open: couldn't open %s: %d\n",
-		    (char *)desc->d_opendata, desc->d_unit);
+		printf("hostdisk_open: couldn't open %s: %d\n", fn, errno);
 		return (ENOENT);
 	}
 
@@ -280,8 +320,20 @@ hostdisk_close(struct open_file *f)
 static int
 hostdisk_ioctl(struct open_file *f, u_long cmd, void *data)
 {
+	struct devdesc *desc = f->f_devdata;
+	hdinfo_t *hd = dev2hd(desc);
 
-	return (EINVAL);
+	switch (cmd) {
+	case DIOCGSECTORSIZE:
+		*(u_int *)data = hd->hd_sectorsize;
+		break;
+	case DIOCGMEDIASIZE:
+		*(uint64_t *)data = hd->hd_size;
+		break;
+	default:
+		return (ENOTTY);
+	}
+	return (0);
 }
 
 static int
@@ -297,8 +349,8 @@ hostdisk_print(int verbose)
 
 	STAILQ_FOREACH(hd, &hdinfo, hd_link) {
 		snprintf(line, sizeof(line),
-		    "   /dev/%s: %ju X %ju: %ju bytes\n",
-		    hd->hd_name,
+		    "   %s: %ju X %ju: %ju bytes\n",
+		    hd->hd_dev,
 		    (uintmax_t)hd->hd_sectors,
 		    (uintmax_t)hd->hd_sectorsize,
 		    (uintmax_t)hd->hd_size);
@@ -306,8 +358,8 @@ hostdisk_print(int verbose)
 			break;
 		STAILQ_FOREACH(md, &hd->hd_children, hd_link) {
 			snprintf(line, sizeof(line),
-			    "     /dev/%s: %ju X %ju: %ju bytes\n",
-			    md->hd_name,
+			    "     %s: %ju X %ju: %ju bytes\n",
+			    md->hd_dev,
 			    (uintmax_t)md->hd_sectors,
 			    (uintmax_t)md->hd_sectorsize,
 			    (uintmax_t)md->hd_size);
@@ -323,5 +375,44 @@ done:
 static char *
 hostdisk_fmtdev(struct devdesc *vdev)
 {
-	return (vdev->d_opendata);
+
+	return ((char *)hd_name(dev2hd(vdev)));
+}
+
+static int
+hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
+{
+	const char *cp;
+	struct devdesc *dev;
+	hdinfo_t *hd;
+	int len;
+	char *fn;
+
+	/* Must start with /dev */
+	if (strncmp(devspec, "/dev", 4) != 0)
+		return (EINVAL);
+	/* Must have a : in it */
+	cp = strchr(devspec, ':');
+	if (cp == NULL)
+		return (EINVAL);
+	/* XXX Stat the /dev or defer error handling to open(2) call? */
+	if (path != NULL)
+		*path = cp + 1;
+	len = cp - devspec;
+	fn = strdup(devspec);
+	fn[len] = '\0';
+	hd = hostdisk_find(fn);
+	if (hd == NULL) {
+		printf("Can't find hdinfo for %s\n", fn);
+		return (EINVAL);
+	}
+	free(fn);
+	dev = malloc(sizeof(*dev));
+	if (dev == NULL)
+		return (ENOMEM);
+	dev->d_unit = 0;
+	dev->d_dev = &hostdisk;
+	dev->d_opendata = hd;
+	*idev = dev;
+	return (0);
 }
