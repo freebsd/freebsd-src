@@ -100,10 +100,7 @@ default_parsedev(struct devdesc **dev, const char *devspec,
 	idev->d_unit = unit;
 	if (path != NULL)
 		*path = (*cp == 0) ? cp : cp + 1;
-	if (dev != NULL)	/* maybe this can be required? */
-		*dev = idev;
-	else
-		free(idev);
+	*dev = idev;
 	return (0);
 fail:
 	free(idev);
