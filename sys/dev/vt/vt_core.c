@@ -3137,12 +3137,12 @@ vt_resume_handler(void *priv)
 	vd->vd_flags &= ~VDF_SUSPENDED;
 }
 
-void
+int
 vt_allocate(const struct vt_driver *drv, void *softc)
 {
 
 	if (!vty_enabled(VTY_VT))
-		return;
+		return (EINVAL);
 
 	if (main_vd->vd_driver == NULL) {
 		main_vd->vd_driver = drv;
@@ -3156,31 +3156,35 @@ vt_allocate(const struct vt_driver *drv, void *softc)
 		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
 			printf("VT: Driver priority %d too low. Current %d\n ",
 			    drv->vd_priority, main_vd->vd_driver->vd_priority);
-			return;
+			return (EEXIST);
 		}
 		printf("VT: Replacing driver \"%s\" with new \"%s\".\n",
 		    main_vd->vd_driver->vd_name, drv->vd_name);
 	}
 
 	vt_replace_backend(drv, softc);
+
+	return (0);
 }
 
-void
+int
 vt_deallocate(const struct vt_driver *drv, void *softc)
 {
 
 	if (!vty_enabled(VTY_VT))
-		return;
+		return (EINVAL);
 
 	if (main_vd->vd_prev_driver == NULL ||
 	    main_vd->vd_driver != drv ||
 	    main_vd->vd_softc != softc)
-		return;
+		return (EPERM);
 
 	printf("VT: Switching back from \"%s\" to \"%s\".\n",
 	    main_vd->vd_driver->vd_name, main_vd->vd_prev_driver->vd_name);
 
 	vt_replace_backend(NULL, NULL);
+
+	return (0);
 }
 
 void

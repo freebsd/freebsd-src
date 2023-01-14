@@ -91,8 +91,8 @@ SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, 0, _descr)
 
 struct vt_driver;
 
-void vt_allocate(const struct vt_driver *, void *);
-void vt_deallocate(const struct vt_driver *, void *);
+int vt_allocate(const struct vt_driver *, void *);
+int vt_deallocate(const struct vt_driver *, void *);
 
 typedef unsigned int	vt_axis_t;
 
