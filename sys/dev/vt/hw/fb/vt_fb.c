@@ -509,19 +509,21 @@ vt_fb_fini(struct vt_device *vd, void *softc)
 int
 vt_fb_attach(struct fb_info *info)
 {
+	int ret;
 
-	vt_allocate(&vt_fb_driver, info);
+	ret = vt_allocate(&vt_fb_driver, info);
 
-	return (0);
+	return (ret);
 }
 
 int
 vt_fb_detach(struct fb_info *info)
 {
+	int ret;
 
-	vt_deallocate(&vt_fb_driver, info);
+	ret = vt_deallocate(&vt_fb_driver, info);
 
-	return (0);
+	return (ret);
 }
 
 void
