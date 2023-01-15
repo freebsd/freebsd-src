@@ -447,6 +447,13 @@ rts_detach(struct socket *so)
 }
 
 static int
+rts_disconnect(struct socket *so)
+{
+
+	return (ENOTCONN);
+}
+
+static int
 rts_shutdown(struct socket *so)
 {
 
@@ -2702,6 +2709,7 @@ static struct protosw routesw = {
 	.pr_detach =		rts_detach,
 	.pr_send =		rts_send,
 	.pr_shutdown =		rts_shutdown,
+	.pr_disconnect =	rts_disconnect,
 	.pr_close =		rts_close,
 };
 
