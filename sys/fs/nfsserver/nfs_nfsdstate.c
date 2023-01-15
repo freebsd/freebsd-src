@@ -5867,11 +5867,16 @@ nfsrv_throwawayopens(NFSPROC_T *p)
 
 /*
  * This function checks to see if the credentials are the same.
- * Returns 1 for not same, 0 otherwise.
+ * The check for same credentials is needed for state management operations
+ * for NFSv4.0 where 1 is returned if not same, 0 is returned otherwise.
  */
 static int
 nfsrv_notsamecredname(struct nfsrv_descript *nd, struct nfsclient *clp)
 {
+
+	/* For NFSv4.1/4.2, SP4_NONE always allows this. */
+	if ((nd->nd_flag & ND_NFSV41) != 0)
+		return (0);
 
 	if (nd->nd_flag & ND_GSS) {
 		if (!(clp->lc_flags & LCL_GSS))
