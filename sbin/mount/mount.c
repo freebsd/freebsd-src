@@ -85,7 +85,6 @@ struct cpa {
 };
 
 char   *catopt(char *, const char *);
-struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
@@ -369,7 +368,7 @@ main(int argc, char *argv[])
 		if (init_flags & MNT_UPDATE) {
 			mntfromname = NULL;
 			have_fstab = 0;
-			if ((mntbuf = getmntpt(*argv)) == NULL)
+			if ((mntbuf = getmntpoint(*argv)) == NULL)
 				xo_errx(1, "not currently mounted %s", *argv);
 			/*
 			 * Only get the mntflags from fstab if both mntpoint
@@ -717,21 +716,6 @@ prmount(struct statfs *sfp)
 		}
 	}
 	xo_emit("{D:)}\n");
-}
-
-struct statfs *
-getmntpt(const char *name)
-{
-	struct statfs *mntbuf;
-	int i, mntsize;
-
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = mntsize - 1; i >= 0; i--) {
-		if (strcmp(mntbuf[i].f_mntfromname, name) == 0 ||
-		    strcmp(mntbuf[i].f_mntonname, name) == 0)
-			return (&mntbuf[i]);
-	}
-	return (NULL);
 }
 
 char *
