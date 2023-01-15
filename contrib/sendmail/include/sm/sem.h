@@ -47,7 +47,7 @@ extern int sm_sem_stop __P((int));
 extern int sm_sem_acq __P((int, int, int));
 extern int sm_sem_rel __P((int, int, int));
 extern int sm_sem_get __P((int, int));
-extern int sm_semsetowner __P((int, uid_t, gid_t, mode_t));
+extern int sm_semsetowner __P((int, uid_t, gid_t, MODE_T));
 
 # else /* SM_CONF_SEM > 0 */
 #  define sm_sem_start(key, nsem, semflg, owner) 0

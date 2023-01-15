@@ -11,64 +11,88 @@
 
 #include <stdio.h>
 
+#if _FFR_DMTRIGGER || _FFR_NOTIFY
 # include <stdlib.h>
 # include <unistd.h>
-
+# include <errno.h>
 # include <sm/heap.h>
 # include <sm/string.h>
 # include <sm/test.h>
 # include <sm/notify.h>
-
-# define MAX_CNT	10
+# include <sm/conf.h>
 
 /*
-**  MSGTEST -- test of message queue.
+**  NOTIFY_WR -- test of notify feature
 **
 **	Parameters:
-**		owner -- create message queue.
+**		pid -- pid of process
 **
 **	Returns:
 **		0 on success
-**		< 0 on failure.
+**		< 0 on failure
 */
 
 static int
-notifytest(owner)
-	int owner;
+notify_wr(pid)
+	pid_t pid;
 {
 	int r;
 	size_t len;
 	char buf[64];
 #define TSTSTR "qf0001"
 
-	r = sm_notify_start(owner, 0);
+	r = sm_notify_start(false, 0);
 	if (r < 0)
 	{
 		perror("sm_notify_start failed");
 		return -1;
 	}
 
-	if (!owner)
-	{
-		len = sm_strlcpy(buf, TSTSTR, sizeof(buf));
-		r = sm_notify_snd(buf, len);
-		SM_TEST(r >= 0);
-		if (r < 0)
-			goto end;
+	len = sm_snprintf(buf, sizeof(buf), "%s-%ld", TSTSTR, (long) pid);
+	r = sm_notify_snd(buf, len);
+	SM_TEST(r >= 0);
+	return r;
+}
 
-  end:
-		return r;
-	}
-	else
+/*
+**  NOTIFY_RD -- test of notify feature
+**
+**	Parameters:
+**
+**	Returns:
+**		0 on success
+**		< 0 on failure
+*/
+
+static int
+notify_rd(nproc)
+	int nproc;
+{
+	int r, i;
+	char buf[64];
+#define TSTSTR "qf0001"
+
+	r = sm_notify_start(true, 0);
+	if (r < 0)
 	{
-		r = sm_notify_rcv(buf, sizeof(buf), 5);
+		perror("sm_notify_start failed");
+		return -1;
+	}
+
+	for (i = 0; i < nproc; i++)
+	{
+		r = sm_notify_rcv(buf, sizeof(buf), 5 * SM_MICROS);
 		SM_TEST(r >= 0);
 		if (r < 0)
+		{
+			fprintf(stderr, "rcv=%d\n", r);
 			return r;
+		}
 		if (r > 0 && r < sizeof(buf))
 			buf[r] = '\0';
 		buf[sizeof(buf) - 1] = '\0';
-		SM_TEST(strcmp(buf, TSTSTR) == 0);
+		SM_TEST(strncmp(buf, TSTSTR, sizeof(TSTSTR) - 1) == 0);
+		SM_TEST(r > sizeof(TSTSTR));
 		fprintf(stderr, "buf=\"%s\"\n", buf);
 	}
 	return 0;
@@ -79,44 +103,68 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch;
+	int i;
 	int r = 0;
+	int nproc = 1;
 	pid_t pid;
 
-# define OPTIONS	""
-	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
+# define OPTIONS	"p:"
+	while ((i = getopt(argc, argv, OPTIONS)) != -1)
 	{
-		switch ((char) ch)
+		switch ((char) i)
 		{
+		  case 'p':
+			nproc = atoi(optarg);
+			if (nproc < 1)
+			{
+				errno = EINVAL;
+				perror("-p: must be >0\n");
+				return r;
+			}
+			break;
 		  default:
 			break;
 		}
 	}
 
+	sm_test_begin(argc, argv, "test notify");
 	r = sm_notify_init(0);
+	SM_TEST(r >= 0);
 	if (r < 0)
 	{
 		perror("sm_notify_init failed\n");
-		return -1;
+		return r;
 	}
 
-	if ((pid = fork()) < 0)
+	pid = 0;
+	for (i = 0; i < nproc; i++)
 	{
-		perror("fork failed\n");
-		return -1;
-	}
+		if ((pid = fork()) < 0)
+		{
+			perror("fork failed\n");
+			return -1;
+		}
 
-	sm_test_begin(argc, argv, "test notify");
-	if (pid == 0)
-	{
-		/* give the parent the chance to setup data */
-		sleep(1);
-		r = notifytest(false);
+		if (pid == 0)
+		{
+			/* give the parent the chance to set up data */
+			sleep(1);
+			r = notify_wr(getpid());
+			break;
+		}
 	}
-	else
-	{
-		r = notifytest(true);
-	}
+	if (pid > 0)
+		r = notify_rd(nproc);
 	SM_TEST(r >= 0);
 	return sm_test_end();
 }
+#else /* _FFR_DMTRIGGER */
+int
+main(argc, argv)
+	int argc;
+	char *argv[];
+{
+	printf("SKIPPED: no _FFR_DMTRIGGER\n");
+	return 0;
+}
+#endif /* _FFR_DMTRIGGER */

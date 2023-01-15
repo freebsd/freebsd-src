@@ -16,7 +16,7 @@ divert(0)
 VERSIONID(`$Id: nopercenthack.m4,v 8.14 2013/01/31 15:07:00 ca Exp $')
 divert(-1)
 
-ifelse(defn(`_ARG_'), `', 
+ifelse(defn(`_ARG_'), `',
 	`errprint(`*** ERROR: missing argument for FEATURE(nopercenthack):
 		use `reject' or `nospecial'. See cf/README.
 ')define(`_NO_PERCENTHACK_', `e')',

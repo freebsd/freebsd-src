@@ -13,10 +13,11 @@ SM_RCSID("@(#)$Id: sem.c,v 1.15 2013-11-22 20:51:43 ca Exp $")
 #if SM_CONF_SEM
 # include <stdlib.h>
 # include <unistd.h>
-# include <sm/string.h>
-# include <sm/sem.h>
-# include <sm/heap.h>
 # include <errno.h>
+# include <sm/string.h>
+# include <sm/heap.h>
+# include <sm/conf.h>
+# include <sm/sem.h>
 
 /*
 **  SM_SEM_START -- initialize semaphores
@@ -156,10 +157,10 @@ sm_sem_rel(semid, semnum, timeout)
 	int r;
 	struct sembuf semops[1];
 
-#if PARANOID
+# if PARANOID
 	/* XXX should we check whether the value is already 0 ? */
 	SM_REQUIRE(sm_get_sem(semid, semnum) > 0);
-#endif
+# endif
 
 	semops[0].sem_num = semnum;
 	semops[0].sem_op = 1;
@@ -216,12 +217,17 @@ sm_sem_get(semid, semnum)
 **		< 0 on failure.
 */
 
+#ifdef __STDC__
+int
+sm_semsetowner(int semid, uid_t uid, gid_t gid, MODE_T mode)
+#else /* __STDC__ */
 int
 sm_semsetowner(semid, uid, gid, mode)
 	int semid;
 	uid_t uid;
 	gid_t gid;
-	mode_t mode;
+	MODE_T mode;
+#endif /* __STDC__ */
 {
 	int r;
 	struct semid_ds	semidds;

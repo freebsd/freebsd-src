@@ -15,6 +15,7 @@
 #include "map.h"
 
 SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013-11-22 20:51:55 ca Exp $")
+#include <sm/sendmail.h>
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -37,6 +38,10 @@ SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013-11-22 20:51:55 ca Exp $")
 #  include "tls.h"
 #  include "sm_resolve.h"
 # endif
+#endif
+
+#if _FFR_DMTRIGGER
+# include <sm/notify.h>
 #endif
 
 #if NETINET6
@@ -695,6 +700,15 @@ getrequests(e)
 			/* turn on profiling */
 			/* SM_PROF(0); */
 
+#if _FFR_DMTRIGGER
+			if (SM_TRIGGER == e->e_sendmode)
+			{
+				i = sm_notify_start(false, 0);
+				if (i != 0)
+					syserr("sm_notify_start(false) failed=%d", i);
+			}
+#endif
+
 			/*
 			**  Initialize exception stack and default exception
 			**  handler for child process.
@@ -957,7 +971,7 @@ getrequests(e)
 		}
 	}
 	if (tTd(15, 2))
-		sm_dprintf("getreq: returning\n");
+		sm_dprintf("getrequests: returning\n");
 
 #if MILTER
 	/* set the filters for this daemon */
@@ -1541,28 +1555,28 @@ setsockaddroptions(p, d)
 			if (isascii(*v) && isdigit(*v))
 				d->d_addr.sa.sa_family = atoi(v);
 #ifdef NETUNIX
-			else if (sm_strcasecmp(v, "unix") == 0 ||
-				 sm_strcasecmp(v, "local") == 0)
+			else if (SM_STRCASEEQ(v, "unix") ||
+				 SM_STRCASEEQ(v, "local"))
 				d->d_addr.sa.sa_family = AF_UNIX;
 #endif
 #if NETINET
-			else if (sm_strcasecmp(v, "inet") == 0)
+			else if (SM_STRCASEEQ(v, "inet"))
 				d->d_addr.sa.sa_family = AF_INET;
 #endif
 #if NETINET6
-			else if (sm_strcasecmp(v, "inet6") == 0)
+			else if (SM_STRCASEEQ(v, "inet6"))
 				d->d_addr.sa.sa_family = AF_INET6;
 #endif
 #if NETISO
-			else if (sm_strcasecmp(v, "iso") == 0)
+			else if (SM_STRCASEEQ(v, "iso"))
 				d->d_addr.sa.sa_family = AF_ISO;
 #endif
 #if NETNS
-			else if (sm_strcasecmp(v, "ns") == 0)
+			else if (SM_STRCASEEQ(v, "ns"))
 				d->d_addr.sa.sa_family = AF_NS;
 #endif
 #if NETX25
-			else if (sm_strcasecmp(v, "x.25") == 0)
+			else if (SM_STRCASEEQ(v, "x.25"))
 				d->d_addr.sa.sa_family = AF_CCITT;
 #endif
 			else
@@ -2388,7 +2402,7 @@ makeconnection(host, port, mci, e, enough
 				/*
 				**  Check for errors!
 				**  If no ad: turn off TLSA.
-				**  permail: use "normal" method?
+				**  permfail: use "normal" method?
 				**  tempfail: delay or use "normal" method?
 				*/
 
@@ -2402,9 +2416,9 @@ makeconnection(host, port, mci, e, enough
 						return EX_TEMPFAIL;
 					}
 					hp = dns2he(rr, family);
-#if NETINET6
+# if NETINET6
 					hs = hp;
-#endif
+# endif
 				}
 
 				/* other possible "tempfails"? */
@@ -2453,6 +2467,7 @@ gothostent:
 			}
 			else
 # endif /* NETINET6 */
+			/* "else" in #if code above */
 			{
 				if (errno == ETIMEDOUT ||
 # if _FFR_GETHBN_ExFILE
@@ -2536,7 +2551,7 @@ gothostent:
 		**  8754: see common.sh XREF SNKPORT2
 		*/
 
-		if (tTd(77, 101) && hp->h_addrtype == AF_INET &&
+		if (tTd(77, 101) && hp != NULL && hp->h_addrtype == AF_INET &&
 		    addr.sin.sin_addr.s_addr == inet_addr("10.1.1.12"))
 		{
 			addr.sin.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -2671,6 +2686,7 @@ gothostent:
 		}
 		else
 #endif /* HASRRESVPORT */
+		/* "else" in #if code above */
 		{
 			s = socket(addr.sa.sa_family, SOCK_STREAM, 0);
 		}
@@ -2812,6 +2828,25 @@ gothostent:
 				sm_dprintf("Connecting to [%s].%d...\n",
 					anynet_ntoa(&addr), ntohs(port));
 
+#if _FFR_TESTS
+			if (tTd(77, 101)
+			    /* && AF_INET == addr.sin.sin_family */
+			    && addr.sin.sin_addr.s_addr >=
+				inet_addr("255.255.255.1")
+			    && addr.sin.sin_addr.s_addr <=
+				inet_addr("255.255.255.255")
+			   )
+			{
+				i = -1;
+				save_errno = ntohl(addr.sin.sin_addr.s_addr) -
+					ntohl(inet_addr("255.255.255.0"));
+				sm_dprintf("hack: fail connection=%d\n",
+					save_errno);
+				errno = save_errno;
+			}
+			else
+				/* Watch out of changes below! */
+#endif /* _FFR_TESTS */
 			i = connect(s, (struct sockaddr *) &addr, addrlen);
 			save_errno = errno;
 			if (ev != NULL)
@@ -2928,8 +2963,7 @@ nextaddr:
 		save_errno = errno;
 		syserr("cannot open SMTP client channel, fd=%d", s);
 		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
-		if (mci->mci_out != NULL)
-			(void) sm_io_close(mci->mci_out, SM_TIME_DEFAULT);
+		SM_CLOSE_FP(mci->mci_out);
 		(void) close(s);
 		errno = save_errno;
 		OCC_CLOSE;
@@ -2940,13 +2974,26 @@ nextaddr:
 	/* set {client_flags} */
 	if (ClientSettings[addr.sa.sa_family].d_mflags != NULL)
 	{
-		macdefine(&mci->mci_macro, A_PERM,
-			  macid("{client_flags}"),
-			  ClientSettings[addr.sa.sa_family].d_mflags);
+		char flags[64];	/* XXX */
+
+		/*
+		**  For now just concatenate the flags as there is no
+		**  overlap yet.
+		*/
+
+		p = macvalue(macid("{client_flags}"), e);
+		flags[0] = '\0';
+		if (!SM_IS_EMPTY(p))
+		{
+			(void) sm_strlcpy(flags, p, sizeof(flags));
+			(void) sm_strlcat(flags, " ", sizeof(flags));
+		}
+		(void) sm_strlcat(flags,
+			ClientSettings[addr.sa.sa_family].d_mflags,
+			sizeof(flags));
+		macdefine(&mci->mci_macro, A_PERM, macid("{client_flags}"),
+			  flags);
 	}
-	else
-		macdefine(&mci->mci_macro, A_PERM,
-			  macid("{client_flags}"), "");
 
 	/* "add" {client_flags} to bitmap */
 	if (bitnset(D_IFNHELO, ClientSettings[addr.sa.sa_family].d_flags))
@@ -3123,8 +3170,7 @@ makeconnection_ds(mux_path, mci)
 		save_errno = errno;
 		syserr("cannot open SMTP client channel, fd=%d", sock);
 		mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
-		if (mci->mci_out != NULL)
-			(void) sm_io_close(mci->mci_out, SM_TIME_DEFAULT);
+		SM_CLOSE_FP(mci->mci_out);
 		(void) close(sock);
 		errno = save_errno;
 		return EX_TEMPFAIL;
@@ -3539,8 +3585,8 @@ getauthinfo(fd, may_be_forged)
 	struct hostent *hp;
 	char *ostype = NULL;
 	char **ha;
-	char ibuf[MAXNAME + 1];
-	static char hbuf[MAXNAME + MAXAUTHINFO + 11];
+	char ibuf[MAXNAME + 1];	/* EAI:ok? it's a hostname from OS */
+	static char hbuf[MAXNAME + MAXAUTHINFO + 11]; /* EAI:ok? (as above)*/
 
 	*may_be_forged = true;
 	falen = sizeof(RealHostAddr);
@@ -4058,7 +4104,7 @@ host_map_lookup(map, name, av, statp)
 	time_t SM_NONVOLATILE retrans = 0;
 	int SM_NONVOLATILE retry = 0;
 #endif
-	char hbuf[MAXNAME + 1];
+	char hbuf[MAXNAME + 1]; /* is (host)name in 'x' format? */
 
 	/*
 	**  See if we have already looked up this name.  If so, just
@@ -4151,12 +4197,37 @@ host_map_lookup(map, name, av, statp)
 	if (*name != '[')
 	{
 		int ttl, r;
+#if USE_EAI
+		bool utf8;
 
-		(void) sm_strlcpy(hbuf, name, sizeof(hbuf));
+		utf8 = !addr_is_ascii(name);
+		if (utf8)
+		{
+			(void) sm_strlcpy(hbuf, hn2alabel(name), sizeof(hbuf));
+
+			/* if this is not a FQHN then do not restore it */
+			utf8 = strchr(hbuf, '.') != NULL;
+		}
+		else
+#endif /* USE_EAI */
+		/* "else" in #if code above */
+		{
+			(void) sm_strlcpy(hbuf, name, sizeof(hbuf));
+		}
 
 		r = getcanonname(hbuf, sizeof(hbuf) - 1, !HasWildcardMX, &ttl);
 		if (r != HOST_NOTFOUND)
 		{
+#if USE_EAI
+			/*
+			**  Restore original. XXX Check if modified?
+			**  If so, convert it via hn2ulabel()
+			**  (not available yet)?
+			*/
+
+			if (utf8)
+				(void) sm_strlcpy(hbuf, name, sizeof(hbuf));
+#endif
 			ans = hbuf;
 			if (ttl > 0)
 				s->s_namecanon.nc_exp = now + SM_MIN(ttl,
@@ -4208,7 +4279,7 @@ host_map_lookup(map, name, av, statp)
 #if NETINET6
 			if (ans == hp->h_name)
 			{
-				static char n[MAXNAME + 1];
+				static char n[MAXNAME + 1];	/* EAI:ok */
 
 				/* hp->h_name is about to disappear */
 				(void) sm_strlcpy(n, ans, sizeof(n));
@@ -4515,12 +4586,14 @@ anynet_ntoa(sap)
 	(void) sm_snprintf(buf, sizeof(buf), "Family %d: ", sap->sa.sa_family);
 	bp = &buf[strlen(buf)];
 	ap = sap->sa.sa_data;
-	for (l = sizeof(sap->sa.sa_data); --l >= 0; )
+	for (l = sizeof(sap->sa.sa_data); --l >= 0 && SPACELEFT(buf, bp) > 3; )
 	{
 		(void) sm_snprintf(bp, SPACELEFT(buf, bp), "%02x:",
 				   *ap++ & 0377);
 		bp += 3;
 	}
+	SM_ASSERT(bp > buf);
+	SM_ASSERT(bp <= buf + sizeof(buf));
 	*--bp = '\0';
 	return buf;
 }
@@ -4613,7 +4686,7 @@ hostnamebyanyaddr(sap)
 #  if NETINET6
 		if (name == hp->h_name)
 		{
-			static char n[MAXNAME + 1];
+			static char n[MAXNAME + 1];	/* EAI:ok */
 
 			/* Copy the string, hp->h_name is about to disappear */
 			(void) sm_strlcpy(n, name, sizeof(n));

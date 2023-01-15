@@ -109,7 +109,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define MAXSHORTSTR	203		/* max short string length */
 #define MAXMACNAMELEN	25		/* max macro name length */
 #define MAXMACROID	0377		/* max macro id number */
-					/* Must match (BITMAPBITS - 1) */
+	/* Must match (BITMAPBITS - 1), checked in macro.c */
 #ifndef MAXHDRSLEN
 # define MAXHDRSLEN	(32 * 1024)	/* max size of message headers */
 #endif
@@ -132,7 +132,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 	/* must be less than BITMAPBITS for DoQueueRun */
 #endif
 #if MAXQUEUEGROUPS >= BITMAPBITS
-  ERROR _MAXQUEUEGROUPS must be less than _BITMAPBITS
+# ERROR "MAXQUEUEGROUPS must be less than BITMAPBITS"
 #endif
 
 #ifndef MAXWORKGROUPS

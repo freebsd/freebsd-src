@@ -219,12 +219,10 @@ char *SmCompileOptions[] =
 	"SM_CONF_STDDEF_H",
 #endif
 
-#if 0
 /* XXX this is always enabled (for now) */
-#if SM_CONF_STRL
+#if SM_CONF_STRL && 0
 	"SM_CONF_STRL",
 #endif
-#endif /* 0 */
 
 #if SM_CONF_SYS_CDEFS_H
 	"SM_CONF_SYS_CDEFS_H",

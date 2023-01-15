@@ -5,6 +5,121 @@ This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
 
+8.17.1/8.17.1	2021/08/17
+	Deprecation notice: due to compatibility problems with some
+		third party code, we plan to finally switch from K&R
+		to ANSI C. If you are using sendmail on a system
+		which does not have a compiler for ANSI C contact us
+		with details as soon as possible so we can determine
+		how to proceed.
+	Experimental support for SMTPUTF8 (EAI, see RFC 6530-6533)
+		is available when using the compile time option USE_EAI
+		(see also devtools/Site/site.config.m4.sample for other
+		required settings) and the cf option SMTPUTF8.
+		If a mail submission via the command line requires
+		the use of SMTPUTF8, e.g., because a header uses UTF-8
+		encoding, but the addresses on the command line are all
+		ASCII, then the new option -U must be used, and
+		the cf option SMTPUTF8 must be set in submit.cf.
+		Please test and provide feedback.
+	Experimental support for SMTP MTA Strict Transport Security
+		(MTA-STS, see RFC 8461) is available when using
+		- the compile time option _FFR_MTA_STS (which requires
+		  STARTTLS, MAP_REGEX, SOCKETMAP, and _FFR_TLS_ALTNAMES),
+		- FEATURE(sts), which implicitly sets the cf option
+		  StrictTransportSecurity,
+		- postfix-mta-sts-resolver, see
+		https://github.com/Snawoot/postfix-mta-sts-resolver.git
+	New ruleset check_other which is called for all unknown SMTP
+		commands in the server and for commands which do not
+		have specific rulesets, e.g., NOOP and VERB.
+	New ruleset clt_features which can be used to select features
+		in the SMTP client per server.  Currently only two
+		flags are available: D/M to disable DANE/MTA-STS,
+		respectively.
+	Avoid leaking session macros for an envelope between
+		delivery attempts to different servers.  This problem
+		could have affected check_compat.
+	Avoid leaking actual SMTP replies between delivery attempts
+		to different servers which could cause bogus logging
+		of reply= entries.
+	Change default SMTP reply code for STARTTLS related problems
+		from 403 to 454 to better match the RFCs.
+	Fix a theoretical buffer overflow when encountering an
+		unknown/unsupported socket address family on an
+		operating system where sa_data is larger than 30
+		(the standard is 14).  Based on patch by Toomas Soome.
+	Several potential memory leaks and other similar problems
+		(mostly in error handling code) have been fixed.
+		Problems reported by Tomas Korbar of RedHat.
+	Previously the commands GET, POST, CONNECT, or USER terminate
+		a connection immediately only if sent as first command.
+		Now this is also done if any of these is sent directly
+		after STARTTLS or if the 'h' option is set via
+		srv_features.
+	CDB map locking has been changed so a sendmail process which
+		does have a CDB map open does not block an in-place
+		update of the map by makemap.  The simple workaround
+		for that problem in earlier versions is to create
+		the map under a different name and then move it
+		into place.
+	On some systems the rejection of a RCPT by a milter could
+		silently fail.
+	CONFIG: New FEATURE(`check_other') to provide a default
+		check_other ruleset.
+	CONFIG: FEATURE(`tls_failures') is deprecated and will be
+		removed in future versions because it has a fundamental
+		problem: it is message oriented but STARTTLS is
+		session oriented.  For example, having multiple
+		RCPTs in one envelope for different destinations,
+		with different temporary errors, does not work
+		properly, as the persistent macro applies to all
+		RCPTs and hence implicitly to all destinations (servers).
+		The option TLSFallbacktoClear should be used if needed.
+	MAIL.LOCAL: Enhance some error messages to simplify
+		troubleshooting.
+	Portability:
+		Add support for Darwin 19 & 20.
+		NOTE: File locking using fcntl() does not interoperate
+		  with Berkeley DB 5.x (and probably later).  Use
+		  CDB, flock() (-DHASFLOCK), or an earlier Berkeley
+		  DB version.  Problem noted by Harald Hannelius.
+	New Files:
+		cf/feature/check_other.m4
+		cf/feature/sts.m4
+		devtools/OS/Darwin.19.x
+		devtools/OS/Darwin.20.x
+		include/sm/ixlen.h
+		libsm/ilenx.c
+		libsm/lowercase.c
+		libsm/strcaseeq.c
+		libsm/t-ixlen.c
+		libsm/t-ixlen.sh
+		libsm/t-streq.c
+		libsm/t-streq.sh
+		libsm/utf8_valid.c
+		libsm/uxtext_unquote.c
+		libsm/xleni.c
+		libsmutil/t-lockfile.c
+		libsmutil/t-lockfile-0.sh
+		libsmutil/t-maplock-0.sh
+
+8.16.2/8.16.2	202X/XX/XX
+	New compile time option NO_EOH_FIELDS to disable the special
+		meaning of the headers Message: and Text: to denote the
+		end of the message header.
+	CONTRIB: AuthRealm.p0 has been modified for 8.16.1 by Anne Bennett.
+	CONTRIB: Added cidrexpand -O option for suppressing duplicates from
+		a CIDR expansion that overlaps a later entry and -S option
+		for skipping comments exactly like makemap does.
+	Portability:
+		Add support for Darwin 19 (Mac OS X 10.15).
+		Use proper FreeBSD version define to allow for cross
+			compiling.  Fix from Brooks Davis of the FreeBSD
+			project.
+	New Files:
+		devtools/OS/Darwin.19.x
+
 8.16.1/8.16.1	2020/07/05
 	SECURITY: If sendmail tried to reuse an SMTP session which had
 		already been closed by the server, then the connection
@@ -114,14 +229,22 @@ summary of the changes in that release.
 		changes in sys/sem.h
 		On Linux set MAXHOSTNAMELEN (the maximum length
 		of a FQHN) to 256 if it is less than that value.
-	Added Files:
+	New Files:
 		cf/feature/blocklist_recipients.m4
+		cf/feature/check_cert_altnames.m4
 		cf/feature/tls_failures.m4
 		devtools/OS/Darwin.14.x
 		devtools/OS/Darwin.15.x
 		devtools/OS/Darwin.16.x
+		devtools/OS/Darwin.17.x
+		devtools/OS/Darwin.18.x
+		include/sm/notify.h
+		libsm/notify.c
+		libsm/t-notify.c
 		libsmdb/smcdb.c
 		sendmail/ratectrl.h
+		sendmail/tls.h
+		sendmail/tlsh.c
 
 8.15.2/8.15.2	2015/07/03
 	If FEATURE(`nopercenthack') is used then some bogus input triggered
@@ -335,7 +458,7 @@ summary of the changes in that release.
 		On Linux use socklen_t as the type for the 3rd argument
 		for getsockname/getpeername if the glibc version is at
 		least 2.1.
-	Added Files:
+	New Files:
 		devtools/OS/Darwin.12.x
 		devtools/OS/Darwin.13.x
 
@@ -416,7 +539,7 @@ summary of the changes in that release.
 		Add support for Darwin 11.x (Mac OS X 10.7).
 		Add support for SunOS 5.12 (aka Solaris 12). Patch from
 		John Beck of Oracle.
-	Added Files:
+	New Files:
 		devtools/OS/Darwin.11.x
 		devtools/OS/SunOS.5.12
 
@@ -601,7 +724,7 @@ summary of the changes in that release.
 		Chris Behrens of Concentric.
 		Add support for SCO OpenServer 6, patch from Boyd Gerber.
 	DEVTOOLS: Clarify that confSHAREDLIBDIR requires a trailing slash.
-	Added Files:
+	New Files:
 		devtools/OS/Darwin.9.x
 		devtools/OS/OSR.i386
 
@@ -1825,7 +1948,7 @@ summary of the changes in that release.
 		Use strerror(3) on Linux.  If this causes a problem on
 			your Linux distribution, compile with
 			-DHASSTRERROR=0 and tell sendmail.org about it.
-	Added Files:
+	New Files:
 		devtools/OS/AIX.5.2
 
 8.12.9/8.12.9	2003/03/29
@@ -3987,7 +4110,7 @@ summary of the changes in that release.
 		have a From line.
 	VACATION: Read all of the headers before deciding whether or not
 		to respond instead of stopping after finding recipient.
-	Added Files:
+	New Files:
 		cf/ostype/darwin.m4
 		contrib/cidrexpand
 		contrib/link_hash.sh
@@ -4004,7 +4127,7 @@ summary of the changes in that release.
 		Purczynski of elzabsoft.pl.
 	SECURITY: Add more vigilance around set*uid(), setgid(), setgroups(),
 		initgroups(), and chroot() calls.
-	Added Files:
+	New Files:
 		test/t_setuid.c
 
 8.10.1/8.10.1	2000/04/06
@@ -4109,7 +4232,7 @@ summary of the changes in that release.
 	VACATION: Fix -t option which is ignored but available for
 		compatibility with Sun's version, based on patch from
 		Volker Dobler of Infratest Burke.
-	Added Files:
+	New Files:
 		devtools/M4/UNIX/smlib.m4
 		devtools/OS/OSF1.V5.0
 	Deleted Files:

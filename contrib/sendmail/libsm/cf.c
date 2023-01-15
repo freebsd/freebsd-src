@@ -18,6 +18,7 @@ SM_RCSID("@(#)$Id: cf.c,v 1.8 2013-11-22 20:51:42 ca Exp $")
 #include <sm/io.h>
 #include <sm/string.h>
 #include <sm/heap.h>
+#include <sm/sendmail.h>
 
 /*
 **  SM_CF_GETOPT -- look up option values in the sendmail.cf file
@@ -80,7 +81,7 @@ sm_cf_getopt(path, optc, optv)
 
 		for (i = 0; i < optc; ++i)
 		{
-			if (sm_strcasecmp(optv[i].opt_name, id) == 0)
+			if (SM_STRCASEEQ(optv[i].opt_name, id))
 			{
 				optv[i].opt_val = sm_strdup_x(val);
 				break;

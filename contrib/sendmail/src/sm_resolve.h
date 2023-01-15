@@ -173,7 +173,6 @@ int tstdns_querydomain  __P((const char *, const char *, int, int, unsigned char
 #   endif
 SMR_EXTERN char *NameSearchList;
 #   undef SMR_EXTERN
-extern void	dns_setns __P((struct in_addr *, unsigned int));
 extern int	nsportip __P((char *));
 #  endif /* DNSSEC_TEST*/
 

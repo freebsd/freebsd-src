@@ -1120,9 +1120,8 @@ local_procmail	Use procmail or another delivery agent as the local mailer.
 		setreuid() call, you may need to add -f $f to the procmail
 		argument vector to pass the proper sender to procmail.
 
-		For example, this allows it to use the maildrop
-		(http://www.flounder.net/~mrsam/maildrop/) mailer instead
-		by specifying:
+		For example, this allows it to use the maildrop mailer
+		instead by specifying:
 
 		FEATURE(`local_procmail', `/usr/local/bin/maildrop',
 		 `maildrop -d $u')
@@ -1132,7 +1131,7 @@ local_procmail	Use procmail or another delivery agent as the local mailer.
 		FEATURE(`local_procmail', `/usr/local/bin/scanmails')
 
 		WARNING: This feature sets LOCAL_MAILER_FLAGS unconditionally,
-		i.e.,  without respecting any definitions in an OSTYPE setting.
+		i.e., without respecting any definitions in an OSTYPE setting.
 
 bestmx_is_local	Accept mail as though locally addressed for any host that
 		lists us as the best possible MX record.  This generates
@@ -1266,6 +1265,12 @@ delay_checks	The rulesets check_mail and check_relay will not be called
 		See "Delay all checks" in the anti-spam configuration control
 		section.  Note: this feature is incompatible to the versions
 		in 8.10 and 8.11.
+
+check_other	Enable a default check_other ruleset which terminates
+		an SMTP session when it encounters a command which matches
+		a regular expression given as argument. If no argument
+		is given, then the default (to match potential headers) is:
+			^[[:print:]]+ *:
 
 use_client_ptr	If this feature is enabled then check_relay will override
 		its first argument with $&{client_ptr}.  This is useful for
@@ -1578,9 +1583,9 @@ require_rdns	Reject mail from connecting SMTP clients without proper
 
 		Entries such as
 			Connect:1.2.3.4		OK
-			Connect:1.2		RELAY
-		will allowlist IP address 1.2.3.4, so that the rDNS
-		blocking does apply to that IP address
+			Connect:1.3		RELAY
+		will allowlist IP address 1.2.3.4 and IP net 1.3.*
+		so that the rDNS blocking does apply not to those IPs.
 
 		Entries such as
 			Connect:1.2.3.4		REJECT
@@ -1602,6 +1607,14 @@ badmx		Reject envelope sender addresses (MAIL) whose domain part
 		Note: this feature requires that the sendmail binary
 		has been compiled with the options MAP_REGEX and
 		DNSMAP.
+
+sts		Experimental support for Strict Transport Security
+		(MTA-STS, see RFC 8461).  It sets the option
+		StrictTransportSecurity and takes one optional
+		argument: the socket map specification to access
+		postfix-mta-sts-resolver (see feature/sts.m4
+		for the default value).
+		For more information see doc/op/op.me.
 
 +-------+
 | HACKS |
@@ -2581,7 +2594,7 @@ top level domain TLD, 192.168.212.* network, and the IPv6 address
 2002:c0a8:02c7::/48.
 
 Entries in the access map should be tagged according to their type.
-Three tags are available:
+These tags are applicable:
 
 	Connect:	connection information (${client_addr}, ${client_name})
 	From:		envelope sender
@@ -2818,7 +2831,7 @@ regex map:
 	# check address against various regex checks
 	R$*				$: $>Parse0 $>3 $1
 	R$+ < @ bigisp.com. > $*	$: $(allnumbers $1 $)
-	R@MATCH				$#error $: 553 Header Error
+	R@MATCH				$#error $: 553 Address Error
 
 These rules are called with the original arguments of the corresponding
 check_* ruleset.  If the local ruleset returns $#OK, no further checking
@@ -3081,8 +3094,8 @@ Darth+20Mail+20+28Cert+29/emailAddress=darth+2Bcert@endmail.org
 
 (line breaks have been inserted for readability).
 
-The  macros  which are subject to this encoding are ${cert_subject},
-${cert_issuer},  ${cn_subject},  and ${cn_issuer}.
+The macros which are subject to this encoding are ${cert_subject},
+${cert_issuer}, ${cn_subject}, and ${cn_issuer}.
 
 Examples:
 
@@ -3223,13 +3236,13 @@ options:
 - CertFile, KeyFile: {Server,Client}{Cert,Key}File
 - Flags: see doc/op/op.me for details.
 
-If FEATURE(`tls_session_features') is used, then default rulesets
-are activated which look up entries in the access map with the tags
-TLS_Srv_features and TLS_Clt_features, respectively.
-For example, these entries:
+If FEATURE(`tls_session_features') and FEATURE(`access_db') are
+used, then default rulesets are activated which look up entries in
+the access map with the tags TLS_Srv_features and TLS_Clt_features,
+respectively.  For example, these entries:
 
-	TLS_Srv_features:10.0.2.4	CipherList=MEDIUM+aRSA;
-	TLS_Clt_features:10.1.0.1	Options=SSL_OP_NO_TLSv1_2; CipherList=ALL:-EXPORT
+TLS_Srv_features:10.0.2.4	CipherList=MEDIUM+aRSA;
+TLS_Clt_features:10.1.0.1	Options=SSL_OP_NO_TLSv1_2; CipherList=ALL:-EXPORT
 
 specify a cipherlist with MEDIUM strength ciphers that use RSA
 certificates only for the client with the IP address 10.0.2.4,
@@ -3240,21 +3253,23 @@ their own rulesets which must return the appropriate data.
 If the rulesets are not defined or do not return a value, the
 default TLS options are not modified.
 
-About 2): the ruleset try_tls (srv_features) can be used together
-with the access map.  Entries for the access map must be tagged
-with Try_TLS (Srv_Features) and refer to the hostname or IP address
-of the connecting system.  A default case can be specified by using
-just the tag.  For example, the following entries in the access map:
+About 2): the rulesets try_tls, srv_features, and clt_features can
+be used together with the access map.  Entries for the access map
+must be tagged with Try_TLS, Srv_Features, Clt_Features and refer
+to the hostname or IP address of the connecting system.  A default
+case can be specified by using just the tag.  For example, the
+following entries in the access map:
 
 	Try_TLS:broken.server	NO
 	Srv_Features:my.domain	v
 	Srv_Features:		V
+	Clt_Features:broken.sts	M
 
 will turn off STARTTLS when sending to broken.server (or any host
-in that domain), and request a client certificate during the TLS
-handshake only for hosts in my.domain.  The valid entries on the RHS
-for Srv_Features are listed in the Sendmail Installation and
-Operations Guide.
+in that domain), request a client certificate during the TLS handshake
+only for hosts in my.domain, and disable MTA-STS for broken.sts.
+The valid entries on the RHS for Srv_Features and Clt_Features are
+listed in the Sendmail Installation and Operations Guide.
 
 
 Received: Header
@@ -3377,11 +3392,11 @@ LOCAL_RULESETS respectively.  For example:
 	Smyruleset
 	...
 
-Local additions for the rulesets srv_features, try_tls, tls_rcpt,
-tls_client, and tls_server can be made using LOCAL_SRV_FEATURES,
-LOCAL_TRY_TLS, LOCAL_TLS_RCPT, LOCAL_TLS_CLIENT, and LOCAL_TLS_SERVER,
-respectively.  For example, to add a local ruleset that decides
-whether to try STARTTLS in a sendmail client, use:
+Local additions for the rulesets srv_features, clt_features, try_tls,
+tls_rcpt, tls_client, and tls_server can be made using LOCAL_SRV_FEATURES,
+LOCAL_CLT_FEATURES, LOCAL_TRY_TLS, LOCAL_TLS_RCPT, LOCAL_TLS_CLIENT,
+and LOCAL_TLS_SERVER, respectively.  For example, to add a local
+ruleset that decides whether to try STARTTLS in a sendmail client, use:
 
 	LOCAL_TRY_TLS
 	R...
@@ -4288,7 +4303,7 @@ confXF_BUFFER_SIZE	XScriptFileBufferSize
 					memory-buffered transcript (xf)
 					file before a disk-based file is
 					used.
-confAUTH_MECHANISMS	AuthMechanisms	[GSSAPI KERBEROS_V4 DIGEST-MD5
+confAUTH_MECHANISMS	AuthMechanisms	[EXTERNAL GSSAPI KERBEROS_V4 DIGEST-MD5
 					CRAM-MD5] List of authentication
 					mechanisms for AUTH (separated by
 					spaces).  The advertised list of

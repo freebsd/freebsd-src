@@ -14,6 +14,7 @@
 #include <sendmail.h>
 
 SM_RCSID("@(#)$Id: convtime.c,v 8.40 2013-11-22 20:51:55 ca Exp $")
+#include <sm/sendmail.h>
 
 /*
 **  CONVTIME -- convert time
@@ -48,7 +49,7 @@ convtime(p, units)
 	bool pos = true;
 
 	r = 0;
-	if (sm_strcasecmp(p, "now") == 0)
+	if (SM_STRCASEEQ(p, "now"))
 		return NOW;
 	if (*p == '-')
 	{

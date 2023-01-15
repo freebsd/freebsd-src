@@ -27,16 +27,11 @@ SM_RCSID("@(#)$Id: mbdb.c,v 1.43 2014-01-08 17:03:15 ca Exp $")
 #include <sm/heap.h>
 #include <sm/mbdb.h>
 #include <sm/string.h>
-# ifdef EX_OK
-#  undef EX_OK			/* for SVr4.2 SMP */
-# endif
 #include <sm/sysexits.h>
 
-#if LDAPMAP
-# if _LDAP_EXAMPLE_
-#  include <sm/ldap.h>
-# endif
-#endif /* LDAPMAP */
+#if LDAPMAP && _LDAP_EXAMPLE_
+# include <sm/ldap.h>
+#endif
 
 typedef struct
 {
@@ -50,23 +45,19 @@ static int	mbdb_pw_initialize __P((char *));
 static int	mbdb_pw_lookup __P((char *name, SM_MBDB_T *user));
 static void	mbdb_pw_terminate __P((void));
 
-#if LDAPMAP
-# if _LDAP_EXAMPLE_
+#if LDAPMAP && _LDAP_EXAMPLE_
 static struct sm_ldap_struct LDAPLMAP;
 static int	mbdb_ldap_initialize __P((char *));
 static int	mbdb_ldap_lookup __P((char *name, SM_MBDB_T *user));
 static void	mbdb_ldap_terminate __P((void));
-# endif /* _LDAP_EXAMPLE_ */
-#endif /* LDAPMAP */
+#endif /* LDAPMAP && _LDAP_EXAMPLE_ */
 
 static SM_MBDB_TYPE_T SmMbdbTypes[] =
 {
 	{ "pw", mbdb_pw_initialize, mbdb_pw_lookup, mbdb_pw_terminate },
-#if LDAPMAP
-# if _LDAP_EXAMPLE_
+#if LDAPMAP && _LDAP_EXAMPLE_
 	{ "ldap", mbdb_ldap_initialize, mbdb_ldap_lookup, mbdb_ldap_terminate },
-# endif
-#endif /* LDAPMAP */
+#endif
 	{ NULL, NULL, NULL, NULL }
 };
 
@@ -268,6 +259,7 @@ sm_pwfullname(gecos, user, buf, buflen)
 				*bp++ = Latin1ToASCII[(unsigned char) *p - 128];
 			else
 #endif
+				/* "else" in #if code above */
 				*bp++ = *p;
 		}
 	}
@@ -365,8 +357,7 @@ mbdb_pw_terminate()
 	endpwent();
 }
 
-#if LDAPMAP
-# if _LDAP_EXAMPLE_
+#if LDAPMAP && _LDAP_EXAMPLE_
 /*
 **  LDAP example implementation based on RFC 2307, "An Approach for Using
 **  LDAP as a Network Information Service":
@@ -404,19 +395,19 @@ mbdb_pw_terminate()
 **
 */
 
-#  define MBDB_LDAP_LABEL		"MailboxDatabase"
+# define MBDB_LDAP_LABEL		"MailboxDatabase"
 
-#  ifndef MBDB_LDAP_FILTER
-#   define MBDB_LDAP_FILTER		"(&(objectClass=posixAccount)(uid=%0))"
-#  endif
+# ifndef MBDB_LDAP_FILTER
+#  define MBDB_LDAP_FILTER		"(&(objectClass=posixAccount)(uid=%0))"
+# endif
 
-#  ifndef MBDB_DEFAULT_LDAP_BASEDN
-#   define MBDB_DEFAULT_LDAP_BASEDN	NULL
-#  endif
+# ifndef MBDB_DEFAULT_LDAP_BASEDN
+#  define MBDB_DEFAULT_LDAP_BASEDN	NULL
+# endif
 
-#  ifndef MBDB_DEFAULT_LDAP_SERVER
-#   define MBDB_DEFAULT_LDAP_SERVER	NULL
-#  endif
+# ifndef MBDB_DEFAULT_LDAP_SERVER
+#  define MBDB_DEFAULT_LDAP_SERVER	NULL
+# endif
 
 /*
 **  MBDB_LDAP_INITIALIZE -- initialize LDAP version
@@ -526,13 +517,13 @@ mbdb_ldap_lookup(name, user)
 	if (msgid == -1)
 	{
 		save_errno = sm_ldap_geterrno(LDAPLMAP.ldap_ld) + E_LDAPBASE;
-#  ifdef LDAP_SERVER_DOWN
+# ifdef LDAP_SERVER_DOWN
 		if (errno == LDAP_SERVER_DOWN)
 		{
 			/* server disappeared, try reopen on next search */
 			sm_ldap_close(&LDAPLMAP);
 		}
-#  endif /* LDAP_SERVER_DOWN */
+# endif /* LDAP_SERVER_DOWN */
 		errno = save_errno;
 		return EX_TEMPFAIL;
 	}
@@ -776,5 +767,4 @@ mbdb_ldap_terminate()
 {
 	sm_ldap_close(&LDAPLMAP);
 }
-# endif /* _LDAP_EXAMPLE_ */
-#endif /* LDAPMAP */
+#endif /* LDAPMAP && _LDAP_EXAMPLE_ */

@@ -67,7 +67,7 @@ starttls	STARTTLS
 starttls		Start TLS negotiation.
 verb	VERB
 verb		Go into verbose mode.  This sends 0xy responses that are
-verb		not RFC821 standard (but should be)  They are recognized
+verb		not RFC821 standard (but should be).  They are recognized
 verb		by humans and other sendmail implementations.
 vrfy	VRFY <recipient>
 vrfy		Verify an address.  If you want to see what it aliases
@@ -115,8 +115,13 @@ dsn		ORCPT	Original recipient.
 -bt	$$m		 :print the value of macro $$m.
 -bt	$$=c		 :print the contents of class $$=c.
 -bt	/mx host	 :returns the MX records for `host'.
+-bt	/gethostbyname host [family]  :calls gethostbyname() for `host'.
+-bt	/dnslookup host [qtype] [flags]	 :Does a qtype DNS lookup for `host'.
 -bt	/parse address	 :parse address, returning the value of crackaddr, and
 -bt			  the parsed address.
+-bt	/sender address	 :parse sender address, returning the value of
+-bt			  setsender.
+-bt	/expand string	 :expands string, returning the value of expand.
 -bt	/try mailer addr :rewrite address into the form it will have when
 -bt			  presented to the indicated mailer.
 -bt	/tryflags flags	 :set flags used by parsing.  The flags can be `H' for
@@ -125,6 +130,7 @@ dsn		ORCPT	Original recipient.
 -bt			  flags for header recipients.
 -bt	/canon hostname	 :try to canonify hostname.
 -bt	/map mapname key :look up `key' in the indicated `mapname'.
+-bt	/header header	 :parses header, returning header flags
 -bt	/quit		 :quit address test mode.
 -bt	rules addr	 :run the indicated address through the named rules.
 -bt			  Rules can be a comma separated list of rules.

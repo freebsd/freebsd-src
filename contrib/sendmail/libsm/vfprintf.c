@@ -98,7 +98,7 @@ static int
 sm_bprintf(fp, fmt, ap)
 	SM_FILE_T *fp;
 	const char *fmt;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	int ret;
 	SM_FILE_T fake;
@@ -174,7 +174,7 @@ sm_io_vfprintf(fp, timeout, fmt0, ap)
 	SM_FILE_T *fp;
 	int timeout;
 	const char *fmt0;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	register char *fmt;	/* format string */
 	register int ch;	/* character from fmt */
@@ -827,7 +827,7 @@ error:
 static void
 sm_find_arguments(fmt0, ap, argtable)
 	const char *fmt0;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 	va_list **argtable;
 {
 	register char *fmt;	/* format string */
@@ -1076,6 +1076,7 @@ done:
 			(void) SM_VA_ARG(ap, void *);
 			break;
 		}
+		SM_VA_END_COPY((*argtable)[n]);
 	}
 
 	if ((typetable != NULL) && (typetable != stattypetable))

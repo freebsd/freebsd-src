@@ -20,6 +20,7 @@ SM_RCSID("@(#)$Id: t-sem.c,v 1.18 2013-11-22 20:51:43 ca Exp $")
 # include <sm/string.h>
 # include <sm/signal.h>
 # include <sm/test.h>
+# include <sm/conf.h>
 # include <sm/sem.h>
 
 # define T_SM_SEM_KEY (4321L)
@@ -31,14 +32,14 @@ delay(t, s)
 {
 	if (t > 0)
 	{
-#if DEBUG
+# if DEBUG
 		fprintf(stderr, "sleep(%d) before %s\n", t, s);
-#endif
+# endif
 		sleep(t);
 	}
-#if DEBUG
+# if DEBUG
 	fprintf(stderr, "%s\n", s);
-#endif
+# endif
 }
 
 

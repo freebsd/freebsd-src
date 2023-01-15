@@ -57,6 +57,8 @@ data2hex(buf, blen, hex, hlen)
 	return h;
 }
 
+# if DANE
+
 /*
 **  TLS_DATA_MD -- calculate MD for data
 **
@@ -101,8 +103,6 @@ tls_data_md(buf, len, md)
 	(void) memcpy(buf, md_buf, md_len);
 	return (int)md_len;
 }
-
-#if DANE
 
 /*
 **  PUBKEY_FP -- get public key fingerprint
@@ -153,7 +153,10 @@ pubkey_fp(cert, mdalg, fp)
 
 	md = EVP_get_digestbyname(mdalg);
 	if (NULL == md)
+	{
+		SM_FREE(buf);
 		return DANE_VRFY_FAIL;
+	}
 	len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &end);
 	r = tls_data_md(buf, len, md);
 	if (r < 0)
@@ -196,7 +199,7 @@ dane_tlsa_chk(rr, len, host, log)
 	SM_ASSERT(rr != NULL);
 
 	alg = (int)rr[2];
-	if ((int)rr[0] == 3 && (int)rr[1] == 1 && (alg >= 0 || alg <= 2))
+	if ((int)rr[0] == 3 && (int)rr[1] == 1 && (alg >= 0 && alg <= 2))
 		return alg;
 	if (log && LogLevel > 9)
 		sm_syslog(LOG_NOTICE, NOQID,
@@ -258,6 +261,6 @@ dane_tlsa_free(dane_tlsa)
 	return 0;
 
 }
-#endif /* DANE */
+# endif /* DANE */
 
 #endif /* STARTTLS */

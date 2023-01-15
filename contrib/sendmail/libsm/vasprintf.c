@@ -56,7 +56,7 @@ int
 sm_vasprintf(str, fmt, ap)
 	char **str;
 	const char *fmt;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	int ret;
 	SM_FILE_T fake;

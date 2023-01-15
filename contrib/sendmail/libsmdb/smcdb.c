@@ -70,14 +70,14 @@ static int smcdb_cursor __P((SMDB_DATABASE *database, SMDB_CURSOR **cursor, SMDB
 **
 */
 
-#if 0
+# if 0
 static int
 smdb_type_to_cdb_type(type)
 	SMDB_DBTYPE type;
 {
 	return 0;	/* XXX */
 }
-#endif
+# endif
 
 /*
 **  CDB_ERROR_TO_SMDB -- Translates cdb errors to smdbe errors
@@ -404,7 +404,7 @@ smcdb_cursor(database, cursor, flags)
 }
 
 /*
-**  SMDB_DB_OPEN -- Opens a db database.
+**  SMDB_CDB_OPEN -- Opens a cdb database.
 **
 **	Parameters:
 **		database -- An unallocated database pointer to a pointer.
@@ -415,19 +415,12 @@ smcdb_cursor(database, cursor, flags)
 **		type -- The type of database to open
 **			See smdb_type_to_cdb_type for valid types.
 **		user_info -- User information for file permissions.
-**		db_params --
-**			An SMDB_DBPARAMS struct including params. These
-**			are processed according to the type of the
-**			database. Currently supported params (only for
-**			HASH type) are:
-**			   num_elements
-**			   cache_size
+**		db_params -- unused
 **
 **	Returns:
 **		SMDBE_OK -- Success, other errno:
 **		SMDBE_MALLOC -- Cannot allocate memory.
-**		SMDBE_BAD_OPEN -- db_open didn't return an error, but
-**				 somehow the DB pointer is NULL.
+**		SMDBE_BAD_OPEN -- various (OS) errors.
 **		Anything else: translated error from cdb
 */
 
@@ -492,7 +485,7 @@ smdb_cdb_open(database, db_name, mode, mode_mask, sff, type, user_info, db_param
 
 	sm_cdbmap->smcdb_lock_fd = lock_fd;
 
-#if 0
+# if 0
 	db = NULL;
 	db_flags = 0;
 	if (bitset(O_CREAT, mode))
@@ -502,7 +495,7 @@ smdb_cdb_open(database, db_name, mode, mode_mask, sff, type, user_info, db_param
 	if (mode == O_RDONLY)
 		db_flags |= DB_RDONLY;
 	SM_DB_FLAG_ADD(db_flags);
-#endif
+# endif
 
 	result = -1; /* smdb_db_open_internal(db_file_name, db_type, db_flags, db_params, &db); */
 	db_fd = open(db_file_name, mode, DBMMODE);

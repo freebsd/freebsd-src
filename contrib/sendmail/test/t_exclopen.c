@@ -40,14 +40,17 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #ifndef lint
 static char id[] = "@(#)$Id: t_exclopen.c,v 8.7 2013-11-22 20:52:01 ca Exp $";
-#endif /* ! lint */
+#endif
 
 static char Attacker[128];
 static char Attackee[128];

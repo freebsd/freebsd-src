@@ -71,7 +71,7 @@ sm_stringf_x(fmt, va_alist)
 char *
 sm_vstringf_x(fmt, ap)
 	const char *fmt;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	char *s;
 

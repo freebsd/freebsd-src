@@ -95,11 +95,11 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 	}
 	(void) sm_strlcat(keybuf, keyval, sizeof keybuf);
 
-#if 0
+# if 0
 	if (tTd(38, 21))
 		sm_dprintf("ni_propval(%s, %s, %s, %s, %d) keybuf='%s'\n",
 			keydir, keyprop, keyval, valprop, sepchar, keybuf);
-#endif
+# endif
 
 	/*
 	**  If the passed directory and property name are found
@@ -114,10 +114,10 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 		if (i == 0)
 		{
 			nis = ni_open(NULL, LOCAL_NETINFO_DOMAIN, &ni);
-#if 0
+# if 0
 			if (tTd(38, 20))
 				sm_dprintf("ni_open(LOCAL) = %d\n", nis);
-#endif
+# endif
 		}
 		else
 		{
@@ -125,10 +125,10 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 				ni_free(lastni);
 			lastni = ni;
 			nis = ni_open(lastni, PARENT_NETINFO_DOMAIN, &ni);
-#if 0
+# if 0
 			if (tTd(38, 20))
 				sm_dprintf("ni_open(PARENT) = %d\n", nis);
-#endif
+# endif
 		}
 
 		/*
@@ -156,11 +156,11 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 		if (ni_lookupprop(ni, &nid, valprop, &ninl) != 0)
 			continue;
 
-#if 0
+# if 0
 		if (tTd(38, 20))
 			sm_dprintf("ni_lookupprop: len=%d\n",
 				ninl.ni_namelist_len);
-#endif
+# endif
 
 		/*
 		**  See if we have an acceptable number of values.
@@ -203,10 +203,10 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 		ni_free(ni);
 	if (lastni != NULL && ni != lastni)
 		ni_free(lastni);
-#if 0
+# if 0
 	if (tTd(38, 20))
 		sm_dprintf("ni_propval returns: '%s'\n", propval);
-#endif
+# endif
 
 	return propval;
 }

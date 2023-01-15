@@ -13,7 +13,6 @@
 SM_RCSID("@(#)$Id: tls.c,v 8.127 2013-11-27 02:51:11 gshapiro Exp $")
 
 #if STARTTLS
-# include <tls.h>
 # include <openssl/err.h>
 # include <openssl/bio.h>
 # include <openssl/pem.h>
@@ -24,12 +23,19 @@ SM_RCSID("@(#)$Id: tls.c,v 8.127 2013-11-27 02:51:11 gshapiro Exp $")
 # if _FFR_TLS_ALTNAMES
 #  include <openssl/x509v3.h>
 # endif
+# include <tls.h>
 
 # if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER <= 0x00907000L
-# ERROR: OpenSSL version OPENSSL_VERSION_NUMBER is unsupported.
+#  ERROR "OpenSSL version OPENSSL_VERSION_NUMBER is unsupported."
 # endif
 
-# if OPENSSL_VERSION_NUMBER >= 0x10100000L && OPENSSL_VERSION_NUMBER < 0x20000000L
+/*
+**  *SSL version numbers:
+**  OpenSSL 0.9 - 1.1 (so far), 3.0 (in alpha)
+**  LibreSSL 2.0 (0x20000000L - part of "These will never change")
+*/
+
+# if (OPENSSL_VERSION_NUMBER >= 0x10100000L && OPENSSL_VERSION_NUMBER < 0x20000000L) || OPENSSL_VERSION_NUMBER >= 0x30000000L
 #  define MTA_HAVE_DH_set0_pqg 1
 #  define MTA_HAVE_DSA_GENERATE_EX	1
 
@@ -228,7 +234,7 @@ tls_rand_init(randfile, logl)
 	/* set default values */
 	ok = false;
 	done = RI_FAIL;
-	randdef = (randfile == NULL || *randfile == '\0') ? RF_MISS : RF_OK;
+	randdef = (SM_IS_EMPTY(randfile)) ? RF_MISS : RF_OK;
 #  if EGD
 	if (randdef == RF_OK && sm_strncasecmp(randfile, "egd:", 4) == 0)
 	{
@@ -244,6 +250,7 @@ tls_rand_init(randfile, logl)
 	}
 	else
 #  endif /* EGD */
+	/* "else" in #if code above */
 	if (randdef == RF_OK && sm_strncasecmp(randfile, "file:", 5) == 0)
 	{
 		int fd;
@@ -1160,16 +1167,15 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	if (tTd(96, 101) || getenv("SSL_MODE_AUTO_RETRY") != NULL)
 			SSL_CTX_set_mode(*ctx, SSL_MODE_AUTO_RETRY);
 	else
-#  endif
+#  endif /* _FFR_TESTS */
+	/* "else" in #if code above */
 	SSL_CTX_clear_mode(*ctx, SSL_MODE_AUTO_RETRY);
 # endif /* defined(SSL_MODE_AUTO_RETRY) && OPENSSL_VERSION_NUMBER >= 0x10100000L && OPENSSL_VERSION_NUMBER < 0x20000000L */
-
 
 # if TLS_NO_RSA
 	/* turn off backward compatibility, required for no-rsa */
 	SSL_CTX_set_options(*ctx, SSL_OP_NO_SSLv2);
 # endif
-
 
 # if !TLS_NO_RSA && MTA_RSA_TMP_CB
 	/*
@@ -1561,6 +1567,25 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		}
 	}
 
+# if MTA_HAVE_TLSv1_3
+	/* install our own cipher suites */
+	if (!SM_IS_EMPTY(CipherSuites))
+	{
+		if (SSL_CTX_set_ciphersuites(*ctx, CipherSuites) <= 0)
+		{
+			if (LogLevel > 7)
+			{
+				sm_syslog(LOG_WARNING, NOQID,
+					  "STARTTLS=%s, error: SSL_CTX_set_ciphersuites(%s) failed, suites ignored",
+					  who, CipherSuites);
+
+				tlslogerr(LOG_WARNING, 9, who);
+			}
+			/* failure if setting to this suites is required? */
+		}
+	}
+# endif /* MTA_HAVE_TLSv1_3 */
+
 	if (LogLevel > 12)
 		sm_syslog(LOG_INFO, NOQID, "STARTTLS=%s, init=%d", who, ok);
 
@@ -1796,7 +1821,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	if (cert != NULL)
 	{
 		X509_NAME *subj, *issuer;
-		char buf[MAXNAME];
+		char buf[MAXNAME];	/* EAI: not affected */
 
 		subj = X509_get_subject_name(cert);
 		issuer = X509_get_issuer_name(cert);
@@ -1885,6 +1910,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	}
 	else
 # endif /* if DANE */
+	/* "else" in #if code above */
 	switch (verifyok)
 	{
 	  case X509_V_OK:
@@ -2535,7 +2561,7 @@ x509_verify_cb(ok, ctx)
 	return ok;
 }
 
-# if !USE_OPENSSL_ENGINE
+# if !USE_OPENSSL_ENGINE && !defined(OPENSSL_NO_ENGINE)
 /*
 **  TLS_SET_ENGINE -- set up ENGINE if needed
 **
@@ -2568,8 +2594,14 @@ TLS_set_engine(id, isprefork)
 			TLSEngineInitialized);
 	if (TLSEngineInitialized)
 		return 1;
-	if (id == NULL || *id == '\0')
+	if (SM_IS_EMPTY(id))
 		return 1;
+#  if !defined(ENGINE_METHOD_ALL)
+	if (LogLevel > 9)
+		sm_syslog(LOG_NOTICE, NOQID,
+			"engine=%s, status=engines_not_support", id)
+	goto error;
+#  endif
 
 	/* is this the "right time" to initialize the engine? */
 	if (isprefork != SSLEngineprefork)
@@ -2654,5 +2686,5 @@ TLS_set_engine(id, isprefork)
 		ENGINE_free(e);
 	return 0;
 }
-# endif /* !USE_OPENSSL_ENGINE */
+# endif /* !USE_OPENSSL_ENGINE && !defined(OPENSSL_NO_ENGINE) */
 #endif /* STARTTLS */

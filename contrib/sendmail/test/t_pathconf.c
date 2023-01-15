@@ -19,15 +19,17 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 
 #ifndef lint
 static char id[] = "@(#)$Id: t_pathconf.c,v 8.7 2013-11-22 20:52:01 ca Exp $";
-#endif /* ! lint */
+#endif
 
 int
 main(argc, argv)

@@ -15,6 +15,8 @@
 
 SM_RCSID("@(#)$Id: collect.c,v 8.287 2013-11-22 20:51:55 ca Exp $")
 
+#include <sm/sendmail.h>
+
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
 static SM_FILE_T *collect_dfopen __P((ENVELOPE *));
@@ -846,8 +848,7 @@ readerr:
 			q->q_state = QS_FATALERR;
 		}
 
-		(void) sm_io_close(df, SM_TIME_DEFAULT);
-		df = NULL;
+		SM_CLOSE_FP(df);
 		finis(true, true, ExitStat);
 		/* NOTREACHED */
 	}
@@ -895,7 +896,7 @@ readerr:
 	{
 		/* if it claimed to be 8 bits, well, it lied.... */
 		if (e->e_bodytype != NULL &&
-		    sm_strcasecmp(e->e_bodytype, "8BITMIME") == 0)
+		    SM_STRCASEEQ(e->e_bodytype, "8bitmime"))
 			e->e_bodytype = "7BIT";
 	}
 
@@ -939,6 +940,8 @@ readerr:
 
   end:
 	(void) set_tls_rd_tmo(old_rd_tmo);
+	if (buf != bufbuf)
+		SM_FREE(buf);
 }
 
 /*

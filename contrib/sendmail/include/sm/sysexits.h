@@ -74,6 +74,10 @@
 **		CANTCREAT, but rather for higher level permissions.
 */
 
+# ifdef EX_OK
+#  undef EX_OK			/* for SVr4.2 SMP */
+# endif
+
 # if SM_CONF_SYSEXITS_H
 #  include <sysexits.h>
 # else /* SM_CONF_SYSEXITS_H */

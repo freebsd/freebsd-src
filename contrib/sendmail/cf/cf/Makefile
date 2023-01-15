@@ -100,23 +100,36 @@ M4FILES=\
 	${CFDIR}/feature/access_db.m4 \
 	${CFDIR}/feature/allmasquerade.m4 \
 	${CFDIR}/feature/always_add_domain.m4 \
+	${CFDIR}/feature/authinfo.m4 \
+	${CFDIR}/feature/badmx.m4 \
 	${CFDIR}/feature/bcc.m4 \
 	${CFDIR}/feature/bestmx_is_local.m4 \
 	${CFDIR}/feature/bitdomain.m4 \
+	${CFDIR}/feature/block_bad_helo.m4 \
 	${CFDIR}/feature/blocklist_recipients.m4 \
+	${CFDIR}/feature/check_cert_altnames.m4 \
+	${CFDIR}/feature/check_other.m4 \
+	${CFDIR}/feature/compat_check.m4 \
 	${CFDIR}/feature/conncontrol.m4 \
+	${CFDIR}/feature/delay_checks.m4 \
 	${CFDIR}/feature/dnsbl.m4 \
 	${CFDIR}/feature/domaintable.m4 \
+	${CFDIR}/feature/enhdnsbl.m4 \
 	${CFDIR}/feature/generics_entire_domain.m4 \
 	${CFDIR}/feature/genericstable.m4 \
+	${CFDIR}/feature/greet_pause.m4 \
 	${CFDIR}/feature/ldap_routing.m4 \
 	${CFDIR}/feature/limited_masquerade.m4 \
 	${CFDIR}/feature/local_lmtp.m4 \
+	${CFDIR}/feature/local_no_masquerade.m4 \
 	${CFDIR}/feature/local_procmail.m4 \
+	${CFDIR}/feature/lookupdotdomain.m4 \
 	${CFDIR}/feature/loose_relay_check.m4 \
 	${CFDIR}/feature/mailertable.m4 \
 	${CFDIR}/feature/masquerade_entire_domain.m4 \
 	${CFDIR}/feature/masquerade_envelope.m4 \
+	${CFDIR}/feature/msp.m4 \
+	${CFDIR}/feature/mtamark.m4 \
 	${CFDIR}/feature/no_default_msa.m4 \
 	${CFDIR}/feature/nocanonify.m4 \
 	${CFDIR}/feature/nopercenthack.m4 \
@@ -124,17 +137,24 @@ M4FILES=\
 	${CFDIR}/feature/nouucp.m4 \
 	${CFDIR}/feature/nullclient.m4 \
 	${CFDIR}/feature/prefixmod.m4 \
+	${CFDIR}/feature/preserve_local_plus_detail.m4 \
+	${CFDIR}/feature/preserve_luser_host.m4 \
 	${CFDIR}/feature/promiscuous_relay.m4 \
-	${CFDIR}/feature/redirect.m4 \
+	${CFDIR}/feature/queuegroup.m4 \
 	${CFDIR}/feature/ratecontrol.m4 \
+	${CFDIR}/feature/redirect.m4 \
 	${CFDIR}/feature/relay_based_on_MX.m4 \
 	${CFDIR}/feature/relay_entire_domain.m4 \
 	${CFDIR}/feature/relay_hosts_only.m4 \
 	${CFDIR}/feature/relay_local_from.m4 \
 	${CFDIR}/feature/relay_mail_from.m4 \
+	${CFDIR}/feature/require_rdns.m4 \
 	${CFDIR}/feature/smrsh.m4 \
 	${CFDIR}/feature/stickyhost.m4 \
+	${CFDIR}/feature/sts.m4 \
+	${CFDIR}/feature/tls_failures.m4 \
 	${CFDIR}/feature/tls_session_features.m4 \
+	${CFDIR}/feature/use_client_ptr.m4 \
 	${CFDIR}/feature/use_ct_file.m4 \
 	${CFDIR}/feature/use_cw_file.m4 \
 	${CFDIR}/feature/uucpdomain.m4 \
@@ -147,6 +167,7 @@ M4FILES=\
 	${CFDIR}/m4/proto.m4 \
 	${CFDIR}/m4/version.m4 \
 	${CFDIR}/mailer/cyrus.m4 \
+	${CFDIR}/mailer/cyrusv2.m4 \
 	${CFDIR}/mailer/fax.m4 \
 	${CFDIR}/mailer/local.m4 \
 	${CFDIR}/mailer/mail11.m4 \
@@ -159,6 +180,7 @@ M4FILES=\
 	${CFDIR}/mailer/uucp.m4 \
 	${CFDIR}/ostype/aix3.m4 \
 	${CFDIR}/ostype/aix4.m4 \
+	${CFDIR}/ostype/aix5.m4 \
 	${CFDIR}/ostype/altos.m4 \
 	${CFDIR}/ostype/amdahl-uts.m4 \
 	${CFDIR}/ostype/a-ux.m4 \
@@ -167,6 +189,7 @@ M4FILES=\
 	${CFDIR}/ostype/bsdi.m4 \
 	${CFDIR}/ostype/bsdi1.0.m4 \
 	${CFDIR}/ostype/bsdi2.0.m4 \
+	${CFDIR}/ostype/darwin.m4 \
 	${CFDIR}/ostype/dgux.m4 \
 	${CFDIR}/ostype/domainos.m4 \
 	${CFDIR}/ostype/dragonfly.m4 \
@@ -200,10 +223,14 @@ M4FILES=\
 	${CFDIR}/ostype/solaris2.ml.m4 \
 	${CFDIR}/ostype/solaris2.pre5.m4 \
 	${CFDIR}/ostype/solaris8.m4 \
+	${CFDIR}/ostype/solaris11.m4 \
 	${CFDIR}/ostype/sunos3.5.m4 \
 	${CFDIR}/ostype/sunos4.1.m4 \
 	${CFDIR}/ostype/svr4.m4 \
 	${CFDIR}/ostype/ultrix4.m4 \
+	${CFDIR}/ostype/unicos.m4 \
+	${CFDIR}/ostype/unicosmk.m4 \
+	${CFDIR}/ostype/unicosmp.m4 \
 	${CFDIR}/ostype/unixware7.m4 \
 	${CFDIR}/ostype/unknown.m4 \
 	${CFDIR}/ostype/uxpds.m4

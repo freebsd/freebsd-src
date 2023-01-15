@@ -28,16 +28,14 @@ SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.148 2013-11-22 20:52:02 ca Exp $")
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
-#ifdef EX_OK
-# undef EX_OK		/* unistd.h may have another use for this */
-#endif
+#include <sm/sendmail.h>
 #include <sm/sysexits.h>
 
 #include <sm/cf.h>
 #include <sm/mbdb.h>
-#include "sendmail/sendmail.h"
+#include <sendmail/sendmail.h>
 #include <sendmail/pathnames.h>
-#include "libsmdb/smdb.h"
+#include <libsmdb/smdb.h>
 
 #define ONLY_ONCE	((time_t) 0)	/* send at most one reply */
 #define INTERVAL_UNDEF	((time_t) (-1))	/* no value given */
@@ -176,11 +174,11 @@ main(argc, argv)
 			    "Unknown UID %d", (int) RealUid);
 	RunAsUserName = RealUserName = rnamebuf;
 
-# ifdef LOG_MAIL
+#ifdef LOG_MAIL
 	openlog("vacation", LOG_PID, LOG_MAIL);
-# else
+#else
 	openlog("vacation", LOG_PID);
-# endif
+#endif
 
 	opterr = 0;
 	initdb = false;
@@ -650,8 +648,7 @@ nsearch(name, str)
 		**  matching "eric" to "<eric+detail>".
 		*/
 
-		if (tolower(*s) == tolower(*name) &&
-		    strncasecmp(name, s, len) == 0 &&
+		if (SM_STRNCASEEQ(name, s, len) &&
 		    (s == str || !isascii(*(s - 1)) || !isalnum(*(s - 1))) &&
 		    (!isascii(*(s + len)) || !isalnum(*(s + len))))
 			return true;

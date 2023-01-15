@@ -23,14 +23,12 @@ SM_IDSTR(copyright,
 SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.257 2013-11-22 20:51:51 ca Exp $")
 
 #include <stdlib.h>
+#include <sm/sendmail.h>
 #include <sm/errstring.h>
 #include <sm/io.h>
 #include <sm/limits.h>
-# include <unistd.h>
-# ifdef EX_OK
-#  undef EX_OK		/* unistd.h may have another use for this */
-# endif
-# define LOCKFILE_PMODE 0
+#include <unistd.h>
+#define LOCKFILE_PMODE 0
 #include <sm/mbdb.h>
 #include <sm/sysexits.h>
 
@@ -150,6 +148,9 @@ off_t	BodyLength;
 #endif
 
 bool	EightBitMime = true;		/* advertise 8BITMIME in LMTP */
+#if USE_EAI
+bool	EAI = true;			/* advertise SMTPUTF8 in LMTP */
+#endif
 char	ErrBuf[10240];			/* error buffer */
 int	ExitVal = EX_OK;		/* sysexits.h error value. */
 bool	nobiff = false;
@@ -222,11 +223,11 @@ main(argc, argv)
 	/* use a reasonable umask */
 	(void) umask(0077);
 
-# ifdef LOG_MAIL
+#ifdef LOG_MAIL
 	openlog("mail.local", 0, LOG_MAIL);
-# else
+#else
 	openlog("mail.local", 0);
-# endif
+#endif
 
 	from = NULL;
 
@@ -237,14 +238,16 @@ main(argc, argv)
 		mailerr("421", "Configuration error: _PATH_MAILDIR too large");
 		sm_exit(EX_CONFIG);
 	}
+
+	/* HACK: add U to all options - this should be only for USE_EAI */
 #if HASHSPOOL
-	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lH:p:ns")) != -1)
+	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lH:p:nsUV")) != -1)
 #else /* HASHSPOOL */
-#  if _FFR_SPOOL_PATH
-	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lp:s")) != -1)
-#  else
-	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:ls")) != -1)
-#  endif
+# if _FFR_SPOOL_PATH
+	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lp:sUV")) != -1)
+# else
+	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lsUV")) != -1)
+# endif
 #endif /* HASHSPOOL */
 	{
 		switch(ch)
@@ -352,6 +355,22 @@ main(argc, argv)
 			}
 			break;
 #endif /* HASHSPOOL || _FFR_SPOOL_PATH */
+
+#if USE_EAI
+		  case 'U':
+			EAI = false;
+			break;
+#endif
+		  case 'V':
+			fprintf(stderr, "compiled with\n");
+#if MAIL_LOCAL_TEST
+			fprintf(stderr, "MAIL_LOCAL_TEST\n");
+#endif
+#if USE_EAI
+			/* test scripts should look for SMTPUTF8 */
+			fprintf(stderr, "USE_EAI\n");
+#endif
+			break;
 
 		  case '?':
 		  default:
@@ -585,7 +604,7 @@ dolmtp()
 		{
 		  case 'd':
 		  case 'D':
-			if (sm_strcasecmp(buf, "data") == 0)
+			if (SM_STRCASEEQ(buf, "data"))
 			{
 				bool inbody = false;
 
@@ -639,6 +658,10 @@ dolmtp()
 				printf("250-%s\r\n", myhostname);
 				if (EightBitMime)
 					printf("250-8BITMIME\r\n");
+#if USE_EAI
+				if (EAI)
+					printf("250-SMTPUTF8\r\n");
+#endif
 				printf("250-ENHANCEDSTATUSCODES\r\n");
 				printf("250 PIPELINING\r\n");
 				continue;
@@ -674,7 +697,7 @@ dolmtp()
 
 		  case 'n':
 		  case 'N':
-			if (sm_strcasecmp(buf, "noop") == 0)
+			if (SM_STRCASEEQ(buf, "noop"))
 			{
 				printf("250 2.0.0 Ok\r\n");
 				continue;
@@ -685,7 +708,7 @@ dolmtp()
 
 		  case 'q':
 		  case 'Q':
-			if (sm_strcasecmp(buf, "quit") == 0)
+			if (SM_STRCASEEQ(buf, "quit"))
 			{
 				printf("221 2.0.0 Bye\r\n");
 				sm_exit(EX_OK);
@@ -736,7 +759,7 @@ dolmtp()
 				printf("250 2.1.5 Ok\r\n");
 				continue;
 			}
-			else if (sm_strcasecmp(buf, "rset") == 0)
+			else if (SM_STRCASEEQ(buf, "rset"))
 			{
 				printf("250 2.0.0 Ok\r\n");
 
@@ -971,7 +994,7 @@ store(from, inbody)
 
 	if (fp == NULL || fflush(fp) == EOF || ferror(fp) != 0)
 	{
-		mailerr("451 4.3.0", "Temporary file write error");
+		mailerr("451 4.3.0", "Temporary file flush error");
 		if (fp != NULL)
 			(void) fclose(fp);
 		return -1;
@@ -1058,7 +1081,7 @@ deliver(fd, name)
 
 	if (HomeMailFile == NULL)
 	{
-		if (sm_strlcpyn(path, sizeof(path), 
+		if (sm_strlcpyn(path, sizeof(path),
 #if HASHSPOOL
 				4,
 #else
@@ -1162,7 +1185,7 @@ tryagain:
 				goto tryagain;
 
 			/* open failed, don't try again */
-			mailerr("450 4.2.0", "%s: %s", path,
+			mailerr("450 4.2.0", "Create %s: %s", path,
 				sm_errstring(save_errno));
 			goto err0;
 		}
@@ -1205,7 +1228,11 @@ tryagain:
 	}
 
 	/* change UID for quota checks */
-	if (setreuid(0, user.mbdb_uid) < 0)
+	if (
+#if MAIL_LOCAL_TEST
+	    (HomeMailFile == NULL || user.mbdb_uid != getuid()) &&
+#endif
+	    setreuid(0, user.mbdb_uid) < 0)
 	{
 		mailerr("450 4.2.0", "setreuid(0, %d): %s (r=%d, e=%d)",
 			(int) user.mbdb_uid, sm_errstring(errno),
@@ -1218,7 +1245,7 @@ tryagain:
 	mbfd = open(path, O_APPEND|O_WRONLY, 0);
 	if (mbfd < 0)
 	{
-		mailerr("450 4.2.0", "%s: %s", path, sm_errstring(errno));
+		mailerr("450 4.2.0", "Append %s: %s", path, sm_errstring(errno));
 		goto err0;
 	}
 	else if (fstat(mbfd, &fsb) < 0 ||
@@ -1227,9 +1254,9 @@ tryagain:
 		 !S_ISREG(fsb.st_mode) ||
 		 sb.st_dev != fsb.st_dev ||
 		 sb.st_ino != fsb.st_ino ||
-# if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
+#if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
 		 sb.st_gen != fsb.st_gen ||
-# endif
+#endif
 		 sb.st_uid != fsb.st_uid)
 	{
 		ExitVal = EX_TEMPFAIL;
@@ -1279,7 +1306,7 @@ tryagain:
 	/* Wait until we can get a lock on the file. */
 	if (flock(mbfd, LOCK_EX) < 0)
 	{
-		mailerr("450 4.2.0", "%s: %s", path, sm_errstring(errno));
+		mailerr("450 4.2.0", "Lock %s: %s", path, sm_errstring(errno));
 		goto err1;
 	}
 
@@ -1295,7 +1322,7 @@ tryagain:
 	/* Copy the message into the file. */
 	if (lseek(fd, (off_t) 0, SEEK_SET) == (off_t) -1)
 	{
-		mailerr("450 4.2.0", "Temporary file: %s",
+		mailerr("450 4.2.0", "Temporary file seek error: %s",
 			sm_errstring(errno));
 		goto err1;
 	}
@@ -1337,7 +1364,7 @@ tryagain:
 				if (errno == EDQUOT && BounceQuota)
 					errcode = "552 5.2.2";
 #endif
-				mailerr(errcode, "%s: %s",
+				mailerr(errcode, "Write %s: %s",
 					path, sm_errstring(errno));
 				goto err3;
 			}
@@ -1345,7 +1372,7 @@ tryagain:
 	}
 	if (nr < 0)
 	{
-		mailerr("450 4.2.0", "Temporary file: %s",
+		mailerr("450 4.2.0", "Temporary file read error: %s",
 			sm_errstring(errno));
 		goto err3;
 	}
@@ -1353,7 +1380,7 @@ tryagain:
 	/* Flush to disk, don't wait for update. */
 	if (!nofsync && fsync(mbfd) < 0)
 	{
-		mailerr("450 4.2.0", "%s: %s", path, sm_errstring(errno));
+		mailerr("450 4.2.0", "Sync %s: %s", path, sm_errstring(errno));
 err3:
 #ifdef DEBUG
 		fprintf(stderr, "reset euid = %d\n", (int) geteuid());
@@ -1362,7 +1389,11 @@ err3:
 			(void) ftruncate(mbfd, curoff);
 err1:		if (mbfd >= 0)
 			(void) close(mbfd);
-err0:		(void) setreuid(0, 0);
+err0:
+#if MAIL_LOCAL_TEST
+		if (HomeMailFile == NULL || user.mbdb_uid != getuid())
+#endif
+		(void) setreuid(0, 0);
 		unlockmbox();
 		return;
 	}
@@ -1390,7 +1421,7 @@ err0:		(void) setreuid(0, 0);
 		if (errno == EDQUOT && BounceQuota)
 			errcode = "552 5.2.2";
 #endif
-		mailerr(errcode, "%s: %s", path, sm_errstring(errno));
+		mailerr(errcode, "Close %s: %s", path, sm_errstring(errno));
 		mbfd = open(path, O_WRONLY, 0);
 		if (mbfd < 0 ||
 		    cursize == 0
@@ -1401,9 +1432,9 @@ err0:		(void) setreuid(0, 0);
 		    !S_ISREG(sb.st_mode) ||
 		    sb.st_dev != fsb.st_dev ||
 		    sb.st_ino != fsb.st_ino ||
-# if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
+#if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
 		    sb.st_gen != fsb.st_gen ||
-# endif
+#endif
 		    sb.st_uid != fsb.st_uid
 		   )
 		{
@@ -1421,7 +1452,11 @@ err0:		(void) setreuid(0, 0);
 	else if (!nobiff)
 		notifybiff(biffmsg);
 
-	if (setreuid(0, 0) < 0)
+	if (
+#if MAIL_LOCAL_TEST
+	    (HomeMailFile == NULL || user.mbdb_uid != getuid()) &&
+#endif
+	    setreuid(0, 0) < 0)
 	{
 		mailerr("450 4.2.0", "setreuid(0, 0): %s",
 			sm_errstring(errno));
@@ -1597,11 +1632,12 @@ void
 usage()
 {
 	ExitVal = EX_USAGE;
-# if _FFR_SPOOL_PATH
+	/* XXX add U to options for USE_EAI */
+#if _FFR_SPOOL_PATH
 	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-d] [-l] [-s] [-f from|-r from] [-h filename] [-p path] user ...");
-# else
+#else
 	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-d] [-l] [-s] [-f from|-r from] [-h filename] user ...");
-# endif
+#endif
 	sm_exit(ExitVal);
 }
 
@@ -1666,7 +1702,7 @@ hashname(name)
 	MD5_CTX ctx;
 	unsigned char md5[18];
 #  if MAXPATHLEN <= 24
-    ERROR _MAXPATHLEN <= 24
+#    ERROR "MAXPATHLEN <= 24"
 #  endif
 	char b64[24];
 	MD5_LONG bits;

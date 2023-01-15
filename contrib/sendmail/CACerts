@@ -1,7 +1,7 @@
 # This file contains some CA certificates that are used to sign the
 # certificates of mail servers of members of the sendmail consortium
-# who may reply to questions etc sent to sendmail.org.
-# It is useful to allow connections from those MTAs that can present
+# who may reply to questions etc sent to support.sendmail.org.
+# It is useful to allow connections from those MTAs which can present
 # a certificate signed by one of these CA certificates.
 #
 
@@ -9,92 +9,92 @@ Certificate:
     Data:
         Version: 3 (0x2)
         Serial Number:
-            81:9d:41:0f:40:55:ac:4a
-    Signature Algorithm: sha1WithRSAEncryption
-        Issuer: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=CA/emailAddress=ca+ca-rsa2018@esmtp.org
+            92:a1:3b:d3:90:0b:ea:a7
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=CA/emailAddress=ca+ca-rsa2021@esmtp.org
         Validity
-            Not Before: Feb 27 02:30:55 2018 GMT
-            Not After : Feb 26 02:30:55 2021 GMT
-        Subject: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=CA/emailAddress=ca+ca-rsa2018@esmtp.org
+            Not Before: Feb 25 17:44:02 2021 GMT
+            Not After : Feb 25 17:44:02 2024 GMT
+        Subject: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=CA/emailAddress=ca+ca-rsa2021@esmtp.org
         Subject Public Key Info:
             Public Key Algorithm: rsaEncryption
                 Public-Key: (2048 bit)
                 Modulus:
-                    00:b8:a3:8d:79:28:c1:1f:9c:11:74:43:26:e1:3b:
-                    cc:14:87:5b:6b:64:4c:ed:79:1b:7f:2a:03:d0:7b:
-                    ef:9e:88:b0:64:36:ee:58:ef:fd:d9:c7:20:b3:71:
-                    e9:6d:1e:a7:bc:c1:7c:3b:fe:2a:e4:16:2f:bc:d6:
-                    2c:f5:98:f9:c4:21:1c:ca:c3:7e:57:89:c8:a9:2f:
-                    da:6b:9b:52:d6:c9:9d:98:97:6d:08:7c:a6:37:4e:
-                    d4:26:bb:db:73:b0:38:ef:7d:1e:dd:8e:dd:8e:17:
-                    2f:a0:3d:a9:0e:4d:f0:2b:b8:14:23:33:ad:c8:a0:
-                    e5:9d:0f:27:ad:83:a2:78:90:05:ec:29:06:91:07:
-                    45:6c:5f:ba:8e:1d:f1:d7:1b:2d:f9:99:ba:2e:27:
-                    e1:03:7d:e9:d2:54:35:cc:39:79:07:83:d8:93:9b:
-                    d6:ef:72:ab:d4:63:8e:6b:f7:00:66:5f:77:e8:b6:
-                    bc:de:5f:8c:d0:ce:1a:c4:db:03:9d:e4:ee:0a:ec:
-                    77:c5:f2:30:69:7e:70:12:e5:c2:4a:28:3f:e7:19:
-                    eb:af:41:fb:e6:a6:1d:b5:fd:2b:99:03:f5:20:90:
-                    38:73:bd:43:70:da:cf:1f:34:5d:ab:17:4b:73:cf:
-                    f9:3d:e1:a2:79:14:de:d8:40:85:82:c4:5a:84:82:
-                    32:f1
+                    00:cc:8c:39:bd:cf:55:4f:66:2a:78:c7:65:47:81:
+                    dd:d1:3f:08:12:4b:87:40:48:95:5c:24:52:65:a1:
+                    82:1c:f4:90:a1:7c:f7:27:8f:02:e5:cb:ac:89:ae:
+                    b8:25:4e:26:da:14:20:07:29:a4:59:03:61:b4:44:
+                    ae:45:55:b4:72:7d:66:9a:88:de:59:bf:6f:31:23:
+                    06:29:ab:c2:b9:a0:6c:6a:5d:d0:ac:e6:b8:ac:8a:
+                    6f:5e:bb:f3:19:b5:8d:e1:df:2e:d1:7f:1a:bc:2c:
+                    13:10:65:46:7f:68:c7:60:49:c6:30:4e:a0:24:ed:
+                    d4:a8:27:cf:b2:d0:c5:7c:96:47:82:b6:f1:17:0a:
+                    5a:35:82:0b:85:0f:17:71:a9:bd:3a:4c:e6:32:95:
+                    3e:68:f7:3d:f5:04:33:16:19:1e:4c:0a:04:c3:1f:
+                    9e:ba:db:e2:0d:29:c8:3f:29:cf:47:cb:11:db:d2:
+                    cd:d0:26:2f:35:eb:7d:a2:60:18:e7:7b:a2:43:15:
+                    59:d7:ea:9d:38:60:f1:48:df:57:54:df:8a:50:b9:
+                    e3:5c:72:82:51:b7:05:78:c2:14:08:71:71:1c:06:
+                    44:4a:85:73:08:a8:49:50:b2:d2:fb:da:a2:a5:5a:
+                    36:49:a8:4b:38:56:f6:67:0f:12:34:39:cc:fb:9c:
+                    bd:d3
                 Exponent: 65537 (0x10001)
         X509v3 extensions:
-            X509v3 Subject Key Identifier: 
-                42:37:75:E7:8F:12:CF:D9:EB:21:22:7D:8A:E8:49:21:FD:E2:3A:3A
-            X509v3 Authority Key Identifier: 
-                keyid:42:37:75:E7:8F:12:CF:D9:EB:21:22:7D:8A:E8:49:21:FD:E2:3A:3A
-                DirName:/C=US/ST=California/L=Berkeley/O=Endmail Org/OU=MTA/CN=CA/emailAddress=ca+ca-rsa2018@esmtp.org
-                serial:81:9D:41:0F:40:55:AC:4A
-            X509v3 Basic Constraints: 
+            X509v3 Subject Key Identifier:
+                86:F0:F9:7A:CD:66:A9:16:CC:A3:26:08:3D:B3:B2:42:C2:E5:A9:13
+            X509v3 Authority Key Identifier:
+                keyid:86:F0:F9:7A:CD:66:A9:16:CC:A3:26:08:3D:B3:B2:42:C2:E5:A9:13
+                DirName:/C=US/ST=California/L=Berkeley/O=Endmail Org/OU=MTA/CN=CA/emailAddress=ca+ca-rsa2021@esmtp.org
+                serial:92:A1:3B:D3:90:0B:EA:A7
+            X509v3 Basic Constraints:
                 CA:TRUE
-            X509v3 Subject Alternative Name: 
-                email:ca+ca-rsa2018@esmtp.org
-            X509v3 Issuer Alternative Name: 
-                email:ca+ca-rsa2018@esmtp.org
-    Signature Algorithm: sha1WithRSAEncryption
-         0b:4c:e5:c2:ed:0a:e5:7b:95:29:22:d4:8f:5f:cb:1b:b1:e3:
-         4c:fc:90:e7:2e:97:87:87:a2:63:0d:6d:4d:f0:1f:0d:84:11:
-         dc:df:b7:fa:c3:c6:2e:07:e9:a0:e9:a6:9f:54:17:ad:1a:d0:
-         36:be:31:cc:a5:85:a0:45:4a:87:45:80:7e:de:ea:97:68:e0:
-         2b:09:5d:9a:31:6f:f5:78:22:c5:66:2a:99:70:9e:6d:c4:ab:
-         f6:90:01:70:53:07:66:6c:a6:b5:ce:4b:36:05:83:87:0c:a7:
-         e0:1e:34:d0:5e:76:a4:20:71:cd:9d:c1:ae:82:27:e0:6f:16:
-         57:74:e7:63:9f:d0:3d:72:91:6d:97:a4:82:23:84:dd:6e:0d:
-         da:43:00:a7:ce:2f:f8:79:04:67:6a:e5:b0:ab:30:d8:f1:90:
-         10:43:3b:09:77:27:34:a4:d4:c0:25:4e:21:32:a3:ab:60:1c:
-         9d:6e:e2:65:39:51:7f:cd:9f:88:3a:7e:f4:38:af:7b:5b:a7:
-         bb:7b:70:97:21:59:fc:5c:55:a1:db:74:0a:37:1e:33:97:5f:
-         70:32:98:b3:d9:99:4e:08:3c:de:01:82:17:9b:49:d7:fa:c9:
-         45:8d:93:cc:42:d6:36:f2:39:3a:47:28:3f:6f:6a:e5:23:f3:
-         5c:d4:a3:1b
+            X509v3 Subject Alternative Name:
+                email:ca+ca-rsa2021@esmtp.org
+            X509v3 Issuer Alternative Name:
+                email:ca+ca-rsa2021@esmtp.org
+    Signature Algorithm: sha256WithRSAEncryption
+         41:14:09:49:01:5f:51:ff:20:7b:c2:41:79:9d:11:3c:7c:48:
+         d6:43:d4:c6:0d:55:e6:76:bb:2c:c7:fb:dd:10:53:79:30:1a:
+         35:64:2c:d0:64:b6:5a:fd:a9:d3:e3:09:8c:7d:22:81:b7:71:
+         a6:7d:bf:80:24:79:24:c1:61:6d:54:ab:14:4b:5a:54:cb:75:
+         47:2e:e5:51:6f:cb:91:b6:a7:e8:aa:8d:78:c5:7e:05:56:3b:
+         31:02:bd:0c:e4:af:78:27:7d:6d:bf:fd:0f:0d:2a:00:1d:cc:
+         a2:34:4d:a3:9e:70:45:89:56:2d:d2:35:ee:26:ea:0f:9d:fc:
+         c0:2c:64:f6:55:af:de:e0:72:64:e2:20:8f:e2:f2:e9:e2:6c:
+         3a:0c:45:23:dd:80:57:25:fa:18:bb:25:f8:7e:3c:3b:a7:ef:
+         40:f0:ba:6f:ce:b1:eb:f9:14:03:04:34:3d:e0:43:a6:8d:95:
+         d0:a4:dc:df:e4:79:ce:8d:e2:1e:30:ff:55:0c:e6:9d:e4:1d:
+         62:cc:a5:4f:9a:6f:c0:b4:1f:05:7c:a7:c7:b1:72:58:98:ad:
+         2f:f9:8a:41:0c:48:d5:78:ad:af:eb:ff:59:0b:4a:99:26:5b:
+         e8:8c:e3:e5:6b:01:d9:a0:db:a2:1b:d8:8e:f1:82:38:58:ba:
+         8c:11:65:36
 
 -----BEGIN CERTIFICATE-----
-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
+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
-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
+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
-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
+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
-cnNhMjAxOEBlc210cC5vcmeCCQCBnUEPQFWsSjAMBgNVHRMEBTADAQH/MCIGA1Ud
-EQQbMBmBF2NhK2NhLXJzYTIwMThAZXNtdHAub3JnMCIGA1UdEgQbMBmBF2NhK2Nh
-LXJzYTIwMThAZXNtdHAub3JnMA0GCSqGSIb3DQEBBQUAA4IBAQALTOXC7Qrle5Up
-ItSPX8sbseNM/JDnLpeHh6JjDW1N8B8NhBHc37f6w8YuB+mg6aafVBetGtA2vjHM
-pYWgRUqHRYB+3uqXaOArCV2aMW/1eCLFZiqZcJ5txKv2kAFwUwdmbKa1zks2BYOH
-DKfgHjTQXnakIHHNncGugifgbxZXdOdjn9A9cpFtl6SCI4Tdbg3aQwCnzi/4eQRn
-auWwqzDY8ZAQQzsJdyc0pNTAJU4hMqOrYBydbuJlOVF/zZ+IOn70OK97W6e7e3CX
-IVn8XFWh23QKNx4zl19wMpiz2ZlOCDzeAYIXm0nX+slFjZPMQtY28jk6Ryg/b2rl
-I/Nc1KMb
+cnNhMjAyMUBlc210cC5vcmeCCQCSoTvTkAvqpzAMBgNVHRMEBTADAQH/MCIGA1Ud
+EQQbMBmBF2NhK2NhLXJzYTIwMjFAZXNtdHAub3JnMCIGA1UdEgQbMBmBF2NhK2Nh
+LXJzYTIwMjFAZXNtdHAub3JnMA0GCSqGSIb3DQEBCwUAA4IBAQBBFAlJAV9R/yB7
+wkF5nRE8fEjWQ9TGDVXmdrssx/vdEFN5MBo1ZCzQZLZa/anT4wmMfSKBt3Gmfb+A
+JHkkwWFtVKsUS1pUy3VHLuVRb8uRtqfoqo14xX4FVjsxAr0M5K94J31tv/0PDSoA
+HcyiNE2jnnBFiVYt0jXuJuoPnfzALGT2Va/e4HJk4iCP4vLp4mw6DEUj3YBXJfoY
+uyX4fjw7p+9A8LpvzrHr+RQDBDQ94EOmjZXQpNzf5HnOjeIeMP9VDOad5B1izKVP
+mm/AtB8FfKfHsXJYmK0v+YpBDEjVeK2v6/9ZC0qZJlvojOPlawHZoNuiG9iO8YI4
+WLqMEWU2
 -----END CERTIFICATE-----
