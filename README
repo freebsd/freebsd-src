@@ -371,11 +371,6 @@ for a response.  As of 8.10.0, the default Timeout.ident is 5 seconds
 as many sites have adopted the practice of dropping IDENT queries.
 This has lead to delays processing mail.
 
-No ident server is included with this distribution.  It is available
-from:
-
-  ftp://ftp.lysator.liu.se/pub/ident/servers/
-  http://sf.www.lysator.liu.se/~pen/pidentd/
 
 +-------------------------+
 | INTEROPERATION PROBLEMS |

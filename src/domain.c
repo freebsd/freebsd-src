@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 #include "map.h"
-#if _FFR_EAI
+#if USE_EAI
 #include <unicode/uidna.h>
 #endif
 
@@ -23,8 +23,9 @@ SM_RCSID("@(#)$Id: domain.c,v 8.205 2013-11-22 20:51:55 ca Exp $ (with name serv
 SM_RCSID("@(#)$Id: domain.c,v 8.205 2013-11-22 20:51:55 ca Exp $ (without name server)")
 #endif
 
-#if NAMED_BIND
+#include <sm/sendmail.h>
 
+#if NAMED_BIND
 # include <arpa/inet.h>
 # include <sm_resolve.h>
 # if DANE
@@ -114,14 +115,13 @@ tlsaadd(name, dr, dane_tlsa, dnsrc, n, pttl, level)
 
 		/* check previous error and keep the "most important" one? */
 		dane_tlsa->dane_tlsa_dnsrc = dnsrc;
-# if DNSSEC_TEST
+#  if DNSSEC_TEST
 		if (tTd(8, 110))
-			*pttl = tTdlevel(8)-110;	/* how to make this an option? */
+			*pttl = tTdlevel(8)-110; /* how to make this an option? */
 		else
-# else
+#  endif
+		/* "else" in #if code above */
 			*pttl = SM_NEG_TTL;
-# endif
-
 		return n;
 	}
 	if (dr == NULL)
@@ -418,23 +418,23 @@ getfallbackmxrr(host)
 	int ttl;
 	static time_t renew = 0;
 
-#if 0
+# if 0
 	/* This is currently done before this function is called. */
-	if (host == NULL || *host == '\0')
+	if (SM_IS_EMPTY(host))
 		return 0;
-#endif /* 0 */
+# endif /* 0 */
 	if (NumFallbackMXHosts > 0 && renew > curtime())
 		return NumFallbackMXHosts;
 
 	/* for DANE we need to invoke getmxrr() to get the TLSA RRs. */
-#if !DANE
+# if !DANE
 	if (host[0] == '[')
 	{
 		fbhosts[0] = host;
 		NumFallbackMXHosts = 1;
 	}
 	else
-#endif
+# endif
 	{
 		/* free old data */
 		for (i = 0; i < NumFallbackMXHosts; i++)
@@ -447,9 +447,9 @@ getfallbackmxrr(host)
 		*/
 
 		NumFallbackMXHosts = getmxrr(host, fbhosts, NULL,
-#if DANE
+# if DANE
 					(DANE_SECURE == Dane) ?  ISAD :
-#endif
+# endif
 					0,
 					&rcode, &ttl, 0);
 		renew = curtime() + ttl;
@@ -496,11 +496,44 @@ fallbackmxrr(nmx, prefs, mxhosts)
 	return nmx;
 }
 
+# if USE_EAI
+
+/*
+**  HN2ALABEL -- convert hostname in U-label format to A-label format
+**
+**	Parameters:
+**		hostname -- hostname in U-label format
+**
+**	Returns:
+**		hostname in A-label format in a local static buffer.
+**		It must be copied before the function is called again.
+*/
+
+const char *
+hn2alabel(hostname)
+	const char *hostname;
+{
+	UErrorCode error = U_ZERO_ERROR;
+	UIDNAInfo info = UIDNA_INFO_INITIALIZER;
+	UIDNA *idna;
+	static char buf[MAXNAME_I];	/* XXX ??? */
+
+	if (addr_is_ascii(hostname))
+		return hostname;
+	idna = uidna_openUTS46(UIDNA_NONTRANSITIONAL_TO_ASCII, &error);
+	(void) uidna_nameToASCII_UTF8(idna, hostname, strlen(hostname),
+				     buf, sizeof(buf) - 1,
+				     &info, &error);
+	uidna_close(idna);
+	return buf;
+}
+# endif /* USE_EAI */
+
 /*
 **  GETMXRR -- get MX resource records for a domain
 **
 **	Parameters:
-**		host -- the name of the host to MX.
+**		host -- the name of the host to MX [must be x]
 **		mxhosts -- a pointer to a return buffer of MX records.
 **		mxprefs -- a pointer to a return buffer of MX preferences.
 **			If NULL, don't try to populate.
@@ -554,10 +587,11 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 	int ttl = 0;
 	bool ad;
 	bool seennullmx = false;
-	extern int res_query(), res_search();
+	extern int res_query __P((const char *, int, int, u_char *, int));
+	extern int res_search __P((const char *, int, int , u_char *, int));
 # if DANE
 	bool cname2mx;
-	char qname[MAXNAME];
+	char qname[MAXNAME];	/* EAI: copy of host: ok? */
 	unsigned long old_options = 0;
 # endif
 
@@ -605,22 +639,13 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 		(void) sm_strlcpy(qname, host, sizeof(qname));
 # endif /* DANE */
 
-# if _FFR_EAI
+# if USE_EAI
 	if (!addr_is_ascii(host))
 	{
-		char buf[1024];
-		UErrorCode error = U_ZERO_ERROR;
-		UIDNAInfo info = UIDNA_INFO_INITIALIZER;
-		UIDNA *idna;
-
-		idna = uidna_openUTS46(UIDNA_NONTRANSITIONAL_TO_ASCII, &error);
-		(void) uidna_nameToASCII_UTF8(idna, host, strlen(host),
-					     buf, sizeof(buf) - 1,
-					     &info, &error);
-		uidna_close(idna);
-		host = sm_rpool_strdup_x(CurEnv->e_rpool, buf);
+		/* XXX memory leak? */
+		host = sm_rpool_strdup_x(CurEnv->e_rpool, hn2alabel(host));
 	}
-# endif /* _FFR_EAI */
+# endif /* USE_EAI */
 
 	/*
 	**  If we don't have MX records in our host switch, don't
@@ -865,7 +890,7 @@ getmxrr(host, mxhosts, mxprefs, flags, rcode, pttl, port)
 	/* delete duplicates from list (yes, some bozos have duplicates) */
 	for (i = 0; i < nmx - 1; )
 	{
-		if (sm_strcasecmp(mxhosts[i], mxhosts[i + 1]) != 0)
+		if (!SM_STRCASEEQ(mxhosts[i], mxhosts[i + 1]))
 			i++;
 		else
 		{
@@ -980,6 +1005,25 @@ punt:
 # endif /* NETINET6 */
 				else
 				{
+# if USE_EAI
+					char *hn;
+
+					hn = MXHostBuf + 1;
+					if (!addr_is_ascii(hn))
+					{
+						const char *ahn;
+
+						ahn = hn2alabel(hn);
+						if (strlen(ahn) >= sizeof(MXHostBuf) - 1)
+						{
+							*rcode = EX_CONFIG;
+							syserr("Encoded host name %s too long",
+							       shortenstring(ahn, MAXSHORTSTR));
+							goto error;
+						}
+						(void) sm_strlcpy(hn, ahn, sizeof(MXHostBuf) - 1);
+					}
+# endif /* USE_EAI */
 					trycanon = true;
 					mxhosts[0]++;
 				}

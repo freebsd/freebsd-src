@@ -33,7 +33,7 @@
 #  endif /* ! _PATH_SENDMAILPID */
 
 #  ifndef _PATH_SENDMAIL
-#   define _PATH_SENDMAIL 	"/usr/lib/sendmail"
+#   define _PATH_SENDMAIL	"/usr/lib/sendmail"
 #  endif
 
 #  ifndef _PATH_MAILDIR

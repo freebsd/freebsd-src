@@ -1,57 +1,57 @@
-MAIL.LOCAL(8)                                                    MAIL.LOCAL(8)
+MAIL.LOCAL(8)               System Manager's Manual              MAIL.LOCAL(8)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        mail.local - store mail in a mailbox
 
-[1mSYNOPSIS[0m
-       [1mmail.local [22m[[1m-7[22m] [[1m-b[22m] [[1m-d[22m] [[1m-D [4m[22mmbdb[24m] [[1m-l[22m] [[1m-f [4m[22mfrom[24m|[1m-r [4m[22mfrom[24m] [[1m-h [4m[22mfilename[0m
-       ] [4muser[24m [4m...[0m
+SSYYNNOOPPSSIISS
+       mmaaiill..llooccaall [--77] [--bb] [--dd] [--DD _m_b_d_b] [--ll] [--ff _f_r_o_m|--rr _f_r_o_m] [--hh _f_i_l_e_n_a_m_e
+       ] _u_s_e_r _._._.
 
-[1mDESCRIPTION[0m
-       [1mMail.local [22mreads the standard input up to an end-of-file and appends it
-       to each [4muser's[24m [1mmail [22mfile.  The [4muser[24m must be a valid user name.
+DDEESSCCRRIIPPTTIIOONN
+       MMaaiill..llooccaall reads the standard input up to an end-of-file and appends it
+       to each _u_s_e_r_'_s mmaaiill file.  The _u_s_e_r must be a valid user name.
 
        The options are as follows:
 
-       [1m-7        [22mDo not advertise 8BITMIME support in LMTP mode.
+       --77        Do not advertise 8BITMIME support in LMTP mode.
 
-       [1m-b        [22mReturn  a  permanent  error instead of a temporary error if a
+       --bb        Return  a  permanent  error instead of a temporary error if a
                  mailbox exceeds quota.
 
-       [1m-d        [22mSpecify this is  a  delivery  (for  backward  compatibility).
+       --dd        Specify this is  a  delivery  (for  backward  compatibility).
                  This option has no effect.
 
-       [1m-D [4m[22mmbdb[24m   Specify  the  name  of  the mailbox database which is used to
+       --DD _m_b_d_b   Specify  the  name  of  the mailbox database which is used to
                  look up local recipient names.  This option defaults to "pw",
                  which means use getpwnam().
 
-       [1m-f [4m[22mfrom[24m   Specify the sender's name.
+       --ff _f_r_o_m   Specify the sender's name.
 
-       [1m-l        [22mTurn on LMTP mode.
+       --ll        Turn on LMTP mode.
 
-       [1m-r [4m[22mfrom[24m   Specify the sender's name (for backward compatibility).  Same
+       --rr _f_r_o_m   Specify the sender's name (for backward compatibility).  Same
                  as -f.
 
-       [1m-h [4m[22mfilename[0m
-                 Store incoming mail in [4mfilename[24m in the user's home  directory
+       --hh _f_i_l_e_n_a_m_e
+                 Store incoming mail in _f_i_l_e_n_a_m_e in the user's home  directory
                  instead of a system mail spool directory.
 
-       The  next  options  are  only available if [1mmail.local [22mhas been compiled
+       The  next  options  are  only available if mmaaiill..llooccaall has been compiled
        with -DHASHSPOOL.
 
-       [1m-H [4m[22mhashtypehashdepth[0m
-              Select hashed mail directories.  Valid hash types are [1mu [22mfor user
-              name  and  [1mm [22mfor MD5 (requires compilation with -DHASHSPOOLMD5).
-              Example: [1m-H [4m[22mu2[24m selects user name hashing with a hash depth of 2.
+       --HH _h_a_s_h_t_y_p_e_h_a_s_h_d_e_p_t_h
+              Select hashed mail directories.  Valid hash types are uu for user
+              name  and  mm for MD5 (requires compilation with -DHASHSPOOLMD5).
+              Example: --HH _u_2 selects user name hashing with a hash depth of 2.
               Note:  there  must  be  no  space  between the hash type and the
               depth.
 
-       [1m-p [4m[22mpath[0m
+       --pp _p_a_t_h
               Specify an alternate mail spool path.
 
-       [1m-n     [22mSpecify that the domain part of recipient addresses in LMTP mode
+       --nn     Specify that the domain part of recipient addresses in LMTP mode
               should not be stripped.
 
        Individual  mail messages in the mailbox are delimited by an empty line
@@ -63,34 +63,34 @@ MAIL.LOCAL(8)                                                    MAIL.LOCAL(8)
        line (that is, a line beginning with the five characters ``From '' fol-
        lowing a blank line).
 
-       The mail files are exclusively  locked  with  flock(2)  while  mail  is
-       appended,  and  a  [1muser.lock  [22mfile also is created while the mailbox is
+       The mail files are exclusively locked with flock(2) while mail  is  ap-
+       pended,  and  a  uusseerr..lloocckk  file  also  is created while the mailbox is
        locked for compatibility with older MUAs.
 
        If the ``biff'' service  is  returned  by  getservbyname(3),  the  biff
        server is notified of delivered mail.
 
-       The [1mmail.local [22mutility exits 0 on success, and >0 if an error occurs.
+       The mmaaiill..llooccaall utility exits 0 on success, and >0 if an error occurs.
 
-[1mENVIRONMENT[0m
+EENNVVIIRROONNMMEENNTT
        TZ     Used to set the appropriate time zone on the timestamp.
 
-[1mFILES[0m
+FFIILLEESS
        /tmp/local.XXXXXX     temporary files
        /var/mail/user        user's default mailbox directory
        /var/mail/user.lock   lock file for a user's default mailbox
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        mail(1), xsend(1), flock(2), getservbyname(3), comsat(8), sendmail(8)
 
-[1mWARNING[0m
-       [1mmail.local  [22mescapes  only "^From " lines that follow an empty line.  If
+WWAARRNNIINNGG
+       mmaaiill..llooccaall  escapes  only "^From " lines that follow an empty line.  If
        all lines starting with "From " should be escaped, use the 'E' flag for
        the local mailer in the sendmail.cf file.
 
-[1mHISTORY[0m
-       A  superset  of  [1mmail.local  [22m(handling  mailbox reading as well as mail
-       delivery) appeared in Version 7 AT&T UNIX as the program [1mmail[22m.
+HHIISSTTOORRYY
+       A  superset of mmaaiill..llooccaall (handling mailbox reading as well as mail de-
+       livery) appeared in Version 7 AT&T UNIX as the program mmaaiill.
 
 
 

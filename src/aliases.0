@@ -1,46 +1,46 @@
-ALIASES(5)                                                          ALIASES(5)
+ALIASES(5)                    File Formats Manual                   ALIASES(5)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        aliases - aliases file for sendmail
 
-[1mSYNOPSIS[0m
-       [1maliases[0m
+SSYYNNOOPPSSIISS
+       aalliiaasseess
 
-[1mDESCRIPTION[0m
+DDEESSCCRRIIPPTTIIOONN
        This file describes user ID aliases used by sendmail.  The file resides
        in /etc/mail and is formatted as a series of lines of the form
 
               name: addr_1, addr_2, addr_3, . . .
 
-       The [4mname[24m is the name to alias, and the [4maddr_n[24m are the aliases for  that
-       name.  [4maddr_n[24m can be another alias, a local username, a local filename,
+       The _n_a_m_e is the name to alias, and the _a_d_d_r___n are the aliases for  that
+       name.  _a_d_d_r___n can be another alias, a local username, a local filename,
        a command, an include file, or an external address.
 
-       [1mLocal Username[0m
+       LLooccaall UUsseerrnnaammee
               username
 
               The username must be available via getpwnam(3).
 
-       [1mLocal Filename[0m
+       LLooccaall FFiilleennaammee
               /path/name
 
               Messages are appended to the file specified by the full pathname
               (starting with a slash (/))
 
-       [1mCommand[0m
+       CCoommmmaanndd
               |command
 
               A  command  starts  with a pipe symbol (|), it receives messages
               via standard input.
 
-       [1mInclude File[0m
+       IInncclluuddee FFiillee
               :include: /path/name
 
-              The aliases in pathname are added to the aliases for [4mname.[0m
+              The aliases in pathname are added to the aliases for _n_a_m_e_.
 
-       [1mE-Mail Address[0m
+       EE--MMaaiill AAddddrreessss
               user@domain
 
               An e-mail address in RFC 822 format.
@@ -52,11 +52,11 @@ ALIASES(5)                                                          ALIASES(5)
        Aliasing occurs only on local names.  Loops can  not  occur,  since  no
        message will be sent to any person more than once.
 
-       If  an  alias  is found for [4mname[24m, sendmail then checks for an alias for
-       [4mowner-name[24m.  If it is found and the result of the lookup expands  to  a
+       If  an  alias  is found for _n_a_m_e, sendmail then checks for an alias for
+       _o_w_n_e_r_-_n_a_m_e.  If it is found and the result of the lookup expands  to  a
        single address, the envelope sender address of the message is rewritten
        to that address.  If it is found and the result expands  to  more  than
-       one address, the envelope sender address is changed to [4mowner-name[24m.
+       one address, the envelope sender address is changed to _o_w_n_e_r_-_n_a_m_e.
 
        After  aliasing  has  been  done, local and valid recipients who have a
        ``.forward'' file in their home directory have  messages  forwarded  to
@@ -67,22 +67,22 @@ ALIASES(5)                                                          ALIASES(5)
        program  newaliases(1).   A  newaliases command should be executed each
        time the aliases file is changed for the change to take effect.
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        newaliases(1), dbm(3), dbopen(3), db_open(3), sendmail(8)
 
-       [4mSENDMAIL[24m [4mInstallation[24m [4mand[24m [4mOperation[24m [4mGuide.[0m
+       _S_E_N_D_M_A_I_L _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e_.
 
-       [4mSENDMAIL[24m [4mAn[24m [4mInternetwork[24m [4mMail[24m [4mRouter.[0m
+       _S_E_N_D_M_A_I_L _A_n _I_n_t_e_r_n_e_t_w_o_r_k _M_a_i_l _R_o_u_t_e_r_.
 
-[1mBUGS[0m
+BBUUGGSS
        If you have compiled sendmail with DBM support instead  of  NEWDB,  you
        may  have  encountered problems in dbm(3) restricting a single alias to
        about 1000 bytes  of  information.   You  can  get  longer  aliases  by
        ``chaining'';  that is, make the last name in the alias be a dummy name
        which is a continuation alias.
 
-[1mHISTORY[0m
-       The [1maliases [22mfile format appeared in 4.0BSD.
+HHIISSTTOORRYY
+       The aalliiaasseess file format appeared in 4.0BSD.
 
 
 

@@ -1,61 +1,64 @@
-EDITMAP(8)                                                          EDITMAP(8)
+EDITMAP(8)                  System Manager's Manual                 EDITMAP(8)
 
 
 
-[1mNAME[0m
-       [1meditmap [22m- query and edit single records in database maps for sendmail
+NNAAMMEE
+       eeddiittmmaapp - query and edit single records in database maps for sendmail
 
-[1mSYNOPSIS[0m
-       [1meditmap  [22m[[1m-C  [4m[22mfile[24m]  [[1m-N[22m]  [[1m-f[22m] [[1m-q|-u|-x[22m] maptype mapname key [ "value
+SSYYNNOOPPSSIISS
+       eeddiittmmaapp  [--CC  _f_i_l_e]  [--NN]  [--ff] [--qq||--uu||--xx] maptype mapname key [ "value
        ..." ]
 
-[1mDESCRIPTION[0m
-       [1mEditmap [22mqueries or edits one record in database maps used by the  keyed
+DDEESSCCRRIIPPTTIIOONN
+       EEddiittmmaapp queries or edits one record in database maps used by the  keyed
        map  lookups  in sendmail(8).  Arguments are passed on the command line
        and output (for queries) is directed to standard output.
 
-       Depending on how it is compiled, [1meditmap [22mhandles up to three  different
-       database formats, selected using the [4mmaptype[24m parameter.  They may be
+       Depending on how it is compiled,  eeddiittmmaapp  handles  different  database
+       formats, selected using the _m_a_p_t_y_p_e parameter.  They may be
 
        dbm    DBM format maps.  This requires the ndbm(3) library.
 
-       btree  B-Tree  format maps.  This requires the new Berkeley DB library.
+       btree  B-Tree format maps.  This requires the new Berkeley DB library.
 
        hash   Hash format maps.  This also requires the Berkeley DB library.
 
-       If the [4mTrustedUser[24m option is set in the sendmail configuration file and
-       [1meditmap  [22mis  invoked  as root, the generated files will be owned by the
-       specified [4mTrustedUser.[0m
+       cdb    CDB  (Constant DataBase) format maps.  This requires the tinycdb
+              library.
 
-   [1mFlags[0m
-       [1m-C     [22mUse the specified [1msendmail [22mconfiguration file for looking up the
+       If the _T_r_u_s_t_e_d_U_s_e_r option is set in the sendmail configuration file and
+       eeddiittmmaapp  is  invoked  as root, the generated files will be owned by the
+       specified _T_r_u_s_t_e_d_U_s_e_r_.
+
+   FFllaaggss
+       --CC     Use the specified sseennddmmaaiill configuration file for looking up the
               TrustedUser option.
 
-       [1m-N     [22mInclude  the  null  byte that terminates strings in the map (for
+       --NN     Include  the  null  byte that terminates strings in the map (for
               alias maps).
 
-       [1m-f     [22mNormally all upper case letters in the key are folded  to  lower
+       --ff     Normally all upper case letters in the key are folded  to  lower
               case.   This  flag disables that behaviour.  This is intended to
-              mesh with the -f flag in the [1mK [22mline in sendmail.cf.   The  value
+              mesh with the -f flag in the KK line in sendmail.cf.   The  value
               is never case folded.
 
-       [1m-q     [22mQuery  the  map for the specified key.  If found, print value to
-              standard output and exit with 0.  If not  found  then  print  an
-              error message to stdout and exit with EX_UNAVAILABLE.
+       --qq     Query  the  map for the specified key.  If found, print value to
+              standard output and exit with 0.  If not found then print an er-
+              ror message to stdout and exit with EX_UNAVAILABLE.
 
-       [1m-u     [22mUpdate  the record for [4mkey[24m with [4mvalue[24m or inserts a new record if
+       --uu     Update  the record for _k_e_y with _v_a_l_u_e or inserts a new record if
               one doesn't exist.  Exits with 0 on success or EX_IOERR on fail-
               ure.
 
-       [1m-x     [22mDeletes  the specific key from the map.  Exits with 0 on success
+       --xx     Deletes  the specific key from the map.  Exits with 0 on success
               or EX_IOERR on failure.
 
 
-       [1mSEE ALSO[0m
+       SSEEEE AALLSSOO
               sendmail(8), makemap(8)
 
-[1mHISTORY[0m
-       The [1meditmap [22mcommand has no history.
+HHIISSTTOORRYY
+       The eeddiittmmaapp command has no history.
 
 
 

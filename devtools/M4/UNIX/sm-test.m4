@@ -7,7 +7,7 @@ divert(-1)
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	Compile/run a test program for libsm.
+#	Compile/run a test program.
 #
 #	$Id: sm-test.m4,v 1.8 2013-11-22 20:51:23 ca Exp $
 #

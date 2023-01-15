@@ -1,101 +1,100 @@
-MAKEMAP(8)                                                          MAKEMAP(8)
+MAKEMAP(8)                  System Manager's Manual                 MAKEMAP(8)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        makemap - create database maps for sendmail
 
-[1mSYNOPSIS[0m
-       [1mmakemap  [22m[[1m-C  [4m[22mfile[24m] [[1m-N[22m] [[1m-c [4m[22mcachesize[24m] [[1m-d[22m] [[1m-D [4m[22mcommentchar[24m] [[1m-e[22m] [[1m-f[22m]
-       [[1m-l[22m] [[1m-o[22m] [[1m-r[22m] [[1m-s[22m] [[1m-t [4m[22mdelim[24m] [[1m-u[22m] [[1m-v[22m] [4mmaptype[24m [4mmapnam[0m
+SSYYNNOOPPSSIISS
+       mmaakkeemmaapp  [--CC  _f_i_l_e] [--NN] [--cc _c_a_c_h_e_s_i_z_e] [--dd] [--DD _c_o_m_m_e_n_t_c_h_a_r] [--ee] [--ff]
+       [--ll] [--oo] [--rr] [--ss] [--tt _d_e_l_i_m] [--uu] [--vv] _m_a_p_t_y_p_e _m_a_p_n_a_m
 
-[1mDESCRIPTION[0m
-       [1mMakemap [22mcreates the database maps used by  the  keyed  map  lookups  in
+DDEESSCCRRIIPPTTIIOONN
+       MMaakkeemmaapp creates the database maps used by  the  keyed  map  lookups  in
        sendmail(8).   It  reads input from the standard input and outputs them
-       to the indicated [4mmapname.[0m
+       to the indicated _m_a_p_n_a_m_e_.
 
-       Depending on how it is compiled,  [1mmakemap  [22mhandles  different  database
-       formats, selected using the [4mmaptype[24m parameter.  They may be
+       Depending on how it is compiled,  mmaakkeemmaapp  handles  different  database
+       formats, selected using the _m_a_p_t_y_p_e parameter.  They may be
 
        dbm    DBM format maps.  This requires the ndbm(3) library.
 
-       btree  B-Tree  format maps.  This requires the new Berkeley DB library.
+       btree  B-Tree format maps.  This requires the new Berkeley DB library.
 
        hash   Hash format maps.  This also requires the Berkeley DB library.
 
-       cdb    CDB (Constant DataBase) format maps.  This requires the  tinycdb
+       cdb    CDB  (Constant DataBase) format maps.  This requires the tinycdb
               library.
 
        implicit
-              The  first  available  format in the following order: hash, dbm,
+              The first available format in the following  order:  hash,  dbm,
               and cdb.
 
-       In all cases, [1mmakemap [22mreads lines from the standard input consisting of
+       In all cases, mmaakkeemmaapp reads lines from the standard input consisting of
        two words separated by white space.  The first is the database key, the
-       second is the value.  The value may contain ``%[4mn[24m'' strings to  indicate
-       parameter  substitution.   Literal percents should be doubled (``%%'').
+       second  is the value.  The value may contain ``%_n'' strings to indicate
+       parameter substitution.  Literal percents should be  doubled  (``%%'').
        Blank lines and lines beginning with ``#'' are ignored.
 
-       Notice: do [1mnot [22muse  [1mmakemap  [22mto  create  the  aliases  data  base,  but
-       [1mnewaliases  [22mwhich  puts  a  special  token  into  the data base that is
-       required by [1msendmail.[0m
+       Notice:  do  nnoott  use  mmaakkeemmaapp  to  create  the  aliases data base, but
+       nneewwaalliiaasseess which puts a special token into the data base  that  is  re-
+       quired by sseennddmmaaiill..
 
-       If the [4mTrustedUser[24m option is set in the sendmail configuration file and
-       [1mmakemap  [22mis  invoked  as root, the generated files will be owned by the
-       specified [4mTrustedUser.[0m
+       If the _T_r_u_s_t_e_d_U_s_e_r option is set in the sendmail configuration file and
+       mmaakkeemmaapp is invoked as root, the generated files will be  owned  by  the
+       specified _T_r_u_s_t_e_d_U_s_e_r_.
 
-   [1mFlags[0m
-       [1m-C     [22mUse the specified [1msendmail [22mconfiguration file for looking up the
+   FFllaaggss
+       --CC     Use the specified sseennddmmaaiill configuration file for looking up the
               TrustedUser option.
 
-       [1m-N     [22mInclude  the null byte that terminates strings in the map.  This
+       --NN     Include the null byte that terminates strings in the map.   This
               must match the -N flag in the sendmail.cf ``K'' line.
 
-       [1m-c     [22mUse the specified hash and B-Tree cache size.
+       --cc     Use the specified hash and B-Tree cache size.
 
-       [1m-D     [22mUse to specify the character to use to indicate a comment (which
+       --DD     Use to specify the character to use to indicate a comment (which
               is ignored) instead of the default of '#'.
 
-       [1m-d     [22mAllow duplicate keys in the map.  This is only allowed on B-Tree
-              format maps.  If two identical keys are read, they will both  be
+       --dd     Allow duplicate keys in the map.  This is only allowed on B-Tree
+              format  maps.  If two identical keys are read, they will both be
               inserted into the map.
 
-       [1m-e     [22mAllow empty value (right hand side).
+       --ee     Allow empty value (right hand side).
 
-       [1m-f     [22mNormally  all  upper case letters in the key are folded to lower
-              case.  This flag disables that behaviour.  This is  intended  to
-              mesh  with  the -f flag in the [1mK [22mline in sendmail.cf.  The value
+       --ff     Normally all upper case letters in the key are folded  to  lower
+              case.   This  flag disables that behaviour.  This is intended to
+              mesh with the -f flag in the KK line in sendmail.cf.   The  value
               is never case folded.
 
-       [1m-l     [22mList supported map types.
+       --ll     List supported map types.
 
-       [1m-o     [22mAppend to an old file.  This allows you to augment  an  existing
-              file.   Note: this might not be supported by all database types,
+       --oo     Append  to  an old file.  This allows you to augment an existing
+              file.  Note: this might not be supported by all database  types,
               e.g., cdb.
 
-       [1m-r     [22mAllow replacement of existing keys.  Normally [1mmakemap  [22mcomplains
+       --rr     Allow  replacement of existing keys.  Normally mmaakkeemmaapp complains
               if you repeat a key, and does not do the insert.
 
-       [1m-s     [22mIgnore  safety  checks  on  maps  being  created.  This includes
-              checking for hard or symbolic links in world  writable  directo-
+       --ss     Ignore safety checks  on  maps  being  created.   This  includes
+              checking  for  hard or symbolic links in world writable directo-
               ries.
 
-       [1m-t     [22mUse  the  specified  delimiter  instead of white space (also for
+       --tt     Use the specified delimiter instead of  white  space  (also  for
               dumping a map).
 
-       [1m-u     [22mdump (unmap) the content of the database to standard output.
+       --uu     dump (unmap) the content of the database to standard output.
 
-       [1m-v     [22mVerbosely print what it is doing.
+       --vv     Verbosely print what it is doing.
 
-
-[1mExample[0m
+EExxaammppllee
        makemap hash /etc/mail/access < /etc/mail/access
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        sendmail(8), newaliases(1)
 
-[1mHISTORY[0m
-       The [1mmakemap [22mcommand appeared in 4.4BSD.
+HHIISSTTOORRYY
+       The mmaakkeemmaapp command appeared in 4.4BSD.
 
 
 

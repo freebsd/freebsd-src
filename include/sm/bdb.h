@@ -37,9 +37,9 @@
 #  define DBTXN
 #  if !HASFLOCK && defined(DB_FCNTL_LOCKING)
 #   define SM_DB_FLAG_ADD(flag)	(flag) |= DB_FCNTL_LOCKING
-#  else /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
+#  else
 #   define SM_DB_FLAG_ADD(flag)	((void) 0)
-#  endif /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
+#  endif
 
 # endif /* (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 1) || DB_VERSION_MAJOR >= 5 */
 #endif /* NEWDB */

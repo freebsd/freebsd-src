@@ -16,6 +16,9 @@ SM_RCSID("@(#)$Id: milter.c,v 8.281 2013-11-22 20:51:56 ca Exp $")
 # include <sm/sendmail.h>
 # include <libmilter/mfapi.h>
 # include <libmilter/mfdef.h>
+# if _FFR_8BITENVADDR
+#  include <sm/ixlen.h>
+# endif
 
 # include <errno.h>
 # include <sm/time.h>
@@ -175,11 +178,7 @@ static size_t MilterMaxDataSize = MILTER_MAX_DATA_SIZE;
 		sm_syslog(LOG_ERR, e->e_id, msg, dfname, sm_errstring(save_errno)); \
 	if (SuperSafe == SAFE_REALLY) \
 	{ \
-		if (e->e_dfp != NULL) \
-		{ \
-			(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT); \
-			e->e_dfp = NULL; \
-		} \
+		SM_CLOSE_FP(e->e_dfp);	\
 		e->e_flags &= ~EF_HAS_DF; \
 	} \
 	errno = save_errno; \
@@ -537,8 +536,9 @@ milter_write(m, cmd, buf, len, to, e, where)
 	{
 		if (tTd(64, 5))
 		{
-			sm_dprintf("milter_write(%s): length %ld out of range, cmd=%c\n",
-				m->mf_name, (long) len, command);
+			sm_dprintf("milter_write(%s): length %ld out of range, mds=%ld, cmd=%c\n",
+				m->mf_name, (long) len,
+				(long) MilterMaxDataSize, command);
 			sm_dprintf("milter_write(%s): buf=%s\n",
 				m->mf_name, str2prt(buf));
 		}
@@ -661,7 +661,7 @@ milter_open(m, parseonly, e)
 	struct hostent *hp = NULL;
 	SOCKADDR addr;
 
-	if (m->mf_conn == NULL || m->mf_conn[0] == '\0')
+	if (SM_IS_EMPTY(m->mf_conn))
 	{
 		if (tTd(64, 5))
 			sm_dprintf("X%s: empty or missing socket information\n",
@@ -711,16 +711,16 @@ milter_open(m, parseonly, e)
 # endif /* NETUNIX */
 		}
 # if NETUNIX
-		else if (sm_strcasecmp(p, "unix") == 0 ||
-			 sm_strcasecmp(p, "local") == 0)
+		else if (SM_STRCASEEQ(p, "unix") ||
+			 SM_STRCASEEQ(p, "local"))
 			addr.sa.sa_family = AF_UNIX;
 # endif
 # if NETINET
-		else if (sm_strcasecmp(p, "inet") == 0)
+		else if (SM_STRCASEEQ(p, "inet"))
 			addr.sa.sa_family = AF_INET;
 # endif
 # if NETINET6
-		else if (sm_strcasecmp(p, "inet6") == 0)
+		else if (SM_STRCASEEQ(p, "inet6"))
 			addr.sa.sa_family = AF_INET6;
 # endif
 		else
@@ -1249,11 +1249,11 @@ milter_setup(line)
 	m->mf_timeout[SMFTO_WRITE] = (time_t) 10;
 	m->mf_timeout[SMFTO_READ] = (time_t) 10;
 	m->mf_timeout[SMFTO_EOM] = (time_t) 300;
-#if _FFR_MILTER_CHECK
+# if _FFR_MILTER_CHECK
 	m->mf_mta_prot_version = SMFI_PROT_VERSION;
 	m->mf_mta_prot_flags = SMFI_CURR_PROT;
 	m->mf_mta_actions = SMFI_CURR_ACTS;
-#endif /* _FFR_MILTER_CHECK */
+# endif /* _FFR_MILTER_CHECK */
 
 	/* now scan through and assign info from the fields */
 	while (*p != '\0')
@@ -1271,6 +1271,8 @@ milter_setup(line)
 		if (*p++ != '=')
 		{
 			syserr("X%s: `=' expected", m->mf_name);
+			/* this should not be reached, but just in case */
+			SM_FREE(m);
 			return;
 		}
 		while (SM_ISSPACE(*p))
@@ -1301,7 +1303,7 @@ milter_setup(line)
 			milter_parse_timeouts(p, m);
 			break;
 
-#if _FFR_MILTER_CHECK
+# if _FFR_MILTER_CHECK
 		  case 'a':
 			m->mf_mta_actions = strtoul(p, NULL, 0);
 			break;
@@ -1311,7 +1313,7 @@ milter_setup(line)
 		  case 'v':
 			m->mf_mta_prot_version = strtoul(p, NULL, 0);
 			break;
-#endif /* _FFR_MILTER_CHECK */
+# endif /* _FFR_MILTER_CHECK */
 
 		  default:
 			syserr("X%s: unknown filter equate %c=",
@@ -1601,7 +1603,7 @@ milter_set_option(name, val, sticky)
 
 	for (mo = MilterOptTab; mo->mo_name != NULL; mo++)
 	{
-		if (sm_strcasecmp(mo->mo_name, name) == 0)
+		if (SM_STRCASEEQ(mo->mo_name, name))
 			break;
 	}
 
@@ -1710,7 +1712,7 @@ milter_reopen_df(e)
 		/* close read-only data file */
 		if (bitset(EF_HAS_DF, e->e_flags) && e->e_dfp != NULL)
 		{
-			(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT);
+			SM_CLOSE_FP(e->e_dfp);
 			e->e_flags &= ~EF_HAS_DF;
 		}
 
@@ -1891,7 +1893,7 @@ milter_send_macros(m, macros, cmd, e)
 	ssize_t s;
 
 	/* sanity check */
-	if (macros == NULL || macros[0] == NULL)
+	if (NULL == macros || NULL == macros[0])
 		return;
 
 	/* put together data */
@@ -1905,7 +1907,13 @@ milter_send_macros(m, macros, cmd, e)
 		if (v == NULL)
 			continue;
 		expand(v, exp, sizeof(exp), e);
-		s += strlen(macros[i]) + 1 + strlen(exp) + 1;
+		s += strlen(macros[i]) + 1 +
+# if _FFR_8BITENVADDR
+			ilenx(exp)
+# else
+			strlen(exp)
+# endif
+			+ 1;
 	}
 
 	if (s < 0)
@@ -1923,6 +1931,9 @@ milter_send_macros(m, macros, cmd, e)
 		if (v == NULL)
 			continue;
 		expand(v, exp, sizeof(exp), e);
+# if _FFR_8BITENVADDR
+		dequote_internal_chars(exp, exp, sizeof(exp));
+# endif
 
 		if (tTd(64, 10))
 			sm_dprintf("milter_send_macros(%s, %c): %s=%s\n",
@@ -2385,21 +2396,21 @@ milter_negotiate(m, e, milters)
 		return -1;
 	}
 
-#if _FFR_MILTER_CHECK
+# if _FFR_MILTER_CHECK
 	mta_prot_vers = m->mf_mta_prot_version;
 	mta_prot_flags = m->mf_mta_prot_flags;
 	mta_actions = m->mf_mta_actions;
-#else /* _FFR_MILTER_CHECK */
+# else /* _FFR_MILTER_CHECK */
 	mta_prot_vers = SMFI_PROT_VERSION;
 	mta_prot_flags = SMFI_CURR_PROT;
 	mta_actions = SMFI_CURR_ACTS;
-#endif /* _FFR_MILTER_CHECK */
-#if _FFR_MDS_NEGOTIATE
+# endif /* _FFR_MILTER_CHECK */
+# if _FFR_MDS_NEGOTIATE
 	if (MilterMaxDataSize == MILTER_MDS_256K)
 		mta_prot_flags |= SMFIP_MDS_256K;
 	else if (MilterMaxDataSize == MILTER_MDS_1M)
 		mta_prot_flags |= SMFIP_MDS_1M;
-#endif /* _FFR_MDS_NEGOTIATE */
+# endif /* _FFR_MDS_NEGOTIATE */
 
 	fvers = htonl(mta_prot_vers);
 	pflags = htonl(mta_prot_flags);
@@ -2424,7 +2435,10 @@ milter_negotiate(m, e, milters)
 	response = milter_read(m, &rcmd, &rlen, m->mf_timeout[SMFTO_READ], e,
 				"negotiate");
 	if (m->mf_state == SMFS_ERROR)
+	{
+		SM_FREE(response);
 		return -1;
+	}
 
 	if (rcmd != SMFIC_OPTNEG)
 	{
@@ -2513,8 +2527,8 @@ milter_negotiate(m, e, milters)
 		goto error;
 	}
 
-#if _FFR_MDS_NEGOTIATE
-#define MDSWARNING(sz) \
+# if _FFR_MDS_NEGOTIATE
+#  define MDSWARNING(sz) \
 	do	\
 	{	\
 		sm_syslog(LOG_WARNING, NOQID,	\
@@ -2545,7 +2559,7 @@ milter_negotiate(m, e, milters)
 	else if (MilterMaxDataSize != MILTER_MDS_64K)
 		MDSWARNING(MILTER_MDS_64K);
 	m->mf_pflags &= ~SMFI_INTERNAL;
-#endif /* _FFR_MDS_NEGOTIATE */
+# endif /* _FFR_MDS_NEGOTIATE */
 
 	/* check for protocol feature mismatch */
 	if ((m->mf_pflags & mta_prot_flags) != m->mf_pflags)
@@ -2785,10 +2799,10 @@ milter_body(m, e, state)
 		/*  Change LF to CRLF */
 		if (c == '\n')
 		{
-#if !_FFR_MILTER_CONVERT_ALL_LF_TO_CRLF
+# if !_FFR_MILTER_CONVERT_ALL_LF_TO_CRLF
 			/* Not a CRLF already? */
 			if (prevchar != '\r')
-#endif
+# endif
 			{
 				/* Room for CR now? */
 				if (bp + 2 > &buf[sizeof(buf)])
@@ -2973,14 +2987,14 @@ milter_addheader(m, response, rlen, e)
 
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
-		if (sm_strcasecmp(h->h_field, response) == 0 &&
+		if (SM_STRCASEEQ(h->h_field, response) &&
 		    !bitset(H_USER, h->h_flags) &&
 		    !bitset(H_TRACE, h->h_flags))
 			break;
 	}
 
 	mh_v_len = 0;
-	mh_value = quote_internal_chars(val, NULL, &mh_v_len);
+	mh_value = quote_internal_chars(val, NULL, &mh_v_len, NULL);
 
 	/* add to e_msgsize */
 	e->e_msgsize += strlen(response) + 2 + strlen(val);
@@ -2995,7 +3009,7 @@ milter_addheader(m, response, rlen, e)
 				  "Milter (%s) change: default header %s value with %s",
 				  m->mf_name, h->h_field, mh_value);
 		if (bitset(SMFIP_HDR_LEADSPC, m->mf_pflags))
-			h->h_value = mh_value;
+			h->h_value = mh_value;	/* XXX must be allocated from rpool? */
 		else
 		{
 			h->h_value = addleadingspace(mh_value, e->e_rpool);
@@ -3096,7 +3110,7 @@ milter_insheader(m, response, rlen, e)
 			  "Milter (%s) insert (%d): header: %s: %s",
 			   m->mf_name, idx, field, val);
 	mh_v_len = 0;
-	mh_value = quote_internal_chars(val, NULL, &mh_v_len);
+	mh_value = quote_internal_chars(val, NULL, &mh_v_len, NULL);
 	insheader(idx, newstr(field), mh_value, H_USER, e,
 		!bitset(SMFIP_HDR_LEADSPC, m->mf_pflags));
 	SM_FREE(mh_value);
@@ -3168,12 +3182,12 @@ milter_changeheader(m, response, rlen, e)
 	}
 
 	mh_v_len = 0;
-	mh_value = quote_internal_chars(val, NULL, &mh_v_len);
+	mh_value = quote_internal_chars(val, NULL, &mh_v_len, NULL);
 
 	sysheader = NULL;
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
-		if (sm_strcasecmp(h->h_field, field) == 0)
+		if (SM_STRCASEEQ(h->h_field, field))
 		{
 			if (bitset(H_USER, h->h_flags) && --index <= 0)
 			{
@@ -3300,7 +3314,7 @@ milter_changeheader(m, response, rlen, e)
 	else
 	{
 		if (bitset(SMFIP_HDR_LEADSPC, m->mf_pflags))
-			h->h_value = mh_value;
+			h->h_value = mh_value;	/* XXX must be allocated from rpool? */
 		else
 		{
 			h->h_value = addleadingspace(mh_value, e->e_rpool);
@@ -3515,6 +3529,7 @@ milter_addrcpt_par(response, rlen, e, mname)
 	olderrors = Errors;
 
 	/* how to set ESMTP arguments? */
+/* XXX argv[0] must be [i] */
 	a = parseaddr(argv[0], NULLADDR, RF_COPYALL, ' ', &delimptr, e, true);
 
 	if (a != NULL && olderrors == Errors)
@@ -3998,7 +4013,7 @@ milter_connect(hostname, addr, e, state)
 	else
 		milter_per_connection_check(e);
 
-#if !_FFR_MILTER_CONNECT_REPLYCODE
+# if !_FFR_MILTER_CONNECT_REPLYCODE
 	/*
 	**  SMFIR_REPLYCODE can't work with connect due to
 	**  the requirements of SMTP.  Therefore, ignore the
@@ -4023,7 +4038,7 @@ milter_connect(hostname, addr, e, state)
 			response = NULL;
 		}
 	}
-#endif /* !_FFR_MILTER_CONNECT_REPLYCODE */
+# endif /* !_FFR_MILTER_CONNECT_REPLYCODE */
 	return response;
 }
 
@@ -4683,8 +4698,7 @@ finishup:
 
 		if (dfopen)
 		{
-			(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT);
-			e->e_dfp = NULL;
+			SM_CLOSE_FP(e->e_dfp);
 			e->e_flags &= ~EF_HAS_DF;
 			dfopen = false;
 		}

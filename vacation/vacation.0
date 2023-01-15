@@ -1,21 +1,21 @@
-VACATION(1)                                                        VACATION(1)
+VACATION(1)                 General Commands Manual                VACATION(1)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        vacation - E-mail auto-responder
 
-[1mSYNOPSIS[0m
-       [1mvacation  [22m[[1m-a [4m[22malias[24m] [[1m-C [4m[22mcffile[24m] [[1m-d[22m] [[1m-f [4m[22mdatabase[24m] [[1m-i[22m] [[1m-I[22m] [[1m-j[22m] [[1m-l[22m]
-       [[1m-m [4m[22mmessage[24m] [[1m-R [4m[22mreturnaddr[24m] [[1m-r [4m[22minterval[24m] [[1m-s [4m[22maddress[24m] [[1m-t [4m[22mtime[24m]  [[1m-U[22m]
-       [[1m-x[22m] [[1m-z[22m] [4mlogin[0m
+SSYYNNOOPPSSIISS
+       vvaaccaattiioonn  [--aa _a_l_i_a_s] [--CC _c_f_f_i_l_e] [--dd] [--ff _d_a_t_a_b_a_s_e] [--ii] [--II] [--jj] [--ll]
+       [--mm _m_e_s_s_a_g_e] [--RR _r_e_t_u_r_n_a_d_d_r] [--rr _i_n_t_e_r_v_a_l] [--ss _a_d_d_r_e_s_s] [--tt _t_i_m_e]  [--UU]
+       [--xx] [--zz] _l_o_g_i_n
 
-[1mDESCRIPTION[0m
-       [1mVacation  [22mreturns  a message, [4m~/.vacation.msg[24m by default, to the sender
+DDEESSCCRRIIPPTTIIOONN
+       VVaaccaattiioonn  returns  a message, _~_/_._v_a_c_a_t_i_o_n_._m_s_g by default, to the sender
        informing them that you are currently not reading your mail.  The  mes-
-       sage  is  only  sent  to  each  sender  once per reply interval (see [1m-r[0m
-       below).  The intended use is in a [4m.forward[24m  file.   For  example,  your
-       [4m.forward[24m file might have:
+       sage  is  only  sent to each sender once per reply interval (see --rr be-
+       low).  The intended use is in a _._f_o_r_w_a_r_d file.  For example, your _._f_o_r_-
+       _w_a_r_d file might have:
 
               \eric, "|/usr/bin/vacation -a allman eric"
 
@@ -24,90 +24,90 @@ VACATION(1)                                                        VACATION(1)
 
        Available options:
 
-       [1m-a [4m[22malias[0m
-              Handle messages for [4malias[24m in the same manner as  those  received
+       --aa _a_l_i_a_s
+              Handle messages for _a_l_i_a_s in the same manner as  those  received
               for the user's login name.
 
-       [1m-C [4m[22mcfpath[0m
-              Specify  pathname  of  the  sendmail  configuration  file.  This
-              option is ignored if [1m-U [22mis specified.  This option  defaults  to
-              the   standard   sendmail   configuration   file,   located   at
-              /etc/mail/sendmail.cf on most systems.
+       --CC _c_f_p_a_t_h
+              Specify  pathname  of the sendmail configuration file.  This op-
+              tion is ignored if --UU is specified.  This option defaults to the
+              standard sendmail configuration file, located at /etc/mail/send-
+              mail.cf on most systems.
 
-       [1m-d     [22mSend error/debug messages to stderr instead of  syslog.   Other-
-              wise,  fatal  errors,  such  as  calling [1mvacation [22mwith incorrect
-              arguments, or with non-existent [4mlogin[24ms, are logged in the system
+       --dd     Send error/debug messages to stderr instead of  syslog.   Other-
+              wise,  fatal errors, such as calling vvaaccaattiioonn with incorrect ar-
+              guments, or with non-existent _l_o_g_i_ns, are logged in  the  system
               log file, using syslog(8).  This should only be used on the com-
-              mand line, not in your [4m.forward[24m file.
+              mand line, not in your _._f_o_r_w_a_r_d file.
 
-       [1m-f [4m[22mfilename[0m
-              Use [4mfilename[24m as name of the database instead  of  [4m~/.vacation.db[0m
-              or  [4m~/.vacation.{dir,pag}[24m.  Unless the [4mfilename[24m starts with / it
+       --ff _f_i_l_e_n_a_m_e
+              Use _f_i_l_e_n_a_m_e as name of the database instead  of  _~_/_._v_a_c_a_t_i_o_n_._d_b
+              or  _~_/_._v_a_c_a_t_i_o_n_._{_d_i_r_,_p_a_g_}.  Unless the _f_i_l_e_n_a_m_e starts with / it
               is relative to ~.
 
-       [1m-i     [22mInitialize the vacation  database  files.   It  should  be  used
-              before  you modify your [4m.forward[24m file.  This should only be used
-              on the command line, not in your [4m.forward[24m file.
+       --ii     Initialize the vacation database files.  It should be  used  be-
+              fore you modify your _._f_o_r_w_a_r_d file.  This should only be used on
+              the command line, not in your _._f_o_r_w_a_r_d file.
 
-       [1m-I     [22mSame as [1m-i [22m(for backwards compatibility).  This should  only  be
-              used on the command line, not in your [4m.forward[24m file.
+       --II     Same as --ii (for backwards compatibility).  This should  only  be
+              used on the command line, not in your _._f_o_r_w_a_r_d file.
 
-       [1m-j     [22mRespond to the message regardless of whether the login is listed
+       --jj     Respond to the message regardless of whether the login is listed
               as a recipient for the message.  Do not use this flag unless you
               are  sure  of the consequences.  For example, this will cause to
               reply to mailing list messages which may result in removing  you
               from the list.
 
-       [1m-l     [22mList  the  content  of  the vacation database file including the
-              address and the associated time of  the  last  auto-response  to
-              that address.  This should only be used on the command line, not
-              in your [4m.forward[24m file.
+       --ll     List the content of the vacation database file including the ad-
+              dress and the associated time of the last auto-response to  that
+              address.   This  should only be used on the command line, not in
+              your _._f_o_r_w_a_r_d file.
 
-       [1m-m [4m[22mfilename[0m
-              Use [4mfilename[24m as name of the file containing the message to  send
-              instead  of  [4m~/.vacation.msg[24m.  Unless the [4mfilename[24m starts with /
+       --mm _f_i_l_e_n_a_m_e
+              Use _f_i_l_e_n_a_m_e as name of the file containing the message to  send
+              instead  of  _~_/_._v_a_c_a_t_i_o_n_._m_s_g.  Unless the _f_i_l_e_n_a_m_e starts with /
               it is relative to ~.
 
-       [1m-R [4m[22mreturnaddr[0m
+       --RR _r_e_t_u_r_n_a_d_d_r
               Set the reply envelope sender address
 
-       [1m-r [4m[22minterval[0m
-              Set the reply interval to [4minterval[24m days.   The  default  is  one
+       --rr _i_n_t_e_r_v_a_l
+              Set the reply interval to _i_n_t_e_r_v_a_l days.   The  default  is  one
               week.   An interval of ``0'' or ``infinite'' (actually, any non-
-              numeric character) will never send more than one reply.  The  [1m-r[0m
+              numeric character) will never send more than one reply.  The  --rr
               option  should  only  be used when the vacation database is ini-
-              tialized (see [1m-i [22mabove).
+              tialized (see --ii above).
 
-       [1m-s [4m[22maddress[0m
-              Use [4maddress[24m instead of the incoming message  sender  address  on
-              the [4mFrom[24m line as the recipient for the vacation message.
+       --ss _a_d_d_r_e_s_s
+              Use _a_d_d_r_e_s_s instead of the incoming message  sender  address  on
+              the _F_r_o_m line as the recipient for the vacation message.
 
-       [1m-t [4m[22mtime[0m
+       --tt _t_i_m_e
               Ignored,  available  only  for compatibility with Sun's vacation
               program.
 
-       [1m-U     [22mDo not attempt to lookup [4mlogin[24m in the password file.  The -f and
+       --UU     Do not attempt to lookup _l_o_g_i_n in the password file.  The -f and
               -m options must be used to specify the database and message file
               since there is no home directory for the  default  settings  for
               these options.
 
-       [1m-x     [22mReads  an  exclusion  list  from  stdin  (one address per line).
+       --xx     Reads  an  exclusion  list  from  stdin  (one address per line).
               Mails coming from an address in this exclusion list won't get  a
-              reply  by  [1mvacation[22m.  It is possible to exclude complete domains
+              reply  by  vvaaccaattiioonn.  It is possible to exclude complete domains
               by specifying ``@domain'' as  element  of  the  exclusion  list.
-              This  should only be used on the command line, not in your [4m.for-[0m
-              [4mward[24m file.
+              This  should only be used on the command line, not in your _._f_o_r_-
+              _w_a_r_d file.
 
-       [1m-z     [22mSet the sender of the vacation message to ``<>'' instead of  the
+       --zz     Set the sender of the vacation message to ``<>'' instead of  the
               user.   This  probably violates the RFCs since vacation messages
-              are not required  by  a  standards-track  RFC  to  have  a  null
-              reverse-path.
+              are not required by a standards-track RFC to  have  a  null  re-
+              verse-path.
 
-       [1mVacation  [22mreads  the  first  line  from  the  standard input for a UNIX
+       VVaaccaattiioonn  reads  the  first  line  from  the  standard input for a UNIX
        ``From'' line to  determine  the  sender.   Sendmail(8)  includes  this
        ``From'' line automatically.
 
-       No message will be sent unless [4mlogin[24m (or an [4malias[24m supplied using the [1m-a[0m
+       No message will be sent unless _l_o_g_i_n (or an _a_l_i_a_s supplied using the --aa
        option) is part of either the ``To:'' or ``Cc:'' headers of  the  mail.
        No   messages   from   ``???-REQUEST'',  ``???-RELAY'',  ``???-OWNER'',
        ``OWNER-???'', ``Postmaster'', ``UUCP'', ``MAILER'',  or  ``MAILER-DAE-
@@ -115,9 +115,9 @@ VACATION(1)                                                        VACATION(1)
        is a notification sent  if  a  ``Precedence:  bulk''  or  ``Precedence:
        junk''  line is included in the mail headers.  The people who have sent
        you messages are maintained as a db(3) or dbm(3) database in  the  file
-       [4m.vacation.db[24m or [4m.vacation.{dir,pag}[24m in your home directory.
+       _._v_a_c_a_t_i_o_n_._d_b or _._v_a_c_a_t_i_o_n_._{_d_i_r_,_p_a_g_} in your home directory.
 
-       [1mVacation [22mexpects a file [4m.vacation.msg[24m, in your home directory, contain-
+       VVaaccaattiioonn expects a file _._v_a_c_a_t_i_o_n_._m_s_g, in your home directory, contain-
        ing a message to be sent back to each sender.  It should be  an  entire
        message (including headers).  For example, it might contain:
 
@@ -130,7 +130,7 @@ VACATION(1)                                                        VACATION(1)
               please contact Keith Bostic <bostic@CS.Berkeley.EDU>.
               --eric
 
-[1mFILES[0m
+FFIILLEESS
        ~/.vacation.db    default database file for db(3)
 
        ~/.vacation.{dir,pag}
@@ -138,11 +138,11 @@ VACATION(1)                                                        VACATION(1)
 
        ~/.vacation.msg   default message to send
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        sendmail(8), syslog(8)
 
-[1mHISTORY[0m
-       The [1mvacation [22mcommand appeared in 4.3BSD.
+HHIISSTTOORRYY
+       The vvaaccaattiioonn command appeared in 4.3BSD.
 
 
 

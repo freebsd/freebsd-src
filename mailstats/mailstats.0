@@ -1,62 +1,62 @@
-MAILSTATS(8)                                                      MAILSTATS(8)
+MAILSTATS(8)                System Manager's Manual               MAILSTATS(8)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        mailstats - display mail statistics
 
-[1mSYNOPSIS[0m
-       [1mmailstats [22m[[1m-c[22m] [[1m-o[22m] [[1m-p[22m] [[1m-P[22m] [[1m-C [4m[22mcffile[24m] [[1m-f [4m[22mstfile[24m]
+SSYYNNOOPPSSIISS
+       mmaaiillssttaattss [--cc] [--oo] [--pp] [--PP] [--CC _c_f_f_i_l_e] [--ff _s_t_f_i_l_e]
 
-[1mDESCRIPTION[0m
-       The [1mmailstats [22mutility displays the current mail statistics.
+DDEESSCCRRIIPPTTIIOONN
+       The mmaaiillssttaattss utility displays the current mail statistics.
 
        First, the time at which statistics started being kept is displayed, in
        the format specified by ctime(3).  Then, the statistics for each mailer
        are  displayed  on  a  single line, each with the following white space
        separated fields:
 
-              [1mM           [22mThe mailer number.
-              [1mmsgsfr      [22mNumber of messages from the mailer.
-              [1mbytes_from  [22mKbytes from the mailer.
-              [1mmsgsto      [22mNumber of messages to the mailer.
-              [1mbytes_to    [22mKbytes to the mailer.
-              [1mmsgsrej     [22mNumber of messages rejected.
-              [1mmsgsdis     [22mNumber of messages discarded.
-              [1mmsgsqur     [22mNumber of messages quarantined.
-              [1mMailer      [22mThe name of the mailer.
+              MM           The mailer number.
+              mmssggssffrr      Number of messages from the mailer.
+              bbyytteess__ffrroomm  Kbytes from the mailer.
+              mmssggssttoo      Number of messages to the mailer.
+              bbyytteess__ttoo    Kbytes to the mailer.
+              mmssggssrreejj     Number of messages rejected.
+              mmssggssddiiss     Number of messages discarded.
+              mmssggssqquurr     Number of messages quarantined.
+              MMaaiilleerr      The name of the mailer.
 
        After this display, a line totaling the values for all of  the  mailers
-       is  displayed  (preceded  with  a  ``T''),  separated from the previous
-       information by  a  line  containing  only  equals  (``='')  characters.
-       Another line preceded with a ``C'' lists the number of TCP connections.
+       is  displayed  (preceded with a ``T''), separated from the previous in-
+       formation by a line containing only equals (``='') characters.  Another
+       line preceded with a ``C'' lists the number of TCP connections.
 
        The options are as follows:
 
-       [1m-C     [22mRead the specified file instead of the default [1msendmail [22mconfigu-
+       --CC     Read the specified file instead of the default sseennddmmaaiill configu-
               ration file.
 
-       [1m-c     [22mTry  to use submit.cf instead of the default [1msendmail [22mconfigura-
+       --cc     Try to use submit.cf instead of the default sseennddmmaaiill  configura-
               tion file.
 
-       [1m-f     [22mRead the specified statistics file  instead  of  the  statistics
-              file specified in the [1msendmail [22mconfiguration file.
+       --ff     Read  the  specified  statistics  file instead of the statistics
+              file specified in the sseennddmmaaiill configuration file.
 
-       [1m-P     [22mOutput  information  in  program-readable  mode without clearing
+       --PP     Output information in  program-readable  mode  without  clearing
               statistics.
 
-       [1m-p     [22mOutput information in program-readable mode  and  clear  statis-
+       --pp     Output  information  in  program-readable mode and clear statis-
               tics.
 
-       [1m-o     [22mDon't display the name of the mailer in the output.
+       --oo     Don't display the name of the mailer in the output.
 
-       The [1mmailstats [22mutility exits 0 on success, and >0 if an error occurs.
+       The mmaaiillssttaattss utility exits 0 on success, and >0 if an error occurs.
 
-[1mFILES[0m
-       /etc/mail/sendmail.cf    The default [1msendmail [22mconfiguration file.
-       /etc/mail/statistics     The default [1msendmail [22mstatistics file.
+FFIILLEESS
+       /etc/mail/sendmail.cf    The default sseennddmmaaiill configuration file.
+       /etc/mail/statistics     The default sseennddmmaaiill statistics file.
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        mailq(1), sendmail(8)
 
 

@@ -19,6 +19,9 @@ SM_RCSID("@(#)$Id: err.c,v 8.206 2013-11-22 20:51:55 ca Exp $")
 # include <lber.h>
 # include <ldap.h>			/* for LDAP error codes */
 #endif
+#if _FFR_8BITENVADDR
+# include <sm/sendmail.h>
+#endif
 
 static void	putoutmsg __P((char *, bool, bool));
 static void	puterrmsg __P((char *));
@@ -375,7 +378,7 @@ usrerrenh(enhsc, fmt, va_alist)
 	char *errtxt;
 	SM_VA_LOCAL_DECL
 
-	if (enhsc == NULL || *enhsc == '\0')
+	if (SM_IS_EMPTY(enhsc))
 	{
 		if (fmt[0] == '5' || fmt[0] == '6')
 			enhsc = "5.0.0";
@@ -730,8 +733,13 @@ putoutmsg(msg, holdmsg, heldmsg)
 				     (OpMode == MD_SMTP || OpMode == MD_DAEMON)
 					? msg : errtxt);
 #if !PIPELINING
-	/* XXX can't flush here for SMTP pipelining */
-	if (msg[3] == ' ')
+	/*
+	**  Note: in case of an SMTP reply this should check
+	**  that the last line of msg is not a continuation line
+	**  but that's probably not worth the effort.
+	*/
+
+	if (ISSMTPREPLY(msg))
 		(void) sm_io_flush(OutChannel, SM_TIME_DEFAULT);
 	if (!sm_io_error(OutChannel) || DisConnected)
 		return;
@@ -893,6 +901,47 @@ extenhsc(s, delim, e)
 	return l + h;
 }
 
+#if USE_EAI
+/*
+**  SKIPADDRHOST -- skip address and host in a message
+**
+**	Parameters:
+**		s -- string with possible address and host
+**		skiphost -- skip also host?
+**
+**	Returns:
+**		0  -- no address and host
+**		>0 -- position after address (and host)
+*/
+
+int
+skipaddrhost(s, skiphost)
+	const char *s;
+	bool skiphost;
+{
+	char *str;
+	size_t len;
+
+#define SM_ADDR_DELIM "... "
+	if (s == NULL)
+		return 0;
+	str = strstr(s, SM_ADDR_DELIM);
+	if (str == NULL)
+		return 0;
+	str += sizeof(SM_ADDR_DELIM) + 1;
+	len = strlen(s);
+	if (str >= s + len)
+		return 0;
+	if (!skiphost)
+		return str - s + 1;
+
+	str = strchr(str, ' ');
+	if (str >= s + len)
+		return 0;
+	return str - s + 1;
+}
+#endif /* USE_EAI */
+
 /*
 **  FMTMSG -- format a message into buffer.
 **
@@ -921,7 +970,7 @@ fmtmsg(eb, to, num, enhsc, eno, fmt, ap)
 	const char *enhsc;
 	int eno;
 	const char *fmt;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	char del;
 	int l;
@@ -1004,21 +1053,29 @@ fmtmsg(eb, to, num, enhsc, eno, fmt, ap)
 	     strncmp(num, "550", 3) == 0 ||
 	     strncmp(num, "553", 3) == 0))
 	{
+#if _FFR_8BITENVADDR
+		char xbuf[MAXNAME + 1];	/* EAI:ok */
+		int len;
+
+		len = sizeof(xbuf);
+		(void) sm_strlcpy(xbuf, to, len);
+		(void) dequote_internal_chars(xbuf, xbuf, len);
+		(void) sm_strlcpyn(eb, spaceleft, 2,
+				   shortenstring(xbuf, MAXSHORTSTR), "... ");
+		eb += strlen(eb);
+#else /* _FFR_8BITENVADDR */
 		(void) sm_strlcpyn(eb, spaceleft, 2,
 				   shortenstring(to, MAXSHORTSTR), "... ");
-		spaceleft -= strlen(eb);
-#if _FFR_EAI
-		eb += strlen(eb);
-#else
 		while (*eb != '\0')
 			*eb++ &= 0177;
-#endif
+#endif /* _FFR_8BITENVADDR */
+		spaceleft -= strlen(eb);
 	}
 
 	/* output the message */
 	(void) sm_vsnprintf(eb, spaceleft, fmt, ap);
 	spaceleft -= strlen(eb);
-#if _FFR_EAI
+#if USE_EAI
 	eb += strlen(eb);
 #else
 	while (*eb != '\0')

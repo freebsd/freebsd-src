@@ -1,28 +1,28 @@
-SENDMAIL(8)                                                        SENDMAIL(8)
+SENDMAIL(8)                 System Manager's Manual                SENDMAIL(8)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        sendmail - an electronic mail transport agent
 
-[1mSYNOPSIS[0m
-       [1msendmail [22m[[4mflags[24m] [[4maddress[24m [4m...[24m]
-       [1mnewaliases[0m
-       [1mmailq [22m[[1m-v[22m]
-       [1mhoststat[0m
-       [1mpurgestat[0m
-       [1msmtpd[0m
+SSYYNNOOPPSSIISS
+       sseennddmmaaiill [_f_l_a_g_s] [_a_d_d_r_e_s_s _._._.]
+       nneewwaalliiaasseess
+       mmaaiillqq [--vv]
+       hhoossttssttaatt
+       ppuurrggeessttaatt
+       ssmmttppdd
 
-[1mDESCRIPTION[0m
-       [1mSendmail [22msends a message to one or more [4mrecipients,[24m routing the message
-       over whatever networks are necessary.  [1mSendmail [22mdoes internetwork  for-
+DDEESSCCRRIIPPTTIIOONN
+       SSeennddmmaaiill sends a message to one or more _r_e_c_i_p_i_e_n_t_s_, routing the message
+       over whatever networks are necessary.  SSeennddmmaaiill does internetwork  for-
        warding as necessary to deliver the message to the correct place.
 
-       [1mSendmail  [22mis  not  intended as a user interface routine; other programs
-       provide user-friendly front ends; [1msendmail [22mis used only to deliver pre-
+       SSeennddmmaaiill  is  not  intended as a user interface routine; other programs
+       provide user-friendly front ends; sseennddmmaaiill is used only to deliver pre-
        formatted messages.
 
-       With  no  flags, [1msendmail [22mreads its standard input up to an end-of-file
+       With  no  flags, sseennddmmaaiill reads its standard input up to an end-of-file
        or a line consisting only of a single dot and sends a copy of the  mes-
        sage  found  there  to  all of the addresses listed.  It determines the
        network(s) to use based on the syntax and contents of the addresses.
@@ -33,231 +33,237 @@ SENDMAIL(8)                                                        SENDMAIL(8)
        e.g.,  if  `john'  sends to `group', and `group' includes `john' in the
        expansion, then the letter will also be delivered to `john'.
 
-   [1mParameters[0m
-       [1m-Ac    [22mUse submit.cf even if the operation mode does  not  indicate  an
+   PPaarraammeetteerrss
+       --AAcc    Use submit.cf even if the operation mode does  not  indicate  an
               initial mail submission.
 
-       [1m-Am    [22mUse  sendmail.cf even if the operation mode indicates an initial
+       --AAmm    Use  sendmail.cf even if the operation mode indicates an initial
               mail submission.
 
-       [1m-B[4m[22mtype[24m Set the body type to [4mtype[24m.  Current legal  values  are  7BIT  or
+       --BB_t_y_p_e Set the body type to _t_y_p_e.  Current legal  values  are  7BIT  or
               8BITMIME.
 
-       [1m-ba    [22mGo  into  ARPANET  mode.  All input lines must end with a CR-LF,
+       --bbaa    Go  into  ARPANET  mode.  All input lines must end with a CR-LF,
               and all messages will be generated with  a  CR-LF  at  the  end.
               Also,  the ``From:'' and ``Sender:'' fields are examined for the
               name of the sender.
 
-       [1m-bC    [22mCheck the configuration file.
+       --bbCC    Check the configuration file.
 
-       [1m-bd    [22mRun as a daemon.  [1mSendmail [22mwill fork and run in background  lis-
+       --bbdd    Run as a daemon.  SSeennddmmaaiill will fork and run in background  lis-
               tening on socket 25 for incoming SMTP connections.  This is nor-
               mally run from /etc/rc.
 
-       [1m-bD    [22mSame as [1m-bd [22mexcept runs in foreground.
+       --bbDD    Same as --bbdd except runs in foreground.
 
-       [1m-bh    [22mPrint the persistent host status database.
+       --bbhh    Print the persistent host status database.
 
-       [1m-bH    [22mPurge expired entries from the persistent host status  database.
+       --bbHH    Purge expired entries from the persistent host status database.
 
-       [1m-bi    [22mInitialize the alias database.
+       --bbii    Initialize the alias database.
 
-       [1m-bm    [22mDeliver mail in the usual way (default).
+       --bbmm    Deliver mail in the usual way (default).
 
-       [1m-bp    [22mPrint a listing of the queue(s).
+       --bbpp    Print a listing of the queue(s).
 
-       [1m-bP    [22mPrint  number  of  entries  in the queue(s); only available with
+       --bbPP    Print number of entries in the  queue(s);  only  available  with
               shared memory support.
 
-       [1m-bs    [22mUse the SMTP protocol as described in RFC821 on  standard  input
-              and  output.   This  flag  implies all the operations of the [1m-ba[0m
+       --bbss    Use  the  SMTP protocol as described in RFC821 on standard input
+              and output.  This flag implies all the  operations  of  the  --bbaa
               flag that are compatible with SMTP.
 
-       [1m-bt    [22mRun in address test mode.  This mode reads addresses  and  shows
-              the  steps  in  parsing;  it is used for debugging configuration
-              tables.
+       --bbtt    Run  in  address test mode.  This mode reads addresses and shows
+              the steps in parsing; it is used for debugging configuration ta-
+              bles.
 
-       [1m-bv    [22mVerify names only - do not try to collect or deliver a  message.
-              Verify  mode  is  normally  used for validating users or mailing
+       --bbvv    Verify  names only - do not try to collect or deliver a message.
+              Verify mode is normally used for  validating  users  or  mailing
               lists.
 
-       [1m-C[4m[22mfile[24m Use  alternate  configuration  file.   [1mSendmail  [22mgives  up   any
-              enhanced  (set-user-ID  or set-group-ID) privileges if an alter-
-              nate configuration file is specified.
+       --CC_f_i_l_e Use  alternate  configuration  file.   SSeennddmmaaiill gives up any en-
+              hanced (set-user-ID or set-group-ID) privileges if an  alternate
+              configuration file is specified.
 
-       [1m-D [4m[22mlogfile[0m
-              Send debugging output to the indicated log file instead of  std-
+       --DD _l_o_g_f_i_l_e
+              Send  debugging output to the indicated log file instead of std-
               out.
 
-       [1m-d[4m[22mcategory[24m[1m.[4m[22mlevel...[0m
-              Set  the  debugging  flag  for  [4mcategory[24m  to [4mlevel[24m.  [4mCategory[24m is
-              either an integer or a name specifying the topic, and  [4mlevel[24m  an
-              integer  specifying  the  level  of  debugging  output  desired.
-              Higher levels generally mean more output.  More  than  one  flag
-              can  be  specified  by  separating  them with commas.  A list of
-              numeric debugging categories can be found in the TRACEFLAGS file
-              in the sendmail source distribution.
-              The  option [1m-d0.1 [22mprints the version of [1msendmail [22mand the options
+       --dd_c_a_t_e_g_o_r_y.._l_e_v_e_l_._._.
+              Set the debugging flag for _c_a_t_e_g_o_r_y to _l_e_v_e_l.  _C_a_t_e_g_o_r_y  is  ei-
+              ther an integer or a name specifying the topic, and _l_e_v_e_l an in-
+              teger specifying the level of debugging output desired.   Higher
+              levels  generally  mean  more output.  More than one flag can be
+              specified by separating them with commas.  A list of numeric de-
+              bugging  categories  can  be found in the TRACEFLAGS file in the
+              sendmail source distribution.
+              The option --dd00..11 prints the version of sseennddmmaaiill and the  options
               it was compiled with.
-              Most other categories are only useful with, and  documented  in,
-              [1msendmail[22m's source code.
+              Most  other  categories are only useful with, and documented in,
+              sseennddmmaaiill's source code.
 
-       [1m-F[4m[22mfullname[0m
+       --FF_f_u_l_l_n_a_m_e
               Set the full name of the sender.
 
-       [1m-f[4m[22mname[24m Sets  the name of the ``from'' person (i.e., the envelope sender
+       --ff_n_a_m_e Sets the name of the ``from'' person (i.e., the envelope  sender
               of the mail).  This address may also be used in the From: header
-              if  that header is missing during initial submission.  The enve-
+              if that header is missing during initial submission.  The  enve-
               lope sender address is used as the recipient for delivery status
-              notifications  and may also appear in a Return-Path: header.  [1m-f[0m
-              should only be used by ``trusted'' users (normally [4mroot[24m, [4mdaemon[24m,
-              and  [4mnetwork[24m)  or  if the person you are trying to become is the
-              same as the person you  are.   Otherwise,  an  X-Authentication-
+              notifications and may also appear in a Return-Path: header.   --ff
+              should only be used by ``trusted'' users (normally _r_o_o_t, _d_a_e_m_o_n,
+              and _n_e_t_w_o_r_k) or if the person you are trying to  become  is  the
+              same  as  the  person  you are.  Otherwise, an X-Authentication-
               Warning header will be added to the message.
 
-       [1m-G     [22mRelay  (gateway) submission of a message, e.g., when [1mrmail [22mcalls
-              [1msendmail .[0m
+       --GG     Relay (gateway) submission of a message, e.g., when rrmmaaiill  calls
+              sseennddmmaaiill ..
 
-       [1m-h[4m[22mN[24m    Set the hop count to [4mN[24m.  The hop count is incremented every time
-              the  mail  is  processed.   When it reaches a limit, the mail is
-              returned with an error message, the victim of an aliasing  loop.
+       --hh_N    Set the hop count to _N.  The hop count is incremented every time
+              the mail is processed.  When it reaches a limit, the mail is re-
+              turned  with  an  error message, the victim of an aliasing loop.
               If  not  specified,  ``Received:''  lines  in  the  message  are
               counted.
 
-       [1m-i     [22mDo not strip a leading dot from lines in incoming messages,  and
+       --ii     Do  not strip a leading dot from lines in incoming messages, and
               do not treat a dot on a line by itself as the end of an incoming
-              message.  This should be set if you  are  reading  data  from  a
+              message.   This  should  be  set  if you are reading data from a
               file.
 
-       [1m-L [4m[22mtag[24m Set  the identifier used in syslog messages to the supplied [4mtag[24m.
+       --LL _t_a_g Set the identifier used in syslog messages to the supplied _t_a_g.
 
-       [1m-N [4m[22mdsn[24m Set delivery status notification conditions to [4mdsn[24m, which can be
+       --NN _d_s_n Set delivery status notification conditions to _d_s_n, which can be
               `never'  for  no  notifications or a comma separated list of the
               values `failure' to be notified if delivery failed,  `delay'  to
               be notified if delivery is delayed, and `success' to be notified
               when the message is successfully delivered.
 
-       [1m-n     [22mDon't do aliasing.
+       --nn     Don't do aliasing.
 
-       [1m-O [4m[22moption[24m=[4mvalue[0m
-              Set option [4moption[24m to the specified [4mvalue[24m.  This form  uses  long
+       --OO _o_p_t_i_o_n=_v_a_l_u_e
+              Set option _o_p_t_i_o_n to the specified _v_a_l_u_e.  This form  uses  long
               names.  See below for more details.
 
-       [1m-o[4m[22mx[24m [4mvalue[0m
-              Set  option  [4mx[24m  to  the  specified [4mvalue[24m.  This form uses single
+       --oo_x _v_a_l_u_e
+              Set  option  _x  to  the  specified _v_a_l_u_e.  This form uses single
               character names only.  The short names are not described in this
-              manual  page;  see the [4mSendmail[24m [4mInstallation[24m [4mand[24m [4mOperation[24m [4mGuide[0m
+              manual  page;  see the _S_e_n_d_m_a_i_l _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e
               for details.
 
-       [1m-p[4m[22mprotocol[0m
+       --pp_p_r_o_t_o_c_o_l
               Set the name of the protocol used to receive the message.   This
               can be a simple protocol name such as ``UUCP'' or a protocol and
               hostname, such as ``UUCP:ucbvax''.
 
-       [1m-q[22m[[4mtime[24m]
-              Process saved messages in the queue at given intervals.  If [4mtime[0m
-              is  omitted,  process the queue once.  [4mTime[24m is given as a tagged
+       --qq[_t_i_m_e]
+              Process saved messages in the queue at given intervals.  If _t_i_m_e
+              is  omitted,  process the queue once.  _T_i_m_e is given as a tagged
               number, with `s' being seconds, `m' being minutes (default), `h'
               being  hours, `d' being days, and `w' being weeks.  For example,
               `-q1h30m' or `-q90m' would both set  the  timeout  to  one  hour
-              thirty  minutes.   By  default,  [1msendmail  [22mwill run in the back-
-              ground.  This option can be used safely with [1m-bd[22m.
+              thirty  minutes.   By  default,  sseennddmmaaiill  will run in the back-
+              ground.  This option can be used safely with --bbdd.
 
-       [1m-qp[22m[[4mtime[24m]
-              Similar to [1m-q[4m[22mtime[24m, except that instead of periodically forking a
+       --qqpp[_t_i_m_e]
+              Similar to --qq_t_i_m_e, except that instead of periodically forking a
               child  to  process the queue, sendmail forks a single persistent
               child for each queue  that  alternates  between  processing  the
               queue and sleeping.  The sleep time is given as the argument; it
               defaults to 1 second.  The process will always sleep at least  5
               seconds if the queue was empty in the previous queue run.
 
-       [1m-q[22mf    Process  saved messages in the queue once and do not fork(), but
+       --qqf    Process  saved messages in the queue once and do not fork(), but
               run in the foreground.
 
-       [1m-q[22mG[4mname[0m
-              Process jobs in queue group called [4mname[24m only.
+       --qqG_n_a_m_e
+              Process jobs in queue group called _n_a_m_e only.
 
-       [1m-q[22m[[4m![24m]I[4msubstr[0m
-              Limit processed jobs to those containing [4msubstr[24m as  a  substring
-              of the queue id or not when [4m![24m  is specified.
+       --qq[_!]I_s_u_b_s_t_r
+              Limit processed jobs to those containing _s_u_b_s_t_r as  a  substring
+              of the queue id or not when _!  is specified.
 
-       [1m-q[22m[[4m![24m]Q[4msubstr[0m
-              Limit  processed jobs to quarantined jobs containing [4msubstr[24m as a
-              substring of the quarantine reason or not when [4m![24m  is  specified.
+       --qq[_!]Q_s_u_b_s_t_r
+              Limit  processed jobs to quarantined jobs containing _s_u_b_s_t_r as a
+              substring of the quarantine reason or not when _!  is specified.
 
-       [1m-q[22m[[4m![24m]R[4msubstr[0m
-              Limit  processed  jobs to those containing [4msubstr[24m as a substring
-              of one of the recipients or not when [4m![24m  is specified.
+       --qq[_!]R_s_u_b_s_t_r
+              Limit processed jobs to those containing _s_u_b_s_t_r as  a  substring
+              of one of the recipients or not when _!  is specified.
 
-       [1m-q[22m[[4m![24m]S[4msubstr[0m
-              Limit processed jobs to those containing [4msubstr[24m as  a  substring
-              of the sender or not when [4m![24m  is specified.
+       --qq[_!]S_s_u_b_s_t_r
+              Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring
+              of the sender or not when _!  is specified.
 
-       [1m-Q[22m[reason]
+       --QQ[reason]
               Quarantine a normal queue items with the given reason or unquar-
-              antine quarantined queue items if  no  reason  is  given.   This
-              should  only  be  used  with some sort of item matching using as
-              described above.
+              antine  quarantined  queue  items  if  no reason is given.  This
+              should only be used with some sort of item matching using as de-
+              scribed above.
 
-       [1m-R [4m[22mreturn[0m
-              Set the amount of the message to  be  returned  if  the  message
-              bounces.   The  [4mreturn[24m  parameter  can  be  `full' to return the
-              entire message or `hdrs' to return only  the  headers.   In  the
-              latter case also local bounces return only the headers.
+       --RR _r_e_t_u_r_n
+              Set  the  amount  of  the  message to be returned if the message
+              bounces.  The _r_e_t_u_r_n parameter can be `full' to return  the  en-
+              tire  message or `hdrs' to return only the headers.  In the lat-
+              ter case also local bounces return only the headers.
 
-       [1m-r[4m[22mname[24m An alternate and obsolete form of the [1m-f [22mflag.
+       --rr_n_a_m_e An alternate and obsolete form of the --ff flag.
 
-       [1m-t     [22mRead  message  for recipients.  To:, Cc:, and Bcc: lines will be
-              scanned for recipient addresses.  The Bcc: line will be  deleted
+       --tt     Read message for recipients.  To:, Cc:, and Bcc: lines  will  be
+              scanned  for recipient addresses.  The Bcc: line will be deleted
               before transmission.
 
-       [1m-V [4m[22menvid[0m
+       --UU     If a mail submission via the command line requires  the  use  of
+              the  SSMMTTPPUUTTFF88  argument  for  the  MMAAIILL command, e.g., because a
+              header uses UTF-8 encoding, but the  addresses  on  the  command
+              line  are all ASCII, then this option must be used.  Only avail-
+              able if EEAAII support is enabled, and the SSMMTTPPUUTTFF88 option is set.
+
+       --VV _e_n_v_i_d
               Set the original envelope id.  This is propagated across SMTP to
               servers that support DSNs and is returned in DSN-compliant error
               messages.
 
-       [1m-v     [22mGo  into verbose mode.  Alias expansions will be announced, etc.
+       --vv     Go into verbose mode.  Alias expansions will be announced, etc.
 
-       [1m-X [4m[22mlogfile[0m
+       --XX _l_o_g_f_i_l_e
               Log all traffic in and out of mailers in the indicated log file.
               This  should  only be used as a last resort for debugging mailer
               bugs.  It will log a lot of data very quickly.
 
-       [1m--     [22mStop processing command flags and use the rest of the  arguments
+       ----     Stop processing command flags and use the rest of the  arguments
               as addresses.
 
-   [1mOptions[0m
+   OOppttiioonnss
        There  are  also  a number of processing options that may be set.  Nor-
        mally these will only be used by a system administrator.   Options  may
-       be  set either on the command line using the [1m-o [22mflag (for short names),
-       the [1m-O [22mflag (for long names), or in the configuration file.  This is  a
+       be  set either on the command line using the --oo flag (for short names),
+       the --OO flag (for long names), or in the configuration file.  This is  a
        partial  list  limited to those options that are likely to be useful on
        the command line and only shows the long names;  for  a  complete  list
-       (and  details),  consult the [4mSendmail[24m [4mInstallation[24m [4mand[24m [4mOperation[24m [4mGuide[24m.
+       (and  details),  consult the _S_e_n_d_m_a_i_l _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e.
        The options are:
 
-       AliasFile=[4mfile[0m
+       AliasFile=_f_i_l_e
               Use alternate alias file.
 
        HoldExpensive
               On mailers that are  considered  ``expensive''  to  connect  to,
               don't initiate immediate connection.  This requires queueing.
 
-       CheckpointInterval=[4mN[0m
-              Checkpoint  the  queue  file after every [4mN[24m successful deliveries
+       CheckpointInterval=_N
+              Checkpoint  the  queue  file after every _N successful deliveries
               (default 10).  This avoids excessive duplicate  deliveries  when
               sending to long mailing lists interrupted by system crashes.
 
-       DeliveryMode=[4mx[0m
-              Set the delivery mode to [4mx[24m.  Delivery modes are `i' for interac-
+       DeliveryMode=_x
+              Set the delivery mode to _x.  Delivery modes are `i' for interac-
               tive (synchronous) delivery, `b' for  background  (asynchronous)
               delivery, `q' for queue only - i.e., actual delivery is done the
               next time the queue is run, and `d' for deferred - the  same  as
               `q'  except that database lookups for maps which have set the -D
               option (default for the host map) are avoided.
 
-       ErrorMode=[4mx[0m
-              Set error processing to mode [4mx[24m.  Valid modes  are  `m'  to  mail
+       ErrorMode=_x
+              Set error processing to mode _x.  Valid modes  are  `m'  to  mail
               back  the error message, `w' to ``write'' back the error message
               (or mail it back if the sender is not logged in), `p'  to  print
               the  errors  on  the terminal (default), `q' to throw away error
@@ -265,14 +271,14 @@ SENDMAIL(8)                                                        SENDMAIL(8)
               processing  for  the BerkNet.  If the text of the message is not
               mailed back by modes `m' or `w' and if the sender  is  local  to
               this  machine,  a  copy  of  the message is appended to the file
-              [4mdead.letter[24m in the sender's home directory.
+              _d_e_a_d_._l_e_t_t_e_r in the sender's home directory.
 
        SaveFromLine
               Save UNIX-style From lines at the front of messages.
 
-       MaxHopCount=[4mN[0m
-              The maximum number of times a  message  is  allowed  to  ``hop''
-              before we decide it is in a loop.
+       MaxHopCount=_N
+              The maximum number of times a message is allowed to ``hop''  be-
+              fore we decide it is in a loop.
 
        IgnoreDots
               Do  not  take dots on a line by themselves as a message termina-
@@ -282,110 +288,106 @@ SENDMAIL(8)                                                        SENDMAIL(8)
               Send error messages in MIME format.  If not set, the DSN (Deliv-
               ery Status Notification) SMTP extension is disabled.
 
-       ConnectionCacheTimeout=[4mtimeout[0m
+       ConnectionCacheTimeout=_t_i_m_e_o_u_t
               Set connection cache timeout.
 
-       ConnectionCacheSize=[4mN[0m
+       ConnectionCacheSize=_N
               Set connection cache size.
 
-       LogLevel=[4mn[0m
+       LogLevel=_n
               The log level.
 
-       MeToo=[4mFalse[0m
+       MeToo=_F_a_l_s_e
               Don't send to ``me'' (the sender) if I am in an alias expansion.
 
        CheckAliases
-              Validate the right hand side of aliases during  a  newaliases(1)
+              Validate  the  right hand side of aliases during a newaliases(1)
               command.
 
        OldStyleHeaders
-              If  set,  this  message may have old style headers.  If not set,
+              If set, this message may have old style headers.   If  not  set,
               this message is guaranteed to have new style headers (i.e., com-
-              mas  instead  of spaces between addresses).  If set, an adaptive
-              algorithm is used that will correctly determine the header  for-
+              mas instead of spaces between addresses).  If set,  an  adaptive
+              algorithm  is used that will correctly determine the header for-
               mat in most cases.
 
-       QueueDirectory=[4mqueuedir[0m
+       QueueDirectory=_q_u_e_u_e_d_i_r
               Select the directory in which to queue messages.
 
-       StatusFile=[4mfile[0m
+       StatusFile=_f_i_l_e
               Save statistics in the named file.
 
-       Timeout.queuereturn=[4mtime[0m
-              Set  the  timeout  on  undelivered  messages in the queue to the
-              specified time.  After delivery has failed (e.g., because  of  a
-              host  being  down) for this amount of time, failed messages will
+       Timeout.queuereturn=_t_i_m_e
+              Set the timeout on undelivered messages  in  the  queue  to  the
+              specified  time.   After delivery has failed (e.g., because of a
+              host being down) for this amount of time, failed  messages  will
               be returned to the sender.  The default is five days.
 
-       UserDatabaseSpec=[4muserdatabase[0m
-              If set, a user database is consulted to get forwarding  informa-
-              tion.   You  can consider this an adjunct to the aliasing mecha-
-              nism, except that the database is intended  to  be  distributed;
-              aliases  are local to a particular host.  This may not be avail-
-              able if your sendmail does not have the USERDB  option  compiled
+       UserDatabaseSpec=_u_s_e_r_d_a_t_a_b_a_s_e
+              If  set, a user database is consulted to get forwarding informa-
+              tion.  You can consider this an adjunct to the  aliasing  mecha-
+              nism,  except  that  the database is intended to be distributed;
+              aliases are local to a particular host.  This may not be  avail-
+              able  if  your sendmail does not have the USERDB option compiled
               in.
 
        ForkEachJob
-              Fork  each  job during queue runs.  May be convenient on memory-
+              Fork each job during queue runs.  May be convenient  on  memory-
               poor machines.
 
        SevenBitInput
               Strip incoming messages to seven bits.
 
-       EightBitMode=[4mmode[0m
+       EightBitMode=_m_o_d_e
               Set the handling of eight bit input to seven bit destinations to
-              [4mmode[24m: m (mimefy) will convert to seven-bit MIME format, p (pass)
-              will pass it as eight  bits  (but  violates  protocols),  and  s
+              _m_o_d_e: m (mimefy) will convert to seven-bit MIME format, p (pass)
+              will  pass  it  as  eight  bits  (but violates protocols), and s
               (strict) will bounce the message.
 
-       MinQueueAge=[4mtimeout[0m
-              Sets  how  long a job must ferment in the queue between attempts
+       MinQueueAge=_t_i_m_e_o_u_t
+              Sets how long a job must ferment in the queue  between  attempts
               to send it.
 
-       DefaultCharSet=[4mcharset[0m
-              Sets the default character set used to label 8-bit data that  is
+       DefaultCharSet=_c_h_a_r_s_e_t
+              Sets  the default character set used to label 8-bit data that is
               not otherwise labelled.
 
-       DialDelay=[4msleeptime[0m
-              If  opening  a connection fails, sleep for [4msleeptime[24m seconds and
-              try again.  Useful on dial-on-demand sites.
-
-       NoRecipientAction=[4maction[0m
+       NoRecipientAction=_a_c_t_i_o_n
               Set the behaviour when there are no recipient headers (To:,  Cc:
-              or  Bcc:)  in  the  message  to  [4maction[24m: none leaves the message
-              unchanged, add-to adds a To: header with  the  envelope  recipi-
-              ents,  add-apparently-to  adds an Apparently-To: header with the
-              envelope recipients, add-bcc adds an empty Bcc: header, and add-
-              to-undisclosed  adds  a  header reading `To: undisclosed-recipi-
+              or  Bcc:)  in the message to _a_c_t_i_o_n: none leaves the message un-
+              changed, add-to adds a To: header with the envelope  recipients,
+              add-apparently-to  adds  an Apparently-To: header with the enve-
+              lope recipients, add-bcc adds an empty Bcc: header, and  add-to-
+              undisclosed  adds  a  header  reading  `To:  undisclosed-recipi-
               ents:;'.
 
-       MaxDaemonChildren=[4mN[0m
+       MaxDaemonChildren=_N
               Sets the maximum number of children that an incoming SMTP daemon
-              will allow to spawn at any time to [4mN[24m.
+              will allow to spawn at any time to _N.
 
-       ConnectionRateThrottle=[4mN[0m
+       ConnectionRateThrottle=_N
               Sets  the  maximum  number of connections per second to the SMTP
-              port to [4mN[24m.
+              port to _N.
 
        In aliases, the first character of a name may  be  a  vertical  bar  to
        cause  interpretation  of the rest of the name as a command to pipe the
-       mail to.  It may be necessary to quote the name to keep  [1msendmail  [22mfrom
+       mail to.  It may be necessary to quote the name to keep  sseennddmmaaiill  from
        suppressing  the  blanks from between arguments.  For example, a common
        alias is:
 
               msgs: "|/usr/bin/msgs -s"
 
-       Aliases may also have the syntax ``:include:[4mfilename[24m'' to ask  [1msendmail[0m
+       Aliases may also have the syntax ``:include:_f_i_l_e_n_a_m_e'' to ask  sseennddmmaaiill
        to read the named file for a list of recipients.  For example, an alias
        such as:
 
               poets: ":include:/usr/local/lib/poets.list"
 
-       would read [4m/usr/local/lib/poets.list[24m for the list of  addresses  making
+       would read _/_u_s_r_/_l_o_c_a_l_/_l_i_b_/_p_o_e_t_s_._l_i_s_t for the list of  addresses  making
        up the group.
 
-       [1mSendmail  [22mreturns an exit status describing what it did.  The codes are
-       defined in <[4msysexits.h[24m>:
+       SSeennddmmaaiill  returns an exit status describing what it did.  The codes are
+       defined in <_s_y_s_e_x_i_t_s_._h>:
 
        EX_OK  Successful completion on all addresses.
 
@@ -410,29 +412,26 @@ SENDMAIL(8)                                                        SENDMAIL(8)
        EX_TEMPFAIL
               Message could not be sent immediately, but was queued.
 
-       If invoked as [1mnewaliases[22m, [1msendmail [22mwill rebuild the alias database.  If
-       invoked  as  [1mmailq[22m, [1msendmail [22mwill print the contents of the mail queue.
-       If invoked as [1mhoststat[22m, [1msendmail [22mwill print the persistent host  status
-       database.  If invoked as [1mpurgestat[22m, [1msendmail [22mwill purge expired entries
-       from the persistent host status database.  If invoked as  [1msmtpd[22m,  [1msend-[0m
-       [1mmail [22mwill act as a daemon, as if the [1m-bd [22moption were specified.
+       If invoked as nneewwaalliiaasseess, sseennddmmaaiill will rebuild the alias database.  If
+       invoked  as  mmaaiillqq, sseennddmmaaiill will print the contents of the mail queue.
+       If invoked as hhoossttssttaatt, sseennddmmaaiill will print the persistent host  status
+       database.  If invoked as ppuurrggeessttaatt, sseennddmmaaiill will purge expired entries
+       from the persistent host status database.  If invoked as  ssmmttppdd,  sseenndd--
+       mmaaiill will act as a daemon, as if the --bbdd option were specified.
 
-[1mNOTES[0m
-       [1msendmail  [22moften  gets  blamed  for  many problems that are actually the
-       result of other problems, such as overly permissive modes  on  directo-
-       ries.  For this reason, [1msendmail [22mchecks the modes on system directories
-       and files to determine if they can be trusted.  Although  these  checks
-       can be turned off and your system security reduced by setting the [1mDont-[0m
-       [1mBlameSendmail [22moption, the permission problems  should  be  fixed.   For
-       more information, see:
+NNOOTTEESS
+       sseennddmmaaiill  often gets blamed for many problems that are actually the re-
+       sult of other problems, such as overly permissive modes on directories.
+       For  this  reason,  sseennddmmaaiill checks the modes on system directories and
+       files to determine if they can be trusted.  Although these  checks  can
+       be  turned  off  and  your system security reduced by setting the DDoonntt--
+       BBllaammeeSSeennddmmaaiill option, the permission problems  should  be  fixed.   For
+       more information, see the _S_e_n_d_m_a_i_l _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e
 
-       [4mhttp://www.sendmail.org/tips/DontBlameSendmail.html[0m
-
-[1mFILES[0m
-       Except  for  the  file [4m/etc/mail/sendmail.cf[24m itself the following path-
-       names are all specified in [4m/etc/mail/sendmail.cf[24m.  Thus,  these  values
+FFIILLEESS
+       Except  for  the  file _/_e_t_c_/_m_a_i_l_/_s_e_n_d_m_a_i_l_._c_f itself the following path-
+       names are all specified in _/_e_t_c_/_m_a_i_l_/_s_e_n_d_m_a_i_l_._c_f.  Thus,  these  values
        are only approximations.
-
 
         /etc/mail/aliases
               raw data for alias names
@@ -452,19 +451,19 @@ SENDMAIL(8)                                                        SENDMAIL(8)
         /var/spool/mqueue/*
               temp files
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        binmail(1),  mail(1),  rmail(1),  syslog(3),  aliases(5),  mailaddr(7),
        rc(8)
 
-       DARPA Internet Request For Comments [4mRFC819[24m, [4mRFC821[24m,  [4mRFC822[24m.   [4mSendmail[0m
-       [4mInstallation[24m [4mand[24m [4mOperation[24m [4mGuide[24m, No. 8, SMM.
+       DARPA Internet Request For Comments _R_F_C_8_1_9, _R_F_C_8_2_1,  _R_F_C_8_2_2.   _S_e_n_d_m_a_i_l
+       _I_n_s_t_a_l_l_a_t_i_o_n _a_n_d _O_p_e_r_a_t_i_o_n _G_u_i_d_e, No. 8, SMM.
 
        http://www.sendmail.org/
 
        US Patent Numbers 6865671, 6986037.
 
-[1mHISTORY[0m
-       The [1msendmail [22mcommand appeared in 4.2BSD.
+HHIISSTTOORRYY
+       The sseennddmmaaiill command appeared in 4.2BSD.
 
 
 

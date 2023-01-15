@@ -78,13 +78,16 @@
 64	multiple	Milter
 65	main.c		permission checks
 #if DANE
+66	domain.c	force port=25 for TLSA RR lookups
 67	domain.c	TLSA RR lookups
 #endif
+68	unused
 #if _FFR_QUEUE_SCHED_DBG
 69	queue.c		scheduling
 #endif
 70	queue.c		quarantining
 71,>99	milter.c	quarantine on errors
+72	unused
 73	queue.c		shared memory updates
 74,>99	map.c		LDAP map defer
 #if _FFR_XCNCT
@@ -93,16 +96,21 @@
 #if _FFR_TESTS
 76,>99	queue.c		run_work_group: sleep
 77,>99	daemon.c	change delivery host/port
+78,>99	queue.c		generate 15 char queue ids
+79,>99	alias.c		rebuild aliases: sleep
 #endif
 80			content length
 81			sun remote mode
+82,>99	parseaddr.c	disable clearing bit 8 on addresses
 83	collect.c	timeout
 84	deliver.c	timeout
 85	map.c		dprintf map
 #if _FFR_PROXY
 87	srvrsmtp.c	proxy mode
 #endif
+88,>99	tls.c		disable the effect of _FFR_VRFY_TRUSTED_FIRST
 89	conf.c		>=8 use sm_dprintf() instead of syslog()
+90	unused
 91	mci.c		syslogging of MCI cache information
 92	EF_LOGSENDER
 93,>99	*		Prevent daemon connection fork for profiling/debugging

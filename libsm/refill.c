@@ -80,7 +80,7 @@ static int sm_lflush __P((SM_FILE_T *, int *));
 	do								\
 	{								\
 		(sel_ret) = select((fd) + 1, &sm_io_to_mask, NULL,	\
-				&sm_io_x_mask, (to));			\
+				   &sm_io_x_mask, (to));		\
 	} while ((sel_ret) < 0 && errno == EINTR);			\
 	if ((sel_ret) < 0)						\
 	{								\

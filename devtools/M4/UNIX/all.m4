@@ -33,7 +33,7 @@ TESTS=bldCHECK_TARGETS')
 VPATH=${srcdir}
 changequote([[, ]])
 check-TESTS: $(TESTS)
-	@failed=0; all=0; xfail=0; xpass=0; \
+	@failed=0; all=0; xfail=0; xpass=0; skip=0; \
 	list='$(TESTS)'; \
 	srcdir=$(srcdir); export srcdir; \
 	if test -n "$$list"; then \
@@ -65,6 +65,9 @@ check-TESTS: $(TESTS)
 	        echo "FAIL: $$tst"; \
 	      ;; \
 	      esac; \
+	    else \
+	      skip=`expr $$skip + 1`; \
+	      res=SKIP; \
 	    fi; \
 	  done; \
 	  if test "$$failed" -eq 0; then \
@@ -80,7 +83,19 @@ check-TESTS: $(TESTS)
 	      banner="$$failed of $$all tests did not behave as expected ($$xpass unexpected passes)"; \
 	    fi; \
 	  fi; \
-	  dashes=`echo "$$banner" | sed s/./=/g`; \
+	  skipped=""; \
+	  dashes="$$banner"; \
+	  if test "$$skip" -ne 0; then \
+	    if test "$$skip" -eq 1; then \
+	      skipped="($$skip test was not run)"; \
+	    else \
+	      skipped="($$skip tests were not run)"; \
+	    fi; \
+	    test `echo "$$skipped" | wc -c` -le `echo "$$banner" | wc -c` || \
+	      dashes="$$skipped"; \
+	  fi; \
+	  dashes=`echo "$$dashes" | sed s/./=/g`; \
+	  test -z "$$skipped" || echo "$$skipped"; \
 	  echo "$$dashes"; \
 	  echo "$$banner"; \
 	  echo "$$dashes"; \
@@ -88,11 +103,12 @@ check-TESTS: $(TESTS)
 	fi
 changequote(`, ')
 
-check-am: all
+check-am: make-test all
 	$(MAKE) $(check_PROGRAMS)
 	$(MAKE) check-TESTS
 check: check-am
-
+make-test:
+	ifdef(`confTEST_PRGS', `(cd ${SRCDIR}/test && $(MAKE) confTEST_PRGS)')
 
 define(`bldADD_SRC_CHK', ${$1SRCS_CHK} )dnl
 SRCS_CHK=bldFOREACH(`bldADD_SRC_CHK(', bldC_CHECKS)

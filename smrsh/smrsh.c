@@ -377,7 +377,7 @@ main(argc, argv)
 #if ALLOWSEMI
 		if (*r == ';')
 		{
-			addcmd(p, false,  r - p + 1);
+			addcmd(p, false, r - p + 1);
 			q = r + 1;
 			continue;
 		}
@@ -385,7 +385,7 @@ main(argc, argv)
 		if ((*r == '&' && *(r + 1) == '&') ||
 		    (*r == '|' && *(r + 1) == '|'))
 		{
-			addcmd(p, false,  r - p + 2);
+			addcmd(p, false, r - p + 2);
 			q = r + 2;
 			continue;
 		}

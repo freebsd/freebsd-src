@@ -25,6 +25,13 @@ SM_RCSID("@(#)$Id: heap.c,v 1.52 2013-11-22 20:51:43 ca Exp $")
 #include <sm/signal.h>
 #include <sm/xtrap.h>
 
+#if SM_HEAP_CHECK
+# include <unistd.h>
+# include <sm/types.h>
+# include <sm/time.h>
+# include <time.h>
+#endif
+
 /* undef all macro versions of the "functions" so they can be specified here */
 #undef sm_malloc
 #undef sm_malloc_x
@@ -458,7 +465,7 @@ sm_malloc_tagged_x(size, tag, num, group)
 **	Parameters:
 **		ptr -- pointer to register.
 **		size -- size of requested memory.
-**		tag -- tag for debugging.
+**		tag -- tag for debugging (this is NOT copied!)
 **		num -- additional value for debugging.
 **		group -- heap group for debugging.
 **
@@ -754,6 +761,9 @@ sm_heap_report(stream, verbosity)
 {
 	int i;
 	unsigned long group0total, group1total, otherstotal, grandtotal;
+	static char str[32] = "[1900-00-00/00:00:00] ";
+	struct tm *tmp;
+	time_t currt;
 
 	if (!HEAP_CHECK || verbosity <= 0)
 		return;
@@ -804,11 +814,18 @@ sm_heap_report(stream, verbosity)
 			hi = hi->hi_next;
 		}
 	}
+
+	currt = time((time_t *)0);
+	tmp = localtime(&currt);
+	snprintf(str, sizeof(str), "[%d-%02d-%02d/%02d:%02d:%02d] ",
+		1900 + tmp->tm_year,	/* HACK */
+		tmp->tm_mon + 1,
+		tmp->tm_mday,
+		tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 	sm_io_fprintf(stream, SM_TIME_DEFAULT,
-		"heap max=%lu, total=%lu, ",
-		(unsigned long) SmHeapMaxTotal, grandtotal);
-	sm_io_fprintf(stream, SM_TIME_DEFAULT,
-		"group 0=%lu, group 1=%lu, others=%lu\n",
+		"pid=%ld time=%s\nheap max=%lu, total=%lu, group 0=%lu, group 1=%lu, others=%lu\n",
+		(long) getpid(), str,
+		(unsigned long) SmHeapMaxTotal, grandtotal,
 		group0total, group1total, otherstotal);
 	if (grandtotal != SmHeapTotal)
 	{

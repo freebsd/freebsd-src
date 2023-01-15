@@ -38,6 +38,7 @@ SM_UNUSED(static char id[]) = "@(#)$Id: editmap.c,v 1.26 2013-11-22 20:51:26 ca 
 #endif
 #include <sysexits.h>
 #include <assert.h>
+#include <sm/sendmail.h>
 #include <sendmail/sendmail.h>
 #include <sendmail/pathnames.h>
 #include <libsmdb/smdb.h>
@@ -194,13 +195,13 @@ main(argc, argv)
 
 	if (foldcase)
 	{
-		char *p;
+		char *lower;
 
-		for (p = keyname; *p != '\0'; p++)
-		{
-			if (isascii(*p) && isupper(*p))
-				*p = tolower(*p);
-		}
+		lower = makelower(keyname);
+
+		/* if it is different then it is a static variable */
+		if (keyname != lower)
+			keyname = lower;
 	}
 
 

@@ -15,6 +15,11 @@
 
 SM_RCSID("@(#)$Id: recipient.c,v 8.351 2013-11-22 20:51:56 ca Exp $")
 
+#include <sm/sendmail.h>
+#if _FFR_8BITENVADDR
+# include <sm/ixlen.h>
+#endif
+
 static void	includetimeout __P((int));
 static ADDRESS	*self_reference __P((ADDRESS *));
 static int	sortexpensive __P((ADDRESS *, ADDRESS *));
@@ -172,7 +177,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 	char *endp;
 	char *oldto = e->e_to;
 	char *SM_NONVOLATILE bufp;
-	char buf[MAXNAME + 1];
+	char buf[MAXNAME + 1];	/* EAI: ok, uses bufp dynamically expanded */
 
 	if (list == NULL)
 	{
@@ -225,6 +230,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 			while ((SM_ISSPACE(*p)) || *p == ',')
 				p++;
 			SM_ASSERT(p < endp);
+/* XXX p must be [i] */
 			a = parseaddr(p, NULLADDR, RF_COPYALL, delimiter,
 				      &delimptr, e, true);
 			p = delimptr;
@@ -342,7 +348,7 @@ removefromlist(list, sendq, e)
 	char *p;
 	char *oldto = e->e_to;
 	char *SM_NONVOLATILE bufp;
-	char buf[MAXNAME + 1];
+	char buf[MAXNAME + 1];	/* EAI: ok, uses bufp dynamically expanded */
 
 	if (list == NULL)
 	{
@@ -377,13 +383,17 @@ removefromlist(list, sendq, e)
 	{
 		(void) sm_strlcpy(bufp, denlstring(list, false, true), i);
 
-#if _FFR_ADDR_TYPE_MODES
+# if _FFR_ADDR_TYPE_MODES
 		if (AddrTypeModes)
 			macdefine(&e->e_macro, A_PERM, macid("{addr_type}"),
 				  "e r d");
 		else
-#endif /* _FFR_ADDR_TYPE_MODES */
-		macdefine(&e->e_macro, A_PERM, macid("{addr_type}"), "e r");
+# endif /* _FFR_ADDR_TYPE_MODES */
+		/* "else" in #if code above */
+		{
+			macdefine(&e->e_macro, A_PERM, macid("{addr_type}"),
+				  "e r");
+		}
 		for (p = bufp; *p != '\0'; )
 		{
 			ADDRESS a;	/* parsed address to be removed */
@@ -394,6 +404,7 @@ removefromlist(list, sendq, e)
 			/* parse the address */
 			while ((SM_ISSPACE(*p)) || *p == ',')
 				p++;
+			/* XXX p must be [i] */
 			if (parseaddr(p, &a, RF_COPYALL|RF_RM_ADDR,
 				      delimiter, &delimptr, e, true) == NULL)
 			{
@@ -467,7 +478,8 @@ recipient(new, sendq, aliaslevel, e)
 	int findusercount;
 	bool initialdontsend;
 	char *buf;
-	char buf0[MAXNAME + 1];		/* unquoted image of the user name */
+	char buf0[MAXNAME + 1]; /* EAI: ok, uses bufp dynamically expanded */
+		/* unquoted image of the user name */
 	sortfn_t *sortfn;
 
 	p = NULL;
@@ -508,8 +520,8 @@ recipient(new, sendq, aliaslevel, e)
 		p = e->e_from.q_mailer->m_addrtype;
 		if (p == NULL)
 			p = "rfc822";
-#if _FFR_EAI
-		if (sm_strcasecmp(p, "rfc822") == 0 &&
+#if USE_EAI
+		if (SM_STRCASEEQ(p, "rfc822") &&
 		    !addr_is_ascii(q->q_user))
 			p = "utf-8";
 #endif
@@ -1237,10 +1249,10 @@ finduser(name, fuzzyp, user)
 	(void) setpwent();
 	while ((pw = getpwent()) != NULL)
 	{
-		char buf[MAXNAME + 1];
+		char buf[MAXNAME + 1];	/* EAI: ok: for pw_gecos */
 
 # if 0
-		if (sm_strcasecmp(pw->pw_name, name) == 0)
+		if (SM_STRCASEEQ(pw->pw_name, name))
 		{
 			if (tTd(29, 4))
 				sm_dprintf("found (case wrapped)\n");
@@ -1249,7 +1261,7 @@ finduser(name, fuzzyp, user)
 # endif /* 0 */
 
 		sm_pwfullname(pw->pw_gecos, pw->pw_name, buf, sizeof(buf));
-		if (strchr(buf, ' ') != NULL && sm_strcasecmp(buf, name) == 0)
+		if (strchr(buf, ' ') != NULL && SM_STRCASEEQ(buf, name))
 		{
 			if (tTd(29, 4))
 				sm_dprintf("fuzzy matches %s\n", pw->pw_name);
@@ -1941,8 +1953,41 @@ sendtoargv(argv, e)
 {
 	register char *p;
 
+#if USE_EAI
+	if (!e->e_smtputf8)
+	{
+		char **av;
+
+		av = argv;
+		while ((p = *av++) != NULL)
+		{
+			if (!addr_is_ascii(p))
+			{
+				e->e_smtputf8 = true;
+				break;
+			}
+		}
+	}
+#endif /* USE_EAI */
+
 	while ((p = *argv++) != NULL)
+	{
+#if USE_EAI
+		if (e->e_smtputf8)
+		{
+			int len = 0;
+
+			if (!SMTPUTF8 && !asciistr(p))
+			{
+				usrerr("non-ASCII recipient address %s requires SMTPUTF8",
+					p);
+				finis(false, true, EX_USAGE);
+			}
+			p = quote_internal_chars(p, NULL, &len, NULL);
+		}
+#endif /* USE_EAI */
 		(void) sendtolist(p, NULLADDR, &e->e_sendqueue, 0, e);
+	}
 }
 
 /*

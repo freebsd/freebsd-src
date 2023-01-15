@@ -1,63 +1,63 @@
-SMRSH(8)                                                              SMRSH(8)
+SMRSH(8)                    System Manager's Manual                   SMRSH(8)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        smrsh - restricted shell for sendmail
 
-[1mSYNOPSIS[0m
-       [1msmrsh -c [22mcommand
+SSYYNNOOPPSSIISS
+       ssmmrrsshh --cc command
 
-[1mDESCRIPTION[0m
-       The  [4msmrsh[24m  program  is intended as a replacement for [4msh[24m for use in the
-       ``prog'' mailer in [4msendmail[24m(8) configuration files.  It sharply  limits
-       the  commands that can be run using the ``|program'' syntax of [4msendmail[0m
+DDEESSCCRRIIPPTTIIOONN
+       The  _s_m_r_s_h  program  is intended as a replacement for _s_h for use in the
+       ``prog'' mailer in _s_e_n_d_m_a_i_l(8) configuration files.  It sharply  limits
+       the  commands that can be run using the ``|program'' syntax of _s_e_n_d_m_a_i_l
        in order to improve the over all security  of  your  system.   Briefly,
        even  if  a ``bad guy'' can get sendmail to run a program without going
-       through an alias or forward file, [4msmrsh[24m limits the set of programs that
+       through an alias or forward file, _s_m_r_s_h limits the set of programs that
        he or she can execute.
 
-       Briefly,  [4msmrsh[24m limits programs to be in a single directory, by default
+       Briefly,  _s_m_r_s_h limits programs to be in a single directory, by default
        /usr/adm/sm.bin, allowing the system administrator to choose the set of
        acceptable  commands,  and  to  the  shell  builtin  commands ``exec'',
        ``exit'', and ``echo''.  It also rejects any commands with the  charac-
        ters ``', `<', `>', `;', `$', `(', `)', `\r' (carriage return), or `\n'
-       (newline) on the command line  to  prevent  ``end  run''  attacks.   It
-       allows   ``||''   and   ``&&''   to   enable  commands  like:  ``"|exec
-       /usr/local/bin/filter || exit 75"''
+       (newline) on the command line to prevent ``end run'' attacks.   It  al-
+       lows  ``||''  and  ``&&''  to  enable  commands like: ``"|exec /usr/lo-
+       cal/bin/filter || exit 75"''
 
        Initial  pathnames  on  programs  are  stripped,   so   forwarding   to
-       ``/usr/ucb/vacation'',                           ``/usr/bin/vacation'',
-       ``/home/server/mydir/bin/vacation'', and ``vacation'' all actually for-
-       ward to ``/usr/adm/sm.bin/vacation''.
+       ``/usr/ucb/vacation'',     ``/usr/bin/vacation'',    ``/home/server/my-
+       dir/bin/vacation'',  and   ``vacation''   all   actually   forward   to
+       ``/usr/adm/sm.bin/vacation''.
 
        System  administrators  should  be  conservative  about  populating the
-       sm.bin directory.  For example, a reasonable additions is  [4mvacation[24m(1),
+       sm.bin directory.  For example, a reasonable additions is  _v_a_c_a_t_i_o_n(1),
        and  the like.  No matter how brow-beaten you may be, never include any
-       shell or shell-like program (such as [4mperl[24m(1)) in the sm.bin  directory.
+       shell or shell-like program (such as _p_e_r_l(1)) in the sm.bin  directory.
        Note  that  this  does not restrict the use of shell or perl scripts in
-       the sm.bin directory (using the ``#!''  syntax);  it  simply  disallows
-       execution  of  arbitrary programs.  Also, including mail filtering pro-
-       grams such as [4mprocmail[24m(1) is a very bad idea.  [4mprocmail[24m(1) allows users
-       to run arbitrary programs in their [4mprocmailrc[24m(5).
+       the sm.bin directory (using the ``#!'' syntax); it simply disallows ex-
+       ecution of arbitrary programs.  Also, including mail filtering programs
+       such as _p_r_o_c_m_a_i_l(1) is a very bad idea.  _p_r_o_c_m_a_i_l(1)  allows  users  to
+       run arbitrary programs in their _p_r_o_c_m_a_i_l_r_c(5).
 
-[1mCOMPILATION[0m
+CCOOMMPPIILLAATTIIOONN
        Compilation  should  be  trivial  on most systems.  You may need to use
-       -DSMRSH_PATH=\"[4mpath[24m\" to adjust the default search  path  (defaults  to
-       ``/bin:/usr/bin:/usr/ucb'') and/or -DSMRSH_CMDDIR=\"[4mdir[24m\" to change the
+       -DSMRSH_PATH=\"_p_a_t_h\" to adjust the default search  path  (defaults  to
+       ``/bin:/usr/bin:/usr/ucb'') and/or -DSMRSH_CMDDIR=\"_d_i_r\" to change the
        default program directory (defaults to ``/usr/adm/sm.bin'').
 
-[1mFILES[0m
+FFIILLEESS
        /usr/adm/sm.bin - default directory for restricted programs on most OSs
 
-       /var/adm/sm.bin  -  directory  for  restricted  programs  on  HP UX and
-       Solaris
+       /var/adm/sm.bin - directory for restricted programs on HP  UX  and  So-
+       laris
 
-       /usr/libexec/sm.bin - directory for restricted programs on FreeBSD  (>=
+       /usr/libexec/sm.bin  - directory for restricted programs on FreeBSD (>=
        3.3) and DragonFly BSD
 
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        sendmail(8)
 
 

@@ -1,34 +1,34 @@
-NEWALIASES(1)                                                    NEWALIASES(1)
+NEWALIASES(1)               General Commands Manual              NEWALIASES(1)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        newaliases - rebuild the data base for the mail aliases file
 
-[1mSYNOPSIS[0m
-       [1mnewaliases[0m
+SSYYNNOOPPSSIISS
+       nneewwaalliiaasseess
 
-[1mDESCRIPTION[0m
-       [1mNewaliases  [22mrebuilds  the  random access data base for the mail aliases
+DDEESSCCRRIIPPTTIIOONN
+       NNeewwaalliiaasseess  rebuilds  the  random access data base for the mail aliases
        file /etc/mail/aliases.  It must be run each time this file is  changed
        in order for the change to take effect.
 
-       [1mNewaliases [22mis identical to ``sendmail -bi''.
+       NNeewwaalliiaasseess is identical to ``sendmail -bi''.
 
-       The [1mnewaliases [22mutility exits 0 on success, and >0 if an error occurs.
+       The nneewwaalliiaasseess utility exits 0 on success, and >0 if an error occurs.
 
-       Notice:  do  [1mnot  [22muse  [1mmakemap [22mto create the aliases data base, because
-       [1mnewaliases [22mputs a special token into the data base that is required  by
-       [1msendmail.[0m
+       Notice:  do  nnoott  use  mmaakkeemmaapp to create the aliases data base, because
+       nneewwaalliiaasseess puts a special token into the data base that is required  by
+       sseennddmmaaiill..
 
-[1mFILES[0m
+FFIILLEESS
        /etc/mail/aliases   The mail aliases file
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        aliases(5), sendmail(8)
 
-[1mHISTORY[0m
-       The [1mnewaliases [22mcommand appeared in 4.0BSD.
+HHIISSTTOORRYY
+       The nneewwaalliiaasseess command appeared in 4.0BSD.
 
 
 

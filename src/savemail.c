@@ -15,6 +15,8 @@
 
 SM_RCSID("@(#)$Id: savemail.c,v 8.319 2013-11-22 20:51:56 ca Exp $")
 
+#include <sm/sendmail.h>
+
 static bool	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
 
@@ -513,7 +515,7 @@ returntosender(msg, returnq, flags, e)
 	static int returndepth = 0;
 	register ADDRESS *q;
 	char *p;
-	char buf[MAXNAME + 1];
+	char buf[MAXNAME + 1];	/* EAI:ok */
 
 	if (returnq == NULL)
 		return -1;
@@ -685,6 +687,7 @@ returntosender(msg, returnq, flags, e)
 
 	/* fake up an address header for the from person */
 	expand("\201n", buf, sizeof(buf), e);
+/* XXX buf must be [i] */
 	if (parseaddr(buf, &ee->e_from,
 		      RF_COPYALL|RF_SENDERADDR, '\0', NULL, e, false) == NULL)
 	{
@@ -696,6 +699,12 @@ returntosender(msg, returnq, flags, e)
 	ee->e_from.q_flags &= ~(QHASNOTIFY|Q_PINGFLAGS);
 	ee->e_from.q_flags |= QPINGONFAILURE;
 	ee->e_sender = ee->e_from.q_paddr;
+
+#if USE_EAI
+	/* always? when is this really needed? */
+	if (e->e_smtputf8)
+		ee->e_smtputf8 = true;
+#endif
 
 	/* push state into submessage */
 	CurEnv = ee;
@@ -774,7 +783,7 @@ dsntypename(addrtype, addr)
 {
 	if (sm_strcasecmp(addrtype, "rfc822") != 0)
 		return addrtype;
-#if _FFR_EAI
+#if USE_EAI
 	if (!addr_is_ascii(addr))
 		return "utf-8";
 #endif
@@ -1120,13 +1129,13 @@ errbody(mci, e, separator)
 		(void) sm_strlcpyn(buf, sizeof(buf), 2, "--", e->e_msgboundary);
 		if (!putline("", mci) ||
 		    !putline(buf, mci) ||
-#if _FFR_EAI
-		    !putline(e->e_parent->e_smtputf8
-			     ? "Content-Type: message/global-delivery-status"
-			     : "Content-Type: message/delivery-status", mci) ||
-#else
-		    !putline("Content-Type: message/delivery-status", mci) ||
-#endif
+		    !putline(
+# if USE_EAI
+			e->e_parent->e_smtputf8
+			? "Content-Type: message/global-delivery-status"
+			:
+# endif
+			"Content-Type: message/delivery-status", mci) ||
 		    !putline("", mci))
 			goto writeerr;
 
@@ -1261,7 +1270,7 @@ errbody(mci, e, separator)
 				else
 					p = "rfc822";
 
-				if (sm_strcasecmp(p, "rfc822") == 0 &&
+				if (SM_STRCASEEQ(p, "rfc822") &&
 				    strchr(q->q_user, '@') == NULL)
 				{
 					(void) sm_snprintf(actual,
@@ -1294,7 +1303,7 @@ errbody(mci, e, separator)
 									   actual);
 			}
 
-#if _FFR_EAI
+# if USE_EAI
 			if (sm_strncasecmp("rfc822;", q->q_finalrcpt, 7) == 0 &&
 			    !addr_is_ascii(q->q_user))
 			{
@@ -1309,7 +1318,7 @@ errbody(mci, e, separator)
 				q->q_finalrcpt = sm_rpool_strdup_x(e->e_rpool,
 								   utf8rcpt);
 			}
-#endif
+# endif /* USE_EAI */
 
 			if (q->q_finalrcpt != NULL)
 			{
@@ -1436,21 +1445,20 @@ errbody(mci, e, separator)
 
 			if (!putline(buf, mci))
 				goto writeerr;
-#if _FFR_EAI
+#if USE_EAI
 			if (e->e_parent->e_smtputf8)
 				(void) sm_strlcpyn(buf, sizeof(buf), 2,
 						   "Content-Type: message/global",
 						   sendbody ? "" : "-headers");
 			else
+#endif /* USE_EAI */
+			/* "else" in #if code above */
+			{
 				(void) sm_strlcpyn(buf, sizeof(buf), 2,
-						   "Content-Type: ",
+						"Content-Type: ",
 						sendbody ? "message/rfc822"
 							 : "text/rfc822-headers");
-#else /* _FFR_EAI */
-			(void) sm_strlcpyn(buf, sizeof(buf), 2, "Content-Type: ",
-					sendbody ? "message/rfc822"
-						 : "text/rfc822-headers");
-#endif /* _FFR_EAI */
+			}
 			if (!putline(buf, mci))
 				goto writeerr;
 
@@ -1800,7 +1808,7 @@ isatom(s)
 {
 	int c;
 
-	if (s == NULL || *s == '\0')
+	if (SM_IS_EMPTY(s))
 		return false;
 	while ((c = *s++) != '\0')
 	{

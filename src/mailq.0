@@ -1,57 +1,57 @@
-MAILQ(1)                                                              MAILQ(1)
+MAILQ(1)                    General Commands Manual                   MAILQ(1)
 
 
 
-[1mNAME[0m
+NNAAMMEE
        mailq - print the mail queue
 
-[1mSYNOPSIS[0m
-       [1mmailq [22m[[1m-Ac[22m] [[1m-q...[22m]  [[1m-v[22m]
+SSYYNNOOPPSSIISS
+       mmaaiillqq [--AAcc] [--qq......]  [--vv]
 
-[1mDESCRIPTION[0m
-       [1mMailq [22mprints a summary of the mail messages queued for future delivery.
+DDEESSCCRRIIPPTTIIOONN
+       MMaaiillqq prints a summary of the mail messages queued for future delivery.
 
-       The first line printed for each message shows the  internal  identifier
+       The  first  line printed for each message shows the internal identifier
        used on this host for the message with a possible status character, the
-       size of the message in  bytes,  the  date  and  time  the  message  was
-       accepted  into  the queue, and the envelope sender of the message.  The
-       second line shows the error message that  caused  this  message  to  be
-       retained  in  the queue; it will not be present if the message is being
-       processed for the first time.  The status characters are  either  [1m*  [22mto
-       indicate the job is being processed; [1mX [22mto indicate that the load is too
-       high to process the job; and [1m- [22mto indicate that the job is too young to
+       size  of  the  message  in bytes, the date and time the message was ac-
+       cepted into the queue, and the envelope sender  of  the  message.   The
+       second  line shows the error message that caused this message to be re-
+       tained in the queue; it will not be present if  the  message  is  being
+       processed  for  the  first time.  The status characters are either ** to
+       indicate the job is being processed; XX to indicate that the load is too
+       high to process the job; and -- to indicate that the job is too young to
        process.  The following lines show message recipients, one per line.
 
-       [1mMailq [22mis identical to ``sendmail -bp''.
+       MMaaiillqq is identical to ``sendmail -bp''.
 
        The relevant options are as follows:
 
-       [1m-Ac    [22mShow  the mail submission queue specified in [4m/etc/mail/submit.cf[0m
-              instead of the MTA queue specified in [4m/etc/mail/sendmail.cf[24m.
+       --AAcc    Show the mail submission queue specified in  _/_e_t_c_/_m_a_i_l_/_s_u_b_m_i_t_._c_f
+              instead of the MTA queue specified in _/_e_t_c_/_m_a_i_l_/_s_e_n_d_m_a_i_l_._c_f.
 
-       [1m-qL    [22mShow the "lost" items in the mail queue instead  of  the  normal
+       --qqLL    Show  the  "lost"  items in the mail queue instead of the normal
               queue items.
 
-       [1m-qQ    [22mShow the quarantined items in the mail queue instead of the nor-
+       --qqQQ    Show the quarantined items in the mail queue instead of the nor-
               mal queue items.
 
-       [1m-q[22m[[4m![24m]I substr
-              Limit processed jobs to those containing [4msubstr[24m as  a  substring
-              of the queue id or not when [4m![24m  is specified.
+       --qq[_!]I substr
+              Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring
+              of the queue id or not when _!  is specified.
 
-       [1m-q[22m[[4m![24m]Q substr
-              Limit  processed jobs to quarantined jobs containing [4msubstr[24m as a
-              substring of the quarantine reason or not when [4m![24m  is  specified.
+       --qq[_!]Q substr
+              Limit processed jobs to quarantined jobs containing _s_u_b_s_t_r as  a
+              substring of the quarantine reason or not when _!  is specified.
 
-       [1m-q[22m[[4m![24m]R substr
-              Limit  processed  jobs to those containing [4msubstr[24m as a substring
-              of one of the recipients or not when [4m![24m  is specified.
+       --qq[_!]R substr
+              Limit  processed  jobs to those containing _s_u_b_s_t_r as a substring
+              of one of the recipients or not when _!  is specified.
 
-       [1m-q[22m[[4m![24m]S substr
-              Limit processed jobs to those containing [4msubstr[24m as  a  substring
-              of the sender or not when [4m![24m  is specified.
+       --qq[_!]S substr
+              Limit processed jobs to those containing _s_u_b_s_t_r as  a  substring
+              of the sender or not when _!  is specified.
 
-       [1m-v     [22mPrint  verbose  information.  This adds the priority of the mes-
+       --vv     Print  verbose  information.  This adds the priority of the mes-
               sage and a single character indicator (``+'' or blank)  indicat-
               ing whether a warning message has been sent on the first line of
               the message.  Additionally, extra lines may be  intermixed  with
@@ -61,20 +61,20 @@ MAILQ(1)                                                              MAILQ(1)
               from, if any.  Moreover, status messages for each recipient  are
               printed if available.
 
-       Several  sendmail.cf  options influence the behavior of the [1mmailq [22mutil-
+       Several  sendmail.cf  options influence the behavior of the mmaaiillqq util-
        ity: The number of items printed  per  queue  group  is  restricted  by
-       [1mMaxQueueRunSize  [22mif  that  value is set.  The status character [1m* [22mis not
-       printed for some values of [1mQueueSortOrder, [22me.g., filename, random, mod-
-       ification,  and none, unless a [1m-q [22moption is used to limit the processed
+       MMaaxxQQuueeuueeRRuunnSSiizzee  if  that  value is set.  The status character ** is not
+       printed for some values of QQuueeuueeSSoorrttOOrrddeerr,, e.g., filename, random, mod-
+       ification,  and none, unless a --qq option is used to limit the processed
        jobs.
 
-       The [1mmailq [22mutility exits 0 on success, and >0 if an error occurs.
+       The mmaaiillqq utility exits 0 on success, and >0 if an error occurs.
 
-[1mSEE ALSO[0m
+SSEEEE AALLSSOO
        sendmail(8)
 
-[1mHISTORY[0m
-       The [1mmailq [22mcommand appeared in 4.0BSD.
+HHIISSTTOORRYY
+       The mmaaiillqq command appeared in 4.0BSD.
 
 
 
