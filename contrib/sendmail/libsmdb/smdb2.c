@@ -478,18 +478,18 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 
 static void
 db_err_cb(
-#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+#  if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
 	dbenv,
-#endif
+#  endif
 	errpfx, msg)
-#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+#  if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
 	const DB_ENV *dbenv;
 	const char *errpfx;
 	const char *msg;
-#else
+#  else
 	const char *errpfx;
 	char *msg;
-#endif
+#  endif
 {
 	/* do not print/log any errors... */
 	return;

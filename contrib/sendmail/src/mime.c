@@ -15,6 +15,7 @@
 #include <string.h>
 
 SM_RCSID("@(#)$Id: mime.c,v 8.149 2013-11-22 20:51:56 ca Exp $")
+#include <sm/sendmail.h>
 
 /*
 **  MIME support.
@@ -256,18 +257,18 @@ mime8to7(mci, header, e, boundaries, flags, level)
 	**	Do a recursive descent into the message.
 	*/
 
-	if (sm_strcasecmp(type, "multipart") == 0 &&
+	if (SM_STRCASEEQ(type, "multipart") &&
 	    (!bitset(M87F_NO8BIT, flags) || bitset(M87F_NO8TO7, flags)) &&
 	    !bitset(EF_TOODEEP, e->e_flags)
 	   )
 	{
 
-		if (sm_strcasecmp(subtype, "digest") == 0)
+		if (SM_STRCASEEQ(subtype, "digest"))
 			flags |= M87F_DIGEST;
 
 		for (i = 0; i < argc; i++)
 		{
-			if (sm_strcasecmp(argv[i].a_field, "boundary") == 0)
+			if (SM_STRCASEEQ(argv[i].a_field, "boundary"))
 				break;
 		}
 		if (i >= argc || argv[i].a_value == NULL)
@@ -393,7 +394,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 	**	Class 's' is predefined to have "rfc822" only.
 	*/
 
-	if (sm_strcasecmp(type, "message") == 0)
+	if (SM_STRCASEEQ(type, "message"))
 	{
 		if (!wordinclass(subtype, 's') ||
 		    bitset(EF_TOODEEP, e->e_flags))
@@ -493,7 +494,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 			type == NULL ? "[none]" : type,
 			subtype == NULL ? "[none]" : subtype);
 	}
-	if (cte != NULL && sm_strcasecmp(cte, "binary") == 0)
+	if (cte != NULL && SM_STRCASEEQ(cte, "binary"))
 		sectionsize = sectionhighbits;
 	linelen = 0;
 	bp = buf;
@@ -902,9 +903,9 @@ mimeboundary(line, boundaries)
 
 	/* strip off trailing whitespace */
 	while (i > 0 && (line[i - 1] == ' ' || line[i - 1] == '\t'
-#if _FFR_MIME_CR_OK
+# if _FFR_MIME_CR_OK
 		|| line[i - 1] == '\r'
-#endif
+# endif
 	       ))
 		i--;
 	savec = line[i];
@@ -1095,7 +1096,7 @@ mime7to8(mci, header, e)
 	*/
 
 	pxflags = PXLF_MAPFROM;
-	if (sm_strcasecmp(cte, "base64") == 0)
+	if (SM_STRCASEEQ(cte, "base64"))
 	{
 		int c1, c2, c3, c4;
 
@@ -1132,16 +1133,16 @@ mime7to8(mci, header, e)
 			c1 = CHAR64(c1);
 			c2 = CHAR64(c2);
 
-#if MIME7TO8_OLD
-#define CHK_EOL if (*--fbufp != '\n' || (fbufp > fbuf && *--fbufp != '\r')) \
+# if MIME7TO8_OLD
+#  define CHK_EOL if (*--fbufp != '\n' || (fbufp > fbuf && *--fbufp != '\r')) \
 			++fbufp;
-#else /* MIME7TO8_OLD */
-#define CHK_EOL if (*--fbufp != '\n' || (fbufp > fbuf && *--fbufp != '\r')) \
+# else /* MIME7TO8_OLD */
+#  define CHK_EOL if (*--fbufp != '\n' || (fbufp > fbuf && *--fbufp != '\r')) \
 		{					\
 			++fbufp;			\
 			pxflags |= PXLF_NOADDEOL;	\
 		}
-#endif /* MIME7TO8_OLD */
+# endif /* MIME7TO8_OLD */
 
 #define PUTLINE64	\
 	do		\

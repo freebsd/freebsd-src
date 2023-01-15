@@ -87,7 +87,7 @@ main(argc, argv)
 	RunAsUserName = RealUserName = rnamebuf;
 
 	cfile = getcfname(0, 0, SM_GET_SENDMAIL_CF, NULL);
-	while ((ch = getopt(argc, argv, "C:f:")) != -1)
+	while ((ch = getopt(argc, argv, "C:f:l")) != -1)
 	{
 		switch ((char)ch) {
 		case 'C':
@@ -95,6 +95,11 @@ main(argc, argv)
 			break;
 		case 'f':
 			filename = optarg;
+			break;
+
+		case 'l':
+			smdb_print_available_types(false);
+			exit(EX_OK);
 			break;
 		case '?':
 		default:

@@ -24,16 +24,16 @@ mailq
 .B Mailq
 prints a summary of the mail messages queued for future delivery.
 .PP
-The first line printed for each message 
-shows the internal identifier used on this host 
-for the message with a possible status character, 
+The first line printed for each message
+shows the internal identifier used on this host
+for the message with a possible status character,
 the size of the message in bytes,
-the date and time the message was accepted into the queue, 
-and the envelope sender of the message.  
-The second line shows the error message that caused this message 
-to be retained in the queue; 
-it will not be present if the message is being processed 
-for the first time.  
+the date and time the message was accepted into the queue,
+and the envelope sender of the message.
+The second line shows the error message that caused this message
+to be retained in the queue;
+it will not be present if the message is being processed
+for the first time.
 The status characters are either
 .B *
 to indicate the job is being processed;
@@ -41,7 +41,7 @@ to indicate the job is being processed;
 to indicate that the load is too high to process the job; and
 .B -
 to indicate that the job is too young to process.
-The following lines show message recipients, 
+The following lines show message recipients,
 one per line.
 .PP
 .B Mailq
@@ -91,15 +91,15 @@ as a substring of the sender or not when
 is specified.
 .TP
 .B \-v
-Print verbose information.  
-This adds the priority of the message and 
-a single character indicator (``+'' or blank) 
-indicating whether a warning message has been sent 
+Print verbose information.
+This adds the priority of the message and
+a single character indicator (``+'' or blank)
+indicating whether a warning message has been sent
 on the first line of the message.
 Additionally, extra lines may be intermixed with the recipients
-indicating the ``controlling user'' information; 
-this shows who will own any programs that are executed 
-on behalf of this message 
+indicating the ``controlling user'' information;
+this shows who will own any programs that are executed
+on behalf of this message
 and the name of the alias this command expanded from, if any.
 Moreover, status messages for each recipient are printed
 if available.
@@ -131,5 +131,5 @@ sendmail(8)
 .SH HISTORY
 The
 .B mailq
-command appeared in 
+command appeared in
 4.0BSD.

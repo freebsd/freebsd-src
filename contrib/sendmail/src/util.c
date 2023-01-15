@@ -16,32 +16,50 @@
 SM_RCSID("@(#)$Id: util.c,v 8.427 2013-11-22 20:51:57 ca Exp $")
 
 #include <sm/sendmail.h>
-#include <sysexits.h>
 #include <sm/xtrap.h>
+#if USE_EAI
+# include <sm/ixlen.h>
+#endif
 
 /*
 **  NEWSTR -- Create a copy of a C string
 **
 **	Parameters:
-**		s -- the string to copy.
+**		s -- the string to copy. [A]
 **
 **	Returns:
 **		pointer to newly allocated string.
 */
 
 char *
+#if SM_HEAP_CHECK > 2
+newstr_tagged(s, tag, line, group)
+	const char *s;
+	char *tag;
+	int line;
+	int group;
+#else
 newstr(s)
 	const char *s;
+# define tag  "newstr"
+# define line 0
+# define group 0
+#endif
 {
 	size_t l;
 	char *n;
 
 	l = strlen(s);
 	SM_ASSERT(l + 1 > l);
-	n = xalloc(l + 1);
+	n = sm_malloc_tagged_x(l + 1, tag, line, group);
 	sm_strlcpy(n, s, l + 1);
 	return n;
 }
+#if SM_HEAP_CHECK <= 2
+# undef tag
+# undef line
+# undef group
+#endif
 
 /*
 **  ADDQUOTES -- Adds quotes & quote bits to a string.
@@ -49,7 +67,7 @@ newstr(s)
 **	Runs through a string and adds backslashes and quote bits.
 **
 **	Parameters:
-**		s -- the string to modify.
+**		s -- the string to modify. [A]
 **		rpool -- resource pool from which to allocate result
 **
 **	Returns:
@@ -96,8 +114,9 @@ addquotes(s, rpool)
 /*
 **  STRIPBACKSLASH -- Strip all leading backslashes from a string, provided
 **	the following character is alpha-numerical.
-**
 **	This is done in place.
+**
+**	XXX: This may be a problem for EAI?
 **
 **	Parameters:
 **		s -- the string to strip.
@@ -112,7 +131,7 @@ stripbackslash(s)
 {
 	char *p, *q, c;
 
-	if (s == NULL || *s == '\0')
+	if (SM_IS_EMPTY(s))
 		return;
 	p = q = s;
 	while (*p == '\\' && (p[1] == '\\' || (isascii(p[1]) && isalnum(p[1]))))
@@ -130,8 +149,11 @@ stripbackslash(s)
 **	are only found inside comments, quoted strings, or backslash
 **	escaped.  Also verified balanced quotes and parenthesis.
 **
+**	XXX: This may be a problem for EAI? MustQuoteChars is used.
+**	If this returns false, current callers just invoke addquotes().
+**
 **	Parameters:
-**		s -- the string to modify.
+**		s -- the string to modify. [A]
 **
 **	Returns:
 **		true iff the string is RFC822 compliant, false otherwise.
@@ -189,7 +211,7 @@ rfc822_string(s)
 **	comments and quotes.
 **
 **	Parameters:
-**		string -- the string to shorten
+**		string -- the string to shorten [A]
 **		length -- the maximum size, 0 if no maximum
 **
 **	Returns:
@@ -295,11 +317,10 @@ increment:
 **  FIND_CHARACTER -- find an unquoted character in an RFC822 string
 **
 **	Find an unquoted, non-commented character in an RFC822
-**	string and return a pointer to its location in the
-**	string.
+**	string and return a pointer to its location in the string.
 **
 **	Parameters:
-**		string -- the string to search
+**		string -- the string to search [A]
 **		character -- the character to find
 **
 **	Returns:
@@ -379,9 +400,9 @@ check_bodytype(bodytype)
 	/* check body type for legality */
 	if (bodytype == NULL)
 		return BODYTYPE_NONE;
-	if (sm_strcasecmp(bodytype, "7BIT") == 0)
+	if (SM_STRCASEEQ(bodytype, "7bit"))
 		return BODYTYPE_7BIT;
-	if (sm_strcasecmp(bodytype, "8BITMIME") == 0)
+	if (SM_STRCASEEQ(bodytype, "8bitmime"))
 		return BODYTYPE_8BITMIME;
 	return BODYTYPE_ILLEGAL;
 }
@@ -390,7 +411,7 @@ check_bodytype(bodytype)
 **  TRUNCATE_AT_DELIM -- truncate string at a delimiter and append "..."
 **
 **	Parameters:
-**		str -- string to truncate
+**		str -- string to truncate [A]
 **		len -- maximum length (including '\0') (0 for unlimited)
 **		delim -- delimiter character
 **
@@ -507,13 +528,21 @@ copyplist(list, copycont, rpool)
 
 	vp++;
 
-	newvp = (char **) sm_rpool_malloc_x(rpool, (vp - list) * sizeof(*vp));
+	/*
+	**  Hack: rpool is NULL if invoked from readcf(),
+	**  so "ignore" the allocation by setting group to 0.
+	*/
+
+	newvp = (char **) sm_rpool_malloc_tagged_x(rpool,
+				(vp - list) * sizeof(*vp), "copyplist", 0,
+				NULL == rpool ? 0 : 1);
 	memmove((char *) newvp, (char *) list, (int) (vp - list) * sizeof(*vp));
 
 	if (copycont)
 	{
 		for (vp = newvp; *vp != NULL; vp++)
-			*vp = sm_rpool_strdup_x(rpool, *vp);
+			*vp = sm_rpool_strdup_tagged_x(rpool, *vp,
+					"copyplist", 0, NULL == rpool ? 0 : 1);
 	}
 
 	return newvp;
@@ -720,6 +749,27 @@ printav(fp, av)
 {
 	while (*av != NULL)
 	{
+#if _FFR_8BITENVADDR
+		if (tTd(0, 9))
+		{
+			char *cp;
+			unsigned char v;
+
+			for (cp = *av++; *cp != '\0'; cp++) {
+				v = (unsigned char)(*cp & 0x00ff);
+				sm_dprintf("%c", v);
+# if 0
+				if (isascii(v) && isprint(v))
+					sm_dprintf("%c", v);
+				else
+					sm_dprintf("\\x%hhx", v);
+# endif
+			}
+			if (*av != NULL)
+				sm_dprintf(" ");
+			continue;
+		}
+#endif /* _FFR_8BITENVADDR */
 		if (tTd(0, 44))
 			sm_dprintf("\n\t%08lx=", (unsigned long) *av);
 		else
@@ -729,6 +779,8 @@ printav(fp, av)
 		else
 			xputs(fp, *av++);
 	}
+
+	/* don't print this if invoked directly (not via xputs())? */
 	(void) sm_io_putc(fp, SM_TIME_DEFAULT, '\n');
 }
 
@@ -737,7 +789,7 @@ printav(fp, av)
 **
 **	Parameters:
 **		fp -- output file pointer.
-**		s -- string to put.
+**		s -- string to put. [A]
 **
 **	Returns:
 **		none.
@@ -757,6 +809,17 @@ xputs(fp, s)
 	extern struct metamac MetaMacros[];
 	static SM_DEBUG_T DebugANSI = SM_DEBUG_INITIALIZER("ANSI",
 		"@(#)$Debug: ANSI - enable reverse video in debug output $");
+#if _FFR_8BITENVADDR
+	if (tTd(0, 9))
+	{
+		char *av[2];
+
+		av[0] = (char *) s;
+		av[1] = NULL;
+		printav(fp, av);
+		return;
+	}
+#endif
 
 	/*
 	**  TermEscape is set here, rather than in main(),
@@ -917,34 +980,115 @@ xputs(fp, s)
 }
 
 /*
-**  MAKELOWER -- Translate a line into lower case
+**  MAKELOWER_A -- Translate a line into lower case
 **
 **	Parameters:
-**		p -- the string to translate.  If NULL, return is
-**			immediate.
+**		pp -- pointer to the string to translate (modified in place if possible). [A]
+**		rpool -- rpool to use to reallocate string if needed
+**			(if NULL: uses sm_malloc() internally)
 **
 **	Returns:
-**		none.
+**		lower cased string
 **
 **	Side Effects:
-**		String pointed to by p is translated to lower case.
+**		String pointed to by pp is translated to lower case if possible.
 */
 
-void
-makelower(p)
-	register char *p;
+char *
+makelower_a(pp, rpool)
+	char **pp;
+	SM_RPOOL_T *rpool;
 {
-	register char c;
+	char c;
+	char *orig, *p;
 
+	SM_REQUIRE(pp != NULL);
+	p = *pp;
 	if (p == NULL)
-		return;
+		return p;
+	orig = p;
+
+#if USE_EAI
+	if (!addr_is_ascii(p))
+	{
+		char *new;
+
+		new = sm_lowercase(p);
+		if (new == p)
+			return p;
+		*pp = sm_rpool_strdup_tagged_x(rpool, new, "makelower", 0, 1);
+		return *pp;
+	}
+#endif /* USE_EAI */
 	for (; (c = *p) != '\0'; p++)
 		if (isascii(c) && isupper(c))
 			*p = tolower(c);
+	return orig;
+}
+
+
+#if 0
+makelower: Optimization for EAI case?
+
+	unsigned char ch;
+
+	while ((ch = (unsigned char)*str) != '\0' && ch < 127)
+	{
+		if (isascii(c) && isupper(c))
+			*str = tolower(ch);
+		++str;
+	}
+	if ('\0' == ch)
+		return orig;
+	handle UTF-8 case: invoke sm_lowercase() etc
+#endif /* 0 */
+
+/*
+**  MAKELOWER_BUF -- Translate a line into lower case
+**
+**	Parameters:
+**		str -- string to translate. [A]
+**		buf -- where to place lower case version.
+**		buflen -- size of buf
+**
+**	Returns:
+**		nothing
+**
+**	Side Effects:
+**		String pointed to by str is translated to lower case if possible.
+**
+**	Note:
+**		if str is lower cased in place and str == buf (same pointer),
+**		then it is not explicitly copied.
+*/
+
+void
+makelower_buf(str, buf, buflen)
+	char *str;
+	char *buf;
+	int buflen;
+{
+	char *lower;
+
+	SM_REQUIRE(buf != NULL);
+	if (str == NULL)
+		return;
+	lower = makelower_a(&str, NULL);
+	if (lower != str || str != buf)
+	{
+		sm_strlcpy(buf, lower, buflen);
+		if (lower != str)
+			SM_FREE(lower);
+	}
+	return;
 }
 
 /*
 **  FIXCRLF -- fix <CR><LF> in line.
+**
+**	XXX: Could this be a problem for EAI? That is, can there
+**		be a string with \n and the previous octet is \n
+**		but is part of a UTF8 "char"?
 **
 **	Looks for the <CR><LF> combination and turns it into the
 **	UNIX canonical <NL> character.  It only takes one line,
@@ -952,7 +1096,7 @@ makelower(p)
 **	of the line.
 **
 **	Parameters:
-**		line -- the line to fix.
+**		line -- the line to fix. [A]
 **		stripnl -- if true, strip the newline also.
 **
 **	Returns:
@@ -986,7 +1130,7 @@ fixcrlf(line, stripnl)
 **	as appropriate) at the end of the string.
 **
 **	Parameters:
-**		l -- line to put.
+**		l -- line to put. (should be [x])
 **		mci -- the mailer connection information.
 **
 **	Returns:
@@ -1011,7 +1155,7 @@ putline(l, mci)
 **	as appropriate) at the end of the string.
 **
 **	Parameters:
-**		l -- line to put.
+**		l -- line to put. (should be [x])
 **		len -- the length of the line.
 **		mci -- the mailer connection information.
 **		pxflags -- flag bits:
@@ -1264,6 +1408,7 @@ xunlink(f)
 **
 **	Parameters:
 **		buf -- place to put the input line.
+**			(can be [A], but should be [x])
 **		siz -- size of buf.
 **		fp -- file to read from.
 **		timeout -- the timeout before error occurs.
@@ -1372,6 +1517,7 @@ sfgets(buf, siz, fp, timeout, during)
 **
 **	Parameters:
 **		buf -- place to put result.
+**			(can be [A], but should be [x])
 **		np -- pointer to bytes available; will be updated with
 **			the actual buffer size (not number of bytes filled)
 **			on return.
@@ -1500,7 +1646,7 @@ bool
 atobool(s)
 	register char *s;
 {
-	if (s == NULL || *s == '\0' || strchr("tTyY", *s) != NULL)
+	if (SM_IS_EMPTY(s) || strchr("tTyY", *s) != NULL)
 		return true;
 	return false;
 }
@@ -1583,8 +1729,9 @@ bitzerop(map)
 **
 **	Parameters:
 **		icase -- ignore case?
-**		a -- possible substring.
-**		b -- possible superstring.
+**		a -- possible substring. [A]
+**		b -- possible superstring. [A]
+**		(both must be the same format: X or Q)
 **
 **	Returns:
 **		true if a is contained in b (case insensitive).
@@ -1961,6 +2108,8 @@ printit:
 **
 **	Parameters:
 **		host -- the host to shorten (stripped in place).
+**		[EAI: matched against $m: must be same format;
+**		conversion needed?]
 **
 **	Returns:
 **		place where string was truncated, NULL if not truncated.
@@ -2192,7 +2341,7 @@ prog_open(argv, pfd, e)
 **  GET_COLUMN -- look up a Column in a line buffer
 **
 **	Parameters:
-**		line -- the raw text line to search.
+**		line -- the raw text line to search. [A]
 **		col -- the column number to fetch.
 **		delim -- the delimiter between columns.  If null,
 **			use white space.
@@ -2264,10 +2413,11 @@ get_column(line, col, delim, buf, buflen)
 
 /*
 **  CLEANSTRCPY -- copy string keeping out bogus characters
+**	XXX: This may be a problem for EAI?
 **
 **	Parameters:
 **		t -- "to" string.
-**		f -- "from" string.
+**		f -- "from" string. [A]
 **		l -- length of space available in "to" string.
 **
 **	Returns:
@@ -2304,7 +2454,7 @@ cleanstrcpy(t, f, l)
 **  DENLSTRING -- convert newlines in a string to spaces
 **
 **	Parameters:
-**		s -- the input string
+**		s -- the input string [A]
 **		strict -- if set, don't permit continuation lines.
 **		logattacks -- if set, log attempted attacks.
 **
@@ -2361,8 +2511,8 @@ denlstring(s, strict, logattacks)
 **  STRREPLNONPRT -- replace "unprintable" characters in a string with subst
 **
 **	Parameters:
-**		s -- string to manipulate (in place)
-**		subst -- character to use as replacement
+**		s -- string to manipulate (in place) [A]
+**		c -- character to use as replacement
 **
 **	Returns:
 **		true iff string did not contain "unprintable" characters
@@ -2398,7 +2548,7 @@ strreplnonprt(s, c)
 **	support.
 **
 **	Parameters:
-**		pathname -- pathname to check for directory-ness.
+**		pathname -- pathname to check for directory-ness. [x]
 **		createflag -- if set, create directory if needed.
 **
 **	Returns:
@@ -2984,8 +3134,8 @@ xconnect(inchannel)
 	if (i == 0)
 		return D_XCNCT;
 	delim = *p;
-	if (i > MAXNAME)
-		b[MAXNAME] = '\0';
+	if (i > MAXNAME)	/* EAI:ok */
+		b[MAXNAME] = '\0';	/* EAI:ok */
 	else
 		b[i] = '\0';
 	SM_FREE(RealHostName);

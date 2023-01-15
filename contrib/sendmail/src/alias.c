@@ -15,6 +15,8 @@
 
 SM_RCSID("@(#)$Id: alias.c,v 8.221 2013-11-22 20:51:54 ca Exp $")
 
+#include <sm/sendmail.h>
+
 #define SEPARATOR ':'
 # define ALIAS_SPEC_SEPARATORS	" ,/:"
 
@@ -58,7 +60,7 @@ alias(a, sendq, aliaslevel, e)
 	register char *p;
 	char *owner;
 	auto int status = EX_OK;
-	char obuf[MAXNAME + 7];
+	char obuf[MAXNAME_I + 7];
 
 	if (tTd(27, 1))
 		sm_dprintf("alias(%s)\n", a->q_user);
@@ -186,20 +188,18 @@ alias(a, sendq, aliaslevel, e)
 	e->e_flags |= EF_SENDRECEIPT;
 	a->q_flags |= QDELIVERED|QEXPANDED;
 }
+
 /*
 **  ALIASLOOKUP -- look up a name in the alias file.
 **
 **	Parameters:
-**		name -- the name to look up.
+**		name -- the name to look up [i]
 **		pstat -- a pointer to a place to put the status.
 **		av -- argument for %1 expansion.
 **
 **	Returns:
 **		the value of name.
 **		NULL if unknown.
-**
-**	Side Effects:
-**		none.
 **
 **	Warnings:
 **		The return value will be trashed across calls.
@@ -212,9 +212,15 @@ aliaslookup(name, pstat, av)
 	char *av;
 {
 	static MAP *map = NULL;
+	char *res;
 #if _FFR_ALIAS_DETAIL
 	int i;
 	char *argv[4];
+#else
+# define argv NULL
+#endif
+#if _FFR_8BITENVADDR
+	char buf[MAXNAME];	/* EAI:ok */
 #endif
 
 	if (map == NULL)
@@ -228,8 +234,13 @@ aliaslookup(name, pstat, av)
 	DYNOPENMAP(map);
 
 	/* special case POstMastER -- always use lower case */
-	if (sm_strcasecmp(name, "postmaster") == 0)
+	if (SM_STRCASEEQ(name, "postmaster"))
 		name = "postmaster";
+#if _FFR_8BITENVADDR
+	(void) dequote_internal_chars(name, buf, sizeof(buf));
+	/* check length? */
+	name = buf;
+#endif /* _FFR_8BITENVADDR */
 
 #if _FFR_ALIAS_DETAIL
 	i = 0;
@@ -240,11 +251,14 @@ aliaslookup(name, pstat, av)
 	if (av != NULL && *av == '+')
 		argv[i++] = av + 1;
 	argv[i++] = NULL;
-	return (*map->map_class->map_lookup)(map, name, argv, pstat);
-#else /* _FFR_ALIAS_DETAIL */
-	return (*map->map_class->map_lookup)(map, name, NULL, pstat);
 #endif /* _FFR_ALIAS_DETAIL */
+	res = (*map->map_class->map_lookup)(map, name, argv, pstat);
+#if _FFR_8BITENVADDR
+	/* map_lookup() does a map_rewrite(), so no quoting here */
+#endif
+	return res;
 }
+
 /*
 **  SETALIAS -- set up an alias map
 **
@@ -601,6 +615,16 @@ rebuildaliases(map, automatic)
 	/* add distinguished entries and close the database */
 	if (bitset(MF_OPEN, map->map_mflags))
 	{
+#if _FFR_TESTS
+		if (tTd(78, 101))
+		{
+			int sl;
+
+			sl = tTdlevel(78) - 100;
+			sm_dprintf("rebuildaliases: sleep=%d\n", sl);
+			sleep(sl);
+		}
+#endif
 		map->map_mflags |= MF_CLOSING;
 		map->map_class->map_close(map);
 		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE|MF_CLOSING);
@@ -647,7 +671,13 @@ readaliases(map, af, announcestats, logstats)
 	bool skipping;
 	long naliases, bytes, longest;
 	ADDRESS al, bl;
-	char line[BUFSIZ];
+	char lbuf[BUFSIZ];
+	char *line;
+#if _FFR_8BITENVADDR
+	char lhsbuf[MAXNAME];	/* EAI:ok */
+	char rhsbuf[BUFSIZ];
+	int len;
+#endif
 
 	/*
 	**  Read and interpret lines
@@ -657,12 +687,21 @@ readaliases(map, af, announcestats, logstats)
 	LineNumber = 0;
 	naliases = bytes = longest = 0;
 	skipping = false;
-	while (sm_io_fgets(af, SM_TIME_DEFAULT, line, sizeof(line)) >= 0)
+	line = NULL;
+	while (sm_io_fgets(af, SM_TIME_DEFAULT, lbuf, sizeof(lbuf)) >= 0)
 	{
 		int lhssize, rhssize;
 		int c;
 
 		LineNumber++;
+#if _FFR_8BITENVADDR
+		if (line != lbuf)
+			SM_FREE(line);
+		len = 0;
+		line = quote_internal_chars(lbuf, NULL, &len, NULL);
+#else
+		line = lbuf;
+#endif
 		p = strchr(line, '\n');
 
 		/* XXX what if line="a\\" ? */
@@ -723,6 +762,7 @@ readaliases(map, af, announcestats, logstats)
 			syserr("554 5.3.5 missing colon");
 			continue;
 		}
+/* XXX line must be [i] */
 		if (parseaddr(line, &al, RF_COPYALL, ':', NULL, CurEnv, true)
 		    == NULL)
 		{
@@ -758,6 +798,7 @@ readaliases(map, af, announcestats, logstats)
 						p++;
 					if (*p == '\0')
 						break;
+/* XXX p must be [i] */
 					if (parseaddr(p, &bl, RF_COPYNONE, ',',
 						      &delimptr, CurEnv, true)
 					    == NULL)
@@ -811,8 +852,8 @@ readaliases(map, af, announcestats, logstats)
 		**	Special case pOStmaStER -- always make it lower case.
 		*/
 
-		if (sm_strcasecmp(al.q_user, "postmaster") == 0)
-			makelower(al.q_user);
+		if (SM_STRCASEEQ(al.q_user, "postmaster"))
+			makelower_a(&al.q_user, CurEnv->e_rpool);
 
 		lhssize = strlen(al.q_user);
 		rhssize = strlen(rhs);
@@ -831,7 +872,13 @@ readaliases(map, af, announcestats, logstats)
 		}
 		else
 		{
+#if _FFR_8BITENVADDR
+			dequote_internal_chars(al.q_user, lhsbuf, sizeof(lhsbuf));
+			dequote_internal_chars(rhs, rhsbuf, sizeof(rhsbuf));
+			map->map_class->map_store(map, lhsbuf, rhsbuf);
+#else
 			map->map_class->map_store(map, al.q_user, rhs);
+#endif
 
 			/* statistics */
 			naliases++;
@@ -859,8 +906,7 @@ readaliases(map, af, announcestats, logstats)
 **	Parameters:
 **		user -- the name of the user who's mail we would like
 **			to forward to.  It must have been verified --
-**			i.e., the q_home field must have been filled
-**			in.
+**			i.e., the q_home field must have been filled in.
 **		sendq -- a pointer to the head of the send queue to
 **			put this user's aliases in.
 **		aliaslevel -- the current alias nesting depth.

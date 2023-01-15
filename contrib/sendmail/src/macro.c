@@ -159,22 +159,16 @@ initmacros(e)
 
 /*
 **  EXPAND/DOEXPAND -- macro expand a string using $x escapes.
-**
-**	After expansion, the expansion will be in external form (that is,
-**	there will be no sendmail metacharacters and METAQUOTEs will have
-**	been stripped out).
+**	(including conditionals, e.g., $?x Y $| N $.)
 **
 **	Parameters:
-**		s -- the string to expand.
-**		buf -- the place to put the expansion.
+**		s -- the string to expand. [i]
+**		buf -- the place to put the expansion. [i]
 **		bufsize -- the size of the buffer.
 **		explevel -- the depth of expansion (doexpand only)
 **		e -- envelope in which to work.
 **
 **	Returns:
-**		none.
-**
-**	Side Effects:
 **		none.
 */
 
@@ -422,9 +416,9 @@ mactabclear(mac)
 void
 #if SM_HEAP_CHECK
 macdefine_tagged(mac, vclass, id, value, file, line, grp)
-#else /* SM_HEAP_CHECK */
+#else
 macdefine(mac, vclass, id, value)
-#endif /* SM_HEAP_CHECK */
+#endif
 	MACROS_T *mac;
 	ARGCLASS_T vclass;
 	int id;
@@ -433,7 +427,7 @@ macdefine(mac, vclass, id, value)
 	char *file;
 	int line;
 	int grp;
-#endif /* SM_HEAP_CHECK */
+#endif
 {
 	char *newvalue;
 
@@ -447,6 +441,10 @@ macdefine(mac, vclass, id, value)
 		xputs(sm_debug_file(), value);
 		sm_dprintf(")\n");
 	}
+#if USE_EAI && 0
+	if (('j' == id || 'm' == id) && !addr_is_ascii(value))
+		return an error/warning to caller and let them handle it.
+#endif
 
 	if (mac->mac_rpool == NULL)
 	{

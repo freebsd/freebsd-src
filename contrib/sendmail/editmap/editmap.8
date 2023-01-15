@@ -30,27 +30,31 @@ directed to standard output.
 .PP
 Depending on how it is compiled,
 .B editmap
-handles up to three different database formats,
+handles different database formats, 
 selected using the
 .I maptype
-parameter.
+parameter.  
 They may be
 .TP
 dbm
-DBM format maps.
-This requires the
-ndbm(3)
+DBM format maps.  
+This requires the 
+ndbm(3) 
 library.
 .TP
 btree
-B-Tree format maps.
-This requires the new Berkeley DB
+B-Tree format maps.  
+This requires the new Berkeley DB 
 library.
 .TP
 hash
-Hash format maps.
-This also requires the Berkeley DB
+Hash format maps.  
+This also requires the Berkeley DB 
 library.
+.TP
+cdb
+CDB (Constant DataBase) format maps.  
+This requires the tinycdb library.
 .PP
 If the
 .I TrustedUser

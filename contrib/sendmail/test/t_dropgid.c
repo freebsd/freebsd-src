@@ -20,10 +20,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef lint
 static char id[] = "@(#)$Id: t_dropgid.c,v 1.7 2013-11-22 20:52:01 ca Exp $";
-#endif /* ! lint */
+#endif
 
 static void
 printgids(str, r, e)
@@ -37,17 +38,17 @@ printgids(str, r, e)
 /* define only one of these */
 #if HASSETEGID
 # define SETGIDCALL	"setegid"
-#endif /* HASSETEGID */
+#endif
 #if HASSETREGID
 # define SETGIDCALL	"setregid"
-#endif /* HASSETREGID */
+#endif
 #if HASSETRESGID
 # define SETGIDCALL	"setresgid"
-#endif /* HASSETRESGID */
+#endif
 
 #ifndef SETGIDCALL
 #  define SETGIDCALL	"setgid"
-#endif /* ! SETGIDCALL */
+#endif
 
 int
 main(argc, argv)
@@ -139,13 +140,13 @@ main(argc, argv)
 		       SETGIDCALL);
 #if !HASSETEGID
 		printf("Maybe compile with -DHASSETEGID and try again\n");
-#endif /* !HASSETEGID */
+#endif
 #if !HASSETREGID
 		printf("Maybe compile with -DHASSETREGID and try again\n");
-#endif /* !HASSETREGID */
+#endif
 #if !HASSETRESGID
 		printf("Maybe compile with -DHASSETRESGID and try again\n");
-#endif /* !HASSETRESGID */
+#endif
 		exit(1);
 	}
 

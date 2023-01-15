@@ -11,7 +11,6 @@
 #ifndef _TLS_H
 # define _TLS_H 1
 
-
 #if STARTTLS
 # include <openssl/ssl.h>
 # if !TLS_NO_RSA
@@ -27,6 +26,16 @@
 # else
 #  define TLS_version_num SSLeay
 # endif
+
+#ifndef MTA_HAVE_TLSv1_3
+/*
+**  HACK: if openssl can disable TLSv1_3 then "assume" it supports all
+**   related functions!
+*/
+# ifdef SSL_OP_NO_TLSv1_3
+#  define MTA_HAVE_TLSv1_3 1
+# endif
+#endif
 
 #ifdef _DEFINE
 # define EXTERN
@@ -67,7 +76,7 @@ struct dane_tlsa_S
 	char		*dane_tlsa_sni;
 };
 
-# define TLSAFLNONE	0x00000000	/* currently unused */
+# define TLSAFLNONE	0x00000000
 /* Dane Mode */
 # define TLSAFLALWAYS	0x00000001
 # define TLSAFLSECURE	0x00000002
@@ -127,7 +136,10 @@ struct dane_tlsa_S
 #define TLS_I_RSA_TMP	0x00000100	/* RSA TMP must be generated */
 #define TLS_I_USE_KEY	0x00000200	/* private key must usable */
 #define TLS_I_USE_CERT	0x00000400	/* certificate must be usable */
-#define TLS_I_VRFY_PATH	0x00000800	/* load verify path must succeed */
+/*
+not "read" anywhere
+#define TLS_I_VRFY_PATH	0x00000800	* load verify path must succeed *
+*/
 #define TLS_I_VRFY_LOC	0x00001000	/* load verify default must succeed */
 #define TLS_I_CACHE	0x00002000	/* require cache */
 #define TLS_I_TRY_DH	0x00004000	/* try DH certificate */
@@ -150,7 +162,7 @@ struct dane_tlsa_S
 			  TLS_I_USE_KEY | TLS_I_USE_CERT | TLS_I_CACHE)
 
 /* server requirements */
-#define TLS_I_SRV	(TLS_I_SRV_CERT | TLS_I_RSA_TMP | TLS_I_VRFY_PATH | \
+#define TLS_I_SRV	(TLS_I_SRV_CERT | TLS_I_RSA_TMP | /*TLS_I_VRFY_PATH|*/ \
 			 TLS_I_VRFY_LOC | TLS_I_TRY_DH | TLS_I_CACHE)
 
 /* client requirements */
@@ -175,7 +187,7 @@ struct dane_tlsa_S
 
 /* functions */
 extern int	endtls __P((SSL **, const char *));
-extern int	get_tls_se_options __P((ENVELOPE *, SSL *, tlsi_ctx_T *, bool));
+extern int	get_tls_se_features __P((ENVELOPE *, SSL *, tlsi_ctx_T *, bool));
 extern int	init_tls_library __P((bool _fipsmode));
 extern bool	inittls __P((SSL_CTX **, unsigned long, unsigned long, bool, char *, char *, char *, char *, char *));
 extern bool	initclttls __P((bool));
@@ -201,6 +213,9 @@ EXTERN char	*CltCACertFile;	/* file with CA certificate */
 EXTERN char	*CltCertFile;	/* file with client certificate */
 EXTERN char	*CltKeyFile;	/* file with client private key */
 EXTERN char	*CipherList;	/* list of ciphers */
+#if MTA_HAVE_TLSv1_3
+EXTERN char	*CipherSuites;	/* cipher suites */
+#endif
 EXTERN char	*CertFingerprintAlgorithm;	/* name of fingerprint alg */
 EXTERN const EVP_MD	*EVP_digest;	/* digest for cert fp */
 EXTERN char	*DHParams;	/* file with DH parameters */
@@ -220,7 +235,11 @@ EXTERN bool	SSLEngineprefork;
 # if USE_OPENSSL_ENGINE
 #define TLS_set_engine(id, prefork) SSL_set_engine(id)
 # else
+#  if !defined(OPENSSL_NO_ENGINE)
 int TLS_set_engine __P((const char *, bool));
+#  else
+#define TLS_set_engine(id, prefork)	1
+#  endif
 # endif
 
 extern int	set_tls_rd_tmo __P((int));

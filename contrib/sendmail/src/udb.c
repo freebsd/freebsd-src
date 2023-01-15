@@ -160,7 +160,7 @@ udbexpand(a, sendq, aliaslevel, e)
 	}
 
 	/* short circuit the process if no chance of a match */
-	if (UdbSpec == NULL || UdbSpec[0] == '\0')
+	if (SM_IS_EMPTY(UdbSpec))
 		return EX_OK;
 
 	/* extract user to do userdb matching on */
@@ -192,7 +192,7 @@ udbexpand(a, sendq, aliaslevel, e)
 # endif
 		char userbuf[MEMCHUNKSIZE];
 # if HESIOD && HES_GETMAILHOST
-		char pobuf[MAXNAME];
+		char pobuf[MAXNAME];	/* EAI:should be ok, no UTF8? */
 # endif
 # if defined(NEWDB) && DB_VERSION_MAJOR > 1
 		DBC *dbc = NULL;
@@ -615,7 +615,7 @@ udbmatch(user, field, rpool)
 	}
 
 	/* short circuit if no spec */
-	if (UdbSpec == NULL || UdbSpec[0] == '\0')
+	if (SM_IS_EMPTY(UdbSpec))
 		return NULL;
 
 	/* short circuit name begins with '\\' since it can't possibly match */
@@ -845,15 +845,13 @@ udb_map_lookup(map, name, av, statp)
 	char *val;
 	char *key;
 	char *SM_NONVOLATILE result = NULL;
-	char keybuf[MAXNAME + 1];
+	char keybuf[MAXNAME + 1];	/* EAI:ok */
 
 	if (tTd(28, 20) || tTd(38, 20))
 		sm_dprintf("udb_map_lookup(%s, %s)\n", map->map_mname, name);
 
 	if (bitset(MF_NOFOLDCASE, map->map_mflags))
-	{
 		key = name;
-	}
 	else
 	{
 		int keysize = strlen(name);
@@ -862,7 +860,7 @@ udb_map_lookup(map, name, av, statp)
 			keysize = sizeof(keybuf) - 1;
 		memmove(keybuf, name, keysize);
 		keybuf[keysize] = '\0';
-		makelower(keybuf);
+		makelower_buf(keybuf, keybuf, sizeof(keybuf));
 		key = keybuf;
 	}
 	val = udbmatch(key, map->map_file, NULL);
@@ -876,6 +874,8 @@ udb_map_lookup(map, name, av, statp)
 	SM_FINALLY
 		sm_free(val);
 	SM_END_TRY
+	if (key != name && key != keybuf)
+		SM_FREE(key);
 	return result;
 }
 /*
@@ -968,7 +968,7 @@ _udbx_init(e)
 # if HESIOD
 		  case 'h':	/* use hesiod */
 		  case 'H':
-			if (sm_strcasecmp(spec, "hesiod") != 0)
+			if (!SM_STRCASEEQ(spec, "hesiod"))
 				goto badspec;
 			up->udb_type = UDB_HESIOD;
 			up->udb_pid = CurrentPid;
@@ -997,13 +997,13 @@ _udbx_init(e)
 #  else /* DB_VERSION_MAJOR < 2 */
 			{
 				int flags = DB_RDONLY;
-#  if DB_VERSION_MAJOR > 2
+#   if DB_VERSION_MAJOR > 2
 				int ret;
-#  endif /* DB_VERSION_MAJOR > 2 */
+#   endif /* DB_VERSION_MAJOR > 2 */
 
 				SM_DB_FLAG_ADD(flags);
 				up->udb_dbp = NULL;
-#  if DB_VERSION_MAJOR > 2
+#   if DB_VERSION_MAJOR > 2
 				ret = db_create(&up->udb_dbp, NULL, 0);
 				if (ret != 0)
 				{
@@ -1022,20 +1022,20 @@ _udbx_init(e)
 								0644);
 					if (ret != 0)
 					{
-#ifdef DB_OLD_VERSION
+#    ifdef DB_OLD_VERSION
 						if (ret == DB_OLD_VERSION)
 							ret = EINVAL;
-#endif
+#    endif
 						(void) up->udb_dbp->close(up->udb_dbp, 0);
 						up->udb_dbp = NULL;
 					}
 				}
 				errno = ret;
-#  else /* DB_VERSION_MAJOR > 2 */
+#   else /* DB_VERSION_MAJOR > 2 */
 				errno = db_open(up->udb_dbname, DB_BTREE,
 						flags, 0644, NULL,
 						NULL, &up->udb_dbp);
-#  endif /* DB_VERSION_MAJOR > 2 */
+#   endif /* DB_VERSION_MAJOR > 2 */
 			}
 #  endif /* DB_VERSION_MAJOR < 2 */
 			if (up->udb_dbp == NULL)
@@ -1274,7 +1274,7 @@ hes_udb_get(key, info)
 		return 1;
 	}
 #  else /* HESIOD_INIT */
-	if (hp == NULL || hp[0] == NULL)
+	if (SM_IS_EMPTY(hp))
 	{
 		/* network problem or timeout */
 		if (hes_error() == HES_ER_NET)

@@ -24,14 +24,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef lint
 static char id[] = "@(#)$Id: t_seteuid.c,v 8.9 2013-11-22 20:52:01 ca Exp $";
-#endif /* ! lint */
+#endif
 
 #ifdef __hpux
 # define seteuid(e)	setresuid(-1, e, -1)
-#endif /* __hpux */
+#endif
 
 static void
 printuids(str, r, e)

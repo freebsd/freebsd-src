@@ -12,6 +12,7 @@
  */
 
 #include <sendmail.h>
+#include <sm/sendmail.h>
 
 SM_RCSID("@(#)$Id: envelope.c,v 8.313 2013-11-22 20:51:55 ca Exp $")
 
@@ -370,8 +371,8 @@ dropenvelope(e, fulldrop, split)
 			    strcmp(e->e_from.q_paddr, "<>") != 0 &&
 			    sm_strncasecmp(e->e_from.q_paddr, "owner-", 6) != 0 &&
 			    (strlen(e->e_from.q_paddr) <= 8 ||
-			     sm_strcasecmp(&e->e_from.q_paddr[strlen(e->e_from.q_paddr) - 8],
-					   "-request") != 0))
+			     !SM_STRCASEEQ(&e->e_from.q_paddr[strlen(e->e_from.q_paddr) - 8],
+					   "-request")))
 			{
 				for (q = e->e_sendqueue; q != NULL;
 				     q = q->q_next)
@@ -517,7 +518,7 @@ dropenvelope(e, fulldrop, split)
 	    e->e_class >= 0)
 	{
 		auto ADDRESS *rlist = NULL;
-		char pcopy[MAXNAME];
+		char pcopy[MAXNAME_I];
 
 		if (failure_return)
 		{
@@ -553,11 +554,7 @@ simpledrop:
 		}
 		if (!panic)
 		{
-			if (e->e_dfp != NULL)
-			{
-				(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT);
-				e->e_dfp = NULL;
-			}
+			SM_CLOSE_FP(e->e_dfp);
 			(void) xunlink(queuename(e, DATAFL_LETTER));
 		}
 		if (panic && QueueMode == QM_LOST)
@@ -584,7 +581,7 @@ simpledrop:
 	else if (queueit || !bitset(EF_INQUEUE, e->e_flags))
 	{
 		if (!split)
-			queueup(e, false, true);
+			queueup(e, QUP_FL_MSYNC);
 		else
 		{
 			ENVELOPE *oldsib;
@@ -607,8 +604,8 @@ simpledrop:
 					(long) geteuid());
 			}
 			for (ee = e->e_sibling; ee != NULL; ee = ee->e_sibling)
-				queueup(ee, false, true);
-			queueup(e, false, true);
+				queueup(ee, QUP_FL_MSYNC);
+			queueup(e, QUP_FL_MSYNC);
 
 			/* clean up */
 			for (ee = e->e_sibling; ee != NULL; ee = ee->e_sibling)
@@ -621,12 +618,7 @@ simpledrop:
 				unlockqueue(ee);
 
 				/* this envelope is marked unused */
-				if (ee->e_dfp != NULL)
-				{
-					(void) sm_io_close(ee->e_dfp,
-							   SM_TIME_DEFAULT);
-					ee->e_dfp = NULL;
-				}
+				SM_CLOSE_FP(ee->e_dfp);
 				ee->e_id = NULL;
 				ee->e_flags &= ~EF_HAS_DF;
 			}
@@ -641,11 +633,7 @@ simpledrop:
 	unlockqueue(e);
 
 	/* make sure that this envelope is marked unused */
-	if (e->e_dfp != NULL)
-	{
-		(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT);
-		e->e_dfp = NULL;
-	}
+	SM_CLOSE_FP(e->e_dfp);
 	e->e_id = NULL;
 	e->e_flags &= ~EF_HAS_DF;
 	if (panic)
@@ -690,11 +678,8 @@ clearenvelope(e, fullclear, rpool)
 	if (!fullclear)
 	{
 		/* clear out any file information */
-		if (e->e_xfp != NULL)
-			(void) sm_io_close(e->e_xfp, SM_TIME_DEFAULT);
-		if (e->e_dfp != NULL)
-			(void) sm_io_close(e->e_dfp, SM_TIME_DEFAULT);
-		e->e_xfp = e->e_dfp = NULL;
+		SM_CLOSE_FP(e->e_xfp);
+		SM_CLOSE_FP(e->e_dfp);
 	}
 
 	/*
@@ -950,8 +935,7 @@ closexscript(e)
 	if (e->e_lockfp == NULL)
 		syserr("closexscript: job not locked");
 #endif
-	(void) sm_io_close(e->e_xfp, SM_TIME_DEFAULT);
-	e->e_xfp = NULL;
+	SM_CLOSE_FP(e->e_xfp);
 }
 /*
 **  SETSENDER -- set the person who this message is from
@@ -975,7 +959,7 @@ closexscript(e)
 **	ourselves.
 **
 **	Parameters:
-**		from -- the person we would like to believe this message
+**		from -- the person we would like to believe this message [i]
 **			is from, as specified on the command line.
 **		e -- the envelope in which we would like the sender set.
 **		delimptr -- if non-NULL, set to the location of the
@@ -1003,7 +987,7 @@ setsender(from, e, delimptr, delimchar, internal)
 	register char **pvp;
 	char *realname = NULL;
 	char *bp;
-	char buf[MAXNAME + 2];
+	char buf[MAXNAME_I + 2];
 	char pvpbuf[PSBUFSIZE];
 	extern char *FullName;
 
@@ -1021,7 +1005,7 @@ setsender(from, e, delimptr, delimchar, internal)
 	if (bitset(EF_QUEUERUN, e->e_flags) || OpMode == MD_SMTP ||
 	    OpMode == MD_ARPAFTP || OpMode == MD_DAEMON)
 		realname = from;
-	if (realname == NULL || realname[0] == '\0')
+	if (SM_IS_EMPTY(realname))
 		realname = username();
 
 	if (ConfigLevel < 2)
@@ -1044,7 +1028,7 @@ setsender(from, e, delimptr, delimchar, internal)
 		if (from != NULL && LogLevel > 2)
 		{
 			char *p;
-			char ebuf[MAXNAME * 2 + 2];
+			char ebuf[MAXNAME * 2 + 2]; /* EAI:ok? */
 
 			p = macvalue('_', e);
 			if (p == NULL)
@@ -1054,8 +1038,9 @@ setsender(from, e, delimptr, delimchar, internal)
 				if (host == NULL)
 					host = MyHostName;
 				(void) sm_snprintf(ebuf, sizeof(ebuf),
-						   "%.*s@%.*s", MAXNAME,
-						   realname, MAXNAME, host);
+						   "%.*s@%.*s",
+						   MAXNAME, realname, /* EAI: see above */
+						   MAXNAME, host); /* EAI: see above */
 				p = ebuf;
 			}
 			sm_syslog(LOG_NOTICE, e->e_id,
@@ -1074,6 +1059,7 @@ setsender(from, e, delimptr, delimchar, internal)
 			SuprErrs = true;
 		}
 		if (from == realname ||
+/* XXX realname must be [i] */
 		    parseaddr(from = realname,
 			      &e->e_from, RF_COPYALL|RF_SENDERADDR, ' ',
 			      NULL, e, false) == NULL)
@@ -1083,6 +1069,7 @@ setsender(from, e, delimptr, delimchar, internal)
 			SuprErrs = true;
 			expand("\201n", nbuf, sizeof(nbuf), e);
 			from = sm_rpool_strdup_x(e->e_rpool, nbuf);
+/* XXX from must be [i] */
 			if (parseaddr(from, &e->e_from, RF_COPYALL, ' ',
 				      NULL, e, false) == NULL &&
 			    parseaddr(from = "postmaster", &e->e_from,

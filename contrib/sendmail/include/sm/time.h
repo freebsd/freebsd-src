@@ -13,7 +13,6 @@
 # define SM_TIME_H 1
 
 # include <sm/config.h>
-
 # include <sys/time.h>
 
 /* should be defined in sys/time.h */
@@ -51,6 +50,5 @@
 	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
 #endif /* !timercmp */
-
 
 #endif /* ! SM_TIME_H */

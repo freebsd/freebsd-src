@@ -508,17 +508,44 @@ sm_rpool_attach_x(rpool, rfree, rcontext)
 */
 
 char *
-sm_rpool_strdup_x(rpool, s)
+# if SM_HEAP_CHECK > 2
+sm_rpool_strdup_tagged_x
+# else
+sm_rpool_strdup_x
+# endif
+	(rpool, s
+# if SM_HEAP_CHECK > 2
+	, tag, line, group
+# endif
+	)
 	SM_RPOOL_T *rpool;
 	const char *s;
+# if SM_HEAP_CHECK > 2
+	char *tag;
+	int line;
+	int group;
+# else
+#  define tag  "sm_rpool_strdup_x"
+#  define line 1
+#  define group 1
+# endif
 {
 	size_t l;
 	char *n;
 
 	l = strlen(s);
 	SM_ASSERT(l + 1 > l);
+# if SM_HEAP_CHECK
+	n = sm_rpool_malloc_tagged_x(rpool, l + 1, tag, line, group);
+# else
 	n = sm_rpool_malloc_x(rpool, l + 1);
+# endif
 	sm_strlcpy(n, s, l + 1);
 	return n;
 }
+# if SM_HEAP_CHECK <= 2
+#  undef tag
+#  undef line
+#  undef group
+# endif
 #endif /* DO_NOT_USE_STRCPY */

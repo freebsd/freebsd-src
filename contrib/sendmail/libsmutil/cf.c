@@ -61,8 +61,11 @@ getcfname(opmode, submitmode, cftype, conffile)
 			(void) sm_strlcpy(cf, cflocation, sizeof cf);
 		else
 #endif /* NETINFO */
+		/* "else" in #if code above */
+		{
 			(void) sm_strlcpyn(cf, sizeof cf, 2, _DIR_SENDMAILCF,
 					   "submit.cf");
+		}
 		if (cftype == SM_GET_SUBMIT_CF || stat(cf, &sbuf) == 0)
 			return cf;
 	}

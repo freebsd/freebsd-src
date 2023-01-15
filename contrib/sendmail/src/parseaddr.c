@@ -16,6 +16,7 @@
 SM_RCSID("@(#)$Id: parseaddr.c,v 8.407 2013-11-22 20:51:56 ca Exp $")
 
 #include <sm/sendmail.h>
+#include <sm/ixlen.h>
 #include "map.h"
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
@@ -42,7 +43,7 @@ static bool	hasctrlchar __P((register char *, bool, bool));
 **	of 'berkeley' -- to be transmitted over the arpanet.
 **
 **	Parameters:
-**		addr -- the address to parse.
+**		addr -- the address to parse. [i]
 **		a -- a pointer to the address descriptor buffer.
 **			If NULL, an address will be created.
 **		flags -- describe detail for parsing.  See RF_ definitions
@@ -85,6 +86,14 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	/*
 	**  Initialize and prescan address.
 	*/
+#if _FFR_8BITENVADDR
+	if (bitset(RF_IS_EXT, flags) && addr != NULL)
+	{
+		int len = 0;
+
+		addr = quote_internal_chars(addr, NULL, &len, NULL);
+	}
+#endif
 
 	e->e_to = addr;
 	if (tTd(20, 1))
@@ -145,6 +154,13 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	*/
 
 	a = buildaddr(pvp, a, flags, e);
+#if _FFR_8BITENVADDR
+	{
+		int len = 0;
+
+		a->q_user = quote_internal_chars(a->q_user, NULL, &len, e->e_rpool); /* EAI: ok */
+	}
+#endif
 
 	if (hasctrlchar(a->q_user, isrcpt, true))
 	{
@@ -239,6 +255,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 
 	return a;
 }
+
 /*
 **  INVALIDADDR -- check for address containing characters used for macros
 **
@@ -264,7 +281,7 @@ invalidaddr(addr, delimptr, isrcpt)
 	bool result = false;
 	char savedelim = '\0';
 	char *b = addr;
-	int len = 0;
+	XLENDECL
 
 	if (delimptr != NULL)
 	{
@@ -275,7 +292,7 @@ invalidaddr(addr, delimptr, isrcpt)
 	}
 	for (; *addr != '\0'; addr++)
 	{
-#if !_FFR_EAI
+#if !USE_EAI
 		if (!EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
@@ -283,18 +300,22 @@ invalidaddr(addr, delimptr, isrcpt)
 			*addr = BAD_CHAR_REPLACEMENT;
 		}
 #endif
-		if (++len > MAXNAME - 1)
+		XLEN(*addr);
+		if (xlen > MAXNAME - 1)	/* EAI:ok */
 		{
 			char saved = *addr;
 
 			*addr = '\0';
 			usrerr("553 5.1.0 Address \"%s\" too long (%d bytes max)",
-			       b, MAXNAME - 1);
+			       b, MAXNAME - 1);	/* EAI:ok */
 			*addr = saved;
 			result = true;
 			goto delim;
 		}
 	}
+#if USE_EAI
+	/* check for valid UTF8 string? */
+#endif
 	if (result)
 	{
 		if (isrcpt)
@@ -309,6 +330,7 @@ delim:
 		*delimptr = savedelim;	/* restore old character at delimptr */
 	return result;
 }
+
 /*
 **  HASCTRLCHAR -- check for address containing meta-characters
 **
@@ -327,6 +349,9 @@ delim:
 **		true -- if the address has any "weird" characters or
 **			non-printable characters or if a quote is unbalanced.
 **		false -- otherwise.
+**
+**	Side Effects:
+**		Might invoke shorten_rfc822_string() to change addr in place.
 */
 
 static bool
@@ -335,21 +360,22 @@ hasctrlchar(addr, isrcpt, complain)
 	bool isrcpt, complain;
 {
 	bool quoted = false;
-	int len = 0;
 	char *result = NULL;
 	char *b = addr;
+	XLENDECL
 
 	if (addr == NULL)
 		return false;
 	for (; *addr != '\0'; addr++)
 	{
-		if (++len > MAXNAME - 1)
+		XLEN(*addr);
+		if (xlen > MAXNAME - 1)	/* EAI:ok */
 		{
 			if (complain)
 			{
-				(void) shorten_rfc822_string(b, MAXNAME - 1);
+				(void) shorten_rfc822_string(b, MAXNAME - 1);	/* EAI:ok */
 				usrerr("553 5.1.0 Address \"%s\" too long (%d bytes max)",
-				       b, MAXNAME - 1);
+				       b, MAXNAME - 1);	/* EAI:ok */
 				return true;
 			}
 			result = "too long";
@@ -372,15 +398,13 @@ hasctrlchar(addr, isrcpt, complain)
 				break;
 			}
 		}
-#if !_FFR_EAI
-		if (!EightBitAddrOK && (*addr & 0340) == 0200)
+		if (!SMTPUTF8 && !EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
 			result = "8-bit character";
 			*addr = BAD_CHAR_REPLACEMENT;
 			continue;
 		}
-#endif
 	}
 	if (quoted)
 		result = "unbalanced quote"; /* unbalanced quote */
@@ -395,6 +419,7 @@ hasctrlchar(addr, isrcpt, complain)
 	}
 	return result != NULL;
 }
+
 /*
 **  ALLOCADDR -- do local allocations of address on demand.
 **
@@ -690,6 +715,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 	char *saveto = CurEnv->e_to;
 	static char *av[MAXATOM + 1];
 	static bool firsttime = true;
+	XLENDECL
 
 	if (firsttime)
 	{
@@ -744,6 +770,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 	{
 		/* read a token */
 		tok = q;
+		XLENRESET;
 		for (;;)
 		{
 			/* store away any old lookahead character */
@@ -754,6 +781,8 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 				{
 	addrtoolong:
 					usrerr("553 5.1.1 Address too long");
+
+					/* ilenx()? */
 					if (strlen(addr) > MAXNAME)
 						addr[MAXNAME] = '\0';
 	returnnull:
@@ -764,6 +793,8 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 						*delimptr = p;
 					}
 					CurEnv->e_to = saveto;
+					if (tTd(22, 12))
+						sm_dprintf("prescan: ==> NULL\n");
 					return NULL;
 				}
 
@@ -773,6 +804,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 				    !EightBitAddrOK)
 					c &= 0x7f;
 #endif /* !ALLOW_255 */
+				XLEN(c);
 				*q++ = c;
 			}
 
@@ -838,6 +870,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 					if (q >= &pvpbuf[pvpbsize - 5])
 						goto addrtoolong;
 					*q++ = '\\';
+					XLEN('\\');
 					continue;
 				}
 			}
@@ -943,7 +976,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 				usrerr("553 5.1.0 prescan: too many tokens");
 				goto returnnull;
 			}
-			if (q - tok > MAXNAME)
+			if (xlen > MAXNAME)	/* EAI:ok */
 			{
 				usrerr("553 5.1.0 prescan: token too long");
 				goto returnnull;
@@ -995,7 +1028,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 **	and try over again.
 **
 **	Parameters:
-**		pvp -- pointer to token vector.
+**		pvp -- pointer to token vector. [i]
 **		ruleset -- the ruleset to use for rewriting.
 **		reclevel -- recursion level (to catch loops).
 **		e -- the current envelope.
@@ -1241,7 +1274,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 
 			  default:
 				/* must have exact match */
-				if (sm_strcasecmp(rp, ap))
+				if (!SM_STRCASEEQ(rp, ap))
 					goto backup;
 				avp++;
 				break;
@@ -1406,7 +1439,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 						sm_dprintf("rewrite: RHS $&{%s} => \"%s\"\n",
 							macname(rp[1]),
 							mval == NULL ? "(NULL)" : mval);
-					if (mval == NULL || *mval == '\0')
+					if (SM_IS_EMPTY(mval))
 						continue;
 
 					/* save the remainder of the input */
@@ -1543,7 +1576,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				{
 					cataddr(xpvp, NULL, replac,
 						&pvpbuf[sizeof(pvpbuf)] - replac,
-						'\0', false);
+						'\0', true);
 					if (arg_rvp <
 					    &argvect[MAX_MAP_ARGS - 1])
 						*++arg_rvp = replac;
@@ -1567,7 +1600,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			{
 				cataddr(xpvp, NULL, replac,
 					&pvpbuf[sizeof(pvpbuf)] - replac,
-					'\0', false);
+					'\0', true);
 				if (arg_rvp < &argvect[MAX_MAP_ARGS - 1])
 					*++arg_rvp = replac;
 			}
@@ -1670,6 +1703,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 	}
 	return rstat;
 }
+
 /*
 **  CALLSUBR -- call subroutines in rewrite vector
 **
@@ -1786,8 +1820,8 @@ callsubr(pvp, reclevel, e)
 **
 **	Parameters:
 **		smap -- the map to use for the lookup.
-**		key -- the key to look up.
-**		argvect -- arguments to pass to the map lookup.
+**		key -- the key to look up. [x]
+**		argvect -- arguments to pass to the map lookup. [x]
 **		pstat -- a pointer to an integer in which to store the
 **			status from the lookup.
 **		e -- the current envelope.
@@ -1979,8 +2013,8 @@ buildaddr(tv, a, flags, e)
 	register char *p;
 	char *mname;
 	char **hostp;
-	char hbuf[MAXNAME + 1];
-	static char ubuf[MAXNAME + 2];
+	char hbuf[MAXNAME + 1];	/* EAI:ok */
+	static char ubuf[MAXNAME_I + 2];
 
 	if (tTd(24, 5))
 	{
@@ -2047,12 +2081,12 @@ badaddr:
 	if (tv == hostp)
 		hostp = NULL;
 	else if (hostp != NULL)
-		cataddr(hostp, tv - 1, hbuf, sizeof(hbuf), '\0', false);
+		cataddr(hostp, tv - 1, hbuf, sizeof(hbuf), '\0', true);
 	cataddr(++tv, NULL, ubuf, sizeof(ubuf), ' ', false);
 	--maxatom;
 
 	/* save away the host name */
-	if (sm_strcasecmp(mname, "error") == 0)
+	if (SM_STRCASEEQ(mname, "error"))
 	{
 		/* Set up triplet for use by -bv */
 		a->q_mailer = &errormailer;
@@ -2077,7 +2111,7 @@ badaddr:
 			else
 			{
 				for (ep = ErrorCodes; ep->ec_name != NULL; ep++)
-					if (sm_strcasecmp(ep->ec_name, hbuf) == 0)
+					if (SM_STRCASEEQ(ep->ec_name, hbuf))
 						break;
 				setstat(ep->ec_code);
 			}
@@ -2123,7 +2157,7 @@ badaddr:
 
 	for (mp = Mailer; (m = *mp++) != NULL; )
 	{
-		if (sm_strcasecmp(m->m_name, mname) == 0)
+		if (SM_STRCASEEQ(m->m_name, mname))
 			break;
 	}
 	if (m == NULL)
@@ -2198,9 +2232,9 @@ badaddr:
 	*/
 
 	if (a->q_host != NULL && !bitnset(M_HST_UPPER, m->m_flags))
-		makelower(a->q_host);
+		makelower_a(&a->q_host, e->e_rpool);
 	if (!bitnset(M_USR_UPPER, m->m_flags))
-		makelower(a->q_user);
+		makelower_a(&a->q_user, e->e_rpool);
 
 	if (tTd(24, 6))
 	{
@@ -2214,7 +2248,7 @@ badaddr:
 **  CATADDR -- concatenate pieces of addresses (putting in <LWSP> subs)
 **
 **	Parameters:
-**		pvp -- parameter vector to rebuild.
+**		pvp -- parameter vector to rebuild. [i]
 **		evp -- last parameter to include.  Can be NULL to
 **			use entire pvp.
 **		buf -- buffer to build the string into.
@@ -2223,7 +2257,7 @@ badaddr:
 **			'\0': SpaceSub.
 **			NOSPACESEP: no separator
 **		external -- convert to external form?
-**			(no metacharacters; METAQUOTEs removed, see below)
+**			(undo "meta quoting")
 **
 **	Returns:
 **		none.
@@ -2242,9 +2276,6 @@ badaddr:
 **	The cataddr routine needs to be aware of whether it is producing
 **	an internal or external form as output (it only takes internal
 **	form as input).
-**
-**	The parseaddr routine has a similar issue on input, but that
-**	is flagged on the basis of which token table is passed in.
 */
 
 void
@@ -2453,7 +2484,6 @@ static struct qflags	AddressFlags[] =
 	{ "QBYNRELAY",		QBYNRELAY	},
 	{ "QINTBCC",		QINTBCC		},
 	{ "QDYNMAILER",		QDYNMAILER	},
-	{ "QRCPTOK",		QRCPTOK		},
 	{ "QSECURE",		QSECURE		},
 	{ "QTHISPASS",		QTHISPASS	},
 	{ "QRCPTOK",		QRCPTOK		},
@@ -2644,11 +2674,12 @@ emptyaddr(a)
 	return a->q_paddr == NULL || strcmp(a->q_paddr, "<>") == 0 ||
 	       a->q_user == NULL || strcmp(a->q_user, "<>") == 0;
 }
+
 /*
 **  REMOTENAME -- return the name relative to the current mailer
 **
 **	Parameters:
-**		name -- the name to translate.
+**		name -- the name to translate. [i]
 **		m -- the mailer that we want to do rewriting relative to.
 **		flags -- fine tune operations.
 **		pstat -- pointer to status word.
@@ -2656,10 +2687,7 @@ emptyaddr(a)
 **
 **	Returns:
 **		the text string representing this address relative to
-**			the receiving mailer.
-**
-**	Side Effects:
-**		none.
+**			the receiving mailer. [i]
 **
 **	Warnings:
 **		The text string returned is tucked away locally;
@@ -2678,8 +2706,8 @@ remotename(name, m, flags, pstat, e)
 	char *SM_NONVOLATILE fancy;
 	char *oldg;
 	int rwset;
-	static char buf[MAXNAME + 1];
-	char lbuf[MAXNAME + 1];
+	static char buf[MAXNAME_I + 1];
+	char lbuf[MAXNAME_I + 1];
 	char pvpbuf[PSBUFSIZE];
 	char addrtype[4];
 
@@ -3096,6 +3124,7 @@ dequote_map(map, name, av, statp)
 **
 **	Returns:
 **		EX_OK -- if the rwset doesn't resolve to $#error
+**			or is not defined
 **		else -- the failure status (message printed)
 */
 
