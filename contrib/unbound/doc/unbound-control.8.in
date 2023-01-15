@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Oct 13, 2022" "NLnet Labs" "unbound 1.17.0"
+.TH "unbound-control" "8" "Jan 12, 2023" "NLnet Labs" "unbound 1.17.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -53,6 +53,12 @@ Stop the server. The server daemon exits.
 .TP
 .B reload
 Reload the server. This flushes the cache and reads the config file fresh.
+.TP
+.B reload_keep_cache
+Reload the server but try to keep the RRset and message cache if
+(re)configuration allows for it.
+That means the caches sizes and the number of threads must not change between
+reloads.
 .TP
 .B verbosity \fInumber
 Change verbosity value for logging. Same values as \fBverbosity\fR keyword in
@@ -130,7 +136,7 @@ name specified.
 .TP
 .B flush \fIname
 Remove the name from the cache. Removes the types
-A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV and NAPTR.
+A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV, NAPTR, SVCB and HTTPS.
 Because that is fast to do. Other record types can be removed using
 .B flush_type
 or
