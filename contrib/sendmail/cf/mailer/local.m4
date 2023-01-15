@@ -79,7 +79,7 @@ R$*			$: $>MasqHdr $1		do all-masquerading')',
 #
 SAddDomain
 ifdef(`_ALWAYS_ADD_DOMAIN_', `dnl
-R$* < @ $* > $* 	$@ $1 < @ $2 > $3	already fully qualified
+R$* < @ $* > $*		$@ $1 < @ $2 > $3	already fully qualified
 ifelse(len(X`'_ALWAYS_ADD_DOMAIN_),`1',`
 R$+			$@ $1 < @ *LOCAL* >	add local qualification',
 `R$+			$@ $1 < @ _ALWAYS_ADD_DOMAIN_ >	add qualification')',

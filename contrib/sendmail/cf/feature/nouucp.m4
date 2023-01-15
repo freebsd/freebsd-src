@@ -16,7 +16,7 @@ divert(0)
 VERSIONID(`$Id: nouucp.m4,v 8.14 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
-ifelse(defn(`_ARG_'), `', 
+ifelse(defn(`_ARG_'), `',
 	`errprint(`*** ERROR: missing argument for FEATURE(nouucp):
 		use `reject' or `nospecial'. See cf/README.
 ')define(`_NO_UUCP_', `e')',

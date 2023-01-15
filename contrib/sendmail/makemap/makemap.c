@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002, 2004, 2008 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1998-2002, 2004, 2008, 2020 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -38,6 +38,9 @@ SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.183 2013-11-22 20:51:52 ca Exp $")
 #include <sm/path.h>
 #include <sendmail/pathnames.h>
 #include <libsmdb/smdb.h>
+#if USE_EAI
+# include <sm/ixlen.h>
+#endif
 
 uid_t	RealUid;
 gid_t	RealGid;
@@ -67,6 +70,11 @@ usage(progname)
 	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 		      "       %*s [-d] [-e] [-f] [-l] [-o] [-r] [-s] [-t delimiter]\n",
 		      (int) strlen(progname), "");
+#if _FFR_TESTS
+	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+		      "       %*s [-S n]\n",
+		      (int) strlen(progname), "");
+#endif
 	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 		      "       %*s [-u] [-v] type mapname\n",
 		      (int) strlen(progname), "");
@@ -286,6 +294,12 @@ main(argc, argv)
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	extern char *optarg;
 	extern int optind;
+#if USE_EAI
+	bool ascii = true;
+#endif
+#if _FFR_TESTS
+	int slp = 0;
+#endif
 
 	memset(&params, '\0', sizeof params);
 	params.smdbp_cache_size = 1024 * 1024;
@@ -313,7 +327,12 @@ main(argc, argv)
 		       SMDB_MAX_USER_NAME_LEN);
 
 #define OPTIONS		"C:D:Nc:defi:Llorst:uvx"
-	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
+#if _FFR_TESTS
+# define X_OPTIONS		"S:"
+#else
+# define X_OPTIONS
+#endif
+	while ((opt = getopt(argc, argv, OPTIONS X_OPTIONS)) != -1)
 	{
 		switch (opt)
 		{
@@ -369,6 +388,12 @@ main(argc, argv)
 			allowreplace = true;
 			break;
 
+#if _FFR_TESTS
+		  case 'S':
+			slp = atoi(optarg);
+			break;
+#endif
+
 		  case 's':
 			setbitn(DBS_MAPINUNSAFEDIRPATH, DontBlameSendmail);
 			setbitn(DBS_WRITEMAPTOHARDLINK, DontBlameSendmail);
@@ -393,7 +418,7 @@ main(argc, argv)
 		  case 'v':
 			verbose = true;
 			break;
- 
+
 		  case 'x':
 			smdb_print_available_types(true);
 			exit(EX_OK);
@@ -602,12 +627,41 @@ main(argc, argv)
 			memset(&db_val, '\0', sizeof db_val);
 			db_key.data = ibuf;
 
-			for (p = ibuf; *p != '\0' && !(ISSEP(*p)); p++)
+#if USE_EAI
+			db_key.size = 0;
+			if (foldcase)
+			{
+				for (p = ibuf; *p != '\0' && !ISSEP(*p); p++)
+				{
+					if (!ISASCII(*p))
+						ascii = false;
+				}
+				if (!ascii)
+				{
+					char sep;
+					char *lkey;
+
+					sep = *p;
+					*p = '\0';
+
+					lkey = sm_lowercase(ibuf);
+					db_key.data = lkey;
+					db_key.size = strlen(lkey);
+					*p = sep;
+				}
+			}
+			if (ascii)
+#endif /* USE_EAI */
+			/* NOTE: see if () above! */
+			for (p = ibuf; *p != '\0' && !ISSEP(*p); p++)
 			{
 				if (foldcase && ISASCII(*p) && isupper(*p))
 					*p = tolower(*p);
 			}
-			db_key.size = p - ibuf;
+#if USE_EAI
+			if (0 == db_key.size)
+#endif
+				db_key.size = p - ibuf;
 			if (inclnull)
 				db_key.size++;
 
@@ -679,6 +733,11 @@ main(argc, argv)
 			}
 		}
 	}
+
+#if _FFR_TESTS
+	if (slp > 0)
+		sleep(slp);
+#endif
 
 	/*
 	**  Now close the database.

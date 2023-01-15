@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@lab.smi.sendmail.com on Thu Jul 2 22:41:57 PDT 2020
-##### in /var/tmp/ca/sm8.git/sendmail/OpenSource/sendmail-8.16.1/cf/cf
+##### built by ca@lab.smi.sendmail.com on Sun Aug 15 23:05:00 PDT 2021
+##### in /var/tmp/ca/sm8.head/sendmail/OpenSource/sendmail-8.17.1/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -88,6 +88,7 @@ C{ResOk}OKR
 # Hosts for which relaying is permitted ($=R)
 FR-o /etc/mail/relay-domains
 
+
 # arithmetic map
 Karith arith
 
@@ -114,7 +115,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.16.1/Submit
+DZ8.17.1/Submit
 
 
 ###############
@@ -362,7 +363,7 @@ O TimeZoneSpec=
 # maximum number of new connections per second
 #O ConnectionRateThrottle=0
 
-# Width of the window 
+# Width of the window
 #O ConnectionRateWindowSize=60s
 
 # work recipient factor
@@ -536,7 +537,7 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 #O ClientCertFile
 # Client private key
 #O ClientKeyFile
-# File containing certificate revocation lists 
+# File containing certificate revocation lists
 #O CRLFile
 # Directory containing hashes pointing to certificate revocation status files
 #O CRLPath
@@ -802,7 +803,7 @@ R< @ $=w . > : $*	$@ $>Parse0 $>canonify $2	@here:... -> ...
 R$- < @ $=w . >		$: $(dequote $1 $) < @ $2 . >	dequote "foo"@here
 R< @ $+ >		$#error $@ 5.1.3 $: "553 User address required"
 R$* $=O $* < @ $=w . >	$@ $>Parse0 $>canonify $1 $2 $3	...@here -> ...
-R$- 			$: $(dequote $1 $) < @ *LOCAL* >	dequote "foo"
+R$-			$: $(dequote $1 $) < @ *LOCAL* >	dequote "foo"
 R< @ *LOCAL* >		$#error $@ 5.1.3 $: "553 User address required"
 R$* $=O $* < @ *LOCAL* >
 			$@ $>Parse0 $>canonify $1 $2 $3	...@*LOCAL* -> ...
@@ -896,7 +897,7 @@ R< $+ > $+		$@ $>MailerToTriple < $1 > $2 < @ $1 >
 
 SMailerToTriple=95
 R< > $*				$@ $1			strip off null relay
-R< error : $-.$-.$- : $+ > $* 	$#error $@ $1.$2.$3 $: $4
+R< error : $-.$-.$- : $+ > $*	$#error $@ $1.$2.$3 $: $4
 R< error : $- : $+ > $*		$#error $@ $(dequote $1 $) $: $2
 R< error : $+ > $*		$#error $: $1
 R< local : $* > $*		$>CanonLocal < $1 > $2
@@ -926,7 +927,7 @@ R< $+ @ $+ > $* < @ $* >	$: < $1 > $3 < @ $4 >
 
 # handle local:user syntax
 R< $+ > $* <@ $* > $*		$#local $@ $2@$3 $: $1
-R< $+ > $* 			$#local $@ $2    $: $1
+R< $+ > $*			$#local $@ $2    $: $1
 
 ###################################################################
 ###  Ruleset 93 -- convert header names to masqueraded form	###
@@ -1189,7 +1190,7 @@ R<FORGED>		$#error $@ 5.7.1 $: "550 Relaying denied. IP name possibly forged " $
 R<FAIL>			$#error $@ 5.7.1 $: "550 Relaying denied. IP name lookup failed " $&{client_name}
 R$*			$: <@> $&{client_name}
 # pass to name server to make hostname canonical
-R<@> $* $=P 		$:<?>  $1 $2
+R<@> $* $=P		$:<?>  $1 $2
 R<@> $+			$:<?>  $[ $1 $]
 R$* .			$1			strip trailing dots
 R<?> $=w		$@ RELAY
@@ -1233,10 +1234,18 @@ Ssrv_features
 
 
 ######################################################################
+###  clt_features: which features to use with a server?
+###	(done in client)
+######################################################################
+Sclt_features
+
+
+######################################################################
 ###  try_tls: try to use STARTTLS?
 ###	(done in client)
 ######################################################################
 Stry_tls
+
 
 
 ######################################################################
@@ -1278,8 +1287,12 @@ R$*		$@ $>"TLS_connection" $1
 ###		Requirement: RHS from access map, may be ? for none.
 ######################################################################
 STLS_connection
-RSOFTWARE	$#error $@ 4.7.0 $: "403 TLS handshake."
-RDANE_FAIL	$#error $@ 4.7.0 $: "403 DANE check failed."
+RSOFTWARE	$#error $@ 4.7.0 $: "454 TLS handshake failed."
+RDANE_FAIL	$#error $@ 4.7.0 $: "454 DANE check failed."
+RPROTOCOL	$#error $@ 4.7.0 $: "454 STARTTLS failed."
+RCONFIG		$#error $@ 4.7.0 $: "454 STARTTLS temporarily not possible."
+
+
 
 
 
@@ -1478,6 +1491,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 		T=DNS/RFC822/SMTP,
 		A=TCP $h
 
+
 ### submit.mc ###
 # divert(-1)
 # #
@@ -1505,3 +1519,6 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 # dnl
 # dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:0:0:0:0:0:0:0:1]
 # FEATURE(`msp', `[127.0.0.1]')dnl
+# dnl enable this for SMTPUTF8 support
+# dnl LOCAL_CONFIG
+# dnl O SMTPUTF8=true

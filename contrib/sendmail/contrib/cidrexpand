@@ -3,7 +3,7 @@
 # usage:
 #  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
 #
-# v 0.4
+# v 1.1
 #
 # 17 July 2000 Derek J. Balling (dredd@megacity.org)
 #
@@ -73,16 +73,25 @@
 # Report bugs to: <dredd@megacity.org>
 #
 
+our $VERSION = '1.1';
 
 use strict;
 use Net::CIDR qw(cidr2octets cidrvalidate);
 use Getopt::Std;
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
 
+sub VERSION_MESSAGE;
+sub HELP_MESSAGE;
 sub print_expanded_v4network;
 sub print_expanded_v6network;
 
 our %opts;
-getopts('ct:', \%opts);
+getopts('cfhOSt:', \%opts);
+
+if ($opts{h}) {
+    HELP_MESSAGE(\*STDOUT);
+    exit 0;
+}
 
 # Delimiter between the key and value
 my $space_re = exists $opts{t} ? $opts{t} : '\s+';
@@ -94,11 +103,13 @@ my $ipv4_re = qr"(?:\d+\.){3}\d+";
 # Further checks are required for verifying that it's really one
 my $ipv6_re = qr"[0-9A-Fa-f:]{2,39}(?:\.\d+\.\d+\.\d+)?";
 
+my %pending;
 while (<>)
 {
     chomp;
     my ($prefix, $network, $len, $right);
 
+    next if /^#/ && $opts{S};
     if ( (/\#/) && $opts{c} )
     {
 	# print "checking...\n";
@@ -129,12 +140,12 @@ while (<>)
     }
 
     if (($prefix, $network, $len, $right) =
-	    m!^(|\S+:)(${ipv4_re})/(\d+)(${space_re}.*)$!)
+	    m!^(|[^\s:]+:)(${ipv4_re})/(\d+)(${space_re}.*)$!)
     {
 	print_expanded_v4network($network, $len, $prefix, $right);
     }
     elsif ((($prefix, $network, $len, $right) =
-	    m!^((?:\S+:)?[Ii][Pp][Vv]6:)(${ipv6_re})(?:/(\d+))?(${space_re}.*)$!) &&
+	    m!^((?:[^\s:]+:)?[Ii][Pp][Vv]6:)(${ipv6_re})(?:/(\d+))?(${space_re}.*)$!) &&
 	    (!defined($len) || $len <= 128) &&
 	    defined(cidrvalidate($network)))
     {
@@ -142,19 +153,31 @@ while (<>)
     }
     else
     {
+	if (%pending && m!^(.+?)${space_re}!)
+	{
+	    delete $pending{$opts{f} ? $1 : lc($1)};
+	}
 	print "$_\n";
     }
 }
+print foreach values %pending;
 
 sub print_expanded_v4network
 {
     my ($network, $len, $prefix, $suffix) = @_;
+    my $fp = $opts{f} ? $prefix : lc($prefix);
 
     # cidr2octets() doesn't handle a prefix-length of zero, so do
     # that ourselves
     foreach my $nl ($len == 0 ? (0..255) : cidr2octets("$network/$len"))
     {
-	print "$prefix$nl$suffix\n";
+	my $val = "$prefix$nl$suffix\n";
+	if ($opts{O})
+	{
+	    $pending{"$fp$nl"} = $val;
+	    next;
+	}
+	print $val;
     }
 }
 
@@ -171,11 +194,53 @@ sub print_expanded_v6network
     }
     else
     {
+	my $fp = $opts{f} ? $prefix : lc($prefix);
 	foreach my $nl (cidr2octets("$network/$len"))
 	{
 	    # trim leading zeros from each group
 	    $nl =~ s/(^|:)0+(?=[^:])/$1/g;
-	    print "$prefix$nl$suffix\n";
+	    my $val = "$prefix$nl$suffix\n";
+	    if ($opts{O})
+	    {
+		$pending{"$fp$nl"} = $val;
+		next;
+	    }
+	    print $val;
 	}
     }
+}
+
+sub VERSION_MESSAGE
+{
+    my ($fh) = @_;
+    print $fh "cidrexpand - Version $VERSION\n";
+}
+
+sub HELP_MESSAGE
+{
+    my ($fh) = @_;
+    print $fh <<'EOF';
+Usage: cidrexpand [-cfhOS] [-t regexp] files...
+
+Expand CIDR format inside the keys of map entries for makemap.
+
+  -c	Truncate lines at the first unquoted '#'
+
+  -f	Treat keys as case-sensitive when doing override detection
+	for the -O option.  By default overlap detection is
+	case-insensitive.
+
+  -h	Print this usage
+
+  -O	When a CIDR expansion would generate a partial conflict
+	with a later entry, suppress the overlap from the earlier
+	expansion
+
+  -S	Skip lines that start with '#'
+
+  -t regexp
+	Use 'regexp' to match the delimiter between key and value,
+	defaulting to \s+
+
+EOF
 }

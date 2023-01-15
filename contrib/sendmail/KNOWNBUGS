@@ -20,6 +20,14 @@ This list is not guaranteed to be complete.
   then it will be truncated which may result in a syntactically
   invalid address.
 
+* Berkeley DB map locking problem with fcntl().
+
+  For Linux the default is to use fcntl() for file locking.  However,
+  this does not work with Berkeley DB 5.x and probably later.
+  Switching to flock(), i.e., compile with -DHASFLOCK fixes this
+  (however, the have been problems with flock() on some Linux
+  versions). Alternatively, use CDB or an earlier BDB version.
+
 * Delivery to programs that generate too much output may cause problems
 
   If e-mail is delivered to a program which generates too much

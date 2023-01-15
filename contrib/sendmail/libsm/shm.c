@@ -15,6 +15,7 @@ SM_RCSID("@(#)$Id: shm.c,v 1.20 2013-11-22 20:51:43 ca Exp $")
 # include <unistd.h>
 # include <errno.h>
 # include <sm/string.h>
+# include <sm/conf.h>
 # include <sm/shm.h>
 
 
@@ -119,12 +120,17 @@ sm_shmstop(shm, shmid, owner)
 **		< 0 on failure.
 */
 
+#ifdef __STDC__
+int
+sm_shmsetowner(int shmid, uid_t uid, gid_t gid, MODE_T mode)
+#else /* __STDC__ */
 int
 sm_shmsetowner(shmid, uid, gid, mode)
 	int shmid;
 	uid_t uid;
 	gid_t gid;
-	mode_t mode;
+	MODE_T mode;
+#endif /* __STDC__ */
 {
 	int r;
 	struct shmid_ds shmid_ds;

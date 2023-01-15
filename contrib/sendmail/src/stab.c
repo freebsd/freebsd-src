@@ -15,6 +15,10 @@
 
 SM_RCSID("@(#)$Id: stab.c,v 8.92 2013-11-22 20:51:56 ca Exp $")
 
+#include <sm/sendmail.h>
+#if USE_EAI
+# include <sm/ixlen.h>
+#endif
 #if DANE
 # include <tls.h>
 #endif
@@ -62,8 +66,23 @@ stab(name, type, op)
 	*/
 
 	hfunc = type;
-	for (p = name; *p != '\0'; p++)
-		hfunc = ((hfunc << 1) ^ (SM_LOWER(*p) & 0377)) % STABSIZE;
+#if USE_EAI
+	if (!addr_is_ascii(name))
+	{
+		char *lower, *cstr;
+
+		lower = sm_lowercase(name);
+		for (cstr = lower; *cstr != '\0'; cstr++)
+			hfunc = ((hfunc << 1) ^ ((*cstr) & 0377)) % STABSIZE;
+	}
+	else
+#endif
+	/* "else" in #if code above */
+	{
+		for (p = name; *p != '\0'; p++)
+			hfunc = ((hfunc << 1) ^ (SM_LOWER(*p) & 0377)) %
+				STABSIZE;
+	}
 
 	if (tTd(36, 9))
 		sm_dprintf("(hfunc=%d) ", hfunc);
@@ -78,7 +97,7 @@ stab(name, type, op)
 	else
 	{
 		while ((s = *ps) != NULL &&
-		       (s->s_symtype != type || sm_strcasecmp(name, s->s_name)))
+		       (s->s_symtype != type || !SM_STRCASEEQ(name, s->s_name)))
 			ps = &s->s_next;
 	}
 

@@ -12,6 +12,7 @@
 
 SM_RCSID("@(#)$Id: control.c,v 8.130 2013-11-22 20:51:55 ca Exp $")
 
+#include <sm/sendmail.h>
 #include <sm/fdset.h>
 
 /* values for cmd_code */
@@ -61,13 +62,13 @@ int ControlSocket = -1;
 int
 opencontrolsocket()
 {
-# if NETUNIX
+#if NETUNIX
 	int save_errno;
 	int rval;
 	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
 	struct sockaddr_un controladdr;
 
-	if (ControlSocketName == NULL || *ControlSocketName == '\0')
+	if (SM_IS_EMPTY(ControlSocketName))
 		return 0;
 
 	if (strlen(ControlSocketName) >= sizeof(controladdr.sun_path))
@@ -152,7 +153,7 @@ opencontrolsocket()
 		errno = save_errno;
 		return -1;
 	}
-# endif /* NETUNIX */
+#endif /* NETUNIX */
 	return 0;
 }
 /*
@@ -172,7 +173,7 @@ void
 closecontrolsocket(fullclose)
 	bool fullclose;
 {
-# if NETUNIX
+#if NETUNIX
 	long sff = SFF_SAFEDIRPATH|SFF_OPENASROOT|SFF_NOLINK|SFF_CREAT|SFF_MUSTOWN;
 
 	if (ControlSocket >= 0)
@@ -200,7 +201,7 @@ closecontrolsocket(fullclose)
 			return;
 		}
 	}
-# endif /* NETUNIX */
+#endif /* NETUNIX */
 	return;
 }
 /*
@@ -219,11 +220,11 @@ closecontrolsocket(fullclose)
 void
 clrcontrol()
 {
-# if NETUNIX
+#if NETUNIX
 	if (ControlSocket >= 0)
 		(void) close(ControlSocket);
 	ControlSocket = -1;
-# endif /* NETUNIX */
+#endif /* NETUNIX */
 }
 /*
 **  CONTROL_COMMAND -- read and process command from named socket
@@ -329,7 +330,7 @@ control_command(sock, e)
 	/* decode command */
 	for (c = CmdTab; c->cmd_name != NULL; c++)
 	{
-		if (sm_strcasecmp(c->cmd_name, cmdbuf) == 0)
+		if (SM_STRCASEEQ(c->cmd_name, cmdbuf))
 			break;
 	}
 
@@ -397,7 +398,7 @@ control_command(sock, e)
 		break;
 
 	  case CMDMEMDUMP:	/* daemon memory dump, to find memory leaks */
-# if SM_HEAP_CHECK
+#if SM_HEAP_CHECK
 		/* dump the heap, if we are checking for memory leaks */
 		if (sm_debug_active(&SmHeapCheck, 2))
 		{
@@ -410,12 +411,12 @@ control_command(sock, e)
 			(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
 					     "To fix, run sendmail with -dsm_check_heap.4\r\n");
 		}
-# else /* SM_HEAP_CHECK */
+#else /* SM_HEAP_CHECK */
 		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
 				     "Memory dump unavailable.\r\n");
 		(void) sm_io_fprintf(s, SM_TIME_DEFAULT,
 				     "To fix, rebuild with -DSM_HEAP_CHECK\r\n");
-# endif /* SM_HEAP_CHECK */
+#endif /* SM_HEAP_CHECK */
 		break;
 
 	  case CMDERROR:	/* unknown command */
