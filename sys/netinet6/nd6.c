@@ -2369,7 +2369,6 @@ nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
 	struct in6_addr *psrc, src;
 	int send_ns, ll_len;
 	char *lladdr;
-	size_t dropped;
 
 	NET_EPOCH_ASSERT();
 
@@ -2436,8 +2435,12 @@ nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
 	 * packet queue in the mbuf.  When it exceeds nd6_maxqueuelen,
 	 * the oldest packet in the queue will be removed.
 	 */
-	dropped = lltable_append_entry_queue(lle, m, V_nd6_maxqueuelen);
-	ICMP6STAT_ADD(icp6s_dropped, dropped);
+	if (m != NULL) {
+		size_t dropped;
+
+		dropped = lltable_append_entry_queue(lle, m, V_nd6_maxqueuelen);
+		ICMP6STAT_ADD(icp6s_dropped, dropped);
+	}
 
 	/*
 	 * If there has been no NS for the neighbor after entering the
