@@ -1314,7 +1314,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* We enforce a maximum number of query restarts. This is primarily a
 	 * cheap way to prevent CNAME loops. */
-	if(iq->query_restart_count > MAX_RESTART_COUNT) {
+	if(iq->query_restart_count > ie->max_query_restarts) {
 		verbose(VERB_QUERY, "request has exceeded the maximum number"
 			" of query restarts with %d", iq->query_restart_count);
 		errinf(qstate, "request has exceeded the maximum number "
@@ -2276,14 +2276,13 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->num_current_queries, iq->sent_count);
 
 	/* Make sure that we haven't run away */
-	/* FIXME: is this check even necessary? */
 	if(iq->referral_count > MAX_REFERRAL_COUNT) {
 		verbose(VERB_QUERY, "request has exceeded the maximum "
 			"number of referrrals with %d", iq->referral_count);
 		errinf(qstate, "exceeded the maximum of referrals");
 		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
-	if(iq->sent_count > MAX_SENT_COUNT) {
+	if(iq->sent_count > ie->max_sent_count) {
 		verbose(VERB_QUERY, "request has exceeded the maximum "
 			"number of sends with %d", iq->sent_count);
 		errinf(qstate, "exceeded the maximum number of sends");
@@ -2630,7 +2629,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * the original query is one that matched too, so we have
 		 * caps_server+1 number of matching queries now */
 		if(iq->caps_server+1 >= naddr*3 ||
-			iq->caps_server*2+2 >= MAX_SENT_COUNT) {
+			iq->caps_server*2+2 >= (size_t)ie->max_sent_count) {
 			/* *2 on sentcount check because ipv6 may fail */
 			/* we're done, process the response */
 			verbose(VERB_ALGO, "0x20 fallback had %d responses "

@@ -99,8 +99,12 @@ struct daemon {
 	void* listen_sslctx, *connect_sslctx;
 	/** num threads allocated */
 	int num;
+	/** num threads allocated in the previous config or 0 at first */
+	int old_num;
 	/** the worker entries */
 	struct worker** workers;
+	/** per-worker allocation cache */
+	struct alloc_cache **worker_allocs;
 	/** do we need to exit unbound (or is it only a reload?) */
 	int need_to_exit;
 	/** master random table ; used for port div between threads on reload*/
@@ -140,6 +144,8 @@ struct daemon {
 	/** the dnscrypt environment */
 	struct dnsc_env* dnscenv;
 #endif
+	/** reuse existing cache on reload if other conditions allow it. */
+	int reuse_cache;
 };
 
 /**
