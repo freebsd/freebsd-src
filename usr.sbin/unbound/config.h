@@ -117,7 +117,7 @@
 
 /* Define to 1 if you have the declaration of `evsignal_assign', and to 0 if
    you don't. */
-#define HAVE_DECL_EVSIGNAL_ASSIGN 1
+/* #undef HAVE_DECL_EVSIGNAL_ASSIGN */
 
 /* Define to 1 if you have the declaration of `inet_ntop', and to 0 if you
    don't. */
