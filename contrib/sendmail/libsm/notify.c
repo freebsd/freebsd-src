@@ -10,6 +10,14 @@
 
 #include <sm/gen.h>
 
+#if _FFR_DMTRIGGER
+#include <sm/conf.h>	/* FDSET_CAST */
+#include <sm/fdset.h>
+#include <sm/assert.h>
+#include <sm/notify.h>
+#include <sm/time.h>
+#include <sm/string.h>
+
 #include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
@@ -19,11 +27,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>	/* for memset() */
-
-#include <sm/conf.h>	/* FDSET_CAST */
-#include <sm/fdset.h>
-#include <sm/assert.h>
-#include <sm/notify.h>
 
 #if SM_NOTIFY_DEBUG
 #define SM_DBG(p)	fprintf p
@@ -126,6 +129,9 @@ sm_notify_stop(owner, flags)
 **		<0: -errno
 */
 
+#define MAX_NETSTR 1024
+#define NETSTRPRE 5
+
 int
 sm_notify_snd(buf, buflen)
 	char *buf;
@@ -133,13 +139,18 @@ sm_notify_snd(buf, buflen)
 {
 	int r;
 	int save_errno;
+	size_t len;
+	char netstr[MAX_NETSTR];
 
 	SM_REQUIRE(buf != NULL);
 	SM_REQUIRE(buflen > 0);
 	if (NotifyWRpipe < 0)
 		return -EINVAL;
+	if (buflen >= MAX_NETSTR - 7)
+		return -E2BIG;	/* XXX "TOO LARGE"? */
 
-	r = write(NotifyWRpipe, buf, buflen);
+	len = sm_snprintf(netstr, sizeof(netstr), "%04d:%s,", (int)buflen, buf);
+	r = write(NotifyWRpipe, netstr, len);
 	save_errno = errno;
 	SM_DBG((stderr, "write=%d, fd=%d, e=%d\n", r, NotifyWRpipe, save_errno));
 	return r >= 0 ? 0 : -save_errno;
@@ -151,7 +162,7 @@ sm_notify_snd(buf, buflen)
 **	Parameters:
 **		buf -- where to write data
 **		buflen -- len of buffer
-**		tmo -- timeout
+**		tmo -- timeout (micro seconds)
 **
 **	Returns:
 **		0: success
@@ -162,24 +173,30 @@ int
 sm_notify_rcv(buf, buflen, tmo)
 	char *buf;
 	size_t buflen;
-	int tmo;
+	long tmo;
 {
-	int r;
+	int r, len;
 	int save_errno;
 	fd_set readfds;
-	struct timeval timeout;
+	struct timeval timeout, *tval;
 
 	SM_REQUIRE(buf != NULL);
-	SM_REQUIRE(buflen > 0);
+	SM_REQUIRE(buflen > NETSTRPRE + 2);
 	if (NotifyRDpipe < 0)
 		return -EINVAL;
 	FD_ZERO(&readfds);
 	SM_FD_SET(NotifyRDpipe, &readfds);
-	timeout.tv_sec = tmo;
-	timeout.tv_usec = 0;
+	if (tmo < 0)
+		tval = NULL;
+	else
+	{
+		timeout.tv_sec = (long) (tmo / SM_MICROS);
+		timeout.tv_usec = tmo % SM_MICROS;
+		tval = &timeout;
+	}
 
 	do {
-		r = select(NotifyRDpipe + 1, FDSET_CAST &readfds, NULL, NULL, &timeout);
+		r = select(NotifyRDpipe + 1, FDSET_CAST &readfds, NULL, NULL, tval);
 		save_errno = errno;
 		SM_DBG((stderr, "select=%d, fd=%d, e=%d\n", r, NotifyRDpipe, save_errno));
 	} while (r < 0 && save_errno == EINTR);
@@ -194,12 +211,30 @@ sm_notify_rcv(buf, buflen, tmo)
 	if (!FD_ISSET(NotifyRDpipe, &readfds))
 		return -ETIMEDOUT;
 
-	r = read(NotifyRDpipe, buf, buflen);
+	r = read(NotifyRDpipe, buf, NETSTRPRE);
+	if (NETSTRPRE != r)
+		return -1;	/* ??? */
+
+	if (sm_io_sscanf(buf, "%4u:", &len) != 1)
+		return -EINVAL;	/* ??? */
+	if (len >= MAX_NETSTR)
+		return -E2BIG;	/* ??? */
+	if (len >= buflen - 1)
+		return -E2BIG;	/* ??? */
+	if (len <= 0)
+		return -EINVAL;	/* ??? */
+	r = read(NotifyRDpipe, buf, len + 1);
 	save_errno = errno;
 	SM_DBG((stderr, "read=%d, e=%d\n", r, save_errno));
 	if (r == 0)
 		return -1;	/* ??? */
 	if (r < 0)
 		return -save_errno;
+	if (len + 1 != r)
+		return -1;	/* ??? */
+	if (buf[len] != ',')
+		return -EINVAL;	/* ??? */
+	buf[len] = '\0';
 	return r;
 }
+#endif /* _FFR_DMTRIGGER */

@@ -154,11 +154,7 @@ sasl_close(fp)
 	so = (struct sasl_obj *) fp->f_cookie;
 	if (so == NULL)
 		return 0;
-	if (so->fp != NULL)
-	{
-		sm_io_close(so->fp, SM_TIME_DEFAULT);
-		so->fp = NULL;
-	}
+	SM_CLOSE_FP(so->fp);
 	sm_free(so);
 	so = NULL;
 	return 0;
@@ -544,11 +540,7 @@ tls_close(fp)
 	so = (struct tls_obj *) fp->f_cookie;
 	if (so == NULL)
 		return 0;
-	if (so->fp != NULL)
-	{
-		sm_io_close(so->fp, SM_TIME_DEFAULT);
-		so->fp = NULL;
-	}
+	SM_CLOSE_FP(so->fp);
 	sm_free(so);
 	so = NULL;
 	return 0;
@@ -672,11 +664,11 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 }
 
 /* errno to force refill() etc to stop (see IS_IO_ERROR()) */
-#ifdef ETIMEDOUT
-# define SM_ERR_TIMEOUT	ETIMEDOUT
-#else
-# define SM_ERR_TIMEOUT	EIO
-#endif
+# ifdef ETIMEDOUT
+#  define SM_ERR_TIMEOUT	ETIMEDOUT
+# else
+#  define SM_ERR_TIMEOUT	EIO
+# endif
 
 /*
 **  SET_TLS_RD_TMO -- read secured information for the caller
@@ -770,10 +762,10 @@ tls_read(fp, buf, size)
 		err = "syscall error";
 		break;
 	  case SSL_ERROR_SSL:
-#if DEAL_WITH_ERROR_SSL
+# if DEAL_WITH_ERROR_SSL
 		if (r == 0 && errno == 0) /* out of protocol EOF found */
 			break;
-#endif
+# endif
 		err = "generic SSL error";
 
 		if (LogLevel > 9)
@@ -787,11 +779,11 @@ tls_read(fp, buf, size)
 			tlslogerr(pri, 9, "read");
 		}
 
-#if DEAL_WITH_ERROR_SSL
+# if DEAL_WITH_ERROR_SSL
 		/* avoid repeated calls? */
 		if (r == 0)
 			r = -1;
-#endif
+# endif
 		break;
 	}
 	if (err != NULL)
@@ -898,11 +890,11 @@ tls_write(fp, buf, size)
 */
 		tlslogerr(LOG_WARNING, 9, "write");
 
-#if DEAL_WITH_ERROR_SSL
+# if DEAL_WITH_ERROR_SSL
 		/* avoid repeated calls? */
 		if (r == 0)
 			r = -1;
-#endif
+# endif
 		break;
 	}
 	if (err != NULL)

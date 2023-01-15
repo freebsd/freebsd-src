@@ -136,7 +136,7 @@ poststats(sfile)
 	static bool entered = false;
 	long sff = SFF_REGONLY|SFF_OPENASROOT;
 	struct statistics stats;
-	extern off_t lseek();
+	extern off_t lseek __P((int, off_t, int));
 
 	if (sfile == NULL || *sfile == '\0' || !GotStats || entered)
 		return;

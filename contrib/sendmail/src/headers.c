@@ -13,6 +13,7 @@
 
 #include <sendmail.h>
 #include <sm/sendmail.h>
+#include <sm/ixlen.h>
 
 SM_RCSID("@(#)$Id: headers.c,v 8.320 2013-11-22 20:51:55 ca Exp $")
 
@@ -306,15 +307,20 @@ hse:
 		if (rs != NULL)
 		{
 			int l, k;
-			char qval[MAXNAME];
+			char qval[MAXNAME_I];
+			XLENDECL
 
 			l = 0;
+			XLEN('"');
 			qval[l++] = '"';
 
 			/* - 3 to avoid problems with " at the end */
-			/* should be sizeof(qval), not MAXNAME */
-			for (k = 0; fvalue[k] != '\0' && l < MAXNAME - 3; k++)
+			for (k = 0;
+			     fvalue[k] != '\0' && l < sizeof(qval) - 3
+			     && xlen < MAXNAME - 3;
+			     k++)
 			{
+				XLEN(fvalue[k]);
 				switch (fvalue[k])
 				{
 				  /* XXX other control chars? */
@@ -326,6 +332,7 @@ hse:
 					qval[l++] = ' ';
 					break;
 				  case '"':
+					XLEN('\\');
 					qval[l++] = '\\';
 					/* FALLTHROUGH */
 				  default:
@@ -333,15 +340,18 @@ hse:
 					break;
 				}
 			}
+			/* just for "completeness": xlen not used afterwards */
+			XLEN('"');
 			qval[l++] = '"';
 			qval[l] = '\0';
 			k += strlen(fvalue + k);
-			if (k >= MAXNAME)
+			if (k >= sizeof(qval))
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_WARNING, e->e_id,
 						  "Warning: truncated header '%s' before check with '%s' len=%d max=%d",
-						  fname, rs, k, MAXNAME - 1);
+						  fname, rs, k,
+						  (int) (sizeof(qval) - 1));
 			}
 			macdefine(&e->e_macro, A_TEMP,
 				macid("{currHeader}"), qval);
@@ -375,7 +385,7 @@ hse:
 	if (!bitset(EF_RESENT, e->e_flags))
 		p += 7;
 	if (!bitset(pflag, CHHDR_DEF) && !headeronly &&
-	    !bitset(EF_QUEUERUN, e->e_flags) && sm_strcasecmp(fname, p) == 0)
+	    !bitset(EF_QUEUERUN, e->e_flags) && SM_STRCASEEQ(fname, p))
 	{
 		if (e->e_from.q_paddr != NULL &&
 		    e->e_from.q_mailer != NULL &&
@@ -394,7 +404,7 @@ hse:
 	/* delete default value for this header */
 	for (hp = hdrp; (h = *hp) != NULL; hp = &h->h_link)
 	{
-		if (sm_strcasecmp(fname, h->h_field) == 0 &&
+		if (SM_STRCASEEQ(fname, h->h_field) &&
 		    !bitset(H_USER, h->h_flags) &&
 		    !bitset(H_FORCE, h->h_flags))
 		{
@@ -434,9 +444,12 @@ hse:
 	}
 
 	/* create a new node */
-	h = (HDR *) sm_rpool_malloc_x(e->e_rpool, sizeof(*h));
-	h->h_field = sm_rpool_strdup_x(e->e_rpool, fname);
-	h->h_value = sm_rpool_strdup_x(e->e_rpool, fvalue);
+	h = (HDR *) sm_rpool_malloc_tagged_x(e->e_rpool, sizeof(*h), "header",
+			pflag, bitset(pflag, CHHDR_DEF) ? 0 : 1);
+	h->h_field = sm_rpool_strdup_tagged_x(e->e_rpool, fname, "h_field",
+			pflag, bitset(pflag, CHHDR_DEF) ? 0 : 1);
+	h->h_value = sm_rpool_strdup_tagged_x(e->e_rpool, fvalue, "h_value",
+			pflag, bitset(pflag, CHHDR_DEF) ? 0 : 1);
 	h->h_link = NULL;
 	memmove((char *) h->h_mflags, (char *) mopts, sizeof(mopts));
 	h->h_macro = mid;
@@ -505,12 +518,12 @@ chompheader(line, pflag, hdrp, e)
 	/* quote this if user (not config file) input */
 	if (bitset(pflag, CHHDR_USER))
 	{
-		char xbuf[MAXLINE];
+		char xbuf[MAXLINE]; /* EAI:ok; actual buffer might be greater */
 		char *xbp = NULL;
 		int xbufs;
 
 		xbufs = sizeof(xbuf);
-		xbp = quote_internal_chars(line, xbuf, &xbufs);
+		xbp = quote_internal_chars(line, xbuf, &xbufs, NULL);
 		if (tTd(31, 7))
 		{
 			sm_dprintf("chompheader: quoted: ");
@@ -626,7 +639,7 @@ addheader(field, value, flags, e, space)
 	/* find current place in list -- keep back pointer? */
 	for (hp = hdrlist; (h = *hp) != NULL; hp = &h->h_link)
 	{
-		if (sm_strcasecmp(field, h->h_field) == 0)
+		if (SM_STRCASEEQ(field, h->h_field))
 			break;
 	}
 
@@ -728,7 +741,7 @@ hvalue(field, header)
 	for (h = header; h != NULL; h = h->h_link)
 	{
 		if (!bitset(H_DEFAULT, h->h_flags) &&
-		    sm_strcasecmp(h->h_field, field) == 0)
+		    SM_STRCASEEQ(h->h_field, field))
 		{
 			char *s;
 
@@ -921,10 +934,10 @@ eatheader(e, full, log)
 		p = "resent-message-id";
 		if (!bitset(EF_RESENT, e->e_flags))
 			p += 7;
-		if (sm_strcasecmp(h->h_field, p) == 0)
+		if (SM_STRCASEEQ(h->h_field, p))
 		{
 			e->e_msgid = h->h_value;
-			while (isascii(*e->e_msgid) && isspace(*e->e_msgid))
+			while (SM_ISSPACE(*e->e_msgid))
 				e->e_msgid++;
 			macdefine(&e->e_macro, A_PERM, macid("{msg_id}"),
 				  e->e_msgid);
@@ -979,9 +992,9 @@ eatheader(e, full, log)
 		/* Check if multipart/report */
 		if (pvp != NULL && pvp[0] != NULL &&
 		    pvp[1] != NULL && pvp[2] != NULL &&
-		    sm_strcasecmp(*pvp++, "multipart") == 0 &&
+		    SM_STRCASEEQ(*pvp++, "multipart") &&
 		    strcmp(*pvp++, "/") == 0 &&
-		    sm_strcasecmp(*pvp++, "report") == 0)
+		    SM_STRCASEEQ(*pvp++, "report"))
 		{
 			/* Look for report-type=delivery-status */
 			while (*pvp != NULL)
@@ -995,7 +1008,7 @@ eatheader(e, full, log)
 					break;
 
 				/* look for report-type */
-				if (sm_strcasecmp(*pvp++, "report-type") != 0)
+				if (!SM_STRCASEEQ(*pvp++, "report-type"))
 					continue;
 
 				/* skip equal */
@@ -1004,8 +1017,7 @@ eatheader(e, full, log)
 
 				/* check value */
 				if (*++pvp != NULL &&
-				    sm_strcasecmp(*pvp,
-						  "delivery-status") == 0)
+				    SM_STRCASEEQ(*pvp, "delivery-status"))
 					e->e_timeoutclass = TOC_DSN;
 
 				/* found report-type, no need to continue */
@@ -1019,11 +1031,11 @@ eatheader(e, full, log)
 	if (p != NULL)
 	{
 		/* (this should be in the configuration file) */
-		if (sm_strcasecmp(p, "urgent") == 0)
+		if (SM_STRCASEEQ(p, "urgent"))
 			e->e_timeoutclass = TOC_URGENT;
-		else if (sm_strcasecmp(p, "normal") == 0)
+		else if (SM_STRCASEEQ(p, "normal"))
 			e->e_timeoutclass = TOC_NORMAL;
-		else if (sm_strcasecmp(p, "non-urgent") == 0)
+		else if (SM_STRCASEEQ(p, "non-urgent"))
 			e->e_timeoutclass = TOC_NONURGENT;
 		else if (bitset(EF_RESPONSE, e->e_flags))
 			e->e_timeoutclass = TOC_DSN;
@@ -1040,7 +1052,7 @@ eatheader(e, full, log)
 
 	/* check to see if this is a MIME message */
 	if ((e->e_bodytype != NULL &&
-	     sm_strcasecmp(e->e_bodytype, "8BITMIME") == 0) ||
+	     SM_STRCASEEQ(e->e_bodytype, "8bitmime")) ||
 	    hvalue("MIME-Version", e->e_header) != NULL)
 	{
 		e->e_flags |= EF_IS_MIME;
@@ -1110,6 +1122,35 @@ eatheader(e, full, log)
 **		none
 */
 
+
+#define XBUFLEN MAXNAME
+#if (SYSLOG_BUFSIZE) >= 256
+# ifndef MSGIDLOGLEN
+#  define MSGIDLOGLEN 100
+#  define FIRSTLOGLEN 850
+# else
+#  if MSGIDLOGLEN < 100
+#    ERROR "MSGIDLOGLEN too short"
+#  endif
+/* XREF: this is "sizeof(sbuf)", see above */
+#  if MSGIDLOGLEN >= MAXLINE / 2
+#    ERROR "MSGIDLOGLEN too long"
+#  endif
+
+/* 850 - 100 for original MSGIDLOGLEN */
+#  define FIRSTLOGLEN (750 + MSGIDLOGLEN)
+
+/* check that total length is ok */
+#  if FIRSTLOGLEN + 200 >= MAXLINE
+#    ERROR "MSGIDLOGLEN too long"
+#  endif
+#  if MSGIDLOGLEN > MAXNAME
+#    undef XBUFLEN
+#    define XBUFLEN MSGIDLOGLEN
+#  endif
+# endif
+#endif /* (SYSLOG_BUFSIZE) >= 256 */
+
 void
 logsender(e, msgid)
 	register ENVELOPE *e;
@@ -1118,8 +1159,12 @@ logsender(e, msgid)
 	char *name;
 	register char *sbp;
 	register char *p;
-	char hbuf[MAXNAME + 1];
-	char sbuf[MAXLINE + 1]; /* XREF: see below MSGIDLOGLEN */
+	char hbuf[MAXNAME + 1];	/* EAI:ok; restricted to short size */
+	char sbuf[MAXLINE + 1]; /* EAI:ok; XREF: see also MSGIDLOGLEN */
+#if _FFR_8BITENVADDR
+	char xbuf[XBUFLEN + 1];	/* EAI:ok */
+#endif
+	char *xstr;
 
 	if (bitset(EF_RESPONSE, e->e_flags))
 		name = "[RESPONSE]";
@@ -1145,34 +1190,26 @@ logsender(e, msgid)
 
 #if (SYSLOG_BUFSIZE) >= 256
 	sbp = sbuf;
+	if (NULL != e->e_from.q_paddr)
+	{
+		xstr = e->e_from.q_paddr;
+# if _FFR_8BITENVADDR
+		(void) dequote_internal_chars(e->e_from.q_paddr, xbuf, sizeof(xbuf));
+		xstr = xbuf;
+# endif
+	}
+	else
+		xstr = "<NONE>";
 	(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
-		"from=%.200s, size=%ld, class=%d, nrcpts=%d",
-		e->e_from.q_paddr == NULL ? "<NONE>" : e->e_from.q_paddr,
+		"from=%.200s, size=%ld, class=%d, nrcpts=%d", xstr,
 		PRT_NONNEGL(e->e_msgsize), e->e_class, e->e_nrcpts);
 	sbp += strlen(sbp);
 	if (msgid != NULL)
 	{
-
-#ifndef MSGIDLOGLEN
-# define MSGIDLOGLEN 100
-# define FIRSTLOGLEN 850
-# else
-#  if MSGIDLOGLEN < 100
-    ERROR MSGIDLOGLEN too short
-#  endif
-/* XREF: this is "sizeof(sbuf)", see above */
-#  if MSGIDLOGLEN >= MAXLINE / 2
-    ERROR MSGIDLOGLEN too long
-#  endif
-
-/* 850 - 100 for original MSGIDLOGLEN */
-#  define FIRSTLOGLEN (750 + MSGIDLOGLEN)
-
-/* check that total length is ok */
-#  if FIRSTLOGLEN + 200 >= MAXLINE
-    ERROR MSGIDLOGLEN too long
-#  endif
-#endif
+# if _FFR_8BITENVADDR
+		(void) dequote_internal_chars(msgid, xbuf, sizeof(xbuf));
+		msgid = xbuf;
+# endif
 		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
 				", msgid=%.*s", MSGIDLOGLEN, msgid);
 		sbp += strlen(sbp);
@@ -1201,7 +1238,7 @@ logsender(e, msgid)
 	LOG_MORE(sbuf, sbp);
 #  if SASL
 	p = macvalue(macid("{auth_type}"), e);
-	if (p == NULL || *p == '\0')
+	if (SM_IS_EMPTY(p))
 		p = "NONE";
 	(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp), ", auth=%.20s", p);
 	sbp += strlen(sbp);
@@ -1220,9 +1257,15 @@ logsender(e, msgid)
 		  "size=%ld, class=%ld, nrcpts=%d",
 		  PRT_NONNEGL(e->e_msgsize), e->e_class, e->e_nrcpts);
 	if (msgid != NULL)
+	{
+# if _FFR_8BITENVADDR
+		(void) dequote_internal_chars(msgid, xbuf, sizeof(xbuf));
+		msgid = xbuf;
+# endif
 		sm_syslog(LOG_INFO, e->e_id,
 			  "msgid=%s",
 			  shortenstring(msgid, 83));
+	}
 	sbp = sbuf;
 	*sbp = '\0';
 	if (e->e_bodytype != NULL)
@@ -1264,7 +1307,7 @@ priencode(p)
 
 	for (i = 0; i < NumPriorities; i++)
 	{
-		if (sm_strcasecmp(p, Priorities[i].pri_name) == 0)
+		if (SM_STRCASEEQ(p, Priorities[i].pri_name))
 			return Priorities[i].pri_val;
 	}
 
@@ -1291,7 +1334,7 @@ priencode(p)
 **	the original syntax.
 **
 **	Parameters:
-**		addr -- the address to be cracked.
+**		addr -- the address to be cracked. [A]
 **		e -- the current envelope.
 **
 **	Returns:
@@ -1301,11 +1344,16 @@ priencode(p)
 **		none.
 **
 **	Warning:
-**		The return value is saved in local storage and should
+**		The return value is saved in static storage and should
 **		be copied if it is to be reused.
 */
 
-#define SM_HAVE_ROOM		((bp < buflim) && (buflim <= bufend))
+#define SM_HAVE_ROOMB		((bp < buflim) && (buflim <= bufend))
+#if USE_EAI
+# define SM_HAVE_ROOM		((xlen < MAXNAME) && SM_HAVE_ROOMB)
+#else
+# define SM_HAVE_ROOM		SM_HAVE_ROOMB
+#endif
 
 /*
 **  Append a character to bp if we have room.
@@ -1315,6 +1363,7 @@ priencode(p)
 #define SM_APPEND_CHAR(c)					\
 	do							\
 	{							\
+		XLEN(c);					\
 		if (SM_HAVE_ROOM)				\
 			*bp++ = (c);				\
 		else						\
@@ -1322,7 +1371,7 @@ priencode(p)
 	} while (0)
 
 #if MAXNAME < 10
-ERROR MAXNAME must be at least 10
+# ERROR "MAXNAME must be at least 10"
 #endif
 
 char *
@@ -1349,7 +1398,8 @@ crackaddr(addr, e)
 	char *bufhead;
 	char *addrhead;
 	char *bufend;
-	static char buf[MAXNAME + 1];
+	static char buf[MAXNAME_I + 1];	/* XXX: EAI? */
+	XLENDECL
 
 	if (tTd(33, 1))
 		sm_dprintf("crackaddr(%s)\n", addr);
@@ -1730,8 +1780,11 @@ putheader(mci, hdr, e, flags)
 		}
 
 		/* Skip empty headers */
-		if (h->h_value == NULL)
+		if (p == NULL)
 			continue;
+#if _FFR_8BITENVADDR
+		(void) dequote_internal_chars(p, buf, sizeof(buf));
+#endif
 
 		/* heuristic shortening of MIME fields to avoid MUA overflows */
 		if (MaxMimeFieldLength > 0 &&
@@ -1759,7 +1812,7 @@ putheader(mci, hdr, e, flags)
 		{
 			size_t len;
 
-			len = strlen(h->h_value);
+			len = strlen(p);
 			if (len > (size_t) MaxMimeHeaderLength)
 			{
 				h->h_value[MaxMimeHeaderLength - 1] = '\0';
@@ -2055,6 +2108,16 @@ commaize(h, p, oldstyle, mci, e, putflags)
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
 
+#if _FFR_MTA_MODE
+	/* activate this per mailer? */
+	if (bitset(H_FROM, h->h_flags) && bitset(H_ASIS, h->h_flags))
+	{
+		(void) sm_snprintf(obuf, sizeof(obuf), "%.200s:%s", h->h_field,
+				h->h_value);
+		return putxline(obuf, strlen(obuf), mci, putflags);
+	}
+#endif
+
 	obp = obuf;
 	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.200s:", h->h_field);
 	/* opos = strlen(obp); instead of the next 3 lines? */
@@ -2299,7 +2362,7 @@ fix_mime_header(h, e)
 	size_t len = 0;
 	size_t retlen = 0;
 
-	if (begin == NULL || *begin == '\0')
+	if (SM_IS_EMPTY(begin))
 		return 0;
 
 	/* Split on each ';' */

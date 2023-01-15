@@ -79,7 +79,7 @@ sm_memstat_get(resource, pvalue)
 		return (errno != 0) ? errno : -1;
 	r = ai.ani_max - ai.ani_resv;
 	r *= sc_page_size >> 10;
-   	*pvalue = r;
+	*pvalue = r;
 	return 0;
 }
 
@@ -167,7 +167,7 @@ sm_memstat_get(resource, pvalue)
 			(resource != NULL) ? resource: "freemem");
 	if (kn == NULL)
 		return (errno != 0) ? errno : -3;
-   	*pvalue = kn->value.ul;
+	*pvalue = kn->value.ul;
 	return 0;
 }
 

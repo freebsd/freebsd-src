@@ -24,3 +24,6 @@ define(`confDONT_INIT_GROUPS', `True')dnl
 dnl
 dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:0:0:0:0:0:0:0:1]
 FEATURE(`msp', `[127.0.0.1]')dnl
+dnl enable this for SMTPUTF8 support
+dnl LOCAL_CONFIG
+dnl O SMTPUTF8=true

@@ -149,9 +149,9 @@ mi_gethostbyname(name, family)
 	/* the function is supposed to return only the requested family */
 	if (h != NULL && h->h_addrtype != family)
 	{
-# if NETINET6
+#if NETINET6
 		freehostent(h);
-# endif
+#endif
 		h = NULL;
 		SM_SET_H_ERRNO(NO_DATA);
 	}

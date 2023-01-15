@@ -92,7 +92,7 @@ Version \\$2
 ..
 .rm Ve
 .sp
-For Sendmail Version 8.16
+For Sendmail Version 8.17
 .)l
 .(f
 Sendmail is a trademark of Proofpoint, Inc.
@@ -1612,6 +1612,20 @@ hosts	files dns
 .)b
 will not avoid DNS lookups even if a host can be found
 in /etc/hosts.
+.pp
+Note: in contrast to the
+.i sendmail
+stub implementation
+some operating systems do not preserve temporary failures.
+For example, if DNS returns a TRY_AGAIN status for this setup
+.(b
+hosts	files dns myhostname
+.)b
+but myhostname does not find the requested entry,
+then a permanent error is returned to
+.i sendmail
+which obviously can cause problems,
+e.g., an immediate bounce instead of a deferral.
 .pp
 Service switches are not completely integrated.
 For example, despite the fact that the host entry listed in the above example
@@ -4255,6 +4269,43 @@ ruleset is called after the
 .sm "SMTP DATA"
 command, its parameter is the number of recipients.
 It can accept or reject the command.
+.sh 4 "check_other"
+.pp
+The
+.i check_other
+ruleset is invoked for all unknown SMTP commands
+and for commands which do not have specific rulesets,
+e.g., NOOP and VERB.
+Internal checks, e.g., those explained in
+"Measures against Denial of Service Attacks",
+are performed first.
+The ruleset is passed
+.(b
+entire-SMTP-command $| SMTP-reply-first-digit
+.)b
+where
+.b $|
+is a metacharacter separating the two parts.
+For example,
+.(b
+VERB $| 2
+.)b
+reflects receiving the "VERB" SMTP command and the
+intent to return a "2XX" SMTP success reply.
+Alternatively,
+.(b
+JUNK TYPE=I $| 5
+.)b
+reflects receiving the unknown "JUNK TYPE=I" SMTP command
+and the intent to return a "5XX" SMTP failure reply.
+If the ruleset returns the SMTP reply code 421:
+.(b
+$#error $@ 4.7.0 $: 421 bad command
+.)b
+the session is terminated.
+Note: it is a bad idea to return the original command in the error text
+to the client as that might be abused for certain attacks.
+The ruleset cannot override a rejection triggered by the built-in rules.
 .sh 4 "check_compat"
 .pp
 The
@@ -4359,6 +4410,30 @@ ruleset is passed the user name parameter of the
 .sm "SMTP VRFY"
 command.
 It can accept or reject the command.
+.sh 4 "clt_features"
+.pp
+The
+.i clt_features
+ruleset is called with the server's host name
+when sendmail connects to it.
+This ruleset should return
+.b $#
+followed by a list of options
+(single characters delimited by white space).
+If the return value starts with anything else it is silently ignored.
+Generally upper case characters turn off a feature
+while lower case characters turn it on.
+Options `D'/`M' cause the client to not use DANE/MTA-STS,
+respectively,
+which is useful to interact with MTAs/MUs that have broken
+DANE/MTA-STS setups by simply not using it.
+Note:
+The
+.i d
+option in
+.i tls_clt_features
+to turn off DANE does not work when the server does not
+even offer STARTTLS.
 .sh 4 "trust_auth"
 .pp
 The
@@ -4404,11 +4479,11 @@ mailer, the connection is aborted
 .pp
 The
 .i tls_rcpt
-ruleset is called each time before a RCPT TO command is sent.
+ruleset is called each time before a RCPT command is sent.
 The parameter is the current recipient.
 If the ruleset does resolve to the
 .q error
-mailer, the RCPT TO command is suppressed
+mailer, the RCPT command is suppressed
 (treated as non-deliverable with a permanent or temporary error).
 This ruleset allows to require encryption or verification of
 the recipient's MTA even if the mail is somehow redirected
@@ -4447,6 +4522,10 @@ passive attack (e.g., PLAIN, LOGIN), unless a security layer is active.
 Option `l' requires SMTP AUTH for a connection.
 Options 'B', 'D', 'E', and 'X' suppress SMTP VERB, DSN, ETRN, and EXPN,
 respectively.
+If a client sends one of the (HTTP) commands GET, POST, CONNECT, or USER
+the connection is immediately terminated in the following cases:
+if sent as first command, if sent as first command after STARTTLS,
+or if the 'h' option is set.
 .(b
 .ta 9n
 A	Do not offer AUTH
@@ -4460,6 +4539,7 @@ D	Do not offer DSN
 d	Offer DSN (default)
 E	Do not offer ETRN
 e	Offer ETRN (default)
+h	Terminate session after HTTP commands
 L	Do not require AUTH (default)
 l	Require AUTH
 P	Do not offer PIPELINING
@@ -4495,10 +4575,14 @@ by simply not using it.
 .pp
 The
 .i tls_clt_features
-ruleset is called when sendmail connects to another MTA
+ruleset is called right before sendmail issues the
+.i STARTTLS
+command to another MTA
 and the
 .i tls_srv_features
-ruleset is called when a client connects to
+ruleset is called when a client sends the
+.i STARTTLS
+command to
 .i sendmail .
 The arguments for the rulesets are the host name and IP address
 of the other side separated by
@@ -5134,6 +5218,13 @@ The current delivery mode sendmail is using.
 It is initially set to the value of the
 .b DeliveryMode
 option.
+.ip ${dsn_envid}
+The envelope id parameter (ENVID=) passed to sendmail as part of the envelope.
+.ip ${dsn_notify}
+Value of DSN NOTIFY= parameter
+(never, success, failure, delay, or empty string).
+.ip ${dsn_ret}
+Value of DSN RET= parameter (hdrs, full, or empty string).
 .ip ${envid}
 The envelope id parameter (ENVID=) passed to sendmail as part of the envelope.
 .ip ${hdrlen}
@@ -5243,8 +5334,10 @@ Defined in the SMTP server only after a RCPT command.
 .ip ${server_addr}
 The address of the server of the current outgoing SMTP connection.
 For LMTP delivery the macro is set to the name of the mailer.
+(only if sendmail is compiled with STARTTLS or SASL.)
 .ip ${server_name}
 The name of the server of the current outgoing SMTP or LMTP connection.
+(only if sendmail is compiled with STARTTLS or SASL.)
 .ip ${time}
 The output of the
 .i time (3)
@@ -5262,6 +5355,7 @@ only defined after STARTTLS has been used (or attempted).
 Possible values are:
 .(b
 .ta 13n
+TRUSTED	verification via DANE succeeded.
 OK	verification succeeded.
 NO	no cert presented.
 NOT	no cert requested.
@@ -5950,7 +6044,7 @@ This flag is ignored if the
 flag is set.
 .ip p
 Use the route-addr style reverse-path in the SMTP
-.q "MAIL FROM:"
+.sm "SMTP MAIL"
 command
 rather than just the return address;
 although this is required in RFC 821 section 3.1,
@@ -6018,7 +6112,7 @@ i.e.,
 must succeed.
 If not, the mail is bounced.
 See also the
-.b MailBoxDatabase
+.b MailboxDatabase
 option.
 This is required to get
 .q \&.forward
@@ -6253,7 +6347,7 @@ is used when converting a message to MIME;
 this is the character set used in the
 Content-Type: header.
 If this is not set, the
-.b DefaultCharset
+.b DefaultCharSet
 option is used,
 and if that is not set, the value
 .q unknown-8bit
@@ -6599,7 +6693,7 @@ STARTTLS is already encrypting the communication, because the
 existing encryption strength is taken into account when choosing
 an algorithm for the security layer.
 For example, if STARTTLS is used and the symmetric cipher is 3DES,
-then the the keylength (in bits) is 168.
+then the keylength (in bits) is 168.
 Hence setting
 .b AuthMaxBits
 to 168 will disable any encryption in SASL.
@@ -6617,7 +6711,7 @@ List of options for SMTP AUTH consisting of single characters
 with intervening white space or commas.
 .(b
 .ta 4n
-A	Use the AUTH= parameter for the MAIL FROM
+A	Use the AUTH= parameter for the MAIL
 	command only when authentication succeeded.
 	This can be used as a workaround for broken
 	MTAs that do not implement RFC 2554 correctly.
@@ -6729,7 +6823,7 @@ File containing the private key belonging to the client certificate
 .i sendmail
 runs as client).
 .ip ClientPortOptions=\fIoptions\fP
-[O]
+[no short name]
 Set client SMTP options.
 The options are
 .i key=value
@@ -7137,7 +7231,7 @@ When the system load average exceeds
 will sleep for one second on most SMTP commands and
 before accepting connections.
 .ip DeliverByMin=\fItime\fP
-[0]
+[no short name]
 Set minimum time for Deliver By SMTP Service Extension (RFC 2852).
 If 0, no time is listed, if less than 0, the extension is not offered,
 if greater than 0, it is listed as minimum time
@@ -7191,7 +7285,7 @@ If not set,
 is either "CC f" if the option
 .b \-G
 is used or "c u" otherwise.
-Note that only the the "CC", "c", "f", and "u" flags are checked.
+Note that only the "CC", "c", "f", and "u" flags are checked.
 .ip DontBlameSendmail=\fIoption,option,...\fP
 [no short name]
 In order to avoid possible cracking attempts
@@ -7450,6 +7544,12 @@ Set the name to be used for HELO/EHLO (instead of $j).
 [H]
 Specify the help file for SMTP.
 If no file name is specified, "helpfile" is used.
+If the help file does not exist (cannot be opened for reading)
+.i sendmail
+will print a note including its version in response to a
+.b HELP
+command.
+To avoid providing this information to a client specify an empty file.
 .ip HoldExpensive
 [c]
 If an outgoing mailer is marked as being expensive,
@@ -7716,8 +7816,8 @@ after a certain event occurred.
 .ta \w'envfrom'u+3n
 connect	After session connection start
 helo	After EHLO/HELO command
-envfrom	After MAIL From command
-envrcpt	After RCPT To command
+envfrom	After MAIL command
+envrcpt	After RCPT command
 data	After DATA command.
 eoh	After DATA command and header
 eom	After DATA command and terminating ``.''
@@ -8105,7 +8205,7 @@ it is enabled by default for Linux.
 According to some information this flag is not needed
 anymore for kernel 2.4.16 and newer.
 .ip RrtImpliesDsn
-[R]
+[no short name]
 If this option is set, a
 .q Return-Receipt-To:
 header causes the request of a DSN, which is sent to
@@ -8361,6 +8461,8 @@ option.
 The message printed when the SMTP server starts up.
 Defaults to
 .q "$j Sendmail $v ready at $b".
+.ip SMTPUTF8
+Enable runtime support for SMTPUTF8.
 .ip SoftBounce
 If set, issue temporary errors (4xy) instead of permanent errors (5xy).
 This can be useful during testing of a new configuration to avoid
@@ -9188,7 +9290,7 @@ flag is used.  Without it, the key is discarded or if
 .b \-s
 if used, it is substituted by the substring matches, delimited by
 .b $|
-or the string specified with the the
+or the string specified with the
 .b \-d
 option.
 The options available for the map are
@@ -9575,7 +9677,7 @@ number to override the default LDAP port.
 LDAP service port.
 .ip "\-H \fILDAPURI\fP"
 Use the specified LDAP URI instead of specifying the hostname and port
-separately with the the
+separately with the
 .b \-h
 and
 .b \-p
@@ -11184,6 +11286,61 @@ error conditions as required by the RFCs.
 Moreover, TLSA RRs are not looked up for some features,
 e.g.,
 .i FallBackSmartHost .
+.sh 2 "EAI"
+.pp
+Experimental support for SMTPUTF8 (EAI, see RFC 6530-6533)
+is available when
+the compile time option
+.b USE_EAI,
+(see also
+.i devtools/Site/site.config.m4.sample
+for other settings that might be needed),
+and the cf option
+.i SMTPUTF8
+are used.
+This allows the use of UTF-8 for envelope addresses
+as well as the entire message.
+DNS lookups are done using the A-label format (Punycode)
+as required by the RFCs.
+For all other interactions with external programs and maps,
+the actual value are used,
+i.e., no conversions between UTF-8 and ASCII encodings are made.
+This applies to
+.\" how to make a list?
+.\" .(l
+the keys in map lookups, which might require to specify both versions in a map;
+the data exchanged with a milter, i.e., each milter must be "8 bit clean";
+mail delivery agents which must be able to handle 8 bit addresses.
+.\" .)l
+Some values must be ASCII as those are used before SMTPUTF8 support
+can be requested, e.g.,
+the macros
+.b $j
+and
+.b $m.
+Please test and provide feedback.
+.sh 2 "MTA-STS"
+.pp
+Experimental support for SMTP MTA Strict Transport Security
+(MTA-STS, see RFC 8461)
+is available when using
+the compile time option _FFR_MTA_STS
+(as well as some others, e.g., _FFR_TLS_ALTNAMES and obviously STARTTLS),
+.\"(which requires in a default setting
+.\"MAP_REGEX, SOCKETMAP, _FFR_TLS_ALTNAMES, and obviously STARTTLS),
+FEATURE(sts)
+(which implicitly sets the cf option StrictTransportSecurity),
+and
+postfix-mta-sts-resolver
+(see https://github.com/Snawoot/postfix-mta-sts-resolver.git).
+.pp
+Note: this implementation uses a socket map to communicate with
+postfix-mta-sts-resolver
+and handles only the values returned by that program,
+which might not fully implement MTA-STS.
+.pp
+If both DANE and MTA-STS are enabled and available for the receiving domain,
+DANE is used because it offers a much higher level of security.
 .sh 1 "ACKNOWLEDGEMENTS"
 .pp
 I've worked on
@@ -11517,6 +11674,19 @@ The
 line will be deleted before sending.
 Any addresses in the argument vector will be deleted
 from the send list.
+.ip \-U
+This option is required when sending mail using UTF-8;
+it sets the
+.q SMTPUTF8
+argument for
+.q MAIL
+command.
+Only available if
+.q EAI
+support is enabled,
+and the
+.q SMTPUTF8
+option is set.
 .ip "\-V envid"
 The indicated
 .i envid
@@ -11641,7 +11811,8 @@ file to
 and send it again.
 .pp
 The queue control file is structured as a series of lines
-each beginning with a code letter.
+each beginning with a code letter;
+the file must end with a line containing only a single dot.
 The lines are as follows:
 .ip V
 The version number of the queue file format,
@@ -11650,10 +11821,10 @@ used to allow new
 binaries to read queue files created by older versions.
 Defaults to version zero.
 Must be the first line of the file if present.
-For 8.12 the version number is 6.
+For 8.13 and later the version number is 8.
 .ip A
 The information given by the AUTH= parameter of the
-.q "MAIL FROM:"
+.sm "SMTP MAIL"
 command or $f@$j
 if sendmail has been called directly.
 .ip H
@@ -11809,6 +11980,9 @@ H?x?Full-name: Eric Allman
 H??Message-id: <9207170931.AA22757@foo.bar.baz.de>
 H??To: sendmail@vangogh.CS.Berkeley.EDU
 H??Subject: this is an example message
+.cc '
+.
+'cc
 .)b
 This shows
 the person who sent the message,

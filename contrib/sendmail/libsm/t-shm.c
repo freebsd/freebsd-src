@@ -20,6 +20,7 @@ SM_RCSID("@(#)$Id: t-shm.c,v 1.23 2013-11-22 20:51:43 ca Exp $")
 # include <sm/heap.h>
 # include <sm/string.h>
 # include <sm/test.h>
+# include <sm/conf.h>
 # include <sm/shm.h>
 
 # define SHMSIZE	1024

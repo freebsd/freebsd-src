@@ -28,7 +28,7 @@
 
 extern void *sm_shmstart __P((key_t, int , int , int *, bool));
 extern int sm_shmstop __P((void *, int, bool));
-extern int sm_shmsetowner __P((int, uid_t, gid_t, mode_t));
+extern int sm_shmsetowner __P((int, uid_t, gid_t, MODE_T));
 
 
 /* for those braindead systems... (e.g., SunOS 4) */
