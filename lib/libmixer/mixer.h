@@ -67,12 +67,12 @@ struct mix_dev {
 		float right;			/* right volume */
 	} vol;
 	int nctl;				/* number of controls */
-	TAILQ_HEAD(, mix_ctl) ctls;		/* control list */
+	TAILQ_HEAD(mix_ctlhead, mix_ctl) ctls;	/* control list */
 	TAILQ_ENTRY(mix_dev) devs;
 };
 
 struct mixer {
-	TAILQ_HEAD(, mix_dev) devs;		/* device list */
+	TAILQ_HEAD(mix_devhead, mix_dev) devs;	/* device list */
 	struct mix_dev *dev;			/* selected device */
 	oss_mixerinfo mi;			/* mixer info */
 	oss_card_info ci;			/* audio card info */
