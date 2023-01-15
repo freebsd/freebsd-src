@@ -1,0 +1,167 @@
+; Check if an expired SERVFAIL answer stored in the global cache does not block
+; ECS queries to reach the ECS cache.
+
+server:
+	trust-anchor-signaling: no
+	target-fetch-policy: "0 0 0 0 0"
+	send-client-subnet: 1.2.3.4
+	max-client-subnet-ipv4: 21
+	module-config: "subnetcache iterator"
+	verbosity: 3
+	access-control: 127.0.0.1 allow_snoop
+	qname-minimisation: no
+	minimal-responses: no
+	serve-expired: yes
+	prefetch: yes
+
+stub-zone:
+	name: "example.com."
+	stub-addr: 1.2.3.4
+CONFIG_END
+
+SCENARIO_BEGIN Test that expired SERVFAIL in global cache does not block clients to reach the ECS cache
+
+; ns.example.com.
+RANGE_BEGIN 0 10
+	ADDRESS 1.2.3.4
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN NS
+		SECTION ANSWER
+			example.com.    IN NS   ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com.         IN      A       1.2.3.4
+	ENTRY_END
+
+	; response to query of interest
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR SERVFAIL
+		SECTION QUESTION
+			www.example.com. IN A
+	ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 11 100
+	ADDRESS 1.2.3.4
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN NS
+		SECTION ANSWER
+			example.com.    IN NS   ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com.         IN      A       1.2.3.4
+	ENTRY_END
+
+	; response to query of interest
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id copy_ednsdata_assume_clientsubnet
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN A
+		SECTION ANSWER
+			www.example.com. 10 IN A	10.20.30.40
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+						; client is 127.0.0.1
+				00 08 		; OPC
+				00 05 		; option length
+				00 01 		; Family
+				08 00 		; source mask, scopemask
+				7f		; address
+			HEX_EDNSDATA_END
+			ns.example.com.		IN 	A	1.2.3.4
+	ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; This answer should be in the global cache
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com.	IN A
+ENTRY_END
+
+; Bring the cached SERVFAIL to prefetch time
+STEP 10 TIME_PASSES ELAPSE 5
+
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 00	; ip4, source 8, scope 0
+	7f   		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+; This answer was cached but a prefetch was triggerred
+STEP 12 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+www.example.com.	IN A
+ENTRY_END
+
+; Wait for the SERVFAIL to expire
+STEP 13 TIME_PASSES ELAPSE 2
+
+; Query again to verify that the record was prefetched and stored in the ECS
+; cache (because the server replied with ECS this time)
+STEP 14 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 00	; ip4, source 8, scope 0
+	7f   		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ENTRY_END
+
+; This record came from the ECS cache
+STEP 15 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www.example.com.		IN A
+SECTION ANSWER
+www.example.com.	8	IN A	10.20.30.40
+SECTION AUTHORITY
+example.com.		3598	IN NS	ns.example.com.
+SECTION ADDITIONAL
+HEX_EDNSDATA_BEGIN
+	00 08 00 05	; OPC, optlen
+	00 01 08 08	; ip4, source 8, scope 0
+	7f		; 127.0.0.0/8
+HEX_EDNSDATA_END
+ns.example.com.		3598	IN A	1.2.3.4
+ENTRY_END
+
+SCENARIO_END

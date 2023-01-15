@@ -810,7 +810,7 @@ done:
 		/* We are reading a whole packet;
 		 * Move the rest of the data to overwrite the PROXYv2 header */
 		/* XXX can we do better to avoid memmove? */
-		memmove(header, ((void*)header)+size,
+		memmove(header, ((char*)header)+size,
 			sldns_buffer_limit(buf)-size);
 		sldns_buffer_set_limit(buf, sldns_buffer_limit(buf)-size);
 	}
@@ -2545,8 +2545,9 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 	return 1;
 }
 
-/** read again to drain buffers when there could be more to read */
-static void
+/** read again to drain buffers when there could be more to read, returns 0
+ * on failure which means the comm point is closed. */
+static int
 tcp_req_info_read_again(int fd, struct comm_point* c)
 {
 	while(c->tcp_req_info->read_again) {
@@ -2563,9 +2564,10 @@ tcp_req_info_read_again(int fd, struct comm_point* c)
 				(void)(*c->callback)(c, c->cb_arg, 
 					NETEVENT_CLOSED, NULL);
 			}
-			return;
+			return 0;
 		}
 	}
+	return 1;
 }
 
 /** read again to drain buffers when there could be more to read */
@@ -2623,6 +2625,9 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 	log_assert(c->type == comm_tcp);
 	ub_comm_base_now(c->ev->base);
 
+	if(c->fd == -1 || c->fd != fd)
+		return; /* duplicate event, but commpoint closed. */
+
 #ifdef USE_DNSCRYPT
 	/* Initialize if this is a dnscrypt socket */
 	if(c->tcp_parent) {
@@ -2671,8 +2676,10 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 			}
 			return;
 		}
-		if(has_tcpq && c->tcp_req_info && c->tcp_req_info->read_again)
-			tcp_req_info_read_again(fd, c);
+		if(has_tcpq && c->tcp_req_info && c->tcp_req_info->read_again) {
+			if(!tcp_req_info_read_again(fd, c))
+				return;
+		}
 		if(moreread && *moreread)
 			tcp_more_read_again(fd, c);
 		return;
@@ -2690,8 +2697,10 @@ comm_point_tcp_handle_callback(int fd, short event, void* arg)
 			}
 			return;
 		}
-		if(has_tcpq && c->tcp_req_info && c->tcp_req_info->read_again)
-			tcp_req_info_read_again(fd, c);
+		if(has_tcpq && c->tcp_req_info && c->tcp_req_info->read_again) {
+			if(!tcp_req_info_read_again(fd, c))
+				return;
+		}
 		if(morewrite && *morewrite)
 			tcp_more_write_again(fd, c);
 		return;
@@ -4488,6 +4497,11 @@ comm_point_close(struct comm_point* c)
 		tcp_req_info_clear(c->tcp_req_info);
 	if(c->h2_session)
 		http2_session_server_delete(c->h2_session);
+	/* stop the comm point from reading or writing after it is closed. */
+	if(c->tcp_more_read_again && *c->tcp_more_read_again)
+		*c->tcp_more_read_again = 0;
+	if(c->tcp_more_write_again && *c->tcp_more_write_again)
+		*c->tcp_more_write_again = 0;
 
 	/* close fd after removing from event lists, or epoll.. is messed up */
 	if(c->fd != -1 && !c->do_not_close) {

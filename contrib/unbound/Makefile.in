@@ -616,7 +616,7 @@ install-all:	all $(PYTHONMOD_INSTALL) $(PYUNBOUND_INSTALL) $(UNBOUND_EVENT_INSTA
 	$(INSTALL) -c -m 644 doc/unbound.conf.5 $(DESTDIR)$(mandir)/man5
 	$(INSTALL) -c -m 644 doc/unbound-host.1 $(DESTDIR)$(mandir)/man1
 	$(INSTALL) -c -m 755 unbound-control-setup $(DESTDIR)$(sbindir)/unbound-control-setup
-	if test ! -e $(DESTDIR)$(configfile); then $(INSTALL) -d `dirname $(DESTDIR)$(configfile)`; $(INSTALL) -c -m 644 doc/example.conf $(DESTDIR)$(configfile); fi
+	if test ! -e "$(DESTDIR)$(configfile)"; then $(INSTALL) -d `dirname "$(DESTDIR)$(configfile)"`; $(INSTALL) -c -m 644 doc/example.conf "$(DESTDIR)$(configfile)"; fi
 
 pythonmod-uninstall:
 	rm -f -- $(DESTDIR)$(PYTHON_SITE_PKG)/unboundmodule.py
@@ -645,7 +645,7 @@ uninstall:	$(PYTHONMOD_UNINSTALL) $(PYUNBOUND_UNINSTALL) $(UNBOUND_EVENT_UNINSTA
 	rm -f -- $(DESTDIR)$(includedir)/unbound.h
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libunbound.la
 	@echo
-	@echo "You still need to remove "`dirname $(DESTDIR)$(configfile)`" , $(DESTDIR)$(configfile) by hand"
+	@echo "You still need to remove "`dirname "$(DESTDIR)$(configfile)"`" , $(DESTDIR)$(configfile) by hand"
 
 iana_update:
 	curl -o port-numbers.tmp https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml --compressed

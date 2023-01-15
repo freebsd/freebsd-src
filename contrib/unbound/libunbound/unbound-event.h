@@ -230,7 +230,7 @@ int ub_ctx_set_event(struct ub_ctx* ctx, struct event_base* base);
  * @param callback: this is called on completion of the resolution.
  * 	It is called as:
  * 	void callback(void* mydata, int rcode, void* packet, int packet_len,
- * 		int sec, char* why_bogus)
+ * 		int sec, char* why_bogus, int was_ratelimited)
  * 	with mydata: the same as passed here, you may pass NULL,
  * 	with rcode: 0 on no error, nonzero for mostly SERVFAIL situations,
  *		this is a DNS rcode.
@@ -241,6 +241,7 @@ int ub_ctx_set_event(struct ub_ctx* ctx, struct event_base* base);
  *	with packet_len: length in bytes of the packet buffer.
  *	with sec: 0 if insecure, 1 if bogus, 2 if DNSSEC secure.
  *	with why_bogus: text string explaining why it is bogus (or NULL).
+ *	with was_ratelimited: if the query was ratelimited.
  *	These point to buffers inside unbound; do not deallocate the packet or
  *	error string.
  *

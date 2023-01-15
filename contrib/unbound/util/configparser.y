@@ -140,7 +140,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DISABLE_DNSSEC_LAME_CHECK
 %token VAR_IP_RATELIMIT VAR_IP_RATELIMIT_SLABS VAR_IP_RATELIMIT_SIZE
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
-%token VAR_OUTBOUND_MSG_RETRY
+%token VAR_OUTBOUND_MSG_RETRY VAR_MAX_SENT_COUNT VAR_MAX_QUERY_RESTARTS
 %token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN
 %token VAR_IP_RATELIMIT_FACTOR VAR_RATELIMIT_FACTOR
 %token VAR_IP_RATELIMIT_BACKOFF VAR_RATELIMIT_BACKOFF
@@ -193,7 +193,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_RPZ_SIGNAL_NXDOMAIN_RA VAR_INTERFACE_AUTOMATIC_PORTS VAR_EDE
 %token VAR_INTERFACE_ACTION VAR_INTERFACE_VIEW VAR_INTERFACE_TAG
 %token VAR_INTERFACE_TAG_ACTION VAR_INTERFACE_TAG_DATA
-%token VAR_PROXY_PROTOCOL_PORT
+%token VAR_PROXY_PROTOCOL_PORT VAR_STATISTICS_INHIBIT_ZERO
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -282,6 +282,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ratelimit_below_domain | server_ratelimit_factor |
 	server_ip_ratelimit_factor | server_ratelimit_backoff |
 	server_ip_ratelimit_backoff | server_outbound_msg_retry |
+	server_max_sent_count | server_max_query_restarts |
 	server_send_client_subnet | server_client_subnet_zone |
 	server_client_subnet_always_forward | server_client_subnet_opcode |
 	server_max_client_subnet_ipv4 | server_max_client_subnet_ipv6 |
@@ -322,7 +323,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_zonemd_permissive_mode | server_max_reuse_tcp_queries |
 	server_tcp_reuse_timeout | server_tcp_auth_query_timeout |
 	server_interface_automatic_ports | server_ede |
-	server_proxy_protocol_port
+	server_proxy_protocol_port | server_statistics_inhibit_zero
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -551,6 +552,15 @@ server_extended_statistics: VAR_EXTENDED_STATISTICS STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->stat_extended = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_statistics_inhibit_zero: VAR_STATISTICS_INHIBIT_ZERO STRING_ARG
+	{
+		OUTYY(("P(server_statistics_inhibit_zero:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->stat_inhibit_zero = (strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
@@ -2633,6 +2643,24 @@ server_outbound_msg_retry: VAR_OUTBOUND_MSG_RETRY STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->outbound_msg_retry = atoi($2);
+		free($2);
+	}
+	;
+server_max_sent_count: VAR_MAX_SENT_COUNT STRING_ARG
+	{
+		OUTYY(("P(server_max_sent_count:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->max_sent_count = atoi($2);
+		free($2);
+	}
+	;
+server_max_query_restarts: VAR_MAX_QUERY_RESTARTS STRING_ARG
+	{
+		OUTYY(("P(server_max_query_restarts:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->max_query_restarts = atoi($2);
 		free($2);
 	}
 	;

@@ -1,6 +1,92 @@
+5 January 2023: Wouter
+	- Tag for 1.17.1 release.
+
+2 January 2023: Wouter
+	- Fix windows compile for libunbound subprocess reap comm point closes.
+	- Update github workflows to use checkout v3.
+
+14 December 2022: George
+	- Merge #569 from JINMEI Tatuya: add keep-cache option to
+	  'unbound-control reload' to keep caches.
+
+13 December 2022: George
+	- Expose 'statistics-inhibit-zero' as a configuration option; the
+	  default value retains Unbound's behavior.
+	- Expose 'max-sent-count' as a configuration option; the
+	  default value retains Unbound's behavior.
+	- Merge #461 from Christian Allred: Add max-query-restarts option.
+	  Exposes an internal configuration but the default value retains
+	  Unbound's behavior.
+
+13 December 2022: Wouter
+	- Merge #808: Wrap Makefile script's directory variables in quotes.
+	- Fix to wrap Makefile scripts directory in quotes for uninstall.
+
+1 December 2022: Wouter
+	- Fix #773: When used with systemd-networkd, unbound does not start
+	  until systemd-networkd-wait-online.service times out.
+
+30 November 2022: George
+	- Add SVCB and HTTPS to the types removed by 'unbound-control flush'.
+	- Clear documentation for interactivity between the subnet module and
+	  the serve-expired and prefetch configuration options.
+
+30 November 2022: Wouter
+	- Fix #782: Segmentation fault in stats.c:404.
+
+28 November 2022: Wouter
+	- Fix for the ignore of tcp events for closed comm points, preserve
+	  the use after free protection features.
+
+23 November 2022: Philip
+	- Merge #720 from jonathangray: fix use after free when
+	  WSACreateEvent() fails.
+
+22 November 2022: George
+	- Ignore expired error responses.
+
+11 November 2022: Wouter
+	- Fix #779: [doc] Missing documention in ub_resolve_event() for
+	  callback parameter was_ratelimited.
+
+9 November 2022: George
+	- Complementary fix for distutils.sysconfig deprecation in Python 3.10
+	  to commit 62c5039ab9da42713e006e840b7578e01d66e7f2.
+
+8 November 2022: Wouter
+	- Fix to ignore tcp events for closed comm points.
+	- Fix to make sure to not read again after a tcp comm point is closed.
+	- Fix #775: libunbound: subprocess reap causes parent process reap
+	  to hang.
+	- iana portlist update.
+
+21 October 2022: George
+	- Merge #767 from jonathangray: consistently use IPv4/IPv6 in
+	  unbound.conf.5.
+
+21 October 2022: Wouter
+	- Fix that cachedb does not store failures in the external cache.
+
+18 October 2022: George
+	- Clarify the use of MAX_SENT_COUNT in the iterator code.
+
+17 October 2022: Wouter
+	- testcode/dohclient sets log identity to its name.
+
+14 October 2022: Wouter
+	- Merge #768 from fobser: Arithmetic on a pointer to void is a GNU
+	  extension.
+	- In unit test, print python script name list correctly.
+
+13 October 2022: Wouter
+	- Tag for 1.17.0 release. The code repository continues with 1.17.1.
+
 11 October 2022: George
 	- Fix PROXYv2 header read for TCP connections when no proxied addresses
 	  are provided.
+
+7 October 2022: Wouter
+	- Tag for 1.17.0rc1 release.
 
 7 October 2022: George
 	- Fix to stop possible loops in the tcp reuse code (write_wait list

@@ -196,8 +196,8 @@ enum sldns_enum_rr_type
 	LDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	LDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
 	LDNS_RR_TYPE_ZONEMD = 63, /* draft-ietf-dnsop-dns-zone-digest-12 */
-    LDNS_RR_TYPE_SVCB = 64, /* draft-ietf-dnsop-svcb-https-04 */
-    LDNS_RR_TYPE_HTTPS = 65, /* draft-ietf-dnsop-svcb-https-04 */
+	LDNS_RR_TYPE_SVCB = 64, /* draft-ietf-dnsop-svcb-https-04 */
+	LDNS_RR_TYPE_HTTPS = 65, /* draft-ietf-dnsop-svcb-https-04 */
 
 	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 

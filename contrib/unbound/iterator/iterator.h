@@ -63,12 +63,8 @@ struct rbtree_type;
 /** max number of nxdomains allowed for target lookups for a query and
  * its subqueries when fallback has kicked in */
 #define MAX_TARGET_NX_FALLBACK	(MAX_TARGET_NX*2)
-/** max number of query restarts. Determines max number of CNAME chain. */
-#define MAX_RESTART_COUNT	11
 /** max number of referrals. Makes sure resolver does not run away */
 #define MAX_REFERRAL_COUNT	130
-/** max number of queries-sent-out.  Make sure large NS set does not loop */
-#define MAX_SENT_COUNT		32
 /** max number of queries for which to perform dnsseclameness detection,
  * (rrsigs missing detection) after that, just pick up that response */
 #define DNSSEC_LAME_DETECT_COUNT 4
@@ -145,6 +141,12 @@ struct iter_env {
 
 	/** number of retries on outgoing queries */
 	int outbound_msg_retry;
+
+	/** number of queries_sent */
+	int max_sent_count;
+
+	/** max number of query restarts to limit length of CNAME chain */
+	int max_query_restarts;
 };
 
 /**

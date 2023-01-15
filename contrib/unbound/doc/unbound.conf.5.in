@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Oct 13, 2022" "NLnet Labs" "unbound 1.17.0"
+.TH "unbound.conf" "5" "Jan 12, 2023" "NLnet Labs" "unbound 1.17.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -111,6 +111,14 @@ the statistics counters after logging the statistics. Default is no.
 If enabled, extended statistics are printed from \fIunbound\-control\fR(8).
 Default is off, because keeping track of more statistics takes time.  The
 counters are listed in \fIunbound\-control\fR(8).
+.TP
+.B statistics\-inhibit\-zero: \fI<yes or no>
+If enabled, selected extended statistics with a value of 0 are inhibited from
+printing with \fIunbound\-control\fR(8).
+These are query types, query classes, query opcodes, answer rcodes
+(except NOERROR, FORMERR, SERVFAIL, NXDOMAIN, NOTIMPL, REFUSED) and
+RPZ actions.
+Default is on.
 .TP
 .B num\-threads: \fI<number>
 The number of threads to create to serve clients. Use 1 for no threading.
@@ -349,7 +357,7 @@ ip\-transparent option is also available.
 The value of the Differentiated Services Codepoint (DSCP) in the
 differentiated services field (DS) of the outgoing IP packet headers.
 The field replaces the outdated IPv4 Type-Of-Service field and the
-IPV6 traffic class field.
+IPv6 traffic class field.
 .TP
 .B rrset\-cache\-size: \fI<number>
 Number of bytes size of the RRset cache. Default is 4 megabytes.
@@ -416,7 +424,7 @@ Enable or disable whether ip4 queries are answered or issued. Default is yes.
 Enable or disable whether ip6 queries are answered or issued. Default is yes.
 If disabled, queries are not answered on IPv6, and queries are not sent on
 IPv6 to the internet nameservers.  With this option you can disable the
-ipv6 transport for sending DNS traffic, it does not impact the contents of
+IPv6 transport for sending DNS traffic, it does not impact the contents of
 the DNS traffic, which may have ip4 and ip6 addresses in it.
 .TP
 .B prefer\-ip4: \fI<yes or no>
@@ -1671,7 +1679,7 @@ This specifies the action data for \fIresponse-ip\fR with action being
 to redirect as specified by "\fIresource record string\fR".  "Resource
 record string" is similar to that of \fIaccess-control-tag-action\fR,
 but it must be of either AAAA, A or CNAME types.
-If the IP-netblock is an IPv6/IPV4 prefix, the record
+If the IP-netblock is an IPv6/IPv4 prefix, the record
 must be AAAA/A respectively, unless it is a CNAME (which can be used
 for both versions of IP netblocks).  If it is CNAME there must not be
 more than one \fIresponse-ip-data\fR for the same IP-netblock.
@@ -1820,6 +1828,21 @@ If a forward/stub zone is used, this is the number of retries per nameserver in
 the zone.
 Default is 5.
 .TP 5
+.B max\-sent\-count: \fI<number>
+Hard limit on the number of outgoing queries Unbound will make while resolving
+a name, making sure large NS sets do not loop.
+Results in SERVFAIL when reached.
+It resets on query restarts (e.g., CNAME) and referrals.
+Default is 32.
+.TP 5
+.B max\-query\-restarts: \fI<number>
+Hard limit on the number of times Unbound is allowed to restart a query upon
+encountering a CNAME record.
+Results in SERVFAIL when reached.
+Changing this value needs caution as it can allow long CNAME chains to be
+accepted, where Unbound needs to verify (resolve) each link individually.
+Default is 11.
+.TP 5
 .B fast\-server\-permil: \fI<number>
 Specify how many times out of 1000 to pick from the set of fastest servers.
 0 turns the feature off.  A value of 900 would pick from the fastest
@@ -1853,7 +1876,7 @@ errors. Default is "no".
 When the \fBval-log-level\fR option is also set to \fB2\fR, responses with
 Extended DNS Errors concerning DNSSEC failures that are not served from cache,
 will also contain a descriptive text message about the reason for the failure.
-.TP
+.TP 5
 .B ede\-serve\-expired: \fI<yes or no>
 If enabled, Unbound will attach an Extended DNS Error (RFC8914) Code 3 - Stale
 Answer as EDNS0 option to the expired response. Note that this will not attach
@@ -2358,6 +2381,9 @@ The maximum size of the ECS cache is controlled by 'msg-cache-size' in the
 configuration file. On top of that, for each query only 100 different subnets
 are allowed to be stored for each address family. Exceeding that number, older
 entries will be purged from cache.
+.LP
+This module does not interact with the \fBserve\-expired*\fR and
+\fBprefetch:\fR options.
 .TP
 .B send\-client\-subnet: \fI<IP address>\fR
 Send client source address to this authority. Append /num to indicate a

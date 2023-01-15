@@ -1,4 +1,4 @@
-.TH "unbound-anchor" "8" "Oct 13, 2022" "NLnet Labs" "unbound 1.17.0"
+.TH "unbound-anchor" "8" "Jan 12, 2023" "NLnet Labs" "unbound 1.17.1"
 .\"
 .\" unbound-anchor.8 -- unbound anchor maintenance utility manual
 .\"
