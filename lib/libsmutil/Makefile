@@ -1,11 +1,18 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=lib${LIB}
 SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsmutil
 
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 CFLAGS+=-DNEWDB -DNIS -DMAP_REGEX -DNOT_SENDMAIL
+
+.if ${MK_OPENSSL} != "no"
+# STARTTLS support
+CFLAGS+=-DSTARTTLS
+.endif
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
