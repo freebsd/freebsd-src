@@ -118,7 +118,6 @@ static void	updjcg(int, time_t, int, int, unsigned int);
 static void	updcsloc(time_t, int, int, unsigned int);
 static void	frag_adjust(ufs2_daddr_t, int);
 static void	updclst(int);
-static void	mount_reload(const struct statfs *stfs);
 static void	cgckhash(struct cg *);
 
 /*
@@ -1263,76 +1262,11 @@ is_dev(const char *name)
 	return (1);
 }
 
-/*
- * Return mountpoint on which the device is currently mounted.
- */ 
-static const struct statfs *
-dev_to_statfs(const char *dev)
-{
-	struct stat devstat, mntdevstat;
-	struct statfs *mntbuf, *statfsp;
-	char device[MAXPATHLEN];
-	char *mntdevname;
-	int i, mntsize;
-
-	/*
-	 * First check the mounted filesystems.
-	 */
-	if (stat(dev, &devstat) != 0)
-		return (NULL);
-	if (!S_ISCHR(devstat.st_mode) && !S_ISBLK(devstat.st_mode))
-		return (NULL);
-
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = 0; i < mntsize; i++) {
-		statfsp = &mntbuf[i];
-		mntdevname = statfsp->f_mntfromname;
-		if (*mntdevname != '/') {
-			strcpy(device, _PATH_DEV);
-			strcat(device, mntdevname);
-			mntdevname = device;
-		}
-		if (stat(mntdevname, &mntdevstat) == 0 &&
-		    mntdevstat.st_rdev == devstat.st_rdev)
-			return (statfsp);
-	}
-
-	return (NULL);
-}
-
 static const char *
-mountpoint_to_dev(const char *mountpoint)
-{
-	struct statfs *mntbuf, *statfsp;
-	struct fstab *fs;
-	int i, mntsize;
-
-	/*
-	 * First check the mounted filesystems.
-	 */
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = 0; i < mntsize; i++) {
-		statfsp = &mntbuf[i];
-
-		if (strcmp(statfsp->f_mntonname, mountpoint) == 0)
-			return (statfsp->f_mntfromname);
-	}
-
-	/*
-	 * Check the fstab.
-	 */
-	fs = getfsfile(mountpoint);
-	if (fs != NULL)
-		return (fs->fs_spec);
-
-	return (NULL);
-}
-
-static const char *
-getdev(const char *name)
+getdev(const char *name, struct statfs *statfsp)
 {
 	static char device[MAXPATHLEN];
-	const char *cp, *dev;
+	const char *cp;
 
 	if (is_dev(name))
 		return (name);
@@ -1344,9 +1278,8 @@ getdev(const char *name)
 			return (device);
 	}
 
-	dev = mountpoint_to_dev(name);
-	if (dev != NULL && is_dev(dev))
-		return (dev);
+	if (statfsp != NULL)
+		return (statfsp->f_mntfromname);
 
 	return (NULL);
 }
@@ -1378,7 +1311,7 @@ main(int argc, char **argv)
 	DBG_FUNC("main")
 	struct fs *fs;
 	const char *device;
-	const struct statfs *statfsp;
+	struct statfs *statfsp;
 	uint64_t size = 0;
 	off_t mediasize;
 	int error, j, fsi, fso, ch, ret, Nflag = 0, yflag = 0;
@@ -1430,11 +1363,10 @@ main(int argc, char **argv)
 	/*
 	 * Now try to guess the device name.
 	 */
-	device = getdev(*argv);
+	statfsp = getmntpoint(*argv);
+	device = getdev(*argv, statfsp);
 	if (device == NULL)
 		errx(1, "cannot find special device for %s", *argv);
-
-	statfsp = dev_to_statfs(device);
 
 	fsi = open(device, O_RDONLY);
 	if (fsi < 0)
@@ -1666,8 +1598,9 @@ main(int argc, char **argv)
 		error = close(fso);
 		if (error != 0)
 			err(1, "close");
-		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) != 0)
-			mount_reload(statfsp);
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) != 0 &&
+		    chkdoreload(statfsp, warn) != 0)
+			exit(9);
 	}
 
 	DBG_CLOSE;
@@ -1732,29 +1665,6 @@ updclst(int block)
 
 	DBG_LEAVE;
 	return;
-}
-
-static void
-mount_reload(const struct statfs *stfs)
-{
-	char errmsg[255];
-	struct iovec *iov;
-	int iovlen;
-
-	iov = NULL;
-	iovlen = 0;
-	*errmsg = '\0';
-	build_iovec(&iov, &iovlen, "fstype", __DECONST(char *, "ffs"), 4);
-	build_iovec(&iov, &iovlen, "fspath", __DECONST(char *, stfs->f_mntonname), (size_t)-1);
-	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
-	build_iovec(&iov, &iovlen, "update", NULL, 0);
-	build_iovec(&iov, &iovlen, "reload", NULL, 0);
-
-	if (nmount(iov, iovlen, stfs->f_flags) < 0) {
-		errmsg[sizeof(errmsg) - 1] = '\0';
-		err(9, "%s: cannot reload filesystem%s%s", stfs->f_mntonname,
-		    *errmsg != '\0' ? ": " : "", errmsg);
-	}
 }
 
 /*

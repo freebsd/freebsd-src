@@ -39,7 +39,6 @@ void panic(const char *, ...) __dead2 __printflike(1, 2);
 const char *devcheck(const char *);
 const char *cdevname(void);
 void setcdevname(const char *, int);
-struct statfs *getmntpt(const char *);
 void *emalloc(size_t);
 void *erealloc(void *, size_t);
 char *estrdup(const char *);
