@@ -395,6 +395,7 @@ int libworker_bg(struct ub_ctx* ctx)
 		w = libworker_setup(ctx, 1, NULL);
 		if(!w) return UB_NOMEM;
 		w->is_bg_thread = 1;
+		ctx->thread_worker = w;
 #ifdef ENABLE_LOCK_CHECKS
 		w->thread_num = 1; /* for nicer DEBUG checklocks */
 #endif
