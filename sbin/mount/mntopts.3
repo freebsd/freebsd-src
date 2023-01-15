@@ -1,0 +1,381 @@
+.\" Copyright (c) 2023 Marshall Kirk McKusick
+.\" Copyright (c) 1994 The Regents of the University of California.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getmntopts.3	8.3 (Berkeley) 3/30/95
+.\"
+.Dd January 19, 2023
+.Dt MNTOPTS 3
+.Os
+.Sh NAME
+.Nm getmntopts ,
+.Nm getmntpoint ,
+.Nm chkdoreload ,
+.Nm build_iovec ,
+.Nm build_iovec_argf ,
+.Nm free_iovec ,
+.Nm checkpath ,
+.Nm rmslashes
+.Nd "mount point operations"
+.Sh SYNOPSIS
+.In mntopts.h
+.Ft void
+.Fo getmntopts
+.Fa "const char *options" "const struct mntopt *mopts"
+.Fa "int *flagp" "int *altflagp"
+.Fc
+.Ft struct statfs *
+.Fn getmntpoint "const char *name"
+.Ft int
+.Fo chkdoreload
+.Fa "struct statfs *mntp"
+.Fa "void (*prtmsg)(const char *fmt, ...)"
+.Fc
+.Ft void
+.Fo build_iovec
+.Fa "struct iovec **iov" "int *iovlen" "const char *name" "void *val"
+.Fa "size_t len"
+.Fc
+.Ft void
+.Fo build_iovec_argf
+.Fa "struct iovec **iov" "int *iovlen" "const char *name"
+.Fa "const char *fmt" "..."
+.Fc
+.Ft void
+.Fn free_iovec "struct iovec **iov" "int *iovlen"
+.Ft int
+.Fn checkpath "const char *path" "char *resolved"
+.Ft void
+.Fn rmslashes "char *rrpin" "char *rrpout"
+.Sh DESCRIPTION
+The
+.Nm mntopts
+functions support operations associated with a mount point.
+For historic reasons are in a file in the sources for the
+.Xr mount 8
+program.
+Thus, to access them the following lines need to be added to the
+.Nm Makefile
+of the program wanting to use them:
+.Bd -literal
+SRCS+=	getmntopts.c
+MOUNT=  ${SRCTOP}/sbin/mount
+CFLAGS+= -I${MOUNT}
+\&.PATH: ${MOUNT}
+.Ed
+.Pp
+The
+.Fn getmntopts
+function takes a comma separated option list and a list
+of valid option names, and computes the bitmask
+corresponding to the requested set of options.
+.Pp
+The string
+.Fa options
+is broken down into a sequence of comma separated tokens.
+Each token is looked up in the table described by
+.Fa mopts
+and the bits in
+the word referenced by either
+.Fa flagp
+or
+.Fa altflagp
+(depending on the
+.Va m_altloc
+field of the option's table entry)
+are updated.
+The flag words are not initialized by
+.Fn getmntopts .
+The table,
+.Fa mopts ,
+has the following format:
+.Bd -literal
+struct mntopt {
+	char *m_option;	/* option name */
+	int m_inverse;	/* is this a negative option, e.g., "dev" */
+	int m_flag;	/* bit to set, e.g., MNT_RDONLY */
+	int m_altloc;	/* non-zero to use altflagp rather than flagp */
+};
+.Ed
+.Pp
+The members of this structure are:
+.Bl -tag -width m_inverse
+.It Va m_option
+the option name,
+for example
+.Dq Li suid .
+.It Va m_inverse
+tells
+.Fn getmntopts
+that the name has the inverse meaning of the
+bit.
+For example,
+.Dq Li suid
+is the string, whereas the
+mount flag is
+.Dv MNT_NOSUID .
+In this case, the sense of the string and the flag
+are inverted, so the
+.Va m_inverse
+flag should be set.
+.It Va m_flag
+the value of the bit to be set or cleared in
+the flag word when the option is recognized.
+The bit is set when the option is discovered,
+but cleared if the option name was preceded
+by the letters
+.Dq Li no .
+The
+.Va m_inverse
+flag causes these two operations to be reversed.
+.It Va m_altloc
+the bit should be set or cleared in
+.Fa altflagp
+rather than
+.Fa flagp .
+.El
+.Pp
+Each of the user visible
+.Dv MNT_
+flags has a corresponding
+.Dv MOPT_
+macro which defines an appropriate
+.Vt "struct mntopt"
+entry.
+To simplify the program interface and ensure consistency across all
+programs, a general purpose macro,
+.Dv MOPT_STDOPTS ,
+is defined which
+contains an entry for all the generic VFS options.
+In addition, the macros
+.Dv MOPT_FORCE
+and
+.Dv MOPT_UPDATE
+exist to enable the
+.Dv MNT_FORCE
+and
+.Dv MNT_UPDATE
+flags to be set.
+Finally, the table must be terminated by an entry with a
+.Dv NULL
+first element.
+.Pp
+The
+.Fn getmntpoint
+function takes the pathname of a possible mount point
+or of a device (with or without
+.Pa /dev/
+prepended to it).
+If the pathname is a directory or a file,
+.Fn getmntpoint
+checks to see if the mount point currently has a filesystem
+mounted on it.
+If the pathname is a device,
+.Fn getmntpoint
+checks to see if it is currently mounted.
+If there is an associated mount, a pointer to a
+.Vt "struct statfs"
+is returned.
+The returned result is stored in a static buffer that is over-written
+each time the
+.Fn getmntpoint
+function or the
+.Xr getmntinfo 3
+library routine is called.
+If no mount is found, NULL is returned.
+.Pp
+The
+.Fn chkdoreload
+function takes a pointer to a 
+.Vt "struct statfs" .
+If the filesystem associated with the mount point is mounted read-only,
+.Fn chkdoreload
+requests the filesystem to reload all of its metadata from its backing store.
+The second parameter is the function to call to print an error message
+if the reload fails.
+If no error message is desired, a
+.Dv NULL
+can be passed as the second argument.
+The
+.Fn chkdoreload
+function returns zero on success or non-zero on failure.
+.Pp
+The
+.Fn build_iovec
+function adds a parameter to a list of parameters to be passed to the
+.Xr nmount 2
+system call.
+The parameter list is built up in
+.Va iov
+and its length is kept in
+.Va iovlen .
+Before the first call to
+.Fn build_iovec ,
+.Va iov
+should be set to
+.Dv NULL
+and
+.Va iovlen
+should be set to 0.
+The parameter name is passed in
+.Va name .
+The value of the parameter name is pointed to by
+.Va val .
+The size of the value is passed in
+.Va len .
+If the value is a string, a
+.Va len
+of -1 is passed to indicate that the length should be determined using
+.Xr strlen 3 .
+If the parameter has no value,
+.Va name
+should be
+.Dv NULL
+and
+.Va len
+should be 0.
+.Pp
+The
+.Fn build_iovec_argf
+function adds a formatted parameter to a list of parameters to be passed
+to the
+.Xr nmount 2
+system call.
+The parameter list is built up in
+.Va iov
+and its length is kept in
+.Va iovlen .
+Before the first call to
+.Fn build_iovec_argf ,
+.Va iov
+should be set to
+.Dv NULL
+and
+.Va iovlen
+should be set to 0.
+The parameter name is passed in
+.Va name .
+The value of the parameter name is described by a format string pointed to by
+.Va fmt .
+If the parameter has no value,
+.Va name
+should be
+.Dv NULL .
+.Pp
+The
+.Fn free_iovec
+function frees the memory in the
+.Va iov
+vector of the length specified in
+.Va iovlen
+that was previously allocated by the
+.Fn build_iovec
+and / or
+.Fn build_iovec_argf
+functions.
+The
+.Va iov
+is set to
+.Dv NULL
+and the
+.Va iovlen
+is set to 0 to indicate that the space has been freed.
+.Pp
+The
+.Fn checkpath
+function uses
+.Xr realpath 3
+to verify that its
+.Va path
+argument is valid and references a directory.
+The
+.Fn checkpath
+function returns zero on success or non-zero on failure.
+.Pp
+The
+.Fn rmslashes
+function removes all double slashes and trailing slashes from its
+.Va rrpin
+pathname parameter and returns the resulting pathname in its
+.Va rrpout
+parameter.
+.Sh EXAMPLES
+Most commands will use the standard option set.
+Local file systems which support the
+.Dv MNT_UPDATE
+flag, would also have an
+.Dv MOPT_UPDATE
+entry.
+This can be declared and used as follows:
+.Bd -literal
+#include "mntopts.h"
+
+struct mntopt mopts[] = {
+	MOPT_STDOPTS,
+	MOPT_UPDATE,
+	{ NULL }
+};
+
+	...
+	mntflags = mntaltflags = 0;
+	...
+	getmntopts(options, mopts, &mntflags, &mntaltflags);
+	...
+.Ed
+.Sh DIAGNOSTICS
+If the external integer variable
+.Va getmnt_silent
+is zero, then the
+.Fn getmntopts
+function displays an error message and exits if an
+unrecognized option is encountered.
+Otherwise unrecognized options are silently ignored.
+By default
+.Va getmnt_silent
+is zero.
+.Sh SEE ALSO
+.Xr err 3 ,
+.Xr mount 8 ,
+.Xr nmount 8
+.Sh HISTORY
+The
+.Fn getmntopts
+function appeared in
+.Bx 4.4 .
+The
+.Fn build_iovec ,
+.Fn build_iovec_argf ,
+.Fn free_iovec ,
+.Fn checkpath ,
+and
+.Fn rmslashes
+functions were added with
+.Xr nmount 8
+in
+.Fx 5.0 .
+The
+.Fn getmntpoint
+and
+.Fn chkdoreload
+functions were added in
+.Fx 14.0 .
