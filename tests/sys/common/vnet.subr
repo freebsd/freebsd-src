@@ -53,6 +53,16 @@ vnet_mkjail()
 	echo $jailname >> created_jails.lst
 }
 
+vnet_ifrename_jail()
+{
+	jailname=$1
+	ifname=$2
+	ifnewname=$3
+
+	jexec ${jailname} ifconfig $ifname name $ifnewname
+	sed -i "" "/^${jailname}/s/${ifname}/${ifnewname}/" created_jails.lst
+}
+
 vnet_cleanup()
 {
 	if [ -f created_jails.lst ]; then
