@@ -818,6 +818,25 @@ key_havesp_any(void)
 	return (V_spd_size != 0);
 }
 
+/*
+ * Allocate a single mbuf with a buffer of the desired length.  The buffer is
+ * pre-zeroed to help ensure that uninitialized pad bytes are not leaked.
+ */
+static struct mbuf *
+key_mget(u_int len)
+{
+	struct mbuf *m;
+
+	KASSERT(len <= MCLBYTES,
+	    ("%s: invalid buffer length %u", __func__, len));
+
+	m = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (NULL);
+	memset(mtod(m, void *), 0, len);
+	return (m);
+}
+
 /* %%% IPsec policy management */
 /*
  * Return current SPDB generation.
@@ -2353,14 +2372,8 @@ key_spddelete2(struct socket *so, struct mbuf *m,
 	/* create new sadb_msg to reply. */
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (n && len > MHLEN) {
-		if (!(MCLGET(n, M_NOWAIT))) {
-			m_freem(n);
-			n = NULL;
-		}
-	}
-	if (!n)
+	n = key_mget(len);
+	if (n == NULL)
 		return key_senderror(so, m, ENOBUFS);
 
 	n->m_len = len;
@@ -3792,14 +3805,8 @@ key_setsadbmsg(u_int8_t type, u_int16_t tlen, u_int8_t satype, u_int32_t seq,
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 	if (len > MCLBYTES)
 		return NULL;
-	MGETHDR(m, M_NOWAIT, MT_DATA);
-	if (m && len > MHLEN) {
-		if (!(MCLGET(m, M_NOWAIT))) {
-			m_freem(m);
-			m = NULL;
-		}
-	}
-	if (!m)
+	m = key_mget(len);
+	if (m == NULL)
 		return NULL;
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_next = NULL;
@@ -4979,14 +4986,8 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg)) +
 	    PFKEY_ALIGN8(sizeof(struct sadb_sa));
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (len > MHLEN) {
-		if (!(MCLGET(n, M_NOWAIT))) {
-			m_freem(n);
-			n = NULL;
-		}
-	}
-	if (!n) {
+	n = key_mget(len);
+	if (n == NULL) {
 		error = ENOBUFS;
 		goto fail;
 	}
@@ -7201,14 +7202,8 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	if (len > MCLBYTES)
 		return key_senderror(so, m, ENOBUFS);
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (n != NULL && len > MHLEN) {
-		if (!(MCLGET(n, M_NOWAIT))) {
-			m_freem(n);
-			n = NULL;
-		}
-	}
-	if (!n)
+	n = key_mget(len);
+	if (n == NULL)
 		return key_senderror(so, m, ENOBUFS);
 
 	n->m_pkthdr.len = n->m_len = len;
@@ -7839,14 +7834,8 @@ key_parse(struct mbuf *m, struct socket *so)
 	if (m->m_next) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_NOWAIT, MT_DATA);
-		if (n && m->m_pkthdr.len > MHLEN) {
-			if (!(MCLGET(n, M_NOWAIT))) {
-				m_free(n);
-				n = NULL;
-			}
-		}
-		if (!n) {
+		n = key_mget(m->m_pkthdr.len);
+		if (n == NULL) {
 			m_freem(m);
 			return ENOBUFS;
 		}
