@@ -73,10 +73,7 @@
 
     $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
 
-    Files that have modifications relative to the vendor code, and
-    only those files, must have the svn:keywords property set to
-    FreeBSD=%H and be listed in the 'keywords' file created by the
-    pre-merge script.
+    Review the diff for any unexpected changes.
 
 12) Run the configure script:
 
