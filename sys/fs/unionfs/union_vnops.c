@@ -2010,7 +2010,7 @@ unionfs_lock(struct vop_lock1_args *ap)
 			vdrop(lvp);
 			if (uhold != 0)
 				vdrop(uvp);
-			return (vop_stdlock(ap));
+			goto unionfs_lock_fallback;
 		}
 	}
 
@@ -2043,7 +2043,7 @@ unionfs_lock(struct vop_lock1_args *ap)
 				VOP_UNLOCK(lvp);
 				vdrop(lvp);
 			}
-			return (vop_stdlock(ap));
+			goto unionfs_lock_fallback;
 		}
 		if (error != 0 && lvp != NULLVP) {
 			/* rollback */
@@ -2064,6 +2064,22 @@ unionfs_lock(struct vop_lock1_args *ap)
 
 unionfs_lock_null_vnode:
 	ap->a_flags |= LK_INTERLOCK;
+	return (vop_stdlock(ap));
+
+unionfs_lock_fallback:
+	/*
+	 * If we reach this point, we've discovered the unionfs vnode
+	 * has been reclaimed while the upper/lower vnode locks were
+	 * temporarily dropped.  Such temporary droppage may happen
+	 * during the course of an LK_UPGRADE operation itself, and in
+	 * that case LK_UPGRADE must be cleared as the unionfs vnode's
+	 * lock has been reset to point to the standard v_lock field,
+	 * which has not previously been held.
+	 */
+	if (flags & LK_UPGRADE) {
+		ap->a_flags &= ~LK_TYPE_MASK;
+		ap->a_flags |= LK_EXCLUSIVE;
+	}
 	return (vop_stdlock(ap));
 }
 
