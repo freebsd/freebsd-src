@@ -36,7 +36,6 @@
 #error do not include this header, use machine/atomic.h
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #define	__atomic_load_bool_relaxed(p)	(*(volatile _Bool *)(p))

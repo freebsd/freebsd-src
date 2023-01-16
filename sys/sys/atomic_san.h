@@ -43,7 +43,6 @@
 #error do not include this header, use machine/atomic.h
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #define	ATOMIC_SAN_FUNC_1(sp, op, name, type)				\
