@@ -1389,6 +1389,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 {
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
+	struct vnode   *dvp;
 	struct vnode   *udvp;
 	struct vnode   *uvp;
 	struct vattr	va;
@@ -1400,17 +1401,19 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 	KASSERT_UNIONFS_VNODE(ap->a_dvp);
 
 	error = EROFS;
-	dunp = VTOUNIONFS(ap->a_dvp);
+	dvp = ap->a_dvp;
+	dunp = VTOUNIONFS(dvp);
 	cnp = ap->a_cnp;
 	lkflags = cnp->cn_lkflags;
 	udvp = dunp->un_uppervp;
 
 	if (udvp != NULLVP) {
+		vref(udvp);
 		/* check opaque */
 		if (!(cnp->cn_flags & ISWHITEOUT)) {
 			error = VOP_GETATTR(udvp, &va, cnp->cn_cred);
 			if (error != 0)
-				return (error);
+				goto unionfs_mkdir_cleanup;
 			if ((va.va_flags & OPAQUE) != 0)
 				cnp->cn_flags |= ISWHITEOUT;
 		}
@@ -1418,12 +1421,34 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 		if ((error = VOP_MKDIR(udvp, &uvp, cnp, ap->a_vap)) == 0) {
 			VOP_UNLOCK(uvp);
 			cnp->cn_lkflags = LK_EXCLUSIVE;
-			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp);
+			/*
+			 * The underlying VOP_MKDIR() implementation may have
+			 * temporarily dropped the parent directory vnode lock.
+			 * Because the unionfs vnode ordinarily shares that
+			 * lock, this may allow the unionfs vnode to be reclaimed
+			 * and its lock field reset.  In that case, the unionfs
+			 * vnode is effectively no longer locked, and we must
+			 * explicitly lock it before returning in order to meet
+			 * the locking requirements of VOP_MKDIR().
+			 */
+			if (__predict_false(VTOUNIONFS(dvp) == NULL)) {
+				error = ENOENT;
+				goto unionfs_mkdir_cleanup;
+			}
+			error = unionfs_nodeget(dvp->v_mount, uvp, NULLVP,
+			    dvp, ap->a_vpp, cnp);
 			cnp->cn_lkflags = lkflags;
 			vrele(uvp);
 		}
 	}
+
+unionfs_mkdir_cleanup:
+
+	if (__predict_false(VTOUNIONFS(dvp) == NULL)) {
+		vput(udvp);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+	} else if (udvp != NULLVP)
+		vrele(udvp);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_mkdir: leave (%d)\n", error);
 
