@@ -1853,24 +1853,6 @@ unionfs_print(struct vop_print_args *ap)
 }
 
 static int
-unionfs_islocked(struct vop_islocked_args *ap)
-{
-	struct unionfs_node *unp;
-
-	KASSERT_UNIONFS_VNODE(ap->a_vp);
-
-	unp = VTOUNIONFS(ap->a_vp);
-	if (unp == NULL)
-		return (vop_stdislocked(ap));
-
-	if (unp->un_uppervp != NULLVP)
-		return (VOP_ISLOCKED(unp->un_uppervp));
-	if (unp->un_lowervp != NULLVP)
-		return (VOP_ISLOCKED(unp->un_lowervp));
-	return (vop_stdislocked(ap));
-}
-
-static int
 unionfs_get_llt_revlock(struct vnode *vp, int flags)
 {
 	int revlock;
@@ -2790,7 +2772,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_getwritemount =	unionfs_getwritemount,
 	.vop_inactive =		unionfs_inactive,
 	.vop_need_inactive =	vop_stdneed_inactive,
-	.vop_islocked =		unionfs_islocked,
+	.vop_islocked =		vop_stdislocked,
 	.vop_ioctl =		unionfs_ioctl,
 	.vop_link =		unionfs_link,
 	.vop_listextattr =	unionfs_listextattr,
