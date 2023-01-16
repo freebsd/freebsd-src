@@ -8,6 +8,7 @@ from atf_python.sys.net.netlink import NetlinkTestTemplate
 from atf_python.sys.net.netlink import NlConst
 from atf_python.sys.net.netlink import NlHelper
 from atf_python.sys.net.netlink import NlmBaseFlags
+from atf_python.sys.net.netlink import Nlmsghdr
 from atf_python.sys.net.netlink import NlMsgType
 from atf_python.sys.net.netlink import NlRtMsgType
 from atf_python.sys.net.netlink import Nlsock
@@ -67,6 +68,25 @@ class TestRtNlIfaddr(NetlinkTestTemplate, SingleVnetTestTemplate):
         assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET]) == 1
         assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET6]) == 2
         assert len(ret) == 3
+
+    def test_46_filter_family_compat(self):
+        """Tests that family filtering works with the stripped header"""
+
+        hdr = Nlmsghdr(
+                nlmsg_len=17,
+                nlmsg_type=NlRtMsgType.RTM_GETADDR.value,
+                nlmsg_flags=NlmBaseFlags.NLM_F_ACK.value | NlmBaseFlags.NLM_F_REQUEST.value,
+                nlmsg_seq=self.helper.get_seq()
+                )
+        data = bytes(hdr) + struct.pack("@B", socket.AF_INET)
+        self.nlsock.write_data(data)
+
+        ret = []
+        for rx_msg in self.read_msg_list(hdr.nlmsg_seq, NlRtMsgType.RTM_NEWADDR):
+            ifname = socket.if_indextoname(rx_msg.base_hdr.ifa_index)
+            family = rx_msg.base_hdr.ifa_family
+            ret.append((ifname, family, rx_msg))
+        assert len(ret) == 2
 
     def filter_iface_family(self, family, num_items):
         """Tests that listing outputs IPv4 for the specific interface"""
