@@ -1982,14 +1982,6 @@ unionfs_lock(struct vop_lock1_args *ap)
 			vholdnz(uvp);
 			uhold = 1;
 			VOP_UNLOCK(uvp);
-			unp = VTOUNIONFS(vp);
-			if (unp == NULL) {
-				/* vnode is released. */
-				VI_UNLOCK(vp);
-				VOP_UNLOCK(lvp);
-				vdrop(uvp);
-				return (EBUSY);
-			}
 		}
 		VI_LOCK_FLAGS(lvp, MTX_DUPOK);
 		flags |= LK_INTERLOCK;
