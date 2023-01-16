@@ -42,22 +42,14 @@ static void printall(struct mixer *, int);
 static void printminfo(struct mixer *, int);
 static void printdev(struct mixer *, int);
 static void printrecsrc(struct mixer *, int); /* XXX: change name */
+static int set_dunit(struct mixer *, int);
 /* Control handlers */
-static int mod_dunit(struct mix_dev *, void *);
 static int mod_volume(struct mix_dev *, void *);
 static int mod_mute(struct mix_dev *, void *);
 static int mod_recsrc(struct mix_dev *, void *);
 static int print_volume(struct mix_dev *, void *);
 static int print_mute(struct mix_dev *, void *);
 static int print_recsrc(struct mix_dev *, void *);
-
-static const mix_ctl_t ctl_dunit = {
-	.parent_dev	= NULL,
-	.id		= -1,
-	.name		= "default_unit",
-	.mod		= mod_dunit,
-	.print		= NULL
-};
 
 int
 main(int argc, char *argv[])
@@ -125,7 +117,7 @@ main(int argc, char *argv[])
 
 	initctls(m);
 
-	if (dflag && ctl_dunit.mod(m->dev, &dunit) < 0)
+	if (dflag && set_dunit(m, dunit) < 0)
 		goto parse;
 	if (sflag) {
 		printrecsrc(m, oflag);
@@ -316,20 +308,19 @@ printrecsrc(struct mixer *m, int oflag)
 }
 
 static int
-mod_dunit(struct mix_dev *d, void *p)
+set_dunit(struct mixer *m, int dunit)
 {
-	int dunit = *((int *)p);
 	int n;
 
 	if ((n = mixer_get_dunit()) < 0) {
 		warn("cannot get default unit");
 		return (-1);
 	}
-	if (mixer_set_dunit(d->parent_mixer, dunit) < 0) {
+	if (mixer_set_dunit(m, dunit) < 0) {
 		warn("cannot set default unit to: %d", dunit);
 		return (-1);
 	}
-	printf("%s: %d -> %d\n", ctl_dunit.name, n, dunit);
+	printf("default_unit: %d -> %d\n", n, dunit);
 
 	return (0);
 }
