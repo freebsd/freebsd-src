@@ -27,6 +27,7 @@ MAN=		arb.3 \
 		queue.3 \
 		sigevent.3 \
 		siginfo.3 \
+		snl.3 \
 		stats.3 \
 		stdarg.3 \
 		sysexits.3 \
