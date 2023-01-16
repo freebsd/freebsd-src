@@ -2523,7 +2523,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		    count * 11 / 10));
 	}
 
-	kvo = malloc(sizeof(*kvo), M_TEMP, M_WAITOK);
+	kvo = malloc(sizeof(*kvo), M_TEMP, M_WAITOK | M_ZERO);
 	error = 0;
 
 	/*
