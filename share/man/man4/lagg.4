@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2020
+.Dd January 16, 2023
 .Dt LAGG 4
 .Os
 .Sh NAME
@@ -42,6 +42,18 @@ The
 interface allows aggregation of multiple network interfaces as one virtual
 .Nm
 interface for the purpose of providing fault-tolerance and high-speed links.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
 .Pp
 A
 .Nm
@@ -79,7 +91,7 @@ the next active port is used.
 The first interface added is the master port;
 any interfaces added after that are used as failover devices.
 .Pp
-By default, received traffic is only accepted when they are received
+By default, received traffic is only accepted when it is received
 through the active port.
 This constraint can be relaxed by setting the
 .Va net.link.lagg.failover_rx_all
@@ -123,18 +135,6 @@ disabling the
 interface itself.
 .El
 .Pp
-Each
-.Nm
-interface is created at runtime using interface cloning.
-This is
-most easily done with the
-.Xr ifconfig 8
-.Cm create
-command or using the
-.Va cloned_interfaces
-variable in
-.Xr rc.conf 5 .
-.Pp
 The MTU of the first interface to be added is used as the lagg MTU.
 All additional interfaces are required to have exactly the same value.
 .Pp
@@ -152,6 +152,17 @@ flag.
 The default for new interfaces is set via the
 .Va net.link.lagg.default_use_flowid
 .Xr sysctl 8 .
+.Pp
+When creating a
+.Nm
+interface, the
+.Ic laggtype
+can be specified as either
+.Cm ethernet
+or
+.Cm infiniband .
+If neither is specified then the default is
+.Cm ethernet .
 .Sh EXAMPLES
 Create a link aggregation using LACP with two
 .Xr bge 4
@@ -182,16 +193,18 @@ between wired and wireless networks using two network devices.
 Whenever the wired master interface is unplugged, the wireless failover
 device will be used:
 .Bd -literal -offset indent
-# ifconfig em0 up
-# ifconfig ath0 ether 00:11:22:33:44:55
-# ifconfig create wlan0 wlandev ath0 ssid my_net up
+# ifconfig em0 ether 00:11:22:33:44:55 up
+# ifconfig wlan0 create wlandev ath0 ssid my_net up
 # ifconfig lagg0 create
 # ifconfig lagg0 laggproto failover laggport em0 laggport wlan0 \e
 	192.168.1.1 netmask 255.255.255.0
 .Ed
 .Pp
-(Note the mac address of the wireless device is forced to match the wired
-device as a workaround.)
+(Note the MAC address of the wired device is forced to match that of the
+wireless device,
+.Sq 00:11:22:33:44:55
+in this example, as some common wireless devices will not allow MAC
+addresses to be changed.)
 .Pp
 The following example shows how to create an infiniband failover interface.
 .Bd -literal -offset indent
