@@ -21,7 +21,7 @@
 #define CONFCMDLINE "--with-ssl=/usr --with-libexpat=/usr --disable-dnscrypt --disable-dnstap --enable-ecdsa --disable-event-api --enable-gost --with-libevent --disable-subnet --disable-tfo-client --disable-tfo-server --with-pthreads--prefix=/usr --localstatedir=/var/unbound --mandir=/usr/share/man --build=freebsd"
 
 /* Pathname to the Unbound configuration file */
-#define CONFIGFILE "/usr/local/etc/unbound/unbound.conf"
+#define CONFIGFILE "/var/unbound/unbound.conf"
 
 /* Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work
    */
