@@ -17,7 +17,7 @@ TERMCAP_SMALL_ENTS?=	SC cons25 cons25-m cons25-w cons25l1 cons25l1-m \
     xterm-color xterm-new xterm-r6 xterm-r6-clear
 
 termcap.small: termcap
-	set -e; set -o pipefail; \
+	set -e; \
 	(echo "# AUTOMATICALLY GENERATED FROM `basename ${.ALLSRC}`"; \
 	for tcname in ${TERMCAP_SMALL_ENTS}; \
 	do \

@@ -115,7 +115,7 @@ void
 ena_deferred_mq_start(void *arg, int pending)
 {
 	struct ena_ring *tx_ring = (struct ena_ring *)arg;
-	struct ifnet *ifp = tx_ring->adapter->ifp;
+	if_t ifp = tx_ring->adapter->ifp;
 
 	while (!drbr_empty(ifp, tx_ring->br) && tx_ring->running &&
 	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
@@ -128,7 +128,7 @@ ena_deferred_mq_start(void *arg, int pending)
 int
 ena_mq_start(if_t ifp, struct mbuf *m)
 {
-	struct ena_adapter *adapter = ifp->if_softc;
+	struct ena_adapter *adapter = if_getsoftc(ifp);
 	struct ena_ring *tx_ring;
 	int ret, is_drbr_empty;
 	uint32_t i;
@@ -179,7 +179,7 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 void
 ena_qflush(if_t ifp)
 {
-	struct ena_adapter *adapter = ifp->if_softc;
+	struct ena_adapter *adapter = if_getsoftc(ifp);
 	struct ena_ring *tx_ring = adapter->tx_ring;
 	int i;
 
@@ -643,8 +643,8 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 			break;
 		}
 
-		if (((ifp->if_capenable & IFCAP_RXCSUM) != 0) ||
-		    ((ifp->if_capenable & IFCAP_RXCSUM_IPV6) != 0)) {
+		if (((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) ||
+		    ((if_getcapenable(ifp) & IFCAP_RXCSUM_IPV6) != 0)) {
 			ena_rx_checksum(rx_ring, &ena_rx_ctx, mbuf);
 		}
 
@@ -659,7 +659,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 		 * should be computed by hardware.
 		 */
 		do_if_input = 1;
-		if (((ifp->if_capenable & IFCAP_LRO) != 0) &&
+		if (((if_getcapenable(ifp) & IFCAP_LRO) != 0)  &&
 		    ((mbuf->m_pkthdr.csum_flags & CSUM_IP_VALID) != 0) &&
 		    (ena_rx_ctx.l4_proto == ENA_ETH_IO_L4_PROTO_TCP)) {
 			/*
@@ -675,7 +675,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 		if (do_if_input != 0) {
 			ena_log_io(pdev, DBG,
 			    "calling if_input() with mbuf %p\n", mbuf);
-			(*ifp->if_input)(ifp, mbuf);
+			if_input(ifp, mbuf);
 		}
 
 		counter_enter();

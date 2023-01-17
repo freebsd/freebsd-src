@@ -10,8 +10,8 @@ OPTIONS= $(CONFIG) $(FLAGS)
 all: FRC
 	@for x in $(SUBDIRS); \
 	do \
-		(cd $$x; echo Making $@ in:; pwd; \
-		$(SHELL) $(BUILD) $(OPTIONS)); \
+		(cd $$x && echo Making $@ in: && pwd && \
+		$(SHELL) $(BUILD) $(OPTIONS)) || exit; \
 	done
 
 clean: FRC
@@ -24,22 +24,22 @@ clean: FRC
 install: FRC
 	@for x in $(SUBDIRS); \
 	do \
-		(cd $$x; echo Making $@ in:; pwd; \
-		$(SHELL) $(BUILD) $(OPTIONS) $@); \
+		(cd $$x && echo Making $@ in: && pwd && \
+		$(SHELL) $(BUILD) $(OPTIONS) $@) || exit; \
 	done
 
 install-docs: FRC
 	@for x in $(SUBDIRS); \
 	do \
-		(cd $$x; echo Making $@ in:; pwd; \
-		$(SHELL) $(BUILD) $(OPTIONS) $@); \
+		(cd $$x && echo Making $@ in: && pwd && \
+		$(SHELL) $(BUILD) $(OPTIONS) $@) || exit; \
 	done
 
 fresh: FRC
 	@for x in $(SUBDIRS); \
 	do \
-		(cd $$x; echo Making $@ in:; pwd; \
-		$(SHELL) $(BUILD) $(OPTIONS) -c); \
+		(cd $$x && echo Making $@ in: && pwd && \
+		$(SHELL) $(BUILD) $(OPTIONS) -c) || exit; \
 	done
 
 $(SUBDIRS): FRC

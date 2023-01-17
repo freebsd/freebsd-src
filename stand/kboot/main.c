@@ -46,6 +46,7 @@ ssize_t kboot_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
 uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
 static void kboot_kseg_get(int *nseg, void **ptr);
+static void kboot_zfs_probe(void);
 
 extern int command_fdt_internal(int argc, char *argv[]);
 
@@ -150,7 +151,7 @@ int
 main(int argc, const char **argv)
 {
 	void *heapbase;
-	const size_t heapsize = 15*1024*1024;
+	const size_t heapsize = 128*1024*1024;
 	const char *bootdev;
 
 	archsw.arch_getdev = kboot_getdev;
@@ -160,6 +161,7 @@ main(int argc, const char **argv)
 	archsw.arch_autoload = kboot_autoload;
 	archsw.arch_loadaddr = kboot_loadaddr;
 	archsw.arch_kexec_kseg_get = kboot_kseg_get;
+	archsw.arch_zfs_probe = kboot_zfs_probe;
 
 	/* Give us a sane world if we're running as init */
 	do_init();
@@ -170,6 +172,9 @@ main(int argc, const char **argv)
 	heapbase = host_getmem(heapsize);
 	setheap(heapbase, heapbase + heapsize);
 
+	/* Parse the command line args -- ignoring for now the console selection */
+	parse_args(argc, argv);
+
 	/*
 	 * Set up console.
 	 */
@@ -178,15 +183,37 @@ main(int argc, const char **argv)
 	/* Initialize all the devices */
 	devinit();
 
-	/* Parse the command line args -- ignoring for now the console selection */
-	parse_args(argc, argv);
+	bootdev = getenv("bootdev");
+	if (bootdev == NULL)
+		bootdev="zfs:";
+	hostfs_root = getenv("hostfs_root");
+	if (hostfs_root == NULL)
+		hostfs_root = "/";
+#if defined(LOADER_ZFS_SUPPORT)
+	if (strcmp(bootdev, "zfs:") == 0) {
+		/*
+		 * Pseudo device that says go find the right ZFS pool. This will be
+		 * the first pool that we find that passes the sanity checks (eg looks
+		 * like it might be vbootable) and sets currdev to the right thing based
+		 * on active BEs, etc
+		 */
+		hostdisk_zfs_find_default();
+	} else
+#endif
+	{
+		/*
+		 * Otherwise, honor what's on the command line. If we've been
+		 * given a specific ZFS partition, then we'll honor it w/o BE
+		 * processing that would otherwise pick a different snapshot to
+		 * boot than the default one in the pool.
+		 */
+		set_currdev(bootdev);
+	}
 
 	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
 
 	printf("\n%s", bootprog_info);
 
-	setenv("currdev", bootdev, 1);
-	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
 	setenv("usefdt", "1", 1);
 
@@ -378,6 +405,18 @@ kboot_kseg_get(int *nseg, void **ptr)
 
 	*nseg = nkexec_segments;
 	*ptr = &loaded_segments[0];
+}
+
+static void
+kboot_zfs_probe(void)
+{
+#if defined(LOADER_ZFS_SUPPORT)
+	/*
+	 * Open all the disks and partitions we can find to see if there are ZFS
+	 * pools on them.
+	 */
+	hostdisk_zfs_probe();
+#endif
 }
 
 /*

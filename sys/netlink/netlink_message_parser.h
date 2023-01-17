@@ -213,9 +213,19 @@ nl_parse_header(void *hdr, int len, const struct nlhdr_parser *parser,
 	int error;
 
 	if (__predict_false(len < parser->nl_hdr_off)) {
-		nlmsg_report_err_msg(npt, "header too short: expected %d, got %d",
-		    parser->nl_hdr_off, len);
-		return (EINVAL);
+		if (npt->strict) {
+			nlmsg_report_err_msg(npt, "header too short: expected %d, got %d",
+			    parser->nl_hdr_off, len);
+			return (EINVAL);
+		}
+
+		/* Compat with older applications: pretend there's a full header */
+		void *tmp_hdr = npt_alloc(npt, parser->nl_hdr_off);
+		if (tmp_hdr == NULL)
+			return (EINVAL);
+		memcpy(tmp_hdr, hdr, len);
+		hdr = tmp_hdr;
+		len = parser->nl_hdr_off;
 	}
 
 	if (npt->strict && parser->sp != NULL && !parser->sp(hdr, npt))

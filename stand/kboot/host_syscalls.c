@@ -60,12 +60,6 @@ host_ioctl(int fd, unsigned long request, unsigned long arg)
 	return host_syscall(SYS_ioctl, fd, request, arg);
 }
 
-int
-host_kexec_load(unsigned long entry, unsigned long nsegs, struct host_kexec_segment *segs, unsigned long flags)
-{
-	return host_syscall(SYS_kexec_load, entry, nsegs, segs, flags);
-}
-
 ssize_t
 host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence)
 {
@@ -78,6 +72,12 @@ host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, in
 		*result = (uint64_t)rv;
 	return (rv);
 #endif
+}
+
+int
+host_kexec_load(unsigned long entry, unsigned long nsegs, struct host_kexec_segment *segs, unsigned long flags)
+{
+	return host_syscall(SYS_kexec_load, entry, nsegs, segs, flags);
 }
 
 int

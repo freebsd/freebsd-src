@@ -925,8 +925,6 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
 	devvp = mntfs_allocvp(mp, odevvp);
-	VOP_UNLOCK(odevvp);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
 	KASSERT(dev->si_snapdata == NULL, ("non-NULL snapshot data"));
@@ -1450,9 +1448,6 @@ ffs_unmount(struct mount *mp, int mntflags)
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	if (td->td_su == mp) {
 		td->td_su = NULL;
 		vfs_rel(mp);
@@ -2028,6 +2023,7 @@ ffs_vgetf(struct mount *mp,
 	}
 #endif
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

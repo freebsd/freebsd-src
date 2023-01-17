@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
-#include <err.h>
 #include <getopt.h>
 #include <libutil.h>
 #include <locale.h>
@@ -204,7 +203,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	rv = 0;
+	rv = EXIT_SUCCESS;
 	if (!*argv) {
 		/* everything (modulo -t) */
 		mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
@@ -226,14 +225,14 @@ main(int argc, char *argv[])
 		if (stat(*argv, &stbuf) < 0) {
 			if ((mntpt = getmntpt(*argv)) == NULL) {
 				xo_warn("%s", *argv);
-				rv = 1;
+				rv = EXIT_FAILURE;
 				continue;
 			}
 		} else if (S_ISCHR(stbuf.st_mode)) {
 			mntpt = getmntpt(*argv);
 			if (mntpt == NULL) {
 				xo_warnx("%s: not mounted", *argv);
-				rv = 1;
+				rv = EXIT_FAILURE;
 				continue;
 			}
 		} else {
@@ -246,7 +245,7 @@ main(int argc, char *argv[])
 		 */
 		if (statfs(mntpt, &statfsbuf) < 0) {
 			xo_warn("%s", mntpt);
-			rv = 1;
+			rv = EXIT_FAILURE;
 			continue;
 		}
 
@@ -257,7 +256,7 @@ main(int argc, char *argv[])
 		 * we've been given (-l, -t, etc.).
 		 */
 		if (checkvfsselected(statfsbuf.f_fstypename) != 0) {
-			rv = 1;
+			rv = EXIT_FAILURE;
 			continue;
 		}
 
@@ -286,7 +285,8 @@ main(int argc, char *argv[])
 		prtstat(&totalbuf, &maxwidths);
 
 	xo_close_container("storage-system-information");
-	xo_finish();
+	if (xo_finish() < 0)
+		rv = EXIT_FAILURE;
 	exit(rv);
 }
 
@@ -322,7 +322,7 @@ makevfslist(char *fslist, int *skip)
 		if (*nextcp == ',')
 			i++;
 	if ((av = malloc((size_t)(i + 2) * sizeof(char *))) == NULL) {
-		warnx("malloc failed");
+		xo_warnx("malloc failed");
 		return (NULL);
 	}
 	nextcp = fslist;

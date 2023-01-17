@@ -40,41 +40,41 @@ sm_signal(sig, handler)
 	int sig;
 	sigfunc_t handler;
 {
-# if defined(SA_RESTART) || (!defined(SYS5SIGNALS) && !defined(BSD4_3))
+#if defined(SA_RESTART) || (!defined(SYS5SIGNALS) && !defined(BSD4_3))
 	struct sigaction n, o;
-# endif
+#endif
 
 	/*
 	**  First, try for modern signal calls
 	**  and restartable syscalls
 	*/
 
-# ifdef SA_RESTART
+#ifdef SA_RESTART
 	(void) memset(&n, '\0', sizeof n);
-#  if USE_SA_SIGACTION
+# if USE_SA_SIGACTION
 	n.sa_sigaction = (void(*)(int, siginfo_t *, void *)) handler;
 	n.sa_flags = SA_RESTART|SA_SIGINFO;
-#  else
+# else
 	n.sa_handler = handler;
 	n.sa_flags = SA_RESTART;
-#  endif
+# endif
 	if (sigaction(sig, &n, &o) < 0)
 		return SIG_ERR;
 	return o.sa_handler;
-# else /* SA_RESTART */
+#else /* SA_RESTART */
 
 	/*
 	**  Else check for SYS5SIGNALS or
 	**  BSD4_3 signals
 	*/
 
-#  if defined(SYS5SIGNALS) || defined(BSD4_3)
-#   ifdef BSD4_3
+# if defined(SYS5SIGNALS) || defined(BSD4_3)
+#  ifdef BSD4_3
 	return signal(sig, handler);
-#   else
+#  else
 	return sigset(sig, handler);
-#   endif
-#  else /* defined(SYS5SIGNALS) || defined(BSD4_3) */
+#  endif
+# else /* defined(SYS5SIGNALS) || defined(BSD4_3) */
 
 	/*
 	**  Finally, if nothing else is available,
@@ -86,8 +86,8 @@ sm_signal(sig, handler)
 	if (sigaction(sig, &n, &o) < 0)
 		return SIG_ERR;
 	return o.sa_handler;
-#  endif /* defined(SYS5SIGNALS) || defined(BSD4_3) */
-# endif /* SA_RESTART */
+# endif /* defined(SYS5SIGNALS) || defined(BSD4_3) */
+#endif /* SA_RESTART */
 }
 /*
 **  SM_BLOCKSIGNAL -- hold a signal to prevent delivery
@@ -105,13 +105,13 @@ int
 sm_blocksignal(sig)
 	int sig;
 {
-# ifdef BSD4_3
-#  ifndef sigmask
-#   define sigmask(s)	(1 << ((s) - 1))
-#  endif
+#ifdef BSD4_3
+# ifndef sigmask
+#  define sigmask(s)	(1 << ((s) - 1))
+# endif
 	return (sigblock(sigmask(sig)) & sigmask(sig)) != 0;
-# else /* BSD4_3 */
-#  ifdef ALTOS_SYSTEM_V
+#else /* BSD4_3 */
+# ifdef ALTOS_SYSTEM_V
 	sigfunc_t handler;
 
 	handler = sigset(sig, SIG_HOLD);
@@ -119,7 +119,7 @@ sm_blocksignal(sig)
 		return -1;
 	else
 		return handler == SIG_HOLD;
-#  else /* ALTOS_SYSTEM_V */
+# else /* ALTOS_SYSTEM_V */
 	sigset_t sset, oset;
 
 	(void) sigemptyset(&sset);
@@ -128,8 +128,8 @@ sm_blocksignal(sig)
 		return -1;
 	else
 		return sigismember(&oset, sig);
-#  endif /* ALTOS_SYSTEM_V */
-# endif /* BSD4_3 */
+# endif /* ALTOS_SYSTEM_V */
+#endif /* BSD4_3 */
 }
 /*
 **  SM_RELEASESIGNAL -- release a held signal
@@ -147,10 +147,10 @@ int
 sm_releasesignal(sig)
 	int sig;
 {
-# ifdef BSD4_3
+#ifdef BSD4_3
 	return (sigsetmask(sigblock(0) & ~sigmask(sig)) & sigmask(sig)) != 0;
-# else /* BSD4_3 */
-#  ifdef ALTOS_SYSTEM_V
+#else /* BSD4_3 */
+# ifdef ALTOS_SYSTEM_V
 	sigfunc_t handler;
 
 	handler = sigset(sig, SIG_HOLD);
@@ -158,7 +158,7 @@ sm_releasesignal(sig)
 		return -1;
 	else
 		return handler == SIG_HOLD;
-#  else /* ALTOS_SYSTEM_V */
+# else /* ALTOS_SYSTEM_V */
 	sigset_t sset, oset;
 
 	(void) sigemptyset(&sset);
@@ -167,8 +167,8 @@ sm_releasesignal(sig)
 		return -1;
 	else
 		return sigismember(&oset, sig);
-#  endif /* ALTOS_SYSTEM_V */
-# endif /* BSD4_3 */
+# endif /* ALTOS_SYSTEM_V */
+#endif /* BSD4_3 */
 }
 /*
 **  PEND_SIGNAL -- Add a signal to the pending signal list
@@ -263,10 +263,10 @@ void
 sm_allsignals(block)
 	bool block;
 {
-# ifdef BSD4_3
-#  ifndef sigmask
-#   define sigmask(s)	(1 << ((s) - 1))
-#  endif
+#ifdef BSD4_3
+# ifndef sigmask
+#  define sigmask(s)	(1 << ((s) - 1))
+# endif
 	if (block)
 	{
 		int mask = 0;
@@ -282,8 +282,8 @@ sm_allsignals(block)
 	}
 	else
 		sigsetmask(0);
-# else /* BSD4_3 */
-#  ifdef ALTOS_SYSTEM_V
+#else /* BSD4_3 */
+# ifdef ALTOS_SYSTEM_V
 	if (block)
 	{
 		(void) sigset(SIGALRM, SIG_HOLD);
@@ -302,7 +302,7 @@ sm_allsignals(block)
 		(void) sigset(SIGTERM, SIG_DFL);
 		(void) sigset(SIGUSR1, SIG_DFL);
 	}
-#  else /* ALTOS_SYSTEM_V */
+# else /* ALTOS_SYSTEM_V */
 	sigset_t sset;
 
 	(void) sigemptyset(&sset);
@@ -313,8 +313,8 @@ sm_allsignals(block)
 	(void) sigaddset(&sset, SIGTERM);
 	(void) sigaddset(&sset, SIGUSR1);
 	(void) sigprocmask(block ? SIG_BLOCK : SIG_UNBLOCK, &sset, NULL);
-#  endif /* ALTOS_SYSTEM_V */
-# endif /* BSD4_3 */
+# endif /* ALTOS_SYSTEM_V */
+#endif /* BSD4_3 */
 }
 /*
 **  SM_SIGNAL_NOOP -- A signal no-op function

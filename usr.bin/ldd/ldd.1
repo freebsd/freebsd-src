@@ -59,8 +59,8 @@ The following is an example of a shell pipeline which uses the
 .Fl f
 option.
 It will print a report of all ELF binaries in the current directory,
-which link against libc.so.6:
-.Dl "find . -type f | xargs -n1 file -F ' ' | grep 'ELF.*dynamically' | cut -f1 -d' ' | xargs ldd -f '%A %o\en' | grep libc.so.6"
+which link against the old libc.so.6:
+.Dl "find . -type f | xargs file -F ' ' | grep 'ELF.*dynamically' | cut -f1 -d' ' | xargs ldd -f '%A %o\en' | grep -F libc.so.6"
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr nm 1 ,

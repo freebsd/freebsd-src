@@ -417,12 +417,11 @@ pbr_common_body()
 		alias 198.18.1.10/32 vhid 11 pass 3WjvVVw7 advskew 50
 	jexec gw_route_to_master sysctl net.inet.ip.forwarding=1
 	jexec gw_route_to_master sysctl net.inet.carp.preempt=1
-	jexec gw_route_to_master ifconfig ${epair_sync_gw_route_to}a name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_route_to}'a/if_pfsync/g' created_interfaces.lst
-	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge0}a name if_br0
-	sed -i '' -e 's/'${epair_gw_route_to_master_bridge0}'a/if_br0/g' created_interfaces.lst
-	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_route_to_master_bridge1}'a/if_br1/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_route_to_master ${epair_sync_gw_route_to}a if_pfsync
+	vnet_ifrename_jail gw_route_to_master ${epair_gw_route_to_master_bridge0}a if_br0
+	vnet_ifrename_jail gw_route_to_master ${epair_gw_route_to_master_bridge1}a if_br1
+
 	jexec gw_route_to_master ifconfig pfsync0 \
 		syncpeer 198.19.10.2 \
 		syncdev if_pfsync \
@@ -451,12 +450,11 @@ pbr_common_body()
 		alias 198.18.1.10/32 vhid 11 pass 3WjvVVw7 advskew 100
 	jexec gw_route_to_backup sysctl net.inet.ip.forwarding=1
 	jexec gw_route_to_backup sysctl net.inet.carp.preempt=1
-	jexec gw_route_to_backup ifconfig ${epair_sync_gw_route_to}b name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_route_to}'b/if_pfsync/g' created_interfaces.lst
-	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge0}a name if_br0
-	sed -i '' -e 's/'${epair_gw_route_to_backup_bridge0}'a/if_br0/g' created_interfaces.lst
-	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_route_to_backup_bridge1}'a/if_br1/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_route_to_backup ${epair_sync_gw_route_to}b if_pfsync
+	vnet_ifrename_jail gw_route_to_backup ${epair_gw_route_to_backup_bridge0}a if_br0
+	vnet_ifrename_jail gw_route_to_backup ${epair_gw_route_to_backup_bridge1}a if_br1
+
 	jexec gw_route_to_backup ifconfig pfsync0 \
 		syncpeer 198.19.10.1 \
 		syncdev if_pfsync \
@@ -484,12 +482,11 @@ pbr_common_body()
 		alias 198.18.2.20/32 vhid 22 pass 3WjvVVw7 advskew 50
 	jexec gw_reply_to_master sysctl net.inet.ip.forwarding=1
 	jexec gw_reply_to_master sysctl net.inet.carp.preempt=1
-	jexec gw_reply_to_master ifconfig ${epair_sync_gw_reply_to}a name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_reply_to}'a/if_pfsync/g' created_interfaces.lst
-	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_reply_to_master_bridge1}'a/if_br1/g' created_interfaces.lst
-	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge2}a name if_br2
-	sed -i '' -e 's/'${epair_gw_reply_to_master_bridge2}'a/if_br2/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_reply_to_master ${epair_sync_gw_reply_to}a if_pfsync
+	vnet_ifrename_jail gw_reply_to_master ${epair_gw_reply_to_master_bridge1}a if_br1
+	vnet_ifrename_jail gw_reply_to_master ${epair_gw_reply_to_master_bridge2}a if_br2
+
 	jexec gw_reply_to_master ifconfig pfsync0 \
 		syncpeer 198.19.20.2 \
 		syncdev if_pfsync \
@@ -517,12 +514,11 @@ pbr_common_body()
 		alias 198.18.2.20/32 vhid 22 pass 3WjvVVw7 advskew 100
 	jexec gw_reply_to_backup sysctl net.inet.ip.forwarding=1
 	jexec gw_reply_to_backup sysctl net.inet.carp.preempt=1
-	jexec gw_reply_to_backup ifconfig ${epair_sync_gw_reply_to}b name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_reply_to}'b/if_pfsync/g' created_interfaces.lst
-	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_reply_to_backup_bridge1}'a/if_br1/g' created_interfaces.lst
-	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge2}a name if_br2
-	sed -i '' -e 's/'${epair_gw_reply_to_backup_bridge2}'a/if_br2/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_reply_to_backup ${epair_sync_gw_reply_to}b if_pfsync
+	vnet_ifrename_jail gw_reply_to_backup ${epair_gw_reply_to_backup_bridge1}a if_br1
+	vnet_ifrename_jail gw_reply_to_backup ${epair_gw_reply_to_backup_bridge2}a if_br2
+
 	jexec gw_reply_to_backup ifconfig pfsync0 \
 		syncpeer 198.19.20.1 \
 		syncdev if_pfsync \
@@ -584,43 +580,12 @@ pbr_common_body()
 		sleep 1
 	done
 
-	# As cleanup is long and may lead to a timeout,
-	# it's run directly into the body part.
-	# (as cleanup timeout is not settable)
-	jail -r \
-		client \
-		gw_route_to_master \
-		gw_route_to_backup \
-		gw_reply_to_master \
-		gw_reply_to_backup \
-		server
-	for ifname in $(grep -E -e 'if_' -e 'epair.*a' -e 'bridge' created_interfaces.lst)
-	do
-		ifconfig $ifname >/dev/null 2>&1 && ifconfig $ifname destroy
-	done
-
 	atf_check -s exit:0 -e ignore -o ignore grep ', 0.0% packet loss' ping.stdout
 }
 
 pbr_common_cleanup()
 {
-	for jailname in client gw_route_to_master gw_route_to_backup gw_reply_to_master gw_reply_to_backup server
-	do
-		if $(jls | grep -q $jailname); then
-			jail -r $jailname
-		else
-			echo "$jailname already cleaned"
-		fi
-	done
-	for ifname in $(grep -E -e 'if_' -e 'epair.*a' -e 'bridge' created_interfaces.lst)
-	do
-		ifconfig $ifname >/dev/null 2>&1
-		if [ "$?" -eq "0" ]; then
-			ifconfig $ifname destroy
-		else
-			echo "$ifname already destroyed"
-		fi
-	done
+	pft_cleanup
 }
 
 atf_init_test_cases()

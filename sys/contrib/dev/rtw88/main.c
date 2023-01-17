@@ -1189,7 +1189,11 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 				   RA_MASK_OFDM_IN_HT_2G;
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM |
 				       WIRELESS_HT;
+#if defined(__linux__)
 		} else if (sta->deflink.supp_rates[0] <= 0xf) {
+#elif defined(__FreeBSD__)
+		} else if (sta->deflink.supp_rates[NL80211_BAND_2GHZ] <= 0xf) {
+#endif
 			wireless_set = WIRELESS_CCK;
 		} else {
 			ra_mask &= RA_MASK_OFDM_RATES | RA_MASK_CCK_IN_BG;

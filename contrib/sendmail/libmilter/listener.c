@@ -22,13 +22,13 @@ SM_RCSID("@(#)$Id: listener.c,v 8.127 2013-11-22 20:51:36 ca Exp $")
 #include <sys/stat.h>
 
 
-# if NETINET || NETINET6
-#  include <arpa/inet.h>
-# endif
-# if SM_CONF_POLL
-#  undef SM_FD_OK_SELECT
-#  define SM_FD_OK_SELECT(fd)		true
-# endif
+#if NETINET || NETINET6
+# include <arpa/inet.h>
+#endif
+#if SM_CONF_POLL
+# undef SM_FD_OK_SELECT
+# define SM_FD_OK_SELECT(fd)		true
+#endif
 
 static smutex_t L_Mutex;
 static int L_family;
@@ -815,9 +815,9 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 
 		if (ValidSocket(connfd) &&
 		    (clilen == 0 ||
-# ifdef BSD4_4_SOCKADDR
+#ifdef BSD4_4_SOCKADDR
 		     cliaddr.sa.sa_len == 0 ||
-# endif
+#endif
 		     cliaddr.sa.sa_family != L_family))
 		{
 			(void) closesocket(connfd);
@@ -961,7 +961,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			tcnt++;
 			smi_log(SMI_LOG_ERR,
 				LOG_CRT_FAIL,
-				smfi->xxfi_name,  r,
+				smfi->xxfi_name, r,
 				tcnt >= MAX_FAILS_T ? "abort" : "try again");
 			MI_SLEEP(tcnt);
 			(void) closesocket(connfd);
@@ -980,8 +980,10 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	else
 	{
 		if (mistop != MILTER_CONT)
-			smi_log(SMI_LOG_INFO, "%s: mi_stop=%d",
-				smfi->xxfi_name, mistop);
+			smi_log(SMI_LOG_INFO, "%s=%s",
+				smfi->xxfi_name,
+				MILTER_STOP == mistop ? "terminating"
+							: "aborting");
 		mi_closener();
 	}
 	(void) smutex_destroy(&L_Mutex);

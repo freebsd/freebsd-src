@@ -431,6 +431,8 @@ extern vm_offset_t virtual_end;
 extern vm_paddr_t dmaplimit;
 extern int pmap_pcid_enabled;
 extern int invpcid_works;
+extern int pmap_pcid_invlpg_workaround;
+extern int pmap_pcid_invlpg_workaround_uena;
 
 #define	pmap_page_get_memattr(m)	((vm_memattr_t)(m)->md.pat_mode)
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
@@ -513,6 +515,26 @@ pmap_invalidate_cpu_mask(pmap_t pmap)
 {
 	return (&pmap->pm_active);
 }
+
+#if defined(_SYS_PCPU_H_) && defined(_MACHINE_CPUFUNC_H_)
+/*
+ * It seems that AlderLake+ small cores have some microarchitectural
+ * bug, which results in the INVLPG instruction failing to flush all
+ * global TLB entries when PCID is enabled.  Work around it for now,
+ * by doing global invalidation on small cores instead of INVLPG.
+ */
+static __inline void
+pmap_invlpg(pmap_t pmap, vm_offset_t va)
+{
+	if (pmap == kernel_pmap && PCPU_GET(pcid_invlpg_workaround)) {
+		struct invpcid_descr d = { 0 };
+
+		invpcid(&d, INVPCID_CTXGLOB);
+	} else {
+		invlpg(va);
+	}
+}
+#endif /* sys/pcpu.h && machine/cpufunc.h */
 
 #endif /* _KERNEL */
 

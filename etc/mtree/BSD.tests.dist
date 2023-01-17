@@ -265,6 +265,8 @@
         rc.d
         ..
     ..
+    examples
+    ..
     games
     ..
     gnu
@@ -832,6 +834,8 @@
         ..
         netpfil
             common
+            ..
+            ipfw
             ..
             pf
                 ioctl

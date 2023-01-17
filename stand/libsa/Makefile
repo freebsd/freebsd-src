@@ -15,7 +15,7 @@ LIB?=		sa
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c \
 	getopt.c gets.c globals.c \
-	hexdump.c pager.c panic.c printf.c strdup.c strerror.c \
+	hexdump.c nvstore.c pager.c panic.c printf.c strdup.c strerror.c \
 	random.c sbrk.c tslog.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
@@ -112,7 +112,7 @@ CFLAGS.lz4.c+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 # Create a subset of includes that are safe, as well as adjusting those that aren't
 # The lists may drive people nuts, but they are explicitly opt-in
 FAKE_DIRS=xlocale arpa
-SAFE_INCS=a.out.h assert.h elf.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h unistd.h uuid.h
+SAFE_INCS=a.out.h assert.h elf.h inttypes.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h unistd.h uuid.h
 STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h
 OTHER_INC=stdarg.h errno.h stdint.h
 

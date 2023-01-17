@@ -228,7 +228,7 @@ gen_hash(saddr)
 		}
 	}
 #else /* HASH_ALG == 1 */
-# ERROR: unsupported HASH_ALG
+# ERROR "unsupported HASH_ALG"
 	hv = ((hv << 1) ^ (*p & 0377)) % cctx->cc_size; ???
 #endif /* HASH_ALG == 1 */
 
@@ -424,7 +424,7 @@ conn_limits(e, now, saddr, clflags, hashary, ratelimit, conclimit)
 	logit = true;
 #endif
 #if RATECTL_DEBUG || _FFR_OCC
-#if _FFR_OCC
+# if _FFR_OCC
 	if (!exceeded)
 	{
 		if (prv != NULL)
@@ -433,7 +433,7 @@ conn_limits(e, now, saddr, clflags, hashary, ratelimit, conclimit)
 			++*pcv;
 	}
 	logit = exceeded || LogLevel > 11;
-#endif
+# endif
 	if (logit)
 		sm_syslog(LOG_DEBUG, e != NULL ? e->e_id : NOQID,
 			"conn_limits: addr=%s, flags=0x%x, rate=%d/%d, conc=%d/%d, exc=%d",
@@ -556,13 +556,13 @@ dump_ch(fp)
 		bool valid;
 
 		valid = false;
-#if NETINET
+# if NETINET
 		valid = (ch->ch_Family == AF_INET);
 		if (valid)
 			sm_io_fprintf(fp, SM_TIME_DEFAULT, "ip=%s ",
 				inet_ntoa(ch->ch_Addr4));
-#endif /* NETINET */
-#if NETINET6
+# endif /* NETINET */
+# if NETINET6
 		if (ch->ch_Family == AF_INET6)
 		{
 			char buf[64], *str;
@@ -573,7 +573,7 @@ dump_ch(fp)
 				sm_io_fprintf(fp, SM_TIME_DEFAULT, "ip=%s ",
 					str);
 		}
-#endif /* NETINET6 */
+# endif /* NETINET6 */
 		if (!valid)
 			continue;
 
@@ -589,9 +589,9 @@ dump_ch(fp)
 
 		sm_io_fprintf(fp, SM_TIME_DEFAULT, "time=%ld cnt=%d ",
 			(long) ch->ch_LTime, cnt);
-#if _FFR_OCC
+# if _FFR_OCC
 		sm_io_fprintf(fp, SM_TIME_DEFAULT, "oc=%d", ch->ch_oc);
-#endif
+# endif
 		sm_io_fprintf(fp, SM_TIME_DEFAULT, "\n");
 	}
 	sm_io_flush(fp, SM_TIME_DEFAULT);

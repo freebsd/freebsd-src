@@ -204,6 +204,17 @@ subnetmod_init(struct module_env *env, int id)
 	}
 	alloc_init(&sn_env->alloc, NULL, 0);
 	env->modinfo[id] = (void*)sn_env;
+
+	/* Warn that serve-expired and prefetch do not work with the subnet
+	 * module cache. */
+	if(env->cfg->serve_expired)
+		log_warn(
+			"subnetcache: serve-expired is set but not working "
+			"for data originating from the subnet module cache.");
+	if(env->cfg->prefetch)
+		log_warn(
+			"subnetcache: prefetch is set but not working "
+			"for data originating from the subnet module cache.");
 	/* Copy msg_cache settings */
 	sn_env->subnet_msg_cache = slabhash_create(env->cfg->msg_cache_slabs,
 		HASH_DEFAULT_STARTARRAY, env->cfg->msg_cache_size,

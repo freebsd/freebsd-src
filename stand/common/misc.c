@@ -169,17 +169,6 @@ alloc_pread(readin_handle_t fd, off_t off, size_t len)
 	return (buf);
 }
 
-void
-dev_cleanup(void)
-{
-    int		i;
-
-    /* Call cleanup routines */
-    for (i = 0; devsw[i] != NULL; ++i)
-	if (devsw[i]->dv_cleanup != NULL)
-	    (devsw[i]->dv_cleanup)();
-}
-
 /*
  * mount new rootfs and unmount old, set "currdev" environment variable.
  */
@@ -200,4 +189,37 @@ int mount_currdev(struct env_var *ev, int flags, const void *value)
 		env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 	}
 	return (rv);
+}
+
+/*
+ * Set currdev to suit the value being supplied in (value)
+ */
+int
+gen_setcurrdev(struct env_var *ev, int flags, const void *value)
+{
+	struct devdesc *ncurr;
+	int rv;
+
+	if ((rv = devparse(&ncurr, value, NULL)) != 0)
+		return (rv);
+	free(ncurr);
+
+	return (mount_currdev(ev, flags, value));
+}
+
+/*
+ * Wrapper to set currdev and loaddev at the same time.
+ */
+void
+set_currdev(const char *devname)
+{
+
+	env_setenv("currdev", EV_VOLATILE, devname, gen_setcurrdev,
+	    env_nounset);
+	/*
+	 * Don't execute hook here; the loaddev hook makes it immutable
+	 * once we've determined what the proper currdev is.
+	 */
+	env_setenv("loaddev", EV_VOLATILE | EV_NOHOOK, devname, env_noset,
+	    env_nounset);
 }

@@ -42,5 +42,11 @@ class BaseTest(object):
                     "kernel module '{}' not available: {}".format(mod_name, err_str)
                 )
 
-    def check_constraints(self):
+    @property
+    def test_id(self):
+        # 'test_ip6_output.py::TestIP6Output::test_output6_pktinfo[ipandif] (setup)'
+        return os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]
+
+    def setup_method(self, method):
+        """Run all pre-requisits for the test execution"""
         self._check_modules()

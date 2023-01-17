@@ -218,7 +218,7 @@ vsyslog1(int pri, const char *fmt, va_list ap)
 	 * specified, as it provides valuable information. Many
 	 * applications tend not to use this, even though they should.
 	 */
-	if (LogPid == -1)
+	if (LogTagLength <= 0)
 		LogPid = getpid();
 	(void)fprintf(fp, "%d ", (int)LogPid);
 	/* Message ID. */
@@ -463,7 +463,10 @@ setlogmask(int pmask)
 }
 
 /*
- * Obtain LogPid from LogTag formatted as following: ident[NNN]
+ * Obtain LogPid from LogTag formatted as per RFC 3164,
+ * Section 5.3 Originating Process Information:
+ *
+ * ident[NNN]
  */
 static void
 parse_tag(void)

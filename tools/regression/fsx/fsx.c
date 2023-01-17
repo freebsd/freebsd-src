@@ -105,13 +105,13 @@ int	fd;				/* fd for our test file */
 off_t		file_size = 0;
 off_t		biggest = 0;
 char		state[256];
-unsigned long	testcalls = 0;		/* calls to function "test" */
+long		testcalls = 0;		/* calls to function "test" */
 
-unsigned long	simulatedopcount = 0;	/* -b flag */
+long	simulatedopcount = 0;		/* -b flag */
 int	closeprob = 0;			/* -c flag */
 int	invlprob = 0;			/* -i flag */
 int	debug = 0;			/* -d flag */
-unsigned long	debugstart = 0;		/* -D flag */
+long	debugstart = 0;			/* -D flag */
 off_t	maxfilelen = 256 * 1024;	/* -l flag */
 int	sizechecks = 1;			/* -n flag disables them */
 int	maxoplen = 64 * 1024;		/* -o flag */
@@ -910,7 +910,7 @@ usage(void)
 	-c P: 1 in P chance of file close+open at each op (default infinity)\n\
 	-d: debug output for all operations\n\
 	-i P: 1 in P chance of calling msync(MS_INVALIDATE) (default infinity)\n\
-	-l flen: the upper bound on file size (default 262144)\n\
+	-l flen: the upper bound on file size (default 262144, max 2147483647)\n\
 	-m startop:endop: monitor (print debug output) specified byte range (default 0:infinity)\n\
 	-n: no verifications of file size\n\
 	-o oplen: the upper bound on operation size (default 65536)\n\
@@ -937,32 +937,43 @@ usage(void)
 int
 getnum(char *s, char **e)
 {
-	int ret = -1;
+	long long ret = -1;
 
 	*e = (char *) 0;
-	ret = strtol(s, e, 0);
+	ret = strtoll(s, e, 0);
 	if (*e)
 		switch (**e) {
 		case 'b':
 		case 'B':
+			if (ret > INT_MAX / 512)
+				return (-1);
 			ret *= 512;
 			*e = *e + 1;
 			break;
 		case 'k':
 		case 'K':
+			if (ret > INT_MAX / 1024)
+				return (-1);
 			ret *= 1024;
 			*e = *e + 1;
 			break;
 		case 'm':
 		case 'M':
+			if (ret > INT_MAX / 1024 / 1024)
+				return (-1);
 			ret *= 1024*1024;
 			*e = *e + 1;
 			break;
 		case 'w':
 		case 'W':
+			if (ret > INT_MAX / 4)
+				return (-1);
 			ret *= 4;
 			*e = *e + 1;
 			break;
+		default:
+			if (ret > INT_MAX)
+				return (-1);
 		}
 	return (ret);
 }
@@ -1095,6 +1106,8 @@ main(int argc, char **argv)
 			break;
 		case 'R':
 			mapped_reads = 0;
+			if (!quiet)
+				fprintf(stdout, "mapped reads DISABLED\n");
 			break;
 		case 'S':
 			seed = getnum(optarg, &endp);

@@ -1080,6 +1080,8 @@ loop:
 		vgone(vp);
 		vput(vp);
 		vp = NULL;
+	} else {
+		vn_set_state(vp, VSTATE_CONSTRUCTED);
 	}
 
 unlock:

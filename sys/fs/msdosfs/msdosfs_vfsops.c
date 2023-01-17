@@ -431,8 +431,6 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
 	devvp = mntfs_allocvp(mp, odevvp);
-	VOP_UNLOCK(odevvp);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	dev = devvp->v_rdev;
 	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
 	    (uintptr_t)mp) == 0) {
@@ -872,9 +870,6 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	lockdestroy(&pmp->pm_checkpath_lock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	return (error);
 }
 

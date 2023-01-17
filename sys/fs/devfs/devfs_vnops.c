@@ -613,6 +613,7 @@ loop:
 		return (error);
 	}
 	if (devfs_allocv_drop_refs(0, dmp, de)) {
+		vgone(vp);
 		vput(vp);
 		return (ENOENT);
 	}
@@ -620,6 +621,7 @@ loop:
 	mac_devfs_vnode_associate(mp, de, vp);
 #endif
 	sx_xunlock(&dmp->dm_lock);
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

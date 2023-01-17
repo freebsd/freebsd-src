@@ -369,6 +369,7 @@ dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
 dev/vmd/vmd.c			optional	vmd | vmd_bus
 dev/wbwd/wbwd.c			optional	wbwd
+dev/wdatwd/wdatwd.c		optional	wdatwd
 dev/p2sb/p2sb.c			optional	p2sb pci
 dev/p2sb/lewisburg_gpiocm.c	optional	lbggpiocm p2sb
 dev/p2sb/lewisburg_gpio.c	optional	lbggpio lbggpiocm

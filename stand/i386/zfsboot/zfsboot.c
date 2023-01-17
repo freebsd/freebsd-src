@@ -208,7 +208,7 @@ main(void)
 	    bd_bios2unit(bootinfo.bi_bios_dev));
 
 	/* Set up currdev variable to have hooks in place. */
-	env_setenv("currdev", EV_VOLATILE, "", i386_setcurrdev,
+	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev,
 	    env_nounset);
 
 	devinit();
@@ -256,7 +256,7 @@ main(void)
 	free(bdev);
 	i386_getdev((void **)&bdev, boot_devname, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, boot_devname, i386_setcurrdev,
+	env_setenv("currdev", EV_VOLATILE, boot_devname, gen_setcurrdev,
 	    env_nounset);
 
 	/* Process configuration file */
@@ -706,9 +706,9 @@ i386_zfs_probe(void)
 		    dev.dd.d_unit);
 		/* If this is not boot disk, use generic probe. */
 		if (dev.dd.d_unit != boot_unit)
-			zfs_probe_dev(devname, NULL);
+			zfs_probe_dev(devname, NULL, true);
 		else
-			zfs_probe_dev(devname, &pool_guid);
+			zfs_probe_dev(devname, &pool_guid, true);
 
 		if (pool_guid != 0 && bdev == NULL) {
 			bdev = malloc(sizeof (struct i386_devdesc));

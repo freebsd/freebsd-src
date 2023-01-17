@@ -279,6 +279,7 @@ make_linuxboot_images()
 	zfs=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}.zfs
 	img=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}.img
 	img2=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}-zfs.img
+	pool="linuxboot-testing"
 	mkdir -p ${IMAGES}/${ma_combo}
 	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
 	       -o volume_label=EFISYS -s100m ${esp} ${src}

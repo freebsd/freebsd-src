@@ -181,7 +181,7 @@ MERGEMASTER_CMD="${srcdir}/usr.sbin/mergemaster/mergemaster.sh"
 
 # May be a worktree, in which case .git is a file, not a directory.
 if [ -e .git ] ; then
-    commit_time=$(git show --format='%ct' 2>/dev/null | head -1)
+    commit_time=$(git show -s --format='%ct' 2>/dev/null)
     [ $? -ne 0 ] && errx "Can't lookup git commit timestamp"
     commit_ts=$(date -r ${commit_time} '+%Y%m%d.%H%M%S')
 elif [ -d .svn ] ; then

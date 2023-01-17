@@ -100,10 +100,7 @@ default_parsedev(struct devdesc **dev, const char *devspec,
 	idev->d_unit = unit;
 	if (path != NULL)
 		*path = (*cp == 0) ? cp : cp + 1;
-	if (dev != NULL)	/* maybe this can be required? */
-		*dev = idev;
-	else
-		free(idev);
+	*dev = idev;
 	return (0);
 fail:
 	free(idev);
@@ -171,4 +168,15 @@ devinit(void)
 		}
 	}
 	return (err);
+}
+
+void
+dev_cleanup(void)
+{
+    int		i;
+
+    /* Call cleanup routines */
+    for (i = 0; devsw[i] != NULL; ++i)
+	if (devsw[i]->dv_cleanup != NULL)
+	    (devsw[i]->dv_cleanup)();
 }

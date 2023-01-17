@@ -429,3 +429,50 @@ lkpi_arch_phys_wc_del(int reg)
 	free(mrdesc, M_LKMTRR);
 #endif
 }
+
+/*
+ * This is a highly simplified version of the Linux page_frag_cache.
+ * We only support up-to 1 single page as fragment size and we will
+ * always return a full page.  This may be wasteful on small objects
+ * but the only known consumer (mt76) is either asking for a half-page
+ * or a full page.  If this was to become a problem we can implement
+ * a more elaborate version.
+ */
+void *
+linuxkpi_page_frag_alloc(struct page_frag_cache *pfc,
+    size_t fragsz, gfp_t gfp)
+{
+	vm_page_t pages;
+
+	if (fragsz == 0)
+		return (NULL);
+
+	KASSERT(fragsz <= PAGE_SIZE, ("%s: fragsz %zu > PAGE_SIZE not yet "
+	    "supported", __func__, fragsz));
+
+	pages = alloc_pages(gfp, flsl(howmany(fragsz, PAGE_SIZE) - 1));
+	if (pages == NULL)
+		return (NULL);
+	pfc->va = linux_page_address(pages);
+
+	/* Passed in as "count" to __page_frag_cache_drain(). Unused by us. */
+	pfc->pagecnt_bias = 0;
+
+	return (pfc->va);
+}
+
+void
+linuxkpi_page_frag_free(void *addr)
+{
+	vm_page_t page;
+
+	page = PHYS_TO_VM_PAGE(vtophys(addr));
+	linux_free_pages(page, 0);
+}
+
+void
+linuxkpi__page_frag_cache_drain(struct page *page, size_t count __unused)
+{
+
+	linux_free_pages(page, 0);
+}

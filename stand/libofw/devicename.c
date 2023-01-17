@@ -93,20 +93,6 @@ ofw_path_to_handle(const char *ofwpath, const char *want_type, const char **path
 }
 
 int
-ofw_setcurrdev(struct env_var *ev, int flags, const void *value)
-{
-	struct devdesc	*ncurr;
-	int		rv;
-
-	if ((rv = devparse(&ncurr, value, NULL)) != 0)
-		return (rv);
-
-	free(ncurr);
-
-	return (mount_currdev(ev, flags, value));
-}
-
-int
 ofw_common_parsedev(struct devdesc **dev, const char *devspec, const char **path,
     const char *ofwtype)
 {
@@ -122,8 +108,7 @@ ofw_common_parsedev(struct devdesc **dev, const char *devspec, const char **path
 	};
 	strlcpy(idev->d_path, devspec, min(rem_path - devspec + 1,
 		sizeof(idev->d_path)));
-	if (dev != NULL)
-		*dev = &idev->dd;
+	*dev = &idev->dd;
 	if (path != NULL)
 		*path = rem_path;
 	return 0;

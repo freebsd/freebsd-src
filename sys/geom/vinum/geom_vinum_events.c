@@ -185,8 +185,7 @@ gv_drive_tasted(struct gv_softc *sc, struct g_provider *pp)
 	return;
 
 failed:
-	if (hdr != NULL)
-		g_free(hdr);
+	g_free(hdr);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	g_detach(cp);

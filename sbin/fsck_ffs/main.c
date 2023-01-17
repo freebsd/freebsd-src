@@ -76,8 +76,6 @@ static void usage(void) __dead2;
 static intmax_t argtoimax(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
 static int setup_bkgrdchk(struct statfs *mntp, int sbrdfailed, char **filesys);
-static int chkdoreload(struct statfs *mntp);
-static struct statfs *getmntpt(const char *);
 
 int
 main(int argc, char *argv[])
@@ -258,7 +256,7 @@ checkfilesys(char *filesys)
 	 * if it is listed among the mounted file systems. Failing that
 	 * check to see if it is listed in /etc/fstab.
 	 */
-	mntp = getmntpt(filesys);
+	mntp = getmntpoint(filesys);
 	if (mntp != NULL)
 		filesys = mntp->f_mntfromname;
 	else
@@ -311,7 +309,7 @@ checkfilesys(char *filesys)
 			    (FS_UNCLEAN | FS_NEEDSFSCK)) == 0) {
 				bufinit();
 				gjournal_check(filesys);
-				if (chkdoreload(mntp) == 0)
+				if (chkdoreload(mntp, pwarn) == 0)
 					exit(0);
 				exit(4);
 			} else {
@@ -357,7 +355,7 @@ checkfilesys(char *filesys)
 			sujrecovery = 1;
 			if (suj_check(filesys) == 0) {
 				printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
-				if (chkdoreload(mntp) == 0)
+				if (chkdoreload(mntp, pwarn) == 0)
 					exit(0);
 				exit(4);
 			}
@@ -561,7 +559,7 @@ checkfilesys(char *filesys)
 			return (ERESTART);
 		printf("\n***** PLEASE RERUN FSCK *****\n");
 	}
-	if (chkdoreload(mntp) != 0) {
+	if (chkdoreload(mntp, pwarn) != 0) {
 		if (!fsmodified)
 			return (0);
 		if (!preen)
@@ -713,92 +711,6 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 	cmd.version = FFS_CMD_VERSION;
 	cmd.handle = fsreadfd;
 	return (1);
-}
-
-static int
-chkdoreload(struct statfs *mntp)
-{
-	struct iovec *iov;
-	int iovlen;
-	char errmsg[255];
-
-	if (mntp == NULL)
-		return (0);
-
-	iov = NULL;
-	iovlen = 0;
-	errmsg[0] = '\0';
-	/*
-	 * We modified a mounted file system.  Do a mount update on
-	 * it unless it is read-write, so we can continue using it
-	 * as safely as possible.
-	 */
-	if (mntp->f_flags & MNT_RDONLY) {
-		build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
-		build_iovec(&iov, &iovlen, "from", mntp->f_mntfromname,
-		    (size_t)-1);
-		build_iovec(&iov, &iovlen, "fspath", mntp->f_mntonname,
-		    (size_t)-1);
-		build_iovec(&iov, &iovlen, "errmsg", errmsg,
-		    sizeof(errmsg));
-		build_iovec(&iov, &iovlen, "update", NULL, 0);
-		build_iovec(&iov, &iovlen, "reload", NULL, 0);
-		/*
-		 * XX: We need the following line until we clean up
-		 * nmount parsing of root mounts and NFS root mounts.
-		 */
-		build_iovec(&iov, &iovlen, "ro", NULL, 0);
-		if (nmount(iov, iovlen, mntp->f_flags) == 0) {
-			return (0);
-		}
-		pwarn("mount reload of '%s' failed: %s %s\n\n",
-		    mntp->f_mntonname, strerror(errno), errmsg);
-		return (1);
-	}
-	return (0);
-}
-
-/*
- * Get the mount point information for name.
- */
-static struct statfs *
-getmntpt(const char *name)
-{
-	struct stat devstat, mntdevstat;
-	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
-	char *ddevname;
-	struct statfs *mntbuf, *statfsp;
-	int i, mntsize, isdev;
-
-	if (stat(name, &devstat) != 0)
-		return (NULL);
-	if (S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode))
-		isdev = 1;
-	else
-		isdev = 0;
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = 0; i < mntsize; i++) {
-		statfsp = &mntbuf[i];
-		ddevname = statfsp->f_mntfromname;
-		if (*ddevname != '/') {
-			if (strlen(_PATH_DEV) + strlen(ddevname) + 1 >
-			    sizeof(statfsp->f_mntfromname))
-				continue;
-			strcpy(device, _PATH_DEV);
-			strcat(device, ddevname);
-			strcpy(statfsp->f_mntfromname, device);
-		}
-		if (isdev == 0) {
-			if (strcmp(name, statfsp->f_mntonname))
-				continue;
-			return (statfsp);
-		}
-		if (stat(ddevname, &mntdevstat) == 0 &&
-		    mntdevstat.st_rdev == devstat.st_rdev)
-			return (statfsp);
-	}
-	statfsp = NULL;
-	return (statfsp);
 }
 
 static void

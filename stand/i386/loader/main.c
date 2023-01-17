@@ -164,7 +164,7 @@ main(void)
 
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE | EV_NOHOOK, "",
-	    i386_setcurrdev, env_nounset);
+	    gen_setcurrdev, env_nounset);
 
 	/*
 	 * Initialise the block cache. Set the upper limit.
@@ -383,10 +383,7 @@ extract_currdev(void)
 		init_zfs_boot_options(devformat(&new_currdev.dd));
 #endif
 
-	env_setenv("currdev", EV_VOLATILE, devformat(&new_currdev.dd),
-	    i386_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, devformat(&new_currdev.dd),
-	    env_noset, env_nounset);
+	set_currdev(devformat(&new_currdev.dd));
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
@@ -453,7 +450,7 @@ i386_zfs_probe(void)
 	for (dev.dd.d_unit = 0; bd_unit2bios(&dev) >= 0; dev.dd.d_unit++) {
 		snprintf(devname, sizeof(devname), "%s%d:", bioshd.dv_name,
 		    dev.dd.d_unit);
-		zfs_probe_dev(devname, NULL);
+		zfs_probe_dev(devname, NULL, true);
 	}
 }
 #endif

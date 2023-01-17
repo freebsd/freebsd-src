@@ -224,6 +224,10 @@ struct ieee80211_chanctx_conf {
 	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
 };
 
+struct ieee80211_rate_status {
+	struct rate_info			rate_idx;
+};
+
 #define	WLAN_MEMBERSHIP_LEN			(8)
 #define	WLAN_USER_POSITION_LEN			(16)
 
@@ -557,15 +561,12 @@ struct ieee80211_rx_status {
 	uint8_t				rate_idx;
 };
 
-struct ieee80211_tx_rate_status {
-};
-
 struct ieee80211_tx_status {
 	struct ieee80211_sta		*sta;
 	struct ieee80211_tx_info	*info;
 
 	u8				n_rates;
-	struct ieee80211_tx_rate_status	*rates;
+	struct ieee80211_rate_status	*rates;
 
 	struct sk_buff			*skb;
 	struct list_head		*free_list;
@@ -609,6 +610,11 @@ struct ieee80211_sta_txpwr {
 	short				power;
 };
 
+struct ieee80211_sta_agg {
+	/* XXX TODO */
+	int max_amsdu_len;
+};
+
 struct ieee80211_link_sta {
 	uint32_t				supp_rates[NUM_NL80211_BANDS];
 	struct ieee80211_sta_ht_cap		ht_cap;
@@ -617,6 +623,8 @@ struct ieee80211_link_sta {
 	struct ieee80211_sta_he_6ghz_capa	he_6ghz_capa;
 	uint8_t					rx_nss;
 	enum ieee80211_sta_rx_bw		bandwidth;
+	enum ieee80211_smps_mode		smps_mode;
+	struct ieee80211_sta_agg		agg;
 	struct ieee80211_sta_txpwr		txpwr;
 };
 
@@ -682,6 +690,7 @@ enum ieee80211_vif_driver_flags {
 struct ieee80211_vif_cfg {
 	uint16_t				aid;
 	bool					assoc;
+	bool					ps;
 	int					arp_addr_cnt;
 	uint32_t				arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];		/* big endian */
 };
@@ -971,7 +980,9 @@ void linuxkpi_ieee80211_iffree(struct ieee80211_hw *);
 void linuxkpi_set_ieee80211_dev(struct ieee80211_hw *, char *);
 int linuxkpi_ieee80211_ifattach(struct ieee80211_hw *);
 void linuxkpi_ieee80211_ifdetach(struct ieee80211_hw *);
+void linuxkpi_ieee80211_unregister_hw(struct ieee80211_hw *);
 struct ieee80211_hw * linuxkpi_wiphy_to_ieee80211_hw(struct wiphy *);
+void linuxkpi_ieee80211_restart_hw(struct ieee80211_hw *);
 void linuxkpi_ieee80211_iterate_interfaces(
     struct ieee80211_hw *hw, enum ieee80211_iface_iter flags,
     void(*iterfunc)(void *, uint8_t *, struct ieee80211_vif *),
@@ -1101,14 +1112,11 @@ ieee80211_register_hw(struct ieee80211_hw *hw)
 	return (error);
 }
 
-static __inline void
+static inline void
 ieee80211_unregister_hw(struct ieee80211_hw *hw)
 {
 
-	wiphy_unregister(hw->wiphy);
-	linuxkpi_ieee80211_ifdetach(hw);
-
-	IMPROVE();
+	linuxkpi_ieee80211_unregister_hw(hw);
 }
 
 static __inline struct ieee80211_hw *
@@ -1117,6 +1125,13 @@ wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 
 	return (linuxkpi_wiphy_to_ieee80211_hw(wiphy));
 }
+
+static inline void
+ieee80211_restart_hw(struct ieee80211_hw *hw)
+{
+	linuxkpi_ieee80211_restart_hw(hw);
+}
+
 
 /* -------------------------------------------------------------------------- */
 
@@ -1822,12 +1837,6 @@ ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb)
 }
 
 static __inline void
-ieee80211_restart_hw(struct ieee80211_hw *hw)
-{
-	TODO();
-}
-
-static __inline void
 ieee80211_ready_on_channel(struct ieee80211_hw *hw)
 {
 	TODO();
@@ -2174,13 +2183,6 @@ SET_IEEE80211_PERM_ADDR	(struct ieee80211_hw *hw, uint8_t *addr)
 	ether_addr_copy(hw->wiphy->perm_addr, addr);
 }
 
-static __inline uint8_t *
-ieee80211_bss_get_ie(struct cfg80211_bss *bss, uint32_t eid)
-{
-	TODO();
-	return (NULL);
-}
-
 static __inline void
 ieee80211_report_low_ack(struct ieee80211_sta *sta, int x)
 {
@@ -2357,13 +2359,6 @@ ieee80211_tx_status_ext(struct ieee80211_hw *hw,
     struct ieee80211_tx_status *txstat)
 {
 	TODO();
-}
-
-static __inline const struct element *
-ieee80211_bss_get_elem(struct cfg80211_bss *bss, uint32_t eid)
-{
-	TODO();
-	return (NULL);
 }
 
 static __inline void

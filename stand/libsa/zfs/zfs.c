@@ -379,9 +379,9 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 static int
 zfs_mount(const char *dev, const char *path, void **data)
 {
-	struct zfs_devdesc *zfsdev;
+	struct zfs_devdesc *zfsdev = NULL;
 	spa_t *spa;
-	struct zfsmount *mnt;
+	struct zfsmount *mnt = NULL;
 	int rv;
 
 	errno = 0;
@@ -391,36 +391,46 @@ zfs_mount(const char *dev, const char *path, void **data)
 	}
 
 	spa = spa_find_by_dev(zfsdev);
-	if (spa == NULL)
-		return (ENXIO);
+	if (spa == NULL) {
+		rv = ENXIO;
+		goto err;
+	}
 
 	mnt = calloc(1, sizeof(*mnt));
-	if (mnt != NULL && path != NULL)
+	if (mnt == NULL) {
+		rv = ENOMEM;
+		goto err;
+	}
+
+	if (mnt->path != NULL) {
 		mnt->path = strdup(path);
-	rv = errno;
+		if (mnt->path == NULL) {
+			rv = ENOMEM;
+			goto err;
+		}
+	}
 
-	if (mnt != NULL)
-		rv = zfs_mount_impl(spa, zfsdev->root_guid, mnt);
-	free(zfsdev);
+	rv = zfs_mount_impl(spa, zfsdev->root_guid, mnt);
 
-	if (rv == 0 && mnt != NULL && mnt->objset.os_type != DMU_OST_ZFS) {
+	if (rv == 0 && mnt->objset.os_type != DMU_OST_ZFS) {
 		printf("Unexpected object set type %ju\n",
 		    (uintmax_t)mnt->objset.os_type);
 		rv = EIO;
 	}
-
+err:
 	if (rv != 0) {
 		if (mnt != NULL)
 			free(mnt->path);
 		free(mnt);
+		free(zfsdev);
 		return (rv);
 	}
 
-	if (mnt != NULL) {
-		*data = mnt;
-		if (path != NULL)
-			STAILQ_INSERT_TAIL(&zfsmount, mnt, next);
-	}
+	*data = mnt;
+	if (path != NULL)
+		STAILQ_INSERT_TAIL(&zfsmount, mnt, next);
+
+	free(zfsdev);
 
 	return (rv);
 }
@@ -1492,7 +1502,7 @@ zfs_attach_nvstore(void *vdev)
 }
 
 int
-zfs_probe_dev(const char *devname, uint64_t *pool_guid)
+zfs_probe_dev(const char *devname, uint64_t *pool_guid, bool parts_too)
 {
 	struct ptable *table;
 	struct zfs_probe_args pa;
@@ -1508,6 +1518,8 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 	ret = zfs_probe(pa.fd, pool_guid);
 	if (ret == 0)
 		return (0);
+	if (!parts_too)
+		return (ENXIO);
 
 	/* Probe each partition */
 	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);

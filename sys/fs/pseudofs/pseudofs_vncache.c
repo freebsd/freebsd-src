@@ -207,6 +207,7 @@ alloc:
 		*vpp = NULLVP;
 		return (error);
 	}
+	vn_set_state(*vpp, VSTATE_CONSTRUCTED);
 retry2:
 	mtx_lock(&pfs_vncache_mutex);
 	/*

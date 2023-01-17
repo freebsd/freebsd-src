@@ -101,6 +101,7 @@ SUBDIR=	adduser \
 	wake \
 	watch \
 	watchdogd \
+	zdump \
 	zic \
 	zonectl
 

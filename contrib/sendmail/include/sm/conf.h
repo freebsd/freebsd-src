@@ -997,6 +997,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   define USESYSCTL		1	/* use sysctl(3) for getting ncpus */
 #   include <sys/param.h>
 #   include <sys/sysctl.h>
+#   define HAVE_IFC_BUF_VOID	1	/* void *ifc_buf instead of caddr_t */
 #  endif
 #  if defined(__DragonFly__)
 #   define HASSETLOGIN		1	/* has setlogin(2) */

@@ -204,7 +204,7 @@ void
 tTflag(s)
 	register char *s;
 {
-	if (s == NULL || *s == '\0')
+	if (SM_IS_EMPTY(s))
 		s = DefFlags;
 
 	for (;;)

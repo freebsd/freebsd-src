@@ -89,6 +89,12 @@ struct ub_ctx {
 	pid_t bg_pid;
 	/** tid of bg worker thread */
 	ub_thread_type bg_tid;
+	/** pid when pipes are created. This was the process when the
+	 * setup was called. Helps with clean up, so we can tell after a fork
+	 * which side of the fork the delete is on. */
+	pid_t pipe_pid;
+	/** when threaded, the worker that exists in the created thread. */
+	struct libworker* thread_worker;
 
 	/** do threading (instead of forking) for async resolution */
 	int dothread;

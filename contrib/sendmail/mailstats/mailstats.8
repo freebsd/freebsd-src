@@ -15,7 +15,7 @@ mailstats
 .SH SYNOPSIS
 .B mailstats
 .RB [ \-c "] [" \-o "] [" \-p "] [" \-P ]
-.RB [ \-C 
+.RB [ \-C
 .IR cffile ]
 .RB [ \-f
 .IR stfile ]
@@ -25,10 +25,10 @@ The
 utility displays the current mail statistics.
 .PP
 First, the time at which statistics started being kept is displayed,
-in the format specified by 
-ctime(3).  
-Then, 
-the statistics for each mailer are displayed on a single line, 
+in the format specified by
+ctime(3).
+Then,
+the statistics for each mailer are displayed on a single line,
 each with the following white space separated fields:
 .sp
 .RS
@@ -36,7 +36,7 @@ each with the following white space separated fields:
 .TP 1.2i
 .B M
 The mailer number.
-.TP 
+.TP
 .B msgsfr
 Number of messages from the mailer.
 .TP
@@ -63,15 +63,15 @@ The name of the mailer.
 .PD
 .RE
 .PP
-After this display, a line totaling the values for all of the mailers 
+After this display, a line totaling the values for all of the mailers
 is displayed (preceded with a ``T''),
-separated from the previous information by a line containing only equals 
-(``='') 
+separated from the previous information by a line containing only equals
+(``='')
 characters.
 Another line preceded with a ``C'' lists the number of TCP connections.
 .PP
 The options are as follows:
-.TP 
+.TP
 .B \-C
 Read the specified file instead of the default
 .B sendmail
@@ -85,9 +85,9 @@ configuration file.
 .B \-f
 Read the specified statistics file instead of the statistics file
 specified in the
-.B sendmail 
+.B sendmail
 configuration file.
-.TP 
+.TP
 .B \-P
 Output information in program-readable mode without clearing statistics.
 .TP
@@ -114,5 +114,5 @@ The default
 statistics file.
 .PD
 .SH SEE ALSO
-mailq(1), 
+mailq(1),
 sendmail(8)

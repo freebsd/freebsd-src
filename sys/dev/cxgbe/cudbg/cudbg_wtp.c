@@ -323,7 +323,7 @@ static int t5_wtp_data(struct cudbg_init *pdbg_init,
 	/*# TX PATH, starting from pcie*/
 	/*#######################################################################*/
 
-	/* Get Reqests of commands from SGE to PCIE*/
+	/* Get Requests of commands from SGE to PCIE*/
 
 	wtp->sge_pcie_cmd_req.sop[0] =	sge_dbg_reg->debug_PC_Req_SOP0_cnt;
 	wtp->sge_pcie_cmd_req.sop[1] =	sge_dbg_reg->debug_PC_Req_SOP1_cnt;
@@ -331,7 +331,7 @@ static int t5_wtp_data(struct cudbg_init *pdbg_init,
 	wtp->sge_pcie_cmd_req.eop[0] =	sge_dbg_reg->debug_PC_Req_EOP0_cnt;
 	wtp->sge_pcie_cmd_req.eop[1] =	sge_dbg_reg->debug_PC_Req_EOP1_cnt;
 
-	/* Get Reqests of commands from PCIE to core*/
+	/* Get Requests of commands from PCIE to core*/
 	value = t4_read_reg(padap, A_PCIE_CMDR_REQ_CNT);
 
 	wtp->pcie_core_cmd_req.sop[0] = ((value >> 0) & 0xFF); /*bit 0:7*/
@@ -415,7 +415,7 @@ static int t5_wtp_data(struct cudbg_init *pdbg_init,
 	wtp->sge_cim.eop[0] = sge_dbg_reg->debug_CIM_EOP0_cnt;
 	wtp->sge_cim.eop[1] = sge_dbg_reg->debug_CIM_EOP1_cnt;
 
-	/* Get Reqests of data from PCIE by SGE*/
+	/* Get Requests of data from PCIE by SGE*/
 	wtp->utx_sge_dma_req.sop[0] = sge_dbg_reg->debug_UD_Rx_SOP0_cnt;
 	wtp->utx_sge_dma_req.sop[1] = sge_dbg_reg->debug_UD_Rx_SOP1_cnt;
 	wtp->utx_sge_dma_req.sop[2] = sge_dbg_reg->debug_UD_Rx_SOP2_cnt;
@@ -426,7 +426,7 @@ static int t5_wtp_data(struct cudbg_init *pdbg_init,
 	wtp->utx_sge_dma_req.eop[2] = sge_dbg_reg->debug_UD_Rx_EOP2_cnt;
 	wtp->utx_sge_dma_req.eop[3] = sge_dbg_reg->debug_UD_Rx_EOP3_cnt;
 
-	/* Get Reqests of data from PCIE by SGE*/
+	/* Get Requests of data from PCIE by SGE*/
 	wtp->sge_pcie_dma_req.sop[0] = sge_dbg_reg->debug_PD_Req_Rd0_cnt;
 	wtp->sge_pcie_dma_req.sop[1] = sge_dbg_reg->debug_PD_Req_Rd1_cnt;
 	wtp->sge_pcie_dma_req.sop[2] = sge_dbg_reg->debug_PD_Req_Rd2_cnt;
@@ -437,7 +437,7 @@ static int t5_wtp_data(struct cudbg_init *pdbg_init,
 	wtp->sge_pcie_dma_req.eop[2] = sge_dbg_reg->debug_PD_Req_Rd2_cnt;
 	wtp->sge_pcie_dma_req.eop[3] = sge_dbg_reg->debug_PD_Req_Rd3_cnt;
 
-	/* Get Reqests of data from PCIE to core*/
+	/* Get Requests of data from PCIE to core*/
 	value = t4_read_reg(padap, A_PCIE_DMAR_REQ_CNT);
 
 	wtp->pcie_core_dma_req.sop[0] = ((value >> 0) & 0xFF); /*bit 0:7*/

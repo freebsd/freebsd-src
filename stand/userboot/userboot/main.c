@@ -172,8 +172,7 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	cons_probe();
 
 	/* Set up currdev variable to have hooks in place. */
-	env_setenv("currdev", EV_VOLATILE, "",
-	    userboot_setcurrdev, env_nounset);
+	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev, env_nounset);
 
 	printf("\n%s", bootprog_info);
 #if 0
@@ -223,16 +222,6 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	interact();			/* doesn't return */
 
 	exit(0);
-}
-
-static void
-set_currdev(const char *devname)
-{
-
-	env_setenv("currdev", EV_VOLATILE, devname,
-	    userboot_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, devname,
-	    env_noset, env_nounset);
 }
 
 /*
@@ -313,7 +302,7 @@ userboot_zfs_probe(void)
 	for (unit = 0; unit < userboot_disk_maxunit; unit++) {
 		sprintf(devname, "disk%d:", unit);
 		pool_guid = 0;
-		zfs_probe_dev(devname, &pool_guid);
+		zfs_probe_dev(devname, &pool_guid, true);
 		if (pool_guid != 0)
 			userboot_zfs_found = 1;
 	}

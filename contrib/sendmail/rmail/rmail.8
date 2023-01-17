@@ -19,23 +19,23 @@ rmail
 .RB [ \-D
 .IR domain ]
 .RB [ \-T ]
-.I 
+.I
 user ...
 .SH DESCRIPTION
 .B Rmail
-interprets incoming mail received via 
-uucp(1), 
-collapsing ``From'' lines in the form generated 
-by 
-mail.local(8) 
-into a single line of the form ``return-path!sender'', 
-and passing the processed mail on to 
+interprets incoming mail received via
+uucp(1),
+collapsing ``From'' lines in the form generated
+by
+mail.local(8)
+into a single line of the form ``return-path!sender'',
+and passing the processed mail on to
 sendmail(8).
 .PP
 .B Rmail
-is explicitly designed for use with 
-uucp 
-and 
+is explicitly designed for use with
+uucp
+and
 sendmail.
 .SS Flags
 .TP
@@ -47,15 +47,15 @@ instead of the default domain of ``UUCP''.
 .B \-T
 Turn on debugging.
 .SH SEE ALSO
-uucp(1), 
-mail.local(8), 
+uucp(1),
+mail.local(8),
 sendmail(8)
 .SH HISTORY
 The
 .B rmail
-program appeared in 
+program appeared in
 4.2BSD.
 .SH BUGS
 .B Rmail
-should not reside in 
+should not reside in
 /bin.

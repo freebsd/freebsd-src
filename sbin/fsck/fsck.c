@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fstab.h>
 #include <fcntl.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
@@ -206,7 +207,7 @@ main(int argc, char *argv[])
 				_PATH_DEV, spec);
 			spec = device;
 		}
-		mntp = getmntpt(spec);
+		mntp = getmntpoint(spec);
 		if (mntp != NULL) {
 			spec = mntp->f_mntfromname;
 			mntpt = mntp->f_mntonname;
@@ -269,7 +270,7 @@ isok(struct fstab *fs)
 	if (flags & DO_BACKGRD) {
 		if (!strcmp(fs->fs_type, FSTAB_RO))
 			return (0);
-		if (getmntpt(fs->fs_spec) == NULL)
+		if (getmntpoint(fs->fs_spec) == NULL)
 			return (0);
 		if (checkfs(fs->fs_vfstype, fs->fs_spec, fs->fs_file, "-F", 0))
 			return (0);

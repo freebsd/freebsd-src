@@ -403,14 +403,27 @@ Not supported
 .Ss RTM_DELADDR
 Not supported
 .Ss RTM_GETADDR
+Fetches interface addresses in the current VNET matching conditions.
+Each address is reported as a
+.Dv RTM_NEWADDR
+message.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+ifa_family	required family or AF_UNSPEC
+ifa_index	matching interface index or 0
+.Ed
 .Ss TLVs
 .Bl -tag -width indent
 .It Dv IFA_ADDRESS
 (binary) masked interface address or destination address for p2p interfaces.
 .It Dv IFA_LOCAL
-(binary) local interface address
+(binary) local interface address.
+Set for IPv4 and p2p addresses.
+.It Dv IFA_LABEL
+(string) interface name.
 .It Dv IFA_BROADCAST
-(binary) broacast interface address
+(binary) broacast interface address.
 .El
 .Ss Groups
 The following groups are defined:

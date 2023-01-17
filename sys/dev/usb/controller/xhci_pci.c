@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #define	PCI_XHCI_VENDORID_AMD		0x1022
 #define	PCI_XHCI_VENDORID_INTEL		0x8086
 #define	PCI_XHCI_VENDORID_VMWARE	0x15ad
+#define        PCI_XHCI_VENDORID_ZHAOXIN       0x1d17
 
 static device_probe_t xhci_pci_probe;
 static device_detach_t xhci_pci_detach;
@@ -204,6 +205,13 @@ xhci_pci_match(device_t self)
 
 	case 0x1ada10de:
 		return ("NVIDIA TU106 USB 3.1 controller");
+
+       case 0x1d179202:
+               return ("Zhaoxin ZX-100 USB 3.0 controller");
+       case 0x1d179203:
+               return ("Zhaoxin ZX-200 USB 3.0 controller");
+       case 0x1d179204:
+               return ("Zhaoxin ZX-E USB 3.0 controller");
 
 	default:
 		break;
@@ -393,6 +401,9 @@ xhci_pci_attach(device_t self)
 	case PCI_XHCI_VENDORID_VMWARE:
 		strlcpy(sc->sc_vendor, "VMware", sizeof(sc->sc_vendor));
 		break;
+       case PCI_XHCI_VENDORID_ZHAOXIN:
+               strlcpy(sc->sc_vendor, "Zhaoxin", sizeof(sc->sc_vendor));
+               break;
 	default:
 		if (bootverbose)
 			device_printf(self, "(New XHCI DeviceId=0x%08x)\n",

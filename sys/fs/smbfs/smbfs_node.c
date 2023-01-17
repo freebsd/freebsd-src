@@ -217,6 +217,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		free(np, M_SMBNODE);
 		return (error);
 	}
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	error = vfs_hash_insert(vp, smbfs_hash(name, nmlen), LK_EXCLUSIVE,
 	    td, &vp2, smbfs_vnode_cmp, &sc);
 	if (error) 

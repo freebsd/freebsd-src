@@ -23,10 +23,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef lint
 static char id[] = "@(#)$Id: t_setuid.c,v 8.8 2013-11-22 20:52:01 ca Exp $";
-#endif /* ! lint */
+#endif
 
 static void
 printuids(str, r, e)

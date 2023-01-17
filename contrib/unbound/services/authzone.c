@@ -2756,6 +2756,7 @@ az_change_dnames(struct dns_msg* msg, uint8_t* oldname, uint8_t* newname,
 			== 0) {
 			msg->rep->rrsets[i]->rk.dname = newname;
 			msg->rep->rrsets[i]->rk.dname_len = newlen;
+			msg->rep->rrsets[i]->entry.hash = rrset_key_hash(&msg->rep->rrsets[i]->rk);
 		}
 	}
 }

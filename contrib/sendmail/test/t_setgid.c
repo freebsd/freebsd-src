@@ -20,10 +20,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef lint
 static char id[] = "@(#)$Id: t_setgid.c,v 1.7 2013-11-22 20:52:01 ca Exp $";
-#endif /* ! lint */
+#endif
 
 static void
 printgids(str, r, e)
@@ -54,17 +55,17 @@ main(argc, argv)
 
 #if SM_CONF_SETREGID
 	res = setregid(effgid, effgid);
-#else /* SM_CONF_SETREGID */
+#else
 	res = setgid(effgid);
-#endif /* SM_CONF_SETREGID */
+#endif
 
 	printf("setgid(%d)=%d %s\n", (int) effgid, res,
 		res < 0 ? "failure" : "ok");
 #if SM_CONF_SETREGID
 	printgids("after setregid()", effgid, effgid);
-#else /* SM_CONF_SETREGID */
+#else
 	printgids("after setgid()", effgid, effgid);
-#endif /* SM_CONF_SETREGID */
+#endif
 
 	if (getegid() != effgid)
 	{
@@ -107,9 +108,9 @@ main(argc, argv)
 		printf("\nThis system cannot use %s to set the real gid to the effective gid\nand clear the saved gid.\n",
 #if SM_CONF_SETREGID
 			"setregid"
-#else /* SM_CONF_SETREGID */
+#else
 			"setgid"
-#endif /* SM_CONF_SETREGID */
+#endif
 			);
 		exit(1);
 	}

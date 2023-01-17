@@ -1118,6 +1118,10 @@ uint32_t linuxkpi_ieee80211_channel_to_frequency(uint32_t, enum nl80211_band);
 uint32_t linuxkpi_ieee80211_frequency_to_channel(uint32_t, uint32_t);
 struct linuxkpi_ieee80211_channel *
     linuxkpi_ieee80211_get_channel(struct wiphy *, uint32_t);
+struct cfg80211_bss *linuxkpi_cfg80211_get_bss(struct wiphy *,
+    struct linuxkpi_ieee80211_channel *, const uint8_t *,
+    const uint8_t *, size_t, enum ieee80211_bss_type, enum ieee80211_privacy);
+void linuxkpi_cfg80211_put_bss(struct wiphy *, struct cfg80211_bss *);
 void linuxkpi_cfg80211_bss_flush(struct wiphy *);
 
 /* -------------------------------------------------------------------------- */
@@ -1185,6 +1189,32 @@ wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
     enum rfkill_hard_block_reasons reason)
 {
 	TODO();
+}
+
+/* -------------------------------------------------------------------------- */
+
+static inline struct cfg80211_bss *
+cfg80211_get_bss(struct wiphy *wiphy, struct linuxkpi_ieee80211_channel *chan,
+    const uint8_t *bssid, const uint8_t *ssid, size_t ssid_len,
+    enum ieee80211_bss_type bss_type, enum ieee80211_privacy privacy)
+{
+
+	return (linuxkpi_cfg80211_get_bss(wiphy, chan, bssid, ssid, ssid_len,
+	   bss_type, privacy));
+}
+
+static inline void
+cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss)
+{
+
+	linuxkpi_cfg80211_put_bss(wiphy, bss);
+}
+
+static inline void
+cfg80211_bss_flush(struct wiphy *wiphy)
+{
+
+	linuxkpi_cfg80211_bss_flush(wiphy);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1291,11 +1321,73 @@ struct element {
 	uint8_t					data[0];
 } __packed;
 
-static __inline const struct element *
-cfg80211_find_elem(enum ieee80211_eid eid, uint8_t *data, size_t len)
+static inline const struct element *
+lkpi_cfg80211_find_elem_pattern(enum ieee80211_eid eid,
+    const uint8_t *data, size_t len, uint8_t *pattern, size_t plen)
 {
-	TODO();
+	const struct element *elem;
+	const uint8_t *p;
+	size_t ielen;
+
+	p = data;
+	elem = (const struct element *)p;
+	ielen = len;
+	while (elem != NULL && ielen > 1) {
+		if ((2 + elem->datalen) > ielen)
+			/* Element overruns our memory. */
+			return (NULL);
+		if (elem->id == eid) {
+			if (pattern == NULL)
+				return (elem);
+			if (elem->datalen >= plen &&
+			    memcmp(elem->data, pattern, plen) == 0)
+				return (elem);
+		}
+		ielen -= 2 + elem->datalen;
+		p += 2 + elem->datalen;
+		elem = (const struct element *)p;
+	}
+
 	return (NULL);
+}
+
+static inline const struct element *
+cfg80211_find_elem(enum ieee80211_eid eid, const uint8_t *data, size_t len)
+{
+
+	return (lkpi_cfg80211_find_elem_pattern(eid, data, len, NULL, 0));
+}
+
+static inline const struct element *
+ieee80211_bss_get_elem(struct cfg80211_bss *bss, uint32_t eid)
+{
+
+	if (bss->ies == NULL)
+		return (NULL);
+	return (cfg80211_find_elem(eid, bss->ies->data, bss->ies->len));
+}
+
+static inline const uint8_t *
+ieee80211_bss_get_ie(struct cfg80211_bss *bss, uint32_t eid)
+{
+
+	return ((const uint8_t *)ieee80211_bss_get_elem(bss, eid));
+}
+
+static inline uint8_t *
+cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
+    uint8_t *data, size_t len)
+{
+	const struct element *elem;
+	uint8_t pattern[4] = { oui << 16, oui << 8, oui, oui_type };
+	uint8_t plen = 4;		/* >= 3? oui_type always part of this? */
+	IMPROVE("plen currently always incl. oui_type");
+
+	elem = lkpi_cfg80211_find_elem_pattern(IEEE80211_ELEMID_VENDOR,
+	    data, len, pattern, plen);
+	if (elem == NULL)
+		return (NULL);
+	return (__DECONST(uint8_t *, elem));
 }
 
 static __inline uint32_t
@@ -1383,20 +1475,6 @@ freq_reg_info(struct wiphy *wiphy, uint32_t center_freq)
 	return (NULL);
 }
 
-static __inline struct cfg80211_bss *
-cfg80211_get_bss(struct wiphy *wiphy, struct linuxkpi_ieee80211_channel *chan,
-    const uint8_t *bssid, void *p, int x, uint32_t f1, uint32_t f2)
-{
-	TODO();
-	return (NULL);
-}
-
-static __inline void
-cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss)
-{
-	TODO();
-}
-
 static __inline void
 wiphy_apply_custom_regulatory(struct wiphy *wiphy,
     const struct linuxkpi_ieee80211_regdomain *regd)
@@ -1421,14 +1499,6 @@ wiphy_read_of_freq_limits(struct wiphy *wiphy)
 #ifdef FDT
 	TODO();
 #endif
-}
-
-static __inline uint8_t *
-cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
-    uint8_t *data, size_t len)
-{
-	TODO();
-	return (NULL);
 }
 
 static __inline void
@@ -1650,19 +1720,23 @@ ieee80211_get_channel(struct wiphy *wiphy, uint32_t freq)
 	return (linuxkpi_ieee80211_get_channel(wiphy, freq));
 }
 
-static __inline size_t
+static inline size_t
 ieee80211_get_hdrlen_from_skb(struct sk_buff *skb)
 {
+	const struct ieee80211_hdr *hdr;
+	size_t len;
 
-	TODO();
-	return (-1);
-}
+	if (skb->len < 10)	/* sizeof(ieee80211_frame_[ack,cts]) */
+		return (0);
 
-static __inline void
-cfg80211_bss_flush(struct wiphy *wiphy)
-{
+	hdr = (const struct ieee80211_hdr *)skb->data;
+	len = ieee80211_hdrlen(hdr->frame_control);
 
-	linuxkpi_cfg80211_bss_flush(wiphy);
+	/* If larger than what is in the skb return. */
+	if (len > skb->len)
+		return (0);
+
+	return (len);
 }
 
 static __inline bool
@@ -1677,12 +1751,36 @@ cfg80211_channel_is_psc(struct linuxkpi_ieee80211_channel *channel)
 	return (false);
 }
 
-static __inline int
+static inline int
 cfg80211_get_ies_channel_number(const uint8_t *ie, size_t len,
     enum nl80211_band band, enum cfg80211_bss_frame_type ftype)
 {
+	const struct element *elem;
 
-	TODO();
+	switch (band) {
+	case NL80211_BAND_6GHZ:
+		TODO();
+		break;
+	case NL80211_BAND_5GHZ:
+	case NL80211_BAND_2GHZ:
+		/* DSPARAMS has the channel number. */
+		elem = cfg80211_find_elem(IEEE80211_ELEMID_DSPARMS, ie, len);
+		if (elem != NULL && elem->datalen == 1)
+			return (elem->data[0]);
+		/* HTINFO has the primary center channel. */
+		elem = cfg80211_find_elem(IEEE80211_ELEMID_HTINFO, ie, len);
+		if (elem != NULL &&
+		    elem->datalen >= (sizeof(struct ieee80211_ie_htinfo) - 2)) {
+			const struct ieee80211_ie_htinfo *htinfo;
+			htinfo = (const struct ieee80211_ie_htinfo *)elem;
+			return (htinfo->hi_ctrlchannel);
+		}
+		/* What else? */
+		break;
+	default:
+		IMPROVE("Unsupported");
+		break;
+	}
 	return (-1);
 }
 

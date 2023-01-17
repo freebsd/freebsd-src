@@ -27,3 +27,5 @@ CLEANFILES+= .depend
 
 .cc.cpp-out: .NOMETA
 	@${CXX} -E ${CXXFLAGS} ${.IMPSRC} | grep -v '^[[:space:]]*$$'
+
+.-include <site.autodep.mk>

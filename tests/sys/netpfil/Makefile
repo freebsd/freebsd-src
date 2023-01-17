@@ -9,4 +9,8 @@ TESTS_SUBDIRS+=		common
 TESTS_SUBDIRS+=		pf
 .endif
 
+.if ${MK_IPFW} != "no"
+TESTS_SUBDIRS+=		ipfw
+.endif
+
 .include <bsd.test.mk>

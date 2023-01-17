@@ -15,6 +15,11 @@ CFLAGS+=-DSM_CONF_POLL
 CFLAGS+=-DNETINET6
 .endif
 
+.if ${MK_OPENSSL} != "no"
+# STARTTLS support
+CFLAGS+=-DSTARTTLS
+.endif
+
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 

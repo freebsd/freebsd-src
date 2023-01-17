@@ -704,6 +704,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 
 	sx_xunlock(&anp->an_vnode_lock);
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

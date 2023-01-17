@@ -162,7 +162,7 @@ sm_sigsafe_seteventm(intvl, func, arg)
 	LEAVE_CRITICAL();
 
 	(void) sm_signal(SIGALRM, sm_tick);
-# if SM_CONF_SETITIMER
+#if SM_CONF_SETITIMER
 	timersub(&SmEventQueue->ev_time, &now, &itime.it_value);
 	itime.it_interval.tv_sec = 0;
 	itime.it_interval.tv_usec = 0;
@@ -171,10 +171,10 @@ sm_sigsafe_seteventm(intvl, func, arg)
 	if (itime.it_value.tv_sec == 0 && itime.it_value.tv_usec == 0)
 		itime.it_value.tv_usec = 1000;
 	(void) setitimer(ITIMER_REAL, &itime, NULL);
-# else /* SM_CONF_SETITIMER */
+#else /* SM_CONF_SETITIMER */
 	intvl = SmEventQueue->ev_time - now;
 	(void) alarm((unsigned) (intvl < 1 ? 1 : intvl));
-# endif /* SM_CONF_SETITIMER */
+#endif /* SM_CONF_SETITIMER */
 	if (wasblocked == 0)
 		(void) sm_releasesignal(SIGALRM);
 	return ev;
@@ -198,9 +198,9 @@ sm_clrevent(ev)
 {
 	register SM_EVENT **evp;
 	int wasblocked;
-# if SM_CONF_SETITIMER
+#if SM_CONF_SETITIMER
 	struct itimerval clr;
-# endif
+#endif
 
 	if (ev == NULL)
 		return;
@@ -233,15 +233,15 @@ sm_clrevent(ev)
 	else
 	{
 		/* nothing left in event queue, no need for an alarm */
-# if SM_CONF_SETITIMER
+#if SM_CONF_SETITIMER
 		clr.it_interval.tv_sec = 0;
 		clr.it_interval.tv_usec = 0;
 		clr.it_value.tv_sec = 0;
 		clr.it_value.tv_usec = 0;
 		(void) setitimer(ITIMER_REAL, &clr, NULL);
-# else /* SM_CONF_SETITIMER */
+#else /* SM_CONF_SETITIMER */
 		(void) alarm(0);
-# endif /* SM_CONF_SETITIMER */
+#endif /* SM_CONF_SETITIMER */
 	}
 }
 /*
@@ -496,10 +496,10 @@ sm_tick(sig)
 */
 
 
-# if !HAVE_NANOSLEEP
+#if !HAVE_NANOSLEEP
 static void	sm_endsleep __P((int));
 static bool	volatile SmSleepDone;
-# endif
+#endif
 
 #ifndef SLEEP_T
 # define SLEEP_T	unsigned int
@@ -521,70 +521,70 @@ sleep(intvl)
 #else /* HAVE_NANOSLEEP */
 	int was_held;
 	SM_EVENT *ev;
-#if _FFR_SLEEP_USE_SELECT > 0
+# if _FFR_SLEEP_USE_SELECT > 0
 	int r;
-# if _FFR_SLEEP_USE_SELECT > 0
+#  if _FFR_SLEEP_USE_SELECT > 0
 	struct timeval sm_io_to;
-# endif
-#endif /* _FFR_SLEEP_USE_SELECT > 0 */
-#if SM_CONF_SETITIMER
+#  endif
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# if SM_CONF_SETITIMER
 	struct timeval now, begin, diff;
-# if _FFR_SLEEP_USE_SELECT > 0
+#  if _FFR_SLEEP_USE_SELECT > 0
 	struct timeval slpv;
-# endif
-#else /*  SM_CONF_SETITIMER */
+#  endif
+# else /*  SM_CONF_SETITIMER */
 	time_t begin, now;
-#endif /*  SM_CONF_SETITIMER */
+# endif /*  SM_CONF_SETITIMER */
 
 	if (intvl == 0)
 		return (SLEEP_T) 0;
-#if defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2
+# if defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2
 	if (intvl > _FFR_MAX_SLEEP_TIME)
 	{
 		syslog(LOG_ERR, "sleep: interval=%u exceeds max value %d",
 			intvl, _FFR_MAX_SLEEP_TIME);
-# if 0
+#  if 0
 		SM_ASSERT(intvl < (unsigned int) INT_MAX);
-# endif
+#  endif
 		intvl = _FFR_MAX_SLEEP_TIME;
 	}
-#endif /* defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2 */
+# endif /* defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2 */
 	SmSleepDone = false;
 
-#if SM_CONF_SETITIMER
-# if _FFR_SLEEP_USE_SELECT > 0
+# if SM_CONF_SETITIMER
+#  if _FFR_SLEEP_USE_SELECT > 0
 	slpv.tv_sec = intvl;
 	slpv.tv_usec = 0;
-# endif
+#  endif
 	(void) gettimeofday(&now, NULL);
 	begin = now;
-#else /*  SM_CONF_SETITIMER */
+# else /*  SM_CONF_SETITIMER */
 	now = begin = time(NULL);
-#endif /*  SM_CONF_SETITIMER */
+# endif /*  SM_CONF_SETITIMER */
 
 	ev = sm_setevent((time_t) intvl, sm_endsleep, 0);
 	if (ev == NULL)
 	{
 		/* COMPLAIN */
-#if 0
+# if 0
 		syslog(LOG_ERR, "sleep: sm_setevent(%u) failed", intvl);
-#endif
+# endif
 		SmSleepDone = true;
 	}
 	was_held = sm_releasesignal(SIGALRM);
 
 	while (!SmSleepDone)
 	{
-#if SM_CONF_SETITIMER
+# if SM_CONF_SETITIMER
 		(void) gettimeofday(&now, NULL);
 		timersub(&now, &begin, &diff);
 		if (diff.tv_sec < 0 ||
 		    (diff.tv_sec == 0 && diff.tv_usec == 0))
 			break;
-# if _FFR_SLEEP_USE_SELECT > 0
+#  if _FFR_SLEEP_USE_SELECT > 0
 		timersub(&slpv, &diff, &sm_io_to);
-# endif
-#else /* SM_CONF_SETITIMER */
+#  endif
+# else /* SM_CONF_SETITIMER */
 		now = time(NULL);
 
 		/*
@@ -595,14 +595,14 @@ sleep(intvl)
 
 		if (!(begin + (time_t) intvl + 1 > now))
 			break;
-# if _FFR_SLEEP_USE_SELECT > 0
+#  if _FFR_SLEEP_USE_SELECT > 0
 		sm_io_to.tv_sec = intvl - (now - begin);
 		if (sm_io_to.tv_sec <= 0)
 			sm_io_to.tv_sec = 1;
 		sm_io_to.tv_usec = 0;
-# endif /* _FFR_SLEEP_USE_SELECT > 0 */
-#endif /* SM_CONF_SETITIMER */
-#if _FFR_SLEEP_USE_SELECT > 0
+#  endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# endif /* SM_CONF_SETITIMER */
+# if _FFR_SLEEP_USE_SELECT > 0
 		if (intvl <= _FFR_SLEEP_USE_SELECT)
 		{
 			r = select(0, NULL, NULL, NULL, &sm_io_to);
@@ -610,7 +610,8 @@ sleep(intvl)
 				break;
 		}
 		else
-#endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+		/* "else" in #if code above */
 		(void) pause();
 	}
 

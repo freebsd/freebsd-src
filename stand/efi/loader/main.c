@@ -186,20 +186,6 @@ out:
 }
 
 static void
-set_currdev(const char *devname)
-{
-
-	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
-	    env_nounset);
-	/*
-	 * Don't execute hook here; the loaddev hook makes it immutable
-	 * once we've determined what the proper currdev is.
-	 */
-	env_setenv("loaddev", EV_VOLATILE | EV_NOHOOK, devname, env_noset,
-	    env_nounset);
-}
-
-static void
 set_currdev_devdesc(struct devdesc *currdev)
 {
 	const char *devname;
@@ -267,7 +253,7 @@ probe_zfs_currdev(uint64_t guid)
 	char *devname;
 	struct zfs_devdesc currdev;
 	char *buf = NULL;
-	bool rv;
+	bool bootable;
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
@@ -277,8 +263,8 @@ probe_zfs_currdev(uint64_t guid)
 	devname = devformat(&currdev.dd);
 	init_zfs_boot_options(devname);
 
-	rv = sanity_check_currdev();
-	if (rv) {
+	bootable = sanity_check_currdev();
+	if (bootable) {
 		buf = malloc(VDEV_PAD_SIZE);
 		if (buf != NULL) {
 			if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf,
@@ -291,7 +277,7 @@ probe_zfs_currdev(uint64_t guid)
 			(void) zfs_attach_nvstore(&currdev);
 		}
 	}
-	return (rv);
+	return (bootable);
 }
 #endif
 
@@ -970,7 +956,7 @@ main(int argc, CHAR16 *argv[])
 	cons_probe();
 
 	/* Set up currdev variable to have hooks in place. */
-	env_setenv("currdev", EV_VOLATILE, "", efi_setcurrdev, env_nounset);
+	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev, env_nounset);
 
 	/* Init the time source */
 	efi_time_init();

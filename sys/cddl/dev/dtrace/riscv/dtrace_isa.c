@@ -52,12 +52,6 @@
 
 #include "regset.h"
 
-/*
- * Wee need some reasonable default to prevent backtrace code
- * from wandering too far
- */
-#define	MAX_FUNCTION_SIZE 0x10000
-#define	MAX_PROLOGUE_SIZE 0x100
 #define	MAX_USTACK_DEPTH  2048
 
 uint8_t dtrace_fuword8_nocheck(void *);
@@ -70,42 +64,50 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
     uint32_t *intrpc)
 {
 	struct unwind_state state;
-	int scp_offset;
+	uintptr_t caller;
 	register_t sp;
+	int scp_offset;
 	int depth;
 
 	depth = 0;
+	caller = solaris_cpu[curcpu].cpu_dtrace_caller;
 
 	if (intrpc != 0) {
-		pcstack[depth++] = (pc_t) intrpc;
+		pcstack[depth++] = (pc_t)intrpc;
 	}
 
-	aframes++;
-
+	/*
+	 * Construct the unwind state, starting from this function. This frame,
+	 * and 'aframes' others will be skipped.
+	 */
 	__asm __volatile("mv %0, sp" : "=&r" (sp));
 
 	state.fp = (uintptr_t)__builtin_frame_address(0);
-	state.sp = sp;
+	state.sp = (uintptr_t)sp;
 	state.pc = (uintptr_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
 		if (!unwind_frame(curthread, &state))
 			break;
 
-		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
+		if (!INKERNEL(state.pc) || !kstack_contains(curthread,
+		    (vm_offset_t)state.fp, sizeof(uintptr_t)))
 			break;
 
-		/*
-		 * NB: Unlike some other architectures, we don't need to
-		 * explicitly insert cpu_dtrace_caller as it appears in the
-		 * normal kernel stack trace rather than a special trap frame.
-		 */
 		if (aframes > 0) {
 			aframes--;
+
+			/*
+			 * fbt_invop() records the return address at the time
+			 * the FBT probe fires. We need to insert this into the
+			 * backtrace manually, since the stack frame state at
+			 * the time of the probe does not capture it.
+			 */
+			if (aframes == 0 && caller != 0)
+				pcstack[depth++] = caller;
 		} else {
 			pcstack[depth++] = state.pc;
 		}
-
 	}
 
 	for (; depth < pcstack_limit; depth++) {

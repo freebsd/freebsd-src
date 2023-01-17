@@ -87,13 +87,11 @@ extern lzma_ret lzma_lz_decoder_init(lzma_next_coder *next,
 		const lzma_allocator *allocator,
 		const lzma_filter_info *filters,
 		lzma_ret (*lz_init)(lzma_lz_decoder *lz,
-			const lzma_allocator *allocator, const void *options,
+			const lzma_allocator *allocator,
+			lzma_vli id, const void *options,
 			lzma_lz_options *lz_options));
 
 extern uint64_t lzma_lz_decoder_memusage(size_t dictionary_size);
-
-extern void lzma_lz_decoder_uncompressed(
-		void *coder, lzma_vli uncompressed_size, bool allow_eopm);
 
 
 //////////////////////

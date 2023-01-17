@@ -357,13 +357,15 @@ static struct wg_packet *wg_queue_dequeue_serial(struct wg_queue *);
 static struct wg_packet *wg_queue_dequeue_parallel(struct wg_queue *);
 static bool wg_input(struct mbuf *, int, struct inpcb *, const struct sockaddr *, void *);
 static void wg_peer_send_staged(struct wg_peer *);
-static int wg_clone_create(struct if_clone *, int, caddr_t);
+static int wg_clone_create(struct if_clone *ifc, char *name, size_t len,
+	struct ifc_data *ifd, struct ifnet **ifpp);
 static void wg_qflush(struct ifnet *);
 static inline int determine_af_and_pullup(struct mbuf **m, sa_family_t *af);
 static int wg_xmit(struct ifnet *, struct mbuf *, sa_family_t, uint32_t);
 static int wg_transmit(struct ifnet *, struct mbuf *);
 static int wg_output(struct ifnet *, struct mbuf *, const struct sockaddr *, struct route *);
-static void wg_clone_destroy(struct ifnet *);
+static int wg_clone_destroy(struct if_clone *ifc, struct ifnet *ifp,
+	uint32_t flags);
 static bool wgc_privileged(struct wg_softc *);
 static int wgc_get(struct wg_softc *, struct wg_data_io *);
 static int wgc_set(struct wg_softc *, struct wg_data_io *);
@@ -2714,7 +2716,8 @@ wg_down(struct wg_softc *sc)
 }
 
 static int
-wg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+wg_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct wg_softc *sc;
 	struct ifnet *ifp;
@@ -2768,7 +2771,7 @@ wg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	ifp->if_softc = sc;
 	ifp->if_capabilities = ifp->if_capenable = WG_CAPS;
-	if_initname(ifp, wgname, unit);
+	if_initname(ifp, wgname, ifd->unit);
 
 	if_setmtu(ifp, DEFAULT_MTU);
 	ifp->if_flags = IFF_NOARP | IFF_MULTICAST;
@@ -2787,6 +2790,7 @@ wg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sx_xlock(&wg_sx);
 	LIST_INSERT_HEAD(&wg_list, sc, sc_entry);
 	sx_xunlock(&wg_sx);
+	*ifpp = ifp;
 	return (0);
 free_aip4:
 	RADIX_NODE_HEAD_DESTROY(sc->sc_aip4);
@@ -2808,8 +2812,8 @@ wg_clone_deferred_free(struct noise_local *l)
 	atomic_add_int(&clone_count, -1);
 }
 
-static void
-wg_clone_destroy(struct ifnet *ifp)
+static int
+wg_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct wg_softc *sc = ifp->if_softc;
 	struct ucred *cred;
@@ -2842,7 +2846,7 @@ wg_clone_destroy(struct ifnet *ifp)
 	taskqgroup_drain_all(qgroup_wg_tqg);
 	sx_xlock(&sc->sc_lock);
 	wg_peer_destroy_all(sc);
-	epoch_drain_callbacks(net_epoch_preempt);
+	NET_EPOCH_DRAIN_CALLBACKS();
 	sx_xunlock(&sc->sc_lock);
 	sx_destroy(&sc->sc_lock);
 	taskqgroup_detach(qgroup_wg_tqg, &sc->sc_handshake);
@@ -2869,6 +2873,8 @@ wg_clone_destroy(struct ifnet *ifp)
 	if_free(sc->sc_ifp);
 
 	noise_local_free(sc->sc_local, wg_clone_deferred_free);
+
+	return (0);
 }
 
 static void
@@ -2911,8 +2917,12 @@ wg_init(void *xsc)
 static void
 vnet_wg_init(const void *unused __unused)
 {
-	V_wg_cloner = if_clone_simple(wgname, wg_clone_create, wg_clone_destroy,
-				      0);
+	struct if_clone_addreq req = {
+		.create_f = wg_clone_create,
+		.destroy_f = wg_clone_destroy,
+		.flags = IFC_F_AUTOUNIT,
+	};
+	V_wg_cloner = ifc_attach_cloner(wgname, &req);
 }
 VNET_SYSINIT(vnet_wg_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 	     vnet_wg_init, NULL);
@@ -2921,7 +2931,7 @@ static void
 vnet_wg_uninit(const void *unused __unused)
 {
 	if (V_wg_cloner)
-		if_clone_detach(V_wg_cloner);
+		ifc_detach_cloner(V_wg_cloner);
 }
 VNET_SYSUNINIT(vnet_wg_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 	       vnet_wg_uninit, NULL);
@@ -3015,7 +3025,7 @@ wg_module_deinit(void)
 	VNET_FOREACH(vnet_iter) {
 		struct if_clone *clone = VNET_VNET(vnet_iter, wg_cloner);
 		if (clone) {
-			if_clone_detach(clone);
+			ifc_detach_cloner(clone);
 			VNET_VNET(vnet_iter, wg_cloner) = NULL;
 		}
 	}

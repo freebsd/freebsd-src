@@ -54,11 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "clkdev_if.h"
 #include "syscon_if.h"
 
-#define	RK3399_GRF_USB20_PHY0_CON0	0x0
-#define	RK3399_GRF_USB20_PHY0_CON1	0x4
-#define	RK3399_GRF_USB20_PHY0_CON2	0x8
-#define	RK3399_GRF_USB20_PHY0_CON3	0xC
-
 struct rk_usb2phy_reg {
 	uint32_t	offset;
 	uint32_t	enable_mask;
@@ -71,14 +66,25 @@ struct rk_usb2phy_regs {
 
 struct rk_usb2phy_regs rk3399_regs = {
 	.clk_ctl = {
+		.offset = 0x0000,
 		/* bit 4 put pll in suspend */
 		.enable_mask = 0x100000,
 		.disable_mask = 0x100010,
 	}
 };
 
+struct rk_usb2phy_regs rk3568_regs = {
+	.clk_ctl = {
+		.offset = 0x0008,
+		.enable_mask = 0x100000,
+		/* bit 4 put pll in suspend */
+		.disable_mask = 0x100010,
+	}
+};
+
 static struct ofw_compat_data compat_data[] = {
 	{ "rockchip,rk3399-usb2phy",	(uintptr_t)&rk3399_regs },
+	{ "rockchip,rk3568-usb2phy",	(uintptr_t)&rk3568_regs },
 	{ NULL,				0 }
 };
 
@@ -106,9 +112,9 @@ DEFINE_CLASS_1(rk_usb2phy_phynode, rk_usb2phy_phynode_class,
     rk_usb2phy_phynode_methods,
     sizeof(struct phynode_usb_sc), phynode_usb_class);
 
-enum RK3399_USBPHY {
-	RK3399_USBPHY_HOST = 0,
-	RK3399_USBPHY_OTG,
+enum RK_USBPHY {
+	RK_USBPHY_HOST = 0,
+	RK_USBPHY_OTG,
 };
 
 static int
@@ -123,7 +129,7 @@ rk_usb2phy_enable(struct phynode *phynode, bool enable)
 	phy = phynode_get_id(phynode);
 	sc = device_get_softc(dev);
 
-	if (phy != RK3399_USBPHY_HOST)
+	if (phy != RK_USBPHY_HOST)
 		return (ERANGE);
 
 	if (sc->phy_supply) {
@@ -154,7 +160,7 @@ rk_usb2phy_get_mode(struct phynode *phynode, int *mode)
 	phy = phynode_get_id(phynode);
 	sc = device_get_softc(dev);
 
-	if (phy != RK3399_USBPHY_HOST)
+	if (phy != RK_USBPHY_HOST)
 		return (ERANGE);
 
 	*mode = sc->mode;
@@ -173,7 +179,7 @@ rk_usb2phy_set_mode(struct phynode *phynode, int mode)
 	phy = phynode_get_id(phynode);
 	sc = device_get_softc(dev);
 
-	if (phy != RK3399_USBPHY_HOST)
+	if (phy != RK_USBPHY_HOST)
 		return (ERANGE);
 
 	sc->mode = mode;
@@ -304,8 +310,10 @@ rk_usb2phy_export_clock(struct rk_usb2phy_softc *devsc)
 	sc->clkdev = device_get_parent(devsc->dev);
 	sc->grf = devsc->grf;
 	sc->regs = (struct rk_usb2phy_regs *)ofw_bus_search_compatible(devsc->dev, compat_data)->ocd_data;
-	OF_getencprop(node, "reg", regs, sizeof(regs));
-	sc->regs->clk_ctl.offset = regs[0];
+	if (sc->regs->clk_ctl.offset == 0) {
+		OF_getencprop(node, "reg", regs, sizeof(regs));
+		sc->regs->clk_ctl.offset = regs[0];
+	}
 	clknode_register(clkdom, clk);
 
 	if (clkdom_finit(clkdom) != 0) {
@@ -329,7 +337,7 @@ rk_usb2phy_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Rockchip RK3399 USB2PHY");
+	device_set_desc(dev, "Rockchip USB2PHY");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -346,9 +354,18 @@ rk_usb2phy_attach(device_t dev)
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	if (syscon_get_handle_default(dev, &sc->grf) != 0) {
-		device_printf(dev, "Cannot get syscon handle\n");
-		return (ENXIO);
+	if (OF_hasprop(node, "rockchip,usbgrf")) {
+		if (syscon_get_by_ofw_property(dev, node, "rockchip,usbgrf",
+		    &sc->grf)) {
+			device_printf(dev, "Cannot get syscon handle\n");
+			return (ENXIO);
+		}
+	}
+	else {
+		if (syscon_get_handle_default(dev, &sc->grf)) {
+			device_printf(dev, "Cannot get syscon handle\n");
+			return (ENXIO);
+		}
 	}
 
 	if (clk_get_by_ofw_name(dev, 0, "phyclk", &sc->clk) != 0) {
@@ -380,7 +397,7 @@ rk_usb2phy_attach(device_t dev)
 	}
 
 	regulator_get_by_ofw_property(dev, host, "phy-supply", &sc->phy_supply);
-	phy_init.id = RK3399_USBPHY_HOST;
+	phy_init.id = RK_USBPHY_HOST;
 	phy_init.ofw_node = host;
 	phynode = phynode_create(dev, &rk_usb2phy_phynode_class, &phy_init);
 	if (phynode == NULL) {

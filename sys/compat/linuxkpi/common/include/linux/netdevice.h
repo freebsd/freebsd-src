@@ -53,6 +53,7 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 
+#include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/device.h>
@@ -134,6 +135,7 @@ struct net_device {
 	/* Not properly typed as-of now. */
 	int	flags, type;
 	int	name_assign_type, needed_headroom;
+	int	threaded;
 
 	void (*priv_destructor)(struct net_device *);
 
@@ -266,6 +268,15 @@ void linuxkpi_napi_synchronize(struct napi_struct *);
 #define	napi_synchronize(_n)						\
 	linuxkpi_napi_synchronize(_n)
 
+
+static inline void
+netif_napi_add_tx(struct net_device *dev, struct napi_struct *napi,
+    int(*napi_poll)(struct napi_struct *, int))
+{
+
+	netif_napi_add(dev, napi, napi_poll);
+}
+
 /* -------------------------------------------------------------------------- */
 
 static inline void
@@ -308,6 +319,126 @@ synchronize_net(void)
 	synchronize_rcu();
 }
 
+static __inline void
+netif_receive_skb_list(struct list_head *head)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline int
+napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+	return (-1);
+}
+
+static __inline void
+ether_setup(struct net_device *ndev)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+dev_net_set(struct net_device *dev, void *p)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline bool
+netif_carrier_ok(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+	return (false);
+}
+
+static __inline void
+netif_carrier_off(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_carrier_on(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline bool
+netif_queue_stopped(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+	return (false);
+}
+
+static __inline void
+netif_stop_queue(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_wake_queue(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline int
+register_netdevice(struct net_device *ndev)
+{
+
+	/* assert rtnl_locked? */
+	pr_debug("%s: TODO\n", __func__);
+	return (0);
+}
+
+static __inline int
+register_netdev(struct net_device *ndev)
+{
+	int error;
+
+	/* lock */
+	error = register_netdevice(ndev);
+	/* unlock */
+	pr_debug("%s: TODO\n", __func__);
+	return (error);
+}
+
+static __inline void
+unregister_netdev(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+unregister_netdevice(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline void
+netif_rx(struct sk_buff *skb)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_rx_ni(struct sk_buff *skb)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
 /* -------------------------------------------------------------------------- */
 
 struct net_device *linuxkpi_alloc_netdev(size_t, const char *, uint32_t,
@@ -331,5 +462,6 @@ netdev_priv(const struct net_device *ndev)
 
 #define	rtnl_lock()		do { } while(0)
 #define	rtnl_unlock()		do { } while(0)
+#define	rcu_dereference_rtnl(x)	READ_ONCE(x)
 
 #endif	/* _LINUXKPI_LINUX_NETDEVICE_H */

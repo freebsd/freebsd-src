@@ -43,6 +43,8 @@
 #error do not include this header, use machine/atomic.h
 #endif
 
+#include <sys/types.h>
+
 #define	ATOMIC_SAN_FUNC_1(sp, op, name, type)				\
 	void sp##_atomic_##op##_##name(volatile type *, type);		\
 	void sp##_atomic_##op##_acq_##name(volatile type *, type);	\

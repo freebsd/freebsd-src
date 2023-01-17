@@ -523,9 +523,6 @@ cd9660_unmount(struct mount *mp, int mntflags)
 	dev_rel(isomp->im_dev);
 	free(isomp, M_ISOFSMNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	return (error);
 }
 
@@ -822,6 +819,7 @@ cd9660_vget_internal(struct mount *mp, cd_ino_t ino, int flags,
 	 * XXX need generation number?
 	 */
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

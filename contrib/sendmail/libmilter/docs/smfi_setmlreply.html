@@ -33,7 +33,8 @@ other than xxfi_connect.</TD>
 <TR align="left" valign=top>
 <TH width="80">Effects</TH>
 <TD>Directly set the SMTP error reply code for this connection to the given
-lines after the xcode.  The list of arguments must be NULL terminated.
+lines after the xcode.
+The list of arguments must be NULL terminated.
 This code  will be used on subsequent error replies resulting from actions
 taken by this filter.</TD>
 </TR>
@@ -48,25 +49,28 @@ taken by this filter.</TD>
 	<TD>Opaque context structure.
 	</TD></TR>
     <TR valign="top"><TD>rcode</TD>
-	<TD>The three-digit (RFC 821/2821) SMTP reply code, as a
-	null-terminated string.  rcode cannot be NULL, and must be a valid
-	4XX or 5XX reply code.
+	<TD>The three-digit (RFC 821/2821) SMTP reply code,
+	as a null-terminated string.
+	rcode cannot be NULL, and must be a valid 4XX or 5XX reply code.
         </TD></TR>
     <TR valign="top"><TD>xcode</TD>
-	<TD>The extended (RFC 1893/2034) reply code.  If xcode is NULL, no
-	extended code is used.  Otherwise, xcode must conform to RFC 1893/2034.
+	<TD>The extended (RFC 1893/2034) reply code.
+	If xcode is NULL, a generic X.0.0 code is used,
+	where X is the first digit of rcode.
+	Otherwise, xcode must conform to RFC 1893/2034.
 	</TD></TR>
     <TR valign="top"><TD>...</TD>
-	<TD>The remainder of the arguments are single lines of text, up to
-	32 arguments, which will be used as the text part of the SMTP
-	reply.  The list must be NULL terminated.
+	<TD>The remainder of the arguments are single lines of text,
+	up to 32 arguments,
+	which will be used as the text part of the SMTP reply.
+	The list must be NULL terminated.
 	</TD></TR>
     </TABLE>
 </TD></TR>
 
 <!----------- Example ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH>
+<TH valign="top" align=left>EXAMPLE</TH>
 <TD>
 For example, the code:<BR>
 <PRE>

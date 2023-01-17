@@ -255,8 +255,10 @@ struct if_data {
 #define	IFCAP_TXTLS_RTLMT	0x80000000 /* can do TLS with rate limiting */
 
 /* IFCAP2_* are integers, not bits. */
-#define	IFCAP2_RXTLS4		(0x00001ULL << 32)
-#define	IFCAP2_RXTLS6		(0x00002ULL << 32)
+#define	IFCAP2_RXTLS4		0
+#define	IFCAP2_RXTLS6		1
+
+#define	IFCAP2_BIT(x)		(1UL << (x))
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
@@ -265,7 +267,6 @@ struct if_data {
 #define	IFCAP_WOL	(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC)
 #define	IFCAP_TOE	(IFCAP_TOE4 | IFCAP_TOE6)
 #define	IFCAP_TXTLS	(IFCAP_TXTLS4 | IFCAP_TXTLS6)
-#define	IFCAP2_RXTLS	(IFCAP2_RXTLS4 | IFCAP2_RXTLS6)
 
 #define	IFCAP_CANTCHANGE	(IFCAP_NETMAP | IFCAP_NV)
 #define	IFCAP_ALLCAPS		0xffffffff
@@ -649,6 +650,12 @@ struct ifdownreason {
 };
 
 #endif /* __BSD_VISIBLE */
+
+/*
+ * Opaque interface structure.
+ */
+
+typedef struct ifnet * if_t;
 
 #ifdef _KERNEL
 #ifdef MALLOC_DECLARE

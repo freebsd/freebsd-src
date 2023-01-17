@@ -442,6 +442,7 @@ FreeBSD 5.2           |      |                 |                       |
  |            |      13      |                    |                    |
  |         FreeBSD    |      |                    |                    |
  |           12.4     |      |                    |                    |
+ |                    |      |                    |            DragonFly 6.4.0
  |                    |      |                    |                    |
 FreeBSD 14 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
@@ -865,6 +866,7 @@ NetBSD 9.3		2022-08-04 [NBD]
 OpenBSD 7.2		2022-10-20 [OBD]
 macOS 13		2022-10-24 [APL]
 FreeBSD 12.4		2022-12-05 [FBD]
+DragonFly 6.4		2022-12-30 [DFB]
 
 Bibliography
 ------------------------
