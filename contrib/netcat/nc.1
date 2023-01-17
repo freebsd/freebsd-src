@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2020
+.Dd January 17, 2023
 .Dt NC 1
 .Os
 .Sh NAME
@@ -47,6 +47,7 @@
 .Op Fl p Ar source_port
 .Op Fl s Ar source
 .Op Fl T Ar toskeyword
+.Op Fl -tun Ar tundev
 .Op Fl V Ar rtable
 .Op Fl w Ar timeout
 .Op Fl X Ar proxy_protocol
@@ -240,6 +241,12 @@ to send RFC 854 DON'T and WON'T responses to RFC 854 DO and WILL requests.
 This makes it possible to use
 .Nm
 to script telnet sessions.
+.It Fl -tun Ar tundev
+Causes
+.Nm
+to use the provided
+.Xr tun 4
+for input and output rather than the default of stdin and stdout.
 .It Fl U
 Specifies to use
 .Ux Ns -domain

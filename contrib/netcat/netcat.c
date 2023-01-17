@@ -112,6 +112,7 @@ int	rtableid = -1;
 
 int timeout = -1;
 int family = AF_UNSPEC;
+int tun_fd = -1;
 char *portlist[PORT_MAX+1];
 char *unix_dg_tmp_socket;
 
@@ -144,6 +145,10 @@ void	add_ipsec_policy(int, int, char *);
 char	*ipsec_policy[2];
 #endif
 
+enum {
+	FREEBSD_TUN = CHAR_MAX,	/* avoid collision with return values from getopt */
+};
+
 int
 main(int argc, char *argv[])
 {
@@ -156,12 +161,13 @@ main(int argc, char *argv[])
 	socklen_t len;
 	struct sockaddr_storage cliaddr;
 	char *proxy;
-	const char *errstr, *proxyhost = "", *proxyport = NULL;
+	const char *errstr, *proxyhost = "", *proxyport = NULL, *tundev = NULL;
 	struct addrinfo proxyhints;
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 	struct option longopts[] = {
 		{ "no-tcpopt",	no_argument,	&FreeBSD_Oflag,	1 },
 		{ "sctp",	no_argument,	&FreeBSD_sctp,	1 },
+		{ "tun",	required_argument,	NULL,	FREEBSD_TUN },
 		{ NULL,		0,		NULL,		0 }
 	};
 
@@ -326,6 +332,9 @@ main(int argc, char *argv[])
 			if (Tflag < 0 || Tflag > 255 || errstr || errno)
 				errx(1, "illegal tos value %s", optarg);
 			break;
+		case FREEBSD_TUN:
+			tundev = optarg;
+			break;
 		case 0:
 			/* Long option. */
 			break;
@@ -364,6 +373,13 @@ main(int argc, char *argv[])
 			errx(1, "cannot use -u and --sctp");
 		if (family == AF_UNIX)
 			errx(1, "cannot use -U and --sctp");
+	}
+	if (tundev != NULL) {
+		if (!uflag)
+			errx(1, "must use --tun with -u");
+		tun_fd = open(tundev, O_RDWR);
+		if (tun_fd == -1)
+			errx(1, "unable to open tun device %s", tundev);
 	}
 
 	/* Get name of temporary socket for unix datagram client */
@@ -564,6 +580,8 @@ main(int argc, char *argv[])
 
 	if (s)
 		close(s);
+	if (tun_fd != -1)
+		close(tun_fd);
 
 	exit(ret);
 }
@@ -840,7 +858,7 @@ readwrite(int net_fd)
 		stdin_fd = -1;
 
 	/* stdin */
-	pfd[POLL_STDIN].fd = stdin_fd;
+	pfd[POLL_STDIN].fd = (tun_fd != -1) ? tun_fd : stdin_fd;
 	pfd[POLL_STDIN].events = POLLIN;
 
 	/* network out */
@@ -852,7 +870,7 @@ readwrite(int net_fd)
 	pfd[POLL_NETIN].events = POLLIN;
 
 	/* stdout */
-	pfd[POLL_STDOUT].fd = stdout_fd;
+	pfd[POLL_STDOUT].fd = (tun_fd != -1) ? tun_fd : stdout_fd;
 	pfd[POLL_STDOUT].events = 0;
 
 	while (1) {
@@ -1440,6 +1458,7 @@ help(void)
 	\t-n		Suppress name/port resolutions\n\
 	\t--no-tcpopt	Disable TCP options\n\
 	\t--sctp\t	SCTP mode\n\
+	\t--tun tundev	Use tun device rather than stdio\n\
 	\t-O length	TCP send buffer length\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
@@ -1500,7 +1519,7 @@ usage(int ret)
 #endif
 	    "\t  [--no-tcpopt] [--sctp]\n"
 	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
-	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [--tun tundev] [-V rtable] [-w timeout] [-X proxy_protocol]\n"
 	    "\t  [-x proxy_address[:port]] [destination] [port]\n");
 	if (ret)
 		exit(1);
