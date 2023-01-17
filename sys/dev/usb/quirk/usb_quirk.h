@@ -66,6 +66,7 @@ enum {
 	UQ_CFG_INDEX_4,		/* select configuration index 4 by default */
 	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
 	UQ_ASSUME_CM_OVER_DATA,	/* assume cm over data feature */
+	UQ_IGNORE_CDC_CM,	/* ignore cm descriptor */
 
 	/*
 	 * USB Mass Storage Quirks. See "storage/umass.c" for a
