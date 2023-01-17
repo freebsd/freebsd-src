@@ -130,7 +130,7 @@ nlmsg_write_socket_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	free(buf, M_NETLINK);
 
 	int io_flags = (nw->ignore_limit) ? NL_IOF_IGNORE_LIMIT : 0;
-        return (nl_send_one(m, (struct nlpcb *)(nw->arg_ptr), cnt, io_flags));
+	return (nl_send_one(m, (struct nlpcb *)(nw->arg_ptr), cnt, io_flags));
 }
 
 static bool
@@ -153,7 +153,7 @@ nlmsg_write_group_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	if (!success)
 		return (false);
 
-        nl_send_group(m, cnt, nw->arg_uint >> 16, nw->arg_uint & 0xFFFF);
+	nl_send_group(m, cnt, nw->arg_uint >> 16, nw->arg_uint & 0xFFFF);
 	return (true);
 }
 
@@ -182,7 +182,7 @@ nlmsg_write_chain_buf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 		free(buf, M_NETLINK);
 		return (false);
 	}
-        return (true);
+	return (true);
 }
 
 
@@ -203,12 +203,12 @@ nlmsg_get_ns_mbuf(struct nl_writer *nw, int size, bool waitok)
 	struct mbuf *m;
 
 	int mflag = waitok ? M_WAITOK : M_NOWAIT;
-        m = m_get2(size, mflag, MT_DATA, M_PKTHDR);
-        if (__predict_false(m == NULL))
-                return (false);
-        nw->alloc_len = M_TRAILINGSPACE(m);
-        nw->offset = 0;
-        nw->hdr = NULL;
+	m = m_get2(size, mflag, MT_DATA, M_PKTHDR);
+	if (__predict_false(m == NULL))
+		return (false);
+	nw->alloc_len = M_TRAILINGSPACE(m);
+	nw->offset = 0;
+	nw->hdr = NULL;
 	nw->_storage = (void *)m;
 	nw->data = mtod(m, void *);
 	nw->writer_type = NS_WRITER_TYPE_MBUF;
@@ -216,9 +216,9 @@ nlmsg_get_ns_mbuf(struct nl_writer *nw, int size, bool waitok)
 	nw->num_messages = 0;
 	nw->enomem = false;
 	memset(nw->data, 0, size);
-        NL_LOG(LOG_DEBUG2, "alloc mbuf %p req_len %d alloc_len %d data_ptr %p",
-            m, size, nw->alloc_len, nw->data);
-        return (true);
+	NL_LOG(LOG_DEBUG2, "alloc mbuf %p req_len %d alloc_len %d data_ptr %p",
+	    m, size, nw->alloc_len, nw->data);
+	return (true);
 }
 
 static bool
@@ -235,7 +235,7 @@ nlmsg_write_socket_mbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	m->m_pkthdr.len = datalen;
 	m->m_len = datalen;
 	int io_flags = (nw->ignore_limit) ? NL_IOF_IGNORE_LIMIT : 0;
-        return (nl_send_one(m, (struct nlpcb *)(nw->arg_ptr), cnt, io_flags));
+	return (nl_send_one(m, (struct nlpcb *)(nw->arg_ptr), cnt, io_flags));
 }
 
 static bool
@@ -251,7 +251,7 @@ nlmsg_write_group_mbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 
 	m->m_pkthdr.len = datalen;
 	m->m_len = datalen;
-        nl_send_group(m, cnt, nw->arg_uint >> 16, nw->arg_uint & 0xFFFF);
+	nl_send_group(m, cnt, nw->arg_uint >> 16, nw->arg_uint & 0xFFFF);
 	return (true);
 }
 
@@ -281,7 +281,7 @@ nlmsg_write_chain_mbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 		(*m0)->m_pkthdr.len += datalen;
 	}
 
-        return (true);
+	return (true);
 }
 
 /*
@@ -317,7 +317,6 @@ nlmsg_get_ns_lbuf(struct nl_writer *nw, int size, bool waitok)
 	return (true);
 }
 
-
 static bool
 nlmsg_write_socket_lbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 {
@@ -341,7 +340,7 @@ nlmsg_write_socket_lbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	}
 
 	int io_flags = (nw->ignore_limit) ? NL_IOF_IGNORE_LIMIT : 0;
-        return (nl_send_one(m, nlp, cnt, io_flags));
+	return (nl_send_one(m, nlp, cnt, io_flags));
 }
 
 /* Shouldn't be called (maybe except Linux code originating message) */
@@ -364,7 +363,7 @@ nlmsg_write_group_lbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	m_append(m, datalen, data);
 	free(buf, M_NETLINK);
 
-        nl_send_group(m, cnt, nw->arg_uint >> 16, nw->arg_uint & 0xFFFF);
+	nl_send_group(m, cnt, nw->arg_uint >> 16, nw->arg_uint & 0xFFFF);
 	return (true);
 }
 
@@ -437,36 +436,36 @@ nlmsg_get_buf(struct nl_writer *nw, int size, bool waitok, bool is_linux)
 bool
 nlmsg_get_unicast_writer(struct nl_writer *nw, int size, struct nlpcb *nlp)
 {
-        if (!nlmsg_get_buf(nw, size, false, nlp->nl_linux))
-                return (false);
-        nw->arg_ptr = (void *)nlp;
+	if (!nlmsg_get_buf(nw, size, false, nlp->nl_linux))
+		return (false);
+	nw->arg_ptr = (void *)nlp;
 	nw->writer_target = NS_WRITER_TARGET_SOCKET;
 	nlmsg_set_callback(nw);
-        return (true);
+	return (true);
 }
 
 bool
 nlmsg_get_group_writer(struct nl_writer *nw, int size, int protocol, int group_id)
 {
-        if (!nlmsg_get_buf(nw, size, false, false))
-                return (false);
-        nw->arg_uint = (uint64_t)protocol << 16 | (uint64_t)group_id;
+	if (!nlmsg_get_buf(nw, size, false, false))
+		return (false);
+	nw->arg_uint = (uint64_t)protocol << 16 | (uint64_t)group_id;
 	nw->writer_target = NS_WRITER_TARGET_GROUP;
 	nlmsg_set_callback(nw);
-        return (true);
+	return (true);
 }
 
 bool
 nlmsg_get_chain_writer(struct nl_writer *nw, int size, struct mbuf **pm)
 {
-        if (!nlmsg_get_buf(nw, size, false, false))
-                return (false);
+	if (!nlmsg_get_buf(nw, size, false, false))
+		return (false);
 	*pm = NULL;
-        nw->arg_ptr = (void *)pm;
+	nw->arg_ptr = (void *)pm;
 	nw->writer_target = NS_WRITER_TARGET_CHAIN;
 	nlmsg_set_callback(nw);
 	NL_LOG(LOG_DEBUG3, "setup cb %p (need %p)", nw->cb, &nlmsg_write_chain_mbuf);
-        return (true);
+	return (true);
 }
 
 void
@@ -479,23 +478,23 @@ bool
 nlmsg_flush(struct nl_writer *nw)
 {
 
-        if (__predict_false(nw->hdr != NULL)) {
-                /* Last message has not been completed, skip it. */
-                int completed_len = (char *)nw->hdr - nw->data;
+	if (__predict_false(nw->hdr != NULL)) {
+		/* Last message has not been completed, skip it. */
+		int completed_len = (char *)nw->hdr - nw->data;
 		/* Send completed messages */
 		nw->offset -= nw->offset - completed_len;
 		nw->hdr = NULL;
-        }
+	}
 
 	NL_LOG(LOG_DEBUG2, "OUT");
-        bool result = nw->cb(nw, nw->_storage, nw->offset, nw->num_messages);
-        nw->_storage = NULL;
+	bool result = nw->cb(nw, nw->_storage, nw->offset, nw->num_messages);
+	nw->_storage = NULL;
 
-        if (!result) {
-                NL_LOG(LOG_DEBUG, "nw %p offset %d: flush with %p() failed", nw, nw->offset, nw->cb);
-        }
+	if (!result) {
+		NL_LOG(LOG_DEBUG, "nw %p offset %d: flush with %p() failed", nw, nw->offset, nw->cb);
+	}
 
-        return (result);
+	return (result);
 }
 
 /*
@@ -506,8 +505,8 @@ nlmsg_flush(struct nl_writer *nw)
 bool
 nlmsg_refill_buffer(struct nl_writer *nw, int required_len)
 {
-        struct nl_writer ns_new = {};
-        int completed_len, new_len;
+	struct nl_writer ns_new = {};
+	int completed_len, new_len;
 
 	if (nw->enomem)
 		return (false);
@@ -515,7 +514,7 @@ nlmsg_refill_buffer(struct nl_writer *nw, int required_len)
 	NL_LOG(LOG_DEBUG3, "no space at offset %d/%d (want %d), trying to reclaim",
 	    nw->offset, nw->alloc_len, required_len);
 
-        /* Calculated new buffer size and allocate it s*/
+	/* Calculated new buffer size and allocate it s*/
 	completed_len = (nw->hdr != NULL) ? (char *)nw->hdr - nw->data : nw->offset;
 	if (completed_len > 0 && required_len < MCLBYTES) {
 		/* We already ran out of space, use the largest effective size */
@@ -530,10 +529,10 @@ nlmsg_refill_buffer(struct nl_writer *nw, int required_len)
 	}
 	bool waitok = (nw->malloc_flag == M_WAITOK);
 	bool is_linux = (nw->writer_type == NS_WRITER_TYPE_LBUF);
-        if (!nlmsg_get_buf(&ns_new, new_len, waitok, is_linux)) {
+	if (!nlmsg_get_buf(&ns_new, new_len, waitok, is_linux)) {
 		nw->enomem = true;
 		NL_LOG(LOG_DEBUG, "getting new buf failed, setting ENOMEM");
-                return (false);
+		return (false);
 	}
 	if (nw->ignore_limit)
 		nlmsg_ignore_limit(&ns_new);
@@ -543,22 +542,22 @@ nlmsg_refill_buffer(struct nl_writer *nw, int required_len)
 	nlmsg_set_callback(&ns_new);
 	ns_new.arg_uint = nw->arg_uint;
 
-        /* Copy last (unfinished) header to the new storage */
-        int last_len = nw->offset - completed_len;
+	/* Copy last (unfinished) header to the new storage */
+	int last_len = nw->offset - completed_len;
 	if (last_len > 0) {
 		memcpy(ns_new.data, nw->hdr, last_len);
 		ns_new.hdr = (struct nlmsghdr *)ns_new.data;
 		ns_new.offset = last_len;
 	}
 
-        NL_LOG(LOG_DEBUG2, "completed: %d bytes, copied: %d bytes", completed_len, last_len);
+	NL_LOG(LOG_DEBUG2, "completed: %d bytes, copied: %d bytes", completed_len, last_len);
 
-        /* Flush completed headers & switch to the new nw */
+	/* Flush completed headers & switch to the new nw */
 	nlmsg_flush(nw);
 	memcpy(nw, &ns_new, sizeof(struct nl_writer));
-        NL_LOG(LOG_DEBUG2, "switched buffer: used %d/%d bytes", nw->offset, nw->alloc_len);
+	NL_LOG(LOG_DEBUG2, "switched buffer: used %d/%d bytes", nw->offset, nw->alloc_len);
 
-        return (true);
+	return (true);
 }
 
 bool
@@ -570,23 +569,23 @@ nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
 	MPASS(nw->hdr == NULL);
 
 	int required_len = NETLINK_ALIGN(len + sizeof(struct nlmsghdr));
-        if (__predict_false(nw->offset + required_len > nw->alloc_len)) {
+	if (__predict_false(nw->offset + required_len > nw->alloc_len)) {
 		if (!nlmsg_refill_buffer(nw, required_len))
 			return (false);
-        }
+	}
 
-        hdr = (struct nlmsghdr *)(&nw->data[nw->offset]);
+	hdr = (struct nlmsghdr *)(&nw->data[nw->offset]);
 
-        hdr->nlmsg_len = len;
-        hdr->nlmsg_type = type;
-        hdr->nlmsg_flags = flags;
-        hdr->nlmsg_seq = seq;
-        hdr->nlmsg_pid = portid;
+	hdr->nlmsg_len = len;
+	hdr->nlmsg_type = type;
+	hdr->nlmsg_flags = flags;
+	hdr->nlmsg_seq = seq;
+	hdr->nlmsg_pid = portid;
 
-        nw->hdr = hdr;
-        nw->offset += sizeof(struct nlmsghdr);
+	nw->hdr = hdr;
+	nw->offset += sizeof(struct nlmsghdr);
 
-        return (true);
+	return (true);
 }
 
 bool
@@ -600,11 +599,11 @@ nlmsg_end(struct nl_writer *nw)
 		return (false);
 	}
 
-        nw->hdr->nlmsg_len = (uint32_t)(nw->data + nw->offset - (char *)nw->hdr);
+	nw->hdr->nlmsg_len = (uint32_t)(nw->data + nw->offset - (char *)nw->hdr);
 	NL_LOG(LOG_DEBUG2, "wrote msg len: %u type: %d: flags: 0x%X seq: %u pid: %u",
 	    nw->hdr->nlmsg_len, nw->hdr->nlmsg_type, nw->hdr->nlmsg_flags,
 	    nw->hdr->nlmsg_seq, nw->hdr->nlmsg_pid);
-        nw->hdr = NULL;
+	nw->hdr = NULL;
 	nw->num_messages++;
 	return (true);
 }
@@ -612,10 +611,10 @@ nlmsg_end(struct nl_writer *nw)
 void
 nlmsg_abort(struct nl_writer *nw)
 {
-        if (nw->hdr != NULL) {
-                nw->offset = (uint32_t)((char *)nw->hdr - nw->data);
-                nw->hdr = NULL;
-        }
+	if (nw->hdr != NULL) {
+		nw->offset = (uint32_t)((char *)nw->hdr - nw->data);
+		nw->hdr = NULL;
+	}
 }
 
 void
