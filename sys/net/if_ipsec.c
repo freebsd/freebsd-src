@@ -813,13 +813,17 @@ ipsec_srcaddr(void *arg __unused, const struct sockaddr *sa,
 {
 	struct ipsec_softc *sc;
 	struct secasindex *saidx;
+	struct ipsec_iflist *iflist;
 
 	/* Check that VNET is ready */
 	if (V_ipsec_idhtbl == NULL)
 		return;
 
 	NET_EPOCH_ASSERT();
-	CK_LIST_FOREACH(sc, ipsec_srchash(sa), srchash) {
+	iflist = ipsec_srchash(sa);
+	if (iflist == NULL)
+		return;
+	CK_LIST_FOREACH(sc, iflist, srchash) {
 		if (sc->family == 0)
 			continue;
 		saidx = ipsec_getsaidx(sc, IPSEC_DIR_OUTBOUND, sa->sa_family);
@@ -1014,12 +1018,18 @@ static int
 ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
     struct sockaddr *dst, uint32_t reqid)
 {
+	struct ipsec_iflist *iflist;
 	struct secpolicy *sp[IPSEC_SPCOUNT];
 	int i;
 
 	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
 
 	/* Allocate SP with new addresses. */
+	iflist = ipsec_srchash(src);
+	if (iflist == NULL) {
+		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		return (EAFNOSUPPORT);
+	}
 	if (ipsec_newpolicies(sc, sp, src, dst, reqid) == 0) {
 		/* Add new policies to SPDB */
 		if (key_register_ifnet(sp, IPSEC_SPCOUNT) != 0) {
@@ -1032,7 +1042,7 @@ ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
 		for (i = 0; i < IPSEC_SPCOUNT; i++)
 			sc->sp[i] = sp[i];
 		sc->family = src->sa_family;
-		CK_LIST_INSERT_HEAD(ipsec_srchash(src), sc, srchash);
+		CK_LIST_INSERT_HEAD(iflist, sc, srchash);
 	} else {
 		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		return (ENOMEM);
