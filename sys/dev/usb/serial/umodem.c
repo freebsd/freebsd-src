@@ -361,7 +361,9 @@ umodem_attach(device_t dev)
 
 	/* get the data interface number */
 
-	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
+	cmd = NULL;
+	if (!usb_test_quirk(uaa, UQ_IGNORE_CDC_CM))
+		cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
 		cud = usbd_find_descriptor(uaa->device, NULL,
