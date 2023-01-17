@@ -368,7 +368,7 @@ nlmsg_write_group_lbuf(struct nl_writer *nw, void *buf, int datalen, int cnt)
 	return (true);
 }
 
-struct nlwriter_ops nlmsg_writers[] = {
+static const struct nlwriter_ops nlmsg_writers[] = {
 	/* NS_WRITER_TYPE_MBUF */
 	{
 		.init = nlmsg_get_ns_mbuf,
@@ -394,7 +394,7 @@ struct nlwriter_ops nlmsg_writers[] = {
 static void
 nlmsg_set_callback(struct nl_writer *nw)
 {
-	struct nlwriter_ops *pops = &nlmsg_writers[nw->writer_type];
+	const struct nlwriter_ops *pops = &nlmsg_writers[nw->writer_type];
 
 	switch (nw->writer_target) {
 	case NS_WRITER_TARGET_SOCKET:
