@@ -235,7 +235,7 @@ then
 fi
 IFS=
 echo -n "Conversion for $file started, please wait: "
-FAIL_PAT="XXX - DRVAPI"
+FAIL_PAT="XXX - IFAPI"
 count=0
 while read -r line
 do
@@ -272,7 +272,7 @@ echo ""
 count=`grep $FAIL_PAT $file.tmp | wc -l`
 if [ $count -gt 0 ]
 then
-	echo "$count lines could not be converted to DRVAPI"
+	echo "$count lines could not be converted to IFAPI"
 	echo "Look for /* $FAIL_PAT */ in the converted file"
 fi
 echo "original $file  has been moved to $file.orig"
