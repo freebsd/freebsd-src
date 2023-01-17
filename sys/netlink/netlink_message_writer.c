@@ -215,6 +215,7 @@ nlmsg_get_ns_mbuf(struct nl_writer *nw, int size, bool waitok)
 	nw->malloc_flag = mflag;
 	nw->num_messages = 0;
 	nw->enomem = false;
+	memset(nw->data, 0, size);
         NL_LOG(LOG_DEBUG2, "alloc mbuf %p req_len %d alloc_len %d data_ptr %p",
             m, size, nw->alloc_len, nw->data);
         return (true);
