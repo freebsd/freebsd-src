@@ -666,6 +666,10 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		saidx = ipsec_getsaidx(sc, IPSEC_DIR_OUTBOUND, sc->family);
+		if (saidx == NULL) {
+			error = ENXIO;
+			break;
+		}
 		switch (cmd) {
 #ifdef INET
 		case SIOCGIFPSRCADDR:
@@ -783,6 +787,8 @@ ipsec_set_running(struct ipsec_softc *sc)
 	int localip;
 
 	saidx = ipsec_getsaidx(sc, IPSEC_DIR_OUTBOUND, sc->family);
+	if (saidx == NULL)
+		return;
 	localip = 0;
 	switch (sc->family) {
 #ifdef INET
