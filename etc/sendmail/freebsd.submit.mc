@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001-2003 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001-2003, 2014 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -24,3 +24,6 @@ define(`confBIND_OPTS', `WorkAroundBrokenAAAA')dnl
 dnl
 dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:0:0:0:0:0:0:0:1]
 FEATURE(`msp', `[127.0.0.1]')dnl
+dnl enable this for SMTPUTF8 support
+dnl LOCAL_CONFIG
+dnl O SMTPUTF8=true
