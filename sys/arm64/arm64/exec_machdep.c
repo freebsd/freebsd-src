@@ -519,8 +519,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifdef VFP
 	struct pcb *curpcb;
 
-	critical_enter();
-
+	MPASS(td == curthread);
 	if ((mcp->mc_flags & _MC_FP_VALID) != 0) {
 		curpcb = curthread->td_pcb;
 
@@ -528,7 +527,9 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		 * Discard any vfp state for the current thread, we
 		 * are about to override it.
 		 */
+		critical_enter();
 		vfp_discard(td);
+		critical_exit();
 
 		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
 		    ("Called set_fpcontext while the kernel is using the VFP"));
@@ -538,8 +539,6 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		curpcb->pcb_fpustate.vfp_fpsr = mcp->mc_fpregs.fp_sr;
 		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
 	}
-
-	critical_exit();
 #endif
 }
 
