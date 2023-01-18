@@ -74,7 +74,6 @@
 
 typedef void (*mask_fn)(void *);
 
-static int intrcnt_index;
 static struct intsrc **interrupt_sources;
 #ifdef SMP
 static struct intsrc **interrupt_sorted;
@@ -98,6 +97,7 @@ u_long *intrcnt;
 char *intrnames;
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
+static u_int intrcnt_index;
 int nintrcnt;
 
 static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
@@ -190,8 +190,6 @@ intr_init_sources(void *arg)
 	    M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTR, M_WAITOK |
 	    M_ZERO);
-	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * INTRNAME_LEN;
 
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
@@ -814,7 +812,8 @@ intr_next_cpu(int domain)
 static int
 x86_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
+	return (sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
@@ -832,18 +831,22 @@ x86_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
-			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
-		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
+			return (sysctl_handle_opaque(oidp, NULL,
+			    intrcnt_index * sizeof(uint32_t), req));
+		intrcnt32 = malloc(intrcnt_index * sizeof(uint32_t), M_TEMP,
+		    M_NOWAIT);
 		if (intrcnt32 == NULL)
 			return (ENOMEM);
-		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
+		for (i = 0; i < intrcnt_index; i++)
 			intrcnt32[i] = intrcnt[i];
-		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
+		error = sysctl_handle_opaque(oidp, intrcnt32,
+		    intrcnt_index * sizeof(uint32_t), req);
 		free(intrcnt32, M_TEMP);
 		return (error);
 	}
 #endif
-	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
+	return (sysctl_handle_opaque(oidp, intrcnt,
+	    intrcnt_index * sizeof(u_long), req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
