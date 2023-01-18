@@ -177,6 +177,7 @@ u_long *intrcnt;
 char *intrnames;
 size_t sintrcnt;
 size_t sintrnames;
+static u_int intrcnt_index;
 int nintrcnt;
 static bitstr_t *intrcnt_bitmap;
 
@@ -211,8 +212,6 @@ intr_irq_init(void *dummy __unused)
 	    M_WAITOK | M_ZERO);
 	intrnames = mallocarray(nintrcnt, INTRNAME_LEN, M_INTRNG,
 	    M_WAITOK | M_ZERO);
-	sintrcnt = nintrcnt * sizeof(u_long);
-	sintrnames = nintrcnt * INTRNAME_LEN;
 
 	/* Allocate the bitmap tracking counter allocations. */
 	intrcnt_bitmap = bit_alloc(nintrcnt, M_INTRNG, M_WAITOK | M_ZERO);
@@ -306,6 +305,8 @@ isrc_setup_counters(struct intr_irqsrc *isrc)
 	if (index == -1)
 		panic("Failed to allocate 2 counters. Array exhausted?");
 	bit_nset(intrcnt_bitmap, index, index + 1);
+	if (index >= intrcnt_index)
+		intrcnt_index = index + 2;
 	isrc->isrc_index = index;
 	isrc->isrc_count = &intrcnt[index];
 	isrc_update_name(isrc, NULL);
@@ -1822,6 +1823,8 @@ intr_ipi_setup_counters(const char *name)
 		panic("Failed to allocate %d counters. Array exhausted?",
 		    mp_maxid + 1);
 	bit_nset(intrcnt_bitmap, index, index + mp_maxid);
+	if (index >= intrcnt_index)
+		intrcnt_index = index + mp_maxid + 1;
 	for (i = 0; i < mp_maxid + 1; i++) {
 		snprintf(str, INTRNAME_LEN, "cpu%d:%s", i, name);
 		intrcnt_setname(str, index + i);
@@ -1955,7 +1958,8 @@ intr_ipi_dispatch(u_int ipi)
 static int
 intr_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames, sintrnames, req));
+	return (sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
@@ -1973,18 +1977,22 @@ intr_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
-			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
-		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
+			return (sysctl_handle_opaque(oidp, NULL,
+			    intrcnt_index * sizeof(uint32_t), req));
+		intrcnt32 = malloc(intrcnt_index * sizeof(uint32_t), M_TEMP,
+		    M_NOWAIT);
 		if (intrcnt32 == NULL)
 			return (ENOMEM);
-		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
+		for (i = 0; i < intrcnt_index; i++)
 			intrcnt32[i] = intrcnt[i];
-		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
+		error = sysctl_handle_opaque(oidp, intrcnt32,
+		    intrcnt_index * sizeof(uint32_t), req);
 		free(intrcnt32, M_TEMP);
 		return (error);
 	}
 #endif
-	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
+	return (sysctl_handle_opaque(oidp, intrcnt,
+	    intrcnt_index * sizeof(u_long), req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
