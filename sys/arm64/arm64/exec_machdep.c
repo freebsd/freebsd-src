@@ -153,16 +153,17 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 */
 		if (td == curthread)
 			vfp_save_state(td, pcb);
+	}
 
-		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
-		    ("Called fill_fpregs while the kernel is using the VFP"));
-		memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
-		    sizeof(regs->fp_q));
-		regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
-		regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
-	} else
+	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Called fill_fpregs while the kernel is using the VFP"));
+	memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
+	    sizeof(regs->fp_q));
+	regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
+	regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
+#else
+	memset(regs, 0, sizeof(*regs));
 #endif
-		memset(regs, 0, sizeof(*regs));
 	return (0);
 }
 
