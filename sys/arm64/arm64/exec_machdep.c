@@ -489,30 +489,27 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifdef VFP
 	struct pcb *curpcb;
 
-	critical_enter();
+	MPASS(td == curthread);
 
 	curpcb = curthread->td_pcb;
-
 	if ((curpcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
 		/*
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
 		vfp_save_state(td, curpcb);
-
-		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
-		    ("Called get_fpcontext while the kernel is using the VFP"));
-		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
-		    ("Non-userspace FPU flags set in get_fpcontext"));
-		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
-		    sizeof(mcp->mc_fpregs.fp_q));
-		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
-		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
-		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
-		mcp->mc_flags |= _MC_FP_VALID;
 	}
 
-	critical_exit();
+	KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
+	    ("Called get_fpcontext while the kernel is using the VFP"));
+	KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	    ("Non-userspace FPU flags set in get_fpcontext"));
+	memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
+	    sizeof(mcp->mc_fpregs.fp_q));
+	mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
+	mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
+	mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
+	mcp->mc_flags |= _MC_FP_VALID;
 #endif
 }
 
