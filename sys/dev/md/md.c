@@ -917,11 +917,13 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 */
 
 	if (bp->bio_cmd == BIO_FLUSH) {
-		(void) vn_start_write(vp, &mp, V_WAIT);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		error = VOP_FSYNC(vp, MNT_WAIT, td);
-		VOP_UNLOCK(vp);
-		vn_finished_write(mp);
+		do {
+			(void) vn_start_write(vp, &mp, V_WAIT);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+			error = VOP_FSYNC(vp, MNT_WAIT, td);
+			VOP_UNLOCK(vp);
+			vn_finished_write(mp);
+		} while (error == ERELOOKUP);
 		return (error);
 	} else if (bp->bio_cmd == BIO_DELETE) {
 		error = vn_deallocate(vp, &off, &len, 0,
