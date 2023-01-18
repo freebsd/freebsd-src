@@ -153,16 +153,17 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 */
 		if (td == curthread)
 			vfp_save_state(td, pcb);
+	}
 
-		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
-		    ("Called fill_fpregs while the kernel is using the VFP"));
-		memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
-		    sizeof(regs->fp_q));
-		regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
-		regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
-	} else
+	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Called fill_fpregs while the kernel is using the VFP"));
+	memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
+	    sizeof(regs->fp_q));
+	regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
+	regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
+#else
+	memset(regs, 0, sizeof(*regs));
 #endif
-		memset(regs, 0, sizeof(*regs));
 	return (0);
 }
 
@@ -488,30 +489,27 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifdef VFP
 	struct pcb *curpcb;
 
-	critical_enter();
+	MPASS(td == curthread);
 
 	curpcb = curthread->td_pcb;
-
 	if ((curpcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
 		/*
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
 		vfp_save_state(td, curpcb);
-
-		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
-		    ("Called get_fpcontext while the kernel is using the VFP"));
-		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
-		    ("Non-userspace FPU flags set in get_fpcontext"));
-		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
-		    sizeof(mcp->mc_fpregs.fp_q));
-		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
-		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
-		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
-		mcp->mc_flags |= _MC_FP_VALID;
 	}
 
-	critical_exit();
+	KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
+	    ("Called get_fpcontext while the kernel is using the VFP"));
+	KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	    ("Non-userspace FPU flags set in get_fpcontext"));
+	memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
+	    sizeof(mcp->mc_fpregs.fp_q));
+	mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
+	mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
+	mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
+	mcp->mc_flags |= _MC_FP_VALID;
 #endif
 }
 
@@ -521,8 +519,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifdef VFP
 	struct pcb *curpcb;
 
-	critical_enter();
-
+	MPASS(td == curthread);
 	if ((mcp->mc_flags & _MC_FP_VALID) != 0) {
 		curpcb = curthread->td_pcb;
 
@@ -530,7 +527,9 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		 * Discard any vfp state for the current thread, we
 		 * are about to override it.
 		 */
+		critical_enter();
 		vfp_discard(td);
+		critical_exit();
 
 		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
 		    ("Called set_fpcontext while the kernel is using the VFP"));
@@ -540,8 +539,6 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		curpcb->pcb_fpustate.vfp_fpsr = mcp->mc_fpregs.fp_sr;
 		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
 	}
-
-	critical_exit();
 #endif
 }
 
