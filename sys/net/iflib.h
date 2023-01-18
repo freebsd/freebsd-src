@@ -393,6 +393,11 @@ typedef enum {
  * function.
  */
 #define IFLIB_FEATURE_QUEUE_SELECT_V2	1400073
+/*
+ * Driver can create subinterfaces with their own Tx/Rx queues
+ * that all share a single device (or commonly, port)
+ */
+#define IFLIB_FEATURE_SUB_INTERFACES	1500014
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib
@@ -491,4 +496,11 @@ void iflib_add_int_delay_sysctl(if_ctx_t, const char *, const char *,
 								if_int_delay_info_t, int, int);
 uint16_t iflib_get_extra_msix_vectors_sysctl(if_ctx_t ctx);
 
+/*
+ * Sub-interface support
+ */
+int iflib_irq_alloc_generic_subctx(if_ctx_t ctx, if_ctx_t subctx, if_irq_t irq,
+				   int rid, iflib_intr_type_t type,
+				   driver_filter_t *filter, void *filter_arg,
+				   int qid, const char *name);
 #endif /*  __IFLIB_H_ */
