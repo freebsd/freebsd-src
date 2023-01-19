@@ -319,7 +319,7 @@ main(int argc, char **argv)
 /*
  * This routine creates and binds sockets on the appropriate
  * addresses. It gets called one time for each transport.
- * It returns 0 upon success, 1 for ingore the call and -1 to indicate
+ * It returns 0 upon success, 1 for ignore the call and -1 to indicate
  * bind failed with EADDRINUSE.
  * Any file descriptors that have been created are stored in sock_fd and
  * the total count of them is maintained in sock_fdcnt.
