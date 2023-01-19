@@ -306,7 +306,7 @@ handle_remount /conf
 #   be sure to export those filesystems -alldirs, however.
 #   If the diskless_remount file contains a string beginning with a
 #   '/' it is assumed that the local nfsroot should be prepended to
-#   it before attemping to the remount.  This allows the root to be
+#   it before attempting to the remount.  This allows the root to be
 #   relocated without needing to change the remount files.
 #
 log "templates are ${templates}"
