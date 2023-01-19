@@ -872,7 +872,7 @@ _TCBVAR g_tcb_info4[]={
    NULL                           ,        0,   0, /* faka,flo,fhi */
    "rq_start"                     , /* aka */
    COMP_NONE                      , /* comp */
-   "DW aligned starting addres of RQ", /*desc*/
+   "DW aligned starting address of RQ", /*desc*/
     NULL, /*akadesc */
   },
   {"rq_MSN"                       , 2,  986,  998, /* name,aux,lo,hi */
