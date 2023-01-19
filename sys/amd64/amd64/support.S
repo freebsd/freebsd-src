@@ -922,7 +922,7 @@ copy_fault:
 
 /*
  * casueword32.  Compare and set user integer.  Returns -1 on fault,
- *        0 if access was successful, and 1 when comparision failed.
+ *        0 if access was successful, and 1 when comparison failed.
  *        Old value is written to *oldp.
  *        dst = %rdi, old = %esi, oldp = %rdx, new = %ecx
  */
@@ -1002,7 +1002,7 @@ END(casueword32_smap)
 
 /*
  * casueword.  Compare and set user long.  Returns -1 on fault,
- *        0 if access was successful, and 1 when comparision failed.
+ *        0 if access was successful, and 1 when comparison failed.
  *        Old value is written to *oldp.
  *        dst = %rdi, old = %rsi, oldp = %rdx, new = %rcx
  */
