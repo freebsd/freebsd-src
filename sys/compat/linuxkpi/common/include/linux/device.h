@@ -235,6 +235,12 @@ show_class_attr_string(struct class *class,
 		dev_warn(dev, __VA_ARGS__);	\
 } while (0)
 
+#define	dev_dbg_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_dbg(dev, __VA_ARGS__);	\
+} while (0)
+
 /* Public and LinuxKPI internal devres functions. */
 void *lkpi_devres_alloc(void(*release)(struct device *, void *), size_t, gfp_t);
 void lkpi_devres_add(struct device *, void *);
