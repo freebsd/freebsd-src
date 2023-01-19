@@ -209,11 +209,11 @@ static uint64_t hda_get_clock_ns(void);
 /*
  * PCI HDA function declarations
  */
-static int pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl);
-static void pci_hda_write(struct vmctx *ctx, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size, uint64_t value);
-static uint64_t pci_hda_read(struct vmctx *ctx, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size);
+static int pci_hda_init(struct pci_devinst *pi, nvlist_t *nvl);
+static void pci_hda_write(struct pci_devinst *pi, int baridx, uint64_t offset,
+    int size, uint64_t value);
+static uint64_t pci_hda_read(struct pci_devinst *pi, int baridx,
+    uint64_t offset, int size);
 /*
  * HDA global data
  */
@@ -1223,11 +1223,10 @@ static uint64_t hda_get_clock_ns(void)
  * PCI HDA function definitions
  */
 static int
-pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_hda_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct hda_softc *sc = NULL;
 
-	assert(ctx != NULL);
 	assert(pi != NULL);
 
 	pci_set_cfgdata16(pi, PCIR_VENDOR, INTEL_VENDORID);
@@ -1256,8 +1255,7 @@ pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 }
 
 static void
-pci_hda_write(struct vmctx *ctx __unused,
-    struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+pci_hda_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {
 	struct hda_softc *sc = pi->pi_arg;
@@ -1274,8 +1272,7 @@ pci_hda_write(struct vmctx *ctx __unused,
 }
 
 static uint64_t
-pci_hda_read(struct vmctx *ctx __unused,
-    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
+pci_hda_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct hda_softc *sc = pi->pi_arg;
 	uint64_t value = 0;

@@ -1100,7 +1100,7 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 }
 
 static int
-pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
+pci_nvme_init_controller(struct pci_nvme_softc *sc)
 {
 	uint16_t acqs, asqs;
 
@@ -1119,8 +1119,8 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 		return (-1);
 	}
 	sc->submit_queues[0].size = asqs;
-	sc->submit_queues[0].qbase = vm_map_gpa(ctx, sc->regs.asq,
-	            sizeof(struct nvme_command) * asqs);
+	sc->submit_queues[0].qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx,
+	    sc->regs.asq, sizeof(struct nvme_command) * asqs);
 	if (sc->submit_queues[0].qbase == NULL) {
 		EPRINTLN("%s: ASQ vm_map_gpa(%lx) failed", __func__,
 		    sc->regs.asq);
@@ -1140,8 +1140,8 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 		return (-1);
 	}
 	sc->compl_queues[0].size = acqs;
-	sc->compl_queues[0].qbase = vm_map_gpa(ctx, sc->regs.acq,
-	         sizeof(struct nvme_completion) * acqs);
+	sc->compl_queues[0].qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx,
+	    sc->regs.acq, sizeof(struct nvme_completion) * acqs);
 	if (sc->compl_queues[0].qbase == NULL) {
 		EPRINTLN("%s: ACQ vm_map_gpa(%lx) failed", __func__,
 		    sc->regs.acq);
@@ -2930,8 +2930,8 @@ pci_nvme_bar0_reg_dumps(const char *func, uint64_t offset, int iswrite)
 }
 
 static void
-pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
-	uint64_t offset, int size, uint64_t value)
+pci_nvme_write_bar_0(struct pci_nvme_softc *sc, uint64_t offset, int size,
+    uint64_t value)
 {
 	uint32_t ccreg;
 
@@ -3014,7 +3014,7 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 				/* transition 1-> causes controller reset */
 				pci_nvme_reset_locked(sc);
 			else
-				pci_nvme_init_controller(ctx, sc);
+				pci_nvme_init_controller(sc);
 		}
 
 		/* Insert the iocqes, iosqes and en bits from the write */
@@ -3062,8 +3062,8 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 }
 
 static void
-pci_nvme_write(struct vmctx *ctx, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size, uint64_t value)
+pci_nvme_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+    uint64_t value)
 {
 	struct pci_nvme_softc* sc = pi->pi_arg;
 
@@ -3078,7 +3078,7 @@ pci_nvme_write(struct vmctx *ctx, struct pci_devinst *pi,
 
 	switch (baridx) {
 	case 0:
-		pci_nvme_write_bar_0(ctx, sc, offset, size, value);
+		pci_nvme_write_bar_0(sc, offset, size, value);
 		break;
 
 	default:
@@ -3125,8 +3125,7 @@ static uint64_t pci_nvme_read_bar_0(struct pci_nvme_softc* sc,
 
 
 static uint64_t
-pci_nvme_read(struct vmctx *ctx __unused,
-    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
+pci_nvme_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_nvme_softc* sc = pi->pi_arg;
 
@@ -3276,7 +3275,7 @@ pci_nvme_resized(struct blockif_ctxt *bctxt __unused, void *arg,
 }
 
 static int
-pci_nvme_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
+pci_nvme_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_nvme_softc *sc;
 	uint32_t pci_membar_sz;

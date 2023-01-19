@@ -450,8 +450,7 @@ pci_vtblk_resized(struct blockif_ctxt *bctxt __unused, void *arg,
 }
 
 static int
-pci_vtblk_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
-    nvlist_t *nvl)
+pci_vtblk_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	char bident[sizeof("XXX:XXX")];
 	struct blockif_ctxt *bctxt;
