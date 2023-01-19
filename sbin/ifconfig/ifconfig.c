@@ -1728,6 +1728,10 @@ ifmaybeload(const char *name)
 			 * names of all drivers (eg mlx4en(4)).
 			 */
 			break;
+		case EPERM:
+			/* Ignore EPERM, do not force exit for unpriv user list */
+			break;
+
 		default:
 			err(1, "kldload(%s)", ifkind);
 		}
