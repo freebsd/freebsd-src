@@ -260,7 +260,7 @@ gen_unbound_conf() {
 	echo "        pidfile: ${pidfile}"
 	echo "        auto-trust-anchor-file: ${anchor}"
 	if [ "${use_tls}" = "yes" ] ; then
-		echo "        tls-cert-bundle: /etc/ssl/cert.pem"
+		echo "        tls-system-cert: yes"
 	fi
 	echo ""
 	if [ -f "${forward_conf}" ] ; then
