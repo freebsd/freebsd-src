@@ -1729,7 +1729,7 @@ ifmaybeload(const char *name)
 			 */
 			break;
 		case EPERM:
-			/* Ignore EPERM, do not force exit for unpriv user list */
+			/* Ignore EPERM, do not force exit for unpriv user */
 			break;
 
 		default:
