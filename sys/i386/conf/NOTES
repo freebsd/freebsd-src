@@ -916,3 +916,5 @@ options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
 
+# This is broken on i386
+nodevice bnxt
