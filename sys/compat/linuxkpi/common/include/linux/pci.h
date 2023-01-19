@@ -1672,4 +1672,13 @@ pci_is_enabled(struct pci_dev *pdev)
 	    PCIM_CMD_BUSMASTEREN) != 0);
 }
 
+static inline int
+pci_wait_for_pending_transaction(struct pci_dev *pdev)
+{
+
+	return (0);
+}
+
+bool pci_device_is_present(struct pci_dev *pdev);
+
 #endif	/* _LINUXKPI_LINUX_PCI_H_ */

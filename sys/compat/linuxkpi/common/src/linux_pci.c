@@ -996,6 +996,16 @@ lkpi_pci_msi_desc_alloc(int irq)
 	return (desc);
 }
 
+bool
+pci_device_is_present(struct pci_dev *pdev)
+{
+	device_t dev;
+
+	dev = pdev->dev.bsddev;
+
+	return (bus_child_present(dev));
+}
+
 CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
 
 struct linux_dma_obj {
