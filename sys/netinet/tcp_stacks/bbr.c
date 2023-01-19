@@ -6970,7 +6970,7 @@ bbr_log_sack_passed(struct tcpcb *tp,
 	TAILQ_FOREACH_REVERSE_FROM(nrsm, &bbr->r_ctl.rc_tmap,
 	    bbr_head, r_tnext) {
 		if (nrsm == rsm) {
-			/* Skip orginal segment he is acked */
+			/* Skip original segment he is acked */
 			continue;
 		}
 		if (nrsm->r_flags & BBR_ACKED) {
