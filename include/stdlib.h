@@ -352,9 +352,15 @@ void __qsort_r_compat(void *, size_t, size_t, void *,
 __sym_compat(qsort_r, __qsort_r_compat, FBSD_1.0);
 #endif
 #if defined(__generic) && !defined(__cplusplus)
+#if __GNUC__ == 12
+#define	qsort_r(base, nel, width, arg4, arg5)				\
+    __generic(arg5, int (void *, const void *, const void *),		\
+	__qsort_r_compat, qsort_r)(base, nel, width, arg4, arg5)
+#else
 #define	qsort_r(base, nel, width, arg4, arg5)				\
     __generic(arg5, int (*)(void *, const void *, const void *),	\
         __qsort_r_compat, qsort_r)(base, nel, width, arg4, arg5)
+#endif
 #elif defined(__cplusplus)
 __END_DECLS
 extern "C++" {
