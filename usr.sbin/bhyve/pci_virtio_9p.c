@@ -248,7 +248,7 @@ pci_vt9p_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vt9p_init(struct vmctx *ctx __unused, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vt9p_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vt9p_softc *sc;
 	const char *value;

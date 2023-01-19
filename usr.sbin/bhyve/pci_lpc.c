@@ -398,8 +398,7 @@ pci_lpc_uart_dsdt(void)
 LPC_DSDT(pci_lpc_uart_dsdt);
 
 static int
-pci_lpc_cfgwrite(struct vmctx *ctx, struct pci_devinst *pi,
-    int coff, int bytes, uint32_t val)
+pci_lpc_cfgwrite(struct pci_devinst *pi, int coff, int bytes, uint32_t val)
 {
 	int pirq_pin;
 
@@ -410,7 +409,7 @@ pci_lpc_cfgwrite(struct vmctx *ctx, struct pci_devinst *pi,
 		if (coff >= 0x68 && coff <= 0x6b)
 			pirq_pin = coff - 0x68 + 5;
 		if (pirq_pin != 0) {
-			pirq_write(ctx, pirq_pin, val);
+			pirq_write(pi->pi_vmctx, pirq_pin, val);
 			pci_set_cfgdata8(pi, coff, pirq_read(pirq_pin));
 			return (0);
 		}
@@ -419,16 +418,14 @@ pci_lpc_cfgwrite(struct vmctx *ctx, struct pci_devinst *pi,
 }
 
 static void
-pci_lpc_write(struct vmctx *ctx __unused,
-    struct pci_devinst *pi __unused, int baridx __unused,
+pci_lpc_write(struct pci_devinst *pi __unused, int baridx __unused,
     uint64_t offset __unused, int size __unused, uint64_t value __unused)
 {
 }
 
 static uint64_t
-pci_lpc_read(struct vmctx *ctx __unused,
-    struct pci_devinst *pi __unused, int baridx __unused, uint64_t offset __unused,
-    int size __unused)
+pci_lpc_read(struct pci_devinst *pi __unused, int baridx __unused,
+    uint64_t offset __unused, int size __unused)
 {
 	return (0);
 }
@@ -437,7 +434,7 @@ pci_lpc_read(struct vmctx *ctx __unused,
 #define	LPC_VENDOR	0x8086
 
 static int
-pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl __unused)
+pci_lpc_init(struct pci_devinst *pi, nvlist_t *nvl __unused)
 {
 	/*
 	 * Do not allow more than one LPC bridge to be configured.
@@ -457,7 +454,7 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl __unused)
 		return (-1);
 	}
 
-	if (lpc_init(ctx) != 0)
+	if (lpc_init(pi->pi_vmctx) != 0)
 		return (-1);
 
 	/* initialize config space */
