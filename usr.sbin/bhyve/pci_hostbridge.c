@@ -37,8 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 
 static int
-pci_hostbridge_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
-    nvlist_t *nvl)
+pci_hostbridge_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	const char *value;
 	u_int vendor, device;

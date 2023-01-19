@@ -66,8 +66,8 @@ struct checkpoint_thread_info {
 };
 
 typedef int (*vm_snapshot_dev_cb)(struct vm_snapshot_meta *);
-typedef int (*vm_pause_dev_cb) (struct vmctx *, const char *);
-typedef int (*vm_resume_dev_cb) (struct vmctx *, const char *);
+typedef int (*vm_pause_dev_cb) (const char *);
+typedef int (*vm_resume_dev_cb) (const char *);
 
 struct vm_snapshot_dev_info {
 	const char *dev_name;		/* device name */
@@ -96,8 +96,8 @@ int restore_vm_mem(struct vmctx *ctx, struct restore_state *rstate);
 int vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate);
 
 int vm_restore_user_devs(struct vmctx *ctx, struct restore_state *rstate);
-int vm_pause_user_devs(struct vmctx *ctx);
-int vm_resume_user_devs(struct vmctx *ctx);
+int vm_pause_user_devs(void);
+int vm_resume_user_devs(void);
 
 int get_checkpoint_msg(int conn_fd, struct vmctx *ctx);
 void *checkpoint_thread(void *param);
