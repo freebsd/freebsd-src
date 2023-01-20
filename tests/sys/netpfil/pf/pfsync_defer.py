@@ -117,15 +117,15 @@ def main():
         sys.exit(1)
 
     if not got_ping:
-        sys.exit(1)
+        sys.exit(2)
 
     if got_pfsync > got_ping:
-        sys.exit(1)
+        sys.exit(3)
 
     # Deferred packets are delayed up to 20ms (unless the pfsync peer, which we
     # don't have here, acks their state update earlier)
     if (sent_ping + 0.020) > got_ping:
-        sys.exit(1)
+        sys.exit(4)
 
 if __name__ == '__main__':
     main()
