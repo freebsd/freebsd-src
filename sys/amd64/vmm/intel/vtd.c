@@ -446,6 +446,8 @@ vtd_add_device(void *arg, uint16_t rid)
 	struct vtdmap *vtdmap;
 	uint8_t bus;
 
+	KASSERT(dom != NULL, ("domain is NULL"));
+
 	bus = PCI_RID2BUS(rid);
 	ctxp = ctx_tables[bus];
 	pt_paddr = vtophys(dom->ptp);

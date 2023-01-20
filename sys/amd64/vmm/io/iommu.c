@@ -258,6 +258,7 @@ iommu_cleanup(void)
 	}
 	IOMMU_DISABLE();
 	IOMMU_DESTROY_DOMAIN(host_domain);
+	host_domain = NULL;
 	IOMMU_CLEANUP();
 }
 

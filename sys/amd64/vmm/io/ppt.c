@@ -182,7 +182,9 @@ ppt_detach(device_t dev)
 	num_pptdevs--;
 	TAILQ_REMOVE(&pptdev_list, ppt, next);
 	pci_disable_busmaster(dev);
-	iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
+
+	if (iommu_host_domain() != NULL)
+		iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
 
 	return (0);
 }
