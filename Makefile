@@ -224,7 +224,7 @@ META_TGT_WHITELIST+= \
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 .endif
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} MK_AUTO_OBJ=no \
+_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH:Q} ${MAKE} MK_AUTO_OBJ=no \
     ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
     SRCCONF=${SRCCONF} SRC_ENV_CONF= \
     -f /dev/null -V MAKEOBJDIRPREFIX dummy
@@ -267,7 +267,7 @@ SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
 
-_MAKE=	PATH=${PATH} MAKE_CMD="${MAKE}" ${SUB_MAKE} -f Makefile.inc1 \
+_MAKE=	PATH=${PATH:Q} MAKE_CMD="${MAKE}" ${SUB_MAKE} -f Makefile.inc1 \
 	TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH} ${_MAKEARGS}
 
 .if defined(MK_META_MODE) && ${MK_META_MODE} == "yes"
@@ -595,7 +595,7 @@ universe-toolchain: .PHONY universe_prologue
 	@echo "> Toolchain bootstrap started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}; \
-	    env PATH=${PATH} ${SUB_MAKE} ${JFLAG} kernel-toolchain \
+	    env PATH=${PATH:Q} ${SUB_MAKE} ${JFLAG} kernel-toolchain \
 	    TARGET=${MACHINE} TARGET_ARCH=${MACHINE_ARCH} \
 	    OBJTOP="${HOST_OBJTOP}" \
 	    WITHOUT_SYSTEM_COMPILER=yes \
