@@ -2528,21 +2528,49 @@ COMMON ITEMS:
 
 	ZFS notes
 	---------
-	When upgrading the boot ZFS pool to a new version, always follow
-	these two steps:
+	When upgrading the boot ZFS pool to a new version (via zpool upgrade),
+	always follow these three steps:
 
-	1.) recompile and reinstall the ZFS boot loader and boot block
+	1) recompile and reinstall the ZFS boot loader and boot block
 	(this is part of "make buildworld" and "make installworld")
 
-	2.) update the ZFS boot block on your boot drive
+	2) update the ZFS boot block on your boot drive (only required when
+	doing a zpool upgrade):
 
-	The following example updates the ZFS boot block on the
-	freebsd-boot partition of a GPT partitioned drive ada0:
-	"gpart bootcode -p /boot/gptzfsboot -i $N ada0"
-	The value $N will typically be 1 (if booting from BIOS) or 2 (if
-	booting from EFI).
+	When booting on x86 via BIOS, use the following to update the ZFS boot
+	block on the freebsd-boot partition of a GPT partitioned drive ada0:
+		gpart bootcode -p /boot/gptzfsboot -i $N ada0
+	The value $N will typically be 1.  For EFI booting, see EFI notes.
+
+	3) zpool upgrade the root pool. New bootblocks will work with old
+	pools, but not vice versa, so they need to be updated before any
+	zpool upgrade.
 
 	Non-boot pools do not need these updates.
+
+	EFI notes
+	---------
+
+	There are two locations the boot loader can be installed into. The
+	current location (and the default) is \efi\freebsd\loader.efi and using
+	efibootmgr(8) to configure it. The old location, that must be used on
+	deficient systems that don't honor efibootmgr(8) protocols, is the
+	fallback location of \EFI\BOOT\BOOTxxx.EFI. Generally, you will copy
+	/boot/loader.efi to this location, but on systems installed a long time
+	ago the ESP may be too small and /boot/boot1.efi may be needed unless
+	the ESP has been expanded in the meantime.
+
+	Recent systems will have the ESP mounted on /boot/efi, but older ones
+	may not have it mounted at all, or mounted in a different
+	location. Older arm SD images with MBR used /boot/msdos as the
+	mountpoint. The ESP is a MSDOS filesystem.
+
+	The EFI boot loader rarely needs to be updated. For ZFS booting,
+	however, you must update loader.efi before you do 'zpool upgrade' the
+	root zpool, otherwise the old loader.efi may reject the upgraded zpool
+	since it does not automatically understand some new features.
+
+	See loader.efi(8) and uefi(8) for more details.
 
 	To build a kernel
 	-----------------
