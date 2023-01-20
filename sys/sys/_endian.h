@@ -32,7 +32,7 @@
 #ifndef _SYS__ENDIAN_H_
 #define	_SYS__ENDIAN_H_
 
-#if !defined(_MACHINE_ENDIAN_H_) && !defined(_ENDIAN_H_)
+#if !defined(_MACHINE_ENDIAN_H_) && !defined(_BYTESWAP_H_) && !defined(_ENDIAN_H_)
 #error "sys/_endian.h should not be included directly"
 #endif
 
