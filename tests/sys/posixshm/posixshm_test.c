@@ -992,9 +992,8 @@ ATF_TC_BODY(fallocate, tc)
 ATF_TC_WITHOUT_HEAD(accounting);
 ATF_TC_BODY(accounting, tc)
 {
-	struct spacectl_range range;
 	struct stat st;
-	off_t shm_sz, len;
+	off_t shm_sz;
 	size_t page_size;
 	int fd, error;
 
