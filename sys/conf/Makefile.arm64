@@ -93,8 +93,8 @@ CLEAN+=	${KERNEL_KO}.bin
 # and the temp file together to make the kernel.bin file.
 ${KERNEL_KO}.bin: ${FULLKERNEL}
 	@${OBJCOPY} --wildcard --strip-symbol='$$[adtx]*' \
-	    --output-target=binary ${.ALLSRC} ${.TARGET}.temp
-	@{ ${NM} ${.ALLSRC} | \
+	    --output-target=binary ${FULLKERNEL} ${.TARGET}.temp
+	@{ ${NM} ${FULLKERNEL} | \
 	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v8booti && \
 	    cat ${.TARGET}.temp; \
 	 } > ${.TARGET}
