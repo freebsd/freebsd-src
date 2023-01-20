@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <time.h>
 
 #include "pci_hda.h"
@@ -51,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #define HDA_CODEC_MAX		0x0f
 #define HDA_LAST_OFFSET						\
 	(0x2084 + ((HDA_ISS_NO) * 0x20) + ((HDA_OSS_NO) * 0x20))
-#define HDA_SET_REG_TABLE_SZ					\
-	(0x80 + ((HDA_ISS_NO) * 0x20) + ((HDA_OSS_NO) * 0x20))
 #define HDA_CORB_ENTRY_LEN	0x04
 #define HDA_RIRB_ENTRY_LEN	0x08
 #define HDA_BDL_ENTRY_LEN	0x10
@@ -246,8 +245,6 @@ static const hda_set_reg_handler hda_set_reg_table[] = {
 	HDAC_OSTREAM(1, HDA_ISS_NO, HDA_OSS_NO)
 	HDAC_OSTREAM(2, HDA_ISS_NO, HDA_OSS_NO)
 	HDAC_OSTREAM(3, HDA_ISS_NO, HDA_OSS_NO)
-
-	[HDA_SET_REG_TABLE_SZ] = NULL,
 };
 
 static const uint16_t hda_corb_sizes[] = {
@@ -714,7 +711,10 @@ hda_write(struct hda_softc *sc, uint32_t offset, uint8_t size, uint32_t value)
 	uint32_t old = hda_get_reg_by_offset(sc, offset);
 	uint32_t masks[] = {0x00000000, 0x000000ff, 0x0000ffff,
 			0x00ffffff, 0xffffffff};
-	hda_set_reg_handler set_reg_handler = hda_set_reg_table[offset];
+	hda_set_reg_handler set_reg_handler = NULL;
+
+	if (offset < nitems(hda_set_reg_table))
+		set_reg_handler = hda_set_reg_table[offset];
 
 	hda_set_field_by_offset(sc, offset, masks[size], value);
 
