@@ -1781,13 +1781,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, cloexec);
 	ATF_TP_ADD_TC(tp, mode);
 	ATF_TP_ADD_TC(tp, fallocate);
-<<<<<<< HEAD
-||||||| parent of 91ddfd352f59 (posixshm_test: add naive page accounting test)
-	ATF_TP_ADD_TC(tp, fspacectl);
-=======
-	ATF_TP_ADD_TC(tp, fspacectl);
 	ATF_TP_ADD_TC(tp, accounting);
->>>>>>> 91ddfd352f59 (posixshm_test: add naive page accounting test)
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
 	ATF_TP_ADD_TC(tp, largepage_mmap);
