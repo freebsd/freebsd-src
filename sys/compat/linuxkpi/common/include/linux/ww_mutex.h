@@ -61,6 +61,8 @@ struct ww_mutex {
 	}								\
 	SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND, name##_init, NULL)
 
+#define	DEFINE_WD_CLASS(name)	DEFINE_WW_CLASS(name)
+
 #define	ww_mutex_is_locked(_m) \
 	sx_xlocked(&(_m)->base.sx)
 
