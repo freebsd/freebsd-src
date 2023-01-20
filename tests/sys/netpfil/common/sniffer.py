@@ -31,18 +31,15 @@ import scapy.all as sp
 import sys
 
 class Sniffer(threading.Thread):
-	def __init__(self, args, check_function, recvif=None, timeout=3):
+	def __init__(self, args, check_function, recvif, timeout=3):
 		threading.Thread.__init__(self)
 
 		self._sem = threading.Semaphore(0)
 		self._args = args
 		self._timeout = timeout
-		if recvif is not None:
-			self._recvif = recvif
-		else:
-			self._recvif = args.recvif[0]
+		self._recvif = recvif
 		self._check_function = check_function
-		self.foundCorrectPacket = False
+		self.correctPackets = 0
 
 		self.start()
 		if not self._sem.acquire(timeout=30):
@@ -51,7 +48,7 @@ class Sniffer(threading.Thread):
 	def _checkPacket(self, packet):
 		ret = self._check_function(self._args, packet)
 		if ret:
-			self.foundCorrectPacket = True
+			self.correctPackets += 1
 		return ret
 
 	def _startedCb(self):
@@ -59,9 +56,6 @@ class Sniffer(threading.Thread):
 
 	def run(self):
 		self.packets = []
-		try:
-			self.packets = sp.sniff(iface=self._recvif,
-					stop_filter=self._checkPacket, timeout=self._timeout,
-					started_callback=self._startedCb)
-		except Exception as e:
-			print(e, file=sys.stderr)
+		self.packets = sp.sniff(iface=self._recvif,
+			stop_filter=self._checkPacket, timeout=self._timeout,
+			started_callback=self._startedCb)

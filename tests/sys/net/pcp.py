@@ -61,11 +61,11 @@ def main():
 
 	args = parser.parse_args()
 
-	sniffer = Sniffer(args, check_pcp, recvif=args.recvif[0], timeout=20)
+	sniffer = Sniffer(args, check_pcp, args.recvif[0], timeout=20)
 
 	sniffer.join()
 
-	if sniffer.foundCorrectPacket:
+	if sniffer.correctPackets:
 		sys.exit(0)
 
 	sys.exit(1)

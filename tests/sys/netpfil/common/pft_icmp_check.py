@@ -96,14 +96,14 @@ def main():
 	args = parser.parse_args()
 	sniffer = None
 	if not args.recvif is None:
-		sniffer = Sniffer(args, check_icmp_too_big)
+		sniffer = Sniffer(args, check_icmp_too_big, args.recvif[0])
 
 	ping(args.sendif[0], args.to[0], args)
 
 	if sniffer:
 		sniffer.join()
 
-		if sniffer.foundCorrectPacket:
+		if sniffer.correctPackets:
 			sys.exit(0)
 		else:
 			sys.exit(1)

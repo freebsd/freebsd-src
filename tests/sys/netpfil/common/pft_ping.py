@@ -317,16 +317,16 @@ def main():
 		if args.tcpsyn:
 			checkfn=check_tcpsyn
 
-		sniffer = Sniffer(args, checkfn)
+		sniffer = Sniffer(args, checkfn, args.recvif[0])
 
 	replysniffer = None
 	if not args.replyif is None:
 		checkfn=check_ping_reply
-		replysniffer = Sniffer(args, checkfn, recvif=args.replyif[0])
+		replysniffer = Sniffer(args, checkfn, args.replyif[0])
 
 	dupsniffer = None
 	if args.checkdup is not None:
-		dupsniffer = Sniffer(args, check_dup, recvif=args.checkdup[0])
+		dupsniffer = Sniffer(args, check_dup, args.checkdup[0])
 
 	if args.tcpsyn:
 		tcpsyn(args.sendif[0], args.to[0], args)
@@ -344,7 +344,7 @@ def main():
 	if sniffer:
 		sniffer.join()
 
-		if sniffer.foundCorrectPacket:
+		if sniffer.correctPackets:
 			sys.exit(0)
 		else:
 			sys.exit(1)
@@ -352,7 +352,7 @@ def main():
 	if replysniffer:
 		replysniffer.join()
 
-		if replysniffer.foundCorrectPacket:
+		if replysniffer.correctPackets:
 			sys.exit(0)
 		else:
 			sys.exit(1)
