@@ -170,6 +170,8 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	PCI_MSI_ADDRESS_HI	PCIR_MSI_ADDR_HIGH
 #define	PCI_MSI_FLAGS		PCIR_MSI_CTRL
 #define	PCI_MSI_FLAGS_ENABLE	PCIM_MSICTRL_MSI_ENABLE
+#define	PCI_MSIX_FLAGS		PCIR_MSIX_CTRL
+#define	PCI_MSIX_FLAGS_ENABLE	PCIM_MSIXCTRL_MSIX_ENABLE
 
 #define PCI_EXP_LNKCAP_CLKPM	0x00040000
 #define PCI_EXP_DEVSTA_TRPND	0x0020
@@ -323,6 +325,7 @@ struct pci_dev {
 	uint32_t		class;
 	uint8_t			revision;
 	uint8_t			msi_cap;
+	uint8_t			msix_cap;
 	bool			managed;	/* devres "pcim_*(). */
 	bool			want_iomap_res;
 	bool			msi_enabled;
