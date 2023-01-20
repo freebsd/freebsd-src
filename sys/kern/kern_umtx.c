@@ -1269,7 +1269,7 @@ do_wait(struct thread *td, void *addr, u_long id,
 
 	uq = td->td_umtxq;
 	if ((error = umtx_key_get(addr, TYPE_SIMPLE_WAIT,
-		is_private ? THREAD_SHARE : AUTO_SHARE, &uq->uq_key)) != 0)
+	    is_private ? THREAD_SHARE : AUTO_SHARE, &uq->uq_key)) != 0)
 		return (error);
 
 	if (timeout != NULL)
