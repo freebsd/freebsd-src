@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -7128,8 +7129,12 @@ vn_getsize_locked(struct vnode *vp, off_t *size, struct ucred *cred)
 
 	ASSERT_VOP_LOCKED(vp, __func__);
 	error = VOP_GETATTR(vp, &vattr, cred);
-	if (__predict_true(error == 0))
-		*size = vattr.va_size;
+	if (__predict_true(error == 0)) {
+		if (vattr.va_size <= OFF_MAX)
+			*size = vattr.va_size;
+		else
+			error = EFBIG;
+	}
 	return (error);
 }
 
