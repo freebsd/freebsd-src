@@ -33,6 +33,7 @@
 
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/vmalloc.h>
 
 static inline void
 release_pages(struct page **pages, int nr)
