@@ -314,6 +314,24 @@ sysfs_emit(char *buf, const char *fmt, ...)
 	return (i);
 }
 
+static inline int
+sysfs_emit_at(char *buf, int at, const char *fmt, ...)
+{
+	va_list args;
+	int i;
+
+	if (!buf || offset_in_page(buf) || at < 0 || at >= PAGE_SIZE) {
+		pr_warn("invalid sysfs_emit: buf:%p at:%d\n", buf, at);
+		return (0);
+	}
+
+	va_start(args, fmt);
+	i = vscnprintf(buf + at, PAGE_SIZE - at, fmt, args);
+	va_end(args);
+
+	return (i);
+}
+
 #define sysfs_attr_init(attr) do {} while(0)
 
 #endif	/* _LINUXKPI_LINUX_SYSFS_H_ */
