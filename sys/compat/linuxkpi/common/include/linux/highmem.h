@@ -50,6 +50,7 @@
 static inline vm_page_t
 kmap_to_page(void *addr)
 {
+
 	return (virt_to_page(addr));
 }
 
@@ -88,7 +89,15 @@ kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 static inline void *
 kmap_atomic(vm_page_t page)
 {
+
 	return (kmap_atomic_prot(page, VM_PROT_ALL));
+}
+
+static inline void *
+kmap_local_page_prot(vm_page_t page, pgprot_t prot)
+{
+
+	return (kmap_atomic_prot(page, prot));
 }
 
 static inline void
@@ -111,8 +120,16 @@ kunmap(vm_page_t page)
 static inline void
 kunmap_atomic(void *vaddr)
 {
+
 	if (!PMAP_HAS_DMAP)
 		kunmap(virt_to_page(vaddr));
+}
+
+static inline void
+kunmap_local(void *addr)
+{
+
+	kunmap_atomic(addr);
 }
 
 #endif	/* _LINUXKPI_LINUX_HIGHMEM_H_ */
