@@ -918,7 +918,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 
 	if (bp->bio_cmd == BIO_FLUSH) {
 		do {
-			(void) vn_start_write(vp, &mp, V_WAIT);
+			(void)vn_start_write(vp, &mp, V_WAIT);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			error = VOP_FSYNC(vp, MNT_WAIT, td);
 			VOP_UNLOCK(vp);
