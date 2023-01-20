@@ -475,11 +475,13 @@ hda_send_command(struct hda_softc *sc, uint32_t verb)
 	struct hda_codec_class *codec = NULL;
 	uint8_t cad = (verb >> HDA_CMD_CAD_SHIFT) & 0x0f;
 
-	hci = sc->codecs[cad];
-	if (!hci)
+	if (cad >= sc->codecs_no)
 		return (-1);
 
 	DPRINTF("cad: 0x%x verb: 0x%x", cad, verb);
+
+	hci = sc->codecs[cad];
+	assert(hci);
 
 	codec = hci->codec;
 	assert(codec);
