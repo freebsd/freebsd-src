@@ -317,4 +317,6 @@ void lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
 
 void vma_set_file(struct vm_area_struct *vma, struct linux_file *file);
 
+#define	is_cow_mapping(flags)	(false)
+
 #endif					/* _LINUXKPI_LINUX_MM_H_ */
