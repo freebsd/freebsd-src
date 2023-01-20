@@ -87,8 +87,6 @@
 
 /* a couple of linux size defines */
 #define SZ_128     128
-#define SZ_2K     SZ_128 * 16
-#define SZ_1G   (SZ_1K * SZ_1K * SZ_1K)
 #define SPEED_1000     1000
 #define SPEED_10000   10000
 #define SPEED_20000   20000
