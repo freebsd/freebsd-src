@@ -219,7 +219,7 @@ hms_probe(device_t dev)
 
 	/* There should be at least one X or Y axis */
 	if (!hidmap_test_cap(sc->caps, HMS_REL_X) &&
-	    !hidmap_test_cap(sc->caps, HMS_REL_X) &&
+	    !hidmap_test_cap(sc->caps, HMS_REL_Y) &&
 	    !hidmap_test_cap(sc->caps, HMS_ABS_X) &&
 	    !hidmap_test_cap(sc->caps, HMS_ABS_Y))
 		return (ENXIO);
