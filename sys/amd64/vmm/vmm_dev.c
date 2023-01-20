@@ -479,6 +479,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_ALLOC_MEMSEG_FBSD12:
 #endif
 	case VM_ALLOC_MEMSEG:
+	case VM_BIND_PPTDEV:
+	case VM_UNBIND_PPTDEV:
 	case VM_MMAP_MEMSEG:
 	case VM_MUNMAP_MEMSEG:
 	case VM_REINIT:
@@ -491,8 +493,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		/* FALLTHROUGH */
 	case VM_MAP_PPTDEV_MMIO:
 	case VM_UNMAP_PPTDEV_MMIO:
-	case VM_BIND_PPTDEV:
-	case VM_UNBIND_PPTDEV:
 #ifdef BHYVE_SNAPSHOT
 	case VM_SNAPSHOT_REQ:
 	case VM_RESTORE_TIME:
