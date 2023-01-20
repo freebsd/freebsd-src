@@ -40,6 +40,7 @@
 #include <dev/acpica/acpivar.h>
 
 #include <linux/notifier.h>
+#include <linux/suspend.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
@@ -57,6 +58,8 @@ _Static_assert(LINUX_ACPI_TAGS <= LINUX_NOTIFY_TAGS,
     "Not enough space for tags in notifier_block structure");
 
 #ifdef DEV_ACPI
+
+suspend_state_t pm_suspend_target_state = PM_SUSPEND_ON;
 
 static uint32_t linux_acpi_target_sleep_state = ACPI_STATE_S0;
 
