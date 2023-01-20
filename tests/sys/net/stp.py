@@ -100,14 +100,14 @@ def main():
 
 	args = parser.parse_args()
 
-	sniffer = Sniffer(args, check_stp)
+	sniffer = Sniffer(args, check_stp, args.recvif[0])
 
 	invalid_stp(args.sendif[0])
 
 	sniffer.join()
 
 	# The 'correct' packet is a corrupt STP packet, so it shouldn't turn up.
-	if sniffer.foundCorrectPacket:
+	if sniffer.correctPackets:
 		sys.exit(1)
 
 if __name__ == '__main__':
