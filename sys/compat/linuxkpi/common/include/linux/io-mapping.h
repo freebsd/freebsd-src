@@ -94,6 +94,18 @@ io_mapping_unmap_atomic(void *vaddr)
 }
 
 static inline void *
+io_mapping_map_local_wc(struct io_mapping *mapping, unsigned long offset)
+{
+
+	return (io_mapping_map_atomic_wc(mapping, offset));
+}
+
+static inline void
+io_mapping_unmap_local(void *vaddr __unused)
+{
+}
+
+static inline void *
 io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset,
     unsigned long size)
 {
