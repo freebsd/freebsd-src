@@ -64,15 +64,15 @@ unaligned_body()
 		--sendif ${epair_in}a \
 		--to 198.51.100.2 \
 		--recvif ${epair_out}b \
-		--tcpsyn
+		--ping-type tcpsyn
 
 	# And unaligned
 	atf_check -s exit:0 ${common_dir}/pft_ping.py \
 		--sendif ${epair_in}a \
 		--to 198.51.100.2 \
 		--recvif ${epair_out}b \
-		--tcpsyn \
-		--tcpopt_unaligned
+		--ping-type tcpsyn \
+		--send-tcpopt-unaligned
 }
 
 unaligned_cleanup()

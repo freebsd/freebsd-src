@@ -118,7 +118,6 @@ v6_body()
 
 	# Sanity check, can we forward ICMP echo requests without pf?
 	atf_check -s exit:0 ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
 		--recvif ${epair_recv}a
@@ -129,7 +128,6 @@ v6_body()
 	pft_set_rules alcatraz \
 		"block in inet6 proto icmp6 icmp6-type echoreq"
 	atf_check -s exit:1 ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
 		--recvif ${epair_recv}a
@@ -138,7 +136,6 @@ v6_body()
 	pft_set_rules alcatraz \
 		"block out inet6 proto icmp6 icmp6-type echoreq"
 	atf_check -s exit:1 -e ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
 		--recvif ${epair_recv}a
@@ -148,7 +145,6 @@ v6_body()
 		"block out" \
 		"pass out inet6 proto icmp6"
 	atf_check -s exit:0 ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
 		--recvif ${epair_recv}a
@@ -158,7 +154,6 @@ v6_body()
 		"block out inet6 proto icmp6 icmp6-type echoreq" \
 		"pass in proto icmp"
 	atf_check -s exit:1 ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair_send}a \
 		--to 2001:db8:43::3 \
 		--recvif ${epair_recv}a

@@ -127,7 +127,6 @@ v6_body()
 	# Note: use pft_ping so we always use the same ID, so pf considers all
 	# echo requests part of the same flow.
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair}a \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
@@ -137,7 +136,6 @@ v6_body()
 
 	# Established state means we can still ping alcatraz
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair}a \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
@@ -145,7 +143,6 @@ v6_body()
 	# Killing with the wrong IP doesn't affect our state
 	jexec alcatraz pfctl -k 2001:db8::3
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair}a \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
@@ -153,7 +150,6 @@ v6_body()
 	# Killing with one correct address and one incorrect doesn't kill the state
 	jexec alcatraz pfctl -k 2001:db8::1 -k 2001:db8::3
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair}a \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
@@ -161,7 +157,6 @@ v6_body()
 	# Killing with correct address does remove the state
 	jexec alcatraz pfctl -k 2001:db8::1
 	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair}a \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
