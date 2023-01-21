@@ -773,6 +773,31 @@ struct asmc_softc {
 	                          "Ta0P", "Heatpipe", "Mainboard Proximity 1", "Mainboard Proximity 2", \
 	                          "Palm Rest", "Memory Proximity" }
 
+/*
+ * TODO: validate the temp zones for MBA 6.x !
+ */
+#define	ASMC_MBA6_TEMPS		{ "TB0T", "TB1T", "TB2T", \
+	                          "TC0E", "TC0F", "TC0P", \
+	                          "TC1C", "TC2C", "TCGC", "TCSA", \
+	                          "TCXC", "THSP", "TM0P", "TPCD", \
+	                          "Ta0P", "Th1H", "Tm0P", \
+	                          "Ts0P", "Ts0S", NULL }
+
+#define	ASMC_MBA6_TEMPNAMES	{ "enclosure1", "enclosure2", "enclosure3", \
+	                          "cputemp1", "cputemp2", "cpuproximity", \
+	                          "cpucore1", "cpucore2", "cpupeci", "pecisa", \
+	                          "TCXC", "THSP", "memorybank", "pchdie", \
+	                          "Ta0P", "heatpipe", "mainboardproximity1", \
+	                          "palmrest", "memoryproximity" }
+
+#define	ASMC_MBA6_TEMPDESCS	{ "Enclosure Bottom 1", "Enclosure Bottom 2", "Enclosure Bottom 3", \
+	                          "CPU Temp 1", "CPU Temp 2", "CPU Proximity", \
+	                          "CPU Core 1", "CPU Core 2", "CPU Peci Core", "PECI SA", \
+	                          "TCXC", "THSP", "Memory Bank A", "PCH Die", \
+	                          "Ta0P", "Heatpipe", "Mainboard Proximity 1", \
+	                          "Palm Rest", "Memory Proximity" }
+
+
 #define	ASMC_MBA7_TEMPS		{ "TB0T", "TB1T", "TB2T", \
                          	  "TC0E", "TC0F", "TC0P", \
 	                          "TC1C", "TC2C", \
