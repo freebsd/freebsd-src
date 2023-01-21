@@ -152,17 +152,27 @@ nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len, struct nlattr_bmask *bm
 {
 	struct nlattr *nla = NULL;
 
-	bzero(bm->mask, sizeof(bm->mask));
+	BIT_ZERO(NL_ATTR_BMASK_SIZE, bm);
 
 	NLA_FOREACH(nla, nla_head, len) {
 		if (nla->nla_len < sizeof(struct nlattr))
 			return;
 		int nla_type = nla->nla_type & NLA_TYPE_MASK;
-		if (nla_type <= sizeof(bm->mask) * 8)
-			bm->mask[nla_type / 8] |= 1 << (nla_type % 8);
+		if (nla_type < NL_ATTR_BMASK_SIZE)
+			BIT_SET(NL_ATTR_BMASK_SIZE, nla_type, bm);
+		else
+			NL_LOG(LOG_DEBUG2, "Skipping type %d in the mask: too short",
+			    nla_type);
 	}
 }
 
+bool
+nl_has_attr(const struct nlattr_bmask *bm, unsigned int nla_type)
+{
+	MPASS(nla_type < NL_ATTR_BMASK_SIZE);
+
+	return (BIT_ISSET(NL_ATTR_BMASK_SIZE, nla_type, bm));
+}
 
 int
 nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
