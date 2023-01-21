@@ -427,7 +427,13 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA5_TEMPS, ASMC_MBA5_TEMPNAMES, ASMC_MBA5_TEMPDESCS
 	},
-
+	{
+	  "MacBookAir6,2", "Apple SMC MacBook Air 13-inch (Early 2013)",
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2,
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_MBA6_TEMPS, ASMC_MBA6_TEMPNAMES, ASMC_MBA6_TEMPDESCS
+	},
 	{
 	  "MacBookAir7,1", "Apple SMC MacBook Air 11-inch (Early 2015)",
 	  ASMC_SMS_FUNCS_DISABLED,
@@ -435,7 +441,6 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA7_TEMPS, ASMC_MBA7_TEMPNAMES, ASMC_MBA7_TEMPDESCS
 	},
-
 	{
 	  "MacBookAir7,2", "Apple SMC MacBook Air 13-inch (Early 2015)",
 	  ASMC_SMS_FUNCS_DISABLED,
