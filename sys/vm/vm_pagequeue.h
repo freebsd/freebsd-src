@@ -74,7 +74,9 @@ struct vm_pagequeue {
 	uint64_t	pq_pdpages;
 } __aligned(CACHE_LINE_SIZE);
 
-#ifndef VM_BATCHQUEUE_SIZE
+#if __SIZEOF_LONG__ == 8
+#define	VM_BATCHQUEUE_SIZE	63
+#else
 #define	VM_BATCHQUEUE_SIZE	15
 #endif
 
