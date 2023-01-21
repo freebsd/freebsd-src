@@ -130,7 +130,6 @@ v6_body()
 
 	# Sanity check & establish state
 	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
-		--ip6 \
 		--sendif ${epair}a \
 		--to 2001:db8::2 \
 		--replyif ${epair}a
