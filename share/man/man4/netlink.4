@@ -34,7 +34,7 @@
 .In netlink/netlink.h
 .In netlink/netlink_route.h
 .Ft int
-.Fn socket AF_NETLINK SOCK_DGRAM int family
+.Fn socket AF_NETLINK SOCK_RAW "int family"
 .Sh DESCRIPTION
 Netlink is a user-kernel message-based communication protocol primarily used
 for network stack configuration.
@@ -293,7 +293,7 @@ This is the default level, not impacting production performance.
 Socket events such as groups memberships, privilege checks, commands and dumps
 are logged.
 This level does not incur significant performance overhead.
-.It Dv LOG_DEBUG9(9)
+.It Dv LOG_DEBUG3(9)
 All socket events, each dumped or modified entities are logged.
 Turning it on may result in significant performance overhead.
 .El
