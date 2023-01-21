@@ -698,31 +698,39 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 	return (result ? 0 : ENOBUFS);
 }
 
-static struct protosw netlinksw = {
-	.pr_type = SOCK_RAW,
-	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,
-	.pr_ctloutput = nl_ctloutput,
-	.pr_setsbopt = nl_setsbopt,
-	.pr_abort = nl_pru_abort,
-	.pr_attach = nl_pru_attach,
-	.pr_bind = nl_pru_bind,
-	.pr_connect = nl_pru_connect,
-	.pr_detach = nl_pru_detach,
-	.pr_disconnect = nl_pru_disconnect,
-	.pr_peeraddr = nl_pru_peeraddr,
-	.pr_send = nl_pru_send,
-	.pr_rcvd = nl_pru_rcvd,
-	.pr_shutdown = nl_pru_shutdown,
-	.pr_sockaddr = nl_pru_sockaddr,
+#define	NETLINK_PROTOSW						\
+	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,		\
+	.pr_ctloutput = nl_ctloutput,				\
+	.pr_setsbopt = nl_setsbopt,				\
+	.pr_abort = nl_pru_abort,				\
+	.pr_attach = nl_pru_attach,				\
+	.pr_bind = nl_pru_bind,					\
+	.pr_connect = nl_pru_connect,				\
+	.pr_detach = nl_pru_detach,				\
+	.pr_disconnect = nl_pru_disconnect,			\
+	.pr_peeraddr = nl_pru_peeraddr,				\
+	.pr_send = nl_pru_send,					\
+	.pr_rcvd = nl_pru_rcvd,					\
+	.pr_shutdown = nl_pru_shutdown,				\
+	.pr_sockaddr = nl_pru_sockaddr,				\
 	.pr_close = nl_pru_close
+
+static struct protosw netlink_raw_sw = {
+	.pr_type = SOCK_RAW,
+	NETLINK_PROTOSW
+};
+
+static struct protosw netlink_dgram_sw = {
+	.pr_type = SOCK_DGRAM,
+	NETLINK_PROTOSW
 };
 
 static struct domain netlinkdomain = {
 	.dom_family = PF_NETLINK,
 	.dom_name = "netlink",
 	.dom_flags = DOMF_UNLOADABLE,
-	.dom_nprotosw =		1,
-	.dom_protosw =		{ &netlinksw },
+	.dom_nprotosw =		2,
+	.dom_protosw =		{ &netlink_raw_sw, &netlink_dgram_sw },
 };
 
 DOMAIN_SET(netlink);

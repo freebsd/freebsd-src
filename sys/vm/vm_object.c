@@ -1212,7 +1212,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	    vm_object_mightbedirty(object) != 0 &&
 	    ((vp = object->handle)->v_vflag & VV_NOSYNC) == 0) {
 		VM_OBJECT_WUNLOCK(object);
-		(void) vn_start_write(vp, &mp, V_WAIT);
+		(void)vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (syncio && !invalidate && offset == 0 &&
 		    atop(size) == object->size) {
@@ -1233,8 +1233,23 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		res = vm_object_page_clean(object, offset, offset + size,
 		    flags);
 		VM_OBJECT_WUNLOCK(object);
-		if (fsync_after)
-			error = VOP_FSYNC(vp, MNT_WAIT, curthread);
+		if (fsync_after) {
+			for (;;) {
+				error = VOP_FSYNC(vp, MNT_WAIT, curthread);
+				if (error != ERELOOKUP)
+					break;
+
+				/*
+				 * Allow SU/bufdaemon to handle more
+				 * dependencies in the meantime.
+				 */
+				VOP_UNLOCK(vp);
+				vn_finished_write(mp);
+
+				(void)vn_start_write(vp, &mp, V_WAIT);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+			}
+		}
 		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 		if (error != 0)

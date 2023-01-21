@@ -2656,9 +2656,7 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 		if (fsize == 0 && vp->v_type == VCHR &&
 		    fo_ioctl(fp, DIOCGMEDIASIZE, &size, cred, td) == 0)
 			fsize = size;
-		if (noneg &&
-		    (fsize > OFF_MAX ||
-		    (offset > 0 && fsize > OFF_MAX - offset))) {
+		if (noneg && offset > 0 && fsize > OFF_MAX - offset) {
 			error = EOVERFLOW;
 			break;
 		}

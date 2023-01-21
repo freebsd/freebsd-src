@@ -74,9 +74,7 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_VER	1
 
 /* Defines specific for arm headers */
-#define	EF_ARM_EABI_VERSION(x) (((x) & EF_ARM_EABIMASK) >> 24)
-#define	EF_ARM_EABI_VERSION_UNKNOWN 0
-#define	EF_ARM_EABI_FREEBSD_MIN 4
+#define	EF_ARM_EABI_FREEBSD_MIN EF_ARM_EABI_VER4
 
 #define	ET_DYN_LOAD_ADDR 0x01001000
 

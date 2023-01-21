@@ -53,6 +53,7 @@ struct hrtimer {
 };
 
 #define	hrtimer_active(hrtimer)	linux_hrtimer_active(hrtimer)
+#define	hrtimer_try_to_cancel(hrtimer)	linux_hrtimer_try_to_cancel(hrtimer)
 #define	hrtimer_cancel(hrtimer)	linux_hrtimer_cancel(hrtimer)
 
 #define	hrtimer_init(hrtimer, clock, mode) do {			\
@@ -79,6 +80,7 @@ struct hrtimer {
 } while (0)
 
 bool	linux_hrtimer_active(struct hrtimer *);
+int	linux_hrtimer_try_to_cancel(struct hrtimer *);
 int	linux_hrtimer_cancel(struct hrtimer *);
 void	linux_hrtimer_init(struct hrtimer *);
 void	linux_hrtimer_set_expires(struct hrtimer *, ktime_t);

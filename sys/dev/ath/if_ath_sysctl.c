@@ -1237,7 +1237,7 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_2040", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_2040, 0, "number of HT/40 frames received");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_pre_crc_err", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_pre_crc_err, 0, "number of delimeter-CRC errors detected");
+	    &sc->sc_stats.ast_rx_pre_crc_err, 0, "number of delimiter-CRC errors detected");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_post_crc_err", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_post_crc_err, 0, "number of post-delimiter CRC errors detected");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_decrypt_busy_err", CTLFLAG_RD,

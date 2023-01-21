@@ -5659,7 +5659,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 * (or now) pacing time set. We want to
 		 * slow down the processing of sacks by some
 		 * amount (if it is an attacker). Set the default
-		 * slot for attackers in place (unless the orginal
+		 * slot for attackers in place (unless the original
 		 * interval is longer). Its stored in
 		 * micro-seconds, so lets convert to msecs.
 		 */
@@ -7974,7 +7974,7 @@ rack_log_sack_passed(struct tcpcb *tp,
 	TAILQ_FOREACH_REVERSE_FROM(nrsm, &rack->r_ctl.rc_tmap,
 	    rack_head, r_tnext) {
 		if (nrsm == rsm) {
-			/* Skip orginal segment he is acked */
+			/* Skip original segment he is acked */
 			continue;
 		}
 		if (nrsm->r_flags & RACK_ACKED) {

@@ -29,6 +29,9 @@
 #define _NETLINK_NETLINK_MESSAGE_PARSER_H_
 
 #ifdef _KERNEL
+
+#include <sys/bitset.h>
+
 /*
  * It is not meant to be included directly
  */
@@ -152,18 +155,11 @@ static const struct nlhdr_parser _name = {		\
 	.np_size = NL_ARRAY_LEN(_np),			\
 }
 
-struct nlattr_bmask {
-	uint64_t			mask[2];
-};
+#define	NL_ATTR_BMASK_SIZE	128
+BITSET_DEFINE(nlattr_bmask, NL_ATTR_BMASK_SIZE);
 
-static inline bool
-nl_has_attr(const struct nlattr_bmask *bm, unsigned int attr_type)
-{
-	MPASS(attr_type < sizeof(bm->mask) * 8);
-
-	return ((bm->mask[attr_type / 8] & (1 << (attr_type % 8))));
-}
 void nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len, struct nlattr_bmask *bm);
+bool nl_has_attr(const struct nlattr_bmask *bm, unsigned int nla_type);
 
 int nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser *ps,
     int pslen, struct nl_pstate *npt, void *target);

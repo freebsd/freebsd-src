@@ -73,14 +73,14 @@ function add_debug_code(name, arg, pos, ind)
 	else
 		star = "";
 	if (lockdata[name, arg, pos] && (lockdata[name, arg, pos] != "-")) {
-		printc(ind"ASSERT_VI_UNLOCKED("star"a->a_"arg", \""uname"\");");
+		printc(ind"ASSERT_VI_UNLOCKED("star"a->a_"arg", \""uname" "pos" ("arg")\");");
 		# Add assertions for locking
 		if (lockdata[name, arg, pos] == "L")
-			printc(ind"ASSERT_VOP_LOCKED(" star "a->a_"arg", \""uname"\");");
+			printc(ind"ASSERT_VOP_LOCKED(" star "a->a_"arg", \""uname" "pos" ("arg")\");");
 		else if (lockdata[name, arg, pos] == "U")
-			printc(ind"ASSERT_VOP_UNLOCKED(" star "a->a_"arg", \""uname"\");");
+			printc(ind"ASSERT_VOP_UNLOCKED(" star "a->a_"arg", \""uname" "pos" ("arg")\");");
 		else if (lockdata[name, arg, pos] == "E")
-			printc(ind"ASSERT_VOP_ELOCKED(" star "a->a_"arg", \""uname"\");");
+			printc(ind"ASSERT_VOP_ELOCKED(" star "a->a_"arg", \""uname" "pos" ("arg")\");");
 		else if (0) {
 			# XXX More checks!
 		}

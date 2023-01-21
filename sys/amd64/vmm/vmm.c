@@ -651,6 +651,9 @@ vm_cleanup(struct vm *vm, bool destroy)
 	struct mem_map *mm;
 	int i;
 
+	if (destroy)
+		vm_xlock_memsegs(vm);
+
 	ppt_unassign_all(vm);
 
 	if (vm->iommu != NULL)
@@ -690,6 +693,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (destroy) {
 		for (i = 0; i < VM_MAX_MEMSEGS; i++)
 			vm_free_memseg(vm, i);
+		vm_unlock_memsegs(vm);
 
 		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;

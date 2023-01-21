@@ -990,7 +990,7 @@ vm_restore_user_devs(struct vmctx *ctx, struct restore_state *rstate)
 }
 
 int
-vm_pause_user_devs(struct vmctx *ctx)
+vm_pause_user_devs(void)
 {
 	const struct vm_snapshot_dev_info *info;
 	size_t i;
@@ -1001,7 +1001,7 @@ vm_pause_user_devs(struct vmctx *ctx)
 		if (info->pause_cb == NULL)
 			continue;
 
-		ret = info->pause_cb(ctx, info->dev_name);
+		ret = info->pause_cb(info->dev_name);
 		if (ret != 0)
 			return (ret);
 	}
@@ -1010,7 +1010,7 @@ vm_pause_user_devs(struct vmctx *ctx)
 }
 
 int
-vm_resume_user_devs(struct vmctx *ctx)
+vm_resume_user_devs(void)
 {
 	const struct vm_snapshot_dev_info *info;
 	size_t i;
@@ -1021,7 +1021,7 @@ vm_resume_user_devs(struct vmctx *ctx)
 		if (info->resume_cb == NULL)
 			continue;
 
-		ret = info->resume_cb(ctx, info->dev_name);
+		ret = info->resume_cb(info->dev_name);
 		if (ret != 0)
 			return (ret);
 	}
@@ -1367,7 +1367,7 @@ vm_checkpoint(struct vmctx *ctx, const char *checkpoint_file, bool stop_vm)
 
 	vm_vcpu_pause(ctx);
 
-	ret = vm_pause_user_devs(ctx);
+	ret = vm_pause_user_devs();
 	if (ret != 0) {
 		fprintf(stderr, "Could not pause devices\r\n");
 		error = ret;
@@ -1411,7 +1411,7 @@ vm_checkpoint(struct vmctx *ctx, const char *checkpoint_file, bool stop_vm)
 	}
 
 done:
-	ret = vm_resume_user_devs(ctx);
+	ret = vm_resume_user_devs();
 	if (ret != 0)
 		fprintf(stderr, "Could not resume devices\r\n");
 	vm_vcpu_resume(ctx);

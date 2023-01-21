@@ -560,8 +560,7 @@ pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 #endif
 
 static int
-pci_vtnet_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
-    nvlist_t *nvl)
+pci_vtnet_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtnet_softc *sc;
 	const char *value;

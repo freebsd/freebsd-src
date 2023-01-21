@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <time.h>
 
 #include "pci_hda.h"
@@ -51,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #define HDA_CODEC_MAX		0x0f
 #define HDA_LAST_OFFSET						\
 	(0x2084 + ((HDA_ISS_NO) * 0x20) + ((HDA_OSS_NO) * 0x20))
-#define HDA_SET_REG_TABLE_SZ					\
-	(0x80 + ((HDA_ISS_NO) * 0x20) + ((HDA_OSS_NO) * 0x20))
 #define HDA_CORB_ENTRY_LEN	0x04
 #define HDA_RIRB_ENTRY_LEN	0x08
 #define HDA_BDL_ENTRY_LEN	0x10
@@ -209,11 +208,11 @@ static uint64_t hda_get_clock_ns(void);
 /*
  * PCI HDA function declarations
  */
-static int pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl);
-static void pci_hda_write(struct vmctx *ctx, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size, uint64_t value);
-static uint64_t pci_hda_read(struct vmctx *ctx, struct pci_devinst *pi,
-    int baridx, uint64_t offset, int size);
+static int pci_hda_init(struct pci_devinst *pi, nvlist_t *nvl);
+static void pci_hda_write(struct pci_devinst *pi, int baridx, uint64_t offset,
+    int size, uint64_t value);
+static uint64_t pci_hda_read(struct pci_devinst *pi, int baridx,
+    uint64_t offset, int size);
 /*
  * HDA global data
  */
@@ -246,8 +245,6 @@ static const hda_set_reg_handler hda_set_reg_table[] = {
 	HDAC_OSTREAM(1, HDA_ISS_NO, HDA_OSS_NO)
 	HDAC_OSTREAM(2, HDA_ISS_NO, HDA_OSS_NO)
 	HDAC_OSTREAM(3, HDA_ISS_NO, HDA_OSS_NO)
-
-	[HDA_SET_REG_TABLE_SZ] = NULL,
 };
 
 static const uint16_t hda_corb_sizes[] = {
@@ -478,11 +475,13 @@ hda_send_command(struct hda_softc *sc, uint32_t verb)
 	struct hda_codec_class *codec = NULL;
 	uint8_t cad = (verb >> HDA_CMD_CAD_SHIFT) & 0x0f;
 
-	hci = sc->codecs[cad];
-	if (!hci)
+	if (cad >= sc->codecs_no)
 		return (-1);
 
 	DPRINTF("cad: 0x%x verb: 0x%x", cad, verb);
+
+	hci = sc->codecs[cad];
+	assert(hci);
 
 	codec = hci->codec;
 	assert(codec);
@@ -714,7 +713,10 @@ hda_write(struct hda_softc *sc, uint32_t offset, uint8_t size, uint32_t value)
 	uint32_t old = hda_get_reg_by_offset(sc, offset);
 	uint32_t masks[] = {0x00000000, 0x000000ff, 0x0000ffff,
 			0x00ffffff, 0xffffffff};
-	hda_set_reg_handler set_reg_handler = hda_set_reg_table[offset];
+	hda_set_reg_handler set_reg_handler = NULL;
+
+	if (offset < nitems(hda_set_reg_table))
+		set_reg_handler = hda_set_reg_table[offset];
 
 	hda_set_field_by_offset(sc, offset, masks[size], value);
 
@@ -1223,11 +1225,10 @@ static uint64_t hda_get_clock_ns(void)
  * PCI HDA function definitions
  */
 static int
-pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_hda_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct hda_softc *sc = NULL;
 
-	assert(ctx != NULL);
 	assert(pi != NULL);
 
 	pci_set_cfgdata16(pi, PCIR_VENDOR, INTEL_VENDORID);
@@ -1256,8 +1257,7 @@ pci_hda_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 }
 
 static void
-pci_hda_write(struct vmctx *ctx __unused,
-    struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+pci_hda_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
     uint64_t value)
 {
 	struct hda_softc *sc = pi->pi_arg;
@@ -1274,8 +1274,7 @@ pci_hda_write(struct vmctx *ctx __unused,
 }
 
 static uint64_t
-pci_hda_read(struct vmctx *ctx __unused,
-    struct pci_devinst *pi, int baridx, uint64_t offset, int size)
+pci_hda_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct hda_softc *sc = pi->pi_arg;
 	uint64_t value = 0;

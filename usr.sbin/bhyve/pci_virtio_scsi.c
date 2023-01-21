@@ -245,7 +245,7 @@ static void pci_vtscsi_eventq_notify(void *, struct vqueue_info *);
 static void pci_vtscsi_requestq_notify(void *, struct vqueue_info *);
 static int  pci_vtscsi_init_queue(struct pci_vtscsi_softc *,
     struct pci_vtscsi_queue *, int);
-static int pci_vtscsi_init(struct vmctx *, struct pci_devinst *, nvlist_t *);
+static int pci_vtscsi_init(struct pci_devinst *, nvlist_t *);
 
 static struct virtio_consts vtscsi_vi_consts = {
 	.vc_name =	"vtscsi",
@@ -698,8 +698,7 @@ pci_vtscsi_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vtscsi_init(struct vmctx *ctx __unused, struct pci_devinst *pi,
-    nvlist_t *nvl)
+pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtscsi_softc *sc;
 	const char *devname, *value;

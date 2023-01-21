@@ -1284,29 +1284,26 @@ static void
 print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
     char *intrnames, unsigned int nintr, size_t istrnamlen, long long period_ms)
 {
-	unsigned long *intrcnt, *old_intrcnt;
-	char *intrname;
 	uint64_t inttotal, old_inttotal, total_count, total_rate;
 	unsigned long count, rate;
 	unsigned int i;
 
 	inttotal = 0;
 	old_inttotal = 0;
-	intrname = intrnames;
 	xo_open_list("interrupt");
-	for (i = 0, intrcnt=intrcnts, old_intrcnt=old_intrcnts; i < nintr; i++) {
-		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag)) {
-			count = *intrcnt - *old_intrcnt;
+	for (i = 0; i < nintr; i++) {
+		if (intrnames[0] != '\0' && (*intrcnts != 0 || aflag)) {
+			count = *intrcnts - *old_intrcnts;
 			rate = ((uint64_t)count * 1000 + period_ms / 2) / period_ms;
 			xo_open_instance("interrupt");
 			xo_emit("{d:name/%-*s}{ket:name/%s} "
 			    "{:total/%20lu} {:rate/%10lu}\n",
-			    (int)istrnamlen, intrname, intrname, count, rate);
+			    (int)istrnamlen, intrnames, intrnames, count, rate);
 			xo_close_instance("interrupt");
 		}
-		intrname += strlen(intrname) + 1;
-		inttotal += *intrcnt++;
-		old_inttotal += *old_intrcnt++;
+		intrnames += strlen(intrnames) + 1;
+		inttotal += *intrcnts++;
+		old_inttotal += *old_intrcnts++;
 	}
 	total_count = inttotal - old_inttotal;
 	total_rate = (total_count * 1000 + period_ms / 2) / period_ms;
@@ -1352,7 +1349,7 @@ dointr(unsigned int interval, int reps)
 	/* Determine the length of the longest interrupt name */
 	intrname = intrnames;
 	istrnamlen = strlen("interrupt");
-	while(*intrname != '\0') {
+	while (intrname < intrnames + inamlen) {
 		clen = strlen(intrname);
 		if (clen > istrnamlen)
 			istrnamlen = clen;

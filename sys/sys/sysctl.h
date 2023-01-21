@@ -39,8 +39,8 @@
 #define	_SYS_SYSCTL_H_
 
 #ifdef _KERNEL
+#include <sys/queue.h>
 #include <sys/tree.h>
-#include <sys/systm.h>
 #endif
 
 /*

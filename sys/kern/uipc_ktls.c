@@ -3210,7 +3210,9 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	}
 
 out:
+	CURVNET_SET(so->so_vnet);
 	sorele(so);
+	CURVNET_RESTORE();
 	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
 	ktls_free(tls);
