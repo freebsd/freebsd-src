@@ -721,13 +721,23 @@ struct pr_usrreqs nl_usrreqs = {
 
 static struct domain netlinkdomain;
 
-static struct protosw netlinksw = {
+static struct protosw netlinksw[] = {
+{
 	.pr_type = SOCK_RAW,
 	.pr_domain = &netlinkdomain,
 	.pr_protocol = 0, // IPPROTO_UDP
 	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,
 	.pr_ctloutput = nl_ctloutput,
 	.pr_usrreqs = &nl_usrreqs,
+},
+{
+	.pr_type = SOCK_DGRAM,
+	.pr_domain = &netlinkdomain,
+	.pr_protocol = 0, // IPPROTO_UDP
+	.pr_flags = PR_ATOMIC | PR_ADDR | PR_WANTRCVD,
+	.pr_ctloutput = nl_ctloutput,
+	.pr_usrreqs = &nl_usrreqs,
+}
 };
 
 static struct domain netlinkdomain = {
@@ -736,8 +746,8 @@ static struct domain netlinkdomain = {
 #ifdef	DOMF_UNLOADABLE
 	.dom_flags = DOMF_UNLOADABLE,
 #endif
-	.dom_protosw =		&netlinksw,
-	.dom_protoswNPROTOSW =	(&netlinksw + 1),
+	.dom_protosw =		&netlinksw[0],
+	.dom_protoswNPROTOSW =	(&netlinksw[0] + 2),
 };
 
 DOMAIN_SET(netlink);
