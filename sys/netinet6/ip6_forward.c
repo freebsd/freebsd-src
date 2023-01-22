@@ -196,6 +196,15 @@ again:
 		goto bad;
 	}
 
+	if (nh->nh_flags & (NHF_BLACKHOLE | NHF_REJECT)) {
+		IP6STAT_INC(ip6s_cantforward);
+		if ((nh->nh_flags & NHF_REJECT) && (mcopy != NULL)) {
+			icmp6_error(mcopy, ICMP6_DST_UNREACH,
+			    ICMP6_DST_UNREACH_REJECT, 0);
+		}
+		goto bad;
+	}
+
 	/*
 	 * Source scope check: if a packet can't be delivered to its
 	 * destination for the reason that the destination is beyond the scope
