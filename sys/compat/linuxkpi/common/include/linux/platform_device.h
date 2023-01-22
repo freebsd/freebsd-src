@@ -42,6 +42,8 @@ struct platform_driver {
 	struct device_driver		driver;
 };
 
+#define	dev_is_platform(dev)	(false)
+#define	to_platform_device(dev)	(NULL)
 
 static __inline int
 platform_driver_register(struct platform_driver *pdrv)
@@ -70,6 +72,14 @@ platform_driver_probe(struct platform_driver *pdrv,
 
 static __inline void
 platform_driver_unregister(struct platform_driver *pdrv)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+	return;
+}
+
+static __inline void
+platform_device_unregister(struct platform_device *pdev)
 {
 
 	pr_debug("%s: TODO\n", __func__);
