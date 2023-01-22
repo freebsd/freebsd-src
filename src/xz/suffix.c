@@ -18,6 +18,9 @@
 
 // For case-insensitive filename suffix on case-insensitive systems
 #if defined(TUKLIB_DOSLIKE) || defined(__VMS)
+#	ifdef HAVE_STRINGS_H
+#		include <strings.h>
+#	endif
 #	define strcmp strcasecmp
 #endif
 

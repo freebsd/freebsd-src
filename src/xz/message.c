@@ -723,7 +723,16 @@ vmessage(enum message_verbosity v, const char *fmt, va_list ap)
 		// This is a translatable string because French needs
 		// a space before a colon.
 		fprintf(stderr, _("%s: "), progname);
+
+#ifdef __clang__
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
 		vfprintf(stderr, fmt, ap);
+#ifdef __clang__
+#	pragma GCC diagnostic pop
+#endif
+
 		fputc('\n', stderr);
 
 		signals_unblock();

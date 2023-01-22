@@ -80,7 +80,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
 		// format". One could argue that the application should
 		// verify the Index Indicator before trying to decode the
 		// Index, but well, I suppose it is simpler this way.
-		if (in[(*in_pos)++] != 0x00)
+		if (in[(*in_pos)++] != INDEX_INDICATOR)
 			return LZMA_DATA_ERROR;
 
 		coder->sequence = SEQ_COUNT;
