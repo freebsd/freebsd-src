@@ -838,7 +838,7 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		nm_prlim(2, "Warning: driver pushed up big packet "
 				"(size=%d)", (int)MBUF_LEN(m));
 		m_freem(m);
-	} else if (unlikely(mbq_len(&kring->rx_queue) > 1024)) {
+	} else if (unlikely(mbq_len(&kring->rx_queue) > na->num_rx_desc)) {
 		m_freem(m);
 	} else {
 		mbq_safe_enqueue(&kring->rx_queue, m);
