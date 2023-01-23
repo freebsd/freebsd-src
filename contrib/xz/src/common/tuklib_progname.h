@@ -18,7 +18,7 @@
 
 TUKLIB_DECLS_BEGIN
 
-#if HAVE_DECL_PROGRAM_INVOCATION_NAME
+#ifdef HAVE_PROGRAM_INVOCATION_NAME
 #	define progname program_invocation_name
 #else
 #	define progname TUKLIB_SYMBOL(tuklib_progname)

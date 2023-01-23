@@ -127,7 +127,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-// Pre-C99 systems lack stdbool.h. All the code in LZMA Utils must be written
+// Pre-C99 systems lack stdbool.h. All the code in XZ Utils must be written
 // so that it works with fake bool type, for example:
 //
 //    bool foo = (flags & 0x100) != 0;
@@ -149,17 +149,7 @@ typedef unsigned char _Bool;
 #	define __bool_true_false_are_defined 1
 #endif
 
-// string.h should be enough but let's include strings.h and memory.h too if
-// they exists, since that shouldn't do any harm, but may improve portability.
 #include <string.h>
-
-#ifdef HAVE_STRINGS_H
-#	include <strings.h>
-#endif
-
-#ifdef HAVE_MEMORY_H
-#	include <memory.h>
-#endif
 
 // As of MSVC 2013, inline and restrict are supported with
 // non-standard keywords.
