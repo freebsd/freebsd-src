@@ -183,6 +183,6 @@ mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)
 
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_POLICY_PERFORM_NOSLEEP(netinet6_nd6_send, ifp, ifp->if_label, m,
+	MAC_POLICY_PERFORM_NOSLEEP(netinet6_nd6_send, ifp, if_getmaclabel(ifp), m,
 	    mlabel);
 }
