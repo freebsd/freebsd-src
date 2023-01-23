@@ -14,7 +14,7 @@
 #include <string.h>
 
 
-#if !HAVE_DECL_PROGRAM_INVOCATION_NAME
+#ifndef HAVE_PROGRAM_INVOCATION_NAME
 char *progname = NULL;
 #endif
 
