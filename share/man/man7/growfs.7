@@ -56,7 +56,12 @@ The
 script adds any new swap partition to
 .Pa /etc/fstab
 after the root file system is made writable,
-and enables its use as a dump partition.
+and enables its use as a dump partition if the
+.Va dumpdev
+variable from
+.Xr rc.conf 5
+is set to
+.Li AUTO .
 .Pp
 The following options in
 .Pa /etc/rc.conf
