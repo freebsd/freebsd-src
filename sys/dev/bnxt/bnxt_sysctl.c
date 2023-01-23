@@ -1227,8 +1227,8 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "vlan_strip",
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_vlan_strip_sysctl, "I", "strip VLAN tag in the RX path");
-	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "if_name", CTLFLAG_RD,
-		iflib_get_ifp(softc->ctx)->if_xname, 0, "interface name");
+	SYSCTL_ADD_CONST_STRING(ctx, children, OID_AUTO, "if_name", CTLFLAG_RD,
+		if_name(iflib_get_ifp(softc->ctx)), "interface name");
 
         SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_rx_usecs",
             CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
