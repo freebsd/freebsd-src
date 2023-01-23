@@ -1453,8 +1453,6 @@ tcp_init(void)
 
 	V_tcp_msl = TCPTV_MSL;
 
-	V_tcp_msl = TCPTV_MSL;
-
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
