@@ -265,8 +265,6 @@ shutdown_conf(void *unused)
 	    SHUTDOWN_PRI_LAST + 100);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
 	    SHUTDOWN_PRI_LAST + 100);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_reset, NULL,
-	    SHUTDOWN_PRI_LAST + 200);
 }
 
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
@@ -498,6 +496,12 @@ kern_reboot(int howto)
 
 	/* Now that we're going to really halt the system... */
 	EVENTHANDLER_INVOKE(shutdown_final, howto);
+
+	/*
+	 * Call this directly so that reset is attempted even if shutdown
+	 * handlers are not yet registered.
+	 */
+	shutdown_reset(NULL, howto);
 
 	for(;;) ;	/* safety against shutdown_reset not working */
 	/* NOTREACHED */
