@@ -2145,7 +2145,7 @@ struct nm_os_gen_arg {
 	void *head, *tail; /* tailq, if the OS-specific routine needs to build one */
 	void *addr;	/* payload of current packet */
 	u_int len;	/* packet length */
-	u_int ring_nr;	/* packet length */
+	u_int ring_nr;	/* transmit ring index */
 	u_int qevent;   /* in txqdisc mode, place an event on this mbuf */
 };
 
