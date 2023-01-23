@@ -4329,8 +4329,10 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 	mbq_unlock(q);
 
 done:
-	if (m)
+	if (m) {
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
+	}
 	/* unconditionally wake up listeners */
 	kring->nm_notify(kring, 0);
 	/* this is normally netmap_notify(), but for nics
