@@ -7514,7 +7514,7 @@ ice_link_up_msg(struct ice_softc *sc)
 int
 ice_update_laa_mac(struct ice_softc *sc)
 {
-	const u8 *lladdr = (const u8 *)IF_LLADDR(sc->ifp);
+	const u8 *lladdr = (const u8 *)if_getlladdr(sc->ifp);
 	struct ice_hw *hw = &sc->hw;
 	enum ice_status status;
 
