@@ -4809,6 +4809,18 @@ if_setdebugnet_methods(if_t ifp, struct debugnet_methods *m)
 	ifp->if_debugnet_methods = m;
 }
 
+struct label *
+if_getmaclabel(if_t ifp)
+{
+	return (ifp->if_label);
+}
+
+void
+if_setmaclabel(if_t ifp, struct label *label)
+{
+	ifp->if_label = label;
+}
+
 int
 if_gettype(if_t ifp)
 {

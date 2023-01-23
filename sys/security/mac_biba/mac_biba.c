@@ -1064,7 +1064,7 @@ biba_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 
 	dest = SLOT(ifplabel);
 
-	if (ifp->if_type == IFT_LOOP || interfaces_equal != 0) {
+	if (if_gettype(ifp) == IFT_LOOP || interfaces_equal != 0) {
 		type = MAC_BIBA_TYPE_EQUAL;
 		goto set;
 	}
@@ -1091,7 +1091,7 @@ biba_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 			if (len < IFNAMSIZ) {
 				bzero(tifname, sizeof(tifname));
 				bcopy(q, tifname, len);
-				if (strcmp(tifname, ifp->if_xname) == 0) {
+				if (strcmp(tifname, if_name(ifp)) == 0) {
 					type = MAC_BIBA_TYPE_HIGH;
 					break;
 				}

@@ -1024,7 +1024,7 @@ mls_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 
 	dest = SLOT(ifplabel);
 
-	if (ifp->if_type == IFT_LOOP)
+	if (if_gettype(ifp) == IFT_LOOP)
 		type = MAC_MLS_TYPE_EQUAL;
 	else
 		type = MAC_MLS_TYPE_LOW;

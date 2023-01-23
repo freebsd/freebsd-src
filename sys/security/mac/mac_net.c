@@ -143,9 +143,9 @@ mac_ifnet_init(struct ifnet *ifp)
 {
 
 	if (mac_labeled & MPC_OBJECT_IFNET)
-		ifp->if_label = mac_ifnet_label_alloc();
+		if_setmaclabel(ifp, mac_ifnet_label_alloc());
 	else
-		ifp->if_label = NULL;
+		if_setmaclabel(ifp, NULL);
 }
 
 int
@@ -220,10 +220,10 @@ mac_ifnet_label_free(struct label *label)
 void
 mac_ifnet_destroy(struct ifnet *ifp)
 {
-
-	if (ifp->if_label != NULL) {
-		mac_ifnet_label_free(ifp->if_label);
-		ifp->if_label = NULL;
+	struct label *label = if_getmaclabel(ifp);
+	if (label != NULL) {
+		mac_ifnet_label_free(label);
+		if_setmaclabel(ifp, NULL);
 	}
 }
 
@@ -308,7 +308,7 @@ mac_ifnet_create(struct ifnet *ifp)
 		return;
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(ifnet_create, ifp, ifp->if_label);
+	MAC_POLICY_PERFORM_NOSLEEP(ifnet_create, ifp, if_getmaclabel(ifp));
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
@@ -345,7 +345,7 @@ mac_ifnet_create_mbuf_impl(struct ifnet *ifp, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(ifnet_create_mbuf, ifp, ifp->if_label, m,
+	MAC_POLICY_PERFORM_NOSLEEP(ifnet_create_mbuf, ifp, if_getmaclabel(ifp), m,
 	    label);
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
@@ -366,7 +366,7 @@ mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp)
 
 	MAC_IFNET_LOCK(ifp, locked);
 	MAC_POLICY_CHECK_NOSLEEP(bpfdesc_check_receive, d, d->bd_label, ifp,
-	    ifp->if_label);
+	    if_getmaclabel(ifp));
 	MAC_CHECK_PROBE2(bpfdesc_check_receive, error, d, ifp);
 	MAC_IFNET_UNLOCK(ifp, locked);
 
@@ -387,7 +387,7 @@ mac_ifnet_check_transmit_impl(struct ifnet *ifp, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_CHECK_NOSLEEP(ifnet_check_transmit, ifp, ifp->if_label, m,
+	MAC_POLICY_CHECK_NOSLEEP(ifnet_check_transmit, ifp, if_getmaclabel(ifp), m,
 	    label);
 	MAC_CHECK_PROBE2(ifnet_check_transmit, error, ifp, m);
 	MAC_IFNET_UNLOCK(ifp, locked);
@@ -425,7 +425,7 @@ mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	intlabel = mac_ifnet_label_alloc();
 	MAC_IFNET_LOCK(ifp, locked);
-	mac_ifnet_copy_label(ifp->if_label, intlabel);
+	mac_ifnet_copy_label(if_getmaclabel(ifp), intlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 	error = mac_ifnet_externalize_label(intlabel, elements, buffer,
 	    mac.m_buflen);
@@ -486,14 +486,14 @@ mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr, struct ifnet *ifp)
 
 	MAC_IFNET_LOCK(ifp, locked);
 	MAC_POLICY_CHECK_NOSLEEP(ifnet_check_relabel, cred, ifp,
-	    ifp->if_label, intlabel);
+	    if_getmaclabel(ifp), intlabel);
 	if (error) {
 		MAC_IFNET_UNLOCK(ifp, locked);
 		mac_ifnet_label_free(intlabel);
 		return (error);
 	}
 
-	MAC_POLICY_PERFORM_NOSLEEP(ifnet_relabel, cred, ifp, ifp->if_label,
+	MAC_POLICY_PERFORM_NOSLEEP(ifnet_relabel, cred, ifp, if_getmaclabel(ifp),
 	    intlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 

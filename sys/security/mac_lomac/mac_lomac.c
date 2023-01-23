@@ -1188,7 +1188,7 @@ lomac_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 
 	dest = SLOT(ifplabel);
 
-	if (ifp->if_type == IFT_LOOP) {
+	if (if_gettype(ifp) == IFT_LOOP) {
 		grade = MAC_LOMAC_TYPE_EQUAL;
 		goto set;
 	}
@@ -1215,7 +1215,7 @@ lomac_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 			if (len < IFNAMSIZ) {
 				bzero(tifname, sizeof(tifname));
 				bcopy(q, tifname, len);
-				if (strcmp(tifname, ifp->if_xname) == 0) {
+				if (strcmp(tifname, if_name(ifp)) == 0) {
 					grade = MAC_LOMAC_TYPE_HIGH;
 					break;
 				}

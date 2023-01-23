@@ -627,6 +627,8 @@ void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
 int if_transmit(if_t ifp, struct mbuf *m);
 int if_init(if_t ifp, void *ctx);
+struct label *if_getmaclabel(if_t ifp);
+void if_setmaclabel(if_t ifp, struct label *label);
 
 /*
  * Traversing through interface address lists.
