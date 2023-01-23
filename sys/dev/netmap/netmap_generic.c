@@ -837,8 +837,10 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		 * support RX scatter-gather. */
 		nm_prlim(2, "Warning: driver pushed up big packet "
 				"(size=%d)", (int)MBUF_LEN(m));
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		m_freem(m);
 	} else if (unlikely(mbq_len(&kring->rx_queue) > na->num_rx_desc)) {
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		m_freem(m);
 	} else {
 		mbq_safe_enqueue(&kring->rx_queue, m);
