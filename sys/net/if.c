@@ -4827,6 +4827,18 @@ if_gettype(if_t ifp)
 	return (ifp->if_type);
 }
 
+void *
+if_getllsoftc(if_t ifp)
+{
+	return (ifp->if_llsoftc);
+}
+
+void
+if_setllsoftc(if_t ifp, void *llsoftc)
+{
+	ifp->if_llsoftc = llsoftc;
+};
+
 #ifdef DDB
 static void
 if_show_ifnet(struct ifnet *ifp)

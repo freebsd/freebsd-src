@@ -1901,7 +1901,7 @@ t4_tom_activate(struct adapter *sc)
 
 	for_each_port(sc, i) {
 		for_each_vi(sc->port[i], v, vi) {
-			TOEDEV(vi->ifp) = &td->tod;
+			SETTOEDEV(vi->ifp, &td->tod);
 		}
 	}
 

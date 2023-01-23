@@ -412,7 +412,8 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #define	IF_MINMTU	72
 #define	IF_MAXMTU	65535
 
-#define	TOEDEV(ifp)	((ifp)->if_llsoftc)
+#define	TOEDEV(ifp)		if_getllsoftc(ifp)
+#define	SETTOEDEV(ifp, sc)	if_setllsoftc((ifp), (sc))
 
 /*
  * The ifaddr structure contains information about one address
@@ -597,6 +598,8 @@ int if_togglehwassist(if_t ifp, int toggle_bits);
 int if_setsoftc(if_t ifp, void *softc);
 void *if_getsoftc(if_t ifp);
 int if_setflags(if_t ifp, int flags);
+void if_setllsoftc(if_t ifp, void *softc);
+void *if_getllsoftc(if_t ifp);
 int if_gethwaddr(const if_t ifp, struct ifreq *);
 int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(const if_t ifp);

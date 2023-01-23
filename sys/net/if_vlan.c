@@ -1922,7 +1922,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capabilities & IFCAP_VLAN_TOE)
 		cap |= p->if_capabilities & IFCAP_TOE;
 	if (p->if_capenable & IFCAP_VLAN_TOE) {
-		TOEDEV(ifp) = TOEDEV(p);
+		SETTOEDEV(ifp, TOEDEV(p));
 		ena |= mena & IFCAP_TOE;
 	}
 
