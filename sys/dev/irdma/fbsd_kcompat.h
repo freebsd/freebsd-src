@@ -40,12 +40,15 @@
 #define TASKLET_DATA_TYPE	unsigned long
 #define TASKLET_FUNC_TYPE	void (*)(TASKLET_DATA_TYPE)
 
+#ifndef tasklet_setup
 #define tasklet_setup(tasklet, callback)				\
 	tasklet_init((tasklet), (TASKLET_FUNC_TYPE)(callback),		\
 		      (TASKLET_DATA_TYPE)(tasklet))
-
+#endif
+#ifndef from_tasklet
 #define from_tasklet(var, callback_tasklet, tasklet_fieldname) \
 	container_of(callback_tasklet, typeof(*var), tasklet_fieldname)
+#endif
 
 #define IRDMA_SET_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)    \
 	(sizeof(struct drv_struct) +                              \
