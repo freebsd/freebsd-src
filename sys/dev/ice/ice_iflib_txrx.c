@@ -419,7 +419,7 @@ ice_ift_queue_select(void *arg, struct mbuf *m, if_pkt_info_t pi)
 	/* Included to match default iflib behavior */
 	/* Only go out on default queue if ALTQ is enabled */
 	struct ifnet *ifp = (struct ifnet *)iflib_get_ifp(sc->ctx);
-	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+	if (if_altq_is_enabled(ifp))
 		return (0);
 #endif
 
