@@ -887,7 +887,7 @@ decode_block_header(struct lzma_stream_coder *coder,
 
 	if (coder->pos == 0) {
 		// Detect if it's Index.
-		if (in[*in_pos] == 0x00)
+		if (in[*in_pos] == INDEX_INDICATOR)
 			return LZMA_INDEX_DETECTED;
 
 		// Calculate the size of the Block Header. Note that

@@ -100,11 +100,17 @@ mythread_sigmask(int how, const sigset_t *restrict set,
 // Using pthreads //
 ////////////////////
 
-#include <sys/time.h>
 #include <pthread.h>
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
+
+// If clock_gettime() isn't available, use gettimeofday() from <sys/time.h>
+// as a fallback. gettimeofday() is in SUSv2 and thus is supported on all
+// relevant POSIX systems.
+#ifndef HAVE_CLOCK_GETTIME
+#	include <sys/time.h>
+#endif
 
 #define MYTHREAD_RET_TYPE void *
 #define MYTHREAD_RET_VALUE NULL
@@ -219,8 +225,8 @@ static inline int
 mythread_cond_init(mythread_cond *mycond)
 {
 #ifdef HAVE_CLOCK_GETTIME
-	// NOTE: HAVE_DECL_CLOCK_MONOTONIC is always defined to 0 or 1.
-#	if defined(HAVE_PTHREAD_CONDATTR_SETCLOCK) && HAVE_DECL_CLOCK_MONOTONIC
+#	if defined(HAVE_PTHREAD_CONDATTR_SETCLOCK) && \
+		defined(HAVE_CLOCK_MONOTONIC)
 	struct timespec ts;
 	pthread_condattr_t condattr;
 

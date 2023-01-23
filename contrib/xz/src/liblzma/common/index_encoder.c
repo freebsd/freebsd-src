@@ -65,7 +65,7 @@ index_encode(void *coder_ptr,
 	while (*out_pos < out_size)
 	switch (coder->sequence) {
 	case SEQ_INDICATOR:
-		out[*out_pos] = 0x00;
+		out[*out_pos] = INDEX_INDICATOR;
 		++*out_pos;
 		coder->sequence = SEQ_COUNT;
 		break;

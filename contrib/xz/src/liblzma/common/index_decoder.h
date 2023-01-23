@@ -13,6 +13,7 @@
 #ifndef LZMA_INDEX_DECODER_H
 #define LZMA_INDEX_DECODER_H
 
+#include "common.h"
 #include "index.h"
 
 

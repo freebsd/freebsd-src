@@ -1,3 +1,655 @@
+commit 18b845e69752c975dfeda418ec00eda22605c2ee
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-11 18:52:54 +0200
+
+    Bump version and soname for 5.4.1.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 4080bbb844fb36701ffb978f0c41ea2c2c9f8960
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-11 23:58:16 +0800
+
+    Add NEWS for 5.4.1.
+
+ NEWS | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)
+
+commit 674c89fdb8c457ebc3a0652e235d8b6cd7b7dee2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 11:56:11 +0200
+
+    sysdefs.h: Don't include strings.h anymore.
+    
+    On some platforms src/xz/suffix.c may need <strings.h> for
+    strcasecmp() but suffix.c includes the header when it needs it.
+    
+    Unless there is an old system that otherwise supports enough C99
+    to build XZ Utils but doesn't have C89/C90-compatible <string.h>,
+    there should be no need to include <strings.h> in sysdefs.h.
+
+ src/common/sysdefs.h | 6 ------
+ 1 file changed, 6 deletions(-)
+
+commit 2a6b938084fac9ddb39cd69c9beeed15c3b6f6f6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 11:23:41 +0200
+
+    xz: Include <strings.h> in suffix.c if needed for strcasecmp().
+    
+    SUSv2 and POSIX.1‐2017 declare only a few functions in <strings.h>.
+    Of these, strcasecmp() is used on some platforms in suffix.c.
+    Nothing else in the project needs <strings.h> (at least if
+    building on a modern system).
+    
+    sysdefs.h currently includes <strings.h> if HAVE_STRINGS_H is
+    defined and suffix.c relied on this.
+    
+    Note that dos/config.h doesn't #define HAVE_STRINGS_H even though
+    DJGPP does have strings.h. It isn't needed with DJGPP as strcasecmp()
+    is also in <string.h> in DJGPP.
+
+ src/xz/suffix.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit aea639e81beb548e3114c74b6d9a894d6e036189
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-11 22:46:48 +0800
+
+    xz: Fix warning -Wformat-nonliteral on clang in message.c.
+    
+    clang and gcc differ in how they handle -Wformat-nonliteral. gcc will
+    allow a non-literal format string as long as the function takes its
+    format arguments as a va_list.
+
+ src/xz/message.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+commit e3b42bfcb0f67988beee7c7022fed0361282be45
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-11 20:58:31 +0800
+
+    Tests: Fix test_filter_flags copy/paste error.
+
+ tests/test_filter_flags.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 21625b7e11d004788e40eb5eb88d9d89f65fe347
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-11 20:42:29 +0800
+
+    Tests: Fix type-limits warning in test_filter_flags.
+    
+    This only occurs in test_filter_flags when the BCJ filters are not
+    configured and built. In this case, ARRAY_SIZE() returns 0 and causes a
+    type-limits warning with the loop variable since an unsigned number will
+    always be >= 0.
+
+ tests/test_filter_flags.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+commit c337983e928682d56ce3470b286a8d5b8646e0ad
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 22:14:03 +0200
+
+    liblzma: CLMUL CRC64: Work around a bug in MSVC, second attempt.
+    
+    This affects only 32-bit x86 builds. x86-64 is OK as is.
+    
+    I still cannot easily test this myself. The reporter has tested
+    this and it passes the tests included in the CMake build and
+    performance is good: raw CRC64 is 2-3 times faster than the
+    C version of the slice-by-four method. (Note that liblzma doesn't
+    include a MSVC-compatible version of the 32-bit x86 assembly code
+    for the slice-by-four method.)
+    
+    Thanks to Iouri Kharon for figuring out a fix, testing, and
+    benchmarking.
+
+ src/liblzma/check/crc64_fast.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+commit b7fb438ea0e3ee02e3a164f3b72fae456cbe34d7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-11 01:18:50 +0800
+
+    Tests: Fix unused function warning in test_block_header.
+    
+    One of the global arrays of filters was only used in a test that
+    required both encoders and decoders to be configured in the build.
+
+ tests/test_block_header.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 68e9ef036d18d7c3952bff0b391d5989b86934da
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-11 01:08:03 +0800
+
+    Tests: Fix unused function warning in test_index_hash.
+    
+    test_index_hash does not use fill_index_hash() unless both encoders
+    and decoders are configured in the build.
+
+ tests/test_index_hash.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+commit a387707cd8cdefbffb5b7429bda4b7fcc192954a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 00:33:14 +0200
+
+    Windows: Update INSTALL-MSVC.txt to recommend CMake over project files.
+
+ windows/INSTALL-MSVC.txt | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)
+
+commit 52902ad69518255a14b0144f0a2379e06fde5b6e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 12:47:16 +0200
+
+    Revert "liblzma: CLMUL CRC64: Workaround a bug in MSVC (VS2015-2022)."
+    
+    This reverts commit 36edc65ab4cf10a131f239acbd423b4510ba52d5.
+    
+    It was reported that it wasn't a good enough fix and MSVC
+    still produced (different kind of) bad code when building
+    for 32-bit x86 if optimizations are enabled.
+    
+    Thanks to Iouri Kharon.
+
+ src/liblzma/check/crc64_fast.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+commit e81b9fc48ca70f9228308d3f1871cd81f9a5a496
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 10:05:13 +0200
+
+    sysdefs.h: Fix a comment.
+
+ src/common/sysdefs.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 6e89ab58b031aa046308a0b3504ff0a5be042571
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 10:04:06 +0200
+
+    sysdefs.h: Don't include memory.h anymore even if it were available.
+    
+    It quite probably was never needed, that is, any system where memory.h
+    was required likely couldn't compile XZ Utils for other reasons anyway.
+    
+    XZ Utils 5.2.6 and later source packages were generated using
+    Autoconf 2.71 which no longer defines HAVE_MEMORY_H. So the code
+    being removed is no longer used anyway.
+
+ src/common/sysdefs.h | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+commit 65c59ad429aa59f9df0326d9fc82931ba4a9d123
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-10 08:50:26 +0200
+
+    CMake/Windows: Add a workaround for windres from GNU binutils.
+    
+    This is combined from the following commits in the master branch:
+    443dfebced041adc88f10d824188eeef5b5821a9
+    6b117d3b1fe91eb26d533ab16a2e552f84148d47
+    5e34774c31d1b7509b5cb77a3be9973adec59ea0
+    
+    Thanks to Iouri Kharon for the bug report, the original patch,
+    and testing.
+
+ CMakeLists.txt | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)
+
+commit 43521e77acc907863fa4f94aae276366172cb9ee
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-06 22:53:38 +0200
+
+    Tests: test_filter_flags: Clean up minor issues.
+    
+    Here are the list of the most significant issues addressed:
+    - Avoid using internal common.h header. It's not good to copy the
+    constants like this but common.h cannot be included for use outside
+    of liblzma. This is the quickest thing to do that could be fixed later.
+    
+    - Omit the INIT_FILTER macro. Initialization should be done with just
+    regular designated initializers.
+    
+    - Use start_offset = 257 for BCJ tests. It demonstrates that Filter
+    Flags encoder and decoder don't validate the options thoroughly.
+    257 is valid only for the x86 filter. This is a bit silly but
+    not a significant problem in practice because the encoder and
+    decoder initialization functions will catch bad alignment still.
+    Perhaps this should be fixed but it's not urgent and doesn't need
+    to be in 5.4.x.
+    
+    - Various tweaks to comments such as filter id -> Filter ID
+
+ tests/test_filter_flags.c | 153 +++++++++++++++++++++++-----------------------
+ 1 file changed, 78 insertions(+), 75 deletions(-)
+
+commit 6b44cead95d767414272dc3a67898a36bfdf95b3
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-29 23:33:33 +0800
+
+    Tests: Refactors existing filter flags tests.
+    
+    Converts the existing filter flags tests into tuktests.
+
+ tests/test_filter_flags.c | 655 ++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 457 insertions(+), 198 deletions(-)
+
+commit 1bbefa9659b202ba31bd244a9d0e4f0d37ff3ed7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-08 00:32:29 +0200
+
+    Tests: tuktest.h: Support tuktest_malloc(0).
+    
+    It's not needed in XZ Utils at least for now. It's good to support
+    it still because if such use is needed later, it wouldn't be
+    caught on GNU/Linux since malloc(0) from glibc returns non-NULL.
+
+ tests/tuktest.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit ce3a3fbc7c2c399aeed644d54f3bd56ac914dfee
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-07 21:57:11 +0200
+
+    CMake: Update cmake_minimum_required from 3.13...3.16 to 3.13...3.25.
+    
+    The changes listed on cmake-policies(7) for versions 3.17 to 3.25
+    shouldn't affect this project.
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 99fcd57f2ea35eaa94e09f674d5364329c880fa2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-08 00:24:23 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit c0c13d9d82eb8a4302c8bbb8b4c5178d285fe9ab
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-07 19:50:35 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 3d45987451b1c3bb42697b29341824c0e5484cba
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-09 11:27:24 +0200
+
+    CMake: Fix a copypaste error in xzdec Windows resource file handling.
+    
+    It was my mistake. Thanks to Iouri Kharon for the bug report.
+
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 706bce5018d7cf83094e13454a0731169ec119b5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-07 19:50:03 +0200
+
+    CMake/Windows: Add resource files to xz.exe and xzdec.exe.
+    
+    The command line tools cannot be built with MSVC for now but
+    they can be built with MinGW-w64.
+    
+    Thanks to Iouri Kharon for the bug report and the original patch.
+
+ CMakeLists.txt | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+commit e96dee55df04113c33b387ccdb6cb70935422d91
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-09 12:22:05 +0200
+
+    liblzma: CLMUL CRC64: Workaround a bug in MSVC (VS2015-2022).
+    
+    I haven't tested with MSVC myself and there doesn't seem to be
+    information about the problem online, so I'm relying on the bug report.
+    
+    Thanks to Iouri Kharon for the bug report and the patch.
+
+ src/liblzma/check/crc64_fast.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit 52bc1ee34dda9bb6fb40175e5952863066681b77
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-07 19:31:15 +0200
+
+    Build: Require that _mm_set_epi64x() is usable to enable CLMUL support.
+    
+    VS2013 doesn't have _mm_set_epi64x() so this way CLMUL gets
+    disabled with VS2013.
+    
+    Thanks to Iouri Kharon for the bug report.
+
+ CMakeLists.txt | 3 ++-
+ configure.ac   | 8 ++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+commit bad44cfe19e8be8ae76755369be2a34abcd2b4fa
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-29 00:25:18 +0800
+
+    Tests: Creates test_index_hash.c
+    
+    Tests all API functions exported from index_hash.h. Does not have a
+    dedicated test for lzma_index_hash_end.
+    
+    [Minor edits were made by Lasse Collin.]
+
+ .gitignore              |   1 +
+ CMakeLists.txt          |   2 +
+ tests/Makefile.am       |   3 +
+ tests/test_index_hash.c | 388 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 394 insertions(+)
+
+commit 692ccdf5516dfe55fb6e9c5cdfb31f4c02c1ecd1
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-05 20:57:25 +0800
+
+    liblzma: Remove common.h include from common/index.h.
+    
+    common/index.h is needed by liblzma internally and tests. common.h will
+    include and define many things that are not needed by the tests.
+    
+    Also, this prevents include order problems because both common.h and
+    lzma.h define LZMA_API. On most platforms it results only in a warning
+    but on Windows it would break the build as the definition in common.h
+    must be used only for building liblzma itself.
+
+ src/liblzma/common/index.c                 | 1 +
+ src/liblzma/common/index.h                 | 9 +++++++--
+ src/liblzma/common/index_decoder.h         | 1 +
+ src/liblzma/common/stream_buffer_encoder.c | 1 +
+ 4 files changed, 10 insertions(+), 2 deletions(-)
+
+commit 2ac7bafc8f07c1edefe96a4a7a040ddfff0eb5bb
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-08-17 20:20:16 +0800
+
+    liblzma: Add NULL check to lzma_index_hash_append.
+    
+    This is for consistency with lzma_index_append.
+
+ src/liblzma/common/index_hash.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit db714d30e0c74d1dd4af1a23ed62b44e0e8e4efc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-08-17 17:59:51 +0800
+
+    liblzma: Replaced hardcoded 0x0 index indicator byte with macro
+
+ src/liblzma/common/index.h             | 3 +++
+ src/liblzma/common/index_decoder.c     | 2 +-
+ src/liblzma/common/index_encoder.c     | 2 +-
+ src/liblzma/common/index_hash.c        | 2 +-
+ src/liblzma/common/stream_decoder.c    | 3 ++-
+ src/liblzma/common/stream_decoder_mt.c | 2 +-
+ 6 files changed, 9 insertions(+), 5 deletions(-)
+
+commit 39d2585dcd3e827cfc3c46025ab6708c4aeb36c6
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-06 20:43:31 +0800
+
+    Style: Change #if !defined() to #ifndef in mythread.h.
+
+ src/common/mythread.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 3f0130aa288e4ed57ace609517db9700a41223af
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-06 20:35:55 +0800
+
+    Build: Add missing stream_decoder_mt.c to .vcxproj files.
+    
+    The line in the .vcxproj files for building with was missing in 5.4.0.
+    Thank to Hajin Jang for reporting the issue.
+
+ windows/vs2013/liblzma.vcxproj     | 1 +
+ windows/vs2013/liblzma_dll.vcxproj | 1 +
+ windows/vs2017/liblzma.vcxproj     | 1 +
+ windows/vs2017/liblzma_dll.vcxproj | 1 +
+ windows/vs2019/liblzma.vcxproj     | 1 +
+ windows/vs2019/liblzma_dll.vcxproj | 1 +
+ 6 files changed, 6 insertions(+)
+
+commit f204d1050a515d17851eed9049862ce5a9c729c1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-04 22:40:54 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 34a9c2d650d6c30bd88e1b21910dd863209aa884
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-04 18:40:28 +0200
+
+    Tests: Adjust style in test_compress.sh.
+
+ tests/test_compress.sh | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+commit 761c208d58e0c3daa0f46e68b406adfc318d2a46
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-04 23:58:58 +0800
+
+    Tests: Replace non portable shell parameter expansion
+    
+    The shell parameter expansion using # and ## is not supported in
+    Solaris 10 Bourne shell (/bin/sh). Even though this is POSIX, it is not fully
+    portable, so we should avoid it.
+
+ tests/create_compress_files.c          |  2 +-
+ tests/test_compress.sh                 | 20 +++++++++++++-------
+ tests/test_compress_prepared_bcj_sparc |  2 +-
+ tests/test_compress_prepared_bcj_x86   |  2 +-
+ 4 files changed, 16 insertions(+), 10 deletions(-)
+
+commit 8a7cbc074547e55e57f4f3696f69bedeb05e14c4
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-03 21:02:38 +0800
+
+    Translations: Add Korean translation of man pages.
+    
+    Thanks to Seong-ho Cho
+
+ po4a/ko.po     | 5552 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po4a/po4a.conf |    2 +-
+ 2 files changed, 5553 insertions(+), 1 deletion(-)
+
+commit ca2af49bb8be5995eb0e6a3abf457622626d49a7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-03 20:47:27 +0800
+
+    Translations: Update the Esperanto translation.
+
+ po/eo.po | 620 ++++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 332 insertions(+), 288 deletions(-)
+
+commit bfba3394aed03311fe9a746d3141b2e16d8b9325
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-02 17:05:07 +0200
+
+    Build: Fix config.h comments.
+
+ configure.ac          | 2 +-
+ m4/tuklib_progname.m4 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 507648ad114c2ae0cd6d181063e1ac07e8106718
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-02 22:33:48 +0800
+
+    Build: Only define HAVE_PROGRAM_INVOCATION_NAME if it is set to 1.
+    
+    HAVE_DECL_PROGRAM_INVOCATION_NAME is renamed to
+    HAVE_PROGRAM_INVOCATION_NAME. Previously,
+    HAVE_DECL_PROGRAM_INVOCATION_NAME was always set when
+    building with autotools. CMake would only set this when it was 1, and the
+    dos/config.h did not define it. The new macro definition is consistent
+    across build systems.
+
+ cmake/tuklib_progname.cmake  | 5 ++---
+ m4/tuklib_progname.m4        | 5 ++++-
+ src/common/tuklib_progname.c | 2 +-
+ src/common/tuklib_progname.h | 2 +-
+ 4 files changed, 8 insertions(+), 6 deletions(-)
+
+commit ab5229d32adfec1f3fbc95228d9dd6f560732ab5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-12-30 20:10:08 +0200
+
+    Tests: test_check: Test corner cases of CLMUL CRC64.
+
+ tests/test_check.c | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+
+commit 8791826f31733fda0a13b411c2ed930faaeb25aa
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-12-30 19:36:49 +0200
+
+    Tests: Clarify a comment in test_lzip_decoder.c.
+
+ tests/test_lzip_decoder.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+commit c410d812ea12bfc74f6b727c1a799478c79f19ca
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-29 01:55:19 +0800
+
+    xz: Includes <time.h> and <sys/time.h> conditionally in mytime.c.
+    
+    Previously, mytime.c depended on mythread.h for <time.h> to be included.
+
+ src/xz/mytime.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+commit 501c6013d4a59fae5d4368e9657c4885493db809
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-29 01:15:27 +0800
+
+    liblzma: Includes sys/time.h conditionally in mythread
+    
+    Previously, <sys/time.h> was always included, even if mythread only used
+    clock_gettime. <time.h> is still needed even if clock_gettime is not used
+    though because struct timespec is needed for mythread_condtime.
+
+ src/common/mythread.h | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+commit 9e3cb514b5b95bd235dcdff3db4436f57444ee4f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-29 01:10:53 +0800
+
+    Build: No longer require HAVE_DECL_CLOCK_MONOTONIC to always be set.
+    
+    Previously, if threading was enabled HAVE_DECL_CLOCK_MONOTONIC would always
+    be set to 0 or 1. However, this macro was needed in xz so if xz was not
+    built with threading and HAVE_DECL_CLOCK_MONOTONIC was not defined but
+    HAVE_CLOCK_GETTIME was, it caused a warning during build. Now,
+    HAVE_DECL_CLOCK_MONOTONIC has been renamed to HAVE_CLOCK_MONOTONIC and
+    will only be set if it is 1.
+
+ CMakeLists.txt        | 8 +++-----
+ configure.ac          | 5 ++++-
+ src/common/mythread.h | 4 ++--
+ src/xz/mytime.c       | 5 ++---
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+
+commit 6fc3e5467911572fa9af4021ea46396261aae796
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-28 01:14:07 +0800
+
+    Translations: Add Ukrainian translations of man pages.
+    
+    Thanks to Yuri Chornoivan
+
+ po4a/po4a.conf |    2 +-
+ po4a/uk.po     | 3676 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 3677 insertions(+), 1 deletion(-)
+
+commit e84f2ab7f8bc38cd8f8befa0bb398656c3c11f8e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-22 23:14:53 +0800
+
+    liblzma: Update documentation for lzma_filter_encoder.
+
+ src/liblzma/common/filter_encoder.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit b14b8dbba9a3b232787ae218b46430b9246383dd
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-21 21:12:03 +0800
+
+    Tests: Adds lzip decoder tests
+
+ .gitignore                |   1 +
+ tests/Makefile.am         |   2 +
+ tests/test_lzip_decoder.c | 471 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 474 insertions(+)
+
+commit 09a114805e1d4f9a02a06cee7dbf2f5014d1f710
+Author: Jia Cheong Tan <jiat0218@gmail.com>
+Date:   2022-12-20 22:05:21 +0800
+
+    Doxygen: Update .gitignore for generating docs for in source build.
+    
+    In source builds are not recommended, but we should still ignore
+    the generated artifacts.
+
+ .gitignore | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit d3e6fe44196bf9478ad193522e2b48febf2eca6b
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-20 20:46:44 +0800
+
+    liblzma: Fix lzma_microlzma_encoder() return value.
+    
+    Using return_if_error on lzma_lzma_lclppb_encode was improper because
+    return_if_error is expecting an lzma_ret value, but
+    lzma_lzma_lclppb_encode returns a boolean. This could result in
+    lzma_microlzma_encoder, which would be misleading for applications.
+
+ src/liblzma/common/microlzma_encoder.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit b55a27b46f52524a4a8d9cdef03e6689cefc1375
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2022-12-16 18:30:02 +0200
+
+    liblzma: Update authors list in arm64.c.
+
+ src/liblzma/simple/arm64.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 2fd28d2b7cec3468324a6f15eff7e73c285b1d7d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-16 20:58:55 +0800
+
+    CMake: Update .gitignore for CMake artifacts from in source build.
+    
+    In source builds are not recommended, but we can make it easier
+    by ignoring the generated artifacts from CMake.
+
+ .gitignore | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
 commit b69da6d4bb6bb11fc0cf066920791990d2b22a06
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2022-12-13 20:37:17 +0200
