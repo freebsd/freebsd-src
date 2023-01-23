@@ -389,7 +389,9 @@ struct kinfo_file {
 				int		kf_file_type;
 				/* Space for future use */
 				int		kf_spareint[3];
-				uint64_t	kf_spareint64[30];
+				uint64_t	kf_spareint64[29];
+				/* Number of references to file. */
+				uint64_t	kf_file_nlink;
 				/* Vnode filesystem id. */
 				uint64_t	kf_file_fsid;
 				/* File device. */
