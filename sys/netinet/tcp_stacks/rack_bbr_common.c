@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec_support.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #include <netipsec/ipsec.h>

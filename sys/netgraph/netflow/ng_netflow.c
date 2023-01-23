@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/if_arp.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_vlan_var.h>
 #include <net/bpf.h>
 #include <netinet/in.h>

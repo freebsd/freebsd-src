@@ -135,6 +135,7 @@
 						rw_runlock(&(x)->ipf_lk); \
 					} while (0)
 # include <net/if_var.h>
+# include <net/if_private.h>
 # define	GETKTIME(x)	microtime((struct timeval *)x)
 # define	if_addrlist	if_addrhead
 

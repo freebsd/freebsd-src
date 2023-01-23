@@ -80,6 +80,7 @@
 #endif
 #if defined(__FreeBSD__)
 # include <net/if_var.h>
+# include <net/if_private.h>
 #endif
 #include <netinet/in.h>
 # include <netinet/in_var.h>
