@@ -301,18 +301,18 @@ struct ifbpstpconf {
 
 #ifdef _KERNEL
 
-#define BRIDGE_INPUT(_ifp, _m)		do {			\
-		KASSERT((_ifp)->if_bridge_input != NULL,		\
+#define BRIDGE_INPUT(_ifp, _m)	do {			\
+	KASSERT((_ifp)->if_bridge_input != NULL,	\
 	    ("%s: if_bridge not loaded!", __func__));	\
-	_m = (*(_ifp)->if_bridge_input)(_ifp, _m);			\
+	_m = (*(_ifp)->if_bridge_input)(_ifp, _m);	\
 	if (_m != NULL)					\
 		_ifp = _m->m_pkthdr.rcvif;		\
 } while (0)
 
-#define BRIDGE_OUTPUT(_ifp, _m, _err)	do {    		\
-	KASSERT((_ifp)->if_bridge_output != NULL,		\
-	    ("%s: if_bridge not loaded!", __func__));		\
-	_err = (*(_ifp)->if_bridge_output)(_ifp, _m, NULL, NULL);	\
+#define BRIDGE_OUTPUT(_ifp, _m, _err)	do {    	\
+	KASSERT((_ifp)->if_bridge_output != NULL,	\
+	    ("%s: if_bridge not loaded!", __func__));	\
+	_err = (*(_ifp)->if_bridge_output)(_ifp, _m, NULL, NULL); \
 } while (0)
 
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
