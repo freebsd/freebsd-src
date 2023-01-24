@@ -203,10 +203,14 @@ int adf_init_gen2_arb(struct adf_accel_dev *accel_dev);
 void adf_exit_arb(struct adf_accel_dev *accel_dev);
 void adf_disable_arb(struct adf_accel_dev *accel_dev);
 void adf_update_ring_arb(struct adf_etr_ring_data *ring);
-void
-adf_enable_ring_arb(void *csr_addr, unsigned int bank_nr, unsigned int mask);
-void
-adf_disable_ring_arb(void *csr_addr, unsigned int bank_nr, unsigned int mask);
+void adf_enable_ring_arb(struct adf_accel_dev *accel_dev,
+			 void *csr_addr,
+			 unsigned int bank_nr,
+			 unsigned int mask);
+void adf_disable_ring_arb(struct adf_accel_dev *accel_dev,
+			  void *csr_addr,
+			  unsigned int bank_nr,
+			  unsigned int mask);
 int adf_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 struct adf_accel_dev *adf_devmgr_get_dev_by_bdf(struct adf_pci_address *addr);
 struct adf_accel_dev *adf_devmgr_get_dev_by_pci_bus(u8 bus);
@@ -238,9 +242,7 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
-void qat_hal_start(struct icp_qat_fw_loader_handle *handle,
-		   unsigned char ae,
-		   unsigned int ctx_mask);
+int qat_hal_start(struct icp_qat_fw_loader_handle *handle);
 void qat_hal_stop(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae,
 		  unsigned int ctx_mask);

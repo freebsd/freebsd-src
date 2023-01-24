@@ -45,6 +45,14 @@
 /* ARC4 256 bytes for key matrix, 2 for i and j and 6 bytes for padding */
 #define LAC_CIPHER_ARC4_STATE_LEN_BYTES 264
 
+/*
+ * Constant values for CCM AAD buffer
+ */
+#define LAC_CIPHER_CCM_B0_SIZE 16
+#define LAC_CIPHER_CCM_ENCODED_AAD_LEN_SIZE 2
+#define LAC_CIPHER_CCM_AAD_OFFSET                                              \
+	(LAC_CIPHER_CCM_B0_SIZE + LAC_CIPHER_CCM_ENCODED_AAD_LEN_SIZE)
+
 #define LAC_SYM_SNOW3G_CIPHER_CONFIG_FOR_HASH_SZ 40
 /* Snow3g cipher config required for performing a Snow3g hash operation.
  * It contains 8 Bytes of config for hardware, 16 Bytes of Key and requires
@@ -63,6 +71,9 @@
 
 /* The IV length for AES F8 is 16 bytes */
 #define LAC_CIPHER_AES_F8_IV_LENGTH 16
+
+/* The max key length for AES XTS 32 is bytes*/
+#define LAC_CIPHER_AES_XTS_KEY_MAX_LENGTH 32
 
 /* For Snow3G UEA2, need to make sure last 8 Bytes of IV buffer are
  * zero. */
@@ -171,12 +182,17 @@
 /* Macro to check if the Algorithm Mode is XTS */
 #define LAC_CIPHER_IS_XTS_MODE(algo) (algo == CPA_CY_SYM_CIPHER_AES_XTS)
 
+/* Macro to check if the accelerator has AES V2 capability */
+#define LAC_CIPHER_AES_V2(mask) ((mask)&ICP_ACCEL_CAPABILITIES_AES_V2)
+
 /* Macro to check if the Algorithm is single pass */
 #define LAC_CIPHER_IS_SPC(cipher, hash, mask)                                  \
-	((LAC_CIPHER_IS_CHACHA(cipher) && (CPA_CY_SYM_HASH_POLY == hash) &&    \
-	  ((mask)&ICP_ACCEL_CAPABILITIES_CHACHA_POLY)) ||                      \
-	 (LAC_CIPHER_IS_GCM(cipher) && ((CPA_CY_SYM_HASH_AES_GCM == hash) ||   \
-					(CPA_CY_SYM_HASH_AES_GMAC == hash)) && \
-	  ((mask)&ICP_ACCEL_CAPABILITIES_AESGCM_SPC)))
+	(((mask)&ICP_ACCEL_CAPABILITIES_CHACHA_POLY &&                         \
+	  LAC_CIPHER_IS_CHACHA(cipher) && (CPA_CY_SYM_HASH_POLY == hash)) ||   \
+	 (((mask)&ICP_ACCEL_CAPABILITIES_AESGCM_SPC) &&                        \
+	  LAC_CIPHER_IS_GCM(cipher) &&                                         \
+	  ((CPA_CY_SYM_HASH_AES_GCM == hash) ||                                \
+	   (CPA_CY_SYM_HASH_AES_GMAC == hash))) ||                             \
+	 (LAC_CIPHER_IS_CCM(cipher) && LAC_CIPHER_AES_V2(mask)))
 
 #endif /* LAC_CIPHER_DEFS_H */

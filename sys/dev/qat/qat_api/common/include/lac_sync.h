@@ -61,7 +61,7 @@ typedef struct lac_sync_op_data_s {
  * Timeout for wait for init messages response in msecs
 */
 
-#define DC_SYNC_CALLBACK_TIMEOUT (1000)
+#define DC_SYNC_CALLBACK_TIMEOUT (2000)
 /**< @ingroup LacSyn
  * Timeout for wait for compression response in msecs */
 

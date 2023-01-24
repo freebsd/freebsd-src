@@ -54,8 +54,7 @@ CpaStatus SalCtrl_ServiceCreate(sal_service_type_t service,
 				Cpa32U instance_num,
 				sal_service_t **pObj);
 
-/**
-*******************************************************************************
+/******************************************************************************
  * @ingroup SalCtl
  * @description
  *      This macro goes through the 'list' passed in as a parameter. For each

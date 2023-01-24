@@ -3,6 +3,10 @@
 /* $FreeBSD$ */
 #include "qat_utils.h"
 
+#define AES_128_KEY_LEN_BYTES 16
+#define AES_192_KEY_LEN_BYTES 24
+#define AES_256_KEY_LEN_BYTES 32
+
 CpaStatus
 qatUtilsHashMD5(uint8_t *in, uint8_t *out)
 {
@@ -147,6 +151,41 @@ qatUtilsAESEncrypt(uint8_t *key,
 
 	rijndael_set_key(&ctx, key, keyLenInBytes << BYTE_TO_BITS_SHIFT);
 	rijndael_encrypt(&ctx, in, out);
+
+	return CPA_STATUS_SUCCESS;
+}
+
+CpaStatus
+qatUtilsAESKeyExpansionForward(uint8_t *key,
+			       uint32_t keyLenInBytes,
+			       uint32_t *out)
+{
+	rijndael_ctx ctx;
+	uint32_t i = 0, j = 0;
+	uint32_t lw_per_round = 4;
+	int32_t lw_left_to_copy = keyLenInBytes / lw_per_round;
+	uint32_t *key_pointer = NULL;
+
+	/* Error check for wrong input key len */
+	if (AES_128_KEY_LEN_BYTES != keyLenInBytes &&
+	    AES_192_KEY_LEN_BYTES != keyLenInBytes &&
+	    AES_256_KEY_LEN_BYTES != keyLenInBytes) {
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	rijndael_set_key(&ctx, key, keyLenInBytes << BYTE_TO_BITS_SHIFT);
+
+	/* Pointer to the last round of expanded key. */
+	key_pointer = &ctx.ek[lw_per_round * ctx.Nr];
+
+	while (lw_left_to_copy > 0) {
+		for (i = 0; i < MIN(lw_left_to_copy, lw_per_round); i++, j++) {
+			out[j] = __builtin_bswap32(key_pointer[i]);
+		}
+
+		lw_left_to_copy -= lw_per_round;
+		key_pointer -= lw_left_to_copy;
+	}
 
 	return CPA_STATUS_SUCCESS;
 }

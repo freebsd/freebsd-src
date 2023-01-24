@@ -848,4 +848,25 @@ CpaStatus qatUtilsAESEncrypt(uint8_t *key,
 			     uint32_t keyLenInBytes,
 			     uint8_t *in,
 			     uint8_t *out);
+
+/**
+ * @ingroup QatUtils
+ *
+ * @brief  Converts AES forward key to reverse key
+ *
+ * @param  key - pointer to symetric key.
+ *         keyLenInBytes - key length
+ *         out - pointer to output buffer for reversed key
+ *         The in and out buffers need to be at least AES block size long
+ *         as defined in rfc3686 (16 bytes)
+ *
+ * @li Reentrant: yes
+ * @li IRQ safe:  yes
+ *
+ * @return - CPA_STATUS_SUCCESS/CPA_STATUS_FAIL
+ *
+ */
+CpaStatus qatUtilsAESKeyExpansionForward(uint8_t *key,
+					 uint32_t keyLenInBytes,
+					 uint32_t *out);
 #endif

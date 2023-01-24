@@ -55,8 +55,9 @@
 #include "lac_sal_types_crypto.h"
 #include "sal_service_state.h"
 
-#define IS_EXT_ALG_CHAIN_UNSUPPORTED(                                          \
-    cipherAlgorithm, hashAlgorithm, extAlgchainSupported)                      \
+#define IS_EXT_ALG_CHAIN_UNSUPPORTED(cipherAlgorithm,                          \
+				     hashAlgorithm,                            \
+				     extAlgchainSupported)                     \
 	((((CPA_CY_SYM_CIPHER_ZUC_EEA3 == cipherAlgorithm ||                   \
 	    CPA_CY_SYM_CIPHER_SNOW3G_UEA2 == cipherAlgorithm) &&               \
 	   CPA_CY_SYM_HASH_AES_CMAC == hashAlgorithm) ||                       \
@@ -77,6 +78,10 @@ LacSymPerform_BufferParamCheck(const CpaBufferList *const pSrcBuffer,
 			       const lac_session_desc_t *const pSessionDesc,
 			       const CpaCySymOpData *const pOpData);
 
+void LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
+			    icp_qat_fw_la_bulk_req_t *pCurrentQatMsg);
+void LacDp_WriteRingMsgOpt(CpaCySymDpOpData *pRequest,
+			   icp_qat_fw_la_bulk_req_t *pCurrentQatMsg);
 void getCtxSize(const CpaCySymSessionSetupData *pSessionSetupData,
 		Cpa32U *pSessionCtxSizeInBytes);
 
@@ -151,12 +156,16 @@ LacSymSession_ParamCheck(const CpaInstanceHandle instanceHandle,
 		/* Protect against value of cipher outside the bitmap
 		 * and check if cipher algorithm is correct
 		 */
-		if ((pCipherSetupData->cipherAlgorithm >=
-		     CPA_CY_SYM_CIPHER_CAP_BITMAP_SIZE) ||
-		    (!CPA_BITMAP_BIT_TEST(capInfo.ciphers,
-					  pCipherSetupData->cipherAlgorithm))) {
+		if (pCipherSetupData->cipherAlgorithm >=
+		    CPA_CY_SYM_CIPHER_CAP_BITMAP_SIZE) {
 			LAC_INVALID_PARAM_LOG("cipherAlgorithm");
 			return CPA_STATUS_INVALID_PARAM;
+		}
+		if (!CPA_BITMAP_BIT_TEST(capInfo.ciphers,
+					 pCipherSetupData->cipherAlgorithm)) {
+			LAC_UNSUPPORTED_PARAM_LOG(
+			    "UnSupported cipherAlgorithm");
+			return CPA_STATUS_UNSUPPORTED;
 		}
 	}
 
@@ -164,32 +173,23 @@ LacSymSession_ParamCheck(const CpaInstanceHandle instanceHandle,
 	if ((CPA_CY_SYM_OP_ALGORITHM_CHAINING ==
 	     pSessionSetupData->symOperation) ||
 	    (CPA_CY_SYM_OP_HASH == pSessionSetupData->symOperation)) {
-		/* Ensure SHAKE algorithms are not supported */
-		if ((CPA_CY_SYM_HASH_SHAKE_128 ==
-		     pHashSetupData->hashAlgorithm) ||
-		    (CPA_CY_SYM_HASH_SHAKE_256 ==
-		     pHashSetupData->hashAlgorithm)) {
-			LAC_INVALID_PARAM_LOG(
-			    "Hash algorithms SHAKE-128 and SHAKE-256 "
-			    "are not supported.");
-			return CPA_STATUS_UNSUPPORTED;
-		}
-
 		/* Protect against value of hash outside the bitmap
 		 * and check if hash algorithm is correct
 		 */
-		if ((pHashSetupData->hashAlgorithm >=
-		     CPA_CY_SYM_HASH_CAP_BITMAP_SIZE) ||
-		    (!CPA_BITMAP_BIT_TEST(capInfo.hashes,
-					  pHashSetupData->hashAlgorithm))) {
+		if (pHashSetupData->hashAlgorithm >=
+		    CPA_CY_SYM_HASH_CAP_BITMAP_SIZE) {
 			LAC_INVALID_PARAM_LOG("hashAlgorithm");
 			return CPA_STATUS_INVALID_PARAM;
+		}
+		if (!CPA_BITMAP_BIT_TEST(capInfo.hashes,
+					 pHashSetupData->hashAlgorithm)) {
+			LAC_UNSUPPORTED_PARAM_LOG("UnSupported hashAlgorithm");
+			return CPA_STATUS_UNSUPPORTED;
 		}
 	}
 
 	/* ensure CCM, GCM, Kasumi, Snow3G and ZUC cipher and hash algorithms
-	 * are
-	 * selected together for Algorithm Chaining */
+	 * are selected together for Algorithm Chaining */
 	if (CPA_CY_SYM_OP_ALGORITHM_CHAINING ==
 	    pSessionSetupData->symOperation) {
 		/* ensure both hash and cipher algorithms are POLY and CHACHA */
@@ -435,7 +435,11 @@ LacSymPerform_BufferParamCheck(const CpaBufferList *const pSrcBuffer,
 			}
 		}
 		/* Check that src Buffer and dst Buffer Lengths are equal */
-		if (srcBufferLen != dstBufferLen) {
+		/* CCM output needs to be longer than input buffer for appending
+		 * tag*/
+		if (srcBufferLen != dstBufferLen &&
+		    pSessionDesc->cipherAlgorithm !=
+			CPA_CY_SYM_CIPHER_AES_CCM) {
 			LAC_INVALID_PARAM_LOG(
 			    "Source and Dest buffer lengths need to be equal ");
 			return CPA_STATUS_INVALID_PARAM;
@@ -451,8 +455,7 @@ LacSymPerform_BufferParamCheck(const CpaBufferList *const pSrcBuffer,
 			return CPA_STATUS_INVALID_PARAM;
 		} else {
 			/* This function checks to see if the partial packet
-			 * sequence
-			 * is correct */
+			 * sequence is correct */
 			if (CPA_STATUS_SUCCESS !=
 			    LacSym_PartialPacketStateCheck(
 				pOpData->packetType,
@@ -551,7 +554,7 @@ LacSym_InitSession(const CpaInstanceHandle instanceHandle,
 	const CpaCySymCipherSetupData *pCipherSetupData = NULL;
 	const CpaCySymHashSetupData *pHashSetupData = NULL;
 
-/* Instance param checking done by calling function */
+	/* Instance param checking done by calling function */
 
 	LAC_CHECK_NULL_PARAM(pSessionSetupData);
 	LAC_CHECK_NULL_PARAM(pSessionCtx);
@@ -580,7 +583,7 @@ LacSym_InitSession(const CpaInstanceHandle instanceHandle,
 
 	if (0 == physAddress) {
 		LAC_LOG_ERROR(
-		    "Unable to get the physical address of the session");
+		    "Unable to get the physical address of the session\n");
 		return CPA_STATUS_FAIL;
 	}
 
@@ -631,8 +634,8 @@ LacSym_InitSession(const CpaInstanceHandle instanceHandle,
 		/* For asynchronous - use the user supplied callback
 		 * for synchronous - use the internal synchronous callback */
 		pSessionDesc->pSymCb = ((void *)NULL != (void *)pSymCb) ?
-		    pSymCb :
-		    LacSync_GenBufListVerifyCb;
+			  pSymCb :
+			  LacSync_GenBufListVerifyCb;
 	}
 
 	pSessionDesc->isDPSession = isDPSession;
@@ -649,10 +652,8 @@ LacSym_InitSession(const CpaInstanceHandle instanceHandle,
 	if (CPA_STATUS_SUCCESS == status) {
 		/* Session set up via API call (not internal one) */
 		/* Services such as DRBG call the crypto api as part of their
-		 * service
-		 * hence the need to for the flag, it is needed to distinguish
-		 * between
-		 * an internal and external session.
+		 * service hence the need to for the flag, it is needed to
+		 * distinguish between an internal and external session.
 		 */
 		pSessionDesc->internalSession = CPA_FALSE;
 
@@ -697,14 +698,11 @@ cpaCySymRemoveSession(const CpaInstanceHandle instanceHandle_in,
 		/*
 		 * Based on one instance, we can initialize multiple sessions.
 		 * For example, we can initialize the session "X" and session
-		 * "Y" with
-		 * the same instance "A". If there is no operation pending for
-		 * session
-		 * "X", we can remove the session "X".
+		 * "Y" with the same instance "A". If there is no operation
+		 * pending for session "X", we can remove the session "X".
 		 *
 		 * Now we only check the @pSessionDesc->pendingDpCbCount, if it
-		 * becomes
-		 * zero, we can remove the session.
+		 * becomes zero, we can remove the session.
 		 *
 		 * Why?
 		 *   (1) We increase it in the cpaCySymDpEnqueueOp/
@@ -713,12 +711,10 @@ cpaCySymRemoveSession(const CpaInstanceHandle instanceHandle_in,
 		 *
 		 * If the @pSessionDesc->pendingDpCbCount becomes zero, it means
 		 * there is no operation pending for the session "X" anymore, so
-		 * we can
-		 * remove this session. Maybe there is still some requests left
-		 * in the
-		 * instance's ring (icp_adf_queueDataToSend() returns true), but
-		 * the
-		 * request does not belong to "X", it belongs to session "Y".
+		 * we can remove this session. Maybe there is still some
+		 * requests left in the instance's ring
+		 * (icp_adf_queueDataToSend() returns true), but the request
+		 * does not belong to "X", it belongs to session "Y".
 		 */
 		numPendingRequests =
 		    qatUtilsAtomicGet(&(pSessionDesc->u.pendingDpCbCount));
@@ -734,8 +730,7 @@ cpaCySymRemoveSession(const CpaInstanceHandle instanceHandle_in,
 		status = CPA_STATUS_RETRY;
 		if (CPA_TRUE == pSessionDesc->isDPSession) {
 			/* Need to update tail if messages queue on tx hi ring
-			 for
-			 data plane api */
+			 for data plane api */
 			icp_comms_trans_handle trans_handle =
 			    ((sal_crypto_service_t *)instanceHandle)
 				->trans_handle_sym_tx;
@@ -752,10 +747,7 @@ cpaCySymRemoveSession(const CpaInstanceHandle instanceHandle_in,
 		}
 	}
 	if (CPA_STATUS_SUCCESS == status) {
-		if (CPA_STATUS_SUCCESS !=
-		    LAC_SPINLOCK_DESTROY(&pSessionDesc->requestQueueLock)) {
-			LAC_LOG_ERROR("Failed to destroy request queue lock");
-		}
+		LAC_SPINLOCK_DESTROY(&pSessionDesc->requestQueueLock);
 		if (CPA_FALSE == pSessionDesc->isDPSession) {
 			LAC_SYM_STAT_INC(numSessionsRemoved, instanceHandle);
 		}

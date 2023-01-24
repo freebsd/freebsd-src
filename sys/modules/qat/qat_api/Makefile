@@ -44,6 +44,7 @@ SRCS+= common/crypto/sym/qat/lac_sym_qat.c
 SRCS+= common/crypto/sym/qat/lac_sym_qat_hash.c
 SRCS+= common/crypto/sym/qat/lac_sym_qat_hash_defs_lookup.c
 SRCS+= common/crypto/sym/qat/lac_sym_qat_cipher.c
+SRCS+= common/crypto/sym/qat/lac_sym_qat_constants_table.c
 SRCS+= common/crypto/sym/qat/lac_sym_qat_key.c
 SRCS+= common/crypto/sym/key/lac_sym_key.c
 SRCS+= common/stubs/lac_stubs.c

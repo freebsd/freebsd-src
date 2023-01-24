@@ -49,6 +49,7 @@
 #include "lac_sym_qat_cipher.h"
 #include "lac_log.h"
 #include "lac_buffer_desc.h"
+#include "sal_hw_gen.h"
 
 /*
 *******************************************************************************
@@ -66,14 +67,23 @@ LacCipher_PerformIvCheck(sal_service_t *pService,
 	lac_session_desc_t *pSessionDesc =
 	    LAC_SYM_SESSION_DESC_FROM_CTX_GET(pOpData->sessionCtx);
 	CpaCySymCipherAlgorithm algorithm = pSessionDesc->cipherAlgorithm;
+	unsigned ivLenInBytes = 0;
 
-	/* Perform IV check. */
-	if (LAC_CIPHER_IS_CTR_MODE(algorithm) ||
-	    LAC_CIPHER_IS_CBC_MODE(algorithm) ||
-	    LAC_CIPHER_IS_AES_F8(algorithm) ||
-	    LAC_CIPHER_IS_XTS_MODE(algorithm)) {
-		unsigned ivLenInBytes =
-		    LacSymQat_CipherIvSizeBytesGet(algorithm);
+	switch (algorithm) {
+	/* Perform IV check for CTR, CBC, XTS, F8 MODE. */
+	case CPA_CY_SYM_CIPHER_AES_CTR:
+	case CPA_CY_SYM_CIPHER_3DES_CTR:
+	case CPA_CY_SYM_CIPHER_SM4_CTR:
+	case CPA_CY_SYM_CIPHER_AES_CCM:
+	case CPA_CY_SYM_CIPHER_AES_GCM:
+	case CPA_CY_SYM_CIPHER_CHACHA:
+	case CPA_CY_SYM_CIPHER_AES_CBC:
+	case CPA_CY_SYM_CIPHER_DES_CBC:
+	case CPA_CY_SYM_CIPHER_3DES_CBC:
+	case CPA_CY_SYM_CIPHER_SM4_CBC:
+	case CPA_CY_SYM_CIPHER_AES_F8:
+	case CPA_CY_SYM_CIPHER_AES_XTS: {
+		ivLenInBytes = LacSymQat_CipherIvSizeBytesGet(algorithm);
 		LAC_CHECK_NULL_PARAM(pOpData->pIv);
 		if (pOpData->ivLenInBytes != ivLenInBytes) {
 			if (!(/* GCM with 12 byte IV is OK */
@@ -96,26 +106,21 @@ LacCipher_PerformIvCheck(sal_service_t *pService,
 			/* Set the value of the ppIvBuffer to that supplied
 			 * by the user.
 			 * NOTE: There is no guarantee that this address is
-			 * aligned on
-			 * an 8 or 64 Byte address. */
+			 * aligned on an 8 or 64 Byte address. */
 			*ppIvBuffer = pOpData->pIv;
 		} else {
 			/* For partial packets, we use a per-session buffer to
-			 * maintain
-			 * the IV.  This allows us to easily pass the updated IV
-			 * forward
-			 * to the next partial in the sequence.  This makes
-			 * internal
-			 * buffering of partials easier to implement.
+			 * maintain the IV.  This allows us to easily pass the
+			 * updated IV forward to the next partial in the
+			 * sequence.  This makes internal buffering of partials
+			 * easier to implement.
 			 */
 			*ppIvBuffer = pSessionDesc->cipherPartialOpState;
 
 			/* Ensure that the user's IV buffer gets updated between
-			 * partial
-			 * requests so that they may also see the residue from
-			 * the
-			 * previous partial.  Not needed for final partials
-			 * though.
+			 * partial requests so that they may also see the
+			 * residue from the previous partial.  Not needed for
+			 * final partials though.
 			 */
 			if ((ICP_QAT_FW_LA_PARTIAL_START == qatPacketType) ||
 			    (ICP_QAT_FW_LA_PARTIAL_MID == qatPacketType)) {
@@ -124,97 +129,87 @@ LacCipher_PerformIvCheck(sal_service_t *pService,
 				if (ICP_QAT_FW_LA_PARTIAL_START ==
 				    qatPacketType) {
 					/* if the previous partial state was
-					 * full, then this is
-					 * the first partial in the sequence so
-					 * we need to copy
-					 * in the user's IV. But, we have to be
-					 * very careful
-					 * here not to overwrite the
-					 * cipherPartialOpState just
-					 * yet in case there's a previous
-					 * partial sequence in
-					 * flight, so we defer the copy for now.
-					 * This will be
-					 * completed in the
-					 * LacSymQueue_RequestSend() function.
+					 * full, then this is the first partial
+					 * in the sequence so we need to copy in
+					 * the user's IV. But, we have to be
+					 * very careful here not to overwrite
+					 * the cipherPartialOpState just yet in
+					 * case there's a previous partial
+					 * sequence in flight, so we defer the
+					 * copy for now.  This will be completed
+					 * in the LacSymQueue_RequestSend()
+					 * function.
 					 */
 					pCbCookie->updateSessionIvOnSend =
 					    CPA_TRUE;
 				}
 				/* For subsequent partials in a sequence, we'll
-				 * re-use the
-				 * IV that was written back by the QAT, using
-				 * internal
-				 * request queueing if necessary to ensure that
-				 * the next
-				 * partial request isn't issued to the QAT until
-				 * the
+				 * re-use the IV that was written back by the
+				 * QAT, using internal request queueing if
+				 * necessary to ensure that the next partial
+				 * request isn't issued to the QAT until the
 				 * previous one completes
 				 */
 			}
 		}
-	} else if (LAC_CIPHER_IS_KASUMI(algorithm)) {
+	} break;
+	case CPA_CY_SYM_CIPHER_KASUMI_F8: {
 		LAC_CHECK_NULL_PARAM(pOpData->pIv);
 
-		if (LAC_CIPHER_IS_KASUMI(algorithm) &&
-		    (pOpData->ivLenInBytes != LAC_CIPHER_KASUMI_F8_IV_LENGTH)) {
+		if (pOpData->ivLenInBytes != LAC_CIPHER_KASUMI_F8_IV_LENGTH) {
 			LAC_INVALID_PARAM_LOG("invalid cipher IV size");
 			return CPA_STATUS_INVALID_PARAM;
 		}
 
-
 		*ppIvBuffer = pOpData->pIv;
-	} else if (LAC_CIPHER_IS_SNOW3G_UEA2(algorithm)) {
+	} break;
+	case CPA_CY_SYM_CIPHER_SNOW3G_UEA2: {
 		LAC_CHECK_NULL_PARAM(pOpData->pIv);
-		if (LAC_CIPHER_IS_SNOW3G_UEA2(algorithm) &&
-		    (pOpData->ivLenInBytes != ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ)) {
+		if (pOpData->ivLenInBytes != ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ) {
 			LAC_INVALID_PARAM_LOG("invalid cipher IV size");
 			return CPA_STATUS_INVALID_PARAM;
 		}
 		*ppIvBuffer = pOpData->pIv;
-	} else if (LAC_CIPHER_IS_ARC4(algorithm)) {
+	} break;
+	case CPA_CY_SYM_CIPHER_ARC4: {
 		if (ICP_QAT_FW_LA_PARTIAL_NONE == qatPacketType) {
 			/* For full packets, the initial ARC4 state is stored in
-			 * the
-			 * session descriptor.  Use it directly.
+			 * the session descriptor.  Use it directly.
 			 */
 			*ppIvBuffer = pSessionDesc->cipherARC4InitialState;
 		} else {
 			/* For partial packets, we maintain the running ARC4
-			 * state in
-			 * dedicated buffer in the session descriptor
+			 * state in dedicated buffer in the session descriptor
 			 */
 			*ppIvBuffer = pSessionDesc->cipherPartialOpState;
 
 			if (ICP_QAT_FW_LA_PARTIAL_START == qatPacketType) {
 				/* if the previous partial state was full, then
-				 * this is the
-				 * first partial in the sequence so we need to
-				 * (re-)initialise
-				 * the contents of the state buffer using the
-				 * initial state
-				 * that is stored in the session descriptor.
-				 * But, we have to be
-				 * very careful here not to overwrite the
-				 * cipherPartialOpState
-				 * just yet in case there's a previous partial
-				 * sequence in
+				 * this is the first partial in the sequence so
+				 * we need to (re-)initialise the contents of
+				 * the state buffer using the initial state that
+				 * is stored in the session descriptor. But, we
+				 * have to be very careful here not to overwrite
+				 * the cipherPartialOpState just yet in case
+				 * there's a previous partial sequence in
 				 * flight, so we defer the copy for now. This
-				 * will be completed
-				 * in the LacSymQueue_RequestSend() function
-				 * when clear to send.
+				 * will be completed in the
+				 * LacSymQueue_RequestSend() function when clear
+				 * to send.
 				 */
 				pCbCookie->updateSessionIvOnSend = CPA_TRUE;
 			}
 		}
-	} else if (LAC_CIPHER_IS_ZUC_EEA3(algorithm)) {
+	} break;
+	case CPA_CY_SYM_CIPHER_ZUC_EEA3: {
 		LAC_CHECK_NULL_PARAM(pOpData->pIv);
 		if (pOpData->ivLenInBytes != ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ) {
 			LAC_INVALID_PARAM_LOG("invalid cipher IV size");
 			return CPA_STATUS_INVALID_PARAM;
 		}
 		*ppIvBuffer = pOpData->pIv;
-	} else {
+	} break;
+	default:
 		*ppIvBuffer = NULL;
 	}
 
@@ -223,40 +218,50 @@ LacCipher_PerformIvCheck(sal_service_t *pService,
 
 
 CpaStatus
-LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData)
+LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData,
+				Cpa32U capabilitiesMask)
 {
 	/* No key required for NULL algorithm */
 	if (!LAC_CIPHER_IS_NULL(pCipherSetupData->cipherAlgorithm)) {
 		LAC_CHECK_NULL_PARAM(pCipherSetupData->pCipherKey);
 
 		/* Check that algorithm and keys passed in are correct size */
-		if (LAC_CIPHER_IS_ARC4(pCipherSetupData->cipherAlgorithm)) {
+		switch (pCipherSetupData->cipherAlgorithm) {
+		case CPA_CY_SYM_CIPHER_ARC4:
 			if (pCipherSetupData->cipherKeyLenInBytes >
 			    ICP_QAT_HW_ARC4_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid ARC4 cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_CCM(
-			       pCipherSetupData->cipherAlgorithm)) {
-			if (pCipherSetupData->cipherKeyLenInBytes !=
-			    ICP_QAT_HW_AES_128_KEY_SZ) {
+			break;
+		case CPA_CY_SYM_CIPHER_AES_CCM:
+			if (!LAC_CIPHER_AES_V2(capabilitiesMask) &&
+			    pCipherSetupData->cipherKeyLenInBytes !=
+				ICP_QAT_HW_AES_128_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid AES CCM cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_XTS_MODE(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_AES_XTS:
 			if ((pCipherSetupData->cipherKeyLenInBytes !=
 			     ICP_QAT_HW_AES_128_XTS_KEY_SZ) &&
 			    (pCipherSetupData->cipherKeyLenInBytes !=
-			     ICP_QAT_HW_AES_256_XTS_KEY_SZ)) {
+			     ICP_QAT_HW_AES_256_XTS_KEY_SZ) &&
+			    (pCipherSetupData->cipherKeyLenInBytes !=
+			     ICP_QAT_HW_UCS_AES_128_XTS_KEY_SZ) &&
+			    (pCipherSetupData->cipherKeyLenInBytes !=
+			     ICP_QAT_HW_UCS_AES_256_XTS_KEY_SZ)) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid AES XTS cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_AES(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_AES_ECB:
+		case CPA_CY_SYM_CIPHER_AES_CBC:
+		case CPA_CY_SYM_CIPHER_AES_CTR:
+		case CPA_CY_SYM_CIPHER_AES_GCM:
 			if ((pCipherSetupData->cipherKeyLenInBytes !=
 			     ICP_QAT_HW_AES_128_KEY_SZ) &&
 			    (pCipherSetupData->cipherKeyLenInBytes !=
@@ -267,8 +272,8 @@ LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData)
 				    "Invalid AES cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_AES_F8(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_AES_F8:
 			if ((pCipherSetupData->cipherKeyLenInBytes !=
 			     ICP_QAT_HW_AES_128_F8_KEY_SZ) &&
 			    (pCipherSetupData->cipherKeyLenInBytes !=
@@ -279,35 +284,37 @@ LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData)
 				    "Invalid AES cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_DES(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_DES_ECB:
+		case CPA_CY_SYM_CIPHER_DES_CBC:
 			if (pCipherSetupData->cipherKeyLenInBytes !=
 			    ICP_QAT_HW_DES_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid DES cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_TRIPLE_DES(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_3DES_ECB:
+		case CPA_CY_SYM_CIPHER_3DES_CBC:
+		case CPA_CY_SYM_CIPHER_3DES_CTR:
 			if (pCipherSetupData->cipherKeyLenInBytes !=
 			    ICP_QAT_HW_3DES_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid Triple-DES cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_KASUMI(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_KASUMI_F8:
 			/* QAT-FW only supports 128 bits Cipher Key size for
-			 * Kasumi F8
-			 *  Ref: 3GPP TS 55.216 V6.2.0 */
+			 * Kasumi F8 Ref: 3GPP TS 55.216 V6.2.0 */
 			if (pCipherSetupData->cipherKeyLenInBytes !=
 			    ICP_QAT_HW_KASUMI_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid Kasumi cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_SNOW3G_UEA2(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_SNOW3G_UEA2:
 			/* QAT-FW only supports 256 bits Cipher Key size for
 			 * Snow_3G */
 			if (pCipherSetupData->cipherKeyLenInBytes !=
@@ -316,8 +323,8 @@ LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData)
 				    "Invalid Snow_3G cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_ZUC_EEA3(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_ZUC_EEA3:
 			/* ZUC EEA3 */
 			if (pCipherSetupData->cipherKeyLenInBytes !=
 			    ICP_QAT_HW_ZUC_3G_EEA3_KEY_SZ) {
@@ -325,23 +332,26 @@ LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData)
 				    "Invalid ZUC cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_CHACHA(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_CHACHA:
 			if (pCipherSetupData->cipherKeyLenInBytes !=
 			    ICP_QAT_HW_CHACHAPOLY_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid CHACHAPOLY cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_SM4(
-			       pCipherSetupData->cipherAlgorithm)) {
+			break;
+		case CPA_CY_SYM_CIPHER_SM4_ECB:
+		case CPA_CY_SYM_CIPHER_SM4_CBC:
+		case CPA_CY_SYM_CIPHER_SM4_CTR:
 			if (pCipherSetupData->cipherKeyLenInBytes !=
 			    ICP_QAT_HW_SM4_KEY_SZ) {
 				LAC_INVALID_PARAM_LOG(
 				    "Invalid SM4 cipher key length");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else {
+			break;
+		default:
 			LAC_INVALID_PARAM_LOG("Invalid cipher algorithm");
 			return CPA_STATUS_INVALID_PARAM;
 		}
@@ -365,52 +375,86 @@ LacCipher_PerformParamCheck(CpaCySymCipherAlgorithm algorithm,
 		LAC_INVALID_PARAM_LOG("cipher len + offset greater than "
 				      "srcBuffer packet len");
 		status = CPA_STATUS_INVALID_PARAM;
-	}
-
-	if (CPA_STATUS_SUCCESS == status) {
+	} else {
+		/* Perform algorithm-specific checks */
+		switch (algorithm) {
+		case CPA_CY_SYM_CIPHER_ARC4:
+		case CPA_CY_SYM_CIPHER_AES_CTR:
+		case CPA_CY_SYM_CIPHER_3DES_CTR:
+		case CPA_CY_SYM_CIPHER_SM4_CTR:
+		case CPA_CY_SYM_CIPHER_AES_CCM:
+		case CPA_CY_SYM_CIPHER_AES_GCM:
+		case CPA_CY_SYM_CIPHER_CHACHA:
+		case CPA_CY_SYM_CIPHER_KASUMI_F8:
+		case CPA_CY_SYM_CIPHER_AES_F8:
+		case CPA_CY_SYM_CIPHER_SNOW3G_UEA2:
+		case CPA_CY_SYM_CIPHER_ZUC_EEA3:
+			/* No action needed */
+			break;
 		/*
 		 * XTS Mode allow for ciphers which are not multiples of
 		 * the block size.
 		 */
-		/* Perform algorithm-specific checks */
-		if (LAC_CIPHER_IS_XTS_MODE(algorithm) &&
-		    ((pOpData->packetType == CPA_CY_SYM_PACKET_TYPE_FULL) ||
-		     (pOpData->packetType ==
-		      CPA_CY_SYM_PACKET_TYPE_LAST_PARTIAL))) {
-			/*
-			 * If this is the last of a partial request
-			 */
-			if (pOpData->messageLenToCipherInBytes <
-			    ICP_QAT_HW_AES_BLK_SZ) {
-				LAC_INVALID_PARAM_LOG(
-				    "data size must be greater than block "
-				    "size for last XTS partial or XTS "
-				    "full packet");
-				status = CPA_STATUS_INVALID_PARAM;
+		case CPA_CY_SYM_CIPHER_AES_XTS:
+			if ((pOpData->packetType ==
+			     CPA_CY_SYM_PACKET_TYPE_FULL) ||
+			    (pOpData->packetType ==
+			     CPA_CY_SYM_PACKET_TYPE_LAST_PARTIAL)) {
+				/*
+				 * If this is the last of a partial request
+				 */
+				if (pOpData->messageLenToCipherInBytes <
+				    ICP_QAT_HW_AES_BLK_SZ) {
+					LAC_INVALID_PARAM_LOG(
+					    "data size must be greater than block"
+					    " size for last XTS partial or XTS "
+					    "full packet");
+					status = CPA_STATUS_INVALID_PARAM;
+				}
 			}
-		} else if (!(LAC_CIPHER_IS_ARC4(algorithm) ||
-			     LAC_CIPHER_IS_CTR_MODE(algorithm) ||
-			     LAC_CIPHER_IS_F8_MODE(algorithm) ||
-			     LAC_CIPHER_IS_SNOW3G_UEA2(algorithm) ||
-			     LAC_CIPHER_IS_XTS_MODE(algorithm) ||
-			     LAC_CIPHER_IS_CHACHA(algorithm) ||
-			     LAC_CIPHER_IS_ZUC_EEA3(algorithm))) {
+			break;
+		default:
 			/* Mask & check below is based on assumption that block
-			 * size is
-			 * a power of 2. If data size is not a multiple of the
-			 * block size,
-			 * the "remainder" bits selected by the mask be non-zero
+			 * size is a power of 2. If data size is not a multiple
+			 * of the block size, the "remainder" bits selected by
+			 * the mask be non-zero
 			 */
 			if (pOpData->messageLenToCipherInBytes &
 			    (LacSymQat_CipherBlockSizeBytesGet(algorithm) -
 			     1)) {
 				LAC_INVALID_PARAM_LOG(
-				    "data size must be block size multiple");
+				    "data size must be block size"
+				    " multiple");
 				status = CPA_STATUS_INVALID_PARAM;
 			}
 		}
 	}
-
 	return status;
 }
 
+Cpa32U
+LacCipher_GetCipherSliceType(sal_crypto_service_t *pService,
+			     CpaCySymCipherAlgorithm cipherAlgorithm,
+			     CpaCySymHashAlgorithm hashAlgorithm)
+{
+	Cpa32U sliceType = ICP_QAT_FW_LA_USE_LEGACY_SLICE_TYPE;
+	Cpa32U capabilitiesMask =
+	    pService->generic_service_info.capabilitiesMask;
+
+	/* UCS Slice is supproted only in Gen4 */
+	if (isCyGen4x(pService)) {
+		if (LAC_CIPHER_IS_XTS_MODE(cipherAlgorithm) ||
+		    LAC_CIPHER_IS_CHACHA(cipherAlgorithm) ||
+		    LAC_CIPHER_IS_GCM(cipherAlgorithm)) {
+			sliceType = ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE;
+		} else if (LAC_CIPHER_IS_CCM(cipherAlgorithm) &&
+			   LAC_CIPHER_AES_V2(capabilitiesMask)) {
+			sliceType = ICP_QAT_FW_LA_USE_LEGACY_SLICE_TYPE;
+		} else if (LAC_CIPHER_IS_AES(cipherAlgorithm) &&
+			   LAC_CIPHER_IS_CTR_MODE(cipherAlgorithm)) {
+			sliceType = ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE;
+		}
+	}
+
+	return sliceType;
+}

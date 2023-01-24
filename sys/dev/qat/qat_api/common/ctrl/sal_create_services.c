@@ -64,6 +64,9 @@ SalCtrl_ServiceCreate(sal_service_type_t serviceType,
 		pCrypto_service->generic_service_info.shutdown =
 		    SalCtrl_CryptoShutdown;
 
+		/* Force HW MAC validation for GCM and CCM */
+		pCrypto_service->forceAEADMacVerify = CPA_TRUE;
+
 		*(ppInst) = &(pCrypto_service->generic_service_info);
 
 		return CPA_STATUS_SUCCESS;

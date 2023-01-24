@@ -868,4 +868,41 @@ CpaStatus icp_sal_dp_SymGetInflightRequests(CpaInstanceHandle instanceHandle,
  *
  *****************************************************************************/
 CpaStatus icp_sal_AsymPerformOpNow(CpaInstanceHandle instanceHandle);
+
+/**
+ *****************************************************************************
+ * @ingroup icp_sal_setForceAEADMACVerify
+ *      Sets forceAEADMacVerify for particular instance to force HW MAC
+ *      validation.
+ *
+ * @description
+ * 	By default HW MAC verification is set to CPA_TRUE - this utility
+ * 	function allows to change default behavior.
+ *
+ * @assumptions
+ *      None
+ * @sideEffects
+ *      None
+ * @blocking
+ *      None
+ * @reentrant
+ *      No
+ * @threadSafe
+ *      No
+ *
+ * @param[in] instanceHandle         Crypto API instance handle.
+ * @param[in] forceAEADMacVerify     new value
+ *
+ * @retval CPA_STATUS_SUCCESS        Function executed successfully.
+ * @retval CPA_STATUS_FAIL           Function failed.
+ * @pre
+ *      None
+ * @post
+ *      None
+ * @see
+ *      None
+ *
+ *****************************************************************************/
+CpaStatus icp_sal_setForceAEADMACVerify(CpaInstanceHandle instanceHandle,
+					CpaBoolean forceAEADMacVerify);
 #endif

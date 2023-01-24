@@ -16,6 +16,7 @@
 #define LAC_SAL_TYPES_CRYPTO_H_
 
 #include "lac_sym_qat_hash_defs_lookup.h"
+#include "lac_sym_qat_constants_table.h"
 #include "lac_sym_key.h"
 #include "cpa_cy_sym_dp.h"
 
@@ -84,6 +85,8 @@ typedef struct sal_crypto_service_s {
 
 	QatUtilsAtomic *pLacDrbgStatsArr;
 	/**< pointer to an array of atomic stats for DRBG */
+	icp_qat_hw_auth_mode_t qatHmacMode;
+	/**< Hmac Mode */
 
 	Cpa32U pkeFlowId;
 	/**< Flow ID for all pke requests from this instance - identifies
@@ -105,6 +108,8 @@ typedef struct sal_crypto_service_s {
 
 	Cpa16U acceleratorNum;
 	Cpa16U bankNum;
+	Cpa16U bankNumAsym;
+	Cpa16U bankNumSym;
 	Cpa16U pkgID;
 	Cpa8U isPolled;
 	Cpa8U executionEngine;
@@ -119,6 +124,9 @@ typedef struct sal_crypto_service_s {
 	/**< table of pointers to standard defined information for all hash
 	     algorithms. We support an extra hash algo that is not exported by
 	     cy api which is why we need the extra +1 */
+
+	lac_sym_qat_constants_t constantsLookupTables;
+
 	Cpa8U **ppHmacContentDesc;
 	/**< table of pointers to CD for Hmac precomputes - used at session init
 	 */
@@ -137,6 +145,10 @@ typedef struct sal_crypto_service_s {
 
 	debug_file_info_t *debug_file;
 /**< Statistics handler */
+
+	CpaBoolean forceAEADMacVerify;
+	/**< internal flag to enable/disable forcing HW digest verification for
+	     GCM and CCM algorithms */
 } sal_crypto_service_t;
 
 /*************************************************************************

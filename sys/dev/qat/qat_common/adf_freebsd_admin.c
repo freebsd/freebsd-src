@@ -27,10 +27,7 @@
 #define ADF_CONST_TABLE_VERSION (1)
 
 /* Admin Messages Registers */
-#define ADF_DH895XCC_ADMINMSGUR_OFFSET (0x3A000 + 0x574)
-#define ADF_DH895XCC_ADMINMSGLR_OFFSET (0x3A000 + 0x578)
-#define ADF_DH895XCC_MAILBOX_BASE_OFFSET 0x20970
-#define ADF_DH895XCC_MAILBOX_STRIDE 0x1000
+#define ADF_MAILBOX_STRIDE 0x1000
 #define ADF_ADMINMSG_LEN 32
 #define FREEBSD_ALLIGNMENT_SIZE 64
 #define ADF_INIT_CONFIG_SIZE 1024
@@ -146,7 +143,7 @@ adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev,
 	hw_data->get_admin_info(&admin_csrs_info);
 	int offset = ae * ADF_ADMINMSG_LEN * 2;
 	int mb_offset =
-	    ae * ADF_DH895XCC_MAILBOX_STRIDE + admin_csrs_info.mailbox_offset;
+	    ae * ADF_MAILBOX_STRIDE + admin_csrs_info.mailbox_offset;
 
 	int times, received;
 	struct icp_qat_fw_init_admin_req *request = in;
@@ -294,7 +291,7 @@ adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	u32 ae_mask = hw_device->ae_mask;
+	u32 ae_mask = hw_device->admin_ae_mask;
 
 	explicit_bzero(&req, sizeof(req));
 	req.cmd_id = ICP_QAT_FW_CONSTANTS_CFG;

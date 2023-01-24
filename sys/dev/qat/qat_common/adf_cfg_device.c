@@ -249,7 +249,6 @@ adf_cfg_get_ring_pairs(struct adf_cfg_device *device,
 	int i = 0;
 	int ret = EFAULT;
 	struct adf_cfg_instance *free_inst = NULL;
-	struct adf_cfg_bundle *first_free_bundle = NULL;
 	enum adf_cfg_bundle_type free_bundle_type;
 	int first_user_bundle = 0;
 
@@ -304,29 +303,25 @@ adf_cfg_get_ring_pairs(struct adf_cfg_device *device,
 
 				return ret;
 
-			} else if (!first_free_bundle &&
-				   adf_cfg_is_free(device->bundles[i])) {
-				first_free_bundle = device->bundles[i];
 			}
 		}
+		for (i = 0; i < device->bundle_num; i++) {
+			if (adf_cfg_is_free(device->bundles[i])) {
+				free_inst = adf_cfg_get_free_instance(
+				    device,
+				    device->bundles[i],
+				    inst,
+				    process_name);
+				if (!free_inst)
+					continue;
 
-		if (first_free_bundle) {
-			free_inst = adf_cfg_get_free_instance(device,
-							      first_free_bundle,
-							      inst,
-							      process_name);
-
-			if (!free_inst)
+				ret = adf_cfg_get_ring_pairs_from_bundle(
+				    device->bundles[i],
+				    inst,
+				    process_name,
+				    free_inst);
 				return ret;
-
-			ret = adf_cfg_get_ring_pairs_from_bundle(
-			    first_free_bundle, inst, process_name, free_inst);
-
-			if (free_bundle_type == KERNEL) {
-				device->max_kernel_bundle_nr =
-				    first_free_bundle->number;
 			}
-			return ret;
 		}
 	}
 	pr_err("Don't have enough rings for instance %s in process %s\n",

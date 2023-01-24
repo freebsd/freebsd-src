@@ -92,6 +92,44 @@ typedef enum {
 	/**< Delimiter type */
 } icp_qat_fw_la_cmd_id_t;
 
+typedef struct icp_qat_fw_la_cipher_20_req_params_s {
+	/**< LW 14 */
+	uint32_t cipher_offset;
+	/**< Cipher offset long word. */
+
+	/**< LW 15 */
+	uint32_t cipher_length;
+	/**< Cipher length long word. */
+
+	/**< LWs 16-19 */
+	union {
+		uint32_t cipher_IV_array[ICP_QAT_FW_NUM_LONGWORDS_4];
+		/**< Cipher IV array  */
+
+		struct {
+			uint64_t cipher_IV_ptr;
+			/**< Cipher IV pointer or Partial State Pointer */
+
+			uint64_t resrvd1;
+			/**< reserved */
+
+		} s;
+
+	} u;
+	/**< LW 20 */
+	uint32_t spc_aad_offset;
+	/**< LW 21 */
+	uint32_t spc_aad_sz;
+	/**< LW 22 - 23 */
+	uint64_t spc_aad_addr;
+	/**< LW 24 - 25 */
+	uint64_t spc_auth_res_addr;
+	/**< LW 26 */
+	uint8_t reserved[3];
+	uint8_t spc_auth_res_sz;
+
+} icp_qat_fw_la_cipher_20_req_params_t;
+
 /*  For the definitions of the bits in the status field of the common
  *  response, refer to icp_qat_fw.h.
  *  The return values specific to Lookaside service are given below.
@@ -164,6 +202,34 @@ typedef struct icp_qat_fw_la_bulk_req_s {
  */
 
 /* Private defines */
+
+/* bits 15:14  */
+#define ICP_QAT_FW_LA_USE_WIRELESS_SLICE_TYPE 2
+/**< @ingroup icp_qat_fw_la
+ * FW Selects Wireless Cipher Slice
+ *   Cipher Algorithms: AES-{F8}, Snow3G, ZUC
+ *   Auth Algorithms  : Snow3G, ZUC */
+
+#define ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE 1
+/**< @ingroup icp_qat_fw_la
+ * FW Selects UCS Cipher Slice
+ *   Cipher Algorithms: AES-{CTR/XTS}, Single Pass AES-GCM
+ *   Auth Algorithms  : SHA1/ SHA{2/3}-{224/256/384/512} */
+
+#define ICP_QAT_FW_LA_USE_LEGACY_SLICE_TYPE 0
+/**< @ingroup icp_qat_fw_la
+ * FW Selects Legacy Cipher/Auth Slice
+ *   Cipher Algorithms: AES-{CBC/ECB}, SM4, Single Pass AES-CCM
+ *   Auth Algorithms  : SHA1/ SHA{2/3}-{224/256/384/512} */
+
+#define QAT_LA_SLICE_TYPE_BITPOS 14
+/**< @ingroup icp_qat_fw_la
+ * Starting bit position for the slice type selection.
+ * Refer to HAS for Slice type assignment details on QAT2.0 */
+
+#define QAT_LA_SLICE_TYPE_MASK 0x3
+/**< @ingroup icp_qat_fw_la
+ * Two bit mask used to determine the Slice type  */
 
 /* bit 11 */
 #define ICP_QAT_FW_LA_GCM_IV_LEN_12_OCTETS 1
@@ -482,7 +548,7 @@ typedef struct icp_qat_fw_la_bulk_req_s {
  *
  * @description
  *        Macro for extraction of the Cipher IV field contents (bit 2)
-  *
+ *
  * @param flags        Flags to extract the Cipher IV field contents
  *
  *****************************************************************************/
@@ -496,7 +562,7 @@ typedef struct icp_qat_fw_la_bulk_req_s {
  * @description
  *        Macro for extraction of the Cipher/Auth Config
  *        offset type (bit 3)
-  *
+ *
  * @param flags        Flags to extract the Cipher/Auth Config
  *                     offset type
  *
@@ -640,6 +706,19 @@ typedef struct icp_qat_fw_la_bulk_req_s {
 		      QAT_LA_USE_EXTENDED_PROTOCOL_FLAGS_BITPOS,               \
 		      QAT_LA_USE_EXTENDED_PROTOCOL_FLAGS_MASK)
 
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
+ *        Macro for extraction of the slice type information from the flags.
+ *
+ * @param flags        Flags to extract the protocol state
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_LA_SLICE_TYPE_GET(flags)                                    \
+	QAT_FIELD_GET(flags, QAT_LA_SLICE_TYPE_BITPOS, QAT_LA_SLICE_TYPE_MASK)
+
 /* Macros for setting field bits */
 /**
  ******************************************************************************
@@ -647,7 +726,7 @@ typedef struct icp_qat_fw_la_bulk_req_s {
  *
  * @description
  *        Macro for setting the Cipher IV field contents
-  *
+ *
  * @param flags        Flags to set with the Cipher IV field contents
  * @param val          Field contents indicator value
  *
@@ -665,7 +744,7 @@ typedef struct icp_qat_fw_la_bulk_req_s {
  * @description
  *        Macro for setting the Cipher/Auth Config
  *        offset type
-  *
+ *
  * @param flags        Flags to set the Cipher/Auth Config offset type
  * @param val          Offset type value
  *
@@ -841,6 +920,23 @@ typedef struct icp_qat_fw_la_bulk_req_s {
 		      QAT_LA_USE_EXTENDED_PROTOCOL_FLAGS_MASK)
 
 /**
+******************************************************************************
+* @ingroup icp_qat_fw_la
+*
+* @description
+*        Macro for setting the "slice type" field in la flags
+*
+* @param flags      Flags to set the slice type
+* @param val        Value of the slice type to be set.
+*
+*****************************************************************************/
+#define ICP_QAT_FW_LA_SLICE_TYPE_SET(flags, val)                               \
+	QAT_FIELD_SET(flags,                                                   \
+		      val,                                                     \
+		      QAT_LA_SLICE_TYPE_BITPOS,                                \
+		      QAT_LA_SLICE_TYPE_MASK)
+
+/**
  *****************************************************************************
  * @ingroup icp_qat_fw_la
  *        Definition of the Cipher header Content Descriptor pars block
@@ -860,14 +956,10 @@ typedef union icp_qat_fw_cipher_req_hdr_cd_pars_s {
 
 		uint8_t content_desc_params_sz;
 		/**< Size of the content descriptor parameters in quad words.
-		 * These
-		 * parameters describe the session setup configuration info for
-		 * the
-		 * slices that this request relies upon i.e. the configuration
-		 * word and
-		 * cipher key needed by the cipher slice if there is a request
-		 * for
-		 * cipher processing. */
+		 * These parameters describe the session setup configuration
+		 * info for the slices that this request relies upon i.e. the
+		 * configuration word and cipher key needed by the cipher slice
+		 * if there is a request for cipher processing. */
 
 		uint8_t content_desc_hdr_resrvd2;
 		/**< Content descriptor reserved field */
@@ -916,14 +1008,10 @@ typedef union icp_qat_fw_cipher_auth_req_hdr_cd_pars_s {
 
 		uint8_t content_desc_params_sz;
 		/**< Size of the content descriptor parameters in quad words.
-		 * These
-		 * parameters describe the session setup configuration info for
-		 * the
-		 * slices that this request relies upon i.e. the configuration
-		 * word and
-		 * cipher key needed by the cipher slice if there is a request
-		 * for
-		 * cipher processing. */
+		 * These parameters describe the session setup configuration
+		 * info for the slices that this request relies upon i.e. the
+		 * configuration word and cipher key needed by the cipher slice
+		 * if there is a request for cipher processing. */
 
 		uint8_t content_desc_hdr_resrvd2;
 		/**< Content descriptor reserved field */
@@ -955,8 +1043,7 @@ typedef struct icp_qat_fw_cipher_cd_ctrl_hdr_s {
 	/**< LW 27 */
 	uint8_t cipher_state_sz;
 	/**< State size in quad words of the cipher algorithm used in this
-	 * session.
-	 * Set to zero if the algorithm doesnt provide any state */
+	 * session. Set to zero if the algorithm doesnt provide any state */
 
 	uint8_t cipher_key_sz;
 	/**< Key size in quad words of the cipher algorithm used in this session
@@ -964,17 +1051,16 @@ typedef struct icp_qat_fw_cipher_cd_ctrl_hdr_s {
 
 	uint8_t cipher_cfg_offset;
 	/**< Quad word offset from the content descriptor parameters address
-	 * i.e.
-	 * (content_address + (cd_hdr_sz << 3)) to the parameters for the cipher
-	 * processing */
+	 * i.e. (content_address + (cd_hdr_sz << 3)) to the parameters for the
+	 * cipher processing */
 
 	uint8_t next_curr_id;
 	/**< This field combines the next and current id (each four bits) -
-	  * the next id is the most significant nibble.
-	  * Next Id:  Set to the next slice to pass the ciphered data through.
-	  * Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go through
-	  * any more slices after cipher.
-	  * Current Id: Initialised with the cipher  slice type */
+	 * the next id is the most significant nibble.
+	 * Next Id:  Set to the next slice to pass the ciphered data through.
+	 * Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go through
+	 * any more slices after cipher.
+	 * Current Id: Initialised with the cipher  slice type */
 
 	/**< LW 28 */
 	uint8_t cipher_padding_sz;
@@ -1021,17 +1107,15 @@ typedef struct icp_qat_fw_auth_cd_ctrl_hdr_s {
 
 	uint8_t hash_cfg_offset;
 	/**< Quad word offset from the content descriptor parameters address to
-	 * the
-	 * parameters for the auth processing */
+	 * the parameters for the auth processing */
 
 	uint8_t next_curr_id;
 	/**< This field combines the next and current id (each four bits) -
-	  * the next id is the most significant nibble.
-	  * Next Id:  Set to the next slice to pass the authentication data
-	 * through.
-	  * Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go through
-	  * any more slices after authentication.
-	  * Current Id: Initialised with the authentication slice type */
+	 * the next id is the most significant nibble.
+	 * Next Id:  Set to the next slice to pass the authentication data
+	 * through. Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go
+	 * through any more slices after authentication.
+	 * Current Id: Initialised with the authentication slice type */
 
 	/**< LW 29 */
 	uint8_t resrvd3;
@@ -1057,8 +1141,7 @@ typedef struct icp_qat_fw_auth_cd_ctrl_hdr_s {
 
 	uint8_t inner_state2_offset;
 	/**< Quad word offset from the content descriptor parameters pointer to
-	 * the
-	 * inner state2 value */
+	 * the inner state2 value */
 
 	uint8_t inner_state2_sz;
 	/**< Size in bytes of inner hash state2 data. Must be a qword multiple
@@ -1067,8 +1150,7 @@ typedef struct icp_qat_fw_auth_cd_ctrl_hdr_s {
 	/**< LW 31 */
 	uint8_t outer_config_offset;
 	/**< Quad word offset from the content descriptor parameters pointer to
-	 * the
-	 * outer configuration information */
+	 * the outer configuration information */
 
 	uint8_t outer_state1_sz;
 	/**< Size in bytes of the outer state1 value */
@@ -1078,10 +1160,8 @@ typedef struct icp_qat_fw_auth_cd_ctrl_hdr_s {
 
 	uint8_t outer_prefix_offset;
 	/**< Quad word offset from the start of the inner prefix data to the
-	 * outer
-	 * prefix information. Should equal the rounded inner prefix size,
-	 * converted
-	 * to qwords  */
+	 * outer prefix information. Should equal the rounded inner prefix size,
+	 * converted to qwords  */
 
 } icp_qat_fw_auth_cd_ctrl_hdr_t;
 
@@ -1100,8 +1180,7 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 	/**< LW 27 */
 	uint8_t cipher_state_sz;
 	/**< State size in quad words of the cipher algorithm used in this
-	 * session.
-	 * Set to zero if the algorithm doesnt provide any state */
+	 * session. Set to zero if the algorithm doesnt provide any state */
 
 	uint8_t cipher_key_sz;
 	/**< Key size in quad words of the cipher algorithm used in this session
@@ -1109,17 +1188,16 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 
 	uint8_t cipher_cfg_offset;
 	/**< Quad word offset from the content descriptor parameters address
-	 * i.e.
-	 * (content_address + (cd_hdr_sz << 3)) to the parameters for the cipher
-	 * processing */
+	 * i.e. (content_address + (cd_hdr_sz << 3)) to the parameters for the
+	 * cipher processing */
 
 	uint8_t next_curr_id_cipher;
 	/**< This field combines the next and current id (each four bits) -
-	  * the next id is the most significant nibble.
-	  * Next Id:  Set to the next slice to pass the ciphered data through.
-	  * Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go through
-	  * any more slices after cipher.
-	  * Current Id: Initialised with the cipher  slice type */
+	 * the next id is the most significant nibble.
+	 * Next Id:  Set to the next slice to pass the ciphered data through.
+	 * Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go through
+	 * any more slices after cipher.
+	 * Current Id: Initialised with the cipher  slice type */
 
 	/**< LW 28 */
 	uint8_t cipher_padding_sz;
@@ -1134,16 +1212,14 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 
 	uint8_t hash_cfg_offset;
 	/**< Quad word offset from the content descriptor parameters address to
-	 * the
-	 * parameters for the auth processing */
+	 * the parameters for the auth processing */
 
 	uint8_t next_curr_id_auth;
 	/**< This field combines the next and current id (each four bits) -
 	 * the next id is the most significant nibble.
 	 * Next Id:  Set to the next slice to pass the authentication data
-	 * through.
-	 * Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go through
-	 * any more slices after authentication.
+	 * through. Set to ICP_QAT_FW_SLICE_DRAM_WR if the data is not to go
+	 * through any more slices after authentication.
 	 * Current Id: Initialised with the authentication slice type */
 
 	/**< LW 29 */
@@ -1170,8 +1246,7 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 
 	uint8_t inner_state2_offset;
 	/**< Quad word offset from the content descriptor parameters pointer to
-	 * the
-	 * inner state2 value */
+	 * the inner state2 value */
 
 	uint8_t inner_state2_sz;
 	/**< Size in bytes of inner hash state2 data. Must be a qword multiple
@@ -1180,8 +1255,7 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 	/**< LW 31 */
 	uint8_t outer_config_offset;
 	/**< Quad word offset from the content descriptor parameters pointer to
-	 * the
-	 * outer configuration information */
+	 * the outer configuration information */
 
 	uint8_t outer_state1_sz;
 	/**< Size in bytes of the outer state1 value */
@@ -1191,10 +1265,8 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 
 	uint8_t outer_prefix_offset;
 	/**< Quad word offset from the start of the inner prefix data to the
-	 * outer
-	 * prefix information. Should equal the rounded inner prefix size,
-	 * converted
-	 * to qwords  */
+	 * outer prefix information. Should equal the rounded inner prefix size,
+	 * converted to qwords  */
 
 } icp_qat_fw_cipher_auth_cd_ctrl_hdr_t;
 
@@ -1204,9 +1276,9 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
  *  + ===== + --- + --- + --- + --- + --- + --- + --- + ---- +
  *  | Bit   |  7  |  6  | 5   |  4  |  3  |  2  |  1  |   0  |
  *  + ===== + --- + --- + --- + --- + --- + --- + --- + ---- +
- *  | Flags | Rsv | Rsv | Rsv | ZUC |SNOW | Rsv | Rsv |NESTED|
- *  |       |     |     |     |EIA3 | 3G  |     |     |      |
- *  |       |     |     |     |     |UIA2 |     |     |      |
+ *  | Flags | Rsv | Rsv | Rsv | ZUC |SNOW |SKIP |SKIP |NESTED|
+ *  |       |     |     |     |EIA3 | 3G  |LOAD |LOAD |      |
+ *  |       |     |     |     |     |UIA2 |OUTER|INNER|      |
  *  + ===== + --- + --- + --- + --- + --- + --- + --- + ---- +
  */
 
@@ -1232,6 +1304,42 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
  * Bit mask of the hash_flags bit to indicate the request
  * requires nested hashing
  */
+
+/* Bit 1 */
+
+#define QAT_FW_LA_SKIP_INNER_STATE1_LOAD_BITPOS 1
+/**< @ingroup icp_qat_fw_comn
+ * Bit position of the Skipping Inner State1 Load bit */
+
+#define QAT_FW_LA_SKIP_INNER_STATE1_LOAD 1
+/**< @ingroup icp_qat_fw_comn
+ * Value indicating the skipping of inner hash state load */
+
+#define QAT_FW_LA_NO_SKIP_INNER_STATE1_LOAD 0
+/**< @ingroup icp_qat_fw_comn
+ * Value indicating the no skipping of inner hash state load */
+
+#define QAT_FW_LA_SKIP_INNER_STATE1_LOAD_MASK 0x1
+/**< @ingroup icp_qat_fw_comn
+ * Bit mask of Skipping Inner State1 Load bit */
+
+/* Bit 2 */
+
+#define QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_BITPOS 2
+/**< @ingroup icp_qat_fw_comn
+ * Bit position of the Skipping Outer State1 Load bit */
+
+#define QAT_FW_LA_SKIP_OUTER_STATE1_LOAD 1
+/**< @ingroup icp_qat_fw_comn
+ * Value indicating the skipping of outer hash state load */
+
+#define QAT_FW_LA_NO_SKIP_OUTER_STATE1_LOAD 0
+/**< @ingroup icp_qat_fw_comn
+ * Value indicating the no skipping of outer hash state load */
+
+#define QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_MASK 0x1
+/**< @ingroup icp_qat_fw_comn
+ * Bit mask of Skipping Outer State1 Load bit */
 
 /* Bit 3 */
 
@@ -1261,6 +1369,24 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 /**< @ingroup icp_qat_fw_la
  * One bit mask used to determine the use of hash algorithm ZUC-EIA3 */
 
+/* Bit 5 */
+
+#define QAT_FW_LA_MODE2_BITPOS 5
+/**< @ingroup icp_qat_fw_comn
+ * Bit position of the Mode 2 bit */
+
+#define QAT_FW_LA_MODE2 1
+/**< @ingroup icp_qat_fw_comn
+ * Value indicating the Mode 2*/
+
+#define QAT_FW_LA_NO_MODE2 0
+/**< @ingroup icp_qat_fw_comn
+ * Value indicating the no Mode 2*/
+
+#define QAT_FW_LA_MODE2_MASK 0x1
+/**< @ingroup icp_qat_fw_comn
+ * Bit mask of Mode 2 */
+
 /* Macros for extracting hash flags */
 
 /**
@@ -1278,6 +1404,67 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 	QAT_FIELD_GET(flags,                                                   \
 		      QAT_FW_LA_AUTH_HDR_NESTED_BITPOS,                        \
 		      QAT_FW_LA_AUTH_HDR_NESTED_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
+ *      Macro for extraction of the "Skipping Inner State1 Load state" hash flag
+ *
+ * @param flags     Hash Flags
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_SKIP_INNER_STATE1_LOAD_GET(flags)                 \
+	QAT_FIELD_GET(flags,                                                   \
+		      QAT_FW_LA_SKIP_INNER_STATE1_LOAD_BITPOS,                 \
+		      QAT_FW_LA_INNER_STATE1_LOAD_MASK)
+
+/**
+ ******************************************************************************
+ *        Macro for setting the "Skipping Inner State1 Load" hash flag
+ *
+ * @param flags      Hash Flags
+ * @param val        Value of the flag
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_SKIP_INNER_STATE1_LOAD_SET(flags, val)            \
+	QAT_FIELD_SET(flags,                                                   \
+		      val,                                                     \
+		      QAT_FW_LA_SKIP_INNER_STATE1_LOAD_BITPOS,                 \
+		      QAT_FW_LA_SKIP_INNER_STATE1_LOAD_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
+ *      Macro for extraction of the "Skipping Outer State1 Load state" hash flag
+ *
+ * @param flags     Hash Flags
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_SKIP_OUTER_STATE1_LOAD_GET(flags)                 \
+	QAT_FIELD_GET(flags,                                                   \
+		      QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_BITPOS,                 \
+		      QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
+ *        Macro for setting the "Skipping Outer State1 Load" hash flag
+ *
+ * @param flags      Hash Flags
+ * @param val        Value of the flag
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_SKIP_OUTER_STATE1_LOAD_SET(flags, val)            \
+	QAT_FIELD_SET(flags,                                                   \
+		      val,                                                     \
+		      QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_BITPOS,                 \
+		      QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_MASK)
 
 /**
  ******************************************************************************
@@ -1333,6 +1520,40 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
  * @ingroup icp_qat_fw_la
  *
  * @description
+ *        Macro for setting the "Skipping Inner State1 Load" hash flag
+ *
+ * @param flags      Hash Flags
+ * @param val        Value of the flag
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_SKIP_INNER_STATE1_LOAD_SET(flags, val)            \
+	QAT_FIELD_SET(flags,                                                   \
+		      val,                                                     \
+		      QAT_FW_LA_SKIP_INNER_STATE1_LOAD_BITPOS,                 \
+		      QAT_FW_LA_SKIP_INNER_STATE1_LOAD_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
+ *        Macro for setting the "Skipping Outer State1 Load" hash flag
+ *
+ * @param flags      Hash Flags
+ * @param val        Value of the flag
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_SKIP_OUTER_STATE1_LOAD_SET(flags, val)            \
+	QAT_FIELD_SET(flags,                                                   \
+		      val,                                                     \
+		      QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_BITPOS,                 \
+		      QAT_FW_LA_SKIP_OUTER_STATE1_LOAD_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
  *        Macro for setting the "Snow3g-UIA2" hash flag
  *
  * @param flags      Hash Flags
@@ -1361,6 +1582,20 @@ typedef struct icp_qat_fw_cipher_auth_cd_ctrl_hdr_s {
 		      val,                                                     \
 		      QAT_FW_LA_ZUC_EIA3_BITPOS,                               \
 		      QAT_FW_LA_ZUC_EIA3_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_la
+ *
+ * @description
+ *        Macro for setting the "Mode 2" hash flag
+ *
+ * @param flags      Hash Flags
+ * @param val        Value of the flag
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_HASH_FLAG_MODE2_SET(flags, val)                             \
+	QAT_FIELD_SET(flags, val, QAT_FW_LA_MODE2_BITPOS, QAT_FW_LA_MODE2_MASK)
 
 #define ICP_QAT_FW_CCM_GCM_AAD_SZ_MAX 240
 #define ICP_QAT_FW_SPC_AAD_SZ_MAX 0x3FFF
@@ -1494,8 +1729,7 @@ typedef struct icp_qat_fw_la_auth_req_params_s {
 
 		uint8_t aad_sz;
 		/**< Size in bytes of padded AAD data to prefix to the packet
-		 * for CCM
-		 *  or GCM processing */
+		 * for CCM or GCM processing */
 	} u2;
 
 	uint8_t resrvd1;
@@ -1535,8 +1769,7 @@ typedef struct icp_qat_fw_la_auth_req_params_resrvd_flds_s {
 
 		uint8_t aad_sz;
 		/**< Size in bytes of padded AAD data to prefix to the packet
-		 * for CCM
-		 *  or GCM processing */
+		 * for CCM or GCM processing */
 	} u2;
 
 	uint8_t resrvd1;
@@ -1565,8 +1798,7 @@ typedef struct icp_qat_fw_la_key_gen_common_s {
 		/**< SSL3 */
 		uint16_t secret_lgth_ssl;
 		/**< Length of Secret information for SSL. In the case of TLS
-		* the
-		* secret is supplied in the content descriptor */
+		 * the secret is supplied in the content descriptor */
 
 		/**< MGF */
 		uint16_t mask_length;
@@ -1692,8 +1924,7 @@ typedef struct icp_qat_fw_la_ssl3_req_params_s {
 
 		uint8_t aad_sz;
 		/**< Size in bytes of padded AAD data to prefix to the packet
-		 * for CCM
-		 *  or GCM processing */
+		 * for CCM or GCM processing */
 	} u2;
 
 	uint8_t resrvd1;
@@ -1731,8 +1962,7 @@ typedef struct icp_qat_fw_la_mgf_req_params_s {
 
 		uint8_t aad_sz;
 		/**< Size in bytes of padded AAD data to prefix to the packet
-		 * for CCM
-		 *  or GCM processing */
+		 * for CCM or GCM processing */
 	} u2;
 
 	uint8_t resrvd1;
@@ -1779,16 +2009,14 @@ typedef struct icp_qat_fw_la_trng_req_mid_s {
 	/**< LWs 6-13 */
 	uint64_t opaque_data;
 	/**< Opaque data passed unmodified from the request to response messages
-	 * by
-	 * firmware (fw) */
+	 * by firmware (fw) */
 
 	uint64_t resrvd1;
 	/**< Reserved, unused for TRNG */
 
 	uint64_t dest_data_addr;
 	/**< Generic definition of the destination data supplied to the QAT AE.
-	 * The
-	 * common flags are used to further describe the attributes of this
+	 * The common flags are used to further describe the attributes of this
 	 * field */
 
 	uint32_t resrvd2;
@@ -1796,7 +2024,7 @@ typedef struct icp_qat_fw_la_trng_req_mid_s {
 
 	uint32_t entropy_length;
 	/**< Size of the data in bytes to process. Used by the get_random
-	* command. Set to 0 for commands that dont need a length parameter */
+	 * command. Set to 0 for commands that dont need a length parameter */
 
 } icp_qat_fw_la_trng_req_mid_t;
 
@@ -2235,10 +2463,8 @@ struct icp_qat_fw_hkdf_label {
 	union {
 		uint8_t label_flags;
 		/**< For first-level labels: each bit in [0..3] will trigger a
-		 * child
-		 * Expand-Label operation on the corresponding sublabel. Bits
-		 * [4..7]
-		 * are reserved.
+		 * child Expand-Label operation on the corresponding sublabel.
+		 * Bits [4..7] are reserved.
 		 */
 
 		uint8_t sublabel_flags;

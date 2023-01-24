@@ -31,6 +31,7 @@
 #include "sal_string_parse.h"
 #include "lac_sym_key.h"
 #include "lac_sym_qat_hash_defs_lookup.h"
+#include "lac_sym_qat_constants_table.h"
 #include "lac_sym_qat_cipher.h"
 #include "lac_sym_qat_hash.h"
 
@@ -104,6 +105,9 @@ LacSymQat_Init(CpaInstanceHandle instanceHandle)
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
 
+	/* Initialize the SHRAM constants table */
+	LacSymQat_ConstantsInitLookupTables(instanceHandle);
+
 	/* Initialise the Hash lookup table */
 	status = LacSymQat_HashLookupInit(instanceHandle);
 
@@ -130,10 +134,10 @@ LacSymQat_LaPacketCommandFlagSet(Cpa32U qatPacketType,
 				 Cpa16U *pLaCommandFlags,
 				 Cpa32U ivLenInBytes)
 {
-	/* For Chacha ciphers set command flag as partial none to proceed
+	/* For SM4/Chacha ciphers set command flag as partial none to proceed
 	 * with stateless processing */
-	if (LAC_CIPHER_IS_CHACHA(cipherAlgorithm) ||
-	    LAC_CIPHER_IS_SM4(cipherAlgorithm)) {
+	if (LAC_CIPHER_IS_SM4(cipherAlgorithm) ||
+	    LAC_CIPHER_IS_CHACHA(cipherAlgorithm)) {
 		ICP_QAT_FW_LA_PARTIAL_SET(*pLaCommandFlags,
 					  ICP_QAT_FW_LA_PARTIAL_NONE);
 		return;
@@ -144,10 +148,10 @@ LacSymQat_LaPacketCommandFlagSet(Cpa32U qatPacketType,
 	 * must be disabled always.
 	 * For all other ciphers and auth
 	 * update state is disabled for full packets and final partials */
-	if (((laCmdId != ICP_QAT_FW_LA_CMD_AUTH) &&
-	     LAC_CIPHER_IS_ECB_MODE(cipherAlgorithm)) ||
-	    (ICP_QAT_FW_LA_PARTIAL_NONE == qatPacketType) ||
-	    (ICP_QAT_FW_LA_PARTIAL_END == qatPacketType)) {
+	if ((ICP_QAT_FW_LA_PARTIAL_NONE == qatPacketType) ||
+	    (ICP_QAT_FW_LA_PARTIAL_END == qatPacketType) ||
+	    ((laCmdId != ICP_QAT_FW_LA_CMD_AUTH) &&
+	     LAC_CIPHER_IS_ECB_MODE(cipherAlgorithm))) {
 		ICP_QAT_FW_LA_UPDATE_STATE_SET(*pLaCommandFlags,
 					       ICP_QAT_FW_LA_NO_UPDATE_STATE);
 	}
@@ -182,8 +186,9 @@ LacSymQat_packetTypeGet(CpaCySymPacketType packetType,
 			CpaCySymPacketType packetState,
 			Cpa32U *pQatPacketType)
 {
+	switch (packetType) {
 	/* partial */
-	if (CPA_CY_SYM_PACKET_TYPE_PARTIAL == packetType) {
+	case CPA_CY_SYM_PACKET_TYPE_PARTIAL:
 		/* if the previous state was full, then this is the first packet
 		 */
 		if (CPA_CY_SYM_PACKET_TYPE_FULL == packetState) {
@@ -191,13 +196,15 @@ LacSymQat_packetTypeGet(CpaCySymPacketType packetType,
 		} else {
 			*pQatPacketType = ICP_QAT_FW_LA_PARTIAL_MID;
 		}
-	}
+		break;
+
 	/* final partial */
-	else if (CPA_CY_SYM_PACKET_TYPE_LAST_PARTIAL == packetType) {
+	case CPA_CY_SYM_PACKET_TYPE_LAST_PARTIAL:
 		*pQatPacketType = ICP_QAT_FW_LA_PARTIAL_END;
-	}
+		break;
+
 	/* full packet - CPA_CY_SYM_PACKET_TYPE_FULL */
-	else {
+	default:
 		*pQatPacketType = ICP_QAT_FW_LA_PARTIAL_NONE;
 	}
 }
@@ -224,4 +231,102 @@ LacSymQat_LaSetDefaultFlags(icp_qat_fw_serv_specif_flags *laCmdFlags,
 
 	ICP_QAT_FW_LA_GCM_IV_LEN_FLAG_SET(
 	    *laCmdFlags, ICP_QAT_FW_LA_GCM_IV_LEN_NOT_12_OCTETS);
+}
+
+CpaBoolean
+LacSymQat_UseSymConstantsTable(lac_session_desc_t *pSession,
+			       Cpa8U *pCipherOffset,
+			       Cpa8U *pHashOffset)
+{
+
+	CpaBoolean useOptimisedContentDesc = CPA_FALSE;
+	CpaBoolean useSHRAMConstants = CPA_FALSE;
+
+	*pCipherOffset = 0;
+	*pHashOffset = 0;
+
+	/* for chaining can we use the optimised content descritor */
+	if (pSession->laCmdId == ICP_QAT_FW_LA_CMD_CIPHER_HASH ||
+	    pSession->laCmdId == ICP_QAT_FW_LA_CMD_HASH_CIPHER) {
+		useOptimisedContentDesc =
+		    LacSymQat_UseOptimisedContentDesc(pSession);
+	}
+
+	/* Cipher-only case or chaining */
+	if (pSession->laCmdId == ICP_QAT_FW_LA_CMD_CIPHER ||
+	    useOptimisedContentDesc) {
+		icp_qat_hw_cipher_algo_t algorithm;
+		icp_qat_hw_cipher_mode_t mode;
+		icp_qat_hw_cipher_dir_t dir;
+		icp_qat_hw_cipher_convert_t key_convert;
+
+		if (pSession->cipherKeyLenInBytes >
+		    sizeof(icp_qat_fw_comn_req_hdr_cd_pars_t)) {
+			return CPA_FALSE;
+		}
+
+		LacSymQat_CipherGetCfgData(
+		    pSession, &algorithm, &mode, &dir, &key_convert);
+
+		/* Check if cipher config is available in table. */
+		LacSymQat_ConstantsGetCipherOffset(pSession->pInstance,
+						   algorithm,
+						   mode,
+						   dir,
+						   key_convert,
+						   pCipherOffset);
+		if (*pCipherOffset > 0) {
+			useSHRAMConstants = CPA_TRUE;
+		} else {
+			useSHRAMConstants = CPA_FALSE;
+		}
+	}
+
+	/* hash only case or when chaining, cipher must be found in SHRAM table
+	 * for
+	 * optimised CD case */
+	if (pSession->laCmdId == ICP_QAT_FW_LA_CMD_AUTH ||
+	    (useOptimisedContentDesc && useSHRAMConstants)) {
+		icp_qat_hw_auth_algo_t algorithm;
+		CpaBoolean nested;
+
+		if (pSession->digestVerify) {
+			return CPA_FALSE;
+		}
+
+		if ((!(useOptimisedContentDesc && useSHRAMConstants)) &&
+		    (pSession->qatHashMode == ICP_QAT_HW_AUTH_MODE1)) {
+			/* we can only use the SHA1-mode1 in the SHRAM constants
+			 * table when
+			 * we are using the opimised content desc */
+			return CPA_FALSE;
+		}
+
+		LacSymQat_HashGetCfgData(pSession->pInstance,
+					 pSession->qatHashMode,
+					 pSession->hashMode,
+					 pSession->hashAlgorithm,
+					 &algorithm,
+					 &nested);
+
+		/* Check if config data is available in table. */
+		LacSymQat_ConstantsGetAuthOffset(pSession->pInstance,
+						 algorithm,
+						 pSession->qatHashMode,
+						 nested,
+						 pHashOffset);
+		if (*pHashOffset > 0) {
+			useSHRAMConstants = CPA_TRUE;
+		} else {
+			useSHRAMConstants = CPA_FALSE;
+		}
+	}
+
+	return useSHRAMConstants;
+}
+
+CpaBoolean
+LacSymQat_UseOptimisedContentDesc(lac_session_desc_t *pSession)
+{
+	return CPA_FALSE;
 }

@@ -798,8 +798,9 @@ LacSymKey_MgfCommon(const CpaInstanceHandle instanceHandle,
 		    ICP_QAT_FW_SLICE_DRAM_WR,
 		    ICP_QAT_HW_AUTH_MODE0, /* just a plain hash */
 		    CPA_FALSE, /* Not using sym Constants Table in Shared SRAM
-				  */
+				*/
 		    CPA_FALSE, /* not using the optimised Content Desc */
+		    CPA_FALSE, /* Not using the stateful SHA3 Content Desc */
 		    NULL,
 		    &hashBlkSizeInBytes);
 
@@ -1550,9 +1551,11 @@ LacSymKey_KeyGenSslTls_GenCommon(CpaInstanceHandle instanceHandle,
 		    LAC_SYM_KEY_NO_HASH_BLK_OFFSET_QW,
 		    ICP_QAT_FW_SLICE_DRAM_WR,
 		    qatHashMode,
-		    CPA_FALSE, /* Not using sym Constants Table in SRAM */
-		    CPA_FALSE, /* Not using the optimised content Desc */
-		    NULL,      /* Precompute data */
+		    CPA_FALSE, /* Not using sym Constants Table in Shared SRAM
+				*/
+		    CPA_FALSE, /* not using the optimised content Desc */
+		    CPA_FALSE, /* Not using the stateful SHA3 Content Desc */
+		    NULL,      /* precompute data */
 		    &hashBlkSizeInBytes);
 
 		/* SSL3 */

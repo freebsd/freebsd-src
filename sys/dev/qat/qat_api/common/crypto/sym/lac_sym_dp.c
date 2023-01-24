@@ -35,14 +35,16 @@
 
 #include "qat_utils.h"
 
-#include "lac_mem.h"
-#include "lac_log.h"
-#include "lac_sym.h"
-#include "lac_sym_qat_cipher.h"
 #include "lac_list.h"
+#include "lac_log.h"
+#include "lac_mem.h"
 #include "lac_sal_types_crypto.h"
-#include "sal_service_state.h"
+#include "lac_sym.h"
+#include "lac_sym_cipher.h"
 #include "lac_sym_auth_enc.h"
+#include "lac_sym_qat_cipher.h"
+#include "sal_service_state.h"
+#include "sal_hw_gen.h"
 
 typedef void (*write_ringMsgFunc_t)(CpaCySymDpOpData *pRequest,
 				    icp_qat_fw_la_bulk_req_t *pCurrentQatMsg);
@@ -133,7 +135,7 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 	/* digestVerify and digestIsAppended on Hash-Only operation not
 	 * supported */
 	if (pSessionDesc->digestIsAppended && pSessionDesc->digestVerify &&
-	    (CPA_CY_SYM_OP_HASH == pSessionDesc->symOperation)) {
+	    (pSessionDesc->symOperation == CPA_CY_SYM_OP_HASH)) {
 		LAC_INVALID_PARAM_LOG(
 		    "digestVerify and digestIsAppended set "
 		    "on Hash-Only operation is not supported");
@@ -143,10 +145,17 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 	/* Cipher specific tests */
 	if (CPA_CY_SYM_OP_HASH != pSessionDesc->symOperation) {
 		/* Perform IV check */
-		if ((LAC_CIPHER_IS_CTR_MODE(pSessionDesc->cipherAlgorithm) ||
-		     LAC_CIPHER_IS_CBC_MODE(pSessionDesc->cipherAlgorithm) ||
-		     LAC_CIPHER_IS_AES_F8(pSessionDesc->cipherAlgorithm)) &&
-		    (!(LAC_CIPHER_IS_CCM(pSessionDesc->cipherAlgorithm)))) {
+		switch (pSessionDesc->cipherAlgorithm) {
+		case CPA_CY_SYM_CIPHER_AES_CTR:
+		case CPA_CY_SYM_CIPHER_3DES_CTR:
+		case CPA_CY_SYM_CIPHER_SM4_CTR:
+		case CPA_CY_SYM_CIPHER_AES_GCM:
+		case CPA_CY_SYM_CIPHER_CHACHA:
+		case CPA_CY_SYM_CIPHER_AES_CBC:
+		case CPA_CY_SYM_CIPHER_DES_CBC:
+		case CPA_CY_SYM_CIPHER_3DES_CBC:
+		case CPA_CY_SYM_CIPHER_SM4_CBC:
+		case CPA_CY_SYM_CIPHER_AES_F8: {
 			Cpa32U ivLenInBytes = LacSymQat_CipherIvSizeBytesGet(
 			    pSessionDesc->cipherAlgorithm);
 			if (pRequest->ivLenInBytes != ivLenInBytes) {
@@ -164,11 +173,10 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 				LAC_INVALID_PARAM_LOG("invalid iv of 0");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-
 			/* pRequest->pIv is only used for CCM so is not checked
 			 * here */
-		} else if (LAC_CIPHER_IS_KASUMI(
-			       pSessionDesc->cipherAlgorithm)) {
+		} break;
+		case CPA_CY_SYM_CIPHER_KASUMI_F8: {
 			if (LAC_CIPHER_KASUMI_F8_IV_LENGTH !=
 			    pRequest->ivLenInBytes) {
 				LAC_INVALID_PARAM_LOG("invalid cipher IV size");
@@ -178,8 +186,8 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 				LAC_INVALID_PARAM_LOG("invalid iv of 0");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_SNOW3G_UEA2(
-			       pSessionDesc->cipherAlgorithm)) {
+		} break;
+		case CPA_CY_SYM_CIPHER_SNOW3G_UEA2: {
 			if (ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ !=
 			    pRequest->ivLenInBytes) {
 				LAC_INVALID_PARAM_LOG("invalid cipher IV size");
@@ -189,8 +197,8 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 				LAC_INVALID_PARAM_LOG("invalid iv of 0");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_ZUC_EEA3(
-			       pSessionDesc->cipherAlgorithm)) {
+		} break;
+		case CPA_CY_SYM_CIPHER_ZUC_EEA3: {
 			if (ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ !=
 			    pRequest->ivLenInBytes) {
 				LAC_INVALID_PARAM_LOG("invalid cipher IV size");
@@ -200,7 +208,8 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 				LAC_INVALID_PARAM_LOG("invalid iv of 0");
 				return CPA_STATUS_INVALID_PARAM;
 			}
-		} else if (LAC_CIPHER_IS_CCM(pSessionDesc->cipherAlgorithm)) {
+		} break;
+		case CPA_CY_SYM_CIPHER_AES_CCM: {
 			if (CPA_STATUS_SUCCESS !=
 			    LacSymAlgChain_CheckCCMData(
 				pRequest->pAdditionalAuthData,
@@ -209,29 +218,41 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 				pRequest->ivLenInBytes)) {
 				return CPA_STATUS_INVALID_PARAM;
 			}
+		} break;
+		default:
+			break;
 		}
-
 		/* Perform algorithm-specific checks */
-		if (!(LAC_CIPHER_IS_ARC4(pSessionDesc->cipherAlgorithm) ||
-		      LAC_CIPHER_IS_CTR_MODE(pSessionDesc->cipherAlgorithm) ||
-		      LAC_CIPHER_IS_F8_MODE(pSessionDesc->cipherAlgorithm) ||
-		      LAC_CIPHER_IS_SNOW3G_UEA2(
-			  pSessionDesc->cipherAlgorithm) ||
-		      LAC_CIPHER_IS_ZUC_EEA3(pSessionDesc->cipherAlgorithm))) {
+		switch (pSessionDesc->cipherAlgorithm) {
+		case CPA_CY_SYM_CIPHER_ARC4:
+		case CPA_CY_SYM_CIPHER_AES_CTR:
+		case CPA_CY_SYM_CIPHER_3DES_CTR:
+		case CPA_CY_SYM_CIPHER_SM4_CTR:
+		case CPA_CY_SYM_CIPHER_AES_CCM:
+		case CPA_CY_SYM_CIPHER_AES_GCM:
+		case CPA_CY_SYM_CIPHER_CHACHA:
+		case CPA_CY_SYM_CIPHER_KASUMI_F8:
+		case CPA_CY_SYM_CIPHER_AES_F8:
+		case CPA_CY_SYM_CIPHER_SNOW3G_UEA2:
+		case CPA_CY_SYM_CIPHER_ZUC_EEA3:
+			/* No action needed */
+			break;
+		default: {
 			/* Mask & check below is based on assumption that block
-			 * size is
-			 * a power of 2. If data size is not a multiple of the
-			 * block size,
-			 * the "remainder" bits selected by the mask be non-zero
+			 * size is a power of 2. If data size is not a multiple
+			 * of the block size, the "remainder" bits selected by
+			 * the mask be non-zero
 			 */
 			if (pRequest->messageLenToCipherInBytes &
 			    (LacSymQat_CipherBlockSizeBytesGet(
 				 pSessionDesc->cipherAlgorithm) -
 			     1)) {
 				LAC_INVALID_PARAM_LOG(
-				    "Data size must be block size multiple");
+				    "Data size must be block size"
+				    " multiple");
 				return CPA_STATUS_INVALID_PARAM;
 			}
+		}
 		}
 
 		cipher = pSessionDesc->cipherAlgorithm;
@@ -242,11 +263,9 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
 		if (LAC_CIPHER_IS_SPC(cipher, hash, capabilitiesMask) &&
 		    (LAC_CIPHER_SPC_IV_SIZE == pRequest->ivLenInBytes)) {
 			/* For CHACHA and AES_GCM single pass there is an AAD
-			 * buffer
-			 * if aadLenInBytes is nonzero. AES_GMAC AAD is stored
-			 * in
-			 * source buffer, therefore there is no separate AAD
-			 * buffer. */
+			 * buffer if aadLenInBytes is nonzero. AES_GMAC AAD is
+			 * stored in source buffer, therefore there is no
+			 * separate AAD buffer. */
 			if ((0 != pSessionDesc->aadLenInBytes) &&
 			    (CPA_CY_SYM_HASH_AES_GMAC !=
 			     pSessionDesc->hashAlgorithm)) {
@@ -397,7 +416,7 @@ LacDp_EnqueueParamCheck(const CpaCySymDpOpData *pRequest)
  * @ingroup cpaCySymDp
  *      Write Message on the ring and write request params
  *      This is the optimized version, which should not be used for
- *      algorithm of CCM, GCM and RC4
+ *      algorithm of CCM, GCM, CHACHA and RC4
  *
  * @description
  *      Write Message on the ring and write request params
@@ -425,12 +444,15 @@ LacDp_WriteRingMsgOpt(CpaCySymDpOpData *pRequest,
 	/* Write Request */
 	/*
 	 * Fill in the header and footer bytes of the ET ring message - cached
-	 * from
-	 * the session descriptor.
+	 * from the session descriptor.
 	 */
-	pCacheDummyHdr = (Cpa8U *)&(pSessionDesc->reqCacheHdr);
-	pCacheDummyFtr = (Cpa8U *)&(pSessionDesc->reqCacheFtr);
-
+	if (!pSessionDesc->useSymConstantsTable) {
+		pCacheDummyHdr = (Cpa8U *)&(pSessionDesc->reqCacheHdr);
+		pCacheDummyFtr = (Cpa8U *)&(pSessionDesc->reqCacheFtr);
+	} else {
+		pCacheDummyHdr = (Cpa8U *)&(pSessionDesc->shramReqCacheHdr);
+		pCacheDummyFtr = (Cpa8U *)&(pSessionDesc->shramReqCacheFtr);
+	}
 	memcpy(pMsgDummy,
 	       pCacheDummyHdr,
 	       (LAC_LONG_WORD_IN_BYTES * LAC_SIZE_OF_CACHE_HDR_IN_LW));
@@ -457,6 +479,7 @@ LacDp_WriteRingMsgOpt(CpaCySymDpOpData *pRequest,
 	if (pSessionDesc->isCipher) {
 
 		LacSymQat_CipherRequestParamsPopulate(
+		    pSessionDesc,
 		    pCurrentQatMsg,
 		    pRequest->cryptoStartSrcOffsetInBytes,
 		    pRequest->messageLenToCipherInBytes,
@@ -493,14 +516,27 @@ LacDp_WriteRingMsgOpt(CpaCySymDpOpData *pRequest,
 		 * copied directly from the op request data because they share a
 		 * corresponding layout.  The remaining 4 bytes are taken
 		 * from the session message template and use values
-		 * preconfigured at
-		 * sessionInit (updated per request for some specific cases
-		 * below)
+		 * preconfigured at sessionInit (updated per request for some
+		 * specific cases below)
 		 */
-		memcpy(pAuthReqPars,
-		       (Cpa32U *)&(pRequest->hashStartSrcOffsetInBytes),
-		       ((unsigned long)&(pAuthReqPars->u2.inner_prefix_sz) -
-			(unsigned long)pAuthReqPars));
+
+		/* We force a specific compiler optimisation here.  The length
+		 * to be copied turns out to be always 16, and by coding a
+		 * memcpy with a literal value the compiler will compile inline
+		 * code (in fact, only two vector instructions) to effect the
+		 * copy.  This gives us a huge performance increase.
+		 */
+		unsigned long cplen =
+		    (unsigned long)&(pAuthReqPars->u2.inner_prefix_sz) -
+		    (unsigned long)pAuthReqPars;
+		if (cplen == 16)
+			memcpy(pAuthReqPars,
+			       (Cpa32U *)&(pRequest->hashStartSrcOffsetInBytes),
+			       16);
+		else
+			memcpy(pAuthReqPars,
+			       (Cpa32U *)&(pRequest->hashStartSrcOffsetInBytes),
+			       cplen);
 
 		if (CPA_TRUE == pSessionDesc->isAuthEncryptOp) {
 			pAuthReqPars->hash_state_sz =
@@ -548,25 +584,29 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 	Cpa32U sizeInBytes = 0;
 	CpaCySymCipherAlgorithm cipher = pSessionDesc->cipherAlgorithm;
 	CpaCySymHashAlgorithm hash = pSessionDesc->hashAlgorithm;
+	sal_crypto_service_t *pService =
+	    (sal_crypto_service_t *)pRequest->instanceHandle;
 	Cpa32U capabilitiesMask =
 	    ((sal_crypto_service_t *)pRequest->instanceHandle)
 		->generic_service_info.capabilitiesMask;
 
+	CpaBoolean isSpCcm = LAC_CIPHER_IS_CCM(cipher) &&
+	    LAC_CIPHER_IS_SPC(cipher, hash, capabilitiesMask);
+
 	Cpa8U paddingLen = 0;
 	Cpa8U blockLen = 0;
+	Cpa32U aadDataLen = 0;
 
 	pMsgDummy = (Cpa8U *)pCurrentQatMsg;
 	/* Write Request */
 	/*
 	 * Fill in the header and footer bytes of the ET ring message - cached
-	 * from
-	 * the session descriptor.
+	 * from the session descriptor.
 	 */
 
-	if (!pSessionDesc->isSinglePass &&
-	    LAC_CIPHER_IS_SPC(cipher, hash, capabilitiesMask) &&
-	    (LAC_CIPHER_SPC_IV_SIZE == pRequest->ivLenInBytes)) {
-		pSessionDesc->isSinglePass = CPA_TRUE;
+	if ((NON_SPC != pSessionDesc->singlePassState) &&
+	    (isSpCcm || (LAC_CIPHER_SPC_IV_SIZE == pRequest->ivLenInBytes))) {
+		pSessionDesc->singlePassState = SPC;
 		pSessionDesc->isCipher = CPA_TRUE;
 		pSessionDesc->isAuthEncryptOp = CPA_FALSE;
 		pSessionDesc->isAuth = CPA_FALSE;
@@ -581,7 +621,8 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 		 */
 		ICP_QAT_FW_LA_SINGLE_PASS_PROTO_FLAG_SET(
 		    pSessionDesc->laCmdFlags, ICP_QAT_FW_LA_SINGLE_PASS_PROTO);
-		ICP_QAT_FW_LA_PROTO_SET(pSessionDesc->laCmdFlags, 0);
+		if (isCyGen2x(pService))
+			ICP_QAT_FW_LA_PROTO_SET(pSessionDesc->laCmdFlags, 0);
 
 		pCdInfo = &(pSessionDesc->contentDescInfo);
 		pHwBlockBaseInDRAM = (Cpa8U *)pCdInfo->pData;
@@ -589,11 +630,22 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 		    pSessionDesc->cipherDirection) {
 			if (LAC_CIPHER_IS_GCM(cipher))
 				hwBlockOffsetInDRAM = LAC_QUADWORDS_TO_BYTES(
-				    LAC_SYM_QAT_CIPHER_OFFSET_IN_DRAM_GCM_SPC);
-			else
+				    LAC_SYM_QAT_CIPHER_GCM_SPC_OFFSET_IN_DRAM);
+			else if (LAC_CIPHER_IS_CHACHA(cipher))
 				hwBlockOffsetInDRAM = LAC_QUADWORDS_TO_BYTES(
-				    LAC_SYM_QAT_CIPHER_OFFSET_IN_DRAM_CHACHA_SPC);
+				    LAC_SYM_QAT_CIPHER_CHACHA_SPC_OFFSET_IN_DRAM);
+		} else if (isSpCcm) {
+			hwBlockOffsetInDRAM = LAC_QUADWORDS_TO_BYTES(
+			    LAC_SYM_QAT_CIPHER_CCM_SPC_OFFSET_IN_DRAM);
 		}
+
+		/* Update slice type, as used algos changed */
+		pSessionDesc->cipherSliceType =
+		    LacCipher_GetCipherSliceType(pService, cipher, hash);
+
+		ICP_QAT_FW_LA_SLICE_TYPE_SET(pSessionDesc->laCmdFlags,
+					     pSessionDesc->cipherSliceType);
+
 		/* construct cipherConfig in CD in DRAM */
 		LacSymQat_CipherHwBlockPopulateCfgData(pSessionDesc,
 						       pHwBlockBaseInDRAM +
@@ -605,10 +657,42 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 				      pSessionDesc->laCmdId,
 				      pSessionDesc->cmnRequestFlags,
 				      pSessionDesc->laCmdFlags);
+	} else if ((SPC == pSessionDesc->singlePassState) &&
+		   (LAC_CIPHER_SPC_IV_SIZE != pRequest->ivLenInBytes)) {
+		pSessionDesc->symOperation = CPA_CY_SYM_OP_ALGORITHM_CHAINING;
+		pSessionDesc->singlePassState = LIKELY_SPC;
+		pSessionDesc->isCipher = CPA_TRUE;
+		pSessionDesc->isAuthEncryptOp = CPA_TRUE;
+		pSessionDesc->isAuth = CPA_TRUE;
+		pCdInfo = &(pSessionDesc->contentDescInfo);
+		pHwBlockBaseInDRAM = (Cpa8U *)pCdInfo->pData;
+
+		if (CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT ==
+		    pSessionDesc->cipherDirection) {
+			pSessionDesc->laCmdId = ICP_QAT_FW_LA_CMD_CIPHER_HASH;
+		} else {
+			pSessionDesc->laCmdId = ICP_QAT_FW_LA_CMD_HASH_CIPHER;
+		}
+
+		ICP_QAT_FW_LA_SINGLE_PASS_PROTO_FLAG_SET(
+		    pSessionDesc->laCmdFlags, 0);
+		ICP_QAT_FW_LA_PROTO_SET(pSessionDesc->laCmdFlags,
+					ICP_QAT_FW_LA_GCM_PROTO);
+
+		LacSymQat_CipherHwBlockPopulateCfgData(pSessionDesc,
+						       pHwBlockBaseInDRAM +
+							   hwBlockOffsetInDRAM,
+						       &sizeInBytes);
+		SalQatMsg_CmnHdrWrite((icp_qat_fw_comn_req_t *)&(
+					  pSessionDesc->reqCacheHdr),
+				      ICP_QAT_FW_COMN_REQ_CPM_FW_LA,
+				      pSessionDesc->laCmdId,
+				      pSessionDesc->cmnRequestFlags,
+				      pSessionDesc->laCmdFlags);
 	} else if (CPA_CY_SYM_HASH_AES_GMAC == pSessionDesc->hashAlgorithm) {
 		pSessionDesc->aadLenInBytes = pRequest->messageLenToHashInBytes;
 	}
-	if (pSessionDesc->isSinglePass) {
+	if (SPC == pSessionDesc->singlePassState) {
 		pCacheDummyHdr = (Cpa8U *)&(pSessionDesc->reqSpcCacheHdr);
 		pCacheDummyFtr = (Cpa8U *)&(pSessionDesc->reqSpcCacheFtr);
 	} else {
@@ -644,8 +728,9 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 			      pRequest->srcBufferLen,
 			      pRequest->dstBufferLen);
 
-	if (CPA_CY_SYM_HASH_AES_CCM == pSessionDesc->hashAlgorithm &&
-	    pSessionDesc->isAuth == CPA_TRUE) {
+	if ((CPA_CY_SYM_HASH_AES_CCM == pSessionDesc->hashAlgorithm &&
+	     pSessionDesc->isAuth == CPA_TRUE) ||
+	    isSpCcm) {
 		/* prepare IV and AAD for CCM */
 		LacSymAlgChain_PrepareCCMData(
 		    pSessionDesc,
@@ -655,15 +740,14 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 		    pRequest->ivLenInBytes);
 
 		/* According to the API, for CCM and GCM,
-		 * messageLenToHashInBytes
-		 * and hashStartSrcOffsetInBytes are not initialized by the
-		 * user and must be set by the driver
+		 * messageLenToHashInBytes and hashStartSrcOffsetInBytes are not
+		 * initialized by the user and must be set by the driver
 		 */
 		pRequest->hashStartSrcOffsetInBytes =
 		    pRequest->cryptoStartSrcOffsetInBytes;
 		pRequest->messageLenToHashInBytes =
 		    pRequest->messageLenToCipherInBytes;
-	} else if (!pSessionDesc->isSinglePass &&
+	} else if ((SPC != pSessionDesc->singlePassState) &&
 		   (CPA_CY_SYM_HASH_AES_GCM == pSessionDesc->hashAlgorithm ||
 		    CPA_CY_SYM_HASH_AES_GMAC == pSessionDesc->hashAlgorithm)) {
 		/* GCM case */
@@ -693,56 +777,87 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 	if (pSessionDesc->isCipher) {
 		if (CPA_CY_SYM_CIPHER_ARC4 == pSessionDesc->cipherAlgorithm) {
 			/* ARC4 does not have an IV but the field is used to
-			 * store the
-			 * initial state */
+			 * store the initial state */
 			pRequest->iv =
 			    pSessionDesc->cipherARC4InitialStatePhysAddr;
 		}
 
+		ICP_QAT_FW_LA_SLICE_TYPE_SET(
+		    pCurrentQatMsg->comn_hdr.serv_specif_flags,
+		    pSessionDesc->cipherSliceType);
+
 		LacSymQat_CipherRequestParamsPopulate(
+		    pSessionDesc,
 		    pCurrentQatMsg,
 		    pRequest->cryptoStartSrcOffsetInBytes,
 		    pRequest->messageLenToCipherInBytes,
 		    pRequest->iv,
 		    pRequest->pIv);
-		if (pSessionDesc->isSinglePass) {
+		if (SPC == pSessionDesc->singlePassState) {
 			icp_qat_fw_la_cipher_req_params_t *pCipherReqParams =
 			    (icp_qat_fw_la_cipher_req_params_t
 				 *)((Cpa8U *)&(
 					pCurrentQatMsg->serv_specif_rqpars) +
 				    ICP_QAT_FW_CIPHER_REQUEST_PARAMETERS_OFFSET);
 
-			pCipherReqParams->spc_aad_addr =
-			    (uint64_t)pRequest->additionalAuthData;
-			pCipherReqParams->spc_aad_sz =
-			    pSessionDesc->aadLenInBytes;
+			icp_qat_fw_la_cipher_20_req_params_t *pCipher20ReqParams =
+			    (void
+				 *)((Cpa8U *)&(
+					pCurrentQatMsg->serv_specif_rqpars) +
+				    ICP_QAT_FW_CIPHER_REQUEST_PARAMETERS_OFFSET);
 
-			pCipherReqParams->spc_auth_res_addr =
-			    (uint64_t)pRequest->digestResult;
-			pCipherReqParams->spc_auth_res_sz =
-			    pSessionDesc->hashResultSize;
+			if (isCyGen4x(pService)) {
+				pCipher20ReqParams->spc_aad_addr =
+				    (uint64_t)pRequest->additionalAuthData;
+				pCipher20ReqParams->spc_aad_sz =
+				    pSessionDesc->aadLenInBytes;
+				pCipher20ReqParams->spc_aad_offset = 0;
+
+				if (isSpCcm)
+					pCipher20ReqParams->spc_aad_sz +=
+					    LAC_CIPHER_CCM_AAD_OFFSET;
+
+				pCipher20ReqParams->spc_auth_res_addr =
+				    (uint64_t)pRequest->digestResult;
+				pCipher20ReqParams->spc_auth_res_sz =
+				    (Cpa8U)pSessionDesc->hashResultSize;
+			} else {
+				pCipherReqParams->spc_aad_addr =
+				    (uint64_t)pRequest->additionalAuthData;
+				pCipherReqParams->spc_aad_sz =
+				    (Cpa16U)pSessionDesc->aadLenInBytes;
+
+				pCipherReqParams->spc_auth_res_addr =
+				    (uint64_t)pRequest->digestResult;
+				pCipherReqParams->spc_auth_res_sz =
+				    (Cpa8U)pSessionDesc->hashResultSize;
+			}
 
 			/* For CHACHA and AES_GCM single pass AAD buffer needs
-			 * alignment
-			 * if aadLenInBytes is nonzero.
-			 * In case of AES-GMAC, AAD buffer passed in the src
-			 * buffer.
+			 * alignment if aadLenInBytes is nonzero. In case of
+			 * AES-GMAC, AAD buffer passed in the src buffer.
 			 */
 			if (0 != pSessionDesc->aadLenInBytes &&
 			    CPA_CY_SYM_HASH_AES_GMAC !=
 				pSessionDesc->hashAlgorithm) {
 				blockLen = LacSymQat_CipherBlockSizeBytesGet(
 				    pSessionDesc->cipherAlgorithm);
-				if ((pSessionDesc->aadLenInBytes % blockLen) !=
-				    0) {
-					paddingLen = blockLen -
-					    (pSessionDesc->aadLenInBytes %
-					     blockLen);
-					memset(
-					    &pRequest->pAdditionalAuthData
-						 [pSessionDesc->aadLenInBytes],
-					    0,
-					    paddingLen);
+				aadDataLen = pSessionDesc->aadLenInBytes;
+
+				/* In case of AES_CCM, B0 block size and 2 bytes
+				 * of AAD len
+				 * encoding need to be added to total AAD data
+				 * len */
+				if (isSpCcm)
+					aadDataLen += LAC_CIPHER_CCM_AAD_OFFSET;
+
+				if ((aadDataLen % blockLen) != 0) {
+					paddingLen =
+					    blockLen - (aadDataLen % blockLen);
+					memset(&pRequest->pAdditionalAuthData
+						    [aadDataLen],
+					       0,
+					       paddingLen);
 				}
 			}
 		}
@@ -777,32 +892,14 @@ LacDp_WriteRingMsgFull(CpaCySymDpOpData *pRequest,
 		 * copied directly from the op request data because they share a
 		 * corresponding layout.  The remaining 4 bytes are taken
 		 * from the session message template and use values
-		 * preconfigured at
-		 * sessionInit (updated per request for some specific cases
-		 * below)
+		 * preconfigured at sessionInit (updated per request for some
+		 * specific cases below)
 		 */
-
-		/* We force a specific compiler optimisation here.  The length
-		 * to
-		 * be copied turns out to be always 16, and by coding a memcpy
-		 * with
-		 * a literal value the compiler will compile inline code (in
-		 * fact,
-		 * only two vector instructions) to effect the copy.  This gives
-		 * us
-		 * a huge performance increase.
-		 */
-		unsigned long cplen =
-		    (unsigned long)&(pAuthReqPars->u2.inner_prefix_sz) -
-		    (unsigned long)pAuthReqPars;
-		if (cplen == 16)
-			memcpy(pAuthReqPars,
-			       (Cpa32U *)&(pRequest->hashStartSrcOffsetInBytes),
-			       16);
-		else
-			memcpy(pAuthReqPars,
-			       (Cpa32U *)&(pRequest->hashStartSrcOffsetInBytes),
-			       cplen);
+		memcpy(pAuthReqPars,
+		       (Cpa32U *)&(pRequest->hashStartSrcOffsetInBytes),
+		       ((uintptr_t) &
+			(pAuthReqPars->u2.inner_prefix_sz) -
+			    (uintptr_t)pAuthReqPars));
 
 		if (CPA_TRUE == pSessionDesc->isAuthEncryptOp) {
 			pAuthReqPars->hash_state_sz =
@@ -892,7 +989,7 @@ cpaCySymDpRemoveSession(const CpaInstanceHandle instanceHandle,
 
 	/* CPA_INSTANCE_HANDLE_SINGLE is not supported on DP apis */
 	LAC_CHECK_INSTANCE_HANDLE(instanceHandle);
-/* All other param checks are common with trad api */
+	/* All other param checks are common with trad api */
 
 	return cpaCySymRemoveSession(instanceHandle, sessionCtx);
 }
@@ -931,6 +1028,10 @@ cpaCySymDpEnqueueOp(CpaCySymDpOpData *pRequest, const CpaBoolean performOpNow)
 	if (CPA_STATUS_SUCCESS != status) {
 		return status;
 	}
+
+	/* Check if SAL is running in crypto data plane otherwise return an
+	 * error */
+	SAL_RUNNING_CHECK(pRequest->instanceHandle);
 
 	trans_handle = ((sal_crypto_service_t *)pRequest->instanceHandle)
 			   ->trans_handle_sym_tx;
@@ -1028,6 +1129,10 @@ cpaCySymDpEnqueueOpBatch(const Cpa32U numberRequests,
 			return CPA_STATUS_INVALID_PARAM;
 		}
 	}
+
+	/* Check if SAL is running in crypto data plane otherwise return an
+	 * error */
+	SAL_RUNNING_CHECK(pRequests[0]->instanceHandle);
 
 	trans_handle = ((sal_crypto_service_t *)pRequests[0]->instanceHandle)
 			   ->trans_handle_sym_tx;

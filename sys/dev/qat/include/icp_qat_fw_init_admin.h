@@ -200,10 +200,6 @@ struct icp_qat_fw_init_admin_hb_cnt {
 	u16 req_heartbeat_cnt;
 };
 
-struct icp_qat_fw_init_admin_hb_stats {
-	struct icp_qat_fw_init_admin_hb_cnt stats[ADF_NUM_HB_CNT_PER_AE];
-};
-
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
 #define ICP_QAT_FW_COMN_HEARTBEAT_BLOCKED 1
 #define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_BITPOS 0

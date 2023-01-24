@@ -42,6 +42,7 @@
 #include "lac_sync.h"
 #include "sal_service_state.h"
 #include "sal_qat_cmn_msg.h"
+#include "sal_hw_gen.h"
 #include "dc_error_counter.h"
 #define DC_COMP_MAX_BUFF_SIZE (1024 * 64)
 
@@ -71,6 +72,28 @@ getDcErrorCounter(CpaDcReqStatus dcError)
 	return 0;
 }
 
+static inline void
+dcUpdateXltOverflowChecksumsGen4(const dc_compression_cookie_t *pCookie,
+				 const icp_qat_fw_resp_comp_pars_t *pRespPars,
+				 CpaDcRqResults *pDcResults)
+{
+	dc_session_desc_t *pSessionDesc =
+	    DC_SESSION_DESC_FROM_CTX_GET(pCookie->pSessionHandle);
+
+	/* Recompute CRC checksum when either the checksum type
+	 * is CPA_DC_CRC32 or when the integrity CRCs are enabled.
+	 */
+	if (CPA_DC_CRC32 == pSessionDesc->checksumType) {
+		pDcResults->checksum = pRespPars->crc.legacy.curr_crc32;
+
+		/* No need to recalculate the swCrc64I here as this will get
+		 * handled later in dcHandleIntegrityChecksumsGen4.
+		 */
+	} else if (CPA_DC_ADLER32 == pSessionDesc->checksumType) {
+		pDcResults->checksum = pRespPars->crc.legacy.curr_adler_32;
+	}
+}
+
 void
 dcCompression_ProcessCallback(void *pRespMsg)
 {
@@ -86,6 +109,8 @@ dcCompression_ProcessCallback(void *pRespMsg)
 	dc_compression_cookie_t *pCookie = NULL;
 	CpaDcOpData *pOpData = NULL;
 	CpaBoolean cmpPass = CPA_TRUE, xlatPass = CPA_TRUE;
+	CpaBoolean isDcDp = CPA_FALSE;
+	CpaBoolean integrityCrcCheck = CPA_FALSE;
 	CpaBoolean verifyHwIntegrityCrcs = CPA_FALSE;
 	Cpa8U cmpErr = ERR_CODE_NO_ERROR, xlatErr = ERR_CODE_NO_ERROR;
 	dc_request_dir_t compDecomp = DC_COMPRESSION_REQUEST;
@@ -102,25 +127,26 @@ dcCompression_ProcessCallback(void *pRespMsg)
 	pCookie = (dc_compression_cookie_t *)pReqData;
 	if (!pCookie)
 		return;
-	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pCookie->pSessionHandle);
 
-	if (CPA_TRUE == pSessionDesc->isDcDp) {
+	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pCookie->pSessionHandle);
+	pService = (sal_compression_service_t *)(pCookie->dcInstance);
+
+	isDcDp = pSessionDesc->isDcDp;
+	if (CPA_TRUE == isDcDp) {
 		pResponse = (CpaDcDpOpData *)pReqData;
 		pResults = &(pResponse->results);
 
 		if (CPA_DC_DIR_DECOMPRESS == pSessionDesc->sessDirection) {
 			compDecomp = DC_DECOMPRESSION_REQUEST;
 		}
+		pCookie = NULL;
 	} else {
-		pSessionDesc = pCookie->pSessionDesc;
 		pResults = pCookie->pResults;
 		callbackTag = pCookie->callbackTag;
 		pCbFunc = pCookie->pSessionDesc->pCompressionCb;
 		compDecomp = pCookie->compDecomp;
 		pOpData = pCookie->pDcOpData;
 	}
-
-	pService = (sal_compression_service_t *)(pCookie->dcInstance);
 
 	opStatus = pCompRespMsg->comn_resp.comn_status;
 
@@ -142,15 +168,17 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		pResults->status = (Cpa8S)cmpErr;
 		pResults->consumed = 0;
 		pResults->produced = 0;
-		if (CPA_TRUE == pSessionDesc->isDcDp) {
+		if (CPA_TRUE == isDcDp) {
 			if (pResponse)
 				pResponse->responseStatus =
 				    CPA_STATUS_UNSUPPORTED;
 			(pService->pDcDpCb)(pResponse);
 		} else {
 			/* Free the memory pool */
-			Lac_MemPoolEntryFree(pCookie);
-			pCookie = NULL;
+			if (NULL != pCookie) {
+				Lac_MemPoolEntryFree(pCookie);
+				pCookie = NULL;
+			}
 			if (NULL != pCbFunc) {
 				pCbFunc(callbackTag, status);
 			}
@@ -169,9 +197,23 @@ dcCompression_ProcessCallback(void *pRespMsg)
 				 ICP_QAT_FW_COMN_RESP_CMP_STAT_GET(opStatus));
 	}
 
-	if (CPA_DC_INCOMPLETE_FILE_ERR == (Cpa8S)cmpErr) {
-		cmpPass = CPA_TRUE;
-		cmpErr = ERR_CODE_NO_ERROR;
+	if (isDcGen2x(pService)) {
+		/* QAT1.7 and QAT 1.8 hardware */
+		if (CPA_DC_INCOMPLETE_FILE_ERR == (Cpa8S)cmpErr) {
+			cmpPass = CPA_TRUE;
+			cmpErr = ERR_CODE_NO_ERROR;
+		}
+	} else {
+		/* QAT2.0 hardware cancels the incomplete file errors
+		 * only for DEFLATE algorithm.
+		 * Decompression direction is not tested in the callback as
+		 * the request does not allow it.
+		 */
+		if ((pSessionDesc->compType == CPA_DC_DEFLATE) &&
+		    (CPA_DC_INCOMPLETE_FILE_ERR == (Cpa8S)cmpErr)) {
+			cmpPass = CPA_TRUE;
+			cmpErr = ERR_CODE_NO_ERROR;
+		}
 	}
 	/* log the slice hang and endpoint push/pull error inside the response
 	 */
@@ -199,8 +241,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		xlatErr = pCompRespMsg->comn_resp.comn_error.s1.xlat_err_code;
 
 		/* Return a fatal error or a potential error in the translator
-		 * slice
-		 * if the compression slice did not return any error */
+		 * slice if the compression slice did not return any error */
 		if ((CPA_DC_OK == pResults->status) ||
 		    (CPA_DC_FATALERR == (Cpa8S)xlatErr)) {
 			pResults->status = (Cpa8S)xlatErr;
@@ -209,7 +250,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 	/* Update dc error counter */
 	dcErrorLog(pResults->status);
 
-	if (CPA_FALSE == pSessionDesc->isDcDp) {
+	if (CPA_FALSE == isDcDp) {
 		/* In case of any error for an end of packet request, we need to
 		 * update
 		 * the request type for the following request */
@@ -223,17 +264,27 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		    ((CPA_DC_STATELESS == pSessionDesc->sessState) &&
 		     (DC_COMPRESSION_REQUEST == compDecomp))) {
 			/* Overflow is a valid use case for Traditional API
-			 * only.
-			 * Stateful Overflow is supported in both compression
-			 * and
-			 * decompression direction.
-			 * Stateless Overflow is supported only in compression
-			 * direction.
+			 * only. Stateful Overflow is supported in both
+			 * compression and decompression direction. Stateless
+			 * Overflow is supported only in compression direction.
 			 */
 			if (CPA_DC_OVERFLOW == (Cpa8S)cmpErr)
 				cmpPass = CPA_TRUE;
 
 			if (CPA_DC_OVERFLOW == (Cpa8S)xlatErr) {
+				if (isDcGen4x(pService) &&
+				    (CPA_TRUE ==
+				     pService->comp_device_data
+					 .translatorOverflow)) {
+					pResults->consumed =
+					    pCompRespMsg->comp_resp_pars
+						.input_byte_counter;
+
+					dcUpdateXltOverflowChecksumsGen4(
+					    pCookie,
+					    &pCompRespMsg->comp_resp_pars,
+					    pResults);
+				}
 				xlatPass = CPA_TRUE;
 			}
 		}
@@ -242,6 +293,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 			cmpPass = CPA_FALSE;
 		}
 		if (CPA_DC_OVERFLOW == (Cpa8S)xlatErr) {
+			/* XLT overflow is not valid for Data Plane requests */
 			xlatPass = CPA_FALSE;
 		}
 	}
@@ -254,7 +306,13 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		    pCompRespMsg->comp_resp_pars.output_byte_counter;
 		pSessionDesc->cumulativeConsumedBytes += pResults->consumed;
 
-		if (CPA_DC_OVERFLOW != (Cpa8S)xlatErr) {
+		/* Handle Checksum for end to end data integrity. */
+		if (CPA_TRUE ==
+			pService->generic_service_info.integrityCrcCheck &&
+		    CPA_TRUE == integrityCrcCheck) {
+			pSessionDesc->previousChecksum =
+			    pSessionDesc->seedSwCrc.swCrc32I;
+		} else if (CPA_DC_OVERFLOW != (Cpa8S)xlatErr) {
 			if (CPA_DC_CRC32 == pSessionDesc->checksumType) {
 				pResults->checksum =
 				    pCompRespMsg->comp_resp_pars.crc.legacy
@@ -279,7 +337,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		if ((CPA_DC_OVERFLOW != (Cpa8S)xlatErr) &&
 		    (CPA_TRUE == verifyHwIntegrityCrcs)) {
 			pSessionDesc->previousChecksum =
-			    pSessionDesc->seedSwCrc.swCrcI;
+			    pSessionDesc->seedSwCrc.swCrc32I;
 		}
 
 		/* Check if a CNV recovery happened and
@@ -292,7 +350,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 					     pService);
 		}
 
-		if (CPA_TRUE == pSessionDesc->isDcDp) {
+		if (CPA_TRUE == isDcDp) {
 			if (pResponse)
 				pResponse->responseStatus = CPA_STATUS_SUCCESS;
 		} else {
@@ -305,8 +363,26 @@ dcCompression_ProcessCallback(void *pRespMsg)
 			}
 		}
 	} else {
+#ifdef ICP_DC_RETURN_COUNTERS_ON_ERROR
+		/* Extract the response from the firmware */
+		pResults->consumed =
+		    pCompRespMsg->comp_resp_pars.input_byte_counter;
+		pResults->produced =
+		    pCompRespMsg->comp_resp_pars.output_byte_counter;
+
+		if (CPA_DC_STATEFUL == pSessionDesc->sessState) {
+			pSessionDesc->cumulativeConsumedBytes +=
+			    pResults->consumed;
+		} else {
+			/* In the stateless case all requests have both SOP and
+			 * EOP set */
+			pSessionDesc->cumulativeConsumedBytes =
+			    pResults->consumed;
+		}
+#else
 		pResults->consumed = 0;
 		pResults->produced = 0;
+#endif
 		if (CPA_DC_OVERFLOW == pResults->status &&
 		    CPA_DC_STATELESS == pSessionDesc->sessState) {
 			/* This error message will be returned by Data Plane API
@@ -319,7 +395,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 			    "Unrecoverable error: stateless overflow. You may need to increase the size of your destination buffer.\n");
 		}
 
-		if (CPA_TRUE == pSessionDesc->isDcDp) {
+		if (CPA_TRUE == isDcDp) {
 			if (pResponse)
 				pResponse->responseStatus = CPA_STATUS_FAIL;
 		} else {
@@ -338,7 +414,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		}
 	}
 
-	if (CPA_TRUE == pSessionDesc->isDcDp) {
+	if (CPA_TRUE == isDcDp) {
 		/* Decrement number of stateless pending callbacks for session
 		 */
 		pSessionDesc->pendingDpStatelessCbCount--;
@@ -383,7 +459,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
  * @retval CPA_STATUS_INVALID_PARAM   Invalid parameter passed in
  *
  *****************************************************************************/
-static CpaStatus
+CpaStatus
 dcCheckOpData(sal_compression_service_t *pService, CpaDcOpData *pOpData)
 {
 	CpaDcSkipMode skipMode = 0;
@@ -440,6 +516,14 @@ dcCheckOpData(sal_compression_service_t *pService, CpaDcOpData *pOpData)
 				      "supported on this device");
 		return CPA_STATUS_INVALID_PARAM;
 	}
+
+	if (CPA_TRUE == pOpData->integrityCrcCheck &&
+	    NULL == pOpData->pCrcData) {
+		LAC_INVALID_PARAM_LOG("Integrity CRC data structure "
+				      "not intialized in CpaDcOpData");
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
 	return CPA_STATUS_SUCCESS;
 }
 
@@ -583,8 +667,9 @@ dcCheckDestinationData(sal_compression_service_t *pService,
 		if (CPA_DC_HT_FULL_DYNAMIC == pSessionDesc->huffType) {
 
 			/* Check if intermediate buffers are supported */
-			if ((0 == pService->pInterBuffPtrsArrayPhyAddr) ||
-			    (NULL == pService->pInterBuffPtrsArray)) {
+			if ((isDcGen2x(pService)) &&
+			    ((0 == pService->pInterBuffPtrsArrayPhyAddr) ||
+			     (NULL == pService->pInterBuffPtrsArray))) {
 				LAC_LOG_ERROR(
 				    "No intermediate buffer defined for this instance "
 				    "- see cpaDcStartInstance");
@@ -702,6 +787,7 @@ dcCreateRequest(dc_compression_cookie_t *pCookie,
 	Cpa8U crcMode = ICP_QAT_FW_COMP_CRC_MODE_LEGACY;
 	Cpa8U cnvDecompReq = ICP_QAT_FW_COMP_NO_CNV;
 	Cpa8U cnvRecovery = ICP_QAT_FW_COMP_NO_CNV_RECOVERY;
+	CpaBoolean cnvErrorInjection = ICP_QAT_FW_COMP_NO_CNV_DFX;
 	CpaBoolean integrityCrcCheck = CPA_FALSE;
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	CpaDcFlush flush = CPA_DC_FLUSH_NONE;
@@ -757,7 +843,7 @@ dcCreateRequest(dc_compression_cookie_t *pCookie,
 	 * bigger as allocated by the user. We ensure that this is not the case
 	 * in dcCheckSourceData and cast the values to Cpa32U here */
 	pCookie->srcTotalDataLenInBytes = (Cpa32U)srcTotalDataLenInBytes;
-	if ((DC_COMPRESSION_REQUEST == compDecomp) &&
+	if ((isDcGen2x(pService)) && (DC_COMPRESSION_REQUEST == compDecomp) &&
 	    (CPA_DC_HT_FULL_DYNAMIC == pSessionDesc->huffType)) {
 		if (pService->minInterBuffSizeInBytes <
 		    (Cpa32U)dstTotalDataLenInBytes) {
@@ -813,9 +899,9 @@ dcCreateRequest(dc_compression_cookie_t *pCookie,
 		initial_crc32 = 0;
 
 		if (CPA_DC_ADLER32 == pSessionDesc->checksumType) {
-			pSessionDesc->previousChecksum = 1;
+			pSessionDesc->previousChecksum = initial_adler;
 		} else {
-			pSessionDesc->previousChecksum = 0;
+			pSessionDesc->previousChecksum = initial_crc32;
 		}
 	} else if (CPA_DC_STATELESS == pSessionDesc->sessState) {
 		pSessionDesc->previousChecksum = pResults->checksum;
@@ -906,7 +992,6 @@ dcCreateRequest(dc_compression_cookie_t *pCookie,
 			eop = ICP_QAT_FW_COMP_NOT_EOP;
 		}
 	} else {
-
 		if (DC_REQUEST_FIRST == pSessionDesc->requestType) {
 			/* Reinitialise the cumulative amount of consumed bytes
 			 */
@@ -928,6 +1013,9 @@ dcCreateRequest(dc_compression_cookie_t *pCookie,
 	 * cnvDecompReq also needs to be set */
 	case DC_CNV:
 		cnvDecompReq = ICP_QAT_FW_COMP_CNV;
+		if (isDcGen4x(pService)) {
+			cnvErrorInjection = pSessionDesc->cnvErrorInjection;
+		}
 		break;
 	case DC_NO_CNV:
 		cnvDecompReq = ICP_QAT_FW_COMP_NO_CNV;
@@ -936,8 +1024,14 @@ dcCreateRequest(dc_compression_cookie_t *pCookie,
 	}
 
 	/* LW 18 */
-	rpCmdFlags = ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(
-	    sop, eop, bFinal, cnvDecompReq, cnvRecovery, crcMode);
+	rpCmdFlags = ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(sop,
+							   eop,
+							   bFinal,
+							   cnvDecompReq,
+							   cnvRecovery,
+							   cnvErrorInjection,
+							   crcMode);
+
 	pMsg->comp_pars.req_par_flags = rpCmdFlags;
 
 	/* Populates the QAT common request middle part of the message
@@ -1244,10 +1338,7 @@ dcZeroLengthRequests(sal_compression_service_t *pService,
 			COMPRESSION_STAT_INC(numDecompCompleted, pService);
 		}
 
-		if (CPA_STATUS_SUCCESS !=
-		    LAC_SPINUNLOCK(&(pSessionDesc->sessionLock))) {
-			LAC_LOG_ERROR("Cannot unlock session lock");
-		}
+		LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
 
 		if ((NULL != pCbFunc) &&
 		    (LacSync_GenWakeupSyncCaller != pCbFunc)) {
@@ -1371,7 +1462,7 @@ cpaDcCompressData(CpaInstanceHandle dcInstance,
 
 	return dcCompDecompData(pService,
 				pSessionDesc,
-				dcInstance,
+				insHandle,
 				pSessionHandle,
 				pSrcBuff,
 				pDestBuff,
@@ -1506,10 +1597,7 @@ cpaDcCompressData2(CpaInstanceHandle dcInstance,
 	if (CPA_DC_STATEFUL == pSessionDesc->sessState) {
 		/* Lock the session to check if there are in-flight stateful
 		 * requests */
-		if (CPA_STATUS_SUCCESS !=
-		    LAC_SPINLOCK(&(pSessionDesc->sessionLock))) {
-			LAC_LOG_ERROR("Cannot unlock session lock");
-		}
+		LAC_SPINLOCK(&(pSessionDesc->sessionLock));
 
 		/* Check if there is already one in-flight stateful request */
 		if (0 !=
@@ -1517,10 +1605,7 @@ cpaDcCompressData2(CpaInstanceHandle dcInstance,
 			&(pSessionDesc->pendingStatefulCbCount))) {
 			LAC_LOG_ERROR(
 			    "Only one in-flight stateful request supported");
-			if (CPA_STATUS_SUCCESS !=
-			    LAC_SPINUNLOCK(&(pSessionDesc->sessionLock))) {
-				LAC_LOG_ERROR("Cannot unlock session lock");
-			}
+			LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
 			return CPA_STATUS_RETRY;
 		}
 
@@ -1537,10 +1622,7 @@ cpaDcCompressData2(CpaInstanceHandle dcInstance,
 		}
 
 		qatUtilsAtomicInc(&(pSessionDesc->pendingStatefulCbCount));
-		if (CPA_STATUS_SUCCESS !=
-		    LAC_SPINUNLOCK(&(pSessionDesc->sessionLock))) {
-			LAC_LOG_ERROR("Cannot unlock session lock");
-		}
+		LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
 	}
 
 	if (CPA_TRUE == pOpData->compressAndVerify) {
@@ -1549,7 +1631,7 @@ cpaDcCompressData2(CpaInstanceHandle dcInstance,
 
 	return dcCompDecompData(pService,
 				pSessionDesc,
-				dcInstance,
+				insHandle,
 				pSessionHandle,
 				pSrcBuff,
 				pDestBuff,
@@ -1659,16 +1741,50 @@ cpaDcDecompressData(CpaInstanceHandle dcInstance,
 
 	pService = (sal_compression_service_t *)insHandle;
 
+	/* Check if SAL is initialised otherwise return an error */
+	SAL_RUNNING_CHECK(insHandle);
+
+	/* This check is outside the parameter checking as it is needed to
+	 * manage zero length requests */
+	if (CPA_STATUS_SUCCESS !=
+	    LacBuffDesc_BufferListVerifyNull(pSrcBuff,
+					     &srcBuffSize,
+					     LAC_NO_ALIGNMENT_SHIFT)) {
+		QAT_UTILS_LOG("Invalid source buffer list parameter");
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	/* Ensure this is a compression instance */
+	SAL_CHECK_INSTANCE_TYPE(insHandle, SAL_SERVICE_TYPE_COMPRESSION);
+
+	if (dcCheckSourceData(pSessionHandle,
+			      pSrcBuff,
+			      pDestBuff,
+			      pResults,
+			      flushFlag,
+			      srcBuffSize,
+			      NULL) != CPA_STATUS_SUCCESS) {
+		return CPA_STATUS_INVALID_PARAM;
+	}
+	if (dcCheckDestinationData(pService,
+				   pSessionHandle,
+				   pDestBuff,
+				   DC_DECOMPRESSION_REQUEST) !=
+	    CPA_STATUS_SUCCESS) {
+		return CPA_STATUS_INVALID_PARAM;
+	}
 	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pSessionHandle);
+
+	if (CPA_DC_DIR_COMPRESS == pSessionDesc->sessDirection) {
+		QAT_UTILS_LOG("Invalid sessDirection value");
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
 
 	if (CPA_DC_STATEFUL == pSessionDesc->sessState) {
 		/* Lock the session to check if there are in-flight stateful
 		 * requests */
-		if (CPA_STATUS_SUCCESS !=
-		    LAC_SPINLOCK(&(pSessionDesc->sessionLock))) {
-			LAC_LOG_ERROR("Cannot lock session lock");
-			return CPA_STATUS_RESOURCE;
-		}
+		LAC_SPINLOCK(&(pSessionDesc->sessionLock));
 
 		/* Check if there is already one in-flight stateful request */
 		if (0 !=
@@ -1676,37 +1792,36 @@ cpaDcDecompressData(CpaInstanceHandle dcInstance,
 			&(pSessionDesc->pendingStatefulCbCount))) {
 			LAC_LOG_ERROR(
 			    "Only one in-flight stateful request supported");
-			if (CPA_STATUS_SUCCESS !=
-			    LAC_SPINUNLOCK(&(pSessionDesc->sessionLock))) {
-				LAC_LOG_ERROR("Cannot unlock session lock");
-			}
+			LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
 			return CPA_STATUS_RETRY;
 		}
 
-		if ((0 == srcBuffSize) ||
-		    ((1 == srcBuffSize) && (CPA_DC_FLUSH_FINAL != flushFlag) &&
-		     (CPA_DC_FLUSH_FULL != flushFlag))) {
-			if (CPA_TRUE ==
-			    dcZeroLengthRequests(pService,
-						 pSessionDesc,
-						 pResults,
-						 flushFlag,
-						 callbackTag,
-						 DC_DECOMPRESSION_REQUEST)) {
-				return CPA_STATUS_SUCCESS;
+		/* Gen 4 handle 0 len requests in FW */
+		if (isDcGen2x(pService)) {
+			if ((0 == srcBuffSize) ||
+			    ((1 == srcBuffSize) &&
+			     (CPA_DC_FLUSH_FINAL != flushFlag) &&
+			     (CPA_DC_FLUSH_FULL != flushFlag))) {
+				if (CPA_TRUE ==
+				    dcZeroLengthRequests(
+					pService,
+					pSessionDesc,
+					pResults,
+					flushFlag,
+					callbackTag,
+					DC_DECOMPRESSION_REQUEST)) {
+					return CPA_STATUS_SUCCESS;
+				}
 			}
 		}
 
 		qatUtilsAtomicInc(&(pSessionDesc->pendingStatefulCbCount));
-		if (CPA_STATUS_SUCCESS !=
-		    LAC_SPINUNLOCK(&(pSessionDesc->sessionLock))) {
-			LAC_LOG_ERROR("Cannot unlock session lock");
-		}
+		LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
 	}
 
 	return dcCompDecompData(pService,
 				pSessionDesc,
-				dcInstance,
+				insHandle,
 				pSessionHandle,
 				pSrcBuff,
 				pDestBuff,
@@ -1768,10 +1883,87 @@ cpaDcDecompressData2(CpaInstanceHandle dcInstance,
 
 	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pSessionHandle);
 
-	if (CPA_DC_STATEFUL == pSessionDesc->sessState) {
-		LAC_INVALID_PARAM_LOG("Invalid session: Stateful session is "
-				      "not supported");
+	LAC_CHECK_NULL_PARAM(insHandle);
+
+	/* Check if SAL is initialised otherwise return an error */
+	SAL_RUNNING_CHECK(insHandle);
+
+	/* This check is outside the parameter checking as it is needed to
+	 * manage zero length requests */
+	if (CPA_STATUS_SUCCESS !=
+	    LacBuffDesc_BufferListVerifyNull(pSrcBuff,
+					     &srcBuffSize,
+					     LAC_NO_ALIGNMENT_SHIFT)) {
+		QAT_UTILS_LOG("Invalid source buffer list parameter");
 		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	/* Ensure this is a compression instance */
+	SAL_CHECK_INSTANCE_TYPE(insHandle, SAL_SERVICE_TYPE_COMPRESSION);
+
+	if (CPA_STATUS_SUCCESS !=
+	    dcCheckSourceData(pSessionHandle,
+			      pSrcBuff,
+			      pDestBuff,
+			      pResults,
+			      CPA_DC_FLUSH_NONE,
+			      srcBuffSize,
+			      NULL)) {
+		return CPA_STATUS_INVALID_PARAM;
+	}
+	if (CPA_STATUS_SUCCESS !=
+	    dcCheckDestinationData(pService,
+				   pSessionHandle,
+				   pDestBuff,
+				   DC_DECOMPRESSION_REQUEST)) {
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	if (CPA_STATUS_SUCCESS != dcCheckOpData(pService, pOpData)) {
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	if (CPA_DC_DIR_COMPRESS == pSessionDesc->sessDirection) {
+		QAT_UTILS_LOG("Invalid sessDirection value");
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+
+	if (CPA_DC_STATEFUL == pSessionDesc->sessState) {
+		/* Lock the session to check if there are in-flight stateful
+		 * requests */
+		LAC_SPINLOCK(&(pSessionDesc->sessionLock));
+
+		/* Check if there is already one in-flight stateful request */
+		if (0 !=
+		    qatUtilsAtomicGet(
+			&(pSessionDesc->pendingStatefulCbCount))) {
+			LAC_LOG_ERROR(
+			    "Only one in-flight stateful request supported");
+			LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
+			return CPA_STATUS_RETRY;
+		}
+
+		/* Gen 4 handle 0 len requests in FW */
+		if (isDcGen2x(pService)) {
+			if ((0 == srcBuffSize) ||
+			    ((1 == srcBuffSize) &&
+			     (CPA_DC_FLUSH_FINAL != pOpData->flushFlag) &&
+			     (CPA_DC_FLUSH_FULL != pOpData->flushFlag))) {
+				if (CPA_TRUE ==
+				    dcZeroLengthRequests(
+					pService,
+					pSessionDesc,
+					pResults,
+					pOpData->flushFlag,
+					callbackTag,
+					DC_DECOMPRESSION_REQUEST)) {
+					return CPA_STATUS_SUCCESS;
+				}
+			}
+		}
+		qatUtilsAtomicInc(&(pSessionDesc->pendingStatefulCbCount));
+		LAC_SPINUNLOCK(&(pSessionDesc->sessionLock));
 	}
 
 	return dcCompDecompData(pService,

@@ -75,6 +75,29 @@ static const uint64_t inst[] = {
 	0x0D81581C010ull, 0x0E000010000ull, 0x0E000010000ull,
 };
 
+static const uint64_t inst_CPM2X[] = {
+	0x0F0000C0000ull, 0x0D802C00011ull, 0x0F0000C0001ull, 0x0FC066C0001ull,
+	0x0F0000C0300ull, 0x0F0000C0300ull, 0x0F0000C0300ull, 0x0F000500300ull,
+	0x0A0610C0000ull, 0x0BAC0000301ull, 0x0D802000101ull, 0x0A0580C0000ull,
+	0x0A0581C0000ull, 0x0A0582C0000ull, 0x0A0583C0000ull, 0x0A0584C0000ull,
+	0x0A0585C0000ull, 0x0A0586C0000ull, 0x0A0587C0000ull, 0x0A0588C0000ull,
+	0x0A0589C0000ull, 0x0A058AC0000ull, 0x0A058BC0000ull, 0x0A058CC0000ull,
+	0x0A058DC0000ull, 0x0A058EC0000ull, 0x0A058FC0000ull, 0x0A05C0C0000ull,
+	0x0A05C1C0000ull, 0x0A05C2C0000ull, 0x0A05C3C0000ull, 0x0A05C4C0000ull,
+	0x0A05C5C0000ull, 0x0A05C6C0000ull, 0x0A05C7C0000ull, 0x0A05C8C0000ull,
+	0x0A05C9C0000ull, 0x0A05CAC0000ull, 0x0A05CBC0000ull, 0x0A05CCC0000ull,
+	0x0A05CDC0000ull, 0x0A05CEC0000ull, 0x0A05CFC0000ull, 0x0A0400C0000ull,
+	0x0B0400C0000ull, 0x0A0401C0000ull, 0x0B0401C0000ull, 0x0A0402C0000ull,
+	0x0B0402C0000ull, 0x0A0403C0000ull, 0x0B0403C0000ull, 0x0A0404C0000ull,
+	0x0B0404C0000ull, 0x0A0405C0000ull, 0x0B0405C0000ull, 0x0A0406C0000ull,
+	0x0B0406C0000ull, 0x0A0407C0000ull, 0x0B0407C0000ull, 0x0A0408C0000ull,
+	0x0B0408C0000ull, 0x0A0409C0000ull, 0x0B0409C0000ull, 0x0A040AC0000ull,
+	0x0B040AC0000ull, 0x0A040BC0000ull, 0x0B040BC0000ull, 0x0A040CC0000ull,
+	0x0B040CC0000ull, 0x0A040DC0000ull, 0x0B040DC0000ull, 0x0A040EC0000ull,
+	0x0B040EC0000ull, 0x0A040FC0000ull, 0x0B040FC0000ull, 0x0D81341C010ull,
+	0x0E000000001ull, 0x0E000010000ull,
+};
+
 void
 qat_hal_set_live_ctx(struct icp_qat_fw_loader_handle *handle,
 		     unsigned char ae,
@@ -205,6 +228,11 @@ qat_hal_set_ae_nn_mode(struct icp_qat_fw_loader_handle *handle,
 		       unsigned char mode)
 {
 	unsigned int csr, new_csr;
+
+	if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		pr_err("QAT: No next neigh for CPM2X\n");
+		return EINVAL;
+	}
 
 	qat_hal_rd_ae_csr(handle, ae, CTX_ENABLES, &csr);
 	csr &= IGNORE_W1C_MASK;
@@ -339,6 +367,21 @@ qat_hal_get_reg_addr(unsigned int type, unsigned short reg_num)
 	return reg_addr;
 }
 
+static u32
+qat_hal_get_ae_mask_gen4(struct icp_qat_fw_loader_handle *handle)
+{
+	u32 tg = 0, ae;
+	u32 valid_ae_mask = 0;
+
+	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
+		if (handle->hal_handle->ae_mask & (1 << ae)) {
+			tg = ae / 4;
+			valid_ae_mask |= (1 << (tg * 2));
+		}
+	}
+	return valid_ae_mask;
+}
+
 void
 qat_hal_reset(struct icp_qat_fw_loader_handle *handle)
 {
@@ -353,15 +396,26 @@ qat_hal_reset(struct icp_qat_fw_loader_handle *handle)
 		ae_reset_csr[1] = ICP_RESET_CPP1;
 		if (handle->hal_handle->ae_mask > 0xffff)
 			++cpp_num;
+	} else if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		ae_reset_csr[0] = ICP_RESET_CPP0;
 	} else {
 		ae_reset_csr[0] = ICP_RESET;
 	}
 
 	for (i = 0; i < cpp_num; i++) {
 		if (i == 0) {
-			valid_ae_mask = handle->hal_handle->ae_mask & 0xFFFF;
-			valid_slice_mask =
-			    handle->hal_handle->slice_mask & 0x3F;
+			if (IS_QAT_GEN4(
+				pci_get_device(GET_DEV(handle->accel_dev)))) {
+				valid_ae_mask =
+				    qat_hal_get_ae_mask_gen4(handle);
+				valid_slice_mask =
+				    handle->hal_handle->slice_mask;
+			} else {
+				valid_ae_mask =
+				    handle->hal_handle->ae_mask & 0xFFFF;
+				valid_slice_mask =
+				    handle->hal_handle->slice_mask & 0x3F;
+			}
 		} else {
 			valid_ae_mask =
 			    (handle->hal_handle->ae_mask >> AES_PER_CPP) &
@@ -509,7 +563,7 @@ qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
 
 	misc_ctl_csr =
-	    (IS_QAT_GEN3(pci_get_device(GET_DEV(handle->accel_dev)))) ?
+	    (IS_QAT_GEN3_OR_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) ?
 	    MISC_CONTROL_C4XXX :
 	    MISC_CONTROL;
 	/* stop the timestamp timers */
@@ -586,6 +640,9 @@ qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 		clk_csr[1] = ICP_GLOBAL_CLK_ENABLE_CPP1;
 		if (handle->hal_handle->ae_mask > 0xffff)
 			++cpp_num;
+	} else if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		ae_reset_csr[0] = ICP_RESET_CPP0;
+		clk_csr[0] = ICP_GLOBAL_CLK_ENABLE_CPP0;
 	} else {
 		ae_reset_csr[0] = ICP_RESET;
 		clk_csr[0] = ICP_GLOBAL_CLK_ENABLE;
@@ -593,9 +650,18 @@ qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 
 	for (i = 0; i < cpp_num; i++) {
 		if (i == 0) {
-			valid_ae_mask = handle->hal_handle->ae_mask & 0xFFFF;
-			valid_slice_mask =
-			    handle->hal_handle->slice_mask & 0x3F;
+			if (IS_QAT_GEN4(
+				pci_get_device(GET_DEV(handle->accel_dev)))) {
+				valid_ae_mask =
+				    qat_hal_get_ae_mask_gen4(handle);
+				valid_slice_mask =
+				    handle->hal_handle->slice_mask;
+			} else {
+				valid_ae_mask =
+				    handle->hal_handle->ae_mask & 0xFFFF;
+				valid_slice_mask =
+				    handle->hal_handle->slice_mask & 0x3F;
+			}
 		} else {
 			valid_ae_mask =
 			    (handle->hal_handle->ae_mask >> AES_PER_CPP) &
@@ -714,7 +780,24 @@ qat_hal_wr_uwords(struct icp_qat_fw_loader_handle *handle,
 		  const uint64_t *uword)
 {
 	unsigned int ustore_addr;
-	unsigned int i;
+	unsigned int i, ae_in_group;
+
+	if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		ae_in_group = ae / 4 * 4;
+
+		for (i = 0; i < AE_TG_NUM_CPM2X; i++) {
+			if (ae_in_group + i == ae)
+				continue;
+			if (ae_in_group + i >= handle->hal_handle->ae_max_num)
+				break;
+			if (qat_hal_check_ae_active(handle, ae_in_group + i)) {
+				pr_err(
+				    "ae%d in T_group is active, cannot write to ustore!\n",
+				    ae_in_group + i);
+				return;
+			}
+		}
+	}
 
 	qat_hal_rd_ae_csr(handle, ae, USTORE_ADDRESS, &ustore_addr);
 	uaddr |= UA_ECS;
@@ -826,10 +909,25 @@ qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wr_ae_csr(handle, ae, AE_MISC_CONTROL, csr_val);
 		qat_hal_rd_ae_csr(handle, ae, CTX_ENABLES, &csr_val);
 		csr_val &= IGNORE_W1C_MASK;
-		csr_val |= CE_NN_MODE;
+		if (!IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+			csr_val |= CE_NN_MODE;
+		}
 		qat_hal_wr_ae_csr(handle, ae, CTX_ENABLES, csr_val);
-		qat_hal_wr_uwords(
-		    handle, ae, 0, ARRAY_SIZE(inst), (const uint64_t *)inst);
+
+		if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+			if (ae % 4 == 0)
+				qat_hal_wr_uwords(handle,
+						  ae,
+						  0,
+						  ARRAY_SIZE(inst_CPM2X),
+						  (const uint64_t *)inst_CPM2X);
+		} else {
+			qat_hal_wr_uwords(handle,
+					  ae,
+					  0,
+					  ARRAY_SIZE(inst),
+					  (const uint64_t *)inst);
+		}
 		qat_hal_wr_indr_csr(handle,
 				    ae,
 				    ctx_mask,
@@ -971,6 +1069,7 @@ qat_hal_init(struct adf_accel_dev *accel_dev)
 	    malloc(sizeof(*handle->hal_handle), M_QAT, M_WAITOK | M_ZERO);
 	handle->hal_handle->revision_id = accel_dev->accel_pci_dev.revid;
 	handle->hal_handle->ae_mask = hw_data->ae_mask;
+	handle->hal_handle->admin_ae_mask = hw_data->admin_ae_mask;
 	handle->hal_handle->slice_mask = hw_data->accel_mask;
 	handle->cfg_ae_mask = 0xFFFFFFFF;
 	/* create AE objects */
@@ -1038,17 +1137,23 @@ qat_hal_deinit(struct icp_qat_fw_loader_handle *handle)
 	free(handle, M_QAT);
 }
 
-void
-qat_hal_start(struct icp_qat_fw_loader_handle *handle,
-	      unsigned char ae,
-	      unsigned int ctx_mask)
+int
+qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 {
+	unsigned char ae = 0;
 	int retry = 0;
 	unsigned int fcu_sts = 0;
 	unsigned int fcu_ctl_csr, fcu_sts_csr;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	u32 ae_ctr = 0;
 
 	if (handle->fw_auth) {
-		if (IS_QAT_GEN3(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num)
+		{
+			ae_ctr++;
+		}
+		if (IS_QAT_GEN3_OR_GEN4(
+			pci_get_device(GET_DEV(handle->accel_dev)))) {
 			fcu_ctl_csr = FCU_CONTROL_C4XXX;
 			fcu_sts_csr = FCU_STATUS_C4XXX;
 
@@ -1061,17 +1166,27 @@ qat_hal_start(struct icp_qat_fw_loader_handle *handle,
 			pause_ms("adfstop", FW_AUTH_WAIT_PERIOD);
 			fcu_sts = GET_FCU_CSR(handle, fcu_sts_csr);
 			if (((fcu_sts >> FCU_STS_DONE_POS) & 0x1))
-				return;
+				return ae_ctr;
 		} while (retry++ < FW_AUTH_MAX_RETRY);
 		pr_err("QAT: start error (AE 0x%x FCU_STS = 0x%x)\n",
 		       ae,
 		       fcu_sts);
+		return 0;
 	} else {
-		qat_hal_put_wakeup_event(handle,
-					 ae,
-					 (~ctx_mask) & ICP_QAT_UCLO_AE_ALL_CTX,
-					 0x10000);
-		qat_hal_enable_ctx(handle, ae, ctx_mask);
+		for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num)
+		{
+			qat_hal_put_wakeup_event(handle,
+						 ae,
+						 0,
+						 IS_QAT_GEN4(
+						     pci_get_device(GET_DEV(
+							 handle->accel_dev))) ?
+						     0x80000000 :
+						     0x10000);
+			qat_hal_enable_ctx(handle, ae, ICP_QAT_UCLO_AE_ALL_CTX);
+			ae_ctr++;
+		}
+		return ae_ctr;
 	}
 }
 
@@ -1193,7 +1308,7 @@ qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 	    handle, ae, ctx, INDIRECT_LM_ADDR_0_BYTE_INDEX, &ind_lm_addr_byte0);
 	qat_hal_rd_indr_csr(
 	    handle, ae, ctx, INDIRECT_LM_ADDR_1_BYTE_INDEX, &ind_lm_addr_byte1);
-	if (IS_QAT_GEN3(pci_get_device(GET_DEV(handle->accel_dev)))) {
+	if (IS_QAT_GEN3_OR_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
 		qat_hal_rd_indr_csr(
 		    handle, ae, ctx, LM_ADDR_2_INDIRECT, &ind_lm_addr2);
 		qat_hal_rd_indr_csr(
@@ -1286,7 +1401,7 @@ qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 			    (1 << ctx),
 			    INDIRECT_LM_ADDR_1_BYTE_INDEX,
 			    ind_lm_addr_byte1);
-	if (IS_QAT_GEN3(pci_get_device(GET_DEV(handle->accel_dev)))) {
+	if (IS_QAT_GEN3_OR_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
 		qat_hal_wr_indr_csr(
 		    handle, ae, (1 << ctx), LM_ADDR_2_INDIRECT, ind_lm_addr2);
 		qat_hal_wr_indr_csr(
@@ -1831,6 +1946,11 @@ qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 {
 	int stat = 0;
 	unsigned char ctx;
+
+	if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		pr_err("QAT: No next neigh for CPM2X\n");
+		return EINVAL;
+	}
 
 	if (ctx_mask == 0)
 		return EINVAL;

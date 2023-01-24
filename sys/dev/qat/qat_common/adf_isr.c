@@ -38,6 +38,9 @@ adf_enable_msix(struct adf_accel_dev *accel_dev)
 	int num_vectors = 0;
 	u_int *vectors;
 
+	if (hw_data->set_msix_rttable)
+		hw_data->set_msix_rttable(accel_dev);
+
 	/* If SR-IOV is disabled, add entries for each bank */
 	if (!accel_dev->u1.pf.vf_info) {
 		msix_num_entries += hw_data->num_banks;
@@ -90,8 +93,11 @@ adf_msix_isr_bundle(void *bank_ptr)
 {
 	struct adf_etr_bank_data *bank = bank_ptr;
 	struct adf_etr_data *priv_data = bank->accel_dev->transport;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 
-	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr, bank->bank_number, 0);
+	csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
+					    bank->bank_number,
+					    0);
 	adf_response_handler((uintptr_t)&priv_data->banks[bank->bank_number]);
 	return;
 }

@@ -29,6 +29,9 @@
 #include "icp_adf_accel_mgr.h"
 #include "lac_sal_types.h"
 
+/* To disable AEAD HW MAC verification */
+#include "icp_sal_user.h"
+
 /* QAT OCF specific headers */
 #include "qat_ocf_mem_pool.h"
 #include "qat_ocf_utils.h"
@@ -423,24 +426,6 @@ qat_ocf_session_init(device_t dev,
 
 	switch (csp->csp_mode) {
 	case CSP_MODE_AEAD:
-		sessionSetupData.symOperation =
-		    CPA_CY_SYM_OP_ALGORITHM_CHAINING;
-		/* Place the digest result in a buffer unrelated to srcBuffer */
-		sessionSetupData.digestIsAppended = CPA_TRUE;
-		/* For GCM and CCM driver forces to verify digest on HW */
-		sessionSetupData.verifyDigest = CPA_TRUE;
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			sessionSetupData.cipherSetupData.cipherDirection =
-			    CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT;
-			sessionSetupData.algChainOrder =
-			    CPA_CY_SYM_ALG_CHAIN_ORDER_CIPHER_THEN_HASH;
-		} else {
-			sessionSetupData.cipherSetupData.cipherDirection =
-			    CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT;
-			sessionSetupData.algChainOrder =
-			    CPA_CY_SYM_ALG_CHAIN_ORDER_HASH_THEN_CIPHER;
-		}
-		break;
 	case CSP_MODE_ETA:
 		sessionSetupData.symOperation =
 		    CPA_CY_SYM_OP_ALGORITHM_CHAINING;
@@ -1086,6 +1071,15 @@ qat_ocf_start_instances(struct qat_ocf_softc *qat_softc, device_t dev)
 			goto fail;
 		}
 
+		/* Disable forcing HW MAC validation for AEAD */
+		status = icp_sal_setForceAEADMACVerify(cyInstHandle, CPA_FALSE);
+		if (CPA_STATUS_SUCCESS != status) {
+			device_printf(
+			    qat_softc->sc_dev,
+			    "unable to disable AEAD HW MAC verification\n");
+			goto fail;
+		}
+
 		qat_ocf_instance->driver_id = qat_softc->cryptodev_id;
 
 		startedInstances++;
@@ -1222,6 +1216,7 @@ MODULE_DEPEND(qat, qat_200xx, 1, 1, 1);
 MODULE_DEPEND(qat, qat_c3xxx, 1, 1, 1);
 MODULE_DEPEND(qat, qat_c4xxx, 1, 1, 1);
 MODULE_DEPEND(qat, qat_dh895xcc, 1, 1, 1);
+MODULE_DEPEND(qat, qat_4xxx, 1, 1, 1);
 MODULE_DEPEND(qat, crypto, 1, 1, 1);
 MODULE_DEPEND(qat, qat_common, 1, 1, 1);
 MODULE_DEPEND(qat, qat_api, 1, 1, 1);

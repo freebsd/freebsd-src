@@ -228,6 +228,7 @@
 
 #include "lac_session.h"
 #include "lac_sym.h"
+#include "lac_sal_types_crypto.h"
 
 /*
  * WARNING: There are no checks done on the parameters of the functions in
@@ -253,8 +254,9 @@
  * @retval CPA_STATUS_INVALID_PARAM  Invalid parameter.
  *
  *****************************************************************************/
-CpaStatus LacCipher_SessionSetupDataCheck(
-    const CpaCySymCipherSetupData *pCipherSetupData);
+CpaStatus
+LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData,
+				Cpa32U capabilitiesMask);
 
 /**
 *******************************************************************************
@@ -309,4 +311,22 @@ CpaStatus LacCipher_PerformIvCheck(sal_service_t *pService,
 				   Cpa32U qatPacketType,
 				   Cpa8U **ppIvBuffer);
 
+/**
+ *****************************************************************************
+ * @ingroup LacCipher
+ *      Return cipher slice type for given algorithm
+ *
+ * @description
+ *      This function will check what cipher slice type should be used for given
+ *      algorithms and CPM generation combination.
+ *      Since CPM2.0 there is new UCS cipher slice available.
+ *
+ * @param[in] pService          Pointer to service struct
+ * @param[in] cipherAlgorithm   cipher algorithm
+ * @param[in] hashAlgorithm     hash algorithm
+ *
+ *****************************************************************************/
+Cpa32U LacCipher_GetCipherSliceType(sal_crypto_service_t *pService,
+				    CpaCySymCipherAlgorithm algorithm,
+				    CpaCySymHashAlgorithm hash);
 #endif /* LAC_SYM_CIPHER_H */

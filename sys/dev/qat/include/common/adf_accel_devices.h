@@ -19,6 +19,7 @@
 #define ADF_200XXVF_DEVICE_NAME "200xxvf"
 #define ADF_C4XXX_DEVICE_NAME "c4xxx"
 #define ADF_C4XXXVF_DEVICE_NAME "c4xxxvf"
+#define ADF_4XXX_DEVICE_NAME "4xxx"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
 #define ADF_DH895XCCIOV_PCI_DEVICE_ID 0x443
 #define ADF_C62X_PCI_DEVICE_ID 0x37c8
@@ -31,8 +32,17 @@
 #define ADF_D15XXIOV_PCI_DEVICE_ID 0x6f55
 #define ADF_C4XXX_PCI_DEVICE_ID 0x18a0
 #define ADF_C4XXXIOV_PCI_DEVICE_ID 0x18a1
+#define ADF_4XXX_PCI_DEVICE_ID 0x4940
+#define ADF_401XX_PCI_DEVICE_ID 0x4942
 
 #define IS_QAT_GEN3(ID) ({ (ID == ADF_C4XXX_PCI_DEVICE_ID); })
+static inline bool
+IS_QAT_GEN4(const unsigned int id)
+{
+	return (id == ADF_4XXX_PCI_DEVICE_ID || id == ADF_401XX_PCI_DEVICE_ID);
+}
+
+#define IS_QAT_GEN3_OR_GEN4(ID) (IS_QAT_GEN3(ID) || IS_QAT_GEN4(ID))
 #define ADF_VF2PF_SET_SIZE 32
 #define ADF_MAX_VF2PF_SET 4
 #define ADF_VF2PF_SET_OFFSET(set_nr) ((set_nr)*ADF_VF2PF_SET_SIZE)
@@ -50,7 +60,7 @@
 #define ADF_PCI_MAX_BARS 3
 #define ADF_DEVICE_NAME_LENGTH 32
 #define ADF_ETR_MAX_RINGS_PER_BANK 16
-#define ADF_MAX_MSIX_VECTOR_NAME 16
+#define ADF_MAX_MSIX_VECTOR_NAME 32
 #define ADF_DEVICE_NAME_PREFIX "qat_"
 #define ADF_STOP_RETRY 50
 #define ADF_NUM_THREADS_PER_AE (8)
@@ -58,7 +68,6 @@
 #define ADF_NUM_PKE_STRAND (2)
 #define ADF_AE_STRAND0_THREAD (8)
 #define ADF_AE_STRAND1_THREAD (9)
-#define ADF_NUM_HB_CNT_PER_AE (ADF_NUM_THREADS_PER_AE + ADF_NUM_PKE_STRAND)
 #define ADF_CFG_NUM_SERVICES 4
 #define ADF_SRV_TYPE_BIT_LEN 3
 #define ADF_SRV_TYPE_MASK 0x7
@@ -74,6 +83,8 @@
 
 #define GET_SRV_TYPE(ena_srv_mask, srv)                                        \
 	(((ena_srv_mask) >> (ADF_SRV_TYPE_BIT_LEN * (srv))) & ADF_SRV_TYPE_MASK)
+
+#define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_info.csr_ops)
 
 #define ADF_DEFAULT_RING_TO_SRV_MAP                                            \
 	(CRYPTO | CRYPTO << ADF_CFG_SERV_RING_PAIR_1_SHIFT |                   \
@@ -156,7 +167,9 @@ enum adf_accel_unit_services {
 	ADF_ACCEL_SERVICE_NULL = 0,
 	ADF_ACCEL_INLINE_CRYPTO = 1,
 	ADF_ACCEL_CRYPTO = 2,
-	ADF_ACCEL_COMPRESSION = 4
+	ADF_ACCEL_COMPRESSION = 4,
+	ADF_ACCEL_ASYM = 8,
+	ADF_ACCEL_ADMIN = 16
 };
 
 struct adf_ae_info {
@@ -182,6 +195,7 @@ struct adf_accel_unit_info {
 	u32 dc_ae_msk;
 	u8 num_cy_au;
 	u8 num_dc_au;
+	u8 num_asym_au;
 	u8 num_inline_au;
 	struct adf_accel_unit *au;
 	const struct adf_ae_info *ae_info;
@@ -230,6 +244,60 @@ struct admin_info {
 	u32 admin_msg_lr;
 	u32 mailbox_offset;
 } __packed;
+
+struct adf_hw_csr_ops {
+	u64 (*build_csr_ring_base_addr)(bus_addr_t addr, u32 size);
+	u32 (*read_csr_ring_head)(struct resource *csr_base_addr,
+				  u32 bank,
+				  u32 ring);
+	void (*write_csr_ring_head)(struct resource *csr_base_addr,
+				    u32 bank,
+				    u32 ring,
+				    u32 value);
+	u32 (*read_csr_ring_tail)(struct resource *csr_base_addr,
+				  u32 bank,
+				  u32 ring);
+	void (*write_csr_ring_tail)(struct resource *csr_base_addr,
+				    u32 bank,
+				    u32 ring,
+				    u32 value);
+	u32 (*read_csr_e_stat)(struct resource *csr_base_addr, u32 bank);
+	void (*write_csr_ring_config)(struct resource *csr_base_addr,
+				      u32 bank,
+				      u32 ring,
+				      u32 value);
+	void (*write_csr_ring_base)(struct resource *csr_base_addr,
+				    u32 bank,
+				    u32 ring,
+				    bus_addr_t addr);
+	void (*write_csr_int_flag)(struct resource *csr_base_addr,
+				   u32 bank,
+				   u32 value);
+	void (*write_csr_int_srcsel)(struct resource *csr_base_addr, u32 bank);
+	void (*write_csr_int_col_en)(struct resource *csr_base_addr,
+				     u32 bank,
+				     u32 value);
+	void (*write_csr_int_col_ctl)(struct resource *csr_base_addr,
+				      u32 bank,
+				      u32 value);
+	void (*write_csr_int_flag_and_col)(struct resource *csr_base_addr,
+					   u32 bank,
+					   u32 value);
+	u32 (*read_csr_ring_srv_arb_en)(struct resource *csr_base_addr,
+					u32 bank);
+	void (*write_csr_ring_srv_arb_en)(struct resource *csr_base_addr,
+					  u32 bank,
+					  u32 value);
+};
+
+struct adf_hw_csr_info {
+	struct adf_hw_csr_ops csr_ops;
+	u32 csr_addr_offset;
+	u32 ring_bundle_size;
+	u32 bank_int_flag_clear_mask;
+	u32 num_rings_per_int_srcsel;
+	u32 arb_enable_mask;
+};
 
 struct adf_cfg_device_data;
 struct adf_accel_dev;
@@ -282,8 +350,10 @@ struct adf_hw_device_data {
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	void (*get_arb_mapping)(struct adf_accel_dev *accel_dev,
 				const uint32_t **cfg);
+	int (*init_device)(struct adf_accel_dev *accel_dev);
 	int (*get_heartbeat_status)(struct adf_accel_dev *accel_dev);
 	uint32_t (*get_ae_clock)(struct adf_hw_device_data *self);
+	uint32_t (*get_hb_clock)(struct adf_hw_device_data *self);
 	void (*disable_iov)(struct adf_accel_dev *accel_dev);
 	void (*configure_iov_threads)(struct adf_accel_dev *accel_dev,
 				      bool enable);
@@ -298,6 +368,8 @@ struct adf_hw_device_data {
 	void (*restore_device)(struct adf_accel_dev *accel_dev);
 	uint32_t (*get_obj_cfg_ae_mask)(struct adf_accel_dev *accel_dev,
 					enum adf_accel_unit_services services);
+	enum adf_accel_unit_services (
+	    *get_service_type)(struct adf_accel_dev *accel_dev, s32 obj_num);
 	int (*add_pke_stats)(struct adf_accel_dev *accel_dev);
 	void (*remove_pke_stats)(struct adf_accel_dev *accel_dev);
 	int (*add_misc_error)(struct adf_accel_dev *accel_dev);
@@ -311,6 +383,14 @@ struct adf_hw_device_data {
 				    enum adf_accel_unit_services services);
 	void (*pre_reset)(struct adf_accel_dev *accel_dev);
 	void (*post_reset)(struct adf_accel_dev *accel_dev);
+	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
+	void (*get_ring_svc_map_data)(int ring_pair_index,
+				      u16 ring_to_svc_map,
+				      u8 *serv_type,
+				      int *ring_index,
+				      int *num_rings_per_srv,
+				      int bundle_num);
+	struct adf_hw_csr_info csr_info;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	bool reset_ack;
@@ -320,7 +400,10 @@ struct adf_hw_device_data {
 	uint16_t accel_mask;
 	u32 aerucm_mask;
 	u32 ae_mask;
+	u32 admin_ae_mask;
 	u32 service_mask;
+	u32 service_to_load_mask;
+	u32 heartbeat_ctr_num;
 	uint16_t tx_rings_mask;
 	uint8_t tx_rx_gap;
 	uint8_t num_banks;

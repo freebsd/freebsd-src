@@ -108,51 +108,26 @@
 /* Constants for SHA3_384 algorithm  */
 #define LAC_HASH_SHA3_384_BLOCK_SIZE 104
 /**< @ingroup LacHashDefs
- *  *  SHA3_384 block size in bytes */
+ *  SHA3_384 block size in bytes */
 #define LAC_HASH_SHA3_384_DIGEST_SIZE 48
 /**< @ingroup LacHashDefs
- *  *  SHA3_384 digest length in bytes */
+ *  SHA3_384 digest length in bytes */
 #define LAC_HASH_SHA3_384_STATE_SIZE 48
 /**< @ingroup LacHashDefs
- *  *  SHA3_384 state size */
+ *  SHA3_384 state size */
 
 /* Constants for SHA3_512 algorithm  */
 #define LAC_HASH_SHA3_512_BLOCK_SIZE 72
 /**< @ingroup LacHashDefs
- *  *  *  SHA3_512 block size in bytes */
+ *  SHA3_512 block size in bytes */
 #define LAC_HASH_SHA3_512_DIGEST_SIZE 64
 /**< @ingroup LacHashDefs
- *  *  *  SHA3_512 digest length in bytes */
+ *  SHA3_512 digest length in bytes */
 #define LAC_HASH_SHA3_512_STATE_SIZE 64
 /**< @ingroup LacHashDefs
- *  *  *  SHA3_512 state size */
+ *  SHA3_512 state size */
 
-/* Constants for SHAKE_128 algorithm  */
-#define LAC_HASH_SHAKE_128_BLOCK_SIZE 168
-/**< @ingroup LacHashDefs
- *  *  *  SHAKE_128 block size in bytes */
-#define LAC_HASH_SHAKE_128_DIGEST_SIZE 0xFFFFFFFF
-/**< @ingroup LacHashDefs
- *  *  *  SHAKE_128 digest length in bytes ((2^32)-1)*/
-
-/* Constants for SHAKE_256 algorithm  */
-#define LAC_HASH_SHAKE_256_BLOCK_SIZE 136
-/**< @ingroup LacHashDefs
- *  *  *  SHAKE_256 block size in bytes */
-#define LAC_HASH_SHAKE_256_DIGEST_SIZE 0xFFFFFFFF
-/**< @ingroup LacHashDefs
- *  *  *  SHAKE_256 digest length in bytes ((2^ 32)-1)*/
-
-/* Constants for POLY algorithm  */
-#define LAC_HASH_POLY_BLOCK_SIZE 64
-/**< @ingroup LacHashDefs
- *  POLY block size in bytes */
-#define LAC_HASH_POLY_DIGEST_SIZE 16
-/**< @ingroup LacHashDefs
- *  POLY digest length */
-#define LAC_HASH_POLY_STATE_SIZE 0
-/**< @ingroup LacHashDefs
- *  POLY state size */
+#define LAC_HASH_SHA3_STATEFUL_STATE_SIZE 200
 
 /* Constants for SM3 algorithm  */
 #define LAC_HASH_SM3_BLOCK_SIZE 64
@@ -164,6 +139,17 @@
 #define LAC_HASH_SM3_STATE_SIZE 32
 /**< @ingroup LacHashDefs
  *  SM3 state size */
+
+/* Constants for POLY algorithm  */
+#define LAC_HASH_POLY_BLOCK_SIZE 64
+/**< @ingroup LacHashDefs
+ *  POLY block size in bytes */
+#define LAC_HASH_POLY_DIGEST_SIZE 16
+/**< @ingroup LacHashDefs
+ *  POLY digest length */
+#define LAC_HASH_POLY_STATE_SIZE 0
+/**< @ingroup LacHashDefs
+ *  POLY state size */
 
 /* Constants for XCBC precompute algorithm  */
 #define LAC_HASH_XCBC_PRECOMP_KEY_NUM 3
@@ -285,7 +271,7 @@
  * the size in an 8bit field */
 
 #define LAC_MAX_HASH_STATE_STORAGE_SIZE                                        \
-	(sizeof(icp_qat_hw_auth_counter_t) + LAC_HASH_SHA512_STATE_SIZE)
+	(sizeof(icp_qat_hw_auth_counter_t) + LAC_HASH_SHA3_STATEFUL_STATE_SIZE)
 /**< Maximum size of the hash state storage section of the hash state prefix
  * buffer */
 
@@ -307,11 +293,8 @@
 	 (algorithm == CPA_CY_SYM_HASH_SHA256) ||                              \
 	 (algorithm == CPA_CY_SYM_HASH_SHA384) ||                              \
 	 (algorithm == CPA_CY_SYM_HASH_SHA512) ||                              \
-	 (algorithm == CPA_CY_SYM_HASH_SHA3_224) ||                            \
-	 (algorithm == CPA_CY_SYM_HASH_SHA3_256) ||                            \
-	 (algorithm == CPA_CY_SYM_HASH_SHA3_384) ||                            \
-	 (algorithm == CPA_CY_SYM_HASH_SHA3_512) ||                            \
-	 (algorithm == CPA_CY_SYM_HASH_SM3))
+	 (algorithm == CPA_CY_SYM_HASH_SM3)) ||                                \
+	    (LAC_HASH_IS_SHA3(algorithm))
 /**< @ingroup LacSymQatHash
  * Macro to detect if the hash algorithm is a HMAC algorithm */
 
@@ -340,5 +323,13 @@
  * Macro to check for qat hash mode is set to 2 and the LAC hash mode is
  * Nested. This applies to TLS. This is used to differentiate between
  * TLS and HMAC */
+
+#define LAC_HASH_IS_SHA3(algo)                                                 \
+	((algo == CPA_CY_SYM_HASH_SHA3_224) ||                                 \
+	 (algo == CPA_CY_SYM_HASH_SHA3_256) ||                                 \
+	 (algo == CPA_CY_SYM_HASH_SHA3_384) ||                                 \
+	 (algo == CPA_CY_SYM_HASH_SHA3_512))
+/**< @ingroup LacSymQatHash
+ * Macro to check if the hash algorithm is SHA3 */
 
 #endif /* LAC_SYM_HASH_DEFS_H */

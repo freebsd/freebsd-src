@@ -70,6 +70,17 @@ typedef enum {
 /**
  *****************************************************************************
  * @ingroup SalCtrl
+ *      Device generations
+ *
+ * @description
+ *      List in an enum all the QAT device generations.
+ *
+ *****************************************************************************/
+typedef enum { GEN2, GEN3, GEN4 } sal_generation_t;
+
+/**
+ *****************************************************************************
+ * @ingroup SalCtrl
  *      Generic Instance Container
  *
  * @description
@@ -128,6 +139,9 @@ typedef struct sal_service_s {
 
 	CpaBoolean integrityCrcCheck;
 	/** < True if the device supports end to end data integrity checks */
+
+	sal_generation_t gen;
+	/** Generation of devices */
 } sal_service_t;
 
 /**
