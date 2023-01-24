@@ -77,7 +77,7 @@ static void __libcpp_platform_wake_by_address(__cxx_atomic_contention_t const vo
                  const_cast<__cxx_atomic_contention_t*>(__ptr), 0);
 }
 
-#elif defined(__FreeBSD__) && defined(__LP64__)
+#elif defined(__FreeBSD__) && __SIZEOF_LONG__ == 8 && !defined(__mips__)
 
 static void __libcpp_platform_wait_on_address(__cxx_atomic_contention_t const volatile* __ptr,
                                               __cxx_contention_t __val)
