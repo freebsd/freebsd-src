@@ -2912,7 +2912,7 @@ hdaa_dump_gpo(struct hdaa_devinfo *devinfo)
 		data = hda_command(dev,
 		    HDA_CMD_GET_GPO_DATA(0, devinfo->nid));
 		for (i = 0; i < HDA_PARAM_GPIO_COUNT_NUM_GPO(devinfo->gpio_cap); i++) {
-			device_printf(dev, " GPO%d: state=%d", i,
+			device_printf(dev, " GPO%d: state=%d\n", i,
 				    (data >> i) & 1);
 		}
 	}
