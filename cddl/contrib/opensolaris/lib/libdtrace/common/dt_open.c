@@ -1115,6 +1115,15 @@ dt_vopen(int version, int flags, int *errp,
 	 */
 	if (err == ENOENT && modfind("dtraceall") < 0) {
 		kldload("dtraceall"); /* ignore the error */
+#if __SIZEOF_LONG__ == 8
+		if (modfind("linux64elf") >= 0)
+			kldload("systrace_linux");
+		if (modfind("linuxelf") >= 0)
+			kldload("systrace_linux32");
+#else
+		if (modfind("linuxelf") >= 0) {
+			kldload("systrace_linux");
+#endif
 		dtfd = open("/dev/dtrace/dtrace", O_RDWR | O_CLOEXEC);
 		err = errno;
 	}
