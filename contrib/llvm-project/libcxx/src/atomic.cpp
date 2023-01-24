@@ -78,6 +78,11 @@ static void __libcpp_platform_wake_by_address(__cxx_atomic_contention_t const vo
 }
 
 #elif defined(__FreeBSD__) && __SIZEOF_LONG__ == 8 && !defined(__mips__)
+/*
+ * Since __cxx_contention_t is int64_t even on 32bit FreeBSD
+ * platforms, we have to use umtx ops that work on the long type, and
+ * limit its use to architectures where long and int64_t are synonyms.
+ */
 
 static void __libcpp_platform_wait_on_address(__cxx_atomic_contention_t const volatile* __ptr,
                                               __cxx_contention_t __val)
