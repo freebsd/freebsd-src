@@ -1,14 +1,16 @@
-﻿OS Default Dynamic Device Personalization (DDP) Package
+OS Default Dynamic Device Personalization (DDP) Package
 ======================================================================
-July 7, 2020
+May 12, 2022
 
 
 Contents
 ========
 - Overview
+- Supported Operating Systems
 - Safe Mode
 - Notes
-- Installation & Troubleshooting
+- Installation
+- Troubleshooting
 - Legal
 
 
@@ -16,7 +18,7 @@ Overview
 ========
 Devices based on the Intel(R) Ethernet 800 Series require a Dynamic Device
 Personalization (DDP) package file to enable advanced features (such as dynamic
-tunneling, Intel(R) Ethernet Flow Director, RSS, and ADQ).
+tunneling, Intel(R) Ethernet Flow Director, RSS, and ADQ).
 
 DDP allows you to change the packet processing pipeline of a device by applying
 a profile package to the device at runtime. Profiles can be used to, for
@@ -24,12 +26,13 @@ example, add support for new protocols, change existing protocols, or change
 default settings. DDP profiles can also be rolled back without rebooting the
 system.
 
-The DDP package loads during device initialization. The driver checks to see if
-the DDP package is present and compatible. If this file exists, the driver will
-load it into the device. If the DDP package file is missing or incompatible
-with the driver, the driver will go into Safe Mode where it will use the
-configuration contained in the device's NVM. Refer to the Intel(R) Ethernet
-Adapters and Devices User Guide for more information on Safe Mode.
+The DDP package loads during device initialization or driver runtime, depending
+on the operating system. The driver checks to see if the DDP package is present
+and compatible. If this file exists, the driver will load it into the device.
+If the DDP package file is missing or incompatible with the driver, the driver
+will go into Safe Mode where it will use the configuration contained in the
+device's NVM. Refer to the Intel(R) Ethernet Adapters and Devices User Guide
+for more information on Safe Mode.
 
 A general-purpose, default DDP package is automatically installed with all
 supported Intel Ethernet 800 Series drivers on supported operating systems.
@@ -59,6 +62,18 @@ The default DDP package supports the following:
 - MPLS (up to 5 consecutive MPLS labels in the outermost Layer 2 header group)
 
 
+Supported Operating Systems
+===========================
+This DDP package is supported on the following operating systems:
+- Microsoft* Windows Server*
+- Linux*
+- FreeBSD*
+- VMware* ESXi*
+
+Refer to the Intel(R) Ethernet Adapters and Devices User Guide for currently
+supported versions of these operating systems.
+
+
 Safe Mode
 =========
 Safe Mode disables advanced and performance features, and supports only basic
@@ -66,45 +81,44 @@ traffic and minimal functionality, such as updating the NVM or downloading a
 new driver or DDP package.
 
 Refer to the Intel(R) Ethernet Adapters and Devices User Guide for more details
-on DDP and Safe Mode.
+on DDP and Safe Mode.
 
 
 Notes
 =====
-- You cannot update the DDP package if any PF drivers are already loaded. To
-overwrite a package, unload all PFs and then reload the driver with the new
-package.
+- In Linux, FreeBSD, and Windows, you cannot update the DDP package if any PF
+drivers are already loaded. To overwrite a package, unload all PFs and then
+reload the driver with the new package.
 
-- Except for Linux, you can only use one DDP package per driver, even if you
-have more than one device installed that uses the driver.
+- In ESXi, use esxcli to load and unload DDP packages for specific market
+segments during driver runtime.
+ 
+- In FreeBSD and Windows, you can only use one DDP package per driver, even if
+you have more than one device installed that uses the driver.
 
-- Only the first loaded PF per device can download a package for that device.
+- In Linux, FreeBSD, and Windows, only the first loaded PF per device can
+download a package for that device. In ESXi, you can load different DDP
+packages for different PFs associated with a device.
 
 - If you are using DPDK, see the DPDK documentation at https://www.dpdk.org/
 for installation instructions and more information.
 
 
-Installation and Troubleshooting
-================================
+Installation
+============
 
-Microsoft* Windows*
--------------------
-The DDP package is installed as part of the driver binary. You don't need to
-take additional steps to install the DDP package file.
+Microsoft Windows
+-----------------
+TO INSTALL THE OS DEFAULT DDP PACKAGE:
 
-If you encounter issues with the DDP package file, download the latest driver.
-
-
-ESX
----
-The DDP package is installed as part of the driver binary. You don't need to
-take additional steps to install the DDP package file.
-
-If you encounter issues with the DDP package file, download the latest driver.
+The default DDP package is installed as part of the driver binary. You don't
+need to take additional steps to install the DDP package file.
 
 
 FreeBSD
 -------
+TO INSTALL THE OS DEFAULT DDP PACKAGE:
+
 The FreeBSD driver automatically installs the default DDP package file during
 driver installation. See the base driver README for general installation and
 building instructions.
@@ -112,15 +126,14 @@ building instructions.
 The DDP package loads during device initialization. The driver looks for the
 ice_ddp module and checks that it contains a valid DDP package file.
 
-If you encounter issues with the DDP package file, you may need to download an
-updated driver or ice_ddp module. See the log messages for more information.
-
 NOTE: It's important to do 'make install' during initial ice driver
 installation so that the driver loads the DDP package automatically.
 
 
 Linux
 -----
+TO INSTALL THE OS DEFAULT DDP PACKAGE:
+
 The Linux driver automatically installs the default DDP package file during
 driver installation. Read the base driver README for general installation and
 building instructions.
@@ -131,9 +144,8 @@ intel/ice/ddp/ice.pkg in your firmware root (typically /lib/firmware/ or
 The ice.pkg file is a symbolic link to the default DDP package file installed
 by the linux-firmware software package or the out-of-tree driver installation.
 
-If you encounter issues with the DDP package file, you may need to download an
-updated driver or DDP package file. Refer to the log messages for more
-information.
+
+TO INSTALL A DDP PACKAGE FOR SPECIFIC MARKET SEGMENTS:
 
 You can install specific DDP package files for different physical devices in
 the same system. To install a specific DDP package:
@@ -177,9 +189,87 @@ NOTE: The presence of a device-specific DDP package file overrides the loading
 of the default DDP package file.
 
 
+ESX
+---
+TO INSTALL THE OS DEFAULT DDP PACKAGE:
+
+The default DDP package is installed as part of the driver binary. You don't
+need to take additional steps to install the DDP package file.
+
+TO INSTALL A DDP PACKAGE FOR SPECIFIC MARKET SEGMENTS:
+
+You must first install the Intel(R) ESXCLI Plug-In for Managing Intel(R)
+Ethernet Network Adapters to be able to install and load market-specific DDP
+packages. Download it from:
+https://www.intel.com/content/www/us/en/download/19380/intel-esxcli-plug-in-for-
+managing-intel-ethernet-network-adapters.html
+
+NOTE: ESXi support for DDP packages for specific market segments requires the
+following:
+- OS: ESXi 6.7 or higher
+- Driver: icen 1.9.1.x or higher
+- Tool: intnet 1.8.3.x or higher
+
+To install and load this DDP package:
+
+1. Download and install the esxcli plug-in from the URL above.
+
+2. Download the DDP package.
+
+3. Copy the DDP package file to the following location: /store/intel/icen/ddp/.
+   If the directory does not yet exist, create it before copying the file.
+
+4. From the command prompt, run the following command to load the DDP package:
+
+   # esxcli intnet ddp load -n <vmnicX> -p <ddp_file_name> -f
+
+   Where:
+    <vmnicX> = the name of the NIC
+    <ddp_file_name> = the name of the DDP package to load
+    -f = forces the package to load
+
+    NOTE: This operation will cause the driver to reset.
+
+5. Wait for the load result status.
+
+
+To list all active DDP packages for all virtual NICs, run the following:
+
+# esxcli intnet ddp list
+
+To unload (roll back) a DDP package, run the following:
+
+# esxcli intnet ddp rollback -n <vmnicX> -f
+
+NOTE: This operation will cause the driver to reset.
+
+
+Troubleshooting
+===============
+
+Microsoft Windows
+-----------------
+If you encounter issues with the DDP package file, download the latest driver.
+
+FreeBSD
+-------
+If you encounter issues with the DDP package file, you may need to download an
+updated driver or ice_ddp module. See the log messages for more information.
+
+Linux
+-----
+If you encounter issues with the DDP package file, you may need to download an
+updated driver or DDP package file. Refer to the log messages for more
+information.
+
+ESX
+---
+If you encounter issues with the DDP package file, download the latest driver.
+
+
 Legal / Disclaimers
 ===================
-Copyright (c) 2019 - 2020, Intel Corporation.
+Copyright (c) 2019 - 2022, Intel Corporation.
 
 Intel and the Intel logo are trademarks of Intel Corporation or its
 subsidiaries in the U.S. and/or other countries.
