@@ -138,7 +138,7 @@ struct ether_8021q_tag {
 };
 
 #define	VLAN_CAPABILITIES(_ifp) do {				\
-	if ((_ifp)->if_vlantrunk != NULL) 			\
+	if (if_getvlantrunk(_ifp) != NULL) 			\
 		(*vlan_trunk_cap_p)(_ifp);			\
 } while (0)
 
@@ -154,7 +154,7 @@ struct ether_8021q_tag {
 	(if_gettype(_ifp) == IFT_L2VLAN ?			\
 	    (*vlan_setcookie_p)((_ifp), (_cookie)) : EINVAL)
 #define	VLAN_DEVAT(_ifp, _vid)					\
-	((_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL)
+	(if_getvlantrunk(_ifp) != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL)
 
 extern	void (*vlan_trunk_cap_p)(struct ifnet *);
 extern	struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);

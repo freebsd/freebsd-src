@@ -133,6 +133,7 @@ typedef	int (*if_output_fn_t)
 typedef void (*if_qflush_fn_t)(if_t);
 typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
 typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
+typedef	void (*if_reassign_fn_t)(struct ifnet *, struct vnet *, char *);
 
 struct ifnet_hw_tsomax {
 	u_int	tsomaxbytes;	/* TSO total burst length limit in bytes */
@@ -590,6 +591,7 @@ int if_setdev(if_t ifp, void *dev);
 int if_setdrvflagbits(if_t ifp, int if_setflags, int clear_flags);
 int if_getdrvflags(const if_t ifp);
 int if_setdrvflags(if_t ifp, int flags);
+int if_getlinkstate(if_t ifp);
 int if_clearhwassist(if_t ifp);
 int if_sethwassistbits(if_t ifp, int toset, int toclear);
 int if_sethwassist(if_t ifp, int hwassist_bit);
@@ -600,12 +602,16 @@ void *if_getsoftc(if_t ifp);
 int if_setflags(if_t ifp, int flags);
 void if_setllsoftc(if_t ifp, void *softc);
 void *if_getllsoftc(if_t ifp);
+u_int if_getfib(if_t ifp);
 int if_gethwaddr(const if_t ifp, struct ifreq *);
+const uint8_t *if_getbroadcastaddr(const if_t ifp);
 int if_setmtu(if_t ifp, int mtu);
 int if_getmtu(const if_t ifp);
 int if_getmtu_family(const if_t ifp, int family);
 int if_setflagbits(if_t ifp, int set, int clear);
+int if_setflags(if_t ifp, int flags);
 int if_getflags(const if_t ifp);
+int if_getnumadomain(if_t ifp);
 int if_sendq_empty(if_t ifp);
 int if_setsendqready(if_t ifp);
 int if_setsendqlen(if_t ifp, int tx_desc_count);
@@ -615,6 +621,8 @@ int if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize);
 u_int if_gethwtsomax(const if_t ifp);
 u_int if_gethwtsomaxsegcount(const if_t ifp);
 u_int if_gethwtsomaxsegsize(const if_t ifp);
+void if_setnetmapadapter(if_t ifp, struct netmap_adapter *na);
+struct netmap_adapter *if_getnetmapadapter(if_t ifp);
 int if_input(if_t ifp, struct mbuf* sendmp);
 int if_sendq_prepend(if_t ifp, struct mbuf *m);
 struct mbuf *if_dequeue(if_t ifp);
@@ -624,14 +632,20 @@ void if_setvtag(struct mbuf *m, u_int16_t tag);
 u_int16_t if_getvtag(struct mbuf *m);
 int if_vlantrunkinuse(if_t ifp);
 caddr_t if_getlladdr(const if_t ifp);
+struct vnet *if_getvnet(const if_t ifp);
 void *if_gethandle(u_char);
 void if_bpfmtap(if_t ifp, struct mbuf *m);
 void if_etherbpfmtap(if_t ifp, struct mbuf *m);
 void if_vlancap(if_t ifp);
 int if_transmit(if_t ifp, struct mbuf *m);
 int if_init(if_t ifp, void *ctx);
+uint64_t if_getcounter(if_t ifp, ift_counter counter);
 struct label *if_getmaclabel(if_t ifp);
 void if_setmaclabel(if_t ifp, struct label *label);
+struct bpf_if *if_getbpf(if_t ifp);
+uint8_t if_getpcp(if_t ifp);
+struct ifvlantrunk *if_getvlantrunk(if_t ifp);
+void *if_getafdata(if_t ifp, int);
 
 /*
  * Traversing through interface address lists.
@@ -651,15 +665,19 @@ u_int if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg);
 /* Functions */
 void if_setinitfn(if_t ifp, if_init_fn_t);
 void if_setinputfn(if_t ifp, if_input_fn_t);
+if_input_fn_t if_getinputfn(if_t ifp);
 void if_setioctlfn(if_t ifp, if_ioctl_fn_t);
-void if_setoutputfn(if_t ifp, int(*)
-    (if_t, struct mbuf *, const struct sockaddr *, struct route *));
-void if_setstartfn(if_t ifp, void (*)(if_t));
+void if_setoutputfn(if_t ifp, if_output_fn_t);
+void if_setstartfn(if_t ifp, if_start_fn_t);
+if_start_fn_t if_getstartfn(if_t ifp);
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
+if_transmit_fn_t if_gettransmitfn(if_t ifp);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
 void if_setgetcounterfn(if_t ifp, if_get_counter_t);
 void if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t);
 void if_setdebugnet_methods(struct ifnet *, struct debugnet_methods *);
+void if_setreassignfn(if_t ifp, if_reassign_fn_t);
+void if_setratelimitqueryfn(if_t ifp, if_ratelimit_query_t);
 
 /* TSO */
 void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);

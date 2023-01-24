@@ -135,8 +135,7 @@ struct ifnet {
 	if_qflush_fn_t	if_qflush;	/* flush any queue */
 	if_transmit_fn_t if_transmit;   /* initiate output routine */
 
-	void	(*if_reassign)		/* reassign to vnet routine */
-		(struct ifnet *, struct vnet *, char *);
+	if_reassign_fn_t if_reassign;		/* reassign to vnet routine */
 	if_get_counter_t if_get_counter; /* get counter values */
 	int	(*if_requestencap)	/* make link header from request */
 		(struct ifnet *, struct if_encap_req *);
