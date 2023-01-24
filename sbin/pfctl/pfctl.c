@@ -1130,7 +1130,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		case PFCTL_SHOW_LABELS:
 			break;
 		case PFCTL_SHOW_RULES:
-			if (rule.label[0] && (opts & PF_OPT_SHOWALL))
+			if (rule.label[0][0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
 			print_rule(&rule, anchor_call, rule_numbers, numeric);
 			printf("\n");
@@ -1184,7 +1184,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			break;
 		}
 		case PFCTL_SHOW_RULES:
-			if (rule.label[0] && (opts & PF_OPT_SHOWALL))
+			if (rule.label[0][0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
 			print_rule(&rule, anchor_call, rule_numbers, numeric);
