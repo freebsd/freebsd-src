@@ -5,6 +5,7 @@ SUBDIR=	qat_c62x \
 	qat_200xx \
 	qat_c3xxx \
 	qat_c4xxx \
-	qat_dh895xcc
+	qat_dh895xcc \
+	qat_4xxx
 
 .include <bsd.subdir.mk>

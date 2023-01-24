@@ -97,14 +97,30 @@ adf_init_gen2_arb(struct adf_accel_dev *accel_dev)
 void
 adf_update_ring_arb(struct adf_etr_ring_data *ring)
 {
-	WRITE_CSR_ARB_RINGSRVARBEN(ring->bank->csr_addr,
-				   ring->bank->bank_number,
-				   ring->bank->ring_mask & 0xFF);
+	int shift;
+	u32 arben, arben_tx, arben_rx, arb_mask;
+	struct adf_accel_dev *accel_dev = ring->bank->accel_dev;
+	struct adf_hw_csr_info *csr_info = &accel_dev->hw_device->csr_info;
+	struct adf_hw_csr_ops *csr_ops = &csr_info->csr_ops;
+
+	arb_mask = csr_info->arb_enable_mask;
+	shift = hweight32(arb_mask);
+
+	arben_tx = ring->bank->ring_mask & arb_mask;
+	arben_rx = (ring->bank->ring_mask >> shift) & arb_mask;
+	arben = arben_tx & arben_rx;
+	csr_ops->write_csr_ring_srv_arb_en(ring->bank->csr_addr,
+					   ring->bank->bank_number,
+					   arben);
 }
 
 void
-adf_enable_ring_arb(void *csr_addr, unsigned int bank_nr, unsigned int mask)
+adf_enable_ring_arb(struct adf_accel_dev *accel_dev,
+		    void *csr_addr,
+		    unsigned int bank_nr,
+		    unsigned int mask)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	struct resource *csr = csr_addr;
 	u32 arbenable;
 
@@ -112,16 +128,20 @@ adf_enable_ring_arb(void *csr_addr, unsigned int bank_nr, unsigned int mask)
 		return;
 
 	mutex_lock(&csr_arb_lock);
-	arbenable = READ_CSR_ARB_RINGSRVARBEN(csr, bank_nr);
+	arbenable = csr_ops->read_csr_ring_srv_arb_en(csr, bank_nr);
 	arbenable |= mask & 0xFF;
-	WRITE_CSR_ARB_RINGSRVARBEN(csr, bank_nr, arbenable);
+	csr_ops->write_csr_ring_srv_arb_en(csr, bank_nr, arbenable);
 
 	mutex_unlock(&csr_arb_lock);
 }
 
 void
-adf_disable_ring_arb(void *csr_addr, unsigned int bank_nr, unsigned int mask)
+adf_disable_ring_arb(struct adf_accel_dev *accel_dev,
+		     void *csr_addr,
+		     unsigned int bank_nr,
+		     unsigned int mask)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	struct resource *csr = csr_addr;
 	u32 arbenable;
 
@@ -129,15 +149,16 @@ adf_disable_ring_arb(void *csr_addr, unsigned int bank_nr, unsigned int mask)
 		return;
 
 	mutex_lock(&csr_arb_lock);
-	arbenable = READ_CSR_ARB_RINGSRVARBEN(csr, bank_nr);
+	arbenable = csr_ops->read_csr_ring_srv_arb_en(csr, bank_nr);
 	arbenable &= ~mask & 0xFF;
-	WRITE_CSR_ARB_RINGSRVARBEN(csr, bank_nr, arbenable);
+	csr_ops->write_csr_ring_srv_arb_en(csr, bank_nr, arbenable);
 	mutex_unlock(&csr_arb_lock);
 }
 
 void
 adf_exit_arb(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct arb_info info;
 	struct resource *csr;
@@ -166,12 +187,13 @@ adf_exit_arb(struct adf_accel_dev *accel_dev)
 
 	/* Disable arbitration on all rings */
 	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++)
-		WRITE_CSR_ARB_RINGSRVARBEN(csr, i, 0);
+		csr_ops->write_csr_ring_srv_arb_en(csr, i, 0);
 }
 
 void
 adf_disable_arb(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	struct resource *csr;
 	unsigned int i;
 
@@ -182,5 +204,5 @@ adf_disable_arb(struct adf_accel_dev *accel_dev)
 
 	/* Disable arbitration on all rings */
 	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++)
-		WRITE_CSR_ARB_RINGSRVARBEN(csr, i, 0);
+		csr_ops->write_csr_ring_srv_arb_en(csr, i, 0);
 }

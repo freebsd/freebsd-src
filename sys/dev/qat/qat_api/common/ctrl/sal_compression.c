@@ -47,6 +47,7 @@
 #include "sal_service_state.h"
 #include "lac_buffer_desc.h"
 #include "icp_qat_fw_comp.h"
+#include "icp_qat_hw_20_comp_defs.h"
 #include "icp_sal_versions.h"
 
 /* C string null terminator size */
@@ -124,6 +125,10 @@ static CpaStatus
 SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 				 sal_compression_service_t *pCompService)
 {
+	int level = 0;
+
+	pCompService->comp_device_data.uniqueCompressionLevels[0] = CPA_FALSE;
+
 	switch (device->deviceType) {
 	case DEVICE_DH895XCC:
 	case DEVICE_DH895XCCVF:
@@ -191,13 +196,36 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		    ICP_QAT_FW_COMP_ENABLE_SECURE_RAM_USED_AS_INTMD_BUF;
 		pCompService->comp_device_data.inflateContextSize =
 		    DC_INFLATE_EH_CONTEXT_SIZE;
+		pCompService->comp_device_data.highestHwCompressionDepth =
+		    ICP_QAT_HW_COMPRESSION_DEPTH_16;
 		pCompService->comp_device_data.windowSizeMask =
-		    (1 << DC_16K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
+		    (1 << DC_4K_WINDOW_SIZE | 1 << DC_8K_WINDOW_SIZE |
+		     1 << DC_16K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
 		pCompService->comp_device_data.minOutputBuffSize =
 		    DC_DEST_BUFFER_STA_MIN_SIZE;
+		pCompService->comp_device_data.minOutputBuffSizeDynamic =
+		    pCompService->comp_device_data.minOutputBuffSize;
 		pCompService->comp_device_data.enableDmm =
 		    ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED;
 		pCompService->comp_device_data.cnvnrSupported = CPA_TRUE;
+
+		for (level = CPA_DC_L1; level <= CPA_DC_L9; level++) {
+			switch (level) {
+			case CPA_DC_L1:
+			case CPA_DC_L2:
+			case CPA_DC_L3:
+			case CPA_DC_L4:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_TRUE;
+				break;
+			default:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_FALSE;
+				break;
+			}
+		}
+		pCompService->comp_device_data.numCompressionLevels =
+		    DC_NUM_COMPRESSION_LEVELS;
 		break;
 	case DEVICE_C4XXX:
 	case DEVICE_C4XXXVF:
@@ -226,6 +254,45 @@ SalCtrl_CompressionInit_CompData(icp_accel_dev_t *device,
 		pCompService->comp_device_data.windowSizeMask =
 		    (1 << DC_16K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
 		pCompService->comp_device_data.cnvnrSupported = CPA_TRUE;
+		break;
+	case DEVICE_GEN4:
+		pCompService->generic_service_info.integrityCrcCheck = CPA_TRUE;
+		pCompService->numInterBuffs = 0;
+		pCompService->comp_device_data.minOutputBuffSize =
+		    DC_DEST_BUFFER_STA_MIN_SIZE_GEN4;
+		pCompService->comp_device_data.minOutputBuffSizeDynamic =
+		    DC_DEST_BUFFER_DYN_MIN_SIZE_GEN4;
+		pCompService->comp_device_data.oddByteDecompNobFinal = CPA_TRUE;
+		pCompService->comp_device_data.oddByteDecompInterim = CPA_FALSE;
+		pCompService->comp_device_data.translatorOverflow = CPA_TRUE;
+		pCompService->comp_device_data.useDevRam =
+		    ICP_QAT_FW_COMP_ENABLE_SECURE_RAM_USED_AS_INTMD_BUF;
+		pCompService->comp_device_data.enableDmm =
+		    ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED;
+
+		pCompService->comp_device_data.inflateContextSize =
+		    DC_INFLATE_CONTEXT_SIZE;
+		pCompService->comp_device_data.highestHwCompressionDepth =
+		    ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_9;
+		pCompService->comp_device_data.windowSizeMask =
+		    (1 << DC_4K_WINDOW_SIZE | 1 << DC_8K_WINDOW_SIZE |
+		     1 << DC_16K_WINDOW_SIZE | 1 << DC_32K_WINDOW_SIZE);
+		for (level = CPA_DC_L1; level <= CPA_DC_L9; level++) {
+			switch (level) {
+			case CPA_DC_L1:
+			case CPA_DC_L6:
+			case CPA_DC_L9:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_TRUE;
+				break;
+			default:
+				pCompService->comp_device_data
+				    .uniqueCompressionLevels[level] = CPA_FALSE;
+				break;
+			}
+		}
+		pCompService->comp_device_data.numCompressionLevels =
+		    DC_NUM_COMPRESSION_LEVELS;
 		break;
 	default:
 		QAT_UTILS_LOG("Unknown device type! - %d.\n",

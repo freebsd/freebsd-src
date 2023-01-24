@@ -145,6 +145,7 @@ adf_attach(device_t dev)
 	/* Get Accelerators and Accelerators Engines masks */
 	hw_data->accel_mask = hw_data->get_accel_mask(accel_dev);
 	hw_data->ae_mask = hw_data->get_ae_mask(accel_dev);
+	hw_data->admin_ae_mask = hw_data->ae_mask;
 
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 	/* If the device has no acceleration engines then ignore it. */

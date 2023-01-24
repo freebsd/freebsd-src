@@ -27,7 +27,7 @@
 #define ADF_MAX_ACCELENGINES 12
 #define ADF_CFG_STORAGE_ENABLED 1
 #define ADF_DEVS_ARRAY_SIZE BITS_TO_LONGS(ADF_MAX_DEVICES)
-#define ADF_SSM_WDT_PKE_DEFAULT_VALUE 0x3000000
+#define ADF_GEN2_SSM_WDT_PKE_DEFAULT_VALUE 0x3000000
 #define ADF_WDT_TIMER_SYM_COMP_MS 3
 #define ADF_MIN_HB_TIMER_MS 100
 #define ADF_CFG_MAX_NUM_OF_SECTIONS 16
@@ -87,7 +87,8 @@ enum adf_device_type {
 	DEV_200XX,
 	DEV_200XXVF,
 	DEV_C4XXX,
-	DEV_C4XXXVF
+	DEV_C4XXXVF,
+	DEV_4XXX
 };
 
 enum adf_cfg_fw_image_type {
@@ -158,6 +159,7 @@ struct adf_cfg_bundle {
 	/* contains all the info about rings */
 	struct adf_cfg_ring **rings;
 	u16 in_use;
+	u16 max_cfg_svc_num;
 };
 
 struct adf_cfg_instance {

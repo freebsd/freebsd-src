@@ -28,8 +28,10 @@
 #include "lac_sym_qat.h"
 #include "lac_list.h"
 #include "lac_sal_types.h"
+#include "lac_sal_types_crypto.h"
 #include "lac_sym_qat_hash.h"
 #include "lac_sym_qat_hash_defs_lookup.h"
+#include "sal_hw_gen.h"
 
 /**
  * This structure contains pointers into the hash setup block of the
@@ -148,10 +150,10 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 			      icp_qat_hw_auth_mode_t qatHashMode,
 			      CpaBoolean useSymConstantsTable,
 			      CpaBoolean useOptimisedContentDesc,
+			      CpaBoolean useStatefulSha3ContentDesc,
 			      lac_sym_qat_hash_precompute_info_t *pPrecompute,
 			      Cpa32U *pHashBlkSizeInBytes)
 {
-
 	icp_qat_fw_auth_cd_ctrl_hdr_t *cd_ctrl =
 	    (icp_qat_fw_auth_cd_ctrl_hdr_t *)&(pMsg->cd_ctrl);
 	lac_sym_qat_hash_defs_t *pHashDefs = NULL;
@@ -159,7 +161,7 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 	Cpa32U hashSetupBlkSize = 0;
 
 	/* setup the offset in QuadWords into the hw blk */
-	cd_ctrl->hash_cfg_offset = hwBlockOffsetInQuadWords;
+	cd_ctrl->hash_cfg_offset = (Cpa8U)hwBlockOffsetInQuadWords;
 
 	ICP_QAT_FW_COMN_NEXT_ID_SET(cd_ctrl, nextSlice);
 	ICP_QAT_FW_COMN_CURR_ID_SET(cd_ctrl, ICP_QAT_FW_SLICE_AUTH);
@@ -170,11 +172,19 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 
 	/* Hmac in mode 2 TLS */
 	if (IS_HASH_MODE_2(qatHashMode)) {
-		/* Set bit for nested hashing.
-		 * Make sure not to overwrite other flags in hash_flags byte.
-		 */
-		ICP_QAT_FW_HASH_FLAG_AUTH_HDR_NESTED_SET(
-		    cd_ctrl->hash_flags, ICP_QAT_FW_AUTH_HDR_FLAG_DO_NESTED);
+		if (isCyGen4x((sal_crypto_service_t *)instanceHandle)) {
+			/* CPM2.0 has a dedicated bit for HMAC mode2 */
+			ICP_QAT_FW_HASH_FLAG_MODE2_SET(cd_ctrl->hash_flags,
+						       QAT_FW_LA_MODE2);
+		} else {
+			/* Set bit for nested hashing.
+			 * Make sure not to overwrite other flags in hash_flags
+			 * byte.
+			 */
+			ICP_QAT_FW_HASH_FLAG_AUTH_HDR_NESTED_SET(
+			    cd_ctrl->hash_flags,
+			    ICP_QAT_FW_AUTH_HDR_FLAG_DO_NESTED);
+		}
 	}
 	/* Nested hash in mode 0 */
 	else if (CPA_CY_SYM_HASH_MODE_NESTED == pHashSetupData->hashMode) {
@@ -190,16 +200,32 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 		    cd_ctrl->hash_flags, ICP_QAT_FW_AUTH_HDR_FLAG_NO_NESTED);
 	}
 
+	/* Set skip state load flags */
+	if (useStatefulSha3ContentDesc) {
+		/* Here both skip state load flags are set. FW reads them based
+		 * on partial packet type. */
+		ICP_QAT_FW_HASH_FLAG_SKIP_INNER_STATE1_LOAD_SET(
+		    cd_ctrl->hash_flags, QAT_FW_LA_SKIP_INNER_STATE1_LOAD);
+		ICP_QAT_FW_HASH_FLAG_SKIP_OUTER_STATE1_LOAD_SET(
+		    cd_ctrl->hash_flags, QAT_FW_LA_SKIP_OUTER_STATE1_LOAD);
+	}
+
 	/* set the final digest size */
-	cd_ctrl->final_sz = pHashSetupData->digestResultLenInBytes;
+	cd_ctrl->final_sz = (Cpa8U)pHashSetupData->digestResultLenInBytes;
 
 	/* set the state1 size */
-	cd_ctrl->inner_state1_sz =
-	    LAC_ALIGN_POW2_ROUNDUP(pHashDefs->qatInfo->state1Length,
-				   LAC_QUAD_WORD_IN_BYTES);
+	if (useStatefulSha3ContentDesc) {
+		cd_ctrl->inner_state1_sz =
+		    LAC_ALIGN_POW2_ROUNDUP(LAC_HASH_SHA3_STATEFUL_STATE_SIZE,
+					   LAC_QUAD_WORD_IN_BYTES);
+	} else {
+		cd_ctrl->inner_state1_sz =
+		    LAC_ALIGN_POW2_ROUNDUP(pHashDefs->qatInfo->state1Length,
+					   LAC_QUAD_WORD_IN_BYTES);
+	}
 
 	/* set the inner result size to the digest length */
-	cd_ctrl->inner_res_sz = pHashDefs->algInfo->digestLength;
+	cd_ctrl->inner_res_sz = (Cpa8U)pHashDefs->algInfo->digestLength;
 
 	/* set the state2 size - only for mode 1 Auth algos and AES CBC MAC */
 	if (IS_HASH_MODE_1(qatHashMode) ||
@@ -212,13 +238,22 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 		cd_ctrl->inner_state2_sz = 0;
 	}
 
-	cd_ctrl->inner_state2_offset = cd_ctrl->hash_cfg_offset +
-	    LAC_BYTES_TO_QUADWORDS(sizeof(icp_qat_hw_auth_setup_t) +
-				   cd_ctrl->inner_state1_sz);
+	if (useSymConstantsTable) {
+		cd_ctrl->inner_state2_offset =
+		    LAC_BYTES_TO_QUADWORDS(cd_ctrl->inner_state1_sz);
 
-	/* size of inner part of hash setup block */
-	hashSetupBlkSize = sizeof(icp_qat_hw_auth_setup_t) +
-	    cd_ctrl->inner_state1_sz + cd_ctrl->inner_state2_sz;
+		/* size of inner part of hash setup block */
+		hashSetupBlkSize =
+		    cd_ctrl->inner_state1_sz + cd_ctrl->inner_state2_sz;
+	} else {
+		cd_ctrl->inner_state2_offset = cd_ctrl->hash_cfg_offset +
+		    LAC_BYTES_TO_QUADWORDS(sizeof(icp_qat_hw_auth_setup_t) +
+					   cd_ctrl->inner_state1_sz);
+
+		/* size of inner part of hash setup block */
+		hashSetupBlkSize = sizeof(icp_qat_hw_auth_setup_t) +
+		    cd_ctrl->inner_state1_sz + cd_ctrl->inner_state2_sz;
+	}
 
 	/* For nested hashing - Fill in the outer fields */
 	if (CPA_CY_SYM_HASH_MODE_NESTED == pHashSetupData->hashMode ||
@@ -238,18 +273,24 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 		cd_ctrl->outer_config_offset = cd_ctrl->inner_state2_offset +
 		    LAC_BYTES_TO_QUADWORDS(cd_ctrl->inner_state2_sz);
 
-		cd_ctrl->outer_state1_sz =
-		    LAC_ALIGN_POW2_ROUNDUP(pOuterHashDefs->algInfo->stateSize,
-					   LAC_QUAD_WORD_IN_BYTES);
+		if (useStatefulSha3ContentDesc) {
+			cd_ctrl->outer_state1_sz = LAC_ALIGN_POW2_ROUNDUP(
+			    LAC_HASH_SHA3_STATEFUL_STATE_SIZE,
+			    LAC_QUAD_WORD_IN_BYTES);
+		} else {
+			cd_ctrl->outer_state1_sz = LAC_ALIGN_POW2_ROUNDUP(
+			    pOuterHashDefs->algInfo->stateSize,
+			    LAC_QUAD_WORD_IN_BYTES);
+		}
 
 		/* outer result size */
-		cd_ctrl->outer_res_sz = pOuterHashDefs->algInfo->digestLength;
+		cd_ctrl->outer_res_sz =
+		    (Cpa8U)pOuterHashDefs->algInfo->digestLength;
 
 		/* outer_prefix_offset will be the size of the inner prefix data
 		 * plus the hash state storage size. */
 		/* The prefix buffer is part of the ReqParams, so this param
-		 * will be
-		 * setup where ReqParams are set up */
+		 * will be setup where ReqParams are set up */
 
 		/* add on size of outer part of hash block */
 		hashSetupBlkSize +=
@@ -325,8 +366,9 @@ LacSymQat_HashSetupReqParamsMetaData(
 	if (IS_HASH_MODE_2(qatHashMode)) {
 		/* Inner and outer prefixes are the block length */
 		pHashReqParams->u2.inner_prefix_sz =
-		    pHashDefs->algInfo->blockLength;
-		cd_ctrl->outer_prefix_sz = pHashDefs->algInfo->blockLength;
+		    (Cpa8U)pHashDefs->algInfo->blockLength;
+		cd_ctrl->outer_prefix_sz =
+		    (Cpa8U)pHashDefs->algInfo->blockLength;
 		cd_ctrl->outer_prefix_offset = LAC_BYTES_TO_QUADWORDS(
 		    LAC_ALIGN_POW2_ROUNDUP((pHashReqParams->u2.inner_prefix_sz),
 					   LAC_QUAD_WORD_IN_BYTES));
@@ -336,9 +378,11 @@ LacSymQat_HashSetupReqParamsMetaData(
 
 		/* set inner and outer prefixes */
 		pHashReqParams->u2.inner_prefix_sz =
-		    pHashSetupData->nestedModeSetupData.innerPrefixLenInBytes;
+		    (Cpa8U)pHashSetupData->nestedModeSetupData
+			.innerPrefixLenInBytes;
 		cd_ctrl->outer_prefix_sz =
-		    pHashSetupData->nestedModeSetupData.outerPrefixLenInBytes;
+		    (Cpa8U)pHashSetupData->nestedModeSetupData
+			.outerPrefixLenInBytes;
 		cd_ctrl->outer_prefix_offset = LAC_BYTES_TO_QUADWORDS(
 		    LAC_ALIGN_POW2_ROUNDUP((pHashReqParams->u2.inner_prefix_sz),
 					   LAC_QUAD_WORD_IN_BYTES));
@@ -363,8 +407,9 @@ LacSymQat_HashSetupReqParamsMetaData(
 				 * just need 2 bytes to store encoded length of
 				 * 'a' */
 				aadDataSize += sizeof(Cpa16U);
-				aadDataSize += pHashSetupData->authModeSetupData
-						   .aadLenInBytes;
+				aadDataSize +=
+				    (Cpa16U)pHashSetupData->authModeSetupData
+					.aadLenInBytes;
 			}
 
 			/* round the aad size to the multiple of CCM block
@@ -375,7 +420,8 @@ LacSymQat_HashSetupReqParamsMetaData(
 		} else if (CPA_CY_SYM_HASH_AES_GCM ==
 			   pHashSetupData->hashAlgorithm) {
 			aadDataSize =
-			    pHashSetupData->authModeSetupData.aadLenInBytes;
+			    (Cpa16U)
+				pHashSetupData->authModeSetupData.aadLenInBytes;
 
 			/* round the aad size to the multiple of GCM hash block
 			 * size. */
@@ -406,7 +452,7 @@ LacSymQat_HashSetupReqParamsMetaData(
 		/* auth result size in bytes to be read in for a verify
 		 * operation */
 		pHashReqParams->auth_res_sz =
-		    pHashSetupData->digestResultLenInBytes;
+		    (Cpa8U)pHashSetupData->digestResultLenInBytes;
 	} else {
 		pHashReqParams->auth_res_sz = 0;
 	}
@@ -453,7 +499,7 @@ LacSymQat_HashSetupBlockInit(const CpaCySymHashSetupData *pHashSetupData,
 {
 	Cpa32U innerConfig = 0;
 	lac_hash_blk_ptrs_t hashBlkPtrs = { 0 };
-	Cpa32U aed_hash_cmp_length = 0;
+	Cpa32U aedHashCmpLength = 0;
 
 	LacSymQat_HashHwBlockPtrsInit(pHashControlBlock,
 				      pHwBlockBase,
@@ -610,7 +656,7 @@ LacSymQat_HashSetupBlockInit(const CpaCySymHashSetupData *pHashSetupData,
 		    ICP_QAT_HW_CIPHER_ALGO_SNOW_3G_UEA2,
 		    ICP_QAT_HW_CIPHER_KEY_CONVERT,
 		    ICP_QAT_HW_CIPHER_ENCRYPT,
-		    aed_hash_cmp_length);
+		    aedHashCmpLength);
 
 		pCipherConfig->reserved = 0;
 
@@ -633,7 +679,7 @@ LacSymQat_HashSetupBlockInit(const CpaCySymHashSetupData *pHashSetupData,
 		    ICP_QAT_HW_CIPHER_ALGO_ZUC_3G_128_EEA3,
 		    ICP_QAT_HW_CIPHER_KEY_CONVERT,
 		    ICP_QAT_HW_CIPHER_ENCRYPT,
-		    aed_hash_cmp_length);
+		    aedHashCmpLength);
 
 		pCipherConfig->reserved = 0;
 
@@ -820,7 +866,7 @@ LacSymQat_HashRequestParamsPopulate(
     CpaBoolean digestVerify,
     Cpa8U *pAuthResult,
     CpaCySymHashAlgorithm alg,
-    void *hkdf_secret)
+    void *pHKDFSecret)
 {
 	Cpa64U authResultPhys = 0;
 	icp_qat_fw_la_auth_req_params_t *pHashReqParams;
@@ -833,11 +879,11 @@ LacSymQat_HashRequestParamsPopulate(
 	pHashReqParams->auth_len = authLenInBytes;
 
 	/* Set the physical location of secret for HKDF */
-	if (NULL != hkdf_secret) {
+	if (NULL != pHKDFSecret) {
 		LAC_MEM_SHARED_WRITE_VIRT_TO_PHYS_PTR_EXTERNAL(
-		    (*pService), pHashReqParams->u1.aad_adr, hkdf_secret);
+		    (*pService), pHashReqParams->u1.aad_adr, pHKDFSecret);
 
-		if (pHashReqParams->u1.aad_adr == 0) {
+		if (0 == pHashReqParams->u1.aad_adr) {
 			LAC_LOG_ERROR(
 			    "Unable to get the physical address of the"
 			    " HKDF secret\n");
@@ -868,7 +914,7 @@ LacSymQat_HashRequestParamsPopulate(
 	if (CPA_TRUE == digestVerify) {
 		/* auth result size in bytes to be read in for a verify
 		 *  operation */
-		pHashReqParams->auth_res_sz = hashResultSize;
+		pHashReqParams->auth_res_sz = (Cpa8U)hashResultSize;
 	} else {
 		pHashReqParams->auth_res_sz = 0;
 	}

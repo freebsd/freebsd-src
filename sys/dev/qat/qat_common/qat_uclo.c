@@ -46,9 +46,13 @@ qat_uclo_init_ae_data(struct icp_qat_uclo_objhandle *obj_handle,
 		    encap_image->img_ptr->ctx_assigned;
 		ae_data->shareable_ustore =
 		    ICP_QAT_SHARED_USTORE_MODE(encap_image->img_ptr->ae_mode);
-		ae_data->eff_ustore_size = ae_data->shareable_ustore ?
-		    (obj_handle->ustore_phy_size << 1) :
-		    obj_handle->ustore_phy_size;
+		if (obj_handle->prod_type == ICP_QAT_AC_4XXX_A_DEV_TYPE)
+			ae_data->eff_ustore_size = obj_handle->ustore_phy_size;
+		else {
+			ae_data->eff_ustore_size = ae_data->shareable_ustore ?
+			    (obj_handle->ustore_phy_size << 1) :
+			    obj_handle->ustore_phy_size;
+		}
 	} else {
 		ae_slice->ctx_mask_assigned = 0;
 	}
@@ -324,9 +328,13 @@ qat_uclo_init_lmem_seg(struct icp_qat_fw_loader_handle *handle,
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned int ae;
+	unsigned int lmem;
 
-	if (qat_uclo_fetch_initmem_ae(
-		handle, init_mem, ICP_QAT_UCLO_MAX_LMEM_REG, &ae))
+	lmem = IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev))) ?
+	    ICP_QAT_UCLO_MAX_LMEM_REG_2X :
+	    ICP_QAT_UCLO_MAX_LMEM_REG;
+
+	if (qat_uclo_fetch_initmem_ae(handle, init_mem, lmem, &ae))
 		return EINVAL;
 	if (qat_uclo_create_batch_init_list(
 		handle, init_mem, ae, &obj_handle->lm_init_tab[ae]))
@@ -411,6 +419,8 @@ qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	{
 		unsigned long cfg_ae_mask = handle->cfg_ae_mask;
 		unsigned long ae_assigned = uof_image->ae_assigned;
+		const bool gen4 =
+		    IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)));
 
 		if (!test_bit(ae, &cfg_ae_mask))
 			continue;
@@ -418,7 +428,8 @@ qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 		if (!test_bit(ae, &ae_assigned))
 			continue;
 
-		if (obj_handle->ae_data[ae].shareable_ustore && (ae & 1)) {
+		if (obj_handle->ae_data[ae].shareable_ustore && (ae & 1) &&
+		    !gen4) {
 			qat_hal_get_scs_neigh_ae(ae, &neigh_ae);
 
 			if (test_bit(neigh_ae, &ae_assigned))
@@ -427,7 +438,7 @@ qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 
 		ustore_size = obj_handle->ae_data[ae].eff_ustore_size;
 		patt_pos = page->beg_addr_p + page->micro_words_num;
-		if (obj_handle->ae_data[ae].shareable_ustore) {
+		if (obj_handle->ae_data[ae].shareable_ustore && !gen4) {
 			qat_hal_get_scs_neigh_ae(ae, &neigh_ae);
 			if (init[ae] == 0 && page->beg_addr_p != 0) {
 				qat_hal_wr_coalesce_uwords(handle,
@@ -445,6 +456,9 @@ qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 			init[ae] = 1;
 			init[neigh_ae] = 1;
 		} else {
+			if (gen4 && (ae % 4 != 0))
+				continue;
+
 			qat_hal_wr_uwords(handle,
 					  (unsigned char)ae,
 					  0,
@@ -728,6 +742,61 @@ out_err:
 }
 
 static int
+UcLo_checkTGroupList2X(struct icp_qat_fw_loader_handle *handle)
+{
+	int i;
+	unsigned int swAe = 0;
+	unsigned int ii, jj;
+	struct icp_qat_uclo_aedata *ae_data0, *ae_datax;
+	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
+
+	for (i = 0; i < obj_handle->uimage_num; i++) {
+		struct icp_qat_uof_image *image =
+		    obj_handle->ae_uimage[i].img_ptr;
+		if (image->numpages > 1) {
+			pr_err(
+			    "Only 1 page is allowed in a UOF for CPM2X; We found %d in %s\n",
+			    image->numpages,
+			    qat_uclo_get_string(&obj_handle->str_table,
+						image->img_name));
+			return EINVAL;
+		}
+	}
+
+	for (swAe = 0;
+	     (swAe < obj_handle->ae_num) && (swAe < ICP_QAT_UCLO_MAX_AE);
+	     swAe += AE_TG_NUM_CPM2X) {
+		if (!qat_hal_check_ae_active(handle, swAe)) {
+			continue;
+		}
+
+		for (ii = swAe; ii < (swAe + AE_TG_NUM_CPM2X); ii++) {
+			ae_data0 = &obj_handle->ae_data[ii];
+			if (ae_data0->slice_num != 1) // not assigned
+				continue;
+
+			for (jj = ii + 1; jj < (swAe + AE_TG_NUM_CPM2X); jj++) {
+				ae_datax = &obj_handle->ae_data[jj];
+				if (ae_datax->slice_num != 1) // not assigned
+					continue;
+				if (ae_data0->ae_slices[0]
+					.encap_image->img_ptr !=
+				    ae_datax->ae_slices[0]
+					.encap_image->img_ptr) {
+					pr_err("Only 1 list is allowed in a ");
+					pr_err("Tgroup for CPM2X;\n");
+					pr_err("ME%d, %d is assigned", ii, jj);
+					pr_err(" different list files\n");
+					return EINVAL;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int
 qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 {
 	int i;
@@ -750,6 +819,11 @@ qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 			mflag = 1;
 			if (qat_uclo_init_ae_data(obj_handle, ae, i))
 				return EINVAL;
+		}
+	}
+	if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		if (UcLo_checkTGroupList2X(handle)) {
+			return EINVAL;
 		}
 	}
 	if (!mflag) {
@@ -817,6 +891,9 @@ qat_uclo_get_dev_type(struct icp_qat_fw_loader_handle *handle)
 		return ICP_QAT_AC_200XX_DEV_TYPE;
 	case ADF_C4XXX_PCI_DEVICE_ID:
 		return ICP_QAT_AC_C4XXX_DEV_TYPE;
+	case ADF_4XXX_PCI_DEVICE_ID:
+	case ADF_401XX_PCI_DEVICE_ID:
+		return ICP_QAT_AC_4XXX_A_DEV_TYPE;
 	default:
 		pr_err("QAT: unsupported device 0x%x\n",
 		       pci_get_device(GET_DEV(handle->accel_dev)));
@@ -1001,11 +1078,13 @@ qat_hal_set_modes(struct icp_qat_fw_loader_handle *handle,
 
 	ae_mode = (char)ICP_QAT_SHARED_USTORE_MODE(uof_image->ae_mode);
 	qat_hal_set_ae_scs_mode(handle, ae, ae_mode);
-	nn_mode = ICP_QAT_NN_MODE(uof_image->ae_mode);
+	if (!IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		nn_mode = ICP_QAT_NN_MODE(uof_image->ae_mode);
 
-	if (qat_hal_set_ae_nn_mode(handle, ae, nn_mode)) {
-		pr_err("QAT: qat_hal_set_ae_nn_mode error\n");
-		return EFAULT;
+		if (qat_hal_set_ae_nn_mode(handle, ae, nn_mode)) {
+			pr_err("QAT: qat_hal_set_ae_nn_mode error\n");
+			return EFAULT;
+		}
 	}
 	ae_mode = (char)ICP_QAT_LOC_MEM0_MODE(uof_image->ae_mode);
 	if (qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM0, ae_mode)) {
@@ -1017,7 +1096,7 @@ qat_hal_set_modes(struct icp_qat_fw_loader_handle *handle,
 		pr_err("QAT: qat_hal_set_ae_lm_mode LMEM1 error\n");
 		return EFAULT;
 	}
-	if (obj_handle->prod_type == ICP_QAT_AC_C4XXX_DEV_TYPE) {
+	if (IS_QAT_GEN3_OR_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
 		ae_mode = (char)ICP_QAT_LOC_MEM2_MODE(uof_image->ae_mode);
 		if (qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM2, ae_mode)) {
 			pr_err("QAT: qat_hal_set_ae_lm_mode LMEM2 error\n");
@@ -1168,12 +1247,14 @@ qat_uclo_map_suof_file_hdr(const struct icp_qat_fw_loader_handle *handle,
 }
 
 static void
-qat_uclo_map_simg(struct icp_qat_suof_handle *suof_handle,
+qat_uclo_map_simg(struct icp_qat_fw_loader_handle *handle,
 		  struct icp_qat_suof_img_hdr *suof_img_hdr,
 		  struct icp_qat_suof_chunk_hdr *suof_chunk_hdr)
 {
+	struct icp_qat_suof_handle *suof_handle = handle->sobj_handle;
 	const struct icp_qat_simg_ae_mode *ae_mode;
 	struct icp_qat_suof_objhdr *suof_objhdr;
+	unsigned int device_id = pci_get_device(GET_DEV(handle->accel_dev));
 
 	suof_img_hdr->simg_buf =
 	    (suof_handle->suof_buf + suof_chunk_hdr->offset +
@@ -1187,9 +1268,10 @@ qat_uclo_map_simg(struct icp_qat_suof_handle *suof_handle,
 	suof_img_hdr->css_key =
 	    (suof_img_hdr->css_header + sizeof(struct icp_qat_css_hdr));
 	suof_img_hdr->css_signature = suof_img_hdr->css_key +
-	    ICP_QAT_CSS_FWSK_MODULUS_LEN + ICP_QAT_CSS_FWSK_EXPONENT_LEN;
+	    ICP_QAT_CSS_FWSK_MODULUS_LEN(device_id) +
+	    ICP_QAT_CSS_FWSK_EXPONENT_LEN(device_id);
 	suof_img_hdr->css_simg =
-	    suof_img_hdr->css_signature + ICP_QAT_CSS_SIGNATURE_LEN;
+	    suof_img_hdr->css_signature + ICP_QAT_CSS_SIGNATURE_LEN(device_id);
 
 	ae_mode = (const struct icp_qat_simg_ae_mode *)(suof_img_hdr->css_simg);
 	suof_img_hdr->ae_mask = ae_mode->ae_mask;
@@ -1277,7 +1359,8 @@ qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_suof_handle *suof_handle = handle->sobj_handle;
 	struct icp_qat_suof_chunk_hdr *suof_chunk_hdr = NULL;
 	struct icp_qat_suof_img_hdr *suof_img_hdr = NULL;
-	int ret = 0, ae0_img = ICP_QAT_UCLO_MAX_AE;
+	int ret = 0, ae0_img = ICP_QAT_UCLO_MAX_AE,
+	    aeMax_img = ICP_QAT_UCLO_MAX_AE;
 	unsigned int i = 0;
 	struct icp_qat_suof_img_hdr img_header;
 
@@ -1305,7 +1388,7 @@ qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 	}
 
 	for (i = 0; i < suof_handle->img_table.num_simgs; i++) {
-		qat_uclo_map_simg(handle->sobj_handle,
+		qat_uclo_map_simg(handle,
 				  &suof_img_hdr[i],
 				  &suof_chunk_hdr[1 + i]);
 		ret = qat_uclo_check_simg_compat(handle, &suof_img_hdr[i]);
@@ -1315,9 +1398,29 @@ qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 		if ((suof_img_hdr[i].ae_mask & 0x1) != 0)
 			ae0_img = i;
 	}
-	qat_uclo_tail_img(suof_img_hdr,
-			  ae0_img,
-			  suof_handle->img_table.num_simgs);
+
+	if (!IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+		qat_uclo_tail_img(suof_img_hdr,
+				  ae0_img,
+				  suof_handle->img_table.num_simgs);
+	} else {
+		if (suof_handle->img_table.num_simgs == 1)
+			return 0;
+		qat_uclo_tail_img(suof_img_hdr,
+				  ae0_img,
+				  suof_handle->img_table.num_simgs - 1);
+		for (i = 0; i < suof_handle->img_table.num_simgs; i++) {
+			if ((suof_img_hdr[i].ae_mask &
+			     (0x1 << (handle->hal_handle->ae_max_num - 1))) !=
+			    0) {
+				aeMax_img = i;
+				break;
+			}
+		}
+		qat_uclo_tail_img(suof_img_hdr,
+				  aeMax_img,
+				  suof_handle->img_table.num_simgs);
+	}
 	return 0;
 }
 
@@ -1335,7 +1438,7 @@ qat_uclo_auth_fw(struct icp_qat_fw_loader_handle *handle,
 
 	bus_addr = ADD_ADDR(desc->css_hdr_high, desc->css_hdr_low) -
 	    sizeof(struct icp_qat_auth_chunk);
-	if (IS_QAT_GEN3(pci_get_device(GET_DEV(handle->accel_dev)))) {
+	if (IS_QAT_GEN3_OR_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
 		fcu_ctl_csr = FCU_CONTROL_C4XXX;
 		fcu_sts_csr = FCU_STATUS_C4XXX;
 		fcu_dram_hi_csr = FCU_DRAM_ADDR_HI_C4XXX;
@@ -1370,6 +1473,103 @@ auth_fail:
 			pr_err("QAT: MEM_CFG_ERR\n");
 	}
 	return EINVAL;
+}
+
+static int
+qat_uclo_is_broadcast(struct icp_qat_fw_loader_handle *handle, int imgid)
+{
+	struct icp_qat_suof_handle *sobj_handle;
+
+	if (!IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev))))
+		return 0;
+
+	sobj_handle = (struct icp_qat_suof_handle *)handle->sobj_handle;
+	if (handle->hal_handle->admin_ae_mask &
+	    sobj_handle->img_table.simg_hdr[imgid].ae_mask)
+		return 0;
+
+	return 1;
+}
+
+static int
+qat_uclo_broadcast_load_fw(struct icp_qat_fw_loader_handle *handle,
+			   struct icp_qat_fw_auth_desc *desc)
+{
+	unsigned int i = 0;
+	unsigned int fcuSts = 0, fcuAeBroadcastMask = 0;
+	unsigned int retry = 0;
+	unsigned int fcuStsCsr = 0;
+	unsigned int fcuCtlCsr = 0;
+	unsigned int loadedAes = 0;
+	unsigned int device_id = pci_get_device(GET_DEV(handle->accel_dev));
+
+	if (IS_QAT_GEN4(device_id)) {
+		fcuCtlCsr = FCU_CONTROL_4XXX;
+		fcuStsCsr = FCU_STATUS_4XXX;
+	} else {
+		pr_err("Uclo_BroadcastLoadFW only applicable for CPM20\n");
+		return EINVAL;
+	}
+
+	for (i = 0; i < ICP_QAT_UCLO_MAX_AE; i++) {
+		if (!test_bit(i, (unsigned long *)&handle->hal_handle->ae_mask))
+			continue;
+
+		if (qat_hal_check_ae_active(handle, (unsigned char)i)) {
+			pr_err(
+			    "Uclo_BroadcastLoadFW error (invalid AE status)\n");
+			return EINVAL;
+		}
+
+		if ((desc->ae_mask >> i) & 0x1) {
+			fcuAeBroadcastMask |= 1 << i;
+		}
+	}
+
+	if (fcuAeBroadcastMask) {
+		retry = 0;
+		SET_FCU_CSR(handle,
+			    FCU_ME_BROADCAST_MASK_TYPE,
+			    fcuAeBroadcastMask);
+		SET_FCU_CSR(handle, fcuCtlCsr, FCU_CTRL_CMD_LOAD);
+		do {
+			msleep(FW_AUTH_WAIT_PERIOD);
+			fcuSts = GET_FCU_CSR(handle, fcuStsCsr);
+
+			if ((fcuSts & FCU_AUTH_STS_MASK) == FCU_STS_LOAD_FAIL) {
+				pr_err(
+				    "Uclo_BroadcastLoadFW fail (fcu_status = 0x%x)\n",
+				    fcuSts & FCU_AUTH_STS_MASK);
+				return EINVAL;
+			} else if ((fcuSts & FCU_AUTH_STS_MASK) ==
+				   FCU_STS_LOAD_DONE) {
+				if (IS_QAT_GEN4(device_id))
+					loadedAes =
+					    GET_FCU_CSR(handle,
+							FCU_AE_LOADED_4XXX);
+				else
+					loadedAes =
+					    (fcuSts >> FCU_LOADED_AE_POS);
+
+				if ((loadedAes & fcuAeBroadcastMask) ==
+				    fcuAeBroadcastMask)
+					break;
+			} else if ((fcuSts & FCU_AUTH_STS_MASK) ==
+				   FCU_STS_VERI_DONE) {
+				SET_FCU_CSR(handle,
+					    fcuCtlCsr,
+					    FCU_CTRL_CMD_LOAD);
+			}
+		} while (retry++ < FW_BROADCAST_MAX_RETRY);
+		if (retry > FW_BROADCAST_MAX_RETRY) {
+			pr_err(
+			    "Uclo_BroadcastLoadFW fail(fcu_status = 0x%x),retry = %d\n",
+			    fcuSts & FCU_AUTH_STS_MASK,
+			    retry);
+			return EINVAL;
+		}
+	}
+	return 0;
 }
 
 static int
@@ -1417,14 +1617,16 @@ qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_auth_chunk *auth_chunk;
 	u64 virt_addr, bus_addr, virt_base;
 	unsigned int length, simg_offset = sizeof(*auth_chunk);
+	unsigned int device_id = pci_get_device(GET_DEV(handle->accel_dev));
 
-	if (size > (ICP_QAT_AE_IMG_OFFSET + ICP_QAT_CSS_MAX_IMAGE_LEN)) {
+	if (size >
+	    (ICP_QAT_AE_IMG_OFFSET(device_id) + ICP_QAT_CSS_MAX_IMAGE_LEN)) {
 		pr_err("QAT: error, input image size overflow %d\n", size);
 		return EINVAL;
 	}
 	length = (css_hdr->fw_type == CSS_AE_FIRMWARE) ?
-	    ICP_QAT_CSS_AE_SIMG_LEN + simg_offset :
-	    size + ICP_QAT_CSS_FWSK_PAD_LEN + simg_offset;
+	    ICP_QAT_CSS_AE_SIMG_LEN(device_id) + simg_offset :
+	    size + ICP_QAT_CSS_FWSK_PAD_LEN(device_id) + simg_offset;
 	if (qat_uclo_simg_alloc(handle, img_desc, length)) {
 		pr_err("QAT: error, allocate continuous dram fail\n");
 		return -ENOMEM;
@@ -1451,42 +1653,43 @@ qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 
 	memcpy((void *)(uintptr_t)virt_addr,
 	       (const void *)(image + sizeof(*css_hdr)),
-	       ICP_QAT_CSS_FWSK_MODULUS_LEN);
+	       ICP_QAT_CSS_FWSK_MODULUS_LEN(device_id));
 	/* padding */
-	explicit_bzero((void *)(uintptr_t)(virt_addr +
-					   ICP_QAT_CSS_FWSK_MODULUS_LEN),
-		       ICP_QAT_CSS_FWSK_PAD_LEN);
+	explicit_bzero((void *)(uintptr_t)(
+			   virt_addr + ICP_QAT_CSS_FWSK_MODULUS_LEN(device_id)),
+		       ICP_QAT_CSS_FWSK_PAD_LEN(device_id));
 
 	/* exponent */
-	memcpy((void *)(uintptr_t)(virt_addr + ICP_QAT_CSS_FWSK_MODULUS_LEN +
-				   ICP_QAT_CSS_FWSK_PAD_LEN),
+	memcpy((void *)(uintptr_t)(virt_addr +
+				   ICP_QAT_CSS_FWSK_MODULUS_LEN(device_id) +
+				   ICP_QAT_CSS_FWSK_PAD_LEN(device_id)),
 	       (const void *)(image + sizeof(*css_hdr) +
-			      ICP_QAT_CSS_FWSK_MODULUS_LEN),
+			      ICP_QAT_CSS_FWSK_MODULUS_LEN(device_id)),
 	       sizeof(unsigned int));
 
 	/* signature */
 	bus_addr = ADD_ADDR(auth_desc->fwsk_pub_high, auth_desc->fwsk_pub_low) +
-	    ICP_QAT_CSS_FWSK_PUB_LEN;
-	virt_addr = virt_addr + ICP_QAT_CSS_FWSK_PUB_LEN;
+	    ICP_QAT_CSS_FWSK_PUB_LEN(device_id);
+	virt_addr = virt_addr + ICP_QAT_CSS_FWSK_PUB_LEN(device_id);
 	auth_desc->signature_high = (unsigned int)(bus_addr >> BITS_IN_DWORD);
 	auth_desc->signature_low = (unsigned int)bus_addr;
 
 	memcpy((void *)(uintptr_t)virt_addr,
 	       (const void *)(image + sizeof(*css_hdr) +
-			      ICP_QAT_CSS_FWSK_MODULUS_LEN +
-			      ICP_QAT_CSS_FWSK_EXPONENT_LEN),
-	       ICP_QAT_CSS_SIGNATURE_LEN);
+			      ICP_QAT_CSS_FWSK_MODULUS_LEN(device_id) +
+			      ICP_QAT_CSS_FWSK_EXPONENT_LEN(device_id)),
+	       ICP_QAT_CSS_SIGNATURE_LEN(device_id));
 
 	bus_addr =
 	    ADD_ADDR(auth_desc->signature_high, auth_desc->signature_low) +
-	    ICP_QAT_CSS_SIGNATURE_LEN;
-	virt_addr += ICP_QAT_CSS_SIGNATURE_LEN;
+	    ICP_QAT_CSS_SIGNATURE_LEN(device_id);
+	virt_addr += ICP_QAT_CSS_SIGNATURE_LEN(device_id);
 
 	auth_desc->img_high = (unsigned int)(bus_addr >> BITS_IN_DWORD);
 	auth_desc->img_low = (unsigned int)bus_addr;
-	auth_desc->img_len = size - ICP_QAT_AE_IMG_OFFSET;
+	auth_desc->img_len = size - ICP_QAT_AE_IMG_OFFSET(device_id);
 	memcpy((void *)(uintptr_t)virt_addr,
-	       (const void *)(image + ICP_QAT_AE_IMG_OFFSET),
+	       (const void *)(image + ICP_QAT_AE_IMG_OFFSET(device_id)),
 	       auth_desc->img_len);
 	virt_addr = virt_base;
 	/* AE firmware */
@@ -1506,7 +1709,8 @@ qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 		    (unsigned int)(bus_addr >> BITS_IN_DWORD);
 		auth_desc->img_ae_insts_low = (unsigned int)bus_addr;
 		virt_addr += sizeof(struct icp_qat_css_hdr) +
-		    ICP_QAT_CSS_FWSK_PUB_LEN + ICP_QAT_CSS_SIGNATURE_LEN;
+		    ICP_QAT_CSS_FWSK_PUB_LEN(device_id) +
+		    ICP_QAT_CSS_SIGNATURE_LEN(device_id);
 		auth_desc->ae_mask =
 		    ((struct icp_qat_simg_ae_mode *)virt_addr)->ae_mask &
 		    handle->cfg_ae_mask;
@@ -1528,7 +1732,7 @@ qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 	unsigned int loaded_aes = FCU_LOADED_AE_POS;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
 
-	if (IS_QAT_GEN3(pci_get_device(GET_DEV(handle->accel_dev)))) {
+	if (IS_QAT_GEN3_OR_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
 		fcu_ctl_csr = FCU_CONTROL_C4XXX;
 		fcu_sts_csr = FCU_STATUS_C4XXX;
 
@@ -1549,14 +1753,19 @@ qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 		}
 		SET_FCU_CSR(handle,
 			    fcu_ctl_csr,
-			    (FCU_CTRL_CMD_LOAD | (i << FCU_CTRL_AE_POS)));
+			    (FCU_CTRL_CMD_LOAD |
+			     (IS_QAT_GEN4(
+				  pci_get_device(GET_DEV(handle->accel_dev))) ?
+				  (1 << FCU_CTRL_BROADCAST_POS) :
+				  0) |
+			     (i << FCU_CTRL_AE_POS)));
 
 		do {
 			pause_ms("adfstop", FW_AUTH_WAIT_PERIOD);
 			fcu_sts = GET_FCU_CSR(handle, fcu_sts_csr);
 			if ((fcu_sts & FCU_AUTH_STS_MASK) ==
 			    FCU_STS_LOAD_DONE) {
-				loaded_aes = IS_QAT_GEN3(pci_get_device(
+				loaded_aes = IS_QAT_GEN3_OR_GEN4(pci_get_device(
 						 GET_DEV(handle->accel_dev))) ?
 				    GET_FCU_CSR(handle, FCU_AE_LOADED_C4XXX) :
 				    (fcu_sts >> FCU_LOADED_AE_POS);
@@ -1606,6 +1815,16 @@ qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 
 		qat_uclo_simg_free(handle, &img_desc);
 	} else {
+		if (IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev)))) {
+			device_printf(
+			    NULL, "QAT: PKE service is not allowed because ");
+			device_printf(NULL, "MMP fw will not be loaded for ");
+			device_printf(NULL,
+				      "device 0x%x",
+				      pci_get_device(
+					  GET_DEV(handle->accel_dev)));
+			return status;
+		}
 		if (pci_get_device(GET_DEV(handle->accel_dev)) ==
 		    ADF_C3XXX_PCI_DEVICE_ID) {
 			pr_err("QAT: C3XXX doesn't support unsigned MMP\n");
@@ -2044,7 +2263,8 @@ qat_uclo_wr_uimage_raw_page(struct icp_qat_fw_loader_handle *handle,
 					     uw_relative_addr + i,
 					     fill_pat);
 
-		if (obj_handle->ae_data[ae].shareable_ustore)
+		if (obj_handle->ae_data[ae].shareable_ustore &&
+		    !IS_QAT_GEN4(pci_get_device(GET_DEV(handle->accel_dev))))
 			/* copy the buffer to ustore */
 			qat_hal_wr_coalesce_uwords(handle,
 						   (unsigned char)ae,
@@ -2140,10 +2360,16 @@ qat_uclo_wr_suof_img(struct icp_qat_fw_loader_handle *handle)
 			goto wr_err;
 		if (qat_uclo_auth_fw(handle, desc))
 			goto wr_err;
-		if (qat_uclo_load_fw(handle, desc))
-			goto wr_err;
+		if (qat_uclo_is_broadcast(handle, i)) {
+			if (qat_uclo_broadcast_load_fw(handle, desc))
+				goto wr_err;
+		} else {
+			if (qat_uclo_load_fw(handle, desc))
+				goto wr_err;
+		}
 		qat_uclo_simg_free(handle, &img_desc);
 	}
+
 	return 0;
 wr_err:
 	qat_uclo_simg_free(handle, &img_desc);

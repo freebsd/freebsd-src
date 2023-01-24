@@ -97,7 +97,8 @@ typedef enum device_type_e {
 	DEVICE_200XX,
 	DEVICE_200XXVF,
 	DEVICE_C4XXX,
-	DEVICE_C4XXXVF
+	DEVICE_C4XXXVF,
+	DEVICE_GEN4
 } device_type_t;
 
 /*

@@ -42,9 +42,11 @@
 #define LAC_SYM_QAT_CIPHER_NEXT_ID_BIT_OFFSET 24
 #define LAC_SYM_QAT_CIPHER_CURR_ID_BIT_OFFSET 16
 #define LAC_SYM_QAT_CIPHER_STATE_SIZE_BIT_OFFSET 8
-#define LAC_SYM_QAT_CIPHER_OFFSET_IN_DRAM_GCM_SPC 9
-#define LAC_SYM_QAT_CIPHER_OFFSET_IN_DRAM_CHACHA_SPC 2
-#define LAC_SYM_QAT_CIPHER_STATE_SIZE_SPC 48
+#define LAC_SYM_QAT_CIPHER_GCM_SPC_OFFSET_IN_DRAM 9
+#define LAC_SYM_QAT_CIPHER_CCM_SPC_OFFSET_IN_DRAM 8
+#define LAC_SYM_QAT_CIPHER_CHACHA_SPC_OFFSET_IN_DRAM 2
+#define LAC_SYM_QAT_CIPHER_SPC_STATE_SIZE 48
+
 /**
  ******************************************************************************
  * @ingroup LacSymQat_Cipher
@@ -111,11 +113,13 @@ Cpa32U LacSymQat_CipherIvSizeBytesGet(CpaCySymCipherAlgorithm cipherAlgorithm);
  * @retval void
  *
  *****************************************************************************/
-CpaStatus LacSymQat_CipherRequestParamsPopulate(icp_qat_fw_la_bulk_req_t *pReq,
-						Cpa32U cipherOffsetInBytes,
-						Cpa32U cipherLenInBytes,
-						Cpa64U ivBufferPhysAddr,
-						Cpa8U *pIvBufferVirt);
+CpaStatus
+LacSymQat_CipherRequestParamsPopulate(lac_session_desc_t *pSessionDesc,
+				      icp_qat_fw_la_bulk_req_t *pReq,
+				      Cpa32U cipherOffsetInBytes,
+				      Cpa32U cipherLenInBytes,
+				      Cpa64U ivBufferPhysAddr,
+				      Cpa8U *pIvBufferVirt);
 
 /**
  ******************************************************************************
@@ -194,6 +198,8 @@ void LacSymQat_CipherCtrlBlockInitialize(icp_qat_fw_la_bulk_req_t *pMsg);
  * @param[in] targetKeyLenInBytes        cipher key length in bytes of selected
  *                                       algorithm
  *
+ * @param[in] sliceType                  Cipher slice type to be used
+ *
  * @param[out] nextSlice                 SliceID for next control block
  *                                       entry.  This value is known only by
  *                                       the calling component
@@ -206,6 +212,7 @@ void LacSymQat_CipherCtrlBlockInitialize(icp_qat_fw_la_bulk_req_t *pMsg);
 void LacSymQat_CipherCtrlBlockWrite(icp_qat_la_bulk_req_ftr_t *pMsg,
 				    Cpa32U cipherAlgorithm,
 				    Cpa32U targetKeyLenInBytes,
+				    Cpa32U sliceType,
 				    icp_qat_fw_slice_t nextSlice,
 				    Cpa8U cipherCfgOffsetInQuadWord);
 
@@ -274,6 +281,8 @@ void LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
  *                                      key length MUST match the key length
  *                                      in the cipher setup data.
  *
+ * @param[in] sliceType                 Cipher slice type to be used
+ *
  * @param[in] pCipherHwBlock            Pointer to the cipher hardware block
  *
  * @param[out] pCipherHwBlockSizeBytes  Size in bytes of cipher setup block
@@ -283,8 +292,10 @@ void LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
  *
  *****************************************************************************/
 void LacSymQat_CipherHwBlockPopulateKeySetup(
+    lac_session_desc_t *pSessionDesc,
     const CpaCySymCipherSetupData *pCipherSetupData,
     Cpa32U targetKeyLenInBytes,
+    Cpa32U sliceType,
     const void *pCipherHwBlock,
     Cpa32U *pCipherHwBlockSizeBytes);
 

@@ -69,7 +69,7 @@ LacSymCb_CleanUserData(const lac_session_desc_t *pSessionDesc,
 		       const CpaCySymOpData *pOpData,
 		       CpaBoolean isCCM)
 {
-	Cpa8U authTagLen = 0;
+	Cpa32U authTagLen = 0;
 
 	/* Retrieve authTagLen */
 	authTagLen = pSessionDesc->hashResultSize;
@@ -138,10 +138,10 @@ LacSymCb_ProcessCallbackInternal(lac_sym_bulk_cookie_t *pCookie,
 
 	/* For a digest verify operation - for full packet and final partial
 	 * only, perform a comparison with the digest generated and with the one
-	 * supplied in the packet. */
+	 * supplied in the packet. In case of AES_GCM in SPC mode, destination
+	 * buffer needs to be cleared if digest verify operation fails */
 
-	if (((pSessionDesc->isSinglePass &&
-	      (CPA_CY_SYM_CIPHER_AES_GCM == pSessionDesc->cipherAlgorithm)) ||
+	if (((SPC == pSessionDesc->singlePassState) ||
 	     (CPA_CY_SYM_OP_CIPHER != operationType)) &&
 	    (CPA_TRUE == pSessionDesc->digestVerify) &&
 	    ((CPA_CY_SYM_PACKET_TYPE_FULL == pOpData->packetType) ||
@@ -151,14 +151,10 @@ LacSymCb_ProcessCallbackInternal(lac_sym_bulk_cookie_t *pCookie,
 					 instanceHandle);
 
 			/* The comparison has failed at this point (status is
-			 * fail),
-			 * need to clean any sensitive calculated data up to
-			 * this point.
-			 * The data calculated is no longer useful to the end
-			 * result and
-			 * does not need to be returned to the user so setting
-			 * buffers to
-			 * zero.
+			 * fail), need to clean any sensitive calculated data up
+			 * to this point. The data calculated is no longer
+			 * useful to the end result and does not need to be
+			 * returned to the user so setting buffers to zero.
 			 */
 			if (pSessionDesc->cipherAlgorithm ==
 			    CPA_CY_SYM_CIPHER_AES_CCM) {
@@ -200,8 +196,7 @@ LacSymCb_ProcessCallbackInternal(lac_sym_bulk_cookie_t *pCookie,
 				/* Update the user's IV buffer
 				 * Very important to do this BEFORE dequeuing
 				 * subsequent partial requests, as the state
-				 * buffer
-				 * may get overwritten
+				 * buffer may get overwritten
 				 */
 				memcpy(pCookie->pOpData->pIv,
 				       pSessionDesc->cipherPartialOpState,
@@ -218,8 +213,9 @@ LacSymCb_ProcessCallbackInternal(lac_sym_bulk_cookie_t *pCookie,
 	} else if (CPA_CY_SYM_PACKET_TYPE_LAST_PARTIAL == pOpData->packetType) {
 		if ((CPA_CY_SYM_OP_CIPHER == operationType) ||
 		    (CPA_CY_SYM_OP_ALGORITHM_CHAINING == operationType)) {
-			if (CPA_TRUE == LAC_CIPHER_IS_XTS_MODE(
-					    pSessionDesc->cipherAlgorithm)) {
+			if (CPA_TRUE ==
+			    LAC_CIPHER_IS_XTS_MODE(
+				pSessionDesc->cipherAlgorithm)) {
 				/*
 				 * For XTS mode, we replace the updated key with
 				 * the original key - for subsequent partial
@@ -294,51 +290,46 @@ LacSymCb_ProcessCallbackInternal(lac_sym_bulk_cookie_t *pCookie,
 static void
 LacSymCb_ProcessDpCallback(CpaCySymDpOpData *pResponse,
 			   CpaBoolean qatRespStatusOkFlag,
+			   CpaStatus status,
 			   lac_session_desc_t *pSessionDesc)
 {
-	CpaStatus status = CPA_STATUS_SUCCESS;
+	CpaCySymDpCbFunc pSymDpCb = NULL;
 
 	/* For CCM and GCM, if qatRespStatusOkFlag is false, the data has to be
 	 * cleaned as stated in RFC 3610; in DP mode, it is the user
-	 * responsability
-	 * to do so */
+	 * responsability to do so */
 
-	if (CPA_FALSE == pSessionDesc->isSinglePass) {
-		if ((CPA_CY_SYM_OP_CIPHER == pSessionDesc->symOperation) ||
-		    (CPA_FALSE == pSessionDesc->digestVerify)) {
-			/* If not doing digest compare and qatRespStatusOkFlag
-			   !=
-			   CPA_TRUE
-			   then there is something very wrong */
-			if (CPA_FALSE == qatRespStatusOkFlag) {
-				LAC_LOG_ERROR(
-				    "Response status value not as expected");
-				status = CPA_STATUS_FAIL;
-			}
+	if (((CPA_CY_SYM_OP_CIPHER == pSessionDesc->symOperation) &&
+	     SPC != pSessionDesc->singlePassState) ||
+	    (CPA_FALSE == pSessionDesc->digestVerify)) {
+		/* If not doing digest compare and qatRespStatusOkFlag !=
+		   CPA_TRUE then there is something very wrong */
+		if ((CPA_FALSE == qatRespStatusOkFlag) &&
+		    (status != CPA_STATUS_UNSUPPORTED)) {
+			LAC_LOG_ERROR("Response status value not as expected");
+			status = CPA_STATUS_FAIL;
 		}
 	}
 
-	((sal_crypto_service_t *)pResponse->instanceHandle)
-	    ->pSymDpCb(pResponse, status, qatRespStatusOkFlag);
+	pSymDpCb =
+	    ((sal_crypto_service_t *)pResponse->instanceHandle)->pSymDpCb;
+
+	pSymDpCb(pResponse, status, qatRespStatusOkFlag);
+
 	/*
 	 * Decrement the number of pending CB.
 	 *
 	 * If the @pendingDpCbCount becomes zero, we may remove the session,
-	 * please
-	 * read more information in the cpaCySymRemoveSession().
+	 * please read more information in the cpaCySymRemoveSession().
 	 *
 	 * But there is a field in the @pResponse to store the session,
 	 * the "sessionCtx". In another word, in the above @->pSymDpCb()
-	 * callback,
-	 * it may use the session again. If we decrease the @pendingDpCbCount
-	 * before
-	 * the @->pSymDpCb(), there is a _risk_ the @->pSymDpCb() may reference
-	 * to
-	 * a deleted session.
+	 * callback, it may use the session again. If we decrease the
+	 * @pendingDpCbCount before the @->pSymDpCb(), there is a _risk_ the
+	 * @->pSymDpCb() may reference to a deleted session.
 	 *
 	 * So in order to avoid the risk, we decrease the @pendingDpCbCount
-	 * after
-	 * the @->pSymDpCb() callback.
+	 * after the @->pSymDpCb() callback.
 	 */
 	qatUtilsAtomicDec(&pSessionDesc->u.pendingDpCbCount);
 }
@@ -367,6 +358,7 @@ LacSymCb_ProcessCallback(icp_qat_fw_la_cmd_id_t lacCmdId,
 			 void *pOpaqueData,
 			 icp_qat_fw_comn_flags cmnRespFlags)
 {
+	CpaStatus status = CPA_STATUS_SUCCESS;
 	CpaCySymDpOpData *pDpOpData = (CpaCySymDpOpData *)pOpaqueData;
 	lac_session_desc_t *pSessionDesc =
 	    LAC_SYM_SESSION_DESC_FROM_CTX_GET(pDpOpData->sessionCtx);
@@ -376,8 +368,13 @@ LacSymCb_ProcessCallback(icp_qat_fw_la_cmd_id_t lacCmdId,
 
 	if (CPA_TRUE == pSessionDesc->isDPSession) {
 		/* DP session */
+		if (ICP_QAT_FW_COMN_RESP_UNSUPPORTED_REQUEST_STAT_GET(
+			cmnRespFlags)) {
+			status = CPA_STATUS_UNSUPPORTED;
+		}
 		LacSymCb_ProcessDpCallback(pDpOpData,
 					   qatRespStatusOkFlag,
+					   status,
 					   pSessionDesc);
 	} else {
 		/* Trad session */
@@ -414,11 +411,7 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 	 * be accessed by multiple contexts simultaneously for enqueue and
 	 * dequeue operations
 	 */
-	if (CPA_STATUS_SUCCESS !=
-	    LAC_SPINLOCK(&pSessionDesc->requestQueueLock)) {
-		LAC_LOG_ERROR("Failed to lock request queue");
-		return CPA_STATUS_RESOURCE;
-	}
+	LAC_SPINLOCK(&pSessionDesc->requestQueueLock);
 
 	/* Clear the blocking flag in the session descriptor */
 	pSessionDesc->nonBlockingOpsInProgress = CPA_TRUE;
@@ -427,10 +420,9 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 	       (CPA_TRUE == pSessionDesc->nonBlockingOpsInProgress)) {
 
 		/* If we send a partial packet request, set the
-		 * blockingOpsInProgress
-		 * flag for the session to indicate that subsequent requests
-		 * must be
-		 * queued up until this request completes
+		 * blockingOpsInProgress flag for the session to indicate that
+		 * subsequent requests must be queued up until this request
+		 * completes
 		 */
 		if (CPA_CY_SYM_PACKET_TYPE_FULL !=
 		    pSessionDesc->pRequestQueueHead->pOpData->packetType) {
@@ -438,14 +430,10 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 		}
 
 		/* At this point, we're clear to send the request.  For cipher
-		 * requests,
-		 * we need to check if the session IV needs to be updated.  This
-		 * can
-		 * only be done when no other partials are in flight for this
-		 * session,
-		 * to ensure the cipherPartialOpState buffer in the session
-		 * descriptor
-		 * is not currently in use
+		 * requests, we need to check if the session IV needs to be
+		 * updated.  This can only be done when no other partials are in
+		 * flight for this session, to ensure the cipherPartialOpState
+		 * buffer in the session descriptor is not currently in use
 		 */
 		if (CPA_TRUE ==
 		    pSessionDesc->pRequestQueueHead->updateSessionIvOnSend) {
@@ -464,13 +452,11 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 
 		/*
 		 * Now we'll attempt to send the message directly to QAT. We'll
-		 * keep
-		 * looing until it succeeds (or at least a very high number of
-		 * retries),
-		 * as the failure only happens when the ring is full, and this
-		 * is only
-		 * a temporary situation. After a few retries, space will become
-		 * availble, allowing the putMsg to succeed.
+		 * keep looing until it succeeds (or at least a very high number
+		 * of retries), as the failure only happens when the ring is
+		 * full, and this is only a temporary situation. After a few
+		 * retries, space will become availble, allowing the putMsg to
+		 * succeed.
 		 */
 		retries = 0;
 		do {
@@ -483,8 +469,7 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 			retries++;
 			/*
 			 * Yield to allow other threads that may be on this
-			 * session to poll
-			 * and make some space on the ring
+			 * session to poll and make some space on the ring
 			 */
 			if (CPA_STATUS_SUCCESS != status) {
 				qatUtilsYield();
@@ -509,10 +494,7 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 	}
 
 cleanup:
-	if (CPA_STATUS_SUCCESS !=
-	    LAC_SPINUNLOCK(&pSessionDesc->requestQueueLock)) {
-		LAC_LOG_ERROR("Failed to unlock request queue");
-	}
+	LAC_SPINUNLOCK(&pSessionDesc->requestQueueLock);
 	return status;
 }
 

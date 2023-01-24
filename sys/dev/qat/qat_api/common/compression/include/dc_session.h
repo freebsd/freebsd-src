@@ -17,6 +17,7 @@
 #include "cpa_dc_dp.h"
 #include "icp_qat_fw_comp.h"
 #include "sal_qat_cmn_msg.h"
+#include "sal_types_compression.h"
 
 /* Maximum number of intermediate buffers SGLs for devices
  * with a maximum of 6 compression slices */
@@ -35,6 +36,7 @@
 
 /* Size of the history window.
  * Base 2 logarithm of maximum window size minus 8 */
+#define DC_4K_WINDOW_SIZE (4)
 #define DC_8K_WINDOW_SIZE (5)
 #define DC_16K_WINDOW_SIZE (6)
 #define DC_32K_WINDOW_SIZE (7)
@@ -95,35 +97,81 @@ typedef struct dc_integrity_crc_fw_s {
 	/* CRC32 checksum returned for compressed data */
 	Cpa32U adler32;
 	/* ADLER32 checksum returned for compressed data */
-	Cpa32U oCrc32Cpr;
-	/* CRC32 checksum returned for data output by compression accelerator */
-	Cpa32U iCrc32Cpr;
-	/* CRC32 checksum returned for input data to compression accelerator */
-	Cpa32U oCrc32Xlt;
-	/* CRC32 checksum returned for data output by translator accelerator */
-	Cpa32U iCrc32Xlt;
-	/* CRC32 checksum returned for input data to translator accelerator */
-	Cpa32U xorFlags;
-	/* Initialise transactor pCRC controls in state register */
-	Cpa32U crcPoly;
-	/* CRC32 polynomial used by hardware */
-	Cpa32U xorOut;
-	/* CRC32 from XOR stage (Input CRC is xor'ed with value in the state) */
-	Cpa32U deflateBlockType;
-	/* Bit 1 - Bit 0
-	 *   0        0 -> RAW DATA + Deflate header.
-	 *                 This will not produced any CRC check because
-	 *                 the output will not come from the slices.
-	 *                 It will be a simple copy from input to output
-	 *                 buffers list.
-	 *   0        1 -> Static deflate block type
-	 *   1        0 -> Dynamic deflate block type
-	 *   1        1 -> Invalid type */
+
+	union {
+		struct {
+			Cpa32U oCrc32Cpr;
+			/* CRC32 checksum returned for data output by
+			 * compression accelerator */
+			Cpa32U iCrc32Cpr;
+			/* CRC32 checksum returned for input data to compression
+			 * accelerator
+			 */
+			Cpa32U oCrc32Xlt;
+			/* CRC32 checksum returned for data output by translator
+			 * accelerator
+			 */
+			Cpa32U iCrc32Xlt;
+			/* CRC32 checksum returned for input data to translator
+			 * accelerator
+			 */
+			Cpa32U xorFlags;
+			/* Initialise transactor pCRC controls in state register
+			 */
+			Cpa32U crcPoly;
+			/* CRC32 polynomial used by hardware */
+			Cpa32U xorOut;
+			/* CRC32 from XOR stage (Input CRC is xor'ed with value
+			 * in the state) */
+			Cpa32U deflateBlockType;
+			/* Bit 1 - Bit 0
+			 *   0        0 -> RAW DATA + Deflate header.
+			 *                 This will not produced any CRC check
+			 *                 because the output will not come
+			 *                 from the slices. It will be a simple
+			 *                 copy from input to output buffer
+			 * list. 0        1 -> Static deflate block type 1 0 ->
+			 * Dynamic deflate block type 1        1 -> Invalid type
+			 */
+		};
+
+		struct {
+			Cpa64U iCrc64Cpr;
+			/* CRC64 checksum returned for input data to compression
+			 * accelerator
+			 */
+			Cpa64U oCrc64Cpr;
+			/* CRC64 checksum returned for data output by
+			 * compression accelerator */
+			Cpa64U iCrc64Xlt;
+			/* CRC64 checksum returned for input data to translator
+			 * accelerator
+			 */
+			Cpa64U oCrc64Xlt;
+			/* CRC64 checksum returned for data output by translator
+			 * accelerator
+			 */
+			Cpa64U crc64Poly;
+			/* CRC64 polynomial used by hardware */
+			Cpa64U xor64Out;
+			/* CRC64 from XOR stage (Input CRC is xor'ed with value
+			 * in the state) */
+		};
+	};
 } dc_integrity_crc_fw_t;
 
 typedef struct dc_sw_checksums_s {
-	Cpa32U swCrcI;
-	Cpa32U swCrcO;
+	union {
+		struct {
+			Cpa32U swCrc32I;
+			Cpa32U swCrc32O;
+		};
+
+		struct {
+			Cpa64U swCrc64I;
+			Cpa64U swCrc64O;
+		};
+	};
 } dc_sw_checksums_t;
 
 /* Session descriptor structure for compression */
@@ -211,6 +259,8 @@ typedef struct dc_session_desc_s {
 	dc_sw_checksums_t seedSwCrc;
 	/* Driver calculated integrity software CRC */
 	dc_sw_checksums_t integritySwCrc;
+	/* Flag to disable or enable CnV Error Injection mechanism */
+	CpaBoolean cnvErrorInjection;
 } dc_session_desc_t;
 
 /**
@@ -274,5 +324,107 @@ CpaStatus dcGetSessionSize(CpaInstanceHandle dcInstance,
 			   CpaDcSessionSetupData *pSessionData,
 			   Cpa32U *pSessionSize,
 			   Cpa32U *pContextSize);
+
+/**
+ *****************************************************************************
+ * @ingroup Dc_DataCompression
+ *      Set the cnvErrorInjection flag in session descriptor
+ *
+ * @description
+ *      This function enables the CnVError injection for the session
+ *      passed in. All Compression requests sent within the session
+ *      are injected with CnV errors. This error injection is for the
+ *      duration of the session. Resetting the session results in
+ *      setting being cleared. CnV error injection does not apply to
+ *      Data Plane API.
+ *
+ * @param[in]       dcInstance       Instance Handle
+ * @param[in]       pSessionHandle   Pointer to a session handle
+ *
+ * @retval CPA_STATUS_SUCCESS        Function executed successfully
+ * @retval CPA_STATUS_INVALID_PARAM  Invalid parameter passed in
+ * @retval CPA_STATUS_UNSUPPORTED    Unsupported feature
+ *****************************************************************************/
+CpaStatus dcSetCnvError(CpaInstanceHandle dcInstance,
+			CpaDcSessionHandle pSessionHandle);
+
+/**
+ *****************************************************************************
+ * @ingroup Dc_DataCompression
+ *      Check that pSessionData is valid
+ *
+ * @description
+ *      Check that all the parameters defined in the pSessionData are valid
+ *
+ * @param[in]       pSessionData     Pointer to a user instantiated structure
+ *                                   containing session data
+ *
+ * @retval CPA_STATUS_SUCCESS        Function executed successfully
+ * @retval CPA_STATUS_FAIL           Function failed to find device
+ * @retval CPA_STATUS_INVALID_PARAM  Invalid parameter passed in
+ * @retval CPA_STATUS_UNSUPPORTED    Unsupported algorithm/feature
+ *
+ *****************************************************************************/
+CpaStatus dcCheckSessionData(const CpaDcSessionSetupData *pSessionData,
+			     CpaInstanceHandle dcInstance);
+
+/**
+ *****************************************************************************
+ * @ingroup Dc_DataCompression
+ *      Get the compression command id for the given session setup data.
+ *
+ * @description
+ *      This function will get the compression command id based on parameters
+ *      passed in the given session setup data.
+ *
+ * @param[in]   pService           Pointer to the service
+ * @param[in]   pSessionData       Pointer to a user instantiated
+ *                                 structure containing session data
+ * @param[out]  pDcCmdId           Pointer to the command id
+ *
+ * @retval CPA_STATUS_SUCCESS      Function executed successfully
+ * @retval CPA_STATUS_UNSUPPORTED  Unsupported algorithm/feature
+ *
+ *****************************************************************************/
+CpaStatus dcGetCompressCommandId(sal_compression_service_t *pService,
+				 CpaDcSessionSetupData *pSessionData,
+				 Cpa8U *pDcCmdId);
+
+/**
+ *****************************************************************************
+ * @ingroup Dc_DataCompression
+ *      Get the decompression command id for the given session setup data.
+ *
+ * @description
+ *      This function will get the decompression command id based on parameters
+ *      passed in the given session setup data.
+ *
+ * @param[in]   pService           Pointer to the service
+ * @param[in]   pSessionData       Pointer to a user instantiated
+ *                                 structure containing session data
+ * @param[out]  pDcCmdId           Pointer to the command id
+ *
+ * @retval CPA_STATUS_SUCCESS      Function executed successfully
+ * @retval CPA_STATUS_UNSUPPORTED  Unsupported algorithm/feature
+ *
+ *****************************************************************************/
+CpaStatus dcGetDecompressCommandId(sal_compression_service_t *pService,
+				   CpaDcSessionSetupData *pSessionData,
+				   Cpa8U *pDcCmdId);
+
+/**
+ *****************************************************************************
+ * @ingroup Dc_DataCompression
+ *      Populate the translator content descriptor
+ *
+ * @description
+ *      This function will populate the translator content descriptor
+ *
+ * @param[out]  pMsg                     Pointer to the compression message
+ * @param[in]   nextSlice                Next slice
+ *
+ *****************************************************************************/
+void dcTransContentDescPopulate(icp_qat_fw_comp_req_t *pMsg,
+				icp_qat_fw_slice_t nextSlice);
 
 #endif /* DC_SESSION_H */

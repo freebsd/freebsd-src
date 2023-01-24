@@ -99,11 +99,24 @@ adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 		 */
 		if (hw_device->get_obj_name && hw_device->get_obj_cfg_ae_mask) {
 			unsigned long service_mask = hw_device->service_mask;
+			enum adf_accel_unit_services service_type =
+			    ADF_ACCEL_SERVICE_NULL;
 
-			if (hw_device->service_mask &&
-			    !(test_bit(i, &service_mask)))
+			if (hw_device->get_service_type)
+				service_type =
+				    hw_device->get_service_type(accel_dev, i);
+			else
+				service_type = BIT(i);
+
+			if (service_mask && !(service_mask & service_type))
 				continue;
-			obj_name = hw_device->get_obj_name(accel_dev, BIT(i));
+
+			obj_name =
+			    hw_device->get_obj_name(accel_dev, service_type);
+			cfg_ae_mask =
+			    hw_device->get_obj_cfg_ae_mask(accel_dev,
+							   service_type);
+
 			if (!obj_name) {
 				device_printf(
 				    GET_DEV(accel_dev),
@@ -111,10 +124,8 @@ adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 				    BIT(i));
 				goto out_err;
 			}
-			if (!hw_device->get_obj_cfg_ae_mask(accel_dev, BIT(i)))
+			if (!cfg_ae_mask)
 				continue;
-			cfg_ae_mask =
-			    hw_device->get_obj_cfg_ae_mask(accel_dev, BIT(i));
 			if (qat_uclo_set_cfg_ae_mask(loader_data->fw_loader,
 						     cfg_ae_mask)) {
 				device_printf(GET_DEV(accel_dev),
@@ -172,17 +183,12 @@ adf_ae_start(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	uint32_t ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
+	uint32_t ae_ctr;
 
 	if (!hw_data->fw_name)
 		return 0;
 
-	for (ae = 0, ae_ctr = 0; ae < max_aes; ae++) {
-		if (hw_data->ae_mask & (1 << ae)) {
-			qat_hal_start(loader_data->fw_loader, ae, 0xFF);
-			ae_ctr++;
-		}
-	}
+	ae_ctr = qat_hal_start(loader_data->fw_loader);
 	device_printf(GET_DEV(accel_dev),
 		      "qat_dev%d started %d acceleration engines\n",
 		      accel_dev->accel_id,

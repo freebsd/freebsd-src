@@ -59,7 +59,10 @@
 #include "lac_sym_qat.h"
 #include "icp_sal_versions.h"
 #include "icp_sal_user.h"
+#include "sal_hw_gen.h"
 
+#define HMAC_MODE_1 1
+#define HMAC_MODE_2 2
 #define TH_CY_RX_0 0
 #define TH_CY_RX_1 1
 #define MAX_CY_RX_RINGS 2
@@ -211,7 +214,7 @@ SalCtrl_SymCreateTransHandle(icp_accel_dev_t *device,
 				      ICP_TRANS_TYPE_ETR,
 				      section,
 				      pCryptoService->acceleratorNum,
-				      pCryptoService->bankNum,
+				      pCryptoService->bankNumSym,
 				      temp_string,
 				      lac_getRingType(SAL_RING_TYPE_A_SYM_HI),
 				      NULL,
@@ -235,7 +238,7 @@ SalCtrl_SymCreateTransHandle(icp_accel_dev_t *device,
 	    ICP_TRANS_TYPE_ETR,
 	    section,
 	    pCryptoService->acceleratorNum,
-	    pCryptoService->bankNum,
+	    pCryptoService->bankNumSym,
 	    temp_string,
 	    lac_getRingType(SAL_RING_TYPE_NONE),
 	    (icp_trans_callback)LacSymQat_SymRespHandler,
@@ -328,6 +331,7 @@ static CpaStatus
 SalCtrl_SymInit(icp_accel_dev_t *device, sal_service_t *service)
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
+	Cpa32U qatHmacMode = 0;
 	Cpa32U numSymConcurrentReq = 0;
 	char adfGetParam[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
 	char temp_string[SAL_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
@@ -343,6 +347,19 @@ SalCtrl_SymInit(icp_accel_dev_t *device, sal_service_t *service)
 	/* Register callbacks for the symmetric services
 	* (Hash, Cipher, Algorithm-Chaining) (returns void)*/
 	LacSymCb_CallbacksRegister();
+
+	qatHmacMode = (Cpa32U)Sal_Strtoul(adfGetParam, NULL, SAL_CFG_BASE_DEC);
+	switch (qatHmacMode) {
+	case HMAC_MODE_1:
+		pCryptoService->qatHmacMode = ICP_QAT_HW_AUTH_MODE1;
+		break;
+	case HMAC_MODE_2:
+		pCryptoService->qatHmacMode = ICP_QAT_HW_AUTH_MODE2;
+		break;
+	default:
+		pCryptoService->qatHmacMode = ICP_QAT_HW_AUTH_MODE1;
+		break;
+	}
 
 	/* Get num concurrent requests from config file */
 	status =
@@ -525,6 +542,32 @@ SalCtrl_DebugInit(icp_accel_dev_t *device, sal_service_t *service)
 }
 
 static CpaStatus
+SalCtrl_GetBankNum(icp_accel_dev_t *device,
+		   Cpa32U inst,
+		   char *section,
+		   char *bank_name,
+		   Cpa16U *bank)
+{
+	char adfParamValue[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
+	char adfParamName[SAL_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
+	CpaStatus status = CPA_STATUS_SUCCESS;
+
+	status = Sal_StringParsing("Cy", inst, bank_name, adfParamName);
+	LAC_CHECK_STATUS(status);
+	status = icp_adf_cfgGetParamValue(device,
+					  section,
+					  adfParamName,
+					  adfParamValue);
+	if (CPA_STATUS_SUCCESS != status) {
+		QAT_UTILS_LOG("Failed to get %s from configuration file\n",
+			      adfParamName);
+		return status;
+	}
+	*bank = (Cpa16U)Sal_Strtoul(adfParamValue, NULL, SAL_CFG_BASE_DEC);
+	return status;
+}
+
+static CpaStatus
 SalCtr_InstInit(icp_accel_dev_t *device, sal_service_t *service)
 {
 	char adfGetParam[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
@@ -545,21 +588,62 @@ SalCtr_InstInit(icp_accel_dev_t *device, sal_service_t *service)
 
 	pCryptoService->acceleratorNum = 0;
 
-	status =
-	    Sal_StringParsing("Cy",
-			      pCryptoService->generic_service_info.instance,
-			      "BankNumber",
-			      temp_string);
-	LAC_CHECK_STATUS(status);
-	status =
-	    icp_adf_cfgGetParamValue(device, section, temp_string, adfGetParam);
-	if (CPA_STATUS_SUCCESS != status) {
-		QAT_UTILS_LOG("Failed to get %s from configuration file\n",
-			      temp_string);
-		return status;
+	/* Gen4, a bank only has 2 rings (1 ring pair), only one type of service
+	   can be assigned one time. asym and sym will be in different bank*/
+	if (isCyGen4x(pCryptoService)) {
+		switch (service->type) {
+		case SAL_SERVICE_TYPE_CRYPTO_ASYM:
+			status = SalCtrl_GetBankNum(
+			    device,
+			    pCryptoService->generic_service_info.instance,
+			    section,
+			    "BankNumberAsym",
+			    &pCryptoService->bankNumAsym);
+			if (CPA_STATUS_SUCCESS != status)
+				return status;
+			break;
+		case SAL_SERVICE_TYPE_CRYPTO_SYM:
+			status = SalCtrl_GetBankNum(
+			    device,
+			    pCryptoService->generic_service_info.instance,
+			    section,
+			    "BankNumberSym",
+			    &pCryptoService->bankNumSym);
+			if (CPA_STATUS_SUCCESS != status)
+				return status;
+			break;
+		case SAL_SERVICE_TYPE_CRYPTO:
+			status = SalCtrl_GetBankNum(
+			    device,
+			    pCryptoService->generic_service_info.instance,
+			    section,
+			    "BankNumberAsym",
+			    &pCryptoService->bankNumAsym);
+			if (CPA_STATUS_SUCCESS != status)
+				return status;
+			status = SalCtrl_GetBankNum(
+			    device,
+			    pCryptoService->generic_service_info.instance,
+			    section,
+			    "BankNumberSym",
+			    &pCryptoService->bankNumSym);
+			if (CPA_STATUS_SUCCESS != status)
+				return status;
+			break;
+		default:
+			return CPA_STATUS_FAIL;
+		}
+	} else {
+		status = SalCtrl_GetBankNum(
+		    device,
+		    pCryptoService->generic_service_info.instance,
+		    section,
+		    "BankNumber",
+		    &pCryptoService->bankNumSym);
+		if (CPA_STATUS_SUCCESS != status)
+			return status;
+		pCryptoService->bankNumAsym = pCryptoService->bankNumSym;
 	}
-	pCryptoService->bankNum =
-	    (Cpa16U)Sal_Strtoul(adfGetParam, NULL, SAL_CFG_BASE_DEC);
 
 	status =
 	    Sal_StringParsing("Cy",
@@ -619,10 +703,18 @@ SalCtr_InstInit(icp_accel_dev_t *device, sal_service_t *service)
 					   "",
 					   temp_string2);
 		LAC_CHECK_STATUS(status);
-		status = Sal_StringParsing("Bank",
-					   pCryptoService->bankNum,
-					   "CoreAffinity",
-					   temp_string);
+		if (service->type == SAL_SERVICE_TYPE_CRYPTO_ASYM)
+			status = Sal_StringParsing("Bank",
+						   pCryptoService->bankNumAsym,
+						   "CoreAffinity",
+						   temp_string);
+		else
+			/* For cy service, asym bank and sym bank will set the
+			   same core affinity. So Just read one*/
+			status = Sal_StringParsing("Bank",
+						   pCryptoService->bankNumSym,
+						   "CoreAffinity",
+						   temp_string);
 		LAC_CHECK_STATUS(status);
 	} else {
 		strncpy(temp_string2, section, (strlen(section) + 1));
@@ -817,6 +909,9 @@ cpaCyGetStatusText(const CpaInstanceHandle instanceHandle,
 	case CPA_STATUS_FATAL:
 		LAC_COPY_STRING(pStatusText, CPA_STATUS_STR_FATAL);
 		break;
+	case CPA_STATUS_UNSUPPORTED:
+		LAC_COPY_STRING(pStatusText, CPA_STATUS_STR_UNSUPPORTED);
+		break;
 	default:
 		status = CPA_STATUS_INVALID_PARAM;
 		break;
@@ -886,6 +981,10 @@ cpaCyStartInstance(CpaInstanceHandle instanceHandle_in)
 		instanceHandle = instanceHandle_in;
 	}
 	LAC_CHECK_NULL_PARAM(instanceHandle);
+	SAL_CHECK_INSTANCE_TYPE(instanceHandle,
+				(SAL_SERVICE_TYPE_CRYPTO |
+				 SAL_SERVICE_TYPE_CRYPTO_ASYM |
+				 SAL_SERVICE_TYPE_CRYPTO_SYM));
 
 	pService = (sal_crypto_service_t *)instanceHandle;
 
@@ -930,6 +1029,10 @@ cpaCyStopInstance(CpaInstanceHandle instanceHandle_in)
 		instanceHandle = instanceHandle_in;
 	}
 	LAC_CHECK_NULL_PARAM(instanceHandle);
+	SAL_CHECK_INSTANCE_TYPE(instanceHandle,
+				(SAL_SERVICE_TYPE_CRYPTO |
+				 SAL_SERVICE_TYPE_CRYPTO_ASYM |
+				 SAL_SERVICE_TYPE_CRYPTO_SYM));
 
 	status = cpaCyInstanceGetInfo2(instanceHandle, &info);
 	if (CPA_STATUS_SUCCESS != status) {
@@ -1431,23 +1534,31 @@ cpaCySymQueryCapabilities(const CpaInstanceHandle instanceHandle_in,
 	}
 
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_NULL);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_ARC4);
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_ECB);
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_CBC);
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_CTR);
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_CCM);
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_GCM);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_DES_ECB);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_DES_CBC);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_3DES_ECB);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_3DES_CBC);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_3DES_CTR);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_KASUMI_F8);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_SNOW3G_UEA2);
-	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_F8);
 	CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_XTS);
+	if (isCyGen2x(pCryptoService)) {
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_ARC4);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_DES_ECB);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_DES_CBC);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_3DES_ECB);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_3DES_CBC);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_3DES_CTR);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_KASUMI_F8);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers,
+				   CPA_CY_SYM_CIPHER_SNOW3G_UEA2);
+		CPA_BITMAP_BIT_SET(pCapInfo->ciphers, CPA_CY_SYM_CIPHER_AES_F8);
+	}
 
-	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_MD5);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_SHA1);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_SHA224);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_SHA256);
@@ -1456,11 +1567,15 @@ cpaCySymQueryCapabilities(const CpaInstanceHandle instanceHandle_in,
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_AES_XCBC);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_AES_CCM);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_AES_GCM);
-	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_KASUMI_F9);
-	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_SNOW3G_UIA2);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_AES_CMAC);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_AES_GMAC);
 	CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_AES_CBC_MAC);
+	if (isCyGen2x(pCryptoService)) {
+		CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_MD5);
+		CPA_BITMAP_BIT_SET(pCapInfo->hashes, CPA_CY_SYM_HASH_KASUMI_F9);
+		CPA_BITMAP_BIT_SET(pCapInfo->hashes,
+				   CPA_CY_SYM_HASH_SNOW3G_UIA2);
+	}
 
 	if (pGenericService->capabilitiesMask &
 	    ICP_ACCEL_CAPABILITIES_CRYPTO_ZUC) {
@@ -1660,18 +1775,33 @@ static CpaInstanceHandle
 Lac_GetFirstAsymHandle(icp_accel_dev_t *adfInsts[ADF_MAX_DEVICES],
 		       Cpa16U num_dev)
 {
+	CpaStatus status = CPA_STATUS_SUCCESS;
 	icp_accel_dev_t *dev_addr = NULL;
 	sal_t *base_addr = NULL;
 	sal_list_t *list_temp = NULL;
 	CpaInstanceHandle cyInst = NULL;
+	CpaInstanceInfo2 info;
 	Cpa16U i = 0;
 
 	for (i = 0; i < num_dev; i++) {
 		dev_addr = (icp_accel_dev_t *)adfInsts[i];
 		base_addr = dev_addr->pSalHandle;
-		if ((NULL != base_addr) && (NULL != base_addr->asym_services)) {
-			list_temp = base_addr->asym_services;
+		if (NULL == base_addr) {
+			continue;
+		}
+		list_temp = base_addr->asym_services;
+		while (NULL != list_temp) {
 			cyInst = SalList_getObject(list_temp);
+			status = cpaCyInstanceGetInfo2(cyInst, &info);
+			list_temp = SalList_next(list_temp);
+			if (CPA_STATUS_SUCCESS != status ||
+			    CPA_TRUE != info.isPolled) {
+				cyInst = NULL;
+				continue;
+			}
+			break;
+		}
+		if (cyInst) {
 			break;
 		}
 	}
@@ -1684,18 +1814,33 @@ static CpaInstanceHandle
 Lac_GetFirstSymHandle(icp_accel_dev_t *adfInsts[ADF_MAX_DEVICES],
 		      Cpa16U num_dev)
 {
+	CpaStatus status = CPA_STATUS_SUCCESS;
 	icp_accel_dev_t *dev_addr = NULL;
 	sal_t *base_addr = NULL;
 	sal_list_t *list_temp = NULL;
 	CpaInstanceHandle cyInst = NULL;
+	CpaInstanceInfo2 info;
 	Cpa16U i = 0;
 
 	for (i = 0; i < num_dev; i++) {
 		dev_addr = (icp_accel_dev_t *)adfInsts[i];
 		base_addr = dev_addr->pSalHandle;
-		if ((NULL != base_addr) && (NULL != base_addr->sym_services)) {
-			list_temp = base_addr->sym_services;
+		if (NULL == base_addr) {
+			continue;
+		}
+		list_temp = base_addr->sym_services;
+		while (NULL != list_temp) {
 			cyInst = SalList_getObject(list_temp);
+			status = cpaCyInstanceGetInfo2(cyInst, &info);
+			list_temp = SalList_next(list_temp);
+			if (CPA_STATUS_SUCCESS != status ||
+			    CPA_TRUE != info.isPolled) {
+				cyInst = NULL;
+				continue;
+			}
+			break;
+		}
+		if (cyInst) {
 			break;
 		}
 	}
@@ -1709,22 +1854,37 @@ Lac_GetFirstSymHandle(icp_accel_dev_t *adfInsts[ADF_MAX_DEVICES],
 static CpaInstanceHandle
 Lac_GetFirstCyHandle(icp_accel_dev_t *adfInsts[ADF_MAX_DEVICES], Cpa16U num_dev)
 {
+	CpaStatus status = CPA_STATUS_SUCCESS;
 	icp_accel_dev_t *dev_addr = NULL;
 	sal_t *base_addr = NULL;
 	sal_list_t *list_temp = NULL;
 	CpaInstanceHandle cyInst = NULL;
+	CpaInstanceInfo2 info;
 	Cpa16U i = 0;
 
 	for (i = 0; i < num_dev; i++) {
 		dev_addr = (icp_accel_dev_t *)adfInsts[i];
 		base_addr = dev_addr->pSalHandle;
-		if ((NULL != base_addr) &&
-		    (NULL != base_addr->crypto_services)) {
-			list_temp = base_addr->crypto_services;
+		if (NULL == base_addr) {
+			continue;
+		}
+		list_temp = base_addr->crypto_services;
+		while (NULL != list_temp) {
 			cyInst = SalList_getObject(list_temp);
+			status = cpaCyInstanceGetInfo2(cyInst, &info);
+			list_temp = SalList_next(list_temp);
+			if (CPA_STATUS_SUCCESS != status ||
+			    CPA_TRUE != info.isPolled) {
+				cyInst = NULL;
+				continue;
+			}
+			break;
+		}
+		if (cyInst) {
 			break;
 		}
 	}
+
 	return cyInst;
 }
 
@@ -1835,3 +1995,16 @@ icp_sal_dp_SymGetInflightRequests(CpaInstanceHandle instanceHandle,
 	    numInflightRequests);
 }
 
+
+CpaStatus
+icp_sal_setForceAEADMACVerify(CpaInstanceHandle instanceHandle,
+			      CpaBoolean forceAEADMacVerify)
+{
+	sal_crypto_service_t *crypto_handle = NULL;
+
+	crypto_handle = (sal_crypto_service_t *)instanceHandle;
+	LAC_CHECK_NULL_PARAM(crypto_handle);
+	crypto_handle->forceAEADMacVerify = forceAEADMacVerify;
+
+	return CPA_STATUS_SUCCESS;
+}

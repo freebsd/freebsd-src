@@ -73,27 +73,36 @@ adf_unreserve_ring(struct adf_etr_bank_data *bank, u32 ring)
 static void
 adf_enable_ring_irq(struct adf_etr_bank_data *bank, u32 ring)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
+
 	mtx_lock(&bank->lock);
 	bank->irq_mask |= (1 << ring);
 	mtx_unlock(&bank->lock);
-	WRITE_CSR_INT_COL_EN(bank->csr_addr, bank->bank_number, bank->irq_mask);
-	WRITE_CSR_INT_COL_CTL(bank->csr_addr,
-			      bank->bank_number,
-			      bank->irq_coalesc_timer);
+	csr_ops->write_csr_int_col_en(bank->csr_addr,
+				      bank->bank_number,
+				      bank->irq_mask);
+	csr_ops->write_csr_int_col_ctl(bank->csr_addr,
+				       bank->bank_number,
+				       bank->irq_coalesc_timer);
 }
 
 static void
 adf_disable_ring_irq(struct adf_etr_bank_data *bank, u32 ring)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
+
 	mtx_lock(&bank->lock);
 	bank->irq_mask &= ~(1 << ring);
 	mtx_unlock(&bank->lock);
-	WRITE_CSR_INT_COL_EN(bank->csr_addr, bank->bank_number, bank->irq_mask);
+	csr_ops->write_csr_int_col_en(bank->csr_addr,
+				      bank->bank_number,
+				      bank->irq_mask);
 }
 
 int
 adf_send_message(struct adf_etr_ring_data *ring, u32 *msg)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(ring->bank->accel_dev);
 	u32 msg_size = 0;
 
 	if (atomic_add_return(1, ring->inflights) > ring->max_inflights) {
@@ -110,10 +119,10 @@ adf_send_message(struct adf_etr_ring_data *ring, u32 *msg)
 	ring->tail = adf_modulo(ring->tail + msg_size,
 				ADF_RING_SIZE_MODULO(ring->ring_size));
 
-	WRITE_CSR_RING_TAIL(ring->bank->csr_addr,
-			    ring->bank->bank_number,
-			    ring->ring_number,
-			    ring->tail);
+	csr_ops->write_csr_ring_tail(ring->bank->csr_addr,
+				     ring->bank->bank_number,
+				     ring->ring_number,
+				     ring->tail);
 	ring->csr_tail_offset = ring->tail;
 	mtx_unlock(&ring->lock);
 	return 0;
@@ -122,6 +131,7 @@ adf_send_message(struct adf_etr_ring_data *ring, u32 *msg)
 int
 adf_handle_response(struct adf_etr_ring_data *ring, u32 quota)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(ring->bank->accel_dev);
 	u32 msg_counter = 0;
 	u32 *msg = (u32 *)((uintptr_t)ring->base_addr + ring->head);
 
@@ -139,10 +149,10 @@ adf_handle_response(struct adf_etr_ring_data *ring, u32 quota)
 		msg = (u32 *)((uintptr_t)ring->base_addr + ring->head);
 	}
 	if (msg_counter > 0)
-		WRITE_CSR_RING_HEAD(ring->bank->csr_addr,
-				    ring->bank->bank_number,
-				    ring->ring_number,
-				    ring->head);
+		csr_ops->write_csr_ring_head(ring->bank->csr_addr,
+					     ring->bank->bank_number,
+					     ring->ring_number,
+					     ring->head);
 	return msg_counter;
 }
 
@@ -154,6 +164,7 @@ adf_poll_bank(u32 accel_id, u32 bank_num, u32 quota)
 	struct adf_etr_data *trans_data;
 	struct adf_etr_bank_data *bank;
 	struct adf_etr_ring_data *ring;
+	struct adf_hw_csr_ops *csr_ops;
 	u32 rings_not_empty;
 	u32 ring_num;
 	u32 resp_total = 0;
@@ -168,12 +179,14 @@ adf_poll_bank(u32 accel_id, u32 bank_num, u32 quota)
 		return EINVAL;
 	}
 
+	csr_ops = GET_CSR_OPS(accel_dev);
 	trans_data = accel_dev->transport;
 	bank = &trans_data->banks[bank_num];
 	mtx_lock(&bank->lock);
 
 	/* Read the ring status CSR to determine which rings are empty. */
-	rings_not_empty = READ_CSR_E_STAT(bank->csr_addr, bank->bank_number);
+	rings_not_empty =
+	    csr_ops->read_csr_e_stat(bank->csr_addr, bank->bank_number);
 	/* Complement to find which rings have data to be processed. */
 	rings_not_empty = (~rings_not_empty) & bank->ring_mask;
 
@@ -265,25 +278,27 @@ adf_poll_all_banks(u32 accel_id, u32 quota)
 static void
 adf_configure_tx_ring(struct adf_etr_ring_data *ring)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(ring->bank->accel_dev);
 	u32 ring_config = BUILD_RING_CONFIG(ring->ring_size);
 
-	WRITE_CSR_RING_CONFIG(ring->bank->csr_addr,
-			      ring->bank->bank_number,
-			      ring->ring_number,
-			      ring_config);
+	csr_ops->write_csr_ring_config(ring->bank->csr_addr,
+				       ring->bank->bank_number,
+				       ring->ring_number,
+				       ring_config);
 }
 
 static void
 adf_configure_rx_ring(struct adf_etr_ring_data *ring)
 {
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(ring->bank->accel_dev);
 	u32 ring_config = BUILD_RESP_RING_CONFIG(ring->ring_size,
 						 ADF_RING_NEAR_WATERMARK_512,
 						 ADF_RING_NEAR_WATERMARK_0);
 
-	WRITE_CSR_RING_CONFIG(ring->bank->csr_addr,
-			      ring->bank->bank_number,
-			      ring->ring_number,
-			      ring_config);
+	csr_ops->write_csr_ring_config(ring->bank->csr_addr,
+				       ring->bank->bank_number,
+				       ring->ring_number,
+				       ring_config);
 }
 
 static int
@@ -292,6 +307,7 @@ adf_init_ring(struct adf_etr_ring_data *ring)
 	struct adf_etr_bank_data *bank = ring->bank;
 	struct adf_accel_dev *accel_dev = bank->accel_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	u64 ring_base;
 	u32 ring_size_bytes = ADF_SIZE_TO_RING_SIZE_IN_BYTES(ring->ring_size);
 
@@ -323,11 +339,12 @@ adf_init_ring(struct adf_etr_ring_data *ring)
 	else
 		adf_configure_rx_ring(ring);
 
-	ring_base = BUILD_RING_BASE_ADDR(ring->dma_addr, ring->ring_size);
-	WRITE_CSR_RING_BASE(ring->bank->csr_addr,
-			    ring->bank->bank_number,
-			    ring->ring_number,
-			    ring_base);
+	ring_base =
+	    csr_ops->build_csr_ring_base_addr(ring->dma_addr, ring->ring_size);
+	csr_ops->write_csr_ring_base(ring->bank->csr_addr,
+				     ring->bank->bank_number,
+				     ring->ring_number,
+				     ring_base);
 	mtx_init(&ring->lock, "adf bank", NULL, MTX_DEF);
 	return 0;
 }
@@ -443,19 +460,20 @@ void
 adf_remove_ring(struct adf_etr_ring_data *ring)
 {
 	struct adf_etr_bank_data *bank = ring->bank;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 
 	/* Disable interrupts for the given ring */
 	adf_disable_ring_irq(bank, ring->ring_number);
 
 	/* Clear PCI config space */
-	WRITE_CSR_RING_CONFIG(bank->csr_addr,
-			      bank->bank_number,
-			      ring->ring_number,
-			      0);
-	WRITE_CSR_RING_BASE(bank->csr_addr,
-			    bank->bank_number,
-			    ring->ring_number,
-			    0);
+	csr_ops->write_csr_ring_config(bank->csr_addr,
+				       bank->bank_number,
+				       ring->ring_number,
+				       0);
+	csr_ops->write_csr_ring_base(bank->csr_addr,
+				     bank->bank_number,
+				     ring->ring_number,
+				     0);
 	adf_ring_debugfs_rm(ring);
 	adf_unreserve_ring(bank, ring->ring_number);
 	/* Disable HW arbitration for the given ring */
@@ -468,10 +486,12 @@ adf_ring_response_handler(struct adf_etr_bank_data *bank)
 {
 	struct adf_accel_dev *accel_dev = bank->accel_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
 	u8 num_rings_per_bank = hw_data->num_rings_per_bank;
 	u32 empty_rings, i;
 
-	empty_rings = READ_CSR_E_STAT(bank->csr_addr, bank->bank_number);
+	empty_rings =
+	    csr_ops->read_csr_e_stat(bank->csr_addr, bank->bank_number);
 	empty_rings = ~empty_rings & bank->irq_mask;
 
 	for (i = 0; i < num_rings_per_bank; ++i) {
@@ -484,12 +504,13 @@ void
 adf_response_handler(uintptr_t bank_addr)
 {
 	struct adf_etr_bank_data *bank = (void *)bank_addr;
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(bank->accel_dev);
 
 	/* Handle all the responses and re-enable IRQs */
 	adf_ring_response_handler(bank);
-	WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr,
-				   bank->bank_number,
-				   bank->irq_mask);
+	csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
+					    bank->bank_number,
+					    bank->irq_mask);
 }
 
 static inline int
@@ -548,10 +569,12 @@ adf_init_bank(struct adf_accel_dev *accel_dev,
 	      struct resource *csr_addr)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_hw_csr_ops *csr_ops = &hw_data->csr_info.csr_ops;
 	struct adf_etr_ring_data *ring;
 	struct adf_etr_ring_data *tx_ring;
 	u32 i, coalesc_enabled = 0;
 	u8 num_rings_per_bank = hw_data->num_rings_per_bank;
+	u32 irq_mask = BIT(num_rings_per_bank) - 1;
 	u32 size = 0;
 
 	explicit_bzero(bank, sizeof(*bank));
@@ -580,8 +603,8 @@ adf_init_bank(struct adf_accel_dev *accel_dev,
 		bank->irq_coalesc_timer = ADF_COALESCING_MIN_TIME;
 
 	for (i = 0; i < num_rings_per_bank; i++) {
-		WRITE_CSR_RING_CONFIG(csr_addr, bank_num, i, 0);
-		WRITE_CSR_RING_BASE(csr_addr, bank_num, i, 0);
+		csr_ops->write_csr_ring_config(csr_addr, bank_num, i, 0);
+		csr_ops->write_csr_ring_base(csr_addr, bank_num, i, 0);
 		ring = &bank->rings[i];
 		if (hw_data->tx_rings_mask & (1 << i)) {
 			ring->inflights =
@@ -605,8 +628,8 @@ adf_init_bank(struct adf_accel_dev *accel_dev,
 		goto err;
 	}
 
-	WRITE_CSR_INT_FLAG(csr_addr, bank_num, ADF_BANK_INT_FLAG_CLEAR_MASK);
-	WRITE_CSR_INT_SRCSEL(csr_addr, bank_num);
+	csr_ops->write_csr_int_flag(csr_addr, bank_num, irq_mask);
+	csr_ops->write_csr_int_srcsel(csr_addr, bank_num);
 	return 0;
 err:
 	for (i = 0; i < num_rings_per_bank; i++) {

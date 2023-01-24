@@ -52,21 +52,30 @@ enum hal_ae_csr {
 };
 
 enum fcu_csr {
-	FCU_CONTROL = 0x0,
-	FCU_STATUS = 0x4,
-	FCU_DRAM_ADDR_LO = 0xc,
+	FCU_CONTROL = 0x00,
+	FCU_STATUS = 0x04,
+	FCU_DRAM_ADDR_LO = 0x0c,
 	FCU_DRAM_ADDR_HI = 0x10,
 	FCU_RAMBASE_ADDR_HI = 0x14,
 	FCU_RAMBASE_ADDR_LO = 0x18
 };
 
 enum fcu_csr_c4xxx {
-	FCU_CONTROL_C4XXX = 0x0,
-	FCU_STATUS_C4XXX = 0x4,
-	FCU_STATUS1_C4XXX = 0xc,
+	FCU_CONTROL_C4XXX = 0x00,
+	FCU_STATUS_C4XXX = 0x04,
+	FCU_STATUS1_C4XXX = 0x0c,
 	FCU_AE_LOADED_C4XXX = 0x10,
 	FCU_DRAM_ADDR_LO_C4XXX = 0x14,
 	FCU_DRAM_ADDR_HI_C4XXX = 0x18,
+};
+
+enum fcu_csr_4xxx {
+	FCU_CONTROL_4XXX = 0x00,
+	FCU_STATUS_4XXX = 0x04,
+	FCU_ME_BROADCAST_MASK_TYPE = 0x08,
+	FCU_AE_LOADED_4XXX = 0x10,
+	FCU_DRAM_ADDR_LO_4XXX = 0x14,
+	FCU_DRAM_ADDR_HI_4XXX = 0x18,
 };
 
 enum fcu_cmd {
@@ -104,6 +113,7 @@ enum fcu_sts {
 #define LCS_STATUS (0x1)
 #define MMC_SHARE_CS_BITPOS 2
 #define GLOBAL_CSR 0xA00
+#define FCU_CTRL_BROADCAST_POS 0x4
 #define FCU_CTRL_AE_POS 0x8
 #define FCU_AUTH_STS_MASK 0x7
 #define FCU_STS_DONE_POS 0x9
@@ -111,20 +121,26 @@ enum fcu_sts {
 #define FCU_LOADED_AE_POS 0x16
 #define FW_AUTH_WAIT_PERIOD 10
 #define FW_AUTH_MAX_RETRY 300
+#define FW_BROADCAST_MAX_RETRY 300
 #define FCU_OFFSET 0x8c0
 #define FCU_OFFSET_C4XXX 0x1000
+#define FCU_OFFSET_4XXX 0x1000
 #define MAX_CPP_NUM 2
 #define AE_CPP_NUM 2
 #define AES_PER_CPP 16
 #define SLICES_PER_CPP 6
 #define ICP_QAT_AE_OFFSET 0x20000
 #define ICP_QAT_AE_OFFSET_C4XXX 0x40000
+#define ICP_QAT_AE_OFFSET_4XXX 0x600000
 #define ICP_QAT_CAP_OFFSET (ICP_QAT_AE_OFFSET + 0x10000)
 #define ICP_QAT_CAP_OFFSET_C4XXX 0x70000
+#define ICP_QAT_CAP_OFFSET_4XXX 0x640000
 #define LOCAL_TO_XFER_REG_OFFSET 0x800
 #define ICP_QAT_EP_OFFSET 0x3a000
 #define ICP_QAT_EP_OFFSET_C4XXX 0x60000
+#define ICP_QAT_EP_OFFSET_4XXX 0x200000 /* HI MMIO CSRs */
 #define MEM_CFG_ERR_BIT 0x20
+#define AE_TG_NUM_CPM2X 4
 
 #define CAP_CSR_ADDR(csr) (csr + handle->hal_cap_g_ctl_csr_addr_v)
 #define SET_CAP_CSR(handle, csr, val)                                          \
@@ -133,20 +149,17 @@ enum fcu_sts {
 	ADF_CSR_RD(handle->hal_misc_addr_v, CAP_CSR_ADDR(csr))
 #define SET_GLB_CSR(handle, csr, val)                                          \
 	({                                                                     \
-		typeof(handle) handle_ = (handle);                             \
-		typeof(csr) csr_ = (csr);                                      \
-		typeof(val) val_ = (val);                                      \
-		(IS_QAT_GEN3(pci_get_device(GET_DEV(handle_->accel_dev)))) ?   \
-		    SET_CAP_CSR(handle_, (csr_), (val_)) :                     \
-		    SET_CAP_CSR(handle_, csr_ + GLOBAL_CSR, val_);             \
+		u32 dev_id = pci_get_device(GET_DEV((handle)->accel_dev));     \
+		(IS_QAT_GEN3_OR_GEN4(dev_id)) ?                                \
+		    SET_CAP_CSR((handle), (csr), (val)) :                      \
+		    SET_CAP_CSR((handle), (csr) + GLOBAL_CSR, val);            \
 	})
 #define GET_GLB_CSR(handle, csr)                                               \
 	({                                                                     \
-		typeof(handle) handle_ = (handle);                             \
-		typeof(csr) csr_ = (csr);                                      \
-		(IS_QAT_GEN3(pci_get_device(GET_DEV(handle_->accel_dev)))) ?   \
-		    (GET_CAP_CSR(handle_, (csr_))) :                           \
-		    (GET_CAP_CSR(handle_, (GLOBAL_CSR + (csr_))));             \
+		u32 dev_id = pci_get_device(GET_DEV((handle)->accel_dev));     \
+		(IS_QAT_GEN3_OR_GEN4(dev_id)) ?                                \
+		    GET_CAP_CSR((handle), (csr)) :                             \
+		    GET_CAP_CSR((handle), (csr) + GLOBAL_CSR);                 \
 	})
 #define SET_FCU_CSR(handle, csr, val)                                          \
 	({                                                                     \
@@ -157,7 +170,12 @@ enum fcu_sts {
 		    SET_CAP_CSR(handle_,                                       \
 				((csr_) + FCU_OFFSET_C4XXX),                   \
 				(val_)) :                                      \
-		    SET_CAP_CSR(handle_, ((csr_) + FCU_OFFSET), (val_));       \
+		    ((IS_QAT_GEN4(                                             \
+			 pci_get_device(GET_DEV(handle_->accel_dev)))) ?       \
+			 SET_CAP_CSR(handle_,                                  \
+				     ((csr_) + FCU_OFFSET_4XXX),               \
+				     (val_)) :                                 \
+			 SET_CAP_CSR(handle_, ((csr_) + FCU_OFFSET), (val_))); \
 	})
 #define GET_FCU_CSR(handle, csr)                                               \
 	({                                                                     \
@@ -165,7 +183,10 @@ enum fcu_sts {
 		typeof(csr) csr_ = (csr);                                      \
 		(IS_QAT_GEN3(pci_get_device(GET_DEV(handle_->accel_dev)))) ?   \
 		    GET_CAP_CSR(handle_, (FCU_OFFSET_C4XXX + (csr_))) :        \
-		    GET_CAP_CSR(handle_, (FCU_OFFSET + (csr_)));               \
+		    ((IS_QAT_GEN4(                                             \
+			 pci_get_device(GET_DEV(handle_->accel_dev)))) ?       \
+			 GET_CAP_CSR(handle_, (FCU_OFFSET_4XXX + (csr_))) :    \
+			 GET_CAP_CSR(handle_, (FCU_OFFSET + (csr_))));         \
 	})
 #define AE_CSR(handle, ae)                                                     \
 	((handle)->hal_cap_ae_local_csr_addr_v + ((ae) << 12))
@@ -184,13 +205,19 @@ enum fcu_sts {
 	ADF_CSR_WR((handle)->hal_sram_addr_v, addr, val)
 #define GET_CSR_OFFSET(device_id, cap_offset_, ae_offset_, ep_offset_)         \
 	({                                                                     \
-		int gen3 = IS_QAT_GEN3(device_id);                             \
-		cap_offset_ =                                                  \
-		    (gen3 ? ICP_QAT_CAP_OFFSET_C4XXX : ICP_QAT_CAP_OFFSET);    \
-		ae_offset_ =                                                   \
-		    (gen3 ? ICP_QAT_AE_OFFSET_C4XXX : ICP_QAT_AE_OFFSET);      \
-		ep_offset_ =                                                   \
-		    (gen3 ? ICP_QAT_EP_OFFSET_C4XXX : ICP_QAT_EP_OFFSET);      \
+		if (IS_QAT_GEN3(device_id)) {                                  \
+			cap_offset_ = ICP_QAT_CAP_OFFSET_C4XXX;                \
+			ae_offset_ = ICP_QAT_AE_OFFSET_C4XXX;                  \
+			ep_offset_ = ICP_QAT_EP_OFFSET_C4XXX;                  \
+		} else if (IS_QAT_GEN4(device_id)) {                           \
+			cap_offset_ = ICP_QAT_CAP_OFFSET_4XXX;                 \
+			ae_offset_ = ICP_QAT_AE_OFFSET_4XXX;                   \
+			ep_offset_ = ICP_QAT_EP_OFFSET_4XXX;                   \
+		} else {                                                       \
+			cap_offset_ = ICP_QAT_CAP_OFFSET;                      \
+			ae_offset_ = ICP_QAT_AE_OFFSET;                        \
+			ep_offset_ = ICP_QAT_EP_OFFSET;                        \
+		}                                                              \
 	})
 
 #endif

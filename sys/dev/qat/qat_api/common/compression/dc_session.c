@@ -23,6 +23,7 @@
 #include "icp_qat_fw.h"
 #include "icp_qat_fw_comp.h"
 #include "icp_qat_hw.h"
+#include "icp_qat_hw_20_comp.h"
 
 /*
  *******************************************************************************
@@ -36,6 +37,7 @@
 #include "lac_buffer_desc.h"
 #include "sal_service_state.h"
 #include "sal_qat_cmn_msg.h"
+#include "sal_hw_gen.h"
 
 /**
  *****************************************************************************
@@ -54,7 +56,7 @@
  * @retval CPA_STATUS_UNSUPPORTED    Unsupported algorithm/feature
  *
  *****************************************************************************/
-static CpaStatus
+CpaStatus
 dcCheckSessionData(const CpaDcSessionSetupData *pSessionData,
 		   CpaInstanceHandle dcInstance)
 {
@@ -67,6 +69,7 @@ dcCheckSessionData(const CpaDcSessionSetupData *pSessionData,
 		QAT_UTILS_LOG("Invalid compLevel value\n");
 		return CPA_STATUS_INVALID_PARAM;
 	}
+
 	if ((pSessionData->autoSelectBestHuffmanTree < CPA_DC_ASB_DISABLED) ||
 	    (pSessionData->autoSelectBestHuffmanTree >
 	     CPA_DC_ASB_UNCOMP_STATIC_DYNAMIC_WITH_NO_HDRS)) {
@@ -122,10 +125,10 @@ dcCheckSessionData(const CpaDcSessionSetupData *pSessionData,
  *
  *****************************************************************************/
 static void
-dcCompHwBlockPopulate(dc_session_desc_t *pSessionDesc,
+dcCompHwBlockPopulate(sal_compression_service_t *pService,
+		      dc_session_desc_t *pSessionDesc,
 		      icp_qat_hw_compression_config_t *pCompConfig,
-		      dc_request_dir_t compDecomp,
-		      icp_qat_hw_compression_delayed_match_t enableDmm)
+		      dc_request_dir_t compDecomp)
 {
 	icp_qat_hw_compression_direction_t dir =
 	    ICP_QAT_HW_COMPRESSION_DIR_COMPRESS;
@@ -134,6 +137,7 @@ dcCompHwBlockPopulate(dc_session_desc_t *pSessionDesc,
 	icp_qat_hw_compression_depth_t depth = ICP_QAT_HW_COMPRESSION_DEPTH_1;
 	icp_qat_hw_compression_file_type_t filetype =
 	    ICP_QAT_HW_COMPRESSION_FILE_TYPE_0;
+	icp_qat_hw_compression_delayed_match_t dmm;
 
 	/* Set the direction */
 	if (DC_COMPRESSION_REQUEST == compDecomp) {
@@ -146,6 +150,13 @@ dcCompHwBlockPopulate(dc_session_desc_t *pSessionDesc,
 		algo = ICP_QAT_HW_COMPRESSION_ALGO_DEFLATE;
 	} else {
 		QAT_UTILS_LOG("Algorithm not supported for Compression\n");
+	}
+
+	/* Set delay match mode */
+	if (CPA_TRUE == pService->comp_device_data.enableDmm) {
+		dmm = ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_ENABLED;
+	} else {
+		dmm = ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_DISABLED;
 	}
 
 	/* Set the depth */
@@ -162,8 +173,13 @@ dcCompHwBlockPopulate(dc_session_desc_t *pSessionDesc,
 		case CPA_DC_L3:
 			depth = ICP_QAT_HW_COMPRESSION_DEPTH_8;
 			break;
-		default:
+		case CPA_DC_L4:
 			depth = ICP_QAT_HW_COMPRESSION_DEPTH_16;
+			break;
+		default:
+			depth = pService->comp_device_data
+				    .highestHwCompressionDepth;
+			break;
 		}
 	}
 
@@ -171,10 +187,138 @@ dcCompHwBlockPopulate(dc_session_desc_t *pSessionDesc,
 	 * modes will be used in the future for precompiled huffman trees */
 	filetype = ICP_QAT_HW_COMPRESSION_FILE_TYPE_0;
 
-	pCompConfig->val = ICP_QAT_HW_COMPRESSION_CONFIG_BUILD(
-	    dir, enableDmm, algo, depth, filetype);
+	pCompConfig->lower_val = ICP_QAT_HW_COMPRESSION_CONFIG_BUILD(
+	    dir, dmm, algo, depth, filetype);
 
-	pCompConfig->reserved = 0;
+	/* Upper 32-bits of the configuration word do not need to be
+	 * configured with legacy devices.
+	 */
+	pCompConfig->upper_val = 0;
+}
+
+static void
+dcCompHwBlockPopulateGen4(sal_compression_service_t *pService,
+			  dc_session_desc_t *pSessionDesc,
+			  icp_qat_hw_compression_config_t *pCompConfig,
+			  dc_request_dir_t compDecomp)
+{
+	/* Compression related */
+	if (DC_COMPRESSION_REQUEST == compDecomp) {
+		icp_qat_hw_comp_20_config_csr_upper_t hw_comp_upper_csr;
+		icp_qat_hw_comp_20_config_csr_lower_t hw_comp_lower_csr;
+
+		memset(&hw_comp_upper_csr, 0, sizeof hw_comp_upper_csr);
+		memset(&hw_comp_lower_csr, 0, sizeof hw_comp_lower_csr);
+
+		/* Disable Literal + Length Limit Block Drop by default and
+		 * enable it only for dynamic deflate compression.
+		 */
+		hw_comp_lower_csr.lllbd =
+		    ICP_QAT_HW_COMP_20_LLLBD_CTRL_LLLBD_DISABLED;
+
+		switch (pSessionDesc->compType) {
+		case CPA_DC_DEFLATE:
+			/* DEFLATE algorithm settings */
+			hw_comp_lower_csr.skip_ctrl =
+			    ICP_QAT_HW_COMP_20_BYTE_SKIP_3BYTE_LITERAL;
+
+			if (CPA_DC_HT_FULL_DYNAMIC == pSessionDesc->huffType) {
+				hw_comp_lower_csr.algo =
+				    ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_ILZ77;
+			} else /* Static DEFLATE */
+			{
+				hw_comp_lower_csr.algo =
+				    ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_DEFLATE;
+				hw_comp_upper_csr.scb_ctrl =
+				    ICP_QAT_HW_COMP_20_SCB_CONTROL_DISABLE;
+			}
+
+			if (CPA_DC_STATEFUL == pSessionDesc->sessState) {
+				hw_comp_upper_csr.som_ctrl =
+				    ICP_QAT_HW_COMP_20_SOM_CONTROL_REPLAY_MODE;
+			}
+			break;
+		default:
+			QAT_UTILS_LOG("Compression algorithm not supported\n");
+			break;
+		}
+		/* Set the search depth */
+		switch (pSessionDesc->compLevel) {
+		case CPA_DC_L1:
+		case CPA_DC_L2:
+		case CPA_DC_L3:
+		case CPA_DC_L4:
+		case CPA_DC_L5:
+			hw_comp_lower_csr.sd =
+			    ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_1;
+			hw_comp_lower_csr.hash_col =
+			    ICP_QAT_HW_COMP_20_SKIP_HASH_COLLISION_DONT_ALLOW;
+			break;
+		case CPA_DC_L6:
+		case CPA_DC_L7:
+		case CPA_DC_L8:
+			hw_comp_lower_csr.sd =
+			    ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_6;
+			break;
+		case CPA_DC_L9:
+			hw_comp_lower_csr.sd =
+			    ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_9;
+			break;
+		default:
+			hw_comp_lower_csr.sd = pService->comp_device_data
+						   .highestHwCompressionDepth;
+			if ((CPA_DC_HT_FULL_DYNAMIC ==
+			     pSessionDesc->huffType) &&
+			    (CPA_DC_DEFLATE == pSessionDesc->compType)) {
+				/* Enable Literal + Length Limit Block Drop
+				 * with dynamic deflate compression when
+				 * highest compression levels are selected.
+				 */
+				hw_comp_lower_csr.lllbd =
+				    ICP_QAT_HW_COMP_20_LLLBD_CTRL_LLLBD_ENABLED;
+			}
+			break;
+		}
+		/* Same for all algorithms */
+		hw_comp_lower_csr.abd = ICP_QAT_HW_COMP_20_ABD_ABD_DISABLED;
+		hw_comp_lower_csr.hash_update =
+		    ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_DONT_ALLOW;
+		hw_comp_lower_csr.edmm =
+		    (CPA_TRUE == pService->comp_device_data.enableDmm) ?
+		    ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_ENABLED :
+		    ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_DISABLED;
+
+		/* Hard-coded HW-specific values */
+		hw_comp_upper_csr.nice =
+		    ICP_QAT_HW_COMP_20_CONFIG_CSR_NICE_PARAM_DEFAULT_VAL;
+		hw_comp_upper_csr.lazy =
+		    ICP_QAT_HW_COMP_20_CONFIG_CSR_LAZY_PARAM_DEFAULT_VAL;
+
+		pCompConfig->upper_val =
+		    ICP_QAT_FW_COMP_20_BUILD_CONFIG_UPPER(hw_comp_upper_csr);
+
+		pCompConfig->lower_val =
+		    ICP_QAT_FW_COMP_20_BUILD_CONFIG_LOWER(hw_comp_lower_csr);
+	} else /* Decompress */
+	{
+		icp_qat_hw_decomp_20_config_csr_lower_t hw_decomp_lower_csr;
+
+		memset(&hw_decomp_lower_csr, 0, sizeof hw_decomp_lower_csr);
+
+		/* Set the algorithm */
+		if (CPA_DC_DEFLATE == pSessionDesc->compType) {
+			hw_decomp_lower_csr.algo =
+			    ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_DEFLATE;
+		} else {
+			QAT_UTILS_LOG("Algorithm not supported for "
+				      "Decompression\n");
+		}
+
+		pCompConfig->upper_val = 0;
+		pCompConfig->lower_val =
+		    ICP_QAT_FW_DECOMP_20_BUILD_CONFIG_LOWER(
+			hw_decomp_lower_csr);
+	}
 }
 
 /**
@@ -268,10 +412,19 @@ dcCompContentDescPopulate(sal_compression_service_t *pService,
 	pCompControlBlock->resrvd = 0;
 
 	/* Populate Compression Hardware Setup Block */
-	dcCompHwBlockPopulate(pSessionDesc,
-			      pCompConfig,
-			      compDecomp,
-			      pService->comp_device_data.enableDmm);
+	if (isDcGen4x(pService)) {
+		dcCompHwBlockPopulateGen4(pService,
+					  pSessionDesc,
+					  pCompConfig,
+					  compDecomp);
+	} else if (isDcGen2x(pService)) {
+		dcCompHwBlockPopulate(pService,
+				      pSessionDesc,
+				      pCompConfig,
+				      compDecomp);
+	} else {
+		QAT_UTILS_LOG("Invalid QAT generation value\n");
+	}
 }
 
 /**
@@ -286,7 +439,7 @@ dcCompContentDescPopulate(sal_compression_service_t *pService,
  * @param[in]   nextSlice                Next slice
  *
  *****************************************************************************/
-static void
+void
 dcTransContentDescPopulate(icp_qat_fw_comp_req_t *pMsg,
 			   icp_qat_fw_slice_t nextSlice)
 {
@@ -333,12 +486,68 @@ dcGetContextSize(CpaInstanceHandle dcInstance,
 
 	*pContextSize = 0;
 	if ((CPA_DC_STATEFUL == pSessionData->sessState) &&
-	    (CPA_DC_DEFLATE == pSessionData->compType) &&
 	    (CPA_DC_DIR_COMPRESS != pSessionData->sessDirection)) {
-		*pContextSize =
-		    pCompService->comp_device_data.inflateContextSize;
+		switch (pSessionData->compType) {
+		case CPA_DC_DEFLATE:
+			*pContextSize =
+			    pCompService->comp_device_data.inflateContextSize;
+			break;
+		default:
+			QAT_UTILS_LOG("Invalid compression algorithm.");
+			return CPA_STATUS_FAIL;
+		}
 	}
 	return CPA_STATUS_SUCCESS;
+}
+
+CpaStatus
+dcGetCompressCommandId(sal_compression_service_t *pService,
+		       CpaDcSessionSetupData *pSessionData,
+		       Cpa8U *pDcCmdId)
+{
+	CpaStatus status = CPA_STATUS_SUCCESS;
+	LAC_CHECK_NULL_PARAM(pService);
+	LAC_CHECK_NULL_PARAM(pSessionData);
+	LAC_CHECK_NULL_PARAM(pDcCmdId);
+
+	switch (pSessionData->compType) {
+	case CPA_DC_DEFLATE:
+		*pDcCmdId = (CPA_DC_HT_FULL_DYNAMIC == pSessionData->huffType) ?
+		    ICP_QAT_FW_COMP_CMD_DYNAMIC :
+		    ICP_QAT_FW_COMP_CMD_STATIC;
+		break;
+	default:
+		QAT_UTILS_LOG("Algorithm not supported for "
+			      "compression\n");
+		status = CPA_STATUS_UNSUPPORTED;
+		break;
+	}
+
+	return status;
+}
+
+CpaStatus
+dcGetDecompressCommandId(sal_compression_service_t *pService,
+			 CpaDcSessionSetupData *pSessionData,
+			 Cpa8U *pDcCmdId)
+{
+	CpaStatus status = CPA_STATUS_SUCCESS;
+	LAC_CHECK_NULL_PARAM(pService);
+	LAC_CHECK_NULL_PARAM(pSessionData);
+	LAC_CHECK_NULL_PARAM(pDcCmdId);
+
+	switch (pSessionData->compType) {
+	case CPA_DC_DEFLATE:
+		*pDcCmdId = ICP_QAT_FW_COMP_CMD_DECOMPRESS;
+		break;
+	default:
+		QAT_UTILS_LOG("Algorithm not supported for "
+			      "decompression\n");
+		status = CPA_STATUS_UNSUPPORTED;
+		break;
+	}
+
+	return status;
 }
 
 CpaStatus
@@ -394,7 +603,17 @@ dcInitSession(CpaInstanceHandle dcInstance,
 		return CPA_STATUS_UNSUPPORTED;
 	}
 
-	if (CPA_DC_HT_FULL_DYNAMIC == pSessionData->huffType) {
+	/* Check for Gen4 and stateful, return error if both exist */
+	if ((isDcGen4x(pService)) &&
+	    (CPA_DC_STATEFUL == pSessionData->sessState &&
+	     CPA_DC_DIR_DECOMPRESS != pSessionData->sessDirection)) {
+		QAT_UTILS_LOG("Stateful sessions are not supported for "
+			      "compression direction");
+		return CPA_STATUS_UNSUPPORTED;
+	}
+
+	if ((isDcGen2x(pService)) &&
+	    (CPA_DC_HT_FULL_DYNAMIC == pSessionData->huffType)) {
 		/* Test if DRAM is available for the intermediate buffers */
 		if ((NULL == pService->pInterBuffPtrsArray) &&
 		    (0 == pService->pInterBuffPtrsArrayPhyAddr)) {
@@ -404,7 +623,8 @@ dcInitSession(CpaInstanceHandle dcInstance,
 				pSessionData->huffType = CPA_DC_HT_STATIC;
 			} else {
 				QAT_UTILS_LOG(
-				    "No buffer defined for this instance - see cpaDcStartInstance.\n");
+				    "No buffer defined for this instance - "
+				    "see cpaDcStartInstance.\n");
 				return CPA_STATUS_RESOURCE;
 			}
 		}
@@ -541,7 +761,8 @@ dcInitSession(CpaInstanceHandle dcInstance,
 	pSessionDesc->pendingDpStatelessCbCount = 0;
 
 	if (CPA_DC_DIR_DECOMPRESS != pSessionData->sessDirection) {
-		if (CPA_DC_HT_FULL_DYNAMIC == pSessionData->huffType) {
+		if ((isDcGen2x(pService)) &&
+		    CPA_DC_HT_FULL_DYNAMIC == pSessionData->huffType) {
 			/* Populate the compression section of the content
 			 * descriptor */
 			dcCompContentDescPopulate(pService,
@@ -607,17 +828,29 @@ dcInitSession(CpaInstanceHandle dcInstance,
 	pDataIntegrityCrcs = &pSessionDesc->dataIntegrityCrcs;
 	pDataIntegrityCrcs->crc32 = 0;
 	pDataIntegrityCrcs->adler32 = 1;
-	pDataIntegrityCrcs->oCrc32Cpr = DC_INVALID_CRC;
-	pDataIntegrityCrcs->iCrc32Cpr = DC_INVALID_CRC;
-	pDataIntegrityCrcs->oCrc32Xlt = DC_INVALID_CRC;
-	pDataIntegrityCrcs->iCrc32Xlt = DC_INVALID_CRC;
-	pDataIntegrityCrcs->xorFlags = DC_XOR_FLAGS_DEFAULT;
-	pDataIntegrityCrcs->crcPoly = DC_CRC_POLY_DEFAULT;
-	pDataIntegrityCrcs->xorOut = DC_XOR_OUT_DEFAULT;
 
-	/* Initialise seed checksums */
-	pSessionDesc->seedSwCrc.swCrcI = 0;
-	pSessionDesc->seedSwCrc.swCrcO = 0;
+	if (isDcGen2x(pService)) {
+		pDataIntegrityCrcs->oCrc32Cpr = DC_INVALID_CRC;
+		pDataIntegrityCrcs->iCrc32Cpr = DC_INVALID_CRC;
+		pDataIntegrityCrcs->oCrc32Xlt = DC_INVALID_CRC;
+		pDataIntegrityCrcs->iCrc32Xlt = DC_INVALID_CRC;
+		pDataIntegrityCrcs->xorFlags = DC_XOR_FLAGS_DEFAULT;
+		pDataIntegrityCrcs->crcPoly = DC_CRC_POLY_DEFAULT;
+		pDataIntegrityCrcs->xorOut = DC_XOR_OUT_DEFAULT;
+	} else {
+		pDataIntegrityCrcs->iCrc64Cpr = DC_INVALID_CRC;
+		pDataIntegrityCrcs->oCrc64Cpr = DC_INVALID_CRC;
+		pDataIntegrityCrcs->iCrc64Xlt = DC_INVALID_CRC;
+		pDataIntegrityCrcs->oCrc64Xlt = DC_INVALID_CRC;
+		pDataIntegrityCrcs->crc64Poly = DC_CRC64_POLY_DEFAULT;
+		pDataIntegrityCrcs->xor64Out = DC_XOR64_OUT_DEFAULT;
+	}
+
+	/* Initialise seed checksums.
+	 * It initializes swCrc32I, swCrc32O, too(union).
+	 */
+	pSessionDesc->seedSwCrc.swCrc64I = 0;
+	pSessionDesc->seedSwCrc.swCrc64O = 0;
 
 	/* Populate the cmdFlags */
 	switch (pSessionDesc->autoSelectBestHuffmanTree) {
@@ -646,6 +879,7 @@ dcInitSession(CpaInstanceHandle dcInstance,
 	    ICP_QAT_FW_COMP_BFINAL,
 	    ICP_QAT_FW_COMP_NO_CNV,
 	    ICP_QAT_FW_COMP_NO_CNV_RECOVERY,
+	    ICP_QAT_FW_COMP_NO_CNV_DFX,
 	    ICP_QAT_FW_COMP_CRC_MODE_LEGACY);
 
 	cmdFlags =
@@ -656,11 +890,16 @@ dcInitSession(CpaInstanceHandle dcInstance,
 					secureRam);
 
 	if (CPA_DC_DIR_DECOMPRESS != pSessionData->sessDirection) {
-		if (CPA_DC_HT_FULL_DYNAMIC == pSessionDesc->huffType) {
-			dcCmdId = (icp_qat_fw_la_cmd_id_t)(
-			    ICP_QAT_FW_COMP_CMD_DYNAMIC);
-		}
+		status = dcGetCompressCommandId(pService,
+						pSessionData,
+						(Cpa8U *)&dcCmdId);
+		if (CPA_STATUS_SUCCESS != status) {
+			QAT_UTILS_LOG(
+			    "Couldn't get compress command ID for current "
+			    "session data.");
 
+			return status;
+		}
 		pReqCache = &(pSessionDesc->reqCacheComp);
 		pReqCache->comp_pars.req_par_flags = rpCmdFlags;
 		pReqCache->comp_pars.crc.legacy.initial_adler = 1;
@@ -675,8 +914,16 @@ dcInitSession(CpaInstanceHandle dcInstance,
 	}
 
 	if (CPA_DC_DIR_COMPRESS != pSessionData->sessDirection) {
-		dcCmdId =
-		    (icp_qat_fw_la_cmd_id_t)(ICP_QAT_FW_COMP_CMD_DECOMPRESS);
+		status = dcGetDecompressCommandId(pService,
+						  pSessionData,
+						  (Cpa8U *)&dcCmdId);
+		if (CPA_STATUS_SUCCESS != status) {
+			QAT_UTILS_LOG(
+			    "Couldn't get decompress command ID for current "
+			    "session data.");
+
+			return status;
+		}
 		pReqCache = &(pSessionDesc->reqCacheDecomp);
 		pReqCache->comp_pars.req_par_flags = rpCmdFlags;
 		pReqCache->comp_pars.crc.legacy.initial_adler = 1;
@@ -730,10 +977,14 @@ cpaDcResetSession(const CpaInstanceHandle dcInstance,
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	CpaInstanceHandle insHandle = NULL;
+	sal_compression_service_t *pService = NULL;
 	dc_session_desc_t *pSessionDesc = NULL;
 	Cpa64U numPendingStateless = 0;
 	Cpa64U numPendingStateful = 0;
 	icp_comms_trans_handle trans_handle = NULL;
+	dc_integrity_crc_fw_t *pDataIntegrityCrcs = NULL;
+	dc_sw_checksums_t *pSwCrcs = NULL;
+
 	LAC_CHECK_NULL_PARAM(pSessionHandle);
 	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pSessionHandle);
 	LAC_CHECK_NULL_PARAM(pSessionDesc);
@@ -752,7 +1003,7 @@ cpaDcResetSession(const CpaInstanceHandle dcInstance,
 	/* Check if SAL is running otherwise return an error */
 	SAL_RUNNING_CHECK(insHandle);
 	if (CPA_TRUE == pSessionDesc->isDcDp) {
-		trans_handle = ((sal_compression_service_t *)dcInstance)
+		trans_handle = ((sal_compression_service_t *)insHandle)
 				   ->trans_handle_compression_tx;
 		if (CPA_TRUE == icp_adf_queueDataToSend(trans_handle)) {
 			/* Process the remaining messages on the ring */
@@ -798,7 +1049,32 @@ cpaDcResetSession(const CpaInstanceHandle dcInstance,
 		} else {
 			pSessionDesc->previousChecksum = 0;
 		}
+		pSessionDesc->cnvErrorInjection = ICP_QAT_FW_COMP_NO_CNV_DFX;
+
+		/* Reset integrity CRCs to default parameters. */
+		pDataIntegrityCrcs = &pSessionDesc->dataIntegrityCrcs;
+		memset(pDataIntegrityCrcs, 0, sizeof(dc_integrity_crc_fw_t));
+		pDataIntegrityCrcs->adler32 = 1;
+
+		pService = (sal_compression_service_t *)insHandle;
+		if (isDcGen2x(pService)) {
+			pDataIntegrityCrcs->xorFlags = DC_XOR_FLAGS_DEFAULT;
+			pDataIntegrityCrcs->crcPoly = DC_CRC_POLY_DEFAULT;
+			pDataIntegrityCrcs->xorOut = DC_XOR_OUT_DEFAULT;
+		} else {
+			pDataIntegrityCrcs->crc64Poly = DC_CRC64_POLY_DEFAULT;
+			pDataIntegrityCrcs->xor64Out = DC_XOR64_OUT_DEFAULT;
+		}
+
+		/* Reset seed SW checksums. */
+		pSwCrcs = &pSessionDesc->seedSwCrc;
+		memset(pSwCrcs, 0, sizeof(dc_sw_checksums_t));
+
+		/* Reset integrity SW checksums. */
+		pSwCrcs = &pSessionDesc->integritySwCrc;
+		memset(pSwCrcs, 0, sizeof(dc_sw_checksums_t));
 	}
+
 	/* Reset the pending callback counters */
 	qatUtilsAtomicSet(0, &pSessionDesc->pendingStatelessCbCount);
 	qatUtilsAtomicSet(0, &pSessionDesc->pendingStatefulCbCount);
@@ -886,12 +1162,7 @@ cpaDcRemoveSession(const CpaInstanceHandle dcInstance,
 		}
 		if ((CPA_DC_STATEFUL == pSessionDesc->sessState) &&
 		    (CPA_STATUS_SUCCESS == status)) {
-			if (CPA_STATUS_SUCCESS !=
-			    LAC_SPINLOCK_DESTROY(
-				&(pSessionDesc->sessionLock))) {
-				QAT_UTILS_LOG(
-				    "Failed to destory session lock.\n");
-			}
+			LAC_SPINLOCK_DESTROY(&(pSessionDesc->sessionLock));
 		}
 	}
 
@@ -954,4 +1225,34 @@ cpaDcGetSessionSize(CpaInstanceHandle dcInstance,
 				pSessionData,
 				pSessionSize,
 				pContextSize);
+}
+
+CpaStatus
+dcSetCnvError(CpaInstanceHandle dcInstance, CpaDcSessionHandle pSessionHandle)
+{
+	LAC_CHECK_NULL_PARAM(pSessionHandle);
+
+	dc_session_desc_t *pSessionDesc = NULL;
+	CpaInstanceHandle insHandle = NULL;
+	sal_compression_service_t *pService = NULL;
+
+	if (CPA_INSTANCE_HANDLE_SINGLE == dcInstance) {
+		insHandle = dcGetFirstHandle();
+	} else {
+		insHandle = dcInstance;
+	}
+
+	pService = (sal_compression_service_t *)insHandle;
+
+	if (isDcGen2x(pService)) {
+		QAT_UTILS_LOG("Unsupported compression feature.\n");
+		return CPA_STATUS_UNSUPPORTED;
+	}
+	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pSessionHandle);
+
+	LAC_CHECK_NULL_PARAM(pSessionDesc);
+
+	pSessionDesc->cnvErrorInjection = ICP_QAT_FW_COMP_CNV_DFX;
+
+	return CPA_STATUS_SUCCESS;
 }

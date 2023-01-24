@@ -29,6 +29,9 @@
 #include "lac_sym_cipher_defs.h"
 #include "icp_qat_hw.h"
 #include "icp_qat_fw_la.h"
+#include "sal_hw_gen.h"
+
+#define LAC_UNUSED_POS_MASK 0x3
 
 /*****************************************************************************
  *  Internal data
@@ -73,7 +76,7 @@ static const uint8_t key_size_xts[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES128, // ICP_QAT_HW_AES_128_XTS_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES128, /* ICP_QAT_HW_AES_128_XTS_KEY_SZ */
 	0,
 	0,
 	0,
@@ -105,7 +108,7 @@ static const uint8_t key_size_xts[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES256 // ICP_QAT_HW_AES_256_XTS_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES256 /* ICP_QAT_HW_AES_256_XTS_KEY_SZ */
 };
 /* LAC_CIPHER_IS_AES */
 static const uint8_t key_size_aes[] = {
@@ -125,7 +128,7 @@ static const uint8_t key_size_aes[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES128, // ICP_QAT_HW_AES_128_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES128, /* ICP_QAT_HW_AES_128_KEY_SZ */
 	0,
 	0,
 	0,
@@ -133,7 +136,7 @@ static const uint8_t key_size_aes[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES192, // ICP_QAT_HW_AES_192_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES192, /* ICP_QAT_HW_AES_192_KEY_SZ */
 	0,
 	0,
 	0,
@@ -141,7 +144,7 @@ static const uint8_t key_size_aes[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES256 // ICP_QAT_HW_AES_256_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES256 /* ICP_QAT_HW_AES_256_KEY_SZ */
 };
 /* LAC_CIPHER_IS_AES_F8 */
 static const uint8_t key_size_f8[] = {
@@ -177,7 +180,7 @@ static const uint8_t key_size_f8[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES128, // ICP_QAT_HW_AES_128_F8_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES128, /* ICP_QAT_HW_AES_128_F8_KEY_SZ */
 	0,
 	0,
 	0,
@@ -193,7 +196,7 @@ static const uint8_t key_size_f8[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES192, // ICP_QAT_HW_AES_192_F8_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES192, /* ICP_QAT_HW_AES_192_F8_KEY_SZ */
 	0,
 	0,
 	0,
@@ -209,27 +212,7 @@ static const uint8_t key_size_f8[] = {
 	0,
 	0,
 	0,
-	ICP_QAT_HW_CIPHER_ALGO_AES256 // ICP_QAT_HW_AES_256_F8_KEY_SZ
-};
-/* LAC_CIPHER_IS_SM4 */
-static const uint8_t key_size_sm4[] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	ICP_QAT_HW_CIPHER_ALGO_SM4 // ICP_QAT_HW_SM4_KEY_SZ
+	ICP_QAT_HW_CIPHER_ALGO_AES256 /* ICP_QAT_HW_AES_256_F8_KEY_SZ */
 };
 
 typedef struct _icp_qat_hw_cipher_info {
@@ -241,239 +224,237 @@ typedef struct _icp_qat_hw_cipher_info {
 	const uint8_t *pAlgByKeySize;
 } icp_qat_hw_cipher_info;
 
-static const icp_qat_hw_cipher_info icp_qat_alg_info[] =
-    {
-      /* CPA_CY_SYM_CIPHER_NULL */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_NULL,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_ARC4 */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_ARC4,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_ECB */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  /* AES decrypt key needs to be reversed.  Instead of reversing the key
-	   * at session registration, it is instead reversed on-the-fly by
-	   * setting the KEY_CONVERT bit here
-	   */
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_aes,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_CBC */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_CBC_MODE,
-	  /* AES decrypt key needs to be reversed.  Instead of reversing the key
-	   * at session registration, it is instead reversed on-the-fly by
-	   * setting the KEY_CONVERT bit here
-	   */
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_aes,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_CTR */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_CTR_MODE,
-	  /* AES decrypt key needs to be reversed.  Instead of reversing the key
-	   * at session registration, it is instead reversed on-the-fly by
-	   * setting the KEY_CONVERT bit here
-	   */
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt
-	   * Overriding default values previously set for AES
-	   */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_aes,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_CCM */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_CTR_MODE,
-	  /* AES decrypt key needs to be reversed.  Instead of reversing the key
-	   * at session registration, it is instead reversed on-the-fly by
-	   * setting the KEY_CONVERT bit here
-	   */
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt
-	   * Overriding default values previously set for AES
-	   */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_aes,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_GCM */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_CTR_MODE,
-	  /* AES decrypt key needs to be reversed.  Instead of reversing the key
-	   * at session registration, it is instead reversed on-the-fly by
-	   * setting the KEY_CONVERT bit here
-	   */
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt
-	   * Overriding default values previously set for AES
-	   */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_aes,
-      },
-      /* CPA_CY_SYM_CIPHER_DES_ECB */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_DES,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_DES_CBC */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_DES,
-	  ICP_QAT_HW_CIPHER_CBC_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_3DES_ECB */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_3DES,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_3DES_CBC */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_3DES,
-	  ICP_QAT_HW_CIPHER_CBC_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_3DES_CTR */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_3DES,
-	  ICP_QAT_HW_CIPHER_CTR_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt
-	   * Overriding default values previously set for AES
-	   */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_KASUMI_F8 */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_KASUMI,
-	  ICP_QAT_HW_CIPHER_F8_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_SNOW3G_UEA2 */
-      {
-	  /* The KEY_CONVERT bit has to be set for Snow_3G operation */
-	  ICP_QAT_HW_CIPHER_ALGO_SNOW_3G_UEA2,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_KEY_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_F8 */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_F8_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_f8,
-      },
-      /* CPA_CY_SYM_CIPHER_AES_XTS */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_AES128,
-	  ICP_QAT_HW_CIPHER_XTS_MODE,
-	  /* AES decrypt key needs to be reversed.  Instead of reversing the key
-	   * at session registration, it is instead reversed on-the-fly by
-	   * setting the KEY_CONVERT bit here
-	   */
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_xts,
-      },
-      /* CPA_CY_SYM_CIPHER_ZUC_EEA3 */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_ZUC_3G_128_EEA3,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_KEY_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_CHACHA */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_CHACHA20_POLY1305,
-	  ICP_QAT_HW_CIPHER_CTR_MODE,
-	  { ICP_QAT_HW_CIPHER_KEY_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_NO,
-	  NULL,
-      },
-      /* CPA_CY_SYM_CIPHER_SM4_ECB */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_SM4,
-	  ICP_QAT_HW_CIPHER_ECB_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_sm4,
-      },
-      /* CPA_CY_SYM_CIPHER_SM4_CBC */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_SM4,
-	  ICP_QAT_HW_CIPHER_CBC_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_sm4,
-      },
-      /* CPA_CY_SYM_CIPHER_SM4_CTR */
-      {
-	  ICP_QAT_HW_CIPHER_ALGO_SM4,
-	  ICP_QAT_HW_CIPHER_CTR_MODE,
-	  { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
-	  /* Streaming ciphers are a special case. Decrypt = encrypt */
-	  { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
-	  IS_KEY_DEP_YES,
-	  key_size_sm4,
-      },
-    };
+static const icp_qat_hw_cipher_info icp_qat_alg_info[] = {
+	/* CPA_CY_SYM_CIPHER_NULL */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_NULL,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_ARC4 */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_ARC4,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_ECB */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    /* AES decrypt key needs to be reversed.  Instead of reversing the
+	     * key at session registration, it is instead reversed on-the-fly by
+	     * setting the KEY_CONVERT bit here
+	     */
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_aes,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_CBC */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_CBC_MODE,
+	    /* AES decrypt key needs to be reversed.  Instead of reversing the
+	     * key at session registration, it is instead reversed on-the-fly by
+	     * setting the KEY_CONVERT bit here
+	     */
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_aes,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_CTR */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_CTR_MODE,
+	    /* AES decrypt key needs to be reversed.  Instead of reversing the
+	     * key at session registration, it is instead reversed on-the-fly by
+	     * setting the KEY_CONVERT bit here
+	     */
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt
+	     * Overriding default values previously set for AES
+	     */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_aes,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_CCM */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_CTR_MODE,
+	    /* AES decrypt key needs to be reversed.  Instead of reversing the
+	     * key at session registration, it is instead reversed on-the-fly by
+	     * setting the KEY_CONVERT bit here
+	     */
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt
+	     * Overriding default values previously set for AES
+	     */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_aes,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_GCM */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_CTR_MODE,
+	    /* AES decrypt key needs to be reversed.  Instead of reversing the
+	     * key at session registration, it is instead reversed on-the-fly by
+	     * setting the KEY_CONVERT bit here
+	     */
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt
+	     * Overriding default values previously set for AES
+	     */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_aes,
+	},
+	/* CPA_CY_SYM_CIPHER_DES_ECB */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_DES,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_DES_CBC */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_DES,
+	    ICP_QAT_HW_CIPHER_CBC_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_3DES_ECB */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_3DES,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_3DES_CBC */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_3DES,
+	    ICP_QAT_HW_CIPHER_CBC_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_3DES_CTR */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_3DES,
+	    ICP_QAT_HW_CIPHER_CTR_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt
+	     * Overriding default values previously set for AES
+	     */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_KASUMI_F8 */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_KASUMI,
+	    ICP_QAT_HW_CIPHER_F8_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_SNOW3G_UEA2 */
+	{
+	    /* The KEY_CONVERT bit has to be set for Snow_3G operation */
+	    ICP_QAT_HW_CIPHER_ALGO_SNOW_3G_UEA2,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_KEY_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_F8 */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_F8_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    /* Streaming ciphers are a special case. Decrypt = encrypt */
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_f8,
+	},
+	/* CPA_CY_SYM_CIPHER_AES_XTS */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_AES128,
+	    ICP_QAT_HW_CIPHER_XTS_MODE,
+	    /* AES decrypt key needs to be reversed.  Instead of reversing the
+	     * key at session registration, it is instead reversed on-the-fly by
+	     * setting the KEY_CONVERT bit here
+	     */
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_YES,
+	    key_size_xts,
+	},
+	/* CPA_CY_SYM_CIPHER_ZUC_EEA3 */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_ZUC_3G_128_EEA3,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_KEY_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_CHACHA */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_CHACHA20_POLY1305,
+	    ICP_QAT_HW_CIPHER_CTR_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_SM4_ECB */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_SM4,
+	    ICP_QAT_HW_CIPHER_ECB_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_SM4_CBC */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_SM4,
+	    ICP_QAT_HW_CIPHER_CBC_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_KEY_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_DECRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+	/* CPA_CY_SYM_CIPHER_SM4_CTR */
+	{
+	    ICP_QAT_HW_CIPHER_ALGO_SM4,
+	    ICP_QAT_HW_CIPHER_CTR_MODE,
+	    { ICP_QAT_HW_CIPHER_NO_CONVERT, ICP_QAT_HW_CIPHER_NO_CONVERT },
+	    { ICP_QAT_HW_CIPHER_ENCRYPT, ICP_QAT_HW_CIPHER_ENCRYPT },
+	    IS_KEY_DEP_NO,
+	    NULL,
+	},
+};
 
 /*****************************************************************************
  *  Internal functions
@@ -483,6 +464,7 @@ void
 LacSymQat_CipherCtrlBlockWrite(icp_qat_la_bulk_req_ftr_t *pMsg,
 			       Cpa32U cipherAlgorithm,
 			       Cpa32U targetKeyLenInBytes,
+			       Cpa32U sliceType,
 			       icp_qat_fw_slice_t nextSlice,
 			       Cpa8U cipherCfgOffsetInQuadWord)
 {
@@ -492,33 +474,52 @@ LacSymQat_CipherCtrlBlockWrite(icp_qat_la_bulk_req_ftr_t *pMsg,
 	/* state_padding_sz is nonzero for f8 mode only */
 	cd_ctrl->cipher_padding_sz = 0;
 
+	/* Special handling of AES 192 key for UCS slice.
+	   UCS requires it to have 32 bytes - set is as targetKeyLen
+	   in this case, and add padding. It makes no sense
+	   to force applications to provide such key length for couple reasons:
+	   1. It won't be possible to distinguish between AES 192 and 256 based
+	      on key lenght only
+	   2. Only some modes of AES will use UCS slice, then application will
+	      have to know which ones */
+	if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType &&
+	    ICP_QAT_HW_AES_192_KEY_SZ == targetKeyLenInBytes) {
+		targetKeyLenInBytes = ICP_QAT_HW_UCS_AES_192_KEY_SZ;
+	}
+
+	switch (cipherAlgorithm) {
 	/* Base Key is not passed down to QAT in the case of ARC4 or NULL */
-	if (LAC_CIPHER_IS_ARC4(cipherAlgorithm) ||
-	    LAC_CIPHER_IS_NULL(cipherAlgorithm)) {
+	case CPA_CY_SYM_CIPHER_ARC4:
+	case CPA_CY_SYM_CIPHER_NULL:
 		cd_ctrl->cipher_key_sz = 0;
-	} else if (LAC_CIPHER_IS_KASUMI(cipherAlgorithm)) {
+		break;
+	case CPA_CY_SYM_CIPHER_KASUMI_F8:
 		cd_ctrl->cipher_key_sz =
 		    LAC_BYTES_TO_QUADWORDS(ICP_QAT_HW_KASUMI_F8_KEY_SZ);
 		cd_ctrl->cipher_padding_sz =
 		    ICP_QAT_HW_MODE_F8_NUM_REG_TO_CLEAR;
-	} else if (LAC_CIPHER_IS_SNOW3G_UEA2(cipherAlgorithm)) {
-		/* For Snow3G UEA2 content descriptor key size is
-		   key size plus iv size */
+		break;
+	/* For Snow3G UEA2 content descriptor key size is
+	   key size plus iv size */
+	case CPA_CY_SYM_CIPHER_SNOW3G_UEA2:
 		cd_ctrl->cipher_key_sz =
 		    LAC_BYTES_TO_QUADWORDS(ICP_QAT_HW_SNOW_3G_UEA2_KEY_SZ +
 					   ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ);
-	} else if (LAC_CIPHER_IS_AES_F8(cipherAlgorithm)) {
+		break;
+	case CPA_CY_SYM_CIPHER_AES_F8:
 		cd_ctrl->cipher_key_sz =
 		    LAC_BYTES_TO_QUADWORDS(targetKeyLenInBytes);
 		cd_ctrl->cipher_padding_sz =
-		    2 * ICP_QAT_HW_MODE_F8_NUM_REG_TO_CLEAR;
-	} else if (LAC_CIPHER_IS_ZUC_EEA3(cipherAlgorithm)) {
-		/* For ZUC EEA3 content descriptor key size is
-		   key size plus iv size */
+		    (2 * ICP_QAT_HW_MODE_F8_NUM_REG_TO_CLEAR);
+		break;
+	/* For ZUC EEA3 content descriptor key size is
+	   key size plus iv size */
+	case CPA_CY_SYM_CIPHER_ZUC_EEA3:
 		cd_ctrl->cipher_key_sz =
 		    LAC_BYTES_TO_QUADWORDS(ICP_QAT_HW_ZUC_3G_EEA3_KEY_SZ +
 					   ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ);
-	} else {
+		break;
+	default:
 		cd_ctrl->cipher_key_sz =
 		    LAC_BYTES_TO_QUADWORDS(targetKeyLenInBytes);
 	}
@@ -539,6 +540,8 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 			   icp_qat_hw_cipher_dir_t *pDir,
 			   icp_qat_hw_cipher_convert_t *pKey_convert)
 {
+	sal_crypto_service_t *pService =
+	    (sal_crypto_service_t *)pSession->pInstance;
 
 	CpaCySymCipherAlgorithm cipherAlgorithm = 0;
 	icp_qat_hw_cipher_dir_t cipherDirection = 0;
@@ -553,8 +556,8 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 	cipherAlgorithm = pSession->cipherAlgorithm - 1;
 	cipherDirection =
 	    pSession->cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT ?
-	    ICP_QAT_HW_CIPHER_ENCRYPT :
-	    ICP_QAT_HW_CIPHER_DECRYPT;
+		  ICP_QAT_HW_CIPHER_ENCRYPT :
+		  ICP_QAT_HW_CIPHER_DECRYPT;
 
 	*pAlgorithm = icp_qat_alg_info[cipherAlgorithm].algorithm;
 	*pMode = icp_qat_alg_info[cipherAlgorithm].mode;
@@ -566,23 +569,22 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 		*pAlgorithm = icp_qat_alg_info[cipherAlgorithm]
 				  .pAlgByKeySize[pSession->cipherKeyLenInBytes];
 	}
-	/* Set the mode */
-	if (LAC_CIPHER_IS_CTR_MODE(pSession->cipherAlgorithm)) {
-		*pMode = ICP_QAT_HW_CIPHER_CTR_MODE;
-		*pKey_convert = ICP_QAT_HW_CIPHER_NO_CONVERT;
-		/* CCP and AES_GCM single pass, despite being limited to
-		 * CTR/AEAD mode,
-		 * support both Encrypt/Decrypt modes - this is because of the
-		 * differences in the hash computation/verification paths in
-		 * encrypt/decrypt modes respectively.
-		 * By default CCP is set as CTR Mode.Set AEAD Mode for AES_GCM.
-		 */
-		if (pSession->isSinglePass) {
-			if (LAC_CIPHER_IS_GCM(pSession->cipherAlgorithm))
-				*pMode = ICP_QAT_HW_CIPHER_AEAD_MODE;
-			if (cipherDirection == ICP_QAT_HW_CIPHER_DECRYPT)
-				*pDir = ICP_QAT_HW_CIPHER_DECRYPT;
-		}
+
+	/* CCP and AES_GCM single pass, despite being limited to CTR/AEAD mode,
+	 * support both Encrypt/Decrypt modes - this is because of the
+	 * differences in the hash computation/verification paths in
+	 * encrypt/decrypt modes respectively.
+	 * By default CCP is set as CTR Mode.Set AEAD Mode for AES_GCM.
+	 */
+	if (SPC == pSession->singlePassState) {
+		if (LAC_CIPHER_IS_GCM(pSession->cipherAlgorithm))
+			*pMode = ICP_QAT_HW_CIPHER_AEAD_MODE;
+		else if (isCyGen4x(pService) &&
+			 LAC_CIPHER_IS_CCM(pSession->cipherAlgorithm))
+			*pMode = ICP_QAT_HW_CIPHER_CCM_MODE;
+
+		if (cipherDirection == ICP_QAT_HW_CIPHER_DECRYPT)
+			*pDir = ICP_QAT_HW_CIPHER_DECRYPT;
 	}
 }
 
@@ -597,6 +599,10 @@ LacSymQat_CipherHwBlockPopulateCfgData(lac_session_desc_t *pSession,
 	icp_qat_hw_cipher_convert_t key_convert;
 	icp_qat_hw_cipher_config_t *pCipherConfig =
 	    (icp_qat_hw_cipher_config_t *)pCipherHwBlock;
+	icp_qat_hw_ucs_cipher_config_t *pUCSCipherConfig =
+	    (icp_qat_hw_ucs_cipher_config_t *)pCipherHwBlock;
+
+	Cpa32U val, reserved;
 	Cpa32U aed_hash_cmp_length = 0;
 
 	*pSizeInBytes = 0;
@@ -605,24 +611,38 @@ LacSymQat_CipherHwBlockPopulateCfgData(lac_session_desc_t *pSession,
 	    pSession, &algorithm, &mode, &dir, &key_convert);
 
 	/* Build the cipher config into the hardware setup block */
-	if (pSession->isSinglePass) {
+	if (SPC == pSession->singlePassState) {
 		aed_hash_cmp_length = pSession->hashResultSize;
-		pCipherConfig->reserved = ICP_QAT_HW_CIPHER_CONFIG_BUILD_UPPER(
+		reserved = ICP_QAT_HW_CIPHER_CONFIG_BUILD_UPPER(
 		    pSession->aadLenInBytes);
 	} else {
-		pCipherConfig->reserved = 0;
+		reserved = 0;
 	}
 
-	pCipherConfig->val = ICP_QAT_HW_CIPHER_CONFIG_BUILD(
+	val = ICP_QAT_HW_CIPHER_CONFIG_BUILD(
 	    mode, algorithm, key_convert, dir, aed_hash_cmp_length);
 
-	*pSizeInBytes = sizeof(icp_qat_hw_cipher_config_t);
+	/* UCS slice has 128-bit configuration register.
+	   Leacy cipher slice has 64-bit config register */
+	if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == pSession->cipherSliceType) {
+		pUCSCipherConfig->val = val;
+		pUCSCipherConfig->reserved[0] = reserved;
+		pUCSCipherConfig->reserved[1] = 0;
+		pUCSCipherConfig->reserved[2] = 0;
+		*pSizeInBytes = sizeof(icp_qat_hw_ucs_cipher_config_t);
+	} else {
+		pCipherConfig->val = val;
+		pCipherConfig->reserved = reserved;
+		*pSizeInBytes = sizeof(icp_qat_hw_cipher_config_t);
+	}
 }
 
 void
 LacSymQat_CipherHwBlockPopulateKeySetup(
+    lac_session_desc_t *pSessionDesc,
     const CpaCySymCipherSetupData *pCipherSetupData,
     Cpa32U targetKeyLenInBytes,
+    Cpa32U sliceType,
     const void *pCipherHwBlock,
     Cpa32U *pSizeInBytes)
 {
@@ -635,6 +655,20 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 	 * Arc4 and Null cipher */
 	if (!(LAC_CIPHER_IS_ARC4(pCipherSetupData->cipherAlgorithm) ||
 	      LAC_CIPHER_IS_NULL(pCipherSetupData->cipherAlgorithm))) {
+		/* Special handling of AES 192 key for UCS slice.
+		   UCS requires it to have 32 bytes - set is as targetKeyLen
+		   in this case, and add padding. It makes no sense
+		   to force applications to provide such key length for couple
+		   reasons:
+		   1. It won't be possible to distinguish between AES 192 and
+		   256 based on key lenght only
+		   2. Only some modes of AES will use UCS slice, then
+		   application will have to know which ones */
+		if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType &&
+		    ICP_QAT_HW_AES_192_KEY_SZ == targetKeyLenInBytes) {
+			targetKeyLenInBytes = ICP_QAT_HW_UCS_AES_192_KEY_SZ;
+		}
+
 		/* Set the Cipher key field in the cipher block */
 		memcpy(pCipherKey,
 		       pCipherSetupData->pCipherKey,
@@ -646,9 +680,10 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 		}
 		*pSizeInBytes += targetKeyLenInBytes;
 
-		/* For Kasumi in F8 mode Cipher Key is concatenated with
-		 * Cipher Key XOR-ed with Key Modifier (CK||CK^KM) */
-		if (LAC_CIPHER_IS_KASUMI(pCipherSetupData->cipherAlgorithm)) {
+		switch (pCipherSetupData->cipherAlgorithm) {
+			/* For Kasumi in F8 mode Cipher Key is concatenated with
+			 * Cipher Key XOR-ed with Key Modifier (CK||CK^KM) */
+		case CPA_CY_SYM_CIPHER_KASUMI_F8: {
 			Cpa32U wordIndex = 0;
 			Cpa32U *pu32CipherKey =
 			    (Cpa32U *)pCipherSetupData->pCipherKey;
@@ -672,11 +707,10 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 			LAC_OS_BZERO((Cpa8U *)pTempKey + targetKeyLenInBytes,
 				     LAC_QUADWORDS_TO_BYTES(
 					 ICP_QAT_HW_MODE_F8_NUM_REG_TO_CLEAR));
-		}
-		/* For AES in F8 mode Cipher Key is concatenated with
-		 * Cipher Key XOR-ed with Key Mask (CK||CK^KM) */
-		else if (LAC_CIPHER_IS_AES_F8(
-			     pCipherSetupData->cipherAlgorithm)) {
+		} break;
+			/* For AES in F8 mode Cipher Key is concatenated with
+			 * Cipher Key XOR-ed with Key Mask (CK||CK^KM) */
+		case CPA_CY_SYM_CIPHER_AES_F8: {
 			Cpa32U index = 0;
 			Cpa8U *pTempKey =
 			    pCipherKey + (targetKeyLenInBytes / 2);
@@ -690,20 +724,59 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 			/* also add padding for AES F8 */
 			*pSizeInBytes += 2 * targetKeyLenInBytes;
 			LAC_OS_BZERO(pTempKey, 2 * targetKeyLenInBytes);
-		} else if (LAC_CIPHER_IS_SNOW3G_UEA2(
-			       pCipherSetupData->cipherAlgorithm)) {
+		} break;
+		case CPA_CY_SYM_CIPHER_SNOW3G_UEA2: {
 			/* For Snow3G zero area after the key for FW */
 			LAC_OS_BZERO(pCipherKey + targetKeyLenInBytes,
 				     ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ);
 
 			*pSizeInBytes += ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ;
-		} else if (LAC_CIPHER_IS_ZUC_EEA3(
-			       pCipherSetupData->cipherAlgorithm)) {
+		} break;
+		case CPA_CY_SYM_CIPHER_ZUC_EEA3: {
 			/* For ZUC zero area after the key for FW */
 			LAC_OS_BZERO(pCipherKey + targetKeyLenInBytes,
 				     ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ);
 
 			*pSizeInBytes += ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ;
+		} break;
+		case CPA_CY_SYM_CIPHER_AES_XTS: {
+			/* For AES in XTS mode Cipher Key is concatenated with
+			 * second Cipher Key which is used for tweak calculation
+			 * (CK1||CK2). For decryption Cipher Key needs to be
+			 * converted to reverse key.*/
+			if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType) {
+				Cpa32U key_len =
+				    pCipherSetupData->cipherKeyLenInBytes / 2;
+				memcpy(pSessionDesc->cipherAesXtsKey1Forward,
+				       pCipherSetupData->pCipherKey,
+				       key_len);
+
+				qatUtilsAESKeyExpansionForward(
+				    pSessionDesc->cipherAesXtsKey1Forward,
+				    key_len,
+				    (uint32_t *)
+					pSessionDesc->cipherAesXtsKey1Reverse);
+
+				memcpy(pSessionDesc->cipherAesXtsKey2,
+				       pCipherSetupData->pCipherKey + key_len,
+				       key_len);
+
+				if (CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT ==
+				    pCipherSetupData->cipherDirection) {
+					memcpy(pCipherKey,
+					       pSessionDesc
+						   ->cipherAesXtsKey1Reverse,
+					       key_len);
+				} else {
+					memcpy(pCipherKey,
+					       pSessionDesc
+						   ->cipherAesXtsKey1Forward,
+					       key_len);
+				}
+			}
+		} break;
+		default:
+			break;
 		}
 	}
 }
@@ -715,56 +788,94 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 Cpa8U
 LacSymQat_CipherBlockSizeBytesGet(CpaCySymCipherAlgorithm cipherAlgorithm)
 {
-	if (LAC_CIPHER_IS_ARC4(cipherAlgorithm)) {
-		return LAC_CIPHER_ARC4_BLOCK_LEN_BYTES;
-	} else if (LAC_CIPHER_IS_AES(cipherAlgorithm) ||
-		   LAC_CIPHER_IS_AES_F8(cipherAlgorithm)) {
-		return ICP_QAT_HW_AES_BLK_SZ;
-	} else if (LAC_CIPHER_IS_DES(cipherAlgorithm)) {
-		return ICP_QAT_HW_DES_BLK_SZ;
-	} else if (LAC_CIPHER_IS_TRIPLE_DES(cipherAlgorithm)) {
-		return ICP_QAT_HW_3DES_BLK_SZ;
-	} else if (LAC_CIPHER_IS_KASUMI(cipherAlgorithm)) {
-		return ICP_QAT_HW_KASUMI_BLK_SZ;
-	} else if (LAC_CIPHER_IS_SNOW3G_UEA2(cipherAlgorithm)) {
-		return ICP_QAT_HW_SNOW_3G_BLK_SZ;
-	} else if (LAC_CIPHER_IS_ZUC_EEA3(cipherAlgorithm)) {
-		return ICP_QAT_HW_ZUC_3G_BLK_SZ;
-	} else if (LAC_CIPHER_IS_NULL(cipherAlgorithm)) {
-		return LAC_CIPHER_NULL_BLOCK_LEN_BYTES;
-	} else if (LAC_CIPHER_IS_CHACHA(cipherAlgorithm)) {
-		return ICP_QAT_HW_CHACHAPOLY_BLK_SZ;
-	} else if (LAC_CIPHER_IS_SM4(cipherAlgorithm)) {
-		return ICP_QAT_HW_SM4_BLK_SZ;
-	} else {
-		QAT_UTILS_LOG("Algorithm not supported in Cipher\n");
-		return 0;
+	Cpa8U blockSize = 0;
+	switch (cipherAlgorithm) {
+	case CPA_CY_SYM_CIPHER_ARC4:
+		blockSize = LAC_CIPHER_ARC4_BLOCK_LEN_BYTES;
+		break;
+	/* Handle AES or AES_F8 */
+	case CPA_CY_SYM_CIPHER_AES_ECB:
+	case CPA_CY_SYM_CIPHER_AES_CBC:
+	case CPA_CY_SYM_CIPHER_AES_CTR:
+	case CPA_CY_SYM_CIPHER_AES_CCM:
+	case CPA_CY_SYM_CIPHER_AES_GCM:
+	case CPA_CY_SYM_CIPHER_AES_XTS:
+	case CPA_CY_SYM_CIPHER_AES_F8:
+		blockSize = ICP_QAT_HW_AES_BLK_SZ;
+		break;
+	/* Handle DES */
+	case CPA_CY_SYM_CIPHER_DES_ECB:
+	case CPA_CY_SYM_CIPHER_DES_CBC:
+		blockSize = ICP_QAT_HW_DES_BLK_SZ;
+		break;
+	/* Handle TRIPLE DES */
+	case CPA_CY_SYM_CIPHER_3DES_ECB:
+	case CPA_CY_SYM_CIPHER_3DES_CBC:
+	case CPA_CY_SYM_CIPHER_3DES_CTR:
+		blockSize = ICP_QAT_HW_3DES_BLK_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_KASUMI_F8:
+		blockSize = ICP_QAT_HW_KASUMI_BLK_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_SNOW3G_UEA2:
+		blockSize = ICP_QAT_HW_SNOW_3G_BLK_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_ZUC_EEA3:
+		blockSize = ICP_QAT_HW_ZUC_3G_BLK_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_NULL:
+		blockSize = LAC_CIPHER_NULL_BLOCK_LEN_BYTES;
+		break;
+	case CPA_CY_SYM_CIPHER_CHACHA:
+		blockSize = ICP_QAT_HW_CHACHAPOLY_BLK_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_SM4_ECB:
+	case CPA_CY_SYM_CIPHER_SM4_CBC:
+	case CPA_CY_SYM_CIPHER_SM4_CTR:
+		blockSize = ICP_QAT_HW_SM4_BLK_SZ;
+		break;
+	default:
+		QAT_UTILS_LOG("Algorithm not supported in Cipher");
 	}
+	return blockSize;
 }
 
 Cpa32U
 LacSymQat_CipherIvSizeBytesGet(CpaCySymCipherAlgorithm cipherAlgorithm)
 {
-	if (CPA_CY_SYM_CIPHER_ARC4 == cipherAlgorithm) {
-		return LAC_CIPHER_ARC4_STATE_LEN_BYTES;
-	} else if (LAC_CIPHER_IS_KASUMI(cipherAlgorithm)) {
-		return ICP_QAT_HW_KASUMI_BLK_SZ;
-	} else if (LAC_CIPHER_IS_SNOW3G_UEA2(cipherAlgorithm)) {
-		return ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ;
-	} else if (LAC_CIPHER_IS_ZUC_EEA3(cipherAlgorithm)) {
-		return ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ;
-	} else if (LAC_CIPHER_IS_CHACHA(cipherAlgorithm)) {
-		return ICP_QAT_HW_CHACHAPOLY_IV_SZ;
-	} else if (LAC_CIPHER_IS_ECB_MODE(cipherAlgorithm)) {
-		return 0;
-	} else {
-		return (Cpa32U)LacSymQat_CipherBlockSizeBytesGet(
-		    cipherAlgorithm);
+	Cpa32U ivSize = 0;
+	switch (cipherAlgorithm) {
+	case CPA_CY_SYM_CIPHER_ARC4:
+		ivSize = LAC_CIPHER_ARC4_STATE_LEN_BYTES;
+		break;
+	case CPA_CY_SYM_CIPHER_KASUMI_F8:
+		ivSize = ICP_QAT_HW_KASUMI_BLK_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_SNOW3G_UEA2:
+		ivSize = ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_ZUC_EEA3:
+		ivSize = ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_CHACHA:
+		ivSize = ICP_QAT_HW_CHACHAPOLY_IV_SZ;
+		break;
+	case CPA_CY_SYM_CIPHER_AES_ECB:
+	case CPA_CY_SYM_CIPHER_DES_ECB:
+	case CPA_CY_SYM_CIPHER_3DES_ECB:
+	case CPA_CY_SYM_CIPHER_SM4_ECB:
+	case CPA_CY_SYM_CIPHER_NULL:
+		/* for all ECB Mode IV size is 0 */
+		break;
+	default:
+		ivSize = LacSymQat_CipherBlockSizeBytesGet(cipherAlgorithm);
 	}
+	return ivSize;
 }
 
 inline CpaStatus
-LacSymQat_CipherRequestParamsPopulate(icp_qat_fw_la_bulk_req_t *pReq,
+LacSymQat_CipherRequestParamsPopulate(lac_session_desc_t *pSessionDesc,
+				      icp_qat_fw_la_bulk_req_t *pReq,
 				      Cpa32U cipherOffsetInBytes,
 				      Cpa32U cipherLenInBytes,
 				      Cpa64U ivBufferPhysAddr,
@@ -773,6 +884,8 @@ LacSymQat_CipherRequestParamsPopulate(icp_qat_fw_la_bulk_req_t *pReq,
 	icp_qat_fw_la_cipher_req_params_t *pCipherReqParams;
 	icp_qat_fw_cipher_cd_ctrl_hdr_t *pCipherCdCtrlHdr;
 	icp_qat_fw_serv_specif_flags *pCipherSpecificFlags;
+	Cpa32U usedBufSize = 0;
+	Cpa32U totalBufSize = 0;
 
 	pCipherReqParams = (icp_qat_fw_la_cipher_req_params_t
 				*)((Cpa8U *)&(pReq->serv_specif_rqpars) +
@@ -805,31 +918,40 @@ LacSymQat_CipherRequestParamsPopulate(icp_qat_fw_la_bulk_req_t *pReq,
 	} else {
 		/* Populate the field with the contents of the buffer,
 		 * zero field first as data may be smaller than the field */
-		memset(pCipherReqParams->u.cipher_IV_array,
-		       0,
-		       LAC_LONGWORDS_TO_BYTES(ICP_QAT_FW_NUM_LONGWORDS_4));
 
-		/* We force a specific compiler optimisation here.  The length
-		 * to
-		 * be copied turns out to be always 16, and by coding a memcpy
-		 * with
-		 * a literal value the compiler will compile inline code (in
-		 * fact,
-		 * only two vector instructions) to effect the copy.  This gives
-		 * us
-		 * a huge performance increase.
-		 */
-		unsigned long cplen =
-		    LAC_QUADWORDS_TO_BYTES(pCipherCdCtrlHdr->cipher_state_sz);
-
-		if (cplen == 16)
+		/* In case of XTS mode using UCS slice always embedd IV.
+		 * IV provided by user needs to be encrypted to calculate
+		 * initial tweak, use pCipherReqParams->u.cipher_IV_array as
+		 * destination buffer for tweak value */
+		if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE ==
+			pSessionDesc->cipherSliceType &&
+		    LAC_CIPHER_IS_XTS_MODE(pSessionDesc->cipherAlgorithm)) {
+			memset(pCipherReqParams->u.cipher_IV_array,
+			       0,
+			       LAC_LONGWORDS_TO_BYTES(
+				   ICP_QAT_FW_NUM_LONGWORDS_4));
+			qatUtilsAESEncrypt(
+			    pSessionDesc->cipherAesXtsKey2,
+			    pSessionDesc->cipherKeyLenInBytes / 2,
+			    pIvBufferVirt,
+			    (Cpa8U *)pCipherReqParams->u.cipher_IV_array);
+		} else {
+			totalBufSize =
+			    LAC_LONGWORDS_TO_BYTES(ICP_QAT_FW_NUM_LONGWORDS_4);
+			usedBufSize = LAC_QUADWORDS_TO_BYTES(
+			    pCipherCdCtrlHdr->cipher_state_sz);
+			/* Only initialise unused buffer if applicable*/
+			if (usedBufSize < totalBufSize) {
+				memset(
+				    (&pCipherReqParams->u.cipher_IV_array
+					  [usedBufSize & LAC_UNUSED_POS_MASK]),
+				    0,
+				    totalBufSize - usedBufSize);
+			}
 			memcpy(pCipherReqParams->u.cipher_IV_array,
 			       pIvBufferVirt,
-			       16);
-		else
-			memcpy(pCipherReqParams->u.cipher_IV_array,
-			       pIvBufferVirt,
-			       cplen);
+			       usedBufSize);
+		}
 		/* Set the flag indicating the field format */
 		ICP_QAT_FW_LA_CIPH_IV_FLD_FLAG_SET(
 		    *pCipherSpecificFlags, ICP_QAT_FW_CIPH_IV_16BYTE_DATA);
@@ -851,7 +973,7 @@ LacSymQat_CipherArc4StateInit(const Cpa8U *pKey,
 		pArc4CipherState[i] = (Cpa8U)i;
 	}
 
-	for (i = 0; i < LAC_CIPHER_ARC4_KEY_MATRIX_LEN_BYTES; ++i) {
+	for (i = 0, k = 0; i < LAC_CIPHER_ARC4_KEY_MATRIX_LEN_BYTES; ++i, ++k) {
 		Cpa8U swap = 0;
 
 		if (k >= keyLenInBytes)
@@ -860,7 +982,6 @@ LacSymQat_CipherArc4StateInit(const Cpa8U *pKey,
 		j = (j + pArc4CipherState[i] + pKey[k]);
 		if (j >= LAC_CIPHER_ARC4_KEY_MATRIX_LEN_BYTES)
 			j %= LAC_CIPHER_ARC4_KEY_MATRIX_LEN_BYTES;
-		++k;
 
 		/* Swap state[i] & state[j] */
 		swap = pArc4CipherState[i];

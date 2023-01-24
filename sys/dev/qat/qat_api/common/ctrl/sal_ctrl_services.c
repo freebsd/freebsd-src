@@ -458,6 +458,37 @@ SalCtrl_ServiceShutdown(icp_accel_dev_t *device,
 	return status;
 }
 
+static CpaStatus
+selectGeneration(device_type_t deviceType, sal_service_t *pInst)
+{
+	switch (deviceType) {
+	case DEVICE_C62X:
+	case DEVICE_C62XVF:
+	case DEVICE_DH895XCC:
+	case DEVICE_DH895XCCVF:
+	case DEVICE_C3XXX:
+	case DEVICE_C3XXXVF:
+	case DEVICE_200XX:
+	case DEVICE_200XXVF:
+		pInst->gen = GEN2;
+		break;
+
+	case DEVICE_C4XXX:
+	case DEVICE_C4XXXVF:
+		pInst->gen = GEN3;
+		break;
+
+	case DEVICE_GEN4:
+		pInst->gen = GEN4;
+		break;
+
+	default:
+		QAT_UTILS_LOG("deviceType not initialised\n");
+		return CPA_STATUS_FAIL;
+	}
+	return CPA_STATUS_SUCCESS;
+}
+
 /*************************************************************************
  * @ingroup SalCtrl
  * @description
@@ -523,7 +554,12 @@ SalCtrl_ServiceInit(icp_accel_dev_t *device,
 			}
 			pInst->debug_parent_dir = debug_dir;
 			pInst->capabilitiesMask = device->accelCapabilitiesMask;
-			status = SalList_add(services, &tail_list, pInst);
+
+			status = selectGeneration(device->deviceType, pInst);
+			if (CPA_STATUS_SUCCESS == status) {
+				status =
+				    SalList_add(services, &tail_list, pInst);
+			}
 			if (CPA_STATUS_SUCCESS != status) {
 				free(pInst, M_QAT);
 			}

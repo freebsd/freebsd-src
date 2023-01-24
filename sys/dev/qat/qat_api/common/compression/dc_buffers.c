@@ -26,9 +26,14 @@
 
 #include "sal_types_compression.h"
 #include "icp_qat_fw_comp.h"
+#include "sal_hw_gen.h"
 
 #define CPA_DC_CEIL_DIV(x, y) (((x) + (y)-1) / (y))
 #define DC_DEST_BUFF_EXTRA_DEFLATE_GEN2 (55)
+#define DC_DEST_BUFF_EXTRA_DEFLATE_GEN4_STATIC (1029)
+#define DC_DEST_BUFF_EXTRA_DEFLATE_GEN4_DYN (512)
+#define DC_DEST_BUFF_MIN_EXTRA_BYTES(x) ((x < 8) ? (8 - x) : 0)
+#define DC_BUF_MAX_SIZE (0xFFFFFFFF)
 
 CpaStatus
 cpaDcBufferListGetMetaSize(const CpaInstanceHandle instanceHandle,
@@ -72,13 +77,60 @@ cpaDcBnpBufferListGetMetaSize(const CpaInstanceHandle instanceHandle,
 static inline CpaStatus
 dcDeflateBoundGen2(CpaDcHuffType huffType, Cpa32U inputSize, Cpa32U *outputSize)
 {
+	Cpa64U inBufferSize = inputSize;
+	Cpa64U outBufferSize = 0;
+
 	/* Formula for GEN2 deflate:
 	 * ceil(9 * Total input bytes / 8) + 55 bytes.
 	 * 55 bytes is the skid pad value for GEN2 devices.
+	 * Adding extra bytes = `DC_DEST_BUFF_MIN_EXTRA_BYTES(inputSize)`
+	 * when calculated value from `CPA_DC_CEIL_DIV(9 * inputSize, 8) +
+	 * DC_DEST_BUFF_EXTRA_DEFLATE_GEN2` is less than 64 bytes to
+	 * achieve a safer output buffer size of 64 bytes.
 	 */
-	*outputSize =
-	    CPA_DC_CEIL_DIV(9 * inputSize, 8) + DC_DEST_BUFF_EXTRA_DEFLATE_GEN2;
+	outBufferSize = CPA_DC_CEIL_DIV(9 * inBufferSize, 8) +
+	    DC_DEST_BUFF_EXTRA_DEFLATE_GEN2 +
+	    DC_DEST_BUFF_MIN_EXTRA_BYTES(inputSize);
 
+	if (outBufferSize > DC_BUF_MAX_SIZE)
+		*outputSize = DC_BUF_MAX_SIZE;
+	else
+		*outputSize = (Cpa32U)outBufferSize;
+
+	return CPA_STATUS_SUCCESS;
+}
+
+static inline CpaStatus
+dcDeflateBoundGen4(CpaDcHuffType huffType, Cpa32U inputSize, Cpa32U *outputSize)
+{
+	Cpa64U outputSizeLong;
+	Cpa64U inputSizeLong = (Cpa64U)inputSize;
+
+	switch (huffType) {
+	case CPA_DC_HT_STATIC:
+		/* Formula for GEN4 static deflate:
+		 * ceil((9*sourceLen)/8) + 5 + 1024. */
+		outputSizeLong = CPA_DC_CEIL_DIV(9 * inputSizeLong, 8) +
+		    DC_DEST_BUFF_EXTRA_DEFLATE_GEN4_STATIC;
+		break;
+	case CPA_DC_HT_FULL_DYNAMIC:
+		/* Formula for GEN4 dynamic deflate:
+		 * Ceil ((9*sourceLen)/8)▒| +
+		 * ((((8/7) * sourceLen)/ 16KB) * (150+5)) + 512
+		 */
+		outputSizeLong = DC_DEST_BUFF_EXTRA_DEFLATE_GEN4_DYN;
+		outputSizeLong += CPA_DC_CEIL_DIV(9 * inputSizeLong, 8);
+		outputSizeLong += ((8 * inputSizeLong * 155) / 7) / (16 * 1024);
+		break;
+	default:
+		return CPA_STATUS_INVALID_PARAM;
+	}
+
+	/* Avoid output size overflow */
+	if (outputSizeLong & 0xffffffff00000000UL)
+		return CPA_STATUS_INVALID_PARAM;
+
+	*outputSize = (Cpa32U)outputSizeLong;
 	return CPA_STATUS_SUCCESS;
 }
 
@@ -88,6 +140,7 @@ cpaDcDeflateCompressBound(const CpaInstanceHandle dcInstance,
 			  Cpa32U inputSize,
 			  Cpa32U *outputSize)
 {
+	sal_compression_service_t *pService = NULL;
 	CpaInstanceHandle insHandle = NULL;
 
 	if (CPA_INSTANCE_HANDLE_SINGLE == dcInstance) {
@@ -112,5 +165,10 @@ cpaDcDeflateCompressBound(const CpaInstanceHandle dcInstance,
 		return CPA_STATUS_INVALID_PARAM;
 	}
 
-	return dcDeflateBoundGen2(huffType, inputSize, outputSize);
+	pService = (sal_compression_service_t *)insHandle;
+	if (isDcGen4x(pService)) {
+		return dcDeflateBoundGen4(huffType, inputSize, outputSize);
+	} else {
+		return dcDeflateBoundGen2(huffType, inputSize, outputSize);
+	}
 }
