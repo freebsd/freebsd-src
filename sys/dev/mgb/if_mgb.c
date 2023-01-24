@@ -513,7 +513,7 @@ mgb_media_change(if_t ifp)
 
 	needs_reset = mii_mediachg(miid);
 	if (needs_reset != 0)
-		ifp->if_init(ctx);
+		if_init(ifp, ctx);
 	return (needs_reset);
 }
 
