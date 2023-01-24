@@ -74,6 +74,7 @@ static const struct {
 } hdacc_codecs[] = {
 	{ HDA_CODEC_CS4206, 0,		"Cirrus Logic CS4206" },
 	{ HDA_CODEC_CS4207, 0,		"Cirrus Logic CS4207" },
+	{ HDA_CODEC_CS4208, 0,		"Cirrus Logic CS4208" },
 	{ HDA_CODEC_CS4210, 0,		"Cirrus Logic CS4210" },
 	{ HDA_CODEC_ALC215, 0,		"Realtek ALC215" },
 	{ HDA_CODEC_ALC221, 0,		"Realtek ALC221" },
