@@ -584,6 +584,7 @@ void if_setdescr(if_t ifp, char *descrbuf);
 char *if_allocdescr(size_t sz, int malloc_flag);
 void if_freedescr(char *descrbuf);
 int if_getalloctype(const if_t ifp);
+int if_gettype(const if_t ifp);
 int if_setdev(if_t ifp, void *dev);
 int if_setdrvflagbits(if_t ifp, int if_setflags, int clear_flags);
 int if_getdrvflags(const if_t ifp);
