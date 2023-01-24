@@ -1121,7 +1121,7 @@ dt_vopen(int version, int flags, int *errp,
 		if (modfind("linuxelf") >= 0)
 			kldload("systrace_linux32");
 #else
-		if (modfind("linuxelf") >= 0) {
+		if (modfind("linuxelf") >= 0)
 			kldload("systrace_linux");
 #endif
 		dtfd = open("/dev/dtrace/dtrace", O_RDWR | O_CLOEXEC);
