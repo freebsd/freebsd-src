@@ -1634,7 +1634,7 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 20160708:
 	The stable/11 branch has been created from head@r302406.
 
-After branch N is created, entriels older than the N-2 branch point are removed
+After branch N is created, entries older than the N-2 branch point are removed
 from this file. After stable/14 is branched and current becomes FreeBSD 15,
 entries older than stable/12 branch point will be removed from current's
 UPDATING file.
