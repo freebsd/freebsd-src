@@ -250,9 +250,9 @@ ath_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 		sc->sc_stats.ast_rx_packets = 0;
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 			ifp = vap->iv_ifp;
-			sc->sc_stats.ast_tx_packets += ifp->if_get_counter(ifp,
+			sc->sc_stats.ast_tx_packets += if_getcounter(ifp,
 			    IFCOUNTER_OPACKETS);
-			sc->sc_stats.ast_rx_packets += ifp->if_get_counter(ifp,
+			sc->sc_stats.ast_rx_packets += if_getcounter(ifp,
 			    IFCOUNTER_IPACKETS);
 		}
 		sc->sc_stats.ast_tx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgtxrssi);
