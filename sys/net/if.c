@@ -4809,6 +4809,12 @@ if_setdebugnet_methods(if_t ifp, struct debugnet_methods *m)
 	ifp->if_debugnet_methods = m;
 }
 
+int
+if_gettype(if_t ifp)
+{
+	return (ifp->if_type);
+}
+
 #ifdef DDB
 static void
 if_show_ifnet(struct ifnet *ifp)

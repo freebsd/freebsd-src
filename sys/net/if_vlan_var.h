@@ -143,15 +143,15 @@ struct ether_8021q_tag {
 } while (0)
 
 #define	VLAN_TRUNKDEV(_ifp)					\
-	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL)
+	(if_gettype(_ifp) == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL)
 #define	VLAN_TAG(_ifp, _vid)					\
-	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_vid)) : EINVAL)
+	(if_gettype(_ifp) == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_vid)) : EINVAL)
 #define	VLAN_PCP(_ifp, _pcp)					\
-	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_pcp_p)((_ifp), (_pcp)) : EINVAL)
+	(if_gettype(_ifp) == IFT_L2VLAN ? (*vlan_pcp_p)((_ifp), (_pcp)) : EINVAL)
 #define	VLAN_COOKIE(_ifp)					\
-	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_cookie_p)((_ifp)) : NULL)
+	(if_gettype(_ifp) == IFT_L2VLAN ? (*vlan_cookie_p)((_ifp)) : NULL)
 #define	VLAN_SETCOOKIE(_ifp, _cookie)				\
-	((_ifp)->if_type == IFT_L2VLAN ?			\
+	(if_gettype(_ifp) == IFT_L2VLAN ?			\
 	    (*vlan_setcookie_p)((_ifp), (_cookie)) : EINVAL)
 #define	VLAN_DEVAT(_ifp, _vid)					\
 	((_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL)
