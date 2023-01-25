@@ -1,6 +1,5 @@
-/* $FreeBSD$ */
 /*
-** $Id: luaconf.h,v 1.259 2016/12/22 13:08:50 roberto Exp $
+** $Id: luaconf.h $
 ** Configuration file for Lua
 ** See Copyright Notice in lua.h
 */
@@ -218,7 +217,7 @@
 #define LUA_LDIR       LUA_ROOT "share/"
 #define LUA_CDIR       LUA_ROOT "lib/"
 
-#ifndef LUA_PATH_DEFAULT
+#if !defined(LUA_PATH_DEFAULT)
 #define LUA_PATH_DEFAULT  \
 		LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
 		LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua;" \
@@ -432,6 +431,7 @@
 #define l_mathop(op)		op##f
 
 #define lua_str2number(s,p)	strtof((s), (p))
+
 
 #elif LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE	/* }{ long double */
 
@@ -783,3 +783,4 @@
 
 
 #endif
+
