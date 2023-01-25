@@ -109,6 +109,4 @@ options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
 
 # Firmware
-device		scmi			# System Control Management Interface
-
 device		mmio_sram		# Generic on-chip SRAM
