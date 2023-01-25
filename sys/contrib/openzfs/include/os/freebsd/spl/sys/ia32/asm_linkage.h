@@ -27,40 +27,23 @@
 #ifndef _IA32_SYS_ASM_LINKAGE_H
 #define	_IA32_SYS_ASM_LINKAGE_H
 
-#include <sys/stack.h>
-#include <sys/trap.h>
-
-#if defined(_KERNEL) && defined(__linux__)
-#include <linux/linkage.h>
-#endif
-
-#ifndef ENDBR
-#if defined(__ELF__) && defined(__CET__) && defined(__has_include)
-/* CSTYLED */
-#if __has_include(<cet.h>)
-
-#include <cet.h>
-
-#ifdef _CET_ENDBR
-#define	ENDBR	_CET_ENDBR
-#endif /* _CET_ENDBR */
-
-#endif /* <cet.h> */
-#endif /* __ELF__ && __CET__ && __has_include */
-#endif /* !ENDBR */
-
-#ifndef ENDBR
-#define	ENDBR
-#endif
-#ifndef RET
 #define	RET	ret
-#endif
+
+/* Tell compiler to call assembler like Unix */
+#undef ASMABI
+#define	ASMABI	__attribute__((sysv_abi))
+
+#define	ENDBR
+
+#define	SECTION_TEXT .text
+#define	SECTION_STATIC .data
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 #ifdef _ASM	/* The remainder of this file is only for assembly files */
+
 
 /*
  * make annoying differences in assembler syntax go away
@@ -142,19 +125,22 @@ extern "C" {
  * insert the calls to mcount for profiling. ENTRY_NP is identical, but
  * never calls mcount.
  */
-#undef ENTRY
 #define	ENTRY(x) \
 	.text; \
-	.align	ASM_ENTRY_ALIGN; \
+	.balign	ASM_ENTRY_ALIGN; \
 	.globl	x; \
-	.type	x, @function; \
 x:	MCOUNT(x)
 
 #define	ENTRY_NP(x) \
 	.text; \
-	.align	ASM_ENTRY_ALIGN; \
+	.balign	ASM_ENTRY_ALIGN; \
 	.globl	x; \
-	.type	x, @function; \
+x:
+
+#define	ENTRY_ALIGN(x, a) \
+	.text; \
+	.balign	a; \
+	.globl	x; \
 x:
 
 /*
@@ -162,19 +148,15 @@ x:
  */
 #define	ENTRY2(x, y) \
 	.text;	\
-	.align	ASM_ENTRY_ALIGN; \
+	.balign	ASM_ENTRY_ALIGN; \
 	.globl	x, y; \
-	.type	x, @function; \
-	.type	y, @function; \
 x:; \
 y:	MCOUNT(x)
 
 #define	ENTRY_NP2(x, y) \
 	.text; \
-	.align	ASM_ENTRY_ALIGN; \
+	.balign	ASM_ENTRY_ALIGN; \
 	.globl	x, y; \
-	.type	x, @function; \
-	.type	y, @function; \
 x:; \
 y:
 
@@ -182,8 +164,10 @@ y:
 /*
  * SET_SIZE trails a function and set the size for the ELF symbol table.
  */
-#define	SET_SIZE(x) \
-	.size	x, [.-x]
+#define	SET_SIZE(x)
+
+#define	SET_OBJ(x)
+
 
 #endif /* _ASM */
 

@@ -138,6 +138,8 @@ zstream_do_recompress(int argc, char *argv[])
 	fletcher_4_init();
 	zio_init();
 	zstd_init();
+	int begin = 0;
+	boolean_t seen = B_FALSE;
 	while (sfread(drr, sizeof (*drr), stdin) != 0) {
 		struct drr_write *drrw;
 		uint64_t payload_size = 0;
@@ -155,8 +157,13 @@ zstream_do_recompress(int argc, char *argv[])
 		case DRR_BEGIN:
 		{
 			ZIO_SET_CHECKSUM(&stream_cksum, 0, 0, 0, 0);
+			VERIFY0(begin++);
+			seen = B_TRUE;
 
-			int sz = drr->drr_payloadlen;
+			uint32_t sz = drr->drr_payloadlen;
+
+			VERIFY3U(sz, <=, 1U << 28);
+
 			if (sz != 0) {
 				if (sz > bufsz) {
 					buf = realloc(buf, sz);
@@ -173,6 +180,13 @@ zstream_do_recompress(int argc, char *argv[])
 		{
 			struct drr_end *drre = &drr->drr_u.drr_end;
 			/*
+			 * We would prefer to just check --begin == 0, but
+			 * replication streams have an end of stream END
+			 * record, so we must avoid tripping it.
+			 */
+			VERIFY3B(seen, ==, B_TRUE);
+			begin--;
+			/*
 			 * Use the recalculated checksum, unless this is
 			 * the END record of a stream package, which has
 			 * no checksum.
@@ -185,6 +199,7 @@ zstream_do_recompress(int argc, char *argv[])
 		case DRR_OBJECT:
 		{
 			struct drr_object *drro = &drr->drr_u.drr_object;
+			VERIFY3S(begin, ==, 1);
 
 			if (drro->drr_bonuslen > 0) {
 				payload_size = DRR_OBJECT_PAYLOAD_SIZE(drro);
@@ -196,12 +211,14 @@ zstream_do_recompress(int argc, char *argv[])
 		case DRR_SPILL:
 		{
 			struct drr_spill *drrs = &drr->drr_u.drr_spill;
+			VERIFY3S(begin, ==, 1);
 			payload_size = DRR_SPILL_PAYLOAD_SIZE(drrs);
 			(void) sfread(buf, payload_size, stdin);
 			break;
 		}
 
 		case DRR_WRITE_BYREF:
+			VERIFY3S(begin, ==, 1);
 			fprintf(stderr,
 			    "Deduplicated streams are not supported\n");
 			exit(1);
@@ -209,6 +226,7 @@ zstream_do_recompress(int argc, char *argv[])
 
 		case DRR_WRITE:
 		{
+			VERIFY3S(begin, ==, 1);
 			drrw = &thedrr.drr_u.drr_write;
 			payload_size = DRR_WRITE_PAYLOAD_SIZE(drrw);
 			/*
@@ -295,6 +313,7 @@ zstream_do_recompress(int argc, char *argv[])
 		{
 			struct drr_write_embedded *drrwe =
 			    &drr->drr_u.drr_write_embedded;
+			VERIFY3S(begin, ==, 1);
 			payload_size =
 			    P2ROUNDUP((uint64_t)drrwe->drr_psize, 8);
 			(void) sfread(buf, payload_size, stdin);
@@ -304,6 +323,7 @@ zstream_do_recompress(int argc, char *argv[])
 		case DRR_FREEOBJECTS:
 		case DRR_FREE:
 		case DRR_OBJECT_RANGE:
+			VERIFY3S(begin, ==, 1);
 			break;
 
 		default:

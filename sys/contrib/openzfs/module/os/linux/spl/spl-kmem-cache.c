@@ -701,7 +701,7 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 
 	skc->skc_magic = SKC_MAGIC;
 	skc->skc_name_size = strlen(name) + 1;
-	skc->skc_name = (char *)kmalloc(skc->skc_name_size, lflags);
+	skc->skc_name = kmalloc(skc->skc_name_size, lflags);
 	if (skc->skc_name == NULL) {
 		kfree(skc);
 		return (NULL);
@@ -791,10 +791,8 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 	} else {
 		unsigned long slabflags = 0;
 
-		if (size > (SPL_MAX_KMEM_ORDER_NR_PAGES * PAGE_SIZE)) {
-			rc = EINVAL;
+		if (size > (SPL_MAX_KMEM_ORDER_NR_PAGES * PAGE_SIZE))
 			goto out;
-		}
 
 #if defined(SLAB_USERCOPY)
 		/*
@@ -815,10 +813,8 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 		skc->skc_linux_cache = kmem_cache_create(
 		    skc->skc_name, size, align, slabflags, NULL);
 #endif
-		if (skc->skc_linux_cache == NULL) {
-			rc = ENOMEM;
+		if (skc->skc_linux_cache == NULL)
 			goto out;
-		}
 	}
 
 	down_write(&spl_kmem_cache_sem);

@@ -170,7 +170,9 @@ struct zfs_cmd;
  * List of colors to use
  */
 #define	ANSI_RED	"\033[0;31m"
+#define	ANSI_GREEN	"\033[0;32m"
 #define	ANSI_YELLOW	"\033[0;33m"
+#define	ANSI_BLUE	"\033[0;34m"
 #define	ANSI_RESET	"\033[0m"
 #define	ANSI_BOLD	"\033[1m"
 
@@ -180,6 +182,13 @@ _LIBZUTIL_H int printf_color(const char *color, const char *format, ...);
 
 _LIBZUTIL_H const char *zfs_basename(const char *path);
 _LIBZUTIL_H ssize_t zfs_dirnamelen(const char *path);
+#ifdef __linux__
+_LIBZUTIL_H void zfs_setproctitle_init(int argc, char *argv[], char *envp[]);
+_LIBZUTIL_H void zfs_setproctitle(const char *fmt, ...);
+#else
+#define	zfs_setproctitle(fmt, ...)	setproctitle(fmt, ##__VA_ARGS__)
+#define	zfs_setproctitle_init(x, y, z)	((void)0)
+#endif
 
 /*
  * These functions are used by the ZFS libraries and cmd/zpool code, but are

@@ -15,7 +15,7 @@
 .\" own identifying information:
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\"
-.Dd November 9, 2022
+.Dd January 10, 2023
 .Dt ZFS 4
 .Os
 .
@@ -238,6 +238,12 @@ relative to the pool.
 .It Sy metaslab_force_ganging Ns = Ns Sy 16777217 Ns B Po 16 MiB + 1 B Pc Pq u64
 Make some blocks above a certain size be gang blocks.
 This option is used by the test suite to facilitate testing.
+.
+.It Sy zfs_default_bs Ns = Ns Sy 9 Po 512 B Pc Pq int
+Default dnode block size as a power of 2.
+.
+.It Sy zfs_default_ibs Ns = Ns Sy 17 Po 128 KiB Pc Pq int
+Default dnode indirect block size as a power of 2.
 .
 .It Sy zfs_history_output_max Ns = Ns Sy 1048576 Ns B Po 1 MiB Pc Pq u64
 When attempting to log an output nvlist of an ioctl in the on-disk history,
@@ -495,6 +501,10 @@ If set, when we start iterating over a ZAP object,
 prefetch the entire object (all leaf blocks).
 However, this is limited by
 .Sy dmu_prefetch_max .
+.
+.It Sy zap_micro_max_size Ns = Ns Sy 131072 Ns B Po 128 KiB Pc Pq int
+Maximum micro ZAP size.
+A micro ZAP is upgraded to a fat ZAP, once it grows beyond the specified size.
 .
 .It Sy zfetch_array_rd_sz Ns = Ns Sy 1048576 Ns B Po 1 MiB Pc Pq u64
 If prefetching is enabled, disable prefetching for reads larger than this size.
@@ -1094,7 +1104,10 @@ This parameter takes precedence over
 .No See Sx ZFS TRANSACTION DELAY .
 .Pp
 Defaults to
-.Sy physical_ram/4 ,
+.Sy min(physical_ram/4, 4GiB) ,
+or
+.Sy min(physical_ram/4, 1GiB)
+for 32-bit systems.
 .
 .It Sy zfs_dirty_data_max_max_percent Ns = Ns Sy 25 Ns % Pq uint
 Maximum allowable value of
@@ -1391,7 +1404,7 @@ _
 *	2	ZFS_DEBUG_DBUF_VERIFY	Enable extra dbuf verifications.
 *	4	ZFS_DEBUG_DNODE_VERIFY	Enable extra dnode verifications.
 	8	ZFS_DEBUG_SNAPNAMES	Enable snapshot name verification.
-	16	ZFS_DEBUG_MODIFY	Check for illegally modified ARC buffers.
+*	16	ZFS_DEBUG_MODIFY	Check for illegally modified ARC buffers.
 	64	ZFS_DEBUG_ZIO_FREE	Enable verification of block frees.
 	128	ZFS_DEBUG_HISTOGRAM_VERIFY	Enable extra spacemap histogram verifications.
 	256	ZFS_DEBUG_METASLAB_VERIFY	Verify space accounting on disk matches in-memory \fBrange_trees\fP.
@@ -2195,6 +2208,13 @@ This sets the maximum block size used by the ZIL.
 On very fragmented pools, lowering this
 .Pq typically to Sy 36 KiB
 can improve performance.
+.
+.It Sy zil_min_commit_timeout Ns = Ns Sy 5000 Pq u64
+This sets the minimum delay in nanoseconds ZIL care to delay block commit,
+waiting for more records.
+If ZIL writes are too fast, kernel may not be able sleep for so short interval,
+increasing log latency above allowed by
+.Sy zfs_commit_timeout_pct .
 .
 .It Sy zil_nocacheflush Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Disable the cache flush commands that are normally sent to disk by

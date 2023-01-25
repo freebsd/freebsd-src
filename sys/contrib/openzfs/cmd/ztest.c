@@ -443,7 +443,7 @@ static ztest_info_t ztest_info[] = {
 	ZTI_INIT(ztest_dmu_commit_callbacks, 1, &zopt_always),
 	ZTI_INIT(ztest_zap, 30, &zopt_always),
 	ZTI_INIT(ztest_zap_parallel, 100, &zopt_always),
-	ZTI_INIT(ztest_split_pool, 1, &zopt_always),
+	ZTI_INIT(ztest_split_pool, 1, &zopt_sometimes),
 	ZTI_INIT(ztest_zil_commit, 1, &zopt_incessant),
 	ZTI_INIT(ztest_zil_remount, 1, &zopt_sometimes),
 	ZTI_INIT(ztest_dmu_read_write_zcopy, 1, &zopt_often),
@@ -1133,14 +1133,14 @@ process_options(int argc, char **argv)
 		const char *invalid_what = "ztest";
 		char *val = zo->zo_alt_ztest;
 		if (0 != access(val, X_OK) ||
-		    (strrchr(val, '/') == NULL && (errno = EINVAL)))
+		    (strrchr(val, '/') == NULL && (errno == EINVAL)))
 			goto invalid;
 
 		int dirlen = strrchr(val, '/') - val;
 		strlcpy(zo->zo_alt_libpath, val,
 		    MIN(sizeof (zo->zo_alt_libpath), dirlen + 1));
 		invalid_what = "library path", val = zo->zo_alt_libpath;
-		if (strrchr(val, '/') == NULL && (errno = EINVAL))
+		if (strrchr(val, '/') == NULL && (errno == EINVAL))
 			goto invalid;
 		*strrchr(val, '/') = '\0';
 		strlcat(val, "/lib", sizeof (zo->zo_alt_libpath));
@@ -2790,12 +2790,12 @@ ztest_io(ztest_ds_t *zd, uint64_t object, uint64_t offset)
 		err = ztest_dsl_prop_set_uint64(zd->zd_name,
 		    ZFS_PROP_CHECKSUM, spa_dedup_checksum(ztest_spa),
 		    B_FALSE);
-		VERIFY(err == 0 || err == ENOSPC);
+		ASSERT(err == 0 || err == ENOSPC);
 		err = ztest_dsl_prop_set_uint64(zd->zd_name,
 		    ZFS_PROP_COMPRESSION,
 		    ztest_random_dsl_prop(ZFS_PROP_COMPRESSION),
 		    B_FALSE);
-		VERIFY(err == 0 || err == ENOSPC);
+		ASSERT(err == 0 || err == ENOSPC);
 		(void) pthread_rwlock_unlock(&ztest_name_lock);
 
 		VERIFY0(dmu_read(zd->zd_os, object, offset, blocksize, data,
@@ -3347,8 +3347,9 @@ ztest_vdev_class_add(ztest_ds_t *zd, uint64_t id)
 	    spa_special_class(spa)->mc_groups == 1 && ztest_random(2) == 0) {
 		if (ztest_opts.zo_verbose >= 3)
 			(void) printf("Enabling special VDEV small blocks\n");
-		(void) ztest_dsl_prop_set_uint64(zd->zd_name,
+		error = ztest_dsl_prop_set_uint64(zd->zd_name,
 		    ZFS_PROP_SPECIAL_SMALL_BLOCKS, 32768, B_FALSE);
+		ASSERT(error == 0 || error == ENOSPC);
 	}
 
 	mutex_exit(&ztest_vdev_lock);
@@ -3597,6 +3598,7 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	int newvd_is_spare = B_FALSE;
 	int newvd_is_dspare = B_FALSE;
 	int oldvd_is_log;
+	int oldvd_is_special;
 	int error, expected_error;
 
 	if (ztest_opts.zo_mmp_test)
@@ -3671,6 +3673,9 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	oldguid = oldvd->vdev_guid;
 	oldsize = vdev_get_min_asize(oldvd);
 	oldvd_is_log = oldvd->vdev_top->vdev_islog;
+	oldvd_is_special =
+	    oldvd->vdev_top->vdev_alloc_bias == VDEV_BIAS_SPECIAL ||
+	    oldvd->vdev_top->vdev_alloc_bias == VDEV_BIAS_DEDUP;
 	(void) strlcpy(oldpath, oldvd->vdev_path, MAXPATHLEN);
 	pvd = oldvd->vdev_parent;
 	pguid = pvd->vdev_guid;
@@ -3749,7 +3754,8 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	    pvd->vdev_ops == &vdev_replacing_ops ||
 	    pvd->vdev_ops == &vdev_spare_ops))
 		expected_error = ENOTSUP;
-	else if (newvd_is_spare && (!replacing || oldvd_is_log))
+	else if (newvd_is_spare &&
+	    (!replacing || oldvd_is_log || oldvd_is_special))
 		expected_error = ENOTSUP;
 	else if (newvd == oldvd)
 		expected_error = replacing ? 0 : EBUSY;
@@ -4293,7 +4299,7 @@ ztest_snapshot_create(char *osname, uint64_t id)
 		ztest_record_enospc(FTAG);
 		return (B_FALSE);
 	}
-	if (error != 0 && error != EEXIST) {
+	if (error != 0 && error != EEXIST && error != ECHRNG) {
 		fatal(B_FALSE, "ztest_snapshot_create(%s@%s) = %d", osname,
 		    snapname, error);
 	}
@@ -4310,7 +4316,7 @@ ztest_snapshot_destroy(char *osname, uint64_t id)
 	    osname, id);
 
 	error = dsl_destroy_snapshot(snapname, B_FALSE);
-	if (error != 0 && error != ENOENT)
+	if (error != 0 && error != ENOENT && error != ECHRNG)
 		fatal(B_FALSE, "ztest_snapshot_destroy(%s) = %d",
 		    snapname, error);
 	return (B_TRUE);
@@ -4359,9 +4365,16 @@ ztest_dmu_objset_create_destroy(ztest_ds_t *zd, uint64_t id)
 
 	/*
 	 * Verify that the destroyed dataset is no longer in the namespace.
+	 * It may still be present if the destroy above fails with ENOSPC.
 	 */
-	VERIFY3U(ENOENT, ==, ztest_dmu_objset_own(name, DMU_OST_OTHER, B_TRUE,
-	    B_TRUE, FTAG, &os));
+	error = ztest_dmu_objset_own(name, DMU_OST_OTHER, B_TRUE, B_TRUE,
+	    FTAG, &os);
+	if (error == 0) {
+		dmu_objset_disown(os, B_TRUE, FTAG);
+		ztest_record_enospc(FTAG);
+		goto out;
+	}
+	VERIFY3U(ENOENT, ==, error);
 
 	/*
 	 * Verify that we can create a new dataset.
@@ -5834,12 +5847,15 @@ ztest_dsl_prop_get_set(ztest_ds_t *zd, uint64_t id)
 
 	(void) pthread_rwlock_rdlock(&ztest_name_lock);
 
-	for (int p = 0; p < sizeof (proplist) / sizeof (proplist[0]); p++)
-		(void) ztest_dsl_prop_set_uint64(zd->zd_name, proplist[p],
+	for (int p = 0; p < sizeof (proplist) / sizeof (proplist[0]); p++) {
+		int error = ztest_dsl_prop_set_uint64(zd->zd_name, proplist[p],
 		    ztest_random_dsl_prop(proplist[p]), (int)ztest_random(2));
+		ASSERT(error == 0 || error == ENOSPC);
+	}
 
-	VERIFY0(ztest_dsl_prop_set_uint64(zd->zd_name, ZFS_PROP_RECORDSIZE,
-	    ztest_random_blocksize(), (int)ztest_random(2)));
+	int error = ztest_dsl_prop_set_uint64(zd->zd_name, ZFS_PROP_RECORDSIZE,
+	    ztest_random_blocksize(), (int)ztest_random(2));
+	ASSERT(error == 0 || error == ENOSPC);
 
 	(void) pthread_rwlock_unlock(&ztest_name_lock);
 }
@@ -6313,7 +6329,7 @@ ztest_scrub_impl(spa_t *spa)
 	while (dsl_scan_scrubbing(spa_get_dsl(spa)))
 		txg_wait_synced(spa_get_dsl(spa), 0);
 
-	if (spa_get_errlog_size(spa) > 0)
+	if (spa_approx_errlog_size(spa) > 0)
 		return (ECKSUM);
 
 	ztest_pool_scrubbed = B_TRUE;
