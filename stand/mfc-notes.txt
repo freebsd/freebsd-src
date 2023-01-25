@@ -1,4 +1,4 @@
-Stand has been merged from main:4883f347f6ed. The following hashes can't be
+Stand has been merged through main:4410e857965e. The following hashes can't be
 merged for the reasons listed.
 
 b366ee4868bc already merged with ZFS
@@ -29,3 +29,7 @@ ed68931c3f9c geliboot: Use the multi-block functions for AES-XTS.
 20b23ae74b2b mips is still in stable/13
 8cc2156f85bb We're not 14, yet
 44796b7e822e beri uses this, it seems, and is still in stable/13
+
+Also, BERI was removed with the permission of the originators since all that
+hardware has been retired.
+
