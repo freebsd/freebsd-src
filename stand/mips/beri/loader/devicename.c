@@ -85,7 +85,7 @@ static int
 beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
     const char **path)
 {
-    struct disk_devdesc *idev;
+    struct devdesc	*idev;
     struct devsw	*dv;
     int			i, unit, err;
     char		*cp;
@@ -113,7 +113,8 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
 	break;
 
     case DEVT_DISK:
-	err = disk_parsedev(idev, np, path);
+	free(idev);
+	err = disk_parsedev(&idev, np, path);
 	if (err != 0)
 	    goto fail;
 	break;
@@ -139,7 +140,7 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
 	    goto fail;
 	}
 
-	idev->dd.d_unit = unit;
+	idev->d_unit = unit;
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
@@ -148,11 +149,11 @@ beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
 	err = EINVAL;
 	goto fail;
     }
-    idev->dd.d_dev = dv;
+    idev->d_dev = dv;
     if (dev == NULL) {
 	free(idev);
     } else {
-	*dev = idev;
+	*dev = (struct disk_devdesc *)idev;
     }
     return(0);
 
