@@ -1,9 +1,10 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,55 +30,32 @@
  * $FreeBSD$
  */
 
-/*
- * DEFS.H
- */
+#ifndef _BOOT_LOADER_H_
+#define	_BOOT_LOADER_H_
 
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
+/* beri_console.c */
+extern struct console	 altera_jtag_uart_console;
 
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
+/* beri_disk.c */
+extern struct devsw	 beri_cfi_disk;
+extern struct devsw	 beri_sdcard_disk;
 
-#include <sys/stdint.h>
-#include "stand.h"
-#include "zalloc_mem.h"
+/* devicename.c */
+struct env_var;
+int	 beri_arch_setcurrdev(struct env_var *, int, const void *);
+char	*beri_arch_fmtdev(void *);
+int	 beri_arch_getdev(void **, const char *, const char **);
 
-#define	Library extern
+/* exec.c */
+extern struct file_format	beri_elf;
 
-/*
- * block extension for sbrk()
- */
+/* main.c */
+extern int		 boot2_argc;
+extern char		**boot2_argv;
+extern char		**boot2_envv;
+extern struct bootinfo	 boot2_bootinfo;
 
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
+/* metadata.c */
+int	md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtbp);
 
-/*
- * Required malloc alignment.
- *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
- */
-
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
-
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
-
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
-
-#include "zalloc_protos.h"
-
-#endif	/* _ZALLOC_DEFS_H */
+#endif /* !_BOOT_LOADER_H_ */

@@ -1,9 +1,10 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright (c) 2013 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,55 +30,46 @@
  * $FreeBSD$
  */
 
-/*
- * DEFS.H
- */
-
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
-
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
-
-#include <sys/stdint.h>
 #include "stand.h"
-#include "zalloc_mem.h"
-
-#define	Library extern
-
-/*
- * block extension for sbrk()
- */
-
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
+#include "mips.h"
+#include "cfi.h"
 
 /*
- * Required malloc alignment.
+ * Memory-mapped Intel StrataFlash mini-driver.  Very mini.  Nothing fancy --
+ * and few seatbelts.
  *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
+ * XXXRW: Should we be making some effort to reset isf to a known-good state
+ * before starting, in case there was a soft reset mid-transaction.
+ *
+ * XXXRW: Would be nice to support multiple devices and also handle SD cards
+ * here ... and probably not too hard.
  */
+extern void	*__cheri_flash_bootfs_vaddr__;
+extern void	*__cheri_flash_bootfs_len__;
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
+#define	CHERI_BOOTFS_BASE	((uintptr_t)&__cheri_flash_bootfs_vaddr__)
+#define	CHERI_BOOTFS_LENGTH	((uintptr_t)&__cheri_flash_bootfs_len__)
 
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
+int
+cfi_read(void *buf, unsigned lba, unsigned nblk)
+{
 
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
+	if ((lba << 9) + (nblk << 9) > CHERI_BOOTFS_LENGTH)
+		return (-1);
+	memcpy(buf, (void *)(CHERI_BOOTFS_BASE + (lba << 9)), nblk << 9);
+	return (0);
+}
 
-#include "zalloc_protos.h"
+uint64_t
+cfi_get_mediasize(void)
+{
 
-#endif	/* _ZALLOC_DEFS_H */
+	return (CHERI_BOOTFS_LENGTH);
+}
+
+uint64_t
+cfi_get_sectorsize(void)
+{
+
+	return (512);	/* Always a good sector size. */
+}

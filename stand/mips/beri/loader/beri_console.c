@@ -1,9 +1,10 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright (c) 2013 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,59 +26,65 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * DEFS.H
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
+#include <sys/param.h>
 
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
+#include <bootstrap.h>
 
-#include <sys/stdint.h>
-#include "stand.h"
-#include "zalloc_mem.h"
+#include <cons.h>
 
-#define	Library extern
+static void	c_probe(struct console *);
+static int	c_init(int);
+static void	c_out(int);
+static int	c_in(void);
+static int	c_ready(void);
 
-/*
- * block extension for sbrk()
- */
+struct console altera_jtag_uart_console = {
+	.c_name = "comconsole",
+	.c_desc = "altera jtag uart",
+	.c_flags = 0,
+	.c_probe = c_probe,
+	.c_init = c_init,
+	.c_out = c_out,
+	.c_in = c_in,
+	.c_ready = c_ready,
+};
 
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
+static void
+c_probe(struct console *cp)
+{
 
-/*
- * Required malloc alignment.
- *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
- */
+	cp->c_flags |= C_PRESENTIN|C_PRESENTOUT;
+}
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
+static int
+c_init(int arg)
+{
 
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
+	return (0);
+}
 
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
+static void
+c_out(int c)
+{
 
-#include "zalloc_protos.h"
+	beri_putc(c);
+}
 
-#endif	/* _ZALLOC_DEFS_H */
+static int
+c_in(void)
+{
+
+	return (beri_getc());
+}
+
+static int
+c_ready(void)
+{
+
+	return (keyhit(0));
+}

@@ -1,8 +1,5 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright (c) 2016 Stanislav Galabov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,55 +26,46 @@
  * $FreeBSD$
  */
 
-/*
- * DEFS.H
- */
+#include <machine/asm.h>
 
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
-
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
-
-#include <sys/stdint.h>
-#include "stand.h"
-#include "zalloc_mem.h"
-
-#define	Library extern
+	.text
+	.extern _C_LABEL(main)
+	.weak	_DYNAMIC
 
 /*
- * block extension for sbrk()
+ * Entry point to the loader that U-Boot passes control to.
  */
-
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
+ENTRY(_start)
+	PTR_S	sp, uboot_address
+	j	main
+	nop
+END(_start)
 
 /*
- * Required malloc alignment.
- *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
+ * syscall()
  */
+ENTRY(syscall)
+	PTR_S	ra, ret_address
+	PTR_L	t9, syscall_ptr
+	jalr	t9
+	nop
+	PTR_L	ra, ret_address
+	jr	ra
+	nop
+END(syscall)
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
+/*
+ * Data section
+ */
+	.data
+	.align	8
+	.globl	syscall_ptr
+syscall_ptr:
+	.dword	0
 
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
+	.globl	uboot_address
+uboot_address:
+	.dword	0
 
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
-
-#include "zalloc_protos.h"
-
-#endif	/* _ZALLOC_DEFS_H */
+ret_address:
+	.dword	0

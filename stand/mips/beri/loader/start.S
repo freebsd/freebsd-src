@@ -1,9 +1,10 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright (c) 2013 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,59 +26,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * DEFS.H
- */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
+.set mips64
+.set noreorder
+.set nobopt
+.set noat
 
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
+ASM_ENTRY(__start)
+VECTOR(_loader_start, unknown)
+	/* Not much here yet. */
+	jal	main
+	nop
 
-#include <sys/stdint.h>
-#include "stand.h"
-#include "zalloc_mem.h"
-
-#define	Library extern
-
-/*
- * block extension for sbrk()
- */
-
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
-
-/*
- * Required malloc alignment.
- *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
- */
-
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
-
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
-
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
-
-#include "zalloc_protos.h"
-
-#endif	/* _ZALLOC_DEFS_H */
+	/* If main() returns, spin. */
+loop:
+	b loop
+	nop
+VECTOR_END(_loader_start)

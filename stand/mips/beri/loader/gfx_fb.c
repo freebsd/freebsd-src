@@ -1,8 +1,5 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright 2021 Toomas Soome <tsoome@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,59 +22,57 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
- * DEFS.H
+ * mips beri specific gfx stubs.
  */
 
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
+#include <sys/types.h>
+#include <pnglite.h>
+#include "bootstrap.h"
+#include "gfx_fb.h"
 
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
+font_list_t fonts = STAILQ_HEAD_INITIALIZER(fonts);
+teken_gfx_t gfx_state = { 0 };
 
-#include <sys/stdint.h>
-#include "stand.h"
-#include "zalloc_mem.h"
+void
+gfx_fb_setpixel(uint32_t x __unused, uint32_t y __unused)
+{
+}
 
-#define	Library extern
+void
+gfx_fb_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
+    uint32_t x2 __unused, uint32_t y2 __unused, uint32_t fill __unused)
+{
+}
 
-/*
- * block extension for sbrk()
- */
+void
+gfx_term_drawrect(uint32_t x1 __unused, uint32_t y1 __unused,
+    uint32_t x2 __unused, uint32_t y2 __unused)
+{
+}
 
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
+void
+gfx_fb_line(uint32_t x0 __unused, uint32_t y0 __unused,
+    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t w __unused)
+{
+}
 
-/*
- * Required malloc alignment.
- *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
- */
+void
+gfx_fb_bezier(uint32_t x0 __unused, uint32_t y0 __unused,
+    uint32_t x1 __unused, uint32_t y1 __unused, uint32_t x2 __unused,
+    uint32_t y2 __unused, uint32_t w __unused)
+{
+}
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
-
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
-
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
-
-#include "zalloc_protos.h"
-
-#endif	/* _ZALLOC_DEFS_H */
+int
+gfx_fb_putimage(png_t *png __unused, uint32_t ux1 __unused,
+    uint32_t uy1 __unused, uint32_t ux2 __unused, uint32_t uy2 __unused,
+    uint32_t flags __unused)
+{
+	return (1);
+}

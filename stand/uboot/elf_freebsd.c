@@ -31,6 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/linker.h>
 
+#ifdef __mips__
+#include <sys/proc.h>
+#include <machine/frame.h>
+#endif
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/elf.h>

@@ -4,6 +4,8 @@
 
 .if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1
 FICL_CPUARCH=	i386
+.elif ${MACHINE_ARCH:Mmips64*} != ""
+FICL_CPUARCH=	mips64
 .else
 FICL_CPUARCH=	${MACHINE_CPUARCH}
 .endif

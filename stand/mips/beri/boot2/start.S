@@ -1,9 +1,10 @@
-/*
- * This module derived from code donated to the FreeBSD Project by
- * Matthew Dillon <dillon@backplane.com>
- *
- * Copyright (c) 1998 The FreeBSD Project
+/*-
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,55 +30,53 @@
  * $FreeBSD$
  */
 
-/*
- * DEFS.H
- */
-
-#ifndef _ZALLOC_DEFS_H
-#define	_ZALLOC_DEFS_H
-
-#define	USEGUARD		/* use stard/end guard bytes */
-#define	USEENDGUARD
-#define	DMALLOCDEBUG		/* add debugging code to gather stats */
-#define	ZALLOCDEBUG
-
-#include <sys/stdint.h>
-#include "stand.h"
-#include "zalloc_mem.h"
-
-#define	Library extern
+.set mips64
+.set noreorder
+.set nobopt
+.set noat
 
 /*
- * block extension for sbrk()
- */
-
-#define	BLKEXTEND	(4 * 1024)
-#define	BLKEXTENDMASK	(BLKEXTEND - 1)
-
-/*
- * Required malloc alignment.
+ * Save arguments from the BERI firmware for use in C-land, and jump into
+ * main.  Assume that registers/stack/etc are sufficiently initialised to get
+ * going.  Notice that we use only temporaries while relocating, as we want to
+ * retain argument registers to pass in to main().
  *
- * Embedded platforms using the u-boot API drivers require that all I/O buffers
- * be on a cache line sized boundary.  The worst case size for that is 64 bytes.
- * For other platforms, 16 bytes works fine.  The alignment also must be at
- * least sizeof(struct MemNode); this is asserted in zalloc.c.
+ * Note slightly surprising structure: boot2 is linked for a specific address,
+ * but we may start running the code somewhere else (e.g., in DRAM as inserted
+ * with JTAG, or in flash).  The starting assembly is therefore PIC, but the
+ * main body of the code is not PIC.
  */
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
-#define	MALLOCALIGN		64
-#else
-#define	MALLOCALIGN		16
-#endif
-#define	MALLOCALIGN_MASK	(MALLOCALIGN - 1)
 
-typedef struct Guard {
-	size_t	ga_Bytes;
-	size_t	ga_Magic;	/* must be at least 32 bits */
-} Guard;
+		.text
+		.global start
+		.ent start
+start:
 
-#define	GAMAGIC		0x55FF44FD
-#define	GAFREE		0x5F54F4DF
+		/*
+		 * Zero BSS.  Run from cached memory as this will speed up
+		 * code execution noticeably.  Assuming 64-bit alignment of
+		 * everything here.
+		 */
+		dla	$t0, __bss_start
+		dla	$t1, __bss_end
 
-#include "zalloc_protos.h"
+bss_loop:
+		beq	$t0, $t1, bss_done
+		nop
+		sd	$zero, 0($t0)
+		daddiu	$t0, 8
+		b	bss_loop
+		nop
 
-#endif	/* _ZALLOC_DEFS_H */
+bss_done:
+		jal	main
+		nop
+
+		/*
+		 * Ideally we wouldn't get here, but just in case.
+		 */
+loop:
+		b	loop
+		nop
+		.end start
