@@ -52,6 +52,16 @@ extern void	intrtab_setup(struct rman *newmgr);
 extern void	intrtab_init(void);
 
 /*
+ * Allocate a block of interrupt numbers
+ */
+extern struct resource *intrtab_alloc_intr(device_t dev, u_int count);
+
+/*
+ * Release a block of interrupt numbers
+ */
+extern void	intrtab_release_intr(struct resource *res);
+
+/*
  * Set the interrupt associated with an interrupt number
  *
  * res: resource indicating ownership of interrupt number.

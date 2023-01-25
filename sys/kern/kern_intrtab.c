@@ -66,6 +66,34 @@ intrtab_init(void)
 	table -= mgr->rm_start;
 }
 
+/*
+ * Allocate a block of interrupt numbers
+ */
+struct resource *
+intrtab_alloc_intr(device_t dev, u_int count)
+{
+
+	return (rman_reserve_resource(mgr, 0, ~0, count,
+	    RF_ACTIVE | RF_UNMAPPED, dev));
+}
+
+/*
+ * Release a block of interrupt numbers
+ */
+void
+intrtab_release_intr(struct resource *range)
+{
+	u_long i;
+
+	if (range == NULL || !rman_is_region_manager(range, mgr))
+		return;
+
+	for (i = rman_get_start(range); i <= rman_get_end(range); ++i)
+		table[i] = NULL;
+
+	rman_release_resource(range);
+}
+
 int
 intrtab_set(struct resource *res, u_int intr, interrupt_t *new,
     const interrupt_t *const old)
