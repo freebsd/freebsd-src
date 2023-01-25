@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
 ** $Id: luaconf.h $
 ** Configuration file for Lua
@@ -83,7 +82,7 @@
 */
 #define LUAI_IS32INT	((UINT_MAX >> 30) >= 3)
 
-/* }================================================================== */         
+/* }================================================================== */
 
 
 
@@ -203,6 +202,7 @@
 #define LUA_LDIR	"!\\lua\\"
 #define LUA_CDIR	"!\\"
 #define LUA_SHRDIR	"!\\..\\share\\lua\\" LUA_VDIR "\\"
+
 #if !defined(LUA_PATH_DEFAULT)
 #define LUA_PATH_DEFAULT  \
 		LUA_LDIR"?.lua;"  LUA_LDIR"?\\init.lua;" \
@@ -211,7 +211,7 @@
 		".\\?.lua;" ".\\?\\init.lua"
 #endif
 
-#if !define(LUA_CPATH_DEFAULT)
+#if !defined(LUA_CPATH_DEFAULT)
 #define LUA_CPATH_DEFAULT \
 		LUA_CDIR"?.dll;" \
 		LUA_CDIR"..\\lib\\lua\\" LUA_VDIR "\\?.dll;" \
