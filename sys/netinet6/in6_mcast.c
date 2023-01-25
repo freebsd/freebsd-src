@@ -346,6 +346,31 @@ im6o_mc_filter(const struct ip6_moptions *imo, const struct ifnet *ifp,
 }
 
 /*
+ * Look up an in6_multi record for an IPv6 multicast address
+ * on the interface ifp.
+ * If no record found, return NULL.
+ *
+ * SMPng: The IN6_MULTI_LOCK and must be held and must be in network epoch.
+ */
+struct in6_multi *
+in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
+{
+	struct ifmultiaddr *ifma;
+	struct in6_multi *inm;
+
+	NET_EPOCH_ASSERT();
+
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		inm = in6m_ifmultiaddr_get_inm(ifma);
+		if (inm == NULL)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
+			return (inm);
+	}
+	return (NULL);
+}
+
+/*
  * Find and return a reference to an in6_multi record for (ifp, group),
  * and bump its reference count.
  * If one does not exist, try to allocate it, and update link-layer multicast
