@@ -320,8 +320,8 @@ BROKEN_OPTIONS+=LOADER_OFW
 .if ${__T} != "powerpc64" && ${__T} != "amd64"
 BROKEN_OPTIONS+=LOADER_KBOOT
 .endif
-# UBOOT is only for arm, and big-endian powerpc
-.if (${__T:Marm*} == "" && ${__T:Mpowerpc*} == "") || ${__T} == "powerpc64le"
+# UBOOT is only for arm, mips, and big-endian powerpc
+.if (${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == "") || ${__T} == "powerpc64le"
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
 # GELI and Lua in loader currently cause boot failures on powerpc.
