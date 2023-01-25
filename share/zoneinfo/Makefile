@@ -51,7 +51,6 @@ LEAPFILE=
 TZFILES=	africa antarctica asia australasia etcetera europe \
 		factory northamerica southamerica
 TZFILES+=	backward
-POSIXRULES=	America/New_York
 
 TZFILES:=	${TZFILES:S/^/${CONTRIBDIR}/}
 
@@ -78,11 +77,17 @@ all: zoneinfo
 .endif
 META_TARGETS+=	zoneinfo install-zoneinfo
 
+# On amd64, include 32-bit data for compatibility with statically-linked
+# i386 binaries which still use a 32-bit time_t.
+.if ${MACHINE_ARCH} == "amd64"
+ZICFLAGS+=	-b fat
+.endif
+
 zoneinfo: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
 	umask 022; cd ${.CURDIR}; \
-	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
+	zic -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
 	    ${LEAPFILE} ${TZFILES}
 
 #
