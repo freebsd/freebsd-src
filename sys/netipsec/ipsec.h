@@ -336,8 +336,9 @@ void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
 void ipsec4_setsockaddrs(const struct mbuf *, union sockaddr_union *,
     union sockaddr_union *);
 int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
-int ipsec4_check_pmtu(struct mbuf *, struct secpolicy *, int);
-int ipsec4_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
+int ipsec4_check_pmtu(struct ifnet *, struct mbuf *, struct secpolicy *, int);
+int ipsec4_process_packet(struct ifnet *, struct mbuf *, struct secpolicy *,
+    struct inpcb *);
 int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,
     u_int);
 

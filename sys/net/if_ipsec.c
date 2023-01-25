@@ -415,12 +415,12 @@ ipsec_transmit(struct ifnet *ifp, struct mbuf *m)
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		error = ipsec4_process_packet(m, sp, NULL);
+		error = ipsec4_process_packet(ifp, m, sp, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = ipsec6_process_packet(m, sp, NULL);
+		error = ipsec6_process_packet(ifp, m, sp, NULL);
 		break;
 #endif
 	default:

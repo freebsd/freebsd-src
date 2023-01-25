@@ -110,7 +110,8 @@ static size_t ipsec_get_pmtu(struct secasvar *sav);
 
 #ifdef INET
 static struct secasvar *
-ipsec4_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+ipsec4_allocsa(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    u_int *pidx, int *error)
 {
 	struct secasindex *saidx, tmpsaidx;
 	struct ipsecrequest *isr;
@@ -186,7 +187,7 @@ next:
  * IPsec output logic for IPv4.
  */
 static int
-ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp,
+ipsec4_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
     struct inpcb *inp, u_int idx)
 {
 	struct ipsec_ctx_data ctx;
@@ -206,7 +207,7 @@ ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp,
 	 * determine next transform. At the end of transform we can
 	 * release reference to SP.
 	 */
-	sav = ipsec4_allocsa(m, sp, &idx, &error);
+	sav = ipsec4_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		if (error == EJUSTRETURN) { /* No IPsec required */
 			key_freesp(&sp);
@@ -288,15 +289,16 @@ bad:
 }
 
 int
-ipsec4_process_packet(struct mbuf *m, struct secpolicy *sp,
+ipsec4_process_packet(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
     struct inpcb *inp)
 {
 
-	return (ipsec4_perform_request(m, sp, inp, 0));
+	return (ipsec4_perform_request(ifp, m, sp, inp, 0));
 }
 
 int
-ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
+ipsec4_check_pmtu(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    int forwarding)
 {
 	struct secasvar *sav;
 	struct ip *ip;
@@ -317,7 +319,7 @@ ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 
 setdf:
 	idx = sp->tcount - 1;
-	sav = ipsec4_allocsa(m, sp, &idx, &error);
+	sav = ipsec4_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		key_freesp(&sp);
 		/*
@@ -368,7 +370,8 @@ setdf:
 }
 
 static int
-ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+ipsec4_common_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
+    int forwarding)
 {
 	struct secpolicy *sp;
 	int error;
@@ -412,7 +415,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 #endif
 	}
 	/* NB: callee frees mbuf and releases reference to SP */
-	error = ipsec4_check_pmtu(m, sp, forwarding);
+	error = ipsec4_check_pmtu(ifp, m, sp, forwarding);
 	if (error != 0) {
 		if (error == EJUSTRETURN)
 			return (0);
@@ -420,7 +423,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 		return (error);
 	}
 
-	error = ipsec4_process_packet(m, sp, inp);
+	error = ipsec4_process_packet(ifp, m, sp, inp);
 	if (error == EJUSTRETURN) {
 		/*
 		 * We had a SP with a level of 'use' and no SA. We
@@ -440,7 +443,7 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
  * other values - mbuf consumed by IPsec.
  */
 int
-ipsec4_output(struct mbuf *m, struct inpcb *inp)
+ipsec4_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp)
 {
 
 	/*
@@ -451,7 +454,7 @@ ipsec4_output(struct mbuf *m, struct inpcb *inp)
 	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
 		return (0);
 
-	return (ipsec4_common_output(m, inp, 0));
+	return (ipsec4_common_output(ifp, m, inp, 0));
 }
 
 /*
@@ -471,7 +474,7 @@ ipsec4_forward(struct mbuf *m)
 		m_freem(m);
 		return (EACCES);
 	}
-	return (ipsec4_common_output(m, NULL, 1));
+	return (ipsec4_common_output(NULL /* XXXKIB */, m, NULL, 1));
 }
 #endif
 
@@ -491,7 +494,8 @@ in6_sa_equal_addrwithscope(const struct sockaddr_in6 *sa,
 }
 
 static struct secasvar *
-ipsec6_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+ipsec6_allocsa(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    u_int *pidx, int *error)
 {
 	struct secasindex *saidx, tmpsaidx;
 	struct ipsecrequest *isr;
@@ -579,7 +583,7 @@ next:
  * IPsec output logic for IPv6.
  */
 static int
-ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp,
+ipsec6_perform_request(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
     struct inpcb *inp, u_int idx)
 {
 	struct ipsec_ctx_data ctx;
@@ -590,7 +594,7 @@ ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp,
 
 	IPSEC_ASSERT(idx < sp->tcount, ("Wrong IPsec request index %d", idx));
 
-	sav = ipsec6_allocsa(m, sp, &idx, &error);
+	sav = ipsec6_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		if (error == EJUSTRETURN) { /* No IPsec required */
 			key_freesp(&sp);
@@ -671,18 +675,19 @@ bad:
 }
 
 int
-ipsec6_process_packet(struct mbuf *m, struct secpolicy *sp,
+ipsec6_process_packet(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
     struct inpcb *inp)
 {
 
-	return (ipsec6_perform_request(m, sp, inp, 0));
+	return (ipsec6_perform_request(ifp, m, sp, inp, 0));
 }
 
 /*
  * IPv6 implementation is based on IPv4 implementation.
  */
 int
-ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
+ipsec6_check_pmtu(struct ifnet *ifp, struct mbuf *m, struct secpolicy *sp,
+    int forwarding)
 {
 	struct secasvar *sav;
 	size_t hlen, pmtu;
@@ -699,7 +704,7 @@ ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 		return (0);
 
 	idx = sp->tcount - 1;
-	sav = ipsec6_allocsa(m, sp, &idx, &error);
+	sav = ipsec6_allocsa(ifp, m, sp, &idx, &error);
 	if (sav == NULL) {
 		key_freesp(&sp);
 		/*
@@ -745,7 +750,8 @@ ipsec6_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
 }
 
 static int
-ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+ipsec6_common_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
+    int forwarding)
 {
 	struct secpolicy *sp;
 	int error;
@@ -779,7 +785,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 #endif
 	}
 
-	error = ipsec6_check_pmtu(m, sp, forwarding);
+	error = ipsec6_check_pmtu(ifp, m, sp, forwarding);
 	if (error != 0) {
 		if (error == EJUSTRETURN)
 			return (0);
@@ -788,7 +794,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 	}
 
 	/* NB: callee frees mbuf and releases reference to SP */
-	error = ipsec6_process_packet(m, sp, inp);
+	error = ipsec6_process_packet(ifp, m, sp, inp);
 	if (error == EJUSTRETURN) {
 		/*
 		 * We had a SP with a level of 'use' and no SA. We
@@ -808,7 +814,7 @@ ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
  * other values - mbuf consumed by IPsec.
  */
 int
-ipsec6_output(struct mbuf *m, struct inpcb *inp)
+ipsec6_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp)
 {
 
 	/*
@@ -819,7 +825,7 @@ ipsec6_output(struct mbuf *m, struct inpcb *inp)
 	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
 		return (0);
 
-	return (ipsec6_common_output(m, inp, 0));
+	return (ipsec6_common_output(ifp, m, inp, 0));
 }
 
 /*
@@ -839,7 +845,7 @@ ipsec6_forward(struct mbuf *m)
 		m_freem(m);
 		return (EACCES);
 	}
-	return (ipsec6_common_output(m, NULL, 1));
+	return (ipsec6_common_output(NULL /* XXXKIB */, m, NULL, 1));
 }
 #endif /* INET6 */
 
@@ -916,14 +922,16 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		case AF_INET:
 			key_freesav(&sav);
 			IPSECSTAT_INC(ips_out_bundlesa);
-			return (ipsec4_perform_request(m, sp, NULL, idx));
+			return (ipsec4_perform_request(NULL, m, sp, NULL,
+			    idx));
 			/* NOTREACHED */
 #endif
 #ifdef INET6
 		case AF_INET6:
 			key_freesav(&sav);
 			IPSEC6STAT_INC(ips_out_bundlesa);
-			return (ipsec6_perform_request(m, sp, NULL, idx));
+			return (ipsec6_perform_request(NULL, m, sp, NULL,
+			    idx));
 			/* NOTREACHED */
 #endif /* INET6 */
 		default:
