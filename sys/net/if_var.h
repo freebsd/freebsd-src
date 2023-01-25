@@ -646,6 +646,8 @@ struct bpf_if *if_getbpf(if_t ifp);
 uint8_t if_getpcp(if_t ifp);
 void *if_getl2com(if_t ifp);
 struct ifvlantrunk *if_getvlantrunk(if_t ifp);
+bool if_altq_is_enabled(if_t ifp);
+
 void *if_getafdata(if_t ifp, int);
 
 /*

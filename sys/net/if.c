@@ -4905,6 +4905,12 @@ if_getcounter(if_t ifp, ift_counter counter)
 	return (ifp->if_get_counter(ifp, counter));
 }
 
+bool
+if_altq_is_enabled(if_t ifp)
+{
+	return (ALTQ_IS_ENABLED(&ifp->if_snd));
+}
+
 struct vnet *
 if_getvnet(if_t ifp)
 {
