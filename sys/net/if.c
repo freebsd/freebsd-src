@@ -4941,6 +4941,12 @@ if_getpcp(if_t ifp)
 	return (ifp->if_pcp);
 }
 
+void *
+if_getl2com(if_t ifp)
+{
+	return (ifp->if_l2com);
+}
+
 #ifdef DDB
 static void
 if_show_ifnet(struct ifnet *ifp)
