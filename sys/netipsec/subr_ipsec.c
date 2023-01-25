@@ -369,8 +369,8 @@ IPSEC_KMOD_METHOD(int, ipsec_kmod_ctlinput, sc,
 )
 
 IPSEC_KMOD_METHOD(int, ipsec_kmod_output, sc,
-    output, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
-	struct inpcb *inp), METHOD_ARGS(m, inp)
+    output, METHOD_DECL(struct ipsec_support * const sc, struct ifnet *ifp,
+    struct mbuf *m, struct inpcb *inp), METHOD_ARGS(ifp, m, inp)
 )
 
 IPSEC_KMOD_METHOD(int, ipsec_kmod_pcbctl, sc,
