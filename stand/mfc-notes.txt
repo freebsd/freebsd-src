@@ -1,0 +1,31 @@
+Stand has been merged from main:4883f347f6ed. The following hashes can't be
+merged for the reasons listed.
+
+b366ee4868bc already merged with ZFS
+6f6fbfa3a835 too damn much in one commit, skipping
+c03c5b1c8091 OpenZFS merge... so not relevant
+e3aa18ad7178 OpenZFS merge... so not relevant
+285f6ab665d7 zstd is different in stable/13, so not relevant
+0e5ac0ad0384 zstd is different in stable/13, so not relevant
+451ac17a5030 zstd is different in stable/13, so not relevant (though marginal)
+119c786f7b5a zstd is different in stable/13, so not relevant but kinda desirable (check agian?)
+75ad24775b68 blake3 -- not merging
+4773d3425e62 comments conflict, I'm not sorting that out
+d1fb0e1dc8ec applied accidentally because this restores a backout that was skipped
+09ace5cefbd2 ZFS flag limiting depends on newer OpenZFS so not merged
+1306a5dc0747 Standard ZFS_EARLY stuff depends on other things, so not merged
+16ebddc9a72a comment about blake3 depends on blake3 supprot, which wasn't merged
+b21582ee03ec ufs changes kirk already merged
+4f0c9b76cf75 Depends on newer OpenZFS
+e68866164212 UFS changes from Kirk... he merged the separately
+6d645da0d49d also merged by kirk
+c7046f76c2c0 blake workarounds merged
+f993fff68979 sorting these is useless to merge if the lists aren't already the same
+8a744de27eef let's leave firewire in place
+0163de282e31 These depend on newer OpenZFS so not needed and conflicts
+ed68931c3f9c geliboot: Use the multi-block functions for AES-XTS.
+399b56c46c1c stand: delete zstd_shim.c -- dependent changes nor merged 119c786f7b5a
+03bbe1845de7 mips is still in stable/13
+20b23ae74b2b mips is still in stable/13
+8cc2156f85bb We're not 14, yet
+44796b7e822e beri uses this, it seems, and is still in stable/13
