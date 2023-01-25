@@ -50,6 +50,16 @@ class TestExampleSimple(BaseTest):
         pass
 
     @pytest.mark.skip(reason="comment me to run the test")
+    def test_get_properties(self, request):
+        """Shows fetching of test src dir and ATF-set variables"""
+        print()
+        print("SRC_DIR={}".format(request.fspath.dirname))
+        print("ATF VARS:")
+        for k, v in self.atf_vars.items():
+            print("  {}: {}".format(k, v))
+        print()
+
+    @pytest.mark.skip(reason="comment me to run the test")
     @pytest.mark.require_user("unprivileged")
     def test_syscall_failure(self):
         s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
