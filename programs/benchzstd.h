@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -116,7 +116,8 @@ typedef struct {
     int ldmHashLog;
     int ldmBucketSizeLog;
     int ldmHashRateLog;
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
+    int useRowMatchFinder;  /* use row-based matchfinder if possible */
 } BMK_advancedParams_t;
 
 /* returns default parameters used by nonAdvanced functions */
