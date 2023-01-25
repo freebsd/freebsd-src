@@ -77,11 +77,10 @@ all: zoneinfo
 .endif
 META_TARGETS+=	zoneinfo install-zoneinfo
 
-# On amd64, include 32-bit data for compatibility with statically-linked
-# i386 binaries which still use a 32-bit time_t.
-.if ${MACHINE_ARCH} == "amd64"
-ZICFLAGS+=	-b fat
-.endif
+#
+# Produce “fat” zoneinfo files for backward compatibility.
+#
+ZICFLAGS?=	-b fat
 
 zoneinfo: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
