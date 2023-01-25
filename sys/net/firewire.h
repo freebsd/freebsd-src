@@ -131,7 +131,7 @@ struct fw_com {
 	uint16_t		fc_node;	/* our nodeid */
 	struct fw_reass_list	fc_frags;	/* partial datagrams */
 };
-#define	IFP2FWC(ifp)	((struct fw_com *)(ifp)->if_l2com)
+#define	IFP2FWC(ifp)	((struct fw_com *)if_getl2com(ifp))
 
 extern	void	firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src);
 extern	void	firewire_ifattach(struct ifnet *, struct fw_hwaddr *);
