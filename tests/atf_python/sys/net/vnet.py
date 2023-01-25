@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 import copy
 import ipaddress
+import re
 import os
 import socket
 import sys
@@ -150,6 +151,7 @@ class VnetInterface(object):
 
 class IfaceFactory(object):
     INTERFACES_FNAME = "created_ifaces.lst"
+    AUTODELETE_TYPES = ("epair", "lo", "tap", "tun")
 
     def __init__(self):
         self.file_name = self.INTERFACES_FNAME
@@ -158,19 +160,46 @@ class IfaceFactory(object):
         with open(self.file_name, "a") as f:
             f.write(iface_name + "\n")
 
-    def create_iface(self, alias_name: str, iface_name: str) -> List[VnetInterface]:
-        ifaces = VnetInterface.create_iface(alias_name, iface_name)
-        for iface in ifaces:
-            self._register_iface(iface.name)
-        return ifaces
-
-    def cleanup(self):
+    def _list_ifaces(self) -> List[str]:
+        ret: List[str] = []
         try:
             with open(self.file_name, "r") as f:
                 for line in f:
-                    run_cmd("/sbin/ifconfig {} destroy".format(line.strip()))
+                    ret.append(line.strip())
+        except OSError:
+            pass
+        return ret
+
+    def create_iface(self, alias_name: str, iface_name: str) -> List[VnetInterface]:
+        ifaces = VnetInterface.create_iface(alias_name, iface_name)
+        for iface in ifaces:
+            if not self.is_autodeleted(iface.name):
+                self._register_iface(iface.name)
+        return ifaces
+
+    @staticmethod
+    def is_autodeleted(iface_name: str) -> bool:
+        iface_type = re.split(r"\d+", iface_name)[0]
+        return iface_type in IfaceFactory.AUTODELETE_TYPES
+
+    def cleanup_vnet_interfaces(self, vnet_name: str) -> List[str]:
+        """Destroys"""
+        ifaces_lst = ToolsHelper.get_output(
+            "/usr/sbin/jexec {} ifconfig -l".format(vnet_name)
+        )
+        for iface_name in ifaces_lst.split():
+            if not self.is_autodeleted(iface_name):
+                if iface_name not in self._list_ifaces():
+                    print("Skipping interface {}:{}".format(vnet_name, iface_name))
+                    continue
+            run_cmd(
+                "/usr/sbin/jexec {} ifconfig {} destroy".format(vnet_name, iface_name)
+            )
+
+    def cleanup(self):
+        try:
             os.unlink(self.INTERFACES_FNAME)
-        except Exception:
+        except OSError:
             pass
 
 
@@ -260,7 +289,7 @@ class VnetFactory(object):
         try:
             jid_str = run_cmd(cmd)
             jid = int(jid_str)
-        except ValueError as e:
+        except ValueError:
             print("Jail creation failed, output: {}".format(jid_str))
             raise
         self._register_vnet(vnet_name)
@@ -276,13 +305,12 @@ class VnetFactory(object):
         return VnetInstance(vnet_alias, vnet_name, jid, ifaces)
 
     def cleanup(self):
+        iface_factory = IfaceFactory()
         try:
             with open(self.file_name) as f:
                 for line in f:
                     vnet_name = line.strip()
-                    ToolsHelper.print_output(
-                        "/usr/sbin/jexec {} ifconfig -l".format(vnet_name)
-                    )
+                    iface_factory.cleanup_vnet_interfaces(vnet_name)
                     run_cmd("/usr/sbin/jail -r  {}".format(vnet_name))
             os.unlink(self.JAILS_FNAME)
         except OSError:
