@@ -400,7 +400,7 @@ main(int argc, char *argv[])
 		ep->args = fmt_argv(kvm_getargv(kd, ep->kp, argwidth),
 		    ep->kp->ki_comm, NULL, MAXCOMLEN);
 		if (ep->args == NULL)
-			xo_err(1, NULL);
+			xo_err(1, "fmt_argv");
 	}
 	/* sort by idle time */
 	if (sortidle && ehead != NULL) {
