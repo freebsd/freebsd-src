@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 /* Called from exception.S */
 void do_el1h_sync(struct thread *, struct trapframe *);
-void do_el0_sync(struct thread *, struct trapframe *);
+void do_el0_sync(struct thread *, struct trapframe *, uint64_t far);
 void do_el0_error(struct trapframe *);
 void do_serror(struct trapframe *);
 void unhandled_exception(struct trapframe *);
@@ -527,11 +527,11 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 }
 
 void
-do_el0_sync(struct thread *td, struct trapframe *frame)
+do_el0_sync(struct thread *td, struct trapframe *frame, uint64_t far)
 {
 	pcpu_bp_harden bp_harden;
 	uint32_t exception;
-	uint64_t esr, far;
+	uint64_t esr;
 	int dfsc;
 
 	/* Check we have a sane environment when entering from userland */
@@ -541,27 +541,15 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 
 	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
-	switch (exception) {
-	case EXCP_INSN_ABORT_L:
-		far = READ_SPECIALREG(far_el1);
-
+	if (exception == EXCP_INSN_ABORT_L && far > VM_MAXUSER_ADDRESS) {
 		/*
 		 * Userspace may be trying to train the branch predictor to
 		 * attack the kernel. If we are on a CPU affected by this
 		 * call the handler to clear the branch predictor state.
 		 */
-		if (far > VM_MAXUSER_ADDRESS) {
-			bp_harden = PCPU_GET(bp_harden);
-			if (bp_harden != NULL)
-				bp_harden();
-		}
-		break;
-	case EXCP_UNKNOWN:
-	case EXCP_DATA_ABORT_L:
-	case EXCP_DATA_ABORT:
-	case EXCP_WATCHPT_EL0:
-		far = READ_SPECIALREG(far_el1);
-		break;
+		bp_harden = PCPU_GET(bp_harden);
+		if (bp_harden != NULL)
+			bp_harden();
 	}
 	intr_enable();
 
