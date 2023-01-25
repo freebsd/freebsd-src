@@ -62,8 +62,6 @@ SRCS+=	metadata.c
 
 .include "${BOOTSRC}/fdt.mk"
 
-CFLAGS+=	-fPIC
-
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${LDRSRC}
 
