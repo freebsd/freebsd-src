@@ -366,10 +366,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_size, CTLFLAG_RD,
 	&ARC_anon.arcs_size.rc_count, 0, "size of anonymous state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_metadata_esize, CTLFLAG_RD,
 	&ARC_anon.arcs_esize[ARC_BUFC_METADATA].rc_count, 0,
-	"size of anonymous state");
+	"size of metadata in anonymous state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_data_esize, CTLFLAG_RD,
 	&ARC_anon.arcs_esize[ARC_BUFC_DATA].rc_count, 0,
-	"size of anonymous state");
+	"size of data in anonymous state");
 /* END CSTYLED */
 
 extern arc_state_t ARC_mru;
@@ -424,6 +424,19 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_data_esize, CTLFLAG_RD,
 	"size of data in mfu ghost state");
 /* END CSTYLED */
 
+extern arc_state_t ARC_uncached;
+
+/* BEGIN CSTYLED */
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, uncached_size, CTLFLAG_RD,
+	&ARC_uncached.arcs_size.rc_count, 0, "size of uncached state");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, uncached_metadata_esize, CTLFLAG_RD,
+	&ARC_uncached.arcs_esize[ARC_BUFC_METADATA].rc_count, 0,
+	"size of metadata in uncached state");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, uncached_data_esize, CTLFLAG_RD,
+	&ARC_uncached.arcs_esize[ARC_BUFC_DATA].rc_count, 0,
+	"size of data in uncached state");
+/* END CSTYLED */
+
 extern arc_state_t ARC_l2c_only;
 
 /* BEGIN CSTYLED */
@@ -458,20 +471,6 @@ SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_idistance,
 /* dsl_pool.c */
 
 /* dnode.c */
-
-extern int zfs_default_bs;
-
-/* BEGIN CSTYLED */
-SYSCTL_INT(_vfs_zfs, OID_AUTO, default_bs, CTLFLAG_RWTUN,
-	&zfs_default_bs, 0, "Default dnode block shift");
-/* END CSTYLED */
-
-extern int zfs_default_ibs;
-
-/* BEGIN CSTYLED */
-SYSCTL_INT(_vfs_zfs, OID_AUTO, default_ibs, CTLFLAG_RWTUN,
-    &zfs_default_ibs, 0, "Default dnode indirect block shift");
-/* END CSTYLED */
 
 /* dsl_scan.c */
 
