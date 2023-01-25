@@ -67,7 +67,6 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <arpa/nameser.h>
 
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
@@ -189,7 +188,7 @@ main(int argc, char *argv[])
 			nflag += 1;
 			break;
 		case 'f': case 'l': case 's': case 'u': case 'w':
-			warnx("-%c no longer supported", ch);
+			xo_warnx("-%c no longer supported", ch);
 			/* FALLTHROUGH */
 		case '?':
 		default:
@@ -204,7 +203,7 @@ main(int argc, char *argv[])
 	_res.retry = 1;		/* only try once.. */
 
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf)) == NULL)
-		errx(1, "%s", errbuf);
+		xo_errx(1, "%s", errbuf);
 
 	(void)time(&now);
 
@@ -239,7 +238,7 @@ main(int argc, char *argv[])
 				continue;
 		}
 		if ((ep = calloc(1, sizeof(struct entry))) == NULL)
-			errx(1, "calloc");
+			xo_errx(1, "calloc");
 		*nextp = ep;
 		nextp = &ep->next;
 		memmove(&ep->utmp, utmp, sizeof *utmp);
@@ -338,7 +337,8 @@ main(int argc, char *argv[])
 		pr_header(&now, nusers);
 		if (wcmd == 0) {
 			xo_close_container("uptime-information");
-			xo_finish();
+			if (xo_finish() < 0)
+				xo_err(1, "stdout");
 			(void)kvm_close(kd);
 			exit(0);
 		}
@@ -351,7 +351,7 @@ main(int argc, char *argv[])
 	}
 
 	if ((kp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nentries)) == NULL)
-		err(1, "%s", kvm_geterr(kd));
+		xo_err(1, "%s", kvm_geterr(kd));
 	for (i = 0; i < nentries; i++, kp++) {
 		if (kp->ki_stat == SIDL || kp->ki_stat == SZOMB ||
 		    kp->ki_tdev == NODEV)
@@ -397,7 +397,7 @@ main(int argc, char *argv[])
 		ep->args = fmt_argv(kvm_getargv(kd, ep->kp, argwidth),
 		    ep->kp->ki_comm, NULL, MAXCOMLEN);
 		if (ep->args == NULL)
-			err(1, NULL);
+			xo_err(1, "fmt_argv");
 	}
 	/* sort by idle time */
 	if (sortidle && ehead != NULL) {
@@ -469,7 +469,8 @@ main(int argc, char *argv[])
 	xo_close_list("user-entry");
 	xo_close_container("user-table");
 	xo_close_container("uptime-information");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	(void)kvm_close(kd);
 	exit(0);
