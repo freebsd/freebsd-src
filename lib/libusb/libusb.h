@@ -266,6 +266,14 @@ typedef enum {
 	LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT = 2,
 } libusb_hotplug_event;
 
+enum libusb_option {
+	LIBUSB_OPTION_LOG_LEVEL = 0,
+	LIBUSB_OPTION_USE_USBDK = 1,
+	LIBUSB_OPTION_NO_DEVICE_DISCOVERY = 2,
+	LIBUSB_OPTION_WEAK_AUTHORITY = 2,
+	LIBUSB_OPTION_MAX = 3,
+};
+
 /* libusb structures */
 
 struct libusb_context;
@@ -286,6 +294,13 @@ struct libusb_version {
 	const uint16_t nano;
 	const char *rc;
 	const char *describe;
+};
+
+struct libusb_init_option {
+	enum libusb_option option;
+	union {
+		int64_t ival;
+	} value;
 };
 
 typedef struct libusb_context libusb_context;
@@ -465,6 +480,7 @@ const struct libusb_version *libusb_get_version(void);
 const char *libusb_strerror(int code);
 const char *libusb_error_name(int code);
 int	libusb_init(libusb_context ** context);
+int	libusb_init_context(libusb_context **, const struct libusb_init_option [], int num_options);
 void	libusb_exit(struct libusb_context *ctx);
 int	libusb_has_capability(uint32_t capability);
 
