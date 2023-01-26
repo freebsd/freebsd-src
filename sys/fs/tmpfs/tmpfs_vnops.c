@@ -1029,6 +1029,15 @@ tmpfs_rename(struct vop_rename_args *v)
 		}
 	}
 
+	/*
+	 * Avoid manipulating '.' and '..' entries.
+	 */
+	if ((fcnp->cn_flags & ISDOTDOT) != 0 ||
+	    (fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.')) {
+		error = EINVAL;
+		goto out_locked;
+	}
+
 	if (tvp != NULL)
 		vn_seqc_write_begin(tvp);
 	vn_seqc_write_begin(tdvp);
@@ -1044,8 +1053,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
 
 	/*
-	 * Entry can disappear before we lock fdvp,
-	 * also avoid manipulating '.' and '..' entries.
+	 * Entry can disappear before we lock fdvp.
 	 */
 	if (de == NULL) {
 		if ((fcnp->cn_flags & ISDOTDOT) != 0 ||
