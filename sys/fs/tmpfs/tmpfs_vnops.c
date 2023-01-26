@@ -1233,6 +1233,10 @@ tmpfs_rename(struct vop_rename_args *v)
 		tde = tmpfs_dir_lookup(tdnode, tnode, tcnp);
 		tmpfs_dir_detach(tdvp, tde);
 
+		/* Update node's ctime because of possible hardlinks. */
+		tnode->tn_status |= TMPFS_NODE_CHANGED;
+		tmpfs_update(tvp);
+
 		/*
 		 * Free the directory entry we just deleted.  Note that the
 		 * node referred by it will not be removed until the vnode is
