@@ -166,6 +166,7 @@ getmntpoint(const char *name)
 	char *ddevname;
 	struct statfs *mntbuf, *statfsp;
 	int i, mntsize, isdev;
+	u_long len;
 
 	if (stat(name, &devstat) != 0)
 		return (NULL);
@@ -178,12 +179,13 @@ getmntpoint(const char *name)
 		statfsp = &mntbuf[i];
 		ddevname = statfsp->f_mntfromname;
 		if (*ddevname != '/') {
-			if (strlen(_PATH_DEV) + strlen(ddevname) + 1 >
-			    sizeof(statfsp->f_mntfromname))
+			if ((len = strlen(_PATH_DEV) + strlen(ddevname) + 1) >
+			    sizeof(statfsp->f_mntfromname) ||
+			    len > sizeof(device))
 				continue;
-			strcpy(device, _PATH_DEV);
-			strcat(device, ddevname);
-			strcpy(statfsp->f_mntfromname, device);
+			strncpy(device, _PATH_DEV, len);
+			strncat(device, ddevname, len);
+			strncpy(statfsp->f_mntfromname, device, len);
 		}
 		if (isdev == 0) {
 			if (strcmp(name, statfsp->f_mntonname))
