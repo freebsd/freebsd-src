@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+225443828ec6..c44d097dcf92:
+	bhyve now supports more than 16 vCPUs in a guest.  By default
+	bhyve permits each guest to create the same number of vCPUs as
+	the count of physical CPUs on the host.  This limit can be
+	adjusted via the loader tunable hw.vmm.maxcpu.
+
 1462dc95f796:
 	Kernel TLS offload now supports receive-side offload of TLS 1.3.
 
