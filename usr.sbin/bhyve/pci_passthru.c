@@ -583,13 +583,6 @@ cfginitbar(struct vmctx *ctx __unused, struct passthru_softc *sc)
 		sc->psc_bar[i].lobits = lobits;
 		pi->pi_bar[i].lobits = lobits;
 
-		/* The MSI-X table needs special handling */
-		if (i == pci_msix_table_bar(pi)) {
-			error = init_msix_table(ctx, sc);
-			if (error) 
-				return (-1);
-		}
-
 		/*
 		 * 64-bit BAR takes up two slots so skip the next one.
 		 */
