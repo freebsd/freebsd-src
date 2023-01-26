@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2009 Sylvestre Gallon. All rights reserved.
- * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2009-2023 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -136,10 +136,20 @@ libusb_interrupt_event_handler(libusb_context *ctx)
 int
 libusb_init(libusb_context **context)
 {
+	return (libusb_init_context(context, NULL, 0));
+}
+
+int
+libusb_init_context(libusb_context **context,
+    const struct libusb_init_option option[], int num_options)
+{
 	struct libusb_context *ctx;
 	pthread_condattr_t attr;
 	char *debug, *ep;
 	int ret;
+
+	if (num_options < 0)
+		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	ctx = malloc(sizeof(*ctx));
 	if (!ctx)
@@ -150,8 +160,9 @@ libusb_init(libusb_context **context)
 	debug = getenv("LIBUSB_DEBUG");
 	if (debug != NULL) {
 		/*
-		 * If LIBUSB_DEBUG is set, we'll honor that and use it to
-		 * override libusb_set_debug calls.
+		 * If LIBUSB_DEBUG is set, we'll honor that first and
+		 * use it to override any future libusb_set_debug()
+		 * calls or init options.
 		 */
 		errno = 0;
 		ctx->debug = strtol(debug, &ep, 10);
@@ -166,7 +177,24 @@ libusb_init(libusb_context **context)
 			 */
 			ctx->debug = 0;
 		}
+	} else {
+		/*
+		 * If the LIBUSB_OPTION_LOG_LEVEL is set, honor that.
+		 */
+		for (int i = 0; i != num_options; i++) {
+			if (option[i].option != LIBUSB_OPTION_LOG_LEVEL)
+				continue;
+
+			ctx->debug = (int)option[i].value.ival;
+			if ((int64_t)ctx->debug == option[i].value.ival) {
+				ctx->debug_fixed = 1;
+			} else {
+				free(ctx);
+				return (LIBUSB_ERROR_INVALID_PARAM);
+			}
+		}
 	}
+
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
 	TAILQ_INIT(&ctx->hotplug_cbh);

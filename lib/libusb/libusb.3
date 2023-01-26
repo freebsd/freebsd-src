@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October, 2, 2022
+.Dd January, 26, 2023
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -47,11 +47,26 @@ This function returns version information about LibUSB.
 .Pp
 .Ft int
 .Fn libusb_init "libusb_context **ctx"
-This function initialises libusb.
-It must be called at the beginning
-of the program, before other libusb routines are used.
-This function returns 0 on success or LIBUSB_ERROR on
-failure.
+Call this function before any other libusb v1.0 API function, to
+initialise a valid libusb v1.0 context.
+If the
+.Fa ctx
+argument is non-NULL, a pointer to the libusb context is stored at
+the given location.
+This function returns 0 upon success or LIBUSB_ERROR on failure.
+.Pp
+.Ft int
+.Fn libusb_init_context "libusb_context **ctx" "const struct libusb_init_option []" "int num_options"
+Call this function before any other libusb v1.0 API function, to
+initialise a valid libusb v1.0 context.
+If the
+.Fa ctx
+argument is non-NULL, a pointer to the libusb context is stored at
+the given location.
+Additional options, like the USB debug level, may be given using the
+second and third argument.
+If no options are needed, simply use libusb_init().
+This function returns 0 upon success or a LIBUSB_ERROR value on failure.
 .Pp
 .Ft void
 .Fn libusb_exit "libusb_context *ctx"
