@@ -843,6 +843,9 @@ sysctl_net_inet_tcp_udp_tunneling_port_check(SYSCTL_HANDLER_ARGS)
 			}
 			if (new != 0) {
 				error = tcp_over_udp_start();
+				if (error != 0) {
+					V_tcp_udp_tunneling_port = 0;
+				}
 			}
 		}
 	}
