@@ -1068,7 +1068,7 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 		start = dtogd(fs, bpref) / NBBY;
 	else
 		start = 0;
-	end = howmany(fs->e2fs_fpg, NBBY) - start;
+	end = howmany(fs->e2fs_fpg, NBBY);
 retry:
 	runlen = 0;
 	runstart = 0;
