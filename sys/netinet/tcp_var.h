@@ -230,7 +230,6 @@ struct tcpcb {
 	uint32_t snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
 	int	t_sndzerowin;		/* zero-window updates sent */
-	u_long	t_rttupdated;		/* number of times rtt sampled */
 	int	snd_numholes;		/* number of holes seen by sender */
 	u_int	t_badrxtwin;		/* window for retransmit recovery */
 	TAILQ_HEAD(sackhole_head, sackhole) snd_holes;
@@ -276,6 +275,7 @@ struct tcpcb {
 	uint32_t t_dsack_bytes;		/* dsack bytes received */
 	uint32_t t_dsack_tlp_bytes;	/* dsack bytes received for TLPs sent */
 	uint32_t t_dsack_pack;		/* dsack packets we have eceived */
+	uint8_t t_rttupdated;		/* number of times rtt sampled */
 	/* TCP Fast Open */
 	uint8_t t_tfo_client_cookie_len; /* TFO client cookie length */
 	uint32_t t_end_info_status;	/* Status flag of end info */
