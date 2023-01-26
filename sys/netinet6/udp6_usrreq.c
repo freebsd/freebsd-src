@@ -986,8 +986,9 @@ udp6_abort(struct socket *so)
 static int
 udp6_attach(struct socket *so, int proto, struct thread *td)
 {
-	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
+	struct inpcb *inp;
+	struct udpcb *up;
 	int error;
 
 	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
@@ -1011,6 +1012,8 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
+	up = intoudpcb(inp);
+	bzero(&up->u_start_zero, u_zero_size);
 	INP_WUNLOCK(inp);
 	return (0);
 }
