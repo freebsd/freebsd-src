@@ -357,6 +357,7 @@ struct pcim_iomap_devres {
 int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name);
 int pci_alloc_irq_vectors(struct pci_dev *pdev, int minv, int maxv,
     unsigned int flags);
+bool pci_device_is_present(struct pci_dev *pdev);
 
 /* Internal helper function(s). */
 struct pci_dev *lkpinew_pci_dev(device_t);
@@ -1682,7 +1683,5 @@ pci_wait_for_pending_transaction(struct pci_dev *pdev)
 
 	return (0);
 }
-
-bool pci_device_is_present(struct pci_dev *pdev);
 
 #endif	/* _LINUXKPI_LINUX_PCI_H_ */
