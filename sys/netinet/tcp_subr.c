@@ -773,13 +773,14 @@ VNET_DEFINE(struct socket *, udp6_tun_socket) = NULL;
 #define	V_udp6_tun_socket	VNET(udp6_tun_socket)
 #endif
 
+static struct sx tcpoudp_lock;
+
 static void
 tcp_over_udp_stop(void)
 {
-	/*
-	 * This function assumes sysctl caller holds inp_rinfo_lock()
-	 * for writing!
-	 */
+
+	sx_assert(&tcpoudp_lock, SA_XLOCKED);
+
 #ifdef INET
 	if (V_udp4_tun_socket != NULL) {
 		soclose(V_udp4_tun_socket);
@@ -805,10 +806,9 @@ tcp_over_udp_start(void)
 #ifdef INET6
 	struct sockaddr_in6 sin6;
 #endif
-	/*
-	 * This function assumes sysctl caller holds inp_info_rlock()
-	 * for writing!
-	 */
+
+	sx_assert(&tcpoudp_lock, SA_XLOCKED);
+
 	port = V_tcp_udp_tunneling_port;
 	if (ntohs(port) == 0) {
 		/* Must have a port set */
@@ -896,6 +896,7 @@ sysctl_net_inet_tcp_udp_tunneling_port_check(SYSCTL_HANDLER_ARGS)
 		    (new > TCP_TUNNELING_PORT_MAX)) {
 			error = EINVAL;
 		} else {
+			sx_xlock(&tcpoudp_lock);
 			V_tcp_udp_tunneling_port = new;
 			if (old != 0) {
 				tcp_over_udp_stop();
@@ -903,6 +904,7 @@ sysctl_net_inet_tcp_udp_tunneling_port_check(SYSCTL_HANDLER_ARGS)
 			if (new != 0) {
 				error = tcp_over_udp_start();
 			}
+			sx_xunlock(&tcpoudp_lock);
 		}
 	}
 	return (error);
@@ -1479,6 +1481,7 @@ tcp_init(void *arg __unused)
 	TAILQ_INIT(&t_functions);
 	rw_init(&tcp_function_lock, "tcp_func_lock");
 	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
+	sx_init(&tcpoudp_lock, "TCP over UDP configuration");
 #ifdef TCP_BLACKBOX
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
