@@ -336,9 +336,9 @@ static void
 report_operation(uint32_t fibnum, struct rib_cmd_info *rc,
     struct nlpcb *nlp, struct nlmsghdr *hdr)
 {
-	struct nl_writer nw;
-
+	struct nl_writer nw = {};
 	uint32_t group_id = family_to_group(rt_get_family(rc->rc_rt));
+
 	if (nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id)) {
 		struct route_nhop_data rnd = {
 			.rnd_nhop = rc_get_nhop(rc),
@@ -918,9 +918,8 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 void
 rtnl_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 {
+	struct nl_writer nw = {};
 	int family, nlm_flags = 0;
-
-	struct nl_writer nw;
 
 	family = rt_get_family(rc->rc_rt);
 
