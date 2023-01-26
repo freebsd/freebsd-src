@@ -496,7 +496,7 @@ zpl_xattr_set_dir(struct inode *ip, const char *name, const void *value,
 		vap->va_gid = crgetgid(cr);
 
 		error = -zfs_create(dxzp, (char *)name, vap, 0, 0644, &xzp,
-		    cr, 0, NULL);
+		    cr, ATTR_NOACLCHECK, NULL);
 		if (error)
 			goto out;
 	}
@@ -1004,11 +1004,18 @@ int
 #ifdef HAVE_SET_ACL_USERNS
 zpl_set_acl(struct user_namespace *userns, struct inode *ip,
     struct posix_acl *acl, int type)
+#elif defined(HAVE_SET_ACL_USERNS_DENTRY_ARG2)
+zpl_set_acl(struct user_namespace *userns, struct dentry *dentry,
+    struct posix_acl *acl, int type)
 #else
 zpl_set_acl(struct inode *ip, struct posix_acl *acl, int type)
 #endif /* HAVE_SET_ACL_USERNS */
 {
+#ifdef HAVE_SET_ACL_USERNS_DENTRY_ARG2
+	return (zpl_set_acl_impl(d_inode(dentry), acl, type));
+#else
 	return (zpl_set_acl_impl(ip, acl, type));
+#endif /* HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
 }
 #endif /* HAVE_SET_ACL */
 
@@ -1067,7 +1074,7 @@ zpl_get_acl_impl(struct inode *ip, int type)
 	return (acl);
 }
 
-#if defined(HAVE_GET_ACL_RCU)
+#if defined(HAVE_GET_ACL_RCU) || defined(HAVE_GET_INODE_ACL)
 struct posix_acl *
 zpl_get_acl(struct inode *ip, int type, bool rcu)
 {

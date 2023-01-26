@@ -335,6 +335,9 @@
 /* iops->get_acl() takes rcu */
 /* #undef HAVE_GET_ACL_RCU */
 
+/* has iops->get_inode_acl() */
+/* #undef HAVE_GET_INODE_ACL */
+
 /* iops->get_link() cookie */
 /* #undef HAVE_GET_LINK_COOKIE */
 
@@ -629,6 +632,9 @@
 /* iops->set_acl() takes 4 args */
 /* #undef HAVE_SET_ACL_USERNS */
 
+/* iops->set_acl() takes 4 args, arg2 is struct dentry * */
+/* #undef HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
+
 /* set_cached_acl() is usable */
 /* #undef HAVE_SET_CACHED_ACL_USABLE */
 
@@ -717,6 +723,9 @@
 
 /* i_op->tmpfile() exists */
 /* #undef HAVE_TMPFILE */
+
+/* i_op->tmpfile() uses old dentry signature */
+/* #undef HAVE_TMPFILE_DENTRY */
 
 /* i_op->tmpfile() has userns */
 /* #undef HAVE_TMPFILE_USERNS */
@@ -935,7 +944,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.7-FreeBSD_g21bd76613"
+#define ZFS_META_ALIAS "zfs-2.1.9-FreeBSD_g92e0d9d18"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -944,7 +953,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.0"
+#define ZFS_META_KVER_MAX "6.1"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -965,10 +974,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g21bd76613"
+#define ZFS_META_RELEASE "FreeBSD_g92e0d9d18"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.1.7"
+#define ZFS_META_VERSION "2.1.9"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */

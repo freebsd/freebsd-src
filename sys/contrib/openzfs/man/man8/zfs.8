@@ -704,6 +704,12 @@ command will be undone if the share is ever unshared (like via a reboot).
 .El
 .
 .Sh ENVIRONMENT VARIABLES
+.Bl -tag -width "ZFS_COLOR"
+.It Sy ZFS_COLOR
+Use ANSI color in
+.Nm zfs Cm diff
+output.
+.El
 .Bl -tag -width "ZFS_MOUNT_HELPER"
 .It Sy ZFS_MOUNT_HELPER
 Cause
@@ -712,6 +718,14 @@ to use
 .Xr mount 8
 to mount ZFS datasets.
 This option is provided for backwards compatibility with older ZFS versions.
+.El
+.Bl -tag -width "ZFS_SET_PIPE_MAX"
+.It Sy ZFS_SET_PIPE_MAX
+Tells
+.Nm zfs
+to set the maximum pipe size for sends/recieves.
+Disabled by default on Linux
+due to an unfixed deadlock in Linux's pipe size handling code.
 .El
 .
 .Sh INTERFACE STABILITY

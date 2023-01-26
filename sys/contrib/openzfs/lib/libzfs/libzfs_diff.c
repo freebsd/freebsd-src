@@ -45,16 +45,21 @@
 #include <pthread.h>
 #include <sys/zfs_ioctl.h>
 #include <libzfs.h>
+#include <libzutil.h>
 #include "libzfs_impl.h"
 
 #define	ZDIFF_SNAPDIR		"/.zfs/snapshot/"
 #define	ZDIFF_PREFIX		"zfs-diff-%d"
 
 #define	ZDIFF_ADDED	'+'
-#define	ZDIFF_MODIFIED	'M'
+#define	ZDIFF_MODIFIED	"M"
 #define	ZDIFF_REMOVED	'-'
-#define	ZDIFF_RENAMED	'R'
+#define	ZDIFF_RENAMED	"R"
 
+#define	ZDIFF_ADDED_COLOR ANSI_GREEN
+#define	ZDIFF_MODIFIED_COLOR ANSI_YELLOW
+#define	ZDIFF_REMOVED_COLOR ANSI_RED
+#define	ZDIFF_RENAMED_COLOR ANSI_BLUE
 
 /*
  * Given a {dsname, object id}, get the object path
@@ -129,48 +134,54 @@ stream_bytes(FILE *fp, const char *string)
 	}
 }
 
-static void
-print_what(FILE *fp, mode_t what)
+/*
+ * Takes the type of change (like `print_file`), outputs the appropriate color
+ */
+static const char *
+type_to_color(char type)
 {
-	char symbol;
+	if (type == '+')
+		return (ZDIFF_ADDED_COLOR);
+	else if (type == '-')
+		return (ZDIFF_REMOVED_COLOR);
+	else if (type == 'M')
+		return (ZDIFF_MODIFIED_COLOR);
+	else if (type == 'R')
+		return (ZDIFF_RENAMED_COLOR);
+	else
+		return (NULL);
+}
 
+
+static char
+get_what(mode_t what)
+{
 	switch (what & S_IFMT) {
 	case S_IFBLK:
-		symbol = 'B';
-		break;
+		return ('B');
 	case S_IFCHR:
-		symbol = 'C';
-		break;
+		return ('C');
 	case S_IFDIR:
-		symbol = '/';
-		break;
+		return ('/');
 #ifdef S_IFDOOR
 	case S_IFDOOR:
-		symbol = '>';
-		break;
+		return ('>');
 #endif
 	case S_IFIFO:
-		symbol = '|';
-		break;
+		return ('|');
 	case S_IFLNK:
-		symbol = '@';
-		break;
+		return ('@');
 #ifdef S_IFPORT
 	case S_IFPORT:
-		symbol = 'P';
-		break;
+		return ('P');
 #endif
 	case S_IFSOCK:
-		symbol = '=';
-		break;
+		return ('=');
 	case S_IFREG:
-		symbol = 'F';
-		break;
+		return ('F');
 	default:
-		symbol = '?';
-		break;
+		return ('?');
 	}
-	(void) fprintf(fp, "%c", symbol);
 }
 
 static void
@@ -189,57 +200,63 @@ static void
 print_rename(FILE *fp, differ_info_t *di, const char *old, const char *new,
     zfs_stat_t *isb)
 {
+	if (isatty(fileno(fp)))
+		color_start(ZDIFF_RENAMED_COLOR);
 	if (di->timestamped)
 		(void) fprintf(fp, "%10lld.%09lld\t",
 		    (longlong_t)isb->zs_ctime[0],
 		    (longlong_t)isb->zs_ctime[1]);
-	(void) fprintf(fp, "%c\t", ZDIFF_RENAMED);
-	if (di->classify) {
-		print_what(fp, isb->zs_mode);
-		(void) fprintf(fp, "\t");
-	}
+	(void) fputs(ZDIFF_RENAMED "\t", fp);
+	if (di->classify)
+		(void) fprintf(fp, "%c\t", get_what(isb->zs_mode));
 	print_cmn(fp, di, old);
-	if (di->scripted)
-		(void) fprintf(fp, "\t");
-	else
-		(void) fprintf(fp, " -> ");
+	(void) fputs(di->scripted ? "\t" : " -> ", fp);
 	print_cmn(fp, di, new);
-	(void) fprintf(fp, "\n");
+	(void) fputc('\n', fp);
+
+	if (isatty(fileno(fp)))
+		color_end();
 }
 
 static void
 print_link_change(FILE *fp, differ_info_t *di, int delta, const char *file,
     zfs_stat_t *isb)
 {
+	if (isatty(fileno(fp)))
+		color_start(ZDIFF_MODIFIED_COLOR);
+
 	if (di->timestamped)
 		(void) fprintf(fp, "%10lld.%09lld\t",
 		    (longlong_t)isb->zs_ctime[0],
 		    (longlong_t)isb->zs_ctime[1]);
-	(void) fprintf(fp, "%c\t", ZDIFF_MODIFIED);
-	if (di->classify) {
-		print_what(fp, isb->zs_mode);
-		(void) fprintf(fp, "\t");
-	}
+	(void) fputs(ZDIFF_MODIFIED "\t", fp);
+	if (di->classify)
+		(void) fprintf(fp, "%c\t", get_what(isb->zs_mode));
 	print_cmn(fp, di, file);
-	(void) fprintf(fp, "\t(%+d)", delta);
-	(void) fprintf(fp, "\n");
+	(void) fprintf(fp, "\t(%+d)\n", delta);
+	if (isatty(fileno(fp)))
+		color_end();
 }
 
 static void
 print_file(FILE *fp, differ_info_t *di, char type, const char *file,
     zfs_stat_t *isb)
 {
+	if (isatty(fileno(fp)))
+		color_start(type_to_color(type));
+
 	if (di->timestamped)
 		(void) fprintf(fp, "%10lld.%09lld\t",
 		    (longlong_t)isb->zs_ctime[0],
 		    (longlong_t)isb->zs_ctime[1]);
 	(void) fprintf(fp, "%c\t", type);
-	if (di->classify) {
-		print_what(fp, isb->zs_mode);
-		(void) fprintf(fp, "\t");
-	}
+	if (di->classify)
+		(void) fprintf(fp, "%c\t", get_what(isb->zs_mode));
 	print_cmn(fp, di, file);
-	(void) fprintf(fp, "\n");
+	(void) fputc('\n', fp);
+
+	if (isatty(fileno(fp)))
+		color_end();
 }
 
 static int
@@ -332,7 +349,7 @@ write_inuse_diffs_one(FILE *fp, differ_info_t *di, uint64_t dobj)
 			print_link_change(fp, di, change,
 			    change > 0 ? fobjname : tobjname, &tsb);
 		} else if (strcmp(fobjname, tobjname) == 0) {
-			print_file(fp, di, ZDIFF_MODIFIED, fobjname, &tsb);
+			print_file(fp, di, *ZDIFF_MODIFIED, fobjname, &tsb);
 		} else {
 			print_rename(fp, di, fobjname, tobjname, &tsb);
 		}
