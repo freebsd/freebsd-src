@@ -2,6 +2,7 @@
 
 .PATH:	${SRCTOP}/contrib/pf/ftp-proxy
 
+PACKAGE=	pf
 PROG=	ftp-proxy
 MAN=	ftp-proxy.8
 
