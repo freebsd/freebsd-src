@@ -394,6 +394,7 @@ void
 fpuinit(void)
 {
 	register_t saveintr;
+	uint64_t cr4;
 	u_int mxcsr;
 	u_short control;
 
@@ -401,7 +402,22 @@ fpuinit(void)
 		fpuinit_bsp1();
 
 	if (use_xsave) {
-		load_cr4(rcr4() | CR4_XSAVE);
+		cr4 = rcr4();
+
+		/*
+		 * Revert enablement of PKRU if user disabled its
+		 * saving on context switches by clearing the bit in
+		 * the xsave mask.  Also redundantly clear the bit in
+		 * cpu_stdext_feature2 to prevent pmap from ever
+		 * trying to set the page table bits.
+		 */
+		if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0 &&
+		    (xsave_mask & XFEATURE_ENABLED_PKRU) == 0) {
+			cr4 &= ~CR4_PKE;
+			cpu_stdext_feature2 &= ~CPUID_STDEXT2_PKU;
+		}
+
+		load_cr4(cr4 | CR4_XSAVE);
 		load_xcr(XCR0, xsave_mask);
 	}
 
