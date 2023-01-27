@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230124: rtalloc.9 removed
+OLD_FILES+=usr/share/man/man9/rtalloc.9.gz
+
 # 20230123: PCBGROUP.9 removed
 OLD_FILES+=usr/share/man/man9/PCBGROUP.9.gz
 
