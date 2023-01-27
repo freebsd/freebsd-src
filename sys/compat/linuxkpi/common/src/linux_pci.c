@@ -320,6 +320,11 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->dev.parent = &linux_root_device;
 	pdev->dev.release = lkpi_pci_dev_release;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
+
+	if (pci_msi_count(dev) > 0)
+		pdev->msi_desc = malloc(pci_msi_count(dev) *
+		    sizeof(*pdev->msi_desc), M_DEVBUF, M_WAITOK | M_ZERO);
+
 	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
 	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
@@ -332,6 +337,7 @@ static void
 lkpinew_pci_dev_release(struct device *dev)
 {
 	struct pci_dev *pdev;
+	int i;
 
 	pdev = to_pci_dev(dev);
 	if (pdev->root != NULL)
@@ -339,8 +345,11 @@ lkpinew_pci_dev_release(struct device *dev)
 	if (pdev->bus->self != pdev)
 		pci_dev_put(pdev->bus->self);
 	free(pdev->bus, M_DEVBUF);
-	if (pdev->msi_desc != NULL)
+	if (pdev->msi_desc != NULL) {
+		for (i = pci_msi_count(pdev->dev.bsddev) - 1; i >= 0; i--)
+			free(pdev->msi_desc[i], M_DEVBUF);
 		free(pdev->msi_desc, M_DEVBUF);
+	}
 	free(pdev, M_DEVBUF);
 }
 
@@ -952,10 +961,7 @@ out:
 	if (flags & PCI_IRQ_MSI) {
 		if (pci_msi_count(pdev->dev.bsddev) < minv)
 			return (-ENOSPC);
-		/* We only support 1 vector in pci_enable_msi() */
-		if (minv != 1)
-			return (-ENOSPC);
-		error = pci_enable_msi(pdev);
+		error = _lkpi_pci_enable_msi_range(pdev, minv, maxv);
 		if (error == 0 && pdev->msi_enabled)
 			return (pdev->dev.irq_end - pdev->dev.irq_start);
 	}
@@ -975,14 +981,24 @@ lkpi_pci_msi_desc_alloc(int irq)
 	struct msi_desc *desc;
 	struct pci_devinfo *dinfo;
 	struct pcicfg_msi *msi;
+	int vec;
 
 	dev = linux_pci_find_irq_dev(irq);
 	if (dev == NULL)
 		return (NULL);
 
 	pdev = to_pci_dev(dev);
-	if (pdev->msi_desc != NULL)
-		return (pdev->msi_desc);
+
+	if (pdev->msi_desc == NULL)
+		return (NULL);
+
+	if (irq < pdev->dev.irq_start || irq >= pdev->dev.irq_end)
+		return (NULL);
+
+	vec = pdev->dev.irq_start - irq;
+
+	if (pdev->msi_desc[vec] != NULL)
+		return (pdev->msi_desc[vec]);
 
 	dinfo = device_get_ivars(dev->bsddev);
 	msi = &dinfo->cfg.msi;
@@ -992,6 +1008,8 @@ lkpi_pci_msi_desc_alloc(int irq)
 	desc->msi_attrib.is_64 =
 	   (msi->msi_ctrl & PCIM_MSICTRL_64BIT) ? true : false;
 	desc->msg.data = msi->msi_data;
+
+	pdev->msi_desc[vec] = desc;
 
 	return (desc);
 }
