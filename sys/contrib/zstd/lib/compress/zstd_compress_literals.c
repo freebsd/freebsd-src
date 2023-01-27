@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -15,7 +15,7 @@
 
 size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
     RETURN_ERROR_IF(srcSize + flSize > dstCapacity, dstSize_tooSmall, "");
@@ -42,7 +42,7 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
 
 size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
     (void)dstCapacity;  /* dstCapacity already guaranteed to be >=4, hence large enough */
@@ -73,7 +73,8 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
                               void* entropyWorkspace, size_t entropyWorkspaceSize,
-                        const int bmi2)
+                        const int bmi2,
+                        unsigned suspectUncompressible)
 {
     size_t const minGain = ZSTD_minGain(srcSize, strategy);
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
@@ -105,11 +106,11 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
             HUF_compress1X_repeat(
                 ostart+lhSize, dstCapacity-lhSize, src, srcSize,
                 HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
-                (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2) :
+                (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2, suspectUncompressible) :
             HUF_compress4X_repeat(
                 ostart+lhSize, dstCapacity-lhSize, src, srcSize,
                 HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
-                (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2);
+                (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2, suspectUncompressible);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */
             DEBUGLOG(5, "Reusing previous huffman table");
@@ -117,7 +118,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
         }
     }
 
-    if ((cLitSize==0) | (cLitSize >= srcSize - minGain) | ERR_isError(cLitSize)) {
+    if ((cLitSize==0) || (cLitSize >= srcSize - minGain) || ERR_isError(cLitSize)) {
         ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }

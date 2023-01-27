@@ -338,9 +338,14 @@ zstdio_reset(void *stream)
 	size_t res;
 
 	s = stream;
-	res = ZSTD_resetCStream(s->zst_stream, 0);
+	res = ZSTD_CCtx_reset(s->zst_stream, ZSTD_reset_session_only);
 	if (ZSTD_isError(res))
 		panic("%s: could not reset stream %p: %s\n", __func__, s,
+		    ZSTD_getErrorName(res));
+	res = ZSTD_CCtx_setPledgedSrcSize(s->zst_stream,
+	    ZSTD_CONTENTSIZE_UNKNOWN);
+	if (ZSTD_isError(res))
+		panic("%s: could not set src size on %p: %s\n", __func__, s,
 		    ZSTD_getErrorName(res));
 
 	s->zst_off = 0;
