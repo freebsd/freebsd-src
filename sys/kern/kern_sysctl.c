@@ -1889,47 +1889,41 @@ retry:
 }
 
 /*
- * Based on on sysctl_handle_int() convert microseconds to a sbintime.
+ * Based on on sysctl_handle_64() convert microseconds to a sbintime.
  */
 int
 sysctl_usec_to_sbintime(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	int64_t tt;
-	sbintime_t sb;
+	int64_t usec;
 
-	tt = *(int64_t *)arg1;
-	sb = sbttous(tt);
+	usec = sbttous(*(sbintime_t *)arg1);
 
-	error = sysctl_handle_64(oidp, &sb, 0, req);
+	error = sysctl_handle_64(oidp, &usec, 0, req);
 	if (error || !req->newptr)
 		return (error);
 
-	tt = ustosbt(sb);
-	*(int64_t *)arg1 = tt;
+	*(sbintime_t *)arg1 = ustosbt(usec);
 
 	return (0);
 }
 
 /*
- * Based on on sysctl_handle_int() convert milliseconds to a sbintime.
+ * Based on on sysctl_handle_64() convert milliseconds to a sbintime.
  */
 int
 sysctl_msec_to_sbintime(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	int64_t tt;
-	sbintime_t sb;
+	int64_t msec;
 
-	tt = *(int64_t *)arg1;
-	sb = sbttoms(tt);
+	msec = sbttoms(*(sbintime_t *)arg1);
 
-	error = sysctl_handle_64(oidp, &sb, 0, req);
+	error = sysctl_handle_64(oidp, &msec, 0, req);
 	if (error || !req->newptr)
 		return (error);
 
-	tt = mstosbt(sb);
-	*(int64_t *)arg1 = tt;
+	*(sbintime_t *)arg1 = mstosbt(msec);
 
 	return (0);
 }
