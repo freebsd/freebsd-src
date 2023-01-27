@@ -246,7 +246,6 @@ MAN=	accept_filter.9 \
 	owll.9 \
 	own.9 \
 	panic.9 \
-	PCBGROUP.9 \
 	p_candebug.9 \
 	p_cansee.9 \
 	pci.9 \
@@ -1731,15 +1730,6 @@ MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_set.9 \
 	osd.9 osd_set_reserved.9
 MLINKS+=panic.9 vpanic.9
-MLINKS+=PCBGROUP.9 in_pcbgroup_byhash.9 \
-	PCBGROUP.9 in_pcbgroup_byinpcb.9 \
-	PCBGROUP.9 in_pcbgroup_destroy.9 \
-	PCBGROUP.9 in_pcbgroup_enabled.9 \
-	PCBGROUP.9 in_pcbgroup_init.9 \
-	PCBGROUP.9 in_pcbgroup_remove.9 \
-	PCBGROUP.9 in_pcbgroup_update.9 \
-	PCBGROUP.9 in_pcbgroup_update_mbuf.9 \
-	PCBGROUP.9 in6_pcbgroup_byhash.9
 MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_alloc_msix.9 \
 	pci.9 pci_disable_busmaster.9 \
