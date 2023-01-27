@@ -1228,7 +1228,7 @@ linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_ha
 	struct lkpi_devres_dmam_coherent *dr;
 
 	dr = lkpi_devres_alloc(lkpi_dmam_free_coherent,
-	   sizeof(*dr), GFP_KERNEL | __GFP_ZERO);
+	    sizeof(*dr), GFP_KERNEL | __GFP_ZERO);
 
 	if (dr == NULL)
 		return (NULL);
