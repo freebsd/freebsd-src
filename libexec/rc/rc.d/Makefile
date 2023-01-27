@@ -30,6 +30,8 @@ CONFS=	DAEMON \
 	geli \
 	geli2 \
 	gptboot \
+	growfs \
+	growfs_fstab \
 	hostid \
 	hostid_save \
 	hostname \
@@ -124,10 +126,6 @@ DHCLIENTPACKAGE=	dhclient
 CONFGROUPS+=		GGATED
 GGATED=			ggated
 GGATEDPACKAGE=		ggate
-
-CONFGROUPS+=		GROWFS
-GROWFS=			growfs growfs_fstab
-GROWFSPACKAGE=		ufs
 
 CONFGROUPS+=		RESOLVCONF
 RESOLVCONF=		resolv
