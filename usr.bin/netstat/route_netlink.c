@@ -129,7 +129,7 @@ prepare_ifmap_netlink(struct snl_state *ss, size_t *pifmap_size)
 		if (link.ifi_index >= ifmap_size) {
 			size_t size = roundup2(link.ifi_index + 1, 32) * sizeof(struct ifmap_entry);
 			if ((ifmap = realloc(ifmap, size)) == NULL)
-				errx(2, "realloc(%lu) failed", size);
+				errx(2, "realloc(%zu) failed", size);
 			memset(&ifmap[ifmap_size], 0,
 			    size - ifmap_size *
 			    sizeof(struct ifmap_entry));
