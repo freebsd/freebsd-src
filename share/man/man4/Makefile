@@ -143,6 +143,7 @@ MAN=	aac.4 \
 	em.4 \
 	ena.4 \
 	enc.4 \
+	enic.4 \
 	epair.4 \
 	est.4 \
 	et.4 \
