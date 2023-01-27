@@ -3,6 +3,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/common
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/dump
 
+PACKAGE=	ctf-tools
 PROG=		ctfdump
 SRCS=		dump.c \
 		symbol.c \
