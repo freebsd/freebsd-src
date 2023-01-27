@@ -14,6 +14,8 @@
 static int
 test_handler (XO_ENCODER_HANDLER_ARGS)
 {
+    flags &= ~XOF_UTF8; /* Skip this flag, since it depends on terminal */
+
     printf("op %s: [%s] [%s] [%#llx]\n", xo_encoder_op_name(op),
 	   name ?: "", value ?: "", (unsigned long long) flags);
 

@@ -79,6 +79,13 @@
   <div class="note">bytes</div>
 </div>
 <div class="line">
+  <div class="label">Low/warn granularity</div>
+  <div class="decoration">:</div>
+  <div class="padding">	</div>
+  <div class="data" data-tag="granularity-lw" data-units="mAh" data-xpath="/top/data[name = 'em0  '][name = 'em0']/granularity-lw">155</div>
+  <div class="padding"> </div>
+</div>
+<div class="line">
   <div class="data" data-tag="mbuf-current" data-xpath="/top/data[name = 'em0  '][name = 'em0']/mbuf-current">10</div>
   <div class="text">/</div>
   <div class="data" data-tag="mbuf-cache" data-xpath="/top/data[name = 'em0  '][name = 'em0']/mbuf-cache">20</div>

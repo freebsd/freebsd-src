@@ -11,8 +11,8 @@
 # a particular user has the dist or svn release.
 #
 
-AC_PREREQ(2.2)
-AC_INIT([libxo], [1.4.0], [phil@juniper.net])
+AC_PREREQ([2.69])
+AC_INIT([libxo],[1.6.0],[phil@juniper.net])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 
 # Support silent build rules.  Requires at least automake-1.11.
@@ -37,8 +37,6 @@ AC_PATH_PROG(MKDIR, mkdir, /bin/mkdir)
 AC_PATH_PROG(MV, mv, /bin/mv)
 AC_PATH_PROG(RM, rm, /bin/rm)
 AC_PATH_PROG(SED, sed, /bin/sed)
-
-AC_STDC_HEADERS
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -84,7 +82,8 @@ AC_CHECK_LIB([util], [humanize_number],
      [HAVE_HUMANIZE_NUMBER=$ac_cv_header_libutil_h],
      [HAVE_HUMANIZE_NUMBER=no])
 
-AC_MSG_RESULT(humanize_number results: :${HAVE_HUMANIZE_NUMBER}:${ac_cv_header_libutil_h}:)
+AC_MSG_CHECKING([humanize_number results])
+AC_MSG_RESULT(:${HAVE_HUMANIZE_NUMBER}:${ac_cv_header_libutil_h}:)
 
 if test "$HAVE_HUMANIZE_NUMBER" = "yes"; then
     AC_DEFINE([HAVE_HUMANIZE_NUMBER], [1], [humanize_number(3)])
@@ -177,6 +176,25 @@ fi
 AC_SUBST(GETTEXT_BINDIR)
 
 AM_CONDITIONAL([HAVE_GETTEXT], [test "$HAVE_GETTEXT" = "yes"])
+
+dnl on macosx, strings are not in the .text segment, making the call
+dnl to get_etext pointless
+AC_MSG_CHECKING([style of etext])
+AC_LINK_IFELSE([AC_LANG_SOURCE([
+    [#include <stdio.h>]
+    [extern char etext;]
+    [int main() { const char *p = &etext; printf("%p\n", p); return 0; }]])],
+    [HAVE_ETEXT=1 ; HAVE_ETEXT_STYLE="symbol"],
+    AC_LINK_IFELSE([AC_LANG_SOURCE([
+	[#include <stdio.h>]
+	[#include <mach-o/getsect.h>]
+	[int main() { const char *p = (const char *) get_etext(); printf("%p\n", p); return 0; }]])],
+        [HAVE_ETEXT=2 ; HAVE_ETEXT_STYLE="function"],
+	[HAVE_ETEXT=0 ; HAVE_ETEXT_STYLE="none"]
+    )
+)
+AC_MSG_RESULT(${HAVE_ETEXT_STYLE})
+AC_DEFINE_UNQUOTED([HAVE_ETEXT], [$HAVE_ETEXT], [Style of etext])
 
 dnl Looking for how to do thread-local variables
 AC_ARG_WITH(threads,
@@ -335,9 +353,10 @@ AM_CONDITIONAL([HAVE_LIBM], [test "$HAVE_LIBM" != "no"])
 AC_MSG_CHECKING([compiler for gcc])
 HAVE_GCC=no
 if test "${CC}" != ""; then
-    HAVE_GCC=`${CC} --version 2>&1 | grep GCC`
+    HAVE_GCC=`${CC} --version 2>&1 | grep -i GCC`
     if test "${HAVE_GCC}" != ""; then
         HAVE_GCC=yes
+	AC_DEFINE([HAVE_GCC], [1], [Using real gcc])
     else
         HAVE_GCC=no
     fi
@@ -450,6 +469,7 @@ AC_CONFIG_FILES([
   xohtml/xohtml.sh
   libxo/Makefile
   libxo/add.man
+  bin/Makefile
   encoder/Makefile
   encoder/cbor/Makefile
   encoder/csv/Makefile
@@ -497,4 +517,5 @@ AC_MSG_NOTICE([summary of build options:
   thread-local:     ${THREAD_LOCAL:-no}
   local wcwidth:    ${LIBXO_WCWIDTH:-no}
   retain size:      ${XO_RETAIN_SIZE:-no}
+  have etext:       ${HAVE_ETEXT:-no} (${HAVE_ETEXT_STYLE})
 ])

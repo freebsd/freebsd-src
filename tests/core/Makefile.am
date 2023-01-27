@@ -23,7 +23,8 @@ test_08.c \
 test_09.c \
 test_10.c \
 test_11.c \
-test_12.c
+test_12.c \
+test_13.c
 
 test_01_test_SOURCES = test_01.c
 test_02_test_SOURCES = test_02.c
@@ -37,6 +38,7 @@ test_09_test_SOURCES = test_09.c
 test_10_test_SOURCES = test_10.c
 test_11_test_SOURCES = test_11.c
 test_12_test_SOURCES = test_12.c
+test_13_test_SOURCES = test_13.c
 
 # TEST_CASES := $(shell cd ${srcdir} ; echo *.c )
 
@@ -51,24 +53,32 @@ endif
 
 EXTRA_DIST = \
     ${TEST_CASES} \
-    ${addprefix saved/, ${TEST_CASES:.c=.T.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.T.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.XP.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.XP.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.JP.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.JP.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.HP.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.HP.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.X.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.X.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.J.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.J.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.E.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.E.out}} \
     ${addprefix saved/, ${TEST_CASES:.c=.H.err}} \
     ${addprefix saved/, ${TEST_CASES:.c=.H.out}} \
     ${addprefix saved/, ${TEST_CASES:.c=.HIPx.err}} \
     ${addprefix saved/, ${TEST_CASES:.c=.HIPx.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.E.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.E.out}}
+    ${addprefix saved/, ${TEST_CASES:.c=.HP.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.HP.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.J.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.J.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JP.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JP.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JPu.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JPu.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.T.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.T.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.X.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.X.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.XP.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.XP.out}} \
+    ${addprefix saved/, test_01.Ecsv1.out} \
+    ${addprefix saved/, test_01.Ecsv1.err} \
+    ${addprefix saved/, test_01.Ecsv2.out} \
+    ${addprefix saved/, test_01.Ecsv2.err} \
+    ${addprefix saved/, test_01.Ecsv3.out} \
+    ${addprefix saved/, test_01.Ecsv3.err}
 
 S2O = | ${SED} '1,/@@/d'
 
@@ -88,10 +98,10 @@ TEST_JIG = \
 
 TEST_JIG2 = \
 echo "... $$test ... $$fmt ..."; \
-xoopts==warn,$$csv ; \
+xoopts==warn,$$extra ; \
 ${TEST_JIG}; true;
 
-TEST_FORMATS = T XP JP HP X J H HIPx
+TEST_FORMATS = T XP JP JPu HP X J H HIPx
 
 test tests: ${bin_PROGRAMS}
 	@${MKDIR} -p out
@@ -111,14 +121,19 @@ test tests: ${bin_PROGRAMS}
             done) \
 	done)
 	-@ (${TEST_TRACE} test=test_01.c; base=test_01; \
-	    (   fmt=Ecsv1; csv=encoder=csv ; \
+	    (   fmt=Ecsv1; extra=encoder=csv ; \
 			${TEST_JIG2} ); \
-	    (   fmt=Ecsv2; csv=encoder=csv:path=top/data/item:no-header ; \
+	    (   fmt=Ecsv2; extra=encoder=csv:path=top-level/data/item:no-header ; \
 			${TEST_JIG2} ); \
-	    (   fmt=Ecsv3; csv=@csv:path=item:leafs=sku.sold:no-quotes ; \
+	    (   fmt=Ecsv3; extra=@csv:path=item:leafs=sku.sold:no-quotes ; \
 			${TEST_JIG2} ); \
 	)
-
+	-@ (${TEST_TRACE} test=test_12.c; base=test_12; \
+	    (   fmt=XPmap; extra=xml,pretty,map-file=${srcdir}/test_12.map ; \
+			${TEST_JIG2} ); \
+	    (   fmt=JPmap; extra=json,pretty,map-file=${srcdir}/test_12.map ; \
+			${TEST_JIG2} ); \
+	)
 
 one:
 	-@(test=${TEST_CASE}; data=${TEST_DATA}; ${TEST_ONE} ; true)
@@ -133,6 +148,11 @@ accept:
 	    done) \
 	done)
 	-@(test=test_01.c; base=test_01; for fmt in Ecsv1 Ecsv2 Ecsv3 ; do \
+	        echo "... $$test ... $$fmt ..."; \
+	        ${CP} out/$$base.$$fmt.out ${srcdir}/saved/$$base.$$fmt.out ; \
+	        ${CP} out/$$base.$$fmt.err ${srcdir}/saved/$$base.$$fmt.err ; \
+	done)
+	-@(test=test_01.c; base=test_12; for fmt in XPmap JPmap ; do \
 	        echo "... $$test ... $$fmt ..."; \
 	        ${CP} out/$$base.$$fmt.out ${srcdir}/saved/$$base.$$fmt.out ; \
 	        ${CP} out/$$base.$$fmt.err ${srcdir}/saved/$$base.$$fmt.err ; \

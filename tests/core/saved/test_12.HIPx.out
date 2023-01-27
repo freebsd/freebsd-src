@@ -169,7 +169,13 @@
 </div>
 <div class="line">
   <div class="text">There is </div>
-  <div class="data" data-tag="4x4" data-xpath="/top/data/thing[name = 'thing']/2by4/4x4">truck</div>
+  <div class="data" data-tag="4x4" data-xpath="/top/data/2by4/4x4">truck</div>
   <div class="text"> in </div>
-  <div class="data" data-tag="2morrow" data-xpath="/top/data/thing[name = 'thing']/2by4/2morrow">tomorrow</div>
+  <div class="data" data-tag="2morrow" data-xpath="/top/data/2by4/2morrow">tomorrow</div>
+</div>
+<div class="line">
+  <div class="text">The </div>
+  <div class="data" data-tag="cölor" data-xpath="/top/data/tagÜÖÄ/cölor">blue</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="säfe" data-xpath="/top/data/tagÜÖÄ/säfe">yes</div>
 </div>

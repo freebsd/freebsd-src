@@ -1,5 +1,5 @@
 {
-  "top": {
+  "top-level": {
     "type": "ethernet",
     "type": "bridge",
     "type": "18u",
@@ -21,6 +21,10 @@
     "max-chaos": "very",
     "min-chaos": 42,
     "some-chaos": "[42]",
+    "sku": [
+      "gum-000-1412",
+      "sum-000-4121"
+    ],
     "host": "my-box",
     "domain": "example.com",
     "data": {
@@ -177,6 +181,15 @@
     "mode_octal": 640,
     "links": 1,
     "user": "user",
-    "group": "group"
+    "group": "group",
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "one": 1,
+    "two": 2,
+    "three": 3
   }
 }

@@ -16,7 +16,7 @@ xo_emit call:
 ```
     xo_emit(" {:lines/%7ju/%ju} {:words/%7ju/%ju} "
             "{:characters/%7ju/%ju}{d:filename/%s}\n",
-            linect, wordct, charct, file);
+            line_count, word_count, char_count, file);
 ```
 
 Output can then be generated in various style, using the "--libxo"

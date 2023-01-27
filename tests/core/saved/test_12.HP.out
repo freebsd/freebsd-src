@@ -173,3 +173,9 @@
   <div class="text"> in </div>
   <div class="data" data-tag="2morrow">tomorrow</div>
 </div>
+<div class="line">
+  <div class="text">The </div>
+  <div class="data" data-tag="cölor">blue</div>
+  <div class="text"> is </div>
+  <div class="data" data-tag="säfe">yes</div>
+</div>

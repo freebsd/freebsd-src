@@ -22,7 +22,8 @@ AM_CFLAGS = \
     ${GETTEXT_CFLAGS}
 
 AM_CFLAGS += \
-    -DXO_ENCODERDIR=\"${XO_ENCODERDIR}\"
+    -DXO_ENCODERDIR=\"${XO_ENCODERDIR}\" \
+    -DXO_SHAREDIR=\"${XO_SHAREDIR}\"
 
 lib_LTLIBRARIES = libxo.la
 
@@ -74,6 +75,7 @@ man5_files = \
     xo_format.5
 
 man7_files = \
+    libxo-csv.7 \
     xo_options.7
 
 man_MANS = ${man3_files} ${man5_files} ${man7_files}

@@ -95,9 +95,10 @@ static xo_ssize_t
 formatter (xo_handle_t *xop, char *buf, xo_ssize_t bufsiz,
 	   const char *fmt, va_list vap UNUSED)
 {
-    int lflag UNUSED = 0;	/* Parse long flag, though currently ignored */
-    int hflag = 0, jflag = 0, tflag = 0,
-	zflag = 0, qflag = 0, star1 = 0, star2 = 0;
+    /* printf-style formatting flags, currently ignored */
+    int lflag UNUSED = 0, hflag UNUSED = 0, jflag UNUSED = 0,
+	tflag UNUSED = 0, zflag UNUSED = 0, qflag UNUSED = 0;
+    int star1 = 0, star2 = 0;
     int rc = 0;
     int w1 = 0, w2 = 0;
     const char *cp;

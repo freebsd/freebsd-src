@@ -50,6 +50,8 @@ The triggered functionality is identical.
 .It "keys       " "Emit the key attribute for keys (XML)"
 .It "log\-gettext" "Log (via stderr) each gettext(3) string lookup"
 .It "log\-syslog " "Log (via stderr) each syslog message (via xo_syslog)"
+.It "map        " "Map between tag names"
+.It "map\-file   " "Use a file to specify mapping between tag names"
 .It "no\-humanize" "Ignore the {h:} modifier (TEXT, HTML)"
 .It "no\-locale  " "Do not initialize the locale setting"
 .It "no\-retain  " "Prevent retaining formatting information"
@@ -101,6 +103,11 @@ names that state with "data\-".
 adds a "key" attribute for XML output to indicate that a leaf is
 an identifier for the list member.
 .Pp
+.Fa map
+and
+.Fa map\-file
+are described below.
+.Pp
 .Fa no\-humanize
 avoids "humanizing" numeric output (see
 .Xr humanize_number 3
@@ -132,6 +139,176 @@ to emit warnings on stderr when application code make incorrect calls.
 .Fa warn\-xml causes those warnings to be placed in
 .Em XML
 inside the output.
+.Sh Color Mapping
+The
+.Fa colors
+option takes a value that is a set of mappings from the
+pre-defined set of colors to new foreground and background colors.
+The value is a series of "fg/bg" values, separated by a "+".
+Each pair of "fg/bg" values gives the colors to which a basic color is
+mapped when used as a foreground or background color.
+The order is the mappings is:
+.Bd -literal -offset indent
+- black
+- red
+- green
+- yellow
+- blue
+- magenta
+- cyan
+- white
+.Ed
+.Pp
+Pairs may be skipped, leaving them mapped as normal, as are missing
+pairs or single colors.
+.Pp
+For example consider the following xo_emit call:
+.Bd -literal -offset indent
+    xo_emit("{C:fg-red,bg-green}Merry XMas!!{C:}\n");
+.Ed
+.Pp
+To turn all colored output to red-on-blue, use eight pairs of
+"red/blue" mappings separated by plus signs ("+"):
+.Bd -literal -offset indent
+    --libxo colors=red/blue+red/blue+red/blue+red/blue+\
+                   red/blue+red/blue+red/blue+red/blue
+.Ed
+.Pp
+To turn the red-on-green text to magenta-on-cyan, give a "magenta"
+foreground value for red (the second mapping) and a "cyan" background
+to green (the third mapping):
+.Bd -literal -offset indent
+    --libxo colors=+magenta+/cyan
+.Ed
+.Pp
+Consider the common situation where blue output looks unreadable on a
+terminal session with a black background.
+To turn both "blue" foreground and background output to "yellow",
+give only the fifth mapping, skipping the first four mappings
+with bare plus signs ("+"):
+.Bd -literal -offset indent
+    --libxo colors=++++yellow/yellow
+.Ed
+.Pp
+.Sh Tag Mapping
+.Nm libxo
+supports mapping between tag names, for scenarios where the tags
+need to make specific values.
+For example, the "user" tag might be
+needed as the "owner" tag.
+.Nm libxo
+can perform this one-to-one tag
+replacement.
+.Pp
+Note that
+.Nm libxo
+does not perform more complex transformations;
+languages such as XSLT or SLAX should be used when something more than
+simple one-to-one replacement is required.
+.Pp
+Mapping can be specified using the
+.Fa map
+and
+.Fa map-file options.
+The
+.Fa map
+option accepts one or more mapping, in the format "old=new",
+separated by colons:
+.Bd -literal -offset indent
+    --libxo map:one=red,map:two=blue
+.Ed
+.Pp
+This example would turn:
+.Bd -literal -offset indent
+    <one>fish</one>
+    <two>fish</two>
+.Ed
+.Pp
+into:
+.Bd -literal -offset indent
+    <red>fish</red>
+    <blue>fish</blue>
+.Ed
+.Pp
+In another example, the command-line options:
+.Bd -literal -offset indent
+    --libxo map:user=owner:name=file:size=bytes:modify-time=time
+.Ed
+.Pp
+would turn:
+.Bd -literal -offset indent
+    <entry>
+      <name>xx-00000009</name>
+      <user>phil</user>
+      <size>12345</size>
+      <modify-time value="1644355825">1644355825</modify-time>
+    </entry>
+.Ed
+.Pp
+into:
+.Bd -literal -offset indent
+    <entry>
+      <file>xx-00000009</file>
+      <owner>phil</owner>
+      <bytes>12345</bytes>
+      <time value="1644355825">1644355825</time>
+    </entry>
+.Ed
+.Pp
+The
+.Fa map-file
+option allows the mappings to be placed into a file,
+one per line:
+.Bd -literal -offset indent
+    --libxo map-file=foo.map
+.Ed
+.Pp
+where "foo.map" might contain:
+.Bd -literal -offset indent
+    # comments are supported, white space is ignored
+    user = owner
+    name=file
+    # blank lines are allowed
+
+        size = bytes
+    modify-time= time
+.Ed
+.Pp
+This untidy example demonstrates the flexibility in the
+.Nm libxo
+mapping files.
+.Pp
+If the filename given with the
+.Fa map-file
+option contains no slashes ("/") and such a file does not
+exist in the current working directory,
+.Nm libxo
+will look for the file in the "map" subdirectory of the system
+"share" directory, typically /usr/share/libxo/map/.
+.Sh Encoders
+In addition to the four "built-in" formats,
+.Nm libxo
+supports an extensible mechanism for adding encoders.
+These are activated using the
+.Fa encoder
+keyword::
+.Bd -literal -offset indent
+   --libxo encoder=cbor
+.Ed
+.Pp
+The encoder can include encoder-specific options, separated by either
+colons (":") or plus signs ("+"):
+.Bd -literal -offset indent
+    --libxo encoder=csv+path=filesystem+leaf=name+no-header
+    --libxo encoder=csv:path=filesystem:leaf=name:no-header
+.Ed
+.Pp
+For brevity, the string "@" can be used in place of the string
+"encoder=".
+.Bd -literal -offset indent
+    df --libxo @csv:no-header
+.Ed
+.Pp
 .Sh EXAMPLES
 The following are three example invocations of
 .Xr ps 1 :

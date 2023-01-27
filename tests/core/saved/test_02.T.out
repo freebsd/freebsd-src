@@ -12,6 +12,7 @@ improper use of profanity; ten yard penalty; first down
 2 bytes
 3 bytes
 4 bytes
+Low/warn granularity:	155 mAh
 10/20/30 mbufs <&> in use (current/cache/total)
 50 miles from Boston
 64k left out of 640kb

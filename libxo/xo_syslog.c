@@ -38,7 +38,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -58,9 +57,13 @@
 #include <stdarg.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/sysctl.h>
 
 #include "xo_config.h"
+
+#ifdef HAVE_SYSCTLBYNAME
+#include <sys/sysctl.h>
+#endif /* HAVE_SYSCTLBYNAME */
+
 #include "xo.h"
 #include "xo_encoder.h"		/* For xo_realloc */
 #include "xo_buf.h"
@@ -89,18 +92,18 @@
 
 #if defined(__FreeBSD__)
 #define XO_DEFAULT_EID	2238
-#elif defined(__macosx__)
+#elif defined(__APPLE__)
 #define XO_DEFAULT_EID	63
 #else
 #define XO_DEFAULT_EID	32473	/* Fallback to the "example" number */
 #endif
 
 #ifndef HOST_NAME_MAX
-#ifdef _SC_HOST_NAME_MAX
-#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#ifdef _POSIX_HOST_NAME_MAX
+#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
 #else
 #define HOST_NAME_MAX 255
-#endif /* _SC_HOST_NAME_MAX */
+#endif /* _POSIX_HOST_NAME_MAX */
 #endif /* HOST_NAME_MAX */
 
 #ifndef UNUSED
@@ -584,12 +587,13 @@ xo_vsyslog (int pri, const char *name, const char *fmt, va_list vap)
      * Add HOSTNAME; we rely on gethostname and don't fluff with
      * ip addresses.  Might need to revisit.....
      */
-    char hostname[HOST_NAME_MAX];
+    char hostname[HOST_NAME_MAX + 1];
     hostname[0] = '\0';
     if (xo_unit_test)
 	strcpy(hostname, "worker-host");
     else
-	(void) gethostname(hostname, sizeof(hostname));
+	(void) gethostname(hostname, sizeof(hostname) - 1);
+    hostname[HOST_NAME_MAX] = '\0'; /* Ensure NUL-terminated */
 
     xb.xb_curp += xo_snprintf(xb.xb_curp, xo_buf_left(&xb), "%s ",
 			      hostname[0] ? hostname : "-");
