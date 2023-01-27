@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -51,6 +51,8 @@ extern "C" {
 #    include <stdint.h> /* intptr_t */
 #  endif
   typedef   uint8_t BYTE;
+  typedef   uint8_t U8;
+  typedef    int8_t S8;
   typedef  uint16_t U16;
   typedef   int16_t S16;
   typedef  uint32_t U32;
@@ -63,6 +65,8 @@ extern "C" {
 #  error "this implementation requires char to be exactly 8-bit type"
 #endif
   typedef unsigned char      BYTE;
+  typedef unsigned char      U8;
+  typedef   signed char      S8;
 #if USHRT_MAX != 65535
 #  error "this implementation requires short to be exactly 16-bit type"
 #endif
@@ -143,9 +147,7 @@ MEM_STATIC size_t MEM_swapST(size_t in);
  * Prefer these methods in priority order (0 > 1 > 2)
  */
 #ifndef MEM_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  if defined(__GNUC__) && ( defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__) || defined(__ARM_ARCH_6T2__) )
-#    define MEM_FORCE_MEMORY_ACCESS 2
-#  elif defined(__INTEL_COMPILER) || defined(__GNUC__) || defined(__ICCARM__)
+#  if defined(__INTEL_COMPILER) || defined(__GNUC__) || defined(__ICCARM__)
 #    define MEM_FORCE_MEMORY_ACCESS 1
 #  endif
 #endif
@@ -155,8 +157,22 @@ MEM_STATIC unsigned MEM_64bits(void) { return sizeof(size_t)==8; }
 
 MEM_STATIC unsigned MEM_isLittleEndian(void)
 {
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+    return 1;
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+    return 0;
+#elif defined(__clang__) && __LITTLE_ENDIAN__
+    return 1;
+#elif defined(__clang__) && __BIG_ENDIAN__
+    return 0;
+#elif defined(_MSC_VER) && (_M_AMD64 || _M_IX86)
+    return 1;
+#elif defined(__DMC__) && defined(_M_IX86)
+    return 1;
+#else
     const union { U32 u; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
+#endif
 }
 
 #if defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==2)
@@ -308,7 +324,7 @@ MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
 
 MEM_STATIC U32 MEM_readLE24(const void* memPtr)
 {
-    return MEM_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
+    return (U32)MEM_readLE16(memPtr) + ((U32)(((const BYTE*)memPtr)[2]) << 16);
 }
 
 MEM_STATIC void MEM_writeLE24(void* memPtr, U32 val)

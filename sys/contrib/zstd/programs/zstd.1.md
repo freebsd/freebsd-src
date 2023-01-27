@@ -115,7 +115,8 @@ the last one takes effect.
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
-    In all cases, the nb of threads is capped to ZSTDMT_NBWORKERS_MAX==200.
+    In all cases, the nb of threads is capped to `ZSTDMT_NBWORKERS_MAX`,
+    which is either 64 in 32-bit mode, or 256 for 64-bit environments.
     This modifier does nothing if `zstd` is compiled without multithread support.
 * `--single-thread`:
     Does not spawn a thread for compression, use a single thread for both I/O and compression.
@@ -124,6 +125,9 @@ the last one takes effect.
     This mode is the only one available when multithread support is disabled.
     Single-thread mode features lower memory usage.
     Final compressed result is slightly different from `-T1`.
+* `--auto-threads={physical,logical} (default: physical)`:
+    When using a default amount of threads via `-T0`, choose the default based on the number
+    of detected physical or logical cores.
 * `--adapt[=min=#,max=#]` :
     `zstd` will dynamically adapt compression level to perceived I/O conditions.
     Compression level adaptation can be observed live by using command `-v`.
@@ -167,7 +171,7 @@ the last one takes effect.
     compression speed hit.
     This feature does not work with `--single-thread`. You probably don't want
     to use it with long range mode, since it will decrease the effectiveness of
-    the synchronization points, but your milage may vary.
+    the synchronization points, but your mileage may vary.
 * `-C`, `--[no-]check`:
     add integrity check computed from uncompressed data (default: enabled)
 * `--[no-]content-size`:
@@ -186,6 +190,10 @@ the last one takes effect.
 
     This is also used during compression when using with --patch-from=. In this case,
     this parameter overrides that maximum size allowed for a dictionary. (128 MB).
+
+    Additionally, this can be used to limit memory for dictionary training. This parameter
+    overrides the default limit of 2 GB. zstd will load training samples up to the memory limit
+    and ignore the rest.
 * `--stream-size=#` :
     Sets the pledged source size of input coming from a stream. This value must be exact, as it
     will be included in the produced frame header. Incorrect stream sizes will cause an error.
@@ -201,9 +209,10 @@ the last one takes effect.
 * `-o FILE`:
     save result into `FILE`
 * `-f`, `--force`:
-    overwrite output without prompting, and (de)compress symbolic links
+    disable input and output checks. Allows overwriting existing files, input
+    from console, output to stdout, operating on links, block devices, etc.
 * `-c`, `--stdout`:
-    force write to standard output, even if it is the console
+    write to standard output (even if it is the console)
 * `--[no-]sparse`:
     enable / disable sparse FS support,
     to make files with many zeroes smaller on disk.
@@ -214,12 +223,16 @@ the last one takes effect.
     This setting overrides default and can force sparse mode over stdout.
 * `--rm`:
     remove source file(s) after successful compression or decompression. If used in combination with
-    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation. 
+    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation.
 * `-k`, `--keep`:
     keep source file(s) after successful compression or decompression.
     This is the default behavior.
 * `-r`:
-    operate recursively on directories
+    operate recursively on directories.
+    It selects all files in the named directory and all its subdirectories.
+    This can be useful both to reduce command line typing,
+    and to circumvent shell expansion limitations,
+    when there are a lot of files and naming breaks the maximum size of a command line.
 * `--filelist FILE`
     read a list of files to process as content from `FILE`.
     Format is compatible with `ls` output, with one file per line.
@@ -280,11 +293,11 @@ If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a 
 
 `ZSTD_NBTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
 If the value of `ZSTD_NBTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
-'ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
+`ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
 compiled with multithread support for this to have any effect.
 
 They can both be overridden by corresponding command line arguments:
-`-#` for compression level and `-T#` for number of compression threads. 
+`-#` for compression level and `-T#` for number of compression threads.
 
 
 DICTIONARY BUILDER
@@ -302,12 +315,14 @@ Compression of small files similar to the sample set will be greatly improved.
     The training set should contain a lot of small files (> 100),
     and weight typically 100x the target dictionary size
     (for example, 10 MB for a 100 KB dictionary).
+    `--train` can be combined with `-r` to indicate a directory rather than listing all the files,
+    which can be useful to circumvent shell expansion limits.
 
-    Supports multithreading if `zstd` is compiled with threading support.
+    `--train` supports multithreading if `zstd` is compiled with threading support (default).
     Additional parameters can be specified with `--train-fastcover`.
     The legacy dictionary builder can be accessed with `--train-legacy`.
-    The cover dictionary builder can be accessed with `--train-cover`.
-    Equivalent to `--train-fastcover=d=8,steps=4`.
+    The slower cover dictionary builder can be accessed with `--train-cover`.
+    Default is equivalent to `--train-fastcover=d=8,steps=4`.
 * `-o file`:
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
@@ -317,10 +332,12 @@ Compression of small files similar to the sample set will be greatly improved.
     Will generate statistics more tuned for selected compression level,
     resulting in a _small_ compression ratio improvement for this level.
 * `-B#`:
-    Split input files in blocks of size # (default: no split)
+    Split input files into blocks of size # (default: no split)
+* `-M#`, `--memory=#`:
+    Limit the amount of sample data loaded for training (default: 2 GB). See above for details.
 * `--dictID=#`:
-    A dictionary ID is a locally unique ID that a decoder can use to verify it is
-    using the right dictionary.
+    A dictionary ID is a locally unique ID
+    that a decoder can use to verify it is using the right dictionary.
     By default, zstd will create a 4-bytes random number ID.
     It's possible to give a precise number instead.
     Short numbers have an advantage : an ID < 256 will only need 1 byte in the
@@ -422,6 +439,16 @@ BENCHMARK
 
 ADVANCED COMPRESSION OPTIONS
 ----------------------------
+### -B#:
+Select the size of each compression job.
+This parameter is only available when multi-threading is enabled.
+Each compression job is run in parallel, so this value indirectly impacts the nb of active threads.
+Default job size varies depending on compression level (generally  `4 * windowSize`).
+`-B#` makes it possible to manually select a custom size.
+Note that job size must respect a minimum value which is enforced transparently.
+This minimum is either 512 KB, or `overlapSize`, whichever is largest.
+Different job sizes will lead to (slightly) different compressed frames.
+
 ### --zstd[=options]:
 `zstd` provides 22 predefined compression levels.
 The selected or default predefined compression level can be changed with
@@ -565,13 +592,6 @@ similar to predefined level 19 for files bigger than 256 KB:
 
 `--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 
-### -B#:
-Select the size of each compression job.
-This parameter is available only when multi-threading is enabled.
-Default value is `4 * windowSize`, which means it varies depending on compression level.
-`-B#` makes it possible to select a custom value.
-Note that job size must respect a minimum value which is enforced transparently.
-This minimum is either 1 MB, or `overlapSize`, whichever is largest.
 
 BUGS
 ----

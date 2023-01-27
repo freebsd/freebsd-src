@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -57,7 +57,7 @@ typedef enum {
  * Check the zstd error code and die if an error occurred after printing a
  * message.
  */
-#define CHECK_ZSTD(fn, ...)                                      \
+#define CHECK_ZSTD(fn)                                           \
     do {                                                         \
         size_t const err = (fn);                                 \
         CHECK(!ZSTD_isError(err), "%s", ZSTD_getErrorName(err)); \

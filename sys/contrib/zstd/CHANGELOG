@@ -1,3 +1,108 @@
+v1.5.2 (Jan, 2022)
+perf: Regain Minimal memset()-ing During Reuse of Compression Contexts (@Cyan4973, #2969)
+build: Build Zstd with `noexecstack` on All Architectures (@felixhandte, #2964)
+doc: Clarify Licensing (@terrelln, #2981)
+
+v1.5.1 (Dec, 2021)
+perf: rebalanced compression levels, to better match the intended speed/level curve, by @senhuang42
+perf: faster huffman decoder, using x64 assembly, by @terrelln
+perf: slightly faster high speed modes (strategies fast & dfast), by @felixhandte
+perf: improved binary size and faster compilation times, by @terrelln
+perf: new row64 mode, used notably in level 12, by @senhuang42
+perf: faster mid-level compression speed in presence of highly repetitive patterns, by @senhuang42
+perf: minor compression ratio improvements for small data at high levels, by @cyan4973
+perf: reduced stack usage (mostly useful for Linux Kernel), by @terrelln
+perf: faster compression speed on incompressible data, by @bindhvo
+perf: on-demand reduced ZSTD_DCtx state size, using build macro ZSTD_DECODER_INTERNAL_BUFFER, at a small cost of performance, by @bindhvo
+build: allows hiding static symbols in the dynamic library, using build macro, by @skitt
+build: support for m68k (Motorola 68000's), by @cyan4973
+build: improved AIX support, by @Helflym
+build: improved meson unofficial build, by @eli-schwartz
+cli : custom memory limit when training dictionary (#2925), by @embg
+cli : report advanced parameters information when compressing in very verbose mode (``-vv`), by @Svetlitski-FB
+
+v1.5.0  (May 11, 2021)
+api: Various functions promoted from experimental to stable API: (#2579-2581, @senhuang42)
+  `ZSTD_defaultCLevel()`
+  `ZSTD_getDictID_fromCDict()`
+api: Several experimental functions have been deprecated and will emit a compiler warning (#2582, @senhuang42)
+  `ZSTD_compress_advanced()`
+  `ZSTD_compress_usingCDict_advanced()`
+  `ZSTD_compressBegin_advanced()`
+  `ZSTD_compressBegin_usingCDict_advanced()`
+  `ZSTD_initCStream_srcSize()`
+  `ZSTD_initCStream_usingDict()`
+  `ZSTD_initCStream_usingCDict()`
+  `ZSTD_initCStream_advanced()`
+  `ZSTD_initCStream_usingCDict_advanced()`
+  `ZSTD_resetCStream()`
+api: ZSTDMT_NBWORKERS_MAX reduced to 64 for 32-bit environments (@Cyan4973)
+perf: Significant speed improvements for middle compression levels (#2494, @senhuang42 @terrelln)
+perf: Block splitter to improve compression ratio, enabled by default for high compression levels (#2447, @senhuang42)
+perf: Decompression loop refactor, speed improvements on `clang` and for `--long` modes (#2614 #2630, @Cyan4973)
+perf: Reduced stack usage during compression and decompression entropy stage (#2522 #2524, @terrelln)
+bug: Improve setting permissions of created files (#2525, @felixhandte)
+bug: Fix large dictionary non-determinism (#2607, @terrelln)
+bug: Fix non-determinism test failures on Linux i686 (#2606, @terrelln)
+bug: Fix various dedicated dictionary search bugs (#2540 #2586, @senhuang42 @felixhandte)
+bug: Ensure `ZSTD_estimateCCtxSize*() `monotonically increases with compression level (#2538, @senhuang42)
+bug: Fix --patch-from mode parameter bound bug with small files (#2637, @occivink)
+bug: Fix UBSAN error in decompression (#2625, @terrelln)
+bug: Fix superblock compression divide by zero bug (#2592, @senhuang42)
+bug: Make the number of physical CPU cores detection more robust (#2517, @PaulBone)
+doc: Improve `zdict.h` dictionary training API documentation (#2622, @terrelln)
+doc: Note that public `ZSTD_free*()` functions accept NULL pointers (#2521, @animalize)
+doc: Add style guide docs for open source contributors (#2626, @Cyan4973)
+tests: Better regression test coverage for different dictionary modes (#2559, @senhuang42)
+tests: Better test coverage of index reduction (#2603, @terrelln)
+tests: OSS-Fuzz coverage for seekable format (#2617, @senhuang42)
+tests: Test coverage for ZSTD threadpool API (#2604, @senhuang42)
+build: Dynamic library built multithreaded by default (#2584, @senhuang42)
+build: Move  `zstd_errors.h`  and  `zdict.h`  to  `lib/`  root (#2597, @terrelln)
+build: Allow `ZSTDMT_JOBSIZE_MIN` to be configured at compile-time, reduce default to 512KB (#2611, @Cyan4973)
+build: Single file library build script moved to `build/` directory (#2618, @felixhandte)
+build: `ZBUFF_*()` is no longer built by default (#2583, @senhuang42)
+build: Fixed Meson build (#2548, @SupervisedThinking @kloczek)
+build: Fix excessive compiler warnings with clang-cl and CMake (#2600, @nickhutchinson)
+build: Detect presence of `md5` on Darwin (#2609, @felixhandte)
+build: Avoid SIGBUS on armv6 (#2633, @bmwiedmann)
+cli: `--progress` flag added to always display progress bar (#2595, @senhuang42)
+cli: Allow reading from block devices with `--force` (#2613, @felixhandte)
+cli: Fix CLI filesize display bug (#2550, @Cyan4973)
+cli: Fix windows CLI `--filelist` end-of-line bug (#2620, @Cyan4973)
+contrib: Various fixes for linux kernel patch (#2539, @terrelln)
+contrib: Seekable format - Decompression hanging edge case fix (#2516, @senhuang42)
+contrib: Seekable format - New seek table-only API  (#2113 #2518, @mdittmer @Cyan4973)
+contrib: Seekable format - Fix seek table descriptor check when loading (#2534, @foxeng)
+contrib: Seekable format - Decompression fix for large offsets, (#2594, @azat)
+misc: Automatically published release tarballs available on Github (#2535, @felixhandte)
+
+v1.4.9  (Mar 1, 2021)
+bug: Use `umask()` to Constrain Created File Permissions (#2495, @felixhandte)
+bug: Make Simple Single-Pass Functions Ignore Advanced Parameters (#2498, @terrelln)
+api: Add (De)Compression Tracing Functionality (#2482, @terrelln)
+api: Support References to Multiple DDicts (#2446, @senhuang42)
+api: Add Function to Generate Skippable Frame (#2439, @senhuang42)
+perf: New Algorithms for the Long Distance Matcher (#2483, @mpu)
+perf: Performance Improvements for Long Distance Matcher (#2464, @mpu)
+perf: Don't Shrink Window Log when Streaming with a Dictionary (#2451, @terrelln)
+cli: Fix `--output-dir-mirror`'s Rejection of `..`-Containing Paths (#2512, @felixhandte)
+cli: Allow Input From Console When `-f`/`--force` is Passed (#2466, @felixhandte)
+cli: Improve Help Message (#2500, @senhuang42)
+tests: Remove Flaky Tests (#2455, #2486, #2445, @Cyan4973)
+tests: Correctly Invoke md5 Utility on NetBSD (#2492, @niacat)
+tests: Avoid Using `stat -c` on NetBSD (#2513, @felixhandte)
+build: Zstd CLI Can Now be Linked to Dynamic `libzstd` (#2457, #2454 @Cyan4973)
+build: Hide and Avoid Using Static-Only Symbols (#2501, #2504, @skitt)
+build: CMake: Enable Only C for lib/ and programs/ Projects (#2498, @concatime)
+build: CMake: Use `configure_file()` to Create the `.pc` File (#2462, @lazka)
+build: Fix Fuzzer Compiler Detection & Update UBSAN Flags (#2503, @terrelln)
+build: Add Guards for `_LARGEFILE_SOURCE` and `_LARGEFILE64_SOURCE` (#2444, @indygreg)
+build: Improve `zlibwrapper` Makefile (#2437, @Cyan4973)
+contrib: Add `recover_directory` Program (#2473, @terrelln)
+doc: Change License Year to 2021 (#2452 & #2465, @terrelln & @senhuang42)
+doc: Fix Typos (#2459, @ThomasWaldmann)
+
 v1.4.8  (Dec 18, 2020)
 hotfix: wrong alignment of an internal buffer
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Facebook, Inc.
+ * Copyright (c) Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -16,21 +16,29 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+#ifndef ZDICT_STATIC_LINKING_ONLY
+#  define ZDICT_STATIC_LINKING_ONLY
+#endif
+
 #include "../common/mem.h" /* read */
 #include "../common/pool.h"
 #include "../common/threading.h"
-#include "cover.h"
 #include "../common/zstd_internal.h" /* includes zstd.h */
 #include "../compress/zstd_compress_internal.h" /* ZSTD_hash*() */
-#ifndef ZDICT_STATIC_LINKING_ONLY
-#define ZDICT_STATIC_LINKING_ONLY
-#endif
-#include "zdict.h"
+#include "../zdict.h"
+#include "cover.h"
 
 
 /*-*************************************
 *  Constants
 ***************************************/
+/**
+* There are 32bit indexes used to ref samples, so limit samples size to 4GB
+* on 64bit builds.
+* For 32bit builds we choose 1 GB.
+* Most 32bit platforms have 2GB user-mode addressable space and we allocate a large
+* contiguous buffer, so 1GB is already a high limit.
+*/
 #define FASTCOVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((unsigned)-1) : ((unsigned)1 GB))
 #define FASTCOVER_MAX_F 31
 #define FASTCOVER_MAX_ACCEL 10
@@ -43,7 +51,7 @@
 *  Console display
 ***************************************/
 #ifndef LOCALDISPLAYLEVEL
-static int g_displayLevel = 2;
+static int g_displayLevel = 0;
 #endif
 #undef  DISPLAY
 #define DISPLAY(...)                                                           \
@@ -462,20 +470,20 @@ typedef struct FASTCOVER_tryParameters_data_s {
  * This function is thread safe if zstd is compiled with multithreaded support.
  * It takes its parameters as an *OWNING* opaque pointer to support threading.
  */
-static void FASTCOVER_tryParameters(void *opaque)
+static void FASTCOVER_tryParameters(void* opaque)
 {
   /* Save parameters as local variables */
-  FASTCOVER_tryParameters_data_t *const data = (FASTCOVER_tryParameters_data_t *)opaque;
+  FASTCOVER_tryParameters_data_t *const data = (FASTCOVER_tryParameters_data_t*)opaque;
   const FASTCOVER_ctx_t *const ctx = data->ctx;
   const ZDICT_cover_params_t parameters = data->parameters;
   size_t dictBufferCapacity = data->dictBufferCapacity;
   size_t totalCompressedSize = ERROR(GENERIC);
   /* Initialize array to keep track of frequency of dmer within activeSegment */
-  U16* segmentFreqs = (U16 *)calloc(((U64)1 << ctx->f), sizeof(U16));
+  U16* segmentFreqs = (U16*)calloc(((U64)1 << ctx->f), sizeof(U16));
   /* Allocate space for hash table, dict, and freqs */
-  BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
+  BYTE *const dict = (BYTE*)malloc(dictBufferCapacity);
   COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
-  U32 *freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
+  U32* freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
   if (!segmentFreqs || !dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
     goto _cleanup;
@@ -548,7 +556,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     ZDICT_cover_params_t coverParams;
     FASTCOVER_accel_t accelParams;
     /* Initialize global data */
-    g_displayLevel = parameters.zParams.notificationLevel;
+    g_displayLevel = (int)parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
     parameters.splitPoint = 1.0;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
@@ -631,7 +639,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
     const unsigned shrinkDict = 0;
     /* Local variables */
-    const int displayLevel = parameters->zParams.notificationLevel;
+    const int displayLevel = (int)parameters->zParams.notificationLevel;
     unsigned iteration = 1;
     unsigned d;
     unsigned k;
@@ -715,7 +723,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
         data->parameters.shrinkDict = shrinkDict;
-        data->parameters.zParams.notificationLevel = g_displayLevel;
+        data->parameters.zParams.notificationLevel = (unsigned)g_displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,
                                        data->ctx->f, accel)) {
