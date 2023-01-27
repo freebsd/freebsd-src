@@ -333,11 +333,7 @@ struct pci_dev {
 	bool			msix_enabled;
 	phys_addr_t		rom;
 	size_t			romlen;
-	/*
-	 * msi_desc should be an array one day? For as long as we only support
-	 * 1 MSI vector this is fine.
-	 */
-	struct msi_desc		*msi_desc;
+	struct msi_desc		**msi_desc;
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
 };
@@ -889,26 +885,42 @@ pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
   linux_pci_enable_msi(pdev)
 
 static inline int
-pci_enable_msi(struct pci_dev *pdev)
+_lkpi_pci_enable_msi_range(struct pci_dev *pdev, int minvec, int maxvec)
 {
 	struct resource_list_entry *rle;
 	int error;
-	int avail;
+	int nvec;
 
-	avail = pci_msi_count(pdev->dev.bsddev);
-	if (avail < 1)
-		return -EINVAL;
+	if (maxvec < minvec)
+		return (-EINVAL);
 
-	avail = 1;	/* this function only enable one MSI IRQ */
-	if ((error = -pci_alloc_msi(pdev->dev.bsddev, &avail)) != 0)
+	nvec = pci_msi_count(pdev->dev.bsddev);
+	if (nvec < 1 || nvec < minvec)
+		return (-ENOSPC);
+
+	nvec = min(nvec, maxvec);
+	if ((error = -pci_alloc_msi(pdev->dev.bsddev, &nvec)) != 0)
 		return error;
+
+	/* Native PCI might only ever ask for 32 vectors. */
+	if (nvec < minvec) {
+		pci_release_msi(pdev->dev.bsddev);
+		return (-ENOSPC);
+	}
 
 	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1, false);
 	pdev->dev.irq_start = rle->start;
-	pdev->dev.irq_end = rle->start + avail;
+	pdev->dev.irq_end = rle->start + nvec;
 	pdev->irq = rle->start;
 	pdev->msi_enabled = true;
 	return (0);
+}
+
+static inline int
+pci_enable_msi(struct pci_dev *pdev)
+{
+
+	return (_lkpi_pci_enable_msi_range(pdev, 1, 1));
 }
 
 static inline int
@@ -1611,7 +1623,7 @@ err:
 /*
  * We cannot simply re-define pci_get_device() as we would normally do
  * and then hide it in linux_pci.c as too many semi-native drivers still
- * inlucde linux/pci.h and run into the conflict with native PCI. Linux drivers
+ * include linux/pci.h and run into the conflict with native PCI. Linux drivers
  * using pci_get_device() need to be changed to call linuxkpi_pci_get_device().
  */
 static inline struct pci_dev *
