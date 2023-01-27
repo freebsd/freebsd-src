@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	elftoolchain
+
 ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 READELFDIR=	${ELFTCDIR}/readelf
 
