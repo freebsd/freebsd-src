@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	mount_smbfs
+PACKAGE=	smbutils
 SRCS=	mount_smbfs.c getmntopts.c
 MAN=	mount_smbfs.8
 
