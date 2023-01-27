@@ -5,6 +5,7 @@
 
 SRCDIR=	${NCURSES_DIR}/form
 
+PACKAGE=	clibs
 LIB=	formw
 SHLIB_MAJOR=	6
 
