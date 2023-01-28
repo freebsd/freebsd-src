@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Diversen berichten.
-$set 1
-
-1 "Functie:"
-
 $ Fouttypes.
-$set 2
+$set 1
 
 1 "Rekenfout:"
 2 "Parse error:"
@@ -43,7 +38,7 @@ $set 2
 5 "Waarschuwing:"
 
 $ Math error.
-$set 3
+$set 2
 
 1 "negatief getal"
 2 "niet-integraal getal"
@@ -51,7 +46,7 @@ $set 3
 4 "delen door 0"
 
 $ Parsefouten.
-$set 4
+$set 3
 
 1 "einde van het file"
 2 "ongeldig teken '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX staat niet toe dat strings worden toegewezen aan variabelen of arrays"
 
 $ Runtime fouten.
-$set 5
+$set 4
 
 1 "ongeldige ibase: moet [%lu, %lu] zijn"
 2 "ongeldige obase: moet [%lu, %lu] zijn"
@@ -100,7 +95,7 @@ $set 5
 11 "kan geen nietige waarde in een uitdrukking gebruiken"
 
 $ Fatale fouten.
-$set 6
+$set 5
 
 1 "geheugentoewijzing mislukt"
 2 "I/O-fout"

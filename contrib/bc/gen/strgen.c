@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,9 +54,7 @@
 #endif // _WIN32
 
 // This pulls in cross-platform stuff.
-#include "../include/bcl.h"
-
-#define BC_ERR(v) (v)
+#include <status.h>
 
 // clang-format off
 
@@ -70,7 +68,7 @@ static const char* const bc_gen_ex_end = "{{ end }}";
 // This is exactly what it looks like. It just slaps a simple license header on
 // the generated C source file.
 static const char* const bc_gen_header =
-	"// Copyright (c) 2018-2021 Gavin D. Howard and contributors.\n"
+	"// Copyright (c) 2018-2023 Gavin D. Howard and contributors.\n"
 	"// Licensed under the 2-clause BSD license.\n"
 	"// *** AUTOMATICALLY GENERATED FROM %s. DO NOT MODIFY. ***\n\n";
 // clang-format on

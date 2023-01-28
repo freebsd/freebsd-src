@@ -102,7 +102,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ConformanceMode>true</ConformanceMode>
@@ -123,7 +123,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <ConformanceMode>true</ConformanceMode>
@@ -144,7 +144,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ConformanceMode>true</ConformanceMode>
@@ -164,7 +164,7 @@
       <WarningLevel>Level3</WarningLevel>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -206,13 +206,13 @@
   <ItemGroup>
     <CustomBuild Include="..\gen\strgen.c">
       <FileType>CppCode</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe</Outputs>
     </CustomBuild>
     <ClCompile Include="src2\bc_help.c" />

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,94 +36,51 @@
 #ifndef LIBBC_PRIVATE_H
 #define LIBBC_PRIVATE_H
 
+#ifndef _WIN32
+
+#include <pthread.h>
+
+#endif // _WIN32
+
 #include <bcl.h>
 
 #include <num.h>
+#include <vm.h>
 
 /**
- * A header for functions that need to lock and setjmp(). It also sets the
- * variable that tells bcl that it is running.
- * @param l  The label to jump to on error.
+ * A header that sets a jump.
+ * @param vm  The thread data.
+ * @param l   The label to jump to on error.
  */
-#define BC_FUNC_HEADER_LOCK(l)   \
-	do                           \
-	{                            \
-		BC_SIG_LOCK;             \
-		BC_SETJMP_LOCKED(l);     \
-		vm.err = BCL_ERROR_NONE; \
-		vm.running = 1;          \
-	}                            \
+#define BC_FUNC_HEADER(vm, l)     \
+	do                            \
+	{                             \
+		BC_SETJMP(vm, l);         \
+		vm->err = BCL_ERROR_NONE; \
+	}                             \
 	while (0)
 
 /**
- * A footer to unlock and stop the jumping if an error happened. It also sets
- * the variable that tells bcl that it is running.
- * @param e  The error variable to set.
+ * A footer for functions that do not return an error code.
  */
-#define BC_FUNC_FOOTER_UNLOCK(e) \
-	do                           \
-	{                            \
-		BC_SIG_ASSERT_LOCKED;    \
-		e = vm.err;              \
-		vm.running = 0;          \
-		BC_UNSETJMP;             \
-		BC_LONGJMP_STOP;         \
-		vm.sig_lock = 0;         \
-	}                            \
+#define BC_FUNC_FOOTER_NO_ERR(vm) \
+	do                            \
+	{                             \
+		BC_UNSETJMP(vm);          \
+	}                             \
 	while (0)
 
 /**
- * A header that sets a jump and sets running.
- * @param l  The label to jump to on error.
+ * A footer for functions that *do* return an error code.
+ * @param vm  The thread data.
+ * @param e   The error variable to set.
  */
-#define BC_FUNC_HEADER(l)        \
-	do                           \
-	{                            \
-		BC_SETJMP(l);            \
-		vm.err = BCL_ERROR_NONE; \
-		vm.running = 1;          \
-	}                            \
-	while (0)
-
-/**
- * A header that assumes that signals are already locked. It sets a jump and
- * running.
- * @param l  The label to jump to on error.
- */
-#define BC_FUNC_HEADER_INIT(l)   \
-	do                           \
-	{                            \
-		BC_SETJMP_LOCKED(l);     \
-		vm.err = BCL_ERROR_NONE; \
-		vm.running = 1;          \
-	}                            \
-	while (0)
-
-/**
- * A footer for functions that do not return an error code. It clears running
- * and unlocks the signals. It also stops the jumping.
- */
-#define BC_FUNC_FOOTER_NO_ERR \
-	do                        \
-	{                         \
-		vm.running = 0;       \
-		BC_UNSETJMP;          \
-		BC_LONGJMP_STOP;      \
-		vm.sig_lock = 0;      \
-	}                         \
-	while (0)
-
-/**
- * A footer for functions that *do* return an error code. It clears running and
- * unlocks the signals. It also stops the jumping.
- * @param e  The error variable to set.
- */
-#define BC_FUNC_FOOTER(e)      \
-	do                         \
-	{                          \
-		e = vm.err;            \
-		BC_FUNC_FOOTER_NO_ERR; \
-	}                          \
+#define BC_FUNC_FOOTER(vm, e)      \
+	do                             \
+	{                              \
+		e = vm->err;               \
+		BC_FUNC_FOOTER_NO_ERR(vm); \
+	}                              \
 	while (0)
 
 /**
@@ -151,10 +108,10 @@
  * is bad.
  * @param c  The context.
  */
-#define BC_CHECK_CTXT(c)                                      \
+#define BC_CHECK_CTXT(vm, c)                                  \
 	do                                                        \
 	{                                                         \
-		c = bcl_context();                                    \
+		c = bcl_contextHelper(vm);                            \
 		if (BC_ERR(c == NULL))                                \
 		{                                                     \
 			BclNumber n_num;                                  \
@@ -168,10 +125,10 @@
  * A header to check the context and return an error directly if it is bad.
  * @param c  The context.
  */
-#define BC_CHECK_CTXT_ERR(c)                  \
+#define BC_CHECK_CTXT_ERR(vm, c)              \
 	do                                        \
 	{                                         \
-		c = bcl_context();                    \
+		c = bcl_contextHelper(vm);            \
 		if (BC_ERR(c == NULL))                \
 		{                                     \
 			return BCL_ERROR_INVALID_CONTEXT; \
@@ -183,12 +140,12 @@
  * A header to check the context and abort if it is bad.
  * @param c  The context.
  */
-#define BC_CHECK_CTXT_ASSERT(c) \
-	do                          \
-	{                           \
-		c = bcl_context();      \
-		assert(c != NULL);      \
-	}                           \
+#define BC_CHECK_CTXT_ASSERT(vm, c) \
+	do                              \
+	{                               \
+		c = bcl_contextHelper(vm);  \
+		assert(c != NULL);          \
+	}                               \
 	while (0)
 
 /**
@@ -271,5 +228,22 @@ typedef struct BclCtxt
 	BcVec free_nums;
 
 } BclCtxt;
+
+/**
+ * Returns the @a BcVm for the current thread.
+ * @return  The vm for the current thread.
+ */
+BcVm*
+bcl_getspecific(void);
+
+#ifndef _WIN32
+
+typedef pthread_key_t BclTls;
+
+#else // _WIN32
+
+typedef DWORD BclTls;
+
+#endif // _WIN32
 
 #endif // LIBBC_PRIVATE_H
