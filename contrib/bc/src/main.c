@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -61,7 +61,7 @@ main(int argc, char* argv[])
 
 #if BC_ENABLE_NLS
 	// Must set the locale properly in order to have the right error messages.
-	vm.locale = setlocale(LC_ALL, "");
+	vm->locale = setlocale(LC_ALL, "");
 #endif // BC_ENABLE_NLS
 
 	// Set the start pledge().
@@ -74,37 +74,37 @@ main(int argc, char* argv[])
 		// basename because it's not portable, but yes, this is stripping off
 		// the directory.
 		name = strrchr(argv[0], BC_FILE_SEP);
-		vm.name = (name == NULL) ? argv[0] : name + 1;
+		vm->name = (name == NULL) ? argv[0] : name + 1;
 	}
 	else
 	{
 #if !DC_ENABLED
-		vm.name = "bc";
+		vm->name = "bc";
 #elif !BC_ENABLED
-		vm.name = "dc";
+		vm->name = "dc";
 #else
 		// Just default to bc in that case.
-		vm.name = "bc";
+		vm->name = "bc";
 #endif
 	}
 
 	// If the name is longer than the length of the prefix, skip the prefix.
-	if (strlen(vm.name) > len) vm.name += len;
+	if (strlen(vm->name) > len) vm->name += len;
 
 	BC_SIG_LOCK;
 
 	// We *must* do this here. Otherwise, other code could not jump out all of
 	// the way.
-	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), BC_DTOR_NONE);
+	bc_vec_init(&vm->jmp_bufs, sizeof(sigjmp_buf), BC_DTOR_NONE);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 #if !DC_ENABLED
 	bc_main(argc, argv);
 #elif !BC_ENABLED
 	dc_main(argc, argv);
 #else
-	// BC_IS_BC uses vm.name, which was set above. So we're good.
+	// BC_IS_BC uses vm->name, which was set above. So we're good.
 	if (BC_IS_BC) bc_main(argc, argv);
 	else dc_main(argc, argv);
 #endif
@@ -113,5 +113,5 @@ exit:
 	BC_SIG_MAYLOCK;
 
 	// Ensure we exit appropriately.
-	return bc_vm_atexit((int) vm.status);
+	return bc_vm_atexit((int) vm->status);
 }

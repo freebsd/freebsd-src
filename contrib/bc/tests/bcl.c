@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -58,6 +58,9 @@ main(void)
 	BclNumber n, n2, n3, n4, n5, n6;
 	char* res;
 	BclBigDig b = 0;
+
+	e = bcl_start();
+	err(e);
 
 	// We do this twice to test the reference counting code.
 	e = bcl_init();
@@ -334,6 +337,8 @@ main(void)
 	bcl_free();
 
 	bcl_free();
+
+	bcl_end();
 
 	return 0;
 }

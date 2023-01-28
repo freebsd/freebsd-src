@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -70,7 +70,7 @@ const uchar dc_sig_msg_len = (uchar) (sizeof(dc_sig_msg) - 1);
 
 /// The copyright banner.
 const char bc_copyright[] =
-	"Copyright (c) 2018-2022 Gavin D. Howard and contributors\n"
+	"Copyright (c) 2018-2023 Gavin D. Howard and contributors\n"
 	"Report bugs at: https://git.yzena.com/gavin/bc\n\n"
 	"This is free software with ABSOLUTELY NO WARRANTY.\n";
 
@@ -141,6 +141,7 @@ const char bc_pledge_end[] = "";
 /// end.
 const BcOptLong bc_args_lopt[] = {
 
+	{ "digit-clamp", BC_OPT_NONE, 'c' },
 	{ "expression", BC_OPT_REQUIRED, 'e' },
 	{ "file", BC_OPT_REQUIRED, 'f' },
 	{ "help", BC_OPT_NONE, 'h' },
@@ -149,6 +150,7 @@ const BcOptLong bc_args_lopt[] = {
 	{ "leading-zeroes", BC_OPT_NONE, 'z' },
 	{ "no-line-length", BC_OPT_NONE, 'L' },
 	{ "obase", BC_OPT_REQUIRED, 'O' },
+	{ "no-digit-clamp", BC_OPT_NONE, 'C' },
 	{ "no-prompt", BC_OPT_NONE, 'P' },
 	{ "no-read-prompt", BC_OPT_NONE, 'R' },
 	{ "scale", BC_OPT_REQUIRED, 'S' },
@@ -171,12 +173,6 @@ const BcOptLong bc_args_lopt[] = {
 	{ NULL, 0, 0 },
 
 };
-
-/// The function header for error messages.
-const char* const bc_err_func_header = "Function:";
-
-/// The line format string for error messages.
-const char* const bc_err_line = ":%zu";
 
 // clang-format off
 
@@ -717,6 +713,8 @@ const char* bc_inst_names[] = {
 	"BC_INST_SCALE_FUNC",
 	"BC_INST_SQRT",
 	"BC_INST_ABS",
+	"BC_INST_IS_NUMBER",
+	"BC_INST_IS_STRING",
 #if BC_ENABLE_EXTRA_MATH
 	"BC_INST_IRAND",
 #endif // BC_ENABLE_EXTRA_MATH
@@ -814,6 +812,8 @@ const BcLexKeyword bc_lex_kws[] = {
 	BC_LEX_KW_ENTRY("print", 5, false),
 	BC_LEX_KW_ENTRY("sqrt", 4, true),
 	BC_LEX_KW_ENTRY("abs", 3, false),
+	BC_LEX_KW_ENTRY("is_number", 9, false),
+	BC_LEX_KW_ENTRY("is_string", 9, false),
 #if BC_ENABLE_EXTRA_MATH
 	BC_LEX_KW_ENTRY("irand", 5, false),
 #endif // BC_ENABLE_EXTRA_MATH
@@ -886,13 +886,13 @@ const uint8_t bc_parse_exprs[] = {
 	BC_PARSE_EXPR_ENTRY(false, true, true, true, true, true, true, false),
 
 	// Starts with BC_LEX_KW_SQRT.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, false, true),
-
-	// Starts with BC_LEX_KW_MAXIBASE.
 	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, true),
 
-	// Starts with BC_LEX_KW_STREAM.
-	BC_PARSE_EXPR_ENTRY(false, false, 0, 0, 0, 0, 0, 0)
+	// Starts with BC_LEX_KW_QUIT.
+	BC_PARSE_EXPR_ENTRY(false, true, true, true, true, true, true, true),
+
+	// Starts with BC_LEX_KW_GLOBAL_STACKS.
+	BC_PARSE_EXPR_ENTRY(true, true, false, false, 0, 0, 0, 0)
 
 #else // BC_ENABLE_EXTRA_MATH
 
@@ -909,15 +909,19 @@ const uint8_t bc_parse_exprs[] = {
 	BC_PARSE_EXPR_ENTRY(false, false, true, true, true, true, true, false),
 
 	// Starts with BC_LEX_KW_SQRT.
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, false, true, true),
+	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, false),
 
-	// Starts with BC_LEX_KW_MAXSCALE,
-	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, false, false, 0)
+	// Starts with BC_LEX_KW_MAXIBASE.
+	BC_PARSE_EXPR_ENTRY(true, true, true, true, true, true, true, false),
+
+	// Starts with  BC_LEX_KW_ELSE.
+	BC_PARSE_EXPR_ENTRY(false, 0, 0, 0, 0, 0, 0, 0)
 
 #endif // BC_ENABLE_EXTRA_MATH
 };
 
-/// An array of data for operators that correspond to token types.
+/// An array of data for operators that correspond to token types. Note that a
+/// lower precedence *value* means a higher precedence.
 const uchar bc_parse_ops[] = {
 	BC_PARSE_OP(0, false), BC_PARSE_OP(0, false), BC_PARSE_OP(1, false),
 	BC_PARSE_OP(1, false),
@@ -1120,8 +1124,8 @@ const uchar dc_lex_tokens[] = {
 	BC_LEX_KW_QUIT,
 	BC_LEX_SWAP,
 	BC_LEX_OP_ASSIGN,
-	BC_LEX_INVALID,
-	BC_LEX_INVALID,
+	BC_LEX_KW_IS_STRING,
+	BC_LEX_KW_IS_NUMBER,
 	BC_LEX_KW_SQRT,
 	BC_LEX_INVALID,
 	BC_LEX_EXECUTE,
@@ -1135,7 +1139,7 @@ const uchar dc_lex_tokens[] = {
 };
 
 /// A list of instructions that correspond to lex tokens. If an entry is
-/// BC_INST_INVALID, that lex token needs extra parsing in the dc parser.
+/// @a BC_INST_INVALID, that lex token needs extra parsing in the dc parser.
 /// Otherwise, the token can trivially be replaced by the entry. This needs to
 /// be updated if the tokens change.
 const uchar dc_parse_insts[] = {
@@ -1178,7 +1182,7 @@ const uchar dc_parse_insts[] = {
 	BC_INST_SEED,
 #endif // BC_ENABLE_EXTRA_MATH
 	BC_INST_LENGTH,       BC_INST_PRINT,        BC_INST_SQRT,
-	BC_INST_ABS,
+	BC_INST_ABS,          BC_INST_IS_NUMBER,    BC_INST_IS_STRING,
 #if BC_ENABLE_EXTRA_MATH
 	BC_INST_IRAND,
 #endif // BC_ENABLE_EXTRA_MATH

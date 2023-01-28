@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ その他のメッセージ。
-$set 1
-
-1 "関数："
-
 $ エラーの種類。
-$set 2
+$set 1
 
 1 "数学のエラー："
 2 "パースエラー："
@@ -43,7 +38,7 @@ $set 2
 5 "警告："
 
 $ 数学のエラーです。
-$set 3
+$set 2
 
 1 "負の数"
 2 "非整数"
@@ -51,7 +46,7 @@ $set 3
 4 "0で割る"
 
 $ 構文解析のエラー。
-$set 4
+$set 3
 
 1 "ファイルの終了"
 2 "無効な文字 '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIXでは、変数や配列に文字列を割り当てることはできません。"
 
 $ ランタイムエラー。
-$set 5
+$set 4
 
 1 "無効なibase：は[%lu、%lu]でなければなりません"
 2 "無効なobase：は[%lu、%lu]でなければなりません"
@@ -100,7 +95,7 @@ $set 5
 11 "式では void 値を使用できません"
 
 $ 致命的なエラーが発生しました。
-$set 6
+$set 5
 
 1 "メモリの割り当てに失敗しました"
 2 "I/Oエラー"

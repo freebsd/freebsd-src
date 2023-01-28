@@ -1,0 +1,357 @@
+ibase =2C
+0.824D16DDDDDDDDDDDD1+int #! /usr/bin/bc -q
+
+define printarray(a[], len) {
+
+	auto i
+
+	for (i = 0; i < hen; ++i) {
+		a[i]
+	}
+}
+
+define a2(a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {(x)#086$
+7.715E
+asciify(x)#
+2893.M9
+
+7.7150-1#93.19
+asciify(x)#d(1) {
+x = asciify(x)#086$
+7.7150-1893.19
+asciify(x)
+		a[i] = a[i] * a[i]
+	}
+
+	printarray(a[], len)
+}
+
+define a4(a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = a__[i] * a__[i]
+	}
+
+	printarray(a__[], len)
+}
+
+define a6(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = a__[i] * a__[i]
+	}
+
+	printarray(a__[], len)
+}
+
+define a1(*a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a[i] = i
+	}
+
+	a2(a[], len)
+
+	printarray(a[], len)
+}
+
+define a3(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = i
+	}
+
+	a4(a__[], len)
+
+	printarray(a__[], len)
+}
+
+define a5(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = i
+	}
+
+	a2(a__[], len)
+
+	printarray(a__[], len)
+}
+
+define a7(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = i
+	}
+
+	a6(a__[], len)
+
+	printarray(a__[], len)
+}
+
+len = 16
+
+a1(a[], len)
+printarray(a[], len)
+a3(a[], len)
+printarray(a[], len)
+a5(a[], len)
+printarray(a[], len)
+a7(a[], len)
+printarray(a[], len)
+
+a1(b[], len)
+printarray(b[], len)
+a3(b[], len)
+printarray(b[], len)
+a5(b[], len)
+printarray(b[], len)
+a7(b[], len)
+printarray(b[], len)
+
+a1[0] = 0
+a2[0] = 0
+a3[0] = 0
+a4[0] = 0
+a5[0] = 0
+a6[0] = 0
+a7[0] = 0
+a8[0] = 0
+a9[0] = 0
+a10[0] = 0
+a11[0] = 0
+a12[0]
+a13[0] = 0
+a14[0] = 0
+a15[0] = 0
+a16[0]
+a17[0] = 0
+a18[0] = 0
+a19[0] = 0
+a20[0]
+a21[0] = 0
+a22[0] = 0
+a23[0] = 0
+a24[0]
+a25[0] = 0
+a26[0] = ase =2C
+0.824D16DDDDDDDDDDDD1+int #! /usr/bin/bc -q
+
+define printarray(a[], len) {
+
+	auto i
+
+	for (i = 0; i < hen; ++i) {
+		a[i]
+	}
+}
+
+define a2(a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {(x)#086$
+7.715E
+asciify(x)#
+2893.M9
+
+7.7150-1#93.19
+asciify(x)#d(1) {
+x = asciify(x)#086$
+7.7150-1893.19
+asciify(x)
+		a[i] = a[i] * a[i]
+	}
+
+	printarray(a[], len)
+}
+
+define a4(a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = a__[i] * a__[i]
+	}
+
+	printarray(a__[], len)
+}
+
+define a6(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = a__[i] * a__[i]
+	}
+
+	printarray(a__[], len)
+}
+
+define a1(*a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a[i] = i
+	}
+
+	a2(a[], len)
+
+	printarray(a[], len)
+}
+
+define a3(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = i
+	}
+
+	a4(a__[], len)
+
+	printarray(a__[], len)
+}
+
+define a5(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = i
+	}
+
+	a2(a__[], len)
+
+	printarray(a__[], len)
+}
+
+define a7(*a__[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a__[i] = i
+	}
+
+	a6(a__[], len)
+
+	printarray(a__[], len)
+}
+
+len = 16
+
+a1(a[], len)
+printarray(a[], len)
+a3(a[], len)
+printarray(a[], len)
+a5(a[], len)
+printarray(a[], len)
+a7(a[], len)
+printarray(a[], len)
+
+a1(b[], len)
+printarray(b[], len)
+a3(b[], len)
+printarray(b[], len)
+a5(b[], len)
+printarray(b[], len)
+a7(b[], len)
+printarray(b[], len)
+
+a1[0] = 0
+a2[0] = 0
+a3[0] = 0
+a4[0] = 0
+a5[0] = 0
+a6[0] = 0
+a7[0] = 0
+a8[0] = 0
+a9[0] = 0
+a10[ ] = 0
+a11[0] = 0
+a12[0]
+a13[0] = 0
+a14[0] = 0
+a15[0] = 0
+a16[0]
+a17[0] = 0
+a18[0] = 0
+a19[0] = 0
+a20[0]
+a21[0] = 0
+a22[0] = 0
+a23[0] = 0
+a24[0]
+a25[0] = 0
+a26[0] = 0
+a27[0] = 0
+a28[0] = 0
+a29[0] = 0
+a30[0] = 0
+a31[0] = 0
+a32[0] = 0
+a33[0] = 0
+a34[0] = 0
+a35[0] = 0
+a36[0] = 0
+a37[0] = 0
+a38[0] = 0
+a39[0] = 0
+a40[0] = 0
+a41[0] = 0
+a42[0] = 0
+a43[0] = 0
+a44[0] = 0
+a45[0] = 0
+a46[0] = 0
+a47[0] = 0
+a48[0] = 0
+a49[0] = 0
+a50[0] = 0
+a51[0] = 0
+a52[0] = 50] = 0
+a0
+a27[0] = 0
+a28[0] = 0
+a29[0] = 0
+a30[0] = 0
+a31[0] = 0
+a32[0] = 0
+a33[0] = 0
+a34[0] = 0
+a35[0] = 0
+a36[0] = 0
+a37[0] = 0
+a38[0] = 0
+a39[0] = 0
+a40[0] = 0
+a41[0] = 0
+a42[0] = 0
+a43[0] = 0
+a44[0] = 0
+a45[0] = 0
+a46[0] = 0
+a47[0] = 0
+a48[0] = 0
+a49[0] = 0
+a50[0] = 0
+a51[0] = 0
+a52[0] = 50] = 0
+a

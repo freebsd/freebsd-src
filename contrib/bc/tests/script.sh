@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -88,15 +88,15 @@ fi
 if [ "$d" = "bc" ]; then
 
 	if [ "$run_stack_tests" -ne 0 ]; then
-		options="-lgq"
+		options="-lgqC"
 	else
-		options="-lq"
+		options="-lqC"
 	fi
 
 	halt="halt"
 
 else
-	options="-x"
+	options="-xC"
 	halt="q"
 fi
 
@@ -159,7 +159,7 @@ else
 
 	# This is to check that the command exists. If not, we should not try to
 	# generate the test. Instead, we should just skip.
-	command -v "$d"
+	command -v "$d" 1>/dev/null 2>&1
 	err="$?"
 
 	set -e

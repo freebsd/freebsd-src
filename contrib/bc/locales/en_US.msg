@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Miscellaneous messages.
-$set 1
-
-1 "Function:"
-
 $ Error types.
-$set 2
+$set 1
 
 1 "Math error:"
 2 "Parse error:"
@@ -43,7 +38,7 @@ $set 2
 5 "Warning:"
 
 $ Math errors.
-$set 3
+$set 2
 
 1 "negative number"
 2 "non-integer number"
@@ -51,7 +46,7 @@ $set 3
 4 "divide by 0"
 
 $ Parse errors.
-$set 4
+$set 3
 
 1 "end of file"
 2 "invalid character '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX does not allow strings to be assigned to variables or arrays"
 
 $ Runtime errors.
-$set 5
+$set 4
 
 1 "invalid ibase: must be [%lu, %lu]"
 2 "invalid obase: must be [%lu, %lu]"
@@ -100,7 +95,7 @@ $set 5
 11 "cannot use a void value in an expression"
 
 $ Fatal errors.
-$set 6
+$set 5
 
 1 "memory allocation failed"
 2 "I/O error"

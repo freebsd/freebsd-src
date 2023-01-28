@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -98,16 +98,24 @@ typedef enum BcFlushType
 
 } BcFlushType;
 
+// These are here to satisfy a clang warning about recursive macros.
+
+#define bc_file_putchar(f, t, c) bc_file_putchar_impl(f, t, c)
+#define bc_file_flushErr(f, t) bc_file_flushErr_impl(f, t)
+#define bc_file_flush(f, t) bc_file_flush_impl(f, t)
+#define bc_file_write(f, t, b, n) bc_file_write_impl(f, t, b, n)
+#define bc_file_puts(f, t, s) bc_file_puts_impl(f, t, s)
+
 #else // BC_ENABLE_HISTORY && !BC_ENABLE_LINE_LIB
 
 // These make sure that the BcFlushType parameter disappears if history is not
 // used, editline is used, or readline is used.
 
-#define bc_file_putchar(f, t, c) bc_file_putchar(f, c)
-#define bc_file_flushErr(f, t) bc_file_flushErr(f)
-#define bc_file_flush(f, t) bc_file_flush(f)
-#define bc_file_write(f, t, b, n) bc_file_write(f, b, n)
-#define bc_file_puts(f, t, s) bc_file_puts(f, s)
+#define bc_file_putchar(f, t, c) bc_file_putchar_impl(f, c)
+#define bc_file_flushErr(f, t) bc_file_flushErr_impl(f)
+#define bc_file_flush(f, t) bc_file_flush_impl(f)
+#define bc_file_write(f, t, b, n) bc_file_write_impl(f, b, n)
+#define bc_file_puts(f, t, s) bc_file_puts_impl(f, s)
 
 #endif // BC_ENABLE_HISTORY && !BC_ENABLE_LINE_LIB
 

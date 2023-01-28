@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Różne wiadomości.
-$set 1
-
-1 "Funkcja:"
-
 $ Typy błędów.
-$set 2
+$set 1
 
 1 "Błąd matematyczny:"
 2 "Błąd parse'a:"
@@ -43,7 +38,7 @@ $set 2
 5 "Ostrzeżenie:"
 
 $ Błędy matematyczne.
-$set 3
+$set 2
 
 1 "liczba ujemna"
 2 "numer nieintegracyjny"
@@ -51,7 +46,7 @@ $set 3
 4 "dzielenie przez 0"
 
 $ Błędy Parse'a.
-$set 4
+$set 3
 
 1 "koniec akt"
 2 "nieważny znak '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX nie pozwala na przypisywanie ciągów znaków do zmiennych lub tablic"
 
 $ Błędy Runtime'u.
-$set 5
+$set 4
 
 1 "nieprawidłowa ibase: musi być [%lu, %lu]"
 2 "nieprawidłowa obase: musi być [%lu, %lu]"
@@ -100,7 +95,7 @@ $set 5
 11 "nie może użyć wartości pustej w wyrażeniu"
 
 $ Fatalne błędy.
-$set 6
+$set 5
 
 1 "Alokacja pamięci nie powiodła się"
 2 "Błąd we/wy"

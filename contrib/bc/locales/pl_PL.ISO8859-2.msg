@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Ró¿ne wiadomo¶ci.
-$set 1
-
-1 "Funkcja:"
-
 $ Typy b³êdów.
-$set 2
+$set 1
 
 1 "B³±d matematyczny:"
 2 "B³±d parse'a:"
@@ -43,7 +38,7 @@ $set 2
 5 "Ostrze¿enie:"
 
 $ B³êdy matematyczne.
-$set 3
+$set 2
 
 1 "liczba ujemna"
 2 "numer nieintegracyjny"
@@ -51,7 +46,7 @@ $set 3
 4 "dzielenie przez 0"
 
 $ B³êdy Parse'a.
-$set 4
+$set 3
 
 1 "koniec akt"
 2 "niewa¿ny znak '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX nie pozwala na przypisywanie ci±gów znaków do zmiennych lub tablic"
 
 $ B³êdy Runtime'u.
-$set 5
+$set 4
 
 1 "nieprawid³owa ibase: musi byæ [%lu, %lu]"
 2 "nieprawid³owa obase: musi byæ [%lu, %lu]"
@@ -100,7 +95,7 @@ $set 5
 11 "nie mo¿e u¿yæ warto¶ci pustej w wyra¿eniu"
 
 $ Fatalne b³êdy.
-$set 6
+$set 5
 
 1 "Alokacja pamiêci nie powiod³a siê"
 2 "B³±d we/wy"

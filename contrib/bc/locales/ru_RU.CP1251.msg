@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Разные сообщения.
-$set 1
-
-1 "Функция:"
-
 $ Типы ошибок.
-$set 2
+$set 1
 
 1 "Математическая ошибка:"
 2 "Ошибка при разборе:"
@@ -43,7 +38,7 @@ $set 2
 5 "Предупреждение:"
 
 $ Математические ошибки.
-$set 3
+$set 2
 
 1 "отрицательное число"
 2 "неинтегрированное число"
@@ -51,7 +46,7 @@ $set 3
 4 "делить на 0"
 
 $ Ошибки при разборе.
-$set 4
+$set 3
 
 1 "конец файла"
 2 "недопустимый символ '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX не позволяет присваивать строки переменным или массивам"
 
 $ Ошибки выполнения.
-$set 5
+$set 4
 
 1 "Недействительный ibase: должен быть [%lu, %lu]"
 2 "Недействительный obase: должен быть [%lu, %lu]"
@@ -100,7 +95,7 @@ $set 5
 11 "не может использовать пустое значение в выражении"
 
 $ Фатальные ошибки.
-$set 6
+$set 5
 
 1 "Не удалось выделить память"
 2 "Ошибка ввода/вывода"

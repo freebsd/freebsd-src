@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -69,8 +69,10 @@ typedef struct BcProgram
 	/// The array of globals values.
 	BcBigDig globals[BC_PROG_GLOBALS_LEN];
 
+#if BC_ENABLED
 	/// The array of globals stacks.
 	BcVec globals_v[BC_PROG_GLOBALS_LEN];
+#endif // BC_ENABLED
 
 #if BC_ENABLE_EXTRA_MATH
 
@@ -85,11 +87,21 @@ typedef struct BcProgram
 	/// The execution stack.
 	BcVec stack;
 
-	/// A pointer to the current function's constants.
-	BcVec* consts;
+	/// The constants encountered in the program. They are global to the program
+	/// to prevent bad accesses when functions that used non-auto variables are
+	/// replaced.
+	BcVec consts;
 
-	/// A pointer to the current function's strings.
-	BcVec* strs;
+	/// The map of constants to go with consts.
+	BcVec const_map;
+
+	/// The strings encountered in the program. They are global to the program
+	/// to prevent bad accesses when functions that used non-auto variables are
+	/// replaced.
+	BcVec strs;
+
+	/// The map of strings to go with strs.
+	BcVec str_map;
 
 	/// The array of functions.
 	BcVec fns;
@@ -121,6 +133,10 @@ typedef struct BcProgram
 
 	/// A BcNum that has the proper base for asciify.
 	BcNum strmb;
+
+	// A BcNum to run asciify. This is to prevent GCC longjmp() clobbering
+	// warnings.
+	BcNum asciify;
 
 #if BC_ENABLED
 
@@ -204,18 +220,29 @@ typedef struct BcProgram
 
 #if !BC_ENABLED
 
-/// This define disappears the parameter last because for dc only, last is
-/// always true.
-#define bc_program_copyToVar(p, name, t, last) bc_program_copyToVar(p, name, t)
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (pop)
+
+#else // !BC_ENABLED
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (BC_IS_BC || (pop))
 
 #endif // !BC_ENABLED
 
+// This is here to satisfy a clang warning about recursive macros.
+#define bc_program_pushVar(p, code, bgn, pop, copy) \
+	bc_program_pushVar_impl(p, code, bgn, pop, copy)
+
 #else // DC_ENABLED
 
-/// This define disappears pop and copy because for bc, 'pop' and 'copy' are
-/// always false.
+// This define disappears pop and copy because for bc, 'pop' and 'copy' are
+// always false.
 #define bc_program_pushVar(p, code, bgn, pop, copy) \
-	bc_program_pushVar(p, code, bgn)
+	bc_program_pushVar_impl(p, code, bgn)
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (BC_IS_BC)
 
 // In debug mode, we want bc to check the stack, but otherwise, we don't because
 // the bc language implicitly mandates that the stack should always have enough
@@ -284,6 +311,13 @@ bc_program_free(BcProgram* p);
 
 #endif // NDEBUG
 
+/**
+ * Prints a stack trace of the bc functions or dc strings currently executing.
+ * @param p  The program.
+ */
+void
+bc_program_printStackTrace(BcProgram* p);
+
 #if BC_DEBUG_CODE
 #if BC_ENABLED && DC_ENABLED
 
@@ -317,22 +351,22 @@ bc_program_printStackDebug(BcProgram* p);
 
 /**
  * Returns the index of the variable or array in their respective arrays.
- * @param p    The program.
- * @param id   The BcId of the variable or array.
- * @param var  True if the search should be for a variable, false for an array.
- * @return     The index of the variable or array in the correct array.
+ * @param p     The program.
+ * @param name  The name of the variable or array.
+ * @param var   True if the search should be for a variable, false for an array.
+ * @return      The index of the variable or array in the correct array.
  */
 size_t
-bc_program_search(BcProgram* p, const char* id, bool var);
+bc_program_search(BcProgram* p, const char* name, bool var);
 
 /**
- * Adds a string to a function and returns the string's index in the function.
- * @param p     The program.
- * @param str   The string to add.
- * @param fidx  The index of the function to add to.
+ * Adds a string to the program and returns the string's index in the program.
+ * @param p    The program.
+ * @param str  The string to add.
+ * @return     The string's index in the program.
  */
 size_t
-bc_program_addString(BcProgram* p, const char* str, size_t fidx);
+bc_program_addString(BcProgram* p, const char* str);
 
 /**
  * Inserts a function into the program and returns the index of the function in
@@ -438,14 +472,14 @@ extern const char bc_program_esc_seqs[];
 #if BC_DEBUG_CODE
 
 // clang-format off
-#define BC_PROG_JUMP(inst, code, ip)                                 \
-	do                                                               \
-	{                                                                \
-		inst = (uchar) (code)[(ip)->idx++];                          \
-		bc_file_printf(&vm.ferr, "inst: %s\n", bc_inst_names[inst]); \
-		bc_file_flush(&vm.ferr, bc_flush_none);                      \
-		goto *bc_program_inst_lbls[inst];                            \
-	}                                                                \
+#define BC_PROG_JUMP(inst, code, ip)                                  \
+	do                                                                \
+	{                                                                 \
+		inst = (uchar) (code)[(ip)->idx++];                           \
+		bc_file_printf(&vm->ferr, "inst: %s\n", bc_inst_names[inst]); \
+		bc_file_flush(&vm->ferr, bc_flush_none);                      \
+		goto *bc_program_inst_lbls[inst];                             \
+	}                                                                 \
 	while (0)
 // clang-format on
 
@@ -545,6 +579,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_IRAND,                            \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
@@ -639,6 +675,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
 		&&lbl_BC_INST_MAXIBASE,                         \
@@ -745,6 +783,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_IRAND,                            \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
@@ -825,6 +865,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
 		&&lbl_BC_INST_MAXIBASE,                         \
@@ -897,6 +939,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_IRAND,                            \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
@@ -966,6 +1010,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
 		&&lbl_BC_INST_MAXIBASE,                         \

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,36 +79,16 @@
 #ifndef BC_HISTORY_H
 #define BC_HISTORY_H
 
-#ifndef BC_ENABLE_HISTORY
-#define BC_ENABLE_HISTORY (1)
-#endif // BC_ENABLE_HISTORY
-
-#ifndef BC_ENABLE_EDITLINE
-#define BC_ENABLE_EDITLINE (0)
-#endif // BC_ENABLE_EDITLINE
-
-#ifndef BC_ENABLE_READLINE
-#define BC_ENABLE_READLINE (0)
-#endif // BC_ENABLE_READLINE
-
-#if BC_ENABLE_EDITLINE && BC_ENABLE_READLINE
-#error Must enable only one of editline or readline, not both.
-#endif // BC_ENABLE_EDITLINE && BC_ENABLE_READLINE
-
-#if BC_ENABLE_EDITLINE || BC_ENABLE_READLINE
-#define BC_ENABLE_LINE_LIB (1)
-#else // BC_ENABLE_EDITLINE || BC_ENABLE_READLINE
-#define BC_ENABLE_LINE_LIB (0)
-#endif // BC_ENABLE_EDITLINE || BC_ENABLE_READLINE
+// These must come before the #if BC_ENABLE_LINE_LIB below because status.h
+// defines it.
+#include <status.h>
+#include <vector.h>
 
 #if BC_ENABLE_LINE_LIB
 
 #include <stdbool.h>
 #include <setjmp.h>
 #include <signal.h>
-
-#include <status.h>
-#include <vector.h>
 
 extern sigjmp_buf bc_history_jmpbuf;
 extern volatile sig_atomic_t bc_history_inlinelib;

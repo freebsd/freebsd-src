@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -250,8 +250,7 @@ define ubytes(x){
 define sbytes(x){
 	auto p,n,z
 	z=(x<0)
-	x=abs(x)
-	x=x$
+	x=abs(x)$
 	n=ubytes(x)
 	p=2^(n*8-1)
 	if(x>p||(!z&&x==p))n*=2
@@ -311,21 +310,19 @@ define void pnlznl(x){
 	print"\n"
 }
 define void output_byte(x,i){
-	auto j,p,y,b
-	j=ibase
-	ibase=A
+	auto j,p,y,b,s
 	s=scale
 	scale=0
 	x=abs(x)$
 	b=x/(2^(i*8))
-	b%=256
-	y=log(256,obase)
+	j=2^8
+	b%=j
+	y=log(j,obase)
 	if(b>1)p=log(b,obase)+1
 	else p=b
 	for(i=y-p;i>0;--i)print 0
 	if(b)print b
 	scale=s
-	ibase=j
 }
 define void output_uint(x,n){
 	auto i

@@ -21,5 +21,8 @@ scientific
 engineering
 vars
 misc
+misc1
 strings
 rand
+is_number
+is_string

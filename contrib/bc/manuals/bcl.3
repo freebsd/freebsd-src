@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+.\" Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BCL" "3" "June 2022" "Gavin D. Howard" "Libraries Manual"
+.TH "BCL" "3" "October 2022" "Gavin D. Howard" "Libraries Manual"
 .nh
 .ad l
 .SH NAME
@@ -36,18 +36,15 @@ bcl - library of arbitrary precision decimal arithmetic
 .PP
 \f[I]#include <bcl.h>\f[R]
 .PP
-Link with \f[I]-lbcl\f[R].
-.SS Signals
-.PP
-This procedure will allow clients to use signals to interrupt
-computations running in bcl(3).
-.PP
-\f[B]void bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B]);\f[R]
-.PP
-\f[B]bool bcl_running(\f[R]\f[I]void\f[R]\f[B]);\f[R]
+Link with \f[I]-lbcl\f[R], and on POSIX systems, \f[I]-lpthread\f[R] is
+also required.
 .SS Setup
 .PP
 These items allow clients to set up bcl(3).
+.PP
+\f[B]BclError bcl_start(\f[R]\f[I]void\f[R]\f[B]);\f[R]
+.PP
+\f[B]void bcl_end(\f[R]\f[I]void\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclError bcl_init(\f[R]\f[I]void\f[R]\f[B]);\f[R]
 .PP
@@ -63,6 +60,10 @@ These items allow clients to set up bcl(3).
 \f[I]leadingZeroes\f[R]\f[B]);\f[R]
 .PP
 \f[B]void bcl_gc(\f[R]\f[I]void\f[R]\f[B]);\f[R]
+.PP
+\f[B]bool bcl_digitClamp(\f[R]\f[I]void\f[R]\f[B]);\f[R]
+.PP
+\f[B]void bcl_setDigitClamp(bool\f[R] \f[I]digitClamp\f[R]\f[B]);\f[R]
 .SS Contexts
 .PP
 These items will allow clients to handle contexts, which are isolated
@@ -234,10 +235,6 @@ standardized by POSIX
 (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) in
 bc(1).
 .PP
-bcl(3) is async-signal-safe if
-\f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] is used properly.
-(See the \f[B]SIGNAL HANDLING\f[R] section.)
-.PP
 bcl(3) assumes that it is allowed to use the \f[B]bcl\f[R],
 \f[B]Bcl\f[R], \f[B]bc\f[R], and \f[B]Bc\f[R] prefixes for symbol names
 without collision.
@@ -245,44 +242,18 @@ without collision.
 All of the items in its interface are described below.
 See the documentation for each function for what each function can
 return.
-.SS Signals
-.TP
-\f[B]void bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R]
-An async-signal-safe function that can be called from a signal handler.
-If called from a signal handler on the same thread as any executing
-bcl(3) functions, it will interrupt the functions and force them to
-return early.
-It is undefined behavior if this function is called from a thread that
-is \f[I]not\f[R] executing any bcl(3) functions while any bcl(3)
-functions are executing.
-.RS
-.PP
-If execution \f[I]is\f[R] interrupted,
-\f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] does \f[I]not\f[R]
-return to its caller.
-.PP
-See the \f[B]SIGNAL HANDLING\f[R] section.
-.RE
-.TP
-\f[B]bool bcl_running(\f[R]\f[I]void\f[R]\f[B])\f[R]
-An async-signal-safe function that can be called from a signal handler.
-It will return \f[B]true\f[R] if any bcl(3) procedures are running,
-which means it is safe to call
-\f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R].
-Otherwise, it returns \f[B]false\f[R].
-.RS
-.PP
-See the \f[B]SIGNAL HANDLING\f[R] section.
-.RE
 .SS Setup
 .TP
-\f[B]BclError bcl_init(\f[R]\f[I]void\f[R]\f[B])\f[R]
+\f[B]BclError bcl_start(\f[R]\f[I]void\f[R]\f[B])\f[R]
 Initializes this library.
-This function can be called multiple times, but each call must be
-matched by a call to \f[B]bcl_free(\f[R]\f[I]void\f[R]\f[B])\f[R].
+This function can be called multiple times, but \f[B]bcl_end()\f[R] must
+only be called \f[I]once\f[R].
 This is to make it possible for multiple libraries and applications to
 initialize bcl(3) without problem.
 .RS
+.PP
+It is suggested that client libraries call this function, but do not
+call \f[B]bcl_end()\f[R], and client applications should call both.
 .PP
 If there was no error, \f[B]BCL_ERROR_NONE\f[R] is returned.
 Otherwise, this function can return:
@@ -294,14 +265,56 @@ Calling any other function without calling this one first is undefined
 behavior.
 .RE
 .TP
+\f[B]void bcl_end(\f[R]\f[I]void\f[R]\f[B])\f[R]
+Deinitializes this library.
+This function must only be called \f[I]once\f[R].
+.RS
+.PP
+All data must have been freed before calling this function.
+.PP
+This function must be the last one clients call.
+Calling this function before calling any other function is undefined
+behavior.
+.RE
+.TP
+\f[B]BclError bcl_init(\f[R]\f[I]void\f[R]\f[B])\f[R]
+Initializes the library for the current thread.
+This function can be called multiple times, but each call must be
+matched by a call to \f[B]bcl_free(\f[R]\f[I]void\f[R]\f[B])\f[R].
+This is to make it possible for multiple libraries and applications to
+initialize threads for bcl(3) without problem.
+.RS
+.PP
+This function \f[I]must\f[R] be called from the thread that it is
+supposed to initialize.
+.PP
+If there was no error, \f[B]BCL_ERROR_NONE\f[R] is returned.
+Otherwise, this function can return:
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.PP
+This function must be the second one clients call.
+Calling any other function without calling \f[B]bcl_start()\f[R] and
+then this one first is undefined behavior, except in the case of new
+threads.
+New threads can safely call this function without calling
+\f[B]bcl_start()\f[R] if another thread has previously called
+\f[B]bcl_start()\f[R].
+But this function must still be the first function in bcl(3) called by
+that new thread.
+.RE
+.TP
 \f[B]void bcl_free(\f[R]\f[I]void\f[R]\f[B])\f[R]
 Decrements bcl(3)\[cq]s reference count and frees the data associated
 with it if the reference count is \f[B]0\f[R].
 .RS
 .PP
-This function must be the last one clients call.
-Calling this function before calling any other function is undefined
-behavior.
+This function \f[I]must\f[R] be called from the thread that it is
+supposed to deinitialize.
+.PP
+This function must be the second to last one clients call.
+Calling this function before calling any other function besides
+\f[B]bcl_end()\f[R] is undefined behavior.
 .RE
 .TP
 \f[B]bool bcl_abortOnFatalError(\f[R]\f[I]void\f[R]\f[B])\f[R]
@@ -312,6 +325,9 @@ a fatal error occurs.
 .RS
 .PP
 If activated, clients do not need to check for fatal errors.
+.PP
+This value is \f[I]thread-local\f[R]; it applies to just the thread it
+is read on.
 .PP
 The default is \f[B]false\f[R].
 .RE
@@ -324,6 +340,9 @@ If \f[I]abrt\f[R] is \f[B]true\f[R], bcl(3) will cause a
 \f[B]SIGABRT\f[R] on fatal errors after the call.
 .RS
 .PP
+This value is \f[I]thread-local\f[R]; it applies to just the thread it
+is set on.
+.PP
 If activated, clients do not need to check for fatal errors.
 .RE
 .TP
@@ -334,6 +353,9 @@ strings returned by \f[B]bcl_string()\f[R] when numbers are greater than
 If \f[B]true\f[R] is returned, then leading zeroes will be added.
 .RS
 .PP
+This value is \f[I]thread-local\f[R]; it applies to just the thread it
+is read on.
+.PP
 The default is \f[B]false\f[R].
 .RE
 .TP
@@ -343,6 +365,48 @@ by \f[B]bcl_string()\f[R] when numbers are greater than \f[B]-1\f[R],
 less than \f[B]1\f[R], and not equal to \f[B]0\f[R].
 If \f[I]leadingZeroes\f[R] is \f[B]true\f[R], leading zeroes will be
 added to strings returned by \f[B]bcl_string()\f[R].
+.RS
+.PP
+This value is \f[I]thread-local\f[R]; it applies to just the thread it
+is set on.
+.RE
+.TP
+\f[B]bool bcl_digitClamp(\f[R]\f[I]void\f[R]\f[B])\f[R]
+Queries and returns the state of whether digits in number strings that
+are greater than or equal to the current \f[B]ibase\f[R] are clamped or
+not.
+.RS
+.PP
+If \f[B]true\f[R] is returned, then digits are treated as though they
+are equal to the value of \f[B]ibase\f[R] minus \f[B]1\f[R].
+If this is \f[I]not\f[R] true, then digits are treated as though they
+are equal to the value they would have if \f[B]ibase\f[R] was large
+enough.
+They are then multiplied by the appropriate power of \f[B]ibase\f[R].
+.PP
+For example, with clamping off and an \f[B]ibase\f[R] of \f[B]3\f[R],
+the string \[lq]AB\[rq] would equal \f[B]3\[ha]1*A+3\[ha]0*B\f[R], which
+is \f[B]3\f[R] times \f[B]10\f[R] plus \f[B]11\f[R], or \f[B]41\f[R],
+while with clamping on and an \f[B]ibase\f[R] of \f[B]3\f[R], the string
+\[lq]AB\[rq] would be equal to \f[B]3\[ha]1*2+3\[ha]0*2\f[R], which is
+\f[B]3\f[R] times \f[B]2\f[R] plus \f[B]2\f[R], or \f[B]8\f[R].
+.PP
+This value is \f[I]thread-local\f[R]; it applies to just the thread it
+is read on.
+.PP
+The default is \f[B]true\f[R].
+.RE
+.TP
+\f[B]void bcl_setDigitClamp(bool\f[R] \f[I]digitClamp\f[R]\f[B])\f[R]
+Sets the state of whether digits in number strings that are greater than
+or equal to the current \f[B]ibase\f[R] are clamped or not.
+For more information, see the
+\f[B]bcl_digitClamp(\f[R]\f[I]void\f[R]\f[B])\f[R] function.
+.RS
+.PP
+This value is \f[I]thread-local\f[R]; it applies to just the thread it
+is set on.
+.RE
 .TP
 \f[B]void bcl_gc(\f[R]\f[I]void\f[R]\f[B])\f[R]
 Garbage collects cached instances of arbitrary-precision numbers.
@@ -392,6 +456,15 @@ Numbers created in one context are not valid in another context.
 It is undefined behavior to use a number created in a different context.
 Contexts are meant to isolate the numbers used by different clients in
 the same application.
+.PP
+Different threads also have different contexts, so any numbers created
+in one thread are not valid in another thread.
+To pass values between contexts and threads, use \f[B]bcl_string()\f[R]
+to produce a string to pass around, and use \f[B]bcl_parse()\f[R] to
+parse the string.
+It is suggested that the \f[B]obase\f[R] used to create the string be
+passed around with the string and used as the \f[B]ibase\f[R] for
+\f[B]bcl_parse()\f[R] to ensure that the number will be the same.
 .RE
 .TP
 \f[B]BclContext bcl_ctxt_create(\f[R]\f[I]void\f[R]\f[B])\f[R]
@@ -1200,9 +1273,6 @@ An invalid \f[B]BclNumber\f[R] was given as a parameter.
 \f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
 An invalid \f[B]BclContext\f[R] is being used.
 .TP
-\f[B]BCL_ERROR_SIGNAL\f[R]
-A signal interrupted execution.
-.TP
 \f[B]BCL_ERROR_MATH_NEGATIVE\f[R]
 A negative number was given as an argument to a parameter that cannot
 accept negative numbers, such as for square roots.
@@ -1278,11 +1348,16 @@ this behavior.
 .RE
 .SH ATTRIBUTES
 .PP
-When \f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] is used
-properly, bcl(3) is async-signal-safe.
+bcl(3) is \f[I]MT-Safe\f[R]: it is safe to call any functions from more
+than one thread.
+However, is is \f[I]not\f[R] safe to pass any data between threads
+except for strings returned by \f[B]bcl_string()\f[R].
 .PP
-bcl(3) is \f[I]MT-Unsafe\f[R]: it is unsafe to call any functions from
-more than one thread.
+bcl(3) is not \f[I]async-signal-safe\f[R].
+It was not possible to make bcl(3) safe with signals and also make it
+safe with multiple threads.
+If it is necessary to be able to interrupt bcl(3), spawn a separate
+thread to run the calculation.
 .SH PERFORMANCE
 .PP
 Most bc(1) implementations use \f[B]char\f[R] types to calculate the
@@ -1354,24 +1429,6 @@ These limits are meant to be effectively non-existent; the limits are so
 large (at least on 64-bit machines) that there should not be any point
 at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
-.SH SIGNAL HANDLING
-.PP
-If a signal handler calls
-\f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] from the same
-thread that there are bcl(3) functions executing in, it will cause all
-execution to stop as soon as possible, interrupting long-running
-calculations, if necessary and cause the function that was executing to
-return.
-If possible, the error code \f[B]BC_ERROR_SIGNAL\f[R] is returned.
-.PP
-If execution \f[I]is\f[R] interrupted,
-\f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] does \f[I]not\f[R]
-return to its caller.
-.PP
-It is undefined behavior if
-\f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] is called from a
-thread that is not executing bcl(3) functions, if bcl(3) functions are
-executing.
 .SH SEE ALSO
 .PP
 bc(1) and dc(1)

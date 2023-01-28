@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Miscellaneous messages.
-$set 1
-
-1 "Función:"
-
 $ Error types.
-$set 2
+$set 1
 
 1 "Error de matemática:"
 2 "Error de syntaxis:"
@@ -43,7 +38,7 @@ $set 2
 5 "Advertencia:"
 
 $ Math errors.
-$set 3
+$set 2
 
 1 "número negativo"
 2 "número no es entero"
@@ -51,7 +46,7 @@ $set 3
 4 "división por cero"
 
 $ Parse errors.
-$set 4
+$set 3
 
 1 "fin de archivo"
 2 "no válido '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX no permite asignar cadenas a variables o matrices"
 
 $ Runtime errors.
-$set 5
+$set 4
 
 1 "\"ibase\" no es válido: debe ser [%lu, %lu]"
 2 "\"obase\" no es válido: debe ser [%lu, %lu]"
@@ -100,7 +95,7 @@ $set 5
 11 "no puede utilizar un valor vacío en una expresión"
 
 $ Fatal errors.
-$set 6
+$set 5
 
 1 "error en la asignación de memoria"
 2 "error de I/O"

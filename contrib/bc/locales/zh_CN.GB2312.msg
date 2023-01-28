@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ 杂项信息。
-$set 1
-
-1 "函数："
-
 $ 错误类型。
-$set 2
+$set 1
 
 1 "数学错误："
 2 "解析错误："
@@ -43,7 +38,7 @@ $set 2
 5 "警告："
 
 $ 数学错误。
-$set 3
+$set 2
 
 1 "负数"
 2 "非整数"
@@ -51,7 +46,7 @@ $set 3
 4 "除以0"
 
 $ 解析错误。
-$set 4
+$set 3
 
 1 "文件结束"
 2 "无效字符'%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX不允许将字符串分配给变量或数组"
 
 $ 运行时错误。
-$set 5
+$set 4
 
 1 "无效的ibase: 必须是[%lu, %lu]"
 2 "无效的obase：必须是[%lu，%lu]"
@@ -100,7 +95,7 @@ $set 5
 11 “不能在表达式中使用空值”
 
 $ 致命错误。
-$set 6
+$set 5
 
 1 "内存分配失败"
 2 "I/O错误"

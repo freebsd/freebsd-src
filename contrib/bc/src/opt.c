@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -77,7 +77,9 @@ bc_opt_longopt(const BcOptLong* longopts, int c)
 
 	BC_UNREACHABLE
 
+#if !BC_CLANG
 	return "NULL";
+#endif // !BC_CLANG
 }
 
 /**
@@ -197,11 +199,13 @@ bc_opt_parseShort(BcOpt* o, const BcOptLong* longopts)
 
 		case BC_OPT_REQUIRED_BC_ONLY:
 		{
+#if DC_ENABLED
 			if (BC_IS_DC)
 			{
 				bc_opt_error(BC_ERR_FATAL_OPTION, option[0],
 				             bc_opt_longopt(longopts, option[0]), true);
 			}
+#endif // DC_ENABLED
 
 			// Fallthrough
 			BC_FALLTHROUGH
@@ -375,7 +379,9 @@ bc_opt_parse(BcOpt* o, const BcOptLong* longopts)
 
 	BC_UNREACHABLE
 
+#if !BC_CLANG
 	return -1;
+#endif // !BC_CLANG
 }
 
 void

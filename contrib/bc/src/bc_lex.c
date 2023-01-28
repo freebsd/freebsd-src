@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,7 +66,7 @@ bc_lex_identifier(BcLex* l)
 			// (it is not allowed for builtin libraries), break out of the loop
 			// and use it as a name. This depends on the argument parser to
 			// ensure that only non-POSIX keywords get redefined.
-			if (!vm.no_redefine && vm.redefined_kws[i]) break;
+			if (!vm->no_redefine && vm->redefined_kws[i]) break;
 
 			l->t = BC_LEX_KW_AUTO + (BcLexType) i;
 
@@ -115,7 +115,7 @@ bc_lex_string(BcLex* l)
 		buf = l->buf;
 		got_more = false;
 
-		assert(!vm.is_stdin || buf == vm.buffer.v);
+		assert(vm->mode != BC_MODE_STDIN || buf == vm->buffer.v);
 
 		// Fortunately for us, bc doesn't escape quotes. Instead, the equivalent
 		// is '\q', which makes this loop simpler.
@@ -124,7 +124,7 @@ bc_lex_string(BcLex* l)
 			nlines += (c == '\n');
 		}
 
-		if (BC_ERR(c == '\0') && !vm.eof && (l->is_stdin || l->is_exprs))
+		if (BC_ERR(c == '\0') && !vm->eof && l->mode != BC_MODE_FILE)
 		{
 			got_more = bc_lex_readLine(l);
 		}
