@@ -43,6 +43,9 @@
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQF_SHARED	RF_SHAREABLE
+#define	IRQF_NOBALANCING	0
+
+#define	IRQ_DISABLE_UNLAZY	0
 
 #define	IRQ_NOTCONNECTED	(1U << 31)
 
@@ -107,6 +110,12 @@ disable_irq(unsigned int irq)
 	lkpi_disable_irq(irq);
 }
 
+static inline void
+disable_irq_nosync(unsigned int irq)
+{
+	lkpi_disable_irq(irq);
+}
+
 static inline int
 bind_irq_to_cpu(unsigned int irq, int cpu_id)
 {
@@ -136,6 +145,18 @@ irq_set_affinity_hint(int vector, cpumask_t *mask)
 		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
 
 	return (-error);
+}
+
+static inline struct msi_desc *
+irq_get_msi_desc(unsigned int irq)
+{
+
+	return (lkpi_pci_msi_desc_alloc(irq));
+}
+
+static inline void
+irq_set_status_flags(unsigned int irq __unused, unsigned long flags __unused)
+{
 }
 
 /*
