@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20251204: zpfind.9 alias to pfind.9 removed
+OLD_FILES+=usr/share/man/man9/zpfind.9
+
 # 20251121: Remove duplicate pam_krb5 manual page
 OLD_FILES+=usr/share/man/man8/pam-krb5.8.gz
 
