@@ -791,7 +791,7 @@ static inline void
 skb_free_frag(void *frag)
 {
 
-	SKB_TODO();
+	page_frag_free(frag);
 }
 
 static inline struct sk_buff *
