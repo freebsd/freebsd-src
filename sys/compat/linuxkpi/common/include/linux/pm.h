@@ -33,11 +33,14 @@
 #ifndef	_LINUXKPI_LINUX_PM_H
 #define	_LINUXKPI_LINUX_PM_H
 
+#include <linux/kernel.h>	/* pr_debug */
 #include <asm/atomic.h>
 
 /* Needed but breaks linux_usb.c */
 /* #include <linux/completion.h> */
 /* #include <linux/wait.h> */
+
+struct device;
 
 typedef struct pm_message {
 	int event;
@@ -84,5 +87,12 @@ const struct dev_pm_ops _name = {				\
 const struct dev_pm_ops _name = {				\
 }
 #endif
+
+static inline void
+pm_wakeup_event(struct device *dev __unused, unsigned int x __unused)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
 
 #endif	/* _LINUXKPI_LINUX_PM_H */
