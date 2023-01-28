@@ -92,6 +92,15 @@ bc_parse_addNum(BcParse* p, const char* string)
 	BcConst* c;
 	BcVec* slabs;
 
+	// XXX: This function has an implicit assumption: that string is a valid C
+	// string with a nul terminator. This is because of the unchecked array
+	// accesses below. I can't check this with an assert() because that could
+	// lead to out-of-bounds access.
+	//
+	// XXX: In fact, just for safety's sake, assume that this function needs a
+	// non-empty string with a nul terminator, just in case bc_parse_zero or
+	// bc_parse_one change in the future, which I doubt.
+
 	BC_SIG_ASSERT_LOCKED;
 
 	// Special case 0.

@@ -1,5 +1,18 @@
 # News
 
+## 6.0.4
+
+This is a production release that most users will not need to upgrade to.
+
+This fixes a build bug for `bcl` only on OpenBSD. Users that do not need `bcl`
+or have not run into build errors with `bcl` do ***NOT*** need to upgrade.
+
+## 6.0.3
+
+This is a production release that fixes a build bug for cross-compilation.
+
+Users that do not need cross-compilation do ***NOT*** need to upgrade.
+
 ## 6.0.2
 
 This is a production release that fixes two bugs:

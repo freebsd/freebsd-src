@@ -36,6 +36,12 @@
 #ifndef LIBBC_PRIVATE_H
 #define LIBBC_PRIVATE_H
 
+#ifndef _WIN32
+
+#include <pthread.h>
+
+#endif // _WIN32
+
 #include <bcl.h>
 
 #include <num.h>
