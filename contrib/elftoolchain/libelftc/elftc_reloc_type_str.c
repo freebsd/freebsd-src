@@ -656,14 +656,18 @@ elftc_reloc_type_str(unsigned int mach, unsigned int type)
 		case 38: return "R_RISCV_SUB16";
 		case 39: return "R_RISCV_SUB32";
 		case 40: return "R_RISCV_SUB64";
-		case 41: return "R_RISCV_GNU_VTINHERIT";
-		case 42: return "R_RISCV_GNU_VTENTRY";
 		case 43: return "R_RISCV_ALIGN";
 		case 44: return "R_RISCV_RVC_BRANCH";
 		case 45: return "R_RISCV_RVC_JUMP";
 		case 46: return "R_RISCV_RVC_LUI";
-		case 47: return "R_RISCV_GPREL_I";
-		case 48: return "R_RISCV_GPREL_S";
+		case 51: return "R_RISCV_RELAX";
+		case 52: return "R_RISCV_SUB6";
+		case 53: return "R_RISCV_SET6";
+		case 54: return "R_RISCV_SET8";
+		case 55: return "R_RISCV_SET16";
+		case 56: return "R_RISCV_SET32";
+		case 57: return "R_RISCV_32_PCREL";
+		case 58: return "R_RISCV_IRELATIVE";
 		}
 		break;
 	case EM_S390:
