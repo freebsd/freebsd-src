@@ -1788,6 +1788,7 @@ bc_history_printCtrl(BcHistory* h, unsigned int c)
 	// Pop the string.
 	bc_vec_npop(&h->buf, sizeof(str));
 	bc_vec_pushByte(&h->buf, '\0');
+	h->pos = 0;
 
 	if (c != BC_ACTION_CTRL_C && c != BC_ACTION_CTRL_D)
 	{

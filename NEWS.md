@@ -1,5 +1,9 @@
 # News
 
+## 6.2.1
+
+This is a production release with one bug fix for a memory bug in history.
+
 ## 6.2.0
 
 This is a production release with a new feature and a few bug fixes.

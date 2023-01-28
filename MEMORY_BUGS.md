@@ -11,6 +11,12 @@ right after, which was embarrassing.
 This list is sorted by the first version a bug exists in, not the last it
 existed in.
 
+* In versions `1.1.0` until `6.2.0` (inclusive) of `bc` and `dc`, there is a
+  out of bounds read and write in history when pressing ctrl+r (or any other
+  unused letter) then inserting two characters.
+
+  The first version without this bug is `6.2.1`.
+
 * In versions `3.0.0` until `6.0.1` (inclusive) of `bc` and `dc`, there is a
   double-free on `SIGINT` when using command-line expressions with `-e` and
   `-f`. This was caused by not properly ending a jump series.
