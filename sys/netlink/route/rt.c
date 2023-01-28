@@ -175,6 +175,7 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 
 	if (uidx != 0)
 		nlattr_add_u32(nw, NL_RTA_NH_ID, uidx);
+	nlattr_add_u32(nw, NL_RTA_KNH_ID, nhgrp_get_idx(nhg));
 
 	nlattr_add_u32(nw, NL_RTA_RTFLAGS, base_rtflags);
 	int off = nlattr_add_nested(nw, NL_RTA_MULTIPATH);
