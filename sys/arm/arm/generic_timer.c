@@ -521,7 +521,8 @@ arm_tmr_attach(device_t dev)
 	if (sc->res[GT_VIRT] != NULL)
 		arm_tmr_disable(false);
 	/* And the physical */
-	if (sc->physical)
+	if (sc->res[GT_PHYS_SECURE] != NULL ||
+	    sc->res[GT_PHYS_NONSECURE] != NULL)
 		arm_tmr_disable(true);
 
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
