@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.120 2022/07/26 23:02:54 sjg Exp $
+#	$Id: Makefile,v 1.122 2022/10/08 02:53:30 sjg Exp $
 
 PROG=	bmake
 
@@ -88,7 +88,7 @@ OS := ${.MAKE.OS:U${uname -s:L:sh}}
 # are we 4.4BSD ?
 isBSD44:=${BSD44_LIST:M${OS}}
 
-.if ${isBSD44} == ""
+.if ${isBSD44} == "" && ${OS:NDarwin:NLinux} != ""
 MANTARGET= cat
 INSTALL?=${srcdir}/install-sh
 .if ${MACHINE} == "sun386"

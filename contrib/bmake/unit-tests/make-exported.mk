@@ -1,4 +1,4 @@
-# $NetBSD: make-exported.mk,v 1.6 2020/10/05 19:27:48 rillig Exp $
+# $NetBSD: make-exported.mk,v 1.7 2022/09/09 18:36:15 sjg Exp $
 #
 # As of 2020-08-09, the code in Var_Export is shared between the .export
 # directive and the .MAKE.EXPORTED variable.  This leads to non-obvious
@@ -22,4 +22,4 @@ UT_VAR=		${UNEXPANDED}
 .MAKE.EXPORTED=		-literal UT_VAR
 
 all:
-	@env | sort | egrep '^UT_|make-exported-value' || true
+	@env | sort | ${EGREP} '^UT_|make-exported-value' || true
