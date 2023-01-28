@@ -5,6 +5,7 @@ add.bc
 print.bc
 parse.bc
 array.bc
+array2.bc
 atan.bc
 bessel.bc
 functions.bc

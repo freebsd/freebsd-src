@@ -346,7 +346,7 @@ bc_program_num(BcProgram* p, BcResult* r)
 			{
 				size_t idx = r->d.loc.idx;
 
-				v = bc_vec_top(v);
+				v = bc_vec_item(v, r->d.loc.stack_idx);
 
 #if BC_ENABLED
 				// If this is true, we have a reference vector, so dereference
@@ -376,8 +376,21 @@ bc_program_num(BcProgram* p, BcResult* r)
 				n = bc_vec_item(v, idx);
 			}
 			// This is either a number (for a var) or an array (for an array).
-			// Because bc_vec_top() returns a void*, we don't need to cast.
-			else n = bc_vec_top(v);
+			// Because bc_vec_top() and bc_vec_item() return a void*, we don't
+			// need to cast.
+			else
+			{
+#if BC_ENABLED
+				if (BC_IS_BC)
+				{
+					n = bc_vec_item(v, r->d.loc.stack_idx);
+				}
+				else
+#endif // BC_ENABLED
+				{
+					n = bc_vec_top(v);
+				}
+			}
 
 			break;
 		}
@@ -1181,18 +1194,12 @@ bc_program_assignStr(BcProgram* p, BcNum* num, BcVec* v, bool push)
 /**
  * Copies a value to a variable. This is used for storing in dc as well as to
  * set function parameters to arguments in bc.
- * @param p     The program.
- * @param idx   The index of the variable or array to copy to.
- * @param t     The type to copy to. This could be a variable or an array.
- * @param last  Whether to grab the last item on the variable stack or not (for
- *              bc function parameters). This is important because if a new
- *              value has been pushed to the variable already, we need to grab
- *              the value pushed before. This happens when you have a parameter
- *              named something like "x", and a variable "x" is passed to
- *              another parameter.
+ * @param p    The program.
+ * @param idx  The index of the variable or array to copy to.
+ * @param t    The type to copy to. This could be a variable or an array.
  */
 static void
-bc_program_copyToVar(BcProgram* p, size_t idx, BcType t, bool last)
+bc_program_copyToVar(BcProgram* p, size_t idx, BcType t)
 {
 	BcResult *ptr = NULL, r;
 	BcVec* vec;
@@ -1217,13 +1224,6 @@ bc_program_copyToVar(BcProgram* p, size_t idx, BcType t, bool last)
 	{
 		// Type match the result.
 		bc_program_type_match(ptr, t);
-
-		// Get the variable or array, taking care to get the real item. We take
-		// care of last with arrays later.
-		if (!last && var)
-		{
-			n = bc_vec_item_rev(bc_program_vec(p, ptr->d.loc.loc, t), 1);
-		}
 	}
 #endif // BC_ENABLED
 
@@ -1265,18 +1265,7 @@ bc_program_copyToVar(BcProgram* p, size_t idx, BcType t, bool last)
 
 		if (BC_IS_BC)
 		{
-			BcVec* parent;
 			bool ref, ref_size;
-
-			// We need to figure out if the parameter is a reference or not and
-			// construct the reference vector, if necessary. So this gets the
-			// parent stack for the array.
-			parent = bc_program_vec(p, ptr->d.loc.loc, t);
-			assert(parent != NULL);
-
-			// This takes care of last for arrays. Mostly.
-			if (!last) v = bc_vec_item_rev(parent, !last);
-			assert(v != NULL);
 
 			// True if we are using a reference.
 			ref = (v->size == sizeof(BcNum) && t == BC_TYPE_REF);
@@ -1297,8 +1286,6 @@ bc_program_copyToVar(BcProgram* p, size_t idx, BcType t, bool last)
 				// If this is true, then we need to construct a reference.
 				if (ref)
 				{
-					assert(parent->len >= (size_t) (!last + 1));
-
 					// Make sure the pointer was not invalidated.
 					vec = bc_program_vec(p, idx, t);
 
@@ -1306,7 +1293,7 @@ bc_program_copyToVar(BcProgram* p, size_t idx, BcType t, bool last)
 					// care of last; it ensures the reference goes to the right
 					// place.
 					bc_vec_pushIndex(rv, ptr->d.loc.loc);
-					bc_vec_pushIndex(rv, parent->len - !last - 1);
+					bc_vec_pushIndex(rv, ptr->d.loc.stack_idx);
 				}
 				// If we get here, we are copying a ref to a ref. Just push a
 				// copy of all of the bytes.
@@ -1600,18 +1587,22 @@ bc_program_pushVar(BcProgram* p, const char* restrict code,
 {
 	BcResult r;
 	size_t idx = bc_program_index(code, bgn);
+	BcVec* v;
 
 	// Set the result appropriately.
 	r.t = BC_RESULT_VAR;
 	r.d.loc.loc = idx;
+
+	// Get the stack for the variable. This is used in both bc and dc.
+	v = bc_program_vec(p, idx, BC_TYPE_VAR);
+	r.d.loc.stack_idx = v->len - 1;
 
 #if DC_ENABLED
 	// If this condition is true, then we have the hard case, where we have to
 	// adjust dc registers.
 	if (BC_IS_DC && (pop || copy))
 	{
-		// Get the stack for the variable and the number at the top.
-		BcVec* v = bc_program_vec(p, idx, BC_TYPE_VAR);
+		// Get the number at the top at the top of the stack.
 		BcNum* num = bc_vec_top(v);
 
 		// Ensure there are enough elements on the stack.
@@ -1674,9 +1665,16 @@ bc_program_pushArray(BcProgram* p, const char* restrict code,
 	BcResult* operand;
 	BcNum* num;
 	BcBigDig temp;
+	BcVec* v;
 
 	// Get the index of the array.
 	r.d.loc.loc = bc_program_index(code, bgn);
+
+	// We need the array to get its length.
+	v = bc_program_vec(p, r.d.loc.loc, BC_TYPE_ARRAY);
+	assert(v != NULL);
+
+	r.d.loc.stack_idx = v->len - 1;
 
 	// Doing an array is easy; just set the result type and finish.
 	if (inst == BC_INST_ARRAY)
@@ -1800,35 +1798,14 @@ bc_program_call(BcProgram* p, const char* restrict code, size_t* restrict bgn)
 	// Push the arguments onto the stacks of their respective parameters.
 	for (i = 0; i < nargs; ++i)
 	{
-		size_t j;
-		bool last = true;
-
 		arg = bc_vec_top(&p->results);
 		if (BC_ERR(arg->t == BC_RESULT_VOID)) bc_err(BC_ERR_EXEC_VOID_VAL);
 
 		// Get the corresponding parameter.
 		a = bc_vec_item(&f->autos, nargs - 1 - i);
 
-		// If I have already pushed to a var, I need to make sure I
-		// get the previous version, not the already pushed one. This condition
-		// must be true for that to even be possible.
-		if (arg->t == BC_RESULT_VAR || arg->t == BC_RESULT_ARRAY)
-		{
-			// Loop through all of the previous parameters.
-			for (j = 0; j < i && last; ++j)
-			{
-				BcAuto* aptr = bc_vec_item(&f->autos, nargs - 1 - j);
-
-				// This condition is true if there is a previous parameter with
-				// the same name *and* type because variables and arrays do not
-				// interfere with each other.
-				last = (arg->d.loc.loc != aptr->idx ||
-				        (!aptr->type) != (arg->t == BC_RESULT_VAR));
-			}
-		}
-
 		// Actually push the value onto the parameter's stack.
-		bc_program_copyToVar(p, a->idx, a->type, last);
+		bc_program_copyToVar(p, a->idx, a->type);
 	}
 
 	BC_SIG_LOCK;
@@ -3650,7 +3627,7 @@ bc_program_exec(BcProgram* p)
 			// clang-format on
 			{
 				idx = bc_program_index(code, &ip->idx);
-				bc_program_copyToVar(p, idx, BC_TYPE_VAR, true);
+				bc_program_copyToVar(p, idx, BC_TYPE_VAR);
 				BC_PROG_JUMP(inst, code, ip);
 			}
 

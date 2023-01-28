@@ -220,19 +220,10 @@ typedef struct BcProgram
 
 #if !BC_ENABLED
 
-/// This define disappears the parameter last because for dc only, last is
-/// always true.
-#define bc_program_copyToVar(p, name, t, last) \
-	bc_program_copyToVar_impl(p, name, t)
-
 /// Returns true if the calculator should pop after printing.
 #define BC_PROGRAM_POP(pop) (pop)
 
 #else // !BC_ENABLED
-
-// This is here to quiet a compiler warning.
-#define bc_program_copyToVar(p, name, t, last) \
-	bc_program_copyToVar_impl(p, name, t, last)
 
 /// Returns true if the calculator should pop after printing.
 #define BC_PROGRAM_POP(pop) (BC_IS_BC || (pop))

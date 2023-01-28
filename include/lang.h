@@ -352,6 +352,12 @@ typedef struct BcLoc
 	/// The index of the var or array.
 	size_t loc;
 
+	/// The index of the array or variable in the array stack. This is to
+	/// prevent a bug with getting the wrong array element or variable after a
+	/// function call. See the tests/bc/scripts/array.bc test for the array
+	/// case; the variable case is in various variable tests.
+	size_t stack_idx;
+
 	/// The index of the array element. Only used for array elements.
 	size_t idx;
 
