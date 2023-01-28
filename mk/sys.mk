@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.53 2021/12/13 05:50:13 sjg Exp $
+# $Id: sys.mk,v 1.54 2022/09/09 17:44:29 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -67,6 +67,9 @@ _sys_mk := ${.MAKE.MAKEFILES:M*/$x.sys.mk:T}
 SYS_OS_MK := ${_sys_mk}
 .export SYS_OS_MK
 .endif
+
+# some sys/ may have set this to grep -E
+EGREP ?= egrep
 
 # some options we need to know early
 OPTIONS_DEFAULT_NO += \

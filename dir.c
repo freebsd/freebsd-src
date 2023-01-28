@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.279 2022/05/07 21:19:43 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.280 2023/01/24 00:24:02 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -138,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.279 2022/05/07 21:19:43 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.280 2023/01/24 00:24:02 sjg Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -575,6 +575,21 @@ Dir_SetPATH(void)
 		if (cur != NULL)
 			Global_Append(".PATH", cur->name);
 	}
+}
+
+
+void
+Dir_SetSYSPATH(void)
+{
+	CachedDirListNode *ln;
+
+	Var_ReadOnly(".SYSPATH", false);
+	Global_Delete(".SYSPATH");
+	for (ln = sysIncPath->dirs.first; ln != NULL; ln = ln->next) {
+		CachedDir *dir = ln->datum;
+		Global_Append(".SYSPATH", dir->name);
+	}
+	Var_ReadOnly(".SYSPATH", true);
 }
 
 /*

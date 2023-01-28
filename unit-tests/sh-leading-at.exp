@@ -3,4 +3,5 @@ space after @
 echo 'echoed'
 echoed
 3
+whitespace in leading part
 exit status 0

@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.177 2022/04/15 12:19:28 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.179 2022/12/06 00:12:44 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.177 2022/04/15 12:19:28 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.179 2022/12/06 00:12:44 rillig Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -159,17 +159,17 @@ Targ_List(void)
 /*
  * Create a new graph node, but don't register it anywhere.
  *
- * Graph nodes that appear on the left-hand side of a dependency line such
+ * Graph nodes that occur on the left-hand side of a dependency line such
  * as "target: source" are called targets.  XXX: In some cases (like the
- * .ALLTARGETS variable), all nodes are called targets as well, even if they
- * never appear on the left-hand side.  This is a mistake.
+ * .ALLTARGETS variable), other nodes are called targets as well, even if
+ * they never occur on the left-hand side of a dependency line.
  *
  * Typical names for graph nodes are:
- *	"src.c" (an ordinary file)
- *	"clean" (a .PHONY target)
- *	".END" (a special hook target)
- *	"-lm" (a library)
- *	"libc.a(isspace.o)" (an archive member)
+ *	"src.c"		an ordinary file
+ *	"clean"		a .PHONY target
+ *	".END"		a special hook target
+ *	"-lm"		a library
+ *	"libm.a(sin.o)"	an archive member
  */
 GNode *
 GNode_New(const char *name)
@@ -242,9 +242,9 @@ GNode_Free(void *gnp)
 	 *
 	 * XXX: The GNodes that are only used as variable scopes (SCOPE_CMD,
 	 * SCOPE_GLOBAL, SCOPE_INTERNAL) are not freed at all (see Var_End,
-	 * where they are not mentioned).  These might be freed at all, if
-	 * their variable values are indeed not used anywhere else (see
-	 * Trace_Init for the only suspicious use).
+	 * where they are not mentioned).  These may be freed if their
+	 * variable values are indeed not used anywhere else (see Trace_Init
+	 * for the only suspicious use).
 	 */
 	HashTable_Done(&gn->vars);
 
@@ -599,7 +599,7 @@ Targ_Propagate(void)
 		for (cln = gn->cohorts.first; cln != NULL; cln = cln->next) {
 			GNode *cohort = cln->datum;
 
-			cohort->type |= type & ~OP_OPMASK;
+			cohort->type |= type & (unsigned)~OP_OPMASK;
 		}
 	}
 }
