@@ -1,5 +1,44 @@
 # News
 
+## 6.1.0
+
+This is a production release that fixes a discrepancy from the `bc` standard,
+a couple of memory bugs, and adds new features.
+
+The discrepancy from the `bc` standard was with regards to the behavior of the
+`quit` command. This `bc` used to quit whenever it encountered `quit` during
+parsing, even if it was parsing a full file. Now, `bc` only quits when
+encountering `quit` *after* it has executed all executable statements up to that
+point.
+
+This behavior is slightly different from GNU `bc`, but users will only notice
+the difference if they put `quit` on the same line as other statements.
+
+The first memory bug could be reproduced by assigning a string to a non-local
+variable in a function, then redefining the function with use of the same
+non-local variable, which would still refer to a string in the previous version
+of the function.
+
+The second memory bug was caused by passing an array argument to the `asciify()`
+built-in function. In certain cases, that was wrongly allowed, and the
+interpreter just assumed everything was correct and accessed memory. Now that
+arrays are allowed as arguments (see below), this is not an issue.
+
+The first feature was the addition of the `is_number()` built-in function (`u`
+in `dc`) that returns 1 if the runtime argument is a number and 0 otherwise.
+
+The second feature was the addition of the `is_string()` built-in function (`t`
+in `dc`) that returns 1 if the runtime argument is a string and 0 otherwise.
+
+These features were added because I realized that type-checking is necessary now
+that strings can be assigned to variables in `bc` and because they've always
+been assignable to variables in `dc`.
+
+The last added feature is the ability of the `asciify()` built-in function in
+`bc` to convert a full array of numbers into a string. This means that
+character-by-character printing will not be necessary, and more strings than
+just single-character ones will be able to be created.
+
 ## 6.0.4
 
 This is a production release that most users will not need to upgrade to.

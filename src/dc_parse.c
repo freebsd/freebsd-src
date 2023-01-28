@@ -324,6 +324,8 @@ dc_parse_token(BcParse* p, BcLexType t, uint8_t flags)
 		case BC_LEX_KW_PRINT:
 		case BC_LEX_KW_SQRT:
 		case BC_LEX_KW_ABS:
+		case BC_LEX_KW_IS_NUMBER:
+		case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH

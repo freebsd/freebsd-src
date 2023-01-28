@@ -535,7 +535,7 @@ printf 'pass\n'
 if [ "$d" = "bc" ]; then
 
 	printf 'Running %s limits tests...' "$d"
-	printf 'limits\n' | "$exe" "$@" > "$out2" /dev/null 2>&1
+	printf 'limits\n' | "$exe" "$@" /dev/null > "$out2" 2>&1
 
 	checktest_retcode "$d" "$?" "limits"
 

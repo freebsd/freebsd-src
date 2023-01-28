@@ -435,7 +435,6 @@ bc_map_insert(BcVec* restrict v, const char* name, size_t idx,
               size_t* restrict i)
 {
 	BcId id;
-	BcVec* slabs;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -450,10 +449,7 @@ bc_map_insert(BcVec* restrict v, const char* name, size_t idx,
 		return false;
 	}
 
-	// This macro returns the correct slabs for the calculator.
-	slabs = BC_VEC_MAP_SLABS;
-
-	id.name = bc_slabvec_strdup(slabs, name);
+	id.name = bc_slabvec_strdup(&vm->slabs, name);
 	id.idx = idx;
 
 	bc_vec_pushAt(v, &id, *i);
@@ -465,6 +461,7 @@ size_t
 bc_map_index(const BcVec* restrict v, const char* name)
 {
 	size_t i;
+	BcId* id;
 
 	assert(v != NULL && name != NULL);
 
@@ -473,10 +470,10 @@ bc_map_index(const BcVec* restrict v, const char* name)
 	// If out of range, return invalid.
 	if (i >= v->len) return BC_VEC_INVALID_IDX;
 
-	// Make sure the item exists.
-	return strcmp(name, ((BcId*) bc_vec_item(v, i))->name) ?
-	           BC_VEC_INVALID_IDX :
-	           i;
+	id = (BcId*) bc_vec_item(v, i);
+
+	// Make sure the item exists and return appropriately.
+	return strcmp(name, id->name) ? BC_VEC_INVALID_IDX : i;
 }
 
 #if DC_ENABLED

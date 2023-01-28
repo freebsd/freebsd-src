@@ -628,12 +628,8 @@ typedef struct BcVm
 	/// True if EOF was encountered.
 	bool eof;
 
-	/// True if bc is currently reading from stdin.
-	bool is_stdin;
-
-	/// True if bc should clear its buffers. This is BcVm to fill a hole and
-	/// also to avoid clobber warnings from GCC.
-	bool clear;
+	/// The mode that the program is in.
+	uchar mode;
 
 #if BC_ENABLED
 
@@ -759,16 +755,9 @@ typedef struct BcVm
 	/// The number of items in the input buffer.
 	size_t buf_len;
 
-	/// The slab for constants in the main function. This is separate for
-	/// garbage collection reasons.
-	BcVec main_const_slab;
-
-	//// The slab for all other strings for the main function.
-	BcVec main_slabs;
-
-	/// The slab for function names, strings in other functions, and constants
-	/// in other functions.
-	BcVec other_slabs;
+	/// The slabs vector for constants, strings, function names, and other
+	/// string-like things.
+	BcVec slabs;
 
 #if BC_ENABLED
 
@@ -846,7 +835,7 @@ bc_vm_getTemp(void);
 void
 bc_vm_freeTemps(void);
 
-#if !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
+#if !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB || BC_ENABLE_LIBRARY
 
 /**
  * Erases the flush argument if history does not exist because it does not
@@ -854,12 +843,12 @@ bc_vm_freeTemps(void);
  */
 #define bc_vm_putchar(c, t) bc_vm_putchar_impl(c)
 
-#else // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
+#else // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB || BC_ENABLE_LIBRARY
 
 // This is here to satisfy a clang warning about recursive macros.
 #define bc_vm_putchar(c, t) bc_vm_putchar_impl(c, t)
 
-#endif // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
+#endif // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB || BC_ENABLE_LIBRARY
 
 /**
  * Print to stdout with limited formating.

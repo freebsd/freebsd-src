@@ -207,7 +207,7 @@ bc_parse_createCondLabel(BcParse* p, size_t idx)
 	bc_vec_push(&p->conds, &idx);
 }
 
-/*
+/**
  * Creates an exit label to be filled in later by bc_parse_setLabel(). Also, why
  * create a label to be filled in later? Because exit labels are meant to be
  * targeted by code that comes *before* the label. Since we have to parse that
@@ -255,25 +255,30 @@ bc_parse_operator(BcParse* p, BcLexType type, size_t start, size_t* nexprs)
 	uchar l, r = BC_PARSE_OP_PREC(type);
 	uchar left = BC_PARSE_OP_LEFT(type);
 
-	// While we haven't hit the stop point yet.
+	// While we haven't hit the stop point yet...
 	while (p->ops.len > start)
 	{
 		// Get the top operator.
 		t = BC_PARSE_TOP_OP(p);
 
-		// If it's a right paren, we have reached the end of whatever expression
-		// this is no matter what.
+		// If it's a left paren, we have reached the end of whatever expression
+		// this is no matter what. We also don't pop the left paren because it
+		// will need to stay for the rest of the subexpression.
 		if (t == BC_LEX_LPAREN) break;
 
 		// Break for precedence. Precedence operates differently on left and
 		// right associativity, by the way. A left associative operator that
 		// matches the current precedence should take priority, but a right
 		// associative operator should not.
+		//
+		// Also, a lower precedence value means a higher precedence.
 		l = BC_PARSE_OP_PREC(t);
 		if (l >= r && (l != r || !left)) break;
 
 		// Do the housekeeping. In particular, make sure to note that one
-		// expression was consumed. (Two were, but another was added.)
+		// expression was consumed (well, two were, but another was added) if
+		// the operator was not a prefix operator. (Postfix operators are not
+		// handled by this function at all.)
 		bc_parse_push(p, BC_PARSE_TOKEN_INST(t));
 		bc_vec_pop(&p->ops);
 		*nexprs -= !BC_PARSE_OP_PREFIX(t);
@@ -390,7 +395,11 @@ bc_parse_call(BcParse* p, const char* name, uint8_t flags)
 /**
  * Parses a name/identifier-based expression. It could be a variable, an array
  * element, an array itself (for function arguments), a function call, etc.
- *
+ * @param p           The parser.
+ * @param type        A pointer to return the resulting instruction.
+ * @param can_assign  A pointer to return true if the name can be assigned to,
+ *                    false otherwise.
+ * @param flags       Flags restricting what kind of expression the name can be.
  */
 static void
 bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
@@ -523,7 +532,13 @@ bc_parse_builtin(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
 	flags |= BC_PARSE_NEEDVAL;
 
 	// Since length can take arrays, we need to specially add that flag.
-	if (type == BC_LEX_KW_LENGTH) flags |= BC_PARSE_ARRAY;
+	if (type == BC_LEX_KW_LENGTH || type == BC_LEX_KW_ASCIIFY)
+	{
+		flags |= BC_PARSE_ARRAY;
+	}
+
+	// Otherwise, we need to clear it because it could be set.
+	else flags &= ~(BC_PARSE_ARRAY);
 
 	bc_parse_expr_status(p, flags, bc_parse_next_rel);
 
@@ -540,6 +555,10 @@ bc_parse_builtin(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
 /**
  * Parses a builtin function that takes 3 arguments. This includes modexp() and
  * divmod().
+ * @param p      The parser.
+ * @param type   The lex token.
+ * @param flags  The expression parsing flags for parsing the argument.
+ * @param prev   An out parameter; the previous instruction pointer.
  */
 static void
 bc_parse_builtin3(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
@@ -728,7 +747,7 @@ bc_parse_incdec(BcParse* p, BcInst* prev, bool* can_assign, size_t* nexs,
 		if (type == BC_LEX_NAME)
 		{
 			// Parse the name.
-			uint8_t flags2 = flags & ~BC_PARSE_ARRAY;
+			uint8_t flags2 = flags & ~(BC_PARSE_ARRAY);
 			bc_parse_name(p, prev, can_assign, flags2 | BC_PARSE_NOCALL);
 		}
 		// Is the next token a global?
@@ -1091,9 +1110,9 @@ bc_parse_endif(BcParse* p)
 	{
 		// We set this to restore it later. We don't want the parser thinking
 		// that we are on stdin for this one because it will want more.
-		bool is_stdin = vm->is_stdin;
+		BcMode mode = vm->mode;
 
-		vm->is_stdin = false;
+		vm->mode = BC_MODE_FILE;
 
 		// End all of the if statements and loops.
 		while (p->flags.len > 1 || BC_PARSE_IF_END(p))
@@ -1102,7 +1121,7 @@ bc_parse_endif(BcParse* p)
 			if (p->flags.len > 1) bc_parse_endBody(p, false);
 		}
 
-		vm->is_stdin = is_stdin;
+		vm->mode = (uchar) mode;
 	}
 	// If we reach here, a block was not properly closed, and we should error.
 	else bc_parse_err(&vm->prs, BC_ERR_PARSE_BLOCK);
@@ -1693,6 +1712,8 @@ bc_parse_stmt(BcParse* p)
 #endif // BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_SQRT:
 		case BC_LEX_KW_ABS:
+		case BC_LEX_KW_IS_NUMBER:
+		case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH
@@ -1907,7 +1928,7 @@ bc_parse_stmt(BcParse* p)
 	}
 
 	// Make sure semicolons are eaten.
-	while (p->l.t == BC_LEX_SCOLON)
+	while (p->l.t == BC_LEX_SCOLON || p->l.t == BC_LEX_NLINE)
 	{
 		bc_lex_next(&p->l);
 	}
@@ -2294,6 +2315,8 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 			case BC_LEX_KW_LENGTH:
 			case BC_LEX_KW_SQRT:
 			case BC_LEX_KW_ABS:
+			case BC_LEX_KW_IS_NUMBER:
+			case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 			case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH

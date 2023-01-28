@@ -80,26 +80,12 @@
  */
 #define BC_PARSE_IS_INITED(p, prg) ((p)->prog == (prg))
 
-#if BC_ENABLED
-
-/**
- * Returns true if the current parser state allows parsing, false otherwise.
- * @param p  The parser.
- * @return   True if parsing can proceed, false otherwise.
- */
-#define BC_PARSE_CAN_PARSE(p) \
-	((p).l.t != BC_LEX_EOF && (p).l.t != BC_LEX_KW_DEFINE)
-
-#else // BC_ENABLED
-
 /**
  * Returns true if the current parser state allows parsing, false otherwise.
  * @param p  The parser.
  * @return   True if parsing can proceed, false otherwise.
  */
 #define BC_PARSE_CAN_PARSE(p) ((p).l.t != BC_LEX_EOF)
-
-#endif // BC_ENABLED
 
 /**
  * Pushes the instruction @a i onto the bytecode vector for the current
@@ -268,14 +254,12 @@ bc_parse_pushName(const BcParse* p, char* name, bool var);
 
 /**
  * Sets the text that the parser will parse.
- * @param p         The parser.
- * @param text      The text to lex.
- * @param is_stdin  True if the text is from stdin, false otherwise.
- * @param is_exprs  True if the text is from command-line expressions, false
- *                  otherwise.
+ * @param p     The parser.
+ * @param text  The text to lex.
+ * @param mode  The mode to parse in.
  */
 void
-bc_parse_text(BcParse* p, const char* text, bool is_stdin, bool is_exprs);
+bc_parse_text(BcParse* p, const char* text, BcMode mode);
 
 // References to const 0 and 1 strings for special cases. bc and dc have
 // specific instructions for 0 and 1 because they pop up so often and (in the

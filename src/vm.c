@@ -649,9 +649,7 @@ bc_vm_shutdown(void)
 	bc_parse_free(&vm->prs);
 	bc_program_free(&vm->prog);
 
-	bc_slabvec_free(&vm->other_slabs);
-	bc_slabvec_free(&vm->main_slabs);
-	bc_slabvec_free(&vm->main_const_slab);
+	bc_slabvec_free(&vm->slabs);
 #endif // !BC_ENABLE_LIBRARY
 
 	bc_vm_freeTemps();
@@ -966,29 +964,16 @@ bc_vm_clean(void)
 	// constants, and code.
 	if (good && vm->prog.stack.len == 1 && ip->idx == f->code.len)
 	{
+		// XXX: Nothing can be popped in dc. Deal with it.
+
 #if BC_ENABLED
 		if (BC_IS_BC)
 		{
+			// XXX: you cannot delete strings, functions, or constants in bc.
+			// Deal with it.
 			bc_vec_popAll(&f->labels);
-			bc_vec_popAll(&f->strs);
-			bc_vec_popAll(&f->consts);
-
-			// I can't clear out the other_slabs because it has functions,
-			// consts, strings, vars, and arrays. It has strings from *other*
-			// functions, specifically.
-			bc_slabvec_clear(&vm->main_const_slab);
-			bc_slabvec_clear(&vm->main_slabs);
 		}
 #endif // BC_ENABLED
-
-#if DC_ENABLED
-		// Note to self: you cannot delete strings and functions. Deal with it.
-		if (BC_IS_DC)
-		{
-			bc_vec_popAll(vm->prog.consts);
-			bc_slabvec_clear(&vm->main_const_slab);
-		}
-#endif // DC_ENABLED
 
 		bc_vec_popAll(&f->code);
 
@@ -998,33 +983,21 @@ bc_vm_clean(void)
 
 /**
  * Process a bunch of text.
- * @param text      The text to process.
- * @param is_stdin  True if the text came from stdin, false otherwise.
- * @param is_exprs  True if the text is from command-line expressions, false
- *                  otherwise.
+ * @param text  The text to process.
+ * @param mode  The mode to process in.
  */
 static void
-bc_vm_process(const char* text, bool is_stdin, bool is_exprs)
+bc_vm_process(const char* text, BcMode mode)
 {
 	// Set up the parser.
-	bc_parse_text(&vm->prs, text, is_stdin, is_exprs);
+	bc_parse_text(&vm->prs, text, mode);
 
-	do
+	while (vm->prs.l.t != BC_LEX_EOF)
 	{
+		// Parsing requires a signal lock. We also don't parse everything; we
+		// want to execute as soon as possible for *everything*.
 		BC_SIG_LOCK;
-
-#if BC_ENABLED
-		// If the first token is the keyword define, then we need to do this
-		// specially because bc thinks it may not be able to parse.
-		if (vm->prs.l.t == BC_LEX_KW_DEFINE) vm->parse(&vm->prs);
-#endif // BC_ENABLED
-
-		// Parse it all.
-		while (BC_PARSE_CAN_PARSE(vm->prs))
-		{
-			vm->parse(&vm->prs);
-		}
-
+		vm->parse(&vm->prs);
 		BC_SIG_UNLOCK;
 
 		// Execute if possible.
@@ -1035,7 +1008,6 @@ bc_vm_process(const char* text, bool is_stdin, bool is_exprs)
 		// Flush in interactive mode.
 		if (BC_I) bc_file_flush(&vm->fout, bc_flush_save);
 	}
-	while (vm->prs.l.t != BC_LEX_EOF);
 }
 
 #if BC_ENABLED
@@ -1052,6 +1024,7 @@ bc_vm_endif(void)
 	bc_parse_endif(&vm->prs);
 	bc_program_exec(&vm->prog);
 }
+
 #endif // BC_ENABLED
 
 /**
@@ -1068,6 +1041,8 @@ bc_vm_file(const char* file)
 
 	assert(!vm->sig_pop);
 
+	vm->mode = BC_MODE_FILE;
+
 	// Set up the lexer.
 	bc_lex_file(&vm->prs.l, file);
 
@@ -1083,7 +1058,7 @@ bc_vm_file(const char* file)
 	BC_SIG_UNLOCK;
 
 	// Process it.
-	bc_vm_process(data, false, false);
+	bc_vm_process(data, BC_MODE_FILE);
 
 #if BC_ENABLED
 	// Make sure to end any open if statements.
@@ -1129,7 +1104,7 @@ bc_vm_readLine(bool clear)
 		s = bc_read_line(&vm->line_buf, ">>> ");
 		vm->eof = (s == BC_STATUS_EOF);
 	}
-	while (!(s) && !vm->eof && vm->line_buf.len < 1);
+	while (s == BC_STATUS_SUCCESS && !vm->eof && vm->line_buf.len < 1);
 
 	good = (vm->line_buf.len > 1);
 
@@ -1145,12 +1120,14 @@ bc_vm_readLine(bool clear)
 static void
 bc_vm_stdin(void)
 {
+	bool clear;
+
 #if BC_ENABLE_LIBRARY
 	BcVm* vm = bcl_getspecific();
 #endif // BC_ENABLE_LIBRARY
 
-	vm->clear = true;
-	vm->is_stdin = true;
+	clear = true;
+	vm->mode = BC_MODE_STDIN;
 
 	// Set up the lexer.
 	bc_lex_file(&vm->prs.l, bc_program_stdin_name);
@@ -1175,18 +1152,18 @@ bc_vm_stdin(void)
 restart:
 
 	// While we still read data from stdin.
-	while (bc_vm_readLine(vm->clear))
+	while (bc_vm_readLine(clear))
 	{
 		size_t len = vm->buffer.len - 1;
 		const char* str = vm->buffer.v;
 
 		// We don't want to clear the buffer when the line ends with a backslash
 		// because a backslash newline is special in bc.
-		vm->clear = (len < 2 || str[len - 2] != '\\' || str[len - 1] != '\n');
-		if (!vm->clear) continue;
+		clear = (len < 2 || str[len - 2] != '\\' || str[len - 1] != '\n');
+		if (!clear) continue;
 
 		// Process the data.
-		bc_vm_process(vm->buffer.v, true, false);
+		bc_vm_process(vm->buffer.v, BC_MODE_STDIN);
 
 		if (vm->eof) break;
 		else
@@ -1264,11 +1241,14 @@ bc_vm_readBuf(bool clear)
 static void
 bc_vm_exprs(void)
 {
+	bool clear;
+
 #if BC_ENABLE_LIBRARY
 	BcVm* vm = bcl_getspecific();
 #endif // BC_ENABLE_LIBRARY
 
-	vm->clear = true;
+	clear = true;
+	vm->mode = BC_MODE_EXPRS;
 
 	// Prepare the lexer.
 	bc_lex_file(&vm->prs.l, bc_program_exprs_name);
@@ -1282,23 +1262,23 @@ bc_vm_exprs(void)
 	BC_SETJMP_LOCKED(vm, err);
 	BC_SIG_UNLOCK;
 
-	while (bc_vm_readBuf(vm->clear))
+	while (bc_vm_readBuf(clear))
 	{
 		size_t len = vm->buffer.len - 1;
 		const char* str = vm->buffer.v;
 
 		// We don't want to clear the buffer when the line ends with a backslash
 		// because a backslash newline is special in bc.
-		vm->clear = (len < 2 || str[len - 2] != '\\' || str[len - 1] != '\n');
-		if (!vm->clear) continue;
+		clear = (len < 2 || str[len - 2] != '\\' || str[len - 1] != '\n');
+		if (!clear) continue;
 
 		// Process the data.
-		bc_vm_process(vm->buffer.v, false, true);
+		bc_vm_process(vm->buffer.v, BC_MODE_EXPRS);
 	}
 
 	// If we were not supposed to clear, then we should process everything. This
 	// makes sure that errors get reported.
-	if (!vm->clear) bc_vm_process(vm->buffer.v, false, true);
+	if (!clear) bc_vm_process(vm->buffer.v, BC_MODE_EXPRS);
 
 err:
 
@@ -1329,7 +1309,7 @@ static void
 bc_vm_load(const char* name, const char* text)
 {
 	bc_lex_file(&vm->prs.l, name);
-	bc_parse_text(&vm->prs, text, false, false);
+	bc_parse_text(&vm->prs, text, BC_MODE_FILE);
 
 	BC_SIG_LOCK;
 
@@ -1553,6 +1533,7 @@ bc_vm_boot(int argc, char* argv[])
 	bc_vm_gettext();
 
 #if BC_ENABLE_LINE_LIB
+
 	// Initialize the output file buffers.
 	bc_file_init(&vm->ferr, stderr);
 	bc_file_init(&vm->fout, stdout);
@@ -1561,6 +1542,7 @@ bc_vm_boot(int argc, char* argv[])
 	vm->buf = output_bufs;
 
 #else // BC_ENABLE_LINE_LIB
+
 	// Initialize the output file buffers. They each take portions of the global
 	// buffer. stdout gets more because it will probably have more data.
 	bc_file_init(&vm->ferr, STDERR_FILENO, output_bufs + BC_VM_STDOUT_BUF_SIZE,
@@ -1584,10 +1566,8 @@ bc_vm_boot(int argc, char* argv[])
 
 #if !BC_ENABLE_LIBRARY
 
-	// Initialize the slab vectors.
-	bc_slabvec_init(&vm->main_const_slab);
-	bc_slabvec_init(&vm->main_slabs);
-	bc_slabvec_init(&vm->other_slabs);
+	// Initialize the slab vector.
+	bc_slabvec_init(&vm->slabs);
 
 #endif // !BC_ENABLE_LIBRARY
 

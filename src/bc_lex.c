@@ -115,7 +115,7 @@ bc_lex_string(BcLex* l)
 		buf = l->buf;
 		got_more = false;
 
-		assert(!vm->is_stdin || buf == vm->buffer.v);
+		assert(vm->mode != BC_MODE_STDIN || buf == vm->buffer.v);
 
 		// Fortunately for us, bc doesn't escape quotes. Instead, the equivalent
 		// is '\q', which makes this loop simpler.
@@ -124,7 +124,7 @@ bc_lex_string(BcLex* l)
 			nlines += (c == '\n');
 		}
 
-		if (BC_ERR(c == '\0') && !vm->eof && (l->is_stdin || l->is_exprs))
+		if (BC_ERR(c == '\0') && !vm->eof && l->mode != BC_MODE_FILE)
 		{
 			got_more = bc_lex_readLine(l);
 		}

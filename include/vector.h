@@ -59,9 +59,6 @@ typedef unsigned char uchar;
  */
 typedef void (*BcVecFree)(void* ptr);
 
-// Forward declaration.
-struct BcId;
-
 #if BC_LONG_BIT >= 64
 
 /// An integer to shrink the size of a vector by using these instead of size_t.
@@ -322,7 +319,7 @@ void
 bc_vec_free(void* vec);
 
 /**
- * Attempts to insert an item into a map and returns true if it succeeded, false
+ * Attempts to insert an ID into a map and returns true if it succeeded, false
  * if the item already exists.
  * @param v     The map vector to insert into.
  * @param name  The name of the item to insert. This name is assumed to be owned
@@ -448,25 +445,6 @@ bc_slabvec_print(BcVec* v, const char* func);
 
 /// A convenience macro for freeing a vector of slabs.
 #define bc_slabvec_free bc_vec_free
-
-#if BC_ENABLED
-#if DC_ENABLED
-
-/// Returns the set of slabs for the maps and the current calculator.
-#define BC_VEC_MAP_SLABS (BC_IS_DC ? &vm->main_slabs : &vm->other_slabs)
-
-#else // DC_ENABLED
-
-/// Returns the set of slabs for the maps and the current calculator.
-#define BC_VEC_MAP_SLABS (&vm->other_slabs)
-
-#endif // DC_ENABLED
-#else // BC_ENABLED
-
-/// Returns the set of slabs for the maps and the current calculator.
-#define BC_VEC_MAP_SLABS (&vm->main_slabs)
-
-#endif // BC_ENABLED
 
 #ifndef _WIN32
 

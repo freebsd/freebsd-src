@@ -64,10 +64,9 @@ bc_parse_pushName(const BcParse* p, char* name, bool var)
  * @param inst  The instruction to push.
  * @param idx   The index to push.
  */
-static void
-bc_parse_update(BcParse* p, uchar inst, size_t idx)
+static inline void
+bc_parse_pushInstIdx(BcParse* p, uchar inst, size_t idx)
 {
-	bc_parse_updateFunc(p, p->fidx);
 	bc_parse_push(p, inst);
 	bc_parse_pushIndex(p, idx);
 }
@@ -77,20 +76,17 @@ bc_parse_addString(BcParse* p)
 {
 	size_t idx;
 
-	idx = bc_program_addString(p->prog, p->l.str.v, p->fidx);
+	idx = bc_program_addString(p->prog, p->l.str.v);
 
 	// Push the string info.
-	bc_parse_update(p, BC_INST_STR, p->fidx);
-	bc_parse_pushIndex(p, idx);
+	bc_parse_pushInstIdx(p, BC_INST_STR, idx);
 }
 
 static void
 bc_parse_addNum(BcParse* p, const char* string)
 {
-	BcVec* consts = &p->func->consts;
+	BcProgram* prog = p->prog;
 	size_t idx;
-	BcConst* c;
-	BcVec* slabs;
 
 	// XXX: This function has an implicit assumption: that string is a valid C
 	// string with a nul terminator. This is because of the unchecked array
@@ -117,25 +113,33 @@ bc_parse_addNum(BcParse* p, const char* string)
 		return;
 	}
 
-	// Get the index.
-	idx = consts->len;
+	if (bc_map_insert(&prog->const_map, string, prog->consts.len, &idx))
+	{
+		BcConst* c;
+		BcId* id = bc_vec_item(&prog->const_map, idx);
 
-	// Get the right slab.
-	slabs = p->fidx == BC_PROG_MAIN || p->fidx == BC_PROG_READ ?
-	            &vm->main_const_slab :
-	            &vm->other_slabs;
+		// Get the index.
+		idx = id->idx;
 
-	// Push an empty constant.
-	c = bc_vec_pushEmpty(consts);
+		// Push an empty constant.
+		c = bc_vec_pushEmpty(&prog->consts);
 
-	// Set the fields.
-	c->val = bc_slabvec_strdup(slabs, string);
-	c->base = BC_NUM_BIGDIG_MAX;
+		// Set the fields. We reuse the string in the ID (allocated by
+		// bc_map_insert()), because why not?
+		c->val = id->name;
+		c->base = BC_NUM_BIGDIG_MAX;
 
-	// We need this to be able to tell that the number has not been allocated.
-	bc_num_clear(&c->num);
+		// We need this to be able to tell that the number has not been
+		// allocated.
+		bc_num_clear(&c->num);
+	}
+	else
+	{
+		BcId* id = bc_vec_item(&prog->const_map, idx);
+		idx = id->idx;
+	}
 
-	bc_parse_update(p, BC_INST_NUM, idx);
+	bc_parse_pushInstIdx(p, BC_INST_NUM, idx);
 }
 
 void
@@ -173,13 +177,13 @@ bc_parse_number(BcParse* p)
 }
 
 void
-bc_parse_text(BcParse* p, const char* text, bool is_stdin, bool is_exprs)
+bc_parse_text(BcParse* p, const char* text, BcMode mode)
 {
 	BC_SIG_LOCK;
 
 	// Make sure the pointer isn't invalidated.
 	p->func = bc_vec_item(&p->prog->fns, p->fidx);
-	bc_lex_text(&p->l, text, is_stdin, is_exprs);
+	bc_lex_text(&p->l, text, mode);
 
 	BC_SIG_UNLOCK;
 }

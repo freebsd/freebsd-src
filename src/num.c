@@ -130,7 +130,7 @@ bc_num_expand(BcNum* restrict n, size_t req)
  * @param n      The number to set to zero.
  * @param scale  The scale to set the number to.
  */
-static void
+static inline void
 bc_num_setToZero(BcNum* restrict n, size_t scale)
 {
 	assert(n != NULL);

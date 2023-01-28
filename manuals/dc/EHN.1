@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "DC" "1" "August 2022" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "October 2022" "Gavin D. Howard" "General Commands Manual"
 .nh
 .ad l
 .SH Name
@@ -942,6 +942,10 @@ The execution stack is the stack of string executions.
 The number that is pushed onto the stack is exactly as many as is needed
 to make dc(1) exit with the \f[B]Q\f[R] command, so the sequence
 \f[B],Q\f[R] will make dc(1) exit.
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
 .SS Status
 .PP
 These commands query status of the stack or its top value.
@@ -966,6 +970,24 @@ If it is a number, pushes the \f[I]scale\f[R] of the value onto the
 stack.
 .PP
 If it is a string, pushes \f[B]0\f[R].
+.RE
+.TP
+\f[B]u\f[R]
+Pops one value off of the stack.
+If the value is a number, this pushes \f[B]1\f[R] onto the stack.
+Otherwise (if it is a string), it pushes \f[B]0\f[R].
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]t\f[R]
+Pops one value off of the stack.
+If the value is a string, this pushes \f[B]1\f[R] onto the stack.
+Otherwise (if it is a number), it pushes \f[B]0\f[R].
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
 \f[B]z\f[R]
@@ -1444,7 +1466,7 @@ https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 .SH BUGS
 .PP
 None are known.
-Report bugs at https://git.yzena.com/gavin/bc.
+Report bugs at https://git.yzena.com/gavin/bc .
 .SH AUTHOR
 .PP
 Gavin D.

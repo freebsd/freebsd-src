@@ -178,6 +178,8 @@ typedef enum BcInst
 	BC_INST_SCALE_FUNC,
 	BC_INST_SQRT,
 	BC_INST_ABS,
+	BC_INST_IS_NUMBER,
+	BC_INST_IS_STRING,
 
 #if BC_ENABLE_EXTRA_MATH
 	/// Another builtin function.
@@ -391,12 +393,6 @@ typedef struct BcFunc
 	size_t nparams;
 
 #endif // BC_ENABLED
-
-	/// The strings encountered in the function.
-	BcVec strs;
-
-	/// The constants encountered in the function.
-	BcVec consts;
 
 	/// The function's name.
 	const char* name;
@@ -659,17 +655,6 @@ bc_result_free(void* result);
  */
 void
 bc_array_expand(BcVec* a, size_t len);
-
-/**
- * Compare two BcId's and return the result. Since they are just comparing the
- * names in the BcId, I return the result from strcmp() exactly. This is used by
- * maps in their binary search.
- * @param e1  The first id.
- * @param e2  The second id.
- * @return    The result of strcmp() on the BcId's names.
- */
-int
-bc_id_cmp(const BcId* e1, const BcId* e2);
 
 #if BC_ENABLED
 

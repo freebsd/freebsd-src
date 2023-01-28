@@ -99,10 +99,6 @@ bc_func_init(BcFunc* f, const char* name)
 
 	bc_vec_init(&f->code, sizeof(uchar), BC_DTOR_NONE);
 
-	bc_vec_init(&f->consts, sizeof(BcConst), BC_DTOR_CONST);
-
-	bc_vec_init(&f->strs, sizeof(char*), BC_DTOR_NONE);
-
 #if BC_ENABLED
 
 	// Only bc needs these things.
@@ -128,10 +124,6 @@ bc_func_reset(BcFunc* f)
 
 	bc_vec_popAll(&f->code);
 
-	bc_vec_popAll(&f->consts);
-
-	bc_vec_popAll(&f->strs);
-
 #if BC_ENABLED
 	if (BC_IS_BC)
 	{
@@ -154,10 +146,6 @@ bc_func_free(void* func)
 	assert(f != NULL);
 
 	bc_vec_free(&f->code);
-
-	bc_vec_free(&f->consts);
-
-	bc_vec_free(&f->strs);
 
 #if BC_ENABLED
 	if (BC_IS_BC)

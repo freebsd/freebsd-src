@@ -114,7 +114,7 @@ dc_lex_string(BcLex* l)
 		nls = 0;
 		got_more = false;
 
-		assert(!l->is_stdin || l->buf == vm->buffer.v);
+		assert(l->mode != BC_MODE_STDIN || l->buf == vm->buffer.v);
 
 		// This is the meat. As long as we don't run into the NUL byte, and we
 		// have "depth", which means we haven't completely balanced brackets
@@ -141,11 +141,15 @@ dc_lex_string(BcLex* l)
 
 		if (BC_ERR(c == '\0' && depth))
 		{
-			if (!vm->eof && (l->is_stdin || l->is_exprs))
+			if (!vm->eof && l->mode != BC_MODE_FILE)
 			{
 				got_more = bc_lex_readLine(l);
 			}
-			if (got_more) bc_vec_popAll(&l->str);
+
+			if (got_more)
+			{
+				bc_vec_popAll(&l->str);
+			}
 		}
 	}
 	while (got_more && depth);

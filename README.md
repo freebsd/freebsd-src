@@ -171,8 +171,8 @@ other locations, use the `PREFIX` environment variable when running
 
 #### Library
 
-This `bc` does provide a way to build a math library with C bindings. This is
-done by the `-a` or `--library` options to `configure.sh`:
+To build the math library, pass the `-a` or `--library` options to
+`configure.sh`:
 
 ```
 ./configure.sh -a

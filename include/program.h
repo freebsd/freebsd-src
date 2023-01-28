@@ -87,11 +87,21 @@ typedef struct BcProgram
 	/// The execution stack.
 	BcVec stack;
 
-	/// A pointer to the current function's constants.
-	BcVec* consts;
+	/// The constants encountered in the program. They are global to the program
+	/// to prevent bad accesses when functions that used non-auto variables are
+	/// replaced.
+	BcVec consts;
 
-	/// A pointer to the current function's strings.
-	BcVec* strs;
+	/// The map of constants to go with consts.
+	BcVec const_map;
+
+	/// The strings encountered in the program. They are global to the program
+	/// to prevent bad accesses when functions that used non-auto variables are
+	/// replaced.
+	BcVec strs;
+
+	/// The map of strings to go with strs.
+	BcVec str_map;
 
 	/// The array of functions.
 	BcVec fns;
@@ -343,22 +353,22 @@ bc_program_printStackDebug(BcProgram* p);
 
 /**
  * Returns the index of the variable or array in their respective arrays.
- * @param p    The program.
- * @param id   The BcId of the variable or array.
- * @param var  True if the search should be for a variable, false for an array.
- * @return     The index of the variable or array in the correct array.
+ * @param p     The program.
+ * @param name  The name of the variable or array.
+ * @param var   True if the search should be for a variable, false for an array.
+ * @return      The index of the variable or array in the correct array.
  */
 size_t
-bc_program_search(BcProgram* p, const char* id, bool var);
+bc_program_search(BcProgram* p, const char* name, bool var);
 
 /**
- * Adds a string to a function and returns the string's index in the function.
- * @param p     The program.
- * @param str   The string to add.
- * @param fidx  The index of the function to add to.
+ * Adds a string to the program and returns the string's index in the program.
+ * @param p    The program.
+ * @param str  The string to add.
+ * @return     The string's index in the program.
  */
 size_t
-bc_program_addString(BcProgram* p, const char* str, size_t fidx);
+bc_program_addString(BcProgram* p, const char* str);
 
 /**
  * Inserts a function into the program and returns the index of the function in
@@ -571,6 +581,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_IRAND,                            \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
@@ -665,6 +677,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
 		&&lbl_BC_INST_MAXIBASE,                         \
@@ -771,6 +785,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_IRAND,                            \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
@@ -851,6 +867,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
 		&&lbl_BC_INST_MAXIBASE,                         \
@@ -923,6 +941,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_IRAND,                            \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
@@ -992,6 +1012,8 @@ extern const char bc_program_esc_seqs[];
 		&&lbl_BC_INST_SCALE_FUNC,                       \
 		&&lbl_BC_INST_SQRT,                             \
 		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
 		&&lbl_BC_INST_ASCIIFY,                          \
 		&&lbl_BC_INST_READ,                             \
 		&&lbl_BC_INST_MAXIBASE,                         \

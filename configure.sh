@@ -153,8 +153,9 @@ usage() {
 	printf '        quotes) This option *must* come before any others that might change the\n'
 	printf '        build options. Currently supported values for TYPE include: "BSD" (for\n'
 	printf '        matching the BSD bc and BSD dc), "GNU" (for matching the GNU bc and\n'
-	printf '        dc), and "GDH" (for the preferred build of the author, Gavin D. Howard).\n'
-	printf '        This will also automatically enable a release build.\n'
+	printf '        dc), "GDH" (for the preferred build of the author, Gavin D. Howard),\n'
+	printf '        and "DBG" (for the preferred debug build of the author). This will\n'
+	printf '        also automatically enable a release build (except for "DBG").\n'
 	printf '    -P, --disable-problematic-tests\n'
 	printf '        Disables problematic tests. These tests usually include tests that\n'
 	printf '        can cause a SIGKILL because of too much memory usage.\n'
@@ -771,7 +772,7 @@ predefined_build() {
 			dc_default_digit_clamp=0;;
 
 		GDH)
-			CFLAGS="-flto -Weverything -Wno-padded -Wno-gnu-label-as-value -Werror -pedantic -std=c11"
+			CFLAGS="-flto -Weverything -Wno-padded -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -804,7 +805,41 @@ predefined_build() {
 			bc_default_digit_clamp=1
 			dc_default_digit_clamp=1;;
 
-		?|'') usage "Invalid user build: \"$_predefined_build_type\". Accepted types are BSD, GNU, and GDH.";;
+		DBG)
+			CFLAGS="-Weverything -Wno-padded -Werror -pedantic -std=c11"
+			bc_only=0
+			dc_only=0
+			coverage=0
+			debug=1
+			optimization="0"
+			hist=1
+			hist_impl="internal"
+			extra_math=1
+			generate_tests=1
+			install_manpages=1
+			nls=1
+			force=0
+			strip_bin=1
+			all_locales=0
+			library=0
+			fuzz=0
+			time_tests=0
+			vg=0
+			memcheck=1
+			clean=1
+			bc_default_banner=1
+			bc_default_sigint_reset=1
+			dc_default_sigint_reset=1
+			bc_default_tty_mode=1
+			dc_default_tty_mode=1
+			bc_default_prompt=""
+			dc_default_prompt=""
+			bc_default_expr_exit=0
+			dc_default_expr_exit=0
+			bc_default_digit_clamp=1
+			dc_default_digit_clamp=1;;
+
+		?|'') usage "Invalid user build: \"$_predefined_build_type\". Accepted types are BSD, GNU, GDH, DBG.";;
 
 	esac
 }

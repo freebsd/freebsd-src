@@ -658,6 +658,22 @@ typedef enum BcErr
 
 #endif // BC_ENABLED
 
+/**
+ * The mode bc is in. This is basically what input it is processing.
+ */
+typedef enum BcMode
+{
+	/// Expressions mode.
+	BC_MODE_EXPRS,
+
+	/// File mode.
+	BC_MODE_FILE,
+
+	/// stdin mode.
+	BC_MODE_STDIN,
+
+} BcMode;
+
 /// Do a longjmp(). This is what to use when activating an "exception", i.e., a
 /// longjmp(). With debug code, it will print the name of the function it jumped
 /// from.

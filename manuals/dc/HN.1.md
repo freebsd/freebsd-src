@@ -1000,6 +1000,8 @@ will be printed with a newline after and then popped from the stack.
     is exactly as many as is needed to make dc(1) exit with the **Q** command,
     so the sequence **,Q** will make dc(1) exit.
 
+    This is a **non-portable extension**.
+
 ## Status
 
 These commands query status of the stack or its top value.
@@ -1021,6 +1023,20 @@ These commands query status of the stack or its top value.
     If it is a number, pushes the *scale* of the value onto the stack.
 
     If it is a string, pushes **0**.
+
+**u**
+
+:   Pops one value off of the stack. If the value is a number, this pushes **1**
+    onto the stack. Otherwise (if it is a string), it pushes **0**.
+
+    This is a **non-portable extension**.
+
+**t**
+
+:   Pops one value off of the stack. If the value is a string, this pushes **1**
+    onto the stack. Otherwise (if it is a number), it pushes **0**.
+
+    This is a **non-portable extension**.
 
 **z**
 
@@ -1473,7 +1489,7 @@ https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 
 # BUGS
 
-None are known. Report bugs at https://git.yzena.com/gavin/bc.
+None are known. Report bugs at https://git.yzena.com/gavin/bc .
 
 # AUTHOR
 
