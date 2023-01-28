@@ -133,12 +133,12 @@ devm_free_irq(struct device *xdev, unsigned int irq, void *p)
 }
 
 static inline int
-irq_set_affinity_hint(int vector, cpumask_t *mask)
+irq_set_affinity_hint(int vector, const cpumask_t *mask)
 {
 	int error;
 
 	if (mask != NULL)
-		error = intr_setaffinity(vector, CPU_WHICH_IRQ, mask);
+		error = intr_setaffinity(vector, CPU_WHICH_IRQ, __DECONST(cpumask_t *, mask));
 	else
 		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
 
