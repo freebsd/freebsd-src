@@ -1362,8 +1362,6 @@ typedef struct {
 #define	R_RISCV_SUB16		38
 #define	R_RISCV_SUB32		39
 #define	R_RISCV_SUB64		40
-#define	R_RISCV_GNU_VTINHERIT	41
-#define	R_RISCV_GNU_VTENTRY	42
 #define	R_RISCV_ALIGN		43
 #define	R_RISCV_RVC_BRANCH	44
 #define	R_RISCV_RVC_JUMP	45
