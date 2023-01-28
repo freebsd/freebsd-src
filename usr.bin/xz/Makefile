@@ -1,4 +1,4 @@
-# $FreeBSD$
+.include <src.opts.mk>
 
 PROG=	xz
 
@@ -42,6 +42,10 @@ WARNS?=	3
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMALIBDIR} \
 		-I${XZDIR}/common
+
+.if ${MK_CAPSICUM} == "no"
+CFLAGS+=	-DWITHOUT_CAPSICUM
+.endif
 
 LIBADD=	lzma
 
