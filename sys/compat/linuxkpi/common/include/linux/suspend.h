@@ -11,7 +11,7 @@ extern suspend_state_t pm_suspend_target_state;
 #define	PM_SUSPEND_TO_IDLE	1
 
 static inline int
-pm_suspend_via_firmware()
+pm_suspend_via_firmware(void)
 {
 	return 0;
 }
