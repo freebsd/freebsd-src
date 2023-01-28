@@ -1694,4 +1694,30 @@ pci_is_enabled(struct pci_dev *pdev)
 	    PCIM_CMD_BUSMASTEREN) != 0);
 }
 
+static inline int
+pci_assign_resource(struct pci_dev *pdev, int bar)
+{
+
+	return (0);
+}
+
+static inline int
+pci_irq_vector(struct pci_dev *pdev, unsigned int vector)
+{
+
+	if (!pdev->msix_enabled && !pdev->msi_enabled) {
+		if (vector != 0)
+			return (-EINVAL);
+		return (pdev->irq);
+	}
+
+	if (pdev->msix_enabled || pdev->msi_enabled) {
+		if ((pdev->dev.irq_start + vector) >= pdev->dev.irq_end)
+			return (-EINVAL);
+		return (pdev->dev.irq_start + vector);
+	}
+
+        return (-ENXIO);
+}
+
 #endif	/* _LINUXKPI_LINUX_PCI_H_ */
