@@ -545,6 +545,24 @@ device_reprobe(struct device *dev)
 	return (-error);
 }
 
+static inline void
+device_set_wakeup_enable(struct device *dev __unused, bool enable __unused)
+{
+
+	/*
+	 * XXX-BZ TODO This is used by wireless drivers supporting WoWLAN which
+	 * we currently do not support.
+	 */
+}
+
+static inline int
+device_wakeup_enable(struct device *dev)
+{
+
+	device_set_wakeup_enable(dev, true);
+	return (0);
+}
+
 #define	dev_pm_set_driver_flags(dev, flags) do { \
 } while (0)
 
