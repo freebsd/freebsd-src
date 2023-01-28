@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.200 2022/04/15 12:28:16 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.201 2022/09/28 16:34:47 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -281,15 +281,19 @@ meta_name(char *mname, size_t mnamelen,
     /* on some systems dirname may modify its arg */
     tp = bmake_strdup(tname);
     dtp = dirname(tp);
-    if (strcmp(dname, dtp) == 0)
-	snprintf(mname, mnamelen, "%s.meta", tname);
-    else {
+    if (strcmp(dname, dtp) == 0) {
+	if (snprintf(mname, mnamelen, "%s.meta", tname) >= (int)mnamelen)
+	    mname[mnamelen - 1] = '\0';
+    } else {
+	int x;
+
 	ldname = strlen(dname);
 	if (strncmp(dname, dtp, ldname) == 0 && dtp[ldname] == '/')
-	    snprintf(mname, mnamelen, "%s/%s.meta", dname, &tname[ldname+1]);
+	    x = snprintf(mname, mnamelen, "%s/%s.meta", dname, &tname[ldname+1]);
 	else
-	    snprintf(mname, mnamelen, "%s/%s.meta", dname, tname);
-
+	    x = snprintf(mname, mnamelen, "%s/%s.meta", dname, tname);
+	if (x >= (int)mnamelen)
+	    mname[mnamelen - 1] = '\0';
 	/*
 	 * Replace path separators in the file name after the
 	 * current object directory path.
@@ -769,7 +773,9 @@ meta_job_error(Job *job, GNode *gn, bool ignerr, int status)
     }
     if (gn != NULL)
 	Global_Set(".ERROR_TARGET", GNode_Path(gn));
-    getcwd(cwd, sizeof cwd);
+    if (getcwd(cwd, sizeof cwd) == NULL)
+	Punt("Cannot get cwd: %s", strerror(errno));
+
     Global_Set(".ERROR_CWD", cwd);
     if (pbm->meta_fname[0] != '\0') {
 	Global_Set(".ERROR_META_FILE", pbm->meta_fname);
@@ -1443,18 +1449,18 @@ meta_oodate(GNode *gn, bool oodate)
 				continue; /* no point */
 
 			    /* Check vs latestdir */
-			    snprintf(fname1, sizeof fname1, "%s/%s", latestdir, p);
-			    sdirs[sdx++] = fname1;
+			    if (snprintf(fname1, sizeof fname1, "%s/%s", latestdir, p) < (int)(sizeof fname1))
+				sdirs[sdx++] = fname1;
 
 			    if (strcmp(latestdir, lcwd) != 0) {
 				/* Check vs lcwd */
-				snprintf(fname2, sizeof fname2, "%s/%s", lcwd, p);
-				sdirs[sdx++] = fname2;
+				if (snprintf(fname2, sizeof fname2, "%s/%s", lcwd, p) < (int)(sizeof fname2))
+				    sdirs[sdx++] = fname2;
 			    }
 			    if (strcmp(lcwd, cwd) != 0) {
 				/* Check vs cwd */
-				snprintf(fname3, sizeof fname3, "%s/%s", cwd, p);
-				sdirs[sdx++] = fname3;
+				if (snprintf(fname3, sizeof fname3, "%s/%s", cwd, p) < (int)(sizeof fname3))
+				    sdirs[sdx++] = fname3;
 			    }
 			}
 			sdirs[sdx++] = NULL;

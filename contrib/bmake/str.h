@@ -1,4 +1,4 @@
-/*	$NetBSD: str.h,v 1.15 2021/12/15 10:57:01 rillig Exp $	*/
+/*	$NetBSD: str.h,v 1.16 2022/12/05 23:41:24 rillig Exp $	*/
 
 /*
  Copyright (c) 2021 Roland Illig <rillig@NetBSD.org>
@@ -273,19 +273,13 @@ LazyBuf_AddStr(LazyBuf *buf, const char *str)
 		LazyBuf_Add(buf, *p);
 }
 
-MAKE_STATIC void
-LazyBuf_AddBytesBetween(LazyBuf *buf, const char *start, const char *end)
-{
-	const char *p;
-
-	for (p = start; p != end; p++)
-		LazyBuf_Add(buf, *p);
-}
-
 MAKE_INLINE void
 LazyBuf_AddSubstring(LazyBuf *buf, Substring sub)
 {
-	LazyBuf_AddBytesBetween(buf, sub.start, sub.end);
+	const char *p;
+
+	for (p = sub.start; p != sub.end; p++)
+		LazyBuf_Add(buf, *p);
 }
 
 MAKE_STATIC Substring

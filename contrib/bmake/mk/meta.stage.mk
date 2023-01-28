@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.64 2021/12/08 05:56:50 sjg Exp $
+# $Id: meta.stage.mk,v 1.65 2022/09/09 17:44:29 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -354,7 +354,7 @@ all: stale_staged
 # get a list of paths that we have previously staged to those same dirs
 # anything in the 2nd list but not the first is stale - remove it.
 stale_staged: staging .NOMETA
-	@egrep '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
+	@${EGREP:Uegrep} '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
 	sed "/\.dirdep/d;s,.* '*\(${STAGE_OBJTOP}/[^ '][^ ']*\).*,\1," | \
 	sort > ${.TARGET}.staged1
 	@grep -l '${_dirdep}' /dev/null ${_STAGED_DIRS:M${STAGE_OBJTOP}*:O:u:@d@$d/*.dirdep@} | \

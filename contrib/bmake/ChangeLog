@@ -1,3 +1,132 @@
+2023-01-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230126
+	Merge with NetBSD make, pick up
+	o variables like .newline and .MAKE.{GID,PID,PPID,UID}
+	should be read-only.
+
+2023-01-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230123
+	Merge with NetBSD make, pick up
+	o .[NO]READONLY: for control of read-only variables
+	o .SYSPATH: for controlling the path searched for makefiles
+
+2023-01-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230120
+	Merge with NetBSD make, pick up
+	o allow for white-space between command specifiers @+-
+	o add more details to warning 'Extra targets ignored'
+
+2023-01-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* machine.sh: leverage os.sh rather than duplicate
+	also dispence with the $OS.$MACHINE values - we have $HOST_TARGET
+	for that purpose for the past decade or so.
+	We invariably get MACHINE and MACHINE_ARCH at runtime anyway.
+
+2023-01-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230101
+	Merge with NetBSD make, pick up
+	o cleanup comments, inline some LazyBuf_ methods
+	o unit-tests/ add/improve comments in tests
+	o make.1: sync list of built-in variables with reality
+	sort list of built-in variables
+	reduce indentation of the long list of variable names
+	use consistent markup for boolean flags
+	move description of .MAKE.MODE below the .MAKE.META block
+	clarify in which case an expression may omit braces
+
+2022-11-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20221024
+	Merge with NetBSD make, pick up
+	o change return type of unlink_file back to int
+
+2022-10-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Makefile: Darwin and Linux can handle MANTARGET=man
+
+2022-09-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220928
+	Merge with NetBSD make, pick up
+	o fix more ignored returns from snprintf
+	o compile with higher warnings
+
+2022-09-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* main.c meta.c: do not ignore return from snprintf
+
+	* meta.c strlcpy.c: we need prototype for strlcpy
+
+	* sigcompat.c: fix unused function warnings
+
+2022-09-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220924
+	Merge with NetBSD make, pick up
+	o fix bug in .break reset of conditional depth
+	o overhaul and simplify tracking of conditional depth
+
+2022-09-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220912
+	Merge with NetBSD make, pick up
+	o man page updates
+
+2022-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220909
+	Merge with NetBSD make, pick up
+	o update unit-tests to handle deprecation of egrep
+	o cond.c: add more details to error message for numeric comparison
+
+	* configure.in: allow for deprecation of egrep
+
+	* Makefile: Linux can handle MANTARGET=man
+
+2022-09-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220903
+	Merge with NetBSD make, pick up
+	o job.c: fix handling of null bytes in output
+
+2022-09-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220902
+	Merge with NetBSD make, pick up
+	o Allow .break to terminate a .for loop early
+
+2022-09-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220901
+	Merge with NetBSD make, pick up
+	o var.c: fix out-of-bounds errors when parsing
+
+2022-08-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220824
+	Merge with NetBSD make, pick up
+	o var.c: revert change to modifier parsing that breaks
+	shell variable references within ':@var@body@'
+	o adjust unit-tests
+
+2022-08-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220818
+	Merge with NetBSD make, pick up
+	o fix exit status for '-q' (since 1994)
+
+2022-08-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220808
+	Merge with NetBSD make, pick up
+	o var.c: fix parsing of modifiers containing unbalanced subexpressions
+	extract parsing of ':D' and ':U' modifiers into separate function
+
 2022-07-26  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20220726

@@ -1,11 +1,11 @@
-# $NetBSD: cond-cmp-unary.mk,v 1.2 2020/11/11 07:30:11 rillig Exp $
+# $NetBSD: cond-cmp-unary.mk,v 1.3 2022/09/08 05:43:20 rillig Exp $
 #
 # Tests for unary comparisons in .if conditions, that is, comparisons with
 # a single operand.  If the operand is a number, it is compared to zero,
 # if it is a string, it is tested for emptiness.
 
-# The number 0 evaluates to false.
-.if 0
+# The number 0 in all its various representations evaluates to false.
+.if 0 || 0.0 || 0e0 || 0.0e0 || 0.0e10
 .  error
 .endif
 
@@ -52,6 +52,22 @@
 .if ${:U   }
 .  info This is only reached because of a bug in EvalNotEmpty.
 .else
+.  error
+.endif
+
+# The condition '${VAR:M*}' is almost equivalent to '${VAR:M*} != ""'.  The
+# only case where they differ is for a single word whose numeric value is zero.
+.if ${:U0:M*}
+.  error
+.endif
+.if ${:U0:M*} == ""
+.  error
+.endif
+# Multiple words cannot be parsed as a single number, thus evaluating to true.
+.if !${:U0 0:M*}
+.  error
+.endif
+.if ${:U0 0:M*} == ""
 .  error
 .endif
 

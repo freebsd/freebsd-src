@@ -1,4 +1,4 @@
-# $Id: dirdeps-options.mk,v 1.20 2022/03/17 20:11:36 sjg Exp $
+# $Id: dirdeps-options.mk,v 1.21 2022/09/06 22:18:45 sjg Exp $
 #
 #	@(#) Copyright (c) 2018-2022, Simon J. Gerraty
 #
@@ -41,6 +41,13 @@
 # In some cases the value of MK_FOO might depend on TARGET_SPEC
 # so we qualify MK_FOO with .${TARGET_SPEC} and each component
 # TARGET_SPEC_VAR (in reverse order) before using MK_FOO.
+#
+# Because Makefile.depend.options are processed at both level 0 (when
+# computing DIRDEPS to build) and higher (when updating
+# Makefile.depend* after successful build), it is important that 
+# all references to TARGET_SPEC_VARs should use the syntax
+# ${DEP_${TARGET_SPEC_VAR}:U${TARGET_SPEC_VAR}} to ensure correct
+# behavior.
 #
 
 # This should have been set by Makefile.depend.options

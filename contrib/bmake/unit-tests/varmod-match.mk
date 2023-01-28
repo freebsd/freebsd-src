@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match.mk,v 1.11 2022/06/11 09:15:49 rillig Exp $
+# $NetBSD: varmod-match.mk,v 1.12 2022/08/24 21:03:57 rillig Exp $
 #
 # Tests for the :M variable modifier, which filters words that match the
 # given pattern.
@@ -280,3 +280,13 @@ n=	2
 .if ${PRIMES:M${:U2}} != "2"
 .  error
 .endif
+
+
+# Before var.c 1.1031 from 2022-08-24, the following expressions caused an
+# out-of-bounds read beyond the indirect ':M' modifiers.
+.if ${:U:${:UM\\}}		# The ':M' pattern need not be unescaped, the
+.  error			# resulting pattern is '\', it never matches
+.endif				# anything.
+.if ${:U:${:UM\\\:\\}}		# The ':M' pattern must be unescaped, the
+.  error			# resulting pattern is ':\', it never matches
+.endif				# anything.

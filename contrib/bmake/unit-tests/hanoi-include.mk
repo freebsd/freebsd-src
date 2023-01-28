@@ -1,4 +1,4 @@
-# $NetBSD: hanoi-include.mk,v 1.3 2022/05/08 07:27:50 rillig Exp $
+# $NetBSD: hanoi-include.mk,v 1.4 2023/01/19 22:48:42 rillig Exp $
 #
 # Implements the Towers of Hanoi puzzle, demonstrating a bunch of more or less
 # useful programming techniques:
@@ -21,22 +21,28 @@ FROM?=	A			# ... from this stack ...
 VIA?=	B			# ... via this stack ...
 TO?=	C			# ... to this stack.
 
-.if $N == 1
+# Since make has no built-in arithmetic functions, convert N to a list of
+# words and use the built-in word counting instead.
+.if ${N:[#]} == 1
+N:=	count ${:U:${:Urange=$N}}	# 'count' + one word for every disk
+.endif
+
+.if ${N:[#]} == 2
 .  for from to in ${FROM} ${TO}
 all::
 	@echo "Move the upper disk from stack ${from} to stack ${to}."
 .  endfor
 .else
-_:=	${N::!=expr $N - 1} ${TMP::=${VIA}} ${VIA::=${TO}} ${TO::=${TMP}}
+_:=	${N::=${N:[1..-2]}} ${TMP::=${VIA}} ${VIA::=${TO}} ${TO::=${TMP}}
 .  include "${.PARSEDIR}/${.PARSEFILE}"
-_:=	${N::!=expr $N + 1} ${TMP::=${VIA}} ${VIA::=${TO}} ${TO::=${TMP}}
+_:=	${N::+=D} ${TMP::=${VIA}} ${VIA::=${TO}} ${TO::=${TMP}}
 
 .  for from to in ${FROM} ${TO}
 all::
 	@echo "Move the upper disk from stack ${from} to stack ${to}."
 .  endfor
 
-_:=	${N::!=expr $N - 1} ${TMP::=${VIA}} ${VIA::=${FROM}} ${FROM::=${TMP}}
+_:=	${N::=${N:[1..-2]}} ${TMP::=${VIA}} ${VIA::=${FROM}} ${FROM::=${TMP}}
 .  include "${.PARSEDIR}/${.PARSEFILE}"
-_:=	${N::!=expr $N + 1} ${TMP::=${VIA}} ${VIA::=${FROM}} ${FROM::=${TMP}}
+_:=	${N::+=D} ${TMP::=${VIA}} ${VIA::=${FROM}} ${FROM::=${TMP}}
 .endif

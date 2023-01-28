@@ -1,8 +1,10 @@
-# $NetBSD: dir.mk,v 1.9 2021/01/23 10:48:49 rillig Exp $
+# $NetBSD: dir.mk,v 1.10 2023/01/24 00:24:02 sjg Exp $
 #
 # Tests for dir.c.
 
-.MAKEFLAGS: -m /		# hide /usr/share/mk from the debug log
+# hide /usr/share/mk from the debug log
+.SYSPATH:
+.SYSPATH: /
 
 # Dependency lines may use braces for expansion.
 # See DirExpandCurly for the implementation.

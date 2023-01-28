@@ -9,6 +9,7 @@ CC= @CC@
 @force_machine_arch@MACHINE_ARCH?= @machine_arch@
 DEFAULT_SYS_PATH?= @default_sys_path@
 
+EGREP = @egrep@
 CPPFLAGS+= @CPPFLAGS@
 CFLAGS+= ${CPPFLAGS} @DEFS@
 LDFLAGS+= @LDFLAGS@

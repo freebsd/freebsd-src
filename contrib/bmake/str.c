@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.93 2022/06/11 09:24:07 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.94 2022/12/07 10:28:48 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.93 2022/06/11 09:24:07 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.94 2022/12/07 10:28:48 rillig Exp $");
 
 
 static HashTable interned_strings;
@@ -313,8 +313,8 @@ in_range(char e1, char c, char e2)
 }
 
 /*
- * Str_Match -- Test if a string matches a pattern like "*.[ch]".
- * The following special characters are known *?\[] (as in fnmatch(3)).
+ * Test if a string matches a pattern like "*.[ch]". The pattern matching
+ * characters are '*', '?' and '[]', as in fnmatch(3).
  *
  * XXX: this function does not detect or report malformed patterns.
  *

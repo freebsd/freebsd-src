@@ -1,3 +1,35 @@
+2023-01-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230120
+
+	* sys.vars.mk: add M_On and M_Onr also cleanup to be more
+	consistent wrt testing MAKE_VERSION
+
+2023-01-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230112
+
+	* meta2deps.{py,sh}: assert if filemon data is truncated
+	we should see the '# Bye bye' record - assert if we do not.
+
+2022-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220909
+
+	* sys/Linux.mk set EGREP to grep -E to avoid deprecation warnings
+
+2022-09-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-options.mk: explain the need to use
+	${DEP_${TARGET_SPEC_VAR}:U${TARGET_SPEC_VAR}} when refering to
+	${TARGET_SPEC_VAR}
+
+2022-09-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220903
+	
+	* M_cmpv handle more than 3 dots and clear leading 0's
+
 2022-07-20  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20220720

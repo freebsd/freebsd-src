@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.12 2021/12/13 23:38:54 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.13 2023/01/03 00:00:45 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -45,7 +45,7 @@ ${:U}: empty-source
 # that nobody uses it.
 $$$$$$$${:U:Z}:
 
-# expect+1: warning: Extra target ignored
+# expect+1: warning: Extra target 'ordinary' ignored
 .END ordinary:
 
 # expect+1: warning: Extra target (ordinary) ignored

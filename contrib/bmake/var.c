@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1025 2022/06/14 19:57:56 rillig Exp $	*/
+/*	$NetBSD: var.c,v 1.1039 2023/01/26 20:48:17 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@
 #include "metachar.h"
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1025 2022/06/14 19:57:56 rillig Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1039 2023/01/26 20:48:17 sjg Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -200,15 +200,16 @@ typedef struct Var {
 	 * The variable value cannot be changed anymore, and the variable
 	 * cannot be deleted.  Any attempts to do so are silently ignored,
 	 * they are logged with -dv though.
+	 * Use .[NO]READONLY: to adjust.
 	 *
 	 * See VAR_SET_READONLY.
 	 */
 	bool readOnly:1;
 
 	/*
-	* The variable's value is currently being used by Var_Parse or
-	* Var_Subst.  This marker is used to avoid endless recursion.
-	*/
+	 * The variable is currently being accessed by Var_Parse or Var_Subst.
+	 * This temporary marker is used to avoid endless recursion.
+	 */
 	bool inUse:1;
 
 	/*
@@ -1085,6 +1086,12 @@ Global_Delete(const char *name)
 	Var_Delete(SCOPE_GLOBAL, name);
 }
 
+void
+Global_Set_ReadOnly(const char *name, const char *value)
+{
+	Var_SetWithFlags(SCOPE_GLOBAL, name, value, VAR_SET_READONLY);
+}
+
 /*
  * Append the value to the named variable.
  *
@@ -1227,6 +1234,23 @@ Var_Value(GNode *scope, const char *name)
 	VarFreeShortLived(v);
 
 	return FStr_InitOwn(value);
+}
+
+/*
+ * set readOnly attribute of specified var if it exists
+ */
+void
+Var_ReadOnly(const char *name, bool bf)
+{
+	Var *v;
+
+	v = VarFind(name, SCOPE_GLOBAL, false);
+	if (v == NULL) {
+		DEBUG1(VAR, "Var_ReadOnly: %s not found\n", name);
+		return;
+	}
+	v->readOnly = bf;
+	DEBUG2(VAR, "Var_ReadOnly: %s %s\n", name, bf ? "true" : "false");
 }
 
 /*
@@ -1563,7 +1587,7 @@ static void
 RegexReplaceBackref(char ref, SepBuf *buf, const char *wp,
 		    const regmatch_t *m, size_t nsub)
 {
-	unsigned int n = ref - '0';
+	unsigned int n = (unsigned)ref - '0';
 
 	if (n >= nsub)
 		Error("No subexpression \\%u", n);
@@ -2150,6 +2174,12 @@ ParseModifierPartExpr(const char **pp, LazyBuf *part, const ModChain *ch,
  * This subtle difference is not documented in the manual page, neither is
  * the difference between parsing ':D' and ':M' documented.  No code should
  * ever depend on these details, but who knows.
+ *
+ * TODO: Before trying to replace this code with Var_Parse, there need to be
+ * more unit tests in varmod-loop.mk.  The modifier ':@' uses Var_Subst
+ * internally, in which a '$' is escaped as '$$', not as '\$' like in other
+ * modifiers.  When parsing the body text '$${var}', skipping over the first
+ * '$' would treat '${var}' as a make expression, not as a shell variable.
  */
 static void
 ParseModifierPartDollar(const char **pp, LazyBuf *part)
@@ -2170,7 +2200,7 @@ ParseModifierPartDollar(const char **pp, LazyBuf *part)
 					depth--;
 			}
 		}
-		LazyBuf_AddBytesBetween(part, start, p);
+		LazyBuf_AddSubstring(part, Substring_Init(start, p));
 		*pp = p;
 	} else {
 		LazyBuf_Add(part, *start);
@@ -2272,7 +2302,7 @@ ParseModifierPart(
 MAKE_INLINE bool
 IsDelimiter(char c, const ModChain *ch)
 {
-	return c == ':' || c == ch->endc;
+	return c == ':' || c == ch->endc || c == '\0';
 }
 
 /* Test whether mod starts with modname, followed by a delimiter. */
@@ -2447,22 +2477,15 @@ done:
 	return AMR_OK;
 }
 
-/* :Ddefined or :Uundefined */
-static ApplyModifierResult
-ApplyModifier_Defined(const char **pp, ModChain *ch)
+static void
+ParseModifier_Defined(const char **pp, ModChain *ch, bool shouldEval,
+		      LazyBuf *buf)
 {
-	Expr *expr = ch->expr;
-	LazyBuf buf;
 	const char *p;
 
-	VarEvalMode emode = VARE_PARSE_ONLY;
-	if (Expr_ShouldEval(expr))
-		if ((**pp == 'D') == (expr->defined == DEF_REGULAR))
-			emode = expr->emode;
-
 	p = *pp + 1;
-	LazyBuf_Init(&buf, p);
-	while (!IsDelimiter(*p, ch) && *p != '\0') {
+	LazyBuf_Init(buf, p);
+	while (!IsDelimiter(*p, ch)) {
 
 		/*
 		 * XXX: This code is similar to the one in Var_Parse. See if
@@ -2474,8 +2497,10 @@ ApplyModifier_Defined(const char **pp, ModChain *ch)
 		/* See Buf_AddEscaped in for.c. */
 		if (*p == '\\') {
 			char c = p[1];
-			if (IsDelimiter(c, ch) || c == '$' || c == '\\') {
-				LazyBuf_Add(&buf, c);
+			if ((IsDelimiter(c, ch) && c != '\0') ||
+			    c == '$' || c == '\\') {
+				if (shouldEval)
+					LazyBuf_Add(buf, c);
 				p += 2;
 				continue;
 			}
@@ -2483,28 +2508,41 @@ ApplyModifier_Defined(const char **pp, ModChain *ch)
 
 		/* Nested variable expression */
 		if (*p == '$') {
-			FStr nested_val;
+			FStr val;
 
-			(void)Var_Parse(&p, expr->scope, emode, &nested_val);
+			(void)Var_Parse(&p, ch->expr->scope,
+			    shouldEval ? ch->expr->emode : VARE_PARSE_ONLY,
+			    &val);
 			/* TODO: handle errors */
-			if (Expr_ShouldEval(expr))
-				LazyBuf_AddStr(&buf, nested_val.str);
-			FStr_Done(&nested_val);
+			if (shouldEval)
+				LazyBuf_AddStr(buf, val.str);
+			FStr_Done(&val);
 			continue;
 		}
 
 		/* Ordinary text */
-		LazyBuf_Add(&buf, *p);
+		if (shouldEval)
+			LazyBuf_Add(buf, *p);
 		p++;
 	}
 	*pp = p;
+}
+
+/* :Ddefined or :Uundefined */
+static ApplyModifierResult
+ApplyModifier_Defined(const char **pp, ModChain *ch)
+{
+	Expr *expr = ch->expr;
+	LazyBuf buf;
+	bool shouldEval =
+	    Expr_ShouldEval(expr) &&
+	    (**pp == 'D') == (expr->defined == DEF_REGULAR);
+
+	ParseModifier_Defined(pp, ch, shouldEval, &buf);
 
 	Expr_Define(expr);
-
-	if (VarEvalMode_ShouldEval(emode))
+	if (shouldEval)
 		Expr_SetValue(expr, Substring_Str(LazyBuf_Get(&buf)));
-	else
-		LazyBuf_Done(&buf);
 
 	return AMR_OK;
 }
@@ -2734,7 +2772,7 @@ ParseModifier_Match(const char **pp, const ModChain *ch)
 	int nest = 0;
 	const char *p;
 	for (p = mod + 1; *p != '\0' && !(*p == ':' && nest == 0); p++) {
-		if (*p == '\\' &&
+		if (*p == '\\' && p[1] != '\0' &&
 		    (IsDelimiter(p[1], ch) || p[1] == ch->startc)) {
 			if (!needSubst)
 				copy = true;
@@ -2920,11 +2958,8 @@ ApplyModifier_Regex(const char **pp, ModChain *ch)
 	oneBigWord = ch->oneBigWord;
 	ParsePatternFlags(pp, &args.pflags, &oneBigWord);
 
-	if (!ModChain_ShouldEval(ch)) {
-		LazyBuf_Done(&replaceBuf);
-		FStr_Done(&re);
-		return AMR_OK;
-	}
+	if (!ModChain_ShouldEval(ch))
+		goto done;
 
 	error = regcomp(&args.re, re.str, REG_EXTENDED);
 	if (error != 0) {
@@ -2941,6 +2976,7 @@ ApplyModifier_Regex(const char **pp, ModChain *ch)
 	ModifyWords(ch, ModifyWord_SubstRegex, &args, oneBigWord);
 
 	regfree(&args.re);
+done:
 	LazyBuf_Done(&replaceBuf);
 	FStr_Done(&re);
 	return AMR_OK;
@@ -3093,7 +3129,7 @@ ApplyModifier_To(const char **pp, ModChain *ch)
 	const char *mod = *pp;
 	assert(mod[0] == 't');
 
-	if (IsDelimiter(mod[1], ch) || mod[1] == '\0') {
+	if (IsDelimiter(mod[1], ch)) {
 		*pp = mod + 1;
 		return AMR_BAD;	/* Found ":t<endc>" or ":t:". */
 	}
@@ -3101,7 +3137,7 @@ ApplyModifier_To(const char **pp, ModChain *ch)
 	if (mod[1] == 's')
 		return ApplyModifier_ToSep(pp, ch);
 
-	if (!IsDelimiter(mod[2], ch)) {			/* :t<unrecognized> */
+	if (!IsDelimiter(mod[2], ch)) {			/* :t<any><any> */
 		*pp = mod + 1;
 		return AMR_BAD;
 	}
@@ -3329,10 +3365,10 @@ ApplyModifier_Order(const char **pp, ModChain *ch)
 	SubstringWords words;
 	int (*cmp)(const void *, const void *);
 
-	if (IsDelimiter(mod[1], ch) || mod[1] == '\0') {
+	if (IsDelimiter(mod[1], ch)) {
 		cmp = SubStrAsc;
 		(*pp)++;
-	} else if (IsDelimiter(mod[2], ch) || mod[2] == '\0') {
+	} else if (IsDelimiter(mod[2], ch)) {
 		if (mod[1] == 'n')
 			cmp = SubNumAsc;
 		else if (mod[1] == 'r')
@@ -3342,7 +3378,7 @@ ApplyModifier_Order(const char **pp, ModChain *ch)
 		else
 			goto bad;
 		*pp += 2;
-	} else if (IsDelimiter(mod[3], ch) || mod[3] == '\0') {
+	} else if (IsDelimiter(mod[3], ch)) {
 		if ((mod[1] == 'n' && mod[2] == 'r') ||
 		    (mod[1] == 'r' && mod[2] == 'n'))
 			cmp = SubNumDesc;
@@ -3861,7 +3897,7 @@ ApplyModifiersIndirect(ModChain *ch, const char **pp)
 	(void)Var_Parse(&p, expr->scope, expr->emode, &mods);
 	/* TODO: handle errors */
 
-	if (mods.str[0] != '\0' && *p != '\0' && !IsDelimiter(*p, ch)) {
+	if (mods.str[0] != '\0' && !IsDelimiter(*p, ch)) {
 		FStr_Done(&mods);
 		return AMIR_SYSV;
 	}
@@ -3920,7 +3956,7 @@ ApplySingleModifier(const char **pp, ModChain *ch)
 		 * errors and leads to wrong results.
 		 * Parsing should rather stop here.
 		 */
-		for (p++; !IsDelimiter(*p, ch) && *p != '\0'; p++)
+		for (p++; !IsDelimiter(*p, ch); p++)
 			continue;
 		Parse_Error(PARSE_FATAL, "Unknown modifier \"%.*s\"",
 		    (int)(p - mod), mod);
@@ -4499,6 +4535,8 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 	if (Var_Parse_FastLane(pp, emode, out_val))
 		return VPR_OK;
 
+	/* TODO: Reduce computations in parse-only mode. */
+
 	DEBUG2(VAR, "Var_Parse: %s (%s)\n", start, VarEvalMode_Name[emode]);
 
 	*out_val = FStr_InitRefer(NULL);
@@ -4525,7 +4563,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 	}
 
 	expr.name = v->name.str;
-	if (v->inUse) {
+	if (v->inUse && VarEvalMode_ShouldEval(emode)) {
 		if (scope->fname != NULL) {
 			fprintf(stderr, "In a command near ");
 			PrintLocation(stderr, false, scope);
@@ -4791,7 +4829,7 @@ Var_Dump(GNode *scope)
 
 	for (i = 0; i < vec.len; i++) {
 		const char *varname = varnames[i];
-		Var *var = HashTable_FindValue(&scope->vars, varname);
+		const Var *var = HashTable_FindValue(&scope->vars, varname);
 		debug_printf("%-16s = %s%s\n", varname,
 		    var->val.data, ValueDescription(var->val.data));
 	}

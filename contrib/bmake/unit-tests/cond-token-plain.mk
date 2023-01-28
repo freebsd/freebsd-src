@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-plain.mk,v 1.15 2021/12/30 02:14:55 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.16 2022/09/25 12:51:37 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
 # in .if conditions.  These are also called bare words.
@@ -63,10 +63,10 @@
 # anybody really use this?  This is neither documented nor obvious since
 # the '#' is escaped.  It's much clearer to write a comment in the line
 # above the condition.
-.if ${0 \# comment :?yes:no} != no
+.if ${0 \# comment:?yes:no} != no
 .  error
 .endif
-.if ${1 \# comment :?yes:no} != yes
+.if ${1 \# comment:?yes:no} != yes
 .  error
 .endif
 

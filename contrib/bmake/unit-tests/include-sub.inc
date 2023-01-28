@@ -1,4 +1,4 @@
-# $NetBSD: include-sub.mk,v 1.9 2022/01/08 23:41:43 rillig Exp $
+# $NetBSD: include-sub.inc,v 1.1 2023/01/19 23:26:14 rillig Exp $
 
 .if ${.INCLUDEDFROMFILE} == "include-main.mk"
 .  info sub-before-ok
@@ -29,7 +29,7 @@
 .for i in deeply
 .  for i in nested
 .    for i in include
-.include "include-subsub.mk"
+.include "include-subsub.inc"
 .    endfor
 .  endfor
 .endfor

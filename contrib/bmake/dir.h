@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.h,v 1.46 2021/12/15 12:08:25 rillig Exp $	*/
+/*	$NetBSD: dir.h,v 1.47 2023/01/24 00:24:02 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -82,6 +82,7 @@ void Dir_InitCur(const char *);
 void Dir_InitDot(void);
 void Dir_End(void);
 void Dir_SetPATH(void);
+void Dir_SetSYSPATH(void);
 bool Dir_HasWildcards(const char *) MAKE_ATTR_USE;
 void SearchPath_Expand(SearchPath *, const char *, StringList *);
 char *Dir_FindFile(const char *, SearchPath *) MAKE_ATTR_USE;

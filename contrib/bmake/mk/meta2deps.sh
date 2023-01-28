@@ -75,7 +75,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.18 2022/01/28 21:17:43 sjg Exp $
+#	$Id: meta2deps.sh,v 1.20 2023/01/18 01:35:24 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -136,6 +136,13 @@ add_list() {
     done
     eval "$name=\"$list\""
 }
+
+# some Linux systems have deprecated egrep in favor of grep -E
+# but not everyone supports that
+case "`echo bmake | egrep 'a|b' 2>&1`" in
+bmake) ;;
+*) egrep() { grep -E "$@"; }
+esac
 
 _excludes_f() {
     egrep -v "$EXCLUDES"
@@ -239,8 +246,8 @@ meta2deps() {
 	;;
     *) cat /dev/null "$@";;
     esac 2> /dev/null |
-    sed -e 's,^CWD,C C,;/^[CREFLMVX] /!d' -e "s,',,g" |
-    $_excludes | ( version=no epids= xpids=
+    sed -e 's,^CWD,C C,;/^[#CREFLMVX] /!d' -e "s,',,g" |
+    $_excludes | ( version=no epids= xpids= eof_token=no
     while read op pid path junk
     do
 	: op=$op pid=$pid path=$path
@@ -258,10 +265,15 @@ meta2deps() {
 	    *) ;;
 	    esac
 	    version=0
+	    case "$eof_token" in
+	    no) ;;		# ignore
+	    0) error "truncated filemon data";;
+	    esac
+	    eof_token=0
 	    continue
 	    ;;
 	$pid,$pid) ;;
-	*)
+	[1-9]*)
 	    case "$lpid" in
 	    "") ;;
 	    *) eval ldir_$lpid=$ldir;;
@@ -289,6 +301,8 @@ meta2deps() {
 	    eval cwd_$path=$cwd ldir_$path=$ldir
 	    continue
 	    ;;
+	\#,bye) eof_token=1; continue;;
+	\#*) continue;;
 	*)  dir=${path%/*}
 	    case "$op" in
 	    E)	# setid apps get no tracing so we won't see eXit
@@ -391,6 +405,10 @@ meta2deps() {
     : version=$version
     case "$version" in
     0) error "no filemon data";;
+    esac
+    : eof_token=$eof_token
+    case "$eof_token" in
+    0) error "truncated filemon data";;
     esac
     for p in $epids
     do

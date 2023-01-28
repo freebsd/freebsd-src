@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.19 2022/05/08 06:51:27 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.20 2022/09/25 12:51:37 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -106,7 +106,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # from the parser of the .for loop body.  See ForLoop_SubstVarLong.
 .MAKEFLAGS: -dc
 VAR=	value
-.if ${ ${:U\$}{VAR} == value :?ok:bad} != "ok"
+.if ${ ${:U\$}{VAR} == value:?ok:bad} != "ok"
 .  error
 .endif
 .MAKEFLAGS: -d0

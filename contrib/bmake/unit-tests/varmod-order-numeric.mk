@@ -1,4 +1,4 @@
-# $NetBSD: varmod-order-numeric.mk,v 1.7 2022/02/09 21:09:24 rillig Exp $
+# $NetBSD: varmod-order-numeric.mk,v 1.8 2022/09/27 19:18:45 rillig Exp $
 #
 # Tests for the variable modifiers ':On', which returns the words, sorted in
 # ascending numeric order, and for ':Orn' and ':Onr', which additionally
@@ -48,6 +48,12 @@ SAME_VALUE:=	${:U 79 80 0x0050 81 :On}
 MIXED_BASE=	0 010 0x7 9
 .if ${MIXED_BASE:On} != "0 0x7 010 9"
 .  error ${MIXED_BASE:On}
+.endif
+
+# The measurement units for suffixes are k, M, G, but not T.
+# The string '3T' evaluates to 3, the string 'x' evaluates as '0'.
+.if ${4 3T 2M x:L:On} != "x 3T 4 2M"
+.  error
 .endif
 
 all:

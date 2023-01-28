@@ -13,4 +13,10 @@ mod-loop-dollar:$3$:
 mod-loop-dollar:$${word}$$:
 mod-loop-dollar:$$5$$:
 mod-loop-dollar:$$${word}$$$:
+:  t=$(( ${t:-0} + 1 ))
+:  dollar=end
+:  backslash=\ end
+:  dollar=$ at=@ backslash=\ end
+:  dollar=$$ at=@@ backslash=\\ end
+:  dollar=$$ at=@@ backslash=\\ end
 exit status 0

@@ -9,11 +9,11 @@ Comparing "\" != "\"
 CondParser_Eval: ${:U#hash} != #hash
 Comparing "#hash" != "#hash"
 CondParser_Eval: 0 # This is treated as a comment, but why?
-CondParser_Eval: ${0 # comment :?yes:no} != no
-CondParser_Eval: 0 # comment 
+CondParser_Eval: ${0 # comment:?yes:no} != no
+CondParser_Eval: 0 # comment
 Comparing "no" != "no"
-CondParser_Eval: ${1 # comment :?yes:no} != yes
-CondParser_Eval: 1 # comment 
+CondParser_Eval: ${1 # comment:?yes:no} != yes
+CondParser_Eval: 1 # comment
 Comparing "yes" != "yes"
 CondParser_Eval: ${UNDEF:Uundefined}!=undefined
 Comparing "undefined" != "undefined"

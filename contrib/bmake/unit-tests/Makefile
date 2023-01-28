@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.182 2022/07/26 19:39:32 sjg Exp $
+# $Id: Makefile,v 1.191 2023/01/24 06:09:49 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.318 2022/06/10 21:28:50 rillig Exp $
+# $NetBSD: Makefile,v 1.331 2023/01/24 00:24:02 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -24,10 +24,6 @@
 # Each feature should get its own set of tests in its own suitably
 # named makefile (*.mk), with its own set of expected results (*.exp),
 # and it should be added to the TESTS list.
-#
-# A few *.mk files are helper files for other tests (such as include-sub.mk)
-# and are thus not added to TESTS.  Such files must be ignored in
-# src/tests/usr.bin/make/t_make.sh.
 #
 
 .MAIN: all
@@ -167,6 +163,7 @@ TESTS+=		directive-export-impl
 TESTS+=		directive-export-gmake
 TESTS+=		directive-export-literal
 TESTS+=		directive-for
+TESTS+=		directive-for-break
 TESTS+=		directive-for-empty
 TESTS+=		directive-for-errors
 TESTS+=		directive-for-escape
@@ -324,6 +321,7 @@ TESTS+=		ternary
 TESTS+=		unexport
 TESTS+=		unexport-env
 TESTS+=		use-inference
+TESTS+=		var-readonly
 TESTS+=		var-scope
 TESTS+=		var-scope-cmdline
 TESTS+=		var-scope-env
@@ -500,7 +498,7 @@ TESTS:= ${TESTS:${BROKEN_TESTS:S,^,N,:ts:}}
 ENV.depsrc-optional+=   TZ=UTC
 ENV.deptgt-phony+=	MAKESYSPATH=.
 ENV.directive-undef=	ENV_VAR=env-value
-ENV.envfirst=		FROM_ENV=value-from-env
+ENV.opt-env=		FROM_ENV=value-from-env
 ENV.opt-m-include-dir=	${MAKEOBJDIR:DMAKEOBJDIR=${MAKEOBJDIR}}
 ENV.varmisc=		FROM_ENV=env
 ENV.varmisc+=		FROM_ENV_BEFORE=env
@@ -563,6 +561,7 @@ SED_CMDS.sh-dots+=		-e 's,^\(\*\*\* Error code \)[1-9][0-9]*,\1<nonzero>,'
 SED_CMDS.sh-errctl=		${STD_SED_CMDS.dj}
 SED_CMDS.sh-flags=		${STD_SED_CMDS.hide-from-output}
 SED_CMDS.shell-csh=		${STD_SED_CMDS.white-space}
+SED_CMDS.sh-leading-hyphen=	${STD_SED_CMDS.shell}
 SED_CMDS.suff-main+=		${STD_SED_CMDS.dg1}
 SED_CMDS.suff-main-several+=	${STD_SED_CMDS.dg1}
 SED_CMDS.suff-transform-debug+=	${STD_SED_CMDS.dg1}
@@ -571,12 +570,13 @@ SED_CMDS.var-op-shell+=		-e '/command/s,No such.*,not found,'
 SED_CMDS.var-op-shell+=		${STD_SED_CMDS.white-space}
 SED_CMDS.vardebug+=		-e 's,${.SHELL},</path/to/shell>,'
 SED_CMDS.varmod-subst-regex+=	${STD_SED_CMDS.regex}
+SED_CMDS.varparse-errors+=	${STD_SED_CMDS.timestamp}
 SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
 SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
 SED_CMDS.varname-dot-shell=	-e 's, = /[^ ]*, = (details omitted),g'
 SED_CMDS.varname-dot-shell+=	-e 's,"/[^" ]*","(details omitted)",g'
 SED_CMDS.varname-dot-shell+=	-e 's,\[/[^] ]*\],[(details omitted)],g'
-SED_CMDS.varname-empty=		${.OBJDIR .PARSEDIR .PATH .SHELL:L:@v@-e '/\\$v/d'@}
+SED_CMDS.varname-empty=		${.OBJDIR .PARSEDIR .PATH .SHELL .SYSPATH:L:@v@-e '/\\$v/d'@}
 
 # Some tests need an additional round of postprocessing.
 POSTPROC.depsrc-wait=		sed -e '/^---/d' -e 's,^\(: Making 3[abc]\)[123]$$,\1,'
@@ -601,13 +601,14 @@ STD_SED_CMDS.dd+=		-e '/^CachedDir /d'
 # Omit details such as process IDs from the output of the -dg1 option.
 STD_SED_CMDS.dg1=	-e '/\#.* \.$$/d'
 STD_SED_CMDS.dg1+=	-e '/\.MAKE.PATH_FILEMON/d'
-STD_SED_CMDS.dg1+=	-e '/^MAKE_VERSION/d;/^\#.*\/mk/d'
+STD_SED_CMDS.dg1+=	-e '/^\#.*\/mk/d'
 STD_SED_CMDS.dg1+=	-e 's,  ${DEFSYSPATH:U/usr/share/mk}$$,  <defsyspath>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(\.MAKE *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(\.MAKE\.[A-Z_]* *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(MACHINE[_ARCH]* *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(MAKE *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(\.SHELL *=\) .*,\1 <details omitted>,'
+STD_SED_CMDS.dg1+=	-e '/\.SYSPATH/d'
 
 STD_SED_CMDS.dg2=	${STD_SED_CMDS.dg1}
 STD_SED_CMDS.dg2+=	-e 's,\(last modified\) ..:..:.. ... ..\, ....,\1 <timestamp>,'
@@ -651,9 +652,11 @@ STD_SED_CMDS.hide-from-output= \
 #	bash 5.1.0	bash: line 1: /nonexistent: No such file or directory
 #	dash		dash: 1: cannot open /nonexistent: No such file
 #
+STD_SED_CMDS.shell+=		-e 's,^${.SHELL},${.SHELL:T},'
 STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: line [0-9][0-9]*: ,,'
 STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: [0-9][0-9]*: ,,'
 STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: ,,'
+STD_SED_CMDS.shell+=		-e 's,: command not found,: not found,'
 
 STD_SED_CMDS.white-space=	-e 's,   *, ,g' -e 's,  *$$,,'
 
@@ -661,6 +664,11 @@ STD_SED_CMDS.white-space=	-e 's,   *, ,g' -e 's,  *$$,,'
 # implementations.
 STD_SED_CMDS.regex= \
 	-e 's,\(Regex compilation error:\).*,\1 (details omitted),'
+
+# Normalize timestamps from ':gmtime' or ':localtime' to '<timestamp>'.
+# See STD_SED_CMDS.dg2 for timestamps from the debug log.
+STD_SED_CMDS.timestamp= \
+	-e 's,[A-Z][a-z][a-z] [A-Z][a-z][a-z] [ 0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9] [12][0-9][0-9][0-9],<timestamp>,'
 
 # End of the configuration helpers section.
 
@@ -721,7 +729,17 @@ TMPDIR:=	/tmp/uid${.MAKE.UID}
 _!= mkdir -p ${TMPDIR}
 .endif
 
-MAKE_TEST_ENV=	MALLOC_OPTIONS="JA"	# for jemalloc 100
+# Some Linux systems such as Fedora have deprecated egrep in favor of grep -E.
+.if ${.MAKE.OS:NLinux} == ""
+EGREP= grep -E
+.endif
+# Keep the classical definition for all other systems.  Just as the bmake code
+# is kept compatible with C90, the tests are kept compatible with systems that
+# are several decades old and don't follow modern POSIX standards.
+EGREP?= egrep
+
+MAKE_TEST_ENV=  EGREP="${EGREP}"
+MAKE_TEST_ENV+=	MALLOC_OPTIONS="JA"	# for jemalloc 100
 MAKE_TEST_ENV+=	MALLOC_CONF="junk:true"	# for jemalloc 510
 MAKE_TEST_ENV+= TMPDIR=${TMPDIR}
 
@@ -769,6 +787,9 @@ _SED_CMDS+=	-e 's,${.OBJDIR},<curdir>,g'
 _SED_CMDS+=	-e 's,${.CURDIR},<curdir>,g'
 _SED_CMDS+=	-e 's,<curdir>/,,g'
 _SED_CMDS+=	-e 's,${UNIT_TESTS:S,.,\\.,g}/,,g'
+_SED_CMDS+=	-e '/MAKE_VERSION/d'
+_SED_CMDS+=	-e '/EGREP=/d'
+
 # on AT&T derived systems: false exits 255 not 1
 .if ${.MAKE.OS:N*BSD} != ""
 _SED_CMDS+=	-e 's,\(Error code\) 255,\1 1,'

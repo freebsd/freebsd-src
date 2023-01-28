@@ -1,4 +1,4 @@
-# $Id: compiler.mk,v 1.10 2021/12/08 05:56:50 sjg Exp $
+# $Id: compiler.mk,v 1.11 2022/09/09 17:44:29 sjg Exp $
 #
 #	@(#) Copyright (c) 2019, Simon J. Gerraty
 #
@@ -23,7 +23,7 @@ COMPILER_VERSION = 0
 .if empty(COMPILER_TYPE) || empty(COMPILER_VERSION)
 # gcc does not always say gcc
 _v != (${CC} --version) 2> /dev/null | \
-	egrep -i 'clang|cc|[1-9]\.[0-9]|Free Software Foundation'; echo
+	${EGREP:Uegrep} -i 'clang|cc|[1-9]\.[0-9]|Free Software Foundation'; echo
 .if empty(COMPILER_TYPE)
 .if ${_v:Mclang} != ""
 COMPILER_TYPE = clang

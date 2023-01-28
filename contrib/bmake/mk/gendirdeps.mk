@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.47 2022/04/23 21:37:03 sjg Exp $
+# $Id: gendirdeps.mk,v 1.48 2022/09/09 17:44:29 sjg Exp $
 
 # Copyright (c) 2011-2020, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -88,7 +88,7 @@ META_FILES := ${META_FILES:T:O:u}
 # they should all be absolute paths
 SKIP_GENDIRDEPS ?=
 .if !empty(SKIP_GENDIRDEPS)
-_skip_gendirdeps = egrep -v '^(${SKIP_GENDIRDEPS:O:u:ts|})' |
+_skip_gendirdeps = ${EGREP:Uegrep} -v '^(${SKIP_GENDIRDEPS:O:u:ts|})' |
 .else
 _skip_gendirdeps =
 .endif

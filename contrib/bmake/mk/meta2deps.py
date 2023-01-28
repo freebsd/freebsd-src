@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.44 2022/01/29 02:42:01 sjg Exp $
+	$Id: meta2deps.py,v 1.45 2023/01/18 01:35:24 sjg Exp $
 
 	Copyright (c) 2011-2020, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -448,12 +448,13 @@ class MetaFile:
         pid_cwd = {}
         pid_last_dir = {}
         last_pid = 0
+        eof_token = False
 
         self.line = 0
         if self.curdir:
             self.seenit(self.curdir)    # we ignore this
 
-        interesting = 'CEFLRVX'
+        interesting = '#CEFLRVX'
         for line in f:
             self.line += 1
             # ignore anything we don't care about
@@ -478,6 +479,12 @@ class MetaFile:
                     self.seenit(cwd)    # ignore this
                     if self.debug:
                         print("%s: CWD=%s" % (self.name, cwd), file=self.debug_out)
+                continue
+
+            if w[0] == '#':
+                # check the file has not been truncated
+                if line.find('Bye') > 0:
+                    eof_token = True
                 continue
 
             pid = int(w[1])
@@ -535,7 +542,11 @@ class MetaFile:
                     continue
                 self.parse_path(path, cwd, w[0], w)
 
-        assert(version > 0)
+        if version == 0:
+            raise AssertionError('missing filemon data')
+        if not eof_token:
+            raise AssertionError('truncated filemon data')
+
         setid_pids = []
         # self.pids should be empty!
         for pid,path in self.pids.items():
