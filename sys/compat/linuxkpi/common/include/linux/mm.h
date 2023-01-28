@@ -41,6 +41,7 @@
 #include <linux/list.h>
 #include <linux/mmap_lock.h>
 #include <linux/shrinker.h>
+#include <linux/page.h>
 
 #include <asm/pgtable.h>
 
@@ -150,6 +151,13 @@ struct sysinfo {
 	uint64_t freehigh;	/* Available high memory size */
 	uint32_t mem_unit;	/* Memory unit size in bytes */
 };
+
+static inline struct page *
+virt_to_head_page(const void *p)
+{
+
+	return (virt_to_page(p));
+}
 
 /*
  * Compute log2 of the power of two rounded up count of pages
