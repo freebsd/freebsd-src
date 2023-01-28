@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -159,12 +159,14 @@ volatile sig_atomic_t bc_history_inlinelib;
 static char* bc_history_prompt;
 static char bc_history_no_prompt[] = "";
 static HistEvent bc_history_event;
+static bool bc_history_use_prompt;
 
 static char*
 bc_history_promptFunc(EditLine* el)
 {
 	BC_UNUSED(el);
-	return BC_PROMPT ? bc_history_prompt : bc_history_no_prompt;
+	return BC_PROMPT && bc_history_use_prompt ? bc_history_prompt :
+	                                            bc_history_no_prompt;
 }
 
 void
@@ -255,8 +257,18 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 		else bc_history_prompt = bc_vm_strdup(prompt);
 	}
 
+	bc_history_use_prompt = true;
+
+	line = NULL;
+	len = -1;
+	errno = EINTR;
+
 	// Get the line.
-	line = el_gets(h->el, &len);
+	while (line == NULL && len == -1 && errno == EINTR)
+	{
+		line = el_gets(h->el, &len);
+		bc_history_use_prompt = false;
+	}
 
 	// If there is no line...
 	if (BC_ERR(line == NULL))
@@ -1454,6 +1466,9 @@ bc_history_swap(BcHistory* h)
 	char auxb[5];
 
 	BC_SIG_ASSERT_LOCKED;
+
+	// If there are no characters, skip.
+	if (!h->pos) return;
 
 	// Get the length of the previous and next characters.
 	pcl = bc_history_prevLen(h->buf.v, h->pos);

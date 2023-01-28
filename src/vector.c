@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -418,7 +418,7 @@ bc_map_find(const BcVec* restrict v, const char* name)
 
 	while (low < high)
 	{
-		size_t mid = (low + high) / 2;
+		size_t mid = low + (high - low) / 2;
 		const BcId* id = bc_vec_item(v, mid);
 		int result = strcmp(name, id->name);
 

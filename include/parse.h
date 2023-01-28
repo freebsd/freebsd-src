@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -105,22 +105,32 @@
 #define bc_parse_pushIndex(p, idx) (bc_vec_pushIndex(&(p)->func->code, (idx)))
 
 /**
- * A convenience macro for throwing errors in parse code. They take care of
+ * A convenience macro for throwing errors in parse code. This takes care of
  * plumbing like passing in the current line the lexer is on.
  * @param p  The parser.
  * @param e  The error.
  */
+#ifndef NDEBUG
+#define bc_parse_err(p, e) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line))
+#else // NDEBUG
 #define bc_parse_err(p, e) (bc_vm_handleError((e), (p)->l.line))
+#endif // NDEBUG
 
 /**
- * A convenience macro for throwing errors in parse code. They take care of
+ * A convenience macro for throwing errors in parse code. This takes care of
  * plumbing like passing in the current line the lexer is on.
  * @param p    The parser.
  * @param e    The error.
  * @param ...  The varags that are needed.
  */
+#ifndef NDEBUG
+#define bc_parse_verr(p, e, ...) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line, __VA_ARGS__))
+#else // NDEBUG
 #define bc_parse_verr(p, e, ...) \
 	(bc_vm_handleError((e), (p)->l.line, __VA_ARGS__))
+#endif // NDEBUG
 
 // Forward declarations.
 struct BcParse;

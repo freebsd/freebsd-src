@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -668,9 +668,6 @@ typedef struct BcVm
 	/// The function to call to parse expressions.
 	BcParseExpr expr;
 
-	/// The text to display to label functions in error messages.
-	const char* func_header;
-
 	/// The names of the categories of errors.
 	const char* err_ids[BC_ERR_IDX_NELEMS + BC_ENABLED];
 
@@ -957,6 +954,7 @@ bc_vm_getenvFree(char* val);
  */
 void
 bc_vm_jmp(const char* f);
+
 #else // BC_DEBUG_CODE
 
 /**
@@ -994,14 +992,40 @@ bc_vm_atexit(void);
 #else // BC_ENABLE_LIBRARY
 
 /**
+ * Calculates the number of decimal digits in the argument.
+ * @param val  The value to calculate the number of decimal digits in.
+ * @return     The number of decimal digits in @a val.
+ */
+size_t
+bc_vm_numDigits(size_t val);
+
+#ifndef NDEBUG
+
+/**
+ * Handle an error. This is the true error handler. It will start a jump series
+ * if an error occurred. POSIX errors will not cause jumps when warnings are on
+ * or no POSIX errors are enabled.
+ * @param e      The error.
+ * @param file   The source file where the error occurred.
+ * @param fline  The line in the source file where the error occurred.
+ * @param line   The bc source line where the error occurred.
+ */
+void
+bc_vm_handleError(BcErr e, const char* file, int fline, size_t line, ...);
+
+#else // NDEBUG
+
+/**
  * Handle an error. This is the true error handler. It will start a jump series
  * if an error occurred. POSIX errors will not cause jumps when warnings are on
  * or no POSIX errors are enabled.
  * @param e     The error.
- * @param line  The source line where the error occurred.
+ * @param line  The bc source line where the error occurred.
  */
 void
 bc_vm_handleError(BcErr e, size_t line, ...);
+
+#endif // NDEBUG
 
 /**
  * Handle a fatal error.
@@ -1023,12 +1047,6 @@ bc_vm_atexit(int status);
 
 /// A reference to the copyright header.
 extern const char bc_copyright[];
-
-/// A reference to the format string for source code line printing.
-extern const char* const bc_err_line;
-
-/// A reference to the format string for source code function printing.
-extern const char* const bc_err_func_header;
 
 /// A reference to the array of default error category names.
 extern const char* bc_errs[];

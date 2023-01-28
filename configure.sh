@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -714,7 +714,7 @@ predefined_build() {
 			hist=1
 			hist_impl="editline"
 			extra_math=1
-			generate_tests=0
+			generate_tests=$generate_tests
 			install_manpages=0
 			nls=1
 			force=0
@@ -747,7 +747,7 @@ predefined_build() {
 			hist=1
 			hist_impl="internal"
 			extra_math=1
-			generate_tests=1
+			generate_tests=$generate_tests
 			install_manpages=1
 			nls=1
 			force=0
@@ -1018,13 +1018,6 @@ while getopts "abBcdDeEfgGhHik:lMmNO:p:PrS:s:tTvz-" opt; do
 						usage "No argument given for '--$arg' option"
 					fi
 					MAN3DIR="$2"
-					shift ;;
-				localedir=?*) LOCALEDIR="$LONG_OPTARG" ;;
-				localedir)
-					if [ "$#" -lt 2 ]; then
-						usage "No argument given for '--$arg' option"
-					fi
-					LOCALEDIR="$2"
 					shift ;;
 				karatsuba-len=?*) karatsuba_len="$LONG_OPTARG" ;;
 				karatsuba-len)

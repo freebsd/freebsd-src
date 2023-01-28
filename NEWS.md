@@ -1,5 +1,28 @@
 # News
 
+## 6.2.0
+
+This is a production release with a new feature and a few bug fixes.
+
+The bug fixes include:
+
+* A crash when `bc` and `dc` are built using editline, but history is not
+  activated.
+* A missing local in the `uint*()` family of functions in the extended math
+  library.
+* A failure to clear the tail call list in `dc` on error.
+* A crash when attempting to swap characters in command-line history when no
+  characters exist.
+* `SIGWINCH` was activated even when history was not.
+
+The new feature is that stack traces are now given for runtime errors. In debug
+mode, the C source file and line of errors are given as well.
+
+## 6.1.1
+
+This is a production release that fixes a build issue with predefined builds and
+generated tests.
+
 ## 6.1.0
 
 This is a production release that fixes a discrepancy from the `bc` standard,

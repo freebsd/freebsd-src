@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -687,11 +687,18 @@ typedef enum BcMode
 
 /// Returns true if an exception is in flight, false otherwise.
 #define BC_SIG_EXC(vm) \
-	BC_UNLIKELY(vm->status != (sig_atomic_t) BC_STATUS_SUCCESS || vm->sig)
+	BC_UNLIKELY((vm)->status != (sig_atomic_t) BC_STATUS_SUCCESS || (vm)->sig)
 
 /// Returns true if there is *no* exception in flight, false otherwise.
 #define BC_NO_SIG_EXC(vm) \
-	BC_LIKELY(vm->status == (sig_atomic_t) BC_STATUS_SUCCESS && !vm->sig)
+	BC_LIKELY((vm)->status == (sig_atomic_t) BC_STATUS_SUCCESS && !(vm)->sig)
+
+#ifndef _WIN32
+#define BC_SIG_INTERRUPT(vm) \
+	BC_UNLIKELY((vm)->sig != 0 && (vm)->sig != SIGWINCH)
+#else // _WIN32
+#define BC_SIG_INTERRUPT(vm) BC_UNLIKELY((vm)->sig != 0)
+#endif // _WIN32
 
 #ifndef NDEBUG
 
@@ -773,7 +780,7 @@ typedef enum BcMode
 	}                        \
 	while (0)
 
-/*
+/**
  * Locks signals, but stores the old lock state, to be restored later by
  * BC_SIG_TRYUNLOCK.
  * @param v  The variable to store the old lock state to.
@@ -786,7 +793,8 @@ typedef enum BcMode
 	}                     \
 	while (0)
 
-/* Restores the previous state of a signal lock, and if it is now unlocked,
+/**
+ * Restores the previous state of a signal lock, and if it is now unlocked,
  * initiates an exception/jump.
  * @param v  The old lock state.
  */
@@ -949,19 +957,33 @@ typedef enum BcMode
  * @param l    The line of the script that the error happened.
  * @param ...  Extra arguments for error messages as necessary.
  */
+#ifndef NDEBUG
+#define bc_error(e, l, ...) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (l), __VA_ARGS__))
+#else // NDEBUG
 #define bc_error(e, l, ...) (bc_vm_handleError((e), (l), __VA_ARGS__))
+#endif // NDEBUG
 
 /**
  * Call bc's error handling routine.
  * @param e  The error.
  */
+#ifndef NDEBUG
+#define bc_err(e) (bc_vm_handleError((e), __FILE__, __LINE__, 0))
+#else // NDEBUG
 #define bc_err(e) (bc_vm_handleError((e), 0))
+#endif // NDEBUG
 
 /**
  * Call bc's error handling routine.
  * @param e  The error.
  */
+#ifndef NDEBUG
+#define bc_verr(e, ...) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, 0, __VA_ARGS__))
+#else // NDEBUG
 #define bc_verr(e, ...) (bc_vm_handleError((e), 0, __VA_ARGS__))
+#endif // NDEBUG
 
 #endif // BC_ENABLE_LIBRARY
 

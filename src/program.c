@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2934,6 +2934,41 @@ bc_program_init(BcProgram* p)
 }
 
 void
+bc_program_printStackTrace(BcProgram* p)
+{
+	size_t i, max_digits;
+
+	max_digits = bc_vm_numDigits(p->stack.len - 1);
+
+	for (i = 0; i < p->stack.len; ++i)
+	{
+		BcInstPtr* ip = bc_vec_item_rev(&p->stack, i);
+		BcFunc* f = bc_vec_item(&p->fns, ip->func);
+		size_t j, digits;
+
+		digits = bc_vm_numDigits(i);
+
+		bc_file_puts(&vm->ferr, bc_flush_none, "    ");
+
+		for (j = 0; j < max_digits - digits; ++j)
+		{
+			bc_file_putchar(&vm->ferr, bc_flush_none, ' ');
+		}
+
+		bc_file_printf(&vm->ferr, "%zu: %s", i, f->name);
+
+#if BC_ENABLED
+		if (BC_IS_BC && ip->func != BC_PROG_MAIN && ip->func != BC_PROG_READ)
+		{
+			bc_file_puts(&vm->ferr, bc_flush_none, "()");
+		}
+#endif // BC_ENABLED
+
+		bc_file_putchar(&vm->ferr, bc_flush_none, '\n');
+	}
+}
+
+void
 bc_program_reset(BcProgram* p)
 {
 	BcFunc* f;
@@ -2944,6 +2979,11 @@ bc_program_reset(BcProgram* p)
 	// Pop all but the last execution and all results.
 	bc_vec_npop(&p->stack, p->stack.len - 1);
 	bc_vec_popAll(&p->results);
+
+#if DC_ENABLED
+	// We need to pop tail calls too.
+	if (BC_IS_DC) bc_vec_npop(&p->tail_calls, p->tail_calls.len - 1);
+#endif // DC_ENABLED
 
 #if BC_ENABLED
 	// Clear the globals' stacks.
@@ -2959,13 +2999,15 @@ bc_program_reset(BcProgram* p)
 	// NOLINTNEXTLINE
 	memset(ip, 0, sizeof(BcInstPtr));
 
-	// Write the ready message for a signal, and clear the signal.
-	if (vm->sig)
+	if (BC_SIG_INTERRUPT(vm))
 	{
+		// Write the ready message for a signal.
 		bc_file_printf(&vm->fout, "%s", bc_program_ready_msg);
 		bc_file_flush(&vm->fout, bc_flush_err);
-		vm->sig = 0;
 	}
+
+	// Clear the signal.
+	vm->sig = 0;
 }
 
 void
@@ -3014,6 +3056,8 @@ bc_program_exec(BcProgram* p)
 	func = (BcFunc*) bc_vec_item(&p->fns, BC_PROG_MAIN);
 	bc_vec_pushByte(&func->code, BC_INST_INVALID);
 #endif // BC_HAS_COMPUTED_GOTO
+
+	BC_SETJMP(vm, end);
 
 	ip = bc_vec_top(&p->stack);
 	func = (BcFunc*) bc_vec_item(&p->fns, ip->func);
@@ -3642,7 +3686,7 @@ bc_program_exec(BcProgram* p)
 			BC_PROG_LBL(BC_INST_INVALID):
 			// clang-format on
 			{
-				return;
+				goto end;
 			}
 #else // BC_HAS_COMPUTED_GOTO
 			default:
@@ -3676,6 +3720,28 @@ bc_program_exec(BcProgram* p)
 
 #endif // BC_HAS_COMPUTED_GOTO
 	}
+
+end:
+	BC_SIG_MAYLOCK;
+
+	// This is here just to print a stack trace on interrupts. This is for
+	// finding infinite loops.
+	if (BC_SIG_INTERRUPT(vm))
+	{
+		BcStatus s;
+
+		bc_file_putchar(&vm->ferr, bc_flush_none, '\n');
+
+		bc_program_printStackTrace(p);
+
+		s = bc_file_flushErr(&vm->ferr, bc_flush_err);
+		if (BC_ERR(s != BC_STATUS_SUCCESS && vm->status == BC_STATUS_SUCCESS))
+		{
+			vm->status = (sig_atomic_t) s;
+		}
+	}
+
+	BC_LONGJMP_CONT(vm);
 }
 
 #if BC_DEBUG_CODE

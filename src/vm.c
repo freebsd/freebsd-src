@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -68,10 +68,12 @@
 #endif // BC_ENABLE_LIBRARY
 
 #if !BC_ENABLE_LIBRARY
+
 // The actual globals.
 char output_bufs[BC_VM_BUF_SIZE];
 BcVm vm_data;
 BcVm* vm = &vm_data;
+
 #endif // !BC_ENABLE_LIBRARY
 
 #if BC_DEBUG_CODE
@@ -119,21 +121,36 @@ bc_vm_jmp(void)
 static void
 bc_vm_sig(int sig)
 {
-	// There is already a signal in flight.
-	if (vm->status == (sig_atomic_t) BC_STATUS_QUIT || vm->sig)
+#if BC_ENABLE_EDITLINE
+	// Editline needs this to resize the terminal. This also needs to come first
+	// because a resize always needs to happen.
+	if (sig == SIGWINCH)
+	{
+		if (BC_TTY)
+		{
+			el_resize(vm->history.el);
+
+			// If the signal was a SIGWINCH, clear it because we don't need to
+			// print a stack trace in that case.
+			if (vm->sig == SIGWINCH)
+			{
+				vm->sig = 0;
+			}
+		}
+
+		return;
+	}
+#endif // BC_ENABLE_EDITLINE
+
+	// There is already a signal in flight if this is true.
+	if (vm->status == (sig_atomic_t) BC_STATUS_QUIT || vm->sig != 0)
 	{
 		if (!BC_I || sig != SIGINT) vm->status = BC_STATUS_QUIT;
 		return;
 	}
 
-#if BC_ENABLE_EDITLINE
-	// Editline needs this to resize the terminal.
-	if (sig == SIGWINCH)
-	{
-		el_resize(vm->history.el);
-		return;
-	}
-#endif // BC_ENABLE_EDITLINE
+	// We always want to set this because a stack trace can be printed if we do.
+	vm->sig = sig;
 
 	// Only reset under these conditions; otherwise, quit.
 	if (sig == SIGINT && BC_SIGINT && BC_I)
@@ -154,7 +171,6 @@ bc_vm_sig(int sig)
 		{
 			vm->status = BC_STATUS_ERROR_FATAL;
 		}
-		else vm->sig = 1;
 
 		errno = err;
 	}
@@ -198,7 +214,7 @@ bc_vm_sigaction(void)
 	struct sigaction sa;
 
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_NODEFER;
+	sa.sa_flags = 0;
 
 	// This mess is to silence a warning on Clang with regards to glibc's
 	// sigaction handler, which activates the warning here.
@@ -216,7 +232,7 @@ bc_vm_sigaction(void)
 
 #if BC_ENABLE_EDITLINE
 	// Editline needs this to resize the terminal.
-	sigaction(SIGWINCH, &sa, NULL);
+	if (BC_TTY) sigaction(SIGWINCH, &sa, NULL);
 #endif // BC_ENABLE_EDITLINE
 
 #if BC_ENABLE_HISTORY
@@ -333,8 +349,13 @@ bc_vm_handleError(BcErr e)
 	BC_JMP;
 }
 #else // BC_ENABLE_LIBRARY
+#ifndef NDEBUG
+void
+bc_vm_handleError(BcErr e, const char* file, int fline, size_t line, ...)
+#else // NDEBUG
 void
 bc_vm_handleError(BcErr e, size_t line, ...)
+#endif // NDEBUG
 {
 	BcStatus s;
 	va_list args;
@@ -388,29 +409,25 @@ bc_vm_handleError(BcErr e, size_t line, ...)
 		{
 			bc_file_puts(&vm->ferr, bc_flush_none, "\n    ");
 			bc_file_puts(&vm->ferr, bc_flush_none, vm->file);
-			bc_file_printf(&vm->ferr, bc_err_line, line);
+			bc_file_printf(&vm->ferr, ":%zu\n", line);
 		}
 		else
 		{
-			BcInstPtr* ip = bc_vec_item_rev(&vm->prog.stack, 0);
-			BcFunc* f = bc_vec_item(&vm->prog.fns, ip->func);
-
-			bc_file_puts(&vm->ferr, bc_flush_none, "\n    ");
-			bc_file_puts(&vm->ferr, bc_flush_none, vm->func_header);
-			bc_file_putchar(&vm->ferr, bc_flush_none, ' ');
-			bc_file_puts(&vm->ferr, bc_flush_none, f->name);
-
-#if BC_ENABLED
-			if (BC_IS_BC && ip->func != BC_PROG_MAIN &&
-			    ip->func != BC_PROG_READ)
-			{
-				bc_file_puts(&vm->ferr, bc_flush_none, "()");
-			}
-#endif // BC_ENABLED
+			// Print a stack trace.
+			bc_file_putchar(&vm->ferr, bc_flush_none, '\n');
+			bc_program_printStackTrace(&vm->prog);
 		}
 	}
+	else
+	{
+		bc_file_putchar(&vm->ferr, bc_flush_none, '\n');
+	}
 
-	bc_file_puts(&vm->ferr, bc_flush_none, "\n\n");
+#ifndef NDEBUG
+	bc_file_printf(&vm->ferr, "\n    %s:%d\n", file, fline);
+#endif // NDEBUG
+
+	bc_file_puts(&vm->ferr, bc_flush_none, "\n");
 
 	s = bc_file_flushErr(&vm->ferr, bc_flush_err);
 
@@ -732,6 +749,25 @@ bc_vm_freeTemps(void)
 	vm->temps_len = 0;
 }
 
+#if !BC_ENABLE_LIBRARY
+
+size_t
+bc_vm_numDigits(size_t val)
+{
+	size_t digits = 0;
+
+	do
+	{
+		digits += 1;
+		val /= 10;
+	}
+	while (val != 0);
+
+	return digits;
+}
+
+#endif // !BC_ENABLE_LIBRARY
+
 inline size_t
 bc_vm_arraySize(size_t n, size_t size)
 {
@@ -929,7 +965,7 @@ bc_vm_clean(void)
 	BcVec* fns = &vm->prog.fns;
 	BcFunc* f = bc_vec_item(fns, BC_PROG_MAIN);
 	BcInstPtr* ip = bc_vec_item(&vm->prog.stack, 0);
-	bool good = ((vm->status && vm->status != BC_STATUS_QUIT) || vm->sig);
+	bool good = ((vm->status && vm->status != BC_STATUS_QUIT) || vm->sig != 0);
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -1331,8 +1367,6 @@ bc_vm_defaultMsgs(void)
 {
 	size_t i;
 
-	vm->func_header = bc_err_func_header;
-
 	// Load the error categories.
 	for (i = 0; i < BC_ERR_IDX_NELEMS + BC_ENABLED; ++i)
 	{
@@ -1355,7 +1389,7 @@ bc_vm_gettext(void)
 {
 #if BC_ENABLE_NLS
 	uchar id = 0;
-	int set = 1, msg = 1;
+	int set, msg = 1;
 	size_t i;
 
 	// If no locale, load the defaults.
@@ -1375,11 +1409,8 @@ bc_vm_gettext(void)
 		return;
 	}
 
-	// Load the function header.
-	vm->func_header = catgets(vm->catalog, set, msg, bc_err_func_header);
-
 	// Load the error categories.
-	for (set += 1; msg <= BC_ERR_IDX_NELEMS + BC_ENABLED; ++msg)
+	for (set = 1; msg <= BC_ERR_IDX_NELEMS + BC_ENABLED; ++msg)
 	{
 		vm->err_ids[msg - 1] = catgets(vm->catalog, set, msg, bc_errs[msg - 1]);
 	}
@@ -1389,13 +1420,13 @@ bc_vm_gettext(void)
 
 	// Load the error messages. In order to understand this loop, you must know
 	// the order of messages and categories in the enum and in the locale files.
-	for (set = id + 3, msg = 1; i < BC_ERR_NELEMS; ++i, ++msg)
+	for (set = id + 2, msg = 1; i < BC_ERR_NELEMS; ++i, ++msg)
 	{
 		if (id != bc_err_ids[i])
 		{
 			msg = 1;
 			id = bc_err_ids[i];
-			set = id + 3;
+			set = id + 2;
 		}
 
 		vm->err_msgs[i] = catgets(vm->catalog, set, msg, bc_err_msgs[i]);

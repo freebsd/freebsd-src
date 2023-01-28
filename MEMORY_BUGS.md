@@ -38,7 +38,7 @@ existed in.
 
   The first version without this bug is `6.1.0`.
 
-* In version `6.0.0` of `bcl`, there is several use of initialized data that
+* In version `6.0.0` of `bcl`, there are several uses of initialized data that
   have the same root cause: I forgot to call `memset()` on the per-thread global
   data. This is because the data used to be *actually* global, which meant that
   it was initialized to zero by the system. This happened because I thought I

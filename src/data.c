@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -70,7 +70,7 @@ const uchar dc_sig_msg_len = (uchar) (sizeof(dc_sig_msg) - 1);
 
 /// The copyright banner.
 const char bc_copyright[] =
-	"Copyright (c) 2018-2022 Gavin D. Howard and contributors\n"
+	"Copyright (c) 2018-2023 Gavin D. Howard and contributors\n"
 	"Report bugs at: https://git.yzena.com/gavin/bc\n\n"
 	"This is free software with ABSOLUTELY NO WARRANTY.\n";
 
@@ -173,12 +173,6 @@ const BcOptLong bc_args_lopt[] = {
 	{ NULL, 0, 0 },
 
 };
-
-/// The function header for error messages.
-const char* const bc_err_func_header = "Function:";
-
-/// The line format string for error messages.
-const char* const bc_err_line = ":%zu";
 
 // clang-format off
 

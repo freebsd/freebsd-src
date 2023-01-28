@@ -132,7 +132,7 @@ the environment variable `GEN_EMU`.
 
 This `bc` supports `CC`, `HOSTCC`, `HOST_CC`, `CFLAGS`, `HOSTCFLAGS`,
 `HOST_CFLAGS`, `CPPFLAGS`, `LDFLAGS`, `LDLIBS`, `PREFIX`, `DESTDIR`, `BINDIR`,
-`DATAROOTDIR`, `DATADIR`, `MANDIR`, `MAN1DIR`, `LOCALEDIR` `EXECSUFFIX`,
+`DATAROOTDIR`, `DATADIR`, `MANDIR`, `MAN1DIR`, `MAN3DIR`, `EXECSUFFIX`,
 `EXECPREFIX`, `LONG_BIT`, `GEN_HOST`, and `GEN_EMU` environment variables in
 `configure.sh`. Any values of those variables given to `configure.sh` will be
 put into the generated Makefile.
@@ -276,13 +276,13 @@ Can be overridden by passing the `--man1dir` option to `configure.sh`.
 
 Defaults to `$MANDIR/man1`.
 
-#### `LOCALEDIR`
+#### `MAN3DIR`
 
-The directory to install locales in.
+The directory to install Section 3 manpages in.
 
-Can be overridden by passing the `--localedir` option to `configure.sh`.
+Can be overridden by passing the `--man3dir` option to `configure.sh`.
 
-Defaults to `$DATAROOTDIR/locale`.
+Defaults to `$MANDIR/man3`.
 
 #### `EXECSUFFIX`
 
@@ -709,19 +709,18 @@ The relevant `autotools`-style install options are supported in `configure.sh`:
 * `--datadir`
 * `--mandir`
 * `--man1dir`
-* `--localedir`
+* `--man3dir`
 
 An example is:
 
 ```
-./configure.sh --prefix=/usr --localedir /usr/share/nls
+./configure.sh --prefix=/usr
 make
 make install
 ```
 
 They correspond to the environment variables `$PREFIX`, `$BINDIR`,
-`$DATAROOTDIR`, `$DATADIR`, `$MANDIR`, `$MAN1DIR`, and `$LOCALEDIR`,
-respectively.
+`$DATAROOTDIR`, `$DATADIR`, `$MANDIR`, `$MAN1DIR`, `$MAN3DIR`, and respectively.
 
 ***WARNING***: Locales ignore the prefix because they *must* be installed at a
 fixed location to work at all. If you do not want that to happen, you must
