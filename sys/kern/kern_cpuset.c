@@ -136,10 +136,16 @@ static struct domainlist cpuset_domains;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero, *cpuset_default, *cpuset_kernel;
 static struct domainset *domainset0, *domainset2;
+u_int cpusetsizemin = 1;
 
 /* Return the size of cpuset_t at the kernel level */
 SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, sizeof(cpuset_t), "sizeof(cpuset_t)");
+
+/* Return the minimum size of cpuset_t allowed by the kernel */
+SYSCTL_UINT(_kern_sched, OID_AUTO, cpusetsizemin,
+    CTLFLAG_RD | CTLFLAG_CAPRD, &cpusetsizemin, 0,
+    "The minimum size of cpuset_t allowed by the kernel");
 
 cpuset_t *cpuset_root;
 cpuset_t cpuset_domain[MAXMEMDOM];
