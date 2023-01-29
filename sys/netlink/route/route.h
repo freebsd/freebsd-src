@@ -157,8 +157,9 @@ enum rtattr_type_t {
 	NL_RTA_FLOW		= 11, /* not supported */
 	NL_RTA_CACHEINFO	= 12, /* not supported */
 	NL_RTA_SESSION		= 13, /* not supported / deprecated */
+	NL_RTA_WEIGHT		= 13, /* u32, FreeBSD specific, path weight */
 	NL_RTA_MP_ALGO		= 14, /* not supported / deprecated */
-	NL_RTA_RTFLAGS		= 14, /* u32, FreeBSD specific, */
+	NL_RTA_RTFLAGS		= 14, /* u32, FreeBSD specific, path flags (RTF_)*/
 	NL_RTA_TABLE		= 15, /* u32, fibnum */
 	NL_RTA_MARK		= 16, /* not supported */
 	NL_RTA_MFC_STATS	= 17, /* not supported */
