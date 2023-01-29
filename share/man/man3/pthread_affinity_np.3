@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2021
+.Dd January 29, 2023
 .Dt PTHREAD_AFFINITY_NP 3
 .Os
 .Sh NAME
@@ -50,14 +50,19 @@ Masks of type
 are composed using the
 .Dv CPU_SET
 macros.
-The kernel tolerates large sets as long as all CPUs specified
-in the set exist.
-Sets smaller than the kernel uses generate an error on calls to
+If the user-supplied mask is not large enough to fit all of the matching CPUs,
 .Fn pthread_getaffinity_np
-even if the result set would fit within the user supplied set.
+fails with
+.Er ERANGE .
 Calls to
 .Fn pthread_setaffinity_np
-tolerate small sets with no restrictions.
+tolerate masks of any size with no restrictions.
+The kernel uses the meaningful part of the mask, where the upper bound is
+the maximum CPU id present in the system.
+If bits for non-existing CPUs are set, calls to
+.Fn pthread_setaffinity_np
+fails with
+.Er EINVAL .
 .Pp
 The supplied mask should have a size of
 .Fa cpusetsize
@@ -96,6 +101,12 @@ and
 .Fn pthread_setaffinity_np
 functions may fail if:
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa cpusetp
+argument specified when calling
+.Fn pthread_setaffinity_np
+was not a valid value.
 .It Bq Er EDEADLK
 The
 .Fn pthread_setaffinity_np
@@ -112,7 +123,7 @@ argument could not be found.
 .It Bq Er ERANGE
 The
 .Fa cpusetsize
-was either preposterously large or smaller than the kernel set size.
+was smaller than needed to fit all of the matching CPUs.
 .It Bq Er EPERM
 The calling thread did not have the credentials required to complete the
 operation.
