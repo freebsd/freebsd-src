@@ -221,8 +221,8 @@ static int carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS);
 SYSCTL_NODE(_net_inet, IPPROTO_CARP, carp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "CARP");
 SYSCTL_PROC(_net_inet_carp, OID_AUTO, allow,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, carp_allow_sysctl, "I",
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    &VNET_NAME(carp_allow), 0, carp_allow_sysctl, "I",
     "Accept incoming CARP packets");
 SYSCTL_PROC(_net_inet_carp, OID_AUTO, dscp,
     CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -2237,6 +2237,15 @@ carp_mod_cleanup(void)
 	mtx_destroy(&carp_mtx);
 	sx_destroy(&carp_sx);
 }
+
+static void
+ipcarp_sysinit(void)
+{
+
+	/* Load allow as tunable so to postpone carp start after module load */
+	TUNABLE_INT_FETCH("net.inet.carp.allow", &V_carp_allow);
+}
+VNET_SYSINIT(ip_carp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipcarp_sysinit, NULL);
 
 static int
 carp_mod_load(void)
