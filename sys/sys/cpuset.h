@@ -120,6 +120,7 @@
 #include <sys/queue.h>
 
 LIST_HEAD(setlist, cpuset);
+extern u_int cpusetsizemin;
 
 /*
  * cpusets encapsulate cpu binding information for one or more threads.

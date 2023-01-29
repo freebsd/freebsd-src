@@ -148,6 +148,8 @@ mp_setmaxid(void *dummy)
 	KASSERT(mp_maxid >= mp_ncpus - 1,
 	    ("%s: counters out of sync: max %d, count %d", __func__,
 		mp_maxid, mp_ncpus));
+
+	cpusetsizemin = howmany(mp_maxid + 1, NBBY);
 }
 SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL);
 
