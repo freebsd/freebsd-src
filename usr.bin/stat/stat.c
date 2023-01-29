@@ -373,7 +373,7 @@ main(int argc, char *argv[])
 			errs = 1;
 			linkfail = 1;
 			if (!quiet)
-				warn("%s: stat", file);
+				warn("%s", file);
 		}
 		else
 			output(&st, file, statfmt, fn, nonl);
