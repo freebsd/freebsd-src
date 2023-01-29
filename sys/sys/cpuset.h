@@ -75,23 +75,21 @@
 #define	CPUSET_FSET			__BITSET_FSET(_NCPUWORDS)
 #define	CPUSET_T_INITIALIZER(x)		__BITSET_T_INITIALIZER(x)
 
-#if !defined(_KERNEL)
 #define CPU_ALLOC_SIZE(_s)		__BITSET_SIZE(_s)
 #define CPU_ALLOC(_s)			__cpuset_alloc(_s)
 #define CPU_FREE(p)			__cpuset_free(p)
 
-#define CPU_ISSET_S(n, _s, p)		__BIT_ISSET(_s, n, p)
-#define CPU_SET_S(n, _s, p)		__BIT_SET(_s, n, p)
-#define CPU_CLR_S(n, _s, p)		__BIT_CLR(_s, n, p)
-#define CPU_ZERO_S(_s, p)		__BIT_ZERO(_s, p)
+#define CPU_ISSET_S(n, _s, p)		__BIT_ISSET((_s) * 8, n, p)
+#define CPU_SET_S(n, _s, p)		__BIT_SET((_s) * 8, n, p)
+#define CPU_CLR_S(n, _s, p)		__BIT_CLR((_s) * 8, n, p)
+#define CPU_ZERO_S(_s, p)		__BIT_ZERO((_s) * 8, p)
 
-#define	CPU_OR_S(_s, d, s1, s2)		__BIT_OR2(_s, d, s1, s2)
-#define	CPU_AND_S(_s, d, s1, s2)	__BIT_AND2(_s, d, s1, s2)
-#define	CPU_XOR_S(_s, d, s1, s2)	__BIT_XOR2(_s, d, s1, s2)
+#define	CPU_OR_S(_s, d, s1, s2)		__BIT_OR2((_s) * 8, d, s1, s2)
+#define	CPU_AND_S(_s, d, s1, s2)	__BIT_AND2((_s) * 8, d, s1, s2)
+#define	CPU_XOR_S(_s, d, s1, s2)	__BIT_XOR2((_s) * 8, d, s1, s2)
 
-#define	CPU_COUNT_S(_s, p)		((int)__BIT_COUNT(_s, p))
-#define	CPU_EQUAL_S(_s, p, c)		(__BIT_CMP(_s, p, c) == 0)
-#endif
+#define	CPU_COUNT_S(_s, p)		((int)__BIT_COUNT((_s) * 8, p))
+#define	CPU_EQUAL_S(_s, p, c)		(__BIT_CMP((_s) * 8, p, c) == 0)
 
 /*
  * Valid cpulevel_t values.
