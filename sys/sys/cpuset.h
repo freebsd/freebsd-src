@@ -109,6 +109,7 @@
 #define	CPU_WHICH_DOMAIN	6	/* Specifies a NUMA domain id. */
 #define	CPU_WHICH_INTRHANDLER	7	/* Specifies an irq # (not ithread). */
 #define	CPU_WHICH_ITHREAD	8	/* Specifies an irq's ithread. */
+#define	CPU_WHICH_TIDPID	9	/* Specifies a process or thread id. */
 
 /*
  * Reserved cpuset identifiers.
