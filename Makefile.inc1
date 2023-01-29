@@ -2446,6 +2446,11 @@ _basic_bootstrap_tools+=usr.bin/jot
 _basic_bootstrap_tools+=sbin/md5
 .endif
 
+# tzsetup is needed as an install tool
+.if ${MK_ZONEINFO} != "no"
+_basic_bootstrap_tools+=usr.sbin/tzsetup
+.endif
+
 .if defined(BOOTSTRAP_ALL_TOOLS)
 _other_bootstrap_tools+=${_basic_bootstrap_tools}
 .for _subdir _links in ${_basic_bootstrap_tools_multilink}
