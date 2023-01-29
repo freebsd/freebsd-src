@@ -35,7 +35,7 @@ sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset)
 {
 	int error;
 
-	error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+	error = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TIDPID,
 	    pid == 0 ? -1 : pid, cpusetsz, cpuset);
 	if (error == -1 && errno == ERANGE)
 		errno = EINVAL;
