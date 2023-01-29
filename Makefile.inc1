@@ -1371,7 +1371,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 		if progpath=`env PATH=${TMPPATH:Q} which $$prog`; then \
 			echo $$progpath; \
 		else \
-			echo "Required tool $$prog not found in PATH ($$PATH)." >&2; \
+			echo "Required tool $$prog not found in PATH ("${TMPPATH:Q}")." >&2; \
 			exit 1; \
 		fi; \
 	    done); \
