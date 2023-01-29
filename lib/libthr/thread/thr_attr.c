@@ -629,7 +629,7 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 			return (0);
 		}
 		size_t kern_size = _get_kern_cpuset_size();
-		/* Kernel rejects small set, we check it here too. */ 
+		/* Kernel rejects small set, we check it here too. */
 		if (cpusetsize < kern_size)
 			return (ERANGE);
 		if (cpusetsize > kern_size) {
@@ -663,7 +663,7 @@ _pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
 	if (pattr == NULL || (attr = (*pattr)) == NULL)
 		ret = EINVAL;
 	else {
-		/* Kernel rejects small set, we check it here too. */ 
+		/* Kernel rejects small set, we check it here too. */
 		size_t kern_size = _get_kern_cpuset_size();
 		if (cpusetsize < kern_size)
 			return (ERANGE);
@@ -673,7 +673,7 @@ _pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
 		else
 			memset(cpusetp, -1, kern_size);
 		if (cpusetsize > kern_size)
-			memset(((char *)cpusetp) + kern_size, 0, 
+			memset(((char *)cpusetp) + kern_size, 0,
 				cpusetsize - kern_size);
 	}
 	return (ret);
