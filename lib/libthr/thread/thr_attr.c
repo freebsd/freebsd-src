@@ -599,8 +599,10 @@ _get_kern_cpuset_size(void)
 		size_t len;
 
 		len = sizeof(kern_cpuset_size);
-		if (sysctlbyname("kern.sched.cpusetsize", &kern_cpuset_size,
-		    &len, NULL, 0))
+		if (sysctlbyname("kern.sched.cpusetsizemin", &kern_cpuset_size,
+		    &len, NULL, 0) != 0 &&
+		    sysctlbyname("kern.sched.cpusetsize", &kern_cpuset_size,
+		    &len, NULL, 0) != 0)
 			PANIC("failed to get sysctl kern.sched.cpusetsize");
 	}
 
