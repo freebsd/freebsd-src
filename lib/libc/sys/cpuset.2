@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2017
+.Dd January 29, 2023
 .Dt CPUSET 2
 .Os
 .Sh NAME
@@ -99,6 +99,7 @@ argument may have the following values:
 .Bl -column CPU_WHICH_INTRHANDLER -offset indent
 .It Dv CPU_WHICH_TID Ta "id is lwpid_t (thread id)"
 .It Dv CPU_WHICH_PID Ta "id is pid_t (process id)"
+.It Dv CPU_WHICH_TIDPID Ta "id is either a thread or process id"
 .It Dv CPU_WHICH_JAIL Ta "id is jid (jail id)"
 .It Dv CPU_WHICH_CPUSET Ta "id is a cpusetid_t (cpuset id)"
 .It Dv CPU_WHICH_IRQ Ta "id is an irq number"
@@ -114,6 +115,7 @@ of '-1' may be used with a
 of
 .Dv CPU_WHICH_TID ,
 .Dv CPU_WHICH_PID ,
+.Dv CPU_WHICH_TIDPID ,
 or
 .Dv CPU_WHICH_CPUSET
 to mean the current thread, process, or current thread's
