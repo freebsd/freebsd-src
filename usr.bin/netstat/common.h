@@ -70,6 +70,7 @@ struct ifmap_entry {
 };
 
 struct ifmap_entry *prepare_ifmap(size_t *ifmap_size);
+extern const uint32_t rt_default_weight;
 
 struct rt_msghdr;
 struct nhops_map {

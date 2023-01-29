@@ -150,7 +150,6 @@ struct rta_mpath_nh {
 	uint8_t		rtnh_flags;
 	uint8_t		rtnh_weight;
 	uint32_t	rtax_mtu;
-	uint32_t	rta_knh_id;
 	uint32_t	rta_rtflags;
 };
 
@@ -164,7 +163,6 @@ SNL_DECLARE_ATTR_PARSER(metrics_mp_parser, nla_p_mp_rtmetrics);
 static const struct snl_attr_parser psnh[] = {
 	{ .type = NL_RTA_GATEWAY, .off = _OUT(gw), .cb = snl_attr_get_ip },
 	{ .type = NL_RTA_METRICS, .arg = &metrics_mp_parser, .cb = snl_attr_get_nested },
-	{ .type = NL_RTA_KNH_ID, .off = _OUT(rta_knh_id), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_RTFLAGS, .off = _OUT(gw), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_VIA, .off = _OUT(gw), .cb = snl_attr_get_ipvia },
 };
@@ -225,6 +223,7 @@ struct nl_parsed_route {
 	uint32_t		rta_expire;
 	uint32_t		rta_table;
 	uint32_t		rta_knh_id;
+	uint32_t		rta_nh_id;
 	uint32_t		rta_rtflags;
 	uint32_t		rtax_mtu;
 	uint32_t		rtax_weight;
@@ -248,10 +247,12 @@ static const struct snl_attr_parser ps[] = {
 	{ .type = NL_RTA_METRICS, .arg = &metrics_parser, .cb = snl_attr_get_nested },
 	{ .type = NL_RTA_MULTIPATH, .off = _OUT(rta_multipath), .cb = nlattr_get_multipath },
 	{ .type = NL_RTA_KNH_ID, .off = _OUT(rta_knh_id), .cb = snl_attr_get_uint32 },
+	{ .type = NL_RTA_WEIGHT, .off = _OUT(rtax_weight), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_RTFLAGS, .off = _OUT(rta_rtflags), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_TABLE, .off = _OUT(rta_table), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_VIA, .off = _OUT(rta_gw), .cb = snl_attr_get_ipvia },
 	{ .type = NL_RTA_EXPIRES, .off = _OUT(rta_expire), .cb = snl_attr_get_uint32 },
+	{ .type = NL_RTA_NH_ID, .off = _OUT(rta_nh_id), .cb = snl_attr_get_uint32 },
 };
 
 static const struct snl_field_parser fprt[] = {
@@ -320,7 +321,7 @@ struct sockaddr_dl_short {
 };
 
 static void
-p_path(struct nl_parsed_route *rt)
+p_path(struct nl_parsed_route *rt, bool is_mpath)
 {
 	struct sockaddr_in6 mask6;
 	struct sockaddr *pmask = (struct sockaddr *)&mask6;
@@ -337,6 +338,16 @@ p_path(struct nl_parsed_route *rt)
 	p_flags(rt->rta_rtflags | RTF_UP, buffer);
 	/* Output path weight as non-visual property */
 	xo_emit("{e:weight/%u}", rt->rtax_weight);
+	if (is_mpath)
+		xo_emit("{e:nhg-kidx/%u}", rt->rta_knh_id);
+	else
+		xo_emit("{e:nhop-kidx/%u}", rt->rta_knh_id);
+	if (rt->rta_nh_id != 0) {
+		if (is_mpath)
+			xo_emit("{e:nhg-uidx/%u}", rt->rta_nh_id);
+		else
+			xo_emit("{e:nhop-uidx/%u}", rt->rta_nh_id);
+	}
 
 	memset(prettyname, 0, sizeof(prettyname));
 	if (rt->rta_oif < ifmap_size) {
@@ -350,7 +361,7 @@ p_path(struct nl_parsed_route *rt)
 
 	if (Wflag) {
 		/* XXX: use=0? */
-		xo_emit("{t:nhop/%*lu} ", wid.mtu, rt->rta_knh_id);
+		xo_emit("{t:nhop/%*lu} ", wid.mtu, is_mpath ? 0 : rt->rta_knh_id);
 
 		if (rt->rtax_mtu != 0)
 			xo_emit("{t:mtu/%*lu} ", wid.mtu, rt->rtax_mtu);
@@ -378,6 +389,8 @@ p_rtentry_netlink(struct snl_state *ss, const char *name, struct nlmsghdr *hdr)
 	struct nl_parsed_route rt = {};
 	if (!snl_parse_nlmsg(ss, hdr, &rtm_parser, &rt))
 		return;
+	if (rt.rtax_weight == 0)
+		rt.rtax_weight = rt_default_weight;
 
 	if (rt.rta_multipath != NULL) {
 		uint32_t orig_rtflags = rt.rta_rtflags;
@@ -389,11 +402,10 @@ p_rtentry_netlink(struct snl_state *ss, const char *name, struct nlmsghdr *hdr)
 			rt.rta_oif = nhop->ifindex;
 			rt.rtax_weight = nhop->rtnh_weight;
 			rt.rta_rtflags = nhop->rta_rtflags ? nhop->rta_rtflags : orig_rtflags;
-			rt.rta_knh_id = nhop->rta_knh_id;
 			rt.rtax_mtu = nhop->rtax_mtu ? nhop->rtax_mtu : orig_mtu;
 
 			xo_open_instance(name);
-			p_path(&rt);
+			p_path(&rt, true);
 			xo_emit("\n");
 			xo_close_instance(name);
 		}
@@ -409,7 +421,7 @@ p_rtentry_netlink(struct snl_state *ss, const char *name, struct nlmsghdr *hdr)
 		rt.rta_gw = (struct sockaddr *)&sdl_gw;
 
 	xo_open_instance(name);
-	p_path(&rt);
+	p_path(&rt, false);
 	xo_emit("\n");
 	xo_close_instance(name);
 }

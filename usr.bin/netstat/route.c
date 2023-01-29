@@ -108,6 +108,7 @@ static void p_rtable_sysctl(int, int);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
 static void domask(char *, size_t, u_long);
 
+const uint32_t rt_default_weight = RT_DEFAULT_WEIGHT;
 
 /*
  * Print routing tables.
