@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2022
+.Dd January 29, 2023
 .Dt PTHREAD_ATTR_AFFINITY_NP 3
 .Os
 .Sh NAME
@@ -52,16 +52,17 @@ are composed using the
 .Dv CPU_SET
 macros.
 If the user-supplied mask is not large enough to fit all of the matching CPUs,
-.Fn cpuset_getaffinity
+.Fn pthread_attr_getaffinity_np
 fails with
 .Er ERANGE .
 Calls to
-.Fn cpuset_setaffinity
+.Fn pthread_attr_setaffinity_np
 tolerate masks of any size with no restrictions.
-The kernel uses the meaningful part of the mask, where the upper bound is
+.Fn pthread_attr_setaffinity_np
+uses the meaningful part of the mask, where the upper bound is
 the maximum CPU id present in the system.
 If bits for non-existing CPUs are set, calls to
-.Fn cpuset_setaffinity
+.Fn pthread_attr_setaffinity_np
 fails with
 .Er EINVAL .
 .Pp
