@@ -71,12 +71,6 @@ def bootstrap_bmake(source_root, objdir_prefix):
     global new_env_vars
     env.update(new_env_vars)
 
-    if sys.platform.startswith("linux"):
-        # Work around the deleted file bmake/missing/sys/cdefs.h
-        # TODO: bmake should keep the compat sys/cdefs.h
-        env["CFLAGS"] = "-I{src}/tools/build/cross-build/include/common " \
-                        "-I{src}/tools/build/cross-build/include/linux " \
-                        "-D_GNU_SOURCE=1".format(src=source_root)
     configure_args = [
         "--with-default-sys-path=" + str(bmake_install_dir / "share/mk"),
         "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
