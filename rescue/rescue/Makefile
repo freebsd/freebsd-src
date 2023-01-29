@@ -215,9 +215,12 @@ CRUNCH_LIBS+=	${LDADD_zstd}
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive
 .if ${MK_OPENSSL} != "no"
-CRUNCH_LIBS+= -lcrypto
+CRUNCH_LIBS+= -lcrypto -lssl
 .endif
 CRUNCH_LIBS+= -lmd
+
+CRUNCH_PROGS_usr.bin+=	fetch
+CRUNCH_LIBS+=	-lfetch
 
 .if ${MK_NETCAT} != "no"
 CRUNCH_PROGS_usr.bin+=	nc
