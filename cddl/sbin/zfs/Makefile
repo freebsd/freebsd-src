@@ -77,3 +77,5 @@ CFLAGS+= \
 LIBADD=	jail avl nvpair geom  uutil zfs_core spl tpool zutil zfs m crypto
 LDADD+=	-pthread
 .include <bsd.prog.mk>
+
+CWARNFLAGS.zfs_main.c+=	-Wno-unused-variable
