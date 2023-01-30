@@ -183,7 +183,10 @@ LEAF(_longjmp)
 #endif	/* ! __mips_soft_float */
 
 	REG_EPILOGUE
+	bne	a1, zero, 1f
 	move	v0, a1			# get return value in 1st arg
+	REG_LI	v0, 1			# return 1 if arg is 0
+1:
 	j	ra
 	nop
 

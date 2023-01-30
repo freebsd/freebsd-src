@@ -220,7 +220,10 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 #endif
 #endif	/* ! __mips_soft_float */
 
-	move	v0, a1
+	move	v0, a1			# get return value in 1st arg
+	bne	a1, zero, 1f		# NB: no .set noreorder
+	REG_LI	v0, 1			# return 1 if arg is 0
+1:
 	j	ra
 	nop
 
