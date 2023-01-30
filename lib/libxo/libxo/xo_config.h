@@ -48,6 +48,9 @@
 /* Define to 1 if you have the `flock' function. */
 #define HAVE_FLOCK 1
 
+/* Using real gcc */
+/* #undef HAVE_GCC */
+
 /* Define to 1 if you have the `getpass' function. */
 #define HAVE_GETPASS 1
 
@@ -102,7 +105,7 @@
 #define HAVE_SRAND 1
 
 /* Define to 1 if you have the `sranddev' function. */
-#define HAVE_SRANDDEV 1
+/* #undef HAVE_SRANDDEV */
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -183,16 +186,16 @@
 /* #undef LIBXO_TEXT_ONLY */
 
 /* Version number as dotted value */
-#define LIBXO_VERSION "1.4.0"
+#define LIBXO_VERSION "1.6.0"
 
 /* Version number extra information */
 #define LIBXO_VERSION_EXTRA ""
 
 /* Version number as a number */
-#define LIBXO_VERSION_NUMBER 1004000
+#define LIBXO_VERSION_NUMBER 1006000
 
 /* Version number as string */
-#define LIBXO_VERSION_STRING "1004000"
+#define LIBXO_VERSION_STRING "1006000"
 
 /* Enable local wcwidth implementation */
 #define LIBXO_WCWIDTH 1
@@ -210,7 +213,7 @@
 #define PACKAGE_NAME "libxo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libxo 1.4.0"
+#define PACKAGE_STRING "libxo 1.6.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libxo"
@@ -219,7 +222,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.4.0"
+#define PACKAGE_VERSION "1.6.0"
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -236,7 +239,7 @@
 /* #undef USE_INT_RETURN_CODES */
 
 /* Version number of package */
-#define VERSION "1.4.0"
+#define VERSION "1.6.0"
 
 /* Retain hash bucket size */
 /* #undef XO_RETAIN_SIZE */
