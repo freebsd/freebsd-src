@@ -180,6 +180,11 @@ Labels are text that appears before a value::
 
     xo_emit("{Lwc:Cost}{:cost/%u}\n", cost);
 
+If a label needs to include a slash, it must be escaped using two
+backslashes, one for the C compiler and one for libxo::
+
+    xo_emit("{Lc:Low\\/warn level}{:level/%s}\n", level);
+
 .. index:: Field Roles; Note
 .. _note-role:
 

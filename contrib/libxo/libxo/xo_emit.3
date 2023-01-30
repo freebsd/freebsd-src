@@ -48,7 +48,7 @@ In this example, a set of four values is emitted using the following
 source code:
 .Bd  -literal -offset indent
     xo_emit(" {:lines/%7ju} {:words/%7ju} "
-            "{:characters/%7ju} {d:filename/%s}\n",
+            "{:characters/%7ju} {d:filename/%s}\\n",
             linect, wordct, charct, file);
 .Ed
 Output can then be generated in various style, using 
@@ -100,6 +100,8 @@ then the number of display columns consumed by the output will be returned.
 .Sh SEE ALSO
 .Xr xo_open_container 3 ,
 .Xr xo_open_list 3 ,
+.Xr xo_emit_f 3 ,
+.Xo xo_emit_field 3 ,
 .Xr xo_format 5 ,
 .Xr libxo 3
 .Sh HISTORY

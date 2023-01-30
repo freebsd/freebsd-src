@@ -1,0 +1,274 @@
+.\" #
+.\" # Copyright (c) 2021, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, May 2021
+.\" 
+.Dd May 13, 2021
+.Dt LIBXO-CSV 7
+.Os
+.Sh NAME
+.Nm --libxo encoder=csv[+options]
+.Nd a CVS encoder for libxo\-based commands
+.Sh DESCRIPTION
+The
+.Nm libxo
+library supports a "pluggable" encoder mechanism, and ships with an
+encoder for CSV (comma separated values) files.  The encoder allows
+paths and fields to be selected out of the output contents:
+.Bd -literal -offset indent
+  % df --libxo @csv
+  name,total-blocks,used-blocks,available-blocks,used-percent,mounted-on
+  zroot/ROOT/default,3825984331,29376725,3796607605,1,/
+  devfs,1,1,0,100,/dev
+  zroot/usr/home,3808301289,11693684,3796607605,0,/usr/home
+  zroot/var/audit,3796607806,201,3796607605,0,/var/audit
+  ...
+  % df --libxo @csv+leafs=name.used-percent
+  name,used-percent
+  zroot/ROOT/default,1
+  devfs,100
+  zroot/usr/home,0
+  zroot/var/audit,0
+  ...
+  % df --libxo @csv+leafs=available-blocks+no-header /
+  3796607605
+.Ed
+ contains software to generate four "built-in"
+formats: text, XML, JSON, and HTML.
+These formats are common and useful, but there are other common and
+useful formats that users will want, and including them all in the
+libxo software would be difficult and cumbersome.
+.Pp
+To allow support for additional encodings, libxo includes a
+"pluggable" extension mechanism for dynamically loading new encoders.
+.Nm libxo -based
+applications can automatically use any installed encoder.
+.Pp
+Use the "encoder=XXX" option to access encoders.  The following
+example uses the "cbor" encoder, saving the output into a file:
+.Bd -literal -offset indent
+  df --libxo encoder=cbor > df-output.cbor
+.Ed
+.Pp
+Encoders can support specific options that can be accessed by
+following the encoder name with a colon (':') or a plus sign ('+') and
+one of more options, separated by the same character:
+.Bd -literal -offset indent
+  df --libxo encoder=csv+path=filesystem+leaf=name+no-header
+  df --libxo encoder=csv:path=filesystem:leaf=name:no-header
+.Ed
+.Pp
+These examples instructs libxo to load the "csv" encoder and pass the
+following options:
+.Bd -literal -offset indent
+ path=filesystem
+ leaf=name
+ no-header
+.Ed
+.Pp
+Each of these option is interpreted by the encoder, and all such
+options names and semantics are specific to the particular encoder.
+Refer to the intended encoder for documentation on its options.
+.Pp
+The string "@" can be used in place of the string "encoder=".
+.Bd -literal -offset indent
+  df --libxo @csv:no-header
+.Ed
+.Sh The CSV (Comma Separated Values) Encoder
+.Nm libxo
+ships with a custom encoder for "CSV" files, a common format for
+comma separated values.  The output of the CSV encoder can be loaded
+directly into spreadsheets or similar applications.
+.Pp
+A standard for CSV files is provided in RFC 4180, but since the
+format predates that standard by decades, there are many minor
+differences in CSV file consumers and their expectations.  The CSV
+encoder has a number of options to tailor output to those
+expectations.
+.Pp
+Consider the following XML:
+.Bd -literal -offset indent
+  % list-items --libxo xml,pretty
+  <top>
+    <data test="value">
+      <item test2="value2">
+        <sku test3="value3" key="key">GRO-000-415</sku>
+        <name key="key">gum</name>
+        <sold>1412</sold>
+        <in-stock>54</in-stock>
+        <on-order>10</on-order>
+      </item>
+      <item>
+        <sku test3="value3" key="key">HRD-000-212</sku>
+        <name key="key">rope</name>
+        <sold>85</sold>
+        <in-stock>4</in-stock>
+        <on-order>2</on-order>
+      </item>
+      <item>
+        <sku test3="value3" key="key">HRD-000-517</sku>
+        <name key="key">ladder</name>
+        <sold>0</sold>
+        <in-stock>2</in-stock>
+        <on-order>1</on-order>
+      </item>
+    </data>
+  </top>
+.Ed
+.Pp
+This output is a list of `instances` (named "item"), each containing a
+set of `leafs` ("sku", "name", etc).
+.Pp
+The CSV encoder will emit the leaf values in this output as `fields`
+inside a CSV `record`, which is a line containing a set of
+comma-separated values:
+.Bd -literal -offset indent
+  % list-items --libxo encoder=csv
+  sku,name,sold,in-stock,on-order
+  GRO-000-415,gum,1412,54,10
+  HRD-000-212,rope,85,4,2
+  HRD-000-517,ladder,0,2,1
+.Ed
+.Pp
+Be aware that since the CSV encoder looks for data instances, when
+used with
+.Nm xo ,
+the `--instance` option will be needed:
+.Bd -literal -offset indent
+  % xo --libxo encoder=csv --instance foo 'The {:product} is {:status}\n' stereo "in route"
+  product,status
+  stereo,in route
+.Ed
+.Sh The "path" Option
+By default, the CSV encoder will attempt to emit any list instance
+generated by the application.
+In some cases, this may be unacceptable, and a specific list may be
+desired.
+.Pp
+Use the "path" option to limit the processing of output to a specific
+hierarchy.  The path should be one or more names of containers or
+lists.
+.Pp
+For example, if the "list-items" application generates other lists,
+the user can give "path=top/data/item" as a path:
+.Bd -literal -offset indent
+  % list-items --libxo encoder=csv:path=top/data/item
+  sku,name,sold,in-stock,on-order
+  GRO-000-415,gum,1412,54,10
+  HRD-000-212,rope,85,4,2
+  HRD-000-517,ladder,0,2,1
+.Ed
+.Pp
+Paths are "relative", meaning they need not be a complete set
+of names to the list.  This means that "path=item" may be sufficient
+for the above example.
+.Sh The "leafs" Option
+The CSV encoding requires that all lines of output have the same
+number of fields with the same order.  In contrast, XML and JSON allow
+any order (though libxo forces key leafs to appear before other
+leafs).
+.Pp
+To maintain a consistent set of fields inside the CSV file, the same
+set of leafs must be selected from each list item.  By default, the
+CSV encoder records the set of leafs that appear in the first list
+instance it processes, and extract only those leafs from future
+instances.  If the first instance is missing a leaf that is desired by
+the consumer, the "leaf" option can be used to ensure that an empty
+value is recorded for instances that lack a particular leaf.
+.Pp
+The "leafs" option can also be used to exclude leafs, limiting the
+output to only those leafs provided.
+.Pp
+In addition, the order of the output fields follows the order in which
+the leafs are listed.  "leafs=one.two" and "leafs=two.one" give
+distinct output.
+.Pp
+So the "leafs" option can be used to expand, limit, and order the set
+of leafs.
+.Pp
+The value of the leafs option should be one or more leaf names,
+separated by a period ("."):
+.Bd -literal -offset indent
+  % list-items --libxo encoder=csv:leafs=sku.on-order
+  sku,on-order
+  GRO-000-415,10
+  HRD-000-212,2
+  HRD-000-517,1
+  % list-items -libxo encoder=csv:leafs=on-order.sku
+  on-order,sku
+  10,GRO-000-415
+  2,HRD-000-212
+  1,HRD-000-517
+.Ed
+.Pp
+Note that since libxo uses terminology from YANG (:RFC:`7950`), the
+data modeling language for NETCONF (:RFC:`6241`), which uses "leafs"
+as the plural form of "leaf".  libxo follows that convention.
+.Sh The "no-header" Option
+CSV files typical begin with a line that defines the fields included
+in that file, in an attempt to make the contents self-defining:
+.Bd -literal -offset indent
+  sku,name,sold,in-stock,on-order
+  GRO-000-415,gum,1412,54,10
+  HRD-000-212,rope,85,4,2
+  HRD-000-517,ladder,0,2,1
+.Ed
+.Pp
+There is no reliable mechanism for determining whether this header
+line is included, so the consumer must make an assumption.
+.Pp
+The csv encoder defaults to producing the header line, but the
+"no-header" option can be included to avoid the header line.
+.Sh The "no-quotes" Option
+RFC 4180 specifies that fields containing spaces should be quoted, but
+many CSV consumers do not handle quotes.  The "no-quotes" option
+instruct the CSV encoder to avoid the use of quotes.
+.Sh The "dos" Option
+RFC 4180 defines the end-of-line marker as a carriage return
+followed by a newline.  This "CRLF" convention dates from the distant
+past, but its use was anchored in the 1980s by the `DOS` operating
+system.
+.Pp
+The CSV encoder defaults to using the standard Unix end-of-line
+marker, a simple newline.  Use the "dos" option to use the `CRLF`
+convention.
+.Sh Option Handling
+The handling of command-line options is complex, since there are three
+hierarchies in use, but the rules are:
+.Bl -bullet
+.It
+commas separate
+.Nm libxo
+options
+.Bd -literal -ofset indent
+  \-\-libxo json,pretty,warn
+.Ed
+.It
+pluses separate encoder options
+.Bd -literal -ofset indent
+\-\-libxo @csv+dos+no-header,warn
+.Ed
+.It
+periods separate tag names
+.Bd -literal -ofset indent
+\-\-libxo @csv+leafs=name.used.free+dos,warn
+.El
+.Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_options 7
+.Sh HISTORY
+The
+.Nm libxo
+library first appeared in
+.Fx 11.0 .
+The CSV encoder first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.Nm libxo
+was written by
+.An Phil Shafer Aq Mt phil@freebsd.org .
+

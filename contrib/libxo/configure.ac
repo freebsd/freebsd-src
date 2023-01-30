@@ -11,8 +11,8 @@
 # a particular user has the dist or svn release.
 #
 
-AC_PREREQ(2.2)
-AC_INIT([libxo], [1.4.0], [phil@juniper.net])
+AC_PREREQ([2.69])
+AC_INIT([libxo],[1.6.0],[phil@juniper.net])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 
 # Support silent build rules.  Requires at least automake-1.11.
@@ -37,8 +37,6 @@ AC_PATH_PROG(MKDIR, mkdir, /bin/mkdir)
 AC_PATH_PROG(MV, mv, /bin/mv)
 AC_PATH_PROG(RM, rm, /bin/rm)
 AC_PATH_PROG(SED, sed, /bin/sed)
-
-AC_STDC_HEADERS
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -335,9 +333,10 @@ AM_CONDITIONAL([HAVE_LIBM], [test "$HAVE_LIBM" != "no"])
 AC_MSG_CHECKING([compiler for gcc])
 HAVE_GCC=no
 if test "${CC}" != ""; then
-    HAVE_GCC=`${CC} --version 2>&1 | grep GCC`
+    HAVE_GCC=`${CC} --version 2>&1 | grep -i GCC`
     if test "${HAVE_GCC}" != ""; then
         HAVE_GCC=yes
+	AC_DEFINE([HAVE_GCC], [1], [Using real gcc])
     else
         HAVE_GCC=no
     fi
@@ -450,6 +449,7 @@ AC_CONFIG_FILES([
   xohtml/xohtml.sh
   libxo/Makefile
   libxo/add.man
+  bin/Makefile
   encoder/Makefile
   encoder/cbor/Makefile
   encoder/csv/Makefile

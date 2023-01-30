@@ -1,4 +1,4 @@
-<top>
+<top-level>
   <type>ethernet</type>
   <type>bridge</type>
   <type>18u</type>
@@ -20,6 +20,7 @@
   <max-chaos>very</max-chaos>
   <min-chaos>42</min-chaos>
   <some-chaos>[42]</some-chaos>
+  <sku test-attr="attr-value">gum-000-1412</sku>
   <host>my-box</host>
   <domain>example.com</domain>
   <data test="value">
@@ -167,4 +168,4 @@
   <links>1</links>
   <user>user</user>
   <group>group</group>
-</top>
+</top-level>

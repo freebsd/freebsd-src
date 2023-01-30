@@ -1,0 +1,21 @@
+{
+  "employees": {
+    "employee": [
+      {
+        "first_name": "Terry",
+        "last_name": "Jones",
+        "department": 660
+      },
+      {
+        "first_name": "Leslie",
+        "last_name": "Patterson",
+        "department": 341
+      },
+      {
+        "first_name": "Ashley",
+        "last_name": "Smith",
+        "department": 1440
+      }
+    ]
+  }
+}

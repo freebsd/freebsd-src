@@ -77,7 +77,7 @@ close each instance of the list:
 
     for (ip = list; ip->i_title; ip++) {
         xo_open_instance("item");
-        xo_emit("{L:Item} '{:name/%s}':\n", ip->i_title);
+        xo_emit("{L:Item} '{:name/%s}':\\n", ip->i_title);
         xo_close_instance("item");
     }
 
@@ -91,7 +91,7 @@ generation of XML and JSON data.
         xo_open_list("user");
         for (i = 0; i < num_users; i++) {
             xo_open_instance("user");
-            xo_emit("{k:name}:{:uid/%u}:{:gid/%u}:{:home}\n",
+            xo_emit("{k:name}:{:uid/%u}:{:gid/%u}:{:home}\\n",
                     pw[i].pw_name, pw[i].pw_uid,
                     pw[i].pw_gid, pw[i].pw_dir);
             xo_close_instance("user");
@@ -138,7 +138,7 @@ To emit a leaf list, call the
 function using the ""l"" modifier:
 .Bd -literal -offset indent -compact
     for (ip = list; ip->i_title; ip++) {
-	xo_emit("{Lwc:Item}{l:item}\n", ip->i_title);
+	xo_emit("{Lwc:Item}{l:item}\\n", ip->i_title);
     }
 .Ed
 .Pp

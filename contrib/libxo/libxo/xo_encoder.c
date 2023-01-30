@@ -206,6 +206,33 @@ xo_encoder_find (const char *name)
     return NULL;
 }
 
+/*
+ * Return the encoder function for a specific shared library.  This is
+ * really just a means of keeping the annoying gcc verbiage out of the
+ * main code.  And that's only need because gcc breaks dlfunc's
+ * promise that I can cast it's return value to a function: "The
+ * precise return type of dlfunc() is unspecified; applications must
+ * cast it to an appropriate function pointer type."
+ */
+static xo_encoder_init_func_t
+xo_encoder_func (void *dlp)
+{
+    xo_encoder_init_func_t func;
+
+#if defined(HAVE_GCC) && __GNUC__ > 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif /* HAVE_GCC */
+
+    func = (xo_encoder_init_func_t) dlfunc(dlp, XO_ENCODER_INIT_NAME);
+
+#if defined(HAVE_GCC) && __GNUC__ > 8
+#pragma GCC diagnostic pop	/* Restore previous setting */
+#endif /* HAVE_GCC */
+
+    return func;
+}
+
 static xo_encoder_node_t *
 xo_encoder_discover (const char *name)
 {
@@ -234,7 +261,7 @@ xo_encoder_discover (const char *name)
 	 */
 	xo_encoder_init_func_t func;
 
-	func = (xo_encoder_init_func_t) dlfunc(dlp, XO_ENCODER_INIT_NAME);
+	func = xo_encoder_func(dlp);
 	if (func) {
 	    xo_encoder_init_args_t xei;
 

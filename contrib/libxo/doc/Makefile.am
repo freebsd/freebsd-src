@@ -8,7 +8,7 @@
 # using the SOFTWARE, you agree to be bound by the terms of that
 # LICENSE.
 
-doc docs: xolint.rst html
+doc docs: xolint-errors.rst html
 
 #
 # The contents of xolint.rst is generated based on xolint.pl, since we
@@ -17,8 +17,8 @@ doc docs: xolint.rst html
 # the developer needs to commit any changes.
 #
 
-xolint.rst: ${top_srcdir}/xolint/xolint.pl
-	perl ${top_srcdir}/xolint/xolint.pl -D > ${top_srcdir}/doc/xolint.rst
+xolint-errors.rst: ${top_srcdir}/xolint/xolint.pl
+	perl ${top_srcdir}/xolint/xolint.pl -D > ${top_srcdir}/doc/xolint-errors.rst
 
 SPHINX = python3 -msphinx
 

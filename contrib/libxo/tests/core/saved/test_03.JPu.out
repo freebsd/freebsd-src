@@ -1,0 +1,33 @@
+{
+  "employees": {
+    "employee": [
+    ],
+    "extra": "",
+    "memory": [
+      {
+        "type": "name",
+        "in_use": 12345,
+        "memory_use": 54321,
+        "high_use": "-",
+        "requests": 32145
+      }
+    ],
+    "employee": [
+      {
+        "first_name": "Terry",
+        "last_name": "Jones",
+        "department": 660
+      },
+      {
+        "first_name": "Leslie",
+        "last_name": "Patterson",
+        "department": 341
+      },
+      {
+        "first_name": "Ashley",
+        "last_name": "Smith",
+        "department": 1440
+      }
+    ]
+  }
+}

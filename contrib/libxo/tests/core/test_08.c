@@ -115,11 +115,11 @@ main (int argc, char **argv)
 		ip->i_title, ip->i_count);
     }
 
-    xo_close_container("data3");	/* Should be a noop */
+    xo_close_container("data3");	/* warn: fails at marker 'm1' */
     xo_emit("{:test}", "one");
 
     xo_close_marker("m1");
-    xo_close_container("data3");	/* Should be a noop */
+    xo_close_container("data3");	/* this one works, post-marker */
 
     xo_emit("\n\n");
 
@@ -139,13 +139,13 @@ main (int argc, char **argv)
 	for (i = 0; i < 3; i++) {
 	    xo_open_instance("sub");
 	    xo_emit("{Lwc:/Name}{:name/%d} + 1 = {:next/%d}\n", i, i + 1);
-	    xo_close_container("data4");
+	    xo_close_container("data4"); /* warn: fails at marker 'm2' */
 	}
 	xo_close_marker("m2");
 	xo_emit("{Lwc:/Last}{:last/%d}\n", i);
     }
 
-    xo_close_container("data4");	/* Should be a noop */
+    xo_close_container("data4");	/* warn: fails at marker 'm1' */
     xo_emit("{:test}", "one");
 
     xo_emit("\n\n");

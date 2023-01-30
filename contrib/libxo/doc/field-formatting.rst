@@ -1,5 +1,6 @@
 
 .. index:: Field Formatting
+.. _field-formatting:
 
 Field Formatting
 ----------------
