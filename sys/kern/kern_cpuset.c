@@ -150,6 +150,8 @@ SYSCTL_UINT(_kern_sched, OID_AUTO, cpusetsizemin,
 cpuset_t *cpuset_root;
 cpuset_t cpuset_domain[MAXMEMDOM];
 
+static int cpuset_which2(cpuwhich_t *, id_t, struct proc **, struct thread **,
+    struct cpuset **);
 static int domainset_valid(const struct domainset *, const struct domainset *);
 
 /*
@@ -986,6 +988,20 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 	*pp = p;
 	*tdp = td;
 	return (0);
+}
+
+static int
+cpuset_which2(cpuwhich_t *which, id_t id, struct proc **pp, struct thread **tdp,
+    struct cpuset **setp)
+{
+
+	if (*which == CPU_WHICH_TIDPID) {
+		if (id == -1 || id > PID_MAX)
+			*which = CPU_WHICH_TID;
+		else
+			*which = CPU_WHICH_PID;
+	}
+	return (cpuset_which(*which, id, pp, tdp, setp));
 }
 
 static int
@@ -1902,6 +1918,7 @@ kern_cpuset_getid(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	switch (which) {
 	case CPU_WHICH_TID:
 	case CPU_WHICH_PID:
+	case CPU_WHICH_TIDPID:
 		thread_lock(ttd);
 		set = cpuset_refbase(ttd->td_cpuset);
 		thread_unlock(ttd);
@@ -1963,7 +1980,7 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	error = cpuset_check_capabilities(td, level, which, id);
 	if (error != 0)
 		return (error);
-	error = cpuset_which(which, id, &p, &ttd, &set);
+	error = cpuset_which2(&which, id, &p, &ttd, &set);
 	if (error != 0)
 		return (error);
 	switch (level) {
@@ -2000,19 +2017,6 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			thread_unlock(ttd);
 			break;
 		case CPU_WHICH_PID:
-			FOREACH_THREAD_IN_PROC(p, ttd) {
-				thread_lock(ttd);
-				CPU_OR(mask, mask, &ttd->td_cpuset->cs_mask);
-				thread_unlock(ttd);
-			}
-			break;
-		case CPU_WHICH_TIDPID:
-			if (id > PID_MAX || id == -1) {
-				thread_lock(ttd);
-				CPU_COPY(&ttd->td_cpuset->cs_mask, mask);
-				thread_unlock(ttd);
-				break;
-			}
 			FOREACH_THREAD_IN_PROC(p, ttd) {
 				thread_lock(ttd);
 				CPU_OR(mask, mask, &ttd->td_cpuset->cs_mask);
@@ -2138,6 +2142,7 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		switch (which) {
 		case CPU_WHICH_TID:
 		case CPU_WHICH_PID:
+		case CPU_WHICH_TIDPID:
 			thread_lock(ttd);
 			set = cpuset_ref(ttd->td_cpuset);
 			thread_unlock(ttd);
@@ -2283,7 +2288,7 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		return (error);
 	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
 	bzero(&outset, sizeof(outset));
-	error = cpuset_which(which, id, &p, &ttd, &set);
+	error = cpuset_which2(&which, id, &p, &ttd, &set);
 	if (error)
 		goto out;
 	switch (level) {
@@ -2475,6 +2480,7 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		switch (which) {
 		case CPU_WHICH_TID:
 		case CPU_WHICH_PID:
+		case CPU_WHICH_TIDPID:
 			thread_lock(ttd);
 			set = cpuset_ref(ttd->td_cpuset);
 			thread_unlock(ttd);
@@ -2505,6 +2511,13 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			break;
 		case CPU_WHICH_PID:
 			error = cpuset_setproc(id, NULL, NULL, &domain, false);
+			break;
+		case CPU_WHICH_TIDPID:
+			if (id > PID_MAX || id == -1)
+				error = _cpuset_setthread(id, NULL, &domain);
+			else
+				error = cpuset_setproc(id, NULL, NULL, &domain,
+				    false);
 			break;
 		case CPU_WHICH_CPUSET:
 		case CPU_WHICH_JAIL:
