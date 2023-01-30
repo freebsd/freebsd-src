@@ -51,24 +51,32 @@ endif
 
 EXTRA_DIST = \
     ${TEST_CASES} \
-    ${addprefix saved/, ${TEST_CASES:.c=.T.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.T.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.XP.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.XP.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.JP.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.JP.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.HP.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.HP.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.X.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.X.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.J.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.J.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.E.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.E.out}} \
     ${addprefix saved/, ${TEST_CASES:.c=.H.err}} \
     ${addprefix saved/, ${TEST_CASES:.c=.H.out}} \
     ${addprefix saved/, ${TEST_CASES:.c=.HIPx.err}} \
     ${addprefix saved/, ${TEST_CASES:.c=.HIPx.out}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.E.err}} \
-    ${addprefix saved/, ${TEST_CASES:.c=.E.out}}
+    ${addprefix saved/, ${TEST_CASES:.c=.HP.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.HP.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.J.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.J.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JP.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JP.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JPu.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.JPu.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.T.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.T.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.X.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.X.out}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.XP.err}} \
+    ${addprefix saved/, ${TEST_CASES:.c=.XP.out}} \
+    ${addprefix saved/, test_01.Ecsv1.out} \
+    ${addprefix saved/, test_01.Ecsv1.err} \
+    ${addprefix saved/, test_01.Ecsv2.out} \
+    ${addprefix saved/, test_01.Ecsv2.err} \
+    ${addprefix saved/, test_01.Ecsv3.out} \
+    ${addprefix saved/, test_01.Ecsv3.err}
 
 S2O = | ${SED} '1,/@@/d'
 
@@ -91,7 +99,7 @@ echo "... $$test ... $$fmt ..."; \
 xoopts==warn,$$csv ; \
 ${TEST_JIG}; true;
 
-TEST_FORMATS = T XP JP HP X J H HIPx
+TEST_FORMATS = T XP JP JPu HP X J H HIPx
 
 test tests: ${bin_PROGRAMS}
 	@${MKDIR} -p out
@@ -113,7 +121,7 @@ test tests: ${bin_PROGRAMS}
 	-@ (${TEST_TRACE} test=test_01.c; base=test_01; \
 	    (   fmt=Ecsv1; csv=encoder=csv ; \
 			${TEST_JIG2} ); \
-	    (   fmt=Ecsv2; csv=encoder=csv:path=top/data/item:no-header ; \
+	    (   fmt=Ecsv2; csv=encoder=csv:path=top-level/data/item:no-header ; \
 			${TEST_JIG2} ); \
 	    (   fmt=Ecsv3; csv=@csv:path=item:leafs=sku.sold:no-quotes ; \
 			${TEST_JIG2} ); \

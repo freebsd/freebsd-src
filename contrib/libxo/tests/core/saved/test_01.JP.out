@@ -1,5 +1,5 @@
 {
-  "top": {
+  "top-level": {
     "type": "ethernet",
     "type": "bridge",
     "type": "18u",
@@ -21,6 +21,9 @@
     "max-chaos": "very",
     "min-chaos": 42,
     "some-chaos": "[42]",
+    "sku": [
+      "gum-000-1412"
+    ],
     "host": "my-box",
     "domain": "example.com",
     "data": {
