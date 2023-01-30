@@ -745,6 +745,9 @@ main(int argc, char **argv)
 	struct target *targ;
 
 	argc = xo_parse_args(argc, argv);
+        if (argc < 0)
+                exit(1);
+
 	xo_open_container("iscsictl");
 
 	while ((ch = getopt(argc, argv, "AMRLac:d:e:i:n:p:rt:u:s:vw:")) != -1) {
