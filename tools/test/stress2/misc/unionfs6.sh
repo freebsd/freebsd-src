@@ -57,6 +57,10 @@ mount -t unionfs -o noatime $mp1 $mp2
 set +e
 mount | grep -E "$mp1|$mp2"
 
+set `df -ik $mp2 | tail -1 | awk '{print $4,$7}'`
+export KBLOCKS=$(($1 / 4))
+export INODES=$(($2 / 4))
+
 export CTRLDIR=$mp2/stressX.control
 export INCARNATIONS=10
 export LOAD=80
