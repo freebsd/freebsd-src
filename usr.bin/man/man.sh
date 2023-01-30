@@ -897,6 +897,7 @@ setup_cattool() {
 	*.gz)	cattool='/usr/bin/zcat' ;;
 	*.lzma)	cattool='/usr/bin/lzcat' ;;
 	*.xz)	cattool='/usr/bin/xzcat' ;;
+	*.zst)	cattool='/usr/bin/zstdcat' ;;
 	*)	cattool='/usr/bin/zcat -f' ;;
 	esac
 }
