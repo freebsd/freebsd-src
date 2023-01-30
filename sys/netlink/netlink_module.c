@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 MALLOC_DEFINE(M_NETLINK, "netlink", "Memory used for netlink packets");
+FEATURE(netlink, "Netlink support");
 
 #define	DEBUG_MOD_NAME	nl_mod
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
@@ -156,7 +157,7 @@ netlink_register_proto(int proto, const char *proto_name, nl_handler_f handler)
 	nl_handlers[proto].cb = handler;
 	nl_handlers[proto].proto_name = proto_name;
 	NL_GLOBAL_UNLOCK();
-	NL_LOG(LOG_DEBUG, "Registered netlink %s(%d) handler", proto_name, proto);
+	NL_LOG(LOG_DEBUG2, "Registered netlink %s(%d) handler", proto_name, proto);
 	return (true);
 }
 
@@ -170,7 +171,7 @@ netlink_unregister_proto(int proto)
 	nl_handlers[proto].cb = NULL;
 	nl_handlers[proto].proto_name = NULL;
 	NL_GLOBAL_UNLOCK();
-	NL_LOG(LOG_DEBUG, "Unregistered netlink proto %d handler", proto);
+	NL_LOG(LOG_DEBUG2, "Unregistered netlink proto %d handler", proto);
 	return (true);
 }
 
@@ -203,12 +204,11 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 
 	switch (what) {
 	case MOD_LOAD:
-		NL_LOG(LOG_DEBUG, "Loading");
-		NL_LOG(LOG_NOTICE, "netlink support is in BETA stage");
+		NL_LOG(LOG_DEBUG2, "Loading");
 		break;
 
 	case MOD_UNLOAD:
-		NL_LOG(LOG_DEBUG, "Unload called");
+		NL_LOG(LOG_DEBUG2, "Unload called");
 		if (can_unload()) {
 			NL_LOG(LOG_WARNING, "unloading");
 			netlink_unloading = 1;
