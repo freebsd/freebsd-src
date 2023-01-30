@@ -117,7 +117,7 @@ struct domain {
 
 static SLIST_HEAD(, domain) domhead;
 
-#define	DRHD_MAX_UNITS	8
+#define	DRHD_MAX_UNITS	16
 static ACPI_DMAR_HARDWARE_UNIT	*drhds[DRHD_MAX_UNITS];
 static int			drhd_num;
 static struct vtdmap		*vtdmaps[DRHD_MAX_UNITS];
