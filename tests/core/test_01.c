@@ -114,8 +114,6 @@ main (int argc, char **argv)
     xo_attr("test-attr", "attr-value");
     xo_emit_field_h(NULL, ",leaf-list,quotes", "sku", "%s-%u", "%s-000-%u",
 		    "gum", 1412);
-    xo_emit_field_h(NULL, ",leaf-list,quotes", "sku", "%s-%u", "%s-000-%u",
-		    "sum", 4121);
 
     xo_emit("Connecting to {:host}.{:domain}...\n", "my-box", "example.com");
 
@@ -256,14 +254,6 @@ main (int argc, char **argv)
 	    "{t:user/%-*s}  {t:group/%-*s}  \n",
 	    "/some/file", (int) 0640, 8, 1,
 	    10, "user", 12, "group");
-
-    /* Test retain flag for dynamic data */
-    xo_set_flags(NULL, XOF_RETAIN_ALL);
-    char buf[] = "Testing...{:one/%d}...{:two/%d}...{:three/%d}\n";
-    xo_emit(buf, 1, 2, 3);
-    xo_emit(buf, 1, 2, 3);
-    buf[0] = 'X';
-    xo_emit(buf, 1, 2, 3);
 
     xo_close_container_h(NULL, "top-level");
 

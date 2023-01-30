@@ -24,7 +24,6 @@ main (int argc, char **argv)
     int mon = 0;
     xo_emit_flags_t flags = XOEF_RETAIN;
     int opt_color = 1;
-    const char *map = NULL;
 
     xo_set_program("test_12");
 
@@ -51,17 +50,11 @@ main (int argc, char **argv)
 	    xo_set_flags(NULL, XOF_INFO);
 	else if (xo_streq(argv[argc], "no-retain"))
 	    flags &= ~XOEF_RETAIN;
-	else if (xo_streq(argv[argc], "map")) {
-	    if (argv[argc + 1])
-		map = argv[++argc];
-	} else if (xo_streq(argv[argc], "big")) {
+	else if (xo_streq(argv[argc], "big")) {
 	    if (argv[argc + 1])
 		count = atoi(argv[++argc]);
 	}
     }
-
-    if (map)
-	xo_map_add_file(NULL, map);
 
     xo_set_flags(NULL, XOF_UNITS); /* Always test w/ this */
     if (opt_color)
@@ -88,16 +81,10 @@ main (int argc, char **argv)
 	xo_emit_f(flags, fmt2, "left", "blue", "blue", 3, 45);
     }
 
-    xo_close_list("thing");
-
     xo_open_container("2by4");
     xo_emit("There is {:4x4} in {:2morrow}\n", "truck", "tomorrow");
     xo_close_container("2by4");
 
-
-    xo_open_container("tagÜÖÄ");
-    xo_emit("The {:cölor} is {:säfe}\n", "blue", "yes");
-    xo_close_container("tagÜÖÄ");
 
     xo_close_container("data");
     xo_close_container_h(NULL, "top");

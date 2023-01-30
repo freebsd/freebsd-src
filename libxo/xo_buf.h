@@ -135,49 +135,29 @@ xo_buf_has_room (xo_buffer_t *xbp, ssize_t len)
 /*
  * Append the given string to the given buffer
  */
-static inline char *
-xo_buf_append_val (xo_buffer_t *xbp, const char *str, ssize_t len)
-{
-    if (str == NULL || len == 0 || !xo_buf_has_room(xbp, len))
-	return NULL;
-
-    char *val = xbp->xb_curp;	/* The "new" value */
-
-    memcpy(xbp->xb_curp, str, len);
-    xbp->xb_curp += len;
-
-    return val;
-}
-
 static inline void
 xo_buf_append (xo_buffer_t *xbp, const char *str, ssize_t len)
 {
-    (void) xo_buf_append_val(xbp, str, len);
+    if (str == NULL || len == 0 || !xo_buf_has_room(xbp, len))
+	return;
+
+    memcpy(xbp->xb_curp, str, len);
+    xbp->xb_curp += len;
 }
 
 /*
  * Append the given NUL-terminated string to the given buffer
  */
-static inline char *
-xo_buf_append_str_val (xo_buffer_t *xbp, const char *str)
+static inline void
+xo_buf_append_str (xo_buffer_t *xbp, const char *str)
 {
     ssize_t len = strlen(str);
 
     if (!xo_buf_has_room(xbp, len))
-	return NULL;
-
-    char *val = xbp->xb_curp;	/* The "new" value */
+	return;
 
     memcpy(xbp->xb_curp, str, len);
     xbp->xb_curp += len;
-
-    return val;
-}
-
-static inline void
-xo_buf_append_str (xo_buffer_t *xbp, const char *str)
-{
-    (void) xo_buf_append_str_val(xbp, str);
 }
 
 #endif /* XO_BUF_H */

@@ -58,7 +58,6 @@
   <div class="data" data-tag="some-chaos" data-xpath="/top-level/some-chaos">42
 </div>
   <div class="data" data-tag="sku" data-xpath="/top-level/sku" data-type="string" data-help="Stock Keeping Unit">gum-1412</div>
-  <div class="data" data-tag="sku" data-xpath="/top-level/sku" data-type="string" data-help="Stock Keeping Unit">sum-4121</div>
   <div class="text">Connecting to </div>
   <div class="data" data-tag="host" data-xpath="/top-level/host">my-box</div>
   <div class="text">.</div>
@@ -435,28 +434,4 @@
   <div class="text">  </div>
   <div class="data" data-tag="group" data-xpath="/top-level/group">group       </div>
   <div class="text">  </div>
-</div>
-<div class="line">
-  <div class="text">Testing...</div>
-  <div class="data" data-tag="one" data-xpath="/top-level/one">1</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="two" data-xpath="/top-level/two">2</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="three" data-xpath="/top-level/three">3</div>
-</div>
-<div class="line">
-  <div class="text">Testing...</div>
-  <div class="data" data-tag="one" data-xpath="/top-level/one">1</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="two" data-xpath="/top-level/two">2</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="three" data-xpath="/top-level/three">3</div>
-</div>
-<div class="line">
-  <div class="text">Xesting...</div>
-  <div class="data" data-tag="one" data-xpath="/top-level/one">1</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="two" data-xpath="/top-level/two">2</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="three" data-xpath="/top-level/three">3</div>
 </div>

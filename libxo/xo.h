@@ -106,7 +106,6 @@ typedef unsigned long long xo_xof_flags_t;
 
 typedef unsigned xo_emit_flags_t; /* Flags to xo_emit() and friends */
 #define XOEF_RETAIN	(1<<0)	  /* Retain parsed formatting information */
-#define XOEF_NO_RETAIN	(1<<1)	  /* Format must not be retained (dynamic) */
 
 /*
  * The xo_info_t structure provides a mapping between names and
@@ -209,9 +208,6 @@ xo_emit_h (xo_handle_t *xop, const char *fmt, ...);
 
 xo_ssize_t
 xo_emit (const char *fmt, ...);
-
-xo_ssize_t
-xo_emitr (const char *fmt, ...);
 
 xo_ssize_t
 xo_emit_hvf (xo_handle_t *xop, xo_emit_flags_t flags,
@@ -685,23 +681,12 @@ xo_simplify_format (xo_handle_t *xop, const char *fmt, int with_numbers,
 		    xo_simplify_field_func_t field_cb);
 
 xo_ssize_t
-xo_emit_field_hvf (xo_handle_t *xop, xo_emit_flags_t flags,
-		   const char *rolmod, const char *contents,
-		   const char *fmt, const char *efmt,
-		   va_list vap);
-
-xo_ssize_t
 xo_emit_field_hv (xo_handle_t *xop, const char *rolmod, const char *contents,
 		  const char *fmt, const char *efmt,
 		  va_list vap);
 
 xo_ssize_t
 xo_emit_field_h (xo_handle_t *xop, const char *rolmod, const char *contents,
-		 const char *fmt, const char *efmt, ...);
-
-xo_ssize_t
-xo_emit_field_f (xo_emit_flags_t flags, const char *rolmod,
-		 const char *contents,
 		 const char *fmt, const char *efmt, ...);
 
 xo_ssize_t
@@ -713,15 +698,5 @@ xo_retain_clear_all (void);
 
 void
 xo_retain_clear (const char *fmt);
-
-unsigned long
-xo_retain_get_hits (void);
-
-int
-xo_map_add (xo_handle_t *xop, const char *from, size_t flen,
-	    const char *to, size_t tlen);
-
-int
-xo_map_add_file (xo_handle_t *xop, const char *fname);
 
 #endif /* INCLUDE_XO_H */

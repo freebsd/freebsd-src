@@ -23,8 +23,6 @@
 .Fn xo_emit_h "xo_handle_t *xop" "const char *fmt" "..."
 .Ft xo_ssize_t
 .Fn xo_emit_hv "xo_handle_t *xop" "const char *fmt" "va_list vap"
-.Ft xo_ssize_t
-.Fn xo_emitr "const char *fmt"  "..."
 .Sh DESCRIPTION
 The
 .Fn xo_emit
@@ -92,33 +90,6 @@ the "--libxo" option:
       <div class="data" data-tag="filename">/etc/motd</div>
     </div>
 .Ed
-.Sh Retaining Formatting Information for Constant Strings
-.Pp
-The
-.Nm libxo
-library can cache the compiled internal version of the format for
-circumstances when the format will be used repeatedly, such as a loop.
-This cannot be used when the format string is in a dynamic buffer,
-since the cache retains a reference to the static format string,
-typically a static compile-time constant value.
-.Pp
-Typically static strings are placed in an executable's ".text" segment,
-so
-.Nm libxo
-knows that the formatting information in such static strings can be
-cached (retained), but shared libraries will have their own ".text"
-segment, so without the XOEF_RETAIN flag,
-.Nm libxo
-cannot presume to retain formatting information.
-If a caller in shared library code want their formats retained, they
-need to pass the XOEF_RETAIN flag.
-.Pp
-The
-.Fn xo_emitr
-function is a convenience function that passes the XOEF_RETAIN
-flag to
-.Fn xo_emit_hvf ,
-and can be used in shared libraries when the format string is static.
 .Sh RETURN CODE
 .Nm
 returns a negative value on error.  If the

@@ -37,6 +37,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
 #include <sys/types.h>
 #include <assert.h>
 #include <stdio.h>

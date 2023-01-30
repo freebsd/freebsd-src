@@ -139,8 +139,7 @@ used with
 .Nm xo ,
 the `--instance` option will be needed:
 .Bd -literal -offset indent
-  % xo --libxo encoder=csv --instance foo \\
-            'The {:product} is {:status}\\n' stereo "in route"
+  % xo --libxo encoder=csv --instance foo 'The {:product} is {:status}\n' stereo "in route"
   product,status
   stereo,in route
 .Ed

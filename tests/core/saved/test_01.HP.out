@@ -58,7 +58,6 @@
   <div class="data" data-tag="some-chaos">42
 </div>
   <div class="data" data-tag="sku">gum-1412</div>
-  <div class="data" data-tag="sku">sum-4121</div>
   <div class="text">Connecting to </div>
   <div class="data" data-tag="host">my-box</div>
   <div class="text">.</div>
@@ -435,28 +434,4 @@
   <div class="text">  </div>
   <div class="data" data-tag="group">group       </div>
   <div class="text">  </div>
-</div>
-<div class="line">
-  <div class="text">Testing...</div>
-  <div class="data" data-tag="one">1</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="two">2</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="three">3</div>
-</div>
-<div class="line">
-  <div class="text">Testing...</div>
-  <div class="data" data-tag="one">1</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="two">2</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="three">3</div>
-</div>
-<div class="line">
-  <div class="text">Xesting...</div>
-  <div class="data" data-tag="one">1</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="two">2</div>
-  <div class="text">...</div>
-  <div class="data" data-tag="three">3</div>
 </div>

@@ -82,8 +82,7 @@ AC_CHECK_LIB([util], [humanize_number],
      [HAVE_HUMANIZE_NUMBER=$ac_cv_header_libutil_h],
      [HAVE_HUMANIZE_NUMBER=no])
 
-AC_MSG_CHECKING([humanize_number results])
-AC_MSG_RESULT(:${HAVE_HUMANIZE_NUMBER}:${ac_cv_header_libutil_h}:)
+AC_MSG_RESULT(humanize_number results: :${HAVE_HUMANIZE_NUMBER}:${ac_cv_header_libutil_h}:)
 
 if test "$HAVE_HUMANIZE_NUMBER" = "yes"; then
     AC_DEFINE([HAVE_HUMANIZE_NUMBER], [1], [humanize_number(3)])
@@ -176,25 +175,6 @@ fi
 AC_SUBST(GETTEXT_BINDIR)
 
 AM_CONDITIONAL([HAVE_GETTEXT], [test "$HAVE_GETTEXT" = "yes"])
-
-dnl on macosx, strings are not in the .text segment, making the call
-dnl to get_etext pointless
-AC_MSG_CHECKING([style of etext])
-AC_LINK_IFELSE([AC_LANG_SOURCE([
-    [#include <stdio.h>]
-    [extern char etext;]
-    [int main() { const char *p = &etext; printf("%p\n", p); return 0; }]])],
-    [HAVE_ETEXT=1 ; HAVE_ETEXT_STYLE="symbol"],
-    AC_LINK_IFELSE([AC_LANG_SOURCE([
-	[#include <stdio.h>]
-	[#include <mach-o/getsect.h>]
-	[int main() { const char *p = (const char *) get_etext(); printf("%p\n", p); return 0; }]])],
-        [HAVE_ETEXT=2 ; HAVE_ETEXT_STYLE="function"],
-	[HAVE_ETEXT=0 ; HAVE_ETEXT_STYLE="none"]
-    )
-)
-AC_MSG_RESULT(${HAVE_ETEXT_STYLE})
-AC_DEFINE_UNQUOTED([HAVE_ETEXT], [$HAVE_ETEXT], [Style of etext])
 
 dnl Looking for how to do thread-local variables
 AC_ARG_WITH(threads,
@@ -517,5 +497,4 @@ AC_MSG_NOTICE([summary of build options:
   thread-local:     ${THREAD_LOCAL:-no}
   local wcwidth:    ${LIBXO_WCWIDTH:-no}
   retain size:      ${XO_RETAIN_SIZE:-no}
-  have etext:       ${HAVE_ETEXT:-no} (${HAVE_ETEXT_STYLE})
 ])

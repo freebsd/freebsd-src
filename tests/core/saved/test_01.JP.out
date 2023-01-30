@@ -22,8 +22,7 @@
     "min-chaos": 42,
     "some-chaos": "[42]",
     "sku": [
-      "gum-000-1412",
-      "sum-000-4121"
+      "gum-000-1412"
     ],
     "host": "my-box",
     "domain": "example.com",
@@ -181,15 +180,6 @@
     "mode_octal": 640,
     "links": 1,
     "user": "user",
-    "group": "group",
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "one": 1,
-    "two": 2,
-    "three": 3
+    "group": "group"
   }
 }
