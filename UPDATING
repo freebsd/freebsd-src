@@ -31,6 +31,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	As of commit 7c40e2d5f685, the dependency on netlink(4) has been added
 	to the linux_common(4) module. Users relying on linux_common may need
 	to complile netlink(4) module if it is not present in their kernel.
+
 20230126:
 	The WITHOUT_CXX option has been removed. C++ components in the base
 	system are now built unconditionally.
