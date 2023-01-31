@@ -2394,7 +2394,6 @@ static __inline void
 ieee80211_resume_disconnect(struct ieee80211_vif *vif)
 {
         TODO();
-        return;
 }
 
 static __inline int
@@ -2410,7 +2409,6 @@ ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *key,
     uint32_t iv32, uint16_t *p1k)
 {
         TODO();
-        return;
 }
 
 static __inline struct ieee80211_key_conf *
@@ -2426,14 +2424,12 @@ ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const uint8_t *bssid,
     const uint8_t *replay_ctr, gfp_t gfp)
 {
         TODO();
-        return;
 }
 
 static __inline void
 ieee80211_remove_key(struct ieee80211_key_conf *key)
 {
         TODO();
-        return;
 }
 
 static __inline void
@@ -2441,7 +2437,6 @@ ieee80211_set_key_rx_seq(struct ieee80211_key_conf *key, int tid,
     struct ieee80211_key_seq *seq)
 {
         TODO();
-        return;
 }
 
 static __inline void
@@ -2449,7 +2444,6 @@ ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
     struct cfg80211_wowlan_wakeup *wakeup, gfp_t gfp)
 {
         TODO();
-        return;
 }
 
 static __inline void
