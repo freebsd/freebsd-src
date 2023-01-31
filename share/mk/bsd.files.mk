@@ -39,7 +39,7 @@ ${group}DIR?=	BINDIR
 STAGE_SETS+=	${group:C,[/*],_,g}
 
 .if ${group} == "FILES"
-FILESPACKAGE=	${PACKAGE:Uutilities}
+FILESPACKAGE?=	${PACKAGE:Uutilities}
 .endif
 
 .if defined(NO_ROOT)
