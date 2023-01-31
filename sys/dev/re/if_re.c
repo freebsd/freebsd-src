@@ -273,17 +273,17 @@ static __inline void re_fixup_rx
 static int re_rxeof		(struct rl_softc *, int *);
 static void re_txeof		(struct rl_softc *);
 #ifdef DEVICE_POLLING
-static int re_poll		(if_t , enum poll_cmd, int);
-static int re_poll_locked	(if_t , enum poll_cmd, int);
+static int re_poll		(if_t, enum poll_cmd, int);
+static int re_poll_locked	(if_t, enum poll_cmd, int);
 #endif
 static int re_intr		(void *);
 static void re_intr_msi		(void *);
 static void re_tick		(void *);
 static void re_int_task		(void *, int);
-static void re_start		(if_t );
-static void re_start_locked	(if_t );
+static void re_start		(if_t);
+static void re_start_locked	(if_t);
 static void re_start_tx		(struct rl_softc *);
-static int re_ioctl		(if_t , u_long, caddr_t);
+static int re_ioctl		(if_t, u_long, caddr_t);
 static void re_init		(void *);
 static void re_init_locked	(struct rl_softc *);
 static void re_stop		(struct rl_softc *);
@@ -291,8 +291,8 @@ static void re_watchdog		(struct rl_softc *);
 static int re_suspend		(device_t);
 static int re_resume		(device_t);
 static int re_shutdown		(device_t);
-static int re_ifmedia_upd	(if_t );
-static void re_ifmedia_sts	(if_t , struct ifmediareq *);
+static int re_ifmedia_upd	(if_t);
+static void re_ifmedia_sts	(if_t, struct ifmediareq *);
 
 static void re_eeprom_putbyte	(struct rl_softc *, int);
 static void re_eeprom_getword	(struct rl_softc *, int, u_int16_t *);
