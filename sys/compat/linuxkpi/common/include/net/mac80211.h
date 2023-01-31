@@ -1030,6 +1030,14 @@ struct sk_buff *linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *,
 void linuxkpi_ieee80211_tx_status(struct ieee80211_hw *, struct sk_buff *);
 void linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *,
     struct ieee80211_tx_status *);
+void linuxkpi_ieee80211_stop_queues(struct ieee80211_hw *);
+void linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *);
+void linuxkpi_ieee80211_stop_queue(struct ieee80211_hw *, int);
+void linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *, int);
+void linuxkpi_ieee80211_txq_schedule_start(struct ieee80211_hw *, uint8_t);
+struct ieee80211_txq *linuxkpi_ieee80211_next_txq(struct ieee80211_hw *, uint8_t);
+void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *,
+    struct ieee80211_txq *, bool);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1504,6 +1512,63 @@ ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 /* -------------------------------------------------------------------------- */
 
+static inline void
+ieee80211_stop_queues(struct ieee80211_hw *hw)
+{
+	linuxkpi_ieee80211_stop_queues(hw);
+}
+
+static inline void
+ieee80211_wake_queues(struct ieee80211_hw *hw)
+{
+	linuxkpi_ieee80211_wake_queues(hw);
+}
+
+static inline void
+ieee80211_stop_queue(struct ieee80211_hw *hw, int qnum)
+{
+	linuxkpi_ieee80211_stop_queue(hw, qnum);
+}
+
+static inline void
+ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
+{
+	linuxkpi_ieee80211_wake_queue(hw, qnum);
+}
+
+static inline void
+ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+{
+	linuxkpi_ieee80211_schedule_txq(hw, txq, true);
+}
+
+static inline void
+ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
+    bool withoutpkts)
+{
+	linuxkpi_ieee80211_schedule_txq(hw, txq, true);
+}
+
+static inline void
+ieee80211_txq_schedule_start(struct ieee80211_hw *hw, uint8_t ac)
+{
+	linuxkpi_ieee80211_txq_schedule_start(hw, ac);
+}
+
+static inline void
+ieee80211_txq_schedule_end(struct ieee80211_hw *hw, uint8_t ac)
+{
+	/* DO_NADA; */
+}
+
+static inline struct ieee80211_txq *
+ieee80211_next_txq(struct ieee80211_hw *hw, uint8_t ac)
+{
+	return (linuxkpi_ieee80211_next_txq(hw, ac));
+}
+
+/* -------------------------------------------------------------------------- */
+
 static __inline uint8_t
 ieee80211_get_tid(struct ieee80211_hdr *hdr)
 {
@@ -1816,18 +1881,6 @@ ieee80211_tdls_oper_request(struct ieee80211_vif *vif, uint8_t *addr,
 }
 
 static __inline void
-ieee80211_stop_queues(struct ieee80211_hw *hw)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_wake_queues(struct ieee80211_hw *hw)
-{
-	TODO();
-}
-
-static __inline void
 wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool state)
 {
 	TODO();
@@ -2114,18 +2167,6 @@ ieee80211_queue_work(struct ieee80211_hw *hw, struct work_struct *w)
 }
 
 static __inline void
-ieee80211_stop_queue(struct ieee80211_hw *hw, uint16_t q)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_wake_queue(struct ieee80211_hw *hw, uint16_t q)
-{
-	TODO();
-}
-
-static __inline void
 ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 
@@ -2254,41 +2295,6 @@ ieee80211_sta_register_airtime(struct ieee80211_sta *sta,
 {
 	TODO();
 }
-
-
-static __inline void
-ieee80211_txq_schedule_start(struct ieee80211_hw *hw, uint8_t ac)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_txq_schedule_end(struct ieee80211_hw *hw, uint8_t ac)
-{
-	/* DO_NADA; */
-}
-
-static __inline struct ieee80211_txq *
-ieee80211_next_txq(struct ieee80211_hw *hw, uint8_t ac)
-{
-
-	TODO();
-	return (NULL);
-}
-
-static __inline void
-ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
-    bool withoutpkts)
-{
-	TODO();
-}
-
 
 static __inline void
 ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter)
