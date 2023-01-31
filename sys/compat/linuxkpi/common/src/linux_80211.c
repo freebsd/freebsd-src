@@ -76,6 +76,12 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_LKPI80211, "lkpi80211", "LinuxKPI 80211 compat");
 
+/* XXX-BZ really want this and others in queue.h */
+#define	TAILQ_ELEM_INIT(elm, field) do {				\
+	(elm)->field.tqe_next = NULL;					\
+	(elm)->field.tqe_prev = NULL;					\
+} while (0)
+
 /* -------------------------------------------------------------------------- */
 
 /* Keep public for as long as header files are using it too. */
@@ -4616,6 +4622,220 @@ linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *vif)
 		    vif, vap, ieee80211_state_name[vap->iv_state]);
 #endif
 	ieee80211_beacon_miss(vap->iv_ic);
+}
+
+/* -------------------------------------------------------------------------- */
+
+void
+linuxkpi_ieee80211_stop_queue(struct ieee80211_hw *hw, int qnum)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	int ac_count, ac;
+
+	KASSERT(qnum < hw->queues, ("%s: qnum %d >= hw->queues %d, hw %p\n",
+	    __func__, qnum, hw->queues, hw));
+
+	lhw = wiphy_priv(hw->wiphy);
+
+	/* See lkpi_ic_vap_create(). */
+	if (hw->queues >= IEEE80211_NUM_ACS)
+		ac_count = IEEE80211_NUM_ACS;
+	else
+		ac_count = 1;
+
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
+	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
+
+		vif = LVIF_TO_VIF(lvif);
+		for (ac = 0; ac < ac_count; ac++) {
+			IMPROVE_TXQ("LOCKING");
+			if (qnum == vif->hw_queue[ac]) {
+				/*
+				 * For now log this to better understand
+				 * how this is supposed to work.
+				 */
+				if (lvif->hw_queue_stopped[ac])
+					ic_printf(lhw->ic, "%s:%d: lhw %p hw %p "
+					    "lvif %p vif %p ac %d qnum %d already "
+					    "stopped\n", __func__, __LINE__,
+					    lhw, hw, lvif, vif, ac, qnum);
+				lvif->hw_queue_stopped[ac] = true;
+			}
+		}
+	}
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
+}
+
+void
+linuxkpi_ieee80211_stop_queues(struct ieee80211_hw *hw)
+{
+	int i;
+
+	IMPROVE_TXQ("Locking; do we need further info?");
+	for (i = 0; i < hw->queues; i++)
+		linuxkpi_ieee80211_stop_queue(hw, i);
+}
+
+
+static void
+lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_vif *lvif;
+	struct lkpi_sta *lsta;
+	int ac_count, ac, tid;
+
+	/* See lkpi_ic_vap_create(). */
+	if (hw->queues >= IEEE80211_NUM_ACS)
+		ac_count = IEEE80211_NUM_ACS;
+	else
+		ac_count = 1;
+
+	lhw = wiphy_priv(hw->wiphy);
+
+	IMPROVE_TXQ("Locking");
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
+	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
+		struct ieee80211_vif *vif;
+
+		vif = LVIF_TO_VIF(lvif);
+		for (ac = 0; ac < ac_count; ac++) {
+
+			if (hwq == vif->hw_queue[ac]) {
+
+				/* XXX-BZ what about software scan? */
+
+				/*
+				 * For now log this to better understand
+				 * how this is supposed to work.
+				 */
+				if (!lvif->hw_queue_stopped[ac])
+					ic_printf(lhw->ic, "%s:%d: lhw %p hw %p "
+					    "lvif %p vif %p ac %d hw_q not stopped\n",
+					    __func__, __LINE__,
+					    lhw, hw, lvif, vif, ac);
+				lvif->hw_queue_stopped[ac] = false;
+
+				LKPI_80211_LVIF_LOCK(lvif);
+				TAILQ_FOREACH(lsta, &lvif->lsta_head, lsta_entry) {
+					struct ieee80211_sta *sta;
+
+					sta = LSTA_TO_STA(lsta);
+					for (tid = 0; tid < nitems(sta->txq); tid++) {
+						struct lkpi_txq *ltxq;
+
+						if (sta->txq[tid] == NULL)
+							continue;
+
+						if (sta->txq[tid]->ac != ac)
+							continue;
+
+						ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
+						if (!ltxq->stopped)
+							continue;
+
+						ltxq->stopped = false;
+
+						/* XXX-BZ see when this explodes with all the locking. taskq? */
+						lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+					}
+				}
+				LKPI_80211_LVIF_UNLOCK(lvif);
+			}
+		}
+	}
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
+}
+
+void
+linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
+{
+	int i;
+
+	IMPROVE_TXQ("Is this all/enough here?");
+	for (i = 0; i < hw->queues; i++)
+		lkpi_ieee80211_wake_queues(hw, i);
+}
+
+void
+linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
+{
+
+	KASSERT(qnum < hw->queues, ("%s: qnum %d >= hw->queues %d, hw %p\n",
+	    __func__, qnum, hw->queues, hw));
+
+	lkpi_ieee80211_wake_queues(hw, qnum);
+}
+
+/* This is just hardware queues. */
+void
+linuxkpi_ieee80211_txq_schedule_start(struct ieee80211_hw *hw, uint8_t ac)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+
+	IMPROVE_TXQ("Are there reasons why we wouldn't schedule?");
+	IMPROVE_TXQ("LOCKING");
+	if (++lhw->txq_generation[ac] == 0)
+		lhw->txq_generation[ac]++;
+}
+
+struct ieee80211_txq *
+linuxkpi_ieee80211_next_txq(struct ieee80211_hw *hw, uint8_t ac)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_txq *txq;
+	struct lkpi_txq *ltxq;
+
+	lhw = HW_TO_LHW(hw);
+	txq = NULL;
+
+	IMPROVE_TXQ("LOCKING");
+
+	/* Check that we are scheduled. */
+	if (lhw->txq_generation[ac] == 0)
+		goto out;
+
+	ltxq = TAILQ_FIRST(&lhw->scheduled_txqs[ac]);
+	if (ltxq == NULL)
+		goto out;
+	if (ltxq->txq_generation == lhw->txq_generation[ac])
+		goto out;
+
+	ltxq->txq_generation = lhw->txq_generation[ac];
+	TAILQ_REMOVE(&lhw->scheduled_txqs[ac], ltxq, txq_entry);
+	txq = &ltxq->txq;
+	TAILQ_ELEM_INIT(ltxq, txq_entry);
+
+out:
+	return (txq);
+}
+
+void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *hw,
+    struct ieee80211_txq *txq, bool withoutpkts)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_txq *ltxq;
+
+	ltxq = TXQ_TO_LTXQ(txq);
+
+	IMPROVE_TXQ("LOCKING");
+
+	/* Only schedule if work to do or asked to anyway. */
+	if (!withoutpkts && skb_queue_empty(&ltxq->skbq))
+		goto out;
+
+	/* Make sure we do not double-schedule. */
+	if (ltxq->txq_entry.tqe_next != NULL)
+		goto out;
+
+	lhw = HW_TO_LHW(hw);
+	TAILQ_INSERT_TAIL(&lhw->scheduled_txqs[txq->ac], ltxq, txq_entry);
+out:
+	return;
 }
 
 /* -------------------------------------------------------------------------- */
