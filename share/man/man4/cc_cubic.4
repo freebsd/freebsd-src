@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2022
+.Dd February 4, 2023
 .Dt CC_CUBIC 4
 .Os
 .Sh NAME
@@ -100,6 +100,11 @@ The
 .Nm
 congestion control module first appeared in
 .Fx 9.0 .
+.Pp
+This became the default congestion algorithm for FreeBSD in version
+.Fx 14.0 ,
+replacing
+.Xr cc_newreno 4 .
 .Pp
 The module was first released in 2009 by Lawrence Stewart whilst studying at
 Swinburne University of Technology's Centre for Advanced Internet Architectures,
