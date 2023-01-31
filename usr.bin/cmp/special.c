@@ -65,8 +65,10 @@ c_special(int fd1, const char *file1, off_t skip1,
 
 	if ((fp1 = fdopen(fd1, "r")) == NULL)
 		err(ERR_EXIT, "%s", file1);
+	(void)setvbuf(fp1, NULL, _IOFBF, 65536);
 	if ((fp2 = fdopen(fd2, "r")) == NULL)
 		err(ERR_EXIT, "%s", file2);
+	(void)setvbuf(fp2, NULL, _IOFBF, 65536);
 
 	dfound = 0;
 	while (skip1--)
