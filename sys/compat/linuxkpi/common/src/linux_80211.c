@@ -861,24 +861,24 @@ lkpi_wake_tx_queues(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	/* Wake up all queues to know they are allocated in the driver. */
 	for (tid = 0; tid < nitems(sta->txq); tid++) {
 
-			if (tid == IEEE80211_NUM_TIDS) {
-				IMPROVE("station specific?");
-				if (!ieee80211_hw_check(hw, STA_MMPDU_TXQ))
-					continue;
-			} else if (tid >= hw->queues)
+		if (tid == IEEE80211_NUM_TIDS) {
+			IMPROVE("station specific?");
+			if (!ieee80211_hw_check(hw, STA_MMPDU_TXQ))
 				continue;
+		} else if (tid >= hw->queues)
+			continue;
 
-			if (sta->txq[tid] == NULL)
-				continue;
+		if (sta->txq[tid] == NULL)
+			continue;
 
-			ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
-			if (dequeue_seen && !ltxq->seen_dequeue)
-				continue;
+		ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
+		if (dequeue_seen && !ltxq->seen_dequeue)
+			continue;
 
-			if (no_emptyq && skb_queue_empty(&ltxq->skbq))
-				continue;
+		if (no_emptyq && skb_queue_empty(&ltxq->skbq))
+			continue;
 
-			lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+		lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
 	}
 }
 
