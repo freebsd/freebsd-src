@@ -85,8 +85,8 @@ static int led_pattern_table[] = {
 
 static inline int arswitch_portforphy(int phy);
 static void arswitch_tick(void *arg);
-static int arswitch_ifmedia_upd(if_t );
-static void arswitch_ifmedia_sts(if_t , struct ifmediareq *);
+static int arswitch_ifmedia_upd(if_t);
+static void arswitch_ifmedia_sts(if_t, struct ifmediareq *);
 static int ar8xxx_port_vlan_setup(struct arswitch_softc *sc,
     etherswitch_port_t *p);
 static int ar8xxx_port_vlan_get(struct arswitch_softc *sc,

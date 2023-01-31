@@ -173,8 +173,8 @@ struct ksz8995ma_softc {
 
 static inline int ksz8995ma_portforphy(struct ksz8995ma_softc *, int);
 static void ksz8995ma_tick(void *);
-static int ksz8995ma_ifmedia_upd(if_t );
-static void ksz8995ma_ifmedia_sts(if_t , struct ifmediareq *);
+static int ksz8995ma_ifmedia_upd(if_t);
+static void ksz8995ma_ifmedia_sts(if_t, struct ifmediareq *);
 static int ksz8995ma_readreg(device_t dev, int addr);
 static int ksz8995ma_writereg(device_t dev, int addr, int value);
 static void ksz8995ma_portvlanreset(device_t dev);
@@ -304,7 +304,7 @@ ksz8995ma_attach(device_t dev)
 	sc->info.es_nvlangroups = 16;
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT | ETHERSWITCH_VLAN_DOT1Q;
 
-	sc->ifp = malloc(sizeof(if_t ) * sc->numports, M_KSZ8995MA,
+	sc->ifp = malloc(sizeof(if_t) * sc->numports, M_KSZ8995MA,
 	    M_WAITOK | M_ZERO);
 	sc->ifname = malloc(sizeof(char *) * sc->numports, M_KSZ8995MA,
 	    M_WAITOK | M_ZERO);

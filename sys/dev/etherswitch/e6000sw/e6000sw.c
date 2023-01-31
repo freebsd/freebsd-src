@@ -136,8 +136,8 @@ static int e6000sw_vtu_flush(e6000sw_softc_t *);
 static int e6000sw_vtu_update(e6000sw_softc_t *, int, int, int, int, int);
 static __inline void e6000sw_writereg(e6000sw_softc_t *, int, int, int);
 static __inline uint32_t e6000sw_readreg(e6000sw_softc_t *, int, int);
-static int e6000sw_ifmedia_upd(if_t );
-static void e6000sw_ifmedia_sts(if_t , struct ifmediareq *);
+static int e6000sw_ifmedia_upd(if_t);
+static void e6000sw_ifmedia_sts(if_t, struct ifmediareq *);
 static int e6000sw_atu_mac_table(device_t, e6000sw_softc_t *, struct atu_opt *,
     int);
 static int e6000sw_get_pvid(e6000sw_softc_t *, int, int *);
