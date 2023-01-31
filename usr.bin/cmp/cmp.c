@@ -75,6 +75,17 @@ static const struct option long_opts[] =
 	{NULL,		no_argument,		NULL, 0}
 };
 
+#ifdef SIGINFO
+volatile sig_atomic_t info;
+
+static void
+siginfo(int signo)
+{
+
+	info = signo;
+}
+#endif
+
 static void usage(void);
 
 static bool
@@ -240,6 +251,9 @@ main(int argc, char *argv[])
 		}
 	}
 
+#ifdef SIGINFO
+	(void)signal(SIGINFO, siginfo);
+#endif
 	if (special)
 		c_special(fd1, file1, skip1, fd2, file2, skip2, limit);
 	else {

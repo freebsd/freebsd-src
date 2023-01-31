@@ -77,6 +77,13 @@ c_special(int fd1, const char *file1, off_t skip1,
 			goto eof;
 
 	for (byte = line = 1; limit == 0 || byte <= limit; ++byte) {
+#ifdef SIGINFO
+		if (info) {
+			(void)fprintf(stderr, "%s %s char %zu line %zu\n",
+			    file1, file2, (size_t)byte, (size_t)line);
+			info = 0;
+		}
+#endif
 		ch1 = getc(fp1);
 		ch2 = getc(fp2);
 		if (ch1 == EOF || ch2 == EOF)
