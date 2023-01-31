@@ -1350,6 +1350,17 @@ ieee80211_is_any_nullfunc(__le16 fc)
 	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
 }
 
+static bool
+ieee80211_is_pspoll(__le16 fc)
+{
+	__le16 v;
+
+	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
+	v = htole16(IEEE80211_FC0_SUBTYPE_PS_POLL | IEEE80211_FC0_TYPE_CTL);
+
+	return (fc == v);
+}
+
 static __inline bool
 ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
@@ -1366,13 +1377,6 @@ ieee80211_is_frag(struct ieee80211_hdr *hdr)
 
 static __inline bool
 ieee80211_is_first_frag(__le16 fc)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_is_pspoll(__le16 fc)
 {
 	TODO();
 	return (false);
