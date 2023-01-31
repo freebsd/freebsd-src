@@ -31,6 +31,7 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options		NETLINK			# netlink(4) support
 options		ROUTE_MPATH		# Multipath routing support
 options		FIB_ALGO		# Modular fib lookups
 options 	TCP_OFFLOAD		# TCP offload
