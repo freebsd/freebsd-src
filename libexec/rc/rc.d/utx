@@ -12,6 +12,7 @@
 
 name="utx"
 desc="Manage the user accounting database"
+rcvar="utx_enable"
 start_cmd="utx boot"
 stop_cmd="utx shutdown"
 
