@@ -1350,7 +1350,7 @@ ieee80211_is_any_nullfunc(__le16 fc)
 	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
 }
 
-static bool
+static inline bool
 ieee80211_is_pspoll(__le16 fc)
 {
 	__le16 v;
