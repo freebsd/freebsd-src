@@ -2478,11 +2478,13 @@ lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
 {
 	struct ieee80211_supported_band *supband;
 	struct linuxkpi_ieee80211_channel *channels;
+	struct ieee80211com *ic;
 	const struct ieee80211_channel *chan;
 	const struct ieee80211_rateset *rs;
 	uint8_t *pb;
 	int band, i;
 
+	ic = vap->iv_ic;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		if ((band_mask & (1 << band)) == 0)
 			continue;
@@ -2503,7 +2505,7 @@ lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 				continue;
 
-			chan = ieee80211_find_channel(vap->iv_ic,
+			chan = ieee80211_find_channel(ic,
 			    channels[i].center_freq, 0);
 			if (chan != NULL)
 				break;
@@ -2514,9 +2516,30 @@ lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
 			continue;
 
 		pb = p;
-		rs = ieee80211_get_suprates(vap->iv_ic, chan);	/* calls chan2mode */
+		rs = ieee80211_get_suprates(ic, chan);	/* calls chan2mode */
 		p = ieee80211_add_rates(p, rs);
 		p = ieee80211_add_xrates(p, rs);
+
+#if defined(LKPI_80211_HT)
+		if ((vap->iv_flags_ht & IEEE80211_FHT_HT) != 0) {
+			struct ieee80211_channel *c;
+
+			c = ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
+			    vap->iv_flags_ht);
+			p = ieee80211_add_htcap_ch(p, vap, c);
+		}
+#endif
+#if defined(LKPI_80211_VHT)
+		if ((vap->iv_vht_flags & IEEE80211_FVHT_VHT) != 0) {
+			struct ieee80211_channel *c;
+
+			c = ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
+			    vap->iv_flags_ht);
+			c = ieee80211_vht_adjust_channel(ic, c,
+			    vap->iv_vht_flags);
+			p = ieee80211_add_vhtcap_ch(p, vap, c);
+		}
+#endif
 
 		scan_ies->ies[band] = pb;
 		scan_ies->len[band] = p - pb;
