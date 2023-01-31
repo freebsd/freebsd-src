@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/uma.h>
 
+#include <machine/stack.h>
+
 #include <ck_epoch.h>
 
 #ifdef __amd64__

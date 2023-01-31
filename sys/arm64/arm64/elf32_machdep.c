@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <machine/elf.h>
+#include <machine/pcb.h>
 #ifdef VFP
 #include <machine/vfp.h>
 #endif

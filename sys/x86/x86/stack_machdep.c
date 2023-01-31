@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <x86/stack.h>
+#include <machine/stack.h>
 
 #ifdef __i386__
 #define	PCB_FP(pcb)	((pcb)->pcb_ebp)

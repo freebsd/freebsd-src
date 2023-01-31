@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
+#include <machine/stack.h>
+
 #define PRINT_NONE	0
 #define PRINT_ARGS	1
 

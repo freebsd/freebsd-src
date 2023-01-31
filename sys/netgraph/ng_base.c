@@ -66,6 +66,8 @@
 #include <machine/cpu.h>
 #include <vm/uma.h>
 
+#include <machine/stack.h>
+
 #include <net/netisr.h>
 #include <net/vnet.h>
 
