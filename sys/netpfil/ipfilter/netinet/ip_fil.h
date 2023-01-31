@@ -1700,7 +1700,7 @@ extern	int	ipf_outobj(ipf_main_softc_t *, void *, void *, int);
 extern	int	ipf_outobjk(ipf_main_softc_t *, ipfobj_t *, void *);
 extern	int	ipf_outobjsz(ipf_main_softc_t *, void *, void *,
 				  int, int);
-extern	void	*ipf_pullup(mb_t *, fr_info_t *, int);
+extern	ip_t	*ipf_pullup(mb_t *, fr_info_t *, int);
 extern	int	ipf_resolvedest(ipf_main_softc_t *, char *,
 				     struct frdest *, int);
 extern	int	ipf_resolvefunc(ipf_main_softc_t *, void *);
