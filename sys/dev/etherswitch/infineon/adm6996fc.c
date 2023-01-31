@@ -122,8 +122,8 @@ struct adm6996fc_softc {
 
 static inline int adm6996fc_portforphy(struct adm6996fc_softc *, int);
 static void adm6996fc_tick(void *);
-static int adm6996fc_ifmedia_upd(if_t );
-static void adm6996fc_ifmedia_sts(if_t , struct ifmediareq *);
+static int adm6996fc_ifmedia_upd(if_t);
+static void adm6996fc_ifmedia_sts(if_t, struct ifmediareq *);
 
 #define	ADM6996FC_READREG(dev, x)					\
 	MDIO_READREG(dev, ((x) >> 5), ((x) & 0x1f));
@@ -254,7 +254,7 @@ adm6996fc_attach(device_t dev)
 	sc->info.es_nvlangroups = 16;
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT | ETHERSWITCH_VLAN_DOT1Q;
 
-	sc->ifp = malloc(sizeof(if_t ) * sc->numports, M_ADM6996FC,
+	sc->ifp = malloc(sizeof(if_t) * sc->numports, M_ADM6996FC,
 	    M_WAITOK | M_ZERO);
 	sc->ifname = malloc(sizeof(char *) * sc->numports, M_ADM6996FC,
 	    M_WAITOK | M_ZERO);

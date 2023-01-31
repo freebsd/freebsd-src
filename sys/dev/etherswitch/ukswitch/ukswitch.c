@@ -97,8 +97,8 @@ struct ukswitch_softc {
 
 static inline int ukswitch_portforphy(struct ukswitch_softc *, int);
 static void ukswitch_tick(void *);
-static int ukswitch_ifmedia_upd(if_t );
-static void ukswitch_ifmedia_sts(if_t , struct ifmediareq *);
+static int ukswitch_ifmedia_upd(if_t);
+static void ukswitch_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int
 ukswitch_probe(device_t dev)
@@ -201,7 +201,7 @@ ukswitch_attach(device_t dev)
 	/* We do not support any vlan groups. */
 	sc->info.es_nvlangroups = 0;
 
-	sc->ifp = malloc(sizeof(if_t ) * sc->numports, M_UKSWITCH,
+	sc->ifp = malloc(sizeof(if_t) * sc->numports, M_UKSWITCH,
 	    M_WAITOK | M_ZERO);
 	sc->ifname = malloc(sizeof(char *) * sc->numports, M_UKSWITCH,
 	    M_WAITOK | M_ZERO);

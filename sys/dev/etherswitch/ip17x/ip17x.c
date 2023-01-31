@@ -79,8 +79,8 @@ MALLOC_DECLARE(M_IP17X);
 MALLOC_DEFINE(M_IP17X, "ip17x", "ip17x data structures");
 
 static void ip17x_tick(void *);
-static int ip17x_ifmedia_upd(if_t );
-static void ip17x_ifmedia_sts(if_t , struct ifmediareq *);
+static int ip17x_ifmedia_upd(if_t);
+static void ip17x_ifmedia_sts(if_t, struct ifmediareq *);
 
 static void
 ip17x_identify(driver_t *driver, device_t parent)
@@ -240,7 +240,7 @@ ip17x_attach(device_t dev)
 	/* Always attach the cpu port. */
 	sc->phymask |= (1 << sc->cpuport);
 
-	sc->ifp = malloc(sizeof(if_t ) * sc->numports, M_IP17X,
+	sc->ifp = malloc(sizeof(if_t) * sc->numports, M_IP17X,
 	    M_WAITOK | M_ZERO);
 	sc->pvid = malloc(sizeof(uint32_t) * sc->numports, M_IP17X,
 	    M_WAITOK | M_ZERO);

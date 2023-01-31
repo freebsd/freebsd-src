@@ -88,8 +88,8 @@ static int felix_setup(felix_softc_t);
 static void felix_setup_port(felix_softc_t, int);
 
 static void felix_tick(void *);
-static int felix_ifmedia_upd(if_t );
-static void felix_ifmedia_sts(if_t , struct ifmediareq *);
+static int felix_ifmedia_upd(if_t);
+static void felix_ifmedia_sts(if_t, struct ifmediareq *);
 
 static void felix_get_port_cfg(felix_softc_t, etherswitch_port_t *);
 static void felix_set_port_cfg(felix_softc_t, etherswitch_port_t *);

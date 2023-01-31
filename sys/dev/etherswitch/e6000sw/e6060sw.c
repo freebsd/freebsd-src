@@ -150,8 +150,8 @@ struct e6060sw_softc {
 
 static inline int e6060sw_portforphy(struct e6060sw_softc *, int);
 static void e6060sw_tick(void *);
-static int e6060sw_ifmedia_upd(if_t );
-static void e6060sw_ifmedia_sts(if_t , struct ifmediareq *);
+static int e6060sw_ifmedia_upd(if_t);
+static void e6060sw_ifmedia_sts(if_t, struct ifmediareq *);
 
 static void e6060sw_setup(device_t dev);
 static int e6060sw_read_vtu(device_t dev, int num, int *data1, int *data2);
@@ -300,7 +300,7 @@ e6060sw_attach(device_t dev)
 
 	e6060sw_setup(dev);
 
-	sc->ifp = malloc(sizeof(if_t ) * sc->numports, M_E6060SW,
+	sc->ifp = malloc(sizeof(if_t) * sc->numports, M_E6060SW,
 	    M_WAITOK | M_ZERO);
 	sc->ifname = malloc(sizeof(char *) * sc->numports, M_E6060SW,
 	    M_WAITOK | M_ZERO);

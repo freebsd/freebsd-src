@@ -126,8 +126,8 @@ static int smi_read(device_t dev, uint16_t addr, uint16_t *data, int sleep);
 static int smi_write(device_t dev, uint16_t addr, uint16_t data, int sleep);
 static int smi_rmw(device_t dev, uint16_t addr, uint16_t mask, uint16_t data, int sleep);
 static void rtl8366rb_tick(void *arg);
-static int rtl8366rb_ifmedia_upd(if_t );
-static void rtl8366rb_ifmedia_sts(if_t , struct ifmediareq *);
+static int rtl8366rb_ifmedia_upd(if_t);
+static void rtl8366rb_ifmedia_sts(if_t, struct ifmediareq *);
 
 static void
 rtl8366rb_identify(driver_t *driver, device_t parent)
