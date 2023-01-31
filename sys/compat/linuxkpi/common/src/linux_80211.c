@@ -4280,8 +4280,8 @@ linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *txq,
  * passed back from the driver.  rawx_mit() saves the ni on the m and the
  * m on the skb for us to be able to give feedback to net80211.
  */
-void
-linuxkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
+static void
+_lkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
     int status)
 {
 	struct ieee80211_node *ni;
@@ -4296,20 +4296,28 @@ linuxkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
 		ieee80211_tx_complete(ni, m, status);
 		/* ni & mbuf were consumed. */
 	}
+}
 
+void
+linuxkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
+    int status)
+{
+
+	_lkpi_ieee80211_free_txskb(hw, skb, status);
 	kfree_skb(skb);
 }
 
 void
-linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
+    struct ieee80211_tx_status *txstat)
 {
+	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_ratectl_tx_status txs;
 	struct ieee80211_node *ni;
 	int status;
 
-	info = IEEE80211_SKB_CB(skb);
-
+	skb = txstat->skb;
 	if (skb->m != NULL) {
 		struct mbuf *m;
 
@@ -4320,6 +4328,7 @@ linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		ni = NULL;
 	}
 
+	info = txstat->info;
 	if (info->flags & IEEE80211_TX_STAT_ACK) {
 		status = 0;	/* No error. */
 		txs.status = IEEE80211_RATECTL_TX_SUCCESS;
@@ -4342,7 +4351,7 @@ linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			txs.flags |= IEEE80211_RATECTL_STATUS_LONG_RETRY;
 		}
 #if 0		/* Unused in net80211 currently. */
-		/* XXX-BZ conver;t check .flags for MCS/VHT/.. */
+		/* XXX-BZ convert check .flags for MCS/VHT/.. */
 		txs.final_rate = info->status.rates[0].idx;
 		txs.flags |= IEEE80211_RATECTL_STATUS_FINAL_RATE;
 #endif
@@ -4390,7 +4399,25 @@ linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		    info->status.status_driver_data[1]);
 #endif
 
-	linuxkpi_ieee80211_free_txskb(hw, skb, status);
+	if (txstat->free_list) {
+		_lkpi_ieee80211_free_txskb(hw, skb, status);
+		list_add_tail(&skb->list, txstat->free_list);
+	} else {
+		linuxkpi_ieee80211_free_txskb(hw, skb, status);
+	}
+}
+
+void
+linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct ieee80211_tx_status status;
+
+	memset(&status, 0, sizeof(status));
+	status.info = IEEE80211_SKB_CB(skb);
+	status.skb = skb;
+	/* sta, n_rates, rates, free_list? */
+
+	ieee80211_tx_status_ext(hw, &status);
 }
 
 /*

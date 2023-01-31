@@ -1028,6 +1028,8 @@ void linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *);
 struct sk_buff *linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *,
     uint8_t *, uint8_t *, size_t, size_t);
 void linuxkpi_ieee80211_tx_status(struct ieee80211_hw *, struct sk_buff *);
+void linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *,
+    struct ieee80211_tx_status *);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1989,13 +1991,6 @@ ieee80211_sta_set_buffered(struct ieee80211_sta *sta, uint8_t tid, bool t)
 }
 
 static __inline void
-ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-
-	linuxkpi_ieee80211_tx_status(hw, skb);
-}
-
-static __inline void
 ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, uint8_t tid,
     struct ieee80211_key_seq *seq)
 {
@@ -2131,6 +2126,13 @@ ieee80211_wake_queue(struct ieee80211_hw *hw, uint16_t q)
 }
 
 static __inline void
+ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+
+	linuxkpi_ieee80211_tx_status(hw, skb);
+}
+
+static __inline void
 ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	IMPROVE();
@@ -2142,6 +2144,14 @@ ieee80211_tx_status_ni(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	IMPROVE();
 	ieee80211_tx_status(hw, skb);
+}
+
+static __inline void
+ieee80211_tx_status_ext(struct ieee80211_hw *hw,
+    struct ieee80211_tx_status *txstat)
+{
+
+	linuxkpi_ieee80211_tx_status_ext(hw, txstat);
 }
 
 static __inline void
@@ -2351,13 +2361,6 @@ ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 static __inline void
 ieee80211_get_tx_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
     struct sk_buff *skb, struct ieee80211_tx_rate *txrate, int nrates)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_tx_status_ext(struct ieee80211_hw *hw,
-    struct ieee80211_tx_status *txstat)
 {
 	TODO();
 }
