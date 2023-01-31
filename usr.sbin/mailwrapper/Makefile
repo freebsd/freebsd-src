@@ -30,6 +30,7 @@ SYMLINKS+=	..${BINDIR}/mailwrapper /bin/rmail
 .if ${MK_SENDMAIL} != "no"
 FILES=		${SRCTOP}/etc/mail/mailer.conf
 FILESDIR=	${SHAREDIR}/examples/sendmail
+FILESPACKAGE=	sendmail
 .endif
 
 .if ${MK_MAILWRAPPER} != "no"
