@@ -3840,9 +3840,11 @@ linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *hw,
 	return;
 }
 
+/* For %list see comment towards the end of the function. */
 void
 linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
-    struct ieee80211_sta *sta, struct napi_struct *napi __unused)
+    struct ieee80211_sta *sta, struct napi_struct *napi __unused,
+    struct list_head *list __unused)
 {
 	struct epoch_tracker et;
 	struct lkpi_hw *lhw;
@@ -4049,6 +4051,17 @@ skip_device_ts:
 
 	if (ieee80211_hw_check(hw, RX_INCLUDES_FCS))
 		m_adj(m, -IEEE80211_CRC_LEN);
+
+#if 0
+	if (list != NULL) {
+		/*
+		* Normally this would be queued up and delivered by
+		* netif_receive_skb_list(), napi_gro_receive(), or the like.
+		* See mt76::mac80211.c as only current possible consumer.
+		*/
+		IMPROVE("we simply pass the packet to net80211 to deal with.");
+	}
+#endif
 
 	NET_EPOCH_ENTER(et);
 	if (ni != NULL) {

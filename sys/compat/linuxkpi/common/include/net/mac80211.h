@@ -1001,7 +1001,7 @@ void linuxkpi_ieee80211_iterate_stations_atomic(struct ieee80211_hw *,
 void linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *,
     struct cfg80211_scan_info *);
 void linuxkpi_ieee80211_rx(struct ieee80211_hw *, struct sk_buff *,
-    struct ieee80211_sta *, struct napi_struct *);
+    struct ieee80211_sta *, struct napi_struct *, struct list_head *);
 uint8_t linuxkpi_ieee80211_get_tid(struct ieee80211_hdr *, bool);
 struct ieee80211_sta *linuxkpi_ieee80211_find_sta(struct ieee80211_vif *,
     const u8 *);
@@ -1468,28 +1468,36 @@ ieee80211_rx_napi(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
     struct sk_buff *skb, struct napi_struct *napi)
 {
 
-	linuxkpi_ieee80211_rx(hw, skb, sta, napi);
+	linuxkpi_ieee80211_rx(hw, skb, sta, napi, NULL);
+}
+
+static __inline void
+ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+    struct sk_buff *skb, struct list_head *list)
+{
+
+	linuxkpi_ieee80211_rx(hw, skb, sta, NULL, list);
 }
 
 static __inline void
 ieee80211_rx_ni(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 
-	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL);
+	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL, NULL);
 }
 
 static __inline void
 ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 
-	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL);
+	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL, NULL);
 }
 
 static __inline void
 ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 
-	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL);
+	linuxkpi_ieee80211_rx(hw, skb, NULL, NULL, NULL);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2343,13 +2351,6 @@ ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 static __inline void
 ieee80211_get_tx_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
     struct sk_buff *skb, struct ieee80211_tx_rate *txrate, int nrates)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-    struct sk_buff *skb, struct list_head *list)
 {
 	TODO();
 }
