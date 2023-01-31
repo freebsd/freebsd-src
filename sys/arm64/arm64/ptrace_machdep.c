@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 
 #include <machine/armreg.h>
+#include <machine/pcb.h>
 
 /* Only used to get/set 32bits VFP regs */
 int

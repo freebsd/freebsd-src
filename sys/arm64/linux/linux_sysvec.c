@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <arm64/linux/linux_sigframe.h>
 
 #include <machine/md_var.h>
-
+#include <machine/pcb.h>
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
