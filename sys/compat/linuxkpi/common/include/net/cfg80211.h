@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2023 The FreeBSD Foundation
  * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -265,9 +265,8 @@ struct cfg80211_roam_info {
 };
 
 struct cfg80211_bss_ies {
-		/* XXX TODO, type is best guess. Fix if more info. */
 	uint8_t				*data;
-	int				len;
+	size_t				len;
 };
 
 struct cfg80211_bss {
@@ -937,6 +936,7 @@ struct iface_combination_params {
 struct regulatory_request {
 		/* XXX TODO */
 	uint8_t					alpha2[2];
+	enum environment_cap			country_ie_env;
 	int	initiator, dfs_region;
 	int	user_reg_hint_type;
 };
@@ -1029,8 +1029,9 @@ struct wiphy {
 	uint32_t				rts_threshold;
 	uint32_t				frag_threshold;
 	struct tid_config_support		tid_config_support;
+	uint8_t					available_antennas_rx;
+	uint8_t					available_antennas_tx;
 
-	int	available_antennas_rx, available_antennas_tx;
 	int	features, hw_version;
 	int	interface_modes, max_match_sets, max_remain_on_channel_duration, max_scan_ssids, max_sched_scan_ie_len, max_sched_scan_plan_interval, max_sched_scan_plan_iterations, max_sched_scan_plans, max_sched_scan_reqs, max_sched_scan_ssids;
 	int	num_iftype_ext_capab;
@@ -1200,7 +1201,7 @@ cfg80211_get_bss(struct wiphy *wiphy, struct linuxkpi_ieee80211_channel *chan,
 {
 
 	return (linuxkpi_cfg80211_get_bss(wiphy, chan, bssid, ssid, ssid_len,
-	   bss_type, privacy));
+	    bss_type, privacy));
 }
 
 static inline void
