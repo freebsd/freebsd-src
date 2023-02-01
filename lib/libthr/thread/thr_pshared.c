@@ -227,11 +227,16 @@ __thr_pshared_offpage(void *key, int doalloc)
 	int fd, ins_done;
 
 	curthread = _get_curthread();
-	pshared_rlock(curthread);
-	res = pshared_lookup(key);
-	pshared_unlock(curthread);
-	if (res != NULL)
-		return (res);
+	if (doalloc) {
+		pshared_destroy(curthread, key);
+		res = NULL;
+	} else {
+		pshared_rlock(curthread);
+		res = pshared_lookup(key);
+		pshared_unlock(curthread);
+		if (res != NULL)
+			return (res);
+	}
 	fd = _umtx_op(NULL, UMTX_OP_SHM, doalloc ? UMTX_SHM_CREAT :
 	    UMTX_SHM_LOOKUP, key, NULL);
 	if (fd == -1)
