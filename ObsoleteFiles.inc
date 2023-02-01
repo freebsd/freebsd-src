@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230201: timeout moved from /usr/bin to /bin
+OLD_FILES+=usr/tests/usr.bin/timeout/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/timeout/timeout_test
+
 # 20221015: update the ithread(9) man page
 OLD_FILES+=usr/share/man/man9/ithread.9.gz
 OLD_FILES+=usr/share/man/man9/ithread_add_handler.9.gz

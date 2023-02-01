@@ -62,6 +62,8 @@
         ..
         test
         ..
+        timeout
+        ..
     ..
     cddl
         lib
@@ -1089,8 +1091,6 @@
         tail
         ..
         tar
-        ..
-        timeout
         ..
         tr
         ..
