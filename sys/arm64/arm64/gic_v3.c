@@ -382,6 +382,13 @@ gic_v3_attach(device_t dev)
 
 	mtx_init(&sc->gic_mbi_mtx, "GICv3 mbi lock", NULL, MTX_DEF);
 	if (sc->gic_mbi_start > 0) {
+		if (!sc->gic_mbi_end) {
+			/*
+			 * This is to address SPI based msi ranges, where
+			 * SPI range is not specified in ACPI
+			 */
+			sc->gic_mbi_end = sc->gic_nirqs - 1;
+		}
 		gic_v3_reserve_msi_range(dev, sc->gic_mbi_start,
 		    sc->gic_mbi_end - sc->gic_mbi_start);
 
