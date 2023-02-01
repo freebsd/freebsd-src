@@ -1586,9 +1586,7 @@ m_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **mstp)
 {
 
-	if (ifp->if_snd_tag_alloc == NULL)
-		return (EOPNOTSUPP);
-	return (ifp->if_snd_tag_alloc(ifp, params, mstp));
+	return (if_snd_tag_alloc(ifp, params, mstp));
 }
 
 void
@@ -1620,13 +1618,13 @@ m_rcvif_serialize(struct mbuf *m)
 	u_short idx, gen;
 
 	M_ASSERTPKTHDR(m);
-	idx = m->m_pkthdr.rcvif->if_index;
-	gen = m->m_pkthdr.rcvif->if_idxgen;
+	idx = if_getindex(m->m_pkthdr.rcvif);
+	gen = if_getidxgen(m->m_pkthdr.rcvif);
 	m->m_pkthdr.rcvidx = idx;
 	m->m_pkthdr.rcvgen = gen;
 	if (__predict_false(m->m_pkthdr.leaf_rcvif != NULL)) {
-		idx = m->m_pkthdr.leaf_rcvif->if_index;
-		gen = m->m_pkthdr.leaf_rcvif->if_idxgen;
+		idx = if_getindex(m->m_pkthdr.leaf_rcvif);
+		gen = if_getidxgen(m->m_pkthdr.leaf_rcvif);
 	} else {
 		idx = -1;
 		gen = 0;

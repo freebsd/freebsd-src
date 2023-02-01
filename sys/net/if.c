@@ -4295,6 +4295,12 @@ if_getindex(const if_t ifp)
 	return ((struct ifnet *)ifp)->if_index;
 }
 
+int
+if_getidxgen(const if_t ifp)
+{
+	return (ifp->if_idxgen);
+}
+
 void
 if_setdescr(if_t ifp, char *descrbuf)
 {
@@ -4843,6 +4849,16 @@ void
 if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t alloc_fn)
 {
 	((struct ifnet *)ifp)->if_snd_tag_alloc = alloc_fn;
+}
+
+int
+if_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **mstp)
+{
+
+	if (ifp->if_snd_tag_alloc == NULL)
+		return (EOPNOTSUPP);
+	return (ifp->if_snd_tag_alloc(ifp, params, mstp));
 }
 
 void
