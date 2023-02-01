@@ -1642,7 +1642,7 @@ m_rcvif_restore(struct mbuf *m)
 	NET_EPOCH_ASSERT();
 
 	ifp = ifnet_byindexgen(m->m_pkthdr.rcvidx, m->m_pkthdr.rcvgen);
-	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
+	if (ifp == NULL || (if_getflags(ifp) & IFF_DYING))
 		return (NULL);
 
 	if (__predict_true(m->m_pkthdr.leaf_rcvidx == (u_short)-1)) {
@@ -1650,7 +1650,7 @@ m_rcvif_restore(struct mbuf *m)
 	} else {
 		leaf_ifp = ifnet_byindexgen(m->m_pkthdr.leaf_rcvidx,
 		    m->m_pkthdr.leaf_rcvgen);
-		if (__predict_false(leaf_ifp != NULL && (leaf_ifp->if_flags & IFF_DYING)))
+		if (__predict_false(leaf_ifp != NULL && (if_getflags(leaf_ifp) & IFF_DYING)))
 			leaf_ifp = NULL;
 	}
 
