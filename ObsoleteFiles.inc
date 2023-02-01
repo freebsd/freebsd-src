@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230201: timeout moved from /usr/bin to /bin
+OLD_FILES+=usr/tests/usr.bin/timeout/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/timeout/timeout_test
+
 # 20230124: rtalloc.9 removed
 OLD_FILES+=usr/share/man/man9/rtalloc.9.gz
 
