@@ -152,7 +152,6 @@ SUBDIR=	alias \
 	tcopy \
 	tee \
 	time \
-	timeout \
 	tip \
 	top \
 	touch \
