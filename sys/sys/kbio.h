@@ -200,7 +200,7 @@ typedef struct okeymap okeymap_t;
 
 struct acc_t {
 	u_char		accchar;
-	u_char		map[NUM_ACCENTCHARS][2];
+	u_short		map[NUM_ACCENTCHARS][2];
 };
 
 struct accentmap {
