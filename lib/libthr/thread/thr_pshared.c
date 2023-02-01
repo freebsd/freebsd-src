@@ -208,6 +208,17 @@ pshared_clean(void *key, void *val)
 	_umtx_op(NULL, UMTX_OP_SHM, UMTX_SHM_DESTROY, key, NULL);
 }
 
+static void
+pshared_destroy(struct pthread *curthread, void *key)
+{
+	void *val;
+
+	pshared_wlock(curthread);
+	val = pshared_remove(key);
+	pshared_unlock(curthread);
+	pshared_clean(key, val);
+}
+
 void *
 __thr_pshared_offpage(void *key, int doalloc)
 {
@@ -243,13 +254,9 @@ void
 __thr_pshared_destroy(void *key)
 {
 	struct pthread *curthread;
-	void *val;
 
 	curthread = _get_curthread();
-	pshared_wlock(curthread);
-	val = pshared_remove(key);
-	pshared_unlock(curthread);
-	pshared_clean(key, val);
+	pshared_destroy(curthread, key);
 	pshared_gc(curthread);
 }
 
