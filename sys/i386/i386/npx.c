@@ -196,6 +196,7 @@ SYSCTL_INT(_hw, OID_AUTO, lazy_fpu_switch, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     &lazy_fpu_switch, 0,
     "Lazily load FPU context after context switch");
 
+u_int cpu_fxsr;		/* SSE enabled */
 int use_xsave;
 uint64_t xsave_mask;
 static	uma_zone_t fpu_save_area_zone;
