@@ -665,6 +665,9 @@ struct ifaddr * if_getifaddr(const if_t ifp);
 typedef u_int if_addr_cb_t(void *, struct ifaddr *, u_int);
 u_int if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg);
 
+typedef int (*if_foreach_cb_t)(if_t, void *);
+int	if_foreach(if_foreach_cb_t, void *);
+
 /* Functions */
 void if_setinitfn(if_t ifp, if_init_fn_t);
 void if_setinputfn(if_t ifp, if_input_fn_t);

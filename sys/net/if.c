@@ -4466,6 +4466,25 @@ if_lladdr_count(if_t ifp)
 	return (count);
 }
 
+int
+if_foreach(if_foreach_cb_t cb, void *cb_arg)
+{
+	if_t ifp;
+	int error;
+
+	NET_EPOCH_ASSERT();
+	MPASS(cb);
+
+	error = 0;
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		error = cb(ifp, cb_arg);
+		if (error != 0)
+			break;
+	}
+
+	return (error);
+}
+
 u_int
 if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 {
