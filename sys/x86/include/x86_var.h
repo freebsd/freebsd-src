@@ -53,7 +53,6 @@ extern	u_int	cpu_stdext_feature;
 extern	u_int	cpu_stdext_feature2;
 extern	u_int	cpu_stdext_feature3;
 extern	uint64_t cpu_ia32_arch_caps;
-extern	u_int	cpu_fxsr;
 extern	u_int	cpu_high;
 extern	u_int	cpu_id;
 extern	u_int	cpu_max_ext_state_size;

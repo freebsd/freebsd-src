@@ -279,7 +279,7 @@ initializecpu(void)
 	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
 		cr4 |= CR4_FXSR | CR4_XMM;
-		cpu_fxsr = hw_instruction_sse = 1;
+		hw_instruction_sse = 1;
 	}
 	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE)
 		cr4 |= CR4_FSGSBASE;
