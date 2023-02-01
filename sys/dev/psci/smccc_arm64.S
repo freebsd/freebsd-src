@@ -77,8 +77,8 @@ ENTRY(arm_smccc_1_2_\insn)
 	stp	x12, x13, [x19, #16 * 6]
 	stp	x14, x15, [x19, #16 * 7]
 	stp	x16, x17, [x19, #16 * 8]
-	ldp	xzr, x19, [sp], #16
-1:	ret
+1:	ldp	xzr, x19, [sp], #16
+	ret
 END(arm_smccc_1_2\insn)
 .endm
 /* int arm_smccc_1_2_*(const struct arm_smccc_1_2_regs *args,
