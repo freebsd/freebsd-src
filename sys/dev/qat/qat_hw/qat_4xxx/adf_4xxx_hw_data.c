@@ -747,7 +747,7 @@ static bool
 check_accel_unit_service(enum adf_accel_unit_services au_srv,
 			 enum adf_cfg_service_type ring_srv)
 {
-	if ((au_srv & ADF_ACCEL_SERVICE_NULL) && ring_srv == NA)
+	if ((ADF_ACCEL_SERVICE_NULL == au_srv) && ring_srv == NA)
 		return true;
 	if ((au_srv & ADF_ACCEL_COMPRESSION) && ring_srv == COMP)
 		return true;

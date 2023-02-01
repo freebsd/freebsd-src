@@ -193,7 +193,7 @@ adf_exit_arb(struct adf_accel_dev *accel_dev)
 void
 adf_disable_arb(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
+	struct adf_hw_csr_ops *csr_ops;
 	struct resource *csr;
 	unsigned int i;
 
@@ -201,6 +201,7 @@ adf_disable_arb(struct adf_accel_dev *accel_dev)
 		return;
 
 	csr = accel_dev->transport->banks[0].csr_addr;
+	csr_ops = GET_CSR_OPS(accel_dev);
 
 	/* Disable arbitration on all rings */
 	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++)
