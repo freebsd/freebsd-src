@@ -241,6 +241,36 @@ bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 	}
 }
 
+struct ifname_linux_to_bsd_cb_s {
+	if_t ifp;
+	const char *lxname;
+	int unit;
+	int index;
+	bool is_lo;
+	bool is_eth;
+};
+
+static int
+ifname_linux_to_bsd_cb(if_t ifp, void *arg)
+{
+	struct ifname_linux_to_bsd_cb_s *cbs = arg;
+
+	/*
+	 * Allow Linux programs to use FreeBSD names. Don't presume
+	 * we never have an interface named "eth", so don't make
+	 * the test optional based on is_eth.
+	 */
+	cbs->ifp = ifp;
+	if (strncmp(if_name(ifp), cbs->lxname, LINUX_IFNAMSIZ) == 0)
+		return (-1);
+	if (cbs->is_eth && IFP_IS_ETH(ifp) && cbs->unit == cbs->index++)
+		return (-1);
+	if (cbs->is_lo && IFP_IS_LOOP(ifp))
+		return (-1);
+	cbs->ifp = NULL;
+
+	return (0);
+}
 /*
  * Translate a Linux interface name to a FreeBSD interface name,
  * and return the associated ifnet structure
@@ -250,46 +280,33 @@ bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 struct ifnet *
 ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 {
-	struct ifnet *ifp;
-	int len, unit;
+	struct ifname_linux_to_bsd_cb_s cbs = {};
+	int len;
 	char *ep;
-	int index;
-	bool is_eth, is_lo;
 
+	cbs.lxname = lxname;
 	for (len = 0; len < LINUX_IFNAMSIZ; ++len)
 		if (!isalpha(lxname[len]) || lxname[len] == '\0')
 			break;
 	if (len == 0 || len == LINUX_IFNAMSIZ)
 		return (NULL);
 	/* Linux loopback interface name is lo (not lo0) */
-	is_lo = (len == 2 && strncmp(lxname, "lo", len) == 0);
-	unit = (int)strtoul(lxname + len, &ep, 10);
+	cbs.is_lo = (len == 2 && strncmp(lxname, "lo", len) == 0);
+	cbs.unit = (int)strtoul(lxname + len, &ep, 10);
 	if ((ep == NULL || ep == lxname + len || ep >= lxname + LINUX_IFNAMSIZ) &&
-	    is_lo == 0)
+	    cbs.is_lo == 0)
 		return (NULL);
-	index = 0;
-	is_eth = (len == 3 && strncmp(lxname, "eth", len) == 0);
+	cbs.index = 0;
+	cbs.is_eth = (len == 3 && strncmp(lxname, "eth", len) == 0);
 
 	CURVNET_SET(TD_TO_VNET(td));
 	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		/*
-		 * Allow Linux programs to use FreeBSD names. Don't presume
-		 * we never have an interface named "eth", so don't make
-		 * the test optional based on is_eth.
-		 */
-		if (strncmp(ifp->if_xname, lxname, LINUX_IFNAMSIZ) == 0)
-			break;
-		if (is_eth && IFP_IS_ETH(ifp) && unit == index++)
-			break;
-		if (is_lo && IFP_IS_LOOP(ifp))
-			break;
-	}
+	if_foreach(ifname_linux_to_bsd_cb, &cbs);
 	IFNET_RUNLOCK();
 	CURVNET_RESTORE();
-	if (ifp != NULL && bsdname != NULL)
-		strlcpy(bsdname, ifp->if_xname, IFNAMSIZ);
-	return (ifp);
+	if (cbs.ifp != NULL && bsdname != NULL)
+		strlcpy(bsdname, if_name(cbs.ifp), IFNAMSIZ);
+	return (cbs.ifp);
 }
 
 void
@@ -297,7 +314,7 @@ linux_ifflags(struct ifnet *ifp, short *flags)
 {
 	unsigned short fl;
 
-	fl = (ifp->if_flags | ifp->if_drv_flags) & 0xffff;
+	fl = (if_getflags(ifp) | if_getdrvflags(ifp)) & 0xffff;
 	*flags = 0;
 	if (fl & IFF_UP)
 		*flags |= LINUX_IFF_UP;
@@ -321,11 +338,28 @@ linux_ifflags(struct ifnet *ifp, short *flags)
 		*flags |= LINUX_IFF_MULTICAST;
 }
 
+static u_int
+linux_ifhwaddr_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	struct l_sockaddr *lsa = arg;
+
+	if (count > 0)
+		return (0);
+
+	if (sdl->sdl_type != IFT_ETHER)
+		return (0);
+
+	bzero(lsa, sizeof(*lsa));
+	lsa->sa_family = LINUX_ARPHRD_ETHER;
+	bcopy(LLADDR(sdl), lsa->sa_data, LINUX_IFHWADDRLEN);
+
+	return (1);
+}
+
 int
 linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 {
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 
 	if (IFP_IS_LOOP(ifp)) {
 		bzero(lsa, sizeof(*lsa));
@@ -336,16 +370,8 @@ linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 	if (!IFP_IS_ETH(ifp))
 		return (ENOENT);
 
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sdl = (struct sockaddr_dl*)ifa->ifa_addr;
-		if (sdl != NULL && (sdl->sdl_family == AF_LINK) &&
-		    (sdl->sdl_type == IFT_ETHER)) {
-			bzero(lsa, sizeof(*lsa));
-			lsa->sa_family = LINUX_ARPHRD_ETHER;
-			bcopy(LLADDR(sdl), lsa->sa_data, LINUX_IFHWADDRLEN);
-			return (0);
-		}
-	}
+	if (if_foreach_addr_type(ifp, AF_LINK, linux_ifhwaddr_cb, lsa) > 0)
+		return (0);
 
 	return (ENOENT);
 }
@@ -732,5 +758,5 @@ bool
 linux_use_real_ifname(const struct ifnet *ifp)
 {
 
-	return (use_real_ifnames || !IFP_IS_ETH(ifp));
+	return (use_real_ifnames || !IFP_IS_ETH(__DECONST(if_t, ifp)));
 }
