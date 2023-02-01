@@ -259,11 +259,11 @@ struct pci_func_desc2 {
 	uint8_t		subclass;
 	uint8_t		base_class;
 	uint32_t	subsystem_id;
-	union win_slot_encoding wslot;
+	union		win_slot_encoding wslot;
 	uint32_t	ser;	/* serial number */
-	uint32_t flags;
-    uint16_t virtual_numa_node;
-    uint16_t reserved;
+	uint32_t	flags;
+	uint16_t	virtual_numa_node;
+	uint16_t	reserved;
 } __packed;
 
 
@@ -341,9 +341,9 @@ struct pci_bus_relations {
 } __packed;
 
 struct pci_bus_relations2 {
-    struct pci_incoming_message incoming;
-    uint32_t device_count;
-    struct pci_func_desc2 func[0];
+	struct pci_incoming_message incoming;
+	uint32_t device_count;
+	struct pci_func_desc2 func[0];
 } __packed;
 
 #define MAX_NUM_BARS	(PCIR_MAX_BAR_0 + 1)
@@ -362,11 +362,11 @@ struct pci_resources_assigned {
 } __packed;
 
 struct pci_resources_assigned2 {
-    struct pci_message message_type;
-    union win_slot_encoding wslot;
-    uint8_t memory_range[0x14][6];   /* not used here */
-    uint32_t msi_descriptor_count;
-    uint8_t reserved[70];
+	struct pci_message message_type;
+	union win_slot_encoding wslot;
+	uint8_t memory_range[0x14][6];   /* not used here */
+	uint32_t msi_descriptor_count;
+	uint8_t reserved[70];
 } __packed;
 
 struct pci_create_interrupt {
@@ -436,19 +436,18 @@ struct hv_pcibus {
 };
 
 struct hv_pcidev_desc {
-	uint16_t	v_id;	/* vendor ID */
-	uint16_t	d_id;	/* device ID */
-	uint8_t		rev;
-	uint8_t		prog_intf;
-	uint8_t		subclass;
-	uint8_t		base_class;
-	uint32_t	subsystem_id;
+	uint16_t v_id;	/* vendor ID */
+	uint16_t d_id;	/* device ID */
+	uint8_t rev;
+	uint8_t prog_intf;
+	uint8_t subclass;
+	uint8_t base_class;
+	uint32_t subsystem_id;
 	union win_slot_encoding wslot;
-	uint32_t	ser;	/* serial number */
+	uint32_t ser;	/* serial number */
 	uint32_t flags;
-    uint16_t virtual_numa_node;
+	uint16_t virtual_numa_node;
 } __packed;
-
 
 struct hv_pci_dev {
 	TAILQ_ENTRY(hv_pci_dev) link;

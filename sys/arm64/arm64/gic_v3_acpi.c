@@ -336,7 +336,7 @@ gic_v3_acpi_attach(device_t dev)
 		goto error;
 	}
 	/*
-	 * Registering for MSI with SPI rnage, as this is
+	 * Registering for MSI with SPI range, as this is
 	 * required for Hyper-V GIC to work in ARM64.
 	 */
 	if (vm_guest == VM_GUEST_HV) {
