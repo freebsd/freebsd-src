@@ -12,9 +12,6 @@ SUBDIR+=	boot0cfg
 SUBDIR+=	btxld
 .endif
 SUBDIR+=	cpucontrol
-.if ${MK_HYPERV} != "no"
-SUBDIR+=	hyperv
-.endif
 SUBDIR+=	lptcontrol
 SUBDIR+=	mptable
 SUBDIR+=	pnpinfo

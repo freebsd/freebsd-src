@@ -140,6 +140,7 @@ SUBDIR.${MK_FLOPPY}+=	fdwrite
 SUBDIR.${MK_FREEBSD_UPDATE}+=	freebsd-update
 SUBDIR.${MK_GSSAPI}+=	gssd
 SUBDIR.${MK_GPIO}+=	gpioctl
+SUBDIR.${MK_HYPERV}+=	hyperv
 SUBDIR.${MK_INET6}+=	ip6addrctl
 SUBDIR.${MK_INET6}+=	mld6query
 SUBDIR.${MK_INET6}+=	ndp

@@ -10,6 +10,7 @@ SUBDIR=	${_atf} \
 	${_dma} \
 	flua \
 	getty \
+	${_hyperv} \
 	${_mail.local} \
 	${_makewhatis.local} \
 	${_mknetid} \
@@ -62,6 +63,10 @@ _comsat=	comsat
 
 .if ${MK_DMAGENT} != "no"
 _dma=		dma
+.endif
+
+.if ${MK_HYPERV} != "no"
+_hyperv+=	hyperv
 .endif
 
 .if ${MK_NIS} != "no"
