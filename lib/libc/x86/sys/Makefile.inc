@@ -10,6 +10,7 @@ SRCS+= \
 MAN+=	\
 	pkru.3
 
+# Note: vdso support for hyperv only on amd64
 .if ${MACHINE_CPUARCH} == "amd64" && ${MK_HYPERV} != "no"
 CFLAGS+=	-DWANT_HYPERV
 .endif
