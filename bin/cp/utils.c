@@ -37,13 +37,9 @@ static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/acl.h>
 #include <sys/param.h>
+#include <sys/acl.h>
 #include <sys/stat.h>
-#ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-#include <sys/mman.h>
-#endif
 
 #include <err.h>
 #include <errno.h>
@@ -75,11 +71,22 @@ __FBSDID("$FreeBSD$");
 #define BUFSIZE_SMALL (MAXPHYS)
 
 static ssize_t
-copy_fallback(int from_fd, int to_fd, char *buf, size_t bufsize)
+copy_fallback(int from_fd, int to_fd)
 {
+	static char *buf = NULL;
+	static size_t bufsize;
 	ssize_t rcount, wresid, wcount = 0;
 	char *bufp;
 
+	if (buf == NULL) {
+		if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
+			bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
+		else
+			bufsize = BUFSIZE_SMALL;
+		buf = malloc(bufsize);
+		if (buf == NULL)
+			err(1, "Not enough memory");
+	}
 	rcount = read(from_fd, buf, bufsize);
 	if (rcount <= 0)
 		return (rcount);
@@ -96,16 +103,10 @@ copy_fallback(int from_fd, int to_fd, char *buf, size_t bufsize)
 int
 copy_file(const FTSENT *entp, int dne)
 {
-	static char *buf = NULL;
-	static size_t bufsize;
 	struct stat *fs;
 	ssize_t wcount;
 	off_t wtotal;
 	int ch, checkch, from_fd, rval, to_fd;
-#ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-	size_t wresid;
-	char *bufp, *p;
-#endif
 	int use_copy_file_range = 1;
 
 	from_fd = to_fd = -1;
@@ -174,89 +175,31 @@ copy_file(const FTSENT *entp, int dne)
 	rval = 0;
 
 	if (!lflag && !sflag) {
-		/*
-		 * Mmap and write if less than 8M (the limit is so we don't
-		 * totally trash memory on big files.  This is really a minor
-		 * hack, but it wins some CPU back.
-		 * Some filesystems, such as smbnetfs, don't support mmap,
-		 * so this is a best-effort attempt.
-		 */
-#ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-		if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
-		    fs->st_size <= 8 * 1024 * 1024 &&
-		    (p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
-		    MAP_SHARED, from_fd, (off_t)0)) != MAP_FAILED) {
-			wtotal = 0;
-			for (bufp = p, wresid = fs->st_size; ;
-			    bufp += wcount, wresid -= (size_t)wcount) {
-				wcount = write(to_fd, bufp, wresid);
-				if (wcount <= 0)
-					break;
-				wtotal += wcount;
-				if (info) {
-					info = 0;
-					(void)fprintf(stderr,
-					    "%s -> %s %3d%%\n",
-					    entp->fts_path, to.p_path,
-					    cp_pct(wtotal, fs->st_size));
+		wtotal = 0;
+		do {
+			if (use_copy_file_range) {
+				wcount = copy_file_range(from_fd, NULL,
+				    to_fd, NULL, SSIZE_MAX, 0);
+				if (wcount < 0 && errno == EINVAL) {
+					/* Prob a non-seekable FD */
+					use_copy_file_range = 0;
 				}
-				if (wcount >= (ssize_t)wresid)
-					break;
 			}
-			if (wcount != (ssize_t)wresid) {
-				warn("%s", to.p_path);
-				rval = 1;
+			if (!use_copy_file_range) {
+				wcount = copy_fallback(from_fd, to_fd);
 			}
-			/* Some systems don't unmap on close(2). */
-			if (munmap(p, fs->st_size) < 0) {
-				warn("%s", entp->fts_path);
-				rval = 1;
+			wtotal += wcount;
+			if (info) {
+				info = 0;
+				(void)fprintf(stderr,
+				    "%s -> %s %3d%%\n",
+				    entp->fts_path, to.p_path,
+				    cp_pct(wtotal, fs->st_size));
 			}
-		} else
-#endif
-		{
-			if (buf == NULL) {
-				/*
-				 * Note that buf and bufsize are static. If
-				 * malloc() fails, it will fail at the start
-				 * and not copy only some files. 
-				 */ 
-				if (sysconf(_SC_PHYS_PAGES) > 
-				    PHYSPAGES_THRESHOLD)
-					bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
-				else
-					bufsize = BUFSIZE_SMALL;
-				buf = malloc(bufsize);
-				if (buf == NULL)
-					err(1, "Not enough memory");
-			}
-			wtotal = 0;
-			do {
-				if (use_copy_file_range) {
-					wcount = copy_file_range(from_fd, NULL,
-					    to_fd, NULL, SSIZE_MAX, 0);
-					if (wcount < 0 && errno == EINVAL) {
-						/* Prob a non-seekable FD */
-						use_copy_file_range = 0;
-					}
-				}
-				if (!use_copy_file_range) {
-					wcount = copy_fallback(from_fd, to_fd,
-					    buf, bufsize);
-				}
-				wtotal += wcount;
-				if (info) {
-					info = 0;
-					(void)fprintf(stderr,
-					    "%s -> %s %3d%%\n",
-					    entp->fts_path, to.p_path,
-					    cp_pct(wtotal, fs->st_size));
-				}
-			} while (wcount > 0);
-			if (wcount < 0) {
-				warn("%s", entp->fts_path);
-				rval = 1;
-			}
+		} while (wcount > 0);
+		if (wcount < 0) {
+			warn("%s", entp->fts_path);
+			rval = 1;
 		}
 	} else if (lflag) {
 		if (link(entp->fts_path, to.p_path)) {
@@ -297,7 +240,7 @@ done:
 int
 copy_link(const FTSENT *p, int exists)
 {
-	int len;
+	ssize_t len;
 	char llink[PATH_MAX];
 
 	if (exists && nflag) {
