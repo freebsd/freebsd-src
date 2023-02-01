@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+68e86d5265bc,e58dfd0de589,59f5a5cb724e,6e272a78de36,4c4a4fd4a649,ba2ae2cca63a:
+	sendmail has been updated to the latest upstream version (8.17.1).
+	
 225443828ec6..c44d097dcf92:
 	bhyve now supports more than 16 vCPUs in a guest.  By default
 	bhyve permits each guest to create the same number of vCPUs as
