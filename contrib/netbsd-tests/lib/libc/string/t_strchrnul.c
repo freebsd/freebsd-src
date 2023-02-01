@@ -1,4 +1,4 @@
-/* $NetBSD: t_strchr.c,v 1.3 2023/01/30 19:49:49 christos Exp $ */
+/* $NetBSD: t_strchrnul.c,v 1.1 2023/01/30 19:49:49 christos Exp $ */
 
 /*
  * Written by J.T. Conklin <jtc@acorntoolworks.com>
@@ -12,51 +12,50 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
-static char	*slow_strchr(char *, int);
-static void	 verify_strchr(char *, int, unsigned int, unsigned int);
+static char	*slow_strchrnul(char *, int);
+static void	 verify_strchrnul(char *, int, unsigned int, unsigned int);
 
-char * (*volatile strchr_fn)(const char *, int);
+char * (*volatile strchrnul_fn)(const char *, int);
 
 static char *
-slow_strchr(char *buf, int ch)
+slow_strchrnul(char *buf, int ch)
 {
 	unsigned char c = 1;
 
 	ch &= 0xff;
 
-	for (; c != 0; buf++) {
+	for (; ; buf++) {
 		c = *buf;
-		if (c == ch)
+		if (c == ch || c == 0)
 			return buf;
 	}
-	return 0;
 }
 
 static void
-verify_strchr(char *buf, int ch, unsigned int t, unsigned int a)
+verify_strchrnul(char *buf, int ch, unsigned int t, unsigned int a)
 {
 	const char *off, *ok_off;
 
-	off = strchr_fn(buf, ch);
-	ok_off = slow_strchr(buf, ch);
+	off = strchrnul_fn(buf, ch);
+	ok_off = slow_strchrnul(buf, ch);
 	if (off == ok_off)
 		return;
 
-	fprintf(stderr, "test_strchr(\"%s\", %#x) gave %zd not %zd (test %d, "
+	fprintf(stderr, "test_strchrnul(\"%s\", %#x) gave %zd not %zd (test %d, "
 	    "alignment %d)\n",
 	    buf, ch, off ? off - buf : -1, ok_off ? ok_off - buf : -1, t, a);
 
 	atf_tc_fail("Check stderr for details");
 }
 
-ATF_TC(strchr_basic);
-ATF_TC_HEAD(strchr_basic, tc)
+ATF_TC(strchrnul_basic);
+ATF_TC_HEAD(strchrnul_basic, tc)
 {
 
-        atf_tc_set_md_var(tc, "descr", "Test strchr(3) results");
+        atf_tc_set_md_var(tc, "descr", "Test strchrnul(3) results");
 }
 
-ATF_TC_BODY(strchr_basic, tc)
+ATF_TC_BODY(strchrnul_basic, tc)
 {
 	void *dl_handle;
 	char *off;
@@ -247,9 +246,9 @@ ATF_TC_BODY(strchr_basic, tc)
 	};
 
 	dl_handle = dlopen(NULL, RTLD_LAZY);
-	strchr_fn = dlsym(dl_handle, "test_strchr");
-	if (!strchr_fn)
-		strchr_fn = strchr;
+	strchrnul_fn = dlsym(dl_handle, "test_strchrnul");
+	if (!strchrnul_fn)
+		strchrnul_fn = strchrnul;
 
 	for (a = 3; a < 3 + sizeof(long); ++a) {
 		/* Put char and a \0 before the buffer */
@@ -264,22 +263,22 @@ ATF_TC_BODY(strchr_basic, tc)
 			buf[a + len] = '/';
 
 			/* Check search for NUL at end of string */
-			verify_strchr(buf + a, 0, t, a);
+			verify_strchrnul(buf + a, 0, t, a);
 
 			/* Then for the '/' in the strings */
-			verify_strchr(buf + a, '/', t, a);
+			verify_strchrnul(buf + a, '/', t, a);
 
 			/* check zero extension of char arg */
-			verify_strchr(buf + a, 0xffffff00 | '/', t, a);
+			verify_strchrnul(buf + a, 0xffffff00 | '/', t, a);
 
 			/* Replace all the '/' with 0xff */
-			while ((off = slow_strchr(buf + a, '/')) != NULL)
+			while (*(off = slow_strchrnul(buf + a, '/')) != '\0')
 				*off = 0xff;
 
 			buf[a + len] = 0xff;
 
 			/* Check we can search for 0xff as well as '/' */
-			verify_strchr(buf + a, 0xff, t, a);
+			verify_strchrnul(buf + a, 0xff, t, a);
 		}
 	}
 	(void)dlclose(dl_handle);
@@ -288,7 +287,7 @@ ATF_TC_BODY(strchr_basic, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, strchr_basic);
+	ATF_TP_ADD_TC(tp, strchrnul_basic);
 
 	return atf_no_error();
 }
