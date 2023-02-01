@@ -12,6 +12,11 @@ DEVDDIR=	/etc/devd
 DEVD+=	asus.conf
 .endif
 
+CONFGROUPS+=		DHCLIENT
+DHCLIENTDIR=		${DEVDDIR}
+DHCLIENT+=		dhclient.conf
+DHCLIENTPACKAGE=	dhclient
+
 .if ${MK_HYPERV} != "no"
 CONFGROUPS+=	HYPERV
 HYPERVDIR=${DEVDDIR}
