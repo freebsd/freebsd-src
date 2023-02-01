@@ -578,6 +578,7 @@ int if_setcapenablebit(if_t ifp, int setcap, int clearcap);
 int if_getcapenable(const if_t ifp);
 int if_getdunit(const if_t ifp);
 int if_getindex(const if_t ifp);
+int if_getidxgen(const if_t ifp);
 const char *if_getdname(const if_t ifp);
 void if_setdname(if_t ifp, const char *name);
 const char *if_name(if_t ifp);
@@ -650,6 +651,8 @@ bool if_altq_is_enabled(if_t ifp);
 
 void *if_getafdata(if_t ifp, int);
 
+int if_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **mstp);
 /*
  * Traversing through interface address lists.
  */
