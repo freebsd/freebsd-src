@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	console-tools
 PROG=	kbdcontrol
 MAN=	kbdcontrol.1 kbdmap.5
 MLINKS= kbdmap.5 keymap.5
