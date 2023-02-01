@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #ifdef NEW_PCIB
+#include "opt_acpi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
+#if defined(__aarch64__)
+#include <arm64/include/intr.h>
+#endif
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/frame.h>
@@ -62,10 +66,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
-
+#if defined(__i386__) || defined(__amd64__)
 #include <machine/intr_machdep.h>
 #include <x86/apicreg.h>
-
+#endif
+#if defined(__aarch64__)
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
+#include <dev/acpica/acpi_pcibvar.h>
+#endif
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus_xact.h>
@@ -142,7 +152,7 @@ wait_for_completion_timeout(struct completion *c, int timeout)
 	return (ret);
 }
 
-#define PCI_MAKE_VERSION(major, minor) ((uint32_t)(((major) << 16) | (major)))
+#define PCI_MAKE_VERSION(major, minor) ((uint32_t)(((major) << 16) | (minor)))
 
 enum {
 	PCI_PROTOCOL_VERSION_1_1 = PCI_MAKE_VERSION(1, 1),
@@ -182,6 +192,12 @@ enum pci_message_type {
 	PCI_QUERY_PROTOCOL_VERSION      = PCI_MESSAGE_BASE + 0x13,
 	PCI_CREATE_INTERRUPT_MESSAGE    = PCI_MESSAGE_BASE + 0x14,
 	PCI_DELETE_INTERRUPT_MESSAGE    = PCI_MESSAGE_BASE + 0x15,
+	PCI_RESOURCES_ASSIGNED2         = PCI_MESSAGE_BASE + 0x16,
+	PCI_CREATE_INTERRUPT_MESSAGE2   = PCI_MESSAGE_BASE + 0x17,
+	PCI_DELETE_INTERRUPT_MESSAGE2   = PCI_MESSAGE_BASE + 0x18, /* unused */
+	PCI_BUS_RELATIONS2              = PCI_MESSAGE_BASE + 0x19,
+	PCI_RESOURCES_ASSIGNED3         = PCI_MESSAGE_BASE + 0x1A,
+	PCI_CREATE_INTERRUPT_MESSAGE3   = PCI_MESSAGE_BASE + 0x1B,
 	PCI_MESSAGE_MAXIMUM
 };
 
@@ -223,12 +239,37 @@ struct pci_func_desc {
 	uint32_t	ser;	/* serial number */
 } __packed;
 
+struct pci_func_desc2 {
+	uint16_t	v_id;	/* vendor ID */
+	uint16_t	d_id;	/* device ID */
+	uint8_t		rev;
+	uint8_t		prog_intf;
+	uint8_t		subclass;
+	uint8_t		base_class;
+	uint32_t	subsystem_id;
+	union win_slot_encoding wslot;
+	uint32_t	ser;	/* serial number */
+	uint32_t flags;
+    uint16_t virtual_numa_node;
+    uint16_t reserved;
+} __packed;
+
+
 struct hv_msi_desc {
 	uint8_t		vector;
 	uint8_t		delivery_mode;
 	uint16_t	vector_count;
 	uint32_t	reserved;
 	uint64_t	cpu_mask;
+} __packed;
+
+struct hv_msi_desc3 {
+	uint32_t	vector;
+	uint8_t		delivery_mode;
+	uint8_t		reserved;
+	uint16_t	vector_count;
+	uint16_t	processor_count;
+	uint16_t	processor_array[32];
 } __packed;
 
 struct tran_int_desc {
@@ -288,6 +329,12 @@ struct pci_bus_relations {
 	struct pci_func_desc func[0];
 } __packed;
 
+struct pci_bus_relations2 {
+    struct pci_incoming_message incoming;
+    uint32_t device_count;
+    struct pci_func_desc2 func[0];
+} __packed;
+
 #define MAX_NUM_BARS	(PCIR_MAX_BAR_0 + 1)
 struct pci_q_res_req_response {
 	struct vmbus_chanpkt_hdr hdr;
@@ -303,10 +350,24 @@ struct pci_resources_assigned {
 	uint32_t reserved[4];
 } __packed;
 
+struct pci_resources_assigned2 {
+    struct pci_message message_type;
+    union win_slot_encoding wslot;
+    uint8_t memory_range[0x14][6];   /* not used here */
+    uint32_t msi_descriptor_count;
+    uint8_t reserved[70];
+} __packed;
+
 struct pci_create_interrupt {
 	struct pci_message message_type;
 	union win_slot_encoding wslot;
 	struct hv_msi_desc int_desc;
+} __packed;
+
+struct pci_create_interrupt3 {
+	struct pci_message message_type;
+	union win_slot_encoding wslot;
+	struct hv_msi_desc3 int_desc;
 } __packed;
 
 struct pci_create_int_response {
@@ -356,11 +417,27 @@ struct hv_pcibus {
 
 	struct mtx config_lock; /* Avoid two threads writing index page */
 	struct mtx device_list_lock;    /* Protect lists below */
+	uint32_t protocol_version;
 	TAILQ_HEAD(, hv_pci_dev) children;
 	TAILQ_HEAD(, hv_dr_state) dr_list;
 
 	volatile int detaching;
 };
+
+struct hv_pcidev_desc {
+	uint16_t	v_id;	/* vendor ID */
+	uint16_t	d_id;	/* device ID */
+	uint8_t		rev;
+	uint8_t		prog_intf;
+	uint8_t		subclass;
+	uint8_t		base_class;
+	uint32_t	subsystem_id;
+	union win_slot_encoding wslot;
+	uint32_t	ser;	/* serial number */
+	uint32_t flags;
+    uint16_t virtual_numa_node;
+} __packed;
+
 
 struct hv_pci_dev {
 	TAILQ_ENTRY(hv_pci_dev) link;
