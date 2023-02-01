@@ -442,17 +442,6 @@ int linux32_copyinuio(struct l_iovec32 *iovp, l_ulong iovcnt,
 int linux_copyout_rusage(struct rusage *ru, void *uaddr);
 #endif /* _KERNEL */
 
-/* robust futexes */
-struct linux_robust_list {
-	l_uintptr_t			next;
-};
-
-struct linux_robust_list_head {
-	struct linux_robust_list	list;
-	l_long				futex_offset;
-	l_uintptr_t			pending_list;
-};
-
 /* This corresponds to 'struct user_regs_struct32' in Linux. */
 struct linux_pt_regset32 {
 	l_uint ebx;

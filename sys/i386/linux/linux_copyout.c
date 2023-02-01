@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/md_var.h>
 
+#include <i386/linux/linux.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
 
