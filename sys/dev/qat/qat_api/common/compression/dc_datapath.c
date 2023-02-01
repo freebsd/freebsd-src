@@ -152,6 +152,7 @@ dcCompression_ProcessCallback(void *pRespMsg)
 
 	if (NULL != pOpData) {
 		verifyHwIntegrityCrcs = pOpData->verifyHwIntegrityCrcs;
+		integrityCrcCheck = pOpData->integrityCrcCheck;
 	}
 
 	hdrFlags = pCompRespMsg->comn_resp.hdr_flags;
@@ -175,10 +176,9 @@ dcCompression_ProcessCallback(void *pRespMsg)
 			(pService->pDcDpCb)(pResponse);
 		} else {
 			/* Free the memory pool */
-			if (NULL != pCookie) {
-				Lac_MemPoolEntryFree(pCookie);
-				pCookie = NULL;
-			}
+			Lac_MemPoolEntryFree(pCookie);
+			pCookie = NULL;
+
 			if (NULL != pCbFunc) {
 				pCbFunc(callbackTag, status);
 			}
@@ -432,10 +432,8 @@ dcCompression_ProcessCallback(void *pRespMsg)
 		}
 
 		/* Free the memory pool */
-		if (NULL != pCookie) {
-			Lac_MemPoolEntryFree(pCookie);
-			pCookie = NULL;
-		}
+		Lac_MemPoolEntryFree(pCookie);
+		pCookie = NULL;
 
 		if (NULL != pCbFunc) {
 			pCbFunc(callbackTag, status);
