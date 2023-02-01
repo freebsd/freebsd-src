@@ -18,6 +18,7 @@ NETBSD_ATF_TESTS_C+=	memmem_test
 NETBSD_ATF_TESTS_C+=	memset_test
 NETBSD_ATF_TESTS_C+=	strcat_test
 NETBSD_ATF_TESTS_C+=	strchr_test
+NETBSD_ATF_TESTS_C+=	strchrnul_test
 NETBSD_ATF_TESTS_C+=	strcmp_test
 NETBSD_ATF_TESTS_C+=	strcpy_test
 NETBSD_ATF_TESTS_C+=	strcspn_test
