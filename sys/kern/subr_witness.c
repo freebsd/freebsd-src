@@ -740,6 +740,12 @@ static struct witness_blessed blessed_list[] = {
 	 * parent directory vnode is locked.
 	 */
 	{ "ufs",	"bufwait" },
+
+	/*
+	 * The tarfs decompression stream vnode may be locked while a
+	 * buffer belonging to a tarfs data vnode is locked.
+	 */
+	{ "tarfs",	"bufwait" },
 };
 
 /*
