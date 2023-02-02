@@ -1113,8 +1113,10 @@ ipf_pr_pullup(fr_info_t *fin, int plen)
 		if (M_LEN(fin->fin_m) < plen + fin->fin_ipoff) {
 #if defined(_KERNEL)
 			if (ipf_pullup(fin->fin_m, fin, plen) == NULL) {
-				DT(ipf_pullup_fail);
+				DT1(ipf_pullup_fail, fr_info_t *, fin);
 				LBUMP(ipf_stats[fin->fin_out].fr_pull[1]);
+				fin->fin_reason = FRB_PULLUP;
+				fin->fin_flx |= FI_BAD;
 				return (-1);
 			}
 			LBUMP(ipf_stats[fin->fin_out].fr_pull[0]);
@@ -1127,6 +1129,7 @@ ipf_pr_pullup(fr_info_t *fin, int plen)
 			*fin->fin_mp = NULL;
 			fin->fin_m = NULL;
 			fin->fin_ip = NULL;
+			fin->fin_flx |= FI_BAD;
 			return (-1);
 #endif
 		}
@@ -3179,6 +3182,14 @@ finished:
 	}
 
 	SPL_X(s);
+
+	if (fin->fin_m == NULL && fin->fin_flx & FI_BAD &&
+	    fin->fin_reason == FRB_PULLUP) {
+		/* m_pullup() has freed the mbuf */
+		LBUMP(ipf_stats[out].fr_blocked[fin->fin_reason]);
+		return (-1);
+	}
+
 
 #ifdef _KERNEL
 	if (FR_ISPASS(pass))
