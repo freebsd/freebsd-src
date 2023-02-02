@@ -3815,10 +3815,17 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 	struct sctp_stream_change_event *stradd;
 
 	if ((stcb == NULL) ||
-	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_STREAM_CHANGEEVNT))) {
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
+		/* If the socket is gone we are out of here. */
+		return;
+	}
+	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_STREAM_CHANGEEVNT)) {
 		/* event not enabled */
 		return;
 	}
+
 	if ((stcb->asoc.peer_req_out) && flag) {
 		/* Peer made the request, don't tell the local user */
 		stcb->asoc.peer_req_out = 0;
@@ -3871,10 +3878,17 @@ sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32
 	struct sctp_assoc_reset_event *strasoc;
 
 	if ((stcb == NULL) ||
-	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_ASSOC_RESETEVNT))) {
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
+		/* If the socket is gone we are out of here. */
+		return;
+	}
+	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_ASSOC_RESETEVNT)) {
 		/* event not enabled */
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_assoc_reset_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
