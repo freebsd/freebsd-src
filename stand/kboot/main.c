@@ -151,7 +151,7 @@ int
 main(int argc, const char **argv)
 {
 	void *heapbase;
-	const size_t heapsize = 128*1024*1024;
+	const size_t heapsize = 64*1024*1024;
 	const char *bootdev;
 
 	archsw.arch_getdev = kboot_getdev;
@@ -167,7 +167,7 @@ main(int argc, const char **argv)
 	do_init();
 
 	/*
-	 * Setup the heap 15MB should be plenty
+	 * Setup the heap, 64MB is minimum for ZFS booting
 	 */
 	heapbase = host_getmem(heapsize);
 	setheap(heapbase, heapbase + heapsize);
