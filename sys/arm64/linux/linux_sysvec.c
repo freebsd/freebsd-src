@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define	__ELF_WORD_SIZE	64
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cdefs.h>
@@ -59,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
+#include <compat/linux/linux_elf.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_ioctl.h>
