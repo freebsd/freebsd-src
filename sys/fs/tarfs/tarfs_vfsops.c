@@ -522,8 +522,8 @@ again:
 
 	/* extended header? */
 	if (hdrp->typeflag[0] == TAR_TYPE_GLOBAL_EXTHDR) {
-		printf("%s: unsupported global extended header at %zd\n",
-		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		printf("%s: unsupported global extended header at %zu\n",
+		    __func__, (size_t)(TARFS_BLOCKSIZE * (blknum - 1)));
 		error = EFTYPE;
 		goto bad;
 	}

@@ -137,7 +137,7 @@ tarfs_print_node(struct tarfs_node *tnp)
 	printf("\tvnode %p\n", tnp->vnode);
 	printf("\ttmp %p\n", tnp->tmp);
 	printf("\ttype %d\n", tnp->type);
-	printf("\tino %lu\n", tnp->ino);
+	printf("\tino %lu\n", (unsigned long)tnp->ino);
 	printf("\tsize %zu\n", tnp->size);
 	printf("\tname %s\n",
 	    (tnp->name == NULL) ? "<<root>>" : tnp->name);
@@ -146,7 +146,7 @@ tarfs_print_node(struct tarfs_node *tnp)
 	printf("\tgid %d\n", tnp->gid);
 	printf("\tmode o%o\n", tnp->mode);
 	printf("\tflags %u\n", tnp->flags);
-	printf("\tnlink %lu\n", tnp->nlink);
+	printf("\tnlink %lu\n", (unsigned long)tnp->nlink);
 	printf("\tatime %d\n", (int)tnp->atime.tv_sec);
 	printf("\tmtime %d\n", (int)tnp->mtime.tv_sec);
 	printf("\tctime %d\n", (int)tnp->ctime.tv_sec);
@@ -162,7 +162,7 @@ tarfs_print_node(struct tarfs_node *tnp)
 		break;
 	case VBLK:
 	case VCHR:
-		printf("\trdev %lu\n", tnp->rdev);
+		printf("\trdev %lu\n", (unsigned long)tnp->rdev);
 		break;
 	default:
 		break;
