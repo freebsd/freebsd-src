@@ -117,8 +117,6 @@ SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static int	linux_copyout_strings(struct image_params *imgp,
 		    uintptr_t *stack_base);
-static int	linux_fixup_elf(uintptr_t *stack_base,
-		    struct image_params *iparams);
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
@@ -267,20 +265,6 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
-}
-
-static int
-linux_fixup_elf(uintptr_t *stack_base, struct image_params *imgp)
-{
-	Elf_Addr *base;
-
-	base = (Elf64_Addr *)*stack_base;
-	base--;
-	if (suword(base, (uint64_t)imgp->args->argc) == -1)
-		return (EFAULT);
-
-	*stack_base = (uintptr_t)base;
-	return (0);
 }
 
 /*
@@ -704,7 +688,7 @@ linux_vsyscall(struct thread *td)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_fixup	= linux_fixup_elf,
+	.sv_fixup	= __elfN(freebsd_fixup),
 	.sv_sendsig	= linux_rt_sendsig,
 	.sv_sigcode	= &_binary_linux_vdso_so_o_start,
 	.sv_szsigcode	= &linux_szsigcode,

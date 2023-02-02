@@ -118,8 +118,6 @@ extern const char *linux32_syscallnames[];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-static int	linux_fixup_elf(uintptr_t *stack_base,
-		    struct image_params *iparams);
 static int	linux_copyout_strings(struct image_params *imgp,
 		    uintptr_t *stack_base);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
@@ -208,19 +206,6 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
-}
-
-static int
-linux_fixup_elf(uintptr_t *stack_base, struct image_params *imgp)
-{
-	Elf32_Addr *base;
-
-	base = (Elf32_Addr *)*stack_base;
-	base--;
-	if (suword32(base, (uint32_t)imgp->args->argc) == -1)
-		return (EFAULT);
-	*stack_base = (uintptr_t)base;
-	return (0);
 }
 
 static void
@@ -857,7 +842,7 @@ linux32_fixlimit(struct rlimit *rl, int which)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX32_SYS_MAXSYSCALL,
 	.sv_table	= linux32_sysent,
-	.sv_fixup	= linux_fixup_elf,
+	.sv_fixup	= elf32_freebsd_fixup,
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux32_vdso_so_o_start,
 	.sv_szsigcode	= &linux_szsigcode,

@@ -105,8 +105,6 @@ SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static int	linux_fixup(uintptr_t *stack_base,
 		    struct image_params *iparams);
-static int	linux_fixup_elf(uintptr_t *stack_base,
-		    struct image_params *iparams);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	linux_exec_setregs(struct thread *td,
 		    struct image_params *imgp, uintptr_t stack);
@@ -201,19 +199,6 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
-}
-
-static int
-linux_fixup_elf(uintptr_t *stack_base, struct image_params *imgp)
-{
-	register_t *base;
-
-	base = (register_t *)*stack_base;
-	base--;
-	if (suword(base, (register_t)imgp->args->argc) == -1)
-		return (EFAULT);
-	*stack_base = (uintptr_t)base;
-	return (0);
 }
 
 /*
@@ -800,7 +785,7 @@ INIT_SYSENTVEC(aout_sysvec, &linux_sysvec);
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_fixup	= linux_fixup_elf,
+	.sv_fixup	= __elfN(freebsd_fixup),
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux_vdso_so_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
