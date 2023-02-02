@@ -38,5 +38,6 @@ struct note_info_list;
 
 void 	__linuxN(prepare_notes)(struct thread *, struct note_info_list *,
 	    size_t *);
+int	__linuxN(copyout_strings)(struct image_params *, uintptr_t *);
 
 #endif

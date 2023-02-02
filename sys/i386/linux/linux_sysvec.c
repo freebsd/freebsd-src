@@ -111,8 +111,6 @@ static void	linux_exec_setregs(struct thread *td,
 static void	linux_exec_sysvec_init(void *param);
 static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
-static int	linux_copyout_strings(struct image_params *imgp,
-		    uintptr_t *stack_base);
 static void	linux_set_fork_retval(struct thread *td);
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
@@ -199,124 +197,6 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
-}
-
-/*
- * Copied from kern/kern_exec.c
- */
-static int
-linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
-{
-	int argc, envc, error;
-	char **vectp;
-	char *stringp;
-	uintptr_t destp, ustringp;
-	struct ps_strings *arginfo;
-	char canary[LINUX_AT_RANDOM_LEN];
-	size_t execpath_len;
-	struct proc *p;
-
-	p = imgp->proc;
-	arginfo = (struct ps_strings *)PROC_PS_STRINGS(p);
-	destp = (uintptr_t)arginfo;
-
-	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
-		execpath_len = strlen(imgp->execpath) + 1;
-		destp -= execpath_len;
-		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = (void *)destp;
-		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
-		if (error != 0)
-			return (error);
-	}
-
-	/* Prepare the canary for SSP. */
-	arc4rand(canary, sizeof(canary), 0);
-	destp -= roundup(sizeof(canary), sizeof(void *));
-	imgp->canary = (void *)destp;
-	error = copyout(canary, imgp->canary, sizeof(canary));
-	if (error != 0)
-		return (error);
-
-	/* Allocate room for the argument and environment strings. */
-	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(void *));
-	ustringp = destp;
-
-	if (imgp->auxargs) {
-		/*
-		 * Allocate room on the stack for the ELF auxargs
-		 * array.  It has LINUX_AT_COUNT entries.
-		 */
-		destp -= LINUX_AT_COUNT * sizeof(Elf32_Auxinfo);
-		destp = rounddown2(destp, sizeof(void *));
-	}
-
-	vectp = (char **)destp;
-
-	/*
-	 * Allocate room for the argv[] and env vectors including the
-	 * terminating NULL pointers.
-	 */
-	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
-
-	/* vectp also becomes our initial stack base. */
-	*stack_base = (uintptr_t)vectp;
-
-	stringp = imgp->args->begin_argv;
-	argc = imgp->args->argc;
-	envc = imgp->args->envc;
-
-	/* Copy out strings - arguments and environment. */
-	error = copyout(stringp, (void *)ustringp,
-	    ARG_MAX - imgp->args->stringspace);
-	if (error != 0)
-		return (error);
-
-	/* Fill in "ps_strings" struct for ps, w, etc. */
-	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
-	    suword(&arginfo->ps_nargvstr, argc) != 0)
-		return (EFAULT);
-
-	/* Fill in argument portion of vector table. */
-	for (; argc > 0; --argc) {
-		if (suword(vectp++, ustringp) != 0)
-			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
-	}
-
-	/* A null vector table pointer separates the argp's from the envp's. */
-	if (suword(vectp++, 0) != 0)
-		return (EFAULT);
-
-	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
-	    suword(&arginfo->ps_nenvstr, envc) != 0)
-		return (EFAULT);
-
-	/* Fill in environment portion of vector table. */
-	for (; envc > 0; --envc) {
-		if (suword(vectp++, ustringp) != 0)
-			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
-	}
-
-	/* The end of the vector table is a null pointer. */
-	if (suword(vectp, 0) != 0)
-		return (EFAULT);
-
-	if (imgp->auxargs) {
-		vectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)vectp);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
 }
 
 static void
@@ -804,7 +684,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
-	.sv_copyout_strings = linux_copyout_strings,
+	.sv_copyout_strings = __linuxN(copyout_strings),
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
