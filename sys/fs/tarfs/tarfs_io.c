@@ -517,9 +517,11 @@ fail_unlocked:
 static int
 tarfs_zread(struct vop_read_args *ap)
 {
+#if defined(TARFS_DEBUG) || defined(ZSTDIO)
 	struct vnode *vp = ap->a_vp;
 	struct tarfs_zio *zio = vp->v_data;
 	struct uio *uiop = ap->a_uio;
+#endif
 #ifdef TARFS_DEBUG
 	off_t off = uiop->uio_offset;
 	size_t len = uiop->uio_resid;
@@ -640,7 +642,9 @@ int
 tarfs_io_init(struct tarfs_mount *tmp)
 {
 	uint8_t *block;
+#ifdef ZSTDIO
 	struct tarfs_zio *zio = NULL;
+#endif
 	ssize_t res;
 	int error = 0;
 
