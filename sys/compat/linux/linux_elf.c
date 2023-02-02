@@ -41,6 +41,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/lock.h>
@@ -50,6 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/reg.h>
 #include <sys/sbuf.h>
+#include <sys/sysent.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/elf.h>
 
@@ -61,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #endif
 #include <compat/linux/linux_elf.h>
+#include <compat/linux/linux_misc.h>
 
 struct l_elf_siginfo {
 	l_int		si_signo;
@@ -311,4 +318,150 @@ __linuxN(note_nt_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 		proc_getauxv(curthread, p, sb);
 		PRELE(p);
 	}
+}
+
+/*
+ * Copy strings out to the new process address space, constructing new arg
+ * and env vector tables. Return a pointer to the base so that it can be used
+ * as the initial stack pointer.
+ */
+int
+__linuxN(copyout_strings)(struct image_params *imgp, uintptr_t *stack_base)
+{
+	char canary[LINUX_AT_RANDOM_LEN];
+	char **vectp;
+	char *stringp;
+	uintptr_t destp, ustringp;
+	struct ps_strings *arginfo;
+	struct proc *p;
+	size_t execpath_len;
+	int argc, envc;
+	int error;
+
+	p = imgp->proc;
+	destp =	PROC_PS_STRINGS(p);
+	arginfo = imgp->ps_strings = (void *)destp;
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
+		execpath_len = strlen(imgp->execpath) + 1;
+		destp -= execpath_len;
+		destp = rounddown2(destp, sizeof(void *));
+		imgp->execpathp = (void *)destp;
+		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
+		if (error != 0)
+			return (error);
+	}
+
+	/*
+	 * Prepare the canary for SSP.
+	 */
+	arc4rand(canary, sizeof(canary), 0);
+	destp -= sizeof(canary);
+	imgp->canary = (void *)destp;
+	error = copyout(canary, imgp->canary, sizeof(canary));
+	if (error != 0)
+		return (error);
+	imgp->canarylen = sizeof(canary);
+
+	/*
+	 * Allocate room for the argument and environment strings.
+	 */
+	destp -= ARG_MAX - imgp->args->stringspace;
+	destp = rounddown2(destp, sizeof(void *));
+	ustringp = destp;
+
+	if (imgp->auxargs) {
+		/*
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has up to LINUX_AT_COUNT entries.
+		 */
+		destp -= LINUX_AT_COUNT * sizeof(Elf_Auxinfo);
+		destp = rounddown2(destp, sizeof(void *));
+	}
+
+	vectp = (char **)destp;
+
+	/*
+	 * Allocate room for the argv[] and env vectors including the
+	 * terminating NULL pointers.
+	 */
+	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
+
+	/*
+	 * Starting with 2.24, glibc depends on a 16-byte stack alignment.
+	 */
+	vectp = (char **)((((uintptr_t)vectp + 8) & ~0xF) - 8);
+
+	/*
+	 * vectp also becomes our initial stack base
+	 */
+	*stack_base = (uintptr_t)vectp;
+
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
+
+	/*
+	 * Copy out strings - arguments and environment.
+	 */
+	error = copyout(stringp, (void *)ustringp,
+	    ARG_MAX - imgp->args->stringspace);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Fill in "ps_strings" struct for ps, w, etc.
+	 */
+	imgp->argv = vectp;
+	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nargvstr, argc) != 0)
+		return (EFAULT);
+
+	/*
+	 * Fill in argument portion of vector table.
+	 */
+	for (; argc > 0; --argc) {
+		if (suword(vectp++, ustringp) != 0)
+			return (EFAULT);
+		while (*stringp++ != 0)
+			ustringp++;
+		ustringp++;
+	}
+
+	/* a null vector table pointer separates the argp's from the envp's */
+	if (suword(vectp++, 0) != 0)
+		return (EFAULT);
+
+	imgp->envv = vectp;
+	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nenvstr, envc) != 0)
+		return (EFAULT);
+
+	/*
+	 * Fill in environment portion of vector table.
+	 */
+	for (; envc > 0; --envc) {
+		if (suword(vectp++, ustringp) != 0)
+			return (EFAULT);
+		while (*stringp++ != 0)
+			ustringp++;
+		ustringp++;
+	}
+
+	/* end of vector table is a null pointer */
+	if (suword(vectp, 0) != 0)
+		return (EFAULT);
+
+	if (imgp->auxargs) {
+		vectp++;
+		error = imgp->sysent->sv_copyout_auxargs(imgp,
+		    (uintptr_t)vectp);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
 }
