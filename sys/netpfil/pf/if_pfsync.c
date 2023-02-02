@@ -598,7 +598,11 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	if (!(flags & PFSYNC_SI_IOCTL)) {
 		st->state_flags &= ~PFSTATE_NOSYNC;
 		if (st->state_flags & PFSTATE_ACK) {
+			struct pfsync_bucket *b = pfsync_get_bucket(sc, st);
+			PFSYNC_BUCKET_LOCK(b);
 			pfsync_q_ins(st, PFSYNC_S_IACK, true);
+			PFSYNC_BUCKET_UNLOCK(b);
+
 			pfsync_push_all(sc);
 		}
 	}
