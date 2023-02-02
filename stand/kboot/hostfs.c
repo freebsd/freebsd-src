@@ -112,9 +112,8 @@ hostfs_read(struct open_file *f, void *start, size_t size, size_t *resid)
 	ssize_t sz;
 
 	sz = host_read(hf->hf_fd, start, size);
-	if (sz < 0) {
-		return (EINVAL);
-	}
+	if (sz < 0)
+		return (host_to_stand_errno(sz));
 	*resid = size - sz;
 
 	return (0);
