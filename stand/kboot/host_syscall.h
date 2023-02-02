@@ -29,6 +29,7 @@
 #define _HOST_SYSCALL_H
 
 #include <stand.h>
+#include <assert.h>
 
 long host_syscall(int number, ...);
 
@@ -214,6 +215,12 @@ ssize_t host_write(int fd, const void *buf, size_t nbyte);
  * function where -1 to -34 are translated to 1 to 34 and all others are EINVAL.
  * Pass the linux return value, which will be the -errno.
  */
-#define host_to_stand_errno(e)	((-e) > 34 ? EINVAL : (-e))
+static __inline int
+host_to_stand_errno(int e)
+{
+	assert(e < 0);
+
+	return((-e) > 34 ? EINVAL : (-e));
+}
 
 #endif
