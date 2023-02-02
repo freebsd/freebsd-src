@@ -40,19 +40,17 @@ static EFI_GUID serial = SERIAL_IO_PROTOCOL;
 
 #define	COMC_TXWAIT	0x40000		/* transmit timeout */
 
-#ifndef	COMSPEED
-#define	COMSPEED	9600
-#endif
-
 #define	PNP0501		0x501		/* 16550A-compatible COM port */
 
 struct serial {
 	uint64_t	baudrate;
-	uint8_t		databits;
+	uint32_t	timeout;
+	uint32_t	receivefifodepth;
+	uint32_t	databits;
 	EFI_PARITY_TYPE	parity;
 	EFI_STOP_BITS_TYPE stopbits;
-	uint8_t		ignore_cd;	/* boolean */
-	uint8_t		rtsdtr_off;	/* boolean */
+	uint32_t	ignore_cd;	/* boolean */
+	uint32_t	rtsdtr_off;	/* boolean */
 	int		ioaddr;		/* index in handles array */
 	EFI_HANDLE	currdev;	/* current serial device */
 	EFI_HANDLE	condev;		/* EFI Console device */
@@ -257,18 +255,16 @@ comc_probe(struct console *sc)
 	size_t sz;
 
 	if (comc_port == NULL) {
-		comc_port = malloc(sizeof (struct serial));
+		comc_port = calloc(1, sizeof (struct serial));
 		if (comc_port == NULL)
 			return;
 	}
-	comc_port->baudrate = COMSPEED;
-	comc_port->ioaddr = 0;			/* default port */
-	comc_port->databits = 8;		/* 8,n,1 */
-	comc_port->parity = NoParity;		/* 8,n,1 */
-	comc_port->stopbits = OneStopBit;	/* 8,n,1 */
+	/* Use defaults from firmware */
+	comc_port->databits = 8;
+	comc_port->parity = DefaultParity;
+	comc_port->stopbits = DefaultStopBits;
 	comc_port->ignore_cd = 1;		/* ignore cd */
 	comc_port->rtsdtr_off = 0;		/* rts-dtr is on */
-	comc_port->sio = NULL;
 
 	handle = NULL;
 	env = getenv("efi_com_port");
@@ -292,8 +288,17 @@ comc_probe(struct console *sc)
 		    (void**)&comc_port->sio, IH, NULL,
 		    EFI_OPEN_PROTOCOL_GET_PROTOCOL);
 
-		if (EFI_ERROR(status))
+		if (EFI_ERROR(status)) {
 			comc_port->sio = NULL;
+		} else {
+			comc_port->baudrate = comc_port->sio->Mode->BaudRate;
+			comc_port->timeout = comc_port->sio->Mode->Timeout;
+			comc_port->receivefifodepth =
+			    comc_port->sio->Mode->ReceiveFifoDepth;
+			comc_port->databits = comc_port->sio->Mode->DataBits;
+			comc_port->parity = comc_port->sio->Mode->Parity;
+			comc_port->stopbits = comc_port->sio->Mode->StopBits;
+		}
 	}
 
 	if (env != NULL) 
@@ -494,7 +499,8 @@ comc_setup(void)
 		return (false);
 
 	status = comc_port->sio->SetAttributes(comc_port->sio,
-	    comc_port->baudrate, 0, 0, comc_port->parity,
+	    comc_port->baudrate, comc_port->receivefifodepth,
+	    comc_port->timeout, comc_port->parity,
 	    comc_port->databits, comc_port->stopbits);
 	if (EFI_ERROR(status))
 		return (false);
