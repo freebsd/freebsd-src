@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #endif
 #include <compat/linux/linux_elf.h>
+#include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 
 struct l_elf_siginfo {
@@ -464,4 +465,26 @@ __linuxN(copyout_strings)(struct image_params *imgp, uintptr_t *stack_base)
 	}
 
 	return (0);
+}
+
+bool
+linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
+{
+	const Elf32_Word *desc;
+	uintptr_t p;
+
+	p = (uintptr_t)(note + 1);
+	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+
+	desc = (const Elf32_Word *)p;
+	if (desc[0] != GNU_ABI_LINUX)
+		return (false);
+	/*
+	 * For Linux we encode osrel using the Linux convention of
+	 * 	(version << 16) | (major << 8) | (minor)
+	 * See macro in linux_mib.h
+	 */
+	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
+
+	return (true);
 }
