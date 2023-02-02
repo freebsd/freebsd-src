@@ -3194,6 +3194,8 @@ prison_check(struct ucred *cred1, struct ucred *cred2)
  * - The root directory (pr_root) of the prison must be
  *   a file system mount point, so the mountd can hang
  *   export information on it.
+ * - The prison's enforce_statfs cannot be 0, so that
+ *   mountd(8) can do exports.
  */
 bool
 prison_check_nfsd(struct ucred *cred)
@@ -3204,6 +3206,8 @@ prison_check_nfsd(struct ucred *cred)
 	if (!prison_allow(cred, PR_ALLOW_NFSD))
 		return (false);
 	if ((cred->cr_prison->pr_root->v_vflag & VV_ROOT) == 0)
+		return (false);
+	if (cred->cr_prison->pr_enforce_statfs == 0)
 		return (false);
 	return (true);
 }
