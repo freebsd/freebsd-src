@@ -61,11 +61,31 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #endif
 #include <compat/linux/linux_elf.h>
-#include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_misc.h>
 
-/* This adds "linux32_" and "linux64_" prefixes. */
-#define	__linuxN(x)	__CONCAT(__CONCAT(__CONCAT(linux,__ELF_WORD_SIZE),_),x)
+struct l_elf_siginfo {
+	l_int		si_signo;
+	l_int		si_code;
+	l_int		si_errno;
+};
+
+typedef struct linux_pt_regset l_elf_gregset_t;
+
+struct linux_elf_prstatus {
+	struct l_elf_siginfo pr_info;
+	l_short		pr_cursig;
+	l_ulong		pr_sigpend;
+	l_ulong		pr_sighold;
+	l_pid_t		pr_pid;
+	l_pid_t		pr_ppid;
+	l_pid_t		pr_pgrp;
+	l_pid_t		pr_sid;
+	l_timeval	pr_utime;
+	l_timeval	pr_stime;
+	l_timeval	pr_cutime;
+	l_timeval	pr_cstime;
+	l_elf_gregset_t	pr_reg;
+	l_int		pr_fpvalid;
+};
 
 #define	LINUX_NT_AUXV	6
 
