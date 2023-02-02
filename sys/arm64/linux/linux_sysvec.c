@@ -105,7 +105,6 @@ extern const char *linux_syscallnames[];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
 static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
@@ -569,27 +568,6 @@ linux_vdso_reloc(char *mapping, Elf_Addr offset)
 			    "symbol index %ld\n", rtype, symidx);
 		}
 	}
-}
-
-static char GNU_ABI_VENDOR[] = "GNU";
-static int GNU_ABI_LINUX = 0;
-
-/* LINUXTODO: deduplicate */
-static bool
-linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
-{
-	const Elf32_Word *desc;
-	uintptr_t p;
-
-	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
-
-	desc = (const Elf32_Word *)p;
-	if (desc[0] != GNU_ABI_LINUX)
-		return (false);
-
-	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
-	return (true);
 }
 
 static Elf_Brandnote linux64_brandnote = {

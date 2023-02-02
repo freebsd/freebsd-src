@@ -127,7 +127,6 @@ static void	linux_exec_sysvec_init(void *param);
 static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
-static bool	linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
 static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
@@ -1016,39 +1015,13 @@ linux_vdso_reloc(char *mapping, Elf_Addr offset)
 	}
 }
 
-static char GNU_ABI_VENDOR[] = "GNU";
-static int GNULINUX_ABI_DESC = 0;
-
-static bool
-linux32_trans_osrel(const Elf_Note *note, int32_t *osrel)
-{
-	const Elf32_Word *desc;
-	uintptr_t p;
-
-	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
-
-	desc = (const Elf32_Word *)p;
-	if (desc[0] != GNULINUX_ABI_DESC)
-		return (false);
-
-	/*
-	 * For Linux we encode osrel using the Linux convention of
-	 * 	(version << 16) | (major << 8) | (minor)
-	 * See macro in linux_mib.h
-	 */
-	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
-
-	return (true);
-}
-
 static Elf_Brandnote linux32_brandnote = {
 	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
 	.hdr.n_descsz	= 16,	/* XXX at least 16 */
 	.hdr.n_type	= 1,
 	.vendor		= GNU_ABI_VENDOR,
 	.flags		= BN_TRANSLATE_OSREL,
-	.trans_osrel	= linux32_trans_osrel
+	.trans_osrel	= linux_trans_osrel
 };
 
 static Elf32_Brandinfo linux_brand = {
