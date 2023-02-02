@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 #define linux_pt_regset linux_pt_regset32
 #define bsd_to_linux_regset bsd_to_linux_regset32
 #include <machine/../linux32/linux.h>
@@ -135,7 +135,7 @@ __linuxN(prepare_notes)(struct thread *td, struct note_info_list *list,
 }
 
 typedef struct linux_elf_prstatus linux_elf_prstatus_t;
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 typedef struct prpsinfo32 linux_elf_prpsinfo_t;
 typedef struct fpreg32 linux_elf_prfpregset_t;
 #else
@@ -212,7 +212,7 @@ __linuxN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
 {
 	struct thread *td;
 	linux_elf_prstatus_t *status;
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 	struct reg32 pr_reg;
 #else
 	struct reg pr_reg;
@@ -229,7 +229,7 @@ __linuxN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
 		status->pr_cursig = td->td_proc->p_sig;
 		status->pr_pid = td->td_tid;
 
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 		fill_regs32(td, &pr_reg);
 #else
 		fill_regs(td, &pr_reg);
@@ -251,7 +251,7 @@ __linuxN(note_fpregset)(void *arg, struct sbuf *sb, size_t *sizep)
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(*fpregset), ("invalid size"));
 		fpregset = malloc(sizeof(*fpregset), M_TEMP, M_ZERO | M_WAITOK);
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 		fill_fpregs32(td, fpregset);
 #else
 		fill_fpregs(td, fpregset);
