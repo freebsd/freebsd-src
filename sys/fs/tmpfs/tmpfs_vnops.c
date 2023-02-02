@@ -1129,6 +1129,13 @@ tmpfs_rename(struct vop_rename_args *v)
 		if (de->td_node->tn_type == VDIR) {
 			struct tmpfs_node *n;
 
+			error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
+			if (error) {
+				if (newname != NULL)
+					free(newname, M_TMPFSNAME);
+				goto out_locked;
+			}
+
 			/*
 			 * Ensure the target directory is not a child of the
 			 * directory being moved.  Otherwise, we'd end up
