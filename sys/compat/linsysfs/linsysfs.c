@@ -116,7 +116,7 @@ linsysfs_ifnet_ifindex(PFS_FILL_ARGS)
 	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
 	if (ifp == NULL)
 		return (ENOENT);
-	sbuf_printf(sb, "%u\n", ifp->if_index);
+	sbuf_printf(sb, "%u\n", if_getindex(ifp));
 	return (0);
 }
 
@@ -128,7 +128,7 @@ linsysfs_ifnet_mtu(PFS_FILL_ARGS)
 	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
 	if (ifp == NULL)
 		return (ENOENT);
-	sbuf_printf(sb, "%u\n", ifp->if_mtu);
+	sbuf_printf(sb, "%u\n", if_getmtu(ifp));
 	return (0);
 }
 
