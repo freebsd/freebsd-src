@@ -465,16 +465,29 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	LINUX_CTR4(rt_sendsig, "%p, %d, %p, %u",
 	    catcher, sig, mask, code);
 
-	/* Save user context. */
 	bzero(&sf, sizeof(sf));
-	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_sigmask);
-	sf.sf_uc.uc_mcontext.sc_mask = sf.sf_uc.uc_sigmask;
-
 	sf.sf_uc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
 	sf.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 
+	/* Allocate space for the signal handler context. */
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
+	} else
+		sp = (caddr_t)regs->tf_rsp - 128;
+
+	mtx_unlock(&psp->ps_mtx);
+	PROC_UNLOCK(p);
+
+	/* Make room, keeping the stack aligned. */
+	sp -= sizeof(struct l_rt_sigframe);
+	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
+
+	/* Save user context. */
+	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_sigmask);
+	sf.sf_uc.uc_mcontext.sc_mask   = sf.sf_uc.uc_sigmask;
 	sf.sf_uc.uc_mcontext.sc_rdi    = regs->tf_rdi;
 	sf.sf_uc.uc_mcontext.sc_rsi    = regs->tf_rsi;
 	sf.sf_uc.uc_mcontext.sc_rdx    = regs->tf_rdx;
@@ -497,19 +510,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.sc_err    = regs->tf_err;
 	sf.sf_uc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 	sf.sf_uc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
-
-	/* Allocate space for the signal handler context. */
-	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
-	} else
-		sp = (caddr_t)regs->tf_rsp - 128;
-	sp -= sizeof(struct l_rt_sigframe);
-	/* Align to 16 bytes. */
-	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
-
-	mtx_unlock(&psp->ps_mtx);
-	PROC_UNLOCK(p);
 
 	get_fpcontext(td, &mc, NULL, NULL);
 	KASSERT(mc.mc_fpformat != _MC_FPFMT_NODEV, ("fpu not present"));
