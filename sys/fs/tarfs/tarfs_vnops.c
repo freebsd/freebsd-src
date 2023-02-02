@@ -255,7 +255,7 @@ tarfs_readdir(struct vop_readdir_args *ap)
 	struct vnode *vp;
 	struct uio *uio;
 	int *eofflag;
-	u_long **cookies;
+	uint64_t **cookies;
 	int *ncookies;
 	off_t off;
 	u_int idx, ndirents;
@@ -542,7 +542,7 @@ tarfs_print(struct vop_print_args *ap)
 	tnp = VP_TO_TARFS_NODE(vp);
 
 	printf("tag tarfs, tarfs_node %p, links %lu\n",
-	    tnp, tnp->nlink);
+	    tnp, (unsigned long)tnp->nlink);
 	printf("\tmode 0%o, owner %d, group %d, size %zd\n",
 	    tnp->mode, tnp->uid, tnp->gid,
 	    tnp->size);
