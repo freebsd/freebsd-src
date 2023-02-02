@@ -232,14 +232,12 @@ int	tarfs_alloc_node(struct tarfs_mount *tmp, const char *name,
 	    unsigned int flags, const char *linkname, dev_t rdev,
 	    struct tarfs_node *parent, struct tarfs_node **node);
 int	tarfs_load_blockmap(struct tarfs_node *tnp, size_t realsize);
-void	tarfs_dump_tree(struct tarfs_node *tnp);
 void	tarfs_free_node(struct tarfs_node *tnp);
 struct tarfs_node *
 	tarfs_lookup_dir(struct tarfs_node *tnp, off_t cookie);
 struct tarfs_node *
 	tarfs_lookup_node(struct tarfs_node *tnp, struct tarfs_node *f,
 	    struct componentname *cnp);
-void	tarfs_print_node(struct tarfs_node *tnp);
 int	tarfs_read_file(struct tarfs_node *tnp, size_t len, struct uio *uiop);
 
 int	tarfs_io_init(struct tarfs_mount *tmp);
