@@ -318,21 +318,22 @@ int
 linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 {
 	struct proc *p;
-	struct l_ucontext uc;
+	struct l_rt_sigframe sf;
 	struct l_sigcontext *context;
 	struct trapframe *regs;
+	mcontext_t mc;
 	unsigned long rflags;
 	sigset_t bmask;
-	int error;
+	int error, i;
 	ksiginfo_t ksi;
 
 	regs = td->td_frame;
-	error = copyin((void *)regs->tf_rbx, &uc, sizeof(uc));
+	error = copyin((void *)regs->tf_rbx, &sf, sizeof(sf));
 	if (error != 0)
 		return (error);
 
 	p = td->td_proc;
-	context = &uc.uc_mcontext;
+	context = &sf.sf_uc.uc_mcontext;
 	rflags = context->sc_rflags;
 
 	/*
@@ -371,7 +372,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 		return (EINVAL);
 	}
 
-	linux_to_bsd_sigset(&uc.uc_sigmask, &bmask);
+	linux_to_bsd_sigset(&sf.sf_uc.uc_sigmask, &bmask);
 	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	regs->tf_rdi    = context->sc_rdi;
@@ -395,6 +396,37 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	regs->tf_err    = context->sc_err;
 	regs->tf_rflags = rflags;
 
+	if (sf.sf_uc.uc_mcontext.sc_fpstate != NULL) {
+		struct savefpu *svfp = (struct savefpu *)mc.mc_fpstate;
+
+		bzero(&mc, sizeof(mc));
+		mc.mc_ownedfp = _MC_FPOWNED_FPU;
+		mc.mc_fpformat = _MC_FPFMT_XMM;
+
+		svfp->sv_env.en_cw = sf.sf_fs.cwd;
+		svfp->sv_env.en_sw = sf.sf_fs.swd;
+		svfp->sv_env.en_tw = sf.sf_fs.twd;
+		svfp->sv_env.en_opcode = sf.sf_fs.fop;
+		svfp->sv_env.en_rip = sf.sf_fs.rip;
+		svfp->sv_env.en_rdp = sf.sf_fs.rdp;
+		svfp->sv_env.en_mxcsr = sf.sf_fs.mxcsr;
+		svfp->sv_env.en_mxcsr_mask = sf.sf_fs.mxcsr_mask;
+		/* FPU registers */
+		for (i = 0; i < nitems(svfp->sv_fp); ++i)
+			bcopy(&sf.sf_fs.st[i], svfp->sv_fp[i].fp_acc.fp_bytes,
+			    sizeof(svfp->sv_fp[i].fp_acc.fp_bytes));
+		/* SSE registers */
+		for (i = 0; i < nitems(svfp->sv_xmm); ++i)
+			bcopy(&sf.sf_fs.xmm[i], svfp->sv_xmm[i].xmm_bytes,
+			    sizeof(svfp->sv_xmm[i].xmm_bytes));
+		error = set_fpcontext(td, &mc, NULL, 0);
+		if (error != 0) {
+			uprintf("pid %d comm %s linux can't restore fpu state %d\n",
+			    p->p_pid, p->p_comm, error);
+			return (error);
+		}
+	}
+
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (EJUSTRETURN);
 }
@@ -413,8 +445,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	caddr_t sp;
 	struct trapframe *regs;
+	struct savefpu *svfp;
+	mcontext_t mc;
 	int sig, code;
-	int oonstack, issiginfo;
+	int oonstack, issiginfo, i;
 
 	td = curthread;
 	p = td->td_proc;
@@ -476,6 +510,29 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
+	get_fpcontext(td, &mc, NULL, NULL);
+	KASSERT(mc.mc_fpformat != _MC_FPFMT_NODEV, ("fpu not present"));
+	svfp = (struct savefpu *)mc.mc_fpstate;
+
+	sf.sf_fs.cwd = svfp->sv_env.en_cw;
+	sf.sf_fs.swd = svfp->sv_env.en_sw;
+	sf.sf_fs.twd = svfp->sv_env.en_tw;
+	sf.sf_fs.fop = svfp->sv_env.en_opcode;
+	sf.sf_fs.rip = svfp->sv_env.en_rip;
+	sf.sf_fs.rdp = svfp->sv_env.en_rdp;
+	sf.sf_fs.mxcsr = svfp->sv_env.en_mxcsr;
+	sf.sf_fs.mxcsr_mask = svfp->sv_env.en_mxcsr_mask;
+	/* FPU registers */
+	for (i = 0; i < nitems(svfp->sv_fp); ++i)
+		bcopy(svfp->sv_fp[i].fp_acc.fp_bytes, &sf.sf_fs.st[i],
+		    sizeof(svfp->sv_fp[i].fp_acc.fp_bytes));
+	/* SSE registers */
+	for (i = 0; i < nitems(svfp->sv_xmm); ++i)
+		bcopy(svfp->sv_xmm[i].xmm_bytes, &sf.sf_fs.xmm[i],
+		    sizeof(svfp->sv_xmm[i].xmm_bytes));
+	sf.sf_uc.uc_mcontext.sc_fpstate = (struct l_fpstate *)((caddr_t)sfp +
+	    offsetof(struct l_rt_sigframe, sf_fs));
+
 	/* Translate the signal. */
 	sig = bsd_to_linux_signal(sig);
 	/* Fill in POSIX parts. */
@@ -489,6 +546,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
+	fpstate_drop(td);
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rax = 0;
