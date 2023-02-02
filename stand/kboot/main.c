@@ -44,7 +44,6 @@ ssize_t kboot_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t kboot_copyout(vm_offset_t src, void *dest, const size_t len);
 ssize_t kboot_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
-uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
 static void kboot_kseg_get(int *nseg, void **ptr);
 static void kboot_zfs_probe(void);
 
@@ -198,7 +197,6 @@ main(int argc, const char **argv)
 	archsw.arch_copyout = kboot_copyout;
 	archsw.arch_readin = kboot_readin;
 	archsw.arch_autoload = kboot_autoload;
-	archsw.arch_loadaddr = kboot_loadaddr;
 	archsw.arch_kexec_kseg_get = kboot_kseg_get;
 	archsw.arch_zfs_probe = kboot_zfs_probe;
 
@@ -415,18 +413,6 @@ kboot_autoload(void)
 {
 
 	return (0);
-}
-
-uint64_t
-kboot_loadaddr(u_int type, void *data, uint64_t addr)
-{
-
-	if (type == LOAD_ELF)
-		addr = roundup(addr, PAGE_SIZE);
-	else
-		addr += kboot_get_phys_load_segment();
-
-	return (addr);
 }
 
 static void
