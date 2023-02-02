@@ -54,14 +54,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/vdso.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 #include <machine/md_var.h>
-
-#if defined(__arm__)
-#include <machine/machdep.h> /* For arm_set_delay */
-#endif
 
 #if defined(__aarch64__)
 #include <machine/undefined.h>
@@ -138,11 +136,13 @@ static struct timecounter arm_tmr_timecount = {
 #define	get_el1(x)	cp15_## x ##_get()
 #define	set_el0(x, val)	cp15_## x ##_set(val)
 #define	set_el1(x, val)	cp15_## x ##_set(val)
+#define	HAS_PHYS	true
 #else /* __aarch64__ */
 #define	get_el0(x)	READ_SPECIALREG(x ##_el0)
 #define	get_el1(x)	READ_SPECIALREG(x ##_el1)
 #define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
 #define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
+#define	HAS_PHYS	has_hyp()
 #endif
 
 static int
@@ -521,8 +521,8 @@ arm_tmr_attach(device_t dev)
 	if (sc->res[GT_VIRT] != NULL)
 		arm_tmr_disable(false);
 	/* And the physical */
-	if (sc->res[GT_PHYS_SECURE] != NULL ||
-	    sc->res[GT_PHYS_NONSECURE] != NULL)
+	if ((sc->res[GT_PHYS_SECURE] != NULL ||
+	    sc->res[GT_PHYS_NONSECURE] != NULL) && HAS_PHYS)
 		arm_tmr_disable(true);
 
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
