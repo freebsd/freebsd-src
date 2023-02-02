@@ -311,8 +311,6 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 
 /*
  * Copied from amd64/amd64/machdep.c
- *
- * XXX fpu state need? don't think so
  */
 int
 linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
