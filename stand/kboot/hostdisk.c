@@ -429,8 +429,10 @@ done:
 static char *
 hostdisk_fmtdev(struct devdesc *vdev)
 {
+	static char name[DEV_DEVLEN];
 
-	return ((char *)hd_name(dev2hd(vdev)));
+	snprintf(name, sizeof(name), "%s:", dev2hd(vdev)->hd_dev);
+	return (name);
 }
 
 static bool
