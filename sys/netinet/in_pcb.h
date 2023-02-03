@@ -626,7 +626,7 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_HDRINCL		0x00000008 /* user supplies entire IP header */
 #define	INP_HIGHPORT		0x00000010 /* user wants "high" port binding */
 #define	INP_LOWPORT		0x00000020 /* user wants "low" port binding */
-#define	INP_ANONPORT		0x00000040 /* port chosen for user */
+#define	INP_ANONPORT		0x00000040 /* read by netstat(1) */
 #define	INP_RECVIF		0x00000080 /* receive incoming interface */
 #define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
 /*	INP_FREED		0x00000200 private to in_pcb.c */
