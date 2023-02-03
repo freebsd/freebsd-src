@@ -22,6 +22,7 @@ uint8_t kboot_get_kernel_machine_bits(void);
 
 /* hostdisk.c */
 extern const char *hostfs_root;
+const char *hostdisk_gen_probe(void);
 void hostdisk_zfs_probe(void);
 bool hostdisk_zfs_find_default(void);
 
