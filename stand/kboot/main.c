@@ -256,6 +256,7 @@ main(int argc, const char **argv)
 	setenv("LINES", "24", 1);
 
 	memory_limits();
+	enumerate_memory_arch();
 
 	/*
 	 * Find acpi, if it exists
