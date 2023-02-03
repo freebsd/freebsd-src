@@ -484,6 +484,7 @@ MLINKS+=setuid.2 setegid.2 \
 	setuid.2 setgid.2
 MLINKS+=shmat.2 shmdt.2
 MLINKS+=shm_open.2 memfd_create.3 \
+	shm_open.2 shm_create_largepage.3 \
 	shm_open.2 shm_unlink.2 \
 	shm_open.2 shm_rename.2
 MLINKS+=sigwaitinfo.2 sigtimedwait.2

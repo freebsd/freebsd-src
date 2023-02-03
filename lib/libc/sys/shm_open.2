@@ -28,11 +28,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2019
+.Dd January 30, 2023
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
-.Nm memfd_create , shm_open , shm_rename, shm_unlink
+.Nm memfd_create , shm_create_largepage , shm_open , shm_rename, shm_unlink
 .Nd "shared memory object operations"
 .Sh LIBRARY
 .Lb libc
@@ -43,6 +43,14 @@
 .Ft int
 .Fn memfd_create "const char *name" "unsigned int flags"
 .Ft int
+.Fo shm_create_largepage
+.Fa "const char *path"
+.Fa "int flags"
+.Fa "int psind"
+.Fa "int alloc_policy"
+.Fa "mode_t mode"
+.Fc
+.Ft int
 .Fn shm_open "const char *path" "int flags" "mode_t mode"
 .Ft int
 .Fn shm_rename "const char *path_from" "const char *path_to" "int flags"
@@ -51,8 +59,8 @@
 .Sh DESCRIPTION
 The
 .Fn shm_open
-system call opens (or optionally creates) a
-.Tn POSIX
+function opens (or optionally creates) a
+POSIX
 shared memory object named
 .Fa path .
 The
@@ -114,9 +122,7 @@ see
 and
 .Xr fcntl 2 .
 .Pp
-As a
-.Fx
-extension, the constant
+The constant
 .Dv SHM_ANON
 may be used for the
 .Fa path
@@ -143,6 +149,131 @@ will fail with
 All other flags are ignored.
 .Pp
 The
+.Fn shm_create_largepage
+function behaves similarly to
+.Fn shm_open ,
+except that the
+.Dv O_CREAT
+flag is implicitly specified, and the returned
+.Dq largepage
+object is always backed by aligned, physically contiguous chunks of memory.
+This ensures that the object can be mapped using so-called
+.Dq superpages ,
+which can improve application performance in some workloads by reducing the
+number of translation lookaside buffer (TLB) entries required to access a
+mapping of the object,
+and by reducing the number of page faults performed when accessing a mapping.
+This happens automatically for all largepage objects.
+.Pp
+An existing largepage object can be opened using the
+.Fn shm_open
+function.
+Largepage shared memory objects behave slightly differently from non-largepage
+objects:
+.Bl -bullet -offset indent
+.It
+Memory for a largepage object is allocated when the object is
+extended using the
+.Xr ftruncate 2
+system call, whereas memory for regular shared memory objects is allocated
+lazily and may be paged out to a swap device when not in use.
+.It
+The size of a mapping of a largepage object must be a multiple of the
+underlying large page size.
+Most attributes of such a mapping can only be modified at the granularity
+of the large page size.
+For example, when using
+.Xr munmap 2
+to unmap a portion of a largepage object mapping, or when using
+.Xr mprotect 2
+to adjust protections of a mapping of a largepage object, the starting address
+must be large page size-aligned, and the length of the operation must be a
+multiple of the large page size.
+If not, the corresponding system call will fail and set
+.Va errno
+to
+.Er EINVAL .
+.El
+.Pp
+The
+.Fa psind
+argument to
+.Fn shm_create_largepage
+specifies the size of large pages used to back the object.
+This argument is an index into the page sizes array returned by
+.Xr getpagesizes 3 .
+In particular, all large pages backing a largepage object must be of the
+same size.
+For example, on a system with large page sizes of 2MB and 1GB, a 2GB largepage
+object will consist of either 1024 2MB pages, or 2 1GB pages, depending on
+the value specified for the
+.Fa psind
+argument.
+The
+.Fa alloc_policy
+parameter specifies what happens when an attempt to use
+.Xr ftruncate 2
+to allocate memory for the object fails.
+The following values are accepted:
+.Bl -tag -offset indent -width SHM_
+.It Dv SHM_LARGEPAGE_ALLOC_DEFAULT
+If the (non-blocking) memory allocation fails because there is insufficient free
+contiguous memory, the kernel will attempt to defragment physical memory and
+try another allocation.
+The subsequent allocation may or may not succeed.
+If this subsequent allocation also fails,
+.Xr ftruncate 2
+will fail and set
+.Va errno
+to
+.Er ENOMEM .
+.It Dv SHM_LARGEPAGE_ALLOC_NOWAIT
+If the memory allocation fails,
+.Xr ftruncate 2
+will fail and set
+.Va errno
+to
+.Er ENOMEM .
+.It Dv SHM_LARGEPAGE_ALLOC_HARD
+The kernel will attempt defragmentation until the allocation succeeds,
+or an unblocked signal is delivered to the thread.
+However, it is possible for physical memory to be fragmented such that the
+allocation will never succeed.
+.El
+.Pp
+The
+.Dv FIOSSHMLPGCNF
+and
+.Dv FIOGSHMLPGCNF
+.Xr ioctl 2
+commands can be used with a largepage shared memory object to get and set
+largepage object parameters.
+Both commands operate on the following structure:
+.Bd -literal
+struct shm_largepage_conf {
+	int psind;
+	int alloc_policy;
+};
+
+.Ed
+The
+.Dv FIOGSHMLPGCNF
+command populates this structure with the current values of these parameters,
+while the
+.Dv FIOSSHMLPGCNF
+command modifies the largepage object.
+Currently only the
+.Va alloc_policy
+parameter may be modified.
+Internally,
+.Fn shm_create_largepage
+works by creating a regular shared memory object using
+.Fn shm_open ,
+and then converting it into a largepage object using the
+.Dv FIOSSHMLPGCNF
+ioctl command.
+.Pp
+The
 .Fn shm_rename
 system call atomically removes a shared memory object named
 .Fa path_from
@@ -162,10 +293,6 @@ Return an error if an shm exists at
 .Fa path_to ,
 rather than unlinking it.
 .El
-.Fn shm_rename
-is also a
-.Fx
-extension.
 .Pp
 The
 .Fn shm_unlink
@@ -234,6 +361,17 @@ All functions return -1 on failure, and set
 .Va errno
 to indicate the error.
 .Sh COMPATIBILITY
+The
+.Fn shm_create_largepage
+and
+.Fn shm_rename
+functions are
+.Fx
+extensions, as is support for the
+.Dv SHM_ANON
+value in
+.Fn shm_open .
+.Pp
 The
 .Fa path ,
 .Fa path_from ,
@@ -377,6 +515,18 @@ and
 are specified and the named shared memory object does exist.
 .It Bq Er EACCES
 The required permissions (for reading or reading and writing) are denied.
+.It Bq Er ECAPMODE
+The process is running in capability mode (see
+.Xr capsicum 4 )
+and attempted to create a named shared memory object.
+.El
+.Pp
+.Fn shm_create_largepage
+can fail for the reasons listed above.
+It also fails with these error codes for the following conditions:
+.Bl -tag -width Er
+.It Bq Er ENOTTY
+The kernel does not support large pages on the current platform.
 .El
 .Pp
 The following errors are defined for
@@ -424,6 +574,7 @@ requires write permission to the shared memory object.
 .Xr close 2 ,
 .Xr fstat 2 ,
 .Xr ftruncate 2 ,
+.Xr ioctl 2 ,
 .Xr mmap 2 ,
 .Xr munmap 2 ,
 .Xr sendfile 2
