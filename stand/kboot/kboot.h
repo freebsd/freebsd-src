@@ -35,6 +35,14 @@ const char *hostdisk_gen_probe(void);
 void hostdisk_zfs_probe(void);
 bool hostdisk_zfs_find_default(void);
 
+/* seg.c */
+void init_avail(void);
+void need_avail(int n);
+void add_avail(uint64_t start, uint64_t end, uint64_t type);
+void remove_avail(uint64_t start, uint64_t end, uint64_t type);
+uint64_t first_avail(uint64_t align, uint64_t min_size, uint64_t type);
+void print_avail(void);
+
 /* util.c */
 bool file2str(const char *fn, char *buffer, size_t buflen);
 bool file2u64(const char *fn, uint64_t *val);
