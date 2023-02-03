@@ -322,6 +322,7 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 {
 	int i = 0;
 	const size_t segsize = 64*1024*1024;
+	size_t sz;
 
 	if (nkexec_segments == HOST_KEXEC_SEGMENT_MAX)
 		panic("Tried to load too many kexec segments");
@@ -332,10 +333,22 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 			goto out;
 	}
 
-	loaded_segments[nkexec_segments].buf = host_getmem(segsize);
-	loaded_segments[nkexec_segments].bufsz = segsize;
+	sz = segsize;
+	if (nkexec_segments == 0) {
+		/* how much space does this segment have */
+		sz = space_avail(dest);
+		/* Clip to 45% of available memory (need 2 copies) */
+		sz = min(sz, rounddown2(mem_avail * 45 / 100, SEGALIGN));
+		/* And only use 95% of what we can allocate */
+		sz = min(sz, rounddown2(
+		    (commit_limit - committed_as) * 95 / 100, SEGALIGN));
+		printf("Allocating %zd MB for first segment\n", sz >> 20);
+	}
+
+	loaded_segments[nkexec_segments].buf = host_getmem(sz);
+	loaded_segments[nkexec_segments].bufsz = sz;
 	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,SEGALIGN);
-	loaded_segments[nkexec_segments].memsz = segsize;
+	loaded_segments[nkexec_segments].memsz = sz;
 
 	i = nkexec_segments;
 	nkexec_segments++;
