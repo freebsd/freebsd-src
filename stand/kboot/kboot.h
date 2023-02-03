@@ -9,6 +9,15 @@
 
 #define DEVT_HOSTDISK 1234
 
+struct memory_segments
+{
+	uint64_t	start;
+	uint64_t	end;
+	uint64_t	type;	/* MD defined */
+};
+
+bool enumerate_memory_arch(void);
+
 bool has_acpi(void);
 vm_offset_t acpi_rsdp(void);
 
