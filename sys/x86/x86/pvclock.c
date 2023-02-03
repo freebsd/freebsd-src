@@ -224,6 +224,9 @@ pvclock_tc_vdso_timehands(struct vdso_timehands *vdso_th,
 {
 	struct pvclock *pvc = tc->tc_priv;
 
+	if (pvc->cdev == NULL)
+		return (0);
+
 	vdso_th->th_algo = VDSO_TH_ALGO_X86_PVCLK;
 	vdso_th->th_x86_shift = 0;
 	vdso_th->th_x86_hpet_idx = 0;
@@ -232,7 +235,9 @@ pvclock_tc_vdso_timehands(struct vdso_timehands *vdso_th,
 	vdso_th->th_x86_pvc_stable_mask = !pvc->vdso_force_unstable &&
 	    pvc->stable_flag_supported ? PVCLOCK_FLAG_TSC_STABLE : 0;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
-	return (pvc->cdev != NULL && amd_feature & AMDID_RDTSCP);
+	return ((amd_feature & AMDID_RDTSCP) != 0 ||
+	    ((vdso_th->th_x86_pvc_stable_mask & PVCLOCK_FLAG_TSC_STABLE) != 0 &&
+	    pvc->vdso_enable_without_rdtscp));
 }
 
 #ifdef COMPAT_FREEBSD32
@@ -242,6 +247,9 @@ pvclock_tc_vdso_timehands32(struct vdso_timehands32 *vdso_th,
 {
 	struct pvclock *pvc = tc->tc_priv;
 
+	if (pvc->cdev == NULL)
+		return (0);
+
 	vdso_th->th_algo = VDSO_TH_ALGO_X86_PVCLK;
 	vdso_th->th_x86_shift = 0;
 	vdso_th->th_x86_hpet_idx = 0;
@@ -250,7 +258,9 @@ pvclock_tc_vdso_timehands32(struct vdso_timehands32 *vdso_th,
 	vdso_th->th_x86_pvc_stable_mask = !pvc->vdso_force_unstable &&
 	    pvc->stable_flag_supported ? PVCLOCK_FLAG_TSC_STABLE : 0;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
-	return (pvc->cdev != NULL && amd_feature & AMDID_RDTSCP);
+	return ((amd_feature & AMDID_RDTSCP) != 0 ||
+	    ((vdso_th->th_x86_pvc_stable_mask & PVCLOCK_FLAG_TSC_STABLE) != 0 &&
+	    pvc->vdso_enable_without_rdtscp));
 }
 #endif
 
@@ -283,6 +293,18 @@ pvclock_init(struct pvclock *pvc, device_t dev, const char *tc_name,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "vdso_force_unstable", CTLFLAG_RW, &pvc->vdso_force_unstable, 0,
 	    "Forcibly deassert stable flag in vDSO codepath");
+
+	/*
+	 * Make it possible to use the vDSO page even when the hypervisor does
+	 * not support the rdtscp instruction.  This is disabled by default for
+	 * compatibility with old libc.
+	 */
+	pvc->vdso_enable_without_rdtscp = false;
+	SYSCTL_ADD_BOOL(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "vdso_enable_without_rdtscp", CTLFLAG_RWTUN,
+	    &pvc->vdso_enable_without_rdtscp, 0,
+	    "Allow the use of a vDSO when rdtscp is not available");
 
 	/* Set up timecounter and timecounter-supporting members: */
 	pvc->tc.tc_get_timecount = pvclock_tc_get_timecount;
