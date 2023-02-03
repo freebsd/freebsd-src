@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #ifdef EFI
 #include <efi.h>
 #include <efilib.h>
+#else
+#include "kboot.h"
 #endif
 
 #include "bootstrap.h"
@@ -361,10 +363,8 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 		return(EINVAL);
 	}
 
-#ifdef EFI
 	/* Try reading the /etc/fstab file to select the root device */
 	getrootmount(devformat(rootdev));
-#endif
 
 	addr = 0;
 	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
@@ -428,6 +428,8 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 #ifdef EFI
 	bi_load_efi_data(kfp, exit_bs);
+#else
+	bi_loadsmap(kfp);
 #endif
 
 	size = md_copymodules(0, is64);	/* Find the size of the modules */
