@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include "host_syscall.h"
 #include "kboot.h"
+#include "stand.h"
 
 struct arch_switch	archsw;
 extern void *_end;
@@ -48,6 +49,11 @@ static void kboot_kseg_get(int *nseg, void **ptr);
 static void kboot_zfs_probe(void);
 
 extern int command_fdt_internal(int argc, char *argv[]);
+
+#define PA_INVAL (vm_offset_t)-1
+static vm_offset_t pa_start = PA_INVAL;
+static vm_offset_t padding;
+static vm_offset_t offset;
 
 static uint64_t commit_limit;
 static uint64_t committed_as;
@@ -95,8 +101,8 @@ memory_limits(void)
 int
 kboot_getdev(void **vdev, const char *devspec, const char **path)
 {
-	int rv;
 	struct devdesc **dev = (struct devdesc **)vdev;
+	int				rv;
 
 	/*
 	 * If it looks like this is just a path and no device, go with the
@@ -311,11 +317,13 @@ time(time_t *tloc)
 struct host_kexec_segment loaded_segments[HOST_KEXEC_SEGMENT_MAX];
 int nkexec_segments = 0;
 
+#define SEGALIGN (1ul<<20)
+
 static ssize_t
 get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 {
 	int i = 0;
-	const size_t segsize = 8*1024*1024;
+	const size_t segsize = 64*1024*1024;
 
 	if (nkexec_segments == HOST_KEXEC_SEGMENT_MAX)
 		panic("Tried to load too many kexec segments");
@@ -328,7 +336,7 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 
 	loaded_segments[nkexec_segments].buf = host_getmem(segsize);
 	loaded_segments[nkexec_segments].bufsz = segsize;
-	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,segsize);
+	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,SEGALIGN);
 	loaded_segments[nkexec_segments].memsz = segsize;
 
 	i = nkexec_segments;
@@ -347,9 +355,17 @@ kboot_copyin(const void *src, vm_offset_t dest, const size_t len)
 	ssize_t segsize, remainder;
 	void *destbuf;
 
+	if (pa_start == PA_INVAL) {
+		pa_start = kboot_get_phys_load_segment();
+//		padding = 2 << 20; /* XXX amd64: revisit this when we make it work */
+		padding = 0;
+		offset = dest;
+		get_phys_buffer(pa_start, len, &destbuf);
+	}
+
 	remainder = len;
 	do {
-		segsize = get_phys_buffer(dest, remainder, &destbuf);
+		segsize = get_phys_buffer(dest + pa_start + padding - offset, remainder, &destbuf);
 		bcopy(src, destbuf, segsize);
 		remainder -= segsize;
 		src += segsize;
@@ -367,7 +383,7 @@ kboot_copyout(vm_offset_t src, void *dest, const size_t len)
 
 	remainder = len;
 	do {
-		segsize = get_phys_buffer(src, remainder, &srcbuf);
+		segsize = get_phys_buffer(src + pa_start + padding - offset, remainder, &srcbuf);
 		bcopy(srcbuf, dest, segsize);
 		remainder -= segsize;
 		src += segsize;
@@ -420,17 +436,18 @@ kboot_autoload(void)
 static void
 kboot_kseg_get(int *nseg, void **ptr)
 {
-#if 0
 	int a;
 
+	printf("kseg_get: %d segments\n", nkexec_segments);
+	printf("VA               SZ       PA               MEMSZ\n");
+	printf("---------------- -------- ---------------- -----\n");
 	for (a = 0; a < nkexec_segments; a++) {
-		printf("kseg_get: %jx %jx %jx %jx\n",
+		printf("%016jx %08jx %016jx %08jx\n",
 			(uintmax_t)loaded_segments[a].buf,
 			(uintmax_t)loaded_segments[a].bufsz,
 			(uintmax_t)loaded_segments[a].mem,
 			(uintmax_t)loaded_segments[a].memsz);
 	}
-#endif
 
 	*nseg = nkexec_segments;
 	*ptr = &loaded_segments[0];
