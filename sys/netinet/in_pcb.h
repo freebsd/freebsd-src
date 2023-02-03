@@ -745,8 +745,7 @@ int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 int	in_pcbconnect(struct inpcb *, struct sockaddr_in *, struct ucred *,
 	    bool);
 int	in_pcbconnect_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
-	    u_short *, in_addr_t *, u_short *, struct inpcb **,
-	    struct ucred *);
+	    u_short *, in_addr_t *, u_short *, struct ucred *);
 void	in_pcbdetach(struct inpcb *);
 void	in_pcbdisconnect(struct inpcb *);
 void	in_pcbdrop(struct inpcb *);

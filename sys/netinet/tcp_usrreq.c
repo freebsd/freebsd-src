@@ -1394,7 +1394,7 @@ struct protosw tcp6_protosw = {
 static int
 tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 {
-	struct inpcb *inp = tptoinpcb(tp), *oinp;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = tptosocket(tp);
 	struct in_addr laddr;
 	u_short lport;
@@ -1412,20 +1412,18 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
 	error = in_pcbconnect_setup(inp, sin, &laddr.s_addr, &lport,
-	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td->td_ucred);
-	if (error && oinp == NULL)
-		goto out;
-	if (oinp) {
-		error = EADDRINUSE;
-		goto out;
+	    &inp->inp_faddr.s_addr, &inp->inp_fport, td->td_ucred);
+	if (error) {
+		INP_HASH_WUNLOCK(&V_tcbinfo);
+		return (error);
 	}
 	/* Handle initial bind if it hadn't been done in advance. */
 	if (inp->inp_lport == 0) {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {
 			inp->inp_lport = 0;
-			error = EAGAIN;
-			goto out;
+			INP_HASH_WUNLOCK(&V_tcbinfo);
+			return (EAGAIN);
 		}
 	}
 	inp->inp_laddr = laddr;
@@ -1449,11 +1447,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
-	return 0;
-
-out:
-	INP_HASH_WUNLOCK(&V_tcbinfo);
-	return (error);
+	return (0);
 }
 #endif /* INET */
 

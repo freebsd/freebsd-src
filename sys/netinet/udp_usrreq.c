@@ -1253,8 +1253,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		    sin->sin_addr.s_addr == INADDR_BROADCAST) {
 			INP_HASH_WLOCK(pcbinfo);
 			error = in_pcbconnect_setup(inp, sin, &laddr.s_addr,
-			    &lport, &faddr.s_addr, &fport, NULL,
-			    td->td_ucred);
+			    &lport, &faddr.s_addr, &fport, td->td_ucred);
 			if (error) {
 				INP_HASH_WUNLOCK(pcbinfo);
 				goto release;
