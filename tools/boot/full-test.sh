@@ -170,10 +170,7 @@ EOF
     cat > ${dir}/boot/loader.conf <<EOF
 comconsole_speed=115200
 autoboot_delay=2
-# XXXX TEST with arm64 iso...
-#vfs.root.mountfrom="cd9660:/dev/iso9660/13_1_RELEASE_AARCH64_BO"
-# XXX not so good for ZFS, what to do?
-vfs.root.mountfrom="ufs:/dev/ufs/root"
+zfs_load="YES"
 boot_verbose=yes
 kern.cfg.order="acpi,fdt"
 EOF
@@ -282,7 +279,7 @@ make_linuxboot_images()
 	pool="linuxboot"
 	mkdir -p ${IMAGES}/${ma_combo}
 	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
-	       -o volume_label=EFISYS -s100m ${esp} ${src}
+	       -o volume_label=EFISYS -s80m ${esp} ${src}
 	makefs -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
 	mkimg -s gpt -p efi:=${esp} -p freebsd-ufs:=${ufs} -o ${img}
 	makefs -t zfs -s 200m \
@@ -444,6 +441,10 @@ make_freebsd_images()
 	ufs=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.ufs
 	img=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.img
 	mkdir -p ${IMAGES}/${ma_combo}
+	mkdir -p ${dir2}/etc
+	cat > ${dir2}/etc/fstab <<EOF
+/dev/ufs/root	/		ufs	rw	1	1
+EOF
 	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
 	       -o volume_label=EFISYS -s100m ${esp} ${src}
 	makefs -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
@@ -488,6 +489,10 @@ EOF
     ufs=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.ufs
     img=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.img
     mkdir -p ${IMAGES}/${ma_combo}
+    mkdir -p ${dir2}/etc
+    cat > ${dir2}/etc/fstab <<EOF
+/dev/ufs/root	/		ufs	rw	1	1
+EOF
     makefs -t ffs -B big -s 200m \
 	   -o label=root,version=2,bsize=32768,fsize=4096,density=16384 \
 	   ${ufs} ${dir} ${dir2}
