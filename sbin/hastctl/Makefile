@@ -7,7 +7,6 @@ PACKAGE=hast
 
 PROG=	hastctl
 SRCS=	activemap.c
-SRCS+=	crc32.c
 SRCS+=	ebuf.c
 SRCS+=	hast_checksum.c hast_compression.c hast_proto.c hastctl.c
 SRCS+=	lzf.c
@@ -33,7 +32,7 @@ CFLAGS+=-DINET6
 CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
 
-LIBADD=	md util
+LIBADD=	md util z
 
 YFLAGS+=-v
 
