@@ -1471,13 +1471,16 @@ static int
 tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = tptoinpcb(tp);
+	struct epoch_tracker et;
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
 
+	NET_EPOCH_ENTER(et);
 	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in6_pcbconnect(inp, nam, td->td_ucred, true);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
+	NET_EPOCH_EXIT(et);
 	if (error != 0)
 		return (error);
 

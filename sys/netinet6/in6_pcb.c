@@ -357,8 +357,8 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
 	int error = 0;
 	int scope_ambiguous = 0;
 	struct in6_addr in6a;
-	struct epoch_tracker et;
 
+	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);	/* XXXRW: why? */
 
@@ -381,10 +381,8 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
-	NET_EPOCH_ENTER(et);
 	error = in6_selectsrc_socket(sin6, inp->in6p_outputopts,
 	    inp, inp->inp_cred, scope_ambiguous, &in6a, NULL);
-	NET_EPOCH_EXIT(et);
 	if (error)
 		return (error);
 
@@ -422,6 +420,9 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
 	struct sockaddr_in6 laddr6;
 	int error;
 
+	NET_EPOCH_ASSERT();
+	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(pcbinfo);
 	KASSERT(sin6->sin6_family == AF_INET6,
 	    ("%s: invalid address family for %p", __func__, sin6));
 	KASSERT(sin6->sin6_len == sizeof(*sin6),
@@ -429,9 +430,6 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
 
 	bzero(&laddr6, sizeof(laddr6));
 	laddr6.sin6_family = AF_INET6;
-
-	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
 #ifdef ROUTE_MPATH
 	if (CALC_FLOWID_OUTBOUND) {
