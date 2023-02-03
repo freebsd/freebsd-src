@@ -1387,13 +1387,9 @@ struct protosw tcp6_protosw = {
 #ifdef INET
 /*
  * Common subroutine to open a TCP connection to remote host specified
- * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
- * port number if needed.  Call in_pcbconnect_setup to do the routing and
- * to choose a local host address (interface).  If there is an existing
- * incarnation of the same connection in TIME-WAIT state and if the remote
- * host was sending CC options and if the connection duration was < MSL, then
- * truncate the previous TIME-WAIT state and proceed.
- * Initialize connection parameters and enter SYN-SENT state.
+ * by struct sockaddr_in.  Call in_pcbconnect_setup() to choose local
+ * host address and assign a local port number if needed.  Initialize
+ * connection parameters and enter SYN-SENT state.
  */
 static int
 tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
