@@ -152,3 +152,22 @@ kboot_get_phys_load_segment(void)
 	printf("Falling back to crazy address %#lx\n", s);
 	return (s);
 }
+
+void
+bi_loadsmap(struct preloaded_file *kfp)
+{
+
+	if (efi_systbl_phys)
+		file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(efi_systbl_phys), &efi_systbl_phys);
+
+	/*
+	 * If we have efi_map_hdr, then it's a pointer to the PA where this
+	 * memory map lives. The trampoline code will copy it over. If we don't
+	 * have it, we use whatever we found in /proc/iomap.
+	 */
+	if (efi_map_hdr != NULL) {
+		file_addmetadata(kfp, MODINFOMD_EFI_MAP, efi_map_size, efi_map_hdr);
+		return;
+	}
+	panic("Can't get UEFI memory map, nor a pointer to it, can't proceed.\n");
+}
