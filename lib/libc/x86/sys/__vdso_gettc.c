@@ -101,11 +101,25 @@ rdtsc32_mb_lfence(void)
 	return (rdtsc32());
 }
 
+static uint64_t
+rdtsc_mb_lfence(void)
+{
+	lfence();
+	return (rdtsc());
+}
+
 static u_int
 rdtsc32_mb_mfence(void)
 {
 	mfence();
 	return (rdtsc32());
+}
+
+static uint64_t
+rdtsc_mb_mfence(void)
+{
+	mfence();
+	return (rdtsc());
 }
 
 static u_int
@@ -114,32 +128,49 @@ rdtsc32_mb_none(void)
 	return (rdtsc32());
 }
 
+static uint64_t
+rdtsc_mb_none(void)
+{
+	return (rdtsc());
+}
+
 static u_int
 rdtscp32_(void)
 {
 	return (rdtscp32());
 }
 
+static uint64_t
+rdtscp_(void)
+{
+	return (rdtscp());
+}
+
 struct tsc_selector_tag {
 	u_int (*ts_rdtsc32)(void);
+	uint64_t (*ts_rdtsc)(void);
 	u_int (*ts_rdtsc_low)(const struct vdso_timehands *);
 };
 
 static const struct tsc_selector_tag tsc_selector[] = {
 	[0] = {				/* Intel, LFENCE */
 		.ts_rdtsc32 =	rdtsc32_mb_lfence,
+		.ts_rdtsc =	rdtsc_mb_lfence,
 		.ts_rdtsc_low =	rdtsc_low_mb_lfence,
 	},
 	[1] = {				/* AMD, MFENCE */
 		.ts_rdtsc32 =	rdtsc32_mb_mfence,
+		.ts_rdtsc =	rdtsc_mb_mfence,
 		.ts_rdtsc_low =	rdtsc_low_mb_mfence,
 	},
 	[2] = {				/* No SSE2 */
-		.ts_rdtsc32 = rdtsc32_mb_none,
-		.ts_rdtsc_low = rdtsc_low_mb_none,
+		.ts_rdtsc32 =	rdtsc32_mb_none,
+		.ts_rdtsc =	rdtsc_mb_none,
+		.ts_rdtsc_low =	rdtsc_low_mb_none,
 	},
 	[3] = {				/* RDTSCP */
 		.ts_rdtsc32 =	rdtscp32_,
+		.ts_rdtsc =	rdtscp_,
 		.ts_rdtsc_low =	rdtscp_low,
 	},
 };
@@ -191,6 +222,11 @@ DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc_low,
 DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc32, (void))
 {
 	return (tsc_selector[tsc_selector_idx(cpu_feature)].ts_rdtsc32);
+}
+
+DEFINE_UIFUNC(static, uint64_t, __vdso_gettc_rdtsc, (void))
+{
+	return (tsc_selector[tsc_selector_idx(cpu_feature)].ts_rdtsc);
 }
 
 #define	HPET_DEV_MAP_MAX	10
@@ -325,7 +361,7 @@ __vdso_pvclock_gettc(const struct vdso_timehands *th, u_int *tc)
 		version = atomic_load_acq_32(&ti->version);
 		stable = (ti->flags & th->th_x86_pvc_stable_mask) != 0;
 		if (stable) {
-			tsc = rdtscp();
+			tsc = __vdso_gettc_rdtsc();
 		} else {
 			(void)rdtscp_aux(&cpuid_ti);
 			ti = &pvclock_timeinfos[cpuid_ti];
