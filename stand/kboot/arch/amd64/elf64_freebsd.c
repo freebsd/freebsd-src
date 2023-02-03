@@ -67,8 +67,6 @@ static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
 #define LOADER_PAGE_SIZE PAGE_SIZE
 #endif
 
-extern vm_offset_t kboot_get_phys_load_segment(void);
-
 extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
 
