@@ -1096,6 +1096,11 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 {
 	struct inpcb *inp;
 
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
+
 	smr_enter(pcbinfo->ipi_smr);
 	inp = in6_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags & INPLOOKUP_WILDCARD, ifp, numa_domain);
@@ -1117,12 +1122,6 @@ struct inpcb *
 in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
     struct in6_addr *laddr, u_int lport, int lookupflags, struct ifnet *ifp)
 {
-
-	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
-	    ("%s: invalid lookup flags %d", __func__, lookupflags));
-	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
-	    ("%s: LOCKPCB not set", __func__));
-
 	return (in6_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags, ifp, M_NODOM));
 }
@@ -1132,12 +1131,6 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
     u_int fport, struct in6_addr *laddr, u_int lport, int lookupflags,
     struct ifnet *ifp, struct mbuf *m)
 {
-
-	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
-	    ("%s: invalid lookup flags %d", __func__, lookupflags));
-	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
-	    ("%s: LOCKPCB not set", __func__));
-
 	return (in6_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags, ifp, m->m_pkthdr.numa_domain));
 }
