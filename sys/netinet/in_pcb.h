@@ -742,8 +742,9 @@ int	in_pcballoc(struct socket *, struct inpcbinfo *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct ucred *);
-int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *, bool);
-int	in_pcbconnect_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
+int	in_pcbconnect(struct inpcb *, struct sockaddr_in *, struct ucred *,
+	    bool);
+int	in_pcbconnect_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
 	    u_short *, in_addr_t *, u_short *, struct inpcb **,
 	    struct ucred *);
 void	in_pcbdetach(struct inpcb *);

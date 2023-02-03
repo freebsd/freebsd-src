@@ -1147,8 +1147,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		inp->inp_vflag &= ~INP_IPV6;
 		NET_EPOCH_ENTER(et);
 		INP_HASH_WLOCK(pcbinfo);
-		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-		    td->td_ucred, true);
+		error = in_pcbconnect(inp, &sin, td->td_ucred, true);
 		INP_HASH_WUNLOCK(pcbinfo);
 		NET_EPOCH_EXIT(et);
 		/*
@@ -1181,7 +1180,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag |= INP_IPV6;
 	NET_EPOCH_ENTER(et);
 	INP_HASH_WLOCK(pcbinfo);
-	error = in6_pcbconnect(inp, nam, td->td_ucred, true);
+	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
 	INP_HASH_WUNLOCK(pcbinfo);
 	NET_EPOCH_EXIT(et);
 	/*

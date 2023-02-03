@@ -118,11 +118,11 @@ __FBSDID("$FreeBSD$");
  * TCP protocol interface to socket abstraction.
  */
 #ifdef INET
-static int	tcp_connect(struct tcpcb *, struct sockaddr *,
+static int	tcp_connect(struct tcpcb *, struct sockaddr_in *,
 		    struct thread *td);
 #endif /* INET */
 #ifdef INET6
-static int	tcp6_connect(struct tcpcb *, struct sockaddr *,
+static int	tcp6_connect(struct tcpcb *, struct sockaddr_in6 *,
 		    struct thread *td);
 #endif /* INET6 */
 static void	tcp_disconnect(struct tcpcb *);
@@ -482,7 +482,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	NET_EPOCH_ENTER(et);
-	if ((error = tcp_connect(tp, nam, td)) != 0)
+	if ((error = tcp_connect(tp, sinp, td)) != 0)
 		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
@@ -574,7 +574,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
 		NET_EPOCH_ENTER(et);
-		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
+		if ((error = tcp_connect(tp, &sin, td)) != 0)
 			goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 		if (registered_toedevs > 0 &&
@@ -597,7 +597,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
 	NET_EPOCH_ENTER(et);
-	if ((error = tcp6_connect(tp, nam, td)) != 0)
+	if ((error = tcp6_connect(tp, sin6, td)) != 0)
 		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
@@ -864,6 +864,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	struct sockaddr_in *sinp;
 #endif
 #ifdef INET6
+	struct sockaddr_in6 *sin6;
 	int isipv6;
 #endif
 	u_int8_t incflagsav;
@@ -934,9 +935,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #endif /* INET */
 #ifdef INET6
 		case AF_INET6:
-		{
-			struct sockaddr_in6 *sin6;
-
 			sin6 = (struct sockaddr_in6 *)nam;
 			if (sin6->sin6_len != sizeof(*sin6)) {
 				error = EINVAL;
@@ -991,7 +989,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				isipv6 = 1;
 			}
 			break;
-		}
 #endif /* INET6 */
 		default:
 			error = EAFNOSUPPORT;
@@ -1014,14 +1011,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 */
 #ifdef INET6
 			if (isipv6)
-				error = tcp6_connect(tp, nam, td);
+				error = tcp6_connect(tp, sin6, td);
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
 			else
 #endif
 #ifdef INET
-				error = tcp_connect(tp,
-				    (struct sockaddr *)sinp, td);
+				error = tcp_connect(tp, sinp, td);
 #endif
 			/*
 			 * The bind operation in tcp_connect succeeded. We
@@ -1106,14 +1102,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				tp->t_flags &= ~TF_FASTOPEN;
 #ifdef INET6
 			if (isipv6)
-				error = tcp6_connect(tp, nam, td);
+				error = tcp6_connect(tp, sin6, td);
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
 			else
 #endif
 #ifdef INET
-				error = tcp_connect(tp,
-				    (struct sockaddr *)sinp, td);
+				error = tcp_connect(tp, sinp, td);
 #endif
 			/*
 			 * The bind operation in tcp_connect succeeded. We
@@ -1401,7 +1396,7 @@ struct protosw tcp6_protosw = {
  * Initialize connection parameters and enter SYN-SENT state.
  */
 static int
-tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
+tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 {
 	struct inpcb *inp = tptoinpcb(tp), *oinp;
 	struct socket *so = tptosocket(tp);
@@ -1420,7 +1415,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	 */
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
-	error = in_pcbconnect_setup(inp, nam, &laddr.s_addr, &lport,
+	error = in_pcbconnect_setup(inp, sin, &laddr.s_addr, &lport,
 	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td->td_ucred);
 	if (error && oinp == NULL)
 		goto out;
@@ -1468,7 +1463,7 @@ out:
 
 #ifdef INET6
 static int
-tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
+tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	struct epoch_tracker et;
@@ -1478,7 +1473,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	NET_EPOCH_ENTER(et);
 	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in6_pcbconnect(inp, nam, td->td_ucred, true);
+	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	NET_EPOCH_EXIT(et);
 	if (error != 0)

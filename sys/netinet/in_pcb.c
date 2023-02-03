@@ -1055,7 +1055,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
  * then pick one.
  */
 int
-in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
+in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred,
     bool rehash)
 {
 	u_short lport, fport;
@@ -1068,7 +1068,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
 	lport = inp->inp_lport;
 	laddr = inp->inp_laddr.s_addr;
 	anonport = (lport == 0);
-	error = in_pcbconnect_setup(inp, nam, &laddr, &lport, &faddr, &fport,
+	error = in_pcbconnect_setup(inp, sin, &laddr, &lport, &faddr, &fport,
 	    NULL, cred);
 	if (error)
 		return (error);
@@ -1327,11 +1327,10 @@ done:
  * is set to NULL.
  */
 int
-in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
+in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
     struct inpcb **oinpp, struct ucred *cred)
 {
-	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct inpcb *oinp;
 	struct in_addr laddr, faddr;
