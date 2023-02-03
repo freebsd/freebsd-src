@@ -121,6 +121,7 @@ struct pvclock {
 
 	/* Private; initialized by the 'pvclock' API: */
 	bool				 vdso_force_unstable;
+	bool				 vdso_enable_without_rdtscp;
 	struct timecounter		 tc;
 	struct cdev			*cdev;
 };
