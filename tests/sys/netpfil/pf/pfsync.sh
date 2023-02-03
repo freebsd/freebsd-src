@@ -73,11 +73,11 @@ common_body()
 	jexec one pfctl -e
 	pft_set_rules one \
 		"set skip on ${epair_sync}a" \
-		"pass keep state"
+		"pass out keep state"
 	jexec two pfctl -e
 	pft_set_rules two \
 		"set skip on ${epair_sync}b" \
-		"pass keep state"
+		"pass out keep state"
 
 	ifconfig ${epair_one}b 198.51.100.254/24 up
 
