@@ -100,8 +100,6 @@ struct trampoline_data {
 };
 #endif
 
-extern vm_offset_t kboot_get_phys_load_segment(void);
-
 static int
 elf64_exec(struct preloaded_file *fp)
 {
