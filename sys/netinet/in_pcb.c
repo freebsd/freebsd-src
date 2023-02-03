@@ -2242,6 +2242,10 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT(faddr.s_addr != INADDR_ANY,
+	    ("%s: invalid foreign address", __func__));
+	KASSERT(laddr.s_addr != INADDR_ANY,
+	    ("%s: invalid local address", __func__));
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	/*
