@@ -412,11 +412,10 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
  * then pick one.
  */
 int
-in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
+in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
     bool rehash)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct sockaddr_in6 laddr6;
 	int error;
 
