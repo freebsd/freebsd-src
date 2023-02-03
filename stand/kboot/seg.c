@@ -344,3 +344,22 @@ out:
 	close(fd);
 	return true;
 }
+
+/*
+ * Return the amount of space available in the segment that @start@ lives in,
+ * from @start@ to the end of the segment.
+ */
+uint64_t
+space_avail(uint64_t start)
+{
+	for (int i = 0; i < nr_seg; i++) {
+		if (start >= segs[i].start && start <= segs[i].end)
+			return segs[i].end - start;
+	}
+
+	/*
+	 * Properly used, we should never get here. Unsure if this should be a
+	 * panic or not.
+	 */
+	return 0;
+}

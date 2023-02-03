@@ -44,6 +44,7 @@ void remove_avail(uint64_t start, uint64_t end, uint64_t type);
 uint64_t first_avail(uint64_t align, uint64_t min_size, uint64_t type);
 void print_avail(void);
 bool populate_avail_from_iomem(void);
+uint64_t space_avail(uint64_t start);
 
 /* util.c */
 bool file2str(const char *fn, char *buffer, size_t buflen);
