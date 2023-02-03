@@ -37,9 +37,8 @@ static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/acl.h>
 #include <sys/param.h>
+#include <sys/acl.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -241,7 +240,7 @@ done:
 int
 copy_link(const FTSENT *p, int exists)
 {
-	int len;
+	ssize_t len;
 	char llink[PATH_MAX];
 
 	if (exists && nflag) {
