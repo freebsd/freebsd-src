@@ -28,7 +28,7 @@ do_memory_from_fdt(int fd)
 {
 	struct stat sb;
 	char *buf = NULL;
-	int len, offset;
+	int len, offset, fd2 = -1;
 	uint32_t sz, ver, esz, efisz;
 	uint64_t mmap_pa;
 	const uint32_t *u32p;
@@ -83,10 +83,10 @@ do_memory_from_fdt(int fd)
 	    ver, esz, sz, mmap_pa);
 
 	/*
-	 * We have no ability to read the PA that this map is in, so
-	 * pass the address to FreeBSD via a rather odd flag entry as
-	 * the first map so early boot can copy the memory map into
-	 * this space and have the rest of the code cope.
+	 * We may have no ability to read the PA that this map is in, so pass
+	 * the address to FreeBSD via a rather odd flag entry as the first map
+	 * so early boot can copy the memory map into this space and have the
+	 * rest of the code cope.
 	 */
 	efisz = (sizeof(*efihdr) + 0xf) & ~0xf;
 	buf = malloc(sz + efisz);
@@ -98,11 +98,45 @@ do_memory_from_fdt(int fd)
 	efihdr->memory_size = sz;
 	efihdr->descriptor_size = esz;
 	efihdr->descriptor_version = ver;
-	efi_map_phys_src = mmap_pa;
+
+	/*
+	 * Save EFI table. Either this will be an empty table filled in by the trampoline,
+	 * or we'll read it below. Either way, set these two variables so we share the best
+	 * UEFI memory map with the kernel.
+	 */
 	efi_map_hdr = efihdr;
 	efi_map_size = sz + efisz;
 
-	return true;
+	/*
+	 * Try to read in the actual UEFI map.
+	 */
+	fd2 = open("host:/dev/mem", O_RDONLY);
+	if (fd2 < 0) {
+		printf("Will read UEFI mem map in tramp: no /dev/mem, need CONFIG_DEVMEM=y\n");
+		goto no_read;
+	}
+	if (lseek(fd2, mmap_pa, SEEK_SET) < 0) {
+		printf("Will read UEFI mem map in tramp: lseek failed\n");
+		goto no_read;
+	}
+	len = read(fd2, map, sz);
+	if (len != sz) {
+		if (len < 0 && errno == EPERM)
+			printf("Will read UEFI mem map in tramp: kernel needs CONFIG_STRICT_DEVMEM=n\n");
+		else
+			printf("Will read UEFI mem map in tramp: lean = %d errno = %d\n", len, errno);
+		goto no_read;
+	}
+	printf("Read UEFI mem map from physmem\n");
+	efi_map_phys_src = 0; /* Mark MODINFOMD_EFI_MAP as valid */
+	close(fd2);
+	return true;	/* OK, we really have the memory map */
+
+no_read:
+	efi_map_phys_src = mmap_pa;
+	close(fd2);
+	return true;	/* We can get it the trampoline */
+
 errout:
 	free(buf);
 	return false;
@@ -157,6 +191,9 @@ void
 bi_loadsmap(struct preloaded_file *kfp)
 {
 
+	/*
+	 * Make a note of a systbl. This is nearly mandatory on AARCH64.
+	 */
 	if (efi_systbl_phys)
 		file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(efi_systbl_phys), &efi_systbl_phys);
 
