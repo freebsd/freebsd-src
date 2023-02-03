@@ -132,16 +132,6 @@ static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 static int	tcp_pru_options_support(struct tcpcb *tp, int flags);
 
 /*
- * tcp_require_unique port requires a globally-unique source port for each
- * outgoing connection.  The default is to require the 4-tuple to be unique.
- */
-VNET_DEFINE(int, tcp_require_unique_port) = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, require_unique_port,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_require_unique_port), 0,
-    "Require globally-unique ephemeral port for outgoing connections");
-#define	V_tcp_require_unique_port	VNET(tcp_require_unique_port)
-
-/*
  * TCP attaches to socket via pru_attach(), reserving space,
  * and an internet control block.
  */
@@ -1421,14 +1411,8 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
+
 	INP_HASH_WLOCK(&V_tcbinfo);
-
-	if (V_tcp_require_unique_port && inp->inp_lport == 0) {
-		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
-		if (error)
-			goto out;
-	}
-
 	/*
 	 * Cannot simply call in_pcbconnect, because there might be an
 	 * earlier incarnation of this same connection still in
@@ -1490,17 +1474,12 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK(&V_tcbinfo);
 
-	if (V_tcp_require_unique_port && inp->inp_lport == 0) {
-		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
-		if (error)
-			goto out;
-	}
+	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in6_pcbconnect(inp, nam, td->td_ucred);
-	if (error != 0)
-		goto out;
 	INP_HASH_WUNLOCK(&V_tcbinfo);
+	if (error != 0)
+		return (error);
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
@@ -1515,11 +1494,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
-	return 0;
-
-out:
-	INP_HASH_WUNLOCK(&V_tcbinfo);
-	return error;
+	return (0);
 }
 #endif /* INET6 */
 
