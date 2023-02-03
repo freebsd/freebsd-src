@@ -546,17 +546,14 @@ linux_semtimedop(struct thread *td, struct linux_semtimedop_args *args)
 int
 linux_semget(struct thread *td, struct linux_semget_args *args)
 {
-	struct semget_args /* {
-	key_t	key;
-	int		nsems;
-	int		semflg;
-	} */ bsd_args;
+	struct semget_args bsd_args = {
+		.key = args->key,
+		.nsems = args->nsems,
+		.semflg = args->semflg
+	};
 
 	if (args->nsems < 0)
 		return (EINVAL);
-	bsd_args.key = args->key;
-	bsd_args.nsems = args->nsems;
-	bsd_args.semflg = args->semflg;
 	return (sys_semget(td, &bsd_args));
 }
 
@@ -710,13 +707,11 @@ linux_msgrcv(struct thread *td, struct linux_msgrcv_args *args)
 int
 linux_msgget(struct thread *td, struct linux_msgget_args *args)
 {
-	struct msgget_args /* {
-		key_t	key;
-		int	msgflg;
-	} */ bsd_args;
+	struct msgget_args bsd_args = {
+		.key = args->key,
+		.msgflg = args->msgflg
+	};
 
-	bsd_args.key = args->key;
-	bsd_args.msgflg = args->msgflg;
 	return (sys_msgget(td, &bsd_args));
 }
 
@@ -802,41 +797,34 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 int
 linux_shmat(struct thread *td, struct linux_shmat_args *args)
 {
-	struct shmat_args /* {
-		int shmid;
-		void *shmaddr;
-		int shmflg;
-	} */ bsd_args;
+	struct shmat_args bsd_args = {
+		.shmid = args->shmid,
+		.shmaddr = PTRIN(args->shmaddr),
+		.shmflg = args->shmflg
+	};
 
-	bsd_args.shmid = args->shmid;
-	bsd_args.shmaddr = PTRIN(args->shmaddr);
-	bsd_args.shmflg = args->shmflg;
 	return (sys_shmat(td, &bsd_args));
 }
 
 int
 linux_shmdt(struct thread *td, struct linux_shmdt_args *args)
 {
-	struct shmdt_args /* {
-		void *shmaddr;
-	} */ bsd_args;
+	struct shmdt_args bsd_args = {
+		.shmaddr = PTRIN(args->shmaddr)
+	};
 
-	bsd_args.shmaddr = PTRIN(args->shmaddr);
 	return (sys_shmdt(td, &bsd_args));
 }
 
 int
 linux_shmget(struct thread *td, struct linux_shmget_args *args)
 {
-	struct shmget_args /* {
-		key_t key;
-		int size;
-		int shmflg;
-	} */ bsd_args;
+	struct shmget_args bsd_args = {
+		.key = args->key,
+		.size = args->size,
+		.shmflg = args->shmflg
+	};
 
-	bsd_args.key = args->key;
-	bsd_args.size = args->size;
-	bsd_args.shmflg = args->shmflg;
 	return (sys_shmget(td, &bsd_args));
 }
 
