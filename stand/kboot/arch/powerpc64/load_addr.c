@@ -220,3 +220,9 @@ bool enumerate_memory_arch(void)
 
 	return true;
 }
+
+void
+bi_loadsmap(struct preloaded_file *kfp)
+{
+	/* passed in via the DTB */
+}
