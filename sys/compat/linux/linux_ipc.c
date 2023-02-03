@@ -305,22 +305,20 @@ linux_msqid_pullup(l_int ver, struct l_msqid64_ds *linux_msqid64, caddr_t uaddr)
 
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyin(uaddr, linux_msqid64, sizeof(*linux_msqid64)));
-	else {
-		error = copyin(uaddr, &linux_msqid, sizeof(linux_msqid));
-		if (error != 0)
-			return (error);
 
-		bzero(linux_msqid64, sizeof(*linux_msqid64));
+	error = copyin(uaddr, &linux_msqid, sizeof(linux_msqid));
+	if (error != 0)
+		return (error);
 
-		linux_msqid64->msg_perm.uid = linux_msqid.msg_perm.uid;
-		linux_msqid64->msg_perm.gid = linux_msqid.msg_perm.gid;
-		linux_msqid64->msg_perm.mode = linux_msqid.msg_perm.mode;
-		if (linux_msqid.msg_qbytes == 0)
-			linux_msqid64->msg_qbytes = linux_msqid.msg_lqbytes;
-		else
-			linux_msqid64->msg_qbytes = linux_msqid.msg_qbytes;
-		return (0);
-	}
+	bzero(linux_msqid64, sizeof(*linux_msqid64));
+	linux_msqid64->msg_perm.uid = linux_msqid.msg_perm.uid;
+	linux_msqid64->msg_perm.gid = linux_msqid.msg_perm.gid;
+	linux_msqid64->msg_perm.mode = linux_msqid.msg_perm.mode;
+	if (linux_msqid.msg_qbytes == 0)
+		linux_msqid64->msg_qbytes = linux_msqid.msg_lqbytes;
+	else
+		linux_msqid64->msg_qbytes = linux_msqid.msg_qbytes;
+	return (0);
 }
 
 static int
@@ -331,43 +329,40 @@ linux_msqid_pushdown(l_int ver, struct l_msqid64_ds *linux_msqid64, caddr_t uadd
 
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyout(linux_msqid64, uaddr, sizeof(*linux_msqid64)));
-	else {
-		bzero(&linux_msqid, sizeof(linux_msqid));
 
-		error = linux_ipc64_perm_to_ipc_perm(&linux_msqid64->msg_perm,
-		    &linux_msqid.msg_perm);
-		if (error != 0)
-			return (error);
+	bzero(&linux_msqid, sizeof(linux_msqid));
+	error = linux_ipc64_perm_to_ipc_perm(&linux_msqid64->msg_perm,
+	    &linux_msqid.msg_perm);
+	if (error != 0)
+		return (error);
 
-		linux_msqid.msg_stime = linux_msqid64->msg_stime;
-		linux_msqid.msg_rtime = linux_msqid64->msg_rtime;
-		linux_msqid.msg_ctime = linux_msqid64->msg_ctime;
+	linux_msqid.msg_stime = linux_msqid64->msg_stime;
+	linux_msqid.msg_rtime = linux_msqid64->msg_rtime;
+	linux_msqid.msg_ctime = linux_msqid64->msg_ctime;
 
-		if (linux_msqid64->msg_cbytes > USHRT_MAX)
-			linux_msqid.msg_cbytes = USHRT_MAX;
-		else
-			linux_msqid.msg_cbytes = linux_msqid64->msg_cbytes;
-		linux_msqid.msg_lcbytes = linux_msqid64->msg_cbytes;
-		if (linux_msqid64->msg_qnum > USHRT_MAX)
-			linux_msqid.msg_qnum = USHRT_MAX;
-		else
-			linux_msqid.msg_qnum = linux_msqid64->msg_qnum;
-		if (linux_msqid64->msg_qbytes > USHRT_MAX)
-			linux_msqid.msg_qbytes = USHRT_MAX;
-		else
-			linux_msqid.msg_qbytes = linux_msqid64->msg_qbytes;
-		linux_msqid.msg_lqbytes = linux_msqid64->msg_qbytes;
-		linux_msqid.msg_lspid = linux_msqid64->msg_lspid;
-		linux_msqid.msg_lrpid = linux_msqid64->msg_lrpid;
+	if (linux_msqid64->msg_cbytes > USHRT_MAX)
+		linux_msqid.msg_cbytes = USHRT_MAX;
+	else
+		linux_msqid.msg_cbytes = linux_msqid64->msg_cbytes;
+	linux_msqid.msg_lcbytes = linux_msqid64->msg_cbytes;
+	if (linux_msqid64->msg_qnum > USHRT_MAX)
+		linux_msqid.msg_qnum = USHRT_MAX;
+	else
+		linux_msqid.msg_qnum = linux_msqid64->msg_qnum;
+	if (linux_msqid64->msg_qbytes > USHRT_MAX)
+		linux_msqid.msg_qbytes = USHRT_MAX;
+	else
+		linux_msqid.msg_qbytes = linux_msqid64->msg_qbytes;
+	linux_msqid.msg_lqbytes = linux_msqid64->msg_qbytes;
+	linux_msqid.msg_lspid = linux_msqid64->msg_lspid;
+	linux_msqid.msg_lrpid = linux_msqid64->msg_lrpid;
 
-		/* Linux does not check overflow */
-		if (linux_msqid.msg_stime != linux_msqid64->msg_stime ||
-		    linux_msqid.msg_rtime != linux_msqid64->msg_rtime ||
-		    linux_msqid.msg_ctime != linux_msqid64->msg_ctime)
-			return (EOVERFLOW);
-
-		return (copyout(&linux_msqid, uaddr, sizeof(linux_msqid)));
-	}
+	/* Linux does not check overflow */
+	if (linux_msqid.msg_stime != linux_msqid64->msg_stime ||
+	    linux_msqid.msg_rtime != linux_msqid64->msg_rtime ||
+	    linux_msqid.msg_ctime != linux_msqid64->msg_ctime)
+		return (EOVERFLOW);
+	return (copyout(&linux_msqid, uaddr, sizeof(linux_msqid)));
 }
 
 static int
@@ -378,18 +373,15 @@ linux_semid_pullup(l_int ver, struct l_semid64_ds *linux_semid64, caddr_t uaddr)
 
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyin(uaddr, linux_semid64, sizeof(*linux_semid64)));
-	else {
-		error = copyin(uaddr, &linux_semid, sizeof(linux_semid));
-		if (error != 0)
-			return (error);
+	error = copyin(uaddr, &linux_semid, sizeof(linux_semid));
+	if (error != 0)
+		return (error);
 
-		bzero(linux_semid64, sizeof(*linux_semid64));
-
-		linux_semid64->sem_perm.uid = linux_semid.sem_perm.uid;
-		linux_semid64->sem_perm.gid = linux_semid.sem_perm.gid;
-		linux_semid64->sem_perm.mode = linux_semid.sem_perm.mode;
-		return (0);
-	}
+	bzero(linux_semid64, sizeof(*linux_semid64));
+	linux_semid64->sem_perm.uid = linux_semid.sem_perm.uid;
+	linux_semid64->sem_perm.gid = linux_semid.sem_perm.gid;
+	linux_semid64->sem_perm.mode = linux_semid.sem_perm.mode;
+	return (0);
 }
 
 static int
@@ -400,26 +392,23 @@ linux_semid_pushdown(l_int ver, struct l_semid64_ds *linux_semid64, caddr_t uadd
 
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyout(linux_semid64, uaddr, sizeof(*linux_semid64)));
-	else {
-		bzero(&linux_semid, sizeof(linux_semid));
 
+	bzero(&linux_semid, sizeof(linux_semid));
 		error = linux_ipc64_perm_to_ipc_perm(&linux_semid64->sem_perm,
-		    &linux_semid.sem_perm);
-		if (error != 0)
-			return (error);
+	    &linux_semid.sem_perm);
+	if (error != 0)
+		return (error);
 
-		linux_semid.sem_otime = linux_semid64->sem_otime;
-		linux_semid.sem_ctime = linux_semid64->sem_ctime;
-		linux_semid.sem_nsems = linux_semid64->sem_nsems;
+	linux_semid.sem_otime = linux_semid64->sem_otime;
+	linux_semid.sem_ctime = linux_semid64->sem_ctime;
+	linux_semid.sem_nsems = linux_semid64->sem_nsems;
 
-		/* Linux does not check overflow */
-		if (linux_semid.sem_otime != linux_semid64->sem_otime ||
-		    linux_semid.sem_ctime != linux_semid64->sem_ctime ||
-		    linux_semid.sem_nsems != linux_semid64->sem_nsems)
-			return (EOVERFLOW);
-
-		return (copyout(&linux_semid, uaddr, sizeof(linux_semid)));
-	}
+	/* Linux does not check overflow */
+	if (linux_semid.sem_otime != linux_semid64->sem_otime ||
+	    linux_semid.sem_ctime != linux_semid64->sem_ctime ||
+	    linux_semid.sem_nsems != linux_semid64->sem_nsems)
+		return (EOVERFLOW);
+	return (copyout(&linux_semid, uaddr, sizeof(linux_semid)));
 }
 
 static int
@@ -430,18 +419,16 @@ linux_shmid_pullup(l_int ver, struct l_shmid64_ds *linux_shmid64, caddr_t uaddr)
 
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyin(uaddr, linux_shmid64, sizeof(*linux_shmid64)));
-	else {
-		error = copyin(uaddr, &linux_shmid, sizeof(linux_shmid));
-		if (error != 0)
-			return (error);
 
-		bzero(linux_shmid64, sizeof(*linux_shmid64));
+	error = copyin(uaddr, &linux_shmid, sizeof(linux_shmid));
+	if (error != 0)
+		return (error);
 
-		linux_shmid64->shm_perm.uid = linux_shmid.shm_perm.uid;
-		linux_shmid64->shm_perm.gid = linux_shmid.shm_perm.gid;
-		linux_shmid64->shm_perm.mode = linux_shmid.shm_perm.mode;
-		return (0);
-	}
+	bzero(linux_shmid64, sizeof(*linux_shmid64));
+	linux_shmid64->shm_perm.uid = linux_shmid.shm_perm.uid;
+	linux_shmid64->shm_perm.gid = linux_shmid.shm_perm.gid;
+	linux_shmid64->shm_perm.mode = linux_shmid.shm_perm.mode;
+	return (0);
 }
 
 static int
@@ -452,34 +439,31 @@ linux_shmid_pushdown(l_int ver, struct l_shmid64_ds *linux_shmid64, caddr_t uadd
 
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyout(linux_shmid64, uaddr, sizeof(*linux_shmid64)));
-	else {
-		bzero(&linux_shmid, sizeof(linux_shmid));
 
-		error = linux_ipc64_perm_to_ipc_perm(&linux_shmid64->shm_perm,
-		    &linux_shmid.shm_perm);
-		if (error != 0)
-			return (error);
+	bzero(&linux_shmid, sizeof(linux_shmid));
+	error = linux_ipc64_perm_to_ipc_perm(&linux_shmid64->shm_perm,
+	    &linux_shmid.shm_perm);
+	if (error != 0)
+		return (error);
 
-		linux_shmid.shm_segsz = linux_shmid64->shm_segsz;
-		linux_shmid.shm_atime = linux_shmid64->shm_atime;
-		linux_shmid.shm_dtime = linux_shmid64->shm_dtime;
-		linux_shmid.shm_ctime = linux_shmid64->shm_ctime;
-		linux_shmid.shm_cpid = linux_shmid64->shm_cpid;
-		linux_shmid.shm_lpid = linux_shmid64->shm_lpid;
-		linux_shmid.shm_nattch = linux_shmid64->shm_nattch;
+	linux_shmid.shm_segsz = linux_shmid64->shm_segsz;
+	linux_shmid.shm_atime = linux_shmid64->shm_atime;
+	linux_shmid.shm_dtime = linux_shmid64->shm_dtime;
+	linux_shmid.shm_ctime = linux_shmid64->shm_ctime;
+	linux_shmid.shm_cpid = linux_shmid64->shm_cpid;
+	linux_shmid.shm_lpid = linux_shmid64->shm_lpid;
+	linux_shmid.shm_nattch = linux_shmid64->shm_nattch;
 
-		/* Linux does not check overflow */
-		if (linux_shmid.shm_segsz != linux_shmid64->shm_segsz ||
-		    linux_shmid.shm_atime != linux_shmid64->shm_atime ||
-		    linux_shmid.shm_dtime != linux_shmid64->shm_dtime ||
-		    linux_shmid.shm_ctime != linux_shmid64->shm_ctime ||
-		    linux_shmid.shm_cpid != linux_shmid64->shm_cpid ||
-		    linux_shmid.shm_lpid != linux_shmid64->shm_lpid ||
-		    linux_shmid.shm_nattch != linux_shmid64->shm_nattch)
-			return (EOVERFLOW);
-
-		return (copyout(&linux_shmid, uaddr, sizeof(linux_shmid)));
-	}
+	/* Linux does not check overflow */
+	if (linux_shmid.shm_segsz != linux_shmid64->shm_segsz ||
+	    linux_shmid.shm_atime != linux_shmid64->shm_atime ||
+	    linux_shmid.shm_dtime != linux_shmid64->shm_dtime ||
+	    linux_shmid.shm_ctime != linux_shmid64->shm_ctime ||
+	    linux_shmid.shm_cpid != linux_shmid64->shm_cpid ||
+	    linux_shmid.shm_lpid != linux_shmid64->shm_lpid ||
+	    linux_shmid.shm_nattch != linux_shmid64->shm_nattch)
+		return (EOVERFLOW);
+	return (copyout(&linux_shmid, uaddr, sizeof(linux_shmid)));
 }
 
 static int
@@ -491,18 +475,14 @@ linux_shminfo_pushdown(l_int ver, struct l_shminfo64 *linux_shminfo64,
 	if (ver == LINUX_IPC_64 || SV_CURPROC_FLAG(SV_LP64))
 		return (copyout(linux_shminfo64, uaddr,
 		    sizeof(*linux_shminfo64)));
-	else {
-		bzero(&linux_shminfo, sizeof(linux_shminfo));
 
-		linux_shminfo.shmmax = linux_shminfo64->shmmax;
-		linux_shminfo.shmmin = linux_shminfo64->shmmin;
-		linux_shminfo.shmmni = linux_shminfo64->shmmni;
-		linux_shminfo.shmseg = linux_shminfo64->shmseg;
-		linux_shminfo.shmall = linux_shminfo64->shmall;
-
-		return (copyout(&linux_shminfo, uaddr,
-		    sizeof(linux_shminfo)));
-	}
+	bzero(&linux_shminfo, sizeof(linux_shminfo));
+	linux_shminfo.shmmax = linux_shminfo64->shmmax;
+	linux_shminfo.shmmin = linux_shminfo64->shmmin;
+	linux_shminfo.shmmni = linux_shminfo64->shmmni;
+	linux_shminfo.shmseg = linux_shminfo64->shmseg;
+	linux_shminfo.shmall = linux_shminfo64->shmall;
+	return (copyout(&linux_shminfo, uaddr, sizeof(linux_shminfo)));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
