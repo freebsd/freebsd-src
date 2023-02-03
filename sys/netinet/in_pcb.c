@@ -1069,7 +1069,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred,
 	laddr = inp->inp_laddr.s_addr;
 	anonport = (lport == 0);
 	error = in_pcbconnect_setup(inp, sin, &laddr, &lport, &faddr, &fport,
-	    NULL, cred);
+	    cred);
 	if (error)
 		return (error);
 
@@ -1320,19 +1320,13 @@ done:
  *
  * On success, *faddrp and *fportp will be set to the remote address
  * and port. These are not updated in the error case.
- *
- * If the operation fails because the connection already exists,
- * *oinpp will be set to the PCB of that connection so that the
- * caller can decide to override it. In all other cases, *oinpp
- * is set to NULL.
  */
 int
 in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
-    struct inpcb **oinpp, struct ucred *cred)
+    struct ucred *cred)
 {
 	struct in_ifaddr *ia;
-	struct inpcb *oinp;
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
 	int error;
@@ -1350,8 +1344,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 	INP_LOCK_ASSERT(inp);
 	INP_HASH_LOCK_ASSERT(inp->inp_pcbinfo);
 
-	if (oinpp != NULL)
-		*oinpp = NULL;
 	if (sin->sin_port == 0)
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
@@ -1423,13 +1415,9 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 	}
 
 	if (lport != 0) {
-		oinp = in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr,
-		    fport, laddr, lport, 0, NULL, M_NODOM);
-		if (oinp != NULL) {
-			if (oinpp != NULL)
-				*oinpp = oinp;
+		if (in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr,
+		    fport, laddr, lport, 0, NULL, M_NODOM) != NULL)
 			return (EADDRINUSE);
-		}
 	} else {
 		struct sockaddr_in lsin, fsin;
 
