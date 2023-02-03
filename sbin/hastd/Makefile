@@ -5,7 +5,7 @@
 PACKAGE=hast
 PROG=	hastd
 SRCS=	activemap.c
-SRCS+=	control.c crc32.c
+SRCS+=	control.c
 SRCS+=	ebuf.c event.c
 SRCS+=	hast_checksum.c hast_compression.c hast_proto.c hastd.c hooks.c
 SRCS+=	lzf.c
@@ -31,7 +31,7 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 
-LIBADD=	geom md pthread util
+LIBADD=	geom md pthread util z
 
 YFLAGS+=-v
 

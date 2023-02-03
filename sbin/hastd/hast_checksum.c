@@ -33,10 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 
-#include <crc32.h>
 #include <hast.h>
 #include <nv.h>
 #include <sha256.h>
+#include <zlib.h>
 #include <pjdlog.h>
 
 #include "hast_checksum.h"
@@ -49,7 +49,9 @@ hast_crc32_checksum(const unsigned char *data, size_t size,
 {
 	uint32_t crc;
 
-	crc = crc32(data, size);
+	crc = crc32(0L, Z_NULL, 0);
+	crc = crc32(crc, data, size);
+
 	/* XXXPJD: Do we have to use htole32() on crc first? */
 	bcopy(&crc, hash, sizeof(crc));
 	*hsizep = sizeof(crc);
