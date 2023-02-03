@@ -222,6 +222,8 @@ main(int argc, const char **argv)
 
 	bootdev = getenv("bootdev");
 	if (bootdev == NULL)
+		bootdev = hostdisk_gen_probe();
+	if (bootdev == NULL)
 		bootdev="zfs:";
 	hostfs_root = getenv("hostfs_root");
 	if (hostfs_root == NULL)
