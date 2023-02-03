@@ -1044,12 +1044,12 @@ linux_common_wait(struct thread *td, idtype_t idtype, int id, int *statusp,
 int
 linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 {
-	struct linux_wait4_args wait4_args;
-
-	wait4_args.pid = args->pid;
-	wait4_args.status = args->status;
-	wait4_args.options = args->options;
-	wait4_args.rusage = NULL;
+	struct linux_wait4_args wait4_args = {
+		.pid = args->pid,
+		.status = args->status,
+		.options = args->options,
+		.rusage = NULL,
+	};
 
 	return (linux_wait4(td, &wait4_args));
 }
