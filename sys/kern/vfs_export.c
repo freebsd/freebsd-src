@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/rmlock.h>
 #include <sys/refcount.h>
 #include <sys/signalvar.h>
@@ -70,7 +71,6 @@ static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 static struct radix_node_head *vfs_create_addrlist_af(
 		    struct radix_node_head **prnh, int off);
 #endif
-static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
 static void	vfs_free_addrlist_af(struct radix_node_head **prnh);
 static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
@@ -274,7 +274,7 @@ vfs_free_addrlist_af(struct radix_node_head **prnh)
 /*
  * Free the net address hash lists that are hanging off the mount points.
  */
-static void
+void
 vfs_free_addrlist(struct netexport *nep)
 {
 	struct ucred *cred;
@@ -285,8 +285,10 @@ vfs_free_addrlist(struct netexport *nep)
 		vfs_free_addrlist_af(&nep->ne6);
 
 	cred = nep->ne_defexported.netc_anon;
-	if (cred != NULL)
+	if (cred != NULL) {
 		crfree(cred);
+		nep->ne_defexported.netc_anon = NULL;
+	}
 
 }
 
@@ -301,6 +303,8 @@ vfs_export(struct mount *mp, struct export_args *argp)
 {
 	struct netexport *nep;
 	int error;
+	uint64_t jail_permid;
+	bool new_nep, prison_alive;
 
 	if ((argp->ex_flags & (MNT_DELEXPORT | MNT_EXPORTED)) == 0)
 		return (EINVAL);
@@ -311,11 +315,27 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		return (EINVAL);
 
 	error = 0;
+	jail_permid = curthread->td_ucred->cr_prison->pr_permid;
 	lockmgr(&mp->mnt_explock, LK_EXCLUSIVE, NULL);
 	nep = mp->mnt_export;
+	prison_alive = prison_isalive_permid(mp->mnt_exjail);
 	if (argp->ex_flags & MNT_DELEXPORT) {
 		if (nep == NULL) {
+			KASSERT(mp->mnt_exjail == 0,
+			    ("vfs_export: mnt_exjail delexport not 0"));
 			error = ENOENT;
+			goto out;
+		}
+		KASSERT(mp->mnt_exjail != 0,
+		    ("vfs_export: mnt_exjail delexport 0"));
+		if (jail_permid == 1 && mp->mnt_exjail != jail_permid &&
+		    prison_alive) {
+			/* EXDEV will not get logged by mountd(8). */
+			error = EXDEV;
+			goto out;
+		} else if (mp->mnt_exjail != jail_permid && prison_alive) {
+			/* EPERM will get logged by mountd(8). */
+			error = EPERM;
 			goto out;
 		}
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
@@ -326,20 +346,37 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		}
 		vfs_free_addrlist(nep);
 		mp->mnt_export = NULL;
+		mp->mnt_exjail = 0;
 		free(nep, M_MOUNT);
 		nep = NULL;
 		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 		MNT_IUNLOCK(mp);
 	}
+	new_nep = false;
 	if (argp->ex_flags & MNT_EXPORTED) {
 		if (nep == NULL) {
+			KASSERT(mp->mnt_exjail == 0,
+			    ("vfs_export: mnt_exjail not 0"));
 			nep = malloc(sizeof(struct netexport), M_MOUNT, M_WAITOK | M_ZERO);
 			mp->mnt_export = nep;
+			new_nep = true;
+		} else if (mp->mnt_exjail != jail_permid && prison_alive) {
+			KASSERT(mp->mnt_exjail != 0,
+			    ("vfs_export: mnt_exjail 0"));
+			error = EPERM;
+			goto out;
 		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
-			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
+			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0) {
+				if (new_nep) {
+					mp->mnt_export = NULL;
+					free(nep, M_MOUNT);
+				}
 				goto out;
+			}
+			new_nep = false;
+			mp->mnt_exjail = jail_permid;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_EXPUBLIC;
 			MNT_IUNLOCK(mp);
@@ -348,8 +385,14 @@ vfs_export(struct mount *mp, struct export_args *argp)
 			argp->ex_numsecflavors = 1;
 			argp->ex_secflavors[0] = AUTH_SYS;
 		}
-		if ((error = vfs_hang_addrlist(mp, nep, argp)))
+		if ((error = vfs_hang_addrlist(mp, nep, argp))) {
+			if (new_nep) {
+				mp->mnt_export = NULL;
+				free(nep, M_MOUNT);
+			}
 			goto out;
+		}
+		mp->mnt_exjail = jail_permid;
 		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_EXPORTED;
 		MNT_IUNLOCK(mp);

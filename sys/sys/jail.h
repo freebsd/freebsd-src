@@ -199,6 +199,7 @@ struct prison {
 	int		 pr_spare[2];
 	int		 pr_osreldate;			/* (c) kern.osreldate value */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
+	uint64_t	 pr_permid;			/* (c) permanent jail id */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
 	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */
 	char		 pr_hostname[MAXHOSTNAMELEN];	/* (p) jail hostname */
@@ -442,6 +443,7 @@ void prison_proc_iterate(struct prison *, void (*)(struct proc *, void *), void 
 void prison_set_allow(struct ucred *cred, unsigned flag, int enable);
 int prison_ischild(struct prison *, struct prison *);
 bool prison_isalive(const struct prison *);
+bool prison_isalive_permid(const uint64_t prison_permid);
 bool prison_isvalid(struct prison *);
 #if defined(INET) || defined(INET6)
 int prison_ip_check(const struct prison *, const pr_family_t, const void *);
