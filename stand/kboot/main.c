@@ -254,7 +254,6 @@ main(int argc, const char **argv)
 	printf("\n%s", bootprog_info);
 
 	setenv("LINES", "24", 1);
-	setenv("usefdt", "1", 1);
 
 	memory_limits();
 
