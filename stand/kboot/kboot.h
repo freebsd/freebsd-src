@@ -17,6 +17,8 @@ struct memory_segments
 };
 
 bool enumerate_memory_arch(void);
+struct preloaded_file;
+void bi_loadsmap(struct preloaded_file *kfp);
 
 bool has_acpi(void);
 vm_offset_t acpi_rsdp(void);
