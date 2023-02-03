@@ -1476,7 +1476,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	INP_WLOCK_ASSERT(inp);
 
 	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in6_pcbconnect(inp, nam, td->td_ucred);
+	error = in6_pcbconnect(inp, nam, td->td_ucred, true);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error != 0)
 		return (error);

@@ -414,8 +414,8 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
  * then pick one.
  */
 int
-in6_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred, struct mbuf *m, bool rehash)
+in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
+    bool rehash)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
@@ -495,13 +495,6 @@ in6_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
 	}
 
 	return (0);
-}
-
-int
-in6_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
-{
-
-	return (in6_pcbconnect_mbuf(inp, nam, cred, NULL, true));
 }
 
 void
