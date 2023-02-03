@@ -1182,7 +1182,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	INP_HASH_WLOCK(pcbinfo);
-	error = in6_pcbconnect(inp, nam, td->td_ucred);
+	error = in6_pcbconnect(inp, nam, td->td_ucred, true);
 	INP_HASH_WUNLOCK(pcbinfo);
 	/*
 	 * If connect succeeds, mark socket as connected. If
