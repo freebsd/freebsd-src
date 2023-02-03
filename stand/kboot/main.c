@@ -322,14 +322,14 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 {
 	int i = 0;
 	const size_t segsize = 64*1024*1024;
-	size_t sz;
+	size_t sz, amt, l;
 
 	if (nkexec_segments == HOST_KEXEC_SEGMENT_MAX)
 		panic("Tried to load too many kexec segments");
 	for (i = 0; i < nkexec_segments; i++) {
 		if (dest >= (vm_offset_t)loaded_segments[i].mem &&
 		    dest < (vm_offset_t)loaded_segments[i].mem +
-		    loaded_segments[i].memsz)
+		    loaded_segments[i].bufsz) /* Need to use bufsz since memsz is in use size */
 			goto out;
 	}
 
@@ -348,16 +348,21 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 	loaded_segments[nkexec_segments].buf = host_getmem(sz);
 	loaded_segments[nkexec_segments].bufsz = sz;
 	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,SEGALIGN);
-	loaded_segments[nkexec_segments].memsz = sz;
+	loaded_segments[nkexec_segments].memsz = 0;
 
 	i = nkexec_segments;
 	nkexec_segments++;
 
 out:
-	*buf = loaded_segments[i].buf + (dest -
-	    (vm_offset_t)loaded_segments[i].mem);
-	return (min(len,loaded_segments[i].bufsz - (dest -
-	    (vm_offset_t)loaded_segments[i].mem)));
+	/*
+	 * Keep track of the highest amount used in a segment
+	 */
+	amt = dest - (vm_offset_t)loaded_segments[i].mem;
+	l = min(len,loaded_segments[i].bufsz - amt);
+	*buf = loaded_segments[i].buf + amt;
+	if (amt + l > loaded_segments[i].memsz)
+		loaded_segments[i].memsz = amt + l;
+	return (l);
 }
 
 ssize_t
@@ -447,12 +452,16 @@ kboot_autoload(void)
 void
 kboot_kseg_get(int *nseg, void **ptr)
 {
-	int a;
-
 	printf("kseg_get: %d segments\n", nkexec_segments);
 	printf("VA               SZ       PA               MEMSZ\n");
 	printf("---------------- -------- ---------------- -----\n");
-	for (a = 0; a < nkexec_segments; a++) {
+	for (int a = 0; a < nkexec_segments; a++) {
+		/*
+		 * Truncate each segment to just what we've used in the segment,
+		 * rounded up to the next page.
+		 */
+		loaded_segments[a].memsz = roundup2(loaded_segments[a].memsz,PAGE_SIZE);
+		loaded_segments[a].bufsz = loaded_segments[a].memsz;
 		printf("%016jx %08jx %016jx %08jx\n",
 			(uintmax_t)loaded_segments[a].buf,
 			(uintmax_t)loaded_segments[a].bufsz,
