@@ -372,9 +372,6 @@ struct arch_switch
 
 	/* Return the hypervisor name/type or NULL if not virtualized. */
 	const char *(*arch_hypervisor)(void);
-
-	/* For kexec-type loaders, get ksegment structure */
-	void (*arch_kexec_kseg_get)(int *nseg, void **kseg);
 };
 extern struct arch_switch archsw;
 

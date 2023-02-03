@@ -275,9 +275,7 @@ elf64_exec(struct preloaded_file *fp)
 	archsw.arch_copyin((void *)trampcode, kernendp, tramp_size);
 	printf("Trampoline bouncing to %#llx\n", (long long)trampoline_data->entry);
 
-	if (archsw.arch_kexec_kseg_get == NULL)
-		panic("architecture did not provide kexec segment mapping");
-	archsw.arch_kexec_kseg_get(&nseg, &kseg);
+	kboot_kseg_get(&nseg, &kseg);
 	error = host_kexec_load(trampolinebase, nseg, kseg, HOST_KEXEC_ARCH_AARCH64);
 	if (error != 0)
 		panic("kexec_load returned error: %d", error);

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "syscall_nr.h"
 #include "host_syscall.h"
 #include "modinfo.h"
+#include "kboot.h"
 
 extern char		end[];
 extern void		*kerneltramp;
@@ -148,9 +149,7 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	archsw.arch_copyin(trampoline, trampolinebase, szkerneltramp);
 	free(trampoline);
 
-	if (archsw.arch_kexec_kseg_get == NULL)
-		panic("architecture did not provide kexec segment mapping");
-	archsw.arch_kexec_kseg_get(&nseg, &kseg);
+	kboot_kseg_get(&nseg, &kseg);
 
 	error = host_kexec_load(trampolinebase, nseg, kseg, HOST_KEXEC_ARCH_PPC64);
 	if (error != 0)

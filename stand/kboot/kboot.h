@@ -31,6 +31,9 @@ void fdt_arch_fixups(void *fdtp);
 uint64_t kboot_get_phys_load_segment(void);
 uint8_t kboot_get_kernel_machine_bits(void);
 
+/* main.c */
+void kboot_kseg_get(int *nseg, void **ptr);
+
 /* hostdisk.c */
 extern const char *hostfs_root;
 const char *hostdisk_gen_probe(void);

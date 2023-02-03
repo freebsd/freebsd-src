@@ -446,9 +446,7 @@ elf64_exec(struct preloaded_file *fp)
 	/* Copy the page table to the ksegs */
 	archsw.arch_copyin(PT4, trampoline_data->pt4 - staging, 9 * LOADER_PAGE_SIZE);
 
-	if (archsw.arch_kexec_kseg_get == NULL)
-		panic("architecture did not provide kexec segment mapping");
-	archsw.arch_kexec_kseg_get(&nseg, &kseg);
+	kboot_kseg_get(&nseg, &kseg);
 	error = host_kexec_load(trampolinebase, nseg, kseg, HOST_KEXEC_ARCH_X86_64);
 	if (error != 0)
 		panic("kexec_load returned error: %d", error);
