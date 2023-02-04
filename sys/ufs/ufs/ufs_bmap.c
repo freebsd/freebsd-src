@@ -44,11 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
 
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
@@ -348,6 +352,7 @@ ufs_bmap_seekdata(struct vnode *vp, off_t *offp)
 	struct inode *ip;
 	struct mount *mp;
 	struct ufsmount *ump;
+	vm_object_t obj;
 	ufs2_daddr_t bn, daddr, nextbn;
 	uint64_t bsize;
 	off_t numblks;
@@ -363,6 +368,19 @@ ufs_bmap_seekdata(struct vnode *vp, off_t *offp)
 		return (EINVAL);
 	if (*offp < 0 || *offp >= ip->i_size)
 		return (ENXIO);
+
+	/*
+	 * We could have pages on the vnode' object queue which still
+	 * do not have the data blocks allocated.  Convert all dirty
+	 * pages into buffer writes to ensure that we see all
+	 * allocated data.
+	 */
+	obj = vp->v_object;
+	if (obj != NULL) {
+		VM_OBJECT_WLOCK(obj);
+		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_WUNLOCK(obj);
+	}
 
 	bsize = mp->mnt_stat.f_iosize;
 	for (bn = *offp / bsize, numblks = howmany(ip->i_size, bsize);
