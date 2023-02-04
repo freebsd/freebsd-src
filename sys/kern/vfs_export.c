@@ -70,7 +70,6 @@ static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 static struct radix_node_head *vfs_create_addrlist_af(
 		    struct radix_node_head **prnh, int off);
 #endif
-static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
 static void	vfs_free_addrlist_af(struct radix_node_head **prnh);
 static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
@@ -274,7 +273,7 @@ vfs_free_addrlist_af(struct radix_node_head **prnh)
 /*
  * Free the net address hash lists that are hanging off the mount points.
  */
-static void
+void
 vfs_free_addrlist(struct netexport *nep)
 {
 	struct ucred *cred;
@@ -285,8 +284,10 @@ vfs_free_addrlist(struct netexport *nep)
 		vfs_free_addrlist_af(&nep->ne6);
 
 	cred = nep->ne_defexported.netc_anon;
-	if (cred != NULL)
+	if (cred != NULL) {
 		crfree(cred);
+		nep->ne_defexported.netc_anon = NULL;
+	}
 
 }
 
