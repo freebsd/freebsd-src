@@ -2944,7 +2944,7 @@ ufs_ioctl(struct vop_ioctl_args *ap)
 	vp = ap->a_vp;
 	switch (ap->a_command) {
 	case FIOSEEKDATA:
-		error = vn_lock(vp, LK_SHARED);
+		error = vn_lock(vp, LK_EXCLUSIVE);
 		if (error == 0) {
 			error = ufs_bmap_seekdata(vp, (off_t *)ap->a_data);
 			VOP_UNLOCK(vp);

@@ -2556,6 +2556,7 @@ int
 vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
     struct ucred *cred)
 {
+	vm_object_t obj;
 	off_t size;
 	daddr_t bn, bnp;
 	uint64_t bsize;
@@ -2564,7 +2565,7 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 
 	KASSERT(cmd == FIOSEEKHOLE || cmd == FIOSEEKDATA,
 	    ("%s: Wrong command %lu", __func__, cmd));
-	ASSERT_VOP_LOCKED(vp, "vn_bmap_seekhole_locked");
+	ASSERT_VOP_ELOCKED(vp, "vn_bmap_seekhole_locked");
 
 	if (vp->v_type != VREG) {
 		error = ENOTTY;
@@ -2578,6 +2579,15 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 		error = ENXIO;
 		goto out;
 	}
+
+	/* See the comment in ufs_bmap_seekdata(). */
+	obj = vp->v_object;
+	if (obj != NULL) {
+		VM_OBJECT_WLOCK(obj);
+		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_WUNLOCK(obj);
+	}
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	for (bn = noff / bsize; noff < size; bn++, noff += bsize -
 	    noff % bsize) {
@@ -2613,7 +2623,7 @@ vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off, struct ucred *cred)
 	KASSERT(cmd == FIOSEEKHOLE || cmd == FIOSEEKDATA,
 	    ("%s: Wrong command %lu", __func__, cmd));
 
-	if (vn_lock(vp, LK_SHARED) != 0)
+	if (vn_lock(vp, LK_EXCLUSIVE) != 0)
 		return (EBADF);
 	error = vn_bmap_seekhole_locked(vp, cmd, off, cred);
 	VOP_UNLOCK(vp);
