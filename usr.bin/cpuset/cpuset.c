@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <jail.h>
 #include <limits.h>
 #include <stdio.h>
@@ -52,6 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 
+/*
+ * Short opts.
+ */
 static int Cflag;
 static int cflag;
 static int dflag;
@@ -65,11 +69,23 @@ static int rflag;
 static int sflag;
 static int tflag;
 static int xflag;
+
+/*
+ * Long-only opts.
+ */
+static int count_flag;
+
 static id_t id;
 static cpulevel_t level;
 static cpuwhich_t which;
 
+#define OPT_THREADCOUNT	(CHAR_MAX + 1)
 static void usage(void);
+
+static struct option long_opts[] = {
+	{ "count", no_argument, NULL, OPT_THREADCOUNT },
+	{ NULL,	0, NULL, 0 }
+};
 
 struct numa_policy {
 	const char 	*name;
@@ -283,6 +299,18 @@ printsetid(void)
 	    levelnames[level], setid);
 }
 
+static void
+printcpucount(void)
+{
+	cpuset_t mask;
+	CPU_ZERO(&mask);
+
+	if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, id,
+	    sizeof(mask), &mask) != 0)
+		err(EXIT_FAILURE, "getaffinity");
+	printf("%d\n", CPU_COUNT(&mask));
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -300,7 +328,8 @@ main(int argc, char *argv[])
 	level = CPU_LEVEL_WHICH;
 	which = CPU_WHICH_PID;
 	id = pid = tid = setid = -1;
-	while ((ch = getopt(argc, argv, "Ccd:gij:l:n:p:rs:t:x:")) != -1) {
+	while ((ch = getopt_long(argc, argv,
+	    "Ccd:gij:l:n:p:rs:t:x:", long_opts, NULL)) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag = 1;
@@ -359,12 +388,30 @@ main(int argc, char *argv[])
 			which = CPU_WHICH_IRQ;
 			id = atoi(optarg);
 			break;
+		case OPT_THREADCOUNT:
+			count_flag = 1;
+			break;
 		default:
 			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
+
+	/*
+	 * count requires g and p flags and is incompatible with
+	 * everything else for simplicity.
+	 */
+	if (count_flag) {
+		if (!gflag || !pflag)
+			usage();
+		if (Cflag || cflag || dflag || iflag || jflag || lflag ||
+		    nflag || rflag || sflag || tflag || xflag)
+			usage();
+		printcpucount();
+		exit(EXIT_SUCCESS);
+	}
+
 	if (gflag) {
 		if (argc || Cflag || lflag || nflag)
 			usage();
@@ -471,5 +518,7 @@ usage(void)
 	fprintf(stderr,
     "       cpuset -g [-cir]\n"
     "              [-d domain | -j jailid | -p pid | -t tid | -s setid | -x irq]\n");
+	fprintf(stderr,
+    "       cpuset -g --count -p pid\n");
 	exit(1);
 }
