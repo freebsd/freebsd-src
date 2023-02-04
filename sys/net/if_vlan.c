@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -1921,7 +1922,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	if (p->if_capabilities & IFCAP_VLAN_TOE)
 		cap |= p->if_capabilities & IFCAP_TOE;
 	if (p->if_capenable & IFCAP_VLAN_TOE) {
-		TOEDEV(ifp) = TOEDEV(p);
+		SETTOEDEV(ifp, TOEDEV(p));
 		ena |= mena & IFCAP_TOE;
 	}
 

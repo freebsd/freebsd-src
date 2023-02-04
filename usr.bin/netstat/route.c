@@ -106,9 +106,9 @@ static const char *netname6(struct sockaddr_in6 *, struct sockaddr_in6 *);
 #endif
 static void p_rtable_sysctl(int, int);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
-static void p_flags(int, const char *);
 static void domask(char *, size_t, u_long);
 
+const uint32_t rt_default_weight = RT_DEFAULT_WEIGHT;
 
 /*
  * Print routing tables.
@@ -143,7 +143,8 @@ routepr(int fibnum, int af)
 	if (fibnum)
 		xo_emit(" ({L:fib}: {:fib/%d})", fibnum);
 	xo_emit("\n");
-	p_rtable_sysctl(fibnum, af);
+	if (!p_rtable_netlink(fibnum, af))
+		p_rtable_sysctl(fibnum, af);
 	xo_close_container("route-information");
 }
 
@@ -197,40 +198,46 @@ pr_family(int af1)
 #define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : (Wflag ? 10 : 8))
 #endif /*INET6*/
 
-static int wid_dst;
-static int wid_gw;
-static int wid_flags;
-static int wid_pksent;
-static int wid_mtu;
-static int wid_if;
-static int wid_expire;
+struct _wid wid;
 
 /*
  * Print header for routing table columns.
  */
-static void
+void
 pr_rthdr(int af1 __unused)
 {
 
 	if (Wflag) {
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
 		    "{T:/%*.*s} {T:/%*.*s} {T:/%*s}\n",
-			wid_dst,	wid_dst,	"Destination",
-			wid_gw,		wid_gw,		"Gateway",
-			wid_flags,	wid_flags,	"Flags",
-			wid_mtu,	wid_mtu,	"Nhop#",
-			wid_mtu,	wid_mtu,	"Mtu",
-			wid_if,		wid_if,		"Netif",
-			wid_expire,			"Expire");
+			wid.dst,	wid.dst,	"Destination",
+			wid.gw,		wid.gw,		"Gateway",
+			wid.flags,	wid.flags,	"Flags",
+			wid.mtu,	wid.mtu,	"Nhop#",
+			wid.mtu,	wid.mtu,	"Mtu",
+			wid.iface,	wid.iface,	"Netif",
+			wid.expire,			"Expire");
 	} else {
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s} {T:/%*.*s} "
 		    "{T:/%*s}\n",
-			wid_dst,	wid_dst,	"Destination",
-			wid_gw,		wid_gw,		"Gateway",
-			wid_flags,	wid_flags,	"Flags",
-			wid_if,		wid_if,		"Netif",
-			wid_expire,			"Expire");
+			wid.dst,	wid.dst,	"Destination",
+			wid.gw,		wid.gw,		"Gateway",
+			wid.flags,	wid.flags,	"Flags",
+			wid.iface,	wid.iface,	"Netif",
+			wid.expire,			"Expire");
 	}
+}
+
+void
+set_wid(int fam)
+{
+	wid.dst = WID_DST_DEFAULT(fam);
+	wid.gw = WID_GW_DEFAULT(fam);
+	wid.flags = 6;
+	wid.pksent = 8;
+	wid.mtu = 6;
+	wid.iface = WID_IF_DEFAULT(fam);
+	wid.expire = 6;
 }
 
 static void
@@ -278,15 +285,8 @@ p_rtable_sysctl(int fibnum, int af)
 				xo_close_instance("rt-family");
 			}
 			need_table_close = true;
-
 			fam = sa->sa_family;
-			wid_dst = WID_DST_DEFAULT(fam);
-			wid_gw = WID_GW_DEFAULT(fam);
-			wid_flags = 6;
-			wid_pksent = 8;
-			wid_mtu = 6;
-			wid_if = WID_IF_DEFAULT(fam);
-			wid_expire = 6;
+			set_wid(fam);
 			xo_open_instance("rt-family");
 			pr_family(fam);
 			xo_open_list("rt-entry");
@@ -323,22 +323,22 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 
 	protrusion = p_sockaddr("destination", addr[RTAX_DST],
 	    addr[RTAX_NETMASK],
-	    rtm->rtm_flags, wid_dst);
+	    rtm->rtm_flags, wid.dst);
 	protrusion = p_sockaddr("gateway", addr[RTAX_GATEWAY], NULL, RTF_HOST,
-	    wid_gw - protrusion);
+	    wid.gw - protrusion);
 	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:} ",
-	    wid_flags - protrusion);
+	    wid.flags - protrusion);
 	p_flags(rtm->rtm_flags, buffer);
 	/* Output path weight as non-visual property */
 	xo_emit("{e:weight/%u}", rtm->rtm_rmx.rmx_weight);
 	if (Wflag) {
 		/* XXX: use=0? */
-		xo_emit("{t:nhop/%*lu} ", wid_mtu, rtm->rtm_rmx.rmx_nhidx);
+		xo_emit("{t:nhop/%*lu} ", wid.mtu, rtm->rtm_rmx.rmx_nhidx);
 
 		if (rtm->rtm_rmx.rmx_mtu != 0)
-			xo_emit("{t:mtu/%*lu} ", wid_mtu, rtm->rtm_rmx.rmx_mtu);
+			xo_emit("{t:mtu/%*lu} ", wid.mtu, rtm->rtm_rmx.rmx_mtu);
 		else
-			xo_emit("{P:/%*s} ", wid_mtu, "");
+			xo_emit("{P:/%*s} ", wid.mtu, "");
 	}
 
 	memset(prettyname, 0, sizeof(prettyname));
@@ -350,15 +350,15 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	}
 
 	if (Wflag)
-		xo_emit("{t:interface-name/%*s}", wid_if, prettyname);
+		xo_emit("{t:interface-name/%*s}", wid.iface, prettyname);
 	else
-		xo_emit("{t:interface-name/%*.*s}", wid_if, wid_if,
+		xo_emit("{t:interface-name/%*.*s}", wid.iface, wid.iface,
 		    prettyname);
 	if (rtm->rtm_rmx.rmx_expire) {
 		time_t expire_time;
 
 		if ((expire_time = rtm->rtm_rmx.rmx_expire - uptime.tv_sec) > 0)
-			xo_emit(" {:expire-time/%*d}", wid_expire,
+			xo_emit(" {:expire-time/%*d}", wid.expire,
 			    (int)expire_time);
 	}
 
@@ -472,7 +472,7 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	return (cp);
 }
 
-static void
+void
 p_flags(int f, const char *format)
 {
 

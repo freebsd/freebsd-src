@@ -141,7 +141,7 @@ flag is set.
 .Bd -literal -offset indent -compact
     EXAMPLE:
        xo_open_container("system");
-       xo_emit("The host name is {:host-name}\n", hn);
+       xo_emit("The host name is {:host-name}\\n", hn);
        xo_close_container("system");
     XML:
        <system><host-name>foo</host-name></system>

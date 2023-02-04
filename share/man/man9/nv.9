@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2018
+.Dd February 2, 2023
 .Dt NV 9
 .Os
 .Sh NAME
@@ -933,8 +933,7 @@ do {
 		nvl = tmp;
 		while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
 			if (type == NV_TYPE_NVLIST) {
-				nvl = nvlist_get_nvlist(nvl,
-				    name);
+				nvl = nvlist_get_nvlist(nvl, name);
 				cookie = NULL;
 			} else if (type == NV_TYPE_NVLIST_ARRAY) {
 				nvl = nvlist_get_nvlist_array(nvl, name,

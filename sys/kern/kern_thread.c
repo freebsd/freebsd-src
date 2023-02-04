@@ -1151,8 +1151,8 @@ restart:
 		 * boundary, TDF_ALLPROCSUSP is used to avoid immediate
 		 * un-suspend.
 		 */
-		if (TD_IS_SUSPENDED(td2) && (td2->td_flags &
-		    TDF_ALLPROCSUSP) == 0) {
+		if (TD_IS_SUSPENDED(td2) &&
+		    (td2->td_flags & TDF_ALLPROCSUSP) == 0) {
 			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 			thread_lock(td2);
 			goto restart;

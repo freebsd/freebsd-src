@@ -2792,6 +2792,7 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
 	kif->kf_un.kf_file.kf_file_rdev_freebsd11 =
 	    kif->kf_un.kf_file.kf_file_rdev; /* truncate */
+	kif->kf_un.kf_file.kf_file_nlink = va.va_nlink;
 	return (0);
 }
 

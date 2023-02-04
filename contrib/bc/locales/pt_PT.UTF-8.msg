@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Miscellaneous messages.
-$set 1
-
-1 "Função:"
-
 $ Error types.
-$set 2
+$set 1
 
 1 "Erro de cálculo:"
 2 "Erro de análise de sintaxe:"
@@ -43,7 +38,7 @@ $set 2
 5 "Aviso:"
 
 $ Math errors.
-$set 3
+$set 2
 
 1 "número negativo"
 2 "número não inteiro"
@@ -51,7 +46,7 @@ $set 3
 4 "dividir por 0"
 
 $ Parse errors.
-$set 4
+$set 3
 
 1 "fim do arquivo"
 2 "caractere inválido '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX não permite a atribuição de cadeias de caracteres a variáveis ou matrizes"
 
 $ Runtime errors.
-$set 5
+$set 4
 
 1 "ibase inválido: deve ser [%lu, %lu]"
 2 "obase inválido: deve ser [%lu, %lu]"
@@ -100,7 +95,7 @@ $set 5
 11 "um valor 'void' não pode ser usado em uma expressão"
 
 $ Fatal errors.
-$set 6
+$set 5
 
 1 "falha na alocação de memória"
 2 "erro de entrada-saída"

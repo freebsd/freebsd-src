@@ -20,6 +20,7 @@ INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
 SRCS=	\
+		bootinfo.c \
 		conf.c \
 		crt1.c \
 		gfx_fb_stub.c \
@@ -30,6 +31,7 @@ SRCS=	\
 		init.c \
 		kbootfdt.c \
 		main.c \
+		seg.c \
 		termios.c \
 		util.c \
 		vers.c
@@ -42,7 +44,12 @@ CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 HAVE_ZFS=yes
 .endif
 
+HELP_FILENAME=	loader.help.kboot
+
 .include	"${BOOTSRC}/fdt.mk"
+
+# We share bootinfo.c with efi
+.PATH:		${BOOTSRC}/efi/loader
 
 # Note: Since we're producing a userland binary, we key off of MACHINE_ARCH
 # instead of the more normal MACHINE since the changes between different flavors

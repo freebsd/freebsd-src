@@ -27,6 +27,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230130:
+	As of commit 7c40e2d5f685, the dependency on netlink(4) has been added
+	to the linux_common(4) module. Users relying on linux_common may need
+	to complile netlink(4) module if it is not present in their kernel.
+
+20230126:
+	The WITHOUT_CXX option has been removed. C++ components in the base
+	system are now built unconditionally.
+
 20230113:
 	LinuxKPI pci.h changes may require out-of-tree drivers to be recompiled.
 	Bump _FreeBSD_version to 1400078 to be able to detect this change.
@@ -1634,7 +1643,7 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 20160708:
 	The stable/11 branch has been created from head@r302406.
 
-After branch N is created, entriels older than the N-2 branch point are removed
+After branch N is created, entries older than the N-2 branch point are removed
 from this file. After stable/14 is branched and current becomes FreeBSD 15,
 entries older than stable/12 branch point will be removed from current's
 UPDATING file.

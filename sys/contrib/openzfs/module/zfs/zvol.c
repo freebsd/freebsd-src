@@ -646,7 +646,7 @@ zvol_get_data(void *arg, uint64_t arg2, lr_write_t *lr, char *buf,
 	ASSERT3P(zio, !=, NULL);
 	ASSERT3U(size, !=, 0);
 
-	zgd = (zgd_t *)kmem_zalloc(sizeof (zgd_t), KM_SLEEP);
+	zgd = kmem_zalloc(sizeof (zgd_t), KM_SLEEP);
 	zgd->zgd_lwb = lwb;
 
 	/*
@@ -1076,7 +1076,7 @@ zvol_create_minors_cb(const char *dsname, void *arg)
 			 * traverse snapshots only, do not traverse children,
 			 * and skip the 'dsname'
 			 */
-			error = dmu_objset_find(dsname,
+			(void) dmu_objset_find(dsname,
 			    zvol_create_snap_minor_cb, (void *)job,
 			    DS_FIND_SNAPSHOTS);
 		}

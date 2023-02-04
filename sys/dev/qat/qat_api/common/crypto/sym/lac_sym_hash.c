@@ -50,16 +50,15 @@
 	   (CPA_CY_SYM_HASH_AES_CMAC == (alg)) ||                              \
 	   (CPA_CY_SYM_HASH_ZUC_EIA3 == (alg))) &&                             \
 	  (CPA_CY_SYM_HASH_MODE_AUTH != (mode))) ||                            \
-	 (((CPA_CY_SYM_HASH_SHA3_224 == (alg)) ||                              \
-	   (CPA_CY_SYM_HASH_SHA3_256 == (alg)) ||                              \
-	   (CPA_CY_SYM_HASH_SHA3_384 == (alg)) ||                              \
-	   (CPA_CY_SYM_HASH_SHA3_512 == (alg))) &&                             \
-	  (CPA_CY_SYM_HASH_MODE_NESTED == (mode))) ||                          \
-	 (((CPA_CY_SYM_HASH_SHAKE_128 == (alg)) ||                             \
-	   (CPA_CY_SYM_HASH_SHAKE_256 == (alg))) &&                            \
-	  (CPA_CY_SYM_HASH_MODE_AUTH == (mode))))
-
+	 ((LAC_HASH_IS_SHA3(alg)) && (CPA_CY_SYM_HASH_MODE_NESTED == (mode))))
 /**< Macro to check for valid algorithm-mode combination */
+
+void LacSync_GenBufListVerifyCb(void *pCallbackTag,
+				CpaStatus status,
+				CpaCySymOp operationType,
+				void *pOpData,
+				CpaBufferList *pDstBuffer,
+				CpaBoolean opResult);
 
 /**
  * @ingroup LacHash
@@ -98,7 +97,7 @@ LacHash_StatePrefixAadBufferInit(
 
 	if (pHashStateBufferInfo->pDataPhys == 0) {
 		LAC_LOG_ERROR("Unable to get the physical address of "
-			      "the hash state buffer");
+			      "the hash state buffer\n");
 		return CPA_STATUS_FAIL;
 	}
 
@@ -110,9 +109,11 @@ LacHash_StatePrefixAadBufferInit(
 		    pHashStateBufferInfo,
 		    pReq,
 		    pHashSetupData->nestedModeSetupData.pInnerPrefixData,
-		    pHashSetupData->nestedModeSetupData.innerPrefixLenInBytes,
+		    (Cpa8U)pHashSetupData->nestedModeSetupData
+			.innerPrefixLenInBytes,
 		    pHashSetupData->nestedModeSetupData.pOuterPrefixData,
-		    pHashSetupData->nestedModeSetupData.outerPrefixLenInBytes);
+		    (Cpa8U)pHashSetupData->nestedModeSetupData
+			.outerPrefixLenInBytes);
 	}
 	/* For mode2 HMAC the key gets copied into both the inner and
 	 * outer prefix fields */
@@ -121,9 +122,9 @@ LacHash_StatePrefixAadBufferInit(
 		    pHashStateBufferInfo,
 		    pReq,
 		    pHashSetupData->authModeSetupData.authKey,
-		    pHashSetupData->authModeSetupData.authKeyLenInBytes,
+		    (Cpa8U)pHashSetupData->authModeSetupData.authKeyLenInBytes,
 		    pHashSetupData->authModeSetupData.authKey,
-		    pHashSetupData->authModeSetupData.authKeyLenInBytes);
+		    (Cpa8U)pHashSetupData->authModeSetupData.authKeyLenInBytes);
 	}
 	/* else do nothing for the other cases */
 	return CPA_STATUS_SUCCESS;
@@ -226,22 +227,32 @@ LacHash_PrecomputeDataCreate(const CpaInstanceHandle instanceHandle,
 						     pCallbackTag);
 	} else if (CPA_CY_SYM_HASH_AES_CCM == hashAlgorithm) {
 		/*
-		 * The Inner Hash Initial State2 block must contain K
-		 * (the cipher key) and 16 zeroes which will be replaced with
-		 * EK(Ctr0) by the QAT-ME.
+		 * The Inner Hash Initial State2 block is 32 bytes long.
+		 * Therefore, for keys bigger than 128 bits (16 bytes),
+		 * there is no space for 16 zeroes.
 		 */
+		if (pSessionSetup->cipherSetupData.cipherKeyLenInBytes ==
+		    ICP_QAT_HW_AES_128_KEY_SZ) {
+			/*
+			 * The Inner Hash Initial State2 block must contain K
+			 * (the cipher key) and 16 zeroes which will be replaced
+			 * with EK(Ctr0) by the QAT-ME.
+			 */
 
-		/* write the auth key which for CCM is equivalent to cipher key
-		 */
-		memcpy(pState2,
-		       pSessionSetup->cipherSetupData.pCipherKey,
-		       pSessionSetup->cipherSetupData.cipherKeyLenInBytes);
+			/* write the auth key which for CCM is equivalent to
+			 * cipher key
+			 */
+			memcpy(
+			    pState2,
+			    pSessionSetup->cipherSetupData.pCipherKey,
+			    pSessionSetup->cipherSetupData.cipherKeyLenInBytes);
 
-		/* initialize remaining buffer space to all zeroes */
-		LAC_OS_BZERO(
-		    pState2 +
-			pSessionSetup->cipherSetupData.cipherKeyLenInBytes,
-		    ICP_QAT_HW_AES_CCM_CBC_E_CTR0_SZ);
+			/* initialize remaining buffer space to all zeroes */
+			LAC_OS_BZERO(pState2 +
+					 pSessionSetup->cipherSetupData
+					     .cipherKeyLenInBytes,
+				     ICP_QAT_HW_AES_CCM_CBC_E_CTR0_SZ);
+		}
 
 		/* There is no request sent to the QAT for this operation,
 		 * so just invoke the user's callback directly to signal
@@ -279,8 +290,8 @@ LacHash_PrecomputeDataCreate(const CpaInstanceHandle instanceHandle,
 
 		if (CPA_STATUS_SUCCESS == status) {
 			/* write len(A) (the length of A) into bytes 16-19 of
-			 * pState2
-			 * in big-endian format. This field is 8 bytes */
+			 * pState2 in big-endian format. This field is 8 bytes
+			 */
 			*(Cpa32U *)&pState2[ICP_QAT_HW_GALOIS_H_SZ] =
 			    LAC_MEM_WR_32(pAuthModeSetupData->aadLenInBytes);
 		}
@@ -367,26 +378,15 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 	CpaCySymCapabilitiesInfo capInfo;
 
 	/*Protect against value of hash outside the bitmap*/
-	if ((pHashSetupData->hashAlgorithm) >=
-	    CPA_CY_SYM_HASH_CAP_BITMAP_SIZE) {
+	if (pHashSetupData->hashAlgorithm >= CPA_CY_SYM_HASH_CAP_BITMAP_SIZE) {
 		LAC_INVALID_PARAM_LOG("hashAlgorithm");
 		return CPA_STATUS_INVALID_PARAM;
 	}
+
 	cpaCySymQueryCapabilities(instanceHandle, &capInfo);
 	if (!CPA_BITMAP_BIT_TEST(capInfo.hashes,
 				 pHashSetupData->hashAlgorithm) &&
 	    pHashSetupData->hashAlgorithm != CPA_CY_SYM_HASH_AES_CBC_MAC) {
-		/* Ensure SHAKE algorithms are not supported */
-		if ((CPA_CY_SYM_HASH_SHAKE_128 ==
-		     pHashSetupData->hashAlgorithm) ||
-		    (CPA_CY_SYM_HASH_SHAKE_256 ==
-		     pHashSetupData->hashAlgorithm)) {
-			LAC_INVALID_PARAM_LOG(
-			    "Hash algorithms SHAKE-128 and SHAKE-256 "
-			    "are not supported.");
-			return CPA_STATUS_UNSUPPORTED;
-		}
-
 		LAC_INVALID_PARAM_LOG("hashAlgorithm");
 		return CPA_STATUS_INVALID_PARAM;
 	}
@@ -405,8 +405,9 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 
 	if (LAC_HASH_ALG_MODE_NOT_SUPPORTED(pHashSetupData->hashAlgorithm,
 					    pHashSetupData->hashMode)) {
-		LAC_INVALID_PARAM_LOG("hashAlgorithm and hashMode combination");
-		return CPA_STATUS_INVALID_PARAM;
+		LAC_UNSUPPORTED_PARAM_LOG(
+		    "hashAlgorithm and hashMode combination");
+		return CPA_STATUS_UNSUPPORTED;
 	}
 
 	LacSymQat_HashAlgLookupGet(instanceHandle,
@@ -432,10 +433,8 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 			Cpa32U aadDataSize = 0;
 
 			/* RFC 4106: Implementations MUST support a full-length
-			 * 16-octet
-			 * ICV, and MAY support 8 or 12 octet ICVs, and MUST NOT
-			 * support
-			 * other ICV lengths. */
+			 * 16-octet ICV, and MAY support 8 or 12 octet ICVs, and
+			 * MUST NOT support other ICV lengths. */
 			if ((pHashSetupData->digestResultLenInBytes !=
 			     LAC_HASH_AES_GCM_ICV_SIZE_8) &&
 			    (pHashSetupData->digestResultLenInBytes !=
@@ -490,15 +489,13 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 			aadDataSize = LAC_HASH_AES_CCM_BLOCK_SIZE;
 
 			/* then, if there is some 'a' data, the buffer will
-			 * store encoded
-			 * length of 'a' and 'a' itself */
+			 * store encoded length of 'a' and 'a' itself */
 			if (pHashSetupData->authModeSetupData.aadLenInBytes >
 			    0) {
 				/* as the QAT API puts the requirement on the
 				 * pAdditionalAuthData not to be bigger than 240
-				 * bytes then we
-				 * just need 2 bytes to store encoded length of
-				 * 'a' */
+				 * bytes then we just need 2 bytes to store
+				 * encoded length of 'a' */
 				aadDataSize += sizeof(Cpa16U);
 				aadDataSize += pHashSetupData->authModeSetupData
 						   .aadLenInBytes;
@@ -536,8 +533,7 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 				return CPA_STATUS_INVALID_PARAM;
 			}
 			/* For Snow3g hash aad field contains IV - it needs to
-			 * be 16
-			 * bytes long
+			 * be 16 bytes long
 			 */
 			if (pHashSetupData->authModeSetupData.aadLenInBytes !=
 			    ICP_QAT_HW_SNOW_3G_UEA2_IV_SZ) {
@@ -570,8 +566,7 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 				return CPA_STATUS_INVALID_PARAM;
 			}
 			/* For ZUC EIA3 hash aad field contains IV - it needs to
-			 * be 16
-			 * bytes long
+			 * be 16 bytes long
 			 */
 			if (pHashSetupData->authModeSetupData.aadLenInBytes !=
 			    ICP_QAT_HW_ZUC_3G_EEA3_IV_SZ) {
@@ -613,19 +608,6 @@ LacHash_HashContextCheck(CpaInstanceHandle instanceHandle,
 		if (!CPA_BITMAP_BIT_TEST(capInfo.hashes,
 					 pHashSetupData->nestedModeSetupData
 					     .outerHashAlgorithm)) {
-			/* Ensure SHAKE algorithms are not supported */
-			if ((CPA_CY_SYM_HASH_SHAKE_128 ==
-			     pHashSetupData->nestedModeSetupData
-				 .outerHashAlgorithm) ||
-			    (CPA_CY_SYM_HASH_SHAKE_256 ==
-			     pHashSetupData->nestedModeSetupData
-				 .outerHashAlgorithm)) {
-				LAC_INVALID_PARAM_LOG(
-				    "Hash algorithms SHAKE-128 and SHAKE-256 "
-				    "are not supported.");
-				return CPA_STATUS_UNSUPPORTED;
-			}
-
 			LAC_INVALID_PARAM_LOG("outerHashAlgorithm");
 			return CPA_STATUS_INVALID_PARAM;
 		}
@@ -689,11 +671,15 @@ LacHash_PerformParamCheck(CpaInstanceHandle instanceHandle,
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	lac_sym_qat_hash_alg_info_t *pHashAlgInfo = NULL;
+	CpaBoolean digestIsAppended = pSessionDesc->digestIsAppended;
+	CpaBoolean digestVerify = pSessionDesc->digestVerify;
+	CpaCySymOp symOperation = pSessionDesc->symOperation;
+	CpaCySymHashAlgorithm hashAlgorithm = pSessionDesc->hashAlgorithm;
 
 	/* digestVerify and digestIsAppended on Hash-Only operation not
 	 * supported */
-	if (pSessionDesc->digestIsAppended && pSessionDesc->digestVerify &&
-	    (CPA_CY_SYM_OP_HASH == pSessionDesc->symOperation)) {
+	if (digestIsAppended && digestVerify &&
+	    (CPA_CY_SYM_OP_HASH == symOperation)) {
 		LAC_INVALID_PARAM_LOG(
 		    "digestVerify and digestIsAppended set "
 		    "on Hash-Only operation is not supported");
@@ -702,21 +688,19 @@ LacHash_PerformParamCheck(CpaInstanceHandle instanceHandle,
 
 	/* check the digest result pointer */
 	if ((CPA_CY_SYM_PACKET_TYPE_PARTIAL != pOpData->packetType) &&
-	    !pSessionDesc->digestIsAppended &&
-	    (NULL == pOpData->pDigestResult)) {
+	    !digestIsAppended && (NULL == pOpData->pDigestResult)) {
 		LAC_INVALID_PARAM_LOG("pDigestResult is NULL");
 		return CPA_STATUS_INVALID_PARAM;
 	}
 
 	/*
 	 * Check if the pVerifyResult pointer is not null for hash operation
-	 * when
-	 * the packet is the last one and user has set verifyDigest flag
+	 * when the packet is the last one and user has set verifyDigest flag
 	 * Also, this is only needed for symchronous operation, so check if the
 	 * callback pointer is the internal synchronous one rather than a user-
 	 * supplied one.
 	 */
-	if ((CPA_TRUE == pSessionDesc->digestVerify) &&
+	if ((CPA_TRUE == digestVerify) &&
 	    (CPA_CY_SYM_PACKET_TYPE_PARTIAL != pOpData->packetType) &&
 	    (LacSync_GenBufListVerifyCb == pSessionDesc->pSymCb)) {
 		if (NULL == pVerifyResult) {
@@ -732,8 +716,8 @@ LacHash_PerformParamCheck(CpaInstanceHandle instanceHandle,
 	 * written anywhere so we cannot check for this been inside a buffer
 	 * CCM/GCM specify the auth region using just the cipher params as this
 	 * region is the same for auth and cipher. It is not checked here */
-	if ((CPA_CY_SYM_HASH_AES_CCM == pSessionDesc->hashAlgorithm) ||
-	    (CPA_CY_SYM_HASH_AES_GCM == pSessionDesc->hashAlgorithm)) {
+	if ((CPA_CY_SYM_HASH_AES_CCM == hashAlgorithm) ||
+	    (CPA_CY_SYM_HASH_AES_GCM == hashAlgorithm)) {
 		/* ensure AAD data pointer is non-NULL if AAD len > 0 */
 		if ((pSessionDesc->aadLenInBytes > 0) &&
 		    (NULL == pOpData->pAdditionalAuthData)) {
@@ -752,8 +736,8 @@ LacHash_PerformParamCheck(CpaInstanceHandle instanceHandle,
 
 	/* For Snow3g & ZUC hash pAdditionalAuthData field
 	 * of OpData should contain IV */
-	if ((CPA_CY_SYM_HASH_SNOW3G_UIA2 == pSessionDesc->hashAlgorithm) ||
-	    (CPA_CY_SYM_HASH_ZUC_EIA3 == pSessionDesc->hashAlgorithm)) {
+	if ((CPA_CY_SYM_HASH_SNOW3G_UIA2 == hashAlgorithm) ||
+	    (CPA_CY_SYM_HASH_ZUC_EIA3 == hashAlgorithm)) {
 		if (NULL == pOpData->pAdditionalAuthData) {
 			LAC_INVALID_PARAM_LOG("pAdditionalAuthData is NULL");
 			return CPA_STATUS_INVALID_PARAM;
@@ -761,12 +745,11 @@ LacHash_PerformParamCheck(CpaInstanceHandle instanceHandle,
 	}
 
 	/* partial packets need to be multiples of the algorithm block size in
-	 * hash
-	 * only mode (except for final partial packet) */
+	 * hash only mode (except for final partial packet) */
 	if ((CPA_CY_SYM_PACKET_TYPE_PARTIAL == pOpData->packetType) &&
-	    (CPA_CY_SYM_OP_HASH == pSessionDesc->symOperation)) {
+	    (CPA_CY_SYM_OP_HASH == symOperation)) {
 		LacSymQat_HashAlgLookupGet(instanceHandle,
-					   pSessionDesc->hashAlgorithm,
+					   hashAlgorithm,
 					   &pHashAlgInfo);
 
 		/* check if the message is a multiple of the block size. */

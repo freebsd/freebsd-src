@@ -58,7 +58,7 @@ sched_setaffinity(pid_t pid, size_t cpusetsz, const cpuset_t *cpuset)
 			if (cpu > mp_maxid)
 				CPU_CLR(cpu, &c);
 	}
-	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TIDPID,
 	    pid == 0 ? -1 : pid, sizeof(cpuset_t), &c);
 	if (error == -1 && errno == EDEADLK)
 		errno = EINVAL;

@@ -5,6 +5,7 @@
  *	The Regents of the University of California.
  * Copyright (c) 2007-2009 Robert N. M. Watson
  * Copyright (c) 2010-2011 Juniper Networks, Inc.
+ * Copyright (c) 2021-2022 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Robert N. M. Watson under
@@ -78,6 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/if_llatbl.h>
 #include <net/route.h>
@@ -1053,7 +1055,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
  * then pick one.
  */
 int
-in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
+in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred,
     bool rehash)
 {
 	u_short lport, fport;
@@ -1066,8 +1068,8 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred,
 	lport = inp->inp_lport;
 	laddr = inp->inp_laddr.s_addr;
 	anonport = (lport == 0);
-	error = in_pcbconnect_setup(inp, nam, &laddr, &lport, &faddr, &fport,
-	    NULL, cred);
+	error = in_pcbconnect_setup(inp, sin, &laddr, &lport, &faddr, &fport,
+	    cred);
 	if (error)
 		return (error);
 
@@ -1318,20 +1320,13 @@ done:
  *
  * On success, *faddrp and *fportp will be set to the remote address
  * and port. These are not updated in the error case.
- *
- * If the operation fails because the connection already exists,
- * *oinpp will be set to the PCB of that connection so that the
- * caller can decide to override it. In all other cases, *oinpp
- * is set to NULL.
  */
 int
-in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
+in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
-    struct inpcb **oinpp, struct ucred *cred)
+    struct ucred *cred)
 {
-	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
-	struct inpcb *oinp;
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
 	int error;
@@ -1349,8 +1344,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	INP_LOCK_ASSERT(inp);
 	INP_HASH_LOCK_ASSERT(inp->inp_pcbinfo);
 
-	if (oinpp != NULL)
-		*oinpp = NULL;
 	if (sin->sin_port == 0)
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
@@ -1422,13 +1415,9 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	}
 
 	if (lport != 0) {
-		oinp = in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr,
-		    fport, laddr, lport, 0, NULL, M_NODOM);
-		if (oinp != NULL) {
-			if (oinpp != NULL)
-				*oinpp = oinp;
+		if (in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr,
+		    fport, laddr, lport, 0, NULL, M_NODOM) != NULL)
 			return (EADDRINUSE);
-		}
 	} else {
 		struct sockaddr_in lsin, fsin;
 
@@ -1458,6 +1447,7 @@ in_pcbdisconnect(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
+	inp->inp_laddr.s_addr = INADDR_ANY;
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
 	in_pcbrehash(inp);
@@ -2240,6 +2230,10 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT(faddr.s_addr != INADDR_ANY,
+	    ("%s: invalid foreign address", __func__));
+	KASSERT(laddr.s_addr != INADDR_ANY,
+	    ("%s: invalid local address", __func__));
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	/*
@@ -2367,6 +2361,11 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 {
 	struct inpcb *inp;
 
+	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
+	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
+
 	smr_enter(pcbinfo->ipi_smr);
 	inp = in_pcblookup_hash_locked(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags & INPLOOKUP_WILDCARD, ifp, numa_domain);
@@ -2388,12 +2387,6 @@ struct inpcb *
 in_pcblookup(struct inpcbinfo *pcbinfo, struct in_addr faddr, u_int fport,
     struct in_addr laddr, u_int lport, int lookupflags, struct ifnet *ifp)
 {
-
-	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
-	    ("%s: invalid lookup flags %d", __func__, lookupflags));
-	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
-	    ("%s: LOCKPCB not set", __func__));
-
 	return (in_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags, ifp, M_NODOM));
 }
@@ -2403,12 +2396,6 @@ in_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in_addr faddr,
     u_int fport, struct in_addr laddr, u_int lport, int lookupflags,
     struct ifnet *ifp, struct mbuf *m)
 {
-
-	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
-	    ("%s: invalid lookup flags %d", __func__, lookupflags));
-	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
-	    ("%s: LOCKPCB not set", __func__));
-
 	return (in_pcblookup_hash(pcbinfo, faddr, fport, laddr, lport,
 	    lookupflags, ifp, m->m_pkthdr.numa_domain));
 }

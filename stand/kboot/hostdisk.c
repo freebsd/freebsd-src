@@ -429,8 +429,10 @@ done:
 static char *
 hostdisk_fmtdev(struct devdesc *vdev)
 {
+	static char name[DEV_DEVLEN];
 
-	return ((char *)hd_name(dev2hd(vdev)));
+	snprintf(name, sizeof(name), "%s:", dev2hd(vdev)->hd_dev);
+	return (name);
 }
 
 static bool
@@ -486,6 +488,61 @@ hostdisk_parsedev(struct devdesc **idev, const char *devspec, const char **path)
 	return (0);
 }
 
+/* XXX refactor */
+static bool
+sanity_check_currdev(void)
+{
+	struct stat st;
+
+	return (stat(PATH_DEFAULTS_LOADER_CONF, &st) == 0 ||
+#ifdef PATH_BOOTABLE_TOKEN
+	    stat(PATH_BOOTABLE_TOKEN, &st) == 0 || /* non-standard layout */
+#endif
+	    stat(PATH_KERNEL, &st) == 0);
+}
+
+static const char *
+hostdisk_try_one(hdinfo_t *hd)
+{
+	char *fn;
+
+	if (asprintf(&fn, "%s:", hd->hd_dev) == -1)
+		return (NULL);
+	set_currdev(fn);
+	printf("Trying %s\n", fn);
+	if (sanity_check_currdev())
+		return (fn);
+	printf("Failed %s\n", fn);
+	free(fn);
+	return (NULL);
+}
+
+const char *
+hostdisk_gen_probe(void)
+{
+	hdinfo_t *hd, *md;
+	const char *rv = NULL;
+
+	STAILQ_FOREACH(hd, &hdinfo, hd_link) {
+		/* try whole disk */
+		if (hd->hd_flags & HDF_HAS_ZPOOL)
+			continue;
+		rv = hostdisk_try_one(hd);
+		if (rv != NULL)
+			return (rv);
+
+		/* try all partitions */
+		STAILQ_FOREACH(md, &hd->hd_children, hd_link) {
+			if (md->hd_flags & HDF_HAS_ZPOOL)
+				continue;
+			rv = hostdisk_try_one(md);
+			if (rv != NULL)
+				return (rv);
+		}
+	}
+	return (false);
+}
+
 #ifdef LOADER_ZFS_SUPPORT
 static bool
 hostdisk_zfs_check_one(hdinfo_t *hd)
@@ -520,19 +577,6 @@ hostdisk_zfs_probe(void)
 			hostdisk_zfs_check_one(md);
 		}
 	}
-}
-
-/* XXX refactor */
-static bool
-sanity_check_currdev(void)
-{
-	struct stat st;
-
-	return (stat(PATH_DEFAULTS_LOADER_CONF, &st) == 0 ||
-#ifdef PATH_BOOTABLE_TOKEN
-	    stat(PATH_BOOTABLE_TOKEN, &st) == 0 || /* non-standard layout */
-#endif
-	    stat(PATH_KERNEL, &st) == 0);
 }
 
 /* This likely shoud move to libsa/zfs/zfs.c and be used by at least EFI booting */
@@ -597,5 +641,4 @@ hostdisk_zfs_find_default(void)
 	}
 	return (false);
 }
-
 #endif

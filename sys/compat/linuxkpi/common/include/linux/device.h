@@ -70,6 +70,7 @@ struct class {
 
 struct dev_pm_ops {
 	int (*prepare)(struct device *dev);
+	void (*complete)(struct device *dev);
 	int (*suspend)(struct device *dev);
 	int (*suspend_late)(struct device *dev);
 	int (*resume)(struct device *dev);
@@ -232,6 +233,12 @@ show_class_attr_string(struct class *class,
 	static linux_ratelimit_t __ratelimited;	\
 	if (linux_ratelimited(&__ratelimited))	\
 		dev_warn(dev, __VA_ARGS__);	\
+} while (0)
+
+#define	dev_dbg_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_dbg(dev, __VA_ARGS__);	\
 } while (0)
 
 /* Public and LinuxKPI internal devres functions. */

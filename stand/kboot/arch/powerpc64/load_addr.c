@@ -208,3 +208,21 @@ kboot_get_kernel_machine_bits(void)
 	return (bits);
 }
 #endif
+
+/* Need to transition from current hacky FDT way to this code */
+bool enumerate_memory_arch(void)
+{
+	/*
+	 * For now, we dig it out of the FDT, plus we need to pass all data into
+	 * the kernel via the (adjusted) FDT we find.
+	 */
+	setenv("usefdt", "1", 1);
+
+	return true;
+}
+
+void
+bi_loadsmap(struct preloaded_file *kfp)
+{
+	/* passed in via the DTB */
+}

@@ -170,10 +170,7 @@ EOF
     cat > ${dir}/boot/loader.conf <<EOF
 comconsole_speed=115200
 autoboot_delay=2
-# XXXX TEST with arm64 iso...
-#vfs.root.mountfrom="cd9660:/dev/iso9660/13_1_RELEASE_AARCH64_BO"
-# XXX not so good for ZFS, what to do?
-vfs.root.mountfrom="ufs:/dev/ufs/root"
+zfs_load="YES"
 boot_verbose=yes
 kern.cfg.order="acpi,fdt"
 EOF
@@ -279,10 +276,10 @@ make_linuxboot_images()
 	zfs=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}.zfs
 	img=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}.img
 	img2=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}-zfs.img
-	pool="linuxboot-testing"
+	pool="linuxboot"
 	mkdir -p ${IMAGES}/${ma_combo}
 	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
-	       -o volume_label=EFISYS -s100m ${esp} ${src}
+	       -o volume_label=EFISYS -s80m ${esp} ${src}
 	makefs -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
 	mkimg -s gpt -p efi:=${esp} -p freebsd-ufs:=${ufs} -o ${img}
 	makefs -t zfs -s 200m \
@@ -444,7 +441,10 @@ make_freebsd_images()
 	ufs=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.ufs
 	img=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.img
 	mkdir -p ${IMAGES}/${ma_combo}
-# XXX 4096 sector?
+	mkdir -p ${dir2}/etc
+	cat > ${dir2}/etc/fstab <<EOF
+/dev/ufs/root	/		ufs	rw	1	1
+EOF
 	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
 	       -o volume_label=EFISYS -s100m ${esp} ${src}
 	makefs -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
@@ -453,6 +453,30 @@ make_freebsd_images()
     done
 
     set -x
+
+    # BIOS i386
+    a=i386:i386
+    m=${a%%:*}
+    ma=${a##*:}
+    ma_combo="${m}"
+    [ "${m}" != "${ma}" ] && ma_combo="${m}-${ma}"
+    dir=${TREES}/${ma_combo}/freebsd
+    dir2=${TREES}/${ma_combo}/test-stand
+    ufs=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.ufs
+    img=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.img
+    mkdir -p ${IMAGES}/${ma_combo}
+    mkdir -p ${dir2}/etc
+    cat > ${dir2}/etc/fstab <<EOF
+/dev/ufs/root	/		ufs	rw	1	1
+EOF
+    makefs -t ffs -B little -s 200m \
+	   -o label=root,version=2,bsize=32768,fsize=4096,density=16384 \
+	   ${ufs} ${dir} ${dir2}
+    mkimg -s gpt -b ${dir2}/boot/pmbr \
+	  -p freebsd-boot:=${dir2}/boot/gptboot \
+	  -p freebsd-ufs:=${ufs} \
+	  -o ${img}
+    rm -f ${src}/etc/fstab
 
     # PowerPC for 32-bit mac
     a=powerpc:powerpc
@@ -465,6 +489,10 @@ make_freebsd_images()
     ufs=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.ufs
     img=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.img
     mkdir -p ${IMAGES}/${ma_combo}
+    mkdir -p ${dir2}/etc
+    cat > ${dir2}/etc/fstab <<EOF
+/dev/ufs/root	/		ufs	rw	1	1
+EOF
     makefs -t ffs -B big -s 200m \
 	   -o label=root,version=2,bsize=32768,fsize=4096,density=16384 \
 	   ${ufs} ${dir} ${dir2}
@@ -554,6 +582,24 @@ ${qemu_bin}/qemu-system-ppc -m 1g -M mac99,via=pmu \\
 	-vga none -nographic \\
 	-drive file=${img},if=virtio \\
 	-prom-env "boot-device=/pci@f2000000/scsi/disk@0:,\\\\\\:tbxi" \\
+        -monitor telnet::4444,server,nowait \\
+        -serial stdio \$*
+EOF
+
+    set -x
+    a=i386:i386
+    m=${a%%:*}
+    ma=${a##*:}
+    ma_combo="${m}"
+    [ "${m}" != "${ma}" ] && ma_combo="${m}-${ma}"
+    img=${IMAGES}/${ma_combo}/freebsd-${ma_combo}.img
+    out=${SCRIPTS}/${ma_combo}/freebsd-test.sh
+    mkdir -p ${SCRIPTS}/${ma_combo}
+    cat > ${out} <<EOF
+${qemu_bin}/qemu-system-i386 -m 1g \\
+	-vga none -nographic \\
+	-drive file=${img},format=raw \\
+	-nographic \\
         -monitor telnet::4444,server,nowait \\
         -serial stdio \$*
 EOF

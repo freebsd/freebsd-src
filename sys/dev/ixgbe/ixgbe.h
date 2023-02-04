@@ -507,7 +507,6 @@ struct ixgbe_softc {
     "\nSum of the following RX errors counters:\n" \
     " * CRC errors,\n" \
     " * illegal byte error count,\n" \
-    " * checksum error count,\n" \
     " * missed packet count,\n" \
     " * length error count,\n" \
     " * undersized packets count,\n" \

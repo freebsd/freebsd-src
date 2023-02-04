@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2016 The FreeBSD Foundation
+ * Copyright (c) 2022 Arm Ltd
  *
  * This software was developed by Andrew Turner under
  * the sponsorship of the FreeBSD Foundation.
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #define	GICV3_PRIV_VGIC		0x80000000
 #define	GICV3_PRIV_FLAGS	0x80000000
+#define HV_MSI_SPI_START 	64
+#define HV_MSI_SPI_LAST 	0
 
 struct gic_v3_acpi_devinfo {
 	struct gic_v3_devinfo	di_gic_dinfo;
@@ -319,7 +322,10 @@ gic_v3_acpi_attach(device_t dev)
 	err = gic_v3_acpi_count_regions(dev);
 	if (err != 0)
 		goto count_error;
-
+	if (vm_guest == VM_GUEST_HV) {
+		sc->gic_mbi_start = HV_MSI_SPI_START;
+		sc->gic_mbi_end = HV_MSI_SPI_LAST;
+	}
 	err = gic_v3_attach(dev);
 	if (err != 0)
 		goto error;
@@ -329,6 +335,17 @@ gic_v3_acpi_attach(device_t dev)
 		device_printf(dev, "could not register PIC\n");
 		err = ENXIO;
 		goto error;
+	}
+	/*
+	 * Registering for MSI with SPI range, as this is
+	 * required for Hyper-V GIC to work in ARM64.
+	 */
+	if (vm_guest == VM_GUEST_HV) {
+		err = intr_msi_register(dev, ACPI_MSI_XREF);
+		if (err) {
+			device_printf(dev, "could not register MSI\n");
+			goto error;
+		}
 	}
 
 	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc,
@@ -377,23 +394,25 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		dev = arg;
 		sc = device_get_softc(dev);
 
-		child = device_add_child(dev, "its", -1);
-		if (child == NULL)
-			return;
-
 		di = malloc(sizeof(*di), M_GIC_V3, M_WAITOK | M_ZERO);
+		err = acpi_iort_its_lookup(gict->TranslationId, &xref, &pxm);
+		if (err != 0) {
+			free(di, M_GIC_V3);
+			return;
+		}
+
+		child = device_add_child(dev, "its", -1);
+		if (child == NULL) {
+			free(di, M_GIC_V3);
+			return;
+		}
+
+		di->di_gic_dinfo.gic_domain = pxm;
+		di->di_gic_dinfo.msi_xref = xref;
 		resource_list_init(&di->di_rl);
 		resource_list_add(&di->di_rl, SYS_RES_MEMORY, 0,
 		    gict->BaseAddress, gict->BaseAddress + 128 * 1024 - 1,
 		    128 * 1024);
-		err = acpi_iort_its_lookup(gict->TranslationId, &xref, &pxm);
-		if (err == 0) {
-			di->di_gic_dinfo.gic_domain = pxm;
-			di->di_gic_dinfo.msi_xref = xref;
-		} else {
-			di->di_gic_dinfo.gic_domain = -1;
-			di->di_gic_dinfo.msi_xref = ACPI_MSI_XREF;
-		}
 		sc->gic_nchildren++;
 		device_set_ivars(child, di);
 	}

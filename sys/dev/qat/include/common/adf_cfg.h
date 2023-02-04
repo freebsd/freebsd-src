@@ -76,4 +76,14 @@ int adf_cfg_get_services_enabled(struct adf_accel_dev *accel_dev,
 int adf_cfg_restore_section(struct adf_accel_dev *accel_dev,
 			    struct adf_cfg_section *section);
 void adf_cfg_keyval_del_all(struct list_head *head);
+
+static inline int
+adf_cy_inst_cross_banks(struct adf_accel_dev *accel_dev)
+{
+	if (accel_dev->hw_device->num_rings_per_bank == 2)
+		return 1;
+	else
+		return 0;
+}
+
 #endif

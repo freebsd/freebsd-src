@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -192,6 +193,15 @@ again:
 		if (mcopy) {
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
 			ICMP6_DST_UNREACH_NOROUTE, 0);
+		}
+		goto bad;
+	}
+
+	if (nh->nh_flags & (NHF_BLACKHOLE | NHF_REJECT)) {
+		IP6STAT_INC(ip6s_cantforward);
+		if ((nh->nh_flags & NHF_REJECT) && (mcopy != NULL)) {
+			icmp6_error(mcopy, ICMP6_DST_UNREACH,
+			    ICMP6_DST_UNREACH_REJECT, 0);
 		}
 		goto bad;
 	}

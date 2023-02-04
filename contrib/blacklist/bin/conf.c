@@ -90,7 +90,7 @@ advance(char **p)
 }
 
 static int
-getnum(const char *f, size_t l, bool local, void *rp, const char *name,
+conf_getnum(const char *f, size_t l, bool local, void *rp, const char *name,
     const char *p)
 {
 	int e;
@@ -127,13 +127,14 @@ out:
 }
 
 static int
-getnfail(const char *f, size_t l, bool local, struct conf *c, const char *p)
+conf_getnfail(const char *f, size_t l, bool local, struct conf *c,
+    const char *p)
 {
-	return getnum(f, l, local, &c->c_nfail, "nfail", p);
+	return conf_getnum(f, l, local, &c->c_nfail, "nfail", p);
 }
 
 static int
-getsecs(const char *f, size_t l, bool local, struct conf *c, const char *p)
+conf_getsecs(const char *f, size_t l, bool local, struct conf *c, const char *p)
 {
 	int e;
 	char *ep;
@@ -193,7 +194,7 @@ out:
 }
 
 static int
-getport(const char *f, size_t l, bool local, void *r, const char *p)
+conf_getport(const char *f, size_t l, bool local, void *r, const char *p)
 {
 	struct servent *sv;
 
@@ -207,11 +208,11 @@ getport(const char *f, size_t l, bool local, void *r, const char *p)
 		return 0;
 	}
 
-	return getnum(f, l, local, r, "service", p);
+	return conf_getnum(f, l, local, r, "service", p);
 }
 
 static int
-getmask(const char *f, size_t l, bool local, const char **p, int *mask)
+conf_getmask(const char *f, size_t l, bool local, const char **p, int *mask)
 {
 	char *d;
 	const char *s = *p;
@@ -226,11 +227,12 @@ getmask(const char *f, size_t l, bool local, const char **p, int *mask)
 	}
 
 	*d++ = '\0';
-	return getnum(f, l, local, mask, "mask", d);
+	return conf_getnum(f, l, local, mask, "mask", d);
 }
 
 static int
-gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
+conf_gethostport(const char *f, size_t l, bool local, struct conf *c,
+    const char *p)
 {
 	char *d;	// XXX: Ok to write to string.
 	in_port_t *port = NULL;
@@ -249,7 +251,7 @@ gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
 	} else
 		pstr = p;
 
-	if (getmask(f, l, local, &pstr, &c->c_lmask) == -1)
+	if (conf_getmask(f, l, local, &pstr, &c->c_lmask) == -1)
 		goto out;
 
 	if (d) {
@@ -300,7 +302,7 @@ gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
 		}
 	}
 
-	if (getport(f, l, local, &c->c_port, pstr) == -1)
+	if (conf_getport(f, l, local, &c->c_port, pstr) == -1)
 		return -1;
 
 	if (port && c->c_port != FSTAR && c->c_port != FEQUAL)
@@ -320,7 +322,7 @@ out2:
 }
 
 static int
-getproto(const char *f, size_t l, bool local __unused, struct conf *c,
+conf_getproto(const char *f, size_t l, bool local __unused, struct conf *c,
     const char *p)
 {
 	if (strcmp(p, "stream") == 0) {
@@ -331,22 +333,22 @@ getproto(const char *f, size_t l, bool local __unused, struct conf *c,
 		c->c_proto = IPPROTO_UDP;
 		return 0;
 	}
-	return getnum(f, l, local, &c->c_proto, "protocol", p);
+	return conf_getnum(f, l, local, &c->c_proto, "protocol", p);
 }
 
 static int
-getfamily(const char *f, size_t l, bool local __unused, struct conf *c,
+conf_getfamily(const char *f, size_t l, bool local __unused, struct conf *c,
     const char *p)
 {
 	if (strncmp(p, "tcp", 3) == 0 || strncmp(p, "udp", 3) == 0) {
 		c->c_family = p[3] == '6' ? AF_INET6 : AF_INET;
 		return 0;
 	}
-	return getnum(f, l, local, &c->c_family, "family", p);
+	return conf_getnum(f, l, local, &c->c_family, "family", p);
 }
 
 static int
-getuid(const char *f, size_t l, bool local __unused, struct conf *c,
+conf_getuid(const char *f, size_t l, bool local __unused, struct conf *c,
     const char *p)
 {
 	struct passwd *pw;
@@ -356,15 +358,15 @@ getuid(const char *f, size_t l, bool local __unused, struct conf *c,
 		return 0;
 	}
 
-	return getnum(f, l, local, &c->c_uid, "user", p);
+	return conf_getnum(f, l, local, &c->c_uid, "user", p);
 }
 
 
 static int
-getname(const char *f, size_t l, bool local, struct conf *c,
+conf_getname(const char *f, size_t l, bool local, struct conf *c,
     const char *p)
 {
-	if (getmask(f, l, local, &p, &c->c_rmask) == -1)
+	if (conf_getmask(f, l, local, &p, &c->c_rmask) == -1)
 		return -1;
 
 	if (strcmp(p, "*") == 0) {
@@ -407,19 +409,19 @@ conf_parseline(const char *f, size_t l, char *p, struct conf *c, bool local)
 		p++;
 
 	memset(c, 0, sizeof(*c));
-	e = getvalue(f, l, local, c, &p, gethostport);
+	e = getvalue(f, l, local, c, &p, conf_gethostport);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getproto);
+	e = getvalue(f, l, local, c, &p, conf_getproto);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getfamily);
+	e = getvalue(f, l, local, c, &p, conf_getfamily);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getuid);
+	e = getvalue(f, l, local, c, &p, conf_getuid);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getname);
+	e = getvalue(f, l, local, c, &p, conf_getname);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getnfail);
+	e = getvalue(f, l, local, c, &p, conf_getnfail);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getsecs);
+	e = getvalue(f, l, local, c, &p, conf_getsecs);
 	if (e) return -1;
 
 	return 0;

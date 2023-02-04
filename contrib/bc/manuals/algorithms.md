@@ -178,7 +178,7 @@ to calculate the bessel when `x < 0`, It has a complexity of `O(n^3)`.
 their calculations with the precision (`scale`) set to at least 1 greater than
 is needed.
 
-### Modular Exponentiation (`dc` Only)
+### Modular Exponentiation
 
 This `dc` uses the [Memory-efficient method][8] to compute modular
 exponentiation. The complexity is `O(e*n^2)`, which may initially seem

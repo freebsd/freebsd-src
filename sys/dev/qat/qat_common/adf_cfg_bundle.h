@@ -49,7 +49,29 @@ void adf_cfg_bundle_clear(struct adf_cfg_bundle *bundle,
 			  struct adf_accel_dev *accel_dev);
 
 void adf_cfg_init_ring2serv_mapping(struct adf_accel_dev *accel_dev,
-				    struct adf_cfg_bundle *bundle);
+				    struct adf_cfg_bundle *bundle,
+				    struct adf_cfg_device *device);
 
 int adf_cfg_rel_ring2serv_mapping(struct adf_cfg_bundle *bundle);
+
+static inline void
+adf_get_ring_svc_map_data(struct adf_hw_device_data *hw_data,
+			  int bundle_num,
+			  int ring_pair_index,
+			  u8 *serv_type,
+			  int *ring_index,
+			  int *num_rings_per_srv)
+{
+	if (hw_data->get_ring_svc_map_data)
+		return hw_data->get_ring_svc_map_data(ring_pair_index,
+						      hw_data->ring_to_svc_map,
+						      serv_type,
+						      ring_index,
+						      num_rings_per_srv,
+						      bundle_num);
+	*serv_type = GET_SRV_TYPE(hw_data->ring_to_svc_map, ring_pair_index);
+	*num_rings_per_srv =
+	    hw_data->num_rings_per_bank / (2 * ADF_CFG_NUM_SERVICES);
+	*ring_index = (*num_rings_per_srv) * ring_pair_index;
+}
 #endif

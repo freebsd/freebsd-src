@@ -62,6 +62,8 @@
         ..
         test
         ..
+        timeout
+        ..
     ..
     cddl
         lib
@@ -757,6 +759,8 @@
         fs
             fusefs
             ..
+            tarfs
+            ..
             tmpfs
             ..
         ..
@@ -1103,8 +1107,6 @@
         tail
         ..
         tar
-        ..
-        timeout
         ..
         tr
         ..

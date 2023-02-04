@@ -1592,7 +1592,6 @@ dev/dcons/dcons_os.c		optional dcons
 dev/dialog/da9063/da9063_if.m	optional da9063_pmic
 dev/dialog/da9063/da9063_iic.c	optional da9063_pmic iicbus fdt
 dev/dialog/da9063/da9063_rtc.c	optional da9063_rtc fdt
-dev/dme/if_dme.c		optional dme
 dev/drm2/drm_agpsupport.c	optional drm2
 dev/drm2/drm_auth.c		optional drm2
 dev/drm2/drm_bufs.c		optional drm2
@@ -3616,6 +3615,10 @@ fs/smbfs/smbfs_smb.c		optional smbfs
 fs/smbfs/smbfs_subr.c		optional smbfs
 fs/smbfs/smbfs_vfsops.c		optional smbfs
 fs/smbfs/smbfs_vnops.c		optional smbfs
+fs/tarfs/tarfs_io.c		optional tarfs compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
+fs/tarfs/tarfs_subr.c		optional tarfs
+fs/tarfs/tarfs_vfsops.c		optional tarfs
+fs/tarfs/tarfs_vnops.c		optional tarfs
 fs/udf/osta.c			optional udf
 fs/udf/udf_iconv.c		optional udf_iconv
 fs/udf/udf_vfsops.c		optional udf
@@ -4142,6 +4145,7 @@ net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
+net/ifq.c			standard
 net/if_bridge.c			optional bridge inet | if_bridge inet
 net/if_clone.c			standard
 net/if_dead.c			standard

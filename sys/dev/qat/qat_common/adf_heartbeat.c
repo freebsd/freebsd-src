@@ -68,10 +68,14 @@ adf_get_hb_timer(struct adf_accel_dev *accel_dev, unsigned int *value)
 	unsigned int timer_val = ADF_CFG_HB_DEFAULT_VALUE;
 	u32 clk_per_sec = 0;
 
-	if (!hw_data->get_ae_clock)
+	/* HB clock may be different than AE clock */
+	if (hw_data->get_hb_clock) {
+		clk_per_sec = (u32)hw_data->get_hb_clock(hw_data);
+	} else if (hw_data->get_ae_clock) {
+		clk_per_sec = (u32)hw_data->get_ae_clock(hw_data);
+	} else {
 		return EINVAL;
-
-	clk_per_sec = (u32)hw_data->get_ae_clock(hw_data);
+	}
 
 	/* Get Heartbeat Timer value from the configuration */
 	if (!adf_cfg_get_param_value(accel_dev,
@@ -99,24 +103,19 @@ adf_get_hb_timer(struct adf_accel_dev *accel_dev, unsigned int *value)
 	return 0;
 }
 
-struct adf_hb_count {
-	u16 ae_thread[ADF_NUM_HB_CNT_PER_AE];
-};
-
 int
 adf_get_heartbeat_status(struct adf_accel_dev *accel_dev)
 {
+	struct icp_qat_fw_init_admin_hb_cnt *live_s, *last_s, *curr_s;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	struct icp_qat_fw_init_admin_hb_stats *live_s =
-	    (struct icp_qat_fw_init_admin_hb_stats *)
-		accel_dev->admin->virt_hb_addr;
 	const size_t max_aes = hw_device->get_num_aes(hw_device);
+	const size_t hb_ctrs = hw_device->heartbeat_ctr_num;
 	const size_t stats_size =
-	    max_aes * sizeof(struct icp_qat_fw_init_admin_hb_stats);
+	    max_aes * hb_ctrs * sizeof(struct icp_qat_fw_init_admin_hb_cnt);
 	int ret = 0;
 	size_t ae, thr;
+	u16 *count_s;
 	unsigned long ae_mask = 0;
-	int num_threads_per_ae = ADF_NUM_HB_CNT_PER_AE;
 
 	/*
 	 * Memory layout of Heartbeat
@@ -127,13 +126,19 @@ adf_get_heartbeat_status(struct adf_accel_dev *accel_dev)
 	 * \_______________/\_______________/\________/
 	 *         ^                ^            ^
 	 *         |                |            |
-	 *         |                |            max_aes * sizeof(adf_hb_count)
-	 *         |            max_aes * sizeof(icp_qat_fw_init_admin_hb_stats)
-	 *         max_aes * sizeof(icp_qat_fw_init_admin_hb_stats)
+	 *         |                |            max_aes * hb_ctrs *
+	 *         |                |            sizeof(u16)
+	 *         |                |
+	 *         |                max_aes * hb_ctrs *
+	 *         |                sizeof(icp_qat_fw_init_admin_hb_cnt)
+	 *         |
+	 *         max_aes * hb_ctrs *
+	 *         sizeof(icp_qat_fw_init_admin_hb_cnt)
 	 */
-	struct icp_qat_fw_init_admin_hb_stats *curr_s;
-	struct icp_qat_fw_init_admin_hb_stats *last_s = live_s + max_aes;
-	struct adf_hb_count *count = (struct adf_hb_count *)(last_s + max_aes);
+	live_s = (struct icp_qat_fw_init_admin_hb_cnt *)
+		     accel_dev->admin->virt_hb_addr;
+	last_s = live_s + (max_aes * hb_ctrs);
+	count_s = (u16 *)(last_s + (max_aes * hb_ctrs));
 
 	curr_s = malloc(stats_size, M_QAT, M_WAITOK | M_ZERO);
 
@@ -142,23 +147,25 @@ adf_get_heartbeat_status(struct adf_accel_dev *accel_dev)
 
 	for_each_set_bit(ae, &ae_mask, max_aes)
 	{
-		for (thr = 0; thr < num_threads_per_ae; ++thr) {
-			struct icp_qat_fw_init_admin_hb_cnt *curr =
-			    &curr_s[ae].stats[thr];
-			struct icp_qat_fw_init_admin_hb_cnt *prev =
-			    &last_s[ae].stats[thr];
-			u16 req = curr->req_heartbeat_cnt;
-			u16 resp = curr->resp_heartbeat_cnt;
-			u16 last = prev->resp_heartbeat_cnt;
+		struct icp_qat_fw_init_admin_hb_cnt *curr =
+		    curr_s + ae * hb_ctrs;
+		struct icp_qat_fw_init_admin_hb_cnt *prev =
+		    last_s + ae * hb_ctrs;
+		u16 *count = count_s + ae * hb_ctrs;
+
+		for (thr = 0; thr < hb_ctrs; ++thr) {
+			u16 req = curr[thr].req_heartbeat_cnt;
+			u16 resp = curr[thr].resp_heartbeat_cnt;
+			u16 last = prev[thr].resp_heartbeat_cnt;
 
 			if ((thr == ADF_AE_ADMIN_THREAD || req != resp) &&
 			    resp == last) {
-				u16 retry = ++count[ae].ae_thread[thr];
+				u16 retry = ++count[thr];
 
 				if (retry >= ADF_CFG_HB_COUNT_THRESHOLD)
 					ret = EIO;
 			} else {
-				count[ae].ae_thread[thr] = 0;
+				count[thr] = 0;
 			}
 		}
 	}

@@ -1,5 +1,141 @@
 # News
 
+## 6.2.2
+
+This is a production release that fixes a bug.
+
+The bug was that if an array element was used as a parameter, and then a later
+parameter had the same name as the array whose element was used, `bc` would grab
+the element from the new array parameter, not the actual element from before the
+function call.
+
+## 6.2.1
+
+This is a production release with one bug fix for a memory bug in history.
+
+## 6.2.0
+
+This is a production release with a new feature and a few bug fixes.
+
+The bug fixes include:
+
+* A crash when `bc` and `dc` are built using editline, but history is not
+  activated.
+* A missing local in the `uint*()` family of functions in the extended math
+  library.
+* A failure to clear the tail call list in `dc` on error.
+* A crash when attempting to swap characters in command-line history when no
+  characters exist.
+* `SIGWINCH` was activated even when history was not.
+
+The new feature is that stack traces are now given for runtime errors. In debug
+mode, the C source file and line of errors are given as well.
+
+## 6.1.1
+
+This is a production release that fixes a build issue with predefined builds and
+generated tests.
+
+## 6.1.0
+
+This is a production release that fixes a discrepancy from the `bc` standard,
+a couple of memory bugs, and adds new features.
+
+The discrepancy from the `bc` standard was with regards to the behavior of the
+`quit` command. This `bc` used to quit whenever it encountered `quit` during
+parsing, even if it was parsing a full file. Now, `bc` only quits when
+encountering `quit` *after* it has executed all executable statements up to that
+point.
+
+This behavior is slightly different from GNU `bc`, but users will only notice
+the difference if they put `quit` on the same line as other statements.
+
+The first memory bug could be reproduced by assigning a string to a non-local
+variable in a function, then redefining the function with use of the same
+non-local variable, which would still refer to a string in the previous version
+of the function.
+
+The second memory bug was caused by passing an array argument to the `asciify()`
+built-in function. In certain cases, that was wrongly allowed, and the
+interpreter just assumed everything was correct and accessed memory. Now that
+arrays are allowed as arguments (see below), this is not an issue.
+
+The first feature was the addition of the `is_number()` built-in function (`u`
+in `dc`) that returns 1 if the runtime argument is a number and 0 otherwise.
+
+The second feature was the addition of the `is_string()` built-in function (`t`
+in `dc`) that returns 1 if the runtime argument is a string and 0 otherwise.
+
+These features were added because I realized that type-checking is necessary now
+that strings can be assigned to variables in `bc` and because they've always
+been assignable to variables in `dc`.
+
+The last added feature is the ability of the `asciify()` built-in function in
+`bc` to convert a full array of numbers into a string. This means that
+character-by-character printing will not be necessary, and more strings than
+just single-character ones will be able to be created.
+
+## 6.0.4
+
+This is a production release that most users will not need to upgrade to.
+
+This fixes a build bug for `bcl` only on OpenBSD. Users that do not need `bcl`
+or have not run into build errors with `bcl` do ***NOT*** need to upgrade.
+
+## 6.0.3
+
+This is a production release that fixes a build bug for cross-compilation.
+
+Users that do not need cross-compilation do ***NOT*** need to upgrade.
+
+## 6.0.2
+
+This is a production release that fixes two bugs:
+
+* The `-l` option overrode the `-S` option.
+* A double-free and crash when sending a `SIGINT` while executing expressions
+  given on the command-line.
+
+## 6.0.1
+
+This is a production release that fixes memory bugs and memory leaks in `bcl`.
+
+Users that do not use `bcl` (use only `bc` and/or `dc`) do ***NOT*** need to
+upgrade.
+
+These happened because I was unaware that the `bcl` test was not hooked into the
+Valgrind test infrastructure. Then, when I ran the release script, which tests
+everything under Valgrind (or so I thought), it caught nothing, and I thought it
+was safe.
+
+But it was not.
+
+Nevertheless, I have now run it under Valgrind and fixed all of the memory bugs
+(caused by not using `memset()` where I should have but previously didn't have
+to) and memory leaks.
+
+## 6.0.0
+
+This is a production release that fixes an oversight in the `bc` parser (that
+sometimes caused the wrong error message) and adds a feature for compatibility
+with the BSD `bc` and `dc`: turning off digit clamping when parsing numbers.
+
+The default for clamping can be set during the build (see the [build
+manual][13]), it can be set with the `BC_DIGIT_CLAMP` and `DC_DIGIT_CLAMP`
+environment variables, and it can be set with the `-c` and `-C` command-line
+options.
+
+Turning off clamping was also added to the `bcl` library.
+
+In addition, signal handling was removed from the `bcl` library in order to add
+the capability for multi-threading. This required a major version bump. I
+apologize to all library users (I don't know of any), but signals and threads do
+not play well together.
+
+To help with building, a convenience option (`-p`) to `configure.sh` was added
+to build a `bc` and `dc` that is by default compatible with either the BSD `bc`
+and `dc` or the GNU `bc` and `dc`.
+
 ## 5.3.3
 
 This is a production release that fixes a build problem in the FreeBSD base

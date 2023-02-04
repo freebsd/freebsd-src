@@ -1694,7 +1694,7 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	}
 
 	zio = arc_write(pio, os->os_spa, tx->tx_txg,
-	    blkptr_copy, os->os_phys_buf, dmu_os_is_l2cacheable(os),
+	    blkptr_copy, os->os_phys_buf, B_FALSE, dmu_os_is_l2cacheable(os),
 	    &zp, dmu_objset_write_ready, NULL, NULL, dmu_objset_write_done,
 	    os, ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);
 
@@ -2407,13 +2407,6 @@ dmu_objset_id_quota_upgrade_cb(objset_t *os)
 	if (!dmu_objset_projectquota_enabled(os) &&
 	    dmu_objset_userobjspace_present(os))
 		return (SET_ERROR(ENOTSUP));
-
-	if (dmu_objset_userobjused_enabled(os))
-		dmu_objset_ds(os)->ds_feature_activation[
-		    SPA_FEATURE_USEROBJ_ACCOUNTING] = (void *)B_TRUE;
-	if (dmu_objset_projectquota_enabled(os))
-		dmu_objset_ds(os)->ds_feature_activation[
-		    SPA_FEATURE_PROJECT_QUOTA] = (void *)B_TRUE;
 
 	err = dmu_objset_space_upgrade(os);
 	if (err)

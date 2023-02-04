@@ -41,6 +41,7 @@
 #include "sal_service_state.h"
 #include "sal_qat_cmn_msg.h"
 #include "icp_sal_poll.h"
+#include "sal_hw_gen.h"
 
 /**
  *****************************************************************************
@@ -87,8 +88,8 @@ dcDataPlaneParamCheck(const CpaDcDpOpData *pOpData)
 	/* Compressing zero byte is not supported */
 	if ((CPA_DC_DIR_COMPRESS == pSessionDesc->sessDirection) &&
 	    (0 == pOpData->bufferLenToCompress)) {
-		QAT_UTILS_LOG(
-		    "The source buffer length to compress needs to be greater than zero byte.\n");
+		QAT_UTILS_LOG("The source buffer length to compress needs to "
+			      "be greater than zero byte.\n");
 		return CPA_STATUS_INVALID_PARAM;
 	}
 
@@ -171,8 +172,7 @@ dcDataPlaneParamCheck(const CpaDcDpOpData *pOpData)
 	} else {
 		/* We are assuming that there is enough memory in the source and
 		 * destination buffer lists. We only receive physical addresses
-		 * of the
-		 * buffers so we are unable to test it here */
+		 * of the buffers so we are unable to test it here */
 		LAC_CHECK_8_BYTE_ALIGNMENT(pOpData->srcBuffer);
 		LAC_CHECK_8_BYTE_ALIGNMENT(pOpData->destBuffer);
 	}
@@ -183,8 +183,9 @@ dcDataPlaneParamCheck(const CpaDcDpOpData *pOpData)
 	    (CPA_DC_DIR_COMBINED == pSessionDesc->sessDirection)) {
 		if (CPA_DC_HT_FULL_DYNAMIC == pSessionDesc->huffType) {
 			/* Check if Intermediate Buffer Array pointer is NULL */
-			if ((0 == pService->pInterBuffPtrsArrayPhyAddr) ||
-			    (NULL == pService->pInterBuffPtrsArray)) {
+			if (isDcGen2x(pService) &&
+			    ((0 == pService->pInterBuffPtrsArrayPhyAddr) ||
+			     (NULL == pService->pInterBuffPtrsArray))) {
 				QAT_UTILS_LOG(
 				    "No intermediate buffer defined for this instance - see cpaDcStartInstance.\n");
 				return CPA_STATUS_INVALID_PARAM;
@@ -312,7 +313,10 @@ dcDpWriteRingMsg(CpaDcDpOpData *pOpData, icp_qat_fw_comp_req_t *pCurrentQatMsg)
 
 	Cpa8U cnvDecompReq = ICP_QAT_FW_COMP_NO_CNV;
 	Cpa8U cnvnrCompReq = ICP_QAT_FW_COMP_NO_CNV_RECOVERY;
+	CpaBoolean cnvErrorInjection = ICP_QAT_FW_COMP_NO_CNV_DFX;
+	sal_compression_service_t *pService = NULL;
 
+	pService = (sal_compression_service_t *)(pOpData->dcInstance);
 	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pOpData->pSessionHandle);
 
 	if (CPA_DC_DIR_COMPRESS == pOpData->sessDirection) {
@@ -320,6 +324,11 @@ dcDpWriteRingMsg(CpaDcDpOpData *pOpData, icp_qat_fw_comp_req_t *pCurrentQatMsg)
 		/* CNV check */
 		if (CPA_TRUE == pOpData->compressAndVerify) {
 			cnvDecompReq = ICP_QAT_FW_COMP_CNV;
+			if (isDcGen4x(pService)) {
+				cnvErrorInjection =
+				    pSessionDesc->cnvErrorInjection;
+			}
+
 			/* CNVNR check */
 			if (CPA_TRUE == pOpData->compressAndVerifyAndRecover) {
 				cnvnrCompReq = ICP_QAT_FW_COMP_CNV_RECOVERY;
@@ -343,7 +352,13 @@ dcDpWriteRingMsg(CpaDcDpOpData *pOpData, icp_qat_fw_comp_req_t *pCurrentQatMsg)
 
 	pCurrentQatMsg->comp_pars.req_par_flags |=
 	    ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(
-		0, 0, 0, cnvDecompReq, cnvnrCompReq, 0);
+		ICP_QAT_FW_COMP_NOT_SOP,
+		ICP_QAT_FW_COMP_NOT_EOP,
+		ICP_QAT_FW_COMP_NOT_BFINAL,
+		cnvDecompReq,
+		cnvnrCompReq,
+		cnvErrorInjection,
+		ICP_QAT_FW_COMP_CRC_MODE_LEGACY);
 
 	SalQatMsg_CmnMidWrite((icp_qat_fw_la_bulk_req_t *)pCurrentQatMsg,
 			      pOpData,

@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-parentheses.mk,v 1.5 2022/01/22 21:50:41 rillig Exp $
+# $NetBSD: cond-op-parentheses.mk,v 1.6 2022/09/04 22:55:00 rillig Exp $
 #
 # Tests for parentheses in .if conditions, which group expressions to override
 # the precedence of the operators '!', '&&' and '||'.  Parentheses cannot be
@@ -15,7 +15,10 @@
 # Parentheses cannot enclose numbers as there is no need for it.  Make does
 # not implement any arithmetic functions in its condition parser.  If
 # absolutely necessary, use expr(1).
-# expect+1: String comparison operator must be either == or !=
+#
+# XXX: It's inconsistent that the right operand has unbalanced parentheses.
+#
+# expect+1: Comparison with '>' requires both operands '3' and '(2' to be numeric
 .if 3 > (2)
 .endif
 # expect+1: Malformed conditional ((3) > 2)

@@ -506,7 +506,7 @@ ether_poll_register(poll_handler_t *h, if_t ifp)
 		if (pr[i].ifp == ifp && pr[i].handler != NULL) {
 			mtx_unlock(&poll_mtx);
 			log(LOG_DEBUG, "ether_poll_register: %s: handler"
-			    " already registered\n", ifp->if_xname);
+			    " already registered\n", if_name(ifp));
 			return (EEXIST);
 		}
 
@@ -536,7 +536,7 @@ ether_poll_deregister(if_t ifp)
 			break;
 	if (i == poll_handlers) {
 		log(LOG_DEBUG, "ether_poll_deregister: %s: not found!\n",
-		    ifp->if_xname);
+		    if_name(ifp));
 		mtx_unlock(&poll_mtx);
 		return (ENOENT);
 	}

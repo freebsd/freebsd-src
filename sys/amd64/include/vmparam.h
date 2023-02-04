@@ -290,12 +290,6 @@
 #define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
 
 /*
- * Use a fairly large batch size since we expect amd64 systems to have lots of
- * memory.
- */
-#define	VM_BATCHQUEUE_SIZE	63
-
-/*
  * The pmap can create non-transparent large page mappings.
  */
 #define	PMAP_HAS_LARGEPAGES	1

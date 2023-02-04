@@ -176,5 +176,6 @@ extern void tasklet_disable_nosync(struct tasklet_struct *);
 extern int tasklet_trylock(struct tasklet_struct *);
 extern void tasklet_unlock(struct tasklet_struct *);
 extern void tasklet_unlock_wait(struct tasklet_struct *ts);
+#define	tasklet_unlock_spin_wait(ts)	tasklet_unlock_wait(ts)
 
 #endif	/* _LINUXKPI_LINUX_INTERRUPT_H_ */

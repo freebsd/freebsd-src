@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -38,20 +38,15 @@ bcl - library of arbitrary precision decimal arithmetic
 
 *#include <bcl.h>*
 
-Link with *-lbcl*.
-
-## Signals
-
-This procedure will allow clients to use signals to interrupt computations
-running in bcl(3).
-
-**void bcl_handleSignal(**_void_**);**
-
-**bool bcl_running(**_void_**);**
+Link with *-lbcl*, and on POSIX systems, *-lpthread* is also required.
 
 ## Setup
 
 These items allow clients to set up bcl(3).
+
+**BclError bcl_start(**_void_**);**
+
+**void bcl_end(**_void_**);**
 
 **BclError bcl_init(**_void_**);**
 
@@ -66,6 +61,10 @@ These items allow clients to set up bcl(3).
 **void bcl_setLeadingZeroes(bool** _leadingZeroes_**);**
 
 **void bcl_gc(**_void_**);**
+
+**bool bcl_digitClamp(**_void_**);**
+
+**void bcl_setDigitClamp(bool** _digitClamp_**);**
 
 ## Contexts
 
@@ -218,48 +217,22 @@ bcl(3) is a library that implements arbitrary-precision decimal math, as
 standardized by POSIX
 (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) in bc(1).
 
-bcl(3) is async-signal-safe if **bcl_handleSignal(**_void_**)** is used
-properly. (See the **SIGNAL HANDLING** section.)
-
 bcl(3) assumes that it is allowed to use the **bcl**, **Bcl**, **bc**, and
 **Bc** prefixes for symbol names without collision.
 
 All of the items in its interface are described below. See the documentation for
 each function for what each function can return.
 
-## Signals
-
-**void bcl_handleSignal(**_void_**)**
-
-:   An async-signal-safe function that can be called from a signal handler. If
-    called from a signal handler on the same thread as any executing bcl(3)
-    functions, it will interrupt the functions and force them to return early.
-    It is undefined behavior if this function is called from a thread that is
-    *not* executing any bcl(3) functions while any bcl(3) functions are
-    executing.
-
-    If execution *is* interrupted, **bcl_handleSignal(**_void_**)** does *not*
-    return to its caller.
-
-    See the **SIGNAL HANDLING** section.
-
-**bool bcl_running(**_void_**)**
-
-:   An async-signal-safe function that can be called from a signal handler. It
-    will return **true** if any bcl(3) procedures are running, which means it is
-    safe to call **bcl_handleSignal(**_void_**)**. Otherwise, it returns
-    **false**.
-
-    See the **SIGNAL HANDLING** section.
-
 ## Setup
 
-**BclError bcl_init(**_void_**)**
+**BclError bcl_start(**_void_**)**
 
 :   Initializes this library. This function can be called multiple times, but
-    each call must be matched by a call to **bcl_free(**_void_**)**. This is to
-    make it possible for multiple libraries and applications to initialize
-    bcl(3) without problem.
+    **bcl_end()** must only be called *once*. This is to make it possible for
+    multiple libraries and applications to initialize bcl(3) without problem.
+
+    It is suggested that client libraries call this function, but do not call
+    **bcl_end()**, and client applications should call both.
 
     If there was no error, **BCL_ERROR_NONE** is returned. Otherwise, this
     function can return:
@@ -269,13 +242,48 @@ each function for what each function can return.
     This function must be the first one clients call. Calling any other
     function without calling this one first is undefined behavior.
 
+**void bcl_end(**_void_**)**
+
+:   Deinitializes this library. This function must only be called *once*.
+
+    All data must have been freed before calling this function.
+
+    This function must be the last one clients call. Calling this function
+    before calling any other function is undefined behavior.
+
+**BclError bcl_init(**_void_**)**
+
+:   Initializes the library for the current thread. This function can be called
+    multiple times, but each call must be matched by a call to
+    **bcl_free(**_void_**)**. This is to make it possible for multiple libraries
+    and applications to initialize threads for bcl(3) without problem.
+
+    This function *must* be called from the thread that it is supposed to
+    initialize.
+
+    If there was no error, **BCL_ERROR_NONE** is returned. Otherwise, this
+    function can return:
+
+    * **BCL_ERROR_FATAL_ALLOC_ERR**
+
+    This function must be the second one clients call. Calling any other
+    function without calling **bcl_start()** and then this one first is
+    undefined behavior, except in the case of new threads. New threads can
+    safely call this function without calling **bcl_start()** if another thread
+    has previously called **bcl_start()**. But this function must still be the
+    first function in bcl(3) called by that new thread.
+
 **void bcl_free(**_void_**)**
 
 :   Decrements bcl(3)'s reference count and frees the data associated with it if
     the reference count is **0**.
 
-    This function must be the last one clients call. Calling this function
-    before calling any other function is undefined behavior.
+    This function *must* be called from the thread that it is supposed to
+    deinitialize.
+
+    This function must be the second to last one clients call. Calling this
+    function before calling any other function besides **bcl_end()** is
+    undefined behavior.
 
 **bool bcl_abortOnFatalError(**_void_**)**
 
@@ -284,6 +292,8 @@ each function for what each function can return.
     error occurs.
 
     If activated, clients do not need to check for fatal errors.
+
+    This value is *thread-local*; it applies to just the thread it is read on.
 
     The default is **false**.
 
@@ -294,6 +304,8 @@ each function for what each function can return.
     call. If *abrt* is **true**, bcl(3) will cause a **SIGABRT** on fatal errors
     after the call.
 
+    This value is *thread-local*; it applies to just the thread it is set on.
+
     If activated, clients do not need to check for fatal errors.
 
 **bool bcl_leadingZeroes(**_void_**)**
@@ -303,6 +315,8 @@ each function for what each function can return.
     **1**, and not equal to **0**. If **true** is returned, then leading zeroes
     will be added.
 
+    This value is *thread-local*; it applies to just the thread it is read on.
+
     The default is **false**.
 
 **void bcl_setLeadingZeroes(bool** _leadingZeroes_**)**
@@ -311,6 +325,37 @@ each function for what each function can return.
     **bcl_string()** when numbers are greater than **-1**, less than **1**, and
     not equal to **0**. If *leadingZeroes* is **true**, leading zeroes will be
     added to strings returned by **bcl_string()**.
+
+    This value is *thread-local*; it applies to just the thread it is set on.
+
+**bool bcl_digitClamp(**_void_**)**
+
+:   Queries and returns the state of whether digits in number strings that are
+    greater than or equal to the current **ibase** are clamped or not.
+
+    If **true** is returned, then digits are treated as though they are equal to
+    the value of **ibase** minus **1**. If this is *not* true, then digits are
+    treated as though they are equal to the value they would have if **ibase**
+    was large enough. They are then multiplied by the appropriate power of
+    **ibase**.
+
+    For example, with clamping off and an **ibase** of **3**, the string "AB"
+    would equal **3\^1\*A+3\^0\*B**, which is **3** times **10** plus **11**, or
+    **41**, while with clamping on and an **ibase** of **3**, the string "AB"
+    would be equal to **3\^1\*2+3\^0\*2**, which is **3** times **2** plus
+    **2**, or **8**.
+
+    This value is *thread-local*; it applies to just the thread it is read on.
+
+    The default is **true**.
+
+**void bcl_setDigitClamp(bool** _digitClamp_**)**
+
+:   Sets the state of whether digits in number strings that are greater than or
+    equal to the current **ibase** are clamped or not. For more information, see
+    the **bcl_digitClamp(**_void_**)** function.
+
+    This value is *thread-local*; it applies to just the thread it is set on.
 
 **void bcl_gc(**_void_**)**
 
@@ -356,6 +401,13 @@ an argument.
     undefined behavior to use a number created in a different context. Contexts
     are meant to isolate the numbers used by different clients in the same
     application.
+
+    Different threads also have different contexts, so any numbers created in
+    one thread are not valid in another thread. To pass values between contexts
+    and threads, use **bcl_string()** to produce a string to pass around, and
+    use **bcl_parse()** to parse the string. It is suggested that the **obase**
+    used to create the string be passed around with the string and used as the
+    **ibase** for **bcl_parse()** to ensure that the number will be the same.
 
 **BclContext bcl_ctxt_create(**_void_**)**
 
@@ -1015,10 +1067,6 @@ codes defined in **BclError**. The complete list of codes is the following:
 
 :   An invalid **BclContext** is being used.
 
-**BCL_ERROR_SIGNAL**
-
-:   A signal interrupted execution.
-
 **BCL_ERROR_MATH_NEGATIVE**
 
 :   A negative number was given as an argument to a parameter that cannot accept
@@ -1088,11 +1136,13 @@ codes defined in **BclError**. The complete list of codes is the following:
 
 # ATTRIBUTES
 
-When **bcl_handleSignal(**_void_**)** is used properly, bcl(3) is
-async-signal-safe.
+bcl(3) is *MT-Safe*: it is safe to call any functions from more than one thread.
+However, is is *not* safe to pass any data between threads except for strings
+returned by **bcl_string()**.
 
-bcl(3) is *MT-Unsafe*: it is unsafe to call any functions from more than one
-thread.
+bcl(3) is not *async-signal-safe*. It was not possible to make bcl(3) safe with
+signals and also make it safe with multiple threads. If it is necessary to be
+able to interrupt bcl(3), spawn a separate thread to run the calculation.
 
 # PERFORMANCE
 
@@ -1163,21 +1213,6 @@ These limits are meant to be effectively non-existent; the limits are so large
 (at least on 64-bit machines) that there should not be any point at which they
 become a problem. In fact, memory should be exhausted before these limits should
 be hit.
-
-# SIGNAL HANDLING
-
-If a signal handler calls **bcl_handleSignal(**_void_**)** from the same thread
-that there are bcl(3) functions executing in, it will cause all execution to
-stop as soon as possible, interrupting long-running calculations, if necessary
-and cause the function that was executing to return. If possible, the error code
-**BC_ERROR_SIGNAL** is returned.
-
-If execution *is* interrupted, **bcl_handleSignal(**_void_**)** does *not*
-return to its caller.
-
-It is undefined behavior if **bcl_handleSignal(**_void_**)** is called from
-a thread that is not executing bcl(3) functions, if bcl(3) functions are
-executing.
 
 # SEE ALSO
 

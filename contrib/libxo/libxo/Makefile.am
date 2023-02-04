@@ -74,6 +74,7 @@ man5_files = \
     xo_format.5
 
 man7_files = \
+    libxo-csv.7 \
     xo_options.7
 
 man_MANS = ${man3_files} ${man5_files} ${man7_files}

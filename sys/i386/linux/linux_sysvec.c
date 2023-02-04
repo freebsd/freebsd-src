@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define __ELF_WORD_SIZE	32
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
@@ -65,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/linux/linux_x86.h>
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_elf.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_ioctl.h>
@@ -102,18 +105,13 @@ SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static int	linux_fixup(uintptr_t *stack_base,
 		    struct image_params *iparams);
-static int	linux_fixup_elf(uintptr_t *stack_base,
-		    struct image_params *iparams);
 static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	linux_exec_setregs(struct thread *td,
 		    struct image_params *imgp, uintptr_t stack);
 static void	linux_exec_sysvec_init(void *param);
 static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
-static int	linux_copyout_strings(struct image_params *imgp,
-		    uintptr_t *stack_base);
 static void	linux_set_fork_retval(struct thread *td);
-static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
 static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
@@ -198,137 +196,6 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
-}
-
-static int
-linux_fixup_elf(uintptr_t *stack_base, struct image_params *imgp)
-{
-	register_t *base;
-
-	base = (register_t *)*stack_base;
-	base--;
-	if (suword(base, (register_t)imgp->args->argc) == -1)
-		return (EFAULT);
-	*stack_base = (uintptr_t)base;
-	return (0);
-}
-
-/*
- * Copied from kern/kern_exec.c
- */
-static int
-linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
-{
-	int argc, envc, error;
-	char **vectp;
-	char *stringp;
-	uintptr_t destp, ustringp;
-	struct ps_strings *arginfo;
-	char canary[LINUX_AT_RANDOM_LEN];
-	size_t execpath_len;
-	struct proc *p;
-
-	p = imgp->proc;
-	arginfo = (struct ps_strings *)PROC_PS_STRINGS(p);
-	destp = (uintptr_t)arginfo;
-
-	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
-		execpath_len = strlen(imgp->execpath) + 1;
-		destp -= execpath_len;
-		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = (void *)destp;
-		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
-		if (error != 0)
-			return (error);
-	}
-
-	/* Prepare the canary for SSP. */
-	arc4rand(canary, sizeof(canary), 0);
-	destp -= roundup(sizeof(canary), sizeof(void *));
-	imgp->canary = (void *)destp;
-	error = copyout(canary, imgp->canary, sizeof(canary));
-	if (error != 0)
-		return (error);
-
-	/* Allocate room for the argument and environment strings. */
-	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(void *));
-	ustringp = destp;
-
-	if (imgp->auxargs) {
-		/*
-		 * Allocate room on the stack for the ELF auxargs
-		 * array.  It has LINUX_AT_COUNT entries.
-		 */
-		destp -= LINUX_AT_COUNT * sizeof(Elf32_Auxinfo);
-		destp = rounddown2(destp, sizeof(void *));
-	}
-
-	vectp = (char **)destp;
-
-	/*
-	 * Allocate room for the argv[] and env vectors including the
-	 * terminating NULL pointers.
-	 */
-	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
-
-	/* vectp also becomes our initial stack base. */
-	*stack_base = (uintptr_t)vectp;
-
-	stringp = imgp->args->begin_argv;
-	argc = imgp->args->argc;
-	envc = imgp->args->envc;
-
-	/* Copy out strings - arguments and environment. */
-	error = copyout(stringp, (void *)ustringp,
-	    ARG_MAX - imgp->args->stringspace);
-	if (error != 0)
-		return (error);
-
-	/* Fill in "ps_strings" struct for ps, w, etc. */
-	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
-	    suword(&arginfo->ps_nargvstr, argc) != 0)
-		return (EFAULT);
-
-	/* Fill in argument portion of vector table. */
-	for (; argc > 0; --argc) {
-		if (suword(vectp++, ustringp) != 0)
-			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
-	}
-
-	/* A null vector table pointer separates the argp's from the envp's. */
-	if (suword(vectp++, 0) != 0)
-		return (EFAULT);
-
-	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
-	    suword(&arginfo->ps_nenvstr, envc) != 0)
-		return (EFAULT);
-
-	/* Fill in environment portion of vector table. */
-	for (; envc > 0; --envc) {
-		if (suword(vectp++, ustringp) != 0)
-			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
-	}
-
-	/* The end of the vector table is a null pointer. */
-	if (suword(vectp, 0) != 0)
-		return (EFAULT);
-
-	if (imgp->auxargs) {
-		vectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)vectp);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
 }
 
 static void
@@ -798,15 +665,15 @@ INIT_SYSENTVEC(aout_sysvec, &linux_sysvec);
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_fixup	= linux_fixup_elf,
+	.sv_fixup	= __elfN(freebsd_fixup),
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux_vdso_so_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
 	.sv_name	= "Linux ELF32",
 	.sv_coredump	= elf32_coredump,
-	.sv_elf_core_osabi = ELFOSABI_FREEBSD,
-	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
-	.sv_elf_core_prepare_notes = elf32_prepare_notes,
+	.sv_elf_core_osabi = ELFOSABI_NONE,
+	.sv_elf_core_abi_vendor = LINUX_ABI_VENDOR,
+	.sv_elf_core_prepare_notes = __linuxN(prepare_notes),
 	.sv_imgact_try	= linux_exec_imgact_try,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
@@ -816,7 +683,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
-	.sv_copyout_strings = linux_copyout_strings,
+	.sv_copyout_strings = __linuxN(copyout_strings),
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
@@ -970,32 +837,6 @@ linux_vdso_reloc(char *mapping, Elf_Addr offset)
 			    "symbol index %d\n", rtype, symidx);
 		}
 	}
-}
-
-static char GNU_ABI_VENDOR[] = "GNU";
-static int GNULINUX_ABI_DESC = 0;
-
-static bool
-linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
-{
-	const Elf32_Word *desc;
-	uintptr_t p;
-
-	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
-
-	desc = (const Elf32_Word *)p;
-	if (desc[0] != GNULINUX_ABI_DESC)
-		return (false);
-
-	/*
-	 * For Linux we encode osrel using the Linux convention of
-	 * 	(version << 16) | (major << 8) | (minor)
-	 * See macro in linux_mib.h
-	 */
-	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
-
-	return (true);
 }
 
 static Elf_Brandnote linux_brandnote = {

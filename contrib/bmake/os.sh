@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.59 2021/11/14 04:18:00 sjg Exp $
+#	$Id: os.sh,v 1.62 2023/01/17 18:30:21 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -78,10 +78,11 @@ toLower() {
 }
 
 K=
-case $OS in
+case "$OS" in
 AIX)	# everyone loves to be different...
 	OSMAJOR=`uname -v`
-	OSREL="$OSMAJOR.`uname -r`"
+	OSMINOR=`uname -r`
+	OSREL="$OSMAJOR.$OSMINOR"
 	LOCAL_FS=jfs
 	PS_AXC=-e
 	SHARE_ARCH=$OS/$OSMAJOR.X
@@ -229,15 +230,20 @@ HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | tr -d / | toLower`
 HOST_TARGET32=`echo ${OS}${OSMAJOR}-$HOST_ARCH32 | tr -d / | toLower`
 export HOST_TARGET HOST_TARGET32
 
-case `echo -n .` in -n*) N=; C="\c";; *) N=-n; C=;; esac
+case `echo -n .` in -n*) echo_n=; echo_c="\c";; *) echo_n=-n; echo_c=;; esac
 
 Echo() {
 	case "$1" in
-	-n) _n=$N _c=$C; shift;;
-	*) _n= _c=;;
+	-n) shift; echo $echo_n "$@$echo_c";;
+	*)  echo "$@";;
 	esac
-	echo $_n "$@" $_c
 }
+
+# for systems that deprecate egrep
+case "`echo egrep | egrep 'e|g' 2>&1`" in
+egrep) ;;
+*) egrep() { grep -E "$@"; };;
+esac
 
 export HOSTNAME HOST	    
 export OS MACHINE MACHINE_ARCH OSREL OSMAJOR LOCAL_FS TMP_DIRS MAILER N C K PS_AXC

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-loop.mk,v 1.18 2021/12/05 15:20:13 rillig Exp $
+# $NetBSD: varmod-loop.mk,v 1.21 2022/08/23 21:13:46 rillig Exp $
 #
 # Tests for the :@var@...${var}...@ variable modifier.
 
@@ -185,5 +185,50 @@ CMDLINE=	global		# needed for deleting the environment
 .if ${CMDLINE:Uundefined} != "undefined"
 .  error			# 'CMDLINE' is gone now from all scopes
 .endif
+
+
+# In the loop body text of the ':@' modifier, a literal '$' is written as '$$',
+# not '\$'.  In the following example, each '$$' turns into a single '$',
+# except for '$i', which is replaced with the then-current value '1' of the
+# iteration variable.
+#
+# XXX: was broken in var.c 1.1028 from 2022-08-08, reverted in var.c 1.1029
+# from 2022-08-23; see parse-var.mk, keyword 'BRACE_GROUP'.
+all: varmod-loop-literal-dollar
+varmod-loop-literal-dollar: .PHONY
+	: ${:U1:@i@ t=$$(( $${t:-0} + $i ))@}
+
+
+# When parsing the loop body, each '\$', '\@' and '\\' is unescaped to '$',
+# '@' and '\'; all other backslashes are retained.
+#
+# In practice, the '$' is not escaped as '\$', as there is a second round of
+# unescaping '$$' to '$' later when the loop body is expanded after setting the
+# iteration variable.
+#
+# After the iteration variable has been set, the loop body is expanded with
+# this unescaping, regardless of whether .MAKE.SAVE_DOLLARS is set or not:
+#	$$			a literal '$'
+#	$x, ${var}, $(var)	a nested expression
+#	any other character	itself
+all: escape-modifier
+escape-modifier: .PHONY
+	# In the first round, '\$ ' is unescaped to '$ ', and since the
+	# variable named ' ' is not defined, the expression '$ ' expands to an
+	# empty string.
+	# expect: :  dollar=end
+	: ${:U1:@i@ dollar=\$ end@}
+
+	# Like in other modifiers, '\ ' is preserved, since ' ' is not one of
+	# the characters that _must_ be escaped.
+	# expect: :  backslash=\ end
+	: ${:U1:@i@ backslash=\ end@}
+
+	# expect: :  dollar=$ at=@ backslash=\ end
+	: ${:U1:@i@ dollar=\$\$ at=\@ backslash=\\ end@}
+	# expect: :  dollar=$$ at=@@ backslash=\\ end
+	: ${:U1:@i@ dollar=\$\$\$\$ at=\@\@ backslash=\\\\ end@}
+	# expect: :  dollar=$$ at=@@ backslash=\\ end
+	: ${:U1:@i@ dollar=$$$$ at=\@\@ backslash=\\\\ end@}
 
 all: .PHONY

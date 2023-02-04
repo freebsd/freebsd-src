@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
 #include <net/bpf.h>
@@ -2643,8 +2644,9 @@ iflib_stop(if_ctx_t ctx)
 			bzero((void *)di->idi_vaddr, di->idi_size);
 	}
 	for (i = 0; i < scctx->isc_nrxqsets; i++, rxq++) {
-		gtaskqueue_drain(rxq->ifr_task.gt_taskqueue,
-		    &rxq->ifr_task.gt_task);
+		if (rxq->ifr_task.gt_taskqueue != NULL)
+			gtaskqueue_drain(rxq->ifr_task.gt_taskqueue,
+				 &rxq->ifr_task.gt_task);
 
 		rxq->ifr_cq_cidx = 0;
 		for (j = 0, di = rxq->ifr_ifdi; j < sctx->isc_nrxqs; j++, di++)

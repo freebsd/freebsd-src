@@ -1,4 +1,4 @@
-# $NetBSD: varmod-undefined.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: varmod-undefined.mk,v 1.8 2022/08/06 21:26:05 rillig Exp $
 #
 # Tests for the :U variable modifier, which returns the given string
 # if the variable is undefined.
@@ -29,7 +29,7 @@
 # The nested variable expressions may contain braces, and these braces don't
 # need to match pairwise.  In the following example, the :S modifier uses '{'
 # as delimiter, which confuses both editors and humans because the opening
-# and # closing braces don't match anymore.  It's syntactically valid though.
+# and closing braces don't match anymore.  It's syntactically valid though.
 # For more similar examples, see varmod-subst.mk, mod-subst-delimiter.
 
 .if ${:U${:Uvalue:S{a{X{}} != vXlue

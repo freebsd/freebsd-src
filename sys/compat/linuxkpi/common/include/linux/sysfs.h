@@ -37,6 +37,7 @@
 
 #include <linux/kobject.h>
 #include <linux/stringify.h>
+#include <linux/mm.h>
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
@@ -293,6 +294,42 @@ sysfs_streq(const char *s1, const char *s2)
 		l2--;
 
 	return (l1 == l2 && strncmp(s1, s2, l1) == 0);
+}
+
+static inline int
+sysfs_emit(char *buf, const char *fmt, ...)
+{
+	va_list args;
+	int i;
+
+	if (!buf || offset_in_page(buf)) {
+		pr_warn("invalid sysfs_emit: buf:%p\n", buf);
+		return (0);
+	}
+
+	va_start(args, fmt);
+	i = vscnprintf(buf, PAGE_SIZE, fmt, args);
+	va_end(args);
+
+	return (i);
+}
+
+static inline int
+sysfs_emit_at(char *buf, int at, const char *fmt, ...)
+{
+	va_list args;
+	int i;
+
+	if (!buf || offset_in_page(buf) || at < 0 || at >= PAGE_SIZE) {
+		pr_warn("invalid sysfs_emit: buf:%p at:%d\n", buf, at);
+		return (0);
+	}
+
+	va_start(args, fmt);
+	i = vscnprintf(buf + at, PAGE_SIZE - at, fmt, args);
+	va_end(args);
+
+	return (i);
 }
 
 #define sysfs_attr_init(attr) do {} while(0)

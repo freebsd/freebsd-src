@@ -86,7 +86,6 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CUSE \
-    CXX \
     CXGBETOOL \
     DIALOG \
     DICT \
@@ -303,8 +302,8 @@ BROKEN_OPTIONS+=EFI
 .if ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_OFW
 .endif
-# KBOOT is only for powerpc64 (powerpc64le broken) and kinda for amd64
-.if ${__T} != "powerpc64" && ${__T} != "amd64"
+# KBOOT is only for powerpc64 (powerpc64le broken) amd64 and aarch64
+.if ${__T} != "powerpc64" && ${__T} != "amd64" && ${__T} != "aarch64"
 BROKEN_OPTIONS+=LOADER_KBOOT
 .endif
 # UBOOT is only for arm, and big-endian powerpc
@@ -349,11 +348,6 @@ __DEFAULT_YES_OPTIONS+=OPENMP
 __DEFAULT_NO_OPTIONS+=OPENMP
 .endif
 
-# libc++ requires C++20
-.if !${COMPILER_FEATURES:Mc++20}
-BROKEN_OPTIONS+=CXX
-.endif
-
 .include <bsd.mkopt.mk>
 
 #
@@ -381,18 +375,6 @@ MK_OPENSSL:=	no
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
 MK_KERBEROS_SUPPORT:=	no
-.endif
-
-.if ${MK_CXX} == "no"
-MK_CLANG:=	no
-MK_LLD:=	no
-MK_LLDB:=	no
-MK_LLVM_BINUTILS:= no
-MK_GOOGLETEST:=	no
-MK_OFED:=	no
-MK_OPENMP:=	no
-MK_PMC:=	no
-MK_TESTS:=	no
 .endif
 
 .if ${MK_DIALOG} == "no"

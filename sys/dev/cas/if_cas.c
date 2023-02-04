@@ -141,10 +141,10 @@ static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
 static int	cas_intr(void *v);
 static void	cas_intr_task(void *arg, int pending __unused);
-static int	cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static int	cas_ioctl(if_t ifp, u_long cmd, caddr_t data);
 static int	cas_load_txmbuf(struct cas_softc *sc, struct mbuf **m_head);
-static int	cas_mediachange(struct ifnet *ifp);
-static void	cas_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
+static int	cas_mediachange(if_t ifp);
+static void	cas_mediastatus(if_t ifp, struct ifmediareq *ifmr);
 static void	cas_meminit(struct cas_softc *sc);
 static void	cas_mifinit(struct cas_softc *sc);
 static int	cas_mii_readreg(device_t dev, int phy, int reg);
@@ -163,8 +163,8 @@ static u_int	cas_rxcompsize(u_int sz);
 static void	cas_rxdma_callback(void *xsc, bus_dma_segment_t *segs,
 		    int nsegs, int error);
 static void	cas_setladrf(struct cas_softc *sc);
-static void	cas_start(struct ifnet *ifp);
-static void	cas_stop(struct ifnet *ifp);
+static void	cas_start(if_t ifp);
+static void	cas_stop(if_t ifp);
 static void	cas_suspend(struct cas_softc *sc);
 static void	cas_tick(void *arg);
 static void	cas_tint(struct cas_softc *sc);
@@ -184,7 +184,7 @@ static int
 cas_attach(struct cas_softc *sc)
 {
 	struct cas_txsoft *txs;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, i;
 	uint32_t v;
 
@@ -192,16 +192,15 @@ cas_attach(struct cas_softc *sc)
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
 		return (ENOSPC);
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = cas_start;
-	ifp->if_ioctl = cas_ioctl;
-	ifp->if_init = cas_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, CAS_TXQUEUELEN);
-	ifp->if_snd.ifq_drv_maxlen = CAS_TXQUEUELEN;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, cas_start);
+	if_setioctlfn(ifp, cas_ioctl);
+	if_setinitfn(ifp, cas_init);
+	if_setsendqlen(ifp, CAS_TXQUEUELEN);
+	if_setsendqready(ifp);
 
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_rx_ch, &sc->sc_mtx, 0);
@@ -423,13 +422,13 @@ cas_attach(struct cas_softc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
 	if ((sc->sc_flags & CAS_NO_CSUM) == 0) {
-		ifp->if_capabilities |= IFCAP_HWCSUM;
-		ifp->if_hwassist = CAS_CSUM_FEATURES;
+		if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
+		if_sethwassist(ifp, CAS_CSUM_FEATURES);
 	}
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	return (0);
 
@@ -475,7 +474,7 @@ cas_attach(struct cas_softc *sc)
 static void
 cas_detach(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	int i;
 
 	ether_ifdetach(ifp);
@@ -521,7 +520,7 @@ cas_detach(struct cas_softc *sc)
 static void
 cas_suspend(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	CAS_LOCK(sc);
 	cas_stop(ifp);
@@ -531,7 +530,7 @@ cas_suspend(struct cas_softc *sc)
 static void
 cas_resume(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	CAS_LOCK(sc);
 	/*
@@ -539,7 +538,7 @@ cas_resume(struct cas_softc *sc)
 	 * after power-on.
 	 */
 	sc->sc_flags &= ~CAS_INITED;
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		cas_init_locked(sc);
 	CAS_UNLOCK(sc);
 }
@@ -634,7 +633,7 @@ static void
 cas_tick(void *arg)
 {
 	struct cas_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint32_t v;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
@@ -718,9 +717,9 @@ cas_reset(struct cas_softc *sc)
 }
 
 static void
-cas_stop(struct ifnet *ifp)
+cas_stop(if_t ifp)
 {
-	struct cas_softc *sc = ifp->if_softc;
+	struct cas_softc *sc = if_getsoftc(ifp);
 	struct cas_txsoft *txs;
 
 #ifdef CAS_DEBUG
@@ -756,7 +755,7 @@ cas_stop(struct ifnet *ifp)
 	/*
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->sc_flags &= ~CAS_LINK;
 	sc->sc_wdog_timer = 0;
 }
@@ -967,12 +966,12 @@ cas_init(void *xsc)
 static void
 cas_init_locked(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint32_t v;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 #ifdef CAS_DEBUG
@@ -1170,8 +1169,8 @@ cas_init_locked(struct cas_softc *sc)
 	if ((sc->sc_flags & CAS_REG_PLUS) != 0)
 		CAS_WRITE_4(sc, CAS_RX_KICK2, CAS_NRXDESC2 - 4);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	mii_mediachg(sc->sc_mii);
 
@@ -1326,7 +1325,7 @@ static void
 cas_init_regs(struct cas_softc *sc)
 {
 	int i;
-	const u_char *laddr = IF_LLADDR(sc->sc_ifp);
+	const u_char *laddr = if_getlladdr(sc->sc_ifp);
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1408,9 +1407,9 @@ cas_init_regs(struct cas_softc *sc)
 static void
 cas_tx_task(void *arg, int pending __unused)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
-	ifp = (struct ifnet *)arg;
+	ifp = (if_t)arg;
 	cas_start(ifp);
 }
 
@@ -1433,15 +1432,15 @@ cas_txkick(struct cas_softc *sc)
 }
 
 static void
-cas_start(struct ifnet *ifp)
+cas_start(if_t ifp)
 {
-	struct cas_softc *sc = ifp->if_softc;
+	struct cas_softc *sc = if_getsoftc(ifp);
 	struct mbuf *m;
 	int kicked, ntx;
 
 	CAS_LOCK(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || (sc->sc_flags & CAS_LINK) == 0) {
 		CAS_UNLOCK(sc);
 		return;
@@ -1457,15 +1456,15 @@ cas_start(struct ifnet *ifp)
 #endif
 	ntx = 0;
 	kicked = 0;
-	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) && sc->sc_txfree > 1;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	for (; !if_sendq_empty(ifp) && sc->sc_txfree > 1;) {
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 		if (cas_load_txmbuf(sc, &m) != 0) {
 			if (m == NULL)
 				break;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if_sendq_prepend(ifp, m);
 			break;
 		}
 		if ((sc->sc_txnext % 4) == 0) {
@@ -1500,7 +1499,7 @@ cas_start(struct ifnet *ifp)
 static void
 cas_tint(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct cas_txsoft *txs;
 	int progress;
 	uint32_t txlast;
@@ -1520,7 +1519,7 @@ cas_tint(struct cas_softc *sc)
 	CAS_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
 	while ((txs = STAILQ_FIRST(&sc->sc_txdirtyq)) != NULL) {
 #ifdef CAS_DEBUG
-		if ((ifp->if_flags & IFF_DEBUG) != 0) {
+		if ((if_getflags(ifp) & IFF_DEBUG) != 0) {
 			printf("    txsoft %p transmit chain:\n", txs);
 			for (i = txs->txs_firstdesc;; i = CAS_NEXTTX(i)) {
 				printf("descriptor %d: ", i);
@@ -1592,7 +1591,7 @@ cas_tint(struct cas_softc *sc)
 
 	if (progress) {
 		/* We freed some descriptors, so reset IFF_DRV_OACTIVE. */
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
 			sc->sc_wdog_timer = 0;
 	}
@@ -1620,7 +1619,7 @@ static void
 cas_rint(struct cas_softc *sc)
 {
 	struct cas_rxdsoft *rxds, *rxds2;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m, *m2;
 	uint64_t word1, word2, word3 __unused, word4;
 	uint32_t rxhead;
@@ -1672,7 +1671,7 @@ cas_rint(struct cas_softc *sc)
 		WORDTOH(4);
 
 #ifdef CAS_DEBUG
-		if ((ifp->if_flags & IFF_DEBUG) != 0) {
+		if ((if_getflags(ifp) & IFF_DEBUG) != 0) {
 			printf("    completion %d: ", sc->sc_rxcptr);
 			PRINTWORD(1, '\t');
 			PRINTWORD(2, '\t');
@@ -1744,12 +1743,12 @@ cas_rint(struct cas_softc *sc)
 				m->m_pkthdr.rcvif = ifp;
 				m->m_pkthdr.len = m->m_len = len;
 				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+				if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
 				/* Pass it on. */
 				CAS_UNLOCK(sc);
-				(*ifp->if_input)(ifp, m);
+				if_input(ifp, m);
 				CAS_LOCK(sc);
 			} else
 				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
@@ -1828,12 +1827,12 @@ cas_rint(struct cas_softc *sc)
 				m->m_pkthdr.rcvif = ifp;
 				m->m_pkthdr.len = len;
 				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+				if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
 				/* Pass it on. */
 				CAS_UNLOCK(sc);
-				(*ifp->if_input)(ifp, m);
+				if_input(ifp, m);
 				CAS_LOCK(sc);
 			} else
 				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
@@ -1850,7 +1849,7 @@ cas_rint(struct cas_softc *sc)
 
  skip:
 		cas_rxcompinit(&sc->sc_rxcomps[sc->sc_rxcptr]);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 	}
 	CAS_CDSYNC(sc, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -1918,7 +1917,7 @@ cas_add_rxdesc(struct cas_softc *sc, u_int idx)
 static void
 cas_eint(struct cas_softc *sc, u_int status)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1936,9 +1935,9 @@ cas_eint(struct cas_softc *sc, u_int status)
 	}
 	printf("\n");
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	cas_init_locked(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
 }
 
@@ -1962,12 +1961,12 @@ static void
 cas_intr_task(void *arg, int pending __unused)
 {
 	struct cas_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint32_t status, status2;
 
 	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	status = CAS_READ_4(sc, CAS_STATUS);
@@ -2054,10 +2053,10 @@ cas_intr_task(void *arg, int pending __unused)
 	    (CAS_INTR_TX_INT_ME | CAS_INTR_TX_ALL | CAS_INTR_TX_DONE)) != 0)
 		cas_tint(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 		CAS_UNLOCK(sc);
 		return;
-	} else if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	} else if (!if_sendq_empty(ifp))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
 	CAS_UNLOCK(sc);
 
@@ -2084,7 +2083,7 @@ cas_intr_task(void *arg, int pending __unused)
 static void
 cas_watchdog(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -2111,9 +2110,9 @@ cas_watchdog(struct cas_softc *sc)
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	/* Try to get more packets going. */
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	cas_init_locked(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
 }
 
@@ -2283,7 +2282,7 @@ static void
 cas_mii_statchg(device_t dev)
 {
 	struct cas_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int gigabit;
 	uint32_t rxcfg, txcfg, v;
 
@@ -2293,7 +2292,7 @@ cas_mii_statchg(device_t dev)
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
 #ifdef CAS_DEBUG
-	if ((ifp->if_flags & IFF_DEBUG) != 0)
+	if ((if_getflags(ifp) & IFF_DEBUG) != 0)
 		device_printf(sc->sc_dev, "%s: status changen", __func__);
 #endif
 
@@ -2355,11 +2354,11 @@ cas_mii_statchg(device_t dev)
 	 * hardware checksumming in half-duplex mode though.
 	 */
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) == 0) {
-		ifp->if_capenable &= ~IFCAP_HWCSUM;
-		ifp->if_hwassist = 0;
+		if_setcapenablebit(ifp, 0, IFCAP_HWCSUM);
+		if_sethwassist(ifp, 0);
 	} else if ((sc->sc_flags & CAS_NO_CSUM) == 0) {
-		ifp->if_capenable = ifp->if_capabilities;
-		ifp->if_hwassist = CAS_CSUM_FEATURES;
+		if_setcapenable(ifp, if_getcapabilities(ifp));
+		if_sethwassist(ifp, CAS_CSUM_FEATURES);
 	}
 
 	if (sc->sc_variant == CAS_SATURN) {
@@ -2392,7 +2391,7 @@ cas_mii_statchg(device_t dev)
 	CAS_WRITE_4(sc, CAS_MAC_XIF_CONF, v);
 
 	sc->sc_mac_rxcfg = rxcfg;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
 	    (sc->sc_flags & CAS_LINK) != 0) {
 		CAS_WRITE_4(sc, CAS_MAC_TX_CONF,
 		    txcfg | CAS_MAC_TX_CONF_EN);
@@ -2402,9 +2401,9 @@ cas_mii_statchg(device_t dev)
 }
 
 static int
-cas_mediachange(struct ifnet *ifp)
+cas_mediachange(if_t ifp)
 {
-	struct cas_softc *sc = ifp->if_softc;
+	struct cas_softc *sc = if_getsoftc(ifp);
 	int error;
 
 	/* XXX add support for serial media. */
@@ -2416,12 +2415,12 @@ cas_mediachange(struct ifnet *ifp)
 }
 
 static void
-cas_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
+cas_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct cas_softc *sc = ifp->if_softc;
+	struct cas_softc *sc = if_getsoftc(ifp);
 
 	CAS_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		CAS_UNLOCK(sc);
 		return;
 	}
@@ -2433,9 +2432,9 @@ cas_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+cas_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct cas_softc *sc = ifp->if_softc;
+	struct cas_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error;
 
@@ -2443,16 +2442,16 @@ cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		CAS_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			    ((ifp->if_flags ^ sc->sc_ifflags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+			    ((if_getflags(ifp) ^ sc->sc_ifflags) &
 			    (IFF_ALLMULTI | IFF_PROMISC)) != 0)
 				cas_setladrf(sc);
 			else
 				cas_init_locked(sc);
-		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		} else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			cas_stop(ifp);
-		sc->sc_ifflags = ifp->if_flags;
+		sc->sc_ifflags = if_getflags(ifp);
 		CAS_UNLOCK(sc);
 		break;
 	case SIOCSIFCAP:
@@ -2462,17 +2461,17 @@ cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			CAS_UNLOCK(sc);
 			break;
 		}
-		ifp->if_capenable = ifr->ifr_reqcap;
-		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-			ifp->if_hwassist = CAS_CSUM_FEATURES;
+		if_setcapenable(ifp, ifr->ifr_reqcap);
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+			if_sethwassist(ifp, CAS_CSUM_FEATURES);
 		else
-			ifp->if_hwassist = 0;
+			if_sethwassist(ifp, 0);
 		CAS_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		CAS_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			cas_setladrf(sc);
 		CAS_UNLOCK(sc);
 		break;
@@ -2481,7 +2480,7 @@ cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    (ifr->ifr_mtu > ETHERMTU_JUMBO))
 			error = EINVAL;
 		else
-			ifp->if_mtu = ifr->ifr_mtu;
+			if_setmtu(ifp, ifr->ifr_mtu);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -2512,7 +2511,7 @@ cas_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 cas_setladrf(struct cas_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	int i;
 	uint32_t hash[16];
 	uint32_t v;
@@ -2534,11 +2533,11 @@ cas_setladrf(struct cas_softc *sc)
 		    "cannot disable RX MAC or hash filter\n");
 
 	v &= ~(CAS_MAC_RX_CONF_PROMISC | CAS_MAC_RX_CONF_PGRP);
-	if ((ifp->if_flags & IFF_PROMISC) != 0) {
+	if ((if_getflags(ifp) & IFF_PROMISC) != 0) {
 		v |= CAS_MAC_RX_CONF_PROMISC;
 		goto chipit;
 	}
-	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+	if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 		v |= CAS_MAC_RX_CONF_PGRP;
 		goto chipit;
 	}

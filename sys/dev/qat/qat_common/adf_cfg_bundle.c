@@ -157,16 +157,23 @@ adf_cfg_init_and_insert_inst(struct adf_cfg_bundle *bundle,
 {
 	struct adf_cfg_instance *cfg_instance = NULL;
 	int ring_pair_index = 0;
+	int ring_index = 0;
 	int i = 0;
 	u8 serv_type;
-	int num_req_rings = bundle->num_of_rings / 2;
-	int num_rings_per_srv = num_req_rings / ADF_CFG_NUM_SERVICES;
+	int num_rings_per_srv = 0;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u16 ring_to_svc_map = GET_HW_DATA(accel_dev)->ring_to_svc_map;
 
 	/* init the bundle with instance information */
-	for (ring_pair_index = 0; ring_pair_index < ADF_CFG_NUM_SERVICES;
+	for (ring_pair_index = 0; ring_pair_index < bundle->max_cfg_svc_num;
 	     ring_pair_index++) {
-		serv_type = GET_SRV_TYPE(ring_to_svc_map, ring_pair_index);
+		adf_get_ring_svc_map_data(hw_data,
+					  bundle->number,
+					  ring_pair_index,
+					  &serv_type,
+					  &ring_index,
+					  &num_rings_per_srv);
+
 		for (i = 0; i < num_rings_per_srv; i++) {
 			cfg_instance = malloc(sizeof(*cfg_instance),
 					      M_QAT,
@@ -219,8 +226,9 @@ adf_cfg_bundle_init(struct adf_cfg_bundle *bundle,
 {
 	int i = 0;
 
+	bundle->number = bank_num;
 	/* init ring to service mapping for this bundle */
-	adf_cfg_init_ring2serv_mapping(accel_dev, bundle);
+	adf_cfg_init_ring2serv_mapping(accel_dev, bundle, device);
 
 	/* init the bundle with instance information */
 	adf_cfg_init_and_insert_inst(bundle, device, bank_num, accel_dev);
@@ -229,7 +237,6 @@ adf_cfg_bundle_init(struct adf_cfg_bundle *bundle,
 	bundle->type = FREE;
 	bundle->polling_mode = -1;
 	bundle->section_index = 0;
-	bundle->number = bank_num;
 
 	bundle->sections = malloc(sizeof(char *) * bundle->max_section,
 				  M_QAT,
@@ -262,18 +269,25 @@ adf_cfg_bundle_clear(struct adf_cfg_bundle *bundle,
 }
 
 static void
-adf_cfg_assign_serv_to_rings(struct adf_cfg_bundle *bundle, u16 ring_to_svc_map)
+adf_cfg_assign_serv_to_rings(struct adf_hw_device_data *hw_data,
+			     struct adf_cfg_bundle *bundle,
+			     struct adf_cfg_device *device)
 {
 	int ring_pair_index = 0;
 	int ring_index = 0;
 	u8 serv_type = 0;
 	int num_req_rings = bundle->num_of_rings / 2;
-	int num_rings_per_srv = num_req_rings / ADF_CFG_NUM_SERVICES;
+	int num_rings_per_srv = 0;
 
-	for (ring_pair_index = 0; ring_pair_index < ADF_CFG_NUM_SERVICES;
+	for (ring_pair_index = 0; ring_pair_index < bundle->max_cfg_svc_num;
 	     ring_pair_index++) {
-		serv_type = GET_SRV_TYPE(ring_to_svc_map, ring_pair_index);
-		ring_index = num_rings_per_srv * ring_pair_index;
+		adf_get_ring_svc_map_data(hw_data,
+					  bundle->number,
+					  ring_pair_index,
+					  &serv_type,
+					  &ring_index,
+					  &num_rings_per_srv);
+
 		switch (serv_type) {
 		case CRYPTO:
 			ASSIGN_SERV_TO_RINGS(bundle,
@@ -283,7 +297,7 @@ adf_cfg_assign_serv_to_rings(struct adf_cfg_bundle *bundle, u16 ring_to_svc_map)
 					     num_rings_per_srv);
 			ring_pair_index++;
 			ring_index = num_rings_per_srv * ring_pair_index;
-			if (ring_pair_index == ADF_CFG_NUM_SERVICES)
+			if (ring_pair_index == bundle->max_cfg_svc_num)
 				break;
 			ASSIGN_SERV_TO_RINGS(bundle,
 					     ring_index,
@@ -324,7 +338,7 @@ adf_cfg_assign_serv_to_rings(struct adf_cfg_bundle *bundle, u16 ring_to_svc_map)
 			/* unknown service type */
 			pr_err("Unknown service type %d, mask 0x%x.\n",
 			       serv_type,
-			       ring_to_svc_map);
+			       hw_data->ring_to_svc_map);
 		}
 	}
 
@@ -333,13 +347,18 @@ adf_cfg_assign_serv_to_rings(struct adf_cfg_bundle *bundle, u16 ring_to_svc_map)
 
 void
 adf_cfg_init_ring2serv_mapping(struct adf_accel_dev *accel_dev,
-			       struct adf_cfg_bundle *bundle)
+			       struct adf_cfg_bundle *bundle,
+			       struct adf_cfg_device *device)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_cfg_ring *ring_in_bundle;
 	int ring_num = 0;
 
 	bundle->num_of_rings = hw_data->num_rings_per_bank;
+	if (hw_data->num_rings_per_bank >= (2 * ADF_CFG_NUM_SERVICES))
+		bundle->max_cfg_svc_num = ADF_CFG_NUM_SERVICES;
+	else
+		bundle->max_cfg_svc_num = 1;
 
 	bundle->rings =
 	    malloc(bundle->num_of_rings * sizeof(struct adf_cfg_ring *),
@@ -356,7 +375,7 @@ adf_cfg_init_ring2serv_mapping(struct adf_accel_dev *accel_dev,
 		bundle->rings[ring_num] = ring_in_bundle;
 	}
 
-	adf_cfg_assign_serv_to_rings(bundle, hw_data->ring_to_svc_map);
+	adf_cfg_assign_serv_to_rings(hw_data, bundle, device);
 
 	return;
 }

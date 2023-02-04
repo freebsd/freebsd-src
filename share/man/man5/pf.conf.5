@@ -2927,6 +2927,10 @@ nat on $ext_if inet proto udp from any port = isakmp to any -\*(Gt ($ext_if) \e
 # (bidirectional).
 binat on $ext_if from 10.1.2.150 to any -\*(Gt $ext_if
 
+# Translate packets arriving on $peer_if addressed to 172.22.16.0/20
+# to the corresponding address in 172.21.16.0/20 (bidirectional).
+binat on $peer_if from 172.21.16.0/20 to any -> 172.22.16.0/20
+
 # RDR
 # Translate incoming packets' destination addresses.
 # As an example, redirect a TCP and UDP port to an internal machine.

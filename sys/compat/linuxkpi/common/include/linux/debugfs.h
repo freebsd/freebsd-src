@@ -56,8 +56,14 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
     struct dentry *parent, void *data,
     const struct file_operations *fops);
 
-struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
+/* TODO: We currently ignore the `file_size` argument. */
+struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
     struct dentry *parent, void *data,
+    const struct file_operations *fops,
+    loff_t file_size);
+
+struct dentry *debugfs_create_file_unsafe(const char *name, umode_t mode,
+struct dentry *parent, void *data,
     const struct file_operations *fops);
 
 struct dentry *debugfs_create_mode_unsafe(const char *name, umode_t mode,
@@ -82,8 +88,24 @@ void debugfs_create_bool(const char *name, umode_t mode, struct dentry *parent,
     bool *value);
 void debugfs_create_u8(const char *name, umode_t mode, struct dentry *parent,
     uint8_t *value);
+void debugfs_create_u16(const char *name, umode_t mode, struct dentry *parent,
+    uint16_t *value);
+void debugfs_create_u32(const char *name, umode_t mode, struct dentry *parent,
+    uint32_t *value);
+void debugfs_create_u64(const char *name, umode_t mode, struct dentry *parent,
+    uint64_t *value);
+void debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent,
+    uint8_t *value);
+void debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent,
+    uint16_t *value);
+void debugfs_create_x32(const char *name, umode_t mode, struct dentry *parent,
+    uint32_t *value);
+void debugfs_create_x64(const char *name, umode_t mode, struct dentry *parent,
+    uint64_t *value);
 void debugfs_create_ulong(const char *name, umode_t mode, struct dentry *parent,
     unsigned long *value);
+void debugfs_create_atomic_t(const char *name, umode_t mode, struct dentry *parent,
+    atomic_t *value);
 
 struct dentry *debugfs_create_blob(const char *name, umode_t mode,
     struct dentry *parent, struct debugfs_blob_wrapper *value);

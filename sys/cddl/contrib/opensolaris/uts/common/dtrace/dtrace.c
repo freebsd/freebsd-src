@@ -9814,7 +9814,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_NOT:
 		case DIF_OP_MOV:
@@ -9826,7 +9826,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_LDSB:
 		case DIF_OP_LDSH:
@@ -9842,7 +9842,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			if (kcheckload)
 				dp->dtdo_buf[pc] = DIF_INSTR_LOAD(op +
 				    DIF_OP_RLDSB - DIF_OP_LDSB, r1, rd);
@@ -9861,7 +9861,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_ULDSB:
 		case DIF_OP_ULDSH:
@@ -9877,7 +9877,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_STB:
 		case DIF_OP_STH:
@@ -9947,7 +9947,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_SETS:
 			if (DIF_INSTR_STRING(instr) >= dp->dtdo_strlen) {
@@ -9957,7 +9957,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_LDGA:
 		case DIF_OP_LDTA:
@@ -9968,7 +9968,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_LDGS:
 		case DIF_OP_LDTS:
@@ -9980,7 +9980,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 			break;
 		case DIF_OP_STGS:
 		case DIF_OP_STTS:
@@ -9998,7 +9998,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			if (rd >= nregs)
 				err += efunc(pc, "invalid register %u\n", rd);
 			if (rd == 0)
-				err += efunc(pc, "cannot write to %r0\n");
+				err += efunc(pc, "cannot write to %%r0\n");
 
 			if (subr == DIF_SUBR_COPYOUT ||
 			    subr == DIF_SUBR_COPYOUTSTR) {

@@ -1,4 +1,4 @@
-# $NetBSD: var-op-expand.mk,v 1.16 2021/12/28 10:47:00 rillig Exp $
+# $NetBSD: var-op-expand.mk,v 1.17 2022/09/08 20:23:45 rillig Exp $
 #
 # Tests for the := variable assignment operator, which expands its
 # right-hand side.
@@ -37,7 +37,7 @@ VAR:=		$$ $$$$ $$$$$$$$
 .endif
 
 
-# reference to a variable containing a literal dollar sign
+# reference to a variable containing literal dollar signs
 REF=		$$ $$$$ $$$$$$$$
 VAR:=		${REF}
 REF=		too late
@@ -49,6 +49,9 @@ REF=		too late
 # reference to an undefined variable
 .undef UNDEF
 VAR:=		<${UNDEF}>
+.if ${VAR} != "<>"
+.  error
+.endif
 UNDEF=		after
 .if ${VAR} != "<after>"
 .  error
@@ -68,6 +71,9 @@ REF=		too late
 # expression with an indirect modifier referring to an undefined variable
 .undef UNDEF
 VAR:=		${:${UNDEF}}
+.if ${VAR} != ""
+.  error
+.endif
 UNDEF=		Uwas undefined
 .if ${VAR} != "was undefined"
 .  error
@@ -99,6 +105,9 @@ UNDEF=		Uwas undefined
 REF2=		<${REF3}>
 REF=		${REF2}
 VAR:=		${REF}
+.if ${VAR} != "<>"
+.  error
+.endif
 REF3=		too late
 .if ${VAR} != "<too late>"
 .  error

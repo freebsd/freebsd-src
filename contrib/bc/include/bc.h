@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -97,13 +97,13 @@ typedef struct BcLexKeyword
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (35)
+#define BC_LEX_NKWS (37)
 
 #else // BC_ENABLE_EXTRA_MATH
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (31)
+#define BC_LEX_NKWS (33)
 
 #endif // BC_ENABLE_EXTRA_MATH
 

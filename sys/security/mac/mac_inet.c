@@ -274,8 +274,8 @@ mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_arp_send, ifp, ifp->if_label, m,
-	    mlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(netinet_arp_send, ifp, if_getmaclabel(ifp),
+	    m, mlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
@@ -319,8 +319,8 @@ mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m)
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_igmp_send, ifp, ifp->if_label, m,
-	    mlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(netinet_igmp_send, ifp, if_getmaclabel(ifp),
+	    m, mlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
 

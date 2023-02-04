@@ -395,15 +395,32 @@ struct l_desc_struct {
 
 #define	linux_copyout_rusage(r, u)	copyout(r, u, sizeof(*r))
 
-/* robust futexes */
-struct linux_robust_list {
-	struct linux_robust_list	*next;
+/* This corresponds to 'struct user_regs_struct' in Linux. */
+struct linux_pt_regset {
+	l_uint ebx;
+	l_uint ecx;
+	l_uint edx;
+	l_uint esi;
+	l_uint edi;
+	l_uint ebp;
+	l_uint eax;
+	l_uint ds;
+	l_uint es;
+	l_uint fs;
+	l_uint gs;
+	l_uint orig_eax;
+	l_uint eip;
+	l_uint cs;
+	l_uint eflags;
+	l_uint esp;
+	l_uint ss;
 };
 
-struct linux_robust_list_head {
-	struct linux_robust_list	list;
-	l_long				futex_offset;
-	struct linux_robust_list	*pending_list;
-};
+#ifdef _KERNEL
+struct reg;
+
+void	bsd_to_linux_regset(const struct reg *b_reg,
+	    struct linux_pt_regset *l_regset);
+#endif /* _KERNEL */
 
 #endif /* !_I386_LINUX_H_ */

@@ -38,6 +38,7 @@ SUBDIR= cat \
 	stty \
 	sync \
 	test \
+	timeout \
 	uuidgen
 
 SUBDIR.${MK_SENDMAIL}+=	rmail

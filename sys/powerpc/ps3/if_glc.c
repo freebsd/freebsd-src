@@ -64,8 +64,8 @@
 static int	glc_probe(device_t);
 static int	glc_attach(device_t);
 static void	glc_init(void *xsc);
-static void	glc_start(struct ifnet *ifp);
-static int	glc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static void	glc_start(if_t ifp);
+static int	glc_ioctl(if_t ifp, u_long cmd, caddr_t data);
 static void	glc_set_multicast(struct glc_softc *sc);
 static int	glc_add_rxbuf(struct glc_softc *sc, int idx);
 static int	glc_add_rxbuf_dma(struct glc_softc *sc, int idx);
@@ -74,8 +74,8 @@ static int	glc_encap(struct glc_softc *sc, struct mbuf **m_head,
 static int	glc_intr_filter(void *xsc);
 static void	glc_intr(void *xsc);
 static void	glc_tick(void *xsc);
-static void	glc_media_status(struct ifnet *ifp, struct ifmediareq *ifmr);
-static int	glc_media_change(struct ifnet *ifp);
+static void	glc_media_status(if_t ifp, struct ifmediareq *ifmr);
+static int	glc_media_change(if_t ifp);
 
 static MALLOC_DEFINE(M_GLC, "gelic", "PS3 GELIC ethernet");
 
@@ -145,7 +145,7 @@ glc_attach(device_t dev)
 	lv1_net_stop_rx_dma(sc->sc_bus, sc->sc_dev, 0);
 
 	sc->sc_ifp = if_alloc(IFT_ETHER);
-	sc->sc_ifp->if_softc = sc;
+	if_setsoftc(sc->sc_ifp, sc);
 
 	/*
 	 * Get MAC address and VLAN id
@@ -253,14 +253,14 @@ glc_attach(device_t dev)
 	 */
 
 	if_initname(sc->sc_ifp, device_get_name(dev), device_get_unit(dev));
-	sc->sc_ifp->if_mtu = ETHERMTU;
-	sc->sc_ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	sc->sc_ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
-	sc->sc_ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_RXCSUM;
-	sc->sc_ifp->if_capenable = IFCAP_HWCSUM | IFCAP_RXCSUM;
-	sc->sc_ifp->if_start = glc_start;
-	sc->sc_ifp->if_ioctl = glc_ioctl;
-	sc->sc_ifp->if_init = glc_init;
+	if_setmtu(sc->sc_ifp, ETHERMTU);
+	if_setflags(sc->sc_ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_sethwassist(sc->sc_ifp, CSUM_TCP | CSUM_UDP);
+	if_setcapabilities(sc->sc_ifp, IFCAP_HWCSUM | IFCAP_RXCSUM);
+	if_setcapenable(sc->sc_ifp, IFCAP_HWCSUM | IFCAP_RXCSUM);
+	if_setstartfn(sc->sc_ifp, glc_start);
+	if_setioctlfn(sc->sc_ifp, glc_ioctl);
+	if_setinitfn(sc->sc_ifp, glc_init);
 
 	ifmedia_init(&sc->sc_media, IFM_IMASK, glc_media_change,
 	    glc_media_status);
@@ -272,12 +272,11 @@ glc_attach(device_t dev)
 	ifmedia_add(&sc->sc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
 
-	IFQ_SET_MAXLEN(&sc->sc_ifp->if_snd, GLC_MAX_TX_PACKETS);
-	sc->sc_ifp->if_snd.ifq_drv_maxlen = GLC_MAX_TX_PACKETS;
-	IFQ_SET_READY(&sc->sc_ifp->if_snd);
+	if_setsendqlen(sc->sc_ifp, GLC_MAX_TX_PACKETS);
+	if_setsendqready(sc->sc_ifp);
 
 	ether_ifattach(sc->sc_ifp, sc->sc_enaddr);
-	sc->sc_ifp->if_hwassist = 0;
+	if_sethwassist(sc->sc_ifp, 0);
 
 	return (0);
 
@@ -339,9 +338,9 @@ glc_init_locked(struct glc_softc *sc)
 		device_printf(sc->sc_self,
 		    "lv1_net_start_rx_dma error: %d\n", error);
 
-	sc->sc_ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	sc->sc_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	sc->sc_ifpflags = sc->sc_ifp->if_flags;
+	if_setdrvflagbits(sc->sc_ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(sc->sc_ifp, 0, IFF_DRV_OACTIVE);
+	sc->sc_ifpflags = if_getflags(sc->sc_ifp);
 
 	sc->sc_wdog_timer = 0;
 	callout_reset(&sc->sc_tick_ch, hz, glc_tick, sc);
@@ -395,9 +394,9 @@ glc_tick(void *xsc)
 }
 
 static void
-glc_start_locked(struct ifnet *ifp)
+glc_start_locked(if_t ifp)
 {
-	struct glc_softc *sc = ifp->if_softc;
+	struct glc_softc *sc = if_getsoftc(ifp);
 	bus_addr_t first, pktdesc;
 	int kickstart = 0;
 	int error;
@@ -406,15 +405,15 @@ glc_start_locked(struct ifnet *ifp)
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	first = 0;
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
 	if (STAILQ_EMPTY(&sc->sc_txdirtyq))
 		kickstart = 1;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, mb_head);
+	while (!if_sendq_empty(ifp)) {
+		mb_head = if_dequeue(ifp);
 
 		if (mb_head == NULL)
 			break;
@@ -422,8 +421,8 @@ glc_start_locked(struct ifnet *ifp)
 		/* Check if the ring buffer is full */
 		if (sc->bsy_txdma_slots > 125) {
 			/* Put the packet back and stop */
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&ifp->if_snd, mb_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if_sendq_prepend(ifp, mb_head);
 			break;
 		}
 
@@ -433,7 +432,7 @@ glc_start_locked(struct ifnet *ifp)
 			mb_head = ether_vlanencap(mb_head, sc->sc_tx_vlan);
 
 		if (glc_encap(sc, &mb_head, &pktdesc)) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -451,9 +450,9 @@ glc_start_locked(struct ifnet *ifp)
 }
 
 static void
-glc_start(struct ifnet *ifp)
+glc_start(if_t ifp)
 {
-	struct glc_softc *sc = ifp->if_softc;
+	struct glc_softc *sc = if_getsoftc(ifp);
 
 	mtx_lock(&sc->sc_mtx);
 	glc_start_locked(ifp);
@@ -461,26 +460,26 @@ glc_start(struct ifnet *ifp)
 }
 
 static int
-glc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+glc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct glc_softc *sc = ifp->if_softc;
+	struct glc_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int err = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
                 mtx_lock(&sc->sc_mtx);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			   ((ifp->if_flags ^ sc->sc_ifpflags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+			   ((if_getflags(ifp) ^ sc->sc_ifpflags) &
 			    (IFF_ALLMULTI | IFF_PROMISC)) != 0)
 				glc_set_multicast(sc);
 			else
 				glc_init_locked(sc);
 		}
-		else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			glc_stop(sc);
-		sc->sc_ifpflags = ifp->if_flags;
+		sc->sc_ifpflags = if_getflags(ifp);
 		mtx_unlock(&sc->sc_mtx);
 		break;
 	case SIOCADDMULTI:
@@ -525,7 +524,7 @@ glc_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 glc_set_multicast(struct glc_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	int naddrs;
 
 	/* Clear multicast filter */
@@ -535,7 +534,7 @@ glc_set_multicast(struct glc_softc *sc)
 	lv1_net_add_multicast_address(sc->sc_bus, sc->sc_dev,
 	    0xffffffffffffL, 0);
 
-	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+	if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 		lv1_net_add_multicast_address(sc->sc_bus, sc->sc_dev, 0, 1);
 	} else {
 		naddrs = if_foreach_llmaddr(ifp, glc_add_maddr, sc);
@@ -711,7 +710,7 @@ glc_rxintr(struct glc_softc *sc)
 {
 	int i, restart_rxdma, error;
 	struct mbuf *m;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	bus_dmamap_sync(sc->sc_dmadesc_tag, sc->sc_rxdmadesc_map,
 	    BUS_DMASYNC_POSTREAD);
@@ -760,7 +759,7 @@ glc_rxintr(struct glc_softc *sc)
 		m_adj(m, 2);
 
 		mtx_unlock(&sc->sc_mtx);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		mtx_lock(&sc->sc_mtx);
 
 	    requeue:
@@ -782,7 +781,7 @@ glc_rxintr(struct glc_softc *sc)
 static void
 glc_txintr(struct glc_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct glc_txsoft *txs;
 	int progress = 0, kickstart = 0, error;
 
@@ -840,11 +839,11 @@ glc_txintr(struct glc_softc *sc)
 		 * We freed some descriptors, so reset IFF_DRV_OACTIVE
 		 * and restart.
 		 */
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		sc->sc_wdog_timer = STAILQ_EMPTY(&sc->sc_txdirtyq) ? 0 : 5;
 
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) &&
+		    !if_sendq_empty(ifp))
 			glc_start_locked(ifp);
 	}
 }
@@ -852,7 +851,7 @@ glc_txintr(struct glc_softc *sc)
 static int
 glc_intr_filter(void *xsc)
 {
-	struct glc_softc *sc = xsc; 
+	struct glc_softc *sc = xsc;
 
 	powerpc_sync();
 	atomic_set_64(&sc->sc_interrupt_status, *sc->sc_hwirq_status);
@@ -862,7 +861,7 @@ glc_intr_filter(void *xsc)
 static void
 glc_intr(void *xsc)
 {
-	struct glc_softc *sc = xsc; 
+	struct glc_softc *sc = xsc;
 	uint64_t status, linkstat, junk;
 
 	mtx_lock(&sc->sc_mtx);
@@ -886,17 +885,16 @@ glc_intr(void *xsc)
 
 		linkstat = (linkstat & GELIC_LINK_UP) ?
 		    LINK_STATE_UP : LINK_STATE_DOWN;
-		if (linkstat != sc->sc_ifp->if_link_state)
-			if_link_state_change(sc->sc_ifp, linkstat);
+		if_link_state_change(sc->sc_ifp, linkstat);
 	}
 
 	mtx_unlock(&sc->sc_mtx);
 }
 
 static void
-glc_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+glc_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct glc_softc *sc = ifp->if_softc; 
+	struct glc_softc *sc = if_getsoftc(ifp);
 	uint64_t status, junk;
 
 	ifmr->ifm_status = IFM_AVALID;
@@ -922,9 +920,9 @@ glc_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-glc_media_change(struct ifnet *ifp)
+glc_media_change(if_t ifp)
 {
-	struct glc_softc *sc = ifp->if_softc; 
+	struct glc_softc *sc = if_getsoftc(ifp);
 	uint64_t mode, junk;
 	int result;
 

@@ -147,7 +147,7 @@ ar40xx_phy_miiforport(struct ar40xx_softc *sc, int port)
 	return (device_get_softc(sc->sc_phys.miibus[phy]));
 }
 
-struct ifnet *
+if_t 
 ar40xx_phy_ifpforport(struct ar40xx_softc *sc, int port)
 {
 	int phy;
@@ -159,13 +159,13 @@ ar40xx_phy_ifpforport(struct ar40xx_softc *sc, int port)
 }
 
 static int
-ar40xx_ifmedia_upd(struct ifnet *ifp)
+ar40xx_ifmedia_upd(if_t ifp)
 {
-	struct ar40xx_softc *sc = ifp->if_softc;
-	struct mii_data *mii = ar40xx_phy_miiforport(sc, ifp->if_dunit);
+	struct ar40xx_softc *sc = if_getsoftc(ifp);
+	struct mii_data *mii = ar40xx_phy_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
 
 	AR40XX_DPRINTF(sc, AR40XX_DBG_PORT_STATUS, "%s: called, PHY %d\n",
-	    __func__, ifp->if_dunit);
+	    __func__, ifp->if_dunit); /* XXX - DRVAPI */
 
 	if (mii == NULL)
 		return (ENXIO);
@@ -174,13 +174,13 @@ ar40xx_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-ar40xx_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+ar40xx_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct ar40xx_softc *sc = ifp->if_softc;
-	struct mii_data *mii = ar40xx_phy_miiforport(sc, ifp->if_dunit);
+	struct ar40xx_softc *sc = if_getsoftc(ifp);
+	struct mii_data *mii = ar40xx_phy_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
 
 	AR40XX_DPRINTF(sc, AR40XX_DBG_PORT_STATUS, "%s: called, PHY %d\n",
-	    __func__, ifp->if_dunit);
+	    __func__, ifp->if_dunit); /* XXX - DRVAPI */
 
 	if (mii == NULL)
 		return;

@@ -138,10 +138,10 @@ struct l_fpstate {
 	u_int64_t rdp;
 	u_int32_t mxcsr;
 	u_int32_t mxcsr_mask;
-	u_int32_t st_space[32];
-	u_int32_t xmm_space[64];
+	u_int8_t st[8][16];
+	u_int8_t xmm[16][16];
 	u_int32_t reserved2[24];
-};
+} __aligned(16);
 
 struct l_sigcontext {
 	l_ulong		sc_r8;
@@ -189,6 +189,7 @@ struct l_ucontext {
 struct l_rt_sigframe {
 	struct l_ucontext	sf_uc;
 	struct l_siginfo	sf_si;
+	struct l_fpstate 	sf_fs;
 };
 
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */

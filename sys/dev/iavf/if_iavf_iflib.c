@@ -761,7 +761,7 @@ iavf_if_init(if_ctx_t ctx)
 	/* Make sure queues are disabled */
 	iavf_disable_queues_with_retries(sc);
 
-	bcopy(IF_LLADDR(ifp), tmpaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(ifp), tmpaddr, ETHER_ADDR_LEN);
 	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) &&
 	    (iavf_validate_mac_addr(tmpaddr) == IAVF_SUCCESS)) {
 		error = iavf_del_mac_filter(sc, hw->mac.addr);
@@ -1540,12 +1540,12 @@ iavf_setup_interface(struct iavf_sc *sc)
 {
 	struct iavf_vsi *vsi = &sc->vsi;
 	if_ctx_t ctx = vsi->ctx;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	iavf_dbg_init(sc, "begin\n");
 
 	vsi->shared->isc_max_frame_size =
-	    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN
+	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN
 	    + ETHER_VLAN_ENCAP_LEN;
 
 	iavf_set_initial_baudrate(ifp);

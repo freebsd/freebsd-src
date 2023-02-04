@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_private.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/vnet.h>
@@ -343,6 +344,31 @@ im6o_mc_filter(const struct ip6_moptions *imo, const struct ifnet *ifp,
 		return (MCAST_NOTSMEMBER);
 
 	return (MCAST_PASS);
+}
+
+/*
+ * Look up an in6_multi record for an IPv6 multicast address
+ * on the interface ifp.
+ * If no record found, return NULL.
+ *
+ * SMPng: The IN6_MULTI_LOCK and must be held and must be in network epoch.
+ */
+struct in6_multi *
+in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
+{
+	struct ifmultiaddr *ifma;
+	struct in6_multi *inm;
+
+	NET_EPOCH_ASSERT();
+
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		inm = in6m_ifmultiaddr_get_inm(ifma);
+		if (inm == NULL)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
+			return (inm);
+	}
+	return (NULL);
 }
 
 /*

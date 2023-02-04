@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_vlan_var.h>
 #include <net/if_dl.h>
 #include <net/bpf.h>
@@ -2348,6 +2349,13 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 	NET_EPOCH_EXIT(et);
 }
 
+void
+bpf_tap_if(if_t ifp, u_char *pkt, u_int pktlen)
+{
+	if (bpf_peers_present(ifp->if_bpf))
+		bpf_tap(ifp->if_bpf, pkt, pktlen);
+}
+
 #define	BPF_CHECK_DIRECTION(d, r, i)				\
 	    (((d)->bd_direction == BPF_D_IN && (r) != (i)) ||	\
 	    ((d)->bd_direction == BPF_D_OUT && (r) == (i)))
@@ -2408,6 +2416,15 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	NET_EPOCH_EXIT(et);
 }
 
+void
+bpf_mtap_if(if_t ifp, struct mbuf *m)
+{
+	if (bpf_peers_present(ifp->if_bpf)) {
+		M_ASSERTVALID(m);
+		bpf_mtap(ifp->if_bpf, m);
+	}
+}
+
 /*
  * Incoming linkage from device drivers, when packet is in
  * an mbuf chain and to be prepended by a contiguous header.
@@ -2463,6 +2480,15 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 		}
 	}
 	NET_EPOCH_EXIT(et);
+}
+
+void
+bpf_mtap2_if(if_t ifp, void *data, u_int dlen, struct mbuf *m)
+{
+	if (bpf_peers_present(ifp->if_bpf)) {
+		M_ASSERTVALID(m);
+		bpf_mtap2(ifp->if_bpf, data, dlen, m);
+	}
 }
 
 #undef	BPF_CHECK_DIRECTION

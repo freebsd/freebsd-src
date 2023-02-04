@@ -23,6 +23,7 @@
         3,
         4
       ],
+      "granularity-lw": 155,
       "mbuf-current": 10,
       "mbuf-cache": 20,
       "mbuf-total": 30,

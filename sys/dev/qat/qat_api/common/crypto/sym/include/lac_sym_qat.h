@@ -206,4 +206,43 @@ void LacSymQat_LaPacketCommandFlagSet(Cpa32U qatPacketType,
 void LacSymQat_LaSetDefaultFlags(icp_qat_fw_serv_specif_flags *laCmdFlags,
 				 CpaCySymOp symOp);
 
+/**
+ ******************************************************************************
+ * @ingroup LacSymQat
+ *
+ *
+ * @description
+ *      this function defines whether the shared constants table can be used
+ *      for a particular cipher and hash algorithm
+ *
+ * @param[in]   ptr to session
+
+ * @param[in]   ptr to return offset into table for cipher config
+
+ * @param[in]   ptr to return offset into table for hash config
+ *
+ * @return CPA_TRUE if Constants table is available for use, CPA_FALSE if it's
+ *         not.
+ *
+ *****************************************************************************/
+CpaBoolean LacSymQat_UseSymConstantsTable(lac_session_desc_t *pSession,
+					  Cpa8U *cipherOffset,
+					  Cpa8U *hashOffset);
+
+/**
+ ******************************************************************************
+ * @ingroup LacSymQat
+ *
+ *
+ * @description
+ *      this function calculates whether the optimized content descriptor can
+ *      be used for a particular chained cipher and hash algorithm
+ *
+ * @param[in]   ptr to session
+ *
+ * @return CPA_TRUE if optimized CD can be used, CPA_FALSE if it's not.
+ *
+ *****************************************************************************/
+CpaBoolean LacSymQat_UseOptimisedContentDesc(lac_session_desc_t *pSession);
+
 #endif /* LAC_SYM_QAT_H */

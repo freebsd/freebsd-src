@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #define	A3700_TCLK_250MHZ		250000000
 
 /* Device Register Initialization */
-STATIC int mvneta_initreg(struct ifnet *);
+STATIC int mvneta_initreg(if_t);
 
 /* Descriptor Ring Control for each of queues */
 STATIC int mvneta_ring_alloc_rx_queue(struct mvneta_softc *, int);
@@ -111,10 +111,10 @@ STATIC void mvneta_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 STATIC int mvneta_dma_create(struct mvneta_softc *);
 
 /* Rx/Tx Queue Control */
-STATIC int mvneta_rx_queue_init(struct ifnet *, int);
-STATIC int mvneta_tx_queue_init(struct ifnet *, int);
-STATIC int mvneta_rx_queue_enable(struct ifnet *, int);
-STATIC int mvneta_tx_queue_enable(struct ifnet *, int);
+STATIC int mvneta_rx_queue_init(if_t, int);
+STATIC int mvneta_tx_queue_init(if_t, int);
+STATIC int mvneta_rx_queue_enable(if_t, int);
+STATIC int mvneta_tx_queue_enable(if_t, int);
 STATIC void mvneta_rx_lockq(struct mvneta_softc *, int);
 STATIC void mvneta_rx_unlockq(struct mvneta_softc *, int);
 STATIC void mvneta_tx_lockq(struct mvneta_softc *, int);
@@ -130,19 +130,19 @@ STATIC void mvneta_tick(void *);
 STATIC int mvneta_xmitfast_locked(struct mvneta_softc *, int, struct mbuf **);
 STATIC int mvneta_xmit_locked(struct mvneta_softc *, int);
 #ifdef MVNETA_MULTIQUEUE
-STATIC int mvneta_transmit(struct ifnet *, struct mbuf *);
+STATIC int mvneta_transmit(if_t, struct mbuf *);
 #else /* !MVNETA_MULTIQUEUE */
-STATIC void mvneta_start(struct ifnet *);
+STATIC void mvneta_start(if_t);
 #endif
-STATIC void mvneta_qflush(struct ifnet *);
+STATIC void mvneta_qflush(if_t);
 STATIC void mvneta_tx_task(void *, int);
-STATIC int mvneta_ioctl(struct ifnet *, u_long, caddr_t);
+STATIC int mvneta_ioctl(if_t, u_long, caddr_t);
 STATIC void mvneta_init(void *);
 STATIC void mvneta_init_locked(void *);
 STATIC void mvneta_stop(struct mvneta_softc *);
 STATIC void mvneta_stop_locked(struct mvneta_softc *);
-STATIC int mvneta_mediachange(struct ifnet *);
-STATIC void mvneta_mediastatus(struct ifnet *, struct ifmediareq *);
+STATIC int mvneta_mediachange(if_t);
+STATIC void mvneta_mediastatus(if_t, struct ifmediareq *);
 STATIC void mvneta_portup(struct mvneta_softc *);
 STATIC void mvneta_portdown(struct mvneta_softc *);
 
@@ -160,7 +160,7 @@ STATIC void mvneta_linkreset(struct mvneta_softc *);
 
 /* Tx Subroutines */
 STATIC int mvneta_tx_queue(struct mvneta_softc *, struct mbuf **, int);
-STATIC void mvneta_tx_set_csumflag(struct ifnet *,
+STATIC void mvneta_tx_set_csumflag(if_t,
     struct mvneta_tx_desc *, struct mbuf *);
 STATIC void mvneta_tx_queue_complete(struct mvneta_softc *, int);
 STATIC void mvneta_tx_drain(struct mvneta_softc *);
@@ -169,7 +169,7 @@ STATIC void mvneta_tx_drain(struct mvneta_softc *);
 STATIC int mvneta_rx(struct mvneta_softc *, int, int);
 STATIC void mvneta_rx_queue(struct mvneta_softc *, int, int);
 STATIC void mvneta_rx_queue_refill(struct mvneta_softc *, int);
-STATIC void mvneta_rx_set_csumflag(struct ifnet *,
+STATIC void mvneta_rx_set_csumflag(if_t,
     struct mvneta_rx_desc *, struct mbuf *);
 STATIC void mvneta_rx_buf_free(struct mvneta_softc *, struct mvneta_buf *);
 
@@ -523,7 +523,7 @@ int
 mvneta_attach(device_t self)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	device_t child;
 	int ifm_target;
 	int q, error;
@@ -625,47 +625,46 @@ mvneta_attach(device_t self)
 	 * We can support 802.1Q VLAN-sized frames and jumbo
 	 * Ethernet frames.
 	 */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU;
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU, 0);
 
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 #ifdef MVNETA_MULTIQUEUE
-	ifp->if_transmit = mvneta_transmit;
-	ifp->if_qflush = mvneta_qflush;
+	if_settransmitfn(ifp, mvneta_transmit);
+	if_setqflushfn(ifp, mvneta_qflush);
 #else /* !MVNETA_MULTIQUEUE */
-	ifp->if_start = mvneta_start;
-	ifp->if_snd.ifq_drv_maxlen = MVNETA_TX_RING_CNT - 1;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setstartfn(ifp, mvneta_start);
+	if_setsendqlen(ifp, MVNETA_TX_RING_CNT - 1);
+	if_setsendqready(ifp);
 #endif
-	ifp->if_init = mvneta_init;
-	ifp->if_ioctl = mvneta_ioctl;
+	if_setinitfn(ifp, mvneta_init);
+	if_setioctlfn(ifp, mvneta_ioctl);
 
 	/*
 	 * We can do IPv4/TCPv4/UDPv4/TCPv6/UDPv6 checksums in hardware.
 	 */
-	ifp->if_capabilities |= IFCAP_HWCSUM;
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
 
 	/*
 	 * As VLAN hardware tagging is not supported
 	 * but is necessary to perform VLAN hardware checksums,
 	 * it is done in the driver
 	 */
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM, 0);
 
 	/*
 	 * Currently IPv6 HW checksum is broken, so make sure it is disabled.
 	 */
-	ifp->if_capabilities &= ~IFCAP_HWCSUM_IPV6;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapabilitiesbit(ifp, 0, IFCAP_HWCSUM_IPV6);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	/*
 	 * Disabled option(s):
 	 * - Support for Large Receive Offload
 	 */
-	ifp->if_capabilities |= IFCAP_LRO;
+	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
 
-	ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+	if_sethwassist(ifp, CSUM_IP | CSUM_TCP | CSUM_UDP);
 
 	sc->rx_frame_size = MCLBYTES; /* ether_ifattach() always sets normal mtu */
 
@@ -883,7 +882,7 @@ STATIC int
 mvneta_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t smi, val;
 	int i;
 
@@ -934,14 +933,14 @@ mvneta_miibus_readreg(device_t dev, int phy, int reg)
 	mtx_unlock(&mii_mutex);
 
 #ifdef MVNETA_KTR
-	CTR3(KTR_SPARE2, "%s i=%d, timeout=%d\n", ifp->if_xname, i,
+	CTR3(KTR_SPARE2, "%s i=%d, timeout=%d\n", if_getname(ifp), i,
 	    MVNETA_PHY_TIMEOUT);
 #endif
 
 	val = smi & MVNETA_SMI_DATA_MASK;
 
 #ifdef MVNETA_KTR
-	CTR4(KTR_SPARE2, "%s phy=%d, reg=%#x, val=%#x\n", ifp->if_xname, phy,
+	CTR4(KTR_SPARE2, "%s phy=%d, reg=%#x, val=%#x\n", if_getname(ifp), phy,
 	    reg, val);
 #endif
 	return (val);
@@ -951,14 +950,14 @@ STATIC int
 mvneta_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t smi;
 	int i;
 
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 #ifdef MVNETA_KTR
-	CTR4(KTR_SPARE2, "%s phy=%d, reg=%#x, val=%#x\n", ifp->if_xname,
+	CTR4(KTR_SPARE2, "%s phy=%d, reg=%#x, val=%#x\n", if_name(ifp),
 	    phy, reg, val);
 #endif
 
@@ -1092,15 +1091,15 @@ mvneta_portdown(struct mvneta_softc *sc)
  *  the device is not enabled here.
  */
 STATIC int
-mvneta_initreg(struct ifnet *ifp)
+mvneta_initreg(if_t ifp)
 {
 	struct mvneta_softc *sc;
 	int q;
 	uint32_t reg;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 #ifdef MVNETA_KTR
-	CTR1(KTR_SPARE2, "%s initializing device register", ifp->if_xname);
+	CTR1(KTR_SPARE2, "%s initializing device register", if_name(ifp));
 #endif
 
 	/* Disable Legacy WRR, Disable EJP, Release from reset. */
@@ -1153,7 +1152,7 @@ mvneta_initreg(struct ifnet *ifp)
 	/* Port MAC Control set 0 */
 	reg  = MVNETA_PMACC0_MUSTSET;	/* must write 0x1 */
 	reg &= ~MVNETA_PMACC0_PORTEN;	/* port is still disabled */
-	reg |= MVNETA_PMACC0_FRAMESIZELIMIT(ifp->if_mtu + MVNETA_ETHER_SIZE);
+	reg |= MVNETA_PMACC0_FRAMESIZELIMIT(if_getmtu(ifp) + MVNETA_ETHER_SIZE);
 	MVNETA_WRITE(sc, MVNETA_PMACC0, reg);
 
 	/* Port MAC Control set 2 */
@@ -1393,7 +1392,7 @@ mvneta_ring_init_rx_queue(struct mvneta_softc *sc, int q)
 
 	/* Initialize LRO */
 	rx->lro_enabled = FALSE;
-	if ((sc->ifp->if_capenable & IFCAP_LRO) != 0) {
+	if ((if_getcapenable(sc->ifp) & IFCAP_LRO) != 0) {
 		lro = &rx->lro;
 		error = tcp_lro_init(lro);
 		if (error != 0)
@@ -1494,13 +1493,13 @@ mvneta_ring_flush_rx_queue(struct mvneta_softc *sc, int q)
  * Rx/Tx Queue Control
  */
 STATIC int
-mvneta_rx_queue_init(struct ifnet *ifp, int q)
+mvneta_rx_queue_init(if_t ifp, int q)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_rx_ring *rx;
 	uint32_t reg;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	KASSERT_RX_MTX(sc, q);
 	rx =  MVNETA_RX_RING(sc, q);
 	DASSERT(rx->desc_pa != 0);
@@ -1513,14 +1512,14 @@ mvneta_rx_queue_init(struct ifnet *ifp, int q)
 	reg |= MVNETA_PRXDQS_DESCRIPTORSQUEUESIZE(MVNETA_RX_RING_CNT);
 	MVNETA_WRITE(sc, MVNETA_PRXDQS(q), reg);
 #ifdef MVNETA_KTR
-	CTR3(KTR_SPARE2, "%s PRXDQS(%d): %#x", ifp->if_xname, q,
+	CTR3(KTR_SPARE2, "%s PRXDQS(%d): %#x", if_name(ifp), q,
 	    MVNETA_READ(sc, MVNETA_PRXDQS(q)));
 #endif
 	/* Rx packet offset address */
 	reg = MVNETA_PRXC_PACKETOFFSET(MVNETA_PACKET_OFFSET >> 3);
 	MVNETA_WRITE(sc, MVNETA_PRXC(q), reg);
 #ifdef MVNETA_KTR
-	CTR3(KTR_SPARE2, "%s PRXC(%d): %#x", ifp->if_xname, q,
+	CTR3(KTR_SPARE2, "%s PRXC(%d): %#x", if_name(ifp), q,
 	    MVNETA_READ(sc, MVNETA_PRXC(q)));
 #endif
 
@@ -1530,13 +1529,13 @@ mvneta_rx_queue_init(struct ifnet *ifp, int q)
 }
 
 STATIC int
-mvneta_tx_queue_init(struct ifnet *ifp, int q)
+mvneta_tx_queue_init(if_t ifp, int q)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_tx_ring *tx;
 	uint32_t reg;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	KASSERT_TX_MTX(sc, q);
 	tx = MVNETA_TX_RING(sc, q);
 	DASSERT(tx->desc_pa != 0);
@@ -1554,13 +1553,13 @@ mvneta_tx_queue_init(struct ifnet *ifp, int q)
 }
 
 STATIC int
-mvneta_rx_queue_enable(struct ifnet *ifp, int q)
+mvneta_rx_queue_enable(if_t ifp, int q)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_rx_ring *rx;
 	uint32_t reg;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	rx = MVNETA_RX_RING(sc, q);
 	KASSERT_RX_MTX(sc, q);
 
@@ -1586,12 +1585,12 @@ mvneta_rx_queue_enable(struct ifnet *ifp, int q)
 }
 
 STATIC int
-mvneta_tx_queue_enable(struct ifnet *ifp, int q)
+mvneta_tx_queue_enable(if_t ifp, int q)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_tx_ring *tx;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	tx = MVNETA_TX_RING(sc, q);
 	KASSERT_TX_MTX(sc, q);
 
@@ -1693,13 +1692,13 @@ STATIC void
 mvneta_rxtxth_intr(void *arg)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t ic, queues;
 
 	sc = arg;
 	ifp = sc->ifp;
 #ifdef MVNETA_KTR
-	CTR1(KTR_SPARE2, "%s got RXTX_TH_Intr", ifp->if_xname);
+	CTR1(KTR_SPARE2, "%s got RXTX_TH_Intr", if_name(ifp));
 #endif
 	ic = MVNETA_READ(sc, MVNETA_PRXTXTIC);
 	if (ic == 0)
@@ -1713,13 +1712,13 @@ mvneta_rxtxth_intr(void *arg)
 		mvneta_misc_intr(sc);
 		mvneta_sc_unlock(sc);
 	}
-	if (__predict_false(!(ifp->if_drv_flags & IFF_DRV_RUNNING)))
+	if (__predict_false(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)))
 		return;
 	/* RxTxTH interrupt */
 	queues = MVNETA_PRXTXTI_GET_RBICTAPQ(ic);
 	if (__predict_true(queues)) {
 #ifdef MVNETA_KTR
-		CTR1(KTR_SPARE2, "%s got PRXTXTIC: +RXEOF", ifp->if_xname);
+		CTR1(KTR_SPARE2, "%s got PRXTXTIC: +RXEOF", if_name(ifp));
 #endif
 		/* At the moment the driver support only one RX queue. */
 		DASSERT(MVNETA_IS_QUEUE_SET(queues, 0));
@@ -1734,7 +1733,7 @@ mvneta_misc_intr(struct mvneta_softc *sc)
 	int claimed = 0;
 
 #ifdef MVNETA_KTR
-	CTR1(KTR_SPARE2, "%s got MISC_INTR", sc->ifp->if_xname);
+	CTR1(KTR_SPARE2, "%s got MISC_INTR", if_name(sc->ifp));
 #endif
 	KASSERT_SC_MTX(sc);
 
@@ -1778,7 +1777,7 @@ mvneta_tick(void *arg)
 	fc_curr = sc->sysctl_mib[MVNETA_MIB_FC_GOOD_IDX].counter;
 
 
-	if (sc->phy_attached && sc->ifp->if_flags & IFF_UP) {
+	if (sc->phy_attached && if_getflags(sc->ifp) & IFF_UP) {
 		mvneta_sc_lock(sc);
 		mii_tick(sc->mii);
 
@@ -1834,7 +1833,7 @@ timeout:
 }
 
 STATIC void
-mvneta_qflush(struct ifnet *ifp)
+mvneta_qflush(if_t ifp)
 {
 #ifdef MVNETA_MULTIQUEUE
 	struct mvneta_softc *sc;
@@ -1842,7 +1841,7 @@ mvneta_qflush(struct ifnet *ifp)
 	struct mbuf *m;
 	size_t q;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	for (q = 0; q < MVNETA_TX_QNUM_MAX; q++) {
 		tx = MVNETA_TX_RING(sc, q);
@@ -1860,12 +1859,12 @@ mvneta_tx_task(void *arg, int pending)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_tx_ring *tx;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	tx = arg;
 	ifp = tx->ifp;
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	mvneta_tx_lockq(sc, tx->qidx);
 	error = mvneta_xmit_locked(sc, tx->qidx);
@@ -1882,7 +1881,7 @@ STATIC int
 mvneta_xmitfast_locked(struct mvneta_softc *sc, int q, struct mbuf **m)
 {
 	struct mvneta_tx_ring *tx;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	KASSERT_TX_MTX(sc, q);
@@ -1923,14 +1922,14 @@ mvneta_xmitfast_locked(struct mvneta_softc *sc, int q, struct mbuf **m)
 
 #ifdef MVNETA_MULTIQUEUE
 STATIC int
-mvneta_transmit(struct ifnet *ifp, struct mbuf *m)
+mvneta_transmit(if_t ifp, struct mbuf *m)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_tx_ring *tx;
 	int error;
 	int q;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	/* Use default queue if there is no flow id as thread can migrate. */
 	if (__predict_true(M_HASHTYPE_GET(m) != M_HASHTYPE_NONE))
@@ -1974,7 +1973,7 @@ mvneta_transmit(struct ifnet *ifp, struct mbuf *m)
 STATIC int
 mvneta_xmit_locked(struct mvneta_softc *sc, int q)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mvneta_tx_ring *tx;
 	struct mbuf *m;
 	int error;
@@ -2000,13 +1999,13 @@ mvneta_xmit_locked(struct mvneta_softc *sc, int q)
 }
 #else /* !MVNETA_MULTIQUEUE */
 STATIC void
-mvneta_start(struct ifnet *ifp)
+mvneta_start(if_t ifp)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_tx_ring *tx;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	tx = MVNETA_TX_RING(sc, 0);
 
 	mvneta_tx_lockq(sc, 0);
@@ -2020,7 +2019,7 @@ mvneta_start(struct ifnet *ifp)
 STATIC int
 mvneta_xmit_locked(struct mvneta_softc *sc, int q)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	int error;
 
@@ -2028,15 +2027,15 @@ mvneta_xmit_locked(struct mvneta_softc *sc, int q)
 	ifp = sc->ifp;
 	error = 0;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	while (!if_sendq_empty(ifp)) {
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 
 		error = mvneta_xmitfast_locked(sc, q, &m);
 		if (__predict_false(error != 0)) {
 			if (m != NULL)
-				IFQ_DRV_PREPEND(&ifp->if_snd, m);
+				if_sendq_prepend(ifp, m);
 			break;
 		}
 	}
@@ -2046,7 +2045,7 @@ mvneta_xmit_locked(struct mvneta_softc *sc, int q)
 #endif
 
 STATIC int
-mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+mvneta_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct mvneta_softc *sc;
 	struct mvneta_rx_ring *rx;
@@ -2058,52 +2057,52 @@ mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	error = 0;
 	reinit = false;
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		mvneta_sc_lock(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				flags = ifp->if_flags ^ sc->mvneta_if_flags;
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				flags = if_getflags(ifp) ^ sc->mvneta_if_flags;
 
 				if (flags != 0)
-					sc->mvneta_if_flags = ifp->if_flags;
+					sc->mvneta_if_flags = if_getflags(ifp);
 
 				if ((flags & IFF_PROMISC) != 0)
 					mvneta_filter_setup(sc);
 			} else {
 				mvneta_init_locked(sc);
-				sc->mvneta_if_flags = ifp->if_flags;
+				sc->mvneta_if_flags = if_getflags(ifp);
 				if (sc->phy_attached)
 					mii_mediachg(sc->mii);
 				mvneta_sc_unlock(sc);
 				break;
 			}
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			mvneta_stop_locked(sc);
 
-		sc->mvneta_if_flags = ifp->if_flags;
+		sc->mvneta_if_flags = if_getflags(ifp);
 		mvneta_sc_unlock(sc);
 		break;
 	case SIOCSIFCAP:
-		if (ifp->if_mtu > sc->tx_csum_limit &&
+		if (if_getmtu(ifp) > sc->tx_csum_limit &&
 		    ifr->ifr_reqcap & IFCAP_TXCSUM)
 			ifr->ifr_reqcap &= ~IFCAP_TXCSUM;
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable &= ~IFCAP_HWCSUM;
-			ifp->if_capenable |= IFCAP_HWCSUM & ifr->ifr_reqcap;
-			if (ifp->if_capenable & IFCAP_TXCSUM)
-				ifp->if_hwassist = CSUM_IP | CSUM_TCP |
-				    CSUM_UDP;
+			if_setcapenablebit(ifp, IFCAP_HWCSUM & ifr->ifr_reqcap,
+			    IFCAP_HWCSUM);
+			if (if_getcapenable(ifp) & IFCAP_TXCSUM)
+				if_sethwassist(ifp, CSUM_IP | CSUM_TCP |
+				    CSUM_UDP);
 			else
-				ifp->if_hwassist = 0;
+				if_sethwassist(ifp, 0);
 		}
 		if (mask & IFCAP_LRO) {
 			mvneta_sc_lock(sc);
-			ifp->if_capenable ^= IFCAP_LRO;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			if_togglecapenable(ifp, IFCAP_LRO);
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 				for (q = 0; q < MVNETA_RX_QNUM_MAX; q++) {
 					rx = MVNETA_RX_RING(sc, q);
 					rx->lro_enabled = !rx->lro_enabled;
@@ -2139,26 +2138,26 @@ mvneta_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    MVNETA_ETHER_SIZE) {
 			error = EINVAL;
 		} else {
-			ifp->if_mtu = ifr->ifr_mtu;
+			if_setmtu(ifp, ifr->ifr_mtu);
 			mvneta_sc_lock(sc);
-			if (ifp->if_mtu + MVNETA_ETHER_SIZE <= MCLBYTES) {
+			if (if_getmtu(ifp) + MVNETA_ETHER_SIZE <= MCLBYTES) {
 				sc->rx_frame_size = MCLBYTES;
 			} else {
 				sc->rx_frame_size = MJUM9BYTES;
 			}
-			if (ifp->if_mtu > sc->tx_csum_limit) {
-				ifp->if_capenable &= ~IFCAP_TXCSUM;
-				ifp->if_hwassist = 0;
+			if (if_getmtu(ifp) > sc->tx_csum_limit) {
+				if_setcapenablebit(ifp, 0, IFCAP_TXCSUM);
+				if_sethwassist(ifp, 0);
 			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist = CSUM_IP | CSUM_TCP |
-					CSUM_UDP;
+				if_setcapenablebit(ifp, IFCAP_TXCSUM, 0);
+				if_sethwassist(ifp, CSUM_IP | CSUM_TCP |
+					CSUM_UDP);
 			}
 			/*
 			 * Reinitialize RX queues.
 			 * We need to update RX descriptor size.
 			 */
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				reinit = true;
 				mvneta_stop_locked(sc);
 			}
@@ -2194,7 +2193,7 @@ STATIC void
 mvneta_init_locked(void *arg)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t reg;
 	int q, cpu;
 
@@ -2202,14 +2201,14 @@ mvneta_init_locked(void *arg)
 	ifp = sc->ifp;
 
 	if (!device_is_attached(sc->dev) ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	mvneta_disable_intr(sc);
 	callout_stop(&sc->tick_ch);
 
 	/* Get the latest mac address */
-	bcopy(IF_LLADDR(ifp), sc->enaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(ifp), sc->enaddr, ETHER_ADDR_LEN);
 	mvneta_set_mac_address(sc, sc->enaddr);
 	mvneta_filter_setup(sc);
 
@@ -2222,7 +2221,7 @@ mvneta_init_locked(void *arg)
 	reg  = MVNETA_READ(sc, MVNETA_PMACC0);
 	reg |= MVNETA_PMACC0_PORTEN;
 	reg &= ~MVNETA_PMACC0_FRAMESIZELIMIT_MASK;
-	reg |= MVNETA_PMACC0_FRAMESIZELIMIT(ifp->if_mtu + MVNETA_ETHER_SIZE);
+	reg |= MVNETA_PMACC0_FRAMESIZELIMIT(if_getmtu(ifp) + MVNETA_ETHER_SIZE);
 	MVNETA_WRITE(sc, MVNETA_PMACC0, reg);
 
 	/* Allow access to each TXQ/RXQ from both CPU's */
@@ -2245,7 +2244,7 @@ mvneta_init_locked(void *arg)
 	/* Set Counter */
 	callout_schedule(&sc->tick_ch, hz);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 }
 
 STATIC void
@@ -2265,19 +2264,19 @@ mvneta_init(void *arg)
 STATIC void
 mvneta_stop_locked(struct mvneta_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t reg;
 	int q;
 
 	ifp = sc->ifp;
-	if (ifp == NULL || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if (ifp == NULL || (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	mvneta_disable_intr(sc);
 
 	callout_stop(&sc->tick_ch);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 
 	/* Link down */
 	if (sc->linkup == TRUE)
@@ -2319,11 +2318,11 @@ mvneta_stop(struct mvneta_softc *sc)
 }
 
 STATIC int
-mvneta_mediachange(struct ifnet *ifp)
+mvneta_mediachange(if_t ifp)
 {
 	struct mvneta_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	if (!sc->phy_attached && !sc->use_inband_status) {
 		/* We shouldn't be here */
@@ -2372,12 +2371,12 @@ mvneta_get_media(struct mvneta_softc *sc, struct ifmediareq *ifmr)
 }
 
 STATIC void
-mvneta_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
+mvneta_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct mvneta_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	if (!sc->phy_attached && !sc->use_inband_status) {
 		ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
@@ -2453,7 +2452,7 @@ mvneta_update_media(struct mvneta_softc *sc, int media)
 
 	mvneta_linkreset(sc);
 
-	running = (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	running = (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0;
 	if (running)
 		mvneta_stop_locked(sc);
 
@@ -2557,7 +2556,7 @@ mvneta_link_isr(struct mvneta_softc *sc)
 
 #ifdef DEBUG
 	device_printf(sc->dev,
-	    "%s: link %s\n", sc->ifp->if_xname, linkup ? "up" : "down");
+	    "%s: link %s\n", if_name(sc->ifp), linkup ? "up" : "down");
 #endif
 }
 
@@ -2574,7 +2573,7 @@ mvneta_linkupdate(struct mvneta_softc *sc, boolean_t linkup)
 
 #ifdef DEBUG
 	device_printf(sc->dev,
-	    "%s: link %s\n", sc->ifp->if_xname, linkup ? "up" : "down");
+	    "%s: link %s\n", if_name(sc->ifp), linkup ? "up" : "down");
 #endif
 }
 
@@ -2674,7 +2673,7 @@ mvneta_linkreset(struct mvneta_softc *sc)
 STATIC int
 mvneta_tx_queue(struct mvneta_softc *sc, struct mbuf **mbufp, int q)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	bus_dma_segment_t txsegs[MVNETA_TX_SEGLIMIT];
 	struct mbuf *mtmp, *mbuf;
 	struct mvneta_tx_ring *tx;
@@ -2723,7 +2722,7 @@ mvneta_tx_queue(struct mvneta_softc *sc, struct mbuf **mbufp, int q)
 	    BUS_DMA_NOWAIT);
 	if (__predict_false(error != 0)) {
 #ifdef MVNETA_KTR
-		CTR3(KTR_SPARE2, "%s:%u bus_dmamap_load_mbuf_sg error=%d", ifp->if_xname, q, error);
+		CTR3(KTR_SPARE2, "%s:%u bus_dmamap_load_mbuf_sg error=%d", if_name(ifp), q, error);
 #endif
 		/* This is the only recoverable error (except EFBIG). */
 		if (error != ENOMEM) {
@@ -2740,7 +2739,7 @@ mvneta_tx_queue(struct mvneta_softc *sc, struct mbuf **mbufp, int q)
 		/* we have no enough descriptors or mbuf is broken */
 #ifdef MVNETA_KTR
 		CTR3(KTR_SPARE2, "%s:%u not enough descriptors txnsegs=%d",
-		    ifp->if_xname, q, txnsegs);
+		    if_name(ifp), q, txnsegs);
 #endif
 		bus_dmamap_unload(sc->txmbuf_dtag, txbuf->dmap);
 		return (ENOBUFS);
@@ -2792,7 +2791,7 @@ mvneta_tx_queue(struct mvneta_softc *sc, struct mbuf **mbufp, int q)
 }
 
 STATIC void
-mvneta_tx_set_csumflag(struct ifnet *ifp,
+mvneta_tx_set_csumflag(if_t ifp,
     struct mvneta_tx_desc *t, struct mbuf *m)
 {
 	struct ether_header *eh;
@@ -2802,7 +2801,7 @@ mvneta_tx_set_csumflag(struct ifnet *ifp,
 	struct ip *ip;
 
 	iphl = ipoff = 0;
-	csum_flags = ifp->if_hwassist & m->m_pkthdr.csum_flags;
+	csum_flags = if_gethwassist(ifp) & m->m_pkthdr.csum_flags;
 	eh = mtod(m, struct ether_header *);
 
 	switch (ntohs(eh->ether_type)) {
@@ -2878,7 +2877,7 @@ mvneta_tx_queue_complete(struct mvneta_softc *sc, int q)
 
 #ifdef MVNETA_KTR
 	CTR3(KTR_SPARE2, "%s:%u tx_complete begin ndesc=%u",
-	    sc->ifp->if_xname, q, ndesc);
+	    if_name(sc->ifp), q, ndesc);
 #endif
 
 	bus_dmamap_sync(sc->tx_dtag, tx->desc_map,
@@ -2889,7 +2888,7 @@ mvneta_tx_queue_complete(struct mvneta_softc *sc, int q)
 #ifdef MVNETA_KTR
 		if (t->flags & MVNETA_TX_F_ES)
 			CTR3(KTR_SPARE2, "%s tx error queue %d desc %d",
-			    sc->ifp->if_xname, q, tx->dma);
+			    if_name(sc->ifp), q, tx->dma);
 #endif
 		txbuf = &tx->txbuf[tx->dma];
 		if (__predict_true(txbuf->m != NULL)) {
@@ -2916,7 +2915,7 @@ mvneta_tx_queue_complete(struct mvneta_softc *sc, int q)
 	}
 #ifdef MVNETA_KTR
 	CTR5(KTR_SPARE2, "%s:%u tx_complete tx_cpu=%d tx_dma=%d tx_used=%d",
-	    sc->ifp->if_xname, q, tx->cpu, tx->dma, tx->used);
+	    if_name(sc->ifp), q, tx->cpu, tx->dma, tx->used);
 #endif
 
 	tx->watchdog_time = ticks;
@@ -3003,7 +3002,7 @@ mvneta_prefetch(void *p)
 STATIC void
 mvneta_rx_queue(struct mvneta_softc *sc, int q, int npkt)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mvneta_rx_ring *rx;
 	struct mvneta_rx_desc *r;
 	struct mvneta_buf *rxbuf;
@@ -3085,7 +3084,7 @@ mvneta_rx_queue(struct mvneta_softc *sc, int q, int npkt)
 		}
 
 		mvneta_rx_unlockq(sc, q);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		mvneta_rx_lockq(sc, q);
 		/*
 		 * Check whether this queue has been disabled in the
@@ -3112,7 +3111,7 @@ rx_error:
 		}
 	}
 #ifdef MVNETA_KTR
-	CTR3(KTR_SPARE2, "%s:%u %u packets received", ifp->if_xname, q, npkt);
+	CTR3(KTR_SPARE2, "%s:%u %u packets received", if_name(ifp), q, npkt);
 #endif
 	/* DMA status update */
 	mvneta_prxsu_update(sc, q, processed);
@@ -3157,7 +3156,7 @@ mvneta_rx_queue_refill(struct mvneta_softc *sc, int q)
 	ndesc = MVNETA_PRXS_GET_NODC(prxs) + MVNETA_PRXS_GET_ODC(prxs);
 	refill = MVNETA_RX_RING_CNT - ndesc;
 #ifdef MVNETA_KTR
-	CTR3(KTR_SPARE2, "%s:%u refill %u packets", sc->ifp->if_xname, q,
+	CTR3(KTR_SPARE2, "%s:%u refill %u packets", if_name(sc->ifp), q,
 	    refill);
 #endif
 	if (__predict_false(refill <= 0))
@@ -3209,7 +3208,7 @@ mvneta_rx_queue_refill(struct mvneta_softc *sc, int q)
 }
 
 STATIC __inline void
-mvneta_rx_set_csumflag(struct ifnet *ifp,
+mvneta_rx_set_csumflag(if_t ifp,
     struct mvneta_rx_desc *r, struct mbuf *m)
 {
 	uint32_t csum_flags;
@@ -3251,7 +3250,7 @@ mvneta_rx_set_csumflag(struct ifnet *ifp,
 STATIC void
 mvneta_filter_setup(struct mvneta_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t dfut[MVNETA_NDFUT], dfsmt[MVNETA_NDFSMT], dfomt[MVNETA_NDFOMT];
 	uint32_t pxc;
 	int i;
@@ -3263,8 +3262,8 @@ mvneta_filter_setup(struct mvneta_softc *sc)
 	memset(dfomt, 0, sizeof(dfomt));
 
 	ifp = sc->ifp;
-	ifp->if_flags |= IFF_ALLMULTI;
-	if (ifp->if_flags & (IFF_ALLMULTI|IFF_PROMISC)) {
+	if_setflagbits(ifp, IFF_ALLMULTI, 0);
+	if (if_getflags(ifp) & (IFF_ALLMULTI | IFF_PROMISC)) {
 		for (i = 0; i < MVNETA_NDFSMT; i++) {
 			dfsmt[i] = dfomt[i] =
 			    MVNETA_DF(0, MVNETA_DF_QUEUE(0) | MVNETA_DF_PASS) |
@@ -3283,16 +3282,16 @@ mvneta_filter_setup(struct mvneta_softc *sc)
 	pxc |= MVNETA_PXC_UDPQ(MVNETA_RX_QNUM_MAX-1);
 	pxc |= MVNETA_PXC_BPDUQ(MVNETA_RX_QNUM_MAX-1);
 	pxc |= MVNETA_PXC_RB | MVNETA_PXC_RBIP | MVNETA_PXC_RBARP;
-	if (ifp->if_flags & IFF_BROADCAST) {
+	if (if_getflags(ifp) & IFF_BROADCAST) {
 		pxc &= ~(MVNETA_PXC_RB | MVNETA_PXC_RBIP | MVNETA_PXC_RBARP);
 	}
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		pxc |= MVNETA_PXC_UPM;
 	}
 	MVNETA_WRITE(sc, MVNETA_PXC, pxc);
 
 	/* Set Destination Address Filter Unicast Table */
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		/* pass all unicast addresses */
 		for (i = 0; i < MVNETA_NDFUT; i++) {
 			dfut[i] =

@@ -24,20 +24,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/endian.h>
+#include <machine/pc/bios.h>
+#include <machine/metadata.h>
 
 #include "stand.h"
 #include "host_syscall.h"
 #include "kboot.h"
+#include "bootstrap.h"
 
 /* Refactor when we do arm64 */
-
-struct memory_segments
-{
-	uint64_t	start;
-	uint64_t	end;
-	uint64_t	type;
-};
 
 enum types {
 	system_ram = 1,
@@ -68,6 +63,9 @@ struct kv
 
 #define MEMMAP "/sys/firmware/memmap"
 
+static struct memory_segments segs[64];	/* make dynamic later */
+static int nr_seg;
+
 static bool
 str2type(struct kv *kv, const char *buf, uint64_t *value)
 {
@@ -82,19 +80,18 @@ str2type(struct kv *kv, const char *buf, uint64_t *value)
 	return false;
 }
 
-static int
-read_memmap(struct memory_segments *segs, int maxseg)
+bool
+enumerate_memory_arch(void)
 {
 	int n;
 	char name[MAXPATHLEN];
 	char buf[80];
 
-	n = 0;
-	do {
+	for (n = 0; n < nitems(segs); n++) {
 		snprintf(name, sizeof(name), "%s/%d/start", MEMMAP, n);
 		if (!file2u64(name, &segs[n].start))
 			break;
-		snprintf(name, sizeof(name), "%s/%d/length", MEMMAP, n);
+		snprintf(name, sizeof(name), "%s/%d/end", MEMMAP, n);
 		if (!file2u64(name, &segs[n].end))
 			break;
 		snprintf(name, sizeof(name), "%s/%d/type", MEMMAP, n);
@@ -102,10 +99,11 @@ read_memmap(struct memory_segments *segs, int maxseg)
 			break;
 		if (!str2type(str2type_kv, buf, &segs[n].type))
 			break;
-		n++;
-	} while (n < maxseg);
+	}
 
-	return n;
+	nr_seg = n;
+
+	return true;
 }
 
 #define BAD_SEG ~0ULL
@@ -118,6 +116,11 @@ find_ram(struct memory_segments *segs, int nr_seg, uint64_t minpa, uint64_t alig
 {
 	uint64_t start;
 
+	printf("minpa %#jx align %#jx sz %#jx maxpa %#jx\n",
+	    (uintmax_t)minpa,
+	    (uintmax_t)align,
+	    (uintmax_t)sz,
+	    (uintmax_t)maxpa);
 	/* XXX assume segs are sorted in numeric order -- assumed not ensured */
 	for (int i = 0; i < nr_seg; i++) {
 		if (segs[i].type != system_ram ||
@@ -143,20 +146,36 @@ uint64_t
 kboot_get_phys_load_segment(void)
 {
 	static uint64_t base_seg = BAD_SEG;
-	struct memory_segments segs[32];
-	int nr_seg;
 
 	if (base_seg != BAD_SEG)
 		return (base_seg);
 
-	nr_seg = read_memmap(segs, nitems(segs));
 	if (nr_seg > 0)
 		base_seg = find_ram(segs, nr_seg, 2ULL << 20, 2ULL << 20,
 		    64ULL << 20, 4ULL << 30);
 	if (base_seg == BAD_SEG) {
 		/* XXX Should fall back to using /proc/iomem maybe? */
 		/* XXX PUNT UNTIL I NEED SOMETHING BETTER */
-		base_seg = 42ULL * (1 << 20); /* Jam it in at the odd-ball address of 42MB so it stands out */
+		base_seg = 300ULL * (1 << 20);
 	}
 	return (base_seg);
+}
+
+void
+bi_loadsmap(struct preloaded_file *kfp)
+{
+	struct bios_smap smap[32], *sm;
+	struct memory_segments *s;
+	int smapnum, len;
+
+	for (smapnum = 0; smapnum < min(32, nr_seg); smapnum++) {
+		sm = &smap[smapnum];
+		s = &segs[smapnum];
+		sm->base = s->start;
+		sm->length = s->end - s->start + 1;
+		sm->type = SMAP_TYPE_MEMORY;
+	}
+
+        len = smapnum * sizeof(struct bios_smap);
+        file_addmetadata(kfp, MODINFOMD_SMAP, len, &smap[0]);
 }

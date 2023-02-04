@@ -1861,8 +1861,15 @@ sousrsend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    td);
 	CURVNET_RESTORE();
 	if (error != 0) {
+		/*
+		 * Clear transient errors for stream protocols if they made
+		 * some progress.  Make exclusion for aio(4) that would
+		 * schedule a new write in case of EWOULDBLOCK and clear
+		 * error itself.  See soaio_process_job().
+		 */
 		if (uio->uio_resid != len &&
 		    (so->so_proto->pr_flags & PR_ATOMIC) == 0 &&
+		    userproc == NULL &&
 		    (error == ERESTART || error == EINTR ||
 		    error == EWOULDBLOCK))
 			error = 0;

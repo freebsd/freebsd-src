@@ -238,7 +238,7 @@ struct iavf_rx_queue {
 struct iavf_vsi {
 	if_ctx_t		ctx;
 	if_softc_ctx_t		shared;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct iavf_sc		*back;
 	device_t		dev;
 	struct iavf_hw		*hw;

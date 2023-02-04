@@ -62,6 +62,7 @@ CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 .if exists(${.CURDIR}/help.i386)
 HELP_FILES=	${.CURDIR}/help.i386
 .endif
+HELP_FILENAME=	loader.help.bios
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"

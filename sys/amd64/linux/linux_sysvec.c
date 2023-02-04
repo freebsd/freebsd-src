@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/linux/linux_x86.h>
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
+#include <compat/linux/linux_elf.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_ioctl.h>
@@ -114,11 +115,6 @@ extern const char *linux_syscallnames[];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-static int	linux_copyout_strings(struct image_params *imgp,
-		    uintptr_t *stack_base);
-static int	linux_fixup_elf(uintptr_t *stack_base,
-		    struct image_params *iparams);
-static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
 static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
@@ -269,146 +265,6 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	return (error);
 }
 
-static int
-linux_fixup_elf(uintptr_t *stack_base, struct image_params *imgp)
-{
-	Elf_Addr *base;
-
-	base = (Elf64_Addr *)*stack_base;
-	base--;
-	if (suword(base, (uint64_t)imgp->args->argc) == -1)
-		return (EFAULT);
-
-	*stack_base = (uintptr_t)base;
-	return (0);
-}
-
-/*
- * Copy strings out to the new process address space, constructing new arg
- * and env vector tables. Return a pointer to the base so that it can be used
- * as the initial stack pointer.
- */
-static int
-linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
-{
-	int argc, envc, error;
-	char **vectp;
-	char *stringp;
-	uintptr_t destp, ustringp;
-	struct ps_strings *arginfo;
-	char canary[LINUX_AT_RANDOM_LEN];
-	size_t execpath_len;
-	struct proc *p;
-
-	p = imgp->proc;
-	arginfo = (struct ps_strings *)PROC_PS_STRINGS(p);
-	destp = (uintptr_t)arginfo;
-
-	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
-		execpath_len = strlen(imgp->execpath) + 1;
-		destp -= execpath_len;
-		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = (void *)destp;
-		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
-		if (error != 0)
-			return (error);
-	}
-
-	/* Prepare the canary for SSP. */
-	arc4rand(canary, sizeof(canary), 0);
-	destp -= roundup(sizeof(canary), sizeof(void *));
-	imgp->canary = (void *)destp;
-	error = copyout(canary, imgp->canary, sizeof(canary));
-	if (error != 0)
-		return (error);
-
-	/* Allocate room for the argument and environment strings. */
-	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(void *));
-	ustringp = destp;
-
-	if (imgp->auxargs) {
-		/*
-		 * Allocate room on the stack for the ELF auxargs
-		 * array.  It has LINUX_AT_COUNT entries.
-		 */
-		destp -= LINUX_AT_COUNT * sizeof(Elf64_Auxinfo);
-		destp = rounddown2(destp, sizeof(void *));
-	}
-
-	vectp = (char **)destp;
-
-	/*
-	 * Allocate room for the argv[] and env vectors including the
-	 * terminating NULL pointers.
-	 */
-	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
-
-	/*
-	 * Starting with 2.24, glibc depends on a 16-byte stack alignment.
-	 * One "long argc" will be prepended later.
-	 */
-	vectp = (char **)((((uintptr_t)vectp + 8) & ~0xF) - 8);
-
-	/* vectp also becomes our initial stack base. */
-	*stack_base = (uintptr_t)vectp;
-
-	stringp = imgp->args->begin_argv;
-	argc = imgp->args->argc;
-	envc = imgp->args->envc;
-
-	/* Copy out strings - arguments and environment. */
-	error = copyout(stringp, (void *)ustringp,
-	    ARG_MAX - imgp->args->stringspace);
-	if (error != 0)
-		return (error);
-
-	/* Fill in "ps_strings" struct for ps, w, etc. */
-	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
-	    suword(&arginfo->ps_nargvstr, argc) != 0)
-		return (EFAULT);
-
-	/* Fill in argument portion of vector table. */
-	for (; argc > 0; --argc) {
-		if (suword(vectp++, ustringp) != 0)
-			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
-	}
-
-	/* A null vector table pointer separates the argp's from the envp's. */
-	if (suword(vectp++, 0) != 0)
-		return (EFAULT);
-
-	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
-	    suword(&arginfo->ps_nenvstr, envc) != 0)
-		return (EFAULT);
-
-	/* Fill in environment portion of vector table. */
-	for (; envc > 0; --envc) {
-		if (suword(vectp++, ustringp) != 0)
-			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
-	}
-
-	/* The end of the vector table is a null pointer. */
-	if (suword(vectp, 0) != 0)
-		return (EFAULT);
-
-	if (imgp->auxargs) {
-		vectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)vectp);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
-
 /*
  * Reset registers to default values on exec.
  */
@@ -456,28 +312,27 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 
 /*
  * Copied from amd64/amd64/machdep.c
- *
- * XXX fpu state need? don't think so
  */
 int
 linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 {
 	struct proc *p;
-	struct l_ucontext uc;
+	struct l_rt_sigframe sf;
 	struct l_sigcontext *context;
 	struct trapframe *regs;
+	mcontext_t mc;
 	unsigned long rflags;
 	sigset_t bmask;
-	int error;
+	int error, i;
 	ksiginfo_t ksi;
 
 	regs = td->td_frame;
-	error = copyin((void *)regs->tf_rbx, &uc, sizeof(uc));
+	error = copyin((void *)regs->tf_rbx, &sf, sizeof(sf));
 	if (error != 0)
 		return (error);
 
 	p = td->td_proc;
-	context = &uc.uc_mcontext;
+	context = &sf.sf_uc.uc_mcontext;
 	rflags = context->sc_rflags;
 
 	/*
@@ -516,7 +371,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 		return (EINVAL);
 	}
 
-	linux_to_bsd_sigset(&uc.uc_sigmask, &bmask);
+	linux_to_bsd_sigset(&sf.sf_uc.uc_sigmask, &bmask);
 	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	regs->tf_rdi    = context->sc_rdi;
@@ -540,6 +395,37 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	regs->tf_err    = context->sc_err;
 	regs->tf_rflags = rflags;
 
+	if (sf.sf_uc.uc_mcontext.sc_fpstate != NULL) {
+		struct savefpu *svfp = (struct savefpu *)mc.mc_fpstate;
+
+		bzero(&mc, sizeof(mc));
+		mc.mc_ownedfp = _MC_FPOWNED_FPU;
+		mc.mc_fpformat = _MC_FPFMT_XMM;
+
+		svfp->sv_env.en_cw = sf.sf_fs.cwd;
+		svfp->sv_env.en_sw = sf.sf_fs.swd;
+		svfp->sv_env.en_tw = sf.sf_fs.twd;
+		svfp->sv_env.en_opcode = sf.sf_fs.fop;
+		svfp->sv_env.en_rip = sf.sf_fs.rip;
+		svfp->sv_env.en_rdp = sf.sf_fs.rdp;
+		svfp->sv_env.en_mxcsr = sf.sf_fs.mxcsr;
+		svfp->sv_env.en_mxcsr_mask = sf.sf_fs.mxcsr_mask;
+		/* FPU registers */
+		for (i = 0; i < nitems(svfp->sv_fp); ++i)
+			bcopy(&sf.sf_fs.st[i], svfp->sv_fp[i].fp_acc.fp_bytes,
+			    sizeof(svfp->sv_fp[i].fp_acc.fp_bytes));
+		/* SSE registers */
+		for (i = 0; i < nitems(svfp->sv_xmm); ++i)
+			bcopy(&sf.sf_fs.xmm[i], svfp->sv_xmm[i].xmm_bytes,
+			    sizeof(svfp->sv_xmm[i].xmm_bytes));
+		error = set_fpcontext(td, &mc, NULL, 0);
+		if (error != 0) {
+			uprintf("pid %d comm %s linux can't restore fpu state %d\n",
+			    p->p_pid, p->p_comm, error);
+			return (error);
+		}
+	}
+
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (EJUSTRETURN);
 }
@@ -558,8 +444,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	caddr_t sp;
 	struct trapframe *regs;
+	struct savefpu *svfp;
+	mcontext_t mc;
 	int sig, code;
-	int oonstack, issiginfo;
+	int oonstack, issiginfo, i;
 
 	td = curthread;
 	p = td->td_proc;
@@ -575,16 +463,29 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	LINUX_CTR4(rt_sendsig, "%p, %d, %p, %u",
 	    catcher, sig, mask, code);
 
-	/* Save user context. */
 	bzero(&sf, sizeof(sf));
-	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_sigmask);
-	sf.sf_uc.uc_mcontext.sc_mask = sf.sf_uc.uc_sigmask;
-
 	sf.sf_uc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
 	sf.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 
+	/* Allocate space for the signal handler context. */
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
+	} else
+		sp = (caddr_t)regs->tf_rsp - 128;
+
+	mtx_unlock(&psp->ps_mtx);
+	PROC_UNLOCK(p);
+
+	/* Make room, keeping the stack aligned. */
+	sp -= sizeof(struct l_rt_sigframe);
+	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
+
+	/* Save user context. */
+	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_sigmask);
+	sf.sf_uc.uc_mcontext.sc_mask   = sf.sf_uc.uc_sigmask;
 	sf.sf_uc.uc_mcontext.sc_rdi    = regs->tf_rdi;
 	sf.sf_uc.uc_mcontext.sc_rsi    = regs->tf_rsi;
 	sf.sf_uc.uc_mcontext.sc_rdx    = regs->tf_rdx;
@@ -608,18 +509,28 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 	sf.sf_uc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
 
-	/* Allocate space for the signal handler context. */
-	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
-	} else
-		sp = (caddr_t)regs->tf_rsp - 128;
-	sp -= sizeof(struct l_rt_sigframe);
-	/* Align to 16 bytes. */
-	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
+	get_fpcontext(td, &mc, NULL, NULL);
+	KASSERT(mc.mc_fpformat != _MC_FPFMT_NODEV, ("fpu not present"));
+	svfp = (struct savefpu *)mc.mc_fpstate;
 
-	mtx_unlock(&psp->ps_mtx);
-	PROC_UNLOCK(p);
+	sf.sf_fs.cwd = svfp->sv_env.en_cw;
+	sf.sf_fs.swd = svfp->sv_env.en_sw;
+	sf.sf_fs.twd = svfp->sv_env.en_tw;
+	sf.sf_fs.fop = svfp->sv_env.en_opcode;
+	sf.sf_fs.rip = svfp->sv_env.en_rip;
+	sf.sf_fs.rdp = svfp->sv_env.en_rdp;
+	sf.sf_fs.mxcsr = svfp->sv_env.en_mxcsr;
+	sf.sf_fs.mxcsr_mask = svfp->sv_env.en_mxcsr_mask;
+	/* FPU registers */
+	for (i = 0; i < nitems(svfp->sv_fp); ++i)
+		bcopy(svfp->sv_fp[i].fp_acc.fp_bytes, &sf.sf_fs.st[i],
+		    sizeof(svfp->sv_fp[i].fp_acc.fp_bytes));
+	/* SSE registers */
+	for (i = 0; i < nitems(svfp->sv_xmm); ++i)
+		bcopy(svfp->sv_xmm[i].xmm_bytes, &sf.sf_fs.xmm[i],
+		    sizeof(svfp->sv_xmm[i].xmm_bytes));
+	sf.sf_uc.uc_mcontext.sc_fpstate = (struct l_fpstate *)((caddr_t)sfp +
+	    offsetof(struct l_rt_sigframe, sf_fs));
 
 	/* Translate the signal. */
 	sig = bsd_to_linux_signal(sig);
@@ -634,6 +545,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
+	fpstate_drop(td);
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rax = 0;
@@ -704,7 +616,7 @@ linux_vsyscall(struct thread *td)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_fixup	= linux_fixup_elf,
+	.sv_fixup	= __elfN(freebsd_fixup),
 	.sv_sendsig	= linux_rt_sendsig,
 	.sv_sigcode	= &_binary_linux_vdso_so_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
@@ -722,7 +634,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
-	.sv_copyout_strings = linux_copyout_strings,
+	.sv_copyout_strings = __linuxN(copyout_strings),
 	.sv_setregs	= linux_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
@@ -880,37 +792,11 @@ linux_vdso_reloc(char *mapping, Elf_Addr offset)
 	}
 }
 
-static char GNULINUX_ABI_VENDOR[] = "GNU";
-static int GNULINUX_ABI_DESC = 0;
-
-static bool
-linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
-{
-	const Elf32_Word *desc;
-	uintptr_t p;
-
-	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
-
-	desc = (const Elf32_Word *)p;
-	if (desc[0] != GNULINUX_ABI_DESC)
-		return (false);
-
-	/*
-	 * For Linux we encode osrel using the Linux convention of
-	 * 	(version << 16) | (major << 8) | (minor)
-	 * See macro in linux_mib.h
-	 */
-	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
-
-	return (true);
-}
-
 static Elf_Brandnote linux64_brandnote = {
-	.hdr.n_namesz	= sizeof(GNULINUX_ABI_VENDOR),
+	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
 	.hdr.n_descsz	= 16,
 	.hdr.n_type	= 1,
-	.vendor		= GNULINUX_ABI_VENDOR,
+	.vendor		= GNU_ABI_VENDOR,
 	.flags		= BN_TRANSLATE_OSREL,
 	.trans_osrel	= linux_trans_osrel
 };

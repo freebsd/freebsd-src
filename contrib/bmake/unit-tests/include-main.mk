@@ -1,4 +1,4 @@
-# $NetBSD: include-main.mk,v 1.7 2022/01/08 23:41:43 rillig Exp $
+# $NetBSD: include-main.mk,v 1.8 2023/01/19 23:26:14 rillig Exp $
 #
 # Until 2020-09-05, the .INCLUDEDFROMFILE magic variable did not behave
 # as described in the manual page.
@@ -24,7 +24,7 @@
 .  endif
 .endfor
 
-.include "include-sub.mk"
+.include "include-sub.inc"
 
 .if !defined(.INCLUDEDFROMFILE)
 .  info main-after-ok

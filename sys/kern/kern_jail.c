@@ -118,6 +118,7 @@ struct prison prison0 = {
 	.pr_flags	= PR_HOST|_PR_IP_SADDRSEL,
 #endif
 	.pr_allow	= PR_ALLOW_ALL_STATIC,
+	.pr_permid	= 1,
 };
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
 
@@ -988,6 +989,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	uint64_t pr_allow_diff;
 	unsigned tallow;
 	char numbuf[12];
+	static uint64_t init_permid = 2;
 
 	error = priv_check(td, PRIV_JAIL_SET);
 	if (!error && (flags & JAIL_ATTACH))
@@ -1617,6 +1619,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		TASK_INIT(&pr->pr_task, 0, prison_complete, pr);
 
 		pr->pr_id = jid;
+		pr->pr_permid = init_permid++;
 		if (inspr != NULL)
 			TAILQ_INSERT_BEFORE(inspr, pr, pr_list);
 		else
@@ -3491,6 +3494,8 @@ prison_check(struct ucred *cred1, struct ucred *cred2)
  * - The root directory (pr_root) of the prison must be
  *   a file system mount point, so the mountd can hang
  *   export information on it.
+ * - The prison's enforce_statfs cannot be 0, so that
+ *   mountd(8) can do exports.
  */
 bool
 prison_check_nfsd(struct ucred *cred)
@@ -3501,6 +3506,8 @@ prison_check_nfsd(struct ucred *cred)
 	if (!prison_allow(cred, PR_ALLOW_NFSD))
 		return (false);
 	if ((cred->cr_prison->pr_root->v_vflag & VV_ROOT) == 0)
+		return (false);
+	if (cred->cr_prison->pr_enforce_statfs == 0)
 		return (false);
 	return (true);
 }
@@ -3529,6 +3536,35 @@ prison_isalive(const struct prison *pr)
 	if (__predict_false(pr->pr_state != PRISON_STATE_ALIVE))
 		return (false);
 	return (true);
+}
+
+/*
+ * Return true if the prison is currently alive.  Identified by pr_permid.
+ */
+bool
+prison_isalive_permid(const uint64_t prison_permid)
+{
+	struct prison *pr;
+	bool alive;
+
+	/*
+	 * permid == 0 --> never assigned to a prison
+	 * permid == 1 --> assigned to prison0, always alive
+	 */
+	if (prison_permid == 0)
+		return (false);
+	else if (prison_permid == 1)
+		return (true);
+	sx_slock(&allprison_lock);
+	TAILQ_FOREACH(pr, &allprison, pr_list) {
+		if (pr->pr_permid == prison_permid) {
+			alive = prison_isalive(pr);
+			sx_unlock(&allprison_lock);
+			return (alive);
+		}
+	}
+	sx_unlock(&allprison_lock);
+	return (false);
 }
 
 /*

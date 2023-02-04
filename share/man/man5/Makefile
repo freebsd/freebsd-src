@@ -70,6 +70,7 @@ MAN=	acct.5 \
 	style.Makefile.5 \
 	style.mdoc.5 \
 	sysctl.conf.5 \
+	tarfs.5 \
 	tmpfs.5 \
 	unionfs.5
 

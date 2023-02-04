@@ -259,14 +259,6 @@ extern	int vm_level_0_order;
 #endif
 
 /*
- * Use a fairly large batch size since we expect ppc64 systems to have lots of
- * memory.
- */
-#ifdef __powerpc64__
-#define	VM_BATCHQUEUE_SIZE	63
-#endif
-
-/*
  * On 32-bit OEA, the only purpose for which sf_buf is used is to implement
  * an opaque pointer required by the machine-independent parts of the kernel.
  * That pointer references the vm_page that is "mapped" by the sf_buf.  The

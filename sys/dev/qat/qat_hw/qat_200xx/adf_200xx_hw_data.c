@@ -6,6 +6,7 @@
 #include <adf_cfg.h>
 #include <adf_pf2vf_msg.h>
 #include <adf_dev_err.h>
+#include <adf_gen2_hw_data.h>
 #include "adf_200xx_hw_data.h"
 #include "icp_qat_hw.h"
 #include "adf_heartbeat.h"
@@ -495,6 +496,7 @@ adf_init_hw_data_200xx(struct adf_hw_device_data *hw_data)
 	hw_data->get_errsou_offset = get_errsou_offset;
 	hw_data->get_clock_speed = get_clock_speed;
 	hw_data->get_sku = get_sku;
+	hw_data->heartbeat_ctr_num = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->fw_name = ADF_200XX_FW;
 	hw_data->fw_mmp_name = ADF_200XX_MMP;
 	hw_data->init_admin_comms = adf_init_admin_comms;
@@ -532,6 +534,8 @@ adf_init_hw_data_200xx(struct adf_hw_device_data *hw_data)
 	hw_data->ring_to_svc_map = ADF_DEFAULT_RING_TO_SRV_MAP;
 	hw_data->pre_reset = adf_dev_pre_reset;
 	hw_data->post_reset = adf_dev_post_reset;
+
+	adf_gen2_init_hw_csr_info(&hw_data->csr_info);
 }
 
 void

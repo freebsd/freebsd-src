@@ -240,10 +240,10 @@ static void xl_txeof(struct xl_softc *);
 static void xl_txeof_90xB(struct xl_softc *);
 static void xl_txeoc(struct xl_softc *);
 static void xl_intr(void *);
-static void xl_start(struct ifnet *);
-static void xl_start_locked(struct ifnet *);
-static void xl_start_90xB_locked(struct ifnet *);
-static int xl_ioctl(struct ifnet *, u_long, caddr_t);
+static void xl_start(if_t);
+static void xl_start_locked(if_t);
+static void xl_start_90xB_locked(if_t);
+static int xl_ioctl(if_t, u_long, caddr_t);
 static void xl_init(void *);
 static void xl_init_locked(struct xl_softc *);
 static void xl_stop(struct xl_softc *);
@@ -254,12 +254,12 @@ static int xl_resume(device_t);
 static void xl_setwol(struct xl_softc *);
 
 #ifdef DEVICE_POLLING
-static int xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
-static int xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int xl_poll(if_t ifp, enum poll_cmd cmd, int count);
+static int xl_poll_locked(if_t ifp, enum poll_cmd cmd, int count);
 #endif
 
-static int xl_ifmedia_upd(struct ifnet *);
-static void xl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int xl_ifmedia_upd(if_t);
+static void xl_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int xl_eeprom_wait(struct xl_softc *);
 static int xl_read_eeprom(struct xl_softc *, caddr_t, int, int, int);
@@ -616,7 +616,7 @@ xl_check_maddr_90x(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 xl_rxfilter_90x(struct xl_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int8_t		rxfilt;
 
 	XL_LOCK_ASSERT(sc);
@@ -631,14 +631,14 @@ xl_rxfilter_90x(struct xl_softc *sc)
 	/* Set the individual bit to receive frames for this host only. */
 	rxfilt |= XL_RXFILTER_INDIVIDUAL;
 	/* Set capture broadcast bit to capture broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		rxfilt |= XL_RXFILTER_BROADCAST;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (if_getflags(ifp) & IFF_PROMISC)
 			rxfilt |= XL_RXFILTER_ALLFRAMES;
-		if (ifp->if_flags & IFF_ALLMULTI)
+		if (if_getflags(ifp) & IFF_ALLMULTI)
 			rxfilt |= XL_RXFILTER_ALLMULTI;
 	} else
 		if_foreach_llmaddr(sc->xl_ifp, xl_check_maddr_90x, &rxfilt);
@@ -675,7 +675,7 @@ xl_check_maddr_90xB(void *arg, struct sockaddr_dl *sdl, u_int count)
 static void
 xl_rxfilter_90xB(struct xl_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			i;
 	u_int8_t		rxfilt;
 
@@ -692,14 +692,14 @@ xl_rxfilter_90xB(struct xl_softc *sc)
 	/* Set the individual bit to receive frames for this host only. */
 	rxfilt |= XL_RXFILTER_INDIVIDUAL;
 	/* Set capture broadcast bit to capture broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		rxfilt |= XL_RXFILTER_BROADCAST;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (if_getflags(ifp) & IFF_PROMISC)
 			rxfilt |= XL_RXFILTER_ALLFRAMES;
-		if (ifp->if_flags & IFF_ALLMULTI)
+		if (if_getflags(ifp) & IFF_ALLMULTI)
 			rxfilt |= XL_RXFILTER_ALLMULTI;
 	} else {
 		/* First, zot all the existing hash bits. */
@@ -1064,7 +1064,7 @@ xl_attach(device_t dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int16_t		sinfo2, xcvr[2];
 	struct xl_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			media, pmcap;
 	int			error = 0, phy, rid, res;
 	uint16_t		did;
@@ -1195,7 +1195,7 @@ xl_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	/* Reset the adapter. */
@@ -1335,28 +1335,27 @@ xl_attach(device_t dev)
 	/* Set the TX start threshold for best performance. */
 	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
 
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = xl_ioctl;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, xl_ioctl);
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
 	if (sc->xl_type == XL_TYPE_905B) {
-		ifp->if_hwassist = XL905B_CSUM_FEATURES;
+		if_sethwassist(ifp, XL905B_CSUM_FEATURES);
 #ifdef XL905B_TXCSUM_BROKEN
-		ifp->if_capabilities |= IFCAP_RXCSUM;
+		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM, 0);
 #else
-		ifp->if_capabilities |= IFCAP_HWCSUM;
+		if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
 #endif
 	}
 	if ((sc->xl_flags & XL_FLAG_WOL) != 0)
-		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
-	ifp->if_capenable = ifp->if_capabilities;
+		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 #ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
-	ifp->if_start = xl_start;
-	ifp->if_init = xl_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, XL_TX_LIST_CNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = XL_TX_LIST_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setstartfn(ifp, xl_start);
+	if_setinitfn(ifp, xl_init);
+	if_setsendqlen(ifp, XL_TX_LIST_CNT - 1);
+	if_setsendqready(ifp);
 
 	/*
 	 * Now we have to see what sort of media we have.
@@ -1550,7 +1549,7 @@ static int
 xl_detach(device_t dev)
 {
 	struct xl_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			rid, res;
 
 	sc = device_get_softc(dev);
@@ -1559,7 +1558,7 @@ xl_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
 
 #ifdef DEVICE_POLLING
-	if (ifp && ifp->if_capenable & IFCAP_POLLING)
+	if (ifp && if_getcapenable(ifp) & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
@@ -1824,7 +1823,7 @@ static int
 xl_rxeof(struct xl_softc *sc)
 {
 	struct mbuf		*m;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len;
 	int			rx_npkts = 0;
@@ -1836,7 +1835,7 @@ again:
 	    BUS_DMASYNC_POSTREAD);
 	while ((rxstat = le32toh(sc->xl_cdata.xl_rx_head->xl_ptr->xl_status))) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
+		if (if_getcapenable(ifp) & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -1911,7 +1910,7 @@ again:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-		if (ifp->if_capenable & IFCAP_RXCSUM) {
+		if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
 			/* Do IP checksum checking. */
 			if (rxstat & XL_RXSTAT_IPCKOK)
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
@@ -1928,7 +1927,7 @@ again:
 		}
 
 		XL_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		XL_LOCK(sc);
 
 		/*
@@ -1936,7 +1935,7 @@ again:
 		 * might have been stopped while we were passing the last
 		 * packet up the network stack.
 		 */
-		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+		if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 			return (rx_npkts);
 	}
 
@@ -1973,7 +1972,7 @@ xl_rxeof_task(void *arg, int pending)
 	struct xl_softc *sc = (struct xl_softc *)arg;
 
 	XL_LOCK(sc);
-	if (sc->xl_ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(sc->xl_ifp) & IFF_DRV_RUNNING)
 		xl_rxeof(sc);
 	XL_UNLOCK(sc);
 }
@@ -1986,7 +1985,7 @@ static void
 xl_txeof(struct xl_softc *sc)
 {
 	struct xl_chain		*cur_tx;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -2012,7 +2011,7 @@ xl_txeof(struct xl_softc *sc)
 		m_freem(cur_tx->xl_mbuf);
 		cur_tx->xl_mbuf = NULL;
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
 		sc->xl_cdata.xl_tx_free = cur_tx;
@@ -2035,7 +2034,7 @@ static void
 xl_txeof_90xB(struct xl_softc *sc)
 {
 	struct xl_chain		*cur_tx = NULL;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	int			idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2069,7 +2068,7 @@ xl_txeof_90xB(struct xl_softc *sc)
 	sc->xl_cdata.xl_tx_cons = idx;
 
 	if (cur_tx != NULL)
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 }
 
 /*
@@ -2146,13 +2145,13 @@ static void
 xl_intr(void *arg)
 {
 	struct xl_softc		*sc = arg;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	u_int16_t		status;
 
 	XL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(ifp) & IFCAP_POLLING) {
 		XL_UNLOCK(sc);
 		return;
 	}
@@ -2164,7 +2163,7 @@ xl_intr(void *arg)
 			break;
 		CSR_WRITE_2(sc, XL_COMMAND,
 		    XL_CMD_INTR_ACK|(status & XL_INTRS));
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 
 		if (status & XL_STAT_UP_COMPLETE) {
@@ -2187,7 +2186,7 @@ xl_intr(void *arg)
 		}
 
 		if (status & XL_STAT_ADFAIL) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			xl_init_locked(sc);
 			break;
 		}
@@ -2196,8 +2195,8 @@ xl_intr(void *arg)
 			xl_stats_update(sc);
 	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
-	    ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (!if_sendq_empty(ifp) &&
+	    if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_start_90xB_locked(ifp);
 		else
@@ -2209,22 +2208,22 @@ xl_intr(void *arg)
 
 #ifdef DEVICE_POLLING
 static int
-xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+xl_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct xl_softc *sc = ifp->if_softc;
+	struct xl_softc *sc = if_getsoftc(ifp);
 	int rx_npkts = 0;
 
 	XL_LOCK(sc);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		rx_npkts = xl_poll_locked(ifp, cmd, count);
 	XL_UNLOCK(sc);
 	return (rx_npkts);
 }
 
 static int
-xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+xl_poll_locked(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct xl_softc *sc = ifp->if_softc;
+	struct xl_softc *sc = if_getsoftc(ifp);
 	int rx_npkts;
 
 	XL_LOCK_ASSERT(sc);
@@ -2236,7 +2235,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	else
 		xl_txeof(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (!if_sendq_empty(ifp)) {
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_start_90xB_locked(ifp);
 		else
@@ -2257,7 +2256,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 
 			if (status & XL_STAT_ADFAIL) {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				xl_init_locked(sc);
 			}
 
@@ -2292,7 +2291,7 @@ xl_tick(void *xsc)
 static void
 xl_stats_update(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
@@ -2335,7 +2334,7 @@ static int
 xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 {
 	struct mbuf		*m_new;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	int			error, i, nseg, total_len;
 	u_int32_t		status;
 
@@ -2427,9 +2426,9 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
  */
 
 static void
-xl_start(struct ifnet *ifp)
+xl_start(if_t ifp)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct xl_softc		*sc = if_getsoftc(ifp);
 
 	XL_LOCK(sc);
 
@@ -2442,9 +2441,9 @@ xl_start(struct ifnet *ifp)
 }
 
 static void
-xl_start_locked(struct ifnet *ifp)
+xl_start_locked(if_t ifp)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct xl_softc		*sc = if_getsoftc(ifp);
 	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 	struct xl_chain		*prev_tx;
@@ -2452,7 +2451,7 @@ xl_start_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 	/*
@@ -2463,16 +2462,16 @@ xl_start_locked(struct ifnet *ifp)
 		xl_txeoc(sc);
 		xl_txeof(sc);
 		if (sc->xl_cdata.xl_tx_free == NULL) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			return;
 		}
 	}
 
 	start_tx = sc->xl_cdata.xl_tx_free;
 
-	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	for (; !if_sendq_empty(ifp) &&
 	    sc->xl_cdata.xl_tx_free != NULL;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
@@ -2486,8 +2485,8 @@ xl_start_locked(struct ifnet *ifp)
 			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if_sendq_prepend(ifp, m_head);
 			break;
 		}
 
@@ -2574,9 +2573,9 @@ xl_start_locked(struct ifnet *ifp)
 }
 
 static void
-xl_start_90xB_locked(struct ifnet *ifp)
+xl_start_90xB_locked(if_t ifp)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct xl_softc		*sc = if_getsoftc(ifp);
 	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 	struct xl_chain		*prev_tx;
@@ -2584,21 +2583,21 @@ xl_start_90xB_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
 	idx = sc->xl_cdata.xl_tx_prod;
 	start_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
-	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	for (; !if_sendq_empty(ifp) &&
 	    sc->xl_cdata.xl_tx_chain[idx].xl_mbuf == NULL;) {
 		if ((XL_TX_LIST_CNT - sc->xl_cdata.xl_tx_cnt) < 3) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
@@ -2611,8 +2610,8 @@ xl_start_90xB_locked(struct ifnet *ifp)
 			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if_sendq_prepend(ifp, m_head);
 			break;
 		}
 
@@ -2671,13 +2670,13 @@ xl_init(void *xsc)
 static void
 xl_init_locked(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	int			error, i;
 	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -2711,7 +2710,7 @@ xl_init_locked(struct xl_softc *sc)
 	XL_SEL_WIN(2);
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		CSR_WRITE_1(sc, XL_W2_STATION_ADDR_LO + i,
-				IF_LLADDR(sc->xl_ifp)[i]);
+				if_getlladdr(sc->xl_ifp)[i]);
 	}
 
 	/* Clear the station mask. */
@@ -2841,7 +2840,7 @@ xl_init_locked(struct xl_softc *sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (if_getcapenable(ifp) & IFCAP_POLLING)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
 	else
 #endif
@@ -2866,8 +2865,8 @@ xl_init_locked(struct xl_softc *sc)
 	/* Select window 7 for normal operations. */
 	XL_SEL_WIN(7);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	sc->xl_wdog_timer = 0;
 	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
@@ -2877,9 +2876,9 @@ xl_init_locked(struct xl_softc *sc)
  * Set media options.
  */
 static int
-xl_ifmedia_upd(struct ifnet *ifp)
+xl_ifmedia_upd(if_t ifp)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct xl_softc		*sc = if_getsoftc(ifp);
 	struct ifmedia		*ifm = NULL;
 	struct mii_data		*mii = NULL;
 
@@ -2905,7 +2904,7 @@ xl_ifmedia_upd(struct ifnet *ifp)
 	if (sc->xl_media & XL_MEDIAOPT_MII ||
 	    sc->xl_media & XL_MEDIAOPT_BTX ||
 	    sc->xl_media & XL_MEDIAOPT_BT4) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		xl_init_locked(sc);
 	} else {
 		xl_setmode(sc, ifm->ifm_media);
@@ -2920,9 +2919,9 @@ xl_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-xl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+xl_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct xl_softc		*sc = if_getsoftc(ifp);
 	u_int32_t		icfg;
 	u_int16_t		status = 0;
 	struct mii_data		*mii = NULL;
@@ -2992,9 +2991,9 @@ xl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+xl_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct xl_softc		*sc = if_getsoftc(ifp);
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			error = 0, mask;
 	struct mii_data		*mii = NULL;
@@ -3002,25 +3001,25 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		XL_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    (ifp->if_flags ^ sc->xl_if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING &&
+			    (if_getflags(ifp) ^ sc->xl_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI))
 				xl_rxfilter(sc);
 			else
 				xl_init_locked(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				xl_stop(sc);
 		}
-		sc->xl_if_flags = ifp->if_flags;
+		sc->xl_if_flags = if_getflags(ifp);
 		XL_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* XXX Downcall from if_addmulti() possibly with locks held. */
 		XL_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			xl_rxfilter(sc);
 		XL_UNLOCK(sc);
 		break;
@@ -3036,19 +3035,19 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 #ifdef DEVICE_POLLING
 		if ((mask & IFCAP_POLLING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_POLLING) != 0) {
-			ifp->if_capenable ^= IFCAP_POLLING;
-			if ((ifp->if_capenable & IFCAP_POLLING) != 0) {
+		    (if_getcapabilities(ifp) & IFCAP_POLLING) != 0) {
+			if_togglecapenable(ifp, IFCAP_POLLING);
+			if ((if_getcapenable(ifp) & IFCAP_POLLING) != 0) {
 				error = ether_poll_register(xl_poll, ifp);
 				if (error)
 					break;
 				XL_LOCK(sc);
 				/* Disable interrupts */
 				CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				XL_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
@@ -3067,19 +3066,19 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 #endif /* DEVICE_POLLING */
 		XL_LOCK(sc);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= XL905B_CSUM_FEATURES;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+				if_sethwassistbits(ifp, XL905B_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~XL905B_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, XL905B_CSUM_FEATURES);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_MAGIC);
 		XL_UNLOCK(sc);
 		break;
 	default:
@@ -3093,7 +3092,7 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 xl_watchdog(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	u_int16_t		status = 0;
 	int			misintr;
 
@@ -3129,10 +3128,10 @@ xl_watchdog(struct xl_softc *sc)
 		device_printf(sc->xl_dev,
 		    "no carrier - transceiver cable problem?\n");
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	xl_init_locked(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (!if_sendq_empty(ifp)) {
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_start_90xB_locked(ifp);
 		else
@@ -3150,7 +3149,7 @@ static void
 xl_stop(struct xl_softc *sc)
 {
 	int			i;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -3212,7 +3211,7 @@ xl_stop(struct xl_softc *sc)
 	if (sc->xl_ldata.xl_tx_list != NULL)
 		bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 }
 
 /*
@@ -3245,15 +3244,15 @@ static int
 xl_resume(device_t dev)
 {
 	struct xl_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->xl_ifp;
 
 	XL_LOCK(sc);
 
-	if (ifp->if_flags & IFF_UP) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if (if_getflags(ifp) & IFF_UP) {
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		xl_init_locked(sc);
 	}
 
@@ -3265,7 +3264,7 @@ xl_resume(device_t dev)
 static void
 xl_setwol(struct xl_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int16_t		cfg, pmstat;
 
 	if ((sc->xl_flags & XL_FLAG_WOL) == 0)
@@ -3276,16 +3275,16 @@ xl_setwol(struct xl_softc *sc)
 	/* Clear any pending PME events. */
 	CSR_READ_2(sc, XL_W7_BM_PME);
 	cfg = 0;
-	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 		cfg |= XL_BM_PME_MAGIC;
 	CSR_WRITE_2(sc, XL_W7_BM_PME, cfg);
 	/* Enable RX. */
-	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_ENABLE);
 	/* Request PME. */
 	pmstat = pci_read_config(sc->xl_dev,
 	    sc->xl_pmcap + PCIR_POWER_STATUS, 2);
-	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 		pmstat |= PCIM_PSTAT_PMEENABLE;
 	else
 		pmstat &= ~PCIM_PSTAT_PMEENABLE;

@@ -996,6 +996,16 @@ lkpi_pci_msi_desc_alloc(int irq)
 	return (desc);
 }
 
+bool
+pci_device_is_present(struct pci_dev *pdev)
+{
+	device_t dev;
+
+	dev = pdev->dev.bsddev;
+
+	return (bus_child_present(dev));
+}
+
 CTASSERT(sizeof(dma_addr_t) <= sizeof(uint64_t));
 
 struct linux_dma_obj {
@@ -1218,7 +1228,7 @@ linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_ha
 	struct lkpi_devres_dmam_coherent *dr;
 
 	dr = lkpi_devres_alloc(lkpi_dmam_free_coherent,
-	   sizeof(*dr), GFP_KERNEL | __GFP_ZERO);
+	    sizeof(*dr), GFP_KERNEL | __GFP_ZERO);
 
 	if (dr == NULL)
 		return (NULL);

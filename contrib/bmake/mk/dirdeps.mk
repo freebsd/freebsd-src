@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.151 2022/01/28 01:13:14 sjg Exp $
+# $Id: dirdeps.mk,v 1.152 2022/08/01 23:09:19 sjg Exp $
 
 # Copyright (c) 2010-2022, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -401,7 +401,7 @@ DIRDEP_LOADAVG_LAST = 0
 # Note: expr(1) will exit 1 if the expression evaluates to 0
 # hence the  || true
 DIRDEP_LOADAVG_REPORT = \
-	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST} || true:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
+	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTERVAL:U60} - ${DIRDEP_LOADAVG_LAST} || true:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
 	echo "${TRACER}`${DIRDEP_LOADAVG_CMD}`"
 
 # we suppress SUBDIR when visiting the leaves

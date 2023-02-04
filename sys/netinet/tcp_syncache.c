@@ -882,8 +882,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in6_pcbconnect_mbuf(inp, (struct sockaddr *)&sin6,
-		    thread0.td_ucred, m, false);
+		error = in6_pcbconnect(inp, &sin6, thread0.td_ucred, false);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
 		if (error != 0) {
 			inp->in6p_laddr = laddr6;
@@ -918,8 +917,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = sc->sc_inc.inc_laddr;
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-		    thread0.td_ucred, false);
+		error = in_pcbconnect(inp, &sin, thread0.td_ucred, false);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
 		if (error != 0) {
 			inp->inp_laddr = laddr;

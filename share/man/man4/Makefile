@@ -271,6 +271,7 @@ MAN=	aac.4 \
 	ktls.4 \
 	ktr.4 \
 	kue.4 \
+	${_kvmclock.4} \
 	lagg.4 \
 	le.4 \
 	led.4 \
@@ -824,6 +825,7 @@ _igc.4=		igc.4
 _imcsmb.4=	imcsmb.4
 _io.4=		io.4
 _itwd.4=	itwd.4
+_kvmclock.4=	kvmclock.4
 _mgb.4=		mgb.4
 _nda.4=		nda.4
 _nfe.4=		nfe.4

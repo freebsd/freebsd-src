@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -78,10 +78,6 @@
 #endif
 
 // Set defaults.
-//
-#ifndef BC_ENABLE_NLS
-#define BC_ENABLE_NLS (0)
-#endif // BC_ENABLE_NLS
 
 #ifndef MAINEXEC
 #define MAINEXEC bc
@@ -179,52 +175,58 @@
 /// The flag for exiting with expressions.
 #define BC_FLAG_EXPR_EXIT (UINTMAX_C(1) << 13)
 
+/// The flag for digit clamping.
+#define BC_FLAG_DIGIT_CLAMP (UINTMAX_C(1) << 14)
+
 /// A convenience macro for getting the TTYIN flag.
-#define BC_TTYIN (vm.flags & BC_FLAG_TTYIN)
+#define BC_TTYIN (vm->flags & BC_FLAG_TTYIN)
 
 /// A convenience macro for getting the TTY flag.
-#define BC_TTY (vm.flags & BC_FLAG_TTY)
+#define BC_TTY (vm->flags & BC_FLAG_TTY)
 
 /// A convenience macro for getting the SIGINT flag.
-#define BC_SIGINT (vm.flags & BC_FLAG_SIGINT)
+#define BC_SIGINT (vm->flags & BC_FLAG_SIGINT)
 
 #if BC_ENABLED
 
 /// A convenience macro for getting the POSIX error flag.
-#define BC_S (vm.flags & BC_FLAG_S)
+#define BC_S (vm->flags & BC_FLAG_S)
 
 /// A convenience macro for getting the POSIX warning flag.
-#define BC_W (vm.flags & BC_FLAG_W)
+#define BC_W (vm->flags & BC_FLAG_W)
 
 /// A convenience macro for getting the math library flag.
-#define BC_L (vm.flags & BC_FLAG_L)
+#define BC_L (vm->flags & BC_FLAG_L)
 
 /// A convenience macro for getting the global stacks flag.
-#define BC_G (vm.flags & BC_FLAG_G)
+#define BC_G (vm->flags & BC_FLAG_G)
 
 #endif // BC_ENABLED
 
 #if DC_ENABLED
 
 /// A convenience macro for getting the extended register flag.
-#define DC_X (vm.flags & DC_FLAG_X)
+#define DC_X (vm->flags & DC_FLAG_X)
 
 #endif // DC_ENABLED
 
 /// A convenience macro for getting the interactive flag.
-#define BC_I (vm.flags & BC_FLAG_I)
+#define BC_I (vm->flags & BC_FLAG_I)
 
 /// A convenience macro for getting the prompt flag.
-#define BC_P (vm.flags & BC_FLAG_P)
+#define BC_P (vm->flags & BC_FLAG_P)
 
 /// A convenience macro for getting the read prompt flag.
-#define BC_R (vm.flags & BC_FLAG_R)
+#define BC_R (vm->flags & BC_FLAG_R)
 
 /// A convenience macro for getting the leading zero flag.
-#define BC_Z (vm.flags & BC_FLAG_Z)
+#define BC_Z (vm->flags & BC_FLAG_Z)
 
 /// A convenience macro for getting the expression exit flag.
-#define BC_EXPR_EXIT (vm.flags & BC_FLAG_EXPR_EXIT)
+#define BC_EXPR_EXIT (vm->flags & BC_FLAG_EXPR_EXIT)
+
+/// A convenience macro for getting the digit clamp flag.
+#define BC_DIGIT_CLAMP (vm->flags & BC_FLAG_DIGIT_CLAMP)
 
 #if BC_ENABLED
 
@@ -234,10 +236,57 @@
 #if DC_ENABLED
 
 /// Returns true if bc is running.
-#define BC_IS_BC (vm.name[0] != 'd')
+#define BC_IS_BC (vm->name[0] != 'd')
 
 /// Returns true if dc is running.
-#define BC_IS_DC (vm.name[0] == 'd')
+#define BC_IS_DC (vm->name[0] == 'd')
+
+/// Returns the correct read prompt.
+#define BC_VM_READ_PROMPT (BC_IS_BC ? "read> " : "?> ")
+
+/// Returns the string for the line length environment variable.
+#define BC_VM_LINE_LENGTH_STR (BC_IS_BC ? "BC_LINE_LENGTH" : "DC_LINE_LENGTH")
+
+/// Returns the string for the environment args environment variable.
+#define BC_VM_ENV_ARGS_STR (BC_IS_BC ? "BC_ENV_ARGS" : "DC_ENV_ARGS")
+
+/// Returns the string for the expression exit environment variable.
+#define BC_VM_EXPR_EXIT_STR (BC_IS_BC ? "BC_EXPR_EXIT" : "DC_EXPR_EXIT")
+
+/// Returns the default for the expression exit environment variable.
+#define BC_VM_EXPR_EXIT_DEF \
+	(BC_IS_BC ? BC_DEFAULT_EXPR_EXIT : DC_DEFAULT_EXPR_EXIT)
+
+/// Returns the string for the digit clamp environment variable.
+#define BC_VM_DIGIT_CLAMP_STR (BC_IS_BC ? "BC_DIGIT_CLAMP" : "DC_DIGIT_CLAMP")
+
+/// Returns the default for the digit clamp environment variable.
+#define BC_VM_DIGIT_CLAMP_DEF \
+	(BC_IS_BC ? BC_DEFAULT_DIGIT_CLAMP : DC_DEFAULT_DIGIT_CLAMP)
+
+/// Returns the string for the TTY mode environment variable.
+#define BC_VM_TTY_MODE_STR (BC_IS_BC ? "BC_TTY_MODE" : "DC_TTY_MODE")
+
+/// Returns the default for the TTY mode environment variable.
+#define BC_VM_TTY_MODE_DEF \
+	(BC_IS_BC ? BC_DEFAULT_TTY_MODE : DC_DEFAULT_TTY_MODE)
+
+/// Returns the string for the prompt environment variable.
+#define BC_VM_PROMPT_STR (BC_IS_BC ? "BC_PROMPT" : "DC_PROMPT")
+
+/// Returns the default for the prompt environment variable.
+#define BC_VM_PROMPT_DEF (BC_IS_BC ? BC_DEFAULT_PROMPT : DC_DEFAULT_PROMPT)
+
+/// Returns the string for the SIGINT reset environment variable.
+#define BC_VM_SIGINT_RESET_STR \
+	(BC_IS_BC ? "BC_SIGINT_RESET" : "DC_SIGINT_RESET")
+
+/// Returns the string for the SIGINT reset environment variable.
+#define BC_VM_SIGINT_RESET_DEF \
+	(BC_IS_BC ? BC_DEFAULT_SIGINT_RESET : DC_DEFAULT_SIGINT_RESET)
+
+/// Returns true if the calculator should run stdin.
+#define BC_VM_RUN_STDIN(has_file) (BC_IS_BC || !(has_file))
 
 #else // DC_ENABLED
 
@@ -246,6 +295,48 @@
 
 /// Returns true if dc is running.
 #define BC_IS_DC (0)
+
+/// Returns the correct read prompt.
+#define BC_VM_READ_PROMPT ("read> ")
+
+/// Returns the string for the line length environment variable.
+#define BC_VM_LINE_LENGTH_STR ("BC_LINE_LENGTH")
+
+/// Returns the string for the environment args environment variable.
+#define BC_VM_ENV_ARGS_STR ("BC_ENV_ARGS")
+
+/// Returns the string for the expression exit environment variable.
+#define BC_VM_EXPR_EXIT_STR ("BC_EXPR_EXIT")
+
+/// Returns the default for the expression exit environment variable.
+#define BC_VM_EXPR_EXIT_DEF (BC_DEFAULT_EXPR_EXIT)
+
+/// Returns the string for the digit clamp environment variable.
+#define BC_VM_DIGIT_CLAMP_STR ("BC_DIGIT_CLAMP")
+
+/// Returns the default for the digit clamp environment variable.
+#define BC_VM_DIGIT_CLAMP_DEF (BC_DEFAULT_DIGIT_CLAMP)
+
+/// Returns the string for the TTY mode environment variable.
+#define BC_VM_TTY_MODE_STR ("BC_TTY_MODE")
+
+/// Returns the default for the TTY mode environment variable.
+#define BC_VM_TTY_MODE_DEF (BC_DEFAULT_TTY_MODE)
+
+/// Returns the string for the prompt environment variable.
+#define BC_VM_PROMPT_STR ("BC_PROMPT")
+
+/// Returns the default for the SIGINT reset environment variable.
+#define BC_VM_PROMPT_DEF (BC_DEFAULT_PROMPT)
+
+/// Returns the string for the SIGINT reset environment variable.
+#define BC_VM_SIGINT_RESET_STR ("BC_SIGINT_RESET")
+
+/// Returns the string for the SIGINT reset environment variable.
+#define BC_VM_SIGINT_RESET_DEF (BC_DEFAULT_SIGINT_RESET)
+
+/// Returns true if the calculator should run stdin.
+#define BC_VM_RUN_STDIN(has_file) (BC_IS_BC)
 
 #endif // DC_ENABLED
 
@@ -260,6 +351,48 @@
 /// Returns true if dc is running.
 #define BC_IS_DC (1)
 
+/// Returns the correct read prompt.
+#define BC_VM_READ_PROMPT ("?> ")
+
+/// Returns the string for the line length environment variable.
+#define BC_VM_LINE_LENGTH_STR ("DC_LINE_LENGTH")
+
+/// Returns the string for the environment args environment variable.
+#define BC_VM_ENV_ARGS_STR ("DC_ENV_ARGS")
+
+/// Returns the string for the expression exit environment variable.
+#define BC_VM_EXPR_EXIT_STR ("DC_EXPR_EXIT")
+
+/// Returns the default for the expression exit environment variable.
+#define BC_VM_EXPR_EXIT_DEF (DC_DEFAULT_EXPR_EXIT)
+
+/// Returns the string for the digit clamp environment variable.
+#define BC_VM_DIGIT_CLAMP_STR ("DC_DIGIT_CLAMP")
+
+/// Returns the default for the digit clamp environment variable.
+#define BC_VM_DIGIT_CLAMP_DEF (DC_DEFAULT_DIGIT_CLAMP)
+
+/// Returns the string for the TTY mode environment variable.
+#define BC_VM_TTY_MODE_STR ("DC_TTY_MODE")
+
+/// Returns the default for the TTY mode environment variable.
+#define BC_VM_TTY_MODE_DEF (DC_DEFAULT_TTY_MODE)
+
+/// Returns the string for the prompt environment variable.
+#define BC_VM_PROMPT_STR ("DC_PROMPT")
+
+/// Returns the default for the SIGINT reset environment variable.
+#define BC_VM_PROMPT_DEF (DC_DEFAULT_PROMPT)
+
+/// Returns the string for the SIGINT reset environment variable.
+#define BC_VM_SIGINT_RESET_STR ("DC_SIGINT_RESET")
+
+/// Returns the string for the SIGINT reset environment variable.
+#define BC_VM_SIGINT_RESET_DEF (DC_DEFAULT_SIGINT_RESET)
+
+/// Returns true if the calculator should run stdin.
+#define BC_VM_RUN_STDIN(has_file) (!(has_file))
+
 #endif // BC_ENABLED
 
 /// A convenience macro for checking if the prompt is enabled.
@@ -267,7 +400,9 @@
 
 #else // !BC_ENABLE_LIBRARY
 
-#define BC_Z (vm.leading_zeroes)
+#define BC_Z (vm->leading_zeroes)
+
+#define BC_DIGIT_CLAMP (vm->digit_clamp)
 
 #endif // !BC_ENABLE_LIBRARY
 
@@ -437,18 +572,14 @@ typedef struct BcVm
 	/// Whether or not to print leading zeros.
 	bool leading_zeroes;
 
+	/// Whether or not to clamp digits that are greater than or equal to the
+	/// current ibase.
+	bool digit_clamp;
+
 	/// The number of "references," or times that the library was initialized.
 	unsigned int refs;
 
-	/// Non-zero if bcl is running. This is volatile sig_atomic_t because it is
-	/// also used in the signal handler. See the development manual
-	/// (manuals/development.md#async-signal-safe-signal-handling) for more
-	/// information.
-	volatile sig_atomic_t running;
-
-#endif // BC_ENABLE_LIBRARY
-
-#if !BC_ENABLE_LIBRARY
+#else // BC_ENABLE_LIBRARY
 
 	/// A pointer to the filename of the current file. This is not owned by the
 	/// BcVm struct.
@@ -456,8 +587,6 @@ typedef struct BcVm
 
 	/// The message printed when SIGINT happens.
 	const char* sigmsg;
-
-#endif // !BC_ENABLE_LIBRARY
 
 	/// Non-zero when signals are "locked." This is volatile sig_atomic_t
 	/// because it is also used in the signal handler. See the development
@@ -471,8 +600,6 @@ typedef struct BcVm
 	/// (manuals/development.md#async-signal-safe-signal-handling) for more
 	/// information.
 	volatile sig_atomic_t sig;
-
-#if !BC_ENABLE_LIBRARY
 
 	/// The length of sigmsg.
 	uchar siglen;
@@ -501,8 +628,8 @@ typedef struct BcVm
 	/// True if EOF was encountered.
 	bool eof;
 
-	/// True if bc is currently reading from stdin.
-	bool is_stdin;
+	/// The mode that the program is in.
+	uchar mode;
 
 #if BC_ENABLED
 
@@ -511,13 +638,6 @@ typedef struct BcVm
 	bool no_redefine;
 
 #endif // BC_ENABLED
-
-#endif // !BC_ENABLE_LIBRARY
-
-	/// An array of maxes for the globals.
-	BcBigDig maxes[BC_PROG_GLOBALS_LEN + BC_ENABLE_EXTRA_MATH];
-
-#if !BC_ENABLE_LIBRARY
 
 	/// A vector of filenames to process.
 	BcVec files;
@@ -548,9 +668,6 @@ typedef struct BcVm
 	/// The function to call to parse expressions.
 	BcParseExpr expr;
 
-	/// The text to display to label functions in error messages.
-	const char* func_header;
-
 	/// The names of the categories of errors.
 	const char* err_ids[BC_ERR_IDX_NELEMS + BC_ENABLED];
 
@@ -562,7 +679,10 @@ typedef struct BcVm
 	const char* locale;
 #endif // BC_ENABLE_NLS
 
-#endif // !BC_ENABLE_LIBRARY
+#endif // BC_ENABLE_LIBRARY
+
+	/// An array of maxes for the globals.
+	BcBigDig maxes[BC_PROG_GLOBALS_LEN + BC_ENABLE_EXTRA_MATH];
 
 	/// The last base used to parse.
 	BcBigDig last_base;
@@ -632,16 +752,9 @@ typedef struct BcVm
 	/// The number of items in the input buffer.
 	size_t buf_len;
 
-	/// The slab for constants in the main function. This is separate for
-	/// garbage collection reasons.
-	BcVec main_const_slab;
-
-	//// The slab for all other strings for the main function.
-	BcVec main_slabs;
-
-	/// The slab for function names, strings in other functions, and constants
-	/// in other functions.
-	BcVec other_slabs;
+	/// The slabs vector for constants, strings, function names, and other
+	/// string-like things.
+	BcVec slabs;
 
 #if BC_ENABLED
 
@@ -651,6 +764,8 @@ typedef struct BcVm
 
 #endif // BC_ENABLED
 #endif // !BC_ENABLE_LIBRARY
+
+	BcDig* temps_buf[BC_VM_MAX_TEMPS];
 
 #if BC_DEBUG_CODE
 
@@ -697,11 +812,19 @@ void
 bc_vm_addTemp(BcDig* num);
 
 /**
- * Dish out a temp, or NULL if there are none.
+ * Return the temp on the top of the temp stack, or NULL if there are none.
  * @return  A temp, or NULL if none exist.
  */
 BcDig*
 bc_vm_takeTemp(void);
+
+/**
+ * Gets the top temp of the temp stack. This is separate from bc_vm_takeTemp()
+ * to quiet a GCC warning about longjmp() clobbering in bc_num_init().
+ * @return  A temp, or NULL if none exist.
+ */
+BcDig*
+bc_vm_getTemp(void);
 
 /**
  * Frees all temporaries.
@@ -709,15 +832,20 @@ bc_vm_takeTemp(void);
 void
 bc_vm_freeTemps(void);
 
-#if !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
+#if !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB || BC_ENABLE_LIBRARY
 
 /**
  * Erases the flush argument if history does not exist because it does not
  * matter if history does not exist.
  */
-#define bc_vm_putchar(c, t) bc_vm_putchar(c)
+#define bc_vm_putchar(c, t) bc_vm_putchar_impl(c)
 
-#endif // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
+#else // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB || BC_ENABLE_LIBRARY
+
+// This is here to satisfy a clang warning about recursive macros.
+#define bc_vm_putchar(c, t) bc_vm_putchar_impl(c, t)
+
+#endif // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB || BC_ENABLE_LIBRARY
 
 /**
  * Print to stdout with limited formating.
@@ -826,6 +954,7 @@ bc_vm_getenvFree(char* val);
  */
 void
 bc_vm_jmp(const char* f);
+
 #else // BC_DEBUG_CODE
 
 /**
@@ -863,14 +992,40 @@ bc_vm_atexit(void);
 #else // BC_ENABLE_LIBRARY
 
 /**
+ * Calculates the number of decimal digits in the argument.
+ * @param val  The value to calculate the number of decimal digits in.
+ * @return     The number of decimal digits in @a val.
+ */
+size_t
+bc_vm_numDigits(size_t val);
+
+#ifndef NDEBUG
+
+/**
+ * Handle an error. This is the true error handler. It will start a jump series
+ * if an error occurred. POSIX errors will not cause jumps when warnings are on
+ * or no POSIX errors are enabled.
+ * @param e      The error.
+ * @param file   The source file where the error occurred.
+ * @param fline  The line in the source file where the error occurred.
+ * @param line   The bc source line where the error occurred.
+ */
+void
+bc_vm_handleError(BcErr e, const char* file, int fline, size_t line, ...);
+
+#else // NDEBUG
+
+/**
  * Handle an error. This is the true error handler. It will start a jump series
  * if an error occurred. POSIX errors will not cause jumps when warnings are on
  * or no POSIX errors are enabled.
  * @param e     The error.
- * @param line  The source line where the error occurred.
+ * @param line  The bc source line where the error occurred.
  */
 void
 bc_vm_handleError(BcErr e, size_t line, ...);
+
+#endif // NDEBUG
 
 /**
  * Handle a fatal error.
@@ -892,12 +1047,6 @@ bc_vm_atexit(int status);
 
 /// A reference to the copyright header.
 extern const char bc_copyright[];
-
-/// A reference to the format string for source code line printing.
-extern const char* const bc_err_line;
-
-/// A reference to the format string for source code function printing.
-extern const char* const bc_err_func_header;
 
 /// A reference to the array of default error category names.
 extern const char* bc_errs[];
@@ -921,10 +1070,17 @@ extern const char bc_pledge_end_history[];
 /// A reference to the end pledge() promises when *not* using history.
 extern const char bc_pledge_end[];
 
+#if !BC_ENABLE_LIBRARY
+
 /// A reference to the global data.
-extern BcVm vm;
+extern BcVm* vm;
+
+/// The global data.
+extern BcVm vm_data;
 
 /// A reference to the global output buffers.
 extern char output_bufs[BC_VM_BUF_SIZE];
+
+#endif // !BC_ENABLE_LIBRARY
 
 #endif // BC_VM_H

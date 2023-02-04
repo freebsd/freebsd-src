@@ -74,9 +74,8 @@
 void	in6_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 void	in6_losing(struct inpcb *);
 int	in6_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
-int	in6_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);
-int	in6_pcbconnect_mbuf(struct inpcb *, struct sockaddr *,
-	    struct ucred *, struct mbuf *, bool);
+int	in6_pcbconnect(struct inpcb *, struct sockaddr_in6 *, struct ucred *,
+	    bool);
 void	in6_pcbdisconnect(struct inpcb *);
 struct	inpcb *
 	in6_pcblookup_local(struct inpcbinfo *,

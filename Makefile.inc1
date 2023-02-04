@@ -1024,7 +1024,7 @@ _worldtmp: .PHONY
 	${_+_}@if [ -e "${WORLDTMP}" ]; then \
 		echo ">>> Deleting stale files in build tree..."; \
 		cd ${.CURDIR}; env PATH=${TMPPATH:Q}:${PATH:Q} ${WMAKE:NPATH=*} \
-		    -DBATCH_DELETE_OLD_FILES delete-old \
+		    _NO_INCLUDE_COMPILERMK=t -DBATCH_DELETE_OLD_FILES delete-old \
 		    delete-old-libs >/dev/null; \
 	fi
 	rm -rf ${WORLDTMP}/legacy/usr/include
@@ -1319,10 +1319,6 @@ __installcheck_sh_check: .PHONY
 #
 # Required install tools to be saved in a scratch dir for safety.
 #
-.if ${MK_ZONEINFO} != "no"
-_zoneinfo=	zic tzsetup
-.endif
-
 .if !defined(CROSSBUILD_HOST)
 _sysctl=sysctl
 .endif
@@ -1330,13 +1326,18 @@ _sysctl=sysctl
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
 	date echo egrep find grep id install ${_install-info} \
 	ln make mkdir mtree mv pwd_mkdb \
-	rm sed services_mkdb sh sort strip ${_sysctl} test time true uname wc \
-	${_zoneinfo} ${LOCAL_ITOOLS}
+	rm sed services_mkdb sh sort strip ${_sysctl} test time true uname wc
+
+.if ${MK_ZONEINFO} != "no"
+ITOOLS+=tzsetup
+.endif
 
 # Needed for share/man
 .if ${MK_MAN_UTILS} != "no"
 ITOOLS+=makewhatis
 .endif
+
+ITOOLS+=${LOCAL_ITOOLS}
 
 #
 # distributeworld
@@ -1370,7 +1371,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 		if progpath=`env PATH=${TMPPATH:Q} which $$prog`; then \
 			echo $$progpath; \
 		else \
-			echo "Required tool $$prog not found in PATH ($$PATH)." >&2; \
+			echo "Required tool $$prog not found in PATH ("${TMPPATH:Q}")." >&2; \
 			exit 1; \
 		fi; \
 	    done); \
@@ -2238,6 +2239,11 @@ _strfile=	usr.bin/fortune/strfile
 # C source for loader built in font (8x16.c).
 _vtfontcvt=	usr.bin/vtfontcvt
 
+# zic is used to compile timezone data
+.if ${MK_ZONEINFO} != "no"
+_zic=		usr.sbin/zic
+.endif
+
 # If we are not building the bootstrap because BOOTSTRAPPING is sufficient
 # we symlink the host version to $WORLDTMP instead. By doing this we can also
 # detect when a bootstrap tool is being used without the required MK_FOO.
@@ -2440,8 +2446,9 @@ _basic_bootstrap_tools+=usr.bin/jot
 _basic_bootstrap_tools+=sbin/md5
 .endif
 
+# tzsetup is needed as an install tool
 .if ${MK_ZONEINFO} != "no"
-_basic_bootstrap_tools+=usr.sbin/zic usr.sbin/tzsetup
+_basic_bootstrap_tools+=usr.sbin/tzsetup
 .endif
 
 .if defined(BOOTSTRAP_ALL_TOOLS)
@@ -2528,6 +2535,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_localedef} \
     ${_mkcsmapper} \
     ${_mkesdb} \
+    ${_zic} \
     ${LOCAL_BSTOOL_DIRS}
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -2919,18 +2927,14 @@ _prereq_libs+=	lib/libclang_rt/ubsan_standalone_cxx
 _startup_libs=	lib/csu
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
-.if ${MK_CXX} != "no"
 _startup_libs+=	lib/libcxxrt
-.endif
 
 _prereq_libs+=	lib/libgcc_eh lib/libgcc_s
 _startup_libs+=	lib/libgcc_eh lib/libgcc_s
 
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
-.if ${MK_CXX} != "no"
 lib/libcxxrt__L: lib/libgcc_s__L
-.endif
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhdb} \
@@ -2942,6 +2946,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
+		lib/libc++ \
 		lib/libelf lib/libexpat \
 		lib/libfigpar \
 		${_lib_libgssapi} \
@@ -2977,10 +2982,6 @@ gnu/lib/libdialog__L: lib/msun__L lib/ncurses/tinfo__L lib/ncurses/ncurses__L
 
 .if ${MK_GOOGLETEST} != "no"
 _prebuild_libs+= lib/libregex
-.endif
-
-.if ${MK_CXX} != "no"
-_prebuild_libs+= lib/libc++
 .endif
 
 lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
@@ -3147,10 +3148,8 @@ lib/libradius__L: lib/libmd__L
 .endif
 
 lib/libproc__L: \
-    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
-.if ${MK_CXX} != "no"
-lib/libproc__L: lib/libcxxrt__L
-.endif
+    ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} \
+    lib/libelf__L lib/librtld_db__L lib/libutil__L lib/libcxxrt__L
 
 .for _lib in ${_prereq_libs}
 ${_lib}__PL: .PHONY .MAKE

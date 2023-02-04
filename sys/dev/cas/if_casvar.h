@@ -128,7 +128,7 @@ struct cas_rxdsoft {
  * software state per device
  */
 struct cas_softc {
-	struct ifnet	*sc_ifp;
+	if_t		sc_ifp;
 	struct mtx	sc_mtx;
 	device_t	sc_miibus;
 	struct mii_data	*sc_mii;	/* MII media control */

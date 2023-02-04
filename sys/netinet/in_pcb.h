@@ -626,7 +626,7 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_HDRINCL		0x00000008 /* user supplies entire IP header */
 #define	INP_HIGHPORT		0x00000010 /* user wants "high" port binding */
 #define	INP_LOWPORT		0x00000020 /* user wants "low" port binding */
-#define	INP_ANONPORT		0x00000040 /* port chosen for user */
+#define	INP_ANONPORT		0x00000040 /* read by netstat(1) */
 #define	INP_RECVIF		0x00000080 /* receive incoming interface */
 #define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
 /*	INP_FREED		0x00000200 private to in_pcb.c */
@@ -742,10 +742,10 @@ int	in_pcballoc(struct socket *, struct inpcbinfo *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct ucred *);
-int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *, bool);
-int	in_pcbconnect_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
-	    u_short *, in_addr_t *, u_short *, struct inpcb **,
-	    struct ucred *);
+int	in_pcbconnect(struct inpcb *, struct sockaddr_in *, struct ucred *,
+	    bool);
+int	in_pcbconnect_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
+	    u_short *, in_addr_t *, u_short *, struct ucred *);
 void	in_pcbdetach(struct inpcb *);
 void	in_pcbdisconnect(struct inpcb *);
 void	in_pcbdrop(struct inpcb *);

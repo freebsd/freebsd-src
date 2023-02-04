@@ -118,11 +118,11 @@ __FBSDID("$FreeBSD$");
  * TCP protocol interface to socket abstraction.
  */
 #ifdef INET
-static int	tcp_connect(struct tcpcb *, struct sockaddr *,
+static int	tcp_connect(struct tcpcb *, struct sockaddr_in *,
 		    struct thread *td);
 #endif /* INET */
 #ifdef INET6
-static int	tcp6_connect(struct tcpcb *, struct sockaddr *,
+static int	tcp6_connect(struct tcpcb *, struct sockaddr_in6 *,
 		    struct thread *td);
 #endif /* INET6 */
 static void	tcp_disconnect(struct tcpcb *);
@@ -130,16 +130,6 @@ static void	tcp_usrclosed(struct tcpcb *);
 static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 
 static int	tcp_pru_options_support(struct tcpcb *tp, int flags);
-
-/*
- * tcp_require_unique port requires a globally-unique source port for each
- * outgoing connection.  The default is to require the 4-tuple to be unique.
- */
-VNET_DEFINE(int, tcp_require_unique_port) = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, require_unique_port,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_require_unique_port), 0,
-    "Require globally-unique ephemeral port for outgoing connections");
-#define	V_tcp_require_unique_port	VNET(tcp_require_unique_port)
 
 /*
  * TCP attaches to socket via pru_attach(), reserving space,
@@ -492,7 +482,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	tp = intotcpcb(inp);
 	NET_EPOCH_ENTER(et);
-	if ((error = tcp_connect(tp, nam, td)) != 0)
+	if ((error = tcp_connect(tp, sinp, td)) != 0)
 		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
@@ -584,7 +574,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
 		NET_EPOCH_ENTER(et);
-		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
+		if ((error = tcp_connect(tp, &sin, td)) != 0)
 			goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 		if (registered_toedevs > 0 &&
@@ -607,7 +597,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_flags |= INC_ISIPV6;
 	NET_EPOCH_ENTER(et);
-	if ((error = tcp6_connect(tp, nam, td)) != 0)
+	if ((error = tcp6_connect(tp, sin6, td)) != 0)
 		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
@@ -874,6 +864,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	struct sockaddr_in *sinp;
 #endif
 #ifdef INET6
+	struct sockaddr_in6 *sin6;
 	int isipv6;
 #endif
 	u_int8_t incflagsav;
@@ -944,9 +935,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #endif /* INET */
 #ifdef INET6
 		case AF_INET6:
-		{
-			struct sockaddr_in6 *sin6;
-
 			sin6 = (struct sockaddr_in6 *)nam;
 			if (sin6->sin6_len != sizeof(*sin6)) {
 				error = EINVAL;
@@ -1001,7 +989,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				isipv6 = 1;
 			}
 			break;
-		}
 #endif /* INET6 */
 		default:
 			error = EAFNOSUPPORT;
@@ -1024,14 +1011,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			 */
 #ifdef INET6
 			if (isipv6)
-				error = tcp6_connect(tp, nam, td);
+				error = tcp6_connect(tp, sin6, td);
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
 			else
 #endif
 #ifdef INET
-				error = tcp_connect(tp,
-				    (struct sockaddr *)sinp, td);
+				error = tcp_connect(tp, sinp, td);
 #endif
 			/*
 			 * The bind operation in tcp_connect succeeded. We
@@ -1116,14 +1102,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				tp->t_flags &= ~TF_FASTOPEN;
 #ifdef INET6
 			if (isipv6)
-				error = tcp6_connect(tp, nam, td);
+				error = tcp6_connect(tp, sin6, td);
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
 			else
 #endif
 #ifdef INET
-				error = tcp_connect(tp,
-				    (struct sockaddr *)sinp, td);
+				error = tcp_connect(tp, sinp, td);
 #endif
 			/*
 			 * The bind operation in tcp_connect succeeded. We
@@ -1402,18 +1387,14 @@ struct protosw tcp6_protosw = {
 #ifdef INET
 /*
  * Common subroutine to open a TCP connection to remote host specified
- * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
- * port number if needed.  Call in_pcbconnect_setup to do the routing and
- * to choose a local host address (interface).  If there is an existing
- * incarnation of the same connection in TIME-WAIT state and if the remote
- * host was sending CC options and if the connection duration was < MSL, then
- * truncate the previous TIME-WAIT state and proceed.
- * Initialize connection parameters and enter SYN-SENT state.
+ * by struct sockaddr_in.  Call in_pcbconnect_setup() to choose local
+ * host address and assign a local port number if needed.  Initialize
+ * connection parameters and enter SYN-SENT state.
  */
 static int
-tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
+tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 {
-	struct inpcb *inp = tptoinpcb(tp), *oinp;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = tptosocket(tp);
 	struct in_addr laddr;
 	u_short lport;
@@ -1421,14 +1402,8 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
+
 	INP_HASH_WLOCK(&V_tcbinfo);
-
-	if (V_tcp_require_unique_port && inp->inp_lport == 0) {
-		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
-		if (error)
-			goto out;
-	}
-
 	/*
 	 * Cannot simply call in_pcbconnect, because there might be an
 	 * earlier incarnation of this same connection still in
@@ -1436,21 +1411,19 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	 */
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
-	error = in_pcbconnect_setup(inp, nam, &laddr.s_addr, &lport,
-	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td->td_ucred);
-	if (error && oinp == NULL)
-		goto out;
-	if (oinp) {
-		error = EADDRINUSE;
-		goto out;
+	error = in_pcbconnect_setup(inp, sin, &laddr.s_addr, &lport,
+	    &inp->inp_faddr.s_addr, &inp->inp_fport, td->td_ucred);
+	if (error) {
+		INP_HASH_WUNLOCK(&V_tcbinfo);
+		return (error);
 	}
 	/* Handle initial bind if it hadn't been done in advance. */
 	if (inp->inp_lport == 0) {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {
 			inp->inp_lport = 0;
-			error = EAGAIN;
-			goto out;
+			INP_HASH_WUNLOCK(&V_tcbinfo);
+			return (EAGAIN);
 		}
 	}
 	inp->inp_laddr = laddr;
@@ -1474,33 +1447,27 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
-	return 0;
-
-out:
-	INP_HASH_WUNLOCK(&V_tcbinfo);
-	return (error);
+	return (0);
 }
 #endif /* INET */
 
 #ifdef INET6
 static int
-tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
+tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 {
 	struct inpcb *inp = tptoinpcb(tp);
+	struct epoch_tracker et;
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK(&V_tcbinfo);
 
-	if (V_tcp_require_unique_port && inp->inp_lport == 0) {
-		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
-		if (error)
-			goto out;
-	}
-	error = in6_pcbconnect(inp, nam, td->td_ucred);
-	if (error != 0)
-		goto out;
+	NET_EPOCH_ENTER(et);
+	INP_HASH_WLOCK(&V_tcbinfo);
+	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
+	NET_EPOCH_EXIT(et);
+	if (error != 0)
+		return (error);
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
@@ -1515,11 +1482,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
 	tcp_sendseqinit(tp);
 
-	return 0;
-
-out:
-	INP_HASH_WUNLOCK(&V_tcbinfo);
-	return error;
+	return (0);
 }
 #endif /* INET6 */
 
@@ -3068,7 +3031,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    tp->t_rttvar, tp->t_rxtshift, tp->t_rttmin);
 
 	db_print_indent(indent);
-	db_printf("t_rttupdated: %lu   max_sndwnd: %u   t_softerror: %d\n",
+	db_printf("t_rttupdated: %u   max_sndwnd: %u   t_softerror: %d\n",
 	    tp->t_rttupdated, tp->max_sndwnd, tp->t_softerror);
 
 	db_print_indent(indent);

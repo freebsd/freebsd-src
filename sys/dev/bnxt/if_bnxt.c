@@ -1213,7 +1213,7 @@ struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn,
 
 	SLIST_FOREACH(sc, &pf_list, next) {
 		/* get the softc reference based on device name */
-		if (dev_name && !strncmp(dev_name, iflib_get_ifp(sc->softc->ctx)->if_xname, BNXT_MAX_STR)) {
+		if (dev_name && !strncmp(dev_name, if_name(iflib_get_ifp(sc->softc->ctx)), BNXT_MAX_STR)) {
 			return sc->softc;
 		}
 		/* get the softc reference based on domain,bus,device,function */

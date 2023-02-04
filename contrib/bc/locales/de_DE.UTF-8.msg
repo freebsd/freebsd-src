@@ -1,7 +1,7 @@
 $ $
 $ SPDX-License-Identifier: BSD-2-Clause
 $ $
-$ Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+$ Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 $ $
 $ Redistribution and use in source and binary forms, with or without
 $ modification, are permitted provided that the following conditions are met:
@@ -28,13 +28,8 @@ $ $
 
 $quote "
 
-$ Headers for printing errors/warnings.
-$set 1
-
-1 "Funktion:"
-
 $ Error types.
-$set 2
+$set 1
 
 1 "Rechenfehler:"
 2 "Analysefehler:"
@@ -43,7 +38,7 @@ $set 2
 5 "Warnung:"
 
 $ Math errors.
-$set 3
+$set 2
 
 1 "negative Zahl"
 2 "Nicht-Ganzzahl-Wert"
@@ -51,7 +46,7 @@ $set 3
 4 "Division durch 0"
 
 $ Parse errors.
-$set 4
+$set 3
 
 1 "Ende der Datei"
 2 "ungültiges Zeichen: '%c'"
@@ -85,7 +80,7 @@ $set 4
 30 "POSIX erlaubt keine Zuweisung von Strings an Variablen oder Arrays"
 
 $ Runtime errors.
-$set 5
+$set 4
 
 1 "ungültige \"ibase\": muss im Intervall [%lu, %lu] liegen"
 2 "ungültige \"obase\": muss im Intervall [%lu, %lu] liegen"
@@ -100,7 +95,7 @@ $set 5
 11 "kann keinen ungültigen Wert in einem Ausdruck verwenden"
 
 $ Fatal errors.
-$set 6
+$set 5
 
 1 "Speicherzuweisung fehlgeschlagen"
 2 "Ein-Ausgabe-Fehler"

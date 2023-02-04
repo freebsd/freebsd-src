@@ -175,6 +175,7 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 
 	if (uidx != 0)
 		nlattr_add_u32(nw, NL_RTA_NH_ID, uidx);
+	nlattr_add_u32(nw, NL_RTA_KNH_ID, nhgrp_get_idx(nhg));
 
 	nlattr_add_u32(nw, NL_RTA_RTFLAGS, base_rtflags);
 	int off = nlattr_add_nested(nw, NL_RTA_MULTIPATH);
@@ -207,14 +208,15 @@ dump_rc_nhg(struct nl_writer *nw, const struct nhgrp_object *nhg, struct rtmsg *
 #endif
 
 static void
-dump_rc_nhop(struct nl_writer *nw, const struct nhop_object *nh, struct rtmsg *rtm)
+dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtmsg *rtm)
 {
 #ifdef ROUTE_MPATH
-	if (NH_IS_NHGRP(nh)) {
-		dump_rc_nhg(nw, (const struct nhgrp_object *)nh, rtm);
+	if (NH_IS_NHGRP(rnd->rnd_nhop)) {
+		dump_rc_nhg(nw, rnd->rnd_nhgrp, rtm);
 		return;
 	}
 #endif
+	const struct nhop_object *nh = rnd->rnd_nhop;
 	uint32_t rtflags = nhop_get_rtflags(nh);
 
 	/*
@@ -242,6 +244,9 @@ dump_rc_nhop(struct nl_writer *nw, const struct nhop_object *nh, struct rtmsg *r
 
 	/* In any case, fill outgoing interface */
 	nlattr_add_u32(nw, NL_RTA_OIF, nh->nh_ifp->if_index);
+
+	if (rnd->rnd_weight != RT_DEFAULT_WEIGHT)
+		nlattr_add_u32(nw, NL_RTA_WEIGHT, rnd->rnd_weight);
 }
 
 /*
@@ -308,7 +313,7 @@ dump_px(uint32_t fibnum, const struct nlmsghdr *hdr,
 	rtm = nlattr_restore_offset(nw, rtm_off, struct rtmsg);
 	if (plen > 0)
 		rtm->rtm_dst_len = plen;
-	dump_rc_nhop(nw, rnd->rnd_nhop, rtm);
+	dump_rc_nhop(nw, rnd, rtm);
 
 	if (nlmsg_end(nw))
 		return (0);
@@ -336,9 +341,9 @@ static void
 report_operation(uint32_t fibnum, struct rib_cmd_info *rc,
     struct nlpcb *nlp, struct nlmsghdr *hdr)
 {
-	struct nl_writer nw;
-
+	struct nl_writer nw = {};
 	uint32_t group_id = family_to_group(rt_get_family(rc->rc_rt));
+
 	if (nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id)) {
 		struct route_nhop_data rnd = {
 			.rnd_nhop = rc_get_nhop(rc),
@@ -437,6 +442,7 @@ struct nl_parsed_route {
 	uint32_t		rta_table;
 	uint32_t		rta_rtflags;
 	uint32_t		rta_nh_id;
+	uint32_t		rta_weight;
 	uint32_t		rtax_mtu;
 	uint8_t			rtm_family;
 	uint8_t			rtm_dst_len;
@@ -456,6 +462,7 @@ static const struct nlattr_parser nla_p_rtmsg[] = {
 	{ .type = NL_RTA_GATEWAY, .off = _OUT(rta_gw), .cb = nlattr_get_ip },
 	{ .type = NL_RTA_METRICS, .arg = &metrics_parser, .cb = nlattr_get_nested },
 	{ .type = NL_RTA_MULTIPATH, .off = _OUT(rta_multipath), .cb = nlattr_get_multipath },
+	{ .type = NL_RTA_WEIGHT, .off = _OUT(rta_weight), .cb = nlattr_get_uint32 },
 	{ .type = NL_RTA_RTFLAGS, .off = _OUT(rta_rtflags), .cb = nlattr_get_uint32 },
 	{ .type = NL_RTA_TABLE, .off = _OUT(rta_table), .cb = nlattr_get_uint32 },
 	{ .type = NL_RTA_VIA, .off = _OUT(rta_gw), .cb = nlattr_get_ipvia },
@@ -848,8 +855,9 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		}
 	}
 
-	int weight = NH_IS_NHGRP(nh) ? 0 : RT_DEFAULT_WEIGHT;
-	struct route_nhop_data rnd = { .rnd_nhop = nh, .rnd_weight = weight };
+	if (!NH_IS_NHGRP(nh) && attrs.rta_weight == 0)
+		attrs.rta_weight = RT_DEFAULT_WEIGHT;
+	struct route_nhop_data rnd = { .rnd_nhop = nh, .rnd_weight = attrs.rta_weight };
 	int op_flags = get_op_flags(hdr->nlmsg_flags);
 
 	error = rib_add_route_px(attrs.rta_table, attrs.rta_dst, attrs.rtm_dst_len,
@@ -918,9 +926,8 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 void
 rtnl_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 {
+	struct nl_writer nw = {};
 	int family, nlm_flags = 0;
-
-	struct nl_writer nw;
 
 	family = rt_get_family(rc->rc_rt);
 

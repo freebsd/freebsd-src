@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.582 2022/05/07 17:49:47 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.589 2023/01/26 20:48:17 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.582 2022/05/07 17:49:47 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.589 2023/01/26 20:48:17 sjg Exp $");
 #if defined(MAKE_NATIVE) && !defined(lint)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -432,6 +432,7 @@ MainParseArgSysInc(const char *argvalue)
 	}
 	Global_Append(MAKEFLAGS, "-m");
 	Global_Append(MAKEFLAGS, argvalue);
+	Dir_SetSYSPATH();
 }
 
 static bool
@@ -722,8 +723,10 @@ Main_SetObjdir(bool writable, const char *fmt, ...)
 	va_end(ap);
 
 	if (path[0] != '/') {
-		snprintf(buf2, MAXPATHLEN, "%s/%s", curdir, path);
-		path = buf2;
+		if (snprintf(buf2, MAXPATHLEN, "%s/%s", curdir, path) <= MAXPATHLEN)
+			path = buf2;
+		else
+			return false;
 	}
 
 	/* look for the directory and try to chdir there */
@@ -1370,19 +1373,19 @@ main_Init(int argc, char **argv)
 	 */
 	Targ_Init();
 	Var_Init();
-	Global_Set(".MAKE.OS", utsname.sysname);
+	Global_Set_ReadOnly(".MAKE.OS", utsname.sysname);
 	Global_Set("MACHINE", machine);
 	Global_Set("MACHINE_ARCH", machine_arch);
 #ifdef MAKE_VERSION
 	Global_Set("MAKE_VERSION", MAKE_VERSION);
 #endif
-	Global_Set(".newline", "\n");	/* handy for :@ loops */
+	Global_Set_ReadOnly(".newline", "\n");	/* handy for :@ loops */
 #ifndef MAKEFILE_PREFERENCE_LIST
 	/* This is the traditional preference for makefiles. */
 # define MAKEFILE_PREFERENCE_LIST "makefile Makefile"
 #endif
 	Global_Set(MAKE_MAKEFILE_PREFERENCE, MAKEFILE_PREFERENCE_LIST);
-	Global_Set(MAKE_DEPENDFILE, ".depend");
+	Global_Set(".MAKE.DEPENDFILE", ".depend");
 
 	CmdOpts_Init();
 	allPrecious = false;	/* Remove targets when interrupted */
@@ -1410,7 +1413,7 @@ main_Init(int argc, char **argv)
 	Global_Set(MAKEOVERRIDES, "");
 	Global_Set("MFLAGS", "");
 	Global_Set(".ALLTARGETS", "");
-	Var_Set(SCOPE_CMDLINE, MAKE_LEVEL ".ENV", MAKE_LEVEL_ENV);
+	Var_Set(SCOPE_CMDLINE, ".MAKE.LEVEL.ENV", MAKE_LEVEL_ENV);
 
 	/* Set some other useful variables. */
 	{
@@ -1422,13 +1425,13 @@ main_Init(int argc, char **argv)
 		snprintf(buf, sizeof buf, "%d", makelevel);
 		Global_Set(MAKE_LEVEL, buf);
 		snprintf(buf, sizeof buf, "%u", myPid);
-		Global_Set(".MAKE.PID", buf);
+		Global_Set_ReadOnly(".MAKE.PID", buf);
 		snprintf(buf, sizeof buf, "%u", getppid());
-		Global_Set(".MAKE.PPID", buf);
+		Global_Set_ReadOnly(".MAKE.PPID", buf);
 		snprintf(buf, sizeof buf, "%u", getuid());
-		Global_Set(".MAKE.UID", buf);
+		Global_Set_ReadOnly(".MAKE.UID", buf);
 		snprintf(buf, sizeof buf, "%u", getgid());
-		Global_Set(".MAKE.GID", buf);
+		Global_Set_ReadOnly(".MAKE.GID", buf);
 	}
 	if (makelevel > 0) {
 		char pn[1024];
@@ -1502,6 +1505,10 @@ static void
 main_ReadFiles(void)
 {
 
+	if (Lst_IsEmpty(&sysIncPath->dirs))
+		SearchPath_AddAll(sysIncPath, defSysIncPath);
+
+	Dir_SetSYSPATH();
 	if (!opts.noBuiltins)
 		ReadBuiltinRules();
 
@@ -1906,19 +1913,23 @@ Finish(int errs)
 	Fatal("%d error%s", errs, errs == 1 ? "" : "s");
 }
 
-bool
+int
 unlink_file(const char *file)
 {
 	struct stat st;
 
 	if (lstat(file, &st) == -1)
-		return false;
+		return -1;
 
 	if (S_ISDIR(st.st_mode)) {
+		/*
+		 * POSIX says for unlink: "The path argument shall not name
+		 * a directory unless [...]".
+		 */
 		errno = EISDIR;
-		return false;
+		return -1;
 	}
-	return unlink(file) == 0;
+	return unlink(file);
 }
 
 static void

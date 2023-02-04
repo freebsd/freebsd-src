@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2022
+.Dd January 25, 2023
 .Dt STRFMON 3
 .Os
 .Sh NAME
@@ -37,13 +37,15 @@
 .In monetary.h
 .Ft ssize_t
 .Fn strfmon "char * restrict s" "size_t maxsize" "const char * restrict format" "..."
+.In monetary.h
+.In xlocale.h
 .Ft ssize_t
 .Fn strfmon_l "char * restrict s" "size_t maxsize" "locale_t loc" "const char * restrict format" "..."
 .Sh DESCRIPTION
 The
 .Fn strfmon
 function places characters into the array pointed to by
-.Fa s
+.Fa s ,
 as controlled by the string pointed to by
 .Fa format .
 No more than
@@ -52,9 +54,9 @@ bytes are placed into the array.
 .Pp
 The
 .Fn strfmon_l
-function does the same as
+function takes an explicit locale argument, whereas the
 .Fn strfmon
-but takes an explicit locale rather than using the current locale.
+function uses the current global or per-thread locale.
 .Pp
 The format string is composed of zero or more directives:
 ordinary characters (not
@@ -129,12 +131,14 @@ character is written.
 .El
 .El
 .Sh RETURN VALUES
-If the total number of resulting bytes including the terminating
+If the total number of resulting bytes, including the terminating
 .Dv NUL
-byte is not more than
+byte, is not more than
 .Fa maxsize ,
 .Fn strfmon
-returns the number of bytes placed into the array pointed to by
+and
+.Fn strfmon_l
+return the number of bytes placed into the array pointed to by
 .Fa s ,
 not including the terminating
 .Dv NUL
@@ -144,11 +148,31 @@ the contents of the array are indeterminate,
 and
 .Va errno
 is set to indicate the error.
-.Pp
-The
-.Fn strfmon_l
-function returns the same values as
-.Fn strfmon .
+.Sh EXAMPLES
+The following example will format the value
+.Dq Li 1234567.89
+to the string
+.Dq Li $1,234,567.89 :
+.Bd -literal -offset indent
+#include <stdio.h>
+#include <monetary.h>
+#include <xlocale.h>
+
+int
+main()
+{
+	char string[100];
+	double money = 1234567.89;
+
+	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL) {
+		fprintf(stderr, "Unable to setlocale().\\n");
+		return (1);
+	}
+
+	strfmon(string, sizeof(string) - 1, "%n", money);
+	printf("%s\\n", string);
+}
+.Ed
 .Sh ERRORS
 The
 .Fn strfmon

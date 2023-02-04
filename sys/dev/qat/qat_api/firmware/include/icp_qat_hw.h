@@ -25,22 +25,22 @@
 /* ========================================================================= */
 
 typedef enum {
-	ICP_QAT_HW_AE_0 = 0,	 /*!< ID of AE0 */
-	ICP_QAT_HW_AE_1 = 1,	 /*!< ID of AE1 */
-	ICP_QAT_HW_AE_2 = 2,	 /*!< ID of AE2 */
-	ICP_QAT_HW_AE_3 = 3,	 /*!< ID of AE3 */
-	ICP_QAT_HW_AE_4 = 4,	 /*!< ID of AE4 */
-	ICP_QAT_HW_AE_5 = 5,	 /*!< ID of AE5 */
-	ICP_QAT_HW_AE_6 = 6,	 /*!< ID of AE6 */
-	ICP_QAT_HW_AE_7 = 7,	 /*!< ID of AE7 */
-	ICP_QAT_HW_AE_8 = 8,	 /*!< ID of AE8 */
-	ICP_QAT_HW_AE_9 = 9,	 /*!< ID of AE9 */
-	ICP_QAT_HW_AE_10 = 10,       /*!< ID of AE10 */
-	ICP_QAT_HW_AE_11 = 11,       /*!< ID of AE11 */
-	ICP_QAT_HW_AE_12 = 12,       /*!< ID of AE12 */
-	ICP_QAT_HW_AE_13 = 13,       /*!< ID of AE13 */
-	ICP_QAT_HW_AE_14 = 14,       /*!< ID of AE14 */
-	ICP_QAT_HW_AE_15 = 15,       /*!< ID of AE15 */
+	ICP_QAT_HW_AE_0 = 0,	     /*!< ID of AE0 */
+	ICP_QAT_HW_AE_1 = 1,	     /*!< ID of AE1 */
+	ICP_QAT_HW_AE_2 = 2,	     /*!< ID of AE2 */
+	ICP_QAT_HW_AE_3 = 3,	     /*!< ID of AE3 */
+	ICP_QAT_HW_AE_4 = 4,	     /*!< ID of AE4 */
+	ICP_QAT_HW_AE_5 = 5,	     /*!< ID of AE5 */
+	ICP_QAT_HW_AE_6 = 6,	     /*!< ID of AE6 */
+	ICP_QAT_HW_AE_7 = 7,	     /*!< ID of AE7 */
+	ICP_QAT_HW_AE_8 = 8,	     /*!< ID of AE8 */
+	ICP_QAT_HW_AE_9 = 9,	     /*!< ID of AE9 */
+	ICP_QAT_HW_AE_10 = 10,	     /*!< ID of AE10 */
+	ICP_QAT_HW_AE_11 = 11,	     /*!< ID of AE11 */
+	ICP_QAT_HW_AE_12 = 12,	     /*!< ID of AE12 */
+	ICP_QAT_HW_AE_13 = 13,	     /*!< ID of AE13 */
+	ICP_QAT_HW_AE_14 = 14,	     /*!< ID of AE14 */
+	ICP_QAT_HW_AE_15 = 15,	     /*!< ID of AE15 */
 	ICP_QAT_HW_AE_DELIMITER = 16 /**< Delimiter type */
 } icp_qat_hw_ae_id_t;
 
@@ -49,12 +49,12 @@ typedef enum {
 /* ========================================================================= */
 
 typedef enum {
-	ICP_QAT_HW_QAT_0 = 0,	/*!< ID of QAT0 */
-	ICP_QAT_HW_QAT_1 = 1,	/*!< ID of QAT1 */
-	ICP_QAT_HW_QAT_2 = 2,	/*!< ID of QAT2 */
-	ICP_QAT_HW_QAT_3 = 3,	/*!< ID of QAT3 */
-	ICP_QAT_HW_QAT_4 = 4,	/*!< ID of QAT4 */
-	ICP_QAT_HW_QAT_5 = 5,	/*!< ID of QAT5 */
+	ICP_QAT_HW_QAT_0 = 0,	     /*!< ID of QAT0 */
+	ICP_QAT_HW_QAT_1 = 1,	     /*!< ID of QAT1 */
+	ICP_QAT_HW_QAT_2 = 2,	     /*!< ID of QAT2 */
+	ICP_QAT_HW_QAT_3 = 3,	     /*!< ID of QAT3 */
+	ICP_QAT_HW_QAT_4 = 4,	     /*!< ID of QAT4 */
+	ICP_QAT_HW_QAT_5 = 5,	     /*!< ID of QAT5 */
 	ICP_QAT_HW_QAT_DELIMITER = 6 /**< Delimiter type */
 } icp_qat_hw_qat_id_t;
 
@@ -79,24 +79,24 @@ typedef enum {
 	ICP_QAT_HW_AUTH_ALGO_SHA256 = 4,	/*!< SHA-256 hashing */
 	ICP_QAT_HW_AUTH_ALGO_SHA384 = 5,	/*!< SHA-384 hashing */
 	ICP_QAT_HW_AUTH_ALGO_SHA512 = 6,	/*!< SHA-512 hashing */
-	ICP_QAT_HW_AUTH_ALGO_AES_XCBC_MAC = 7,  /*!< AES-XCBC-MAC hashing */
-	ICP_QAT_HW_AUTH_ALGO_AES_CBC_MAC = 8,   /*!< AES-CBC-MAC hashing */
+	ICP_QAT_HW_AUTH_ALGO_AES_XCBC_MAC = 7,	/*!< AES-XCBC-MAC hashing */
+	ICP_QAT_HW_AUTH_ALGO_AES_CBC_MAC = 8,	/*!< AES-CBC-MAC hashing */
 	ICP_QAT_HW_AUTH_ALGO_AES_F9 = 9,	/*!< AES F9 hashing */
-	ICP_QAT_HW_AUTH_ALGO_GALOIS_128 = 10,   /*!< Galois 128 bit hashing */
-	ICP_QAT_HW_AUTH_ALGO_GALOIS_64 = 11,    /*!< Galois 64 hashing */
-	ICP_QAT_HW_AUTH_ALGO_KASUMI_F9 = 12,    /*!< Kasumi F9 hashing */
+	ICP_QAT_HW_AUTH_ALGO_GALOIS_128 = 10,	/*!< Galois 128 bit hashing */
+	ICP_QAT_HW_AUTH_ALGO_GALOIS_64 = 11,	/*!< Galois 64 hashing */
+	ICP_QAT_HW_AUTH_ALGO_KASUMI_F9 = 12,	/*!< Kasumi F9 hashing */
 	ICP_QAT_HW_AUTH_ALGO_SNOW_3G_UIA2 = 13, /*!< UIA2/SNOW_3G F9 hashing */
 	ICP_QAT_HW_AUTH_ALGO_ZUC_3G_128_EIA3 =
-	    14,				     /*!< 128_EIA3/ZUC_3G hashing */
-	ICP_QAT_HW_AUTH_ALGO_SM3 = 15,       /*!< SM3 hashing */
-	ICP_QAT_HW_AUTH_ALGO_SHA3_224 = 16,  /*!< SHA3-224 hashing */
-	ICP_QAT_HW_AUTH_ALGO_SHA3_256 = 17,  /*!< SHA3-256 hashing */
-	ICP_QAT_HW_AUTH_ALGO_SHA3_384 = 18,  /*!< SHA3-384 hashing */
-	ICP_QAT_HW_AUTH_ALGO_SHA3_512 = 19,  /*!< SHA3-512 hashing */
-	ICP_QAT_HW_AUTH_ALGO_SHAKE_128 = 20, /*!< SHAKE-128 hashing */
-	ICP_QAT_HW_AUTH_ALGO_SHAKE_256 = 21, /*!< SHAKE-256 hashing */
-	ICP_QAT_HW_AUTH_ALGO_POLY = 22,      /*!< POLY hashing */
-	ICP_QAT_HW_AUTH_ALGO_DELIMITER = 23  /**< Delimiter type */
+	    14,				    /*!< 128_EIA3/ZUC_3G hashing */
+	ICP_QAT_HW_AUTH_ALGO_SM3 = 15,	    /*!< SM3 hashing */
+	ICP_QAT_HW_AUTH_ALGO_SHA3_224 = 16, /*!< SHA3-224 hashing */
+	ICP_QAT_HW_AUTH_ALGO_SHA3_256 = 17, /*!< SHA3-256 hashing */
+	ICP_QAT_HW_AUTH_ALGO_SHA3_384 = 18, /*!< SHA3-384 hashing */
+	ICP_QAT_HW_AUTH_ALGO_SHA3_512 = 19, /*!< SHA3-512 hashing */
+	ICP_QAT_HW_AUTH_RESERVED_4 = 20,    /*!< Reserved */
+	ICP_QAT_HW_AUTH_RESERVED_5 = 21,    /*!< Reserved */
+	ICP_QAT_HW_AUTH_ALGO_POLY = 22,	    /*!< POLY hashing */
+	ICP_QAT_HW_AUTH_ALGO_DELIMITER = 23 /**< Delimiter type */
 } icp_qat_hw_auth_algo_t;
 
 /**
@@ -118,9 +118,9 @@ typedef enum {
  *****************************************************************************/
 
 typedef enum {
-	ICP_QAT_HW_AUTH_MODE0 = 0,	 /*!< QAT Auth Mode0 configuration */
-	ICP_QAT_HW_AUTH_MODE1 = 1,	 /*!< QAT Auth Mode1 configuration */
-	ICP_QAT_HW_AUTH_MODE2 = 2,	 /*!< QAT AuthMode2 configuration */
+	ICP_QAT_HW_AUTH_MODE0 = 0,	   /*!< QAT Auth Mode0 configuration */
+	ICP_QAT_HW_AUTH_MODE1 = 1,	   /*!< QAT Auth Mode1 configuration */
+	ICP_QAT_HW_AUTH_MODE2 = 2,	   /*!< QAT AuthMode2 configuration */
 	ICP_QAT_HW_AUTH_MODE_DELIMITER = 3 /**< Delimiter type */
 } icp_qat_hw_auth_mode_t;
 
@@ -269,7 +269,7 @@ typedef struct icp_qat_hw_auth_config_s {
 /**< Flag usage - see additional notes @description for
  * ICP_QAT_HW_AUTH_CONFIG_BUILD and
  * ICP_QAT_HW_AUTH_CONFIG_BUILD_UPPER macros.
-*/
+ */
 
 #define QAT_AUTH_SHA3_HW_PADDING_ENABLE 0
 /**< @ingroup icp_qat_hw_defs
@@ -461,7 +461,7 @@ typedef struct icp_qat_hw_auth_setup_s {
 #define QAT_HW_ROUND_UP(val, n) (((val) + ((n)-1)) & (~(n - 1)))
 
 /* State1 */
-#define ICP_QAT_HW_NULL_STATE1_SZ 64
+#define ICP_QAT_HW_NULL_STATE1_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * State1 block size for NULL hashing */
 #define ICP_QAT_HW_MD5_STATE1_SZ 16
@@ -474,7 +474,7 @@ typedef struct icp_qat_hw_auth_setup_s {
 #define ICP_QAT_HW_SHA224_STATE1_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * State1 block size for SHA24 */
-#define ICP_QAT_HW_SHA3_224_STATE1_SZ 32
+#define ICP_QAT_HW_SHA3_224_STATE1_SZ 28
 /**< @ingroup icp_qat_hw_defs
  * State1 block size for SHA3_224 */
 #define ICP_QAT_HW_SHA256_STATE1_SZ 32
@@ -486,7 +486,7 @@ typedef struct icp_qat_hw_auth_setup_s {
 #define ICP_QAT_HW_SHA384_STATE1_SZ 64
 /**< @ingroup icp_qat_hw_defs
  * State1 block size for SHA384 */
-#define ICP_QAT_HW_SHA3_384_STATE1_SZ 64
+#define ICP_QAT_HW_SHA3_384_STATE1_SZ 48
 /**< @ingroup icp_qat_hw_defs
  * State1 block size for SHA3_384 */
 #define ICP_QAT_HW_SHA512_STATE1_SZ 64
@@ -516,15 +516,15 @@ typedef struct icp_qat_hw_auth_setup_s {
 #define ICP_QAT_HW_ZUC_3G_EIA3_STATE1_SZ 8
 /**< @ingroup icp_cpm_hw_defs
  * State1 block size for EIA3 */
+#define ICP_QAT_HW_SM3_STATE1_SZ 32
+/**< @ingroup icp_qat_hw_defs
+ * State1 block size for SM3 */
 #define ICP_QAT_HW_SHA3_STATEFUL_STATE1_SZ 200
 /** <@ingroup icp_cpm_hw_defs
  * State1 block size for stateful SHA3 processing*/
-#define ICP_QAT_HW_SM3_STATE1_SZ 32
-/**< @ingroup icp_cpm_hw_defs
- * State1 block size for SM3 */
 
 /* State2 */
-#define ICP_QAT_HW_NULL_STATE2_SZ 64
+#define ICP_QAT_HW_NULL_STATE2_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for NULL hashing */
 #define ICP_QAT_HW_MD5_STATE2_SZ 16
@@ -537,25 +537,25 @@ typedef struct icp_qat_hw_auth_setup_s {
 #define ICP_QAT_HW_SHA224_STATE2_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA224 */
-#define ICP_QAT_HW_SHA3_224_STATE2_SZ 32
+#define ICP_QAT_HW_SHA3_224_STATE2_SZ 0
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA3_224 */
 #define ICP_QAT_HW_SHA256_STATE2_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA256 */
-#define ICP_QAT_HW_SHA3_256_STATE2_SZ 32
+#define ICP_QAT_HW_SHA3_256_STATE2_SZ 0
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA3_256 */
 #define ICP_QAT_HW_SHA384_STATE2_SZ 64
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA384 */
-#define ICP_QAT_HW_SHA3_384_STATE2_SZ 64
+#define ICP_QAT_HW_SHA3_384_STATE2_SZ 0
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA3_384 */
 #define ICP_QAT_HW_SHA512_STATE2_SZ 64
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA512 */
-#define ICP_QAT_HW_SHA3_512_STATE2_SZ 64
+#define ICP_QAT_HW_SHA3_512_STATE2_SZ 0
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SHA3_512 */
 #define ICP_QAT_HW_AES_XCBC_MAC_KEY_SZ 16
@@ -598,6 +598,9 @@ typedef struct icp_qat_hw_auth_setup_s {
 #define ICP_QAT_HW_SM3_STATE2_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * State2 block size for SM3 */
+#define ICP_QAT_HW_SHA3_STATEFUL_STATE2_SZ 208
+/** <@ingroup icp_cpm_hw_defs
+ * State2 block size for stateful SHA3 processing*/
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -647,9 +650,32 @@ typedef struct icp_qat_hw_auth_sha3_512_s {
 	icp_qat_hw_auth_setup_t outer_setup;
 	/**< Outer configuration word for the slice */
 
-	/* State2 size is zero - this may change for future implementations */
-	uint8_t state2[ICP_QAT_HW_SHA3_512_STATE2_SZ];
 } icp_qat_hw_auth_sha3_512_t;
+
+/**
+ *****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ *      Definition of stateful SHA3 auth algorithm processing struct
+ * @description
+ *      This structs described the parameters to pass to the slice for
+ *      configuring it for stateful SHA3 processing. This is the largest
+ *      possible setup block for authentication
+ *
+ *****************************************************************************/
+typedef struct icp_qat_hw_auth_sha3_stateful_s {
+	icp_qat_hw_auth_setup_t inner_setup;
+	/**< Inner loop configuration word for the slice */
+
+	uint8_t inner_state1[ICP_QAT_HW_SHA3_STATEFUL_STATE1_SZ];
+	/**< Inner hash block */
+
+	icp_qat_hw_auth_setup_t outer_setup;
+	/**< Outer configuration word for the slice */
+
+	uint8_t outer_state1[ICP_QAT_HW_SHA3_STATEFUL_STATE1_SZ];
+	/**< Outer hash block */
+
+} icp_qat_hw_auth_sha3_stateful_t;
 
 /**
  *****************************************************************************
@@ -662,6 +688,8 @@ typedef struct icp_qat_hw_auth_sha3_512_s {
 typedef union icp_qat_hw_auth_algo_blk_u {
 	icp_qat_hw_auth_sha512_t sha512;
 	/**< SHA512 Hashing */
+	icp_qat_hw_auth_sha3_stateful_t sha3_stateful;
+	/**< Stateful SHA3 Hashing */
 
 } icp_qat_hw_auth_algo_blk_t;
 
@@ -691,11 +719,11 @@ typedef enum {
 	ICP_QAT_HW_CIPHER_ALGO_NULL = 0,	    /*!< Null ciphering */
 	ICP_QAT_HW_CIPHER_ALGO_DES = 1,		    /*!< DES ciphering */
 	ICP_QAT_HW_CIPHER_ALGO_3DES = 2,	    /*!< 3DES ciphering */
-	ICP_QAT_HW_CIPHER_ALGO_AES128 = 3,	  /*!< AES-128 ciphering */
-	ICP_QAT_HW_CIPHER_ALGO_AES192 = 4,	  /*!< AES-192 ciphering */
-	ICP_QAT_HW_CIPHER_ALGO_AES256 = 5,	  /*!< AES-256 ciphering */
+	ICP_QAT_HW_CIPHER_ALGO_AES128 = 3,	    /*!< AES-128 ciphering */
+	ICP_QAT_HW_CIPHER_ALGO_AES192 = 4,	    /*!< AES-192 ciphering */
+	ICP_QAT_HW_CIPHER_ALGO_AES256 = 5,	    /*!< AES-256 ciphering */
 	ICP_QAT_HW_CIPHER_ALGO_ARC4 = 6,	    /*!< ARC4 ciphering */
-	ICP_QAT_HW_CIPHER_ALGO_KASUMI = 7,	  /*!< Kasumi */
+	ICP_QAT_HW_CIPHER_ALGO_KASUMI = 7,	    /*!< Kasumi */
 	ICP_QAT_HW_CIPHER_ALGO_SNOW_3G_UEA2 = 8,    /*!< Snow_3G */
 	ICP_QAT_HW_CIPHER_ALGO_ZUC_3G_128_EEA3 = 9, /*!< ZUC_3G */
 	ICP_QAT_HW_CIPHER_ALGO_SM4 = 10,	    /*!< SM4 ciphering */
@@ -723,7 +751,7 @@ typedef enum {
 	ICP_QAT_HW_CIPHER_CTR_MODE = 2,      /*!< CTR mode */
 	ICP_QAT_HW_CIPHER_F8_MODE = 3,       /*!< F8 mode */
 	ICP_QAT_HW_CIPHER_AEAD_MODE = 4,     /*!< AES-GCM SPC AEAD mode */
-	ICP_QAT_HW_CIPHER_RESERVED_MODE = 5, /*!< Reserved */
+	ICP_QAT_HW_CIPHER_CCM_MODE = 5,      /*!< AES-CCM SPC AEAD mode */
 	ICP_QAT_HW_CIPHER_XTS_MODE = 6,      /*!< XTS mode */
 	ICP_QAT_HW_CIPHER_MODE_DELIMITER = 7 /**< Delimiter type */
 } icp_qat_hw_cipher_mode_t;
@@ -745,6 +773,23 @@ typedef struct icp_qat_hw_cipher_config_s {
 	uint32_t reserved;
 	/**< Reserved */
 } icp_qat_hw_cipher_config_t;
+
+/**
+ *****************************************************************************
+ * @ingroup icp_qat_hw_defs
+ *      Cipher Configuration Struct
+ *
+ * @description
+ *      Configuration data used for setting up the QAT UCS Cipher Slice
+ *
+ *****************************************************************************/
+typedef struct icp_qat_hw_ucs_cipher_config_s {
+	uint32_t val;
+	/**< Cipher slice configuration */
+
+	uint32_t reserved[3];
+	/**< Reserved */
+} icp_qat_hw_ucs_cipher_config_t;
 
 /**
  *****************************************************************************
@@ -851,6 +896,10 @@ typedef enum {
 /**< @ingroup icp_qat_hw_defs
  * Define for the cipher XTS mode key size */
 
+#define QAT_CIPHER_MODE_UCS_XTS_KEY_SZ_MULT 1
+/**< @ingroup icp_qat_hw_defs
+ * Define for the UCS cipher XTS mode key size */
+
 /**
  ******************************************************************************
  * @ingroup icp_qat_hw_defs
@@ -931,6 +980,16 @@ typedef enum {
 #define ICP_QAT_HW_AES_256_KEY_SZ 32
 /**< @ingroup icp_qat_hw_defs
  * Define the key size for AES256 */
+/* AES UCS */
+#define ICP_QAT_HW_UCS_AES_128_KEY_SZ ICP_QAT_HW_AES_128_KEY_SZ
+/**< @ingroup icp_qat_hw_defs
+ * Define the key size for AES128 for UCS slice*/
+#define ICP_QAT_HW_UCS_AES_192_KEY_SZ 32
+/**< @ingroup icp_qat_hw_defs
+ * Define the key size for AES192 for UCS slice*/
+#define ICP_QAT_HW_UCS_AES_256_KEY_SZ ICP_QAT_HW_AES_256_KEY_SZ
+/**< @ingroup icp_qat_hw_defs
+ * Define the key size for AES256 for UCS slice*/
 #define ICP_QAT_HW_AES_128_F8_KEY_SZ                                           \
 	(ICP_QAT_HW_AES_128_KEY_SZ * QAT_CIPHER_MODE_F8_KEY_SZ_MULT)
 /**< @ingroup icp_qat_hw_defs
@@ -951,6 +1010,14 @@ typedef enum {
 	(ICP_QAT_HW_AES_256_KEY_SZ * QAT_CIPHER_MODE_XTS_KEY_SZ_MULT)
 /**< @ingroup icp_qat_hw_defs
  * Define the key size for AES256 XTS */
+#define ICP_QAT_HW_UCS_AES_128_XTS_KEY_SZ                                      \
+	(ICP_QAT_HW_UCS_AES_128_KEY_SZ * QAT_CIPHER_MODE_UCS_XTS_KEY_SZ_MULT)
+/**< @ingroup icp_qat_hw_defs
+ * Define the key size for AES128 XTS for the UCS Slice*/
+#define ICP_QAT_HW_UCS_AES_256_XTS_KEY_SZ                                      \
+	(ICP_QAT_HW_UCS_AES_256_KEY_SZ * QAT_CIPHER_MODE_UCS_XTS_KEY_SZ_MULT)
+/**< @ingroup icp_qat_hw_defs
+ * Define the key size for AES256 XTS for the UCS Slice*/
 #define ICP_QAT_HW_KASUMI_KEY_SZ 16
 /**< @ingroup icp_qat_hw_defs
  * Define the key size for Kasumi */
@@ -1090,10 +1157,10 @@ typedef enum {
  *****************************************************************************/
 
 typedef enum {
-	ICP_QAT_HW_TRNG_NEG_0 = 0,	/*!< TRNG Neg Zero Test */
-	ICP_QAT_HW_TRNG_NEG_1 = 1,	/*!< TRNG Neg One Test */
+	ICP_QAT_HW_TRNG_NEG_0 = 0,	  /*!< TRNG Neg Zero Test */
+	ICP_QAT_HW_TRNG_NEG_1 = 1,	  /*!< TRNG Neg One Test */
 	ICP_QAT_HW_TRNG_POS = 2,	  /*!< TRNG POS Test */
-	ICP_QAT_HW_TRNG_POS_VNC = 3,      /*!< TRNG POS VNC Test */
+	ICP_QAT_HW_TRNG_POS_VNC = 3,	  /*!< TRNG POS VNC Test */
 	ICP_QAT_HW_TRNG_KAT_DELIMITER = 4 /**< Delimiter type */
 } icp_qat_hw_trng_kat_mode_t;
 
@@ -1388,7 +1455,7 @@ typedef enum {
 
 typedef enum {
 	ICP_QAT_HW_COMPRESSION_ALGO_DEFLATE = 0,  /*!< Deflate compression */
-	ICP_QAT_HW_COMPRESSION_DEPRECATED = 1,    /*!< Deprecated */
+	ICP_QAT_HW_COMPRESSION_DEPRECATED = 1,	  /*!< Deprecated */
 	ICP_QAT_HW_COMPRESSION_ALGO_DELIMITER = 2 /**< Delimiter type */
 } icp_qat_hw_compression_algo_t;
 
@@ -1470,11 +1537,11 @@ typedef enum {
  *****************************************************************************/
 
 typedef struct icp_qat_hw_compression_config_s {
-	uint32_t val;
-	/**< Compression slice configuration */
+	uint32_t lower_val;
+	/**< Compression slice configuration lower LW */
 
-	uint32_t reserved;
-	/**< Reserved */
+	uint32_t upper_val;
+	/**< Compression slice configuration upper LW */
 } icp_qat_hw_compression_config_t;
 
 /* Private defines */
