@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -105,7 +106,26 @@ fill_regs(struct thread *td, struct reg *regs)
 int
 fill_fpregs(struct thread *td, struct fpreg *regs)
 {
-	bzero(regs, sizeof(*regs));
+#ifdef VFP
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	if ((pcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
+		/*
+		 * If we have just been running VFP instructions we will
+		 * need to save the state to memcpy it below.
+		 */
+		if (td == curthread)
+			vfp_save_state(td, pcb);
+	}
+	KASSERT(pcb->pcb_vfpsaved == &pcb->pcb_vfpstate,
+	    ("Called fill_fpregs while the kernel is using the VFP"));
+	memcpy(regs->fpr_r, pcb->pcb_vfpstate.reg,
+	    sizeof(regs->fpr_r));
+	regs->fpr_fpscr = pcb->pcb_vfpstate.fpscr;
+#else
+	memset(regs, 0, sizeof(*regs));
+#endif
 	return (0);
 }
 
@@ -126,6 +146,15 @@ set_regs(struct thread *td, struct reg *regs)
 int
 set_fpregs(struct thread *td, struct fpreg *regs)
 {
+#ifdef VFP
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	KASSERT(pcb->pcb_vfpsaved == &pcb->pcb_vfpstate,
+	    ("Called set_fpregs while the kernel is using the VFP"));
+	memcpy(pcb->pcb_vfpstate.reg, regs->fpr_r, sizeof(regs->fpr_r));
+	pcb->pcb_vfpstate.fpscr = regs->fpr_fpscr;
+#endif
 	return (0);
 }
 
