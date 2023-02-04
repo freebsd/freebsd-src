@@ -42,31 +42,31 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/syslog.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/taskqueue.h>
-#include <sys/tree.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
+#include <sys/interrupt.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
+#include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vmmeter.h>
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 
 #include <machine/atomic.h>
-#include <machine/intr.h>
 #include <machine/cpu.h>
+#include <machine/intr.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
