@@ -138,12 +138,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Boolean types
  */
-#if (__FreeBSD_version < 901000)
-typedef enum _boolean {
-	false, true
-}	boolean;
-
-#endif
 enum err {
 	SUCCESS, FAIL
 };
@@ -3632,15 +3626,9 @@ struct mrsas_softc {
 };
 
 /* Compatibility shims for different OS versions */
-#if __FreeBSD_version >= 800001
 #define	mrsas_kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
     kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
 #define	mrsas_kproc_exit(arg)   kproc_exit(arg)
-#else
-#define	mrsas_kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-    kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define	mrsas_kproc_exit(arg)   kthread_exit(arg)
-#endif
 
 static __inline void
 mrsas_clear_bit(int b, volatile void *p)

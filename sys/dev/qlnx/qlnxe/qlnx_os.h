@@ -50,10 +50,6 @@
 #include <machine/_inttypes.h>
 #include <sys/conf.h>
 
-#if __FreeBSD_version < 1000000
-#error FreeBSD Version not supported - use version >= 1000000
-#endif
-
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>

@@ -42,19 +42,9 @@
 #define ETH_P_ROCE		(0x8915)
 #define QLNXR_ROCE_V2_UDP_SPORT	(0000)
 
-#if __FreeBSD_version >= 1102000
-
 #define rdma_wr(_wr) rdma_wr(_wr)
 #define ud_wr(_wr) ud_wr(_wr)
 #define atomic_wr(_wr) atomic_wr(_wr)
-
-#else
-
-#define rdma_wr(_wr) (&(_wr->wr.rdma))
-#define ud_wr(_wr) (&(_wr->wr.ud))
-#define atomic_wr(_wr) (&(_wr->wr.atomic))
-
-#endif /* #if __FreeBSD_version >= 1102000 */
 
 static inline u32 qlnxr_get_ipv4_from_gid(u8 *gid)
 {

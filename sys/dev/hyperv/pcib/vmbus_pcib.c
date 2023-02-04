@@ -84,11 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include "vmbus_if.h"
 
-#if __FreeBSD_version < 1100000
-typedef u_long rman_res_t;
-#define RM_MAX_END	(~(rman_res_t)0)
-#endif
-
 struct completion {
 	unsigned int done;
 	struct mtx lock;
@@ -718,130 +713,11 @@ err:
 	return (NULL);
 }
 
-#if __FreeBSD_version < 1100000
-
-/* Old versions don't have BUS_RESCAN(). Let's copy it from FreeBSD 11. */
-
-static struct pci_devinfo *
-pci_identify_function(device_t pcib, device_t dev, int domain, int busno,
-    int slot, int func, size_t dinfo_size)
-{
-	struct pci_devinfo *dinfo;
-
-	dinfo = pci_read_device(pcib, domain, busno, slot, func, dinfo_size);
-	if (dinfo != NULL)
-		pci_add_child(dev, dinfo);
-
-	return (dinfo);
-}
-
-static int
-pci_rescan(device_t dev)
-{
-#define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
-	device_t pcib = device_get_parent(dev);
-	struct pci_softc *sc;
-	device_t child, *devlist, *unchanged;
-	int devcount, error, i, j, maxslots, oldcount;
-	int busno, domain, s, f, pcifunchigh;
-	uint8_t hdrtype;
-
-	/* No need to check for ARI on a rescan. */
-	error = device_get_children(dev, &devlist, &devcount);
-	if (error)
-		return (error);
-	if (devcount != 0) {
-		unchanged = malloc(devcount * sizeof(device_t), M_TEMP,
-		    M_NOWAIT | M_ZERO);
-		if (unchanged == NULL) {
-			free(devlist, M_TEMP);
-			return (ENOMEM);
-		}
-	} else
-		unchanged = NULL;
-
-	sc = device_get_softc(dev);
-	domain = pcib_get_domain(dev);
-	busno = pcib_get_bus(dev);
-	maxslots = PCIB_MAXSLOTS(pcib);
-	for (s = 0; s <= maxslots; s++) {
-		/* If function 0 is not present, skip to the next slot. */
-		f = 0;
-		if (REG(PCIR_VENDOR, 2) == 0xffff)
-			continue;
-		pcifunchigh = 0;
-		hdrtype = REG(PCIR_HDRTYPE, 1);
-		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
-			continue;
-		if (hdrtype & PCIM_MFDEV)
-			pcifunchigh = PCIB_MAXFUNCS(pcib);
-		for (f = 0; f <= pcifunchigh; f++) {
-			if (REG(PCIR_VENDOR, 2) == 0xffff)
-				continue;
-
-			/*
-			 * Found a valid function.  Check if a
-			 * device_t for this device already exists.
-			 */
-			for (i = 0; i < devcount; i++) {
-				child = devlist[i];
-				if (child == NULL)
-					continue;
-				if (pci_get_slot(child) == s &&
-				    pci_get_function(child) == f) {
-					unchanged[i] = child;
-					goto next_func;
-				}
-			}
-
-			pci_identify_function(pcib, dev, domain, busno, s, f,
-			    sizeof(struct pci_devinfo));
-		next_func:;
-		}
-	}
-
-	/* Remove devices that are no longer present. */
-	for (i = 0; i < devcount; i++) {
-		if (unchanged[i] != NULL)
-			continue;
-		device_delete_child(dev, devlist[i]);
-	}
-
-	free(devlist, M_TEMP);
-	oldcount = devcount;
-
-	/* Try to attach the devices just added. */
-	error = device_get_children(dev, &devlist, &devcount);
-	if (error) {
-		free(unchanged, M_TEMP);
-		return (error);
-	}
-
-	for (i = 0; i < devcount; i++) {
-		for (j = 0; j < oldcount; j++) {
-			if (devlist[i] == unchanged[j])
-				goto next_device;
-		}
-
-		device_probe_and_attach(devlist[i]);
-	next_device:;
-	}
-
-	free(unchanged, M_TEMP);
-	free(devlist, M_TEMP);
-	return (0);
-#undef REG
-}
-
-#else
-
 static int
 pci_rescan(device_t dev)
 {
 	return (BUS_RESCAN(dev));
 }
-
-#endif
 
 static void
 pci_devices_present_work(void *arg, int pending __unused)
@@ -1854,14 +1730,12 @@ vmbus_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 	return (bus_generic_release_resource(dev, child, type, rid, r));
 }
 
-#if __FreeBSD_version >= 1100000
 static int
 vmbus_pcib_get_cpus(device_t pcib, device_t dev, enum cpu_sets op,
     size_t setsize, cpuset_t *cpuset)
 {
 	return (bus_get_cpus(pcib, op, setsize, cpuset));
 }
-#endif
 
 static uint32_t
 vmbus_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
@@ -2104,9 +1978,7 @@ static device_method_t vmbus_pcib_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	   bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	   bus_generic_teardown_intr),
-#if __FreeBSD_version >= 1100000
 	DEVMETHOD(bus_get_cpus,			vmbus_pcib_get_cpus),
-#endif
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,		pcib_maxslots),

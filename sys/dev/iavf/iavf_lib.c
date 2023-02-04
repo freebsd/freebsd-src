@@ -986,11 +986,7 @@ iavf_media_change_common(if_t ifp)
 void
 iavf_set_initial_baudrate(if_t ifp)
 {
-#if __FreeBSD_version >= 1100000
 	if_setbaudrate(ifp, IF_Gbps(40));
-#else
-	if_initbaudrate(ifp, IF_Gbps(40));
-#endif
 }
 
 /**

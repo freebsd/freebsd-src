@@ -117,11 +117,7 @@ rtwn_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 
 	if (&vap->iv_nw_keys[0] <= k &&
 	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
-#if __FreeBSD_version > 1200018
 		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
-#else
-		*keyix = k - vap->iv_nw_keys;
-#endif
 		if (sc->sc_hwcrypto != RTWN_CRYPTO_FULL)
 			k->wk_flags |= IEEE80211_KEY_SWCRYPT;
 		else {
@@ -176,15 +172,9 @@ rtwn_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	}
 	RTWN_UNLOCK(sc);
 	if (i == sc->cam_entry_limit) {
-#if __FreeBSD_version > 1200008
 		/* XXX check and remove keys with the same MAC address */
 		k->wk_flags |= IEEE80211_KEY_SWCRYPT;
 		*keyix = 0;
-#else
-		device_printf(sc->sc_dev,
-		    "%s: no free space in the key table\n", __func__);
-		return (0);
-#endif
 	}
 
 end:
@@ -322,16 +312,7 @@ rtwn_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 
 	if (&vap->iv_nw_keys[0] <= k &&
 	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
-#if __FreeBSD_version <= 1200008
-		struct ieee80211_key *k1 = &vap->iv_nw_keys[k->wk_keyix];
-
-		if (sc->sc_hwcrypto != RTWN_CRYPTO_FULL) {
-			k1->wk_flags |= IEEE80211_KEY_SWCRYPT;
-			return (k->wk_cipher->ic_setkey(k1));
-		} else {
-#else
 		if (sc->sc_hwcrypto == RTWN_CRYPTO_FULL) {
-#endif
 			struct rtwn_vap *rvp = RTWN_VAP(vap);
 
 			RTWN_LOCK(sc);

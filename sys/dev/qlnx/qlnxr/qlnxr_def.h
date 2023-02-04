@@ -67,10 +67,6 @@
 #include <rdma/ib_sa.h>
 #include <rdma/uverbs_ioctl.h>
 
-#if __FreeBSD_version < 1100000
-#undef MODULE_VERSION
-#endif
-
 #include "qlnx_os.h"
 #include "bcm_osal.h"
 
@@ -627,19 +623,6 @@ struct mr_info {
         u32 completed_handled;
 };
 
-#if __FreeBSD_version < 1102000
-#define DEFINE_IB_FAST_REG
-#else
-#define DEFINE_ALLOC_MR
-#endif
-
-#ifdef DEFINE_IB_FAST_REG
-struct qlnxr_fast_reg_page_list {
-        struct ib_fast_reg_page_list ibfrpl;
-        struct qlnxr_dev *dev;
-        struct mr_info info;
-};
-#endif
 struct qlnxr_qp {
         struct ib_qp ibqp;              /* must be first */
         struct qlnxr_dev *dev;
@@ -649,11 +632,7 @@ struct qlnxr_qp {
 
         u32 max_inline_data;
 
-#if __FreeBSD_version >= 1100000
         spinlock_t q_lock ____cacheline_aligned;
-#else
-	spinlock_t q_lock;
-#endif
 
         struct qlnxr_cq *sq_cq;
         struct qlnxr_cq *rq_cq;
@@ -687,9 +666,6 @@ struct qlnxr_qp {
                 bool  signaled;
                 dma_addr_t icrc_mapping;
                 u32 *icrc;
-#ifdef DEFINE_IB_FAST_REG
-                struct qlnxr_fast_reg_page_list *frmr;
-#endif
                 struct qlnxr_mr *mr;
         } *wqe_wr_id;
 
@@ -840,14 +816,6 @@ static inline bool qlnxr_qp_has_rq(struct qlnxr_qp *qp)
         return 1;
 }
 
-#ifdef DEFINE_IB_FAST_REG
-static inline struct qlnxr_fast_reg_page_list *get_qlnxr_frmr_list(
-        struct ib_fast_reg_page_list *ifrpl)
-{
-        return container_of(ifrpl, struct qlnxr_fast_reg_page_list, ibfrpl);
-}
-#endif
-
 #define SET_FIELD2(value, name, flag)                          \
         do {                                                   \
                 (value) |= ((flag) << (name ## _SHIFT));       \
@@ -898,13 +866,6 @@ extern int qlnx_rdma_ll2_set_mac_filter(void *rdma_ctx, uint8_t *old_mac_address
 #define QLNXR_ROCE_PKEY_MAX 1
 #define QLNXR_ROCE_PKEY_TABLE_LEN 1
 #define QLNXR_ROCE_PKEY_DEFAULT 0xffff
-
-#if __FreeBSD_version < 1100000
-#define DEFINE_IB_AH_ATTR_WITH_DMAC     (0)
-#define DEFINE_IB_UMEM_WITH_CHUNK	(1)
-#else
-#define DEFINE_IB_AH_ATTR_WITH_DMAC     (1)
-#endif
 
 #define QLNX_IS_IWARP(rdev)	IS_IWARP(ECORE_LEADING_HWFN(rdev->cdev))
 #define QLNX_IS_ROCE(rdev)	IS_ROCE(ECORE_LEADING_HWFN(rdev->cdev))

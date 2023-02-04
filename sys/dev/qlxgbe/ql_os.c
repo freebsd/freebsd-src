@@ -1583,11 +1583,7 @@ qla_transmit(struct ifnet *ifp, struct mbuf  *mp)
 
         QL_DPRINT2(ha, (ha->pci_dev, "%s: enter\n", __func__));
 
-#if __FreeBSD_version >= 1100000
         if (M_HASHTYPE_GET(mp) != M_HASHTYPE_NONE)
-#else
-        if (mp->m_flags & M_FLOWID)
-#endif
                 rss_id = (mp->m_pkthdr.flowid & Q8_RSS_IND_TBL_MAX_IDX) %
                                         ha->hw.num_sds_rings;
         fp = &ha->tx_fp[rss_id];
