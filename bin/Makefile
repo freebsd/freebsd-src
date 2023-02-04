@@ -24,6 +24,7 @@ SUBDIR= cat \
 	ls \
 	mkdir \
 	mv \
+	nproc \
 	pax \
 	pkill \
 	ps \
