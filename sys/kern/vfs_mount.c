@@ -761,6 +761,10 @@ vfs_mount_destroy(struct mount *mp)
 #endif
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
+	if (mp->mnt_export != NULL) {
+		vfs_free_addrlist(mp->mnt_export);
+		free(mp->mnt_export, M_MOUNT);
+	}
 	crfree(mp->mnt_cred);
 	uma_zfree(mount_zone, mp);
 }
