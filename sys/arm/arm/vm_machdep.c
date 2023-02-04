@@ -108,9 +108,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 #ifdef VFP
 	/* Store actual state of VFP */
 	if (curthread == td1) {
-		critical_enter();
-		vfp_store(&td1->td_pcb->pcb_vfpstate, false);
-		critical_exit();
+		if ((td1->td_pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
+			vfp_save_state(td1, td1->td_pcb);
 	}
 #endif
 	td2->td_pcb = pcb2;
@@ -139,6 +138,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pcb2->pcb_regs.sf_tpidrurw = (register_t)get_tls();
 
 	pcb2->pcb_vfpcpu = -1;
+	pcb2->pcb_vfpsaved = &pcb2->pcb_vfpstate;
 	pcb2->pcb_vfpstate.fpscr = initial_fpscr;
 
 	tf = td2->td_frame;

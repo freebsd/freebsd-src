@@ -13,17 +13,9 @@ struct reg {
 	unsigned int r_cpsr;
 };
 
-struct fp_extended_precision {
-	__uint32_t fp_exponent;
-	__uint32_t fp_mantissa_hi;
-	__uint32_t fp_mantissa_lo;
-};
-
-typedef struct fp_extended_precision fp_reg_t;
-
 struct fpreg {
-	unsigned int fpr_fpsr;
-	fp_reg_t fpr[8];
+	__uint64_t	fpr_r[32];
+	__uint32_t	fpr_fpscr;
 };
 
 struct dbreg {
