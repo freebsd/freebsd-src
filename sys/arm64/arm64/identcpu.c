@@ -96,7 +96,8 @@ sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD |
-	CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine, "A", "Machine class");
+	 CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine, "A",
+	 "Machine class");
 
 static char cpu_model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_CAPRD,
