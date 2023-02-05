@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 char machine[] = "riscv";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0,
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD, machine, 0,
     "Machine class");
 
 /* Hardware implementation info. These values may be empty. */
