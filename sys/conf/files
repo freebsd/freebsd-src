@@ -3527,7 +3527,7 @@ dev/xen/efi/pvefi.c		optional xenhvm efirt
 dev/xen/grant_table/grant_table.c	optional xenhvm
 dev/xen/netback/netback.c	optional xenhvm
 dev/xen/netfront/netfront.c	optional xenhvm
-dev/xen/timer/timer.c		optional xenhvm xentimer
+dev/xen/timer/xen_timer.c	optional xenhvm xentimer
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenstore/xenstore.c	optional xenhvm
 dev/xen/xenstore/xenstore_dev.c	optional xenhvm
