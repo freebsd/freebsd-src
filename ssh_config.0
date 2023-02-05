@@ -350,6 +350,11 @@ DESCRIPTION
              specified, and additional forwardings can be given on the command
              line.  Only the superuser can forward privileged ports.
 
+     EnableEscapeCommandline
+             Enables the command line option in the EscapeChar menu for
+             interactive sessions (default M-bM-^@M-^X~CM-bM-^@M-^Y).  By default, the command
+             line is disabled.
+
      EnableSSHKeysign
              Setting this option to yes in the global client configuration
              file /etc/ssh/ssh_config enables the use of the helper program
@@ -589,15 +594,17 @@ DESCRIPTION
      IdentityFile
              Specifies a file from which the user's DSA, ECDSA, authenticator-
              hosted ECDSA, Ed25519, authenticator-hosted Ed25519 or RSA
-             authentication identity is read.  The default is ~/.ssh/id_rsa,
-             ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
-             ~/.ssh/id_ed25519_sk and ~/.ssh/id_dsa.  Additionally, any
-             identities represented by the authentication agent will be used
-             for authentication unless IdentitiesOnly is set.  If no
-             certificates have been explicitly specified by CertificateFile,
-             ssh(1) will try to load certificate information from the filename
-             obtained by appending -cert.pub to the path of a specified
-             IdentityFile.
+             authentication identity is read.  You can also specify a public
+             key file to use the corresponding private key that is loaded in
+             ssh-agent(1) when the private key file is not present locally.
+             The default is ~/.ssh/id_rsa, ~/.ssh/id_ecdsa,
+             ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519, ~/.ssh/id_ed25519_sk and
+             ~/.ssh/id_dsa.  Additionally, any identities represented by the
+             authentication agent will be used for authentication unless
+             IdentitiesOnly is set.  If no certificates have been explicitly
+             specified by CertificateFile, ssh(1) will try to load certificate
+             information from the filename obtained by appending -cert.pub to
+             the path of a specified IdentityFile.
 
              Arguments to IdentityFile may use the tilde syntax to refer to a
              user's home directory or the tokens described in the TOKENS
@@ -1177,8 +1184,9 @@ DESCRIPTION
              database, separated by whitespace.  Each filename may use tilde
              notation to refer to the user's home directory, the tokens
              described in the TOKENS section and environment variables as
-             described in the ENVIRONMENT VARIABLES section.  The default is
-             ~/.ssh/known_hosts, ~/.ssh/known_hosts2.
+             described in the ENVIRONMENT VARIABLES section.  A value of none
+             causes ssh(1) to ignore any user-specific known hosts files.  The
+             default is ~/.ssh/known_hosts, ~/.ssh/known_hosts2.
 
      VerifyHostKeyDNS
              Specifies whether to verify the remote key using DNS and SSHFP
@@ -1315,4 +1323,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.1                   September 17, 2022                   OpenBSD 7.1
+OpenBSD 7.2                    January 13, 2023                    OpenBSD 7.2

@@ -6,13 +6,14 @@ NAME
 SYNOPSIS
      scp [-346ABCOpqRrsTv] [-c cipher] [-D sftp_server_path] [-F ssh_config]
          [-i identity_file] [-J destination] [-l limit] [-o ssh_option]
-         [-P port] [-S program] source ... target
+         [-P port] [-S program] [-X sftp_option] source ... target
 
 DESCRIPTION
      scp copies files between hosts on a network.
 
-     It uses ssh(1) for data transfer, and uses the same authentication and
-     provides the same security as a login session.
+     scp uses the SFTP protocol over a ssh(1) connection for data transfer,
+     and uses the same authentication and provides the same security as a
+     login session.
 
      scp will ask for passwords or passphrases if they are needed for
      authentication.
@@ -53,9 +54,9 @@ DESCRIPTION
              option is directly passed to ssh(1).
 
      -D sftp_server_path
-             When using the SFTP protocol support via -M, connect directly to
-             a local SFTP server program rather than a remote one via ssh(1).
-             This option may be useful in debugging the client and server.
+             Connect directly to a local SFTP server program rather than a
+             remote one via ssh(1).  This option may be useful in debugging
+             the client and server.
 
      -F ssh_config
              Specifies an alternative per-user configuration file for ssh.
@@ -189,6 +190,21 @@ DESCRIPTION
              about their progress.  This is helpful in debugging connection,
              authentication, and configuration problems.
 
+     -X sftp_option
+             Specify an option that controls aspects of SFTP protocol
+             behaviour.  The valid options are:
+
+             nrequests=value
+                     Controls how many concurrent SFTP read or write requests
+                     may be in progress at any point in time during a download
+                     or upload.  By default 64 requests may be active
+                     concurrently.
+
+             buffer=value
+                     Controls the maximum buffer size for a single SFTP
+                     read/write operation used during download or upload.  By
+                     default a 32KB buffer is used.
+
 EXIT STATUS
      The scp utility exitsM-BM- 0 on success, andM-BM- >0 if an error occurs.
 
@@ -213,4 +229,4 @@ CAVEATS
      requires careful quoting of any characters that have special meaning to
      the remote shell, such as quote characters.
 
-OpenBSD 7.1                   September 19, 2022                   OpenBSD 7.1
+OpenBSD 7.2                    December 16, 2022                   OpenBSD 7.2

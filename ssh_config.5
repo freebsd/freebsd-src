@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.374 2022/09/17 10:33:18 djm Exp $
-.Dd $Mdocdate: September 17 2022 $
+.\" $OpenBSD: ssh_config.5,v 1.378 2023/01/13 07:13:40 jmc Exp $
+.Dd $Mdocdate: January 13 2023 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -643,6 +643,12 @@ will act as a SOCKS server.
 Multiple forwardings may be specified, and
 additional forwardings can be given on the command line.
 Only the superuser can forward privileged ports.
+.It Cm EnableEscapeCommandline
+Enables the command line option in the
+.Cm EscapeChar
+menu for interactive sessions (default
+.Ql ~C ) .
+By default, the command line is disabled.
 .It Cm EnableSSHKeysign
 Setting this option to
 .Cm yes
@@ -1011,6 +1017,10 @@ section.
 .It Cm IdentityFile
 Specifies a file from which the user's DSA, ECDSA, authenticator-hosted ECDSA,
 Ed25519, authenticator-hosted Ed25519 or RSA authentication identity is read.
+You can also specify a public key file to use the corresponding
+private key that is loaded in
+.Xr ssh-agent 1
+when the private key file is not present locally.
 The default is
 .Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_ecdsa ,
@@ -1955,6 +1965,11 @@ the tokens described in the
 section and environment variables as described in the
 .Sx ENVIRONMENT VARIABLES
 section.
+A value of
+.Cm none
+causes
+.Xr ssh 1
+to ignore any user-specific known hosts files.
 The default is
 .Pa ~/.ssh/known_hosts ,
 .Pa ~/.ssh/known_hosts2 .

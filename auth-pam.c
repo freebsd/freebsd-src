@@ -252,7 +252,6 @@ static Authctxt *sshpam_authctxt = NULL;
 static const char *sshpam_password = NULL;
 static char *sshpam_rhost = NULL;
 static char *sshpam_laddr = NULL;
-static char *sshpam_conninfo = NULL;
 
 /* Some PAM implementations don't implement this */
 #ifndef HAVE_PAM_GETENVLIST
@@ -688,6 +687,7 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 {
 	const char *pam_user, *user = authctxt->user;
 	const char **ptr_pam_user = &pam_user;
+	int r;
 
 #if defined(PAM_SUN_CODEBASE) && defined(PAM_MAX_RESP_SIZE)
 	/* Protect buggy PAM implementations from excessively long usernames */
@@ -729,9 +729,6 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 		    options.use_dns));
 		sshpam_laddr = get_local_ipaddr(
 		    ssh_packet_get_connection_in(ssh));
-		xasprintf(&sshpam_conninfo, "SSH_CONNECTION=%.50s %d %.50s %d",
-		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
-		    sshpam_laddr, ssh_local_port(ssh));
 	}
 	if (sshpam_rhost != NULL) {
 		debug("PAM: setting PAM_RHOST to \"%s\"", sshpam_rhost);
@@ -742,8 +739,17 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 			sshpam_handle = NULL;
 			return (-1);
 		}
+	}
+	if (ssh != NULL && sshpam_laddr != NULL) {
+		char *conninfo;
+
 		/* Put SSH_CONNECTION in the PAM environment too */
-		pam_putenv(sshpam_handle, sshpam_conninfo);
+		xasprintf(&conninfo, "SSH_CONNECTION=%.50s %d %.50s %d",
+		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
+		    sshpam_laddr, ssh_local_port(ssh));
+		if ((r = pam_putenv(sshpam_handle, conninfo)) != PAM_SUCCESS)
+			logit("pam_putenv: %s", pam_strerror(sshpam_handle, r));
+		free(conninfo);
 	}
 
 #ifdef PAM_TTY_KLUDGE

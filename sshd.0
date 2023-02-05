@@ -4,7 +4,7 @@ NAME
      sshd M-bM-^@M-^S OpenSSH daemon
 
 SYNOPSIS
-     sshd [-46DdeiqTt] [-C connection_spec] [-c host_certificate_file]
+     sshd [-46DdeiqTtV] [-C connection_spec] [-c host_certificate_file]
           [-E log_file] [-f config_file] [-g login_grace_time]
           [-h host_key_file] [-o option] [-p port] [-u len]
 
@@ -122,6 +122,8 @@ DESCRIPTION
              from="pattern-list" option in a key file.  Configuration options
              that require DNS include using a USER@HOST pattern in AllowUsers
              or DenyUsers.
+
+     -V      Display the version number and exit.
 
 AUTHENTICATION
      The OpenSSH SSH daemon supports SSH protocol 2 only.  Each host has a
@@ -673,4 +675,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.1                   September 11, 2022                   OpenBSD 7.1
+OpenBSD 7.2                    January 18, 2023                    OpenBSD 7.2

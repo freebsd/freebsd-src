@@ -222,6 +222,62 @@ DESCRIPTION
              Certificates signed using other algorithms will not be accepted
              for public key or host-based authentication.
 
+     ChannelTimeout
+             Specifies whether and how quickly sshd(8) should close inactive
+             channels.  Timeouts are specified as one or more M-bM-^@M-^\type=intervalM-bM-^@M-^]
+             pairs separated by whitespace, where the M-bM-^@M-^\typeM-bM-^@M-^] must be a channel
+             type name (as described in the table below), optionally
+             containing wildcard characters.
+
+             The timeout value M-bM-^@M-^\intervalM-bM-^@M-^] is specified in seconds or may use
+             any of the units documented in the TIME FORMATS section.  For
+             example, M-bM-^@M-^\session:*=5mM-bM-^@M-^] would cause all sessions to terminate
+             after five minutes of inactivity.  Specifying a zero value
+             disables the inactivity timeout.
+
+             The available channel types include:
+
+             agent-connection
+                     Open connections to ssh-agent(1).
+
+             direct-tcpip, direct-streamlocal@openssh.com
+                     Open TCP or Unix socket (respectively) connections that
+                     have been established from a ssh(1) local forwarding,
+                     i.e. LocalForward or DynamicForward.
+
+             forwarded-tcpip, forwarded-streamlocal@openssh.com
+                     Open TCP or Unix socket (respectively) connections that
+                     have been established to a sshd(8) listening on behalf of
+                     a ssh(1) remote forwarding, i.e. RemoteForward.
+
+             session:command
+                     Command execution sessions.
+
+             session:shell
+                     Interactive shell sessions.
+
+             session:subsystem:...
+                     Subsystem sessions, e.g. for sftp(1), which could be
+                     identified as session:subsystem:sftp.
+
+             x11-connection
+                     Open X11 forwarding sessions.
+
+             Note that in all the above cases, terminating an inactive session
+             does not guarantee to remove all resources associated with the
+             session, e.g. shell processes or X11 clients relating to the
+             session may continue to execute.
+
+             Moreover, terminating an inactive channel or session does not
+             necessarily close the SSH connection, nor does it prevent a
+             client from requesting another channel of the same type.  In
+             particular, expiring an inactive forwarding session does not
+             prevent another identical forwarding from being subsequently
+             created.  See also UnusedConnectionTimeout, which may be used in
+             conjunction with this option.
+
+             The default is not to expire channels of any type for inactivity.
+
      ChrootDirectory
              Specifies the pathname of a directory to chroot(2) to after
              authentication.  At session startup sshd(8) checks that all
@@ -706,7 +762,7 @@ DESCRIPTION
              AuthorizedKeysCommand, AuthorizedKeysCommandUser,
              AuthorizedKeysFile, AuthorizedPrincipalsCommand,
              AuthorizedPrincipalsCommandUser, AuthorizedPrincipalsFile,
-             Banner, CASignatureAlgorithms, ChrootDirectory,
+             Banner, CASignatureAlgorithms, ChannelTimeout, ChrootDirectory,
              ClientAliveCountMax, ClientAliveInterval, DenyGroups, DenyUsers,
              DisableForwarding, ExposeAuthInfo, ForceCommand, GatewayPorts,
              GSSAPIAuthentication, HostbasedAcceptedAlgorithms,
@@ -718,7 +774,8 @@ DESCRIPTION
              PermitUserRC, PubkeyAcceptedAlgorithms, PubkeyAuthentication,
              PubkeyAuthOptions, RekeyLimit, RevokedKeys, RDomain, SetEnv,
              StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
-             X11DisplayOffset, X11Forwarding and X11UseLocalhost.
+             UnusedConnectionTimeout, X11DisplayOffset, X11Forwarding and
+             X11UseLocalhost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -1058,6 +1115,27 @@ DESCRIPTION
              TrustedUserCAKeys.  For more details on certificates, see the
              CERTIFICATES section in ssh-keygen(1).
 
+     UnusedConnectionTimeout
+             Specifies whether and how quickly sshd(8) should close client
+             connections with no open channels.  Open channels include active
+             shell, command execution or subsystem sessions, connected
+             network, socket, agent or X11 forwardings.  Forwarding listeners,
+             such as those from the ssh(1) -R flag, are not considered as open
+             channels and do not prevent the timeout.  The timeout value is
+             specified in seconds or may use any of the units documented in
+             the TIME FORMATS section.
+
+             Note that this timeout starts when the client connection
+             completes user authentication but before the client has an
+             opportunity to open any channels.  Caution should be used when
+             using short timeout values, as they may not provide sufficient
+             time for the client to request and open its channels before
+             terminating the connection.
+
+             The default none is to never expire connections for having no
+             open channels.  This option may be useful in conjunction with
+             ChannelTimeout.
+
      UseDNS  Specifies whether sshd(8) should look up the remote host name,
              and to check that the resolved host name for the remote IP
              address maps back to the very same IP address.
@@ -1197,4 +1275,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.1                   September 17, 2022                   OpenBSD 7.1
+OpenBSD 7.2                    January 18, 2023                    OpenBSD 7.2

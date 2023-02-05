@@ -130,10 +130,12 @@ AC_CHECK_DECL([PR_SET_NO_NEW_PRIVS], [have_linux_no_new_privs=1], , [
 ])
 
 openssl=yes
+openssl_bin=openssl
 AC_ARG_WITH([openssl],
 	[  --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL** ],
 	[  if test "x$withval" = "xno" ; then
 		openssl=no
+		openssl_bin=""
 	   fi
 	]
 )
@@ -172,6 +174,22 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int main(void) { return 0; }]])],
 CFLAGS="$saved_CFLAGS"
 
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
+	AC_MSG_CHECKING([gcc version])
+	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
+	case "$GCC_VER" in
+		1.*) no_attrib_nonnull=1 ;;
+		2.8* | 2.9*)
+		     no_attrib_nonnull=1
+		     ;;
+		2.*) no_attrib_nonnull=1 ;;
+		*) ;;
+	esac
+	AC_MSG_RESULT([$GCC_VER])
+
+	AC_MSG_CHECKING([clang version])
+	CLANG_VER=`$CC -v 2>&1 | $AWK '/clang version /{print $3}'`
+	AC_MSG_RESULT([$CLANG_VER])
+
 	OSSH_CHECK_CFLAG_COMPILE([-pipe])
 	OSSH_CHECK_CFLAG_COMPILE([-Wunknown-warning-option])
 	OSSH_CHECK_CFLAG_COMPILE([-Wno-error=format-truncation])
@@ -203,20 +221,15 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	# actually links. The test program compiled/linked includes a number
 	# of integer operations that should exercise this.
 	OSSH_CHECK_CFLAG_LINK([-ftrapv])
-	OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=all])
+	# clang 15 seems to have a bug in -fzero-call-used-regs=all.  See
+	# https://bugzilla.mindrot.org/show_bug.cgi?id=3475 and
+	# https://github.com/llvm/llvm-project/issues/59242
+	case "$CLANG_VER" in
+	15.*) OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=used]) ;;
+	*)    OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=all]) ;;
+	esac
 	OSSH_CHECK_CFLAG_COMPILE([-ftrivial-auto-var-init=zero])
     fi
-	AC_MSG_CHECKING([gcc version])
-	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
-	case $GCC_VER in
-		1.*) no_attrib_nonnull=1 ;;
-		2.8* | 2.9*)
-		     no_attrib_nonnull=1
-		     ;;
-		2.*) no_attrib_nonnull=1 ;;
-		*) ;;
-	esac
-	AC_MSG_RESULT([$GCC_VER])
 
 	AC_MSG_CHECKING([if $CC accepts -fno-builtin-memset])
 	saved_CFLAGS="$CFLAGS"
@@ -417,6 +430,14 @@ AC_ARG_WITH([Werror],
 	]
 )
 
+dnl On some old platforms, sys/stat.h requires sys/types.h, but autoconf-2.71's
+dnl AC_CHECK_INCLUDES_DEFAULT checks for them in the opposite order.  If we
+dnl haven't detected it, recheck.
+if test "x$ac_cv_header_sys_stat_h" != "xyes"; then
+	unset ac_cv_header_sys_stat_h
+	AC_CHECK_HEADERS([sys/stat.h])
+fi
+
 AC_CHECK_HEADERS([ \
 	blf.h \
 	bstring.h \
@@ -475,7 +496,6 @@ AC_CHECK_HEADERS([ \
 	sys/ptrace.h \
 	sys/random.h \
 	sys/select.h \
-	sys/stat.h \
 	sys/stream.h \
 	sys/stropts.h \
 	sys/strtio.h \
@@ -713,7 +733,7 @@ case "$host" in
 	AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <mach-o/dyld.h>
 #include <stdlib.h>
-main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
+int main(void) { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		exit(0);
 	else
 		exit(1);
@@ -863,7 +883,8 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	check_for_openpty_ctty_bug=1
 	dnl Target SUSv3/POSIX.1-2001 plus BSD specifics.
 	dnl _DEFAULT_SOURCE is the new name for _BSD_SOURCE
-	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE"
+	dnl _GNU_SOURCE is needed for setres*id prototypes.
+	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE"
 	AC_DEFINE([BROKEN_CLOSEFROM], [1], [broken in chroots on older kernels])
 	AC_DEFINE([PAM_TTY_KLUDGE], [1],
 		[Work around problematic Linux PAM modules handling of PAM_TTY])
@@ -1658,7 +1679,7 @@ AC_ARG_WITH(ldns,
 # include <stdint.h>
 #endif
 #include <ldns/ldns.h>
-int main() { ldns_status status = ldns_verify_trusted(NULL, NULL, NULL, NULL); status=LDNS_STATUS_OK; exit(0); }
+int main(void) { ldns_status status = ldns_verify_trusted(NULL, NULL, NULL, NULL); status=LDNS_STATUS_OK; exit(0); }
 			]])
 		],
 			[AC_MSG_RESULT(yes)],
@@ -2168,8 +2189,9 @@ AC_CHECK_FUNCS([setresuid], [
 	AC_MSG_CHECKING([if setresuid seems to work])
 	AC_RUN_IFELSE(
 		[AC_LANG_PROGRAM([[
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
 		]], [[
 	errno=0;
 	setresuid(0,0,0);
@@ -2191,8 +2213,9 @@ AC_CHECK_FUNCS([setresgid], [
 	AC_MSG_CHECKING([if setresgid seems to work])
 	AC_RUN_IFELSE(
 		[AC_LANG_PROGRAM([[
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
 		]], [[
 	errno=0;
 	setresgid(0,0,0);
@@ -2373,6 +2396,9 @@ if test ! -z "$check_for_openpty_ctty_bug"; then
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef HAVE_PTY_H
+# include <pty.h>
+#endif
 #include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -2657,6 +2683,7 @@ AC_CHECK_FUNCS([getpgrp],[
 # Search for OpenSSL
 saved_CPPFLAGS="$CPPFLAGS"
 saved_LDFLAGS="$LDFLAGS"
+openssl_bin_PATH="$PATH"
 AC_ARG_WITH([ssl-dir],
 	[  --with-ssl-dir=PATH     Specify path to OpenSSL installation ],
 	[
@@ -2686,9 +2713,12 @@ AC_ARG_WITH([ssl-dir],
 			else
 				CPPFLAGS="-I${withval} ${CPPFLAGS}"
 			fi
+			openssl_bin_PATH="${PATH}${PATH_SEPARATOR}${withval}/bin${PATH_SEPARATOR}${withval}/apps"
 		fi
 	]
 )
+AC_PATH_PROGS([openssl_bin], openssl, [], [$openssl_bin_PATH])
+AC_SUBST(OPENSSL_BIN, [${openssl_bin}])
 
 AC_ARG_WITH([openssl-header-check],
 	[  --without-openssl-header-check Disable OpenSSL version consistency check],
@@ -2812,7 +2842,7 @@ if test "x$openssl" = "xyes" ; then
 				# OpenSSL 3; we use the 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
-			301*)
+			301*|302*)
 				# OpenSSL development branch; request 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
@@ -3215,7 +3245,7 @@ if test "x$enable_sk" = "xyes" -a "x$enable_sk_internal" != "xno" ; then
 		    [Enable for built-in U2F/FIDO support])
 		enable_sk="built-in"
 		saved_LIBS="$LIBS"
-		LIBS="$LIBS $LIBFIDO2"
+		LIBS="$LIBFIDO2 $LIBS"
 		AC_CHECK_FUNCS([ \
 			fido_assert_set_clientdata \
 			fido_cred_prot \
@@ -4259,7 +4289,7 @@ dnl test snprintf (broken on SCO w/gcc)
 #include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_SNPRINTF
-main()
+int main(void)
 {
 	char buf[50];
 	char expected_out[50];
@@ -4276,7 +4306,7 @@ main()
 	exit(0);
 }
 #else
-main() { exit(0); }
+int main(void) { exit(0); }
 #endif
 		]])], [ true ], [ AC_DEFINE([BROKEN_SNPRINTF]) ],
 		AC_MSG_WARN([cross compiling: Assuming working snprintf()])
@@ -4324,6 +4354,16 @@ AC_CHECK_MEMBER([struct __res_state.retrans], [], [AC_DEFINE([__res_state], [sta
 #include <arpa/nameser.h>
 #include <resolv.h>
 ]])
+
+AC_CHECK_MEMBER([struct sockaddr_in.sin_len],
+    [AC_DEFINE([SOCK_HAS_LEN], [1], [sockaddr_in has sin_len])],
+    [],
+    [AC_LANG_SOURCE([[
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+    ]])]
+)
 
 AC_CACHE_CHECK([for ss_family field in struct sockaddr_storage],
 		ac_cv_have_ss_family_in_struct_ss, [

@@ -264,6 +264,7 @@ DESCRIPTION
                    ControlPath
                    ControlPersist
                    DynamicForward
+                   EnableEscapeCommandline
                    EscapeChar
                    ExitOnForwardFailure
                    FingerprintHash
@@ -1014,4 +1015,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.1                   September 17, 2022                   OpenBSD 7.1
+OpenBSD 7.2                    November 28, 2022                   OpenBSD 7.2

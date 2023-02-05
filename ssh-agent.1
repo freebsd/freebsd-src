@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.73 2022/03/31 17:27:27 naddy Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.75 2022/10/07 06:00:58 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: March 31 2022 $
+.Dd $Mdocdate: October 7 2022 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -46,11 +46,13 @@
 .Op Fl \&Dd
 .Op Fl a Ar bind_address
 .Op Fl E Ar fingerprint_hash
+.Op Fl O Ar option
 .Op Fl P Ar allowed_providers
 .Op Fl t Ar life
 .Nm ssh-agent
 .Op Fl a Ar bind_address
 .Op Fl E Ar fingerprint_hash
+.Op Fl O Ar option
 .Op Fl P Ar allowed_providers
 .Op Fl t Ar life
 .Ar command Op Ar arg ...
@@ -102,6 +104,27 @@ The default is
 Kill the current agent (given by the
 .Ev SSH_AGENT_PID
 environment variable).
+.It Fl O Ar option
+Specify an option when starting
+.Nm .
+Currently only one option is supported:
+.Cm no-restrict-websafe .
+This instructs
+.Nm
+to permit signatures using FIDO keys that might be web authentication
+requests.
+By default,
+.Nm
+refuses signature requests for FIDO keys where the key application string
+does not start with
+.Dq ssh:
+and when the data to be signed does not appear to be a
+.Xr ssh 1
+user authentication request or a
+.Xr ssh-keygen 1
+signature.
+The default behaviour prevents forwarded access to a FIDO key from also
+implicitly forwarding the ability to authenticate to websites.
 .It Fl P Ar allowed_providers
 Specify a pattern-list of acceptable paths for PKCS#11 provider and FIDO
 authenticator middleware shared libraries that may be used with the

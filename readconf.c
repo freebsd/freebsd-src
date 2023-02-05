@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.369 2022/09/17 10:33:18 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.372 2023/01/13 02:58:20 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -175,6 +175,7 @@ typedef enum {
 	oFingerprintHash, oUpdateHostkeys, oHostbasedAcceptedAlgorithms,
 	oPubkeyAcceptedAlgorithms, oCASignatureAlgorithms, oProxyJump,
 	oSecurityKeyProvider, oKnownHostsCommand, oRequiredRSASize,
+	oEnableEscapeCommandline,
 	oIgnore, oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
@@ -321,6 +322,7 @@ static struct {
 	{ "securitykeyprovider", oSecurityKeyProvider },
 	{ "knownhostscommand", oKnownHostsCommand },
 	{ "requiredrsasize", oRequiredRSASize },
+	{ "enableescapecommandline", oEnableEscapeCommandline },
 
 	{ NULL, oBadOption }
 };
@@ -1566,37 +1568,37 @@ parse_pubkey_algos:
 	case oPermitRemoteOpen:
 		uintptr = &options->num_permitted_remote_opens;
 		cppptr = &options->permitted_remote_opens;
-		arg = argv_next(&ac, &av);
-		if (!arg || *arg == '\0')
-			fatal("%s line %d: missing %s specification",
-			    filename, linenum, lookup_opcode_name(opcode));
 		uvalue = *uintptr;	/* modified later */
-		if (strcmp(arg, "any") == 0 || strcmp(arg, "none") == 0) {
-			if (*activep && uvalue == 0) {
-				*uintptr = 1;
-				*cppptr = xcalloc(1, sizeof(**cppptr));
-				(*cppptr)[0] = xstrdup(arg);
-			}
-			break;
-		}
+		i = 0;
 		while ((arg = argv_next(&ac, &av)) != NULL) {
 			arg2 = xstrdup(arg);
-			p = hpdelim(&arg);
-			if (p == NULL) {
-				fatal("%s line %d: missing host in %s",
-				    filename, linenum,
-				    lookup_opcode_name(opcode));
-			}
-			p = cleanhostname(p);
-			/*
-			 * don't want to use permitopen_port to avoid
-			 * dependency on channels.[ch] here.
-			 */
-			if (arg == NULL ||
-			    (strcmp(arg, "*") != 0 && a2port(arg) <= 0)) {
-				fatal("%s line %d: bad port number in %s",
-				    filename, linenum,
-				    lookup_opcode_name(opcode));
+			/* Allow any/none only in first position */
+			if (strcasecmp(arg, "none") == 0 ||
+			    strcasecmp(arg, "any") == 0) {
+				if (i > 0 || ac > 0) {
+					error("%s line %d: keyword %s \"%s\" "
+					    "argument must appear alone.",
+					    filename, linenum, keyword, arg);
+					goto out;
+				}
+			} else {
+				p = hpdelim(&arg);
+				if (p == NULL) {
+					fatal("%s line %d: missing host in %s",
+					    filename, linenum,
+					    lookup_opcode_name(opcode));
+				}
+				p = cleanhostname(p);
+				/*
+				 * don't want to use permitopen_port to avoid
+				 * dependency on channels.[ch] here.
+				 */
+				if (arg == NULL || (strcmp(arg, "*") != 0 &&
+				    a2port(arg) <= 0)) {
+					fatal("%s line %d: bad port number "
+					    "in %s", filename, linenum,
+					    lookup_opcode_name(opcode));
+				}
 			}
 			if (*activep && uvalue == 0) {
 				opt_array_append(filename, linenum,
@@ -1604,7 +1606,11 @@ parse_pubkey_algos:
 				    cppptr, uintptr, arg2);
 			}
 			free(arg2);
+			i++;
 		}
+		if (i == 0)
+			fatal("%s line %d: missing %s specification",
+			    filename, linenum, lookup_opcode_name(opcode));
 		break;
 
 	case oClearAllForwardings:
@@ -2177,6 +2183,10 @@ parse_pubkey_algos:
 			*charptr = xstrdup(arg);
 		break;
 
+	case oEnableEscapeCommandline:
+		intptr = &options->enable_escape_commandline;
+		goto parse_flag;
+
 	case oRequiredRSASize:
 		intptr = &options->required_rsa_size;
 		goto parse_int;
@@ -2317,6 +2327,7 @@ void
 initialize_options(Options * options)
 {
 	memset(options, 'X', sizeof(*options));
+	options->host_arg = NULL;
 	options->forward_agent = -1;
 	options->forward_agent_sock_path = NULL;
 	options->forward_x11 = -1;
@@ -2429,6 +2440,7 @@ initialize_options(Options * options)
 	options->pubkey_accepted_algos = NULL;
 	options->known_hosts_command = NULL;
 	options->required_rsa_size = -1;
+	options->enable_escape_commandline = -1;
 }
 
 /*
@@ -2627,6 +2639,8 @@ fill_default_options(Options * options)
 #endif
 	if (options->required_rsa_size == -1)
 		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
+	if (options->enable_escape_commandline == -1)
+		options->enable_escape_commandline = 0;
 
 	/* Expand KEX name lists */
 	all_cipher = cipher_alg_list(',', 0);
@@ -3265,6 +3279,7 @@ dump_client_config(Options *o, const char *host)
 	free(all_key);
 
 	/* Most interesting options first: user, host, port */
+	dump_cfg_string(oHost, o->host_arg);
 	dump_cfg_string(oUser, o->user);
 	dump_cfg_string(oHostname, host);
 	dump_cfg_int(oPort, o->port);
@@ -3308,6 +3323,7 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_fmtint(oVerifyHostKeyDNS, o->verify_host_key_dns);
 	dump_cfg_fmtint(oVisualHostKey, o->visual_host_key);
 	dump_cfg_fmtint(oUpdateHostkeys, o->update_hostkeys);
+	dump_cfg_fmtint(oEnableEscapeCommandline, o->enable_escape_commandline);
 
 	/* Integer options */
 	dump_cfg_int(oCanonicalizeMaxDots, o->canonicalize_max_dots);

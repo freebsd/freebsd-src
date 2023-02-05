@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.120 2022/07/01 03:35:45 dtucker Exp $ */
+/* $OpenBSD: compat.c,v 1.121 2023/02/02 12:10:05 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -190,26 +190,26 @@ compat_pkalg_proposal(struct ssh *ssh, char *pkalg_prop)
 char *
 compat_kex_proposal(struct ssh *ssh, char *p)
 {
-	char *cp = NULL;
+	char *cp = NULL, *cp2 = NULL;
 
 	if ((ssh->compat & (SSH_BUG_CURVE25519PAD|SSH_OLD_DHGEX)) == 0)
 		return xstrdup(p);
 	debug2_f("original KEX proposal: %s", p);
 	if ((ssh->compat & SSH_BUG_CURVE25519PAD) != 0)
-		if ((p = match_filter_denylist(p,
+		if ((cp = match_filter_denylist(p,
 		    "curve25519-sha256@libssh.org")) == NULL)
 			fatal("match_filter_denylist failed");
 	if ((ssh->compat & SSH_OLD_DHGEX) != 0) {
-		cp = p;
-		if ((p = match_filter_denylist(p,
+		if ((cp2 = match_filter_denylist(cp ? cp : p,
 		    "diffie-hellman-group-exchange-sha256,"
 		    "diffie-hellman-group-exchange-sha1")) == NULL)
 			fatal("match_filter_denylist failed");
 		free(cp);
+		cp = cp2;
 	}
-	debug2_f("compat KEX proposal: %s", p);
-	if (*p == '\0')
+	if (cp == NULL || *cp == '\0')
 		fatal("No supported key exchange algorithms found");
-	return p;
+	debug2_f("compat KEX proposal: %s", cp);
+	return cp;
 }
 

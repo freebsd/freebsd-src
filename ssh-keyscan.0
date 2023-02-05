@@ -21,6 +21,10 @@ DESCRIPTION
      login access to the machines that are being scanned, nor does the
      scanning process involve any encryption.
 
+     Hosts to be scanned may be specified by hostname, address or by CIDR
+     network range (e.g. 192.168.16/28).  If a network range is specified,
+     then all addresses in that range will be scanned.
+
      The options are as follows:
 
      -4      Force ssh-keyscan to use IPv4 addresses only.
@@ -35,9 +39,16 @@ DESCRIPTION
      -f file
              Read hosts or M-bM-^@M-^\addrlist namelistM-bM-^@M-^] pairs from file, one per line.
              If M-bM-^@M-^X-M-bM-^@M-^Y is supplied instead of a filename, ssh-keyscan will read
-             from the standard input.  Input is expected in the format:
+             from the standard input.  Names read from a file must start with
+             an address, hostname or CIDR network range to be scanned.
+             Addresses and hostnames may optionally be followed by comma-
+             separated name or address aliases that will be copied to the
+             output.  For example:
 
-             1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
+             192.168.11.0/24
+             10.20.1.1
+             happy.example.org
+             10.0.0.1,sad.example.org
 
      -H      Hash all hostnames and addresses in the output.  Hashed names may
              be used normally by ssh(1) and sshd(8), but they do not reveal
@@ -77,6 +88,10 @@ EXAMPLES
 
            $ ssh-keyscan -t rsa hostname
 
+     Search a network range, printing all supported key types:
+
+           $ ssh-keyscan 192.168.0.64/25
+
      Find all hosts from the file ssh_hosts which have new or different keys
      from those in the sorted file ssh_known_hosts:
 
@@ -94,4 +109,4 @@ AUTHORS
      Davison <wayned@users.sourceforge.net> added support for protocol version
      2.
 
-OpenBSD 7.1                      June 3, 2022                      OpenBSD 7.1
+OpenBSD 7.2                    October 28, 2022                    OpenBSD 7.2

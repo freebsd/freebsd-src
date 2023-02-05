@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.358 2022/08/26 08:16:27 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.361 2023/01/13 02:44:02 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -935,7 +935,7 @@ check_host_key(char *hostname, const struct ssh_conn_info *cinfo,
 	char *ip = NULL, *host = NULL;
 	char hostline[1000], *hostp, *fp, *ra;
 	char msg[1024];
-	const char *type, *fail_reason;
+	const char *type, *fail_reason = NULL;
 	const struct hostkey_entry *host_found = NULL, *ip_found = NULL;
 	int len, cancelled_forwarding = 0, confirmed;
 	int local = sockaddr_is_local(hostaddr);
@@ -958,6 +958,17 @@ check_host_key(char *hostname, const struct ssh_conn_info *cinfo,
 		    "loopback/localhost.");
 		options.update_hostkeys = 0;
 		return 0;
+	}
+
+	/*
+	 * Don't ever try to write an invalid name to a known hosts file.
+	 * Note: do this before get_hostfile_hostname_ipaddr() to catch
+	 * '[' or ']' in the name before they are added.
+	 */
+	if (strcspn(hostname, "@?*#[]|'\'\"\\") != strlen(hostname)) {
+		debug_f("invalid hostname \"%s\"; will not record: %s",
+		    hostname, fail_reason);
+		readonly = RDONLY;
 	}
 
 	/*
@@ -1265,8 +1276,11 @@ check_host_key(char *hostname, const struct ssh_conn_info *cinfo,
 		}
 		/* The host key has changed. */
 		warn_changed_key(host_key);
-		error("Add correct host key in %.100s to get rid of this message.",
-		    user_hostfiles[0]);
+		if (num_user_hostfiles > 0 || num_system_hostfiles > 0) {
+			error("Add correct host key in %.100s to get rid "
+			    "of this message.", num_user_hostfiles > 0 ?
+			    user_hostfiles[0] : system_hostfiles[0]);
+		}
 		error("Offending %s key in %s:%lu",
 		    sshkey_type(host_found->key),
 		    host_found->file, host_found->line);

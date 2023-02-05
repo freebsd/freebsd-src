@@ -673,6 +673,8 @@ SSHDLIBS
 SSH_PRIVSEP_USER
 LIBFIDO2
 SK_DUMMY_LIBRARY
+OPENSSL_BIN
+openssl_bin
 PICFLAG
 LIBEDIT
 LDNSCONFIG
@@ -5991,12 +5993,14 @@ then :
 fi
 
 openssl=yes
+openssl_bin=openssl
 
 # Check whether --with-openssl was given.
 if test ${with_openssl+y}
 then :
   withval=$with_openssl;   if test "x$withval" = "xno" ; then
 		openssl=no
+		openssl_bin=""
 	   fi
 
 
@@ -6063,6 +6067,26 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 CFLAGS="$saved_CFLAGS"
 
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking gcc version" >&5
+printf %s "checking gcc version... " >&6; }
+	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
+	case "$GCC_VER" in
+		1.*) no_attrib_nonnull=1 ;;
+		2.8* | 2.9*)
+		     no_attrib_nonnull=1
+		     ;;
+		2.*) no_attrib_nonnull=1 ;;
+		*) ;;
+	esac
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $GCC_VER" >&5
+printf "%s\n" "$GCC_VER" >&6; }
+
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking clang version" >&5
+printf %s "checking clang version... " >&6; }
+	CLANG_VER=`$CC -v 2>&1 | $AWK '/clang version /{print $3}'`
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $CLANG_VER" >&5
+printf "%s\n" "$CLANG_VER" >&6; }
+
 	{
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -pipe" >&5
 printf %s "checking if $CC supports compile flag -pipe... " >&6; }
@@ -7464,7 +7488,69 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
 }
-	{
+	# clang 15 seems to have a bug in -fzero-call-used-regs=all.  See
+	# https://bugzilla.mindrot.org/show_bug.cgi?id=3475 and
+	# https://github.com/llvm/llvm-project/issues/59242
+	case "$CLANG_VER" in
+	15.*) {
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=used" >&5
+printf %s "checking if $CC supports compile flag -fzero-call-used-regs=used... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -fzero-call-used-regs=used"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-fzero-call-used-regs=used"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
+int main(int argc, char **argv) {
+	(void)argv;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else $as_nop
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+} ;;
+	*)    {
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=all" >&5
 printf %s "checking if $CC supports compile flag -fzero-call-used-regs=all... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -7521,7 +7607,8 @@ printf "%s\n" "no" >&6; }
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-}
+} ;;
+	esac
 	{
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -ftrivial-auto-var-init=zero" >&5
 printf %s "checking if $CC supports compile flag -ftrivial-auto-var-init=zero... " >&6; }
@@ -7581,19 +7668,6 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 }
     fi
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking gcc version" >&5
-printf %s "checking gcc version... " >&6; }
-	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
-	case $GCC_VER in
-		1.*) no_attrib_nonnull=1 ;;
-		2.8* | 2.9*)
-		     no_attrib_nonnull=1
-		     ;;
-		2.*) no_attrib_nonnull=1 ;;
-		*) ;;
-	esac
-	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $GCC_VER" >&5
-printf "%s\n" "$GCC_VER" >&6; }
 
 	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -fno-builtin-memset" >&5
 printf %s "checking if $CC accepts -fno-builtin-memset... " >&6; }
@@ -7958,6 +8032,17 @@ then :
 fi
 
 
+if test "x$ac_cv_header_sys_stat_h" != "xyes"; then
+	unset ac_cv_header_sys_stat_h
+	ac_fn_c_check_header_compile "$LINENO" "sys/stat.h" "ac_cv_header_sys_stat_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_stat_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_SYS_STAT_H 1" >>confdefs.h
+
+fi
+
+fi
+
 ac_fn_c_check_header_compile "$LINENO" "blf.h" "ac_cv_header_blf_h" "$ac_includes_default"
 if test "x$ac_cv_header_blf_h" = xyes
 then :
@@ -8298,12 +8383,6 @@ ac_fn_c_check_header_compile "$LINENO" "sys/select.h" "ac_cv_header_sys_select_h
 if test "x$ac_cv_header_sys_select_h" = xyes
 then :
   printf "%s\n" "#define HAVE_SYS_SELECT_H 1" >>confdefs.h
-
-fi
-ac_fn_c_check_header_compile "$LINENO" "sys/stat.h" "ac_cv_header_sys_stat_h" "$ac_includes_default"
-if test "x$ac_cv_header_sys_stat_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_SYS_STAT_H 1" >>confdefs.h
 
 fi
 ac_fn_c_check_header_compile "$LINENO" "sys/stream.h" "ac_cv_header_sys_stream_h" "$ac_includes_default"
@@ -9006,7 +9085,7 @@ else $as_nop
 
 #include <mach-o/dyld.h>
 #include <stdlib.h>
-main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
+int main(void) { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		exit(0);
 	else
 		exit(1);
@@ -9372,7 +9451,7 @@ printf "%s\n" "#define USE_BTMP 1" >>confdefs.h
 	no_dev_ptmx=1
 	use_pie=auto
 	check_for_openpty_ctty_bug=1
-			CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE"
+				CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE"
 
 printf "%s\n" "#define BROKEN_CLOSEFROM 1" >>confdefs.h
 
@@ -12183,7 +12262,7 @@ printf %s "checking for ldns support... " >&6; }
 # include <stdint.h>
 #endif
 #include <ldns/ldns.h>
-int main() { ldns_status status = ldns_verify_trusted(NULL, NULL, NULL, NULL); status=LDNS_STATUS_OK; exit(0); }
+int main(void) { ldns_status status = ldns_verify_trusted(NULL, NULL, NULL, NULL); status=LDNS_STATUS_OK; exit(0); }
 
 
 _ACEOF
@@ -14181,8 +14260,9 @@ else $as_nop
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 int
 main (void)
@@ -14238,8 +14318,9 @@ else $as_nop
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-#include <stdlib.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 int
 main (void)
@@ -14790,6 +14871,9 @@ else $as_nop
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef HAVE_PTY_H
+# include <pty.h>
+#endif
 #include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -15239,6 +15323,7 @@ done
 # Search for OpenSSL
 saved_CPPFLAGS="$CPPFLAGS"
 saved_LDFLAGS="$LDFLAGS"
+openssl_bin_PATH="$PATH"
 
 # Check whether --with-ssl-dir was given.
 if test ${with_ssl_dir+y}
@@ -15270,10 +15355,63 @@ then :
 			else
 				CPPFLAGS="-I${withval} ${CPPFLAGS}"
 			fi
+			openssl_bin_PATH="${PATH}${PATH_SEPARATOR}${withval}/bin${PATH_SEPARATOR}${withval}/apps"
 		fi
 
 
 fi
+
+for ac_prog in openssl
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_path_openssl_bin+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  case $openssl_bin in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_openssl_bin="$openssl_bin" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $openssl_bin_PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_path_openssl_bin="$as_dir$ac_word$ac_exec_ext"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+openssl_bin=$ac_cv_path_openssl_bin
+if test -n "$openssl_bin"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $openssl_bin" >&5
+printf "%s\n" "$openssl_bin" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+  test -n "$openssl_bin" && break
+done
+
+OPENSSL_BIN=${openssl_bin}
 
 
 
@@ -15489,7 +15627,7 @@ then :
 				# OpenSSL 3; we use the 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
-			301*)
+			301*|302*)
 				# OpenSSL development branch; request 1.1x API
 				CPPFLAGS="$CPPFLAGS -DOPENSSL_API_COMPAT=0x10100000L"
 				;;
@@ -16435,7 +16573,7 @@ printf "%s\n" "#define ENABLE_SK_INTERNAL /**/" >>confdefs.h
 
 		enable_sk="built-in"
 		saved_LIBS="$LIBS"
-		LIBS="$LIBS $LIBFIDO2"
+		LIBS="$LIBFIDO2 $LIBS"
 		ac_fn_c_check_func "$LINENO" "fido_assert_set_clientdata" "ac_cv_func_fido_assert_set_clientdata"
 if test "x$ac_cv_func_fido_assert_set_clientdata" = xyes
 then :
@@ -18986,7 +19124,7 @@ else $as_nop
 #include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_SNPRINTF
-main()
+int main(void)
 {
 	char buf[50];
 	char expected_out[50];
@@ -19003,7 +19141,7 @@ main()
 	exit(0);
 }
 #else
-main() { exit(0); }
+int main(void) { exit(0); }
 #endif
 
 _ACEOF
@@ -19852,6 +19990,21 @@ then :
 else $as_nop
 
 printf "%s\n" "#define __res_state state" >>confdefs.h
+
+fi
+
+
+ac_fn_c_check_member "$LINENO" "struct sockaddr_in" "sin_len" "ac_cv_member_struct_sockaddr_in_sin_len" "
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+
+"
+if test "x$ac_cv_member_struct_sockaddr_in_sin_len" = xyes
+then :
+
+printf "%s\n" "#define SOCK_HAS_LEN 1" >>confdefs.h
 
 fi
 
