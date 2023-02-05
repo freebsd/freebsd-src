@@ -29,7 +29,7 @@
  */
 
 /**
- * \file dev/xen/timer/timer.c
+ * \file dev/xen/timer/xen_timer.c
  * \brief A timer driver for the Xen hypervisor's PV clock.
  */
 
