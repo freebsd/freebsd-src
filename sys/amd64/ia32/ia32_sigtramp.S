@@ -84,10 +84,10 @@ __vdso_ia32_sigcode:
 	jmp	1b
 	.cfi_endproc
 
-#ifdef COMPAT_FREEBSD4
 	ALIGN_TEXT
 	.globl	__vdso_freebsd4_ia32_sigcode
 __vdso_freebsd4_ia32_sigcode:
+#ifdef COMPAT_FREEBSD4
 	calll	*IA32_SIGF_HANDLER(%esp)
 	leal	IA32_SIGF_UC4(%esp),%eax/* get ucontext */
 	pushl	%eax
@@ -97,12 +97,14 @@ __vdso_freebsd4_ia32_sigcode:
 					/* on stack */
 1:
 	jmp	1b
+#else
+	ud2
 #endif
 
-#ifdef COMPAT_43
 	ALIGN_TEXT
 	.globl	__vdso_ia32_osigcode
 __vdso_ia32_osigcode:
+#ifdef COMPAT_43
 	calll	*IA32_SIGF_HANDLER(%esp)/* call signal handler */
 	leal	IA32_SIGF_SC(%esp),%eax	/* get sigcontext */
 	pushl	%eax
@@ -111,6 +113,9 @@ __vdso_ia32_osigcode:
 	int	$0x80			/* enter kernel with args */
 1:
 	jmp	1b
+#else
+	ud2
+#endif
 
 /*
  * Our lcall $7,$0 handler remains in user mode (ring 3), since lcalls
@@ -128,7 +133,10 @@ __vdso_ia32_osigcode:
 	ALIGN_TEXT
 	.globl	__vdso_lcall_tramp
 __vdso_lcall_tramp:
+#ifdef COMPAT_43
 	int	$0x80
 1:	jmp	1b
+#else
+	ud2
 #endif
 	.p2align 1
