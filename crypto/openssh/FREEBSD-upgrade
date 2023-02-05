@@ -66,8 +66,8 @@
     (leaving them deleted).
 
 10) Resolve conflicts.  Remember to bump the version addendum in
-    version.h, and update the default value in ssh{,d}_config and
-    ssh{,d}_config.5.
+    version.h, and update the default value in sshd_config and
+    sshd_config.5.
 
 11) Diff against the vendor branch:
 
