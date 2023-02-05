@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR = vmbus netvsc storvsc utilities hvsock
+SUBDIR = vmbus netvsc storvsc utilities hvsock hid
 
 .include <bsd.subdir.mk>
