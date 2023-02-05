@@ -315,7 +315,7 @@ sysctl_hw_machine_arch(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, machine_arch, strlen(machine_arch) + 1));
 }
 SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD |
-    CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine_arch, "A",
+    CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine_arch, "A",
     "System architecture");
 
 #ifndef MACHINE_ARCHES
