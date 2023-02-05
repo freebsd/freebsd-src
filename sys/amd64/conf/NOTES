@@ -501,6 +501,7 @@ device		kvm_clock	# KVM paravirtual clock driver
 
 # Microsoft Hyper-V enhancement support
 device 		hyperv		# HyperV drivers
+device		hvhid		# HyperV HID device
 
 # Xen HVM Guest Optimizations
 options 	XENHVM		# Xen HVM kernel infrastructure

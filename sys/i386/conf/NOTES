@@ -703,6 +703,7 @@ device 		kvm_clock	# KVM paravirtual clock driver
 
 options 	HYPERV
 device		hyperv		# HyperV drivers
+device		hvhid		# HyperV HID device
 
 #####################################################################
 
