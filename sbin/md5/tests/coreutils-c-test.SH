@@ -8,8 +8,8 @@ testloop () {
 	opt=$1
 
 	while read algorithm; do
-		${algorithm}sum -c %%TESTSBASE%%/sbin/md5/${algorithm}.digest || exitcode=1
-		${algorithm}sum -c %%TESTSBASE%%/sbin/md5/${algorithm}sum.digest || exitcode=1
+		${algorithm}sum $opt -c %%TESTSBASE%%/sbin/md5/${algorithm}.digest || exitcode=1
+		${algorithm}sum $opt -c %%TESTSBASE%%/sbin/md5/${algorithm}sum.digest || exitcode=1
 	done < %%TESTSBASE%%/sbin/md5/algorithms.txt
 }
 
