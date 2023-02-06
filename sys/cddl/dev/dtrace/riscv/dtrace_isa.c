@@ -169,7 +169,7 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 {
 	volatile uint16_t *flags;
 	struct trapframe *tf;
-	uintptr_t pc, sp, fp;
+	uintptr_t pc, fp;
 	proc_t *p;
 	int n;
 
@@ -195,7 +195,6 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 		return;
 
 	pc = tf->tf_sepc;
-	sp = tf->tf_sp;
 	fp = tf->tf_s[0];
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
@@ -207,7 +206,6 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
-
 		*pcstack++ = (uint64_t)pc;
 		pcstack_limit--;
 		if (pcstack_limit <= 0)
@@ -231,8 +229,33 @@ zero:
 int
 dtrace_getustackdepth(void)
 {
+	struct trapframe *tf;
+	uintptr_t pc, fp;
+	int n = 0;
 
-	printf("IMPLEMENT ME: %s\n", __func__);
+	if (curproc == NULL || (tf = curthread->td_frame) == NULL)
+		return (0);
+
+	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_FAULT))
+		return (-1);
+
+	pc = tf->tf_sepc;
+	fp = tf->tf_s[0];
+
+	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
+		/*
+		 * In an entry probe.  The frame pointer has not yet been
+		 * pushed (that happens in the function prologue).  The
+		 * best approach is to add the current pc as a missing top
+		 * of stack and back the pc up to the caller, which is stored
+		 * at the current stack pointer address since the call
+		 * instruction puts it there right before the branch.
+		 */
+		pc = tf->tf_ra;
+		n++;
+	}
+
+	n += dtrace_getustack_common(NULL, 0, pc, fp);
 
 	return (0);
 }
