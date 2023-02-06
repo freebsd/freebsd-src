@@ -1,4 +1,4 @@
-.\"	$NetBSD: editrc.5,v 1.33 2017/06/27 01:22:58 kre Exp $
+.\"	$NetBSD: editrc.5,v 1.34 2022/12/06 00:59:20 uwe Exp $
 .\"
 .\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -43,7 +43,7 @@ library.
 .Pp
 The format of each line is:
 .Pp
-.Dl [prog:]command [arg ...]
+.D1 Oo Ar prog Ns Ic \&: Oc Ns Ar command Oo Ar arg ... Oc
 .Pp
 .Ar command
 is one of the
@@ -59,7 +59,7 @@ is the program name string that a program defines when it calls
 to set up
 .Xr editline 3 ,
 which is usually
-.Va argv[0] .
+.Va argv Ns Li [0] .
 .Ar command
 will be executed for any program which matches
 .Ar prog .
@@ -107,15 +107,17 @@ List or change key bindings in the
 .Xr vi 1
 mode alternate (command mode) key map.
 .It Fl e
-Bind all keys to the standard GNU Emacs-like bindings.
+Bind all keys to the standard
+.Tn GNU
+Emacs-like bindings.
 .It Fl k
 .Ar key
 is interpreted as a symbolic arrow key name, which may be one of
-.Sq up ,
-.Sq down ,
-.Sq left
+.Ic up ,
+.Ic down ,
+.Ic left
 or
-.Sq right .
+.Ic right .
 .It Fl l
 List all editor commands and a short description of each.
 .It Fl r
@@ -146,16 +148,14 @@ about macros and the input queue.
 and
 .Ar command
 can contain control characters of the form
-.Sm off
-.Sq No ^ Ar character
-.Sm on
+.Sq Ic ^ Ns Ar character
 .Po
 e.g.\&
-.Sq ^A
+.Ql ^A
 .Pc ,
 and the following backslashed escape sequences:
 .Pp
-.Bl -tag -compact -offset indent -width 4n
+.Bl -tag -compact -offset indent -width Ic
 .It Ic \ea
 Bell
 .It Ic \eb
@@ -173,31 +173,33 @@ Horizontal tab
 .It Ic \ev
 Vertical tab
 .Sm off
-.It Sy \e Ar nnn
+.It Ic \e Ar nnn
 .Sm on
-The ASCII character corresponding to the octal number
+The
+.Tn ASCII
+character corresponding to the octal number
 .Ar nnn .
 .El
 .Pp
-.Sq \e
+.Ql \e
 nullifies the special meaning of the following character,
 if it has any, notably
-.Sq \e
+.Ql \e
 and
-.Sq ^ .
+.Ql ^ .
 .It Ic echotc Oo Fl sv Oc Ar arg Ar ...
 Exercise terminal capabilities given in
-.Ar arg ... .
+.Ar arg .
 If
 .Ar arg
 is
-.Sq baud ,
-.Sq cols ,
-.Sq lines ,
-.Sq rows ,
-.Sq meta ,
+.Ql baud ,
+.Ql cols ,
+.Ql lines ,
+.Ql rows ,
+.Ql meta ,
 or
-.Sq tabs ,
+.Ql tabs ,
 the value of that capability is printed, with
 .Dq yes
 or
@@ -209,27 +211,27 @@ returns an empty string for non-existent capabilities, rather than
 causing an error.
 .Fl v
 causes messages to be verbose.
-.It Ic edit Op Li on | Li off
+.It Ic edit Op Li on No | Li off
 Enable or disable the
 .Nm editline
 functionality in a program.
-.It Ic history Ar list | Ar size Dv n | Ar unique Dv n
+.It Ic history Li list No | Li size Ar n No | Li unique Ar n
 The
-.Ar list
+.Ql list
 command lists all entries in the history.
 The
-.Ar size
+.Ql size
 command sets the history size to
-.Dv n
+.Ar n
 entries.
 The
-.Ar unique
+.Ql unique
 command controls if history should keep duplicate entries.
 If
-.Dv n
+.Ar n
 is non zero, only keep unique history entries.
 If
-.Dv n
+.Ar n
 is zero, then keep all entries (the default).
 .It Ic settc Ar cap Ar val
 Set the terminal capability
@@ -239,8 +241,8 @@ to
 as defined in
 .Xr termcap 5 .
 No sanity checking is done.
-.It Ic setty Oo Fl a Oc Oo Fl d Oc Oo Fl q Oc Oo Fl x Oc Oo Ar +mode Oc \
-Oo Ar -mode Oc Oo Ar mode Oc Oo Ar char=c Oc
+.It Ic setty Oo Fl a Oc Oo Fl d Oc Oo Fl q Oc Oo Fl x Oc Oo Ic \&+ Ns Ar mode Oc \
+Oo Fl Ar mode Oc Oo Ar mode Oc Oo Ar char\| Ns Ic = Ns Ar c Oc
 Control which tty modes that
 .Nm
 won't allow the user to change.
@@ -262,17 +264,17 @@ Without other arguments,
 .Ic setty
 lists the modes in the chosen set which are fixed on
 .Po
-.Sq +mode
+.Ic + Ns Ar mode
 .Pc
 or off
 .Po
-.Sq -mode
+.Fl Ns Ar mode
 .Pc .
 .Fl a
 lists all tty modes in the chosen set regardless of the setting.
 With
-.Ar +mode ,
-.Ar -mode
+.Ic + Ns Ar mode ,
+.Fl Ns Ar mode
 or
 .Ar mode ,
 fixes
@@ -283,7 +285,7 @@ in the chosen set.
 .Pp
 .Ic Setty
 can also be used to set tty characters to particular values using
-.Ar char=value .
+.Ar char\| Ns Ic = Ns Ar value .
 If
 .Ar value
 is empty
@@ -294,19 +296,18 @@ List the values of all the terminal capabilities (see
 .Xr termcap 5 ) .
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width "~/.editrcXXX"
+.Bl -tag -width Ev
 .It Ev EDITRC
 Names the default configuration file for the
 .Xr editline 3
 library.
 .El
 .Sh FILES
-.Bl -tag -width "~/.editrcXXX"
+.Bl -tag -width Pa
 .It Pa ~/.editrc
-Last resort, if no other file is specified,
-user configuration file for the
+Last resort user configuration file for the
 .Xr editline 3
-library.
+library if no other file is specified.
 .El
 .Sh SEE ALSO
 .Xr editline 3 ,
