@@ -800,6 +800,7 @@ static int akbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 	case OPIO_KEYMAP:
 	case PIO_KEYMAPENT:
 	case PIO_DEADKEYMAP:
+	case OPIO_DEADKEYMAP:
 	default:
 		return (genkbd_commonioctl(kbd, cmd, data));
 	}
