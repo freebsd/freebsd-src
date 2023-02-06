@@ -132,7 +132,7 @@ sbni_attach_isa(device_t dev)
 			return (ENXIO);
 		} else {
 			device_printf(dev, "shared irq with %s\n",
-			       master->if_name(ifp));
+			       if_name(master->ifp));
 		}
 	} 
 #endif	/* SBNI_DUAL_COMPOUND */
