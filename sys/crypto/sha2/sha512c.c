@@ -60,23 +60,26 @@ __FBSDID("$FreeBSD$");
 #else /* BYTE_ORDER != BIG_ENDIAN */
 
 /*
- * Encode a length len/4 vector of (uint64_t) into a length len vector of
- * (unsigned char) in big-endian form.  Assumes len is a multiple of 8.
+ * Encode a length (len + 7) / 8 vector of (uint64_t) into a length len
+ * vector of (unsigned char) in big-endian form.  Assumes len is a
+ * multiple of 4.
  */
-static void
+static inline void
 be64enc_vect(unsigned char *dst, const uint64_t *src, size_t len)
 {
 	size_t i;
 
 	for (i = 0; i < len / 8; i++)
 		be64enc(dst + i * 8, src[i]);
+	if (len % 8 == 4)
+		be32enc(dst + i * 8, src[i] >> 32);
 }
 
 /*
  * Decode a big-endian length len vector of (unsigned char) into a length
- * len/4 vector of (uint64_t).  Assumes len is a multiple of 8.
+ * len/8 vector of (uint64_t).  Assumes len is a multiple of 8.
  */
-static void
+static inline void
 be64dec_vect(uint64_t *dst, const unsigned char *src, size_t len)
 {
 	size_t i;
