@@ -194,16 +194,19 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	efifb.fb_mask_blue = gfx_state.tg_fb.fb_mask_blue;
 	efifb.fb_mask_reserved = gfx_state.tg_fb.fb_mask_reserved;
 
-	printf("EFI framebuffer information:\n");
-	printf("addr, size     0x%jx, 0x%jx\n", efifb.fb_addr, efifb.fb_size);
-	printf("dimensions     %d x %d\n", efifb.fb_width, efifb.fb_height);
-	printf("stride         %d\n", efifb.fb_stride);
-	printf("masks          0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
-	    efifb.fb_mask_red, efifb.fb_mask_green, efifb.fb_mask_blue,
-	    efifb.fb_mask_reserved);
+	if (efifb.fb_addr != 0) {
+		printf("EFI framebuffer information:\n");
+		printf("addr, size     0x%jx, 0x%jx\n",
+		    efifb.fb_addr, efifb.fb_size);
+		printf("dimensions     %d x %d\n",
+		    efifb.fb_width, efifb.fb_height);
+		printf("stride         %d\n", efifb.fb_stride);
+		printf("masks          0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
+		    efifb.fb_mask_red, efifb.fb_mask_green, efifb.fb_mask_blue,
+		    efifb.fb_mask_reserved);
 
-	if (efifb.fb_addr != 0)
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
+	}
 #endif
 
 	do_vmap = true;
