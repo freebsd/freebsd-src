@@ -2991,7 +2991,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	db_printf(")\n");
 
 	db_print_indent(indent);
-	db_printf("snd_una: 0x%08x   snd_max: 0x%08x   snd_nxt: x0%08x\n",
+	db_printf("snd_una: 0x%08x   snd_max: 0x%08x   snd_nxt: 0x%08x\n",
 	    tp->snd_una, tp->snd_max, tp->snd_nxt);
 
 	db_print_indent(indent);
