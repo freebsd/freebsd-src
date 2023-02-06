@@ -294,6 +294,7 @@ tarfs_readdir(struct vop_readdir_args *ap)
 		cde.d_reclen = GENERIC_DIRSIZ(&cde);
 		if (cde.d_reclen > uio->uio_resid)
 			goto full;
+		dirent_terminate(&cde);
 		error = uiomove(&cde, cde.d_reclen, uio);
 		if (error)
 			return (error);
@@ -317,6 +318,7 @@ tarfs_readdir(struct vop_readdir_args *ap)
 		cde.d_reclen = GENERIC_DIRSIZ(&cde);
 		if (cde.d_reclen > uio->uio_resid)
 			goto full;
+		dirent_terminate(&cde);
 		error = uiomove(&cde, cde.d_reclen, uio);
 		if (error)
 			return (error);
@@ -374,6 +376,7 @@ tarfs_readdir(struct vop_readdir_args *ap)
 		cde.d_reclen = GENERIC_DIRSIZ(&cde);
 		if (cde.d_reclen > uio->uio_resid)
 			goto full;
+		dirent_terminate(&cde);
 		error = uiomove(&cde, cde.d_reclen, uio);
 		if (error != 0)
 			goto done;
