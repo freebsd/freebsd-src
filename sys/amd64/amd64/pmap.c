@@ -2314,9 +2314,13 @@ pmap_init_pv_table(void)
 	int domain, i, j, pages;
 
 	/*
-	 * We strongly depend on the size being a power of two, so the assert
-	 * is overzealous. However, should the struct be resized to a
-	 * different power of two, the code below needs to be revisited.
+	 * For correctness we depend on the size being evenly divisible into a
+	 * page. As a tradeoff between performance and total memory use, the
+	 * entry is 64 bytes (aka one cacheline) in size. Not being smaller
+	 * avoids false-sharing, but not being 128 bytes potentially allows for
+	 * avoidable traffic due to adjacent cacheline prefetcher.
+	 *
+	 * Assert the size so that accidental changes fail to compile.
 	 */
 	CTASSERT((sizeof(*pvd) == 64));
 
