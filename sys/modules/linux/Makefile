@@ -50,6 +50,7 @@ VDSODEPS=linux_vdso_gettc_x86.inc
 SRCS+=	linux${SFX}_support.S
 .else
 SRCS+=	linux_copyout.c
+SRCS+=	linux_netlink.c
 .endif
 DPSRCS=	assym.inc linux${SFX}_genassym.c
 
