@@ -420,6 +420,11 @@ SYSCTL_INT(_hw_pci, OID_AUTO, clear_aer_on_attach, CTLFLAG_RWTUN,
     &pci_clear_aer_on_attach, 0,
     "Clear port and device AER state on driver attach");
 
+static bool pci_enable_mps_tune = true;
+SYSCTL_BOOL(_hw_pci, OID_AUTO, enable_mps_tune, CTLFLAG_RWTUN,
+    &pci_enable_mps_tune, 1,
+    "Enable tuning of MPS(maximum payload size)." );
+
 static int
 pci_has_quirk(uint32_t devid, int quirk)
 {
@@ -4452,7 +4457,8 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pci_cfg_restore(dev, dinfo);
 	pci_print_verbose(dinfo);
 	pci_add_resources(bus, dev, 0, 0);
-	pcie_setup_mps(dev);
+	if (pci_enable_mps_tune)
+		pcie_setup_mps(dev);
 	pci_child_added(dinfo->cfg.dev);
 
 	if (pci_clear_aer_on_attach)
