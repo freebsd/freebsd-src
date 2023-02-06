@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2019
+.Dd February 3, 2023
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -27,6 +27,13 @@
 .Nm SHA384_File ,
 .Nm SHA384_FileChunk ,
 .Nm SHA384_Data ,
+.Nm SHA512_224_Init ,
+.Nm SHA512_224_Update ,
+.Nm SHA512_224_Final ,
+.Nm SHA512_224_End ,
+.Nm SHA512_224_File ,
+.Nm SHA512_224_FileChunk ,
+.Nm SHA512_224_Data
 .Nm SHA512_256_Init ,
 .Nm SHA512_256_Update ,
 .Nm SHA512_256_Final ,
@@ -70,6 +77,20 @@
 .Ft "char *"
 .Fn SHA384_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .In sha512t.h
+.Ft void
+.Fn SHA512_224_Init "SHA512_CTX *context"
+.Ft void
+.Fn SHA512_224_Update "SHA512_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SHA512_224_Final "unsigned char digest[32]" "SHA512_CTX *context"
+.Ft "char *"
+.Fn SHA512_224_End "SHA512_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA512_224_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA512_224_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SHA512_224_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .Ft void
 .Fn SHA512_256_Init "SHA512_CTX *context"
 .Ft void
@@ -119,8 +140,7 @@ is a wrapper for
 .Fn SHA512_Final
 which converts the return value to a 129-character
 (including the terminating '\e0')
-.Tn ASCII
-string which represents the 512 bits in hexadecimal.
+ASCII string which represents the 512 bits in hexadecimal.
 .Pp
 .Fn SHA512_File
 calculates the digest of a file, and uses
@@ -167,29 +187,43 @@ If the
 argument is non-null it must point to at least 129 characters of buffer space.
 .Pp
 The
-.Li SHA384_
+.Li SHA384_ ,
+.Li SHA512_224 ,
 and
 .Li SHA512_256_
 functions are identical to the
 .Li SHA512_
 functions except they use a different initial hash value and the output is
-truncated to 384 bits and 256 bits respectively.
+truncated to 384, 224, and 256 bits respectively.
 .Pp
 .Fn SHA384_End
 is a wrapper for
 .Fn SHA384_Final
 which converts the return value to a 97-character
 (including the terminating '\e0')
+ASCII string which represents the 384 bits in hexadecimal.
+.Pp
+.Fn SHA512_224_End
+is a wrapper for
+.Fn SHA512_Final
+which converts the return value to a 57-character
+(including the terminating '\e0')
+ASCII string which represents the 224 bits in hexadecimal.
+.Pp
+.Fn SHA512_224_End
+is a wrapper for
+.Fn SHA512_Final
+which converts the return value to a 57-character
+(including the terminating '\e0')
 .Tn ASCII
-string which represents the 384 bits in hexadecimal.
+string which represents the 224 bits in hexadecimal.
 .Pp
 .Fn SHA512_256_End
 is a wrapper for
 .Fn SHA512_Final
 which converts the return value to a 65-character
 (including the terminating '\e0')
-.Tn ASCII
-string which represents the 256 bits in hexadecimal.
+ASCII string which represents the 256 bits in hexadecimal.
 .Sh ERRORS
 The
 .Fn SHA512_End
@@ -223,9 +257,7 @@ These functions appeared in
 .Fx 9.0 .
 .Sh AUTHORS
 The core hash routines were implemented by Colin Percival based on
-the published
-.Tn FIPS 180-2
-standard.
+the published FIPS 180-2 standard.
 .Sh BUGS
 No method is known to exist which finds two files having the same hash value,
 nor to find a file with a specific hash value.

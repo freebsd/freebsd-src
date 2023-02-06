@@ -95,8 +95,7 @@ function is a wrapper for
 .Fn MDXFinal
 which converts the return value to a 33-character
 (including the terminating '\e0')
-.Tn ASCII
-string which represents the 128 bits in hexadecimal.
+ASCII string which represents the 128 bits in hexadecimal.
 .Pp
 The
 .Fn MDXFile
@@ -201,15 +200,12 @@ These functions appeared in
 .Fx 2.0 .
 .Sh AUTHORS
 The original MDX routines were developed by
-.Tn RSA
-Data Security, Inc., and published in the above references.
+RSA Data Security, Inc., and published in the above references.
 This code is derived directly from these implementations by
 .An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
 .Pp
 Phk ristede runen.
 .Sh BUGS
-The
-.Tn MD5
-algorithm has been proven to be vulnerable to practical collision
+The MD5 algorithm has been proven to be vulnerable to practical collision
 attacks and should not be relied upon to produce unique outputs,
 .Em nor should they be used as part of a cryptographic signature scheme.

@@ -1,12 +1,14 @@
 .\" $FreeBSD$
-.Dd July 26, 2022
+.Dd February 6, 2023
 .Dt MD5 1
 .Os
 .Sh NAME
-.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
-.Nm skein256 , skein512 , skein1024 ,
-.Nm md5sum , sha1sum , sha224sum , sha256sum , sha384sum , sha512sum ,
-.Nm sha512t256sum , rmd160sum , skein256sum , skein512sum , skein1024sum
+.Nm md5 , sha1 , sha224 , sha256 , sha384 ,
+.Nm sha512 , sha512t224 , sha512t256 ,
+.Nm rmd160 , skein256 , skein512 , skein1024 ,
+.Nm md5sum , sha1sum , sha224sum , sha256sum , sha384sum ,
+.Nm sha512sum , sha512t224sum , sha512t256sum ,
+.Nm rmd160sum , skein256sum , skein512sum , skein1024sum
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm
@@ -24,8 +26,8 @@
 (All other hashes have the same options and usage.)
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
-.Nm skein256 , skein512 ,
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t224 , sha512t256 ,
+.Nm rmd160 , skein256 , skein512 ,
 and
 .Nm skein1024
 utilities take as input a message of arbitrary length and produce as
@@ -36,7 +38,7 @@ or
 of the input.
 The
 .Nm md5sum , sha1sum , sha224sum , sha256sum , sha384sum , sha512sum ,
-.Nm sha512t256sum , rmd160sum , skein256sum , skein512sum ,
+.Nm sha512t224sum , sha512t256sum , rmd160sum , skein256sum , skein512sum ,
 and
 .Nm skein1024sum
 utilities do the same, but default to the reversed format of
@@ -67,6 +69,9 @@ SHA-512t256 is a version of SHA-512 truncated to only 256 bits.
 On 64-bit hardware, this algorithm is approximately 50% faster than SHA-256 but
 with the same level of security.
 The hashes are not interchangeable.
+.Pp
+SHA-512t224 is identical to SHA-512t256, but with the digest truncated
+to 224 bits.
 .Pp
 It is recommended that all new applications use SHA-512 or SKEIN-512
 instead of one of the other hash functions.
