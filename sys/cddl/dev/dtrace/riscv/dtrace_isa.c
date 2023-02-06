@@ -150,9 +150,8 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 		if (fp == 0)
 			break;
 
-		pc = dtrace_fuword64((void *)(fp +
-		    offsetof(struct riscv_frame, f_retaddr)));
-		fp = dtrace_fuword64((void *)fp);
+		pc = dtrace_fuword64((void *)(fp - 1 * sizeof(uint64_t)));
+		fp = dtrace_fuword64((void *)(fp - 2 * sizeof(uint64_t)));
 
 		if (fp == oldfp) {
 			*flags |= CPU_DTRACE_BADSTACK;
