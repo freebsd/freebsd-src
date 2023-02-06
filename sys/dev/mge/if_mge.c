@@ -478,7 +478,7 @@ mge_set_prom_mode(struct mge_softc *sc, uint8_t queue)
 	uint32_t reg_val, i;
 
 	/* Enable or disable promiscuous mode as needed */
-	if (sc->if_getflags(ifp) & IFF_PROMISC) {
+	if (if_getflags(sc->ifp) & IFF_PROMISC) {
 		port_config = MGE_READ(sc, MGE_PORT_CONFIG);
 		port_config |= PORT_CONFIG_UPM;
 		MGE_WRITE(sc, MGE_PORT_CONFIG, port_config);
@@ -1200,15 +1200,15 @@ mge_init_locked(void *arg)
 	 * * ...only if polling is not turned on. Disable interrupts explicitly
 	 * if polling is enabled.
 	 */
-	if (sc->if_getcapenable(ifp) & IFCAP_POLLING)
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
 		mge_intrs_ctrl(sc, 0);
 	else
 #endif /* DEVICE_POLLING */
 	mge_intrs_ctrl(sc, 1);
 
 	/* Activate network interface */
-	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
-	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+	if_setdrvflagbits(sc->ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(sc->ifp, 0, IFF_DRV_OACTIVE);
 	sc->wd_timer = 0;
 
 	/* Schedule watchdog timeout */
@@ -1226,7 +1226,7 @@ mge_intr_rxtx(void *arg)
 	MGE_GLOBAL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		MGE_GLOBAL_UNLOCK(sc);
 		return;
 	}
@@ -1283,7 +1283,7 @@ mge_intr_rx(void *arg) {
 	MGE_RECEIVE_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		MGE_RECEIVE_UNLOCK(sc);
 		return;
 	}
@@ -1405,7 +1405,7 @@ mge_intr_tx(void *arg)
 	MGE_TRANSMIT_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		MGE_TRANSMIT_UNLOCK(sc);
 		return;
 	}
@@ -1625,7 +1625,7 @@ mge_shutdown(device_t dev)
 	MGE_GLOBAL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-        if (sc->if_getcapenable(ifp) & IFCAP_POLLING)
+        if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
 		ether_poll_deregister(sc->ifp);
 #endif
 
