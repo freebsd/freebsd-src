@@ -912,6 +912,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux_ioctl_register_handler(*lihp);
 			linux_dev_shm_create();
 			linux_osd_jail_register();
+			linux_netlink_register();
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
@@ -932,6 +933,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_unregister_handler(*lihp);
+			linux_netlink_deregister();
 			linux_dev_shm_destroy();
 			linux_osd_jail_deregister();
 			if (bootverbose)
@@ -952,4 +954,5 @@ static moduledata_t linux_elf_mod = {
 };
 
 DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_DEPEND(linuxelf, netlink, 1, 1, 1);
 FEATURE(linux, "Linux 32bit support");
