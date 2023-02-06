@@ -17,6 +17,8 @@ LINKS=	${BINDIR}/md5 ${BINDIR}/md5sum \
 	${BINDIR}/md5 ${BINDIR}/sha384sum \
 	${BINDIR}/md5 ${BINDIR}/sha512 \
 	${BINDIR}/md5 ${BINDIR}/sha512sum \
+	${BINDIR}/md5 ${BINDIR}/sha512t224 \
+	${BINDIR}/md5 ${BINDIR}/sha512t224sum \
 	${BINDIR}/md5 ${BINDIR}/sha512t256 \
 	${BINDIR}/md5 ${BINDIR}/sha512t256sum \
 	${BINDIR}/md5 ${BINDIR}/skein256 \
@@ -39,6 +41,8 @@ MLINKS=	md5.1 md5sum.1 \
 	md5.1 sha384sum.1 \
 	md5.1 sha512.1 \
 	md5.1 sha512sum.1 \
+	md5.1 sha512t224.1 \
+	md5.1 sha512t224sum.1 \
 	md5.1 sha512t256.1 \
 	md5.1 sha512t256sum.1 \
 	md5.1 skein256.1 \
