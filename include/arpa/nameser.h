@@ -133,17 +133,6 @@ typedef struct __ns_msg {
 	const u_char	*_msg_ptr;
 } ns_msg;
 
-/*
- * This is a newmsg handle, used when constructing new messages with
- * ns_newmsg_init, et al.
- */
-struct ns_newmsg {
-	ns_msg		msg;
-	const u_char	*dnptrs[25];
-	const u_char	**lastdnptr;
-};
-typedef struct ns_newmsg ns_newmsg;
-
 /* Private data structure - do not use from outside library. */
 struct _ns_flagdata {  int mask, shift;  };
 extern struct _ns_flagdata _ns_flagdata[];
@@ -571,16 +560,6 @@ typedef enum __ns_cert_types {
 #endif
 #define	ns_makecanon		__ns_makecanon
 #define	ns_samename		__ns_samename
-#define	ns_newmsg_init		__ns_newmsg_init
-#define	ns_newmsg_copy		__ns_newmsg_copy
-#define	ns_newmsg_id		__ns_newmsg_id
-#define	ns_newmsg_flag		__ns_newmsg_flag
-#define	ns_newmsg_q		__ns_newmsg_q
-#define	ns_newmsg_rr		__ns_newmsg_rr
-#define	ns_newmsg_done		__ns_newmsg_done
-#define	ns_rdata_unpack		__ns_rdata_unpack
-#define	ns_rdata_equal		__ns_rdata_equal
-#define	ns_rdata_refers		__ns_rdata_refers
 
 __BEGIN_DECLS
 int		ns_msg_getflag(ns_msg, int);
@@ -653,25 +632,6 @@ int		ns_subdomain(const char *, const char *);
 #endif
 int		ns_makecanon(const char *, char *, size_t);
 int		ns_samename(const char *, const char *);
-int		ns_newmsg_init(u_char *buffer, size_t bufsiz, ns_newmsg *);
-int		ns_newmsg_copy(ns_newmsg *, ns_msg *);
-void		ns_newmsg_id(ns_newmsg *handle, u_int16_t id);
-void		ns_newmsg_flag(ns_newmsg *handle, ns_flag flag, u_int value);
-int		ns_newmsg_q(ns_newmsg *handle, ns_nname_ct qname,
-			    ns_type qtype, ns_class qclass);
-int		ns_newmsg_rr(ns_newmsg *handle, ns_sect sect,
-			     ns_nname_ct name, ns_type type,
-			     ns_class rr_class, u_int32_t ttl,
-			     u_int16_t rdlen, const u_char *rdata);
-size_t		ns_newmsg_done(ns_newmsg *handle);
-ssize_t		ns_rdata_unpack(const u_char *, const u_char *, ns_type,
-				const u_char *, size_t, u_char *, size_t);
-int		ns_rdata_equal(ns_type,
-			       const u_char *, size_t,
-			       const u_char *, size_t);
-int		ns_rdata_refers(ns_type,
-				const u_char *, size_t,
-				const u_char *);
 __END_DECLS
 
 #ifdef BIND_4_COMPAT

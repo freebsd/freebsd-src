@@ -39,14 +39,4 @@ FBSD_1.4 {
 	__ns_name_owned;
 	__ns_name_map;
 	__ns_name_labels;
-	__ns_newmsg_init;
-	__ns_newmsg_copy;
-	__ns_newmsg_id;
-	__ns_newmsg_flag;
-	__ns_newmsg_q;
-	__ns_newmsg_rr;
-	__ns_newmsg_done;
-	__ns_rdata_unpack;
-	__ns_rdata_equal;
-	__ns_rdata_refers;
 };
