@@ -28,7 +28,7 @@
 #
 
 # Demonstrate incorrect "out of inodes" message with SU enabled.
-# No issue without SU.
+# No issue seen with SU+J
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
@@ -45,18 +45,23 @@ mdconfig -a -t swap -s 100m -u $mdstart
 echo "newfs $flags /dev/md$mdstart"
 newfs $flags /dev/md$mdstart > /dev/null
 mount /dev/md$mdstart $mntpoint
-jot 10 | xargs -I% mkdir $mntpoint/%
 set +e
 
 ifree1=`df -i $mntpoint | tail -1 | awk '{print $7}'`
 before=`df -i $mntpoint`
 n=$(((ifree1 - 5) / 10))
-for i in `jot 5`; do
+jot 10 | xargs -I% mkdir $mntpoint/%
+start=`date +%s`
+while [ $((`date +%s` - start)) -lt 180 ]; do
 	for j in `jot 10`; do
 		jot $n | xargs -P0 -I% mkdir $mntpoint/$j/%
 		jot $n | xargs -P0 -I% rmdir $mntpoint/$j/%
 	done
-done 2>&1 | head -5
+done 2>&1 | tee $log | head -5
+[ -s $log ] && s=3
+jot 10 | xargs -I% rmdir $mntpoint/%
+umount $mntpoint; mount /dev/md$mdstart $mntpoint
+
 ifree2=`df -i $mntpoint | tail -1 | awk '{print $7}'`
 after=`df -i $mntpoint | tail -1`
 if [ $ifree1 -ne $ifree2 ]; then
