@@ -294,7 +294,7 @@ tsec_detach(struct tsec_softc *sc)
 
 	if (sc->tsec_ifp != NULL) {
 #ifdef DEVICE_POLLING
-		if (sc->tsec_if_getcapenable(ifp) & IFCAP_POLLING)
+		if (if_getcapenable(sc->tsec_ifp) & IFCAP_POLLING)
 			ether_poll_deregister(sc->tsec_ifp);
 #endif
 
@@ -1414,7 +1414,7 @@ tsec_receive_intr(void *arg)
 	TSEC_RECEIVE_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->tsec_if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_getcapenable(sc->tsec_ifp) & IFCAP_POLLING) {
 		TSEC_RECEIVE_UNLOCK(sc);
 		return;
 	}
@@ -1495,7 +1495,7 @@ tsec_transmit_intr(void *arg)
 	TSEC_TRANSMIT_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->tsec_if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_getcapenable(sc->tsec_ifp) & IFCAP_POLLING) {
 		TSEC_TRANSMIT_UNLOCK(sc);
 		return;
 	}
