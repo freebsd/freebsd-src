@@ -32,6 +32,18 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
+	print 'usage: %s [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [run_problematic_tests] [time_tests] [exec args...]\n' \
+		"$script"
+	exit 1
+}
+
 # We need to figure out if we should run stuff in parallel.
 pll=1
 
@@ -48,50 +60,63 @@ done
 if [ "$#" -ge 1 ]; then
 	d="$1"
 	shift
+	check_d_arg "$d"
 else
-	err_exit "usage: $script [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [run_problematic_tests] [time_tests] [exec args...]" 1
+	usage "Not enough arguments"
 fi
 
 if [ "$#" -lt 1 ]; then
 	extra=1
+	check_bool_arg "$extra"
 else
 	extra="$1"
 	shift
+	check_bool_arg "$extra"
 fi
 
 if [ "$#" -lt 1 ]; then
 	run_stack_tests=1
+	check_bool_arg "$run_stack_tests"
 else
 	run_stack_tests="$1"
 	shift
+	check_bool_arg "$run_stack_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	generate_tests=1
+	check_bool_arg "$generate_tests"
 else
 	generate_tests="$1"
 	shift
+	check_bool_arg "$generate_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	problematic_tests=1
+	check_bool_arg "$problematic_tests"
 else
 	problematic_tests="$1"
 	shift
+	check_bool_arg "$problematic_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	time_tests=0
+	check_bool_arg "$time_tests"
 else
 	time_tests="$1"
 	shift
+	check_bool_arg "$time_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 else
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 fi
 
 stars="***********************************************************************"

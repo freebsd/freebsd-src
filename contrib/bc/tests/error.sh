@@ -34,24 +34,37 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
-# Command-line processing.
-if [ "$#" -lt 2 ]; then
-
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
 	printf 'usage: %s dir test problematic_tests [exec args...]\n' "$script"
 	exit 1
+}
 
+# Command-line processing.
+if [ "$#" -lt 3 ]; then
+	usage "Not enough arguments"
 else
 
 	d="$1"
 	shift
+	check_d_arg "$d"
 
 	t="$1"
 	shift
 
 	problematic="$1"
 	shift
+	check_bool_arg "$problematic"
 
 fi
+
+testfile="$testdir/$d/errors/$t"
+check_file_arg "$testfile"
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
@@ -93,8 +106,6 @@ else
 	opts="-x"
 	halt="q"
 fi
-
-testfile="$testdir/$d/errors/$t"
 
 printf 'Running %s error file %s with clamping...' "$d" "$t"
 

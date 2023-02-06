@@ -1,5 +1,23 @@
 # News
 
+## 6.2.4
+
+This is a production release that fixes a test failure that happens when
+`tests/bc/scripts/timeconst.bc` doesn't exist. This should only affect
+packagers.
+
+This bug happened because I forgot something I added in the previous release:
+better error checking in tests to help packagers. Unfortunately, I was too
+zealous with the error checking.
+
+## 6.2.3
+
+This is a production release that moves `bc` to <https://git.gavinhoward.com>.
+
+That's all it does: update links. Users do ***NOT*** need to upgrade; there are
+redirects that will stay in place indefinitely. This release is only for new
+users.
+
 ## 6.2.2
 
 This is a production release that fixes a bug.
