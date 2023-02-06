@@ -23,7 +23,7 @@
  * E.g.
  *   auditctl -a task,always -F uid=<privsep uid>
  */
-#define SANDBOX_SECCOMP_FILTER_DEBUG 1
+/* #define SANDBOX_SECCOMP_FILTER_DEBUG 1 */
 
 #if 0
 /*
@@ -311,6 +311,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_write
 	SC_ALLOW(__NR_write),
+#endif
+#ifdef __NR_writev
+	SC_ALLOW(__NR_writev),
 #endif
 #ifdef __NR_socketcall
 	SC_ALLOW_ARG(__NR_socketcall, 0, SYS_SHUTDOWN),

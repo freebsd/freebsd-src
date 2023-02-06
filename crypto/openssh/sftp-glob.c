@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-glob.c,v 1.30 2022/02/25 09:46:24 dtucker Exp $ */
+/* $OpenBSD: sftp-glob.c,v 1.31 2022/10/24 21:51:55 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -137,6 +137,11 @@ int
 remote_glob(struct sftp_conn *conn, const char *pattern, int flags,
     int (*errfunc)(const char *, int), glob_t *pglob)
 {
+	int r;
+	size_t l;
+	char *s;
+	struct stat sb;
+
 	pglob->gl_opendir = fudge_opendir;
 	pglob->gl_readdir = (struct dirent *(*)(void *))fudge_readdir;
 	pglob->gl_closedir = (void (*)(void *))fudge_closedir;
@@ -146,5 +151,30 @@ remote_glob(struct sftp_conn *conn, const char *pattern, int flags,
 	memset(&cur, 0, sizeof(cur));
 	cur.conn = conn;
 
-	return(glob(pattern, flags | GLOB_ALTDIRFUNC, errfunc, pglob));
+	if ((r = glob(pattern, flags | GLOB_ALTDIRFUNC, errfunc, pglob)) != 0)
+		return r;
+	/*
+	 * When both GLOB_NOCHECK and GLOB_MARK are active, a single gl_pathv
+	 * entry has been returned and that entry has not already been marked,
+	 * then check whether it needs a '/' appended as a directory mark.
+	 *
+	 * This ensures that a NOCHECK result is annotated as a directory.
+	 * The glob(3) spec doesn't promise to mark NOCHECK entries, but doing
+	 * it simplifies our callers (sftp/scp) considerably.
+	 *
+	 * XXX doesn't try to handle gl_offs.
+	 */
+	if ((flags & (GLOB_NOCHECK|GLOB_MARK)) == (GLOB_NOCHECK|GLOB_MARK) &&
+	    pglob->gl_matchc == 0 && pglob->gl_offs == 0 &&
+	    pglob->gl_pathc == 1 && (s = pglob->gl_pathv[0]) != NULL &&
+	    (l = strlen(s)) > 0 && s[l-1] != '/') {
+		if (fudge_stat(s, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+			/* NOCHECK on a directory; annotate */
+			if ((s = realloc(s, l + 2)) != NULL) {
+				memcpy(s + l, "/", 2);
+				pglob->gl_pathv[0] = s;
+			}
+		}
+	}
+	return 0;
 }

@@ -69,10 +69,6 @@ void closefrom(int);
 int ftruncate(int filedes, off_t length);
 #endif
 
-#if defined(HAVE_DECL_GETENTROPY) && HAVE_DECL_GETENTROPY == 0
-int _ssh_compat_getentropy(void *, size_t);
-#endif
-
 #ifndef HAVE_GETLINE
 #include <stdio.h>
 ssize_t getline(char **, size_t *, FILE *);
@@ -343,6 +339,7 @@ struct tm *localtime_r(const time_t *, struct tm *);
 #endif
 
 #ifndef HAVE_TIMEGM
+#include <time.h>
 time_t timegm(struct tm *);
 #endif
 

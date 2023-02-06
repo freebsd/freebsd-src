@@ -2,37 +2,35 @@ name: C/C++ CI self-hosted
 
 on:
   push:
-    branches: [ master, ci, V_9_0 ]
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', 'Makefile.in', 'configure.ac' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', '**/Makefile.in', 'configure.ac' ]
 
 jobs:
   selfhosted:
     if: github.repository == 'openssh/openssh-portable-selfhosted'
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.host }}
+    timeout-minutes: 600
     env:
-      TARGET_HOST: ${{ matrix.os }}
+      HOST: ${{ matrix.host }}
+      TARGET_HOST: ${{ matrix.target }}
+      TARGET_CONFIG: ${{ matrix.config }}
     strategy:
       fail-fast: false
       # We use a matrix in two parts: firstly all of the VMs are tested with the
-      # default config.  "os" corresponds to a label associated with the worker.
+      # default config.  "target" corresponds to a label associated with the
+      # worker.  The default is an ephemeral VM running under libvirt.
       matrix:
-        os:
-          - aix51
-          - ARM
-          - ARM64
+        target:
           - alpine
           - debian-i386
-          - debian-riscv64
           - dfly30
           - dfly48
           - dfly58
           - dfly60
+          - dfly62
           - fbsd10
           - fbsd12
           - fbsd13
-          # - hurd
           - minix3
-          # - nbsd2
           - nbsd3
           - nbsd4
           - nbsd8
@@ -42,62 +40,71 @@ jobs:
           - obsd69
           - obsd70
           - obsdsnap
+          - obsdsnap-i386
           - openindiana
-          - openwrt-mips
-          - openwrt-mipsel
-          # - rocky84
           - sol10
           - sol11
-          - win10
-        configs:
+        config:
           - default
-        # Then we include any extra configs we want to test for specific VMs.
+        host:
+          - libvirt
         include:
-          - { os: ARM64,  configs: pam }
-          - { os: debian-i386, configs: pam }
-          - { os: dfly30, configs: without-openssl}
-          - { os: dfly48, configs: pam }
-          - { os: dfly58, configs: pam }
-          - { os: dfly60, configs: pam }
-          - { os: fbsd10, configs: pam }
-          - { os: fbsd12, configs: pam }
-          - { os: fbsd13, configs: pam }
-          - { os: nbsd8,  configs: pam }
-          - { os: nbsd9,  configs: pam }
-          - { os: openindiana, configs: pam }
-          # - { os: rocky84, configs: pam }
-          - { os: sol10,  configs: pam }
-          - { os: sol11,  configs: pam-krb5 }
-          - { os: sol11,  configs: sol64 }
-          # - { os: sol11,  configs: sol64-pam }
-          - { os: win10,  configs: cygwin-release }
+          # Then we include extra libvirt test configs.
+          - { target: aix51, config: default, host: libvirt }
+          - { target: debian-i386, config: pam, host: libvirt }
+          - { target: dfly30, config: without-openssl, host: libvirt}
+          - { target: dfly48, config: pam ,host: libvirt }
+          - { target: dfly58, config: pam, host: libvirt }
+          - { target: dfly60, config: pam, host: libvirt }
+          - { target: dfly62, config: pam, host: libvirt }
+          - { target: fbsd10, config: pam, host: libvirt }
+          - { target: fbsd12, config: pam, host: libvirt }
+          - { target: fbsd13, config: pam, host: libvirt }
+          - { target: nbsd8,  config: pam, host: libvirt }
+          - { target: nbsd9,  config: pam, host: libvirt }
+          - { target: openindiana, config: pam, host: libvirt }
+          - { target: sol10,  config: pam, host: libvirt }
+          - { target: sol11,  config: pam-krb5, host: libvirt }
+          - { target: sol11,  config: sol64, host: libvirt }
+          # VMs with persistent disks that have their own runner.
+          - { target: win10, config: default, host: win10 }
+          - { target: win10, config: cygwin-release, host: win10 }
+          # Physical hosts, with either native runners or remote via ssh.
+          - { target: ARM, config: default, host: ARM }
+          - { target: ARM64, config: default, host: ARM64 }
+          - { target: ARM64, config: pam, host: ARM64 }
+          - { target: debian-riscv64, config: default, host: debian-riscv64 }
+          - { target: openwrt-mips, config: default, host: openwrt-mips }
+          - { target: openwrt-mipsel, config: default, host: openwrt-mipsel }
     steps:
     - name: shutdown VM if running
       run: vmshutdown
-    - uses: actions/checkout@v2
+      working-directory: ${{ runner.temp }}
+    - uses: actions/checkout@main
     - name: autoreconf
       run: autoreconf
     - name: startup VM
       run: vmstartup
+      working-directory: ${{ runner.temp }}
     - name: configure
-      run: vmrun ./.github/configure.sh ${{ matrix.configs }}
+      run: vmrun ./.github/configure.sh ${{ matrix.config }}
     - name: save config
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@main
       with:
-        name: ${{ matrix.os }}-${{ matrix.configs }}-config
+        name: ${{ matrix.target }}-${{ matrix.config }}-config
         path: config.h
     - name: make clean
       run: vmrun make clean
     - name: make
       run: vmrun make
     - name: make tests
-      run: vmrun ./.github/run_test.sh ${{ matrix.configs }}
+      run: vmrun ./.github/run_test.sh ${{ matrix.config }}
       timeout-minutes: 600
     - name: save logs
       if: failure()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@main
       with:
-        name: ${{ matrix.os }}-${{ matrix.configs }}-logs
+        name: ${{ matrix.target }}-${{ matrix.config }}-logs
         path: |
           config.h
           config.log
@@ -106,3 +113,4 @@ jobs:
     - name: shutdown VM
       if: always()
       run: vmshutdown
+      working-directory: ${{ runner.temp }}

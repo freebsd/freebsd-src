@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey-xmss.h,v 1.3 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: sshkey-xmss.h,v 1.4 2022/10/28 00:39:29 djm Exp $ */
 /*
  * Copyright (c) 2017 Markus Friedl.  All rights reserved.
  *
@@ -34,7 +34,7 @@ size_t	 sshkey_xmss_pklen(const struct sshkey *);
 size_t	 sshkey_xmss_sklen(const struct sshkey *);
 int	 sshkey_xmss_init(struct sshkey *, const char *);
 void	 sshkey_xmss_free_state(struct sshkey *);
-int	 sshkey_xmss_generate_private_key(struct sshkey *, u_int);
+int	 sshkey_xmss_generate_private_key(struct sshkey *, int);
 int	 sshkey_xmss_serialize_state(const struct sshkey *, struct sshbuf *);
 int	 sshkey_xmss_serialize_state_opt(const struct sshkey *, struct sshbuf *,
 	    enum sshkey_serialize_rep);
