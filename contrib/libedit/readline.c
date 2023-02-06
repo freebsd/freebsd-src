@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.174 2022/04/08 20:11:31 christos Exp $	*/
+/*	$NetBSD: readline.c,v 1.178 2022/12/02 19:23:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.174 2022/04/08 20:11:31 christos Exp $");
+__RCSID("$NetBSD: readline.c,v 1.178 2022/12/02 19:23:15 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -240,7 +240,7 @@ _default_history_file(void)
 		return NULL;
 
 	len = strlen(p->pw_dir) + sizeof("/.history");
-	if ((path = malloc(len)) == NULL)
+	if ((path = el_malloc(len)) == NULL)
 		return NULL;
 
 	(void)snprintf(path, len, "%s/.history", p->pw_dir);
@@ -478,10 +478,14 @@ readline(const char *p)
 	ret = el_gets(e, &count);
 
 	if (ret && count > 0) {
+		int lastidx;
+
 		buf = strdup(ret);
 		if (buf == NULL)
 			goto out;
-		buf[strcspn(buf, "\n")] = '\0';
+		lastidx = count - 1;
+		if (buf[lastidx] == '\n')
+			buf[lastidx] = '\0';
 	} else
 		buf = NULL;
 
@@ -1602,7 +1606,7 @@ replace_history_entry(int num, const char *line, histdata_t data)
 	if (history(h, &ev, H_NEXT_EVDATA, num, &he->data))
 		goto out;
 
-	he->line = strdup(ev.str);
+	he->line = ev.str;
 	if (he->line == NULL)
 		goto out;
 
@@ -2327,6 +2331,8 @@ rl_copy_text(int from, int to)
 
 	len = (size_t)(to - from);
 	out = el_malloc((size_t)len + 1);
+	if (out == NULL)
+		return NULL;
 	(void)strlcpy(out, li->buffer + from , len);
 
 	return out;

@@ -1,4 +1,4 @@
-/*	$NetBSD: map.c,v 1.54 2021/08/29 09:41:59 christos Exp $	*/
+/*	$NetBSD: map.c,v 1.55 2022/10/30 19:11:31 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: map.c,v 1.54 2021/08/29 09:41:59 christos Exp $");
+__RCSID("$NetBSD: map.c,v 1.55 2022/10/30 19:11:31 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -918,18 +918,18 @@ map_init(EditLine *el)
 		return -1;
 	el->el_map.key = el_calloc(N_KEYS, sizeof(*el->el_map.key));
 	if (el->el_map.key == NULL)
-		return -1;
+		goto out;
 	el->el_map.emacs = el_map_emacs;
 	el->el_map.vic = el_map_vi_command;
 	el->el_map.vii = el_map_vi_insert;
 	el->el_map.help = el_calloc(EL_NUM_FCNS, sizeof(*el->el_map.help));
 	if (el->el_map.help == NULL)
-		return -1;
+		goto out;
 	(void) memcpy(el->el_map.help, el_func_help,
 	    sizeof(*el->el_map.help) * EL_NUM_FCNS);
 	el->el_map.func = el_calloc(EL_NUM_FCNS, sizeof(*el->el_map.func));
 	if (el->el_map.func == NULL)
-		return -1;
+		goto out;
 	memcpy(el->el_map.func, el_func, sizeof(*el->el_map.func)
 	    * EL_NUM_FCNS);
 	el->el_map.nfunc = EL_NUM_FCNS;
@@ -940,6 +940,9 @@ map_init(EditLine *el)
 	map_init_emacs(el);
 #endif /* VIDEFAULT */
 	return 0;
+out:
+	map_end(el);
+	return -1;
 }
 
 

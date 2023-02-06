@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.61 2022/02/08 21:13:22 rillig Exp $	*/
+/*	$NetBSD: histedit.h,v 1.62 2023/02/03 22:01:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
