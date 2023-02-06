@@ -2403,7 +2403,9 @@ skip_thunk:
 	case GIO_KEYMAP:
 	case PIO_KEYMAP:
 	case GIO_DEADKEYMAP:
+	case OGIO_DEADKEYMAP:
 	case PIO_DEADKEYMAP:
+	case OPIO_DEADKEYMAP:
 	case GETFKEY:
 	case SETFKEY:
 	case KDGKBINFO:

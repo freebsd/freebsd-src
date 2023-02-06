@@ -1598,6 +1598,8 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	case OPIO_KEYMAP: /* set keyboard translation table (compat) */
 	case GIO_DEADKEYMAP: /* get accent key translation table */
 	case PIO_DEADKEYMAP: /* set accent key translation table */
+	case OGIO_DEADKEYMAP: /* get accent key translation table (compat) */
+	case OPIO_DEADKEYMAP: /* set accent key translation table (compat) */
 	case GETFKEY: /* get function key string */
 	case SETFKEY: /* set function key string */
 		error = kbdd_ioctl(sc->kbd, cmd, data);
