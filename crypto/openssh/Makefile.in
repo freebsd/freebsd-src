@@ -106,7 +106,7 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	ssh-pkcs11.o smult_curve25519_ref.o \
 	poly1305.o chacha.o cipher-chachapoly.o cipher-chachapoly-libcrypto.o \
 	ssh-ed25519.o digest-openssl.o digest-libc.o \
-	hmac.o sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o \
+	hmac.o ed25519.o hash.o \
 	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
 	kexgexc.o kexgexs.o \
 	kexsntrup761x25519.o sntrup761.o kexgen.o \
@@ -616,6 +616,7 @@ regress/unittests/conversion/test_conversion$(EXEEXT): \
 UNITTESTS_TEST_KEX_OBJS=\
 	regress/unittests/kex/tests.o \
 	regress/unittests/kex/test_kex.o \
+	regress/unittests/kex/test_proposal.o \
 	$(SKOBJS)
 
 regress/unittests/kex/test_kex$(EXEEXT): ${UNITTESTS_TEST_KEX_OBJS} \
@@ -653,7 +654,8 @@ UNITTESTS_TEST_MISC_OBJS=\
 	regress/unittests/misc/test_convtime.o \
 	regress/unittests/misc/test_argv.o \
 	regress/unittests/misc/test_strdelim.o \
-	regress/unittests/misc/test_hpdelim.o
+	regress/unittests/misc/test_hpdelim.o \
+	regress/unittests/misc/test_ptimeout.o
 
 regress/unittests/misc/test_misc$(EXEEXT): \
     ${UNITTESTS_TEST_MISC_OBJS} \
@@ -676,7 +678,7 @@ regress/unittests/utf8/test_utf8$(EXEEXT): \
 SK_DUMMY_OBJS=\
 	regress/misc/sk-dummy/sk-dummy.lo \
 	regress/misc/sk-dummy/fatal.lo \
-	ed25519.lo hash.lo ge25519.lo fe25519.lo sc25519.lo verify.lo
+	ed25519.lo hash.lo
 
 SK_DUMMY_LIBRARY=@SK_DUMMY_LIBRARY@
 
@@ -722,6 +724,7 @@ unit: regress-unit-binaries
 interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
 	cd $(srcdir)/regress || exit $$?; \
 	EGREP='@EGREP@' \
+	OPENSSL_BIN='@OPENSSL_BIN@' \
 	$(MAKE) \
 		.CURDIR="$(abs_top_srcdir)/regress" \
 		.OBJDIR="$(BUILDDIR)/regress" \

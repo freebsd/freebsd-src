@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.321 2022/09/11 06:38:11 jmc Exp $
-.Dd $Mdocdate: September 11 2022 $
+.\" $OpenBSD: sshd.8,v 1.322 2023/01/18 01:50:21 millert Exp $
+.Dd $Mdocdate: January 18 2023 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Nm sshd
 .Bk -words
-.Op Fl 46DdeiqTt
+.Op Fl 46DdeiqTtV
 .Op Fl C Ar connection_spec
 .Op Fl c Ar host_certificate_file
 .Op Fl E Ar log_file
@@ -245,6 +245,8 @@ USER@HOST pattern in
 .Cm AllowUsers
 or
 .Cm DenyUsers .
+.It Fl V
+Display the version number and exit.
 .El
 .Sh AUTHENTICATION
 The OpenSSH SSH daemon supports SSH protocol 2 only.

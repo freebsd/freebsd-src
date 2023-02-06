@@ -1946,6 +1946,9 @@
 /* Define as const if snprintf() can declare const char *fmt */
 #define SNPRINTF_CONST const
 
+/* sockaddr_in has sin_len */
+#define SOCK_HAS_LEN 1
+
 /* Define to a Set Process Title type if your system is supported by
    bsd-setproctitle.c */
 /* #undef SPT_TYPE */
