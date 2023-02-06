@@ -93,11 +93,9 @@ FBSD_1.3 {
 	strtol_l;
 	strtold_l;
 	strtoll_l;
-	strtoq_l;
 	strtoul_l;
 	strtoull_l;
 	strtoumax_l;
-	strtouq_l;
 };
 
 FBSD_1.4 {
