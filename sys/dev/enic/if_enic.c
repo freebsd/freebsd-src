@@ -754,12 +754,12 @@ static int
 enic_rxq_intr(void *rxq)
 {
 	struct vnic_rq *rq;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	rq = (struct vnic_rq *)rxq;
 	ifp = iflib_get_ifp(rq->vdev->softc->ctx);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-                return (FILTER_HANDLED);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+		return (FILTER_HANDLED);
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -852,7 +852,7 @@ enic_init(if_ctx_t ctx)
 		enic_start_rq(enic, index);
 
 	/* Use the current MAC address. */
-	bcopy(IF_LLADDR(softc->ifp), softc->lladdr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(softc->ifp), softc->lladdr, ETHER_ADDR_LEN);
 	enic_set_lladdr(softc);
 
 	ENIC_LOCK(softc);
@@ -902,7 +902,7 @@ enic_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int idx)
 static void
 enic_multi_set(if_ctx_t ctx)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct enic_softc *softc;
 	u_int count;
 
@@ -916,12 +916,12 @@ enic_multi_set(if_ctx_t ctx)
 	enic_add_mcast(softc);
 	ENIC_UNLOCK(softc);
 
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		softc->promisc = 1;
 	} else {
 		softc->promisc = 0;
 	}
-	if (ifp->if_flags & IFF_ALLMULTI) {
+	if (if_getflags(ifp) & IFF_ALLMULTI) {
 		softc->allmulti = 1;
 	} else {
 		softc->allmulti = 0;
@@ -988,18 +988,18 @@ enic_media_change(if_ctx_t ctx)
 static int
 enic_promisc_set(if_ctx_t ctx, int flags)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct enic_softc *softc;
 
 	softc = iflib_get_softc(ctx);
 	ifp = iflib_get_ifp(ctx);
 
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		softc->promisc = 1;
 	} else {
 		softc->promisc = 0;
 	}
-	if (ifp->if_flags & IFF_ALLMULTI) {
+	if (if_getflags(ifp) & IFF_ALLMULTI) {
 		softc->allmulti = 1;
 	} else {
 		softc->allmulti = 0;
