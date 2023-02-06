@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.172 2022/02/01 23:32:51 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.173 2022/11/07 10:05:38 dtucker Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -1215,7 +1215,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
     const char *version_addendum)
 {
 	int remote_major, remote_minor, mismatch, oerrno = 0;
-	size_t len, i, n;
+	size_t len, n;
 	int r, expect_nl;
 	u_char c;
 	struct sshbuf *our_version = ssh->kex->server ?
@@ -1271,7 +1271,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		}
 		sshbuf_reset(peer_version);
 		expect_nl = 0;
-		for (i = 0; ; i++) {
+		for (;;) {
 			if (timeout_ms > 0) {
 				r = waitrfd(ssh_packet_get_connection_in(ssh),
 				    &timeout_ms);

@@ -1,4 +1,4 @@
-#	$OpenBSD: krl.sh,v 1.11 2019/12/16 02:39:05 djm Exp $
+#	$OpenBSD: krl.sh,v 1.12 2023/01/16 04:11:29 djm Exp $
 #	Placed in the Public Domain.
 
 tid="key revocation lists"
@@ -175,8 +175,8 @@ test_rev() {
 	KEYID_RESULT=$7
 	CERTS_RESULT=$8
 	CA_RESULT=$9
-	SERIAL_WRESULT=$10
-	KEYID_WRESULT=$11
+	SERIAL_WRESULT=${10}
+	KEYID_WRESULT=${11}
 	verbose "$tid: checking revocations for $TAG"
 	for f in $FILES ; do
 		check_krl $f $OBJ/krl-empty		no		"$TAG"

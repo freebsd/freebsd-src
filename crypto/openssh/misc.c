@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.177 2022/08/11 01:56:51 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.180 2023/01/06 02:37:04 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -95,7 +95,7 @@ rtrim(char *s)
 	if ((i = strlen(s)) == 0)
 		return;
 	for (i--; i > 0; i--) {
-		if (isspace((int)s[i]))
+		if (isspace((unsigned char)s[i]))
 			s[i] = '\0';
 	}
 }
@@ -278,7 +278,7 @@ set_sock_tos(int fd, int tos)
 		debug3_f("set socket %d IP_TOS 0x%02x", fd, tos);
 		if (setsockopt(fd, IPPROTO_IP, IP_TOS,
 		    &tos, sizeof(tos)) == -1) {
-			error("setsockopt socket %d IP_TOS %d: %s:",
+			error("setsockopt socket %d IP_TOS %d: %s",
 			    fd, tos, strerror(errno));
 		}
 # endif /* IP_TOS */
@@ -288,7 +288,7 @@ set_sock_tos(int fd, int tos)
 		debug3_f("set socket %d IPV6_TCLASS 0x%02x", fd, tos);
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS,
 		    &tos, sizeof(tos)) == -1) {
-			error("setsockopt socket %d IPV6_TCLASS %d: %.100s:",
+			error("setsockopt socket %d IPV6_TCLASS %d: %s",
 			    fd, tos, strerror(errno));
 		}
 # endif /* IPV6_TCLASS */
@@ -2825,4 +2825,93 @@ lookup_setenv_in_list(const char *env, char * const *envs, size_t nenvs)
 	ret = lookup_env_in_list(name, envs, nenvs);
 	free(name);
 	return ret;
+}
+
+/*
+ * Helpers for managing poll(2)/ppoll(2) timeouts
+ * Will remember the earliest deadline and return it for use in poll/ppoll.
+ */
+
+/* Initialise a poll/ppoll timeout with an indefinite deadline */
+void
+ptimeout_init(struct timespec *pt)
+{
+	/*
+	 * Deliberately invalid for ppoll(2).
+	 * Will be converted to NULL in ptimeout_get_tspec() later.
+	 */
+	pt->tv_sec = -1;
+	pt->tv_nsec = 0;
+}
+
+/* Specify a poll/ppoll deadline of at most 'sec' seconds */
+void
+ptimeout_deadline_sec(struct timespec *pt, long sec)
+{
+	if (pt->tv_sec == -1 || pt->tv_sec >= sec) {
+		pt->tv_sec = sec;
+		pt->tv_nsec = 0;
+	}
+}
+
+/* Specify a poll/ppoll deadline of at most 'p' (timespec) */
+static void
+ptimeout_deadline_tsp(struct timespec *pt, struct timespec *p)
+{
+	if (pt->tv_sec == -1 || timespeccmp(pt, p, >=))
+		*pt = *p;
+}
+
+/* Specify a poll/ppoll deadline of at most 'ms' milliseconds */
+void
+ptimeout_deadline_ms(struct timespec *pt, long ms)
+{
+	struct timespec p;
+
+	p.tv_sec = ms / 1000;
+	p.tv_nsec = (ms % 1000) * 1000000;
+	ptimeout_deadline_tsp(pt, &p);
+}
+
+/* Specify a poll/ppoll deadline at wall clock monotime 'when' */
+void
+ptimeout_deadline_monotime(struct timespec *pt, time_t when)
+{
+	struct timespec now, t;
+
+	t.tv_sec = when;
+	t.tv_nsec = 0;
+	monotime_ts(&now);
+
+	if (timespeccmp(&now, &t, >=))
+		ptimeout_deadline_sec(pt, 0);
+	else {
+		timespecsub(&t, &now, &t);
+		ptimeout_deadline_tsp(pt, &t);
+	}
+}
+
+/* Get a poll(2) timeout value in milliseconds */
+int
+ptimeout_get_ms(struct timespec *pt)
+{
+	if (pt->tv_sec == -1)
+		return -1;
+	if (pt->tv_sec >= (INT_MAX - (pt->tv_nsec / 1000000)) / 1000)
+		return INT_MAX;
+	return (pt->tv_sec * 1000) + (pt->tv_nsec / 1000000);
+}
+
+/* Get a ppoll(2) timeout value as a timespec pointer */
+struct timespec *
+ptimeout_get_tsp(struct timespec *pt)
+{
+	return pt->tv_sec == -1 ? NULL : pt;
+}
+
+/* Returns non-zero if a timeout has been set (i.e. is not indefinite) */
+int
+ptimeout_isset(struct timespec *pt)
+{
+	return pt->tv_sec != -1;
 }

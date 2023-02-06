@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.110 2022/09/19 21:39:16 djm Exp $
+.\" $OpenBSD: scp.1,v 1.112 2022/12/16 07:13:22 djm Exp $
 .\"
-.Dd $Mdocdate: September 19 2022 $
+.Dd $Mdocdate: December 16 2022 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -28,15 +28,17 @@
 .Op Fl o Ar ssh_option
 .Op Fl P Ar port
 .Op Fl S Ar program
+.Op Fl X Ar sftp_option
 .Ar source ... target
 .Sh DESCRIPTION
 .Nm
 copies files between hosts on a network.
 .Pp
-It uses
+.Nm
+uses the SFTP protocol over a
 .Xr ssh 1
-for data transfer, and uses the same authentication and provides the
-same security as a login session.
+connection for data transfer, and uses the same authentication and provides
+the same security as a login session.
 .Pp
 .Nm
 will ask for passwords or passphrases if they are needed for
@@ -108,9 +110,7 @@ Selects the cipher to use for encrypting the data transfer.
 This option is directly passed to
 .Xr ssh 1 .
 .It Fl D Ar sftp_server_path
-When using the SFTP protocol support via
-.Fl s ,
-connect directly to a local SFTP server program rather than a
+Connect directly to a local SFTP server program rather than a
 remote one via
 .Xr ssh 1 .
 This option may be useful in debugging the client and server.
@@ -279,6 +279,19 @@ and
 to print debugging messages about their progress.
 This is helpful in
 debugging connection, authentication, and configuration problems.
+.It Fl X Ar sftp_option
+Specify an option that controls aspects of SFTP protocol behaviour.
+The valid options are:
+.Bl -tag -width Ds
+.It Cm nrequests Ns = Ns Ar value
+Controls how many concurrent SFTP read or write requests may be in progress
+at any point in time during a download or upload.
+By default 64 requests may be active concurrently.
+.It Cm buffer Ns = Ns Ar value
+Controls the maximum buffer size for a single SFTP read/write operation used
+during download or upload.
+By default a 32KB buffer is used.
+.El
 .El
 .Sh EXIT STATUS
 .Ex -std scp

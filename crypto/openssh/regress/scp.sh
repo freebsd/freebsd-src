@@ -1,20 +1,23 @@
-#	$OpenBSD: scp.sh,v 1.14 2022/05/15 23:48:07 djm Exp $
+#	$OpenBSD: scp.sh,v 1.18 2023/01/13 04:47:34 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
 
 #set -x
 
-# Figure out if diff understands "-N"
-if diff -N ${SRC}/scp.sh ${SRC}/scp.sh 2>/dev/null; then
-	DIFFOPT="-rN"
-else
-	DIFFOPT="-r"
-fi
-
 COPY2=${OBJ}/copy2
 DIR=${COPY}.dd
 DIR2=${COPY}.dd2
+COPY3=${OBJ}/copy.glob[123]
+DIR3=${COPY}.dd.glob[456]
+DIFFOPT="-rN"
+
+# Figure out if diff does not understand "-N"
+if ! diff -N ${SRC}/scp.sh ${SRC}/scp.sh 2>/dev/null; then
+	DIFFOPT="-r"
+fi
+
+maybe_add_scp_path_to_sshd
 
 SRC=`dirname ${SCRIPT}`
 cp ${SRC}/scp-ssh-wrapper.sh ${OBJ}/scp-ssh-wrapper.scp
@@ -22,9 +25,9 @@ chmod 755 ${OBJ}/scp-ssh-wrapper.scp
 export SCP # used in scp-ssh-wrapper.scp
 
 scpclean() {
-	rm -rf ${COPY} ${COPY2} ${DIR} ${DIR2}
-	mkdir ${DIR} ${DIR2}
-	chmod 755 ${DIR} ${DIR2}
+	rm -rf ${COPY} ${COPY2} ${DIR} ${DIR2} ${COPY3} ${DIR3}
+	mkdir ${DIR} ${DIR2} ${DIR3}
+	chmod 755 ${DIR} ${DIR2} ${DIR3}
 }
 
 for mode in scp sftp ; do
@@ -34,7 +37,7 @@ for mode in scp sftp ; do
 	else
 		scpopts="-s -D ${SFTPSERVER}"
 	fi
-	verbose "tid: simple copy local file to local file"
+	verbose "$tag: simple copy local file to local file"
 	scpclean
 	$SCP $scpopts ${DATA} ${COPY} || fail "copy failed"
 	cmp ${DATA} ${COPY} || fail "corrupted copy"
@@ -111,6 +114,30 @@ for mode in scp sftp ; do
 	rm -rf ${DIR2}
 	cp ${DATA} ${DIR}/copy
 	$SCP $scpopts -r somehost:${DIR} ${DIR2} || fail "copy failed"
+	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
+
+	verbose "$tag: unmatched glob file local->remote"
+	scpclean
+	$SCP $scpopts ${DATA} somehost:${COPY3} || fail "copy failed"
+	cmp ${DATA} ${COPY3} || fail "corrupted copy"
+
+	verbose "$tag: unmatched glob file remote->local"
+	# NB. no clean
+	$SCP $scpopts somehost:${COPY3} ${COPY2} || fail "copy failed"
+	cmp ${DATA} ${COPY2} || fail "corrupted copy"
+
+	verbose "$tag: unmatched glob dir recursive local->remote"
+	scpclean
+	rm -rf ${DIR3}
+	cp ${DATA} ${DIR}/copy
+	cp ${DATA} ${DIR}/copy.glob[1234]
+	$SCP $scpopts -r ${DIR} somehost:${DIR3} || fail "copy failed"
+	diff ${DIFFOPT} ${DIR} ${DIR3} || fail "corrupted copy"
+
+	verbose "$tag: unmatched glob dir recursive remote->local"
+	# NB. no clean
+	rm -rf ${DIR2}
+	$SCP $scpopts -r somehost:${DIR3} ${DIR2} || fail "copy failed"
 	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 
 	verbose "$tag: shell metacharacters"
