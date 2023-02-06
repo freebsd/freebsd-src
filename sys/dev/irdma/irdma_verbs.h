@@ -47,7 +47,13 @@
 struct irdma_ucontext {
 	struct ib_ucontext ibucontext;
 	struct irdma_device *iwdev;
+#if __FreeBSD_version >= 1400026
 	struct rdma_user_mmap_entry *db_mmap_entry;
+#else
+	struct irdma_user_mmap_entry *db_mmap_entry;
+	DECLARE_HASHTABLE(mmap_hash_tbl, 6);
+	spinlock_t mmap_tbl_lock; /* protect mmap hash table entries */
+#endif
 	struct list_head cq_reg_mem_list;
 	spinlock_t cq_reg_mem_list_lock; /* protect CQ memory list */
 	struct list_head qp_reg_mem_list;
@@ -194,8 +200,13 @@ struct irdma_qp {
 	struct irdma_cq *iwscq;
 	struct irdma_cq *iwrcq;
 	struct irdma_pd *iwpd;
+#if __FreeBSD_version >= 1400026
 	struct rdma_user_mmap_entry *push_wqe_mmap_entry;
 	struct rdma_user_mmap_entry *push_db_mmap_entry;
+#else
+	struct irdma_user_mmap_entry *push_wqe_mmap_entry;
+	struct irdma_user_mmap_entry *push_db_mmap_entry;
+#endif
 	struct irdma_qp_host_ctx_info ctx_info;
 	union {
 		struct irdma_iwarp_offload_info iwarp_info;
@@ -256,7 +267,13 @@ enum irdma_mmap_flag {
 };
 
 struct irdma_user_mmap_entry {
+#if __FreeBSD_version >= 1400026
 	struct rdma_user_mmap_entry rdma_entry;
+#else
+	struct irdma_ucontext *ucontext;
+	struct hlist_node hlist;
+	u64 pgoff_key; /* Used to compute offset (in bytes) returned to user libc's mmap */
+#endif
 	u64 bar_offset;
 	u8 mmap_flag;
 };
@@ -300,9 +317,16 @@ static inline void irdma_mcast_mac_v6(u32 *ip_addr, u8 *mac)
 	ether_addr_copy(mac, mac6);
 }
 
+#if __FreeBSD_version >= 1400026
 struct rdma_user_mmap_entry*
 irdma_user_mmap_entry_insert(struct irdma_ucontext *ucontext, u64 bar_offset,
 			     enum irdma_mmap_flag mmap_flag, u64 *mmap_offset);
+#else
+struct irdma_user_mmap_entry *
+irdma_user_mmap_entry_add_hash(struct irdma_ucontext *ucontext, u64 bar_offset,
+			       enum irdma_mmap_flag mmap_flag, u64 *mmap_offset);
+void irdma_user_mmap_entry_del_hash(struct irdma_user_mmap_entry *entry);
+#endif
 int irdma_ib_register_device(struct irdma_device *iwdev);
 void irdma_ib_unregister_device(struct irdma_device *iwdev);
 void irdma_ib_qp_event(struct irdma_qp *iwqp, enum irdma_qp_event_type event);
