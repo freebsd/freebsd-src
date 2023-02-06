@@ -47,9 +47,8 @@ ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *tmoutp,
     const sigset_t *sigmask)
 {
 	nfds_t i;
-	int saved_errno, ret, fd, maxfd = 0;
-	fd_set *readfds = NULL, *writefds = NULL, *exceptfds = NULL;
-	size_t nmemb;
+	int ret, fd, maxfd = 0;
+	fd_set readfds, writefds, exceptfds;
 
 	for (i = 0; i < nfds; i++) {
 		fd = fds[i].fd;
@@ -60,30 +59,23 @@ ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *tmoutp,
 		maxfd = MAX(maxfd, fd);
 	}
 
-	nmemb = howmany(maxfd + 1 , NFDBITS);
-	if ((readfds = calloc(nmemb, sizeof(fd_mask))) == NULL ||
-	    (writefds = calloc(nmemb, sizeof(fd_mask))) == NULL ||
-	    (exceptfds = calloc(nmemb, sizeof(fd_mask))) == NULL) {
-		saved_errno = ENOMEM;
-		ret = -1;
-		goto out;
-	}
-
 	/* populate event bit vectors for the events we're interested in */
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	FD_ZERO(&exceptfds);
 	for (i = 0; i < nfds; i++) {
 		fd = fds[i].fd;
 		if (fd == -1)
 			continue;
 		if (fds[i].events & POLLIN)
-			FD_SET(fd, readfds);
+			FD_SET(fd, &readfds);
 		if (fds[i].events & POLLOUT)
-			FD_SET(fd, writefds);
+			FD_SET(fd, &writefds);
 		if (fds[i].events & POLLPRI)
-			FD_SET(fd, exceptfds);
+			FD_SET(fd, &exceptfds);
 	}
 
-	ret = pselect(maxfd + 1, readfds, writefds, exceptfds, tmoutp, sigmask);
-	saved_errno = errno;
+	ret = pselect(maxfd + 1, &readfds, &writefds, &exceptfds, tmoutp, sigmask);
 
 	/* scan through select results and set poll() flags */
 	for (i = 0; i < nfds; i++) {
@@ -91,20 +83,14 @@ ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *tmoutp,
 		fds[i].revents = 0;
 		if (fd == -1)
 			continue;
-		if ((fds[i].events & POLLIN) && FD_ISSET(fd, readfds))
+		if ((fds[i].events & POLLIN) && FD_ISSET(fd, &readfds))
 			fds[i].revents |= POLLIN;
-		if ((fds[i].events & POLLOUT) && FD_ISSET(fd, writefds))
+		if ((fds[i].events & POLLOUT) && FD_ISSET(fd, &writefds))
 			fds[i].revents |= POLLOUT;
-		if ((fds[i].events & POLLPRI) && FD_ISSET(fd, exceptfds))
+		if ((fds[i].events & POLLPRI) && FD_ISSET(fd, &exceptfds))
 			fds[i].revents |= POLLPRI;
 	}
 
-out:
-	free(readfds);
-	free(writefds);
-	free(exceptfds);
-	if (ret == -1)
-		errno = saved_errno;
 	return ret;
 }
 #endif /* !HAVE_PPOLL || BROKEN_POLL */

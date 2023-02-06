@@ -1,4 +1,4 @@
-/* $OpenBSD: addr.c,v 1.5 2022/04/29 04:55:07 djm Exp $ */
+/* $OpenBSD: addr.c,v 1.6 2022/10/28 02:29:34 djm Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -228,6 +228,28 @@ addr_and(struct xaddr *dst, const struct xaddr *a, const struct xaddr *b)
 }
 
 int
+addr_or(struct xaddr *dst, const struct xaddr *a, const struct xaddr *b)
+{
+	int i;
+
+	if (dst == NULL || a == NULL || b == NULL || a->af != b->af)
+		return (-1);
+
+	memcpy(dst, a, sizeof(*dst));
+	switch (a->af) {
+	case AF_INET:
+		dst->v4.s_addr |= b->v4.s_addr;
+		return (0);
+	case AF_INET6:
+		for (i = 0; i < 4; i++)
+			dst->addr32[i] |= b->addr32[i];
+		return (0);
+	default:
+		return (-1);
+	}
+}
+
+int
 addr_cmp(const struct xaddr *a, const struct xaddr *b)
 {
 	int i;
@@ -278,6 +300,29 @@ addr_is_all0s(const struct xaddr *a)
 	}
 }
 
+/* Increment the specified address. Note, does not do overflow checking */
+void
+addr_increment(struct xaddr *a)
+{
+	int i;
+	uint32_t n;
+
+	switch (a->af) {
+	case AF_INET:
+		a->v4.s_addr = htonl(ntohl(a->v4.s_addr) + 1);
+		break;
+	case AF_INET6:
+		for (i = 0; i < 4; i++) {
+			/* Increment with carry */
+			n = ntohl(a->addr32[3 - i]) + 1;
+			a->addr32[3 - i] = htonl(n);
+			if (n != 0)
+				break;
+		}
+		break;
+	}
+}
+
 /*
  * Test whether host portion of address 'a', as determined by 'masklen'
  * is all zeros.
@@ -295,6 +340,32 @@ addr_host_is_all0s(const struct xaddr *a, u_int masklen)
 	if (addr_and(&tmp_result, &tmp_addr, &tmp_mask) == -1)
 		return -1;
 	return addr_is_all0s(&tmp_result);
+}
+
+#if 0
+int
+addr_host_to_all0s(struct xaddr *a, u_int masklen)
+{
+	struct xaddr tmp_mask;
+
+	if (addr_netmask(a->af, masklen, &tmp_mask) == -1)
+		return (-1);
+	if (addr_and(a, a, &tmp_mask) == -1)
+		return (-1);
+	return (0);
+}
+#endif
+
+int
+addr_host_to_all1s(struct xaddr *a, u_int masklen)
+{
+	struct xaddr tmp_mask;
+
+	if (addr_hostmask(a->af, masklen, &tmp_mask) == -1)
+		return (-1);
+	if (addr_or(a, a, &tmp_mask) == -1)
+		return (-1);
+	return (0);
 }
 
 /*

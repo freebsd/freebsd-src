@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.100 2022/06/03 04:30:47 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.101 2023/01/06 02:37:04 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -207,6 +207,15 @@ void	opt_array_append(const char *file, const int line,
 void	opt_array_append2(const char *file, const int line,
 	    const char *directive, char ***array, int **iarray, u_int *lp,
 	    const char *s, int i);
+
+struct timespec;
+void ptimeout_init(struct timespec *pt);
+void ptimeout_deadline_sec(struct timespec *pt, long sec);
+void ptimeout_deadline_ms(struct timespec *pt, long ms);
+void ptimeout_deadline_monotime(struct timespec *pt, time_t when);
+int ptimeout_get_ms(struct timespec *pt);
+struct timespec *ptimeout_get_tsp(struct timespec *pt);
+int ptimeout_isset(struct timespec *pt);
 
 /* readpass.c */
 

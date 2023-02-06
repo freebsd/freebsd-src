@@ -1,4 +1,4 @@
-#	$OpenBSD: reexec.sh,v 1.12 2017/08/07 03:52:55 dtucker Exp $
+#	$OpenBSD: reexec.sh,v 1.13 2023/01/19 07:53:45 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="reexec tests"
@@ -49,7 +49,7 @@ if [ "$os" != "cygwin" ]; then
 verbose "test reexec fallback"
 
 start_sshd_copy
-rm -f $SSHD_COPY
+$SUDO rm -f $SSHD_COPY
 
 copy_tests
 

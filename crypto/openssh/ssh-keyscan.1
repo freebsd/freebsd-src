@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.46 2022/06/03 04:00:15 dtucker Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.47 2022/10/28 02:29:34 djm Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: June 3 2022 $
+.Dd $Mdocdate: October 28 2022 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -44,6 +44,11 @@ For scanning, one does not need
 login access to the machines that are being scanned, nor does the
 scanning process involve any encryption.
 .Pp
+Hosts to be scanned may be specified by hostname, address or by CIDR
+network range (e.g. 192.168.16/28).
+If a network range is specified, then all addresses in that range will
+be scanned.
+.Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl 4
@@ -73,9 +78,16 @@ If
 is supplied instead of a filename,
 .Nm
 will read from the standard input.
-Input is expected in the format:
+Names read from a file must start with an address, hostname or CIDR network
+range to be scanned.
+Addresses and hostnames may optionally be followed by comma-separated name
+or address aliases that will be copied to the output.
+For example:
 .Bd -literal
-1.2.3.4,1.2.4.4 name.my.domain,name,n.my.domain,n,1.2.3.4,1.2.4.4
+192.168.11.0/24
+10.20.1.1
+happy.example.org
+10.0.0.1,sad.example.org
 .Ed
 .It Fl H
 Hash all hostnames and addresses in the output.
@@ -137,6 +149,10 @@ Print the RSA host key for machine
 .Ar hostname :
 .Pp
 .Dl $ ssh-keyscan -t rsa hostname
+.Pp
+Search a network range, printing all supported key types:
+.Pp
+.Dl $ ssh-keyscan 192.168.0.64/25
 .Pp
 Find all hosts from the file
 .Pa ssh_hosts

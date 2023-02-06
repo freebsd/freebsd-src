@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.579 2022/10/24 22:43:36 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.584 2023/01/17 18:52:44 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -632,7 +632,7 @@ main(int ac, char **av)
 	struct ssh *ssh = NULL;
 	int i, r, opt, exit_status, use_syslog, direct, timeout_ms;
 	int was_addr, config_test = 0, opt_terminated = 0, want_final_pass = 0;
-	char *p, *cp, *line, *argv0, *logfile, *host_arg;
+	char *p, *cp, *line, *argv0, *logfile;
 	char cname[NI_MAXHOST], thishost[NI_MAXHOST];
 	struct stat st;
 	struct passwd *pw;
@@ -683,7 +683,7 @@ main(int ac, char **av)
 	 * writable only by the owner, which is ok for all files for which we
 	 * don't set the modes explicitly.
 	 */
-	umask(022);
+	umask(022 | umask(077));
 
 	msetlocale();
 
@@ -886,8 +886,7 @@ main(int ac, char **av)
 		case 'V':
 			fprintf(stderr, "%s, %s\n",
 			    SSH_RELEASE, SSH_OPENSSL_VERSION);
-			if (opt == 'V')
-				exit(0);
+			exit(0);
 			break;
 		case 'w':
 			if (options.tun_open == -1)
@@ -1109,7 +1108,7 @@ main(int ac, char **av)
 	if (!host)
 		usage();
 
-	host_arg = xstrdup(host);
+	options.host_arg = xstrdup(host);
 
 	/* Initialize the command to execute on remote host. */
 	if ((command = sshbuf_new()) == NULL)
@@ -1157,7 +1156,7 @@ main(int ac, char **av)
 		logit("%s, %s", SSH_RELEASE, SSH_OPENSSL_VERSION);
 
 	/* Parse the configuration files */
-	process_config_files(host_arg, pw, 0, &want_final_pass);
+	process_config_files(options.host_arg, pw, 0, &want_final_pass);
 	if (want_final_pass)
 		debug("configuration requests final Match pass");
 
@@ -1226,7 +1225,7 @@ main(int ac, char **av)
 		debug("re-parsing configuration");
 		free(options.hostname);
 		options.hostname = xstrdup(host);
-		process_config_files(host_arg, pw, 1, NULL);
+		process_config_files(options.host_arg, pw, 1, NULL);
 		/*
 		 * Address resolution happens early with canonicalisation
 		 * enabled and the port number may have changed since, so
@@ -1379,10 +1378,10 @@ main(int ac, char **av)
 	xasprintf(&cinfo->uidstr, "%llu",
 	    (unsigned long long)pw->pw_uid);
 	cinfo->keyalias = xstrdup(options.host_key_alias ?
-	    options.host_key_alias : host_arg);
+	    options.host_key_alias : options.host_arg);
 	cinfo->conn_hash_hex = ssh_connection_hash(cinfo->thishost, host,
 	    cinfo->portstr, options.user);
-	cinfo->host_arg = xstrdup(host_arg);
+	cinfo->host_arg = xstrdup(options.host_arg);
 	cinfo->remhost = xstrdup(host);
 	cinfo->remuser = xstrdup(options.user);
 	cinfo->homedir = xstrdup(pw->pw_dir);
@@ -1576,8 +1575,8 @@ main(int ac, char **av)
 		timeout_ms = options.connection_timeout * 1000;
 
 	/* Open a connection to the remote host. */
-	if (ssh_connect(ssh, host, host_arg, addrs, &hostaddr, options.port,
-	    options.connection_attempts,
+	if (ssh_connect(ssh, host, options.host_arg, addrs, &hostaddr,
+	    options.port, options.connection_attempts,
 	    &timeout_ms, options.tcp_keep_alive) != 0)
 		exit(255);
 
@@ -1598,9 +1597,11 @@ main(int ac, char **av)
 	sensitive_data.nkeys = 0;
 	sensitive_data.keys = NULL;
 	if (options.hostbased_authentication) {
+		int loaded = 0;
+
 		sensitive_data.nkeys = 10;
 		sensitive_data.keys = xcalloc(sensitive_data.nkeys,
-		    sizeof(struct sshkey));
+		    sizeof(*sensitive_data.keys));
 
 		/* XXX check errors? */
 #define L_PUBKEY(p,o) do { \
@@ -1608,18 +1609,22 @@ main(int ac, char **av)
 		fatal_f("pubkey out of array bounds"); \
 	check_load(sshkey_load_public(p, &(sensitive_data.keys[o]), NULL), \
 	    &(sensitive_data.keys[o]), p, "pubkey"); \
-	if (sensitive_data.keys[o] != NULL) \
+	if (sensitive_data.keys[o] != NULL) { \
 		debug2("hostbased key %d: %s key from \"%s\"", o, \
 		    sshkey_ssh_name(sensitive_data.keys[o]), p); \
+		loaded++; \
+	} \
 } while (0)
 #define L_CERT(p,o) do { \
 	if ((o) >= sensitive_data.nkeys) \
 		fatal_f("cert out of array bounds"); \
 	check_load(sshkey_load_cert(p, &(sensitive_data.keys[o])), \
 	    &(sensitive_data.keys[o]), p, "cert"); \
-	if (sensitive_data.keys[o] != NULL) \
+	if (sensitive_data.keys[o] != NULL) { \
 		debug2("hostbased key %d: %s cert from \"%s\"", o, \
 		    sshkey_ssh_name(sensitive_data.keys[o]), p); \
+		loaded++; \
+	} \
 } while (0)
 
 		if (options.hostbased_authentication == 1) {
@@ -1633,6 +1638,9 @@ main(int ac, char **av)
 			L_PUBKEY(_PATH_HOST_DSA_KEY_FILE, 7);
 			L_CERT(_PATH_HOST_XMSS_KEY_FILE, 8);
 			L_PUBKEY(_PATH_HOST_XMSS_KEY_FILE, 9);
+			if (loaded == 0)
+				debug("HostbasedAuthentication enabled but no "
+				   "local public host keys could be loaded.");
 		}
 	}
 
@@ -1863,7 +1871,7 @@ ssh_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 }
 
 static void
-client_cleanup_stdio_fwd(struct ssh *ssh, int id, void *arg)
+client_cleanup_stdio_fwd(struct ssh *ssh, int id, int force, void *arg)
 {
 	debug("stdio forwarding: done");
 	cleanup_exit(0);
@@ -2049,7 +2057,7 @@ ssh_session2_setup(struct ssh *ssh, int id, int success, void *arg)
 	char *proto = NULL, *data = NULL;
 
 	if (!success)
-		return; /* No need for error message, channels code sens one */
+		return; /* No need for error message, channels code sends one */
 
 	display = getenv("DISPLAY");
 	if (display == NULL && options.forward_x11)

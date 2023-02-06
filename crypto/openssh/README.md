@@ -34,7 +34,7 @@ Portable OpenSSH is built using autoconf and make. It requires a working C compi
 
 [zlib](https://www.zlib.net/) is optional; without it transport compression is not supported.
 
-FIDO security token support needs [libfido2](https://github.com/Yubico/libfido2) and its dependencies.
+FIDO security token support needs [libfido2](https://github.com/Yubico/libfido2) and its dependencies and will be enabled automatically if they are found.
 
 In addition, certain platforms and build-time options may require additional dependencies; see README.platform for details about your platform.
 
@@ -75,7 +75,6 @@ Flag | Meaning
 ``--with-libedit`` | Enable [libedit](https://www.thrysoee.dk/editline/) support for sftp.
 ``--with-kerberos5`` | Enable Kerberos/GSSAPI support. Both [Heimdal](https://www.h5l.org/) and [MIT](https://web.mit.edu/kerberos/) Kerberos implementations are supported.
 ``--with-selinux`` | Enable [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux) support.
-``--with-security-key-builtin`` | Include built-in support for U2F/FIDO2 security keys. This requires [libfido2](https://github.com/Yubico/libfido2) be installed.
 
 ## Development
 

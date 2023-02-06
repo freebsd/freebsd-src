@@ -10,7 +10,8 @@ CFLAGS=@CFLAGS@
 CPPFLAGS=-I. -I.. -I../.. -I$(srcdir) -I$(srcdir)/.. -I$(srcdir)/../.. @CPPFLAGS@ @DEFS@
 EXEEXT=@EXEEXT@
 LIBCOMPAT=../libopenbsd-compat.a
-LIBS=@LIBS@
+LIBSSH=../../libssh.a
+LIBS=@LIBS@ @CHANNELLIBS@
 LDFLAGS=@LDFLAGS@ $(LIBCOMPAT)
 
 TESTPROGS=closefromtest$(EXEEXT) snprintftest$(EXEEXT) strduptest$(EXEEXT) \
@@ -18,8 +19,8 @@ TESTPROGS=closefromtest$(EXEEXT) snprintftest$(EXEEXT) strduptest$(EXEEXT) \
 
 all:	t-exec ${OTHERTESTS}
 
-%$(EXEEXT):	%.c $(LIBCOMPAT)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(LIBCOMPAT) $(LIBS)
+.c:	$(LIBCOMPAT) $(LIBSSH)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(LIBCOMPAT) $(LIBSSH) $(LIBS)
 
 t-exec:	$(TESTPROGS)
 	@echo running compat regress tests

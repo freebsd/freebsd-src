@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.120 2022/01/06 21:46:56 dtucker Exp $
+#	$OpenBSD: Makefile,v 1.122 2023/01/06 08:07:39 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
@@ -101,7 +101,9 @@ LTESTS= 	connect \
 		knownhosts \
 		knownhosts-command \
 		agent-restrict \
-		hostbased
+		hostbased \
+		channel-timeout \
+		connection-timeout
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
@@ -129,6 +131,7 @@ CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
 		rsa_ssh2_crnl.prv scp-ssh-wrapper.exe \
 		scp-ssh-wrapper.scp setuid-allowed sftp-server.log \
 		sftp-server.sh sftp.log ssh-log-wrapper.sh ssh.log \
+		ssh-agent.log ssh-add.log slow-sftp-server.sh \
 		ssh-rsa_oldfmt knownhosts_command \
 		ssh_config ssh_config.* ssh_proxy ssh_proxy_bak \
 		ssh_proxy_* sshd.log sshd_config sshd_config.* \

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519-sk.c,v 1.6 2020/10/18 11:32:02 djm Exp $ */
+/* $OpenBSD: ssh-ed25519-sk.c,v 1.15 2022/10/28 00:44:44 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -35,10 +35,96 @@
 #include "ssh.h"
 #include "digest.h"
 
-int
+/* Reuse some ED25519 internals */
+extern struct sshkey_impl_funcs sshkey_ed25519_funcs;
+
+static void
+ssh_ed25519_sk_cleanup(struct sshkey *k)
+{
+	sshkey_sk_cleanup(k);
+	sshkey_ed25519_funcs.cleanup(k);
+}
+
+static int
+ssh_ed25519_sk_equal(const struct sshkey *a, const struct sshkey *b)
+{
+	if (!sshkey_sk_fields_equal(a, b))
+		return 0;
+	if (!sshkey_ed25519_funcs.equal(a, b))
+		return 0;
+	return 1;
+}
+
+static int
+ssh_ed25519_sk_serialize_public(const struct sshkey *key, struct sshbuf *b,
+    enum sshkey_serialize_rep opts)
+{
+	int r;
+
+	if ((r = sshkey_ed25519_funcs.serialize_public(key, b, opts)) != 0)
+		return r;
+	if ((r = sshkey_serialize_sk(key, b)) != 0)
+		return r;
+
+	return 0;
+}
+
+static int
+ssh_ed25519_sk_serialize_private(const struct sshkey *key, struct sshbuf *b,
+    enum sshkey_serialize_rep opts)
+{
+	int r;
+
+	if ((r = sshkey_ed25519_funcs.serialize_public(key, b, opts)) != 0)
+		return r;
+	if ((r = sshkey_serialize_private_sk(key, b)) != 0)
+		return r;
+
+	return 0;
+}
+
+static int
+ssh_ed25519_sk_copy_public(const struct sshkey *from, struct sshkey *to)
+{
+	int r;
+
+	if ((r = sshkey_ed25519_funcs.copy_public(from, to)) != 0)
+		return r;
+	if ((r = sshkey_copy_public_sk(from, to)) != 0)
+		return r;
+	return 0;
+}
+
+static int
+ssh_ed25519_sk_deserialize_public(const char *ktype, struct sshbuf *b,
+    struct sshkey *key)
+{
+	int r;
+
+	if ((r = sshkey_ed25519_funcs.deserialize_public(ktype, b, key)) != 0)
+		return r;
+	if ((r = sshkey_deserialize_sk(b, key)) != 0)
+		return r;
+	return 0;
+}
+
+static int
+ssh_ed25519_sk_deserialize_private(const char *ktype, struct sshbuf *b,
+    struct sshkey *key)
+{
+	int r;
+
+	if ((r = sshkey_ed25519_funcs.deserialize_public(ktype, b, key)) != 0)
+		return r;
+	if ((r = sshkey_private_deserialize_sk(b, key)) != 0)
+		return r;
+	return 0;
+}
+
+static int
 ssh_ed25519_sk_verify(const struct sshkey *key,
-    const u_char *signature, size_t signaturelen,
-    const u_char *data, size_t datalen, u_int compat,
+    const u_char *sig, size_t siglen,
+    const u_char *data, size_t dlen, const char *alg, u_int compat,
     struct sshkey_sig_details **detailsp)
 {
 	struct sshbuf *b = NULL;
@@ -63,10 +149,10 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 	if (key == NULL ||
 	    sshkey_type_plain(key->type) != KEY_ED25519_SK ||
 	    key->ed25519_pk == NULL ||
-	    signature == NULL || signaturelen == 0)
+	    sig == NULL || siglen == 0)
 		return SSH_ERR_INVALID_ARGUMENT;
 
-	if ((b = sshbuf_from(signature, signaturelen)) == NULL)
+	if ((b = sshbuf_from(sig, siglen)) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	if (sshbuf_get_cstring(b, &ktype, NULL) != 0 ||
 	    sshbuf_get_string_direct(b, &sigblob, &len) != 0 ||
@@ -97,7 +183,7 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 	}
 	if (ssh_digest_memory(SSH_DIGEST_SHA256, key->sk_application,
 	    strlen(key->sk_application), apphash, sizeof(apphash)) != 0 ||
-	    ssh_digest_memory(SSH_DIGEST_SHA256, data, datalen,
+	    ssh_digest_memory(SSH_DIGEST_SHA256, data, dlen,
 	    msghash, sizeof(msghash)) != 0) {
 		r = SSH_ERR_INVALID_ARGUMENT;
 		goto out;
@@ -161,3 +247,42 @@ ssh_ed25519_sk_verify(const struct sshkey *key,
 	free(ktype);
 	return r;
 }
+
+static const struct sshkey_impl_funcs sshkey_ed25519_sk_funcs = {
+	/* .size = */		NULL,
+	/* .alloc = */		NULL,
+	/* .cleanup = */	ssh_ed25519_sk_cleanup,
+	/* .equal = */		ssh_ed25519_sk_equal,
+	/* .ssh_serialize_public = */ ssh_ed25519_sk_serialize_public,
+	/* .ssh_deserialize_public = */ ssh_ed25519_sk_deserialize_public,
+	/* .ssh_serialize_private = */ ssh_ed25519_sk_serialize_private,
+	/* .ssh_deserialize_private = */ ssh_ed25519_sk_deserialize_private,
+	/* .generate = */	NULL,
+	/* .copy_public = */	ssh_ed25519_sk_copy_public,
+	/* .sign = */		NULL,
+	/* .verify = */		ssh_ed25519_sk_verify,
+};
+
+const struct sshkey_impl sshkey_ed25519_sk_impl = {
+	/* .name = */		"sk-ssh-ed25519@openssh.com",
+	/* .shortname = */	"ED25519-SK",
+	/* .sigalg = */		NULL,
+	/* .type = */		KEY_ED25519_SK,
+	/* .nid = */		0,
+	/* .cert = */		0,
+	/* .sigonly = */	0,
+	/* .keybits = */	256,
+	/* .funcs = */		&sshkey_ed25519_sk_funcs,
+};
+
+const struct sshkey_impl sshkey_ed25519_sk_cert_impl = {
+	/* .name = */		"sk-ssh-ed25519-cert-v01@openssh.com",
+	/* .shortname = */	"ED25519-SK-CERT",
+	/* .sigalg = */		NULL,
+	/* .type = */		KEY_ED25519_SK_CERT,
+	/* .nid = */		0,
+	/* .cert = */		1,
+	/* .sigonly = */	0,
+	/* .keybits = */	256,
+	/* .funcs = */		&sshkey_ed25519_sk_funcs,
+};

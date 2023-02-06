@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey-xmss.c,v 1.11 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: sshkey-xmss.c,v 1.12 2022/10/28 00:39:29 djm Exp $ */
 /*
  * Copyright (c) 2017 Markus Friedl.  All rights reserved.
  *
@@ -365,7 +365,7 @@ sshkey_xmss_deserialize_pk_info(struct sshkey *k, struct sshbuf *b)
 }
 
 int
-sshkey_xmss_generate_private_key(struct sshkey *k, u_int bits)
+sshkey_xmss_generate_private_key(struct sshkey *k, int bits)
 {
 	int r;
 	const char *name;

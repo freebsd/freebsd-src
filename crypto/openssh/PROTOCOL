@@ -637,7 +637,7 @@ https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-extensions-00#se
 
 4.12. sftp: Extension request "users-groups-by-id@openssh.com"
 
-This request asks the server to returns user and/or group names that
+This request asks the server to return user and/or group names that
 correspond to one or more IDs (e.g. as returned from a SSH_FXP_STAT
 request). This may be used by the client to provide usernames in
 directory listings.
@@ -712,4 +712,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.47 2022/09/19 10:40:52 djm Exp $
+$OpenBSD: PROTOCOL,v 1.48 2022/11/07 01:53:01 dtucker Exp $

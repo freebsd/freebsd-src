@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.222 2022/09/19 10:46:00 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.225 2023/01/05 05:49:13 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -275,7 +275,8 @@ sigchld_handler(int sig)
 	while ((pid = waitpid(sshpid, NULL, WNOHANG)) == -1 && errno == EINTR)
 		continue;
 	if (pid == sshpid) {
-		(void)write(STDERR_FILENO, msg, sizeof(msg) - 1);
+		if (!quiet)
+		    (void)write(STDERR_FILENO, msg, sizeof(msg) - 1);
 		sshpid = -1;
 	}
 
@@ -2410,7 +2411,7 @@ usage(void)
 	    "          [-D sftp_server_command] [-F ssh_config] [-i identity_file]\n"
 	    "          [-J destination] [-l limit] [-o ssh_option] [-P port]\n"
 	    "          [-R num_requests] [-S program] [-s subsystem | sftp_server]\n"
-	    "          destination\n",
+	    "          [-X sftp_option] destination\n",
 	    __progname);
 	exit(1);
 }
@@ -2431,7 +2432,7 @@ main(int argc, char **argv)
 	struct sftp_conn *conn;
 	size_t copy_buffer_len = 0;
 	size_t num_requests = 0;
-	long long limit_kbps = 0;
+	long long llv, limit_kbps = 0;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
@@ -2449,7 +2450,7 @@ main(int argc, char **argv)
 	infile = stdin;
 
 	while ((ch = getopt(argc, argv,
-	    "1246AafhNpqrvCc:D:i:l:o:s:S:b:B:F:J:P:R:")) != -1) {
+	    "1246AafhNpqrvCc:D:i:l:o:s:S:b:B:F:J:P:R:X:")) != -1) {
 		switch (ch) {
 		/* Passed through to ssh(1) */
 		case 'A':
@@ -2545,6 +2546,31 @@ main(int argc, char **argv)
 		case 'S':
 			ssh_program = optarg;
 			replacearg(&args, 0, "%s", ssh_program);
+			break;
+		case 'X':
+			/* Please keep in sync with ssh.c -X */
+			if (strncmp(optarg, "buffer=", 7) == 0) {
+				r = scan_scaled(optarg + 7, &llv);
+				if (r == 0 && (llv <= 0 || llv > 256 * 1024)) {
+					r = -1;
+					errno = EINVAL;
+				}
+				if (r == -1) {
+					fatal("Invalid buffer size \"%s\": %s",
+					     optarg + 7, strerror(errno));
+				}
+				copy_buffer_len = (size_t)llv;
+			} else if (strncmp(optarg, "nrequests=", 10) == 0) {
+				llv = strtonum(optarg + 10, 1, 256 * 1024,
+				    &errstr);
+				if (errstr != NULL) {
+					fatal("Invalid number of requests "
+					    "\"%s\": %s", optarg + 10, errstr);
+				}
+				num_requests = (size_t)llv;
+			} else {
+				fatal("Invalid -X option");
+			}
 			break;
 		case 'h':
 		default:

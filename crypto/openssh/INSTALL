@@ -17,7 +17,7 @@ The remaining items are optional.
 
 A working installation of zlib:
 Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
-http://www.gzip.org/zlib/
+https://zlib.net/
 
 libcrypto from either of LibreSSL or OpenSSL.  Building without libcrypto
 is supported but severely restricts the available ciphers and algorithms.

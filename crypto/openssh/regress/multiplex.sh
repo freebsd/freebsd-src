@@ -1,4 +1,4 @@
-#	$OpenBSD: multiplex.sh,v 1.34 2022/06/03 04:31:54 djm Exp $
+#	$OpenBSD: multiplex.sh,v 1.35 2023/01/13 04:47:34 dtucker Exp $
 #	Placed in the Public Domain.
 
 make_tmpdir
@@ -24,6 +24,7 @@ wait_for_mux_master_ready()
 	fatal "mux master never becomes ready"
 }
 
+maybe_add_scp_path_to_sshd
 start_sshd
 
 start_mux_master()

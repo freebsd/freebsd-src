@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.92 2022/07/25 07:12:45 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.94 2023/01/13 04:47:34 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -507,6 +507,18 @@ skip ()
 	echo "SKIPPED: $@"
 	cleanup
 	exit $RESULT
+}
+
+maybe_add_scp_path_to_sshd ()
+{
+	# If we're testing a non-installed scp, add its directory to sshd's
+	# PATH so we can test it.  We don't do this for all tests as it
+	# breaks the SetEnv tests.
+	case "$SCP" in
+	/*)	PATH_WITH_SCP="`dirname $SCP`:$PATH"
+		echo "	SetEnv PATH='$PATH_WITH_SCP'" >>$OBJ/sshd_config
+		echo "	SetEnv PATH='$PATH_WITH_SCP'" >>$OBJ/sshd_proxy ;;
+	esac
 }
 
 RESULT=0

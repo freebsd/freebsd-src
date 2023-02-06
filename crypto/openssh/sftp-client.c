@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.165 2022/09/19 10:43:12 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.168 2023/01/11 05:39:38 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -68,10 +68,10 @@
 extern volatile sig_atomic_t interrupted;
 extern int showprogress;
 
-/* Default size of buffer for up/download */
+/* Default size of buffer for up/download (fix sftp.1 scp.1 if changed) */
 #define DEFAULT_COPY_BUFLEN	32768
 
-/* Default number of concurrent outstanding requests */
+/* Default number of concurrent xfer requests (fix sftp.1 scp.1 if changed) */
 #define DEFAULT_NUM_REQUESTS	64
 
 /* Minimum amount of data to read at a time */
@@ -566,17 +566,26 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 
 		/* If the caller did not specify, find a good value */
 		if (transfer_buflen == 0) {
-			ret->download_buflen = limits.read_length;
-			ret->upload_buflen = limits.write_length;
-			debug("Using server download size %u", ret->download_buflen);
-			debug("Using server upload size %u", ret->upload_buflen);
+			ret->download_buflen = MINIMUM(limits.read_length,
+			    SFTP_MAX_MSG_LENGTH - 1024);
+			ret->upload_buflen = MINIMUM(limits.write_length,
+			    SFTP_MAX_MSG_LENGTH - 1024);
+			ret->download_buflen = MAXIMUM(ret->download_buflen, 64);
+			ret->upload_buflen = MAXIMUM(ret->upload_buflen, 64);
+			debug3("server upload/download buffer sizes "
+			    "%llu / %llu; using %u / %u",
+			    (unsigned long long)limits.write_length,
+			    (unsigned long long)limits.read_length,
+			    ret->upload_buflen, ret->download_buflen);
 		}
 
 		/* Use the server limit to scale down our value only */
 		if (num_requests == 0 && limits.open_handles) {
 			ret->num_requests =
 			    MINIMUM(DEFAULT_NUM_REQUESTS, limits.open_handles);
-			debug("Server handle limit %llu; using %u",
+			if (ret->num_requests == 0)
+				ret->num_requests = 1;
+			debug3("server handle limit %llu; using %u",
 			    (unsigned long long)limits.open_handles,
 			    ret->num_requests);
 		}

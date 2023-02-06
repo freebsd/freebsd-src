@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.459 2022/08/11 01:56:51 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.461 2022/12/04 23:50:49 cheloha Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -3544,7 +3544,6 @@ main(int argc, char **argv)
 			else
 				fatal("Unsupported moduli option %s", optarg);
 			break;
-		case '?':
 		default:
 			usage();
 		}

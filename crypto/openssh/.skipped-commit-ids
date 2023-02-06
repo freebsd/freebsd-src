@@ -25,6 +25,8 @@ cc12a9029833d222043aecd252d654965c351a69	moduli-gen Makefile
 7ac6c252d2a5be8fbad4c66d9d35db507c9dac5b	moduli update
 6b52cd2b637f3d29ef543f0ce532a2bce6d86af5	makefile change
 f9a0726d957cf10692a231996a1f34e7f9cdfeb0	moduli update
+1e0a2692b7e20b126dda60bf04999d1d30d959d8	sshd relinking makefile changes
+e1dc11143f83082e3154d6094f9136d0dc2637ad	more relinking makefile tweaks
 
 Old upstream tree:
 

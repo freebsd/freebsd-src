@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.144 2022/09/19 10:41:58 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.145 2022/11/09 09:04:12 dtucker Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -1745,7 +1745,7 @@ process_extended_get_users_groups_by_id(u_int32_t id)
 		name = user_pw == NULL ? "" : user_pw->pw_name;
 		debug3_f("uid %u => \"%s\"", n, name);
 		if ((r = sshbuf_put_cstring(usernames, name)) != 0)
-			fatal_fr(r, "assemble gid reply");
+			fatal_fr(r, "assemble uid reply");
 		nusers++;
 	}
 	while (sshbuf_len(gids) != 0) {

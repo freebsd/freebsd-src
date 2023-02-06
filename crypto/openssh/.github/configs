@@ -9,10 +9,13 @@
 # LTESTS
 
 config=$1
+if [ "$config" = "" ]; then
+	config="default"
+fi
 
 unset CC CFLAGS CPPFLAGS LDFLAGS LTESTS SUDO
 
-TEST_TARGET="tests"
+TEST_TARGET="tests compat-tests"
 LTESTS=""
 SKIP_LTESTS=""
 SUDO=sudo	# run with sudo by default
@@ -108,7 +111,7 @@ case "$config" in
     kitchensink)
 	CONFIGFLAGS="--with-kerberos5 --with-libedit --with-pam"
 	CONFIGFLAGS="${CONFIGFLAGS} --with-security-key-builtin --with-selinux"
-	CONFIGFLAGS="${CONFIGFLAGS} --with-cflags=-DSK_DEBUG"
+	CFLAGS="-DSK_DEBUG -DSANDBOX_SECCOMP_FILTER_DEBUG"
 	;;
     hardenedmalloc)
 	CONFIGFLAGS="--with-ldflags=-lhardened_malloc"
@@ -141,6 +144,11 @@ case "$config" in
 	;;
     openssl-*)
 	LIBCRYPTOFLAGS="--with-ssl-dir=/opt/openssl --with-rpath=-Wl,-rpath,"
+	# OpenSSL 1.1.1 specifically has a bug in its RNG that breaks reexec
+	# fallback.  See https://bugzilla.mindrot.org/show_bug.cgi?id=3483
+	if [ "$config" = "openssl-1.1.1" ]; then
+		SKIP_LTESTS="reexec"
+	fi
 	;;
     selinux)
 	CONFIGFLAGS="--with-selinux"
@@ -152,7 +160,7 @@ case "$config" in
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
 	;;
-    valgrind-[1-4]|valgrind-unit)
+    valgrind-[1-5]|valgrind-unit)
 	# rlimit sandbox and FORTIFY_SOURCE confuse Valgrind.
 	CONFIGFLAGS="--without-sandbox --without-hardening"
 	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
@@ -161,16 +169,19 @@ case "$config" in
 	export TEST_SSH_ELAPSED_TIMES
 	# Valgrind slows things down enough that the agent timeout test
 	# won't reliably pass, and the unit tests run longer than allowed
-	# by github so split into three separate tests.
-	tests2="rekey integrity try-ciphers"
+	# by github so split into separate tests.
+	tests2="integrity try-ciphers"
 	tests3="krl forward-control sshsig agent-restrict kextype sftp"
 	tests4="cert-userkey cert-hostkey kextype sftp-perm keygen-comment percent"
+	tests5="rekey"
 	case "$config" in
 	    valgrind-1)
-		# All tests except agent-timeout (which is flaky under valgrind)
+		# All tests except agent-timeout (which is flaky under valgrind),
+		# connection-timeout (which doesn't work since it's so slow)
 		# and hostbased (since valgrind won't let ssh exec keysign).
 		# Slow ones are run separately to increase parallelism.
-		SKIP_LTESTS="agent-timeout hostbased ${tests2} ${tests3} ${tests4}"
+		SKIP_LTESTS="agent-timeout connection-timeout hostbased"
+		SKIP_LTESTS="$SKIP_LTESTS ${tests2} ${tests3} ${tests4} ${tests5}"
 		;;
 	    valgrind-2)
 		LTESTS="${tests2}"
@@ -180,6 +191,9 @@ case "$config" in
 		;;
 	    valgrind-4)
 		LTESTS="${tests4}"
+		;;
+	    valgrind-5)
+		LTESTS="${tests5}"
 		;;
 	    valgrind-unit)
 		TEST_TARGET="unit USE_VALGRIND=1"
@@ -210,6 +224,10 @@ case "${TARGET_HOST}" in
 	TEST_TARGET="t-exec TEST_SHELL=bash"
 	SKIP_LTESTS="rekey sftp"
 	;;
+    debian-riscv64)
+	# This machine is fairly slow, so skip the unit tests.
+	TEST_TARGET="t-exec"
+	;;
     dfly58*|dfly60*)
 	# scp 3-way connection hangs on these so skip until sorted.
 	SKIP_LTESTS=scp3
@@ -227,12 +245,15 @@ case "${TARGET_HOST}" in
 	# test that relies on one.
 	# Also, Minix seems to be very limited in the number of select()
 	# calls that can be operating concurrently, so prune additional tests for that.
-	T="addrmatch agent-restrict brokenkeys cfgmatch cfgmatchlisten cfgparse connect
-	    connect-uri exit-status forward-control forwarding hostkey-agent
-	    key-options keyscan knownhosts-command login-timeout multiplex
+	T="addrmatch agent-restrict brokenkeys cfgmatch cfgmatchlisten cfgparse
+	    connect connect-uri exit-status forwarding hostkey-agent
+	    key-options keyscan knownhosts-command login-timeout
 	    reconfigure reexec rekey scp scp-uri scp3 sftp sftp-badcmds
 	    sftp-batch sftp-cmds sftp-glob sftp-perm sftp-uri stderr-data
 	    transfer"
+	# Unix domain sockets don't work quite like we expect, so also skip any tests
+	# that use multiplexing.
+	T="$T connection-timeout dynamic-forward forward-control multiplex"
 	SKIP_LTESTS="$(echo $T)"
 	TEST_TARGET=t-exec
 	SUDO=""
@@ -260,6 +281,8 @@ esac
 case "`./config.guess`" in
 *cygwin)
 	SUDO=""
+	# Don't run compat tests on cygwin as they don't currently compile.
+	TEST_TARGET="tests"
 	;;
 *-darwin*)
 	# Unless specified otherwise, build without OpenSSL on Mac OS since

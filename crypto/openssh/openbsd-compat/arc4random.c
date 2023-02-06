@@ -44,13 +44,15 @@
 #ifndef HAVE_ARC4RANDOM
 
 /*
- * If we're not using a native getentropy, use the one from bsd-getentropy.c
- * under a different name, so that if in future these binaries are run on
- * a system that has a native getentropy OpenSSL cannot call the wrong one.
+ * Always use the getentropy implementation from bsd-getentropy.c, which
+ * will call a native getentropy if available then fall back as required.
+ * We use a different name so that OpenSSL cannot call the wrong getentropy.
  */
-#ifndef HAVE_GETENTROPY
-# define getentropy(x, y) (_ssh_compat_getentropy((x), (y)))
+int _ssh_compat_getentropy(void *, size_t);
+#ifdef getentropy
+# undef getentropy
 #endif
+#define getentropy(x, y) (_ssh_compat_getentropy((x), (y)))
 
 #include "log.h"
 
