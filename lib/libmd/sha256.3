@@ -97,8 +97,7 @@ is a wrapper for
 .Fn SHA256_Final
 which converts the return value to a 65-character
 (including the terminating '\e0')
-.Tn ASCII
-string which represents the 256 bits in hexadecimal.
+ASCII string which represents the 256 bits in hexadecimal.
 .Pp
 .Fn SHA256_File
 calculates the digest of a file, and uses
@@ -178,9 +177,7 @@ These functions appeared in
 .Fx 6.0 .
 .Sh AUTHORS
 The core hash routines were implemented by Colin Percival based on
-the published
-.Tn FIPS 180-2
-standard.
+the published FIPS 180-2 standard.
 .Sh BUGS
 No method is known to exist which finds two files having the same hash value,
 nor to find a file with a specific hash value.
