@@ -295,7 +295,7 @@ ccr_populate_sglist(struct sglist *sg, struct crypto_buffer *cb)
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		error = sglist_append_vmpages(sg, cb->cb_vm_page,
-		    cb->cb_vm_page_len, cb->cb_vm_page_offset);
+		    cb->cb_vm_page_offset, cb->cb_vm_page_len);
 		break;
 	default:
 		error = EINVAL;
