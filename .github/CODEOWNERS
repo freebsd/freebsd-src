@@ -64,6 +64,8 @@
 /sys/amd64/pci	@bsdimp @bsdjhb
 /sys/amd64/vmm/	@bsdjhb @grehan-freebsd
 /sys/arm/allwinner	@evadot
+/sys/arm64/arm64	@zxombie
+/sys/arm64/include	@zxombie
 /sys/arm64/rockchip	@evadot
 /sys/compat/linprocfs/	@dag-erling
 /sys/compat/linuxkpi	@hselasky
