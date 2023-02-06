@@ -102,6 +102,9 @@
 #define __aligned_u64 uint64_t __aligned(8)
 
 #define VLAN_PRIO_SHIFT 13
+#if __FreeBSD_version < 1400000
+#define IB_USER_VERBS_EX_CMD_MODIFY_QP IB_USER_VERBS_CMD_MODIFY_QP
+#endif
 
 /*
  * debug definition section
