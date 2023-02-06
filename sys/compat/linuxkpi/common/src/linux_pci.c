@@ -307,6 +307,9 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->subsystem_device = pci_get_subdevice(dev);
 	pdev->class = pci_get_class(dev);
 	pdev->revision = pci_get_revid(dev);
+	pdev->path_name = kasprintf(GFP_KERNEL, "%04d:%02d:%02d.%d",
+	    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
+	    pci_get_function(dev));
 	pdev->bus = malloc(sizeof(*pdev->bus), M_DEVBUF, M_WAITOK | M_ZERO);
 	/*
 	 * This should be the upstream bridge; pci_upstream_bridge()
@@ -350,6 +353,7 @@ lkpinew_pci_dev_release(struct device *dev)
 			free(pdev->msi_desc[i], M_DEVBUF);
 		free(pdev->msi_desc, M_DEVBUF);
 	}
+	kfree(pdev->path_name);
 	free(pdev, M_DEVBUF);
 }
 

@@ -334,6 +334,7 @@ struct pci_dev {
 	phys_addr_t		rom;
 	size_t			romlen;
 	struct msi_desc		**msi_desc;
+	char			*path_name;
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
 };
@@ -454,8 +455,7 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 static inline const char *
 pci_name(struct pci_dev *d)
 {
-
-	return device_get_desc(d->dev.bsddev);
+	return d->path_name;
 }
 
 static inline void *
