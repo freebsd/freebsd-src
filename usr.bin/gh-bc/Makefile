@@ -120,10 +120,10 @@ lib2.c:		lib2.bc Makefile
 		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c 0 bc_lib2 bc_lib2_name 1 1
 
 bc_help.c:	bc_help.txt Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c 0 bc_help
+		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c 0 bc_help "" 1 0
 
 dc_help.c:	dc_help.txt Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c 0 dc_help
+		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c 0 dc_help "" 1 0
 
 bc.1:
 		${CP} ${BCDIR}/manuals/${MAN_SRC_BC} ${.OBJDIR}/bc.1

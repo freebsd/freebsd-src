@@ -36,20 +36,33 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
-# Command-line processing.
-if [ "$#" -eq 0 ]; then
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
 	printf 'usage: %s dir [exec args...]\n' "$script"
 	exit 1
+}
+
+# Command-line processing.
+if [ "$#" -eq 0 ]; then
+	usage "Not enough arguments"
 else
 	d="$1"
 	shift
+	check_d_arg "$d"
 fi
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 else
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 fi
 
 # I use these, so unset them to make the tests work.
