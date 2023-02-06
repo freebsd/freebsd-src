@@ -63,6 +63,8 @@ typedef struct dtrace_invop_hdlr {
 
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
+static int match_opcode(uint32_t insn, int match, int mask);
+
 int
 dtrace_invop(uintptr_t addr, struct trapframe *frame)
 {
@@ -188,6 +190,8 @@ dtrace_gethrestime(void)
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
+	uint16_t insn;
+
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
@@ -196,9 +200,7 @@ dtrace_trap(struct trapframe *frame, u_int type)
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
-	 *
 	 */
-
 	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
 		/*
 		 * There are only a couple of trap types that are expected.
@@ -208,15 +210,24 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		case SCAUSE_LOAD_ACCESS_FAULT:
 		case SCAUSE_STORE_ACCESS_FAULT:
 		case SCAUSE_INST_ACCESS_FAULT:
+		case SCAUSE_INST_PAGE_FAULT:
+		case SCAUSE_LOAD_PAGE_FAULT:
+		case SCAUSE_STORE_PAGE_FAULT:
 			/* Flag a bad address. */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
-			cpu_core[curcpu].cpuc_dtrace_illval = 0;
+			cpu_core[curcpu].cpuc_dtrace_illval = frame->tf_stval;
 
 			/*
 			 * Offset the instruction pointer to the instruction
-			 * following the one causing the fault.
+			 * following the one causing the fault. Check if the
+			 * instruction is compressed or not. Standard
+			 * instructions always have bits [1:0] == 11.
 			 */
-			frame->tf_sepc += 4;
+			insn = *(uint16_t *)frame->tf_sepc;
+			if (match_opcode(insn, 0x3, 0x3))
+				frame->tf_sepc += INSN_SIZE;
+			else
+				frame->tf_sepc += INSN_C_SIZE;
 
 			return (1);
 		default:
