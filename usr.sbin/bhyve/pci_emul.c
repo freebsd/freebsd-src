@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "pci_irq.h"
 #include "pci_lpc.h"
+#include "pci_passthru.h"
 
 #define CONF1_ADDR_PORT	   0x0cf8
 #define CONF1_DATA_PORT	   0x0cfc
@@ -329,6 +330,49 @@ pci_print_supported_devices(void)
 	SET_FOREACH(pdpp, pci_devemu_set) {
 		pdp = *pdpp;
 		printf("%s\n", pdp->pe_emu);
+	}
+}
+
+uint32_t
+pci_config_read_reg(const struct pcisel *const host_sel, nvlist_t *nvl,
+    const uint32_t reg, const uint8_t size, const uint32_t def)
+{
+	const char *config;
+	const nvlist_t *pci_regs;
+
+	assert(size == 1 || size == 2 || size == 4);
+
+	pci_regs = find_relative_config_node(nvl, "pcireg");
+	if (pci_regs == NULL) {
+		return def;
+	}
+
+	switch (reg) {
+	case PCIR_DEVICE:
+		config = get_config_value_node(pci_regs, "device");
+		break;
+	case PCIR_VENDOR:
+		config = get_config_value_node(pci_regs, "vendor");
+		break;
+	case PCIR_REVID:
+		config = get_config_value_node(pci_regs, "revid");
+		break;
+	case PCIR_SUBVEND_0:
+		config = get_config_value_node(pci_regs, "subvendor");
+		break;
+	case PCIR_SUBDEV_0:
+		config = get_config_value_node(pci_regs, "subdevice");
+		break;
+	default:
+		return (-1);
+	}
+
+	if (config == NULL) {
+		return def;
+	} else if (host_sel != NULL && strcmp(config, "host") == 0) {
+		return read_config(host_sel, reg, size);
+	} else {
+		return strtol(config, NULL, 16);
 	}
 }
 

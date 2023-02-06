@@ -35,6 +35,7 @@
 #include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/nv.h>
+#include <sys/pciio.h>
 #include <sys/_pthreadtypes.h>
 
 #include <dev/pci/pcireg.h>
@@ -227,6 +228,8 @@ typedef void (*pci_lintr_cb)(int b, int s, int pin, int pirq_pin,
 
 int	init_pci(struct vmctx *ctx);
 void	pci_callback(void);
+uint32_t pci_config_read_reg(const struct pcisel *host_sel, nvlist_t *nvl,
+	    uint32_t reg, uint8_t size, uint32_t def);
 int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx,
 	    enum pcibar_type type, uint64_t size);
 int 	pci_emul_alloc_rom(struct pci_devinst *const pdi, const uint64_t size,
