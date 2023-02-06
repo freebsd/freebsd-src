@@ -42,7 +42,7 @@ wg_basic_body()
 	local epair pri1 pri2 pub1 pub2 wg1 wg2
         local endpoint1 endpoint2 tunnel1 tunnel2
 
-	kldload -n if_wg
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -111,7 +111,7 @@ wg_key_peerdev_shared_body()
 	local epair pri1 pub1 wg1
         local endpoint1 tunnel1
 
-	kldload -n if_wg
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 
@@ -152,7 +152,7 @@ wg_key_peerdev_makeshared_body()
 	local epair pri1 pub1 pri2 wg1 wg2
         local endpoint1 tunnel1
 
-	kldload -n if_wg
+	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
