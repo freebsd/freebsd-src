@@ -412,12 +412,15 @@ to use standard input and output of the
 process.
 .El
 .Ss Host Bridge Settings
-.Bl -column "vendor" "integer" "Default"
+.Bl -column "pcireg.*" "integer" "Default"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va pcireg.* Ta integer Ta Ta
+Values of PCI register.
+.Bl -column "device" "Default"
+.It Sy Name Ta Sy Default
 .It Va vendor Ta integer Ta 0x1275 Ta
-PCI vendor ID.
-.It Va devid Ta integer Ta 0x1275 Ta
-PCI device ID.
+.It Va device Ta integer Ta 0x1275 Ta
+.El
 .El
 .Ss AHCI Controller Settings
 AHCI controller devices contain zero or more ports each of which
