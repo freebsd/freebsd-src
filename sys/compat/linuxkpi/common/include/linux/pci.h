@@ -351,6 +351,7 @@ struct pci_dev {
 	bool			msix_enabled;
 	uint8_t			msi_cap;
 	struct msi_desc		**msi_desc;
+	char			*path_name;
 };
 
 /* XXX add kassert here on the mmio offset */
@@ -470,8 +471,7 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 static inline const char *
 pci_name(struct pci_dev *d)
 {
-
-	return device_get_desc(d->dev.bsddev);
+	return d->path_name;
 }
 
 static inline void *
