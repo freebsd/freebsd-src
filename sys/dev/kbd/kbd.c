@@ -790,6 +790,8 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
 	keymap_t *mapp;
 	okeymap_t *omapp;
+	accentmap_t *accentmapp;
+	oaccentmap_t *oaccentmapp;
 	keyarg_t *keyp;
 	fkeyarg_t *fkeyp;
 	int i, j;
@@ -898,16 +900,58 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 #endif
 
 	case GIO_DEADKEYMAP:	/* get accent key translation table */
-		bcopy(kbd->kb_accentmap, arg, sizeof(*kbd->kb_accentmap));
+		error = copyout(kbd->kb_accentmap, *(void **)arg,
+		    sizeof(accentmap_t));
+		return (error);
 		break;
+	case OGIO_DEADKEYMAP:	/* get accent key translation table (compat) */
+		accentmapp = kbd->kb_accentmap;
+		oaccentmapp = (oaccentmap_t *)arg;
+		oaccentmapp->n_accs = accentmapp->n_accs;
+		for (i = 0; i < NUM_DEADKEYS; i++) {
+			oaccentmapp->acc[i].accchar =
+			    accentmapp->acc[i].accchar;
+			for (j = 0; j < NUM_ACCENTCHARS; j++) {
+				oaccentmapp->acc[i].map[j][0] =
+				    accentmapp->acc[i].map[j][0];
+				oaccentmapp->acc[i].map[j][1] =
+				    accentmapp->acc[i].map[j][1];
+			}
+		}
+		break;
+
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
+	case OPIO_DEADKEYMAP:	/* set accent key translation table (compat) */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
-		error = accent_change_ok(kbd->kb_accentmap,
-		    (accentmap_t *)arg, curthread);
+		accentmapp = malloc(sizeof(*accentmapp), M_TEMP, M_WAITOK);
+		if (cmd == OPIO_DEADKEYMAP) {
+			oaccentmapp = (oaccentmap_t *)arg;
+			accentmapp->n_accs = oaccentmapp->n_accs;
+			for (i = 0; i < NUM_DEADKEYS; i++) {
+				for (j = 0; j < NUM_ACCENTCHARS; j++) {
+					accentmapp->acc[i].map[j][0] =
+					    oaccentmapp->acc[i].map[j][0];
+					accentmapp->acc[i].map[j][1] =
+					    oaccentmapp->acc[i].map[j][1];
+					accentmapp->acc[i].accchar =
+					    oaccentmapp->acc[i].accchar;
+				}
+			}
+		} else {
+			error = copyin(*(void **)arg, accentmapp, sizeof(*accentmapp));
+			if (error != 0) {
+				free(accentmapp, M_TEMP);
+				return (error);
+			}
+		}
+
+		error = accent_change_ok(kbd->kb_accentmap, accentmapp, curthread);
 		if (error != 0) {
+			free(accentmapp, M_TEMP);
 			return (error);
 		}
-		bcopy(arg, kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
+		bcopy(accentmapp, kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
+		free(accentmapp, M_TEMP);
 		break;
 #else
 		return (ENODEV);
