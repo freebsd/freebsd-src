@@ -278,7 +278,7 @@ struct enic_softc {
 	if_softc_ctx_t		scctx;
 	if_shared_ctx_t		sctx;
 	struct ifmedia		*media;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	struct mtx		enic_lock;
 
