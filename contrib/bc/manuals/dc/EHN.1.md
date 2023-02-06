@@ -1313,8 +1313,8 @@ https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 
 # BUGS
 
-None are known. Report bugs at https://git.yzena.com/gavin/bc .
+None are known. Report bugs at https://git.gavinhoward.com/gavin/bc .
 
 # AUTHOR
 
-Gavin D. Howard <gavin@yzena.com> and contributors.
+Gavin D. Howard <gavin@gavinhoward.com> and contributors.

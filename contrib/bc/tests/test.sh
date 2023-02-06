@@ -37,19 +37,32 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
-# Command-line processing.
-if [ "$#" -lt 2 ]; then
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
 	printf 'usage: %s dir test [generate_tests] [time_tests] [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
 	printf '\n'
 	cat "$testdir/all.txt"
 	printf '\n'
 	exit 1
+}
+
+# Command-line processing.
+if [ "$#" -lt 2 ]; then
+	usage "Need at least 2 arguments"
 fi
 
 d="$1"
 shift
+check_d_arg "$d"
 
+# We don't use check_file_arg on the test or the result because they might be
+# generated.
 t="$1"
 name="$testdir/$d/$t.txt"
 results="$testdir/$d/${t}_results.txt"
@@ -58,22 +71,28 @@ shift
 if [ "$#" -gt 0 ]; then
 	generate_tests="$1"
 	shift
+	check_bool_arg "$generate_tests"
 else
 	generate_tests=1
+	check_bool_arg "$generate_tests"
 fi
 
 if [ "$#" -gt 0 ]; then
 	time_tests="$1"
 	shift
+	check_bool_arg "$time_tests"
 else
 	time_tests=0
+	check_bool_arg "$time_tests"
 fi
 
 if [ "$#" -gt 0 ]; then
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 else
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 fi
 
 out="$outputdir/${d}_outputs/${t}_results.txt"

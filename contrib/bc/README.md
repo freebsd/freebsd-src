@@ -1,12 +1,12 @@
 # `bc`
 
-***WARNING: New user registration for https://git.yzena.com/ is disabled because
-of spam. If you need to report a bug with `bc`, email gavin at this site minus
-the `git.` part for an account, and I will create one for you. Or you can report
-an issue at [GitHub][29].***
+***WARNING: New user registration for <https://git.gavinhoward.com/> is disabled
+because of spam. If you need to report a bug with `bc`, email gavin at this site
+minus the `git.` part for an account, and I will create one for you. Or you can
+report an issue at [GitHub][29].***
 
-***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
-reasons][21], though GitHub will remain a mirror.***
+***WARNING: This project has moved to [https://git.gavinhoward.com/][20] for
+[these reasons][21], though GitHub will remain a mirror.***
 
 This is an implementation of the [POSIX `bc` calculator][12] that implements
 [GNU `bc`][1] extensions, as well as the period (`.`) extension for the BSD
@@ -443,6 +443,10 @@ This `bc` uses the commit message guidelines laid out in [this blog post][10].
 
 This `bc` uses [semantic versioning][11].
 
+## AI-Free
+
+This repository is 100% AI-Free code.
+
 ## Contents
 
 Items labeled with `(maintainer use only)` are not included in release source
@@ -481,10 +485,10 @@ Folders:
 [10]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [11]: http://semver.org/
 [12]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
-[17]: https://git.yzena.com/gavin/vim-bc
-[18]: https://git.yzena.com/gavin/bc_libs
+[17]: https://git.gavinhoward.com/gavin/vim-bc
+[18]: https://git.gavinhoward.com/gavin/bc_libs
 [19]: ./manuals/benchmarks.md
-[20]: https://git.yzena.com/gavin/bc
+[20]: https://git.gavinhoward.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
 [22]: https://www.deepl.com/translator
 [23]: https://cgit.freebsd.org/src/tree/contrib/bc

@@ -37,7 +37,7 @@ usage: %s [options] [file...]
 
 bc is a command-line, arbitrary-precision calculator with a Turing-complete
 language. For details, use `man %s` or see the online documentation at
-https://git.yzena.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
 
 This bc is compatible with both the GNU bc and the POSIX bc spec. See the GNU bc
 manual (https://www.gnu.org/software/bc/manual/bc.html) and bc spec

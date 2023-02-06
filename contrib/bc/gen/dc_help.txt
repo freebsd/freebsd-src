@@ -37,7 +37,7 @@ usage: %s [options] [file...]
 
 dc is a reverse-polish notation command-line calculator which supports unlimited
 precision arithmetic. For details, use `man %s` or see the online documentation
-at https://git.yzena.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+at https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
 
 This dc is (mostly) compatible with the OpenBSD dc and the GNU dc. See the
 OpenBSD man page (http://man.openbsd.org/OpenBSD-current/man1/dc.1) and the GNU

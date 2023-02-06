@@ -1230,8 +1230,8 @@ use a period (**.**) as a radix point, regardless of the value of
 
 # BUGS
 
-None are known. Report bugs at https://git.yzena.com/gavin/bc.
+None are known. Report bugs at https://git.gavinhoward.com/gavin/bc.
 
 # AUTHORS
 
-Gavin D. Howard <gavin@yzena.com> and contributors.
+Gavin D. Howard <gavin@gavinhoward.com> and contributors.
