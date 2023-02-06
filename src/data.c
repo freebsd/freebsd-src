@@ -71,7 +71,7 @@ const uchar dc_sig_msg_len = (uchar) (sizeof(dc_sig_msg) - 1);
 /// The copyright banner.
 const char bc_copyright[] =
 	"Copyright (c) 2018-2023 Gavin D. Howard and contributors\n"
-	"Report bugs at: https://git.yzena.com/gavin/bc\n\n"
+	"Report bugs at: https://git.gavinhoward.com/gavin/bc\n\n"
 	"This is free software with ABSOLUTELY NO WARRANTY.\n";
 
 // clang-format on

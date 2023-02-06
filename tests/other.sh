@@ -36,24 +36,39 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
+	printf 'usage: %s dir extra_math [exec args...]\n' "$script"
+	exit 1
+}
+
 # Command-line processing.
 if [ "$#" -ge 2 ]; then
 
 	d="$1"
 	shift
+	check_d_arg "$d"
 
 	extra_math="$1"
 	shift
+	check_bool_arg "$extra_math"
 
 else
-	err_exit "usage: $script dir extra_math [exec args...]" 1
+	usage "Not enough arguments; need 2"
 fi
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 else
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 fi
 
 if [ "$d" = "bc" ]; then
