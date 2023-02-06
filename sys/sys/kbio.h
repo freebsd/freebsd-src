@@ -209,7 +209,7 @@ struct accentmap {
 };
 typedef struct accentmap accentmap_t;
 
-#ifdef _KERNEL
+//#ifdef _KERNEL
 struct oacc_t {
 	u_char		accchar;
 	u_char		map[NUM_ACCENTCHARS][2];
@@ -220,7 +220,7 @@ struct oaccentmap {
 	struct oacc_t	acc[NUM_DEADKEYS];
 };
 typedef struct oaccentmap oaccentmap_t;
-#endif /* _KERNEL */
+//#endif /* _KERNEL */
 
 struct keyarg {
 	u_short		keynum;
@@ -257,10 +257,10 @@ typedef struct fkeyarg	fkeyarg_t;
 /* XXX: Should have accentmap_t as an argument, but that's too big for ioctl()! */
 #define GIO_DEADKEYMAP 	 _IO('k', 8)
 #define PIO_DEADKEYMAP 	 _IO('k', 9)
-#ifdef _KERNEL
+//#ifdef _KERNEL
 #define OGIO_DEADKEYMAP	_IOR('k', 8, oaccentmap_t)
 #define OPIO_DEADKEYMAP	_IOW('k', 9, oaccentmap_t)
-#endif /* _KERNEL */
+//#endif /* _KERNEL */
 #define GIO_KEYMAPENT 	_IOWR('k', 10, keyarg_t)
 #define PIO_KEYMAPENT 	_IOW('k', 11, keyarg_t)
 
