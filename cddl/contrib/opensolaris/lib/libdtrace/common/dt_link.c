@@ -215,10 +215,6 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 			    dofr[j].dofr_offset;
 			rel->r_info = ELF32_R_INFO(count + dep->de_global,
 			    R_386_PC32);
-#elif defined(__mips__)
-/* XXX */
-			printf("%s:%s(%d): MIPS not implemented\n",
-			    __FUNCTION__, __FILE__, __LINE__);
 #elif defined(__powerpc__)
 			/*
 			 * Add 4 bytes to hit the low half of this 64-bit
@@ -401,8 +397,6 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 			    R_AARCH64_PREL64);
 #elif defined(__arm__)
 /* XXX */
-#elif defined(__mips__)
-/* XXX */
 #elif defined(__powerpc__)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -504,8 +498,6 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__mips__)
-	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
 	elf_file.ehdr.e_machine = EM_PPC;
 #elif defined(__i386) || defined(__amd64)
@@ -644,8 +636,6 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__mips__)
-	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc64__)
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 	elf_file.ehdr.e_flags = 2;
@@ -840,17 +830,6 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
 	printf("%s:%s(%d): arm not implemented\n", __FUNCTION__, __FILE__,
-	    __LINE__);
-	return (-1);
-}
-#elif defined(__mips__)
-#define	DT_REL_NONE		R_MIPS_NONE
-
-static int
-dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
-    uint32_t *off)
-{
-	printf("%s:%s(%d): MIPS not implemented\n", __FUNCTION__, __FILE__,
 	    __LINE__);
 	return (-1);
 }
@@ -1167,9 +1146,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 	if (dtp->dt_oflags & DTRACE_O_LP64) {
 		eclass = ELFCLASS64;
-#if defined(__mips__)
-		emachine1 = emachine2 = EM_MIPS;
-#elif defined(__powerpc__)
+#if defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC64;
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
 		uses_funcdesc = 1;
@@ -1184,8 +1161,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		eclass = ELFCLASS32;
 #if defined(__arm__)
 		emachine1 = emachine2 = EM_ARM;
-#elif defined(__mips__)
-		emachine1 = emachine2 = EM_MIPS;
 #elif defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC;
 #elif defined(__i386) || defined(__amd64)
