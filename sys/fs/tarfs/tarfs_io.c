@@ -551,8 +551,6 @@ tarfs_zreclaim(struct vop_reclaim_args *ap)
 
 	TARFS_DPF(ZIO, "%s(%p)\n", __func__, vp);
 	vp->v_data = NULL;
-	vnode_destroy_vobject(vp);
-	cache_purge(vp);
 	return (0);
 }
 

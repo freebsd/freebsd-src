@@ -524,8 +524,6 @@ tarfs_reclaim(struct vop_reclaim_args *ap)
 	tnp = VP_TO_TARFS_NODE(vp);
 
 	vfs_hash_remove(vp);
-	vnode_destroy_vobject(vp);
-	cache_purge(vp);
 
 	TARFS_NODE_LOCK(tnp);
 	tnp->vnode = NULLVP;
