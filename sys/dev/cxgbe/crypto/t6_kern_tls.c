@@ -469,7 +469,7 @@ t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	}
 	tlsp->inp = inp;
 
-	tp = inp->inp_ppcb;
+	tp = intotcpcb(inp);
 	if (tp->t_flags & TF_REQ_TSTMP) {
 		tlsp->using_timestamps = true;
 		if ((tp->ts_offset & 0xfffffff) != 0) {
