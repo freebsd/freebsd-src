@@ -146,6 +146,19 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
 	free(opts, M_TEMP);
 }
 
+static u_int
+nfs_setup_diskless_ifa_cb(void *arg, struct sockaddr_dl *sdl, u_int count)
+{
+	struct sockaddr_dl *ourdl = arg;
+
+	if ((sdl->sdl_type == ourdl->sdl_type) &&
+	    (sdl->sdl_alen == ourdl->sdl_alen) &&
+	    !bcmp(LLADDR(sdl), LLADDR(ourdl), sdl->sdl_alen))
+		return (1);
+
+	return (0);
+}
+
 /*
  * Populate the essential fields in the nfsv3_diskless structure.
  *
@@ -166,16 +179,18 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
 void
 nfs_setup_diskless(void)
 {
+	struct epoch_tracker et;
+	struct if_iter iter;
 	struct nfs_diskless *nd = &nfs_diskless;
 	struct nfsv3_diskless *nd3 = &nfsv3_diskless;
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl, ourdl;
+	if_t ifp;
+	struct sockaddr_dl ourdl;
 	struct sockaddr_in myaddr, netmask;
 	char *cp;
 	int cnt, fhlen, is_nfsv3;
 	uint32_t len;
 	time_t timeout_at;
+	u_int count;
 
 	if (nfs_diskless_valid != 0)
 		return;
@@ -219,29 +234,25 @@ nfs_setup_diskless(void)
 		printf("nfs_diskless: no hardware address\n");
 		return;
 	}
-	ifa = NULL;
 	timeout_at = time_uptime + NFS_IFACE_TIMEOUT_SECS;
 retry:
 	CURVNET_SET(TD_TO_VNET(curthread));
-	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family == AF_LINK) {
-				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-				if ((sdl->sdl_type == ourdl.sdl_type) &&
-				    (sdl->sdl_alen == ourdl.sdl_alen) &&
-				    !bcmp(LLADDR(sdl),
-					  LLADDR(&ourdl),
-					  sdl->sdl_alen)) {
-				    IFNET_RUNLOCK();
-				    CURVNET_RESTORE();
-				    goto match_done;
-				}
-			}
-		}
+	NET_EPOCH_ENTER(et);
+
+	for (ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter)) {
+		count = if_foreach_lladdr(ifp, nfs_setup_diskless_ifa_cb, &ourdl);
+
+		if (count > 0)
+			break;
+
 	}
-	IFNET_RUNLOCK();
+	if_iter_finish(&iter);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
+	if (cnt > 0) {
+		goto match_done;
+	}
+
 	if (time_uptime < timeout_at) {
 		pause("nfssdl", hz / 5);
 		goto retry;
@@ -249,9 +260,9 @@ retry:
 	printf("nfs_diskless: no interface\n");
 	return;	/* no matching interface */
 match_done:
-	kern_setenv("boot.netif.name", ifp->if_xname);
+	kern_setenv("boot.netif.name", if_name(ifp));
 	if (is_nfsv3 != 0) {
-		strlcpy(nd3->myif.ifra_name, ifp->if_xname,
+		strlcpy(nd3->myif.ifra_name, if_name(ifp),
 		    sizeof(nd3->myif.ifra_name));
 
 		/* set up gateway */
@@ -290,7 +301,7 @@ match_done:
 
 		nfs_diskless_valid = 3;
 	} else {
-		strlcpy(nd->myif.ifra_name, ifp->if_xname,
+		strlcpy(nd->myif.ifra_name, if_name(ifp),
 		    sizeof(nd->myif.ifra_name));
 
 		/* set up gateway */

@@ -137,7 +137,7 @@ struct bootpc_ifcontext {
 	} _req;
 #define	ireq	_req._ifreq
 #define	iareq	_req._in_alias_req
-	struct ifnet *ifp;
+	if_t ifp;
 	struct sockaddr_dl *sdl;
 	struct sockaddr_in myaddr;
 	struct sockaddr_in netmask;
@@ -263,7 +263,6 @@ static void bootpc_tag_helper(struct bootpc_tagcontext *tctx,
 		    unsigned char *start, int len, int tag);
 
 #ifdef BOOTP_DEBUG
-void bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa);
 void bootpboot_p_iflist(void);
 #endif
 
@@ -295,38 +294,35 @@ static __inline int bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx);
  */
 
 #ifdef BOOTP_DEBUG
-void
-bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
+static u_int
+bootpboot_p_ifa(void *ifp, struct ifaddr *ifa, u_int count __unused)
 {
 
 	printf("%s flags %x, addr ",
-	       ifp->if_xname, ifp->if_flags);
+	       if_name(ifp), if_getflags(ifp));
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_addr);
 	printf(", broadcast ");
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_dstaddr);
 	printf(", netmask ");
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_netmask);
 	printf("\n");
+
+	return (0);
 }
 
 void
 bootpboot_p_iflist(void)
 {
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
+	struct epoch_tracker et;
+	struct if_iter iter;
+	if_t ifp;
 
 	printf("Interface list:\n");
-	IFNET_RLOCK();
-	for (ifp = CK_STAILQ_FIRST(&V_ifnet);
-	     ifp != NULL;
-	     ifp = CK_STAILQ_NEXT(ifp, if_link)) {
-		for (ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
-		     ifa != NULL;
-		     ifa = CK_STAILQ_NEXT(ifa, ifa_link))
-			if (ifa->ifa_addr->sa_family == AF_INET)
-				bootpboot_p_if(ifp, ifa);
-	}
-	IFNET_RUNLOCK();
+	NET_EPOCH_ENTER(et);
+	for (ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter))
+		if_foreach_addr_type(ifp, AF_INET, bootpboot_p_ifa, ifp);
+	if_iter_finish(&iter);
+	NET_EPOCH_EXIT(et);
 }
 #endif /* defined(BOOTP_DEBUG) */
 
@@ -1498,14 +1494,31 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 	}
 }
 
+static u_int
+bootpc_init_ifa_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+
+	if (count != 0)
+		return (0);
+
+	if (sdl->sdl_type != IFT_ETHER)
+		return (0);
+
+	*(struct sockaddr_dl **)arg = sdl;
+
+	return (1);
+}
+
 void
 bootpc_init(void)
 {
+	struct epoch_tracker et;
 	struct bootpc_ifcontext *ifctx = NULL;	/* Interface BOOTP contexts */
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
-	struct ifnet *ifp;
 	struct sockaddr_dl *sdl;
-	struct ifaddr *ifa;
+	struct if_iter iter;
+	if_t ifp;
 	int error;
 #ifndef BOOTP_WIRED_TO
 	int ifcnt;
@@ -1573,22 +1586,15 @@ bootpc_init(void)
 	 * attaches and wins the race, it won't be eligible for bootp.
 	 */
 	ifcnt = 0;
-	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if ((ifp->if_flags &
-		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
+	NET_EPOCH_ENTER(et);
+	for (if_t ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter)) {
+		if ((if_getflags(ifp) &
+		    (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) ==
 		    IFF_BROADCAST)
-			continue;
-		switch (ifp->if_alloctype) {
-			case IFT_ETHER:
-				break;
-			default:
-				continue;
-		}
-		ifcnt++;
+			ifcnt++;
 	}
-
-	IFNET_RUNLOCK();
+	if_iter_finish(&iter);
+	NET_EPOCH_EXIT(et);
 	if (ifcnt == 0) {
 		printf("WARNING: BOOTP found no eligible network interfaces, skipping!\n");
 		goto out;
@@ -1600,37 +1606,32 @@ bootpc_init(void)
 
 retry:
 	ifctx = STAILQ_FIRST(&gctx->interfaces);
-	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	NET_EPOCH_ENTER(et);
+	for (ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter)) {
 		if (ifctx == NULL)
 			break;
 #ifdef BOOTP_WIRED_TO
-		if (strcmp(ifp->if_xname, __XSTRING(BOOTP_WIRED_TO)) != 0)
+		if (strcmp(if_name(ifp), __XSTRING(BOOTP_WIRED_TO)) != 0)
 			continue;
 #else
-		if ((ifp->if_flags &
+		if ((if_getflags(ifp) &
 		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
 		    IFF_BROADCAST)
-			continue;
-		switch (ifp->if_alloctype) {
+			break;
+		switch (if_getalloctype(ifp)) {
 			case IFT_ETHER:
 				break;
 			default:
 				continue;
 		}
 #endif
-		strlcpy(ifctx->ireq.ifr_name, ifp->if_xname,
+		strlcpy(ifctx->ireq.ifr_name, if_name(ifp),
 		    sizeof(ifctx->ireq.ifr_name));
 		ifctx->ifp = ifp;
 
 		/* Get HW address */
 		sdl = NULL;
-		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-			if (ifa->ifa_addr->sa_family == AF_LINK) {
-				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-				if (sdl->sdl_type == IFT_ETHER)
-					break;
-			}
+		if_foreach_addr_type(ifp, AF_LINK, bootpc_init_ifa_cb, &sdl);
 		if (sdl == NULL)
 			panic("bootpc: Unable to find HW address for %s",
 			    ifctx->ireq.ifr_name);
@@ -1638,7 +1639,8 @@ retry:
 
 		ifctx = STAILQ_NEXT(ifctx, next);
 	}
-	IFNET_RUNLOCK();
+	if_iter_finish(&iter);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	if (STAILQ_EMPTY(&gctx->interfaces) ||
@@ -1702,7 +1704,7 @@ retry:
 	if (gctx->gotrootpath != 0) {
 		struct epoch_tracker et;
 
-		kern_setenv("boot.netif.name", ifctx->ifp->if_xname);
+		kern_setenv("boot.netif.name", if_name(ifctx->ifp));
 
 		NET_EPOCH_ENTER(et);
 		bootpc_add_default_route(ifctx);
