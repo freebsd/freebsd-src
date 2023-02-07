@@ -106,7 +106,6 @@
 #define LUA_FLOAT_FLOAT		1
 #define LUA_FLOAT_DOUBLE	2
 #define LUA_FLOAT_LONGDOUBLE	3
-#define LUA_FLOAT_INT64		4
 
 
 /* Default configuration ('long long' and 'double', for 64-bit Lua) */
@@ -781,7 +780,7 @@
 
 
 
-
+#include <luaconf.local.h>
 
 #endif
 
