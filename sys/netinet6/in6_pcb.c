@@ -966,7 +966,7 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
     int lookupflags, struct ifnet *ifp, uint8_t numa_domain)
 {
 	struct inpcbhead *head;
-	struct inpcb *inp, *tmpinp;
+	struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
@@ -981,7 +981,6 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	/*
 	 * First look for an exact match.
 	 */
-	tmpinp = NULL;
 	head = &pcbinfo->ipi_hashbase[INP6_PCBHASH(faddr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
 	CK_LIST_FOREACH(inp, head, inp_hash) {
@@ -991,20 +990,9 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
 		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport) {
-			/*
-			 * XXX We should be able to directly return
-			 * the inp here, without any checks.
-			 * Well unless both bound with SO_REUSEPORT?
-			 */
-			if (prison_flag(inp->inp_cred, PR_IP6))
-				return (inp);
-			if (tmpinp == NULL)
-				tmpinp = inp;
-		}
+		    inp->inp_lport == lport)
+			return (inp);
 	}
-	if (tmpinp != NULL)
-		return (tmpinp);
 
 	/*
 	 * Then look for a wildcard match, if requested.
