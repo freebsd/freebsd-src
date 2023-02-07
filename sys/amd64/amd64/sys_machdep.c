@@ -391,9 +391,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 }
 
 int
-amd64_set_ioperm(td, uap)
-	struct thread *td;
-	struct i386_ioperm_args *uap;
+amd64_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 {
 	char *iomap;
 	struct amd64tss *tssp;
@@ -447,9 +445,7 @@ amd64_set_ioperm(td, uap)
 }
 
 int
-amd64_get_ioperm(td, uap)
-	struct thread *td;
-	struct i386_ioperm_args *uap;
+amd64_get_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 {
 	int i, state;
 	char *iomap;
