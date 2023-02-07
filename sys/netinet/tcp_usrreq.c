@@ -1387,48 +1387,25 @@ struct protosw tcp6_protosw = {
 #ifdef INET
 /*
  * Common subroutine to open a TCP connection to remote host specified
- * by struct sockaddr_in.  Call in_pcbconnect_setup() to choose local
- * host address and assign a local port number if needed.  Initialize
- * connection parameters and enter SYN-SENT state.
+ * by struct sockaddr_in.  Call in_pcbconnect() to choose local host address
+ * and assign a local port number and install the inpcb into the hash.
+ * Initialize connection parameters and enter SYN-SENT state.
  */
 static int
 tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = tptosocket(tp);
-	struct in_addr laddr;
-	u_short lport;
 	int error;
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
 	INP_HASH_WLOCK(&V_tcbinfo);
-	/*
-	 * Cannot simply call in_pcbconnect, because there might be an
-	 * earlier incarnation of this same connection still in
-	 * TIME_WAIT state, creating an ADDRINUSE error.
-	 */
-	laddr = inp->inp_laddr;
-	lport = inp->inp_lport;
-	error = in_pcbconnect_setup(inp, sin, &laddr.s_addr, &lport,
-	    &inp->inp_faddr.s_addr, &inp->inp_fport, td->td_ucred);
-	if (error) {
-		INP_HASH_WUNLOCK(&V_tcbinfo);
-		return (error);
-	}
-	/* Handle initial bind if it hadn't been done in advance. */
-	if (inp->inp_lport == 0) {
-		inp->inp_lport = lport;
-		if (in_pcbinshash(inp) != 0) {
-			inp->inp_lport = 0;
-			INP_HASH_WUNLOCK(&V_tcbinfo);
-			return (EAGAIN);
-		}
-	}
-	inp->inp_laddr = laddr;
-	in_pcbrehash(inp);
+	error = in_pcbconnect(inp, sin, td->td_ucred, true);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Compute window scaling to request:
