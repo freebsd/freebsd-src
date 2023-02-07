@@ -119,6 +119,7 @@ fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flo [label="Florian Smeets\nflo@FreeBSD.org\n2010/12/07"]
 fluffy [label="Dima Panov\nfluffy@FreeBSD.org\n2009/08/10"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
+fuz [label="Robert Clausecker\nfuz@FreeBSD.org\n2023/02/02"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
@@ -426,6 +427,8 @@ eadler -> milki
 eadler -> tj
 eadler -> vg
 
+eduardo -> fuz
+
 edwin -> cperciva
 edwin -> erwin
 edwin -> linimon
@@ -459,6 +462,7 @@ fjoe -> krion
 fjoe -> osa
 
 flo -> bar
+flo -> fuz
 flo -> jase
 flo -> jbeich
 flo -> grembo
