@@ -153,7 +153,7 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/packet%s received (IPv6)}\n");
 	pfsync_acts_stats("input-histogram", "received",
 	    &pfsyncstat.pfsyncs_iacts[0]);
-	p(pfsyncs_badif, "\t\t/{:dropped-bad-interface/%ju} "
+	p(pfsyncs_badif, "\t\t{:dropped-bad-interface/%ju} "
 	    "{N:/packet%s discarded for bad interface}\n");
 	p(pfsyncs_badttl, "\t\t{:dropped-bad-ttl/%ju} "
 	    "{N:/packet%s discarded for bad ttl}\n");
