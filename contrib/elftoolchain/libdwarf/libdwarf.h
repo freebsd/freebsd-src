@@ -599,6 +599,7 @@ int		dwarf_get_MACINFO_name(unsigned, const char **);
 int		dwarf_get_OP_name(unsigned, const char **);
 int		dwarf_get_ORD_name(unsigned, const char **);
 int		dwarf_get_TAG_name(unsigned, const char **);
+int		dwarf_get_UT_name(unsigned, const char **);
 int		dwarf_get_VIRTUALITY_name(unsigned, const char **);
 int		dwarf_get_VIS_name(unsigned, const char **);
 int		dwarf_get_abbrev(Dwarf_Debug, Dwarf_Unsigned, Dwarf_Abbrev *,
