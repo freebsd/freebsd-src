@@ -1,16 +1,17 @@
-Summary: byacc - public domain Berkeley LALR Yacc parser generator
-%define AppProgram byacc
-%define AppVersion 20200330
-%define UseProgram yacc
-# $Id: mingw-byacc.spec,v 1.29 2020/03/30 23:31:42 tom Exp $
-Name: %{AppProgram}
-Version: %{AppVersion}
+Summary: public domain Berkeley LALR Yacc parser generator
+
+%global AppVersion 2.0
+%global AppPatched 20230201
+
+%global UseProgram yacc
+
+# $Id: mingw-byacc.spec,v 1.47 2023/02/02 00:12:06 tom Exp $
+Name: byacc
+Version: %{AppVersion}.%{AppPatched}
 Release: 1
 License: Public Domain, MIT
-Group: Applications/Development
-URL: ftp://invisible-island.net/%{AppProgram}
-Source0: %{AppProgram}-%{AppVersion}.tgz
-Packager: Thomas Dickey <dickey@invisible-island.net>
+URL: https://invisible-island.net/%{name}/
+Source0: https://invisible-mirror.net/archives/%{name}/%{name}-%{AppPatched}.tgz
 
 %description
 This package provides a parser generator utility that reads a grammar
@@ -21,9 +22,9 @@ license which includes the generated C.
 
 %prep
 
-%define debug_package %{nil}
+%global debug_package %{nil}
 
-%setup -q -n %{AppProgram}-%{AppVersion}
+%setup -q -n %{name}-%{AppPatched}
 
 %build
 %configure --verbose \
@@ -39,22 +40,26 @@ make
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
-make install                    DESTDIR=$RPM_BUILD_ROOT
-( cd $RPM_BUILD_ROOT%{_bindir} && ln -s %{AppProgram} %{UseProgram} )
+make install DESTDIR=$RPM_BUILD_ROOT
+( cd $RPM_BUILD_ROOT%{_bindir} && ln -s %{name} %{UseProgram} )
 
-strip $RPM_BUILD_ROOT%{_bindir}/%{AppProgram}
+strip $RPM_BUILD_ROOT%{_bindir}/%{name}
 
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(-,root,root)
-%{_prefix}/bin/%{AppProgram}
-%{_prefix}/bin/%{UseProgram}
-%{_mandir}/man1/%{AppProgram}.*
+%doc ACKNOWLEDGEMENTS CHANGES NEW_FEATURES NOTES NO_WARRANTY README
+%license LICENSE
+%{_bindir}/%{name}
+%{_bindir}/%{UseProgram}
+%{_mandir}/man1/%{name}.*
 
 %changelog
 # each patch should add its ChangeLog entries here
+
+* Sun Jan 09 2022 Thomas Dickey
+- rpmlint
 
 * Sun Jul 09 2017 Thomas Dickey
 - use predefined "configure"

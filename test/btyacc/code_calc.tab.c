@@ -1,7 +1,7 @@
 #undef YYBTYACC
 #define YYBTYACC 0
 #define YYDEBUGSTR YYPREFIX "debug"
-typedef short YYINT;
+typedef int YYINT;
 const YYINT calc_lhs[] = {                        -1,
     0,    0,    0,    1,    1,    2,    2,    2,    2,    2,
     2,    2,    2,    2,    2,    2,    3,    3,

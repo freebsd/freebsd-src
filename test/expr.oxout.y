@@ -183,8 +183,8 @@ void yyyfatal(char *msg)
 
 
 void yyyHandleOverflow(char which) 
-  {char *msg1,*msg2; 
-   long  oldSize,newSize; 
+  {char *msg1 = "?", *msg2; 
+   long  oldSize = 0, newSize; 
    switch(which) 
      {
       case yyySSALof : 
@@ -491,7 +491,7 @@ if (yyyCond(1) != yyyPass) {
 }
 if (yyyCond(2) != yyyPass) {
 #line 23 "expr.Y"
- printf("postfix:  ")/* missing ; */
+ printf("postfix:  ");
                    
 #line 497 "expr.oxout.y"
 }
@@ -793,11 +793,11 @@ void yyyYoxInit(void)
    static int yyyInitDone = 0;
    if (yyyInitDone) return;
  
-   if ((yyyRS = (struct yyyRSitem *) 
-         calloc((size_t)(yyyRSmaxSize+1), (size_t)sizeof(struct yyyRSitem))
+   if ((yyyRS = (yyyRSitem *) 
+         calloc((size_t)(yyyRSmaxSize+1), (size_t)sizeof(yyyRSitem))
        )  
        == 
-       ((struct yyyRSitem *) NULL) 
+       ((yyyRSitem *) NULL) 
       )   
       yyyfatal("malloc error in ox ready set space allocation\n");  
    yyyRS++; 
@@ -852,7 +852,7 @@ void yyyGenIntNode(long yyyProdNum, int yyyRHSlength, int yyyNattrbs, struct yyy
             (yyyRCT *) calloc((size_t)yyyNattrbs, (size_t)sizeof(yyyRCT));  
    if ((*yyyOxStackItem)->node->refCountList == (yyyRCT *) NULL) 
       yyyfatal("malloc error in ox reference count list space allocation\n");  
-   (*yyyOxStackItem)->node->prodNum = yyyProdNum; 
+   (*yyyOxStackItem)->node->prodNum = (int) yyyProdNum; 
    va_start(ap, yyval_OxAttrbs); 
    for (i=1;i<=yyyRHSlength;i++) 
      {yyySIT *yaccStDum = va_arg(ap,struct yyyOxAttrbs *)->yyyOxStackItem;
@@ -953,9 +953,9 @@ void yyyAdjustINRC(long yyyProdNum, int yyyRHSlength, long startP, long stopP, s
 
 
 
-void yyyGenLeaf(int nAttrbs,int typeNum,long startP,long stopP,YYSTYPE *yylval) 
+void yyyGenLeaf(int nAttrbs,int typeNum,long startP,long stopP,YYSTYPE *mylval) 
   {yyyRCT *rcPdum; 
-   yyySIT **yyyOxStackItem = &yylval->yyyOxAttrbs.yyyOxStackItem; 
+   yyySIT **yyyOxStackItem = &mylval->yyyOxAttrbs.yyyOxStackItem; 
    (*yyyOxStackItem) = (yyySIT *) malloc((size_t)sizeof(yyySIT)); 
    if ((*yyyOxStackItem) == (yyySIT *) NULL) 
       yyyfatal("malloc error in ox yacc semantic stack space allocation\n");
