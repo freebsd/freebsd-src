@@ -220,8 +220,7 @@ void (*vmm_resume_p)(void);
 bool efi_boot;
 
 static void
-cpu_startup(dummy)
-	void *dummy;
+cpu_startup(void *dummy)
 {
 	uintmax_t memsize;
 	char *sysenv;
@@ -584,9 +583,7 @@ DB_SHOW_COMMAND_FLAGS(dbregs, db_show_dbregs, DB_CMD_MEMSAFE)
 #endif
 
 void
-sdtossd(sd, ssd)
-	struct user_segment_descriptor *sd;
-	struct soft_segment_descriptor *ssd;
+sdtossd(struct user_segment_descriptor *sd, struct soft_segment_descriptor *ssd)
 {
 
 	ssd->ssd_base  = (sd->sd_hibase << 24) | sd->sd_lobase;
@@ -600,9 +597,7 @@ sdtossd(sd, ssd)
 }
 
 void
-ssdtosd(ssd, sd)
-	struct soft_segment_descriptor *ssd;
-	struct user_segment_descriptor *sd;
+ssdtosd(struct soft_segment_descriptor *ssd, struct user_segment_descriptor *sd)
 {
 
 	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
@@ -618,9 +613,7 @@ ssdtosd(ssd, sd)
 }
 
 void
-ssdtosyssd(ssd, sd)
-	struct soft_segment_descriptor *ssd;
-	struct system_segment_descriptor *sd;
+ssdtosyssd(struct soft_segment_descriptor *ssd, struct system_segment_descriptor *sd)
 {
 
 	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
