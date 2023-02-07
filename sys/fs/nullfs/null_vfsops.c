@@ -230,9 +230,7 @@ nullfs_mount(struct mount *mp)
  * Free reference to null layer
  */
 static int
-nullfs_unmount(mp, mntflags)
-	struct mount *mp;
-	int mntflags;
+nullfs_unmount(struct mount *mp, int mntflags)
 {
 	struct null_mount *mntdata;
 	struct mount *ump;
@@ -281,10 +279,7 @@ nullfs_unmount(mp, mntflags)
 }
 
 static int
-nullfs_root(mp, flags, vpp)
-	struct mount *mp;
-	int flags;
-	struct vnode **vpp;
+nullfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 	struct null_mount *mntdata;
@@ -305,19 +300,13 @@ nullfs_root(mp, flags, vpp)
 }
 
 static int
-nullfs_quotactl(mp, cmd, uid, arg)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	void *arg;
+nullfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg)
 {
 	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg);
 }
 
 static int
-nullfs_statfs(mp, sbp)
-	struct mount *mp;
-	struct statfs *sbp;
+nullfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	int error;
 	struct statfs *mstat;
@@ -352,9 +341,7 @@ nullfs_statfs(mp, sbp)
 }
 
 static int
-nullfs_sync(mp, waitfor)
-	struct mount *mp;
-	int waitfor;
+nullfs_sync(struct mount *mp, int waitfor)
 {
 	/*
 	 * XXX - Assumes no data cached at null layer.
@@ -363,11 +350,7 @@ nullfs_sync(mp, waitfor)
 }
 
 static int
-nullfs_vget(mp, ino, flags, vpp)
-	struct mount *mp;
-	ino_t ino;
-	int flags;
-	struct vnode **vpp;
+nullfs_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 {
 	int error;
 
@@ -381,11 +364,7 @@ nullfs_vget(mp, ino, flags, vpp)
 }
 
 static int
-nullfs_fhtovp(mp, fidp, flags, vpp)
-	struct mount *mp;
-	struct fid *fidp;
-	int flags;
-	struct vnode **vpp;
+nullfs_fhtovp(struct mount *mp, struct fid *fidp, int flags, struct vnode **vpp)
 {
 	int error;
 
@@ -396,13 +375,9 @@ nullfs_fhtovp(mp, fidp, flags, vpp)
 	return (null_nodeget(mp, *vpp, vpp));
 }
 
-static int                        
-nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname)
-	struct mount *mp;
-	int cmd;
-	struct vnode *filename_vp;
-	int namespace;
-	const char *attrname;
+static int
+nullfs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
+    int namespace, const char *attrname)
 {
 
 	return (VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd,
