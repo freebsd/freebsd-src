@@ -65,6 +65,7 @@ create_principal(kadm5_server_context *context,
     kadm5_principal_ent_rec defrec, *defent;
     uint32_t def_mask;
 
+    memset(ent, 0, sizeof(*ent));
     if((mask & required_mask) != required_mask)
 	return KADM5_BAD_MASK;
     if((mask & forbidden_mask))
@@ -72,7 +73,6 @@ create_principal(kadm5_server_context *context,
     if((mask & KADM5_POLICY) && strcmp(princ->policy, "default"))
 	/* XXX no real policies for now */
 	return KADM5_UNK_POLICY;
-    memset(ent, 0, sizeof(*ent));
     ret  = krb5_copy_principal(context->context, princ->principal,
 			       &ent->entry.principal);
     if(ret)
