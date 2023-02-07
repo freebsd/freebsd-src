@@ -870,7 +870,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	}
 
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
-		struct in6_addr laddr6;
 		struct sockaddr_in6 sin6;
 
 		sin6.sin6_family = AF_INET6;
@@ -878,16 +877,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin6.sin6_addr = sc->sc_inc.inc6_faddr;
 		sin6.sin6_port = sc->sc_inc.inc_fport;
 		sin6.sin6_flowinfo = sin6.sin6_scope_id = 0;
-		laddr6 = inp->in6p_laddr;
-		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
-			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
 		INP_HASH_WLOCK(&V_tcbinfo);
 		error = in6_pcbconnect(inp, &sin6, thread0.td_ucred, false);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
-		if (error != 0) {
-			inp->in6p_laddr = laddr6;
+		if (error != 0)
 			goto abort;
-		}
 		/* Override flowlabel from in6_pcbconnect. */
 		inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
 		inp->inp_flow |= sc->sc_flowlabel;
@@ -898,7 +892,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 #ifdef INET
 	{
-		struct in_addr laddr;
 		struct sockaddr_in sin;
 
 		inp->inp_options = (m) ? ip_srcroute(m) : NULL;
@@ -913,16 +906,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin.sin_addr = sc->sc_inc.inc_faddr;
 		sin.sin_port = sc->sc_inc.inc_fport;
 		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
-		laddr = inp->inp_laddr;
-		if (inp->inp_laddr.s_addr == INADDR_ANY)
-			inp->inp_laddr = sc->sc_inc.inc_laddr;
 		INP_HASH_WLOCK(&V_tcbinfo);
 		error = in_pcbconnect(inp, &sin, thread0.td_ucred, false);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
-		if (error != 0) {
-			inp->inp_laddr = laddr;
+		if (error != 0)
 			goto abort;
-		}
 	}
 #endif /* INET */
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
