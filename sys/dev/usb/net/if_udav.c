@@ -112,8 +112,8 @@ static int	udav_csr_write(struct udav_softc *, uint16_t, void *, int);
 static uint8_t	udav_csr_read1(struct udav_softc *, uint16_t);
 static int	udav_csr_write1(struct udav_softc *, uint16_t, uint8_t);
 static void	udav_reset(struct udav_softc *);
-static int	udav_ifmedia_upd(struct ifnet *);
-static void	udav_ifmedia_status(struct ifnet *, struct ifmediareq *);
+static int	udav_ifmedia_upd(if_t);
+static void	udav_ifmedia_status(if_t, struct ifmediareq *);
 
 static miibus_readreg_t udav_miibus_readreg;
 static miibus_writereg_t udav_miibus_writereg;
@@ -435,7 +435,7 @@ static void
 udav_init(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -445,7 +445,7 @@ udav_init(struct usb_ether *ue)
 	udav_stop(ue);
 
 	/* set MAC address */
-	udav_csr_write(sc, UDAV_PAR, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	udav_csr_write(sc, UDAV_PAR, if_getlladdr(ifp), ETHER_ADDR_LEN);
 
 	/* initialize network control register */
 
@@ -467,7 +467,7 @@ udav_init(struct usb_ether *ue)
 
 	usbd_xfer_set_stall(sc->sc_xfer[UDAV_BULK_DT_WR]);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	udav_start(ue);
 }
 
@@ -518,12 +518,12 @@ static void
 udav_setmulti(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
 		UDAV_SETBIT(sc, UDAV_RCR, UDAV_RCR_ALL|UDAV_RCR_PRMSC);
 		return;
 	}
@@ -547,15 +547,15 @@ static void
 udav_setpromisc(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	uint8_t rxmode;
 
 	rxmode = udav_csr_read1(sc, UDAV_RCR);
 	rxmode &= ~(UDAV_RCR_ALL | UDAV_RCR_PRMSC);
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		rxmode |= UDAV_RCR_ALL | UDAV_RCR_PRMSC;
-	else if (ifp->if_flags & IFF_ALLMULTI)
+	else if (if_getflags(ifp) & IFF_ALLMULTI)
 		rxmode |= UDAV_RCR_ALL;
 
 	/* write new mode bits */
@@ -579,7 +579,7 @@ static void
 udav_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct udav_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	int extra_len;
@@ -600,7 +600,7 @@ tr_setup:
 			 */
 			return;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 
 		if (m == NULL)
 			return;
@@ -661,7 +661,7 @@ udav_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct udav_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	struct usb_page_cache *pc;
 	struct udav_rxpkt stat;
 	int len;
@@ -737,11 +737,11 @@ static void
 udav_stop(struct usb_ether *ue)
 {
 	struct udav_softc *sc = ue->ue_sc;
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	if (!(sc->sc_flags & UDAV_FLAG_NO_PHY))
 		sc->sc_flags &= ~UDAV_FLAG_LINK;
 
@@ -756,9 +756,9 @@ udav_stop(struct usb_ether *ue)
 }
 
 static int
-udav_ifmedia_upd(struct ifnet *ifp)
+udav_ifmedia_upd(if_t ifp)
 {
-	struct udav_softc *sc = ifp->if_softc;
+	struct udav_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
 	int error;
@@ -773,9 +773,9 @@ udav_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+udav_ifmedia_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct udav_softc *sc = ifp->if_softc;
+	struct udav_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 
 	UDAV_LOCK(sc);

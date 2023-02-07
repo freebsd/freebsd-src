@@ -2192,7 +2192,7 @@ done:
 	 * will stall.  It's strange, but it works, so we keep reading
 	 * the statistics here.  *shrug*
 	 */
-	if (!(vap->iv_ifp->if_get_counter(vap->iv_ifp, IFCOUNTER_OPACKETS) %
+	if (!(if_getcounter(vap->iv_ifp, IFCOUNTER_OPACKETS) %
 	    UPGT_TX_STAT_INTERVAL))
 		upgt_get_stats(sc);
 

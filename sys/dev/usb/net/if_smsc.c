@@ -201,11 +201,11 @@ static uether_fn_t smsc_tick;
 static uether_fn_t smsc_setmulti;
 static uether_fn_t smsc_setpromisc;
 
-static int	smsc_ifmedia_upd(struct ifnet *);
-static void	smsc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	smsc_ifmedia_upd(if_t);
+static void	smsc_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int smsc_chip_init(struct smsc_softc *sc);
-static int smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static int smsc_ioctl(if_t ifp, u_long cmd, caddr_t data);
 
 static const struct usb_config smsc_config[SMSC_N_TRANSFER] = {
 	[SMSC_BULK_DT_WR] = {
@@ -537,7 +537,7 @@ smsc_miibus_statchg(device_t dev)
 {
 	struct smsc_softc *sc = device_get_softc(dev);
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
-	struct ifnet *ifp;
+	if_t ifp;
 	int locked;
 	int err;
 	uint32_t flow;
@@ -549,7 +549,7 @@ smsc_miibus_statchg(device_t dev)
 
 	ifp = uether_getifp(&sc->sc_ue);
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		goto done;
 
 	/* Use the MII status to determine link status */
@@ -631,9 +631,9 @@ done:
  *	Returns 0 on success or a negative error code.
  */
 static int
-smsc_ifmedia_upd(struct ifnet *ifp)
+smsc_ifmedia_upd(if_t ifp)
 {
-	struct smsc_softc *sc = ifp->if_softc;
+	struct smsc_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 	struct mii_softc *miisc;
 	int err;
@@ -658,9 +658,9 @@ smsc_ifmedia_upd(struct ifnet *ifp)
  *	Internally takes and releases the device lock.
  */
 static void
-smsc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+smsc_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct smsc_softc *sc = ifp->if_softc;
+	struct smsc_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 
 	SMSC_LOCK(sc);
@@ -712,12 +712,12 @@ static void
 smsc_setmulti(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint32_t hashtbl[2] = { 0, 0 };
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+	if (if_getflags(ifp) & (IFF_ALLMULTI | IFF_PROMISC)) {
 		smsc_dbg_printf(sc, "receive all multicast enabled\n");
 		sc->sc_mac_csr |= SMSC_MAC_CSR_MCPAS;
 		sc->sc_mac_csr &= ~SMSC_MAC_CSR_HPFILT;
@@ -761,14 +761,14 @@ static void
 smsc_setpromisc(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	smsc_dbg_printf(sc, "promiscuous mode %sabled\n",
-	                (ifp->if_flags & IFF_PROMISC) ? "en" : "dis");
+	                (if_getflags(ifp) & IFF_PROMISC) ? "en" : "dis");
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		sc->sc_mac_csr |= SMSC_MAC_CSR_PRMS;
 	else
 		sc->sc_mac_csr &= ~SMSC_MAC_CSR_PRMS;
@@ -788,7 +788,7 @@ smsc_setpromisc(struct usb_ether *ue)
  */
 static int smsc_sethwcsum(struct smsc_softc *sc)
 {
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	uint32_t val;
 	int err;
 
@@ -804,13 +804,13 @@ static int smsc_sethwcsum(struct smsc_softc *sc)
 	}
 
 	/* Enable/disable the Rx checksum */
-	if ((ifp->if_capabilities & ifp->if_capenable) & IFCAP_RXCSUM)
+	if ((if_getcapabilities(ifp) & if_getcapenable(ifp)) & IFCAP_RXCSUM)
 		val |= SMSC_COE_CTRL_RX_EN;
 	else
 		val &= ~SMSC_COE_CTRL_RX_EN;
 
 	/* Enable/disable the Tx checksum (currently not supported) */
-	if ((ifp->if_capabilities & ifp->if_capenable) & IFCAP_TXCSUM)
+	if ((if_getcapabilities(ifp) & if_getcapenable(ifp)) & IFCAP_TXCSUM)
 		val |= SMSC_COE_CTRL_TX_EN;
 	else
 		val &= ~SMSC_COE_CTRL_TX_EN;
@@ -901,14 +901,14 @@ static void
 smsc_init(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (smsc_setmacaddress(sc, IF_LLADDR(ifp)))
+	if (smsc_setmacaddress(sc, if_getlladdr(ifp)))
 		smsc_dbg_printf(sc, "setting MAC address failed\n");
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	/* Cancel pending I/O */
@@ -926,7 +926,7 @@ smsc_init(struct usb_ether *ue)
 	usbd_xfer_set_stall(sc->sc_xfer[SMSC_BULK_DT_WR]);
 
 	/* Indicate we are up and running. */
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
 	/* Switch to selected media. */
 	smsc_ifmedia_upd(ifp);
@@ -949,7 +949,7 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct smsc_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	struct mbuf *m;
 	struct usb_page_cache *pc;
 	uint32_t rxhdr;
@@ -1019,7 +1019,7 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				usbd_copy_out(pc, off, mtod(m, uint8_t *), pktlen);
 
 				/* Check if RX TCP/UDP checksumming is being offloaded */
-				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+				if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) {
 					struct ether_header *eh;
 
 					eh = mtod(m, struct ether_header *);
@@ -1119,7 +1119,7 @@ static void
 smsc_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct smsc_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	uint32_t txhdr;
@@ -1128,20 +1128,20 @@ smsc_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		/* FALLTHROUGH */
 
 	case USB_ST_SETUP:
 tr_setup:
 		if ((sc->sc_flags & SMSC_FLAG_LINK) == 0 ||
-			(ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
+			(if_getdrvflags(ifp) & IFF_DRV_OACTIVE) != 0) {
 			/* Don't send anything if there is no link or controller is busy. */
 			return;
 		}
 
 		for (nframes = 0; nframes < 16 &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd); nframes++) {
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		    !if_sendq_empty(ifp); nframes++) {
+			m = if_dequeue(ifp);
 			if (m == NULL)
 				break;
 			usbd_xfer_set_frame_offset(xfer, nframes * MCLBYTES,
@@ -1180,13 +1180,13 @@ tr_setup:
 		if (nframes != 0) {
 			usbd_xfer_set_frames(xfer, nframes);
 			usbd_transfer_submit(xfer);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 		}
 		return;
 
 	default:
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		
 		if (error != USB_ERR_CANCELLED) {
 			smsc_err_printf(sc, "usb error on tx: %s\n", usbd_errstr(error));
@@ -1252,11 +1252,11 @@ static void
 smsc_stop(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->sc_flags &= ~SMSC_FLAG_LINK;
 
 	/*
@@ -1498,9 +1498,9 @@ init_failed:
  *	0 on success and an error code on failure.
  */
 static int
-smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+smsc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct usb_ether *ue = ifp->if_softc;
+	struct usb_ether *ue = if_getsoftc(ifp);
 	struct smsc_softc *sc;
 	struct ifreq *ifr;
 	int rc;
@@ -1516,15 +1516,15 @@ smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		rc = 0;
 		reinit = 0;
 
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 
 		/* Modify the RX CSUM enable bits */
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 			
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				reinit = 1;
 			}
 		}
@@ -1614,32 +1614,31 @@ static int
 smsc_attach_post_sub(struct usb_ether *ue)
 {
 	struct smsc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	sc = uether_getsc(ue);
 	ifp = ue->ue_ifp;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = uether_start;
-	ifp->if_ioctl = smsc_ioctl;
-	ifp->if_init = uether_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, uether_start);
+	if_setioctlfn(ifp, smsc_ioctl);
+	if_setinitfn(ifp, uether_init);
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 
 	/* The chip supports TCP/UDP checksum offloading on TX and RX paths, however
 	 * currently only RX checksum is supported in the driver (see top of file).
 	 */
-	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_VLAN_MTU;
-	ifp->if_hwassist = 0;
+	if_setcapabilitiesbit(ifp, IFCAP_RXCSUM | IFCAP_VLAN_MTU, 0);
+	if_sethwassist(ifp, 0);
 
 	/* TX checksuming is disabled (for now?)
-	ifp->if_capabilities |= IFCAP_TXCSUM;
-	ifp->if_capenable |= IFCAP_TXCSUM;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
+	if_setcapabilitiesbit(ifp, IFCAP_TXCSUM, 0);
+	if_setcapenablebit(ifp, IFCAP_TXCSUM, 0);
+	if_sethwassist(ifp, CSUM_TCP | CSUM_UDP);
 	*/
 
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	bus_topo_lock();
 	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,

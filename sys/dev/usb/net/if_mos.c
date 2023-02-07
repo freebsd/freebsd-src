@@ -180,8 +180,8 @@ static void mos_stop(struct usb_ether *);
 static int mos_miibus_readreg(device_t, int, int);
 static int mos_miibus_writereg(device_t, int, int, int);
 static void mos_miibus_statchg(device_t);
-static int mos_ifmedia_upd(struct ifnet *);
-static void mos_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int mos_ifmedia_upd(if_t);
+static void mos_ifmedia_sts(if_t, struct ifmediareq *);
 static void mos_reset(struct mos_softc *sc);
 
 static int mos_reg_read_1(struct mos_softc *, int);
@@ -529,9 +529,9 @@ mos_miibus_statchg(device_t dev)
  * Set media options.
  */
 static int
-mos_ifmedia_upd(struct ifnet *ifp)
+mos_ifmedia_upd(if_t ifp)
 {
-	struct mos_softc *sc = ifp->if_softc;
+	struct mos_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
 	int error;
@@ -549,9 +549,9 @@ mos_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-mos_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+mos_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct mos_softc *sc = ifp->if_softc;
+	struct mos_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 
 	MOS_LOCK(sc);
@@ -566,7 +566,7 @@ static void
 mos_setpromisc(struct usb_ether *ue)
 {
 	struct mos_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	uint8_t rxmode;
 
@@ -575,7 +575,7 @@ mos_setpromisc(struct usb_ether *ue)
 	rxmode = mos_reg_read_1(sc, MOS_CTL);
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		rxmode |= MOS_CTL_RX_PROMISC;
 	} else {
 		rxmode &= ~MOS_CTL_RX_PROMISC;
@@ -600,7 +600,7 @@ static void
 mos_setmulti(struct usb_ether *ue)
 {
 	struct mos_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint8_t rxmode;
 	uint8_t hashtbl[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 	int allmulti = 0;
@@ -609,7 +609,7 @@ mos_setmulti(struct usb_ether *ue)
 
 	rxmode = mos_reg_read_1(sc, MOS_CTL);
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC)
 		allmulti = 1;
 
 	/* get all new ones */
@@ -773,7 +773,7 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct mos_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	uint8_t rxstat = 0;
 	uint32_t actlen;
@@ -845,7 +845,7 @@ static void
 mos_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct mos_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 
@@ -859,7 +859,7 @@ tr_setup:
 		/*
 		 * XXX: don't send anything if there is no link?
 		 */
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			return;
 
@@ -925,7 +925,7 @@ static void
 mos_init(struct usb_ether *ue)
 {
 	struct mos_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint8_t rxmode;
 
 	MOS_LOCK_ASSERT(sc, MA_OWNED);
@@ -934,7 +934,7 @@ mos_init(struct usb_ether *ue)
 	mos_reset(sc);
 
 	/* Write MAC address */
-	mos_writemac(sc, IF_LLADDR(ifp));
+	mos_writemac(sc, if_getlladdr(ifp));
 
 	/* Read and set transmitter IPG values */
 	sc->mos_ipgs[0] = mos_reg_read_1(sc, MOS_IPG0);
@@ -958,7 +958,7 @@ mos_init(struct usb_ether *ue)
 	/* Load the multicast filter. */
 	mos_setmulti(ue);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	mos_start(ue);
 }
 
@@ -966,7 +966,7 @@ static void
 mos_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct mos_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	uint32_t pkt;
 	int actlen;
@@ -1002,12 +1002,12 @@ static void
 mos_stop(struct usb_ether *ue)
 {
 	struct mos_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	mos_reset(sc);
 
 	MOS_LOCK_ASSERT(sc, MA_OWNED);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 
 	/* stop all the transfers, if not already stopped */
 	usbd_transfer_stop(sc->sc_xfer[MOS_ENDPT_TX]);

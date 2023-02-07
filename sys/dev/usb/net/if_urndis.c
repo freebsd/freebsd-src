@@ -369,11 +369,11 @@ static void
 urndis_init(struct usb_ether *ue)
 {
 	struct urndis_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	URNDIS_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
 	/* stall data write direction, which depends on USB mode */
 	usbd_xfer_set_stall(sc->sc_xfer[URNDIS_BULK_TX]);
@@ -386,11 +386,11 @@ static void
 urndis_stop(struct usb_ether *ue)
 {
 	struct urndis_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	URNDIS_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 
 	/*
 	 * stop all the transfers, if not already stopped:
@@ -818,7 +818,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urndis_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc = usbd_xfer_get_frame(xfer, 0);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct rndis_packet_msg msg;
 	struct mbuf *m;
 	int actlen;
@@ -947,7 +947,7 @@ urndis_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rndis_packet_msg msg;
 	struct urndis_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct mbuf *m;
 	unsigned x;
 	int actlen;
@@ -974,7 +974,7 @@ tr_setup:
 			usbd_xfer_set_frame_offset(xfer, x * RNDIS_TX_MAXLEN, x);
 
 next_pkt:
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+			m = if_dequeue(ifp);
 
 			if (m == NULL)
 				break;

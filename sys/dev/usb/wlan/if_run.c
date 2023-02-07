@@ -414,7 +414,7 @@ static void	run_get_txpower(struct run_softc *);
 static int	run_read_eeprom(struct run_softc *);
 static struct ieee80211_node *run_node_alloc(struct ieee80211vap *,
 			    const uint8_t mac[IEEE80211_ADDR_LEN]);
-static int	run_media_change(struct ifnet *);
+static int	run_media_change(if_t);
 static int	run_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	run_wme_update(struct ieee80211com *);
 static void	run_key_set_cb(void *);
@@ -2116,9 +2116,9 @@ run_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 }
 
 static int
-run_media_change(struct ifnet *ifp)
+run_media_change(if_t ifp)
 {
-	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211vap *vap = if_getsoftc(ifp);
 	struct ieee80211com *ic = vap->iv_ic;
 	const struct ieee80211_txparam *tp;
 	struct run_softc *sc = ic->ic_softc;
@@ -2154,8 +2154,8 @@ run_media_change(struct ifnet *ifp)
 	}
 
 #if 0
-	if ((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags &  RUN_RUNNING)){
+	if ((if_getflags(ifp) & IFF_UP) &&
+	    (if_getdrvflags(ifp) &  RUN_RUNNING)){
 		run_init_locked(sc);
 	}
 #endif
