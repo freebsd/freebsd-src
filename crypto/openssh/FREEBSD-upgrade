@@ -130,6 +130,10 @@
    reading options but before trying to connect.  This eliminates the
    usual problem with duplicate known_hosts entries.
 
+   We added this support in 2002 (r99054 / bf2e2524a2ce).  In 2014
+   upstream introduced CanonicalDomains and related options to serve a
+   similar purpose but they require environment-specific configuration.
+
 4) setusercontext() environment
 
    Our setusercontext(3) can set environment variables, which we must
