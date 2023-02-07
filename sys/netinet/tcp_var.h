@@ -139,7 +139,7 @@ typedef enum {
  * Tcp control block, one per tcp connection.
  */
 struct tcpcb {
-	struct inpcb t_inpcb;		/* embedded protocol indepenent cb */
+	struct inpcb t_inpcb;		/* embedded protocol independent cb */
 #define	t_start_zero	t_fb
 #define	t_zero_size	(sizeof(struct tcpcb) - \
 			    offsetof(struct tcpcb, t_start_zero))
