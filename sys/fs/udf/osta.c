@@ -211,9 +211,7 @@ static unsigned short crc_table[256] = {
 };
 
 unsigned short
-udf_cksum(s, n)
-	unsigned char *s;
-	int n;
+udf_cksum(unsigned char *s, int n)
 {
 	unsigned short crc=0;
 
@@ -224,9 +222,7 @@ udf_cksum(s, n)
 
 /* UNICODE Checksum */
 unsigned short
-udf_unicode_cksum(s, n)
-	unsigned short *s;
-	int n;
+udf_unicode_cksum(unsigned short *s, int n)
 {
 	unsigned short crc=0;
 
