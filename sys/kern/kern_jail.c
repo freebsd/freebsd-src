@@ -771,7 +771,7 @@ prison_ip_set(struct prison *pr, const pr_family_t af, struct prison_ip *new)
 	mem = &pr->pr_addrs[af];
 
 	old = *mem;
-	ck_pr_store_ptr(mem, new);
+	atomic_store_ptr(mem, new);
 	prison_ip_free(old);
 }
 
@@ -897,7 +897,7 @@ prison_ip_check(const struct prison *pr, const pr_family_t af,
 	    in_epoch(net_epoch_preempt) ||
 	    sx_xlocked(&allprison_lock));
 
-	pip = ck_pr_load_ptr(&pr->pr_addrs[af]);
+	pip = atomic_load_ptr(&pr->pr_addrs[af]);
 	if (__predict_false(pip == NULL))
 		return (EAFNOSUPPORT);
 
