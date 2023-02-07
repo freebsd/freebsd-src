@@ -45,6 +45,8 @@ padlock_capability:
 .align	16
 padlock_key_bswap:
 	movl	240(%rdi),%edx
+	incl	%edx
+	shll	$2,%edx
 .Lbswap_loop:
 	movl	(%rdi),%eax
 	bswapl	%eax
