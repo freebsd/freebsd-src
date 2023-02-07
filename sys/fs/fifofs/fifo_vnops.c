@@ -126,14 +126,7 @@ fifo_cleanup(struct vnode *vp)
  */
 /* ARGSUSED */
 static int
-fifo_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-		struct file *a_fp;
-	} */ *ap;
+fifo_open(struct vop_open_args *ap)
 {
 	struct vnode *vp;
 	struct file *fp;
@@ -268,13 +261,7 @@ fifo_open(ap)
  */
 /* ARGSUSED */
 static int
-fifo_close(ap)
-	struct vop_close_args /* {
-		struct vnode *a_vp;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+fifo_close(struct vop_close_args *ap)
 {
 	struct vnode *vp;
 	struct fifoinfo *fip;
@@ -331,8 +318,7 @@ fifo_close(ap)
  * Print out internal contents of a fifo vnode.
  */
 int
-fifo_printinfo(vp)
-	struct vnode *vp;
+fifo_printinfo(struct vnode *vp)
 {
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
@@ -349,10 +335,7 @@ fifo_printinfo(vp)
  * Print out the contents of a fifo vnode.
  */
 static int
-fifo_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+fifo_print(struct vop_print_args *ap)
 {
 	printf("    ");
 	fifo_printinfo(ap->a_vp);
@@ -365,14 +348,7 @@ fifo_print(ap)
  */
 /* ARGSUSED */
 static int
-fifo_advlock(ap)
-	struct vop_advlock_args /* {
-		struct vnode *a_vp;
-		caddr_t  a_id;
-		int  a_op;
-		struct flock *a_fl;
-		int  a_flags;
-	} */ *ap;
+fifo_advlock(struct vop_advlock_args *ap)
 {
 
 	if ((ap->a_flags & F_FLOCK) == 0)
