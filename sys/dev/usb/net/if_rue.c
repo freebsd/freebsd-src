@@ -158,8 +158,8 @@ static int	rue_csr_write_2(struct rue_softc *, uint16_t, uint16_t);
 static int	rue_csr_write_4(struct rue_softc *, int, uint32_t);
 
 static void	rue_reset(struct rue_softc *);
-static int	rue_ifmedia_upd(struct ifnet *);
-static void	rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	rue_ifmedia_upd(if_t);
+static void	rue_ifmedia_sts(if_t, struct ifmediareq *);
 
 static const struct usb_config rue_config[RUE_N_TRANSFER] = {
 	[RUE_BULK_DT_WR] = {
@@ -459,12 +459,12 @@ static void
 rue_setpromisc(struct usb_ether *ue)
 {
 	struct rue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		RUE_SETBIT(sc, RUE_RCR, RUE_RCR_AAP);
 	else
 		RUE_CLRBIT(sc, RUE_RCR, RUE_RCR_AAP);
@@ -492,7 +492,7 @@ static void
 rue_setmulti(struct usb_ether *ue)
 {
 	struct rue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint16_t rxcfg;
 	uint32_t hashes[2] = { 0, 0 };
 	int mcnt;
@@ -501,7 +501,7 @@ rue_setmulti(struct usb_ether *ue)
 
 	rxcfg = rue_csr_read_2(sc, RUE_RCR);
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
 		rxcfg |= (RUE_RCR_AAM | RUE_RCR_AAP);
 		rxcfg &= ~RUE_RCR_AM;
 		rue_csr_write_2(sc, RUE_RCR, rxcfg);
@@ -638,7 +638,7 @@ static void
 rue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rue_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct rue_intrpkt pkt;
 	struct usb_page_cache *pc;
 	int actlen;
@@ -648,7 +648,7 @@ rue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (ifp && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
+		if (ifp && (if_getdrvflags(ifp) & IFF_DRV_RUNNING) &&
 		    actlen >= (int)sizeof(pkt)) {
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
@@ -679,7 +679,7 @@ rue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rue_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	struct usb_page_cache *pc;
 	uint16_t status;
 	int actlen;
@@ -729,7 +729,7 @@ static void
 rue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rue_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	int temp_len;
@@ -748,7 +748,7 @@ tr_setup:
 			 */
 			return;
 		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 
 		if (m == NULL)
 			return;
@@ -832,7 +832,7 @@ static void
 rue_init(struct usb_ether *ue)
 {
 	struct rue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -842,7 +842,7 @@ rue_init(struct usb_ether *ue)
 	rue_reset(sc);
 
 	/* Set MAC address */
-	rue_write_mem(sc, RUE_IDR0, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	rue_write_mem(sc, RUE_IDR0, if_getlladdr(ifp), ETHER_ADDR_LEN);
 
 	rue_stop(ue);
 
@@ -862,7 +862,7 @@ rue_init(struct usb_ether *ue)
 
 	usbd_xfer_set_stall(sc->sc_xfer[RUE_BULK_DT_WR]);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	rue_start(ue);
 }
 
@@ -870,9 +870,9 @@ rue_init(struct usb_ether *ue)
  * Set media options.
  */
 static int
-rue_ifmedia_upd(struct ifnet *ifp)
+rue_ifmedia_upd(if_t ifp)
 {
-	struct rue_softc *sc = ifp->if_softc;
+	struct rue_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
 	int error;
@@ -890,9 +890,9 @@ rue_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-rue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+rue_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct rue_softc *sc = ifp->if_softc;
+	struct rue_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 
 	RUE_LOCK(sc);
@@ -906,11 +906,11 @@ static void
 rue_stop(struct usb_ether *ue)
 {
 	struct rue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	RUE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	sc->sc_flags &= ~RUE_FLAG_LINK;
 
 	/*

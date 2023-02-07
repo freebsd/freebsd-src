@@ -291,12 +291,12 @@ static void
 cue_setpromisc(struct usb_ether *ue)
 {
 	struct cue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
 	/* if we want promiscuous mode, set the allframes bit */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		CUE_SETBIT(sc, CUE_ETHCTL, CUE_ETHCTL_PROMISC);
 	else
 		CUE_CLRBIT(sc, CUE_ETHCTL, CUE_ETHCTL_PROMISC);
@@ -321,13 +321,13 @@ static void
 cue_setmulti(struct usb_ether *ue)
 {
 	struct cue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint32_t h, i;
 	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
 		for (i = 0; i < 8; i++)
 			hashtbl[i] = 0xff;
 		cue_mem(sc, CUE_CMD_WRITESRAM, CUE_MCAST_TABLE_ADDR,
@@ -342,8 +342,8 @@ cue_setmulti(struct usb_ether *ue)
 	 * Also include the broadcast address in the filter
 	 * so we can receive broadcast frames.
  	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		h = cue_mchash(ifp->if_broadcastaddr);
+	if (if_getflags(ifp) & IFF_BROADCAST) {
+		h = cue_mchash(if_getbroadcastaddr(ifp));
 		hashtbl[h >> 3] |= 1 << (h & 0x7);
 	}
 
@@ -454,7 +454,7 @@ cue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct cue_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	struct usb_page_cache *pc;
 	uint8_t buf[2];
 	int len;
@@ -501,7 +501,7 @@ static void
 cue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct cue_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	uint8_t buf[2];
@@ -514,7 +514,7 @@ cue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 
 		if (m == NULL)
 			return;
@@ -562,7 +562,7 @@ static void
 cue_tick(struct usb_ether *ue)
 {
 	struct cue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -590,7 +590,7 @@ static void
 cue_init(struct usb_ether *ue)
 {
 	struct cue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	int i;
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
@@ -604,7 +604,7 @@ cue_init(struct usb_ether *ue)
 #endif
 	/* Set MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		cue_csr_write_1(sc, CUE_PAR0 - i, IF_LLADDR(ifp)[i]);
+		cue_csr_write_1(sc, CUE_PAR0 - i, if_getlladdr(ifp)[i]);
 
 	/* Enable RX logic. */
 	cue_csr_write_1(sc, CUE_ETHCTL, CUE_ETHCTL_RX_ON | CUE_ETHCTL_MCAST_ON);
@@ -628,7 +628,7 @@ cue_init(struct usb_ether *ue)
 
 	usbd_xfer_set_stall(sc->sc_xfer[CUE_BULK_DT_WR]);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	cue_start(ue);
 }
 
@@ -640,11 +640,11 @@ static void
 cue_stop(struct usb_ether *ue)
 {
 	struct cue_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	CUE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 
 	/*
 	 * stop all the transfers, if not already stopped:

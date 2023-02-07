@@ -68,11 +68,11 @@
 
 static void usbpf_init(void *);
 static void usbpf_uninit(void *);
-static int usbpf_ioctl(struct ifnet *, u_long, caddr_t);
+static int usbpf_ioctl(if_t, u_long, caddr_t);
 static int usbpf_clone_match(struct if_clone *, const char *);
 static int usbpf_clone_create(struct if_clone *, char *, size_t,
-	    struct ifc_data *, struct ifnet **);
-static int usbpf_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
+	    struct ifc_data *, if_t *);
+static int usbpf_clone_destroy(struct if_clone *, if_t, uint32_t);
 static struct usb_bus *usbpf_ifname2ubus(const char *);
 static uint32_t usbpf_aggregate_xferflags(struct usb_xfer_flags *);
 static uint32_t usbpf_aggregate_status(struct usb_xfer_flags_int *);
@@ -124,7 +124,7 @@ usbpf_uninit(void *arg)
 }
 
 static int
-usbpf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+usbpf_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 
 	/* No configuration allowed. */
@@ -170,11 +170,11 @@ usbpf_clone_match(struct if_clone *ifc, const char *name)
 
 static int
 usbpf_clone_create(struct if_clone *ifc, char *name, size_t len,
-    struct ifc_data *ifd, struct ifnet **ifpp)
+    struct ifc_data *ifd, if_t *ifpp)
 {
 	int error;
 	int unit;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct usb_bus *ubus;
 
 	error = ifc_name2unit(name, &unit);
@@ -202,13 +202,12 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len,
 		    "instance\n");
 		return (ENOSPC);
 	}
-	strlcpy(ifp->if_xname, name, sizeof(ifp->if_xname));
-	ifp->if_softc = ubus;
-	ifp->if_dname = usbusname;
-	ifp->if_dunit = unit;
-	ifp->if_ioctl = usbpf_ioctl;
+	if_setsoftc(ifp, ubus);
+	if_initname(ifp, usbusname, unit);
+	if_setname(ifp, name);
+	if_setioctlfn(ifp, usbpf_ioctl);
 	if_attach(ifp);
-	ifp->if_flags |= IFF_UP;
+	if_setflagbits(ifp, IFF_UP, 0);
 	rt_ifmsg(ifp, IFF_UP);
 	/*
 	 * XXX According to the specification of DLT_USB, it indicates
@@ -222,13 +221,13 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len,
 }
 
 static int
-usbpf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
+usbpf_clone_destroy(struct if_clone *ifc, if_t ifp, uint32_t flags)
 {
 	struct usb_bus *ubus;
 	int unit;
 
-	ubus = ifp->if_softc;
-	unit = ifp->if_dunit;
+	ubus = if_getsoftc(ifp);
+	unit = if_getdunit(ifp);
 
 	/*
 	 * Lock USB before clearing the "ifp" pointer, to avoid
@@ -410,9 +409,9 @@ usbpf_xfertap(struct usb_xfer *xfer, int type)
 	bus = xfer->xroot->bus;
 
 	/* sanity checks */
-	if (bus->ifp == NULL || bus->ifp->if_bpf == NULL)
+	if (bus->ifp == NULL || if_getbpf(bus->ifp) == NULL)
 		return;
-	if (!bpf_peers_present(bus->ifp->if_bpf))
+	if (!bpf_peers_present(if_getbpf(bus->ifp)))
 		return;
 
 	totlen = usbpf_xfer_precompute_size(xfer, type);
@@ -535,7 +534,7 @@ usbpf_xfertap(struct usb_xfer *xfer, int type)
 		}
 	}
 
-	bpf_tap(bus->ifp->if_bpf, buf, totlen);
+	bpf_tap_if(bus->ifp, buf, totlen);
 
 	free(buf, M_TEMP);
 }

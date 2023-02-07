@@ -684,7 +684,7 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	struct rsu_softc *sc = ic->ic_softc;
 	struct rsu_vap *uvp;
 	struct ieee80211vap *vap;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))         /* only one at a time */
 		return (NULL);
@@ -700,10 +700,10 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	}
 
 	ifp = vap->iv_ifp;
-	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+	if_setcapabilities(ifp, IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
 	RSU_LOCK(sc);
 	if (sc->sc_rx_checksum_enable)
-		ifp->if_capenable |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+		if_setcapenablebit(ifp, IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6, 0);
 	RSU_UNLOCK(sc);
 
 	/* override state transition machine */
@@ -3036,11 +3036,11 @@ rsu_ioctl_net(struct ieee80211com *ic, u_long cmd, void *data)
 
 		IEEE80211_LOCK(ic);	/* XXX */
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			struct ifnet *ifp = vap->iv_ifp;
+			if_t ifp = vap->iv_ifp;
 
-			ifp->if_capenable &=
-			    ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-			ifp->if_capenable |= rxmask;
+			if_setcapenablebit(ifp, 0,
+			    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+			if_setcapenablebit(ifp, rxmask, 0);
 		}
 		IEEE80211_UNLOCK(ic);
 		break;

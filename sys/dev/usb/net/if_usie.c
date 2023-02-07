@@ -128,12 +128,12 @@ static void usie_if_sync_to(void *);
 static void usie_if_sync_cb(void *, int);
 static void usie_if_status_cb(void *, int);
 
-static void usie_if_start(struct ifnet *);
-static int usie_if_output(struct ifnet *, struct mbuf *,
+static void usie_if_start(if_t);
+static int usie_if_output(if_t, struct mbuf *,
 	const struct sockaddr *, struct route *);
 static void usie_if_init(void *);
 static void usie_if_stop(struct usie_softc *);
-static int usie_if_ioctl(struct ifnet *, u_long, caddr_t);
+static int usie_if_ioctl(if_t, u_long, caddr_t);
 
 static int usie_do_request(struct usie_softc *, struct usb_device_request *, void *);
 static int usie_if_cmd(struct usie_softc *, uint8_t);
@@ -295,7 +295,7 @@ usie_attach(device_t self)
 {
 	struct usie_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
-	struct ifnet *ifp;
+	if_t ifp;
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
 	struct usb_device_request req;
@@ -440,16 +440,15 @@ usie_attach(device_t self)
 	}
 	if_initname(ifp, "usie", device_get_unit(self));
 
-	ifp->if_softc = sc;
-	ifp->if_mtu = USIE_MTU_MAX;
-	ifp->if_flags |= IFF_NOARP;
-	ifp->if_init = usie_if_init;
-	ifp->if_ioctl = usie_if_ioctl;
-	ifp->if_start = usie_if_start;
-	ifp->if_output = usie_if_output;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setsoftc(ifp, sc);
+	if_setmtu(ifp, USIE_MTU_MAX);
+	if_setflagbits(ifp, IFF_NOARP, 0);
+	if_setinitfn(ifp, usie_if_init);
+	if_setioctlfn(ifp, usie_if_ioctl);
+	if_setstartfn(ifp, usie_if_start);
+	if_setoutputfn(ifp, usie_if_output);
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_RAW, 0);
@@ -772,7 +771,7 @@ usie_if_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct epoch_tracker et;
 	struct usie_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m0;
 	struct mbuf *m = NULL;
 	struct usie_desc *rxd;
@@ -930,24 +929,24 @@ usie_if_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usie_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m;
 	uint16_t size;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* fall though */
 	case USB_ST_SETUP:
 tr_setup:
 
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 
@@ -1064,7 +1063,7 @@ static void
 usie_if_status_cb(void *arg, int pending)
 {
 	struct usie_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct usb_device_request req;
 	struct usie_hip *hip;
 	struct usie_lsi *lsi;
@@ -1143,8 +1142,8 @@ usie_if_status_cb(void *arg, int pending)
 		memcpy(&sc->sc_net.dns2_addr, &lsi->dns2_addr, 16);
 		memcpy(sc->sc_net.pdp_addr, lsi->pdp_addr, 16);
 		memcpy(sc->sc_net.gw_addr, lsi->gw_addr, 16);
-		ifp->if_flags |= IFF_UP;
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_setflagbits(ifp, IFF_UP, 0);
+		if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
 		device_printf(sc->sc_dev, "IP Addr=%d.%d.%d.%d\n",
 		    *lsi->pdp_addr, *(lsi->pdp_addr + 1),
@@ -1174,11 +1173,11 @@ usie_if_status_cb(void *arg, int pending)
 }
 
 static void
-usie_if_start(struct ifnet *ifp)
+usie_if_start(if_t ifp)
 {
-	struct usie_softc *sc = ifp->if_softc;
+	struct usie_softc *sc = if_getsoftc(ifp);
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		DPRINTF("Not running\n");
 		return;
 	}
@@ -1190,7 +1189,7 @@ usie_if_start(struct ifnet *ifp)
 }
 
 static int
-usie_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+usie_if_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	int err;
@@ -1216,7 +1215,7 @@ usie_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		return (EAFNOSUPPORT);
 	}
 
-	err = (ifp->if_transmit)(ifp, m);
+	err = if_transmit(ifp, m);
 	if (err) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
@@ -1230,7 +1229,7 @@ static void
 usie_if_init(void *arg)
 {
 	struct usie_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint8_t i;
 
 	mtx_lock(&sc->sc_mtx);
@@ -1248,7 +1247,7 @@ usie_if_init(void *arg)
 	usbd_transfer_start(sc->sc_if_xfer[USIE_IF_RX]);
 
 	/* if not running, initiate the modem */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 		usie_cns_req(sc, USIE_CNS_ID_INIT, USIE_CNS_OB_LINK_UPDATE);
 
 	mtx_unlock(&sc->sc_mtx);
@@ -1277,26 +1276,26 @@ usie_if_stop(struct usie_softc *sc)
 }
 
 static int
-usie_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+usie_if_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct usie_softc *sc = ifp->if_softc;
+	struct usie_softc *sc = if_getsoftc(ifp);
 	struct ieee80211req *ireq;
 	struct ieee80211req_sta_info si;
 	struct ifmediareq *ifmr;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+		if (if_getflags(ifp) & IFF_UP) {
+			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 				usie_if_init(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				usie_if_stop(sc);
 		}
 		break;
 
 	case SIOCSIFCAP:
-		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 			device_printf(sc->sc_dev,
 			    "Connect to the network first.\n");
 			break;
@@ -1387,7 +1386,7 @@ usie_if_cmd(struct usie_softc *sc, uint8_t cmd)
 static void
 usie_cns_req(struct usie_softc *sc, uint32_t id, uint16_t obj)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m;
 	struct usb_xfer *xfer;
 	struct usie_hip *hip;
@@ -1469,7 +1468,7 @@ usie_cns_req(struct usie_softc *sc, uint32_t id, uint16_t obj)
 static void
 usie_cns_rsp(struct usie_softc *sc, struct usie_cns *cns)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	DPRINTF("received CnS\n");
 
@@ -1478,9 +1477,9 @@ usie_cns_rsp(struct usie_softc *sc, struct usie_cns *cns)
 		if (be32toh(cns->id) & USIE_CNS_ID_INIT)
 			usie_if_sync_to(sc);
 		else if (be32toh(cns->id) & USIE_CNS_ID_STOP) {
-			ifp->if_flags &= ~IFF_UP;
-			ifp->if_drv_flags &=
-			    ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+			if_setflagbits(ifp, 0, IFF_UP);
+			if_setdrvflagbits(ifp, 0,
+			    IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 		} else
 			DPRINTF("undefined link update\n");
 		break;

@@ -229,7 +229,7 @@ struct usie_softc {
 	struct usb_xfer *sc_uc_xfer[USIE_UCOM_MAX][USIE_UC_N_XFER];
 	struct usb_xfer *sc_if_xfer[USIE_IF_N_XFER];
 
-	struct ifnet *sc_ifp;
+	if_t sc_ifp;
 	struct usb_device *sc_udev;
 	device_t sc_dev;
 
