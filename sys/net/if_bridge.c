@@ -476,7 +476,7 @@ struct bridge_control {
 #define	BC_F_COPYOUT		0x02	/* copy arguments out */
 #define	BC_F_SUSER		0x04	/* do super-user check */
 
-const struct bridge_control bridge_control_table[] = {
+static const struct bridge_control bridge_control_table[] = {
 	{ bridge_ioctl_add,		sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 	{ bridge_ioctl_del,		sizeof(struct ifbreq),
@@ -561,7 +561,7 @@ const struct bridge_control bridge_control_table[] = {
 	  BC_F_COPYIN|BC_F_SUSER },
 
 };
-const int bridge_control_table_size = nitems(bridge_control_table);
+static const int bridge_control_table_size = nitems(bridge_control_table);
 
 VNET_DEFINE_STATIC(LIST_HEAD(, bridge_softc), bridge_list);
 #define	V_bridge_list	VNET(bridge_list)
