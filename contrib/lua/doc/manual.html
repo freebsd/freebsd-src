@@ -19,7 +19,7 @@ by Roberto Ierusalimschy, Luiz Henrique de Figueiredo, Waldemar Celes
 
 <P>
 <SMALL>
-Copyright &copy; 2020 Lua.org, PUC-Rio.
+Copyright &copy; 2020&ndash;2022 Lua.org, PUC-Rio.
 Freely available under the terms of the
 <a href="http://www.lua.org/license.html">Lua license</a>.
 </SMALL>
@@ -143,6 +143,11 @@ The type <em>boolean</em> has two values, <b>false</b> and <b>true</b>.
 Both <b>nil</b> and <b>false</b> make a condition false;
 they are collectively called <em>false values</em>.
 Any other value makes a condition true.
+Despite its name,
+<b>false</b> is frequently used as an alternative to <b>nil</b>,
+with the key difference that <b>false</b> behaves
+like a regular value in a table,
+while a <b>nil</b> in a table represents an absent key.
 
 
 <p>
@@ -434,7 +439,7 @@ under certain events.
 You can change several aspects of the behavior
 of a value by setting specific fields in its metatable.
 For instance, when a non-numeric value is the operand of an addition,
-Lua checks for a function in the field "<code>__add</code>" of the value's metatable.
+Lua checks for a function in the field <code>__add</code> of the value's metatable.
 If it finds one,
 Lua calls this function to perform the addition.
 
@@ -901,7 +906,7 @@ For an object (table or userdata) to be finalized when collected,
 you must <em>mark</em> it for finalization.
 
 You mark an object for finalization when you set its metatable
-and the metatable has a field indexed by the string "<code>__gc</code>".
+and the metatable has a <code>__gc</code> metamethod.
 Note that if you set a metatable without a <code>__gc</code> field
 and later create that field in the metatable,
 the object will not be marked for finalization.
@@ -956,11 +961,8 @@ these marks have no effect.
 
 
 <p>
-Finalizers cannot yield.
-Except for that, they can do anything,
-such as raise errors, create new objects,
-or even run the garbage collector.
-However, because they can run in unpredictable times,
+Finalizers cannot yield nor run the garbage collector.
+Because they can run in unpredictable times,
 it is good practice to restrict each finalizer
 to the minimum necessary to properly release
 its associated resource.
@@ -1631,8 +1633,10 @@ before the adjustment
 
 
 <p>
-The assignment statement first evaluates all its expressions
-and only then the assignments are performed.
+If a variable is both assigned and read
+inside a multiple assignment,
+Lua ensures all reads get the value of the variable
+before the assignment.
 Thus the code
 
 <pre>
@@ -1654,6 +1658,14 @@ and
      x, y, z = y, z, x
 </pre><p>
 cyclically permutes the values of <code>x</code>, <code>y</code>, and <code>z</code>.
+
+
+<p>
+Note that this guarantee covers only accesses
+syntactically inside the assignment statement.
+If a function or a metamethod called during the assignment
+changes the value of a variable,
+Lua gives no guarantees about the order of that access.
 
 
 <p>
@@ -1992,16 +2004,8 @@ they are closed in the reverse order that they were declared.
 If there is any error while running a closing method,
 that error is handled like an error in the regular code
 where the variable was defined.
-However, Lua may call the method one more time.
-
-
-<p>
 After an error,
 the other pending closing methods will still be called.
-Errors in these methods
-interrupt the respective method and generate a warning,
-but are otherwise ignored;
-the error reported is only the original one.
 
 
 <p>
@@ -2419,16 +2423,21 @@ character is one byte.)
 <p>
 The length operator applied on a table
 returns a border in that table.
-A <em>border</em> in a table <code>t</code> is any natural number
+A <em>border</em> in a table <code>t</code> is any non-negative integer
 that satisfies the following condition:
 
 <pre>
-     (border == 0 or t[border] ~= nil) and t[border + 1] == nil
+     (border == 0 or t[border] ~= nil) and
+     (t[border + 1] == nil or border == math.maxinteger)
 </pre><p>
 In words,
-a border is any (natural) index present in the table
-that is followed by an absent index
-(or zero, when index 1 is absent).
+a border is any positive integer index present in the table
+that is followed by an absent index,
+plus two limit cases:
+zero, when index 1 is absent;
+and the maximum value for an integer, when that index is present.
+Note that keys that are not positive integers
+do not interfere with borders.
 
 
 <p>
@@ -2439,12 +2448,9 @@ The table <code>{10, 20, 30, nil, 50}</code> has two borders (3 and 5),
 and therefore it is not a sequence.
 (The <b>nil</b> at index 4 is called a <em>hole</em>.)
 The table <code>{nil, 20, 30, nil, nil, 60, nil}</code>
-has three borders (0, 3, and 6) and three holes
-(at indices 1, 4, and 5),
+has three borders (0, 3, and 6),
 so it is not a sequence, too.
 The table <code>{}</code> is a sequence with border 0.
-Note that non-natural keys do not interfere
-with whether a table is a sequence.
 
 
 <p>
@@ -2462,7 +2468,7 @@ the memory addresses of its non-numeric keys.)
 <p>
 The computation of the length of a table
 has a guaranteed worst time of <em>O(log n)</em>,
-where <em>n</em> is the largest natural key in the table.
+where <em>n</em> is the largest integer key in the table.
 
 
 <p>
@@ -3763,6 +3769,29 @@ will probably need to close states as soon as they are not needed.
 
 
 
+<hr><h3><a name="lua_closeslot"><code>lua_closeslot</code></a></h3><p>
+<span class="apii">[-0, +0, <em>e</em>]</span>
+<pre>void lua_closeslot (lua_State *L, int index);</pre>
+
+<p>
+Close the to-be-closed slot at the given index and set its value to <b>nil</b>.
+The index must be the last index previously marked to be closed
+(see <a href="#lua_toclose"><code>lua_toclose</code></a>) that is still active (that is, not closed yet).
+
+
+<p>
+A <code>__close</code> metamethod cannot yield
+when called through this function.
+
+
+<p>
+(Exceptionally, this function was introduced in release 5.4.3.
+It is not present in previous 5.4 releases.)
+
+
+
+
+
 <hr><h3><a name="lua_compare"><code>lua_compare</code></a></h3><p>
 <span class="apii">[-0, +0, <em>e</em>]</span>
 <pre>int lua_compare (lua_State *L, int index1, int index2, int op);</pre>
@@ -3957,6 +3986,10 @@ Returns the previous mode (<code>LUA_GCGEN</code> or <code>LUA_GCINC</code>).
 </ul><p>
 For more details about these options,
 see <a href="#pdf-collectgarbage"><code>collectgarbage</code></a>.
+
+
+<p>
+This function should not be called by a finalizer.
 
 
 
@@ -4657,11 +4690,7 @@ except that it allows the called function to yield (see <a href="#4.5">&sect;4.5
 
 <p>
 Pops <code>n</code> elements from the stack.
-
-
-<p>
-This function can run arbitrary code when removing an index
-marked as to-be-closed from the stack.
+It is implemented as a macro over <a href="#lua_settop"><code>lua_settop</code></a>.
 
 
 
@@ -5140,10 +5169,12 @@ and then pops the top element.
 Resets a thread, cleaning its call stack and closing all pending
 to-be-closed variables.
 Returns a status code:
-<a href="#pdf-LUA_OK"><code>LUA_OK</code></a> for no errors in closing methods,
+<a href="#pdf-LUA_OK"><code>LUA_OK</code></a> for no errors in the thread
+(either the original error that stopped the thread or
+errors in closing methods),
 or an error status otherwise.
 In case of error,
-leaves the error object on the top of the stack,
+leaves the error object on the top of the stack.
 
 
 
@@ -5466,28 +5497,24 @@ otherwise, returns <code>NULL</code>.
 
 <p>
 Marks the given index in the stack as a
-to-be-closed "variable" (see <a href="#3.3.8">&sect;3.3.8</a>).
+to-be-closed slot (see <a href="#3.3.8">&sect;3.3.8</a>).
 Like a to-be-closed variable in Lua,
-the value at that index in the stack will be closed
+the value at that slot in the stack will be closed
 when it goes out of scope.
 Here, in the context of a C function,
 to go out of scope means that the running function returns to Lua,
-there is an error,
-or the index is removed from the stack through
-<a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>.
-An index marked as to-be-closed should not be removed from the stack
-by any other function in the API except <a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>.
+or there is an error,
+or the slot is removed from the stack through
+<a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>,
+or there is a call to <a href="#lua_closeslot"><code>lua_closeslot</code></a>.
+A slot marked as to-be-closed should not be removed from the stack
+by any other function in the API except <a href="#lua_settop"><code>lua_settop</code></a> or <a href="#lua_pop"><code>lua_pop</code></a>,
+unless previously deactivated by <a href="#lua_closeslot"><code>lua_closeslot</code></a>.
 
 
 <p>
 This function should not be called for an index
-that is equal to or below an active to-be-closed index.
-
-
-<p>
-In the case of an out-of-memory error,
-the value in the given index is immediately closed,
-as if it was already marked.
+that is equal to or below an active to-be-closed slot.
 
 
 <p>
@@ -5495,7 +5522,7 @@ Note that, both in case of errors and of a regular return,
 by the time the <code>__close</code> metamethod runs,
 the C&nbsp;stack was already unwound,
 so that any automatic C&nbsp;variable declared in the calling function
-will be out of scope.
+(e.g., a buffer) will be out of scope.
 
 
 
@@ -5919,7 +5946,10 @@ information about a function or an activation record.
 <a href="#lua_getstack"><code>lua_getstack</code></a> fills only the private part
 of this structure, for later use.
 To fill the other fields of <a href="#lua_Debug"><code>lua_Debug</code></a> with useful information,
-you must call <a href="#lua_getinfo"><code>lua_getinfo</code></a>.
+you must call <a href="#lua_getinfo"><code>lua_getinfo</code></a> with an appropriate parameter.
+(Specifically, to get a field,
+you must add the letter between parentheses in the field's comment
+to the parameter <code>what</code> of <a href="#lua_getinfo"><code>lua_getinfo</code></a>.)
 
 
 <p>
@@ -6096,19 +6126,30 @@ you can write the following code:
 <p>
 Each character in the string <code>what</code>
 selects some fields of the structure <code>ar</code> to be filled or
-a value to be pushed on the stack:
+a value to be pushed on the stack.
+(These characters are also documented in the declaration of
+the structure <a href="#lua_Debug"><code>lua_Debug</code></a>,
+between parentheses in the comments following each field.)
 
 <ul>
 
-<li><b>'<code>n</code>': </b> fills in the field <code>name</code> and <code>namewhat</code>;
+<li><b>'<code>f</code>': </b>
+pushes onto the stack the function that is
+running at the given level;
+</li>
+
+<li><b>'<code>l</code>': </b> fills in the field <code>currentline</code>;
+</li>
+
+<li><b>'<code>n</code>': </b> fills in the fields <code>name</code> and <code>namewhat</code>;
+</li>
+
+<li><b>'<code>r</code>': </b> fills in the fields <code>ftransfer</code> and <code>ntransfer</code>;
 </li>
 
 <li><b>'<code>S</code>': </b>
 fills in the fields <code>source</code>, <code>short_src</code>,
 <code>linedefined</code>, <code>lastlinedefined</code>, and <code>what</code>;
-</li>
-
-<li><b>'<code>l</code>': </b> fills in the field <code>currentline</code>;
 </li>
 
 <li><b>'<code>t</code>': </b> fills in the field <code>istailcall</code>;
@@ -6118,25 +6159,13 @@ fills in the fields <code>source</code>, <code>short_src</code>,
 <code>nups</code>, <code>nparams</code>, and <code>isvararg</code>;
 </li>
 
-<li><b>'<code>f</code>': </b>
-pushes onto the stack the function that is
-running at the given level;
-</li>
-
 <li><b>'<code>L</code>': </b>
-pushes onto the stack a table whose indices are the
-numbers of the lines that are valid on the function.
-(A <em>valid line</em> is a line with some associated code,
-that is, a line where you can put a break point.
-Non-valid lines include empty lines and comments.)
-
-
-<p>
+pushes onto the stack a table whose indices are
+the lines on the function with some associated code,
+that is, the lines where you can put a break point.
+(Lines with no code include empty lines and comments.)
 If this option is given together with option '<code>f</code>',
 its table is pushed after the function.
-
-
-<p>
 This is the only option that can raise a memory error.
 </li>
 
@@ -6494,7 +6523,7 @@ Adds the byte <code>c</code> to the buffer <code>B</code>
 
 
 <hr><h3><a name="luaL_addgsub"><code>luaL_addgsub</code></a></h3><p>
-<span class="apii">[-0, +0, <em>m</em>]</span>
+<span class="apii">[-?, +?, <em>m</em>]</span>
 <pre>const void luaL_addgsub (luaL_Buffer *B, const char *s,
                          const char *p, const char *r);</pre>
 
@@ -6548,7 +6577,7 @@ to the buffer <code>B</code>
 
 
 <hr><h3><a name="luaL_addvalue"><code>luaL_addvalue</code></a></h3><p>
-<span class="apii">[-1, +?, <em>m</em>]</span>
+<span class="apii">[-?, +?, <em>m</em>]</span>
 <pre>void luaL_addvalue (luaL_Buffer *B);</pre>
 
 <p>
@@ -6702,7 +6731,7 @@ Note that any addition to the buffer may invalidate this address.
 
 
 <hr><h3><a name="luaL_buffinit"><code>luaL_buffinit</code></a></h3><p>
-<span class="apii">[-0, +0, &ndash;]</span>
+<span class="apii">[-0, +?, &ndash;]</span>
 <pre>void luaL_buffinit (lua_State *L, luaL_Buffer *B);</pre>
 
 <p>
@@ -6740,7 +6769,7 @@ Equivalent to the sequence
 
 
 <hr><h3><a name="luaL_buffsub"><code>luaL_buffsub</code></a></h3><p>
-<span class="apii">[-0, +0, &ndash;]</span>
+<span class="apii">[-?, +?, &ndash;]</span>
 <pre>void luaL_buffsub (luaL_Buffer *B, int n);</pre>
 
 <p>
@@ -7543,6 +7572,11 @@ on top of the library table.
 These values are popped from the stack after the registration.
 
 
+<p>
+A function with a <code>NULL</code> value represents a placeholder,
+which is filled with <b>false</b>.
+
+
 
 
 
@@ -7905,6 +7939,10 @@ See <a href="#2.5">&sect;2.5</a> for more details about garbage collection
 and some of these options.
 
 
+<p>
+This function should not be called by a finalizer.
+
+
 
 
 <p>
@@ -7922,7 +7960,7 @@ to its caller.
 
 <p>
 <hr><h3><a name="pdf-error"><code>error (message [, level])</code></a></h3>
-Raises an error (see <a href="#2.3">&sect;2.3</a>) with @{message} as the error object.
+Raises an error (see <a href="#2.3">&sect;2.3</a>) with <code>message</code> as the error object.
 This function never returns.
 
 
@@ -8097,9 +8135,8 @@ use a numerical <b>for</b>.)
 
 
 <p>
-The behavior of <code>next</code> is undefined if,
-during the traversal,
-you assign any value to a non-existent field in the table.
+You should not assign any value to a non-existent field in a table
+during its traversal.
 You may however modify existing fields.
 In particular, you may set existing fields to nil.
 
@@ -8145,7 +8182,7 @@ This means that any error inside&nbsp;<code>f</code> is not propagated;
 instead, <code>pcall</code> catches the error
 and returns a status code.
 Its first result is the status code (a boolean),
-which is true if the call succeeds without errors.
+which is <b>true</b> if the call succeeds without errors.
 In such case, <code>pcall</code> also returns all results from the call,
 after this first result.
 In case of any error, <code>pcall</code> returns <b>false</b> plus the error object.
@@ -8398,7 +8435,9 @@ that is,
 closes all its pending to-be-closed variables
 and puts the coroutine in a dead state.
 The given coroutine must be dead or suspended.
-In case of error closing some variable,
+In case of error
+(either the original error that stopped the coroutine or
+errors in closing methods),
 returns <b>false</b> plus the error object;
 otherwise returns <b>true</b>.
 
@@ -8423,7 +8462,7 @@ an object with type <code>"thread"</code>.
 
 
 <p>
-Returns true when the coroutine <code>co</code> can yield.
+Returns <b>true</b> when the coroutine <code>co</code> can yield.
 The default for <code>co</code> is the running coroutine.
 
 
@@ -8467,7 +8506,7 @@ If there is any error,
 
 <p>
 Returns the running coroutine plus a boolean,
-true when the running coroutine is the main one.
+<b>true</b> when the running coroutine is the main one.
 
 
 
@@ -9005,7 +9044,7 @@ otherwise, it returns <b>fail</b>.
 A third, optional numeric argument <code>init</code> specifies
 where to start the search;
 its default value is&nbsp;1 and can be negative.
-A value of <b>true</b> as a fourth, optional argument <code>plain</code>
+A <b>true</b> as a fourth, optional argument <code>plain</code>
 turns off the pattern matching facilities,
 so the function does a plain "find substring" operation,
 with no characters in <code>pattern</code> being considered magic.
@@ -9030,8 +9069,10 @@ following the description given in its first argument,
 which must be a string.
 The format string follows the same rules as the ISO&nbsp;C function <code>sprintf</code>.
 The only differences are that the conversion specifiers and modifiers
-<code>*</code>, <code>h</code>, <code>L</code>, <code>l</code>, and <code>n</code> are not supported
+<code>F</code>, <code>n</code>, <code>*</code>, <code>h</code>, <code>L</code>, and <code>l</code> are not supported
 and that there is an extra specifier, <code>q</code>.
+Both width and precision, when present,
+are limited to two digits.
 
 
 <p>
@@ -9055,7 +9096,7 @@ may produce the string:
      "a string with \"quotes\" and \
       new line"
 </pre><p>
-This specifier does not support modifiers (flags, width, length).
+This specifier does not support modifiers (flags, width, precision).
 
 
 <p>
@@ -9960,23 +10001,23 @@ from <code>list[1]</code> to <code>list[#list]</code>.
 If <code>comp</code> is given,
 then it must be a function that receives two list elements
 and returns true when the first element must come
-before the second in the final order
-(so that, after the sort,
-<code>i &lt; j</code> implies <code>not comp(list[j],list[i])</code>).
+before the second in the final order,
+so that, after the sort,
+<code>i &lt;= j</code> implies <code>not comp(list[j],list[i])</code>.
 If <code>comp</code> is not given,
 then the standard Lua operator <code>&lt;</code> is used instead.
 
 
 <p>
-Note that the <code>comp</code> function must define
-a strict partial order over the elements in the list;
-that is, it must be asymmetric and transitive.
-Otherwise, no valid sort may be possible.
+The <code>comp</code> function must define a consistent order;
+more formally, the function must define a strict weak order.
+(A weak order is similar to a total order,
+but it can equate different elements for comparison purposes.)
 
 
 <p>
 The sort algorithm is not stable:
-elements considered equal by the given order
+Different elements considered equal by the given order
 may have their relative positions changed by the sort.
 
 
@@ -10346,7 +10387,7 @@ or <b>fail</b> if <code>x</code> is not a number.
 
 <p>
 Returns a boolean,
-true if and only if integer <code>m</code> is below integer <code>n</code> when
+<b>true</b> if and only if integer <code>m</code> is below integer <code>n</code> when
 they are compared as unsigned integers.
 
 
@@ -11908,10 +11949,10 @@ and LiteralString, see <a href="#3.1">&sect;3.1</a>.)
 
 <P CLASS="footer">
 Last update:
-Fri Nov 13 15:35:22 UTC 2020
+Thu Jan 13 11:33:16 UTC 2022
 </P>
 <!--
-Last change: revised for Lua 5.4.2
+Last change: revised for Lua 5.4.4
 -->
 
 </body></html>
