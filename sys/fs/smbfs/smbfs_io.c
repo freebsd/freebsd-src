@@ -413,13 +413,7 @@ smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td
  * Wish wish .... get rid from multiple IO routines
  */
 int
-smbfs_getpages(ap)
-	struct vop_getpages_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int a_reqpage;
-	} */ *ap;
+smbfs_getpages(struct vop_getpages_args *ap)
 {
 #ifdef SMBFS_RWGENERIC
 	return vop_stdgetpages(ap);
@@ -544,14 +538,7 @@ out:
  * not necessary to open vnode.
  */
 int
-smbfs_putpages(ap)
-	struct vop_putpages_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int a_sync;
-		int *a_rtvals;
-	} */ *ap;
+smbfs_putpages(struct vop_putpages_args *ap)
 {
 	int error;
 	struct vnode *vp = ap->a_vp;
