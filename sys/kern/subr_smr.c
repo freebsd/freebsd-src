@@ -579,6 +579,7 @@ out:
 	 */
 	atomic_thread_fence_acq();
 
+	KASSERT(success || !wait, ("%s: blocking poll failed", __func__));
 	return (success);
 }
 
