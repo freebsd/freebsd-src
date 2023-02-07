@@ -90,6 +90,14 @@
 #define DW_TAG_type_unit		0x41
 #define DW_TAG_rvalue_reference_type	0x42
 #define DW_TAG_template_alias		0x43
+#define DW_TAG_coarray_type		0x44
+#define DW_TAG_generic_subrange		0x45
+#define DW_TAG_dynamic_type		0x46
+#define DW_TAG_atomic_type		0x47
+#define DW_TAG_call_site		0x48
+#define DW_TAG_call_site_parameter	0x49
+#define DW_TAG_skeleton_unit		0x4a
+#define DW_TAG_immutable_type		0x4b
 #define DW_TAG_lo_user			0x4080
 #define DW_TAG_hi_user			0xffff
 
@@ -205,6 +213,35 @@
 #define DW_AT_const_expr		0x6c
 #define DW_AT_enum_class		0x6d
 #define DW_AT_linkage_name		0x6e
+#define DW_AT_string_length_bit_size	0x6f
+#define DW_AT_string_length_byte_size	0x70
+#define DW_AT_rank			0x71
+#define DW_AT_str_offsets_base		0x72
+#define DW_AT_addr_base			0x73
+#define DW_AT_rnglists_base		0x74
+#define DW_AT_dwo_name			0x76
+#define DW_AT_reference			0x77
+#define DW_AT_rvalue_reference		0x78
+#define DW_AT_macros			0x79
+#define DW_AT_call_all_calls		0x7a
+#define DW_AT_call_all_source_calls	0x7b
+#define DW_AT_call_all_tail_calls	0x7c
+#define DW_AT_call_return_pc		0x7d
+#define DW_AT_call_value		0x7e
+#define DW_AT_call_origin		0x7f
+#define DW_AT_call_parameter		0x80
+#define DW_AT_call_pc			0x81
+#define DW_AT_call_tail_call		0x82
+#define DW_AT_call_target		0x83
+#define DW_AT_call_target_clobbered	0x84
+#define DW_AT_call_data_location	0x85
+#define DW_AT_call_data_value		0x86
+#define DW_AT_noreturn			0x87
+#define DW_AT_alignment			0x88
+#define DW_AT_export_symbols		0x89
+#define DW_AT_deleted			0x8a
+#define DW_AT_defaulted			0x8b
+#define DW_AT_loclists_base		0x8c
 #define DW_AT_lo_user			0x2000
 #define DW_AT_hi_user			0x3fff
 
@@ -292,7 +329,25 @@
 #define DW_FORM_sec_offset		0x17
 #define DW_FORM_exprloc			0x18
 #define DW_FORM_flag_present		0x19
+#define DW_FORM_strx			0x1a
+#define DW_FORM_addrx			0x1b
+#define DW_FORM_ref_sup4		0x1c
+#define DW_FORM_strp_sup		0x1d
+#define DW_FORM_data16			0x1e
+#define DW_FORM_line_strp		0x1f
 #define DW_FORM_ref_sig8		0x20
+#define DW_FORM_implicit_const		0x21
+#define DW_FORM_loclistx		0x22
+#define DW_FORM_rnglistx		0x23
+#define DW_FORM_ref_sup8		0x24
+#define DW_FORM_ref_strx1		0x25
+#define DW_FORM_ref_strx2		0x26
+#define DW_FORM_ref_strx3		0x27
+#define DW_FORM_ref_strx4		0x28
+#define DW_FORM_ref_addrx1		0x29
+#define DW_FORM_ref_addrx2		0x2a
+#define DW_FORM_ref_addrx3		0x2b
+#define DW_FORM_ref_addrx4		0x2c
 #define	DW_FORM_GNU_ref_alt		0x1f20
 #define	DW_FORM_GNU_strp_alt		0x1f21
 
@@ -450,6 +505,16 @@
 #define DW_OP_bit_piece			0x9d
 #define DW_OP_implicit_value		0x9e
 #define DW_OP_stack_value		0x9f
+#define DW_OP_implicit_pointer		0xa0
+#define DW_OP_addrx			0xa1
+#define DW_OP_constx			0xa2
+#define DW_OP_entry_value		0xa3
+#define DW_OP_const_type		0xa4
+#define DW_OP_regval_type		0xa5
+#define DW_OP_deref_type		0xa6
+#define DW_OP_xderef_type		0xa7
+#define DW_OP_convert			0xa8
+#define DW_OP_reinterpret		0xa9
 #define DW_OP_lo_user		 	0xe0
 #define DW_OP_hi_user		 	0xff
 
@@ -483,6 +548,9 @@
 #define DW_ATE_signed_fixed	 	0xd
 #define DW_ATE_unsigned_fixed	 	0xe
 #define DW_ATE_decimal_float	 	0xf
+#define DW_ATE_UTF			0x10
+#define DW_ATE_UCS			0x11
+#define DW_ATE_ASCII			0x12
 #define DW_ATE_lo_user		 	0x80
 #define DW_ATE_hi_user		 	0xff
 
@@ -553,6 +621,8 @@
 #define DW_CC_normal		 	0x01
 #define DW_CC_program		 	0x02
 #define DW_CC_nocall		 	0x03
+#define DW_CC_pass_by_reference		0x04
+#define DW_CC_pass_by_value		0x05
 #define DW_CC_lo_user		 	0x40
 #define DW_CC_hi_user		 	0xff
 
@@ -648,5 +718,18 @@
 #define	DW_EH_PE_funcrel		0x40
 #define	DW_EH_PE_aligned		0x50
 #define	DW_EH_PE_omit			0xff
+
+/*
+ * Compilation unit types.  DWARF5 only.
+ */
+
+#define DW_UT_compile			0x01
+#define DW_UT_type			0x02
+#define DW_UT_partial			0x03
+#define DW_UT_skeleton			0x04
+#define DW_UT_split_compile		0x05
+#define DW_UT_split_type		0x06
+#define DW_UT_lo_user			0x80
+#define DW_UT_hi_user			0xff
 
 #endif /* !_DWARF_H_ */

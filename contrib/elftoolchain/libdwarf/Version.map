@@ -100,6 +100,7 @@ global:
 	dwarf_get_OP_name;
 	dwarf_get_ORD_name;
 	dwarf_get_TAG_name;
+	dwarf_get_UT_name;
 	dwarf_get_VIRTUALITY_name;
 	dwarf_get_VIS_name;
 	dwarf_get_abbrev;
