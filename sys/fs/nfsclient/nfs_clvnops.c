@@ -3023,7 +3023,7 @@ again:
 				wcred = bp->b_wcred;
 			else if (wcred != bp->b_wcred)
 				wcred = NOCRED;
-			vfs_busy_pages(bp, 1);
+			vfs_busy_pages(bp, 0);
 
 			BO_LOCK(bo);
 			/*
