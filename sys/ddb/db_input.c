@@ -72,18 +72,14 @@ static void	db_putnchars(int c, int count);
 static void	db_putstring(char *s, int count);
 
 static void
-db_putstring(s, count)
-	char	*s;
-	int	count;
+db_putstring(char *s, int count)
 {
 	while (--count >= 0)
 	    cnputc(*s++);
 }
 
 static void
-db_putnchars(c, count)
-	int	c;
-	int	count;
+db_putnchars(int c, int count)
 {
 	while (--count >= 0)
 	    cnputc(c);
@@ -95,9 +91,7 @@ db_putnchars(c, count)
 #define	DEL_FWD		0
 #define	DEL_BWD		1
 static void
-db_delete(n, bwd)
-	int	n;
-	int	bwd;
+db_delete(int n, int bwd)
 {
 	char *p;
 
@@ -116,8 +110,7 @@ db_delete(n, bwd)
 
 /* returns true at end-of-line */
 static int
-db_inputchar(c)
-	int	c;
+db_inputchar(int c)
 {
 	static int escstate;
 
@@ -314,9 +307,7 @@ cnmaygetc()
 }
 
 int
-db_readline(lstart, lsize)
-	char *	lstart;
-	int	lsize;
+db_readline(char *lstart, int lsize)
 {
 
 	if (lsize < 2)
