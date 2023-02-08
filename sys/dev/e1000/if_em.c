@@ -37,7 +37,8 @@
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.6.1-k";
+char em_driver_version[] = "7.7.8-fbsd";
+char igb_driver_version[] = "2.5.19-fbsd";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -593,7 +594,7 @@ static struct if_shared_ctx igb_sctx_init = {
 	.isc_ntxqs = 1,
 	.isc_admin_intrcnt = 1,
 	.isc_vendor_info = igb_vendor_info_array,
-	.isc_driver_version = em_driver_version,
+	.isc_driver_version = igb_driver_version,
 	.isc_driver = &igb_if_driver,
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP | IFLIB_NEED_ZERO_CSUM,
 
