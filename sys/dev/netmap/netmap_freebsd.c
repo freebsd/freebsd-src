@@ -620,7 +620,6 @@ nm_os_vi_persist(const char *name, struct ifnet **ret)
 		return ENOMEM;
 	}
 	if_initname(ifp, name, IF_DUNIT_NONE);
-	ifp->if_mtu = 65536;
 	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = (void *)nm_vi_dummy;
 	ifp->if_ioctl = nm_vi_dummy;
