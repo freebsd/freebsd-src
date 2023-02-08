@@ -2,6 +2,8 @@
 # and testing on bhyve
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include         MINIMAL
 
 ident		GENERIC-MMCCAM
