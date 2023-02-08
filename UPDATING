@@ -12,6 +12,22 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230208:
+	13.1-RELEASE-p6 FreeBSD-SA-23:01.geli
+			FreeBSD-EN-23:01.tzdata
+			FreeBSD-EN-23:02.sdhci
+			FreeBSD-EN-23:03.ena
+			FreeBSD-EN-23:04.ixgbe
+
+        Fix GELI silently omits the keyfile if read from stdin [SA-23:01.geli]
+
+        Timezone database information update [EN-23:01.tzdata]
+
+	Fix sdhci(4) broken write-protect settings [EN-23:02.sdhci]
+
+	Fix ena driver crash after reset in 7th gen AWS instance types [EN-23:03.ena]
+
+        Fix ixgbe incorrectly reporting input errors for 82599ES [EN-23:04.ixgbe]
 20221129:
 	13.1-RELEASE-p5	FreeBSD-SA-22:15.ping
 			FreeBSD-EN-22:28.heimdal
