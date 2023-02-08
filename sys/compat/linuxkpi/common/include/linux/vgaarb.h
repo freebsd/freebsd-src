@@ -239,15 +239,42 @@ static inline int vga_conflicts(struct pci_dev *p1, struct pci_dev *p2)
  * by userspace since we some older X servers have issues.
  */
 #if defined(CONFIG_VGA_ARB)
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51501
+int vga_client_register(struct pci_dev *pdev,
+			unsigned int (*set_vga_decode)(struct pci_dev *pdev, bool state));
+#elif defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51500
+int vga_client_register(struct pci_dev *pdev, void *cookie,
+			unsigned int (*set_vga_decode)(void *cookie, bool state));
+#else
 int vga_client_register(struct pci_dev *pdev, void *cookie,
 			void (*irq_set_state)(void *cookie, bool state),
 			unsigned int (*set_vga_decode)(void *cookie, bool state));
+#endif
+#else
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51501
+static inline int vga_client_register(struct pci_dev *pdev,
+				      unsigned int (*set_vga_decode)(struct pci_dev *pdev, bool state))
+#elif defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51500
+static inline int vga_client_register(struct pci_dev *pdev, void *cookie,
+				      unsigned int (*set_vga_decode)(void *cookie, bool state))
 #else
 static inline int vga_client_register(struct pci_dev *pdev, void *cookie,
 				      void (*irq_set_state)(void *cookie, bool state),
 				      unsigned int (*set_vga_decode)(void *cookie, bool state))
+#endif
 {
 	return 0;
+}
+
+static inline int vga_client_unregister(struct pci_dev *pdev)
+{
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51501
+	return (vga_client_register(NULL, NULL));
+#elif defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51500
+	return (vga_client_register(NULL, NULL, NULL));
+#else
+	return (vga_client_register(NULL, NULL, NULL, NULL));
+#endif
 }
 #endif
 
