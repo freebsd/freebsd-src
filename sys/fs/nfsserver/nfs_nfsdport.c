@@ -1916,16 +1916,20 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				    stateidp, stp, vp, nd, p, nd->nd_repstat);
 			}
 		}
-	} else {
+	} else if (done_namei) {
+		/*
+		 * done_namei is set when nfsvno_namei() has completed
+		 * successfully, but a subsequent error was set in
+		 * nd_repstat.  As such, cleanup of the nfsvno_namei()
+		 * results is required.
+		 */
 		nfsvno_relpathbuf(ndp);
-		if (done_namei && create == NFSV4OPEN_CREATE) {
-			if (ndp->ni_dvp == ndp->ni_vp)
-				vrele(ndp->ni_dvp);
-			else
-				vput(ndp->ni_dvp);
-			if (ndp->ni_vp)
-				vput(ndp->ni_vp);
-		}
+		if (ndp->ni_dvp == ndp->ni_vp)
+			vrele(ndp->ni_dvp);
+		else
+			vput(ndp->ni_dvp);
+		if (ndp->ni_vp)
+			vput(ndp->ni_vp);
 	}
 	*vpp = vp;
 

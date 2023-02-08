@@ -3043,7 +3043,6 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp,
 			    &dirp);
-			done_namei = true;
 		} else {
 			vrele(dp);
 			nfsvno_relpathbuf(&named);
@@ -3051,7 +3050,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		if (create == NFSV4OPEN_CREATE) {
 		    switch (how) {
 		    case NFSCREATE_UNCHECKED:
-			if (done_namei && named.ni_vp != NULL) {
+			if (nd->nd_repstat == 0 && named.ni_vp != NULL) {
 				/*
 				 * Clear the setable attribute bits, except
 				 * for Size, if it is being truncated.
@@ -3063,13 +3062,14 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			}
 			break;
 		    case NFSCREATE_GUARDED:
-			if (done_namei && named.ni_vp != NULL &&
-			    nd->nd_repstat == 0)
+			if (nd->nd_repstat == 0 && named.ni_vp != NULL) {
 				nd->nd_repstat = EEXIST;
+				done_namei = true;
+			}
 			break;
 		    case NFSCREATE_EXCLUSIVE:
 			exclusive_flag = 1;
-			if (done_namei && named.ni_vp == NULL)
+			if (nd->nd_repstat == 0 && named.ni_vp == NULL)
 				nva.na_mode = 0;
 			break;
 		    case NFSCREATE_EXCLUSIVE41:
