@@ -127,6 +127,9 @@ _uX_replace_bits(8)
 
 #define	__bf_shf(x)	(__builtin_ffsll(x) - 1)
 
+#define	FIELD_FIT(_mask, _value)					\
+	(!(((typeof(_mask))(_value) << __bf_shf(_mask)) & ~(_mask)))
+
 #define	FIELD_PREP(_mask, _value)					\
 	(((typeof(_mask))(_value) << __bf_shf(_mask)) & (_mask))
 
