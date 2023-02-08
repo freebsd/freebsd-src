@@ -17,6 +17,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20230208:
+	12.4-RELEASE-p1 FreeBSD-SA-23:01.geli
+			FreeBSD-EN-23:01.tzdata
+			FreeBSD-EN-23:04.ixgbe
+
+	Fix GELI silently omits the keyfile if read from stdin [SA-23:01.geli]
+
+	Timezone database information update [EN-23:01.tzdata]
+
+	Fix ixgbe incorrectly reporting input errors for 82599ES [EN-23:04.ixgbe]
+
 20221205:
 	12.4-RELEASE.
 
