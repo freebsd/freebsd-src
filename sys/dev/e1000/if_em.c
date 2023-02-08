@@ -1105,9 +1105,6 @@ em_if_attach_pre(if_ctx_t ctx)
 
 	em_print_fw_version(sc);
 
-	/* Disable ULP support */
-	e1000_disable_ulp_lpt_lp(hw, true);
-
 	/*
 	 * Get Wake-on-Lan and Management info for later use
 	 */
