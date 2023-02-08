@@ -201,7 +201,7 @@ recursive_link_Lflag_body()
 
 file_is_sparse()
 {
-	atf_check test "$(stat -f "%b" "$1")" != "$(stat -f "%z" "$1")"
+	atf_check ${0%/*}/sparse "$1"
 }
 
 files_are_equal()
@@ -213,8 +213,8 @@ files_are_equal()
 atf_test_case sparse_leading_hole
 sparse_leading_hole_body()
 {
-	# A one-megabyte hole followed by one megabyte of data
-	truncate -s 1M foo
+	# A 16-megabyte hole followed by one megabyte of data
+	truncate -s 16M foo
 	seq -f%015g 65536 >>foo
 	file_is_sparse foo
 
@@ -227,14 +227,14 @@ atf_test_case sparse_multiple_holes
 sparse_multiple_holes_body()
 {
 	# Three one-megabyte blocks of data preceded, separated, and
-	# followed by one-megabyte holes
-	truncate -s 1M foo
-	seq -f%015g >>foo
-	truncate -s 3M foo
-	seq -f%015g >>foo
-	truncate -s 5M foo
-	seq -f%015g >>foo
-	truncate -s 7M foo
+	# followed by 16-megabyte holes
+	truncate -s 16M foo
+	seq -f%015g 65536 >>foo
+	truncate -s 33M foo
+	seq -f%015g 65536 >>foo
+	truncate -s 50M foo
+	seq -f%015g 65536 >>foo
+	truncate -s 67M foo
 	file_is_sparse foo
 
 	atf_check cp foo bar
@@ -245,8 +245,8 @@ sparse_multiple_holes_body()
 atf_test_case sparse_only_hole
 sparse_only_hole_body()
 {
-	# A one-megabyte hole
-	truncate -s 1M foo
+	# A 16-megabyte hole
+	truncate -s 16M foo
 	file_is_sparse foo
 
 	atf_check cp foo bar
@@ -258,14 +258,14 @@ atf_test_case sparse_to_dev
 sparse_to_dev_body()
 {
 	# Three one-megabyte blocks of data preceded, separated, and
-	# followed by one-megabyte holes
-	truncate -s 1M foo
-	seq -f%015g >>foo
-	truncate -s 3M foo
-	seq -f%015g >>foo
-	truncate -s 5M foo
-	seq -f%015g >>foo
-	truncate -s 7M foo
+	# followed by 16-megabyte holes
+	truncate -s 16M foo
+	seq -f%015g 65536 >>foo
+	truncate -s 33M foo
+	seq -f%015g 65536 >>foo
+	truncate -s 50M foo
+	seq -f%015g 65536 >>foo
+	truncate -s 67M foo
 	file_is_sparse foo
 
 	atf_check -o file:foo cp foo /dev/stdout
@@ -274,9 +274,9 @@ sparse_to_dev_body()
 atf_test_case sparse_trailing_hole
 sparse_trailing_hole_body()
 {
-	# One megabyte of data followed by a one-megabyte hole
+	# One megabyte of data followed by a 16-megabyte hole
 	seq -f%015g 65536 >foo
-	truncate -s 2M foo
+	truncate -s 17M foo
 	file_is_sparse foo
 
 	atf_check cp foo bar
