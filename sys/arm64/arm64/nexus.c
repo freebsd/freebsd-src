@@ -104,6 +104,8 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
+static	int nexus_adjust_resource(device_t, device_t, int, struct resource *,
+    rman_res_t, rman_res_t);
 static	int nexus_map_resource(device_t, device_t, int, struct resource *,
     struct resource_map_request *, struct resource_map *);
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
@@ -135,6 +137,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
+	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
 	DEVMETHOD(bus_map_resource,	nexus_map_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
@@ -271,6 +274,27 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	return (rv);
+}
+
+static int
+nexus_adjust_resource(device_t bus __unused, device_t child __unused, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	struct rman *rm;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &irq_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &mem_rman;
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (rman_is_region_manager(r, rm) == 0)
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
 }
 
 static int
