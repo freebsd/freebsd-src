@@ -1396,18 +1396,21 @@ main(int ac, char **av)
 	cinfo->locuser = xstrdup(pw->pw_name);
 
 	/* Find canonic host name. */
-	if (strchr(host, '.') == 0) {
+	if (strchr(host, '.') == NULL) {
 		struct addrinfo hints;
 		struct addrinfo *ai = NULL;
 		int errgai;
+
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = options.address_family;
 		hints.ai_flags = AI_CANONNAME;
 		hints.ai_socktype = SOCK_STREAM;
 		errgai = getaddrinfo(host, NULL, &hints, &ai);
 		if (errgai == 0) {
-			if (ai->ai_canonname != NULL)
+			if (ai->ai_canonname != NULL) {
+				free(host);
 				host = xstrdup(ai->ai_canonname);
+			}
 			freeaddrinfo(ai);
 		}
 	}
