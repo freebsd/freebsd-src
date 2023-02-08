@@ -264,7 +264,7 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 	begin->flags = IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED;
 	RB_INSERT_PREV(iommu_gas_entries_tree, &domain->rb_root, end, begin);
 
-	domain->start_gap = end;
+	domain->start_gap = begin;
 	domain->first_place = begin;
 	domain->last_place = end;
 	domain->flags |= IOMMU_DOMAIN_GAS_INITED;
