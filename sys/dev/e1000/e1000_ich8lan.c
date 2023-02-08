@@ -72,6 +72,7 @@
 
 #include "e1000_api.h"
 
+static s32  e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state);
 static s32  e1000_acquire_swflag_ich8lan(struct e1000_hw *hw);
 static void e1000_release_swflag_ich8lan(struct e1000_hw *hw);
 static s32  e1000_acquire_nvm_ich8lan(struct e1000_hw *hw);
@@ -330,7 +331,9 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 * so forcibly disable it.
 	 */
 	hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_unknown;
-	e1000_disable_ulp_lpt_lp(hw, TRUE);
+	ret_val = e1000_disable_ulp_lpt_lp(hw, true);
+	if (ret_val)
+		ERROR_REPORT("Failed to disable ULP\n");
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
@@ -1290,14 +1293,12 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 
 	if (!to_sx) {
 		int i = 0;
-
 		/* Poll up to 5 seconds for Cable Disconnected indication */
 		while (!(E1000_READ_REG(hw, E1000_FEXT) &
 			 E1000_FEXT_PHY_CABLE_DISCONNECTED)) {
 			/* Bail if link is re-acquired */
 			if (E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)
 				return -E1000_ERR_PHY;
-
 			if (i++ == 100)
 				break;
 
@@ -1310,7 +1311,6 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 		if (!(E1000_READ_REG(hw, E1000_FEXT) &
 		    E1000_FEXT_PHY_CABLE_DISCONNECTED))
 			return 0;
-
 	}
 
 	ret_val = hw->phy.ops.acquire(hw);
@@ -4318,7 +4318,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 							  (u8)(data >> 8));
 		if (ret_val)
 			break;
-	 }
+	}
 
 	/* Don't bother writing the segment valid bits if sector
 	 * programming failed.
