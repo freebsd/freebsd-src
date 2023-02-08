@@ -1941,7 +1941,11 @@
 #define SIZEOF_SHORT_INT 2
 
 /* The size of `time_t', as computed by sizeof. */
+#ifdef __i386__
+#define SIZEOF_TIME_T 4
+#else
 #define SIZEOF_TIME_T 8
+#endif
 
 /* Define as const if snprintf() can declare const char *fmt */
 #define SNPRINTF_CONST const
