@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -106,6 +107,7 @@ static int 	asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
+static int 	asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS);
 
 struct asmc_model {
 	const char 	 *smc_model;	/* smbios.system.product env var. */
@@ -149,6 +151,11 @@ static const struct asmc_model *asmc_match(device_t dev);
 
 #define ASMC_LIGHT_FUNCS asmc_mbp_sysctl_light_left, \
 			 asmc_mbp_sysctl_light_right, \
+			 asmc_mbp_sysctl_light_control
+
+#define ASMC_LIGHT_FUNCS_10BYTE \
+			 asmc_mbp_sysctl_light_left_10byte, \
+			 NULL, \
 			 asmc_mbp_sysctl_light_control
 
 #define ASMC_LIGHT_FUNCS_DISABLED NULL, NULL, NULL
@@ -428,10 +435,17 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_MBA5_TEMPS, ASMC_MBA5_TEMPNAMES, ASMC_MBA5_TEMPDESCS
 	},
 	{
+	  "MacBookAir6,1", "Apple SMC MacBook Air 11-inch (Early 2013)",
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2,
+	  ASMC_LIGHT_FUNCS_10BYTE,
+	  ASMC_MBA6_TEMPS, ASMC_MBA6_TEMPNAMES, ASMC_MBA6_TEMPDESCS
+	},
+	{
 	  "MacBookAir6,2", "Apple SMC MacBook Air 13-inch (Early 2013)",
 	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
-	  ASMC_LIGHT_FUNCS,
+	  ASMC_LIGHT_FUNCS_10BYTE,
 	  ASMC_MBA6_TEMPS, ASMC_MBA6_TEMPNAMES, ASMC_MBA6_TEMPDESCS
 	},
 	{
@@ -1538,5 +1552,35 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 		buf[1] = 0x00;
 		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof buf);
 	}
+	return (error);
+}
+
+static int
+asmc_mbp_sysctl_light_left_10byte(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	uint8_t buf[10];
+	int error;
+	uint32_t v;
+
+	asmc_key_read(dev, ASMC_KEY_LIGHTLEFT, buf, sizeof buf);
+
+	/*
+	 * This seems to be a 32 bit big endian value from buf[6] -> buf[9].
+	 *
+	 * Extract it out manually here, then shift/clamp it.
+	 */
+	v = be32dec(&buf[6]);
+
+	/*
+	 * Shift out, clamp at 255; that way it looks like the
+	 * earlier SMC firmware version responses.
+	 */
+	v = v >> 8;
+	if (v > 255)
+		v = 255;
+
+	error = sysctl_handle_int(oidp, &v, 0, req);
+
 	return (error);
 }
