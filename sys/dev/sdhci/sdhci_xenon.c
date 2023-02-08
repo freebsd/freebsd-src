@@ -183,7 +183,7 @@ sdhci_xenon_get_ro(device_t bus, device_t dev)
 	struct sdhci_xenon_softc *sc = device_get_softc(bus);
 
 	return (sdhci_generic_get_ro(bus, dev) ^
-	    (sc->mmc_helper.props & MMC_PROP_WP_INVERTED));
+	    !!(sc->mmc_helper.props & MMC_PROP_WP_INVERTED));
 }
 
 static bool
