@@ -194,13 +194,14 @@ struct ktls_session {
 	struct ifnet *rx_ifp;
 	u_short rx_vlan_id;
 	bool reset_pending;
-	bool disable_ifnet_pending;
+	bool tx;
 	bool sync_dispatch;
 	bool sequential_records;
 
 	/* Only used for TLS 1.0. */
 	uint64_t next_seqno;
 	STAILQ_HEAD(, mbuf) pending_records;
+	struct task destroy_task;
 } __aligned(CACHE_LINE_SIZE);
 
 extern unsigned int ktls_ifnet_max_rexmit_pct;

@@ -227,7 +227,7 @@ tcp_default_output(struct tcpcb *tp)
 	isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif
 #ifdef KERN_TLS
-	const bool hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
+	const bool hw_tls = tp->t_nic_ktls_xmit != 0;
 #else
 	const bool hw_tls = false;
 #endif
