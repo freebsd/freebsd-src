@@ -35,11 +35,14 @@
 /*
  * Config.
  */
+#include <sys/cdefs.h>	/* __BEGIN_DECLS/__END_DECLS */
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+__BEGIN_DECLS
 
 struct cfgfile {
 	STAILQ_ENTRY(cfgfile)	cfg_next;
@@ -190,6 +193,7 @@ char	*raisestr(char *);
 void	remember(const char *);
 void	moveifchanged(const char *, const char *);
 int	yylex(void);
+int	yyparse(void);
 void	options(void);
 void	makefile(void);
 void	makeenv(void);
@@ -217,6 +221,8 @@ extern int	versreq;
 
 extern char *PREFIX;		/* Config file name - for error messages */
 extern char srcdir[];		/* root of the kernel source tree */
+
+__END_DECLS;
 
 #define eq(a,b)	(!strcmp(a,b))
 #define ns(s)	strdup(s)

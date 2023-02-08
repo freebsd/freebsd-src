@@ -392,9 +392,9 @@ read_file(char *fname)
 	struct file_list *tp;
 	struct device *dp;
 	struct opt *op;
-	char *wd, *this, *compilewith, *depends, *clean, *warning;
+	char *wd, *rfile, *compilewith, *depends, *clean, *warning;
 	const char *objprefix;
-	int compile, match, nreqs, std, filetype, not,
+	int compile, match, nreqs, std, filetype, negate,
 	    imp_rule, no_ctfconvert, no_obj, before_depend, nowerror;
 
 	fp = fopen(fname, "r");
@@ -434,13 +434,13 @@ next:
 			;
 		goto next;
 	}
-	this = ns(wd);
+	rfile = ns(wd);
 	wd = get_word(fp);
 	if (wd == (char *)EOF)
 		return;
 	if (wd == NULL)
-		errout("%s: No type for %s.\n", fname, this);
-	tp = fl_lookup(this);
+		errout("%s: No type for %s.\n", fname, rfile);
+	tp = fl_lookup(rfile);
 	compile = 0;
 	match = 1;
 	nreqs = 0;
@@ -454,25 +454,25 @@ next:
 	no_obj = 0;
 	before_depend = 0;
 	nowerror = 0;
-	not = 0;
+	negate = 0;
 	filetype = NORMAL;
 	objprefix = "";
 	if (eq(wd, "standard"))
 		std = 1;
 	else if (!eq(wd, "optional"))
 		errout("%s: \"%s\" %s must be optional or standard\n",
-		    fname, wd, this);
+		    fname, wd, rfile);
 	for (wd = get_word(fp); wd; wd = get_word(fp)) {
 		if (wd == (char *)EOF)
 			return;
 		if (eq(wd, "!")) {
-			not = 1;
+			negate = 1;
 			continue;
 		}
 		if (eq(wd, "|")) {
 			if (nreqs == 0)
 				errout("%s: syntax error describing %s\n",
-				       fname, this);
+				       fname, rfile);
 			compile += match;
 			match = 1;
 			nreqs = 0;
@@ -491,7 +491,7 @@ next:
 				errout("%s: alternate rule required when "
 				       "\"no-implicit-rule\" is specified for"
 				       " %s.\n",
-				       fname, this);
+				       fname, rfile);
 			imp_rule++;
 			continue;
 		}
@@ -503,7 +503,7 @@ next:
 			wd = get_quoted_word(fp);
 			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing dependency string.\n",
-				       fname, this);
+				       fname, rfile);
 			depends = ns(wd);
 			continue;
 		}
@@ -511,7 +511,7 @@ next:
 			wd = get_quoted_word(fp);
 			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing clean file list.\n",
-				       fname, this);
+				       fname, rfile);
 			clean = ns(wd);
 			continue;
 		}
@@ -519,7 +519,7 @@ next:
 			wd = get_quoted_word(fp);
 			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing compile command string.\n",
-				       fname, this);
+				       fname, rfile);
 			compilewith = ns(wd);
 			continue;
 		}
@@ -527,7 +527,7 @@ next:
 			wd = get_quoted_word(fp);
 			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing warning text string.\n",
-				       fname, this);
+				       fname, rfile);
 			warning = ns(wd);
 			continue;
 		}
@@ -535,7 +535,7 @@ next:
 			wd = get_quoted_word(fp);
 			if (wd == (char *)EOF || wd == NULL)
 				errout("%s: %s missing object prefix string.\n",
-				       fname, this);
+				       fname, rfile);
 			objprefix = ns(wd);
 			continue;
 		}
@@ -554,10 +554,10 @@ next:
 		nreqs++;
 		if (std)
 			errout("standard entry %s has optional inclusion specifier %s!\n",
-			       this, wd);
+			       rfile, wd);
 		STAILQ_FOREACH(dp, &dtab, d_next)
 			if (eq(dp->d_name, wd)) {
-				if (not)
+				if (negate)
 					match = 0;
 				else
 					dp->d_done |= DEVDONE;
@@ -566,21 +566,21 @@ next:
 		SLIST_FOREACH(op, &opt, op_next)
 			if (op->op_value == 0 &&
 			    strcasecmp(op->op_name, wd) == 0) {
-				if (not)
+				if (negate)
 					match = 0;
 				goto nextparam;
 			}
-		match &= not;
+		match &= negate;
 nextparam:;
-		not = 0;
+		negate = 0;
 	}
 	compile += match;
 	if (compile && tp == NULL) {
 		if (std == 0 && nreqs == 0)
 			errout("%s: what is %s optional on?\n",
-			       fname, this);
+			       fname, rfile);
 		tp = new_fent();
-		tp->f_fn = this;
+		tp->f_fn = rfile;
 		tp->f_type = filetype;
 		if (filetype == LOCAL)
 			tp->f_srcprefix = "";

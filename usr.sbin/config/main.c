@@ -105,10 +105,9 @@ static void cleanheaders(char *);
 static void kernconfdump(const char *);
 static void badversion(void);
 static void checkversion(void);
-extern int yyparse(void);
 
 struct hdr_list {
-	char *h_name;
+	const char *h_name;
 	struct hdr_list *h_next;
 } *htab;
 
@@ -620,10 +619,12 @@ moveifchanged(const char *from_name, const char *to_name)
 	tsize = (size_t)from_sb.st_size;
 
 	if (!changed) {
-		p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+		p = (char *)mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd,
+		    (off_t)0);
 		if (p == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", from_name);
-		q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
+		q = (char *)mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd,
+		    (off_t)0);
 		if (q == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", to_name);
 
@@ -688,7 +689,7 @@ cleanheaders(char *p)
 void
 remember(const char *file)
 {
-	char *s;
+	const char *s;
 	struct hdr_list *hl;
 
 	if ((s = strrchr(file, '/')) != NULL)
@@ -697,16 +698,16 @@ remember(const char *file)
 		s = ns(file);
 
 	if (strchr(s, '_') && strncmp(s, "opt_", 4) != 0) {
-		free(s);
+		free(__DECONST(char *, s));
 		return;
 	}
 	for (hl = htab; hl != NULL; hl = hl->h_next) {
 		if (eq(s, hl->h_name)) {
-			free(s);
+			free(__DECONST(char *, s));
 			return;
 		}
 	}
-	hl = calloc(1, sizeof(*hl));
+	hl = (struct hdr_list *)calloc(1, sizeof(*hl));
 	if (hl == NULL)
 		err(EXIT_FAILURE, "calloc");
 	hl->h_name = s;
@@ -740,7 +741,7 @@ kernconfdump(const char *file)
 	if (fp == NULL)
 		err(EXIT_FAILURE, "fdopen() failed");
 	osz = 1024;
-	o = calloc(1, osz);
+	o = (char *)calloc(1, osz);
 	if (o == NULL)
 		err(EXIT_FAILURE, "Couldn't allocate memory");
 	/* ELF note section header. */

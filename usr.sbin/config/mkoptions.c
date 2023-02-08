@@ -312,41 +312,41 @@ tooption(char *name)
 
 	
 static void
-check_duplicate(const char *fname, const char *this)
+check_duplicate(const char *fname, const char *chkopt)
 {
 	struct opt_list *po;
 
 	SLIST_FOREACH(po, &otab, o_next) {
-		if (eq(po->o_name, this)) {
+		if (eq(po->o_name, chkopt)) {
 			fprintf(stderr, "%s: Duplicate option %s.\n",
-			    fname, this);
+			    fname, chkopt);
 			exit(1);
 		}
 	}
 }
 
 static void
-insert_option(const char *fname, char *this, char *val)
+insert_option(const char *fname, char *optname, char *val)
 {
 	struct opt_list *po;
 
-	check_duplicate(fname, this);
+	check_duplicate(fname, optname);
 	po = (struct opt_list *) calloc(1, sizeof *po);
 	if (po == NULL)
 		err(EXIT_FAILURE, "calloc");
-	po->o_name = this;
+	po->o_name = optname;
 	po->o_file = val;
 	po->o_flags = 0;
 	SLIST_INSERT_HEAD(&otab, po, o_next);
 }
 
 static void
-update_option(const char *this, char *val, int flags)
+update_option(const char *optname, char *val, int flags)
 {
 	struct opt_list *po;
 
 	SLIST_FOREACH(po, &otab, o_next) {
-		if (eq(po->o_name, this)) {
+		if (eq(po->o_name, optname)) {
 			free(po->o_file);
 			po->o_file = val;
 			po->o_flags = flags;
@@ -364,7 +364,7 @@ static int
 read_option_file(const char *fname, int flags)
 {
 	FILE *fp;
-	char *wd, *this, *val;
+	char *wd, *optname, *val;
 	char genopt[MAXPATHLEN];
 
 	fp = fopen(fname, "r");
@@ -378,17 +378,17 @@ read_option_file(const char *fname, int flags)
 				continue;
 			continue;
 		}
-		this = ns(wd);
+		optname = ns(wd);
 		val = get_word(fp);
 		if (val == (char *)EOF)
 			return (1);
 		if (val == NULL) {
 			if (flags) {
 				fprintf(stderr, "%s: compat file requires two"
-				    " words per line at %s\n", fname, this);
+				    " words per line at %s\n", fname, optname);
 				exit(1);
 			}
-			char *s = ns(this);
+			char *s = ns(optname);
 			(void)snprintf(genopt, sizeof(genopt), "opt_%s.h",
 			    lower(s));
 			val = genopt;
@@ -396,9 +396,9 @@ read_option_file(const char *fname, int flags)
 		}
 		val = ns(val);
 		if (flags == 0)
-			insert_option(fname, this, val);
+			insert_option(fname, optname, val);
 		else
-			update_option(this, val, flags);
+			update_option(optname, val, flags);
 	}
 	(void)fclose(fp);
 	return (1);
