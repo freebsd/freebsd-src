@@ -46,6 +46,7 @@
 #define	I2C_FUNC_SMBUS_BLOCK_PROC_CALL	0
 #define	I2C_FUNC_10BIT_ADDR		0
 
+#define	I2C_CLASS_HWMON	0x1
 #define	I2C_CLASS_DDC	0x8
 #define	I2C_CLASS_SPD	0x80
 
@@ -58,6 +59,7 @@ struct i2c_adapter {
 
 	const struct i2c_lock_operations *lock_ops;
 	const struct i2c_algorithm *algo;
+	const struct i2c_adapter_quirks *quirks;
 	void *algo_data;
 
 	int retries;
@@ -81,6 +83,29 @@ struct i2c_lock_operations {
 	int (*trylock_bus)(struct i2c_adapter *, unsigned int);
 	void (*unlock_bus)(struct i2c_adapter *, unsigned int);
 };
+
+struct i2c_adapter_quirks {
+	uint64_t flags;
+	int max_num_msgs;
+	uint16_t max_write_len;
+	uint16_t max_read_len;
+	uint16_t max_comb_1st_msg_len;
+	uint16_t max_comb_2nd_msg_len;
+};
+
+#define	I2C_AQ_COMB			BIT(0)
+#define	I2C_AQ_COMB_WRITE_FIRST		BIT(1)
+#define	I2C_AQ_COMB_READ_SECOND		BIT(2)
+#define	I2C_AQ_COMB_SAME_ADDR		BIT(3)
+#define	I2C_AQ_COMB_WRITE_THEN_READ \
+    (I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | \
+    I2C_AQ_COMB_READ_SECOND | I2C_AQ_COMB_SAME_ADDR)
+#define	I2C_AQ_NO_CLK_STRETCH		BIT(4)
+#define	I2C_AQ_NO_ZERO_LEN_READ		BIT(5)
+#define	I2C_AQ_NO_ZERO_LEN_WRITE	BIT(6)
+#define	I2C_AQ_NO_ZERO_LEN \
+    (I2C_AQ_NO_ZERO_LEN_READ | I2C_AQ_NO_ZERO_LEN_WRITE)
+#define	I2C_AQ_NO_REP_START		BIT(7)
 
 int lkpi_i2c_add_adapter(struct i2c_adapter *adapter);
 int lkpi_i2c_del_adapter(struct i2c_adapter *adapter);
