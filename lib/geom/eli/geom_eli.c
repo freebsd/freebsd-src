@@ -571,26 +571,34 @@ eli_genkey_passphrase(struct gctl_req *req, struct g_eli_metadata *md, bool new,
 	return (0);
 }
 
-static unsigned char *
-eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
-    bool new)
+static bool
+eli_init_key_hmac_ctx(struct gctl_req *req, struct hmac_ctx *ctx, bool new)
 {
-	struct hmac_ctx ctx;
-	bool nopassphrase;
 	int nfiles;
+	bool nopassphrase;
 
 	nopassphrase =
 	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
 
-	g_eli_crypto_hmac_init(&ctx, NULL, 0);
-
-	nfiles = eli_genkey_files(req, new, "keyfile", &ctx, NULL, 0);
-	if (nfiles == -1)
-		return (NULL);
-	else if (nfiles == 0 && nopassphrase) {
+	g_eli_crypto_hmac_init(ctx, NULL, 0);
+	nfiles = eli_genkey_files(req, new, "keyfile", ctx, NULL, 0);
+	if (nfiles == -1) {
+		return (false);
+	} else if (nfiles == 0 && nopassphrase) {
 		gctl_error(req, "No key components given.");
-		return (NULL);
+		return (false);
 	}
+
+	return (true);
+}
+
+static unsigned char *
+eli_genkey(struct gctl_req *req, const struct hmac_ctx *ctxtemplate,
+    struct g_eli_metadata *md, unsigned char *key, bool new)
+{
+	struct hmac_ctx ctx;
+
+	memcpy(&ctx, ctxtemplate, sizeof(ctx));
 
 	if (eli_genkey_passphrase(req, md, new, &ctx) == -1)
 		return (NULL);
@@ -598,6 +606,22 @@ eli_genkey(struct gctl_req *req, struct g_eli_metadata *md, unsigned char *key,
 	g_eli_crypto_hmac_final(&ctx, key, 0);
 
 	return (key);
+}
+
+static unsigned char *
+eli_genkey_single(struct gctl_req *req, struct g_eli_metadata *md,
+		  unsigned char *key, bool new)
+{
+	struct hmac_ctx ctx;
+	unsigned char *rkey;
+
+	if (!eli_init_key_hmac_ctx(req, &ctx, new)) {
+		return (NULL);
+	}
+	rkey = eli_genkey(req, &ctx, md, key, new);
+	explicit_bzero(&ctx, sizeof(ctx));
+
+	return (rkey);
 }
 
 static int
@@ -711,6 +735,7 @@ eli_init(struct gctl_req *req)
 	intmax_t val;
 	int error, i, nargs, nparams, param;
 	const int one = 1;
+	struct hmac_ctx ctxtemplate;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs <= 0) {
@@ -844,6 +869,10 @@ eli_init(struct gctl_req *req)
 	 */
 	nparams = req->narg - nargs - 1;
 
+	/* Generate HMAC context template. */
+	if (!eli_init_key_hmac_ctx(req, &ctxtemplate, true))
+		return;
+
 	/* Create new child request for each provider and issue to kernel */
 	for (i = 0; i < nargs; i++) {
 		r = gctl_get_handle();
@@ -885,7 +914,7 @@ eli_init(struct gctl_req *req)
 		arc4random_buf(md.md_mkeys, sizeof(md.md_mkeys));
 
 		/* Generate user key. */
-		if (eli_genkey(r, &md, key, true) == NULL) {
+		if (eli_genkey(r, &ctxtemplate, &md, key, true) == NULL) {
 			/*
 			 * Error generating key - details added to geom request
 			 * by eli_genkey().
@@ -1009,6 +1038,7 @@ out:
 
 	/* Clear the cached metadata, including keys. */
 	explicit_bzero(&md, sizeof(md));
+	explicit_bzero(&ctxtemplate, sizeof(ctxtemplate));
 }
 
 static void
@@ -1020,6 +1050,7 @@ eli_attach(struct gctl_req *req)
 	off_t mediasize;
 	int i, nargs, nparams, param;
 	const int one = 1;
+	struct hmac_ctx ctxtemplate;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs <= 0) {
@@ -1034,6 +1065,10 @@ eli_attach(struct gctl_req *req)
 	 * nargs parameter and list of providers.
 	 */
 	nparams = req->narg - nargs - 1;
+
+	/* Generate HMAC context template. */
+	if (!eli_init_key_hmac_ctx(req, &ctxtemplate, false))
+		return;
 
 	/* Create new child request for each provider and issue to kernel */
 	for (i = 0; i < nargs; i++) {
@@ -1064,7 +1099,7 @@ eli_attach(struct gctl_req *req)
 			goto out;
 		}
 
-		if (eli_genkey(r, &md, key, false) == NULL) {
+		if (eli_genkey(r, &ctxtemplate, &md, key, false) == NULL) {
 			/*
 			 * Error generating key - details added to geom request
 			 * by eli_genkey().
@@ -1098,6 +1133,7 @@ out:
 
 	/* Clear sensitive data from memory. */
 	explicit_bzero(cached_passphrase, sizeof(cached_passphrase));
+	explicit_bzero(&ctxtemplate, sizeof(ctxtemplate));
 }
 
 static void
@@ -1295,7 +1331,7 @@ eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 		old = md->md_iterations;
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, md, key, true) == NULL) {
+	if (eli_genkey_single(req, md, key, true) == NULL) {
 		explicit_bzero(key, sizeof(key));
 		return;
 	}
@@ -1330,7 +1366,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	}
 
 	/* Generate key for Master Key decryption. */
-	if (eli_genkey(req, md, key, false) == NULL) {
+	if (eli_genkey_single(req, md, key, false) == NULL) {
 		explicit_bzero(key, sizeof(key));
 		return;
 	}
@@ -1388,7 +1424,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	explicit_bzero(mkey, sizeof(mkey));
 
 	/* Generate key for Master Key encryption. */
-	if (eli_genkey(req, md, key, true) == NULL) {
+	if (eli_genkey_single(req, md, key, true) == NULL) {
 		explicit_bzero(key, sizeof(key));
 		explicit_bzero(md, sizeof(*md));
 		return;
@@ -1534,7 +1570,7 @@ eli_resume(struct gctl_req *req)
 		return;
 	}
 
-	if (eli_genkey(req, &md, key, false) == NULL) {
+	if (eli_genkey_single(req, &md, key, false) == NULL) {
 		explicit_bzero(key, sizeof(key));
 		return;
 	}
