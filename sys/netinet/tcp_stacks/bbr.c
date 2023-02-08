@@ -11861,7 +11861,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	inp = bbr->rc_inp;
 	so = inp->inp_socket;
 	sb = &so->so_snd;
- 	if (sb->sb_flags & SB_TLS_IFNET)
+	if (tp->t_nic_ktls_xmit)
  		hw_tls = 1;
  	else
  		hw_tls = 0;
