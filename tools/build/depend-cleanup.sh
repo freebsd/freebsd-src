@@ -116,3 +116,6 @@ if [ -d "$OBJTOP"/usr.sbin/zic/zic ] ; then
 	echo "Removing old zic directory"
 	rm -rf "$OBJTOP"/usr.sbin/zic/zic
 fi
+
+# 20230208  29c5f8bf9a01    move from mkmakefile.c to mkmakefile.cc
+clean_dep   usr.sbin/config  mkmakefile c
