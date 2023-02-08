@@ -1084,6 +1084,9 @@ _bootstrap-tools:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1.2: bootstrap tools"
 	@echo "--------------------------------------------------------------"
+.if ${MK_CLEAN} != "yes"
+	${_+_}cd ${.CURDIR}; ${BMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
+.endif
 	${_+_}cd ${.CURDIR}; ${BMAKE} bootstrap-tools
 	mkdir -p ${WORLDTMP}/usr ${WORLDTMP}/lib/casper ${WORLDTMP}/lib/geom \
 	    ${WORLDTMP}/bin
