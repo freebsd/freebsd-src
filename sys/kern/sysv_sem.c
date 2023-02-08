@@ -1765,16 +1765,7 @@ static sy_call_t *semcalls[] = {
  * Entry point for all SEM calls.
  */
 int
-sys_semsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct semsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-		int	a5;
-	} */ *uap;
+sys_semsys(struct thread *td, struct semsys_args *uap)
 {
 	int error;
 
