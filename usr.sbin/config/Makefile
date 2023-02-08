@@ -3,9 +3,9 @@
 
 SRCDIR:=${.PARSEDIR:tA}
 
-PROG=	config
+PROG_CXX=	config
 MAN=	config.5 config.8
-SRCS=	config.y main.c lang.l mkmakefile.c mkheaders.c \
+SRCS=	config.y main.c lang.l mkmakefile.cc mkheaders.c \
 	mkoptions.c y.tab.h kernconf.c
 
 FILE2C?=file2c
@@ -18,7 +18,7 @@ CFLAGS+= -I. -I${SRCDIR}
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
-LIBADD=	nv sbuf
+LIBADD=	sbuf
 
 CLEANFILES+=	kernconf.c
 
