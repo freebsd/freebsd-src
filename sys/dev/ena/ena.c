@@ -155,6 +155,7 @@ static int	ena_setup_ifnet(device_t, struct ena_adapter *,
 static int	ena_enable_wc(device_t, struct resource *);
 static int	ena_set_queues_placement_policy(device_t, struct ena_com_dev *,
     struct ena_admin_feature_llq_desc *, struct ena_llq_configurations *);
+static int	ena_map_llq_mem_bar(device_t, struct ena_com_dev *);
 static uint32_t	ena_calc_max_io_queue_num(device_t, struct ena_com_dev *,
     struct ena_com_dev_get_features_ctx *);
 static int	ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *);
@@ -2571,8 +2572,7 @@ ena_set_queues_placement_policy(device_t pdev, struct ena_com_dev *ena_dev,
     struct ena_admin_feature_llq_desc *llq,
     struct ena_llq_configurations *llq_default_configurations)
 {
-	struct ena_adapter *adapter = device_get_softc(pdev);
-	int rc, rid;
+	int rc;
 	uint32_t llq_feature_mask;
 
 	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
@@ -2583,26 +2583,36 @@ ena_set_queues_placement_policy(device_t pdev, struct ena_com_dev *ena_dev,
 		return (0);
 	}
 
+	if (ena_dev->mem_bar == NULL) {
+		ena_log(pdev, WARN,
+		    "LLQ is advertised as supported but device doesn't expose mem bar.\n");
+		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		return (0);
+	}
+
 	rc = ena_com_config_dev_mode(ena_dev, llq, llq_default_configurations);
 	if (unlikely(rc != 0)) {
 		ena_log(pdev, WARN, "Failed to configure the device mode. "
 		    "Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
-		return (0);
 	}
 
-	/* Nothing to config, exit */
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
-		return (0);
+	return (0);
+}
+
+static int
+ena_map_llq_mem_bar(device_t pdev, struct ena_com_dev *ena_dev)
+{
+	struct ena_adapter *adapter = device_get_softc(pdev);
+	int rc, rid;
 
 	/* Try to allocate resources for LLQ bar */
 	rid = PCIR_BAR(ENA_MEM_BAR);
 	adapter->memory = bus_alloc_resource_any(pdev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE);
 	if (unlikely(adapter->memory == NULL)) {
-		ena_log(pdev, WARN, "unable to allocate LLQ bar resource. "
-		    "Fallback to host mode policy.\n");
-		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		ena_log(pdev, WARN,
+			"Unable to allocate LLQ bar resource. LLQ mode won't be used.\n");
 		return (0);
 	}
 
@@ -2791,6 +2801,7 @@ static int
 ena_device_init(struct ena_adapter *adapter, device_t pdev,
     struct ena_com_dev_get_features_ctx *get_feat_ctx, int *wd_active)
 {
+	struct ena_llq_configurations llq_config;
 	struct ena_com_dev* ena_dev = adapter->ena_dev;
 	bool readless_supported;
 	uint32_t aenq_groups;
@@ -2869,6 +2880,15 @@ ena_device_init(struct ena_adapter *adapter, device_t pdev,
 	}
 
 	*wd_active = !!(aenq_groups & BIT(ENA_ADMIN_KEEP_ALIVE));
+
+	set_default_llq_configurations(&llq_config, &get_feat_ctx->llq);
+
+	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx->llq,
+					     &llq_config);
+	if (unlikely(rc != 0)) {
+		ena_log(pdev, ERR, "Failed to set placement policy\n");
+		goto err_admin_init;
+	}
 
 	return (0);
 
@@ -3506,7 +3526,6 @@ static int
 ena_attach(device_t pdev)
 {
 	struct ena_com_dev_get_features_ctx get_feat_ctx;
-	struct ena_llq_configurations llq_config;
 	struct ena_calc_queue_size_ctx calc_queue_ctx = { 0 };
 	static int version_printed;
 	struct ena_adapter *adapter;
@@ -3579,7 +3598,11 @@ ena_attach(device_t pdev)
 		goto err_bus_free;
 	}
 
-	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+	rc = ena_map_llq_mem_bar(pdev, ena_dev);
+	if (unlikely(rc != 0)) {
+		ena_log(pdev, ERR, "Failed to map ENA mem bar");
+	        goto err_bus_free;
+	}
 
 	/* Initially clear all the flags */
 	ENA_FLAG_ZERO(adapter);
@@ -3590,15 +3613,6 @@ ena_attach(device_t pdev)
 		ena_log(pdev, ERR, "ENA device init failed! (err: %d)\n", rc);
 		rc = ENXIO;
 		goto err_bus_free;
-	}
-
-	set_default_llq_configurations(&llq_config, &get_feat_ctx.llq);
-
-	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx.llq,
-	     &llq_config);
-	if (unlikely(rc != 0)) {
-		ena_log(pdev, ERR, "failed to set placement policy\n");
-		goto err_com_free;
 	}
 
 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
