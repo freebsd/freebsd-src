@@ -41,6 +41,8 @@
 #define PROGNAME	"mktar"
 
 #define SUBDIRNAME	"directory"
+#define EMPTYDIRNAME	"empty"
+#define NORMALFILENAME	"file"
 #define SPARSEFILENAME	"sparse_file"
 #define HARDLINKNAME	"hard_link"
 #define SHORTLINKNAME	"short_link"
@@ -62,13 +64,32 @@ static void verbose(const char *fmt, ...)
 }
 
 static void
+mknormalfile(const char *filename, mode_t mode)
+{
+	char buf[512];
+	ssize_t res;
+	int fd;
+
+	if ((fd = open(filename, O_RDWR|O_CREAT|O_EXCL, mode)) < 0)
+		err(1, "%s", filename);
+	for (unsigned int i = 0; i < sizeof(buf); i++)
+		buf[i] = 32 + i % 64;
+	res = write(fd, buf, sizeof(buf));
+	if (res < 0)
+		err(1, "%s", filename);
+	if (res != sizeof(buf))
+		errx(1, "%s: short write", filename);
+	close(fd);
+}
+
+static void
 mksparsefile(const char *filename, mode_t mode)
 {
 	char buf[511];
 	ssize_t res;
 	int fd;
 
-	if ((fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
+	if ((fd = open(filename, O_RDWR|O_CREAT|O_EXCL, mode)) < 0)
 		err(1, "%s", filename);
 	for (unsigned int i = 33; i <= 126; i++) {
 		memset(buf, i, sizeof(buf));
@@ -105,6 +126,15 @@ mktar(void)
 	verbose("mkdir %s", SUBDIRNAME);
 	if (mkdir(SUBDIRNAME, 0755) != 0)
 		err(1, "%s", SUBDIRNAME);
+
+	/* create a second subdirectory which will remain empty */
+	verbose("mkdir %s", EMPTYDIRNAME);
+	if (mkdir(EMPTYDIRNAME, 0755) != 0)
+		err(1, "%s", EMPTYDIRNAME);
+
+	/* create a normal file */
+	verbose("creating %s", NORMALFILENAME);
+	mknormalfile(NORMALFILENAME, 0644);
 
 	/* create a sparse file */
 	verbose("creating %s", SPARSEFILENAME);
@@ -198,7 +228,12 @@ main(int argc, char *argv[])
 #if 0
 		    "--options", "zstd:frame-per-file",
 #endif
-		    ".",
+		    "./" EMPTYDIRNAME "/../" NORMALFILENAME,
+		    "./" SPARSEFILENAME,
+		    "./" HARDLINKNAME,
+		    "./" SHORTLINKNAME,
+		    "./" SUBDIRNAME,
+		    "./" LONGLINKNAME,
 		    NULL);
 		err(1, "execlp()");
 	}
@@ -222,7 +257,9 @@ main(int argc, char *argv[])
 		(void)unlink(HARDLINKNAME);
 		verbose("rm %s", SPARSEFILENAME);
 		(void)unlink(SPARSEFILENAME);
-		verbose("rm %s", SUBDIRNAME);
+		verbose("rmdir %s", EMPTYDIRNAME);
+		(void)rmdir(EMPTYDIRNAME);
+		verbose("rmdir %s", SUBDIRNAME);
 		(void)rmdir(SUBDIRNAME);
 		verbose("cd -");
 		exit(0);
