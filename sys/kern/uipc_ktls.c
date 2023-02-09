@@ -1478,6 +1478,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 		/* Don't allow enabling ifnet ktls multiple times */
 		if (tp->t_nic_ktls_xmit)
 			return (EALREADY);
+
 		/*
 		 * Don't enable ifnet ktls if we disabled it due to an
 		 * excessive retransmission rate
@@ -1850,7 +1851,6 @@ ktls_destroy(struct ktls_session *tls)
 			 * know that we don't hold the inp rlock, and
 			 * can safely take the wlock
 			 */
-
 			if (curthread->td_rw_rlocks == 0) {
 				INP_WLOCK(inp);
 			} else {
@@ -3335,6 +3335,7 @@ ktls_disable_ifnet(void *arg)
 		SOCK_UNLOCK(so);
 		return;
 	}
+
 	/*
 	 * note that t_nic_ktls_xmit_dis is never cleared; disabling
 	 * ifnet can only be done once per connection, so we never want
