@@ -643,10 +643,6 @@ nlmsg_ack(struct nlpcb *nlp, int error, struct nlmsghdr *hdr,
 	if ((npt->err_msg || npt->err_off) && nlp->nl_flags & NLF_EXT_ACK)
 		nl_flags |= NLM_F_ACK_TLVS;
 
-	/*
-	 * TODO: handle cookies
-	 */
-
 	NL_LOG(LOG_DEBUG3, "acknowledging message type %d seq %d",
 	    hdr->nlmsg_type, hdr->nlmsg_seq);
 
@@ -662,6 +658,8 @@ nlmsg_ack(struct nlpcb *nlp, int error, struct nlmsghdr *hdr,
 		nlattr_add_string(nw, NLMSGERR_ATTR_MSG, npt->err_msg);
 	if (npt->err_off != 0 && nlp->nl_flags & NLF_EXT_ACK)
 		nlattr_add_u32(nw, NLMSGERR_ATTR_OFFS, npt->err_off);
+	if (npt->cookie != NULL)
+		nlattr_add_raw(nw, npt->cookie);
 
 	if (nlmsg_end(nw))
 		return;

@@ -17,6 +17,7 @@ from atf_python.sys.net.netlink import NlmBaseFlags
 from atf_python.sys.net.netlink import NlmNewFlags
 from atf_python.sys.net.netlink import NlMsgType
 from atf_python.sys.net.netlink import NlRtMsgType
+from atf_python.sys.net.netlink import rtnl_ifla_attrs
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
 
 
@@ -90,6 +91,40 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
         assert rx_msg.error_code == 0
 
         self.get_interface_byname("lo10")
+
+    @pytest.mark.require_user("root")
+    def test_create_iface_plain_retvals(self):
+        """Tests loopback creation w/o any parameters"""
+        flags = NlmNewFlags.NLM_F_EXCL.value | NlmNewFlags.NLM_F_CREATE.value
+        msg = NetlinkIflaMessage(self.helper, NlRtMsgType.RTM_NEWLINK.value)
+        msg.nl_hdr.nlmsg_flags = (
+            flags | NlmBaseFlags.NLM_F_ACK.value | NlmBaseFlags.NLM_F_REQUEST.value
+        )
+        msg.add_nla(NlAttrStr(IflattrType.IFLA_IFNAME, "lo10"))
+        msg.add_nla(
+            NlAttrNested(
+                IflattrType.IFLA_LINKINFO,
+                [
+                    NlAttrStrn(IflinkInfo.IFLA_INFO_KIND, "lo"),
+                ],
+            )
+        )
+
+        rx_msg = self.get_reply(msg)
+        assert rx_msg.is_type(NlMsgType.NLMSG_ERROR)
+        assert rx_msg.error_code == 0
+        assert rx_msg.cookie is not None
+        nla_list, _ = rx_msg.parse_attrs(bytes(rx_msg.cookie)[4:], rtnl_ifla_attrs)
+        nla_map = {n.nla_type: n for n in nla_list}
+        assert IflattrType.IFLA_IFNAME.value in nla_map
+        assert nla_map[IflattrType.IFLA_IFNAME.value].text == "lo10"
+        assert IflattrType.IFLA_NEW_IFINDEX.value in nla_map
+        assert nla_map[IflattrType.IFLA_NEW_IFINDEX.value].u32 > 0
+
+        lo_msg = self.get_interface_byname("lo10")
+        assert (
+            lo_msg.base_hdr.ifi_index == nla_map[IflattrType.IFLA_NEW_IFINDEX.value].u32
+        )
 
     @pytest.mark.require_user("root")
     def test_create_iface_attrs(self):

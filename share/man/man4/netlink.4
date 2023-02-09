@@ -217,6 +217,10 @@ socket option is set, the kernel may add a
 string TLV with the textual error description, optionally followed by the
 .Dv NLMSGERR_ATTR_OFFS
 TLV, indicating the offset from the message start that triggered an error.
+Some operations may return additional metadata encapsulated in the
+.Dv NLMSGERR_ATTR_COOKIE
+TLV.
+The metadata format is specific to the operation.
 If the operation reply is a multipart message, then no
 .Dv NLMSG_ERROR
 reply is generated, only a
