@@ -32,13 +32,13 @@
 #define	_RDMA_IB_ADDR_FREEBSD_H
 
 #ifdef INET
-static inline struct ifnet *
+static inline if_t
 ip_ifp_find(struct vnet *vnet, uint32_t addr)
 {
 	struct sockaddr_in sin;
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_addr.s_addr = addr;
@@ -60,13 +60,13 @@ ip_ifp_find(struct vnet *vnet, uint32_t addr)
 #endif
 
 #ifdef INET6
-static inline struct ifnet *
+static inline if_t
 ip6_ifp_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 {
 	struct sockaddr_in6 sin6;
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_addr = addr;
@@ -92,11 +92,11 @@ ip6_ifp_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 }
 #endif
 
-static inline struct ifnet *
+static inline if_t
 dev_get_by_index(struct vnet *vnet, int if_index)
 {
 	struct epoch_tracker et;
-	struct ifnet *retval;
+	if_t retval;
 
 	NET_EPOCH_ENTER(et);
 	CURVNET_SET(vnet);

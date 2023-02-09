@@ -140,32 +140,34 @@ rdma_copy_addr_sub(u8 *dst, const u8 *src, unsigned min, unsigned max)
 	memset(dst + min, 0, max - min);
 }
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, if_t dev,
 		     const unsigned char *dst_dev_addr)
 {
+	int dev_type = if_gettype(dev);
+
 	/* check for loopback device */
-	if (dev->if_flags & IFF_LOOPBACK) {
+	if (if_getflags(dev) & IFF_LOOPBACK) {
 		dev_addr->dev_type = ARPHRD_ETHER;
 		memset(dev_addr->src_dev_addr, 0, MAX_ADDR_LEN);
 		memset(dev_addr->broadcast, 0, MAX_ADDR_LEN);
 		memset(dev_addr->dst_dev_addr, 0, MAX_ADDR_LEN);
-		dev_addr->bound_dev_if = dev->if_index;
+		dev_addr->bound_dev_if = if_getindex(dev);
 		return (0);
-	} else if (dev->if_type == IFT_INFINIBAND)
+	} else if (dev_type == IFT_INFINIBAND)
 		dev_addr->dev_type = ARPHRD_INFINIBAND;
-	else if (dev->if_type == IFT_ETHER || dev->if_type == IFT_L2VLAN)
+	else if (dev_type == IFT_ETHER || dev_type == IFT_L2VLAN)
 		dev_addr->dev_type = ARPHRD_ETHER;
 	else
 		dev_addr->dev_type = 0;
-	rdma_copy_addr_sub(dev_addr->src_dev_addr, IF_LLADDR(dev),
-			   dev->if_addrlen, MAX_ADDR_LEN);
-	rdma_copy_addr_sub(dev_addr->broadcast, dev->if_broadcastaddr,
-			   dev->if_addrlen, MAX_ADDR_LEN);
+	rdma_copy_addr_sub(dev_addr->src_dev_addr, if_getlladdr(dev),
+			   if_getaddrlen(dev), MAX_ADDR_LEN);
+	rdma_copy_addr_sub(dev_addr->broadcast, if_getbroadcastaddr(dev),
+			   if_getaddrlen(dev), MAX_ADDR_LEN);
 	if (dst_dev_addr != NULL) {
 		rdma_copy_addr_sub(dev_addr->dst_dev_addr, dst_dev_addr,
-				   dev->if_addrlen, MAX_ADDR_LEN);
+				   if_getaddrlen(dev), MAX_ADDR_LEN);
 	}
-	dev_addr->bound_dev_if = dev->if_index;
+	dev_addr->bound_dev_if = if_getindex(dev);
 	return 0;
 }
 EXPORT_SYMBOL(rdma_copy_addr);
@@ -173,7 +175,7 @@ EXPORT_SYMBOL(rdma_copy_addr);
 int rdma_translate_ip(const struct sockaddr *addr,
 		      struct rdma_dev_addr *dev_addr)
 {
-	struct ifnet *dev;
+	if_t dev;
 	int ret;
 
 	if (dev_addr->bound_dev_if) {
@@ -198,7 +200,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 
 	if (dev != NULL) {
 		/* disallow connections through 127.0.0.1 itself */
-		if (dev->if_flags & IFF_LOOPBACK)
+		if (if_getflags(dev) & IFF_LOOPBACK)
 			ret = -EINVAL;
 		else
 			ret = rdma_copy_addr(dev_addr, dev, NULL);
@@ -241,7 +243,7 @@ static void queue_req(struct addr_req *req)
 }
 
 #if defined(INET) || defined(INET6)
-static int addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_in)
+static int addr_resolve_multi(u8 *edst, if_t ifp, struct sockaddr *dst_in)
 {
 	struct sockaddr *llsa;
 	struct sockaddr_dl sdl;
@@ -250,14 +252,10 @@ static int addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_
 	sdl.sdl_len = sizeof(sdl);
 	llsa = (struct sockaddr *)&sdl;
 
-	if (ifp->if_resolvemulti == NULL) {
-		error = EOPNOTSUPP;
-	} else {
-		error = ifp->if_resolvemulti(ifp, &llsa, dst_in);
-		if (error == 0) {
-			rdma_copy_addr_sub(edst, LLADDR((struct sockaddr_dl *)llsa),
-			    ifp->if_addrlen, MAX_ADDR_LEN);
-		}
+	error = if_resolvemulti(ifp, &llsa, dst_in);
+	if (error == 0) {
+		rdma_copy_addr_sub(edst, LLADDR((struct sockaddr_dl *)llsa),
+		    if_getaddrlen(ifp), MAX_ADDR_LEN);
 	}
 	return (error);
 }
@@ -268,7 +266,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			 const struct sockaddr_in *dst_in,
 			 struct rdma_dev_addr *addr,
 			 u8 *edst,
-			 struct ifnet **ifpp)
+			 if_t *ifpp)
 {
 	enum {
 		ADDR_VALID = 0,
@@ -279,7 +277,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	in_port_t src_port;
 	struct sockaddr *saddr = NULL;
 	struct nhop_object *nh;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 	int type;
 
@@ -332,13 +330,13 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		if (ifp == NULL) {
 			error = ENETUNREACH;
 			goto done;
-		} else if (ifp->if_flags & IFF_LOOPBACK) {
+		} else if (if_getflags(ifp) & IFF_LOOPBACK) {
 			/*
 			 * Source address cannot be a loopback device.
 			 */
 			error = EHOSTUNREACH;
 			goto error_put_ifp;
-		} else if (nh->nh_ifp->if_flags & IFF_LOOPBACK) {
+		} else if (if_getflags(nh->nh_ifp) & IFF_LOOPBACK) {
 			if (memcmp(&src_in->sin_addr, &dst_in->sin_addr,
 			    sizeof(src_in->sin_addr))) {
 				/*
@@ -364,7 +362,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		break;
 	case ADDR_SRC_ANY:
 		/* check for loopback device */
-		if (nh->nh_ifp->if_flags & IFF_LOOPBACK)
+		if (if_getflags(nh->nh_ifp) & IFF_LOOPBACK)
 			saddr = (struct sockaddr *)&dst_tmp;
 		else
 			saddr = nh->nh_ifa->ifa_addr;
@@ -381,8 +379,8 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	 * Step 3 - resolve destination MAC address
 	 */
 	if (dst_tmp.sin_addr.s_addr == INADDR_BROADCAST) {
-		rdma_copy_addr_sub(edst, ifp->if_broadcastaddr,
-		    ifp->if_addrlen, MAX_ADDR_LEN);
+		rdma_copy_addr_sub(edst, if_getbroadcastaddr(ifp),
+		    if_getaddrlen(ifp), MAX_ADDR_LEN);
 		error = 0;
 	} else if (IN_MULTICAST(ntohl(dst_tmp.sin_addr.s_addr))) {
 		bool is_gw = (nh->nh_flags & NHF_GATEWAY) != 0;
@@ -391,7 +389,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			goto error_put_ifp;
 		else if (is_gw)
 			addr->network = RDMA_NETWORK_IPV4;
-	} else if (ifp->if_flags & IFF_LOOPBACK) {
+	} else if (if_getflags(ifp) & IFF_LOOPBACK) {
 		memset(edst, 0, MAX_ADDR_LEN);
 		error = 0;
 	} else {
@@ -440,7 +438,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			 const struct sockaddr_in *dst_in,
 			 struct rdma_dev_addr *addr,
 			 u8 *edst,
-			 struct ifnet **ifpp)
+			 if_t *ifpp)
 {
 	return -EADDRNOTAVAIL;
 }
@@ -451,7 +449,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 const struct sockaddr_in6 *dst_in,
 			 struct rdma_dev_addr *addr,
 			 u8 *edst,
-			 struct ifnet **ifpp)
+			 if_t *ifpp)
 {
 	enum {
 		ADDR_VALID = 0,
@@ -462,7 +460,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	in_port_t src_port;
 	struct sockaddr *saddr = NULL;
 	struct nhop_object *nh;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 	int type;
 
@@ -530,13 +528,13 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		if (ifp == NULL) {
 			error = ENETUNREACH;
 			goto done;
-		} else if (ifp->if_flags & IFF_LOOPBACK) {
+		} else if (if_getflags(ifp) & IFF_LOOPBACK) {
 			/*
 			 * Source address cannot be a loopback device.
 			 */
 			error = EHOSTUNREACH;
 			goto error_put_ifp;
-		} else if (nh->nh_ifp->if_flags & IFF_LOOPBACK) {
+		} else if (if_getflags(nh->nh_ifp) & IFF_LOOPBACK) {
 			if (memcmp(&src_in->sin6_addr, &dst_in->sin6_addr,
 			    sizeof(src_in->sin6_addr))) {
 				/*
@@ -562,7 +560,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		break;
 	case ADDR_SRC_ANY:
 		/* check for loopback device */
-		if (nh->nh_ifp->if_flags & IFF_LOOPBACK)
+		if (if_getflags(nh->nh_ifp) & IFF_LOOPBACK)
 			saddr = (struct sockaddr *)&dst_tmp;
 		else
 			saddr = nh->nh_ifa->ifa_addr;
@@ -586,7 +584,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			goto error_put_ifp;
 		else if (is_gw)
 			addr->network = RDMA_NETWORK_IPV6;
-	} else if (nh->nh_ifp->if_flags & IFF_LOOPBACK) {
+	} else if (if_getflags(nh->nh_ifp) & IFF_LOOPBACK) {
 		memset(edst, 0, MAX_ADDR_LEN);
 		error = 0;
 	} else {
@@ -628,18 +626,18 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 const struct sockaddr_in6 *dst_in,
 			 struct rdma_dev_addr *addr,
 			 u8 *edst,
-			 struct ifnet **ifpp)
+			 if_t *ifpp)
 {
 	return -EADDRNOTAVAIL;
 }
 #endif
 
-static int addr_resolve_neigh(struct ifnet *dev,
+static int addr_resolve_neigh(if_t dev,
 			      const struct sockaddr *dst_in,
 			      u8 *edst,
 			      struct rdma_dev_addr *addr)
 {
-	if (dev->if_flags & IFF_LOOPBACK) {
+	if (if_getflags(dev) & IFF_LOOPBACK) {
 		int ret;
 
 		/*
@@ -647,7 +645,7 @@ static int addr_resolve_neigh(struct ifnet *dev,
 		 * sure the destination device address is global by
 		 * clearing the bound device interface:
 		 */
-		if (addr->bound_dev_if == dev->if_index)
+		if (addr->bound_dev_if == if_getindex(dev))
 			addr->bound_dev_if = 0;
 
 		ret = rdma_translate_ip(dst_in, addr);
@@ -659,7 +657,7 @@ static int addr_resolve_neigh(struct ifnet *dev,
 	}
 
 	/* If the device doesn't do ARP internally */
-	if (!(dev->if_flags & IFF_NOARP))
+	if (!(if_getflags(dev) & IFF_NOARP))
 		return rdma_copy_addr(addr, dev, edst);
 
 	return rdma_copy_addr(addr, dev, NULL);
@@ -670,7 +668,7 @@ static int addr_resolve(struct sockaddr *src_in,
 			struct rdma_dev_addr *addr)
 {
 	struct epoch_tracker et;
-	struct ifnet *ndev = NULL;
+	if_t ndev = NULL;
 	u8 edst[MAX_ADDR_LEN];
 	int ret;
 
@@ -860,7 +858,7 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *dmac, struct ifnet *dev,
+				 u8 *dmac, if_t dev,
 				 int *hoplimit)
 {
 	int ret = 0;
@@ -874,7 +872,7 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
 
-	dev_addr.bound_dev_if = dev->if_index;
+	dev_addr.bound_dev_if = if_getindex(dev);
 	dev_addr.net = dev_net(dev);
 
 	ctx.addr = &dev_addr;

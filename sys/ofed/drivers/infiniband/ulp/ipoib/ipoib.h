@@ -321,7 +321,7 @@ struct ipoib_dev_priv {
 	spinlock_t lock;
 	spinlock_t drain_lock;
 
-	struct ifnet *dev;
+	if_t dev;
 
 	u8 broadcastaddr[INFINIBAND_ALEN];
 
@@ -384,7 +384,7 @@ struct ipoib_dev_priv {
 
 	struct ib_event_handler event_handler;
 
-	struct ifnet *parent;
+	if_t parent;
 	struct list_head child_intfs;
 	struct list_head list;
 
@@ -531,7 +531,7 @@ void ipoib_dma_mb(struct ipoib_dev_priv *priv, struct mbuf *mb, unsigned int len
 struct mbuf *ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req, int align, int size, int max_frags);
 
 
-void ipoib_set_ethtool_ops(struct ifnet *dev);
+void ipoib_set_ethtool_ops(if_t dev);
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
@@ -546,7 +546,7 @@ extern int ipoib_max_conn_qp;
 
 static inline int ipoib_cm_admin_enabled(struct ipoib_dev_priv *priv)
 {
-	return IPOIB_CM_SUPPORTED(IF_LLADDR(priv->dev));
+	return IPOIB_CM_SUPPORTED(if_getlladdr(priv->dev));
 }
 
 static inline int ipoib_cm_enabled(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
@@ -752,6 +752,6 @@ extern int ipoib_debug_level;
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
 
-void ipoib_start_locked(struct ifnet *, struct ipoib_dev_priv *);
+void ipoib_start_locked(if_t, struct ipoib_dev_priv *);
 
 #endif /* _IPOIB_H */

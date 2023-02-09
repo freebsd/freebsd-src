@@ -82,10 +82,10 @@ void ib_cache_setup(void);
 void ib_cache_cleanup(void);
 
 typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
-	      struct ifnet *idev, void *cookie);
+	      if_t idev, void *cookie);
 
 typedef int (*roce_netdev_filter)(struct ib_device *device, u8 port,
-	     struct ifnet *idev, void *cookie);
+	     if_t idev, void *cookie);
 
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
@@ -107,7 +107,7 @@ int ib_cache_gid_parse_type_str(const char *buf);
 const char *ib_cache_gid_type_str(enum ib_gid_type gid_type);
 
 void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
-				  struct ifnet *ndev,
+				  if_t ndev,
 				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode);
 
@@ -118,8 +118,8 @@ int ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 		     union ib_gid *gid, struct ib_gid_attr *attr);
 
 int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
-				     struct ifnet *ndev);
-void ib_cache_gid_del_all_by_netdev(struct ifnet *ndev);
+				     if_t ndev);
+void ib_cache_gid_del_all_by_netdev(if_t ndev);
 
 int roce_gid_mgmt_init(void);
 void roce_gid_mgmt_cleanup(void);

@@ -263,7 +263,7 @@ static const struct file_operations ipoib_path_fops = {
 	.release = seq_release
 };
 
-void ipoib_create_debug_files(struct ifnet *dev)
+void ipoib_create_debug_files(if_t dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	char name[IFNAMSIZ + sizeof "_path"];
@@ -281,7 +281,7 @@ void ipoib_create_debug_files(struct ifnet *dev)
 		ipoib_warn(priv, "failed to create path debug file\n");
 }
 
-void ipoib_delete_debug_files(struct ifnet *dev)
+void ipoib_delete_debug_files(if_t dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 

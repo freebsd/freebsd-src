@@ -63,7 +63,7 @@ struct ipoib_mcast_iter {
 
 static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 {
-	struct ifnet *dev = mcast->priv->dev;
+	if_t dev = mcast->priv->dev;
 	int tx_dropped = 0;
 
 	ipoib_dbg_mcast(mcast->priv, "deleting multicast group %16D\n",
@@ -155,7 +155,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 				   struct ib_sa_mcmember_rec *mcmember)
 {
 	struct ipoib_dev_priv *priv = mcast->priv;
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct ipoib_ah *ah;
 	struct epoch_tracker et;
 	int ret;
@@ -164,7 +164,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	mcast->mcmember = *mcmember;
 
 	/* Set the cached Q_Key before we attach if it's the broadcast group */
-	if (!memcmp(mcast->mcmember.mgid.raw, dev->if_broadcastaddr + 4,
+	if (!memcmp(mcast->mcmember.mgid.raw, if_getbroadcastaddr(dev) + 4,
 		    sizeof (union ib_gid))) {
 		spin_lock_irq(&priv->lock);
 		if (!priv->broadcast) {
@@ -236,7 +236,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		_IF_DEQUEUE(&mcast->pkt_queue, mb);
 		mb->m_pkthdr.rcvif = dev;
 
-		if (dev->if_transmit(dev, mb))
+		if (if_transmit(dev, mb))
 			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
 	}
 
@@ -474,7 +474,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
 		container_of(work, struct ipoib_dev_priv, mcast_task.work);
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct ib_port_attr attr;
 
 	ipoib_dbg_mcast(priv, "Running join task. flags 0x%lX\n", priv->flags);
@@ -492,7 +492,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid, NULL))
 		ipoib_warn(priv, "ib_query_gid() failed\n");
 	else
-		memcpy(IF_LLADDR(dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
+		memcpy(if_getlladdr(dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
 	{
 		struct ib_port_attr attr;
@@ -521,7 +521,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		}
 
 		spin_lock_irq(&priv->lock);
-		memcpy(broadcast->mcmember.mgid.raw, dev->if_broadcastaddr + 4,
+		memcpy(broadcast->mcmember.mgid.raw, if_getbroadcastaddr(dev) + 4,
 		       sizeof (union ib_gid));
 		priv->broadcast = broadcast;
 
@@ -629,7 +629,7 @@ static int ipoib_mcast_leave(struct ipoib_dev_priv *priv, struct ipoib_mcast *mc
 void
 ipoib_mcast_send(struct ipoib_dev_priv *priv, void *mgid, struct mbuf *mb)
 {
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct ipoib_mcast *mcast;
 
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)		||
@@ -757,7 +757,7 @@ ipoib_process_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	addr = LLADDR(sdl);
 	addrlen = sdl->sdl_alen;
 	if (!ipoib_mcast_addr_is_valid(addr, addrlen,
-	    priv->dev->if_broadcastaddr))
+	    if_getbroadcastaddr(priv->dev)))
 		return (0);
 
 	memcpy(mgid.raw, addr + 4, sizeof mgid);
@@ -811,7 +811,7 @@ void ipoib_mcast_restart(struct ipoib_dev_priv *priv)
 {
 	struct ipoib_mcast_ctx ctx = { priv,
 	    { &ctx.remove_list, &ctx.remove_list }};
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct ipoib_mcast *mcast, *tmcast;
 
 	ipoib_dbg_mcast(priv, "restarting multicast task flags 0x%lX\n",
