@@ -641,7 +641,7 @@ synch_setup(void *dummy)
 	loadav(NULL);
 }
 
-int
+bool
 should_yield(void)
 {
 
