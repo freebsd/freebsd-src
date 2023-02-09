@@ -250,7 +250,7 @@ tarfs_lookup(struct vop_cachedlookup_args *ap)
 static int
 tarfs_readdir(struct vop_readdir_args *ap)
 {
-	struct dirent cde;
+	struct dirent cde = { };
 	struct tarfs_node *current, *tnp;
 	struct vnode *vp;
 	struct uio *uio;
