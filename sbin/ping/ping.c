@@ -225,7 +225,7 @@ static void pinger(void);
 static char *pr_addr(struct in_addr);
 static char *pr_ntime(n_time);
 static void pr_icmph(struct icmp *, struct ip *, const u_char *const);
-static void pr_iph(struct ip *);
+static void pr_iph(struct ip *, const u_char *);
 static void pr_pack(char *, ssize_t, struct sockaddr_in *, struct timespec *);
 static void pr_retip(struct ip *, const u_char *);
 static void status(int);
@@ -1157,7 +1157,6 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	struct ip oip;
 	u_char oip_header_len;
 	struct icmp oicmp;
-	const u_char *oicmp_raw;
 
 	/*
 	 * Get size of IP header of the received packet.
@@ -1355,8 +1354,6 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 		}
 
 		memcpy(&oip, icmp_data_raw, sizeof(struct ip));
-		oicmp_raw = icmp_data_raw + oip_header_len;
-		memcpy(&oicmp, oicmp_raw, sizeof(struct icmp));
 
 		if (((options & F_VERBOSE) && uid == 0) ||
 		    (!(options & F_QUIET2) &&
@@ -1366,7 +1363,7 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 		     (oicmp.icmp_id == ident))) {
 		    (void)printf("%zd bytes from %s: ", cc,
 			pr_addr(from->sin_addr));
-		    pr_icmph(&icp, &oip, oicmp_raw);
+		    pr_icmph(&icp, &oip, icmp_data_raw);
 		} else
 		    return;
 	}
@@ -1663,14 +1660,13 @@ pr_icmph(struct icmp *icp, struct ip *oip, const u_char *const oicmp_raw)
  *	Print an IP header with options.
  */
 static void
-pr_iph(struct ip *ip)
+pr_iph(struct ip *ip, const u_char *cp)
 {
 	struct in_addr ina;
-	u_char *cp;
 	int hlen;
 
 	hlen = ip->ip_hl << 2;
-	cp = (u_char *)ip + sizeof(struct ip);		/* point to options */
+	cp = cp + sizeof(struct ip);		/* point to options */
 
 	(void)printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst\n");
 	(void)printf(" %1x  %1x  %02x %04x %04x",
@@ -1723,7 +1719,12 @@ pr_addr(struct in_addr ina)
 static void
 pr_retip(struct ip *ip, const u_char *cp)
 {
-	pr_iph(ip);
+	int8_t hlen;
+
+	pr_iph(ip, cp);
+
+	hlen = ip->ip_hl << 2;
+	cp = cp + hlen;
 
 	if (ip->ip_p == 6)
 		(void)printf("TCP: from port %u, to port %u (decimal)\n",
