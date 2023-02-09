@@ -1406,7 +1406,7 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 					(void)putchar('\n');
 				}
 			} else
-				(void)printf("\t(truncated route)\n");
+				(void)printf("\t(truncated route)");
 			break;
 		case IPOPT_RR:
 			j = cp[IPOPT_OLEN];		/* get length */
