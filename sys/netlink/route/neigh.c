@@ -519,7 +519,6 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 		.cmd = NL_RTM_GETNEIGH,
 		.name = "RTM_GETNEIGH",
 		.cb = &rtnl_handle_getneigh,
-		.priv = PRIV_NET_ROUTE,
 	}
 };
 
