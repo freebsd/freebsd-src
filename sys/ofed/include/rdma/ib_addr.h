@@ -54,7 +54,7 @@
 /* Linux netdevice.h but for working on an ifnet rather than a net_device. */
 #define	dev_hold(d)	if_ref(d)
 #define	dev_put(d)	if_rele(d)
-#define	dev_net(d)	((d)->if_vnet)
+#define	dev_net(d)	if_getvnet(d)
 #define	net_eq(a,b)	((a) == (b))
 
 
@@ -142,7 +142,7 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, if_t dev,
 	      const unsigned char *dst_dev_addr);
 
 int rdma_addr_size(struct sockaddr *addr);
@@ -151,7 +151,7 @@ int rdma_addr_size_kss(struct sockaddr_storage *addr);
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *smac, struct ifnet *dev,
+				 u8 *smac, if_t dev,
 				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
@@ -176,13 +176,13 @@ static inline int rdma_addr_gid_offset(struct rdma_dev_addr *dev_addr)
 	return dev_addr->dev_type == ARPHRD_INFINIBAND ? 4 : 0;
 }
 
-static inline u16 rdma_vlan_dev_vlan_id(const struct ifnet *dev)
+static inline u16 rdma_vlan_dev_vlan_id(if_t dev)
 {
 	uint16_t tag;
 
-	if (dev->if_type == IFT_ETHER && dev->if_pcp != IFNET_PCP_NONE)
+	if (if_gettype(dev) != IFT_ETHER || if_getpcp(dev) == IFNET_PCP_NONE)
 		return 0x0000;	/* prio-tagged traffic */
-	if (VLAN_TAG(__DECONST(struct ifnet *, dev), &tag) != 0)
+	if (VLAN_TAG(__DECONST(if_t, dev), &tag) != 0)
 		return 0xffff;
 	return tag;
 }
@@ -228,11 +228,19 @@ static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 	}
 }
 
+static u_int
+_iboe_addr_get_sgid_ia_cb(void *arg, struct ifaddr *ifa, u_int count __unused)
+{
+	ipv6_addr_set_v4mapped(((struct sockaddr_in *)
+			       ifa->ifa_addr)->sin_addr.s_addr,
+			       (struct in6_addr *)arg);
+	return (0);
+}
+
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 				      union ib_gid *gid)
 {
-	struct ifnet *dev;
-	struct ifaddr *ifa;
+	if_t dev;
 
 #ifdef VIMAGE
 	if (dev_addr->net == NULL)
@@ -240,15 +248,8 @@ static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 #endif
 	dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 	if (dev) {
-		CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr == NULL ||
-			    ifa->ifa_addr->sa_family != AF_INET)
-				continue;
-			ipv6_addr_set_v4mapped(((struct sockaddr_in *)
-					       ifa->ifa_addr)->sin_addr.s_addr,
-					       (struct in6_addr *)gid);
-			break;
-		}
+		if_foreach_addr_type(dev, AF_INET,
+				     _iboe_addr_get_sgid_ia_cb, gid);
 		dev_put(dev);
 	}
 }
@@ -300,9 +301,9 @@ static inline enum ib_mtu iboe_get_mtu(int mtu)
 		return 0;
 }
 
-static inline int iboe_get_rate(struct ifnet *dev)
+static inline int iboe_get_rate(if_t dev)
 {
-	uint64_t baudrate = dev->if_baudrate;
+	uint64_t baudrate = if_getbaudrate(dev);
 #ifdef if_baudrate_pf
 	int exp;
 	for (exp = dev->if_baudrate_pf; exp > 0; exp--)
@@ -365,12 +366,12 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 	return vid < 0x1000 ? vid : 0xffff;
 }
 
-static inline struct ifnet *rdma_vlan_dev_real_dev(struct ifnet *dev)
+static inline if_t rdma_vlan_dev_real_dev(if_t dev)
 {
 	struct epoch_tracker et;
 
 	NET_EPOCH_ENTER(et);
-	if (dev->if_type != IFT_ETHER || dev->if_pcp == IFNET_PCP_NONE)
+	if (if_gettype(dev) != IFT_ETHER || if_getpcp(dev) == IFNET_PCP_NONE)
 		dev = VLAN_TRUNKDEV(dev);	/* non prio-tagged traffic */
 	NET_EPOCH_EXIT(et);
 	return (dev);

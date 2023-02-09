@@ -56,7 +56,7 @@ enum gid_op_type {
 
 struct roce_netdev_event_work {
 	struct work_struct work;
-	struct ifnet *ndev;
+	if_t ndev;
 };
 
 struct roce_rescan_work {
@@ -91,7 +91,7 @@ unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port)
 EXPORT_SYMBOL(roce_gid_type_mask_support);
 
 static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
-    u8 port, union ib_gid *gid, struct ifnet *ndev)
+    u8 port, union ib_gid *gid, if_t ndev)
 {
 	int i;
 	unsigned long gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
@@ -119,9 +119,9 @@ static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
 
 static int
 roce_gid_match_netdev(struct ib_device *ib_dev, u8 port,
-    struct ifnet *idev, void *cookie)
+    if_t idev, void *cookie)
 {
-	struct ifnet *ndev = (struct ifnet *)cookie;
+	if_t ndev = (if_t )cookie;
 	if (idev == NULL)
 		return (0);
 	return (ndev == idev);
@@ -129,7 +129,7 @@ roce_gid_match_netdev(struct ib_device *ib_dev, u8 port,
 
 static int
 roce_gid_match_all(struct ib_device *ib_dev, u8 port,
-    struct ifnet *idev, void *cookie)
+    if_t idev, void *cookie)
 {
 	if (idev == NULL)
 		return (0);
@@ -138,7 +138,7 @@ roce_gid_match_all(struct ib_device *ib_dev, u8 port,
 
 static int
 roce_gid_enum_netdev_default(struct ib_device *ib_dev,
-    u8 port, struct ifnet *idev)
+    u8 port, if_t idev)
 {
 	unsigned long gid_type_mask;
 
@@ -150,32 +150,81 @@ roce_gid_enum_netdev_default(struct ib_device *ib_dev,
 	return (hweight_long(gid_type_mask));
 }
 
+struct ipx_entry {
+	STAILQ_ENTRY(ipx_entry)	entry;
+	union ipx_addr {
+		struct sockaddr sa[0];
+		struct sockaddr_in v4;
+		struct sockaddr_in6 v6;
+	} ipx_addr;
+	if_t ndev;
+};
+
+STAILQ_HEAD(ipx_queue, ipx_entry);
+
+#ifdef INET
+static u_int
+roce_gid_update_addr_ifa4_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct ipx_queue *ipx_head = arg;
+	struct ipx_entry *entry;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (entry == NULL) {
+		pr_warn("roce_gid_update_addr_callback: "
+		    "couldn't allocate entry for IPv4 update\n");
+		return (0);
+	}
+	entry->ipx_addr.v4 = *((struct sockaddr_in *)ifa->ifa_addr);
+	entry->ndev = ifa->ifa_ifp;
+	STAILQ_INSERT_TAIL(ipx_head, entry, entry);
+
+	return (1);
+}
+#endif
+
+#ifdef INET6
+static u_int
+roce_gid_update_addr_ifa6_cb(void *arg, struct ifaddr *ifa, u_int count)
+{
+	struct ipx_queue *ipx_head = arg;
+	struct ipx_entry *entry;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (entry == NULL) {
+		pr_warn("roce_gid_update_addr_callback: "
+		    "couldn't allocate entry for IPv6 update\n");
+		return (0);
+	}
+	entry->ipx_addr.v6 = *((struct sockaddr_in6 *)ifa->ifa_addr);
+	entry->ndev = ifa->ifa_ifp;
+
+	/* trash IPv6 scope ID */
+	sa6_recoverscope(&entry->ipx_addr.v6);
+	entry->ipx_addr.v6.sin6_scope_id = 0;
+
+	STAILQ_INSERT_TAIL(ipx_head, entry, entry);
+
+	return (1);
+}
+#endif
+
 static void
 roce_gid_update_addr_callback(struct ib_device *device, u8 port,
-    struct ifnet *ndev, void *cookie)
+    if_t ndev, void *cookie)
 {
-	struct ipx_entry {
-		STAILQ_ENTRY(ipx_entry)	entry;
-		union ipx_addr {
-			struct sockaddr sa[0];
-			struct sockaddr_in v4;
-			struct sockaddr_in6 v6;
-		} ipx_addr;
-		struct ifnet *ndev;
-	};
+	struct epoch_tracker et;
+	struct if_iter iter;
 	struct ipx_entry *entry;
-	struct ifnet *idev;
-#if defined(INET) || defined(INET6)
-	struct ifaddr *ifa;
-#endif
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ib_gid_attr gid_attr;
 	union ib_gid gid;
+	if_t ifp;
 	int default_gids;
 	u16 index_num;
 	int i;
 
-	STAILQ_HEAD(, ipx_entry) ipx_head;
+	struct ipx_queue ipx_head;
 
 	STAILQ_INIT(&ipx_head);
 
@@ -185,59 +234,24 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 	    CURVNET_SET(vnet_iter);
-	    IFNET_RLOCK();
-	    CK_STAILQ_FOREACH(idev, &V_ifnet, if_link) {
-		struct epoch_tracker et;
-
-		if (idev != ndev) {
-			if (idev->if_type != IFT_L2VLAN)
+	    NET_EPOCH_ENTER(et);
+	    for (ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter)) {
+		if (ifp != ndev) {
+			if (if_gettype(ifp) != IFT_L2VLAN)
 				continue;
-			if (ndev != rdma_vlan_dev_real_dev(idev))
+			if (ifp != rdma_vlan_dev_real_dev(ifp))
 				continue;
 		}
 
 		/* clone address information for IPv4 and IPv6 */
-		NET_EPOCH_ENTER(et);
 #if defined(INET)
-		CK_STAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr == NULL ||
-			    ifa->ifa_addr->sa_family != AF_INET)
-				continue;
-			entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-			if (entry == NULL) {
-				pr_warn("roce_gid_update_addr_callback: "
-				    "couldn't allocate entry for IPv4 update\n");
-				continue;
-			}
-			entry->ipx_addr.v4 = *((struct sockaddr_in *)ifa->ifa_addr);
-			entry->ndev = idev;
-			STAILQ_INSERT_TAIL(&ipx_head, entry, entry);
-		}
+		if_foreach_addr_type(ifp, AF_INET, roce_gid_update_addr_ifa4_cb, &ipx_head);
 #endif
 #if defined(INET6)
-		CK_STAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr == NULL ||
-			    ifa->ifa_addr->sa_family != AF_INET6)
-				continue;
-			entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-			if (entry == NULL) {
-				pr_warn("roce_gid_update_addr_callback: "
-				    "couldn't allocate entry for IPv6 update\n");
-				continue;
-			}
-			entry->ipx_addr.v6 = *((struct sockaddr_in6 *)ifa->ifa_addr);
-			entry->ndev = idev;
-
-			/* trash IPv6 scope ID */
-			sa6_recoverscope(&entry->ipx_addr.v6);
-			entry->ipx_addr.v6.sin6_scope_id = 0;
-
-			STAILQ_INSERT_TAIL(&ipx_head, entry, entry);
-		}
+		if_foreach_addr_type(ifp, AF_INET6, roce_gid_update_addr_ifa6_cb, &ipx_head);
 #endif
-		NET_EPOCH_EXIT(et);
 	    }
-	    IFNET_RUNLOCK();
+	    NET_EPOCH_EXIT(et);
 	    CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK();
@@ -315,12 +329,12 @@ roce_gid_queue_scan_event_handler(struct work_struct *_work)
 }
 
 static void
-roce_gid_queue_scan_event(struct ifnet *ndev)
+roce_gid_queue_scan_event(if_t ndev)
 {
 	struct roce_netdev_event_work *work;
 
 retry:
-	switch (ndev->if_type) {
+	switch (if_gettype(ndev)) {
 	case IFT_ETHER:
 		break;
 	case IFT_L2VLAN:
@@ -358,7 +372,7 @@ roce_gid_delete_all_event_handler(struct work_struct *_work)
 }
 
 static void
-roce_gid_delete_all_event(struct ifnet *ndev)
+roce_gid_delete_all_event(if_t ndev)
 {
 	struct roce_netdev_event_work *work;
 
@@ -380,7 +394,7 @@ roce_gid_delete_all_event(struct ifnet *ndev)
 static int
 inetaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct ifnet *ndev = netdev_notifier_info_to_ifp(ptr);
+	if_t ndev = netdev_notifier_info_to_ifp(ptr);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -404,7 +418,7 @@ static struct notifier_block nb_inetaddr = {
 static eventhandler_tag eh_ifnet_event;
 
 static void
-roce_ifnet_event(void *arg, struct ifnet *ifp, int event)
+roce_ifnet_event(void *arg, if_t ifp, int event)
 {
 	if (event != IFNET_EVENT_PCP || is_vlan_dev(ifp))
 		return;

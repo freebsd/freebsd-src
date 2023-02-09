@@ -40,20 +40,20 @@ __FBSDID("$FreeBSD$");
 
 #include "ipoib.h"
 
-static void ipoib_get_drvinfo(struct ifnet *netdev,
+static void ipoib_get_drvinfo(if_t netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	strncpy(drvinfo->driver, "ipoib", sizeof(drvinfo->driver) - 1);
 }
 
-static u32 ipoib_get_rx_csum(struct ifnet *dev)
+static u32 ipoib_get_rx_csum(if_t dev)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	return test_bit(IPOIB_FLAG_CSUM, &priv->flags) &&
 		!test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
-static int ipoib_get_coalesce(struct ifnet *dev,
+static int ipoib_get_coalesce(if_t dev,
 			      struct ethtool_coalesce *coal)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
@@ -66,7 +66,7 @@ static int ipoib_get_coalesce(struct ifnet *dev,
 	return 0;
 }
 
-static int ipoib_set_coalesce(struct ifnet *dev,
+static int ipoib_set_coalesce(if_t dev,
 			      struct ethtool_coalesce *coal)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
@@ -109,7 +109,7 @@ static const char ipoib_stats_keys[][ETH_GSTRING_LEN] = {
 	"LRO avg aggr", "LRO no desc"
 };
 
-static void ipoib_get_strings(struct ifnet *netdev, u32 stringset, u8 *data)
+static void ipoib_get_strings(if_t netdev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
@@ -118,7 +118,7 @@ static void ipoib_get_strings(struct ifnet *netdev, u32 stringset, u8 *data)
 	}
 }
 
-static int ipoib_get_sset_count(struct ifnet *dev, int sset)
+static int ipoib_get_sset_count(if_t dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -128,7 +128,7 @@ static int ipoib_get_sset_count(struct ifnet *dev, int sset)
 	}
 }
 
-static void ipoib_get_ethtool_stats(struct ifnet *dev,
+static void ipoib_get_ethtool_stats(if_t dev,
 				struct ethtool_stats *stats, uint64_t *data)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
@@ -157,7 +157,7 @@ static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_ethtool_stats	= ipoib_get_ethtool_stats,
 };
 
-void ipoib_set_ethtool_ops(struct ifnet *dev)
+void ipoib_set_ethtool_ops(if_t dev)
 {
 	SET_ETHTOOL_OPS(dev, &ipoib_ethtool_ops);
 }

@@ -76,7 +76,7 @@ int ib_get_cached_gid(struct ib_device    *device,
 int ib_find_cached_gid(struct ib_device *device,
 		       const union ib_gid *gid,
 		       enum ib_gid_type gid_type,
-		       struct ifnet *ndev,
+		       if_t              ndev,
 		       u8               *port_num,
 		       u16              *index);
 
@@ -99,7 +99,7 @@ int ib_find_cached_gid_by_port(struct ib_device *device,
 			       const union ib_gid *gid,
 			       enum ib_gid_type gid_type,
 			       u8               port_num,
-			       struct ifnet *ndev,
+			       if_t             ndev,
 			       u16              *index);
 
 int ib_find_gid_by_filter(struct ib_device *device,

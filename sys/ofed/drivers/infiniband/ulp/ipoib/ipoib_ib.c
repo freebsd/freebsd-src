@@ -203,7 +203,7 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
 	struct ipoib_rx_buf saverx;
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_RECV;
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct ipoib_header *eh;
 	struct mbuf *mb;
 
@@ -267,7 +267,7 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->wc_flags & IB_WC_IP_CSUM_OK))
 		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
 
-	dev->if_input(dev, mb);
+	if_input(dev, mb);
 
 repost:
 	if (unlikely(ipoib_ib_post_receive(priv, wr_id)))
@@ -334,7 +334,7 @@ void ipoib_dma_unmap_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req)
 
 static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	unsigned int wr_id = wc->wr_id;
 	struct ipoib_tx_buf *tx_req;
 
@@ -357,9 +357,9 @@ static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	++priv->tx_tail;
 	if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
-	    (dev->if_drv_flags & IFF_DRV_OACTIVE) &&
+	    (if_getdrvflags(dev) & IFF_DRV_OACTIVE) &&
 	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
-		dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(dev, 0, IFF_DRV_OACTIVE);
 
 	if (wc->status != IB_WC_SUCCESS &&
 	    wc->status != IB_WC_WR_FLUSH_ERR)
@@ -428,13 +428,13 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 
 static void drain_tx_cq(struct ipoib_dev_priv *priv)
 {
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 
 	spin_lock(&priv->lock);
 	while (ipoib_poll_tx(priv, true))
 		; /* nothing */
 
-	if (dev->if_drv_flags & IFF_DRV_OACTIVE)
+	if (if_getdrvflags(dev) & IFF_DRV_OACTIVE)
 		mod_timer(&priv->poll_timer, jiffies + 1);
 
 	spin_unlock(&priv->lock);
@@ -482,7 +482,7 @@ void
 ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
     struct ipoib_ah *address, u32 qpn)
 {
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct ipoib_tx_buf *tx_req;
 	int hlen;
 	void *phead;
@@ -542,7 +542,7 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
 		if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
 			ipoib_warn(priv, "request notify on send CQ failed\n");
-		dev->if_drv_flags |= IFF_DRV_OACTIVE;
+		if_setdrvflagbits(dev, IFF_DRV_OACTIVE, 0);
 	}
 
 	if (unlikely(post_send(priv,
@@ -553,8 +553,8 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		--priv->tx_outstanding;
 		ipoib_dma_unmap_tx(priv->ca, tx_req);
 		m_freem(mb);
-		if (dev->if_drv_flags & IFF_DRV_OACTIVE)
-			dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if (if_getdrvflags(dev) & IFF_DRV_OACTIVE)
+			if_setdrvflagbits(dev, 0, IFF_DRV_OACTIVE);
 	} else {
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
@@ -856,7 +856,7 @@ timeout:
 
 int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int port)
 {
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 
 	priv->ca = ca;
 	priv->port = port;
@@ -870,7 +870,7 @@ int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int por
 	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
 		    (unsigned long) priv);
 
-	if (dev->if_flags & IFF_UP) {
+	if (if_getflags(dev) & IFF_UP) {
 		if (ipoib_ib_dev_open(priv)) {
 			ipoib_transport_dev_cleanup(priv);
 			return -ENODEV;

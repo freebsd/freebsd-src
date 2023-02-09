@@ -143,6 +143,7 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 		.qp_type     = IB_QPT_UD
 	};
 	struct ib_cq_init_attr cq_attr = {};
+	caddr_t lla;
 
 	int ret, size;
 	int i;
@@ -212,9 +213,10 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 		goto out_free_send_cq;
 	}
 
-	IF_LLADDR(priv->dev)[1] = (priv->qp->qp_num >> 16) & 0xff;
-	IF_LLADDR(priv->dev)[2] = (priv->qp->qp_num >>  8) & 0xff;
-	IF_LLADDR(priv->dev)[3] = (priv->qp->qp_num      ) & 0xff;
+	lla = if_getlladdr(priv->dev);
+	lla[1] = (priv->qp->qp_num >> 16) & 0xff;
+	lla[2] = (priv->qp->qp_num >>  8) & 0xff;
+	lla[3] = (priv->qp->qp_num      ) & 0xff;
 
 	for (i = 0; i < IPOIB_MAX_TX_SG; ++i)
 		priv->tx_sge[i].lkey = priv->pd->local_dma_lkey;

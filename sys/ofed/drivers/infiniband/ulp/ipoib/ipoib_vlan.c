@@ -48,14 +48,14 @@ __FBSDID("$FreeBSD$");
 static ssize_t show_parent(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
-	struct ifnet *dev = to_net_dev(d);
+	if_t dev = to_net_dev(d);
 	struct ipoib_dev_priv *priv = dev->if_softc;
 
 	return sprintf(buf, "%s\n", priv->parent->name);
 }
 static DEVICE_ATTR(parent, S_IRUGO, show_parent, NULL);
 
-int ipoib_vlan_add(struct ifnet *pdev, unsigned short pkey)
+int ipoib_vlan_add(if_t pdev, unsigned short pkey)
 {
 	struct ipoib_dev_priv *ppriv, *priv;
 	char intf_name[IFNAMSIZ];
@@ -107,7 +107,7 @@ int ipoib_vlan_add(struct ifnet *pdev, unsigned short pkey)
 
 	priv->pkey = pkey;
 
-	memcpy(IF_LLADDR(priv->dev), ppriv->dev->dev_addr, INFINIBAND_ALEN);
+	memcpy(if_getlladdr(priv->dev), ppriv->dev->dev_addr, INFINIBAND_ALEN);
 	priv->broadcastaddr[8] = pkey >> 8;
 	priv->broadcastaddr[9] = pkey & 0xff;
 
@@ -162,10 +162,10 @@ err:
 	return result;
 }
 
-int ipoib_vlan_delete(struct ifnet *pdev, unsigned short pkey)
+int ipoib_vlan_delete(if_t pdev, unsigned short pkey)
 {
 	struct ipoib_dev_priv *ppriv, *priv, *tpriv;
-	struct ifnet *dev = NULL;
+	if_t dev = NULL;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
