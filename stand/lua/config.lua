@@ -256,6 +256,7 @@ local pattern_table = {
 				modules[k] = {}
 			end
 			modules[k].load = v:upper()
+			setEnv(k .. "_load", v:upper())
 		end,
 	},
 	--  module_name="value"
@@ -263,6 +264,7 @@ local pattern_table = {
 		str = MODULEEXPR .. "_name%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "name", v)
+			setEnv(k .. "_name", v)
 		end,
 	},
 	--  module_type="value"
@@ -270,6 +272,7 @@ local pattern_table = {
 		str = MODULEEXPR .. "_type%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "type", v)
+			setEnv(k .. "_type", v)
 		end,
 	},
 	--  module_flags="value"
@@ -277,6 +280,7 @@ local pattern_table = {
 		str = MODULEEXPR .. "_flags%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "flags", v)
+			setEnv(k .. "_flags", v)
 		end,
 	},
 	--  module_before="value"
@@ -284,6 +288,7 @@ local pattern_table = {
 		str = MODULEEXPR .. "_before%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "before", v)
+			setEnv(k .. "_before", v)
 		end,
 	},
 	--  module_after="value"
@@ -291,6 +296,7 @@ local pattern_table = {
 		str = MODULEEXPR .. "_after%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "after", v)
+			setEnv(k .. "_after", v)
 		end,
 	},
 	--  module_error="value"
@@ -298,6 +304,7 @@ local pattern_table = {
 		str = MODULEEXPR .. "_error%s*=%s*$VALUE",
 		process = function(k, v)
 			setKey(k, "error", v)
+			setEnv(k .. "_error", v)
 		end,
 	},
 	--  exec="command"
