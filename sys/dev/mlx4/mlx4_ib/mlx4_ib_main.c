@@ -731,11 +731,11 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	if (!ndev)
 		goto out_unlock;
 
-	tmp = iboe_get_mtu(ndev->if_mtu);
+	tmp = iboe_get_mtu(if_getmtu(ndev));
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
 
-	props->state		= ((ndev->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-				   ndev->if_link_state == LINK_STATE_UP) ?
+	props->state		= ((if_getdrvflags(ndev) & IFF_DRV_RUNNING) != 0 &&
+				   if_getlinkstate(ndev) == LINK_STATE_UP) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 out_unlock:
@@ -2281,7 +2281,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this,
 	if_t dev = netdev_notifier_info_to_ifp(ptr);
 	struct mlx4_ib_dev *ibdev;
 
-	if (dev->if_vnet != &init_net)
+	if (if_getvnet(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	ibdev = container_of(this, struct mlx4_ib_dev, iboe.nb);
@@ -3021,8 +3021,8 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 			continue;
 
 		curr_port_state =
-			((curr_netdev->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			 curr_netdev->if_link_state == LINK_STATE_UP) ?
+			((if_getdrvflags(curr_netdev) & IFF_DRV_RUNNING) != 0 &&
+			 if_getlinkstate(curr_netdev) == LINK_STATE_UP) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;
 
 		bonded_port_state = (bonded_port_state != IB_PORT_ACTIVE) ?
