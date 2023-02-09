@@ -52,6 +52,7 @@ options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	QUOTA			# Enable disk quotas for UFS
 options 	MD_ROOT			# MD is a potential root device
+options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD32	# Compatible with i386 binaries
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
@@ -118,9 +119,8 @@ device		vt_vbefb
 
 device		agp			# support several AGP chipsets
 
-# Bring in 'uart' as well, since it can be a console driver and all console
-# drivers must be compiled into the kernel.
-device		uart
+# Serial (COM) ports
+device		uart			# Generic UART driver
 
 # Pseudo devices.
 device		loop			# Network loopback
@@ -132,6 +132,13 @@ device		ether			# Ethernet support
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf			# Berkeley packet filter
+
+# VirtIO support
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_pci		# VirtIO PCI device
+device		vtnet			# VirtIO Ethernet device
+device		virtio_blk		# VirtIO Block device
+device		virtio_balloon		# VirtIO Memory Balloon device
 
 # Linux KVM paravirtualization support
 device		kvm_clock		# KVM paravirtual clock driver
