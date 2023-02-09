@@ -37,7 +37,7 @@ public:
     typedef _LIBCPP_NODEBUG typename conditional
                      <
                          is_array<_Up>::value,
-                         typename remove_extent<_Up>::type*,
+                         typename add_pointer<typename remove_extent<_Up>::type>::type,
                          typename conditional
                          <
                               is_function<_Up>::value,
