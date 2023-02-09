@@ -1247,8 +1247,7 @@ restart:
 		vn_finished_write(mp);
 		done++;
 next_iter_unlocked:
-		if (should_yield())
-			kern_yield(PRI_USER);
+		maybe_yield();
 		mtx_lock(&vnode_list_mtx);
 		goto restart;
 next_iter:
@@ -6719,8 +6718,7 @@ __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
 {
 	struct vnode *vp;
 
-	if (should_yield())
-		kern_yield(PRI_USER);
+	maybe_yield();
 	MNT_ILOCK(mp);
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	for (vp = TAILQ_NEXT(*mvp, v_nmntvnodes); vp != NULL;
@@ -6935,8 +6933,7 @@ __mnt_vnode_next_lazy(struct vnode **mvp, struct mount *mp, mnt_lazy_cb_t *cb,
     void *cbarg)
 {
 
-	if (should_yield())
-		kern_yield(PRI_USER);
+	maybe_yield();
 	mtx_lock(&mp->mnt_listmtx);
 	return (mnt_vnode_next_lazy(mvp, mp, cb, cbarg));
 }
