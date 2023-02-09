@@ -296,7 +296,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	thread_cow_get_proc(newtd, p);
 
-	/* this code almost the same as create_thread() in kern_thr.c */
+	/* This code is similar to thread_create() in kern_thr.c. */
 	p->p_flag |= P_HADTHREADS;
 	thread_link(newtd, p);
 	thread_lock(oldtd);
