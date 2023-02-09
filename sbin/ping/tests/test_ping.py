@@ -786,6 +786,248 @@ round-trip min/avg/max/stddev = /// ms
                 "dst": "192.0.2.2",
                 "icmp_type": 0,
                 "icmp_code": 0,
+                "opts": "EOL",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+wrong total length 88 instead of 84
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_EOL",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "LSRR",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+LSRR: 	192.0.2.10
+	192.0.2.20
+	192.0.2.30
+	192.0.2.40
+	192.0.2.50
+	192.0.2.60
+	192.0.2.70
+	192.0.2.80
+	192.0.2.90
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_LSRR",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "LSRR-trunc",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+LSRR: 	(truncated route)
+
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_LSRR_trunc",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "SSRR",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+SSRR: 	192.0.2.10
+	192.0.2.20
+	192.0.2.30
+	192.0.2.40
+	192.0.2.50
+	192.0.2.60
+	192.0.2.70
+	192.0.2.80
+	192.0.2.90
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_SSRR",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "SSRR-trunc",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+SSRR: 	(truncated route)
+
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_SSRR_trunc",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "RR",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+RR: 	192.0.2.10
+	192.0.2.20
+	192.0.2.30
+	192.0.2.40
+	192.0.2.50
+	192.0.2.60
+	192.0.2.70
+	192.0.2.80
+	192.0.2.90
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_RR",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "RR-same",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms	(same route)
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_RR_same",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "RR-trunc",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+RR: 	(truncated route)
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_RR_trunc",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "opts": "NOP",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+wrong total length 88 instead of 84
+NOP
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_opts_NOP",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
                 "opts": "NOP-40",
             },
             {
@@ -867,7 +1109,6 @@ round-trip min/avg/max/stddev = /// ms
                 "stderr": "",
                 "redacted": True,
             },
-            marks=pytest.mark.skip("XXX currently failing"),
             id="_0_0_opts_unk",
         ),
         pytest.param(
