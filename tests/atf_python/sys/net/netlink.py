@@ -950,58 +950,68 @@ def prepare_attrs_map(attrs: List[AttrDescr]) -> Dict[str, Dict]:
     return ret
 
 
-rtnl_route_attrs = [
-    AttrDescr(RtattrType.RTA_DST, NlAttrIp),
-    AttrDescr(RtattrType.RTA_SRC, NlAttrIp),
-    AttrDescr(RtattrType.RTA_IIF, NlAttrIfindex),
-    AttrDescr(RtattrType.RTA_OIF, NlAttrIfindex),
-    AttrDescr(RtattrType.RTA_GATEWAY, NlAttrTable),
-    AttrDescr(RtattrType.RTA_VIA, NlAttrVia),
-    AttrDescr(RtattrType.RTA_NH_ID, NlAttrNhId),
-    AttrDescr(
-        RtattrType.RTA_METRICS,
-        NlAttrNested,
-        [
-            AttrDescr(NlRtaxType.RTAX_MTU, NlAttrU32),
-        ],
-    ),
-]
+rtnl_route_attrs = prepare_attrs_map(
+    [
+        AttrDescr(RtattrType.RTA_DST, NlAttrIp),
+        AttrDescr(RtattrType.RTA_SRC, NlAttrIp),
+        AttrDescr(RtattrType.RTA_IIF, NlAttrIfindex),
+        AttrDescr(RtattrType.RTA_OIF, NlAttrIfindex),
+        AttrDescr(RtattrType.RTA_GATEWAY, NlAttrTable),
+        AttrDescr(RtattrType.RTA_VIA, NlAttrVia),
+        AttrDescr(RtattrType.RTA_NH_ID, NlAttrNhId),
+        AttrDescr(
+            RtattrType.RTA_METRICS,
+            NlAttrNested,
+            [
+                AttrDescr(NlRtaxType.RTAX_MTU, NlAttrU32),
+            ],
+        ),
+    ]
+)
 
-nldone_attrs = []
+nldone_attrs = prepare_attrs_map([])
 
-nlerr_attrs = [
-    AttrDescr(NlErrattrType.NLMSGERR_ATTR_MSG, NlAttrStr),
-    AttrDescr(NlErrattrType.NLMSGERR_ATTR_OFFS, NlAttrU32),
-]
+nlerr_attrs = prepare_attrs_map(
+    [
+        AttrDescr(NlErrattrType.NLMSGERR_ATTR_MSG, NlAttrStr),
+        AttrDescr(NlErrattrType.NLMSGERR_ATTR_OFFS, NlAttrU32),
+        AttrDescr(NlErrattrType.NLMSGERR_ATTR_COOKIE, NlAttr),
+    ]
+)
 
-rtnl_ifla_attrs = [
-    AttrDescr(IflattrType.IFLA_ADDRESS, NlAttrMac),
-    AttrDescr(IflattrType.IFLA_BROADCAST, NlAttrMac),
-    AttrDescr(IflattrType.IFLA_IFNAME, NlAttrStr),
-    AttrDescr(IflattrType.IFLA_MTU, NlAttrU32),
-    AttrDescr(IflattrType.IFLA_PROMISCUITY, NlAttrU32),
-    AttrDescr(IflattrType.IFLA_OPERSTATE, NlAttrU8),
-    AttrDescr(IflattrType.IFLA_CARRIER, NlAttrU8),
-    AttrDescr(IflattrType.IFLA_IFALIAS, NlAttrStr),
-    AttrDescr(IflattrType.IFLA_STATS64, NlAttrIfStats),
-    AttrDescr(
-        IflattrType.IFLA_LINKINFO,
-        NlAttrNested,
-        [
-            AttrDescr(IflinkInfo.IFLA_INFO_KIND, NlAttrStr),
-            AttrDescr(IflinkInfo.IFLA_INFO_DATA, NlAttr),
-        ],
-    ),
-]
+rtnl_ifla_attrs = prepare_attrs_map(
+    [
+        AttrDescr(IflattrType.IFLA_ADDRESS, NlAttrMac),
+        AttrDescr(IflattrType.IFLA_BROADCAST, NlAttrMac),
+        AttrDescr(IflattrType.IFLA_IFNAME, NlAttrStr),
+        AttrDescr(IflattrType.IFLA_MTU, NlAttrU32),
+        AttrDescr(IflattrType.IFLA_PROMISCUITY, NlAttrU32),
+        AttrDescr(IflattrType.IFLA_OPERSTATE, NlAttrU8),
+        AttrDescr(IflattrType.IFLA_CARRIER, NlAttrU8),
+        AttrDescr(IflattrType.IFLA_IFALIAS, NlAttrStr),
+        AttrDescr(IflattrType.IFLA_STATS64, NlAttrIfStats),
+        AttrDescr(IflattrType.IFLA_NEW_IFINDEX, NlAttrU32),
+        AttrDescr(
+            IflattrType.IFLA_LINKINFO,
+            NlAttrNested,
+            [
+                AttrDescr(IflinkInfo.IFLA_INFO_KIND, NlAttrStr),
+                AttrDescr(IflinkInfo.IFLA_INFO_DATA, NlAttr),
+            ],
+        ),
+    ]
+)
 
-rtnl_ifa_attrs = [
-    AttrDescr(IfattrType.IFA_ADDRESS, NlAttrIp),
-    AttrDescr(IfattrType.IFA_LOCAL, NlAttrIp),
-    AttrDescr(IfattrType.IFA_LABEL, NlAttrStr),
-    AttrDescr(IfattrType.IFA_BROADCAST, NlAttrIp),
-    AttrDescr(IfattrType.IFA_ANYCAST, NlAttrIp),
-    AttrDescr(IfattrType.IFA_FLAGS, NlAttrU32),
-]
+rtnl_ifa_attrs = prepare_attrs_map(
+    [
+        AttrDescr(IfattrType.IFA_ADDRESS, NlAttrIp),
+        AttrDescr(IfattrType.IFA_LOCAL, NlAttrIp),
+        AttrDescr(IfattrType.IFA_LABEL, NlAttrStr),
+        AttrDescr(IfattrType.IFA_BROADCAST, NlAttrIp),
+        AttrDescr(IfattrType.IFA_ANYCAST, NlAttrIp),
+        AttrDescr(IfattrType.IFA_FLAGS, NlAttrU32),
+    ]
+)
 
 
 class BaseNetlinkMessage(object):
@@ -1140,7 +1150,7 @@ class StdNetlinkMessage(BaseNetlinkMessage):
             raise
         return self
 
-    def _parse_attrs(self, data: bytes, attr_map):
+    def parse_attrs(self, data: bytes, attr_map):
         ret = []
         off = 0
         while len(data) - off >= 4:
@@ -1157,7 +1167,7 @@ class StdNetlinkMessage(BaseNetlinkMessage):
                 val = v["ad"].cls.from_bytes(data[off : off + nla_len], v["ad"].val)
                 if "child" in v:
                     # nested
-                    attrs, _ = self._parse_attrs(data[off : off + nla_len], v["child"])
+                    attrs, _ = self.parse_attrs(data[off : off + nla_len], v["child"])
                     val = NlAttrNested(raw_nla_type, attrs)
             else:
                 # unknown attribute
@@ -1167,7 +1177,7 @@ class StdNetlinkMessage(BaseNetlinkMessage):
         return ret, off
 
     def parse_nla_list(self, data: bytes) -> List[NlAttr]:
-        return self._parse_attrs(data, self.nl_attrs_map)
+        return self.parse_attrs(data, self.nl_attrs_map)
 
     def print_message(self):
         self.print_nl_header(self.nl_hdr)
@@ -1178,7 +1188,7 @@ class StdNetlinkMessage(BaseNetlinkMessage):
 
 class NetlinkDoneMessage(StdNetlinkMessage):
     messages = [NlMsgType.NLMSG_DONE.value]
-    nl_attrs_map = prepare_attrs_map(nldone_attrs)
+    nl_attrs_map = nldone_attrs
 
     @property
     def error_code(self):
@@ -1197,7 +1207,7 @@ class NetlinkDoneMessage(StdNetlinkMessage):
 
 class NetlinkErrorMessage(StdNetlinkMessage):
     messages = [NlMsgType.NLMSG_ERROR.value]
-    nl_attrs_map = prepare_attrs_map(nlerr_attrs)
+    nl_attrs_map = nlerr_attrs
 
     @property
     def error_code(self):
@@ -1216,6 +1226,10 @@ class NetlinkErrorMessage(StdNetlinkMessage):
         if nla:
             return nla.u32
         return None
+
+    @property
+    def cookie(self):
+        return self.get_nla(NlErrattrType.NLMSGERR_ATTR_COOKIE)
 
     def parse_base_header(self, data):
         if len(data) < sizeof(Nlmsgerr):
@@ -1257,7 +1271,7 @@ class NetlinkRtMessage(BaseNetlinkRtMessage):
         NlRtMsgType.RTM_DELROUTE.value,
         NlRtMsgType.RTM_GETROUTE.value,
     ]
-    nl_attrs_map = prepare_attrs_map(rtnl_route_attrs)
+    nl_attrs_map = rtnl_route_attrs
 
     def __init__(self, helper, nlm_type):
         super().__init__(helper, nlm_type)
@@ -1297,7 +1311,7 @@ class NetlinkIflaMessage(BaseNetlinkRtMessage):
         NlRtMsgType.RTM_DELLINK.value,
         NlRtMsgType.RTM_GETLINK.value,
     ]
-    nl_attrs_map = prepare_attrs_map(rtnl_ifla_attrs)
+    nl_attrs_map = rtnl_ifla_attrs
 
     def __init__(self, helper, nlm_type):
         super().__init__(helper, nlm_type)
@@ -1329,7 +1343,7 @@ class NetlinkIfaMessage(BaseNetlinkRtMessage):
         NlRtMsgType.RTM_DELADDR.value,
         NlRtMsgType.RTM_GETADDR.value,
     ]
-    nl_attrs_map = prepare_attrs_map(rtnl_ifa_attrs)
+    nl_attrs_map = rtnl_ifa_attrs
 
     def __init__(self, helper, nlm_type):
         super().__init__(helper, nlm_type)

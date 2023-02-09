@@ -164,6 +164,27 @@ _nlmsg_reserve_attr(struct nl_writer *nw, uint16_t nla_type, uint16_t sz)
 #define	nlmsg_reserve_attr(_ns, _at, _t)	((_t *)_nlmsg_reserve_attr(_ns, _at, NLA_ALIGN(sizeof(_t))))
 
 static inline bool
+nlattr_add_nla(struct nl_writer *nw, const struct nlattr *nla_src)
+{
+	MPASS(nla_src->nla_len >= sizeof(struct nlattr));
+
+	int required_len = NLA_ALIGN(nla_src->nla_len);
+        if (__predict_false(nw->offset + required_len > nw->alloc_len)) {
+		if (!nlmsg_refill_buffer(nw, required_len))
+			return (false);
+	}
+
+        struct nlattr *nla = (struct nlattr *)(&nw->data[nw->offset]);
+	if ((nla_src->nla_len % 4) != 0) {
+		/* clear padding bytes */
+		bzero((char *)nla + nla_src->nla_len - 4, 4);
+	}
+	memcpy(nla, nla_src, nla_src->nla_len);
+        nw->offset += required_len;
+	return (true);
+}
+
+static inline bool
 nlattr_add(struct nl_writer *nw, int attr_type, int attr_len, const void *data)
 {
 	int required_len = NLA_ALIGN(attr_len + sizeof(struct nlattr));
@@ -186,6 +207,16 @@ nlattr_add(struct nl_writer *nw, int attr_type, int attr_len, const void *data)
 	}
         nw->offset += required_len;
         return (true);
+}
+
+static inline bool
+nlattr_add_raw(struct nl_writer *nw, const struct nlattr *nla_src)
+{
+	int attr_len = nla_src->nla_len - sizeof(struct nlattr);
+
+	MPASS(attr_len >= 0);
+
+	return (nlattr_add(nw, nla_src->nla_type, attr_len, (const void *)(nla_src + 1)));
 }
 
 static inline bool

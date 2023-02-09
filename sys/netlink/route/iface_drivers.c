@@ -110,6 +110,41 @@ modify_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 }
 
 /*
+ * Saves the resulting ifindex and ifname to report them
+ *  to userland along with the operation result.
+ * NLA format:
+ * NLMSGERR_ATTR_COOKIE(nested)
+ *  IFLA_NEW_IFINDEX(u32)
+ *  IFLA_IFNAME(string)
+ */
+static void
+store_cookie(struct nl_pstate *npt, struct ifnet *ifp)
+{
+	int ifname_len = strlen(if_name(ifp));
+	uint32_t ifindex = (uint32_t)ifp->if_index;
+
+	int nla_len = sizeof(struct nlattr) * 3 +
+		sizeof(ifindex) + NL_ITEM_ALIGN(ifname_len + 1);
+	struct nlattr *nla_cookie = npt_alloc(npt, nla_len);
+
+	/* Nested TLV */
+	nla_cookie->nla_len = nla_len;
+	nla_cookie->nla_type = NLMSGERR_ATTR_COOKIE;
+
+	struct nlattr *nla = nla_cookie + 1;
+	nla->nla_len = sizeof(struct nlattr) + sizeof(ifindex);
+	nla->nla_type = IFLA_NEW_IFINDEX;
+	memcpy(NLA_DATA(nla), &ifindex, sizeof(ifindex));
+
+	nla = NLA_NEXT(nla);
+	nla->nla_len = sizeof(struct nlattr) + ifname_len + 1;
+	nla->nla_type = IFLA_IFNAME;
+	strlcpy(NLA_DATA(nla), if_name(ifp), ifname_len + 1);
+
+	nlmsg_report_cookie(npt, nla_cookie);
+}
+
+/*
  * Generic creation interface handler.
  * Responsible for creating interfaces w/o parameters and setting
  * misc attributes such as state, mtu or description.
@@ -135,6 +170,8 @@ create_generic(struct nl_parsed_link *lattrs, const struct nlattr_bmask *bm,
 		if (!success)
 			return (EINVAL);
 		error = modify_generic(ifp, lattrs, bm, nlp, npt);
+		if (error == 0)
+			store_cookie(npt, ifp);
 		if_rele(ifp);
 	}
 
