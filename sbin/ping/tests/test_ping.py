@@ -268,6 +268,7 @@ def redact(output):
         ("hlim=[0-9]*", "hlim="),
         ("ttl=[0-9]*", "ttl="),
         ("time=[0-9.-]*", "time="),
+        ("\(-[0-9\.]+[0-9]+ ms\)", "(- ms)"),
         ("[0-9\.]+/[0-9.]+", "/"),
     ]
     for pattern, repl in pattern_replacements:
@@ -1209,6 +1210,32 @@ ping: quoted data too short (28 bytes) from 192.0.2.2
             },
             id="_3_1_special_udp",
         ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "special": "warp",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": """\
+ping: time of day goes back (- ms), clamping time to 0
+""",
+                "redacted": True,
+            },
+            id="_0_0_special_warp",
+        ),
     ]
 
     @pytest.mark.parametrize("pinger_kargs, expected", pinger_testdata)
@@ -1221,6 +1248,7 @@ ping: quoted data too short (28 bytes) from 192.0.2.2
         assert ping.returncode == expected["returncode"]
         if expected["redacted"]:
             assert redact(ping.stdout) == expected["stdout"]
+            assert redact(ping.stderr) == expected["stderr"]
         else:
             assert ping.stdout == expected["stdout"]
-        assert ping.stderr == expected["stderr"]
+            assert ping.stderr == expected["stderr"]
