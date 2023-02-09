@@ -41,14 +41,6 @@
 #define	INFINIBAND_IS_MULTICAST(addr) \
     ((addr)[4] == 0xff)
 
-#define	INFINIBAND_BPF_MTAP(_ifp, _m)			\
-do {							\
-	if (bpf_peers_present((_ifp)->if_bpf)) {	\
-		M_ASSERTVALID(_m);			\
-		infiniband_bpf_mtap(_ifp, _m);		\
-	}						\
-} while (0)
-
 struct infiniband_header {
 	uint8_t	ib_hwaddr[INFINIBAND_ADDR_LEN];
 	uint16_t ib_protocol;		/* big endian */
