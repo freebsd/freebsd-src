@@ -5174,6 +5174,13 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 		snoop = (u32) ~(PCIE_NO_SNOOP_ALL);
 	e1000_set_pcie_no_snoop_generic(hw, snoop);
 
+	/* ungate DMA clock to avoid packet loss */
+	if (mac->type >= e1000_pch_tgp) {
+		uint32_t fflt_dbg = E1000_READ_REG(hw, E1000_FFLT_DBG);
+		fflt_dbg |= (1 << 12);
+		E1000_WRITE_REG(hw, E1000_FFLT_DBG, fflt_dbg);
+	}
+
 	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	ctrl_ext |= E1000_CTRL_EXT_RO_DIS;
 	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
