@@ -86,14 +86,6 @@
 #define LINUX_LIST_HEAD(name) \
 	struct list_head name = LINUX_LIST_HEAD_INIT(name)
 
-#ifndef LIST_HEAD_DEF
-#define	LIST_HEAD_DEF
-struct list_head {
-	struct list_head *next;
-	struct list_head *prev;
-};
-#endif
-
 static inline void
 INIT_LIST_HEAD(struct list_head *list)
 {

@@ -79,6 +79,14 @@ typedef	unsigned long	kernel_ulong_t;
 
 typedef unsigned long irq_hw_number_t;
 
+#ifndef LIST_HEAD_DEF
+#define	LIST_HEAD_DEF
+struct list_head {
+	struct list_head *next;
+	struct list_head *prev;
+};
+#endif
+
 struct rcu_head {
 	void *raw[2];
 } __aligned(sizeof(void *));
