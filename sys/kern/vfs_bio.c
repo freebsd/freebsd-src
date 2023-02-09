@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/syscallsubr.h>
@@ -1425,8 +1426,7 @@ bufshutdown(int show_busybufs)
 		 * threads to run.
 		 */
 		for (subiter = 0; subiter < 50 * iter; subiter++) {
-			thread_lock(curthread);
-			mi_switch(SW_VOL);
+			sched_relinquish(curthread);
 			DELAY(1000);
 		}
 #endif

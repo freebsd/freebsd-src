@@ -1582,7 +1582,7 @@ sched_bind(struct thread *td, int cpu)
 	if (PCPU_GET(cpuid) == cpu)
 		return;
 
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL | SWT_BIND);
 	thread_lock(td);
 #endif
 }
