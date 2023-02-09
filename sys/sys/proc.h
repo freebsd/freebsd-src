@@ -904,22 +904,20 @@ struct proc {
 
 #ifdef _KERNEL
 
-/* Types and flags for mi_switch(). */
+/* Types and flags for mi_switch(9). */
 #define	SW_TYPE_MASK		0xff	/* First 8 bits are switch type */
-#define	SWT_NONE		0	/* Unspecified switch. */
-#define	SWT_PREEMPT		1	/* Switching due to preemption. */
-#define	SWT_OWEPREEMPT		2	/* Switching due to owepreempt. */
-#define	SWT_TURNSTILE		3	/* Turnstile contention. */
-#define	SWT_SLEEPQ		4	/* Sleepq wait. */
-#define	SWT_SLEEPQTIMO		5	/* Sleepq timeout wait. */
-#define	SWT_RELINQUISH		6	/* yield call. */
-#define	SWT_NEEDRESCHED		7	/* NEEDRESCHED was set. */
-#define	SWT_IDLE		8	/* Switching from the idle thread. */
-#define	SWT_IWAIT		9	/* Waiting for interrupts. */
-#define	SWT_SUSPEND		10	/* Thread suspended. */
-#define	SWT_REMOTEPREEMPT	11	/* Remote processor preempted. */
-#define	SWT_REMOTEWAKEIDLE	12	/* Remote processor preempted idle. */
-#define	SWT_COUNT		13	/* Number of switch types. */
+#define	SWT_OWEPREEMPT		1	/* Switching due to owepreempt. */
+#define	SWT_TURNSTILE		2	/* Turnstile contention. */
+#define	SWT_SLEEPQ		3	/* Sleepq wait. */
+#define	SWT_RELINQUISH		4	/* yield call. */
+#define	SWT_NEEDRESCHED		5	/* NEEDRESCHED was set. */
+#define	SWT_IDLE		6	/* Switching from the idle thread. */
+#define	SWT_IWAIT		7	/* Waiting for interrupts. */
+#define	SWT_SUSPEND		8	/* Thread suspended. */
+#define	SWT_REMOTEPREEMPT	9	/* Remote processor preempted. */
+#define	SWT_REMOTEWAKEIDLE	10	/* Remote processor preempted idle. */
+#define	SWT_BIND		11	/* Thread bound to a new CPU. */
+#define	SWT_COUNT		12	/* Number of switch types. */
 /* Flags */
 #define	SW_VOL		0x0100		/* Voluntary switch. */
 #define	SW_INVOL	0x0200		/* Involuntary switch. */

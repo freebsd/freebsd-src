@@ -565,8 +565,7 @@ poll_idle(void)
 		if (poll_in_idle_loop && poll_handlers > 0) {
 			idlepoll_sleeping = 0;
 			ether_poll(poll_each_burst);
-			thread_lock(td);
-			mi_switch(SW_VOL);
+			sched_relinquish(td);
 		} else {
 			idlepoll_sleeping = 1;
 			tsleep(&idlepoll_sleeping, 0, "pollid", hz * 3);

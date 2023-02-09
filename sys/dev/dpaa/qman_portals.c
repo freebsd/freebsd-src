@@ -146,8 +146,7 @@ qman_portal_setup(struct qman_softc *qsc)
 		}
 
 		/* Not inititialized and "owned" by another thread */
-		thread_lock(curthread);
-		mi_switch(SW_VOL);
+		sched_relinquish(curthread);
 	}
 
 	/* Map portal registers */
