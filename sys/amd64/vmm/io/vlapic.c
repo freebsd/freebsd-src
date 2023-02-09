@@ -1160,7 +1160,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 		vmexit->exitcode = VM_EXITCODE_IPI;
 		vmexit->u.ipi.mode = mode;
 		vmexit->u.ipi.vector = vec;
-		vmexit->u.ipi.dmask = dmask;
+		vmexit->u.ipi.dmask = ipimask;
 
 		*retu = true;
 	}
@@ -1185,16 +1185,22 @@ vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 
 	*retu = true;
 	switch (vme->u.ipi.mode) {
-	case APIC_DELMODE_INIT:
-		vm_smp_rendezvous(vcpu, *dmask, vlapic_handle_init,
-		    NULL);
+	case APIC_DELMODE_INIT: {
+		cpuset_t active, reinit;
+
+		active = vm_active_cpus(vcpu_vm(vcpu));
+		CPU_AND(&reinit, &active, dmask);
+		if (!CPU_EMPTY(&reinit)) {
+			vm_smp_rendezvous(vcpu, reinit, vlapic_handle_init,
+			    NULL);
+		}
 		vm_await_start(vcpu_vm(vcpu), dmask);
 
-		if (!vlapic->ipi_exit) {
+		if (!vlapic->ipi_exit)
 			*retu = false;
-		}
 
 		break;
+	}
 	case APIC_DELMODE_STARTUP:
 		/*
 		 * Ignore SIPIs in any state other than wait-for-SIPI
@@ -1212,13 +1218,13 @@ vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 		 */
 		if (!vlapic->ipi_exit) {
 			vme->exitcode = VM_EXITCODE_SPINUP_AP;
-			vme->u.spinup_ap.vcpu = CPU_FFS(dmask);
+			vme->u.spinup_ap.vcpu = CPU_FFS(dmask) - 1;
 			vme->u.spinup_ap.rip = vec << PAGE_SHIFT;
 		}
 
 		break;
 	default:
-		return (1);
+		__assert_unreachable();
 	}
 
 	return (0);
