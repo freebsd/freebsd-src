@@ -2229,11 +2229,6 @@ BOOTSTRAP_ALL_TOOLS:=	1
 BOOTSTRAPPING_OSRELDATE:=	0
 .endif
 
-# libnv and libsbuf are requirements for config(8), which is an unconditional
-# bootstrap-tool.
-_config=usr.sbin/config lib/libnv lib/libsbuf
-${_bt}-usr.sbin/config: ${_bt}-lib/libnv ${_bt}-lib/libsbuf
-
 .if ${MK_GAMES} != "no"
 _strfile=	usr.bin/fortune/strfile
 .endif
@@ -2529,7 +2524,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_other_bootstrap_tools} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    ${_config} \
+    usr.sbin/config \
     ${_flua} \
     ${_crunchide} \
     ${_crunchgen} \
