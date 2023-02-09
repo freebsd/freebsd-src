@@ -544,6 +544,7 @@
 #define	MSR_IA32_FEATURE_CONTROL 0x03a
 #define	MSR_IA32_SPEC_CTRL	0x048
 #define	MSR_IA32_PRED_CMD	0x049
+#define MSR_IA32_UARCH_MISC_CTL	0x00001b01 /* Data Operand Independent Timing Mode */
 #define	MSR_BIOS_UPDT_TRIG	0x079
 #define	MSR_BBL_CR_D0		0x088
 #define	MSR_BBL_CR_D1		0x089
