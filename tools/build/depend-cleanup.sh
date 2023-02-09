@@ -109,3 +109,6 @@ fi
 
 # 20230208  29c5f8bf9a01    move from mkmakefile.c to mkmakefile.cc
 clean_dep   usr.sbin/config  mkmakefile c
+# 20230209  83d7ed8af3d9    convert to main.cc and mkoptions.cc
+clean_dep   usr.sbin/config  main c
+clean_dep   usr.sbin/config  mkoptions c
