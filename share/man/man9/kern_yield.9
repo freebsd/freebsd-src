@@ -1,0 +1,134 @@
+.\"
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Mitchell Horne <mhorne@FreeBSD.org> under
+.\" sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 30, 2023
+.Dt KERN_YIELD 9
+.Os
+.Sh NAME
+.Nm kern_yield ,
+.Nm maybe_yield ,
+.Nm should_yield
+.Nd "functions for yielding execution of the current thread"
+.Sh SYNOPSIS
+.Ft void
+.Fn kern_yield "int prio"
+.Ft void
+.Fn maybe_yield
+.Ft bool
+.Fn should_yield
+.Sh DESCRIPTION
+The
+.Fn kern_yield
+function causes the currently running thread to voluntarily, but
+unconditionally, surrender its execution to the scheduler.
+The
+.Va prio
+argument specifies the scheduling priority to be assigned before the context
+switch, which has an influence on when execution will resume.
+Note that the requested priority will take effect until the thread returns to
+usermode, after which its base user priority will be restored.
+Valid values for
+.Va prio
+are any of the
+.Dv PRI_*
+values defined in
+.In sys/priority.h ,
+as well as the following special values:
+.Bl -tag -width "PRI_UNCHANGED"
+.It Dv PRI_USER
+Schedule the thread with its base user priority; the value corresponding to
+.Xr setpriority 2 /
+.Xr nice 3 .
+.It Dv PRI_UNCHANGED
+Yield the thread without changing its priority.
+.El
+.Pp
+The
+.Fn should_yield
+function checks if sufficient time has passed since the thread's last voluntary
+context switch that yielding would be a useful service to other threads.
+It returns
+.Va true
+when this is the case.
+See
+.Sx USAGE NOTES
+for an elaboration of what this means.
+.Pp
+The
+.Fn maybe_yield
+function is a helper function for the common task of optionally yielding the
+processor.
+Internally,
+.Fn kern_yield "PRI_USER"
+will be called if
+.Fn should_yield
+returns
+.Va true .
+.Sh USAGE NOTES
+Although the kernel supports preemption, this is usually reserved for
+high-priority realtime or interrupt threads.
+Kernel worker threads and timesharing threads are not guaranteed to preempt
+each another.
+Thus, threads executing in the kernel are expected to behave cooperatively
+with respect to other threads in the system.
+The yield functions are mostly intended to be used by threads which perform a
+lot of work inside the kernel.
+For example:
+.Fn maybe_yield
+is called by the
+.Dv vlnru
+process each time it reclaims a vnode.
+.Pp
+The scheduler aims to identify threads which monopolize the CPU, and will
+schedule them with decreased priority.
+Threads which regularly yield the processor will be given the chance to run
+more often.
+The possibly surprising effect of this is that, depending on the disposition of
+other threads on the CPU's runqueue, a call to
+.Fn kern_yield
+does not guarantee that the yielding thread will be taken off the CPU.
+.Pp
+With the above considerations in mind, it is advised that code written using
+.Fn kern_yield
+be measured to confirm that its use has a positive effect on relevant
+performance or responsiveness metrics.
+Switching thread contexts has a non-zero cost, and thus yielding the processor
+too eagerly could have a negative impact on performance.
+.Pp
+Additionally, since yielding is a cooperative action, it is advised that the
+yielding thread release any locks that it may be holding, when possible.
+Otherwise, threads which have been given the chance to run could end up waiting
+on the yielding thread to release the lock, largely defeating the purpose of
+the yield.
+.Sh SEE ALSO
+.Xr setpriority 2 ,
+.Xr nice 3 ,
+.Xr mi_switch 9
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Mitchell Horne Aq Mt mhorne@FreeBSD.org .
