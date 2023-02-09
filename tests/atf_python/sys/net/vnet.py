@@ -329,6 +329,7 @@ class ObjectsMap(NamedTuple):
 
 
 class VnetTestTemplate(BaseTest):
+    NEED_ROOT: bool = True
     TOPOLOGY = {}
 
     def _get_vnet_handler(self, vnet_alias: str):
@@ -374,6 +375,7 @@ class VnetTestTemplate(BaseTest):
             # Do unbuffered stdout for children
             # so the logs are present if the child hangs
             sys.stdout.reconfigure(line_buffering=True)
+            self.drop_privileges()
             handler(vnet)
 
     def setup_topology(self, topo: Dict, topology_id: str):
@@ -465,6 +467,7 @@ class VnetTestTemplate(BaseTest):
         # Save state for the main handler
         self.iface_map = obj_map.iface_map
         self.vnet_map = obj_map.vnet_map
+        self.drop_privileges()
 
     def cleanup(self, test_id: str):
         # pytest test id: file::class::test_name

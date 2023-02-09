@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import os
+import pwd
 from ctypes import CDLL
 from ctypes import get_errno
 from ctypes.util import find_library
+from typing import Dict
 from typing import List
 from typing import Optional
 
@@ -31,6 +33,8 @@ libc = LibCWrapper()
 
 
 class BaseTest(object):
+    NEED_ROOT: bool = False  # True if the class needs root privileges for the setup
+    TARGET_USER = None  # Set to the target user by the framework
     REQUIRED_MODULES: List[str] = []
 
     def _check_modules(self):
@@ -41,9 +45,26 @@ class BaseTest(object):
                 pytest.skip(
                     "kernel module '{}' not available: {}".format(mod_name, err_str)
                 )
+    @property
+    def atf_vars(self) -> Dict[str, str]:
+        px = "_ATF_VAR_"
+        return {k[len(px):]: v for k, v in os.environ.items() if k.startswith(px)}
+
+    def drop_privileges_user(self, user: str):
+        uid = pwd.getpwnam(user)[2]
+        print("Dropping privs to {}/{}".format(user, uid))
+        os.setuid(uid)
+
+    def drop_privileges(self):
+        if self.TARGET_USER:
+            if self.TARGET_USER == "unprivileged":
+                user = self.atf_vars["unprivileged-user"]
+            else:
+                user = self.TARGET_USER
+            self.drop_privileges_user(user)
 
     @property
-    def test_id(self):
+    def test_id(self) -> str:
         # 'test_ip6_output.py::TestIP6Output::test_output6_pktinfo[ipandif] (setup)'
         return os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]
 

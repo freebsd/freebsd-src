@@ -7,10 +7,14 @@ PLUGIN_ENABLED = False
 DEFAULT_HANDLER = None
 
 
+def set_handler(config):
+    global DEFAULT_HANDLER, PLUGIN_ENABLED
+    DEFAULT_HANDLER = ATFHandler(report_file_name=config.option.atf_file)
+    PLUGIN_ENABLED = True
+    return DEFAULT_HANDLER
+
+
 def get_handler():
-    global DEFAULT_HANDLER
-    if DEFAULT_HANDLER is None:
-        DEFAULT_HANDLER = ATFHandler()
     return DEFAULT_HANDLER
 
 
@@ -81,11 +85,9 @@ def pytest_configure(config):
         "markers", "timeout(dur): int/float with max duration in sec"
     )
 
-    global PLUGIN_ENABLED
-    PLUGIN_ENABLED = config.option.atf
-    if not PLUGIN_ENABLED:
+    if not config.option.atf:
         return
-    get_handler()
+    handler = set_handler(config)
 
     if config.option.collectonly:
         # Need to output list of tests to stdout, hence override
@@ -93,6 +95,8 @@ def pytest_configure(config):
         reporter = config.pluginmanager.getplugin("terminalreporter")
         if reporter:
             config.pluginmanager.unregister(reporter)
+    else:
+        handler.setup_configure()
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -114,6 +118,12 @@ def pytest_collection_finish(session):
         handler.list_tests(session.items)
 
 
+def pytest_runtest_setup(item):
+    if PLUGIN_ENABLED:
+        handler = get_handler()
+        handler.setup_method_pre(item)
+
+
 def pytest_runtest_logreport(report):
     if PLUGIN_ENABLED:
         handler = get_handler()
@@ -123,4 +133,4 @@ def pytest_runtest_logreport(report):
 def pytest_unconfigure(config):
     if PLUGIN_ENABLED and config.option.atf_file:
         handler = get_handler()
-        handler.write_report(config.option.atf_file)
+        handler.write_report()

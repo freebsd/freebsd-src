@@ -3,6 +3,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import NamedTuple
+from typing import Optional
 from typing import Tuple
 
 import pytest
@@ -51,10 +52,32 @@ class ATFTestObj(object):
                     return line
         return obj.name
 
+    @staticmethod
+    def _convert_user_mark(mark, obj, ret: Dict):
+        username = mark.args[0]
+        if username == "unprivileged":
+            # Special unprivileged user requested.
+            # First, require the unprivileged-user config option presence
+            key = "require.config"
+            if key not in ret:
+                ret[key] = "unprivileged_user"
+            else:
+                ret[key] = "{} {}".format(ret[key], "unprivileged_user")
+        # Check if the framework requires root
+        test_cls = ATFHandler.get_test_class(obj)
+        if test_cls and getattr(test_cls, "NEED_ROOT", False):
+            # Yes, so we ask kyua to run us under root instead
+            # It is up to the implementation to switch back to the desired
+            # user
+            ret["require.user"] = "root"
+        else:
+            ret["require.user"] = username
+
+
     def _convert_marks(self, obj) -> Dict[str, Any]:
         wj_func = lambda x: " ".join(x)  # noqa: E731
         _map: Dict[str, Dict] = {
-            "require_user": {"name": "require.user"},
+            "require_user": {"handler": self._convert_user_mark},
             "require_arch": {"name": "require.arch", "fmt": wj_func},
             "require_diskspace": {"name": "require.diskspace"},
             "require_files": {"name": "require.files", "fmt": wj_func},
@@ -66,6 +89,9 @@ class ATFTestObj(object):
         ret = {}
         for mark in obj.iter_markers():
             if mark.name in _map:
+                if "handler" in _map[mark.name]:
+                    _map[mark.name]["handler"](mark, obj, ret)
+                    continue
                 name = _map[mark.name].get("name", mark.name)
                 if "fmt" in _map[mark.name]:
                     val = _map[mark.name]["fmt"](mark.args[0])
@@ -91,8 +117,24 @@ class ATFHandler(object):
         state: str
         reason: str
 
-    def __init__(self):
+    def __init__(self, report_file_name: Optional[str]):
         self._tests_state_map: Dict[str, ReportStatus] = {}
+        self._report_file_name = report_file_name
+        self._report_file_handle = None
+
+    def setup_configure(self):
+        fname = self._report_file_name
+        if fname:
+            self._report_file_handle = open(fname, mode="w")
+
+    def setup_method_pre(self, item):
+        """Called before actually running the test setup_method"""
+        # Check if we need to manually drop the privileges
+        for mark in item.iter_markers():
+            if mark.name == "require_user":
+                cls = self.get_test_class(item)
+                cls.TARGET_USER = mark.args[0]
+                break
 
     def override_runtest(self, obj):
         # Override basic runtest command
@@ -220,7 +262,9 @@ class ATFHandler(object):
                 # global failure
                 self.set_report_state(test_name, state, reason)
 
-    def write_report(self, path):
+    def write_report(self):
+        if self._report_file_handle is None:
+            return
         if self._tests_state_map:
             # If we're executing in ATF mode, there has to be just one test
             # Anyway, deterministically pick the first one
@@ -230,8 +274,8 @@ class ATFHandler(object):
                 line = test.state
             else:
                 line = "{}: {}".format(test.state, test.reason)
-            with open(path, mode="w") as f:
-                print(line, file=f)
+            print(line, file=self._report_file_handle)
+        self._report_file_handle.close()
 
     @staticmethod
     def get_atf_vars() -> Dict[str, str]:
