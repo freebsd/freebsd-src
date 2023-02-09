@@ -1118,22 +1118,6 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 
 		break;
 	case APIC_DELMODE_INIT:
-		if (!vlapic->ipi_exit) {
-			if (!phys)
-				break;
-
-			i = vm_apicid2vcpuid(vlapic->vm, dest);
-			if (i >= vm_get_maxcpus(vlapic->vm) ||
-			    i == vlapic->vcpuid)
-				break;
-
-			CPU_SETOF(i, &ipimask);
-
-			break;
-		}
-
-		CPU_COPY(&dmask, &ipimask);
-		break;
 	case APIC_DELMODE_STARTUP:
 		if (!vlapic->ipi_exit) {
 			if (!phys)
