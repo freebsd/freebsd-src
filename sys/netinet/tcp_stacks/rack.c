@@ -18202,7 +18202,7 @@ send:
 	 * and initialize the header from the template for sends on this
 	 * connection.
 	 */
-	hw_tls = (sb->sb_flags & SB_TLS_IFNET) != 0;
+	hw_tls = tp->t_nic_ktls_xmit != 0;
 	if (len) {
 		uint32_t max_val;
 		uint32_t moff;
@@ -20183,20 +20183,10 @@ rack_apply_deferred_options(struct tcp_rack *rack)
 static void
 rack_hw_tls_change(struct tcpcb *tp, int chg)
 {
-	/*
-	 * HW tls state has changed.. fix all
-	 * rsm's in flight.
-	 */
+	/* Update HW tls state */
 	struct tcp_rack *rack;
-	struct rack_sendmap *rsm;
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
-	RB_FOREACH(rsm, rack_rb_tree_head, &rack->r_ctl.rc_mtree) {
-		if (chg)
-			rsm->r_hw_tls = 1;
-		else
-			rsm->r_hw_tls = 0;
-	}
 	if (chg)
 		rack->r_ctl.fsb.hw_tls = 1;
 	else

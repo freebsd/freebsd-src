@@ -222,6 +222,11 @@ static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_disable_ok);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, ifnet_disable_ok, CTLFLAG_RD,
     &ktls_ifnet_disable_ok, "TLS sessions able to switch to SW from ifnet");
 
+static COUNTER_U64_DEFINE_EARLY(ktls_destroy_task);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, destroy_task, CTLFLAG_RD,
+    &ktls_destroy_task,
+    "Number of times ktls session was destroyed via taskqueue");
+
 SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, sw, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Software TLS session stats");
 SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, ifnet, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -619,10 +624,14 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 	counter_u64_add(ktls_offload_active, 1);
 
 	refcount_init(&tls->refcount, 1);
-	if (direction == KTLS_RX)
+	if (direction == KTLS_RX) {
 		TASK_INIT(&tls->reset_tag_task, 0, ktls_reset_receive_tag, tls);
-	else
+	} else {
 		TASK_INIT(&tls->reset_tag_task, 0, ktls_reset_send_tag, tls);
+		tls->inp = so->so_pcb;
+		in_pcbref(tls->inp);
+		tls->tx = true;
+	}
 
 	tls->wq_index = ktls_get_cpu(so);
 
@@ -757,12 +766,16 @@ ktls_clone_session(struct ktls_session *tls, int direction)
 	counter_u64_add(ktls_offload_active, 1);
 
 	refcount_init(&tls_new->refcount, 1);
-	if (direction == KTLS_RX)
+	if (direction == KTLS_RX) {
 		TASK_INIT(&tls_new->reset_tag_task, 0, ktls_reset_receive_tag,
 		    tls_new);
-	else
+	} else {
 		TASK_INIT(&tls_new->reset_tag_task, 0, ktls_reset_send_tag,
 		    tls_new);
+		tls_new->inp = tls->inp;
+		tls_new->tx = true;
+		in_pcbref(tls_new->inp);
+	}
 
 	/* Copy fields from existing session. */
 	tls_new->params = tls->params;
@@ -1272,6 +1285,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 {
 	struct ktls_session *tls;
 	struct inpcb *inp;
+	struct tcpcb *tp;
 	int error;
 
 	if (!ktls_offload_enable)
@@ -1336,8 +1350,13 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_tls_seqno = be64dec(en->rec_seq);
 	so->so_snd.sb_tls_info = tls;
-	if (tls->mode != TCP_TLS_MODE_SW)
-		so->so_snd.sb_flags |= SB_TLS_IFNET;
+	if (tls->mode != TCP_TLS_MODE_SW) {
+		tp = intotcpcb(inp);
+		MPASS(tp->t_nic_ktls_xmit == 0);
+		tp->t_nic_ktls_xmit = 1;
+		if (tp->t_fb->tfb_hwtls_change != NULL)
+			(*tp->t_fb->tfb_hwtls_change)(tp, 1);
+	}
 	SOCKBUF_UNLOCK(&so->so_snd);
 	INP_WUNLOCK(inp);
 	SOCK_IO_SEND_UNLOCK(so);
@@ -1438,6 +1457,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 {
 	struct ktls_session *tls, *tls_new;
 	struct inpcb *inp;
+	struct tcpcb *tp;
 	int error;
 
 	if (SOLISTENING(so))
@@ -1452,6 +1472,21 @@ ktls_set_tx_mode(struct socket *so, int mode)
 
 	inp = so->so_pcb;
 	INP_WLOCK_ASSERT(inp);
+	tp = intotcpcb(inp);
+
+	if (mode == TCP_TLS_MODE_IFNET) {
+		/* Don't allow enabling ifnet ktls multiple times */
+		if (tp->t_nic_ktls_xmit)
+			return (EALREADY);
+
+		/*
+		 * Don't enable ifnet ktls if we disabled it due to an
+		 * excessive retransmission rate
+		 */
+		if (tp->t_nic_ktls_xmit_dis)
+			return (ENXIO);
+	}
+
 	SOCKBUF_LOCK(&so->so_snd);
 	tls = so->so_snd.sb_tls_info;
 	if (tls == NULL) {
@@ -1507,8 +1542,12 @@ ktls_set_tx_mode(struct socket *so, int mode)
 	INP_WLOCK(inp);
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_tls_info = tls_new;
-	if (tls_new->mode != TCP_TLS_MODE_SW)
-		so->so_snd.sb_flags |= SB_TLS_IFNET;
+	if (tls_new->mode != TCP_TLS_MODE_SW) {
+		MPASS(tp->t_nic_ktls_xmit == 0);
+		tp->t_nic_ktls_xmit = 1;
+		if (tp->t_fb->tfb_hwtls_change != NULL)
+			(*tp->t_fb->tfb_hwtls_change)(tp, 1);
+	}
 	SOCKBUF_UNLOCK(&so->so_snd);
 	SOCK_IO_SEND_UNLOCK(so);
 
@@ -1662,8 +1701,7 @@ ktls_reset_send_tag(void *context, int pending)
 		mtx_pool_lock(mtxpool_sleep, tls);
 		tls->reset_pending = false;
 		mtx_pool_unlock(mtxpool_sleep, tls);
-		if (!in_pcbrele_wlocked(inp))
-			INP_WUNLOCK(inp);
+		INP_WUNLOCK(inp);
 
 		counter_u64_add(ktls_ifnet_reset, 1);
 
@@ -1674,18 +1712,15 @@ ktls_reset_send_tag(void *context, int pending)
 	} else {
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
-		if (!in_pcbrele_wlocked(inp)) {
-			if (!(inp->inp_flags & INP_DROPPED)) {
-				tp = intotcpcb(inp);
-				CURVNET_SET(inp->inp_vnet);
-				tp = tcp_drop(tp, ECONNABORTED);
-				CURVNET_RESTORE();
-				if (tp != NULL)
-					INP_WUNLOCK(inp);
+		if (!(inp->inp_flags & INP_DROPPED)) {
+			tp = intotcpcb(inp);
+			CURVNET_SET(inp->inp_vnet);
+			tp = tcp_drop(tp, ECONNABORTED);
+			CURVNET_RESTORE();
+			if (tp != NULL)
 				counter_u64_add(ktls_ifnet_reset_dropped, 1);
-			} else
-				INP_WUNLOCK(inp);
 		}
+		INP_WUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 
 		counter_u64_add(ktls_ifnet_reset_failed, 1);
@@ -1746,8 +1781,6 @@ ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls)
 	mtx_pool_lock(mtxpool_sleep, tls);
 	if (!tls->reset_pending) {
 		(void) ktls_hold(tls);
-		in_pcbref(inp);
-		tls->inp = inp;
 		tls->reset_pending = true;
 		taskqueue_enqueue(taskqueue_thread, &tls->reset_tag_task);
 	}
@@ -1790,10 +1823,53 @@ ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate)
 #endif
 #endif
 
+static void
+ktls_destroy_help(void *context, int pending __unused)
+{
+	ktls_destroy(context);
+}
+
 void
 ktls_destroy(struct ktls_session *tls)
 {
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	bool wlocked;
+
 	MPASS(tls->refcount == 0);
+
+	inp = tls->inp;
+	if (tls->tx) {
+		wlocked = INP_WLOCKED(inp);
+		if (!wlocked && !INP_TRY_WLOCK(inp)) {
+			/*
+			 * rwlocks read locks are anonymous, and there
+			 * is no way to know if our current thread
+			 * holds an rlock on the inp.  As a rough
+			 * estimate, check to see if the thread holds
+			 * *any* rlocks at all.  If it does not, then we
+			 * know that we don't hold the inp rlock, and
+			 * can safely take the wlock
+			 */
+			if (curthread->td_rw_rlocks == 0) {
+				INP_WLOCK(inp);
+			} else {
+				/*
+				 * We might hold the rlock, so let's
+				 * do the destroy in a taskqueue
+				 * context to avoid a potential
+				 * deadlock.  This should be very
+				 * rare.
+				 */
+				counter_u64_add(ktls_destroy_task, 1);
+				TASK_INIT(&tls->destroy_task, 0,
+				    ktls_destroy_help, tls);
+				(void)taskqueue_enqueue(taskqueue_thread,
+				    &tls->destroy_task);
+				return;
+			}
+		}
+	}
 
 	if (tls->sequential_records) {
 		struct mbuf *m, *n;
@@ -1841,6 +1917,12 @@ ktls_destroy(struct ktls_session *tls)
 			m_snd_tag_rele(tls->snd_tag);
 		if (tls->rx_ifp != NULL)
 			if_rele(tls->rx_ifp);
+		if (tls->tx) {
+			INP_WLOCK_ASSERT(inp);
+			tp = intotcpcb(inp);
+			MPASS(tp->t_nic_ktls_xmit == 1);
+			tp->t_nic_ktls_xmit = 0;
+		}
 		break;
 #ifdef TCP_OFFLOAD
 	case TCP_TLS_MODE_TOE:
@@ -1869,6 +1951,11 @@ ktls_destroy(struct ktls_session *tls)
 		zfree(tls->params.cipher_key, M_KTLS);
 		tls->params.cipher_key = NULL;
 		tls->params.cipher_key_len = 0;
+	}
+	if (tls->tx) {
+		INP_WLOCK_ASSERT(inp);
+		if (!in_pcbrele_wlocked(inp) && !wlocked)
+			INP_WUNLOCK(inp);
 	}
 	explicit_bzero(tls->params.iv, sizeof(tls->params.iv));
 
@@ -3213,8 +3300,7 @@ out:
 	CURVNET_SET(so->so_vnet);
 	sorele(so);
 	CURVNET_RESTORE();
-	if (!in_pcbrele_wlocked(inp))
-		INP_WUNLOCK(inp);
+	INP_WUNLOCK(inp);
 	ktls_free(tls);
 }
 
@@ -3245,22 +3331,20 @@ ktls_disable_ifnet(void *arg)
 	so = inp->inp_socket;
 	SOCK_LOCK(so);
 	tls = so->so_snd.sb_tls_info;
-	if (tls->disable_ifnet_pending) {
+	if (tp->t_nic_ktls_xmit_dis == 1) {
 		SOCK_UNLOCK(so);
 		return;
 	}
 
 	/*
-	 * note that disable_ifnet_pending is never cleared; disabling
-	 * ifnet can only be done once per session, so we never want
+	 * note that t_nic_ktls_xmit_dis is never cleared; disabling
+	 * ifnet can only be done once per connection, so we never want
 	 * to do it again
 	 */
 
 	(void)ktls_hold(tls);
-	in_pcbref(inp);
 	soref(so);
-	tls->disable_ifnet_pending = true;
-	tls->inp = inp;
+	tp->t_nic_ktls_xmit_dis = 1;
 	SOCK_UNLOCK(so);
 	TASK_INIT(&tls->disable_ifnet_task, 0, ktls_disable_ifnet_help, tls);
 	(void)taskqueue_enqueue(taskqueue_thread, &tls->disable_ifnet_task);

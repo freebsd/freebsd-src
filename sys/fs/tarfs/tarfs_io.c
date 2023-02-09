@@ -630,7 +630,7 @@ tarfs_zio_init(struct tarfs_mount *tmp, off_t i, off_t o)
 	zio->idx[zio->curidx].o = zio->opos = o;
 	tmp->zio = zio;
 	TARFS_DPF(ALLOC, "%s: allocated zio index\n", __func__);
-	getnewvnode("tarfsz", tmp->vfs, &tarfs_znodeops, &zvp);
+	(void)getnewvnode("tarfsz", tmp->vfs, &tarfs_znodeops, &zvp);
 	zvp->v_data = zio;
 	zvp->v_type = VREG;
 	zvp->v_mount = tmp->vfs;

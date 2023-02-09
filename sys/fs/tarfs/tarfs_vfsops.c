@@ -289,7 +289,7 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
     char **endp, char **sepp, struct tarfs_node **retparent,
     struct tarfs_node **retnode, boolean_t create_dirs)
 {
-	struct componentname cn;
+	struct componentname cn = { };
 	struct tarfs_node *parent, *tnp;
 	char *sep;
 	size_t len;
@@ -303,8 +303,6 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
 	parent = tnp = tmp->root;
 	if (tnp == NULL)
 		panic("%s: root node not yet created", __func__);
-
-	bzero(&cn, sizeof(cn));
 
 	TARFS_DPF(LOOKUP, "%s: Full path: %.*s\n", __func__, (int)namelen,
 	    name);
@@ -329,24 +327,21 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
 			/* nothing */ ;
 
 		/* check for . and .. */
-		if (name[0] == '.' && len <= 2) {
-			if (len == 1) {
-				/* . */
-				name += len;
-				namelen -= len;
-				continue;
-			} else if (name[1] == '.') {
-				/* .. */
-				if (tnp == tmp->root) {
-					error = EINVAL;
-					break;
-				}
-				tnp = tnp->parent;
-				parent = tnp->parent;
-				name += len;
-				namelen -= len;
-				continue;
+		if (name[0] == '.' && len == 1) {
+			name += len;
+			namelen -= len;
+			continue;
+		}
+		if (name[0] == '.' && name[1] == '.' && len == 2) {
+			if (tnp == tmp->root) {
+				error = EINVAL;
+				break;
 			}
+			tnp = parent;
+			parent = tnp->parent;
+			name += len;
+			namelen -= len;
+			continue;
 		}
 
 		/* create parent if necessary */
@@ -441,6 +436,7 @@ tarfs_alloc_one(struct tarfs_mount *tmp, off_t *blknump)
 	struct sbuf *namebuf = NULL;
 	char *exthdr = NULL, *name = NULL, *link = NULL;
 	off_t blknum = *blknump;
+	int64_t num;
 	int endmarker = 0;
 	char *namep, *sep;
 	struct tarfs_node *parent, *tnp;
@@ -511,10 +507,41 @@ again:
 	}
 
 	/* get standard attributes */
-	mode = tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode));
-	uid = tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid));
-	gid = tarfs_str2int64(hdrp->gid, sizeof(hdrp->gid));
-	sz = tarfs_str2int64(hdrp->size, sizeof(hdrp->size));
+	num = tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode));
+	if (num < 0 || num > ALLPERMS) {
+		TARFS_DPF(ALLOC, "%s: invalid file mode at %zu\n",
+		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		mode = S_IRUSR;
+	} else {
+		mode = num;
+	}
+	num = tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid));
+	if (num < 0 || num > UID_MAX) {
+		TARFS_DPF(ALLOC, "%s: UID out of range at %zu\n",
+		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		uid = tmp->root->uid;
+		mode &= ~S_ISUID;
+	} else {
+		uid = num;
+	}
+	num = tarfs_str2int64(hdrp->gid, sizeof(hdrp->gid));
+	if (num < 0 || num > GID_MAX) {
+		TARFS_DPF(ALLOC, "%s: GID out of range at %zu\n",
+		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		gid = tmp->root->gid;
+		mode &= ~S_ISGID;
+	} else {
+		gid = num;
+	}
+	num = tarfs_str2int64(hdrp->size, sizeof(hdrp->size));
+	if (num < 0) {
+		TARFS_DPF(ALLOC, "%s: negative size at %zu\n",
+		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
+		error = EINVAL;
+		goto bad;
+	} else {
+		sz = num;
+	}
 	mtime = tarfs_str2int64(hdrp->mtime, sizeof(hdrp->mtime));
 	rdev = NODEV;
 	TARFS_DPF(ALLOC, "%s: [%c] %zu @%jd %o %d:%d\n", __func__,
@@ -777,7 +804,6 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 {
 	struct vattr va;
 	struct thread *td = curthread;
-	char *fullpath;
 	struct tarfs_mount *tmp;
 	struct tarfs_node *root;
 	off_t blknum;
@@ -788,7 +814,6 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	ASSERT_VOP_LOCKED(vp, __func__);
 
 	tmp = NULL;
-	fullpath = NULL;
 
 	TARFS_DPF(ALLOC, "%s: Allocating tarfs mount structure for vp %p\n",
 	    __func__, vp);
@@ -802,8 +827,7 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	mtime = va.va_mtime.tv_sec;
 
 	/* Allocate and initialize tarfs mount structure */
-	tmp = (struct tarfs_mount *)malloc(sizeof(struct tarfs_mount),
-	    M_TARFSMNT, M_WAITOK | M_ZERO);
+	tmp = malloc(sizeof(*tmp), M_TARFSMNT, M_WAITOK | M_ZERO);
 	TARFS_DPF(ALLOC, "%s: Allocated mount structure\n", __func__);
 	mp->mnt_data = tmp;
 
@@ -848,9 +872,7 @@ tarfs_alloc_mount(struct mount *mp, struct vnode *vp,
 	return (0);
 
 bad:
-	if (tmp != NULL)
-		tarfs_free_mount(tmp);
-	free(fullpath, M_TEMP);
+	tarfs_free_mount(tmp);
 	return (error);
 }
 
@@ -1104,9 +1126,7 @@ tarfs_vget(struct mount *mp, ino_t ino, int lkflags, struct vnode **vpp)
 	if (tnp == NULL)
 		return (ENOENT);
 
-	error = getnewvnode("tarfs", mp, &tarfs_vnodeops, &vp);
-	if (error != 0)
-		goto bad;
+	(void)getnewvnode("tarfs", mp, &tarfs_vnodeops, &vp);
 	TARFS_DPF(FS, "%s: allocated vnode\n", __func__);
 	vp->v_data = tnp;
 	vp->v_type = tnp->type;
