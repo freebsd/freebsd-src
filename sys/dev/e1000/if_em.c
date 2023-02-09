@@ -195,6 +195,22 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_V18, "Intel(R) I219-V MTP(18)"),
 	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_LM19, "Intel(R) I219-LM MTP(19)"),
 	PVID(0x8086, E1000_DEV_ID_PCH_MTP_I219_V19, "Intel(R) I219-V MTP(19)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_LNL_I219_LM20, "Intel(R) I219-LM LNL(20)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_LNL_I219_V20, "Intel(R) I219-V LNL(20)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_LNL_I219_LM21, "Intel(R) I219-LM LNL(21)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_LNL_I219_V21, "Intel(R) I219-V LNL(21)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_RPL_I219_LM22, "Intel(R) I219-LM RPL(22)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_RPL_I219_V22, "Intel(R) I219-V RPL(22)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_RPL_I219_LM23, "Intel(R) I219-LM RPL(23)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_RPL_I219_V23, "Intel(R) I219-V RPL(23)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ARL_I219_LM24, "Intel(R) I219-LM ARL(24)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_ARL_I219_V24, "Intel(R) I219-V ARL(24)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_LM25, "Intel(R) I219-LM PTP(25)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_V25, "Intel(R) I219-V PTP(25)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_LM26, "Intel(R) I219-LM PTP(26)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_V26, "Intel(R) I219-V PTP(26)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_LM27, "Intel(R) I219-LM PTP(27)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_V27, "Intel(R) I219-V PTP(27)"),
 	/* required last entry */
 	PVID_END
 };
@@ -1250,6 +1266,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 	case e1000_82574:
 	case e1000_82583:
 	case e1000_80003es2lan:
@@ -2649,6 +2666,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		pba = E1000_PBA_26K;
 		break;
 	case e1000_82575:
@@ -2762,6 +2780,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
