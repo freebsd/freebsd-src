@@ -920,6 +920,54 @@ Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
             },
             id="_3_1_flags_DF",
         ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "special": "tcp",
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": """\
+ping: quoted data too short (40 bytes) from 192.0.2.2
+""",
+                "redacted": False,
+            },
+            id="_3_1_special_tcp",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "special": "udp",
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": """\
+ping: quoted data too short (28 bytes) from 192.0.2.2
+""",
+                "redacted": False,
+            },
+            id="_3_1_special_udp",
+        ),
     ]
 
     @pytest.mark.parametrize("pinger_kargs, expected", pinger_testdata)

@@ -227,7 +227,6 @@ static char *pr_ntime(n_time);
 static void pr_icmph(struct icmp *, struct ip *, const u_char *const);
 static void pr_iph(struct ip *, const u_char *);
 static void pr_pack(char *, ssize_t, struct sockaddr_in *, struct timespec *);
-static void pr_retip(struct ip *, const u_char *);
 static void status(int);
 static void stopit(int);
 
@@ -1571,11 +1570,11 @@ pr_icmph(struct icmp *icp, struct ip *oip, const u_char *const oicmp_raw)
 			break;
 		}
 		/* Print returned IP header information */
-		pr_retip(oip, oicmp_raw);
+		pr_iph(oip, oicmp_raw);
 		break;
 	case ICMP_SOURCEQUENCH:
 		(void)printf("Source Quench\n");
-		pr_retip(oip, oicmp_raw);
+		pr_iph(oip, oicmp_raw);
 		break;
 	case ICMP_REDIRECT:
 		switch(icp->icmp_code) {
@@ -1596,7 +1595,7 @@ pr_icmph(struct icmp *icp, struct ip *oip, const u_char *const oicmp_raw)
 			break;
 		}
 		(void)printf("(New addr: %s)\n", inet_ntoa(icp->icmp_gwaddr));
-		pr_retip(oip, oicmp_raw);
+		pr_iph(oip, oicmp_raw);
 		break;
 	case ICMP_ECHO:
 		(void)printf("Echo Request\n");
@@ -1615,12 +1614,12 @@ pr_icmph(struct icmp *icp, struct ip *oip, const u_char *const oicmp_raw)
 			    icp->icmp_code);
 			break;
 		}
-		pr_retip(oip, oicmp_raw);
+		pr_iph(oip, oicmp_raw);
 		break;
 	case ICMP_PARAMPROB:
 		(void)printf("Parameter problem: pointer = 0x%02x\n",
 		    icp->icmp_hun.ih_pptr);
-		pr_retip(oip, oicmp_raw);
+		pr_iph(oip, oicmp_raw);
 		break;
 	case ICMP_TSTAMP:
 		(void)printf("Timestamp\n");
@@ -1710,28 +1709,6 @@ pr_addr(struct in_addr ina)
 	(void)snprintf(buf, sizeof(buf), "%s (%s)", hp->h_name,
 	    inet_ntoa(ina));
 	return(buf);
-}
-
-/*
- * pr_retip --
- *	Dump some info on a returned (via ICMP) IP packet.
- */
-static void
-pr_retip(struct ip *ip, const u_char *cp)
-{
-	int8_t hlen;
-
-	pr_iph(ip, cp);
-
-	hlen = ip->ip_hl << 2;
-	cp = cp + hlen;
-
-	if (ip->ip_p == 6)
-		(void)printf("TCP: from port %u, to port %u (decimal)\n",
-		    (*cp * 256 + *(cp + 1)), (*(cp + 2) * 256 + *(cp + 3)));
-	else if (ip->ip_p == 17)
-		(void)printf("UDP: from port %u, to port %u (decimal)\n",
-			(*cp * 256 + *(cp + 1)), (*(cp + 2) * 256 + *(cp + 3)));
 }
 
 static char *
