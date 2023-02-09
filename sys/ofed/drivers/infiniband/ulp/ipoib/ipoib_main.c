@@ -747,7 +747,7 @@ ipoib_start_locked(struct ifnet *dev, struct ipoib_dev_priv *priv)
 		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
 		if (mb == NULL)
 			break;
-		INFINIBAND_BPF_MTAP(dev, mb);
+		infiniband_bpf_mtap(dev, mb);
 		ipoib_send_one(priv, mb);
 	}
 }

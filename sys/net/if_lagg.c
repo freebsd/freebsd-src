@@ -2154,7 +2154,7 @@ lagg_transmit_infiniband(struct ifnet *ifp, struct mbuf *m)
 		return (ENXIO);
 	}
 
-	INFINIBAND_BPF_MTAP(ifp, m);
+	infiniband_bpf_mtap(ifp, m);
 
 	error = lagg_proto_start(sc, m);
 	NET_EPOCH_EXIT(et);
@@ -2222,7 +2222,7 @@ lagg_input_infiniband(struct ifnet *ifp, struct mbuf *m)
 		return (NULL);
 	}
 
-	INFINIBAND_BPF_MTAP(scifp, m);
+	infiniband_bpf_mtap(scifp, m);
 
 	m = lagg_proto_input(sc, lp, m);
 	if (m != NULL && (scifp->if_flags & IFF_MONITOR) != 0) {

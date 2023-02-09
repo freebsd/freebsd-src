@@ -128,6 +128,9 @@ infiniband_bpf_mtap(struct ifnet *ifp, struct mbuf *mb)
 	struct infiniband_header *ibh;
 	struct ether_header eh;
 
+	if (!bpf_peers_present(ifp->if_bpf))
+		return;
+
 	if (mb->m_len < sizeof(*ibh))
 		return;
 
@@ -439,7 +442,7 @@ infiniband_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	/* Let BPF have it before we strip the header. */
-	INFINIBAND_BPF_MTAP(ifp, m);
+	infiniband_bpf_mtap(ifp, m);
 
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
