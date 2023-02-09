@@ -178,7 +178,7 @@ inject_pip_head()
 }
 inject_pip_body()
 {
-	atf_check -s exit:2 -o match:"Destination Host Unreachable" -o not-match:"01010101" python3 $(atf_get_srcdir)/injection.py pip
+	atf_check -s exit:2 -o match:"Destination Host Unreachable" -o match:"(01){40}" python3 $(atf_get_srcdir)/injection.py pip
 }
 inject_pip_cleanup()
 {
