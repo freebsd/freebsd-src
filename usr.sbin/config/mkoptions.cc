@@ -141,7 +141,7 @@ options(void)
 static void
 do_option(char *name)
 {
-	char *file, *inw;
+	char *file;
 	const char *basefile;
 	struct opt_list *ol;
 	struct opt *op;
@@ -198,18 +198,17 @@ do_option(char *name)
 	seen = 0;
 	tidy = 0;
 	for (;;) {
-		char *cp;
+		configword cp, inw;
 		char *invalue;
 
 		/* get the #define */
-		if ((inw = get_word(inf)) == NULL || inw == (char *)EOF)
+		if ((inw = get_word(inf)).eol() || inw.eof())
 			break;
 		/* get the option name */
-		if ((inw = get_word(inf)) == NULL || inw == (char *)EOF)
+		if ((inw = get_word(inf)).eol() || inw.eof())
 			break;
-		inw = ns(inw);
 		/* get the option value */
-		if ((cp = get_word(inf)) == NULL || cp == (char *)EOF)
+		if ((cp = get_word(inf)).eol() || cp.eof())
 			break;
 		/* option value */
 		invalue = ns(cp); /* malloced */
@@ -224,25 +223,25 @@ do_option(char *name)
 		if (!eq(inw, name) && !ol) {
 			fprintf(stderr,
 			    "WARNING: unknown option `%s' removed from %s\n",
-			    inw, file);
+			    inw->c_str(), file);
 			tidy++;
 		} else if (ol != NULL && !eq(basefile, ol->o_file)) {
 			fprintf(stderr,
 			    "WARNING: option `%s' moved from %s to %s\n",
-			    inw, basefile, ol->o_file);
+			    inw->c_str(), basefile, ol->o_file);
 			tidy++;
 		} else {
 			op = (struct opt *) calloc(1, sizeof *op);
 			if (op == NULL)
 				err(EXIT_FAILURE, "calloc");
-			op->op_name = inw;
+			op->op_name = ns(inw);
 			op->op_value = invalue;
 			SLIST_INSERT_HEAD(&op_head, op, op_next);
 		}
 
 		/* EOL? */
 		cp = get_word(inf);
-		if (cp == (char *)EOF)
+		if (cp.eof())
 			break;
 	}
 	(void)fclose(inf);
@@ -364,25 +363,26 @@ static int
 read_option_file(const char *fname, int flags)
 {
 	FILE *fp;
-	char *wd, *optname, *val;
+	configword wd;
+	char *optname, *val;
 	char genopt[MAXPATHLEN];
 
 	fp = fopen(fname, "r");
 	if (fp == NULL)
 		return (0);
-	while ((wd = get_word(fp)) != (char *)EOF) {
-		if (wd == NULL)
+	while (!(wd = get_word(fp)).eof()) {
+		if (wd.eol())
 			continue;
 		if (wd[0] == '#') {
-			while (((wd = get_word(fp)) != (char *)EOF) && wd)
+			while (!(wd = get_word(fp)).eof() && !wd.eol())
 				continue;
 			continue;
 		}
 		optname = ns(wd);
-		val = get_word(fp);
-		if (val == (char *)EOF)
+		wd = get_word(fp);
+		if (wd.eof())
 			return (1);
-		if (val == NULL) {
+		if (wd.eol()) {
 			if (flags) {
 				fprintf(stderr, "%s: compat file requires two"
 				    " words per line at %s\n", fname, optname);
@@ -391,10 +391,11 @@ read_option_file(const char *fname, int flags)
 			char *s = ns(optname);
 			(void)snprintf(genopt, sizeof(genopt), "opt_%s.h",
 			    lower(s));
-			val = genopt;
+			val = ns(genopt);
 			free(s);
+		} else {
+			val = ns(wd);
 		}
-		val = ns(val);
 		if (flags == 0)
 			insert_option(fname, optname, val);
 		else

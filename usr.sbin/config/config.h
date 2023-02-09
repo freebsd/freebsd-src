@@ -35,12 +35,65 @@
 /*
  * Config.
  */
-#include <sys/cdefs.h>	/* __BEGIN_DECLS/__END_DECLS */
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __cplusplus
+#include <string>
+
+class configword {
+private:
+	std::string	cw_word;
+	bool		cw_eof;
+	bool		cw_eol;
+public:
+	configword() : cw_word(""), cw_eof(false), cw_eol(false) {}
+	configword(std::string &&word) : cw_word(word), cw_eof(false), cw_eol(false) {}
+
+	bool eof() const {
+		return (cw_eof);
+	}
+
+	bool eol() const {
+		return (cw_eol);
+	}
+
+	configword &eof(bool eof) {
+		cw_eof = eof;
+		return (*this);
+	}
+
+	configword &eol(bool eol) {
+		cw_eol = eol;
+		return (*this);
+	}
+
+	char operator[](int idx) {
+		return (cw_word[idx]);
+	}
+
+	operator const char*() const {
+		return (cw_word.c_str());
+	}
+
+	const std::string &operator*() const {
+		return (cw_word);
+	}
+
+	const std::string *operator->() const {
+		return (&cw_word);
+	}
+};
+
+/*
+ * Is it ugly to limit these to C++ files? Yes.
+ */
+configword get_word(FILE *);
+configword get_quoted_word(FILE *);
+#endif
 
 __BEGIN_DECLS
 
@@ -186,8 +239,6 @@ extern char	kernconfstr[];
 extern int	do_trace;
 extern int	incignore;
 
-char	*get_word(FILE *);
-char	*get_quoted_word(FILE *);
 char	*path(const char *);
 char	*raisestr(char *);
 void	remember(const char *);

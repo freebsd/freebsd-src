@@ -45,19 +45,21 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/sbuf.h>
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 
 #include <assert.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <err.h>
+#include <iostream>
+#include <sstream>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <dirent.h>
+
 #include "y.tab.h"
 #include "config.h"
 #include "configvers.h"
@@ -111,7 +113,7 @@ struct hdr_list {
 	struct hdr_list *h_next;
 } *htab;
 
-static struct sbuf *line_buf = NULL;
+static std::stringstream line_buf;
 
 /*
  * Config builds a set of files for building a UNIX
@@ -313,24 +315,21 @@ usage(void)
 static void
 init_line_buf(void)
 {
-	if (line_buf == NULL) {
-		line_buf = sbuf_new(NULL, NULL, 80, SBUF_AUTOEXTEND);
-		if (line_buf == NULL) {
-			errx(EXIT_FAILURE, "failed to allocate line buffer");
-		}
-	} else {
-		sbuf_clear(line_buf);
-	}
+
+	line_buf.str("");
 }
 
-static char *
+static std::string
 get_line_buf(void)
 {
-	if (sbuf_finish(line_buf) != 0) {
+
+	line_buf.flush();
+	if (!line_buf.good()) {
 		errx(EXIT_FAILURE, "failed to generate line buffer, "
-		    "partial line = %s", sbuf_data(line_buf));
+		    "partial line = %s", line_buf.str().c_str());
 	}
-	return sbuf_data(line_buf);
+
+	return line_buf.str();
 }
 
 /*
@@ -339,7 +338,7 @@ get_line_buf(void)
  *	NULL on end of line
  *	pointer to the word otherwise
  */
-char *
+configword
 get_word(FILE *fp)
 {
 	int ch;
@@ -351,7 +350,7 @@ begin:
 		if (ch != ' ' && ch != '\t')
 			break;
 	if (ch == EOF)
-		return ((char *)EOF);
+		return (configword().eof(true));
 	if (ch == '\\'){
 		escaped_nl = 1;
 		goto begin;
@@ -362,22 +361,22 @@ begin:
 			goto begin;
 		}
 		else
-			return (NULL);
+			return (configword().eol(true));
 	}
-	sbuf_putc(line_buf, ch);
+	line_buf << (char)ch;
 	/* Negation operator is a word by itself. */
 	if (ch == '!') {
-		return get_line_buf();
+		return (configword(get_line_buf()));
 	}
 	while ((ch = getc(fp)) != EOF) {
 		if (isspace(ch))
 			break;
-		sbuf_putc(line_buf, ch);
+		line_buf << (char)ch;
 	}
 	if (ch == EOF)
-		return ((char *)EOF);
+		return (configword().eof(true));
 	(void) ungetc(ch, fp);
-	return (get_line_buf());
+	return (configword(get_line_buf()));
 }
 
 /*
@@ -385,7 +384,7 @@ begin:
  *	like get_word but will accept something in double or single quotes
  *	(to allow embedded spaces).
  */
-char *
+configword
 get_quoted_word(FILE *fp)
 {
 	int ch;
@@ -397,7 +396,7 @@ begin:
 		if (ch != ' ' && ch != '\t')
 			break;
 	if (ch == EOF)
-		return ((char *)EOF);
+		return (configword().eof(true));
 	if (ch == '\\'){
 		escaped_nl = 1;
 		goto begin;
@@ -408,7 +407,7 @@ begin:
 			goto begin;
 		}
 		else
-			return (NULL);
+			return (configword().eol(true));
 	}
 	if (ch == '"' || ch == '\'') {
 		int quote = ch;
@@ -419,7 +418,7 @@ begin:
 				break;
 			if (ch == '\n' && !escaped_nl) {
 				printf("config: missing quote reading `%s'\n",
-					get_line_buf());
+					get_line_buf().c_str());
 				exit(2);
 			}
 			if (ch == '\\' && !escaped_nl) {
@@ -427,23 +426,23 @@ begin:
 				continue;
 			}
 			if (ch != quote && escaped_nl)
-				sbuf_putc(line_buf, '\\');
-			sbuf_putc(line_buf, ch);
+				line_buf << "\\";
+			line_buf << (char)ch;
 			escaped_nl = 0;
 		}
 	} else {
-		sbuf_putc(line_buf, ch);
+		line_buf << (char)ch;
 		while ((ch = getc(fp)) != EOF) {
 			if (isspace(ch))
 				break;
-			sbuf_putc(line_buf, ch);
+			line_buf << (char)ch;
 		}
 		if (ch != EOF)
 			(void) ungetc(ch, fp);
 	}
 	if (ch == EOF)
-		return ((char *)EOF);
-	return (get_line_buf());
+		return (configword().eof(true));
+	return (configword(get_line_buf()));
 }
 
 /*
@@ -466,7 +465,7 @@ path(const char *file)
  * will be able to obtain and build conifguration file with one command.
  */
 static void
-configfile_dynamic(struct sbuf *sb)
+configfile_dynamic(std::ostringstream &cfg)
 {
 	struct cputype *cput;
 	struct device *d;
@@ -476,38 +475,35 @@ configfile_dynamic(struct sbuf *sb)
 
 	asprintf(&lend, "\\n\\\n");
 	assert(lend != NULL);
-	sbuf_printf(sb, "options\t%s%s", OPT_AUTOGEN, lend);
-	sbuf_printf(sb, "ident\t%s%s", ident, lend);
-	sbuf_printf(sb, "machine\t%s%s", machinename, lend);
+	cfg << "options\t" << OPT_AUTOGEN << lend;
+	cfg << "ident\t" << ident << lend;
+	cfg << "machine\t" << machinename << lend;
 	SLIST_FOREACH(cput, &cputype, cpu_next)
-		sbuf_printf(sb, "cpu\t%s%s", cput->cpu_name, lend);
+		cfg << "cpu\t" << cput->cpu_name << lend;
 	SLIST_FOREACH(ol, &mkopt, op_next)
-		sbuf_printf(sb, "makeoptions\t%s=%s%s", ol->op_name,
-		    ol->op_value, lend);
+		cfg << "makeoptions\t" << ol->op_name << '=' <<
+		    ol->op_value << lend;
 	SLIST_FOREACH(ol, &opt, op_next) {
 		if (strncmp(ol->op_name, "DEV_", 4) == 0)
 			continue;
-		sbuf_printf(sb, "options\t%s", ol->op_name);
+		cfg << "options\t" << ol->op_name;
 		if (ol->op_value != NULL) {
-			sbuf_putc(sb, '=');
+			cfg << '=';
 			for (i = 0; i < strlen(ol->op_value); i++) {
 				if (ol->op_value[i] == '"')
-					sbuf_printf(sb, "\\%c",
-					    ol->op_value[i]);
+					cfg << '\\' << ol->op_value[i];
 				else
-					sbuf_printf(sb, "%c",
-					    ol->op_value[i]);
+					cfg << ol->op_value[i];
 			}
-			sbuf_printf(sb, "%s", lend);
-		} else {
-			sbuf_printf(sb, "%s", lend);
 		}
+
+		cfg << lend;
 	}
 	/*
 	 * Mark this file as containing everything we need.
 	 */
 	STAILQ_FOREACH(d, &dtab, d_next)
-		sbuf_printf(sb, "device\t%s%s", d->d_name, lend);
+		cfg << "device\t" << d->d_name << lend;
 	free(lend);
 }
 
@@ -515,7 +511,7 @@ configfile_dynamic(struct sbuf *sb)
  * Generate file from the configuration files.
  */
 static void
-configfile_filebased(struct sbuf *sb)
+configfile_filebased(std::ostringstream &cfg)
 {
 	FILE *cff;
 	struct cfgfile *cf;
@@ -534,11 +530,11 @@ configfile_filebased(struct sbuf *sb)
 		}
 		while ((i = getc(cff)) != EOF) {
 			if (i == '\n')
-				sbuf_printf(sb, "\\n\\\n");
+				cfg << "\\n\\\n";
 			else if (i == '"' || i == '\'')
-				sbuf_printf(sb, "\\%c", i);
+				cfg << '\\' << i;
 			else
-				sbuf_putc(sb, i);
+				cfg << i;
 		}
 		fclose(cff);
 	}
@@ -548,7 +544,7 @@ static void
 configfile(void)
 {
 	FILE *fo;
-	struct sbuf *sb;
+	std::ostringstream cfg;
 	char *p;
 
 	/* Add main configuration file to the list of files to be included */
@@ -557,16 +553,14 @@ configfile(void)
 	fo = fopen(p, "w");
 	if (!fo)
 		err(2, "%s", p);
-	sb = sbuf_new(NULL, NULL, 2048, SBUF_AUTOEXTEND);
-	assert(sb != NULL);
-	sbuf_clear(sb);
 	if (filebased) {
 		/* Is needed, can be used for backward compatibility. */
-		configfile_filebased(sb);
+		configfile_filebased(cfg);
 	} else {
-		configfile_dynamic(sb);
+		configfile_dynamic(cfg);
 	}
-	sbuf_finish(sb);
+
+	cfg.flush();
 	/* 
 	 * We print first part of the template, replace our tag with
 	 * configuration files content and later continue writing our
@@ -577,10 +571,9 @@ configfile(void)
 		errx(EXIT_FAILURE, "Something went terribly wrong!");
 	*p = '\0';
 	fprintf(fo, "%s", kernconfstr);
-	fprintf(fo, "%s", sbuf_data(sb));
+	fprintf(fo, "%s", cfg.str().c_str());
 	p += strlen(KERNCONFTAG);
 	fprintf(fo, "%s", p);
-	sbuf_delete(sb);
 	fclose(fo);
 	moveifchanged(path("config.c.new"), path("config.c"));
 	cfgfile_removeall();
