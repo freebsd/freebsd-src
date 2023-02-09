@@ -31,7 +31,7 @@
 .\"	@(#)tzset.3	8.2 (Berkeley) 11/17/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 1993
+.Dd February 8, 2023
 .Dt TZSET 3
 .Os
 .Sh NAME
@@ -102,10 +102,14 @@ is used.
 .Pp
 The
 .Fn tzsetwall
-function
-sets things up so that
-.Xr localtime 3
-returns the best available approximation of local wall clock time.
+function is equivalent to calling
+.Fn tzset
+with the
+.Ev TZ
+environment variable unset.
+It is deprecated and may not be available in
+.Fx 14.0
+and later.
 .Sh SPECIFICATION FORMAT
 When
 .Ev TZ

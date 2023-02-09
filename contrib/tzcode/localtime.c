@@ -1517,9 +1517,8 @@ zoneinit(struct state *sp, char const *name)
 }
 
 static void
-tzset_unlocked(void)
+tzset_unlocked_name(char const *name)
 {
-  char const *name = getenv("TZ");
   struct state *sp = lclptr;
   int lcl = name ? strlen(name) < sizeof lcl_TZname : -1;
   if (lcl < 0
@@ -1541,6 +1540,12 @@ tzset_unlocked(void)
   lcl_is_set = lcl;
 }
 
+static void
+tzset_unlocked(void)
+{
+  tzset_unlocked_name(getenv("TZ"));
+}
+
 void
 tzset(void)
 {
@@ -1549,6 +1554,18 @@ tzset(void)
   tzset_unlocked();
   unlock();
 }
+
+void
+freebsd13_tzsetwall(void)
+{
+  if (lock() != 0)
+    return;
+  tzset_unlocked_name(NULL);
+  unlock();
+}
+__sym_compat(tzsetwall, freebsd13_tzsetwall, FBSD_1.0);
+__warn_references(tzsetwall,
+    "warning: tzsetwall() is deprecated, use tzset() instead.");
 
 static void
 gmtcheck(void)
