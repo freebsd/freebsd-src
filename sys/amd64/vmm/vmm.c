@@ -1930,10 +1930,8 @@ restart:
 	 * VM_EXITCODE_INST_EMUL could access the apic which could transform the
 	 * exit code into VM_EXITCODE_IPI.
 	 */
-	if (error == 0 && vme->exitcode == VM_EXITCODE_IPI) {
-		retu = false;
+	if (error == 0 && vme->exitcode == VM_EXITCODE_IPI)
 		error = vm_handle_ipi(vcpu, vme, &retu);
-	}
 
 	if (error == 0 && retu == false)
 		goto restart;
