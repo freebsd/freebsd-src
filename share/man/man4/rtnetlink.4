@@ -284,6 +284,13 @@ struct ifinfomsg {
 Creates a new interface.
 The only mandatory TLV is
 .Dv IFLA_IFNAME .
+The following attributes are returned inside the nested
+.Dv NLMSGERR_ATTR_COOKIE :
+.Pp
+.Bd -literal -offset indent -compact
+IFLA_NEW_IFINDEX	(uint32) created interface index
+IFLA_IFNAME		(string) created interface name
+.Ed
 .Ss RTM_DELLINK
 Deletes the interface specified by
 .Dv IFLA_IFNAME .

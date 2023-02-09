@@ -78,6 +78,25 @@ nlmsg_report_err_offset(struct nl_pstate *npt, uint32_t off)
 	return (true);
 }
 
+void
+nlmsg_report_cookie(struct nl_pstate *npt, struct nlattr *nla)
+{
+	MPASS(nla->nla_type == NLMSGERR_ATTR_COOKIE);
+	MPASS(nla->nla_len >= sizeof(struct nlattr));
+	npt->cookie = nla;
+}
+
+void
+nlmsg_report_cookie_u32(struct nl_pstate *npt, uint32_t val)
+{
+	struct nlattr *nla = npt_alloc(npt, sizeof(*nla) + sizeof(uint32_t));
+
+	nla->nla_type = NLMSGERR_ATTR_COOKIE;
+	nla->nla_len = sizeof(*nla) + sizeof(uint32_t);
+	memcpy(nla + 1, &val, sizeof(uint32_t));
+	nlmsg_report_cookie(npt, nla);
+}
+
 static const struct nlattr_parser *
 search_states(const struct nlattr_parser *ps, int pslen, int key)
 {

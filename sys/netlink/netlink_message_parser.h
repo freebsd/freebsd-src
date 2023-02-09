@@ -71,6 +71,7 @@ struct nl_pstate {
 	uint32_t		err_off;	/* error offset from hdr start */
         int			error;		/* last operation error */
 	char			*err_msg;	/* Description of last error */
+	struct nlattr		*cookie;	/* NLA to return to the userspace */
 	bool			strict;		/* Strict parsing required */
 };
 
@@ -197,6 +198,9 @@ bool nlmsg_report_err_msg(struct nl_pstate *npt, const char *fmt, ...);
 }
 
 bool nlmsg_report_err_offset(struct nl_pstate *npt, uint32_t off);
+
+void nlmsg_report_cookie(struct nl_pstate *npt, struct nlattr *nla);
+void nlmsg_report_cookie_u32(struct nl_pstate *npt, uint32_t val);
 
 /*
  * Have it inline so compiler can optimize field accesses into
