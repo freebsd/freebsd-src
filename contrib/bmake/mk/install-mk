@@ -28,6 +28,10 @@
 #	-g "group"
 #		Use "group" for installed files.
 #
+#	-U "umask"
+#		Use "umask" so directories are created with suitable
+#		mode (default is 022).
+#
 #	var=val
 #		Set "var" to "val".  See below.
 #
@@ -55,9 +59,9 @@
 #       Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: install-mk,v 1.224 2023/01/20 17:34:06 sjg Exp $
+#	$Id: install-mk,v 1.226 2023/01/28 16:52:12 sjg Exp $
 #
-#	@(#) Copyright (c) 1994 Simon J. Gerraty
+#	@(#) Copyright (c) 1994-2023 Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -70,7 +74,7 @@
 #	sjg@crufty.net
 #
 
-MK_VERSION=20230120
+MK_VERSION=20230127
 OWNER=
 GROUP=
 MODE=444
@@ -78,6 +82,8 @@ BINMODE=555
 ECHO=:
 SKIP=
 cp_f=-f
+
+umask 022
 
 while :
 do
@@ -91,6 +97,7 @@ do
 	-v) ECHO=echo; shift;;
 	-q) ECHO=:; shift;;
 	-n) ECHO=echo SKIP=:; shift;;
+	-U) umask $2; shift;;
 	--) shift; break;;
 	*) break;;
 	esac

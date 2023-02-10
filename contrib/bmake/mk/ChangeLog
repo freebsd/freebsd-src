@@ -1,3 +1,14 @@
+2023-01-29  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* autoconf.mk: hook config.status to beforebuild.
+
+	* whats.mk: what*.c is NOTMAIN
+
+2023-01-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230127
+	control umask so directories are created with suitable mode.
+
 2023-01-20  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20230120

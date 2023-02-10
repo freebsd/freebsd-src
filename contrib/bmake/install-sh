@@ -49,13 +49,13 @@
 #	fail on many systems.  We ignore '-b', '-B' and '-c' options.
 #	
 # AUTHOR:
-#	Simon J. Gerraty <sjg@quick.com.au>
+#	Simon J. Gerraty <sjg@crufty.net>
 #
 
 # RCSid:
-#	$Id: install-sh,v 1.18 2001/03/16 17:33:02 sjg Exp $
+#	$Id: install-sh,v 1.22 2023/01/28 16:21:19 sjg Exp $
 #
-#	@(#) Copyright (c) 1993 Simon J. Gerraty
+#	@(#) Copyright (c) 1993-2023 Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -65,7 +65,7 @@
 #	left intact. 
 #      
 #	Please send copies of changes and bug-fixes to:
-#	sjg@quick.com.au
+#	sjg@crufty.net
 #
 
 set -- `getopt B:bpxCNcsdo:g:m:i:f: $*`
@@ -76,39 +76,41 @@ Mydir=`dirname $0`
 owner=:
 group=:
 mode=:
+MODE=0
 strip=:
 mkdirs=
 compare=:
 newer=:
 chflags=:
-LS1=
-CP_P=
+LS_1=
+CP_p=
 
-while [ $# -gt 1 ]
+while :
 do
-	case $1 in
+	case "$1" in
 	--)	shift; break;;
-	-p)	CP_P=-p;;
+	-p)	CP_p=-p;;
 	-x)	set -x;;
 	-B)	OLD_EXT=$2; shift;;
 	-C)	compare=Different;;
 	-N)	newer=Newer;
 		# check if /bin/ls supports -1
-		/bin/ls -1 $0 >/dev/null 2>&1 && LS1=1
+		'ls' -1 $0 > /dev/null 2>&1 && LS_1=1
 		;;
 	-o)	owner="${CHOWN:-chown} $2 "; shift;;
 	-g)	group="${CHGRP:-chgrp} $2 "; shift;;
-	-m)	mode="${CHMOD:-chmod} $2 "; shift;;
+	-m)	MODE=$2 mode="${CHMOD:-chmod} $2 "; shift;;
 	-s)	strip=${STRIP:-strip};;
 	-d)	mkdirs="mkdir -p";;
 	-i)	ignore_err="$ignore_err$2"; shift;;
 	-f)	chflags="${CHFLAGS:-chflags} $2 "; shift;;
+	*)	break;;
 	esac
 	shift
 done
 
 Newer() {
-	n=`/bin/ls -t$LS1 $* 2>/dev/null | head -1`
+	n=`'ls' -t$LS_1 $* 2> /dev/null | head -1`
 	[ $1 = $n ]
 }
 
@@ -132,7 +134,7 @@ Setem() {
 	$group $1 || Err g
 	$owner $1 || Err o
 	$mode  $1 || Err m
-	$chflags  $1 || Err f
+	$chflags $1 || Err f
 	return 0
 }
 
@@ -140,12 +142,24 @@ Setem() {
 # after any calls to add_path()
 args="$*"
 
-# all this just for chown!
-add_path () { [ -d $1 ] && eval ${2:-PATH}="\$${2:-PATH}:$1"; }
-add_path /etc
-add_path /usr/etc
+add_path () {
+	test -d $1 || return
+	case ":$PATH:" in
+	*:$1:*) return;;
+	esac
+	PATH=$PATH:$1
+}
+
 add_path /sbin
 add_path /usr/sbin
+
+case "$owner" in
+:)	;;
+*)
+	add_path /etc
+	add_path /usr/etc
+	;;
+esac
 
 # restore saved $*
 set -- $args
@@ -153,6 +167,15 @@ set -- $args
 # make directories if needed
 # and ensure mode etc are as desired
 if [ "$mkdirs" ]; then
+	case "$MODE" in
+	[1-7]*)
+		# make sure umask is compatible
+		case "$MODE" in
+		????*) MODE=`echo $MODE | sed 's,.*\(...\)$,\1,'`;;
+		esac
+		umask `expr 0777 - 0$MODE |
+		sed 's,^,000,;s,^.*\(...\)$,\1,'`;;
+	esac
 	for d in $*
 	do
 		[ ! -d $d ] && $mkdirs $d
@@ -196,6 +219,6 @@ do
 	$newer $f $t || continue
 	$compare $f $t || continue
 	[ -f $t ] && { mv -f $t $t.old || exit 1; }
-	{ cp $CP_P $f $t && Setem $t; } || exit 1
+	{ cp $CP_p $f $t && Setem $t; } || exit 1
 done
 exit 0
