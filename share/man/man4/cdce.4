@@ -28,7 +28,7 @@
 .\" $NetBSD: cdce.4,v 1.4 2004/12/08 18:35:56 peter Exp $
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2019
+.Dd February 10, 2023
 .Dt CDCE 4
 .Os
 .Sh NAME
@@ -45,6 +45,13 @@ kernel configuration file:
 .Cd "device miibus"
 .Cd "device uether"
 .Cd "device cdce"
+.Ed
+.Pp
+Mobile Devices (eg. Huawei E3372, E5573 and others)
+may need additionally the u3g command port:
+.Bd -ragged -offset indent
+.Cd "device ucom"
+.Cd "device u3g"
 .Ed
 .Pp
 Alternatively, to load the driver as a
@@ -77,6 +84,13 @@ received and transmitted over separate USB bulk transfer endpoints.
 The
 .Nm
 driver does not support different media types or options.
+.Pp
+Mobile
+.Nm
+Network Devices may need a connect command sequence via u3g
+serial command port before they activate the NCM/ECM/ACM network
+interface. Example: echo 'AT^NDISUP=1,1,"internet"' > /dev/cuaU[0].0,
+where "internet" is your providers apn name.
 .Sh HARDWARE
 The following devices are supported by the
 .Nm
@@ -93,6 +107,8 @@ Terayon TJ-715 DOCSIS Cable Modem
 Realtek RTL8156 USB GBE/2.5G Ethernet Family Controller
 .It
 Planex USB-LAN2500R
+.It
+Huawei 3G/4G LTE (eg. E3372, E5573) and other mobile network devices
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -127,6 +143,8 @@ is running low on mbufs.
 .Xr netintro 4 ,
 .Xr urndis 4 ,
 .Xr usb 4 ,
+.Xr ucom 4 ,
+.Xr u3g 4 ,
 .Xr ifconfig 8
 .Rs
 .%T "Universal Serial Bus Class Definitions for Communication Devices"
