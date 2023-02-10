@@ -4681,6 +4681,15 @@ if_transmit(if_t ifp, struct mbuf *m)
 	return (0);
 }
 
+int
+if_resolvemulti(if_t ifp, struct sockaddr **srcs, struct sockaddr *dst)
+{
+	if (ifp->if_resolvemulti == NULL)
+		return (EOPNOTSUPP);
+
+	return (ifp->if_resolvemulti(ifp, srcs, dst));
+}
+
 struct mbuf *
 if_dequeue(if_t ifp)
 {
@@ -4928,6 +4937,12 @@ if_getbroadcastaddr(if_t ifp)
 	return (ifp->if_broadcastaddr);
 }
 
+void
+if_setbroadcastaddr(if_t ifp, const uint8_t *addr)
+{
+	ifp->if_broadcastaddr = addr;
+}
+
 int
 if_getnumadomain(if_t ifp)
 {
@@ -4962,6 +4977,12 @@ u_int
 if_getfib(if_t ifp)
 {
 	return (ifp->if_fib);
+}
+
+uint8_t
+if_getaddrlen(if_t ifp)
+{
+	return (ifp->if_addrlen);
 }
 
 struct bpf_if *
