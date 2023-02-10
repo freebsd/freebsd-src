@@ -4242,6 +4242,42 @@ if_setcapenablebit(if_t ifp, int setcap, int clearcap)
 	return (0);
 }
 
+int
+if_setcapabilities2(if_t ifp, int capabilities)
+{
+	ifp->if_capabilities2 = capabilities;
+	return (0);
+}
+
+int
+if_setcapabilities2bit(if_t ifp, int setbit, int clearbit)
+{
+	ifp->if_capabilities2 &= ~clearbit;
+	ifp->if_capabilities2 |= setbit;
+	return (0);
+}
+
+int
+if_getcapabilities2(const if_t ifp)
+{
+	return (ifp->if_capabilities2);
+}
+
+int
+if_setcapenable2(if_t ifp, int capabilities2)
+{
+	ifp->if_capenable2 = capabilities2;
+	return (0);
+}
+
+int
+if_setcapenable2bit(if_t ifp, int setcap, int clearcap)
+{
+	ifp->if_capenable2 &= ~clearcap;
+	ifp->if_capenable2 |= setcap;
+	return (0);
+}
+
 const char *
 if_getdname(const if_t ifp)
 {
@@ -4281,6 +4317,19 @@ int
 if_getcapenable(const if_t ifp)
 {
 	return ((struct ifnet *)ifp)->if_capenable;
+}
+
+int
+if_togglecapenable2(if_t ifp, int togglecap)
+{
+	ifp->if_capenable2 ^= togglecap;
+	return (0);
+}
+
+int
+if_getcapenable2(const if_t ifp)
+{
+	return (ifp->if_capenable2);
 }
 
 int
