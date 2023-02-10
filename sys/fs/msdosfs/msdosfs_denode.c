@@ -365,10 +365,8 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 		return (EINVAL);
 	}
 
-	if (dep->de_FileSize < length) {
-		vnode_pager_setsize(DETOV(dep), length);
+	if (dep->de_FileSize < length)
 		return deextend(dep, length, cred);
-	}
 
 	/*
 	 * If the desired length is 0 then remember the starting cluster of
@@ -509,6 +507,7 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 			return (error);
 		}
 	}
+	vnode_pager_setsize(DETOV(dep), length);
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
 	return (deupdat(dep, !DOINGASYNC(DETOV(dep))));
