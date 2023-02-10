@@ -292,7 +292,7 @@ static const struct {
 	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_ALTSIG |
 	    AHCI_Q_IOMMU_BUSWIDE},
 	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_ALTSIG |
-	    AHCI_Q_IOMMU_BUSWIDE},
+	    AHCI_Q_IOMMU_BUSWIDE | AHCI_Q_SLOWDEV},
 	{0x92351b4b, 0x00, "Marvell 88SE9235",  0},
 	{0x06201103, 0x00, "HighPoint RocketRAID 620",	0},
 	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	0},
