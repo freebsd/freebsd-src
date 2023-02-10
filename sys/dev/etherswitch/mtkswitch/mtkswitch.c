@@ -522,7 +522,7 @@ static int
 mtkswitch_ifmedia_upd(if_t ifp)
 {
 	struct mtkswitch_softc *sc = if_getsoftc(ifp);
-	struct mii_data *mii = mtkswitch_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	struct mii_data *mii = mtkswitch_miiforport(sc, if_getdunit(ifp));
         
 	if (mii == NULL)
 		return (ENXIO);
@@ -534,7 +534,7 @@ static void
 mtkswitch_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct mtkswitch_softc *sc = if_getsoftc(ifp);
-	struct mii_data *mii = mtkswitch_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	struct mii_data *mii = mtkswitch_miiforport(sc, if_getdunit(ifp));
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 

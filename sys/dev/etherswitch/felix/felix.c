@@ -970,7 +970,7 @@ felix_ifmedia_upd(if_t ifp)
 	felix_softc_t sc;
 
 	sc = if_getsoftc(ifp);
-	mii = felix_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	mii = felix_miiforport(sc, if_getdunit(ifp));
 	if (mii == NULL)
 		return (ENXIO);
 
@@ -985,7 +985,7 @@ felix_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	sc = if_getsoftc(ifp);
-	mii = felix_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	mii = felix_miiforport(sc, if_getdunit(ifp));
 	if (mii == NULL)
 		return;
 

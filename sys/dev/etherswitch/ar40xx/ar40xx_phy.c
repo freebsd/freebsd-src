@@ -162,10 +162,10 @@ static int
 ar40xx_ifmedia_upd(if_t ifp)
 {
 	struct ar40xx_softc *sc = if_getsoftc(ifp);
-	struct mii_data *mii = ar40xx_phy_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	struct mii_data *mii = ar40xx_phy_miiforport(sc, if_getdunit(ifp));
 
 	AR40XX_DPRINTF(sc, AR40XX_DBG_PORT_STATUS, "%s: called, PHY %d\n",
-	    __func__, ifp->if_dunit); /* XXX - DRVAPI */
+	    __func__, if_getdunit(ifp));
 
 	if (mii == NULL)
 		return (ENXIO);
@@ -177,10 +177,10 @@ static void
 ar40xx_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct ar40xx_softc *sc = if_getsoftc(ifp);
-	struct mii_data *mii = ar40xx_phy_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	struct mii_data *mii = ar40xx_phy_miiforport(sc, if_getdunit(ifp));
 
 	AR40XX_DPRINTF(sc, AR40XX_DBG_PORT_STATUS, "%s: called, PHY %d\n",
-	    __func__, ifp->if_dunit); /* XXX - DRVAPI */
+	    __func__, if_getdunit(ifp));
 
 	if (mii == NULL)
 		return;

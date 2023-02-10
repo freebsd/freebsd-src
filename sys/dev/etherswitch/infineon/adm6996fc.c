@@ -727,7 +727,7 @@ adm6996fc_ifmedia_upd(if_t ifp)
 	struct mii_data *mii;
 
 	sc = if_getsoftc(ifp);
-	mii = adm6996fc_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	mii = adm6996fc_miiforport(sc, if_getdunit(ifp));
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 	if (mii == NULL)
@@ -743,7 +743,7 @@ adm6996fc_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	sc = if_getsoftc(ifp);
-	mii = adm6996fc_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	mii = adm6996fc_miiforport(sc, if_getdunit(ifp));
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 
