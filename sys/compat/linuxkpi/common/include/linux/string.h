@@ -39,6 +39,7 @@
 #include <linux/uaccess.h>
 #include <linux/err.h>
 #include <linux/bitops.h> /* for BITS_PER_LONG */
+#include <linux/stdarg.h>
 
 #include <sys/libkern.h>
 

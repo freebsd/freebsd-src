@@ -58,7 +58,7 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 
-#include <machine/stdarg.h>
+#include <linux/stdarg.h>
 
 #define KERN_CONT       ""
 #define	KERN_EMERG	"<0>"
