@@ -47,6 +47,8 @@ typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQ_DISABLE_UNLAZY	0
 
+#define	IRQ_NOTCONNECTED	(1U << 31)
+
 int  lkpi_request_irq(struct device *, unsigned int, irq_handler_t,
 	irq_handler_t, unsigned long, const char *, void *);
 int  lkpi_enable_irq(unsigned int);
