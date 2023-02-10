@@ -1,3 +1,20 @@
+2023-02-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230208
+	Merge with NetBSD make, pick up
+	o var.c: always use SCOPE_GLOBAL for :_ to avoid problems
+	when it has been used within conditional expressions
+
+2023-01-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230127
+
+	* install-sh: if making directories ensure umask is set
+	to match mode.
+
+	* Makefile: use DIRMODE for directories and
+	NONBINMODE for man pages and mk files
+
 2023-01-26  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230126
