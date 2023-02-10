@@ -890,7 +890,7 @@ ping(int argc, char *const *argv)
 
 	si_sa.sa_handler = status;
 	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
-		err(EX_OSERR, "sigaction");
+		err(EX_OSERR, "sigaction SIGINFO");
 	}
 
         if (alarmtimeout > 0) {
