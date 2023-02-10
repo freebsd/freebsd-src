@@ -68,5 +68,6 @@ int	accept_filt_getopt(struct socket *, struct sockopt *);
 int	accept_filt_setopt(struct socket *, struct sockopt *);
 int	so_setsockopt(struct socket *so, int level, int optname,
 	    void *optval, size_t optlen);
+u_long	sogetmaxbuf(struct socket *so);
 
 #endif /* _SYS_SOCKOPT_H_ */
