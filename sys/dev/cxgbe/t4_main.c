@@ -13240,6 +13240,7 @@ MODULE_DEPEND(t5nex, netmap, 1, 1, 1);
 
 DRIVER_MODULE(t6nex, pci, t6_driver, mod_event, 0);
 MODULE_VERSION(t6nex, 1);
+MODULE_DEPEND(t6nex, crypto, 1, 1, 1);
 MODULE_DEPEND(t6nex, firmware, 1, 1, 1);
 #ifdef DEV_NETMAP
 MODULE_DEPEND(t6nex, netmap, 1, 1, 1);
