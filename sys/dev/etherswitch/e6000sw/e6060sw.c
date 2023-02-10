@@ -889,7 +889,7 @@ e6060sw_ifmedia_upd(if_t ifp)
 	struct mii_data *mii;
 
 	sc = if_getsoftc(ifp);
-	mii = e6060sw_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	mii = e6060sw_miiforport(sc, if_getdunit(ifp));
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 	if (mii == NULL)
@@ -905,7 +905,7 @@ e6060sw_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	sc = if_getsoftc(ifp);
-	mii = e6060sw_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
+	mii = e6060sw_miiforport(sc, if_getdunit(ifp));
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 
