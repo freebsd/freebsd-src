@@ -165,6 +165,7 @@ tarfs_getattr(struct vop_getattr_args *ap)
 static int
 tarfs_lookup(struct vop_cachedlookup_args *ap)
 {
+	struct tarfs_mount *tmp;
 	struct tarfs_node *dirnode, *parent, *tnp;
 	struct componentname *cnp;
 	struct vnode *dvp, **vpp;
@@ -180,6 +181,7 @@ tarfs_lookup(struct vop_cachedlookup_args *ap)
 	*vpp = NULLVP;
 	dirnode = VP_TO_TARFS_NODE(dvp);
 	parent = dirnode->parent;
+	tmp = dirnode->tmp;
 	tnp = NULL;
 
 	TARFS_DPF(LOOKUP, "%s(%p=%s, %.*s)\n", __func__,
@@ -228,7 +230,7 @@ tarfs_lookup(struct vop_cachedlookup_args *ap)
 		    (tnp->type != VDIR && tnp->type != VLNK))
 			return (ENOTDIR);
 
-		error = vn_vget_ino(dvp, tnp->ino, cnp->cn_lkflags, vpp);
+		error = VFS_VGET(tmp->vfs, tnp->ino, cnp->cn_lkflags, vpp);
 		if (error != 0)
 			return (error);
 	}
