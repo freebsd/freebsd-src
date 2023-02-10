@@ -128,6 +128,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/event.h>
 #include <sys/eventhandler.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/sbuf.h>
@@ -2973,6 +2974,15 @@ sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
 
 	bcopy(sopt->sopt_val, buf, valsize);
 	return (0);
+}
+
+u_long
+sogetmaxbuf(struct socket *so)
+{
+	if (so->so_proto->pr_domain->dom_family != PF_NETLINK)
+		return (sb_max);
+	u_long nl_maxsockbuf = 512 * 1024 * 1024; /* 512M, XXX: init based on physmem */
+	return ((priv_check(curthread, PRIV_NET_ROUTE) == 0) ? nl_maxsockbuf : sb_max);
 }
 
 /*
