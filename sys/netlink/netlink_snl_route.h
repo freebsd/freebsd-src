@@ -31,6 +31,8 @@
 #include <netlink/netlink_route.h>
 #include <netinet/in.h>
 
+__BEGIN_DECLS
+
 /*
  * Simple Netlink Library - NETLINK_ROUTE helpers
  */
@@ -100,7 +102,7 @@ snl_attr_get_ip(struct snl_state *ss, struct nlattr *nla,
 static inline struct sockaddr *
 parse_rta_via(struct snl_state *ss, struct rtattr *rta, int *perror)
 {
-	struct rtvia *via = NL_RTA_DATA(rta);
+	struct rtvia *via = (struct rtvia *)NL_RTA_DATA(rta);
 
 	switch (via->rtvia_family) {
 	case AF_INET:
@@ -126,5 +128,7 @@ snl_attr_get_ipvia(struct snl_state *ss, struct nlattr *nla,
 	}
 	return (false);
 }
+
+__END_DECLS
 
 #endif
