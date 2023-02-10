@@ -2745,6 +2745,7 @@ io_mapping_create_wc(resource_size_t base, unsigned long size)
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 struct cpuinfo_x86 boot_cpu_data;
+struct cpuinfo_x86 __cpu_data[MAXCPU];
 #endif
 
 cpumask_t *
@@ -2767,7 +2768,15 @@ linux_compat_init(void *arg)
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86_max_cores = mp_ncpus;
-	boot_cpu_data.x86 = ((cpu_id & 0xf0000) >> 12) | ((cpu_id & 0xf0) >> 4);
+	boot_cpu_data.x86 = CPUID_TO_FAMILY(cpu_id);
+	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
+
+	for (i = 0; i < MAXCPU; i++) {
+		__cpu_data[i].x86_clflush_size = cpu_clflush_line_size;
+		__cpu_data[i].x86_max_cores = mp_ncpus;
+		__cpu_data[i].x86 = CPUID_TO_FAMILY(cpu_id);
+		__cpu_data[i].x86_model = CPUID_TO_MODEL(cpu_id);
+	}
 #endif
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");
 
