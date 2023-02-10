@@ -428,6 +428,20 @@ sg_alloc_table_from_pages(struct sg_table *sgt,
 }
 
 static inline int
+sg_alloc_table_from_pages_segment(struct sg_table *sgt,
+    struct page **pages, unsigned int count, unsigned int off,
+    unsigned long size, unsigned int max_segment, gfp_t gfp_mask)
+{
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+	return (PTR_ERR_OR_ZERO(__sg_alloc_table_from_pages(sgt, pages, count, off, size,
+	    max_segment, NULL, 0, gfp_mask)));
+#else
+	return (__sg_alloc_table_from_pages(sgt, pages, count, off, size,
+	    max_segment, gfp_mask));
+#endif
+}
+
+static inline int
 sg_nents(struct scatterlist *sg)
 {
 	int nents;
