@@ -44,6 +44,8 @@ typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQF_SHARED	RF_SHAREABLE
 
+#define	IRQ_NOTCONNECTED	(1U << 31)
+
 struct irq_ent;
 
 void linux_irq_handler(void *);
