@@ -32,15 +32,33 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 
 /*
+ * Linux' XArray allows to store a NULL pointer as a value. xa_load() would
+ * return NULL for both an unused index and an index set to NULL. But it
+ * impacts xa_alloc() which needs to find the next available index.
+ *
+ * However, our implementation relies on a radix tree (see `linux_radix.c`)
+ * which does not accept NULL pointers as values. I'm not sure this is a
+ * limitation or a feature, so to work around this, a NULL value is replaced by
+ * `NULL_VALUE`, an unlikely address, when we pass it to linux_radix.
+ */
+#define	NULL_VALUE	(void *)0x1
+
+/*
  * This function removes the element at the given index and returns
  * the pointer to the removed element, if any.
  */
 void *
 __xa_erase(struct xarray *xa, uint32_t index)
 {
+	void *retval;
+
 	XA_ASSERT_LOCKED(xa);
 
-	return (radix_tree_delete(&xa->root, index));
+	retval = radix_tree_delete(&xa->root, index);
+	if (retval == NULL_VALUE)
+		retval = NULL;
+
+	return (retval);
 }
 
 void *
@@ -67,6 +85,9 @@ xa_load(struct xarray *xa, uint32_t index)
 	xa_lock(xa);
 	retval = radix_tree_lookup(&xa->root, index);
 	xa_unlock(xa);
+
+	if (retval == NULL_VALUE)
+		retval = NULL;
 
 	return (retval);
 }
@@ -109,6 +130,8 @@ __xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t 
 	MPASS((mask & (mask + 1)) == 0);
 
 	*pindex = (xa->flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
+	if (ptr == NULL)
+		ptr = NULL_VALUE;
 retry:
 	retval = radix_tree_insert(&xa->root, *pindex, ptr);
 
@@ -136,6 +159,9 @@ int
 xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
 {
 	int retval;
+
+	if (ptr == NULL)
+		ptr = NULL_VALUE;
 
 	xa_lock(xa);
 	retval = __xa_alloc(xa, pindex, ptr, mask, gfp);
@@ -166,6 +192,8 @@ __xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
 	MPASS((mask & (mask + 1)) == 0);
 
 	*pnext_index = (xa->flags & XA_FLAGS_ALLOC1) != 0 ? 1 : 0;
+	if (ptr == NULL)
+		ptr = NULL_VALUE;
 retry:
 	retval = radix_tree_insert(&xa->root, *pnext_index, ptr);
 
@@ -220,6 +248,8 @@ __xa_insert(struct xarray *xa, uint32_t index, void *ptr, gfp_t gfp)
 	int retval;
 
 	XA_ASSERT_LOCKED(xa);
+	if (ptr == NULL)
+		ptr = NULL_VALUE;
 retry:
 	retval = radix_tree_insert(&xa->root, index, ptr);
 
@@ -262,11 +292,15 @@ __xa_store(struct xarray *xa, uint32_t index, void *ptr, gfp_t gfp)
 	int retval;
 
 	XA_ASSERT_LOCKED(xa);
+	if (ptr == NULL)
+		ptr = NULL_VALUE;
 retry:
 	retval = radix_tree_store(&xa->root, index, &ptr);
 
 	switch (retval) {
 	case 0:
+		if (ptr == NULL_VALUE)
+			ptr = NULL;
 		break;
 	case -ENOMEM:
 		if (likely(gfp & M_WAITOK)) {
@@ -374,6 +408,8 @@ __xa_next(struct xarray *xa, unsigned long *pindex, bool not_first)
 	found = radix_tree_iter_find(&xa->root, &iter, &ppslot);
 	if (likely(found)) {
 		retval = *ppslot;
+		if (retval == NULL_VALUE)
+			retval = NULL;
 		*pindex = iter.index;
 	} else {
 		retval = NULL;
