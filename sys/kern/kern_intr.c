@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
+ * Copyright © 2023 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -284,8 +285,8 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	struct intr_event *ie;
 	va_list ap;
 
-	/* The only valid flag during creation is IE_SOFT. */
-	if ((flags & ~IE_SOFT) != 0)
+	/* The flags valid during creation are IE_SOFT and IE_MULTIPROC. */
+	if ((flags & ~(IE_SOFT | IE_MULTIPROC)) != 0)
 		return (EINVAL);
 	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
