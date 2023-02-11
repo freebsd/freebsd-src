@@ -194,7 +194,7 @@ startIO(int fd, char *buffer)
 }
 
 int
-main(int argc, char *argv[], char *envp[])
+main(void)
 {
 
 	int	fdA, fdB, fdDelayA, fdDelayB;
