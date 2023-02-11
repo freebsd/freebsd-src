@@ -4363,8 +4363,9 @@ allocbuf(struct buf *bp, int size)
 	if (bp->b_bcount == size)
 		return (1);
 
-	if (bp->b_kvasize != 0 && bp->b_kvasize < size)
-		panic("allocbuf: buffer too small");
+	KASSERT(bp->b_kvasize == 0 || bp->b_kvasize >= size,
+	    ("allocbuf: buffer too small %p %#x %#x",
+	    bp, bp->b_kvasize, size));
 
 	newbsize = roundup2(size, DEV_BSIZE);
 	if ((bp->b_flags & B_VMIO) == 0) {
@@ -4381,11 +4382,12 @@ allocbuf(struct buf *bp, int size)
 	} else {
 		int desiredpages;
 
-		desiredpages = (size == 0) ? 0 :
+		desiredpages = size == 0 ? 0 :
 		    num_pages((bp->b_offset & PAGE_MASK) + newbsize);
 
-		if (bp->b_flags & B_MALLOC)
-			panic("allocbuf: VMIO buffer can't be malloced");
+		KASSERT((bp->b_flags & B_MALLOC) == 0,
+		    ("allocbuf: VMIO buffer can't be malloced %p", bp));
+
 		/*
 		 * Set B_CACHE initially if buffer is 0 length or will become
 		 * 0-length.
