@@ -476,6 +476,7 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct vnode *vp = DETOV(dep);
+	struct buf *bp;
 	u_long count;
 	int error;
 
@@ -502,16 +503,41 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 		if (count > pmp->pm_freeclustercount)
 			return (ENOSPC);
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
-		if (error) {
-			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0, cred);
-			return (error);
-		}
+		if (error != 0)
+			goto rewind;
 	}
+
+	/*
+	 * For the case of cluster size larger than the page size, we
+	 * need to ensure that the possibly dirty partial buffer at
+	 * the old end of file is not filled with invalid pages by
+	 * extension.  Otherwise it has a contradictory state of
+	 * B_CACHE | B_DELWRI but with invalid pages, and cannot be
+	 * neither written out nor validated.
+	 *
+	 * Fix it by proactively clearing extended pages.
+	 */
+	error = bread(vp, de_cluster(pmp, dep->de_FileSize), pmp->pm_bpcluster,
+	    NOCRED, &bp);
+	if (error != 0)
+		goto rewind;
+	vfs_bio_clrbuf(bp);
+	if (!DOINGASYNC(vp))
+		(void)bwrite(bp);
+	else if (vm_page_count_severe() || buf_dirty_count_severe())
+		bawrite(bp);
+	else
+		bdwrite(bp);
+
 	vnode_pager_setsize(vp, length);
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
 	return (deupdat(dep, !DOINGASYNC(vp)));
+
+rewind:
+	/* truncate the added clusters away again */
+	(void)detrunc(dep, dep->de_FileSize, 0, cred);
+	return (error);
 }
 
 /*
