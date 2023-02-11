@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/jail.h>
+#include <sys/osd.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -161,6 +162,39 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
 
 	return (error);
 }
+
+static int
+rtables_check_proc_fib(void *obj, void *data)
+{
+	struct prison *pr = obj;
+	struct thread *td = data;
+	int error = 0;
+
+	if (TD_TO_VNET(td) != pr->pr_vnet) {
+		/* number of fibs may be lower in a new vnet */
+		CURVNET_SET(pr->pr_vnet);
+		if (td->td_proc->p_fibnum >= V_rt_numfibs)
+			error = EINVAL;
+		CURVNET_RESTORE();
+	}
+	return (error);
+}
+
+static void
+rtables_prison_destructor(void *data)
+{
+}
+
+static void
+rtables_init(void)
+{
+	osd_method_t methods[PR_MAXMETHOD] = {
+	    [PR_METHOD_ATTACH] =	rtables_check_proc_fib,
+	};
+	osd_jail_register(rtables_prison_destructor, methods);
+}
+SYSINIT(rtables_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rtables_init, NULL);
+
 
 /*
  * If required, copy interface routes from existing tables to the
