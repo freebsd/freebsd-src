@@ -130,6 +130,7 @@ struct intr_event {
 /* Interrupt event flags kept in ie_flags. */
 #define	IE_SOFT		0x000001	/* Software interrupt. */
 #define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
+#define	IE_MULTIPROC	0x000008	/* Interrupt occurs on multiple procs */
 
 /* Flags to pass to swi_sched. */
 #define	SWI_FROMNMI	0x1
