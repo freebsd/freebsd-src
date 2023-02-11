@@ -475,13 +475,14 @@ int
 deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
+	struct vnode *vp = DETOV(dep);
 	u_long count;
 	int error;
 
 	/*
 	 * The root of a DOS filesystem cannot be extended.
 	 */
-	if ((DETOV(dep)->v_vflag & VV_ROOT) && !FAT32(pmp))
+	if ((vp->v_vflag & VV_ROOT) != 0 && !FAT32(pmp))
 		return (EINVAL);
 
 	/*
@@ -507,10 +508,10 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 			return (error);
 		}
 	}
-	vnode_pager_setsize(DETOV(dep), length);
+	vnode_pager_setsize(vp, length);
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	return (deupdat(dep, !DOINGASYNC(DETOV(dep))));
+	return (deupdat(dep, !DOINGASYNC(vp)));
 }
 
 /*
