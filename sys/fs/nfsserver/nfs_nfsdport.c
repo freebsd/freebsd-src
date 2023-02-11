@@ -1842,10 +1842,19 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 	u_quad_t tempsize;
 	struct nfsexstuff nes;
 	struct thread *p = curthread;
+	uint32_t oldrepstat;
 
-	if (ndp->ni_vp == NULL)
+	if (ndp->ni_vp == NULL) {
+		/*
+		 * If nfsrv_opencheck() sets nd_repstat, done_namei needs to be
+		 * set true, since cleanup after nfsvno_namei() is needed.
+		 */
+		oldrepstat = nd->nd_repstat;
 		nd->nd_repstat = nfsrv_opencheck(clientid,
 		    stateidp, stp, NULL, nd, p, nd->nd_repstat);
+		if (nd->nd_repstat != 0 && oldrepstat == 0)
+			done_namei = true;
+	}
 	if (!nd->nd_repstat) {
 		if (ndp->ni_vp == NULL) {
 			nd->nd_repstat = VOP_CREATE(ndp->ni_dvp,
