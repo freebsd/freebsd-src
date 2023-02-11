@@ -16,6 +16,7 @@
 #include "X86BaseInfo.h"
 #include "X86IntelInstPrinter.h"
 #include "X86MCAsmInfo.h"
+#include "X86TargetStreamer.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
@@ -505,11 +506,10 @@ public:
 
   bool evaluateBranch(const MCInst &Inst, uint64_t Addr, uint64_t Size,
                       uint64_t &Target) const override;
-  Optional<uint64_t> evaluateMemoryOperandAddress(const MCInst &Inst,
-                                                  const MCSubtargetInfo *STI,
-                                                  uint64_t Addr,
-                                                  uint64_t Size) const override;
-  Optional<uint64_t>
+  std::optional<uint64_t>
+  evaluateMemoryOperandAddress(const MCInst &Inst, const MCSubtargetInfo *STI,
+                               uint64_t Addr, uint64_t Size) const override;
+  std::optional<uint64_t>
   getMemoryOperandRelocationOffset(const MCInst &Inst,
                                    uint64_t Size) const override;
 };
@@ -522,7 +522,7 @@ bool X86MCInstrAnalysis::clearsSuperRegisters(const MCRegisterInfo &MRI,
                                               APInt &Mask) const {
   const MCInstrDesc &Desc = Info->get(Inst.getOpcode());
   unsigned NumDefs = Desc.getNumDefs();
-  unsigned NumImplicitDefs = Desc.getNumImplicitDefs();
+  unsigned NumImplicitDefs = Desc.implicit_defs().size();
   assert(Mask.getBitWidth() == NumDefs + NumImplicitDefs &&
          "Unexpected number of bits in the mask!");
 
@@ -561,7 +561,7 @@ bool X86MCInstrAnalysis::clearsSuperRegisters(const MCRegisterInfo &MRI,
   }
 
   for (unsigned I = 0, E = NumImplicitDefs; I < E; ++I) {
-    const MCPhysReg Reg = Desc.getImplicitDefs()[I];
+    const MCPhysReg Reg = Desc.implicit_defs()[I];
     if (ClearsSuperReg(Reg))
       Mask.setBit(NumDefs + I);
   }
@@ -630,19 +630,20 @@ std::vector<std::pair<uint64_t, uint64_t>> X86MCInstrAnalysis::findPltEntries(
 bool X86MCInstrAnalysis::evaluateBranch(const MCInst &Inst, uint64_t Addr,
                                         uint64_t Size, uint64_t &Target) const {
   if (Inst.getNumOperands() == 0 ||
-      Info->get(Inst.getOpcode()).OpInfo[0].OperandType != MCOI::OPERAND_PCREL)
+      Info->get(Inst.getOpcode()).operands()[0].OperandType !=
+          MCOI::OPERAND_PCREL)
     return false;
   Target = Addr + Size + Inst.getOperand(0).getImm();
   return true;
 }
 
-Optional<uint64_t> X86MCInstrAnalysis::evaluateMemoryOperandAddress(
+std::optional<uint64_t> X86MCInstrAnalysis::evaluateMemoryOperandAddress(
     const MCInst &Inst, const MCSubtargetInfo *STI, uint64_t Addr,
     uint64_t Size) const {
   const MCInstrDesc &MCID = Info->get(Inst.getOpcode());
   int MemOpStart = X86II::getMemoryOperandNo(MCID.TSFlags);
   if (MemOpStart == -1)
-    return None;
+    return std::nullopt;
   MemOpStart += X86II::getOperandBias(MCID);
 
   const MCOperand &SegReg = Inst.getOperand(MemOpStart + X86::AddrSegmentReg);
@@ -652,24 +653,24 @@ Optional<uint64_t> X86MCInstrAnalysis::evaluateMemoryOperandAddress(
   const MCOperand &Disp = Inst.getOperand(MemOpStart + X86::AddrDisp);
   if (SegReg.getReg() != 0 || IndexReg.getReg() != 0 || ScaleAmt.getImm() != 1 ||
       !Disp.isImm())
-    return None;
+    return std::nullopt;
 
   // RIP-relative addressing.
   if (BaseReg.getReg() == X86::RIP)
     return Addr + Size + Disp.getImm();
 
-  return None;
+  return std::nullopt;
 }
 
-Optional<uint64_t>
+std::optional<uint64_t>
 X86MCInstrAnalysis::getMemoryOperandRelocationOffset(const MCInst &Inst,
                                                      uint64_t Size) const {
   if (Inst.getOpcode() != X86::LEA64r)
-    return None;
+    return std::nullopt;
   const MCInstrDesc &MCID = Info->get(Inst.getOpcode());
   int MemOpStart = X86II::getMemoryOperandNo(MCID.TSFlags);
   if (MemOpStart == -1)
-    return None;
+    return std::nullopt;
   MemOpStart += X86II::getOperandBias(MCID);
   const MCOperand &SegReg = Inst.getOperand(MemOpStart + X86::AddrSegmentReg);
   const MCOperand &BaseReg = Inst.getOperand(MemOpStart + X86::AddrBaseReg);
@@ -679,7 +680,7 @@ X86MCInstrAnalysis::getMemoryOperandRelocationOffset(const MCInst &Inst,
   // Must be a simple rip-relative address.
   if (BaseReg.getReg() != X86::RIP || SegReg.getReg() != 0 ||
       IndexReg.getReg() != 0 || ScaleAmt.getImm() != 1 || !Disp.isImm())
-    return None;
+    return std::nullopt;
   // rip-relative ModR/M immediate is 32 bits.
   assert(Size > 4 && "invalid instruction size for rip-relative lea");
   return Size - 4;
@@ -721,6 +722,9 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeX86TargetMC() {
 
     // Register the asm target streamer.
     TargetRegistry::RegisterAsmTargetStreamer(*T, createX86AsmTargetStreamer);
+
+    // Register the null streamer.
+    TargetRegistry::RegisterNullTargetStreamer(*T, createX86NullTargetStreamer);
 
     TargetRegistry::RegisterCOFFStreamer(*T, createX86WinCOFFStreamer);
 

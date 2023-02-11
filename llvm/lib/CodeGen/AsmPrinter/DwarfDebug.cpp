@@ -56,6 +56,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <optional>
 #include <string>
 
 using namespace llvm;
@@ -428,8 +429,7 @@ DwarfDebug::DwarfDebug(AsmPrinter *A)
   // https://sourceware.org/bugzilla/show_bug.cgi?id=11616
   UseGNUTLSOpcode = tuneForGDB() || DwarfVersion < 3;
 
-  // GDB does not fully support the DWARF 4 representation for bitfields.
-  UseDWARF2Bitfields = (DwarfVersion < 4) || tuneForGDB();
+  UseDWARF2Bitfields = DwarfVersion < 4;
 
   // The DWARF v5 string offsets table has - possibly shared - contributions
   // from each compile and type unit each preceded by a header. The string
@@ -597,6 +597,9 @@ struct FwdRegParamInfo {
 
 /// Register worklist for finding call site values.
 using FwdRegWorklist = MapVector<unsigned, SmallVector<FwdRegParamInfo, 2>>;
+/// Container for the set of registers known to be clobbered on the path to a
+/// call site.
+using ClobberedRegSet = SmallSet<Register, 16>;
 
 /// Append the expression \p Addition to \p Original and return the result.
 static const DIExpression *combineDIExpressions(const DIExpression *Original,
@@ -668,7 +671,8 @@ static void addToFwdRegWorklist(FwdRegWorklist &Worklist, unsigned Reg,
 /// Interpret values loaded into registers by \p CurMI.
 static void interpretValues(const MachineInstr *CurMI,
                             FwdRegWorklist &ForwardedRegWorklist,
-                            ParamSet &Params) {
+                            ParamSet &Params,
+                            ClobberedRegSet &ClobberedRegUnits) {
 
   const MachineFunction *MF = CurMI->getMF();
   const DIExpression *EmptyExpr =
@@ -700,17 +704,19 @@ static void interpretValues(const MachineInstr *CurMI,
 
   // If the MI is an instruction defining one or more parameters' forwarding
   // registers, add those defines.
+  ClobberedRegSet NewClobberedRegUnits;
   auto getForwardingRegsDefinedByMI = [&](const MachineInstr &MI,
                                           SmallSetVector<unsigned, 4> &Defs) {
     if (MI.isDebugInstr())
       return;
 
     for (const MachineOperand &MO : MI.operands()) {
-      if (MO.isReg() && MO.isDef() &&
-          Register::isPhysicalRegister(MO.getReg())) {
+      if (MO.isReg() && MO.isDef() && MO.getReg().isPhysical()) {
         for (auto &FwdReg : ForwardedRegWorklist)
           if (TRI.regsOverlap(FwdReg.first, MO.getReg()))
             Defs.insert(FwdReg.first);
+        for (MCRegUnitIterator Units(MO.getReg(), &TRI); Units.isValid(); ++Units)
+          NewClobberedRegUnits.insert(*Units);
       }
     }
   };
@@ -719,8 +725,22 @@ static void interpretValues(const MachineInstr *CurMI,
   SmallSetVector<unsigned, 4> FwdRegDefs;
 
   getForwardingRegsDefinedByMI(*CurMI, FwdRegDefs);
-  if (FwdRegDefs.empty())
+  if (FwdRegDefs.empty()) {
+    // Any definitions by this instruction will clobber earlier reg movements.
+    ClobberedRegUnits.insert(NewClobberedRegUnits.begin(),
+                             NewClobberedRegUnits.end());
     return;
+  }
+
+  // It's possible that we find a copy from a non-volatile register to the param
+  // register, which is clobbered in the meantime. Test for clobbered reg unit
+  // overlaps before completing.
+  auto IsRegClobberedInMeantime = [&](Register Reg) -> bool {
+    for (auto &RegUnit : ClobberedRegUnits)
+      if (TRI.hasRegUnit(Reg, RegUnit))
+        return true;
+    return false;
+  };
 
   for (auto ParamFwdReg : FwdRegDefs) {
     if (auto ParamValue = TII.describeLoadedValue(*CurMI, ParamFwdReg)) {
@@ -733,7 +753,8 @@ static void interpretValues(const MachineInstr *CurMI,
         Register SP = TLI.getStackPointerRegisterToSaveRestore();
         Register FP = TRI.getFrameRegister(*MF);
         bool IsSPorFP = (RegLoc == SP) || (RegLoc == FP);
-        if (TRI.isCalleeSavedPhysReg(RegLoc, *MF) || IsSPorFP) {
+        if (!IsRegClobberedInMeantime(RegLoc) &&
+            (TRI.isCalleeSavedPhysReg(RegLoc, *MF) || IsSPorFP)) {
           MachineLocation MLoc(RegLoc, /*Indirect=*/IsSPorFP);
           finishCallSiteParams(MLoc, ParamValue->second,
                                ForwardedRegWorklist[ParamFwdReg], Params);
@@ -755,6 +776,10 @@ static void interpretValues(const MachineInstr *CurMI,
   for (auto ParamFwdReg : FwdRegDefs)
     ForwardedRegWorklist.erase(ParamFwdReg);
 
+  // Any definitions by this instruction will clobber earlier reg movements.
+  ClobberedRegUnits.insert(NewClobberedRegUnits.begin(),
+                           NewClobberedRegUnits.end());
+
   // Now that we are done handling this instruction, add items from the
   // temporary worklist to the real one.
   for (auto &New : TmpWorklistItems)
@@ -764,7 +789,8 @@ static void interpretValues(const MachineInstr *CurMI,
 
 static bool interpretNextInstr(const MachineInstr *CurMI,
                                FwdRegWorklist &ForwardedRegWorklist,
-                               ParamSet &Params) {
+                               ParamSet &Params,
+                               ClobberedRegSet &ClobberedRegUnits) {
   // Skip bundle headers.
   if (CurMI->isBundle())
     return true;
@@ -782,7 +808,7 @@ static bool interpretNextInstr(const MachineInstr *CurMI,
   if (CurMI->getNumOperands() == 0)
     return true;
 
-  interpretValues(CurMI, ForwardedRegWorklist, Params);
+  interpretValues(CurMI, ForwardedRegWorklist, Params, ClobberedRegUnits);
 
   return true;
 }
@@ -834,6 +860,7 @@ static void collectCallSiteParameters(const MachineInstr *CallMI,
   bool ShouldTryEmitEntryVals = MBB->getIterator() == MF->begin();
 
   // Search for a loading value in forwarding registers inside call delay slot.
+  ClobberedRegSet ClobberedRegUnits;
   if (CallMI->hasDelaySlot()) {
     auto Suc = std::next(CallMI->getIterator());
     // Only one-instruction delay slot is supported.
@@ -842,14 +869,14 @@ static void collectCallSiteParameters(const MachineInstr *CallMI,
     assert(std::next(Suc) == BundleEnd &&
            "More than one instruction in call delay slot");
     // Try to interpret value loaded by instruction.
-    if (!interpretNextInstr(&*Suc, ForwardedRegWorklist, Params))
+    if (!interpretNextInstr(&*Suc, ForwardedRegWorklist, Params, ClobberedRegUnits))
       return;
   }
 
   // Search for a loading value in forwarding registers.
   for (; I != MBB->rend(); ++I) {
     // Try to interpret values loaded by instruction.
-    if (!interpretNextInstr(&*I, ForwardedRegWorklist, Params))
+    if (!interpretNextInstr(&*I, ForwardedRegWorklist, Params, ClobberedRegUnits))
       return;
   }
 
@@ -929,8 +956,7 @@ void DwarfDebug::constructCallSiteEntryDIEs(const DISubprogram &SP,
       // the callee.
       const MachineOperand &CalleeOp = TII->getCalleeOperand(MI);
       if (!CalleeOp.isGlobal() &&
-          (!CalleeOp.isReg() ||
-           !Register::isPhysicalRegister(CalleeOp.getReg())))
+          (!CalleeOp.isReg() || !CalleeOp.getReg().isPhysical()))
         continue;
 
       unsigned CallReg = 0;
@@ -2004,6 +2030,17 @@ void DwarfDebug::beginInstruction(const MachineInstr *MI) {
   if (MI->isMetaInstruction() || MI->getFlag(MachineInstr::FrameSetup))
     return;
   const DebugLoc &DL = MI->getDebugLoc();
+  unsigned Flags = 0;
+
+  if (MI->getFlag(MachineInstr::FrameDestroy) && DL) {
+    const MachineBasicBlock *MBB = MI->getParent();
+    if (MBB && (MBB != EpilogBeginBlock)) {
+      // First time FrameDestroy has been seen in this basic block
+      EpilogBeginBlock = MBB;
+      Flags |= DWARF2_FLAG_EPILOGUE_BEGIN;
+    }
+  }
+
   // When we emit a line-0 record, we don't update PrevInstLoc; so look at
   // the last line number actually emitted, to see if it was line 0.
   unsigned LastAsmLine =
@@ -2015,10 +2052,10 @@ void DwarfDebug::beginInstruction(const MachineInstr *MI) {
       return;
     // We have an explicit location, same as the previous location.
     // But we might be coming back to it after a line 0 record.
-    if (LastAsmLine == 0 && DL.getLine() != 0) {
+    if ((LastAsmLine == 0 && DL.getLine() != 0) || Flags) {
       // Reinstate the source location but not marked as a statement.
       const MDNode *Scope = DL.getScope();
-      recordSourceLine(DL.getLine(), DL.getCol(), Scope, /*Flags=*/0);
+      recordSourceLine(DL.getLine(), DL.getCol(), Scope, Flags);
     }
     return;
   }
@@ -2059,7 +2096,6 @@ void DwarfDebug::beginInstruction(const MachineInstr *MI) {
   // (The new location might be an explicit line 0, which we do emit.)
   if (DL.getLine() == 0 && LastAsmLine == 0)
     return;
-  unsigned Flags = 0;
   if (DL == PrologEndLoc) {
     Flags |= DWARF2_FLAG_PROLOGUE_END | DWARF2_FLAG_IS_STMT;
     PrologEndLoc = DebugLoc();
@@ -3530,13 +3566,14 @@ void DwarfDebug::insertSectionLabel(const MCSymbol *S) {
       AddrPool.getIndex(S);
 }
 
-Optional<MD5::MD5Result> DwarfDebug::getMD5AsBytes(const DIFile *File) const {
+std::optional<MD5::MD5Result>
+DwarfDebug::getMD5AsBytes(const DIFile *File) const {
   assert(File);
   if (getDwarfVersion() < 5)
-    return None;
-  Optional<DIFile::ChecksumInfo<StringRef>> Checksum = File->getChecksum();
+    return std::nullopt;
+  std::optional<DIFile::ChecksumInfo<StringRef>> Checksum = File->getChecksum();
   if (!Checksum || Checksum->Kind != DIFile::CSK_MD5)
-    return None;
+    return std::nullopt;
 
   // Convert the string checksum to an MD5Result for the streamer.
   // The verifier validates the checksum so we assume it's okay.

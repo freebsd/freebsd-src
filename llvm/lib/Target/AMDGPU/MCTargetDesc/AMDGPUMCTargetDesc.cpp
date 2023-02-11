@@ -105,6 +105,10 @@ static MCTargetStreamer * createAMDGPUObjectTargetStreamer(
   return new AMDGPUTargetELFStreamer(S, STI);
 }
 
+static MCTargetStreamer *createAMDGPUNullTargetStreamer(MCStreamer &S) {
+  return new AMDGPUTargetStreamer(S);
+}
+
 static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,
                                     std::unique_ptr<MCAsmBackend> &&MAB,
                                     std::unique_ptr<MCObjectWriter> &&OW,
@@ -124,7 +128,7 @@ public:
   bool evaluateBranch(const MCInst &Inst, uint64_t Addr, uint64_t Size,
                       uint64_t &Target) const override {
     if (Inst.getNumOperands() == 0 || !Inst.getOperand(0).isImm() ||
-        Info->get(Inst.getOpcode()).OpInfo[0].OperandType !=
+        Info->get(Inst.getOpcode()).operands()[0].OperandType !=
             MCOI::OPERAND_PCREL)
       return false;
 
@@ -172,4 +176,6 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAMDGPUTargetMC() {
                                             createAMDGPUAsmTargetStreamer);
   TargetRegistry::RegisterObjectTargetStreamer(
       getTheGCNTarget(), createAMDGPUObjectTargetStreamer);
+  TargetRegistry::RegisterNullTargetStreamer(getTheGCNTarget(),
+                                             createAMDGPUNullTargetStreamer);
 }
