@@ -1034,6 +1034,118 @@ round-trip min/avg/max/stddev = /// ms
             {
                 "src": "192.0.2.1",
                 "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "ihl": 0x4,
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": "",  # "IHL too short" message not shown
+                "redacted": False,
+            },
+            id="_IHL_too_short",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "special": "no-payload",
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": """\
+ping: quoted data too short (28 bytes) from 192.0.2.2
+""",
+                "redacted": False,
+            },
+            id="_quoted_data_too_short",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "oip_ihl": 0x4,
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": "",  # "inner IHL too short" message not shown
+                "redacted": False,
+            },
+            id="_inner_IHL_too_short",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "oip_ihl": 0xF,
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": """\
+ping: inner packet too short (84 bytes) from 192.0.2.2
+""",
+                "redacted": False,
+            },
+            id="_inner_packet_too_short",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "oip_ihl": 0xF,
+                "special": "no-payload",
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": "",
+                "redacted": False,
+            },
+            id="_max_inner_packet_ihl_without_payload",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
                 "icmp_type": 0,
                 "icmp_code": 0,
                 "opts": "NOP-40",
