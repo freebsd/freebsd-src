@@ -4,6 +4,7 @@
  * All rights reserved.
  * Copyright (c) 2015-2016 The FreeBSD Foundation
  * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
+ * Copyright © 2023 Elliott Mitchell
  *
  * Portions of this software were developed by Andrew Turner under
  * sponsorship from the FreeBSD Foundation.
@@ -682,9 +683,12 @@ static int
 isrc_event_create(struct intr_irqsrc *isrc)
 {
 	struct intr_event *ie;
+	u_int flags = 0;
 	int error;
 
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
+	if (isrc->isrc_flags & (INTR_ISRCF_IPI | INTR_ISRCF_PPI))
+		flags |= IE_MULTIPROC;
+	error = intr_event_create(&ie, isrc, flags, isrc->isrc_irq,
 	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
 	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
 	if (error)
