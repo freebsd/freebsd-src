@@ -31,7 +31,7 @@
 .\"     @(#)getopt.3	8.5 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2018
+.Dd December 24, 2022
 .Dt GETOPT_LONG 3
 .Os
 .Sh NAME
@@ -546,3 +546,19 @@ is set).
 The implementation can completely replace
 .Xr getopt 3 ,
 but right now we are using separate code.
+.Pp
+.Nm
+makes the assumption that the first argument should always be skipped because
+it's typically the program name.
+As a result, setting
+.Va optind
+to 0 will indicate that
+.Nm
+should reset, and
+.Va optind
+will be set to 1 in the process.
+This behavior differs from
+.Xr getopt 3 ,
+which will handle an
+.Va optind
+value of 0 as expected and process the first element.
