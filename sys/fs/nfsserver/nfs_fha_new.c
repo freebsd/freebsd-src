@@ -61,7 +61,8 @@ static struct fha_params fhanew_softc;
 SYSCTL_DECL(_vfs_nfsd);
 
 extern int newnfs_nfsv3_procid[];
-extern SVCPOOL	*nfsrvd_pool;
+
+NFSD_VNET_DECLARE(SVCPOOL *, nfsrvd_pool);
 
 SYSINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_init, NULL);
 SYSUNINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_uninit, NULL);
@@ -79,7 +80,7 @@ fhanew_init(void *foo)
 	snprintf(softc->server_name, sizeof(softc->server_name),
 	    FHANEW_SERVER_NAME);
 
-	softc->pool = &nfsrvd_pool;
+	softc->pool = &NFSD_VNET(nfsrvd_pool);
 
 	/*
 	 * Initialize the sysctl context list for the fha module.

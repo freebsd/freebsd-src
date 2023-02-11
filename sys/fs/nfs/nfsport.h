@@ -181,6 +181,20 @@
  */
 #define	NFSMUTEX_T		struct mtx
 
+/* Define the NFSD_VNET macros similar to !VIMAGE. */
+#define	NFSD_VNET_NAME(n)		n
+#define	NFSD_VNET_DECLARE(t, n)		extern t n
+#define	NFSD_VNET_DEFINE(t, n)		t n
+#define	NFSD_VNET_DEFINE_STATIC(t, n)	static t n
+#define	NFSD_VNET(n)			(n)
+
+#define	CTLFLAG_NFSD_VNET		0
+
+#define	NFSD_CURVNET_SET(n)
+#define	NFSD_CURVNET_SET_QUIET(n)
+#define	NFSD_CURVNET_RESTORE()
+#define	NFSD_TD_TO_VNET(n)		NULL
+
 #endif	/* _KERNEL */
 
 /*
