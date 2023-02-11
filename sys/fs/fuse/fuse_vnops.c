@@ -668,6 +668,7 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 		}
 	}
 
+	fdisp_destroy(&fdi);
 	return (err);
 }
 
@@ -1104,6 +1105,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		uint64_t nodeid = feo->nodeid;
 		uint64_t fh_id = foo->fh;
 
+		fdisp_destroy(fdip);
 		fdisp_init(fdip, sizeof(*fri));
 		fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
 		fri = fdip->indata;
