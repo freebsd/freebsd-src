@@ -89,8 +89,12 @@ Mobile
 .Nm
 Network Devices may need a connect command sequence via u3g
 serial command port before they activate the NCM/ECM/ACM network
-interface. Example: echo 'AT^NDISUP=1,1,"internet"' > /dev/cuaU[0].0,
-where "internet" is your providers apn name.
+interface.
+For example:
+.Dl echo 'AT^NDISUP=1,1,"internet"' > /dev/cuaU[0].0
+where
+.Dq internet
+is your providers apn name.
 .Sh HARDWARE
 The following devices are supported by the
 .Nm
