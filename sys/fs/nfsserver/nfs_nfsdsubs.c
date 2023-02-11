@@ -44,17 +44,23 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 extern u_int32_t newnfs_true, newnfs_false;
-extern int nfs_rootfhset;
 extern int nfs_pubfhset;
-extern struct nfsclienthashhead *nfsclienthash;
 extern int nfsrv_clienthashsize;
-extern struct nfslockhashhead *nfslockhash;
 extern int nfsrv_lockhashsize;
-extern struct nfssessionhash *nfssessionhash;
 extern int nfsrv_sessionhashsize;
 extern int nfsrv_useacl;
 extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
+
+NFSD_VNET_DECLARE(struct nfsclienthashhead *, nfsclienthash);
+NFSD_VNET_DECLARE(struct nfslockhashhead *, nfslockhash);
+NFSD_VNET_DECLARE(struct nfssessionhash *, nfssessionhash);
+NFSD_VNET_DECLARE(int, nfs_rootfhset);
+NFSD_VNET_DECLARE(uid_t, nfsrv_defaultuid);
+NFSD_VNET_DECLARE(gid_t, nfsrv_defaultgid);
+
+NFSD_VNET_DEFINE(struct nfsdontlisthead, nfsrv_dontlisthead);
+
 
 char nfs_v2pubfh[NFSX_V2FH];
 struct nfsdontlisthead nfsrv_dontlisthead;
@@ -1607,10 +1613,12 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	 */
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
 		goto out;
-	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid &&
-           enable_nobodycheck == 1)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
-           enable_nogroupcheck == 1)) {
+	if ((NFSVNO_ISSETUID(nvap) &&
+	     nvap->na_uid == NFSD_VNET(nfsrv_defaultuid) &&
+             enable_nobodycheck == 1) ||
+	    (NFSVNO_ISSETGID(nvap) &&
+	     nvap->na_gid == NFSD_VNET(nfsrv_defaultgid) &&
+             enable_nogroupcheck == 1)) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
@@ -2080,29 +2088,26 @@ void
 nfsd_init(void)
 {
 	int i;
-	static int inited = 0;
 
-	if (inited)
-		return;
-	inited = 1;
 
 	/*
 	 * Initialize client queues. Don't free/reinitialize
 	 * them when nfsds are restarted.
 	 */
-	nfsclienthash = malloc(sizeof(struct nfsclienthashhead) *
+	NFSD_VNET(nfsclienthash) = malloc(sizeof(struct nfsclienthashhead) *
 	    nfsrv_clienthashsize, M_NFSDCLIENT, M_WAITOK | M_ZERO);
 	for (i = 0; i < nfsrv_clienthashsize; i++)
-		LIST_INIT(&nfsclienthash[i]);
-	nfslockhash = malloc(sizeof(struct nfslockhashhead) *
+		LIST_INIT(&NFSD_VNET(nfsclienthash)[i]);
+	NFSD_VNET(nfslockhash) = malloc(sizeof(struct nfslockhashhead) *
 	    nfsrv_lockhashsize, M_NFSDLOCKFILE, M_WAITOK | M_ZERO);
 	for (i = 0; i < nfsrv_lockhashsize; i++)
-		LIST_INIT(&nfslockhash[i]);
-	nfssessionhash = malloc(sizeof(struct nfssessionhash) *
+		LIST_INIT(&NFSD_VNET(nfslockhash)[i]);
+	NFSD_VNET(nfssessionhash) = malloc(sizeof(struct nfssessionhash) *
 	    nfsrv_sessionhashsize, M_NFSDSESSION, M_WAITOK | M_ZERO);
 	for (i = 0; i < nfsrv_sessionhashsize; i++) {
-		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
-		LIST_INIT(&nfssessionhash[i].list);
+		mtx_init(&NFSD_VNET(nfssessionhash)[i].mtx, "nfssm", NULL,
+		    MTX_DEF);
+		LIST_INIT(&NFSD_VNET(nfssessionhash)[i].list);
 	}
 	LIST_INIT(&nfsrv_dontlisthead);
 	TAILQ_INIT(&nfsrv_recalllisthead);
@@ -2119,7 +2124,7 @@ int
 nfsd_checkrootexp(struct nfsrv_descript *nd)
 {
 
-	if (nfs_rootfhset == 0)
+	if (NFSD_VNET(nfs_rootfhset) == 0)
 		return (NFSERR_AUTHERR | AUTH_FAILED);
 	/*
 	 * For NFSv4.1/4.2, if the client specifies SP4_NONE, then these
