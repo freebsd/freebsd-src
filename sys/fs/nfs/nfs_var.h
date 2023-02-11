@@ -122,7 +122,7 @@ int nfsrv_delegupdate(struct nfsrv_descript *, nfsquad_t, nfsv4stateid_t *,
 int nfsrv_releaselckown(struct nfsstate *, nfsquad_t, NFSPROC_T *);
 void nfsrv_zapclient(struct nfsclient *, NFSPROC_T *);
 int nfssvc_idname(struct nfsd_idargs *);
-void nfsrv_servertimer(void);
+void nfsrv_servertimer(void * __unused);
 int nfsrv_getclientipaddr(struct nfsrv_descript *, struct nfsclient *);
 void nfsrv_setupstable(NFSPROC_T *);
 void nfsrv_updatestable(NFSPROC_T *);
