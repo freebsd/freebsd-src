@@ -667,6 +667,7 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 		}
 	}
 
+	fdisp_destroy(&fdi);
 	return (err);
 }
 
@@ -1103,6 +1104,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		uint64_t nodeid = feo->nodeid;
 		uint64_t fh_id = foo->fh;
 
+		fdisp_destroy(fdip);
 		fdisp_init(fdip, sizeof(*fri));
 		fdisp_make(fdip, FUSE_RELEASE, mp, nodeid, td, cred);
 		fri = fdip->indata;
@@ -3021,6 +3023,7 @@ fuse_vnop_deallocate(struct vop_deallocate_args *ap)
 	err = fdisp_wait_answ(&fdi);
 
 	if (err == ENOSYS) {
+		fdisp_destroy(&fdi);
 		fsess_set_notimpl(mp, FUSE_FALLOCATE);
 		goto fallback;
 	} else if (err == EOPNOTSUPP) {
@@ -3028,6 +3031,7 @@ fuse_vnop_deallocate(struct vop_deallocate_args *ap)
 		 * The file system server does not support FUSE_FALLOCATE with
 		 * the supplied mode for this particular file.
 		 */
+		fdisp_destroy(&fdi);
 		goto fallback;
 	} else if (!err) {
 		/*
@@ -3047,6 +3051,7 @@ fuse_vnop_deallocate(struct vop_deallocate_args *ap)
 	}
 
 out:
+	fdisp_destroy(&fdi);
 	if (closefufh)
 		fuse_filehandle_close(vp, fufh, curthread, cred);
 
