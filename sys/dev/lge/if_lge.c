@@ -213,10 +213,7 @@ MODULE_DEPEND(lge, miibus, 1, 1, 1);
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void
-lge_eeprom_getword(sc, addr, dest)
-	struct lge_softc	*sc;
-	int			addr;
-	u_int16_t		*dest;
+lge_eeprom_getword(struct lge_softc *sc, int addr, u_int16_t *dest)
 {
 	int			i;
 	u_int32_t		val;
@@ -247,12 +244,7 @@ lge_eeprom_getword(sc, addr, dest)
  * Read a sequence of words from the EEPROM.
  */
 static void
-lge_read_eeprom(sc, dest, off, cnt, swap)
-	struct lge_softc	*sc;
-	caddr_t			dest;
-	int			off;
-	int			cnt;
-	int			swap;
+lge_read_eeprom(struct lge_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			i;
 	u_int16_t		word = 0, *ptr;
@@ -270,9 +262,7 @@ lge_read_eeprom(sc, dest, off, cnt, swap)
 }
 
 static int
-lge_miibus_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
+lge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct lge_softc	*sc;
 	int			i;
@@ -302,9 +292,7 @@ lge_miibus_readreg(dev, phy, reg)
 }
 
 static int
-lge_miibus_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
+lge_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct lge_softc	*sc;
 	int			i;
@@ -327,8 +315,7 @@ lge_miibus_writereg(dev, phy, reg, data)
 }
 
 static void
-lge_miibus_statchg(dev)
-	device_t		dev;
+lge_miibus_statchg(device_t dev)
 {
 	struct lge_softc	*sc;
 	struct mii_data		*mii;
@@ -381,8 +368,7 @@ lge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
 }
 
 static void
-lge_setmulti(sc)
-	struct lge_softc	*sc;
+lge_setmulti(struct lge_softc *sc)
 {
 	struct ifnet		*ifp;
 	uint32_t hashes[2] = { 0, 0 };
@@ -413,8 +399,7 @@ lge_setmulti(sc)
 }
 
 static void
-lge_reset(sc)
-	struct lge_softc	*sc;
+lge_reset(struct lge_softc *sc)
 {
 	int			i;
 
@@ -431,7 +416,7 @@ lge_reset(sc)
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
 
-        return;
+	return;
 }
 
 /*
@@ -439,8 +424,7 @@ lge_reset(sc)
  * IDs against our list and return a device name if we find a match.
  */
 static int
-lge_probe(dev)
-	device_t		dev;
+lge_probe(device_t dev)
 {
 	const struct lge_type	*t;
 
@@ -463,8 +447,7 @@ lge_probe(dev)
  * setup and ethernet/BPF attach.
  */
 static int
-lge_attach(dev)
-	device_t		dev;
+lge_attach(device_t dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct lge_softc	*sc;
@@ -473,7 +456,7 @@ lge_attach(dev)
 
 	sc = device_get_softc(dev);
 	sc->lge_dev = dev;
-	
+
 	mtx_init(&sc->lge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->lge_stat_callout, &sc->lge_mtx, 0);
@@ -594,8 +577,7 @@ fail:
 }
 
 static int
-lge_detach(dev)
-	device_t		dev;
+lge_detach(device_t dev)
 {
 	struct lge_softc	*sc;
 	struct ifnet		*ifp;
@@ -629,8 +611,7 @@ lge_detach(dev)
  * Initialize the transmit descriptors.
  */
 static int
-lge_list_tx_init(sc)
-	struct lge_softc	*sc;
+lge_list_tx_init(struct lge_softc *sc)
 {
 	struct lge_list_data	*ld;
 	struct lge_ring_data	*cd;
@@ -655,8 +636,7 @@ lge_list_tx_init(sc)
  * points back to the first.
  */
 static int
-lge_list_rx_init(sc)
-	struct lge_softc	*sc;
+lge_list_rx_init(struct lge_softc *sc)
 {
 	struct lge_list_data	*ld;
 	struct lge_ring_data	*cd;
@@ -686,10 +666,7 @@ lge_list_rx_init(sc)
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
 static int
-lge_newbuf(sc, c, m)
-	struct lge_softc	*sc;
-	struct lge_rx_desc	*c;
-	struct mbuf		*m;
+lge_newbuf(struct lge_softc *sc, struct lge_rx_desc *c, struct mbuf *m)
 {
 	struct mbuf		*m_new = NULL;
 	char			*buf = NULL;
@@ -754,8 +731,7 @@ lge_newbuf(sc, c, m)
 }
 
 static int
-lge_alloc_jumbo_mem(sc)
-	struct lge_softc	*sc;
+lge_alloc_jumbo_mem(struct lge_softc *sc)
 {
 	caddr_t			ptr;
 	int			i;
@@ -797,8 +773,7 @@ lge_alloc_jumbo_mem(sc)
 }
 
 static void
-lge_free_jumbo_mem(sc)
-	struct lge_softc	*sc;
+lge_free_jumbo_mem(struct lge_softc *sc)
 {
 	struct lge_jpool_entry	*entry;
 
@@ -827,13 +802,12 @@ lge_free_jumbo_mem(sc)
  * Allocate a jumbo buffer.
  */
 static void *
-lge_jalloc(sc)
-	struct lge_softc	*sc;
+lge_jalloc(struct lge_softc *sc)
 {
 	struct lge_jpool_entry   *entry;
-	
+
 	entry = SLIST_FIRST(&sc->lge_jfree_listhead);
-	
+
 	if (entry == NULL) {
 #ifdef LGE_VERBOSE
 		device_printf(sc->lge_dev, "no free jumbo buffers\n");
@@ -882,9 +856,7 @@ lge_jfree(struct mbuf *m)
  * the higher level protocols.
  */
 static void
-lge_rxeof(sc, cnt)
-	struct lge_softc	*sc;
-	int			cnt;
+lge_rxeof(struct lge_softc *sc, int cnt)
 {
         struct mbuf		*m;
         struct ifnet		*ifp;
@@ -966,8 +938,7 @@ lge_rxeof(sc, cnt)
 }
 
 static void
-lge_rxeoc(sc)
-	struct lge_softc	*sc;
+lge_rxeoc(struct lge_softc *sc)
 {
 	struct ifnet		*ifp;
 
@@ -983,8 +954,7 @@ lge_rxeoc(sc)
  */
 
 static void
-lge_txeof(sc)
-	struct lge_softc	*sc;
+lge_txeof(struct lge_softc *sc)
 {
 	struct lge_tx_desc	*cur_tx = NULL;
 	struct ifnet		*ifp;
@@ -1026,8 +996,7 @@ lge_txeof(sc)
 }
 
 static void
-lge_tick(xsc)
-	void			*xsc;
+lge_tick(void *xsc)
 {
 	struct lge_softc	*sc;
 	struct mii_data		*mii;
@@ -1065,8 +1034,7 @@ lge_tick(xsc)
 }
 
 static void
-lge_intr(arg)
-	void			*arg;
+lge_intr(void *arg)
 {
 	struct lge_softc	*sc;
 	struct ifnet		*ifp;
@@ -1125,10 +1093,7 @@ lge_intr(arg)
  * pointers to the fragment pointers.
  */
 static int
-lge_encap(sc, m_head, txidx)
-	struct lge_softc	*sc;
-	struct mbuf		*m_head;
-	u_int32_t		*txidx;
+lge_encap(struct lge_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 {
 	struct lge_frag		*f = NULL;
 	struct lge_tx_desc	*cur_tx;
@@ -1176,8 +1141,7 @@ lge_encap(sc, m_head, txidx)
  */
 
 static void
-lge_start(ifp)
-	struct ifnet		*ifp;
+lge_start(struct ifnet *ifp)
 {
 	struct lge_softc	*sc;
 
@@ -1188,8 +1152,7 @@ lge_start(ifp)
 }
 
 static void
-lge_start_locked(ifp)
-	struct ifnet		*ifp;
+lge_start_locked(struct ifnet *ifp)
 {
 	struct lge_softc	*sc;
 	struct mbuf		*m_head = NULL;
@@ -1237,8 +1200,7 @@ lge_start_locked(ifp)
 }
 
 static void
-lge_init(xsc)
-	void			*xsc;
+lge_init(void *xsc)
 {
 	struct lge_softc	*sc = xsc;
 
@@ -1248,8 +1210,7 @@ lge_init(xsc)
 }
 
 static void
-lge_init_locked(sc)
-	struct lge_softc	*sc;
+lge_init_locked(struct lge_softc *sc)
 {
 	struct ifnet		*ifp = sc->lge_ifp;
 
@@ -1377,8 +1338,7 @@ lge_init_locked(sc)
  * Set media options.
  */
 static int
-lge_ifmedia_upd(ifp)
-	struct ifnet		*ifp;
+lge_ifmedia_upd(struct ifnet *ifp)
 {
 	struct lge_softc	*sc;
 
@@ -1391,8 +1351,7 @@ lge_ifmedia_upd(ifp)
 }
 
 static void
-lge_ifmedia_upd_locked(ifp)
-	struct ifnet		*ifp;
+lge_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct lge_softc	*sc;
 	struct mii_data		*mii;
@@ -1412,9 +1371,7 @@ lge_ifmedia_upd_locked(ifp)
  * Report current media status.
  */
 static void
-lge_ifmedia_sts(ifp, ifmr)
-	struct ifnet		*ifp;
-	struct ifmediareq	*ifmr;
+lge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct lge_softc	*sc;
 	struct mii_data		*mii;
@@ -1432,10 +1389,7 @@ lge_ifmedia_sts(ifp, ifmr)
 }
 
 static int
-lge_ioctl(ifp, command, data)
-	struct ifnet		*ifp;
-	u_long			command;
-	caddr_t			data;
+lge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct lge_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
@@ -1498,8 +1452,7 @@ lge_ioctl(ifp, command, data)
 }
 
 static void
-lge_watchdog(sc)
-	struct lge_softc	*sc;
+lge_watchdog(struct lge_softc *sc)
 {
 	struct ifnet		*ifp;
 
@@ -1523,8 +1476,7 @@ lge_watchdog(sc)
  * RX and TX lists.
  */
 static void
-lge_stop(sc)
-	struct lge_softc	*sc;
+lge_stop(struct lge_softc *sc)
 {
 	int			i;
 	struct ifnet		*ifp;
@@ -1574,8 +1526,7 @@ lge_stop(sc)
  * get confused by errant DMAs when rebooting.
  */
 static int
-lge_shutdown(dev)
-	device_t		dev;
+lge_shutdown(device_t dev)
 {
 	struct lge_softc	*sc;
 
