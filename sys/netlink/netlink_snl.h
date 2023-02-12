@@ -44,7 +44,6 @@
 #include <sys/socket.h>
 #include <netlink/netlink.h>
 
-__BEGIN_DECLS
 
 #define _roundup2(x, y)         (((x)+((y)-1))&(~((y)-1)))
 
@@ -84,7 +83,7 @@ lb_allocz(struct linear_buffer *lb, int len)
 		return (NULL);
 	void *data = (void *)(lb->base + lb->offset);
 	lb->offset += len;
-	return ((char *)data);
+	return (data);
 }
 
 static inline void
@@ -133,10 +132,10 @@ struct snl_hdr_parser {
 #define	SNL_DECLARE_PARSER(_name, _t, _fp, _np)		\
 static const struct snl_hdr_parser _name = {		\
 	.hdr_off = sizeof(_t),				\
-	.fp_size = NL_ARRAY_LEN(_fp),			\
-	.np_size = NL_ARRAY_LEN(_np),			\
 	.fp = &((_fp)[0]),				\
 	.np = &((_np)[0]),				\
+	.fp_size = NL_ARRAY_LEN(_fp),			\
+	.np_size = NL_ARRAY_LEN(_np),			\
 }
 
 #define	SNL_DECLARE_ATTR_PARSER(_name, _np)		\
@@ -176,14 +175,14 @@ snl_init(struct snl_state *ss, int netlink_family)
 	}
 
 	ss->bufsize = rcvbuf;
-	ss->buf = (char *)malloc(ss->bufsize);
+	ss->buf = malloc(ss->bufsize);
 	if (ss->buf == NULL) {
 		snl_free(ss);
 		return (false);
 	}
 
 	ss->lb.size = SCRATCH_BUFFER_SIZE;
-	ss->lb.base = (char *)calloc(1, ss->lb.size);
+	ss->lb.base = calloc(1, ss->lb.size);
 	if (ss->lb.base == NULL) {
 		snl_free(ss);
 		return (false);
@@ -361,7 +360,7 @@ snl_attr_get_uint16(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
 	if (NLA_DATA_LEN(nla) == sizeof(uint16_t)) {
-		*((uint16_t *)target) = *((const uint16_t *)NL_RTA_DATA_CONST(nla));
+		*((uint16_t *)target) = *((const uint16_t *)NLA_DATA_CONST(nla));
 		return (true);
 	}
 	return (false);
@@ -372,7 +371,7 @@ snl_attr_get_uint32(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
 	if (NLA_DATA_LEN(nla) == sizeof(uint32_t)) {
-		*((uint32_t *)target) = *((const uint32_t *)NL_RTA_DATA_CONST(nla));
+		*((uint32_t *)target) = *((const uint32_t *)NLA_DATA_CONST(nla));
 		return (true);
 	}
 	return (false);
@@ -397,7 +396,7 @@ snl_attr_get_stringn(struct snl_state *ss, struct nlattr *nla,
 {
 	int maxlen = NLA_DATA_LEN(nla);
 
-	char *buf = (char *)snl_allocz(ss, maxlen + 1);
+	char *buf = snl_allocz(ss, maxlen + 1);
 	if (buf == NULL)
 		return (false);
 	buf[maxlen] = '\0';
@@ -417,8 +416,7 @@ snl_attr_get_nested(struct snl_state *ss, struct nlattr *nla, const void *arg, v
 }
 
 static inline bool
-snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla,
-    const void *arg __unused, void *target)
+snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla, void *target)
 {
 	*((struct nlattr **)target) = nla;
 	return (true);
@@ -441,7 +439,5 @@ snl_field_get_uint32(struct snl_state *ss __unused, void *src, void *target)
 {
 	*((uint32_t *)target) = *((uint32_t *)src);
 }
-
-__END_DECLS
 
 #endif
