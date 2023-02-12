@@ -58,18 +58,18 @@ LIST_HEAD(nfsdontlisthead, nfsdontlist);
 TAILQ_HEAD(nfsuserhashhead, nfsusrgrp);
 
 #define	NFSCLIENTHASH(id)						\
-	(&nfsclienthash[(id).lval[1] % nfsrv_clienthashsize])
+	(&NFSD_VNET(nfsclienthash)[(id).lval[1] % nfsrv_clienthashsize])
 #define	NFSSTATEHASH(clp, id)						\
 	(&((clp)->lc_stateid[(id).other[2] % nfsrv_statehashsize]))
 #define	NFSUSERHASH(id)							\
-	(&nfsuserhash[(id) % nfsrv_lughashsize])
+	(&NFSD_VNET(nfsuserhash)[(id) % nfsrv_lughashsize])
 #define	NFSUSERNAMEHASH(p, l)						\
-	(&nfsusernamehash[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
+	(&NFSD_VNET(nfsusernamehash)[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
 		% nfsrv_lughashsize])
 #define	NFSGROUPHASH(id)						\
-	(&nfsgrouphash[(id) % nfsrv_lughashsize])
+	(&NFSD_VNET(nfsgrouphash)[(id) % nfsrv_lughashsize])
 #define	NFSGROUPNAMEHASH(p, l)						\
-	(&nfsgroupnamehash[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
+	(&NFSD_VNET(nfsgroupnamehash)[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
 		% nfsrv_lughashsize])
 
 struct nfssessionhash {
@@ -77,7 +77,8 @@ struct nfssessionhash {
 	struct nfssessionhashhead	list;
 };
 #define	NFSSESSIONHASH(f) 						\
-	(&nfssessionhash[nfsrv_hashsessionid(f) % nfsrv_sessionhashsize])
+	(&NFSD_VNET(nfssessionhash)[nfsrv_hashsessionid(f) %		\
+	 nfsrv_sessionhashsize])
 
 struct nfslayouthash {
 	struct mtx		mtx;
