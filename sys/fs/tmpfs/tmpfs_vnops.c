@@ -379,20 +379,17 @@ int
 tmpfs_access(struct vop_access_args *v)
 {
 	struct vnode *vp = v->a_vp;
-	accmode_t accmode = v->a_accmode;
 	struct ucred *cred = v->a_cred;
+	struct tmpfs_node *node = VP_TO_TMPFS_NODE(vp);
 	mode_t all_x = S_IXUSR | S_IXGRP | S_IXOTH;
+	accmode_t accmode = v->a_accmode;
 	int error;
-	struct tmpfs_node *node;
-
-	MPASS(VOP_ISLOCKED(vp));
-
-	node = VP_TO_TMPFS_NODE(vp);
 
 	/*
 	 * Common case path lookup.
 	 */
-	if (__predict_true(accmode == VEXEC && (node->tn_mode & all_x) == all_x))
+	if (__predict_true(accmode == VEXEC &&
+	    (node->tn_mode & all_x) == all_x))
 		return (0);
 
 	switch (vp->v_type) {
@@ -401,7 +398,8 @@ tmpfs_access(struct vop_access_args *v)
 	case VLNK:
 		/* FALLTHROUGH */
 	case VREG:
-		if (accmode & VWRITE && vp->v_mount->mnt_flag & MNT_RDONLY) {
+		if ((accmode & VWRITE) != 0 &&
+		    (vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
 			error = EROFS;
 			goto out;
 		}
@@ -421,7 +419,7 @@ tmpfs_access(struct vop_access_args *v)
 		goto out;
 	}
 
-	if (accmode & VWRITE && node->tn_flags & IMMUTABLE) {
+	if ((accmode & VWRITE) != 0 && (node->tn_flags & IMMUTABLE) != 0) {
 		error = EPERM;
 		goto out;
 	}
@@ -430,8 +428,6 @@ tmpfs_access(struct vop_access_args *v)
 	    accmode, cred);
 
 out:
-	MPASS(VOP_ISLOCKED(vp));
-
 	return (error);
 }
 
@@ -1157,7 +1153,7 @@ tmpfs_rename(struct vop_rename_args *v)
 					TMPFS_UNLOCK(tmp);
 					error = EINVAL;
 					if (newname != NULL)
-						    free(newname, M_TMPFSNAME);
+						free(newname, M_TMPFSNAME);
 					goto out_locked;
 				}
 				parent = n->tn_dir.tn_parent;
