@@ -26,8 +26,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 #define	__ELF_WORD_SIZE	32
 #else
