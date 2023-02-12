@@ -25,4 +25,6 @@ CWARNFLAGS.crc32.c+=${NO_WSTRICT_PROTOTYPES} # crc32.c:586
 CWARNFLAGS.trees.c+=${NO_WSTRICT_PROTOTYPES} # trees.c:232
 CWARNFLAGS.zutil.c+=${NO_WSTRICT_PROTOTYPES} # zutil.c:27,32
 
+CWARNFLAGS+=-Wno-deprecated-non-prototype
+
 .include <bsd.kmod.mk>
