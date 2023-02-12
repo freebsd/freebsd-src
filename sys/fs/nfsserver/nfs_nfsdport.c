@@ -94,7 +94,6 @@ static char nfsd_master_comm[MAXCOMLEN + 1];
 static struct timeval nfsd_master_start;
 static uint32_t nfsv4_sysid = 0;
 static fhandle_t zerofh;
-static int nfsrv_osd_jail_slot;
 
 NFSD_VNET_DEFINE(struct proc *, nfsd_master_proc) = NULL;
 NFSD_VNET_DEFINE(struct nfsrvhashhead *, nfsrvudphashtbl);
@@ -3699,18 +3698,6 @@ out:
 	return (error);
 }
 
-/* Osd entry for nfsrv_cleanup. */
-static int
-nfsrv_prison_cleanup(void *obj, void *data __unused)
-{
-	struct prison *pr = obj;
-
-	if ((pr->pr_flags & PR_VNET) == 0)
-		return (0);
-	nfsrv_cleanup(pr);
-	return (0);
-}
-
 /*
  * Nfs server pseudo system call for the nfsd's
  */
@@ -6918,7 +6905,7 @@ nfsrv_vnetinit(const void *unused __unused)
 
 	nfsd_mntinit();
 }
-VNET_SYSINIT(nfsrv_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+SYSINIT(nfsrv_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     nfsrv_vnetinit, NULL);
 
 /*
@@ -6988,9 +6975,6 @@ static int
 nfsd_modevent(module_t mod, int type, void *data)
 {
 	int error = 0, i;
-	osd_method_t methods[PR_MAXMETHOD] = {
-	    [PR_METHOD_REMOVE] = nfsrv_prison_cleanup,
-	};
 	static int loaded = 0;
 
 	switch (type) {
@@ -7007,8 +6991,6 @@ nfsd_modevent(module_t mod, int type, void *data)
 		vn_deleg_ops.vndeleg_disable = nfsd_disabledelegation;
 #endif
 		nfsd_call_nfsd = nfssvc_nfsd;
-		/* XXX-BZ OSD to VNET? */
-		nfsrv_osd_jail_slot = osd_jail_register(NULL, methods);
 		loaded = 1;
 		break;
 
@@ -7023,7 +7005,6 @@ nfsd_modevent(module_t mod, int type, void *data)
 		vn_deleg_ops.vndeleg_disable = NULL;
 #endif
 		nfsd_call_nfsd = NULL;
-		osd_jail_deregister(nfsrv_osd_jail_slot);
 		nfsrv_cleanup(&prison0);
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
