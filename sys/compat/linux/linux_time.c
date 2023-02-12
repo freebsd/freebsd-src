@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp $");
 #endif
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
