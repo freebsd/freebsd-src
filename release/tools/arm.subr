@@ -219,7 +219,7 @@ arm_install_base() {
 	local hostname
 	hostname="$(echo ${KERNEL} | tr '[:upper:]' '[:lower:]')"
 	echo "hostname=\"${hostname}\"" > ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
-	echo 'ifconfig_DEFAULT="DHCP"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
+	echo 'ifconfig_DEFAULT="DHCP inet6 accept_rtadv"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sshd_enable="YES"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sendmail_enable="NONE"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
 	echo 'sendmail_submit_enable="NO"' >> ${CHROOTDIR}/${DESTDIR}/etc/rc.conf
