@@ -1129,7 +1129,10 @@ tmpfs_rename(struct vop_rename_args *v)
 		if (de->td_node->tn_type == VDIR) {
 			struct tmpfs_node *n;
 
-			error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, curthread);
+			TMPFS_NODE_LOCK(fnode);
+			error = tmpfs_access_locked(fvp, fnode, VWRITE,
+			    tcnp->cn_cred);
+			TMPFS_NODE_UNLOCK(fnode);
 			if (error) {
 				if (newname != NULL)
 					free(newname, M_TMPFSNAME);
