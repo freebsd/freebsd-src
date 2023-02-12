@@ -375,6 +375,23 @@ tmpfs_fplookup_vexec(struct vop_fplookup_vexec_args *v)
 	return (vaccess_vexec_smr(mode, node->tn_uid, node->tn_gid, cred));
 }
 
+static int
+tmpfs_access_locked(struct vnode *vp, struct tmpfs_node *node,
+    accmode_t accmode, struct ucred *cred)
+{
+#ifdef DEBUG_VFS_LOCKS
+	if (!mtx_owned(TMPFS_NODE_MTX(node))) {
+		ASSERT_VOP_LOCKED(vp,
+		    "tmpfs_access_locked needs locked vnode or node");
+	}
+#endif
+
+	if ((accmode & VWRITE) != 0 && (node->tn_flags & IMMUTABLE) != 0)
+		return (EPERM);
+	return (vaccess(vp->v_type, node->tn_mode, node->tn_uid, node->tn_gid,
+	    accmode, cred));
+}
+
 int
 tmpfs_access(struct vop_access_args *v)
 {
@@ -383,7 +400,6 @@ tmpfs_access(struct vop_access_args *v)
 	struct tmpfs_node *node = VP_TO_TMPFS_NODE(vp);
 	mode_t all_x = S_IXUSR | S_IXGRP | S_IXOTH;
 	accmode_t accmode = v->a_accmode;
-	int error;
 
 	/*
 	 * Common case path lookup.
@@ -399,10 +415,8 @@ tmpfs_access(struct vop_access_args *v)
 		/* FALLTHROUGH */
 	case VREG:
 		if ((accmode & VWRITE) != 0 &&
-		    (vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
-			error = EROFS;
-			goto out;
-		}
+		    (vp->v_mount->mnt_flag & MNT_RDONLY) != 0)
+			return (EROFS);
 		break;
 
 	case VBLK:
@@ -415,20 +429,10 @@ tmpfs_access(struct vop_access_args *v)
 		break;
 
 	default:
-		error = EINVAL;
-		goto out;
+		return (EINVAL);
 	}
 
-	if ((accmode & VWRITE) != 0 && (node->tn_flags & IMMUTABLE) != 0) {
-		error = EPERM;
-		goto out;
-	}
-
-	error = vaccess(vp->v_type, node->tn_mode, node->tn_uid, node->tn_gid,
-	    accmode, cred);
-
-out:
-	return (error);
+	return (tmpfs_access_locked(vp, node, accmode, cred));
 }
 
 int
