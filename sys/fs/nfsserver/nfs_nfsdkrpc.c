@@ -531,7 +531,6 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 */
 	NFSD_LOCK();
 	if (NFSD_VNET(nfsrv_numnfsd) == 0) {
-		nfsrvd_init(0);
 		nfsdev_time = time_second;
 		p = td->td_proc;
 		PROC_LOCK(p);

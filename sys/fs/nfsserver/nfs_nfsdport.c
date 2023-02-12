@@ -3532,6 +3532,7 @@ nfsd_mntinit(void)
 		return;
 	}
 	NFSD_VNET(nfsrv_mntinited) = true;
+	nfsrvd_init(0);
 	NFSD_UNLOCK();
 
 	if (curthread->td_ucred->cr_prison == &prison0)
