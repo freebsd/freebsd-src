@@ -77,8 +77,6 @@ static  int nexus_unmap_resource(device_t bus, device_t child, int type,
 			       struct resource *r, struct resource_map *map);
 
 static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
-static int nexus_get_cpus(device_t, device_t, enum cpu_sets, size_t,
-    cpuset_t *);
 #ifdef SMP
 static bus_bind_intr_t nexus_bind_intr;
 #endif
@@ -103,7 +101,6 @@ static device_method_t nexus_methods[] = {
 #endif
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
-	DEVMETHOD(bus_get_cpus,		nexus_get_cpus),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
@@ -188,24 +185,6 @@ nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
 #else
 	return(&bs_be_tag);
 #endif
-}
-
-static int
-nexus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
-    cpuset_t *cpuset)
-{
-
-	switch (op) {
-#ifdef SMP
-	case INTR_CPUS:
-		if (setsize != sizeof(cpuset_t))
-			return (EINVAL);
-		*cpuset = all_cpus;
-		return (0);
-#endif
-	default:
-		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
-	}
 }
 
 #ifdef SMP
