@@ -31,6 +31,7 @@
 #include <linux/gfp.h>
 #include <linux/radix-tree.h>
 #include <linux/err.h>
+#include <linux/kconfig.h>
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
