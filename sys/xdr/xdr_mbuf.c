@@ -158,9 +158,7 @@ xdrmbuf_getlong(XDR *xdrs, long *lp)
 }
 
 static bool_t
-xdrmbuf_putlong(xdrs, lp)
-	XDR *xdrs;
-	const long *lp;
+xdrmbuf_putlong(XDR *xdrs, const long *lp)
 {
 	int32_t *p;
 	int32_t t = htonl(*lp);
