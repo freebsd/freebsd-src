@@ -61,7 +61,6 @@ extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsrv_useacl;
 extern int newnfs_numnfsd;
 extern int nfsrv_sessionhashsize;
-extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfslayouthash *nfslayouthash;
 extern int nfsrv_layouthashsize;
 extern struct mtx nfsrv_dslock_mtx;
@@ -79,6 +78,7 @@ NFSD_VNET_DECLARE(struct nfsclienthashhead *, nfsclienthash);
 NFSD_VNET_DECLARE(struct nfslockhashhead *, nfslockhash);
 NFSD_VNET_DECLARE(struct nfssessionhash *, nfssessionhash);
 NFSD_VNET_DECLARE(struct nfsv4lock, nfsd_suspend_lock);
+NFSD_VNET_DECLARE(struct nfsstatsv1 *, nfsstatsv1_p);
 
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
@@ -102,7 +102,6 @@ NFSD_VNET_DEFINE(struct nfsrchash_bucket *, nfsrcahash_table);
 NFSD_VNET_DEFINE(struct nfsrvfh, nfs_rootfh);
 NFSD_VNET_DEFINE(int, nfs_rootfhset) = 0;
 NFSD_VNET_DEFINE(struct callout, nfsd_callout);
-NFSD_VNET_DEFINE(struct nfsstatsv1 *, nfsstatsv1_p);
 NFSD_VNET_DEFINE_STATIC(struct mount *, nfsv4root_mnt);
 NFSD_VNET_DEFINE_STATIC(struct vfsoptlist, nfsv4root_opt);
 NFSD_VNET_DEFINE_STATIC(struct vfsoptlist, nfsv4root_newopt);
@@ -3547,13 +3546,6 @@ nfsd_mntinit(void)
 	nfsrvd_init(0);
 	NFSD_UNLOCK();
 
-	if (curthread->td_ucred->cr_prison == &prison0)
-		NFSD_VNET(nfsstatsv1_p) = &nfsstatsv1;
-	else
-		NFSD_VNET(nfsstatsv1_p) = malloc(sizeof(struct nfsstatsv1),
-		    M_TEMP, M_WAITOK | M_ZERO);
-	nfsstatsv1_p->srvcache_tcppeak = 0;
-	nfsstatsv1_p->srvcache_size = 0;
 	NFSD_VNET(nfsv4root_mnt) = malloc(sizeof(struct mount), M_TEMP,
 	    M_WAITOK | M_ZERO);
 	NFSD_VNET(nfsv4root_mnt)->mnt_flag = (MNT_RDONLY | MNT_EXPORTED);
@@ -6962,8 +6954,6 @@ nfsrv_cleanup(struct prison *pr)
 	free(NFSD_VNET(nfssessionhash), M_NFSDSESSION);
 	free(NFSD_VNET(nfsv4root_mnt), M_TEMP);
 	NFSD_VNET(nfsv4root_mnt) = NULL;
-	if (pr != &prison0)
-		free(NFSD_VNET(nfsstatsv1_p), M_TEMP);
 	NFSD_CURVNET_RESTORE();
 }
 
