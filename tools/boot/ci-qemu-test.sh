@@ -21,7 +21,7 @@ die()
 tempdir_cleanup()
 {
 	trap - EXIT SIGINT SIGHUP SIGTERM SIGQUIT
-	rm -rf ${ROOTDIR}
+	rm -rf ${WORKDIR}
 }
 
 tempdir_setup()
@@ -99,18 +99,31 @@ arm64)
 esac
 
 # Create a temp dir to hold the boot image.
-ROOTDIR=$(mktemp -d -t ci-qemu-test-fat-root)
+WORKDIR=$(mktemp -d -t ci-qemu-test-fat-root)
+ROOTDIR=${WORKDIR}/stage-root
 trap tempdir_cleanup EXIT SIGINT SIGHUP SIGTERM SIGQUIT
 
 # Populate the boot image in a temp dir.
 ( cd ${SRCTOP} && tempdir_setup )
+
+# Using QEMU's virtual FAT support is much faster than creating a disk image,
+# but only supports about 500MB.  Fall back to creating a disk image if the
+# staged root is too large.
+hda="fat:${ROOTDIR}"
+rootsize=$(du -skA ${ROOTDIR} | sed 's/[[:space:]].*$//')
+if [ $rootsize -gt 512000 ]; then
+	echo "Root size ${rootsize}K too large for QEMU virtual FAT" >&2
+	makefs -t msdos -s 1g $WORKDIR/image.fat $ROOTDIR
+	mkimg -s mbr -p efi:=$WORKDIR/image.fat -o $WORKDIR/image.mbr
+	hda="$WORKDIR/image.mbr"
+fi
 
 # And, boot in QEMU.
 : ${BOOTLOG:=${TMPDIR:-/tmp}/ci-qemu-test-boot.log}
 timeout 300 \
     $QEMU -m 256M -nodefaults \
         -serial stdio -vga none -nographic -monitor none \
-        -snapshot -hda fat:${ROOTDIR} 2>&1 | tee ${BOOTLOG}
+        -snapshot -hda $hda 2>&1 | tee ${BOOTLOG}
 
 # Check whether we succesfully booted...
 if grep -q 'Hello world.' ${BOOTLOG}; then
