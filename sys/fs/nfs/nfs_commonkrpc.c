@@ -92,13 +92,14 @@ NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
 NFSDLOCKMUTEX;
 NFSCLSTATEMUTEX;
-extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfsreqhead nfsd_reqq;
 extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
 extern int nfs_numnfscbd;
 extern int nfscl_debuglevel;
 extern int nfsrv_lease;
+
+NFSD_VNET_DECLARE(struct nfsstatsv1 *, nfsstatsv1_p);
 
 SVCPOOL		*nfscbd_pool;
 int		nfs_bufpackets = 4;
@@ -782,7 +783,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		procnum = NFSV4PROC_COMPOUND;
 
 	if (nmp != NULL) {
-		NFSINCRGLOBAL(nfsstatsv1.rpcrequests);
+		NFSINCRGLOBAL(nfsstatsv1_p->rpcrequests);
 
 		/* Map the procnum to the old NFSv2 one, as required. */
 		if ((nd->nd_flag & ND_NFSV2) != 0) {
@@ -917,13 +918,13 @@ tryagain:
 	if (stat == RPC_SUCCESS) {
 		error = 0;
 	} else if (stat == RPC_TIMEDOUT) {
-		NFSINCRGLOBAL(nfsstatsv1.rpctimeouts);
+		NFSINCRGLOBAL(nfsstatsv1_p->rpctimeouts);
 		error = ETIMEDOUT;
 	} else if (stat == RPC_VERSMISMATCH) {
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		NFSINCRGLOBAL(nfsstatsv1_p->rpcinvalid);
 		error = EOPNOTSUPP;
 	} else if (stat == RPC_PROGVERSMISMATCH) {
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		NFSINCRGLOBAL(nfsstatsv1_p->rpcinvalid);
 		error = EPROTONOSUPPORT;
 	} else if (stat == RPC_CANTSEND || stat == RPC_CANTRECV ||
 	     stat == RPC_SYSTEMERROR || stat == RPC_INTR) {
@@ -957,11 +958,11 @@ tryagain:
 		if (stat == RPC_INTR)
 			error = EINTR;
 		else {
-			NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+			NFSINCRGLOBAL(nfsstatsv1_p->rpcinvalid);
 			error = ENXIO;
 		}
 	} else {
-		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
+		NFSINCRGLOBAL(nfsstatsv1_p->rpcinvalid);
 		error = EACCES;
 	}
 	if (error) {
