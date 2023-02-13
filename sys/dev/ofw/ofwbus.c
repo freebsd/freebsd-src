@@ -39,16 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/pcpu.h>
 #include <sys/rman.h>
-#ifdef INTRNG
-#include <sys/intr.h>
-#endif
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
