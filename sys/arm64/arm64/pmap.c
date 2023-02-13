@@ -1347,7 +1347,6 @@ pmap_init_pv_table(void)
 	struct vm_phys_seg *seg, *next_seg;
 	struct pmap_large_md_page *pvd;
 	vm_size_t s;
-	long start, end, highest, pv_npg;
 	int domain, i, j, pages;
 
 	/*
@@ -1360,14 +1359,13 @@ pmap_init_pv_table(void)
 	/*
 	 * Calculate the size of the array.
 	 */
-	pv_npg = 0;
+	s = 0;
 	for (i = 0; i < vm_phys_nsegs; i++) {
 		seg = &vm_phys_segs[i];
-		pv_npg += pmap_l2_pindex(roundup2(seg->end, L2_SIZE)) -
+		pages = pmap_l2_pindex(roundup2(seg->end, L2_SIZE)) -
 		    pmap_l2_pindex(seg->start);
+		s += round_page(pages * sizeof(*pvd));
 	}
-	s = (vm_size_t)pv_npg * sizeof(struct pmap_large_md_page);
-	s = round_page(s);
 	pv_table = (struct pmap_large_md_page *)kva_alloc(s);
 	if (pv_table == NULL)
 		panic("%s: kva_alloc failed\n", __func__);
@@ -1376,23 +1374,14 @@ pmap_init_pv_table(void)
 	 * Iterate physical segments to allocate domain-local memory for PV
 	 * list headers.
 	 */
-	highest = -1;
-	s = 0;
+	pvd = pv_table;
 	for (i = 0; i < vm_phys_nsegs; i++) {
 		seg = &vm_phys_segs[i];
-		start = highest + 1;
-		end = start + pmap_l2_pindex(roundup2(seg->end, L2_SIZE)) -
+		pages = pmap_l2_pindex(roundup2(seg->end, L2_SIZE)) -
 		    pmap_l2_pindex(seg->start);
 		domain = seg->domain;
 
-		if (highest >= end)
-			continue;
-
-		pvd = &pv_table[start];
-
-		pages = end - start + 1;
 		s = round_page(pages * sizeof(*pvd));
-		highest = start + (s / sizeof(*pvd)) - 1;
 
 		for (j = 0; j < s; j += PAGE_SIZE) {
 			vm_page_t m = vm_page_alloc_noobj_domain(domain,
