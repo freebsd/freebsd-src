@@ -72,8 +72,13 @@ struct ww_mutex {
 #define	ww_mutex_lock_slow_interruptible(_m, _x) \
 	ww_mutex_lock_interruptible(_m, _x)
 
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51600
+static inline int __must_check
+ww_mutex_trylock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx __unused)
+#else
 static inline int __must_check
 ww_mutex_trylock(struct ww_mutex *lock)
+#endif
 {
 	return (mutex_trylock(&lock->base));
 }
