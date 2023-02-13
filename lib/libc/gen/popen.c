@@ -181,7 +181,7 @@ popen(const char *command, const char *type)
 	 * the list which will cause an explicit close.
 	 */
 	if (!cloexec)
-		(void)_fcntl(*type == 'r' ? pdes[0] : pdes[1], F_SETFD, 0);
+		(void)_fcntl(fileno(iop), F_SETFD, 0);
 
 	return (iop);
 }
