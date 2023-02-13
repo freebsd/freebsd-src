@@ -7395,9 +7395,8 @@ found:
  * All values should be numbers derived from getmicrouptime().
  */
 static int
-timeelapsed(start, secs, usecs, now)
-	const struct timeval *start, *now;
-	int secs, usecs;
+timeelapsed(const struct timeval *start, int secs, int usecs,
+    const struct timeval *now)
 {
 	struct timeval snow, tv;
 
