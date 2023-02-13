@@ -349,7 +349,6 @@ information.
 .It Dv KERN_OSTYPE Ta string Ta no
 .It Dv KERN_POSIX1 Ta integer Ta no
 .It Dv KERN_PROC Ta node Ta not applicable
-.It Dv KERN_PROF Ta node Ta not applicable
 .It Dv KERN_QUANTUM Ta integer Ta yes
 .It Dv KERN_SAVED_IDS Ta integer Ta no
 .It Dv KERN_SECURELVL Ta integer Ta raise only
@@ -476,41 +475,6 @@ implies the current process.
 .It Sy Third Level Name Ta Sy Fourth Level
 .It Dv KERN_PROC_ARGS Ta "A process ID"
 .It Dv KERN_PROC_PATHNAME Ta "A process ID"
-.El
-.It Li KERN_PROF
-Return profiling information about the kernel.
-If the kernel is not compiled for profiling,
-attempts to retrieve any of the KERN_PROF values will
-fail with
-.Er ENOENT .
-The third level names for the string and integer profiling information
-is detailed below.
-The changeable column shows whether a process with appropriate
-privilege may change the value.
-.Bl -column "GPROFXGMONPARAMXXX" "struct gmonparamXXX" -offset indent
-.It Sy Third Level Name Ta Sy Type Ta Sy Changeable
-.It Dv GPROF_STATE Ta integer Ta yes
-.It Dv GPROF_COUNT Ta u_short[\|] Ta yes
-.It Dv GPROF_FROMS Ta u_short[\|] Ta yes
-.It Dv GPROF_TOS Ta struct tostruct Ta yes
-.It Dv GPROF_GMONPARAM Ta struct gmonparam Ta no
-.El
-.Pp
-The variables are as follows:
-.Bl -tag -width 6n
-.It Li GPROF_STATE
-Returns GMON_PROF_ON or GMON_PROF_OFF to show that profiling
-is running or stopped.
-.It Li GPROF_COUNT
-Array of statistical program counter counts.
-.It Li GPROF_FROMS
-Array indexed by program counter of call-from points.
-.It Li GPROF_TOS
-Array of
-.Va struct tostruct
-describing destination of calls and their counts.
-.It Li GPROF_GMONPARAM
-Structure giving the sizes of the above arrays.
 .El
 .It Li KERN_QUANTUM
 The maximum period of time, in microseconds, for which a process is allowed
