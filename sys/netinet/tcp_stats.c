@@ -92,7 +92,7 @@ static int
 /* Ensure all templates are also added to the userland template list. */
 __attribute__ ((constructor))
 #endif
-tcp_stats_init()
+tcp_stats_init(void)
 {
 	int err, lasterr;
 
