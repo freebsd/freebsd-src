@@ -53,6 +53,7 @@ CWARNEXTRA+=	-Wno-error=array-parameter
 CWARNEXTRA+=	-Wno-error=deprecated-non-prototype
 CWARNEXTRA+=	-Wno-error=strict-prototypes
 CWARNEXTRA+=	-Wno-error=unused-but-set-variable
+NO_WDEPRECATED_NON_PROTOTYPE=-Wno-deprecated-non-prototype
 .endif
 .endif	# clang
 
