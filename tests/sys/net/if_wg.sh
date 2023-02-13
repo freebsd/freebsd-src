@@ -189,9 +189,81 @@ wg_key_peerdev_makeshared_cleanup()
 	vnet_cleanup
 }
 
+# The kernel is expected to create the wg socket in the jail context that the
+# wg interface was created in, even if the interface is moved to a different
+# vnet.
+atf_test_case "wg_vnet_parent_routing" "cleanup"
+wg_vnet_parent_routing_head()
+{
+	atf_set descr 'Create a wg(4) tunnel without epairs and pass traffic between jails'
+	atf_set require.user root
+}
+
+wg_vnet_parent_routing_body()
+{
+	local pri1 pri2 pub1 pub2 wg1 wg2
+        local tunnel1 tunnel2
+
+	kldload -n if_wg
+
+	pri1=$(wg genkey)
+	pri2=$(wg genkey)
+
+	tunnel1=169.254.0.1
+	tunnel2=169.254.0.2
+
+	vnet_init
+
+	wg1=$(ifconfig wg create)
+	wg2=$(ifconfig wg create)
+
+	vnet_mkjail wgtest1 ${wg1}
+	vnet_mkjail wgtest2 ${wg2}
+
+	echo "$pri1" | jexec wgtest1 wg set $wg1 listen-port 12345 \
+	    private-key /dev/stdin
+	pub1=$(jexec wgtest1 wg show $wg1 public-key)
+	echo "$pri2" | jexec wgtest2 wg set $wg2 listen-port 12346 \
+	    private-key /dev/stdin
+	pub2=$(jexec wgtest2 wg show $wg2 public-key)
+
+	atf_check -s exit:0 -o ignore \
+	    jexec wgtest1 wg set $wg1 peer "$pub2" \
+	    endpoint 127.0.0.1:12346 allowed-ips ${tunnel2}/32
+	atf_check -s exit:0 \
+	    jexec wgtest1 ifconfig $wg1 inet ${tunnel1}/24 up
+
+	atf_check -s exit:0 -o ignore \
+	    jexec wgtest2 wg set $wg2 peer "$pub1" \
+	    endpoint 127.0.0.1:12345 allowed-ips ${tunnel1}/32
+	atf_check -s exit:0 \
+	    jexec wgtest2 ifconfig $wg2 inet ${tunnel2}/24 up
+
+	# Sanity check ICMP counters; should clearly be nothing on these new
+	# jails.  We'll check them as we go to ensure that the ICMP packets
+	# generated really are being handled by the jails' vnets.
+	atf_check -o not-match:"histogram" jexec wgtest1 netstat -s -p icmp
+	atf_check -o not-match:"histogram" jexec wgtest2 netstat -s -p icmp
+
+	# Generous timeout since the handshake takes some time.
+	atf_check -s exit:0 -o ignore jexec wgtest1 ping -c 1 -t 5 $tunnel2
+	atf_check -o match:"echo reply: 1" jexec wgtest1 netstat -s -p icmp
+	atf_check -o match:"echo: 1" jexec wgtest2 netstat -s -p icmp
+
+	atf_check -s exit:0 -o ignore jexec wgtest2 ping -c 1 $tunnel1
+	atf_check -o match:"echo reply: 1" jexec wgtest2 netstat -s -p icmp
+	atf_check -o match:"echo: 1" jexec wgtest1 netstat -s -p icmp
+}
+
+wg_vnet_parent_routing_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "wg_basic"
 	atf_add_test_case "wg_key_peerdev_shared"
 	atf_add_test_case "wg_key_peerdev_makeshared"
+	atf_add_test_case "wg_vnet_parent_routing"
 }
