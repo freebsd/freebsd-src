@@ -139,12 +139,7 @@ sctp_syscalls_uninit(void)
  * SCTP syscalls.
  */
 int
-sys_sctp_peeloff(td, uap)
-	struct thread *td;
-	struct sctp_peeloff_args /* {
-		int	sd;
-		caddr_t	name;
-	} */ *uap;
+sys_sctp_peeloff(struct thread *td, struct sctp_peeloff_args *uap)
 {
 	struct file *headfp, *nfp = NULL;
 	struct socket *head, *so;
@@ -211,17 +206,7 @@ done2:
 }
 
 int
-sys_sctp_generic_sendmsg (td, uap)
-	struct thread *td;
-	struct sctp_generic_sendmsg_args /* {
-		int sd,
-		caddr_t msg,
-		int mlen,
-		caddr_t to,
-		__socklen_t tolen,
-		struct sctp_sndrcvinfo *sinfo,
-		int flags
-	} */ *uap;
+sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *uap)
 {
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
@@ -320,17 +305,7 @@ sctp_bad2:
 }
 
 int
-sys_sctp_generic_sendmsg_iov(td, uap)
-	struct thread *td;
-	struct sctp_generic_sendmsg_iov_args /* {
-		int sd,
-		struct iovec *iov,
-		int iovlen,
-		caddr_t to,
-		__socklen_t tolen,
-		struct sctp_sndrcvinfo *sinfo,
-		int flags
-	} */ *uap;
+sys_sctp_generic_sendmsg_iov(struct thread *td, struct sctp_generic_sendmsg_iov_args *uap)
 {
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
@@ -446,17 +421,7 @@ sctp_bad2:
 }
 
 int
-sys_sctp_generic_recvmsg(td, uap)
-	struct thread *td;
-	struct sctp_generic_recvmsg_args /* {
-		int sd,
-		struct iovec *iov,
-		int iovlen,
-		struct sockaddr *from,
-		__socklen_t *fromlenaddr,
-		struct sctp_sndrcvinfo *sinfo,
-		int *msg_flags
-	} */ *uap;
+sys_sctp_generic_recvmsg(struct thread *td, struct sctp_generic_recvmsg_args *uap)
 {
 	uint8_t sockbufstore[256];
 	struct uio auio;
