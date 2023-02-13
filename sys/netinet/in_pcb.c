@@ -1728,7 +1728,7 @@ in_pcbrele_rlocked(struct inpcb *inp)
 
 	INP_RLOCK_ASSERT(inp);
 
-	if (refcount_release(&inp->inp_refcount) == 0)
+	if (!refcount_release(&inp->inp_refcount))
 		return (false);
 
 	MPASS(inp->inp_flags & INP_FREED);
@@ -1745,7 +1745,7 @@ in_pcbrele_wlocked(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 
-	if (refcount_release(&inp->inp_refcount) == 0)
+	if (!refcount_release(&inp->inp_refcount))
 		return (false);
 
 	MPASS(inp->inp_flags & INP_FREED);
