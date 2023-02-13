@@ -182,8 +182,11 @@ nexus_attach(device_t dev)
 	if (rman_init(&irq_rman) || rman_manage_region(&irq_rman, 0, ~0))
 		panic("nexus_attach irq_rman");
 
+	/* First, add ofwbus0. */
+	device_add_child(dev, "ofwbus", 0);
+
 	/*
-	 * First, deal with the children we know about already
+	 * Next, deal with the children we know about already.
 	 */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);

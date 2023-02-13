@@ -165,9 +165,13 @@ nexus_attach(device_t dev)
 	if (rman_init(&irq_rman) || rman_manage_region(&irq_rman, 0, ~0))
 		panic("nexus_attach irq_rman");
 
-	nexus_add_child(dev, 8, "timer", 0);
-	nexus_add_child(dev, 9, "rcons", 0);
-	nexus_add_child(dev, 10, "ofwbus", 0);
+	/*
+	 * Add direct children of nexus. Devices will be probed and attached
+	 * through ofwbus0.
+	 */
+	nexus_add_child(dev, 0, "timer", 0);
+	nexus_add_child(dev, 1, "rcons", 0);
+	nexus_add_child(dev, 2, "ofwbus", 0);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);

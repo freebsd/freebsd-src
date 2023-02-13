@@ -54,12 +54,10 @@ __FBSDID("$FreeBSD$");
  * The ofwbus (which is a pseudo-bus actually) iterates over the nodes that
  * hang from the Open Firmware root node and adds them as devices to this bus
  * (except some special nodes which are excluded) so that drivers can be
- * attached to them.
+ * attached to them. There should be only one ofwbus in the system, added
+ * directly as a child of nexus0.
  */
 
-#ifndef __aarch64__
-static device_identify_t ofwbus_identify;
-#endif
 static device_probe_t ofwbus_probe;
 static device_attach_t ofwbus_attach;
 static bus_alloc_resource_t ofwbus_alloc_resource;
@@ -67,9 +65,6 @@ static bus_release_resource_t ofwbus_release_resource;
 
 static device_method_t ofwbus_methods[] = {
 	/* Device interface */
-#ifndef __aarch64__
-	DEVMETHOD(device_identify,	ofwbus_identify),
-#endif
 	DEVMETHOD(device_probe,		ofwbus_probe),
 	DEVMETHOD(device_attach,	ofwbus_attach),
 
@@ -87,28 +82,12 @@ EARLY_DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofwbus, 1);
 
-#ifndef __aarch64__
-static void
-ofwbus_identify(driver_t *driver, device_t parent)
-{
-
-	/* Check if Open Firmware has been instantiated */
-	if (OF_peer(0) == 0)
-		return;
-
-	if (device_find_child(parent, "ofwbus", -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, "ofwbus", -1);
-}
-#endif
-
 static int
 ofwbus_probe(device_t dev)
 {
 
-#ifdef __aarch64__
 	if (OF_peer(0) == 0)
 		return (ENXIO);
-#endif
 
 	device_set_desc(dev, "Open Firmware Device Tree");
 	return (BUS_PROBE_NOWILDCARD);
