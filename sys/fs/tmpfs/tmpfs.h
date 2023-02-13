@@ -516,7 +516,6 @@ tmpfs_update(struct vnode *vp)
  * Convenience macros to simplify some logical expressions.
  */
 #define IMPLIES(a, b) (!(a) || (b))
-#define IFF(a, b) (IMPLIES(a, b) && IMPLIES(b, a))
 
 /*
  * Checks that the directory entry pointed by 'de' matches the name 'name'
