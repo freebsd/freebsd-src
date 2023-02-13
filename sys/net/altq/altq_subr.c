@@ -148,9 +148,7 @@ ALTQ_FEATURE(fairq, "ALTQ Fair Queuing discipline");
 
 /* look up the queue state by the interface name and the queueing type. */
 void *
-altq_lookup(name, type)
-	char *name;
-	int type;
+altq_lookup(char *name, int type)
 {
 	struct ifnet *ifp;
 
@@ -164,13 +162,10 @@ altq_lookup(name, type)
 }
 
 int
-altq_attach(ifq, type, discipline, enqueue, dequeue, request)
-	struct ifaltq *ifq;
-	int type;
-	void *discipline;
-	int (*enqueue)(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
-	struct mbuf *(*dequeue)(struct ifaltq *, int);
-	int (*request)(struct ifaltq *, int, void *);
+altq_attach(struct ifaltq *ifq, int type, void *discipline,
+	int (*enqueue)(struct ifaltq *, struct mbuf *, struct altq_pktattr *),
+	struct mbuf *(*dequeue)(struct ifaltq *, int),
+	int (*request)(struct ifaltq *, int, void *))
 {
 	IFQ_LOCK(ifq);
 	if (!ALTQ_IS_READY(ifq)) {
@@ -189,8 +184,7 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request)
 }
 
 int
-altq_detach(ifq)
-	struct ifaltq *ifq;
+altq_detach(struct ifaltq *ifq)
 {
 	IFQ_LOCK(ifq);
 
@@ -219,8 +213,7 @@ altq_detach(ifq)
 }
 
 int
-altq_enable(ifq)
-	struct ifaltq *ifq;
+altq_enable(struct ifaltq *ifq)
 {
 	int s;
 
@@ -247,8 +240,7 @@ altq_enable(ifq)
 }
 
 int
-altq_disable(ifq)
-	struct ifaltq *ifq;
+altq_disable(struct ifaltq *ifq)
 {
 	int s;
 
@@ -270,9 +262,7 @@ altq_disable(ifq)
 
 #ifdef ALTQ_DEBUG
 void
-altq_assert(file, line, failedexpr)
-	const char *file, *failedexpr;
-	int line;
+altq_assert(const char *file, int line, const char *failedexpr)
 {
 	(void)printf("altq assertion \"%s\" failed: file \"%s\", line %d\n",
 		     failedexpr, file, line);
@@ -293,9 +283,7 @@ altq_assert(file, line, failedexpr)
 #define	TBR_UNSCALE(x)	((x) >> TBR_SHIFT)
 
 static struct mbuf *
-tbr_dequeue(ifq, op)
-	struct ifaltq *ifq;
-	int op;
+tbr_dequeue(struct ifaltq *ifq, int op)
 {
 	struct tb_regulator *tbr;
 	struct mbuf *m;
@@ -345,9 +333,7 @@ tbr_dequeue(ifq, op)
  * if the specified rate is zero, the token bucket regulator is deleted.
  */
 int
-tbr_set(ifq, profile)
-	struct ifaltq *ifq;
-	struct tb_profile *profile;
+tbr_set(struct ifaltq *ifq, struct tb_profile *profile)
 {
 	struct tb_regulator *tbr, *otbr;
 
@@ -425,8 +411,7 @@ tbr_set(ifq, profile)
  * MPSAFE
  */
 static void
-tbr_timeout(arg)
-	void *arg;
+tbr_timeout(void *arg)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
@@ -754,9 +739,7 @@ altq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
  * read and write diffserv field in IPv4 or IPv6 header
  */
 u_int8_t
-read_dsfield(m, pktattr)
-	struct mbuf *m;
-	struct altq_pktattr *pktattr;
+read_dsfield(struct mbuf *m, struct altq_pktattr *pktattr)
 {
 	struct mbuf *m0;
 	u_int8_t ds_field = 0;
