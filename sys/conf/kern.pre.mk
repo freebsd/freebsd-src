@@ -280,7 +280,7 @@ DTRACE_S=	${CC} -c ${DTRACE_ASM_CFLAGS}	${WERROR} ${.IMPSRC}
 
 # zlib code supports systems that are quite old, but will fix this issue once C2x gets radified.
 # see https://github.com/madler/zlib/issues/633 for details
-ZLIB_CFLAGS=	-Wno-cast-qual ${NO_WDEPRECATED_NON_PROTOTYPE} -Wno-strict-prototypes
+ZLIB_CFLAGS=	-Wno-cast-qual ${NO_WDEPRECATED_NON_PROTOTYPE} ${NO_WSTRICT_PROTOTYPES}
 ZLIB_C=		${CC} -c ${CFLAGS} ${WERROR} ${ZLIB_CFLAGS} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for DTrace/FBT

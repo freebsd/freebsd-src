@@ -36,6 +36,7 @@ NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
 .if ${COMPILER_VERSION} >= 150000
 NO_WSTRICT_PROTOTYPES=		-Wno-strict-prototypes
+NO_WDEPRECATED_NON_PROTOTYPE=	-Wno-deprecated-non-prototype
 .endif
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
@@ -53,7 +54,6 @@ CWARNEXTRA+=	-Wno-error=array-parameter
 CWARNEXTRA+=	-Wno-error=deprecated-non-prototype
 CWARNEXTRA+=	-Wno-error=strict-prototypes
 CWARNEXTRA+=	-Wno-error=unused-but-set-variable
-NO_WDEPRECATED_NON_PROTOTYPE=-Wno-deprecated-non-prototype
 .endif
 .endif	# clang
 
