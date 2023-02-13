@@ -201,11 +201,9 @@ OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
 OLD_DIRS+=usr/share/examples/bhyve
 .endif
 
-.if !defined(WITH_PORT_BASE_BINUTILS)
 .if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
 OLD_FILES+=usr/share/man/man1/ld.1.gz
-.endif
 .endif
 
 .if ${MK_BLACKLIST} == no
@@ -2113,7 +2111,7 @@ OLD_FILES+=usr/share/man/man8/strfile.8.gz
 OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
-.if ${MK_LLVM_COV} == no && !defined(WITH_PORT_BASE_GCC)
+.if ${MK_LLVM_COV} == no
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 .endif
