@@ -64,6 +64,14 @@ linuxkpi_unregister_shrinker(struct shrinker *s)
 	sx_xunlock(&sx_shrinker);
 }
 
+void
+linuxkpi_synchronize_shrinkers(void)
+{
+
+	sx_xlock(&sx_shrinker);
+	sx_xunlock(&sx_shrinker);
+}
+
 #define	SHRINKER_BATCH	512
 
 static void
