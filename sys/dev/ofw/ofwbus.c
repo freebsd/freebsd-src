@@ -89,6 +89,11 @@ ofwbus_probe(device_t dev)
 	if (OF_peer(0) == 0)
 		return (ENXIO);
 
+	/* Only one instance of ofwbus. */
+	if (device_get_unit(dev) != 0)
+		panic("ofwbus added with non-zero unit number: %d\n",
+		    device_get_unit(dev));
+
 	device_set_desc(dev, "Open Firmware Device Tree");
 	return (BUS_PROBE_NOWILDCARD);
 }
