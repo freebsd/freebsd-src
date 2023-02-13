@@ -146,6 +146,10 @@ nexus_attach(device_t dev)
 	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR) != 0)
 		panic("%s: failed to set up rmans.", __func__);
 
+	/* Add ofwbus0. */
+	device_add_child(dev, "ofwbus", 0);
+
+	/* Now, probe children. */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 
