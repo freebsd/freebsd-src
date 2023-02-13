@@ -580,8 +580,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
  * the process was still executing.
  */
 void
-vm_waitproc(p)
-	struct proc *p;
+vm_waitproc(struct proc *p)
 {
 
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
