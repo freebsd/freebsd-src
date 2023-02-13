@@ -338,20 +338,16 @@ vm_fault_soft_fast(struct faultstate *fs)
 #endif
 	int psind;
 	vm_offset_t vaddr;
-	enum fault_status res;
 
 	MPASS(fs->vp == NULL);
 
-	res = FAULT_SUCCESS;
 	vaddr = fs->vaddr;
 	vm_object_busy(fs->first_object);
 	m = vm_page_lookup(fs->first_object, fs->first_pindex);
 	/* A busy page can be mapped for read|execute access. */
 	if (m == NULL || ((fs->prot & VM_PROT_WRITE) != 0 &&
-	    vm_page_busied(m)) || !vm_page_all_valid(m)) {
-		res = FAULT_FAILURE;
-		goto out;
-	}
+	    vm_page_busied(m)) || !vm_page_all_valid(m))
+		goto fail;
 	m_map = m;
 	psind = 0;
 #if VM_NRESERVLEVEL > 0
@@ -386,10 +382,8 @@ vm_fault_soft_fast(struct faultstate *fs)
 #endif
 	if (pmap_enter(fs->map->pmap, vaddr, m_map, fs->prot, fs->fault_type |
 	    PMAP_ENTER_NOSLEEP | (fs->wired ? PMAP_ENTER_WIRED : 0), psind) !=
-	    KERN_SUCCESS) {
-		res = FAULT_FAILURE;
-		goto out;
-	}
+	    KERN_SUCCESS)
+		goto fail;
 	if (fs->m_hold != NULL) {
 		(*fs->m_hold) = m;
 		vm_page_wire(m);
@@ -398,12 +392,13 @@ vm_fault_soft_fast(struct faultstate *fs)
 		vm_fault_prefault(fs, vaddr, PFBAK, PFFOR, true);
 	VM_OBJECT_RUNLOCK(fs->first_object);
 	vm_fault_dirty(fs, m);
+	vm_object_unbusy(fs->first_object);
 	vm_map_lookup_done(fs->map, fs->entry);
 	curthread->td_ru.ru_minflt++;
-
-out:
+	return (FAULT_SUCCESS);
+fail:
 	vm_object_unbusy(fs->first_object);
-	return (res);
+	return (FAULT_FAILURE);
 }
 
 static void
