@@ -59,10 +59,6 @@ wg_basic_body()
 	vnet_mkjail wgtest1 ${epair}a
 	vnet_mkjail wgtest2 ${epair}b
 
-	# Workaround for PR 254212.
-	jexec wgtest1 ifconfig lo0 up
-	jexec wgtest2 ifconfig lo0 up
-
 	jexec wgtest1 ifconfig ${epair}a ${endpoint1}/24 up
 	jexec wgtest2 ifconfig ${epair}b ${endpoint2}/24 up
 
