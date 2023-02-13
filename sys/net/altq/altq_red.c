@@ -523,9 +523,7 @@ mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 }
 
 struct mbuf *
-red_getq(rp, q)
-	red_t *rp;
-	class_queue_t *q;
+red_getq(red_t *rp, class_queue_t *q)
 {
 	struct mbuf *m;
 

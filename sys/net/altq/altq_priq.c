@@ -575,8 +575,7 @@ priq_getq(struct priq_class *cl)
 }
 
 static struct mbuf *
-priq_pollq(cl)
-	struct priq_class *cl;
+priq_pollq(struct priq_class *cl)
 {
 	return qhead(cl->cl_q);
 }
