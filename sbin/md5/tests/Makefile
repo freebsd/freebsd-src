@@ -11,7 +11,7 @@ TEST_DIR=		${SRCTOP}/sbin/md5/tests
 FILESGROUPS+=		FILESinputs
 FILESinputsPACKAGE=	${PACKAGE}
 FILESinputsDIR=		${TESTSDIR}
-FILESinputs!=		echo ${TEST_DIR}/*.inp
+FILESinputs!=		echo ${TEST_DIR}/*.inp ${TEST_DIR}/*.in
 
 FILESGROUPS+=		FILESchkfiles
 FILESchkfilesPACKAGE=	${PACKAGE}
@@ -27,6 +27,8 @@ FILESGROUPS+=		FILESparam
 FILESparamPACKAGE=	${PACKAGE}
 FILESparamDIR=		${TESTSDIR}
 FILESparam!=		echo ${TEST_DIR}/*.txt
+
+ATF_TESTS_SH+=		md5_test
 
 PLAIN_TESTS_SH+=	self-test
 PLAIN_TESTS_SH+=	bsd-c-test
