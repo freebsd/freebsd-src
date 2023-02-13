@@ -1110,7 +1110,8 @@ out:
 		*vpp = vp;
 
 #ifdef INVARIANTS
-		MPASS(*vpp != NULL && VOP_ISLOCKED(*vpp));
+		MPASS(*vpp != NULL);
+		ASSERT_VOP_LOCKED(*vpp, __func__);
 		TMPFS_NODE_LOCK(node);
 		MPASS(*vpp == node->tn_vnode);
 		TMPFS_NODE_UNLOCK(node);
