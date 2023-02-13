@@ -146,8 +146,7 @@ __rpc_get_t_size(int af, int proto, int size)
  * Find the appropriate address buffer size
  */
 u_int
-__rpc_get_a_size(af)
-	int af;
+__rpc_get_a_size(int af)
 {
 	switch (af) {
 	case AF_INET:
@@ -567,8 +566,7 @@ __rpc_getconfip(const char *nettype)
  * unset, i.e. iterate over all visible entries in netconfig.
  */
 void *
-__rpc_setconf(nettype)
-	const char *nettype;
+__rpc_setconf(const char *nettype)
 {
 	struct handle *handle;
 
@@ -688,8 +686,7 @@ __rpc_getconf(void *vhandle)
 }
 
 void
-__rpc_endconf(vhandle)
-	void * vhandle;
+__rpc_endconf(void *vhandle)
 {
 	struct handle *handle;
 
