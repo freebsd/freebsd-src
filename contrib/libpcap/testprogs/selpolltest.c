@@ -69,13 +69,13 @@ main(int argc, char **argv)
 	register int op;
 	bpf_u_int32 localnet, netmask;
 	register char *cp, *cmdbuf, *device;
-	int doselect, dopoll, dotimeout, dononblock;
+	int doselect, dopoll, dotimeout, dononblock, quiet;
 	const char *mechanism;
 	struct bpf_program fcode;
 	char ebuf[PCAP_ERRBUF_SIZE];
 	pcap_if_t *devlist;
-	int selectable_fd;
-	struct timeval *required_timeout;
+	int selectable_fd = -1;
+	const struct timeval *required_timeout;
 	int status;
 	int packet_count;
 
@@ -85,13 +85,14 @@ main(int argc, char **argv)
 	mechanism = NULL;
 	dotimeout = 0;
 	dononblock = 0;
+	quiet = 0;
 	if ((cp = strrchr(argv[0], '/')) != NULL)
 		program_name = cp + 1;
 	else
 		program_name = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "i:sptn")) != -1) {
+	while ((op = getopt(argc, argv, "i:sptnq")) != -1) {
 		switch (op) {
 
 		case 'i':
@@ -114,6 +115,10 @@ main(int argc, char **argv)
 
 		case 'n':
 			dononblock = 1;
+			break;
+
+		case 'q':
+			quiet = 1;
 			break;
 
 		default:
@@ -196,6 +201,7 @@ main(int argc, char **argv)
 		for (;;) {
 			fd_set setread, setexcept;
 			struct timeval seltimeout;
+			struct timeval *timeoutp;
 
 			FD_ZERO(&setread);
 			if (selectable_fd != -1) {
@@ -203,6 +209,7 @@ main(int argc, char **argv)
 				FD_ZERO(&setexcept);
 				FD_SET(selectable_fd, &setexcept);
 			}
+			required_timeout = pcap_get_required_select_timeout(pd);
 			if (dotimeout) {
 				seltimeout.tv_sec = 0;
 				if (required_timeout != NULL &&
@@ -210,37 +217,34 @@ main(int argc, char **argv)
 					seltimeout.tv_usec = required_timeout->tv_usec;
 				else
 					seltimeout.tv_usec = 1000;
-				status = select(selectable_fd + 1, &setread,
-				    NULL, &setexcept, &seltimeout);
+				timeoutp = &seltimeout;
 			} else if (required_timeout != NULL) {
 				seltimeout = *required_timeout;
-				status = select(selectable_fd + 1, &setread,
-				    NULL, &setexcept, &seltimeout);
+				timeoutp = &seltimeout;
 			} else {
-				status = select((selectable_fd == -1) ?
-				    0 : selectable_fd + 1, &setread,
-				    NULL, &setexcept, NULL);
+				timeoutp = NULL;
 			}
+			status = select((selectable_fd == -1) ?
+			    0 : selectable_fd + 1, &setread, NULL, &setexcept,
+			    timeoutp);
 			if (status == -1) {
 				printf("Select returns error (%s)\n",
 				    strerror(errno));
 			} else {
-				if (selectable_fd == -1) {
-					if (status != 0)
-						printf("Select returned a descriptor\n");
-				} else {
+				if (!quiet) {
 					if (status == 0)
 						printf("Select timed out: ");
-					else
+					else{
 						printf("Select returned a descriptor: ");
-					if (FD_ISSET(selectable_fd, &setread))
-						printf("readable, ");
-					else
-						printf("not readable, ");
-					if (FD_ISSET(selectable_fd, &setexcept))
-						printf("exceptional condition\n");
-					else
-						printf("no exceptional condition\n");
+						if (FD_ISSET(selectable_fd, &setread))
+							printf("readable, ");
+						else
+							printf("not readable, ");
+						if (FD_ISSET(selectable_fd, &setexcept))
+							printf("exceptional condition\n");
+						else
+							printf("no exceptional condition\n");
+					}
 				}
 				packet_count = 0;
 				status = pcap_dispatch(pd, -1, countme,
@@ -268,11 +272,12 @@ main(int argc, char **argv)
 
 			fd.fd = selectable_fd;
 			fd.events = POLLIN;
+			required_timeout = pcap_get_required_select_timeout(pd);
 			if (dotimeout)
 				polltimeout = 1;
 			else if (required_timeout != NULL &&
 			    required_timeout->tv_usec >= 1000)
-				polltimeout = required_timeout->tv_usec/1000;
+				polltimeout = (int)(required_timeout->tv_usec/1000);
 			else
 				polltimeout = -1;
 			status = poll(&fd, (selectable_fd == -1) ? 0 : 1, polltimeout);
@@ -280,10 +285,7 @@ main(int argc, char **argv)
 				printf("Poll returns error (%s)\n",
 				    strerror(errno));
 			} else {
-				if (selectable_fd == -1) {
-					if (status != 0)
-						printf("Poll returned a descriptor\n");
-				} else {
+				if (!quiet) {
 					if (status == 0)
 						printf("Poll timed out\n");
 					else {
@@ -349,7 +351,7 @@ main(int argc, char **argv)
 		/*
 		 * Error.  Report it.
 		 */
-		(void)fprintf(stderr, "%s: pcap_loop: %s\n",
+		(void)fprintf(stderr, "%s: pcap_dispatch: %s\n",
 		    program_name, pcap_geterr(pd));
 	}
 	pcap_close(pd);
@@ -367,7 +369,7 @@ countme(u_char *user, const struct pcap_pkthdr *h _U_, const u_char *sp _U_)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "Usage: %s [ -sptn ] [ -i interface ] [expression]\n",
+	(void)fprintf(stderr, "Usage: %s [ -sptnq ] [ -i interface ] [expression]\n",
 	    program_name);
 	exit(1);
 }
@@ -415,7 +417,7 @@ static char *
 copy_argv(register char **argv)
 {
 	register char **p;
-	register u_int len = 0;
+	register size_t len = 0;
 	char *buf;
 	char *src, *dst;
 

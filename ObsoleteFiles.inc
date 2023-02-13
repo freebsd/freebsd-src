@@ -2126,6 +2126,9 @@ OLD_FILES+=usr/include/c++/v1/__nullptr
 OLD_FILES+=usr/include/c++/v1/__string
 OLD_FILES+=usr/include/c++/v1/experimental/filesystem
 
+# 20230331: libpcap updated to 1.10.3
+OLD_FILES+=usr/include/fmtutils.h
+
 # 20230320: vcount.9 removed
 OLD_FILES+=usr/share/man/man9/count_dev.9.gz
 OLD_FILES+=usr/share/man/man9/vcount.9.gz

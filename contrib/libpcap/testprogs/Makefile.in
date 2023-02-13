@@ -38,6 +38,7 @@ mandir = @mandir@
 
 # VPATH
 srcdir = @srcdir@
+top_srcdir = @top_srcdir@
 VPATH = @srcdir@
 
 #
@@ -62,7 +63,6 @@ LDFLAGS = @LDFLAGS@ ${CROSSFLAGS}
 DYEXT = @DYEXT@
 V_RPATH_OPT = @V_RPATH_OPT@
 DEPENDENCY_CFLAG = @DEPENDENCY_CFLAG@
-EXTRA_NETWORK_LIBS=@EXTRA_NETWORK_LIBS@
 
 # Standard CFLAGS for building test programs
 FULL_CFLAGS = $(CCOPT) $(INCLS) $(DEFS) $(CFLAGS)
@@ -79,14 +79,17 @@ INSTALL_DATA = @INSTALL_DATA@
 	$(CC) $(FULL_CFLAGS) -c $(srcdir)/$*.c
 
 SRC = @VALGRINDTEST_SRC@ \
-	capturetest.c \
 	can_set_rfmon_test.c \
+	capturetest.c \
 	filtertest.c \
+	findalldevstest-perf.c \
 	findalldevstest.c \
 	opentest.c \
+	nonblocktest.c \
 	reactivatetest.c \
 	selpolltest.c \
-	threadsignaltest.c
+	threadsignaltest.c \
+	writecaptest.c
 
 TESTS = $(SRC:.c=)
 
@@ -98,31 +101,56 @@ CLEANFILES = $(OBJ) $(TESTS)
 all: $(TESTS)
 
 capturetest: $(srcdir)/capturetest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o capturetest $(srcdir)/capturetest.c ../libpcap.a $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o capturetest $(srcdir)/capturetest.c \
+	    ../libpcap.a $(LIBS)
 
 can_set_rfmon_test: $(srcdir)/can_set_rfmon_test.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o can_set_rfmon_test $(srcdir)/can_set_rfmon_test.c ../libpcap.a $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o can_set_rfmon_test \
+	    $(srcdir)/can_set_rfmon_test.c \
+	    ../libpcap.a $(LIBS)
 
 filtertest: $(srcdir)/filtertest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o filtertest $(srcdir)/filtertest.c ../libpcap.a $(EXTRA_NETWORK_LIBS) $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o filtertest $(srcdir)/filtertest.c \
+	    ../libpcap.a $(LIBS)
 
 findalldevstest: $(srcdir)/findalldevstest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o findalldevstest $(srcdir)/findalldevstest.c ../libpcap.a $(EXTRA_NETWORK_LIBS) $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o findalldevstest \
+	    $(srcdir)/findalldevstest.c \
+	    ../libpcap.a $(LIBS)
+
+findalldevstest-perf: $(srcdir)/findalldevstest-perf.c ../libpcap.a
+	$(CC) $(FULL_CFLAGS) -I. -L. -o findalldevstest-perf \
+	    $(srcdir)/findalldevstest-perf.c \
+	    ../libpcap.a $(LIBS)
 
 opentest: $(srcdir)/opentest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o opentest $(srcdir)/opentest.c ../libpcap.a $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o opentest $(srcdir)/opentest.c \
+	    ../libpcap.a $(LIBS)
+
+nonblocktest: $(srcdir)/nonblocktest.c ../libpcap.a
+	$(CC) $(FULL_CFLAGS) -I. -L. -o nonblocktest $(srcdir)/nonblocktest.c \
+	    ../libpcap.a $(LIBS)
 
 reactivatetest: $(srcdir)/reactivatetest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o reactivatetest $(srcdir)/reactivatetest.c ../libpcap.a $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o reactivatetest \
+	    $(srcdir)/reactivatetest.c ../libpcap.a $(LIBS)
 
 selpolltest: $(srcdir)/selpolltest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o selpolltest $(srcdir)/selpolltest.c ../libpcap.a $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o selpolltest $(srcdir)/selpolltest.c \
+	    ../libpcap.a $(LIBS)
 
 threadsignaltest: $(srcdir)/threadsignaltest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o threadsignaltest $(srcdir)/threadsignaltest.c ../libpcap.a $(LIBS) $(PTHREAD_LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o threadsignaltest \
+	    $(srcdir)/threadsignaltest.c \
+	    ../libpcap.a $(LIBS) $(PTHREAD_LIBS)
 
 valgrindtest: $(srcdir)/valgrindtest.c ../libpcap.a
-	$(CC) $(FULL_CFLAGS) -I. -L. -o valgrindtest $(srcdir)/valgrindtest.c ../libpcap.a $(LIBS)
+	$(CC) $(FULL_CFLAGS) -I. -L. -o valgrindtest $(srcdir)/valgrindtest.c \
+	    ../libpcap.a $(LIBS)
+
+writecaptest: $(srcdir)/writecaptest.c ../libpcap.a
+	$(CC) $(FULL_CFLAGS) -I. -L. -o writecaptest $(srcdir)/writecaptest.c \
+	    ../libpcap.a $(LIBS)
 
 clean:
 	rm -f $(CLEANFILES)
@@ -141,4 +169,4 @@ tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
 
 depend:
-	../$(MKDEP) -c "$(CC)" -m "$(DEPENDENCY_CFLAG)" $(CFLAGS) $(DEFS) $(INCLS) $(SRC)
+	$(MKDEP) -c "$(CC)" -m "$(DEPENDENCY_CFLAG)" -s "$(srcdir)" $(CFLAGS) $(DEFS) $(INCLS) $(SRC)
