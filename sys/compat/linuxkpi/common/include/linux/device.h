@@ -48,13 +48,13 @@
 #include <linux/pm.h>
 #include <linux/idr.h>
 #include <linux/ratelimit.h>	/* via linux/dev_printk.h */
+#include <linux/fwnode.h>
 #include <asm/atomic.h>
 
 #include <sys/bus.h>
 #include <sys/backlight.h>
 
 struct device;
-struct fwnode_handle;
 
 struct class {
 	const char	*name;
