@@ -1567,6 +1567,7 @@ int (*compares[])(const void *arg1, const void *arg2) = {
 	compare_ivcsw,
 	compare_jid,
 	compare_swap,
+	compare_pid,
 	NULL
 };
 
