@@ -4551,9 +4551,7 @@ ipf_checkicmp6matchingstate(fr_info_t *fin)
 /* Initialise the array of timeout queues for TCP.                          */
 /* ------------------------------------------------------------------------ */
 void
-ipf_sttab_init(softc, tqp)
-	ipf_main_softc_t *softc;
-	ipftq_t *tqp;
+ipf_sttab_init(ipf_main_softc_t *softc, ipftq_t *tqp)
 {
 	int i;
 

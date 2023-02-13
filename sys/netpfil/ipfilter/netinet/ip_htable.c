@@ -177,9 +177,7 @@ ipf_htable_soft_destroy(ipf_main_softc_t *softc, void *arg)
 /* Initialise the hash table ready for use.                                 */
 /* ------------------------------------------------------------------------ */
 static int
-ipf_htable_soft_init(softc, arg)
-	ipf_main_softc_t *softc;
-	void *arg;
+ipf_htable_soft_init(ipf_main_softc_t *softc, void *arg)
 {
 	ipf_htable_softc_t *softh = arg;
 

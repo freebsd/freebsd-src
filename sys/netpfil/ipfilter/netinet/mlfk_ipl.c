@@ -542,14 +542,14 @@ ipfclose(dev_t dev, int flags)
  * called during packet processing and cause an inconsistancy to appear in
  * the filter lists.
  */
+#ifdef __FreeBSD__
+static int ipfread(struct cdev *dev, struct uio *uio, int ioflag)
+#else
 static int ipfread(dev, uio, ioflag)
 	int ioflag;
-#ifdef __FreeBSD__
-	struct cdev *dev;
-#else
 	dev_t dev;
-#endif
 	struct uio *uio;
+#endif
 {
 	int error;
 	int	unit = GET_MINOR(dev);
@@ -585,14 +585,14 @@ static int ipfread(dev, uio, ioflag)
  * called during packet processing and cause an inconsistancy to appear in
  * the filter lists.
  */
+#ifdef __FreeBSD__
+static int ipfwrite(struct cdev *dev, struct uio *uio, int ioflag)
+#else
 static int ipfwrite(dev, uio, ioflag)
 	int ioflag;
-#ifdef __FreeBSD__
-	struct cdev *dev;
-#else
 	dev_t dev;
-#endif
 	struct uio *uio;
+#endif
 {
 	int error;
 

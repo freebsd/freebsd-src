@@ -924,8 +924,7 @@ bad:
 
 
 int
-ipf_verifysrc(fin)
-	fr_info_t *fin;
+ipf_verifysrc(fr_info_t *fin)
 {
 	struct nhop_object *nh;
 
@@ -1010,8 +1009,7 @@ ipf_ifpaddr(ipf_main_softc_t *softc, int v, int atype, void *ifptr,
 
 
 u_32_t
-ipf_newisn(fin)
-	fr_info_t *fin;
+ipf_newisn(fr_info_t *fin)
 {
 	u_32_t newiss;
 	newiss = arc4random();
