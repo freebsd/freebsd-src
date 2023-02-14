@@ -28,8 +28,6 @@
 #ifndef _LINUX_MI_H_
 #define _LINUX_MI_H_
 
-#include <sys/queue.h>
-
 /*
  * Private Brandinfo flags
  */
