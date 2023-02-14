@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_misc.h>
-#include <compat/linux/linux_timer.h>
+#include <compat/linux/linux_time.h>
 #include <compat/linux/linux_util.h>
 
 #define	FUTEX_SHARED	0x8     /* shared futex */

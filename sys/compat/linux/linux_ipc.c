@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_ipc64.h>
-#include <compat/linux/linux_timer.h>
+#include <compat/linux/linux_time.h>
 #include <compat/linux/linux_util.h>
 
 /*

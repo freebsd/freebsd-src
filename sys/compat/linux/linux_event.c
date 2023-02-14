@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_event.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_signal.h>
-#include <compat/linux/linux_timer.h>
+#include <compat/linux/linux_time.h>
 #include <compat/linux/linux_util.h>
 
 typedef uint64_t	epoll_udata_t;
