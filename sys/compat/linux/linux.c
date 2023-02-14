@@ -59,6 +59,11 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
+static bool use_real_ifnames = false;
+SYSCTL_BOOL(_compat_linux, OID_AUTO, use_real_ifnames, CTLFLAG_RWTUN,
+    &use_real_ifnames, 0,
+    "Use FreeBSD interface names instead of generating ethN aliases");
+
 static int bsd_to_linux_sigtbl[LINUX_SIGTBLSZ] = {
 	LINUX_SIGHUP,	/* SIGHUP */
 	LINUX_SIGINT,	/* SIGINT */
@@ -722,4 +727,11 @@ bsd_to_linux_poll_events(short bev, short *lev)
 		bits |= LINUX_POLLRDHUP;
 
 	*lev = bits;
+}
+
+bool
+linux_use_real_ifname(const struct ifnet *ifp)
+{
+
+	return (use_real_ifnames || !IFP_IS_ETH(ifp));
 }
