@@ -41,9 +41,13 @@
 
 /*
  * Definitions for byte order, according to byte significance from low
- * address to high.
+ * address to high. We undefine any prior definition of them because
+ * powerpc compilers define _LITTLE_ENDIAN and _BIG_ENDIAN to mean
+ * something else.
  */
+#undef _LITTLE_ENDIAN
 #define	_LITTLE_ENDIAN	__ORDER_LITTLE_ENDIAN__ /* LSB first: 1234 */
+#undef _BIG_ENDIAN
 #define	_BIG_ENDIAN	__ORDER_BIG_ENDIAN__    /* MSB first: 4321 */
 #define	_PDP_ENDIAN	__ORDER_PDP_ENDIAN__    /* LSB first in word,
 						 * MSW first in long: 3412 */
