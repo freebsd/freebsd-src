@@ -818,6 +818,7 @@ add_keymap_path(const char *path)
 	STAILQ_INSERT_TAIL(&pathlist, pe, next);
 }
 
+#ifdef OPIO_DEADKEYMAP
 static void
 to_old_accentmap(accentmap_t *from, oaccentmap_t *to)
 {
@@ -832,13 +833,16 @@ to_old_accentmap(accentmap_t *from, oaccentmap_t *to)
 		}
 	}
 }
+#endif /* OPIO_DEADKEYMAP */
 
 static void
 load_keymap(char *opt, int dumponly)
 {
 	keymap_t keymap;
 	accentmap_t accentmap;
+#ifdef OPIO_DEADKEYMAP
 	oaccentmap_t oaccentmap;
+#endif /* OPIO_DEADKEYMAP */
 	struct pathent *pe;
 	FILE	*file;
 	int	j;
@@ -898,8 +902,11 @@ load_keymap(char *opt, int dumponly)
 	}
 	if ((accentmap.n_accs > 0) 
 		&& (ioctl(0, PIO_DEADKEYMAP, &accentmap) < 0)) {
+#ifdef OPIO_DEADKEYMAP
 		to_old_accentmap(&accentmap, &oaccentmap);
-		if (ioctl(0, OPIO_DEADKEYMAP, &oaccentmap) < 0) {
+		if (ioctl(0, OPIO_DEADKEYMAP, &oaccentmap) < 0)
+#endif /* OGIO_DEADKEYMAP */
+		{
 			warn("setting accentmap");
 			fclose(file);
 			return;
@@ -907,6 +914,7 @@ load_keymap(char *opt, int dumponly)
 	}
 }
 
+#ifdef OPIO_DEADKEYMAP
 static void
 to_new_accentmap(oaccentmap_t *from, accentmap_t *to)
 {
@@ -921,21 +929,26 @@ to_new_accentmap(oaccentmap_t *from, accentmap_t *to)
 		}
 	}
 }
+#endif /* OPIO_DEADKEYMAP */
 
 static void
 print_keymap(void)
 {
 	keymap_t keymap;
 	accentmap_t accentmap;
+#ifdef OGIO_DEADKEYMAP
 	oaccentmap_t oaccentmap;
+#endif /* OPIO_DEADKEYMAP */
 	int i;
 
 	if (ioctl(0, GIO_KEYMAP, &keymap) < 0)
 		err(1, "getting keymap");
 	if (ioctl(0, GIO_DEADKEYMAP, &accentmap) < 0) {
+#ifdef OGIO_DEADKEYMAP
 		if (ioctl(0, OGIO_DEADKEYMAP, &oaccentmap) == 0)
 			to_new_accentmap(&oaccentmap, &accentmap);
 		else
+#endif /* OGIO_DEADKEYMAP */
 			memset(&accentmap, 0, sizeof(accentmap));
 	}
     	printf(
