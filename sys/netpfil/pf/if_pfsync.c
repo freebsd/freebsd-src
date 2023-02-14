@@ -102,12 +102,16 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+
 #define PFSYNC_MINPKT ( \
 	sizeof(struct ip) + \
 	sizeof(struct pfsync_header) + \
 	sizeof(struct pfsync_subheader) )
 
 struct pfsync_bucket;
+struct pfsync_softc;
 
 struct pfsync_pkt {
 	struct ip *ip;
@@ -170,6 +174,7 @@ static void	pfsync_q_ins(struct pf_kstate *, int, bool);
 static void	pfsync_q_del(struct pf_kstate *, bool, struct pfsync_bucket *);
 
 static void	pfsync_update_state(struct pf_kstate *);
+static void	pfsync_tx(struct pfsync_softc *, struct mbuf *);
 
 struct pfsync_upd_req_item {
 	TAILQ_ENTRY(pfsync_upd_req_item)	ur_entry;
@@ -185,8 +190,6 @@ struct pfsync_deferral {
 	struct pf_kstate		*pd_st;
 	struct mbuf			*pd_m;
 };
-
-struct pfsync_sofct;
 
 struct pfsync_bucket
 {
@@ -1839,7 +1842,7 @@ pfsync_defer_tmo(void *arg)
 		free(pd, M_PFSYNC);
 	PFSYNC_BUCKET_UNLOCK(b);
 
-	ip_output(m, NULL, NULL, 0, NULL, NULL);
+	pfsync_tx(sc, m);
 
 	pf_release_state(st);
 
@@ -2323,6 +2326,55 @@ pfsync_push_all(struct pfsync_softc *sc)
 }
 
 static void
+pfsync_tx(struct pfsync_softc *sc, struct mbuf *m)
+{
+	struct ip *ip;
+	int error, af;
+
+	ip = mtod(m, struct ip *);
+	MPASS(ip->ip_v == IPVERSION || ip->ip_v == (IPV6_VERSION >> 4));
+
+	af = ip->ip_v == IPVERSION ? AF_INET : AF_INET6;
+
+	/*
+	 * We distinguish between a deferral packet and our
+	 * own pfsync packet based on M_SKIP_FIREWALL
+	 * flag. This is XXX.
+	 */
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		if (m->m_flags & M_SKIP_FIREWALL) {
+			error = ip_output(m, NULL, NULL, 0,
+			    NULL, NULL);
+		} else {
+			error = ip_output(m, NULL, NULL,
+			    IP_RAWOUTPUT, &sc->sc_imo, NULL);
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (m->m_flags & M_SKIP_FIREWALL) {
+			error = ip6_output(m, NULL, NULL, 0,
+			    NULL, NULL, NULL);
+		} else {
+			MPASS(false);
+			/* We don't support pfsync over IPv6. */
+			/*error = ip6_output(m, NULL, NULL,
+			    IP_RAWOUTPUT, &sc->sc_imo6, NULL);*/
+		}
+		break;
+#endif
+	}
+
+	if (error == 0)
+		V_pfsyncstats.pfsyncs_opackets++;
+	else
+		V_pfsyncstats.pfsyncs_oerrors++;
+}
+
+static void
 pfsyncintr(void *arg)
 {
 	struct epoch_tracker et;
@@ -2349,18 +2401,7 @@ pfsyncintr(void *arg)
 			n = m->m_nextpkt;
 			m->m_nextpkt = NULL;
 
-			/*
-			 * We distinguish between a deferral packet and our
-			 * own pfsync packet based on M_SKIP_FIREWALL
-			 * flag. This is XXX.
-			 */
-			if (m->m_flags & M_SKIP_FIREWALL)
-				ip_output(m, NULL, NULL, 0, NULL, NULL);
-			else if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo,
-			    NULL) == 0)
-				V_pfsyncstats.pfsyncs_opackets++;
-			else
-				V_pfsyncstats.pfsyncs_oerrors++;
+			pfsync_tx(sc, m);
 		}
 	}
 	CURVNET_RESTORE();
