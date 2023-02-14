@@ -1090,7 +1090,7 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case PIO_KEYMAP:	/* set keyboard translation table */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
-äifdef COMPAT_FREEBSD13
+#ifdef COMPAT_FREEBSD13
 	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 	case OPIO_DEADKEYMAP:	/* set accent key translation table (compat) */
 #endif /* COMPAT_FREEBSD13 */
