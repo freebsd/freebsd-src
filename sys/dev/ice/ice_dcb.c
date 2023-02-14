@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -102,6 +102,9 @@ ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
 
 	if (!ena_update)
 		cmd->command |= ICE_AQ_LLDP_MIB_UPDATE_DIS;
+	else
+		cmd->command |= ICE_AQ_LLDP_MIB_PENDING_ENABLE <<
+				ICE_AQ_LLDP_MIB_PENDING_S;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
@@ -857,9 +860,9 @@ ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_stop_start_specific_agent *cmd;
-	enum ice_status status;
+	enum ice_adminq_opc opcode;
 	struct ice_aq_desc desc;
-	u16 opcode;
+	enum ice_status status;
 
 	cmd = &desc.params.lldp_agent_ctrl;
 
@@ -1106,8 +1109,8 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 		 */
 		if (!err && sync && oper) {
 			dcbcfg->app[app_index].priority =
-				(app_prio & ice_aqc_cee_app_mask) >>
-				ice_aqc_cee_app_shift;
+				(u8)((app_prio & ice_aqc_cee_app_mask) >>
+				     ice_aqc_cee_app_shift);
 			dcbcfg->app[app_index].selector = ice_app_sel_type;
 			dcbcfg->app[app_index].prot_id = ice_app_prot_id_type;
 			app_index++;
@@ -1186,6 +1189,43 @@ enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi)
 	}
 
 	return ret;
+}
+
+/**
+ * ice_get_dcb_cfg_from_mib_change
+ * @pi: port information structure
+ * @event: pointer to the admin queue receive event
+ *
+ * Set DCB configuration from received MIB Change event
+ */
+void ice_get_dcb_cfg_from_mib_change(struct ice_port_info *pi,
+				     struct ice_rq_event_info *event)
+{
+	struct ice_dcbx_cfg *dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
+	struct ice_aqc_lldp_get_mib *mib;
+	u8 change_type, dcbx_mode;
+
+	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
+
+	change_type = mib->type & ICE_AQ_LLDP_MIB_TYPE_M;
+	if (change_type == ICE_AQ_LLDP_MIB_REMOTE)
+		dcbx_cfg = &pi->qos_cfg.remote_dcbx_cfg;
+
+	dcbx_mode = ((mib->type & ICE_AQ_LLDP_DCBX_M) >>
+		     ICE_AQ_LLDP_DCBX_S);
+
+	switch (dcbx_mode) {
+	case ICE_AQ_LLDP_DCBX_IEEE:
+		dcbx_cfg->dcbx_mode = ICE_DCBX_MODE_IEEE;
+		ice_lldp_to_dcb_cfg(event->msg_buf, dcbx_cfg);
+		break;
+
+	case ICE_AQ_LLDP_DCBX_CEE:
+		pi->qos_cfg.desired_dcbx_cfg = pi->qos_cfg.local_dcbx_cfg;
+		ice_cee_to_dcb_cfg((struct ice_aqc_get_cee_dcb_cfg_resp *)
+				   event->msg_buf, pi);
+		break;
+	}
 }
 
 /**
@@ -1597,7 +1637,7 @@ ice_add_dscp_pfc_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	tlv->ouisubtype = HTONL(ouisubtype);
 
 	buf[0] = dcbcfg->pfc.pfccap & 0xF;
-	buf[1] = dcbcfg->pfc.pfcena & 0xF;
+	buf[1] = dcbcfg->pfc.pfcena;
 }
 
 /**

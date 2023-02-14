@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -473,6 +473,8 @@ ice_if_attach_pre(if_ctx_t ctx)
 	/* Setup ControlQ lengths */
 	ice_set_ctrlq_len(hw);
 
+reinit_hw:
+
 	fw_mode = ice_get_fw_mode(hw);
 	if (fw_mode == ICE_FW_MODE_REC) {
 		device_printf(dev, "Firmware recovery mode detected. Limiting functionality. Refer to Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
@@ -507,12 +509,22 @@ ice_if_attach_pre(if_ctx_t ctx)
 		goto free_pci_mapping;
 	}
 
+	ice_init_device_features(sc);
+
 	/* Notify firmware of the device driver version */
 	err = ice_send_version(sc);
 	if (err)
 		goto deinit_hw;
 
-	ice_load_pkg_file(sc);
+	/*
+	 * Success indicates a change was made that requires a reinitialization
+	 * of the hardware
+	 */
+	err = ice_load_pkg_file(sc);
+	if (err == ICE_SUCCESS) {
+		ice_deinit_hw(hw);
+		goto reinit_hw;
+	}
 
 	err = ice_init_link_events(sc);
 	if (err) {
@@ -521,9 +533,19 @@ ice_if_attach_pre(if_ctx_t ctx)
 		goto deinit_hw;
 	}
 
-	ice_print_nvm_version(sc);
+	/* Initialize VLAN mode in FW; if dual VLAN mode is supported by the package
+	 * and firmware, this will force them to use single VLAN mode.
+	 */
+	status = ice_set_vlan_mode(hw);
+	if (status) {
+		err = EIO;
+		device_printf(dev, "Unable to initialize VLAN mode, err %s aq_err %s\n",
+			      ice_status_str(status),
+			      ice_aq_str(hw->adminq.sq_last_status));
+		goto deinit_hw;
+	}
 
-	ice_init_device_features(sc);
+	ice_print_nvm_version(sc);
 
 	/* Setup the MAC address */
 	iflib_set_mac(ctx, hw->port_info->mac.lan_addr);
@@ -971,7 +993,7 @@ ice_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 
 	/* Allocate queue structure memory */
 	if (!(vsi->tx_queues =
-	      (struct ice_tx_queue *) malloc(sizeof(struct ice_tx_queue) * ntxqsets, M_ICE, M_WAITOK | M_ZERO))) {
+	      (struct ice_tx_queue *) malloc(sizeof(struct ice_tx_queue) * ntxqsets, M_ICE, M_NOWAIT | M_ZERO))) {
 		device_printf(sc->dev, "Unable to allocate Tx queue memory\n");
 		return (ENOMEM);
 	}
@@ -979,7 +1001,7 @@ ice_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 	/* Allocate report status arrays */
 	for (i = 0, txq = vsi->tx_queues; i < ntxqsets; i++, txq++) {
 		if (!(txq->tx_rsq =
-		      (uint16_t *) malloc(sizeof(uint16_t) * sc->scctx->isc_ntxd[0], M_ICE, M_WAITOK))) {
+		      (uint16_t *) malloc(sizeof(uint16_t) * sc->scctx->isc_ntxd[0], M_ICE, M_NOWAIT))) {
 			device_printf(sc->dev, "Unable to allocate tx_rsq memory\n");
 			err = ENOMEM;
 			goto free_tx_queues;
@@ -1063,7 +1085,7 @@ ice_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 
 	/* Allocate queue structure memory */
 	if (!(vsi->rx_queues =
-	      (struct ice_rx_queue *) malloc(sizeof(struct ice_rx_queue) * nrxqsets, M_ICE, M_WAITOK | M_ZERO))) {
+	      (struct ice_rx_queue *) malloc(sizeof(struct ice_rx_queue) * nrxqsets, M_ICE, M_NOWAIT | M_ZERO))) {
 		device_printf(sc->dev, "Unable to allocate Rx queue memory\n");
 		return (ENOMEM);
 	}
@@ -2296,7 +2318,7 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	if (hw->port_info)
 		ice_sched_clear_port(hw->port_info);
 
-	ice_shutdown_all_ctrlq(hw);
+	ice_shutdown_all_ctrlq(hw, false);
 }
 
 /**
@@ -2403,6 +2425,7 @@ ice_rebuild(struct ice_softc *sc)
 {
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
+	enum ice_ddp_state pkg_state;
 	enum ice_status status;
 	int err;
 
@@ -2497,10 +2520,9 @@ ice_rebuild(struct ice_softc *sc)
 
 	/* If we previously loaded the package, it needs to be reloaded now */
 	if (!ice_is_bit_set(sc->feat_en, ICE_FEATURE_SAFE_MODE)) {
-		status = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
-		if (status) {
-			ice_log_pkg_init(sc, &status);
-
+		pkg_state = ice_init_pkg(hw, hw->pkg_copy, hw->pkg_size);
+		if (!ice_is_init_pkg_successful(pkg_state)) {
+			ice_log_pkg_init(sc, pkg_state);
 			ice_transition_safe_mode(sc);
 		}
 	}
@@ -2576,7 +2598,8 @@ err_release_queue_allocations:
 err_sched_cleanup:
 	ice_sched_cleanup_all(hw);
 err_shutdown_ctrlq:
-	ice_shutdown_all_ctrlq(hw);
+	ice_shutdown_all_ctrlq(hw, false);
+	ice_clear_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET);
 	ice_set_state(&sc->state, ICE_STATE_RESET_FAILED);
 	device_printf(dev, "Driver rebuild failed, please reload the device driver\n");
 }
@@ -2688,13 +2711,6 @@ ice_handle_pf_reset_request(struct ice_softc *sc)
 static void
 ice_init_device_features(struct ice_softc *sc)
 {
-	/*
-	 * A failed pkg file download triggers safe mode, disabling advanced
-	 * device feature support
-	 */
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_SAFE_MODE))
-		return;
-
 	/* Set capabilities that all devices support */
 	ice_set_bit(ICE_FEATURE_SRIOV, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_RSS, sc->feat_cap);
@@ -2705,12 +2721,16 @@ ice_init_device_features(struct ice_softc *sc)
 	ice_set_bit(ICE_FEATURE_HEALTH_STATUS, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_FW_LOGGING, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_HAS_PBA, sc->feat_cap);
+	ice_set_bit(ICE_FEATURE_DCB, sc->feat_cap);
+	ice_set_bit(ICE_FEATURE_TX_BALANCE, sc->feat_cap);
 
 	/* Disable features due to hardware limitations... */
 	if (!sc->hw.func_caps.common_cap.rss_table_size)
 		ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
 	if (!sc->hw.func_caps.common_cap.iwarp || !ice_enable_irdma)
 		ice_clear_bit(ICE_FEATURE_RDMA, sc->feat_cap);
+	if (!sc->hw.func_caps.common_cap.dcb)
+		ice_clear_bit(ICE_FEATURE_DCB, sc->feat_cap);
 	/* Disable features due to firmware limitations... */
 	if (!ice_is_fw_health_report_supported(&sc->hw))
 		ice_clear_bit(ICE_FEATURE_HEALTH_STATUS, sc->feat_cap);
@@ -2729,6 +2749,10 @@ ice_init_device_features(struct ice_softc *sc)
 	/* RSS is always enabled for iflib */
 	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_RSS))
 		ice_set_bit(ICE_FEATURE_RSS, sc->feat_en);
+
+	/* Disable features based on sysctl settings */
+	if (!ice_tx_balance_en)
+		ice_clear_bit(ICE_FEATURE_TX_BALANCE, sc->feat_cap);
 }
 
 /**
@@ -2992,6 +3016,8 @@ ice_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 	switch (ifd->ifd_cmd) {
 	case ICE_NVM_ACCESS:
 		return ice_handle_nvm_access_ioctl(sc, ifd);
+	case ICE_DEBUG_DUMP:
+		return ice_handle_debug_dump_ioctl(sc, ifd);
 	default:
 		return EINVAL;
 	}

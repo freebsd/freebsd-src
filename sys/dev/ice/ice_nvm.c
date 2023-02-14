@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -406,7 +406,7 @@ ice_read_sr_buf_aq(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 	status = ice_read_flat_nvm(hw, offset * 2, &bytes, (u8 *)data, true);
 
 	/* Report the number of words successfully read */
-	*words = bytes / 2;
+	*words = (u16)(bytes / 2);
 
 	/* Byte swap the words up to the amount we actually read */
 	for (i = 0; i < *words; i++)
@@ -983,7 +983,6 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 		       struct ice_orom_civd_info *civd)
 {
 	struct ice_orom_civd_info tmp;
-	enum ice_status status;
 	u32 offset;
 
 	/* The CIVD section is located in the Option ROM aligned to 512 bytes.
@@ -992,6 +991,7 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 	 * equal 0.
 	 */
 	for (offset = 0; (offset + 512) <= hw->flash.banks.orom_size; offset += 512) {
+		enum ice_status status;
 		u8 sum = 0, i;
 
 		status = ice_read_flash_module(hw, bank, ICE_SR_1ST_OROM_BANK_PTR,
@@ -1726,22 +1726,41 @@ enum ice_status ice_nvm_recalculate_checksum(struct ice_hw *hw)
 /**
  * ice_nvm_write_activate
  * @hw: pointer to the HW struct
- * @cmd_flags: NVM activate admin command bits (banks to be validated)
+ * @cmd_flags: flags for write activate command
+ * @response_flags: response indicators from firmware
  *
  * Update the control word with the required banks' validity bits
  * and dumps the Shadow RAM to flash (0x0707)
+ *
+ * cmd_flags controls which banks to activate, the preservation level to use
+ * when activating the NVM bank, and whether an EMP reset is required for
+ * activation.
+ *
+ * Note that the 16bit cmd_flags value is split between two separate 1 byte
+ * flag values in the descriptor.
+ *
+ * On successful return of the firmware command, the response_flags variable
+ * is updated with the flags reported by firmware indicating certain status,
+ * such as whether EMP reset is enabled.
  */
-enum ice_status ice_nvm_write_activate(struct ice_hw *hw, u8 cmd_flags)
+enum ice_status
+ice_nvm_write_activate(struct ice_hw *hw, u16 cmd_flags, u8 *response_flags)
 {
 	struct ice_aqc_nvm *cmd;
 	struct ice_aq_desc desc;
+	enum ice_status status;
 
 	cmd = &desc.params.nvm;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write_activate);
 
-	cmd->cmd_flags = cmd_flags;
+	cmd->cmd_flags = ICE_LO_BYTE(cmd_flags);
+	cmd->offset_high = ICE_HI_BYTE(cmd_flags);
 
-	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+	if (!status && response_flags)
+		*response_flags = cmd->cmd_flags;
+
+	return status;
 }
 
 /**
@@ -1847,12 +1866,12 @@ ice_update_nvm_minsrevs(struct ice_hw *hw, struct ice_minsrev_info *minsrevs)
 
 	/* Update flash data */
 	status = ice_aq_update_nvm(hw, ICE_AQC_NVM_MINSREV_MOD_ID, 0, sizeof(data), &data,
-				   true, ICE_AQC_NVM_SPECIAL_UPDATE, NULL);
+				   false, ICE_AQC_NVM_SPECIAL_UPDATE, NULL);
 	if (status)
 		goto exit_release_res;
 
 	/* Dump the Shadow RAM to the flash */
-	status = ice_nvm_write_activate(hw, 0);
+	status = ice_nvm_write_activate(hw, 0, NULL);
 
 exit_release_res:
 	ice_release_nvm(hw);
