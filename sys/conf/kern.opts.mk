@@ -78,12 +78,6 @@ __DEFAULT_NO_OPTIONS = \
 BROKEN_OPTIONS+= INIT_ALL_ZERO
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm"
-. if ${MACHINE_ARCH:Marmv[67]*} == ""
-BROKEN_OPTIONS+= CDDL ZFS
-. endif
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} == "powerpc"
 BROKEN_OPTIONS+= ZFS
 .endif
