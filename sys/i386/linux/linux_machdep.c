@@ -29,11 +29,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_posix.h"
+
 #include <sys/param.h>
-#include <sys/capsicum.h>
 #include <sys/imgact_aout.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -41,32 +41,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
-#include <sys/sched.h>
-#include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/wait.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <machine/frame.h>
+#include <machine/pcb.h>			/* needed for pcb definition in linux_set_thread_area */
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/sysarch.h>
 
 #include <vm/pmap.h>
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
@@ -82,9 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
-#include <i386/include/pcb.h>			/* needed for pcb definition in linux_set_thread_area */
-
-#include "opt_posix.h"
 
 struct l_descriptor {
 	l_uint		entry_number;
