@@ -327,52 +327,39 @@ again:
 }
 
 /*
- * ipfw processing for ethernet packets (in and out).
+ * ipfw processing for ethernet packets (in and out), mbuf version.
  */
 static pfil_return_t
-ipfw_check_frame(pfil_packet_t p, struct ifnet *ifp, int flags,
+ipfw_check_frame_mbuf(struct mbuf **m0, struct ifnet *ifp, const int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
-	struct ip_fw_args args;
+	struct ip_fw_args args = {
+		.flags = IPFW_ARGS_ETHER |
+		    ((flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT),
+		.ifp = ifp,
+		.inp = inp,
+	};
+	struct m_tag *mtag;
 	pfil_return_t ret;
-	bool mem, realloc;
 	int ipfw;
 
-	if (flags & PFIL_MEMPTR) {
-		mem = true;
-		realloc = false;
-		args.flags = PFIL_LENGTH(flags) | IPFW_ARGS_ETHER;
-		args.mem = p.mem;
-	} else {
-		mem = realloc = false;
-		args.flags = IPFW_ARGS_ETHER;
-	}
-	args.flags |= (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
-	args.ifp = ifp;
-	args.inp = inp;
-
 again:
-	if (!mem) {
-		/*
-		 * Fetch start point from rule, if any.
-		 * Remove the tag if present.
-		 */
-		struct m_tag *mtag;
-
-		mtag = m_tag_locate(*p.m, MTAG_IPFW_RULE, 0, NULL);
-		if (mtag != NULL) {
-			args.rule = *((struct ipfw_rule_ref *)(mtag+1));
-			m_tag_delete(*p.m, mtag);
-			if (args.rule.info & IPFW_ONEPASS)
-				return (PFIL_PASS);
-			args.flags |= IPFW_ARGS_REF;
-		}
-		args.m = *p.m;
+	/*
+	 * Fetch start point from rule, if any.
+	 * Remove the tag if present.
+	 */
+	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
+	if (mtag != NULL) {
+		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
+		m_tag_delete(*m0, mtag);
+		if (args.rule.info & IPFW_ONEPASS)
+			return (PFIL_PASS);
+		args.flags |= IPFW_ARGS_REF;
 	}
+	args.m = *m0,
 
 	ipfw = ipfw_chk(&args);
-	if (!mem)
-		*p.m = args.m;
+	*m0 = args.m;
 
 	ret = PFIL_PASS;
 	switch (ipfw) {
@@ -388,16 +375,8 @@ again:
 			ret = PFIL_DROPPED;
 			break;
 		}
-		if (mem) {
-			if (pfil_realloc(&p, flags, ifp) != 0) {
-				ret = PFIL_DROPPED;
-				break;
-			}
-			mem = false;
-			realloc = true;
-		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ip_dn_io_ptr(p.m, &args);
+		ip_dn_io_ptr(m0, &args);
 		return (PFIL_CONSUMED);
 
 	case IP_FW_NGTEE:
@@ -406,16 +385,8 @@ again:
 			ret = PFIL_DROPPED;
 			break;
 		}
-		if (mem) {
-			if (pfil_realloc(&p, flags, ifp) != 0) {
-				ret = PFIL_DROPPED;
-				break;
-			}
-			mem = false;
-			realloc = true;
-		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ng_ipfw_input_p(p.m, &args, ipfw == IP_FW_NGTEE);
+		(void )ng_ipfw_input_p(m0, &args, ipfw == IP_FW_NGTEE);
 		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
 		ret = PFIL_CONSUMED;
@@ -425,13 +396,82 @@ again:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
 
-	if (!mem && ret != PFIL_PASS) {
-		if (*p.m)
-			FREE_PKT(*p.m);
-		*p.m = NULL;
+	if (ret != PFIL_PASS) {
+		if (*m0)
+			FREE_PKT(*m0);
+		*m0 = NULL;
 	}
 
-	if (realloc && ret == PFIL_PASS)
+	return (ret);
+}
+
+/*
+ * ipfw processing for ethernet packets (in and out), memory pointer version,
+ * two in/out accessors.
+ */
+static pfil_return_t
+ipfw_check_frame_mem(void *mem, u_int len, int flags, struct ifnet *ifp,
+    void *ruleset __unused, struct mbuf **m)
+{
+	struct ip_fw_args args = {
+		.flags = len | IPFW_ARGS_ETHER |
+		    ((flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT),
+		.ifp = ifp,
+		.mem = mem,
+	};
+	pfil_return_t ret;
+	int ipfw;
+
+	*m = NULL;
+again:
+	ipfw = ipfw_chk(&args);
+
+	ret = PFIL_PASS;
+	switch (ipfw) {
+	case IP_FW_PASS:
+		break;
+
+	case IP_FW_DENY:
+		ret = PFIL_DROPPED;
+		break;
+
+	case IP_FW_DUMMYNET:
+		if (ip_dn_io_ptr == NULL) {
+			ret = PFIL_DROPPED;
+			break;
+		}
+		*m = m_devget(mem, len, 0, ifp, NULL);
+		if (*m == NULL) {
+			ret = PFIL_DROPPED;
+			break;
+		}
+		MPASS(args.flags & IPFW_ARGS_REF);
+		ip_dn_io_ptr(m, &args);
+		return (PFIL_CONSUMED);
+
+	case IP_FW_NGTEE:
+	case IP_FW_NETGRAPH:
+		if (ng_ipfw_input_p == NULL) {
+			ret = PFIL_DROPPED;
+			break;
+		}
+		*m = m_devget(mem, len, 0, ifp, NULL);
+		if (*m == NULL) {
+			ret = PFIL_DROPPED;
+			break;
+		}
+		MPASS(args.flags & IPFW_ARGS_REF);
+		(void )ng_ipfw_input_p(m, &args, ipfw == IP_FW_NGTEE);
+		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
+			goto again;	/* continue with packet */
+		ret = PFIL_CONSUMED;
+		break;
+
+	default:
+		KASSERT(0, ("%s: unknown retval", __func__));
+	}
+
+	if (*m != NULL && ret == PFIL_PASS)
 		ret = PFIL_REALLOCED;
 
 	return (ret);
@@ -543,34 +583,33 @@ VNET_DEFINE_STATIC(pfil_hook_t, ipfw_link_hook);
 static void
 ipfw_hook(int pf)
 {
-	struct pfil_hook_args pha;
+	struct pfil_hook_args pha = {
+		.pa_version = PFIL_VERSION,
+		.pa_flags = PFIL_IN | PFIL_OUT,
+		.pa_modname = "ipfw",
+	};
 	pfil_hook_t *h;
-
-	pha.pa_version = PFIL_VERSION;
-	pha.pa_flags = PFIL_IN | PFIL_OUT;
-	pha.pa_modname = "ipfw";
-	pha.pa_ruleset = NULL;
 
 	switch (pf) {
 	case AF_INET:
-		pha.pa_func = ipfw_check_packet;
+		pha.pa_mbuf_chk = ipfw_check_packet;
 		pha.pa_type = PFIL_TYPE_IP4;
 		pha.pa_rulname = "default";
 		h = &V_ipfw_inet_hook;
 		break;
 #ifdef INET6
 	case AF_INET6:
-		pha.pa_func = ipfw_check_packet;
+		pha.pa_mbuf_chk = ipfw_check_packet;
 		pha.pa_type = PFIL_TYPE_IP6;
 		pha.pa_rulname = "default6";
 		h = &V_ipfw_inet6_hook;
 		break;
 #endif
 	case AF_LINK:
-		pha.pa_func = ipfw_check_frame;
+		pha.pa_mbuf_chk = ipfw_check_frame_mbuf;
+		pha.pa_mem_chk = ipfw_check_frame_mem;
 		pha.pa_type = PFIL_TYPE_ETHERNET;
 		pha.pa_rulname = "default-link";
-		pha.pa_flags |= PFIL_MEMPTR;
 		h = &V_ipfw_link_hook;
 		break;
 	}

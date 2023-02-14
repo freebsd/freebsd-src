@@ -2732,8 +2732,7 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 		payload  = *sd->ifsd_cl;
 		payload +=  ri->iri_pad;
 		len = ri->iri_len - ri->iri_pad;
-		*pf_rv = pfil_run_hooks(rxq->pfil, payload, ri->iri_ifp,
-		    len | PFIL_MEMPTR | PFIL_IN, NULL);
+		*pf_rv = pfil_mem_in(rxq->pfil, payload, len, ri->iri_ifp, &m);
 		switch (*pf_rv) {
 		case PFIL_DROPPED:
 		case PFIL_CONSUMED:
@@ -2746,8 +2745,8 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 		case PFIL_REALLOCED:
 			/*
 			 * The filter copied it.  Everything is recycled.
+			 * 'm' points at new mbuf.
 			 */
-			m = pfil_mem2mbuf(payload);
 			unload = 0;
 			break;
 		case PFIL_PASS:

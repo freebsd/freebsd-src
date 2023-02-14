@@ -82,40 +82,15 @@ struct pfilioc_link {
 #define	PFIL_OUT	0x00020000
 /* UNUSED		0x00040000 */
 #define	PFIL_DIR(f)	((f) & (PFIL_IN|PFIL_OUT))
-#define	PFIL_MEMPTR	0x00080000
 #define	PFIL_HEADPTR	0x00100000
 #define	PFIL_HOOKPTR	0x00200000
 #define	PFIL_APPEND	0x00400000
 #define	PFIL_UNLINK	0x00800000
-#define	PFIL_LENMASK	0x0000ffff
-#define	PFIL_LENGTH(f)	((f) & PFIL_LENMASK)
 
 #ifdef _KERNEL
 struct mbuf;
 struct ifnet;
 struct inpcb;
-
-typedef union {
-	struct mbuf	**m;
-	void		*mem;
-	uintptr_t	__ui;
-} pfil_packet_t __attribute__((__transparent_union__));
-
-static inline pfil_packet_t
-pfil_packet_align(pfil_packet_t p)
-{
-
-	return ((pfil_packet_t ) (((uintptr_t)(p).mem +
-	    (_Alignof(void *) - 1)) & - _Alignof(void *)));
-}
-
-static inline struct mbuf *
-pfil_mem2mbuf(void *v)
-{
-
-	return (*(struct mbuf **) (((uintptr_t)(v) +
-	    (_Alignof(void *) - 1)) & - _Alignof(void *)));
-}
 
 typedef enum {
 	PFIL_PASS = 0,
@@ -124,8 +99,11 @@ typedef enum {
 	PFIL_REALLOCED,
 } pfil_return_t;
 
-typedef	pfil_return_t	(*pfil_func_t)(pfil_packet_t, struct ifnet *, int,
+typedef	pfil_return_t	(*pfil_mbuf_chk_t)(struct mbuf **, struct ifnet *, int,
 			    void *, struct inpcb *);
+typedef pfil_return_t	(*pfil_mem_chk_t)(void *, u_int, int, struct ifnet *,
+			    void *, struct mbuf **);
+
 /*
  * A pfil head is created by a packet intercept point.
  *
@@ -142,14 +120,15 @@ typedef struct pfil_head *	pfil_head_t;
 /*
  * Give us a chance to modify pfil_xxx_args structures in future.
  */
-#define	PFIL_VERSION	1
+#define	PFIL_VERSION	2
 
 /* Argument structure used by packet filters to register themselves. */
 struct pfil_hook_args {
 	int		 pa_version;
 	int		 pa_flags;
 	enum pfil_types	 pa_type;
-	pfil_func_t	 pa_func;
+	pfil_mbuf_chk_t	 pa_mbuf_chk;
+	pfil_mem_chk_t	 pa_mem_chk;
 	void		*pa_ruleset;
 	const char	*pa_modname;
 	const char	*pa_rulname;
@@ -192,12 +171,15 @@ pfil_head_t	pfil_head_register(struct pfil_head_args *);
 void		pfil_head_unregister(pfil_head_t);
 
 /* Public functions to run the packet inspection by inspection points. */
-int	pfil_run_hooks(struct pfil_head *, pfil_packet_t, struct ifnet *, int,
+int	pfil_mem_in(struct pfil_head *, void *, u_int, struct ifnet *,
+    struct mbuf **);
+int	pfil_mem_out(struct pfil_head *, void *, u_int, struct ifnet *,
+    struct mbuf **);
+int	pfil_mbuf_in(struct pfil_head *, struct mbuf **, struct ifnet *,
     struct inpcb *inp);
-int	pfil_mbuf_in(struct pfil_head *, pfil_packet_t, struct ifnet *,
+int	pfil_mbuf_out(struct pfil_head *, struct mbuf **, struct ifnet *,
     struct inpcb *inp);
-int	pfil_mbuf_out(struct pfil_head *, pfil_packet_t, struct ifnet *,
-    struct inpcb *inp);
+
 /*
  * Minimally exposed structure to avoid function call in case of absence
  * of any filters by protocols and macros to do the check.
@@ -208,11 +190,6 @@ struct _pfil_head {
 };
 #define	PFIL_HOOKED_IN(p) (((struct _pfil_head *)(p))->head_nhooksin > 0)
 #define	PFIL_HOOKED_OUT(p) (((struct _pfil_head *)(p))->head_nhooksout > 0)
-
-/*
- * Alloc mbuf to be used instead of memory pointer.
- */
-int	pfil_realloc(pfil_packet_t *, int, struct ifnet *);
 
 #endif /* _KERNEL */
 #endif /* _NET_PFIL_H_ */
