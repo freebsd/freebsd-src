@@ -94,7 +94,7 @@
 #undef __FreeBSD_kernel__
 #define __FreeBSD_kernel__
 
-#if defined(_KERNEL) || defined(IN_RTLD)
+#if defined(_KERNEL) || defined(_WANT_P_OSREL)
 #define	P_OSREL_SIGWAIT			700000
 #define	P_OSREL_SIGSEGV			700004
 #define	P_OSREL_MAP_ANON		800104
