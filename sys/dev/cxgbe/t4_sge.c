@@ -1998,8 +1998,7 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
 		    sc->params.sge.fl_pktshift;
 		frame = sd->cl + fl->rx_offset + sc->params.sge.fl_pktshift;
 		CURVNET_SET_QUIET(ifp->if_vnet);
-		rc = pfil_run_hooks(vi->pfil, frame, ifp,
-		    slen | PFIL_MEMPTR | PFIL_IN, NULL);
+		rc = pfil_mem_in(vi->pfil, frame, slen, ifp, &m0);
 		CURVNET_RESTORE();
 		if (rc == PFIL_DROPPED || rc == PFIL_CONSUMED) {
 			skip_fl_payload(sc, fl, plen);
@@ -2007,7 +2006,6 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
 		}
 		if (rc == PFIL_REALLOCED) {
 			skip_fl_payload(sc, fl, plen);
-			m0 = pfil_mem2mbuf(frame);
 			goto have_mbuf;
 		}
 	}

@@ -536,9 +536,8 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 		}
 		if (pfil != NULL && PFIL_HOOKED_IN(pfil)) {
 			seglen = MIN(byte_cnt, MLX5E_MAX_RX_BYTES);
-			rv = pfil_run_hooks(rq->channel->priv->pfil,
-			    rq->mbuf[wqe_counter].data, rq->ifp,
-			    seglen | PFIL_MEMPTR | PFIL_IN, NULL);
+			rv = pfil_mem_in(rq->channel->priv->pfil,
+			    rq->mbuf[wqe_counter].data, seglen, rq->ifp, &mb);
 
 			switch (rv) {
 			case PFIL_DROPPED:
@@ -556,7 +555,6 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 				 * and receive the new mbuf allocated
 				 * by the Filter
 				 */
-				mb = pfil_mem2mbuf(rq->mbuf[wqe_counter].data);
 				goto rx_common;
 			default:
 				/*

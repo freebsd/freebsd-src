@@ -70,7 +70,8 @@ MTX_SYSINIT(pfil_mtxinit, &pfil_lock, "pfil(9) lock", MTX_DEF);
 #define	PFIL_LOCK_ASSERT()	mtx_assert(&pfil_lock, MA_OWNED)
 
 struct pfil_hook {
-	pfil_func_t	 hook_func;
+	pfil_mbuf_chk_t	 hook_mbuf_chk;
+	pfil_mem_chk_t	 hook_mem_chk;
 	void		*hook_ruleset;
 	int		 hook_flags;
 	int		 hook_links;
@@ -82,7 +83,8 @@ struct pfil_hook {
 
 struct pfil_link {
 	CK_STAILQ_ENTRY(pfil_link) link_chain;
-	pfil_func_t		 link_func;
+	pfil_mbuf_chk_t		 link_mbuf_chk;
+	pfil_mem_chk_t		 link_mem_chk;
 	void			*link_ruleset;
 	int			 link_flags;
 	struct pfil_hook	*link_hook;
@@ -114,92 +116,86 @@ VNET_DEFINE_STATIC(struct pfilhookhead, pfil_hook_list) =
 static struct pfil_link *pfil_link_remove(pfil_chain_t *, pfil_hook_t );
 static void pfil_link_free(epoch_context_t);
 
-int
-pfil_realloc(pfil_packet_t *p, int flags, struct ifnet *ifp)
-{
-	struct mbuf *m;
-
-	MPASS(flags & PFIL_MEMPTR);
-
-	if ((m = m_devget(p->mem, PFIL_LENGTH(flags), 0, ifp, NULL)) == NULL)
-		return (ENOMEM);
-	*p = pfil_packet_align(*p);
-	*p->m = m;
-
-	return (0);
-}
-
+/*
+ * To couple a filtering point that provides memory pointer with a filter that
+ * works on mbufs only.
+ */
 static __noinline int
-pfil_fake_mbuf(pfil_func_t func, pfil_packet_t *p, struct ifnet *ifp, int flags,
-    void *ruleset, struct inpcb *inp)
+pfil_fake_mbuf(pfil_mbuf_chk_t func, void *mem, u_int len, struct ifnet *ifp,
+    int flags, void *ruleset, struct mbuf **mp)
 {
-	struct mbuf m, *mp;
+	struct mbuf m;
 	pfil_return_t rv;
 
 	(void)m_init(&m, M_NOWAIT, MT_DATA, M_NOFREE | M_PKTHDR);
-	m_extadd(&m, p->mem, PFIL_LENGTH(flags), NULL, NULL, NULL, 0,
-	    EXT_RXRING);
-	m.m_len = m.m_pkthdr.len = PFIL_LENGTH(flags);
-	mp = &m;
-	flags &= ~(PFIL_MEMPTR | PFIL_LENMASK);
+	m_extadd(&m, mem, len, NULL, NULL, NULL, 0, EXT_RXRING);
+	m.m_len = m.m_pkthdr.len = len;
+	*mp = &m;
 
-	rv = func(&mp, ifp, flags, ruleset, inp);
-	if (rv == PFIL_PASS && mp != &m) {
+	rv = func(mp, ifp, flags, ruleset, NULL);
+	if (rv == PFIL_PASS && *mp != &m) {
 		/*
 		 * Firewalls that need pfil_fake_mbuf() most likely don't
 		 * know they need return PFIL_REALLOCED.
 		 */
 		rv = PFIL_REALLOCED;
-		*p = pfil_packet_align(*p);
-		*p->m = mp;
 	}
 
 	return (rv);
 }
 
-/*
- * pfil_run_hooks() runs the specified packet filter hook chain.
- */
-int
-pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
-    int flags, struct inpcb *inp)
+static __always_inline int
+pfil_mem_common(pfil_chain_t *pch, void *mem, u_int len, int flags,
+    struct ifnet *ifp, struct mbuf **m)
 {
-	pfil_chain_t *pch;
 	struct pfil_link *link;
 	pfil_return_t rv;
 	bool realloc = false;
 
 	NET_EPOCH_ASSERT();
-
-	if (PFIL_DIR(flags) == PFIL_IN)
-		pch = &head->head_in;
-	else if (__predict_true(PFIL_DIR(flags) == PFIL_OUT))
-		pch = &head->head_out;
-	else
-		panic("%s: bogus flags %d", __func__, flags);
+	KASSERT(flags == PFIL_IN || flags == PFIL_OUT,
+	    ("%s: unsupported flags %d", __func__, flags));
 
 	rv = PFIL_PASS;
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
-		if ((flags & PFIL_MEMPTR) && !(link->link_flags & PFIL_MEMPTR))
-			rv = pfil_fake_mbuf(link->link_func, &p, ifp, flags,
-			    link->link_ruleset, inp);
+		if (__predict_true(link->link_mem_chk != NULL && !realloc))
+			rv = link->link_mem_chk(mem, len, flags, ifp,
+			    link->link_ruleset, m);
+		else if (!realloc)
+			rv = pfil_fake_mbuf(link->link_mbuf_chk, mem, len, ifp,
+			    flags, link->link_ruleset, m);
 		else
-			rv = (*link->link_func)(p, ifp, flags,
-			    link->link_ruleset, inp);
+			rv = link->link_mbuf_chk(m, ifp, flags,
+			    link->link_ruleset, NULL);
+
 		if (rv == PFIL_DROPPED || rv == PFIL_CONSUMED)
 			break;
-		else if (rv == PFIL_REALLOCED) {
-			flags &= ~(PFIL_MEMPTR | PFIL_LENMASK);
+		else if (rv == PFIL_REALLOCED)
 			realloc = true;
-		}
 	}
 	if (realloc && rv == PFIL_PASS)
 		rv = PFIL_REALLOCED;
 	return (rv);
 }
 
+int
+pfil_mem_in(struct pfil_head *head, void *mem, u_int len, struct ifnet *ifp,
+    struct mbuf **m)
+{
+
+	return (pfil_mem_common(&head->head_in, mem, len, PFIL_IN, ifp, m));
+}
+
+int
+pfil_mem_out(struct pfil_head *head, void *mem, u_int len, struct ifnet *ifp,
+    struct mbuf **m)
+{
+
+	return (pfil_mem_common(&head->head_out, mem, len, PFIL_OUT, ifp, m));
+}
+
 static __always_inline int
-pfil_mbuf_common(pfil_chain_t *pch, pfil_packet_t p, struct ifnet *ifp,
+pfil_mbuf_common(pfil_chain_t *pch, struct mbuf **m, struct ifnet *ifp,
     int flags, struct inpcb *inp)
 {
 	struct pfil_link *link;
@@ -211,7 +207,8 @@ pfil_mbuf_common(pfil_chain_t *pch, pfil_packet_t p, struct ifnet *ifp,
 
 	rv = PFIL_PASS;
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
-		rv = (*link->link_func)(p, ifp, flags, link->link_ruleset, inp);
+		rv = link->link_mbuf_chk(m, ifp, flags, link->link_ruleset,
+		    inp);
 		if (rv == PFIL_DROPPED || rv == PFIL_CONSUMED)
 			break;
 	}
@@ -219,19 +216,19 @@ pfil_mbuf_common(pfil_chain_t *pch, pfil_packet_t p, struct ifnet *ifp,
 }
 
 int
-pfil_mbuf_in(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
+pfil_mbuf_in(struct pfil_head *head, struct mbuf **m, struct ifnet *ifp,
    struct inpcb *inp)
 {
 
-	return (pfil_mbuf_common(&head->head_in, p, ifp, PFIL_IN, inp));
+	return (pfil_mbuf_common(&head->head_in, m, ifp, PFIL_IN, inp));
 }
 
 int
-pfil_mbuf_out(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
+pfil_mbuf_out(struct pfil_head *head, struct mbuf **m, struct ifnet *ifp,
     struct inpcb *inp)
 {
 
-	return (pfil_mbuf_common(&head->head_out, p, ifp, PFIL_OUT, inp));
+	return (pfil_mbuf_common(&head->head_out, m, ifp, PFIL_OUT, inp));
 }
 
 /*
@@ -298,7 +295,8 @@ pfil_add_hook(struct pfil_hook_args *pa)
 	MPASS(pa->pa_version == PFIL_VERSION);
 
 	hook = malloc(sizeof(struct pfil_hook), M_PFIL, M_WAITOK | M_ZERO);
-	hook->hook_func = pa->pa_func;
+	hook->hook_mbuf_chk = pa->pa_mbuf_chk;
+	hook->hook_mem_chk = pa->pa_mem_chk;
 	hook->hook_ruleset = pa->pa_ruleset;
 	hook->hook_flags = pa->pa_flags;
 	hook->hook_type = pa->pa_type;
@@ -416,7 +414,8 @@ pfil_link(struct pfil_link_args *pa)
 
 	if (pa->pa_flags & PFIL_IN) {
 		in->link_hook = hook;
-		in->link_func = hook->hook_func;
+		in->link_mbuf_chk = hook->hook_mbuf_chk;
+		in->link_mem_chk = hook->hook_mem_chk;
 		in->link_flags = hook->hook_flags;
 		in->link_ruleset = hook->hook_ruleset;
 		if (pa->pa_flags & PFIL_APPEND)
@@ -428,7 +427,8 @@ pfil_link(struct pfil_link_args *pa)
 	}
 	if (pa->pa_flags & PFIL_OUT) {
 		out->link_hook = hook;
-		out->link_func = hook->hook_func;
+		out->link_mbuf_chk = hook->hook_mbuf_chk;
+		out->link_mem_chk = hook->hook_mem_chk;
 		out->link_flags = hook->hook_flags;
 		out->link_ruleset = hook->hook_ruleset;
 		if (pa->pa_flags & PFIL_APPEND)
