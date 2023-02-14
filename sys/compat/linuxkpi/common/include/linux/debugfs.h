@@ -52,6 +52,13 @@ struct debugfs_blob_wrapper {
 	size_t			size;
 };
 
+static inline bool
+debugfs_initialized(void)
+{
+
+	return (true);
+}
+
 struct dentry *debugfs_create_file(const char *name, umode_t mode,
     struct dentry *parent, void *data,
     const struct file_operations *fops);
