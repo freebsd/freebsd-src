@@ -1401,6 +1401,10 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
+	if (__predict_false((so->so_state &
+	    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
+		return (EISCONN);
+
 	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in_pcbconnect(inp, sin, td->td_ucred, true);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
@@ -1433,10 +1437,15 @@ static int
 tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 {
 	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
 	int error;
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
+
+	if (__predict_false((so->so_state &
+	    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
+		return (EISCONN);
 
 	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
@@ -1449,7 +1458,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
 		tp->request_r_scale++;
 
-	soisconnecting(inp->inp_socket);
+	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
 	tcp_state_change(tp, TCPS_SYN_SENT);
 	tp->iss = tcp_new_isn(&inp->inp_inc);

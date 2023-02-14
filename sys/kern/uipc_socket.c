@@ -1345,10 +1345,14 @@ soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
+
 	/*
 	 * If protocol is connection-based, can only connect once.
 	 * Otherwise, if connected, try to disconnect first.  This allows
 	 * user to disconnect by connecting to, e.g., a null address.
+	 *
+	 * Note, this check is racy and may need to be re-evaluated at the
+	 * protocol layer.
 	 */
 	if (so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING) &&
 	    ((so->so_proto->pr_flags & PR_CONNREQUIRED) ||
