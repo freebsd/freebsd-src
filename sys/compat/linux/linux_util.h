@@ -36,7 +36,6 @@
 #ifndef	_LINUX_UTIL_H_
 #define	_LINUX_UTIL_H_
 
-#include <sys/sysent.h>
 #include <sys/uio.h>
 
 MALLOC_DECLARE(M_LINUX);
