@@ -31,8 +31,6 @@
 #ifndef _LINUX_MISC_H_
 #define	_LINUX_MISC_H_
 
-#include <sys/sysctl.h>
-
 #define	LINUX_MAX_PID_NS_LEVEL	32
 
 				/* bits per mask */
