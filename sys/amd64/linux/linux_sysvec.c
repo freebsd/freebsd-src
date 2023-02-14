@@ -37,9 +37,7 @@ __FBSDID("$FreeBSD$");
 #define	__ELF_WORD_SIZE	64
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/exec.h>
-#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
@@ -49,23 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/resourcevar.h>
 #include <sys/stddef.h>
-#include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
-#include <sys/sysproto.h>
-#include <sys/vnode.h>
-#include <sys/eventhandler.h>
 
-#include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_extern.h>
+#include <vm/vm.h>
 #include <vm/vm_map.h>
-#include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>

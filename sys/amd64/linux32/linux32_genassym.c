@@ -2,9 +2,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/assym.h>
 #include <sys/resource.h>
-#include <sys/systm.h>
 
 #include <amd64/linux32/linux.h>
 #include <compat/linux/linux_mib.h>
