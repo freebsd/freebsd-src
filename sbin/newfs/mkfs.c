@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	IN_RTLD			/* So we pickup the P_OSREL defines */
+#define _WANT_P_OSREL
 #include <sys/param.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>

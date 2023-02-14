@@ -33,9 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	IN_RTLD	1
+#define _WANT_P_OSREL
 #include <sys/param.h>
-#undef IN_RTLD
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>

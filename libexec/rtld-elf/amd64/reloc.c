@@ -33,6 +33,7 @@
  * John Polstra <jdp@polstra.com>.
  */
 
+#define _WANT_P_OSREL
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <machine/cpufunc.h>
