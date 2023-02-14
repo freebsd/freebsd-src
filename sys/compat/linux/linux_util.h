@@ -36,8 +36,6 @@
 #ifndef	_LINUX_UTIL_H_
 #define	_LINUX_UTIL_H_
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <sys/sysent.h>
 #include <sys/uio.h>
 
