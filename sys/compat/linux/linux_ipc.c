@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
