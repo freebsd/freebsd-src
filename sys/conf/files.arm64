@@ -167,6 +167,7 @@ dev/cpufreq/cpufreq_dt.c			optional cpufreq fdt
 dev/dpaa2/dpaa2_bp.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_cmd_if.m			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_con.c				optional soc_nxp_ls dpaa2
+dev/dpaa2/dpaa2_console.c			optional soc_nxp_ls dpaa2 fdt
 dev/dpaa2/dpaa2_io.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_mac.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_mc.c				optional soc_nxp_ls dpaa2

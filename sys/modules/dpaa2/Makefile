@@ -17,6 +17,8 @@ SRCS+=	dpaa2_swp_if.c dpaa2_swp_if.h
 SRCS+=	dpaa2_mc_if.c dpaa2_mc_if.h
 SRCS+=	memac_mdio_common.c memac_mdio_if.c memac_mdio_if.h
 
+SRCS+=	dpaa2_console.c
+
 SRCS+=	bus_if.h device_if.h miibus_if.h
 SRCS+=	pcib_if.h pci_if.h
 SRCS+=	opt_acpi.h opt_platform.h
