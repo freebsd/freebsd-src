@@ -474,8 +474,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 		return (0);
 
 	if (PFIL_HOOKED_OUT(V_link_pfil_head))
-		switch (pfil_run_hooks(V_link_pfil_head, &m, ifp, PFIL_OUT,
-		    NULL)) {
+		switch (pfil_mbuf_out(V_link_pfil_head, &m, ifp, NULL)) {
 		case PFIL_DROPPED:
 			return (EACCES);
 		case PFIL_CONSUMED:
@@ -853,7 +852,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 
 	/* Do not grab PROMISC frames in case we are re-entered. */
 	if (PFIL_HOOKED_IN(V_link_pfil_head) && !(m->m_flags & M_PROMISC)) {
-		i = pfil_run_hooks(V_link_pfil_head, &m, ifp, PFIL_IN, NULL);
+		i = pfil_mbuf_in(V_link_pfil_head, &m, ifp, NULL);
 		if (i != 0 || m == NULL)
 			return;
 	}
