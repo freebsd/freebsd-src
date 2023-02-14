@@ -198,12 +198,7 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xprt->xp_uid;
 		crsetgroups(cr, xprt->xp_ngrps, xprt->xp_gidp);
 		cr->cr_rgid = cr->cr_svgid = xprt->xp_gidp[0];
-#ifdef VNET_NFSD
-		if (jailed(curthread->td_ucred))
-			cr->cr_prison = curthread->td_ucred->cr_prison;
-		else
-#endif
-			cr->cr_prison = &prison0;
+		cr->cr_prison = curthread->td_ucred->cr_prison;
 		prison_hold(cr->cr_prison);
 		*crp = cr;
 		return (TRUE);
@@ -216,12 +211,7 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xcr->cr_uid;
 		crsetgroups(cr, xcr->cr_ngroups, xcr->cr_groups);
 		cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
-#ifdef VNET_NFSD
-		if (jailed(curthread->td_ucred))
-			cr->cr_prison = curthread->td_ucred->cr_prison;
-		else
-#endif
-			cr->cr_prison = &prison0;
+		cr->cr_prison = curthread->td_ucred->cr_prison;
 		prison_hold(cr->cr_prison);
 		*crp = cr;
 		return (TRUE);
