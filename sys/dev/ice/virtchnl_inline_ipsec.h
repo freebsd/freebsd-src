@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -478,6 +478,15 @@ struct virtchnl_ipsec_sp_cfg {
 
 	/* Set TC (congestion domain) if true. For future use. */
 	u8 set_tc;
+
+	/* 0 for NAT-T unsupported, 1 for NAT-T supported */
+	u8 is_udp;
+
+	/* reserved */
+	u8 reserved;
+
+	/* NAT-T UDP port number. Only valid in case NAT-T supported */
+	u16 udp_port;
 };
 
 #pragma pack(1)

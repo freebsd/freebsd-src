@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,17 @@ bool ice_enable_tx_lldp_filter = true;
 bool ice_enable_health_events = true;
 
 /**
+ * @var ice_tx_balance_en
+ * @brief boolean permitting the 5-layer scheduler topology enablement
+ *
+ * Global sysctl variable indicating whether the driver will allow the
+ * 5-layer scheduler topology feature to be enabled. It's _not_
+ * specifically enabling the feature, just allowing it depending on what
+ * the DDP package allows.
+ */
+bool ice_tx_balance_en = true;
+
+/**
  * @var ice_rdma_max_msix
  * @brief maximum number of MSI-X vectors to reserve for RDMA interface
  *
@@ -136,5 +147,9 @@ SYSCTL_BOOL(_hw_ice_debug, OID_AUTO, enable_tx_fc_filter, CTLFLAG_RDTUN,
 SYSCTL_BOOL(_hw_ice_debug, OID_AUTO, enable_tx_lldp_filter, CTLFLAG_RDTUN,
 	    &ice_enable_tx_lldp_filter, 0,
 	    "Drop Ethertype 0x88cc LLDP frames originating from non-HW sources");
+
+SYSCTL_BOOL(_hw_ice_debug, OID_AUTO, tx_balance_en, CTLFLAG_RWTUN,
+	    &ice_tx_balance_en, 0,
+	    "Enable 5-layer scheduler topology");
 
 #endif /* _ICE_COMMON_SYSCTLS_H_ */

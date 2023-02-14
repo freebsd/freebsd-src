@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,7 @@ static int ice_ift_txd_credits_update(void *arg, uint16_t txqid, bool clear);
 static int ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget);
 static void ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx, qidx_t pidx);
 static void ice_ift_rxd_refill(void *arg, if_rxd_update_t iru);
-static qidx_t ice_ift_queue_select(void *arg, struct mbuf *m);
+static qidx_t ice_ift_queue_select(void *arg, struct mbuf *m, if_pkt_info_t pi);
 
 /* Macro to help extract the NIC mode flexible Rx descriptor fields from the
  * advanced 32byte Rx descriptors.
@@ -79,7 +79,7 @@ struct if_txrx ice_txrx = {
 	.ift_rxd_pkt_get = ice_ift_rxd_pkt_get,
 	.ift_rxd_refill = ice_ift_rxd_refill,
 	.ift_rxd_flush = ice_ift_rxd_flush,
-	.ift_txq_select = ice_ift_queue_select,
+	.ift_txq_select_v2 = ice_ift_queue_select,
 };
 
 /**
@@ -284,7 +284,6 @@ static int
 ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg;
-	if_softc_ctx_t scctx = sc->scctx;
 	struct ice_rx_queue *rxq = &sc->pf_vsi.rx_queues[ri->iri_qsidx];
 	union ice_32b_rx_flex_desc *cur;
 	u16 status0, plen, ptype;
@@ -342,7 +341,7 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	/* Get packet type and set checksum flags */
 	ptype = le16toh(cur->wb.ptype_flex_flags0) &
 		ICE_RX_FLEX_DESC_PTYPE_M;
-	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
+	if ((iflib_get_ifp(sc->ctx)->if_capenable & IFCAP_RXCSUM) != 0)
 		ice_rx_checksum(rxq, &ri->iri_csum_flags,
 				&ri->iri_csum_data, status0, ptype);
 
@@ -408,9 +407,10 @@ ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx __unused,
 }
 
 static qidx_t
-ice_ift_queue_select(void *arg, struct mbuf *m)
+ice_ift_queue_select(void *arg, struct mbuf *m, if_pkt_info_t pi)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg;
+	struct ice_dcbx_cfg *local_dcbx_cfg;
 	struct ice_vsi *vsi = &sc->pf_vsi;
 	u16 tc_base_queue, tc_qcount;
 	u8 up, tc;
@@ -431,12 +431,21 @@ ice_ift_queue_select(void *arg, struct mbuf *m)
 			return (0);
 	}
 
-	/* Use default TC unless overridden */
+	/* Use default TC unless overridden later */
 	tc = 0; /* XXX: Get default TC for traffic if >1 TC? */
 
-	if (m->m_flags & M_VLANTAG) {
+	local_dcbx_cfg = &sc->hw.port_info->qos_cfg.local_dcbx_cfg;
+
+#if defined(INET) || defined(INET6)
+	if ((local_dcbx_cfg->pfc_mode == ICE_QOS_MODE_DSCP) &&
+	    (pi->ipi_flags & (IPI_TX_IPV4 | IPI_TX_IPV6))) {
+		u8 dscp_val = pi->ipi_ip_tos >> 2;
+		tc = local_dcbx_cfg->dscp_map[dscp_val];
+	} else
+#endif /* defined(INET) || defined(INET6) */
+	if (m->m_flags & M_VLANTAG) { /* ICE_QOS_MODE_VLAN */
 		up = EVL_PRIOFTAG(m->m_pkthdr.ether_vtag);
-		tc = sc->hw.port_info->qos_cfg.local_dcbx_cfg.etscfg.prio_table[up];
+		tc = local_dcbx_cfg->etscfg.prio_table[up];
 	}
 
 	tc_base_queue = vsi->tc_info[tc].qoffset;

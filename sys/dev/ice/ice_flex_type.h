@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@ struct ice_fv_word {
 	u16 off;		/* Offset within the protocol header */
 	u8 resvrd;
 };
+
 #pragma pack()
 
 #define ICE_MAX_NUM_PROFILES 256
@@ -49,251 +50,6 @@ struct ice_fv_word {
 #define ICE_MAX_FV_WORDS 48
 struct ice_fv {
 	struct ice_fv_word ew[ICE_MAX_FV_WORDS];
-};
-
-/* Package and segment headers and tables */
-struct ice_pkg_hdr {
-	struct ice_pkg_ver pkg_format_ver;
-	__le32 seg_count;
-	__le32 seg_offset[STRUCT_HACK_VAR_LEN];
-};
-
-/* generic segment */
-struct ice_generic_seg_hdr {
-#define SEGMENT_TYPE_METADATA	0x00000001
-#define SEGMENT_TYPE_ICE_E810	0x00000010
-	__le32 seg_type;
-	struct ice_pkg_ver seg_format_ver;
-	__le32 seg_size;
-	char seg_id[ICE_PKG_NAME_SIZE];
-};
-
-/* ice specific segment */
-
-union ice_device_id {
-	struct {
-		__le16 device_id;
-		__le16 vendor_id;
-	} dev_vend_id;
-	__le32 id;
-};
-
-struct ice_device_id_entry {
-	union ice_device_id device;
-	union ice_device_id sub_device;
-};
-
-struct ice_seg {
-	struct ice_generic_seg_hdr hdr;
-	__le32 device_table_count;
-	struct ice_device_id_entry device_table[STRUCT_HACK_VAR_LEN];
-};
-
-struct ice_nvm_table {
-	__le32 table_count;
-	__le32 vers[STRUCT_HACK_VAR_LEN];
-};
-
-struct ice_buf {
-#define ICE_PKG_BUF_SIZE	4096
-	u8 buf[ICE_PKG_BUF_SIZE];
-};
-
-struct ice_buf_table {
-	__le32 buf_count;
-	struct ice_buf buf_array[STRUCT_HACK_VAR_LEN];
-};
-
-/* global metadata specific segment */
-struct ice_global_metadata_seg {
-	struct ice_generic_seg_hdr hdr;
-	struct ice_pkg_ver pkg_ver;
-	__le32 rsvd;
-	char pkg_name[ICE_PKG_NAME_SIZE];
-};
-
-#define ICE_MIN_S_OFF		12
-#define ICE_MAX_S_OFF		4095
-#define ICE_MIN_S_SZ		1
-#define ICE_MAX_S_SZ		4084
-
-/* section information */
-struct ice_section_entry {
-	__le32 type;
-	__le16 offset;
-	__le16 size;
-};
-
-#define ICE_MIN_S_COUNT		1
-#define ICE_MAX_S_COUNT		511
-#define ICE_MIN_S_DATA_END	12
-#define ICE_MAX_S_DATA_END	4096
-
-#define ICE_METADATA_BUF	0x80000000
-
-struct ice_buf_hdr {
-	__le16 section_count;
-	__le16 data_end;
-	struct ice_section_entry section_entry[STRUCT_HACK_VAR_LEN];
-};
-
-#define ICE_MAX_ENTRIES_IN_BUF(hd_sz, ent_sz) ((ICE_PKG_BUF_SIZE - \
-	ice_struct_size((struct ice_buf_hdr *)0, section_entry, 1) - (hd_sz)) /\
-	(ent_sz))
-
-/* ice package section IDs */
-#define ICE_SID_METADATA		1
-#define ICE_SID_XLT0_SW			10
-#define ICE_SID_XLT_KEY_BUILDER_SW	11
-#define ICE_SID_XLT1_SW			12
-#define ICE_SID_XLT2_SW			13
-#define ICE_SID_PROFID_TCAM_SW		14
-#define ICE_SID_PROFID_REDIR_SW		15
-#define ICE_SID_FLD_VEC_SW		16
-#define ICE_SID_CDID_KEY_BUILDER_SW	17
-#define ICE_SID_CDID_REDIR_SW		18
-
-#define ICE_SID_XLT0_ACL		20
-#define ICE_SID_XLT_KEY_BUILDER_ACL	21
-#define ICE_SID_XLT1_ACL		22
-#define ICE_SID_XLT2_ACL		23
-#define ICE_SID_PROFID_TCAM_ACL		24
-#define ICE_SID_PROFID_REDIR_ACL	25
-#define ICE_SID_FLD_VEC_ACL		26
-#define ICE_SID_CDID_KEY_BUILDER_ACL	27
-#define ICE_SID_CDID_REDIR_ACL		28
-
-#define ICE_SID_XLT0_FD			30
-#define ICE_SID_XLT_KEY_BUILDER_FD	31
-#define ICE_SID_XLT1_FD			32
-#define ICE_SID_XLT2_FD			33
-#define ICE_SID_PROFID_TCAM_FD		34
-#define ICE_SID_PROFID_REDIR_FD		35
-#define ICE_SID_FLD_VEC_FD		36
-#define ICE_SID_CDID_KEY_BUILDER_FD	37
-#define ICE_SID_CDID_REDIR_FD		38
-
-#define ICE_SID_XLT0_RSS		40
-#define ICE_SID_XLT_KEY_BUILDER_RSS	41
-#define ICE_SID_XLT1_RSS		42
-#define ICE_SID_XLT2_RSS		43
-#define ICE_SID_PROFID_TCAM_RSS		44
-#define ICE_SID_PROFID_REDIR_RSS	45
-#define ICE_SID_FLD_VEC_RSS		46
-#define ICE_SID_CDID_KEY_BUILDER_RSS	47
-#define ICE_SID_CDID_REDIR_RSS		48
-
-#define ICE_SID_RXPARSER_CAM		50
-#define ICE_SID_RXPARSER_NOMATCH_CAM	51
-#define ICE_SID_RXPARSER_IMEM		52
-#define ICE_SID_RXPARSER_XLT0_BUILDER	53
-#define ICE_SID_RXPARSER_NODE_PTYPE	54
-#define ICE_SID_RXPARSER_MARKER_PTYPE	55
-#define ICE_SID_RXPARSER_BOOST_TCAM	56
-#define ICE_SID_RXPARSER_PROTO_GRP	57
-#define ICE_SID_RXPARSER_METADATA_INIT	58
-#define ICE_SID_RXPARSER_XLT0		59
-
-#define ICE_SID_TXPARSER_CAM		60
-#define ICE_SID_TXPARSER_NOMATCH_CAM	61
-#define ICE_SID_TXPARSER_IMEM		62
-#define ICE_SID_TXPARSER_XLT0_BUILDER	63
-#define ICE_SID_TXPARSER_NODE_PTYPE	64
-#define ICE_SID_TXPARSER_MARKER_PTYPE	65
-#define ICE_SID_TXPARSER_BOOST_TCAM	66
-#define ICE_SID_TXPARSER_PROTO_GRP	67
-#define ICE_SID_TXPARSER_METADATA_INIT	68
-#define ICE_SID_TXPARSER_XLT0		69
-
-#define ICE_SID_RXPARSER_INIT_REDIR	70
-#define ICE_SID_TXPARSER_INIT_REDIR	71
-#define ICE_SID_RXPARSER_MARKER_GRP	72
-#define ICE_SID_TXPARSER_MARKER_GRP	73
-#define ICE_SID_RXPARSER_LAST_PROTO	74
-#define ICE_SID_TXPARSER_LAST_PROTO	75
-#define ICE_SID_RXPARSER_PG_SPILL	76
-#define ICE_SID_TXPARSER_PG_SPILL	77
-#define ICE_SID_RXPARSER_NOMATCH_SPILL	78
-#define ICE_SID_TXPARSER_NOMATCH_SPILL	79
-
-#define ICE_SID_XLT0_PE			80
-#define ICE_SID_XLT_KEY_BUILDER_PE	81
-#define ICE_SID_XLT1_PE			82
-#define ICE_SID_XLT2_PE			83
-#define ICE_SID_PROFID_TCAM_PE		84
-#define ICE_SID_PROFID_REDIR_PE		85
-#define ICE_SID_FLD_VEC_PE		86
-#define ICE_SID_CDID_KEY_BUILDER_PE	87
-#define ICE_SID_CDID_REDIR_PE		88
-
-#define ICE_SID_RXPARSER_FLAG_REDIR	97
-
-/* Label Metadata section IDs */
-#define ICE_SID_LBL_FIRST		0x80000010
-#define ICE_SID_LBL_RXPARSER_IMEM	0x80000010
-#define ICE_SID_LBL_TXPARSER_IMEM	0x80000011
-#define ICE_SID_LBL_RESERVED_12		0x80000012
-#define ICE_SID_LBL_RESERVED_13		0x80000013
-#define ICE_SID_LBL_RXPARSER_MARKER	0x80000014
-#define ICE_SID_LBL_TXPARSER_MARKER	0x80000015
-#define ICE_SID_LBL_PTYPE		0x80000016
-#define ICE_SID_LBL_PROTOCOL_ID		0x80000017
-#define ICE_SID_LBL_RXPARSER_TMEM	0x80000018
-#define ICE_SID_LBL_TXPARSER_TMEM	0x80000019
-#define ICE_SID_LBL_RXPARSER_PG		0x8000001A
-#define ICE_SID_LBL_TXPARSER_PG		0x8000001B
-#define ICE_SID_LBL_RXPARSER_M_TCAM	0x8000001C
-#define ICE_SID_LBL_TXPARSER_M_TCAM	0x8000001D
-#define ICE_SID_LBL_SW_PROFID_TCAM	0x8000001E
-#define ICE_SID_LBL_ACL_PROFID_TCAM	0x8000001F
-#define ICE_SID_LBL_PE_PROFID_TCAM	0x80000020
-#define ICE_SID_LBL_RSS_PROFID_TCAM	0x80000021
-#define ICE_SID_LBL_FD_PROFID_TCAM	0x80000022
-#define ICE_SID_LBL_FLAG		0x80000023
-#define ICE_SID_LBL_REG			0x80000024
-#define ICE_SID_LBL_SW_PTG		0x80000025
-#define ICE_SID_LBL_ACL_PTG		0x80000026
-#define ICE_SID_LBL_PE_PTG		0x80000027
-#define ICE_SID_LBL_RSS_PTG		0x80000028
-#define ICE_SID_LBL_FD_PTG		0x80000029
-#define ICE_SID_LBL_SW_VSIG		0x8000002A
-#define ICE_SID_LBL_ACL_VSIG		0x8000002B
-#define ICE_SID_LBL_PE_VSIG		0x8000002C
-#define ICE_SID_LBL_RSS_VSIG		0x8000002D
-#define ICE_SID_LBL_FD_VSIG		0x8000002E
-#define ICE_SID_LBL_PTYPE_META		0x8000002F
-#define ICE_SID_LBL_SW_PROFID		0x80000030
-#define ICE_SID_LBL_ACL_PROFID		0x80000031
-#define ICE_SID_LBL_PE_PROFID		0x80000032
-#define ICE_SID_LBL_RSS_PROFID		0x80000033
-#define ICE_SID_LBL_FD_PROFID		0x80000034
-#define ICE_SID_LBL_RXPARSER_MARKER_GRP	0x80000035
-#define ICE_SID_LBL_TXPARSER_MARKER_GRP	0x80000036
-#define ICE_SID_LBL_RXPARSER_PROTO	0x80000037
-#define ICE_SID_LBL_TXPARSER_PROTO	0x80000038
-/* The following define MUST be updated to reflect the last label section ID */
-#define ICE_SID_LBL_LAST		0x80000038
-
-enum ice_block {
-	ICE_BLK_SW = 0,
-	ICE_BLK_ACL,
-	ICE_BLK_FD,
-	ICE_BLK_RSS,
-	ICE_BLK_PE,
-	ICE_BLK_COUNT
-};
-
-enum ice_sect {
-	ICE_XLT0 = 0,
-	ICE_XLT_KB,
-	ICE_XLT1,
-	ICE_XLT2,
-	ICE_PROF_TCAM,
-	ICE_PROF_REDIR,
-	ICE_VEC_TBL,
-	ICE_CDID_KB,
-	ICE_CDID_REDIR,
-	ICE_SECT_COUNT
 };
 
 /* Packet Type (PTYPE) values */
@@ -401,10 +157,18 @@ struct ice_sw_fv_list_entry {
  * fields of the packet are now little endian.
  */
 struct ice_boost_key_value {
-#define ICE_BOOST_REMAINING_HV_KEY	15
+#define ICE_BOOST_REMAINING_HV_KEY     15
 	u8 remaining_hv_key[ICE_BOOST_REMAINING_HV_KEY];
-	__le16 hv_dst_port_key;
-	__le16 hv_src_port_key;
+	union {
+		struct {
+			__le16 hv_dst_port_key;
+			__le16 hv_src_port_key;
+		} /* udp_tunnel */;
+		struct {
+			__le16 hv_vlan_id_key;
+			__le16 hv_etype_key;
+		} vlan;
+	};
 	u8 tcam_search_key;
 };
 #pragma pack()
@@ -457,33 +221,15 @@ struct ice_prof_redir_section {
 	u8 redir_value[STRUCT_HACK_VAR_LEN];
 };
 
-/* package buffer building */
-
-struct ice_buf_build {
-	struct ice_buf buf;
-	u16 reserved_section_table_entries;
-};
-
-struct ice_pkg_enum {
-	struct ice_buf_table *buf_table;
-	u32 buf_idx;
-
-	u32 type;
-	struct ice_buf_hdr *buf;
-	u32 sect_idx;
-	void *sect;
-	u32 sect_type;
-
-	u32 entry_idx;
-	void *(*handler)(u32 sect_type, void *section, u32 index, u32 *offset);
-};
-
 /* Tunnel enabling */
 
 enum ice_tunnel_type {
 	TNL_VXLAN = 0,
 	TNL_GENEVE,
+	TNL_GRETAP,
 	TNL_GTP,
+	TNL_GTPC,
+	TNL_GTPU,
 	TNL_LAST = 0xFF,
 	TNL_ALL = 0xFF,
 };
@@ -726,10 +472,13 @@ struct ice_chs_chg {
 #define ICE_FLOW_PTYPE_MAX		ICE_XLT1_CNT
 
 enum ice_prof_type {
+	ICE_PROF_INVALID = 0x0,
 	ICE_PROF_NON_TUN = 0x1,
 	ICE_PROF_TUN_UDP = 0x2,
 	ICE_PROF_TUN_GRE = 0x4,
-	ICE_PROF_TUN_ALL = 0x6,
+	ICE_PROF_TUN_GTPU = 0x8,
+	ICE_PROF_TUN_GTPC = 0x10,
+	ICE_PROF_TUN_ALL = 0x1E,
 	ICE_PROF_ALL = 0xFF,
 };
 

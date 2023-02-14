@@ -241,9 +241,7 @@ ice_rdma_qset_register_request(struct ice_rdma_peer *peer, struct ice_rdma_qset_
 	switch(res->res_type) {
 	case ICE_RDMA_QSET_ALLOC:
 		dcbx_cfg = &hw->port_info->qos_cfg.local_dcbx_cfg;
-		for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
-			ena_tc |= BIT(dcbx_cfg->etscfg.prio_table[i]);
-		}
+		ena_tc = ice_dcb_get_tc_map(dcbx_cfg);
 
 		ice_debug(hw, ICE_DBG_RDMA, "%s:%d ena_tc=%x\n", __func__, __LINE__, ena_tc);
 		status = ice_cfg_vsi_rdma(hw->port_info, vsi->idx, ena_tc,
@@ -401,6 +399,10 @@ ice_rdma_cp_qos_info(struct ice_hw *hw, struct ice_dcbx_cfg *dcbx_cfg,
 		qos_info->apps[j].prot_id = dcbx_cfg->app[j].prot_id;
 		qos_info->apps[j].selector = dcbx_cfg->app[j].selector;
 	}
+
+	/* Gather DSCP-to-TC mapping and QoS/PFC mode */
+	memcpy(qos_info->dscp_map, dcbx_cfg->dscp_map, sizeof(qos_info->dscp_map));
+	qos_info->pfc_mode = dcbx_cfg->pfc_mode;
 }
 
 /**
@@ -481,6 +483,7 @@ int
 ice_rdma_register(struct ice_rdma_info *info)
 {
 	struct ice_rdma_entry *entry;
+	struct ice_softc *sc;
 	int err = 0;
 
 	sx_xlock(&ice_rdma.mtx);
@@ -513,6 +516,12 @@ ice_rdma_register(struct ice_rdma_info *info)
 	 */
 	LIST_FOREACH(entry, &ice_rdma.peers, node) {
 		kobj_init((kobj_t)&entry->peer, ice_rdma.peer_class);
+		/* Gather DCB/QOS info into peer */
+		sc = __containerof(entry, struct ice_softc, rdma_entry);
+		memset(&entry->peer.initial_qos_info, 0, sizeof(entry->peer.initial_qos_info));
+		ice_rdma_cp_qos_info(&sc->hw, &sc->hw.port_info->qos_cfg.local_dcbx_cfg,
+				     &entry->peer.initial_qos_info);
+
 		IRDMA_PROBE(&entry->peer);
 		if (entry->initiated)
 			IRDMA_OPEN(&entry->peer);

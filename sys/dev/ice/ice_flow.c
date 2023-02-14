@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -400,6 +400,7 @@ struct ice_flow_prof_params {
 	 * This will give us the direction flags.
 	 */
 	struct ice_fv_word es[ICE_MAX_FV_WORDS];
+
 	ice_declare_bitmap(ptypes, ICE_FLOW_PTYPE_MAX);
 };
 
@@ -566,8 +567,8 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 		    u8 seg, enum ice_flow_field fld)
 {
 	enum ice_flow_field sib = ICE_FLOW_FIELD_IDX_MAX;
+	u8 fv_words = (u8)hw->blk[params->blk].es.fvw;
 	enum ice_prot_id prot_id = ICE_PROT_ID_INVAL;
-	u8 fv_words = hw->blk[params->blk].es.fvw;
 	struct ice_flow_fld_info *flds;
 	u16 cnt, ese_bits, i;
 	u16 off;
@@ -593,7 +594,6 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 	case ICE_FLOW_FIELD_IDX_IPV4_TTL:
 	case ICE_FLOW_FIELD_IDX_IPV4_PROT:
 		prot_id = seg == 0 ? ICE_PROT_IPV4_OF_OR_S : ICE_PROT_IPV4_IL;
-
 		/* TTL and PROT share the same extraction seq. entry.
 		 * Each is considered a sibling to the other in terms of sharing
 		 * the same extraction sequence entry.
@@ -606,7 +606,6 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 	case ICE_FLOW_FIELD_IDX_IPV6_TTL:
 	case ICE_FLOW_FIELD_IDX_IPV6_PROT:
 		prot_id = seg == 0 ? ICE_PROT_IPV6_OF_OR_S : ICE_PROT_IPV6_IL;
-
 		/* TTL and PROT share the same extraction seq. entry.
 		 * Each is considered a sibling to the other in terms of sharing
 		 * the same extraction sequence entry.
@@ -666,7 +665,7 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 	 */
 	ese_bits = ICE_FLOW_FV_EXTRACT_SZ * BITS_PER_BYTE;
 
-	flds[fld].xtrct.prot_id = prot_id;
+	flds[fld].xtrct.prot_id = (u8)prot_id;
 	flds[fld].xtrct.off = (ice_flds_info[fld].off / ese_bits) *
 		ICE_FLOW_FV_EXTRACT_SZ;
 	flds[fld].xtrct.disp = (u8)(ice_flds_info[fld].off % ese_bits);
@@ -702,7 +701,7 @@ ice_flow_xtract_fld(struct ice_hw *hw, struct ice_flow_prof_params *params,
 			else
 				idx = params->es_cnt;
 
-			params->es[idx].prot_id = prot_id;
+			params->es[idx].prot_id = (u8)prot_id;
 			params->es[idx].off = off;
 			params->es_cnt++;
 		}
@@ -952,8 +951,7 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 	}
 
 	/* Add a HW profile for this flow profile */
-	status = ice_add_prof(hw, blk, prof_id, (u8 *)params->ptypes,
-			      params->es);
+	status = ice_add_prof(hw, blk, prof_id, params->ptypes, params->es);
 	if (status) {
 		ice_debug(hw, ICE_DBG_FLOW, "Error adding a HW flow profile\n");
 		goto out;
@@ -1286,13 +1284,13 @@ ice_flow_set_rss_seg_info(struct ice_flow_seg_info *segs, u8 seg_cnt,
 {
 	struct ice_flow_seg_info *seg;
 	u64 val;
-	u8 i;
+	u16 i;
 
 	/* set inner most segment */
 	seg = &segs[seg_cnt - 1];
 
 	ice_for_each_set_bit(i, (const ice_bitmap_t *)&cfg->hash_flds,
-			     ICE_FLOW_FIELD_IDX_MAX)
+			     (u16)ICE_FLOW_FIELD_IDX_MAX)
 		ice_flow_set_fld(seg, (enum ice_flow_field)i,
 				 ICE_FLOW_FLD_OFF_INVAL, ICE_FLOW_FLD_OFF_INVAL,
 				 ICE_FLOW_FLD_OFF_INVAL, false);

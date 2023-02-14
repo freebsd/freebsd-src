@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -33,48 +33,15 @@
 #ifndef _ICE_TYPE_H_
 #define _ICE_TYPE_H_
 
-#define ETH_ALEN	6
-
-#define ETH_HEADER_LEN	14
-
-#define BIT(a) (1UL << (a))
-#ifndef BIT_ULL
-#define BIT_ULL(a) (1ULL << (a))
-#endif /* BIT_ULL */
-
-#define BITS_PER_BYTE	8
-
-#define _FORCE_
-
-#define ICE_BYTES_PER_WORD	2
-#define ICE_BYTES_PER_DWORD	4
-#define ICE_MAX_TRAFFIC_CLASS	8
-
-#ifndef MIN_T
-#define MIN_T(_t, _a, _b)	min((_t)(_a), (_t)(_b))
-#endif
-
-#define IS_ASCII(_ch)	((_ch) < 0x80)
-
-#define STRUCT_HACK_VAR_LEN
-/**
- * ice_struct_size - size of struct with C99 flexible array member
- * @ptr: pointer to structure
- * @field: flexible array member (last member of the structure)
- * @num: number of elements of that flexible array member
- */
-#define ice_struct_size(ptr, field, num) \
-	(sizeof(*(ptr)) + sizeof(*(ptr)->field) * (num))
-
-#define FLEX_ARRAY_SIZE(_ptr, _mem, cnt) ((cnt) * sizeof(_ptr->_mem[0]))
-
+#include "ice_defs.h"
 #include "ice_status.h"
 #include "ice_hw_autogen.h"
 #include "ice_devids.h"
 #include "ice_osdep.h"
 #include "ice_bitops.h" /* Must come before ice_controlq.h */
-#include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
+#include "ice_ddp_common.h"
+#include "ice_controlq.h"
 #include "ice_flex_type.h"
 #include "ice_protocol_type.h"
 #include "ice_vlan_mode.h"
@@ -135,6 +102,8 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 #define ICE_LO_DWORD(x)		((u32)((x) & 0xFFFFFFFF))
 #define ICE_HI_WORD(x)		((u16)(((x) >> 16) & 0xFFFF))
 #define ICE_LO_WORD(x)		((u16)((x) & 0xFFFF))
+#define ICE_HI_BYTE(x)		((u8)(((x) >> 8) & 0xFF))
+#define ICE_LO_BYTE(x)		((u8)((x) & 0xFF))
 
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_TRACE		BIT_ULL(0) /* for function-trace only */
@@ -203,11 +172,6 @@ enum ice_aq_res_ids {
 #define ICE_CHANGE_LOCK_TIMEOUT		1000
 #define ICE_GLOBAL_CFG_LOCK_TIMEOUT	3000
 
-enum ice_aq_res_access_type {
-	ICE_RES_READ = 1,
-	ICE_RES_WRITE
-};
-
 struct ice_driver_ver {
 	u8 major_ver;
 	u8 minor_ver;
@@ -236,7 +200,8 @@ enum ice_fec_mode {
 	ICE_FEC_NONE = 0,
 	ICE_FEC_RS,
 	ICE_FEC_BASER,
-	ICE_FEC_AUTO
+	ICE_FEC_AUTO,
+	ICE_FEC_DIS_AUTO
 };
 
 struct ice_phy_cache_mode_data {
@@ -261,6 +226,7 @@ enum ice_mac_type {
 	ICE_MAC_VF,
 	ICE_MAC_E810,
 	ICE_MAC_GENERIC,
+	ICE_MAC_GENERIC_3K,
 };
 
 /* Media Types */
@@ -338,6 +304,15 @@ struct ice_phy_info {
 
 #define ICE_MAX_NUM_MIRROR_RULES	64
 
+#define ICE_L2TPV2_FLAGS_CTRL	0x8000
+#define ICE_L2TPV2_FLAGS_LEN	0x4000
+#define ICE_L2TPV2_FLAGS_SEQ	0x0800
+#define ICE_L2TPV2_FLAGS_OFF	0x0200
+#define ICE_L2TPV2_FLAGS_VER	0x0002
+
+#define ICE_L2TPV2_PKT_LENGTH	6
+#define ICE_PPP_PKT_LENGTH	4
+
 /* Common HW capabilities for SW use */
 struct ice_hw_common_caps {
 	/* Write CSR protection */
@@ -406,6 +381,7 @@ struct ice_hw_common_caps {
 	u8 iscsi;
 	u8 mgmt_cem;
 	u8 iwarp;
+	u8 roce_lag;
 
 	/* WoL and APM support */
 #define ICE_WOL_SUPPORT_M		BIT(0)
@@ -437,6 +413,17 @@ struct ice_hw_common_caps {
 #define ICE_EXT_TOPO_DEV_IMG_LOAD_EN	BIT(0)
 	bool ext_topo_dev_img_prog_en[ICE_EXT_TOPO_DEV_IMG_COUNT];
 #define ICE_EXT_TOPO_DEV_IMG_PROG_EN	BIT(1)
+	bool tx_sched_topo_comp_mode_en;
+	bool dyn_flattening_en;
+};
+
+#define ICE_NAC_TOPO_PRIMARY_M	BIT(0)
+#define ICE_NAC_TOPO_DUAL_M	BIT(1)
+#define ICE_NAC_TOPO_ID_M	MAKEMASK(0xf, 0)
+
+struct ice_nac_topology {
+	u32 mode;
+	u8 id;
 };
 
 /* Function specific capabilities */
@@ -453,6 +440,7 @@ struct ice_hw_dev_caps {
 	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
 	u32 num_funcs;
+	struct ice_nac_topology nac_topo;
 };
 
 /* Information about MAC such as address, etc... */
@@ -862,10 +850,6 @@ struct ice_port_info {
 #define ICE_SCHED_PORT_STATE_READY	0x1
 	u8 lport;
 #define ICE_LPORT_MASK			0xff
-	u16 dflt_tx_vsi_rule_id;
-	u16 dflt_tx_vsi_num;
-	u16 dflt_rx_vsi_rule_id;
-	u16 dflt_rx_vsi_num;
 	struct ice_fc_info fc;
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
@@ -886,7 +870,6 @@ struct ice_switch_info {
 
 	ice_declare_bitmap(prof_res_bm[ICE_MAX_NUM_PROFILES], ICE_MAX_FV_WORDS);
 };
-
 
 /* Enum defining the different states of the mailbox snapshot in the
  * PF-VF mailbox overflow detection algorithm. The snapshot can be in
@@ -962,6 +945,13 @@ struct ice_mbx_data {
 	u16 async_watermark_val;
 };
 
+/* PHY configuration */
+enum ice_phy_cfg {
+	ICE_PHY_E810 = 1,
+	ICE_PHY_E822,
+	ICE_PHY_ETH56G,
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 *hw_addr;
@@ -985,6 +975,7 @@ struct ice_hw {
 	u8 revision_id;
 
 	u8 pf_id;		/* device profile info */
+	enum ice_phy_cfg phy_cfg;
 
 	u16 max_burst_size;	/* driver sets this value */
 
@@ -1046,22 +1037,22 @@ struct ice_hw {
 	/* true if VSIs can share unicast MAC addr */
 	u8 umac_shared;
 
-#define ICE_PHY_PER_NAC		1
-#define ICE_MAX_QUAD		2
-#define ICE_NUM_QUAD_TYPE	2
-#define ICE_PORTS_PER_QUAD	4
-#define ICE_PHY_0_LAST_QUAD	1
-#define ICE_PORTS_PER_PHY	8
-#define ICE_NUM_EXTERNAL_PORTS		ICE_PORTS_PER_PHY
+#define ICE_PHY_PER_NAC_E822		1
+#define ICE_MAX_QUAD			2
+#define ICE_QUADS_PER_PHY_E822		2
+#define ICE_PORTS_PER_PHY_E822		8
+#define ICE_PORTS_PER_QUAD		4
+#define ICE_PORTS_PER_PHY_E810		4
+#define ICE_NUM_EXTERNAL_PORTS		(ICE_MAX_QUAD * ICE_PORTS_PER_QUAD)
 
 	/* Active package version (currently active) */
 	struct ice_pkg_ver active_pkg_ver;
 	u32 pkg_seg_id;
+	u32 pkg_sign_type;
 	u32 active_track_id;
+	u8 pkg_has_signing_seg:1;
 	u8 active_pkg_name[ICE_PKG_NAME_SIZE];
 	u8 active_pkg_in_nvm;
-
-	enum ice_aq_err pkg_dwnld_status;
 
 	/* Driver's package ver - (from the Ice Metadata section) */
 	struct ice_pkg_ver pkg_ver;
@@ -1173,6 +1164,7 @@ enum ice_sw_fwd_act_type {
 	ICE_FWD_TO_Q,
 	ICE_FWD_TO_QGRP,
 	ICE_DROP_PACKET,
+	ICE_LG_ACTION,
 	ICE_INVAL_ACT
 };
 
@@ -1343,6 +1335,12 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_REPORT_DFLT_CFG_MAJ		1
 #define ICE_FW_API_REPORT_DFLT_CFG_MIN		7
 #define ICE_FW_API_REPORT_DFLT_CFG_PATCH	3
+
+/* FW version for FEC disable in Auto FEC mode */
+#define ICE_FW_FEC_DIS_AUTO_BRANCH		1
+#define ICE_FW_FEC_DIS_AUTO_MAJ			7
+#define ICE_FW_FEC_DIS_AUTO_MIN			0
+#define ICE_FW_FEC_DIS_AUTO_PATCH		5
 
 /* AQ API version for FW health reports */
 #define ICE_FW_API_HEALTH_REPORT_MAJ		1

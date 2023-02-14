@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -285,9 +285,15 @@ struct ice_softc {
 	/* Ethertype filters enabled */
 	bool enable_tx_fc_filter;
 	bool enable_tx_lldp_filter;
-	
+
 	/* Other tunable flags */
 	bool enable_health_events;
+
+	/* 5-layer scheduler topology enabled */
+	bool tx_balance_en;
+
+	/* Allow additional non-standard FEC mode */
+	bool allow_no_fec_mod_in_auto;
 
 	int rebuild_ticks;
 
@@ -296,6 +302,8 @@ struct ice_softc {
 
 	/* NVM link override settings */
 	struct ice_link_default_override_tlv ldo_tlv;
+
+	u16 fw_debug_dump_cluster_mask;
 
 	struct sx *iflib_ctx_lock;
 

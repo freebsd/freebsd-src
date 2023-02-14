@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -39,118 +39,110 @@
 
 #define ICE_PF_RESET_WAIT_COUNT	300
 
-/**
- * dump_phy_type - helper function that prints PHY type strings
- * @hw: pointer to the HW structure
- * @phy: 64 bit PHY type to decipher
- * @i: bit index within phy
- * @phy_string: string corresponding to bit i in phy
- * @prefix: prefix string to differentiate multiple dumps
- */
-static void
-dump_phy_type(struct ice_hw *hw, u64 phy, u8 i, const char *phy_string,
-	      const char *prefix)
-{
-	if (phy & BIT_ULL(i))
-		ice_debug(hw, ICE_DBG_PHY, "%s: bit(%d): %s\n", prefix, i,
-			  phy_string);
-}
+static const char * const ice_link_mode_str_low[] = {
+	[0] = "100BASE_TX",
+	[1] = "100M_SGMII",
+	[2] = "1000BASE_T",
+	[3] = "1000BASE_SX",
+	[4] = "1000BASE_LX",
+	[5] = "1000BASE_KX",
+	[6] = "1G_SGMII",
+	[7] = "2500BASE_T",
+	[8] = "2500BASE_X",
+	[9] = "2500BASE_KX",
+	[10] = "5GBASE_T",
+	[11] = "5GBASE_KR",
+	[12] = "10GBASE_T",
+	[13] = "10G_SFI_DA",
+	[14] = "10GBASE_SR",
+	[15] = "10GBASE_LR",
+	[16] = "10GBASE_KR_CR1",
+	[17] = "10G_SFI_AOC_ACC",
+	[18] = "10G_SFI_C2C",
+	[19] = "25GBASE_T",
+	[20] = "25GBASE_CR",
+	[21] = "25GBASE_CR_S",
+	[22] = "25GBASE_CR1",
+	[23] = "25GBASE_SR",
+	[24] = "25GBASE_LR",
+	[25] = "25GBASE_KR",
+	[26] = "25GBASE_KR_S",
+	[27] = "25GBASE_KR1",
+	[28] = "25G_AUI_AOC_ACC",
+	[29] = "25G_AUI_C2C",
+	[30] = "40GBASE_CR4",
+	[31] = "40GBASE_SR4",
+	[32] = "40GBASE_LR4",
+	[33] = "40GBASE_KR4",
+	[34] = "40G_XLAUI_AOC_ACC",
+	[35] = "40G_XLAUI",
+	[36] = "50GBASE_CR2",
+	[37] = "50GBASE_SR2",
+	[38] = "50GBASE_LR2",
+	[39] = "50GBASE_KR2",
+	[40] = "50G_LAUI2_AOC_ACC",
+	[41] = "50G_LAUI2",
+	[42] = "50G_AUI2_AOC_ACC",
+	[43] = "50G_AUI2",
+	[44] = "50GBASE_CP",
+	[45] = "50GBASE_SR",
+	[46] = "50GBASE_FR",
+	[47] = "50GBASE_LR",
+	[48] = "50GBASE_KR_PAM4",
+	[49] = "50G_AUI1_AOC_ACC",
+	[50] = "50G_AUI1",
+	[51] = "100GBASE_CR4",
+	[52] = "100GBASE_SR4",
+	[53] = "100GBASE_LR4",
+	[54] = "100GBASE_KR4",
+	[55] = "100G_CAUI4_AOC_ACC",
+	[56] = "100G_CAUI4",
+	[57] = "100G_AUI4_AOC_ACC",
+	[58] = "100G_AUI4",
+	[59] = "100GBASE_CR_PAM4",
+	[60] = "100GBASE_KR_PAM4",
+	[61] = "100GBASE_CP2",
+	[62] = "100GBASE_SR2",
+	[63] = "100GBASE_DR",
+};
+
+static const char * const ice_link_mode_str_high[] = {
+	[0] = "100GBASE_KR2_PAM4",
+	[1] = "100G_CAUI2_AOC_ACC",
+	[2] = "100G_CAUI2",
+	[3] = "100G_AUI2_AOC_ACC",
+	[4] = "100G_AUI2",
+};
 
 /**
- * ice_dump_phy_type_low - helper function to dump phy_type_low
+ * ice_dump_phy_type - helper function to dump phy_type
  * @hw: pointer to the HW structure
  * @low: 64 bit value for phy_type_low
- * @prefix: prefix string to differentiate multiple dumps
- */
-static void
-ice_dump_phy_type_low(struct ice_hw *hw, u64 low, const char *prefix)
-{
-	ice_debug(hw, ICE_DBG_PHY, "%s: phy_type_low: 0x%016llx\n", prefix,
-		  (unsigned long long)low);
-
-	dump_phy_type(hw, low, 0, "100BASE_TX", prefix);
-	dump_phy_type(hw, low, 1, "100M_SGMII", prefix);
-	dump_phy_type(hw, low, 2, "1000BASE_T", prefix);
-	dump_phy_type(hw, low, 3, "1000BASE_SX", prefix);
-	dump_phy_type(hw, low, 4, "1000BASE_LX", prefix);
-	dump_phy_type(hw, low, 5, "1000BASE_KX", prefix);
-	dump_phy_type(hw, low, 6, "1G_SGMII", prefix);
-	dump_phy_type(hw, low, 7, "2500BASE_T", prefix);
-	dump_phy_type(hw, low, 8, "2500BASE_X", prefix);
-	dump_phy_type(hw, low, 9, "2500BASE_KX", prefix);
-	dump_phy_type(hw, low, 10, "5GBASE_T", prefix);
-	dump_phy_type(hw, low, 11, "5GBASE_KR", prefix);
-	dump_phy_type(hw, low, 12, "10GBASE_T", prefix);
-	dump_phy_type(hw, low, 13, "10G_SFI_DA", prefix);
-	dump_phy_type(hw, low, 14, "10GBASE_SR", prefix);
-	dump_phy_type(hw, low, 15, "10GBASE_LR", prefix);
-	dump_phy_type(hw, low, 16, "10GBASE_KR_CR1", prefix);
-	dump_phy_type(hw, low, 17, "10G_SFI_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 18, "10G_SFI_C2C", prefix);
-	dump_phy_type(hw, low, 19, "25GBASE_T", prefix);
-	dump_phy_type(hw, low, 20, "25GBASE_CR", prefix);
-	dump_phy_type(hw, low, 21, "25GBASE_CR_S", prefix);
-	dump_phy_type(hw, low, 22, "25GBASE_CR1", prefix);
-	dump_phy_type(hw, low, 23, "25GBASE_SR", prefix);
-	dump_phy_type(hw, low, 24, "25GBASE_LR", prefix);
-	dump_phy_type(hw, low, 25, "25GBASE_KR", prefix);
-	dump_phy_type(hw, low, 26, "25GBASE_KR_S", prefix);
-	dump_phy_type(hw, low, 27, "25GBASE_KR1", prefix);
-	dump_phy_type(hw, low, 28, "25G_AUI_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 29, "25G_AUI_C2C", prefix);
-	dump_phy_type(hw, low, 30, "40GBASE_CR4", prefix);
-	dump_phy_type(hw, low, 31, "40GBASE_SR4", prefix);
-	dump_phy_type(hw, low, 32, "40GBASE_LR4", prefix);
-	dump_phy_type(hw, low, 33, "40GBASE_KR4", prefix);
-	dump_phy_type(hw, low, 34, "40G_XLAUI_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 35, "40G_XLAUI", prefix);
-	dump_phy_type(hw, low, 36, "50GBASE_CR2", prefix);
-	dump_phy_type(hw, low, 37, "50GBASE_SR2", prefix);
-	dump_phy_type(hw, low, 38, "50GBASE_LR2", prefix);
-	dump_phy_type(hw, low, 39, "50GBASE_KR2", prefix);
-	dump_phy_type(hw, low, 40, "50G_LAUI2_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 41, "50G_LAUI2", prefix);
-	dump_phy_type(hw, low, 42, "50G_AUI2_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 43, "50G_AUI2", prefix);
-	dump_phy_type(hw, low, 44, "50GBASE_CP", prefix);
-	dump_phy_type(hw, low, 45, "50GBASE_SR", prefix);
-	dump_phy_type(hw, low, 46, "50GBASE_FR", prefix);
-	dump_phy_type(hw, low, 47, "50GBASE_LR", prefix);
-	dump_phy_type(hw, low, 48, "50GBASE_KR_PAM4", prefix);
-	dump_phy_type(hw, low, 49, "50G_AUI1_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 50, "50G_AUI1", prefix);
-	dump_phy_type(hw, low, 51, "100GBASE_CR4", prefix);
-	dump_phy_type(hw, low, 52, "100GBASE_SR4", prefix);
-	dump_phy_type(hw, low, 53, "100GBASE_LR4", prefix);
-	dump_phy_type(hw, low, 54, "100GBASE_KR4", prefix);
-	dump_phy_type(hw, low, 55, "100G_CAUI4_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 56, "100G_CAUI4", prefix);
-	dump_phy_type(hw, low, 57, "100G_AUI4_AOC_ACC", prefix);
-	dump_phy_type(hw, low, 58, "100G_AUI4", prefix);
-	dump_phy_type(hw, low, 59, "100GBASE_CR_PAM4", prefix);
-	dump_phy_type(hw, low, 60, "100GBASE_KR_PAM4", prefix);
-	dump_phy_type(hw, low, 61, "100GBASE_CP2", prefix);
-	dump_phy_type(hw, low, 62, "100GBASE_SR2", prefix);
-	dump_phy_type(hw, low, 63, "100GBASE_DR", prefix);
-}
-
-/**
- * ice_dump_phy_type_high - helper function to dump phy_type_high
- * @hw: pointer to the HW structure
  * @high: 64 bit value for phy_type_high
  * @prefix: prefix string to differentiate multiple dumps
  */
 static void
-ice_dump_phy_type_high(struct ice_hw *hw, u64 high, const char *prefix)
+ice_dump_phy_type(struct ice_hw *hw, u64 low, u64 high, const char *prefix)
 {
+	u32 i;
+
+	ice_debug(hw, ICE_DBG_PHY, "%s: phy_type_low: 0x%016llx\n", prefix,
+		  (unsigned long long)low);
+
+	for (i = 0; i < ARRAY_SIZE(ice_link_mode_str_low); i++) {
+		if (low & BIT_ULL(i))
+			ice_debug(hw, ICE_DBG_PHY, "%s:   bit(%d): %s\n",
+				  prefix, i, ice_link_mode_str_low[i]);
+	}
+
 	ice_debug(hw, ICE_DBG_PHY, "%s: phy_type_high: 0x%016llx\n", prefix,
 		  (unsigned long long)high);
 
-	dump_phy_type(hw, high, 0, "100GBASE_KR2_PAM4", prefix);
-	dump_phy_type(hw, high, 1, "100G_CAUI2_AOC_ACC", prefix);
-	dump_phy_type(hw, high, 2, "100G_CAUI2", prefix);
-	dump_phy_type(hw, high, 3, "100G_AUI2_AOC_ACC", prefix);
-	dump_phy_type(hw, high, 4, "100G_AUI2", prefix);
+	for (i = 0; i < ARRAY_SIZE(ice_link_mode_str_high); i++) {
+		if (high & BIT_ULL(i))
+			ice_debug(hw, ICE_DBG_PHY, "%s:   bit(%d): %s\n",
+				  prefix, i, ice_link_mode_str_high[i]);
+	}
 }
 
 /**
@@ -227,19 +219,54 @@ bool ice_is_e810t(struct ice_hw *hw)
 {
 	switch (hw->device_id) {
 	case ICE_DEV_ID_E810C_SFP:
-		if (hw->subsystem_device_id == ICE_SUBDEV_ID_E810T ||
-		    hw->subsystem_device_id == ICE_SUBDEV_ID_E810T2)
+		switch (hw->subsystem_device_id) {
+		case ICE_SUBDEV_ID_E810T:
+		case ICE_SUBDEV_ID_E810T2:
+		case ICE_SUBDEV_ID_E810T3:
+		case ICE_SUBDEV_ID_E810T4:
+		case ICE_SUBDEV_ID_E810T5:
+		case ICE_SUBDEV_ID_E810T7:
 			return true;
+		}
 		break;
 	case ICE_DEV_ID_E810C_QSFP:
-		if (hw->subsystem_device_id == ICE_SUBDEV_ID_E810T2)
+		switch (hw->subsystem_device_id) {
+		case ICE_SUBDEV_ID_E810T2:
+		case ICE_SUBDEV_ID_E810T5:
+		case ICE_SUBDEV_ID_E810T6:
 			return true;
+		}
 		break;
 	default:
 		break;
 	}
 
 	return false;
+}
+
+/**
+ * ice_is_e823
+ * @hw: pointer to the hardware structure
+ *
+ * returns true if the device is E823-L or E823-C based, false if not.
+ */
+bool ice_is_e823(struct ice_hw *hw)
+{
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E823L_BACKPLANE:
+	case ICE_DEV_ID_E823L_SFP:
+	case ICE_DEV_ID_E823L_10G_BASE_T:
+	case ICE_DEV_ID_E823L_1GBE:
+	case ICE_DEV_ID_E823L_QSFP:
+	case ICE_DEV_ID_E823C_BACKPLANE:
+	case ICE_DEV_ID_E823C_QSFP:
+	case ICE_DEV_ID_E823C_SFP:
+	case ICE_DEV_ID_E823C_10G_BASE_T:
+	case ICE_DEV_ID_E823C_SGMII:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /**
@@ -308,10 +335,10 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 		if (resp[i].addr_type == ICE_AQC_MAN_MAC_ADDR_TYPE_LAN) {
 			ice_memcpy(hw->port_info->mac.lan_addr,
 				   resp[i].mac_addr, ETH_ALEN,
-				   ICE_DMA_TO_NONDMA);
+				   ICE_NONDMA_TO_NONDMA);
 			ice_memcpy(hw->port_info->mac.perm_addr,
 				   resp[i].mac_addr,
-				   ETH_ALEN, ICE_DMA_TO_NONDMA);
+				   ETH_ALEN, ICE_NONDMA_TO_NONDMA);
 			break;
 		}
 	return ICE_SUCCESS;
@@ -355,23 +382,30 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		cmd->param0 |= CPU_TO_LE16(ICE_AQC_GET_PHY_RQM);
 
 	cmd->param0 |= CPU_TO_LE16(report_mode);
+
 	status = ice_aq_send_cmd(hw, &desc, pcaps, pcaps_size, cd);
 
 	ice_debug(hw, ICE_DBG_LINK, "get phy caps dump\n");
 
-	if (report_mode == ICE_AQC_REPORT_TOPO_CAP_MEDIA)
+	switch (report_mode) {
+	case ICE_AQC_REPORT_TOPO_CAP_MEDIA:
 		prefix = "phy_caps_media";
-	else if (report_mode == ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA)
+		break;
+	case ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA:
 		prefix = "phy_caps_no_media";
-	else if (report_mode == ICE_AQC_REPORT_ACTIVE_CFG)
+		break;
+	case ICE_AQC_REPORT_ACTIVE_CFG:
 		prefix = "phy_caps_active";
-	else if (report_mode == ICE_AQC_REPORT_DFLT_CFG)
+		break;
+	case ICE_AQC_REPORT_DFLT_CFG:
 		prefix = "phy_caps_default";
-	else
+		break;
+	default:
 		prefix = "phy_caps_invalid";
+	}
 
-	ice_dump_phy_type_low(hw, LE64_TO_CPU(pcaps->phy_type_low), prefix);
-	ice_dump_phy_type_high(hw, LE64_TO_CPU(pcaps->phy_type_high), prefix);
+	ice_dump_phy_type(hw, LE64_TO_CPU(pcaps->phy_type_low),
+			  LE64_TO_CPU(pcaps->phy_type_high), prefix);
 
 	ice_debug(hw, ICE_DBG_LINK, "%s: report_mode = 0x%x\n",
 		  prefix, report_mode);
@@ -444,7 +478,7 @@ ice_aq_get_netlist_node(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
  *
  * Find and return the node handle for a given node type and part number in the
  * netlist. When found ICE_SUCCESS is returned, ICE_ERR_DOES_NOT_EXIST
- * otherwise. If @node_handle provided, it would be set to found node handle.
+ * otherwise. If node_handle provided, it would be set to found node handle.
  */
 enum ice_status
 ice_find_netlist_node(struct ice_hw *hw, u8 node_type_ctx, u8 node_part_number,
@@ -452,11 +486,12 @@ ice_find_netlist_node(struct ice_hw *hw, u8 node_type_ctx, u8 node_part_number,
 {
 	struct ice_aqc_get_link_topo cmd;
 	u8 rec_node_part_number;
-	enum ice_status status;
 	u16 rec_node_handle;
 	u8 idx;
 
 	for (idx = 0; idx < MAX_NETLIST_SIZE; idx++) {
+		enum ice_status status;
+
 		memset(&cmd, 0, sizeof(cmd));
 
 		cmd.addr.topo_params.node_type_ctx =
@@ -545,7 +580,6 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_1000BASE_LX:
 		case ICE_PHY_TYPE_LOW_10GBASE_SR:
 		case ICE_PHY_TYPE_LOW_10GBASE_LR:
-		case ICE_PHY_TYPE_LOW_10G_SFI_C2C:
 		case ICE_PHY_TYPE_LOW_25GBASE_SR:
 		case ICE_PHY_TYPE_LOW_25GBASE_LR:
 		case ICE_PHY_TYPE_LOW_40GBASE_SR4:
@@ -602,6 +636,7 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 		case ICE_PHY_TYPE_LOW_2500BASE_X:
 		case ICE_PHY_TYPE_LOW_5GBASE_KR:
 		case ICE_PHY_TYPE_LOW_10GBASE_KR_CR1:
+		case ICE_PHY_TYPE_LOW_10G_SFI_C2C:
 		case ICE_PHY_TYPE_LOW_25GBASE_KR:
 		case ICE_PHY_TYPE_LOW_25GBASE_KR1:
 		case ICE_PHY_TYPE_LOW_25GBASE_KR_S:
@@ -628,6 +663,8 @@ static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
 	}
 	return ICE_MEDIA_UNKNOWN;
 }
+
+#define ice_get_link_status_datalen(hw)	ICE_GET_LINK_STATUS_DATALEN_V1
 
 /**
  * ice_aq_get_link_info
@@ -668,8 +705,8 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	resp->cmd_flags = CPU_TO_LE16(cmd_flags);
 	resp->lport_num = pi->lport;
 
-	status = ice_aq_send_cmd(hw, &desc, &link_data, sizeof(link_data), cd);
-
+	status = ice_aq_send_cmd(hw, &desc, &link_data,
+				 ice_get_link_status_datalen(hw), cd);
 	if (status != ICE_SUCCESS)
 		return status;
 
@@ -1255,7 +1292,7 @@ static enum ice_status ice_pf_reset(struct ice_hw *hw)
 	 * that is occurring during a download package operation.
 	 */
 	for (cnt = 0; cnt < ICE_GLOBAL_CFG_LOCK_TIMEOUT +
-	     ICE_PF_RESET_WAIT_COUNT; cnt++) {
+		ICE_PF_RESET_WAIT_COUNT; cnt++) {
 		reg = rd32(hw, PFGEN_CTRL);
 		if (!(reg & PFGEN_CTRL_PFSWR_M))
 			break;
@@ -2341,8 +2378,6 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		ice_debug(hw, ICE_DBG_INIT, "%s: msix_vector_first_id = %d\n", prefix,
 			  caps->msix_vector_first_id);
 		break;
-	case ICE_AQC_CAPS_NVM_VER:
-		break;
 	case ICE_AQC_CAPS_NVM_MGMT:
 		caps->sec_rev_disabled =
 			(number & ICE_NVM_MGMT_SEC_REV_DISABLED) ?
@@ -2368,6 +2403,11 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 	case ICE_AQC_CAPS_IWARP:
 		caps->iwarp = (number == 1);
 		ice_debug(hw, ICE_DBG_INIT, "%s: iwarp = %d\n", prefix, caps->iwarp);
+		break;
+	case ICE_AQC_CAPS_ROCEV2_LAG:
+		caps->roce_lag = (number == 1);
+		ice_debug(hw, ICE_DBG_INIT, "%s: roce_lag = %d\n",
+			  prefix, caps->roce_lag);
 		break;
 	case ICE_AQC_CAPS_LED:
 		if (phys_id < ICE_MAX_SUPPORTED_GPIO_LED) {
@@ -2425,7 +2465,7 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 	case ICE_AQC_CAPS_EXT_TOPO_DEV_IMG2:
 	case ICE_AQC_CAPS_EXT_TOPO_DEV_IMG3:
 	{
-		u8 index = cap - ICE_AQC_CAPS_EXT_TOPO_DEV_IMG0;
+		u8 index = (u8)(cap - ICE_AQC_CAPS_EXT_TOPO_DEV_IMG0);
 
 		caps->ext_topo_dev_img_ver_high[index] = number;
 		caps->ext_topo_dev_img_ver_low[index] = logical_id;
@@ -2458,6 +2498,14 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 			  caps->ext_topo_dev_img_prog_en[index]);
 		break;
 	}
+	case ICE_AQC_CAPS_TX_SCHED_TOPO_COMP_MODE:
+		caps->tx_sched_topo_comp_mode_en = (number == 1);
+		break;
+	case ICE_AQC_CAPS_DYN_FLATTENING:
+		caps->dyn_flattening_en = (number == 1);
+		ice_debug(hw, ICE_DBG_INIT, "%s: dyn_flattening_en = %d\n",
+			  prefix, caps->dyn_flattening_en);
+		break;
 	default:
 		/* Not one of the recognized common capabilities */
 		found = false;
@@ -2654,6 +2702,29 @@ ice_parse_vsi_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 }
 
 /**
+ * ice_parse_nac_topo_dev_caps - Parse ICE_AQC_CAPS_NAC_TOPOLOGY cap
+ * @hw: pointer to the HW struct
+ * @dev_p: pointer to device capabilities structure
+ * @cap: capability element to parse
+ *
+ * Parse ICE_AQC_CAPS_NAC_TOPOLOGY for device capabilities.
+ */
+static void
+ice_parse_nac_topo_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
+			    struct ice_aqc_list_caps_elem *cap)
+{
+	dev_p->nac_topo.mode = LE32_TO_CPU(cap->number);
+	dev_p->nac_topo.id = LE32_TO_CPU(cap->phys_id) & ICE_NAC_TOPO_ID_M;
+
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: nac topology is_primary = %d\n",
+		  !!(dev_p->nac_topo.mode & ICE_NAC_TOPO_PRIMARY_M));
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: nac topology is_dual = %d\n",
+		  !!(dev_p->nac_topo.mode & ICE_NAC_TOPO_DUAL_M));
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: nac topology id = %d\n",
+		  dev_p->nac_topo.id);
+}
+
+/**
  * ice_parse_dev_caps - Parse device capabilities
  * @hw: pointer to the HW struct
  * @dev_p: pointer to device capabilities structure
@@ -2694,6 +2765,9 @@ ice_parse_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 			break;
 		case ICE_AQC_CAPS_VSI:
 			ice_parse_vsi_dev_caps(hw, dev_p, &cap_resp[i]);
+			break;
+		case ICE_AQC_CAPS_NAC_TOPOLOGY:
+			ice_parse_nac_topo_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
 		default:
 			/* Don't list common capabilities as unknown */
@@ -2999,12 +3073,10 @@ ice_aq_set_port_params(struct ice_port_info *pi, u16 bad_frame_vsi,
 bool ice_is_100m_speed_supported(struct ice_hw *hw)
 {
 	switch (hw->device_id) {
-	case ICE_DEV_ID_E822C_10G_BASE_T:
 	case ICE_DEV_ID_E822C_SGMII:
-	case ICE_DEV_ID_E822L_10G_BASE_T:
 	case ICE_DEV_ID_E822L_SGMII:
-	case ICE_DEV_ID_E823L_10G_BASE_T:
 	case ICE_DEV_ID_E823L_1GBE:
+	case ICE_DEV_ID_E823C_SGMII:
 		return true;
 	default:
 		return false;
@@ -3349,8 +3421,12 @@ enum ice_fc_mode ice_caps_to_fc_mode(u8 caps)
  */
 enum ice_fec_mode ice_caps_to_fec_mode(u8 caps, u8 fec_options)
 {
-	if (caps & ICE_AQC_PHY_EN_AUTO_FEC)
-		return ICE_FEC_AUTO;
+	if (caps & ICE_AQC_PHY_EN_AUTO_FEC) {
+		if (fec_options & ICE_AQC_PHY_FEC_DIS)
+			return ICE_FEC_DIS_AUTO;
+		else
+			return ICE_FEC_AUTO;
+	}
 
 	if (fec_options & (ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN |
 			   ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ |
@@ -3641,6 +3717,12 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 		/* Clear all FEC option bits. */
 		cfg->link_fec_opt &= ~ICE_AQC_PHY_FEC_MASK;
 		break;
+	case ICE_FEC_DIS_AUTO:
+		/* Set No FEC and auto FEC */
+		if (!ice_fw_supports_fec_dis_auto(hw))
+			return ICE_ERR_NOT_SUPPORTED;
+		cfg->link_fec_opt |= ICE_AQC_PHY_FEC_DIS;
+		/* fall-through */
 	case ICE_FEC_AUTO:
 		/* AND auto FEC bit, and all caps bits. */
 		cfg->caps &= ICE_AQC_PHY_CAPS_MASK;
@@ -3909,7 +3991,7 @@ ice_aq_read_topo_dev_nvm(struct ice_hw *hw,
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_read_topo_dev_nvm);
 
-	desc.datalen = data_size;
+	desc.datalen = CPU_TO_LE16(data_size);
 	ice_memcpy(&cmd->topo_params, topo_params, sizeof(*topo_params),
 		   ICE_NONDMA_TO_NONDMA);
 	cmd->start_address = CPU_TO_LE32(start_address);
@@ -5932,7 +6014,7 @@ ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_gpio);
 	cmd = &desc.params.read_write_gpio;
-	cmd->gpio_ctrl_handle = gpio_ctrl_handle;
+	cmd->gpio_ctrl_handle = CPU_TO_LE16(gpio_ctrl_handle);
 	cmd->gpio_num = pin_idx;
 	cmd->gpio_val = value ? 1 : 0;
 
@@ -5960,7 +6042,7 @@ ice_aq_get_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx,
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_gpio);
 	cmd = &desc.params.read_write_gpio;
-	cmd->gpio_ctrl_handle = gpio_ctrl_handle;
+	cmd->gpio_ctrl_handle = CPU_TO_LE16(gpio_ctrl_handle);
 	cmd->gpio_num = pin_idx;
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
@@ -5972,6 +6054,58 @@ ice_aq_get_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx,
 }
 
 /**
+ * ice_is_fw_api_min_ver
+ * @hw: pointer to the hardware structure
+ * @maj: major version
+ * @min: minor version
+ * @patch: patch version
+ *
+ * Checks if the firmware is minimum version
+ */
+static bool ice_is_fw_api_min_ver(struct ice_hw *hw, u8 maj, u8 min, u8 patch)
+{
+	if (hw->api_maj_ver == maj) {
+		if (hw->api_min_ver > min)
+			return true;
+		if (hw->api_min_ver == min && hw->api_patch >= patch)
+			return true;
+	} else if (hw->api_maj_ver > maj) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_is_fw_min_ver
+ * @hw: pointer to the hardware structure
+ * @branch: branch version
+ * @maj: major version
+ * @min: minor version
+ * @patch: patch version
+ *
+ * Checks if the firmware is minimum version
+ */
+static bool ice_is_fw_min_ver(struct ice_hw *hw, u8 branch, u8 maj, u8 min,
+			      u8 patch)
+{
+	if (hw->fw_branch == branch) {
+		if (hw->fw_maj_ver > maj)
+			return true;
+		if (hw->fw_maj_ver == maj) {
+			if (hw->fw_min_ver > min)
+				return true;
+			if (hw->fw_min_ver == min && hw->fw_patch >= patch)
+				return true;
+		}
+	} else if (hw->fw_branch > branch) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * ice_fw_supports_link_override
  * @hw: pointer to the hardware structure
  *
@@ -5979,17 +6113,9 @@ ice_aq_get_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx,
  */
 bool ice_fw_supports_link_override(struct ice_hw *hw)
 {
-	if (hw->api_maj_ver == ICE_FW_API_LINK_OVERRIDE_MAJ) {
-		if (hw->api_min_ver > ICE_FW_API_LINK_OVERRIDE_MIN)
-			return true;
-		if (hw->api_min_ver == ICE_FW_API_LINK_OVERRIDE_MIN &&
-		    hw->api_patch >= ICE_FW_API_LINK_OVERRIDE_PATCH)
-			return true;
-	} else if (hw->api_maj_ver > ICE_FW_API_LINK_OVERRIDE_MAJ) {
-		return true;
-	}
-
-	return false;
+	return ice_is_fw_api_min_ver(hw, ICE_FW_API_LINK_OVERRIDE_MAJ,
+				     ICE_FW_API_LINK_OVERRIDE_MIN,
+				     ICE_FW_API_LINK_OVERRIDE_PATCH);
 }
 
 /**
@@ -6254,19 +6380,12 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
  */
 bool ice_fw_supports_lldp_fltr_ctrl(struct ice_hw *hw)
 {
-	if (hw->mac_type != ICE_MAC_E810)
+	if (hw->mac_type != ICE_MAC_E810 && hw->mac_type != ICE_MAC_GENERIC)
 		return false;
 
-	if (hw->api_maj_ver == ICE_FW_API_LLDP_FLTR_MAJ) {
-		if (hw->api_min_ver > ICE_FW_API_LLDP_FLTR_MIN)
-			return true;
-		if (hw->api_min_ver == ICE_FW_API_LLDP_FLTR_MIN &&
-		    hw->api_patch >= ICE_FW_API_LLDP_FLTR_PATCH)
-			return true;
-	} else if (hw->api_maj_ver > ICE_FW_API_LLDP_FLTR_MAJ) {
-		return true;
-	}
-	return false;
+	return ice_is_fw_api_min_ver(hw, ICE_FW_API_LLDP_FLTR_MAJ,
+				     ICE_FW_API_LLDP_FLTR_MIN,
+				     ICE_FW_API_LLDP_FLTR_PATCH);
 }
 
 /**
@@ -6296,6 +6415,19 @@ ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add)
 }
 
 /**
+ * ice_lldp_execute_pending_mib - execute LLDP pending MIB request
+ * @hw: pointer to HW struct
+ */
+enum ice_status ice_lldp_execute_pending_mib(struct ice_hw *hw)
+{
+	struct ice_aq_desc desc;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_execute_pending_lldp_mib);
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+}
+
+/**
  * ice_fw_supports_report_dflt_cfg
  * @hw: pointer to the hardware structure
  *
@@ -6303,18 +6435,24 @@ ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add)
  */
 bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw)
 {
-	if (hw->api_maj_ver == ICE_FW_API_REPORT_DFLT_CFG_MAJ) {
-		if (hw->api_min_ver > ICE_FW_API_REPORT_DFLT_CFG_MIN)
-			return true;
-		if (hw->api_min_ver == ICE_FW_API_REPORT_DFLT_CFG_MIN &&
-		    hw->api_patch >= ICE_FW_API_REPORT_DFLT_CFG_PATCH)
-			return true;
-	} else if (hw->api_maj_ver > ICE_FW_API_REPORT_DFLT_CFG_MAJ) {
-		return true;
-	}
-	return false;
+	return ice_is_fw_api_min_ver(hw, ICE_FW_API_REPORT_DFLT_CFG_MAJ,
+				     ICE_FW_API_REPORT_DFLT_CFG_MIN,
+				     ICE_FW_API_REPORT_DFLT_CFG_PATCH);
 }
 
+/**
+ * ice_fw_supports_fec_dis_auto
+ * @hw: pointer to the hardware structure
+ *
+ * Checks if the firmware supports FEC disable in Auto FEC mode
+ */
+bool ice_fw_supports_fec_dis_auto(struct ice_hw *hw)
+{
+	return ice_is_fw_min_ver(hw, ICE_FW_FEC_DIS_AUTO_BRANCH,
+				 ICE_FW_FEC_DIS_AUTO_MAJ,
+				 ICE_FW_FEC_DIS_AUTO_MIN,
+				 ICE_FW_FEC_DIS_AUTO_PATCH);
+}
 /**
  * ice_is_fw_auto_drop_supported
  * @hw: pointer to the hardware structure
@@ -6328,3 +6466,4 @@ bool ice_is_fw_auto_drop_supported(struct ice_hw *hw)
 		return true;
 	return false;
 }
+

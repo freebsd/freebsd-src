@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 #ifndef _ICE_SWITCH_H_
 #define _ICE_SWITCH_H_
 
-#include "ice_common.h"
+#include "ice_type.h"
 #include "ice_protocol_type.h"
 
 #define ICE_SW_CFG_MAX_BUF_LEN 2048
@@ -42,6 +42,14 @@
 #define ICE_FLTR_RX BIT(0)
 #define ICE_FLTR_TX BIT(1)
 #define ICE_FLTR_TX_RX (ICE_FLTR_RX | ICE_FLTR_TX)
+
+#define ICE_PROFID_IPV4_GTPC_TEID	41
+#define ICE_PROFID_IPV4_GTPC_NO_TEID		42
+#define ICE_PROFID_IPV4_GTPU_TEID		43
+#define ICE_PROFID_IPV6_GTPC_TEID		44
+#define ICE_PROFID_IPV6_GTPC_NO_TEID		45
+#define ICE_PROFID_IPV6_GTPU_TEID		46
+#define ICE_PROFID_IPV6_GTPU_IPV6_TCP		70
 
 #define DUMMY_ETH_HDR_LEN		16
 #define ICE_SW_RULE_RX_TX_ETH_HDR_SIZE \
@@ -232,6 +240,7 @@ struct ice_adv_rule_info {
 	u32 priority;
 	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
 	u16 fltr_rule_id;
+	u16 lg_id;
 	struct ice_adv_rule_flags_info flags_info;
 };
 
@@ -382,6 +391,42 @@ enum ice_promisc_flags {
 	ICE_PROMISC_VLAN_TX = 0x80,
 };
 
+struct ice_dummy_pkt_offsets {
+	enum ice_protocol_type type;
+	u16 offset; /* ICE_PROTOCOL_LAST indicates end of list */
+};
+
+void
+ice_find_dummy_packet(struct ice_adv_lkup_elem *lkups, u16 lkups_cnt,
+		      enum ice_sw_tunnel_type tun_type, const u8 **pkt,
+		      u16 *pkt_len,
+		      const struct ice_dummy_pkt_offsets **offsets);
+
+enum ice_status
+ice_fill_adv_dummy_packet(struct ice_adv_lkup_elem *lkups, u16 lkups_cnt,
+			  struct ice_aqc_sw_rules_elem *s_rule,
+			  const u8 *dummy_pkt, u16 pkt_len,
+			  const struct ice_dummy_pkt_offsets *offsets);
+
+enum ice_status
+ice_add_adv_recipe(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
+		   u16 lkups_cnt, struct ice_adv_rule_info *rinfo, u16 *rid);
+
+struct ice_adv_fltr_mgmt_list_entry *
+ice_find_adv_rule_entry(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
+			u16 lkups_cnt, u16 recp_id,
+			struct ice_adv_rule_info *rinfo);
+
+enum ice_status
+ice_adv_add_update_vsi_list(struct ice_hw *hw,
+			    struct ice_adv_fltr_mgmt_list_entry *m_entry,
+			    struct ice_adv_rule_info *cur_fltr,
+			    struct ice_adv_rule_info *new_fltr);
+
+struct ice_vsi_list_map_info *
+ice_find_vsi_list_entry(struct ice_sw_recipe *recp_list, u16 vsi_handle,
+			u16 *vsi_list_id);
+
 /* VSI related commands */
 enum ice_status
 ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
@@ -468,6 +513,8 @@ void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_port_info *pi, u16 vsi_handle, bool set,
 		 u8 direction);
+bool ice_check_if_dflt_vsi(struct ice_port_info *pi, u16 vsi_handle,
+			   bool *rule_exists);
 enum ice_status
 ice_set_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 		    u16 vid);
@@ -498,4 +545,7 @@ ice_replay_vsi_all_fltr(struct ice_hw *hw, struct ice_port_info *pi,
 			u16 vsi_handle);
 void ice_rm_sw_replay_rule_info(struct ice_hw *hw, struct ice_switch_info *sw);
 void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
+enum ice_status
+ice_aq_sw_rules(struct ice_hw *hw, void *rule_list, u16 rule_list_sz,
+		u8 num_rules, enum ice_adminq_opc opc, struct ice_sq_cd *cd);
 #endif /* _ICE_SWITCH_H_ */
