@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/linux/linux.h>
 #include <compat/linux/linux_file.h>
-#include <compat/linux/linux_timer.h>
+#include <compat/linux/linux_time.h>
 
 #define	X(a,b)	{ a, #b },
 #define	XEND	{ 0, NULL }

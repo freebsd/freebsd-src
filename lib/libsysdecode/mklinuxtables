@@ -89,9 +89,9 @@ cat <<_EOF_
 _EOF_
 
 gen_table "atflags"     "LINUX_AT_[A-Z_]+[[:space:]]+[0-9]+"             "compat/linux/linux_file.h"
-gen_table "clockids"    "LINUX_CLOCK_[A-Z_]+[[:space:]]+[0-9]+"          "compat/linux/linux_timer.h"
-gen_table "clockflags"  "LINUX_TIMER_[A-Z_]+[[:space:]]+0x[0-9]+"        "compat/linux/linux_timer.h"
-gen_table "clockcpuids" "LINUX_CPUCLOCK_[A-Z_]+[[:space:]]+[0-9]+"       "compat/linux/linux_timer.h"	"_MASK|_MAX"
+gen_table "clockids"    "LINUX_CLOCK_[A-Z_]+[[:space:]]+[0-9]+"          "compat/linux/linux_time.h"
+gen_table "clockflags"  "LINUX_TIMER_[A-Z_]+[[:space:]]+0x[0-9]+"        "compat/linux/linux_time.h"
+gen_table "clockcpuids" "LINUX_CPUCLOCK_[A-Z_]+[[:space:]]+[0-9]+"       "compat/linux/linux_time.h"	"_MASK|_MAX"
 gen_table "openflags"   "LINUX_O_[A-Z_]+[[:space:]]+[0-9]+"              "compat/linux/linux_file.h"	"O_RDONLY|O_RDWR|O_WRONLY|O_ACCMODE"
 gen_table "sigprocmaskhow" "LINUX_SIG_[A-Z]+[[:space:]]+[0-9]+"          "compat/linux/linux.h"
 
