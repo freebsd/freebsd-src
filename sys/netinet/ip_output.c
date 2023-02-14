@@ -116,14 +116,13 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 	struct mbuf *m;
 	struct in_addr odst;
 	struct ip *ip;
-	int pflags = PFIL_OUT;
 
 	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	switch (pfil_run_hooks(V_inet_pfil_head, mp, ifp, pflags, inp)) {
+	switch (pfil_mbuf_out(V_inet_pfil_head, mp, ifp, inp)) {
 	case PFIL_DROPPED:
 		*error = EACCES;
 		/* FALLTHROUGH */

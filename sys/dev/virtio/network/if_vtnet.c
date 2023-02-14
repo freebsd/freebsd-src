@@ -2137,12 +2137,8 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 		if (PFIL_HOOKED_IN(sc->vtnet_pfil)) {
 			pfil_return_t pfil;
 
-			pfil = pfil_run_hooks(sc->vtnet_pfil, &m, ifp, PFIL_IN,
-			    NULL);
+			pfil = pfil_mbuf_in(sc->vtnet_pfil, &m, ifp, NULL);
 			switch (pfil) {
-			case PFIL_REALLOCED:
-				m = pfil_mem2mbuf(m->m_data);
-				break;
 			case PFIL_DROPPED:
 			case PFIL_CONSUMED:
 				continue;

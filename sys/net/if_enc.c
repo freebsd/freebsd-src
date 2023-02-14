@@ -247,7 +247,7 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 	struct enc_softc *sc;
 	struct ifnet *ifp, *rcvif;
 	struct pfil_head *ph;
-	int pdir;
+	int pdir, ret;
 
 	sc = (struct enc_softc *)udata;
 	ifp = sc->sc_ifp;
@@ -307,7 +307,11 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 	/* Make a packet looks like it was received on enc(4) */
 	rcvif = (*ctx->mp)->m_pkthdr.rcvif;
 	(*ctx->mp)->m_pkthdr.rcvif = ifp;
-	if (pfil_run_hooks(ph, ctx->mp, ifp, pdir, ctx->inp) != PFIL_PASS) {
+	if (pdir == PFIL_IN)
+		ret = pfil_mbuf_in(ph, ctx->mp, ifp, ctx->inp);
+	else
+		ret = pfil_mbuf_out(ph, ctx->mp, ifp, ctx->inp);
+	if (ret != PFIL_PASS) {
 		*ctx->mp = NULL; /* consumed by filter */
 		return (EACCES);
 	}

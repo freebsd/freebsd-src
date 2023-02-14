@@ -3365,7 +3365,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	/* Run the packet through pfil before stripping link headers */
 	if (PFIL_HOOKED_OUT(V_link_pfil_head) && V_pfil_ipfw != 0 &&
 	    dir == PFIL_OUT && ifp != NULL) {
-		switch (pfil_run_hooks(V_link_pfil_head, mp, ifp, dir, NULL)) {
+		switch (pfil_mbuf_out(V_link_pfil_head, mp, ifp, NULL)) {
 		case PFIL_DROPPED:
 			return (EACCES);
 		case PFIL_CONSUMED:
@@ -3419,17 +3419,20 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		 *   in_if -> bridge_if -> out_if
 		 */
 		if (V_pfil_bridge && dir == PFIL_OUT && bifp != NULL && (rv =
-		    pfil_run_hooks(V_inet_pfil_head, mp, bifp, dir, NULL)) !=
+		    pfil_mbuf_out(V_inet_pfil_head, mp, bifp, NULL)) !=
 		    PFIL_PASS)
 			break;
 
-		if (V_pfil_member && ifp != NULL && (rv =
-		    pfil_run_hooks(V_inet_pfil_head, mp, ifp, dir, NULL)) !=
-		    PFIL_PASS)
-			break;
+		if (V_pfil_member && ifp != NULL) {
+			rv = (dir == PFIL_OUT) ?
+			    pfil_mbuf_out(V_inet_pfil_head, mp, ifp, NULL) :
+			    pfil_mbuf_in(V_inet_pfil_head, mp, ifp, NULL);
+			if (rv != PFIL_PASS)
+				break;
+		}
 
 		if (V_pfil_bridge && dir == PFIL_IN && bifp != NULL && (rv =
-		    pfil_run_hooks(V_inet_pfil_head, mp, bifp, dir, NULL)) !=
+		    pfil_mbuf_in(V_inet_pfil_head, mp, bifp, NULL)) !=
 		    PFIL_PASS)
 			break;
 
@@ -3467,17 +3470,20 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 #ifdef INET6
 	case ETHERTYPE_IPV6:
 		if (V_pfil_bridge && dir == PFIL_OUT && bifp != NULL && (rv =
-		    pfil_run_hooks(V_inet6_pfil_head, mp, bifp, dir, NULL)) !=
+		    pfil_mbuf_out(V_inet6_pfil_head, mp, bifp, NULL)) !=
 		    PFIL_PASS)
 			break;
 
-		if (V_pfil_member && ifp != NULL && (rv =
-		    pfil_run_hooks(V_inet6_pfil_head, mp, ifp, dir, NULL)) !=
-		    PFIL_PASS)
-			break;
+		if (V_pfil_member && ifp != NULL) {
+			rv = (dir == PFIL_OUT) ?
+			    pfil_mbuf_out(V_inet6_pfil_head, mp, ifp, NULL) :
+			    pfil_mbuf_in(V_inet6_pfil_head, mp, ifp, NULL);
+			if (rv != PFIL_PASS)
+				break;
+		}
 
 		if (V_pfil_bridge && dir == PFIL_IN && bifp != NULL && (rv =
-		    pfil_run_hooks(V_inet6_pfil_head, mp, bifp, dir, NULL)) !=
+		    pfil_mbuf_in(V_inet6_pfil_head, mp, bifp, NULL)) !=
 		    PFIL_PASS)
 			break;
 		break;
