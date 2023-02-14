@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 extern int nfscl_ticks;
-extern nfsuserd_state nfsrv_nfsuserd;
-extern struct nfssockreq nfsrv_nfsuserdsock;
 extern void (*nfsd_call_recall)(struct vnode *, int, struct ucred *,
     struct thread *);
 extern int nfsrv_useacl;
@@ -76,6 +74,9 @@ vop_reclaim_t *nfs_reclaim_p = NULL;
 uint32_t nfs_srvmaxio = NFS_SRVMAXIO;
 
 NFSD_VNET_DEFINE(struct nfsstatsv1 *, nfsstatsv1_p);
+
+NFSD_VNET_DECLARE(struct nfssockreq, nfsrv_nfsuserdsock);
+NFSD_VNET_DECLARE(nfsuserd_state, nfsrv_nfsuserd);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -876,6 +877,7 @@ nfs_clean(struct prison *pr)
 {
 
 	NFSD_CURVNET_SET(pr->pr_vnet);
+	mtx_destroy(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx);
 	if (pr != &prison0)
 		free(NFSD_VNET(nfsstatsv1_p), M_TEMP);
 	/* Clean out the name<-->id cache. */
@@ -895,6 +897,8 @@ nfs_vnetinit(const void *unused __unused)
 	else
 		NFSD_VNET(nfsstatsv1_p) = malloc(sizeof(struct nfsstatsv1),
 		    M_TEMP, M_WAITOK | M_ZERO);
+	mtx_init(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx, "nfsuserd",
+	    NULL, MTX_DEF);
 }
 SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     nfs_vnetinit, NULL);
@@ -919,8 +923,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfs_sockl_mutex, "nfs_sockl_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_slock_mutex, "nfs_slock_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_req_mutex, "nfs_req_mutex", NULL, MTX_DEF);
-		mtx_init(&nfsrv_nfsuserdsock.nr_mtx, "nfsuserd", NULL,
-		    MTX_DEF);
 		mtx_init(&nfsrv_dslock_mtx, "nfs4ds", NULL, MTX_DEF);
 		TAILQ_INIT(&nfsrv_devidhead);
 		newnfs_init();
@@ -929,7 +931,8 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		break;
 
 	case MOD_UNLOAD:
-		if (newnfs_numnfsd != 0 || nfsrv_nfsuserd != NOTRUNNING ||
+		if (newnfs_numnfsd != 0 ||
+		    NFSD_VNET(nfsrv_nfsuserd) != NOTRUNNING ||
 		    nfs_numnfscbd != 0) {
 			error = EBUSY;
 			break;
@@ -945,7 +948,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfs_sockl_mutex);
 		mtx_destroy(&nfs_slock_mutex);
 		mtx_destroy(&nfs_req_mutex);
-		mtx_destroy(&nfsrv_nfsuserdsock.nr_mtx);
 		mtx_destroy(&nfsrv_dslock_mtx);
 		loaded = 0;
 		break;
