@@ -28,17 +28,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
-#include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sx.h>
 
 #include <compat/linux/linux.h>
-#include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 

@@ -39,10 +39,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/vnode.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -52,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 #include <compat/linux/linux_misc.h>
-#include <compat/linux/linux_util.h>
 
 /*
  * Find pathname of process's current directory.

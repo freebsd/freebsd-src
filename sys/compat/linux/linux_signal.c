@@ -32,13 +32,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #ifdef KTRACE

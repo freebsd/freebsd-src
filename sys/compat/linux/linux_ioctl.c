@@ -30,21 +30,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#ifdef COMPAT_LINUX32
-#include <sys/abi_compat.h>
-#endif
 #include <sys/capsicum.h>
 #include <sys/cdio.h>
-#include <sys/dvdio.h>
-#include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/consio.h>
-#include <sys/ctype.h>
+#include <sys/disk.h>
+#include <sys/dvdio.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/jail.h>
 #include <sys/kbio.h>
@@ -53,18 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
-#include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
-#include <sys/stdint.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/sx.h>
 #include <sys/tty.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/resourcevar.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
