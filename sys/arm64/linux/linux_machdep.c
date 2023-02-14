@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/reg.h>
 #include <sys/sdt.h>
 
+#include <vm/vm_param.h>
+
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
