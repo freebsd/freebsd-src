@@ -32,17 +32,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
-#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 

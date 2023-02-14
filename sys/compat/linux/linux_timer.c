@@ -31,12 +31,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/signal.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/types.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>

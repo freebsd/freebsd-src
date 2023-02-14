@@ -30,15 +30,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/sdt.h>
-#include <sys/systm.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/jail.h>
-#include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 
 #include <compat/linux/linux_mib.h>
