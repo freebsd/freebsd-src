@@ -9,4 +9,7 @@ SRCS=	kbdcontrol.c lex.l
 WARNS?=	4
 CFLAGS+= -I${.CURDIR}
 
+# temporarily added for pre-Unicode accent key API/ABI compatibility
+CFLAGS+= -DCOMPAT_FREEBSD13
+
 .include <bsd.prog.mk>
