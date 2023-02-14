@@ -30,21 +30,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/imgact.h>
-#include <sys/kernel.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/callout.h>
 #include <sys/capsicum.h>
-#include <sys/types.h>
-#include <sys/user.h>
+#include <sys/errno.h>
+#include <sys/event.h>
+#include <sys/eventfd.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/errno.h>
-#include <sys/event.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/selinfo.h>
@@ -52,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/timespec.h>
-#include <sys/eventfd.h>
+#include <sys/user.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>

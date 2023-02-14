@@ -34,9 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capsicum.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/imgact.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mman.h>

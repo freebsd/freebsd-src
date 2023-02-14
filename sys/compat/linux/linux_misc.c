@@ -33,16 +33,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/blist.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/imgact.h>
-#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mman.h>
-#include <sys/mount.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
@@ -53,20 +48,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
-#include <sys/sdt.h>
-#include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
-#include <sys/wait.h>
-#include <sys/cpuset.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>

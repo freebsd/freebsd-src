@@ -4,8 +4,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 
 #include <compat/linux/linux.h>
 #include <compat/linux/linux_errno.h>
