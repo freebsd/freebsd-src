@@ -2491,10 +2491,9 @@ aio_biowakeup(struct bio *bp)
 		atomic_add_int(&job->outblock, nblks);
 	else
 		atomic_add_int(&job->inblock, nblks);
-	atomic_subtract_int(&job->nbio, 1);
 
 
-	if (atomic_load_int(&job->nbio) == 0) {
+	if (atomic_fetchadd_int(&job->nbio, -1) == 1) {
 		if (atomic_load_int(&job->error))
 			aio_complete(job, -1, job->error);
 		else
