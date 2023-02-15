@@ -54,9 +54,23 @@ struct kgss_mech {
 };
 LIST_HEAD(kgss_mech_list, kgss_mech);
 
-extern CLIENT *kgss_gssd_handle;
+/* Macros for VIMAGE. */
+/* Define the KGSS_VNET macros similar to !VIMAGE. */
+#define	KGSS_VNET_NAME(n)		n
+#define	KGSS_VNET_DECLARE(t, n)		extern t n
+#define	KGSS_VNET_DEFINE(t, n)		t n
+#define	KGSS_VNET_DEFINE_STATIC(t, n)	static t n
+#define	KGSS_VNET(n)			(n)
+
+#define	KGSS_CURVNET_SET(n)
+#define	KGSS_CURVNET_SET_QUIET(n)
+#define	KGSS_CURVNET_RESTORE()
+#define	KGSS_TD_TO_VNET(n)		NULL
+
 extern struct mtx kgss_gssd_lock;
 extern struct kgss_mech_list kgss_mechs;
+
+KGSS_VNET_DECLARE(CLIENT *, kgss_gssd_handle);
 
 CLIENT *kgss_gssd_client(void);
 int kgss_oid_equal(const gss_OID oid1, const gss_OID oid2);
