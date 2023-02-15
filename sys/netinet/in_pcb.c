@@ -655,21 +655,21 @@ out:
 
 #ifdef INET
 int
-in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
+in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 {
 	int anonport, error;
 
-	KASSERT(nam == NULL || nam->sa_family == AF_INET,
-	    ("%s: invalid address family for %p", __func__, nam));
-	KASSERT(nam == NULL || nam->sa_len == sizeof(struct sockaddr_in),
-	    ("%s: invalid address length for %p", __func__, nam));
+	KASSERT(sin == NULL || sin->sin_family == AF_INET,
+	    ("%s: invalid address family for %p", __func__, sin));
+	KASSERT(sin == NULL || sin->sin_len == sizeof(struct sockaddr_in),
+	    ("%s: invalid address length for %p", __func__, sin));
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	anonport = nam == NULL || ((struct sockaddr_in *)nam)->sin_port == 0;
-	error = in_pcbbind_setup(inp, nam, &inp->inp_laddr.s_addr,
+	anonport = sin == NULL || sin->sin_port == 0;
+	error = in_pcbbind_setup(inp, sin, &inp->inp_laddr.s_addr,
 	    &inp->inp_lport, cred);
 	if (error)
 		return (error);
@@ -901,11 +901,10 @@ in_pcbbind_check_bindmulti(const struct inpcb *ni, const struct inpcb *oi)
  * On error, the values of *laddrp and *lportp are not changed.
  */
 int
-in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
+in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
     u_short *lportp, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
-	struct sockaddr_in *sin;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct in_addr laddr;
 	u_short lport = 0;
@@ -925,15 +924,14 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	laddr.s_addr = *laddrp;
-	if (nam != NULL && laddr.s_addr != INADDR_ANY)
+	if (sin != NULL && laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
-	if (nam == NULL) {
+	if (sin == NULL) {
 		if ((error = prison_local_ip4(cred, &laddr)) != 0)
 			return (error);
 	} else {
-		sin = (struct sockaddr_in *)nam;
 		KASSERT(sin->sin_family == AF_INET,
 		    ("%s: invalid family for address %p", __func__, sin));
 		KASSERT(sin->sin_len == sizeof(*sin),

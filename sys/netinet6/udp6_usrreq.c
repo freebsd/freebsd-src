@@ -1020,6 +1020,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 static int
 udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct sockaddr_in6 *sin6_p;
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 	int error;
@@ -1034,16 +1035,14 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (nam->sa_len != sizeof(struct sockaddr_in6))
 		return (EINVAL);
 
+	sin6_p = (struct sockaddr_in6 *)nam;
+
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(pcbinfo);
 	vflagsav = inp->inp_vflag;
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
-		struct sockaddr_in6 *sin6_p;
-
-		sin6_p = (struct sockaddr_in6 *)nam;
-
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6_p->sin6_addr))
 			inp->inp_vflag |= INP_IPV4;
 #ifdef INET
@@ -1053,14 +1052,13 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			in6_sin6_2_sin(&sin, sin6_p);
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
-			error = in_pcbbind(inp, (struct sockaddr *)&sin,
-			    td->td_ucred);
+			error = in_pcbbind(inp, &sin, td->td_ucred);
 			goto out;
 		}
 #endif
 	}
 
-	error = in6_pcbbind(inp, nam, td->td_ucred);
+	error = in6_pcbbind(inp, sin6_p, td->td_ucred);
 #ifdef INET
 out:
 #endif

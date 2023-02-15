@@ -1206,8 +1206,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			goto release;
 		}
 		INP_HASH_WLOCK(pcbinfo);
-		error = in_pcbbind_setup(inp, (struct sockaddr *)&src,
-		    &laddr.s_addr, &lport, td->td_ucred);
+		error = in_pcbbind_setup(inp, &src, &laddr.s_addr, &lport,
+		    td->td_ucred);
 		INP_HASH_WUNLOCK(pcbinfo);
 		if (error)
 			goto release;
@@ -1546,7 +1546,7 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(pcbinfo);
-	error = in_pcbbind(inp, nam, td->td_ucred);
+	error = in_pcbbind(inp, sinp, td->td_ucred);
 	INP_HASH_WUNLOCK(pcbinfo);
 	INP_WUNLOCK(inp);
 	return (error);
