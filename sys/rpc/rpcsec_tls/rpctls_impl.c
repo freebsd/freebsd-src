@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+
+#include <net/vnet.h>
 
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -74,11 +77,13 @@ static CLIENT		*rpctls_connect_handle;
 static struct mtx	rpctls_connect_lock;
 static struct socket	*rpctls_connect_so = NULL;
 static CLIENT		*rpctls_connect_cl = NULL;
-static CLIENT		*rpctls_server_handle;
 static struct mtx	rpctls_server_lock;
-static struct socket	*rpctls_server_so = NULL;
-static SVCXPRT		*rpctls_server_xprt = NULL;
 static struct opaque_auth rpctls_null_verf;
+
+KRPC_VNET_DEFINE_STATIC(CLIENT *, rpctls_server_handle) = NULL;
+KRPC_VNET_DEFINE_STATIC(struct socket *, rpctls_server_so) = NULL;
+KRPC_VNET_DEFINE_STATIC(SVCXPRT *, rpctls_server_xprt) = NULL;
+KRPC_VNET_DEFINE_STATIC(bool, rpctls_server_busy) = false;
 
 static CLIENT		*rpctls_connect_client(void);
 static CLIENT		*rpctls_server_client(void);
@@ -127,9 +132,13 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	if (error != 0)
 		return (error);
 
+	KRPC_CURVNET_SET(KRPC_TD_TO_VNET(td));
 	switch (uap->op) {
 	case RPCTLS_SYSC_CLSETPATH:
-		error = copyinstr(uap->path, path, sizeof(path), NULL);
+		if (jailed(curthread->td_ucred))
+			error = EPERM;
+		if (error == 0)
+			error = copyinstr(uap->path, path, sizeof(path), NULL);
 		if (error == 0) {
 			error = ENXIO;
 #ifdef KERN_TLS
@@ -185,7 +194,11 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		}
 		break;
 	case RPCTLS_SYSC_SRVSETPATH:
-		error = copyinstr(uap->path, path, sizeof(path), NULL);
+		if (jailed(curthread->td_ucred) &&
+		    !prison_check_nfsd(curthread->td_ucred))
+			error = EPERM;
+		if (error == 0)
+			error = copyinstr(uap->path, path, sizeof(path), NULL);
 		if (error == 0) {
 			error = ENXIO;
 #ifdef KERN_TLS
@@ -228,8 +241,8 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		}
 	
 		mtx_lock(&rpctls_server_lock);
-		oldcl = rpctls_server_handle;
-		rpctls_server_handle = cl;
+		oldcl = KRPC_VNET(rpctls_server_handle);
+		KRPC_VNET(rpctls_server_handle) = cl;
 		mtx_unlock(&rpctls_server_lock);
 	
 		if (oldcl != NULL) {
@@ -250,8 +263,8 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		break;
 	case RPCTLS_SYSC_SRVSHUTDOWN:
 		mtx_lock(&rpctls_server_lock);
-		oldcl = rpctls_server_handle;
-		rpctls_server_handle = NULL;
+		oldcl = KRPC_VNET(rpctls_server_handle);
+		KRPC_VNET(rpctls_server_handle) = NULL;
 		mtx_unlock(&rpctls_server_lock);
 	
 		if (oldcl != NULL) {
@@ -288,10 +301,10 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		break;
 	case RPCTLS_SYSC_SRVSOCKET:
 		mtx_lock(&rpctls_server_lock);
-		so = rpctls_server_so;
-		rpctls_server_so = NULL;
-		xprt = rpctls_server_xprt;
-		rpctls_server_xprt = NULL;
+		so = KRPC_VNET(rpctls_server_so);
+		KRPC_VNET(rpctls_server_so) = NULL;
+		xprt = KRPC_VNET(rpctls_server_xprt);
+		KRPC_VNET(rpctls_server_xprt) = NULL;
 		mtx_unlock(&rpctls_server_lock);
 		if (so != NULL) {
 			error = falloc(td, &fp, &fd, 0);
@@ -316,6 +329,7 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	default:
 		error = EINVAL;
 	}
+	KRPC_CURVNET_RESTORE();
 
 	return (error);
 }
@@ -346,11 +360,13 @@ rpctls_server_client(void)
 {
 	CLIENT *cl;
 
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
 	mtx_lock(&rpctls_server_lock);
-	cl = rpctls_server_handle;
+	cl = KRPC_VNET(rpctls_server_handle);
 	if (cl != NULL)
 		CLNT_ACQUIRE(cl);
 	mtx_unlock(&rpctls_server_lock);
+	KRPC_CURVNET_RESTORE();
 	return (cl);
 }
 
@@ -556,20 +572,22 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 	gid_t *gidp;
 	uint32_t *gidv;
 	int i;
-	static bool rpctls_server_busy = false;
 
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
 	cl = rpctls_server_client();
-	if (cl == NULL)
+	if (cl == NULL) {
+		KRPC_CURVNET_RESTORE();
 		return (RPC_SYSTEMERROR);
+	}
 
 	/* Serialize the server upcalls. */
 	mtx_lock(&rpctls_server_lock);
-	while (rpctls_server_busy)
-		msleep(&rpctls_server_busy, &rpctls_server_lock, PVFS,
-		    "rtlssn", 0);
-	rpctls_server_busy = true;
-	rpctls_server_so = so;
-	rpctls_server_xprt = xprt;
+	while (KRPC_VNET(rpctls_server_busy))
+		msleep(&KRPC_VNET(rpctls_server_busy),
+		    &rpctls_server_lock, PVFS, "rtlssn", 0);
+	KRPC_VNET(rpctls_server_busy) = true;
+	KRPC_VNET(rpctls_server_so) = so;
+	KRPC_VNET(rpctls_server_xprt) = xprt;
 	mtx_unlock(&rpctls_server_lock);
 
 	/* Do the server upcall. */
@@ -603,11 +621,12 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 
 	/* Once the upcall is done, the daemon is done with the fp and so. */
 	mtx_lock(&rpctls_server_lock);
-	rpctls_server_so = NULL;
-	rpctls_server_xprt = NULL;
-	rpctls_server_busy = false;
-	wakeup(&rpctls_server_busy);
+	KRPC_VNET(rpctls_server_so) = NULL;
+	KRPC_VNET(rpctls_server_xprt) = NULL;
+	KRPC_VNET(rpctls_server_busy) = false;
+	wakeup(&KRPC_VNET(rpctls_server_busy));
 	mtx_unlock(&rpctls_server_lock);
+	KRPC_CURVNET_RESTORE();
 
 	return (stat);
 }
@@ -725,8 +744,12 @@ rpctls_getinfo(u_int *maxlenp, bool rpctlscd_run, bool rpctlssd_run)
 		return (false);
 	if (rpctlscd_run && rpctls_connect_handle == NULL)
 		return (false);
-	if (rpctlssd_run && rpctls_server_handle == NULL)
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
+	if (rpctlssd_run && KRPC_VNET(rpctls_server_handle) == NULL) {
+		KRPC_CURVNET_RESTORE();
 		return (false);
+	}
+	KRPC_CURVNET_RESTORE();
 	*maxlenp = maxlen;
 	return (enable);
 }
