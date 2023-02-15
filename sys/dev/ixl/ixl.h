@@ -164,9 +164,6 @@
 #define IXL_VF_MAX_HDR_BUFFER	0x840
 #define IXL_VF_MAX_FRAME	0x3FFF
 
-/* ERJ: hardware can support ~2k (SW5+) filters between all functions */
-#define IXL_MAX_FILTERS		256
-
 #define IXL_NVM_VERSION_LO_SHIFT	0
 #define IXL_NVM_VERSION_LO_MASK		(0xff << IXL_NVM_VERSION_LO_SHIFT)
 #define IXL_NVM_VERSION_HI_SHIFT	12
@@ -195,7 +192,7 @@
 #define IXL_VLAN_ANY		-1
 
 /* Maximum number of MAC/VLAN filters supported by HW */
-#define IXL_MAX_VLAN_FILTERS	256
+#define IXL_MAX_VLAN_FILTERS	255
 
 #define CSUM_OFFLOAD_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
 #define CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6|CSUM_SCTP_IPV6)

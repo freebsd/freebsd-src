@@ -1396,6 +1396,11 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, struct ixl_ftl_head *to_add, int cnt)
 			b->flags = 0;
 		}
 		b->flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
+		/* Some FW versions do not set match method
+		 * when adding filters fails. Initialize it with
+		 * expected error value to allow detection which
+		 * filters were not added */
+		b->match_method = I40E_AQC_MM_ERR_NO_RES;
 		ixl_dbg_filter(pf, "ADD: " MAC_FORMAT "\n",
 		    MAC_FORMAT_ARGS(f->macaddr));
 

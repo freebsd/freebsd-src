@@ -160,10 +160,7 @@ struct i40e_dma_mem {
 	u64			pa;
 	bus_dma_tag_t		tag;
 	bus_dmamap_t		map;
-	bus_dma_segment_t	seg;
 	bus_size_t              size;
-	int			nseg;
-	int                     flags;
 };
 
 struct i40e_virt_mem {
