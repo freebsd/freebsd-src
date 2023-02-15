@@ -216,7 +216,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
-	rw_init_flags(&object->lock, "vm object", RW_DUPOK | RW_NEW);
+	rw_init_flags(&object->lock, "vmobject", RW_DUPOK | RW_NEW);
 
 	/* These are true for any object that has been freed */
 	object->type = OBJT_DEAD;
