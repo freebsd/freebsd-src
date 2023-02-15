@@ -169,14 +169,13 @@ efi_to_unix(void)
 	char buffer[MAXSIZE];
 	char dpbuf[MAXSIZE];
 	efidp dp;
-	size_t dplen;
 	char *walker, *dev, *relpath, *abspath;
 	int rv;
 
 	dp = (efidp)dpbuf;
 	while (fgets(buffer, sizeof(buffer), stdin)) {
 		walker= trim(buffer);
-		dplen = efidp_parse_device_path(walker, dp, sizeof(dpbuf));
+		efidp_parse_device_path(walker, dp, sizeof(dpbuf));
 		rv = efivar_device_path_to_unix_path(dp, &dev, &relpath, &abspath);
 		if (rv == 0)
 			printf("%s:%s %s\n", dev, relpath, abspath);
