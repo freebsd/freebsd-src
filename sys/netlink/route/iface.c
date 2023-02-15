@@ -174,9 +174,11 @@ get_operstate(struct ifnet *ifp, struct if_state *pstate)
 
 	switch (ifp->if_type) {
 	case IFT_ETHER:
+	case IFT_L2VLAN:
 		get_operstate_ether(ifp, pstate);
 		break;
-	case IFT_LOOP:
+	default:
+		/* Map admin state to the operstate */
 		if (ifp->if_flags & IFF_UP) {
 			pstate->ifla_operstate = IF_OPER_UP;
 			pstate->ifla_carrier = 1;
