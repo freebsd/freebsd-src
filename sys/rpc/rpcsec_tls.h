@@ -76,6 +76,9 @@ enum clnt_stat	rpctls_srv_disconnect(uint64_t sec, uint64_t usec,
 /* Initialization function for rpcsec_tls. */
 int		rpctls_init(void);
 
+/* Cleanup function for rpcsec_tls. */
+void		rpctls_cleanup(void);
+
 /* Get TLS information function. */
 bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
 		    bool rpctlssd_run);
@@ -85,6 +88,21 @@ bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
 
 /* ssl refno value to indicate TLS handshake being done. */
 #define	RPCTLS_REFNO_HANDSHAKE	0xFFFFFFFFFFFFFFFFULL
+
+/* Macros for VIMAGE. */
+/* Define the KRPC_VNET macros similar to !VIMAGE. */
+#define	KRPC_VNET_NAME(n)		n
+#define	KRPC_VNET_DECLARE(t, n)		extern t n
+#define	KRPC_VNET_DEFINE(t, n)		t n
+#define	KRPC_VNET_DEFINE_STATIC(t, n)	static t n
+#define	KRPC_VNET(n)			(n)
+
+#define	CTLFLAG_KRPC_VNET		0
+
+#define	KRPC_CURVNET_SET(n)
+#define	KRPC_CURVNET_SET_QUIET(n)
+#define	KRPC_CURVNET_RESTORE()
+#define	KRPC_TD_TO_VNET(n)		NULL
 
 #endif	/* _KERNEL */
 
