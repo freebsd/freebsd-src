@@ -153,11 +153,9 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 }
 
 int
-in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred)
+in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short	lport = 0;
 	int error, lookupflags = 0;
@@ -176,12 +174,11 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam,
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
-	if (nam == NULL) {
+	if (sin6 == NULL) {
 		if ((error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
 	} else {
-		sin6 = (struct sockaddr_in6 *)nam;
 		KASSERT(sin6->sin6_family == AF_INET6,
 		    ("%s: invalid address family for %p", __func__, sin6));
 		KASSERT(sin6->sin6_len == sizeof(*sin6),
