@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230308: machine-id merged into hostid_save
+OLD_FILES+=etc/rc.d/machine-id
+
 # 20230203: loader help files renamed
 OLD_FILES+=boot/loader.help
 

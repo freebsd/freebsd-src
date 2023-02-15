@@ -15,20 +15,32 @@ start_cmd="hostid_save"
 stop_cmd=":"
 rcvar="hostid_enable"
 
+hostid_machine_id()
+{
+	local IFS
+
+	IFS=-
+	set -- ${current_hostid}
+	IFS=
+	current_machine_id=$*
+}
+
 hostid_save()
 {
 	current_hostid=`$SYSCTL_N kern.hostuuid`
 
-	if [ -r ${hostid_file} ]; then
-		read saved_hostid < ${hostid_file}
-		if [ ${saved_hostid} = ${current_hostid} ]; then
-			exit 0
-		fi
+	read saved_hostid 2>/dev/null < ${hostid_file}
+	if [ "${saved_hostid}" != "${current_hostid}" ]; then
+		echo "${current_hostid}" > ${hostid_file} ||
+			warn "could not store hostuuid in ${hostid_file}."
 	fi
 
-	echo ${current_hostid} > ${hostid_file}
-	if [ $? -ne 0 ]; then
-		warn "could not store hostuuid in ${hostid_file}."
+	hostid_machine_id
+
+	read saved_machine_id 2>/dev/null < ${machine_id_file}
+	if [ "${saved_machine_id}" != "${current_machine_id}" ]; then
+		echo "${current_machine_id}" > ${machine_id_file} ||
+			warn "could not store hostuuid in ${machine_id_file}."
 	fi
 }
 
