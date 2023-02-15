@@ -160,7 +160,6 @@
 
 struct mos_softc {
 	struct usb_ether sc_ue;
-	struct ifnet ifp;
 
 	struct mtx sc_mtx;
 	struct usb_xfer *sc_xfer[MOS_ENDPT_MAX];
