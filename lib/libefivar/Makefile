@@ -64,9 +64,10 @@ WARNS?=		9
 
 .include <bsd.lib.mk>
 
+# We use UEFI parsing and formatting code from upstream EDK2 project.
+# They still have issues that require us to susppress some warnings.
 CWARNFLAGS+=	-Wno-cast-align
 CWARNFLAGS+=	-Wno-unused-parameter
-
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 130000
 CWARNFLAGS+=	-Wno-unused-but-set-variable
 .endif
