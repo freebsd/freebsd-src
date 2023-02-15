@@ -1279,7 +1279,7 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 	}
 
 	bios = malloc(sizeof(struct bio *) * iovcnt, M_TEMP, M_WAITOK);
-	atomic_store_int(&job->nbio, iovcnt);
+	refcount_init(&job->nbio, iovcnt);
 	for (i = 0; i < iovcnt; i++) {
 		struct vm_page** pages;
 		struct bio *bp;
@@ -2487,15 +2487,16 @@ aio_biowakeup(struct bio *bp)
 	 * error of whichever failed bio completed last.
 	 */
 	if (flags & BIO_ERROR)
-		atomic_set_int(&job->error, bio_error);
+		atomic_store_int(&job->error, bio_error);
 	if (opcode & LIO_WRITE)
 		atomic_add_int(&job->outblock, nblks);
 	else
 		atomic_add_int(&job->inblock, nblks);
 
-	if (atomic_fetchadd_int(&job->nbio, -1) == 1) {
-		if (atomic_load_int(&job->error))
-			aio_complete(job, -1, job->error);
+	if (refcount_release(&job->nbio)) {
+		bio_error = atomic_load_int(&job->error);
+		if (bio_error != 0)
+			aio_complete(job, -1, bio_error);
 		else
 			aio_complete(job, atomic_load_long(&job->nbytes), 0);
 	}
