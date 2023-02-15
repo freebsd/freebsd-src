@@ -49,7 +49,7 @@
  *********************************************************************/
 #define IXL_DRIVER_VERSION_MAJOR	2
 #define IXL_DRIVER_VERSION_MINOR	3
-#define IXL_DRIVER_VERSION_BUILD	2
+#define IXL_DRIVER_VERSION_BUILD	3
 
 #define IXL_DRIVER_VERSION_STRING			\
     __XSTRING(IXL_DRIVER_VERSION_MAJOR) "."		\
@@ -1722,9 +1722,10 @@ ixl_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
 		return;
 
-	if (vsi->num_vlans < IXL_MAX_VLAN_FILTERS)
+	/* One filter is used for untagged frames */
+	if (vsi->num_vlans < IXL_MAX_VLAN_FILTERS - 1)
 		ixl_del_filter(vsi, hw->mac.addr, vtag);
-	else if (vsi->num_vlans == IXL_MAX_VLAN_FILTERS) {
+	else if (vsi->num_vlans == IXL_MAX_VLAN_FILTERS - 1) {
 		ixl_del_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
 		ixl_add_vlan_filters(vsi, hw->mac.addr);
 	}
