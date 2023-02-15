@@ -171,6 +171,8 @@ tarfs_alloc_node(struct tarfs_mount *tmp, const char *name, size_t namelen,
 
 	TARFS_DPF(ALLOC, "%s(%.*s)\n", __func__, (int)namelen, name);
 
+	if (parent != NULL && parent->type != VDIR)
+		return (ENOTDIR);
 	tnp = malloc(sizeof(struct tarfs_node), M_TARFSNODE, M_WAITOK | M_ZERO);
 	mtx_init(&tnp->lock, "tarfs node lock", NULL, MTX_DEF);
 	tnp->gen = arc4random();
@@ -233,7 +235,6 @@ tarfs_alloc_node(struct tarfs_mount *tmp, const char *name, size_t namelen,
 		panic("%s: type %d not allowed", __func__, type);
 	}
 	if (parent != NULL) {
-		MPASS(parent->type == VDIR);
 		TARFS_NODE_LOCK(parent);
 		TAILQ_INSERT_TAIL(&parent->dir.dirhead, tnp, dirents);
 		parent->size += sizeof(struct tarfs_node);
