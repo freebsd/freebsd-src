@@ -2478,9 +2478,10 @@ aio_biowakeup(struct bio *bp)
 
 	aio_biocleanup(bp);
 
-	nbytes =bcount - resid;
+	nbytes = bcount - resid;
 	atomic_add_acq_long(&job->nbytes, nbytes);
 	nblks = btodb(nbytes);
+
 	/*
 	 * If multiple bios experienced an error, the job will reflect the
 	 * error of whichever failed bio completed last.
@@ -2491,7 +2492,6 @@ aio_biowakeup(struct bio *bp)
 		atomic_add_int(&job->outblock, nblks);
 	else
 		atomic_add_int(&job->inblock, nblks);
-
 
 	if (atomic_fetchadd_int(&job->nbio, -1) == 1) {
 		if (atomic_load_int(&job->error))
