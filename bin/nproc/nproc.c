@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (all_flag) {
-		cpus = sysconf(_SC_NPROCESSORS_ONLN);
+		cpus = sysconf(_SC_NPROCESSORS_CONF);
 		if (cpus == -1)
 			err(1, "sysconf");
 	} else {
