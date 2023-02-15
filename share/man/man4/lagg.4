@@ -214,6 +214,15 @@ The following example shows how to create an infiniband failover interface.
 # ifconfig lagg0 laggproto failover laggport ib0 laggport ib1 \e
 	1.1.1.1 netmask 255.255.255.0
 .Ed
+.Pp
+Configure two ethernets for failover and static IP in /etc/rc.conf:
+.Bd -literal -offset indent
+cloned_interfaces="lagg0"
+ifconfig_lagg0="laggproto failover laggport bge0 laggport bge1 \e
+	10.1.29.21/24"
+ifconfig_bge0="up"
+ifconfig_bge1="up"
+.Ed
 .Sh SEE ALSO
 .Xr ng_one2many 4 ,
 .Xr ifconfig 8 ,
