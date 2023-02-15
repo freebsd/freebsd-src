@@ -320,6 +320,12 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
 			break;
 		}
 
+		/* we're not at the end, so parent must be a directory */
+		if (parent->type != VDIR) {
+			error = ENOTDIR;
+			break;
+		}
+
 		/* locate the next separator */
 		for (sep = name, len = 0;
 		     *sep != '\0' && *sep != '/' && len < namelen;
@@ -685,8 +691,12 @@ again:
 
 	error = tarfs_lookup_path(tmp, name, namelen, &namep,
 	    &sep, &parent, &tnp, true);
-	if (error != 0)
+	if (error != 0) {
+		TARFS_DPF(ALLOC, "%s: failed to look up %.*s\n", __func__,
+		    (int)namelen, name);
+		error = EINVAL;
 		goto bad;
+	}
 	if (tnp != NULL) {
 		if (hdrp->typeflag[0] == TAR_TYPE_DIRECTORY) {
 			/* XXX set attributes? */
