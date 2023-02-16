@@ -527,6 +527,15 @@ find_geom_efimedia(struct gmesh *mesh, const char *dev)
 	if (pp == NULL)
 		return (NULL);
 	efimedia = geom_pp_attr(mesh, pp, "efimedia");
+
+	/*
+	 * If this device doesn't hav an efimedia attribute, see if it is a
+	 * glabel node, and if so look for the underlying provider to get the
+	 * efimedia attribute from.
+	 */
+	if (efimedia == NULL &&
+	    strcmp(pp->lg_geom->lg_class->lg_name, G_LABEL) == 0)
+		efimedia = find_geom_efimedia(mesh, pp->lg_geom->lg_name);
 	if (efimedia == NULL)
 		return (NULL);
 	return strdup(efimedia);
