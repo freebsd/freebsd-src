@@ -12,6 +12,11 @@ export LC_CTYPE=C.UTF-8
 export LC_MESSAGES=C
 
 #
+# Size of wc's read buffer.
+#
+MAXBSIZE=65536
+
+#
 # Sample text containing multibyte characters
 #
 tv="Der bode en underlig gråsprængt en
@@ -136,6 +141,50 @@ multiline_repeated_body()
 	atf_check_wc foo $((tvl*c)) $((tvw*c)) $((tvc*c)) $((tvm*c))
 }
 
+atf_test_case nul
+nul_head()
+{
+	atf_set "descr" "Input containing NUL"
+}
+nul_body()
+{
+	printf "a\0b\n" >foo
+	atf_check_wc foo 1 1 4
+}
+
+atf_test_case poop
+poop_head()
+{
+	atf_set "descr" "Multibyte sequence across buffer boundary"
+}
+poop_body()
+{
+	local l=0 w=0 c=0 m=0
+	# The code below produces a stream of 4-byte UTF-8 sequences
+	# aligned on 5-byte boundaries, ensuring that the first full
+	# read of length MAXBSIZE will end in a partial sequence —
+	# unless MAXBSIZE is a multiple of 5 (not possible since it's
+	# a power of 2) or one less than a multiple of 5 (e.g. 2^18 =
+	# 262,144 = (52429 * 5) - 1) in which case we prepend a single
+	# newline to push our sequence out of phase.
+	atf_check_not_equal 0 $((MAXBSIZE % 5))
+	:>foo
+	if [ $((MAXBSIZE % 5)) -eq 4 ] ; then
+		printf "\n"
+		l=$((l + 1))
+		c=$((c + 1))
+		m=$((m + 1))
+	fi >>foo
+	while [ $c -le $MAXBSIZE ] ; do
+		printf "💩.💩.💩.💩.💩.💩.💩.💩.💩.💩.💩.💩.💩.💩.💩.💩\n"
+		l=$((l + 1))
+		w=$((w + 1))
+		c=$((c + 80)) # 80 bytes
+		m=$((m + 32)) # 32 multibyte characters
+	done >>foo
+	atf_check_wc foo $l $w $c $m
+}
+
 atf_test_case total
 total_head()
 {
@@ -190,6 +239,8 @@ atf_init_test_cases()
 	atf_add_test_case invalid
 	atf_add_test_case multiline
 	atf_add_test_case multiline_repeated
+	atf_add_test_case nul
+	atf_add_test_case poop
 	atf_add_test_case total
 	atf_add_test_case unterminated
 	atf_add_test_case usage
