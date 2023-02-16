@@ -221,8 +221,11 @@ static PPCTargetMachine::PPCABI computeTargetABI(const Triple &TT,
   assert(Options.MCOptions.getABIName().empty() &&
          "Unknown target-abi option!");
 
-  if (TT.isMacOSX())
+  if (TT.isMacOSX()) {
     return PPCTargetMachine::PPC_ABI_UNKNOWN;
+  } else if (TT.isOSFreeBSD() && TT.getArch() == Triple::ppc64 && (TT.getOSMajorVersion() == 0 || TT.getOSMajorVersion() >= 13)) {
+    return PPCTargetMachine::PPC_ABI_ELFv2;
+  }
 
   switch (TT.getArch()) {
   case Triple::ppc64le:

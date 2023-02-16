@@ -425,6 +425,9 @@ public:
     } else if ((Triple.getArch() == llvm::Triple::ppc64le)) {
       DataLayout = "e-m:e-i64:64-n32:64";
       ABI = "elfv2";
+    } else if (Triple.isOSFreeBSD() && (Triple.getOSMajorVersion() == 0 || Triple.getOSMajorVersion() >= 13)) {
+      DataLayout = "E-m:e-i64:64-n32:64";
+      ABI = "elfv2";
     } else {
       DataLayout = "E-m:e-i64:64-n32:64";
       ABI = "elfv1";
