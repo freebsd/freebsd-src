@@ -120,6 +120,7 @@ SRCS+=	ppc.S ppc-mont.S
 .else
 SRCS+=	bn_asm.c
 .endif
+SRCS+=	rsa_sup_mul.c
 
 # buffer
 SRCS+=	buf_err.c buffer.c
