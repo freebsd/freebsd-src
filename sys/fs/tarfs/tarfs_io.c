@@ -391,7 +391,7 @@ tarfs_zread_zstd(struct tarfs_zio *zio, struct uio *uiop)
 	if (uiop->uio_segflg == UIO_SYSSPACE) {
 		zob.dst = uiop->uio_iov->iov_base;
 	} else {
-		TARFS_DPF(ALLOC, "%s: allocating %zu-byte bounce buffer\n",
+		TARFS_DPF(BOUNCE, "%s: allocating %zu-byte bounce buffer\n",
 		    __func__, len);
 		zob.dst = obuf = malloc(len, M_TEMP, M_WAITOK);
 	}
@@ -488,7 +488,7 @@ fail_unlocked:
 		if (uiop->uio_segflg == UIO_SYSSPACE) {
 			uiop->uio_resid = resid;
 		} else if (len > resid) {
-			TARFS_DPF(ALLOC, "%s: bounced %zu bytes\n", __func__,
+			TARFS_DPF(BOUNCE, "%s: bounced %zu bytes\n", __func__,
 			    len - resid);
 			error = uiomove(obuf, len - resid, uiop);
 #ifdef TARFS_DEBUG
@@ -497,7 +497,7 @@ fail_unlocked:
 		}
 	}
 	if (obuf != NULL) {
-		TARFS_DPF(ALLOC, "%s: freeing bounce buffer\n", __func__);
+		TARFS_DPF(BOUNCE, "%s: freeing bounce buffer\n", __func__);
 		free(obuf, M_TEMP);
 	}
 	if (rl != NULL)
