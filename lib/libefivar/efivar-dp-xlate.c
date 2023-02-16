@@ -134,12 +134,15 @@ efi_hd_to_unix(struct gmesh *mesh, const_efidp dp, char **dev, char **relpath, c
 	const_efidp media, file, walker;
 	size_t len, mntlen;
 	char buf[MAX_DP_TEXT_LEN];
-	char *pwalk;
+	char *pwalk, *newdev = NULL;
 	struct gprovider *pp, *provider;
-	struct gconsumer *cp;
 	struct statfs *mnt;
+	struct gclass *glabel;
+	struct ggeom *gp;
 
 	walker = media = dp;
+	*dev = NULL;
+	*relpath = NULL;
 
 	/*
 	 * Now, we can either have a filepath node next, or the end.
@@ -171,12 +174,6 @@ efi_hd_to_unix(struct gmesh *mesh, const_efidp dp, char **dev, char **relpath, c
 	pp = find_provider_by_efimedia(mesh, buf);
 	if (pp == NULL) {
 		rv = ENOENT;
-		goto errout;
-	}
-
-	*dev = strdup(pp->lg_name);
-	if (*dev == NULL) {
-		rv = ENOMEM;
 		goto errout;
 	}
 
@@ -217,6 +214,16 @@ efi_hd_to_unix(struct gmesh *mesh, const_efidp dp, char **dev, char **relpath, c
 		rv = errno;
 		goto errout;
 	}
+
+	/*
+	 * Find glabel, if it exists. It's OK if not: we'll skip searching for
+	 * labels.
+	 */
+	LIST_FOREACH(glabel, &mesh->lg_class, lg_class) {
+		if (strcmp(glabel->lg_name, G_LABEL) == 0)
+			break;
+	}
+
 	provider = pp;
 	for (i = 0; i < n; i++) {
 		/*
@@ -225,29 +232,52 @@ efi_hd_to_unix(struct gmesh *mesh, const_efidp dp, char **dev, char **relpath, c
 		 * we'll need to invent one, but its decoding will be handled in
 		 * a separate function.
 		 */
-		if (mnt[i].f_mntfromname[0] != '/')
+		if (strncmp(mnt[i].f_mntfromname, "/dev/", 5) != 0)
 			continue;
 
 		/*
 		 * First see if it is directly attached
 		 */
-		if (strcmp(provider->lg_name, mnt[i].f_mntfromname + 5) == 0)
+		if (strcmp(provider->lg_name, mnt[i].f_mntfromname + 5) == 0) {
+			newdev = provider->lg_name;
 			break;
+		}
 
 		/*
-		 * Next see if it is attached via one of the physical disk's
-		 * labels.
+		 * Next see if it is attached via one of the physical disk's labels.
+		 * We can't search directly from the pointers we have for the
+		 * provider, so we have to cast a wider net for all labels and
+		 * filter those down to geoms whose name matches the PART provider
+		 * we found the efimedia attribute on.
 		 */
-		LIST_FOREACH(cp, &provider->lg_consumers, lg_consumer) {
-			pp = cp->lg_provider;
-			if (strcmp(pp->lg_geom->lg_class->lg_name, G_LABEL) != 0)
+		if (glabel == NULL)
+			continue;
+		LIST_FOREACH(gp, &glabel->lg_geom, lg_geom) {
+			if (strcmp(gp->lg_name, provider->lg_name) != 0) {
 				continue;
-			if (strcmp(g_device_path(pp->lg_name), mnt[i].f_mntfromname) == 0)
-				goto break2;
+			}
+			LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+				if (strcmp(pp->lg_name, mnt[i].f_mntfromname + 5) == 0) {
+					newdev = pp->lg_name;
+					goto break2;
+				}
+			}
 		}
 		/* Not the one, try the next mount point */
 	}
 break2:
+
+	/*
+	 * If nothing better was mounted, then use the provider we found as
+	 * is. It's the most correct thing we can return in that acse.
+	 */
+	if (newdev == NULL)
+		newdev = provider->lg_name;
+	*dev = strdup(newdev);
+	if (*dev == NULL) {
+		rv = ENOMEM;
+		goto errout;
+	}
 
 	/*
 	 * No mountpoint found, no absolute path possible
