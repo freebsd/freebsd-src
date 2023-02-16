@@ -297,6 +297,8 @@ include(const char *fname, int ateof)
 		return (-1);
 	}
 	cfgfile_add(fnamebuf == NULL ? fname : fnamebuf);
+	free(fnamebuf);
+
 	in = malloc(sizeof(*in));
 	assert(in != NULL);
 	in->in_prev = inclp;

@@ -263,7 +263,7 @@ do_option(char *name)
 		if (op == NULL)
 			err(EXIT_FAILURE, "calloc");
 		op->op_name = ns(name);
-		op->op_value = value ? ns(value) : NULL;
+		op->op_value = ns(value);
 		SLIST_INSERT_HEAD(&op_head, op, op_next);
 	}
 
@@ -383,8 +383,10 @@ read_option_file(const char *fname, int flags)
 		}
 		optname = ns(wd);
 		wd = get_word(fp);
-		if (wd.eof())
-			return (1);
+		if (wd.eof()) {
+			free(optname);
+			break;
+		}
 		if (wd.eol()) {
 			if (flags) {
 				fprintf(stderr, "%s: compat file requires two"
@@ -399,10 +401,18 @@ read_option_file(const char *fname, int flags)
 		} else {
 			val = ns(wd);
 		}
-		if (flags == 0)
+
+		if (flags == 0) {
+			/*
+			 * insert_option takes possession of `optname` in the
+			 * new option instead of making yet another copy.
+			 */
 			insert_option(fname, optname, val);
-		else
+		} else {
 			update_option(optname, val, flags);
+			free(optname);
+			optname = NULL;
+		}
 	}
 	(void)fclose(fp);
 	return (1);
