@@ -828,30 +828,11 @@ watchdog_config(void *unused __unused, u_int cmd, int *error)
 }
 
 /*
- * Handle a watchdog timeout by dumping interrupt information and
- * then either dropping to DDB or panicking.
+ * Handle a watchdog timeout by dropping to DDB or panicking.
  */
 static void
 watchdog_fire(void)
 {
-	int nintr;
-	uint64_t inttotal;
-	u_long *curintr;
-	char *curname;
-
-	curintr = intrcnt;
-	curname = intrnames;
-	inttotal = 0;
-	nintr = sintrcnt / sizeof(u_long);
-
-	printf("interrupt                   total\n");
-	while (--nintr >= 0) {
-		if (*curintr)
-			printf("%-12s %20lu\n", curname, *curintr);
-		curname += strlen(curname) + 1;
-		inttotal += *curintr++;
-	}
-	printf("Total        %20ju\n", (uintmax_t)inttotal);
 
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	kdb_backtrace();
