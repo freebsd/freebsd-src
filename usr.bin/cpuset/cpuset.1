@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2022
+.Dd July 3, 2018
 .Dt CPUSET 1
 .Os
 .Sh NAME
@@ -57,10 +57,6 @@
 .Fl g
 .Op Fl cir
 .Op Fl d Ar domain | Fl j Ar jail | Fl p Ar pid | Fl t Ar tid | Fl s Ar setid | Fl x Ar irq
-.Nm
-.Fl g
-.Fl -count
-.Fl p Ar pid
 .Sh DESCRIPTION
 The
 .Nm
@@ -175,16 +171,6 @@ target specifier.
 Specifies a thread id as the target of the operation.
 .It Fl x Ar irq
 Specifies an irq as the target of the operation.
-.El
-.Pp
-The long options are as follows:
-.Bl -tag -width ".Fl -count"
-.It Fl -count
-Count the number of hardware threads included in the set. Requires
-.Fl g
-and
-.Fl p
-flags.
 .El
 .Sh EXIT STATUS
 .Ex -std
