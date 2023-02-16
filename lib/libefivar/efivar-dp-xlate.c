@@ -648,6 +648,7 @@ errout:
 }
 
 /* Handles /path/to/file */
+/* Handles /dev/foo/bar */
 static int
 path_to_dp(struct gmesh *mesh, char *path, efidp *dp)
 {
@@ -667,9 +668,19 @@ path_to_dp(struct gmesh *mesh, char *path, efidp *dp)
 	}
 
 	dev = buf.f_mntfromname;
-	if (strncmp(dev, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-		dev += sizeof(_PATH_DEV) -1;
-	ep = rp + strlen(buf.f_mntonname);
+	/*
+	 * If we're fed a raw /dev/foo/bar, then devfs is returned from the
+	 * statfs call. In that case, use that dev and assume we have a path
+	 * of nothing.
+	 */
+	if (strcmp(dev, "devfs") == 0) {
+		dev = rp + sizeof(_PATH_DEV) - 1;
+		ep = NULL;
+	} else {
+		if (strncmp(dev, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			dev += sizeof(_PATH_DEV) - 1;
+		ep = rp + strlen(buf.f_mntonname);
+	}
 
 	efimedia = find_geom_efimedia(mesh, dev);
 #ifdef notyet
