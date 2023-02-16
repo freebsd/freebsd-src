@@ -544,23 +544,25 @@ find_geom_efimedia(struct gmesh *mesh, const char *dev)
 static int
 build_dp(const char *efimedia, const char *relpath, efidp *dp)
 {
-	char *fp, *dptxt = NULL, *cp, *rp;
+	char *fp = NULL, *dptxt = NULL, *cp, *rp = NULL;
 	int rv = 0;
 	efidp out = NULL;
 	size_t len;
 
-	rp = strdup(relpath);
-	for (cp = rp; *cp; cp++)
-		if (*cp == '/')
-			*cp = '\\';
-	fp = path_to_file_dp(rp);
-	free(rp);
-	if (fp == NULL) {
-		rv = ENOMEM;
-		goto errout;
+	if (relpath != NULL) {
+		rp = strdup(relpath);
+		for (cp = rp; *cp; cp++)
+			if (*cp == '/')
+				*cp = '\\';
+		fp = path_to_file_dp(rp);
+		free(rp);
+		if (fp == NULL) {
+			rv = ENOMEM;
+			goto errout;
+		}
 	}
 
-	asprintf(&dptxt, "%s/%s", efimedia, fp);
+	asprintf(&dptxt, "%s/%s", efimedia, fp == NULL ? "" : fp);
 	out = malloc(8192);
 	len = efidp_parse_device_path(dptxt, out, 8192);
 	if (len > 8192) {
