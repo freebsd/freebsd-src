@@ -45,6 +45,7 @@ extern int tarfs_debug;
 #define	TARFS_DEBUG_ZIO		0x40
 #define	TARFS_DEBUG_ZIDX	0x80
 #define	TARFS_DEBUG_MAP		0x100
+#define	TARFS_DEBUG_BOUNCE	0x200
 
 #define	TARFS_DPF(category, fmt, ...)					\
 	do {								\
