@@ -214,9 +214,10 @@ show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
 static int
 cnt(const char *file)
 {
-	char buf[MAXBSIZE], *p;
+	static char buf[MAXBSIZE];
 	struct stat sb;
 	mbstate_t mbs;
+	const char *p;
 	uintmax_t linect, wordct, charct, llct, tmpll;
 	ssize_t len;
 	size_t clen;
@@ -259,7 +260,7 @@ cnt(const char *file)
 	 * lines than to get words, since the word count requires locale
 	 * handling.
 	 */
-	while ((len = read(fd, buf, sizeof(buf)))) {
+	while ((len = read(fd, buf, sizeof(buf))) != 0) {
 		if (len < 0) {
 			xo_warn("%s: read", file);
 			(void)close(fd);
