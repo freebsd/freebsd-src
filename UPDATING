@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230216:
+	13.1-RELEASE-p7 FreeBSD-SA-23:03.openssl
+
+	Fix multiple OpenSSL vulnerabilities [SA-23:03.openssl]
+
 20230208:
 	13.1-RELEASE-p6 FreeBSD-SA-23:01.geli
 			FreeBSD-EN-23:01.tzdata
