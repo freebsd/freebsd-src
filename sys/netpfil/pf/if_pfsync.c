@@ -2329,7 +2329,7 @@ static void
 pfsync_tx(struct pfsync_softc *sc, struct mbuf *m)
 {
 	struct ip *ip;
-	int error, af;
+	int af, error = 0;
 
 	ip = mtod(m, struct ip *);
 	MPASS(ip->ip_v == IPVERSION || ip->ip_v == (IPV6_VERSION >> 4));
