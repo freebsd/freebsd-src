@@ -296,6 +296,9 @@
 /* fault_in_iov_iter_readable() is available */
 /* #undef HAVE_FAULT_IN_IOV_ITER_READABLE */
 
+/* filemap_range_has_page() is available */
+/* #undef HAVE_FILEMAP_RANGE_HAS_PAGE */
+
 /* fops->aio_fsync() exists */
 /* #undef HAVE_FILE_AIO_FSYNC */
 
@@ -985,7 +988,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g9cd71c860"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g57cfae4a2"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1015,7 +1018,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g9cd71c860"
+#define ZFS_META_RELEASE "FreeBSD_g57cfae4a2"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
