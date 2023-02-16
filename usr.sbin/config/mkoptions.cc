@@ -294,6 +294,7 @@ tooption(char *name)
 	static char hbuf[MAXPATHLEN];
 	char nbuf[MAXPATHLEN];
 	struct opt_list *po;
+	char *fpath;
 
 	/* "cannot happen"?  the otab list should be complete.. */
 	(void)strlcpy(nbuf, "options.h", sizeof(nbuf));
@@ -305,7 +306,9 @@ tooption(char *name)
 		}
 	}
 
-	(void)strlcpy(hbuf, path(nbuf), sizeof(hbuf));
+	fpath = path(nbuf);
+	(void)strlcpy(hbuf, fpath, sizeof(hbuf));
+	free(fpath);
 	return (hbuf);
 }
 
