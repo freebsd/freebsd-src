@@ -404,14 +404,14 @@ loop:
 			TAILQ_REMOVE(&NFSD_VNET(nfsrvudplru), rp, rc_lru);
 			TAILQ_INSERT_TAIL(&NFSD_VNET(nfsrvudplru), rp, rc_lru);
 			if (rp->rc_flag & RC_INPROG) {
-				nfsstatsv1_p->srvcache_inproghits++;
+				NFSD_VNET(nfsstatsv1_p)->srvcache_inproghits++;
 				mtx_unlock(mutex);
 				ret = RC_DROPIT;
 			} else if (rp->rc_flag & RC_REPSTATUS) {
 				/*
 				 * V2 only.
 				 */
-				nfsstatsv1_p->srvcache_nonidemdonehits++;
+				NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits++;
 				mtx_unlock(mutex);
 				nfsrvd_rephead(nd);
 				*(nd->nd_errp) = rp->rc_status;
@@ -419,7 +419,7 @@ loop:
 				rp->rc_timestamp = NFSD_MONOSEC +
 					NFSRVCACHE_UDPTIMEOUT;
 			} else if (rp->rc_flag & RC_REPMBUF) {
-				nfsstatsv1_p->srvcache_nonidemdonehits++;
+				NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits++;
 				mtx_unlock(mutex);
 				nd->nd_mreq = m_copym(rp->rc_reply, 0,
 					M_COPYALL, M_WAITOK);
@@ -434,8 +434,8 @@ loop:
 			goto out;
 		}
 	}
-	nfsstatsv1_p->srvcache_misses++;
-	atomic_add_int(&nfsstatsv1_p->srvcache_size, 1);
+	NFSD_VNET(nfsstatsv1_p)->srvcache_misses++;
+	atomic_add_int(&NFSD_VNET(nfsstatsv1_p)->srvcache_size, 1);
 	NFSD_VNET(nfsrc_udpcachesize)++;
 
 	newrp->rc_flag |= RC_INPROG;
@@ -489,7 +489,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd)
 	 * Reply from cache is a special case returned by nfsrv_checkseqid().
 	 */
 	if (nd->nd_repstat == NFSERR_REPLYFROMCACHE) {
-		nfsstatsv1_p->srvcache_nonidemdonehits++;
+		NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits++;
 		mtx_unlock(mutex);
 		nd->nd_repstat = 0;
 		if (nd->nd_mreq)
@@ -529,8 +529,8 @@ nfsrvd_updatecache(struct nfsrv_descript *nd)
 			    atomic_add_int(&NFSD_VNET(nfsrc_tcpsavedreplies),
 				1);
 			    if (NFSD_VNET(nfsrc_tcpsavedreplies) >
-				nfsstatsv1_p->srvcache_tcppeak)
-				nfsstatsv1_p->srvcache_tcppeak =
+				NFSD_VNET(nfsstatsv1_p)->srvcache_tcppeak)
+				NFSD_VNET(nfsstatsv1_p)->srvcache_tcppeak =
 				    NFSD_VNET(nfsrc_tcpsavedreplies);
 			}
 			mtx_unlock(mutex);
@@ -688,7 +688,7 @@ tryagain:
 			panic("nfs tcp cache0");
 		rp->rc_flag |= RC_LOCKED;
 		if (rp->rc_flag & RC_INPROG) {
-			nfsstatsv1_p->srvcache_inproghits++;
+			NFSD_VNET(nfsstatsv1_p)->srvcache_inproghits++;
 			mtx_unlock(mutex);
 			if (newrp->rc_sockref == rp->rc_sockref)
 				nfsrc_marksametcpconn(rp->rc_sockref);
@@ -697,7 +697,7 @@ tryagain:
 			/*
 			 * V2 only.
 			 */
-			nfsstatsv1_p->srvcache_nonidemdonehits++;
+			NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits++;
 			mtx_unlock(mutex);
 			if (newrp->rc_sockref == rp->rc_sockref)
 				nfsrc_marksametcpconn(rp->rc_sockref);
@@ -706,7 +706,7 @@ tryagain:
 			*(nd->nd_errp) = rp->rc_status;
 			rp->rc_timestamp = NFSD_MONOSEC + nfsrc_tcptimeout;
 		} else if (rp->rc_flag & RC_REPMBUF) {
-			nfsstatsv1_p->srvcache_nonidemdonehits++;
+			NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits++;
 			mtx_unlock(mutex);
 			if (newrp->rc_sockref == rp->rc_sockref)
 				nfsrc_marksametcpconn(rp->rc_sockref);
@@ -721,8 +721,8 @@ tryagain:
 		free(newrp, M_NFSRVCACHE);
 		goto out;
 	}
-	nfsstatsv1_p->srvcache_misses++;
-	atomic_add_int(&nfsstatsv1_p->srvcache_size, 1);
+	NFSD_VNET(nfsstatsv1_p)->srvcache_misses++;
+	atomic_add_int(&NFSD_VNET(nfsstatsv1_p)->srvcache_size, 1);
 
 	/*
 	 * For TCP, multiple entries for a key are allowed, so don't
@@ -811,7 +811,7 @@ nfsrc_freecache(struct nfsrvcache *rp)
 			atomic_add_int(&NFSD_VNET(nfsrc_tcpsavedreplies), -1);
 	}
 	free(rp, M_NFSRVCACHE);
-	atomic_add_int(&nfsstatsv1_p->srvcache_size, -1);
+	atomic_add_int(&NFSD_VNET(nfsstatsv1_p)->srvcache_size, -1);
 }
 
 /*
@@ -837,7 +837,7 @@ nfsrvd_cleancache(void)
 			nfsrc_freecache(rp);
 		}
 	}
-	nfsstatsv1_p->srvcache_size = 0;
+	NFSD_VNET(nfsstatsv1_p)->srvcache_size = 0;
 	mtx_unlock(&nfsrc_udpmtx);
 	NFSD_VNET(nfsrc_tcpsavedreplies) = 0;
 }

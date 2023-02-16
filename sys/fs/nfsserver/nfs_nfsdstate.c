@@ -363,7 +363,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			LIST_INIT(&new_clp->lc_stateid[i]);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
-		nfsstatsv1_p->srvclients++;
+		NFSD_VNET(nfsstatsv1_p)->srvclients++;
 		nfsrv_openpluslock++;
 		nfsrv_clients++;
 		NFSLOCKV4ROOTMUTEX();
@@ -492,7 +492,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		LIST_INIT(&new_clp->lc_session);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
-		nfsstatsv1_p->srvclients++;
+		NFSD_VNET(nfsstatsv1_p)->srvclients++;
 		nfsrv_openpluslock++;
 		nfsrv_clients++;
 		NFSLOCKV4ROOTMUTEX();
@@ -557,7 +557,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		LIST_INIT(&new_clp->lc_session);
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
 		    lc_hash);
-		nfsstatsv1_p->srvclients++;
+		NFSD_VNET(nfsstatsv1_p)->srvclients++;
 		nfsrv_openpluslock++;
 		nfsrv_clients++;
 	}
@@ -1404,7 +1404,7 @@ nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
 	free(clp->lc_stateid, M_NFSDCLIENT);
 	free(clp, M_NFSDCLIENT);
 	NFSLOCKSTATE();
-	nfsstatsv1_p->srvclients--;
+	NFSD_VNET(nfsstatsv1_p)->srvclients--;
 	nfsrv_openpluslock--;
 	nfsrv_clients--;
 	NFSUNLOCKSTATE();
@@ -1447,7 +1447,7 @@ nfsrv_freedeleg(struct nfsstate *stp)
 	    nfsv4_testlock(&lfp->lf_locallock_lck) == 0)
 		nfsrv_freenfslockfile(lfp);
 	free(stp, M_NFSDSTATE);
-	nfsstatsv1_p->srvdelegates--;
+	NFSD_VNET(nfsstatsv1_p)->srvdelegates--;
 	nfsrv_openpluslock--;
 	nfsrv_delegatecnt--;
 }
@@ -1473,7 +1473,7 @@ nfsrv_freeopenowner(struct nfsstate *stp, int cansleep, NFSPROC_T *p)
 	if (stp->ls_op)
 		nfsrvd_derefcache(stp->ls_op);
 	free(stp, M_NFSDSTATE);
-	nfsstatsv1_p->srvopenowners--;
+	NFSD_VNET(nfsstatsv1_p)->srvopenowners--;
 	nfsrv_openpluslock--;
 }
 
@@ -1523,7 +1523,7 @@ nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 	if (cansleep != 0)
 		NFSUNLOCKSTATE();
 	free(stp, M_NFSDSTATE);
-	nfsstatsv1_p->srvopens--;
+	NFSD_VNET(nfsstatsv1_p)->srvopens--;
 	nfsrv_openpluslock--;
 	return (ret);
 }
@@ -1542,7 +1542,7 @@ nfsrv_freelockowner(struct nfsstate *stp, vnode_t vp, int cansleep,
 	if (stp->ls_op)
 		nfsrvd_derefcache(stp->ls_op);
 	free(stp, M_NFSDSTATE);
-	nfsstatsv1_p->srvlockowners--;
+	NFSD_VNET(nfsstatsv1_p)->srvlockowners--;
 	nfsrv_openpluslock--;
 }
 
@@ -1618,7 +1618,7 @@ nfsrv_freenfslock(struct nfslock *lop)
 
 	if (lop->lo_lckfile.le_prev != NULL) {
 		LIST_REMOVE(lop, lo_lckfile);
-		nfsstatsv1_p->srvlocks--;
+		NFSD_VNET(nfsstatsv1_p)->srvlocks--;
 		nfsrv_openpluslock--;
 	}
 	LIST_REMOVE(lop, lo_lckowner);
@@ -2395,7 +2395,7 @@ tryagain:
 		LIST_INSERT_HEAD(&stp->ls_open, new_stp, ls_list);
 		*new_lopp = NULL;
 		*new_stpp = NULL;
-		nfsstatsv1_p->srvlockowners++;
+		NFSD_VNET(nfsstatsv1_p)->srvlockowners++;
 		nfsrv_openpluslock++;
 	}
 	if (filestruct_locked != 0) {
@@ -3047,12 +3047,12 @@ tryagain:
 			LIST_INSERT_HEAD(&new_stp->ls_open, new_open, ls_list);
 			LIST_INSERT_HEAD(&clp->lc_open, new_stp, ls_list);
 			*new_stpp = NULL;
-			nfsstatsv1_p->srvopenowners++;
+			NFSD_VNET(nfsstatsv1_p)->srvopenowners++;
 			nfsrv_openpluslock++;
 		    }
 		    openstp = new_open;
 		    new_open = NULL;
-		    nfsstatsv1_p->srvopens++;
+		    NFSD_VNET(nfsstatsv1_p)->srvopens++;
 		    nfsrv_openpluslock++;
 		    break;
 		}
@@ -3113,7 +3113,7 @@ tryagain:
 		    NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt) ||
 		    !NFSVNO_DELEGOK(vp))
 		    *rflagsp |= NFSV4OPEN_RECALL;
-		nfsstatsv1_p->srvdelegates++;
+		NFSD_VNET(nfsstatsv1_p)->srvdelegates++;
 		nfsrv_openpluslock++;
 		nfsrv_delegatecnt++;
 
@@ -3153,12 +3153,12 @@ tryagain:
 		    LIST_INSERT_HEAD(&new_stp->ls_open, new_open, ls_list);
 		    LIST_INSERT_HEAD(&clp->lc_open, new_stp, ls_list);
 		    *new_stpp = NULL;
-		    nfsstatsv1_p->srvopenowners++;
+		    NFSD_VNET(nfsstatsv1_p)->srvopenowners++;
 		    nfsrv_openpluslock++;
 		}
 		openstp = new_open;
 		new_open = NULL;
-		nfsstatsv1_p->srvopens++;
+		NFSD_VNET(nfsstatsv1_p)->srvopens++;
 		nfsrv_openpluslock++;
 	    } else {
 		error = NFSERR_RECLAIMCONFLICT;
@@ -3230,7 +3230,7 @@ tryagain:
 			    new_deleg->ls_stateid), new_deleg, ls_hash);
 			LIST_INSERT_HEAD(&clp->lc_deleg, new_deleg, ls_list);
 			new_deleg = NULL;
-			nfsstatsv1_p->srvdelegates++;
+			NFSD_VNET(nfsstatsv1_p)->srvdelegates++;
 			nfsrv_openpluslock++;
 			nfsrv_delegatecnt++;
 		    }
@@ -3252,7 +3252,7 @@ tryagain:
 			new_open, ls_hash);
 		    openstp = new_open;
 		    new_open = NULL;
-		    nfsstatsv1_p->srvopens++;
+		    NFSD_VNET(nfsstatsv1_p)->srvopens++;
 		    nfsrv_openpluslock++;
 
 		    /*
@@ -3300,7 +3300,7 @@ tryagain:
 			    new_deleg->ls_stateid), new_deleg, ls_hash);
 			LIST_INSERT_HEAD(&clp->lc_deleg, new_deleg, ls_list);
 			new_deleg = NULL;
-			nfsstatsv1_p->srvdelegates++;
+			NFSD_VNET(nfsstatsv1_p)->srvdelegates++;
 			nfsrv_openpluslock++;
 			nfsrv_delegatecnt++;
 		    }
@@ -3381,7 +3381,7 @@ tryagain:
 				LIST_INSERT_HEAD(&clp->lc_deleg, new_deleg,
 				    ls_list);
 				new_deleg = NULL;
-				nfsstatsv1_p->srvdelegates++;
+				NFSD_VNET(nfsstatsv1_p)->srvdelegates++;
 				nfsrv_openpluslock++;
 				nfsrv_delegatecnt++;
 			}
@@ -3409,9 +3409,9 @@ tryagain:
 		openstp = new_open;
 		new_open = NULL;
 		*new_stpp = NULL;
-		nfsstatsv1_p->srvopens++;
+		NFSD_VNET(nfsstatsv1_p)->srvopens++;
 		nfsrv_openpluslock++;
-		nfsstatsv1_p->srvopenowners++;
+		NFSD_VNET(nfsstatsv1_p)->srvopenowners++;
 		nfsrv_openpluslock++;
 	}
 	if (!error) {
@@ -3887,7 +3887,7 @@ nfsrv_insertlock(struct nfslock *new_lop, struct nfslock *insert_lop,
 	else
 		LIST_INSERT_AFTER(insert_lop, new_lop, lo_lckowner);
 	if (stp != NULL) {
-		nfsstatsv1_p->srvlocks++;
+		NFSD_VNET(nfsstatsv1_p)->srvlocks++;
 		nfsrv_openpluslock++;
 	}
 }
@@ -7455,7 +7455,7 @@ nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslayout **lypp,
 	/* Insert the new layout in the lists. */
 	*lypp = NULL;
 	atomic_add_int(&nfsrv_layoutcnt, 1);
-	nfsstatsv1_p->srvlayouts++;
+	NFSD_VNET(nfsstatsv1_p)->srvlayouts++;
 	NFSBCOPY(lyp->lay_xdr, layp, lyp->lay_layoutlen);
 	*layoutlenp = lyp->lay_layoutlen;
 	TAILQ_INSERT_HEAD(&lhyp->list, lyp, lay_list);
@@ -7548,7 +7548,7 @@ nfsrv_freelayout(struct nfslayouthead *lhp, struct nfslayout *lyp)
 
 	NFSD_DEBUG(4, "Freelayout=%p\n", lyp);
 	atomic_add_int(&nfsrv_layoutcnt, -1);
-	nfsstatsv1_p->srvlayouts--;
+	NFSD_VNET(nfsstatsv1_p)->srvlayouts--;
 	TAILQ_REMOVE(lhp, lyp, lay_list);
 	free(lyp, M_NFSDSTATE);
 }

@@ -1034,7 +1034,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 	/* XXX KDM make this more systematic? */
-	nfsstatsv1_p->srvbytes[NFSV4OP_READ] += uiop->uio_resid;
+	NFSD_VNET(nfsstatsv1_p)->srvbytes[NFSV4OP_READ] += uiop->uio_resid;
 	error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
 	free(iv, M_TEMP);
 	if (error) {
@@ -1159,7 +1159,7 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int *stable,
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflags |= nh->nh_seqcount << IO_SEQSHIFT;
 	/* XXX KDM make this more systematic? */
-	nfsstatsv1_p->srvbytes[NFSV4OP_WRITE] += uiop->uio_resid;
+	NFSD_VNET(nfsstatsv1_p)->srvbytes[NFSV4OP_WRITE] += uiop->uio_resid;
 	error = VOP_WRITE(vp, uiop, ioflags, cred);
 	if (error == 0)
 		nh->nh_nextoff = uiop->uio_offset;
