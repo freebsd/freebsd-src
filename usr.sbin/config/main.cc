@@ -579,7 +579,7 @@ configfile(void)
 	p += strlen(KERNCONFTAG);
 	fprintf(fo, "%s", p);
 	fclose(fo);
-	moveifchanged(path("config.c.new"), path("config.c"));
+	moveifchanged("config.c.new", "config.c");
 	cfgfile_removeall();
 }
 
@@ -591,6 +591,7 @@ void
 moveifchanged(const char *from_name, const char *to_name)
 {
 	char *p, *q;
+	char *from_path, *to_path;
 	int changed;
 	size_t tsize;
 	struct stat from_sb, to_sb;
@@ -598,17 +599,19 @@ moveifchanged(const char *from_name, const char *to_name)
 
 	changed = 0;
 
-	if ((from_fd = open(from_name, O_RDONLY)) < 0)
+	from_path = path(from_name);
+	to_path = path(to_name);
+	if ((from_fd = open(from_path, O_RDONLY)) < 0)
 		err(EX_OSERR, "moveifchanged open(%s)", from_name);
 
-	if ((to_fd = open(to_name, O_RDONLY)) < 0)
+	if ((to_fd = open(to_path, O_RDONLY)) < 0)
 		changed++;
 
 	if (!changed && fstat(from_fd, &from_sb) < 0)
-		err(EX_OSERR, "moveifchanged fstat(%s)", from_name);
+		err(EX_OSERR, "moveifchanged fstat(%s)", from_path);
 
 	if (!changed && fstat(to_fd, &to_sb) < 0)
-		err(EX_OSERR, "moveifchanged fstat(%s)", to_name);
+		err(EX_OSERR, "moveifchanged fstat(%s)", to_path);
 
 	if (!changed && from_sb.st_size != to_sb.st_size)
 		changed++;
@@ -619,23 +622,31 @@ moveifchanged(const char *from_name, const char *to_name)
 		p = (char *)mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd,
 		    (off_t)0);
 		if (p == MAP_FAILED)
-			err(EX_OSERR, "mmap %s", from_name);
+			err(EX_OSERR, "mmap %s", from_path);
 		q = (char *)mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd,
 		    (off_t)0);
 		if (q == MAP_FAILED)
-			err(EX_OSERR, "mmap %s", to_name);
+			err(EX_OSERR, "mmap %s", to_path);
 
 		changed = memcmp(p, q, tsize);
 		munmap(p, tsize);
 		munmap(q, tsize);
 	}
+
 	if (changed) {
-		if (rename(from_name, to_name) < 0)
-			err(EX_OSERR, "rename(%s, %s)", from_name, to_name);
+		if (rename(from_path, to_path) < 0)
+			err(EX_OSERR, "rename(%s, %s)", from_path, to_path);
 	} else {
-		if (unlink(from_name) < 0)
-			err(EX_OSERR, "unlink(%s)", from_name);
+		if (unlink(from_path) < 0)
+			err(EX_OSERR, "unlink(%s)", from_path);
 	}
+
+	close(from_fd);
+	if (to_fd >= 0)
+		close(to_fd);
+
+	free(from_path);
+	free(to_path);
 }
 
 static void

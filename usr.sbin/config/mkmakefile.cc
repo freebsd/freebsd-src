@@ -184,7 +184,7 @@ makefile(void)
 	}
 	(void) fclose(ifp);
 	(void) fclose(ofp);
-	moveifchanged(path("Makefile.new"), path("Makefile"));
+	moveifchanged("Makefile.new", "Makefile");
 }
 
 static void
@@ -327,7 +327,7 @@ makehints(void)
 	}
 	fprintf(ofp, "\"\\0\"\n};\n");
 	fclose(ofp);
-	moveifchanged(path("hints.c.new"), path("hints.c"));
+	moveifchanged("hints.c.new", "hints.c");
 }
 
 /*
@@ -369,7 +369,7 @@ makeenv(void)
 	}
 	fprintf(ofp, "\"\\0\"\n};\n");
 	fclose(ofp);
-	moveifchanged(path("env.c.new"), path("env.c"));
+	moveifchanged("env.c.new", "env.c");
 }
 
 static void
