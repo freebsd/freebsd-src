@@ -457,6 +457,8 @@ path(const char *file)
 		asprintf(&cp, "%s/%s", destdir, file);
 	else
 		cp = strdup(destdir);
+	if (cp == NULL)
+		err(EXIT_FAILURE, "malloc");
 	return (cp);
 }
 
@@ -553,6 +555,8 @@ configfile(void)
 	fo = fopen(p, "w");
 	if (!fo)
 		err(2, "%s", p);
+	free(p);
+
 	if (filebased) {
 		/* Is needed, can be used for backward compatibility. */
 		configfile_filebased(cfg);
@@ -673,8 +677,10 @@ cleanheaders(char *p)
 		if (hl)
 			continue;
 		printf("Removing stale header: %s\n", dp->d_name);
-		if (unlink(path(dp->d_name)) == -1)
+		p = path(dp->d_name);
+		if (unlink(p) == -1)
 			warn("unlink %s", dp->d_name);
+		free(p);
 	}
 	(void)closedir(dirp);
 }
