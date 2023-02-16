@@ -17,6 +17,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20230216:
+	12.4-RELEASE-p2 FreeBSD-SA-23:02.openssh
+			FreeBSD-SA-23:03.openssl
+
+	OpenSSH pre-authentication double free [SA-23:02.openssh]
+
+	Fix multiple OpenSSL vulnerabilities [SA-23:03.openssl]
+
 20230208:
 	12.4-RELEASE-p1 FreeBSD-SA-23:01.geli
 			FreeBSD-EN-23:01.tzdata
