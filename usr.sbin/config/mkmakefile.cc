@@ -69,10 +69,11 @@ static void read_files(void);
 static void sanitize_envline(char *result, const char *src);
 static bool preprocess(char *line, char *result);
 static void process_into_file(char *line, FILE *ofp);
-static void process_into_map(char *line, env_map &emap);
+static int process_into_map(char *line, env_map &emap);
 static void dump_map(env_map &emap, FILE *ofp);
 
-static void errout(const char *fmt, ...)
+static void __printflike(1, 2)
+errout(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -269,16 +270,20 @@ process_into_file(char *line, FILE *ofp)
 		fprintf(ofp, "\"%s\\0\"\n", result);
 }
 
-static void
+static int
 process_into_map(char *line, env_map &emap)
 {
 	char result[BUFSIZ], *s;
 
 	if (preprocess(line, result)) {
 		s = strchr(result, '=');
+		if (s == NULL)
+			return (EINVAL);
 		*s = '\0';
 		emap[result] = s + 1;
 	}
+
+	return (0);
 }
 
 static void
@@ -320,8 +325,11 @@ makehints(void)
 		ifp = fopen(hint->hint_name, "r");
 		if (ifp == NULL)
 			err(1, "%s", hint->hint_name);
-		while (fgets(line, BUFSIZ, ifp) != NULL)
-			process_into_map(line, emap);
+		while (fgets(line, BUFSIZ, ifp) != NULL) {
+			if (process_into_map(line, emap) != 0)
+				errout("%s: malformed line: %s\n",
+				    hint->hint_name, line);
+		}
 		dump_map(emap, ofp);
 		fclose(ifp);
 	}
@@ -360,8 +368,11 @@ makeenv(void)
 			ifp = fopen(envvar->env_str, "r");
 			if (ifp == NULL)
 				err(1, "%s", envvar->env_str);
-			while (fgets(line, BUFSIZ, ifp) != NULL)
-				process_into_map(line, emap);
+			while (fgets(line, BUFSIZ, ifp) != NULL) {
+				if (process_into_map(line, emap) != 0)
+					errout("%s: malformed line: %s\n",
+					    envvar->env_str, line);
+			}
 			dump_map(emap, ofp);
 			fclose(ifp);
 		} else
