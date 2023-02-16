@@ -616,9 +616,9 @@ moveifchanged(const char *from_name, const char *to_name)
 	if (!changed && from_sb.st_size != to_sb.st_size)
 		changed++;
 
-	tsize = (size_t)from_sb.st_size;
-
 	if (!changed) {
+		tsize = (size_t)from_sb.st_size;
+
 		p = (char *)mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd,
 		    (off_t)0);
 		if (p == MAP_FAILED)
@@ -736,7 +736,7 @@ kernconfdump(const char *file)
 	struct stat st;
 	FILE *fp, *pp;
 	int error, osz, r;
-	unsigned int i, off, size, t1, t2, align;
+	size_t i, off, size, t1, t2, align;
 	char *cmd, *o;
 
 	r = open(file, O_RDONLY);
@@ -765,8 +765,10 @@ kernconfdump(const char *file)
 	free(cmd);
 	(void)fread(o, osz, 1, pp);
 	pclose(pp);
-	r = sscanf(o, "%d%d%d%d%d", &off, &size, &t1, &t2, &align);
+	r = sscanf(o, "%zu%zu%zu%zu%zu", &off, &size, &t1, &t2, &align);
 	free(o);
+	if (size > SIZE_MAX - off || off + size > (size_t)st.st_size)
+		errx(EXIT_FAILURE, "%s: incoherent ELF headers", file);
 	if (r != 5)
 		errx(EXIT_FAILURE, "File %s doesn't contain configuration "
 		    "file. Either unsupported, or not compiled with "
