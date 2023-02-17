@@ -2691,16 +2691,12 @@ restart:
 #endif
 #ifdef KERN_TLS
 	if (mst != NULL && mst->sw->type == IF_SND_TAG_TYPE_TLS) {
-		int len16;
-
 		cflags |= MC_TLS;
 		set_mbuf_cflags(m0, cflags);
-		rc = t6_ktls_parse_pkt(m0, &nsegs, &len16);
+		rc = t6_ktls_parse_pkt(m0);
 		if (rc != 0)
 			goto fail;
-		set_mbuf_nsegs(m0, nsegs);
-		set_mbuf_len16(m0, len16);
-		return (0);
+		return (EINPROGRESS);
 	}
 #endif
 	if (nsegs > max_nsegs_allowed(m0, vm_wr)) {
@@ -3260,8 +3256,7 @@ skip_coalescing:
 #ifdef KERN_TLS
 		} else if (mbuf_cflags(m0) & MC_TLS) {
 			ETHER_BPF_MTAP(ifp, m0);
-			n = t6_ktls_write_wr(txq, wr, m0, mbuf_nsegs(m0),
-			    avail);
+			n = t6_ktls_write_wr(txq, wr, m0, avail);
 #endif
 		} else {
 			ETHER_BPF_MTAP(ifp, m0);
