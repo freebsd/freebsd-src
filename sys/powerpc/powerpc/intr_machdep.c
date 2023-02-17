@@ -265,7 +265,7 @@ intr_lookup(u_int irq)
 
 	if (iscan == NULL && i->vector != -1) {
 		powerpc_intrs[i->vector] = i;
-		i->cntindex = atomic_fetchadd_int(&intrcnt_index, 1);
+		i->cntindex = nintrcnt - 1;
 		i->cntp = &intrcnt[i->cntindex];
 		sprintf(intrname, "irq%u:", i->irq);
 		intrcnt_setname(intrname, i->cntindex);
@@ -698,8 +698,14 @@ powerpc_intr_unmask(u_int irq)
 static int
 powerpc_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames,
-	    intrcnt_index * INTRNAME_LEN, req));
+	int error;
+
+	error = sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req);
+	if (error != 0)
+		return (error);
+
+	return (intr_event_sysctl_intrnames(oidp, arg1, arg2, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
@@ -710,10 +716,10 @@ SYSCTL_PROC(_hw, OID_AUTO, intrnames,
 static int
 powerpc_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
+	int error;
 #ifdef SCTL_MASK32
 	uint32_t *intrcnt32;
 	unsigned i;
-	int error;
 
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
@@ -728,14 +734,31 @@ powerpc_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 		error = sysctl_handle_opaque(oidp, intrcnt32,
 		    intrcnt_index * sizeof(uint32_t), req);
 		free(intrcnt32, M_TEMP);
-		return (error);
-	}
+	} else
 #endif
-	return (sysctl_handle_opaque(oidp, intrcnt,
-	    intrcnt_index * sizeof(u_long), req));
+		error = sysctl_handle_opaque(oidp, intrcnt,
+		    intrcnt_index * sizeof(u_long), req);
+
+	return (error == 0 ? intr_event_sysctl_intrcnt(oidp, arg1, arg2, req) :
+	    error);
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     powerpc_sysctl_intrcnt,
     "", "Interrupt Counts");
+
+#ifdef DDB
+/*
+ * DDB command to dump the IPI interrupt statistics.
+ */
+DB_SHOW_COMMAND_FLAGS(ipicnt, db_show_ipicnt, DB_CMD_MEMSAFE)
+{
+	u_int i;
+
+	for (i = 0; i < intrcnt_index && !db_pager_quit; ++i)
+		if (intrcnt[i] != 0)
+			db_printf("%s\t%lu\n", intrnames + i * INTRNAME_LEN,
+			    intrcnt[i]);
+}
+#endif
