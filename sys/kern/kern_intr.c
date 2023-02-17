@@ -54,6 +54,7 @@
 #include <sys/random.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/stdarg.h>
 #include <sys/sysctl.h>
@@ -108,8 +109,11 @@ SYSCTL_INT(_hw, OID_AUTO, intr_hwpmc_waiting_report_threshold, CTLFLAG_RWTUN,
     "Threshold for reporting number of events in a workq");
 #define	PMC_HOOK_INSTALLED_ANY() __predict_false(pmc_hook != NULL)
 #endif
-static TAILQ_HEAD(, intr_event) event_list =
-    TAILQ_HEAD_INITIALIZER(event_list);
+/*
+ * Exported to allow crash dump analysis.  NOT TO BE REFERENCED FOR ANY OTHER
+ * PURPOSE!
+ */
+TAILQ_HEAD(, intr_event) event_list = TAILQ_HEAD_INITIALIZER(event_list);
 static struct mtx event_lock;
 MTX_SYSINIT(intr_event_list, &event_lock, "intr event list", MTX_DEF);
 
@@ -142,7 +146,11 @@ do {					\
 #endif
 
 #define INTRCNT_MULTI_COUNT 64
-DPCPU_DEFINE_STATIC(u_long, intrcnt_multi[INTRCNT_MULTI_COUNT]);
+/*
+ * Exported to allow crash dump analysis.  NOT TO BE REFERENCED FOR ANY OTHER
+ * PURPOSE!
+ */
+DPCPU_DEFINE(u_long, intrcnt_multi[INTRCNT_MULTI_COUNT]);
 static bitstr_t bit_decl(intrcnt_multi_inuse, INTRCNT_MULTI_COUNT);
 
 /* Map an interrupt type to an ithread priority. */
@@ -1699,6 +1707,115 @@ SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
 
 /*
  * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
+ * The data for this machine independent.
+ */
+int
+intr_event_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct intr_event *ie;
+	int error = 0;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	mtx_lock(&event_lock);
+	TAILQ_FOREACH(ie, &event_list, ie_list) {
+		if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+			u_int proc;
+
+			CPU_FOREACH(proc) {
+				error = sbuf_printf(&sbuf, "cpu%u:%.*s%c", proc,
+				    (int)sizeof(ie->ie_fullname),
+				    ie->ie_fullname, 0);
+				if (error != 0)
+					goto out;
+			}
+		} else {
+			error = sbuf_printf(&sbuf, "%.*s%c",
+			    (int)sizeof(ie->ie_fullname), ie->ie_fullname, 0);
+			if (error != 0)
+				goto out;
+		}
+
+		error = sbuf_printf(&sbuf, "stray %.*s%c",
+		    (int)sizeof(ie->ie_fullname), ie->ie_fullname, 0);
+		if (error != 0)
+			goto out;
+	}
+out:
+	mtx_unlock(&event_lock);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+
+int
+intr_event_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct intr_event *ie;
+	int error = 0;
+	int sz = sizeof(ie->ie_intrcnt);
+	u_long val;
+	void *arg = &val;
+#ifdef SCTL_MASK32
+	uint32_t val32;
+
+	if (req->flags & SCTL_MASK32) {
+		sz = sizeof(val32);
+		arg = &val32;
+	}
+#endif
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	mtx_lock(&event_lock);
+	TAILQ_FOREACH(ie, &event_list, ie_list) {
+		if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+			u_int proc;
+
+			CPU_FOREACH(proc) {
+#ifdef SCTL_MASK32
+				val32 =
+#endif
+				val = DPCPU_ID_GET(proc, intrcnt_multi)[ie->ie_intrcnt];
+				error = sbuf_bcat(&sbuf, arg, sz);
+				if (error != 0)
+					goto out;
+			}
+		} else {
+#ifdef SCTL_MASK32
+			val32 =
+#endif
+			val = ie->ie_intrcnt;
+			error = sbuf_bcat(&sbuf, arg, sz);
+			if (error != 0)
+				goto out;
+		}
+
+#ifdef SCTL_MASK32
+		val32 =
+#endif
+		val = ie->ie_stray;
+		error = sbuf_bcat(&sbuf, arg, sz);
+		if (error != 0)
+			goto out;
+	}
+out:
+	mtx_unlock(&event_lock);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+
+/*
+ * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.
  * The data for this machine dependent, and the declarations are in machine
  * dependent code.  The layout of intrnames and intrcnt however is machine
  * independent.
@@ -1752,19 +1869,22 @@ SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
  */
 DB_SHOW_COMMAND_FLAGS(intrcnt, db_show_intrcnt, DB_CMD_MEMSAFE)
 {
-	u_long *i;
-	char *cp;
-	u_int j;
+	struct intr_event *ie;
 
-	cp = intrnames;
-	j = 0;
-	for (i = intrcnt; j < (sintrcnt / sizeof(u_long)) && !db_pager_quit;
-	    i++, j++) {
-		if (*cp == '\0')
-			break;
-		if (*i != 0)
-			db_printf("%s\t%lu\n", cp, *i);
-		cp += strlen(cp) + 1;
-	}
+	for (ie = TAILQ_FIRST(&event_list); ie && !db_pager_quit;
+	    ie = TAILQ_NEXT(ie, ie_list))
+		if (__predict_false(ie->ie_flags & IE_MULTIPROC)) {
+			u_int proc;
+
+			for (proc = 0; proc <= mp_maxid && !db_pager_quit; ++proc)
+				db_printf("cpu%u:%s\t%lu\n", proc,
+				    ie->ie_fullname, DPCPU_ID_GET(proc,
+				    intrcnt_multi)[ie->ie_intrcnt]);
+			if (!db_pager_quit)
+				db_printf("stray %s\t%lu\n", ie->ie_fullname,
+				    ie->ie_stray);
+		} else if (ie->ie_intrcnt != 0)
+			db_printf("%s\t%lu\nstray %s\t%lu\n", ie->ie_fullname,
+			    ie->ie_intrcnt, ie->ie_fullname, ie->ie_stray);
 }
 #endif
