@@ -345,6 +345,7 @@ static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
 #endif
 static int ethofld_fw4_ack(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
+static int ethofld_transmit(struct ifnet *, struct mbuf *);
 #endif
 
 static counter_u64_t extfree_refs;
@@ -2960,6 +2961,10 @@ restart:
 		set_mbuf_eo_nsegs(m0, nsegs);
 		set_mbuf_eo_len16(m0,
 		    txpkt_eo_len16(nsegs, immhdrs, needs_tso(m0)));
+		rc = ethofld_transmit(mst->ifp, m0);
+		if (rc != 0)
+			goto fail;
+		return (EINPROGRESS);
 	}
 #endif
 #endif
@@ -6847,7 +6852,7 @@ ethofld_tx(struct cxgbe_rate_tag *cst)
 	}
 }
 
-int
+static int
 ethofld_transmit(struct ifnet *ifp, struct mbuf *m0)
 {
 	struct cxgbe_rate_tag *cst;
@@ -6903,8 +6908,6 @@ ethofld_transmit(struct ifnet *ifp, struct mbuf *m0)
 
 done:
 	mtx_unlock(&cst->lock);
-	if (__predict_false(rc != 0))
-		m_freem(m0);
 	return (rc);
 }
 
