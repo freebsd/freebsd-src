@@ -32,6 +32,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/ck.h>
+#include <sys/sysctl.h>
 
 struct intr_event;
 struct intr_thread;
@@ -201,6 +202,8 @@ void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
 
 /* For handling the core interrupt counters and names */
+extern int intr_event_sysctl_intrnames(SYSCTL_HANDLER_ARGS);
+extern int intr_event_sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
 extern int sysctl_intrnames(SYSCTL_HANDLER_ARGS);
 extern int sysctl_intrcnt(SYSCTL_HANDLER_ARGS);
 
