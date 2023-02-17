@@ -72,6 +72,7 @@ struct tlspcb {
 	struct vi_info *vi;	/* virtual interface */
 	struct adapter *sc;
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
+	struct sge_txq *txq;
 	int tid;		/* Connection identifier */
 
 	int tx_key_addr;
@@ -95,7 +96,6 @@ struct tlspcb {
 
 	/* Fields only used during setup and teardown. */
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
-	struct sge_txq *txq;
 	struct sge_wrq *ctrlq;
 	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 
@@ -785,12 +785,7 @@ ktls_wr_len(struct tlspcb *tlsp, struct mbuf *m, struct mbuf *m_tls,
 
 		/* This should always be the last TLS record in a chain. */
 		MPASS(m_tls->m_next == NULL);
-
-		/*
-		 * XXX: Set a bogus 'nsegs' value to avoid tripping an
-		 * assertion in mbuf_nsegs() in t4_sge.c.
-		 */
-		*nsegsp = 1;
+		*nsegsp = 0;
 		return (wr_len);
 	}
 
@@ -893,7 +888,7 @@ ktls_find_tcp_timestamps(struct tcphdr *tcp)
 }
 
 int
-t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
+t6_ktls_parse_pkt(struct mbuf *m)
 {
 	struct tlspcb *tlsp;
 	struct ether_header *eh;
@@ -901,6 +896,7 @@ t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
 	struct ip6_hdr *ip6;
 	struct tcphdr *tcp;
 	struct mbuf *m_tls;
+	void *items[1];
 	int nsegs;
 	u_int wr_len, tot_len;
 
@@ -976,7 +972,6 @@ t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
 	 * Each of the remaining mbufs in the chain should reference a
 	 * TLS record.
 	 */
-	*nsegsp = 0;
 	for (m_tls = m->m_next; m_tls != NULL; m_tls = m_tls->m_next) {
 		MPASS(m_tls->m_flags & M_EXTPG);
 
@@ -993,8 +988,8 @@ t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
 		 * Store 'nsegs' for the first TLS record in the
 		 * header mbuf's metadata.
 		 */
-		if (*nsegsp == 0)
-			*nsegsp = nsegs;
+		if (m_tls == m->m_next)
+			set_mbuf_nsegs(m, nsegs);
 	}
 
 	MPASS(tot_len != 0);
@@ -1035,12 +1030,13 @@ t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
 
 	tot_len += roundup2(wr_len, EQ_ESIZE);
 
-	*len16p = tot_len / 16;
+	set_mbuf_len16(m, tot_len / 16);
 #ifdef VERBOSE_TRACES
 	CTR4(KTR_CXGBE, "%s: tid %d len16 %d nsegs %d", __func__,
-	    tlsp->tid, *len16p, *nsegsp);
+	    tlsp->tid, mbuf_len16(m), mbuf_nsegs(m));
 #endif
-	return (0);
+	items[0] = m;
+	return (mp_ring_enqueue(tlsp->txq->r, items, 1, 256));
 }
 
 /*
@@ -1316,10 +1312,9 @@ _Static_assert(W_TCB_SND_UNA_RAW == W_TCB_SND_NXT_RAW,
     "SND_NXT_RAW and SND_UNA_RAW are in different words");
 
 static int
-ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
-    void *dst, struct mbuf *m, struct tcphdr *tcp, struct mbuf *m_tls,
-    u_int nsegs, u_int available, tcp_seq tcp_seqno, uint32_t *tsopt,
-    u_int pidx, bool set_l2t_idx)
+ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
+    struct mbuf *m, struct tcphdr *tcp, struct mbuf *m_tls, u_int available,
+    tcp_seq tcp_seqno, uint32_t *tsopt, u_int pidx, bool set_l2t_idx)
 {
 	struct sge_eq *eq = &txq->eq;
 	struct tx_sdesc *txsd;
@@ -1335,7 +1330,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	u_int auth_start, auth_stop, auth_insert;
 	u_int cipher_start, cipher_stop, iv_offset;
 	u_int imm_len, mss, ndesc, offset, plen, tlen, twr_len, wr_len;
-	u_int fields, tx_max_offset, tx_max;
+	u_int fields, nsegs, tx_max_offset, tx_max;
 	bool first_wr, last_wr, using_scratch;
 
 	ndesc = 0;
@@ -1457,7 +1452,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	out = (void *)(wr + 1);
 	fields = 0;
 	if (set_l2t_idx) {
-		KASSERT(nsegs != 0,
+		KASSERT(m->m_next == m_tls,
 		    ("trying to set L2T_IX for subsequent TLS WR"));
 #ifdef VERBOSE_TRACES
 		CTR3(KTR_CXGBE, "%s: tid %d set L2T_IX to %d", __func__,
@@ -1469,7 +1464,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		fields++;
 	}
 	if (tsopt != NULL && tlsp->prev_tsecr != ntohl(tsopt[1])) {
-		KASSERT(nsegs != 0,
+		KASSERT(m->m_next == m_tls,
 		    ("trying to set T_RTSEQ_RECENT for subsequent TLS WR"));
 #ifdef VERBOSE_TRACES
 		CTR2(KTR_CXGBE, "%s: tid %d wrote updated T_RTSEQ_RECENT",
@@ -1485,7 +1480,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	}
 
 	if (first_wr || tlsp->prev_seq != tx_max) {
-		KASSERT(nsegs != 0,
+		KASSERT(m->m_next == m_tls,
 		    ("trying to set TX_MAX for subsequent TLS WR"));
 #ifdef VERBOSE_TRACES
 		CTR4(KTR_CXGBE,
@@ -1504,7 +1499,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	 * reset SND_UNA_RAW to 0 so that SND_UNA == TX_MAX.
 	 */
 	if (tlsp->prev_seq != tx_max || mtod(m_tls, vm_offset_t) != 0) {
-		KASSERT(nsegs != 0,
+		KASSERT(m->m_next == m_tls,
 		    ("trying to clear SND_UNA_RAW for subsequent TLS WR"));
 #ifdef VERBOSE_TRACES
 		CTR2(KTR_CXGBE, "%s: tid %d clearing SND_UNA_RAW", __func__,
@@ -1524,7 +1519,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	tlsp->prev_seq = tcp_seqno + tlen;
 
 	if (first_wr || tlsp->prev_ack != ntohl(tcp->th_ack)) {
-		KASSERT(nsegs != 0,
+		KASSERT(m->m_next == m_tls,
 		    ("trying to set RCV_NXT for subsequent TLS WR"));
 		write_set_tcb_field_ulp(tlsp, out, txq, W_TCB_RCV_NXT,
 		    V_TCB_RCV_NXT(M_TCB_RCV_NXT),
@@ -1536,7 +1531,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	}
 
 	if (first_wr || tlsp->prev_win != ntohs(tcp->th_win)) {
-		KASSERT(nsegs != 0,
+		KASSERT(m->m_next == m_tls,
 		    ("trying to set RCV_WND for subsequent TLS WR"));
 		write_set_tcb_field_ulp(tlsp, out, txq, W_TCB_RCV_WND,
 		    V_TCB_RCV_WND(M_TCB_RCV_WND),
@@ -1547,8 +1542,10 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 		tlsp->prev_win = ntohs(tcp->th_win);
 	}
 
-	/* Recalculate 'nsegs' if cached value is not available. */
-	if (nsegs == 0)
+	/* Use cached value for first record in chain. */
+	if (m->m_next == m_tls)
+		nsegs = mbuf_nsegs(m);
+	else
 		nsegs = sglist_count_mbuf_epg(m_tls, m_tls->m_epg_hdrlen +
 		    offset, plen - (m_tls->m_epg_hdrlen + offset));
 
@@ -1948,7 +1945,7 @@ ktls_write_tcp_fin(struct sge_txq *txq, void *dst, struct mbuf *m,
 }
 
 int
-t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
+t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
     u_int available)
 {
 	struct sge_eq *eq = &txq->eq;
@@ -2043,17 +2040,10 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
 		}
 
 		ndesc = ktls_write_tls_wr(tlsp, txq, dst, m, tcp, m_tls,
-		    nsegs, available - totdesc, tcp_seqno, tsopt, pidx,
-		    set_l2t_idx);
+		    available - totdesc, tcp_seqno, tsopt, pidx, set_l2t_idx);
 		totdesc += ndesc;
 		IDXINCR(pidx, ndesc, eq->sidx);
 		dst = &eq->desc[pidx];
-
-		/*
-		 * The value of nsegs from the header mbuf's metadata
-		 * is only valid for the first TLS record.
-		 */
-		nsegs = 0;
 
 		/* Only need to set the L2T index once. */
 		set_l2t_idx = false;
@@ -2126,13 +2116,13 @@ t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 }
 
 int
-t6_ktls_parse_pkt(struct mbuf *m, int *nsegsp, int *len16p)
+t6_ktls_parse_pkt(struct mbuf *m)
 {
 	return (EINVAL);
 }
 
 int
-t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m, u_int nsegs,
+t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
     u_int available)
 {
 	panic("can't happen");

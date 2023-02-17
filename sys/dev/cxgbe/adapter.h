@@ -1379,8 +1379,8 @@ int t6_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
 void t6_ktls_modload(void);
 void t6_ktls_modunload(void);
 int t6_ktls_try(struct ifnet *, struct socket *, struct ktls_session *);
-int t6_ktls_parse_pkt(struct mbuf *, int *, int *);
-int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int, u_int);
+int t6_ktls_parse_pkt(struct mbuf *);
+int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 #endif
 
 /* t4_keyctx.c */
