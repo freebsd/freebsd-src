@@ -766,5 +766,6 @@ static driver_t bcm_dma_driver = {
 
 static devclass_t bcm_dma_devclass;
 
-DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, bcm_dma_devclass, 0, 0);
+EARLY_DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, bcm_dma_devclass, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(bcm_dma, 1);
