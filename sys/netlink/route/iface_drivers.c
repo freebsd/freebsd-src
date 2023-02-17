@@ -72,7 +72,7 @@ modify_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	if (lattrs->ifla_ifalias != NULL) {
 		if (nlp_has_priv(nlp, PRIV_NET_SETIFDESCR)) {
 			int len = strlen(lattrs->ifla_ifalias) + 1;
-			char *buf = if_allocdescr(len, true);
+			char *buf = if_allocdescr(len, M_WAITOK);
 
 			memcpy(buf, lattrs->ifla_ifalias, len);
 			if_setdescr(ifp, buf);
