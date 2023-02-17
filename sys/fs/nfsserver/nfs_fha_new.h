@@ -99,7 +99,6 @@ struct fha_params {
 	struct sysctl_oid *sysctl_tree;
 	struct fha_ctls ctls;
 	char server_name[32];
-	SVCPOOL **pool;
 };
 
 SVCTHREAD *fhanew_assign(SVCTHREAD *this_thread, struct svc_req *req);
