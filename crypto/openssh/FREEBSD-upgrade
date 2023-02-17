@@ -136,7 +136,6 @@
    We've modified some configuration defaults in ssh:
 
       - CheckHostIP defaults to "no".
-      - VerifyHostKeyDNS defaults to "yes" if built with LDNS.
       - VersionAddendum defaults to "FreeBSD-YYYYMMDD".
 
 3) Canonic host names
