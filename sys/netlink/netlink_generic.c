@@ -160,9 +160,8 @@ genl_unregister_family(const char *family_name)
 	GENL_LOCK();
 	struct genl_family *gf = find_family(family_name);
 
-	nlctrl_notify(gf, CTRL_CMD_DELFAMILY);
-
 	if (gf != NULL) {
+		nlctrl_notify(gf, CTRL_CMD_DELFAMILY);
 		found = true;
 		unregister_groups(gf);
 		/* TODO: zero pointer first */
