@@ -455,7 +455,7 @@ fill_pxmask_family(int family, int plen, struct sockaddr *_dst,
  * Attempts to add @dst/plen prefix with nexthop/nexhopgroup data @rnd
  * to the routing table.
  *
- * @fibnum: rtable id to insert route to
+ * @fibnum: verified kernel rtable id to insert route to
  * @dst: verified kernel-originated sockaddr, can be masked if plen non-empty
  * @plen: prefix length (or -1 if host route or not applicable for AF)
  * @op_flags: combination of RTM_F_ flags
@@ -490,6 +490,16 @@ rib_add_route_px(uint32_t fibnum, struct sockaddr *dst, int plen,
 			FIB_RH_LOG(LOG_INFO, rnh, "rtentry allocation failed");
 			return (ENOMEM);
 		}
+	} else {
+		struct route_nhop_data rnd_tmp;
+		RIB_RLOCK_TRACKER;
+
+		RIB_RLOCK(rnh);
+		rt = lookup_prefix_bysa(rnh, dst, netmask, &rnd_tmp);
+		RIB_RUNLOCK(rnh);
+
+		if (rt == NULL)
+			return (ESRCH);
 	}
 
 	return (add_route_flags(rnh, rt, rnd, op_flags, rc));
@@ -765,6 +775,8 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 	struct nhop_object *nh;
 	struct rtentry *rt_orig;
 	int error = 0;
+
+	MPASS(rt != NULL);
 
 	nh = rnd_add->rnd_nhop;
 
