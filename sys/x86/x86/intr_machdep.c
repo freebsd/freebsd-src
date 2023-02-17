@@ -364,7 +364,6 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 */
 	if (intr_event_handle(ie, frame) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
-		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
 		else if (*isrc->is_straycount == INTR_STRAY_LOG_MAX)
@@ -460,8 +459,7 @@ intrcnt_register(struct intsrc *is)
 	KASSERT(is->is_event != NULL, ("%s: isrc with no event", __func__));
 	mtx_lock_spin(&intrcnt_lock);
 	MPASS(intrcnt_index + 2 <= nintrcnt);
-	is->is_index = intrcnt_index;
-	intrcnt_index += 2;
+	is->is_index = nintrcnt - 2;
 	snprintf(straystr, sizeof(straystr), "stray irq%d",
 	    is->is_pic->pic_vector(is));
 	intrcnt_updatename(is);
@@ -700,7 +698,7 @@ sysctl_hw_intrs(SYSCTL_HANDLER_ARGS)
 		    isrc->is_index,
 		    isrc->is_cpu,
 		    isrc->is_domain,
-		    *isrc->is_count);
+		    isrc->is_event->ie_intrcnt);
 	}
 
 	sx_sunlock(&intrsrc_lock);
@@ -725,7 +723,7 @@ intrcmp(const void *one, const void *two)
 	i1 = *(const struct intsrc * const *)one;
 	i2 = *(const struct intsrc * const *)two;
 	if (i1 != NULL && i2 != NULL)
-		return (*i1->is_count - *i2->is_count);
+		return (i1->is_event->ie_intrcnt - i2->is_event->ie_intrcnt);
 	if (i1 != NULL)
 		return (1);
 	if (i2 != NULL)
@@ -812,8 +810,14 @@ intr_next_cpu(int domain)
 static int
 x86_sysctl_intrnames(SYSCTL_HANDLER_ARGS)
 {
-	return (sysctl_handle_opaque(oidp, intrnames,
-	    intrcnt_index * INTRNAME_LEN, req));
+	int error;
+
+	error = sysctl_handle_opaque(oidp, intrnames,
+	    intrcnt_index * INTRNAME_LEN, req);
+	if (error != 0)
+		return (error);
+
+	return (intr_event_sysctl_intrnames(oidp, arg1, arg2, req));
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrnames,
@@ -824,10 +828,10 @@ SYSCTL_PROC(_hw, OID_AUTO, intrnames,
 static int
 x86_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
+	int error;
 #ifdef SCTL_MASK32
 	uint32_t *intrcnt32;
 	unsigned i;
-	int error;
 
 	if (req->flags & SCTL_MASK32) {
 		if (!req->oldptr)
@@ -842,14 +846,31 @@ x86_sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 		error = sysctl_handle_opaque(oidp, intrcnt32,
 		    intrcnt_index * sizeof(uint32_t), req);
 		free(intrcnt32, M_TEMP);
-		return (error);
-	}
+	} else
 #endif
-	return (sysctl_handle_opaque(oidp, intrcnt,
-	    intrcnt_index * sizeof(u_long), req));
+		error = sysctl_handle_opaque(oidp, intrcnt,
+		    intrcnt_index * sizeof(u_long), req);
+
+	return (error == 0 ? intr_event_sysctl_intrcnt(oidp, arg1, arg2, req) :
+	    error);
 }
 
 SYSCTL_PROC(_hw, OID_AUTO, intrcnt,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     x86_sysctl_intrcnt,
     "", "Interrupt Counts");
+
+#ifdef DDB
+/*
+ * DDB command to dump the IPI interrupt statistics.
+ */
+DB_SHOW_COMMAND_FLAGS(ipicnt, db_show_ipicnt, DB_CMD_MEMSAFE)
+{
+	u_int i;
+
+	for (i = 0; i < intrcnt_index && !db_pager_quit; ++i)
+		if (intrcnt[i] != 0)
+			db_printf("%s\t%lu\n", intrnames + i * INTRNAME_LEN,
+			    intrcnt[i]);
+}
+#endif
