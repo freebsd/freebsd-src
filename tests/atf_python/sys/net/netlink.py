@@ -72,36 +72,38 @@ class NlErrattrType(Enum):
 
 class RtattrType(Enum):
     RTA_UNSPEC = 0
-    RTA_DST = auto()
-    RTA_SRC = auto()
-    RTA_IIF = auto()
-    RTA_OIF = auto()
-    RTA_GATEWAY = auto()
-    RTA_PRIORITY = auto()
-    RTA_PREFSRC = auto()
-    RTA_METRICS = auto()
-    RTA_MULTIPATH = auto()
-    RTA_PROTOINFO = auto()
-    RTA_FLOW = auto()
-    RTA_CACHEINFO = auto()
-    RTA_SESSION = auto()
-    RTA_MP_ALGO = auto()
-    RTA_TABLE = auto()
-    RTA_MARK = auto()
-    RTA_MFC_STATS = auto()
-    RTA_VIA = auto()
-    RTA_NEWDST = auto()
-    RTA_PREF = auto()
-    RTA_ENCAP_TYPE = auto()
-    RTA_ENCAP = auto()
-    RTA_EXPIRES = auto()
-    RTA_PAD = auto()
-    RTA_UID = auto()
-    RTA_TTL_PROPAGATE = auto()
-    RTA_IP_PROTO = auto()
-    RTA_SPORT = auto()
-    RTA_DPORT = auto()
-    RTA_NH_ID = auto()
+    RTA_DST = 1
+    RTA_SRC = 2
+    RTA_IIF = 3
+    RTA_OIF = 4
+    RTA_GATEWAY = 5
+    RTA_PRIORITY = 6
+    RTA_PREFSRC = 7
+    RTA_METRICS = 8
+    RTA_MULTIPATH = 9
+    # RTA_PROTOINFO = 10
+    RTA_KNH_ID = 10
+    RTA_FLOW = 11
+    RTA_CACHEINFO = 12
+    RTA_SESSION = 13
+    # RTA_MP_ALGO = 14
+    RTA_RTFLAGS = 14
+    RTA_TABLE = 15
+    RTA_MARK = 16
+    RTA_MFC_STATS = 17
+    RTA_VIA = 18
+    RTA_NEWDST = 19
+    RTA_PREF = 20
+    RTA_ENCAP_TYPE = 21
+    RTA_ENCAP = 22
+    RTA_EXPIRES = 23
+    RTA_PAD = 24
+    RTA_UID = 25
+    RTA_TTL_PROPAGATE = 26
+    RTA_IP_PROTO = 27
+    RTA_SPORT = 28
+    RTA_DPORT = 29
+    RTA_NH_ID = 30
 
 
 class NlMsgType(Enum):
@@ -314,6 +316,32 @@ class NlRtaxType(Enum):
     RTAX_FASTOPEN_NO_COOKIE = auto()
 
 
+class RtFlagsBSD(Enum):
+    RTF_UP = 0x1
+    RTF_GATEWAY = 0x2
+    RTF_HOST = 0x4
+    RTF_REJECT = 0x8
+    RTF_DYNAMIC = 0x10
+    RTF_MODIFIED = 0x20
+    RTF_DONE = 0x40
+    RTF_XRESOLVE = 0x200
+    RTF_LLINFO = 0x400
+    RTF_LLDATA = 0x400
+    RTF_STATIC = 0x800
+    RTF_BLACKHOLE = 0x1000
+    RTF_PROTO2 = 0x4000
+    RTF_PROTO1 = 0x8000
+    RTF_PROTO3 = 0x40000
+    RTF_FIXEDMTU = 0x80000
+    RTF_PINNED = 0x100000
+    RTF_LOCAL = 0x200000
+    RTF_BROADCAST = 0x400000
+    RTF_MULTICAST = 0x800000
+    RTF_STICKY = 0x10000000
+    RTF_RNH_LOCKED = 0x40000000
+    RTF_GWFLAG_COMPAT = 0x80000000
+
+
 class NlRtGroup(Enum):
     RTNLGRP_NONE = 0
     RTNLGRP_LINK = auto()
@@ -496,13 +524,17 @@ class NlHelper:
             cls = AddressFamilyLinux
         return cls
 
+    @staticmethod
+    def build_propmap(cls):
+        ret = {}
+        for prop in dir(cls):
+            if not prop.startswith("_"):
+                ret[getattr(cls, prop).value] = prop
+        return ret
+
     def get_propmap(self, cls):
         if cls not in self._pmap:
-            ret = {}
-            for prop in dir(cls):
-                if not prop.startswith("_"):
-                    ret[getattr(cls, prop).value] = prop
-            self._pmap[cls] = ret
+            self._pmap[cls] = self.build_propmap(cls)
         return self._pmap[cls]
 
     def get_name_propmap(self, cls):
@@ -536,8 +568,8 @@ class NlHelper:
     def get_rta_name(self, val):
         return self.get_attr_byval(RtattrType, val)
 
-    def get_bitmask_map(self, cls, val):
-        propmap = self.get_propmap(cls)
+    @staticmethod
+    def get_bitmask_map(propmap, val):
         v = 1
         ret = {}
         while val:
@@ -551,7 +583,13 @@ class NlHelper:
         return ret
 
     def get_bitmask_str(self, cls, val):
-        bmap = self.get_bitmask_map(cls, val)
+        bmap = self.get_bitmask_map(self.get_propmap(cls), val)
+        return ",".join([v for k, v in bmap.items()])
+
+    @staticmethod
+    def get_bitmask_str_uncached(cls, val):
+        pmap = NlHelper.build_propmap(cls)
+        bmap = NlHelper.get_bitmask_map(pmap, val)
         return ",".join([v for k, v in bmap.items()])
 
     def get_nlm_flags_str(self, msg_str: str, reply: bool, val):
@@ -743,6 +781,12 @@ class NlAttrU8(NlAttr):
         return self._to_bytes(struct.pack("@B", self.u8))
 
 
+class NlAttrRtFlags(NlAttrU32):
+    def _print_attr_value(self):
+        s = NlHelper.get_bitmask_str_uncached(RtFlagsBSD, self.u32)
+        return " rtflags={}".format(s)
+
+
 class NlAttrIp(NlAttr):
     def __init__(self, nla_type, addr: str):
         super().__init__(nla_type, b"")
@@ -806,6 +850,11 @@ class NlAttrTable(NlAttrU32):
 class NlAttrNhId(NlAttrU32):
     def _print_attr_value(self):
         return " nh_id={}".format(self.u32)
+
+
+class NlAttrKNhId(NlAttrU32):
+    def _print_attr_value(self):
+        return " knh_id={}".format(self.u32)
 
 
 class NlAttrMac(NlAttr):
@@ -956,9 +1005,13 @@ rtnl_route_attrs = prepare_attrs_map(
         AttrDescr(RtattrType.RTA_SRC, NlAttrIp),
         AttrDescr(RtattrType.RTA_IIF, NlAttrIfindex),
         AttrDescr(RtattrType.RTA_OIF, NlAttrIfindex),
-        AttrDescr(RtattrType.RTA_GATEWAY, NlAttrTable),
+        AttrDescr(RtattrType.RTA_GATEWAY, NlAttrIp),
+        AttrDescr(RtattrType.RTA_TABLE, NlAttrTable),
+        AttrDescr(RtattrType.RTA_PRIORITY, NlAttrU32),
         AttrDescr(RtattrType.RTA_VIA, NlAttrVia),
         AttrDescr(RtattrType.RTA_NH_ID, NlAttrNhId),
+        AttrDescr(RtattrType.RTA_KNH_ID, NlAttrKNhId),
+        AttrDescr(RtattrType.RTA_RTFLAGS, NlAttrRtFlags),
         AttrDescr(
             RtattrType.RTA_METRICS,
             NlAttrNested,
