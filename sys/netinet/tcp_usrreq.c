@@ -654,6 +654,8 @@ tcp_usr_disconnect(struct socket *so)
 		goto out;
 	}
 	tp = intotcpcb(inp);
+	if (tp->t_state == TCPS_TIME_WAIT)
+		goto out;
 	tcp_disconnect(tp);
 out:
 	TCP_PROBE2(debug__user, tp, PRU_DISCONNECT);
@@ -1248,14 +1250,16 @@ tcp_usr_close(struct socket *so)
 	    ("tcp_usr_close: inp_socket == NULL"));
 
 	/*
-	 * If we still have full TCP state, and we're not dropped, initiate
+	 * If we are still connected and we're not dropped, initiate
 	 * a disconnect.
 	 */
 	if (!(inp->inp_flags & INP_DROPPED)) {
 		tp = intotcpcb(inp);
-		tp->t_flags |= TF_CLOSED;
-		tcp_disconnect(tp);
-		TCP_PROBE2(debug__user, tp, PRU_CLOSE);
+		if (tp->t_state != TCPS_TIME_WAIT) {
+			tp->t_flags |= TF_CLOSED;
+			tcp_disconnect(tp);
+			TCP_PROBE2(debug__user, tp, PRU_CLOSE);
+		}
 	}
 	if (!(inp->inp_flags & INP_DROPPED)) {
 		soref(so);
