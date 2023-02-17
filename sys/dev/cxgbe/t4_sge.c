@@ -87,11 +87,6 @@ __FBSDID("$FreeBSD$");
 #define RX_COPY_THRESHOLD MINCLSIZE
 #endif
 
-/* Internal mbuf flags stored in PH_loc.eight[1]. */
-#define	MC_NOMAP		0x01
-#define	MC_RAW_WR		0x02
-#define	MC_TLS			0x04
-
 /*
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
@@ -2282,64 +2277,6 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 		FL_UNLOCK(fl);
 	}
 #endif
-}
-
-static inline int
-mbuf_nsegs(struct mbuf *m)
-{
-
-	M_ASSERTPKTHDR(m);
-	KASSERT(m->m_pkthdr.inner_l5hlen > 0,
-	    ("%s: mbuf %p missing information on # of segments.", __func__, m));
-
-	return (m->m_pkthdr.inner_l5hlen);
-}
-
-static inline void
-set_mbuf_nsegs(struct mbuf *m, uint8_t nsegs)
-{
-
-	M_ASSERTPKTHDR(m);
-	m->m_pkthdr.inner_l5hlen = nsegs;
-}
-
-static inline int
-mbuf_cflags(struct mbuf *m)
-{
-
-	M_ASSERTPKTHDR(m);
-	return (m->m_pkthdr.PH_loc.eight[4]);
-}
-
-static inline void
-set_mbuf_cflags(struct mbuf *m, uint8_t flags)
-{
-
-	M_ASSERTPKTHDR(m);
-	m->m_pkthdr.PH_loc.eight[4] = flags;
-}
-
-static inline int
-mbuf_len16(struct mbuf *m)
-{
-	int n;
-
-	M_ASSERTPKTHDR(m);
-	n = m->m_pkthdr.PH_loc.eight[0];
-	if (!(mbuf_cflags(m) & MC_TLS))
-		MPASS(n > 0 && n <= SGE_MAX_WR_LEN / 16);
-
-	return (n);
-}
-
-static inline void
-set_mbuf_len16(struct mbuf *m, uint8_t len16)
-{
-
-	M_ASSERTPKTHDR(m);
-	if (!(mbuf_cflags(m) & MC_TLS))
-		MPASS(len16 > 0 && len16 <= SGE_MAX_WR_LEN / 16);
-	m->m_pkthdr.PH_loc.eight[0] = len16;
 }
 
 #ifdef RATELIMIT
