@@ -840,6 +840,11 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		return (EINVAL);
 	}
 
+	if (attrs.rta_table >= V_rt_numfibs) {
+		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
+		return (EINVAL);
+	}
+
 	if (attrs.rta_nh_id != 0) {
 		/* Referenced uindex */
 		int pxflag = get_pxflag(&attrs);
@@ -898,6 +903,11 @@ rtnl_handle_delroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		return (ESRCH);
 	}
 
+	if (attrs.rta_table >= V_rt_numfibs) {
+		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
+		return (EINVAL);
+	}
+
 	error = rib_del_route_px(attrs.rta_table, attrs.rta_dst,
 	    attrs.rtm_dst_len, path_match_func, &attrs, 0, &rc);
 	if (error == 0)
@@ -914,6 +924,11 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	error = nl_parse_nlmsg(hdr, &rtm_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
+
+	if (attrs.rta_table >= V_rt_numfibs) {
+		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
+		return (EINVAL);
+	}
 
 	if (hdr->nlmsg_flags & NLM_F_DUMP)
 		error = handle_rtm_dump(nlp, attrs.rta_table, attrs.rtm_family, hdr, npt->nw);
