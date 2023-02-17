@@ -1404,7 +1404,6 @@ void t4_register_fw_msg_handler(int, fw_msg_handler_t);
 void t4_register_cpl_handler(int, cpl_handler_t);
 void t4_register_shared_cpl_handler(int, cpl_handler_t, int);
 #ifdef RATELIMIT
-int ethofld_transmit(struct ifnet *, struct mbuf *);
 void send_etid_flush_wr(struct cxgbe_rate_tag *);
 #endif
 

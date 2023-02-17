@@ -3062,16 +3062,16 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	rc = parse_pkt(&m, vi->flags & TX_USES_VM_WR);
 	if (__predict_false(rc != 0)) {
+		if (__predict_true(rc == EINPROGRESS)) {
+			/* queued by parse_pkt */
+			MPASS(m != NULL);
+			return (0);
+		}
+
 		MPASS(m == NULL);			/* was freed already */
 		atomic_add_int(&pi->tx_parse_error, 1);	/* rare, atomic is ok */
 		return (rc);
 	}
-#ifdef RATELIMIT
-	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
-		if (m->m_pkthdr.snd_tag->sw->type == IF_SND_TAG_TYPE_RATE_LIMIT)
-			return (ethofld_transmit(ifp, m));
-	}
-#endif
 
 	/* Select a txq. */
 	sc = vi->adapter;
