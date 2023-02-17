@@ -43,6 +43,7 @@ __DEFAULT_YES_OPTIONS = \
     NETGRAPH \
     OFED \
     PF \
+    REPRODUCIBLE_BUILD \
     SCTP_SUPPORT \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
@@ -57,8 +58,7 @@ __DEFAULT_NO_OPTIONS = \
     INIT_ALL_PATTERN \
     INIT_ALL_ZERO \
     KERNEL_RETPOLINE \
-    RATELIMIT \
-    REPRODUCIBLE_BUILD
+    RATELIMIT
 
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
