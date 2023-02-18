@@ -917,6 +917,7 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 	struct spdcache_entry *entry, *lastentry, *tmpentry;
 	struct secpolicy *sp;
 	uint32_t hashv;
+	time_t ts;
 	int nb_entries;
 
 	if (!SPDCACHE_ACTIVE()) {
@@ -969,7 +970,9 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 
 out:
 	if (sp != NULL) {	/* found a SPD entry */
-		sp->lastused = time_second;
+		ts = time_second;
+		if (__predict_false(sp->lastused != ts))
+			sp->lastused = ts;
 		KEYDBG(IPSEC_STAMP,
 		    printf("%s: return SP(%p)\n", __func__, sp));
 		KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));

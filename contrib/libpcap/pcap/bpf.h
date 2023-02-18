@@ -74,6 +74,18 @@
 extern "C" {
 #endif
 
+/*
+ * In the past, we modified pcap/pcap.h to include the system net/bpf.h,
+ * rather than this file.  However, starting around 1.10.2, libpcap requires
+ * the extern functions defined here to build.  Simply reverting that local
+ * change is not a solution, because some ports with '#include <pcap.h>'
+ * such as mail/spamd and net/xprobe require the system net/bpf.h to be
+ * pulled in.  To accommodate both requirements, make this header a wrapper
+ * around the system net/bpf.h, but keep the extern function definitions.
+ */
+#if defined(__FreeBSD__)
+#include <net/bpf.h>
+#else
 /* BSD style release date */
 #define BPF_RELEASE 199606
 
@@ -244,13 +256,17 @@ struct bpf_insn {
 #define BPF_STMT(code, k) { (u_short)(code), 0, 0, k }
 #define BPF_JUMP(code, k, jt, jf) { (u_short)(code), jt, jf, k }
 
+#endif /* defined(__FreeBSD__) */
+
 PCAP_API int bpf_validate(const struct bpf_insn *, int);
 PCAP_API u_int bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
 
+#if !defined(__FreeBSD__)
 /*
  * Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).
  */
 #define BPF_MEMWORDS 16
+#endif
 
 #ifdef __cplusplus
 }

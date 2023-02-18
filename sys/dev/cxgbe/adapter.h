@@ -1118,6 +1118,64 @@ hw_off_limits(struct adapter *sc)
 	return (__predict_false(off_limits != 0));
 }
 
+static inline int
+mbuf_nsegs(struct mbuf *m)
+{
+	M_ASSERTPKTHDR(m);
+	KASSERT(m->m_pkthdr.inner_l5hlen > 0,
+	    ("%s: mbuf %p missing information on # of segments.", __func__, m));
+
+	return (m->m_pkthdr.inner_l5hlen);
+}
+
+static inline void
+set_mbuf_nsegs(struct mbuf *m, uint8_t nsegs)
+{
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.inner_l5hlen = nsegs;
+}
+
+/* Internal mbuf flags stored in PH_loc.eight[1]. */
+#define	MC_NOMAP		0x01
+#define	MC_RAW_WR		0x02
+#define	MC_TLS			0x04
+
+static inline int
+mbuf_cflags(struct mbuf *m)
+{
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_loc.eight[4]);
+}
+
+static inline void
+set_mbuf_cflags(struct mbuf *m, uint8_t flags)
+{
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_loc.eight[4] = flags;
+}
+
+static inline int
+mbuf_len16(struct mbuf *m)
+{
+	int n;
+
+	M_ASSERTPKTHDR(m);
+	n = m->m_pkthdr.PH_loc.eight[0];
+	if (!(mbuf_cflags(m) & MC_TLS))
+		MPASS(n > 0 && n <= SGE_MAX_WR_LEN / 16);
+
+	return (n);
+}
+
+static inline void
+set_mbuf_len16(struct mbuf *m, uint8_t len16)
+{
+	M_ASSERTPKTHDR(m);
+	if (!(mbuf_cflags(m) & MC_TLS))
+		MPASS(len16 > 0 && len16 <= SGE_MAX_WR_LEN / 16);
+	m->m_pkthdr.PH_loc.eight[0] = len16;
+}
+
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
 {
@@ -1321,8 +1379,8 @@ int t6_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
 void t6_ktls_modload(void);
 void t6_ktls_modunload(void);
 int t6_ktls_try(struct ifnet *, struct socket *, struct ktls_session *);
-int t6_ktls_parse_pkt(struct mbuf *, int *, int *);
-int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int, u_int);
+int t6_ktls_parse_pkt(struct mbuf *);
+int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 #endif
 
 /* t4_keyctx.c */
@@ -1404,7 +1462,6 @@ void t4_register_fw_msg_handler(int, fw_msg_handler_t);
 void t4_register_cpl_handler(int, cpl_handler_t);
 void t4_register_shared_cpl_handler(int, cpl_handler_t, int);
 #ifdef RATELIMIT
-int ethofld_transmit(struct ifnet *, struct mbuf *);
 void send_etid_flush_wr(struct cxgbe_rate_tag *);
 #endif
 

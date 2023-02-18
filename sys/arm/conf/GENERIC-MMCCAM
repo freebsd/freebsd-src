@@ -5,6 +5,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		GENERIC
 
 ident		GENERIC-MMCCAM

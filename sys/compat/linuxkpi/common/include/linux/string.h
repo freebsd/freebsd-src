@@ -207,6 +207,15 @@ strscpy(char* dst, const char* src, size_t len)
 	return (-E2BIG);
 }
 
+static inline ssize_t
+strscpy_pad(char* dst, const char* src, size_t len)
+{
+
+	bzero(dst, len);
+
+	return (strscpy(dst, src, len));
+}
+
 static inline void *
 memset32(uint32_t *b, uint32_t c, size_t len)
 {

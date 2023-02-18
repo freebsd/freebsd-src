@@ -59,6 +59,9 @@ vmbus_ic_negomsg(struct vmbus_ic_softc *sc, void *data, int *dlen0,
 	uint32_t sel_fw_ver, sel_msg_ver;
 	bool has_fw_ver, has_msg_ver;
 
+	has_fw_ver = false;
+	has_msg_ver = false;
+
 	/*
 	 * Preliminary message verification.
 	 */
@@ -92,7 +95,6 @@ vmbus_ic_negomsg(struct vmbus_ic_softc *sc, void *data, int *dlen0,
 	/*
 	 * Find the best match framework version.
 	 */
-	has_fw_ver = false;
 	for (i = 0; i < nego->ic_fwver_cnt; ++i) {
 		if (VMBUS_ICVER_LE(nego->ic_ver[i], fw_ver)) {
 			if (!has_fw_ver) {
@@ -111,9 +113,8 @@ vmbus_ic_negomsg(struct vmbus_ic_softc *sc, void *data, int *dlen0,
 	}
 
 	/*
-	 * Fine the best match message version.
+	 * Find the best match message version.
 	 */
-	has_msg_ver = false;
 	for (i = nego->ic_fwver_cnt;
 	    i < nego->ic_fwver_cnt + nego->ic_msgver_cnt; ++i) {
 		if (VMBUS_ICVER_LE(nego->ic_ver[i], msg_ver)) {

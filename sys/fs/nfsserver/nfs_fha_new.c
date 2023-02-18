@@ -62,8 +62,6 @@ SYSCTL_DECL(_vfs_nfsd);
 
 extern int newnfs_nfsv3_procid[];
 
-NFSD_VNET_DECLARE(SVCPOOL *, nfsrvd_pool);
-
 SYSINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_init, NULL);
 SYSUNINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_uninit, NULL);
 
@@ -79,8 +77,6 @@ fhanew_init(void *foo)
 
 	snprintf(softc->server_name, sizeof(softc->server_name),
 	    FHANEW_SERVER_NAME);
-
-	softc->pool = &NFSD_VNET(nfsrvd_pool);
 
 	/*
 	 * Initialize the sysctl context list for the fha module.
@@ -655,11 +651,6 @@ fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	SVCTHREAD *thread;
 
 	sbuf_new(&sb, NULL, 65536, SBUF_FIXEDLEN);
-
-	if (!*softc->pool) {
-		sbuf_printf(&sb, "NFSD not running\n");
-		goto out;
-	}
 
 	for (i = 0; i < FHA_HASH_SIZE; i++)
 		if (!LIST_EMPTY(&softc->fha_hash[i].list))

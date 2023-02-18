@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2023
+.Dd February 17, 2023
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -80,8 +80,13 @@ script in the
 .Pa /etc/rc.conf.d
 directory or
 .Ao Ar dir Ac Ns Pa /rc.conf.d
-directories specified in
-.Va local_startup ,
+directories (where
+.Ao Ar dir Ac
+is each entry specified in
+ .Va local_startup ,
+but with any trailing
+.Pa /rc.d
+stripped),
 which will be included by the
 .Va load_rc_config
 function.

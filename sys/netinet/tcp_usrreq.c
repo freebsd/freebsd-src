@@ -245,7 +245,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	tp = intotcpcb(inp);
 #endif
 	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in_pcbbind(inp, nam, td->td_ucred);
+	error = in_pcbbind(inp, sinp, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	TCP_PROBE2(debug__user, tp, PRU_BIND);
@@ -309,14 +309,13 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			}
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
-			error = in_pcbbind(inp, (struct sockaddr *)&sin,
-			    td->td_ucred);
+			error = in_pcbbind(inp, &sin, td->td_ucred);
 			INP_HASH_WUNLOCK(&V_tcbinfo);
 			goto out;
 		}
 	}
 #endif
-	error = in6_pcbbind(inp, nam, td->td_ucred);
+	error = in6_pcbbind(inp, sin6, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	if (error != 0)
@@ -655,6 +654,8 @@ tcp_usr_disconnect(struct socket *so)
 		goto out;
 	}
 	tp = intotcpcb(inp);
+	if (tp->t_state == TCPS_TIME_WAIT)
+		goto out;
 	tcp_disconnect(tp);
 out:
 	TCP_PROBE2(debug__user, tp, PRU_DISCONNECT);
@@ -1249,14 +1250,16 @@ tcp_usr_close(struct socket *so)
 	    ("tcp_usr_close: inp_socket == NULL"));
 
 	/*
-	 * If we still have full TCP state, and we're not dropped, initiate
+	 * If we are still connected and we're not dropped, initiate
 	 * a disconnect.
 	 */
 	if (!(inp->inp_flags & INP_DROPPED)) {
 		tp = intotcpcb(inp);
-		tp->t_flags |= TF_CLOSED;
-		tcp_disconnect(tp);
-		TCP_PROBE2(debug__user, tp, PRU_CLOSE);
+		if (tp->t_state != TCPS_TIME_WAIT) {
+			tp->t_flags |= TF_CLOSED;
+			tcp_disconnect(tp);
+			TCP_PROBE2(debug__user, tp, PRU_CLOSE);
+		}
 	}
 	if (!(inp->inp_flags & INP_DROPPED)) {
 		soref(so);

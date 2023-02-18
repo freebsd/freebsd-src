@@ -40,6 +40,12 @@
 #include <sys/_pthreadtypes.h>
 
 /*
+ * The kernel doesn't expose PID_MAX to the user space. Save it here
+ * to allow to run a newer world on a pre-1400079 kernel.
+ */
+#define	_PID_MAX	99999
+
+/*
  * This global flag is non-zero when a process has created one
  * or more threads. It is used to avoid calling locking functions
  * when they are not required.

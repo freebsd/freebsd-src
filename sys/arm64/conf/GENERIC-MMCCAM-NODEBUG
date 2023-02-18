@@ -7,6 +7,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include GENERIC-MMCCAM
 include "../../conf/std.nodebug"
 

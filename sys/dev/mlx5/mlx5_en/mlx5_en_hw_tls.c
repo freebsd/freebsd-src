@@ -309,7 +309,7 @@ mlx5e_tls_set_params(void *ctx, const struct tls_session_params *en)
 CTASSERT(MLX5E_TLS_ST_INIT == 0);
 
 int
-mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
+mlx5e_tls_snd_tag_alloc(if_t ifp,
     union if_snd_tag_alloc_params *params,
     struct m_snd_tag **ppmt)
 {
@@ -320,7 +320,7 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 	const struct tls_session_params *en;
 	int error;
 
-	priv = ifp->if_softc;
+	priv = if_getsoftc(ifp);
 
 	if (priv->gone != 0 || priv->tls.init == 0)
 		return (EOPNOTSUPP);
@@ -489,7 +489,7 @@ mlx5e_tls_snd_tag_free(struct m_snd_tag *pmt)
 	ptag->state = MLX5E_TLS_ST_RELEASE;
 	MLX5E_TLS_TAG_UNLOCK(ptag);
 
-	priv = ptag->tag.ifp->if_softc;
+	priv = if_getsoftc(ptag->tag.ifp);
 	queue_work(priv->tls.wq, &ptag->work);
 }
 

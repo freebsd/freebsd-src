@@ -475,15 +475,16 @@ nfsrvd_statstart(int op, struct bintime *now)
 	}
 
 	mtx_lock(&nfsrvd_statmtx);
-	if (nfsstatsv1_p->srvstartcnt == nfsstatsv1_p->srvdonecnt) {
+	if (NFSD_VNET(nfsstatsv1_p)->srvstartcnt ==
+	    NFSD_VNET(nfsstatsv1_p)->srvdonecnt) {
 		if (now != NULL)
-			nfsstatsv1_p->busyfrom = *now;
+			NFSD_VNET(nfsstatsv1_p)->busyfrom = *now;
 		else
-			binuptime(&nfsstatsv1_p->busyfrom);
+			binuptime(&NFSD_VNET(nfsstatsv1_p)->busyfrom);
 		
 	}
-	nfsstatsv1_p->srvrpccnt[op]++;
-	nfsstatsv1_p->srvstartcnt++;
+	NFSD_VNET(nfsstatsv1_p)->srvrpccnt[op]++;
+	NFSD_VNET(nfsstatsv1_p)->srvstartcnt++;
 	mtx_unlock(&nfsrvd_statmtx);
 
 }
@@ -506,21 +507,21 @@ nfsrvd_statend(int op, uint64_t bytes, struct bintime *now,
 
 	mtx_lock(&nfsrvd_statmtx);
 
-	nfsstatsv1_p->srvbytes[op] += bytes;
-	nfsstatsv1_p->srvops[op]++;
+	NFSD_VNET(nfsstatsv1_p)->srvbytes[op] += bytes;
+	NFSD_VNET(nfsstatsv1_p)->srvops[op]++;
 
 	if (then != NULL) {
 		dt = *now;
 		bintime_sub(&dt, then);
-		bintime_add(&nfsstatsv1_p->srvduration[op], &dt);
+		bintime_add(&NFSD_VNET(nfsstatsv1_p)->srvduration[op], &dt);
 	}
 
 	dt = *now;
-	bintime_sub(&dt, &nfsstatsv1_p->busyfrom);
-	bintime_add(&nfsstatsv1_p->busytime, &dt);
-	nfsstatsv1_p->busyfrom = *now;
+	bintime_sub(&dt, &NFSD_VNET(nfsstatsv1_p)->busyfrom);
+	bintime_add(&NFSD_VNET(nfsstatsv1_p)->busytime, &dt);
+	NFSD_VNET(nfsstatsv1_p)->busyfrom = *now;
 
-	nfsstatsv1_p->srvdonecnt++;
+	NFSD_VNET(nfsstatsv1_p)->srvdonecnt++;
 
 	mtx_unlock(&nfsrvd_statmtx);
 }
