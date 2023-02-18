@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2022
+.Dd February 18, 2023
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -284,6 +284,14 @@ The network addresses of the interface
 and the maximum transmission unit
 .Pq Dq mtu
 are also displayed.
+If both
+.Fl i
+and
+.Fl I
+are specified,
+.Fl I
+overrides any instances of
+.Fl i .
 .Bl -tag -width indent
 .It Fl 4
 Show IPv4 only.
@@ -432,6 +440,14 @@ See
 .Ek
 .Xc
 Display per-interface statistics for each network protocol.
+If both
+.Fl i
+and
+.Fl I
+are specified,
+.Fl I
+overrides any instances of
+.Fl i .
 .Bl -tag -width indent
 .It Fl 4
 Show IPv4 only
