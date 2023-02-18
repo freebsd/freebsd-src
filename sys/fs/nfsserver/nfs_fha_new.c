@@ -56,14 +56,14 @@ static int		fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS);
 static void		fha_extract_info(struct svc_req *req,
 			    struct fha_info *i);
 
-static struct fha_params fhanew_softc;
+NFSD_VNET_DEFINE_STATIC(struct fha_params *, fhanew_softc);
 
 SYSCTL_DECL(_vfs_nfsd);
 
 extern int newnfs_nfsv3_procid[];
 
-SYSINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_init, NULL);
-SYSUNINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_uninit, NULL);
+SYSINIT(nfs_fhanew, SI_SUB_VNET_DONE, SI_ORDER_ANY, fhanew_init, NULL);
+SYSUNINIT(nfs_fhanew, SI_SUB_VNET_DONE, SI_ORDER_ANY, fhanew_uninit, NULL);
 
 static void
 fhanew_init(void *foo)
@@ -71,9 +71,9 @@ fhanew_init(void *foo)
 	struct fha_params *softc;
 	int i;
 
-	softc = &fhanew_softc;
-
-	bzero(softc, sizeof(*softc));
+	NFSD_VNET(fhanew_softc) = malloc(sizeof(struct fha_params), M_TEMP,
+	    M_WAITOK | M_ZERO);
+	softc = NFSD_VNET(fhanew_softc);
 
 	snprintf(softc->server_name, sizeof(softc->server_name),
 	    FHANEW_SERVER_NAME);
@@ -82,12 +82,14 @@ fhanew_init(void *foo)
 	 * Initialize the sysctl context list for the fha module.
 	 */
 	sysctl_ctx_init(&softc->sysctl_ctx);
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_vfs_nfsd), OID_AUTO, "fha",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "NFS File Handle Affinity (FHA)");
-	if (softc->sysctl_tree == NULL) {
-		printf("%s: unable to allocate sysctl tree\n", __func__);
-		return;
+	if (IS_DEFAULT_VNET(curvnet)) {
+		softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd), OID_AUTO, "fha",
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "NFS File Handle Affinity (FHA)");
+		if (softc->sysctl_tree == NULL) {
+			printf("%s: unable to allocate sysctl tree\n", __func__);
+			return;
+		}
 	}
 
 	for (i = 0; i < FHA_HASH_SIZE; i++)
@@ -106,36 +108,38 @@ fhanew_init(void *foo)
 	/*
 	 * Add sysctls so the user can change the tuning parameters.
 	 */
-	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "enable", CTLFLAG_RWTUN,
-	    &softc->ctls.enable, 0, "Enable NFS File Handle Affinity (FHA)");
+	if (IS_DEFAULT_VNET(curvnet)) {
+		SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "enable", CTLFLAG_RWTUN,
+		    &softc->ctls.enable, 0, "Enable NFS File Handle Affinity (FHA)");
 
-	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "read", CTLFLAG_RWTUN,
-	    &softc->ctls.read, 0, "Enable NFS FHA read locality");
+		SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "read", CTLFLAG_RWTUN,
+		    &softc->ctls.read, 0, "Enable NFS FHA read locality");
 
-	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "write", CTLFLAG_RWTUN,
-	    &softc->ctls.write, 0, "Enable NFS FHA write locality");
+		SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "write", CTLFLAG_RWTUN,
+		    &softc->ctls.write, 0, "Enable NFS FHA write locality");
 
-	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "bin_shift", CTLFLAG_RWTUN,
-	    &softc->ctls.bin_shift, 0,
-	    "Maximum locality distance 2^(bin_shift) bytes");
+		SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "bin_shift", CTLFLAG_RWTUN,
+		    &softc->ctls.bin_shift, 0,
+		    "Maximum locality distance 2^(bin_shift) bytes");
 
-	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "max_nfsds_per_fh", CTLFLAG_RWTUN,
-	    &softc->ctls.max_nfsds_per_fh, 0, "Maximum nfsd threads that "
-	    "should be working on requests for the same file handle");
+		SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "max_nfsds_per_fh", CTLFLAG_RWTUN,
+		    &softc->ctls.max_nfsds_per_fh, 0, "Maximum nfsd threads that "
+		    "should be working on requests for the same file handle");
 
-	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "max_reqs_per_nfsd", CTLFLAG_RWTUN,
-	    &softc->ctls.max_reqs_per_nfsd, 0, "Maximum requests that "
-	    "single nfsd thread should be working on at any time");
+		SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "max_reqs_per_nfsd", CTLFLAG_RWTUN,
+		    &softc->ctls.max_reqs_per_nfsd, 0, "Maximum requests that "
+		    "single nfsd thread should be working on at any time");
 
-	SYSCTL_ADD_OID(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "fhe_stats", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    0, 0, fhenew_stats_sysctl, "A", "");
+		SYSCTL_ADD_OID(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		    OID_AUTO, "fhe_stats", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    0, 0, fhenew_stats_sysctl, "A", "");
+	}
 }
 
 static void
@@ -144,11 +148,12 @@ fhanew_uninit(void *foo)
 	struct fha_params *softc;
 	int i;
 
-	softc = &fhanew_softc;
+	softc = NFSD_VNET(fhanew_softc);
 
 	sysctl_ctx_free(&softc->sysctl_ctx);
 	for (i = 0; i < FHA_HASH_SIZE; i++)
 		mtx_destroy(&softc->fha_hash[i].mtx);
+	free(softc, M_TEMP);
 }
 
 static rpcproc_t
@@ -556,11 +561,13 @@ noloc:
 SVCTHREAD *
 fhanew_assign(SVCTHREAD *this_thread, struct svc_req *req)
 {
-	struct fha_params *softc = &fhanew_softc;
+	struct fha_params *softc;
 	SVCTHREAD *thread;
 	struct fha_info i;
 	struct fha_hash_entry *fhe;
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(curthread));
+	softc = NFSD_VNET(fhanew_softc);
 	/* Check to see whether we're enabled. */
 	if (softc->ctls.enable == 0)
 		goto thist;
@@ -602,9 +609,11 @@ fhanew_assign(SVCTHREAD *this_thread, struct svc_req *req)
 	mtx_lock(&thread->st_lock);
 	mtx_unlock(fhe->mtx);
 
+	NFSD_CURVNET_RESTORE();
 	return (thread);
 thist:
 	req->rq_p1 = NULL;
+	NFSD_CURVNET_RESTORE();
 	mtx_lock(&this_thread->st_lock);
 	return (this_thread);
 }
@@ -619,12 +628,15 @@ fhanew_nd_complete(SVCTHREAD *thread, struct svc_req *req)
 	struct fha_hash_entry *fhe = req->rq_p1;
 	struct mtx *mtx;
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(curthread));
 	/*
 	 * This may be called for reqs that didn't go through
 	 * fha_assign (e.g. extra NULL ops used for RPCSEC_GSS.
 	 */
-	if (!fhe)
+	if (!fhe) {
+		NFSD_CURVNET_RESTORE();
 		return;
+	}
 
 	mtx = fhe->mtx;
 	mtx_lock(mtx);
@@ -638,12 +650,13 @@ fhanew_nd_complete(SVCTHREAD *thread, struct svc_req *req)
 			fha_hash_entry_remove(fhe);
 	}
 	mtx_unlock(mtx);
+	NFSD_CURVNET_RESTORE();
 }
 
 static int
 fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct fha_params *softc = &fhanew_softc;
+	struct fha_params *softc;
 	int error, i;
 	struct sbuf sb;
 	struct fha_hash_entry *fhe;
@@ -652,6 +665,8 @@ fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 
 	sbuf_new(&sb, NULL, 65536, SBUF_FIXEDLEN);
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(curthread));
+	softc = NFSD_VNET(fhanew_softc);
 	for (i = 0; i < FHA_HASH_SIZE; i++)
 		if (!LIST_EMPTY(&softc->fha_hash[i].list))
 			break;
@@ -694,6 +709,7 @@ fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 
  out:
+	NFSD_CURVNET_RESTORE();
 	sbuf_trim(&sb);
 	sbuf_finish(&sb);
 	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
