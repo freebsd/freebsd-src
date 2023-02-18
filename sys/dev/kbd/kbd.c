@@ -143,8 +143,8 @@ kbd_init_struct(keyboard_t *kbd, char *name, int type, int unit, int config,
 	kbd->kb_accentmap = NULL;
 	kbd->kb_fkeytab = NULL;
 	kbd->kb_fkeytab_size = 0;
-	kbd->kb_delay1 = KB_DELAY1;	/* these values are advisory only */
-	kbd->kb_delay2 = KB_DELAY2;
+	kbd->kb_delay1 = KBD_DELAY1;	/* these values are advisory only */
+	kbd->kb_delay2 = KBD_DELAY2;
 	kbd->kb_count = 0L;
 	bzero(kbd->kb_lastact, sizeof(kbd->kb_lastact));
 }
