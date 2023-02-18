@@ -710,6 +710,7 @@ struct pr_usrreqs nl_usrreqs = {
 	.pru_detach =		nl_pru_detach,
 	.pru_disconnect =	nl_pru_disconnect,
 	.pru_peeraddr =		nl_pru_peeraddr,
+	.pru_rcvd =		nl_pru_rcvd,
 	.pru_send =		nl_pru_send,
 	//.pru_soreceive =	soreceive_dgram,
 	//.pru_sosend =		sosend_dgram,
