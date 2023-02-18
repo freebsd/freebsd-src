@@ -779,15 +779,11 @@ get_sa_plen(const struct sockaddr *sa)
         switch (sa->sa_family) {
 #ifdef INET
         case AF_INET:
-                if (sa == NULL)
-                        return (32);
                 paddr = &(((const struct sockaddr_in *)sa)->sin_addr);
                 return bitcount32(paddr->s_addr);;
 #endif
 #ifdef INET6
         case AF_INET6:
-                if (sa == NULL)
-                        return (128);
                 paddr6 = &(((const struct sockaddr_in6 *)sa)->sin6_addr);
                 return inet6_get_plen(paddr6);
 #endif
