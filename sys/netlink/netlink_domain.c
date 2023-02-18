@@ -623,7 +623,9 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 		case NETLINK_ADD_MEMBERSHIP:
 		case NETLINK_DROP_MEMBERSHIP:
-			sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			error = sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			if (error != 0)
+				break;
 			if (optval <= 0 || optval >= NLP_MAX_GROUPS) {
 				error = ERANGE;
 				break;
@@ -640,7 +642,9 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		case NETLINK_CAP_ACK:
 		case NETLINK_EXT_ACK:
 		case NETLINK_GET_STRICT_CHK:
-			sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			error = sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			if (error != 0)
+				break;
 
 			flag = nl_getoptflag(sopt->sopt_name);
 
