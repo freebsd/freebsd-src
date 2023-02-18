@@ -395,7 +395,7 @@ nl_autobind_port(struct nlpcb *nlp, uint32_t candidate_id)
 	uint32_t port_id = candidate_id;
 	NLCTL_TRACKER;
 	bool exist;
-	int error;
+	int error = EADDRINUSE;
 
 	for (int i = 0; i < 10; i++) {
 		NL_LOG(LOG_DEBUG3, "socket %p, trying to assign port %d", nlp->nl_socket, port_id);
