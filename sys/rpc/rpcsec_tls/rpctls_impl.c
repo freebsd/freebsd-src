@@ -106,7 +106,7 @@ rpctls_vnetinit(const void *unused __unused)
 	for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++)
 		KRPC_VNET(rpctls_server_busy)[i] = false;
 }
-SYSINIT(rpctls_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(rpctls_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     rpctls_vnetinit, NULL);
 
 int

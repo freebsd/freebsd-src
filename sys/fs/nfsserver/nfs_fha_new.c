@@ -62,8 +62,8 @@ SYSCTL_DECL(_vfs_nfsd);
 
 extern int newnfs_nfsv3_procid[];
 
-SYSINIT(nfs_fhanew, SI_SUB_VNET_DONE, SI_ORDER_ANY, fhanew_init, NULL);
-SYSUNINIT(nfs_fhanew, SI_SUB_VNET_DONE, SI_ORDER_ANY, fhanew_uninit, NULL);
+VNET_SYSINIT(nfs_fhanew, SI_SUB_VNET_DONE, SI_ORDER_ANY, fhanew_init, NULL);
+VNET_SYSUNINIT(nfs_fhanew, SI_SUB_VNET_DONE, SI_ORDER_ANY, fhanew_uninit, NULL);
 
 static void
 fhanew_init(void *foo)
