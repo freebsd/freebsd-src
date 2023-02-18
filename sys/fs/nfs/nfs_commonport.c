@@ -900,7 +900,7 @@ nfs_vnetinit(const void *unused __unused)
 	mtx_init(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx, "nfsuserd",
 	    NULL, MTX_DEF);
 }
-SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     nfs_vnetinit, NULL);
 
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);

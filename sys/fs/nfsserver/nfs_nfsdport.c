@@ -6898,7 +6898,7 @@ nfsrv_vnetinit(const void *unused __unused)
 
 	nfsd_mntinit();
 }
-SYSINIT(nfsrv_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(nfsrv_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     nfsrv_vnetinit, NULL);
 
 /*

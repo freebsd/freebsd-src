@@ -221,7 +221,7 @@ svc_rpc_gss_init(void *arg)
 		sx_init(&svc_rpc_gss_lock, "gsslock");
 	}
 }
-SYSINIT(svc_rpc_gss_init, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(svc_rpc_gss_init, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     svc_rpc_gss_init, NULL);
 
 bool_t
