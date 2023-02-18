@@ -151,8 +151,12 @@ struct keyboard {
 	void		*kb_data;	/* the driver's private data */
 	int		kb_delay1;
 	int		kb_delay2;
-#define KB_DELAY1	500
-#define KB_DELAY2	100
+#ifndef KBD_DELAY1
+#define KBD_DELAY1	500
+#endif
+#ifndef KBD_DELAY2
+#define KBD_DELAY2	100
+#endif
 	unsigned long	kb_count;	/* # of processed key strokes */
 	u_char		kb_lastact[NUM_KEYS/2];
 	struct cdev *kb_dev;
