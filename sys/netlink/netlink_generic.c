@@ -267,7 +267,7 @@ genl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	int family_id = (int)hdr->nlmsg_type - GENL_MIN_ID;
 
-	if (__predict_false(family_id < 0 || family_id > MAX_FAMILIES)) {
+	if (__predict_false(family_id < 0 || family_id >= MAX_FAMILIES)) {
 		NLP_LOG(LOG_DEBUG, nlp, "invalid message type: %d", hdr->nlmsg_type);
 		return (ENOTSUP);
 	}
