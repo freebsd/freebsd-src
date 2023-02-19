@@ -164,7 +164,7 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 	flow = mlx5_add_flow_rule(ft->t, spec->match_criteria_enable,
 	    spec->match_criteria,
 	    spec->match_value,
-	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+	    MLX5_FLOW_RULE_FWD_ACTION_DEST,
 	    &flow_act,
 	    &dest);
 out:
@@ -200,7 +200,7 @@ accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv, int type)
 	    priv->fts.vlan.t : fs_tcp->tables[type + 1].t;
 
 	rule = mlx5_add_flow_rule(fs_tcp->tables[type].t, 0, match_criteria, match_value,
-	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST, &flow_act, &dest);
+	    MLX5_FLOW_RULE_FWD_ACTION_DEST, &flow_act, &dest);
 	if (IS_ERR(rule))
 		return (PTR_ERR(rule));
 
