@@ -816,8 +816,14 @@ static struct mlx5_flow_table *_create_ft_common(struct mlx5_flow_namespace *ns,
 	/*User isn't aware to those rules*/
 	ft->max_fte = ft_size - 2;
 	log_table_sz = ilog2(ft_size);
+
+	if (name == NULL || name[0] == '\0') {
+		snprintf(gen_name, sizeof(gen_name), "flow_table_%u", ft->id);
+		name = gen_name;
+	}
+
 	err = mlx5_cmd_fs_create_ft(root->dev, ft->vport, ft->type,
-				    ft->level, log_table_sz, &ft->id);
+				    ft->level, log_table_sz, name, &ft->id);
 	if (err)
 		goto free_ft;
 
@@ -832,12 +838,8 @@ static struct mlx5_flow_table *_create_ft_common(struct mlx5_flow_namespace *ns,
 			goto destroy_star_rule;
 	}
 
-	if (!name || !strlen(name)) {
-		snprintf(gen_name, 20, "flow_table_%u", ft->id);
-		_fs_add_node(&ft->base, gen_name, &fs_prio->base);
-	} else {
-		_fs_add_node(&ft->base, name, &fs_prio->base);
-	}
+	_fs_add_node(&ft->base, name, &fs_prio->base);
+
 	list_add_tail(&ft->base.list, &fs_prio->objs);
 	fs_prio->num_ft++;
 
@@ -1762,6 +1764,9 @@ static bool check_conflicting_actions(const struct mlx5_flow_act *act1,
 
 	/* Can even have complex actions in merged rules */
 	if (action1 & MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR)
+		return true;
+
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT)
 		return true;
 
 	return false;

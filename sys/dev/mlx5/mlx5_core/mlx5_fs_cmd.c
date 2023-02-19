@@ -54,9 +54,8 @@ int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 }
 
 int mlx5_cmd_fs_create_ft(struct mlx5_core_dev *dev,
-			  u16 vport,
-			  enum fs_ft_type type, unsigned int level,
-			  unsigned int log_size, unsigned int *table_id)
+			  u16 vport, enum fs_ft_type type, unsigned int level,
+			  unsigned int log_size, const char *name, unsigned int *table_id)
 {
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
@@ -72,6 +71,9 @@ int mlx5_cmd_fs_create_ft(struct mlx5_core_dev *dev,
 	MLX5_SET(create_flow_table_in, in, flow_table_context.level, level);
 	MLX5_SET(create_flow_table_in, in, flow_table_context.log_size,
 		 log_size);
+	if (strstr(name, FS_REFORMAT_KEYWORD) != NULL)
+		MLX5_SET(create_flow_table_in, in,
+			 flow_table_context.reformat_en, 1);
 	if (vport) {
 		MLX5_SET(create_flow_table_in, in, vport_number, vport);
 		MLX5_SET(create_flow_table_in, in, other_vport, 1);
@@ -227,6 +229,11 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 		MLX5_SET(flow_context, in_flow_context, modify_header_id,
 			 flow_act->modify_hdr->id);
 		prm_action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	}
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT) {
+		MLX5_SET(flow_context, in_flow_context, packet_reformat_id,
+			 flow_act->pkt_reformat->id);
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 	}
 	MLX5_SET(flow_context, in_flow_context, destination_list_size,
 		 dest_size);
