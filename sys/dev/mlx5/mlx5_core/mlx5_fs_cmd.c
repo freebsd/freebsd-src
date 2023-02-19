@@ -167,7 +167,7 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			enum fs_ft_type type, unsigned int table_id,
 			unsigned int index, unsigned int group_id,
 			struct mlx5_flow_act *flow_act,
-			unsigned short action, int dest_size,
+			u32 sw_action, int dest_size,
 			struct list_head *dests)  /* mlx5_flow_desination */
 {
 	u32 out[MLX5_ST_SZ_DW(set_fte_out)] = {0};
@@ -183,10 +183,18 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	int atomic_mod_cap;
 	u32 prm_action = 0;
 
-	if (action != MLX5_FLOW_CONTEXT_ACTION_FWD_DEST)
+	if (sw_action != MLX5_FLOW_RULE_FWD_ACTION_DEST)
 		dest_size = 0;
 
-	prm_action = action;
+	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_ALLOW)
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_ALLOW;
+
+	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_DROP)
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_DROP;
+
+	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_DEST)
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+
 	inlen = MLX5_ST_SZ_BYTES(set_fte_in) +
 		dest_size * MLX5_ST_SZ_BYTES(dest_format_struct);
 

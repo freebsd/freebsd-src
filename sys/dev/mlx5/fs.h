@@ -43,6 +43,12 @@ enum {
 	MLX5_FS_SNIFFER_FLOW_TAG  = 0xFFFFFD,
 };
 
+enum mlx5_rule_fwd_action {
+	MLX5_FLOW_RULE_FWD_ACTION_ALLOW = 0x1,
+	MLX5_FLOW_RULE_FWD_ACTION_DROP = 0x2,
+	MLX5_FLOW_RULE_FWD_ACTION_DEST = 0x4,
+};
+
 enum {
 	MLX5_FS_FLOW_TAG_MASK = 0xFFFFFF,
 };
@@ -168,7 +174,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u8 match_criteria_enable,
 		   u32 *match_criteria,
 		   u32 *match_value,
-		   u32 action,
+		   u32 sw_action,
 		   struct mlx5_flow_act *flow_act,
 		   struct mlx5_flow_destination *dest);
 void mlx5_del_flow_rule(struct mlx5_flow_rule **);

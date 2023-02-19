@@ -2209,8 +2209,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
-	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
-		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
+	action = dst ? MLX5_FLOW_RULE_FWD_ACTION_DEST : 0;
 	handler->rule = mlx5_add_flow_rule(ft, spec->match_criteria_enable,
 					   spec->match_criteria,
 					   spec->match_value,
