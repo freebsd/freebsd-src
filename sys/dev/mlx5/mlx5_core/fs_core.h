@@ -168,6 +168,11 @@ struct fs_client_priv_data {
 	void   *client_dst_data;
 };
 
+struct mlx5_modify_hdr {
+	enum mlx5_flow_namespace_type ns_type;
+	u32 id;
+};
+
 void _fs_remove_node(struct kref *kref);
 #define fs_get_obj(v, _base)  {v = container_of((_base), typeof(*v), base); }
 #define fs_get_parent(v, child)  {v = (child)->base.parent ?		     \
@@ -295,4 +300,14 @@ int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
+void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
+				      unsigned long interval);
+
+int mlx5_cmd_modify_header_alloc(struct mlx5_core_dev *dev,
+				 enum mlx5_flow_namespace_type namespace,
+				 u8 num_actions,
+				 void *modify_actions,
+				 struct mlx5_modify_hdr *modify_hdr);
+void mlx5_cmd_modify_header_dealloc(struct mlx5_core_dev *dev,
+				    struct mlx5_modify_hdr *modify_hdr);
 #endif
