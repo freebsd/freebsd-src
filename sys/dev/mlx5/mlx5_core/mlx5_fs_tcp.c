@@ -98,6 +98,10 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 #endif
 	struct mlx5_flow_rule *flow;
 	struct mlx5_flow_spec *spec;
+	struct mlx5_flow_act flow_act = {
+		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
+		.flow_tag = flow_tag,
+	};
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -161,7 +165,7 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 	    spec->match_criteria,
 	    spec->match_value,
 	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-	    flow_tag,
+	    &flow_act,
 	    &dest);
 out:
 	kvfree(spec);
@@ -176,6 +180,10 @@ accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv, int type)
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_accel_fs_tcp *fs_tcp;
 	struct mlx5_flow_rule *rule;
+	struct mlx5_flow_act flow_act = {
+		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
+		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+	};
 
 	fs_tcp = &priv->fts.accel_tcp;
 
@@ -192,7 +200,7 @@ accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv, int type)
 	    priv->fts.vlan.t : fs_tcp->tables[type + 1].t;
 
 	rule = mlx5_add_flow_rule(fs_tcp->tables[type].t, 0, match_criteria, match_value,
-	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST, MLX5_FS_DEFAULT_FLOW_TAG, &dest);
+	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST, &flow_act, &dest);
 	if (IS_ERR(rule))
 		return (PTR_ERR(rule));
 

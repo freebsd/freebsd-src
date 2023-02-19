@@ -2180,6 +2180,10 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	struct mlx5_flow_spec *spec;
 	const void *ib_flow = (const void *)flow_attr + sizeof(*flow_attr);
 	unsigned int spec_index;
+	struct mlx5_flow_act flow_act = {
+		.actions = MLX5_FLOW_ACT_ACTIONS_FLOW_TAG,
+		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+	};
 	u32 action;
 	int err = 0;
 
@@ -2211,7 +2215,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 					   spec->match_criteria,
 					   spec->match_value,
 					   action,
-					   MLX5_FS_DEFAULT_FLOW_TAG,
+					   &flow_act,
 					   dst);
 
 	if (IS_ERR(handler->rule)) {
