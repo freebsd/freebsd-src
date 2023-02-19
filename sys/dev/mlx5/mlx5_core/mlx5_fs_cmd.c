@@ -164,7 +164,7 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			u32 *match_val,
 			enum fs_ft_type type, unsigned int table_id,
 			unsigned int index, unsigned int group_id,
-			unsigned int flow_tag,
+			struct mlx5_flow_act *flow_act,
 			unsigned short action, int dest_size,
 			struct list_head *dests)  /* mlx5_flow_desination */
 {
@@ -219,7 +219,8 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
-	MLX5_SET(flow_context, in_flow_context, flow_tag, flow_tag);
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_FLOW_TAG)
+		MLX5_SET(flow_context, in_flow_context, flow_tag, flow_act->flow_tag);
 	MLX5_SET(flow_context, in_flow_context, action, action);
 	MLX5_SET(flow_context, in_flow_context, destination_list_size,
 		 dest_size);

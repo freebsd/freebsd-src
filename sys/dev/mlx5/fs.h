@@ -82,6 +82,15 @@ struct mlx5_flow_destination {
 	};
 };
 
+enum mlx5_flow_act_actions {
+	MLX5_FLOW_ACT_ACTIONS_FLOW_TAG = 1 << 0,
+};
+
+struct mlx5_flow_act {
+	u32 actions; /* See enum mlx5_flow_act_actions */
+	u32 flow_tag;
+};
+
 #define FT_NAME_STR_SZ 20
 #define LEFTOVERS_RULE_NUM 2
 static inline void build_leftovers_ft_param(char *name,
@@ -154,7 +163,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u32 *match_criteria,
 		   u32 *match_value,
 		   u32 action,
-		   u32 flow_tag,
+		   struct mlx5_flow_act *flow_act,
 		   struct mlx5_flow_destination *dest);
 void mlx5_del_flow_rule(struct mlx5_flow_rule **);
 
