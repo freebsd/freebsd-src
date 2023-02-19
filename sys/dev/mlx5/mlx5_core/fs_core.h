@@ -78,9 +78,9 @@ struct fs_fte {
 	struct fs_base				base;
 	u32					val[MLX5_ST_SZ_DW(fte_match_param)];
 	uint32_t				dests_size;
-	uint32_t				flow_tag;
 	struct list_head			dests;
 	uint32_t				index; /* index in ft */
+	struct mlx5_flow_act			flow_act;
 	u8					action; /* MLX5_FLOW_CONTEXT_ACTION */
 	enum fs_fte_status			status;
 };
@@ -290,7 +290,7 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			u32 *match_val,
 			enum fs_ft_type type, unsigned int table_id,
 			unsigned int index, unsigned int group_id,
-			unsigned int flow_tag,
+			struct mlx5_flow_act *flow_act,
 			unsigned short action, int dest_size,
 			struct list_head *dests);  /* mlx5_flow_desination */
 
