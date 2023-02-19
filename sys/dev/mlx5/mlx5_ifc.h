@@ -778,18 +778,40 @@ struct mlx5_ifc_snapshot_cap_bits {
 };
 
 struct mlx5_ifc_e_switch_cap_bits {
-	u8         vport_svlan_strip[0x1];
-	u8         vport_cvlan_strip[0x1];
-	u8         vport_svlan_insert[0x1];
-	u8         vport_cvlan_insert_if_not_exist[0x1];
-	u8         vport_cvlan_insert_overwrite[0x1];
+        u8         vport_svlan_strip[0x1];
+        u8         vport_cvlan_strip[0x1];
+        u8         vport_svlan_insert[0x1];
+        u8         vport_cvlan_insert_if_not_exist[0x1];
+        u8         vport_cvlan_insert_overwrite[0x1];
+        u8         reserved_at_5[0x1];
+        u8         vport_cvlan_insert_always[0x1];
+        u8         esw_shared_ingress_acl[0x1];
+        u8         esw_uplink_ingress_acl[0x1];
+        u8         root_ft_on_other_esw[0x1];
+        u8         reserved_at_a[0xf];
+        u8         esw_functions_changed[0x1];
+        u8         reserved_at_1a[0x1];
+        u8         ecpf_vport_exists[0x1];
+        u8         counter_eswitch_affinity[0x1];
+        u8         merged_eswitch[0x1];
+        u8         nic_vport_node_guid_modify[0x1];
+        u8         nic_vport_port_guid_modify[0x1];
 
-	u8         reserved_0[0x19];
+        u8         vxlan_encap_decap[0x1];
+        u8         nvgre_encap_decap[0x1];
+        u8         reserved_at_22[0x1];
+        u8         log_max_fdb_encap_uplink[0x5];
+        u8         reserved_at_21[0x3];
+        u8         log_max_packet_reformat_context[0x5];
+        u8         reserved_2b[0x6];
+        u8         max_encap_header_size[0xa];
 
-	u8         nic_vport_node_guid_modify[0x1];
-	u8         nic_vport_port_guid_modify[0x1];
+        u8         reserved_at_40[0xb];
+        u8         log_max_esw_sf[0x5];
+        u8         esw_sf_base_id[0x10];
 
-	u8         reserved_1[0x7e0];
+        u8         reserved_at_60[0x7a0];
+
 };
 
 struct mlx5_ifc_flow_table_eswitch_cap_bits {
@@ -806,9 +828,18 @@ struct mlx5_ifc_flow_table_eswitch_cap_bits {
 
 struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         nic_rx_multi_path_tirs[0x1];
-	u8         nic_rx_multi_path_tirs_fts[0x1];
-	u8         allow_sniffer_and_nic_rx_shared_tir[0x1];
-	u8         reserved_at_3[0x1fd];
+        u8         nic_rx_multi_path_tirs_fts[0x1];
+        u8         allow_sniffer_and_nic_rx_shared_tir[0x1];
+        u8         reserved_at_3[0x4];
+        u8         sw_owner_reformat_supported[0x1];
+        u8         reserved_at_8[0x18];
+
+        u8         encap_general_header[0x1];
+        u8         reserved_at_21[0xa];
+        u8         log_max_packet_reformat_context[0x5];
+        u8         reserved_at_30[0x6];
+        u8         max_encap_header_size[0xa];
+        u8         reserved_at_40[0x1c0];
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_receive;
 
@@ -2252,7 +2283,7 @@ struct mlx5_ifc_flow_context_bits {
 	u8         reserved_4[0x8];
 	u8         flow_counter_list_size[0x18];
 
-	u8         reserved_5[0x20];
+	u8         packet_reformat_id[0x20];
 
 	u8	   modify_header_id[0x20];
 
@@ -2923,7 +2954,7 @@ enum {
 };
 
 struct mlx5_ifc_flow_table_context_bits {
-	u8         encap_en[0x1];
+	u8         reformat_en[0x1];
 	u8         decap_en[0x1];
 	u8         reserved_at_2[0x2];
 	u8         table_miss_action[0x4];
@@ -5404,15 +5435,17 @@ struct mlx5_ifc_query_dc_cnak_trace_in_bits {
 };
 
 struct mlx5_ifc_packet_reformat_context_in_bits {
-	u8         reserved_at_0[0x5];
-	u8         reformat_type[0x3];
-	u8         reserved_at_8[0xe];
-	u8         reformat_data_size[0xa];
+        u8         reformat_type[0x8];
+        u8         reserved_at_8[0x4];
+        u8         reformat_param_0[0x4];
+        u8         reserved_at_10[0x6];
+        u8         reformat_data_size[0xa];
 
-	u8         reserved_at_20[0x10];
-	u8         reformat_data[2][0x8];
+        u8         reformat_param_1[0x8];
+        u8         reserved_at_28[0x8];
+        u8         reformat_data[2][0x8];
 
-	u8         more_reformat_data[0][0x8];
+        u8         more_reformat_data[][0x8];
 };
 
 struct mlx5_ifc_query_packet_reformat_context_out_bits {

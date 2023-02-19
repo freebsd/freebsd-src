@@ -356,3 +356,75 @@ void mlx5_cmd_modify_header_dealloc(struct mlx5_core_dev *dev,
 
         mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+
+int mlx5_cmd_packet_reformat_alloc(struct mlx5_core_dev *dev,
+				   struct mlx5_pkt_reformat_params *params,
+				   enum mlx5_flow_namespace_type namespace,
+				   struct mlx5_pkt_reformat *pkt_reformat)
+{
+        u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_context_out)] = {};
+        void *packet_reformat_context_in;
+        int max_encap_size;
+        void *reformat;
+        int inlen;
+        int err;
+        u32 *in;
+
+        if (namespace == MLX5_FLOW_NAMESPACE_FDB)
+                max_encap_size = MLX5_CAP_ESW(dev, max_encap_header_size);
+        else
+                max_encap_size = MLX5_CAP_FLOWTABLE(dev, max_encap_header_size);
+
+        if (params->size > max_encap_size) {
+                mlx5_core_warn(dev, "encap size %zd too big, max supported is %d\n",
+                               params->size, max_encap_size);
+                return -EINVAL;
+        }
+
+        in = kzalloc(MLX5_ST_SZ_BYTES(alloc_packet_reformat_context_in) +
+                     params->size, GFP_KERNEL);
+        if (!in)
+                return -ENOMEM;
+
+        packet_reformat_context_in = MLX5_ADDR_OF(alloc_packet_reformat_context_in,
+                                                  in, packet_reformat_context);
+        reformat = MLX5_ADDR_OF(packet_reformat_context_in,
+                                packet_reformat_context_in,
+                                reformat_data);
+        inlen = reformat - (void *)in + params->size;
+
+        MLX5_SET(alloc_packet_reformat_context_in, in, opcode,
+                 MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_data_size, params->size);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_type, params->type);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_param_0, params->param_0);
+        MLX5_SET(packet_reformat_context_in, packet_reformat_context_in,
+                 reformat_param_1, params->param_1);
+        if (params->data && params->size)
+                memcpy(reformat, params->data, params->size);
+
+        err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+
+        pkt_reformat->id = MLX5_GET(alloc_packet_reformat_context_out,
+                                    out, packet_reformat_id);
+        kfree(in);
+
+        return err;
+}
+
+void mlx5_cmd_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				      struct mlx5_pkt_reformat *pkt_reformat)
+{
+        u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_in)] = {};
+
+        MLX5_SET(dealloc_packet_reformat_context_in, in, opcode,
+                 MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT);
+        MLX5_SET(dealloc_packet_reformat_context_in, in, packet_reformat_id,
+                 pkt_reformat->id);
+
+        mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
