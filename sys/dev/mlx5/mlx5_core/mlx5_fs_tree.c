@@ -302,7 +302,7 @@ static void fs_remove_node_parent_locked(struct fs_base *node)
 	kfree(node);
 }
 
-static struct fs_fte *fs_alloc_fte(u8 action,
+static struct fs_fte *fs_alloc_fte(u32 sw_action,
 				   struct mlx5_flow_act *flow_act,
 				   u32 *match_value,
 				   unsigned int index)
@@ -320,7 +320,7 @@ static struct fs_fte *fs_alloc_fte(u8 action,
 	fte->index = index;
 	INIT_LIST_HEAD(&fte->dests);
 	fte->flow_act = *flow_act;
-	fte->action = action;
+	fte->sw_action = sw_action;
 
 	return fte;
 }
@@ -341,7 +341,7 @@ static struct fs_fte *alloc_star_ft_entry(struct mlx5_flow_table *ft,
 	if (fg->num_ftes == fg->max_ftes)
 		return ERR_PTR(-ENOSPC);
 
-	fte = fs_alloc_fte(MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+	fte = fs_alloc_fte(MLX5_FLOW_RULE_FWD_ACTION_DEST,
 			   &flow_act, match_value, index);
 	if (IS_ERR(fte))
 		return fte;
@@ -447,7 +447,7 @@ static int fs_set_star_rule(struct mlx5_core_dev *dev,
 					  src_ft->id, src_fte->index,
 					  src_ft->star_rule.fg->id,
 					  &src_fte->flow_act,
-					  src_fte->action,
+					  src_fte->sw_action,
 					  src_fte->dests_size,
 					  &src_fte->dests);
 		if (err)
@@ -1590,7 +1590,7 @@ static struct mlx5_flow_rule *_fs_add_dst_fte(struct fs_fte *fte,
 				  &fte->status,
 				  fte->val, ft->type,
 				  ft->id, fte->index, fg->id, &fte->flow_act,
-				  fte->action, fte->dests_size, &fte->dests);
+				  fte->sw_action, fte->dests_size, &fte->dests);
 	if (err)
 		goto free_dst;
 
@@ -1652,7 +1652,7 @@ static unsigned int fs_get_free_fg_index(struct mlx5_flow_group *fg,
 
 static struct fs_fte *fs_create_fte(struct mlx5_flow_group *fg,
 			     u32 *match_value,
-			     u8 action,
+			     u32 sw_action,
 			     struct mlx5_flow_act *flow_act,
 			     struct list_head **prev)
 {
@@ -1660,7 +1660,7 @@ static struct fs_fte *fs_create_fte(struct mlx5_flow_group *fg,
 	int index = 0;
 
 	index = fs_get_free_fg_index(fg, prev);
-	fte = fs_alloc_fte(action, flow_act, match_value, index);
+	fte = fs_alloc_fte(sw_action, flow_act, match_value, index);
 	if (IS_ERR(fte))
 		return fte;
 
@@ -1710,7 +1710,7 @@ static void fs_del_dst(struct mlx5_flow_rule *dst)
 		err = mlx5_cmd_fs_set_fte(dev, ft->vport,
 					  &fte->status, match_value, ft->type,
 					  ft->id, fte->index, fg->id,
-					  &fte->flow_act, fte->action,
+					  &fte->flow_act, fte->sw_action,
 					  fte->dests_size, &fte->dests);
 		if (err) {
 			mlx5_core_warn(dev, "%s can't delete dst %s\n",
@@ -1776,7 +1776,7 @@ static bool check_conflicting_actions(const struct mlx5_flow_act *act1,
 /* Add dst algorithm */
 static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 						   u32 *match_value,
-						   u8 action,
+						   u32 sw_action,
 						   struct mlx5_flow_act *flow_act,
 						   struct mlx5_flow_destination *dest)
 {
@@ -1791,7 +1791,7 @@ static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 		/* TODO: Check of size against PRM max size */
 		mutex_lock(&fte->base.lock);
 		if (fs_match_exact_val(&fg->mask, match_value, &fte->val) &&
-		    action == fte->action &&
+		    sw_action == fte->sw_action &&
 		    !check_conflicting_actions(flow_act, &fte->flow_act)) {
 			dst = _fs_add_dst_fte(fte, fg, dest);
 			mutex_unlock(&fte->base.lock);
@@ -1808,7 +1808,7 @@ static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 		goto unlock_fg;
 	}
 
-	fte = fs_create_fte(fg, match_value, action, flow_act, &prev);
+	fte = fs_create_fte(fg, match_value, sw_action, flow_act, &prev);
 	if (IS_ERR(fte)) {
 		dst = (void *)fte;
 		goto unlock_fg;
@@ -1836,7 +1836,7 @@ static struct mlx5_flow_rule *fs_add_dst_ft(struct mlx5_flow_table *ft,
 					    u8 match_criteria_enable,
 					    u32 *match_criteria,
 					    u32 *match_value,
-					    u8 action,
+					    u32 sw_action,
 					    struct mlx5_flow_act *flow_act,
 					    struct mlx5_flow_destination *dest)
 {
@@ -1853,7 +1853,7 @@ static struct mlx5_flow_rule *fs_add_dst_ft(struct mlx5_flow_table *ft,
 					match_criteria)) {
 			mutex_unlock(&ft->base.lock);
 
-			dst = fs_add_dst_fg(g, match_value, action, flow_act, dest);
+			dst = fs_add_dst_fg(g, match_value, sw_action, flow_act, dest);
 			if (PTR_ERR(dst) && PTR_ERR(dst) != -ENOSPC)
 				goto unlock;
 		}
@@ -1866,7 +1866,7 @@ static struct mlx5_flow_rule *fs_add_dst_ft(struct mlx5_flow_table *ft,
 	}
 
 	dst = fs_add_dst_fg(g, match_value,
-			    action, flow_act, dest);
+			    sw_action, flow_act, dest);
 	if (IS_ERR(dst)) {
 		/* Remove assumes refcount > 0 and autogroup creates a group
 		 * with a refcount = 0.
@@ -1886,7 +1886,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u8 match_criteria_enable,
 		   u32 *match_criteria,
 		   u32 *match_value,
-		   u32 action,
+		   u32 sw_action,
 		   struct mlx5_flow_act *flow_act,
 		   struct mlx5_flow_destination *dest)
 {
@@ -1897,7 +1897,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 	if (ns)
 		down_read(&ns->dests_rw_sem);
 	dst =  fs_add_dst_ft(ft, match_criteria_enable, match_criteria,
-			     match_value, action, flow_act, dest);
+			     match_value, sw_action, flow_act, dest);
 	if (ns)
 		up_read(&ns->dests_rw_sem);
 

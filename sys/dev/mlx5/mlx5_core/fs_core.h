@@ -81,7 +81,7 @@ struct fs_fte {
 	struct list_head			dests;
 	uint32_t				index; /* index in ft */
 	struct mlx5_flow_act			flow_act;
-	u8					action; /* MLX5_FLOW_CONTEXT_ACTION */
+	u32					sw_action; /* enum mlx5_rule_fwd_action */
 	enum fs_fte_status			status;
 };
 
@@ -290,7 +290,7 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			enum fs_ft_type type, unsigned int table_id,
 			unsigned int index, unsigned int group_id,
 			struct mlx5_flow_act *flow_act,
-			unsigned short action, int dest_size,
+			u32 sw_action, int dest_size,
 			struct list_head *dests);  /* mlx5_flow_desination */
 
 int mlx5_cmd_fs_delete_fte(struct mlx5_core_dev *dev,
