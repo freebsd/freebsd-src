@@ -140,7 +140,8 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    int prio,
 				    const char *name,
 				    int num_flow_table_entries,
-				    int max_num_groups);
+				    int max_num_groups,
+				    int num_reserved_entries);
 
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
