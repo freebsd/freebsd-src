@@ -2739,3 +2739,35 @@ free_list:
 	mlx5_del_flow_rules_list(rules_list);
 	return NULL;
 }
+
+struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+						 enum mlx5_flow_namespace_type ns_type,
+						 u8 num_actions,
+						 void *modify_actions)
+{
+	struct mlx5_modify_hdr *modify_hdr;
+	int err;
+
+	modify_hdr = kzalloc(sizeof(*modify_hdr), GFP_KERNEL);
+	if (!modify_hdr)
+		return ERR_PTR(-ENOMEM);
+
+	modify_hdr->ns_type = ns_type;
+	err = mlx5_cmd_modify_header_alloc(dev, ns_type, num_actions,
+					   modify_actions, modify_hdr);
+	if (err) {
+		kfree(modify_hdr);
+		return ERR_PTR(err);
+	}
+
+	return modify_hdr;
+}
+EXPORT_SYMBOL(mlx5_modify_header_alloc);
+
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
+                                struct mlx5_modify_hdr *modify_hdr)
+{
+        mlx5_cmd_modify_header_dealloc(dev, modify_hdr);
+        kfree(modify_hdr);
+}
+EXPORT_SYMBOL(mlx5_modify_header_dealloc);
