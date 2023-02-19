@@ -173,6 +173,12 @@ struct mlx5_modify_hdr {
 	u32 id;
 };
 
+struct mlx5_pkt_reformat {
+        enum mlx5_flow_namespace_type ns_type;
+        int reformat_type; /* from mlx5_ifc */
+	u32 id;
+};
+
 void _fs_remove_node(struct kref *kref);
 #define fs_get_obj(v, _base)  {v = container_of((_base), typeof(*v), base); }
 #define fs_get_parent(v, child)  {v = (child)->base.parent ?		     \
@@ -310,4 +316,10 @@ int mlx5_cmd_modify_header_alloc(struct mlx5_core_dev *dev,
 				 struct mlx5_modify_hdr *modify_hdr);
 void mlx5_cmd_modify_header_dealloc(struct mlx5_core_dev *dev,
 				    struct mlx5_modify_hdr *modify_hdr);
+int mlx5_cmd_packet_reformat_alloc(struct mlx5_core_dev *dev,
+				   struct mlx5_pkt_reformat_params *params,
+				   enum mlx5_flow_namespace_type namespace,
+				   struct mlx5_pkt_reformat *pkt_reformat);
+void mlx5_cmd_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+				      struct mlx5_pkt_reformat *pkt_reformat);
 #endif
