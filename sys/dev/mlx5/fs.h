@@ -84,11 +84,13 @@ struct mlx5_flow_destination {
 
 enum mlx5_flow_act_actions {
 	MLX5_FLOW_ACT_ACTIONS_FLOW_TAG = 1 << 0,
+	MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR = 1 << 1,
 };
 
 struct mlx5_flow_act {
 	u32 actions; /* See enum mlx5_flow_act_actions */
 	u32 flow_tag;
+	struct mlx5_modify_hdr *modify_hdr;
 };
 
 #define FT_NAME_STR_SZ 20
