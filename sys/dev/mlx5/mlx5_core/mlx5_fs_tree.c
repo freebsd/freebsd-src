@@ -1760,6 +1760,10 @@ static bool check_conflicting_actions(const struct mlx5_flow_act *act1,
 	    act1->flow_tag != act2->flow_tag)
 		return true;
 
+	/* Can even have complex actions in merged rules */
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR)
+		return true;
+
 	return false;
 }
 

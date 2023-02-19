@@ -179,10 +179,12 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	int opmod = 0;
 	int modify_mask = 0;
 	int atomic_mod_cap;
+	u32 prm_action = 0;
 
 	if (action != MLX5_FLOW_CONTEXT_ACTION_FWD_DEST)
 		dest_size = 0;
 
+	prm_action = action;
 	inlen = MLX5_ST_SZ_BYTES(set_fte_in) +
 		dest_size * MLX5_ST_SZ_BYTES(dest_format_struct);
 
@@ -221,7 +223,11 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
 	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_FLOW_TAG)
 		MLX5_SET(flow_context, in_flow_context, flow_tag, flow_act->flow_tag);
-	MLX5_SET(flow_context, in_flow_context, action, action);
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR) {
+		MLX5_SET(flow_context, in_flow_context, modify_header_id,
+			 flow_act->modify_hdr->id);
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	}
 	MLX5_SET(flow_context, in_flow_context, destination_list_size,
 		 dest_size);
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
@@ -244,6 +250,7 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 		}
 	}
 
+	MLX5_SET(flow_context, in_flow_context, action, prm_action);
 	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 	if (!err)
 		*fte_status |= FS_FTE_STATUS_EXISTING;
