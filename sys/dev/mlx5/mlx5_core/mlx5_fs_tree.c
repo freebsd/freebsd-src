@@ -892,11 +892,17 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 							   int prio,
 							   const char *name,
 							   int num_flow_table_entries,
-							   int max_num_groups)
+							   int max_num_groups,
+							   int num_reserved_entries)
 {
 	struct mlx5_flow_table *ft = NULL;
 	struct fs_prio *fs_prio;
 	bool is_shared_prio;
+
+	if (max_num_groups > (num_flow_table_entries - num_reserved_entries))
+		return ERR_PTR(-EINVAL);
+	if (num_reserved_entries > num_flow_table_entries)
+		return ERR_PTR(-EINVAL);
 
 	fs_prio = find_prio(ns, prio);
 	if (!fs_prio)
@@ -918,8 +924,9 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 
 	ft->autogroup.active = true;
 	ft->autogroup.max_types = max_num_groups;
+	ft->autogroup.max_fte = num_flow_table_entries - num_reserved_entries;
 	/* We save place for flow groups in addition to max types */
-	ft->autogroup.group_size = ft->max_fte / (max_num_groups + 1);
+	ft->autogroup.group_size = ft->autogroup.max_fte / (max_num_groups + 1);
 
 	if (is_shared_prio)
 		ft->shared_refcount = 1;
@@ -1109,11 +1116,13 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 {
 	struct mlx5_flow_group *fg;
 	struct mlx5_core_dev *dev = fs_get_dev(&ft->base);
+	unsigned int start_index;
 
+	start_index = MLX5_GET(create_flow_group_in, in, start_flow_index);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	if (ft->autogroup.active)
+	if (ft->autogroup.active && start_index < ft->autogroup.max_fte)
 		return ERR_PTR(-EPERM);
 
 	fg = fs_create_fg(dev, ft, ft->fgs.prev, in, 1);
@@ -1132,7 +1141,9 @@ static void fs_del_fg(struct mlx5_flow_group *fg)
 	dev = fs_get_dev(&parent_ft->base);
 	WARN_ON(!dev);
 
-	if (parent_ft->autogroup.active && fg->max_ftes == parent_ft->autogroup.group_size)
+	if (parent_ft->autogroup.active &&
+	    fg->max_ftes == parent_ft->autogroup.group_size &&
+	    fg->start_index < parent_ft->autogroup.max_fte)
 		parent_ft->autogroup.num_types--;
 
 	if (mlx5_cmd_fs_destroy_fg(dev, parent_ft->vport,
@@ -1423,6 +1434,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 	u32 *in;
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	void *match_criteria_addr;
+	u32 max_fte = ft->autogroup.max_fte;
 
 	if (!ft->autogroup.active)
 		return ERR_PTR(-ENOENT);
@@ -1459,7 +1471,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 		prev = &g->base.list;
 	}
 
-	if (candidate_index + group_size > ft->max_fte) {
+	if (candidate_index + group_size > max_fte) {
 		ret = ERR_PTR(-ENOSPC);
 		goto out;
 	}
