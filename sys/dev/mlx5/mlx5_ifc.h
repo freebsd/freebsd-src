@@ -473,7 +473,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 
 	u8         reserved_at_20[0x2];
 	u8         log_max_ft_size[0x6];
-	u8         reserved_at_28[0x10];
+	u8         log_max_modify_header_context[0x8];
+        u8         max_modify_header_actions[0x8];
 	u8         max_ft_level[0x8];
 
 	u8         reserved_at_40[0x20];
@@ -2251,11 +2252,15 @@ struct mlx5_ifc_flow_context_bits {
 	u8         reserved_4[0x8];
 	u8         flow_counter_list_size[0x18];
 
-	u8         reserved_5[0x140];
+	u8         reserved_5[0x20];
+
+	u8	   modify_header_id[0x20];
+
+	u8	   reserved_6[0x100];
 
 	struct mlx5_ifc_fte_match_param_bits match_value;
 
-	u8         reserved_6[0x600];
+	u8         reserved_7[0x600];
 
 	union mlx5_ifc_dest_format_struct_flow_counter_list_auto_bits destination[0];
 };
@@ -5197,6 +5202,155 @@ struct mlx5_ifc_query_eq_in_bits {
 	u8         eq_number[0x8];
 
 	u8         reserved_3[0x20];
+};
+
+struct mlx5_ifc_set_action_in_bits {
+        u8         action_type[0x4];
+        u8         field[0xc];
+        u8         reserved_at_10[0x3];
+        u8         offset[0x5];
+        u8         reserved_at_18[0x3];
+        u8         length[0x5];
+
+        u8         data[0x20];
+};
+
+struct mlx5_ifc_add_action_in_bits {
+        u8         action_type[0x4];
+        u8         field[0xc];
+        u8         reserved_at_10[0x10];
+
+        u8         data[0x20];
+};
+
+struct mlx5_ifc_copy_action_in_bits {
+        u8         action_type[0x4];
+        u8         src_field[0xc];
+        u8         reserved_at_10[0x3];
+        u8         src_offset[0x5];
+        u8         reserved_at_18[0x3];
+        u8         length[0x5];
+
+        u8         reserved_at_20[0x4];
+        u8         dst_field[0xc];
+        u8         reserved_at_30[0x3];
+        u8         dst_offset[0x5];
+        u8         reserved_at_38[0x8];
+};
+
+union mlx5_ifc_set_add_copy_action_in_auto_bits {
+        struct mlx5_ifc_set_action_in_bits  set_action_in;
+        struct mlx5_ifc_add_action_in_bits  add_action_in;
+        struct mlx5_ifc_copy_action_in_bits copy_action_in;
+        u8         reserved_at_0[0x40];
+};
+
+enum {
+        MLX5_ACTION_TYPE_SET   = 0x1,
+        MLX5_ACTION_TYPE_ADD   = 0x2,
+        MLX5_ACTION_TYPE_COPY  = 0x3,
+};
+
+enum {
+        MLX5_ACTION_IN_FIELD_OUT_SMAC_47_16    = 0x1,
+        MLX5_ACTION_IN_FIELD_OUT_SMAC_15_0     = 0x2,
+        MLX5_ACTION_IN_FIELD_OUT_ETHERTYPE     = 0x3,
+        MLX5_ACTION_IN_FIELD_OUT_DMAC_47_16    = 0x4,
+        MLX5_ACTION_IN_FIELD_OUT_DMAC_15_0     = 0x5,
+        MLX5_ACTION_IN_FIELD_OUT_IP_DSCP       = 0x6,
+        MLX5_ACTION_IN_FIELD_OUT_TCP_FLAGS     = 0x7,
+        MLX5_ACTION_IN_FIELD_OUT_TCP_SPORT     = 0x8,
+        MLX5_ACTION_IN_FIELD_OUT_TCP_DPORT     = 0x9,
+        MLX5_ACTION_IN_FIELD_OUT_IP_TTL        = 0xa,
+        MLX5_ACTION_IN_FIELD_OUT_UDP_SPORT     = 0xb,
+        MLX5_ACTION_IN_FIELD_OUT_UDP_DPORT     = 0xc,
+        MLX5_ACTION_IN_FIELD_OUT_SIPV6_127_96  = 0xd,
+        MLX5_ACTION_IN_FIELD_OUT_SIPV6_95_64   = 0xe,
+        MLX5_ACTION_IN_FIELD_OUT_SIPV6_63_32   = 0xf,
+        MLX5_ACTION_IN_FIELD_OUT_SIPV6_31_0    = 0x10,
+        MLX5_ACTION_IN_FIELD_OUT_DIPV6_127_96  = 0x11,
+        MLX5_ACTION_IN_FIELD_OUT_DIPV6_95_64   = 0x12,
+        MLX5_ACTION_IN_FIELD_OUT_DIPV6_63_32   = 0x13,
+        MLX5_ACTION_IN_FIELD_OUT_DIPV6_31_0    = 0x14,
+        MLX5_ACTION_IN_FIELD_OUT_SIPV4         = 0x15,
+        MLX5_ACTION_IN_FIELD_OUT_DIPV4         = 0x16,
+        MLX5_ACTION_IN_FIELD_OUT_FIRST_VID     = 0x17,
+        MLX5_ACTION_IN_FIELD_OUT_IPV6_HOPLIMIT = 0x47,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_A    = 0x49,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_B    = 0x50,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_0  = 0x51,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_1  = 0x52,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_2  = 0x53,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_3  = 0x54,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_4  = 0x55,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_5  = 0x56,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_6  = 0x57,
+        MLX5_ACTION_IN_FIELD_METADATA_REG_C_7  = 0x58,
+        MLX5_ACTION_IN_FIELD_OUT_TCP_SEQ_NUM   = 0x59,
+        MLX5_ACTION_IN_FIELD_OUT_TCP_ACK_NUM   = 0x5B,
+        MLX5_ACTION_IN_FIELD_IPSEC_SYNDROME    = 0x5D,
+        MLX5_ACTION_IN_FIELD_OUT_EMD_47_32     = 0x6F,
+        MLX5_ACTION_IN_FIELD_OUT_EMD_31_0      = 0x70,
+};
+
+struct mlx5_ifc_alloc_modify_header_context_out_bits {
+        u8         status[0x8];
+        u8         reserved_at_8[0x18];
+
+        u8         syndrome[0x20];
+
+        u8         modify_header_id[0x20];
+
+        u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_alloc_modify_header_context_in_bits {
+        u8         opcode[0x10];
+        u8         reserved_at_10[0x10];
+
+        u8         reserved_at_20[0x10];
+        u8         op_mod[0x10];
+
+        u8         reserved_at_40[0x20];
+
+        u8         table_type[0x8];
+        u8         reserved_at_68[0x10];
+        u8         num_of_actions[0x8];
+
+        union mlx5_ifc_set_add_copy_action_in_auto_bits actions[];
+};
+
+struct mlx5_ifc_dealloc_modify_header_context_out_bits {
+        u8         status[0x8];
+        u8         reserved_at_8[0x18];
+
+        u8         syndrome[0x20];
+
+        u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_dealloc_modify_header_context_in_bits {
+        u8         opcode[0x10];
+        u8         reserved_at_10[0x10];
+
+        u8         reserved_at_20[0x10];
+        u8         op_mod[0x10];
+
+        u8         modify_header_id[0x20];
+
+        u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_query_modify_header_context_in_bits {
+        u8         opcode[0x10];
+        u8         uid[0x10];
+
+        u8         reserved_at_20[0x10];
+        u8         op_mod[0x10];
+
+        u8         modify_header_id[0x20];
+
+        u8         reserved_at_60[0xa0];
 };
 
 struct mlx5_ifc_query_dct_out_bits {

@@ -228,4 +228,10 @@ bool fs_match_exact_mask(
 		void *mask2);
 /**********end API for sniffer**********/
 
+struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
+						 enum mlx5_flow_namespace_type ns_type,
+						 u8 num_actions,
+						 void *modify_actions);
+void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
+				struct mlx5_modify_hdr *modify_hdr);
 #endif
