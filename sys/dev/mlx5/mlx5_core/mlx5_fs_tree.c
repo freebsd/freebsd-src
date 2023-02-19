@@ -2771,3 +2771,36 @@ void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
         kfree(modify_hdr);
 }
 EXPORT_SYMBOL(mlx5_modify_header_dealloc);
+
+struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
+                                                     struct mlx5_pkt_reformat_params *params,
+                                                     enum mlx5_flow_namespace_type ns_type)
+{
+        struct mlx5_pkt_reformat *pkt_reformat;
+        int err;
+
+        pkt_reformat = kzalloc(sizeof(*pkt_reformat), GFP_KERNEL);
+        if (!pkt_reformat)
+                return ERR_PTR(-ENOMEM);
+
+        pkt_reformat->ns_type = ns_type;
+        pkt_reformat->reformat_type = params->type;
+	err = mlx5_cmd_packet_reformat_alloc(dev, params, ns_type,
+					     pkt_reformat);
+        if (err) {
+                kfree(pkt_reformat);
+                return ERR_PTR(err);
+        }
+
+        return pkt_reformat;
+}
+EXPORT_SYMBOL(mlx5_packet_reformat_alloc);
+
+void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
+                                  struct mlx5_pkt_reformat *pkt_reformat)
+{
+        mlx5_cmd_packet_reformat_dealloc(dev, pkt_reformat);
+        kfree(pkt_reformat);
+}
+EXPORT_SYMBOL(mlx5_packet_reformat_dealloc);
+
