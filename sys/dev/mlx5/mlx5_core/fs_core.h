@@ -264,9 +264,8 @@ void _fs_remove_node(struct kref *kref);
 			       &(fte)->dests)
 
 int mlx5_cmd_fs_create_ft(struct mlx5_core_dev *dev,
-			  u16 vport,
-			  enum fs_ft_type type, unsigned int level,
-			  unsigned int log_size, unsigned int *table_id);
+			  u16 vport, enum fs_ft_type type, unsigned int level,
+			  unsigned int log_size, const char *name, unsigned int *table_id);
 
 int mlx5_cmd_fs_destroy_ft(struct mlx5_core_dev *dev,
 			   u16 vport,

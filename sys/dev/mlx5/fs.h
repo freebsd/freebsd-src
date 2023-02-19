@@ -50,6 +50,8 @@ enum {
 #define FS_MAX_TYPES		10
 #define FS_MAX_ENTRIES		32000U
 
+#define	FS_REFORMAT_KEYWORD "_reformat"
+
 enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_BYPASS,
 	MLX5_FLOW_NAMESPACE_OFFLOADS,
@@ -85,12 +87,14 @@ struct mlx5_flow_destination {
 enum mlx5_flow_act_actions {
 	MLX5_FLOW_ACT_ACTIONS_FLOW_TAG = 1 << 0,
 	MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR = 1 << 1,
+	MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT = 1 << 2,
 };
 
 struct mlx5_flow_act {
 	u32 actions; /* See enum mlx5_flow_act_actions */
 	u32 flow_tag;
 	struct mlx5_modify_hdr *modify_hdr;
+	struct mlx5_pkt_reformat *pkt_reformat;
 };
 
 #define FT_NAME_STR_SZ 20
