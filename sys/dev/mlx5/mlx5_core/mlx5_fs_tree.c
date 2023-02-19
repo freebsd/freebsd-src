@@ -918,6 +918,9 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 
 	ft->autogroup.active = true;
 	ft->autogroup.max_types = max_num_groups;
+	/* We save place for flow groups in addition to max types */
+	ft->autogroup.group_size = ft->max_fte / (max_num_groups + 1);
+
 	if (is_shared_prio)
 		ft->shared_refcount = 1;
 
@@ -1066,6 +1069,7 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 					    int refcount)
 {
 	struct mlx5_flow_group *fg;
+	unsigned int group_size;
 	int err;
 	char name[20];
 
@@ -1073,6 +1077,8 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 	if (IS_ERR(fg))
 		return fg;
 
+	group_size = MLX5_GET(create_flow_group_in, fg_in, end_flow_index) -
+		MLX5_GET(create_flow_group_in, fg_in, start_flow_index) + 1;
 	err =  mlx5_cmd_fs_create_fg(dev, fg_in,
 				     ft->vport, ft->type, ft->id,
 				     &fg->id);
@@ -1080,7 +1086,8 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 		goto free_fg;
 
 	mutex_lock(&ft->base.lock);
-	if (ft->autogroup.active)
+
+	if (ft->autogroup.active && group_size == ft->autogroup.group_size)
 		ft->autogroup.num_types++;
 
 	snprintf(name, sizeof(name), "group_%u", fg->id);
@@ -1125,7 +1132,7 @@ static void fs_del_fg(struct mlx5_flow_group *fg)
 	dev = fs_get_dev(&parent_ft->base);
 	WARN_ON(!dev);
 
-	if (parent_ft->autogroup.active)
+	if (parent_ft->autogroup.active && fg->max_ftes == parent_ft->autogroup.group_size)
 		parent_ft->autogroup.num_types--;
 
 	if (mlx5_cmd_fs_destroy_fg(dev, parent_ft->vport,
@@ -1432,7 +1439,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 
 
 	if (ft->autogroup.num_types < ft->autogroup.max_types)
-		group_size = ft->max_fte / (ft->autogroup.max_types + 1);
+		group_size = ft->autogroup.group_size;
 	else
 		group_size = 1;
 

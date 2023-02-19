@@ -97,6 +97,7 @@ struct mlx5_flow_table {
 	struct {
 		bool			active;
 		unsigned int		max_types;
+		unsigned int		group_size;
 		unsigned int		num_types;
 	} autogroup;
 	unsigned int			max_fte;
