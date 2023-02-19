@@ -411,10 +411,16 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 			/*
 			 * In the -F case we set a timeout to ensure that
 			 * we re-stat the file at least once every second.
+			 * If we've recieved EINTR, ignore it. Both reasons
+			 * for its generation are transient.
 			 */
-			n = kevent(kq, NULL, 0, ev, 1, Fflag ? &ts : NULL);
-			if (n < 0)
-				err(1, "kevent");
+			do {
+				n = kevent(kq, NULL, 0, ev, 1, Fflag ? &ts : NULL);
+				if (n < 0 && errno == EINTR)
+					continue;
+				if (n < 0)
+					err(1, "kevent");
+			} while (n < 0);
 			if (n == 0) {
 				/* timeout */
 				break;
