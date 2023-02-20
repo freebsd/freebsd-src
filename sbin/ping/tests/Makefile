@@ -5,7 +5,6 @@ SRCS.in_cksum_test= in_cksum_test.c ../utils.c
 
 PACKAGE= tests
 
-ATF_TESTS_PYTEST+=	test_ping.py
 ATF_TESTS_SH+=	ping_test
 # Exclusive because each injection test case uses the same IP addresses
 TEST_METADATA.ping_test+=	is_exclusive="true"
