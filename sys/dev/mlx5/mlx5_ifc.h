@@ -1326,7 +1326,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_40[0x7];
 	u8         max_qp_mcg[0x19];
 
-	u8         reserved_41[0x18];
+	u8         reserved_41[0x10];
+	u8         flow_counter_bulk_alloc[0x8];
 	u8         log_max_mcg[0x8];
 
 	u8         reserved_42[0x3];
@@ -7408,8 +7409,7 @@ struct mlx5_ifc_dealloc_flow_counter_in_bits {
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
 
-	u8         reserved_2[0x10];
-	u8         flow_counter_id[0x10];
+	u8         flow_counter_id[0x20];
 
 	u8         reserved_3[0x20];
 };
@@ -11551,5 +11551,21 @@ struct mlx5_ifc_affiliated_event_header_bits {
 
 	u8         obj_id[0x20];
 };
+
+#define MLX5_FC_BULK_SIZE_FACTOR 128
+
+enum mlx5_fc_bulk_alloc_bitmask {
+	MLX5_FC_BULK_128   = (1 << 0),
+	MLX5_FC_BULK_256   = (1 << 1),
+	MLX5_FC_BULK_512   = (1 << 2),
+	MLX5_FC_BULK_1024  = (1 << 3),
+	MLX5_FC_BULK_2048  = (1 << 4),
+	MLX5_FC_BULK_4096  = (1 << 5),
+	MLX5_FC_BULK_8192  = (1 << 6),
+	MLX5_FC_BULK_16384 = (1 << 7),
+};
+
+#define MLX5_FC_BULK_NUM_FCS(fc_enum) (MLX5_FC_BULK_SIZE_FACTOR * (fc_enum))
+
 
 #endif /* MLX5_IFC_H */
