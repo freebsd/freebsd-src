@@ -23,12 +23,16 @@ c7046f76c2c0 blake workarounds merged
 f993fff68979 sorting these is useless to merge if the lists aren't already the same
 8a744de27eef let's leave firewire in place
 0163de282e31 These depend on newer OpenZFS so not needed and conflicts
-ed68931c3f9c geliboot: Use the multi-block functions for AES-XTS.
-399b56c46c1c stand: delete zstd_shim.c -- dependent changes nor merged 119c786f7b5a
+df76778ad5e0 stand: delete zstd_shim.c -- dependent changes nor merged 119c786f7b5a
 03bbe1845de7 mips is still in stable/13
 20b23ae74b2b mips is still in stable/13
 8cc2156f85bb We're not 14, yet
 44796b7e822e beri uses this, it seems, and is still in stable/13
+d51cc252a062 userboot gfx stubs were combined with others
+5666643a9538 skip merging the typos due to scope of typo fix
+b15636233845 geliboot multiblock functions
+5c73b3e0a3db entropy MFC'd w/o the -x & with changes as dd6c1475a63a7
+e36c256040f9 merged with other man page changes, apparently silently
 
 Also, BERI was removed with the permission of the originators since all that
 hardware has been retired.
