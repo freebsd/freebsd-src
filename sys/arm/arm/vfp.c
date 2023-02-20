@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/proc.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
@@ -251,17 +252,45 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	curpcb = curthread->td_pcb;
 	cpu = PCPU_GET(cpuid);
 	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
-		if (curpcb->pcb_vfpsaved == NULL)
-			curpcb->pcb_vfpsaved = &curpcb->pcb_vfpstate;
 		vfp_restore(curpcb->pcb_vfpsaved);
 		curpcb->pcb_vfpcpu = cpu;
 		PCPU_SET(fpcurthread, curthread);
 	}
 
 	critical_exit();
+
+	KASSERT(curpcb->pcb_vfpsaved == &curpcb->pcb_vfpstate,
+	    ("Kernel VFP state in use when entering userspace"));
+
 	return (0);
 }
 
+/*
+ * Update the VFP state for a forked process or new thread. The PCB will
+ * have been copied from the old thread.
+ * The code is heavily based on arm64 logic.
+ */
+void
+vfp_new_thread(struct thread *newtd, struct thread *oldtd, bool fork)
+{
+	struct pcb *newpcb;
+
+	newpcb = newtd->td_pcb;
+
+	/* Kernel threads start with clean VFP */
+	if ((oldtd->td_pflags & TDP_KTHREAD) != 0) {
+		newpcb->pcb_fpflags &=
+		    ~(PCB_FP_STARTED | PCB_FP_KERN | PCB_FP_NOSAVE);
+	} else {
+		MPASS((newpcb->pcb_fpflags & (PCB_FP_KERN|PCB_FP_NOSAVE)) == 0);
+		if (!fork) {
+			newpcb->pcb_fpflags &= ~PCB_FP_STARTED;
+		}
+	}
+
+	newpcb->pcb_vfpsaved = &newpcb->pcb_vfpstate;
+	newpcb->pcb_vfpcpu = UINT_MAX;
+}
 /*
  * Restore the given state to the VFP hardware.
  */
