@@ -736,7 +736,11 @@ create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
 	if (nh == NULL)
 		return (ENOMEM);
 
-	nhop_set_gw(nh, mpnh->gw, true);
+	error = nl_set_nexthop_gw(nh, mpnh->gw, mpnh->ifp, npt);
+	if (error != 0) {
+		nhop_free(nh);
+		return (error);
+	}
 	if (mpnh->ifp != NULL)
 		nhop_set_transmit_ifp(nh, mpnh->ifp);
 	nhop_set_rtflags(nh, attrs->rta_rtflags);
@@ -800,8 +804,13 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 			*perror = ENOMEM;
 			return (NULL);
 		}
-		if (attrs->rta_gw != NULL)
-			nhop_set_gw(nh, attrs->rta_gw, true);
+		if (attrs->rta_gw != NULL) {
+			*perror = nl_set_nexthop_gw(nh, attrs->rta_gw, attrs->rta_oif, npt);
+			if (*perror != 0) {
+				nhop_free(nh);
+				return (NULL);
+			}
+		}
 		if (attrs->rta_oif != NULL)
 			nhop_set_transmit_ifp(nh, attrs->rta_oif);
 		if (attrs->rtax_mtu != 0)

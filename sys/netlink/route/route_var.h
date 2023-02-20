@@ -104,6 +104,8 @@ void rtnl_iface_drivers_register(void);
 void rtnl_nexthops_init(void);
 struct nhop_object *nl_find_nhop(uint32_t fibnum, int family,
     uint32_t uidx, int nh_flags, int *perror);
+int nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw,
+    struct ifnet *ifp, struct nl_pstate *npt);
 
 
 #endif

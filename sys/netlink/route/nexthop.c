@@ -741,8 +741,34 @@ newnhg(struct unhop_ctl *ctl, struct nl_parsed_nhop *attrs, struct user_nhop *un
 	return (0);
 }
 
+/*
+ * Sets nexthop @nh gateway specified by @gw.
+ * If gateway is IPv6 link-local, alters @gw to include scopeid equal to
+ * @ifp ifindex.
+ * Returns 0 on success or errno.
+ */
+int
+nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw, struct ifnet *ifp,
+    struct nl_pstate *npt)
+{
+#ifdef INET6
+	if (gw->sa_family == AF_INET6) {
+		struct sockaddr_in6 *gw6 = (struct sockaddr_in6 *)gw;
+		if (IN6_IS_ADDR_LINKLOCAL(&gw6->sin6_addr)) {
+			if (ifp == NULL) {
+				NLMSG_REPORT_ERR_MSG(npt, "interface not set");
+				return (EINVAL);
+			}
+			in6_set_unicast_scopeid(&gw6->sin6_addr, ifp->if_index);
+		}
+	}
+#endif
+	nhop_set_gw(nh, gw, true);
+	return (0);
+}
+
 static int
-newnhop(struct nl_parsed_nhop *attrs, struct user_nhop *unhop)
+newnhop(struct nl_parsed_nhop *attrs, struct user_nhop *unhop, struct nl_pstate *npt)
 {
 	struct ifaddr *ifa = NULL;
 	struct nhop_object *nh;
@@ -750,17 +776,17 @@ newnhop(struct nl_parsed_nhop *attrs, struct user_nhop *unhop)
 
 	if (!attrs->nha_blackhole) {
 		if (attrs->nha_gw == NULL) {
-			NL_LOG(LOG_DEBUG, "missing NHA_GATEWAY");
+			NLMSG_REPORT_ERR_MSG(npt, "missing NHA_GATEWAY");
 			return (EINVAL);
 		}
 		if (attrs->nha_oif == NULL) {
-			NL_LOG(LOG_DEBUG, "missing NHA_OIF");
+			NLMSG_REPORT_ERR_MSG(npt, "missing NHA_OIF");
 			return (EINVAL);
 		}
 		if (ifa == NULL)
 			ifa = ifaof_ifpforaddr(attrs->nha_gw, attrs->nha_oif);
 		if (ifa == NULL) {
-			NL_LOG(LOG_DEBUG, "Unable to determine default source IP");
+			NLMSG_REPORT_ERR_MSG(npt, "Unable to determine default source IP");
 			return (EINVAL);
 		}
 	}
@@ -777,7 +803,11 @@ newnhop(struct nl_parsed_nhop *attrs, struct user_nhop *unhop)
 	if (attrs->nha_blackhole)
 		nhop_set_blackhole(nh, NHF_BLACKHOLE);
 	else {
-		nhop_set_gw(nh, attrs->nha_gw, true);
+		error = nl_set_nexthop_gw(nh, attrs->nha_gw, attrs->nha_oif, npt);
+		if (error != 0) {
+			nhop_free(nh);
+			return (error);
+		}
 		nhop_set_transmit_ifp(nh, attrs->nha_oif);
 		nhop_set_src(nh, ifa);
 	}
@@ -839,7 +869,7 @@ rtnl_handle_newnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	if (attrs.nha_group)
 		error = newnhg(ctl, &attrs, unhop);
 	else
-		error = newnhop(&attrs, unhop);
+		error = newnhop(&attrs, unhop, npt);
 
 	if (error != 0) {
 		free(unhop, M_NETLINK);
