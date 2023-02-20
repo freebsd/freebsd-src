@@ -577,6 +577,12 @@ device_wakeup_enable(struct device *dev)
 	return (0);
 }
 
+static inline bool
+device_iommu_mapped(struct device *dev __unused)
+{
+	return (false);
+}
+
 #define	dev_pm_set_driver_flags(dev, flags) do { \
 } while (0)
 
