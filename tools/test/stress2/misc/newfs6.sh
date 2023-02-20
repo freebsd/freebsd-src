@@ -38,6 +38,7 @@ mount | grep "on $mntpoint " | grep -q md$mdstart &&
 mdconfig -l | grep -q md$mdstart && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
 
+log=/tmp/newfs6.sh.log
 s=0
 for opt in -O1 -O2 -U -j; do
 	bs=4096
@@ -49,9 +50,15 @@ for opt in -O1 -O2 -U -j; do
 			    md$mdstart > /dev/null || { s=1; continue; }
 			mount /dev/md$mdstart $mntpoint || s=2 &&
 			    umount $mntpoint
+			fsck -fy /dev/md$mdstart > $log 2>&1
+			grep -q "WAS MODIFIED" $log && {
+				s=3
+				cat $log
+			}
 		done
 		bs=$((bs * 2))
 	done
 done
 mdconfig -d -u $mdstart
+rm -f $log
 exit $s
