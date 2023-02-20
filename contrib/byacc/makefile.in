@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.24 2015/07/05 22:12:29 tom Exp $
+# $Id: makefile.in,v 1.25 2022/11/06 21:03:11 tom Exp $
 #
 # UNIX template-makefile for Berkeley Yacc
 
@@ -27,6 +27,7 @@ LIBS		= @LIBS@
 AWK		= @AWK@
 CTAGS		= @CTAGS@
 ETAGS		= @ETAGS@
+FGREP		= @FGREP@
 LINT		= @LINT@
 LINTFLAGS	= @LINT_OPTS@
 
@@ -147,13 +148,16 @@ maintainer-clean :: realclean
 
 ################################################################################
 check:	$(THIS)$x
-	$(SHELL) $(testdir)/run_test.sh $(testdir)
+	@echo "** making $@"
+	@FGREP="$(FGREP)" $(SHELL) $(testdir)/run_test.sh $(testdir)
 
 check_make: $(THIS)$x
-	$(SHELL) $(testdir)/run_make.sh $(testdir)
+	@echo "** making $@"
+	@FGREP="$(FGREP)" $(SHELL) $(testdir)/run_make.sh $(testdir)
 
 check_lint:
-	$(SHELL) $(testdir)/run_lint.sh $(testdir)
+	@echo "** making $@"
+	@FGREP="$(FGREP)" $(SHELL) $(testdir)/run_lint.sh $(testdir)
 ################################################################################
 tags: $(H_FILES) $(C_FILES) 
 	$(CTAGS) $(C_FILES) $(H_FILES)

@@ -1,139 +1,29 @@
 #!/usr/bin/make -f
-# $Id: rules,v 1.3 2018/05/25 20:03:37 tom Exp $
-#
+
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all qa=+bug reproducible=+all
 
-PACKAGES.arch  = byacc btyacc
+%:
+	dh $@
 
-CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
-CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
-LDFLAGS		:= $(shell dpkg-buildflags --get LDFLAGS)
+# dh_autoreconf interferes with portability -- skip it
+override_dh_autoreconf:
+	echo "skip: dh_autoreconf autoreconf-dickey -- -f -i"
 
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-        CFLAGS += -O0
-else
-        CFLAGS += -O2
-endif
-ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
-        INSTALL_PROGRAM += -s
-endif
-
-BYACC_DIR = $(CURDIR)/debian/byacc
-BTYACC_DIR = $(CURDIR)/debian/btyacc
-
-BYACC_TMP = t/byacc
-BTYACC_TMP = t/btyacc
-
-verbose = # -v
-
-configure = \
-	CPPFLAGS="$(CPPFLAGS)" \
-	CFLAGS="$(CFLAGS)" \
-	LDFLAGS="$(LDFLAGS)" \
-	../../configure \
-		--host=$(DEB_HOST_GNU_TYPE) \
-		--build=$(DEB_BUILD_GNU_TYPE) \
-		--prefix=/usr \
-		--mandir=\$${prefix}/share/man \
-		--sysconfdir=/etc \
-		--program-transform-name='s,^,b,'
-
-all: build
-
-config: config-arch
-build: build-arch
-install: install-arch
-binary: binary-arch
-
-config-arch:  $(PACKAGES.arch:%=config-%-stamp)
-build-arch:   $(PACKAGES.arch:%=build-%-stamp)
-install-arch: $(PACKAGES.arch:%=install-%-stamp)
-
-config-byacc-stamp:
-	dh_testdir
-
-	rm -rf $(BYACC_TMP)
-	mkdir -p $(BYACC_TMP)
-	cd $(BYACC_TMP); $(configure)
-
-	touch $@
-
-config-btyacc-stamp:
-	dh_testdir
-
-	rm -rf $(BTYACC_TMP)
-	mkdir -p $(BTYACC_TMP)
-	cd $(BTYACC_TMP); $(configure) \
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		--enable-warnings \
+		--verbose \
+		--enable-stdnoreturn \
 		--enable-btyacc \
-		--with-max-table-size=18000 \
-		--program-transform-name='s,^,bt,'
+		--with-max-table-size=123456 \
+		--program-transform-name='s,^yacc,byacc2,'
 
-	touch $@
+	# workaround for whatis
+	sed -i '/- an LALR/s,^..N,byacc2,' yacc.1
 
-build-byacc-stamp: config-byacc-stamp
-	dh_testdir
-
-	cd $(BYACC_TMP); $(MAKE)
-
-	touch $@
-
-build-btyacc-stamp: config-btyacc-stamp
-	dh_testdir
-
-	cd $(BTYACC_TMP); $(MAKE)
-
-	touch $@
-
-install-byacc-stamp: build-byacc-stamp
-	dh_testdir
-	dh_testroot
-	dh_installdirs
-
-	cd $(BYACC_TMP); $(MAKE) install DESTDIR=$(BYACC_DIR)
-
-	touch $@
-
-install-btyacc-stamp: build-btyacc-stamp
-	dh_testdir
-	dh_testroot
-	dh_installdirs
-
-	cd $(BTYACC_TMP); $(MAKE) install DESTDIR=$(BTYACC_DIR)
-
-	touch $@
-
-clean:
-	dh_testdir
-	dh_testroot
-
-	dh_clean $(verbose)
-
-	rm -rf t
-
-# Build architecture-dependent files here.
-binary-arch: build install
-ifneq ($(PACKAGES.arch),)
-	rm -f $(PACKAGES.arch:%=install-%-stamp)
-	dh_testdir
-	dh_testroot
-	dh_lintian           $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_installdocs	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_installexamples   $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_installchangelogs $(verbose) $(PACKAGES.arch:%=-p%) CHANGES
-	dh_strip	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_compress	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_fixperms	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_installdeb	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_shlibdeps	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_gencontrol	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_md5sums	     $(verbose) $(PACKAGES.arch:%=-p%)
-	dh_builddeb	     $(verbose) $(PACKAGES.arch:%=-p%)
-endif
-
-.PHONY: build clean config config-arch binary binary-arch install install-arch
+	# omit tests which rely upon getopt error-messages
+	sed -i.bak '/MYFILE=nosuchfile/,/# Test special cases/d' test/run_test.sh
+	diff -u test/run_test.sh.bak test/run_test.sh || echo OK

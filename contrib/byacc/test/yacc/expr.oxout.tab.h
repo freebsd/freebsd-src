@@ -6,10 +6,10 @@
 #endif
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
-typedef union {
+typedef union YYSTYPE {
 struct yyyOxAttrbs {
 struct yyyStackItem *yyyOxStackItem;
 } yyyOxAttrbs;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-extern YYSTYPE expr.oxout_lval;
+extern YYSTYPE expr_oxout_lval;

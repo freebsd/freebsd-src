@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -576,7 +576,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1087,64 +1087,79 @@ yyreduce:
 case 3:
 #line 28 "calc.y"
 	{  yyerrok ; }
+#line 1091 "stdin2.calc.c"
 break;
 case 4:
 #line 32 "calc.y"
 	{  printf("%d\n",yystack.l_mark[0]);}
+#line 1096 "stdin2.calc.c"
 break;
 case 5:
 #line 34 "calc.y"
 	{  regs[yystack.l_mark[-2]] = yystack.l_mark[0]; }
+#line 1101 "stdin2.calc.c"
 break;
 case 6:
 #line 38 "calc.y"
 	{  yyval = yystack.l_mark[-1]; }
+#line 1106 "stdin2.calc.c"
 break;
 case 7:
 #line 40 "calc.y"
 	{  yyval = yystack.l_mark[-2] + yystack.l_mark[0]; }
+#line 1111 "stdin2.calc.c"
 break;
 case 8:
 #line 42 "calc.y"
 	{  yyval = yystack.l_mark[-2] - yystack.l_mark[0]; }
+#line 1116 "stdin2.calc.c"
 break;
 case 9:
 #line 44 "calc.y"
 	{  yyval = yystack.l_mark[-2] * yystack.l_mark[0]; }
+#line 1121 "stdin2.calc.c"
 break;
 case 10:
 #line 46 "calc.y"
 	{  yyval = yystack.l_mark[-2] / yystack.l_mark[0]; }
+#line 1126 "stdin2.calc.c"
 break;
 case 11:
 #line 48 "calc.y"
 	{  yyval = yystack.l_mark[-2] % yystack.l_mark[0]; }
+#line 1131 "stdin2.calc.c"
 break;
 case 12:
 #line 50 "calc.y"
 	{  yyval = yystack.l_mark[-2] & yystack.l_mark[0]; }
+#line 1136 "stdin2.calc.c"
 break;
 case 13:
 #line 52 "calc.y"
 	{  yyval = yystack.l_mark[-2] | yystack.l_mark[0]; }
+#line 1141 "stdin2.calc.c"
 break;
 case 14:
 #line 54 "calc.y"
 	{  yyval = - yystack.l_mark[0]; }
+#line 1146 "stdin2.calc.c"
 break;
 case 15:
 #line 56 "calc.y"
 	{  yyval = regs[yystack.l_mark[0]]; }
+#line 1151 "stdin2.calc.c"
 break;
 case 17:
 #line 61 "calc.y"
 	{  yyval = yystack.l_mark[0]; base = (yystack.l_mark[0]==0) ? 8 : 10; }
+#line 1156 "stdin2.calc.c"
 break;
 case 18:
 #line 63 "calc.y"
 	{  yyval = base * yystack.l_mark[-1] + yystack.l_mark[0]; }
+#line 1161 "stdin2.calc.c"
 break;
-#line 1148 "stdin2.calc.c"
+#line 1163 "stdin2.calc.c"
     default:
         break;
     }

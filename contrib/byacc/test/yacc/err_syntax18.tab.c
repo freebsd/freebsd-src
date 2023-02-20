@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -324,8 +324,8 @@ YYPARSE_DECL()
     }
 #endif
 
-    yym = 0;
-    yyn = 0;
+    /* yym is set below */
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -451,8 +451,9 @@ yyreduce:
 case 1:
 #line 9 "err_syntax18.y"
 	{  yyval = yystack.l_mark[1]; }
+#line 455 "err_syntax18.tab.c"
 break;
-#line 456 "err_syntax18.tab.c"
+#line 457 "err_syntax18.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

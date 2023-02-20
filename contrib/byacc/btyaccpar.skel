@@ -1,4 +1,4 @@
-/* $Id: btyaccpar.skel,v 1.11 2018/06/10 00:41:06 Tom.Shields Exp $ */
+/* $Id: btyaccpar.skel,v 1.13 2021/08/08 19:56:28 tom Exp $ */
 
 #include "defs.h"
 
@@ -410,7 +410,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 %%endif
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;

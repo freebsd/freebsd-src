@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.69 2019/11/25 23:24:36 Tom.Shields Exp $ */
+/* $Id: main.c,v 1.73 2021/08/08 20:39:34 tom Exp $ */
 
 #include <signal.h>
 #if !defined(_WIN32) || defined(__MINGW32__)
@@ -148,6 +148,8 @@ done(int k)
 	_exit(EXIT_FAILURE);
 
 #ifdef NO_LEAKS
+    DO_FREE(input_file_name);
+
     if (rflag)
 	DO_FREE(code_file_name);
 
@@ -201,38 +203,87 @@ set_signals(void)
 #endif
 }
 
+#define SIZEOF(v) (sizeof(v) / sizeof((v)[0]))
+
+/*
+ * Long options are provided only as a compatibility aid for scripters.
+ */
+/* *INDENT-OFF* */
+static const struct {
+    const char long_opt[16];
+    const char yacc_arg;
+    const char yacc_opt;
+} long_opts[] = {
+    { "defines",     1, 'H' },
+    { "file-prefix", 1, 'b' },
+    { "graph",       0, 'g' },
+    { "help",        0, 'h' },
+    { "name-prefix", 1, 'p' },
+    { "no-lines",    0, 'l' },
+    { "output",      1, 'o' },
+    { "version",     0, 'V' }
+};
+/* *INDENT-ON* */
+
+/*
+ * Usage-message is designed for 80 columns, with some unknowns.  Account for
+ * those in the maximum width so that the usage message uses no relocatable
+ * pointers.
+ */
+#define USAGE_COLS (80 + sizeof(DEFINES_SUFFIX) + sizeof(OUTPUT_SUFFIX))
+
 static void
 usage(void)
 {
-    static const char *msg[] =
+    /* *INDENT-OFF* */
+    static const char msg[][USAGE_COLS] =
     {
-	""
-	,"Options:"
-	,"  -b file_prefix        set filename prefix (default \"y.\")"
-	,"  -B                    create a backtracking parser"
-	,"  -d                    write definitions (" DEFINES_SUFFIX ")"
-	,"  -H defines_file       write definitions to defines_file"
-	,"  -i                    write interface (y.tab.i)"
-	,"  -g                    write a graphical description"
-	,"  -l                    suppress #line directives"
-	,"  -L                    enable position processing, e.g., \"%locations\""
-	,"  -o output_file        (default \"" OUTPUT_SUFFIX "\")"
-	,"  -p symbol_prefix      set symbol prefix (default \"yy\")"
-	,"  -P                    create a reentrant parser, e.g., \"%pure-parser\""
-	,"  -r                    produce separate code and table files (y.code.c)"
-	,"  -s                    suppress #define's for quoted names in %token lines"
-	,"  -t                    add debugging support"
-	,"  -v                    write description (y.output)"
-	,"  -V                    show version information and exit"
+	{ "  -b file_prefix        set filename prefix (default \"y.\")" },
+	{ "  -B                    create a backtracking parser" },
+	{ "  -d                    write definitions (" DEFINES_SUFFIX ")" },
+	{ "  -h                    print this help-message" },
+	{ "  -H defines_file       write definitions to defines_file" },
+	{ "  -i                    write interface (y.tab.i)" },
+	{ "  -g                    write a graphical description" },
+	{ "  -l                    suppress #line directives" },
+	{ "  -L                    enable position processing, e.g., \"%locations\"" },
+	{ "  -o output_file        (default \"" OUTPUT_SUFFIX "\")" },
+	{ "  -p symbol_prefix      set symbol prefix (default \"yy\")" },
+	{ "  -P                    create a reentrant parser, e.g., \"%pure-parser\"" },
+	{ "  -r                    produce separate code and table files (y.code.c)" },
+	{ "  -s                    suppress #define's for quoted names in %token lines" },
+	{ "  -t                    add debugging support" },
+	{ "  -v                    write description (y.output)" },
+	{ "  -V                    show version information and exit" },
     };
+    /* *INDENT-ON* */
     unsigned n;
 
     fflush(stdout);
     fprintf(stderr, "Usage: %s [options] filename\n", myname);
-    for (n = 0; n < sizeof(msg) / sizeof(msg[0]); ++n)
+
+    fprintf(stderr, "\nOptions:\n");
+    for (n = 0; n < SIZEOF(msg); ++n)
+    {
 	fprintf(stderr, "%s\n", msg[n]);
+    }
+
+    fprintf(stderr, "\nLong options:\n");
+    for (n = 0; n < SIZEOF(long_opts); ++n)
+    {
+	fprintf(stderr, "  --%-20s-%c\n",
+		long_opts[n].long_opt,
+		long_opts[n].yacc_opt);
+    }
 
     exit(EXIT_FAILURE);
+}
+
+static void
+invalid_option(const char *option)
+{
+    fprintf(stderr, "invalid option: %s\n", option);
+    usage();
 }
 
 static void
@@ -313,16 +364,65 @@ getargs(int argc, char *argv[])
     int i;
 #ifdef HAVE_GETOPT
     int ch;
+#endif
 
+    /*
+     * Map bison's long-options into yacc short options.
+     */
+    for (i = 1; i < argc; ++i)
+    {
+	char *a = argv[i];
+
+	if (!strncmp(a, "--", 2))
+	{
+	    char *eqls;
+	    size_t lc;
+	    size_t len;
+
+	    if ((len = strlen(a)) == 2)
+		break;
+
+	    if ((eqls = strchr(a, '=')) != NULL)
+	    {
+		len = (size_t)(eqls - a);
+		if (len == 0 || eqls[1] == '\0')
+		    invalid_option(a);
+	    }
+
+	    for (lc = 0; lc < SIZEOF(long_opts); ++lc)
+	    {
+		if (!strncmp(long_opts[lc].long_opt, a + 2, len - 2))
+		{
+		    if (eqls != NULL && !long_opts[lc].yacc_arg)
+			invalid_option(a);
+		    *a++ = '-';
+		    *a++ = long_opts[lc].yacc_opt;
+		    *a = '\0';
+		    if (eqls)
+		    {
+			while ((*a++ = *++eqls) != '\0') /* empty */ ;
+		    }
+		    break;
+		}
+	    }
+	    if (!strncmp(a, "--", 2))
+		invalid_option(a);
+	}
+    }
+
+#ifdef HAVE_GETOPT
     if (argc > 0)
 	myname = argv[0];
 
-    while ((ch = getopt(argc, argv, "Bb:dgH:ilLo:Pp:rstVvy")) != -1)
+    while ((ch = getopt(argc, argv, "Bb:dghH:ilLo:Pp:rstVvy")) != -1)
     {
 	switch (ch)
 	{
 	case 'b':
 	    file_prefix = optarg;
+	    break;
+	case 'h':
+	    usage();
 	    break;
 	case 'H':
 	    dflag = dflag2 = 1;
@@ -509,7 +609,7 @@ create_file_names(void)
 
     if (suffix != NULL)
     {
-	len = (size_t) (suffix - output_file_name);
+	len = (size_t)(suffix - output_file_name);
 	file_prefix = TMALLOC(char, len + 1);
 	NO_SPACE(file_prefix);
 	strncpy(file_prefix, output_file_name, len)[len] = 0;
@@ -628,10 +728,8 @@ open_tmpfile(const char *label)
 #define MY_FMT "%s/%.*sXXXXXX"
     FILE *result;
 #if USE_MKSTEMP
-    int fd;
     const char *tmpdir;
     char *name;
-    const char *mark;
 
     if (((tmpdir = getenv("TMPDIR")) == 0 || access(tmpdir, W_OK) != 0) ||
 	((tmpdir = getenv("TEMP")) == 0 || access(tmpdir, W_OK) != 0))
@@ -654,6 +752,9 @@ open_tmpfile(const char *label)
     result = 0;
     if (name != 0)
     {
+	int fd;
+	const char *mark;
+
 	mode_t save_umask = umask(0177);
 
 	if ((mark = strrchr(label, '_')) == 0)

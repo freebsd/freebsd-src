@@ -1,3 +1,106 @@
+byacc (1:2.0.20230201) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 01 Feb 2023 19:12:06 -0500
+
+byacc (1:2.0.20221229) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 29 Dec 2022 05:23:05 -0500
+
+byacc (1:2.0.20221106) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Nov 2022 10:51:43 -0500
+
+byacc (1:2.0.20220128) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 28 Jan 2022 08:38:52 -0500
+
+byacc (1:2.0.20220114) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 14 Jan 2022 16:33:35 -0500
+
+byacc (1:2.0.20220109) unstable; urgency=low
+
+  * maintenance updates, modify packaging to more closely match distributors.
+    In particular, correct versioning using an epoch.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 09 Jan 2022 10:49:20 -0500
+
+byacc (20220102) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 02 Jan 2022 11:12:56 -0500
+
+byacc (20220101) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 01 Jan 2022 07:06:35 -0500
+
+byacc (20211224) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 24 Dec 2021 19:13:22 -0500
+
+byacc (20210808) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 08 Aug 2021 15:26:10 -0400
+
+byacc (20210802) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 02 Aug 2021 16:50:01 -0400
+
+byacc (20210801) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 01 Aug 2021 15:30:22 -0400
+
+byacc (20210619) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Jun 2021 14:06:48 -0400
+
+byacc (20210520) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 20 May 2021 15:25:00 -0400
+
+byacc (20210328) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 28 Mar 2021 11:14:10 -0400
+
+byacc (20210109) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 09 Jan 2021 09:32:51 -0500
+
+byacc (20200910) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 10 Sep 2020 10:45:10 -0400
+
 byacc (20200330) unstable; urgency=low
 
   * maintenance updates

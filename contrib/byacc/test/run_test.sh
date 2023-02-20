@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: run_test.sh,v 1.31 2019/11/03 23:44:07 tom Exp $
+# $Id: run_test.sh,v 1.37 2022/11/06 21:55:25 tom Exp $
 # vi:ts=4 sw=4:
 
 errors=0
@@ -8,36 +8,38 @@ errors=0
 # REF is the reference file against which to compare
 test_diffs() {
 	# echo "...test_diffs $NEW vs $REF"
-	mv -f $NEW ${REF_DIR}/
+	mv -f "$NEW" "${REF_DIR}/"
 	CMP=${REF_DIR}/${NEW}
-	if test ! -f $CMP
+	if test ! -f "$CMP"
 	then
 		echo "...not found $CMP"
 		errors=1
 	else
-		sed	-e s,$NEW,$REF, \
+		sed	-e "s,$NEW,$REF," \
 			-e "s%$YACC_escaped%YACC%" \
 			-e "s%^yacc\>%YACC%" \
 			-e "s%YACC:.*option.*$%YACC: error message%" \
+			-e "s%yacc:.*option.*$%YACC: error message%" \
 			-e "s%^Usage: yacc\>%Usage: YACC%" \
 			-e '/YYPATCH/s/[0-9][0-9]*/"yyyymmdd"/' \
 			-e '/#define YYPATCH/s/PATCH/CHECK/' \
-			-e 's,#line \([1-9][0-9]*\) "'$REF_DIR'/,#line \1 ",' \
-			-e 's,#line \([1-9][0-9]*\) "'$TEST_DIR'/,#line \1 ",' \
-			-e 's,\(YACC:.* line [0-9][0-9]* of "\)'$TEST_DIR/',\1./,' \
-			< $CMP >$tmpfile \
-			&& mv $tmpfile $CMP
-		if test ! -f $REF
+			-e 's,#line \([1-9][0-9]*\) "'"$REF_DIR"'/,#line \1 ",' \
+			-e 's,#line \([1-9][0-9]*\) "'"$TEST_DIR"'/,#line \1 ",' \
+			-e 's/^typedef \(short\|long\) YYINT;$/typedef int YYINT;/' \
+			-e 's,\(YACC:.* line [0-9][0-9]* of "\)'"$TEST_DIR/"',\1./,' \
+			< "$CMP" >"$tmpfile" \
+			&& mv "$tmpfile" "$CMP"
+		if test ! -f "$REF"
 		then
-			mv $CMP $REF
+			mv "$CMP" "$REF"
 			echo "...saved $REF"
-		elif ( cmp -s $REF $CMP )
+		elif ( cmp -s "$REF" "$CMP" )
 		then
 			echo "...ok $REF"
-			rm -f $CMP
+			rm -f "$CMP"
 		else
 			echo "...diff $REF"
-			diff -u $REF $CMP
+			diff -c "$REF" "$CMP"
 			errors=1
 		fi
 	fi
@@ -48,7 +50,7 @@ test_flags() {
 	root=$1
 	ROOT=test-$root
 	shift 1
-	$YACC "$@" >$ROOT.output 2>$ROOT.error
+	$YACC "$@" >"$ROOT.output" 2>"$ROOT.error"
 	for type in .output .error
 	do
 		NEW=$ROOT$type
@@ -67,9 +69,9 @@ test_stdin() {
 	code=`echo "$1"|sed -e 's/y$/c/' -e "s,${TEST_DIR}/,,"`
 	if test "x$opts" = "x-"
 	then
-		$YACC -o $ROOT.$code $opts <$1 >$ROOT.output 2>$ROOT.error
+		$YACC -o "$ROOT.$code" $opts <$1 >"$ROOT.output" 2>"$ROOT.error"
 	else
-		$YACC -o $ROOT.$code $opts  $1 >$ROOT.output 2>$ROOT.error
+		$YACC -o "$ROOT.$code" $opts  $1 >"$ROOT.output" 2>"$ROOT.error"
 	fi
 	for type in .output .error .$code
 	do
@@ -92,12 +94,12 @@ test_defines() {
 	done
 	head=`echo "$1"|sed -e 's/y$/h/' -e "s,${TEST_DIR}/,,"`
 	code=`echo "$1"|sed -e 's/y$/c/' -e "s,${TEST_DIR}/,,"`
-	$YACC $opts -H $ROOT.$head $1 >$ROOT.output 2>$ROOT.error
+	$YACC $opts -H "$ROOT.$head" $1 >"$ROOT.output" 2>"$ROOT.error"
 	for name in prefix.tab.c y.tab.c
 	do
 		if test -f $name
 		then
-			mv $name $ROOT.$code
+			mv "$name" "$ROOT.$code"
 			break
 		fi
 	done
@@ -125,9 +127,10 @@ YACC_escaped=`echo "$PROG_DIR/yacc" | sed -e 's/\./\\\./g'`
 
 tmpfile=temp$$
 
-ifBTYACC=`fgrep -l 'define YYBTYACC' $PROG_DIR/config.h > /dev/null; test $? != 0; echo $?`
+: "${FGREP:=grep -F}"
+ifBTYACC=`$FGREP -l 'define YYBTYACC' $PROG_DIR/config.h > /dev/null; test $? != 0; echo $?`
 
-if test $ifBTYACC = 0; then
+if test "$ifBTYACC" = 0; then
 	REF_DIR=${TEST_DIR}/yacc
 else
 	REF_DIR=${TEST_DIR}/btyacc
@@ -135,7 +138,7 @@ fi
 
 rm -f ${REF_DIR}/test-*
 
-echo '** '`date`
+echo "** `date`"
 
 # Tests which do not need files
 MYFILE=nosuchfile
@@ -200,16 +203,16 @@ test_defines defines1 ${TEST_DIR}/calc.y
 test_defines defines2 -d ${TEST_DIR}/calc.y
 test_defines defines3 -b prefix ${TEST_DIR}/calc.y
 
-for input in ${TEST_DIR}/*.y
+for input in "${TEST_DIR}"/*.y
 do
 	case $input in
 	test-*)
 		echo "?? ignored $input"
 		;;
 	*)
-		root=`basename $input .y`
+		root=`basename "$input" .y`
 		ROOT="test-$root"
-		prefix=${root}_
+		prefix=`echo "${root}_" | sed -e 's/[.]/_/g'`
 
 		OPTS=
 		OPT2=
@@ -217,7 +220,7 @@ do
 		TYPE=".error .output .tab.c .tab.h"
 		case $input in
 		${TEST_DIR}/btyacc_*)
-			if test $ifBTYACC = 0; then continue; fi
+			if test "$ifBTYACC" = 0; then continue; fi
 			OPTS="$OPTS -B"
 			prefix=`echo "$prefix" | sed -e 's/^btyacc_//'`
 			;;
@@ -245,7 +248,7 @@ do
 			;;
 		${TEST_DIR}/inherit*|\
 		${TEST_DIR}/err_inherit*)
-			if test $ifBTYACC = 0; then continue; fi
+			if test "$ifBTYACC" = 0; then continue; fi
 			;;
 		esac
 
@@ -259,12 +262,12 @@ do
 			if test -n "$output"
 			then
 				output="-o $output"
-				error=`basename $OOPT .c`.error
+				error=`basename "$OOPT" .c`.error
 			else
 				error=${ROOT}${opt2}.error
 			fi
 
-			$YACC $OPTS $opt2 -v -d $output $prefix -b $ROOT${opt2} $input 2>$error
+			$YACC $OPTS $opt2 -v -d $output $prefix -b "$ROOT${opt2}" "$input" 2>"$error"
 			for type in $TYPE
 			do
 				REF=${REF_DIR}/${root}${opt2}${type}
@@ -282,7 +285,7 @@ do
 					*)
 						;;
 					esac
-					NEW=`basename $OOPT .c`${type}
+					NEW=`basename "$OOPT" .c`${type}
 					case $NEW in
 					test-*)
 						;;
@@ -290,13 +293,13 @@ do
 						if test -f "$NEW"
 						then
 							REF=${REF_DIR}/$NEW
-							mv $NEW test-$NEW
-							NEW=test-$NEW
+							mv "$NEW" "test-$NEW"
+							NEW="test-$NEW"
 						fi
 						;;
 					esac
 				else
-					NEW=${ROOT}${opt2}${type}
+					NEW="${ROOT}${opt2}${type}"
 				fi
 				test_diffs
 			done
