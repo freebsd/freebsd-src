@@ -38,9 +38,11 @@ int
 sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset)
 {
 	cpuwhich_t which;
-	int error;
+	int error, osrel;
 
-	if (__getosreldate() < P_OSREL_TIDPID) {
+	osrel = __getosreldate();
+	if (osrel < P_OSREL_TIDPID_13 || (osrel < P_OSREL_TIDPID &&
+	    P_OSREL_MAJOR(osrel) == P_OSREL_MAJOR(P_OSREL_TIDPID))) {
 		if (pid == 0 || pid > _PID_MAX)
 			which = CPU_WHICH_TID;
 		else
