@@ -2050,6 +2050,7 @@ static void cleanup_single_prio_root_ns(struct mlx5_core_dev *dev,
 
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 {
+	mlx5_cleanup_fc_stats(dev);
 	cleanup_root_ns(dev);
 	cleanup_single_prio_root_ns(dev, dev->sniffer_rx_root_ns);
 	cleanup_single_prio_root_ns(dev, dev->sniffer_tx_root_ns);
@@ -2420,6 +2421,10 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 		goto err;
 
 	err = init_sniffer_rx_root_ns(dev);
+	if (err)
+		goto err;
+
+	err = mlx5_init_fc_stats(dev);
 	if (err)
 		goto err;
 

@@ -323,4 +323,9 @@ int mlx5_cmd_packet_reformat_alloc(struct mlx5_core_dev *dev,
 				   struct mlx5_pkt_reformat *pkt_reformat);
 void mlx5_cmd_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 				      struct mlx5_pkt_reformat *pkt_reformat);
+int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
+void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev);
+void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
+			      struct delayed_work *dwork,
+			      unsigned long delay);
 #endif
