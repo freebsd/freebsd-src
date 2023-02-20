@@ -325,7 +325,7 @@ ENTRY(cpu_switch)
 	ldr	r3, [r10, #(TD_PCB)]
 	mov	r1, r3
 	mov	r0, r10
-	blne	_C_LABEL(vfp_save_state)
+	bl	_C_LABEL(vfp_save_state)
 #endif
 
 	/*
