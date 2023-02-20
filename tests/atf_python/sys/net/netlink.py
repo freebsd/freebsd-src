@@ -1609,18 +1609,20 @@ class NetlinkTestTemplate(object):
         self.helper = NlHelper()
         self.nlsock = Nlsock(netlink_family, self.helper)
 
-    def write_message(self, msg):
-        print("")
-        print("============= >> TX MESSAGE =============")
-        msg.print_message()
+    def write_message(self, msg, silent=False):
+        if not silent:
+            print("")
+            print("============= >> TX MESSAGE =============")
+            msg.print_message()
+            msg.print_as_bytes(bytes(msg), "-- DATA --")
         self.nlsock.write_data(bytes(msg))
-        msg.print_as_bytes(bytes(msg), "-- DATA --")
 
-    def read_message(self):
+    def read_message(self, silent=False):
         msg = self.nlsock.read_message()
-        print("")
-        print("============= << RX MESSAGE =============")
-        msg.print_message()
+        if not silent:
+            print("")
+            print("============= << RX MESSAGE =============")
+            msg.print_message()
         return msg
 
     def get_reply(self, tx_msg):
