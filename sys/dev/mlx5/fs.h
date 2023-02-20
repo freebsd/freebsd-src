@@ -254,7 +254,6 @@ bool fs_match_exact_mask(
 		void *mask1,
 		void *mask2);
 /**********end API for sniffer**********/
-
 struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 						 enum mlx5_flow_namespace_type ns_type,
 						 u8 num_actions,
@@ -275,4 +274,19 @@ struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 						     enum mlx5_flow_namespace_type ns_type);
 void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 					  struct mlx5_pkt_reformat *pkt_reformat);
+/********** Flow counters API **********/
+struct mlx5_fc;
+struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging);
+
+/* As mlx5_fc_create() but doesn't queue stats refresh thread. */
+struct mlx5_fc *mlx5_fc_create_ex(struct mlx5_core_dev *dev, bool aging);
+
+void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
+u64 mlx5_fc_query_lastuse(struct mlx5_fc *counter);
+void mlx5_fc_query_cached(struct mlx5_fc *counter,
+                          u64 *bytes, u64 *packets, u64 *lastuse);
+int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
+                  u64 *packets, u64 *bytes);
+u32 mlx5_fc_id(struct mlx5_fc *counter);
+/******* End of Flow counters API ******/
 #endif
