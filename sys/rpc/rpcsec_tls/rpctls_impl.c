@@ -109,6 +109,16 @@ rpctls_vnetinit(const void *unused __unused)
 VNET_SYSINIT(rpctls_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     rpctls_vnetinit, NULL);
 
+static void
+rpctls_cleanup(void *unused __unused)
+{
+
+	free(KRPC_VNET(rpctls_server_handle), M_RPC);
+	free(KRPC_VNET(rpctls_server_busy), M_RPC);
+}
+VNET_SYSUNINIT(rpctls_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    rpctls_cleanup, NULL);
+
 int
 rpctls_init(void)
 {
@@ -841,13 +851,5 @@ rpctls_getinfo(u_int *maxlenp, bool rpctlscd_run, bool rpctlssd_run)
 	KRPC_CURVNET_RESTORE();
 	*maxlenp = maxlen;
 	return (enable);
-}
-
-void
-rpctls_cleanup(void)
-{
-
-	free(KRPC_VNET(rpctls_server_handle), M_RPC);
-	free(KRPC_VNET(rpctls_server_busy), M_RPC);
 }
 
