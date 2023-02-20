@@ -5,6 +5,7 @@ Options:
   -b file_prefix        set filename prefix (default "y.")
   -B                    create a backtracking parser
   -d                    write definitions (.tab.h)
+  -h                    print this help-message
   -H defines_file       write definitions to defines_file
   -i                    write interface (y.tab.i)
   -g                    write a graphical description
@@ -18,3 +19,13 @@ Options:
   -t                    add debugging support
   -v                    write description (y.output)
   -V                    show version information and exit
+
+Long options:
+  --defines             -H
+  --file-prefix         -b
+  --graph               -g
+  --help                -h
+  --name-prefix         -p
+  --no-lines            -l
+  --output              -o
+  --version             -V

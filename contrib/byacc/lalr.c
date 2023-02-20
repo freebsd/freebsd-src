@@ -1,4 +1,4 @@
-/* $Id: lalr.c,v 1.12 2016/06/07 00:28:03 tom Exp $ */
+/* $Id: lalr.c,v 1.14 2021/05/20 23:57:23 tom Exp $ */
 
 #include "defs.h"
 
@@ -41,7 +41,7 @@ Value_t *to_state;
 
 static Value_t infinity;
 static int maxrhs;
-static int ngotos;
+static Value_t ngotos;
 static unsigned *F;
 static Value_t **includes;
 static shorts **lookback;
@@ -183,7 +183,6 @@ set_goto_map(void)
     Value_t *temp_base;
     Value_t *temp_map;
     Value_t state2;
-    Value_t state1;
 
     goto_base = NEW2(nvars + 1, Value_t);
     temp_base = NEW2(nvars + 1, Value_t);
@@ -227,7 +226,8 @@ set_goto_map(void)
 
     for (sp = first_shift; sp; sp = sp->next)
     {
-	state1 = sp->number;
+	Value_t state1 = sp->number;
+
 	for (i = sp->nshifts - 1; i >= 0; i--)
 	{
 	    state2 = sp->shift[i];
@@ -250,16 +250,14 @@ set_goto_map(void)
 static Value_t
 map_goto(int state, int symbol)
 {
-    int high;
-    int low;
-    int middle;
-    int s;
-
-    low = goto_map[symbol];
-    high = goto_map[symbol + 1];
+    int low = goto_map[symbol];
+    int high = goto_map[symbol + 1];
 
     for (;;)
     {
+	int middle;
+	int s;
+
 	assert(low <= high);
 	middle = (low + high) >> 1;
 	s = from_state[middle];
@@ -284,7 +282,6 @@ initialize_F(void)
     Value_t *rp;
     Value_t **reads;
     int nedges;
-    int stateno;
     int symbol;
     int nwords;
 
@@ -298,7 +295,8 @@ initialize_F(void)
     rowp = F;
     for (i = 0; i < ngotos; i++)
     {
-	stateno = to_state[i];
+	int stateno = to_state[i];
+
 	sp = shift_table[stateno];
 
 	if (sp)
@@ -358,11 +356,8 @@ build_relations(void)
     Value_t *rp;
     shifts *sp;
     int length;
-    int nedges;
     int done_flag;
-    Value_t state1;
     Value_t stateno;
-    int symbol1;
     int symbol2;
     Value_t *shortp;
     Value_t *edge;
@@ -375,9 +370,9 @@ build_relations(void)
 
     for (i = 0; i < ngotos; i++)
     {
-	nedges = 0;
-	state1 = from_state[i];
-	symbol1 = accessing_symbol[to_state[i]];
+	int nedges = 0;
+	int symbol1 = accessing_symbol[to_state[i]];
+	Value_t state1 = from_state[i];
 
 	for (rulep = derives[symbol1]; *rulep >= 0; rulep++)
 	{
@@ -475,7 +470,6 @@ transpose(Value_t **R2, int n)
     Value_t *nedges;
     Value_t *sp;
     int i;
-    int k;
 
     nedges = NEW2(n, Value_t);
 
@@ -494,7 +488,8 @@ transpose(Value_t **R2, int n)
 
     for (i = 0; i < n; i++)
     {
-	k = nedges[i];
+	int k = nedges[i];
+
 	if (k > 0)
 	{
 	    sp = NEW2(k + 1, Value_t);
@@ -646,10 +641,10 @@ traverse(int i)
 void
 lalr_leaks(void)
 {
-    int i;
-
     if (includes != 0)
     {
+	int i;
+
 	for (i = 0; i < ngotos; i++)
 	{
 	    free(includes[i]);

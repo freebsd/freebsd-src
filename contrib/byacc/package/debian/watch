@@ -1,4 +1,20 @@
-version=3
+version=4
 
-opts=passive ftp://ftp.invisible-island.net/byacc/byacc-(\d+)\.tgz \
- debian  uupdate
+# upstream provides tarballs such as "byacc-20220101.tgz" (originally to
+# keep the filenames compatible with systems where multiple "." are illegal).
+#
+# The version number (2.0) is current since late 2020; before that it was
+# "1.9" for a long time.  Use
+#    byacc -V
+# to see the version number:
+#    byacc - 2.0 20220101
+#
+# The introduction of the back-tracking configuration motivated the change of
+# major/minor numbers; for compatibility the parser skeleton still says "1.9".
+#
+# Patch-dates are always # in yyyymmdd format.
+
+opts=pgpmode=auto,\
+dversionmangle=s/^2\.0\.//,\
+oversionmangle=s/^(.*)/2.0.$1/ \
+ https://invisible-mirror.net/archives/byacc/byacc-(\d+)\.tgz
