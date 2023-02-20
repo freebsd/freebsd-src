@@ -47,6 +47,7 @@ struct kobj_type {
 	void (*release)(struct kobject *kobj);
 	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;
+	const struct attribute_group **default_groups;
 };
 
 extern const struct kobj_type linux_kfree_type;
