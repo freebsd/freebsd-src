@@ -1806,6 +1806,9 @@ static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 	char fte_name[20];
 
 	mutex_lock(&fg->base.lock);
+	if (flow_act->flags & MLX5_FLOW_ACT_NO_APPEND)
+		goto insert_fte;
+
 	fs_for_each_fte(fte, fg) {
 		/* TODO: Check of size against PRM max size */
 		mutex_lock(&fte->base.lock);
@@ -1821,6 +1824,7 @@ static struct mlx5_flow_rule *fs_add_dst_fg(struct mlx5_flow_group *fg,
 		mutex_unlock(&fte->base.lock);
 	}
 
+insert_fte:
 	fs_get_parent(ft, fg);
 	if (fg->num_ftes == fg->max_ftes) {
 		dst = ERR_PTR(-ENOSPC);
