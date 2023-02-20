@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2022
+.Dd February 3, 2023
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -144,6 +144,32 @@ for this reason, they should be avoided.
 .Pp
 See
 .Xr lock 9
+for details.
+.Ss Non-blocking synchronization
+The kernel has two facilities,
+.Xr epoch 9
+and
+.Xr smr 9 ,
+which can be used to provide read-only access to a data structure while one or
+more writers are concurrently modifying the data structure.
+Specifically, readers using
+.Xr epoch 9
+and
+.Xr smr 9
+to synchronize accesses do not block writers, in contrast with reader/writer
+locks, and they help ensure that memory freed by writers is not reused until
+all readers which may be accessing it have finished.
+Thus, they are a useful building block in the construction of lock-free
+data structures.
+.Pp
+These facilities are difficult to use correctly and should be avoided
+in preference to traditional mutual exclusion-based synchronization,
+except when performance or non-blocking guarantees are a major concern.
+.Pp
+See
+.Xr epoch 9
+and
+.Xr smr 9
 for details.
 .Ss Counting semaphores
 Counting semaphores provide a mechanism for synchronizing access
@@ -394,8 +420,10 @@ At this time this is a rather easy to remember table.
 .Sh SEE ALSO
 .Xr lockstat 1 ,
 .Xr witness 4 ,
+.Xr atomic 9 ,
 .Xr BUS_SETUP_INTR 9 ,
 .Xr condvar 9 ,
+.Xr epoch 9 ,
 .Xr lock 9 ,
 .Xr LOCK_PROFILING 9 ,
 .Xr mtx_pool 9 ,
@@ -404,13 +432,8 @@ At this time this is a rather easy to remember table.
 .Xr rwlock 9 ,
 .Xr sema 9 ,
 .Xr sleep 9 ,
+.Xr smr 9 ,
 .Xr sx 9 ,
 .Xr timeout 9
-.Sh HISTORY
-These
-functions appeared in
-.Bsx 4.1
-through
-.Fx 7.0 .
 .Sh BUGS
 There are too many locking primitives to choose from.

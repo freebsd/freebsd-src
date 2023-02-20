@@ -319,6 +319,7 @@ MAN=	accept_filter.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
+	smr.9 \
 	socket.9 \
 	stack.9 \
 	store.9 \
@@ -2051,6 +2052,14 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_type.9 \
 	sleepqueue.9 sleepq_wait.9 \
 	sleepqueue.9 sleepq_wait_sig.9
+MLINKS+=smr.9 smr_advance.9 \
+	smr.9 smr_create.9 \
+	smr.9 smr_destroy.9 \
+	smr.9 smr_enter.9 \
+	smr.9 smr_exit.9 \
+	smr.9 smr_poll.9 \
+	smr.9 smr_synchronize.9 \
+	smr.9 smr_wait.9
 MLINKS+=socket.9 soabort.9 \
 	socket.9 soaccept.9 \
 	socket.9 sobind.9 \
