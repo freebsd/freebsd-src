@@ -72,9 +72,6 @@ enum clnt_stat	rpctls_srv_disconnect(uint64_t sec, uint64_t usec,
 /* Initialization function for rpcsec_tls. */
 int		rpctls_init(void);
 
-/* Cleanup function for rpcsec_tls. */
-void		rpctls_cleanup(void);
-
 /* Get TLS information function. */
 bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
 		    bool rpctlssd_run);

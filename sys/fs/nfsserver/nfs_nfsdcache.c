@@ -824,13 +824,10 @@ nfsrvd_cleancache(void)
 	int i;
 
 	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-		mtx_lock(&NFSD_VNET(nfsrchash_table)[i].mtx);
 		LIST_FOREACH_SAFE(rp, &NFSD_VNET(nfsrchash_table)[i].tbl,
 		    rc_hash, nextrp)
 			nfsrc_freecache(rp);
-		mtx_unlock(&NFSD_VNET(nfsrchash_table)[i].mtx);
 	}
-	mtx_lock(&nfsrc_udpmtx);
 	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 		LIST_FOREACH_SAFE(rp, &NFSD_VNET(nfsrvudphashtbl)[i], rc_hash,
 		    nextrp) {
@@ -838,7 +835,6 @@ nfsrvd_cleancache(void)
 		}
 	}
 	NFSD_VNET(nfsstatsv1_p)->srvcache_size = 0;
-	mtx_unlock(&nfsrc_udpmtx);
 	NFSD_VNET(nfsrc_tcpsavedreplies) = 0;
 }
 

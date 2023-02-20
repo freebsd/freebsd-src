@@ -108,8 +108,6 @@ NFSD_VNET_DEFINE_STATIC(struct vfsoptlist, nfsv4root_newopt);
 NFSD_VNET_DEFINE_STATIC(bool, nfsrv_suspend_nfsd) = false;
 NFSD_VNET_DEFINE_STATIC(bool, nfsrv_mntinited) = false;
 
-static void nfsrv_cleanup(struct prison *);
-
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
 static void nfsvno_updateds(struct vnode *, struct ucred *, struct thread *);
@@ -6906,15 +6904,13 @@ VNET_SYSINIT(nfsrv_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
  * done when the jail is destroyed or the module unloaded.
  */
 static void
-nfsrv_cleanup(struct prison *pr)
+nfsrv_cleanup(const void *unused __unused)
 {
 	int i;
 
-	NFSD_CURVNET_SET(pr->pr_vnet);
 	NFSD_LOCK();
 	if (!NFSD_VNET(nfsrv_mntinited)) {
 		NFSD_UNLOCK();
-		NFSD_CURVNET_RESTORE();
 		return;
 	}
 	NFSD_VNET(nfsrv_mntinited) = false;
@@ -6954,8 +6950,9 @@ nfsrv_cleanup(struct prison *pr)
 	free(NFSD_VNET(nfssessionhash), M_NFSDSESSION);
 	free(NFSD_VNET(nfsv4root_mnt), M_TEMP);
 	NFSD_VNET(nfsv4root_mnt) = NULL;
-	NFSD_CURVNET_RESTORE();
 }
+VNET_SYSUNINIT(nfsrv_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    nfsrv_cleanup, NULL);
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 
@@ -6996,7 +6993,6 @@ nfsd_modevent(module_t mod, int type, void *data)
 		vn_deleg_ops.vndeleg_disable = NULL;
 #endif
 		nfsd_call_nfsd = NULL;
-		nfsrv_cleanup(&prison0);
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsrv_dontlistlock_mtx);
