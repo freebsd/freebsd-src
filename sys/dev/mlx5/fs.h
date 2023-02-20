@@ -96,8 +96,13 @@ enum mlx5_flow_act_actions {
 	MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT = 1 << 2,
 };
 
+enum MLX5_FLOW_ACT_FLAGS {
+	MLX5_FLOW_ACT_NO_APPEND = 1 << 0,
+};
+
 struct mlx5_flow_act {
 	u32 actions; /* See enum mlx5_flow_act_actions */
+	u32 flags;
 	u32 flow_tag;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
