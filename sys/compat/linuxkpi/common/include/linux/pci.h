@@ -57,6 +57,7 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <asm/atomic.h>
+#include <asm/memtype.h>
 #include <linux/device.h>
 #include <linux/pci_ids.h>
 #include <linux/pm.h>
