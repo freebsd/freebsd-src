@@ -90,7 +90,8 @@ struct linux_kmem_cache;
 /* drm-kmod 5.4 compat */
 #define kfree_async(ptr)	kfree(ptr);
 
-#define ZERO_OR_NULL_PTR(x)	((x) == NULL)
+#define	ZERO_SIZE_PTR		((void *)16)
+#define ZERO_OR_NULL_PTR(x)	((x) == NULL || (x) == ZERO_SIZE_PTR)
 
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
@@ -195,6 +196,9 @@ extern void linux_kfree_async(void *);
 static inline void
 kfree(const void *ptr)
 {
+	if (ZERO_OR_NULL_PTR(ptr))
+		return;
+
 	if (curthread->td_critnest != 0)
 		linux_kfree_async(__DECONST(void *, ptr));
 	else
@@ -204,6 +208,9 @@ kfree(const void *ptr)
 static __inline void
 kfree_sensitive(const void *ptr)
 {
+	if (ZERO_OR_NULL_PTR(ptr))
+		return;
+
 	zfree(__DECONST(void *, ptr), M_KMALLOC);
 }
 
