@@ -289,7 +289,7 @@ TEST_F(Lookup, ejustreturn)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		out.header.len = sizeof(out.header);
 		out.header.error = 2;
-		m_mock->m_expected_write_errno = EINVAL;
+		out.expected_errno = EINVAL;
 	})));
 
 	EXPECT_NE(0, access(FULLPATH, F_OK));

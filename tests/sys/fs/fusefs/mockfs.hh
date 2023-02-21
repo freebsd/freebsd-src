@@ -233,6 +233,8 @@ union fuse_payloads_out {
 struct mockfs_buf_out {
 	fuse_out_header		header;
 	union fuse_payloads_out	body;
+	/* the expected errno of the write to /dev/fuse */
+	int			expected_errno;
 
 	/* Default constructor: zero everything */
 	mockfs_buf_out() {
@@ -333,15 +335,12 @@ class MockFS {
 	 */
 	void read_request(mockfs_buf_in& in, ssize_t& res);
 
+	public:
 	/* Write a single response back to the kernel */
 	void write_response(const mockfs_buf_out &out);
 
-	public:
 	/* pid of child process, for two-process test cases */
 	pid_t m_child_pid;
-
-	/* the expected errno of the next write to /dev/fuse */
-	int m_expected_write_errno;
 
 	/* Maximum size of a FUSE_WRITE write */
 	uint32_t m_maxwrite;
