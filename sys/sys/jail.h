@@ -196,7 +196,8 @@ struct prison {
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
 	int		 pr_devfs_rsnum;		/* (p) devfs ruleset */
 	enum prison_state pr_state;			/* (q) state in life cycle */
-	int		 pr_spare[2];
+	volatile int	 pr_exportcnt;			/* (r) count of mount exports */
+	int		 pr_spare;
 	int		 pr_osreldate;			/* (c) kern.osreldate value */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
