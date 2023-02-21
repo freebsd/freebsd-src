@@ -229,9 +229,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
-#ifdef KDTRACE_HOOKS
 	struct tcpcb *tp = NULL;
-#endif
 	struct sockaddr_in *sinp;
 
 	sinp = (struct sockaddr_in *)nam;
@@ -262,9 +260,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = EINVAL;
 		goto out;
 	}
-#ifdef KDTRACE_HOOKS
 	tp = intotcpcb(inp);
-#endif
 	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in_pcbbind(inp, sinp, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
@@ -283,9 +279,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
-#ifdef KDTRACE_HOOKS
 	struct tcpcb *tp = NULL;
-#endif
 	struct sockaddr_in6 *sin6;
 	u_char vflagsav;
 
@@ -310,9 +304,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = EINVAL;
 		goto out;
 	}
-#ifdef KDTRACE_HOOKS
 	tp = intotcpcb(inp);
-#endif
 	INP_HASH_WLOCK(&V_tcbinfo);
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
@@ -702,9 +694,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 {
 	int error = 0;
 	struct inpcb *inp = NULL;
-#ifdef KDTRACE_HOOKS
 	struct tcpcb *tp = NULL;
-#endif
 	struct in_addr addr;
 	in_port_t port = 0;
 
@@ -718,9 +708,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 		error = ECONNABORTED;
 		goto out;
 	}
-#ifdef KDTRACE_HOOKS
 	tp = intotcpcb(inp);
-#endif
 
 	/*
 	 * We inline in_getpeeraddr and COMMON_END here, so that we can
@@ -746,9 +734,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 {
 	struct inpcb *inp = NULL;
 	int error = 0;
-#ifdef KDTRACE_HOOKS
 	struct tcpcb *tp = NULL;
-#endif
 	struct in_addr addr;
 	struct in6_addr addr6;
 	struct epoch_tracker et;
@@ -766,9 +752,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 		error = ECONNABORTED;
 		goto out;
 	}
-#ifdef KDTRACE_HOOKS
 	tp = intotcpcb(inp);
-#endif
 
 	/*
 	 * We inline in6_mapped_peeraddr and COMMON_END here, so that we can
