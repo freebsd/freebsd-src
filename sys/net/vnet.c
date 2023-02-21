@@ -220,6 +220,12 @@ SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry,
 SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return,
     "int");
 
+/*
+ * Run per-vnet sysinits or sysuninits during vnet creation/destruction.
+ */
+static void vnet_sysinit(void);
+static void vnet_sysuninit(void);
+
 #ifdef DDB
 static void db_show_vnet_print_vs(struct vnet_sysinit *, int);
 #endif
@@ -571,7 +577,7 @@ vnet_deregister_sysuninit(void *arg)
  * vnet construction.  The caller is responsible for ensuring the new vnet is
  * the current vnet and that the vnet_sysinit_sxlock lock is locked.
  */
-void
+static void
 vnet_sysinit(void)
 {
 	struct vnet_sysinit *vs;
@@ -589,7 +595,7 @@ vnet_sysinit(void)
  * vnet destruction.  The caller is responsible for ensuring the dying vnet
  * the current vnet and that the vnet_sysinit_sxlock lock is locked.
  */
-void
+static void
 vnet_sysuninit(void)
 {
 	struct vnet_sysinit *vs;

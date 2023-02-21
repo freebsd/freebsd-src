@@ -356,12 +356,6 @@ struct vnet_sysinit {
 	    vnet_deregister_sysuninit, &ident ## _vnet_uninit)
 
 /*
- * Run per-vnet sysinits or sysuninits during vnet creation/destruction.
- */
-void	 vnet_sysinit(void);
-void	 vnet_sysuninit(void);
-
-/*
  * Interfaces for managing per-vnet constructors and destructors.
  */
 void	vnet_register_sysinit(void *arg);
