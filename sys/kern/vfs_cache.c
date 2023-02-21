@@ -3016,7 +3016,7 @@ void
 cache_purgevfs(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
-	size_t visited, purged;
+	size_t visited __sdt_used, purged __sdt_used;
 
 	visited = purged = 0;
 	/*
