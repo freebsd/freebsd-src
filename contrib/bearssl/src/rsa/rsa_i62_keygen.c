@@ -40,7 +40,7 @@ br_rsa_i62_keygen(const br_prng_class **rng,
 
 /* see bearssl_rsa.h */
 br_rsa_keygen
-br_rsa_i62_keygen_get()
+br_rsa_i62_keygen_get(void)
 {
 	return &br_rsa_i62_keygen;
 }
@@ -49,7 +49,7 @@ br_rsa_i62_keygen_get()
 
 /* see bearssl_rsa.h */
 br_rsa_keygen
-br_rsa_i62_keygen_get()
+br_rsa_i62_keygen_get(void)
 {
 	return 0;
 }
