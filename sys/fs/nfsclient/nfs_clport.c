@@ -1276,10 +1276,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct mount *mp;
 	struct nfsmount *nmp;
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
 		if (error)
-			return (error);
+			goto out;
 		/*
 		 * Since we don't know what rights might be required,
 		 * pretend that we need them all. It is better to be too
@@ -1288,10 +1289,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		error = fget(td, nfscbdarg.sock,
 		    cap_rights_init_one(&rights, CAP_SOCK_CLIENT), &fp);
 		if (error)
-			return (error);
+			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
-			return (EPERM);
+			error = EPERM;
+			goto out;
 		}
 		error = nfscbd_addsock(fp);
 		fdrop(fp, td);
@@ -1300,12 +1302,14 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			nfscl_enablecallb = 1;
 		}
 	} else if (uap->flag & NFSSVC_NFSCBD) {
-		if (uap->argp == NULL) 
-			return (EINVAL);
+		if (uap->argp == NULL) {
+			error = EINVAL;
+			goto out;
+		}
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg2,
 		    sizeof(nfscbdarg2));
 		if (error)
-			return (error);
+			goto out;
 		error = nfscbd_nfsd(td, &nfscbdarg2);
 	} else if (uap->flag & NFSSVC_DUMPMNTOPTS) {
 		error = copyin(uap->argp, &dumpmntopts, sizeof(dumpmntopts));
@@ -1391,6 +1395,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	} else {
 		error = EINVAL;
 	}
+out:
+	NFSD_CURVNET_RESTORE();
 	return (error);
 }
 

@@ -151,7 +151,6 @@ struct mtx nfs_clstate_mutex;
 
 /* local functions */
 static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
-static void nfs_clean(struct prison *);
 
 #ifdef __NO_STRICT_ALIGNMENT
 /*
@@ -871,19 +870,6 @@ nfs_pnfsio(task_fn_t *func, void *context)
 	return (ret);
 }
 
-static void
-nfs_clean(struct prison *pr)
-{
-
-	NFSD_CURVNET_SET(pr->pr_vnet);
-	mtx_destroy(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx);
-	if (pr != &prison0)
-		free(NFSD_VNET(nfsstatsv1_p), M_TEMP);
-	/* Clean out the name<-->id cache. */
-	nfsrv_cleanusergroup();
-	NFSD_CURVNET_RESTORE();
-}
-
 /*
  * Initialize everything that needs to be initialized for a vnet.
  */
@@ -891,7 +877,7 @@ static void
 nfs_vnetinit(const void *unused __unused)
 {
 
-	if (curthread->td_ucred->cr_prison == &prison0)
+	if (IS_DEFAULT_VNET(curvnet))
 		NFSD_VNET(nfsstatsv1_p) = &nfsstatsv1;
 	else
 		NFSD_VNET(nfsstatsv1_p) = malloc(sizeof(struct nfsstatsv1),
@@ -899,8 +885,21 @@ nfs_vnetinit(const void *unused __unused)
 	mtx_init(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx, "nfsuserd",
 	    NULL, MTX_DEF);
 }
-SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     nfs_vnetinit, NULL);
+
+static void
+nfs_cleanup(void *unused __unused)
+{
+
+	mtx_destroy(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx);
+	if (!IS_DEFAULT_VNET(curvnet))
+		free(NFSD_VNET(nfsstatsv1_p), M_TEMP);
+	/* Clean out the name<-->id cache. */
+	nfsrv_cleanusergroup();
+}
+VNET_SYSUNINIT(nfs_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    nfs_cleanup, NULL);
 
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);
 
@@ -938,7 +937,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		}
 
 		nfsd_call_nfscommon = NULL;
-		nfs_clean(&prison0);
 		/* and get rid of the mutexes */
 		mtx_destroy(&nfs_nameid_mutex);
 		mtx_destroy(&newnfsd_mtx);

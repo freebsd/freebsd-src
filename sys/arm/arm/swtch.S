@@ -101,7 +101,7 @@ ENTRY(savectx)
 #ifdef VFP
 	mov	r1, r0
 	mov	r0, #0
-	blne	_C_LABEL(vfp_save_state)
+	bl	_C_LABEL(vfp_save_state)
 #endif
 	add	sp, sp, #4;
 	ldmfd	sp!, {pc}

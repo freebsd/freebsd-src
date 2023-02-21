@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -554,7 +554,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1065,48 +1065,59 @@ yyreduce:
 case 1:
 #line 20 "inherit0.y"
 	{ yyval = yystack.l_mark[0]; }
+#line 1069 "inherit0.tab.c"
 break;
 case 2:
 #line 22 "inherit0.y"
 	{ yyval = yystack.l_mark[0]; }
+#line 1074 "inherit0.tab.c"
 break;
 case 3:
 #line 25 "inherit0.y"
 	{ yyval = 1; }
+#line 1079 "inherit0.tab.c"
 break;
 case 4:
 #line 26 "inherit0.y"
 	{ yyval = 2; }
+#line 1084 "inherit0.tab.c"
 break;
 case 5:
 #line 29 "inherit0.y"
 	{ yyval = 1; }
+#line 1089 "inherit0.tab.c"
 break;
 case 6:
 #line 30 "inherit0.y"
 	{ yyval = 2; }
+#line 1094 "inherit0.tab.c"
 break;
 case 7:
 #line 34 "inherit0.y"
 	{ mksymbol(yystack.l_mark[-2], yystack.l_mark[-3], yystack.l_mark[0]); }
+#line 1099 "inherit0.tab.c"
 break;
 case 8:
 #line 36 "inherit0.y"
 	{ mksymbol(yystack.l_mark[-1], yystack.l_mark[-2], yystack.l_mark[0]); }
+#line 1104 "inherit0.tab.c"
 break;
 case 9:
 #line 40 "inherit0.y"
 	{ yyval = 2; }
+#line 1109 "inherit0.tab.c"
 break;
 case 10:
 #line 41 "inherit0.y"
 	{ yyval = yystack.l_mark[-2]; }
+#line 1114 "inherit0.tab.c"
 break;
 case 11:
 #line 43 "inherit0.y"
 	{ yyval = yystack.l_mark[0]; }
+#line 1119 "inherit0.tab.c"
 break;
-#line 1110 "inherit0.tab.c"
+#line 1121 "inherit0.tab.c"
     default:
         break;
     }

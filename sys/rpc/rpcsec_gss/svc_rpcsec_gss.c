@@ -204,7 +204,7 @@ KGSS_VNET_DEFINE(struct svc_rpc_gss_client_list, svc_rpc_gss_clients);
 KGSS_VNET_DEFINE_STATIC(uint32_t, svc_rpc_gss_next_clientid) = 1;
 
 static void
-svc_rpc_gss_init(void *arg)
+svc_rpc_gss_init(void *unused __unused)
 {
 	int i;
 
@@ -219,8 +219,21 @@ svc_rpc_gss_init(void *arg)
 		sx_init(&svc_rpc_gss_lock, "gsslock");
 	}
 }
-SYSINIT(svc_rpc_gss_init, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(svc_rpc_gss_init, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     svc_rpc_gss_init, NULL);
+
+static void
+svc_rpc_gss_cleanup(void *unused __unused)
+{
+
+	mem_free(KGSS_VNET(svc_rpc_gss_client_hash),
+	    sizeof(struct svc_rpc_gss_client_list) *
+	    svc_rpc_gss_client_hash_size);
+	if (IS_DEFAULT_VNET(curvnet))
+		sx_destroy(&svc_rpc_gss_lock);
+}
+VNET_SYSUNINIT(svc_rpc_gss_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    svc_rpc_gss_cleanup, NULL);
 
 bool_t
 rpc_gss_set_callback(rpc_gss_callback_t *cb)

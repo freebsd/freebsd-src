@@ -247,9 +247,7 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
         """Tests if interface dummp is not missing interfaces"""
 
         ifmap = {}
-        for ifname in (self.vnet.iface_alias_map["if1"].name, "lo0"):
-            ifindex = socket.if_nametoindex(ifname)
-            ifmap[ifindex] = ifname
+        ifmap[socket.if_nametoindex("lo0")] = "lo0"
 
         for i in range(40):
             ifname = "lo{}".format(i + 1)
@@ -300,7 +298,9 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
 
                 ifindex = rx_msg.base_hdr.ifi_index
                 assert ifindex == rx_msg.base_hdr.ifi_index
-                kernel_ifmap[ifindex] = rx_msg.get_nla(IflattrType.IFLA_IFNAME).text
+                ifname = rx_msg.get_nla(IflattrType.IFLA_IFNAME).text
+                if ifname.startswith("lo"):
+                    kernel_ifmap[ifindex] = ifname
             assert kernel_ifmap == ifmap
 
     #

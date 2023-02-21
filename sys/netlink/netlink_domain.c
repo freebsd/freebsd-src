@@ -384,7 +384,7 @@ nl_autobind_port(struct nlpcb *nlp, uint32_t candidate_id)
 	uint32_t port_id = candidate_id;
 	NLCTL_TRACKER;
 	bool exist;
-	int error;
+	int error = EADDRINUSE;
 
 	for (int i = 0; i < 10; i++) {
 		NL_LOG(LOG_DEBUG3, "socket %p, trying to assign port %d", nlp->nl_socket, port_id);
@@ -612,7 +612,9 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 		case NETLINK_ADD_MEMBERSHIP:
 		case NETLINK_DROP_MEMBERSHIP:
-			sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			error = sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			if (error != 0)
+				break;
 			if (optval <= 0 || optval >= NLP_MAX_GROUPS) {
 				error = ERANGE;
 				break;
@@ -629,7 +631,9 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		case NETLINK_CAP_ACK:
 		case NETLINK_EXT_ACK:
 		case NETLINK_GET_STRICT_CHK:
-			sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			error = sooptcopyin(sopt, &optval, sizeof(optval), sizeof(optval));
+			if (error != 0)
+				break;
 
 			flag = nl_getoptflag(sopt->sopt_name);
 

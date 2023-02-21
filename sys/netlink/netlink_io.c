@@ -430,9 +430,11 @@ nl_receive_message(struct nlmsghdr *hdr, int remaining_length,
 			struct nlmsghdr *hdr_orig = hdr;
 			hdr = linux_netlink_p->msg_from_linux(nlp->nl_proto, hdr, npt);
 			if (hdr == NULL) {
-				npt->hdr = hdr_orig;
+				 /* Failed to translate to kernel format. Report an error back */
+				hdr = hdr_orig;
+				npt->hdr = hdr;
 				if (hdr->nlmsg_flags & NLM_F_ACK)
-					nlmsg_ack(nlp, EAGAIN, hdr, npt);
+					nlmsg_ack(nlp, EOPNOTSUPP, hdr, npt);
 				return (0);
 			}
 		}

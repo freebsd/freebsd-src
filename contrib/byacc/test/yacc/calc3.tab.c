@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -448,8 +448,8 @@ YYPARSE_DECL()
     memset(&yyval,  0, sizeof(yyval));
     memset(&yylval, 0, sizeof(yylval));
 
-    yym = 0;
-    yyn = 0;
+    /* yym is set below */
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -575,64 +575,79 @@ yyreduce:
 case 3:
 #line 38 "calc3.y"
 	{  yyerrok ; }
+#line 579 "calc3.tab.c"
 break;
 case 4:
 #line 42 "calc3.y"
 	{  printf("%d\n",yystack.l_mark[0]);}
+#line 584 "calc3.tab.c"
 break;
 case 5:
 #line 44 "calc3.y"
 	{  regs[yystack.l_mark[-2]] = yystack.l_mark[0]; }
+#line 589 "calc3.tab.c"
 break;
 case 6:
 #line 48 "calc3.y"
 	{  yyval = yystack.l_mark[-1]; }
+#line 594 "calc3.tab.c"
 break;
 case 7:
 #line 50 "calc3.y"
 	{  yyval = yystack.l_mark[-2] + yystack.l_mark[0]; }
+#line 599 "calc3.tab.c"
 break;
 case 8:
 #line 52 "calc3.y"
 	{  yyval = yystack.l_mark[-2] - yystack.l_mark[0]; }
+#line 604 "calc3.tab.c"
 break;
 case 9:
 #line 54 "calc3.y"
 	{  yyval = yystack.l_mark[-2] * yystack.l_mark[0]; }
+#line 609 "calc3.tab.c"
 break;
 case 10:
 #line 56 "calc3.y"
 	{  yyval = yystack.l_mark[-2] / yystack.l_mark[0]; }
+#line 614 "calc3.tab.c"
 break;
 case 11:
 #line 58 "calc3.y"
 	{  yyval = yystack.l_mark[-2] % yystack.l_mark[0]; }
+#line 619 "calc3.tab.c"
 break;
 case 12:
 #line 60 "calc3.y"
 	{  yyval = yystack.l_mark[-2] & yystack.l_mark[0]; }
+#line 624 "calc3.tab.c"
 break;
 case 13:
 #line 62 "calc3.y"
 	{  yyval = yystack.l_mark[-2] | yystack.l_mark[0]; }
+#line 629 "calc3.tab.c"
 break;
 case 14:
 #line 64 "calc3.y"
 	{  yyval = - yystack.l_mark[0]; }
+#line 634 "calc3.tab.c"
 break;
 case 15:
 #line 66 "calc3.y"
 	{  yyval = regs[yystack.l_mark[0]]; }
+#line 639 "calc3.tab.c"
 break;
 case 17:
 #line 71 "calc3.y"
 	{  yyval = yystack.l_mark[0]; (*base) = (yystack.l_mark[0]==0) ? 8 : 10; }
+#line 644 "calc3.tab.c"
 break;
 case 18:
 #line 73 "calc3.y"
 	{  yyval = (*base) * yystack.l_mark[-1] + yystack.l_mark[0]; }
+#line 649 "calc3.tab.c"
 break;
-#line 636 "calc3.tab.c"
+#line 651 "calc3.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

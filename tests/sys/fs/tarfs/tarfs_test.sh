@@ -27,12 +27,12 @@
 #
 
 mktar="$(dirname $(realpath "$0"))"/mktar
-mnt="$(realpath ${TMPDIR:-/tmp})/mnt.$$"
+mnt="$(realpath ${TMPDIR:-/tmp})/mnt"
 
 # expected SHA256 checksum of file contained in test tarball
 sum=4da2143234486307bb44eaa610375301781a577d1172f362b88bb4b1643dee62
 
-atf_test_case tarfs_test
+atf_test_case tarfs_basic cleanup
 tarfs_basic_head() {
 	atf_set "descr" "Basic function test"
 	atf_set "require.user" "root"
@@ -50,27 +50,90 @@ tarfs_basic_cleanup() {
 	umount "${mnt}"
 }
 
-atf_test_case tarfs_notdir
-tarfs_notdir_head() {
-	atf_set "descr" "Regression test for PR 269519"
+atf_test_case tarfs_notdir_device cleanup
+tarfs_notdir_device_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561"
 	atf_set "require.user" "root"
 }
-tarfs_notdir_body() {
+tarfs_notdir_device_body() {
+	mkdir "${mnt}"
+	atf_check mknod d b 0xdead 0xbeef
+	tar cf tarfs_notdir.tar d
+	rm d
+	mkdir d
+	echo "boom" >d/f
+	tar rf tarfs_notdir.tar d/f
+	atf_check -s not-exit:0 -e match:"Invalid" \
+	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
+}
+tarfs_notdir_device_cleanup() {
+	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_notdir_dot cleanup
+tarfs_notdir_dot_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561"
+	atf_set "require.user" "root"
+}
+tarfs_notdir_dot_body() {
 	mkdir "${mnt}"
 	echo "hello" >d
 	tar cf tarfs_notdir.tar d
 	rm d
-	mkdir -p d/s
-	echo "world" >d/s/f
-	tar rf tarfs_notdir.tar d/s/f
+	mkdir d
+	echo "world" >d/f
+	tar rf tarfs_notdir.tar d/./f
 	atf_check -s not-exit:0 -e match:"Invalid" \
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
-tarfs_notdir_cleanup() {
-	umount "${mnt}"
+tarfs_notdir_dot_cleanup() {
+	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_notdir_dotdot cleanup
+tarfs_notdir_dotdot_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561"
+	atf_set "require.user" "root"
+}
+tarfs_notdir_dotdot_body() {
+	mkdir "${mnt}"
+	echo "hello" >d
+	tar cf tarfs_notdir.tar d
+	rm d
+	mkdir d
+	echo "world" >f
+	tar rf tarfs_notdir.tar d/../f
+	atf_check -s not-exit:0 -e match:"Invalid" \
+	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
+}
+tarfs_notdir_dotdot_cleanup() {
+	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_notdir_file cleanup
+tarfs_notdir_file_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561"
+	atf_set "require.user" "root"
+}
+tarfs_notdir_file_body() {
+	mkdir "${mnt}"
+	echo "hello" >d
+	tar cf tarfs_notdir.tar d
+	rm d
+	mkdir d
+	echo "world" >d/f
+	tar rf tarfs_notdir.tar d/f
+	atf_check -s not-exit:0 -e match:"Invalid" \
+	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
+}
+tarfs_notdir_file_cleanup() {
+	umount "${mnt}" || true
 }
 
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
-	atf_add_test_case tarfs_notdir
+	atf_add_test_case tarfs_notdir_device
+	atf_add_test_case tarfs_notdir_dot
+	atf_add_test_case tarfs_notdir_dotdot
+	atf_add_test_case tarfs_notdir_file
 }
