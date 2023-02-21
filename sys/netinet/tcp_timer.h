@@ -127,11 +127,6 @@
  */
 #define TCP_RTT_INVALIDATE (TCP_MAXRXTSHIFT / 4)
 
-#ifdef	TCPTIMERS
-static const char *tcptimers[] =
-    { "REXMT", "PERSIST", "KEEP", "2MSL", "DELACK" };
-#endif
-
 /*
  * Force a time value to be in a certain range.
  */
