@@ -3150,18 +3150,19 @@ mlx5_enable_roce_if_cb(if_t ifp, void *arg)
 
 static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
 {
+	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
 	int err;
 
 	/* Check if mlx5en net device already exists */
 	VNET_LIST_RLOCK();
+	NET_EPOCH_ENTER(et);
 	VNET_FOREACH(vnet_iter) {
-		IFNET_RLOCK();
 		CURVNET_SET_QUIET(vnet_iter);
 		if_foreach(mlx5_enable_roce_if_cb, dev);
 		CURVNET_RESTORE();
-		IFNET_RUNLOCK();
 	}
+	NET_EPOCH_EXIT(et);
 	VNET_LIST_RUNLOCK();
 
 	dev->roce.nb.notifier_call = mlx5_netdev_event;
