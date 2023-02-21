@@ -149,11 +149,11 @@ physmem_dump_tables(int (*prfunc)(const char *, ...) __printflike(1, 2))
 #ifdef DEBUG
 	prfunc("Avail lists:\n");
 	for (i = 0; phys_avail[i] != 0; ++i) {
-		prfunc("  phys_avail[%d] 0x%08jx\n", i,
+		prfunc("  phys_avail[%zu] 0x%08jx\n", i,
 		    (uintmax_t)phys_avail[i]);
 	}
 	for (i = 0; dump_avail[i] != 0; ++i) {
-		prfunc("  dump_avail[%d] 0x%08jx\n", i,
+		prfunc("  dump_avail[%zu] 0x%08jx\n", i,
 		    (uintmax_t)dump_avail[i]);
 	}
 #endif
