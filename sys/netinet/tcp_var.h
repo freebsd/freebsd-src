@@ -135,6 +135,13 @@ typedef enum {
 	TT_N,
 } tt_which;
 
+typedef enum {
+	TT_PROCESSING = 0,
+	TT_PROCESSED,
+	TT_STARTING,
+	TT_STOPPING,
+} tt_what;
+
 /*
  * Tcp control block, one per tcp connection.
  */
