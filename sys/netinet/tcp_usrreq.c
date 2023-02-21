@@ -131,6 +131,26 @@ static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 
 static int	tcp_pru_options_support(struct tcpcb *tp, int flags);
 
+static void
+tcp_bblog_pru(struct tcpcb *tp, uint32_t pru, int error)
+{
+	struct tcp_log_buffer *lgb;
+
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+		lgb = tcp_log_event_(tp, NULL, NULL, NULL, TCP_LOG_PRU, error,
+		    0, NULL, false, NULL, NULL, 0, NULL);
+	} else {
+		lgb = NULL;
+	}
+	if (lgb != NULL) {
+		if (error >= 0) {
+			lgb->tlb_errno = (uint32_t)error;
+		}
+		lgb->tlb_flex1 = pru;
+	}
+}
+
 /*
  * TCP attaches to socket via pru_attach(), reserving space,
  * and an internet control block.
@@ -163,6 +183,7 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 		goto out;
 	}
 	tp->t_state = TCPS_CLOSED;
+	tcp_bblog_pru(tp, PRU_ATTACH, error);
 	INP_WUNLOCK(inp);
 	TCPSTATES_INC(TCPS_CLOSED);
 out:
@@ -248,6 +269,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = in_pcbbind(inp, sinp, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
+	tcp_bblog_pru(tp, PRU_BIND, error);
 	TCP_PROBE2(debug__user, tp, PRU_BIND);
 	INP_WUNLOCK(inp);
 
@@ -320,6 +342,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 out:
 	if (error != 0)
 		inp->inp_vflag = vflagsav;
+	tcp_bblog_pru(tp, PRU_BIND, error);
 	TCP_PROBE2(debug__user, tp, PRU_BIND);
 	INP_WUNLOCK(inp);
 	return (error);
@@ -372,6 +395,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
 
 out:
+	tcp_bblog_pru(tp, PRU_LISTEN, error);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
 	INP_WUNLOCK(inp);
 	return (error);
@@ -429,6 +453,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		inp->inp_vflag = vflagsav;
 
 out:
+	tcp_bblog_pru(tp, PRU_LISTEN, error);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
 	INP_WUNLOCK(inp);
 	return (error);
@@ -496,6 +521,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 out_in_epoch:
 	NET_EPOCH_EXIT(et);
 out:
+	tcp_bblog_pru(tp, PRU_CONNECT, error);
 	TCP_PROBE2(debug__user, tp, PRU_CONNECT);
 	INP_WUNLOCK(inp);
 	return (error);
@@ -620,6 +646,7 @@ out:
 		inp->inp_inc.inc_flags = incflagsav;
 	}
 
+	tcp_bblog_pru(tp, PRU_CONNECT, error);
 	TCP_PROBE2(debug__user, tp, PRU_CONNECT);
 	INP_WUNLOCK(inp);
 	return (error);
@@ -658,6 +685,7 @@ tcp_usr_disconnect(struct socket *so)
 		goto out;
 	tcp_disconnect(tp);
 out:
+	tcp_bblog_pru(tp, PRU_DISCONNECT, error);
 	TCP_PROBE2(debug__user, tp, PRU_DISCONNECT);
 	INP_WUNLOCK(inp);
 	NET_EPOCH_EXIT(et);
@@ -703,6 +731,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	addr = inp->inp_faddr;
 
 out:
+	tcp_bblog_pru(tp, PRU_ACCEPT, error);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
 	if (error == 0)
@@ -756,6 +785,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	}
 
 out:
+	tcp_bblog_pru(tp, PRU_ACCEPT, error);
 	TCP_PROBE2(debug__user, tp, PRU_ACCEPT);
 	INP_WUNLOCK(inp);
 	NET_EPOCH_EXIT(et);
@@ -793,6 +823,7 @@ tcp_usr_shutdown(struct socket *so)
 	tcp_usrclosed(tp);
 	if (!(inp->inp_flags & INP_DROPPED))
 		error = tcp_output_nodrop(tp);
+	tcp_bblog_pru(tp, PRU_SHUTDOWN, error);
 	TCP_PROBE2(debug__user, tp, PRU_SHUTDOWN);
 	error = tcp_unlock_or_drop(tp, error);
 	NET_EPOCH_EXIT(et);
@@ -837,6 +868,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 #endif
 		outrv = tcp_output_nodrop(tp);
 out:
+	tcp_bblog_pru(tp, PRU_RCVD, error);
 	TCP_PROBE2(debug__user, tp, PRU_RCVD);
 	(void) tcp_unlock_or_drop(tp, outrv);
 	NET_EPOCH_EXIT(et);
@@ -1156,6 +1188,8 @@ out:
 		inp->inp_vflag = vflagsav;
 		inp->inp_inc.inc_flags = incflagsav;
 	}
+	tcp_bblog_pru(tp, (flags & PRUS_OOB) ? PRU_SENDOOB :
+		      ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND), error);
 	TCP_PROBE2(debug__user, tp, (flags & PRUS_OOB) ? PRU_SENDOOB :
 		   ((flags & PRUS_EOF) ? PRU_SEND_EOF : PRU_SEND));
 	error = tcp_unlock_or_drop(tp, error);
@@ -1220,6 +1254,7 @@ tcp_usr_abort(struct socket *so)
 		tp = tcp_drop(tp, ECONNABORTED);
 		if (tp == NULL)
 			goto dropped;
+		tcp_bblog_pru(tp, PRU_ABORT, 0);
 		TCP_PROBE2(debug__user, tp, PRU_ABORT);
 	}
 	if (!(inp->inp_flags & INP_DROPPED)) {
@@ -1258,6 +1293,7 @@ tcp_usr_close(struct socket *so)
 		if (tp->t_state != TCPS_TIME_WAIT) {
 			tp->t_flags |= TF_CLOSED;
 			tcp_disconnect(tp);
+			tcp_bblog_pru(tp, PRU_CLOSE, 0);
 			TCP_PROBE2(debug__user, tp, PRU_CLOSE);
 		}
 	}
@@ -1326,6 +1362,7 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 		tp->t_oobflags ^= (TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 
 out:
+	tcp_bblog_pru(tp, PRU_RCVOOB, error);
 	TCP_PROBE2(debug__user, tp, PRU_RCVOOB);
 	INP_WUNLOCK(inp);
 	return (error);
