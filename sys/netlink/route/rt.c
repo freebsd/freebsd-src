@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
+#include <netinet6/scope6_var.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_route.h>
@@ -123,7 +124,9 @@ rc_get_nhop(const struct rib_cmd_info *rc)
 static void
 dump_rc_nhop_gw(struct nl_writer *nw, const struct nhop_object *nh)
 {
+#ifdef INET6
 	int upper_family;
+#endif
 
 	switch (nhop_get_neigh_family(nh)) {
 	case AF_LINK:
@@ -132,19 +135,27 @@ dump_rc_nhop_gw(struct nl_writer *nw, const struct nhop_object *nh)
 	case AF_INET:
 		nlattr_add(nw, NL_RTA_GATEWAY, 4, &nh->gw4_sa.sin_addr);
 		break;
+#ifdef INET6
 	case AF_INET6:
 		upper_family = nhop_get_upper_family(nh);
 		if (upper_family == AF_INET6) {
-			nlattr_add(nw, NL_RTA_GATEWAY, 16, &nh->gw6_sa.sin6_addr);
+			struct in6_addr gw6 = nh->gw6_sa.sin6_addr;
+			in6_clearscope(&gw6);
+
+			nlattr_add(nw, NL_RTA_GATEWAY, 16, &gw6);
 		} else if (upper_family == AF_INET) {
 			/* IPv4 over IPv6 */
+			struct in6_addr gw6 = nh->gw6_sa.sin6_addr;
+			in6_clearscope(&gw6);
+
 			char buf[20];
 			struct rtvia *via = (struct rtvia *)&buf[0];
 			via->rtvia_family = AF_INET6;
-			memcpy(via->rtvia_addr, &nh->gw6_sa.sin6_addr, 16);
+			memcpy(via->rtvia_addr, &gw6, 16);
 			nlattr_add(nw, NL_RTA_VIA, 17, via);
 		}
 		break;
+#endif
 	}
 }
 
