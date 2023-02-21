@@ -878,7 +878,7 @@ static void
 nfs_vnetinit(const void *unused __unused)
 {
 
-	if (curthread->td_ucred->cr_prison == &prison0)
+	if (IS_DEFAULT_VNET(curvnet))
 		NFSD_VNET(nfsstatsv1_p) = &nfsstatsv1;
 	else
 		NFSD_VNET(nfsstatsv1_p) = malloc(sizeof(struct nfsstatsv1),
