@@ -2047,7 +2047,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				continue;
 			}
 #endif
-			redo_ip4 = !prison_ip_restrict(tpr, PR_INET, &ip4);
+			if (!prison_ip_restrict(tpr, PR_INET, &ip4))
+				redo_ip4 = true;
 		}
 		mtx_unlock(&pr->pr_mtx);
 	}
@@ -2066,7 +2067,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				continue;
 			}
 #endif
-			redo_ip6 = !prison_ip_restrict(tpr, PR_INET6, &ip6);
+			if (!prison_ip_restrict(tpr, PR_INET6, &ip6))
+				redo_ip6 = true;
 		}
 		mtx_unlock(&pr->pr_mtx);
 	}
