@@ -1338,7 +1338,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		f = NULL;
 	} else {
 		soroverflow_locked(so2);
-		error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
+		error = ENOBUFS;
 		if (f->m_next->m_type == MT_CONTROL)
 			unp_scan(f->m_next, unp_freerights);
 	}
