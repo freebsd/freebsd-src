@@ -1097,6 +1097,9 @@ product AMOI H02		0x0802	H02 3G modem
 /* American Power Conversion products */
 product APC UPS			0x0002	Uninterruptible Power Supply
 
+/* American Power Conversion products */
+product APC UPS1000		0x0003	Uninterruptible Power Supply
+
 /* Ambit Microsystems products */
 product AMBIT WLAN		0x0302	WLAN
 product AMBIT NTL_250		0x6098	NTL 250 cable modem
