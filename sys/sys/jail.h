@@ -190,7 +190,8 @@ struct prison {
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
 	int		 pr_devfs_rsnum;		/* (p) devfs ruleset */
 	enum prison_state pr_state;			/* (q) state in life cycle */
-	int		 pr_spare[2];
+	volatile int	 pr_exportcnt;			/* (r) count of mount exports */
+	int		 pr_spare;
 	int		 pr_osreldate;			/* (c) kern.osreldate value */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
@@ -468,6 +469,7 @@ void prison_racct_foreach(void (*callback)(struct racct *racct,
 struct prison_racct *prison_racct_find(const char *name);
 void prison_racct_hold(struct prison_racct *prr);
 void prison_racct_free(struct prison_racct *prr);
+void vfs_exjail_delete(struct prison *);
 
 #endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */

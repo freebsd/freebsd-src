@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/rmlock.h>
 #include <sys/refcount.h>
 #include <sys/signalvar.h>
@@ -296,12 +297,18 @@ vfs_free_addrlist(struct netexport *nep)
  * and the passed in netexport.
  * Struct export_args *argp is the variable used to twiddle options,
  * the structure is described in sys/mount.h
+ * The do_exjail argument should be true if *mp is in the mountlist
+ * and false if not.  It is not in the mountlist for the NFSv4 rootfs
+ * fake mount point just used for exports.
  */
 int
-vfs_export(struct mount *mp, struct export_args *argp)
+vfs_export(struct mount *mp, struct export_args *argp, int do_exjail)
 {
 	struct netexport *nep;
+	struct ucred *cr;
+	struct prison *pr;
 	int error;
+	bool new_nep;
 
 	if ((argp->ex_flags & (MNT_DELEXPORT | MNT_EXPORTED)) == 0)
 		return (EINVAL);
@@ -312,6 +319,7 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		return (EINVAL);
 
 	error = 0;
+	pr = curthread->td_ucred->cr_prison;
 	lockmgr(&mp->mnt_explock, LK_EXCLUSIVE, NULL);
 	nep = mp->mnt_export;
 	if (argp->ex_flags & MNT_DELEXPORT) {
@@ -319,6 +327,21 @@ vfs_export(struct mount *mp, struct export_args *argp)
 			error = ENOENT;
 			goto out;
 		}
+		MNT_ILOCK(mp);
+		if (mp->mnt_exjail != NULL && mp->mnt_exjail->cr_prison != pr &&
+		    pr == &prison0) {
+			MNT_IUNLOCK(mp);
+			/* EXDEV will not get logged by mountd(8). */
+			error = EXDEV;
+			goto out;
+		} else if (mp->mnt_exjail != NULL &&
+		    mp->mnt_exjail->cr_prison != pr) {
+			MNT_IUNLOCK(mp);
+			/* EPERM will get logged by mountd(8). */
+			error = EPERM;
+			goto out;
+		}
+		MNT_IUNLOCK(mp);
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
 			MNT_ILOCK(mp);
@@ -330,18 +353,51 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		free(nep, M_MOUNT);
 		nep = NULL;
 		MNT_ILOCK(mp);
+		cr = mp->mnt_exjail;
+		mp->mnt_exjail = NULL;
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 		MNT_IUNLOCK(mp);
+		if (cr != NULL) {
+			atomic_subtract_int(&pr->pr_exportcnt, 1);
+			crfree(cr);
+		}
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
+		new_nep = false;
+		MNT_ILOCK(mp);
+		if (mp->mnt_exjail == NULL) {
+			MNT_IUNLOCK(mp);
+			if (do_exjail && nep != NULL) {
+				vfs_free_addrlist(nep);
+				memset(nep, 0, sizeof(*nep));
+				new_nep = true;
+			}
+		} else if (mp->mnt_exjail->cr_prison != pr) {
+			MNT_IUNLOCK(mp);
+			error = EPERM;
+			goto out;
+		} else
+			MNT_IUNLOCK(mp);
 		if (nep == NULL) {
-			nep = malloc(sizeof(struct netexport), M_MOUNT, M_WAITOK | M_ZERO);
+			nep = malloc(sizeof(struct netexport), M_MOUNT,
+			    M_WAITOK | M_ZERO);
 			mp->mnt_export = nep;
+			new_nep = true;
 		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
-			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
+			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0) {
+				if (new_nep) {
+					mp->mnt_export = NULL;
+					free(nep, M_MOUNT);
+				}
 				goto out;
+			}
+			new_nep = false;
 			MNT_ILOCK(mp);
+			if (do_exjail && mp->mnt_exjail == NULL) {
+				mp->mnt_exjail = crhold(curthread->td_ucred);
+				atomic_add_int(&pr->pr_exportcnt, 1);
+			}
 			mp->mnt_flag |= MNT_EXPUBLIC;
 			MNT_IUNLOCK(mp);
 		}
@@ -349,9 +405,18 @@ vfs_export(struct mount *mp, struct export_args *argp)
 			argp->ex_numsecflavors = 1;
 			argp->ex_secflavors[0] = AUTH_SYS;
 		}
-		if ((error = vfs_hang_addrlist(mp, nep, argp)))
+		if ((error = vfs_hang_addrlist(mp, nep, argp))) {
+			if (new_nep) {
+				mp->mnt_export = NULL;
+				free(nep, M_MOUNT);
+			}
 			goto out;
+		}
 		MNT_ILOCK(mp);
+		if (do_exjail && mp->mnt_exjail == NULL) {
+			mp->mnt_exjail = crhold(curthread->td_ucred);
+			atomic_add_int(&pr->pr_exportcnt, 1);
+		}
 		mp->mnt_flag |= MNT_EXPORTED;
 		MNT_IUNLOCK(mp);
 	}
@@ -369,6 +434,97 @@ out:
 	vfs_deleteopt(mp->mnt_optnew, "export");
 	vfs_deleteopt(mp->mnt_opt, "export");
 	return (error);
+}
+
+/*
+ * Get rid of credential references for this prison.
+ */
+void
+vfs_exjail_delete(struct prison *pr)
+{
+	struct mount *mp;
+	struct ucred *cr;
+	int error, i;
+
+	/*
+	 * Since this function is called from prison_cleanup() after
+	 * all processes in the prison have exited, the value of
+	 * pr_exportcnt can no longer increase.  It is possible for
+	 * a dismount of a file system exported within this prison
+	 * to be in progress.  In this case, the file system is no
+	 * longer in the mountlist and the mnt_exjail will be free'd
+	 * by vfs_mount_destroy() at some time.  As such, pr_exportcnt
+	 * and, therefore "i", is the upper bound on the number of
+	 * mnt_exjail entries to be found by this function.
+	 */
+	i = atomic_load_int(&pr->pr_exportcnt);
+	KASSERT(i >= 0, ("vfs_exjail_delete: pr_exportcnt negative"));
+	if (i == 0)
+		return;
+	mtx_lock(&mountlist_mtx);
+tryagain:
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		MNT_ILOCK(mp);
+		if (mp->mnt_exjail != NULL &&
+		    mp->mnt_exjail->cr_prison == pr) {
+			MNT_IUNLOCK(mp);
+			error = vfs_busy(mp, MBF_MNTLSTLOCK | MBF_NOWAIT);
+			if (error != 0) {
+				/*
+				 * If the vfs_busy() fails, we still want to
+				 * get rid of mnt_exjail for two reasons:
+				 * - a credential reference will result in
+				 *   a prison not being removed
+				 * - setting mnt_exjail NULL indicates that
+				 *   the exports are no longer valid
+				 * The now invalid exports will be deleted
+				 * when the file system is dismounted or
+				 * the file system is re-exported by mountd.
+				 */
+				cr = NULL;
+				MNT_ILOCK(mp);
+				if (mp->mnt_exjail != NULL &&
+				    mp->mnt_exjail->cr_prison == pr) {
+					cr = mp->mnt_exjail;
+					mp->mnt_exjail = NULL;
+				}
+				MNT_IUNLOCK(mp);
+				if (cr != NULL) {
+					crfree(cr);
+					i--;
+				}
+				if (i == 0)
+					break;
+				continue;
+			}
+			cr = NULL;
+			lockmgr(&mp->mnt_explock, LK_EXCLUSIVE, NULL);
+			MNT_ILOCK(mp);
+			if (mp->mnt_exjail != NULL &&
+			    mp->mnt_exjail->cr_prison == pr) {
+				cr = mp->mnt_exjail;
+				mp->mnt_exjail = NULL;
+				mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
+				MNT_IUNLOCK(mp);
+				vfs_free_addrlist(mp->mnt_export);
+				free(mp->mnt_export, M_MOUNT);
+				mp->mnt_export = NULL;
+			} else
+				MNT_IUNLOCK(mp);
+			lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+			if (cr != NULL) {
+				crfree(cr);
+				i--;
+			}
+			mtx_lock(&mountlist_mtx);
+			vfs_unbusy(mp);
+			if (i == 0)
+				break;
+			goto tryagain;
+		}
+		MNT_IUNLOCK(mp);
+	}
+	mtx_unlock(&mountlist_mtx);
 }
 
 /*

@@ -222,7 +222,7 @@ struct mount {
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
-	u_int		mnt_pad0;		/* was mnt_maxsymlinklen */
+	struct ucred	*mnt_exjail;		/* (i) jail which did exports */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	struct ucred	*mnt_cred;		/* credentials of mounter */
 	void *		mnt_data;		/* private data */
@@ -986,7 +986,7 @@ int	vfs_setpublicfs			    /* set publicly exported fs */
 void	vfs_periodic(struct mount *, int);
 int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
-	    (struct mount *, struct export_args *);
+	    (struct mount *, struct export_args *, int);
 void	vfs_free_addrlist(struct netexport *);
 void	vfs_allocate_syncvnode(struct mount *);
 void	vfs_deallocate_syncvnode(struct mount *);
