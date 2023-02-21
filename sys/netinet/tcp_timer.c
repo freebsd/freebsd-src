@@ -542,7 +542,6 @@ tcp_timer_rexmt(struct tcpcb *tp)
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	CURVNET_SET(inp->inp_vnet);
 	tcp_free_sackholes(tp);
-	TCP_LOG_EVENT(tp, NULL, NULL, NULL, TCP_LOG_RTO, 0, 0, NULL, false);
 	if (tp->t_fb->tfb_tcp_rexmit_tmr) {
 		/* The stack has a timer action too. */
 		(*tp->t_fb->tfb_tcp_rexmit_tmr)(tp);
@@ -790,6 +789,35 @@ tcp_timer_rexmt(struct tcpcb *tp)
 	return (rv);
 }
 
+static void
+tcp_bblog_timer(struct tcpcb *tp, tt_which which, tt_what what, uint32_t ticks)
+{
+	struct tcp_log_buffer *lgb;
+	uint64_t ms;
+
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	if (tp->t_logstate != TCP_LOG_STATE_OFF)
+		lgb = tcp_log_event_(tp, NULL, NULL, NULL, TCP_LOG_RTO, 0, 0,
+		    NULL, false, NULL, NULL, 0, NULL);
+	else
+		lgb = NULL;
+	if (lgb != NULL) {
+		lgb->tlb_flex1 = (what << 8) | which;
+		if (what == TT_STARTING) {
+			/* Convert ticks to ms and store it in tlb_flex2. */
+			if (hz == 1000)
+				lgb->tlb_flex2 = ticks;
+			else {
+				ms = (((uint64_t)ticks * 1000) + (hz - 1)) / hz;
+				if (ms > UINT32_MAX)
+					lgb->tlb_flex2 = UINT32_MAX;
+				else
+					lgb->tlb_flex2 = (uint32_t)ms;
+			}
+		}
+	}
+}
+
 static inline tt_which
 tcp_timer_next(struct tcpcb *tp, sbintime_t *precision)
 {
@@ -816,6 +844,7 @@ tcp_timer_enter(void *xtp)
 	struct inpcb *inp = tptoinpcb(tp);
 	sbintime_t precision;
 	tt_which which;
+	bool tp_valid;
 
 	INP_WLOCK_ASSERT(inp);
 	MPASS((curthread->td_pflags & TDP_INTCPCALLOUT) == 0);
@@ -827,7 +856,10 @@ tcp_timer_enter(void *xtp)
 	tp->t_timers[which] = SBT_MAX;
 	tp->t_precisions[which] = 0;
 
-	if (tcp_timersw[which](tp)) {
+	tcp_bblog_timer(tp, which, TT_PROCESSING, 0);
+	tp_valid = tcp_timersw[which](tp);
+	if (tp_valid) {
+		tcp_bblog_timer(tp, which, TT_PROCESSED, 0);
 		if ((which = tcp_timer_next(tp, &precision)) != TT_N) {
 			callout_reset_sbt_on(&tp->t_callout,
 			    tp->t_timers[which], precision, tcp_timer_enter,
@@ -847,6 +879,7 @@ tcp_timer_activate(struct tcpcb *tp, tt_which which, u_int delta)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	sbintime_t precision;
+	tt_what what;
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
@@ -855,11 +888,15 @@ tcp_timer_activate(struct tcpcb *tp, tt_which which, u_int delta)
 
 	INP_WLOCK_ASSERT(inp);
 
-	if (delta > 0)
+	if (delta > 0) {
+		what = TT_STARTING;
 		callout_when(tick_sbt * delta, 0, C_HARDCLOCK,
 		    &tp->t_timers[which], &tp->t_precisions[which]);
-	else
+	} else {
+		what = TT_STOPPING;
 		tp->t_timers[which] = SBT_MAX;
+	}
+	tcp_bblog_timer(tp, which, what, delta);
 
 	if ((which = tcp_timer_next(tp, &precision)) != TT_N)
 		callout_reset_sbt_on(&tp->t_callout, tp->t_timers[which],
