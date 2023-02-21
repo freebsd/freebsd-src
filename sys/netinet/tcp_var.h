@@ -127,11 +127,11 @@ struct sackhint {
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
 typedef enum {
-	TT_DELACK = 0,
-	TT_REXMT,
+	TT_REXMT = 0,
 	TT_PERSIST,
 	TT_KEEP,
 	TT_2MSL,
+	TT_DELACK,
 	TT_N,
 } tt_which;
 
