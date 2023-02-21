@@ -86,6 +86,8 @@ extern volatile bool sdt_probes_enabled;
 
 #ifndef KDTRACE_HOOKS
 
+#define __sdt_used	__unused
+
 #define SDT_PROVIDER_DEFINE(prov)
 #define SDT_PROVIDER_DECLARE(prov)
 #define SDT_PROBE_DEFINE(prov, mod, func, name)
@@ -140,6 +142,8 @@ extern volatile bool sdt_probes_enabled;
     type4, arg4)
 
 #else
+
+#define __sdt_used
 
 SET_DECLARE(sdt_providers_set, struct sdt_provider);
 SET_DECLARE(sdt_probes_set, struct sdt_probe);
