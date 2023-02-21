@@ -11,6 +11,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fusefs
 # out, so we get more granular reporting.
 GTESTS+=	access
 GTESTS+=	allow_other
+GTESTS+=	bad_server
 GTESTS+=	bmap
 GTESTS+=	cache
 GTESTS+=	copy_file_range
