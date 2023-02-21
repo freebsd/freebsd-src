@@ -1104,9 +1104,6 @@ product AMBIT NTL_250		0x6098	NTL 250 cable modem
 /* Apacer products */
 product APACER HT202		0xb113	USB 2.0 Flash Drive
 
-/* American Power Conversion products */
-product APC UPS			0x0002	Uninterruptible Power Supply
-
 /* Amigo Technology products */
 product AMIGO RT2870_1		0x9031	RT2870
 product AMIGO RT2870_2		0x9041	RT2870
@@ -1135,9 +1132,6 @@ product ANYDATA ADU_500A	0x6502	CDMA 2000 EV-DO USB Modem
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	Ethernet
-
-/* American Power Conversion products */
-product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
 product APPLE DUMMY		0x0000	Dummy product
