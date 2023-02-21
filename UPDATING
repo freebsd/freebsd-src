@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230221:
+	Introduce new kernel options KBD_DELAY1 and KBD_DELAY2. See atkbdc(4)
+	for details.
+
 20230206:
 	sshd now defaults to having X11Forwarding disabled, following upstream.
 	Administrators who wish to enable X11Forwarding should add
