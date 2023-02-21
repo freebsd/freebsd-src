@@ -240,7 +240,8 @@ enum tcp_log_events {
 	TCP_RACK_LOG_COLLAPSE,	/* Window collapse by peer 67 */
 	TCP_RACK_TP_TRIGGERED,	/* A rack tracepoint is triggered 68 */
 	TCP_HYBRID_PACING_LOG,	/* Hybrid pacing log 69 */
-	TCP_LOG_END		/* End (keep at end)                70 */
+	TCP_LOG_PRU,		/* TCP protocol user request        70 */
+	TCP_LOG_END		/* End (keep at end)                71 */
 };
 
 enum tcp_log_states {
