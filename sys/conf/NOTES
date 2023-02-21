@@ -1493,7 +1493,11 @@ options 	PCI_IOV			# PCI SR-IOV support
 
 # These options are valid for other keyboard drivers as well.
 options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+
+# Define keyboard latency (try 200/15 for a snappy interactive console)
+options		KBD_DELAY1=500		# define initial key delay
+options		KBD_DELAY2=100		# define key delay 
 
 device		kbdmux			# keyboard multiplexer
 options		KBDMUX_DFLT_KEYMAP	# specify the built-in keymap
