@@ -56,7 +56,7 @@
 
 /*
  * The talk protocol embeds a 4.3BSD sockaddr.  Define our own version
- * rather then relying on namespace polution in kernel headers.
+ * rather then relying on namespace pollution in kernel headers.
  */
 struct tsockaddr {
 	unsigned short sa_family;
