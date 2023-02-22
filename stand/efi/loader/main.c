@@ -1187,7 +1187,8 @@ main(int argc, CHAR16 *argv[])
 #if !defined(__arm__)
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
-		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
+		if (!memcmp(guid, &smbios, sizeof(EFI_GUID)) ||
+		    !memcmp(guid, &smbios3, sizeof(EFI_GUID))) {
 			char buf[40];
 
 			snprintf(buf, sizeof(buf), "%p",
