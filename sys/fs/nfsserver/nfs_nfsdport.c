@@ -4018,7 +4018,7 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		if (!error && (NFSFPFLAG(fp) & (FREAD | FWRITE)) != (FREAD | FWRITE))
 			error = EBADF;
 		if (!error && NFSD_VNET(nfsrv_numnfsd) != 0)
-			error = EPERM;
+			error = ENXIO;
 		if (!error) {
 			NFSD_VNET(nfsrv_stablefirst).nsf_fp = fp;
 			nfsrv_setupstable(p);
