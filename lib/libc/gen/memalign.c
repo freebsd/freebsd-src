@@ -35,5 +35,5 @@ __FBSDID("$FreeBSD$");
 void *
 memalign(size_t align, size_t size)
 {
-	return (aligned_alloc(align, roundup(size, align)));
+	return (aligned_alloc(align, size ? roundup(size, align) : size));
 }
