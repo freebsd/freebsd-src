@@ -94,6 +94,7 @@ enum mlx5_flow_act_actions {
 	MLX5_FLOW_ACT_ACTIONS_FLOW_TAG = 1 << 0,
 	MLX5_FLOW_ACT_ACTIONS_MODIFY_HDR = 1 << 1,
 	MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT = 1 << 2,
+	MLX5_FLOW_ACT_ACTIONS_COUNT = 1 << 3,
 };
 
 enum MLX5_FLOW_ACT_FLAGS {
@@ -106,6 +107,7 @@ struct mlx5_flow_act {
 	u32 flow_tag;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
+	struct mlx5_fc *counter;
 };
 
 #define FT_NAME_STR_SZ 20
