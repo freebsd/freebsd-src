@@ -144,7 +144,7 @@ set_config_value_node(nvlist_t *parent, const char *name, const char *value)
 		nvlist_free_string(parent, name);
 	else if (nvlist_exists(parent, name))
 		errx(4,
-		    "Attemping to add value %s to existing node %s of list %p",
+		    "Attempting to add value %s to existing node %s of list %p",
 		    value, name, parent);
 	nvlist_add_string(parent, name, value);
 }
