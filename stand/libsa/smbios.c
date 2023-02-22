@@ -32,6 +32,11 @@ __FBSDID("$FreeBSD$");
 
 #define PTOV(x)		ptov(x)
 
+/* Only enable 64-bit entry point if it makes sense */
+#if __SIZEOF_POINTER__ > 4
+#define	HAS_SMBV3	1
+#endif
+
 /*
  * Detect SMBIOS and export information about the SMBIOS into the
  * environment.
@@ -53,11 +58,13 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS_LENGTH		0x10000
 #define	SMBIOS_STEP		0x10
 #define	SMBIOS_SIG		"_SM_"
+#define	SMBIOS3_SIG		"_SM3_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
 
 #define	SMBIOS_GET8(base, off)	(*(uint8_t *)((base) + (off)))
 #define	SMBIOS_GET16(base, off)	(*(uint16_t *)((base) + (off)))
 #define	SMBIOS_GET32(base, off)	(*(uint32_t *)((base) + (off)))
+#define	SMBIOS_GET64(base, off)	(*(uint64_t *)((base) + (off)))
 
 #define	SMBIOS_GETLEN(base)	SMBIOS_GET8(base, 0x01)
 #define	SMBIOS_GETSTR(base)	((base) + SMBIOS_GETLEN(base))
@@ -80,6 +87,9 @@ struct smbios_attr {
 };
 
 static struct smbios_attr smbios;
+#ifdef HAS_SMBV3
+static int isv3;
+#endif
 
 static uint8_t
 smbios_checksum(const caddr_t addr, const uint8_t len)
@@ -98,12 +108,23 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 	caddr_t		cp;
 
 	/* Search on 16-byte boundaries. */
-	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP)
-		if (strncmp(cp, SMBIOS_SIG, 4) == 0 &&
+	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP) {
+		/* v2.1, 32-bit Entry point */
+		if (strncmp(cp, SMBIOS_SIG, sizeof(SMBIOS_SIG) - 1) == 0 &&
 		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x05)) == 0 &&
 		    strncmp(cp + 0x10, SMBIOS_DMI_SIG, 5) == 0 &&
 		    smbios_checksum(cp + 0x10, 0x0f) == 0)
 			return (cp);
+
+#ifdef HAS_SMBV3
+		/* v3.0, 64-bit Entry point */
+		if (strncmp(cp, SMBIOS3_SIG, sizeof(SMBIOS3_SIG) - 1) == 0 &&
+		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x06)) == 0) {
+			isv3 = 1;
+			return (cp);
+		}
+#endif
+	}
 	return (NULL);
 }
 
@@ -450,6 +471,8 @@ smbios_probe(const caddr_t addr)
 {
 	caddr_t		saddr, info;
 	uintptr_t	paddr;
+	int		maj_off;
+	int		min_off;
 
 	if (smbios.probed)
 		return;
@@ -461,10 +484,25 @@ smbios_probe(const caddr_t addr)
 	if (saddr == NULL)
 		return;
 
-	smbios.length = SMBIOS_GET16(saddr, 0x16);	/* Structure Table Length */
-	paddr = SMBIOS_GET32(saddr, 0x18);		/* Structure Table Address */
-	smbios.count = SMBIOS_GET16(saddr, 0x1c);	/* No of SMBIOS Structures */
-	smbios.ver = SMBIOS_GET8(saddr, 0x1e);		/* SMBIOS BCD Revision */
+#ifdef HAS_SMBV3
+	if (isv3) {
+		smbios.length = SMBIOS_GET16(saddr, 0x0c);	/* Structure Table Length */
+		paddr = SMBIOS_GET64(saddr, 0x10);		/* Structure Table Address */
+		smbios.count = -1;				/* not present in V3 */
+		smbios.ver = 0;					/* not present in V3 */
+		maj_off = 0x07;
+		min_off = 0x08;
+	} else
+#endif
+	{
+		smbios.length = SMBIOS_GET16(saddr, 0x16);	/* Structure Table Length */
+		paddr = SMBIOS_GET32(saddr, 0x18);		/* Structure Table Address */
+		smbios.count = SMBIOS_GET16(saddr, 0x1c);	/* No of SMBIOS Structures */
+		smbios.ver = SMBIOS_GET8(saddr, 0x1e);		/* SMBIOS BCD Revision */
+		maj_off = 0x06;
+		min_off = 0x07;
+	}
+
 
 	if (smbios.ver != 0) {
 		smbios.major = smbios.ver >> 4;
@@ -473,8 +511,8 @@ smbios_probe(const caddr_t addr)
 			smbios.ver = 0;
 	}
 	if (smbios.ver == 0) {
-		smbios.major = SMBIOS_GET8(saddr, 0x06);/* SMBIOS Major Version */
-		smbios.minor = SMBIOS_GET8(saddr, 0x07);/* SMBIOS Minor Version */
+		smbios.major = SMBIOS_GET8(saddr, maj_off);/* SMBIOS Major Version */
+		smbios.minor = SMBIOS_GET8(saddr, min_off);/* SMBIOS Minor Version */
 	}
 	smbios.ver = (smbios.major << 8) | smbios.minor;
 	smbios.addr = PTOV(paddr);
