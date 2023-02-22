@@ -530,6 +530,7 @@ TEST_F(Setattr, truncate_discards_cached_data) {
 		auto osize = std::min(
 			static_cast<uint64_t>(cur_size) - in.body.read.offset,
 			static_cast<uint64_t>(in.body.read.size));
+		assert(osize <= sizeof(out.body.bytes));
 		out.header.len = sizeof(struct fuse_out_header) + osize;
 		if (should_have_data)
 			memset(out.body.bytes, 'X', osize);
