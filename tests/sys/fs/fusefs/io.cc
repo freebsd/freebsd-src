@@ -141,6 +141,8 @@ void SetUp()
 		ssize_t isize = in.body.write.size;
 		off_t iofs = in.body.write.offset;
 
+		assert((size_t)isize <= sizeof(in.body.bytes) -
+			sizeof(struct fuse_write_in));
 		ASSERT_EQ(isize, pwrite(m_backing_fd, buf, isize, iofs))
 			<< strerror(errno);
 		SET_OUT_HEADER_LEN(out, write);
@@ -158,6 +160,7 @@ void SetUp()
 		void *buf = out.body.bytes;
 		ssize_t osize;
 
+		assert((size_t)isize <= sizeof(out.body.bytes));
 		osize = pread(m_backing_fd, buf, isize, iofs);
 		ASSERT_LE(0, osize) << strerror(errno);
 		out.header.len = sizeof(struct fuse_out_header) + osize;
