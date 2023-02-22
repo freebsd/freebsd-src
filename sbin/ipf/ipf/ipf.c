@@ -367,7 +367,7 @@ flushfilter(char *arg, int *filter)
 		if (!(opts & OPT_DONOTHING)) {
 			if (use_inet6) {
 				fprintf(stderr,
-					"IPv6 rules are no longer seperate\n");
+					"IPv6 rules are no longer separate\n");
 			} else if (filter != NULL) {
 				ipfobj_t obj;
 
