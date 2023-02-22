@@ -85,7 +85,7 @@ void print_intel_add_smart(const struct nvme_controller_data *cdata __unused, vo
  * 128-bit integer augments to standard values. On i386 this
  * doesn't exist, so we use 64-bit values. So, on 32-bit i386,
  * you'll get truncated values until someone implement 128bit
- * ints in sofware.
+ * ints in software.
  */
 #define UINT128_DIG	39
 #ifdef __i386__
