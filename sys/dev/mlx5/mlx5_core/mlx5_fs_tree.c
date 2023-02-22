@@ -1788,6 +1788,9 @@ static bool check_conflicting_actions(const struct mlx5_flow_act *act1,
 	if (action1 & MLX5_FLOW_ACT_ACTIONS_PACKET_REFORMAT)
 		return true;
 
+	if (action1 & MLX5_FLOW_ACT_ACTIONS_COUNT)
+		return true;
+
 	return false;
 }
 

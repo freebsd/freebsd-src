@@ -182,6 +182,7 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	int modify_mask = 0;
 	int atomic_mod_cap;
 	u32 prm_action = 0;
+	int count_list = 0;
 
 	if (sw_action != MLX5_FLOW_RULE_FWD_ACTION_DEST)
 		dest_size = 0;
@@ -195,8 +196,13 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	if (sw_action & MLX5_FLOW_RULE_FWD_ACTION_DEST)
 		prm_action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_COUNT) {
+		prm_action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
+		count_list = 1;
+	}
+
 	inlen = MLX5_ST_SZ_BYTES(set_fte_in) +
-		dest_size * MLX5_ST_SZ_BYTES(dest_format_struct);
+		(dest_size + count_list) * MLX5_ST_SZ_BYTES(dest_format_struct);
 
 	if (!dev)
 		return -EINVAL;
@@ -248,8 +254,10 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
 	memcpy(in_match_value, match_val, MLX5_ST_SZ_BYTES(fte_match_param));
+
+	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
+
 	if (dest_size) {
-		in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
 		list_for_each_entry(dst, dests, base.list) {
 			unsigned int id;
 
@@ -263,6 +271,13 @@ int mlx5_cmd_fs_set_fte(struct mlx5_core_dev *dev,
 			MLX5_SET(dest_format_struct, in_dests, destination_id, id);
 			in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
 		}
+	}
+
+	if (flow_act->actions & MLX5_FLOW_ACT_ACTIONS_COUNT) {
+		MLX5_SET(dest_format_struct, in_dests, destination_id,
+			 mlx5_fc_id(flow_act->counter));
+		in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
+		MLX5_SET(flow_context, in_flow_context, flow_counter_list_size, 1);
 	}
 
 	MLX5_SET(flow_context, in_flow_context, action, prm_action);
