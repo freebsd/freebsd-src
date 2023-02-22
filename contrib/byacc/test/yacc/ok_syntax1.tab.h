@@ -20,7 +20,7 @@
 #endif
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
-typedef union YYSTYPE
+typedef union
 {
     char *	cval;
     int		ival;

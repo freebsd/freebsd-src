@@ -137,7 +137,7 @@ static void YYERROR_DECL();
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #line 43 "ok_syntax1.y"
-typedef union YYSTYPE
+typedef union
 {
     char *	cval;
     int		ival;
