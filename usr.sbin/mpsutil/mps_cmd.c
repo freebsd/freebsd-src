@@ -721,25 +721,39 @@ mps_pass_command(int fd, void *req, uint32_t req_len, void *reply,
 	return (0);
 }
 
+/* Return the length in bytes of the device's MPI2_IOC_FACTS reply */
+static size_t
+mps_get_ioc_factslen(int fd)
+{
+	MPI2_IOC_FACTS_REQUEST req;
+	const size_t factslen = 4;
+	char factsbuf[4] = {0};
+	MPI2_IOC_FACTS_REPLY *facts = (MPI2_IOC_FACTS_REPLY*)factsbuf;
+	int error;
+
+	bzero(&req, sizeof(req));
+	req.Function = MPI2_FUNCTION_IOC_FACTS;
+	error = mps_pass_command(fd, &req, sizeof(MPI2_IOC_FACTS_REQUEST),
+	    factsbuf, factslen, NULL, 0, NULL, 0, 10);
+
+	if (error)
+		return (0);
+
+	/* The card's response is measured in dwords */
+	return (facts->MsgLength * 4);
+}
+
 MPI2_IOC_FACTS_REPLY *
 mps_get_iocfacts(int fd)
 {
 	MPI2_IOC_FACTS_REPLY *facts;
 	MPI2_IOC_FACTS_REQUEST req;
-	char msgver[8], sysctlname[128];
-	size_t len, factslen;
+	size_t factslen;
 	int error;
 
-	snprintf(sysctlname, sizeof(sysctlname), "dev.%s.%d.msg_version",
-	    is_mps ? "mps" : "mpr", mps_unit);
-
-	factslen = sizeof(MPI2_IOC_FACTS_REPLY);
-	len = sizeof(msgver);
-	error = sysctlbyname(sysctlname, msgver, &len, NULL, 0);
-	if (error == 0) {
-		if (strncmp(msgver, "2.6", sizeof(msgver)) == 0)
-			factslen += 4;
-	}
+	factslen = mps_get_ioc_factslen(fd);
+	if (factslen == 0)
+		return (NULL);
 
 	facts = malloc(factslen);
 	if (facts == NULL) {
@@ -747,7 +761,7 @@ mps_get_iocfacts(int fd)
 		return (NULL);
 	}
 
-	bzero(&req, factslen);
+	bzero(&req, sizeof(req));
 	req.Function = MPI2_FUNCTION_IOC_FACTS;
 
 #if 1

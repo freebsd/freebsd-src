@@ -1871,7 +1871,7 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 
 	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "msg_version", CTLFLAG_RD, sc->msg_version,
-	    strlen(sc->msg_version), "message interface version");
+	    strlen(sc->msg_version), "message interface version (deprecated)");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "io_cmds_active", CTLFLAG_RD,
