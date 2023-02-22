@@ -558,7 +558,7 @@ ipf_newisn(fin)
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_nextipid                                                */
-/* Returns:     int - 0 == success, -1 == error (packet should be droppped) */
+/* Returns:     int - 0 == success, -1 == error (packet should be dropped)  */
 /* Parameters:  fin(I) - pointer to packet information                      */
 /*                                                                          */
 /* Returns the next IPv4 ID to use for this packet.                         */
