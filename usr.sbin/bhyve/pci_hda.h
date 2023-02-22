@@ -87,6 +87,6 @@ struct hda_ops {
 		uint8_t dir, uint8_t *buf, size_t count);
 };
 
-#define HDA_EMUL_SET(x)		DATA_SET(hda_codec_class_set, x);
+#define HDA_EMUL_SET(x)		DATA_SET(hda_codec_class_set, x)
 
 #endif	/* _HDA_EMUL_H_ */
