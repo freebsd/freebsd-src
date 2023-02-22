@@ -852,7 +852,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 			sz = rpl->MsgLength * 4;
 
-			if (sz > data->ReplySize) {
+			if (bootverbose && sz > data->ReplySize) {
 				mpr_printf(sc, "%s: user reply buffer (%d) "
 				    "smaller than returned buffer (%d)\n",
 				    __func__, data->ReplySize, sz);
@@ -1077,7 +1077,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 		sz = rpl->MsgLength * 4;
 
-		if (sz > data->ReplySize) {
+		if (bootverbose && sz > data->ReplySize) {
 			mpr_printf(sc, "%s: user reply buffer (%d) smaller "
 			    "than returned buffer (%d)\n", __func__,
 			    data->ReplySize, sz);
