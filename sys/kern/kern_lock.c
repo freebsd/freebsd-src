@@ -595,7 +595,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 #endif
 	struct lock_delay_arg lda;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -781,7 +781,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 #endif
 	struct lock_delay_arg lda;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -977,7 +977,7 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int error = 0;
 	int op;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -1038,7 +1038,7 @@ lockmgr_lock_flags(struct lock *lk, u_int flags, struct lock_object *ilk,
 	u_int op;
 	bool locked;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	op = flags & LK_TYPE_MASK;
@@ -1101,7 +1101,7 @@ lockmgr_sunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 {
 	int wakeup_swapper = 0;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		goto out;
 
 	wakeup_swapper = wakeupshlk(lk, file, line);
@@ -1120,7 +1120,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	u_int realexslp;
 	int queue;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		goto out;
 
 	tid = (uintptr_t)curthread;
@@ -1312,7 +1312,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	int contested = 0;
 #endif
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	error = 0;
@@ -1721,7 +1721,7 @@ _lockmgr_assert(const struct lock *lk, int what, const char *file, int line)
 {
 	int slocked = 0;
 
-	if (KERNEL_PANICKED())
+	if (SCHEDULER_STOPPED())
 		return;
 	switch (what) {
 	case KA_SLOCKED:
