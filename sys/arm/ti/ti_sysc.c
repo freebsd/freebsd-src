@@ -340,7 +340,7 @@ parse_regfields(struct ti_sysc_softc *sc) {
 			sc->offset_reg[prop_idx] = sc->reg[prop_idx].address -
 			    sc->sc.ranges[REG_REV].host;
 
-		DPRINTF(sc->dev, "reg[%s] adress %#jx size %#jx\n",
+		DPRINTF(sc->dev, "reg[%s] address %#jx size %#jx\n",
 			reg_names[idx],
 			sc->reg[prop_idx].address,
 			sc->reg[prop_idx].size);
