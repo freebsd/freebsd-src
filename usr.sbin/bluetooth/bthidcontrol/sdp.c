@@ -52,7 +52,7 @@ static int32_t hid_sdp_parse_hid_descriptor		(sdp_attr_p a);
 static int32_t hid_sdp_parse_boolean			(sdp_attr_p a);
 
 /*
- * Hard coded attibute IDs taken from the
+ * Hard coded attribute IDs taken from the
  * DEVICE IDENTIFICATION PROFILE SPECIFICATION V13 p.12
  */
 
