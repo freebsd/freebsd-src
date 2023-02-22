@@ -97,6 +97,8 @@ void maybe_expect_write(uint64_t ino, uint64_t offset, uint64_t size,
 			const char *buf = (const char*)in.body.bytes +
 				sizeof(struct fuse_write_in);
 
+			assert(size <= sizeof(in.body.bytes) -
+				sizeof(struct fuse_write_in));
 			return (in.header.opcode == FUSE_WRITE &&
 				in.header.nodeid == ino &&
 				in.body.write.offset == offset  &&

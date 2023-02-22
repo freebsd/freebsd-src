@@ -206,7 +206,7 @@ union fuse_payloads_out {
 	 * The protocol places no limits on the size of bytes.  Choose
 	 * a size big enough for anything we'll test.
 	 */
-	uint8_t			bytes[0x20000];
+	uint8_t			bytes[0x40000];
 	fuse_entry_out		entry;
 	fuse_entry_out_7_8	entry_7_8;
 	fuse_lk_out		getlk;
