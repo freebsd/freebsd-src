@@ -1199,7 +1199,6 @@ void	 tcpip_fillheaders(struct inpcb *, uint16_t, void *, void *);
 void	 tcp_timer_activate(struct tcpcb *, tt_which, u_int);
 bool	 tcp_timer_active(struct tcpcb *, tt_which);
 void	 tcp_timer_stop(struct tcpcb *);
-void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);
 int	 inp_to_cpuid(struct inpcb *inp);
 /*
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
