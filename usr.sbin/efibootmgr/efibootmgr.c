@@ -290,6 +290,7 @@ parse_args(int argc, char *argv[])
 		case 'u':
 			opts.find_dev = true;
 			opts.dev = strdup(optarg);
+			break;
 		case 'v':
 			opts.verbose = true;
 			break;
