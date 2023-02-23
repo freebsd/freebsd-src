@@ -3,7 +3,7 @@
 #
 
 # SoC support
-options		SOC_NXP_LS
+options 	SOC_NXP_LS
 
 # I2C
 device		pca954x			# NPX I2C bus multiplexer / switches
