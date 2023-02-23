@@ -397,7 +397,7 @@ sortifaddrs(struct ifaddrs *list,
 	return (result);
 }
 
-void printifnamemaybe()
+void printifnamemaybe(void)
 {
 	if (printifname)
 		printf("%s\n", name);
