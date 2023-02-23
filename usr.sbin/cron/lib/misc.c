@@ -173,7 +173,7 @@ set_debug_flags(flags)
 
 
 void
-set_cron_uid()
+set_cron_uid(void)
 {
 #if defined(BSD) || defined(POSIX)
 	if (seteuid(ROOT_UID) < OK)
@@ -186,7 +186,7 @@ set_cron_uid()
 
 
 void
-set_cron_cwd()
+set_cron_cwd(void)
 {
 	struct stat	sb;
 
@@ -471,7 +471,7 @@ log_it(char *username, int xpid, char *event, const char *detail)
 
 
 void
-log_close() {
+log_close(void) {
 	if (LogFD != ERR) {
 		close(LogFD);
 		LogFD = ERR;
@@ -588,9 +588,9 @@ arpadate(clock)
 
 #ifdef HAVE_SAVED_UIDS
 static int save_euid;
-int swap_uids() { save_euid = geteuid(); return seteuid(getuid()); }
-int swap_uids_back() { return seteuid(save_euid); }
+int swap_uids(void) { save_euid = geteuid(); return seteuid(getuid()); }
+int swap_uids_back(void) { return seteuid(save_euid); }
 #else /*HAVE_SAVED_UIDS*/
-int swap_uids() { return setreuid(geteuid(), getuid()); }
-int swap_uids_back() { return swap_uids(); }
+int swap_uids(void) { return setreuid(geteuid(), getuid()); }
+int swap_uids_back(void) { return swap_uids(); }
 #endif /*HAVE_SAVED_UIDS*/
