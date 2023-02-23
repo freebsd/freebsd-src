@@ -242,6 +242,84 @@ bsd_to_linux_sigset(sigset_t *bss, l_sigset_t *lss)
 }
 
 /*
+ * Translate a FreeBSD interface name to a Linux interface name
+ * by interface name, and return the number of bytes copied to lxname.
+ */
+int
+ifname_bsd_to_linux_name(const char *bsdname, char *lxname, size_t len)
+{
+	struct epoch_tracker et;
+	struct ifnet *ifp;
+	int ret;
+
+	ret = 0;
+	CURVNET_SET(TD_TO_VNET(curthread));
+	NET_EPOCH_ENTER(et);
+	ifp = ifunit(bsdname);
+	if (ifp != NULL)
+		ret = ifname_bsd_to_linux_ifp(ifp, lxname, len);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
+	return (ret);
+}
+
+/*
+ * Translate a FreeBSD interface name to a Linux interface name
+ * by interface index, and return the number of bytes copied to lxname.
+ */
+int
+ifname_bsd_to_linux_idx(u_int idx, char *lxname, size_t len)
+{
+	struct epoch_tracker et;
+	struct ifnet *ifp;
+	int ret;
+
+	ret = 0;
+	CURVNET_SET(TD_TO_VNET(curthread));
+	NET_EPOCH_ENTER(et);
+	ifp = ifnet_byindex(idx);
+	if (ifp != NULL)
+		ret = ifname_bsd_to_linux_ifp(ifp, lxname, len);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
+	return (ret);
+}
+
+/*
+ * Translate a FreeBSD interface name to a Linux interface name,
+ * and return the number of bytes copied to lxname.
+ */
+int
+ifname_bsd_to_linux_ifp(struct ifnet *ifp, char *lxname, size_t len)
+{
+	struct ifnet *ifscan;
+	int unit;
+
+	NET_EPOCH_ASSERT();
+
+	/*
+	 * Linux loopback interface name is lo (not lo0),
+	 * we translate lo to lo0, loX to loX.
+	 */
+	if (IFP_IS_LOOP(ifp) && strncmp(ifp->if_xname, "lo0", IFNAMSIZ) == 0)
+		return (strlcpy(lxname, "lo", len));
+
+	/* Short-circuit non ethernet interfaces. */
+	if (!IFP_IS_ETH(ifp) || linux_use_real_ifname(ifp))
+		return (strlcpy(lxname, ifp->if_xname, len));
+
+	/* Determine the (relative) unit number for ethernet interfaces. */
+	unit = 0;
+	CK_STAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
+		if (ifscan == ifp)
+			return (snprintf(lxname, len, "eth%d", unit));
+		if (IFP_IS_ETH(ifscan))
+			unit++;
+	}
+	return (0);
+}
+
+/*
  * Translate a Linux interface name to a FreeBSD interface name,
  * and return the associated ifnet structure
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
@@ -261,8 +339,11 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 			break;
 	if (len == 0 || len == LINUX_IFNAMSIZ)
 		return (NULL);
-	/* Linux loopback interface name is lo (not lo0) */
-	is_lo = (len == 2 && strncmp(lxname, "lo", len) == 0);
+	/*
+	 * Linux loopback interface name is lo (not lo0),
+	 * we translate lo to lo0, loX to loX.
+	 */
+	is_lo = (len == 2 && strncmp(lxname, "lo", LINUX_IFNAMSIZ) == 0);
 	unit = (int)strtoul(lxname + len, &ep, 10);
 	if ((ep == NULL || ep == lxname + len || ep >= lxname + LINUX_IFNAMSIZ) &&
 	    is_lo == 0)
@@ -732,5 +813,5 @@ bool
 linux_use_real_ifname(const struct ifnet *ifp)
 {
 
-	return (use_real_ifnames || !IFP_IS_ETH(ifp));
+	return (use_real_ifnames);
 }
