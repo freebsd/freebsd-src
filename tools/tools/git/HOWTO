@@ -28,7 +28,7 @@ commits.  The intended workflow is:
    Differential, so try to give each commit a meaningful commit message that
    gives your reviewers the necessary context to understand your change.
 
-2. Create your reviews bu running this command in your git repo:
+2. Create your reviews by running this command in your git repo:
      $ arcgit -r C1~..C2 -R reviewer -T testplan
 
    C1 should be the first commit that you want reviewed, and C2 should be the
@@ -36,7 +36,7 @@ commits.  The intended workflow is:
    specifying the -R option multiple times.  You can CC (AKA subscribe) people
    to a review with the -C option.  Note that if you subscribe a mailing list
    to a review, the mailing list will be emailed for every comment or change
-   made to each review.  Please be judicious when subscibing mailing lists to
+   made to each review.  Please be judicious when subscribing mailing lists to
    reviews.  It may be better to instead send a single email to the appropriate
    list announcing all of the reviews and giving a short summary of the change
    as a whole, along with a link to the individual reviews.
@@ -75,7 +75,7 @@ commits.  The intended workflow is:
 4. Once the reviews have been approved, you need to prepare your patch series
    to be committed.  This involves squashing the fixes made in code review
    back into the original commit that they applied to.  This gives you a clean
-   series of commits that are ready to be commited back to svn.
+   series of commits that are ready to be pushed to git.
 
    First, merge each of your review branches back into your main development
    branch.  For example:
