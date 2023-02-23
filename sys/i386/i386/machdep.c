@@ -116,6 +116,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/netisr.h>
 
+#include <dev/smbios/smbios.h>
+
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -1433,6 +1435,7 @@ init386(int first)
 	}
 
 	identify_hypervisor();
+	identify_hypervisor_smbios();
 
 	/* Init basic tunables, hz etc */
 	init_param1();
