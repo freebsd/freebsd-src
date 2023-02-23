@@ -74,7 +74,7 @@ cron_popen(program, type, e, pidptr)
 	char **pop, *vv[2];
 	int gargc;
 	char *gargv[1000];
-	extern char **glob(), **copyblk();
+	extern char **glob(void), **copyblk(void);
 #endif
 
 	if ((*type != 'r' && *type != 'w') || type[1])

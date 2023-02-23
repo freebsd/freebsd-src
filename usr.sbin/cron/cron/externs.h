@@ -49,14 +49,14 @@ extern char *tzname[2];
 
 #if !defined(POSIX) && !defined(ATT)
 /* classic BSD */
-extern	time_t		time();
-extern	unsigned	sleep();
-extern	struct tm	*localtime();
-extern	struct passwd	*getpwnam();
+extern	time_t		time(void);
+extern	unsigned	sleep(void);
+extern	struct tm	*localtime(void);
+extern	struct passwd	*getpwnam(void);
 extern	int		errno;
-extern	void		perror(), exit(), free();
-extern	char		*getenv(), *strcpy(), *strchr(), *strtok();
-extern	void		*malloc(), *realloc();
+extern	void		perror(void), exit(void), free(void);
+extern	char		*getenv(void), *strcpy(void), *strchr(void), *strtok(void);
+extern	void		*malloc(void), *realloc(void);
 # define SIG_T	void
 # define TIME_T	long
 # define PID_T int
