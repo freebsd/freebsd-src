@@ -23,8 +23,8 @@
 include 	"SOCFPGA"
 ident		SOCDK
 
-options		ROOTDEVNAME=\"ufs:/dev/mmcsd0s4\"
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s4\"
 
 # Flattened Device Tree
-options		FDT_DTB_STATIC
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=socfpga_arria10_socdk_sdmmc.dts

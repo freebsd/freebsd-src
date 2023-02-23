@@ -21,7 +21,7 @@ options 	ROOTDEVNAME=\"/dev/da0s1a\"
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP
 
-options		VM_KMEM_SIZE_MAX=0x9CCD000
+options 	VM_KMEM_SIZE_MAX=0x9CCD000
 
 # pseudo devices
 device		clk
@@ -92,7 +92,7 @@ device		ath		# Atheros NIC's
 device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal
 device		ath_rate_sample
-options		ATH_ENABLE_11N
+options 	ATH_ENABLE_11N
 
 # CESA
 device		cesa
@@ -102,7 +102,7 @@ device		cryptodev
 # L2 Cache
 device		pl310
 
-options		PLATFORM
+options 	PLATFORM
 
 # FDT
 options 	FDT

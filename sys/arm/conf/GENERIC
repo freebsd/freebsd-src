@@ -61,8 +61,8 @@ options 	SOC_BCM2836
 options 	SOC_BRCM_BCM2837
 options 	SOC_MV_ARMADA38X
 options 	SOC_MV_ARMADAXP
-options		SOC_TI_AM335X
-options		SOC_OMAP4
+options 	SOC_TI_AM335X
+options 	SOC_OMAP4
 
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -164,7 +164,7 @@ device		gpioregulator
 
 # EVDEV support
 device		evdev			# input event device support
-options		EVDEV_SUPPORT		# evdev support in legacy drivers
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		uinput			# install /dev/uinput cdev
 device		aw_cir
 

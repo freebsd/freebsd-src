@@ -11,7 +11,7 @@ include		GENERIC
 
 ident		GENERIC-MMCCAM
 
-options		MMCCAM
+options 	MMCCAM
 
 # Add CAMDEBUG stuff
 options 	CAMDEBUG
