@@ -91,9 +91,9 @@ struct _dom_binding {
 #define WRITEFD ypdb->dom_pipe_fds[1]
 #define BROADFD broad_domain->dom_pipe_fds[1]
 
-extern bool_t xdr_domainname(), xdr_ypbind_resp();
-extern bool_t xdr_ypreq_key(), xdr_ypresp_val();
-extern bool_t xdr_ypbind_setdom();
+extern bool_t xdr_domainname(void), xdr_ypbind_resp(void);
+extern bool_t xdr_ypreq_key(void), xdr_ypresp_val(void);
+extern bool_t xdr_ypbind_setdom(void);
 
 void	checkwork(void);
 void	*ypbindproc_null_2_yp(SVCXPRT *, void *, CLIENT *);
