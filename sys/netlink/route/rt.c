@@ -458,6 +458,7 @@ struct nl_parsed_route {
 	uint8_t			rtm_family;
 	uint8_t			rtm_dst_len;
 	uint8_t			rtm_protocol;
+	uint8_t			rtm_type;
 };
 
 #define	_IN(_field)	offsetof(struct rtmsg, _field)
@@ -481,9 +482,10 @@ static const struct nlattr_parser nla_p_rtmsg[] = {
 };
 
 static const struct nlfield_parser nlf_p_rtmsg[] = {
-	{.off_in = _IN(rtm_family), .off_out = _OUT(rtm_family), .cb = nlf_get_u8 },
-	{.off_in = _IN(rtm_dst_len), .off_out = _OUT(rtm_dst_len), .cb = nlf_get_u8 },
-	{.off_in = _IN(rtm_protocol), .off_out = _OUT(rtm_protocol), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_family), .off_out = _OUT(rtm_family), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_dst_len), .off_out = _OUT(rtm_dst_len), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_protocol), .off_out = _OUT(rtm_protocol), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_type), .off_out = _OUT(rtm_type), .cb = nlf_get_u8 },
 };
 #undef _IN
 #undef _OUT
@@ -828,13 +830,23 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 			nhop_set_mtu(nh, attrs->rtax_mtu, true);
 		if (attrs->rta_rtflags & RTF_BROADCAST)
 			nhop_set_broadcast(nh, true);
-		if (attrs->rta_rtflags & RTF_BLACKHOLE)
-			nhop_set_blackhole(nh, NHF_BLACKHOLE);
-		if (attrs->rta_rtflags & RTF_REJECT)
-			nhop_set_blackhole(nh, NHF_REJECT);
-		nhop_set_rtflags(nh, attrs->rta_rtflags);
 		if (attrs->rtm_protocol > RTPROT_STATIC)
 			nhop_set_origin(nh, attrs->rtm_protocol);
+		nhop_set_rtflags(nh, attrs->rta_rtflags);
+
+		switch (attrs->rtm_type) {
+		case RTN_UNICAST:
+			break;
+		case RTN_BLACKHOLE:
+			nhop_set_blackhole(nh, RTF_BLACKHOLE);
+			break;
+		case RTN_PROHIBIT:
+		case RTN_UNREACHABLE:
+			nhop_set_blackhole(nh, RTF_REJECT);
+			break;
+		/* TODO: return ENOTSUP for other types if strict option is set */
+		}
+
 		nh = finalize_nhop(nh, perror);
 	}
 
