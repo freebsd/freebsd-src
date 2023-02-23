@@ -365,8 +365,6 @@ pci_fbuf_render(struct bhyvegc *gc, void *arg)
 		sc->gc_width = sc->memregs.width;
 		sc->gc_height = sc->memregs.height;
 	}
-
-	return;
 }
 
 static int
