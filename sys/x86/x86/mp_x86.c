@@ -88,9 +88,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_CPUS, "cpus", "CPU items");
 
-/* lock region used by kernel profiling */
-int	mcount_lock;
-
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
 
