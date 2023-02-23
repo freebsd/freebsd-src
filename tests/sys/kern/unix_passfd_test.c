@@ -532,8 +532,13 @@ ATF_TC_BODY(send_overflow, tc)
 	nfiles = openfiles();
 	tempfile(&putfd);
 	len = sendfd_payload(fd[0], putfd, buf, sendspace);
+#if TEST_PROTO == SOCK_STREAM
 	ATF_REQUIRE_MSG(len == -1 && errno == EAGAIN,
 	    "sendmsg: %zu bytes sent, errno %d", len, errno);
+#elif TEST_PROTO == SOCK_DGRAM
+	ATF_REQUIRE_MSG(len == -1 && errno == ENOBUFS,
+	    "sendmsg: %zu bytes sent, errno %d", len, errno);
+#endif
 	close(putfd);
 	ATF_REQUIRE(nfiles == openfiles());
 	closesocketpair(fd);
