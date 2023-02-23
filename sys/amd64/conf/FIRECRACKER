@@ -29,14 +29,14 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
-options		ROUTE_MPATH		# Multipath routing support
-options		FIB_ALGO		# Modular fib lookups
+options 	ROUTE_MPATH		# Multipath routing support
+options 	FIB_ALGO		# Modular fib lookups
 options 	TCP_OFFLOAD		# TCP offload
 options 	TCP_BLACKBOX		# Enhanced TCP event logging
 options 	TCP_HHOOK		# hhook(9) framework for TCP
-options		TCP_RFC7413		# TCP Fast Open
+options 	TCP_RFC7413		# TCP Fast Open
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
-options		KERN_TLS		# TLS transmit & receive offload
+options 	KERN_TLS		# TLS transmit & receive offload
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
@@ -175,11 +175,11 @@ envvar	machdep.disable_tsc_calibration="1"
 
 # Provide bug-for-bug compatiblity with Linux in MP Table searching
 # and parsing.  Firecracker relies on these bugs.
-options		MPTABLE_LINUX_BUG_COMPAT
+options 	MPTABLE_LINUX_BUG_COMPAT
 
 # Disable the automatic registration of a PCI bridge; we do in fact
 # not have one.
-options		NO_LEGACY_PCIB
+options 	NO_LEGACY_PCIB
 
 # Bus support.
 # Note that Firecracker provides neither ACPI nor PCI; but removing these
