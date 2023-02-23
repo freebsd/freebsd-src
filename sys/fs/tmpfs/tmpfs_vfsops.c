@@ -93,11 +93,11 @@ static int	tmpfs_statfs(struct mount *, struct statfs *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
-	"union", "nonc", "nomtime", NULL
+	"union", "nonc", "nomtime", "nosymfollow", NULL
 };
 
 static const char *tmpfs_updateopts[] = {
-	"from", "export", "nomtime", "size", NULL
+	"from", "export", "nomtime", "size", "nosymfollow", NULL
 };
 
 static int
