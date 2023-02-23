@@ -100,6 +100,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #endif
 
+#include <dev/smbios/smbios.h>
+
 enum arm64_bus arm64_bus_method = ARM64_BUS_NONE;
 
 /*
@@ -873,6 +875,8 @@ initarm(struct arm64_bootparams *abp)
 		kmdp = preload_search_by_type("elf64 kernel");
 
 	identify_cpu(0);
+	identify_hypervisor_smbios();
+
 	update_special_regs(0);
 
 	link_elf_ireloc(kmdp);

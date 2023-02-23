@@ -103,6 +103,8 @@ arm64/coresight/coresight_tmc.c			standard
 arm64/coresight/coresight_tmc_acpi.c		optional acpi
 arm64/coresight/coresight_tmc_fdt.c		optional fdt
 
+dev/smbios/smbios_subr.c			standard
+
 arm64/iommu/iommu.c				optional iommu
 arm64/iommu/iommu_if.m				optional iommu
 arm64/iommu/iommu_pmap.c			optional iommu
