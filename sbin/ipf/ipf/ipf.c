@@ -57,7 +57,7 @@ static	ioctlfunc_t	iocfunctions[IPL_LOGSIZE] = { ioctl, ioctl, ioctl,
    XXX	requirement.  */
 int	nohdrfields;
 
-static void usage()
+static void usage(void)
 {
 	fprintf(stderr, "usage: ipf [-6AdDEInoPrRsvVyzZ] %s %s %s\n",
 		"[-l block|pass|nomatch|state|nat]", "[-cc] [-F i|o|a|s|S|u]",
