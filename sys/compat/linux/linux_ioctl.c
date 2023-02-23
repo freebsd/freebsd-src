@@ -2092,39 +2092,17 @@ static int
 linux_ioctl_ifname(struct thread *td, struct l_ifreq *uifr)
 {
 	struct l_ifreq ifr;
-	struct ifnet *ifp;
-	int error, ethno, index;
+	int error, ret;
 
 	error = copyin(uifr, &ifr, sizeof(ifr));
 	if (error != 0)
 		return (error);
-
-	CURVNET_SET(TD_TO_VNET(curthread));
-	IFNET_RLOCK();
-	index = 1;	/* ifr.ifr_ifindex starts from 1 */
-	ethno = 0;
-	error = ENODEV;
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifr.ifr_ifindex == index) {
-			if (!linux_use_real_ifname(ifp))
-				snprintf(ifr.ifr_name, LINUX_IFNAMSIZ,
-				    "eth%d", ethno);
-			else
-				strlcpy(ifr.ifr_name, ifp->if_xname,
-				    LINUX_IFNAMSIZ);
-			error = 0;
-			break;
-		}
-		if (!linux_use_real_ifname(ifp))
-			ethno++;
-		index++;
-	}
-	IFNET_RUNLOCK();
-	if (error == 0)
-		error = copyout(&ifr, uifr, sizeof(ifr));
-	CURVNET_RESTORE();
-
-	return (error);
+	ret = ifname_bsd_to_linux_idx(ifr.ifr_ifindex, ifr.ifr_name,
+	    LINUX_IFNAMSIZ);
+	if (ret > 0)
+		return (copyout(&ifr, uifr, sizeof(ifr)));
+	else
+		return (ENODEV);
 }
 
 /*
@@ -2134,6 +2112,7 @@ linux_ioctl_ifname(struct thread *td, struct l_ifreq *uifr)
 static int
 linux_ifconf(struct thread *td, struct ifconf *uifc)
 {
+	struct epoch_tracker et;
 #ifdef COMPAT_LINUX32
 	struct l_ifconf ifc;
 #else
@@ -2143,7 +2122,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct sbuf *sb;
-	int error, ethno, full = 0, valid_len, max_len;
+	int error, full = 0, valid_len, max_len;
 
 	error = copyin(uifc, &ifc, sizeof(ifc));
 	if (error != 0)
@@ -2155,7 +2134,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	/* handle the 'request buffer size' case */
 	if ((l_uintptr_t)ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
-		IFNET_RLOCK();
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct sockaddr *sa = ifa->ifa_addr;
@@ -2163,7 +2142,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 					ifc.ifc_len += sizeof(ifr);
 			}
 		}
-		IFNET_RUNLOCK();
+		NET_EPOCH_EXIT(et);
 		error = copyout(&ifc, uifc, sizeof(ifc));
 		CURVNET_RESTORE();
 		return (error);
@@ -2175,8 +2154,6 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	}
 
 again:
-	/* Keep track of eth interfaces */
-	ethno = 0;
 	if (ifc.ifc_len <= max_len) {
 		max_len = ifc.ifc_len;
 		full = 1;
@@ -2186,16 +2163,13 @@ again:
 	valid_len = 0;
 
 	/* Return all AF_INET addresses of all interfaces */
-	IFNET_RLOCK();
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs = 0;
 
 		bzero(&ifr, sizeof(ifr));
-		if (IFP_IS_ETH(ifp))
-			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ, "eth%d",
-			    ethno++);
-		else
-			strlcpy(ifr.ifr_name, ifp->if_xname, LINUX_IFNAMSIZ);
+		ifname_bsd_to_linux_ifp(ifp, ifr.ifr_name,
+		    sizeof(ifr.ifr_name));
 
 		/* Walk the address list */
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -2222,7 +2196,7 @@ again:
 				valid_len = sbuf_len(sb);
 		}
 	}
-	IFNET_RUNLOCK();
+	NET_EPOCH_EXIT(et);
 
 	if (valid_len != max_len && !full) {
 		sbuf_delete(sb);

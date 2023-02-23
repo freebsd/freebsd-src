@@ -30,6 +30,10 @@
 #ifndef _LINUX_COMMON_H_
 #define _LINUX_COMMON_H_
 
+int	ifname_bsd_to_linux_ifp(struct ifnet *, char *, size_t);
+int	ifname_bsd_to_linux_idx(u_int, char *, size_t);
+int	ifname_bsd_to_linux_name(const char *, char *, size_t);
+
 struct ifnet	*ifname_linux_to_bsd(struct thread *td,
 		    const char *lxname, char *bsdname);
 void		linux_ifflags(struct ifnet *ifp, short *flags);

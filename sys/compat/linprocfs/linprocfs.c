@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #endif /* __i386__ || __amd64__ */
 
 #include <compat/linux/linux.h>
+#include <compat/linux/linux_common.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
@@ -1474,36 +1475,13 @@ linprocfs_doprocmem(PFS_FILL_ARGS)
 	return (error);
 }
 
-static int
-linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
-{
-	struct ifnet *ifscan;
-	int ethno;
-
-	IFNET_RLOCK_ASSERT();
-
-	/* Short-circuit non ethernet interfaces */
-	if (linux_use_real_ifname(ifp))
-		return (strlcpy(buffer, ifp->if_xname, buflen));
-
-	/* Determine the (relative) unit number for ethernet interfaces */
-	ethno = 0;
-	CK_STAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
-		if (ifscan == ifp)
-			return (snprintf(buffer, buflen, "eth%d", ethno));
-		if (!linux_use_real_ifname(ifscan))
-			ethno++;
-	}
-
-	return (0);
-}
-
 /*
  * Filler function for proc/net/dev
  */
 static int
 linprocfs_donetdev(PFS_FILL_ARGS)
 {
+	struct epoch_tracker et;
 	char ifname[16]; /* XXX LINUX_IFNAMSIZ */
 	struct ifnet *ifp;
 
@@ -1515,9 +1493,9 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	    "bytes    packets errs drop fifo colls carrier compressed");
 
 	CURVNET_SET(TD_TO_VNET(curthread));
-	IFNET_RLOCK();
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		linux_ifname(ifp, ifname, sizeof ifname);
+		ifname_bsd_to_linux_ifp(ifp, ifname, sizeof(ifname));
 		sbuf_printf(sb, "%6.6s: ", ifname);
 		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
 		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IBYTES),
@@ -1546,7 +1524,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 							 * tx_heartbeat_errors*/
 		    0UL);				/* tx_compressed */
 	}
-	IFNET_RUNLOCK();
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	return (0);
@@ -1576,7 +1554,8 @@ linux_route_print(struct rtentry *rt, void *vw)
 	/* select only first route in case of multipath */
 	nh = nhop_select_func(rnd.rnd_nhop, 0);
 
-	linux_ifname(nh->nh_ifp, ifname, sizeof(ifname));
+	if (ifname_bsd_to_linux_ifp(nh->nh_ifp, ifname, sizeof(ifname)) <= 0)
+		return (ENODEV);
 
 	gw = (nh->nh_flags & NHF_GATEWAY)
 		? nh->gw4_sa.sin_addr.s_addr : 0;
@@ -1605,6 +1584,7 @@ linux_route_print(struct rtentry *rt, void *vw)
 static int
 linprocfs_donetroute(PFS_FILL_ARGS)
 {
+	struct epoch_tracker et;
 	struct walkarg w = {
 		.sb = sb
 	};
@@ -1615,9 +1595,9 @@ linprocfs_donetroute(PFS_FILL_ARGS)
                "\tWindow\tIRTT");
 
 	CURVNET_SET(TD_TO_VNET(curthread));
-	IFNET_RLOCK();
+	NET_EPOCH_ENTER(et);
 	rib_walk(fibnum, AF_INET, false, linux_route_print, &w);
-	IFNET_RUNLOCK();
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	return (0);
