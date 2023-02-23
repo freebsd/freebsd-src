@@ -35,8 +35,8 @@
 #
 # When your reviews are complete, merge all of the review_DXXXX branches
 # together, and then do a git rebase -ik to meld the code review fixes into the
-# commit that they fixed.  Now you have a clean series of patches to commit to
-# svn.
+# commit that they fixed.  Now you have a clean series of patches to push to
+# git.
 
 usage()
 {
