@@ -904,7 +904,7 @@ init_nsm(void)
 /*
  * Out of memory, fatal
  */
-void out_of_mem()
+void out_of_mem(void)
 {
 	syslog(LOG_ERR, "out of memory");
 	exit(2);
