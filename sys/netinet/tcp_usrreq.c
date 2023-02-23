@@ -136,6 +136,9 @@ tcp_bblog_pru(struct tcpcb *tp, uint32_t pru, int error)
 {
 	struct tcp_log_buffer *lgb;
 
+	if (tp == NULL) {
+		return;
+	}
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
 		lgb = tcp_log_event_(tp, NULL, NULL, NULL, TCP_LOG_PRU, error,
