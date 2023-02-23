@@ -50,7 +50,7 @@ const char *Cdir = NULL;
  * @return always returns code 0
  */
 static int
-veriexec_usage()
+veriexec_usage(void)
 {
 	printf("%s",
 	    "Usage:\tveriexec [-h] [-i state] [-C] [-xv state|verbosity] [path]\n");
