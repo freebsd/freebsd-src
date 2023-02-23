@@ -83,9 +83,9 @@ static int debugging = 1;
 static int debugging = 0;
 #endif
 
-static void keyprogram();
+static void keyprogram(void);
 static des_block masterkey;
-char *getenv();
+char *getenv(void);
 static char ROOTKEY[] = "/etc/.rootkey";
 
 /*
