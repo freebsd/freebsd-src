@@ -156,10 +156,13 @@ ATF_TC_BODY(basic, tc)
 	ATF_REQUIRE(send(fd[0], buf, maxdgram, 0) == -1);
 	ATF_REQUIRE(errno == ENOBUFS);
 
-	/* Fail with EAGAIN with O_NONBLOCK set. */
+	/*
+	 * Fail with ENOBUFS with O_NONBLOCK set, too. See 71e70c25c00
+	 * for explanation why this behavior needs to be preserved.
+	 */
 	ATF_REQUIRE(fcntl(fd[0], F_SETFL, O_NONBLOCK) != -1);
 	ATF_REQUIRE(send(fd[0], buf, maxdgram, 0) == -1);
-	ATF_REQUIRE(errno == EAGAIN);
+	ATF_REQUIRE(errno == ENOBUFS);
 
 	/* Remote side closed -> ECONNRESET. */
 	close(fd[1]);
