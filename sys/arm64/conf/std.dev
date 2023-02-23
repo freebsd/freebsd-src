@@ -68,7 +68,7 @@ device		syscon
 
 # EVDEV support
 device		evdev			# input event device support
-options		EVDEV_SUPPORT		# evdev support in legacy drivers
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		uinput			# install /dev/uinput cdev
 
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure

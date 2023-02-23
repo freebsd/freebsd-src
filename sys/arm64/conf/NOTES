@@ -185,7 +185,7 @@ device		aw_pwm
 device		vt_efifb
 
 # EVDEV support
-options		EVDEV_SUPPORT		# evdev support in legacy drivers
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		aw_cir
 
 # Pseudo devices.
@@ -219,7 +219,7 @@ options 	CAMDEBUG
 options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
 
 # bring in camified MMC too
-options		MMCCAM
+options 	MMCCAM
 
 # arm64 doesn't support inb/outb, so disable chipset probing which needs it
 nooptions 	PPC_PROBE_CHIPSET
@@ -245,7 +245,7 @@ options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 #####################################################################
 # ZFS support
 
-options		ZFS
+options 	ZFS
 
 #
 # HID-over-I2C support
