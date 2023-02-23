@@ -578,7 +578,8 @@ void	getboottimebin(struct bintime *boottimebin);
 /* Other functions */
 int	itimerdecr(struct itimerval *itp, int usec);
 int	itimerfix(struct timeval *tv);
-int	ppsratecheck(struct timeval *, int *, int);
+int	eventratecheck(struct timeval *, int *, int);
+#define	ppsratecheck(t, c, m) eventratecheck(t, c, m)
 int	ratecheck(struct timeval *, const struct timeval *);
 void	timevaladd(struct timeval *t1, const struct timeval *t2);
 void	timevalsub(struct timeval *t1, const struct timeval *t2);
