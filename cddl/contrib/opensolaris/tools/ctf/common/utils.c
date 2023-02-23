@@ -35,30 +35,6 @@
 
 /*LINTLIBRARY*/
 
-static const char *pname;
-
-#pragma init(getpname)
-const char *
-getpname(void)
-{
-	const char *p, *q;
-
-	if (pname != NULL)
-		return (pname);
-
-	if ((p = getexecname()) != NULL)
-		q = strrchr(p, '/');
-	else
-		q = NULL;
-
-	if (q == NULL)
-		pname = p;
-	else
-		pname = q + 1;
-
-	return (pname);
-}
-
 void
 vdie(const char *format, va_list alist)
 {

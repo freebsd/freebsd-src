@@ -856,7 +856,7 @@ print_stats(void)
 static int
 print_usage(FILE *fp, int verbose)
 {
-	(void) fprintf(fp, "Usage: %s [-dfhlsSt] [-u file] file\n", getpname());
+	(void) fprintf(fp, "Usage: %s [-dfhlsSt] [-u file] file\n", getprogname());
 
 	if (verbose) {
 		(void) fprintf(fp,
