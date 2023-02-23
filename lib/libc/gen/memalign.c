@@ -35,5 +35,12 @@ __FBSDID("$FreeBSD$");
 void *
 memalign(size_t align, size_t size)
 {
-	return (aligned_alloc(align, size ? roundup(size, align) : size));
+	/*
+	 * if align is zero then we can't roundup
+	 * in that case leave it to malloc
+	 */
+	if (align != 0)
+		return (aligned_alloc(align, roundup(size, align)));
+	else
+		return (malloc(size));
 }
