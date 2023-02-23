@@ -53,11 +53,11 @@ public:
 	configword() : cw_word(""), cw_eof(false), cw_eol(false) {}
 	configword(std::string &&word) : cw_word(word), cw_eof(false), cw_eol(false) {}
 
-	bool eof() const {
+	bool eof(void) const {
 		return (cw_eof);
 	}
 
-	bool eol() const {
+	bool eol(void) const {
 		return (cw_eol);
 	}
 
