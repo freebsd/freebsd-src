@@ -32,8 +32,8 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
-options		NETLINK			# netlink(4) support
-options		ROUTE_MPATH		# Multipath routing support
+options 	NETLINK			# netlink(4) support
+options 	ROUTE_MPATH		# Multipath routing support
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
@@ -120,7 +120,7 @@ device		acpi
 device		smbios
 device		pci
 options 	PCI_HP			# PCI-Express native HotPlug
-options		PCI_IOV			# PCI SR-IOV support
+options 	PCI_IOV			# PCI SR-IOV support
 
 # Floppy drives
 device		fdc
