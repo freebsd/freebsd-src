@@ -28,13 +28,13 @@ typedef	unsigned long	ulong;
 
 #define		CASERET(s)	case s:  return ("s")
 
-	char	*dlprim();
-	char	*dlstate();
-	char	*dlerrno();
-	char	*dlpromisclevel();
-	char	*dlservicemode();
-	char	*dlstyle();
-	char	*dlmactype();
+	char	*dlprim(void);
+	char	*dlstate(void);
+	char	*dlerrno(void);
+	char	*dlpromisclevel(void);
+	char	*dlservicemode(void);
+	char	*dlstyle(void);
+	char	*dlmactype(void);
 
 
 void

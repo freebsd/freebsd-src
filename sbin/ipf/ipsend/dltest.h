@@ -31,4 +31,4 @@
 /*
  * externs go here
  */
-extern	void	sigalrm();
+extern	void	sigalrm(void);
