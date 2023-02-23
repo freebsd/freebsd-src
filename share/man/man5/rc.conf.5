@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 17, 2023
+.Dd February 23, 2023
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2300,6 +2300,22 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr syslogd 8 .
+Defaults to
+.Dq Li -s .
+.It Va altlog_proglist
+.Pq Vt list
+List of chrooted applications which will have a log socket placed in their
+.Pa var/run .
+.It Va altlog_jaillist
+.Pq Vt list
+List of jails which will have log sockets placed in their
+.Pa var/run .
+For this to be useful, adding
+.Dq Li -H
+to
+.Va syslogd_flags is recommended.
+This way, the log lines will include the jail's
+.Va host.hostname .
 .It Va inetd_enable
 .Pq Vt bool
 If set to
