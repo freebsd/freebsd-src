@@ -567,8 +567,6 @@ done:
 	/* clear queue and send interrupt to guest */
 	vtinput_eventqueue_clear(queue);
 	vq_endchains(vq, 1);
-
-	return;
 }
 
 static int
