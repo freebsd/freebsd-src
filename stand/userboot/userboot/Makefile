@@ -36,9 +36,13 @@ SRCS+=		gfx_fb_stub.c
 
 CFLAGS+=	-Wall
 CFLAGS+=	-I${BOOTSRC}/userboot
+
+.if ${MK_LOADER_ZFS} != "no"
 CFLAGS.main.c+=	-I${BOOTSRC}/libsa/zfs
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
+.endif
+
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 CFLAGS.gfx_fb_stub.c += -I${SRCTOP}/contrib/pnglite -I${SRCTOP}/sys/teken
 
