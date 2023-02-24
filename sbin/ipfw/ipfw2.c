@@ -2789,7 +2789,7 @@ ipfw_list(int ac, char *av[], int show_counters)
 		}
 	}
 
-	/* get configuraion from kernel */
+	/* get configuration from kernel */
 	cfg = NULL;
 	sfo.show_counters = show_counters;
 	sfo.show_time = g_co.do_time;
