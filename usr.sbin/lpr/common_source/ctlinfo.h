@@ -56,7 +56,7 @@ struct cjobinfo {
 					 * did the original 'lpr') */
 	char	*cji_class;		/* class-name */
 	char	*cji_curqueue;		/* printer-queue that this cf-file is
-					 * curently sitting in (mainly used
+					 * currently sitting in (mainly used
 					 * in syslog error messages) */
 	char	*cji_fname;		/* filename of the control file */
 	char	*cji_jobname;		/* job-name (for banner) */
