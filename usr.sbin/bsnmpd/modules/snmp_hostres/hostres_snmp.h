@@ -127,7 +127,7 @@ struct device_entry {
 	uint32_t	errors;
 
 #define	HR_DEVICE_FOUND		0x001
-	/* not dectected by libdevice, so don't try to refresh it*/
+	/* not detected by libdevice, so don't try to refresh it*/
 #define	HR_DEVICE_IMMUTABLE	0x002
 
 	/* next 3 are not from the SNMP mib table, only to be used internally */
@@ -210,7 +210,7 @@ const struct asn_oid *fs_get_type(const struct statfs *);
  * refreshing hrFSTable by refreshing hrStorageTable.
  * When one entry "of type" fs from hrStorageTable is refreshed
  * then the corresponding entry from hrFSTable is refreshed
- * FS_tbl_pre_refresh_v() is called  before refeshing fs part of hrStorageTable
+ * FS_tbl_pre_refresh_v() is called  before refreshing fs part of hrStorageTable
  */
 void fs_tbl_pre_refresh(void);
 void fs_tbl_process_statfs_entry(const struct statfs *, int32_t);
