@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#define MAXSIZE 65536	/* Everyting will be smaller than this, most 1000x smaller */
+#define MAXSIZE 65536	/* Everything will be smaller than this, most 1000x smaller */
 
 /* options descriptor */
 static struct option longopts[] = {
