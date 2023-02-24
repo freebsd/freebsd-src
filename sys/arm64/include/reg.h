@@ -40,7 +40,7 @@ struct reg {
 	__uint64_t lr;
 	__uint64_t sp;
 	__uint64_t elr;
-	__uint32_t spsr;
+	__uint64_t spsr;
 };
 
 struct reg32 {
