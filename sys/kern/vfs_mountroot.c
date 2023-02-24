@@ -987,7 +987,7 @@ vfs_mountroot_wait(void)
 
 	curfail = 0;
 	lastfail.tv_sec = 0;
-	ppsratecheck(&lastfail, &curfail, 1);
+	eventratecheck(&lastfail, &curfail, 1);
 	td = curthread;
 	while (1) {
 		g_waitidle(td);
@@ -996,7 +996,7 @@ vfs_mountroot_wait(void)
 			mtx_unlock(&root_holds_mtx);
 			break;
 		}
-		if (ppsratecheck(&lastfail, &curfail, 1)) {
+		if (eventratecheck(&lastfail, &curfail, 1)) {
 			printf("Root mount waiting for:");
 			TAILQ_FOREACH(h, &root_holds, list)
 				printf(" %s", h->who);
