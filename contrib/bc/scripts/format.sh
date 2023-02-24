@@ -29,6 +29,8 @@
 
 scriptdir=$(dirname "$0")
 
+. "$scriptdir/functions.sh"
+
 cd "$scriptdir/.."
 
 if [ "$#" -gt 0 ]; then

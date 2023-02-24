@@ -51,3 +51,8 @@ existed in.
   had properly hooked Valgrind into my `bcl` tests, but I had not.
 
   The first version without this bug is `6.0.1`.
+
+* In version `6.0.0` until `6.2.4` (inclusive) of `bcl`, there is a possible
+  use-after-free if `bcl_init()` fails.
+
+  The first version without this bug is `6.2.5`.

@@ -201,6 +201,8 @@ bcl_init(void)
 
 err:
 
+	BC_FUNC_FOOTER(vm, e);
+
 	// This is why we had to set them to NULL.
 	if (BC_ERR(vm != NULL && vm->err))
 	{
@@ -210,8 +212,6 @@ err:
 		bcl_setspecific(NULL);
 		free(vm);
 	}
-
-	BC_FUNC_FOOTER(vm, e);
 
 	return e;
 }

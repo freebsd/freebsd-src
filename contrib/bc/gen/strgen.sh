@@ -62,7 +62,9 @@ name="$4"
 label="$5"
 define="$6"
 remove_tabs="$7"
-check_bool_arg "$remove_tabs"
+if [ "$remove_tabs" != "" ]; then
+	check_bool_arg "$remove_tabs"
+fi
 
 tmpinput=$(mktemp -t "${input##*/}_XXXXXX")
 
