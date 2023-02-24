@@ -1461,7 +1461,7 @@ main(int argc, char *argv[])
 	sci_init(ctx);
 
 	/*
-	 * Exit if a device emulation finds an error in its initilization
+	 * Exit if a device emulation finds an error in its initialization
 	 */
 	if (init_pci(ctx) != 0) {
 		perror("device emulation initialization error");
