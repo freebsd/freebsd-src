@@ -173,14 +173,16 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			logfac = get_log_mapping(optarg, facilitynames);
-			if (logfac == -1)
+			if (logfac == -1) {
 				errx(5, "unrecognized syslog facility");
+                        }
 			dosyslog = 1;
 			break;
 		case 'm':
 			stdmask = strtol(optarg, &p, 10);
-			if (p == optarg || stdmask < 0 || stdmask > 3)
+			if (p == optarg || stdmask < 0 || stdmask > 3) {
 				errx(6, "unrecognized listening mask");
+                        }
 			break;
 		case 'o':
 			outfn = optarg;
@@ -196,13 +198,15 @@ main(int argc, char *argv[])
 			break;
 		case 'R':
 			restart = strtol(optarg, &p, 0);
-			if (p == optarg || restart < 1)
+			if (p == optarg || restart < 1) {
 				errx(6, "invalid restart delay");
+                        }
 			break;
 		case 's':
 			logpri = get_log_mapping(optarg, prioritynames);
-			if (logpri == -1)
+			if (logpri == -1) {
 				errx(4, "unrecognized syslog priority");
+                        }
 			dosyslog = 1;
 			break;
 		case 'S':
@@ -228,20 +232,24 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 0)
+	if (argc == 0) {
 		usage(1);
+        }
 
-	if (!title)
+	if (!title) {
 		title = argv[0];
+        }
 
 	if (outfn) {
 		outfd = open_log(outfn);
-		if (outfd == -1)
+		if (outfd == -1) {
 			err(7, "open");
+                }
 	}
 
-	if (dosyslog)
+	if (dosyslog) {
 		openlog(logtag, LOG_PID | LOG_NDELAY, logfac);
+        }
 
 	ppfh = pfh = NULL;
 	/*
@@ -329,8 +337,9 @@ main(int argc, char *argv[])
 			goto exit;
 		}
 restart:
-		if (pipe(pfd))
+		if (pipe(pfd)) {
 			err(1, "pipe");
+                }
 		/*
 		 * Spawn a child to exec the command.
 		 */
@@ -356,27 +365,32 @@ restart:
 		/* Now that we are the child, write out the pid. */
 		pidfile_write(pfh);
 
-		if (user != NULL)
+		if (user != NULL) {
 			restrict_process(user);
+                }
 		/*
 		 * When forking, the child gets the original sigmask,
 		 * and dup'd pipes.
 		 */
 		if (pid == 0) {
 			close(pfd[0]);
-			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL))
+			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
+                        }
 			if (stdmask & STDERR_FILENO) {
-				if (dup2(pfd[1], STDERR_FILENO) == -1)
+				if (dup2(pfd[1], STDERR_FILENO) == -1) {
 					err(1, "dup2");
+                                }
 			}
 			if (stdmask & STDOUT_FILENO) {
-				if (dup2(pfd[1], STDOUT_FILENO) == -1)
+				if (dup2(pfd[1], STDOUT_FILENO) == -1) {
 					err(1, "dup2");
+                                }
 			}
 			if (pfd[1] != STDERR_FILENO &&
-			    pfd[1] != STDOUT_FILENO)
+			    pfd[1] != STDOUT_FILENO) {
 				close(pfd[1]);
+                        }
 		}
 		execvp(argv[0], argv);
 		/*
@@ -436,8 +450,9 @@ restart:
 			}
 		}
 	}
-	if (restart && !terminate)
+	if (restart && !terminate) {
 		daemon_sleep(restart, 0);
+        }
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
 		goto exit;
@@ -451,8 +466,9 @@ exit:
 	close(outfd);
 	close(pfd[0]);
 	close(pfd[1]);
-	if (dosyslog)
+	if (dosyslog) {
 		closelog();
+        }
 	pidfile_remove(pfh);
 	pidfile_remove(ppfh);
 	exit(1); /* If daemon(3) succeeded exit status does not matter. */
@@ -464,8 +480,9 @@ daemon_sleep(time_t secs, long nsecs)
 	struct timespec ts = { secs, nsecs };
 
 	while (!terminate && nanosleep(&ts, &ts) == -1) {
-		if (errno != EINTR)
+		if (errno != EINTR) {
 			err(1, "nanosleep");
+                }
 	}
 }
 
@@ -507,8 +524,9 @@ get_log_mapping(const char *str, const CODE *c)
 {
 	const CODE *cp;
 	for (cp = c; cp->c_name; cp++)
-		if (strcmp(cp->c_name, str) == 0)
+		if (strcmp(cp->c_name, str) == 0) {
 			return cp->c_val;
+                }
 	return -1;
 }
 
@@ -518,11 +536,13 @@ restrict_process(const char *user)
 	struct passwd *pw = NULL;
 
 	pw = getpwnam(user);
-	if (pw == NULL)
+	if (pw == NULL) {
 		errx(1, "unknown user: %s", user);
+        }
 
-	if (setusercontext(NULL, pw, pw->pw_uid, LOGIN_SETALL) != 0)
+	if (setusercontext(NULL, pw, pw->pw_uid, LOGIN_SETALL) != 0) {
 		errx(1, "failed to set user environment");
+        }
 
 	setenv("USER", pw->pw_name, 1);
 	setenv("HOME", pw->pw_dir, 1);
@@ -546,8 +566,9 @@ listen_child(int fd, struct log_params *logpar)
 	assert(logpar);
 	assert(bytes_read < LBUF_SIZE - 1);
 
-	if (do_log_reopen)
+	if (do_log_reopen) {
 		reopen_log(logpar);
+        }
 	rv = read(fd, buf + bytes_read, LBUF_SIZE - bytes_read - 1);
 	if (rv > 0) {
 		unsigned char *cp;
@@ -568,8 +589,9 @@ listen_child(int fd, struct log_params *logpar)
 			memmove(buf, cp + 1, bytes_read);
 		}
 		/* Wait until the buffer is full. */
-		if (bytes_read < LBUF_SIZE - 1)
+		if (bytes_read < LBUF_SIZE - 1) {
 			return 1;
+                }
 		do_output(buf, bytes_read, logpar);
 		bytes_read = 0;
 		return 1;
@@ -601,16 +623,19 @@ do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
 	assert(len <= LBUF_SIZE);
 	assert(logpar);
 
-	if (len < 1)
+	if (len < 1) {
 		return;
-	if (logpar->dosyslog)
+        }
+	if (logpar->dosyslog) {
 		syslog(logpar->logpri, "%.*s", (int)len, buf);
+        }
 	if (logpar->outfd != -1) {
 		if (write(logpar->outfd, buf, len) == -1)
 			warn("write");
 	}
-	if (logpar->noclose && !logpar->dosyslog && logpar->outfd == -1)
+	if (logpar->noclose && !logpar->dosyslog && logpar->outfd == -1) {
 		printf("%.*s", (int)len, buf);
+        }
 }
 
 /*
@@ -620,8 +645,9 @@ do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
 static void
 handle_term(int signo)
 {
-	if (pid > 0 && !child_gone)
+	if (pid > 0 && !child_gone) {
 		kill(pid, signo);
+        }
 	terminate = 1;
 }
 
@@ -662,8 +688,9 @@ reopen_log(struct log_params *lpp)
 
 	do_log_reopen = 0;
 	outfd = open_log(lpp->outfn);
-	if (lpp->outfd >= 0)
+	if (lpp->outfd >= 0) {
 		close(lpp->outfd);
+        }
 	lpp->outfd = outfd;
 }
 
