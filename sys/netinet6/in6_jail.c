@@ -133,49 +133,47 @@ prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
 }
 
 /*
- * Return 1 if we should do proper source address selection or are not jailed.
- * We will return 0 if we should bypass source address selection in favour
+ * Return true if we should do proper source address selection or are not jailed.
+ * We will return false if we should bypass source address selection in favour
  * of the primary jail IPv6 address. Only in this case *ia will be updated and
  * returned in NBO.
- * Return EAFNOSUPPORT, in case this jail does not allow IPv6.
+ * Return true, even in case this jail does not allow IPv6.
  */
-int
+bool
 prison_saddrsel_ip6(struct ucred *cred, struct in6_addr *ia6)
 {
 	struct prison *pr;
 	struct in6_addr lia6;
-	int error;
 
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
 	KASSERT(ia6 != NULL, ("%s: ia6 is NULL", __func__));
 
 	if (!jailed(cred))
-		return (1);
+		return (true);
 
 	pr = cred->cr_prison;
 	if (pr->pr_flags & PR_IP6_SADDRSEL)
-		return (1);
+		return (true);
 
 	lia6 = in6addr_any;
-	error = prison_get_ip6(cred, &lia6);
-	if (error)
-		return (error);
+	if (prison_get_ip6(cred, &lia6) != 0)
+		return (true);
 	if (IN6_IS_ADDR_UNSPECIFIED(&lia6))
-		return (1);
+		return (true);
 
 	bcopy(&lia6, ia6, sizeof(struct in6_addr));
-	return (0);
+	return (false);
 }
 
 /*
  * Return true if pr1 and pr2 have the same IPv6 address restrictions.
  */
-int
+bool
 prison_equal_ip6(struct prison *pr1, struct prison *pr2)
 {
 
 	if (pr1 == pr2)
-		return (1);
+		return (true);
 
 	while (pr1 != &prison0 &&
 #ifdef VIMAGE
