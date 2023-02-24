@@ -693,7 +693,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 			if (*lowat > *hiwat)
 				*lowat = *hiwat;
 		} else {
-                        u_long limit = sogetmaxbuf(so);
+			u_long limit = sogetmaxbuf(so);
 			if (!sbreserve_locked_limit(sb, cc, so, limit, curthread))
 				error = ENOBUFS;
 		}
