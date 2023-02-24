@@ -58,7 +58,7 @@ struct scmi_clknode_softc {
 	int		clock_id;
 };
 
-static int
+static int __unused
 scmi_clk_get_rate(struct scmi_clk_softc *sc, int clk_id, uint64_t *rate)
 {
 	struct scmi_clk_rate_get_out out;
@@ -117,7 +117,7 @@ scmi_clk_set_rate(struct scmi_clk_softc *sc, int clk_id, uint64_t rate)
 	return (0);
 }
 
-static int
+static int __unused
 scmi_clk_gate(struct scmi_clk_softc *sc, int clk_id, int enable)
 {
 	struct scmi_clk_state_out out;
