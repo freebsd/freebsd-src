@@ -835,16 +835,20 @@ nhop_set_blackhole(struct nhop_object *nh, int blackhole_rt_flag)
 	bzero(&nh->gw_sa, sizeof(nh->gw_sa));
 
 	switch (nh->nh_priv->nh_upper_family) {
+#ifdef INET
 	case AF_INET:
 		nh->gw4_sa.sin_family = AF_INET;
 		nh->gw4_sa.sin_len = sizeof(struct sockaddr_in);
 		nh->gw4_sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		break;
+#endif
+#ifdef INET6
 	case AF_INET6:
 		nh->gw6_sa.sin6_family = AF_INET6;
 		nh->gw6_sa.sin6_len = sizeof(struct sockaddr_in6);
 		nh->gw6_sa.sin6_addr = in6addr_loopback;
 		break;
+#endif
 	}
 }
 
