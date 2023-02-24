@@ -33,7 +33,6 @@ CATALOGS+=	zh_CN.UTF-8 zh_CN.eucCN zh_CN.GB18030 zh_CN.GB2312 zh_CN.GBK
 NLSNAME=	bc
 NLSSRCDIR=	${BCDIR}/locales
 
-#CFLAGS=-g -O0
 CFLAGS+=	-DBC_DEFAULT_BANNER=0
 CFLAGS+=	-DBC_DEFAULT_DIGIT_CLAMP=0
 CFLAGS+=	-DBC_DEFAULT_EXPR_EXIT=1
@@ -74,7 +73,7 @@ MAN_SRC_DC=	dc/A.1
 # prevent floating point incompatibilities caused by -flto on some architectures
 .if ${MACHINE_ARCH:Mmips*} == "" && ${MACHINE_ARCH} != powerpc64 && \
 	${MACHINE_ARCH} != riscv64
-#CFLAGS+=	-flto
+CFLAGS+=	-flto
 .endif
 
 HAS_TESTS=	yes
@@ -114,10 +113,10 @@ NLSLINKS_pt_PT.ISO8859-1+= pt_PT.ISO8859-15
 .endif
 
 lib.c:		lib.bc Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c 0 bc_lib bc_lib_name 1 1
+		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c 0 bc_lib bc_lib_name "" 1
 
 lib2.c:		lib2.bc Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c 0 bc_lib2 bc_lib2_name 1 1
+		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c 0 bc_lib2 bc_lib2_name "" 1
 
 bc_help.c:	bc_help.txt Makefile
 		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c 0 bc_help "" 1 0
