@@ -1750,7 +1750,7 @@ scsi_cam_pass_16_send(struct cam_device *device, union ccb *ccb)
 
 	/*
 	 * Consider any non-CAM_REQ_CMP status as error and report it here,
-	 * unless caller set AP_FLAG_CHK_COND, in which case it is reponsible.
+	 * unless caller set AP_FLAG_CHK_COND, in which case it is responsible.
 	 */
 	if (!(ata_pass_16->flags & AP_FLAG_CHK_COND) &&
 	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -1788,7 +1788,7 @@ ata_cam_send(struct cam_device *device, union ccb *ccb)
 
 	/*
 	 * Consider any non-CAM_REQ_CMP status as error and report it here,
-	 * unless caller set AP_FLAG_CHK_COND, in which case it is reponsible.
+	 * unless caller set AP_FLAG_CHK_COND, in which case it is responsible.
 	 */
 	if (!(ccb->ataio.cmd.flags & CAM_ATAIO_NEEDRESULT) &&
 	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -4402,7 +4402,7 @@ mode_sense(struct cam_device *device, int *cdb_len, int dbd, int llbaa, int pc,
 retry:
 	/*
 	 * MODE SENSE(6) can't handle more then 255 bytes.  If there are more,
-	 * device must return error, so we should not get trucated data.
+	 * device must return error, so we should not get truncated data.
 	 */
 	if (*cdb_len == 6 && datalen > 255)
 		datalen = 255;
