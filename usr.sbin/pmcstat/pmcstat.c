@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
  *
  *   /Parent/				/Child/
  *
- *   - Wait for childs token.
+ *   - Wait for children token.
  *					- Sends token.
  *					- Awaits signal to start.
  *  - Attaches PMCs to the child's pid
