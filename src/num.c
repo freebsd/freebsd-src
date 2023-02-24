@@ -3474,11 +3474,11 @@ bc_num_len(const BcNum* restrict n)
 void
 bc_num_parse(BcNum* restrict n, const char* restrict val, BcBigDig base)
 {
-#ifndef NDEBUG
+#if BC_DEBUG
 #if BC_ENABLE_LIBRARY
 	BcVm* vm = bcl_getspecific();
 #endif // BC_ENABLE_LIBRARY
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	assert(n != NULL && val != NULL && base);
 	assert(base >= BC_NUM_MIN_BASE && base <= vm->maxes[BC_PROG_GLOBALS_IBASE]);
@@ -3539,11 +3539,11 @@ bc_num_print(BcNum* restrict n, BcBigDig base, bool newline)
 BcBigDig
 bc_num_bigdig2(const BcNum* restrict n)
 {
-#ifndef NDEBUG
+#if BC_DEBUG
 #if BC_ENABLE_LIBRARY
 	BcVm* vm = bcl_getspecific();
 #endif // BC_ENABLE_LIBRARY
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	// This function returns no errors because it's guaranteed to succeed if
 	// its preconditions are met. Those preconditions include both n needs to
@@ -4256,11 +4256,11 @@ bc_num_modexp(BcNum* a, BcNum* b, BcNum* c, BcNum* restrict d)
 	if (BC_ERR(BC_NUM_ZERO(c))) bc_err(BC_ERR_MATH_DIVIDE_BY_ZERO);
 	if (BC_ERR(BC_NUM_NEG(b))) bc_err(BC_ERR_MATH_NEGATIVE);
 
-#ifndef NDEBUG
+#if BC_DEBUG || BC_GCC
 	// This is entirely for quieting a useless scan-build error.
 	btemp.len = 0;
 	ctemp.len = 0;
-#endif // NDEBUG
+#endif // BC_DEBUG || BC_GCC
 
 	// Eliminate fractional parts that are zero or error if they are not zero.
 	if (BC_ERR(bc_num_nonInt(a, &atemp) || bc_num_nonInt(b, &btemp) ||

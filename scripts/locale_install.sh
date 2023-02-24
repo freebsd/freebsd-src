@@ -184,11 +184,12 @@ all_locales=0
 while getopts "l" opt; do
 
 	case "$opt" in
-		l) all_locales=1 ; shift ;;
+		l) all_locales=1 ;;
 		?) usage "Invalid option: $opt" ;;
 	esac
 
 done
+shift $(($OPTIND - 1))
 
 test "$#" -ge 2 || usage "Must have at least two arguments"
 

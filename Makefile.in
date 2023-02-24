@@ -239,25 +239,25 @@ $(GEN_EXEC): $(GEN_DIR)
 	%%GEN_EXEC_TARGET%%
 
 $(BC_LIB_C): $(GEN_EXEC) $(BC_LIB)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_EXCLUDE_EXTRA_MATH) $(BC_LIB_C_ARGS)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_EXCLUDE_EXTRA_MATH) $(BC_LIB_C_ARGS) "" "" 1
 
 $(BC_LIB_O): $(BC_LIB_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(BC_LIB2_C): $(GEN_EXEC) $(BC_LIB2)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_EXCLUDE_EXTRA_MATH) $(BC_LIB2_C_ARGS)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_EXCLUDE_EXTRA_MATH) $(BC_LIB2_C_ARGS) "" "" 1
 
 $(BC_LIB2_O): $(BC_LIB2_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(BC_HELP_C): $(GEN_EXEC) $(BC_HELP)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) $(BC_EXCLUDE_EXTRA_MATH) bc_help "" $(BC_ENABLED_NAME)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) $(BC_EXCLUDE_EXTRA_MATH) bc_help "" $(BC_ENABLED_NAME) 0
 
 $(BC_HELP_O): $(BC_HELP_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(DC_HELP_C): $(GEN_EXEC) $(DC_HELP)
-	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) $(BC_EXCLUDE_EXTRA_MATH) dc_help "" $(DC_ENABLED_NAME)
+	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) $(BC_EXCLUDE_EXTRA_MATH) dc_help "" $(DC_ENABLED_NAME) 0
 
 $(DC_HELP_O): $(DC_HELP_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -536,6 +536,7 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f $(BC_HELP_C) $(BC_HELP_O)
 	@$(RM) -f $(DC_HELP_C) $(DC_HELP_O)
 	@$(RM) -fr vs/bin/ vs/lib/
+	@$(RM) -f $(BCL_PC)
 
 clean_benchmarks:
 	@printf 'Cleaning benchmarks...\n'
@@ -548,6 +549,7 @@ clean_config: clean clean_benchmarks
 	@$(RM) -f Makefile
 	@$(RM) -f $(BC_MD) $(BC_MANPAGE)
 	@$(RM) -f $(DC_MD) $(DC_MANPAGE)
+	@$(RM) -f compile_commands.json
 
 clean_coverage:
 	@printf 'Cleaning coverage files...\n'

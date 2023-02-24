@@ -344,7 +344,7 @@ The following are the options that bc(1) accepts.
 :   Makes bc(1) print all numbers greater than **-1** and less than **1**, and
     not equal to **0**, with a leading zero.
 
-    This can be set for individual numbers with the **plz(x)**, plznl(x)**,
+    This can be set for individual numbers with the **plz(x)**, **plznl(x)**,
     **pnlz(x)**, and **pnlznl(x)** functions in the extended math library (see
     the **LIBRARY** section).
 

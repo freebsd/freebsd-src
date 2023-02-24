@@ -999,7 +999,7 @@ bc_vm_atexit(void);
 size_t
 bc_vm_numDigits(size_t val);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 
 /**
  * Handle an error. This is the true error handler. It will start a jump series
@@ -1013,7 +1013,7 @@ bc_vm_numDigits(size_t val);
 void
 bc_vm_handleError(BcErr e, const char* file, int fline, size_t line, ...);
 
-#else // NDEBUG
+#else // BC_DEBUG
 
 /**
  * Handle an error. This is the true error handler. It will start a jump series
@@ -1025,7 +1025,7 @@ bc_vm_handleError(BcErr e, const char* file, int fline, size_t line, ...);
 void
 bc_vm_handleError(BcErr e, size_t line, ...);
 
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * Handle a fatal error.
