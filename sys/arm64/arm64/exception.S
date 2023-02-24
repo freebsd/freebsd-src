@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 	mrs	x12, esr_el1
 	stp	x18,  lr, [sp, #(TF_SP - TF_X)]!
 	str	x10, [sp, #(TF_ELR)]
-	stp	w11, w12, [sp, #(TF_SPSR)]
+	stp	x11, x12, [sp, #(TF_SPSR)]
 	mrs	x18, tpidr_el1
 .endm
 

@@ -102,18 +102,18 @@ db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 
 			switch (frame_type) {
 			case FRAME_SYNC:
-				db_printf("--- exception, esr %#x\n",
+				db_printf("--- exception, esr %#lx\n",
 				    tf->tf_esr);
 				break;
 			case FRAME_IRQ:
 				db_printf("--- interrupt\n");
 				break;
 			case FRAME_SERROR:
-				db_printf("--- system error, esr %#x\n",
+				db_printf("--- system error, esr %#lx\n",
 				    tf->tf_esr);
 				break;
 			case FRAME_UNHANDLED:
-				db_printf("--- unhandled exception, esr %#x\n",
+				db_printf("--- unhandled exception, esr %#lx\n",
 				    tf->tf_esr);
 				break;
 			default:

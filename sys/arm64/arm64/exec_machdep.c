@@ -457,7 +457,7 @@ int
 set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tf = td->td_frame;
-	uint32_t spsr;
+	uint64_t spsr;
 
 	spsr = mcp->mc_gpregs.gp_spsr;
 	if ((spsr & PSR_M_MASK) != PSR_M_EL0t ||
