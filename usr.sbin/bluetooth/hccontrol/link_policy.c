@@ -82,7 +82,7 @@ hci_role_discovery(int s, int argc, char **argv)
 	return (OK);
 } /* hci_role_discovery */
 
-/* Send Swith Role to the unit */
+/* Send Switch Role to the unit */
 static int
 hci_switch_role(int s, int argc, char **argv)
 {
