@@ -132,7 +132,7 @@ fi
 
 # Skip the tests that require extra math if we don't have it.
 if [ "$run_extra_tests" -eq 0 ]; then
-	if [ "$f" = "rand.bc" ]; then
+	if [ "$f" = "rand.bc" ] || [ "$f" = "root.bc" ]; then
 		printf 'Skipping %s script: %s\n' "$d" "$f"
 		exit 0
 	fi
@@ -190,11 +190,17 @@ else
 		exit 0
 	fi
 
-	# This sed, and the script, are to remove an incompatibility with GNU bc,
-	# where GNU bc is wrong. See the development manual
-	# (manuals/development.md#script-tests) for more information.
 	printf 'Generating %s results...' "$f"
-	printf '%s\n' "$halt" | "$d" "$s" | sed -n -f "$testdir/script.sed" > "$results"
+
+	# This particular test needs to be generated straight.
+	if [ "$d" = "dc" ] && [ "$f" = "stream.dc" ]; then
+		printf '%s\n' "$halt" 2> /dev/null | "$d" "$s" > "$results"
+	else
+		# This sed, and the script, are to remove an incompatibility with GNU
+		# bc, where GNU bc is wrong. See the development manual
+		# (manuals/development.md#script-tests) for more information.
+		printf '%s\n' "$halt" 2> /dev/null | "$d" "$s" | sed -n -f "$testdir/script.sed" > "$results"
+	fi
 	printf 'done\n'
 	res="$results"
 fi
@@ -206,11 +212,11 @@ printf 'Running %s script %s...' "$d" "$f"
 # Yes this is poor timing, but it works.
 if [ "$time_tests" -ne 0 ]; then
 	printf '\n'
-	printf '%s\n' "$halt" | /usr/bin/time -p "$exe" "$@" $options "$s" > "$out"
+	printf '%s\n' "$halt" 2> /dev/null | /usr/bin/time -p "$exe" "$@" $options "$s" > "$out"
 	err="$?"
 	printf '\n'
 else
-	printf '%s\n' "$halt" | "$exe" "$@" $options "$s" > "$out"
+	printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $options "$s" > "$out"
 	err="$?"
 fi
 

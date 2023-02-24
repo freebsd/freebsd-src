@@ -53,11 +53,11 @@
 #if BC_ENABLE_LIBRARY
 #define BC_RAND_USE_FREE (1)
 #else // BC_ENABLE_LIBRARY
-#ifndef NDEBUG
+#if BC_DEBUG
 #define BC_RAND_USE_FREE (1)
-#else // NDEBUG
+#else // BC_DEBUG
 #define BC_RAND_USE_FREE (0)
-#endif // NDEBUG
+#endif // BC_DEBUG
 #endif // BC_ENABLE_LIBRARY
 
 /**

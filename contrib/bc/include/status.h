@@ -60,6 +60,13 @@
 #endif // __FreeBSD__
 #endif // BC_TEST_FREEBSD
 
+// This is used by configure.sh to test for Mac OSX.
+#ifdef BC_TEST_APPLE
+#ifdef __APPLE__
+#error On Mac OSX without _DARWIN_C_SOURCE
+#endif // __APPLE__
+#endif // BC_TEST_APPLE
+
 // Windows has deprecated isatty() and the rest of these. Or doesn't have them.
 // So these are just fixes for Windows.
 #ifdef _WIN32
@@ -700,7 +707,7 @@ typedef enum BcMode
 #define BC_SIG_INTERRUPT(vm) BC_UNLIKELY((vm)->sig != 0)
 #endif // _WIN32
 
-#ifndef NDEBUG
+#if BC_DEBUG
 
 /// Assert that signals are locked. There are non-async-signal-safe functions in
 /// bc, and they *must* have signals locked. Other functions are expected to
@@ -724,7 +731,7 @@ typedef enum BcMode
 	}                              \
 	while (0)
 
-#else // NDEBUG
+#else // BC_DEBUG
 
 /// Assert that signals are locked. There are non-async-signal-safe functions in
 /// bc, and they *must* have signals locked. Other functions are expected to
@@ -738,7 +745,7 @@ typedef enum BcMode
 /// (no-op in non-debug mode) that check that signals are unlocked.
 #define BC_SIG_ASSERT_NOT_LOCKED
 
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /// Locks signals.
 #define BC_SIG_LOCK               \
@@ -957,33 +964,33 @@ typedef enum BcMode
  * @param l    The line of the script that the error happened.
  * @param ...  Extra arguments for error messages as necessary.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_error(e, l, ...) \
 	(bc_vm_handleError((e), __FILE__, __LINE__, (l), __VA_ARGS__))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_error(e, l, ...) (bc_vm_handleError((e), (l), __VA_ARGS__))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * Call bc's error handling routine.
  * @param e  The error.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_err(e) (bc_vm_handleError((e), __FILE__, __LINE__, 0))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_err(e) (bc_vm_handleError((e), 0))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * Call bc's error handling routine.
  * @param e  The error.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_verr(e, ...) \
 	(bc_vm_handleError((e), __FILE__, __LINE__, 0, __VA_ARGS__))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_verr(e, ...) (bc_vm_handleError((e), 0, __VA_ARGS__))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 #endif // BC_ENABLE_LIBRARY
 

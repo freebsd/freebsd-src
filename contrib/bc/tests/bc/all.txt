@@ -34,6 +34,7 @@ arctangent
 sine
 cosine
 bessel
+fib
 arrays
 misc
 misc1
@@ -46,6 +47,7 @@ misc7
 misc8
 void
 rand
+rand_limits
 recursive_arrays
 divmod
 modexp

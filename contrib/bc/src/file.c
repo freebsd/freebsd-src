@@ -336,7 +336,7 @@ bc_file_vprintf(BcFile* restrict f, const char* fmt, va_list args)
 
 				bc_file_puts(f, bc_flush_none, s);
 			}
-#ifndef NDEBUG
+#if BC_DEBUG
 			// We only print signed integers in debug code.
 			else if (c == 'd')
 			{
@@ -357,7 +357,7 @@ bc_file_vprintf(BcFile* restrict f, const char* fmt, va_list args)
 					bc_file_puts(f, bc_flush_none, buf);
 				}
 			}
-#endif // NDEBUG
+#endif // BC_DEBUG
 			else
 			{
 				unsigned long long ull;

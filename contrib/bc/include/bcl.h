@@ -36,10 +36,19 @@
 #ifndef BC_BCL_H
 #define BC_BCL_H
 
+// TODO: Add a generation index when building with Valgrind to check for
+// use-after-free's or double frees.
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <stdint.h>
+
+#ifndef NDEBUG
+#define BC_DEBUG (1)
+#else // NDEBUG
+#define BC_DEBUG (0)
+#endif // NDEBUG
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -232,6 +241,9 @@ bcl_dup(BclNumber s);
 BclError
 bcl_bigdig(BclNumber n, BclBigDig* result);
 
+BclError
+bcl_bigdig_keep(BclNumber n, BclBigDig* result);
+
 BclNumber
 bcl_bigdig2num(BclBigDig val);
 
@@ -239,34 +251,67 @@ BclNumber
 bcl_add(BclNumber a, BclNumber b);
 
 BclNumber
+bcl_add_keep(BclNumber a, BclNumber b);
+
+BclNumber
 bcl_sub(BclNumber a, BclNumber b);
+
+BclNumber
+bcl_sub_keep(BclNumber a, BclNumber b);
 
 BclNumber
 bcl_mul(BclNumber a, BclNumber b);
 
 BclNumber
+bcl_mul_keep(BclNumber a, BclNumber b);
+
+BclNumber
 bcl_div(BclNumber a, BclNumber b);
+
+BclNumber
+bcl_div_keep(BclNumber a, BclNumber b);
 
 BclNumber
 bcl_mod(BclNumber a, BclNumber b);
 
 BclNumber
+bcl_mod_keep(BclNumber a, BclNumber b);
+
+BclNumber
 bcl_pow(BclNumber a, BclNumber b);
+
+BclNumber
+bcl_pow_keep(BclNumber a, BclNumber b);
 
 BclNumber
 bcl_lshift(BclNumber a, BclNumber b);
 
 BclNumber
+bcl_lshift_keep(BclNumber a, BclNumber b);
+
+BclNumber
 bcl_rshift(BclNumber a, BclNumber b);
+
+BclNumber
+bcl_rshift_keep(BclNumber a, BclNumber b);
 
 BclNumber
 bcl_sqrt(BclNumber a);
 
+BclNumber
+bcl_sqrt_keep(BclNumber a);
+
 BclError
 bcl_divmod(BclNumber a, BclNumber b, BclNumber* c, BclNumber* d);
 
+BclError
+bcl_divmod_keep(BclNumber a, BclNumber b, BclNumber* c, BclNumber* d);
+
 BclNumber
 bcl_modexp(BclNumber a, BclNumber b, BclNumber c);
+
+BclNumber
+bcl_modexp_keep(BclNumber a, BclNumber b, BclNumber c);
 
 ssize_t
 bcl_cmp(BclNumber a, BclNumber b);
@@ -283,8 +328,14 @@ bcl_parse(const char* restrict val);
 char*
 bcl_string(BclNumber n);
 
+char*
+bcl_string_keep(BclNumber n);
+
 BclNumber
 bcl_irand(BclNumber a);
+
+BclNumber
+bcl_irand_keep(BclNumber a);
 
 BclNumber
 bcl_frand(size_t places);
@@ -292,8 +343,14 @@ bcl_frand(size_t places);
 BclNumber
 bcl_ifrand(BclNumber a, size_t places);
 
+BclNumber
+bcl_ifrand_keep(BclNumber a, size_t places);
+
 BclError
 bcl_rand_seedWithNum(BclNumber n);
+
+BclError
+bcl_rand_seedWithNum_keep(BclNumber n);
 
 BclError
 bcl_rand_seed(unsigned char seed[BCL_SEED_SIZE]);

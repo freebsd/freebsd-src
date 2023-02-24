@@ -110,12 +110,12 @@
  * @param p  The parser.
  * @param e  The error.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_parse_err(p, e) \
 	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_parse_err(p, e) (bc_vm_handleError((e), (p)->l.line))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * A convenience macro for throwing errors in parse code. This takes care of
@@ -124,13 +124,13 @@
  * @param e    The error.
  * @param ...  The varags that are needed.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_parse_verr(p, e, ...) \
 	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line, __VA_ARGS__))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_parse_verr(p, e, ...) \
 	(bc_vm_handleError((e), (p)->l.line, __VA_ARGS__))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 // Forward declarations.
 struct BcParse;
@@ -215,7 +215,7 @@ void
 bc_parse_init(BcParse* p, struct BcProgram* prog, size_t func);
 
 /**
- * Frees a parser. This is not guarded by #ifndef NDEBUG because a separate
+ * Frees a parser. This is not guarded by #if BC_DEBUG because a separate
  * parser is created at runtime to parse read() expressions and dc strings.
  * @param p  The parser to free.
  */

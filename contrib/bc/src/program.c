@@ -411,12 +411,12 @@ bc_program_num(BcProgram* p, BcResult* r)
 		// We should never get here; this is taken care of earlier because a
 		// result is expected.
 		case BC_RESULT_VOID:
-#ifndef NDEBUG
+#if BC_DEBUG
 		{
 			abort();
 			// Fallthrough
 		}
-#endif // NDEBUG
+#endif // BC_DEBUG
 		case BC_RESULT_LAST:
 		{
 			n = &p->last;
@@ -757,9 +757,16 @@ bc_program_read(BcProgram* p)
 		// struct.
 		bc_vec_init(&vm->read_buf, sizeof(char), BC_DTOR_NONE);
 	}
-	// This needs to be updated because the parser could have been used
-	// somewhere else
-	else bc_parse_updateFunc(&vm->read_prs, BC_PROG_READ);
+	else
+	{
+		// This needs to be updated because the parser could have been used
+		// somewhere else.
+		bc_parse_updateFunc(&vm->read_prs, BC_PROG_READ);
+
+		// The read buffer also needs to be emptied or else it will still
+		// contain previous read expressions.
+		bc_vec_empty(&vm->read_buf);
+	}
 
 	BC_SETJMP_LOCKED(vm, exec_err);
 
@@ -839,14 +846,14 @@ bc_program_rand(BcProgram* p)
 
 	bc_program_pushBigdig(p, (BcBigDig) rand, BC_RESULT_TEMP);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	// This is just to ensure that the generated number is correct. I also use
 	// braces because I declare every local at the top of the scope.
 	{
 		BcResult* r = bc_vec_top(&p->results);
 		assert(BC_NUM_RDX_VALID_NP(r->d.n));
 	}
-#endif // NDEBUG
+#endif // BC_DEBUG
 }
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -1140,13 +1147,13 @@ bc_program_logical(BcProgram* p, uchar inst)
 				cond = (cmp > 0);
 				break;
 			}
-#ifndef NDEBUG
+#if BC_DEBUG
 			default:
 			{
 				// There is a bug if we get here.
 				abort();
 			}
-#endif // NDEBUG
+#endif // BC_DEBUG
 		}
 	}
 
@@ -2689,12 +2696,29 @@ bc_program_globalSetting(BcProgram* p, uchar inst)
 	BcBigDig val;
 
 	// Make sure the instruction is valid.
+#if DC_ENABLED
+	assert((inst >= BC_INST_LINE_LENGTH && inst <= BC_INST_LEADING_ZERO) ||
+	       (BC_IS_DC && inst == BC_INST_EXTENDED_REGISTERS));
+#else // DC_ENABLED
 	assert(inst >= BC_INST_LINE_LENGTH && inst <= BC_INST_LEADING_ZERO);
+#endif // DC_ENABLED
 
-	if (inst == BC_INST_LINE_LENGTH) val = (BcBigDig) vm->line_len;
+	if (inst == BC_INST_LINE_LENGTH)
+	{
+		val = (BcBigDig) vm->line_len;
+	}
 #if BC_ENABLED
-	else if (inst == BC_INST_GLOBAL_STACKS) val = (BC_G != 0);
+	else if (inst == BC_INST_GLOBAL_STACKS)
+	{
+		val = (BC_G != 0);
+	}
 #endif // BC_ENABLED
+#if DC_ENABLED
+	else if (inst == BC_INST_EXTENDED_REGISTERS)
+	{
+		val = (DC_X != 0);
+	}
+#endif // DC_ENABLED
 	else val = (BC_Z != 0);
 
 	// Push the global.
@@ -2779,7 +2803,7 @@ bc_program_insertFunc(BcProgram* p, const char* name)
 	return idx;
 }
 
-#ifndef NDEBUG
+#if BC_DEBUG
 void
 bc_program_free(BcProgram* p)
 {
@@ -2826,7 +2850,7 @@ bc_program_free(BcProgram* p)
 	if (BC_IS_DC) bc_vec_free(&p->tail_calls);
 #endif // DC_ENABLED
 }
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 void
 bc_program_init(BcProgram* p)
@@ -2883,11 +2907,11 @@ bc_program_init(BcProgram* p)
 	if (BC_IS_BC) bc_num_init(&p->last, BC_NUM_DEF_SIZE);
 #endif // BC_ENABLED
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	bc_vec_init(&p->fns, sizeof(BcFunc), BC_DTOR_FUNC);
-#else // NDEBUG
+#else // BC_DEBUG
 	bc_vec_init(&p->fns, sizeof(BcFunc), BC_DTOR_NONE);
-#endif // NDEBUG
+#endif // BC_DEBUG
 	bc_map_init(&p->fn_map);
 	bc_program_insertFunc(p, bc_func_main);
 	bc_program_insertFunc(p, bc_func_read);
@@ -3002,9 +3026,9 @@ bc_program_exec(BcProgram* p)
 	BcNum* num;
 #endif // BC_ENABLED
 #if !BC_HAS_COMPUTED_GOTO
-#ifndef NDEBUG
+#if BC_DEBUG
 	size_t jmp_bufs_len;
-#endif // NDEBUG
+#endif // BC_DEBUG
 #endif // !BC_HAS_COMPUTED_GOTO
 
 #if BC_HAS_COMPUTED_GOTO
@@ -3042,9 +3066,9 @@ bc_program_exec(BcProgram* p)
 
 #if !BC_HAS_COMPUTED_GOTO
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	jmp_bufs_len = vm->jmp_bufs.len;
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	// This loop is the heart of the execution engine. It *is* the engine. For
 	// computed goto, it is ignored.
@@ -3246,6 +3270,9 @@ bc_program_exec(BcProgram* p)
 #if BC_ENABLED
 			BC_PROG_LBL(BC_INST_GLOBAL_STACKS):
 #endif // BC_ENABLED
+#if DC_ENABLED
+			BC_PROG_LBL(BC_INST_EXTENDED_REGISTERS):
+#endif // DC_ENABLE
 			BC_PROG_LBL(BC_INST_LEADING_ZERO):
 			// clang-format on
 			{
@@ -3669,9 +3696,9 @@ bc_program_exec(BcProgram* p)
 			default:
 			{
 				BC_UNREACHABLE
-#if !defined(NDEBUG) && !BC_CLANG
+#if BC_DEBUG && !BC_CLANG
 				abort();
-#endif // !defined(NDEBUG) && !BC_CLANG
+#endif // BC_DEBUG && !BC_CLANG
 			}
 #endif // BC_HAS_COMPUTED_GOTO
 		}
@@ -3688,12 +3715,12 @@ bc_program_exec(BcProgram* p)
 
 #else // BC_HAS_COMPUTED_GOTO
 
-#ifndef NDEBUG
+#if BC_DEBUG
 		// This is to allow me to use a debugger to see the last instruction,
 		// which will point to which function was the problem. But it's also a
 		// good smoke test for error handling changes.
 		assert(jmp_bufs_len == vm->jmp_bufs.len);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 #endif // BC_HAS_COMPUTED_GOTO
 	}

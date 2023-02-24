@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BCL" "3" "October 2022" "Gavin D. Howard" "Libraries Manual"
+.TH "BCL" "3" "February 2023" "Gavin D. Howard" "Libraries Manual"
 .nh
 .ad l
 .SH NAME
@@ -139,7 +139,12 @@ integers.
 .PP
 \f[B]char* bcl_string(BclNumber\f[R] \f[I]n\f[R]\f[B]);\f[R]
 .PP
+\f[B]char* bcl_string_keep(BclNumber\f[R] \f[I]n\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclError bcl_bigdig(BclNumber\f[R] \f[I]n\f[R]\f[B], BclBigDig
+*\f[R]\f[I]result\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclError bcl_bigdig_keep(BclNumber\f[R] \f[I]n\f[R]\f[B], BclBigDig
 *\f[R]\f[I]result\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclNumber bcl_bigdig2num(BclBigDig\f[R] \f[I]val\f[R]\f[B]);\f[R]
@@ -150,34 +155,67 @@ These items allow clients to run math on numbers.
 \f[B]BclNumber bcl_add(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_add_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_sub(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclNumber bcl_sub_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclNumber bcl_mul(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_mul_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_div(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclNumber bcl_div_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclNumber bcl_mod(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_mod_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_pow(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_pow_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_lshift(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclNumber bcl_lshift_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
 BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclNumber bcl_rshift(BclNumber\f[R] \f[I]a\f[R]\f[B],
 BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_rshift_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_sqrt(BclNumber\f[R] \f[I]a\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclNumber bcl_sqrt_keep(BclNumber\f[R] \f[I]a\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclError bcl_divmod(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R]
 \f[I]b\f[R]\f[B], BclNumber *\f[R]\f[I]c\f[R]\f[B], BclNumber
 *\f[R]\f[I]d\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclError bcl_divmod_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber *\f[R]\f[I]c\f[R]\f[B],
+BclNumber *\f[R]\f[I]d\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_modexp(BclNumber\f[R] \f[I]a\f[R]\f[B],
+BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber\f[R] \f[I]c\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclNumber bcl_modexp_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
 BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber\f[R] \f[I]c\f[R]\f[B]);\f[R]
 .SS Miscellaneous
 .PP
@@ -209,12 +247,20 @@ generator in bcl(3).
 .PP
 \f[B]BclNumber bcl_irand(BclNumber\f[R] \f[I]a\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_irand_keep(BclNumber\f[R] \f[I]a\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclNumber bcl_frand(size_t\f[R] \f[I]places\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclNumber bcl_ifrand(BclNumber\f[R] \f[I]a\f[R]\f[B], size_t\f[R]
 \f[I]places\f[R]\f[B]);\f[R]
 .PP
+\f[B]BclNumber bcl_ifrand_keep(BclNumber\f[R] \f[I]a\f[R]\f[B],
+size_t\f[R] \f[I]places\f[R]\f[B]);\f[R]
+.PP
 \f[B]BclError bcl_rand_seedWithNum(BclNumber\f[R]
+\f[I]n\f[R]\f[B]);\f[R]
+.PP
+\f[B]BclError bcl_rand_seedWithNum_keep(BclNumber\f[R]
 \f[I]n\f[R]\f[B]);\f[R]
 .PP
 \f[B]BclError bcl_rand_seed(unsigned char\f[R]
@@ -608,8 +654,9 @@ Returns the number of \f[I]significant decimal digits\f[R] in
 .PP
 All procedures in this section require a valid current context.
 .PP
-All procedures in this section consume the given \f[B]BclNumber\f[R]
-arguments that are not given to pointer arguments.
+All procedures in this section without the \f[B]_keep\f[R] suffix in
+their name consume the given \f[B]BclNumber\f[R] arguments that are not
+given to pointer arguments.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
 .TP
 \f[B]BclNumber bcl_parse(const char *restrict\f[R] \f[I]val\f[R]\f[B])\f[R]
@@ -644,6 +691,11 @@ The string is dynamically allocated and must be freed by the caller.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
 .RE
 .TP
+\f[B]char* bcl_string_keep(BclNumber\f[R] \f[I]n\f[R]\f[B])\f[R]
+Returns a string representation of \f[I]n\f[R] according the the current
+context\[cq]s \f[B]ibase\f[R].
+The string is dynamically allocated and must be freed by the caller.
+.TP
 \f[B]BclError bcl_bigdig(BclNumber\f[R] \f[I]n\f[R]\f[B], BclBigDig *\f[R]\f[I]result\f[R]\f[B])\f[R]
 Converts \f[I]n\f[R] into a \f[B]BclBigDig\f[R] and returns the result
 in the space pointed to by \f[I]result\f[R].
@@ -665,6 +717,24 @@ Otherwise, this function can return:
 See the \f[B]Consumption and Propagation\f[R] subsection below.
 .RE
 .TP
+\f[B]BclError bcl_bigdig_keep(BclNumber\f[R] \f[I]n\f[R]\f[B], BclBigDig *\f[R]\f[I]result\f[R]\f[B])\f[R]
+Converts \f[I]n\f[R] into a \f[B]BclBigDig\f[R] and returns the result
+in the space pointed to by \f[I]result\f[R].
+.RS
+.PP
+\f[I]a\f[R] must be smaller than \f[B]BC_OVERFLOW_MAX\f[R].
+See the \f[B]LIMITS\f[R] section.
+.PP
+If there was no error, \f[B]BCL_ERROR_NONE\f[R] is returned.
+Otherwise, this function can return:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_OVERFLOW\f[R]
+.RE
+.TP
 \f[B]BclNumber bcl_bigdig2num(BclBigDig\f[R] \f[I]val\f[R]\f[B])\f[R]
 Creates a \f[B]BclNumber\f[R] from \f[I]val\f[R].
 .RS
@@ -680,6 +750,11 @@ Possible errors include:
 .SS Math
 .PP
 All procedures in this section require a valid current context.
+.PP
+All procedures in this section without the \f[B]_keep\f[R] suffix in
+their name consume the given \f[B]BclNumber\f[R] arguments that are not
+given to pointer arguments.
+See the \f[B]Consumption and Propagation\f[R] subsection below.
 .PP
 All procedures in this section can return the following errors:
 .IP \[bu] 2
@@ -698,6 +773,25 @@ The \f[I]scale\f[R] of the result is the max of the \f[I]scale\f[R]s of
 \f[I]a\f[R] and \f[I]b\f[R] are consumed; they cannot be used after the
 call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_add_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Adds \f[I]a\f[R] and \f[I]b\f[R] and returns the result.
+The \f[I]scale\f[R] of the result is the max of the \f[I]scale\f[R]s of
+\f[I]a\f[R] and \f[I]b\f[R].
+.RS
 .PP
 \f[I]a\f[R] and \f[I]b\f[R] can be the same number.
 .PP
@@ -735,6 +829,25 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .TP
+\f[B]BclNumber bcl_sub_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Subtracts \f[I]b\f[R] from \f[I]a\f[R] and returns the result.
+The \f[I]scale\f[R] of the result is the max of the \f[I]scale\f[R]s of
+\f[I]a\f[R] and \f[I]b\f[R].
+.RS
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
 \f[B]BclNumber bcl_mul(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
 Multiplies \f[I]a\f[R] and \f[I]b\f[R] and returns the result.
 If \f[I]ascale\f[R] is the \f[I]scale\f[R] of \f[I]a\f[R] and
@@ -747,6 +860,28 @@ If \f[I]ascale\f[R] is the \f[I]scale\f[R] of \f[I]a\f[R] and
 \f[I]a\f[R] and \f[I]b\f[R] are consumed; they cannot be used after the
 call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_mul_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Multiplies \f[I]a\f[R] and \f[I]b\f[R] and returns the result.
+If \f[I]ascale\f[R] is the \f[I]scale\f[R] of \f[I]a\f[R] and
+\f[I]bscale\f[R] is the \f[I]scale\f[R] of \f[I]b\f[R], the
+\f[I]scale\f[R] of the result is equal to
+\f[B]min(ascale+bscale,max(scale,ascale,bscale))\f[R], where
+\f[B]min()\f[R] and \f[B]max()\f[R] return the obvious values.
+.RS
 .PP
 \f[I]a\f[R] and \f[I]b\f[R] can be the same number.
 .PP
@@ -788,6 +923,29 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .TP
+\f[B]BclNumber bcl_div_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Divides \f[I]a\f[R] by \f[I]b\f[R] and returns the result.
+The \f[I]scale\f[R] of the result is the \f[I]scale\f[R] of the current
+context.
+.RS
+.PP
+\f[I]b\f[R] cannot be \f[B]0\f[R].
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_DIVIDE_BY_ZERO\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
 \f[B]BclNumber bcl_mod(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
 Divides \f[I]a\f[R] by \f[I]b\f[R] to the \f[I]scale\f[R] of the current
 context, computes the modulus \f[B]a-(a/b)*b\f[R], and returns the
@@ -799,6 +957,29 @@ modulus.
 \f[I]a\f[R] and \f[I]b\f[R] are consumed; they cannot be used after the
 call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_DIVIDE_BY_ZERO\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_mod_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Divides \f[I]a\f[R] by \f[I]b\f[R] to the \f[I]scale\f[R] of the current
+context, computes the modulus \f[B]a-(a/b)*b\f[R], and returns the
+modulus.
+.RS
+.PP
+\f[I]b\f[R] cannot be \f[B]0\f[R].
 .PP
 \f[I]a\f[R] and \f[I]b\f[R] can be the same number.
 .PP
@@ -851,6 +1032,38 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .TP
+\f[B]BclNumber bcl_pow_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Calculates \f[I]a\f[R] to the power of \f[I]b\f[R] to the
+\f[I]scale\f[R] of the current context.
+\f[I]b\f[R] must be an integer, but can be negative.
+If it is negative, \f[I]a\f[R] must be non-zero.
+.RS
+.PP
+\f[I]b\f[R] must be an integer.
+If \f[I]b\f[R] is negative, \f[I]a\f[R] must not be \f[B]0\f[R].
+.PP
+\f[I]a\f[R] must be smaller than \f[B]BC_OVERFLOW_MAX\f[R].
+See the \f[B]LIMITS\f[R] section.
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_OVERFLOW\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_DIVIDE_BY_ZERO\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
 \f[B]BclNumber bcl_lshift(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
 Shifts \f[I]a\f[R] left (moves the radix right) by \f[I]b\f[R] places
 and returns the result.
@@ -863,6 +1076,30 @@ This is done in decimal.
 \f[I]a\f[R] and \f[I]b\f[R] are consumed; they cannot be used after the
 call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_lshift_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Shifts \f[I]a\f[R] left (moves the radix right) by \f[I]b\f[R] places
+and returns the result.
+This is done in decimal.
+\f[I]b\f[R] must be an integer.
+.RS
+.PP
+\f[I]b\f[R] must be an integer.
 .PP
 \f[I]a\f[R] and \f[I]b\f[R] can be the same number.
 .PP
@@ -907,6 +1144,30 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .TP
+\f[B]BclNumber bcl_rshift_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B])\f[R]
+Shifts \f[I]a\f[R] right (moves the radix left) by \f[I]b\f[R] places
+and returns the result.
+This is done in decimal.
+\f[I]b\f[R] must be an integer.
+.RS
+.PP
+\f[I]b\f[R] must be an integer.
+.PP
+\f[I]a\f[R] and \f[I]b\f[R] can be the same number.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
 \f[B]BclNumber bcl_sqrt(BclNumber\f[R] \f[I]a\f[R]\f[B])\f[R]
 Calculates the square root of \f[I]a\f[R] and returns the result.
 The \f[I]scale\f[R] of the result is equal to the \f[B]scale\f[R] of the
@@ -917,6 +1178,27 @@ current context.
 .PP
 \f[I]a\f[R] is consumed; it cannot be used after the call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NEGATIVE\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_sqrt_keep(BclNumber\f[R] \f[I]a\f[R]\f[B])\f[R]
+Calculates the square root of \f[I]a\f[R] and returns the result.
+The \f[I]scale\f[R] of the result is equal to the \f[B]scale\f[R] of the
+current context.
+.RS
+.PP
+\f[I]a\f[R] cannot be negative.
 .PP
 bcl(3) will encode an error in the return value, if there was one.
 The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
@@ -959,6 +1241,30 @@ Otherwise, this function can return:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .TP
+\f[B]BclError bcl_divmod_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber *\f[R]\f[I]c\f[R]\f[B], BclNumber *\f[R]\f[I]d\f[R]\f[B])\f[R]
+Divides \f[I]a\f[R] by \f[I]b\f[R] and returns the quotient in a new
+number which is put into the space pointed to by \f[I]c\f[R], and puts
+the modulus in a new number which is put into the space pointed to by
+\f[I]d\f[R].
+.RS
+.PP
+\f[I]b\f[R] cannot be \f[B]0\f[R].
+.PP
+\f[I]c\f[R] and \f[I]d\f[R] cannot point to the same place, nor can they
+point to the space occupied by \f[I]a\f[R] or \f[I]b\f[R].
+.PP
+If there was no error, \f[B]BCL_ERROR_NONE\f[R] is returned.
+Otherwise, this function can return:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_DIVIDE_BY_ZERO\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
 \f[B]BclNumber bcl_modexp(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber\f[R] \f[I]c\f[R]\f[B])\f[R]
 Computes a modular exponentiation where \f[I]a\f[R] is the base,
 \f[I]b\f[R] is the exponent, and \f[I]c\f[R] is the modulus, and returns
@@ -974,6 +1280,35 @@ current context.
 \f[I]a\f[R], \f[I]b\f[R], and \f[I]c\f[R] are consumed; they cannot be
 used after the call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NEGATIVE\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_DIVIDE_BY_ZERO\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_modexp_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], BclNumber\f[R] \f[I]b\f[R]\f[B], BclNumber\f[R] \f[I]c\f[R]\f[B])\f[R]
+Computes a modular exponentiation where \f[I]a\f[R] is the base,
+\f[I]b\f[R] is the exponent, and \f[I]c\f[R] is the modulus, and returns
+the result.
+The \f[I]scale\f[R] of the result is equal to the \f[B]scale\f[R] of the
+current context.
+.RS
+.PP
+\f[I]a\f[R], \f[I]b\f[R], and \f[I]c\f[R] must be integers.
+\f[I]c\f[R] must not be \f[B]0\f[R].
+\f[I]b\f[R] must not be negative.
 .PP
 bcl(3) will encode an error in the return value, if there was one.
 The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
@@ -1060,6 +1395,11 @@ char[\f[R]\f[I]BCL_SEED_SIZE\f[R]\f[B]])\f[R]
 .IP \[bu] 2
 \f[B]bcl_rand_reseed(\f[R]\f[I]void\f[R]\f[B])\f[R]
 .PP
+All procedures in this section without the \f[B]_keep\f[R] suffix in
+their name consume the given \f[B]BclNumber\f[R] arguments that are not
+given to pointer arguments.
+See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
 The following items allow clients to use the pseudo-random number
 generator.
 All procedures require a valid current context.
@@ -1094,6 +1434,36 @@ multiplying them by certain exponents, and adding them all together.
 .PP
 \f[I]a\f[R] is consumed; it cannot be used after the call.
 See the \f[B]Consumption and Propagation\f[R] subsection below.
+.PP
+This procedure requires a valid current context.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NEGATIVE\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
+\f[B]BclNumber bcl_irand_keep(BclNumber\f[R] \f[I]a\f[R]\f[B])\f[R]
+Returns a random number that is not larger than \f[I]a\f[R] in a new
+number.
+If \f[I]a\f[R] is \f[B]0\f[R] or \f[B]1\f[R], the new number is equal to
+\f[B]0\f[R].
+The bound is unlimited, so it is not bound to the size of
+\f[B]BclRandInt\f[R].
+This is done by generating as many random numbers as necessary,
+multiplying them by certain exponents, and adding them all together.
+.RS
+.PP
+\f[I]a\f[R] must be an integer and non-negative.
 .PP
 This procedure requires a valid current context.
 .PP
@@ -1158,11 +1528,55 @@ Possible errors include:
 \f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
 .RE
 .TP
+\f[B]BclNumber bcl_ifrand_keep(BclNumber\f[R] \f[I]a\f[R]\f[B], size_t\f[R] \f[I]places\f[R]\f[B])\f[R]
+Returns a random number less than \f[I]a\f[R] with \f[I]places\f[R]
+decimal digits after the radix (decimal point).
+There are no limits on \f[I]a\f[R] or \f[I]places\f[R].
+.RS
+.PP
+\f[I]a\f[R] must be an integer and non-negative.
+.PP
+This procedure requires a valid current context.
+.PP
+bcl(3) will encode an error in the return value, if there was one.
+The error can be queried with \f[B]bcl_err(BclNumber)\f[R].
+Possible errors include:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NEGATIVE\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_MATH_NON_INTEGER\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_FATAL_ALLOC_ERR\f[R]
+.RE
+.TP
 \f[B]BclError bcl_rand_seedWithNum(BclNumber\f[R] \f[I]n\f[R]\f[B])\f[R]
 Seeds the PRNG with \f[I]n\f[R].
 .RS
 .PP
-\f[I]n\f[R] is \f[I]not\f[R] consumed.
+\f[I]n\f[R] is consumed.
+.PP
+This procedure requires a valid current context.
+.PP
+If there was no error, \f[B]BCL_ERROR_NONE\f[R] is returned.
+Otherwise, this function can return:
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_NUM\f[R]
+.IP \[bu] 2
+\f[B]BCL_ERROR_INVALID_CONTEXT\f[R]
+.PP
+Note that if \f[B]bcl_rand_seed2num(\f[R]\f[I]void\f[R]\f[B])\f[R] or
+\f[B]bcl_rand_seed2num_err(BclNumber)\f[R] are called right after this
+function, they are not guaranteed to return a number equal to
+\f[I]n\f[R].
+.RE
+.TP
+\f[B]BclError bcl_rand_seedWithNum_keep(BclNumber\f[R] \f[I]n\f[R]\f[B])\f[R]
+Seeds the PRNG with \f[I]n\f[R].
+.RS
 .PP
 This procedure requires a valid current context.
 .PP
@@ -1253,7 +1667,7 @@ so the example above should properly be:
 .nf
 \f[C]
 BclNumber n = bcl_num_add(bcl_num_mul(a, b), bcl_num_div(c, d));
-if (bc_num_err(n) != BCL_ERROR_NONE) {
+if (bcl_err(n) != BCL_ERROR_NONE) {
     // Handle the error.
 }
 \f[R]

@@ -49,11 +49,11 @@
  * @param l  The lexer.
  * @param e  The error.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_lex_err(l, e) (bc_vm_handleError((e), __FILE__, __LINE__, (l)->line))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_lex_err(l, e) (bc_vm_handleError((e), (l)->line))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * A convenience macro for throwing errors in lex code. This takes care of
@@ -61,12 +61,12 @@
  * @param l  The lexer.
  * @param e  The error.
  */
-#ifndef NDEBUG
+#if BC_DEBUG
 #define bc_lex_verr(l, e, ...) \
 	(bc_vm_handleError((e), __FILE__, __LINE__, (l)->line, __VA_ARGS__))
-#else // NDEBUG
+#else // BC_DEBUG
 #define bc_lex_verr(l, e, ...) (bc_vm_handleError((e), (l)->line, __VA_ARGS__))
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 // BC_LEX_NEG_CHAR returns the char that corresponds to negative for the
 // current calculator.
@@ -409,6 +409,9 @@ typedef enum BcLexType
 
 #if DC_ENABLED
 
+	/// dc extended registers keyword.
+	BC_LEX_EXTENDED_REGISTERS,
+
 	/// A special token for dc to calculate equal without a register.
 	BC_LEX_EQ_NO_REG,
 
@@ -533,7 +536,7 @@ void
 bc_lex_init(BcLex* l);
 
 /**
- * Frees a lexer. This is not guarded by #ifndef NDEBUG because a separate
+ * Frees a lexer. This is not guarded by #if BC_DEBUG because a separate
  * parser is created at runtime to parse read() expressions and dc strings, and
  * that parser needs a lexer.
  * @param l  The lexer to free.

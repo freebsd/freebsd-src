@@ -2187,11 +2187,11 @@ bc_history_free(BcHistory* h)
 	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), h->orig_in);
 	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), h->orig_out);
 #endif // _WIN32
-#ifndef NDEBUG
+#if BC_DEBUG
 	bc_vec_free(&h->buf);
 	bc_vec_free(&h->history);
 	bc_vec_free(&h->extras);
-#endif // NDEBUG
+#endif // BC_DEBUG
 }
 
 #if BC_DEBUG_CODE

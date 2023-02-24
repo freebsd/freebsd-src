@@ -277,6 +277,9 @@ typedef enum BcInst
 
 #if DC_ENABLED
 
+	/// dc extended registers command.
+	BC_INST_EXTENDED_REGISTERS,
+
 	/// dc's return; it pops an executing string off of the stack.
 	BC_INST_POP_EXEC,
 
@@ -575,7 +578,7 @@ bc_func_insert(BcFunc* f, struct BcProgram* p, char* name, BcType type,
 void
 bc_func_reset(BcFunc* f);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 /**
  * Frees a function. This is a destructor. This is only used in debug builds
  * because all functions are freed at exit. We free them in debug builds to
@@ -584,7 +587,7 @@ bc_func_reset(BcFunc* f);
  */
 void
 bc_func_free(void* func);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * Initializes an array, which is the array type in bc and dc source code. Since

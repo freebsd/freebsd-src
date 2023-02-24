@@ -136,7 +136,7 @@ bc_func_reset(BcFunc* f)
 #endif // BC_ENABLED
 }
 
-#ifndef NDEBUG
+#if BC_DEBUG
 void
 bc_func_free(void* func)
 {
@@ -155,7 +155,7 @@ bc_func_free(void* func)
 	}
 #endif // BC_ENABLED
 }
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 void
 bc_array_init(BcVec* a, bool nums)
@@ -302,10 +302,10 @@ bc_result_copy(BcResult* d, BcResult* src)
 		case BC_RESULT_VOID:
 		case BC_RESULT_LAST:
 		{
-#ifndef NDEBUG
+#if BC_DEBUG
 			// We should *never* try copying either of these.
 			abort();
-#endif // NDEBUG
+#endif // BC_DEBUG
 		}
 #endif // BC_ENABLED
 	}

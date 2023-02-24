@@ -58,10 +58,10 @@ PLAIN_TESTS_SH=		bc_tests dc_tests
 
 bc_tests.sh:
 	echo "#!/bin/sh" > ${.TARGET}
-	echo "env LANG=C ${TESTSDIR}/tests/all.sh bc 1 1 0 0 bc" >> ${.TARGET}
+	echo "env LANG=C ${TESTSDIR}/tests/all.sh bc 1 1 0 0 0 bc" >> ${.TARGET}
 
 dc_tests.sh:
 	echo "#!/bin/sh" > ${.TARGET}
-	echo "env LANG=C ${TESTSDIR}/tests/all.sh dc 1 1 0 0 dc" >> ${.TARGET}
+	echo "env LANG=C ${TESTSDIR}/tests/all.sh dc 1 1 0 0 0 dc" >> ${.TARGET}
 
 .include <bsd.test.mk>

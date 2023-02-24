@@ -41,7 +41,7 @@ set -e
 
 if test "$mkdirp" ; then
 umask 022
-case "$2" in
+case "$dst" in
 */*) mkdir -p "${dst%/*}" ;;
 esac
 fi
@@ -51,15 +51,15 @@ trap 'rm -f "$tmp"' EXIT INT QUIT TERM HUP
 umask 077
 
 if test "$symlink" ; then
-ln -s "$1" "$tmp"
+ln -s "$src" "$tmp"
 else
-cat < "$1" > "$tmp"
+cat < "$src" > "$tmp"
 chmod "$mode" "$tmp"
 fi
 
-mv -f "$tmp" "$2"
-test -d "$2" && {
-rm -f "$2/$tmp"
+mv -f "$tmp" "$dst"
+test -d "$dst" && {
+rm -f "$dst/$tmp"
 printf "%s: %s is a directory\n" "$0" "$dst" 1>&2
 exit 1
 }

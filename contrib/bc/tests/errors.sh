@@ -98,12 +98,12 @@ fi
 
 printf 'Running %s command-line error tests...' "$d"
 
-printf '%s\n' "$halt" | "$exe" "$@" -e "1+1" -f- -e "2+2" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" -e "1+1" -f- -e "2+2" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "command-line -e test" "$out" "$exebase"
 
-printf '%s\n' "$halt" | "$exe" "$@" -e "1+1" -f- -f "$testdir/$d/decimal.txt" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" -e "1+1" -f- -f "$testdir/$d/decimal.txt" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "command-line -f test" "$out" "$exebase"
@@ -123,7 +123,7 @@ for testfile in $testdir/$d/*errors.txt; do
 
 		# Just test warnings.
 		line="last"
-		printf '%s\n' "$line" | "$exe" "$@" "-lw"  2> "$out" > /dev/null
+		printf '%s\n' "$line" 2> /dev/null | "$exe" "$@" "-lw"  2> "$out" > /dev/null
 		err="$?"
 
 		if [ "$err" -ne 0 ]; then
@@ -150,7 +150,7 @@ for testfile in $testdir/$d/*errors.txt; do
 
 		rm -f "$out"
 
-		printf '%s\n' "$line" | "$exe" "$@" "$options" 2> "$out" > /dev/null
+		printf '%s\n' "$line" 2> /dev/null | "$exe" "$@" "$options" 2> "$out" > /dev/null
 		err="$?"
 
 		checkerrtest "$d" "$err" "$line" "$out" "$exebase"
