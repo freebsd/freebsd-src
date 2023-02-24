@@ -766,6 +766,9 @@ bufspace_daemon_shutdown(void *arg, int howto __unused)
 	struct bufdomain *bd = arg;
 	int error;
 
+	if (KERNEL_PANICKED())
+		return;
+
 	BD_RUN_LOCK(bd);
 	bd->bd_shutdown = true;
 	wakeup(&bd->bd_running);
