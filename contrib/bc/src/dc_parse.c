@@ -349,6 +349,7 @@ dc_parse_token(BcParse* p, BcLexType t, uint8_t flags)
 		case BC_LEX_KW_LEADING_ZERO:
 		case BC_LEX_KW_STREAM:
 		case BC_LEX_KW_ELSE:
+		case BC_LEX_EXTENDED_REGISTERS:
 		case BC_LEX_EQ_NO_REG:
 		case BC_LEX_EXECUTE:
 		case BC_LEX_PRINT_STACK:

@@ -60,6 +60,12 @@ fi
 # If it's a symlink, create an equivalent in the install directory.
 for exe in $bindir/*; do
 
+	# Skip any directories in case the bin/ directory is also used as the
+	# prefix.
+	if [ -d "$exe" ]; then
+		continue
+	fi
+
 	base=$(basename "$exe")
 
 	if [ -L "$exe" ]; then

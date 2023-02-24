@@ -31,6 +31,8 @@ script="$0"
 
 testdir=$(dirname "${script}")
 
+. "$testdir/../scripts/functions.sh"
+
 # Just print the usage and exit with an error. This can receive a message to
 # print.
 # @param 1  A message to print.
@@ -50,11 +52,12 @@ pll=1
 while getopts "n" opt; do
 
 	case "$opt" in
-		n) pll=0 ; shift ; set -e ;;
+		n) pll=0 ; set -e ;;
 		?) usage "Invalid option: $opt" ;;
 	esac
 
 done
+shift $(($OPTIND - 1))
 
 # Command-line processing.
 if [ "$#" -eq 0 ]; then

@@ -109,7 +109,7 @@ fi
 
 printf 'Running %s error file %s with clamping...' "$d" "$t"
 
-printf '%s\n' "$halt" | "$exe" "$@" $opts -c "$testfile" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $opts -c "$testfile" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "$testfile" "$out" "$exebase" > /dev/null
@@ -118,7 +118,7 @@ printf 'pass\n'
 
 printf 'Running %s error file %s without clamping...' "$d" "$t"
 
-printf '%s\n' "$halt" | "$exe" "$@" $opts -C "$testfile" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $opts -C "$testfile" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "$testfile" "$out" "$exebase" > /dev/null
@@ -127,7 +127,7 @@ printf 'pass\n'
 
 printf 'Running %s error file %s through cat with clamping...' "$d" "$t"
 
-cat "$testfile" | "$exe" "$@" $opts -c 2> "$out" > /dev/null
+cat "$testfile" 2> /dev/null | "$exe" "$@" $opts -c 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"
@@ -136,7 +136,7 @@ printf 'pass\n'
 
 printf 'Running %s error file %s through cat without clamping...' "$d" "$t"
 
-cat "$testfile" | "$exe" "$@" $opts -C 2> "$out" > /dev/null
+cat "$testfile" 2> /dev/null | "$exe" "$@" $opts -C 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"

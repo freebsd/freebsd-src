@@ -41,6 +41,12 @@
 #include <limits.h>
 #include <stdint.h>
 
+#ifndef NDEBUG
+#define BC_DEBUG (1)
+#else // NDEBUG
+#define BC_DEBUG (0)
+#endif // NDEBUG
+
 #ifdef _WIN32
 #include <Windows.h>
 #include <BaseTsd.h>

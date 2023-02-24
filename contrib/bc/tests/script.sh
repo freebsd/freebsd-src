@@ -194,7 +194,7 @@ else
 	# where GNU bc is wrong. See the development manual
 	# (manuals/development.md#script-tests) for more information.
 	printf 'Generating %s results...' "$f"
-	printf '%s\n' "$halt" | "$d" "$s" | sed -n -f "$testdir/script.sed" > "$results"
+	printf '%s\n' "$halt" 2> /dev/null | "$d" "$s" | sed -n -f "$testdir/script.sed" > "$results"
 	printf 'done\n'
 	res="$results"
 fi
@@ -206,11 +206,11 @@ printf 'Running %s script %s...' "$d" "$f"
 # Yes this is poor timing, but it works.
 if [ "$time_tests" -ne 0 ]; then
 	printf '\n'
-	printf '%s\n' "$halt" | /usr/bin/time -p "$exe" "$@" $options "$s" > "$out"
+	printf '%s\n' "$halt" 2> /dev/null | /usr/bin/time -p "$exe" "$@" $options "$s" > "$out"
 	err="$?"
 	printf '\n'
 else
-	printf '%s\n' "$halt" | "$exe" "$@" $options "$s" > "$out"
+	printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $options "$s" > "$out"
 	err="$?"
 fi
 

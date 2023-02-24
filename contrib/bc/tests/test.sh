@@ -138,7 +138,7 @@ fi
 # If the results do not exist, generate..
 if [ ! -f "$results" ]; then
 	printf 'Generating %s %s results...' "$d" "$t"
-	printf '%s\n' "$halt" | "$d" $options "$name" > "$results"
+	printf '%s\n' "$halt" 2> /dev/null | "$d" $options "$name" > "$results"
 	printf 'done\n'
 fi
 
@@ -157,11 +157,11 @@ printf 'Running %s %s...' "$d" "$t"
 
 if [ "$time_tests" -ne 0 ]; then
 	printf '\n'
-	printf '%s\n' "$halt" | /usr/bin/time -p "$exe" "$@" $options "$name" > "$out"
+	printf '%s\n' "$halt" 2> /dev/null | /usr/bin/time -p "$exe" "$@" $options "$name" > "$out"
 	err="$?"
 	printf '\n'
 else
-	printf '%s\n' "$halt" | "$exe" "$@" $options "$name" > "$out"
+	printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $options "$name" > "$out"
 	err="$?"
 fi
 

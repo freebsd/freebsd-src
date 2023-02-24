@@ -345,7 +345,7 @@ bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
 			}
 #endif // DC_ENABLED
 
-#ifndef NDEBUG
+#if BC_DEBUG
 			// We shouldn't get here because bc_opt_error()/bc_error() should
 			// longjmp() out.
 			case '?':
@@ -357,7 +357,7 @@ bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
 				abort();
 #endif // !BC_CLANG
 			}
-#endif // NDEBUG
+#endif // BC_DEBUG
 		}
 	}
 

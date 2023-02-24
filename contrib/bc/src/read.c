@@ -279,11 +279,11 @@ bc_read_file(const char* path)
 
 	assert(path != NULL);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	// Need this to quiet MSan.
 	// NOLINTNEXTLINE
 	memset(&pstat, 0, sizeof(struct stat));
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	fd = bc_read_open(path, O_RDONLY);
 

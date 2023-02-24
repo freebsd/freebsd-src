@@ -27,7 +27,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-scriptdir=$(dirname "$0")
+script="$0"
+scriptdir=$(dirname "$script")
+
+. "$scriptdir/functions.sh"
 
 cd "$scriptdir/.."
 

@@ -36,7 +36,7 @@
 define p(x,y){
 	auto a
 	a=y$
-	if(y==a)return (x^a)@scale
+	if(y==a)return(x^a)@scale
 	return e(y*l(x))
 }
 define r(x,p){
@@ -474,7 +474,7 @@ define bxor(a,b){
 	return bunrev(t)
 }
 define bshl(a,b){return abs(a)$*2^abs(b)$}
-define bshr(a,b){return (abs(a)$/2^abs(b)$)$}
+define bshr(a,b){return(abs(a)$/2^abs(b)$)$}
 define bnotn(x,n){
 	auto s,t,m[]
 	s=scale

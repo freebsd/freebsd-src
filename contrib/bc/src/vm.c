@@ -101,9 +101,9 @@ bc_vm_jmp(void)
 	bc_file_flush(&vm->ferr, bc_flush_none);
 #endif // BC_DEBUG_CODE
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	assert(vm->jmp_bufs.len - (size_t) vm->sig_pop);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	if (vm->jmp_bufs.len == 0) abort();
 	if (vm->sig_pop) bc_vec_pop(&vm->jmp_bufs);
@@ -349,13 +349,13 @@ bc_vm_handleError(BcErr e)
 	BC_JMP;
 }
 #else // BC_ENABLE_LIBRARY
-#ifndef NDEBUG
+#if BC_DEBUG
 void
 bc_vm_handleError(BcErr e, const char* file, int fline, size_t line, ...)
-#else // NDEBUG
+#else // BC_DEBUG
 void
 bc_vm_handleError(BcErr e, size_t line, ...)
-#endif // NDEBUG
+#endif // BC_DEBUG
 {
 	BcStatus s;
 	va_list args;
@@ -423,9 +423,9 @@ bc_vm_handleError(BcErr e, size_t line, ...)
 		bc_file_putchar(&vm->ferr, bc_flush_none, '\n');
 	}
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	bc_file_printf(&vm->ferr, "\n    %s:%d\n", file, fline);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	bc_file_puts(&vm->ferr, bc_flush_none, "\n");
 
@@ -650,7 +650,7 @@ bc_vm_shutdown(void)
 	if (BC_TTY && !vm->history.badTerm) bc_history_free(&vm->history);
 #endif // BC_ENABLE_HISTORY
 
-#ifndef NDEBUG
+#if BC_DEBUG
 #if !BC_ENABLE_LIBRARY
 	bc_vec_free(&vm->env_args);
 	free(vm->env_args_buffer);
@@ -670,7 +670,7 @@ bc_vm_shutdown(void)
 #endif // !BC_ENABLE_LIBRARY
 
 	bc_vm_freeTemps();
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 #if !BC_ENABLE_LIBRARY
 	// We always want to flush.
@@ -1242,12 +1242,12 @@ err:
 		goto restart;
 	}
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	// Since these are tied to this function, free them here. We only free in
 	// debug mode because stdin is always the last thing read.
 	bc_vec_free(&vm->line_buf);
 	bc_vec_free(&vm->buffer);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	BC_LONGJMP_CONT(vm);
 }
@@ -1767,17 +1767,17 @@ bc_vm_init(void)
 void
 bc_vm_atexit(void)
 {
-#ifndef NDEBUG
+#if BC_DEBUG
 #if BC_ENABLE_LIBRARY
 	BcVm* vm = bcl_getspecific();
 #endif // BC_ENABLE_LIBRARY
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	bc_vm_shutdown();
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	bc_vec_free(&vm->jmp_bufs);
-#endif // NDEBUG
+#endif // BC_DEBUG
 }
 #else // BC_ENABLE_LIBRARY
 int
@@ -1788,9 +1788,9 @@ bc_vm_atexit(int status)
 
 	bc_vm_shutdown();
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	bc_vec_free(&vm->jmp_bufs);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	return s;
 }

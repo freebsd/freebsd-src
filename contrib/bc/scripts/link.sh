@@ -32,6 +32,11 @@ usage() {
 	exit 1
 }
 
+script="$0"
+scriptdir=$(dirname "$script")
+
+. "$scriptdir/functions.sh"
+
 # Command-line processing.
 test "$#" -gt 1 || usage
 
