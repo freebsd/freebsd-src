@@ -886,7 +886,7 @@ nfs_vnetinit(const void *unused __unused)
 	mtx_init(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx, "nfsuserd",
 	    NULL, MTX_DEF);
 }
-VNET_SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_FIRST,
     nfs_vnetinit, NULL);
 
 static void
@@ -894,12 +894,14 @@ nfs_cleanup(void *unused __unused)
 {
 
 	mtx_destroy(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx);
-	if (!IS_DEFAULT_VNET(curvnet))
+	if (!IS_DEFAULT_VNET(curvnet)) {
 		free(NFSD_VNET(nfsstatsv1_p), M_TEMP);
+		NFSD_VNET(nfsstatsv1_p) = NULL;
+	}
 	/* Clean out the name<-->id cache. */
 	nfsrv_cleanusergroup();
 }
-VNET_SYSUNINIT(nfs_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+VNET_SYSUNINIT(nfs_cleanup, SI_SUB_VNET_DONE, SI_ORDER_FIRST,
     nfs_cleanup, NULL);
 
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);
