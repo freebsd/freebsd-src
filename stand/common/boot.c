@@ -32,8 +32,9 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stand.h>
-#include <sys/reboot.h>
 #include <sys/boot.h>
+#include <sys/kenv.h>
+#include <sys/reboot.h>
 #include <string.h>
 
 #include "bootstrap.h"
@@ -321,14 +322,14 @@ getbootfile(int try)
 int
 getrootmount(char *rootdev)
 {
-	char	lbuf[128], *cp, *ep, *dev, *fstyp, *options;
+	char	lbuf[KENV_MVALLEN], *cp, *ep, *dev, *fstyp, *options;
 	int		fd, error;
 
 	if (getenv("vfs.root.mountfrom") != NULL)
 		return(0);
 
 	error = 1;
-	sprintf(lbuf, "%s/etc/fstab", rootdev);
+	snprintf(lbuf, sizeof(lbuf), "%s/etc/fstab", rootdev);
 	if ((fd = open(lbuf, O_RDONLY)) < 0)
 		goto notfound;
 
@@ -382,7 +383,7 @@ getrootmount(char *rootdev)
 		*cp = 0;
 		options = strdup(ep);
 		/* Build the <fstype>:<device> and save it in vfs.root.mountfrom */
-		sprintf(lbuf, "%s:%s", fstyp, dev);
+		snprintf(lbuf, sizeof(lbuf), "%s:%s", fstyp, dev);
 		setenv("vfs.root.mountfrom", lbuf, 0);
 
 		/* Don't override vfs.root.mountfrom.options if it is already set */
