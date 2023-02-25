@@ -843,8 +843,21 @@ _nvme=		nvme
 .if ${MACHINE_ARCH:Mpowerpc64*} != ""
 _ipmi=		ipmi
 _ixl=		ixl
+_mlx5=		mlx5
 _nvram=		opal_nvram
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ibcore=	ibcore
+_ipoib=		ipoib
+_iser=		iser
+_mlx5ib=	mlx5ib
+_rdma=		rdma
 .endif
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+       defined(ALL_MODULES)
+_mlx5en=	mlx5en
+.endif
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
 # Don't build powermac_nvram for powerpcspe, it's never supported.
 _nvram+=	powermac_nvram

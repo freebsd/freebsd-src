@@ -84,7 +84,8 @@ BROKEN_OPTIONS+= ZFS
 
 # Things that don't work because the kernel doesn't have the support
 # for them.
-.if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
+.if ${MACHINE} != "i386" && ${MACHINE} != "amd64" && \
+    ${MACHINE_ARCH:Mpowerpc64*} == ""
 BROKEN_OPTIONS+= OFED
 .endif
 
