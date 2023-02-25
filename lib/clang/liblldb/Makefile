@@ -693,6 +693,7 @@ SRCS+=		Utility/VMRange.cpp
 SRCS+=		Version/Version.cpp
 
 LLDB_TBLGEN?=	lldb-tblgen
+LLDB_TBLGEN_BIN!= which ${LLDB_TBLGEN}
 
 CommandOptions.inc: ${LLDB_SRCS}/source/Commands/Options.td
 	${LLDB_TBLGEN} -gen-lldb-option-defs \
@@ -719,6 +720,8 @@ ${path:T}PropertiesEnum.inc: ${LLDB_SRCS}/source/${path}Properties.td
 	    -o ${.TARGET} ${LLDB_SRCS}/source/${path}Properties.td
 TGHDRS+=	${path:T}PropertiesEnum.inc
 .endfor
+
+${TGHDRS}: ${LLDB_TBLGEN_BIN}
 
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}

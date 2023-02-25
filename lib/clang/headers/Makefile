@@ -200,6 +200,8 @@ riscv_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td
 GENINCS+=	riscv_${hdr:H}.h
 .endfor
 
+${GENINCS}: ${CLANG_TBLGEN_BIN}
+
 CLEANFILES=	${GENINCS} ${GENINCS:C/$/.d/}
 
 .include <bsd.prog.mk>

@@ -2026,6 +2026,8 @@ TGHDRS+=	X86GenRegisterInfo.inc
 TGHDRS+=	X86GenSubtargetInfo.inc
 .endif # MK_LLVM_TARGET_X86
 
+${TGHDRS}: ${LLVM_TBLGEN_BIN}
+
 DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
