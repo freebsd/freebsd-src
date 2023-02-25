@@ -1010,13 +1010,6 @@ clang/Basic/riscv_vector_builtin_cg.inc: \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
 TGHDRS+=	clang/Basic/riscv_vector_builtin_cg.inc
 
-clang/Driver/Options.inc: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${LLVM_TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
-	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/include/clang/Driver/Options.td
-TGHDRS+=	clang/Driver/Options.inc
-
 clang/Parse/AttrParserStringSwitches.inc: \
 	${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -gen-clang-attr-parser-string-switches \
@@ -1094,9 +1087,24 @@ OpenCLBuiltins.inc: ${CLANG_SRCS}/lib/Sema/OpenCLBuiltins.td
 	    ${CLANG_SRCS}/lib/Sema/OpenCLBuiltins.td
 TGHDRS+=	OpenCLBuiltins.inc
 
+${TGHDRS}: ${CLANG_TBLGEN_BIN}
+
 DEPENDFILES+=	${TGHDRS:C/$/.d/}
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
+
+clang/Driver/Options.inc: ${CLANG_SRCS}/include/clang/Driver/Options.td
+	${LLVM_TBLGEN} -gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Driver/Options.td
+LTGHDRS+=	clang/Driver/Options.inc
+
+${LTGHDRS}: ${LLVM_TBLGEN_BIN}
+
+DEPENDFILES+=	${LTGHDRS:C/$/.d/}
+DPSRCS+=	${LTGHDRS}
+CLEANFILES+=	${LTGHDRS} ${LTGHDRS:C/$/.d/}
 
 .include "../clang.build.mk"
 
