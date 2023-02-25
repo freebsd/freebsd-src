@@ -632,7 +632,7 @@ predicate_destroy(char **pred)
 }
 
 static void
-filter_add(char **filt, char *what, uintptr_t base, uintptr_t size)
+filter_add(char **filt, char *what, uintptr_t base, size_t size)
 {
 	char buf[256], *c = buf, *new;
 	int len, newlen;
