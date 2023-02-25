@@ -339,8 +339,7 @@ SYSTEM_LD_BASECMD= \
 	--no-warn-mismatch --warn-common --export-dynamic \
 	--dynamic-linker /red/herring -X
 SYSTEM_LD= @${SYSTEM_LD_BASECMD} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
-	${SIZE} ${.TARGET} ; chmod 755 ${.TARGET}
+SYSTEM_LD_TAIL= @${SIZE} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= ${LDSCRIPT}
 
 # Calculate path for .m files early, if needed.
