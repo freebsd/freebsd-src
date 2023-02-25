@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2021
+.Dd February 25, 2023
 .Dt INET6_OPT_INIT 3
 .Os
 .\"
@@ -43,20 +43,22 @@
 .Nm inet6_opt_get_val
 .Nd IPv6 Hop-by-Hop and Destination Options manipulation
 .\"
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .In netinet/in.h
 .Ft "int"
 .Fn inet6_opt_init "void *extbuf" "socklen_t extlen"
 .Ft "int"
-.Fn inet6_opt_append "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t type" "socklen_t len" "u_int8_t align" "void **databufp"
+.Fn inet6_opt_append "void *extbuf" "socklen_t extlen" "int offset" "uint8_t type" "socklen_t len" "uint8_t align" "void **databufp"
 .Ft "int"
 .Fn inet6_opt_finish "void *extbuf" "socklen_t extlen" "int offset"
 .Ft "int"
 .Fn inet6_opt_set_val "void *databuf" "int offset" "void *val" "socklen_t vallen"
 .Ft "int"
-.Fn inet6_opt_next "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t *typep" "socklen_t *lenp" "void **databufp"
+.Fn inet6_opt_next "void *extbuf" "socklen_t extlen" "int offset" "uint8_t *typep" "socklen_t *lenp" "void **databufp"
 .Ft "int"
-.Fn inet6_opt_find "void *extbuf" "socklen_t extlen" "int offset" "u_int8_t type" "socklen_t *lenp" "void **databufp"
+.Fn inet6_opt_find "void *extbuf" "socklen_t extlen" "int offset" "uint8_t type" "socklen_t *lenp" "void **databufp"
 .Ft "int"
 .Fn inet6_opt_get_val "void *databuf" "int offset" "void *val" "socklen_t vallen"
 .\"
@@ -67,9 +69,9 @@ The advanced sockets API defines a set of functions to
 help applications create and manipulate Hop-by-Hop and Destination
 options.
 This man page describes the functions specified in
-IETF Draft RFC3542.
+IETF Draft RFC 3542.
 These functions use the
-formatting rules specified in Appendix B in RFC2460, i.e., that the
+formatting rules specified in Appendix B in RFC 2460, i.e., that the
 largest field is placed last in the option.
 The function prototypes
 for these functions are all contained in the
@@ -206,7 +208,7 @@ inserted into the extension header, and the
 argument indicates how much data to copy.
 .Pp
 The caller should ensure that each field is aligned on its natural
-boundaries as described in Appendix B of RFC2460.
+boundaries as described in Appendix B of RFC 2460.
 .Pp
 The function returns the offset for the next field which is calculated as
 .Fa offset
@@ -281,7 +283,7 @@ or
 functions.
 The
 .Fa val
-argument points where the data will be extracted.
+argument points to where the data will be extracted.
 The
 .Fa offset
 argument specifies from where in the data portion of the option the
@@ -289,7 +291,7 @@ value should be extracted; the first byte of option data is specified
 by an offset of zero.
 .Pp
 It is expected that each field is aligned on its natural boundaries as
-described in Appendix B of RFC2460.
+described in Appendix B of RFC 2460.
 .Pp
 The function returns the offset for the next field
 by calculating
@@ -305,7 +307,7 @@ All the functions return
 on an error.
 .\"
 .Sh EXAMPLES
-RFC3542 gives comprehensive examples in Section 22.
+RFC 3542 gives comprehensive examples in Section 22.
 .Pp
 KAME also provides examples in the
 .Pa advapitest
@@ -318,20 +320,20 @@ directory of its kit.
 .%A E. Nordmark
 .%A T. Jinmei
 .%T "Advanced Sockets API for IPv6"
-.%N RFC3542
+.%N RFC 3542
 .%D October 2002
 .Re
 .Rs
 .%A S. Deering
 .%A R. Hinden
 .%T "Internet Protocol, Version 6 (IPv6) Specification"
-.%N RFC2460
+.%N RFC 2460
 .%D December 1998
 .Re
 .Sh STANDARDS
 The functions are documented in
 .Dq Advanced Sockets API for IPv6
-.Pq RFC3542 .
+.Pq RFC 3542 .
 .\"
 .Sh HISTORY
 The implementation first appeared in KAME advanced networking kit.
