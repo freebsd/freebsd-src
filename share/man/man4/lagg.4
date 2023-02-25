@@ -215,7 +215,8 @@ The following example shows how to create an infiniband failover interface.
 	1.1.1.1 netmask 255.255.255.0
 .Ed
 .Pp
-Configure two ethernets for failover and static IP in /etc/rc.conf:
+Configure two ethernets for failover with static IP in
+.Xr /etc/rc.conf 5 :
 .Bd -literal -offset indent
 cloned_interfaces="lagg0"
 ifconfig_lagg0="laggproto failover laggport bge0 laggport bge1 \e
@@ -225,6 +226,7 @@ ifconfig_bge1="up"
 .Ed
 .Sh SEE ALSO
 .Xr ng_one2many 4 ,
+.Xr rc.conf 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
 .Sh HISTORY
