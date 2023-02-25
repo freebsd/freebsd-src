@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #define LBUF_SIZE 4096
 
 struct log_params {
-	int dosyslog;
+	bool syslog_enabled;
 	int logpri;
 	int noclose;
 	int outfd;
@@ -143,6 +143,7 @@ int
 main(int argc, char *argv[])
 {
 	bool supervision_enabled = false;
+	bool syslog_enabled = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
 	const char *logtag = "daemon";
@@ -152,7 +153,6 @@ main(int argc, char *argv[])
 	const char *user = NULL;
 	int ch = 0;
 	int child_eof = 0;
-	int dosyslog = 0;
 	int log_reopen = 0;
 	int logfac = LOG_DAEMON;
 	int logpri = LOG_NOTICE;
@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 			if (logfac == -1) {
 				errx(5, "unrecognized syslog facility");
                         }
-			dosyslog = 1;
+			syslog_enabled = true;
 			break;
 		case 'm':
 			stdmask = strtol(optarg, &p, 10);
@@ -222,17 +222,17 @@ main(int argc, char *argv[])
 			if (logpri == -1) {
 				errx(4, "unrecognized syslog priority");
                         }
-			dosyslog = 1;
+			syslog_enabled = true;
 			break;
 		case 'S':
-			dosyslog = 1;
+			syslog_enabled = true;
 			break;
 		case 't':
 			title = optarg;
 			break;
 		case 'T':
 			logtag = optarg;
-			dosyslog = 1;
+			syslog_enabled = true;
 			break;
 		case 'u':
 			user = optarg;
@@ -262,7 +262,7 @@ main(int argc, char *argv[])
                 }
 	}
 
-	if (dosyslog) {
+	if (syslog_enabled) {
 		openlog(logtag, LOG_PID | LOG_NDELAY, logfac);
         }
 
@@ -298,7 +298,7 @@ main(int argc, char *argv[])
 		ppidfile != NULL ||
 		restart  != 0    ||
 		outfd    != -1   ||
-		dosyslog != 0;
+		syslog_enabled == true;
 
 	if (supervision_enabled) {
 		struct sigaction act_term = { 0 };
@@ -348,7 +348,7 @@ main(int argc, char *argv[])
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
 		logpar.outfd = outfd;
-		logpar.dosyslog = dosyslog;
+		logpar.syslog_enabled = syslog_enabled;
 		logpar.logpri = logpri;
 		logpar.noclose = noclose;
 		logpar.outfn = outfn;
@@ -486,7 +486,7 @@ exit:
 	close(outfd);
 	close(pfd[0]);
 	close(pfd[1]);
-	if (dosyslog) {
+	if (syslog_enabled) {
 		closelog();
         }
 	pidfile_remove(pfh);
@@ -646,14 +646,14 @@ do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
 	if (len < 1) {
 		return;
         }
-	if (logpar->dosyslog) {
+	if (logpar->syslog_enabled) {
 		syslog(logpar->logpri, "%.*s", (int)len, buf);
         }
 	if (logpar->outfd != -1) {
 		if (write(logpar->outfd, buf, len) == -1)
 			warn("write");
 	}
-	if (logpar->noclose && !logpar->dosyslog && logpar->outfd == -1) {
+	if (logpar->noclose && !logpar->syslog_enabled && logpar->outfd == -1) {
 		printf("%.*s", (int)len, buf);
         }
 }
