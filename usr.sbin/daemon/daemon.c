@@ -144,6 +144,7 @@ main(int argc, char *argv[])
 {
 	bool supervision_enabled = false;
 	bool syslog_enabled = false;
+	bool log_reopen = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
 	const char *logtag = "daemon";
@@ -153,7 +154,6 @@ main(int argc, char *argv[])
 	const char *user = NULL;
 	int ch = 0;
 	int child_eof = 0;
-	int log_reopen = 0;
 	int logfac = LOG_DAEMON;
 	int logpri = LOG_NOTICE;
 	int nochdir = 1;
@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 			noclose = 0;
 			break;
 		case 'H':
-			log_reopen = 1;
+			log_reopen = true;
 			break;
 		case 'l':
 			logfac = get_log_mapping(optarg, facilitynames);
