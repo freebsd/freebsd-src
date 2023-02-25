@@ -228,7 +228,7 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 # kernel startup process (before devices are probed) rather than at the
 # end.  This is a temporary option for use during the transition from
 # late to early AP startup.
-options		EARLY_AP_STARTUP
+options 	EARLY_AP_STARTUP
 
 # MAXCPU defines the maximum number of CPUs that can boot in the system.
 # A default value should be already present, for every architecture.
@@ -439,17 +439,17 @@ options 	SYSCTL_DEBUG
 #
 # Enable textdump by default, this disables kernel core dumps.
 #
-options		TEXTDUMP_PREFERRED
+options 	TEXTDUMP_PREFERRED
 
 #
 # Enable extra debug messages while performing textdumps.
 #
-options		TEXTDUMP_VERBOSE
+options 	TEXTDUMP_VERBOSE
 
 #
 # NO_SYSCTL_DESCR omits the sysctl node descriptions to save space in the
 # resulting kernel.
-options		NO_SYSCTL_DESCR
+options 	NO_SYSCTL_DESCR
 
 #
 # MALLOC_DEBUG_MAXZONES enables multiple uma zones for malloc(9)
@@ -485,7 +485,7 @@ options 	DEBUG_REDZONE
 # it is not defined.  It is commented out here because this feature
 # isn't generally available. And the required eputc() isn't defined.
 #
-#options	EARLY_PRINTF
+#options 	EARLY_PRINTF
 
 #
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
@@ -674,9 +674,9 @@ options 	ROUTETABLES=2		# allocated fibs up to 65536. default is 1.
 					# but that would be a bad idea as they are large.
 
 options 	TCP_OFFLOAD		# TCP offload support.
-options		TCP_RFC7413		# TCP Fast Open
+options  	TCP_RFC7413		# TCP Fast Open
 
-options		TCPHPTS
+options  	TCPHPTS
 makeoptions	WITH_EXTRA_TCP_STACKS=1	# RACK and BBR TCP kernel modules
 
 # In order to enable IPSEC you MUST also add device crypto to 
@@ -686,15 +686,15 @@ options 	IPSEC			#IP security (requires device crypto)
 # Option IPSEC_SUPPORT does not enable IPsec, but makes it possible to 
 # load it as a kernel module. You still MUST add device crypto to your kernel
 # configuration.
-options		IPSEC_SUPPORT
+options 	IPSEC_SUPPORT
 #options 	IPSEC_DEBUG		#debug for IP security
 
 
 # TLS framing and encryption/decryption of data over TCP sockets.
-options		KERN_TLS		# TLS transmit and receive offload
+options 	KERN_TLS		# TLS transmit and receive offload
 
 # Netlink kernel/user<>kernel/user messaging interface
-options		NETLINK
+options 	NETLINK
 
 #
 # SMB/CIFS requester
@@ -851,8 +851,8 @@ options 	NGATM_UNI
 options 	NGATM_CCATM
 
 # Network stack virtualization.
-options	VIMAGE
-options	VNET_DEBUG	# debug for VIMAGE
+options 	VIMAGE
+options 	VNET_DEBUG	# debug for VIMAGE
 
 #
 # Network interfaces:
@@ -1165,7 +1165,7 @@ options 	MD_ROOT
 options 	MD_ROOT_READONLY
 
 # Allow to read MD image from external memory regions
-options		MD_ROOT_MEM
+options 	MD_ROOT_MEM
 
 # Disk quotas are supported when this option is enabled.
 options 	QUOTA			#enable disk quotas
@@ -1411,8 +1411,8 @@ options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
 options 	SCSI_DELAY=5000	# Be pessimistic about Joe SCSI device
 options 	CAM_IOSCHED_DYNAMIC
-options		CAM_IO_STATS
-options		CAM_TEST_FAILURE
+options 	CAM_IO_STATS
+options 	CAM_TEST_FAILURE
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
@@ -1493,14 +1493,14 @@ options 	PCI_IOV			# PCI SR-IOV support
 
 # These options are valid for other keyboard drivers as well.
 options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
-options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 # Define keyboard latency (try 200/15 for a snappy interactive console)
-options		KBD_DELAY1=500		# define initial key delay
-options		KBD_DELAY2=100		# define key delay
+options 	KBD_DELAY1=500		# define initial key delay
+options 	KBD_DELAY2=100		# define key delay
 
 device		kbdmux			# keyboard multiplexer
-options		KBDMUX_DFLT_KEYMAP	# specify the built-in keymap
+options 	KBDMUX_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	KBDMUX_DFLT_KEYMAP=it.iso
 
 options 	FB_DEBUG		# Frame buffer debugging
@@ -1511,17 +1511,17 @@ options 	TEKEN_UTF8		# UTF-8 output handling
 
 # The vt video console driver.
 device		vt
-options		VT_ALT_TO_ESC_HACK=1	# Prepend ESC sequence to ALT keys
-options		VT_MAXWINDOWS=16	# Number of virtual consoles
-options		VT_TWOBUTTON_MOUSE	# Use right mouse button to paste
+options 	VT_ALT_TO_ESC_HACK=1	# Prepend ESC sequence to ALT keys
+options 	VT_MAXWINDOWS=16	# Number of virtual consoles
+options 	VT_TWOBUTTON_MOUSE	# Use right mouse button to paste
 
 # The following options set the maximum framebuffer size.
-options		VT_FB_MAX_HEIGHT=480
-options		VT_FB_MAX_WIDTH=640
+options 	VT_FB_MAX_HEIGHT=480
+options 	VT_FB_MAX_WIDTH=640
 
 # The following options will let you change the default vt terminal colors.
-options		TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)
-options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
+options 	TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)
+options 	TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 
 #
 # Optional devices:
@@ -1998,7 +1998,7 @@ device		ath_hal		# pci/cardbus chip support
 # for this work around, but without it things don't work at all.  The DMA
 # from the card usually bursts 128 bytes, but on the affected CPUs, only
 # 4 are safe.
-options	   	AH_RXCFG_SDMAMW_4BYTES
+options    	AH_RXCFG_SDMAMW_4BYTES
 #device		ath_ar9160	# AR9160 chips
 #device		ath_ar9280	# AR9280 chips
 #device		ath_ar9285	# AR9285 chips
@@ -2144,13 +2144,13 @@ envvar		hint.gusc.0.flags="0x13"
 # SND_OLDSTEREO                Only 2 channels are allowed, effectively
 #                              disabling multichannel processing.
 #
-options		SND_DEBUG
-options		SND_DIAGNOSTIC
-options		SND_FEEDER_MULTIFORMAT
-options		SND_FEEDER_FULL_MULTIFORMAT
-options		SND_FEEDER_RATE_HP
-options		SND_PCM_64
-options		SND_OLDSTEREO
+options 	SND_DEBUG
+options 	SND_DIAGNOSTIC
+options 	SND_FEEDER_MULTIFORMAT
+options 	SND_FEEDER_FULL_MULTIFORMAT
+options 	SND_FEEDER_RATE_HP
+options 	SND_PCM_64
+options 	SND_OLDSTEREO
 
 #
 # Cardbus
@@ -2787,7 +2787,7 @@ options 	GZIO
 options 	ZSTDIO
 
 # BHND(4) drivers
-options		BHND_LOGLEVEL	# Logging threshold level
+options 	BHND_LOGLEVEL	# Logging threshold level
 
 # evdev interface 
 device		evdev		# input event device support
