@@ -100,7 +100,7 @@ main (int argc, char *argv[])
 	int ch, comp;
 	size_t prevbuflen, thisbuflen, b1;
 	char *prevline, *thisline, *p;
-	const char *ifn;
+	const char *ifn, *errstr;;
 	cap_rights_t rights;
 
 	(void) setlocale(LC_ALL, "");
@@ -129,14 +129,14 @@ main (int argc, char *argv[])
 			iflag = 1;
 			break;
 		case 'f':
-			numfields = strtol(optarg, &p, 10);
-			if (numfields < 0 || *p)
-				errx(1, "illegal field skip value: %s", optarg);
+			numfields = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "field skip value is %s: %s", errstr, optarg);
 			break;
 		case 's':
-			numchars = strtol(optarg, &p, 10);
-			if (numchars < 0 || *p)
-				errx(1, "illegal character skip value: %s", optarg);
+			numchars = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "character skip value is %s: %s", errstr, optarg);
 			break;
 		case 'u':
 			uflag = 1;
