@@ -46,7 +46,6 @@ options 	TCP_BLACKBOX		# Enhanced TCP event logging
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TCP_RFC7413		# TCP Fast Open
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
-options		KERN_TLS		# TLS transmit & receive offload
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
@@ -124,8 +123,6 @@ device		pci
 options 	PCI_HP			# PCI-Express native HotPlug
 device		agp
 
-options		COMPAT_LINUXKPI
-
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
@@ -187,12 +184,6 @@ device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 
-# Nvidia/Mellanox Connect-X 4 and later, Ethernet only
-# mlx5ib requires ibcore infra and is not included by default
-device		mlx5		# Base driver
-device		mlxfw		# Firmware update
-device		mlx5en		# Ethernet driver
-
 # Pseudo devices.
 device		crypto		# core crypto support
 device		loop		# Network loopback
@@ -203,7 +194,6 @@ device		md		# Memory "disks"
 device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
-device		xz		# lzma decompression
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
