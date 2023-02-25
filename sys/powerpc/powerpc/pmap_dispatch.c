@@ -224,7 +224,7 @@ pmap_mmu_install(char *name, int prio)
 
 /* MMU "pre-bootstrap" init, used to install extra resolvers, etc. */
 void
-pmap_mmu_init()
+pmap_mmu_init(void)
 {
 	if (mmu_obj->funcs->install != NULL)
 		(mmu_obj->funcs->install)();

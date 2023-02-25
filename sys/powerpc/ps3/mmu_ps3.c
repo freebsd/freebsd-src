@@ -91,7 +91,7 @@ MMU_DEF_INHERIT(ps3_mmu, "mmu_ps3", mps3_methods, oea64_mmu);
 static struct mtx mps3_table_lock;
 
 static void
-mps3_install()
+mps3_install(void)
 {
 	moea64_ops = &mps3_funcs;
 	moea64_install();

@@ -267,7 +267,7 @@ SYSCTL_PROC(_hw, OID_AUTO, altivec, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
  * so they can be used during platform and MMU bringup.
  */
 void
-cpu_feature_setup()
+cpu_feature_setup(void)
 {
 	u_int		pvr;
 	uint16_t	vers;

@@ -124,7 +124,7 @@ SYSINIT(kvmbugwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 1, print_kvm_bug_warning,
     NULL);
 
 static void
-mphyp_install()
+mphyp_install(void)
 {
 	char buf[8];
 	uint32_t prop[2];

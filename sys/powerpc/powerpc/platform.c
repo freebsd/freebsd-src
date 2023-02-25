@@ -247,7 +247,7 @@ platform_real_maxaddr(void)
 }
 
 const char *
-installed_platform()
+installed_platform(void)
 {
 	return (plat_def_impl->name);
 }
@@ -262,7 +262,7 @@ platform_timebase_freq(struct cpuref *cpu)
  * Put the current CPU, as last step in suspend, to sleep
  */
 void
-platform_sleep()
+platform_sleep(void)
 {
         PLATFORM_SLEEP(plat_obj);
 }
@@ -292,7 +292,7 @@ platform_smp_start_cpu(struct pcpu *cpu)
 }
 
 void
-platform_smp_ap_init()
+platform_smp_ap_init(void)
 {
 	PLATFORM_SMP_AP_INIT(plat_obj);
 }
@@ -321,7 +321,7 @@ platform_node_numa_domain(phandle_t node)
  * Reset back to firmware.
  */
 void
-cpu_reset()
+cpu_reset(void)
 {
         PLATFORM_RESET(plat_obj);
 }
@@ -339,7 +339,7 @@ void platform_smp_timebase_sync(u_long tb, int ap)
 SET_DECLARE(platform_set, platform_def_t);
 
 void
-platform_probe_and_attach()
+platform_probe_and_attach(void)
 {
 	platform_def_t	**platpp, *platp;
 	int		prio, best_prio;
