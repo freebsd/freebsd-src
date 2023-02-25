@@ -287,20 +287,19 @@ main(int argc, char *argv[])
 	 * and syslog.
 	 */
 	if (pidfile || ppidfile || restart || outfd != -1 || dosyslog) {
-		struct sigaction act_term, act_chld, act_hup;
+		struct sigaction act_term = { 0 };
+		struct sigaction act_chld = { 0 };
+		struct sigaction act_hup = { 0 };
 
 		/* Avoid PID racing with SIGCHLD and SIGTERM. */
-		memset(&act_term, 0, sizeof(act_term));
 		act_term.sa_handler = handle_term;
 		sigemptyset(&act_term.sa_mask);
 		sigaddset(&act_term.sa_mask, SIGCHLD);
 
-		memset(&act_chld, 0, sizeof(act_chld));
 		act_chld.sa_handler = handle_chld;
 		sigemptyset(&act_chld.sa_mask);
 		sigaddset(&act_chld.sa_mask, SIGTERM);
 
-		memset(&act_hup, 0, sizeof(act_hup));
 		act_hup.sa_handler = handle_hup;
 		sigemptyset(&act_hup.sa_mask);
 
