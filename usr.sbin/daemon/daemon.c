@@ -143,26 +143,27 @@ int
 main(int argc, char *argv[])
 {
 	bool supervision_enabled = false;
-	bool syslog_enabled = false;
 	bool log_reopen = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
 	const char *logtag = "daemon";
-	const char *outfn = NULL;
 	const char *ppidfile = NULL;
 	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
 	int child_eof = 0;
 	int logfac = LOG_DAEMON;
-	int logpri = LOG_NOTICE;
 	int nochdir = 1;
-	int noclose = 1;
-	int outfd = -1;
 	int pfd[2] = { -1, -1 };
 	int restart = 0;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
-	struct log_params logpar = { 0 };
+	struct log_params logpar = {
+                .syslog_enabled = false,
+                .logpri = LOG_NOTICE,
+                .noclose = 1,
+                .outfd = -1,
+                .outfn = NULL
+        };
 	struct pidfh *ppfh = NULL;
 	struct pidfh *pfh = NULL;
 	sigset_t mask_orig;
@@ -181,7 +182,7 @@ main(int argc, char *argv[])
 			nochdir = 0;
 			break;
 		case 'f':
-			noclose = 0;
+			logpar.noclose = 0;
 			break;
 		case 'H':
 			log_reopen = true;
@@ -191,7 +192,7 @@ main(int argc, char *argv[])
 			if (logfac == -1) {
 				errx(5, "unrecognized syslog facility");
                         }
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 'm':
 			stdmask = strtol(optarg, &p, 10);
@@ -200,7 +201,7 @@ main(int argc, char *argv[])
                         }
 			break;
 		case 'o':
-			outfn = optarg;
+			logpar.outfn = optarg;
 			break;
 		case 'p':
 			pidfile = optarg;
@@ -218,21 +219,21 @@ main(int argc, char *argv[])
                         }
 			break;
 		case 's':
-			logpri = get_log_mapping(optarg, prioritynames);
-			if (logpri == -1) {
+			logpar.logpri = get_log_mapping(optarg, prioritynames);
+			if (logpar.logpri == -1) {
 				errx(4, "unrecognized syslog priority");
                         }
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 'S':
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 't':
 			title = optarg;
 			break;
 		case 'T':
 			logtag = optarg;
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 'u':
 			user = optarg;
@@ -255,14 +256,14 @@ main(int argc, char *argv[])
 		title = argv[0];
         }
 
-	if (outfn) {
-		outfd = open_log(outfn);
-		if (outfd == -1) {
+	if (logpar.outfn) {
+		logpar.outfd = open_log(logpar.outfn);
+		if (logpar.outfd == -1) {
 			err(7, "open");
                 }
 	}
 
-	if (syslog_enabled) {
+	if (logpar.syslog_enabled) {
 		openlog(logtag, LOG_PID | LOG_NDELAY, logfac);
         }
 
@@ -271,7 +272,7 @@ main(int argc, char *argv[])
 	 * to be able to report the error intelligently
 	 */
 	open_pid_files(pidfile, ppidfile, &pfh, &ppfh);
-	if (daemon(nochdir, noclose) == -1) {
+	if (daemon(nochdir, logpar.noclose) == -1) {
 		warn("daemon");
 		goto exit;
 	}
@@ -294,11 +295,11 @@ main(int argc, char *argv[])
 	 * To achieve this daemon catches SIGTERM and
 	 * forwards it to the child, expecting to get SIGCHLD eventually.
 	 */
-	supervision_enabled = pidfile  != NULL ||
+	supervision_enabled = pidfile != NULL ||
 		ppidfile != NULL ||
-		restart  != 0    ||
-		outfd    != -1   ||
-		syslog_enabled == true;
+		restart != 0    ||
+		logpar.outfd != -1   ||
+		logpar.syslog_enabled == true;
 
 	if (supervision_enabled) {
 		struct sigaction act_term = { 0 };
@@ -347,12 +348,7 @@ main(int argc, char *argv[])
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-		logpar.outfd = outfd;
-		logpar.syslog_enabled = syslog_enabled;
-		logpar.logpri = logpri;
-		logpar.noclose = noclose;
-		logpar.outfn = outfn;
-		if (log_reopen && outfd >= 0 &&
+		if (log_reopen && logpar.outfd >= 0 &&
 		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
 			warn("sigaction");
 			goto exit;
@@ -483,10 +479,10 @@ restart:
 		goto restart;
 	}
 exit:
-	close(outfd);
+	close(logpar.outfd);
 	close(pfd[0]);
 	close(pfd[1]);
-	if (syslog_enabled) {
+	if (logpar.syslog_enabled) {
 		closelog();
         }
 	pidfile_remove(pfh);
