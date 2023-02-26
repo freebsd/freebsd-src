@@ -1023,7 +1023,7 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("0",		"%d",	0); /* removed field */
 	PS_ADD("itrealvalue",	"%d",	0); /* XXX */
 	PS_ADD("starttime",	"%lu",	TV2J(&kp.ki_start) - TV2J(&boottime));
-	PS_ADD("vsize",		"%ju",	P2K((uintmax_t)kp.ki_size));
+	PS_ADD("vsize",		"%ju",	(uintmax_t)kp.ki_size);
 	PS_ADD("rss",		"%ju",	(uintmax_t)kp.ki_rssize);
 	PS_ADD("rlim",		"%lu",	kp.ki_rusage.ru_maxrss);
 	PS_ADD("startcode",	"%ju",	(uintmax_t)startcode);
