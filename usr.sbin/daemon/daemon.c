@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 struct log_params {
 	bool syslog_enabled;
 	int syslog_priority;
+	const char *syslog_tag;
+	int syslog_facility;
 	int noclose;
 	int output_fd;
 	const char *output_filename;
@@ -146,13 +148,11 @@ main(int argc, char *argv[])
 	bool log_reopen = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
-	const char *syslog_tag = "daemon";
 	const char *ppidfile = NULL;
 	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
 	int child_eof = 0;
-	int syslog_facility = LOG_DAEMON;
 	int nochdir = 1;
 	int pfd[2] = { -1, -1 };
 	int restart = 0;
@@ -160,6 +160,8 @@ main(int argc, char *argv[])
 	struct log_params logpar = {
                 .syslog_enabled = false,
                 .syslog_priority = LOG_NOTICE,
+	        .syslog_tag = "daemon",
+	        .syslog_facility = LOG_DAEMON,
                 .noclose = 1,
                 .output_fd = -1,
                 .output_filename = NULL
@@ -188,8 +190,8 @@ main(int argc, char *argv[])
 			log_reopen = true;
 			break;
 		case 'l':
-			syslog_facility = get_log_mapping(optarg, facilitynames);
-			if (syslog_facility == -1) {
+			logpar.syslog_facility = get_log_mapping(optarg, facilitynames);
+			if (logpar.syslog_facility == -1) {
 				errx(5, "unrecognized syslog facility");
                         }
 			logpar.syslog_enabled = true;
@@ -232,7 +234,7 @@ main(int argc, char *argv[])
 			title = optarg;
 			break;
 		case 'T':
-			syslog_tag = optarg;
+			logpar.syslog_tag = optarg;
 			logpar.syslog_enabled = true;
 			break;
 		case 'u':
@@ -264,7 +266,7 @@ main(int argc, char *argv[])
 	}
 
 	if (logpar.syslog_enabled) {
-		openlog(syslog_tag, LOG_PID | LOG_NDELAY, syslog_facility);
+		openlog(logpar.syslog_tag, LOG_PID | LOG_NDELAY, logpar.syslog_facility);
         }
 
 	/*
