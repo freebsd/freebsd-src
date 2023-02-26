@@ -42,8 +42,6 @@ extern "C" {
 extern void vdie(const char  *, va_list);
 extern void die(const char *, ...);
 
-extern const char *getpname(void);
-
 #ifdef	__cplusplus
 }
 #endif
