@@ -897,8 +897,8 @@ pfs_readdir(struct vop_readdir_args *va)
 		if (!pfs_visible_proc(curthread, pd, proc)) {
 			_PRELE(proc);
 			PROC_UNLOCK(proc);
-			sx_sunlock(&allproc_lock);
 			pfs_unlock(pd);
+			sx_sunlock(&allproc_lock);
 			PFS_RETURN (ENOENT);
 		}
 	}
