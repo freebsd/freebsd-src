@@ -134,7 +134,7 @@ The flush command has the syntax:
 .Bd -ragged -offset indent -compact
 .Nm
 .Op Fl n
-.Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
+.Cm flush Oo Ar family Oc Op Fl fib Ar number
 .Ed
 .Pp
 If the
@@ -228,10 +228,10 @@ is interpreted as
 .Fl host Li 128.32.0.130 ;
 .Fl net Li 128.32
 is interpreted as
-.Li 128.32.0.0;
+.Li 128.32.0.0 ;
 .Fl net Li 128.32.130
 is interpreted as
-.Li 128.32.130.0;
+.Li 128.32.130.0 ;
 and
 .Li 192.168.64/20
 is interpreted as
@@ -265,9 +265,7 @@ if the local or remote addresses change.
 The optional
 .Fl netmask
 modifier is intended
-to achieve the effect of an
-.Tn OSI
-.Tn ESIS
+to achieve the effect of an OSI ESIS
 redirect with the netmask option,
 or to manually add subnet routes with
 netmasks different from that of the implied network interface
@@ -378,9 +376,7 @@ In a
 or
 .Cm add
 command where the destination and gateway are not sufficient to specify
-the route (as in the
-.Tn ISO
-case where several interfaces may have the
+the route (as in the ISO case where several interfaces may have the
 same address), the
 .Fl ifp
 or
@@ -534,7 +530,6 @@ same route as the one being changed.
 The next-hop gateway should be reachable through a different route.
 .El
 .Sh SEE ALSO
-.\".Xr esis 4 ,
 .Xr netstat 1 ,
 .Xr netintro 4 ,
 .Xr route 4 ,
