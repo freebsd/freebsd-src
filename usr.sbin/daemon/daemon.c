@@ -61,10 +61,10 @@ __FBSDID("$FreeBSD$");
 
 struct log_params {
 	bool syslog_enabled;
-	int logpri;
+	int syslog_priority;
 	int noclose;
-	int outfd;
-	const char *outfn;
+	int output_fd;
+	const char *output_filename;
 };
 
 static void restrict_process(const char *);
@@ -146,23 +146,23 @@ main(int argc, char *argv[])
 	bool log_reopen = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
-	const char *logtag = "daemon";
+	const char *syslog_tag = "daemon";
 	const char *ppidfile = NULL;
 	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
 	int child_eof = 0;
-	int logfac = LOG_DAEMON;
+	int syslog_facility = LOG_DAEMON;
 	int nochdir = 1;
 	int pfd[2] = { -1, -1 };
 	int restart = 0;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logpar = {
                 .syslog_enabled = false,
-                .logpri = LOG_NOTICE,
+                .syslog_priority = LOG_NOTICE,
                 .noclose = 1,
-                .outfd = -1,
-                .outfn = NULL
+                .output_fd = -1,
+                .output_filename = NULL
         };
 	struct pidfh *ppfh = NULL;
 	struct pidfh *pfh = NULL;
@@ -188,8 +188,8 @@ main(int argc, char *argv[])
 			log_reopen = true;
 			break;
 		case 'l':
-			logfac = get_log_mapping(optarg, facilitynames);
-			if (logfac == -1) {
+			syslog_facility = get_log_mapping(optarg, facilitynames);
+			if (syslog_facility == -1) {
 				errx(5, "unrecognized syslog facility");
                         }
 			logpar.syslog_enabled = true;
@@ -201,7 +201,7 @@ main(int argc, char *argv[])
                         }
 			break;
 		case 'o':
-			logpar.outfn = optarg;
+			logpar.output_filename = optarg;
 			break;
 		case 'p':
 			pidfile = optarg;
@@ -219,8 +219,8 @@ main(int argc, char *argv[])
                         }
 			break;
 		case 's':
-			logpar.logpri = get_log_mapping(optarg, prioritynames);
-			if (logpar.logpri == -1) {
+			logpar.syslog_priority = get_log_mapping(optarg, prioritynames);
+			if (logpar.syslog_priority == -1) {
 				errx(4, "unrecognized syslog priority");
                         }
 			logpar.syslog_enabled = true;
@@ -232,7 +232,7 @@ main(int argc, char *argv[])
 			title = optarg;
 			break;
 		case 'T':
-			logtag = optarg;
+			syslog_tag = optarg;
 			logpar.syslog_enabled = true;
 			break;
 		case 'u':
@@ -256,15 +256,15 @@ main(int argc, char *argv[])
 		title = argv[0];
         }
 
-	if (logpar.outfn) {
-		logpar.outfd = open_log(logpar.outfn);
-		if (logpar.outfd == -1) {
+	if (logpar.output_filename) {
+		logpar.output_fd = open_log(logpar.output_filename);
+		if (logpar.output_fd == -1) {
 			err(7, "open");
                 }
 	}
 
 	if (logpar.syslog_enabled) {
-		openlog(logtag, LOG_PID | LOG_NDELAY, logfac);
+		openlog(syslog_tag, LOG_PID | LOG_NDELAY, syslog_facility);
         }
 
 	/*
@@ -297,8 +297,8 @@ main(int argc, char *argv[])
 	 */
 	supervision_enabled = pidfile != NULL ||
 		ppidfile != NULL ||
-		restart != 0    ||
-		logpar.outfd != -1   ||
+		restart != 0 ||
+		logpar.output_fd != -1   ||
 		logpar.syslog_enabled == true;
 
 	if (supervision_enabled) {
@@ -348,7 +348,7 @@ main(int argc, char *argv[])
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-		if (log_reopen && logpar.outfd >= 0 &&
+		if (log_reopen && logpar.output_fd >= 0 &&
 		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
 			warn("sigaction");
 			goto exit;
@@ -479,7 +479,7 @@ restart:
 		goto restart;
 	}
 exit:
-	close(logpar.outfd);
+	close(logpar.output_fd);
 	close(pfd[0]);
 	close(pfd[1]);
 	if (logpar.syslog_enabled) {
@@ -643,13 +643,13 @@ do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
 		return;
         }
 	if (logpar->syslog_enabled) {
-		syslog(logpar->logpri, "%.*s", (int)len, buf);
+		syslog(logpar->syslog_priority, "%.*s", (int)len, buf);
         }
-	if (logpar->outfd != -1) {
-		if (write(logpar->outfd, buf, len) == -1)
+	if (logpar->output_fd != -1) {
+		if (write(logpar->output_fd, buf, len) == -1)
 			warn("write");
 	}
-	if (logpar->noclose && !logpar->syslog_enabled && logpar->outfd == -1) {
+	if (logpar->noclose && !logpar->syslog_enabled && logpar->output_fd == -1) {
 		printf("%.*s", (int)len, buf);
         }
 }
@@ -703,10 +703,10 @@ reopen_log(struct log_params *lpp)
 	int outfd;
 
 	do_log_reopen = 0;
-	outfd = open_log(lpp->outfn);
-	if (lpp->outfd >= 0) {
-		close(lpp->outfd);
+	outfd = open_log(lpp->output_filename);
+	if (lpp->output_fd >= 0) {
+		close(lpp->output_fd);
         }
-	lpp->outfd = outfd;
+	lpp->output_fd = outfd;
 }
 
