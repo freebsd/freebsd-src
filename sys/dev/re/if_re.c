@@ -1678,6 +1678,11 @@ re_attach(device_t dev)
 		goto fail;
 	}
 
+	/* If address was not found, create one based on the hostid and name. */
+	if (ETHER_IS_ZERO(eaddr)) {
+		ether_gen_addr(ifp, (struct ether_addr *)eaddr);
+	}
+
 	/*
 	 * Call MI attach routine.
 	 */
