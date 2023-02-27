@@ -690,8 +690,8 @@ set_typematic(keyboard_t *kbd, int code)
 {
 	/* These numbers are in microseconds, so convert to ticks */
 
-	static int delays[] = { 250, 500, 750, 1000 };
-	static int rates[] = {  34,  38,  42,  46,  50,  55,  59,  63,
+	static int delays[] = { 200, 250, 500, 750, 1000 };
+	static int rates[] = {  15, 34,  38,  42,  46,  50,  55,  59,  63,
 				68,  76,  84,  92, 100, 110, 118, 126,
 				136, 152, 168, 184, 200, 220, 236, 252,
 				272, 304, 336, 368, 400, 440, 472, 504 };
