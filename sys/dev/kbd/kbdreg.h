@@ -31,6 +31,10 @@
 #ifndef _DEV_KBD_KBDREG_H_
 #define _DEV_KBD_KBDREG_H_
 
+#ifdef _KERNEL
+
+#include "opt_kbd.h"			/* KBD_DELAY* */
+
 /* forward declarations */
 typedef struct keyboard keyboard_t;
 struct keymap;
@@ -411,4 +415,5 @@ int 	genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
 int 	genkbd_keyaction(keyboard_t *kbd, int keycode, int up,
 			 int *shiftstate, int *accents);
 
+#endif
 #endif /* !_DEV_KBD_KBDREG_H_ */
