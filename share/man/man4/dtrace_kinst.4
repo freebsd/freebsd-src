@@ -24,37 +24,38 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 01, 2022
+.Dd February 27, 2023
 .Dt DTRACE_KINST 4
 .Os
 .Sh NAME
 .Nm dtrace_kinst
-.Nd a DTrace provider for tracing arbitrary instructions in a given kernel
-function.
+.Nd a DTrace provider for tracing arbitrary instructions in a given kernel function
 .Sh SYNOPSIS
 kinst::<function>:<instruction>
 .Sh DESCRIPTION
-.Pp
 The DTrace
 .Nm kinst
 provider allows the user to trace any instruction in a given kernel function.
 <function> corresponds to the function to be traced, and <instruction> is the
 offset to the specific instruction, and can be obtained from the function's
-disassembly using
-.Xr kgdb 1 .
+disassembly using kgdb from the gdb package.
 .Pp
 .Nm kinst
 creates probes on-demand, meaning it searches for and parses the function's
 instructions each time
 .Xr dtrace 1
-is run, and not at module load time. This is in contrast to FBT's load-time
-parsing, since
+is run, and not at module load time.
+This is in contrast to FBT's load-time parsing, since
 .Nm kinst
 can potentially create thousands of probes for just a single function, instead
 of up to two (entry and return) in the case of FBT.
+A result of this is that
+.Cm dtrace -l -P kinst
+will not match any probes.
+.Sh IMPLEMENTATION NOTES
+The provider is currently implemented only for amd64.
 .Sh EXAMPLES
-.Pp
-Find the offset to the third instruction in
+Find the offset corresponding to the third instruction in
 .Fn vm_fault
 and trace it:
 .Bd -literal -offset indent
@@ -66,6 +67,12 @@ Dump of assembler code for function vm_fault:
    0xffffffff80876df4 <+4>:     41 57   push   %r15
 
 # dtrace -n 'kinst::vm_fault:4'
+  2  81500                       vm_fault:4
+  2  81500                       vm_fault:4
+  2  81500                       vm_fault:4
+  2  81500                       vm_fault:4
+  0  81500                       vm_fault:4
+  ...
 .Ed
 .Pp
 Trace all instructions in
@@ -73,11 +80,8 @@ Trace all instructions in
 .Bd -literal -offset indent
 # dtrace -n 'kinst::amd64_syscall:'
 .Ed
-.Sh IMPLEMENTATION NOTES
-The provider is currently implemented only for amd64.
 .Sh SEE ALSO
-.Xr dtrace 1 ,
-.Xr kgdb 1
+.Xr dtrace 1
 .Sh HISTORY
 The
 .Nm kinst
