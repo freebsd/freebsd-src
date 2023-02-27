@@ -1761,6 +1761,7 @@ void
 pps_capture(struct pps_state *pps)
 {
 	struct timehands *th;
+	struct timecounter *tc;
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_capture"));
 	th = timehands;
@@ -1769,7 +1770,8 @@ pps_capture(struct pps_state *pps)
 #ifdef FFCLOCK
 	pps->capffth = fftimehands;
 #endif
-	pps->capcount = th->th_counter->tc_get_timecount(th->th_counter);
+	tc = th->th_counter;
+	pps->capcount = tc->tc_get_timecount(tc);
 	atomic_thread_fence_acq();
 	if (pps->capgen != th->th_generation)
 		pps->capgen = 0;
