@@ -1306,7 +1306,7 @@ ping_body(void *data)
 	struct targ *targ = (struct targ *) data;
 	struct pollfd pfd = { .fd = targ->fd, .events = POLLIN };
 	struct netmap_if *nifp = targ->nmd->nifp;
-	int i, m, rx = 0;
+	int i, m;
 	void *frame;
 	int size;
 	struct timespec ts, now, last_print;
@@ -1399,7 +1399,9 @@ ping_body(void *data)
 		}
 #endif /* BUSYWAIT */
 		/* see what we got back */
-		rx = 0;
+#ifdef BUSYWAIT
+		int rx = 0;
+#endif
 		for (i = targ->nmd->first_rx_ring;
 			i <= targ->nmd->last_rx_ring; i++) {
 			ring = NETMAP_RXRING(nifp, i);
@@ -1434,7 +1436,9 @@ ping_body(void *data)
 				buckets[pos]++;
 				/* now store it in a bucket */
 				ring->head = ring->cur = nm_ring_next(ring, ring->head);
+#ifdef BUSYWAIT
 				rx++;
+#endif
 			}
 		}
 		//D("tx %d rx %d", sent, rx);
@@ -1502,7 +1506,7 @@ pong_body(void *data)
 	struct pollfd pfd = { .fd = targ->fd, .events = POLLIN };
 	struct netmap_if *nifp = targ->nmd->nifp;
 	struct netmap_ring *txring, *rxring;
-	int i, rx = 0;
+	int i;
 	uint64_t sent = 0, n = targ->g->npackets;
 
 	if (targ->g->nthreads > 1) {
@@ -1544,7 +1548,6 @@ pong_body(void *data)
 				src = NETMAP_BUF(rxring, slot->buf_idx);
 				//D("got pkt %p of size %d", src, slot->len);
 				rxring->head = rxring->cur = nm_ring_next(rxring, head);
-				rx++;
 				if (txavail == 0)
 					continue;
 				dst = NETMAP_BUF(txring,
@@ -1579,7 +1582,6 @@ pong_body(void *data)
 #ifdef BUSYWAIT
 		ioctl(pfd.fd, NIOCTXSYNC, NULL);
 #endif
-		//D("tx %d rx %d", sent, rx);
 	}
 
 	targ->completed = 1;
