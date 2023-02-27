@@ -32,6 +32,7 @@
 #define __ECORE_INT_API_H__
 
 #include "common_hsi.h"
+#include <stdatomic.h>
 
 #ifndef __EXTRACT__LINUX__
 #define ECORE_SB_IDX		0x0002
@@ -88,8 +89,7 @@ static OSAL_INLINE u16 ecore_sb_update_sb_idx(struct ecore_sb_info *sb_info)
 	u32 prod = 0;
 	u16 rc   = 0;
 
-	// barrier(); /* status block is written to by the chip */
-	// FIXME: need some sort of barrier.
+	atomic_thread_fence(); /* status block is written to by the chip */
 	prod = OSAL_LE32_TO_CPU(sb_info->sb_virt->prod_index) &
 	       STATUS_BLOCK_E4_PROD_INDEX_MASK;
 	if (sb_info->sb_ack != prod) {
