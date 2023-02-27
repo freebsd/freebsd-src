@@ -62,6 +62,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
+#include "opt_kbd.h"
 #include "opt_psm.h"
 #include "opt_evdev.h"
 
