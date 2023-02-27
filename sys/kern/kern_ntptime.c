@@ -771,16 +771,10 @@ hardpps(struct timespec *tsp, long delta_nsec)
 	pps_tf[0].tv_nsec = u_nsec;
 
 	/*
-	 * Compute the difference between the current and previous
-	 * counter values. If the difference exceeds 0.5 s, assume it
-	 * has wrapped around, so correct 1.0 s.
+	 * Update the frequency accumulator using the difference between the
+	 * current and previous PPS event measured directly by the timecounter.
 	 */
-	u_nsec = delta_nsec;
-	if (u_nsec > (NANOSECOND >> 1))
-		u_nsec -= NANOSECOND;
-	else if (u_nsec < -(NANOSECOND >> 1))
-		u_nsec += NANOSECOND;
-	pps_fcount += u_nsec;
+	pps_fcount += delta_nsec - NANOSECOND;
 	if (v_nsec > MAXFREQ || v_nsec < -MAXFREQ)
 		goto out;
 	time_status &= ~STA_PPSJITTER;
