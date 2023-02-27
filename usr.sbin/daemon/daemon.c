@@ -84,7 +84,7 @@ static void daemon_sleep(time_t, long);
 
 static volatile sig_atomic_t terminate = 0;
 static volatile sig_atomic_t child_gone = 0;
-static volatile sig_atomic_t pid = -1;
+static volatile sig_atomic_t pid = 0;
 static volatile sig_atomic_t do_log_reopen = 0;
 
 static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
@@ -365,34 +365,27 @@ restart:
 		 */
 		child_gone = 0;
 		pid = fork();
-		if (pid == -1) {
-			warn("fork");
-			goto exit;
-		} else if (pid > 0) {
-			/*
-			 * Unblock SIGTERM after we know we have a valid
-			 * child PID to signal.
-			 */
-			if (sigprocmask(SIG_UNBLOCK, &mask_term, NULL)) {
-				warn("sigprocmask");
-				goto exit;
-			}
-			close(pfd[1]);
-			pfd[1] = -1;
-		}
+        }
+
+        /* fork failed, this can only happened when supervision_enabled */
+	if (pid == -1) {
+		warn("fork");
+		goto exit;
 	}
-	if (pid <= 0) {
-		/* Now that we are the child, write out the pid. */
+
+
+        /* fork succeeded, this is child's branch or supervision is disabled */
+	if (pid == 0) {
 		pidfile_write(child_pidfh);
 
 		if (user != NULL) {
 			restrict_process(user);
                 }
 		/*
-		 * When forking, the child gets the original sigmask,
+		 * In supervision mode, the child gets the original sigmask,
 		 * and dup'd pipes.
 		 */
-		if (pid == 0) {
+		if (supervision_enabled) {
 			close(pfd[0]);
 			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
@@ -413,12 +406,24 @@ restart:
                         }
 		}
 		execvp(argv[0], argv);
-		/*
-		 * execvp() failed -- report the error. The child is
-		 * now running, so the exit status doesn't matter.
-		 */
+		/* execvp() failed - report error and exit this process */
 		err(1, "%s", argv[0]);
 	}
+
+	/*
+	 * else: pid > 0
+         * fork succeeded, this is parent branch, this can only when
+	 * supervision_enabled
+	 *
+	 * Unblock SIGTERM after we know we have a valid child PID to signal.
+	 */
+	if (sigprocmask(SIG_UNBLOCK, &mask_term, NULL)) {
+		warn("sigprocmask");
+		goto exit;
+	}
+	close(pfd[1]);
+	pfd[1] = -1;
+
 	setproctitle("%s[%d]", title, (int)pid);
 	/*
 	 * As we have closed the write end of pipe for parent process,
