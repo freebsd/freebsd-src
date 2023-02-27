@@ -77,6 +77,11 @@ SYSCTL_ULONG(_net_netlink, OID_AUTO, recvspace, CTLFLAG_RW, &nl_recvspace, 0,
 
 extern u_long sb_max_adj;
 static u_long nl_maxsockbuf = 512 * 1024 * 1024; /* 512M, XXX: init based on physmem */
+static int sysctl_handle_nl_maxsockbuf(SYSCTL_HANDLER_ARGS);
+SYSCTL_OID(_net_netlink, OID_AUTO, nl_maxsockbuf,
+    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE, &nl_maxsockbuf, 0,
+    sysctl_handle_nl_maxsockbuf, "LU",
+    "Maximum Netlink socket buffer size");
 
 uint32_t
 nlp_get_pid(const struct nlpcb *nlp)
@@ -673,6 +678,22 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 
 	return (error);
+}
+
+static int
+sysctl_handle_nl_maxsockbuf(SYSCTL_HANDLER_ARGS)
+{
+	int error = 0;
+	u_long tmp_maxsockbuf = nl_maxsockbuf;
+
+	error = sysctl_handle_long(oidp, &tmp_maxsockbuf, arg2, req);
+	if (error || !req->newptr)
+		return (error);
+	if (tmp_maxsockbuf < MSIZE + MCLBYTES)
+		return (EINVAL);
+	nl_maxsockbuf = tmp_maxsockbuf;
+
+	return (0);
 }
 
 static int

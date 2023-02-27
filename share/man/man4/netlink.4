@@ -280,6 +280,12 @@ Default receive buffer for the netlink socket.
 Note that the socket recvspace has to be least as long as the longest
 message that can be received from this socket.
 .El
+.Bl -tag -width indent
+.It Va net.netlink.nl_maxsockbuf
+Maximum receive buffer for the netlink socket that can be set via
+.Dv SO_RCVBUF
+socket option.
+.El
 .Sh DEBUGGING
 Netlink implements per-functional-unit debugging, with different severities
 controllable via the
