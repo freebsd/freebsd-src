@@ -1064,11 +1064,11 @@ set_keyrates(char *opt)
 		delay = 500, repeat = 125;
 		d = 1, r = 15;
 	} else if (!strcmp(opt, "fast")) {
-		delay = repeat = 250;
-		d = r = 34;
+		delay = 250, repeat = 34;
+		d = r = 0;
 	} else if (!strcmp(opt, "ultra")) {
-		delay = repeat = 200;
-		d = r = 15;
+		delay = 200, repeat = 15;
+		d = r = 0;
 	} else {
 		int		n;
 		char		*v1;
