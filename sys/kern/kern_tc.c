@@ -1842,25 +1842,25 @@ pps_event(struct pps_state *pps, int event)
 #endif
 	}
 
+	*pcount = pps->capcount;
+
 	/*
 	 * If the timecounter changed, we cannot compare the count values, so
 	 * we have to drop the rest of the PPS-stuff until the next event.
 	 */
 	if (__predict_false(pps->ppstc != captc)) {
 		pps->ppstc = captc;
-		*pcount = pps->capcount;
 		pps->ppscount[2] = pps->capcount;
 		return;
 	}
+
+	(*pseq)++;
 
 	/* Convert the count to a timespec. */
 	tcount = pps->capcount - tcount;
 	tcount &= captc->tc_counter_mask;
 	bintime_addx(&bt, capth_scale * tcount);
 	bintime2timespec(&bt, &ts);
-
-	*pcount = pps->capcount;
-	(*pseq)++;
 	*tsp = ts;
 
 	if (foff) {
