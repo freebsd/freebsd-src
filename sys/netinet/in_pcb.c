@@ -860,36 +860,6 @@ inp_so_options(const struct inpcb *inp)
 }
 #endif /* INET || INET6 */
 
-/*
- * Check if a new BINDMULTI socket is allowed to be created.
- *
- * ni points to the new inp.
- * oi points to the existing inp.
- *
- * This checks whether the existing inp also has BINDMULTI and
- * whether the credentials match.
- */
-int
-in_pcbbind_check_bindmulti(const struct inpcb *ni, const struct inpcb *oi)
-{
-	/* Check permissions match */
-	if ((ni->inp_flags2 & INP_BINDMULTI) &&
-	    (ni->inp_cred->cr_uid !=
-	    oi->inp_cred->cr_uid))
-		return (0);
-
-	/* Check the existing inp has BINDMULTI set */
-	if ((ni->inp_flags2 & INP_BINDMULTI) &&
-	    ((oi->inp_flags2 & INP_BINDMULTI) == 0))
-		return (0);
-
-	/*
-	 * We're okay - either INP_BINDMULTI isn't set on ni, or
-	 * it is and it matches the checks.
-	 */
-	return (1);
-}
-
 #ifdef INET
 /*
  * Set up a bind operation on a PCB, performing port allocation
@@ -993,8 +963,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 	 * XXX
 	 * This entire block sorely needs a rewrite.
 	 */
-				if (t &&
-				    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
+				if (t != NULL &&
 				    (so->so_type != SOCK_STREAM ||
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
@@ -1004,20 +973,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
-
-				/*
-				 * If the socket is a BINDMULTI socket, then
-				 * the credentials need to match and the
-				 * original socket also has to have been bound
-				 * with BINDMULTI.
-				 */
-				if (t && (! in_pcbbind_check_bindmulti(inp, t)))
-					return (EADDRINUSE);
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 			    lport, lookupflags, cred);
-			if (t && ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
-			    (reuseport & inp_so_options(t)) == 0 &&
+			if (t != NULL && (reuseport & inp_so_options(t)) == 0 &&
 			    (reuseport_lb & inp_so_options(t)) == 0) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
@@ -1028,8 +987,6 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 				    (t->inp_vflag & INP_IPV6PROTO) == 0)
 #endif
 						return (EADDRINUSE);
-				if (t && (! in_pcbbind_check_bindmulti(inp, t)))
-					return (EADDRINUSE);
 			}
 		}
 	}

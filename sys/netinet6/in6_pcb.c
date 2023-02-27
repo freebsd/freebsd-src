@@ -249,8 +249,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
 				    INPLOOKUP_WILDCARD, cred);
-				if (t &&
-				    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
+				if (t != NULL &&
 				    (so->so_type != SOCK_STREAM ||
 				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
@@ -259,15 +258,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 				     (t->inp_flags2 & INP_REUSEPORT_LB) == 0) &&
 				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
-					return (EADDRINUSE);
-
-				/*
-				 * If the socket is a BINDMULTI socket, then
-				 * the credentials need to match and the
-				 * original socket also has to have been bound
-				 * with BINDMULTI.
-				 */
-				if (t && (! in_pcbbind_check_bindmulti(inp, t)))
 					return (EADDRINUSE);
 
 #ifdef INET
@@ -279,16 +269,12 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 					t = in_pcblookup_local(pcbinfo,
 					    sin.sin_addr, lport,
 					    INPLOOKUP_WILDCARD, cred);
-					if (t &&
-					    ((inp->inp_flags2 & INP_BINDMULTI) == 0) &&
+					if (t != NULL &&
 					    (so->so_type != SOCK_STREAM ||
 					     ntohl(t->inp_faddr.s_addr) ==
 					      INADDR_ANY) &&
 					    (inp->inp_cred->cr_uid !=
 					     t->inp_cred->cr_uid))
-						return (EADDRINUSE);
-
-					if (t && (! in_pcbbind_check_bindmulti(inp, t)))
 						return (EADDRINUSE);
 				}
 #endif

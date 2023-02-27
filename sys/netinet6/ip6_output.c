@@ -1752,7 +1752,6 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IPV6_AUTOFLOWLABEL:
 			case IPV6_ORIGDSTADDR:
 			case IPV6_BINDANY:
-			case IPV6_BINDMULTI:
 #ifdef	RSS
 			case IPV6_RSS_LISTEN_BUCKET:
 #endif
@@ -1932,10 +1931,6 @@ do {									\
 					break;
 				case IPV6_BINDANY:
 					OPTSET(INP_BINDANY);
-					break;
-
-				case IPV6_BINDMULTI:
-					OPTSET2(INP_BINDMULTI, optval);
 					break;
 #ifdef	RSS
 				case IPV6_RSS_LISTEN_BUCKET:
@@ -2195,7 +2190,6 @@ do {									\
 			case IPV6_RSSBUCKETID:
 			case IPV6_RECVRSSBUCKETID:
 #endif
-			case IPV6_BINDMULTI:
 			case IPV6_VLAN_PCP:
 				switch (optname) {
 				case IPV6_RECVHOPOPTS:
@@ -2290,9 +2284,6 @@ do {									\
 					break;
 #endif
 
-				case IPV6_BINDMULTI:
-					optval = OPTBIT2(INP_BINDMULTI);
-					break;
 
 				case IPV6_VLAN_PCP:
 					if (OPTBIT2(INP_2PCP_SET)) {

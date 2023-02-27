@@ -1166,7 +1166,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 			}
 			/* FALLTHROUGH */
-		case IP_BINDMULTI:
 #ifdef	RSS
 		case IP_RSS_LISTEN_BUCKET:
 #endif
@@ -1261,9 +1260,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			case IP_RECVTOS:
 				OPTSET(INP_RECVTOS);
-				break;
-			case IP_BINDMULTI:
-				OPTSET2(INP_BINDMULTI, optval);
 				break;
 			case IP_RECVFLOWID:
 				OPTSET2(INP_RECVFLOWID, optval);
@@ -1416,7 +1412,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DONTFRAG:
 		case IP_BINDANY:
 		case IP_RECVTOS:
-		case IP_BINDMULTI:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
 		case IP_RECVFLOWID:
@@ -1509,9 +1504,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				optval = OPTBIT2(INP_RECVRSSBUCKETID);
 				break;
 #endif
-			case IP_BINDMULTI:
-				optval = OPTBIT2(INP_BINDMULTI);
-				break;
 			case IP_VLAN_PCP:
 				if (OPTBIT2(INP_2PCP_SET)) {
 					optval = (inp->inp_flags2 &
