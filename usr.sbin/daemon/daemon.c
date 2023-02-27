@@ -73,9 +73,9 @@ static void restrict_process(const char *);
 static void handle_term(int);
 static void handle_chld(int);
 static void handle_hup(int);
-static int open_log(const char *);
+static int  open_log(const char *);
 static void reopen_log(struct log_params *);
-static int  listen_child(int, struct log_params *);
+static bool listen_child(int, struct log_params *);
 static int  get_log_mapping(const char *, const CODE *);
 static void open_pid_files(const char *, const char *, struct pidfh **,
 			   struct pidfh **);
@@ -146,13 +146,13 @@ main(int argc, char *argv[])
 {
 	bool supervision_enabled = false;
 	bool log_reopen = false;
+	bool child_eof = false;
 	char *p = NULL;
 	const char *child_pidfile = NULL;
 	const char *parent_pidfile = NULL;
 	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
-	int child_eof = 0;
 	int keep_cur_workdir = 1;
 	int pfd[2] = { -1, -1 };
 	int restart = 0;
@@ -577,10 +577,10 @@ restrict_process(const char *user)
  * We try to collect whole lines terminated by '\n'. Otherwise we collect a
  * full buffer, and then output it.
  *
- * Return value of 0 is assumed to mean EOF or error, and 1 indicates to
+ * Return value of false is assumed to mean EOF or error, and true indicates to
  * continue reading.
  */
-static int
+static bool
 listen_child(int fd, struct log_params *logpar)
 {
 	static unsigned char buf[LBUF_SIZE];
@@ -614,18 +614,18 @@ listen_child(int fd, struct log_params *logpar)
 		}
 		/* Wait until the buffer is full. */
 		if (bytes_read < LBUF_SIZE - 1) {
-			return 1;
+			return true;
                 }
 		do_output(buf, bytes_read, logpar);
 		bytes_read = 0;
-		return 1;
+		return true;
 	} else if (rv == -1) {
 		/* EINTR should trigger another read. */
 		if (errno == EINTR) {
-			return 1;
+			return true;
 		} else {
 			warn("read");
-			return 0;
+			return false;
 		}
 	}
 	/* Upon EOF, we have to flush what's left of the buffer. */
@@ -633,7 +633,7 @@ listen_child(int fd, struct log_params *logpar)
 		do_output(buf, bytes_read, logpar);
 		bytes_read = 0;
 	}
-	return 0;
+	return false;
 }
 
 /*
