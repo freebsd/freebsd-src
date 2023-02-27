@@ -59,11 +59,6 @@ SYSCTL_DECL(_kern_geom_part);
 static SYSCTL_NODE(_kern_geom_part, OID_AUTO, ebr, CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, "GEOM_PART_EBR Extended Boot Record");
 
-static bool compat_aliases = true;
-SYSCTL_BOOL(_kern_geom_part_ebr, OID_AUTO, compat_aliases,
-    CTLFLAG_RDTUN, &compat_aliases, 0,
-    "Set non-zero to enable EBR compatibility alias names (e.g., ada0p5)");
-
 #define	EBRNAMFMT	"+%08u"
 #define	EBRSIZE		512
 
@@ -284,12 +279,10 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	ebr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
 	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
 
-	if (compat_aliases) {
-		idx = 5;
-		LIST_FOREACH(iter, &basetable->gpt_entry, gpe_entry)
-			idx++;
-		entry->ebr_compat_idx = idx;
-	}
+	idx = 5;
+	LIST_FOREACH(iter, &basetable->gpt_entry, gpe_entry)
+		idx++;
+	entry->ebr_compat_idx = idx;
 	return (ebr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
 }
 
@@ -301,11 +294,9 @@ g_part_ebr_add_alias(struct g_part_table *table, struct g_provider *pp,
 
 	g_provider_add_alias(pp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
 	    baseentry->gpe_index);
-	if (compat_aliases) {
-		entry = (struct g_part_ebr_entry *)baseentry;
-		g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
-		    entry->ebr_compat_idx);
-	}
+	entry = (struct g_part_ebr_entry *)baseentry;
+	g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
+	    entry->ebr_compat_idx);
 }
 
 static struct g_provider *
@@ -317,11 +308,9 @@ g_part_ebr_new_provider(struct g_part_table *table, struct g_geom *gp,
 
 	pp = g_new_providerf(gp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
 	    baseentry->gpe_index);
-	if (compat_aliases) {
-		entry = (struct g_part_ebr_entry *)baseentry;
-		g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
-		    entry->ebr_compat_idx);
-	}
+	entry = (struct g_part_ebr_entry *)baseentry;
+	g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
+	    entry->ebr_compat_idx);
 	return (pp);
 }
 
@@ -573,8 +562,7 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 		entry = (struct g_part_ebr_entry *)baseentry;
 		entry->ent = ent[0];
 		memcpy(entry->ebr, buf, sizeof(entry->ebr));
-		if (compat_aliases)
-			entry->ebr_compat_idx = idx++;
+		entry->ebr_compat_idx = idx++;
 		g_free(buf);
 
 		if (ent[1].dp_typ == 0)
