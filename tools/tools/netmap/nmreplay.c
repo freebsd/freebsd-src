@@ -1249,6 +1249,8 @@ main(int argc, char **argv)
 		err += cmd_apply(delay_cfg, d[i], qs, &qs->c_delay);
 		err += cmd_apply(bw_cfg, b[i], qs, &qs->c_bw);
 		err += cmd_apply(loss_cfg, l[i], qs, &qs->c_loss);
+		if (err != 0)
+			exit(1);
 	}
 
 	pthread_create(&bp[0].cons_tid, NULL, nmreplay_main, (void*)&bp[0]);
