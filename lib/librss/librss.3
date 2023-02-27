@@ -23,8 +23,6 @@
 .Ft int
 .Fn rss_set_bucket_rebalance_cb "rss_bucket_rebalance_cb_t *cb" "void *cbdata"
 .Ft int
-.Fn rss_sock_set_bindmulti "int fd" "int af" "int val"
-.Ft int
 .Fn rss_sock_set_rss_bucket "int fd" "int af" "int rss_bucket"
 .Ft int
 .Fn rss_sock_set_recvrss "int fd" "int af" "int val"
@@ -101,16 +99,6 @@ is to rebind worker threads to an updated cpuset.
 Once RSS setup is completed,
 .Fn rss_config_free
 is called to free the RSS configuration structure.
-.Pp
-To make a
-.Vt bind
-socket RSS aware, the
-.Fn rss_sock_set_bindmulti
-function is used to enable or disable per-RSS bucket
-behaviour.
-The socket filedescriptor, address family and enable flag
-.Vt val
-are passed in.
 .Pp
 If
 .Vt val

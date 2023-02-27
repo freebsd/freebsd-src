@@ -47,14 +47,6 @@ typedef enum {
 typedef void rss_bucket_rebalance_cb_t(void *arg);
 
 /*
- * Enable/disable whether to allow for multiple bind()s to the
- * given PCB entry.
- *
- * This must be done before bind().
- */
-extern	int rss_sock_set_bindmulti(int fd, int af, int val);
-
-/*
  * Set the RSS bucket for the given file descriptor.
  *
  * This must be done before bind().

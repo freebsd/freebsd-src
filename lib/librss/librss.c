@@ -47,28 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "librss.h"
 
 int
-rss_sock_set_bindmulti(int fd, int af, int val)
-{
-	int opt;
-	socklen_t optlen;
-	int retval;
-
-	/* Set bindmulti */
-	opt = val;
-	optlen = sizeof(opt);
-	retval = setsockopt(fd,
-	    af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
-	    af == AF_INET ? IP_BINDMULTI : IPV6_BINDMULTI,
-	    &opt,
-	    optlen);
-	if (retval < 0) {
-		warn("%s: setsockopt(IP_BINDMULTI)", __func__);
-		return (-1);
-	}
-	return (0);
-}
-
-int
 rss_sock_set_rss_bucket(int fd, int af, int rss_bucket)
 {
 	int opt;
