@@ -28,7 +28,7 @@
 .\"	@(#)daemon.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2017
+.Dd February 27, 2023
 .Dt DAEMON 3
 .Os
 .Sh NAME
@@ -48,18 +48,18 @@ The
 function is for programs wishing to detach themselves from the
 controlling terminal and run in the background as system daemons.
 .Pp
-Unless the argument
+If the argument
 .Fa nochdir
-is non-zero,
+is zero,
 .Fn daemon
 changes the current working directory to the root
 .Pq Pa / .
 .Pp
-Unless the argument
+If the argument
 .Fa noclose
-is non-zero,
+is zero,
 .Fn daemon
-will redirect standard input, standard output, and standard error to
+redirects standard input, standard output, and standard error to
 .Pa /dev/null .
 .Pp
 The
