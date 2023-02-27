@@ -107,8 +107,8 @@ static const char fkey_table[96][MAXFK] = {
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
-static const int delays[]  = {250, 500, 750, 1000};
-static const int repeats[] = { 34,  38,  42,  46,  50,  55,  59,  63,
+static const int delays[]  = {200, 250, 500, 750, 1000};
+static const int repeats[] = {15, 34,  38,  42,  46,  50,  55,  59,  63,
 		      68,  76,  84,  92, 100, 110, 118, 126,
 		     136, 152, 168, 184, 200, 220, 236, 252,
 		     272, 304, 336, 368, 400, 440, 472, 504};
@@ -1064,8 +1064,11 @@ set_keyrates(char *opt)
 		delay = 500, repeat = 125;
 		d = 1, r = 15;
 	} else if (!strcmp(opt, "fast")) {
-		delay = repeat = 0;
-		d = r = 0;
+		delay = repeat = 250;
+		d = r = 34;
+	} else if (!strcmp(opt, "ultra")) {
+		delay = repeat = 200;
+		d = r = 15;
 	} else {
 		int		n;
 		char		*v1;
@@ -1077,7 +1080,7 @@ set_keyrates(char *opt)
 		repeat = strtol(opt, &v1, 0);
 		if ((repeat < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			warnx("argument to -r must be delay.repeat or slow|normal|fast");
+			warnx("argument to -r must be delay.repeat or slow|normal|fast|ultra");
 			return;
 		}
 		for (n = 0; n < ndelays - 1; n++)
