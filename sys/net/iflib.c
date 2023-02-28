@@ -2713,7 +2713,6 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 	cidx = irf->irf_idx;
 	fl = &rxq->ifr_fl[flid];
 	sd->ifsd_fl = fl;
-	m = fl->ifl_sds.ifsd_m[cidx];
 	sd->ifsd_cl = &fl->ifl_sds.ifsd_cl[cidx];
 	fl->ifl_credits--;
 #if MEMORY_LOGGING
@@ -2754,12 +2753,14 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 			 * Filter said it was OK, so receive like
 			 * normal
 			 */
+			m = fl->ifl_sds.ifsd_m[cidx];
 			fl->ifl_sds.ifsd_m[cidx] = NULL;
 			break;
 		default:
 			MPASS(0);
 		}
 	} else {
+		m = fl->ifl_sds.ifsd_m[cidx];
 		fl->ifl_sds.ifsd_m[cidx] = NULL;
 		if (pf_rv != NULL)
 			*pf_rv = PFIL_PASS;
