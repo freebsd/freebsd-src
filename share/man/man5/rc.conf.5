@@ -2349,6 +2349,23 @@ If set to
 run the
 .Xr unbound 8
 daemon as a local caching DNS resolver.
+.It Va nscd_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to start the
+.Xr nscd 8
+caching daemon for the
+.Nm nsswitch
+subsystem.
+.It Va nscd_flags
+.Pq Vt str
+If
+.Va nscd_enable
+is set to
+.Dq Li YES ,
+these flags are passed to
+.Xr nscd 8 .
 .It Va kdc_enable
 .Pq Vt bool
 Set to
