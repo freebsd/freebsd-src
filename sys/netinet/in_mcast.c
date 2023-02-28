@@ -480,7 +480,7 @@ imo_multi_filter(const struct ip_moptions *imo, const struct ifnet *ifp,
 	ims = imo_match_source(imf, src);
 
 	if ((ims == NULL && mode == MCAST_INCLUDE) ||
-	    (ims != NULL && ims->imsl_st[0] != mode))
+	    (ims != NULL && ims->imsl_st[0] == MCAST_EXCLUDE))
 		return (MCAST_NOTSMEMBER);
 
 	return (MCAST_PASS);
