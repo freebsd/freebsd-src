@@ -88,7 +88,8 @@ ATF_TC_BODY(tcp, tc)
 	nvlist_t *nvl;
 
 	/* Ensure the module is loaded. */
-	(void)kldload("if_ovpn");
+	if (kldfind("if_ovpn") == -1 && errno == ENOENT)
+		atf_tc_skip("if_ovpn not loaded");
 
 	ovpn_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
