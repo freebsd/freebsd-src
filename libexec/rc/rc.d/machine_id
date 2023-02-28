@@ -23,7 +23,7 @@ machine_id_start()
 	if [ ! -f ${machine_id_file} ] ; then
 		startmsg -n "Creating ${machine_id_file} "
 		t=$(mktemp -t machine-id)
-		/bin/uuidgen -r -o $t
+		/bin/uuidgen -r -c -o $t
 		install -C -o root -g wheel -m ${machine_id_perms} "$t" "${machine_id_file}"
 		rm -f "$t"
 		startmsg 'done.'
