@@ -32,13 +32,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <setjmp.h>
 #include <sys/disk.h>
-#include <sys/zfs_bootenv.h>
 
 #include "bootstrap.h"
 #include "disk.h"
 #include "libuserboot.h"
 
 #if defined(USERBOOT_ZFS_SUPPORT)
+#include <sys/zfs_bootenv.h>
 #include "libzfs.h"
 
 static void userboot_zfs_probe(void);
