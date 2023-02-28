@@ -30,6 +30,8 @@ A pull request will be considered if:
 * Commits should include one or more `Signed-off-by:` lines with full name and email address certifying https://developercertificate.org/[Developer Certificate of Origin].
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * The commits should not introduce trailing white space.
+* If the commmit fixes a bug, please add 'PR: <bugnumber>' to the comment message.
+* If there's a code review in phabricator, please include a link as a 'Differential Revision: ' line.
 
 When updating your pull request, please rebase with a forced push rather than a
 merge commit.
