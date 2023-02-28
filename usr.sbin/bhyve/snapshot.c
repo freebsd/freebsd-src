@@ -155,7 +155,6 @@ static const struct vm_snapshot_dev_info snapshot_devs[] = {
 static const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
 	{ "vhpet",	STRUCT_VHPET	},
 	{ "vm",		STRUCT_VM	},
-	{ "vmx",	STRUCT_VMX	},
 	{ "vioapic",	STRUCT_VIOAPIC	},
 	{ "vlapic",	STRUCT_VLAPIC	},
 	{ "vmcx",	STRUCT_VMCX	},

@@ -47,8 +47,7 @@
 struct vmctx;
 
 enum snapshot_req {
-	STRUCT_VMX,
-	STRUCT_VIOAPIC,
+	STRUCT_VIOAPIC = 1,
 	STRUCT_VM,
 	STRUCT_VLAPIC,
 	VM_MEM,

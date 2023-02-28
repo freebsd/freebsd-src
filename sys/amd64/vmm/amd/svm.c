@@ -2416,15 +2416,6 @@ svm_vlapic_cleanup(struct vlapic *vlapic)
 
 #ifdef BHYVE_SNAPSHOT
 static int
-svm_snapshot(void *vmi, struct vm_snapshot_meta *meta)
-{
-	if (meta->op == VM_SNAPSHOT_RESTORE)
-		flush_by_asid();
-
-	return (0);
-}
-
-static int
 svm_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 {
 	struct svm_vcpu *vcpu;
@@ -2656,7 +2647,6 @@ const struct vmm_ops vmm_ops_amd = {
 	.vlapic_init	= svm_vlapic_init,
 	.vlapic_cleanup	= svm_vlapic_cleanup,
 #ifdef BHYVE_SNAPSHOT
-	.snapshot	= svm_snapshot,
 	.vcpu_snapshot	= svm_vcpu_snapshot,
 	.restore_tsc	= svm_restore_tsc,
 #endif

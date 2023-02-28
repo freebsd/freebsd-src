@@ -4094,12 +4094,6 @@ vmx_vlapic_cleanup(struct vlapic *vlapic)
 
 #ifdef BHYVE_SNAPSHOT
 static int
-vmx_snapshot(void *vmi, struct vm_snapshot_meta *meta)
-{
-	return (0);
-}
-
-static int
 vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 {
 	struct vmcs *vmcs;
@@ -4254,7 +4248,6 @@ const struct vmm_ops vmm_ops_intel = {
 	.vlapic_init	= vmx_vlapic_init,
 	.vlapic_cleanup	= vmx_vlapic_cleanup,
 #ifdef BHYVE_SNAPSHOT
-	.snapshot	= vmx_snapshot,
 	.vcpu_snapshot	= vmx_vcpu_snapshot,
 	.restore_tsc	= vmx_restore_tsc,
 #endif
