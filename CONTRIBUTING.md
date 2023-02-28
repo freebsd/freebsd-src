@@ -27,7 +27,7 @@ A pull request will be considered if:
 * All commits have your name and valid email address as you would like to see them in the FreeBSD repository as the author. Fake github.com addresses cannot be used.
 * The scope of the pull request should not change during review. If the review suggests changes that expand the scope, please create an independent pull request.
 * Fixup commits should be squashed with the commit they are fixing. Each commit in your branch should be suitable for FreeBSD's repository.
-* Commits should include one or more `Signed-off-by:` lines with full name and email address certifying https://developercertificate.org/[Developer Certificate of Origin].
+* Commits should include one or more `Signed-off-by:` lines with full name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/).
 * The commits follow FreeBSD's style guide. See [Style](#Style).
 * The commits should not introduce trailing white space.
 * If the commmit fixes a bug, please add 'PR: <bugnumber>' to the comment message.
