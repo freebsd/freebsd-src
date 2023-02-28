@@ -1027,7 +1027,7 @@ lapic_calibrate_initcount_cpuid_vm(void)
 
 	/* Record divided frequency. */
 	count_freq = freq / lapic_timer_divisor;
-	return (true);
+	return (count_freq != 0);
 }
 
 static uint64_t
