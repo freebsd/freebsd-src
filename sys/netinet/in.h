@@ -463,7 +463,8 @@ VNET_DECLARE(uint32_t, in_loopback_mask);
 				     /* unused; was IP_FAITH */
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
-#define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
+				     /* unused; was IP_BIND_MULTI */
+				     /* unused; was IP_RSS_LISTEN_BUCKET */
 #define	IP_ORIGDSTADDR		27   /* bool: receive IP dst addr/port w/dgram */
 #define	IP_RECVORIGDSTADDR      IP_ORIGDSTADDR
 
