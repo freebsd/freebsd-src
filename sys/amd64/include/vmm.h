@@ -184,7 +184,6 @@ typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
 typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
 typedef struct vlapic * (*vmi_vlapic_init)(void *vcpui);
 typedef void	(*vmi_vlapic_cleanup)(struct vlapic *vlapic);
-typedef int	(*vmi_snapshot_t)(void *vmi, struct vm_snapshot_meta *meta);
 typedef int	(*vmi_snapshot_vcpu_t)(void *vcpui, struct vm_snapshot_meta *meta);
 typedef int	(*vmi_restore_tsc_t)(void *vcpui, uint64_t now);
 
@@ -210,7 +209,6 @@ struct vmm_ops {
 	vmi_vlapic_cleanup	vlapic_cleanup;
 
 	/* checkpoint operations */
-	vmi_snapshot_t		snapshot;
 	vmi_snapshot_vcpu_t	vcpu_snapshot;
 	vmi_restore_tsc_t	restore_tsc;
 };
