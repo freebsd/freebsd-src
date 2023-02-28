@@ -46,6 +46,31 @@ usage(void)
 	exit(1);
 }
 
+static void
+uuid_to_compact_string(const uuid_t *u, char **s, uint32_t *status)
+{
+	uuid_t nil;
+
+	if (status != NULL)
+		*status = uuid_s_ok;
+
+	if (s == NULL)
+		return;
+
+	if (u == NULL) {
+		u = &nil;
+		uuid_create_nil(&nil, NULL);
+	}
+
+	asprintf(s, "%08x%04x%04x%02x%02x%02x%02x%02x%02x%02x%02x",
+	    u->time_low, u->time_mid, u->time_hi_and_version,
+	    u->clock_seq_hi_and_reserved, u->clock_seq_low, u->node[0],
+	    u->node[1], u->node[2], u->node[3], u->node[4], u->node[5]);
+
+	if (*s == NULL && status != NULL)
+		*status = uuid_s_no_memory;
+}
+
 static int
 uuidgen_v4(struct uuid *store, int count)
 {
@@ -85,15 +110,19 @@ main(int argc, char *argv[])
 	uuid_t *store, *uuid;
 	char *p;
 	int ch, count, i, iterate, status, version;
+	void (*tostring)(const uuid_t *, char **, uint32_t *) = uuid_to_string;
 
 	count = -1;  /* no count yet */
 	fp = stdout; /* default output file */
 	iterate = 0; /* not one at a time */
 	version = 1; /* create uuid v1 by default */
-	while ((ch = getopt(argc, argv, "1rn:o:")) != -1)
+	while ((ch = getopt(argc, argv, "1crn:o:")) != -1)
 		switch (ch) {
 		case '1':
 			iterate = 1;
+			break;
+		case 'c':
+			tostring = uuid_to_compact_string;
 			break;
 		case 'r':
 			version = 4;
@@ -162,7 +191,7 @@ main(int argc, char *argv[])
 
 	uuid = store;
 	while (count--) {
-		uuid_to_string(uuid++, &p, &status);
+		tostring(uuid++, &p, &status);
 		if (status != uuid_s_ok)
 			err(1, "cannot stringify a UUID");
 		fprintf(fp, "%s\n", p);
