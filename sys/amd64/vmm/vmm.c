@@ -2859,6 +2859,8 @@ vm_snapshot_vcpus(struct vm *vm, struct vm_snapshot_meta *meta)
 		 */
 		tsc = now + vcpu->tsc_offset;
 		SNAPSHOT_VAR_OR_LEAVE(tsc, meta, ret, done);
+		if (meta->op == VM_SNAPSHOT_RESTORE)
+			vcpu->tsc_offset = tsc;
 	}
 
 done:
