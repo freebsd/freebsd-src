@@ -35,7 +35,7 @@
 /contrib/atf		@ngie-eign
 /contrib/capsicum-test	@ngie-eign
 /contrib/googletest	@ngie-eign
-/contrib/ipfilter	@cschuber
+/sbin/ipf		@cschuber
 /contrib/libcxxrt	@DimitryAndric @emaste
 /contrib/llvm-project	@DimitryAndric
 /contrib/llvm-project/libunwind @DimitryAndric @emaste @bsdjhb
@@ -69,7 +69,7 @@
 /sys/arm64/rockchip	@evadot
 /sys/compat/linprocfs/	@dag-erling
 /sys/compat/linuxkpi	@hselasky
-/sys/contrib/ipfilter	@cschuber
+/sys/netpfil/ipfilter	@cschuber
 /sys/crypto/openssl/	@juikim
 /sys/dev/drm2	@bsdimp
 /sys/dev/iscsi/	@trasz

@@ -40,7 +40,7 @@ ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/atf		ngie,#test		Pre-commit review requested.
 contrib/capsicum-test	ngie,#capsicum,#test	Pre-commit review requested.
 contrib/googletest	ngie,#test		Pre-commit review requested.
-contrib/ipfilter	cy			Pre-commit review requested.
+sbin/ipf	cy			Pre-commit review requested.
 contrib/libcxxrt	dim,emaste		Pre-commit review preferred.
 contrib/llvm-project/compiler-rt	dim	Pre-commit review preferred.
 contrib/llvm-project/libcxx	dim		Pre-commit review preferred.
@@ -103,7 +103,7 @@ sys/compat/linuxkpi	hselasky		If in doubt, ask.
 						(to avoid drm graphics drivers
 						impact)
 sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
-sys/contrib/ipfilter	cy	Pre-commit review requested.
+sys/netpfil/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
