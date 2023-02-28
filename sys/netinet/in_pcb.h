@@ -263,7 +263,6 @@ struct inpcb {
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	struct m_snd_tag *inp_snd_tag;	/* (i) send tag for outgoing mbufs */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
-	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
 
 	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;	/* (i) list for PCB's local port */
@@ -347,7 +346,7 @@ struct xinpcb {
 	uint32_t	inp_flowtype;		/* (s) */
 	int32_t		inp_flags;		/* (s,p) */
 	int32_t		inp_flags2;		/* (s) */
-	int32_t		inp_rss_listen_bucket;	/* (n) */
+	uint32_t	inp_unused;
 	int32_t		in6p_cksum;		/* (n) */
 	int32_t		inp_spare32[4];
 	uint16_t	in6p_hops;		/* (n) */
@@ -669,7 +668,8 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 /*				0x00000010 */
 #define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
-#define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
+/*				0x00000040 */
+/*				0x00000080 */
 #define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
 #define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
 #define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */

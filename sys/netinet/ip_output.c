@@ -1166,9 +1166,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 			}
 			/* FALLTHROUGH */
-#ifdef	RSS
-		case IP_RSS_LISTEN_BUCKET:
-#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -1264,16 +1261,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_RECVFLOWID:
 				OPTSET2(INP_RECVFLOWID, optval);
 				break;
-#ifdef	RSS
-			case IP_RSS_LISTEN_BUCKET:
-				if ((optval >= 0) &&
-				    (optval < rss_getnumbuckets())) {
-					inp->inp_rss_listen_bucket = optval;
-					OPTSET2(INP_RSS_BUCKET_SET, 1);
-				} else {
-					error = EINVAL;
-				}
-				break;
+#ifdef RSS
 			case IP_RECVRSSBUCKETID:
 				OPTSET2(INP_RECVRSSBUCKETID, optval);
 				break;

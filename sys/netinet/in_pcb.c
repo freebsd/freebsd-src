@@ -2645,7 +2645,6 @@ in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
 	xi->inp_flowtype = inp->inp_flowtype;
 	xi->inp_flags = inp->inp_flags;
 	xi->inp_flags2 = inp->inp_flags2;
-	xi->inp_rss_listen_bucket = inp->inp_rss_listen_bucket;
 	xi->in6p_cksum = inp->in6p_cksum;
 	xi->in6p_hops = inp->in6p_hops;
 	xi->inp_ip_tos = inp->inp_ip_tos;

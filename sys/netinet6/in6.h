@@ -483,8 +483,8 @@ struct route_in6 {
 				    */
 
 #define	IPV6_BINDANY		64 /* bool: allow bind to any address */
-
-#define	IPV6_RSS_LISTEN_BUCKET	66 /* int; set RSS listen bucket */
+				   /* unused; was IPV6_BIND_MULTI */
+				   /* unused; was IPV6_RSS_LISTEN_BUCKET */
 #define	IPV6_FLOWID		67 /* int; flowid of given socket */
 #define	IPV6_FLOWTYPE		68 /* int; flowtype of given socket */
 #define	IPV6_RSSBUCKETID	69 /* int; RSS bucket ID of given socket */
