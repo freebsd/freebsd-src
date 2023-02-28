@@ -51,14 +51,9 @@ growfs_fstab_start()
 		    ' < /etc/fstab
 		then
 			printf "/dev/label/growfs_swap\tnone\t\tswap\tsw\t\t0\t0\n" >>/etc/fstab
-
-			case "$dumpdev" in
-			[Aa][Uu][Tt][Oo])
-				dumpon $dumpon_flags /dev/label/growfs_swap
-				;;
-			*)
-				;;
-			esac
+			printf '# Set dumpdev to "AUTO" to enable crash dumps, "NO" to disable\n' >>/etc/rc.conf
+			printf 'dumpdev="AUTO"\n' >>/etc/rc.conf
+			dumpon $dumpon_flags /dev/label/growfs_swap
 		fi
 	fi
 }
