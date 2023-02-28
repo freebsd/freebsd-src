@@ -57,7 +57,7 @@ The provider is currently implemented only for amd64.
 .Sh EXAMPLES
 Find the offset corresponding to the third instruction in
 .Fn vm_fault
-and trace it:
+and trace it, printing the contents of the RSI register:
 .Bd -literal -offset indent
 # kgdb
 (kgdb) disas /r vm_fault
@@ -66,12 +66,12 @@ Dump of assembler code for function vm_fault:
    0xffffffff80876df1 <+1>:     48 89 e5        mov    %rsp,%rbp
    0xffffffff80876df4 <+4>:     41 57   push   %r15
 
-# dtrace -n 'kinst::vm_fault:4'
-  2  81500                       vm_fault:4
-  2  81500                       vm_fault:4
-  2  81500                       vm_fault:4
-  2  81500                       vm_fault:4
-  0  81500                       vm_fault:4
+# dtrace -n 'kinst::vm_fault:4 {printf("%#x", regs[R_RSI]);}'
+  2  81500                       vm_fault:4 0x827c56000
+  2  81500                       vm_fault:4 0x827878000
+  2  81500                       vm_fault:4 0x1fab9bef0000
+  2  81500                       vm_fault:4 0xe16cf749000
+  0  81500                       vm_fault:4 0x13587c366000
   ...
 .Ed
 .Pp
