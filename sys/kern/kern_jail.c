@@ -576,15 +576,29 @@ struct prison_ip {
 	struct epoch_context ctx;
 	uint32_t	ips;
 #ifdef FUTURE_C
+	/*
+	 * XXX Variable-length automatic arrays in union may be
+	 * supported in future C.
+	 */
 	union {
+		char pr_ip[];
 		struct in_addr pr_ip4[];
 		struct in6_addr pr_ip6[];
 	};
 #else /* No future C :( */
-#define	PR_IP(pip, i)	((const char *)((pip) + 1) + pr_families[af].size * (i))
-#define	PR_IPD(pip, i)	((char *)((pip) + 1) + pr_families[af].size * (i))
+	char pr_ip[];
 #endif
 };
+
+static char *
+PR_IP(struct prison_ip *pip, const pr_family_t af, int idx)
+{
+	MPASS(pip);
+	MPASS(af < PR_FAMILY_MAX);
+	MPASS(idx >= 0 && idx < pip->ips);
+
+	return (pip->pr_ip + pr_families[af].size * idx);
+}
 
 static struct prison_ip *
 prison_ip_alloc(const pr_family_t af, uint32_t cnt, int flags)
@@ -610,7 +624,7 @@ prison_ip_copyin(const pr_family_t af, void *op, uint32_t cnt)
 	struct prison_ip *pip;
 
 	pip = prison_ip_alloc(af, cnt, M_WAITOK);
-	bcopy(op, pip + 1, cnt * size);
+	bcopy(op, pip->pr_ip, cnt * size);
 	/*
 	 * IP addresses are all sorted but ip[0] to preserve
 	 * the primary IP address as given from userland.
@@ -620,21 +634,20 @@ prison_ip_copyin(const pr_family_t af, void *op, uint32_t cnt)
 	 * address to connect from.
 	 */
 	if (cnt > 1)
-		qsort((char *)(pip + 1) + size, cnt - 1, size,
-		    pr_families[af].cmp);
+		qsort(pip->pr_ip + size, cnt - 1, size, pr_families[af].cmp);
 	/*
 	 * Check for duplicate addresses and do some simple
 	 * zero and broadcast checks. If users give other bogus
 	 * addresses it is their problem.
 	 */
 	for (int i = 0; i < cnt; i++) {
-		if (!pr_families[af].valid(PR_IP(pip, i))) {
+		if (!pr_families[af].valid(PR_IP(pip, af, i))) {
 			free(pip, M_PRISON);
 			return (NULL);
 		}
 		if (i + 1 < cnt &&
-		    (cmp(PR_IP(pip, 0), PR_IP(pip, i + 1)) == 0 ||
-		     cmp(PR_IP(pip, i), PR_IP(pip, i + 1)) == 0)) {
+		    (cmp(PR_IP(pip, af, 0), PR_IP(pip, af, i + 1)) == 0 ||
+		     cmp(PR_IP(pip, af, i), PR_IP(pip, af, i + 1)) == 0)) {
 			free(pip, M_PRISON);
 			return (NULL);
 		}
@@ -654,7 +667,7 @@ prison_ip_dup(struct prison *ppr, struct prison *pr, const pr_family_t af)
 	if (ppr->pr_addrs[af] != NULL) {
 		pr->pr_addrs[af] = prison_ip_alloc(af,
 		    ppr->pr_addrs[af]->ips, M_WAITOK);
-		bcopy(ppr->pr_addrs[af] + 1, pr->pr_addrs[af] + 1,
+		bcopy(ppr->pr_addrs[af]->pr_ip, pr->pr_addrs[af]->pr_ip,
 		    pr->pr_addrs[af]->ips * pr_families[af].size);
 	}
 }
@@ -666,8 +679,8 @@ prison_ip_dup(struct prison *ppr, struct prison *pr, const pr_family_t af)
  * kern_jail_set() helper.
  */
 static bool
-prison_ip_parent_match(const struct prison_ip *ppip,
-    const struct prison_ip *pip, const pr_family_t af)
+prison_ip_parent_match(struct prison_ip *ppip, struct prison_ip *pip,
+    const pr_family_t af)
 {
 	prison_addr_cmp_t *const cmp = pr_families[af].cmp;
 	int i, j;
@@ -676,7 +689,7 @@ prison_ip_parent_match(const struct prison_ip *ppip,
 		return (false);
 
 	for (i = 0; i < ppip->ips; i++)
-		if (cmp(PR_IP(pip, 0), PR_IP(ppip, i)) == 0)
+		if (cmp(PR_IP(pip, af, 0), PR_IP(ppip, af, i)) == 0)
 			break;
 
 	if (i == ppip->ips)
@@ -685,11 +698,12 @@ prison_ip_parent_match(const struct prison_ip *ppip,
 
 	if (pip->ips > 1) {
 		for (i = j = 1; i < pip->ips; i++) {
-			if (cmp(PR_IP(pip, i), PR_IP(ppip, 0)) == 0)
+			if (cmp(PR_IP(pip, af, i), PR_IP(ppip, af, 0)) == 0)
 				/* Equals to parent primary address. */
 				continue;
 			for (; j < ppip->ips; j++)
-				if (cmp(PR_IP(pip, i), PR_IP(ppip, j)) == 0)
+				if (cmp(PR_IP(pip, af, i),
+				    PR_IP(ppip, af, j)) == 0)
 					break;
 			if (j == ppip->ips)
 				break;
@@ -709,7 +723,7 @@ prison_ip_parent_match(const struct prison_ip *ppip,
  */
 static bool
 prison_ip_conflict_check(const struct prison *ppr, const struct prison *pr,
-    const struct prison_ip *pip, pr_family_t af)
+    struct prison_ip *pip, pr_family_t af)
 {
 	const struct prison *tppr, *tpr;
 	int descend;
@@ -737,7 +751,7 @@ prison_ip_conflict_check(const struct prison *ppr, const struct prison *pr,
 		    (pip->ips == 1 && tpr->pr_addrs[af]->ips == 1))
 			continue;
 		for (int i = 0; i < pip->ips; i++)
-			if (prison_ip_check(tpr, af, PR_IP(pip, i)) == 0)
+			if (prison_ip_check(tpr, af, PR_IP(pip, af, i)) == 0)
 				return (false);
 	}
 
@@ -784,8 +798,8 @@ static bool
 prison_ip_restrict(struct prison *pr, const pr_family_t af,
     struct prison_ip **newp)
 {
-	const struct prison_ip *ppip = pr->pr_parent->pr_addrs[af];
-	const struct prison_ip *pip = pr->pr_addrs[af];
+	struct prison_ip *ppip = pr->pr_parent->pr_addrs[af];
+	struct prison_ip *pip = pr->pr_addrs[af];
 	int (*const cmp)(const void *, const void *) = pr_families[af].cmp;
 	const size_t size = pr_families[af].size;
 	struct prison_ip *new = newp != NULL ? *newp : NULL;
@@ -814,7 +828,7 @@ prison_ip_restrict(struct prison *pr, const pr_family_t af,
 		}
 		/* This has no user settings, so just copy the parent's list. */
 		MPASS(new->ips == ppip->ips);
-		bcopy(ppip + 1, new + 1, ppip->ips * size);
+		bcopy(ppip->pr_ip, new->pr_ip, ppip->ips * size);
 		prison_ip_set(pr, af, new);
 		if (newp != NULL)
 			*newp = NULL; /* Used */
@@ -832,30 +846,33 @@ prison_ip_restrict(struct prison *pr, const pr_family_t af,
 		}
 
 		for (int pi = 0; pi < ppip->ips; pi++)
-			if (cmp(PR_IP(pip, 0), PR_IP(ppip, pi)) == 0) {
+			if (cmp(PR_IP(pip, af, 0), PR_IP(ppip, af, pi)) == 0) {
 				/* Found our primary address in parent. */
-				bcopy(PR_IP(pip, i), PR_IPD(new, ips), size);
+				bcopy(PR_IP(pip, af, i), PR_IP(new, af, ips),
+				    size);
 				i++;
 				ips++;
 				break;
 			}
 		for (int pi = 1; i < pip->ips; ) {
 			/* Check against primary, which is unsorted. */
-			if (cmp(PR_IP(pip, i), PR_IP(ppip, 0)) == 0) {
+			if (cmp(PR_IP(pip, af, i), PR_IP(ppip, af, 0)) == 0) {
 				/* Matches parent's primary address. */
-				bcopy(PR_IP(pip, i), PR_IPD(new, ips), size);
+				bcopy(PR_IP(pip, af, i), PR_IP(new, af, ips),
+				    size);
 				i++;
 				ips++;
 				continue;
 			}
 			/* The rest are sorted. */
 			switch (pi >= ppip->ips ? -1 :
-				cmp(PR_IP(pip, i), PR_IP(ppip, pi))) {
+				cmp(PR_IP(pip, af, i), PR_IP(ppip, af, pi))) {
 			case -1:
 				i++;
 				break;
 			case 0:
-				bcopy(PR_IP(pip, i), PR_IPD(new, ips), size);
+				bcopy(PR_IP(pip, af, i), PR_IP(new, af, ips),
+				    size);
 				i++;
 				pi++;
 				ips++;
@@ -890,7 +907,7 @@ prison_ip_check(const struct prison *pr, const pr_family_t af,
     const void *addr)
 {
 	int (*const cmp)(const void *, const void *) = pr_families[af].cmp;
-	const struct prison_ip *pip;
+	struct prison_ip *pip;
 	int i, a, z, d;
 
 	MPASS(mtx_owned(&pr->pr_mtx) ||
@@ -902,7 +919,7 @@ prison_ip_check(const struct prison *pr, const pr_family_t af,
 		return (EAFNOSUPPORT);
 
 	/* Check the primary IP. */
-	if (cmp(PR_IP(pip, 0), addr) == 0)
+	if (cmp(PR_IP(pip, af, 0), addr) == 0)
 		return (0);
 
 	/*
@@ -912,7 +929,7 @@ prison_ip_check(const struct prison *pr, const pr_family_t af,
 	z = pip->ips - 2;
 	while (a <= z) {
 		i = (a + z) / 2;
-		d = cmp(PR_IP(pip, i + 1), addr);
+		d = cmp(PR_IP(pip, af, i + 1), addr);
 		if (d > 0)
 			z = i - 1;
 		else if (d < 0)
@@ -937,7 +954,7 @@ prison_ip_get0(const struct prison *pr, const pr_family_t af)
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	MPASS(pip);
 
-	return (pip + 1);
+	return (pip->pr_ip);
 }
 
 u_int
@@ -2372,14 +2389,14 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	if (error != 0 && error != ENOENT)
 		goto done;
 #ifdef INET
-	error = vfs_setopt_part(opts, "ip4.addr", pr->pr_addrs[PR_INET] + 1,
+	error = vfs_setopt_part(opts, "ip4.addr", pr->pr_addrs[PR_INET]->pr_ip,
 	    pr->pr_addrs[PR_INET] ? pr->pr_addrs[PR_INET]->ips *
 	    pr_families[PR_INET].size : 0 );
 	if (error != 0 && error != ENOENT)
 		goto done;
 #endif
 #ifdef INET6
-	error = vfs_setopt_part(opts, "ip6.addr", pr->pr_addrs[PR_INET6] + 1,
+	error = vfs_setopt_part(opts, "ip6.addr", pr->pr_addrs[PR_INET6]->pr_ip,
 	    pr->pr_addrs[PR_INET6] ? pr->pr_addrs[PR_INET6]->ips *
 	    pr_families[PR_INET6].size : 0 );
 	if (error != 0 && error != ENOENT)
@@ -4194,7 +4211,7 @@ prison_ip_copyout(struct prison *pr, const pr_family_t af, void **out, int *len)
 			mtx_lock(&pr->pr_mtx);
 			goto again;
 		}
-		bcopy(pr->pr_addrs[af] + 1, *out, pr->pr_addrs[af]->ips * size);
+		bcopy(pr->pr_addrs[af]->pr_ip, *out, pr->pr_addrs[af]->ips * size);
 	}
 }
 #endif
@@ -4869,6 +4886,7 @@ db_show_prison(struct prison *pr)
 	struct jailsys_flags *jsf;
 #if defined(INET) || defined(INET6)
 	int ii;
+	struct prison_ip *pip;
 #endif
 	unsigned f;
 #ifdef INET
@@ -4928,28 +4946,24 @@ db_show_prison(struct prison *pr)
 	db_printf(" host.hostuuid   = %s\n", pr->pr_hostuuid);
 	db_printf(" host.hostid     = %lu\n", pr->pr_hostid);
 #ifdef INET
-	if (pr->pr_addrs[PR_INET] != NULL) {
-		pr_family_t af = PR_INET;
-
-		db_printf(" ip4s            = %d\n", pr->pr_addrs[af]->ips);
-		for (ii = 0; ii < pr->pr_addrs[af]->ips; ii++)
+	if ((pip = pr->pr_addrs[PR_INET]) != NULL) {
+		db_printf(" ip4s            = %d\n", pip->ips);
+		for (ii = 0; ii < pip->ips; ii++)
 			db_printf(" %s %s\n",
 			    ii == 0 ? "ip4.addr        =" : "                 ",
 			    inet_ntoa_r(
-			    *(const struct in_addr *)PR_IP(pr->pr_addrs[af], ii),
+			    *(const struct in_addr *)PR_IP(pip, PR_INET, ii),
 			    ip4buf));
 	}
 #endif
 #ifdef INET6
-	if (pr->pr_addrs[PR_INET6] != NULL) {
-		pr_family_t af = PR_INET6;
-
-		db_printf(" ip6s            = %d\n", pr->pr_addrs[af]->ips);
-		for (ii = 0; ii < pr->pr_addrs[af]->ips; ii++)
+	if ((pip = pr->pr_addrs[PR_INET6]) != NULL) {
+		db_printf(" ip6s            = %d\n", pip->ips);
+		for (ii = 0; ii < pip->ips; ii++)
 			db_printf(" %s %s\n",
 			    ii == 0 ? "ip6.addr        =" : "                 ",
 			    ip6_sprintf(ip6buf,
-			    (const struct in6_addr *)PR_IP(pr->pr_addrs[af], ii)));
+			    (const struct in6_addr *)PR_IP(pip, PR_INET6, ii)));
 	}
 #endif
 }
