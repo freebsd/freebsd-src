@@ -634,7 +634,7 @@ prison_ip_copyin(const pr_family_t af, void *op, uint32_t cnt)
 	 * address to connect from.
 	 */
 	if (cnt > 1)
-		qsort(pip->pr_ip + size, cnt - 1, size, pr_families[af].cmp);
+		qsort(PR_IP(pip, af, 1), cnt - 1, size, cmp);
 	/*
 	 * Check for duplicate addresses and do some simple
 	 * zero and broadcast checks. If users give other bogus
@@ -663,12 +663,13 @@ prison_ip_copyin(const pr_family_t af, void *op, uint32_t cnt)
 static void
 prison_ip_dup(struct prison *ppr, struct prison *pr, const pr_family_t af)
 {
+	const struct prison_ip *ppip = ppr->pr_addrs[af];
+	struct prison_ip *pip;
 
-	if (ppr->pr_addrs[af] != NULL) {
-		pr->pr_addrs[af] = prison_ip_alloc(af,
-		    ppr->pr_addrs[af]->ips, M_WAITOK);
-		bcopy(ppr->pr_addrs[af]->pr_ip, pr->pr_addrs[af]->pr_ip,
-		    pr->pr_addrs[af]->ips * pr_families[af].size);
+	if (ppip != NULL) {
+		pip = prison_ip_alloc(af, ppip->ips, M_WAITOK);
+		bcopy(ppip->pr_ip, pip->pr_ip, pip->ips * pr_families[af].size);
+		pr->pr_addrs[af] = pip;
 	}
 }
 
@@ -4199,19 +4200,20 @@ static SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 static void
 prison_ip_copyout(struct prison *pr, const pr_family_t af, void **out, int *len)
 {
+	const struct prison_ip *pip;
 	const size_t size = pr_families[af].size;
 
  again:
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
-	if (pr->pr_addrs[af] != NULL) {
-		if (*len < pr->pr_addrs[af]->ips) {
-			*len = pr->pr_addrs[af]->ips;
+	if ((pip = pr->pr_addrs[af]) != NULL) {
+		if (*len < pip->ips) {
+			*len = pip->ips;
 			mtx_unlock(&pr->pr_mtx);
 			*out = realloc(*out, *len * size, M_TEMP, M_WAITOK);
 			mtx_lock(&pr->pr_mtx);
 			goto again;
 		}
-		bcopy(pr->pr_addrs[af]->pr_ip, *out, pr->pr_addrs[af]->ips * size);
+		bcopy(pip->pr_ip, *out, pip->ips * size);
 	}
 }
 #endif
