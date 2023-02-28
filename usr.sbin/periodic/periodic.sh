@@ -53,7 +53,7 @@ if [ $1 != "LOCKED" ]; then
     ret=0
     for arg; do
         lockfile=/var/run/periodic.${arg##*/}.lock
-        lockf -t 0 "${lockfile}" /bin/sh $0 LOCKED "$arg"
+        lockf -s -t 0 "${lockfile}" /bin/sh $0 LOCKED "$arg"
         case $? in
         0) ;;
         73) #EX_CANTCREATE
