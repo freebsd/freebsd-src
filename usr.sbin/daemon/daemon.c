@@ -179,6 +179,22 @@ main(int argc, char *argv[])
 	sigemptyset(&mask_term);
 	sigemptyset(&mask_orig);
 
+	/* Supervision mode is enabled if one of the following options are used:
+	 * --child-pidfile -p
+	 * --supervisor-pidfile -P
+	 * --restart -r / --restart-delay -R
+	 * --syslog -S
+	 * --syslog-facility -l
+	 * --syslog-priority -s
+	 * --syslog-tag -T
+	 *
+	 * In supervision mode daemon executes the command in a forked process
+	 * and observes the child by waiting for SIGCHILD. In supervision mode
+	 * daemon must never exit before the child, this is necessary  to prevent
+	 * orphaning the child and leaving a stale pid file.
+	 * To achieve this daemon catches SIGTERM and
+	 * forwards it to the child, expecting to get SIGCHLD eventually.
+	 */
 	while ((ch = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'c':
@@ -196,6 +212,7 @@ main(int argc, char *argv[])
 				errx(5, "unrecognized syslog facility");
                         }
 			logparams.syslog_enabled = true;
+			supervision_enabled = true;
 			break;
 		case 'm':
 			stdmask = strtol(optarg, &p, 10);
@@ -205,15 +222,23 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			logparams.output_filename = optarg;
+			/* TODO: setting output filename doesn't have to turn the supervision mode on.
+                         * For non-supervised mode daemon could open the specified file and set it's
+                         * descriptor as both stderr and stout before execve()
+                         */
+			supervision_enabled = true;
 			break;
 		case 'p':
 			child_pidfile = optarg;
+			supervision_enabled = true;
 			break;
 		case 'P':
 			parent_pidfile = optarg;
+                        supervision_enabled = true;
 			break;
 		case 'r':
 			restart_enabled = true;
+			supervision_enabled = true;
 			break;
 		case 'R':
 			restart_enabled = true;
@@ -228,9 +253,11 @@ main(int argc, char *argv[])
 				errx(4, "unrecognized syslog priority");
                         }
 			logparams.syslog_enabled = true;
+			supervision_enabled = true;
 			break;
 		case 'S':
 			logparams.syslog_enabled = true;
+			supervision_enabled = true;
 			break;
 		case 't':
 			title = optarg;
@@ -238,6 +265,7 @@ main(int argc, char *argv[])
 		case 'T':
 			logparams.syslog_tag = optarg;
 			logparams.syslog_enabled = true;
+			supervision_enabled = true;
 			break;
 		case 'u':
 			user = optarg;
@@ -282,29 +310,6 @@ main(int argc, char *argv[])
 	}
 	/* Write out parent pidfile if needed. */
 	pidfile_write(parent_pidfh);
-
-	/*
-	 * Supervision mode is enabled if one of the following options are used:
-	 * --child-pidfile -p
-	 * --supervisor-pidfile -P
-	 * --restart -r / --restart-delay -R
-	 * --syslog -S
-	 * --syslog-facility -l
-	 * --syslog-priority -s
-	 * --syslog-tag -T
-	 *
-	 * In supervision mode daemon executes the command in a forked process
-	 * and observes the child by waiting for SIGCHILD. In supervision mode
-	 * daemon must never exit before the child, this is necessary  to prevent
-	 * orphaning the child and leaving a stale pid file.
-	 * To achieve this daemon catches SIGTERM and
-	 * forwards it to the child, expecting to get SIGCHLD eventually.
-	 */
-	supervision_enabled = child_pidfile != NULL ||
-		parent_pidfile != NULL ||
-		restart_enabled  == true ||
-		logparams.output_fd != -1 ||
-		logparams.syslog_enabled == true;
 
 	if (supervision_enabled) {
 		struct sigaction act_term = { 0 };
